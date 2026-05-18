@@ -16,6 +16,14 @@
     return `${thStr} TH/s${star}`;
   }
 
+  const COMMUNITY = {
+    github: "https://github.com/jokeez/hackme",
+    annMd: "https://github.com/jokeez/hackme/blob/main/docs/BITCOINTALK_ANN.md",
+    tgChannel: "https://t.me/hackme_tech",
+    tgEn: "https://t.me/hackme_en",
+    tgRu: "https://t.me/hackme_ru",
+  };
+
   const CONFIG = {
     explorerUrl: "/pool/explorer",
     newsUrl: "./news.html",
@@ -59,6 +67,30 @@
   function wireNewsLinks() {
     ensureNewsLink(".nav");
     ensureNewsLink(".footer-nav");
+  }
+
+  function ensureFooterLink(nav, href, text) {
+    if (!nav || !href) return;
+    const norm = href.toLowerCase();
+    const exists = Array.from(nav.querySelectorAll("a")).some((a) => {
+      const h = (a.getAttribute("href") || "").trim().toLowerCase();
+      return h === norm || h.endsWith(norm.replace("https://", ""));
+    });
+    if (exists) return;
+    const link = document.createElement("a");
+    link.href = href;
+    link.textContent = text;
+    if (href.startsWith("http")) {
+      link.target = "_blank";
+      link.rel = "noreferrer";
+    }
+    nav.prepend(link);
+  }
+
+  function wireCommunityFooter() {
+    document.querySelectorAll(".footer-nav").forEach((nav) => {
+      ensureFooterLink(nav, COMMUNITY.github, "GitHub");
+    });
   }
 
   function wireDownloadLinks() {
@@ -351,6 +383,7 @@
   const { liveEl } = paintDomainMeta();
   wireExplorerLinks();
   wireNewsLinks();
+  wireCommunityFooter();
   wireDownloadLinks();
   void renderNewsPage();
   void renderNewsHealth();

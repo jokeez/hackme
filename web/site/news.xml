@@ -5,7 +5,14 @@
     <link>https://hackme.tech/news.html</link>
     <description>Official HackMe Network release, infrastructure, economics, and security updates.</description>
     <language>en-us</language>
-    <lastBuildDate>Tue, 05 May 2026 00:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Sat, 18 May 2026 12:00:00 GMT</lastBuildDate>
+    <item>
+      <title>Open source: HackMe stack on GitHub (Apache-2.0)</title>
+      <link>https://hackme.tech/news.html#2026-05-18-open-source-github</link>
+      <guid>https://hackme.tech/news.html#2026-05-18-open-source-github</guid>
+      <pubDate>Sat, 18 May 2026 12:00:00 GMT</pubDate>
+      <description>Full public pool stack published at github.com/jokeez/hackme under Apache-2.0. Verify binaries on hackme.tech/downloads.html.</description>
+    </item>
     <item>
       <title>RC7 Release Pack + Hybrid Anti-Replay Hardening</title>
       <link>https://hackme.tech/news.html#2026-05-05-rc7-security-hardening-and-release-pack</link>

@@ -239,6 +239,7 @@ def build_reply_markup(
     *,
     site_home: str,
     extra_row: bool,
+    item_links: Dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
     rows: List[List[Dict[str, str]]] = [
         [{"text": "Read full update", "url": btn_url}],
@@ -252,6 +253,18 @@ def build_reply_markup(
                 {"text": "All news", "url": f"{h}/news.html"},
             ]
         )
+    if isinstance(item_links, dict):
+        link_row: List[Dict[str, str]] = []
+        for key, label in (
+            ("github", "GitHub ⭐"),
+            ("bitcointalk", "Bitcointalk"),
+            ("telegram", "Telegram"),
+        ):
+            u = str(item_links.get(key, "")).strip()
+            if u:
+                link_row.append({"text": label, "url": u})
+        if link_row:
+            rows.append(link_row[:3])
     return {"inline_keyboard": rows}
 
 
@@ -345,6 +358,7 @@ def run_once(
                 btn_url,
                 site_home=site_home,
                 extra_row=miner_button_row,
+                item_links=it.get("links") if isinstance(it.get("links"), dict) else None,
             ),
         }
 
