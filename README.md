@@ -1,116 +1,179 @@
-# HackMe
+<div align="center">
 
-Useful Proof-of-Work mining infrastructure: a Go node with a web dashboard, public pool coordinator integration, WASM task validation, and optional GPU PoH.
+# HackMe Network
+
+**Useful Proof-of-Work infrastructure for pool mining, WASM validation, and operator-grade observability.**
+
+[![Release](https://img.shields.io/badge/release-0.1.0--rc9-00d1ff?style=for-the-badge)](https://hackme.tech/downloads.html)
+[![License](https://img.shields.io/badge/license-Apache%202.0-39ff14?style=for-the-badge)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.22+-0a0c10?style=for-the-badge&logo=go&logoColor=00d1ff)](https://go.dev/)
+[![Website](https://img.shields.io/badge/website-hackme.tech-7fe7ff?style=for-the-badge)](https://hackme.tech)
+
+[Downloads](https://hackme.tech/downloads.html) · [Pool Explorer](https://hackme.tech/pool/explorer) · [Documentation](https://hackme.tech/docs.html) · [Economics](https://hackme.tech/economics-model.html) · [Security audit](docs/SECURITY_AUDIT_REDTEAM.md)
+
+</div>
+
+---
+
+## At a glance
 
 | | |
-|---|---|
-| **Version** | `0.1.0-rc9` |
-| **Website** | https://hackme.tech |
-| **Pool explorer** | https://hackme.tech/pool/explorer |
-| **Downloads** | https://hackme.tech/downloads.html |
+|:---|:---|
+| **What** | Desktop **node** + **pool worker** + optional **coordinator** for fleet mining |
+| **PoW model** | WASM sandbox · dynamic `poh_target_mod` · optional GPU (OpenCL/CUDA) |
+| **Public pool** | [hackme.tech](https://hackme.tech) — coordinator accrual + on-chain settlement |
+| **License** | [Apache-2.0](LICENSE) — fork-friendly, **attribution required** |
+| **Status** | Release candidate `0.1.0-rc9` — production stack hardened (see [security](#security--open-source)) |
 
-## What it does
+> **Miners:** Pool rewards accrue on the **coordinator** first. On-chain HMC arrives after **operator settlement** to your address in `WORKER_PAYOUT_MAP`. Block subsidies on the canonical chain credit the **producing node wallet**, not every GPU automatically.  
+> Details → [economics model](https://hackme.tech/economics-model.html) · [network model](docs/NETWORK_MODEL.md)
 
-- **Node** — HTTP API + tabbed dashboard (`127.0.0.1:8080` by default), SQLite chain, genesis, wallet, orders, fuzz campaigns.
-- **Pool worker** — connect to a coordinator (`HACKME_PUBLIC_AUTHORITY_BASE` or `HACKME_POOL_COORDINATOR_URL`), submit work ranges, accrue off-chain payout, settle on-chain via operator scripts.
-- **Coordinator** — separate binary (`cmd/coordinator`) for claim/submit/stats, fleet caps, hybrid signing.
-- **Public site** — static landing in `web/site/` (deployed separately from the node process).
+---
 
-Mining rewards on the **canonical chain** credit the producing node’s primary wallet. **Pool workers** earn via coordinator accrual and periodic settlement to addresses in `WORKER_PAYOUT_MAP` (not automatic per-GPU splits of every block). See [docs/ECONOMICS_DASHBOARD.md](docs/ECONOMICS_DASHBOARD.md).
+## Architecture
 
-## Quick start (Linux desktop / miner)
-
-**Requirements:** Go 1.22+, `curl`, `jq` (for ops scripts). GPU builds need OpenCL or CUDA dev libraries.
-
-```bash
-# Clone, then from repo root:
-go run .
-
-# Or desktop profile (creates .env.desktop on first run):
-bash scripts/ops/desktop_mode_up.sh
+```mermaid
+flowchart LR
+  subgraph miner["Your machine"]
+    N[Node + Dashboard<br/>:8080]
+    W[Pool worker<br/>workerpoh]
+  end
+  subgraph vps["Operator VPS"]
+    C[Command node<br/>canonical chain]
+    CO[Coordinator<br/>claim / submit]
+  end
+  N -->|read-only API| C
+  W -->|signed work| CO
+  CO -->|accrual| CO
+  C -->|settlement script| Wallets[(Miner HMC wallets)]
 ```
 
-Open **http://127.0.0.1:8080** · default DB: `data/hackme.db` (gitignored).
+| Component | Role |
+|-----------|------|
+| **Node** (`hackme-node`) | Dashboard, wallet, chain view, worker launcher, fuzz/orders API |
+| **Worker** (`workerpoh`) | Claims nonce ranges, submits results to coordinator |
+| **Coordinator** | Fair leases, hybrid signing, payout accounting (off-chain) |
+| **Public site** | Static landing, downloads, checksums — [`web/site/`](web/site/) |
 
-**Public pool follower** (recommended for miners):
+---
+
+## Quick start
+
+### Requirements
+
+- **Go 1.22+**, `curl`, `jq` (ops scripts)
+- **Linux** or **Windows** (release zip)
+- GPU optional: OpenCL or CUDA dev libs for tagged builds
+
+### Linux — join the public pool (recommended)
 
 ```bash
+git clone https://github.com/YOUR_ORG/hackme.git && cd hackme
+
 export HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech
-# Optional: WORKER_PAYOUT_MAP=worker-my-pc=HMC-...
+# Payout wallet (must match operator WORKER_PAYOUT_MAP for settlement):
+# export WORKER_PAYOUT_MAP=worker-my-rig=HMC-your-address
+
 bash scripts/ops/desktop_mode_up.sh
 ```
 
-Start the pool worker from the **Mining** tab or:
+Open **http://127.0.0.1:8080** → **Mining** → **Start pool worker**.
 
 ```bash
-WORKER_AUTOSTART=1 SKIP_TOOLCHAINS=1 bash scripts/ops/desktop_mode_up.sh
-```
-
-Stop:
-
-```bash
+# Stop
 bash scripts/ops/desktop_mode_stop.sh
 ```
 
-**Windows:** use `dist/release_*` zip or build with `scripts/release/make_release_bundle.sh` — run `start_hackme_public_pool.bat` or `start_hackme_desktop_mode.bat` (see `RELEASE_QUICKSTART.md` in the bundle).
+### Windows
 
-## Build
+1. Download from [hackme.tech/downloads.html](https://hackme.tech/downloads.html)  
+2. Verify **SHA256** on the downloads page  
+3. Run `start_hackme_public_pool.bat`  
+4. See `RELEASE_QUICKSTART.md` inside the bundle  
+
+### Build from source
 
 ```bash
 go build -trimpath -o hackme-node .
 
-# GPU (OpenCL when available):
+# GPU (OpenCL):
 go build -trimpath -tags opencl -o hackme-node .
-```
 
-Coordinator:
-
-```bash
 go build -trimpath -o hackme-coordinator ./cmd/coordinator
 ```
 
-Release bundle:
+Release artifacts:
 
 ```bash
 VERSION=0.1.0-rc9 bash scripts/release/make_release_bundle.sh
 bash scripts/release/verify_artifacts.sh dist/release_0.1.0-rc9
 ```
 
+---
+
 ## Documentation
 
-| Document | Topic |
-|----------|--------|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components and data flow |
-| [docs/NETWORK_MODEL.md](docs/NETWORK_MODEL.md) | VPS command node, coordinator, workers, P2P |
-| [docs/API.md](docs/API.md) | HTTP API surface |
-| [docs/SECURITY.md](docs/SECURITY.md) | Threat model, admin token, hardening |
-| [docs/SECURITY_AUDIT_REDTEAM.md](docs/SECURITY_AUDIT_REDTEAM.md) | Pre–open-source red-team audit and production checklist |
-| [docs/OPEN_POOL_MINERS.md](docs/OPEN_POOL_MINERS.md) | Joining the public pool |
-| [docs/OPERATOR_FINAL_CHECKLIST.md](docs/OPERATOR_FINAL_CHECKLIST.md) | Production deploy gates |
-| [docs/PUBLIC_LAUNCH_VERDICT.md](docs/PUBLIC_LAUNCH_VERDICT.md) | What is / is not guaranteed at launch |
+| Document | Description |
+|----------|-------------|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and data flow |
+| [docs/NETWORK_MODEL.md](docs/NETWORK_MODEL.md) | VPS, workers, P2P, canonical follower |
+| [docs/API.md](docs/API.md) | HTTP API reference |
+| [docs/OPEN_POOL_MINERS.md](docs/OPEN_POOL_MINERS.md) | Miner setup guide |
+| [SECURITY.md](SECURITY.md) | Vulnerability reporting (GitHub) |
+| [docs/SECURITY.md](docs/SECURITY.md) | Threat model and hardening |
+| [docs/SECURITY_AUDIT_REDTEAM.md](docs/SECURITY_AUDIT_REDTEAM.md) | Pre–open-source red-team report |
+| [docs/PUBLIC_LAUNCH_VERDICT.md](docs/PUBLIC_LAUNCH_VERDICT.md) | Launch guarantees vs limits |
+| [docs/TRADEMARK_AND_FORKING.md](docs/TRADEMARK_AND_FORKING.md) | **Protecting your brand when code is public** |
+| [docs/BITCOINTALK_ANN.md](docs/BITCOINTALK_ANN.md) | Forum announcement + [BBCode paste](docs/BITCOINTALK_ANN_BBCode.txt) |
 | [scripts/release/README.md](scripts/release/README.md) | Release pipeline |
 
-Static site sources: [web/site/](web/site/).
+---
 
-## CI and health checks
+## Security & open source
+
+Publishing source code **does not** give anyone your servers, tokens, or domain. It **does** let others read and fork the code under the license.
+
+| Risk | Mitigation |
+|------|------------|
+| **Fake pools / phishing** | Only trust **https://hackme.tech**, verify binary SHA256, check GitHub org |
+| **Token / key theft** | Never commit `.secrets/`, `.env.desktop`, `data/*.db` — already in [`.gitignore`](.gitignore) |
+| **Coordinator abuse** | Production uses admin token, found-only payout, hybrid signer strict — see [hardening example](scripts/ops/public_pool_hardening.env.example) |
+| **Someone renames your project** | [Apache-2.0](LICENSE) requires **license + NOTICE**; **HackMe™ name/logo** are not open — see [TRADEMARK_AND_FORKING.md](docs/TRADEMARK_AND_FORKING.md) |
+| **Exploits after publish** | [Responsible disclosure](https://hackme.tech/contacts.html) · audit: [SECURITY_AUDIT_REDTEAM.md](docs/SECURITY_AUDIT_REDTEAM.md) |
+
+**Production checklist (operators):**
 
 ```bash
 bash scripts/ops/verify_project_health.sh
 bash scripts/ops/public_release_readiness.sh
+NODE_SSH=hackme-vps bash scripts/ops/apply_security_hardening_vps.sh
 ```
 
-GitHub Actions: [.github/workflows/ci.yml](.github/workflows/ci.yml) (`gofmt`, `go test`, `go vet`, language static checks).
+CI: [.github/workflows/ci.yml](.github/workflows/ci.yml)
 
-## Security
+---
 
-- Set `HACKME_ADMIN_TOKEN` for mutating routes; never commit tokens or seeds.
-- Ignored paths: `.secrets/`, `.env.desktop`, `data/*.db`, `logs/`.
-- Pool settlement is operator-driven: `scripts/ops/settle_worker_payouts.sh` on the chain host.
+## Verify official software
+
+| Check | Official |
+|-------|----------|
+| Website | `https://hackme.tech` |
+| Downloads | `https://hackme.tech/downloads.html` |
+| Pool explorer | `https://hackme.tech/pool/explorer` |
+| Source (after you publish) | Your GitHub org only — link from the website |
+
+If a fork uses the HackMe name, logo, or `hackme.tech` domain without permission — that is **trademark misuse**, not allowed by the license. See [docs/TRADEMARK_AND_FORKING.md](docs/TRADEMARK_AND_FORKING.md).
+
+---
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+Contributions welcome under [CONTRIBUTING.md](CONTRIBUTING.md).  
+Security issues: **do not** open public exploits — contact via [hackme.tech/contacts.html](https://hackme.tech/contacts.html).
+
+---
 
 ## License
 
-Apache-2.0 — see [LICENSE](LICENSE).
+Copyright © 2026 HackMe contributors.  
+Licensed under the [Apache License, Version 2.0](LICENSE).

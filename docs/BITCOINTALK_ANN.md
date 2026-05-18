@@ -1,82 +1,120 @@
-# Bitcointalk ANN draft (English)
+# Bitcointalk announcement — HackMe Network
 
-Copy-paste and adjust `[POOL_URL]`, release links, and contact before posting.
-
----
-
-## [ANN] HackMe Network — useful PoW pool, WASM tasks, public coordinator
-
-**Type:** Pool / infrastructure (not an ICO)  
-**Website:** https://hackme.tech  
-**Explorer:** https://hackme.tech/pool/explorer  
-**Downloads:** https://hackme.tech/downloads.html  
-**Source (when published):** `https://github.com/YOUR_ORG/hackme`  
-**Version:** 0.1.0-rc9  
+**Language:** English only (forum post)  
+**Version:** `0.1.0-rc9`  
+**Before posting:** replace `YOUR_ORG` in the GitHub URL if the repo is already public.
 
 ---
 
-### What is HackMe?
+## Copy for the forum (Markdown-style preview)
 
-HackMe is a **useful Proof-of-Work** stack: miners run a desktop **node + worker** that connects to a **public pool coordinator**, submits verifiable work ranges, and accrues **off-chain HMC** credits. Payouts to your wallet happen via **operator settlement** (on-chain transfers), not automatically inside every PoH block.
-
-**Important — read before mining:**
-- Pool rewards are tracked on the **coordinator** (accrual), then paid on-chain by settlement scripts.
-- Block subsidies on the canonical chain go to the **producing node's primary wallet**, not split per GPU automatically.
-- Public pool uses **found-only payout policy** and **strict hybrid signing** on the coordinator (see docs).
+Use the BBCode file for one-click paste: **[BITCOINTALK_ANN_BBCode.txt](BITCOINTALK_ANN_BBCode.txt)**
 
 ---
 
-### Quick start (miner)
+### Title (suggested)
 
-1. Download the Windows or Linux bundle from [Downloads](https://hackme.tech/downloads.html). Verify SHA256 from the same page.
-2. Run `start_hackme_public_pool.bat` (Windows) or `scripts/ops/desktop_mode_up.sh` (Linux).
-3. Set your payout address in `WORKER_PAYOUT_MAP` (see README) — must match operator map for settlement.
-4. Open the dashboard at `http://127.0.0.1:8080` → **Mining** → **Start pool worker**.
-5. Track accrual: dashboard **Unpaid worker accrual** and coordinator **Work payout** table.
-
-**Public authority (default):** `HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech`
+`[ANN] HackMe Network — useful PoW pool · WASM work · public coordinator · rc9`
 
 ---
 
-### Economics (short)
+### Body
 
-| Layer | What you earn |
+**HackMe Network** is open infrastructure for **useful Proof-of-Work**: a desktop **node + pool worker** connects to our **public coordinator**, submits verifiable nonce ranges, and accrues **off-chain HMC** credits. On-chain payouts reach your wallet after **operator settlement** (not inside every PoH block).
+
+| | Official links |
+|:---|:---|
+| **Website** | https://hackme.tech |
+| **Downloads** (SHA256 on page) | https://hackme.tech/downloads.html |
+| **Pool explorer** | https://hackme.tech/pool/explorer |
+| **Economics** | https://hackme.tech/economics-model.html |
+| **Docs** | https://hackme.tech/docs.html |
+| **Source** | `https://github.com/YOUR_ORG/hackme` (Apache-2.0) |
+
+---
+
+#### What you run
+
+1. **Node** (`hackme-node`) — dashboard, wallet view, worker launcher (`:8080` locally).
+2. **Worker** (`workerpoh`) — claims work from the coordinator, submits results.
+3. **Optional:** follow the **canonical chain** read-only from `https://hackme.tech` (follower mode).
+
+No ICO. No token sale. Pool / infrastructure thread.
+
+---
+
+#### Miner quick start
+
+1. Download **Windows** or **Linux** bundle from [Downloads](https://hackme.tech/downloads.html).
+2. **Verify SHA256** on the same page — do not use mirrors or random Telegram links.
+3. **Windows:** run `start_hackme_public_pool.bat` from the zip.
+4. **Linux:** clone the repo (or use the bundle) and run:
+   ```bash
+   export HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech
+   bash scripts/ops/desktop_mode_up.sh
+   ```
+5. Set **`WORKER_PAYOUT_MAP`** so your worker id maps to your **`HMC-…`** address (must match the operator map for settlement).
+6. Open **http://127.0.0.1:8080** → **Mining** → **Start pool worker**.
+7. Watch **Unpaid worker accrual** on the dashboard and the coordinator **Work payout** table on the explorer.
+
+**Default public authority:** `HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech`
+
+---
+
+#### Economics (read this)
+
+| Layer | What happens |
 |--------|----------------|
-| Coordinator | Off-chain `payout_hmc` per accepted work (found hits + policy) |
-| Chain | On-chain HMC only after **settlement** to your `HMC-…` address |
-| Orders / fuzz | Separate product track (enterprise); not required for pool mining |
+| **Coordinator** | Off-chain `payout_hmc` for accepted work (policy: found hits, env formulas) |
+| **Chain** | Block subsidy credits the **producing node’s primary wallet** — not auto-split to every GPU |
+| **Settlement** | Operator script sends accumulated HMC to your on-chain address |
 
-Details: https://hackme.tech/economics-model.html
-
----
-
-### Security & transparency
-
-- Open-source node, coordinator, and worker (Apache-2.0).
-- Red-team checklist: `docs/SECURITY_AUDIT_REDTEAM.md` in the repository.
-- Admin tokens required on production VPS; coordinator not exposed without authentication on mutating routes.
-- Do not run a public coordinator without `HACKME_COORDINATOR_ADMIN_TOKEN`.
-
-**Report security issues:** https://hackme.tech/contacts.html (responsible disclosure — no public exploit posts).
+**Bottom line:** accrual on the coordinator ≠ coins in your wallet until settlement runs. Details: https://hackme.tech/economics-model.html
 
 ---
 
-### Links
+#### Security & trust
+
+- **Official site only:** `https://hackme.tech` — check the URL bar.
+- **Checksums:** every release on the downloads page; match before running binaries.
+- **Open source:** Apache-2.0 — audit `docs/SECURITY_AUDIT_REDTEAM.md` in the repo.
+- **Production pool:** admin token on coordinator, strict hybrid signing, hardened VPS (operator).
+- **Do not** expose your own public coordinator without `HACKME_COORDINATOR_ADMIN_TOKEN`.
+
+**Vulnerability reports:** https://hackme.tech/contacts.html — responsible disclosure only (no public 0-day dumps).
+
+**Forks:** code may be forked under the license; the **HackMe name and logo** are not a free pass to impersonate the official pool. See `docs/TRADEMARK_AND_FORKING.md`.
+
+---
+
+#### Hardware
+
+- **CPU:** supported (WASM PoH path).
+- **GPU:** optional OpenCL/CUDA builds (`workerpoh` tags).
+- **OS:** Linux and Windows release bundles.
+
+---
+
+#### Operator / advanced
 
 | Resource | URL |
 |----------|-----|
-| Landing | https://hackme.tech/ |
-| Docs hub | https://hackme.tech/docs.html |
 | API reference | https://hackme.tech/api-reference.html |
 | Operator checklist | https://hackme.tech/operator-checklist.html |
-| Pool explorer | https://hackme.tech/pool/explorer |
+| Network model (repo) | `docs/NETWORK_MODEL.md` |
 
 ---
 
-### Disclaimer
+#### Disclaimer
 
-Mining and cryptocurrency involve risk. HackMe is experimental infrastructure (rc9). No investment advice. Run only software you have verified. Operators may change pool parameters (difficulty, payout policy) with notice on the website.
+Cryptocurrency mining involves technical and financial risk. HackMe is **experimental** release-candidate software (`0.1.0-rc9`). Not investment advice. Pool parameters (difficulty, payout policy) may change with notice on the website. Run only software you have verified.
 
 ---
 
-*Thread tags suggestion: `[ANN][POOL][CPU][GPU][WASM][POS]` — adjust to forum rules.*
+#### Thread tags (adjust to forum rules)
+
+`[ANN][POOL][CPU][GPU][WASM][ALGO]`
+
+---
+
+*Prepared for Bitcointalk — keep this file in sync with `README.md` and the live downloads page.*
