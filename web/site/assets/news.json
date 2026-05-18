@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-05-18-open-source-github",
+      "date": "2026-05-18",
+      "title": "🚀 Open source: HackMe stack on GitHub (Apache-2.0)",
+      "summary": "The full public pool stack is now open: node, coordinator, worker, dashboard, explorer UI, and operator scripts — licensed under Apache-2.0. Repository: github.com/jokeez/hackme. Build from source, audit security hardening, or send pull requests. Always verify release SHA256 on hackme.tech/downloads.html (official binaries only).",
+      "tags": ["opensource", "release", "security", "community"],
+      "impact": "Miners and auditors can review coordinator auth, hybrid signer paths, and settlement tooling. Community can spot fake pools by diffing against the official repository and checksums on hackme.tech.",
+      "action": "⭐ Star & clone: https://github.com/jokeez/hackme · 📥 Downloads: https://hackme.tech/downloads.html · 💬 Telegram: @hackme_tech (channel), @hackme_en (EN group), @hackme_ru (RU group) · 📋 Bitcointalk ANN (BBCode): github.com/jokeez/hackme/blob/main/docs/BITCOINTALK_ANN_BBCode.txt",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme",
+        "bitcointalk": "https://github.com/jokeez/hackme/blob/main/docs/BITCOINTALK_ANN.md",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-15-pool-release-1-0-0-pool-live",
       "date": "2026-05-15",
       "title": "Pool release 1.0.0-pool is live — public mining, faster dashboard, production deploy",
