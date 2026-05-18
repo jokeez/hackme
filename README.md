@@ -68,7 +68,7 @@ flowchart LR
 ### Linux — join the public pool (recommended)
 
 ```bash
-git clone https://github.com/YOUR_ORG/hackme.git && cd hackme
+git clone https://github.com/jokeez/hackme.git && cd hackme
 
 export HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech
 # Payout wallet (must match operator WORKER_PAYOUT_MAP for settlement):

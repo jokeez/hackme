@@ -2,7 +2,7 @@
 
 **Language:** English only (forum post)  
 **Version:** `0.1.0-rc9`  
-**Before posting:** replace `YOUR_ORG` in the GitHub URL if the repo is already public.
+**Source:** https://github.com/jokeez/hackme
 
 ---
 
@@ -29,7 +29,7 @@ Use the BBCode file for one-click paste: **[BITCOINTALK_ANN_BBCode.txt](BITCOINT
 | **Pool explorer** | https://hackme.tech/pool/explorer |
 | **Economics** | https://hackme.tech/economics-model.html |
 | **Docs** | https://hackme.tech/docs.html |
-| **Source** | `https://github.com/YOUR_ORG/hackme` (Apache-2.0) |
+| **Source** | https://github.com/jokeez/hackme (Apache-2.0) |
 
 ---
 

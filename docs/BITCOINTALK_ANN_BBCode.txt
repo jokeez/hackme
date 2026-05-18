@@ -12,7 +12,7 @@ HackMe is [b]open mining infrastructure[/b]: you run a desktop [b]node + pool wo
 [tr][td][b]Pool explorer[/b][/td][td][url=https://hackme.tech/pool/explorer]pool/explorer[/url][/td][/tr]
 [tr][td][b]Economics[/b][/td][td][url=https://hackme.tech/economics-model.html]economics-model.html[/url][/td][/tr]
 [tr][td][b]Documentation[/b][/td][td][url=https://hackme.tech/docs.html]docs.html[/url][/td][/tr]
-[tr][td][b]Source[/b] (Apache-2.0)[/td][td]https://github.com/YOUR_ORG/hackme[/td][/tr]
+[tr][td][b]Source[/b] (Apache-2.0)[/td][td][url=https://github.com/jokeez/hackme]github.com/jokeez/hackme[/url][/td][/tr]
 [/table]
 
 [hr]
