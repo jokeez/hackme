@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>HackMe Explorer · Pool</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Orbitron:wght@500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #05070b;
+      --panel: #0a1019;
+      --border: #1a2538;
+      --neon: #7fe7ff;
+      --matrix: #93ffb1;
+      --warn: #ffd37a;
+      --muted: #7b8aa4;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, sans-serif;
+      background: radial-gradient(ellipse 120% 80% at 50% -20%, rgba(127, 231, 255, 0.08), transparent 55%), var(--bg);
+      color: #dce3ef;
+      min-height: 100vh;
+    }
+    .topbar {
+      border-bottom: 1px solid var(--border);
+      background: rgba(10, 16, 25, 0.92);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .topbar-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .brand {
+      font-family: Orbitron, sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 0.12em;
+      color: var(--neon);
+      text-decoration: none;
+    }
+    .nav-links { display: flex; gap: 14px; font-size: 12px; }
+    .nav-links a { color: var(--muted); text-decoration: none; }
+    .nav-links a:hover { color: var(--neon); }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .hero { margin-bottom: 18px; }
+    .hero h1 {
+      margin: 0 0 6px;
+      font-family: Orbitron, sans-serif;
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      background: linear-gradient(90deg, #d9f1ff, var(--neon));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .row { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 12px; margin-bottom: 16px; }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: linear-gradient(145deg, rgba(127, 231, 255, 0.04), transparent 40%), var(--panel);
+      padding: 14px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+    .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
+    .value { font-size: 22px; font-weight: 700; margin-top: 6px; color: var(--neon); font-variant-numeric: tabular-nums; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .title { font-size: 14px; font-weight: 700; margin: 0 0 10px; color: #d9f1ff; font-family: Orbitron, sans-serif; letter-spacing: 0.04em; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 8px; border-bottom: 1px solid #182233; text-align: left; }
+    th { color: var(--muted); font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+    .mono { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; }
+    .muted { color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
+    input, button {
+      background: #0b1320;
+      color: #dce3ef;
+      border: 1px solid #26354d;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 12px;
+    }
+    input:focus { outline: none; border-color: rgba(127, 231, 255, 0.45); box-shadow: 0 0 0 2px rgba(127, 231, 255, 0.12); }
+    button { cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+    button:hover { border-color: var(--neon); background: rgba(127, 231, 255, 0.08); }
+    .badge { border: 1px solid #2b3b54; border-radius: 999px; padding: 3px 10px; font-size: 10px; color: #8ea3c2; white-space: nowrap; }
+    .ok { color: var(--matrix); border-color: #24583a; background: rgba(147, 255, 177, 0.06); }
+    .warn { color: var(--warn); border-color: #5b4723; background: rgba(255, 211, 122, 0.06); }
+    .clickable { cursor: pointer; }
+    .clickable:hover { background: rgba(127, 231, 255, 0.06); }
+    .result-card { border: 1px solid #21314a; border-radius: 10px; background: #0a1320; padding: 10px; }
+    .result-title { font-size: 12px; color: #9eb6d8; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+    .result-grid { display: grid; grid-template-columns: 180px 1fr; gap: 6px 10px; }
+    .result-key { color: var(--muted); font-size: 12px; }
+    .result-val { color: #dce3ef; font-size: 13px; word-break: break-word; }
+    .result-highlight { color: var(--neon); font-weight: 700; }
+    .live-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--matrix); box-shadow: 0 0 8px var(--matrix); margin-right: 6px; animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+    .worker-online { color: var(--matrix); }
+    .worker-off { color: #5a6a82; }
+    @media (max-width: 1200px) { .row { grid-template-columns: 1fr 1fr; } .grid3 { grid-template-columns: 1fr; } }
+    @media (max-width: 980px) { .grid2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/">HACKME</a>
+      <nav class="nav-links" id="explorer-nav">
+        <a href="https://hackme.tech/" data-nav="site">Site</a>
+        <a href="/" data-nav="dashboard">Dashboard</a>
+        <a href="/explorer" data-nav="explorer" style="color:var(--neon)">Explorer</a>
+        <a href="https://hackme.tech/pool/coordinator" data-nav="coordinator" target="_blank" rel="noopener">Coordinator</a>
+      </nav>
+    </div>
+  </header>
+  <div class="wrap">
+    <div class="hero">
+      <h1><span class="live-dot"></span>HackMe Explorer</h1>
+      <p class="muted" style="margin:0;">Chain: <span class="mono">{{.ChainID}}</span> · Node: <span class="mono">{{.NodeID}}</span> · auto-refresh 5s</p>
+    </div>
+    <p id="explorer-wallet-path" class="muted mono" style="margin:0 0 14px;font-size:11px;line-height:1.45;">—</p>
+
+    <p class="muted" style="margin:0 0 14px;line-height:1.45;max-width:960px;" title="Block miner field = signing node HMC-…; dashboard wallet and pool accrual are separate until settled.">
+      <strong style="color:#b7c3d8;">PoH block “miner”</strong> — signing node address (<span class="mono">HMC-…</span>); dashboard wallet and pool accrual are tracked separately until settled.
+    </p>
+
+    <div class="grid2" style="margin-bottom:12px;">
+      <section class="card">
+        <div class="toolbar">
+          <h2 class="title" style="margin-right:auto;">Find TX / Task / Block</h2>
+          <input id="in-tx" placeholder="tx hash | task id | block hash prefix" class="mono" style="flex:1;min-width:220px;" />
+          <button id="btn-find-tx">Find</button>
+        </div>
+        <div id="tx-result" class="muted" style="margin:0;">—</div>
+      </section>
+      <section class="card">
+        <div class="toolbar">
+          <h2 class="title" style="margin-right:auto;">Address State</h2>
+          <input id="in-addr" placeholder="HMC-..." class="mono" style="flex:1;min-width:220px;" />
+          <button id="btn-find-addr">Find</button>
+        </div>
+        <pre id="addr-result" class="mono muted" style="white-space:pre-wrap;margin:0;">—</pre>
+      </section>
+    </div>
+
+    <div class="row">
+      <div class="card" id="kpi-height-card" title=""><div class="label" id="kpi-height-label">Chain height</div><div id="kpi-height" class="value">—</div></div>
+      <div class="card" id="kpi-tip-card" title=""><div class="label" id="kpi-tip-label">Chain head hash</div><div id="kpi-tip" class="value mono" style="font-size:15px;">—</div></div>
+      <div class="card" id="kpi-target-card" title="Pool PoH target from coordinator or canonical /api/metrics (same source as miners on VPS).">
+        <div class="label">PoH target (pool)</div><div id="kpi-pool-target" class="value mono" style="font-size:18px;">—</div>
+      </div>
+      <div class="card"><div class="label">Pending TX</div><div id="kpi-txpool" class="value">—</div></div>
+      <div class="card"><div class="label">Updated</div><div id="kpi-updated" class="value" style="font-size:16px;color:#b7c3d8;">—</div></div>
+    </div>
+    <div id="kpi-secondary-row" style="display:none;margin-top:8px;">
+      <div class="card"><div class="label">Local SQLite ledger (same DB as “Recent blocks”)</div><div id="kpi-local-pair" class="value mono" style="font-size:14px;color:#b7c3d8;">—</div></div>
+    </div>
+    <div class="toolbar" style="margin-bottom:12px;">
+      <span id="kpi-net-state" class="badge">node status: loading</span>
+      <span id="kpi-chain-sync" class="badge">chain sync: loading</span>
+      <span id="kpi-mining-producer" class="badge">local WASM producer: loading</span>
+      <span id="kpi-data-source" class="badge">data source: loading</span>
+      <span id="kpi-pool-strip" class="badge">pool lane: loading</span>
+      <span id="kpi-policy-hash" class="badge">policy: loading</span>
+      <span id="kpi-p2p-lag" class="badge" title="P2P peer height vs local SQLite (GET /api/status → network_sync)">P2P lag: n/a</span>
+      <span id="kpi-release" class="badge">release: …</span>
+    </div>
+
+    <section class="card" style="margin-bottom:12px;">
+      <div class="toolbar">
+        <h2 class="title" style="margin-right:auto;">Coordinator workers (live)</h2>
+        <button id="btn-refresh-workers" type="button">Refresh</button>
+      </div>
+      <table>
+        <thead><tr><th></th><th>Worker</th><th>Ranges</th><th>Attempts</th><th>Payout (accrued)</th></tr></thead>
+        <tbody id="workers-body"><tr><td colspan="5" class="muted">loading…</td></tr></tbody>
+      </table>
+      <p id="workers-note" class="muted" style="margin:8px 0 0;font-size:11px;">Pool miners = payout addresses; coord workers = registered rigs on coordinator.</p>
+    </section>
+
+    <div class="grid2">
+      <section class="card">
+        <p id="blocks-sync-note" class="muted" style="display:none;margin:0 0 10px;line-height:1.5;border-left:3px solid #5b4723;padding-left:10px;"></p>
+        <div class="toolbar">
+          <h2 class="title" style="margin-right:auto;">Recent Blocks</h2>
+          <button id="btn-refresh-blocks">Refresh</button>
+        </div>
+        <table>
+          <thead><tr><th>#</th><th>Time</th><th>Task</th><th>Task ID</th><th>Hash</th></tr></thead>
+          <tbody id="blocks-body"></tbody>
+        </table>
+      </section>
+
+      <section class="card">
+        <div class="toolbar">
+          <h2 class="title" style="margin-right:auto;">Transfer Pool</h2>
+          <button id="btn-refresh-tx">Refresh</button>
+        </div>
+        <table>
+          <thead><tr><th>Status</th><th>From</th><th>To</th><th>Amount</th><th>Nonce</th></tr></thead>
+          <tbody id="tx-body"></tbody>
+        </table>
+      </section>
+    </div>
+
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const fmtTs = (u) => !u ? "—" : new Date(Number(u) * 1000).toISOString().replace("T"," ").replace(".000Z","Z");
+    const short = (s, n=16) => { s = String(s || ""); return s.length > n ? s.slice(0,n) + "…" : s; };
+    const hmc = (u) => (Number(u || 0) / 1e8).toFixed(8);
+    const esc = (s) => String(s || '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+    const isPublicWallet = (v) => String(v || '').trim().startsWith('HMC-');
+    const displayMinerFromBlock = (v) => {
+      const t = String(v || '').trim();
+      return t ? t : 'not available';
+    };
+
+    function renderLookupCard(title, rows) {
+      const htmlRows = rows.map((r) =>
+        '<div class="result-key">' + esc(r.key) + '</div>' +
+        '<div class="result-val ' + (r.highlight ? 'result-highlight' : '') + ' mono">' + esc(r.value) + '</div>'
+      ).join('');
+      return '<section class="result-card"><div class="result-title">' + esc(title) + '</div><div class="result-grid">' + htmlRows + '</div></section>';
+    }
+
+    let pollInFlight = false;
+    /** Filled by refreshTop for refreshBlocks: note when canonical tip ≠ local blocks source. */
+    let explorerBlocksSyncNote = '';
+
+    /** Match dashboard: GH/s below 0.1 TH/s (0.02 TH/s → ~20 GH/s). */
+    function fmtPoolAggTHS(ths) {
+      const th = Number(ths);
+      if (!Number.isFinite(th) || th <= 0) return '—';
+      if (th < 0.1) {
+        const gh = th * 1000;
+        const ghStr = gh < 0.01 ? gh.toFixed(4) : (gh < 1 ? gh.toFixed(2) : gh.toFixed(1));
+        return ghStr + ' GH/s';
+      }
+      return (th < 1 ? th.toFixed(3) : th.toFixed(2)) + ' TH/s';
+    }
+
+    async function refreshTop() {
+      explorerBlocksSyncNote = '';
+      try {
+        const [statusR, poolR] = await Promise.all([
+          fetch('/api/status', { cache: 'no-store' }),
+          fetch('/api/tx/pool', { cache: 'no-store' }),
+        ]);
+        if (statusR.ok) {
+          const s = await statusR.json();
+        const localTip = Number(s.tip_height || 0);
+        const localHash = String(s.tip_hash || '').trim();
+        const canonTip = Number(s.canonical_tip_height || 0);
+        const canonHash = String(s.canonical_tip_hash || '').trim();
+        const canonOk = !!(s.canonical_tip_ok && canonTip > 0 && canonHash.length > 0);
+        const netMode = !!s.network_mode_active;
+        const emptyLocal = canonOk && localTip === 0 && canonTip > 0;
+        const diverged = canonOk && localTip > 0 && canonTip > 0 && localTip !== canonTip;
+        const useCanonPrimary = netMode && canonOk;
+        let primaryH = localTip;
+        let primaryHash = localHash;
+        let primaryLabel = 'Local SQLite ledger';
+        if (useCanonPrimary) {
+          primaryH = canonTip;
+          primaryHash = canonHash;
+          primaryLabel = 'Public canonical chain (HACKME_CANONICAL_CHAIN_URL / peer)';
+        } else if (netMode && !canonOk) {
+          primaryLabel = 'Local SQLite (canonical tip unavailable — check canonical URL / network)';
+        }
+        $('kpi-height').textContent = String(primaryH || 0);
+        $('kpi-tip').textContent = short(primaryHash || '—', 22);
+        const poolTM = Number(s.pool_target_mod || 0);
+        const poolTH = Number(s.pool_global_hashrate_th_s || 0);
+        const poolSrc = String(s.pool_target_mod_source || '').trim();
+        const ptEl = $('kpi-pool-target');
+        if (ptEl) {
+          ptEl.textContent = poolTM > 0 ? String(poolTM) : '—';
+        }
+        const poolStrip = $('kpi-pool-strip');
+        if (poolStrip) {
+          if (poolTM > 0) {
+            const th = fmtPoolAggTHS(poolTH);
+            const miners = Number(s.pool_total_miners || 0);
+            const wk = Number(s.pool_workers_count || 0);
+            const minerLbl = miners > 0 ? ('payout addrs ' + miners) : 'miners n/a';
+            const wkLbl = wk > 0 ? ('workers ' + wk) : '';
+            poolStrip.textContent = 'pool: target ' + poolTM + ' · hash ' + th + ' · ' + minerLbl + (wkLbl ? (' · ' + wkLbl) : '');
+            poolStrip.className = 'badge ok';
+            poolStrip.title = poolSrc ? ('target_mod from ' + poolSrc) : 'pool lane from /api/status';
+          } else {
+            poolStrip.textContent = 'pool: target unavailable (set coordinator URL or canonical for metrics)';
+            poolStrip.className = 'badge warn';
+            poolStrip.title = String(s.pool_work_stats_error || s.pool_network_stats_error || 'no pool_target_mod on status');
+          }
+        }
+        const hLab = $('kpi-height-label');
+        const tLab = $('kpi-tip-label');
+        const hCard = $('kpi-height-card');
+        const tCard = $('kpi-tip-card');
+        if (hLab) hLab.textContent = useCanonPrimary ? 'Chain height (canonical)' : 'Chain height';
+        if (tLab) tLab.textContent = useCanonPrimary ? 'Chain head hash (canonical)' : 'Chain head hash';
+        const pairTitle = primaryLabel + ' — height and head hash always match the same source.';
+        if (hCard) hCard.title = pairTitle;
+        if (tCard) tCard.title = pairTitle;
+        const secRow = $('kpi-secondary-row');
+        const secPair = $('kpi-local-pair');
+        if (useCanonPrimary && (diverged || emptyLocal) && secRow && secPair) {
+          secRow.style.display = 'grid';
+          secPair.textContent = emptyLocal
+            ? ('empty (height 0) — canonical at ' + canonTip)
+            : ('height ' + localTip + ' · head ' + short(localHash, 28));
+        } else if (secRow) {
+          secRow.style.display = 'none';
+        }
+        if (useCanonPrimary && (emptyLocal || diverged)) {
+          explorerBlocksSyncNote = emptyLocal
+            ? ('Recent blocks: local SQLite is empty while canonical height is ' + canonTip + '. Enable P2P + state replay or follower bootstrap — pool mining still works.')
+            : ('Recent blocks: local SQLite height ' + localTip + ' vs canonical ' + canonTip + '. Sync ledger or use public node /explorer.');
+        }
+        const net = $('kpi-net-state');
+        const source = $('kpi-data-source');
+        const policy = $('kpi-policy-hash');
+        if (net) {
+          const mode = s.network_mode_active ? 'network mode' : 'solo mode';
+          net.textContent = 'node status: ' + mode;
+          net.className = 'badge ' + (s.network_mode_active ? 'ok' : 'warn');
+        }
+        const chainSync = $('kpi-chain-sync');
+        const minProd = $('kpi-mining-producer');
+        if (chainSync) {
+          if (useCanonPrimary && emptyLocal) {
+            chainSync.textContent = 'chain sync: local SQLite empty · canonical ' + canonTip;
+            chainSync.className = 'badge warn';
+          } else if (useCanonPrimary && canonOk && !diverged) {
+            chainSync.textContent = 'chain sync: aligned (canonical tip matches local height)';
+            chainSync.className = 'badge ok';
+          } else if (useCanonPrimary && diverged) {
+            chainSync.textContent = 'chain sync: local ledger behind canonical (see secondary row)';
+            chainSync.className = 'badge warn';
+          } else if (netMode && !canonOk) {
+            chainSync.textContent = 'chain sync: canonical tip unavailable';
+            chainSync.className = 'badge warn';
+          } else {
+            chainSync.textContent = 'chain sync: standalone ledger (not public-joined)';
+            chainSync.className = 'badge warn';
+          }
+        }
+        if (minProd) {
+          minProd.textContent = 'local WASM producer: ' + (s.mining ? 'running' : 'idle');
+          minProd.className = 'badge ' + (s.mining ? 'ok' : 'warn');
+        }
+        const rel = $('kpi-release');
+        if (rel) {
+          const ver = String(s.version || 'dev').trim();
+          rel.textContent = 'release: ' + (ver.length > 18 ? ver.slice(0, 16) + '…' : ver);
+          rel.className = 'badge ok';
+          rel.title = ver;
+        }
+        if (source) {
+          if (useCanonPrimary) {
+            if (emptyLocal) {
+              source.textContent = 'tip view: canonical ' + canonTip + ' · local SQLite empty';
+              source.className = 'badge warn';
+              source.title = 'KPIs show public chain. Recent blocks are local DB until P2P/bootstrap sync.';
+            } else if (diverged) {
+              source.textContent = 'tip view: canonical · local ledger ' + localTip + ' (see row below)';
+              source.className = 'badge warn';
+              source.title = 'Top row shows the public chain tip. Secondary row shows local SQLite; sync to align.';
+            } else {
+              source.textContent = 'tip view: canonical matches local ' + localTip;
+              source.className = 'badge ok';
+              source.title = 'Local and canonical tips are the same height.';
+            }
+          } else {
+            source.textContent = 'tip view: local SQLite · height ' + localTip;
+            source.className = 'badge ' + (netMode && !canonOk ? 'warn' : 'ok');
+            source.title = netMode && !canonOk
+              ? 'Network mode is on but canonical tip could not be read; KPIs show local ledger only.'
+              : 'Height and hash are from this node database.';
+          }
+        }
+        if (policy) {
+          const ph = String((s.economics && s.economics.policy_hash) || '');
+          const shortPh = ph ? (ph.slice(0, 12) + '…') : 'n/a';
+          policy.textContent = 'policy: ' + shortPh;
+          policy.className = 'badge ' + (ph ? 'ok' : 'warn');
+          policy.title = ph || 'Policy hash unavailable';
+        }
+        const p2pLagEl = $('kpi-p2p-lag');
+        if (p2pLagEl) {
+          const ns = s.network_sync || {};
+          const ph = ns.p2p_sync_hint || {};
+          const lag = Number(ph.lag_blocks || 0);
+          const p2pOn = !!ns.p2p_enabled;
+          const bg = Number(ns.background_sync_interval_sec || 0);
+          if (!p2pOn) {
+            p2pLagEl.textContent = 'P2P lag: (peers off)';
+            p2pLagEl.className = 'badge';
+            p2pLagEl.title = 'Set HACKME_P2P_PEERS to enable follower height hints.';
+          } else if (lag > 0) {
+            p2pLagEl.textContent = 'P2P lag: ' + lag + ' blocks' + (bg > 0 ? ' · auto-sync ' + bg + 's' : '');
+            p2pLagEl.className = 'badge warn';
+            p2pLagEl.title = 'Local SQLite behind healthy P2P peer. Enable state replay + optional HACKME_P2P_BACKGROUND_SYNC_SEC on followers.';
+          } else {
+            p2pLagEl.textContent = 'P2P lag: aligned' + (bg > 0 ? ' · sync ' + bg + 's' : '');
+            p2pLagEl.className = 'badge ok';
+            p2pLagEl.title = 'Local height matches P2P peer snapshot (or no peer data yet).';
+          }
+        }
+        }
+        if (poolR.ok) {
+          const p = await poolR.json();
+          $('kpi-txpool').textContent = String((p.txs || []).length);
+        }
+        $('kpi-updated').textContent = new Date().toISOString().replace('T',' ').slice(0,19) + 'Z';
+        try {
+          const wr = await fetch('/api/wallet', { cache: 'no-store' });
+          const meta = $('explorer-wallet-path');
+          if (meta && wr.ok) {
+            const j = await wr.json();
+            const db = j.database_file ? String(j.database_file) : '';
+            const fee = j.transfer_fee_platform_address ? String(j.transfer_fee_platform_address) : '';
+            meta.textContent = (db ? ('Wallet DB: ' + db) : 'Wallet DB: (see /api/wallet)') +
+              (fee ? (' · transfer fee platform addr: ' + fee) : '');
+          }
+        } catch (_) {}
+      } catch (_) {
+        $('kpi-updated').textContent = 'refresh error';
+      }
+    }
+
+    async function refreshWorkers() {
+      const tb = $('workers-body');
+      const note = $('workers-note');
+      if (!tb) return;
+      try {
+        const r = await fetch('/api/work/stats?details=1', { cache: 'no-store' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const j = await r.json();
+        const workers = j.workers || {};
+        const ids = Object.keys(workers).sort();
+        tb.innerHTML = '';
+        if (!ids.length) {
+          tb.innerHTML = '<tr><td colspan="5" class="muted">no workers on coordinator</td></tr>';
+          return;
+        }
+        ids.forEach((id) => {
+          const w = workers[id] || {};
+          const live = w.live || {};
+          const online = !!(live.online);
+          const tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td class="' + (online ? 'worker-online' : 'worker-off') + '">' + (online ? '●' : '○') + '</td>' +
+            '<td class="mono">' + esc(id) + '</td>' +
+            '<td class="mono">' + String(w.ranges || 0) + '</td>' +
+            '<td class="mono">' + String(w.attempts || 0) + '</td>' +
+            '<td class="mono">' + Number(w.payout || 0).toFixed(6) + '</td>';
+          tb.appendChild(tr);
+        });
+        if (note) {
+          const wc = Number(j.workers_count || ids.length);
+          note.textContent = 'Registered coordinator workers: ' + wc + ' · totals attempts ' + String(j.accepted_attempts || 0);
+        }
+      } catch (e) {
+        tb.innerHTML = '<tr><td colspan="5" class="muted">' + esc(String(e.message || 'unavailable')) + '</td></tr>';
+        if (note) note.textContent = 'Set HACKME_POOL_COORDINATOR_URL on this node to proxy /api/work/stats.';
+      }
+    }
+
+    async function refreshBlocks() {
+      const noteEl = $('blocks-sync-note');
+      const r = await fetch('/api/reports/blocks?limit=40&source=auto', { cache: 'no-store' });
+      const tb = $('blocks-body');
+      if (!tb) return;
+      tb.innerHTML = '';
+      if (!r.ok) {
+        tb.innerHTML = '<tr><td colspan="5" class="muted">failed to load</td></tr>';
+        return;
+      }
+      const j = await r.json();
+      const src = String(j.blocks_source || 'local_ledger');
+      if (noteEl) {
+        if (src === 'canonical_peer') {
+          noteEl.style.display = 'block';
+          noteEl.textContent = String(j.note || 'Block list proxied from canonical command node.').trim();
+        } else if (explorerBlocksSyncNote) {
+          noteEl.style.display = 'block';
+          noteEl.textContent = explorerBlocksSyncNote;
+        } else {
+          noteEl.style.display = 'none';
+          noteEl.textContent = '';
+        }
+      }
+      const rows = j.blocks || [];
+      if (!rows.length) {
+        tb.innerHTML = '<tr><td colspan="5" class="muted">no blocks</td></tr>';
+        return;
+      }
+      rows.forEach((b) => {
+        const tr = document.createElement('tr');
+        tr.className = 'clickable';
+        tr.title = 'Click to copy task id into TX search';
+        tr.addEventListener('click', () => {
+          const v = String(b.task_id || '').trim();
+          if (v) {
+            $('in-tx').value = v;
+          }
+        });
+        tr.innerHTML =
+          '<td class="mono">' + String(b.index || 0) + '</td>' +
+          '<td class="mono">' + fmtTs(b.timestamp_unix) + '</td>' +
+          '<td>' + esc(String(b.task_kind || '—')) + '</td>' +
+          '<td class="mono">' + esc(short(b.task_id || '—', 20)) + '</td>' +
+          '<td class="mono">' + esc(String(b.hash_prefix || '—')) + '</td>';
+        tb.appendChild(tr);
+      });
+    }
+
+    async function refreshTxPool() {
+      const r = await fetch('/api/tx/pool', { cache: 'no-store' });
+      const tb = $('tx-body');
+      if (!tb) return;
+      tb.innerHTML = '';
+      if (!r.ok) {
+        tb.innerHTML = '<tr><td colspan="5" class="muted">failed to load</td></tr>';
+        return;
+      }
+      const j = await r.json();
+      const rows = j.txs || [];
+      if (!rows.length) {
+        tb.innerHTML = '<tr><td colspan="5" class="muted">no pending tx</td></tr>';
+        return;
+      }
+      rows.slice(0, 50).forEach((tx) => {
+        const tr = document.createElement('tr');
+        tr.className = 'clickable';
+        tr.title = 'Click to inspect sender/receiver';
+        tr.addEventListener('click', () => {
+          const from = String(tx.from || '').trim();
+          const to = String(tx.to || '').trim();
+          const pick = from || to;
+          if (pick) {
+            $('in-addr').value = pick;
+            void findAddr();
+          }
+        });
+        tr.innerHTML =
+          '<td>' + esc(String(tx.status || 'pending')) + '</td>' +
+          '<td class="mono">' + esc(short(tx.from || '—', 14)) + '</td>' +
+          '<td class="mono">' + esc(short(tx.to || '—', 14)) + '</td>' +
+          '<td class="mono">' + hmc(tx.amount_units) + '</td>' +
+          '<td class="mono">' + String(tx.nonce || 0) + '</td>';
+        tb.appendChild(tr);
+      });
+    }
+
+    async function findTx() {
+      const query = String($('in-tx').value || '').trim();
+      if (!query) return;
+      const out = $('tx-result');
+      out.innerHTML = '<span class="muted">loading...</span>';
+
+      // 1) First try strict TX lookup.
+      try {
+        const txR = await fetch('/api/tx/' + encodeURIComponent(query), { cache: 'no-store' });
+        if (txR.ok) {
+          const tx = await txR.json();
+          const recipient = String(tx.to || '').trim();
+          out.innerHTML = renderLookupCard('Transaction match', [
+            { key: 'Lookup type', value: 'tx_hash' },
+            { key: 'Query', value: query },
+            { key: 'Status', value: String(tx.status || 'unknown') },
+            { key: 'TX hash', value: String(tx.tx_hash || query), highlight: true },
+            { key: 'Recipient wallet', value: isPublicWallet(recipient) ? recipient : 'not available' }, // transfer: only public HMC- shown
+            { key: 'Included in block', value: String(tx.block_index || 'pending') },
+          ]);
+          return;
+        }
+      } catch (_) {}
+
+      // 2) Fallback: search recent blocks by task_id or hash_prefix.
+      try {
+        const blocksR = await fetch('/api/reports/blocks?limit=400', { cache: 'no-store' });
+        if (blocksR.ok) {
+          const blocksJ = await blocksR.json();
+          const rows = blocksJ.blocks || [];
+          const q = query.toLowerCase();
+          const hit = rows.find((b) => {
+            const taskId = String(b.task_id || '').toLowerCase();
+            const hashPrefix = String(b.hash_prefix || '').toLowerCase();
+            return taskId === q || taskId.includes(q) || hashPrefix.startsWith(q) || hashPrefix.includes(q);
+          });
+          if (hit) {
+            let minerWallet = String(hit.miner_address || '').trim();
+            if (!minerWallet) {
+              try {
+                const br = await fetch('/api/reports/block?index=' + encodeURIComponent(String(hit.index)), { cache: 'no-store' });
+                if (br.ok) {
+                  const one = await br.json();
+                  minerWallet = String(one.miner_address || '').trim();
+                }
+              } catch (_) {}
+            }
+            if (!minerWallet) {
+              try {
+                const chainR = await fetch('/api/chain?limit=500', { cache: 'no-store' });
+                if (chainR.ok) {
+                  const cj = await chainR.json();
+                  const blocks = cj.blocks || [];
+                  const want = Number(hit.index);
+                  const full = blocks.find((b) => Number(b.index) === want);
+                  minerWallet = String((full && (full.miner_address_effective || full.miner_address)) || '').trim();
+                }
+              } catch (_) {}
+            }
+            out.innerHTML = renderLookupCard('Block / task match', [
+              { key: 'Lookup type', value: 'block_task_or_hash' },
+              { key: 'Query', value: query },
+              { key: 'Block index', value: String(hit.index || 0), highlight: true },
+              { key: 'Task kind', value: String(hit.task_kind || '—') },
+              { key: 'Task ID', value: String(hit.task_id || '—') },
+              { key: 'Block hash prefix', value: String(hit.hash_prefix || '—') },
+              { key: 'Timestamp', value: fmtTs(hit.timestamp_unix) },
+              { key: 'Miner / reward address', value: displayMinerFromBlock(minerWallet) },
+              { key: 'Note', value: 'On-chain mint credits this miner address + node wallet row; another HMC- label with balance 0 simply never received mints/transfers.' },
+            ]);
+            return;
+          }
+        }
+      } catch (_) {}
+
+      out.innerHTML = '<span class="muted">Not found in tx hash or recent block/task index.</span>';
+    }
+
+    async function findAddr() {
+      const addr = String($('in-addr').value || '').trim();
+      if (!addr) return;
+      const out = $('addr-result');
+      out.textContent = 'loading...';
+      const r = await fetch('/api/address/' + encodeURIComponent(addr), { cache: 'no-store' });
+      if (!r.ok) {
+        out.textContent = 'not found';
+        return;
+      }
+      const j = await r.json();
+      const units = Number(j.balance_units || 0);
+      const hmcBal = (units / 1e8).toFixed(8);
+      out.textContent = JSON.stringify({
+        ...j,
+        balance_hmc_estimate: hmcBal,
+      }, null, 2);
+    }
+
+    $('btn-refresh-blocks').addEventListener('click', refreshBlocks);
+    $('btn-refresh-tx').addEventListener('click', refreshTxPool);
+    const btnWk = $('btn-refresh-workers');
+    if (btnWk) btnWk.addEventListener('click', refreshWorkers);
+    $('btn-find-tx').addEventListener('click', findTx);
+    $('btn-find-addr').addEventListener('click', findAddr);
+    $('in-tx').addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        findTx();
+      }
+    });
+    $('in-addr').addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        findAddr();
+      }
+    });
+    async function refreshAll() {
+      if (pollInFlight) return;
+      pollInFlight = true;
+      try {
+        await refreshTop();
+        await Promise.all([refreshBlocks(), refreshTxPool(), refreshWorkers()]);
+      } finally {
+        pollInFlight = false;
+      }
+    }
+
+    setInterval(() => { void refreshAll(); }, 5000);
+    void refreshAll();
+
+    (function wireExplorerNav() {
+      const host = String(location.hostname || '').toLowerCase();
+      const onPublic = host === 'hackme.tech' || host === 'www.hackme.tech';
+      const dash = document.querySelector('[data-nav="dashboard"]');
+      const site = document.querySelector('[data-nav="site"]');
+      const exp = document.querySelector('[data-nav="explorer"]');
+      if (onPublic) {
+        if (site) site.href = 'https://hackme.tech/';
+        if (dash) dash.href = 'https://hackme.tech/#downloads';
+        if (exp) exp.href = '/pool/explorer';
+      } else {
+        if (site) site.href = 'https://hackme.tech/';
+        if (dash) dash.href = '/';
+        if (exp) exp.href = '/explorer';
+      }
+    })();
+  </script>
+</body>
+</html>

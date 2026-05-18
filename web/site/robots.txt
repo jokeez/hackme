@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Allow: /pool/explorer
+Disallow: /api/
+Disallow: /pool/api/
+
+Sitemap: https://hackme.tech/sitemap.xml

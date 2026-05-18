@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe Security Notes</title>
+  <meta name="description" content="HackMe security model, threat boundaries, and operational guardrails before public exposure." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./assets/styles.css" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="/assets/favicon.png" type="image/png" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe logo" /><span>HackMe Network</span></a>
+    <nav class="nav">
+      <a href="./index.html">Home</a>
+      <a href="./downloads.html">Downloads</a>
+      <a href="./docs.html">Docs</a>
+      <a href="./contacts.html">Contacts</a>
+      <a id="explorer-link-top" href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass hero-small">
+      <p class="kicker">Security Notes</p>
+      <h1>Security policy and operational guardrails</h1>
+      <p class="hero-copy">Practical security posture: what is protected today, what is intentionally out of scope for MVP, and what must be enabled before internet exposure.</p>
+      <div class="pill-row">
+        <span class="pill">Fail-closed defaults</span>
+        <span class="pill">Admin and P2P boundaries</span>
+        <span class="pill">WASM sandbox hardening</span>
+      </div>
+    </section>
+
+    <section class="doc-grid">
+      <article class="doc-card glass">
+        <h3>Current trust model</h3>
+        <p>Node is typically local-first, with explicit operator control over external exposure and reverse-proxy policy.</p>
+        <p>Process-level isolation and OS permissions remain a core assumption.</p>
+      </article>
+      <article class="doc-card glass">
+        <h3>Implemented controls</h3>
+        <p>Admin token gate for mutating POST routes, baseline rate limits, schema version checks, and protected artifact paths.</p>
+        <p>WASM validation includes strict interface checks, timeout/memory limits, and quarantine policy.</p>
+      </article>
+      <article class="doc-card glass">
+        <h3>Pre-launch checklist</h3>
+        <p>TLS, trusted proxy, secret rotation, firewall scoping, POST body limits, and observability alerts.</p>
+        <p>Run staged gates before each internet-facing rollout.</p>
+      </article>
+      <article class="doc-card glass">
+        <h3>Policy document</h3>
+        <p>Need the complete threat model and low-level policy wording?</p>
+        <p><a class="btn btn-secondary" href="../docs/SECURITY.md" target="_blank" rel="noreferrer">Open full SECURITY.md</a></p>
+      </article>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head">
+        <h2>Security operations baseline</h2>
+      </div>
+      <ul class="list">
+        <li>Keep <span class="code-inline">HACKME_ADMIN_TOKEN</span> enabled in all non-dev environments.</li>
+        <li>Pool coordinator: set <span class="code-inline">HACKME_COORDINATOR_ADMIN_TOKEN</span> before exposing <span class="code-inline">HACKME_COORDINATOR_ADDR</span> beyond loopback; optional fail-closed startup with <span class="code-inline">HACKME_COORDINATOR_REQUIRE_ADMIN_TOKEN=1</span>.</li>
+        <li>Restrict sensitive ports to trusted IPs and internal loopback.</li>
+        <li>Treat <span class="code-inline">429</span>, invalid nonce/signature spikes, and stale peers as alertable events.</li>
+        <li>Re-run security and release readiness scripts before each public upgrade.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>HackMe Network</p>
+    <p class="muted">Operational security is continuous work, not a one-time checkbox.</p>
+    <div class="footer-nav">
+      <a href="./index.html">Home</a>
+      <a href="./docs.html">Docs</a>
+      <a href="./contacts.html">Contacts</a>
+      <a href="./api-reference.html">API Reference</a>
+      <a href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </div>
+  </footer>
+
+  <script src="./assets/app.js?v=20260430r6"></script>
+</body>
+</html>

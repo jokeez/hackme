@@ -1,0 +1,10 @@
+{
+  "id":"order-rust-bounds_guard-001",
+  "kind":"synthetic_poh_v1",
+  "reward_hmc":0.02,
+  "difficulty_score":25,
+  "target_solves":3,
+  "payer_ref":"company:rust-bounds_guard",
+  "wasm_artifact_path":"security/rust_bounds_guard.wasm",
+  "artifact_hash":"d5500b84d5a15437aa7eaa2fed2eedace4fff1b674028c2b1784ffdbed77177d"
+}

@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe Network — Next-Generation Decentralized Fuzzing Pool</title>
+  <meta name="description" content="Mine vulnerabilities through distributed fuzzing. Earn HMC while helping C++, Rust, and Go projects become more secure." />
+  <link rel="canonical" href="https://hackme.tech/" />
+  <link rel="sitemap" type="application/xml" title="Sitemap" href="https://hackme.tech/sitemap.xml" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="/assets/favicon.png" type="image/png" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://hackme.tech/" />
+  <meta property="og:title" content="HackMe Network | Useful PoW Mining" />
+  <meta property="og:description" content="Join a distributed bug-finding network with transparent operations and useful Proof-of-Work." />
+  <meta property="og:image" content="https://hackme.tech/assets/logo-hex.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="HackMe Network | Useful PoW Mining" />
+  <meta name="twitter:description" content="Join a distributed bug-finding network with transparent operations and useful Proof-of-Work." />
+  <meta name="twitter:image" content="https://hackme.tech/assets/logo-hex.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./assets/styles.css" />
+</head>
+<body>
+  <div class="bg-glow bg-glow-a"></div>
+  <div class="bg-glow bg-glow-b"></div>
+  <header class="topbar">
+    <a class="brand" href="./index.html">
+      <img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe logo" />
+      <span>HackMe Network</span>
+    </a>
+    <nav class="nav">
+      <a href="./downloads.html">Downloads</a>
+      <a href="./news.html">News</a>
+      <a href="./docs.html">Docs</a>
+      <a href="./contacts.html">Contacts</a>
+      <a href="./legal.html">Legal</a>
+      <a id="explorer-link-top" href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass">
+      <p class="kicker">Production-ready PoH Platform</p>
+      <h1>Secure mining infrastructure with transparent economics and enterprise-grade validation</h1>
+      <p class="hero-copy">
+        HackMe combines deterministic PoH mining, hardened WASM task validation, and operator-ready observability.
+        Built for real miners, real workloads, and release discipline.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="./downloads.html">Download Node</a>
+        <a id="explorer-link-hero" class="btn btn-secondary" href="/pool/explorer" target="_blank" rel="noreferrer">Open Explorer</a>
+      </div>
+      <div class="pill-row">
+        <span class="pill">WASM sandbox locked by default</span>
+        <span class="pill">Cross-platform release bundles</span>
+        <span class="pill">Coordinator + worker architecture</span>
+      </div>
+      <div class="hero-meta">
+        <div class="meta-chip">
+          <span class="label">Public Domain</span>
+          <span id="site-domain-status" class="value">hackme.tech</span>
+        </div>
+        <div class="meta-chip">
+          <span class="label">Release Channel</span>
+          <span id="site-release-channel" class="value">loading…</span>
+        </div>
+        <div class="meta-chip">
+          <span class="label">Network Status</span>
+          <span id="site-live-status" class="value">checking...</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel glass miner-quick">
+      <div class="panel-head">
+        <h2>Miner quick path</h2>
+        <p class="subtle">Recommended flow for public pool participation (coordinator + worker)</p>
+      </div>
+      <ol class="miner-quick-steps">
+        <li><strong>Install</strong> the node from <a href="./downloads.html">Downloads</a> and verify checksums.</li>
+        <li><strong>Set</strong> <code>HACKME_POOL_COORDINATOR_URL</code> to your pool coordinator HTTP base (see <a href="./docs.html">Docs</a>). Optionally set <code>HACKME_CANONICAL_CHAIN_URL</code> / <code>HACKME_P2P_PEERS</code> so local height and mempool match the network.</li>
+        <li><strong>Open</strong> the dashboard → install genesis once → <strong>Start worker</strong> on the Mining tab. Payout accrues on the coordinator; on-chain balance follows the public chain after settlement.</li>
+      </ol>
+      <p class="subtle" style="margin-top:0.75rem">
+        Block subsidy on the canonical producer credits that node&apos;s <strong>primary wallet</strong>; fleet rewards flow through <strong>coordinator accrual</strong>, not automatic per-GPU splits of every block. See <a href="./economics-model.html">Economics: chain, pool &amp; orders</a>.
+      </p>
+      <p class="subtle footer-links"><a href="./news.html">News</a> · <a href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a> · <a href="./contacts.html">Support</a></p>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head">
+        <h2>Desktop Mode (new)</h2>
+        <p class="subtle">App-like local UX for miners who want zero CLI friction.</p>
+      </div>
+      <ol class="steps">
+        <li>Linux: install launcher with <code class="code-inline">scripts/ops/install_linux_desktop_launcher.sh</code> and open <strong>HackMe Desktop</strong> from your app menu.</li>
+        <li>First run auto-generates admin token and bootstraps local profile (<code class="code-inline">.env.desktop</code>).</li>
+        <li>In dashboard, use <strong>Desktop first-run wizard</strong> to generate/save token and start <strong>Solo</strong> or <strong>Worker</strong> mode.</li>
+        <li>Windows bundles include matching start/status/stop scripts for the same flow.</li>
+      </ol>
+    </section>
+
+    <section class="grid grid-3">
+      <article class="card glass">
+        <h3>Security Model</h3>
+        <p>Strict admin/P2P auth, rate limits, signature checks, WASM ABI validation, and quarantine flow for unsafe artifacts.</p>
+      </article>
+      <article class="card glass">
+        <h3>Economics</h3>
+        <p>Deterministic reward model, order escrow, burn accounting, fairness gates, and canonical metrics. <a href="./economics-model.html">How chain, pool, and orders pay</a>.</p>
+      </article>
+      <article class="card glass">
+        <h3>Operations</h3>
+        <p>Preflight gates, adversarial smoke packs, release manifests, checksum verification, and scripted deployment workflows.</p>
+      </article>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head">
+        <h2>Pool Overview (Live)</h2>
+      </div>
+      <div class="table-wrap">
+        <table class="pool-table">
+          <thead>
+            <tr>
+              <th>Pool</th>
+              <th>Pool Hashrate</th>
+              <th>Chain Height</th>
+              <th>Block Reward</th>
+              <th>Network Difficulty</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>HackMe PoH</strong></td>
+              <td id="pool-live-hash">loading...</td>
+              <td id="pool-live-height">loading...</td>
+              <td id="pool-live-reward">loading...</td>
+              <td id="pool-live-diff">loading...</td>
+              <td id="pool-live-status">loading...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">Pool hashrate comes from the global aggregate API (coordinator plus registered workers), not the synthetic ticker on the node metrics endpoint. Large integers use US-style grouping (comma between thousands). Asterisk marks simulated totals when mock network mode is enabled.</p>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head">
+        <h2>Why miners and operators choose HackMe</h2>
+      </div>
+      <div class="grid grid-2">
+        <ul class="list">
+          <li>Canonical follower mode keeps wallet/tasks/height synced to VPS source of truth.</li>
+          <li>Worker mode supports stable throughput while preserving chain consistency.</li>
+          <li>Explorer-ready API surface for public read-only transparency.</li>
+          <li>Release workflow includes artifacts, checksums, smoke checks, and build metadata.</li>
+        </ul>
+        <ul class="list">
+          <li>Task gates run through controlled WASM checks (size, signature, timeout, memory).</li>
+          <li>Security and stress scripts are integrated into daily and ultimate test packs.</li>
+          <li>UI separates global canonical metrics from local rig telemetry to reduce operator confusion.</li>
+          <li>Roadmap supports safe extension with additional WASM-compatible languages.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head">
+        <h2>How to Start Mining</h2>
+        <p class="subtle">From zero to first accepted work in a few minutes.</p>
+      </div>
+      <ol class="steps">
+        <li>Download the node bundle from <a href="./downloads.html">Downloads</a> and run your platform installer.</li>
+        <li>Open local dashboard, set admin token, and verify node health + wallet address.</li>
+        <li>Connect worker mode to the pool coordinator and start mining (<code class="code-inline">POST /api/worker/start</code>).</li>
+        <li>Watch accepted shares, payout counters, and chain-confirmed balance in Wallet tab.</li>
+      </ol>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head">
+        <h2>How to Create Audit Orders</h2>
+        <p class="subtle">Request useful work from the network in deterministic, verifiable flow.</p>
+      </div>
+      <ol class="steps">
+        <li>Prepare task source (<code class="code-inline">rust</code>, <code class="code-inline">c</code>, <code class="code-inline">cpp</code>, <code class="code-inline">tinygo</code>, <code class="code-inline">zig</code>, <code class="code-inline">assemblyscript</code>, <code class="code-inline">wat</code>) with strict <code class="code-inline">check(i64)→i32</code> contract.</li>
+        <li>Submit via dashboard Orders tab or API (`POST /api/tasks/from_code`).</li>
+        <li>Escrow is locked up-front, order progress is tracked on-chain, and settlements are transparent.</li>
+        <li>Use reports/pulse/gate endpoints for campaign-level vulnerability outcomes.</li>
+      </ol>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head">
+        <h2>Proof of Analysis (Utility Algorithm)</h2>
+      </div>
+      <p class="hero-copy">
+        HackMe is not a random-number lottery. Paid audit jobs are split into deterministic fuzzing/analysis segments.
+        Workers are rewarded for processing unique input ranges that exercise real code paths and surface real findings,
+        so each watt maps to measurable security work.
+      </p>
+      <ul class="list">
+        <li>Order payload is partitioned into work chunks with traceable assignment and completion.</li>
+        <li>Each accepted result is tied to unique input space, campaign context, and runtime metadata.</li>
+        <li>Reports aggregate coverage, crashes, and vulnerability evidence for auditors and clients.</li>
+      </ul>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head">
+        <h2>Tokenomics and Halving Cycles</h2>
+      </div>
+      <div class="table-wrap">
+        <table class="pool-table">
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>Current Policy</th>
+              <th>Why It Matters</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Initial Base Reward</td>
+              <td>0.010000 HMC per empty-mining block</td>
+              <td>Predictable miner baseline before order bonus layer.</td>
+            </tr>
+            <tr>
+              <td>Halving Schedule</td>
+              <td>Every 2,102,400 blocks</td>
+              <td>Programmable long-term inflation reduction toward tail floor.</td>
+            </tr>
+            <tr>
+              <td>Tail Floor</td>
+              <td>0.002000 HMC</td>
+              <td>Maintains liveness and security budget after multiple halvings.</td>
+            </tr>
+            <tr>
+              <td>Transfer network fee split</td>
+              <td>70% dev/service · 30% burn</td>
+              <td>Applies to <span class="code-inline">fee_units</span> on signed transfers — not to opening orders.</td>
+            </tr>
+            <tr>
+              <td>Order platform fee</td>
+              <td>5% of prepaid</td>
+              <td>Credited to the consensus dev/service address when the order is created.</td>
+            </tr>
+            <tr>
+              <td>Order-open burn tally</td>
+              <td>10% of prepaid</td>
+              <td><span class="code-inline">OrderBurnRate</span>: counted toward aggregate burned supply at creation (see chain economics).</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">Policy fields are exposed via public APIs and release gates for auditability.</p>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head">
+        <h2>Orders vs transfers (burn accounting)</h2>
+      </div>
+      <p class="hero-copy">Opening an order debits your wallet once for escrow plus platform fee. Transfer transactions burn part of their <span class="code-inline">fee_units</span> separately:</p>
+      <div class="formula-box">
+        prepaid = reward_hmc × target_solves<br />
+        order_fee = prepaid × 0.05 → dev/service<br />
+        burn_recorded = prepaid × 0.10 (supply tally)<br />
+        wallet_debit = prepaid + order_fee
+      </div>
+      <p class="muted">
+        Example: 1000 HMC prepaid workload → you pay <strong>1050 HMC</strong> up front (1000 escrow + 50 platform fee). Supply accounting adds <strong>100 HMC</strong> burned from the prepaid bucket (<span class="code-inline">OrderBurnRate</span>). Transfer fees still split <strong>70% / 30%</strong> dev vs burn.
+      </p>
+    </section>
+
+    <section class="panel glass" id="contacts">
+      <div class="panel-head">
+        <h2>Community and Contact Hub</h2>
+        <p class="subtle">Support, announcements, and miner coordination channels.</p>
+      </div>
+      <div class="quick-links">
+        <a class="quick-item" href="https://t.me/hackme_tech" target="_blank" rel="noreferrer">
+          <h4>Telegram Main Channel</h4>
+          <p>Official launch updates, release notes, maintenance windows, and security announcements.</p>
+        </a>
+        <a class="quick-item" href="https://t.me/hackme_en" target="_blank" rel="noreferrer">
+          <h4>Telegram International Group (EN)</h4>
+          <p>Global miner community, setup help, and operational support in English.</p>
+        </a>
+        <a class="quick-item" href="https://discord.gg/QMxSeaTSrQ" target="_blank" rel="noreferrer">
+          <h4>Discord</h4>
+          <p>International community, dev discussions, and campaign collaboration.</p>
+        </a>
+      </div>
+      <div class="quick-links quick-links-two">
+        <a class="quick-item" href="https://t.me/hackme_ru" target="_blank" rel="noreferrer">
+          <h4>Telegram Russian Group (RU)</h4>
+          <p>Russian-speaking community for miners: support, discussion, and operational coordination.</p>
+        </a>
+        <a class="quick-item" href="https://bitcointalk.org/" target="_blank" rel="noreferrer">
+          <h4>Bitcointalk ANN</h4>
+          <p>Create/track official ANN thread for organic miner discovery and feedback.</p>
+        </a>
+        <a class="quick-item" href="mailto:support@hackme.tech">
+          <h4>Direct Contact</h4>
+          <p>Business and audit-partner communication: support@hackme.tech</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head">
+        <h2>Quick Access</h2>
+        <p class="subtle">Everything needed to join mining and monitor chain state from one domain.</p>
+      </div>
+      <div class="quick-links">
+        <a href="./downloads.html" class="quick-item">
+          <h4>Get Installer</h4>
+          <p>Windows installer workflow, Linux tarball bundle, checksums, and release manifest.</p>
+        </a>
+        <a href="./docs.html" class="quick-item">
+          <h4>Read Technical Docs</h4>
+          <p>Architecture, mining modes, economics notes, and operational runbooks.</p>
+        </a>
+        <a href="./contacts.html" class="quick-item">
+          <h4>Join Community</h4>
+          <p>Telegram, Discord, and support channels for miners and partners.</p>
+        </a>
+        <a id="explorer-link-card" href="/pool/explorer" class="quick-item" target="_blank" rel="noreferrer">
+          <h4>Track Chain Live</h4>
+          <p>Inspect blocks, transactions, and addresses in the public explorer.</p>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>HackMe Network</p>
+    <p class="muted">Release-quality mining infrastructure. Built for secure public operations.</p>
+    <div class="footer-nav">
+      <a href="./downloads.html">Downloads</a>
+      <a href="./docs.html">Docs</a>
+      <a href="./economics-model.html">Economics</a>
+      <a href="./operator-checklist.html">Operators</a>
+      <a href="./contacts.html">Contacts</a>
+      <a href="./legal.html">Legal</a>
+      <a href="./legal-privacy.html">Privacy</a>
+      <a href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </div>
+  </footer>
+
+  <script src="./assets/app.js?v=20260511dist"></script>
+</body>
+</html>

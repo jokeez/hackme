@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe Network News — Releases, Infrastructure, and Security Updates</title>
+  <meta name="description" content="Official HackMe Network updates: releases, infrastructure changes, economics updates, security advisories, and operational runbooks." />
+  <link rel="canonical" href="https://hackme.tech/news.html" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="/assets/favicon.png" type="image/png" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://hackme.tech/news.html" />
+  <meta property="og:title" content="HackMe Network News" />
+  <meta property="og:description" content="Track platform updates, release notes, and operations updates in one place." />
+  <meta property="og:image" content="https://hackme.tech/assets/logo-hex.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="HackMe Network News" />
+  <meta name="twitter:description" content="Track platform updates, release notes, and operations updates in one place." />
+  <meta name="twitter:image" content="https://hackme.tech/assets/logo-hex.png" />
+  <link rel="alternate" type="application/rss+xml" title="HackMe News RSS" href="https://hackme.tech/news.xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./assets/styles.css" />
+</head>
+<body>
+  <div class="bg-glow bg-glow-a"></div>
+  <div class="bg-glow bg-glow-b"></div>
+
+  <header class="topbar">
+    <a class="brand" href="./index.html">
+      <img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe logo" />
+      <span>HackMe Network</span>
+    </a>
+    <nav class="nav">
+      <a href="./downloads.html">Downloads</a>
+      <a href="./docs.html">Docs</a>
+      <a href="./contacts.html">Contacts</a>
+      <a href="./legal.html">Legal</a>
+      <a href="./news.html" aria-current="page">News</a>
+      <a id="explorer-link-top" href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass hero-small">
+      <p class="kicker">Official Updates</p>
+      <h1>HackMe Newsroom</h1>
+      <p class="hero-copy">
+        One place for release notes, infrastructure changes, economics updates, and security advisories.
+        Every entry includes impact, action items, and deployment status.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-secondary" href="./docs.html">Open Technical Docs</a>
+        <a id="explorer-link-hero" class="btn btn-primary" href="/pool/explorer" target="_blank" rel="noreferrer">Open Explorer</a>
+        <a class="btn btn-secondary" href="./news.xml" target="_blank" rel="noreferrer">RSS Feed</a>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head">
+        <h2>Network Health Snapshot</h2>
+        <p class="subtle">Live canonical telemetry for quick operator visibility.</p>
+      </div>
+      <div class="news-health-grid">
+        <div class="news-health-item">
+          <span class="news-health-label">Chain Height</span>
+          <strong id="news-health-height">loading...</strong>
+        </div>
+        <div class="news-health-item">
+          <span class="news-health-label">Tip Hash</span>
+          <strong id="news-health-tip">loading...</strong>
+        </div>
+        <div class="news-health-item">
+          <span class="news-health-label">Global Hashrate</span>
+          <strong id="news-health-hashrate">loading...</strong>
+        </div>
+        <div class="news-health-item">
+          <span class="news-health-label">Canonical Mining</span>
+          <strong id="news-health-mining">loading...</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="news-toolbar">
+        <div class="news-search-wrap">
+          <label for="news-search" class="news-label">Search</label>
+          <input id="news-search" class="news-search" type="search" placeholder="Search by title, summary, or tag..." />
+        </div>
+        <div class="news-filter-wrap">
+          <span class="news-label">Filter by tag</span>
+          <div id="news-tag-filters" class="news-tag-filters"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel glass" id="news-featured-wrap">
+      <div class="panel-head">
+        <h2>Featured Update</h2>
+        <p class="subtle">Most important production change for operators and miners.</p>
+      </div>
+      <article id="news-featured" class="news-featured"></article>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head">
+        <h2>Latest Updates</h2>
+        <p class="subtle">Reverse-chronological feed of platform activity.</p>
+      </div>
+      <div id="news-list" class="news-list"></div>
+      <p id="news-empty" class="muted news-empty hidden">No updates match the current filters.</p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>HackMe Network</p>
+    <p class="muted">Transparent operations for miners, partners, and auditors.</p>
+    <div class="footer-nav">
+      <a href="./downloads.html">Downloads</a>
+      <a href="./docs.html">Docs</a>
+      <a href="./contacts.html">Contacts</a>
+      <a href="./legal.html">Legal</a>
+      <a href="./news.html">News</a>
+      <a href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </div>
+  </footer>
+
+  <script src="./assets/app.js?v=20260504news1"></script>
+</body>
+</html>

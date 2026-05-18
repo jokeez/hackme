@@ -1,0 +1,25 @@
+[Unit]
+Description=HackMe RC Freeze Nightly Gate
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=hackme
+Group=hackme
+WorkingDirectory=/opt/hackme
+EnvironmentFile=/opt/hackme/.env.vps
+ExecStart=/usr/bin/env bash -c 'cd /opt/hackme && BASE=${BASE:-http://127.0.0.1:18080} COORD=${COORD:-http://127.0.0.1:18081} VPS_BASE=${VPS_BASE:-http://127.0.0.1:18080} bash scripts/ops/rc_freeze_nightly.sh'
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

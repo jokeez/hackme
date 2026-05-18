@@ -1,0 +1,42 @@
+# Default branch: adjust `branches:` if your repo uses something other than main/master.
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-static-lang:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+          cache-dependency-path: go.sum
+
+      - name: Install jq (report_summary / scripts)
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Go fmt check
+        run: test -z "$(gofmt -l .)"
+
+      - name: Code quality audit
+        run: bash scripts/ops/code_quality_audit.sh
+
+      - name: Go vet
+        run: go vet ./...
+
+      - name: Go test
+        run: go test ./... -count=1
+
+      - name: Language static (manifest lint + WASM ABI + rollup)
+        env:
+          RUN_ID: ci-${{ github.run_id }}
+        run: MODE=lang_static bash scripts/tests/run_daily.sh

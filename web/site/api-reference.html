@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe API Reference</title>
+  <meta name="description" content="HackMe HTTP API reference for metrics, mining, tasks, transfers, and coordinator workflows." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./assets/styles.css" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="/assets/favicon.png" type="image/png" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe logo" /><span>HackMe Network</span></a>
+    <nav class="nav">
+      <a href="./index.html">Home</a>
+      <a href="./downloads.html">Downloads</a>
+      <a href="./docs.html">Docs</a>
+      <a href="./contacts.html">Contacts</a>
+      <a id="explorer-link-top" href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass hero-small">
+      <p class="kicker">API Reference</p>
+      <h1>HackMe HTTP API for nodes, miners, and operators</h1>
+      <p class="hero-copy">Clean entry point for integration: canonical metrics, mining control, tasks/orders, fuzz campaigns, transfer flow, and pool coordinator endpoints.</p>
+      <div class="pill-row">
+        <span class="pill">Base URL: node root</span>
+        <span class="pill">JSON contracts</span>
+        <span class="pill">Admin token for mutating POST</span>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head">
+        <h2>Core endpoints</h2>
+        <p class="subtle">Fast-start subset used by UI, scripts, and integrations.</p>
+      </div>
+      <div class="table-wrap">
+        <table class="endpoint-table">
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Path</th>
+              <th>Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="method-pill method-get">GET</span></td>
+              <td><span class="code-inline">/api/global/metrics</span></td>
+              <td>Canonical global KPI source for all miners (chain/network/work aggregate).</td>
+            </tr>
+            <tr>
+              <td><span class="method-pill method-get">GET</span></td>
+              <td><span class="code-inline">/api/metrics</span></td>
+              <td>Local node telemetry (hardware, economics, mining). Field <span class="code-inline">hashrate_th_s</span> is a synthetic idle baseline — pool-wide TH/s is only on <span class="code-inline">/api/global/metrics</span> (<span class="code-inline">network.global_hashrate_th_s</span>).</td>
+            </tr>
+            <tr>
+              <td><span class="method-pill method-get">GET</span></td>
+              <td><span class="code-inline">/api/status</span></td>
+              <td>Node chain state and policy exposure for operator checks.</td>
+            </tr>
+            <tr>
+              <td><span class="method-pill method-post">POST</span></td>
+              <td><span class="code-inline">/api/mining/start</span></td>
+              <td>Start PoH mining (requires genesis; admin token if enabled).</td>
+            </tr>
+            <tr>
+              <td><span class="method-pill method-post">POST</span></td>
+              <td><span class="code-inline">/api/tasks</span></td>
+              <td>Create order/task with escrow, validation gates, and TTL logic.</td>
+            </tr>
+            <tr>
+              <td><span class="method-pill method-get">GET</span></td>
+              <td><span class="code-inline">/api/fuzz/campaigns</span></td>
+              <td>List fuzz/property/symbolic campaigns. Mutating routes require admin token; reports accept <span class="code-inline">X-Hackme-Report-Token</span>.</td>
+            </tr>
+            <tr>
+              <td><span class="method-pill method-get">GET</span></td>
+              <td><span class="code-inline">/api/fuzz/campaigns/{id}/gate</span></td>
+              <td>CI/release gate: pass/fail + reasons against severity thresholds.</td>
+            </tr>
+            <tr>
+              <td><span class="method-pill method-post">POST</span></td>
+              <td><span class="code-inline">/api/tx/send</span></td>
+              <td>Submit signed transfer transaction (v1).</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted" style="margin-top:0.75rem">
+        Fuzz lifecycle primer: <a href="./fuzz-guide.html">fuzz-guide.html</a>. Full route tables: <a href="../docs/API.md" target="_blank" rel="noreferrer">docs/API.md</a> (Fuzz Campaigns).
+      </p>
+    </section>
+
+    <section class="doc-grid">
+      <article class="doc-card glass">
+        <h3>Authentication</h3>
+        <p>For mutating routes use <span class="code-inline">X-Hackme-Admin-Token</span> or <span class="code-inline">Authorization: Bearer ...</span>.</p>
+        <p>Without valid token: <span class="code-inline">401 Unauthorized</span>.</p>
+      </article>
+      <article class="doc-card glass">
+        <h3>Coordinator flow</h3>
+        <p>Worker mode uses claim/submit pair: <span class="code-inline">/api/work/claim</span> and <span class="code-inline">/api/work/submit</span>.</p>
+        <p>Stats endpoint <span class="code-inline">/api/work/stats</span> supports compact and detailed responses.</p>
+      </article>
+      <article class="doc-card glass">
+        <h3>Error model</h3>
+        <p>Use HTTP + JSON code fields for machine handling: <span class="code-inline">400/401/402/409/412/429</span>.</p>
+        <p>Rate-limit and anti-abuse are expected behavior under burst load.</p>
+      </article>
+      <article class="doc-card glass">
+        <h3>Full specification</h3>
+        <p>Need complete contract details, all routes, and payload structures?</p>
+        <p><a class="btn btn-secondary" href="../docs/API.md" target="_blank" rel="noreferrer">Open full API.md</a></p>
+      </article>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>HackMe Network</p>
+    <p class="muted">Public-facing API summary for fast integration and operator onboarding.</p>
+    <div class="footer-nav">
+      <a href="./index.html">Home</a>
+      <a href="./docs.html">Docs</a>
+      <a href="./contacts.html">Contacts</a>
+      <a href="./security-notes.html">Security Notes</a>
+      <a href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </div>
+  </footer>
+
+  <script src="./assets/app.js?v=20260430r6"></script>
+</body>
+</html>

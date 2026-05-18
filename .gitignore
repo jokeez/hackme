@@ -1,0 +1,61 @@
+# Build outputs
+hackme.exe
+*.exe
+!scripts/release/windows/*.exe
+resource_windows_amd64.syso
+hackme-node
+hackme-node-local-treasury
+hackme-coordinator
+minersign
+/bin/
+
+# Local chain state (never commit)
+data/*.db
+data/*.db-*
+data/hackme.db.pre-restore-*
+data_backup_*/
+data_tmp_*/
+data/local-treasury-mine/
+data/node_ed25519.seed
+data/miner_submit_ed25519_seed.hex
+
+# Secrets and operator env
+.secrets/
+.env
+.env.*
+!.env.*.example
+.env.desktop
+.env.worker
+telegram_bot.env
+.env.telegram
+
+# Logs and desktop runtime
+logs/
+*.log
+
+# Toolchain caches (desktop installer downloads)
+.hackme-toolchains.env
+logs/desktop/
+
+# Release artifacts (build in CI / locally; publish via GitHub Releases)
+dist/
+
+# Reports and soak artifacts
+reports/
+
+# Editor / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Misc local scratch
+text123.txt
+tmp/
+GET
+Untitled
+backups/
+*.tar.gz
+*.zip
+!web/site/**

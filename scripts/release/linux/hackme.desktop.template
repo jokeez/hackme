@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=HackMe
+Comment=HackMe node dashboard and explorer
+Exec=__INSTALL_DIR__/hackme
+Icon=utilities-terminal
+Terminal=false
+Categories=Development;Network;
+StartupNotify=true

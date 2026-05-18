@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe — Fuzz Campaigns Guide</title>
+  <meta name="description" content="HackMe fuzz campaigns: release gates, autorunner env, report tokens, CI gate endpoint, housekeeping." />
+  <link rel="canonical" href="https://hackme.tech/fuzz-guide.html" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20260507fuzz" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="/assets/favicon.png" type="image/png" />
+</head>
+<body>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe logo" /><span>HackMe Network</span></a>
+    <nav class="nav">
+      <a href="./docs.html">Docs</a>
+      <a href="./api-reference.html">API</a>
+      <a href="./operator-checklist.html">Operators</a>
+      <a href="./news.html">News</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass hero-small">
+      <p class="kicker">Product · security testing</p>
+      <h1>Fuzz campaigns</h1>
+      <p class="hero-copy">
+        Campaigns live under <span class="code-inline">/api/fuzz/campaigns</span> with findings, corpus, runtime telemetry, customer reports, and a machine-readable <strong>gate</strong> for CI.
+        Canonical Markdown: <span class="code-inline">docs/FUZZ_PRODUCT_GUIDE.md</span> in the repository.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-secondary" href="./docs.html">Docs hub</a>
+        <a class="btn btn-primary" href="./api-reference.html">API reference</a>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>0. Canon / prod gate</h2></div>
+      <p class="section-lede">After upgrading nodes, <span class="code-inline">schema_version</span> on <span class="code-inline">GET /api/status</span> must equal <span class="code-inline">schema_expected</span>. Followers overlay canonical economics when a remote canon URL is set.</p>
+      <div class="formula-box">
+        ADMIN_TOKEN=… BASE=https://hackme.tech bash scripts/ops/run_canonical_fuzz_gate.sh
+      </div>
+      <p class="muted">See repo <span class="code-inline">docs/CANONICAL_RELEASE_CHECKS.md</span> — running the gate on prod creates test campaigns; prefer staging when possible.</p>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>1. Ship checklist</h2></div>
+      <p class="section-lede">Before calling a build production-ready, keep this gate green on your node:</p>
+      <div class="formula-box">
+        ADMIN_TOKEN=… BASE=http://127.0.0.1:8080 bash scripts/ops/fuzz_release_gate.sh
+      </div>
+      <p class="muted">Optional upstream static pass: <span class="code-inline">MODE=lang_static bash scripts/tests/run_daily.sh</span></p>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>2. Autorunner &amp; disk</h2></div>
+      <ul class="list">
+        <li><span class="code-inline">HACKME_FUZZ_AUTORUN</span> — default on; set <span class="code-inline">0</span> to disable in-process ticking.</li>
+        <li><span class="code-inline">HACKME_FUZZ_AUTORUN_TICK_SEC</span> — tick cadence (1–60).</li>
+        <li><span class="code-inline">HACKME_FUZZ_ARTIFACT_DIR</span>, <span class="code-inline">HACKME_FUZZ_ARTIFACT_TTL_SEC</span>, <span class="code-inline">HACKME_FUZZ_ARTIFACT_MAX_BYTES</span> — artifact lifecycle.</li>
+        <li>Per campaign: <span class="code-inline">config.auto_runner = false</span> to skip autorunner for that row.</li>
+      </ul>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>3. Customer report token</h2></div>
+      <p class="hero-copy">Creating a campaign returns a one-time <strong>customer_report_token</strong>. For JSON/CSV/pulse/gate/corpus/crash views, send <span class="code-inline">X-Hackme-Report-Token</span> or use an admin token.</p>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>4. CI gate</h2></div>
+      <div class="formula-box">
+        GET /api/fuzz/campaigns/{id}/gate?max_critical=0&amp;max_high=0 …
+      </div>
+      <p class="muted">Returns <span class="code-inline">pass</span> / <span class="code-inline">reasons[]</span> — wire into pipelines after a campaign finishes.</p>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>5. Housekeeping</h2></div>
+      <ul class="list">
+        <li><span class="code-inline">POST /api/fuzz/housekeeping</span> — global sweep (admin).</li>
+        <li><span class="code-inline">POST /api/fuzz/campaigns/{id}/housekeeping</span> — per campaign.</li>
+        <li><span class="code-inline">POST /api/fuzz/artifacts/cleanup</span> — filesystem cleanup.</li>
+      </ul>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>6. Full API contract</h2></div>
+      <p class="hero-copy">Every path and payload is listed in <strong>docs/API.md</strong> (Fuzz Campaigns). The interactive summary page links there from <a href="./api-reference.html">API reference</a>.</p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>HackMe Network</p>
+    <div class="footer-nav">
+      <a href="./index.html">Home</a>
+      <a href="./operator-checklist.html">Operator checklist</a>
+      <a href="./security-notes.html">Security</a>
+    </div>
+  </footer>
+
+  <script src="./assets/app.js?v=20260507fuzz"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run HackMe News Bot Watchdog every minute
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+Unit=hackme-news-bot-watchdog.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

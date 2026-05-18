@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe Docs — Architecture & Operations</title>
+  <meta name="description" content="HackMe architecture, security model, economics, WASM order languages, and release operations overview." />
+  <link rel="canonical" href="https://hackme.tech/docs.html" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20260502docs2" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="/assets/favicon.png" type="image/png" />
+</head>
+<body>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe logo" /><span>HackMe Network</span></a>
+    <nav class="nav">
+      <a href="./index.html">Home</a>
+      <a href="./downloads.html">Downloads</a>
+      <a href="./news.html">News</a>
+      <a href="./contacts.html">Contacts</a>
+      <a href="./legal.html">Legal</a>
+      <a id="explorer-link-top" href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass hero-small">
+      <p class="kicker">Documentation</p>
+      <h1>How HackMe works</h1>
+      <p class="hero-copy">Operational snapshot for miners, operators, and partners building on canonical PoH plus coordinator-backed worker pools.</p>
+      <div class="pill-row" aria-label="Core components">
+        <span class="pill">Canonical node</span>
+        <span class="pill">Coordinator</span>
+        <span class="pill">Worker mode</span>
+        <span class="pill">Explorer</span>
+        <span class="pill">WASM gate</span>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Architecture</h2></div>
+      <p class="section-lede">Separation of duties keeps consensus data on the node while pool telemetry and leased nonce ranges flow through the coordinator.</p>
+      <p class="subtle" style="margin-top:0.5rem">Operator-facing numbers: use <span class="code-inline">GET /api/global/metrics</span> for the same chain height, difficulty, and pool hashrate every miner should see. Treat <span class="code-inline">GET /api/metrics</span> as <strong>local</strong> hardware and session telemetry — its <span class="code-inline">hashrate_th_s</span> field is not the pool aggregate.</p>
+      <div class="doc-grid">
+        <article class="doc-card">
+          <h3>Canonical node</h3>
+          <p>Chain source of truth, wallet and tasks API, PoH mining when enabled, and strict WASM verification for orders.</p>
+        </article>
+        <article class="doc-card">
+          <h3>Coordinator</h3>
+          <p>Worker claim/submit lifecycle, payout accounting, aggregate stats surfaced to dashboards.</p>
+        </article>
+        <article class="doc-card">
+          <h3>Workers</h3>
+          <p>Fleet clients in controlled worker mode; coordinate ranges instead of competing forks against canon followers.</p>
+        </article>
+        <article class="doc-card">
+          <h3>Explorer</h3>
+          <p>Read-only projection for blocks, transfers, and address balances — isolate from mutating APIs.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Proof of Analysis (utility layer)</h2></div>
+      <p class="hero-copy">
+        HackMe pays for measurable compute: audit orders decompose into deterministic segments for fuzz, property, and symbolic-style workloads.
+        Rewards tie to accepted segments and verified artefacts rather than blind noise.
+      </p>
+      <ul class="list">
+        <li>Coordinator leases bounded nonce batches per worker session.</li>
+        <li>Accepted submissions advance campaign evidence and telemetry streams.</li>
+        <li>Deliverables include coverage deltas, crash/finding feeds, and signed report bundles.</li>
+      </ul>
+      <p style="margin-top:0.85rem">
+        <a class="btn btn-primary" href="./fuzz-guide.html">Fuzz campaigns guide</a>
+      </p>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Orders from code · WASM languages</h2></div>
+      <p class="section-lede">
+        Operators can compile gate modules via <span class="code-inline">POST /api/tasks/from_code</span> when node toolchains are installed.
+        Each pipeline emits a hashed WASM artifact with export <span class="code-inline">check(i64) → i32</span>.
+      </p>
+      <div class="lang-strip">
+        <span class="pill">Rust</span>
+        <span class="pill">C</span>
+        <span class="pill">C++</span>
+        <span class="pill">TinyGo</span>
+        <span class="pill">Zig</span>
+        <span class="pill">AssemblyScript</span>
+        <span class="pill">WAT</span>
+      </div>
+      <p class="subtle" style="margin-top:0.75rem">Aliases (e.g. <span class="code-inline">gcc→c</span>, <span class="code-inline">go→tinygo</span>, <span class="code-inline">as→assemblyscript</span>) are normalized server-side — see API reference.</p>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Economics model (chain · pool · orders)</h2></div>
+      <p class="section-lede">
+        HackMe separates <strong>on-chain PoH rewards</strong> (credited to the block-producing node&apos;s primary wallet), <strong>coordinator worker accounting</strong> (accrual and settlement policy), and <strong>paid audit orders</strong> (escrow and fee splits).
+        This is not the same as classic pooled PoW where every share automatically maps to a fraction of each block subsidy.
+      </p>
+      <p style="margin-top:0.75rem">
+        <a class="btn btn-primary" href="./economics-model.html">Read the full economics page</a>
+      </p>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Tokenomics snapshot</h2></div>
+      <div class="table-wrap">
+        <table class="pool-table">
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>Value</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Initial base reward</td>
+              <td>0.010000 HMC</td>
+              <td>Per PoH block cadence before halving milestones.</td>
+            </tr>
+            <tr>
+              <td>Halving interval</td>
+              <td>2,102,400 blocks</td>
+              <td>Programmatic emission throttle.</td>
+            </tr>
+            <tr>
+              <td>Tail floor</td>
+              <td>0.002000 HMC</td>
+              <td>Long-run security budget baseline.</td>
+            </tr>
+            <tr>
+              <td>Transfer fee split</td>
+              <td>70% service/dev · 30% burn</td>
+              <td>On <span class="code-inline">fee_units</span> included in signed transfers.</td>
+            </tr>
+            <tr>
+              <td>Order platform fee</td>
+              <td>5% of prepaid</td>
+              <td>Goes to consensus dev/service address at order creation.</td>
+            </tr>
+            <tr>
+              <td>Order-open burn tally</td>
+              <td>10% of prepaid</td>
+              <td><span class="code-inline">OrderBurnRate</span> — burned-supply accounting when the task opens.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="formula-box">
+        prepaid = reward_hmc × target_solves<br />
+        order_fee = prepaid × 0.05 → dev/service<br />
+        burn_recorded = prepaid × 0.10<br />
+        wallet_debit = prepaid + order_fee<br />
+        — transfers: fee_units → 70% dev · 30% burn
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Quick start paths</h2></div>
+      <p class="section-lede">Four entry flows — pick the card that matches your role.</p>
+      <div class="path-grid">
+        <article class="path-card">
+          <h3>Start mining</h3>
+          <p>Provision a node, configure admin auth, launch worker mode toward your coordinator, monitor solves and payouts.</p>
+          <span class="mono-hint">worker · POST /api/worker/start</span>
+        </article>
+        <article class="path-card">
+          <h3>Operate at scale</h3>
+          <p>Attach a fleet URL to the coordinator, watch throughput and abuse rails, pair with P2P follower sync for canon alignment.</p>
+          <span class="mono-hint">GET /api/work/stats · /api/p2p/sync</span>
+        </article>
+        <article class="path-card">
+          <h3>Create orders</h3>
+          <p>Ship WASM gates using any supported language toolchain; manifests escrow rewards until TTL or completion.</p>
+          <span class="mono-hint">POST /api/tasks/from_code</span>
+        </article>
+        <article class="path-card">
+          <h3>Fuzz campaigns</h3>
+          <p>HTTP-first lifecycle: create, runtime pulses, findings ingest, customer report token, CSV export, CI gate endpoint.</p>
+          <span class="mono-hint"><a href="./fuzz-guide.html">fuzz-guide.html</a> · /api/fuzz/campaigns</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Desktop install path</h2></div>
+      <p class="section-lede">For miners/operators who prefer app-style UX, use Desktop Mode wrappers on top of the same node/coordinator APIs.</p>
+      <ul class="list">
+        <li>Linux launcher install: <span class="code-inline">bash scripts/ops/install_linux_desktop_launcher.sh</span>.</li>
+        <li>Desktop lifecycle: <span class="code-inline">desktop_mode_up.sh</span>, <span class="code-inline">desktop_mode_status.sh</span>, <span class="code-inline">desktop_mode_stop.sh</span>.</li>
+        <li>First run generates admin token when missing and enables local desktop profile flags.</li>
+        <li>Dashboard includes a first-run wizard for token generation plus Solo/Worker start buttons.</li>
+      </ul>
+    </section>
+
+    <section class="grid grid-2">
+      <article class="card glass">
+        <h3>Security layers</h3>
+        <ul class="list compact">
+          <li>Distinct admin vs P2P credentials.</li>
+          <li>Rate limits and malformed payload rejection.</li>
+          <li>WASM sandbox validation before orders go live.</li>
+          <li>Artifact hashes plus hardened storage paths.</li>
+        </ul>
+      </article>
+      <article class="card glass">
+        <h3>Economics controls</h3>
+        <ul class="list compact">
+          <li>Fairness rails tying reward to difficulty.</li>
+          <li>Escrow, burns, and ledger-visible debits.</li>
+          <li>TTL cancellation with automated refunds.</li>
+          <li>Canonical KPI feeds for operator dashboards.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Recommended reading</h2></div>
+      <p class="section-lede">Deep dives live beside this micro-site — start here, then open the references.</p>
+      <div class="quick-links">
+        <a class="quick-item" href="./README.md">
+          <h4>Site README</h4>
+          <p>How this static bundle is structured, preview commands, and production deployment hints.</p>
+        </a>
+        <a class="quick-item" href="./api-reference.html">
+          <h4>API reference</h4>
+          <p>Endpoint catalog, auth headers, error vocabulary, integration snippets.</p>
+        </a>
+        <a class="quick-item" href="./economics-model.html">
+          <h4>Economics model</h4>
+          <p>How chain rewards, coordinator payouts, and orders interact — and what miners should expect.</p>
+        </a>
+        <a class="quick-item" href="./operator-checklist.html">
+          <h4>Operator final checklist</h4>
+          <p>Predeploy + fuzz gates, deploy commands, settlement hints — before shipping a final cut.</p>
+        </a>
+        <a class="quick-item" href="./fuzz-guide.html">
+          <h4>Fuzz campaigns</h4>
+          <p>Release gate script, autorunner env, report tokens, housekeeping — product-facing security testing.</p>
+        </a>
+        <a class="quick-item" href="./security-notes.html">
+          <h4>Security notes</h4>
+          <p>Threat model boundaries, hardening checklist, operational hygiene.</p>
+        </a>
+        <a class="quick-item" href="./contacts.html">
+          <h4>Contacts &amp; community</h4>
+          <p>Telegram, Discord, ANN threads, and escalation contacts.</p>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>HackMe Network</p>
+    <p class="muted">Ship behind release gates; promote only after difficulty + coordinator smoke tests pass.</p>
+    <div class="footer-nav">
+      <a href="./index.html">Home</a>
+      <a href="./downloads.html">Downloads</a>
+      <a href="./contacts.html">Contacts</a>
+      <a href="./legal.html">Legal</a>
+      <a href="./legal-risk.html">Risk Disclosure</a>
+      <a href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </div>
+  </footer>
+
+  <script src="./assets/app.js?v=20260511dist"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "id":"order-cpp-overflow_guard-001",
+  "kind":"synthetic_poh_v1",
+  "reward_hmc":0.02,
+  "difficulty_score":25,
+  "target_solves":3,
+  "payer_ref":"company:cpp-overflow_guard",
+  "wasm_artifact_path":"security/cpp_overflow_guard.wasm",
+  "artifact_hash":"8ecd7d992c6156cc2c32c0b71ea5e58bf12413d7c11d54b48a608a7de59a5a09"
+}

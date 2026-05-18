@@ -1,0 +1,19 @@
+[Unit]
+Description=HackMe Node
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__SERVICE_USER__
+Group=__SERVICE_USER__
+WorkingDirectory=__INSTALL_DIR__
+ExecStart=__INSTALL_DIR__/hackme
+Restart=always
+RestartSec=3
+EnvironmentFile=-__INSTALL_DIR__/.env
+NoNewPrivileges=true
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

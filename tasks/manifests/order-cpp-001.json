@@ -1,0 +1,10 @@
+{
+  "id":"order-cpp-001",
+  "kind":"synthetic_poh_v1",
+  "reward_hmc":0.02,
+  "difficulty_score":20,
+  "target_solves":3,
+  "payer_ref":"company:cpp-demo",
+  "wasm_artifact_path":"cpp_check.wasm",
+  "artifact_hash":"75ff3574be25c1a96b3f76dc1b79bd0f4e612d0f677a74a92001e0d864aaac3d"
+}
