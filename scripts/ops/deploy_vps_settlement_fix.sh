@@ -40,4 +40,4 @@ echo "[settle-fix] run settle_worker_payouts.sh"
 ssh "$NODE_SSH" "cd '$NODE_DEPLOY_DIR' && set -a && . ./.env.settlement && set +a && bash scripts/ops/settle_worker_payouts.sh"
 
 echo "[settle-fix] coordinator worker row:"
-ssh "$NODE_SSH" "curl -fsS http://127.0.0.1:18081/api/work/stats?details=1 | jq '.workers[\"$WORKER_ID\"]'"
+ssh "$NODE_SSH" 'TOKEN=$(tr -d "\r\n" <'"$NODE_DEPLOY_DIR"'/.secrets/hackme_coordinator_admin_token); curl -fsS -H "X-Hackme-Admin-Token: $TOKEN" http://127.0.0.1:18081/api/work/stats?details=1 | jq '"'"'.workers["'"$WORKER_ID"'"]'"'"''

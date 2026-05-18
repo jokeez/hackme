@@ -7,6 +7,7 @@ set -euo pipefail
 # - COORD_URL: coordinator base (default http://127.0.0.1:18081)
 # - CHAIN_BASE: canonical node base (default http://127.0.0.1:18080)
 # - ADMIN_TOKEN: node admin token used for /api/tx/send
+# - COORD_ADMIN_TOKEN / HACKME_COORDINATOR_ADMIN_TOKEN: coordinator admin (required for ?details=1 after hardening)
 # - MIN_SETTLE_HMC: minimum delta per worker to settle (default 0.01)
 # - DAILY_FORCE_INTERVAL_SEC: force-settle cycle cadence (default 86400 = once/day)
 # - DAILY_MIN_SETTLE_HMC: minimal delta used during force-settle cycle (default 0.0001)
@@ -29,9 +30,14 @@ require_cmd curl
 require_cmd jq
 require_cmd python3
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+COORD_SECRET_FILE="${COORD_SECRET_FILE:-${ROOT_DIR}/.secrets/hackme_coordinator_admin_token}"
+ADMIN_SECRET_FILE="${ADMIN_SECRET_FILE:-${ROOT_DIR}/.secrets/hackme_admin_token}"
+
 COORD_URL="${COORD_URL:-http://127.0.0.1:18081}"
 CHAIN_BASE="${CHAIN_BASE:-http://127.0.0.1:18080}"
 ADMIN_TOKEN="${ADMIN_TOKEN:-${HACKME_ADMIN_TOKEN:-}}"
+COORD_ADMIN_TOKEN="${COORD_ADMIN_TOKEN:-${HACKME_COORDINATOR_ADMIN_TOKEN:-${COORD_TOKEN:-}}}"
 MIN_SETTLE_HMC="${MIN_SETTLE_HMC:-0.01}"
 DAILY_FORCE_INTERVAL_SEC="${DAILY_FORCE_INTERVAL_SEC:-86400}"
 DAILY_MIN_SETTLE_HMC="${DAILY_MIN_SETTLE_HMC:-0.0001}"
@@ -41,19 +47,34 @@ WORKER_PAYOUT_MAP="${WORKER_PAYOUT_MAP:-}"
 MIN_FEE_UNITS=1000
 UNITS_PER_HMC=100000000
 
+if [[ -z "$ADMIN_TOKEN" && -r "$ADMIN_SECRET_FILE" ]]; then
+  ADMIN_TOKEN="$(tr -d '\r\n' <"$ADMIN_SECRET_FILE")"
+fi
+if [[ -z "$COORD_ADMIN_TOKEN" && -r "$COORD_SECRET_FILE" ]]; then
+  COORD_ADMIN_TOKEN="$(tr -d '\r\n' <"$COORD_SECRET_FILE")"
+fi
 if [[ -z "$ADMIN_TOKEN" ]]; then
-  echo "[settle-workers] ADMIN_TOKEN (or HACKME_ADMIN_TOKEN) is required" >&2
+  echo "[settle-workers] ADMIN_TOKEN (or HACKME_ADMIN_TOKEN or ${ADMIN_SECRET_FILE}) is required" >&2
+  exit 1
+fi
+if [[ -z "$COORD_ADMIN_TOKEN" ]]; then
+  echo "[settle-workers] COORD_ADMIN_TOKEN required for coordinator /api/work/stats?details=1 (set env or ${COORD_SECRET_FILE})" >&2
   exit 1
 fi
 
 mkdir -p "$(dirname "$STATE_FILE")"
-# Ensure hackme user (systemd) can read/write state when script run as root during manual ops.
-if [[ -f "$STATE_FILE" ]] && [[ "$(id -u)" -eq 0 ]]; then
-  chown hackme:hackme "$STATE_FILE" 2>/dev/null || true
-  chmod 600 "$STATE_FILE" 2>/dev/null || true
-fi
 if [[ ! -f "$STATE_FILE" ]]; then
   echo '{"workers":{},"meta":{"last_force_unix":0}}' >"$STATE_FILE"
+fi
+# systemd runs as User=hackme; state must not be root-only.
+if [[ "$(id -u)" -eq 0 ]]; then
+  chown hackme:hackme "$(dirname "$STATE_FILE")" "$STATE_FILE" 2>/dev/null || true
+  chmod 700 "$(dirname "$STATE_FILE")" 2>/dev/null || true
+  chmod 600 "$STATE_FILE" 2>/dev/null || true
+fi
+if [[ ! -r "$STATE_FILE" || ! -w "$STATE_FILE" ]]; then
+  echo "[settle-workers] cannot read/write STATE_FILE=${STATE_FILE} (run: sudo chown hackme:hackme ${STATE_FILE})" >&2
+  exit 1
 fi
 
 # Single-writer: avoid two cron/systemd instances racing on nonce + state (see docs/POOL_SECURITY_THREATS_VERDICT.md).
@@ -85,7 +106,7 @@ if [[ "$force_settle" == "1" ]]; then
   echo "[settle-workers] force-settle mode ON (interval=${DAILY_FORCE_INTERVAL_SEC}s daily_min=${DAILY_MIN_SETTLE_HMC} HMC)"
 fi
 
-stats_json="$(curl -fsS "${COORD_URL}/api/work/stats?details=1")"
+stats_json="$(curl -fsS -H "X-Hackme-Admin-Token: ${COORD_ADMIN_TOKEN}" "${COORD_URL}/api/work/stats?details=1")"
 payer_addr="$(curl -fsS "${CHAIN_BASE}/api/wallet" | jq -r '.address // ""')"
 if [[ -z "$payer_addr" ]]; then
   echo "[settle-workers] failed to resolve payer wallet address from ${CHAIN_BASE}/api/wallet" >&2
