@@ -1,0 +1,32 @@
+# HackMe public site
+
+Static front-end for [hackme.tech](https://hackme.tech). Served separately from the node and coordinator (Nginx/CDN root = this folder).
+
+## Pages
+
+| File | Purpose |
+|------|---------|
+| `index.html` | Landing |
+| `downloads.html` | Release artifacts and checksums |
+| `docs.html` | Documentation hub |
+| `economics-model.html` | Chain / pool / orders economics |
+| `pool/explorer` (proxied) | Live explorer on production |
+
+Release label and download URLs: `assets/app.js` → `RELEASE_VER` (must match `dist/release_<VERSION>/` on the server).
+
+## Local preview
+
+From repo root:
+
+```bash
+python3 -m http.server 8090
+# http://127.0.0.1:8090/web/site/index.html
+```
+
+## Deploy
+
+```bash
+NODE_SSH=hackme-vps NODE_DEPLOY_DIR=/opt/hackme bash scripts/ops/deploy_hackme_site.sh
+```
+
+Node/coordinator source code lives in the repository root — see [README.md](../../README.md).

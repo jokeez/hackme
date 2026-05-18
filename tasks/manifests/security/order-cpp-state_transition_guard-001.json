@@ -1,0 +1,10 @@
+{
+  "id":"order-cpp-state_transition_guard-001",
+  "kind":"synthetic_poh_v1",
+  "reward_hmc":0.02,
+  "difficulty_score":25,
+  "target_solves":3,
+  "payer_ref":"company:cpp-state_transition_guard",
+  "wasm_artifact_path":"security/cpp_state_transition_guard.wasm",
+  "artifact_hash":"66158cb320ae0b3d2a6ddd82253c23d0ba15ad481681f5eb33285684f122ac5e"
+}

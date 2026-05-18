@@ -1,0 +1,10 @@
+{
+  "id":"order-rust-001",
+  "kind":"synthetic_poh_v1",
+  "reward_hmc":0.02,
+  "difficulty_score":20,
+  "target_solves":3,
+  "payer_ref":"company:rust-demo",
+  "wasm_artifact_path":"rust_check.wasm",
+  "artifact_hash":"978c7dfa525069931d52012a99b55375421ea31010ca3dab981ff961224a6dd2"
+}

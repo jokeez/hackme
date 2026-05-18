@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>HackMe Network News</title>
+    <link>https://hackme.tech/news.html</link>
+    <description>Official HackMe Network release, infrastructure, economics, and security updates.</description>
+    <language>en-us</language>
+    <lastBuildDate>Tue, 05 May 2026 00:00:00 GMT</lastBuildDate>
+    <item>
+      <title>RC7 Release Pack + Hybrid Anti-Replay Hardening</title>
+      <link>https://hackme.tech/news.html#2026-05-05-rc7-security-hardening-and-release-pack</link>
+      <guid>https://hackme.tech/news.html#2026-05-05-rc7-security-hardening-and-release-pack</guid>
+      <pubDate>Tue, 05 May 2026 00:00:00 GMT</pubDate>
+      <description>RC7 Linux/Windows bundles were rebuilt and Hybrid signer anti-replay/duplicate protections were hardened for coordinator submit flow.</description>
+    </item>
+    <item>
+      <title>Auto-Settlement Timers are Live</title>
+      <link>https://hackme.tech/news.html#2026-05-05-auto-settlement-timers-live</link>
+      <guid>https://hackme.tech/news.html#2026-05-05-auto-settlement-timers-live</guid>
+      <pubDate>Tue, 05 May 2026 00:00:00 GMT</pubDate>
+      <description>Systemd timers for worker payout settlement and settlement healthcheck are now active on the canonical VPS.</description>
+    </item>
+    <item>
+      <title>V3 Worker Settlement Bridge Added</title>
+      <link>https://hackme.tech/news.html#2026-05-05-v3-worker-settlement-bridge</link>
+      <guid>https://hackme.tech/news.html#2026-05-05-v3-worker-settlement-bridge</guid>
+      <pubDate>Tue, 05 May 2026 00:00:00 GMT</pubDate>
+      <description>New settlement script bridges coordinator accrual to on-chain payouts with nonce-safe transfer submission and self-pay protection.</description>
+    </item>
+    <item>
+      <title>Hybrid Signer v2 Dark Launch (Safe Fallback Active)</title>
+      <link>https://hackme.tech/news.html#2026-05-05-hybrid-signer-v2-dark-launch</link>
+      <guid>https://hackme.tech/news.html#2026-05-05-hybrid-signer-v2-dark-launch</guid>
+      <pubDate>Tue, 05 May 2026 00:00:00 GMT</pubDate>
+      <description>Coordinator supports optional miner-signed submits with replay protection and deterministic rejects while unsigned fallback remains active.</description>
+    </item>
+    <item>
+      <title>Predeploy Gate Added, Canonical Ops Pass Confirmed</title>
+      <link>https://hackme.tech/news.html#2026-05-05-predeploy-gate-and-canonical-ops-pass</link>
+      <guid>https://hackme.tech/news.html#2026-05-05-predeploy-gate-and-canonical-ops-pass</guid>
+      <pubDate>Tue, 05 May 2026 00:00:00 GMT</pubDate>
+      <description>One-command predeploy gate is now live with canonical proxy parity and worker health checks; public stack deployment passed and is online.</description>
+    </item>
+    <item>
+      <title>Telegram Channel Bot is Live</title>
+      <link>https://hackme.tech/news.html#2026-05-04-telegram-channel-bot-live</link>
+      <guid>https://hackme.tech/news.html#2026-05-04-telegram-channel-bot-live</guid>
+      <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
+      <description>Official channel automation is active: News entries now publish directly to Telegram with status, impact, action, and deep links.</description>
+    </item>
+    <item>
+      <title>Canonical Consistency Upgrade for Follower Nodes</title>
+      <link>https://hackme.tech/news.html#2026-05-04-canonical-consistency-upgrade</link>
+      <guid>https://hackme.tech/news.html#2026-05-04-canonical-consistency-upgrade</guid>
+      <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
+      <description>Follower-mode APIs now mirror canonical chain responses for transfer pool, address lookups, transaction lookups, and status economics.</description>
+    </item>
+    <item>
+      <title>Simple Send Nonce Auto-Sync</title>
+      <link>https://hackme.tech/news.html#2026-05-04-simple-send-nonce-sync</link>
+      <guid>https://hackme.tech/news.html#2026-05-04-simple-send-nonce-sync</guid>
+      <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
+      <description>Simple wallet transfers now auto-resolve nonce against canonical address state before submission in network mode.</description>
+    </item>
+    <item>
+      <title>VPS Sweep Behavior Clarified</title>
+      <link>https://hackme.tech/news.html#2026-05-04-vps-sweep-visibility</link>
+      <guid>https://hackme.tech/news.html#2026-05-04-vps-sweep-visibility</guid>
+      <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
+      <description>Automated sweep-to-primary keeps miner wallet near reserve while consolidating balances to the primary policy wallet.</description>
+    </item>
+    <item>
+      <title>Release Candidate 0.1.0-rc6 Published</title>
+      <link>https://hackme.tech/news.html#2026-05-03-release-rc6</link>
+      <guid>https://hackme.tech/news.html#2026-05-03-release-rc6</guid>
+      <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+      <description>RC6 release bundles, checksums, and deployment automation refreshed for stable operations.</description>
+    </item>
+    <item>
+      <title>Security Hardening Pack Extended</title>
+      <link>https://hackme.tech/news.html#2026-05-02-security-hardening-pack</link>
+      <guid>https://hackme.tech/news.html#2026-05-02-security-hardening-pack</guid>
+      <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
+      <description>Expanded WASM validation gates and fail-closed controls integrated into daily and ultimate validation packs.</description>
+    </item>
+  </channel>
+</rss>

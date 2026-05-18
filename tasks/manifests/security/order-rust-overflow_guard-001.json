@@ -1,0 +1,10 @@
+{
+  "id":"order-rust-overflow_guard-001",
+  "kind":"synthetic_poh_v1",
+  "reward_hmc":0.02,
+  "difficulty_score":25,
+  "target_solves":3,
+  "payer_ref":"company:rust-overflow_guard",
+  "wasm_artifact_path":"security/rust_overflow_guard.wasm",
+  "artifact_hash":"3557b0fc3ddae673d24f57b1774d9d4709350af004ed65bc1fda8cb0f0954cc6"
+}

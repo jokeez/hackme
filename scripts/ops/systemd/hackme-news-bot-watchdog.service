@@ -1,0 +1,8 @@
+[Unit]
+Description=HackMe News Bot Watchdog Check
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/hackme/scripts/ops/news_bot_healthcheck.sh

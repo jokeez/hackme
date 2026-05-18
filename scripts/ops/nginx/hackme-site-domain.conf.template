@@ -1,0 +1,51 @@
+# Public landing (web/site) uses SPA-style try_files. URLs like /docs/SECURITY.md must be aliased
+# to the repo under /opt/hackme (see location ^~ /docs/ and /spec/ below) or every .md request returns index.html.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name __SITE_DOMAIN__ __SITE_WWW_DOMAIN__;
+
+    root /opt/hackme/web/site;
+    index index.html;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+
+    location /dist/ {
+        alias /opt/hackme/dist/;
+        autoindex off;
+    }
+
+    # Markdown from the repo checkout (not copied into web/site). Without this, /docs/*.md
+    # falls through to try_files and returns index.html (same "landing" for every .md URL).
+    location ^~ /docs/ {
+        alias /opt/hackme/docs/;
+        default_type text/plain;
+        charset utf-8;
+    }
+
+    location ^~ /spec/ {
+        alias /opt/hackme/spec/;
+        default_type text/plain;
+        charset utf-8;
+    }
+
+    # Public site copy of the main README (kept in web/site). Other README_*.md live at repo root.
+    location = /README.md {
+        alias /opt/hackme/web/site/README.md;
+        default_type text/plain;
+        charset utf-8;
+    }
+
+    location ~ ^/README_.*\.md$ {
+        root /opt/hackme;
+        default_type text/plain;
+        charset utf-8;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

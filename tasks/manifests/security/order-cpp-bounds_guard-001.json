@@ -1,0 +1,10 @@
+{
+  "id":"order-cpp-bounds_guard-001",
+  "kind":"synthetic_poh_v1",
+  "reward_hmc":0.02,
+  "difficulty_score":25,
+  "target_solves":3,
+  "payer_ref":"company:cpp-bounds_guard",
+  "wasm_artifact_path":"security/cpp_bounds_guard.wasm",
+  "artifact_hash":"1c4cd8672710f414cbb48cc7fbacaf6196cb5b8d942ceee8465d92a9a598549f"
+}

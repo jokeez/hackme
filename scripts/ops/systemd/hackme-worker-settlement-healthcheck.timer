@@ -1,0 +1,12 @@
+[Unit]
+Description=Run HackMe worker settlement healthcheck every 5 minutes
+
+[Timer]
+OnBootSec=2m
+OnUnitActiveSec=5m
+RandomizedDelaySec=20s
+Persistent=true
+Unit=hackme-worker-settlement-healthcheck.service
+
+[Install]
+WantedBy=timers.target

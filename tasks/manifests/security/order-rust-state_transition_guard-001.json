@@ -1,0 +1,10 @@
+{
+  "id":"order-rust-state_transition_guard-001",
+  "kind":"synthetic_poh_v1",
+  "reward_hmc":0.02,
+  "difficulty_score":25,
+  "target_solves":3,
+  "payer_ref":"company:rust-state_transition_guard",
+  "wasm_artifact_path":"security/rust_state_transition_guard.wasm",
+  "artifact_hash":"e5f8a4cf2a6c4cb27f0f1c9ea967a0ea38f03c693f5f941d4b683a034ce7fb68"
+}

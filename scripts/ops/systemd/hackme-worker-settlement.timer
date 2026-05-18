@@ -1,0 +1,12 @@
+[Unit]
+Description=Run HackMe worker settlement every 2 minutes
+
+[Timer]
+OnBootSec=90s
+OnUnitActiveSec=2m
+RandomizedDelaySec=10s
+Persistent=true
+Unit=hackme-worker-settlement.service
+
+[Install]
+WantedBy=timers.target

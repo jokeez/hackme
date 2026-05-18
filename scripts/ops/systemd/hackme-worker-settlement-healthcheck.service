@@ -1,0 +1,15 @@
+[Unit]
+Description=HackMe Worker Settlement Healthcheck
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hackme
+EnvironmentFile=/opt/hackme/.env.settlement
+ExecStart=/opt/hackme/scripts/ops/settlement_healthcheck.sh
+User=hackme
+Group=hackme
+
+[Install]
+WantedBy=multi-user.target

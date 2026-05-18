@@ -1,0 +1,6 @@
+{
+  "id": "wasm-gate-demo",
+  "kind": "synthetic_poh_v1",
+  "reward_hmc": 0.01,
+  "wasm_check_hex": "0061736d0100000001060160017e017f0302010007090105636865636b00000a0601040041010b"
+}

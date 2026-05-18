@@ -1,0 +1,28 @@
+[Unit]
+Description=HackMe Node
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hackme
+Group=hackme
+WorkingDirectory=/opt/hackme
+EnvironmentFile=/opt/hackme/.env.vps
+ExecStart=/usr/bin/env bash -lc 'go run .'
+Restart=always
+RestartSec=3
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,13 @@
+[Unit]
+Description=Run HackMe RC Freeze Nightly Gate
+After=network-online.target
+Wants=network-online.target
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+RandomizedDelaySec=5m
+Unit=hackme-rc-freeze-nightly.service
+
+[Install]
+WantedBy=timers.target

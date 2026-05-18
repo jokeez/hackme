@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe Downloads</title>
+  <meta name="description" content="Download HackMe node builds for Windows and Linux with checksums and release manifest." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./assets/styles.css" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="/assets/favicon.png" type="image/png" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe logo" /><span>HackMe Network</span></a>
+    <nav class="nav">
+      <a href="./index.html">Home</a>
+      <a href="./docs.html">Docs</a>
+      <a href="./contacts.html">Contacts</a>
+      <a href="./legal.html">Legal</a>
+      <a id="explorer-link-top" href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass hero-small">
+      <p class="kicker">Downloads</p>
+      <h1>Official HackMe release artifacts</h1>
+      <p class="hero-copy">Use checksums before install. Run only builds published through your official release channel.</p>
+    </section>
+
+    <section class="grid grid-2">
+      <article class="card glass">
+        <h3>Windows</h3>
+        <p>Portable bundle + installer assets for signed distribution.</p>
+        <a id="download-win" class="btn btn-primary btn-block" href="#">Download Windows Bundle</a>
+      </article>
+      <article class="card glass">
+        <h3>Linux</h3>
+        <p>Tarball bundle with service templates and install script.</p>
+        <a id="download-linux" class="btn btn-primary btn-block" href="#">Download Linux Bundle</a>
+      </article>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Integrity files</h2></div>
+      <div class="quick-links">
+        <a id="download-sha" class="quick-item" href="#">
+          <h4>SHA256SUMS</h4>
+          <p>Verify package integrity before deployment.</p>
+        </a>
+        <a id="download-manifest" class="quick-item" href="#">
+          <h4>RELEASE_MANIFEST.json</h4>
+          <p>Machine-readable release metadata (version, hashes, sizes).</p>
+        </a>
+        <a id="download-buildinfo" class="quick-item" href="#">
+          <h4>BUILD_INFO.txt</h4>
+          <p>Build timestamp, commit metadata, and architecture details.</p>
+        </a>
+      </div>
+    </section>
+    <section class="panel glass">
+      <div class="panel-head">
+        <h2>Download verification</h2>
+        <p class="subtle">Quick operator checklist before running binaries in production.</p>
+      </div>
+      <ol class="steps">
+        <li>Match filename, version, and platform with release announcement.</li>
+        <li>Validate SHA256 from <code>SHA256SUMS.txt</code> locally.</li>
+        <li>Review <code>RELEASE_MANIFEST.json</code> for hash and size parity.</li>
+        <li>Store bundle and checksum evidence in your rollout log.</li>
+      </ol>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Installation flow</h2></div>
+      <ol class="steps">
+        <li>Download your platform bundle and checksum file.</li>
+        <li>Verify hash locally.</li>
+        <li>Install using bundled script/installer.</li>
+        <li>Configure node, coordinator URL, and tokens.</li>
+        <li>Run post-install health checks and sync verification.</li>
+      </ol>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>HackMe Network</p>
+    <p class="muted">Never run unverified binaries in production.</p>
+    <div class="footer-nav">
+      <a href="./index.html">Home</a>
+      <a href="./docs.html">Docs</a>
+      <a href="./contacts.html">Contacts</a>
+      <a href="./legal.html">Legal</a>
+      <a href="./legal-terms.html">Terms</a>
+      <a href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </div>
+  </footer>
+
+  <script src="./assets/app.js?v=20260511dist"></script>
+</body>
+</html>

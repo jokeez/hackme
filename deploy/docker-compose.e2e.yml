@@ -1,0 +1,60 @@
+# Ephemeral stack: coordinator + node on a private bridge (e2e / CI).
+# From repo root:
+#   export E2E_TOKEN="$(openssl rand -hex 24)"
+#   docker compose -f deploy/docker-compose.e2e.yml up --build -d
+# Smoke: scripts/ops/docker_e2e_smoke.sh
+name: hackme-e2e
+services:
+  coordinator:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    command: ["/usr/local/bin/coordinator"]
+    environment:
+      HACKME_COORDINATOR_ADDR: "0.0.0.0:8081"
+      HACKME_COORDINATOR_ADMIN_TOKEN: "${E2E_TOKEN:?set E2E_TOKEN}"
+      HACKME_COORDINATOR_DB: "/data/coordinator.db"
+    volumes:
+      - coord_data:/data
+    ports:
+      - "127.0.0.1:${COORD_PUBLISH_PORT:-18081}:8081"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8081/api/network/stats"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  node:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    depends_on:
+      - coordinator
+    restart: on-failure:3
+    command: ["/usr/local/bin/hackme"]
+    environment:
+      HACKME_WORKING_DIR: "/opt/hackme"
+      HACKME_BIND_ADDR: "0.0.0.0:8080"
+      HACKME_ADMIN_TOKEN: "${E2E_TOKEN:?set E2E_TOKEN}"
+      HACKME_REQUIRE_ADMIN_TOKEN: "1"
+      HACKME_POOL_COORDINATOR_URL: "http://coordinator:8081"
+      HACKME_POOL_COORDINATOR_TOKEN: "${E2E_TOKEN:?set E2E_TOKEN}"
+      HACKME_FUZZ_AUTORUN: "0"
+      HACKME_MINER_CPU_PCT: "${HACKME_MINER_CPU_PCT:-70}"
+      # Docker service hostname is not 127.0.0.1 but must not force hybrid minersign in lab.
+      HACKME_WORKER_SIGN_SUBMITS: "0"
+    volumes:
+      - node_data:/data
+    ports:
+      - "127.0.0.1:${NODE_PUBLISH_PORT:-18080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/api/status"]
+      interval: 3s
+      timeout: 4s
+      retries: 25
+      start_period: 8s
+
+volumes:
+  coord_data:
+  node_data:

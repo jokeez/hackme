@@ -1,0 +1,72 @@
+server {
+    listen 80;
+    listen [::]:80;
+    server_name __SERVER_NAME__;
+
+    root /opt/hackme/web/site;
+    index index.html;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+
+    location = / {
+        try_files /index.html =404;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Release artifacts directory for downloads page.
+    location /dist/ {
+        alias /opt/hackme/dist/;
+        autoindex off;
+    }
+
+    # Public explorer UI.
+    location /explorer {
+        proxy_pass http://__UPSTREAM__;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Read-only explorer API subset.
+    location = /api/status {
+        proxy_pass http://__UPSTREAM__/api/status;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    location = /api/reports/blocks {
+        proxy_pass http://__UPSTREAM__/api/reports/blocks;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    location = /api/tx/pool {
+        proxy_pass http://__UPSTREAM__/api/tx/pool;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    location ~ ^/api/tx/ {
+        proxy_pass http://__UPSTREAM__;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    location ~ ^/api/address/ {
+        proxy_pass http://__UPSTREAM__;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Block all other API routes from public website vhost.
+    location ^~ /api/ {
+        return 403;
+    }
+}

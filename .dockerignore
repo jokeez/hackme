@@ -1,0 +1,12 @@
+data/
+.git/
+dist/
+reports/
+logs/
+backups/
+node_modules/
+*.db
+.env
+.env.*
+tmp/
+**/tmp/
