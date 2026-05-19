@@ -2565,6 +2565,40 @@
 			if (g < 1) return g.toFixed(2);
 			return fmt(g, 1);
 		}
+		function sumActiveRigsGh(rigs) {
+			let sum = 0;
+			(rigs || []).forEach((r) => {
+				sum += Number((r && r.hashrate_gh_s) || 0);
+			});
+			return sum;
+		}
+		function poolGhFromWorkStats(ws) {
+			if (!ws || typeof ws !== 'object') return 0;
+			let gh = sumActiveRigsGh(ws.active_rigs);
+			if (gh > 0) return gh;
+			if (Number(poolDerived.attemptsPerSec || 0) > 0) return Number(poolDerived.attemptsPerSec) / 1e9;
+			const totalAtt = Number(ws.accepted_attempts || 0);
+			if (workTotalAttemptsPrevTs > 0 && totalAtt > workTotalAttemptsPrev) {
+				const tNow = Number(ws.now_unix || Math.floor(Date.now() / 1000));
+				const dt = Math.max(1, tNow - workTotalAttemptsPrevTs);
+				const dA = totalAtt - workTotalAttemptsPrev;
+				if (dA > 0) return (dA / dt) / 1e9;
+			}
+			return 0;
+		}
+		function applyPoolHashDisplayGh(gh, suffix) {
+			if (!(gh > 0)) return;
+			const estTH = gh / 1000;
+			const pretty = fmtPoolAggHashrate(estTH, suffix || '');
+			if ($('pool-strip-hash')) $('pool-strip-hash').textContent = pretty;
+			if ($('mining-strip-th')) $('mining-strip-th').textContent = pretty;
+			if ($('mining-strip-th-label')) {
+				$('mining-strip-th-label').textContent = suffix
+					? ((estTH > 0 && estTH < 0.001) ? 'Pool hash (Σ GH/s)*' : 'Pool hash*')
+					: ((estTH > 0 && estTH < 0.001) ? 'Pool hash (Σ GH/s)' : 'Pool hash');
+			}
+			if ($('hive-global-th')) $('hive-global-th').textContent = pretty;
+		}
 		/** Coordinator push_work often sends GH/s≈0; overlay Fleet GH from work/stats accepted_attempts slope. */
 		function patchHiveFleetRowFromWorker(r, attemptsPerMin) {
 			const fleet = $('hive-fleet-rows');
@@ -3417,6 +3451,7 @@
 				Object.entries(map).forEach(([elId, key]) => {
 					const el = mineCalcEl(elId);
 					if (!el || p[key] == null) return;
+					if (key === 'hashrateGh' && Number(p[key]) <= 0) return;
 					el.value = String(p[key]);
 				});
 				const gh = Number(p.hashrateGh);
@@ -3473,20 +3508,13 @@
 			const foundBonus = Number(ws.found_bonus_hmc || 0);
 			const emptyHour = Number(m.econ_expected_empty_hmc_hour || 0);
 			let poolGh = 0;
-			const netTh = Number((latestNetworkStats && latestNetworkStats.global_hashrate_th_s) || 0);
-			if (netTh > 0) poolGh = netTh * 1000;
-			if (!(poolGh > 0) && Number(poolDerived.attemptsPerSec || 0) > 0) {
-				poolGh = Number(poolDerived.attemptsPerSec) / 1e9;
-			}
-			if (!(poolGh > 0) && Number(workerDerived.attemptsPerSec || 0) > 0 && !workerDerived.isLocalSlice) {
-				poolGh = Number(workerDerived.attemptsPerSec) / 1e9;
+			poolGh = poolGhFromWorkStats(ws);
+			if (!(poolGh > 0)) {
+				const netTh = Number((latestNetworkStats && latestNetworkStats.global_hashrate_th_s) || 0);
+				if (netTh > 0) poolGh = netTh * 1000;
 			}
 			if (!(poolGh > 0)) {
-				let sumGh = 0;
-				((latestNetworkStats && latestNetworkStats.active_rigs) || []).forEach((r) => {
-					sumGh += Number(r.hashrate_gh_s || 0);
-				});
-				if (sumGh > 0) poolGh = sumGh;
+				poolGh = sumActiveRigsGh((latestNetworkStats && latestNetworkStats.active_rigs) || []);
 			}
 			if (!(poolGh > 0) && latestWorkerRows && latestWorkerRows.length) {
 				let sumGhRows = 0;
@@ -3577,8 +3605,18 @@
 			if (!mineCalcEl('mine-calc-section')) return;
 			loadMineCalcPrefs();
 			syncMineCalcSliders();
-			const inputs = readMineCalcInputs();
+			let inputs = readMineCalcInputs();
 			const net = getMineCalcNetworkParams();
+			if (!(inputs.hashrateGh > 0) && net.workerGh > 0) {
+				const ghEl = mineCalcEl('mine-calc-gh');
+				const ghSlider = mineCalcEl('mine-calc-gh-slider');
+				if (ghEl) ghEl.value = String(net.workerGh);
+				if (ghSlider) ghSlider.value = String(Math.min(500, Math.max(0.01, net.workerGh)));
+				if (net.mySharePct > 0 && net.mySharePct < 100 && mineCalcEl('mine-calc-share')) {
+					mineCalcEl('mine-calc-share').value = String(fmt(net.mySharePct, 2));
+				}
+				inputs = readMineCalcInputs();
+			}
 			const out = computeMineCalc(inputs, net);
 			saveMineCalcPrefs(inputs);
 
@@ -4274,15 +4312,18 @@
 				$('mining-strip-workers').textContent = fmtUInt(workerCount);
 			}
 			const hiveTH = Number((latestNetworkStats && latestNetworkStats.global_hashrate_th_s) || 0);
-			if (hiveTH > 0) return;
-			const aps = Number(workerDerived.attemptsPerSec || 0);
+			const rigsGh = poolGhFromWorkStats(ws);
+			if (rigsGh > 0) {
+				applyPoolHashDisplayGh(rigsGh, '*');
+				if ($('hive-note') && !$('hive-note').textContent) {
+					$('hive-note').textContent = 'pool strip: Σ active_rigs hashrate from coordinator (*)';
+				}
+				return;
+			}
+			if (hiveTH > 0 && hiveTH * 1000 >= 0.01) return;
+			const aps = Number(poolDerived.attemptsPerSec || workerDerived.attemptsPerSec || 0);
 			if (aps > 0) {
-				const estTH = aps / 1e12;
-				if ($('pool-strip-hash')) $('pool-strip-hash').textContent = fmtPoolAggHashrate(estTH, '*');
-				if ($('mining-strip-th')) $('mining-strip-th').textContent = fmtPoolAggHashrate(estTH, '*');
-				if ($('mining-strip-th-label')) $('mining-strip-th-label').textContent =
-					(estTH > 0 && estTH < 0.001) ? 'Pool hash (Σ GH/s)*' : 'Pool hash*';
-				if ($('hive-global-th')) $('hive-global-th').textContent = fmtPoolAggHashrate(estTH, '*');
+				applyPoolHashDisplayGh(aps / 1e9, '*');
 				if ($('hive-note') && !$('hive-note').textContent) {
 					$('hive-note').textContent = 'pool strip: derived from coordinator attempts/s (*)';
 				}
@@ -4622,7 +4663,11 @@
 				if (shownMiners <= 0 && workerCount > 0) $('hive-total-miners').textContent = fmtUInt(workerCount);
 			}
 			const totalAttempts = Number(ws.accepted_attempts || 0);
-			if (workTotalAttemptsPrevTs > 0 && sampleUnix > workTotalAttemptsPrevTs && totalAttempts >= workTotalAttemptsPrev) {
+			const rigsGhNow = sumActiveRigsGh(ws.active_rigs);
+			if (rigsGhNow > 0) {
+				applyPoolHashDisplayGh(rigsGhNow, '*');
+				if ($('hive-note')) $('hive-note').textContent = 'derived from coordinator active_rigs (* submit hashrate)';
+			} else if (workTotalAttemptsPrevTs > 0 && sampleUnix > workTotalAttemptsPrevTs && totalAttempts >= workTotalAttemptsPrev) {
 				const dt = sampleUnix - workTotalAttemptsPrevTs;
 				const dAttempts = totalAttempts - workTotalAttemptsPrev;
 				if (dt > 0) {
@@ -4641,9 +4686,13 @@
 			workTotalAttemptsPrev = totalAttempts;
 			workTotalAttemptsPrevTs = sampleUnix;
 			const live = new Map();
-			((latestNetworkStats && latestNetworkStats.active_rigs) || []).forEach((r) => {
+			((ws.active_rigs) || []).forEach((r) => {
 				const wid = String(r.worker_id || '');
 				if (wid) live.set(wid, r);
+			});
+			((latestNetworkStats && latestNetworkStats.active_rigs) || []).forEach((r) => {
+				const wid = String(r.worker_id || '');
+				if (wid && !live.has(wid)) live.set(wid, r);
 			});
 			const rows = Object.entries(workers).map(([id, st]) => ({
 				id,
@@ -4691,6 +4740,9 @@
 							const dt = Math.max(0.25, (monoNow - prevRate.monoMs) / 1000);
 							attemptsPerMin = ((r.attempts - prevRate.attempts) * 60.0) / dt;
 						}
+						if (!(attemptsPerMin > 0) && r.live && Number(r.live.hashrate_gh_s || 0) > 0) {
+							attemptsPerMin = Number(r.live.hashrate_gh_s) * 1e9 * 60;
+						}
 						const hrGHS = estimateMinerHashrateGHS(r, attemptsPerMin);
 						const hr = hrGHS > 0 ? (fmtRigHashrateGHS(hrGHS) + ' GH/s' + ((r.live && Number(r.live.hashrate_gh_s || 0) > 0) ? '' : '*')) : '—';
 						const share = totalPayoutNum > 0 ? (fmt((r.payout / totalPayoutNum) * 100, 2) + '%') : '—';
@@ -4727,6 +4779,9 @@
 				if (prev && prev.attempts <= r.attempts && (prev.monoMs || 0) > 0) {
 					const dt = Math.max(0.25, (monoNow - prev.monoMs) / 1000);
 					attemptsPerMin = ((r.attempts - prev.attempts) * 60.0) / dt;
+				}
+				if (!(attemptsPerMin > 0) && r.live && Number(r.live.hashrate_gh_s || 0) > 0) {
+					attemptsPerMin = Number(r.live.hashrate_gh_s) * 1e9 * 60;
 				}
 				patchHiveFleetRowFromWorker(r, attemptsPerMin);
 				workAttemptsRate.set(r.id, { attempts: r.attempts, ts: sampleUnix, monoMs: monoNow });
@@ -5371,7 +5426,8 @@
 			const poolRun = !!(md.pool_worker_running || muxUx.worker_subprocess_running);
 			const poolSess = Number(md.pool_worker_session_seconds || 0);
 			let sess = Number(payload.mining_session_sec || 0);
-			if (sess <= 0 && netMode && !leaderLocal && wallWorkerSec > 0) sess = wallWorkerSec;
+			if (poolWorker && wst.running && wallWorkerSec > 0) sess = wallWorkerSec;
+			else if (sess <= 0 && netMode && !leaderLocal && wallWorkerSec > 0) sess = wallWorkerSec;
 			else if (sess <= 0 && netMode && !leaderLocal && poolRun && poolSess > 0) sess = poolSess;
 			else if (sess <= 0) sess = Number(workerDerived.sessionSec || 0);
 			if ($('mine-stat-sec')) {

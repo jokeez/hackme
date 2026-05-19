@@ -686,11 +686,12 @@ func TestWorkManagerHybridFoundRequiresSignature(t *testing.T) {
 
 func TestMaybeRetargetPoolModIncreasesOnFastHits(t *testing.T) {
 	wm := &workManager{
-		targetMod:    1_000_000,
-		poolRetarget: true,
-		rewardAuto:   true,
-		baseRewardHMC: 0.01,
-		rewardPerM:   0.01,
+		targetMod:          1_000_000,
+		poolRetarget:       true,
+		poolRetargetMinSec: 15,
+		rewardAuto:         true,
+		baseRewardHMC:      0.01,
+		rewardPerM:         0.01,
 	}
 	now := time.Now().Unix()
 	wm.maybeRetargetPoolMod(now)
@@ -698,8 +699,14 @@ func TestMaybeRetargetPoolModIncreasesOnFastHits(t *testing.T) {
 		t.Fatalf("first hit should not retarget without prior interval, got %d", wm.targetMod)
 	}
 	wm.maybeRetargetPoolMod(now + 1)
+	if wm.targetMod != 1_000_000 {
+		t.Fatalf("second hit inside min window should not retarget, got %d", wm.targetMod)
+	}
+	wm.targetModUpdatedUnix = now - 20
+	wm.lastPoolRetargetUnix = now - 20
+	wm.maybeRetargetPoolMod(now + 20)
 	if wm.targetMod <= 1_000_000 {
-		t.Fatalf("fast second hit should increase target_mod, got %d", wm.targetMod)
+		t.Fatalf("fast hit after min window should increase target_mod, got %d", wm.targetMod)
 	}
 	if wm.rewardPerM >= 0.01 {
 		t.Fatalf("rewardPerM should drop when target_mod rises, got %f", wm.rewardPerM)
