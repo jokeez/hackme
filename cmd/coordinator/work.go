@@ -114,12 +114,14 @@ type leaseRecord struct {
 }
 
 type workerPayoutStat struct {
-	AcceptedRanges uint64  `json:"accepted_ranges"`
-	AcceptedHits   uint64  `json:"accepted_hits"`
-	AcceptedAtt    uint64  `json:"accepted_attempts"`
-	PayoutHMC      float64 `json:"payout_hmc"`
-	PayoutAddress  string  `json:"payout_address,omitempty"`
-	SignedSubmits  uint64  `json:"signed_submits,omitempty"`
+	AcceptedRanges  uint64  `json:"accepted_ranges"`
+	AcceptedHits    uint64  `json:"accepted_hits"`
+	AcceptedAtt     uint64  `json:"accepted_attempts"`
+	PayoutHMC       float64 `json:"payout_hmc"`
+	PayoutAddress   string  `json:"payout_address,omitempty"`
+	SignedSubmits   uint64  `json:"signed_submits,omitempty"`
+	LastHashrateGHS float64 `json:"hashrate_gh_s,omitempty"`
+	LastSeenUnix    int64   `json:"last_seen_unix,omitempty"`
 }
 
 type workerAbuseState struct {
@@ -790,6 +792,10 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		st.PayoutAddress = signerAddr
 		st.SignedSubmits++
 	}
+	if req.HashrateGHS > 0 {
+		st.LastHashrateGHS = req.HashrateGHS
+	}
+	st.LastSeenUnix = time.Now().Unix()
 	st.PayoutHMC += payout
 	m.worker[req.WorkerID] = st
 	m.totalPayoutHMC += payout
@@ -888,21 +894,60 @@ func (m *workManager) pruneAbuseStateLocked(now int64) {
 	}
 }
 
+// poolOnlineSummary aggregates live hashrate from recent worker submits (public pool rigs).
+func (m *workManager) poolOnlineSummary(staleSec int64) (poolGH float64, online int, rigs []map[string]any) {
+	if m == nil {
+		return 0, 0, nil
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	now := time.Now().Unix()
+	for id, st := range m.worker {
+		if st.LastHashrateGHS <= 0 || (now-st.LastSeenUnix) > staleSec {
+			continue
+		}
+		poolGH += st.LastHashrateGHS
+		online++
+		rigs = append(rigs, map[string]any{
+			"worker_id":     id,
+			"name":          id,
+			"hashrate_gh_s": st.LastHashrateGHS,
+			"online":        true,
+			"source":        "coordinator_submit",
+			"last_seen_unix": st.LastSeenUnix,
+		})
+	}
+	return poolGH, online, rigs
+}
+
 // enrichPoolStatsForPublic adds hashrate/worker fields expected by pool listing sites (e.g. MiningPoolStats API poll).
-func enrichPoolStatsForPublic(out map[string]any, reg *lanpool.Registry) {
-	if out == nil || reg == nil {
+func enrichPoolStatsForPublic(out map[string]any, reg *lanpool.Registry, wm *workManager) {
+	if out == nil {
 		return
 	}
-	online := reg.ListOnline()
-	var poolGH float64
-	for _, m := range online {
-		poolGH += m.HashrateGHS
+	const staleSec int64 = 120
+	poolGH, online, rigs := float64(0), 0, []map[string]any(nil)
+	if wm != nil {
+		poolGH, online, rigs = wm.poolOnlineSummary(staleSec)
+	}
+	if poolGH <= 0 && reg != nil {
+		for _, m := range reg.ListOnline() {
+			poolGH += m.HashrateGHS
+		}
+		online = len(reg.ListOnline())
 	}
 	out["pool_hashrate_gh_s"] = poolGH
 	out["hashrate"] = poolGH * 1e9
 	out["hashrate_hs"] = poolGH * 1e9
-	out["miners"] = len(online)
-	out["workers_online"] = len(online)
+	out["miners"] = online
+	out["workers_online"] = online
+	if len(rigs) > 0 {
+		anyRigs := make([]any, len(rigs))
+		for i, r := range rigs {
+			anyRigs[i] = r
+		}
+		out["active_rigs"] = anyRigs
+	}
 	// Never overwrite workers{} breakdown map (settlement + dashboard need payout_hmc per id).
 }
 
@@ -1173,7 +1218,7 @@ func addWorkRoutes(mux *http.ServeMux, token string, allowInsecure bool, reg *la
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		out := wm.stats(details)
-		enrichPoolStatsForPublic(out, reg)
+		enrichPoolStatsForPublic(out, reg, wm)
 		_ = json.NewEncoder(w).Encode(out)
 	})
 
@@ -1184,7 +1229,7 @@ func addWorkRoutes(mux *http.ServeMux, token string, allowInsecure bool, reg *la
 			return
 		}
 		out := wm.stats(false)
-		enrichPoolStatsForPublic(out, reg)
+		enrichPoolStatsForPublic(out, reg, wm)
 		hr := float64(0)
 		if v, ok := out["hashrate_hs"].(float64); ok {
 			hr = v
