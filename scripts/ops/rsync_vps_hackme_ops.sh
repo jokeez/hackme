@@ -15,7 +15,8 @@ if [[ -z "$SSH_TARGET" ]]; then
 	exit 2
 fi
 
-for f in settle_worker_payouts.sh settlement_healthcheck.sh settlement.env.example desktop_vps_settlement_note.sh; do
+for f in settle_worker_payouts.sh settlement_healthcheck.sh settlement.env.example desktop_vps_settlement_note.sh \
+  sync_settlement_admin_token.sh repair_worker_settlement_state.sh vps_settlement_bootstrap.sh; do
 	src="$ROOT/scripts/ops/$f"
 	[[ -f "$src" ]] || { echo "[rsync-vps] missing $src" >&2; exit 2; }
 	rsync -avz "$src" "$SSH_TARGET:$REMOTE/scripts/ops/"

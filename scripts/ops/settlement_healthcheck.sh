@@ -18,8 +18,11 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 COORD_SECRET_FILE="${COORD_SECRET_FILE:-${ROOT_DIR}/.secrets/hackme_coordinator_admin_token}"
 
 COORD_URL="${COORD_URL:-http://127.0.0.1:18081}"
+CHAIN_BASE="${CHAIN_BASE:-http://127.0.0.1:18080}"
+ADMIN_TOKEN="${ADMIN_TOKEN:-${HACKME_ADMIN_TOKEN:-}}"
 COORD_ADMIN_TOKEN="${COORD_ADMIN_TOKEN:-${HACKME_COORDINATOR_ADMIN_TOKEN:-${COORD_TOKEN:-}}}"
 LOCAL_BASE="${LOCAL_BASE:-http://127.0.0.1:8080}"
+ADMIN_SECRET_FILE="${ADMIN_SECRET_FILE:-${ROOT_DIR}/.secrets/hackme_admin_token}"
 STATE_FILE="${STATE_FILE:-/opt/hackme/data/worker_settlement_state.json}"
 MAX_UNSETTLED_HMC="${MAX_UNSETTLED_HMC:-0.5}"
 EXPECTED_WALLET_SOURCES="${EXPECTED_WALLET_SOURCES:-canonical_peer,local_db}"
@@ -31,6 +34,23 @@ fi
 if [[ -z "$COORD_ADMIN_TOKEN" ]]; then
   echo "[settlement-health] COORD_ADMIN_TOKEN required for ${COORD_URL}/api/work/stats?details=1" >&2
   exit 1
+fi
+if [[ -z "$ADMIN_TOKEN" && -r "$ADMIN_SECRET_FILE" ]]; then
+  ADMIN_TOKEN="$(tr -d '\r\n' <"$ADMIN_SECRET_FILE")"
+fi
+if [[ -z "$ADMIN_TOKEN" ]]; then
+  echo "[settlement-health] ADMIN_TOKEN required for settlement tx probe" >&2
+  exit 1
+fi
+
+tx_code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 -X POST \
+  "${CHAIN_BASE}/api/tx/send" \
+  -H "Content-Type: application/json" \
+  -H "X-Hackme-Admin-Token: ${ADMIN_TOKEN}" \
+  -d '{"tx_type":"transfer_v1","from":"HMC-probe","to":"HMC-probe","amount_units":1,"fee_units":1000,"nonce":0,"timestamp_unix":1}' 2>/dev/null || echo 000)"
+if [[ "$tx_code" == "401" ]]; then
+  echo "[settlement-health] ERROR: CHAIN_BASE tx/send returned 401 — run sync_settlement_admin_token.sh" >&2
+  exit 7
 fi
 
 stats="$(curl -fsS --max-time 15 -H "X-Hackme-Admin-Token: ${COORD_ADMIN_TOKEN}" "${COORD_URL}/api/work/stats?details=1")"
