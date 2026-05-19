@@ -54,9 +54,12 @@ COORD_TOKEN={coord_token}
 COORD_ADMIN_TOKEN={coord_token}
 WORKER_ID={WORKER_ID}
 HACKME_MINER_ED25519_SEED_HEX={seed}
-BATCH_SIZE=2097152
+BATCH_SIZE=1048576
 HACKME_GPU_DISABLE=1
 HACKME_GPU_BACKEND=cpu
+HACKME_WORKER_CLAIM_TIMEOUT=90s
+HACKME_WORKER_SUBMIT_TIMEOUT=120s
+HACKME_WORKER_CLAIM_COOLDOWN_MS=800
 PAYOUT_ADDRESS={WALLET}
 """
     pathlib.Path("/tmp/hackme-msk.env.worker").write_text(env_body)
@@ -72,7 +75,10 @@ Wants=network-online.target
 Type=simple
 WorkingDirectory={DEPLOY}
 EnvironmentFile={DEPLOY}/.env.worker
-ExecStart={DEPLOY}/workerpoh -coord {COORD_URL} -token {coord_token} -worker {WORKER_ID} -batch 2097152 -gpu-disable
+ExecStart={DEPLOY}/workerpoh -coord {COORD_URL} -token {coord_token} -worker {WORKER_ID} -batch 1048576 -gpu-disable
+Environment=HACKME_WORKER_CLAIM_TIMEOUT=90s
+Environment=HACKME_WORKER_SUBMIT_TIMEOUT=120s
+Environment=HACKME_WORKER_CLAIM_COOLDOWN_MS=800
 Restart=always
 RestartSec=5
 StandardOutput=append:{DEPLOY}/logs/workerpoh.log

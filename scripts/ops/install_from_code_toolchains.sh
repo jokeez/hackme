@@ -356,6 +356,11 @@ EOF
   log "systemd drop-in: $DROPIN/51-from-code-toolchains.conf"
 fi
 
+mkdir -p "$HACKME_PREFIX/tasks/artifacts"
+if [[ "$(id -u)" -eq 0 ]] && id hackme &>/dev/null; then
+  chown -R hackme:hackme "$HACKME_PREFIX/tasks" 2>/dev/null || true
+fi
+
 log "toolchain root: $HACKME_PREFIX"
 log "activate: set -a && source $ENV_OUT && set +a"
 check_all || warn "some toolchains missing — re-run or install system packages"
