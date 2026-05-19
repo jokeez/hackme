@@ -68,12 +68,34 @@ GOOS=linux GOARCH="${LINUX_ARCH}" CGO_ENABLED="${CGO_ENABLED}" \
 GOOS=windows GOARCH="${WIN_ARCH}" CGO_ENABLED="${CGO_ENABLED}" \
   go build -trimpath -ldflags "-s -w" -o "${WIN_DIR}/workerpoh.exe" ./cmd/workerpoh
 if [[ "${CGO_ENABLED}" == "1" ]] && (pkg-config --exists OpenCL 2>/dev/null || [[ -f /usr/include/CL/cl.h ]]); then
-  echo "[release] building workerpoh-opencl (AMD/NVIDIA via OpenCL ICD)"
+  echo "[release] building workerpoh-opencl (AMD/Intel/NVIDIA via OpenCL ICD)"
   GOOS=linux GOARCH="${LINUX_ARCH}" CGO_ENABLED=1 \
     go build -tags opencl -trimpath -ldflags "-s -w" -o "${LINUX_DIR}/workerpoh-opencl" ./cmd/workerpoh
-  GOOS=windows GOARCH="${WIN_ARCH}" CGO_ENABLED=1 \
-    go build -tags opencl -trimpath -ldflags "-s -w" -o "${WIN_DIR}/workerpoh-opencl.exe" ./cmd/workerpoh
+  if command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
+    echo "[release] building workerpoh-opencl.exe (mingw cross)"
+    CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ \
+      GOOS=windows GOARCH="${WIN_ARCH}" CGO_ENABLED=1 \
+      go build -tags opencl -trimpath -ldflags "-s -w" -o "${WIN_DIR}/workerpoh-opencl.exe" ./cmd/workerpoh
+  else
+    echo "[release] WARN: skip workerpoh-opencl.exe (install mingw-w64 for Windows OpenCL build)" >&2
+  fi
 fi
+if [[ -x "${ROOT_DIR}/scripts/ops/build_cuda_worker.sh" ]]; then
+  echo "[release] building workerpoh-cuda (NVIDIA native; Linux only)"
+  if bash "${ROOT_DIR}/scripts/ops/build_cuda_worker.sh" 2>/dev/null; then
+    cp -f "${ROOT_DIR}/bin/workerpoh-cuda" "${LINUX_DIR}/workerpoh-cuda"
+    chmod +x "${LINUX_DIR}/workerpoh-cuda"
+    ln -sf workerpoh-cuda "${LINUX_DIR}/workerpoh-gpu" 2>/dev/null || true
+  else
+    echo "[release] WARN: workerpoh-cuda build skipped (no CUDA toolkit on build host)" >&2
+  fi
+fi
+for doc in docs/GPU_MINING_BACKENDS.md docs/CUDA_PRODUCTION.md; do
+  [[ -f "${ROOT_DIR}/${doc}" ]] && cp "${ROOT_DIR}/${doc}" "${LINUX_DIR}/"
+done
+for op in build_gpu_workers.sh build_cuda_worker.sh detect_gpu_backend.sh desktop_worker_reset.sh cuda_env.sh setup_cuda_desktop.sh; do
+  [[ -f "${ROOT_DIR}/scripts/ops/${op}" ]] && cp "${ROOT_DIR}/scripts/ops/${op}" "${LINUX_DIR}/"
+done
 
 cp "${ROOT_DIR}/README.md" "${WIN_DIR}/README.md"
 cp "${ROOT_DIR}/README.md" "${LINUX_DIR}/README.md"

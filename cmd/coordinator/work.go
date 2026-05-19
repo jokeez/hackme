@@ -455,6 +455,25 @@ func clampWorkerHashrateGHS(ghs float64) float64 {
 	return ghs
 }
 
+// workerHashrateGHSForSubmit prefers reported GH/s, then lease wall time, then last known.
+func workerHashrateGHSForSubmit(reported float64, batch uint64, issuedAt, now int64, last float64) float64 {
+	gh := clampWorkerHashrateGHS(reported)
+	if gh > 0 {
+		return gh
+	}
+	if issuedAt > 0 && batch > 0 {
+		wall := float64(now - issuedAt)
+		if wall < 0.05 {
+			wall = 0.05
+		}
+		gh = clampWorkerHashrateGHS(float64(batch) / wall / 1e9)
+		if gh > 0 {
+			return gh
+		}
+	}
+	return clampWorkerHashrateGHS(last)
+}
+
 func (m *workManager) maybeRetargetPoolMod(now int64) {
 	if !m.poolRetarget {
 		return
@@ -1019,10 +1038,7 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	if attempts > req.BatchSize {
 		attempts = req.BatchSize
 	}
-	gh := req.HashrateGHS
-	if gh <= 0 {
-		gh = m.worker[req.WorkerID].LastHashrateGHS
-	}
+	gh := workerHashrateGHSForSubmit(req.HashrateGHS, req.BatchSize, rec.IssuedAt, now, m.worker[req.WorkerID].LastHashrateGHS)
 	if gh > 0 {
 		issuedAt := rec.IssuedAt
 		if issuedAt <= 0 {
@@ -1062,8 +1078,8 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		st.PayoutAddress = signerAddr
 		st.SignedSubmits++
 	}
-	if req.HashrateGHS > 0 {
-		st.LastHashrateGHS = clampWorkerHashrateGHS(req.HashrateGHS)
+	if gh > 0 {
+		st.LastHashrateGHS = gh
 	}
 	st.LastSeenUnix = time.Now().Unix()
 	st.PayoutHMC += payout

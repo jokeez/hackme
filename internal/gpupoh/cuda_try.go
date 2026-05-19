@@ -3,6 +3,10 @@
 package gpupoh
 
 import (
+	"fmt"
+	"os"
+	"strings"
+
 	"github.com/pkg/errors"
 	"gorgonia.org/cu"
 )
@@ -16,19 +20,25 @@ func tryCUDAAccelerators() ([]Accelerator, error) {
 	if n < 1 {
 		return nil, nil
 	}
-	ptx, kname, err := compilePTXForPoH()
-	if err != nil {
-		return nil, err
-	}
 	var out []Accelerator
+	var initLog []string
 	for i := 0; i < n; i++ {
-		a, err := newCUDAAccelerator(i, ptx, kname)
+		if i >= MaxGPUDevices {
+			break
+		}
+		a, err := newCUDAAccelerator(i)
 		if err != nil {
-			// Be resilient across heterogeneous rigs: skip bad devices,
-			// continue with the GPUs that initialized successfully.
+			initLog = append(initLog, fmt.Sprintf("#%d: %v", i, err))
 			continue
 		}
+		initLog = append(initLog, cudaDeviceSummary(i)+" → "+a.Label())
 		out = append(out, a)
+	}
+	if len(out) == 0 && len(initLog) > 0 {
+		return nil, fmt.Errorf("gpupoh: no CUDA device initialized (%s)", strings.Join(initLog, "; "))
+	}
+	if len(out) > 0 && os.Getenv("HACKME_CUDA_VERBOSE") == "1" {
+		fmt.Fprintf(os.Stderr, "gpupoh: CUDA devices: %s\n", strings.Join(initLog, "; "))
 	}
 	return out, nil
 }

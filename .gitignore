@@ -45,6 +45,9 @@ reports/
 Thumbs.db
 
 # Misc local scratch
+cuda-keyring*.deb
+/workerpoh-opencl
+.cache/
 text123.txt
 tmp/
 GET

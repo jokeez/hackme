@@ -24,6 +24,7 @@ Use this **after** public pool + settlement are stable (no recurring `admin auth
 - [ ] `bash scripts/ops/settlement_healthcheck.sh` → OK
 - [ ] Miners can set `WORKER_PAYOUT_MAP` / hybrid payout address and receive on-chain HMC
 - [ ] Official builds SHA256 on https://hackme.tech/downloads.html
+- [ ] Pool hashrate honest on stats API (NVIDIA: **CUDA** `workerpoh-cuda`; AMD/Intel: OpenCL — see [GPU_MINING_BACKENDS.md](GPU_MINING_BACKENDS.md))
 
 ## Submission
 

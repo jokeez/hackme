@@ -2614,8 +2614,19 @@
 		}
 		function poolGhFromWorkStats(ws) {
 			if (!ws || typeof ws !== 'object') return 0;
-			const gh = sumActiveRigsGh(ws.active_rigs);
+			let gh = sumActiveRigsGh(ws.active_rigs);
 			if (gh > 0) return Math.min(gh, 5000);
+			const poolField = Number(ws.pool_hashrate_gh_s || 0);
+			if (poolField > 0) return Math.min(poolField, 5000);
+			const workers = ws.workers;
+			if (workers && typeof workers === 'object') {
+				let sum = 0;
+				for (const id of Object.keys(workers)) {
+					const h = clampRigHashrateGHS(workers[id] && workers[id].hashrate_gh_s);
+					if (h > 0) sum += h;
+				}
+				if (sum > 0) return Math.min(sum, 5000);
+			}
 			return 0;
 		}
 		function applyPoolHashDisplayGh(gh, suffix) {
@@ -4454,6 +4465,8 @@
 		function estimateMinerHashrateGHS(row, attemptsPerMin) {
 			const liveGH = clampRigHashrateGHS(row && row.live && row.live.hashrate_gh_s);
 			if (liveGH > 0) return liveGH;
+			const statGH = clampRigHashrateGHS(row && row.hashrate_gh_s);
+			if (statGH > 0) return statGH;
 			const apm = Number(attemptsPerMin || 0);
 			if (!(apm > 0)) return 0;
 			const est = (apm / 60.0) / 1e9;
@@ -4873,6 +4886,7 @@
 				hits: Number(st.accepted_hits || 0),
 				attempts: Number(st.accepted_attempts || 0),
 				payout: Number(st.payout_hmc || 0),
+				hashrate_gh_s: Number(st.hashrate_gh_s || 0),
 				abuse: abuse[id] || {},
 				live: live.get(id) || null,
 			})).sort((a, b) => b.payout - a.payout);

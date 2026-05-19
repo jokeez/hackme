@@ -2,9 +2,14 @@
 //
 // Build tags:
 //
-//	go build -tags cuda -o hackme .          // NVIDIA CUDA (all visible GPUs, NVRTC)
+//	go build -tags cuda -o hackme .          // NVIDIA CUDA (per-GPU NVRTC arch, e.g. compute_120)
 //	go build -tags opencl -o hackme .        // OpenCL (AMD / Intel / others; CGO + OpenCL headers)
-//	go build -tags "cuda,opencl" -o hackme . // Prefer CUDA when devices exist, else OpenCL
+//	go build -tags "cuda,opencl" -o hackme . // NVIDIA: CUDA; AMD/Intel: OpenCL fallback
+//	bash scripts/ops/build_gpu_workers.sh    // Build workerpoh-cuda + workerpoh-opencl
+//	bash scripts/ops/detect_gpu_backend.sh   // Print cuda | opencl | cpu for this host
+//
+// Production worker build: bash scripts/ops/build_cuda_worker.sh → bin/workerpoh-cuda
+// See docs/CUDA_PRODUCTION.md.
 //
 // Default builds (!cuda && !opencl) expose stubs only (CPU PoH).
 //

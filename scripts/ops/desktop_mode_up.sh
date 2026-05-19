@@ -188,12 +188,23 @@ desktop_gpu_build_tags() {
   if [[ "${HACKME_DESKTOP_GPU_BUILD:-1}" != "1" ]]; then
     return 0
   fi
+  # NVIDIA: prefer native CUDA when toolkit is available.
+  if command -v nvidia-smi >/dev/null 2>&1; then
+    if [[ -f "$ROOT_DIR/scripts/ops/cuda_env.sh" ]]; then
+      # shellcheck source=/dev/null
+      if source "$ROOT_DIR/scripts/ops/cuda_env.sh" 2>/dev/null; then
+        echo "cuda,opencl"
+        return 0
+      fi
+    fi
+    if command -v nvcc >/dev/null 2>&1 || [[ -f /usr/local/cuda/include/nvrtc.h ]]; then
+      echo "cuda,opencl"
+      return 0
+    fi
+  fi
   if pkg-config --exists OpenCL 2>/dev/null || [[ -f /usr/include/CL/cl.h ]] || [[ -f /usr/local/include/CL/cl.h ]]; then
     echo "opencl"
     return 0
-  fi
-  if command -v nvcc >/dev/null 2>&1; then
-    echo "cuda,opencl"
   fi
 }
 

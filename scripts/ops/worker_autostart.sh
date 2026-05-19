@@ -75,7 +75,13 @@ else
   export HACKME_WORKER_CLAIM_TIMEOUT="${HACKME_WORKER_CLAIM_TIMEOUT:-35s}"
   export HACKME_WORKER_SUBMIT_TIMEOUT="${HACKME_WORKER_SUBMIT_TIMEOUT:-90s}"
 fi
-SEARCH_TIMEOUT_MS="${SEARCH_TIMEOUT_MS:-2500}"
+if [[ "${HACKME_DESKTOP_GPU_POOL:-0}" == "1" ]]; then
+  SEARCH_TIMEOUT_MS="${SEARCH_TIMEOUT_MS:-12000}"
+  export HASHRATE_GHS="${HASHRATE_GHS:-${HACKME_WORKER_HASHRATE_GHS:-20}}"
+else
+  SEARCH_TIMEOUT_MS="${SEARCH_TIMEOUT_MS:-2500}"
+fi
+export HASHRATE_GHS="${HASHRATE_GHS:-${HACKME_WORKER_HASHRATE_GHS:-}}"
 
 if [[ -z "${COORD_TOKEN}" ]]; then
   echo "[worker-autostart] set COORD_TOKEN (or COORD_ADMIN_TOKEN/ADMIN_TOKEN)" >&2
@@ -93,6 +99,11 @@ truthy() {
 }
 
 detect_gpu_backend() {
+  export HACKME_REPO_ROOT="${HACKME_REPO_ROOT:-$ROOT_DIR}"
+  if [[ -x "${ROOT_DIR}/scripts/ops/detect_gpu_backend.sh" ]]; then
+    bash "${ROOT_DIR}/scripts/ops/detect_gpu_backend.sh"
+    return 0
+  fi
   if truthy "${HACKME_GPU_DISABLE:-0}"; then
     echo "cpu"
     return 0
@@ -100,19 +111,6 @@ detect_gpu_backend() {
   if [[ -n "${HACKME_GPU_BACKEND:-}" && "${HACKME_GPU_BACKEND}" != "auto" ]]; then
     echo "${HACKME_GPU_BACKEND}"
     return 0
-  fi
-  # NVIDIA: prefer native CUDA; AMD/Intel: OpenCL.
-  if command -v nvidia-smi >/dev/null 2>&1; then
-    if nvidia-smi -L >/dev/null 2>&1; then
-      echo "cuda"
-      return 0
-    fi
-  fi
-  if command -v clinfo >/dev/null 2>&1; then
-    if clinfo 2>/dev/null | awk 'BEGIN{ok=0} /Device Type[[:space:]]+GPU/{ok=1} END{exit ok?0:1}'; then
-      echo "opencl"
-      return 0
-    fi
   fi
   echo "cpu"
 }
@@ -127,8 +125,16 @@ choose_worker_bin() {
 		printf '%s\n' "${ROOT_DIR}/bin/workerpoh"
 		return 0
 	fi
+	if [[ "$backend" == "cuda" && -x "${ROOT_DIR}/bin/workerpoh-cuda" ]]; then
+		printf '%s\n' "${ROOT_DIR}/bin/workerpoh-cuda"
+		return 0
+	fi
 	if [[ "$backend" == "opencl" && -x "${ROOT_DIR}/bin/workerpoh-opencl" ]]; then
 		printf '%s\n' "${ROOT_DIR}/bin/workerpoh-opencl"
+		return 0
+	fi
+	if [[ -x "${ROOT_DIR}/bin/workerpoh-cuda" ]]; then
+		printf '%s\n' "${ROOT_DIR}/bin/workerpoh-cuda"
 		return 0
 	fi
 	if [[ -x "${ROOT_DIR}/bin/workerpoh-opencl" ]]; then
@@ -162,16 +168,26 @@ build_worker_if_needed() {
 		echo "[worker-autostart] rebuilding stale worker binary: ${bin}"
 	fi
   echo "[worker-autostart] building worker binary: ${bin}"
-  if [[ "$backend" == "opencl" ]]; then
+  if [[ "$backend" == "cuda" ]]; then
+    if [[ -x "$ROOT_DIR/scripts/ops/build_cuda_worker.sh" ]]; then
+      OUT_CUDA="${ROOT_DIR}/bin/workerpoh-cuda"
+      bash "$ROOT_DIR/scripts/ops/build_cuda_worker.sh"
+      cp -f "$OUT_CUDA" "$bin" 2>/dev/null || ln -sf "$OUT_CUDA" "$bin"
+    else
+      (cd "$ROOT_DIR" && go build -tags "cuda,opencl" -o "$bin" ./cmd/workerpoh)
+    fi
+  elif [[ "$backend" == "opencl" ]]; then
     (cd "$ROOT_DIR" && go build -tags opencl -o "$bin" ./cmd/workerpoh)
-  elif [[ "$backend" == "cuda" ]]; then
-    (cd "$ROOT_DIR" && go build -tags cuda -o "$bin" ./cmd/workerpoh)
   else
     (cd "$ROOT_DIR" && go build -o "$bin" ./cmd/workerpoh)
   fi
 }
 
 backend="$(detect_gpu_backend)"
+# Pin native CUDA binary when configured (avoid stale opencl path after toolkit install).
+if [[ "$backend" == "cuda" && -x "${ROOT_DIR}/bin/workerpoh-cuda" ]]; then
+  export WORKER_BIN="${ROOT_DIR}/bin/workerpoh-cuda"
+fi
 bin_path="$(choose_worker_bin "$backend")"
 build_worker_if_needed "$bin_path" "$backend"
 
