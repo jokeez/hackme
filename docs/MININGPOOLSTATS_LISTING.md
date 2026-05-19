@@ -10,7 +10,8 @@ Use this **after** public pool + settlement are stable (no recurring `admin auth
 | Symbol | HMC |
 | Algorithm | PoH / WASM useful-PoW (see site) |
 | Pool URL | https://hackme.tech |
-| Stats / API | https://hackme.tech/pool/coordinator (public metrics); explorer: https://hackme.tech/pool/explorer |
+| Stats / API | `https://hackme.tech/pool/coordinator/api/work/stats` (includes `hashrate`, `workers`) or `.../api/network/stats` |
+| Explorer | https://hackme.tech/pool/explorer |
 | Downloads | https://hackme.tech/downloads.html |
 | ANN | https://bitcointalk.org/index.php?topic=5583373.0 |
 | Source | https://github.com/jokeez/hackme |
@@ -30,6 +31,23 @@ Use this **after** public pool + settlement are stable (no recurring `admin auth
 2. Add pool → provide **public stats URL**, coin ticker, contact email.
 3. Attach Bitcointalk ANN + GitHub for verification.
 4. Expect **manual review** — new coins often wait until visible hashrate + uptime.
+
+## Pool form (step 4) — avoids validation errors
+
+| Field | Value |
+|-------|--------|
+| Pool name | HackMe Official Pool |
+| Pool website | https://hackme.tech |
+| **Stratum host** | `hackme.tech` only (**no** `https://`, **no** path) |
+| **Stratum port** | `3333` (symbolic; miners use HTTP worker, not Stratum TCP) |
+| Region | EU |
+| Fee % | 0 |
+| Min payout | 0.01 |
+| Payment | Other / Custom (or PPS with note: accrual + settlement) |
+| Pool software | Other / Custom |
+| **API stats URL** | `https://hackme.tech/pool/coordinator/api/work/stats` |
+
+In pool notes: *Not Stratum — hackme-node + workerpoh, coordinator at /pool/coordinator.*
 
 ## Not a substitute for
 
