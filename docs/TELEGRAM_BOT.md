@@ -52,7 +52,48 @@ go run ./cmd/telegrambot -help
 
 ## Команды в Telegram
 
-`/digest`, `/status`, `/metrics`, `/wallet`, `/worker`, `/blocks`, `/watch`, `/unwatch`, `/about`, `/help` — см. ответ бота на `/start`.
+| Команда | Что показывает |
+|---------|----------------|
+| `/digest` | Сводка: высота, pool GH/s, баланс, mining |
+| `/status` | Chain tip, genesis, mining flag |
+| `/metrics` | Локальный PoH: target_mod, attempts/s, task kind, reward |
+| `/pool` | **Пул:** hashrate, active rigs, coordinator counters |
+| `/tasks` | **Заказы/phasing:** open/completed, reward, progress |
+| `/blocks [n]` | Последние блоки (task kind, hash) |
+| `/wallet` | Баланс кошелька узла |
+| `/worker` | Локальный worker + unpaid accrual |
+| `/watch` | Алерт при новом `tip_height` |
+| `/unwatch` | Выключить алерты |
+
+Кнопки под сообщениями дублируют команды (↻ = обновить).
+
+## Два разных бота — не путать
+
+| Бот | Процесс | Назначение |
+|-----|---------|------------|
+| **Operator** (`cmd/telegrambot`) | `hackme-telegrambot.service` | **Ты** в личке: hashrate, блоки, pool, tasks |
+| **News channel** (`news_channel_bot.py`) | `hackme-news-bot.service` | Автопост новостей в канал @hackme_tech |
+
+Для operator-бота нужен **отдельный** токен от [@BotFather](https://t.me/BotFather) (не тот же, что у канального news-бота, если не хотите смешивать роли).
+
+## Деплой на VPS (hackme.tech)
+
+```bash
+# На VPS один раз:
+ssh hackme-vps
+cp /opt/hackme/telegram_bot.env.example /opt/hackme/.env.telegram
+nano /opt/hackme/.env.telegram
+# TELEGRAM_BOT_TOKEN=...
+# HACKME_TELEGRAM_NODE_URL=http://127.0.0.1:18080
+# HACKME_TELEGRAM_ALLOWED_USER_IDS=123456789
+
+# С локальной машины:
+NODE_SSH=hackme-vps bash scripts/ops/setup_telegram_operator_bot.sh
+```
+
+Узнай свой Telegram id: [@userinfobot](https://t.me/userinfobot).
+
+Старый список: `/digest`, `/status`, `/metrics`, `/wallet`, `/worker`, `/blocks`, `/watch`, `/unwatch`, `/about`, `/help` — см. ответ бота на `/start`.
 
 ## Сборка бинарника (VPS без исходников в PATH)
 
