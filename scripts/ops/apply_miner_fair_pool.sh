@@ -17,13 +17,21 @@ log() { echo "[miner-fair] $*"; }
 
 log "sync repo to ${NODE_SSH}:${DEPLOY} (coordinator + worker + scripts)"
 rsync -az --delete \
-  --exclude '.git' --exclude 'logs' --exclude 'reports' --exclude 'data' \
+  --exclude '.git/' --exclude 'data/' --exclude 'reports/' --exclude 'logs/' \
+  --exclude '.env' --exclude '.env.*' --exclude '.secrets/' \
+  --exclude '.cargo/' --exclude '.npm-global/' --exclude '.rustup/' \
+  --exclude 'tinygo/' --exclude 'node_modules/' \
   -e "ssh ${ssh_opts[*]}" \
   "$ROOT/cmd" "$ROOT/scripts" "$ROOT/internal" "$ROOT/go.mod" "$ROOT/go.sum" \
+  "$ROOT/main.go" "$ROOT/pool.go" "$ROOT/metrics.go" "$ROOT/fuzz_campaigns.go" "$ROOT/fuzz_runner.go" \
+  "$ROOT/task_codegen.go" "$ROOT/toolchain_env.go" \
   "${NODE_SSH}:${DEPLOY}/" 2>/dev/null || rsync -az \
+  --exclude '.git/' --exclude 'data/' --exclude 'reports/' --exclude 'logs/' \
+  --exclude '.env' --exclude '.env.*' --exclude '.secrets/' \
+  --exclude '.cargo/' --exclude '.npm-global/' --exclude '.rustup/' \
+  --exclude 'tinygo/' --exclude 'node_modules/' \
   -e "ssh ${ssh_opts[*]}" \
-  "$ROOT/" "${NODE_SSH}:${DEPLOY}/" \
-  --exclude '.git' --exclude 'logs' --exclude 'reports'
+  "$ROOT/" "${NODE_SSH}:${DEPLOY}/"
 
 log "build coordinator + worker on VPS"
 ssh "${ssh_opts[@]}" "$NODE_SSH" "cd '$DEPLOY' && go build -o bin/coordinator ./cmd/coordinator && go build -o bin/workerpoh ./cmd/workerpoh"
