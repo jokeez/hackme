@@ -3597,7 +3597,6 @@
 			const fleetGh = gh * rigs;
 			const aps = fleetGh * 1e9 * uptime;
 			const rpm = Math.max(0, Number(net.rewardPerM) || 0);
-			const effectiveRpm = Number(net.observedRewardPerM) > 0 ? Number(net.observedRewardPerM) : rpm;
 			const targetMod = Math.max(POOL_TARGET_MOD_FLOOR, Number(net.targetMod) || POOL_TARGET_MOD_FLOOR);
 			const poolWork = inputs.scenario === 'pool' || !!net.poolWork;
 			const poolGhLive = Math.max(0, Number(net.poolGh) || 0);
@@ -3606,6 +3605,14 @@
 				effGh = Math.min(fleetGh, poolGhLive);
 			}
 			const effAps = effGh * 1e9 * uptime;
+			const observedPayoutPerHour = Number(net.observedPayoutPerHour || 0);
+			let effectiveRpm = rpm;
+			if (poolWork && observedPayoutPerHour > 0 && effAps > 0) {
+				const fromLive = (observedPayoutPerHour / 3600) / ((effAps / 1e6) * Math.max(share, 0.01));
+				if (fromLive > 0) effectiveRpm = rpm > 0 ? Math.min(rpm, fromLive) : fromLive;
+			} else if (!poolWork && Number(net.observedRewardPerM) > 0) {
+				effectiveRpm = Number(net.observedRewardPerM);
+			}
 			const poolHmcPerSec = effectiveRpm > 0 ? (effAps / 1e6) * effectiveRpm : 0;
 			const poolHmcHour = poolHmcPerSec * 3600 * share;
 			const poolHmcDay = poolHmcHour * 24;
@@ -3634,12 +3641,16 @@
 			}
 			const poolShareOfTotal = Number(net.poolGh) > 0 ? Math.min(100, (fleetGh / Number(net.poolGh)) * 100) : 0;
 			const theoreticalHmcHour = poolHmcHour;
-			const observedPayoutPerHour = Number(net.observedPayoutPerHour || 0);
 			let scaledObservedHour = 0;
 			if (observedPayoutPerHour > 0 && net.workerGh > 0 && effGh > 0) {
 				scaledObservedHour = observedPayoutPerHour * (effGh / net.workerGh) * (share / Math.max(0.01, (net.mySharePct || 100) / 100));
 			}
-			const displayHmcHour = poolHmcHour;
+			let displayHmcHour = poolHmcHour;
+			if (poolWork && scaledObservedHour > 0) {
+				displayHmcHour = scaledObservedHour;
+			} else if (poolWork && observedPayoutPerHour > 0 && net.workerGh > 0) {
+				displayHmcHour = observedPayoutPerHour * (effGh / net.workerGh) * share;
+			}
 			const ghCapped = poolGhLive > 0 && fleetGh > poolGhLive * 1.05;
 			const displayHmcDay = displayHmcHour * 24;
 			let breakEven = '—';
