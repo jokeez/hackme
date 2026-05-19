@@ -54,7 +54,14 @@ REMOTE
 
 log "[4/6] MSK worker — remote fair batch + timeouts"
 if ssh -o BatchMode=yes -o ConnectTimeout=8 "$MSK_SSH" true 2>/dev/null; then
-  COORD_TOKEN="$(tr -d '\r\n' <"$ROOT/.secrets/hackme_coordinator_admin_token" 2>/dev/null || true)"
+  WORKER_TOK_FILE="$ROOT/.secrets/hackme_coordinator_worker_token"
+  if [[ ! -f "$WORKER_TOK_FILE" ]]; then
+    bash "$ROOT/scripts/ops/gen_coordinator_worker_token.sh" "$WORKER_TOK_FILE" 2>/dev/null || true
+  fi
+  COORD_TOKEN="$(tr -d '\r\n' <"$WORKER_TOK_FILE" 2>/dev/null || true)"
+  if [[ -z "$COORD_TOKEN" ]]; then
+    COORD_TOKEN="$(tr -d '\r\n' <"$ROOT/.secrets/hackme_coordinator_admin_token" 2>/dev/null || true)"
+  fi
   SEED="$(tr -d '\r\n' <"$ROOT/data/miner_submit_ed25519_seed.hex" 2>/dev/null || true)"
   ssh -o BatchMode=yes "$MSK_SSH" "bash -s" <<REMOTE
 set -euo pipefail
@@ -71,8 +78,13 @@ HACKME_GPU_DISABLE=1
 HACKME_WORKER_CLAIM_TIMEOUT=90s
 HACKME_WORKER_SUBMIT_TIMEOUT=120s
 HACKME_WORKER_CLAIM_COOLDOWN_MS=3000
+HACKME_MINER_NONCE_FILE=/opt/hackme-worker/logs/miner_submit_nonce.worker-vps-msk-01.seq
 PAYOUT_ADDRESS=${WALLET}
 ENV
+if [[ -f /etc/systemd/system/hackme-worker.service ]]; then
+  grep -q 'HACKME_MINER_NONCE_FILE' /etc/systemd/system/hackme-worker.service 2>/dev/null || \
+    sed -i '/^Environment=HACKME_WORKER_CLAIM_COOLDOWN_MS/a Environment=HACKME_MINER_NONCE_FILE=/opt/hackme-worker/logs/miner_submit_nonce.worker-vps-msk-01.seq' /etc/systemd/system/hackme-worker.service
+fi
 chmod 600 "\$DEPLOY/.env.worker"
 if [[ -f /etc/systemd/system/hackme-worker.service ]]; then
   sed -i 's|-batch [0-9]*|-batch 1048576|g' /etc/systemd/system/hackme-worker.service 2>/dev/null || true

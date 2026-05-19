@@ -53,7 +53,9 @@ import "C"
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
+	"time"
 	"unsafe"
 
 	"github.com/pkg/errors"
@@ -146,6 +148,7 @@ func (a *oclAccel) Search(ctx context.Context, base, count, mod uint64) (found b
 		return false, 0, ctx.Err()
 	default:
 	}
+	t0 := time.Now()
 
 	var out uint64 = ^uint64(0)
 	errN := C.clEnqueueWriteBuffer(a.queue, a.memOut, C.CL_TRUE, 0, C.size_t(8), unsafe.Pointer(&out), 0, nil, nil)
@@ -190,6 +193,13 @@ func (a *oclAccel) Search(ctx context.Context, base, count, mod uint64) (found b
 	errN = C.clFinish(a.queue)
 	if errN != C.CL_SUCCESS {
 		return false, 0, fmt.Errorf("gpupoh ocl: Finish %d", int(errN))
+	}
+	kernelSec := time.Since(t0).Seconds()
+	recordOCLKernelDuration(kernelSec)
+	if os.Getenv("HACKME_OPENCL_VERBOSE") == "1" {
+		ghs := float64(count) / kernelSec / 1e9
+		fmt.Fprintf(os.Stderr, "gpupoh: opencl search count=%d elapsed=%s ~%.2f GH/s\n",
+			count, time.Duration(kernelSec*float64(time.Second)).Round(time.Millisecond), ghs)
 	}
 
 	errN = C.clEnqueueReadBuffer(a.queue, a.memOut, C.CL_TRUE, 0, C.size_t(8), unsafe.Pointer(&out), 0, nil, nil)

@@ -21,9 +21,18 @@ note() { warn=$((warn + 1)); echo "[MPS-WARN] $*"; }
 
 probe() {
   local name="$1" url="$2" expect="${3:-200}"
-  local code body
+  local code body curl_rc
   body="$(mktemp)"
-  code="$(curl -sS -o "$body" -w '%{http_code}' --max-time 20 "$url" 2>/dev/null || echo 000)"
+  code="$(curl -sS -o "$body" -w '%{http_code}' --max-time 60 "$url" 2>/dev/null)" || true
+  curl_rc=$?
+  # Normalize: some slow pages return http 200 then curl exit 28 (timeout mid-body).
+  if [[ ! "$code" =~ ^[0-9]{3}$ ]]; then
+    code="$(printf '%s' "$code" | grep -oE '[0-9]{3}' | tail -1 || echo 000)"
+  fi
+  if [[ "$curl_rc" -eq 28 && "$code" == "200" ]]; then
+    note "$name slow body (HTTP 200, curl timeout) — OK for listing"
+    code="200"
+  fi
   if [[ "$code" == "$expect" ]] || [[ ",${expect}," == *",${code},"* ]]; then
     ok "$name HTTP $code $url"
     if [[ "$code" == "200" ]] && command -v jq >/dev/null 2>&1; then

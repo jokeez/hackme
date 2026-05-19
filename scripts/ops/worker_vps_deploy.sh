@@ -42,8 +42,12 @@ if [[ -z "$WORKER_SSH" ]]; then
 fi
 
 COORD_TOKEN="${COORD_ADMIN_TOKEN:-${HACKME_POOL_COORDINATOR_TOKEN:-}}"
-if [[ -z "$COORD_TOKEN" && -f "$SECRET_COORD" ]]; then
+if [[ -f "$SECRET_WORKER" ]]; then
+  COORD_TOKEN="$(tr -d '\r\n' <"$SECRET_WORKER")"
+  echo "[worker-vps-deploy] using worker-scoped token from $SECRET_WORKER"
+elif [[ -z "$COORD_TOKEN" && -f "$SECRET_COORD" ]]; then
   COORD_TOKEN="$(tr -d '\r\n' <"$SECRET_COORD")"
+  echo "[worker-vps-deploy] WARN: using admin token — run rollout_coordinator_worker_token.sh" >&2
 fi
 MINER_SEED="${HACKME_MINER_ED25519_SEED_HEX:-}"
 if [[ -z "$MINER_SEED" && -f "$SECRET_SEED" ]]; then

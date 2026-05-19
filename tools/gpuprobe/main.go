@@ -1,4 +1,4 @@
-//go:build !opencl
+//go:build !opencl && !cuda
 
 package main
 

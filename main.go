@@ -2018,6 +2018,7 @@ type workerStartRequest struct {
 	WorkerID    string  `json:"worker_id"`
 	BatchSize   uint64  `json:"batch_size"`
 	HashrateGHS float64 `json:"hashrate_gh_s"`
+	GPUBackend  string  `json:"gpu_backend"`
 }
 
 func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
@@ -2089,7 +2090,9 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 		if hashrateGHS <= 0 {
 			hashrateGHS = 0.9
 			repoRoot := resolveWorkerRepoRoot(strings.TrimSpace(a.dataDir))
-			if st, err := os.Stat(filepath.Join(repoRoot, "bin", "workerpoh-opencl")); err == nil && !st.IsDir() {
+			if st, err := os.Stat(filepath.Join(repoRoot, "bin", "workerpoh-cuda")); err == nil && !st.IsDir() {
+				hashrateGHS = 9.0
+			} else if st, err := os.Stat(filepath.Join(repoRoot, "bin", "workerpoh-opencl")); err == nil && !st.IsDir() {
 				hashrateGHS = 9.0
 			}
 		}
@@ -2156,8 +2159,18 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 	if v := strings.TrimSpace(os.Getenv("HACKME_WORKER_CLAIM_COOLDOWN_MS")); v != "" {
 		workerEnv = append(workerEnv, "HACKME_WORKER_CLAIM_COOLDOWN_MS="+v)
 	}
-	if v := strings.TrimSpace(os.Getenv("HACKME_GPU_BACKEND")); v != "" {
-		workerEnv = append(workerEnv, "HACKME_GPU_BACKEND="+v)
+	gpuBackend := strings.TrimSpace(req.GPUBackend)
+	if gpuBackend == "" {
+		gpuBackend = strings.TrimSpace(os.Getenv("HACKME_GPU_BACKEND"))
+	}
+	if gpuBackend != "" {
+		workerEnv = append(workerEnv, "HACKME_GPU_BACKEND="+gpuBackend)
+	}
+	if strings.EqualFold(gpuBackend, "cuda") {
+		cudaBin := filepath.Join(repoRoot, "bin", "workerpoh-cuda")
+		if st, err := os.Stat(cudaBin); err == nil && !st.IsDir() {
+			workerEnv = append(workerEnv, "WORKER_BIN="+cudaBin)
+		}
 	}
 	if strings.TrimSpace(os.Getenv("HACKME_DESKTOP_GPU_POOL")) == "1" {
 		workerEnv = append(workerEnv, "HACKME_DESKTOP_GPU_POOL=1")
@@ -2203,7 +2216,18 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 			}
 			nonceDir := filepath.Join(repoRoot, "logs")
 			_ = os.MkdirAll(nonceDir, 0o755)
-			noncePath := filepath.Join(nonceDir, "miner_submit_nonce.seq")
+			safeWid := strings.Map(func(r rune) rune {
+				switch {
+				case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_':
+					return r
+				default:
+					return '_'
+				}
+			}, workerID)
+			if safeWid == "" {
+				safeWid = "worker"
+			}
+			noncePath := filepath.Join(nonceDir, "miner_submit_nonce."+safeWid+".seq")
 			workerEnv = append(workerEnv,
 				"HACKME_WORKER_SIGN_SUBMITS=1",
 				"HACKME_MINER_ED25519_SEED_HEX="+seedHex,

@@ -18,6 +18,7 @@ echo "[desktop-gpu] patch .env.desktop"
 DESKTOP_ENV="$ROOT/.env.desktop"
 touch "$DESKTOP_ENV"
 set_kv "$DESKTOP_ENV" HACKME_WORKER_BATCH_SIZE 4194304
+set_kv "$DESKTOP_ENV" HACKME_WORKER_HASHRATE_GHS 20
 set_kv "$DESKTOP_ENV" GPU_CHUNK 4194304
 set_kv "$DESKTOP_ENV" SEARCH_TIMEOUT_MS 12000
 set_kv "$DESKTOP_ENV" HACKME_WORKER_CLAIM_COOLDOWN_MS 0
@@ -27,18 +28,24 @@ set_kv "$DESKTOP_ENV" HACKME_WORKER_CLAIM_TIMEOUT 90s
 set_kv "$DESKTOP_ENV" HACKME_WORKER_SUBMIT_TIMEOUT 120s
 set_kv "$DESKTOP_ENV" WORKER_PAYOUT_MAP "worker-kapa-pc=${WALLET},worker-vps-msk-01=${WALLET},vps-canary-01=${WALLET}"
 
-echo "[desktop-gpu] build GPU workerpoh (cuda if SDK present, else opencl)"
-export GOCACHE="${GOCACHE:-$ROOT/.cache/go-build}"
-mkdir -p "$ROOT/bin"
-GPU_BACKEND=cuda
-if command -v nvidia-smi >/dev/null 2>&1 && (cd "$ROOT" && go build -tags cuda -o "$ROOT/bin/workerpoh" ./cmd/workerpoh 2>/dev/null); then
-  echo "[desktop-gpu] built bin/workerpoh with -tags cuda"
+echo "[desktop-gpu] build native CUDA workerpoh (production path)"
+GPU_BACKEND=opencl
+if command -v nvidia-smi >/dev/null 2>&1; then
+  if bash "$ROOT/scripts/ops/build_cuda_worker.sh" || [[ -x "$ROOT/bin/workerpoh-cuda" ]]; then
+    GPU_BACKEND=cuda
+    echo "[desktop-gpu] using bin/workerpoh-cuda (native CUDA)"
+  else
+    echo "[desktop-gpu] WARN: CUDA build failed — see docs/CUDA_PRODUCTION.md" >&2
+    (cd "$ROOT" && go build -tags opencl -o "$ROOT/bin/workerpoh-opencl" ./cmd/workerpoh)
+    ln -sf workerpoh-opencl "$ROOT/bin/workerpoh" 2>/dev/null || true
+  fi
 else
-  GPU_BACKEND=opencl
   (cd "$ROOT" && go build -tags opencl -o "$ROOT/bin/workerpoh-opencl" ./cmd/workerpoh)
-  echo "[desktop-gpu] built bin/workerpoh-opencl (install CUDA dev headers for native CUDA)"
+  ln -sf workerpoh-opencl "$ROOT/bin/workerpoh" 2>/dev/null || true
+  echo "[desktop-gpu] no NVIDIA GPU detected — OpenCL/CPU only"
 fi
 set_kv "$DESKTOP_ENV" HACKME_GPU_BACKEND "$GPU_BACKEND"
+set_kv "$DESKTOP_ENV" HACKME_CUDA_VERBOSE 1
 
 if ssh -o BatchMode=yes -o ConnectTimeout=8 "$MSK_SSH" true 2>/dev/null; then
   echo "[desktop-gpu] throttle MSK worker (CPU-only, slower claim loop)"

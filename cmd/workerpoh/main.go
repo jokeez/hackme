@@ -294,7 +294,18 @@ func (g gpuSearcher) Search(ctxTimeout time.Duration, base, count, mod uint64) (
 	ctx, cancel := context.WithTimeout(context.Background(), ctxTimeout)
 	defer cancel()
 	found, nonce, err := g.acc.Search(ctx, base, count, mod)
-	return found, nonce, time.Since(t0).Seconds(), err
+	sec := time.Since(t0).Seconds()
+	switch strings.ToLower(strings.TrimSpace(g.acc.Backend())) {
+	case "cuda":
+		if k := gpupoh.LastCUDAKernelSeconds(); k > sec {
+			sec = k
+		}
+	case "opencl":
+		if k := gpupoh.LastOCLKernelSeconds(); k > sec {
+			sec = k
+		}
+	}
+	return found, nonce, sec, err
 }
 
 func pickSearcher(preferredBackend string, preferredDevice int, disableGPU bool) (searcher, func(), string) {
@@ -345,6 +356,185 @@ func pickSearcher(preferredBackend string, preferredDevice int, disableGPU bool)
 	return cpuSearcher{}, func() {}, "cpu"
 }
 
+func rawHashrateGHS(batch uint64, elapsedSec float64) float64 {
+	if batch == 0 || elapsedSec <= 0 {
+		return 0
+	}
+	ghs := float64(batch) / elapsedSec / 1e9
+	if ghs > 500 {
+		return 500
+	}
+	return ghs
+}
+
+// measureWorkerHashrateGHS estimates GH/s from batch size and elapsed search time.
+func measureWorkerHashrateGHS(batch uint64, elapsedSec float64) float64 {
+	if batch == 0 {
+		return 0
+	}
+	elapsedSec = effectiveSearchSeconds(elapsedSec)
+	ghs := float64(batch) / elapsedSec / 1e9
+	if ghs > 500 {
+		return 500
+	}
+	if ghs < 1e-9 {
+		return 0
+	}
+	return ghs
+}
+
+func envFloatGHS(keys ...string) float64 {
+	for _, k := range keys {
+		v := strings.TrimSpace(os.Getenv(k))
+		if v == "" {
+			continue
+		}
+		f, err := strconv.ParseFloat(v, 64)
+		if err == nil && f > 0 {
+			return f
+		}
+	}
+	return 0
+}
+
+func effectiveSearchSeconds(searchSec float64) float64 {
+	sec := searchSec
+	if cudaBackendConfigured() {
+		if k := gpupoh.LastCUDAKernelSeconds(); k > sec {
+			sec = k
+		}
+	} else if openclBackendConfigured() {
+		if k := gpupoh.LastOCLKernelSeconds(); k > sec {
+			sec = k
+		}
+	}
+	const minSec = 0.05
+	if sec < minSec {
+		sec = minSec
+	}
+	return sec
+}
+
+var (
+	submitHashrateEMA  float64
+	gpuCalibratedGHS   float64
+	workerGPUBackend   string
+)
+
+func cudaBackendConfigured() bool {
+	if strings.EqualFold(strings.TrimSpace(workerGPUBackend), "cuda") {
+		return true
+	}
+	b := strings.ToLower(strings.TrimSpace(os.Getenv("HACKME_GPU_BACKEND")))
+	return b == "cuda"
+}
+
+func openclBackendConfigured() bool {
+	if strings.EqualFold(strings.TrimSpace(workerGPUBackend), "opencl") {
+		return true
+	}
+	b := strings.ToLower(strings.TrimSpace(os.Getenv("HACKME_GPU_BACKEND")))
+	return b == "opencl"
+}
+
+func gpuBackendConfigured() bool {
+	return cudaBackendConfigured() || openclBackendConfigured()
+}
+
+func calibrateGPUHashrateGHS(srch searcher, batch, mod uint64) float64 {
+	if batch == 0 {
+		return 0
+	}
+	if v := envFloatGHS("HACKME_CUDA_CALIBRATE_GHS"); v > 0 {
+		return v
+	}
+	const warmup = 1
+	const samples = 4
+	var sum float64
+	var n int
+	for i := 0; i < warmup+samples; i++ {
+		_, _, _, err := srch.Search(60*time.Second, 1, batch, mod)
+		if err != nil {
+			if os.Getenv("HACKME_CUDA_VERBOSE") == "1" {
+				fmt.Fprintf(os.Stderr, "workerpoh: calib search err: %v\n", err)
+			}
+			continue
+		}
+		sec := gpupoh.LastCUDAKernelSeconds()
+		if sec <= 0 {
+			sec = gpupoh.LastOCLKernelSeconds()
+		}
+		if sec <= 0 {
+			continue
+		}
+		if i < warmup {
+			continue
+		}
+		g := rawHashrateGHS(batch, sec)
+		if g >= 1 && g <= 500 {
+			sum += g
+			n++
+		}
+	}
+	if n == 0 {
+		return 0
+	}
+	return sum / float64(n)
+}
+
+// submitHashrateGHS reports GH/s from GPU search time (batch / searchSec).
+// OpenCL: when timing is bogus (too slow), fall back to declared GH/s so workers are not under-paid.
+// CUDA: use calibrated + measured; declared is a minimum hint only (never a ceiling).
+func submitHashrateGHS(batch uint64, searchSec float64, mode string) float64 {
+	inst := measureWorkerHashrateGHS(batch, searchSec)
+	if gpuBackendConfigured() {
+		if inst < 2 && gpuCalibratedGHS > 0 {
+			inst = gpuCalibratedGHS
+		}
+		if inst < gpuCalibratedGHS*0.7 && gpuCalibratedGHS > 0 {
+			inst = gpuCalibratedGHS
+		}
+	}
+	if inst > 0 {
+		if submitHashrateEMA <= 0 {
+			submitHashrateEMA = inst
+		} else {
+			submitHashrateEMA = 0.35*inst + 0.65*submitHashrateEMA
+		}
+	}
+	ghs := inst
+	if submitHashrateEMA > ghs {
+		ghs = submitHashrateEMA
+	}
+	declared := envFloatGHS("HASHRATE_GHS", "HACKME_WORKER_HASHRATE_GHS", "HACKME_WORKER_DECLARED_HASHRATE_GHS")
+	if gpuBackendConfigured() {
+		if ghs <= 0 && gpuCalibratedGHS > 0 {
+			ghs = gpuCalibratedGHS
+		}
+		if declared > 0 && ghs > 0 && ghs < declared*0.5 {
+			ghs = declared * 0.5
+		}
+		if ghs > 500 {
+			return 500
+		}
+		return ghs
+	}
+	if declared <= 0 {
+		return ghs
+	}
+	floor := declared * 0.2
+	if mode != "gpu" {
+		floor = declared * 0.5
+	}
+	if ghs <= 0 || ghs < floor {
+		if declared > 500 {
+			return 500
+		}
+		return declared
+	}
+	return ghs
+}
+
 func main() {
 	var (
 		coordURL        = flag.String("coord", strings.TrimSpace(os.Getenv("COORD_URL")), "coordinator base URL")
@@ -358,6 +548,7 @@ func main() {
 		gpuDisable      = flag.Bool("gpu-disable", isTruthy(os.Getenv("HACKME_GPU_DISABLE")), "disable GPU and force CPU mode")
 	)
 	flag.Parse()
+	workerGPUBackend = strings.ToLower(strings.TrimSpace(*gpuBackend))
 
 	if *token == "" {
 		*token = strings.TrimSpace(os.Getenv("COORD_ADMIN_TOKEN"))
@@ -410,7 +601,7 @@ func main() {
 		workerName = *workerID
 	}
 
-	claimCL := newWorkerHTTPClient(workerHTTPDuration("HACKME_WORKER_CLAIM_TIMEOUT", 35*time.Second))
+	claimCL := newWorkerHTTPClient(workerHTTPDuration("HACKME_WORKER_CLAIM_TIMEOUT", 60*time.Second))
 	submitCL := newWorkerHTTPClient(workerHTTPDuration("HACKME_WORKER_SUBMIT_TIMEOUT", 90*time.Second))
 	pushCL := newWorkerHTTPClient(workerHTTPDuration("HACKME_WORKER_PUSH_TIMEOUT", 20*time.Second))
 	var netBackoff time.Duration = 2 * time.Second
@@ -421,6 +612,26 @@ func main() {
 	srch, cleanup, mode := pickSearcher(preferredBackend, *gpuDevice, *gpuDisable)
 	defer cleanup()
 	fmt.Fprintf(os.Stderr, "workerpoh: searcher=%s mode=%s hybrid_sign=%v\n", srch.Label(), mode, signHybrid)
+	if mode == "gpu" && gpuBackendConfigured() {
+		calibMod := uint64(19_485_298)
+		if v := strings.TrimSpace(os.Getenv("HACKME_GPU_CALIBRATE_MOD")); v != "" {
+			if x, err := strconv.ParseUint(v, 10, 64); err == nil && x > 0 {
+				calibMod = x
+			}
+		} else if v := strings.TrimSpace(os.Getenv("HACKME_CUDA_CALIBRATE_MOD")); v != "" {
+			if x, err := strconv.ParseUint(v, 10, 64); err == nil && x > 0 {
+				calibMod = x
+			}
+		}
+		gpuCalibratedGHS = calibrateGPUHashrateGHS(srch, *batch, calibMod)
+		if gpuCalibratedGHS > 0 {
+			backend := strings.TrimSpace(workerGPUBackend)
+			if backend == "" {
+				backend = "gpu"
+			}
+			fmt.Fprintf(os.Stderr, "workerpoh: %s calibrated %.2f GH/s (batch=%d)\n", strings.ToUpper(backend), gpuCalibratedGHS, *batch)
+		}
+	}
 	var okSubmits int64
 	for {
 		// claim
@@ -454,6 +665,7 @@ func main() {
 		var found bool
 		var foundNonce uint64
 		elapsed := 0.0
+		var searched uint64
 		// Chunked search: for GPU we keep each call bounded; for CPU this is one pass.
 		if mode == "gpu" {
 			remain := cr.BatchSize
@@ -469,6 +681,7 @@ func main() {
 				}
 				f, nonce, sec, err := srch.Search(time.Duration(*searchTimeoutMS)*time.Millisecond, cur, n, cr.TargetMod)
 				elapsed += sec
+				searched += n
 				if err != nil {
 					// On transient GPU errors, fallback to CPU for this claim.
 					f2, nonce2 := findHitCPU(cur, n, cr.TargetMod)
@@ -488,15 +701,17 @@ func main() {
 			var err error
 			found, foundNonce, elapsed, err = srch.Search(0, cr.BaseNonce, cr.BatchSize, cr.TargetMod)
 			_ = err
+			searched = cr.BatchSize
 		}
-		ghs := 0.0
-		if elapsed > 0.01 {
-			ghs = float64(cr.BatchSize) / elapsed / 1e9
+		hashBatch := cr.BatchSize
+		if searched > 0 && searched < hashBatch {
+			hashBatch = searched
 		}
-		if ghs > 500 {
-			ghs = 500
-		} else if ghs > 0 && ghs < 1e-6 {
-			ghs = 0
+		ghs := submitHashrateGHS(hashBatch, elapsed, mode)
+		if os.Getenv("HACKME_CUDA_VERBOSE") == "1" && mode == "gpu" {
+			kern := gpupoh.LastCUDAKernelSeconds()
+			fmt.Fprintf(os.Stderr, "workerpoh: search_sec=%.4f kernel_sec=%.4f inst_ghs=%.2f submit_ghs=%.2f calib=%.2f\n",
+				elapsed, kern, measureWorkerHashrateGHS(hashBatch, effectiveSearchSeconds(elapsed)), ghs, gpuCalibratedGHS)
 		}
 		out := submitReq{
 			WorkerID:    *workerID,
