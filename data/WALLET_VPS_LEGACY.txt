@@ -1,3 +1,0 @@
-Legacy VPS miner wallet (HMC-381c0c5e2cfcc714).
-Do not use this directory for desktop mining — use logs/desktop/data (HMC-91fe007e4036c602).
-Full backup: ~/Desktop/HackMe-backup-VPS-HMC-381c0c5e2cfcc714/
