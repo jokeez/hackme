@@ -1195,11 +1195,19 @@ func addWorkRoutes(mux *http.ServeMux, token string, allowInsecure bool, reg *la
 			}
 		}
 		wc := 0
-		switch v := out["workers"].(type) {
-		case int:
-			wc = v
-		case float64:
-			wc = int(v)
+		if n, ok := out["workers_online"].(int); ok && n > 0 {
+			wc = n
+		} else if n, ok := out["miners"].(int); ok && n > 0 {
+			wc = n
+		} else if m, ok := out["workers"].(map[string]any); ok {
+			wc = len(m)
+		} else {
+			switch v := out["workers"].(type) {
+			case int:
+				wc = v
+			case float64:
+				wc = int(v)
+			}
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
