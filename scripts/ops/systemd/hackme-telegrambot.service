@@ -1,0 +1,15 @@
+[Unit]
+Description=HackMe Telegram operator bot (hashrate, blocks, pool, tasks)
+After=network-online.target hackme-node.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/hackme
+EnvironmentFile=/opt/hackme/.env.telegram
+ExecStart=/opt/hackme/hackme-telegrambot
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

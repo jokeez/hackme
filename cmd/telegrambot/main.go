@@ -218,6 +218,10 @@ func (b *bot) handleCommand(ctx context.Context, chatID, fromID int64, text stri
 		b.reply(ctx, chatID, b.fmtDigest(ctx), digestKeyboard())
 	case "/worker":
 		b.reply(ctx, chatID, b.fmtWorker(ctx), workerKeyboard())
+	case "/pool":
+		b.reply(ctx, chatID, b.fmtPool(ctx), poolKeyboard())
+	case "/tasks":
+		b.reply(ctx, chatID, b.fmtTasks(ctx), tasksKeyboard())
 	case "/watch":
 		b.startWatch(ctx, chatID)
 	case "/unwatch":
@@ -241,6 +245,8 @@ func helpText(nodeBase string) string {
 	sb.WriteString("/metrics — PoH throughput, target M, session solves\n")
 	sb.WriteString("/wallet — balance and display mode\n")
 	sb.WriteString("/worker — pool worker subprocess (coordinator mode)\n")
+	sb.WriteString("/pool — global hashrate, active rigs, coordinator counters\n")
+	sb.WriteString("/tasks — open phasing/audit orders (escrow tasks)\n")
 	sb.WriteString("/blocks [n] — last blocks (default 8, max 25)\n")
 	sb.WriteString("/watch — notify when <code>tip_height</code> increases\n")
 	sb.WriteString("/unwatch — stop alerts\n")
@@ -252,6 +258,7 @@ func helpText(nodeBase string) string {
 func mainKeyboard() [][]inlineBtn {
 	return [][]inlineBtn{
 		{{Text: "📊 Digest", CallbackData: "r:d"}, {Text: "⛓ Status", CallbackData: "r:s"}},
+		{{Text: "🌐 Pool", CallbackData: "r:p"}, {Text: "📋 Tasks", CallbackData: "r:t"}},
 		{{Text: "⚙ Metrics", CallbackData: "r:m"}, {Text: "👛 Wallet", CallbackData: "r:w"}},
 		{{Text: "🖥 Worker", CallbackData: "r:k"}, {Text: "📜 Blocks", CallbackData: "r:b8"}},
 		{{Text: "ℹ About", CallbackData: "r:a"}},
@@ -279,6 +286,14 @@ func blocksKeyboard(n int) [][]inlineBtn {
 
 func workerKeyboard() [][]inlineBtn {
 	return [][]inlineBtn{{{Text: "↻ Worker", CallbackData: "r:k"}}}
+}
+
+func poolKeyboard() [][]inlineBtn {
+	return [][]inlineBtn{{{Text: "↻ Pool", CallbackData: "r:p"}}}
+}
+
+func tasksKeyboard() [][]inlineBtn {
+	return [][]inlineBtn{{{Text: "↻ Tasks", CallbackData: "r:t"}}}
 }
 
 func digestKeyboard() [][]inlineBtn {
@@ -311,6 +326,10 @@ func (b *bot) handleCallback(ctx context.Context, cq *callbackQuery) {
 		b.reply(ctx, chatID, b.fmtDigest(ctx), digestKeyboard())
 	case data == "r:k":
 		b.reply(ctx, chatID, b.fmtWorker(ctx), workerKeyboard())
+	case data == "r:p":
+		b.reply(ctx, chatID, b.fmtPool(ctx), poolKeyboard())
+	case data == "r:t":
+		b.reply(ctx, chatID, b.fmtTasks(ctx), tasksKeyboard())
 	case data == "r:a":
 		b.reply(ctx, chatID, b.fmtAbout(ctx), mainKeyboard())
 	case strings.HasPrefix(data, "r:b"):
@@ -465,6 +484,7 @@ func (b *bot) fmtDigest(ctx context.Context) string {
 	st, _, _ := b.nodeGET(ctx, "/api/status")
 	w, _, _ := b.nodeGET(ctx, "/api/wallet")
 	m, _, _ := b.nodeGET(ctx, "/api/metrics")
+	g, _, _ := b.nodeGET(ctx, "/api/global/metrics")
 	var sb strings.Builder
 	sb.WriteString("<b>HackMe digest</b>\n")
 	if st != nil {
@@ -472,15 +492,150 @@ func (b *bot) fmtDigest(ctx context.Context) string {
 		sb.WriteString(fmtField("tip", shortHash(asString(st["tip_hash"]))))
 		sb.WriteString(fmtFlag("mining", asBool(st["mining"])))
 	}
+	if g != nil {
+		if network, ok := g["network"].(map[string]any); ok {
+			poolGH := asFloat(network["pool_hashrate_gh_s"])
+			if poolGH <= 0 {
+				poolGH = asFloat(network["global_hashrate_th_s"]) * 1000
+			}
+			if poolGH > 0 {
+				sb.WriteString(fmtField("pool", fmt.Sprintf("%.2f GH/s", poolGH)))
+			}
+			if rigs, ok := network["active_rigs"].([]any); ok {
+				sb.WriteString(fmtField("rigs_online", fmt.Sprintf("%d", len(rigs))))
+			}
+		}
+		if work, ok := g["work"].(map[string]any); ok {
+			sb.WriteString(fmtField("target_M", fmtUint(asFloat(work["target_mod"]))))
+		}
+	}
 	if w != nil {
 		sb.WriteString(fmtField("balance", trimFloat(asString(w["balance_display_hmc"]))) + " HMC")
 	}
 	if m != nil {
-		sb.WriteString(fmtField("hashrate", trimFloat(asString(m["mining_attempts_per_sec"]))) + " attempts/s")
+		sb.WriteString(fmtField("local_attempts/s", trimFloat(asString(m["mining_attempts_per_sec"]))))
 		sb.WriteString(fmtField("solves_sess", fmtUint(asFloat(m["mining_session_solves"]))))
-		sb.WriteString(fmtField("M", fmtUint(asFloat(m["mining_target_mod"]))))
 	}
 	return sb.String()
+}
+
+func (b *bot) fmtPool(ctx context.Context) string {
+	g, code, err := b.nodeGET(ctx, "/api/global/metrics")
+	if err != nil {
+		return escHTML(fmt.Sprintf("Node error: %v", err))
+	}
+	if code != http.StatusOK {
+		return escHTML(fmt.Sprintf("HTTP %d", code))
+	}
+	network, _ := g["network"].(map[string]any)
+	work, _ := g["work"].(map[string]any)
+	chain, _ := g["chain"].(map[string]any)
+	var sb strings.Builder
+	sb.WriteString("<b>Public pool</b>\n")
+	if chain != nil {
+		sb.WriteString(fmtField("tip_height", fmtUint(asFloat(chain["tip_height"]))))
+	}
+	if network != nil {
+		poolGH := asFloat(network["pool_hashrate_gh_s"])
+		if poolGH <= 0 {
+			poolGH = asFloat(network["global_hashrate_th_s"]) * 1000
+		}
+		if poolGH > 0 {
+			sb.WriteString(fmtField("pool_hashrate", fmt.Sprintf("%.2f GH/s", poolGH)))
+		}
+		if rigs, ok := network["active_rigs"].([]any); ok && len(rigs) > 0 {
+			sb.WriteString("<b>Active rigs</b>\n")
+			for i, it := range rigs {
+				if i >= 8 {
+					sb.WriteString(fmt.Sprintf("… +%d more\n", len(rigs)-8))
+					break
+				}
+				row, ok := it.(map[string]any)
+				if !ok {
+					continue
+				}
+				wid := asString(row["worker_id"])
+				if wid == "" {
+					wid = asString(row["name"])
+				}
+				gh := asFloat(row["hashrate_gh_s"])
+				sb.WriteString(fmt.Sprintf("• <code>%s</code> %.2f GH/s\n", escHTML(wid), gh))
+			}
+		}
+	}
+	if work != nil {
+		sb.WriteString("\n<b>Coordinator</b>\n")
+		sb.WriteString(fmtField("target_mod", fmtUint(asFloat(work["target_mod"]))))
+		sb.WriteString(fmtField("workers", fmtUint(asFloat(work["workers_count"]))))
+		sb.WriteString(fmtField("submitted", fmtUint(asFloat(work["submitted_items"]))))
+		sb.WriteString(fmtField("attempts", fmtUint(asFloat(work["accepted_attempts"]))))
+		if v := asFloat(work["total_payout_hmc"]); v > 0 {
+			sb.WriteString(fmtField("pool_payout_hmc", trimFloat(fmt.Sprintf("%.8f", v))))
+		}
+	}
+	if sb.Len() < 24 {
+		sb.WriteString("<i>no pool data (coordinator offline?)</i>")
+	}
+	return strings.TrimSpace(sb.String())
+}
+
+func (b *bot) fmtTasks(ctx context.Context) string {
+	j, code, err := b.nodeGET(ctx, "/api/tasks")
+	if err != nil {
+		return escHTML(fmt.Sprintf("Node error: %v", err))
+	}
+	if code != http.StatusOK {
+		return escHTML(fmt.Sprintf("HTTP %d", code))
+	}
+	raw, _ := j["tasks"].([]any)
+	open, done, cancelled := 0, 0, 0
+	var sb strings.Builder
+	sb.WriteString("<b>Orders / phasing tasks</b>\n")
+	for _, it := range raw {
+		row, ok := it.(map[string]any)
+		if !ok {
+			continue
+		}
+		switch strings.ToLower(asString(row["status"])) {
+		case "open":
+			open++
+		case "completed":
+			done++
+		case "cancelled":
+			cancelled++
+		}
+	}
+	sb.WriteString(fmtField("open", fmt.Sprintf("%d", open)))
+	sb.WriteString(fmtField("completed", fmt.Sprintf("%d", done)))
+	sb.WriteString(fmtField("cancelled", fmt.Sprintf("%d", cancelled)))
+	if open > 0 {
+		sb.WriteString("\n<b>Open</b>\n")
+		shown := 0
+		for _, it := range raw {
+			row, ok := it.(map[string]any)
+			if !ok || strings.ToLower(asString(row["status"])) != "open" {
+				continue
+			}
+			if shown >= 5 {
+				break
+			}
+			id := truncate(asString(row["id"]), 28)
+			reward := trimFloat(asString(row["reward"]))
+			if reward == "" {
+				reward = trimFloat(fmt.Sprintf("%.6f", asFloat(row["reward_hmc"])))
+			}
+			prog := fmtUint(asFloat(row["progress_count"]))
+			target := fmtUint(asFloat(row["target_solves"]))
+			kind := asString(row["kind"])
+			sb.WriteString(fmt.Sprintf("• <code>%s</code>\n  %s · %s HMC · %s/%s solves\n",
+				escHTML(id), escHTML(kind), escHTML(reward), prog, target))
+			shown++
+		}
+	}
+	if len(raw) == 0 {
+		sb.WriteString("<i>no tasks loaded</i>")
+	}
+	return strings.TrimSpace(sb.String())
 }
 
 func (b *bot) fmtBlocks(ctx context.Context, limit int) string {
