@@ -227,6 +227,15 @@
     const short = (s, n=16) => { s = String(s || ""); return s.length > n ? s.slice(0,n) + "…" : s; };
     const hmc = (u) => (Number(u || 0) / 1e8).toFixed(8);
     const esc = (s) => String(s || '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+    /** Public nginx proxies pool APIs under /pool/api; node adds coordinator token server-side. */
+    function apiUrl(path) {
+      const p = path.startsWith('/') ? path : '/' + path;
+      const host = String(location.hostname || '').toLowerCase();
+      if (host === 'hackme.tech' || host === 'www.hackme.tech' || String(location.pathname || '').indexOf('/pool/') === 0) {
+        return '/pool/api' + p;
+      }
+      return '/api' + p;
+    }
     const isPublicWallet = (v) => String(v || '').trim().startsWith('HMC-');
     const displayMinerFromBlock = (v) => {
       const t = String(v || '').trim();
@@ -261,8 +270,8 @@
       explorerBlocksSyncNote = '';
       try {
         const [statusR, poolR] = await Promise.all([
-          fetch('/api/status', { cache: 'no-store' }),
-          fetch('/api/tx/pool', { cache: 'no-store' }),
+          fetch(apiUrl('/status', { cache: 'no-store' }),
+          fetch(apiUrl('/tx/pool', { cache: 'no-store' }),
         ]);
         if (statusR.ok) {
           const s = await statusR.json();
@@ -432,7 +441,7 @@
         }
         $('kpi-updated').textContent = new Date().toISOString().replace('T',' ').slice(0,19) + 'Z';
         try {
-          const wr = await fetch('/api/wallet', { cache: 'no-store' });
+          const wr = await fetch(apiUrl('/wallet', { cache: 'no-store' });
           const meta = $('explorer-wallet-path');
           if (meta && wr.ok) {
             const j = await wr.json();
@@ -452,7 +461,7 @@
       const note = $('workers-note');
       if (!tb) return;
       try {
-        const r = await fetch('/api/work/stats?details=1', { cache: 'no-store' });
+        const r = await fetch(apiUrl('/work/stats?details=1', { cache: 'no-store' });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const j = await r.json();
         const workers = j.workers || {};
@@ -465,29 +474,35 @@
         ids.forEach((id) => {
           const w = workers[id] || {};
           const live = w.live || {};
-          const online = !!(live.online);
+          const seen = Number(w.last_seen_unix || live.last_seen_unix || 0);
+          const gh = Number(w.hashrate_gh_s || live.hashrate_gh_s || 0);
+          const online = !!(live.online) || gh > 0.001 || (seen > 0 && (Math.floor(Date.now() / 1000) - seen) < 120);
+          const ranges = Number(w.accepted_ranges ?? w.ranges ?? 0);
+          const attempts = Number(w.accepted_attempts ?? w.attempts ?? 0);
+          const payout = Number(w.payout_hmc ?? w.payout ?? 0);
           const tr = document.createElement('tr');
           tr.innerHTML =
             '<td class="' + (online ? 'worker-online' : 'worker-off') + '">' + (online ? '●' : '○') + '</td>' +
             '<td class="mono">' + esc(id) + '</td>' +
-            '<td class="mono">' + String(w.ranges || 0) + '</td>' +
-            '<td class="mono">' + String(w.attempts || 0) + '</td>' +
-            '<td class="mono">' + Number(w.payout || 0).toFixed(6) + '</td>';
+            '<td class="mono">' + String(ranges) + '</td>' +
+            '<td class="mono">' + String(attempts) + '</td>' +
+            '<td class="mono">' + payout.toFixed(6) + '</td>';
           tb.appendChild(tr);
         });
         if (note) {
           const wc = Number(j.workers_count || ids.length);
-          note.textContent = 'Registered coordinator workers: ' + wc + ' · totals attempts ' + String(j.accepted_attempts || 0);
+          const stale = j.stale === true ? (' · stale ' + Number(j.stale_sec || 0) + 's') : '';
+          note.textContent = 'Registered coordinator workers: ' + wc + ' · pool attempts ' + String(j.accepted_attempts || 0) + stale;
         }
       } catch (e) {
         tb.innerHTML = '<tr><td colspan="5" class="muted">' + esc(String(e.message || 'unavailable')) + '</td></tr>';
-        if (note) note.textContent = 'Set HACKME_POOL_COORDINATOR_URL on this node to proxy /api/work/stats.';
+        if (note) note.textContent = 'Coordinator workers unavailable — check pool API path (/pool/api on hackme.tech).';
       }
     }
 
     async function refreshBlocks() {
       const noteEl = $('blocks-sync-note');
-      const r = await fetch('/api/reports/blocks?limit=40&source=auto', { cache: 'no-store' });
+      const r = await fetch(apiUrl('/reports/blocks?limit=40&source=auto', { cache: 'no-store' });
       const tb = $('blocks-body');
       if (!tb) return;
       tb.innerHTML = '';
@@ -535,7 +550,7 @@
     }
 
     async function refreshTxPool() {
-      const r = await fetch('/api/tx/pool', { cache: 'no-store' });
+      const r = await fetch(apiUrl('/tx/pool', { cache: 'no-store' });
       const tb = $('tx-body');
       if (!tb) return;
       tb.innerHTML = '';
@@ -580,7 +595,7 @@
 
       // 1) First try strict TX lookup.
       try {
-        const txR = await fetch('/api/tx/' + encodeURIComponent(query), { cache: 'no-store' });
+        const txR = await fetch(apiUrl('/tx/' + encodeURIComponent(query), { cache: 'no-store' });
         if (txR.ok) {
           const tx = await txR.json();
           const recipient = String(tx.to || '').trim();
@@ -598,7 +613,7 @@
 
       // 2) Fallback: search recent blocks by task_id or hash_prefix.
       try {
-        const blocksR = await fetch('/api/reports/blocks?limit=400', { cache: 'no-store' });
+        const blocksR = await fetch(apiUrl('/reports/blocks?limit=400', { cache: 'no-store' });
         if (blocksR.ok) {
           const blocksJ = await blocksR.json();
           const rows = blocksJ.blocks || [];
@@ -612,7 +627,7 @@
             let minerWallet = String(hit.miner_address || '').trim();
             if (!minerWallet) {
               try {
-                const br = await fetch('/api/reports/block?index=' + encodeURIComponent(String(hit.index)), { cache: 'no-store' });
+                const br = await fetch(apiUrl('/reports/block?index=' + encodeURIComponent(String(hit.index)), { cache: 'no-store' });
                 if (br.ok) {
                   const one = await br.json();
                   minerWallet = String(one.miner_address || '').trim();
@@ -621,7 +636,7 @@
             }
             if (!minerWallet) {
               try {
-                const chainR = await fetch('/api/chain?limit=500', { cache: 'no-store' });
+                const chainR = await fetch(apiUrl('/chain?limit=500', { cache: 'no-store' });
                 if (chainR.ok) {
                   const cj = await chainR.json();
                   const blocks = cj.blocks || [];
@@ -655,7 +670,7 @@
       if (!addr) return;
       const out = $('addr-result');
       out.textContent = 'loading...';
-      const r = await fetch('/api/address/' + encodeURIComponent(addr), { cache: 'no-store' });
+      const r = await fetch(apiUrl('/address/' + encodeURIComponent(addr), { cache: 'no-store' });
       if (!r.ok) {
         out.textContent = 'not found';
         return;
