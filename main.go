@@ -2477,7 +2477,7 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 4*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
 	ws, err := fetchCoordinatorWorkStats(ctx, base, true)
 	if err != nil {
@@ -2489,7 +2489,6 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	workers := mapFromAny(ws["workers"])
 	statePath := workerSettlementStatePath()
 	state := workerSettlementState{Workers: map[string]workerSettlementStateEntry{}}
 	if raw, err := os.ReadFile(statePath); err == nil {
@@ -2498,6 +2497,14 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 			state.Workers = map[string]workerSettlementStateEntry{}
 		}
 	}
+	ensureCoordinatorWorkersMap(ws)
+	if repairWorkerSettlementState(&state, coordinatorWorkersMap(ws)) {
+		if b, err := json.MarshalIndent(state, "", "  "); err == nil {
+			_ = os.MkdirAll(filepath.Dir(statePath), 0o700)
+			_ = os.WriteFile(statePath, b, 0o600)
+		}
+	}
+	workers := coordinatorWorkersMap(ws)
 	minSettleHMC, dailyForceIntervalSec, dailyMinSettleHMC := settlementWindowConfigNow()
 	nowUnix := time.Now().Unix()
 	lastForceUnix := state.Meta.LastForceUnix
@@ -2512,12 +2519,10 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 	if etaSec < 0 {
 		etaSec = 0
 	}
-	coordOmittedBreakdown := len(mapFromAny(ws["workers"])) == 0 && asUint64(ws["workers_count"]) > 0
+	coordOmittedBreakdown := len(workers) == 0 && asUint64(ws["workers_count"]) > 0
 	payoutMap := workerPayoutMapFromEnv()
 	displayWallet := settlementDisplayWalletAddress(a.nodeID, payoutMap)
 	walletAccrued, walletSettled, walletUnpaid, accrualSource := walletAccrualFromCoordinator(ws, state.Workers, a.nodeID, a.workerID, payoutMap, a.workerProcessRunning())
-	ensureCoordinatorWorkersMap(ws)
-	workers = mapFromAny(ws["workers"])
 	desktopWorkerID := strings.TrimSpace(a.workerID)
 	if desktopWorkerID == "" {
 		desktopWorkerID = "worker-kapa-pc"
