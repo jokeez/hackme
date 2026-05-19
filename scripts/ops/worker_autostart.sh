@@ -141,7 +141,15 @@ choose_worker_bin() {
 build_worker_if_needed() {
 	local bin="$1"
 	local backend="$2"
+	if [[ -x "$bin" ]] && truthy "${SKIP_WORKER_BUILD:-0}"; then
+		return 0
+	fi
 	mkdir -p "$(dirname "$bin")"
+	export GOCACHE="${GOCACHE:-${ROOT_DIR}/.cache/go-build}"
+	mkdir -p "$GOCACHE" 2>/dev/null || true
+	if [[ -x "$bin" ]] && ! truthy "${FORCE_WORKER_REBUILD:-0}"; then
+		return 0
+	fi
 	if [[ -x "$bin" ]]; then
 		local src="${ROOT_DIR}/cmd/workerpoh/main.go"
 		if [[ -f "$src" && "$bin" -nt "$src" ]]; then

@@ -380,6 +380,12 @@ func TestWorkManagerBanAfterBadSubmits(t *testing.T) {
 	if ok, reason := wm.allowSubmit("w-abuse", "", now+1); ok || reason != "worker_temporarily_banned" {
 		t.Fatalf("expected worker_temporarily_banned, got ok=%v reason=%q", ok, reason)
 	}
+	wm.markSubmitOutcome("w-replay", "replay", now)
+	wm.markSubmitOutcome("w-replay", "replay", now)
+	wm.markSubmitOutcome("w-replay", "replay", now)
+	if ok, reason := wm.allowSubmit("w-replay", "", now+1); !ok {
+		t.Fatalf("replay alone must not ban worker, got reason=%q", reason)
+	}
 	if ok, _ := wm.allowSubmit("w-abuse", "", now+61); !ok {
 		t.Fatal("ban should expire")
 	}
@@ -710,5 +716,27 @@ func TestMaybeRetargetPoolModIncreasesOnFastHits(t *testing.T) {
 	}
 	if wm.rewardPerM >= 0.01 {
 		t.Fatalf("rewardPerM should drop when target_mod rises, got %f", wm.rewardPerM)
+	}
+}
+
+func TestRefreshTargetModDoesNotDowngradePoolRetargetM(t *testing.T) {
+	wm := &workManager{
+		targetMod:    1_120_000,
+		poolRetarget: true,
+		targetEvery:  1,
+		targetLastAt: 0,
+		rewardAuto:   true,
+		baseRewardHMC: 0.01,
+	}
+	// Simulate chain metrics with solo-floor mod; pool retarget must keep its M.
+	wm.targetMod = 1_120_000
+	wm.applyChainTargetMod(251, time.Now().Unix())
+	if wm.targetMod != 1_120_000 {
+		t.Fatalf("pool retarget must not be overwritten by chain mod, got %d", wm.targetMod)
+	}
+	wm.poolRetarget = false
+	wm.applyChainTargetMod(251, time.Now().Unix())
+	if wm.targetMod != poolTargetModMin {
+		t.Fatalf("without pool retarget chain mod clamps to pool floor, got %d", wm.targetMod)
 	}
 }

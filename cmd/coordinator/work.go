@@ -110,12 +110,19 @@ type workKey struct {
 	batch uint64
 }
 
+const (
+	poolTargetModDefault = 5_000_000
+	poolTargetModMin     = 2_000_000
+	poolTargetModMax     = 50_000_000
+)
+
 type leaseRecord struct {
 	WorkerID  string `json:"worker_id"`
 	BaseNonce uint64 `json:"base_nonce"`
 	BatchSize uint64 `json:"batch_size"`
 	ExpiresAt int64  `json:"expires_at"`
 	Reissues  uint64 `json:"reissues"`
+	TargetMod uint64 `json:"target_mod"`
 }
 
 type workerPayoutStat struct {
@@ -167,11 +174,14 @@ func newWorkManagerFromEnv() *workManager {
 			batch = x
 		}
 	}
-	mod := uint64(1_000_000)
+	mod := uint64(5_000_000)
 	if v := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_TARGET_MOD")); v != "" {
 		if x, err := strconv.ParseUint(v, 10, 64); err == nil && x > 0 {
 			mod = x
 		}
+	}
+	if mod < poolTargetModMin {
+		mod = poolTargetModMin
 	}
 	targetURL := strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_TARGET_SOURCE_URL")), "/")
 	targetEvery := int64(3)
@@ -378,8 +388,7 @@ func (m *workManager) refreshTargetMod(now int64) {
 		}
 	}
 	if parsed > 0 {
-		m.targetMod = parsed
-		m.targetModUpdatedUnix = now
+		m.applyChainTargetMod(parsed, now)
 	}
 	if br, ok := body["econ_base_reward_now_hmc"]; ok {
 		switch t := br.(type) {
@@ -405,6 +414,46 @@ func (m *workManager) refreshTargetMod(now int64) {
 	m.targetLastAt = now
 }
 
+func (m *workManager) applyChainTargetMod(parsed uint64, now int64) {
+	if parsed == 0 {
+		return
+	}
+	// Pool auto-retarget owns M once seeded; chain solo M (251) must not reset it.
+	if m.poolRetarget && m.targetMod > 0 {
+		return
+	}
+	if !m.poolRetarget {
+		m.targetMod = clampPoolTargetMod(parsed)
+		m.targetModUpdatedUnix = now
+		return
+	}
+	if m.targetMod < poolTargetModMin {
+		m.targetMod = clampPoolTargetMod(parsed)
+		m.targetModUpdatedUnix = now
+	}
+}
+
+func clampPoolTargetMod(m uint64) uint64 {
+	if m < poolTargetModMin {
+		return poolTargetModMin
+	}
+	if m > poolTargetModMax {
+		return poolTargetModMax
+	}
+	return m
+}
+
+func clampWorkerHashrateGHS(ghs float64) float64 {
+	if ghs <= 0 || math.IsNaN(ghs) || math.IsInf(ghs, 0) {
+		return 0
+	}
+	const maxGH = 500
+	if ghs > maxGH {
+		return maxGH
+	}
+	return ghs
+}
+
 func (m *workManager) maybeRetargetPoolMod(now int64) {
 	if !m.poolRetarget {
 		return
@@ -418,7 +467,27 @@ func (m *workManager) maybeRetargetPoolMod(now int64) {
 		if delta < 1 {
 			delta = 1
 		}
-		next := chain.ClampPoHTargetMod(chain.RetargetMicroStep(m.targetMod, delta, chain.PoHRetargetTargetSec))
+		prev := clampPoolTargetMod(m.targetMod)
+		var next uint64
+		// Fast solves → harder (larger M). Slow gaps → slightly easier, never below pool floor.
+		switch {
+		case delta <= chain.PoHRetargetTargetSec*2:
+			ratio := float64(chain.PoHRetargetTargetSec) / float64(delta)
+			if ratio > 1.12 {
+				ratio = 1.12
+			}
+			next = uint64(float64(prev)*ratio + 0.5)
+		case delta >= chain.PoHRetargetTargetSec*6:
+			ratio := float64(chain.PoHRetargetTargetSec) / float64(delta)
+			if ratio < 0.88 {
+				ratio = 0.88
+			}
+			next = uint64(float64(prev)*ratio + 0.5)
+		default:
+			m.lastFoundHitUnix = now
+			return
+		}
+		next = clampPoolTargetMod(next)
 		if next != m.targetMod {
 			m.targetMod = next
 			m.targetModUpdatedUnix = now
@@ -434,6 +503,56 @@ func (m *workManager) maybeRetargetPoolMod(now int64) {
 	m.lastFoundHitUnix = now
 	if m.lastPoolRetargetUnix == 0 {
 		m.lastPoolRetargetUnix = now
+	}
+}
+
+// maybeRetargetPoolLoad nudges M from fleet hashrate + miner count (more miners/hash → higher M).
+func (m *workManager) maybeRetargetPoolLoad(now int64, poolGH float64, miners int) {
+	if !m.poolRetarget || poolGH < 0.01 {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.lastPoolRetargetUnix > 0 && now-m.lastPoolRetargetUnix < m.poolRetargetMinSec {
+		return
+	}
+	// Scale M with fleet GH/s (~2M per GH/s) so more hash → higher M, less hash → lower M.
+	// Do not use poolGH*1e9*targetSec (that overshoots poolTargetModMax immediately).
+	const modPerGH = float64(poolTargetModMin) // 2M per 1 GH/s baseline
+	loadM := poolGH * modPerGH
+	if miners > 1 {
+		boost := 1.0 + 0.04*float64(min(miners, 12))
+		loadM *= boost
+	}
+	target := clampPoolTargetMod(uint64(loadM + 0.5))
+	prev := clampPoolTargetMod(m.targetMod)
+	if target == prev {
+		return
+	}
+	var next uint64
+	if target > prev {
+		next = uint64(float64(prev)*1.06 + 0.5)
+		if next > target {
+			next = target
+		}
+	} else {
+		next = uint64(float64(prev)*0.97 + 0.5)
+		if next < target {
+			next = target
+		}
+	}
+	next = clampPoolTargetMod(next)
+	if next == m.targetMod {
+		return
+	}
+	m.targetMod = next
+	m.targetModUpdatedUnix = now
+	m.lastPoolRetargetUnix = now
+	if m.rewardAuto && m.baseRewardHMC > 0 {
+		m.rewardPerM = (m.baseRewardHMC * 1_000_000.0) / float64(m.targetMod)
+		if m.rewardPerM < 0 {
+			m.rewardPerM = 0
+		}
 	}
 }
 
@@ -544,8 +663,8 @@ func (m *workManager) markSubmitOutcome(workerID, reason string, now int64) {
 		return
 	}
 	switch reason {
-	case "unknown_or_already_closed_range", "work_id_mismatch", "range_leased_to_another_worker", "found_nonce_out_of_range", "result_hash_required_for_found", "duplicate_found_nonce", "invalid_signature", "invalid_pubkey", "pubkey_address_mismatch", "missing_signature_fields", "signature_required", "found_signature_required", "replay", "duplicate_signed_payload":
-		// Penalize clearly bad / abusive submit patterns.
+	case "unknown_or_already_closed_range", "work_id_mismatch", "range_leased_to_another_worker", "found_nonce_out_of_range", "result_hash_required_for_found", "duplicate_found_nonce", "invalid_signature", "invalid_pubkey", "pubkey_address_mismatch", "missing_signature_fields", "signature_required", "found_signature_required", "duplicate_signed_payload":
+		// Penalize clearly bad / abusive submit patterns (replay is benign after worker restart).
 	default:
 		return
 	}
@@ -558,6 +677,34 @@ func (m *workManager) markSubmitOutcome(workerID, reason string, now int64) {
 		s.BadStrikes = 0
 	}
 	m.abuse[workerID] = s
+}
+
+// clearWorkerAbuse removes rate-limit / ban state for a worker (and optional IP key).
+func (m *workManager) clearWorkerAbuse(workerID, ipKey string) bool {
+	if m == nil {
+		return false
+	}
+	workerID = strings.TrimSpace(workerID)
+	ipKey = strings.TrimSpace(ipKey)
+	if workerID == "" && ipKey == "" {
+		return false
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	cleared := false
+	if workerID != "" {
+		if _, ok := m.abuse[workerID]; ok {
+			delete(m.abuse, workerID)
+			cleared = true
+		}
+	}
+	if ipKey != "" {
+		if _, ok := m.ipAbuse[ipKey]; ok {
+			delete(m.ipAbuse, ipKey)
+			cleared = true
+		}
+	}
+	return cleared
 }
 
 func buildWorkID(workerID string, base, batch uint64) string {
@@ -663,7 +810,6 @@ func (m *workManager) claim(workerID string, batch uint64) (base uint64, size ui
 	}
 	now := time.Now().Unix()
 	m.mu.Lock()
-	m.purgeExpiredLeases(now)
 	m.refreshTargetMod(now)
 	if _, exists := m.worker[workerID]; !exists && len(m.worker) >= m.maxWorkers {
 		m.mu.Unlock()
@@ -685,7 +831,7 @@ func (m *workManager) claim(workerID string, batch uint64) (base uint64, size ui
 			return 0, 0, 0, m.targetMod, false, false, "too_many_worker_leases"
 		}
 	}
-	// Reuse expired range of the same batch first.
+	// Reuse expired range of the same batch before purging stale entries.
 	for k, rec := range m.active {
 		if rec.BatchSize != batch {
 			continue
@@ -697,12 +843,14 @@ func (m *workManager) claim(workerID string, batch uint64) (base uint64, size ui
 		rec.WorkerID = workerID
 		rec.ExpiresAt = now + m.leaseSec
 		rec.Reissues++
+		rec.TargetMod = m.targetMod
 		m.active[k] = rec
 		m.reissuedRanges++
 		m.issuedRanges++
 		m.mu.Unlock()
-		return rec.BaseNonce, rec.BatchSize, rec.ExpiresAt, m.targetMod, true, true, ""
+		return rec.BaseNonce, rec.BatchSize, rec.ExpiresAt, rec.TargetMod, true, true, ""
 	}
+	m.purgeExpiredLeases(now)
 	next := m.nextNonce.Load()
 	if batch > math.MaxUint64-next {
 		m.mu.Unlock()
@@ -716,6 +864,7 @@ func (m *workManager) claim(workerID string, batch uint64) (base uint64, size ui
 		BaseNonce: base,
 		BatchSize: batch,
 		ExpiresAt: leaseUntil,
+		TargetMod: m.targetMod,
 	}
 	m.issuedRanges++
 	m.mu.Unlock()
@@ -752,6 +901,10 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		m.staleSubmits++
 		return false, "lease_expired", 0, "", false
 	}
+	leaseMod := m.targetMod
+	if rec.TargetMod > 0 {
+		leaseMod = rec.TargetMod
+	}
 	if req.Found {
 		if _, exists := m.acceptedFoundNonces[req.FoundNonce]; exists {
 			m.dedupFoundNonce++
@@ -770,7 +923,7 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 			m.rejectedSubmits++
 			return false, "result_hash_required_for_found", 0, "", false
 		}
-		if !validFoundNonceV1(req.FoundNonce, m.targetMod) {
+		if !validFoundNonceV1(req.FoundNonce, leaseMod) {
 			m.rejectedSubmits++
 			return false, "found_nonce_invalid_for_target_mod", 0, "", false
 		}
@@ -856,7 +1009,7 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		st.SignedSubmits++
 	}
 	if req.HashrateGHS > 0 {
-		st.LastHashrateGHS = req.HashrateGHS
+		st.LastHashrateGHS = clampWorkerHashrateGHS(req.HashrateGHS)
 	}
 	st.LastSeenUnix = time.Now().Unix()
 	st.PayoutHMC += payout
@@ -1011,6 +1164,14 @@ func enrichPoolStatsForPublic(out map[string]any, reg *lanpool.Registry, wm *wor
 		}
 		out["active_rigs"] = anyRigs
 	}
+	if wm != nil {
+		wm.maybeRetargetPoolLoad(time.Now().Unix(), poolGH, online)
+		out["target_mod"] = clampPoolTargetMod(wm.targetMod)
+		out["target_mod_updated_unix"] = wm.targetModUpdatedUnix
+		if wm.rewardAuto {
+			out["reward_per_m"] = wm.rewardPerM
+		}
+	}
 	// Never overwrite workers{} breakdown map (settlement + dashboard need payout_hmc per id).
 }
 
@@ -1037,7 +1198,7 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 	m.schedulerMu.Unlock()
 	out := map[string]any{
 		"default_batch":                m.defaultBatch,
-		"target_mod":                   m.targetMod,
+		"target_mod":                   clampPoolTargetMod(m.targetMod),
 		"target_mod_updated_unix":      m.targetModUpdatedUnix,
 		"pool_retarget_enabled":        m.poolRetarget,
 		"lease_sec":                    m.leaseSec,
@@ -1262,6 +1423,46 @@ func addWorkRoutes(mux *http.ServeMux, token string, allowInsecure bool, reg *la
 			"payout_hmc":     payout,
 			"signed_submit":  signedSubmit,
 			"signer_address": signerAddr,
+		})
+	})
+
+	mux.HandleFunc("/api/work/admin/clear-abuse", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !coordinatorPOSTAuthed(r, token, allowInsecure) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
+			http.Error(w, "admin authentication required", http.StatusUnauthorized)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
+		var req struct {
+			WorkerID string `json:"worker_id"`
+			IPKey    string `json:"ip_key"`
+			All      bool   `json:"all"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		cleared := false
+		if req.All {
+			wm.mu.Lock()
+			if len(wm.abuse) > 0 || len(wm.ipAbuse) > 0 {
+				wm.abuse = make(map[string]workerAbuseState)
+				wm.ipAbuse = make(map[string]workerAbuseState)
+				cleared = true
+			}
+			wm.mu.Unlock()
+		} else {
+			cleared = wm.clearWorkerAbuse(req.WorkerID, req.IPKey)
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok":      true,
+			"cleared": cleared,
+			"worker_id": strings.TrimSpace(req.WorkerID),
 		})
 	})
 

@@ -33,6 +33,19 @@ rsync -az --delete \
   -e "ssh ${ssh_opts[*]}" \
   "$ROOT/" "${NODE_SSH}:${DEPLOY}/"
 
+log "ensure VPS chain command node can produce blocks (pool workers do not append chain height)"
+ssh "${ssh_opts[@]}" "$NODE_SSH" "bash -s" <<'REMOTE'
+set -euo pipefail
+ENV='/opt/hackme/.env.vps'
+touch "$ENV"
+if grep -q '^HACKME_CHAIN_LEADER_LOCAL_POH=' "$ENV" 2>/dev/null; then
+  sed -i 's/^HACKME_CHAIN_LEADER_LOCAL_POH=.*/HACKME_CHAIN_LEADER_LOCAL_POH=1/' "$ENV"
+else
+  echo 'HACKME_CHAIN_LEADER_LOCAL_POH=1' >>"$ENV"
+fi
+grep '^HACKME_CHAIN_LEADER_LOCAL_POH=' "$ENV" || true
+REMOTE
+
 log "build coordinator + worker on VPS"
 ssh "${ssh_opts[@]}" "$NODE_SSH" "cd '$DEPLOY' && go build -o bin/coordinator ./cmd/coordinator && go build -o bin/workerpoh ./cmd/workerpoh"
 

@@ -386,7 +386,16 @@ func main() {
 	}
 	nonceFile := strings.TrimSpace(os.Getenv("HACKME_MINER_NONCE_FILE"))
 	if nonceFile == "" {
-		nonceFile = filepath.Join("logs", "miner_submit_nonce.seq")
+		safeID := strings.Map(func(r rune) rune {
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+				return r
+			}
+			return '_'
+		}, strings.TrimSpace(*workerID))
+		if safeID == "" {
+			safeID = "default"
+		}
+		nonceFile = filepath.Join("logs", "miner_submit_nonce."+safeID+".seq")
 	}
 	workerName := strings.TrimSpace(os.Getenv("WORKER_NAME"))
 	if workerName == "" {
@@ -473,8 +482,13 @@ func main() {
 			_ = err
 		}
 		ghs := 0.0
-		if elapsed > 0 {
+		if elapsed > 0.01 {
 			ghs = float64(cr.BatchSize) / elapsed / 1e9
+		}
+		if ghs > 500 {
+			ghs = 500
+		} else if ghs > 0 && ghs < 1e-6 {
+			ghs = 0
 		}
 		out := submitReq{
 			WorkerID:    *workerID,
@@ -518,6 +532,10 @@ func main() {
 		_ = sres.Body.Close()
 		if sres.StatusCode != 200 {
 			fmt.Fprintln(os.Stderr, "submit http:", sres.StatusCode, string(sbody))
+			if signHybrid && (strings.Contains(string(sbody), `"reason":"replay"`) || strings.Contains(string(sbody), "duplicate_signed_payload")) {
+				// Shared miner key across rigs: bump local seq so next submit_nonce exceeds coordinator max.
+				_ = os.WriteFile(nonceFile, []byte(strconv.FormatUint(uint64(time.Now().Unix())*1000, 10)), 0o644)
+			}
 			time.Sleep(1 * time.Second)
 			continue
 		}

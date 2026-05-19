@@ -45,6 +45,9 @@ def main() -> int:
 
     ssh_opts = "-o StrictHostKeyChecking=accept-new -o BatchMode=yes"
 
+    for c in ["systemctl stop hackme-worker || true"]:
+        run(f"ssh {ssh_opts} {USER}@{HOST} {c!r}")
+
     for local, remote in [("/tmp/workerpoh-msk", f"{DEPLOY}/workerpoh"), ("/tmp/minersign-msk", f"{DEPLOY}/minersign")]:
         if run(f"scp {ssh_opts} {local} {USER}@{HOST}:{remote}") != 0:
             return 1
@@ -60,6 +63,7 @@ HACKME_GPU_BACKEND=cpu
 HACKME_WORKER_CLAIM_TIMEOUT=90s
 HACKME_WORKER_SUBMIT_TIMEOUT=120s
 HACKME_WORKER_CLAIM_COOLDOWN_MS=800
+HACKME_MINER_NONCE_FILE={DEPLOY}/logs/miner_submit_nonce.{WORKER_ID}.seq
 PAYOUT_ADDRESS={WALLET}
 """
     pathlib.Path("/tmp/hackme-msk.env.worker").write_text(env_body)
@@ -93,6 +97,7 @@ WantedBy=multi-user.target
 
     for c in [
         f"mkdir -p {DEPLOY}/logs",
+        "systemctl stop hackme-worker || true",
         f"chmod 755 {DEPLOY}/workerpoh {DEPLOY}/minersign && chmod 600 {DEPLOY}/.env.worker",
         "systemctl daemon-reload && systemctl enable hackme-worker && systemctl restart hackme-worker",
         "sleep 4; systemctl is-active hackme-worker; tail -15 /opt/hackme-worker/logs/workerpoh.log",
