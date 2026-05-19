@@ -916,6 +916,7 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 		"reward_auto":                  m.rewardAuto,
 		"base_reward_hmc":              m.baseRewardHMC,
 		"found_bonus_hmc":              m.foundBonus,
+		"payout_found_only":            m.payoutFoundOnly,
 		"now_unix":                     now,
 		"next_nonce":                   m.nextNonce.Load(),
 		"issued_ranges":                m.issuedRanges,

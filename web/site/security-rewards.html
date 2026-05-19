@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe Security Rewards — Bug Bounty (HMC)</title>
+  <meta name="description" content="HackMe discretionary security rewards: report bugs privately, earn small HMC grants for valid security, UI, and UX findings after fix." />
+  <link rel="canonical" href="https://hackme.tech/security-rewards.html" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20260519rewards" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="/assets/favicon.png" type="image/png" />
+</head>
+<body>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe logo" /><span>HackMe Network</span></a>
+    <nav class="nav">
+      <a href="./index.html">Home</a>
+      <a href="./docs.html">Docs</a>
+      <a href="./security-notes.html">Security</a>
+      <a href="./contacts.html">Report</a>
+      <a href="./downloads.html">Downloads</a>
+      <a id="explorer-link-top" href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass hero-small">
+      <p class="kicker">Security rewards</p>
+      <h1>Bug bounty &amp; UX reports (HMC)</h1>
+      <p class="hero-copy">
+        Private reports welcome. We pay <strong>small on-chain HMC grants</strong> after verified fixes — not a token sale, not guaranteed income.
+        Amounts are <strong>guidelines</strong>; the operator decides each case.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="./contacts.html">Report privately</a>
+        <a class="btn btn-secondary" href="https://github.com/jokeez/hackme/blob/main/docs/BUG_BOUNTY.md" target="_blank" rel="noreferrer">Full policy (GitHub)</a>
+        <a class="btn btn-secondary" href="./security-notes.html">Security notes</a>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Reward tiers (guideline)</h2></div>
+      <div class="table-wrap">
+        <table class="pool-table">
+          <thead>
+            <tr>
+              <th>Severity</th>
+              <th>Examples</th>
+              <th>Typical HMC</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Informational</td>
+              <td>Docs typo, duplicate known issue</td>
+              <td><strong>0</strong> (thanks)</td>
+            </tr>
+            <tr>
+              <td>Low — UI/UX</td>
+              <td>Broken layout, wrong link on official site</td>
+              <td><strong>1 – 5</strong></td>
+            </tr>
+            <tr>
+              <td>Low — functional</td>
+              <td>Minor API/validation issue, no exploit</td>
+              <td><strong>2 – 10</strong></td>
+            </tr>
+            <tr>
+              <td>Medium</td>
+              <td>Auth leak, DoS with PoC, coordinator issue without drain</td>
+              <td><strong>10 – 40</strong></td>
+            </tr>
+            <tr>
+              <td>High</td>
+              <td>Settlement bug with fund impact, sandbox escape PoC</td>
+              <td><strong>40 – 100</strong></td>
+            </tr>
+            <tr>
+              <td>Critical</td>
+              <td>Drain treasury/pool accounting, consensus break</td>
+              <td><strong>100 – 200</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">Monthly program budget (discretionary): ~<strong>200 HMC</strong> total across payouts until reviewed.</p>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Rules (short)</h2></div>
+      <ul class="list">
+        <li><strong>Private first</strong> — use <a href="./contacts.html">Contacts</a>; do not post working exploits on forums or GitHub issues.</li>
+        <li><strong>Official builds only</strong> — verify SHA256 from <a href="./downloads.html">Downloads</a>.</li>
+        <li><strong>One reward per root cause</strong> — duplicates may be declined or split.</li>
+        <li><strong>Payment after fix</strong> — we send HMC to your <span class="code-inline">HMC-…</span> address when resolved.</li>
+        <li><strong>Out of scope:</strong> phishing clones, miner payout disputes, scanner noise without impact.</li>
+      </ul>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>In scope</h2></div>
+      <p class="section-lede">Production stack at <strong>hackme.tech</strong>: node, coordinator, worker, nginx, WASM PoH path, hybrid signer, settlement tooling.</p>
+      <p class="muted">Full text: <a href="https://github.com/jokeez/hackme/blob/main/docs/BUG_BOUNTY.md" target="_blank" rel="noreferrer">docs/BUG_BOUNTY.md</a> · Red-team baseline: <a href="https://github.com/jokeez/hackme/blob/main/docs/SECURITY_AUDIT_REDTEAM.md" target="_blank" rel="noreferrer">SECURITY_AUDIT_REDTEAM.md</a></p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>HackMe Network</p>
+    <p class="muted">HMC rewards are discretionary grants, not investment advice.</p>
+    <div class="footer-nav">
+      <a href="./index.html">Home</a>
+      <a href="./docs.html">Docs</a>
+      <a href="./contacts.html">Contacts</a>
+      <a href="./legal-risk.html">Risk Disclosure</a>
+      <a href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </div>
+  </footer>
+
+  <script src="./assets/app.js?v=20260519rewards"></script>
+</body>
+</html>

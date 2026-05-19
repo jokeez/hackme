@@ -9,7 +9,7 @@
 [![Go](https://img.shields.io/badge/Go-1.22+-0a0c10?style=for-the-badge&logo=go&logoColor=00d1ff)](https://go.dev/)
 [![Website](https://img.shields.io/badge/website-hackme.tech-7fe7ff?style=for-the-badge)](https://hackme.tech)
 
-[Downloads](https://hackme.tech/downloads.html) · [Pool Explorer](https://hackme.tech/pool/explorer) · [Documentation](https://hackme.tech/docs.html) · [Economics](https://hackme.tech/economics-model.html) · [Security audit](docs/SECURITY_AUDIT_REDTEAM.md)
+[Downloads](https://hackme.tech/downloads.html) · [Pool Explorer](https://hackme.tech/pool/explorer) · [Documentation](https://hackme.tech/docs.html) · [Economics](https://hackme.tech/economics-model.html) · [Security rewards](https://hackme.tech/security-rewards.html) · [Security audit](docs/SECURITY_AUDIT_REDTEAM.md)
 
 </div>
 
@@ -139,7 +139,7 @@ Publishing source code **does not** give anyone your servers, tokens, or domain.
 | **Token / key theft** | Never commit `.secrets/`, `.env.desktop`, `data/*.db` — already in [`.gitignore`](.gitignore) |
 | **Coordinator abuse** | Production uses admin token, found-only payout, hybrid signer strict — see [hardening example](scripts/ops/public_pool_hardening.env.example) |
 | **Someone renames your project** | [Apache-2.0](LICENSE) requires **license + NOTICE**; **HackMe™ name/logo** are not open — see [TRADEMARK_AND_FORKING.md](docs/TRADEMARK_AND_FORKING.md) |
-| **Exploits after publish** | [Responsible disclosure](https://hackme.tech/contacts.html) · audit: [SECURITY_AUDIT_REDTEAM.md](docs/SECURITY_AUDIT_REDTEAM.md) |
+| **Exploits after publish** | [Responsible disclosure](https://hackme.tech/contacts.html) · [bug bounty tiers](docs/BUG_BOUNTY.md) (1–200 HMC) · audit: [SECURITY_AUDIT_REDTEAM.md](docs/SECURITY_AUDIT_REDTEAM.md) |
 
 **Production checklist (operators):**
 
@@ -169,7 +169,7 @@ If a fork uses the HackMe name, logo, or `hackme.tech` domain without permission
 ## Contributing
 
 Contributions welcome under [CONTRIBUTING.md](CONTRIBUTING.md).  
-Security issues: **do not** open public exploits — contact via [hackme.tech/contacts.html](https://hackme.tech/contacts.html).
+Security issues: **do not** open public exploits — contact via [hackme.tech/contacts.html](https://hackme.tech/contacts.html). Accepted reports may receive small HMC grants per [docs/BUG_BOUNTY.md](docs/BUG_BOUNTY.md).
 
 ---
 

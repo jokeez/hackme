@@ -17,6 +17,8 @@
 
 We appreciate responsible disclosure.
 
+**Security rewards (HMC):** discretionary bug bounty for valid private reports — see [docs/BUG_BOUNTY.md](docs/BUG_BOUNTY.md) and https://hackme.tech/security-rewards.html (typical range **1–200 HMC** per issue, ~200 HMC/month cap, not guaranteed).
+
 ## Scope
 
 In scope:
@@ -36,6 +38,7 @@ Out of scope (unless chained with the above):
 
 - [docs/SECURITY.md](docs/SECURITY.md) — threat model
 - [docs/SECURITY_AUDIT_REDTEAM.md](docs/SECURITY_AUDIT_REDTEAM.md) — pre–open-source checklist
+- [docs/BUG_BOUNTY.md](docs/BUG_BOUNTY.md) — reward tiers and reporting rules
 - [scripts/ops/public_pool_hardening.env.example](scripts/ops/public_pool_hardening.env.example) — production env template
 
 ## Official binaries

@@ -1,6 +1,20 @@
 {
   "items": [
     {
+      "id": "2026-05-19-security-rewards-hmc",
+      "date": "2026-05-19",
+      "title": "Security rewards program — small HMC bug bounty",
+      "summary": "Private security and UI reports can earn discretionary on-chain HMC after verified fixes. Tiers are modest (roughly 1–200 HMC per issue, ~200 HMC/month program cap) — not investment income. Full policy on security-rewards.html and GitHub docs/BUG_BOUNTY.md.",
+      "tags": ["security", "community", "opensource"],
+      "impact": "Researchers and miners know how to report without public 0-days; rewards stay aligned with treasury economics.",
+      "action": "Report: https://hackme.tech/contacts.html · Tiers: https://hackme.tech/security-rewards.html · Policy: https://github.com/jokeez/hackme/blob/main/docs/BUG_BOUNTY.md",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme/blob/main/docs/BUG_BOUNTY.md",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-19-bitcointalk-ann-live",
       "date": "2026-05-19",
       "title": "Bitcointalk ANN is live — official pool thread",

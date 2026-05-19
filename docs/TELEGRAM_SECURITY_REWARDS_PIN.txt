@@ -1,0 +1,17 @@
+🔐 HackMe — security & rewards (HMC)
+
+Report bugs privately (no public 0-days):
+👉 https://hackme.tech/contacts.html
+
+Rewards policy (small HMC grants after fix):
+👉 https://hackme.tech/security-rewards.html
+📄 GitHub: github.com/jokeez/hackme → docs/BUG_BOUNTY.md
+
+Typical ranges (guideline, not guaranteed):
+• UI / docs: 1–5 HMC
+• Medium security: 10–40 HMC
+• High: 40–100 HMC
+• Critical: 100–200 HMC
+
+Not investment advice. Experimental RC software.
+Official site only: hackme.tech ✅
