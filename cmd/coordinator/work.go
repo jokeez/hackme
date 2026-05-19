@@ -901,8 +901,14 @@ func enrichPoolStatsForPublic(out map[string]any, reg *lanpool.Registry) {
 	out["pool_hashrate_gh_s"] = poolGH
 	out["hashrate"] = poolGH * 1e9
 	out["hashrate_hs"] = poolGH * 1e9
-	out["workers"] = len(online)
+	out["miners"] = len(online)
 	out["workers_online"] = len(online)
+	// Do not overwrite workers{} map when ?details=1 (settlement script needs per-worker payout_hmc).
+	if _, isMap := out["workers"].(map[string]any); !isMap {
+		if _, isMap = out["workers"].(map[string]workerPayoutStat); !isMap {
+			out["workers"] = len(online)
+		}
+	}
 }
 
 func (m *workManager) stats(includeDetails bool) map[string]any {
