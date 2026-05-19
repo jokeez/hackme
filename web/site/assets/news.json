@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-05-19-mining-calculator-dashboard",
+      "date": "2026-05-19",
+      "title": "Advanced mining calculator in node dashboard",
+      "summary": "The embedded dashboard (Mining tab) now includes a live mining calculator: hashrate → HMC/hour, PoH ETA, found-bonus estimates, electricity ROI, break-even, and pool vs chain-empty comparison. Params sync from /api/work/stats and /api/metrics (reward/M, target_mod, pool GH/s). Presets: your worker, pool average, GPU/CPU rigs.",
+      "tags": ["mining", "pool", "dashboard", "economics"],
+      "impact": "Miners can model payout and power costs before joining the pool or scaling rigs — no spreadsheet required.",
+      "action": "Open your node dashboard → Mining tab → Mining calculator. Public pool: https://hackme.tech/pool/ — downloads: https://hackme.tech/downloads.html",
+      "status": "published",
+      "links": {
+        "site": "https://hackme.tech/downloads.html",
+        "economics": "https://hackme.tech/economics-model.html",
+        "github": "https://github.com/jokeez/hackme"
+      }
+    },
+    {
       "id": "2026-05-19-security-rewards-hmc",
       "date": "2026-05-19",
       "title": "Security rewards program — small HMC bug bounty",
