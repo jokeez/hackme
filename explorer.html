@@ -253,11 +253,18 @@
     /** Filled by refreshTop for refreshBlocks: note when canonical tip ≠ local blocks source. */
     let explorerBlocksSyncNote = '';
 
-    /** Match dashboard: GH/s below 0.1 TH/s (0.02 TH/s → ~20 GH/s). */
+    function fetchJsonTimeout(path, ms) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), ms);
+      return fetch(path, { cache: 'no-store', signal: ctrl.signal })
+        .finally(() => clearTimeout(t));
+    }
+
+    /** Match dashboard: GH/s below 1 TH/s (0.116 TH/s → ~116 GH/s). */
     function fmtPoolAggTHS(ths) {
       const th = Number(ths);
       if (!Number.isFinite(th) || th <= 0) return '—';
-      if (th < 0.1) {
+      if (th < 1) {
         const gh = th * 1000;
         const ghStr = gh < 0.01 ? gh.toFixed(4) : (gh < 1 ? gh.toFixed(2) : gh.toFixed(1));
         return ghStr + ' GH/s';
@@ -265,15 +272,8 @@
       return (th < 1 ? th.toFixed(3) : th.toFixed(2)) + ' TH/s';
     }
 
-    async function refreshTop() {
-      explorerBlocksSyncNote = '';
-      try {
-        const [statusR, poolR] = await Promise.all([
-          fetch(apiUrl('/status', { cache: 'no-store' }),
-          fetch(apiUrl('/tx/pool', { cache: 'no-store' }),
-        ]);
-        if (statusR.ok) {
-          const s = await statusR.json();
+    function applyStatusPayload(s) {
+        if (!s || typeof s !== 'object') return;
         const localTip = Number(s.tip_height || 0);
         const localHash = String(s.tip_hash || '').trim();
         const canonTip = Number(s.canonical_tip_height || 0);
@@ -433,26 +433,64 @@
             p2pLagEl.title = 'Local height matches P2P peer snapshot (or no peer data yet).';
           }
         }
+    }
+
+    function applyWorkStatsPayload(j) {
+      if (!j || typeof j !== 'object') return;
+      const tm = Number(j.target_mod || 0);
+      if (tm > 0 && $('kpi-pool-target')) $('kpi-pool-target').textContent = String(tm);
+      const poolStrip = $('kpi-pool-strip');
+      if (poolStrip && tm > 0) {
+        let poolGh = Number(j.pool_hashrate_gh_s || 0);
+        if (!(poolGh > 0)) {
+          const rigs = Array.isArray(j.active_rigs) ? j.active_rigs : [];
+          rigs.forEach((r) => { poolGh += Number((r && r.hashrate_gh_s) || 0); });
         }
-        if (poolR.ok) {
-          const p = await poolR.json();
-          $('kpi-txpool').textContent = String((p.txs || []).length);
-        }
-        $('kpi-updated').textContent = new Date().toISOString().replace('T',' ').slice(0,19) + 'Z';
-        try {
-          const wr = await fetch(apiUrl('/wallet', { cache: 'no-store' });
-          const meta = $('explorer-wallet-path');
-          if (meta && wr.ok) {
-            const j = await wr.json();
-            const db = j.database_file ? String(j.database_file) : '';
-            const fee = j.transfer_fee_platform_address ? String(j.transfer_fee_platform_address) : '';
-            meta.textContent = (db ? ('Wallet DB: ' + db) : 'Wallet DB: (see /api/wallet)') +
-              (fee ? (' · transfer fee platform addr: ' + fee) : '');
-          }
-        } catch (_) {}
-      } catch (_) {
-        $('kpi-updated').textContent = 'refresh error';
+        const th = poolGh > 0 ? (poolGh / 1000) : Number(j.pool_global_hashrate_th_s || 0);
+        const miners = Number(j.workers_count || Object.keys(j.workers || {}).length || 0);
+        poolStrip.textContent = 'pool: target ' + tm + ' · hash ' + fmtPoolAggTHS(th) + ' · workers ' + miners;
+        poolStrip.className = 'badge ok';
+        poolStrip.title = 'from /api/work/stats';
       }
+    }
+
+    async function refreshTop() {
+      explorerBlocksSyncNote = '';
+      const stamp = () => {
+        if ($('kpi-updated')) $('kpi-updated').textContent = new Date().toISOString().replace('T', ' ').slice(0, 19) + 'Z';
+      };
+      try {
+        const [liteR, poolR, workR] = await Promise.all([
+          fetchJsonTimeout(apiUrl('/status?lite=1'), 4000).catch(() => null),
+          fetchJsonTimeout(apiUrl('/tx/pool'), 5000).catch(() => null),
+          fetchJsonTimeout(apiUrl('/work/stats'), 6000).catch(() => null),
+        ]);
+        if (liteR && liteR.ok) applyStatusPayload(await liteR.json());
+        if (poolR && poolR.ok) {
+          const p = await poolR.json();
+          if ($('kpi-txpool')) $('kpi-txpool').textContent = String((p.txs || []).length);
+        }
+        if (workR && workR.ok) applyWorkStatsPayload(await workR.json());
+        stamp();
+      } catch (e) {
+        if ($('kpi-updated')) $('kpi-updated').textContent = 'refresh error';
+        const net = $('kpi-net-state');
+        if (net) { net.textContent = 'node status: error'; net.className = 'badge warn'; }
+      }
+      void fetchJsonTimeout(apiUrl('/status'), 20000).then(async (statusR) => {
+        if (statusR && statusR.ok) applyStatusPayload(await statusR.json());
+      }).catch(() => {});
+      void fetchJsonTimeout(apiUrl('/wallet'), 4000).then(async (wr) => {
+        const meta = $('explorer-wallet-path');
+        if (!meta || !wr || !wr.ok) return;
+        try {
+          const j = await wr.json();
+          const db = j.database_file ? String(j.database_file) : '';
+          const fee = j.transfer_fee_platform_address ? String(j.transfer_fee_platform_address) : '';
+          meta.textContent = (db ? ('Wallet DB: ' + db) : 'Wallet DB: (see /api/wallet)') +
+            (fee ? (' · transfer fee platform addr: ' + fee) : '');
+        } catch (_) {}
+      }).catch(() => {});
     }
 
     async function refreshWorkers() {
@@ -460,7 +498,7 @@
       const note = $('workers-note');
       if (!tb) return;
       try {
-        const r = await fetch(apiUrl('/work/stats?details=1', { cache: 'no-store' });
+        const r = await fetchJsonTimeout(apiUrl('/work/stats?details=1'), 8000);
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const j = await r.json();
         const workers = j.workers || {};
@@ -501,7 +539,7 @@
 
     async function refreshBlocks() {
       const noteEl = $('blocks-sync-note');
-      const r = await fetch(apiUrl('/reports/blocks?limit=40&source=auto', { cache: 'no-store' });
+      const r = await fetchJsonTimeout(apiUrl('/reports/blocks?limit=20&source=auto'), 6000);
       const tb = $('blocks-body');
       if (!tb) return;
       tb.innerHTML = '';
@@ -549,7 +587,7 @@
     }
 
     async function refreshTxPool() {
-      const r = await fetch(apiUrl('/tx/pool', { cache: 'no-store' });
+      const r = await fetchJsonTimeout(apiUrl('/tx/pool'), 5000);
       const tb = $('tx-body');
       if (!tb) return;
       tb.innerHTML = '';
@@ -594,7 +632,7 @@
 
       // 1) First try strict TX lookup.
       try {
-        const txR = await fetch(apiUrl('/tx/' + encodeURIComponent(query), { cache: 'no-store' });
+        const txR = await fetch(apiUrl('/tx/' + encodeURIComponent(query)), { cache: 'no-store' });
         if (txR.ok) {
           const tx = await txR.json();
           const recipient = String(tx.to || '').trim();
@@ -612,7 +650,7 @@
 
       // 2) Fallback: search recent blocks by task_id or hash_prefix.
       try {
-        const blocksR = await fetch(apiUrl('/reports/blocks?limit=400', { cache: 'no-store' });
+        const blocksR = await fetch(apiUrl('/reports/blocks?limit=400'), { cache: 'no-store' });
         if (blocksR.ok) {
           const blocksJ = await blocksR.json();
           const rows = blocksJ.blocks || [];
@@ -626,7 +664,7 @@
             let minerWallet = String(hit.miner_address || '').trim();
             if (!minerWallet) {
               try {
-                const br = await fetch(apiUrl('/reports/block?index=' + encodeURIComponent(String(hit.index)), { cache: 'no-store' });
+                const br = await fetch(apiUrl('/reports/block?index=' + encodeURIComponent(String(hit.index))), { cache: 'no-store' });
                 if (br.ok) {
                   const one = await br.json();
                   minerWallet = String(one.miner_address || '').trim();
@@ -635,7 +673,7 @@
             }
             if (!minerWallet) {
               try {
-                const chainR = await fetch(apiUrl('/chain?limit=500', { cache: 'no-store' });
+                const chainR = await fetch(apiUrl('/chain?limit=500'), { cache: 'no-store' });
                 if (chainR.ok) {
                   const cj = await chainR.json();
                   const blocks = cj.blocks || [];
@@ -669,7 +707,7 @@
       if (!addr) return;
       const out = $('addr-result');
       out.textContent = 'loading...';
-      const r = await fetch(apiUrl('/address/' + encodeURIComponent(addr), { cache: 'no-store' });
+      const r = await fetch(apiUrl('/address/' + encodeURIComponent(addr)), { cache: 'no-store' });
       if (!r.ok) {
         out.textContent = 'not found';
         return;
@@ -705,8 +743,7 @@
       if (pollInFlight) return;
       pollInFlight = true;
       try {
-        await refreshTop();
-        await Promise.all([refreshBlocks(), refreshTxPool(), refreshWorkers()]);
+        await Promise.all([refreshTop(), refreshBlocks(), refreshTxPool(), refreshWorkers()]);
       } finally {
         pollInFlight = false;
       }

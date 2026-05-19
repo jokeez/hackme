@@ -2,12 +2,12 @@
   /** Bump together with dist/release_<VERSION>/ and scripts/release/make_release_bundle.sh */
   const RELEASE_VER = "0.1.0-rc10";
 
-  /** Sub-0.1 TH/s → GH/s (matches dashboard / explorer pool strip). */
+  /** Sub-1 TH/s → GH/s (matches dashboard / explorer pool strip). */
   function fmtPoolHashrateTHS(ths, mock) {
     const th = Number(ths);
     if (!Number.isFinite(th) || th <= 0) return "—";
     const star = mock ? " *" : "";
-    if (th < 0.1) {
+    if (th < 1) {
       const gh = th * 1000;
       const ghStr = gh < 0.01 ? gh.toFixed(4) : gh < 1 ? gh.toFixed(2) : gh.toFixed(1);
       return `${ghStr} GH/s${star}`;

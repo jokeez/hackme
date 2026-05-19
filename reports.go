@@ -154,7 +154,7 @@ func (a *app) handleReportsBlocks(w http.ResponseWriter, r *http.Request) {
 		_, hCanon, _, okCanon := a.fetchCanonicalStatusTip(tctx)
 		cancel()
 		if okCanon && hCanon != localH {
-			rctx, cancel2 := context.WithTimeout(ctx, 6*time.Second)
+			rctx, cancel2 := context.WithTimeout(ctx, 3*time.Second)
 			rm, err := a.fetchRemoteReportsBlocksJSON(rctx, canonBase, limit)
 			cancel2()
 			if err == nil && writeCanon(rm) {

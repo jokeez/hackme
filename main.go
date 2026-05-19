@@ -1724,6 +1724,9 @@ func (a *app) buildStatusLite(ctx context.Context) map[string]any {
 	if pub := strings.TrimSpace(os.Getenv("HACKME_PUBLIC_AUTHORITY_BASE")); pub != "" {
 		body["public_authority_base"] = pub
 	}
+	poolCtx, poolCancel := context.WithTimeout(ctx, 2*time.Second)
+	a.attachPoolLaneToStatus(poolCtx, body)
+	poolCancel()
 	return body
 }
 

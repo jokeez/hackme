@@ -1060,7 +1060,7 @@
 								<div class="lg:col-span-5 space-y-3">
 									<div>
 										<label class="text-[10px] text-gray-500 uppercase tracking-wider flex justify-between"><span>Hashrate (GH/s)</span><span id="mine-calc-gh-label" class="text-neon font-mono">10</span></label>
-										<input type="range" id="mine-calc-gh-slider" class="mine-calc-range mt-1" min="0.01" max="500" step="0.01" value="10">
+										<input type="range" id="mine-calc-gh-slider" class="mine-calc-range mt-1" min="0.01" max="2000" step="0.01" value="10">
 										<input type="number" id="mine-calc-gh" class="mine-calc-input mt-1" min="0.001" step="0.001" value="10">
 									</div>
 									<div class="grid grid-cols-2 gap-2">
@@ -2558,12 +2558,12 @@
 		const fmt = (n, d = 2) => (n == null || Number.isNaN(n)) ? '—' : Number(n).toFixed(d);
 		const fmtMB = (n) => (n == null || Number.isNaN(n)) ? '—' : n < 0.01 ? n.toFixed(4) : n.toFixed(2);
 		const fmtUInt = (n) => (n == null || n === undefined) ? '—' : Number(n).toLocaleString('en-US');
-		/** Pool aggregate: show GH/s below 0.1 TH/s so 0.02 TH/s reads as ~20 GH/s (not a confusing 0.0208 TH/s). */
+		/** Pool aggregate: show GH/s below 1 TH/s (GPU pools) so 0.116 TH/s reads as ~116 GH/s. */
 		function fmtPoolAggHashrate(ths, suffix) {
 			const th = Number(ths);
 			const suf = suffix ? String(suffix) : '';
 			if (!Number.isFinite(th) || th <= 0) return '—';
-			if (th < 0.1) {
+			if (th < 1) {
 				const gh = th * 1000;
 				let ghStr;
 				if (gh < 0.01) ghStr = gh.toFixed(4);
@@ -3500,7 +3500,7 @@
 				});
 				const gh = Number(p.hashrateGh);
 				const slider = mineCalcEl('mine-calc-gh-slider');
-				if (slider && Number.isFinite(gh) && gh > 0) slider.value = String(Math.min(500, Math.max(0.01, gh)));
+				if (slider && Number.isFinite(gh) && gh > 0) slider.value = String(Math.min(2000, Math.max(0.01, gh)));
 			} catch (_) {}
 		}
 
@@ -3532,7 +3532,7 @@
 			const ghLabel = mineCalcEl('mine-calc-gh-label');
 			const gh = Number(ghEl && ghEl.value || 0);
 			if (ghSlider && gh > 0) {
-				const sliderMax = Math.max(500, Number(ghSlider.max || 500), gh * 1.05);
+				const sliderMax = Math.max(2000, Number(ghSlider.max || 2000), gh * 1.05);
 				if (Number(ghSlider.max) < sliderMax) ghSlider.max = String(sliderMax);
 				const clamped = Math.min(sliderMax, Math.max(0.01, gh));
 				if (Math.abs(Number(ghSlider.value) - clamped) > 0.0001) ghSlider.value = String(clamped);
@@ -3541,6 +3541,65 @@
 			const upEl = mineCalcEl('mine-calc-uptime');
 			const upLabel = mineCalcEl('mine-calc-uptime-label');
 			if (upLabel && upEl) upLabel.textContent = fmt(Number(upEl.value || 95), 0) + '%';
+		}
+
+		/** Reject mislabeled GH/s×10⁹ passed as attempts/s (caps coordinator billing). */
+		function sanitizeCoordinatorAttemptRate(aps, refGh) {
+			const x = Number(aps) || 0;
+			if (!(x > 0)) return 0;
+			const cap = Math.max(0.001, Number(refGh) || 0) * 1e9 * 1.1;
+			if (cap > 0 && x > cap) return 0;
+			return x;
+		}
+
+		/** Pool work: HMC/h from coordinator payout Δ or accepted-attempts billing — never raw GH/s×10⁹. */
+		function mineCalcPoolDisplayHour(inputs, net) {
+			const fleetGh = Math.max(0, Number(inputs.hashrateGh) || 0) * Math.max(1, Math.floor(Number(inputs.rigCount) || 1));
+			const workerGh = Math.max(0, Number(net.workerGh) || 0);
+			const poolGh = Math.max(0, Number(net.poolGh) || 0);
+			const observed = Number(net.observedPayoutPerHour || 0);
+			const rpm = Math.max(0, Number(net.rewardPerM) || 0);
+			const effGh = poolGh > 0 ? Math.min(fleetGh, poolGh) : fleetGh;
+			const maxTrialAps = Math.max(effGh, workerGh, poolGh) * 1e9;
+			if (observed > 0 && workerGh > 0 && fleetGh > 0) {
+				return Math.max(0, observed * (effGh / workerGh));
+			}
+			if (observed > 0 && poolGh > 0 && fleetGh > 0) {
+				return Math.max(0, observed * (effGh / poolGh));
+			}
+			let billingAps = 0;
+			const workerAps = sanitizeCoordinatorAttemptRate(net.workerAttemptsPerSec, workerGh || effGh);
+			const poolAps = sanitizeCoordinatorAttemptRate(net.poolAttemptsPerSec, poolGh || effGh);
+			if (workerAps > 0 && workerGh > 0 && fleetGh > 0) {
+				billingAps = workerAps * (effGh / workerGh);
+			} else if (poolAps > 0 && poolGh > 0 && effGh > 0) {
+				billingAps = poolAps * (effGh / poolGh);
+			} else if (observed > 0 && rpm > 0) {
+				billingAps = ((observed / 3600) / rpm) * 1e6;
+			}
+			if (billingAps > maxTrialAps && maxTrialAps > 0) billingAps = maxTrialAps;
+			const share = Math.max(0.01, Math.min(100, Number(inputs.poolSharePct) || 100)) / 100;
+			if (billingAps > 0 && rpm > 0) {
+				return Math.max(0, (billingAps / 1e6) * rpm * 3600 * share);
+			}
+			return 0;
+		}
+
+		function resolvePoolGhForCalc(ws) {
+			let gh = poolGhFromWorkStats(ws);
+			const workers = (ws && ws.workers) || {};
+			let sumW = 0;
+			Object.keys(workers).forEach((id) => {
+				sumW += clampRigHashrateGHS(workers[id] && workers[id].hashrate_gh_s);
+			});
+			if (sumW > gh) gh = sumW;
+			if (!(gh > 0)) {
+				const netTh = Number((latestNetworkStats && latestNetworkStats.global_hashrate_th_s) || 0);
+				if (netTh > 0 && netTh <= 10) gh = netTh * 1000;
+			}
+			if (!(gh > 0)) gh = sumActiveRigsGh((latestNetworkStats && latestNetworkStats.active_rigs) || []);
+			if (gh > 5000) gh = 5000;
+			return gh;
 		}
 
 		function getMineCalcNetworkParams() {
@@ -3585,6 +3644,11 @@
 				observedRewardPerM = poolPayout / (poolAttempts / 1e6);
 			}
 			const observedPayoutPerHour = Number(workerDerived.payoutPerHour || poolDerived.payoutPerHour || 0);
+			const poolAttemptsPerSec = Math.max(0, Number(poolDerived.attemptsPerSec || 0));
+			const workerAttemptsPerSec = Math.max(
+				0,
+				Number(workerDerived.attemptsPerSec || workerDerived.acceptedAttemptsPerSec5s || 0)
+			);
 			return {
 				targetMod,
 				rewardPerM,
@@ -3600,12 +3664,13 @@
 				poolWork: isPoolWorkContext(),
 				observedRewardPerM,
 				observedPayoutPerHour,
+				poolAttemptsPerSec,
+				workerAttemptsPerSec,
 			};
 		}
 
 		function computeMineCalc(inputs, net, opts) {
 			opts = opts || {};
-			const useLiveRpmCap = !!opts.useLiveRpmCap;
 			const gh = Math.max(0, Number(inputs.hashrateGh) || 0);
 			const rigs = Math.max(1, Math.floor(Number(inputs.rigCount) || 1));
 			const uptime = Math.max(0.5, Math.min(1, Number(inputs.uptimePct || 95) / 100));
@@ -3618,7 +3683,6 @@
 			const poolWork = inputs.scenario === 'pool' || !!net.poolWork;
 			const poolGhLive = Math.max(0, Number(net.poolGh) || 0);
 			const workerGhLive = Math.max(0, Number(net.workerGh) || 0);
-			// Pool mode: you cannot earn more than 100% of pool throughput — cap billing GH/s to live pool.
 			const effGh = (poolWork && poolGhLive > 0) ? Math.min(fleetGh, poolGhLive) : fleetGh;
 			const effAps = effGh * 1e9 * uptime;
 			let impliedPoolSharePct = sharePct;
@@ -3626,19 +3690,25 @@
 				impliedPoolSharePct = Math.min(100, (Math.min(fleetGh, poolGhLive) / poolGhLive) * 100 * share);
 			}
 			const observedPayoutPerHour = Number(net.observedPayoutPerHour || 0);
-			let effectiveRpm = rpm;
-			// Live payout cap only when inputs match the running worker (not after slider edits).
-			if (useLiveRpmCap && poolWork && observedPayoutPerHour > 0 && effAps > 0) {
-				const fromLive = (observedPayoutPerHour / 3600) / ((effAps / 1e6) * Math.max(share, 0.01));
-				if (fromLive > 0) effectiveRpm = rpm > 0 ? Math.min(rpm, fromLive) : fromLive;
-			} else if (!poolWork && Number(net.observedRewardPerM) > 0) {
-				effectiveRpm = Number(net.observedRewardPerM);
+			const poolAttemptsPerSec = Math.max(0, Number(net.poolAttemptsPerSec || 0));
+			const workerAttemptsPerSec = Math.max(0, Number(net.workerAttemptsPerSec || 0));
+			let billingAps = 0;
+			if (poolWork) {
+				if (workerAttemptsPerSec > 0 && workerGhLive > 0 && fleetGh > 0) {
+					billingAps = workerAttemptsPerSec * (effGh / workerGhLive);
+				} else if (poolAttemptsPerSec > 0 && poolGhLive > 0) {
+					billingAps = poolAttemptsPerSec * (effGh / poolGhLive);
+				} else if (observedPayoutPerHour > 0 && rpm > 0) {
+					billingAps = ((observedPayoutPerHour / 3600) / rpm) * 1e6;
+				}
+			} else {
+				billingAps = effAps;
 			}
-			const poolHmcPerSec = effectiveRpm > 0 ? (effAps / 1e6) * effectiveRpm : 0;
-			const poolHmcHour = poolHmcPerSec * 3600 * share;
+			const theoreticalUncappedHour = rpm > 0 ? ((aps / 1e6) * rpm * 3600 * share) : 0;
+			const livePoolHour = poolWork ? mineCalcPoolDisplayHour(inputs, net) : 0;
+			const poolHmcHour = poolWork ? livePoolHour : (rpm > 0 ? ((billingAps / 1e6) * rpm * 3600 * share) : 0);
 			const poolHmcDay = poolHmcHour * 24;
 			const poolHmcMonth = poolHmcDay * 30;
-			const theoreticalUncappedHour = rpm > 0 ? ((aps / 1e6) * rpm * 3600 * share) : 0;
 			const solvesPerSec = poolWork ? 0 : (effAps / targetMod);
 			// Pool work: payout is reward/M per attempt; found bonus is rare (not aps/M solves).
 			const foundBonusHour = (!poolWork && Number(net.foundBonus) > 0)
@@ -3679,22 +3749,13 @@
 				breakEven = 'never (negative margin)';
 			}
 			return {
-				aps, poolHmcHour, poolHmcDay, poolHmcMonth, theoreticalHmcHour, displayHmcHour,
+				aps, billingAps, poolHmcHour, poolHmcDay, poolHmcMonth, theoreticalHmcHour, displayHmcHour,
 				totalHmcHour: displayHmcHour, totalHmcDay: displayHmcDay, totalHmcMonth: displayHmcDay * 30,
 				foundBonusDay, etaSec, pohProgress, powerTotalW, kwhDay, costDay,
 				revDay: revDayDisp, netDay: netDayDisp, breakEven,
 				chainHour, poolShareOfTotal, solvesPerSec, observedPayoutPerHour, scaledObservedHour, poolWork,
 				theoreticalUncappedHour, ghCapped, effGh, impliedPoolSharePct,
 			};
-		}
-
-		function mineCalcUseLivePayout(inputs, net) {
-			if (!net.poolWork || !(Number(net.observedPayoutPerHour) > 0) || !(Number(net.workerGh) > 0)) return false;
-			if (mineCalcGhTouched || mineCalcShareTouched) return false;
-			const gh = Number(inputs.hashrateGh) || 0;
-			const wGh = Number(net.workerGh) || 0;
-			if (gh <= 0 || wGh <= 0) return false;
-			return Math.abs(gh - wGh) / Math.max(wGh, 0.01) <= 0.08;
 		}
 
 		function setMineCalcBar(id, pct) {
@@ -3714,20 +3775,14 @@
 				const ghEl = mineCalcEl('mine-calc-gh');
 				const ghSlider = mineCalcEl('mine-calc-gh-slider');
 				if (ghEl) ghEl.value = String(net.workerGh);
-				if (ghSlider) ghSlider.value = String(Math.min(500, Math.max(0.01, net.workerGh)));
+				if (ghSlider) ghSlider.value = String(Math.min(2000, Math.max(0.01, net.workerGh)));
 				if (net.mySharePct > 0 && net.mySharePct < 100 && mineCalcEl('mine-calc-share')) {
 					mineCalcEl('mine-calc-share').value = String(fmt(net.mySharePct, 2));
 				}
 				inputs = readMineCalcInputs();
 			}
-			const useLivePayout = mineCalcUseLivePayout(inputs, net);
-			const out = computeMineCalc(inputs, net, { useLiveRpmCap: useLivePayout });
-			let displayHmcHour = out.displayHmcHour;
-			if (useLivePayout && out.scaledObservedHour > 0) {
-				displayHmcHour = out.scaledObservedHour;
-			} else if (mineCalcGhTouched || mineCalcShareTouched) {
-				displayHmcHour = out.poolHmcHour;
-			}
+			const out = computeMineCalc(inputs, net, {});
+			const displayHmcHour = out.poolWork ? out.displayHmcHour : (out.scaledObservedHour > 0 ? out.scaledObservedHour : out.poolHmcHour);
 			const displayHmcDay = displayHmcHour * 24;
 			const displayHmcMonth = displayHmcDay * 30;
 			saveMineCalcPrefs(inputs);
@@ -3735,7 +3790,11 @@
 			if (mineCalcEl('mine-calc-net-rpm')) mineCalcEl('mine-calc-net-rpm').textContent = net.rewardPerM > 0 ? fmt(net.rewardPerM, 6) : '—';
 			if (mineCalcEl('mine-calc-net-target')) mineCalcEl('mine-calc-net-target').textContent = net.targetMod > 0 ? fmtUInt(net.targetMod) : '—';
 			if (mineCalcEl('mine-calc-net-found')) mineCalcEl('mine-calc-net-found').textContent = net.foundBonus > 0 ? fmt(net.foundBonus, 6) + ' HMC' : '—';
-			if (mineCalcEl('mine-calc-net-pool-gh')) mineCalcEl('mine-calc-net-pool-gh').textContent = net.poolGh > 0 ? fmt(net.poolGh, 2) : '—';
+			if (mineCalcEl('mine-calc-net-pool-gh')) {
+				mineCalcEl('mine-calc-net-pool-gh').textContent = net.poolGh > 0
+					? (fmt(net.poolGh, net.poolGh >= 10 ? 1 : 2) + ' GH/s')
+					: '—';
+			}
 			if (mineCalcEl('mine-calc-net-sync')) {
 				if (net.syncAgeSec < 0) mineCalcEl('mine-calc-net-sync').textContent = net.hasLive ? 'live' : 'offline';
 				else if (net.syncAgeSec <= 15) mineCalcEl('mine-calc-net-sync').textContent = 'live · ' + net.syncAgeSec + 's';
@@ -3750,26 +3809,26 @@
 					parts.push('fleet ' + fmt(inputs.hashrateGh * inputs.rigCount, 2) + ' GH/s > pool ' + fmt(net.poolGh, 2) + ' GH/s — capped to pool size');
 					if (out.impliedPoolSharePct > 0) parts.push('~' + fmt(out.impliedPoolSharePct, 2) + '% of pool at your share %');
 				}
-				if (useLivePayout && out.scaledObservedHour > 0) {
-					parts.push('live ~' + fmt(out.scaledObservedHour, 4) + ' HMC/h');
-				} else if (mineCalcGhTouched || mineCalcShareTouched) {
-					parts.push('model ~' + fmt(displayHmcHour, 4) + ' HMC/h at reward/M');
-				}
-				const uncappedFleet = inputs.hashrateGh * inputs.rigCount;
-				const rpmN = Number(net.rewardPerM) || 0;
-				const uptimeN = Math.max(0.5, Math.min(1, Number(inputs.uptimePct || 95) / 100));
-				const shareN = Math.max(0.01, Math.min(100, Number(inputs.poolSharePct) || 100)) / 100;
-				if (out.poolWork && net.poolGh > 0 && uncappedFleet > net.poolGh * 1.02 && rpmN > 0) {
-					const uncappedHour = ((uncappedFleet * 1e9 * uptimeN) / 1e6) * rpmN * 3600 * shareN;
-					if (uncappedHour > displayHmcHour * 1.2) {
-						parts.push('if pool grew to your GH/s: ~' + fmt(uncappedHour, 1) + ' HMC/h');
+				if (out.poolWork) {
+					if (displayHmcHour > 0) {
+						parts.push('live ~' + fmt(displayHmcHour, 4) + ' HMC/h (coordinator)');
+					} else {
+						parts.push('waiting for coordinator payout rate');
 					}
+					if (out.theoreticalUncappedHour > displayHmcHour * 10 && out.theoreticalUncappedHour > 1) {
+						parts.push('uncapped GH/s×10⁹ fantasy ~' + fmt(out.theoreticalUncappedHour, 1) + ' HMC/h — not used');
+					}
+				} else if (displayHmcHour > 0) {
+					parts.push('model ~' + fmt(displayHmcHour, 4) + ' HMC/h');
 				}
-				hourSub.textContent = parts.length ? parts.join(' · ') : (out.poolWork ? 'reward/M × GH/s × pool share %' : '');
+				hourSub.textContent = parts.length ? parts.join(' · ') : '';
 			}
 			if (mineCalcEl('mine-calc-out-day')) mineCalcEl('mine-calc-out-day').textContent = fmt(displayHmcDay, 4);
 			if (mineCalcEl('mine-calc-out-month')) mineCalcEl('mine-calc-out-month').textContent = fmt(displayHmcMonth, 2);
-			if (mineCalcEl('mine-calc-out-aps')) mineCalcEl('mine-calc-out-aps').textContent = fmtMiningTrialRate(out.aps) || fmt(out.aps, 0);
+			if (mineCalcEl('mine-calc-out-aps')) {
+				const apsShow = out.poolWork && out.billingAps > 0 ? out.billingAps : out.aps;
+				mineCalcEl('mine-calc-out-aps').textContent = fmtMiningTrialRate(apsShow) || fmt(apsShow, 0);
+			}
 			if (mineCalcEl('mine-calc-out-eta')) {
 				mineCalcEl('mine-calc-out-eta').textContent = out.poolWork ? 'pool work' : (out.etaSec > 0 ? fmtDur(out.etaSec) : '—');
 			}
@@ -3789,7 +3848,7 @@
 						? ('Poisson model: P(solve within 1 mod window) ≈ ' + fmt(out.pohProgress * 100, 1) + '% · scheduler ' + net.schedulerMode +
 							(' · ~' + fmt(out.solvesPerSec * 3600, 4) + ' solves/h fleet-wide'))
 						: (net.poolWork
-							? 'No PoH solve ETA in pool mode — HMC/h from observed reward/M × effective GH/s (capped to live pool).'
+							? 'Pool mode: HMC/h from coordinator payout Δ (scaled to your GH/s). GH/s×10⁹ is not billed 1:1.'
 							: ('ETA order-of-magnitude: M / (GH/s×10⁹) · scheduler ' + net.schedulerMode)));
 			}
 			if (mineCalcEl('mine-calc-out-power-total')) mineCalcEl('mine-calc-out-power-total').textContent = fmt(out.powerTotalW, 0) + ' W';
@@ -3821,11 +3880,12 @@
 			const showCompare = inputs.scenario === 'compare' || inputs.scenario === 'fleet';
 			if (cmpWrap) cmpWrap.classList.toggle('hidden', !showCompare);
 			if (showCompare) {
-				const maxH = Math.max(out.poolHmcHour, out.chainHour, 1e-12);
-				if (mineCalcEl('mine-calc-cmp-pool')) mineCalcEl('mine-calc-cmp-pool').textContent = fmt(out.poolHmcHour, 6) + ' HMC/h';
+				const cmpPoolH = out.poolWork ? displayHmcHour : out.poolHmcHour;
+				const maxH = Math.max(cmpPoolH, out.chainHour, 1e-12);
+				if (mineCalcEl('mine-calc-cmp-pool')) mineCalcEl('mine-calc-cmp-pool').textContent = fmt(cmpPoolH, 6) + ' HMC/h';
 				if (mineCalcEl('mine-calc-cmp-chain')) mineCalcEl('mine-calc-cmp-chain').textContent = out.chainHour > 0 ? (fmt(out.chainHour, 6) + ' HMC/h') : '—';
 				if (mineCalcEl('mine-calc-cmp-share')) mineCalcEl('mine-calc-cmp-share').textContent = out.poolShareOfTotal > 0 ? (fmt(out.poolShareOfTotal, 2) + '% of pool') : '—';
-				setMineCalcBar('mine-calc-bar-pool', (out.poolHmcHour / maxH) * 100);
+				setMineCalcBar('mine-calc-bar-pool', (cmpPoolH / maxH) * 100);
 				setMineCalcBar('mine-calc-bar-chain', (out.chainHour / maxH) * 100);
 				setMineCalcBar('mine-calc-bar-share', Math.min(100, out.poolShareOfTotal));
 				if (mineCalcEl('mine-calc-compare-note')) {
@@ -3844,8 +3904,15 @@
 
 			if (mineCalcEl('mine-calc-footnote')) {
 				const parts = [
-					'Calculator: HMC/h = (GH/s × 10⁹ × uptime / 10⁶) × reward/M × pool_share — updates when you change inputs.',
-					out.scaledObservedHour > 0 ? ('Live worker rate (scaled): ~' + fmt(out.scaledObservedHour, 4) + ' HMC/h from coordinator payout Δ.') : '',
+					out.poolWork
+						? 'Pool: HMC/h from live coordinator payout (scaled to slider GH/s).'
+						: 'Calculator: HMC/h = (GH/s × 10⁹ × uptime / 10⁶) × reward/M × pool_share.',
+					out.poolWork && out.theoreticalUncappedHour > Math.max(displayHmcHour, 1e-9) * 10
+						? ('Uncapped GH/s×10⁹ fantasy ~' + fmt(out.theoreticalUncappedHour, 1) + ' HMC/h — not used for pool work.')
+						: '',
+					out.poolWork && net.foundBonus > 0
+						? ('Found bonus +' + fmt(net.foundBonus, 6) + ' HMC per valid hit on submit — not in HMC/h average.')
+						: '',
 					'Higher M (more miners/hash) → lower reward/M. See Work payout for actual settled HMC.',
 					inputs.scenario === 'fleet' ? ('Fleet: ' + inputs.rigCount + ' × ' + fmt(inputs.hashrateGh, 2) + ' GH/s = ' + fmt(inputs.hashrateGh * inputs.rigCount, 2) + ' GH/s aggregate.') : '',
 				].filter(Boolean);
@@ -3873,10 +3940,12 @@
 			} else if (kind === 'pool' && net.poolGh > 0) {
 				mineCalcShareTouched = false;
 				const wc = Math.max(1, Number((lastGoodWorkStats || latestWorkStats || {}).workers_count || Object.keys((lastGoodWorkStats || {}).workers || {}).length || 1));
-				ghEl.value = String(fmt(net.poolGh / wc, 3));
+				const avgGh = net.poolGh / wc;
+				ghEl.value = String(fmt(avgGh, avgGh >= 10 ? 1 : 3));
 				if (shareEl) shareEl.value = String(fmt(100 / wc, 2));
 			} else if (kind === 'gpu') {
-				ghEl.value = '20';
+				const gGpu = net.workerGh > 5 ? net.workerGh : 20;
+				ghEl.value = String(fmt(gGpu, gGpu >= 10 ? 1 : 2));
 				if (mineCalcEl('mine-calc-power')) mineCalcEl('mine-calc-power').value = '180';
 			} else if (kind === 'cpu') {
 				ghEl.value = '0.35';
@@ -3916,7 +3985,7 @@
 				const onGhInput = () => {
 					mineCalcGhTouched = true;
 					const v = Number(ghInput.value || 0);
-					const max = Math.max(500, v > 0 ? v * 1.05 : 500, Number(ghSlider.max || 500));
+					const max = Math.max(2000, v > 0 ? v * 1.05 : 2000, Number(ghSlider.max || 2000));
 					ghSlider.max = String(max);
 					if (v > 0) ghSlider.value = String(Math.min(max, Math.max(0.01, v)));
 					syncMineCalcSliders();
@@ -4524,14 +4593,15 @@
 			latestNetworkStats = ts;
 			lastNetworkStatsOkUnix = Math.floor(Date.now() / 1000);
 			$('hive-total-miners').textContent = fmtUInt(ts.total_miners ?? 0);
-			$('hive-global-th').textContent = fmtPoolAggHashrate(ts.global_hashrate_th_s ?? 0);
+			const aggHashLbl = fmtPoolAggHashrate(ts.global_hashrate_th_s ?? 0);
+			if ($('hive-global-th')) $('hive-global-th').textContent = aggHashLbl;
 			$('hive-peers').textContent = fmtUInt(ts.peer_connections ?? 0);
 			if ($('pool-strip-miners')) $('pool-strip-miners').textContent = fmtUInt(ts.total_miners ?? 0);
-			if ($('pool-strip-hash')) $('pool-strip-hash').textContent = fmtPoolAggHashrate(ts.global_hashrate_th_s ?? 0);
+			if ($('pool-strip-hash')) $('pool-strip-hash').textContent = aggHashLbl;
 			if ($('mining-strip-miners')) $('mining-strip-miners').textContent = fmtUInt(ts.total_miners ?? 0);
 			if ($('mining-strip-th-label')) $('mining-strip-th-label').textContent =
-				(Number(ts.global_hashrate_th_s ?? 0) > 0 && Number(ts.global_hashrate_th_s ?? 0) < 0.001) ? 'Pool hash (Σ GH/s)' : 'Pool hash';
-			if ($('mining-strip-th')) $('mining-strip-th').textContent = fmtPoolAggHashrate(ts.global_hashrate_th_s ?? 0);
+				(Number(ts.global_hashrate_th_s ?? 0) > 0 && Number(ts.global_hashrate_th_s ?? 0) < 1) ? 'Pool hash (Σ GH/s)' : 'Pool hash';
+			if ($('mining-strip-th')) $('mining-strip-th').textContent = aggHashLbl;
 			if ($('hive-note')) $('hive-note').textContent = ts.note || '';
 			const b = $('hive-mock-badge');
 			if (b) {
@@ -4674,12 +4744,7 @@
 		}
 		async function fetchCanonicalWalletFallback(addr) {
 			const base = String((latestStatus && latestStatus.public_authority_base) || 'https://hackme.tech').replace(/\/$/, '');
-			if (!addr || !addr.startsWith('HMC-')) return null;
-			try {
-				const r = await fetch(base + '/api/address/' + encodeURIComponent(addr), { cache: 'no-store' });
-				if (!r.ok) return null;
-				const j = await r.json();
-				const u = Number(j.balance_units);
+			if (!addr || !addr.startsWith('HMC-')) return nnce_units);
 				if (!Number.isFinite(u)) return null;
 				return { balance_units: u, next_nonce: Number(j.next_nonce || 0), balance_hmc: u / 100000000 };
 			} catch (_) {
@@ -5382,8 +5447,7 @@
 					if (apsFmt) pohTxt = apsFmt;
 					else if (series.hash.length) {
 						const h = series.hash[series.hash.length - 1];
-						if (h >= 1e12) pohTxt = fmt(h / 1e12, 2) + ' TH/s';
-						else if (h >= 1e9) pohTxt = fmt(h / 1e9, 2) + ' GH/s';
+						pohTxt = fmtPoolAggHashrate(h) || '—';
 					}
 				}
 				$('lbl-poh-est').textContent = pohTxt;
@@ -5416,7 +5480,7 @@
 				hashSub = be.toUpperCase() + ' · aggregate PoH trials/s · WASM verify on solve';
 			} else if (net && Number(net.global_hashrate_th_s || 0) > 1e-12 && Number(net.global_hashrate_th_s) <= 10) {
 				hashMain = fmtPoolAggHashrate(net.global_hashrate_th_s);
-				hashSub = net.global_mock ? 'demo aggregate · network stats' : 'pool aggregate · TH/s';
+				hashSub = net.global_mock ? 'demo aggregate · network stats' : 'pool aggregate · GH/s';
 			} else if (ws && ws.ok !== false && Number(ws.accepted_attempts || 0) > 0) {
 				hashMain = fmtUInt(ws.accepted_attempts);
 				hashSub = 'coordinator Σ accepted attempts';
@@ -5560,8 +5624,13 @@
 				aps = Number(workerDerived.attemptsPerSec || 0);
 			}
 			const apsFmt = fmtMiningTrialRate(aps);
-			const measuredGH = Number(wst.measured_hashrate_gh_s || 0);
+			let measuredGH = Number(wst.measured_hashrate_gh_s || 0);
 			const declaredGH = Number(wst.hashrate_gh_s || 0);
+			const myWid = String(wst.worker_id || '').trim();
+			if (myWid && ws && ws.workers && ws.workers[myWid]) {
+				const liveGh = Number((ws.workers[myWid].live && ws.workers[myWid].live.hashrate_gh_s) || ws.workers[myWid].hashrate_gh_s || 0);
+				if (liveGh > 0) measuredGH = liveGh;
+			}
 			const workerGH = measuredGH > 0 ? measuredGH : declaredGH;
 			if ($('mine-stat-aps')) {
 				if (poolWorker && wst.running && workerGH > 0) {
@@ -6579,7 +6648,16 @@
 			const lastC = series.cpu.length ? series.cpu[series.cpu.length - 1] : 0;
 			const lastW = series.wr.length ? series.wr[series.wr.length - 1] : 0;
 			const legA = $('chart-legend-a');
-			if (legA) legA.textContent = 'PoH ' + (lastH >= 1 ? fmt(lastH, 2) + ' TH/s' : fmt(lastH * 1000, 1) + ' GH/s');
+			if (legA) {
+				const m = lastMetricsPayload || {};
+				const apsLeg = Number(m.mining_attempts_per_sec || 0);
+				if (apsLeg > 0.25) {
+					const tr = fmtMiningTrialRate(apsLeg);
+					legA.textContent = tr ? ('PoH ' + tr) : ('PoH ' + fmtPoolAggHashrate(lastH));
+				} else {
+					legA.textContent = 'PoH ' + fmtPoolAggHashrate(lastH);
+				}
+			}
 
 			if (fn) {
 				if (chartPaused) {
@@ -6587,8 +6665,13 @@
 				} else if (cnt < 1) {
 					fn.textContent = 'waiting for /api/metrics…';
 				} else {
+					const mFn = lastMetricsPayload || {};
+					const apsFn = Number(mFn.mining_attempts_per_sec || 0);
+					const pohFn = apsFn > 0.25
+						? (fmtMiningTrialRate(apsFn) || fmtPoolAggHashrate(lastH))
+						: fmtPoolAggHashrate(lastH);
 					fn.textContent =
-						cnt + ' pts · PoH ' + fmt(lastH, 2) + ' TH/s · CPU ' + fmt(lastC, 0) + '% · WR ' + fmt(lastW, 2) + ' MB/s · ' +
+						cnt + ' pts · PoH ' + pohFn + ' · CPU ' + fmt(lastC, 0) + '% · WR ' + fmt(lastW, 2) + ' MB/s · ' +
 						String(telemetryMetricsPollLabel || '~2s');
 				}
 			}
