@@ -9,15 +9,9 @@ hackme-coordinator
 minersign
 /bin/
 
-# Local chain state (never commit)
-data/*.db
-data/*.db-*
-data/hackme.db.pre-restore-*
-data_backup_*/
-data_tmp_*/
-data/local-treasury-mine/
-data/node_ed25519.seed
-data/miner_submit_ed25519_seed.hex
+# Local chain state, wallets, settlement — never commit (entire data/ tree)
+data/
+!data/.gitkeep
 
 # Secrets and operator env
 .secrets/
