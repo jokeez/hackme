@@ -59,6 +59,8 @@ type workManager struct {
 	lastFoundHitUnix int64
 	poolRetarget    bool
 	targetModUpdatedUnix int64
+	poolRetargetMinSec int64
+	lastPoolRetargetUnix int64
 	expiredLeases   uint64
 	unknownSubmits  uint64
 	staleSubmits    uint64
@@ -279,6 +281,12 @@ func newWorkManagerFromEnv() *workManager {
 	if v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_COORDINATOR_POOL_RETARGET"))); v != "" {
 		poolRetarget = v == "1" || v == "true" || v == "yes" || v == "on"
 	}
+	poolRetargetMinSec := int64(15)
+	if v := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_POOL_RETARGET_MIN_SEC")); v != "" {
+		if x, err := strconv.ParseInt(v, 10, 64); err == nil && x >= 3 {
+			poolRetargetMinSec = x
+		}
+	}
 	return &workManager{
 		defaultBatch:             batch,
 		targetMod:                mod,
@@ -317,6 +325,7 @@ func newWorkManagerFromEnv() *workManager {
 		hybridRequireFoundSig:    hybridRequireFoundSig,
 		poolRetarget:             poolRetarget,
 		targetModUpdatedUnix:     time.Now().Unix(),
+		poolRetargetMinSec:       poolRetargetMinSec,
 	}
 }
 
@@ -401,6 +410,10 @@ func (m *workManager) maybeRetargetPoolMod(now int64) {
 		return
 	}
 	if m.lastFoundHitUnix > 0 {
+		if m.lastPoolRetargetUnix > 0 && now-m.lastPoolRetargetUnix < m.poolRetargetMinSec {
+			m.lastFoundHitUnix = now
+			return
+		}
 		delta := now - m.lastFoundHitUnix
 		if delta < 1 {
 			delta = 1
@@ -409,6 +422,7 @@ func (m *workManager) maybeRetargetPoolMod(now int64) {
 		if next != m.targetMod {
 			m.targetMod = next
 			m.targetModUpdatedUnix = now
+			m.lastPoolRetargetUnix = now
 			if m.rewardAuto && m.baseRewardHMC > 0 {
 				m.rewardPerM = (m.baseRewardHMC * 1_000_000.0) / float64(m.targetMod)
 				if m.rewardPerM < 0 {
@@ -418,6 +432,18 @@ func (m *workManager) maybeRetargetPoolMod(now int64) {
 		}
 	}
 	m.lastFoundHitUnix = now
+	if m.lastPoolRetargetUnix == 0 {
+		m.lastPoolRetargetUnix = now
+	}
+}
+
+func (m *workManager) purgeExpiredLeases(now int64) {
+	for k, rec := range m.active {
+		if rec.ExpiresAt <= now {
+			delete(m.active, k)
+			m.expiredLeases++
+		}
+	}
 }
 
 func keyFromRemoteAddr(remoteAddr string) string {
@@ -637,6 +663,7 @@ func (m *workManager) claim(workerID string, batch uint64) (base uint64, size ui
 	}
 	now := time.Now().Unix()
 	m.mu.Lock()
+	m.purgeExpiredLeases(now)
 	m.refreshTargetMod(now)
 	if _, exists := m.worker[workerID]; !exists && len(m.worker) >= m.maxWorkers {
 		m.mu.Unlock()
