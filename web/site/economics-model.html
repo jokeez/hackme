@@ -103,6 +103,23 @@
     </section>
 
     <section class="panel glass">
+      <div class="panel-head"><h2>Public pool: how your rig earns (fair mode)</h2></div>
+      <p class="section-lede">
+        On the official pool, coordinator payout uses <strong>accepted attempts</strong> (capped per lease batch), tied to canonical economics via <span class="code-inline">reward_per_m</span>, plus a <strong>found bonus</strong> when you submit a valid hit.
+      </p>
+      <div class="code-block">
+        accrual ≈ (attempts / 1,000,000) × reward_per_m  +  found_bonus (on valid found)<br />
+        reward_per_m ≈ base_reward × 1,000,000 / target_mod  (auto from chain metrics)
+      </div>
+      <ul class="list">
+        <li>Set <span class="code-inline">WORKER_PAYOUT_MAP</span> so your worker id maps to your <span class="code-inline">HMC-…</span> address before expecting settlement.</li>
+        <li><strong>Unpaid worker accrual</strong> on the dashboard is the pool paycheck story; on-chain balance updates after settlement runs.</li>
+        <li>Hybrid signing + per-worker lease caps keep the pool fair when many miners join.</li>
+      </ul>
+      <p class="muted">Full miner guide: <a href="https://github.com/jokeez/hackme/blob/main/docs/MINER_POOL_ECONOMICS.md" target="_blank" rel="noreferrer">MINER_POOL_ECONOMICS.md</a></p>
+    </section>
+
+    <section class="panel glass">
       <div class="panel-head"><h2>Network-wide intuition vs your rig</h2></div>
       <p class="hero-copy">
         Empty‑mining emission is capped by protocol schedule (roughly ~120 blocks/hour at a 30s target). Adding more miners does not inflate total base emission; it changes how competitive finding the next valid block is.

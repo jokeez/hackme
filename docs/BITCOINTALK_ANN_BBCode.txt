@@ -32,7 +32,7 @@ HackMe is [b]open mining infrastructure[/b]: you run a desktop [b]node + pool wo
 
 [b]Economics (important)[/b]
 [table]
-[tr][td][b]Coordinator[/b][/td][td]Off-chain accrual ([mono]payout_hmc[/mono]) for accepted work[/td][/tr]
+[tr][td][b]Coordinator[/b][/td][td]Off-chain accrual for [b]accepted attempts[/b] (fair mode: reward_per_m × attempts/1M + found bonus)[/td][/tr]
 [tr][td][b]Blockchain[/b][/td][td]Block subsidy goes to the [b]producing node wallet[/b], not auto-split to every GPU[/td][/tr]
 [tr][td][b]Settlement[/b][/td][td]Operator transfers accumulated HMC to your on-chain address[/td][/tr]
 [/table]

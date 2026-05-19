@@ -14,14 +14,26 @@ require_cmd() {
 require_cmd curl
 require_cmd jq
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+COORD_SECRET_FILE="${COORD_SECRET_FILE:-${ROOT_DIR}/.secrets/hackme_coordinator_admin_token}"
+
 COORD_URL="${COORD_URL:-http://127.0.0.1:18081}"
+COORD_ADMIN_TOKEN="${COORD_ADMIN_TOKEN:-${HACKME_COORDINATOR_ADMIN_TOKEN:-${COORD_TOKEN:-}}}"
 LOCAL_BASE="${LOCAL_BASE:-http://127.0.0.1:8080}"
 STATE_FILE="${STATE_FILE:-/opt/hackme/data/worker_settlement_state.json}"
 MAX_UNSETTLED_HMC="${MAX_UNSETTLED_HMC:-0.5}"
 EXPECTED_WALLET_SOURCES="${EXPECTED_WALLET_SOURCES:-canonical_peer,local_db}"
 MAX_SWEEP_ETA_SEC="${MAX_SWEEP_ETA_SEC:-93600}" # 26h default safety window
 
-stats="$(curl -fsS --max-time 15 "${COORD_URL}/api/work/stats?details=1")"
+if [[ -z "$COORD_ADMIN_TOKEN" && -r "$COORD_SECRET_FILE" ]]; then
+  COORD_ADMIN_TOKEN="$(tr -d '\r\n' <"$COORD_SECRET_FILE")"
+fi
+if [[ -z "$COORD_ADMIN_TOKEN" ]]; then
+  echo "[settlement-health] COORD_ADMIN_TOKEN required for ${COORD_URL}/api/work/stats?details=1" >&2
+  exit 1
+fi
+
+stats="$(curl -fsS --max-time 15 -H "X-Hackme-Admin-Token: ${COORD_ADMIN_TOKEN}" "${COORD_URL}/api/work/stats?details=1")"
 hybrid="$(printf '%s' "$stats" | jq -r '.hybrid_signer_enabled // false')"
 workers="$(printf '%s' "$stats" | jq -c '.workers // {}')"
 
