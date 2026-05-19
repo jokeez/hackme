@@ -3734,6 +3734,7 @@
 			}
 			reconcilePoolStripWithWorkStats();
 			renderMinerLookupResult();
+			void refreshOperatorHealth();
 		}
 		function renderMetricsRigsRows(rows) {
 			const tb = $('metrics-rigs-rows');
@@ -4119,11 +4120,11 @@
 			});
 			reconcilePoolStripWithWorkStats();
 			syncWalletMinerPayoutNote();
-			refreshOperatorHealth();
 			try {
 				if (typeof syncMiningPanelFromMetrics === 'function') syncMiningPanelFromMetrics(lastMetricsPayload || {});
 			} catch (_) {}
 			try { updateMiningPayoutLiveStrip(); } catch (_) {}
+			refreshOperatorHealth();
 		}
 		function renderPublicMinerGuide(s) {
 			const ux = (s && s.miner_public_ux) || {};
@@ -5151,6 +5152,21 @@
 			el.className = 'px-2 py-0.5 rounded border text-[9px] font-mono uppercase tracking-wider ' + (map[state] || map.na);
 			el.textContent = label;
 		}
+		function localPoolWorkerActive() {
+			const wst = latestWorkerStatus || {};
+			const myWorker = 'worker-kapa-pc';
+			if (wst.running || wst.external_worker) return true;
+			if (Number(wst.measured_hashrate_gh_s || 0) > 0.01) return true;
+			const mux = (latestStatus && latestStatus.miner_public_ux) || {};
+			if (mux.worker_subprocess_running) return true;
+			const rigs = (latestNetworkStats && latestNetworkStats.active_rigs) || [];
+			for (const row of rigs) {
+				if (String(row.worker_id || row.name || '') === myWorker && Number(row.hashrate_gh_s || 0) > 0.01) {
+					return true;
+				}
+			}
+			return false;
+		}
 		function refreshDesktopStatusBanner() {
 			const wrap = $('desktop-status-banner');
 			const title = $('desktop-status-banner-title');
@@ -5160,7 +5176,7 @@
 			const st = latestStatus || {};
 			const wst = latestWorkerStatus || {};
 			const ws = latestWorkStats || {};
-			const localRun = !!(wst && wst.running);
+			const localRun = localPoolWorkerActive();
 			const net = !!st.network_mode_active;
 			const lines = [];
 			let tone = 'border-neon/30 bg-neon/[0.06]';
@@ -5363,7 +5379,7 @@
 				if (!r.ok) throw new Error('HTTP ' + r.status);
 				const j = await r.json();
 				latestWorkerStatus = j || null;
-				const running = !!(j && j.running);
+				const running = localPoolWorkerActive();
 				const wid = String((j && j.worker_id) || 'worker-unknown');
 				const ghMeas = Number((j && j.measured_hashrate_gh_s) || 0);
 				const ghDecl = Number((j && j.hashrate_gh_s) || 0);
@@ -5378,7 +5394,7 @@
 				const coordHot = net && ws.ok !== false && (coordAps > 40 || (Number(ws.submitted_items || 0) > 100 && Number(ws.accepted_attempts || 0) > 1e7));
 				if (el) {
 					if (running || subprocessOn) {
-						const ext = !!(j && j.external_worker);
+						const ext = !!(j && j.external_worker) || (running && !(j && j.pid));
 						el.textContent = 'Worker mode: running · ' + (wid !== 'worker-unknown' ? wid : 'workerpoh') +
 							(gh > 0 ? (' · ' + fmt(gh, 2) + ' GH/s' + ghTag) : '') +
 							(ext ? ' · autostart' : '');
@@ -5402,8 +5418,12 @@
 						$('mining-strip-workers').className = running ? 'text-matrix text-sm' : 'text-warn text-sm';
 					}
 				}
+				void refreshOperatorHealth();
 			} catch (e) {
-				if (latestWorkerStatus && el) return;
+				if (latestWorkerStatus && el) {
+					void refreshOperatorHealth();
+					return;
+				}
 				const msg = e && e.message ? e.message : String(e);
 				if (el) {
 					el.textContent = 'Worker mode: unavailable';
