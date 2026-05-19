@@ -65,3 +65,40 @@ In pool notes: *Not Stratum — hackme-node + workerpoh, coordinator at /pool/co
 - CoinGecko/CoinMarketCap (need broader market data and independent nodes).
 
 See also [MINER_POOL_ECONOMICS.md](MINER_POOL_ECONOMICS.md).
+
+## After moderators approve (Approved)
+
+### Your MPS dashboard
+
+- Pool card **HackMe Official Pool** linked to your account.
+- **API poll log** — green if `GET https://hackme.tech/pool/coordinator/api/pool/stats` returns `200` + JSON.
+- Edit logo, fee %, links (Telegram / Discord), notes: *HTTP coordinator, not Stratum*.
+
+### What changes on miningpoolstats.stream
+
+- Coin page for **HMC** (if new to their DB).
+- Pool row with live **hashrate**, **workers**, network context.
+- Organic traffic from “new coins” — send them to calculator + downloads, not fixed $/day claims.
+
+### Keep hub VPS healthy (moderation ping)
+
+```bash
+PUBLIC_BASE=https://hackme.tech NODE_SSH=hackme-vps bash scripts/ops/mps_listing_readiness.sh --vps
+```
+
+Required while listed:
+
+| Check | Command / URL |
+|-------|----------------|
+| Pool stats | `curl -fsS https://hackme.tech/pool/coordinator/api/pool/stats` |
+| Node status | `curl -fsS https://hackme.tech/api/status` |
+| Settlement | `hackme-worker-settlement.timer` active on VPS |
+| Workers | PC + MSK (or more) submitting — **workers** in stats &gt; 0 |
+
+### First miners message
+
+Copy **[MINER_WELCOME_MPS_APPROVED.md](MINER_WELCOME_MPS_APPROVED.md)** to Telegram / Discord pin.
+
+### Exchanges (after MPS)
+
+See **[EXCHANGE_LISTING_ROADMAP.md](EXCHANGE_LISTING_ROADMAP.md)** — Xeggex → NonKYC → TradeOgre → CoinEx.

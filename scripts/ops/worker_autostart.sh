@@ -60,8 +60,13 @@ coord_looks_remote() {
 }
 
 if coord_looks_remote "$COORD_URL"; then
+  # Desktop GPU rigs: larger batches (fewer HTTPS round-trips, more attempts per range).
+  if [[ -z "${BATCH_SIZE:-}" && "${HACKME_DESKTOP_GPU_POOL:-0}" == "1" ]]; then
+    BATCH_SIZE=4194304
+    GPU_CHUNK=4194304
+  fi
   BATCH_SIZE="${BATCH_SIZE:-1048576}"
-  GPU_CHUNK="${GPU_CHUNK:-1048576}"
+  GPU_CHUNK="${GPU_CHUNK:-$BATCH_SIZE}"
   export HACKME_WORKER_CLAIM_TIMEOUT="${HACKME_WORKER_CLAIM_TIMEOUT:-90s}"
   export HACKME_WORKER_SUBMIT_TIMEOUT="${HACKME_WORKER_SUBMIT_TIMEOUT:-120s}"
 else
@@ -96,17 +101,16 @@ detect_gpu_backend() {
     echo "${HACKME_GPU_BACKEND}"
     return 0
   fi
-  # Prefer OpenCL first for widest coverage (AMD/Intel/NVIDIA via ICD),
-  # then CUDA when available.
-  if command -v clinfo >/dev/null 2>&1; then
-    if clinfo 2>/dev/null | awk 'BEGIN{ok=0} /Device Type[[:space:]]+GPU/{ok=1} END{exit ok?0:1}'; then
-      echo "opencl"
-      return 0
-    fi
-  fi
+  # NVIDIA: prefer native CUDA; AMD/Intel: OpenCL.
   if command -v nvidia-smi >/dev/null 2>&1; then
     if nvidia-smi -L >/dev/null 2>&1; then
       echo "cuda"
+      return 0
+    fi
+  fi
+  if command -v clinfo >/dev/null 2>&1; then
+    if clinfo 2>/dev/null | awk 'BEGIN{ok=0} /Device Type[[:space:]]+GPU/{ok=1} END{exit ok?0:1}'; then
+      echo "opencl"
       return 0
     fi
   fi
@@ -160,6 +164,8 @@ build_worker_if_needed() {
   echo "[worker-autostart] building worker binary: ${bin}"
   if [[ "$backend" == "opencl" ]]; then
     (cd "$ROOT_DIR" && go build -tags opencl -o "$bin" ./cmd/workerpoh)
+  elif [[ "$backend" == "cuda" ]]; then
+    (cd "$ROOT_DIR" && go build -tags cuda -o "$bin" ./cmd/workerpoh)
   else
     (cd "$ROOT_DIR" && go build -o "$bin" ./cmd/workerpoh)
   fi

@@ -69,6 +69,7 @@ Automated smoke: `scripts/tests/security_assertions.sh`, `scripts/tests/redteam_
 5. **Desktop** — admin token embedded in dashboard HTML (loopback); `/api/desktop/local-auth` does not return token unless `HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1`.
 6. **Worker ID** — `[a-zA-Z0-9._-]{1,128}` on claim/submit.
 7. **worker_loop.sh** — unsigned submit JSON built with `jq`, not string concat.
+8. **Coordinator** — optional `HACKME_COORDINATOR_WORKER_TOKEN` for claim/submit only; admin token required for `clear-abuse` and `stats?details=1`.
 
 ---
 

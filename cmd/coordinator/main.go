@@ -65,6 +65,7 @@ func main() {
 		addr = "127.0.0.1:8081"
 	}
 	token := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_ADMIN_TOKEN"))
+	workerToken := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_WORKER_TOKEN"))
 	allowInsecure := envBool("HACKME_COORDINATOR_ALLOW_INSECURE", false)
 	requireToken := envBool("HACKME_COORDINATOR_REQUIRE_ADMIN_TOKEN", true)
 	if requireToken && token == "" && !allowInsecure {
@@ -117,12 +118,16 @@ func main() {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(map[string]string{"ok": "coordinator"})
 	})
-	addWorkRoutes(mux, token, allowInsecure, reg, wm)
+	addWorkRoutes(mux, token, workerToken, allowInsecure, reg, wm)
 
 	log.Printf("HackMe LAN coordinator → http://%s  (db %s)", addr, dbPath)
 	if token != "" {
-		log.Printf("HACKME_COORDINATOR_ADMIN_TOKEN is set: POST /api/push_work, POST /api/work/*, and GET /api/work/stats?details=1 require the token")
-	} else if allowInsecure {
+		log.Printf("HACKME_COORDINATOR_ADMIN_TOKEN is set: admin routes + GET /api/work/stats?details=1")
+	}
+	if workerToken != "" {
+		log.Printf("HACKME_COORDINATOR_WORKER_TOKEN is set: remote miners may claim/submit with worker token (not clear-abuse or stats details)")
+	}
+	if token == "" && workerToken == "" && allowInsecure {
 		log.Printf("security warning: HACKME_COORDINATOR_ALLOW_INSECURE=1 — claim/submit/push_work allowed without token on %s (dev only)", addr)
 	}
 	log.Printf("Work coordinator: batch=%d target_mod=%d lease=%ds reward_per_m=%.6f found_bonus=%.6f",

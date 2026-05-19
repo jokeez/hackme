@@ -25,7 +25,7 @@ LOCAL_BASE="${LOCAL_BASE:-${CHAIN_BASE:-http://127.0.0.1:18080}}"
 ADMIN_SECRET_FILE="${ADMIN_SECRET_FILE:-${ROOT_DIR}/.secrets/hackme_admin_token}"
 STATE_FILE="${STATE_FILE:-/opt/hackme/data/worker_settlement_state.json}"
 MAX_UNSETTLED_HMC="${MAX_UNSETTLED_HMC:-0.5}"
-EXPECTED_WALLET_SOURCES="${EXPECTED_WALLET_SOURCES:-canonical_peer,local_db}"
+EXPECTED_WALLET_SOURCES="${EXPECTED_WALLET_SOURCES:-canonical_peer,canonical_peer_cache,local_db}"
 MAX_SWEEP_ETA_SEC="${MAX_SWEEP_ETA_SEC:-93600}" # 26h default safety window
 
 if [[ -z "$COORD_ADMIN_TOKEN" && -r "$COORD_SECRET_FILE" ]]; then

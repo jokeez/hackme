@@ -1,10 +1,10 @@
 [Unit]
-Description=Run HackMe worker settlement every 2 minutes
+Description=Run HackMe worker settlement every 30 seconds
 
 [Timer]
-OnBootSec=90s
-OnUnitActiveSec=2m
-RandomizedDelaySec=10s
+OnBootSec=45s
+OnUnitActiveSec=30s
+RandomizedDelaySec=5s
 Persistent=true
 Unit=hackme-worker-settlement.service
 

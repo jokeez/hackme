@@ -290,8 +290,14 @@ PY
   settled_any=1
   payouts_sent=$((payouts_sent + 1))
   echo "[settle-workers] settled ${worker_id} -> ${to_addr} delta=${delta_hmc} HMC tx=${tx_hash}"
+  new_settled_hmc="$(python3 - "$already_hmc" "$delta_hmc" <<'PY'
+import sys
+already=float(sys.argv[1]); delta=float(sys.argv[2])
+print(f"{already + delta:.12f}")
+PY
+)"
   tmp="$(mktemp)"
-  jq --arg wid "$worker_id" --arg addr "$to_addr" --argjson settled "$payout_hmc" --arg tx "$tx_hash" --argjson ts "$ts" \
+  jq --arg wid "$worker_id" --arg addr "$to_addr" --argjson settled "$new_settled_hmc" --arg tx "$tx_hash" --argjson ts "$ts" \
     '.workers[$wid] = {settled_hmc:$settled,payout_address:$addr,last_tx_hash:$tx,last_settle_unix:$ts}' \
     "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
   if [[ "$(id -u)" -eq 0 ]]; then

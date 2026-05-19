@@ -120,6 +120,7 @@ type leaseRecord struct {
 	WorkerID  string `json:"worker_id"`
 	BaseNonce uint64 `json:"base_nonce"`
 	BatchSize uint64 `json:"batch_size"`
+	IssuedAt  int64  `json:"issued_at"`
 	ExpiresAt int64  `json:"expires_at"`
 	Reissues  uint64 `json:"reissues"`
 	TargetMod uint64 `json:"target_mod"`
@@ -597,6 +598,35 @@ func (m *workManager) allowRateSlot(state workerAbuseState, now int64, limit int
 	return state, true
 }
 
+func (m *workManager) workerRateLimitPerMin(workerID string, globalMax int) int {
+	if globalMax < 1 {
+		globalMax = 1
+	}
+	gh := float64(0)
+	if st, ok := m.worker[workerID]; ok {
+		gh = st.LastHashrateGHS
+	}
+	if gh <= 0 {
+		if globalMax <= 20 {
+			return globalMax
+		}
+		lim := globalMax / 6
+		if lim < 12 {
+			lim = 12
+		}
+		return lim
+	}
+	// ~15 claim/submit cycles per minute per 1 GH/s (caps CPU submit-spam rigs).
+	lim := int(gh * 15)
+	if lim < 20 {
+		lim = 20
+	}
+	if lim > globalMax {
+		lim = globalMax
+	}
+	return lim
+}
+
 func (m *workManager) allowClaim(workerID, ipKey string, now int64) (bool, string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -604,7 +634,8 @@ func (m *workManager) allowClaim(workerID, ipKey string, now int64) (bool, strin
 	if s := m.abuse[workerID]; s.BannedUntil > now {
 		return false, "worker_temporarily_banned"
 	}
-	s, ok := m.allowRateSlot(m.abuse[workerID], now, m.claimPerMin, true)
+	perMin := m.workerRateLimitPerMin(workerID, m.claimPerMin)
+	s, ok := m.allowRateSlot(m.abuse[workerID], now, perMin, true)
 	m.abuse[workerID] = s
 	if !ok {
 		return false, "claim_rate_limited"
@@ -615,7 +646,7 @@ func (m *workManager) allowClaim(workerID, ipKey string, now int64) (bool, strin
 	if ip := m.ipAbuse[ipKey]; ip.BannedUntil > now {
 		return false, "worker_temporarily_banned"
 	}
-	ip, ok := m.allowRateSlot(m.ipAbuse[ipKey], now, m.claimPerMin*4, true)
+	ip, ok := m.allowRateSlot(m.ipAbuse[ipKey], now, perMin*4, true)
 	m.ipAbuse[ipKey] = ip
 	if !ok {
 		return false, "claim_rate_limited"
@@ -630,7 +661,8 @@ func (m *workManager) allowSubmit(workerID, ipKey string, now int64) (bool, stri
 	if s := m.abuse[workerID]; s.BannedUntil > now {
 		return false, "worker_temporarily_banned"
 	}
-	s, ok := m.allowRateSlot(m.abuse[workerID], now, m.submitPerMin, false)
+	perMin := m.workerRateLimitPerMin(workerID, m.submitPerMin)
+	s, ok := m.allowRateSlot(m.abuse[workerID], now, perMin, false)
 	m.abuse[workerID] = s
 	if !ok {
 		return false, "submit_rate_limited"
@@ -641,7 +673,7 @@ func (m *workManager) allowSubmit(workerID, ipKey string, now int64) (bool, stri
 	if ip := m.ipAbuse[ipKey]; ip.BannedUntil > now {
 		return false, "worker_temporarily_banned"
 	}
-	ip, ok := m.allowRateSlot(m.ipAbuse[ipKey], now, m.submitPerMin*4, false)
+	ip, ok := m.allowRateSlot(m.ipAbuse[ipKey], now, perMin*4, false)
 	m.ipAbuse[ipKey] = ip
 	if !ok {
 		return false, "submit_rate_limited"
@@ -863,6 +895,7 @@ func (m *workManager) claim(workerID string, batch uint64) (base uint64, size ui
 		WorkerID:  workerID,
 		BaseNonce: base,
 		BatchSize: batch,
+		IssuedAt:  now,
 		ExpiresAt: leaseUntil,
 		TargetMod: m.targetMod,
 	}
@@ -985,6 +1018,27 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	}
 	if attempts > req.BatchSize {
 		attempts = req.BatchSize
+	}
+	gh := req.HashrateGHS
+	if gh <= 0 {
+		gh = m.worker[req.WorkerID].LastHashrateGHS
+	}
+	if gh > 0 {
+		issuedAt := rec.IssuedAt
+		if issuedAt <= 0 {
+			issuedAt = now - m.leaseSec
+		}
+		elapsed := float64(now - issuedAt)
+		if elapsed < 0.25 {
+			elapsed = 0.25
+		}
+		maxCred := uint64(gh * 1e9 * elapsed * 1.15)
+		if maxCred > 0 && attempts > maxCred {
+			attempts = maxCred
+		}
+	} else if !req.Found {
+		// No credible hashrate: do not pay attempt accrual (found proofs still validated).
+		attempts = 0
 	}
 	m.totalAttempts += attempts
 	paidAttempts := attempts
@@ -1119,17 +1173,20 @@ func (m *workManager) poolOnlineSummary(staleSec int64) (poolGH float64, online 
 	defer m.mu.Unlock()
 	now := time.Now().Unix()
 	for id, st := range m.worker {
-		if st.LastHashrateGHS <= 0 || (now-st.LastSeenUnix) > staleSec {
+		if st.LastSeenUnix <= 0 || (now-st.LastSeenUnix) > staleSec {
 			continue
 		}
-		poolGH += st.LastHashrateGHS
+		gh := st.LastHashrateGHS
+		if gh > 0 {
+			poolGH += gh
+		}
 		online++
 		rigs = append(rigs, map[string]any{
-			"worker_id":     id,
-			"name":          id,
-			"hashrate_gh_s": st.LastHashrateGHS,
-			"online":        true,
-			"source":        "coordinator_submit",
+			"worker_id":      id,
+			"name":           id,
+			"hashrate_gh_s":  gh,
+			"online":         true,
+			"source":         "coordinator_submit",
 			"last_seen_unix": st.LastSeenUnix,
 		})
 	}
@@ -1287,15 +1344,29 @@ func coordinatorPOSTAuthed(r *http.Request, token string, allowInsecure bool) bo
 	return allowInsecure
 }
 
-func addWorkRoutes(mux *http.ServeMux, token string, allowInsecure bool, reg *lanpool.Registry, wm *workManager) {
+// coordinatorWorkPOSTAuthed allows claim/submit with admin or worker-scoped token.
+func coordinatorWorkPOSTAuthed(r *http.Request, adminToken, workerToken string, allowInsecure bool) bool {
+	if adminToken != "" && coordAdminOK(r, adminToken) {
+		return true
+	}
+	if workerToken != "" && coordAdminOK(r, workerToken) {
+		return true
+	}
+	if adminToken == "" && workerToken == "" {
+		return allowInsecure
+	}
+	return false
+}
+
+func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInsecure bool, reg *lanpool.Registry, wm *workManager) {
 	mux.HandleFunc("/api/work/claim", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if !coordinatorPOSTAuthed(r, token, allowInsecure) {
+		if !coordinatorWorkPOSTAuthed(r, adminToken, workerToken, allowInsecure) {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
-			http.Error(w, "admin authentication required", http.StatusUnauthorized)
+			http.Error(w, "coordinator authentication required", http.StatusUnauthorized)
 			return
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
@@ -1359,9 +1430,9 @@ func addWorkRoutes(mux *http.ServeMux, token string, allowInsecure bool, reg *la
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if !coordinatorPOSTAuthed(r, token, allowInsecure) {
+		if !coordinatorWorkPOSTAuthed(r, adminToken, workerToken, allowInsecure) {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
-			http.Error(w, "admin authentication required", http.StatusUnauthorized)
+			http.Error(w, "coordinator authentication required", http.StatusUnauthorized)
 			return
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
@@ -1431,7 +1502,7 @@ func addWorkRoutes(mux *http.ServeMux, token string, allowInsecure bool, reg *la
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if !coordinatorPOSTAuthed(r, token, allowInsecure) {
+		if !coordinatorPOSTAuthed(r, adminToken, allowInsecure) {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
 			http.Error(w, "admin authentication required", http.StatusUnauthorized)
 			return
@@ -1474,12 +1545,12 @@ func addWorkRoutes(mux *http.ServeMux, token string, allowInsecure bool, reg *la
 		includeDetails := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("details")))
 		details := includeDetails == "1" || includeDetails == "true" || includeDetails == "yes"
 		if details {
-			if token != "" && !coordAdminOK(r, token) {
+			if adminToken != "" && !coordAdminOK(r, adminToken) {
 				w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
 				http.Error(w, "admin authentication required", http.StatusUnauthorized)
 				return
 			}
-			if token == "" && !allowInsecure {
+			if adminToken == "" && !allowInsecure {
 				details = false
 			}
 		}
@@ -1507,18 +1578,23 @@ func addWorkRoutes(mux *http.ServeMux, token string, allowInsecure bool, reg *la
 			}
 		}
 		wc := 0
-		if n, ok := out["workers_online"].(int); ok && n > 0 {
-			wc = n
-		} else if n, ok := out["miners"].(int); ok && n > 0 {
-			wc = n
-		} else if m, ok := out["workers"].(map[string]any); ok {
-			wc = len(m)
-		} else {
-			switch v := out["workers"].(type) {
-			case int:
-				wc = v
-			case float64:
-				wc = int(v)
+		if rigs, ok := out["active_rigs"].([]any); ok && len(rigs) > 0 {
+			wc = len(rigs)
+		}
+		if wc == 0 {
+			if n, ok := out["workers_online"].(int); ok && n > 0 {
+				wc = n
+			} else if n, ok := out["miners"].(int); ok && n > 0 {
+				wc = n
+			} else if m, ok := out["workers"].(map[string]any); ok {
+				wc = len(m)
+			} else {
+				switch v := out["workers"].(type) {
+				case int:
+					wc = v
+				case float64:
+					wc = int(v)
+				}
 			}
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
