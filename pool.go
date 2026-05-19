@@ -1477,7 +1477,11 @@ func ensureCoordinatorWorkersMap(ws map[string]any) {
 
 // walletWorkerRowMatches returns true when coordinator worker row accrual belongs to nodeAddress wallet.
 func walletWorkerRowMatches(nodeAddress, workerID string, row map[string]any, ws map[string]any, payoutMap map[string]string) bool {
-	nodeAddr := strings.TrimSpace(nodeAddress)
+	displayAddr := settlementDisplayWalletAddress(nodeAddress, payoutMap)
+	nodeAddr := displayAddr
+	if nodeAddr == "" {
+		nodeAddr = strings.TrimSpace(nodeAddress)
+	}
 	if nodeAddr == "" {
 		return true
 	}

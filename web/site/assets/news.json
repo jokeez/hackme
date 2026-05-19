@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-05-19-pool-fairness-settlement-mps",
+      "date": "2026-05-19",
+      "title": "Pool fairness: GPU-weighted limits, faster settlement, MPS prep",
+      "summary": "Coordinator now caps paid attempts by measured GH/s (stops CPU submit-spam), limits claim/submit rate per worker, and settlement runs every ~30s. Dashboard calculator slider fixed; unpaid accrual display syncs from hackme.tech. MiningPoolStats listing checklist + exchange roadmap docs added. Desktop miners: use batch 4M + OpenCL/CUDA; remote VPS workers should use worker token (not full admin).",
+      "tags": ["mining", "pool", "security", "economics", "release"],
+      "impact": "Your PC GPU rig should earn proportionally to hashrate; payouts above min threshold reach on-chain faster. Public stats: https://hackme.tech/pool/coordinator/api/pool/stats",
+      "action": "Pull latest from GitHub · Restart pool worker after update · MPS: docs/MININGPOOLSTATS_LISTING.md · Fair tuning: scripts/ops/apply_desktop_gpu_pool.sh",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "downloads": "https://hackme.tech/downloads.html",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-19-mining-calculator-dashboard",
       "date": "2026-05-19",
       "title": "Advanced mining calculator in node dashboard",

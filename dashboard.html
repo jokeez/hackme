@@ -3457,6 +3457,8 @@
 		const MINE_CALC_PREFS_KEY = 'hackme.mine_calc.v1';
 		let mineCalcPrefsLoaded = false;
 		let mineCalcLastExport = null;
+		let mineCalcGhTouched = false;
+		let mineCalcShareTouched = false;
 
 		function mineCalcEl(id) { return $(id); }
 
@@ -3519,7 +3521,9 @@
 			const ghLabel = mineCalcEl('mine-calc-gh-label');
 			const gh = Number(ghEl && ghEl.value || 0);
 			if (ghSlider && gh > 0) {
-				const clamped = Math.min(500, Math.max(0.01, gh));
+				const sliderMax = Math.max(500, Number(ghSlider.max || 500), gh * 1.05);
+				if (Number(ghSlider.max) < sliderMax) ghSlider.max = String(sliderMax);
+				const clamped = Math.min(sliderMax, Math.max(0.01, gh));
 				if (Math.abs(Number(ghSlider.value) - clamped) > 0.0001) ghSlider.value = String(clamped);
 			}
 			if (ghLabel) ghLabel.textContent = gh > 0 ? fmt(gh, gh >= 10 ? 1 : 3) : '0';
@@ -3588,7 +3592,9 @@
 			};
 		}
 
-		function computeMineCalc(inputs, net) {
+		function computeMineCalc(inputs, net, opts) {
+			opts = opts || {};
+			const useLiveRpmCap = !!opts.useLiveRpmCap;
 			const gh = Math.max(0, Number(inputs.hashrateGh) || 0);
 			const rigs = Math.max(1, Math.floor(Number(inputs.rigCount) || 1));
 			const uptime = Math.max(0.5, Math.min(1, Number(inputs.uptimePct || 95) / 100));
@@ -3600,14 +3606,18 @@
 			const targetMod = Math.max(POOL_TARGET_MOD_FLOOR, Number(net.targetMod) || POOL_TARGET_MOD_FLOOR);
 			const poolWork = inputs.scenario === 'pool' || !!net.poolWork;
 			const poolGhLive = Math.max(0, Number(net.poolGh) || 0);
-			let effGh = fleetGh;
-			if (poolWork && poolGhLive > 0) {
-				effGh = Math.min(fleetGh, poolGhLive);
-			}
+			const workerGhLive = Math.max(0, Number(net.workerGh) || 0);
+			// Pool mode: you cannot earn more than 100% of pool throughput — cap billing GH/s to live pool.
+			const effGh = (poolWork && poolGhLive > 0) ? Math.min(fleetGh, poolGhLive) : fleetGh;
 			const effAps = effGh * 1e9 * uptime;
+			let impliedPoolSharePct = sharePct;
+			if (poolWork && poolGhLive > 0 && fleetGh > 0) {
+				impliedPoolSharePct = Math.min(100, (Math.min(fleetGh, poolGhLive) / poolGhLive) * 100 * share);
+			}
 			const observedPayoutPerHour = Number(net.observedPayoutPerHour || 0);
 			let effectiveRpm = rpm;
-			if (poolWork && observedPayoutPerHour > 0 && effAps > 0) {
+			// Live payout cap only when inputs match the running worker (not after slider edits).
+			if (useLiveRpmCap && poolWork && observedPayoutPerHour > 0 && effAps > 0) {
 				const fromLive = (observedPayoutPerHour / 3600) / ((effAps / 1e6) * Math.max(share, 0.01));
 				if (fromLive > 0) effectiveRpm = rpm > 0 ? Math.min(rpm, fromLive) : fromLive;
 			} else if (!poolWork && Number(net.observedRewardPerM) > 0) {
@@ -3639,19 +3649,15 @@
 			if (Number(net.emptyHour) > 0 && Number(net.poolGh) > 0 && fleetGh > 0) {
 				chainHour = Number(net.emptyHour) * (fleetGh / Number(net.poolGh)) * uptime;
 			}
-			const poolShareOfTotal = Number(net.poolGh) > 0 ? Math.min(100, (fleetGh / Number(net.poolGh)) * 100) : 0;
+			const poolShareOfTotal = Number(net.poolGh) > 0 ? Math.min(100, (Math.min(fleetGh, Number(net.poolGh)) / Number(net.poolGh)) * 100) : 0;
 			const theoreticalHmcHour = poolHmcHour;
 			let scaledObservedHour = 0;
-			if (observedPayoutPerHour > 0 && net.workerGh > 0 && effGh > 0) {
-				scaledObservedHour = observedPayoutPerHour * (effGh / net.workerGh) * (share / Math.max(0.01, (net.mySharePct || 100) / 100));
+			if (observedPayoutPerHour > 0 && workerGhLive > 0 && fleetGh > 0) {
+				const scaleGh = useLiveRpmCap ? workerGhLive : Math.min(fleetGh, poolGhLive > 0 ? poolGhLive : fleetGh);
+				scaledObservedHour = observedPayoutPerHour * (scaleGh / workerGhLive) * (share / Math.max(0.01, (net.mySharePct || 100) / 100));
 			}
 			let displayHmcHour = poolHmcHour;
-			if (poolWork && scaledObservedHour > 0) {
-				displayHmcHour = scaledObservedHour;
-			} else if (poolWork && observedPayoutPerHour > 0 && net.workerGh > 0) {
-				displayHmcHour = observedPayoutPerHour * (effGh / net.workerGh) * share;
-			}
-			const ghCapped = poolGhLive > 0 && fleetGh > poolGhLive * 1.05;
+			const ghCapped = poolGhLive > 0 && fleetGh > poolGhLive * 1.02;
 			const displayHmcDay = displayHmcHour * 24;
 			let breakEven = '—';
 			const revDayDisp = hmcUsd > 0 ? displayHmcDay * hmcUsd : null;
@@ -3667,8 +3673,17 @@
 				foundBonusDay, etaSec, pohProgress, powerTotalW, kwhDay, costDay,
 				revDay: revDayDisp, netDay: netDayDisp, breakEven,
 				chainHour, poolShareOfTotal, solvesPerSec, observedPayoutPerHour, scaledObservedHour, poolWork,
-				theoreticalUncappedHour, ghCapped, effGh,
+				theoreticalUncappedHour, ghCapped, effGh, impliedPoolSharePct,
 			};
+		}
+
+		function mineCalcUseLivePayout(inputs, net) {
+			if (!net.poolWork || !(Number(net.observedPayoutPerHour) > 0) || !(Number(net.workerGh) > 0)) return false;
+			if (mineCalcGhTouched || mineCalcShareTouched) return false;
+			const gh = Number(inputs.hashrateGh) || 0;
+			const wGh = Number(net.workerGh) || 0;
+			if (gh <= 0 || wGh <= 0) return false;
+			return Math.abs(gh - wGh) / Math.max(wGh, 0.01) <= 0.08;
 		}
 
 		function setMineCalcBar(id, pct) {
@@ -3694,7 +3709,16 @@
 				}
 				inputs = readMineCalcInputs();
 			}
-			const out = computeMineCalc(inputs, net);
+			const useLivePayout = mineCalcUseLivePayout(inputs, net);
+			const out = computeMineCalc(inputs, net, { useLiveRpmCap: useLivePayout });
+			let displayHmcHour = out.displayHmcHour;
+			if (useLivePayout && out.scaledObservedHour > 0) {
+				displayHmcHour = out.scaledObservedHour;
+			} else if (mineCalcGhTouched || mineCalcShareTouched) {
+				displayHmcHour = out.poolHmcHour;
+			}
+			const displayHmcDay = displayHmcHour * 24;
+			const displayHmcMonth = displayHmcDay * 30;
 			saveMineCalcPrefs(inputs);
 
 			if (mineCalcEl('mine-calc-net-rpm')) mineCalcEl('mine-calc-net-rpm').textContent = net.rewardPerM > 0 ? fmt(net.rewardPerM, 6) : '—';
@@ -3707,19 +3731,33 @@
 				else mineCalcEl('mine-calc-net-sync').textContent = fmtDur(net.syncAgeSec) + ' ago';
 			}
 
-			if (mineCalcEl('mine-calc-out-hour')) mineCalcEl('mine-calc-out-hour').textContent = fmt(out.displayHmcHour, 6);
+			if (mineCalcEl('mine-calc-out-hour')) mineCalcEl('mine-calc-out-hour').textContent = fmt(displayHmcHour, 6);
 			const hourSub = mineCalcEl('mine-calc-out-hour-sub');
 			if (hourSub) {
 				const parts = [];
-				if (out.ghCapped) parts.push('capped to pool ' + fmt(net.poolGh, 2) + ' GH/s');
-				if (out.scaledObservedHour > 0) parts.push('live ~' + fmt(out.scaledObservedHour, 4) + ' HMC/h');
-				if (out.theoreticalUncappedHour > out.displayHmcHour * 1.5) {
-					parts.push('uncapped ' + fmt(out.theoreticalUncappedHour, 1) + ' HMC/h if pool grew');
+				if (out.ghCapped) {
+					parts.push('fleet ' + fmt(inputs.hashrateGh * inputs.rigCount, 2) + ' GH/s > pool ' + fmt(net.poolGh, 2) + ' GH/s — capped to pool size');
+					if (out.impliedPoolSharePct > 0) parts.push('~' + fmt(out.impliedPoolSharePct, 2) + '% of pool at your share %');
 				}
-				hourSub.textContent = parts.length ? parts.join(' · ') : (out.poolWork ? 'pool share model (reward/M × eff GH/s)' : '');
+				if (useLivePayout && out.scaledObservedHour > 0) {
+					parts.push('live ~' + fmt(out.scaledObservedHour, 4) + ' HMC/h');
+				} else if (mineCalcGhTouched || mineCalcShareTouched) {
+					parts.push('model ~' + fmt(displayHmcHour, 4) + ' HMC/h at reward/M');
+				}
+				const uncappedFleet = inputs.hashrateGh * inputs.rigCount;
+				const rpmN = Number(net.rewardPerM) || 0;
+				const uptimeN = Math.max(0.5, Math.min(1, Number(inputs.uptimePct || 95) / 100));
+				const shareN = Math.max(0.01, Math.min(100, Number(inputs.poolSharePct) || 100)) / 100;
+				if (out.poolWork && net.poolGh > 0 && uncappedFleet > net.poolGh * 1.02 && rpmN > 0) {
+					const uncappedHour = ((uncappedFleet * 1e9 * uptimeN) / 1e6) * rpmN * 3600 * shareN;
+					if (uncappedHour > displayHmcHour * 1.2) {
+						parts.push('if pool grew to your GH/s: ~' + fmt(uncappedHour, 1) + ' HMC/h');
+					}
+				}
+				hourSub.textContent = parts.length ? parts.join(' · ') : (out.poolWork ? 'reward/M × GH/s × pool share %' : '');
 			}
-			if (mineCalcEl('mine-calc-out-day')) mineCalcEl('mine-calc-out-day').textContent = fmt(out.totalHmcDay, 4);
-			if (mineCalcEl('mine-calc-out-month')) mineCalcEl('mine-calc-out-month').textContent = fmt(out.totalHmcMonth, 2);
+			if (mineCalcEl('mine-calc-out-day')) mineCalcEl('mine-calc-out-day').textContent = fmt(displayHmcDay, 4);
+			if (mineCalcEl('mine-calc-out-month')) mineCalcEl('mine-calc-out-month').textContent = fmt(displayHmcMonth, 2);
 			if (mineCalcEl('mine-calc-out-aps')) mineCalcEl('mine-calc-out-aps').textContent = fmtMiningTrialRate(out.aps) || fmt(out.aps, 0);
 			if (mineCalcEl('mine-calc-out-eta')) {
 				mineCalcEl('mine-calc-out-eta').textContent = out.poolWork ? 'pool work' : (out.etaSec > 0 ? fmtDur(out.etaSec) : '—');
@@ -3745,18 +3783,28 @@
 			}
 			if (mineCalcEl('mine-calc-out-power-total')) mineCalcEl('mine-calc-out-power-total').textContent = fmt(out.powerTotalW, 0) + ' W';
 			if (mineCalcEl('mine-calc-out-cost-day')) mineCalcEl('mine-calc-out-cost-day').textContent = inputs.kwhUsd > 0 ? ('$' + fmt(out.costDay, 2)) : '—';
-			if (mineCalcEl('mine-calc-out-rev-day')) mineCalcEl('mine-calc-out-rev-day').textContent = inputs.hmcUsd > 0 ? ('$' + fmt(out.revDay, 2)) : 'set HMC price';
+			const revDayDisp = inputs.hmcUsd > 0 ? displayHmcDay * inputs.hmcUsd : null;
+			const netDayDisp = revDayDisp != null ? revDayDisp - out.costDay : null;
+			if (mineCalcEl('mine-calc-out-rev-day')) mineCalcEl('mine-calc-out-rev-day').textContent = inputs.hmcUsd > 0 ? ('$' + fmt(revDayDisp, 2)) : 'set HMC price';
 			if (mineCalcEl('mine-calc-out-net-day')) {
 				const el = mineCalcEl('mine-calc-out-net-day');
 				if (inputs.hmcUsd > 0) {
-					el.textContent = (out.netDay >= 0 ? '$' : '-$') + fmt(Math.abs(out.netDay), 2);
-					el.className = 'font-mono ' + (out.netDay >= 0 ? 'text-matrix' : 'text-danger');
+					el.textContent = (netDayDisp >= 0 ? '$' : '-$') + fmt(Math.abs(netDayDisp), 2);
+					el.className = 'font-mono ' + (netDayDisp >= 0 ? 'text-matrix' : 'text-danger');
 				} else {
 					el.textContent = '—';
 					el.className = 'font-mono text-gray-400';
 				}
 			}
-			if (mineCalcEl('mine-calc-out-breakeven')) mineCalcEl('mine-calc-out-breakeven').textContent = out.breakEven;
+			if (mineCalcEl('mine-calc-out-breakeven')) {
+				let be = out.breakEven;
+				if (Number(inputs.hwCostUsd) > 0 && netDayDisp != null && netDayDisp > 0) {
+					be = fmt(Math.ceil(Number(inputs.hwCostUsd) / netDayDisp), 0) + ' days';
+				} else if (Number(inputs.hwCostUsd) > 0 && netDayDisp != null && netDayDisp <= 0) {
+					be = 'never (negative margin)';
+				}
+				mineCalcEl('mine-calc-out-breakeven').textContent = be;
+			}
 
 			const cmpWrap = mineCalcEl('mine-calc-compare-wrap');
 			const showCompare = inputs.scenario === 'compare' || inputs.scenario === 'fleet';
@@ -3793,7 +3841,7 @@
 				mineCalcEl('mine-calc-footnote').textContent = parts.join(' ');
 			}
 
-			mineCalcLastExport = { inputs, net, out, exported_at_unix: Math.floor(Date.now() / 1000) };
+			mineCalcLastExport = { inputs, net, out: Object.assign({}, out, { displayHmcHour, displayHmcDay, displayHmcMonth }), exported_at_unix: Math.floor(Date.now() / 1000) };
 		}
 
 		function applyMineCalcPreset(kind) {
@@ -3801,10 +3849,18 @@
 			const ghEl = mineCalcEl('mine-calc-gh');
 			const shareEl = mineCalcEl('mine-calc-share');
 			if (!ghEl) return;
+			if (kind === 'live') {
+				mineCalcGhTouched = false;
+				mineCalcShareTouched = false;
+			} else {
+				mineCalcGhTouched = true;
+				if (kind !== 'pool') mineCalcShareTouched = true;
+			}
 			if (kind === 'live' && net.workerGh > 0) {
 				ghEl.value = String(net.workerGh);
 				if (shareEl) shareEl.value = String(fmt(Math.max(0.01, Math.min(100, net.mySharePct || 100)), 2));
 			} else if (kind === 'pool' && net.poolGh > 0) {
+				mineCalcShareTouched = false;
 				const wc = Math.max(1, Number((lastGoodWorkStats || latestWorkStats || {}).workers_count || Object.keys((lastGoodWorkStats || {}).workers || {}).length || 1));
 				ghEl.value = String(fmt(net.poolGh / wc, 3));
 				if (shareEl) shareEl.value = String(fmt(100 / wc, 2));
@@ -3826,21 +3882,43 @@
 			ids.forEach((id) => {
 				const el = mineCalcEl(id);
 				if (!el) return;
-				el.addEventListener('input', rerender);
-				el.addEventListener('change', rerender);
+				el.addEventListener('input', () => {
+					if (id === 'mine-calc-share') mineCalcShareTouched = true;
+					rerender();
+				});
+				el.addEventListener('change', () => {
+					if (id === 'mine-calc-share') mineCalcShareTouched = true;
+					rerender();
+				});
 			});
 			const ghSlider = mineCalcEl('mine-calc-gh-slider');
 			const ghInput = mineCalcEl('mine-calc-gh');
 			if (ghSlider && ghInput) {
-				ghSlider.addEventListener('input', () => { ghInput.value = ghSlider.value; rerender(); });
-				ghInput.addEventListener('input', () => {
-					const v = Number(ghInput.value || 0);
-					if (v > 0 && v <= 500) ghSlider.value = String(v);
+				const onGhSlider = () => {
+					mineCalcGhTouched = true;
+					ghInput.value = ghSlider.value;
+					syncMineCalcSliders();
 					rerender();
-				});
+				};
+				ghSlider.addEventListener('input', onGhSlider);
+				ghSlider.addEventListener('change', onGhSlider);
+				const onGhInput = () => {
+					mineCalcGhTouched = true;
+					const v = Number(ghInput.value || 0);
+					const max = Math.max(500, v > 0 ? v * 1.05 : 500, Number(ghSlider.max || 500));
+					ghSlider.max = String(max);
+					if (v > 0) ghSlider.value = String(Math.min(max, Math.max(0.01, v)));
+					syncMineCalcSliders();
+					rerender();
+				};
+				ghInput.addEventListener('input', onGhInput);
+				ghInput.addEventListener('change', onGhInput);
 			}
 			const upSlider = mineCalcEl('mine-calc-uptime');
-			if (upSlider) upSlider.addEventListener('input', rerender);
+			if (upSlider) {
+				upSlider.addEventListener('input', () => { syncMineCalcSliders(); rerender(); });
+				upSlider.addEventListener('change', rerender);
+			}
 			if (mineCalcEl('btn-mine-calc-live')) mineCalcEl('btn-mine-calc-live').addEventListener('click', () => applyMineCalcPreset('live'));
 			if (mineCalcEl('btn-mine-calc-pool')) mineCalcEl('btn-mine-calc-pool').addEventListener('click', () => applyMineCalcPreset('pool'));
 			if (mineCalcEl('btn-mine-calc-gpu')) mineCalcEl('btn-mine-calc-gpu').addEventListener('click', () => applyMineCalcPreset('gpu'));

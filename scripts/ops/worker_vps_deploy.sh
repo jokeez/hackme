@@ -33,6 +33,7 @@ WORKER_ID="${WORKER_ID:-worker-$(echo "${WORKER_SSH:-unknown}" | tr '@.' '-' | t
 SKIP_BUILD="${SKIP_BUILD:-0}"
 
 SECRET_COORD="${SECRET_COORD:-$ROOT/.secrets/hackme_coordinator_admin_token}"
+SECRET_WORKER="${SECRET_WORKER:-$ROOT/.secrets/hackme_coordinator_worker_token}"
 SECRET_SEED="${SECRET_SEED:-$ROOT/.secrets/hackme_miner_seed_hex}"
 
 if [[ -z "$WORKER_SSH" ]]; then
@@ -94,7 +95,6 @@ chmod 755 workerpoh* minersign worker_autostart.sh worker_loop.sh run_public_wor
 cat > .env.worker <<EOF
 COORD_URL=$COORD_URL
 COORD_TOKEN=$COORD_TOKEN
-COORD_ADMIN_TOKEN=$COORD_TOKEN
 WORKER_ID=$WORKER_ID
 HACKME_MINER_ED25519_SEED_HEX=$MINER_SEED
 BATCH_SIZE=4194304

@@ -2066,8 +2066,14 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 		}
 		if batchSize == 0 {
 			if remoteCoord {
-				// Smaller batches over HTTPS — more submit cycles survive latency/timeouts.
-				batchSize = 1_048_576
+				// GPU desktop: large batches; CPU-only remote workers should set HACKME_WORKER_BATCH_SIZE lower in env.
+				if strings.EqualFold(strings.TrimSpace(os.Getenv("HACKME_GPU_DISABLE")), "1") {
+					batchSize = 1_048_576
+				} else if v := strings.TrimSpace(os.Getenv("HACKME_WORKER_ENGINE")); v == "loop" || v == "curl" {
+					batchSize = 1_048_576
+				} else {
+					batchSize = 4_194_304
+				}
 			} else {
 				batchSize = 4_000_000
 			}
@@ -2146,6 +2152,21 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 		workerEnv = append(workerEnv, "HACKME_WORKER_CLAIM_TIMEOUT=90s")
 	} else {
 		workerEnv = append(workerEnv, "HACKME_WORKER_CLAIM_TIMEOUT=35s")
+	}
+	if v := strings.TrimSpace(os.Getenv("HACKME_WORKER_CLAIM_COOLDOWN_MS")); v != "" {
+		workerEnv = append(workerEnv, "HACKME_WORKER_CLAIM_COOLDOWN_MS="+v)
+	}
+	if v := strings.TrimSpace(os.Getenv("HACKME_GPU_BACKEND")); v != "" {
+		workerEnv = append(workerEnv, "HACKME_GPU_BACKEND="+v)
+	}
+	if strings.TrimSpace(os.Getenv("HACKME_DESKTOP_GPU_POOL")) == "1" {
+		workerEnv = append(workerEnv, "HACKME_DESKTOP_GPU_POOL=1")
+	}
+	if v := strings.TrimSpace(os.Getenv("GPU_CHUNK")); v != "" {
+		workerEnv = append(workerEnv, "GPU_CHUNK="+v)
+	}
+	if v := strings.TrimSpace(os.Getenv("SEARCH_TIMEOUT_MS")); v != "" {
+		workerEnv = append(workerEnv, "SEARCH_TIMEOUT_MS="+v)
 	}
 	if v := strings.TrimSpace(os.Getenv("HACKME_WORKER_SUBMIT_TIMEOUT")); v != "" {
 		workerEnv = append(workerEnv, "HACKME_WORKER_SUBMIT_TIMEOUT="+v)
@@ -2581,6 +2602,56 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		displayUnpaid = totalUnpaid
 		accrualSource = "fleet_aggregate"
 	}
+	// All workers routed to one payout wallet via WORKER_PAYOUT_MAP → show fleet totals on wallet card.
+	if len(payoutMap) > 0 && totalUnpaid >= 0 {
+		targets := map[string]struct{}{}
+		for _, t := range payoutMap {
+			t = strings.TrimSpace(t)
+			if strings.HasPrefix(t, "HMC-") {
+				targets[strings.ToLower(t)] = struct{}{}
+			}
+		}
+		if len(targets) == 1 {
+			walletAccrued = totalAccrued
+			walletSettled = totalSettled
+			walletUnpaid = totalUnpaid
+			displayUnpaid = totalUnpaid
+			if accrualSource == "none" {
+				accrualSource = "unified_payout_map"
+			}
+		}
+	}
+	settlementScanSec := int64(120)
+	if v := strings.TrimSpace(os.Getenv("SETTLEMENT_TIMER_SEC")); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
+			settlementScanSec = n
+		}
+	}
+	nextScanUnix := nowUnix + settlementScanSec
+	scanEtaSec := settlementScanSec
+	workerBreakdown := map[string]any{}
+	for workerID, v := range workers {
+		if coordOmittedBreakdown && workerID == "worker-active" {
+			continue
+		}
+		row := mapFromAny(v)
+		accrued := parseAnyFloat(row["payout_hmc"])
+		if accrued < 0 {
+			accrued = 0
+		}
+		settled := state.Workers[workerID].SettledHMC
+		if settled < 0 {
+			settled = 0
+		}
+		if settled > accrued {
+			settled = accrued
+		}
+		workerBreakdown[workerID] = map[string]any{
+			"accrued_hmc": accrued,
+			"settled_hmc": settled,
+			"unpaid_hmc":  accrued - settled,
+		}
+	}
 	writeJSON(w, map[string]any{
 		"ok":                                    true,
 		"source":                                base,
@@ -2605,7 +2676,11 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		"last_force_unix":                       lastForceUnix,
 		"next_daily_sweep_unix":                 nextSweepUnix,
 		"daily_sweep_eta_sec":                   etaSec,
-		"threshold_ready":                       displayUnpaid >= minSettleHMC,
+		"next_settlement_scan_unix":             nextScanUnix,
+		"settlement_scan_eta_sec":               scanEtaSec,
+		"settlement_scan_interval_sec":          settlementScanSec,
+		"workers_breakdown":                     workerBreakdown,
+		"threshold_ready":                       totalUnpaid >= minSettleHMC,
 		"coordinator_workers_breakdown_omitted": coordOmittedBreakdown,
 		"on_chain_payout_note":                  "UI threshold is not a bank transfer. On-chain payout runs on the VPS/chain host via settle_worker_payouts.sh (ADMIN_TOKEN + CHAIN_BASE + COORD_URL + WORKER_PAYOUT_MAP). Coordinators that omit workers{} require the updated script (synthetic single-map row) or coordinator upgrade.",
 		"state_file":                            statePath,

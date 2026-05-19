@@ -315,11 +315,19 @@ func pickSearcher(preferredBackend string, preferredDevice int, disableGPU bool)
 			break
 		}
 		if pick == nil {
-			// Default selection for mixed rigs: prefer OpenCL (better AMD coverage),
-			// then first available accelerator.
-			for _, a := range accs {
-				if strings.EqualFold(strings.TrimSpace(a.Backend()), "opencl") {
-					pick = a
+			// Default: CUDA on NVIDIA when available, else OpenCL (AMD/Intel), else first device.
+			order := []string{"cuda", "opencl"}
+			if preferredBackend != "" && preferredBackend != "auto" {
+				order = []string{strings.ToLower(preferredBackend)}
+			}
+			for _, want := range order {
+				for _, a := range accs {
+					if strings.EqualFold(strings.TrimSpace(a.Backend()), want) {
+						pick = a
+						break
+					}
+				}
+				if pick != nil {
 					break
 				}
 			}
