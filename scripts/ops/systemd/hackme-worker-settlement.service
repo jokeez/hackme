@@ -7,6 +7,8 @@ Wants=network-online.target
 Type=oneshot
 WorkingDirectory=/opt/hackme
 EnvironmentFile=/opt/hackme/.env.settlement
+# Repair script run as root must not leave state root-only (timer runs as hackme).
+ExecStartPre=/bin/bash -c 'install -d -o hackme -g hackme -m 700 /opt/hackme/data; f=/opt/hackme/data/worker_settlement_state.json; touch "$f"; chown hackme:hackme "$f"; chmod 600 "$f"'
 ExecStart=/opt/hackme/scripts/ops/settle_worker_payouts.sh
 User=hackme
 Group=hackme
