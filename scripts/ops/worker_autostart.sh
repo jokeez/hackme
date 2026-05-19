@@ -43,6 +43,14 @@ COORD_TOKEN="${COORD_TOKEN:-${COORD_ADMIN_TOKEN:-${ADMIN_TOKEN:-}}}"
 WORKER_ID="${WORKER_ID:-worker-$(hostname -s 2>/dev/null || echo local)}"
 RESTART_MAX_BACKOFF_SEC="${RESTART_MAX_BACKOFF_SEC:-20}"
 
+WORKER_ENV_FILE="${WORKER_ENV_FILE:-${ROOT_DIR}/.env.worker}"
+if [[ -f "$WORKER_ENV_FILE" ]]; then
+	set -a
+	# shellcheck disable=SC1090
+	source "$WORKER_ENV_FILE"
+	set +a
+fi
+
 coord_looks_remote() {
   local u
   u="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')"
@@ -131,12 +139,16 @@ choose_worker_bin() {
 }
 
 build_worker_if_needed() {
-  local bin="$1"
-  local backend="$2"
-  mkdir -p "$(dirname "$bin")"
-  if [[ -x "$bin" ]]; then
-    return 0
-  fi
+	local bin="$1"
+	local backend="$2"
+	mkdir -p "$(dirname "$bin")"
+	if [[ -x "$bin" ]]; then
+		local src="${ROOT_DIR}/cmd/workerpoh/main.go"
+		if [[ -f "$src" && "$bin" -nt "$src" ]]; then
+			return 0
+		fi
+		echo "[worker-autostart] rebuilding stale worker binary: ${bin}"
+	fi
   echo "[worker-autostart] building worker binary: ${bin}"
   if [[ "$backend" == "opencl" ]]; then
     (cd "$ROOT_DIR" && go build -tags opencl -o "$bin" ./cmd/workerpoh)
