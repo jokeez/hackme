@@ -742,6 +742,7 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	}
 	sigOK, sigReason, signerAddr := m.validateHybridSignature(req)
 	if !sigOK {
+		delete(m.active, k)
 		m.signedRejects++
 		m.rejectedSubmits++
 		return false, sigReason, 0, "", false
