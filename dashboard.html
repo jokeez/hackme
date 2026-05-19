@@ -1112,6 +1112,7 @@
 										<div class="mine-calc-kpi highlight">
 											<div class="text-[9px] text-gray-500 uppercase">HMC / hour</div>
 											<div id="mine-calc-out-hour" class="font-display text-lg text-matrix">—</div>
+											<div id="mine-calc-out-hour-sub" class="text-[8px] text-gray-600 font-mono mt-0.5">—</div>
 										</div>
 										<div class="mine-calc-kpi">
 											<div class="text-[9px] text-gray-500 uppercase">HMC / day</div>
@@ -1237,7 +1238,7 @@
 											<th class="px-2 py-2">State</th>
 											<th class="px-2 py-2">Worker</th>
 											<th class="px-2 py-2">Ranges</th>
-											<th class="px-2 py-2">Attempts/min</th>
+											<th class="px-2 py-2">GH/s</th>
 											<th class="px-2 py-2">Attempts</th>
 											<th class="px-2 py-2">Payout HMC</th>
 											<th class="px-2 py-2">Stale</th>
@@ -2016,12 +2017,45 @@
 			}
 			return 0;
 		}
+		const POOL_TARGET_MOD_FLOOR = 2000000;
+		/** True when UI should treat coordinator as source of truth for M and payouts. */
+		function isPoolWorkContext() {
+			const st = latestStatus || {};
+			const wst = latestWorkerStatus || {};
+			if (!!st.network_mode_active) return true;
+			if (!!wst.running && String(wst.worker_id || '').trim()) return true;
+			const coord = String(st.pool_coordinator_url_effective || st.pool_coordinator_url || '').trim();
+			return !!coord;
+		}
+		/** Pool M from coordinator; never chain solo floor (251) when pool work is active. */
+		function effectiveMiningTargetMod(payload, ws) {
+			const tmWork = (ws && ws.ok !== false) ? workStatsTargetMod(ws) : 0;
+			const st = latestStatus || {};
+			const poolCtx = isPoolWorkContext();
+			const pm = Number(st.pool_target_mod || 0);
+			if (poolCtx) {
+				if (tmWork >= POOL_TARGET_MOD_FLOOR) return { mod: tmWork, src: 'pool coordinator' };
+				if (pm >= POOL_TARGET_MOD_FLOOR) return { mod: pm, src: 'pool coordinator' };
+				if (tmWork > 0) return { mod: tmWork, src: 'pool coordinator' };
+			}
+			const tmMetrics = Number((payload && payload.mining_target_mod) || 0);
+			if (tmMetrics > 0 && (!poolCtx || tmMetrics >= POOL_TARGET_MOD_FLOOR)) {
+				return { mod: tmMetrics, src: 'local metrics' };
+			}
+			if (tmWork > 0) return { mod: tmWork, src: 'pool coordinator' };
+			const tmC = Number(lastGlobalTargetMod || 0);
+			if (tmC > 0 && (!poolCtx || tmC >= POOL_TARGET_MOD_FLOOR)) {
+				return { mod: tmC, src: lastTargetModSource || 'network status' };
+			}
+			return { mod: 0, src: '' };
+		}
 		function isLocalPoolWorkerActive() {
 			const st = latestStatus || {};
 			const wst = latestWorkerStatus || {};
-			const netMode = !!st.network_mode_active;
-			const leaderLocal = !!(st.chain_leader_local_poh || st.local_solo_allowed);
-			return netMode && !leaderLocal && !!wst.running && !!String(wst.worker_id || '').trim();
+			if (!wst.running || !String(wst.worker_id || '').trim()) return false;
+			if (!!st.network_mode_active) return true;
+			const coord = String(st.pool_coordinator_url_effective || st.pool_coordinator_url || '').trim();
+			return !!coord;
 		}
 		function localWorkerWorkStatsSlice(ws, wst) {
 			const wid = String((wst && wst.worker_id) || '').trim();
@@ -2565,25 +2599,23 @@
 			if (g < 1) return g.toFixed(2);
 			return fmt(g, 1);
 		}
+		function clampRigHashrateGHS(gh) {
+			const v = Number(gh || 0);
+			if (!(v > 0) || !Number.isFinite(v)) return 0;
+			if (v > 500) return 500;
+			return v;
+		}
 		function sumActiveRigsGh(rigs) {
 			let sum = 0;
 			(rigs || []).forEach((r) => {
-				sum += Number((r && r.hashrate_gh_s) || 0);
+				sum += clampRigHashrateGHS(r && r.hashrate_gh_s);
 			});
 			return sum;
 		}
 		function poolGhFromWorkStats(ws) {
 			if (!ws || typeof ws !== 'object') return 0;
-			let gh = sumActiveRigsGh(ws.active_rigs);
-			if (gh > 0) return gh;
-			if (Number(poolDerived.attemptsPerSec || 0) > 0) return Number(poolDerived.attemptsPerSec) / 1e9;
-			const totalAtt = Number(ws.accepted_attempts || 0);
-			if (workTotalAttemptsPrevTs > 0 && totalAtt > workTotalAttemptsPrev) {
-				const tNow = Number(ws.now_unix || Math.floor(Date.now() / 1000));
-				const dt = Math.max(1, tNow - workTotalAttemptsPrevTs);
-				const dA = totalAtt - workTotalAttemptsPrev;
-				if (dA > 0) return (dA / dt) / 1e9;
-			}
+			const gh = sumActiveRigsGh(ws.active_rigs);
+			if (gh > 0) return Math.min(gh, 5000);
 			return 0;
 		}
 		function applyPoolHashDisplayGh(gh, suffix) {
@@ -3385,30 +3417,29 @@
 				}
 			}
 		}
-		function computeMiningInsightJS(attempts, targetMod, attemptsPerSec, rewardHMC) {
+		function computeMiningInsightJS(attempts, targetMod, attemptsPerSec, rewardHMC, poolWork) {
 			let M = Math.floor(Number(targetMod) || 0);
-			if (M < 251) M = 251;
+			if (poolWork) {
+				if (M < POOL_TARGET_MOD_FLOOR) M = POOL_TARGET_MOD_FLOOR;
+			} else if (M < 251) {
+				M = 251;
+			}
 			const rate = Number(attemptsPerSec) || 0;
 			const att = Number(attempts) || 0;
-			if (rate < 1e-9) return { etaSec: -1, progress: 0, projectedHmcHour: 0 };
+			if (rate < 1e-9) return { etaSec: -1, progress: 0, projectedHmcHour: Number(rewardHMC) || 0 };
 			const etaSec = M / rate;
-			if (!Number.isFinite(etaSec) || etaSec <= 0) return { etaSec: -1, progress: 0, projectedHmcHour: 0 };
-			let progress = 1 - Math.exp(-att / M);
-			if (progress > 0.995) progress = 0.995;
-			const projectedHmcHour = Number(rewardHMC) > 0 ? Number(rewardHMC) * (3600 / etaSec) : 0;
+			if (!Number.isFinite(etaSec) || etaSec <= 0) return { etaSec: -1, progress: 0, projectedHmcHour: Number(rewardHMC) || 0 };
+			let progress;
+			if (poolWork) {
+				// Pool work pays per attempt (reward/M); no PoH solve countdown (M/rate is misleading).
+				progress = Math.min(0.85, rate / (M * 500));
+				return { etaSec: -1, progress, projectedHmcHour: Number(rewardHMC) || 0 };
+			} else {
+				progress = 1 - Math.exp(-att / M);
+				if (progress > 0.995) progress = 0.995;
+			}
+			const projectedHmcHour = Number(rewardHMC) > 0 ? Number(rewardHMC) : 0;
 			return { etaSec, progress, projectedHmcHour };
-		}
-		function fmtDur(sec) {
-			if (sec == null || !Number.isFinite(sec) || sec < 0) return '—';
-			if (sec < 1) return '<1 s';
-			const s = Math.max(0, Math.round(sec));
-			if (s < 60) return s + ' s';
-			const m = Math.floor(s / 60);
-			const r = s % 60;
-			if (m < 60) return m + 'm ' + r + 's';
-			const h = Math.floor(m / 60);
-			const mm = m % 60;
-			return h + 'h ' + mm + 'm';
 		}
 		function fmtDur(sec) {
 			if (sec == null || !Number.isFinite(sec) || sec < 0) return '—';
@@ -3502,16 +3533,16 @@
 			const m = lastMetricsPayload || {};
 			const wst = latestWorkerStatus || {};
 			const st = latestStatus || {};
-			let targetMod = workStatsTargetMod(ws);
-			if (targetMod <= 0) targetMod = Math.max(251, Number(m.mining_target_mod || lastGlobalTargetMod || 0));
+			const eff = effectiveMiningTargetMod(m, ws);
+			let targetMod = eff.mod > 0 ? eff.mod : workStatsTargetMod(ws);
+			if (targetMod <= 0) targetMod = Math.max(POOL_TARGET_MOD_FLOOR, Number(st.pool_target_mod || m.mining_target_mod || 0));
 			const rewardPerM = Number(ws.reward_per_m || 0);
 			const foundBonus = Number(ws.found_bonus_hmc || 0);
 			const emptyHour = Number(m.econ_expected_empty_hmc_hour || 0);
-			let poolGh = 0;
-			poolGh = poolGhFromWorkStats(ws);
+			let poolGh = poolGhFromWorkStats(ws);
 			if (!(poolGh > 0)) {
 				const netTh = Number((latestNetworkStats && latestNetworkStats.global_hashrate_th_s) || 0);
-				if (netTh > 0) poolGh = netTh * 1000;
+				if (netTh > 0 && netTh <= 10) poolGh = netTh * 1000;
 			}
 			if (!(poolGh > 0)) {
 				poolGh = sumActiveRigsGh((latestNetworkStats && latestNetworkStats.active_rigs) || []);
@@ -3519,11 +3550,11 @@
 			if (!(poolGh > 0) && latestWorkerRows && latestWorkerRows.length) {
 				let sumGhRows = 0;
 				latestWorkerRows.forEach((row) => {
-					const gh = Number((row.live && row.live.hashrate_gh_s) || 0);
-					if (gh > 0) sumGhRows += gh;
+					sumGhRows += clampRigHashrateGHS(row.live && row.live.hashrate_gh_s);
 				});
 				if (sumGhRows > 0) poolGh = sumGhRows;
 			}
+			if (poolGh > 5000) poolGh = 5000;
 			const workerGh = Number(wst.measured_hashrate_gh_s || wst.hashrate_gh_s || 0);
 			let mySharePct = 100;
 			const myId = String(wst.worker_id || '');
@@ -3533,6 +3564,12 @@
 				if (poolAttempts > 0 && mineAtt > 0) mySharePct = Math.min(100, (mineAtt / poolAttempts) * 100);
 			}
 			const syncAge = lastWorkStatsOkUnix > 0 ? Math.max(0, Math.floor(Date.now() / 1000) - lastWorkStatsOkUnix) : -1;
+			const poolPayout = Number(ws.total_payout_hmc || 0);
+			let observedRewardPerM = 0;
+			if (poolAttempts > 0 && poolPayout > 0) {
+				observedRewardPerM = poolPayout / (poolAttempts / 1e6);
+			}
+			const observedPayoutPerHour = Number(workerDerived.payoutPerHour || poolDerived.payoutPerHour || 0);
 			return {
 				targetMod,
 				rewardPerM,
@@ -3545,6 +3582,9 @@
 				syncAgeSec: syncAge,
 				hasLive: !!(ws && ws.ok !== false && rewardPerM > 0),
 				netMode: !!st.network_mode_active,
+				poolWork: isPoolWorkContext(),
+				observedRewardPerM,
+				observedPayoutPerHour,
 			};
 		}
 
@@ -3557,40 +3597,66 @@
 			const fleetGh = gh * rigs;
 			const aps = fleetGh * 1e9 * uptime;
 			const rpm = Math.max(0, Number(net.rewardPerM) || 0);
-			const targetMod = Math.max(251, Number(net.targetMod) || 251);
-			const poolHmcPerSec = rpm > 0 ? (aps / 1e6) * rpm : 0;
+			const effectiveRpm = Number(net.observedRewardPerM) > 0 ? Number(net.observedRewardPerM) : rpm;
+			const targetMod = Math.max(POOL_TARGET_MOD_FLOOR, Number(net.targetMod) || POOL_TARGET_MOD_FLOOR);
+			const poolWork = inputs.scenario === 'pool' || !!net.poolWork;
+			const poolGhLive = Math.max(0, Number(net.poolGh) || 0);
+			let effGh = fleetGh;
+			if (poolWork && poolGhLive > 0) {
+				effGh = Math.min(fleetGh, poolGhLive);
+			}
+			const effAps = effGh * 1e9 * uptime;
+			const poolHmcPerSec = effectiveRpm > 0 ? (effAps / 1e6) * effectiveRpm : 0;
 			const poolHmcHour = poolHmcPerSec * 3600 * share;
 			const poolHmcDay = poolHmcHour * 24;
 			const poolHmcMonth = poolHmcDay * 30;
-			const solvesPerSec = aps / targetMod;
-			const foundBonusHour = Number(net.foundBonus) > 0 ? solvesPerSec * Number(net.foundBonus) * 3600 * share : 0;
+			const theoreticalUncappedHour = rpm > 0 ? ((aps / 1e6) * rpm * 3600 * share) : 0;
+			const solvesPerSec = poolWork ? 0 : (effAps / targetMod);
+			// Pool work: payout is reward/M per attempt; found bonus is rare (not aps/M solves).
+			const foundBonusHour = (!poolWork && Number(net.foundBonus) > 0)
+				? (aps / targetMod) * Number(net.foundBonus) * 3600 * share
+				: 0;
 			const foundBonusDay = foundBonusHour * 24;
 			const totalHmcHour = poolHmcHour + foundBonusHour;
 			const totalHmcDay = totalHmcHour * 24;
 			const totalHmcMonth = totalHmcDay * 30;
-			const etaSec = aps > 0 ? targetMod / aps : -1;
-			const pohProgress = aps > 0 ? Math.min(0.995, 1 - Math.exp(-aps / targetMod)) : 0;
+			const etaSec = poolWork ? -1 : (effAps > 0 ? targetMod / effAps : -1);
+			const pohProgress = poolWork
+				? (effAps > 0 ? Math.min(0.85, effAps / (targetMod * 500)) : 0)
+				: (effAps > 0 ? Math.min(0.995, 1 - Math.exp(-effAps / targetMod)) : 0);
 			const powerTotalW = Math.max(0, Number(inputs.powerW) || 0) * rigs;
 			const kwhDay = (powerTotalW / 1000) * 24 * uptime;
 			const costDay = kwhDay * Math.max(0, Number(inputs.kwhUsd) || 0);
 			const hmcUsd = Math.max(0, Number(inputs.hmcUsd) || 0);
-			const revDay = hmcUsd > 0 ? totalHmcDay * hmcUsd : null;
-			const netDay = revDay != null ? revDay - costDay : null;
-			let breakEven = '—';
-			if (Number(inputs.hwCostUsd) > 0 && netDay != null && netDay > 0) {
-				breakEven = fmt(Math.ceil(Number(inputs.hwCostUsd) / netDay), 0) + ' days';
-			} else if (Number(inputs.hwCostUsd) > 0 && netDay != null && netDay <= 0) {
-				breakEven = 'never (negative margin)';
-			}
 			let chainHour = 0;
 			if (Number(net.emptyHour) > 0 && Number(net.poolGh) > 0 && fleetGh > 0) {
 				chainHour = Number(net.emptyHour) * (fleetGh / Number(net.poolGh)) * uptime;
 			}
 			const poolShareOfTotal = Number(net.poolGh) > 0 ? Math.min(100, (fleetGh / Number(net.poolGh)) * 100) : 0;
+			const theoreticalHmcHour = poolHmcHour;
+			const observedPayoutPerHour = Number(net.observedPayoutPerHour || 0);
+			let scaledObservedHour = 0;
+			if (observedPayoutPerHour > 0 && net.workerGh > 0 && effGh > 0) {
+				scaledObservedHour = observedPayoutPerHour * (effGh / net.workerGh) * (share / Math.max(0.01, (net.mySharePct || 100) / 100));
+			}
+			const displayHmcHour = poolHmcHour;
+			const ghCapped = poolGhLive > 0 && fleetGh > poolGhLive * 1.05;
+			const displayHmcDay = displayHmcHour * 24;
+			let breakEven = '—';
+			const revDayDisp = hmcUsd > 0 ? displayHmcDay * hmcUsd : null;
+			const netDayDisp = revDayDisp != null ? revDayDisp - costDay : null;
+			if (Number(inputs.hwCostUsd) > 0 && netDayDisp != null && netDayDisp > 0) {
+				breakEven = fmt(Math.ceil(Number(inputs.hwCostUsd) / netDayDisp), 0) + ' days';
+			} else if (Number(inputs.hwCostUsd) > 0 && netDayDisp != null && netDayDisp <= 0) {
+				breakEven = 'never (negative margin)';
+			}
 			return {
-				aps, poolHmcHour, poolHmcDay, poolHmcMonth, totalHmcHour, totalHmcDay, totalHmcMonth,
-				foundBonusDay, etaSec, pohProgress, powerTotalW, kwhDay, costDay, revDay, netDay, breakEven,
-				chainHour, poolShareOfTotal, solvesPerSec,
+				aps, poolHmcHour, poolHmcDay, poolHmcMonth, theoreticalHmcHour, displayHmcHour,
+				totalHmcHour: displayHmcHour, totalHmcDay: displayHmcDay, totalHmcMonth: displayHmcDay * 30,
+				foundBonusDay, etaSec, pohProgress, powerTotalW, kwhDay, costDay,
+				revDay: revDayDisp, netDay: netDayDisp, breakEven,
+				chainHour, poolShareOfTotal, solvesPerSec, observedPayoutPerHour, scaledObservedHour, poolWork,
+				theoreticalUncappedHour, ghCapped, effGh,
 			};
 		}
 
@@ -3630,17 +3696,41 @@
 				else mineCalcEl('mine-calc-net-sync').textContent = fmtDur(net.syncAgeSec) + ' ago';
 			}
 
-			if (mineCalcEl('mine-calc-out-hour')) mineCalcEl('mine-calc-out-hour').textContent = fmt(out.totalHmcHour, 6);
+			if (mineCalcEl('mine-calc-out-hour')) mineCalcEl('mine-calc-out-hour').textContent = fmt(out.displayHmcHour, 6);
+			const hourSub = mineCalcEl('mine-calc-out-hour-sub');
+			if (hourSub) {
+				const parts = [];
+				if (out.ghCapped) parts.push('capped to pool ' + fmt(net.poolGh, 2) + ' GH/s');
+				if (out.scaledObservedHour > 0) parts.push('live ~' + fmt(out.scaledObservedHour, 4) + ' HMC/h');
+				if (out.theoreticalUncappedHour > out.displayHmcHour * 1.5) {
+					parts.push('uncapped ' + fmt(out.theoreticalUncappedHour, 1) + ' HMC/h if pool grew');
+				}
+				hourSub.textContent = parts.length ? parts.join(' · ') : (out.poolWork ? 'pool share model (reward/M × eff GH/s)' : '');
+			}
 			if (mineCalcEl('mine-calc-out-day')) mineCalcEl('mine-calc-out-day').textContent = fmt(out.totalHmcDay, 4);
 			if (mineCalcEl('mine-calc-out-month')) mineCalcEl('mine-calc-out-month').textContent = fmt(out.totalHmcMonth, 2);
 			if (mineCalcEl('mine-calc-out-aps')) mineCalcEl('mine-calc-out-aps').textContent = fmtMiningTrialRate(out.aps) || fmt(out.aps, 0);
-			if (mineCalcEl('mine-calc-out-eta')) mineCalcEl('mine-calc-out-eta').textContent = out.etaSec > 0 ? fmtDur(out.etaSec) : '—';
-			if (mineCalcEl('mine-calc-out-found-day')) mineCalcEl('mine-calc-out-found-day').textContent = out.foundBonusDay > 0 ? fmt(out.foundBonusDay, 6) : '—';
+			if (mineCalcEl('mine-calc-out-eta')) {
+				mineCalcEl('mine-calc-out-eta').textContent = out.poolWork ? 'pool work' : (out.etaSec > 0 ? fmtDur(out.etaSec) : '—');
+			}
+			if (mineCalcEl('mine-calc-out-found-day')) {
+				mineCalcEl('mine-calc-out-found-day').textContent = (out.poolWork || out.foundBonusDay <= 0)
+					? '—'
+					: fmt(out.foundBonusDay, 6);
+			}
 			setMineCalcBar('mine-calc-bar-poh', out.pohProgress * 100);
 			if (mineCalcEl('mine-calc-poh-note')) {
+				const poolNote = net.poolWork
+					? 'Pool work pays per accepted attempt (reward/M); found bonus is rare — not included in HMC/h estimate.'
+					: '';
 				mineCalcEl('mine-calc-poh-note').textContent =
-					'Poisson model: P(solve within 1 mod window) ≈ ' + fmt(out.pohProgress * 100, 1) + '% · scheduler ' + net.schedulerMode +
-					(out.solvesPerSec > 0 ? (' · ~' + fmt(out.solvesPerSec * 3600, 4) + ' solves/h fleet-wide') : '');
+					(poolNote ? poolNote + ' ' : '') +
+					(!net.poolWork && out.solvesPerSec > 0
+						? ('Poisson model: P(solve within 1 mod window) ≈ ' + fmt(out.pohProgress * 100, 1) + '% · scheduler ' + net.schedulerMode +
+							(' · ~' + fmt(out.solvesPerSec * 3600, 4) + ' solves/h fleet-wide'))
+						: (net.poolWork
+							? 'No PoH solve ETA in pool mode — HMC/h from observed reward/M × effective GH/s (capped to live pool).'
+							: ('ETA order-of-magnitude: M / (GH/s×10⁹) · scheduler ' + net.schedulerMode)));
 			}
 			if (mineCalcEl('mine-calc-out-power-total')) mineCalcEl('mine-calc-out-power-total').textContent = fmt(out.powerTotalW, 0) + ' W';
 			if (mineCalcEl('mine-calc-out-cost-day')) mineCalcEl('mine-calc-out-cost-day').textContent = inputs.kwhUsd > 0 ? ('$' + fmt(out.costDay, 2)) : '—';
@@ -3684,10 +3774,10 @@
 
 			if (mineCalcEl('mine-calc-footnote')) {
 				const parts = [
-					'Formula: (GH/s × 10⁹ × uptime × rigs / 10⁶) × reward_per_m × pool_share.',
-					net.foundBonus > 0 ? ('Found bonus: ~(attempts/s ÷ target_mod) × ' + fmt(net.foundBonus, 4) + ' HMC per solve.') : '',
+					'Calculator: HMC/h = (GH/s × 10⁹ × uptime / 10⁶) × reward/M × pool_share — updates when you change inputs.',
+					out.scaledObservedHour > 0 ? ('Live worker rate (scaled): ~' + fmt(out.scaledObservedHour, 4) + ' HMC/h from coordinator payout Δ.') : '',
+					'Higher M (more miners/hash) → lower reward/M. See Work payout for actual settled HMC.',
 					inputs.scenario === 'fleet' ? ('Fleet: ' + inputs.rigCount + ' × ' + fmt(inputs.hashrateGh, 2) + ' GH/s = ' + fmt(inputs.hashrateGh * inputs.rigCount, 2) + ' GH/s aggregate.') : '',
-					'Estimates only — actual payout depends on coordinator acceptance, orders scheduler, and network conditions.',
 				].filter(Boolean);
 				mineCalcEl('mine-calc-footnote').textContent = parts.join(' ');
 			}
@@ -4273,11 +4363,12 @@
 			}
 		}
 		function estimateMinerHashrateGHS(row, attemptsPerMin) {
-			const liveGH = Number(row && row.live && row.live.hashrate_gh_s || 0);
+			const liveGH = clampRigHashrateGHS(row && row.live && row.live.hashrate_gh_s);
 			if (liveGH > 0) return liveGH;
 			const apm = Number(attemptsPerMin || 0);
 			if (!(apm > 0)) return 0;
-			return (apm / 60.0) / 1e9;
+			const est = (apm / 60.0) / 1e9;
+			return clampRigHashrateGHS(est);
 		}
 		/** Build NetworkStatsResponse-shaped object from GET /api/global/metrics → network */
 		function networkStatsFromGlobalNetwork(net) {
@@ -4320,14 +4411,7 @@
 				}
 				return;
 			}
-			if (hiveTH > 0 && hiveTH * 1000 >= 0.01) return;
-			const aps = Number(poolDerived.attemptsPerSec || workerDerived.attemptsPerSec || 0);
-			if (aps > 0) {
-				applyPoolHashDisplayGh(aps / 1e9, '*');
-				if ($('hive-note') && !$('hive-note').textContent) {
-					$('hive-note').textContent = 'pool strip: derived from coordinator attempts/s (*)';
-				}
-			}
+			if (hiveTH > 0 && hiveTH <= 10 && hiveTH * 1000 >= 0.01) return;
 		}
 		function renderHive(ts, metrics) {
 			if (!$('hive-total-miners')) return;
@@ -4554,7 +4638,7 @@
 			lastGoodWorkStats = ws;
 			{
 				const tmWs = workStatsTargetMod(ws);
-				if (tmWs > 0) {
+				if (tmWs > 0 && (!isPoolWorkContext() || tmWs >= POOL_TARGET_MOD_FLOOR)) {
 					lastGlobalTargetMod = tmWs;
 					lastTargetModSource = 'coordinator';
 				}
@@ -4741,9 +4825,10 @@
 							attemptsPerMin = ((r.attempts - prevRate.attempts) * 60.0) / dt;
 						}
 						if (!(attemptsPerMin > 0) && r.live && Number(r.live.hashrate_gh_s || 0) > 0) {
-							attemptsPerMin = Number(r.live.hashrate_gh_s) * 1e9 * 60;
+							attemptsPerMin = clampRigHashrateGHS(r.live.hashrate_gh_s) * 1e9 * 60;
 						}
 						const hrGHS = estimateMinerHashrateGHS(r, attemptsPerMin);
+						const trialsPerMin = hrGHS > 0 ? hrGHS * 1e9 * 60 : attemptsPerMin;
 						const hr = hrGHS > 0 ? (fmtRigHashrateGHS(hrGHS) + ' GH/s' + ((r.live && Number(r.live.hashrate_gh_s || 0) > 0) ? '' : '*')) : '—';
 						const share = totalPayoutNum > 0 ? (fmt((r.payout / totalPayoutNum) * 100, 2) + '%') : '—';
 						const tr = document.createElement('tr');
@@ -4780,15 +4865,13 @@
 					const dt = Math.max(0.25, (monoNow - prev.monoMs) / 1000);
 					attemptsPerMin = ((r.attempts - prev.attempts) * 60.0) / dt;
 				}
-				if (!(attemptsPerMin > 0) && r.live && Number(r.live.hashrate_gh_s || 0) > 0) {
-					attemptsPerMin = Number(r.live.hashrate_gh_s) * 1e9 * 60;
-				}
+				const hrGHS = estimateMinerHashrateGHS(r, attemptsPerMin);
 				patchHiveFleetRowFromWorker(r, attemptsPerMin);
 				workAttemptsRate.set(r.id, { attempts: r.attempts, ts: sampleUnix, monoMs: monoNow });
 				const minuteUnix = Number(r.abuse.minute_unix || 0);
 				const staleSec = minuteUnix > 0 ? Math.max(0, sampleUnix - (minuteUnix * 60)) : -1;
 				const runningWorkerID = String((latestWorkerStatus && latestWorkerStatus.worker_id) || '');
-				const hiThr = attemptsPerMin >= 50000 || Number(r.attempts || 0) >= 1e8;
+				const hiThr = (hrGHS > 0.01) || attemptsPerMin >= 5e9 || Number(r.attempts || 0) >= 1e8;
 				const totA = Number(ws.accepted_attempts || 0);
 				const rowShare = totA > 0 ? (Number(r.attempts || 0) / totA) : 0;
 				const dominantRow = rows.length <= 1 || rowShare >= 0.05 || Number(r.attempts || 0) >= 1e7;
@@ -4819,7 +4902,7 @@
 				tr.innerHTML = '<td class="px-2 py-1.5 ' + stateClass + '">' + (online ? '●' : '○') + ' ' + stateText + (isMine ? ' ★' : '') + '</td>' +
 					'<td class="px-2 py-1.5 text-neon/90 truncate max-w-[220px]" title="' + escapeHtml(r.id) + '">' + escapeHtml(r.id) + '</td>' +
 					'<td class="px-2 py-1.5 tabular-nums">' + fmtUInt(r.ranges) + '</td>' +
-					'<td class="px-2 py-1.5 text-matrix tabular-nums">' + fmtUInt(attemptsPerMin) + '</td>' +
+					'<td class="px-2 py-1.5 text-matrix tabular-nums">' + (hrGHS > 0 ? fmtRigHashrateGHS(hrGHS) : '—') + '</td>' +
 					'<td class="px-2 py-1.5 tabular-nums">' + fmtUInt(r.attempts) + '</td>' +
 					'<td class="px-2 py-1.5 text-warn tabular-nums">' + fmt(r.payout, 6) + '</td>' +
 					'<td class="px-2 py-1.5 text-gray-400 tabular-nums">' + escapeHtml(staleSec >= 0 ? fmtDur(staleSec) : '—') + '</td>' +
@@ -5180,14 +5263,17 @@
 			if ($('lbl-gpu-temp')) $('lbl-gpu-temp').textContent = Number(x.gpu_temp_c) >= 0 ? fmt(Number(x.gpu_temp_c), 1) + '°C' : '—';
 			if ($('lbl-load1')) $('lbl-load1').textContent = Number(x.load_avg_1) >= 0 ? fmt(Number(x.load_avg_1), 2) : '—';
 			if ($('lbl-poh-est')) {
+				const poolCtx = isPoolWorkContext();
 				const ins = computeMiningInsightJS(
 					Number(x.mining_attempts_total || 0),
 					Number(x.mining_target_mod || lastGlobalTargetMod || 0),
 					Number(x.mining_attempts_per_sec || 0),
-					Number(x.mining_projected_hmc_hour || 0)
+					Number(x.mining_projected_hmc_hour || 0),
+					poolCtx
 				);
 				let pohTxt = '—';
-				if (ins.etaSec > 0 && Number.isFinite(ins.etaSec)) pohTxt = '~' + fmtDur(ins.etaSec) + ' / hit';
+				if (poolCtx) pohTxt = 'pool payout';
+				else if (ins.etaSec >= 1 && Number.isFinite(ins.etaSec)) pohTxt = '~' + fmtDur(ins.etaSec) + ' / hit';
 				else {
 					const apsFmt = fmtMiningTrialRate(Number(x.mining_attempts_per_sec || 0));
 					if (apsFmt) pohTxt = apsFmt;
@@ -5225,7 +5311,7 @@
 				hashMain = fmtMiningTrialRate(aps) || fmt(aps, 0) + ' trials/s';
 				const be = String(m.mining_poh_backend || 'mixed').trim() || 'mixed';
 				hashSub = be.toUpperCase() + ' · aggregate PoH trials/s · WASM verify on solve';
-			} else if (net && Number(net.global_hashrate_th_s || 0) > 1e-12) {
+			} else if (net && Number(net.global_hashrate_th_s || 0) > 1e-12 && Number(net.global_hashrate_th_s) <= 10) {
 				hashMain = fmtPoolAggHashrate(net.global_hashrate_th_s);
 				hashSub = net.global_mock ? 'demo aggregate · network stats' : 'pool aggregate · TH/s';
 			} else if (ws && ws.ok !== false && Number(ws.accepted_attempts || 0) > 0) {
@@ -5242,14 +5328,8 @@
 			const netK = !!stK.network_mode_active;
 			const leaderK = !!(stK.chain_leader_local_poh || stK.local_solo_allowed);
 			const tmL = m ? Number(m.mining_target_mod || 0) : 0;
-			const tmW = workStatsTargetMod(ws);
-			const tmC = Number(lastGlobalTargetMod || 0);
-			let tm;
-			if (netK && !leaderK) {
-				tm = Math.max(tmL || 0, tmW || 0, tmC || 0);
-			} else {
-				tm = tmL || tmW || tmC || 0;
-			}
+			const effTm = effectiveMiningTargetMod(m, ws);
+			const tm = effTm.mod || tmL;
 			if (m && tm > 0 && aps > 0.25) {
 				const ev = Number(m.mining_last_eval || 0);
 				const remGo = Number(m.mining_last_mod_997 || 0);
@@ -5279,11 +5359,9 @@
 
 			if ($('kpi-challenge')) $('kpi-challenge').textContent = chMain;
 			if ($('kpi-challenge-sub')) $('kpi-challenge-sub').textContent = chSub;
-			let tmDisp;
-			if (netK && !leaderK) {
-				tmDisp = Math.max(tmL || 0, tmW || 0, tmC || 0);
-			} else {
-				tmDisp = tmL || tmW || tmC || 0;
+			let tmDisp = effectiveMiningTargetMod(m, ws).mod;
+			if (!tmDisp) {
+				tmDisp = tmL || workStatsTargetMod(ws) || Number(lastGlobalTargetMod || 0);
 			}
 			if ($('kpi-poh-difficulty') && tmDisp > 0) {
 				$('kpi-poh-difficulty').textContent = fmtUInt(tmDisp);
@@ -5326,8 +5404,13 @@
 						? 'text-[10px] text-warn/85 mt-1 font-mono leading-snug'
 						: 'text-[10px] text-neon/80 mt-1 font-mono leading-snug';
 				} else {
-					sub.textContent = 'Matches canonical and local chain · click → Chain';
-					sub.className = 'text-[10px] text-matrix/75 mt-1 font-mono leading-snug';
+					const poolOnly = nums.net && !(latestStatus && (latestStatus.chain_leader_local_poh || latestStatus.local_solo_allowed));
+					sub.textContent = poolOnly
+						? ('Canonical #' + fmtUInt(nums.canonH) + ' · pool workers accrue HMC but do not append blocks — chain grows on leader PoH only')
+						: 'Matches canonical and local chain · click → Chain';
+					sub.className = poolOnly
+						? 'text-[10px] text-gray-500 mt-1 font-mono leading-snug'
+						: 'text-[10px] text-matrix/75 mt-1 font-mono leading-snug';
 				}
 			} else if (!nums.net) {
 				sub.textContent =
@@ -5350,19 +5433,12 @@
 			const running = !!payload.mining_running || !!(latestStatus && latestStatus.mining) ||
 				(netMode && Number(ws.workers_count || 0) > 0) || coordTraffic ||
 				(!!(latestWorkerStatus && latestWorkerStatus.running));
-			let tm = Number(payload.mining_target_mod || 0);
-			const tmWork = (ws && ws.ok !== false) ? workStatsTargetMod(ws) : 0;
-			const tmCanon = Number(lastGlobalTargetMod || 0);
-			if (netMode && !leaderLocal) {
-				tm = Math.max(tm || 0, tmWork || 0, tmCanon || 0);
-			} else {
-				if (tm <= 0 && ws && ws.ok !== false) tm = tmWork;
-				if (tm <= 0) tm = tmCanon;
-			}
+			const effTm = effectiveMiningTargetMod(payload, ws);
+			const tm = effTm.mod;
 			if ($('mine-stat-difficulty')) $('mine-stat-difficulty').textContent = tm > 0 ? fmtUInt(tm) : '—';
 			const diffSub = $('mine-stat-difficulty-sub');
 			if (diffSub) {
-				const src = tmWork > 0 ? 'pool coordinator' : (tmCanon > 0 ? 'network status' : (tmL > 0 ? 'local metrics' : ''));
+				const src = effTm.src || 'live';
 				const age = lastTargetModUpdatedUnix > 0 ? Math.max(0, Math.floor(Date.now() / 1000) - lastTargetModUpdatedUnix) : -1;
 				const ageTxt = age >= 0 && age <= 120 ? (' · updated ' + (age < 2 ? 'now' : fmtDur(age) + ' ago')) : '';
 				const retarget = ws && ws.pool_retarget_enabled === true ? ' · auto-retarget ON' : '';
@@ -5370,7 +5446,7 @@
 					? ((src || 'live') + ageTxt + retarget)
 					: 'waiting for work/stats or metrics…';
 			}
-			const poolWorker = netMode && !leaderLocal;
+			const poolWorker = isPoolWorkContext();
 			const localSliceActive = poolWorker && workerDerived.isLocalSlice;
 			let aps = Number(payload.mining_attempts_per_sec || 0);
 			if (aps <= 0 && poolWorker && wst.running) {
@@ -5405,7 +5481,11 @@
 				}
 			}
 			let tot = Number(payload.mining_attempts_total || 0);
-			if (tot <= 0 && localSliceActive) tot = Number(workerDerived.totalAttempts || 0);
+			if (poolWorker && wst.running && tot <= 0) {
+				tot = localSliceActive
+					? Number(workerDerived.totalAttempts || 0)
+					: Number((ws && ws.accepted_attempts) || poolDerived.totalAttempts || 0);
+			} else if (tot <= 0 && localSliceActive) tot = Number(workerDerived.totalAttempts || 0);
 			else if (tot <= 0 && netMode && !localSliceActive) tot = Number(ws.accepted_attempts || poolDerived.totalAttempts || 0);
 			else if (tot <= 0 && netMode) tot = Number(workerDerived.totalAttempts || 0);
 			if ($('mine-stat-tot')) {
@@ -5531,34 +5611,47 @@
 				const gh = Number(wst.measured_hashrate_gh_s || wst.hashrate_gh_s || workerGH || 0);
 				if (gh > 0) apsInsight = gh * 1e9;
 			}
-			if (poolWorker && wst.running && tm > 0 && attInsight > 0 && apsInsight > 1e-6) {
-				const ins = computeMiningInsightJS(attInsight, tm, apsInsight, Number(workerDerived.payoutPerHour || payload.mining_projected_hmc_hour || 0));
+			if (poolWorker && wst.running && tm > 0 && apsInsight > 1e-6) {
+				const ins = computeMiningInsightJS(
+					attInsight, tm, apsInsight,
+					Number(workerDerived.payoutPerHour || payload.mining_projected_hmc_hour || 0),
+					true
+				);
 				if (!(Number.isFinite(eta) && eta >= 0)) eta = ins.etaSec;
 				if (!(Number.isFinite(prog) && prog > 0)) prog = ins.progress;
 			} else if (!(Number.isFinite(prog) && prog > 0) && tm > 0 && attInsight > 0) {
-				const ins = computeMiningInsightJS(attInsight, tm, apsInsight > 0 ? apsInsight : aps, 0);
+				const ins = computeMiningInsightJS(attInsight, tm, apsInsight > 0 ? apsInsight : aps, 0, poolWorker);
 				if (ins.progress > 0) prog = ins.progress;
 				if (!(Number.isFinite(eta) && eta >= 0) && ins.etaSec > 0) eta = ins.etaSec;
 			}
-			if ($('mine-insight-eta')) $('mine-insight-eta').textContent = Number.isFinite(eta) && eta >= 0 ? fmtDur(eta) : '—';
+			if ($('mine-insight-eta')) {
+				if (poolWorker && wst.running) {
+					$('mine-insight-eta').textContent = 'pool work';
+					$('mine-insight-eta').title = 'No PoH solve ETA in pool mode — payout accrues per coordinator submit (see payout Δ/min).';
+				} else {
+					$('mine-insight-eta').textContent = (Number.isFinite(eta) && eta >= 1) ? fmtDur(eta) : '—';
+					$('mine-insight-eta').title = '';
+				}
+			}
 			const etaSub = $('mine-insight-eta-sub');
 			if (etaSub) {
-				if (poolWorker && wst.running && Number.isFinite(eta) && eta >= 0) {
-					etaSub.textContent = localSliceActive
-						? 'Your worker heuristic: M / local rate (not a guarantee). Payout accrual via coordinator.'
-						: 'Pool worker heuristic: order-of-magnitude M / rate (not a guarantee). Payout accrual via coordinator.';
-				} else if (poolWorker && wst.running) {
-					etaSub.textContent = 'Waiting for work rate — see Projected HMC/h and payout Δ/min.';
+				if (poolWorker && wst.running) {
+					etaSub.textContent = 'Accrual via coordinator ranges · not local chain blocks · see Work payout table.';
+				} else if (Number.isFinite(eta) && eta >= 1) {
+					etaSub.textContent = 'Heuristic time to next PoH hit (local WASM).';
 				} else {
 					etaSub.textContent = '';
 				}
 			}
 			if ($('lbl-poh-est')) {
 				let pohTxt = '—';
-				if (Number.isFinite(eta) && eta >= 0) pohTxt = '~' + fmtDur(eta) + ' / hit';
+				if (poolWorker && wst.running) pohTxt = 'pool payout';
+				else if (Number.isFinite(eta) && eta >= 1) pohTxt = '~' + fmtDur(eta) + ' / hit';
 				else if (apsInsight > 0) pohTxt = fmtMiningTrialRate(apsInsight) || '—';
 				$('lbl-poh-est').textContent = pohTxt;
 			}
+			const etaLbl = $('mine-insight-eta-label');
+			if (etaLbl) etaLbl.textContent = (poolWorker && wst.running) ? 'Payout mode' : 'ETA (next solve)';
 			if ($('mine-insight-pct')) $('mine-insight-pct').textContent = Number.isFinite(prog) && prog > 0 ? fmt(100 * Math.min(1, prog), 1) + '%' : '—';
 			if ($('mine-insight-bar')) $('mine-insight-bar').style.width = (Number.isFinite(prog) && prog > 0 ? Math.min(100, 100 * prog) : 0) + '%';
 			if ($('mine-insight-hour')) $('mine-insight-hour').textContent = fmt(Number(payload.mining_hmc_last_hour_approx || 0), 6);
@@ -5679,7 +5772,7 @@
 					if (!r.ok) continue;
 					const j = await r.json();
 					const mod = Number(j.mining_target_mod || 0);
-					if (mod > 0) return mod;
+					if (mod > 0 && (!isPoolWorkContext() || mod >= POOL_TARGET_MOD_FLOOR)) return mod;
 				} catch (_) {}
 			}
 			return 0;
@@ -5714,14 +5807,14 @@
 						latestCanonicalChainHeight = ctip > 0 ? ctip : latestCanonicalChainHeight;
 						if ($('chain-tip-full')) $('chain-tip-full').textContent = tip || '—';
 						const pm = Number(st.pool_target_mod || 0);
-						if (pm > 0) {
+						if (pm > 0 && (!isPoolWorkContext() || pm >= POOL_TARGET_MOD_FLOOR)) {
 							lastGlobalTargetMod = pm;
 							if ($('kpi-poh-difficulty')) $('kpi-poh-difficulty').textContent = fmtUInt(pm);
 						}
 					}
-					if (!(st && Number(st.pool_target_mod || 0) > 0)) {
+					if (!(st && Number(st.pool_target_mod || 0) >= POOL_TARGET_MOD_FLOOR)) {
 						const cmod = await fetchCanonicalTargetModFallback(st);
-						if (cmod > 0) {
+						if (cmod > 0 && (!isPoolWorkContext() || cmod >= POOL_TARGET_MOD_FLOOR)) {
 							lastGlobalTargetMod = cmod;
 							if ($('kpi-poh-difficulty')) $('kpi-poh-difficulty').textContent = fmtUInt(cmod);
 						}
@@ -5731,7 +5824,7 @@
 					}
 					if (wk) {
 						const t = Number(wk.target_mod || 0);
-						if (t > 0) {
+						if (t > 0 && (!isPoolWorkContext() || t >= POOL_TARGET_MOD_FLOOR)) {
 							lastGlobalTargetMod = t;
 							if ($('kpi-poh-difficulty')) $('kpi-poh-difficulty').textContent = fmtUInt(t);
 						}

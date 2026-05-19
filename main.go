@@ -3018,9 +3018,11 @@ func (a *app) handleTransferSend(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	canonicalBase := ""
+	// Loopback admin tx (settle_worker_payouts.sh) must use local SQLite nonce + mempool on the chain host.
+	loopbackAdminSettle := a.allowLoopbackAdminTxSend(r)
 	// Match handleWalletEarnings: in network/follower mode keep submitting to canonical even if a stale
 	// local miner flag is set; otherwise POST falls through to empty SQLite and returns insufficient_balance.
-	if a.shouldUseCanonicalChainAPI() {
+	if a.shouldUseCanonicalChainAPI() && !loopbackAdminSettle {
 		if base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/"); base != "" && !canonicalBaseWouldLoopbackProxy(r, base) {
 			canonicalBase = base
 		}
