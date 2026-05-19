@@ -14,6 +14,7 @@ import (
 	neturl "net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -465,8 +466,14 @@ func (a *app) workerProcessRunning() bool {
 		return false
 	}
 	a.workerMu.Lock()
-	defer a.workerMu.Unlock()
-	return a.workerCmd != nil && a.workerCmd.Process != nil && a.workerCmd.ProcessState == nil
+	subprocess := a.workerCmd != nil && a.workerCmd.Process != nil && a.workerCmd.ProcessState == nil
+	dataDir := strings.TrimSpace(a.dataDir)
+	a.workerMu.Unlock()
+	if subprocess {
+		return true
+	}
+	logRoot := filepath.Join(resolveWorkerRepoRoot(dataDir), "logs")
+	return workerActiveFromLog(logRoot, 120)
 }
 
 func canonicalMiningObservedSec(remote map[string]any) float64 {

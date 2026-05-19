@@ -2332,13 +2332,14 @@ func (a *app) handleWorkerStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	logRoot := filepath.Join(resolveWorkerRepoRoot(strings.TrimSpace(a.dataDir)), "logs")
 	measuredGH := parseWorkerpohMeasuredGHs(logRoot)
+	logFresh := workerLogFresh(logRoot, 120)
 	workerID := a.workerID
 	coordURL := a.workerCoordURL
 	startedAt := a.workerStartedAt
 	logPath := a.workerLogPath
 	hashrateGHS := a.workerHashrate
 	// Desktop autostart runs workerpoh outside workerCmd; detect via live log tail.
-	if !running && measuredGH > 0 {
+	if !running && logFresh && measuredGH > 0 {
 		running = true
 		if workerID == "" {
 			workerID = workerIDFromLatestWorkerpohLog(logRoot)
@@ -2349,6 +2350,9 @@ func (a *app) handleWorkerStatus(w http.ResponseWriter, r *http.Request) {
 		if logPath == "" {
 			logPath = latestWorkerpohLogPath(logRoot)
 		}
+	}
+	if !running && measuredGH > 0 && !logFresh {
+		measuredGH = 0
 	}
 	writeJSON(w, map[string]any{
 		"ok":                     true,
@@ -2639,6 +2643,30 @@ func tailFileLastLines(path string, maxLines int, maxRead int64) ([]string, erro
 		parts = parts[len(parts)-maxLines:]
 	}
 	return parts, nil
+}
+
+// workerLogFresh returns true when the newest workerpoh log was touched within staleSec.
+func workerLogFresh(logDir string, staleSec int64) bool {
+	p := latestWorkerpohLogPath(logDir)
+	if p == "" {
+		return false
+	}
+	fi, err := os.Stat(p)
+	if err != nil {
+		return false
+	}
+	if staleSec <= 0 {
+		return true
+	}
+	return time.Since(fi.ModTime()) <= time.Duration(staleSec)*time.Second
+}
+
+// workerActiveFromLog reports an external workerpoh session from a fresh log tail ghs= line.
+func workerActiveFromLog(logDir string, staleSec int64) bool {
+	if !workerLogFresh(logDir, staleSec) {
+		return false
+	}
+	return parseWorkerpohMeasuredGHs(logDir) > 0
 }
 
 // parseWorkerpohMeasuredGHs reads the latest ghs=… from workerpoh submit ok lines.
