@@ -888,6 +888,23 @@ func (m *workManager) pruneAbuseStateLocked(now int64) {
 	}
 }
 
+// enrichPoolStatsForPublic adds hashrate/worker fields expected by pool listing sites (e.g. MiningPoolStats API poll).
+func enrichPoolStatsForPublic(out map[string]any, reg *lanpool.Registry) {
+	if out == nil || reg == nil {
+		return
+	}
+	online := reg.ListOnline()
+	var poolGH float64
+	for _, m := range online {
+		poolGH += m.HashrateGHS
+	}
+	out["pool_hashrate_gh_s"] = poolGH
+	out["hashrate"] = poolGH * 1e9
+	out["hashrate_hs"] = poolGH * 1e9
+	out["workers"] = len(online)
+	out["workers_online"] = len(online)
+}
+
 func (m *workManager) stats(includeDetails bool) map[string]any {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -1154,6 +1171,8 @@ func addWorkRoutes(mux *http.ServeMux, token string, allowInsecure bool, reg *la
 			}
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_ = json.NewEncoder(w).Encode(wm.stats(details))
+		out := wm.stats(details)
+		enrichPoolStatsForPublic(out, reg)
+		_ = json.NewEncoder(w).Encode(out)
 	})
 }
