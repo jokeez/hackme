@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,6 +27,18 @@ func envBool(key string, def bool) bool {
 		return def
 	}
 	return v == "1" || v == "true" || v == "yes" || v == "on"
+}
+
+func envDurationSec(key string, defSec int) time.Duration {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return time.Duration(defSec) * time.Second
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 1 {
+		return time.Duration(defSec) * time.Second
+	}
+	return time.Duration(n) * time.Second
 }
 
 const maxCoordinatorPushWorkBodyBytes = 1 << 20
@@ -116,13 +129,15 @@ func main() {
 		wm.defaultBatch, wm.targetMod, wm.leaseSec, wm.rewardPerM, wm.foundBonus)
 	log.Printf("Work anti-abuse: claim_per_min=%d submit_per_min=%d bad_strikes_to_ban=%d ban_sec=%d",
 		wm.claimPerMin, wm.submitPerMin, wm.badStrikesToBan, wm.banSec)
+	readTO := envDurationSec("HACKME_COORDINATOR_READ_TIMEOUT_SEC", 60)
+	writeTO := envDurationSec("HACKME_COORDINATOR_WRITE_TIMEOUT_SEC", 120)
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           mux,
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      30 * time.Second,
-		IdleTimeout:       60 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       readTO,
+		WriteTimeout:      writeTO,
+		IdleTimeout:       120 * time.Second,
 	}
 	log.Fatal(srv.ListenAndServe())
 }

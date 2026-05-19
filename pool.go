@@ -190,7 +190,7 @@ func coordinatorHTTPClient() *http.Client {
 			ExpectContinueTimeout: 1 * time.Second,
 		}
 		coordHTTPClient = &http.Client{
-			Timeout:   10 * time.Second,
+			Timeout:   30 * time.Second,
 			Transport: tr,
 		}
 	})
@@ -1157,13 +1157,13 @@ func (a *app) handleGlobalMetrics(w http.ResponseWriter, r *http.Request) {
 		statsCh = make(chan coordStatsRes, 1)
 		workCh = make(chan coordWorkRes, 1)
 		go func() {
-			coordCtx, coordCancel := context.WithTimeout(r.Context(), 10*time.Second)
+			coordCtx, coordCancel := context.WithTimeout(r.Context(), 25*time.Second)
 			defer coordCancel()
 			s, err := fetchCoordinatorStats(coordCtx, baseCoord)
 			statsCh <- coordStatsRes{stats: s, err: err}
 		}()
 		go func() {
-			workCtx, workCancel := context.WithTimeout(r.Context(), 10*time.Second)
+			workCtx, workCancel := context.WithTimeout(r.Context(), 25*time.Second)
 			defer workCancel()
 			ws, err := fetchCoordinatorWorkStats(workCtx, baseCoord, false)
 			workCh <- coordWorkRes{work: ws, err: err}
@@ -1208,7 +1208,9 @@ func (a *app) handleGlobalMetrics(w http.ResponseWriter, r *http.Request) {
 			workPart["accepted_attempts"] = asUint64(ws["accepted_attempts"])
 			workPart["target_mod"] = asUint64(ws["target_mod"])
 			workPart["total_payout_hmc"] = ws["total_payout_hmc"]
+			workPart["pool_hashrate_gh_s"] = ws["pool_hashrate_gh_s"]
 			workPart["workers"] = ws["workers"]
+			workPart["miners"] = ws["miners"]
 			wc := asUint64(ws["workers_count"])
 			if wc == 0 {
 				wc = uint64(len(mapFromAny(ws["workers"])))
@@ -1221,6 +1223,7 @@ func (a *app) handleGlobalMetrics(w http.ResponseWriter, r *http.Request) {
 	} else {
 		workPart["reason"] = "coordinator_not_configured"
 	}
+	applyPoolHashrateToNetwork(networkPart, workPart)
 	// If coordinator target_mod is unavailable, pull canonical target_mod so
 	// follower dashboards keep difficulty fresh while idle.
 	if asUint64(workPart["target_mod"]) == 0 {
@@ -1337,12 +1340,78 @@ func mapFromAny(v any) map[string]any {
 	}
 }
 
+// repairWorkerSettlementState clamps local settled_hmc when coordinator restarted and accrued dropped.
+func repairWorkerSettlementState(state *workerSettlementState, workers map[string]any) bool {
+	if state == nil || len(workers) == 0 {
+		return false
+	}
+	if state.Workers == nil {
+		state.Workers = map[string]workerSettlementStateEntry{}
+	}
+	changed := false
+	for wid, v := range workers {
+		row := mapFromAny(v)
+		accrued := parseAnyFloat(row["payout_hmc"])
+		if accrued < 0 {
+			accrued = 0
+		}
+		ent := state.Workers[wid]
+		if ent.SettledHMC > accrued+1e-12 {
+			ent.SettledHMC = accrued
+			state.Workers[wid] = ent
+			changed = true
+		}
+	}
+	return changed
+}
+
+// applyPoolHashrateToNetwork sets global_hashrate_th_s from work pool_hashrate_gh_s and active rigs (best of both).
+func applyPoolHashrateToNetwork(networkPart, workPart map[string]any) {
+	if networkPart == nil {
+		return
+	}
+	var sumRigsGH float64
+	for _, row := range anySlice(networkPart["active_rigs"]) {
+		m := mapFromAny(row)
+		sumRigsGH += parseAnyFloat(m["hashrate_gh_s"])
+	}
+	poolGH := float64(0)
+	if workPart != nil {
+		poolGH = parseAnyFloat(workPart["pool_hashrate_gh_s"])
+	}
+	totalGH := sumRigsGH
+	if poolGH > totalGH {
+		totalGH = poolGH
+	}
+	if totalGH > 0 {
+		networkPart["global_hashrate_th_s"] = totalGH / 1000.0
+		networkPart["pool_hashrate_gh_s"] = totalGH
+	}
+}
+
+// coordinatorWorkersMap returns per-worker rows when present (not a bare online count).
+func coordinatorWorkersMap(ws map[string]any) map[string]any {
+	if ws == nil {
+		return map[string]any{}
+	}
+	if m, ok := ws["workers"].(map[string]any); ok {
+		return m
+	}
+	return mapFromAny(ws["workers"])
+}
+
 // ensureCoordinatorWorkersMap fills ws["workers"] when public coordinator stats omit per-worker rows.
 func ensureCoordinatorWorkersMap(ws map[string]any) {
 	if ws == nil {
 		return
 	}
-	if len(mapFromAny(ws["workers"])) > 0 {
+	if _, ok := ws["workers"].(float64); ok {
+		return
+	}
+	if _, ok := ws["workers"].(int); ok {
+		return
+	}
+	if len(coordinatorWorkersMap(ws)) > 0 {
 		return
 	}
 	workersCount := asUint64(ws["workers_count"])
@@ -1404,11 +1473,11 @@ func walletAccrualFromCoordinator(ws map[string]any, stateWorkers map[string]wor
 		return 0, 0, 0, "unavailable"
 	}
 	accrualSource = "none"
-	workers := mapFromAny(ws["workers"])
+	workers := coordinatorWorkersMap(ws)
 	coordHasPerWorker := len(workers) > 0
 	if !coordHasPerWorker {
 		ensureCoordinatorWorkersMap(ws)
-		workers = mapFromAny(ws["workers"])
+		workers = coordinatorWorkersMap(ws)
 	}
 	nodeAddr := settlementDisplayWalletAddress(nodeAddress, payoutMap)
 	wid := strings.TrimSpace(desktopWorkerID)
