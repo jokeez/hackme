@@ -3734,7 +3734,9 @@
 			const theoreticalHmcHour = poolHmcHour;
 			let scaledObservedHour = 0;
 			if (observedPayoutPerHour > 0 && workerGhLive > 0 && fleetGh > 0) {
-				const scaleGh = useLiveRpmCap ? workerGhLive : Math.min(fleetGh, poolGhLive > 0 ? poolGhLive : fleetGh);
+				const scaleGh = workerGhLive > 0
+					? workerGhLive
+					: Math.min(fleetGh, poolGhLive > 0 ? poolGhLive : fleetGh);
 				scaledObservedHour = observedPayoutPerHour * (scaleGh / workerGhLive) * (share / Math.max(0.01, (net.mySharePct || 100) / 100));
 			}
 			let displayHmcHour = poolHmcHour;
@@ -4744,7 +4746,12 @@
 		}
 		async function fetchCanonicalWalletFallback(addr) {
 			const base = String((latestStatus && latestStatus.public_authority_base) || 'https://hackme.tech').replace(/\/$/, '');
-			if (!addr || !addr.startsWith('HMC-')) return nnce_units);
+			if (!addr || !addr.startsWith('HMC-')) return null;
+			try {
+				const r = await fetch(base + '/api/address/' + encodeURIComponent(addr), { cache: 'no-store' });
+				if (!r.ok) return null;
+				const j = await r.json();
+				const u = Number(j.balance_units);
 				if (!Number.isFinite(u)) return null;
 				return { balance_units: u, next_nonce: Number(j.next_nonce || 0), balance_hmc: u / 100000000 };
 			} catch (_) {
