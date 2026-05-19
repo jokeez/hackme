@@ -2015,6 +2015,77 @@
 			}
 			return 0;
 		}
+		function isLocalPoolWorkerActive() {
+			const st = latestStatus || {};
+			const wst = latestWorkerStatus || {};
+			const netMode = !!st.network_mode_active;
+			const leaderLocal = !!(st.chain_leader_local_poh || st.local_solo_allowed);
+			return netMode && !leaderLocal && !!wst.running && !!String(wst.worker_id || '').trim();
+		}
+		function localWorkerWorkStatsSlice(ws, wst) {
+			const wid = String((wst && wst.worker_id) || '').trim();
+			if (!wid || !ws || typeof ws !== 'object' || !ws.workers || !ws.workers[wid]) return null;
+			const w = ws.workers[wid];
+			return {
+				workerId: wid,
+				attempts: Number(w.accepted_attempts || 0),
+				ranges: Number(w.accepted_ranges || 0),
+				payout: Number(w.payout_hmc || 0),
+				hits: Number(w.accepted_hits || 0),
+			};
+		}
+		function computeDerivedWorkRates(opts) {
+			const tNow = Number(opts.tNow || 0);
+			const monoNow = Number(opts.monoNow || Date.now());
+			const attemptsNow = Number(opts.attemptsNow || 0);
+			const payoutNow = Number(opts.payoutNow || 0);
+			const prevSample = opts.prevSample || { monoMs: 0, submitted: 0 };
+			const payoutPrevSample = opts.payoutPrevSample || { monoMs: 0, payout: 0 };
+			const serverAttemptsPrev = Number(opts.serverAttemptsPrev ?? -1);
+			const serverAttemptsPrevTs = Number(opts.serverAttemptsPrevTs || 0);
+			const payoutServerPrevUnix = Number(opts.payoutServerPrevUnix || 0);
+			const payoutServerPrevHmc = Number(opts.payoutServerPrevHmc || 0);
+			const imputeAnchor = Number(opts.imputeAnchor || 0);
+			let aps5 = 0;
+			let payoutPerMin = 0;
+			if (prevSample.monoMs > 0 && attemptsNow >= Number(prevSample.submitted || 0)) {
+				const dt = Math.max(0.25, (monoNow - prevSample.monoMs) / 1000);
+				aps5 = (attemptsNow - Number(prevSample.submitted || 0)) / dt;
+			}
+			if (payoutPrevSample.monoMs > 0 && payoutNow >= Number(payoutPrevSample.payout || 0)) {
+				const dt = Math.max(0.25, (monoNow - payoutPrevSample.monoMs) / 1000);
+				payoutPerMin = ((payoutNow - Number(payoutPrevSample.payout || 0)) * 60) / dt;
+			}
+			if (!(aps5 > 1e-6) && serverAttemptsPrevTs > 0 && tNow > serverAttemptsPrevTs && attemptsNow >= serverAttemptsPrev && serverAttemptsPrev >= 0) {
+				const sdt = Math.max(2, tNow - serverAttemptsPrevTs);
+				const sdA = attemptsNow - serverAttemptsPrev;
+				if (sdA > 0) aps5 = sdA / sdt;
+			}
+			if (!(payoutPerMin > 1e-18) && payoutServerPrevUnix > 0 && tNow > payoutServerPrevUnix && payoutNow >= payoutServerPrevHmc) {
+				const sdt = Math.max(2, tNow - payoutServerPrevUnix);
+				const dPay = payoutNow - payoutServerPrevHmc;
+				if (dPay > 0) payoutPerMin = (dPay * 60) / sdt;
+			}
+			let ratesImputed = 0;
+			if (!(aps5 > 1e-6) && attemptsNow > 0) {
+				let anchor = imputeAnchor > 0 ? imputeAnchor : Math.max(1, tNow - 180);
+				const dur = Math.max(45, tNow - anchor);
+				aps5 = attemptsNow / dur;
+				ratesImputed = 1;
+			}
+			if (!(payoutPerMin > 1e-18) && payoutNow > 0) {
+				let anchor = imputeAnchor > 0 ? imputeAnchor : Math.max(1, tNow - 180);
+				const dur = Math.max(90, tNow - anchor);
+				payoutPerMin = (payoutNow * 60) / dur;
+				ratesImputed = 1;
+			}
+			return {
+				attemptsPerSec: Math.max(0, aps5),
+				payoutDeltaPerMin5s: Math.max(0, payoutPerMin),
+				payoutPerHour: Math.max(0, payoutPerMin * 60),
+				ratesImputed,
+			};
+		}
 		function updateMiningPayoutLiveStrip() {
 			const el = $('mining-payout-live');
 			if (!el) return;
@@ -2149,10 +2220,17 @@
 			});
 		}
 
-		let workerDerived = { attemptsPerSec: 0, rangesPerSec: 0, sessionSubmitted: 0, sessionSec: 0, etaSec: null, progress: 0, totalAttempts: 0, payoutPerHour: 0, totalPayout: 0, acceptedAttemptsPerSec5s: 0, payoutDeltaPerMin5s: 0, ratesImputed: 0 };
+		let workerDerived = { attemptsPerSec: 0, rangesPerSec: 0, sessionSubmitted: 0, sessionSec: 0, etaSec: null, progress: 0, totalAttempts: 0, payoutPerHour: 0, totalPayout: 0, acceptedAttemptsPerSec5s: 0, payoutDeltaPerMin5s: 0, ratesImputed: 0, isLocalSlice: false };
+		let poolDerived = { attemptsPerSec: 0, totalAttempts: 0, totalPayout: 0, payoutPerHour: 0, payoutDeltaPerMin5s: 0, sessionSubmitted: 0 };
 		const workerPerfWindow = [];
 		let workerPrevSample = { monoMs: 0, submitted: 0 };
 		let workerPayoutPrevSample = { monoMs: 0, payout: 0 };
+		let localWorkerPrevSample = { monoMs: 0, attempts: 0, workerId: '' };
+		let localWorkerPayoutPrevSample = { monoMs: 0, payout: 0, workerId: '' };
+		let localWorkerAttemptsPrev = -1;
+		let localWorkerAttemptsPrevTs = 0;
+		let localWorkerPayoutServerPrevUnix = 0;
+		let localWorkerPayoutServerPrevHmc = 0;
 		let workerDeltaLogPrev = { ts: 0, submitted: 0, payout: 0 };
 		let workerSessionBaseSubmitted = null;
 		let workerSessionBaseChainHeight = null;
@@ -3394,10 +3472,11 @@
 			let poolGh = 0;
 			const netTh = Number((latestNetworkStats && latestNetworkStats.global_hashrate_th_s) || 0);
 			if (netTh > 0) poolGh = netTh * 1000;
-			if (!(poolGh > 0) && Number(workerDerived.attemptsPerSec || 0) > 0) {
+			if (!(poolGh > 0) && Number(poolDerived.attemptsPerSec || 0) > 0) {
+				poolGh = Number(poolDerived.attemptsPerSec) / 1e9;
+			}
+			if (!(poolGh > 0) && Number(workerDerived.attemptsPerSec || 0) > 0 && !workerDerived.isLocalSlice) {
 				poolGh = Number(workerDerived.attemptsPerSec) / 1e9;
-				const wc = Math.max(1, Number(ws.workers_count || Object.keys(ws.workers || {}).length || 1));
-				poolGh *= wc;
 			}
 			if (!(poolGh > 0)) {
 				let sumGh = 0;
@@ -3405,6 +3484,14 @@
 					sumGh += Number(r.hashrate_gh_s || 0);
 				});
 				if (sumGh > 0) poolGh = sumGh;
+			}
+			if (!(poolGh > 0) && latestWorkerRows && latestWorkerRows.length) {
+				let sumGhRows = 0;
+				latestWorkerRows.forEach((row) => {
+					const gh = Number((row.live && row.live.hashrate_gh_s) || 0);
+					if (gh > 0) sumGhRows += gh;
+				});
+				if (sumGhRows > 0) poolGh = sumGhRows;
 			}
 			const workerGh = Number(wst.measured_hashrate_gh_s || wst.hashrate_gh_s || 0);
 			let mySharePct = 100;
@@ -3574,11 +3661,11 @@
 			if (!ghEl) return;
 			if (kind === 'live' && net.workerGh > 0) {
 				ghEl.value = String(net.workerGh);
-				if (shareEl) shareEl.value = String(fmt(net.mySharePct, 2));
+				if (shareEl) shareEl.value = String(fmt(Math.max(0.01, Math.min(100, net.mySharePct || 100)), 2));
 			} else if (kind === 'pool' && net.poolGh > 0) {
 				const wc = Math.max(1, Number((lastGoodWorkStats || latestWorkStats || {}).workers_count || Object.keys((lastGoodWorkStats || {}).workers || {}).length || 1));
-				ghEl.value = String(net.poolGh / wc);
-				if (shareEl) shareEl.value = '100';
+				ghEl.value = String(fmt(net.poolGh / wc, 3));
+				if (shareEl) shareEl.value = String(fmt(100 / wc, 2));
 			} else if (kind === 'gpu') {
 				ghEl.value = '20';
 				if (mineCalcEl('mine-calc-power')) mineCalcEl('mine-calc-power').value = '180';
@@ -4424,60 +4511,79 @@
 			{
 				const tNow = Number(ws.now_unix || nowUnix);
 				const monoNow = Date.now();
+				const wst = latestWorkerStatus || {};
+				const imputeAnchor = Number(wst.started_at_unix || 0);
+				const poolAttemptsNow = Number(ws.accepted_attempts || 0);
+				const poolPayoutNow = Number(ws.total_payout_hmc || 0);
 				const submittedNow = Number(ws.submitted_items || 0);
-				const attemptsNow = Number(ws.accepted_attempts || 0);
-				const payoutNow = Number(ws.total_payout_hmc || 0);
-				let aps5 = 0;
-				let payoutPerMin = 0;
-				if (workerPrevSample.monoMs > 0 && attemptsNow >= workerPrevSample.submitted) {
-					const dt = Math.max(0.25, (monoNow - workerPrevSample.monoMs) / 1000);
-					aps5 = (attemptsNow - workerPrevSample.submitted) / dt;
+				const localSlice = isLocalPoolWorkerActive() ? localWorkerWorkStatsSlice(ws, wst) : null;
+				const localWid = localSlice ? String(localSlice.workerId || '') : '';
+				if (localWid && localWorkerPrevSample.workerId && localWorkerPrevSample.workerId !== localWid) {
+					localWorkerPrevSample = { monoMs: 0, attempts: 0, workerId: localWid };
+					localWorkerPayoutPrevSample = { monoMs: 0, payout: 0, workerId: localWid };
+					localWorkerAttemptsPrev = -1;
+					localWorkerAttemptsPrevTs = 0;
+					localWorkerPayoutServerPrevUnix = 0;
+					localWorkerPayoutServerPrevHmc = 0;
 				}
-				if (workerPayoutPrevSample.monoMs > 0 && payoutNow >= workerPayoutPrevSample.payout) {
-					const dt = Math.max(0.25, (monoNow - workerPayoutPrevSample.monoMs) / 1000);
-					payoutPerMin = ((payoutNow - workerPayoutPrevSample.payout) * 60) / dt;
-				}
-				// Coordinator JSON can be unchanged for many seconds; mono delta → 0. Use server clock deltas next.
-				if (!(aps5 > 1e-6) && workTotalAttemptsPrevTs > 0 && tNow > workTotalAttemptsPrevTs && attemptsNow >= workTotalAttemptsPrev && workTotalAttemptsPrev >= 0) {
-					const sdt = Math.max(2, tNow - workTotalAttemptsPrevTs);
-					const sdA = attemptsNow - workTotalAttemptsPrev;
-					if (sdA > 0) aps5 = sdA / sdt;
-				}
-				if (!(payoutPerMin > 1e-18) && workPayoutServerPrevUnix > 0 && tNow > workPayoutServerPrevUnix && payoutNow >= workPayoutServerPrevHmc) {
-					const sdt = Math.max(2, tNow - workPayoutServerPrevUnix);
-					const dPay = payoutNow - workPayoutServerPrevHmc;
-					if (dPay > 0) payoutPerMin = (dPay * 60) / sdt;
-				}
-				let ratesImputed = 0;
-				// Last resort: session-average (stable when snapshots stall but totals already large).
-				if (!(aps5 > 1e-6) && attemptsNow > 0) {
-					const wst = latestWorkerStatus || {};
-					let anchor = Number(wst.started_at_unix || 0);
-					if (!(anchor > 0)) anchor = Math.max(1, tNow - 180);
-					const dur = Math.max(45, tNow - anchor);
-					aps5 = attemptsNow / dur;
-					ratesImputed = 1;
-				}
-				if (!(payoutPerMin > 1e-18) && payoutNow > 0) {
-					const wst = latestWorkerStatus || {};
-					let anchor = Number(wst.started_at_unix || 0);
-					if (!(anchor > 0)) anchor = Math.max(1, tNow - 180);
-					const dur = Math.max(90, tNow - anchor);
-					payoutPerMin = (payoutNow * 60) / dur;
-					ratesImputed = 1;
-				}
+				const poolRates = computeDerivedWorkRates({
+					tNow, monoNow,
+					attemptsNow: poolAttemptsNow,
+					payoutNow: poolPayoutNow,
+					prevSample: workerPrevSample,
+					payoutPrevSample: workerPayoutPrevSample,
+					serverAttemptsPrev: workTotalAttemptsPrev,
+					serverAttemptsPrevTs: workTotalAttemptsPrevTs,
+					payoutServerPrevUnix: workPayoutServerPrevUnix,
+					payoutServerPrevHmc: workPayoutServerPrevHmc,
+					imputeAnchor,
+				});
+				const sliceAttempts = localSlice ? localSlice.attempts : poolAttemptsNow;
+				const slicePayout = localSlice ? localSlice.payout : poolPayoutNow;
+				const sliceRanges = localSlice ? localSlice.ranges : submittedNow;
+				const sliceRates = computeDerivedWorkRates({
+					tNow, monoNow,
+					attemptsNow: sliceAttempts,
+					payoutNow: slicePayout,
+					prevSample: localSlice
+						? { monoMs: localWorkerPrevSample.monoMs, submitted: localWorkerPrevSample.attempts }
+						: workerPrevSample,
+					payoutPrevSample: localSlice
+						? { monoMs: localWorkerPayoutPrevSample.monoMs, payout: localWorkerPayoutPrevSample.payout }
+						: workerPayoutPrevSample,
+					serverAttemptsPrev: localSlice ? localWorkerAttemptsPrev : workTotalAttemptsPrev,
+					serverAttemptsPrevTs: localSlice ? localWorkerAttemptsPrevTs : workTotalAttemptsPrevTs,
+					payoutServerPrevUnix: localSlice ? localWorkerPayoutServerPrevUnix : workPayoutServerPrevUnix,
+					payoutServerPrevHmc: localSlice ? localWorkerPayoutServerPrevHmc : workPayoutServerPrevHmc,
+					imputeAnchor,
+				});
+				poolDerived.totalAttempts = poolAttemptsNow;
+				poolDerived.totalPayout = poolPayoutNow;
+				poolDerived.sessionSubmitted = submittedNow;
+				poolDerived.attemptsPerSec = poolRates.attemptsPerSec;
+				poolDerived.payoutPerHour = poolRates.payoutPerHour;
+				poolDerived.payoutDeltaPerMin5s = poolRates.payoutDeltaPerMin5s;
 				workPayoutServerPrevUnix = tNow;
-				workPayoutServerPrevHmc = payoutNow;
-				workerPrevSample = { monoMs: monoNow, submitted: attemptsNow };
-				workerPayoutPrevSample = { monoMs: monoNow, payout: payoutNow };
-				workerDerived.totalAttempts = attemptsNow;
-				workerDerived.sessionSubmitted = submittedNow;
-				workerDerived.attemptsPerSec = Math.max(0, aps5);
-				workerDerived.acceptedAttemptsPerSec5s = Math.max(0, aps5);
-				workerDerived.payoutDeltaPerMin5s = Math.max(0, payoutPerMin);
-				workerDerived.payoutPerHour = Math.max(0, payoutPerMin * 60);
-				workerDerived.totalPayout = payoutNow;
-				workerDerived.ratesImputed = ratesImputed;
+				workPayoutServerPrevHmc = poolPayoutNow;
+				workerPrevSample = { monoMs: monoNow, submitted: poolAttemptsNow };
+				workerPayoutPrevSample = { monoMs: monoNow, payout: poolPayoutNow };
+				if (localSlice) {
+					localWorkerPayoutServerPrevUnix = tNow;
+					localWorkerPayoutServerPrevHmc = slicePayout;
+					localWorkerPrevSample = { monoMs: monoNow, attempts: sliceAttempts, workerId: localWid };
+					localWorkerPayoutPrevSample = { monoMs: monoNow, payout: slicePayout, workerId: localWid };
+					localWorkerAttemptsPrev = sliceAttempts;
+					localWorkerAttemptsPrevTs = tNow;
+				}
+				workerDerived.totalAttempts = sliceAttempts;
+				workerDerived.sessionSubmitted = sliceRanges;
+				workerDerived.attemptsPerSec = sliceRates.attemptsPerSec;
+				workerDerived.acceptedAttemptsPerSec5s = sliceRates.attemptsPerSec;
+				workerDerived.payoutDeltaPerMin5s = sliceRates.payoutDeltaPerMin5s;
+				workerDerived.payoutPerHour = sliceRates.payoutPerHour;
+				workerDerived.totalPayout = slicePayout;
+				workerDerived.ratesImputed = sliceRates.ratesImputed;
+				workerDerived.isLocalSlice = !!localSlice;
 			}
 			const issued = fmtUInt(ws.issued_ranges ?? 0);
 			const submitted = fmtUInt(ws.submitted_items ?? 0);
@@ -5189,25 +5295,54 @@
 				if (tm <= 0) tm = tmCanon;
 			}
 			if ($('mine-stat-difficulty')) $('mine-stat-difficulty').textContent = tm > 0 ? fmtUInt(tm) : '—';
+			const poolWorker = netMode && !leaderLocal;
+			const localSliceActive = poolWorker && workerDerived.isLocalSlice;
 			let aps = Number(payload.mining_attempts_per_sec || 0);
-			if (aps <= 0 && netMode) aps = Number(workerDerived.attemptsPerSec || 0);
+			if (aps <= 0 && poolWorker && wst.running) {
+				const ghRate = Number(wst.measured_hashrate_gh_s || wst.hashrate_gh_s || 0);
+				if (ghRate > 0) aps = ghRate * 1e9;
+				else if (localSliceActive) aps = Number(workerDerived.attemptsPerSec || 0);
+			} else if (aps <= 0 && netMode) {
+				aps = Number(workerDerived.attemptsPerSec || 0);
+			}
 			const apsFmt = fmtMiningTrialRate(aps);
 			const measuredGH = Number(wst.measured_hashrate_gh_s || 0);
 			const declaredGH = Number(wst.hashrate_gh_s || 0);
 			const workerGH = measuredGH > 0 ? measuredGH : declaredGH;
 			if ($('mine-stat-aps')) {
-				if (apsFmt) $('mine-stat-aps').textContent = apsFmt;
-				else if (netMode && workerGH > 0) $('mine-stat-aps').textContent = fmt(workerGH, 2) + ' GH/s*';
-				else $('mine-stat-aps').textContent = '—';
+				if (poolWorker && wst.running && workerGH > 0) {
+					$('mine-stat-aps').textContent = fmt(workerGH, 2) + ' GH/s';
+				} else if (apsFmt) {
+					$('mine-stat-aps').textContent = apsFmt;
+				} else if (netMode && workerGH > 0) {
+					$('mine-stat-aps').textContent = fmt(workerGH, 2) + ' GH/s*';
+				} else {
+					$('mine-stat-aps').textContent = '—';
+				}
 			}
 			if ($('mine-stat-aps-label')) {
-				$('mine-stat-aps-label').textContent = (netMode && !apsFmt && workerGH > 0)
-					? (measuredGH > 0 ? 'worker hashrate (measured)' : 'worker hashrate (declared)')
-					: 'trials/s (Σ cores)';
+				if (poolWorker && wst.running) {
+					$('mine-stat-aps-label').textContent = measuredGH > 0 ? 'worker hashrate (measured)' : 'worker hashrate (declared)';
+				} else if (netMode && !apsFmt && workerGH > 0) {
+					$('mine-stat-aps-label').textContent = measuredGH > 0 ? 'worker hashrate (measured)' : 'worker hashrate (declared)';
+				} else {
+					$('mine-stat-aps-label').textContent = 'trials/s (Σ cores)';
+				}
 			}
 			let tot = Number(payload.mining_attempts_total || 0);
-			if (tot <= 0 && netMode) tot = Number(ws.accepted_attempts || workerDerived.totalAttempts || 0);
-			if ($('mine-stat-tot')) $('mine-stat-tot').textContent = tot > 0 ? fmtUInt(tot) : '—';
+			if (tot <= 0 && localSliceActive) tot = Number(workerDerived.totalAttempts || 0);
+			else if (tot <= 0 && netMode && !localSliceActive) tot = Number(ws.accepted_attempts || poolDerived.totalAttempts || 0);
+			else if (tot <= 0 && netMode) tot = Number(workerDerived.totalAttempts || 0);
+			if ($('mine-stat-tot')) {
+				$('mine-stat-tot').textContent = tot > 0 ? fmtUInt(tot) : '—';
+				if (localSliceActive) {
+					$('mine-stat-tot').title = 'Your worker accepted_attempts on coordinator (not whole pool). Pool Σ ' + fmtUInt(Number(poolDerived.totalAttempts || ws.accepted_attempts || 0)) + '.';
+				} else if (poolWorker) {
+					$('mine-stat-tot').title = 'Pool aggregate accepted_attempts from coordinator.';
+				} else {
+					$('mine-stat-tot').title = '';
+				}
+			}
 			const workerStartedUnix = Number((wst && wst.started_at_unix) || 0);
 			let wallWorkerSec = 0;
 			if (wst && wst.running && workerStartedUnix > 0) wallWorkerSec = Math.max(0, Date.now() / 1000 - workerStartedUnix);
@@ -5231,8 +5366,8 @@
 			}
 			const nonce = Number(payload.mining_last_nonce || 0);
 			let modRem = Number(payload.mining_last_mod_997 || 0);
-			if (netMode && !leaderLocal && tm > 0) {
-				const att = Number(workerDerived.totalAttempts || (ws && ws.accepted_attempts) || 0);
+			if (poolWorker && tm > 0) {
+				const att = Number(localSliceActive ? workerDerived.totalAttempts : (poolDerived.totalAttempts || (ws && ws.accepted_attempts) || 0));
 				if (att > 0) {
 					try {
 						modRem = Number((BigInt(Math.floor(att)) % BigInt(Math.floor(tm))).toString());
@@ -5283,8 +5418,8 @@
 			const solLabel = $('mine-stat-solves-label');
 			const solSub = $('mine-stat-solves-sub');
 			const stripSolLabel = $('mining-strip-solves-label');
-			let poolSubmitted = Number(ws.submitted_items || 0);
-			if (!(poolSubmitted > 0)) poolSubmitted = Number(workerDerived.sessionSubmitted || 0);
+			let poolSubmitted = Number(localSliceActive ? workerDerived.sessionSubmitted : (ws.submitted_items || 0));
+			if (!(poolSubmitted > 0)) poolSubmitted = Number(localSliceActive ? workerDerived.sessionSubmitted : (poolDerived.sessionSubmitted || workerDerived.sessionSubmitted || 0));
 			const poolSubmittedTxt = poolSubmitted > 0 ? fmtUInt(poolSubmitted) : '—';
 			if ($('mine-stat-solves')) {
 				if (netMode && !leaderLocal) {
@@ -5314,14 +5449,13 @@
 
 			let eta = Number(payload.mining_eta_sec_est);
 			let prog = Number(payload.mining_eta_progress);
-			const poolWorker = netMode && !leaderLocal;
-			const attInsight = Number(workerDerived.totalAttempts || (ws && ws.accepted_attempts) || tot || 0);
+			const attInsight = Number(localSliceActive ? workerDerived.totalAttempts : (poolDerived.totalAttempts || (ws && ws.accepted_attempts) || tot || 0));
 			let apsInsight = Number(workerDerived.acceptedAttemptsPerSec5s || workerDerived.attemptsPerSec || aps || 0);
-			if (!(apsInsight > 1e-6) && poolWorker) {
+			if (poolWorker && wst.running) {
 				const gh = Number(wst.measured_hashrate_gh_s || wst.hashrate_gh_s || workerGH || 0);
 				if (gh > 0) apsInsight = gh * 1e9;
 			}
-			if (poolWorker && tm > 0 && attInsight > 0 && apsInsight > 1e-6) {
+			if (poolWorker && wst.running && tm > 0 && attInsight > 0 && apsInsight > 1e-6) {
 				const ins = computeMiningInsightJS(attInsight, tm, apsInsight, Number(workerDerived.payoutPerHour || payload.mining_projected_hmc_hour || 0));
 				if (!(Number.isFinite(eta) && eta >= 0)) eta = ins.etaSec;
 				if (!(Number.isFinite(prog) && prog > 0)) prog = ins.progress;
@@ -5333,9 +5467,11 @@
 			if ($('mine-insight-eta')) $('mine-insight-eta').textContent = Number.isFinite(eta) && eta >= 0 ? fmtDur(eta) : '—';
 			const etaSub = $('mine-insight-eta-sub');
 			if (etaSub) {
-				if (poolWorker && Number.isFinite(eta) && eta >= 0) {
-					etaSub.textContent = 'Pool worker heuristic: order-of-magnitude M / rate (not a guarantee). Payout accrual via coordinator.';
-				} else if (poolWorker) {
+				if (poolWorker && wst.running && Number.isFinite(eta) && eta >= 0) {
+					etaSub.textContent = localSliceActive
+						? 'Your worker heuristic: M / local rate (not a guarantee). Payout accrual via coordinator.'
+						: 'Pool worker heuristic: order-of-magnitude M / rate (not a guarantee). Payout accrual via coordinator.';
+				} else if (poolWorker && wst.running) {
 					etaSub.textContent = 'Waiting for work rate — see Projected HMC/h and payout Δ/min.';
 				} else {
 					etaSub.textContent = '';
@@ -5352,9 +5488,14 @@
 			if ($('mine-insight-hour')) $('mine-insight-hour').textContent = fmt(Number(payload.mining_hmc_last_hour_approx || 0), 6);
 			if ($('mine-insight-poh1h')) $('mine-insight-poh1h').textContent = 'PoH blocks in rolling 1h: ' + fmtUInt(Number(payload.mining_poh_blocks_last_1h || 0));
 			let proj = Number(payload.mining_projected_hmc_hour || 0);
-			if (proj <= 0 && netMode) proj = Number(workerDerived.payoutPerHour || 0);
+			if (proj <= 0 && netMode && (localSliceActive || !poolWorker)) proj = Number(workerDerived.payoutPerHour || 0);
 			if ($('mine-insight-proj')) $('mine-insight-proj').textContent = fmt(proj, 6);
-			if ($('mine-insight-aps5')) $('mine-insight-aps5').textContent = fmt(Number(workerDerived.acceptedAttemptsPerSec5s || 0), 2);
+			if ($('mine-insight-aps5')) {
+				const apsShow = poolWorker && wst.running && workerGH > 0 ? workerGH * 1e9 : Number(workerDerived.acceptedAttemptsPerSec5s || 0);
+				$('mine-insight-aps5').textContent = poolWorker && wst.running && workerGH > 0
+					? (fmt(workerGH, 2) + ' GH/s')
+					: fmt(apsShow, 2);
+			}
 			if ($('mine-insight-payoutm')) $('mine-insight-payoutm').textContent = fmt(Number(workerDerived.payoutDeltaPerMin5s || 0), 6);
 			if ($('mine-insight-note')) {
 				const baseNote = String(payload.mining_insight_note || '');
@@ -5363,7 +5504,7 @@
 					extra = 'No local genesis: on-chain HMC/hour here stays 0; use Work payout / Wallet.';
 				}
 				if (Number(workerDerived.ratesImputed || 0)) {
-					extra = (extra ? extra + ' ' : '') + 'Rates from work/stats snapshots between polls.';
+					extra = (extra ? extra + ' ' : '') + (localSliceActive ? 'Local worker rates from coordinator work/stats.' : 'Rates from work/stats snapshots between polls.');
 				}
 				$('mine-insight-note').textContent = [baseNote, extra].filter(Boolean).join(' ');
 			}
