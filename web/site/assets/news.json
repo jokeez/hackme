@@ -1,6 +1,35 @@
 {
   "items": [
     {
+      "id": "2026-05-19-bitcointalk-ann-live",
+      "date": "2026-05-19",
+      "title": "Bitcointalk ANN is live — official pool thread",
+      "summary": "The HackMe pool announcement is published on Bitcoin Forum (Pools / Altcoins): topic 5583373. Links to hackme.tech, downloads, GitHub source, economics, and miner quick start.",
+      "tags": ["community", "announcement", "mining", "pool"],
+      "impact": "Miners can discuss setup, WORKER_PAYOUT_MAP, and economics in the official thread. Site Contacts now links to the live forum URL.",
+      "action": "Thread: https://bitcointalk.org/index.php?topic=5583373.0 — join mining via https://hackme.tech/downloads.html",
+      "status": "published",
+      "links": {
+        "bitcointalk": "https://bitcointalk.org/index.php?topic=5583373.0",
+        "telegram": "https://t.me/hackme_tech",
+        "github": "https://github.com/jokeez/hackme"
+      }
+    },
+    {
+      "id": "2026-05-18-public-pool-fair-economics",
+      "date": "2026-05-18",
+      "title": "Public pool economics: fair attempt-based accrual for all miners",
+      "summary": "Official pool policy updated: payout_found_only=0 with reward_auto and hybrid signer strict — miners accrue HMC for accepted work (capped per batch), not only on rare found hits. Settlement loop verified; see economics-model.html and docs/MINER_POOL_ECONOMICS.md.",
+      "tags": ["economics", "mining", "pool", "transparency"],
+      "impact": "New and existing miners see Unpaid worker accrual grow with hashrate/submits. Found bonus still applies. Block subsidy remains on the producing node wallet; pool paycheck = coordinator accrual + settlement.",
+      "action": "Set WORKER_PAYOUT_MAP=your-worker-id=HMC-your-address. Read https://hackme.tech/economics-model.html — verify SHA256 on Downloads. GitHub: https://github.com/jokeez/hackme",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-18-open-source-github",
       "date": "2026-05-18",
       "title": "🚀 Open source: HackMe stack on GitHub (Apache-2.0)",

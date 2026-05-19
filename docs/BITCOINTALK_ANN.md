@@ -2,7 +2,8 @@
 
 **Language:** English only (forum post)  
 **Version:** `0.1.0-rc9`  
-**Source:** https://github.com/jokeez/hackme
+**Source:** https://github.com/jokeez/hackme  
+**Live thread:** https://bitcointalk.org/index.php?topic=5583373.0
 
 ---
 
@@ -65,11 +66,11 @@ No ICO. No token sale. Pool / infrastructure thread.
 
 | Layer | What happens |
 |--------|----------------|
-| **Coordinator** | Off-chain `payout_hmc` for accepted work (policy: found hits, env formulas) |
+| **Coordinator** | Off-chain `payout_hmc` for **accepted attempts** (fair mode: `reward_per_m` × attempts/1M + found bonus) |
 | **Chain** | Block subsidy credits the **producing node’s primary wallet** — not auto-split to every GPU |
-| **Settlement** | Operator script sends accumulated HMC to your on-chain address |
+| **Settlement** | Operator script sends accumulated HMC to your on-chain address (~2 min timer) |
 
-**Bottom line:** accrual on the coordinator ≠ coins in your wallet until settlement runs. Details: https://hackme.tech/economics-model.html
+**Bottom line:** you earn while submitting accepted work — not only on rare block finds. Accrual ≠ wallet until settlement. Details: https://hackme.tech/economics-model.html
 
 ---
 
