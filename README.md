@@ -126,6 +126,8 @@ bash scripts/release/verify_artifacts.sh dist/release_0.1.0-rc9
 | [docs/TRADEMARK_AND_FORKING.md](docs/TRADEMARK_AND_FORKING.md) | **Protecting your brand when code is public** |
 | [docs/BITCOINTALK_ANN.md](docs/BITCOINTALK_ANN.md) | Forum announcement + [BBCode paste](docs/BITCOINTALK_ANN_BBCode.txt) |
 | [scripts/release/README.md](scripts/release/README.md) | Release pipeline |
+| [docs/OPERATOR_VERDICT.md](docs/OPERATOR_VERDICT.md) | Production snapshot & settlement ops |
+| [docs/MININGPOOLSTATS_LISTING.md](docs/MININGPOOLSTATS_LISTING.md) | Pool listing checklist |
 
 ---
 

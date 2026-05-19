@@ -15,26 +15,21 @@ if [[ -f "$ROOT/scripts/ops/vps_patch_coordinator_nginx_query.sh" ]]; then
   ssh "$NODE_SSH" "sudo bash /tmp/vps_patch_coordinator_nginx_query.sh" || true
 fi
 
-echo "[settle-fix] rsync settle_worker_payouts.sh"
-rsync -avz "$ROOT/scripts/ops/settle_worker_payouts.sh" "$NODE_SSH:$NODE_DEPLOY_DIR/scripts/ops/"
+echo "[settle-fix] rsync settlement ops scripts"
+for f in settle_worker_payouts.sh sync_settlement_admin_token.sh repair_worker_settlement_state.sh settlement_healthcheck.sh; do
+  rsync -avz "$ROOT/scripts/ops/$f" "$NODE_SSH:$NODE_DEPLOY_DIR/scripts/ops/"
+done
+
+echo "[settle-fix] sync ADMIN_TOKEN with node"
+NODE_SSH="$NODE_SSH" NODE_DEPLOY_DIR="$NODE_DEPLOY_DIR" bash "$ROOT/scripts/ops/sync_settlement_admin_token.sh"
 
 echo "[settle-fix] WORKER_PAYOUT_MAP=${PAYOUT_MAP}"
 ssh "$NODE_SSH" "grep -q '^WORKER_PAYOUT_MAP=' '$NODE_DEPLOY_DIR/.env.settlement' && \
   sed -i 's|^WORKER_PAYOUT_MAP=.*|WORKER_PAYOUT_MAP=${PAYOUT_MAP}|' '$NODE_DEPLOY_DIR/.env.settlement' || \
   echo 'WORKER_PAYOUT_MAP=${PAYOUT_MAP}' >>'$NODE_DEPLOY_DIR/.env.settlement'"
 
-echo "[settle-fix] reset worker-kapa-pc settled_hmc to last on-chain tx (~0.000816 HMC)"
-ssh "$NODE_SSH" "python3 -c \"
-import json
-p='$NODE_DEPLOY_DIR/data/worker_settlement_state.json'
-st=json.load(open(p))
-w=st.get('workers',{}).get('$WORKER_ID')
-if w and w.get('last_tx_hash'):
-    w['settled_hmc']=0.00081565
-    st['workers']['$WORKER_ID']=w
-    json.dump(st, open(p,'w'), indent=2)
-    print('ok settled_hmc=', w['settled_hmc'])
-\""
+echo "[settle-fix] repair over-counted settlement state"
+NODE_SSH="$NODE_SSH" NODE_DEPLOY_DIR="$NODE_DEPLOY_DIR" bash "$ROOT/scripts/ops/repair_worker_settlement_state.sh"
 
 echo "[settle-fix] run settle_worker_payouts.sh"
 ssh "$NODE_SSH" "cd '$NODE_DEPLOY_DIR' && set -a && . ./.env.settlement && set +a && bash scripts/ops/settle_worker_payouts.sh"

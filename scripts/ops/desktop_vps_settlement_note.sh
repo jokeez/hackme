@@ -14,6 +14,9 @@ cat <<EOF
 1. On hackme.tech VPS, in /opt/hackme/.env.settlement (or equivalent):
    WORKER_PAYOUT_MAP=worker-kapa-pc=${WALLET}
    MIN_SETTLE_HMC=0.01
+2. ADMIN_TOKEN must equal .env.vps HACKME_ADMIN_TOKEN:
+   bash scripts/ops/sync_settlement_admin_token.sh
+   bash scripts/ops/repair_worker_settlement_state.sh   # if payouts skip with delta=0
 3. systemd: hackme-worker-settlement.timer → scripts/ops/settle_worker_payouts.sh
 4. Recent repo fix: coordinator may return workers=null — script now synthesizes one row if WORKER_PAYOUT_MAP has exactly ONE worker_id (pool total). Deploy updated script from this repo to /opt/hackme.
 5. Desktop accrual is off-chain until settle; balance ${WALLET} grows only after transfer_v1 from payer node.
