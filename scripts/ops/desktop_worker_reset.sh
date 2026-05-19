@@ -43,11 +43,11 @@ echo "[worker-reset] clearing stale pool worker logs..."
 COORD_URL="${HACKME_POOL_COORDINATOR_URL:-https://hackme.tech/pool/coordinator}"
 WORKER_ID="${WORKER_ID:-worker-kapa-pc}"
 
-echo "[worker-reset] starting single worker id=$WORKER_ID coord=$COORD_URL"
+echo "[worker-reset] starting single worker id=$WORKER_ID coord=$COORD_URL (batch=1048576 remote-fair)"
 start_json="$(python3 - "$COORD_URL" "$WORKER_ID" "${HACKME_POOL_COORDINATOR_TOKEN:-}" <<'PY'
 import json, sys
 coord, wid, tok = sys.argv[1:4]
-body = {"coord_url": coord, "worker_id": wid}
+body = {"coord_url": coord, "worker_id": wid, "batch_size": 1048576}
 if tok.strip():
     body["coord_token"] = tok.strip()
 print(json.dumps(body))

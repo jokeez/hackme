@@ -2053,6 +2053,7 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 			workerID = "worker-local-01"
 		}
 	}
+	remoteCoord := coordinatorURLLooksRemote(coordURL)
 	batchSize := req.BatchSize
 	if batchSize == 0 {
 		if v := strings.TrimSpace(os.Getenv("HACKME_WORKER_BATCH_SIZE")); v != "" {
@@ -2061,8 +2062,12 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if batchSize == 0 {
-			// Prefer a stronger default for public worker mode.
-			batchSize = 4_000_000
+			if remoteCoord {
+				// Smaller batches over HTTPS — more submit cycles survive latency/timeouts.
+				batchSize = 1_048_576
+			} else {
+				batchSize = 4_000_000
+			}
 		}
 	}
 	hashrateGHS := req.HashrateGHS
@@ -2134,11 +2139,15 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 	}
 	if v := strings.TrimSpace(os.Getenv("HACKME_WORKER_CLAIM_TIMEOUT")); v != "" {
 		workerEnv = append(workerEnv, "HACKME_WORKER_CLAIM_TIMEOUT="+v)
+	} else if remoteCoord {
+		workerEnv = append(workerEnv, "HACKME_WORKER_CLAIM_TIMEOUT=90s")
 	} else {
 		workerEnv = append(workerEnv, "HACKME_WORKER_CLAIM_TIMEOUT=35s")
 	}
 	if v := strings.TrimSpace(os.Getenv("HACKME_WORKER_SUBMIT_TIMEOUT")); v != "" {
 		workerEnv = append(workerEnv, "HACKME_WORKER_SUBMIT_TIMEOUT="+v)
+	} else if remoteCoord {
+		workerEnv = append(workerEnv, "HACKME_WORKER_SUBMIT_TIMEOUT=120s")
 	} else {
 		workerEnv = append(workerEnv, "HACKME_WORKER_SUBMIT_TIMEOUT=90s")
 	}

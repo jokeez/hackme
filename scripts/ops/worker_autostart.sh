@@ -41,10 +41,28 @@ fi
 COORD_URL="${COORD_URL:-http://127.0.0.1:18081}"
 COORD_TOKEN="${COORD_TOKEN:-${COORD_ADMIN_TOKEN:-${ADMIN_TOKEN:-}}}"
 WORKER_ID="${WORKER_ID:-worker-$(hostname -s 2>/dev/null || echo local)}"
-BATCH_SIZE="${BATCH_SIZE:-4194304}"
-GPU_CHUNK="${GPU_CHUNK:-4194304}"
-SEARCH_TIMEOUT_MS="${SEARCH_TIMEOUT_MS:-2500}"
 RESTART_MAX_BACKOFF_SEC="${RESTART_MAX_BACKOFF_SEC:-20}"
+
+coord_looks_remote() {
+  local u
+  u="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')"
+  [[ -z "$u" ]] && return 1
+  [[ "$u" == *127.0.0.1* || "$u" == *localhost* || "$u" == *"::1"* ]] && return 1
+  return 0
+}
+
+if coord_looks_remote "$COORD_URL"; then
+  BATCH_SIZE="${BATCH_SIZE:-1048576}"
+  GPU_CHUNK="${GPU_CHUNK:-1048576}"
+  export HACKME_WORKER_CLAIM_TIMEOUT="${HACKME_WORKER_CLAIM_TIMEOUT:-90s}"
+  export HACKME_WORKER_SUBMIT_TIMEOUT="${HACKME_WORKER_SUBMIT_TIMEOUT:-120s}"
+else
+  BATCH_SIZE="${BATCH_SIZE:-4194304}"
+  GPU_CHUNK="${GPU_CHUNK:-4194304}"
+  export HACKME_WORKER_CLAIM_TIMEOUT="${HACKME_WORKER_CLAIM_TIMEOUT:-35s}"
+  export HACKME_WORKER_SUBMIT_TIMEOUT="${HACKME_WORKER_SUBMIT_TIMEOUT:-90s}"
+fi
+SEARCH_TIMEOUT_MS="${SEARCH_TIMEOUT_MS:-2500}"
 
 if [[ -z "${COORD_TOKEN}" ]]; then
   echo "[worker-autostart] set COORD_TOKEN (or COORD_ADMIN_TOKEN/ADMIN_TOKEN)" >&2

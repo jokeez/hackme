@@ -44,8 +44,10 @@ DAILY_MIN_SETTLE_HMC="${DAILY_MIN_SETTLE_HMC:-0.0001}"
 FORCE_SETTLE_ALL="${FORCE_SETTLE_ALL:-0}"
 STATE_FILE="${STATE_FILE:-data/worker_settlement_state.json}"
 WORKER_PAYOUT_MAP="${WORKER_PAYOUT_MAP:-}"
-SETTLE_TX_WAIT_SEC="${SETTLE_TX_WAIT_SEC:-45}"
+SETTLE_TX_WAIT_SEC="${SETTLE_TX_WAIT_SEC:-90}"
 SETTLE_SEQUENTIAL="${SETTLE_SEQUENTIAL:-1}"
+SETTLE_PAYOUT_PAUSE_SEC="${SETTLE_PAYOUT_PAUSE_SEC:-10}"
+SETTLE_NONCE_RETRIES="${SETTLE_NONCE_RETRIES:-6}"
 MIN_FEE_UNITS=1000
 UNITS_PER_HMC=100000000
 
@@ -261,19 +263,25 @@ PY
   ts="$(date +%s)"
   if [[ "$SETTLE_SEQUENTIAL" == "1" && "$payouts_sent" -gt 0 ]]; then
     wait_tx_pool_clear || true
+    if [[ "$SETTLE_PAYOUT_PAUSE_SEC" -gt 0 ]]; then
+      sleep "$SETTLE_PAYOUT_PAUSE_SEC"
+    fi
   fi
   nonce="$(curl -fsS "${CHAIN_BASE}/api/address/${payer_addr}" | jq -r '.next_nonce // 0')"
 
   resp="$(send_settlement_tx "$payer_addr" "$to_addr" "$amount_units" "$ts" "$nonce")"
   ok="$(jq -r '.ok // false' <<<"$resp" 2>/dev/null || echo "false")"
   code="$(jq -r '.code // ""' <<<"$resp" 2>/dev/null || echo "")"
-  if [[ "$ok" != "true" && "$code" == "pending_nonce_conflict" ]]; then
+  attempt=1
+  while [[ "$ok" != "true" && "$code" == "pending_nonce_conflict" && "$attempt" -lt "$SETTLE_NONCE_RETRIES" ]]; do
     wait_tx_pool_clear || true
-    sleep 3
+    sleep $((SETTLE_PAYOUT_PAUSE_SEC + attempt * 2))
     nonce="$(curl -fsS "${CHAIN_BASE}/api/address/${payer_addr}" | jq -r '.next_nonce // 0')"
     resp="$(send_settlement_tx "$payer_addr" "$to_addr" "$amount_units" "$ts" "$nonce")"
     ok="$(jq -r '.ok // false' <<<"$resp" 2>/dev/null || echo "false")"
-  fi
+    code="$(jq -r '.code // ""' <<<"$resp" 2>/dev/null || echo "")"
+    attempt=$((attempt + 1))
+  done
   if [[ "$ok" != "true" ]]; then
     echo "[settle-workers] ERROR settle ${worker_id} -> ${to_addr}: ${resp}" >&2
     continue

@@ -70,7 +70,9 @@ set_kv() {
 }
 set_kv HACKME_WORKER_CLAIM_COOLDOWN_MS 1500
 set_kv BATCH_SIZE 524288
-grep -E 'COOLDOWN|BATCH|WORKER_ID' "\$ENV" | tail -8
+set_kv HACKME_WORKER_CLAIM_TIMEOUT 35s
+set_kv HACKME_WORKER_SUBMIT_TIMEOUT 90s
+grep -E 'COOLDOWN|BATCH|WORKER_ID|CLAIM|SUBMIT' "\$ENV" | tail -10
 REMOTE
 
 log "patch settlement payout map (all rigs → ${WALLET})"
