@@ -45,9 +45,19 @@ Use this **after** public pool + settlement are stable (no recurring `admin auth
 | Min payout | 0.01 |
 | Payment | Other / Custom (or PPS with note: accrual + settlement) |
 | Pool software | Other / Custom |
-| **API stats URL** | `https://hackme.tech/pool/coordinator/api/work/stats` |
+| **API stats URL** | `https://hackme.tech/pool/coordinator/api/pool/stats` (minimal JSON for pollers) |
+| **Payment** | **Other / Custom** — not PPS (we are not Stratum shares) |
+| **Fee %** | `1` if `0` fails validation |
 
 In pool notes: *Not Stratum — hackme-node + workerpoh, coordinator at /pool/coordinator.*
+
+### If validation still fails on step 4
+
+1. **Leave API Stats URL empty** and Submit (add stats later in dashboard).
+2. **Stratum** — MPS may TCP-probe `host:port`; HackMe has **no Stratum on 3333**, so probe fails. Options:
+   - Submit **coin only** without pools (if the form allows skipping step 4), then add pool via support.
+   - Email MPS: *non-Stratum HTTP coordinator pool* + link to this repo.
+3. Re-check **steps 1–3** (logo PNG, supply `100000000`, block reward `0.01`, block time `30`).
 
 ## Not a substitute for
 

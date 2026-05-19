@@ -1175,4 +1175,39 @@ func addWorkRoutes(mux *http.ServeMux, token string, allowInsecure bool, reg *la
 		enrichPoolStatsForPublic(out, reg)
 		_ = json.NewEncoder(w).Encode(out)
 	})
+
+	// Minimal stats shape for pool listing sites (MiningPoolStats API poll).
+	mux.HandleFunc("/api/pool/stats", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		out := wm.stats(false)
+		enrichPoolStatsForPublic(out, reg)
+		hr := float64(0)
+		if v, ok := out["hashrate_hs"].(float64); ok {
+			hr = v
+		}
+		if hr <= 0 {
+			if gh, ok := out["pool_hashrate_gh_s"].(float64); ok {
+				hr = gh * 1e9
+			}
+		}
+		wc := 0
+		switch v := out["workers"].(type) {
+		case int:
+			wc = v
+		case float64:
+			wc = int(v)
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status":   "ok",
+			"pool":     "HackMe Official Pool",
+			"hashrate": hr,
+			"workers":  wc,
+			"miners":   wc,
+		})
+	})
 }
