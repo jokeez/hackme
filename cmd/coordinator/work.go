@@ -56,6 +56,9 @@ type workManager struct {
 	reissuedRanges  uint64
 	submittedItems  uint64
 	foundHits       uint64
+	lastFoundHitUnix int64
+	poolRetarget    bool
+	targetModUpdatedUnix int64
 	expiredLeases   uint64
 	unknownSubmits  uint64
 	staleSubmits    uint64
@@ -272,6 +275,10 @@ func newWorkManagerFromEnv() *workManager {
 	if v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_POOL_HYBRID_REQUIRE_FOUND_SIG"))); v != "" {
 		hybridRequireFoundSig = v == "1" || v == "true" || v == "yes" || v == "on"
 	}
+	poolRetarget := true
+	if v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_COORDINATOR_POOL_RETARGET"))); v != "" {
+		poolRetarget = v == "1" || v == "true" || v == "yes" || v == "on"
+	}
 	return &workManager{
 		defaultBatch:             batch,
 		targetMod:                mod,
@@ -308,6 +315,8 @@ func newWorkManagerFromEnv() *workManager {
 		hybridSignerEnabled:      hybridSignerEnabled,
 		hybridSignerStrict:       hybridSignerStrict,
 		hybridRequireFoundSig:    hybridRequireFoundSig,
+		poolRetarget:             poolRetarget,
+		targetModUpdatedUnix:     time.Now().Unix(),
 	}
 }
 
@@ -361,6 +370,7 @@ func (m *workManager) refreshTargetMod(now int64) {
 	}
 	if parsed > 0 {
 		m.targetMod = parsed
+		m.targetModUpdatedUnix = now
 	}
 	if br, ok := body["econ_base_reward_now_hmc"]; ok {
 		switch t := br.(type) {
@@ -384,6 +394,30 @@ func (m *workManager) refreshTargetMod(now int64) {
 		}
 	}
 	m.targetLastAt = now
+}
+
+func (m *workManager) maybeRetargetPoolMod(now int64) {
+	if !m.poolRetarget {
+		return
+	}
+	if m.lastFoundHitUnix > 0 {
+		delta := now - m.lastFoundHitUnix
+		if delta < 1 {
+			delta = 1
+		}
+		next := chain.ClampPoHTargetMod(chain.RetargetMicroStep(m.targetMod, delta, chain.PoHRetargetTargetSec))
+		if next != m.targetMod {
+			m.targetMod = next
+			m.targetModUpdatedUnix = now
+			if m.rewardAuto && m.baseRewardHMC > 0 {
+				m.rewardPerM = (m.baseRewardHMC * 1_000_000.0) / float64(m.targetMod)
+				if m.rewardPerM < 0 {
+					m.rewardPerM = 0
+				}
+			}
+		}
+	}
+	m.lastFoundHitUnix = now
 }
 
 func keyFromRemoteAddr(remoteAddr string) string {
@@ -762,6 +796,7 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		}
 		m.acceptedFoundNonces[req.FoundNonce] = struct{}{}
 		m.foundHits++
+		m.maybeRetargetPoolMod(now)
 	}
 	attempts := req.Attempts
 	if attempts == 0 {
@@ -955,6 +990,7 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	now := time.Now().Unix()
+	m.refreshTargetMod(now)
 	drops := make(map[string]uint64, len(m.dropReasonCount))
 	for k, v := range m.dropReasonCount {
 		drops[k] = v
@@ -974,6 +1010,8 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 	out := map[string]any{
 		"default_batch":                m.defaultBatch,
 		"target_mod":                   m.targetMod,
+		"target_mod_updated_unix":      m.targetModUpdatedUnix,
+		"pool_retarget_enabled":        m.poolRetarget,
 		"lease_sec":                    m.leaseSec,
 		"reward_per_m":                 m.rewardPerM,
 		"reward_auto":                  m.rewardAuto,

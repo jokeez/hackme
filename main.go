@@ -937,6 +937,9 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	s.MiningLastMod997 = ms.LastEvalMod
 	s.MiningSessionSolves = ms.SessionSolves
 	s.MiningTargetMod = ms.TargetMod
+	if tm, err := a.chain.PoHTargetMod(r.Context()); err == nil && tm > 0 {
+		s.MiningTargetMod = tm
+	}
 	s.MiningTargetModCap = chain.PoHTargetMaxMod
 	s.MiningTargetModAtCap = chain.IsPoHTargetModAtCap(ms.TargetMod)
 	s.MiningRewardHMC = ms.RewardHMC

@@ -915,6 +915,7 @@
 							<div class="rounded-lg border border-warn/35 bg-warn/5 p-3 text-center lg:text-left">
 								<p class="text-[9px] text-gray-600 uppercase tracking-wider mb-1">Difficulty (M)</p>
 								<p id="mine-stat-difficulty" class="font-display text-lg font-bold text-warn tabular-nums">—</p>
+								<p id="mine-stat-difficulty-sub" class="text-[8px] text-gray-600 mt-0.5 leading-snug">—</p>
 							</div>
 							<div class="rounded-lg border border-neon/20 bg-black/40 p-3 text-center lg:text-left">
 								<p id="mine-stat-aps-label" class="text-[9px] text-gray-600 uppercase tracking-wider mb-1">eval/s</p>
@@ -2250,6 +2251,8 @@
 		let lastP2PPeersOkUnix = 0;
 		let lastGlobalMetricsOkUnix = 0;
 		let lastGlobalTargetMod = 0;
+		let lastTargetModUpdatedUnix = 0;
+		let lastTargetModSource = '';
 		let latestGlobalSource = '';
 		let lastMetricsPayload = null;
 		const workAttemptsRate = new Map();
@@ -4509,6 +4512,13 @@
 			lastWorkStatsOkUnix = nowUnix;
 			lastGoodWorkStats = ws;
 			{
+				const tmWs = workStatsTargetMod(ws);
+				if (tmWs > 0) {
+					lastGlobalTargetMod = tmWs;
+					lastTargetModSource = 'coordinator';
+				}
+				const tmUp = Number(ws.target_mod_updated_unix || 0);
+				if (tmUp > 0) lastTargetModUpdatedUnix = tmUp;
 				const tNow = Number(ws.now_unix || nowUnix);
 				const monoNow = Date.now();
 				const wst = latestWorkerStatus || {};
@@ -5295,6 +5305,16 @@
 				if (tm <= 0) tm = tmCanon;
 			}
 			if ($('mine-stat-difficulty')) $('mine-stat-difficulty').textContent = tm > 0 ? fmtUInt(tm) : '—';
+			const diffSub = $('mine-stat-difficulty-sub');
+			if (diffSub) {
+				const src = tmWork > 0 ? 'pool coordinator' : (tmCanon > 0 ? 'network status' : (tmL > 0 ? 'local metrics' : ''));
+				const age = lastTargetModUpdatedUnix > 0 ? Math.max(0, Math.floor(Date.now() / 1000) - lastTargetModUpdatedUnix) : -1;
+				const ageTxt = age >= 0 && age <= 120 ? (' · updated ' + (age < 2 ? 'now' : fmtDur(age) + ' ago')) : '';
+				const retarget = ws && ws.pool_retarget_enabled === true ? ' · auto-retarget ON' : '';
+				diffSub.textContent = tm > 0
+					? ((src || 'live') + ageTxt + retarget)
+					: 'waiting for work/stats or metrics…';
+			}
 			const poolWorker = netMode && !leaderLocal;
 			const localSliceActive = poolWorker && workerDerived.isLocalSlice;
 			let aps = Number(payload.mining_attempts_per_sec || 0);

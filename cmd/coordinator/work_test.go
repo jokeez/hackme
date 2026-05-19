@@ -683,3 +683,25 @@ func TestWorkManagerHybridFoundRequiresSignature(t *testing.T) {
 		t.Fatalf("want found_signature_required, got ok=%v reason=%q", ok, reason)
 	}
 }
+
+func TestMaybeRetargetPoolModIncreasesOnFastHits(t *testing.T) {
+	wm := &workManager{
+		targetMod:    1_000_000,
+		poolRetarget: true,
+		rewardAuto:   true,
+		baseRewardHMC: 0.01,
+		rewardPerM:   0.01,
+	}
+	now := time.Now().Unix()
+	wm.maybeRetargetPoolMod(now)
+	if wm.targetMod != 1_000_000 {
+		t.Fatalf("first hit should not retarget without prior interval, got %d", wm.targetMod)
+	}
+	wm.maybeRetargetPoolMod(now + 1)
+	if wm.targetMod <= 1_000_000 {
+		t.Fatalf("fast second hit should increase target_mod, got %d", wm.targetMod)
+	}
+	if wm.rewardPerM >= 0.01 {
+		t.Fatalf("rewardPerM should drop when target_mod rises, got %f", wm.rewardPerM)
+	}
+}
