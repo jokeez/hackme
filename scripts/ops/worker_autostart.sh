@@ -106,19 +106,28 @@ detect_gpu_backend() {
 }
 
 choose_worker_bin() {
-  if [[ -n "${WORKER_BIN:-}" ]]; then
-    printf '%s\n' "$WORKER_BIN"
-    return 0
-  fi
-  if [[ -x "${ROOT_DIR}/bin/workerpoh-opencl" ]]; then
-    printf '%s\n' "${ROOT_DIR}/bin/workerpoh-opencl"
-    return 0
-  fi
-  if [[ -x "${ROOT_DIR}/bin/workerpoh" ]]; then
-    printf '%s\n' "${ROOT_DIR}/bin/workerpoh"
-    return 0
-  fi
-  printf '%s\n' "${ROOT_DIR}/bin/workerpoh-opencl"
+	local backend="${1:-cpu}"
+	if [[ -n "${WORKER_BIN:-}" ]]; then
+		printf '%s\n' "$WORKER_BIN"
+		return 0
+	fi
+	if [[ "$backend" == "cpu" && -x "${ROOT_DIR}/bin/workerpoh" ]]; then
+		printf '%s\n' "${ROOT_DIR}/bin/workerpoh"
+		return 0
+	fi
+	if [[ "$backend" == "opencl" && -x "${ROOT_DIR}/bin/workerpoh-opencl" ]]; then
+		printf '%s\n' "${ROOT_DIR}/bin/workerpoh-opencl"
+		return 0
+	fi
+	if [[ -x "${ROOT_DIR}/bin/workerpoh-opencl" ]]; then
+		printf '%s\n' "${ROOT_DIR}/bin/workerpoh-opencl"
+		return 0
+	fi
+	if [[ -x "${ROOT_DIR}/bin/workerpoh" ]]; then
+		printf '%s\n' "${ROOT_DIR}/bin/workerpoh"
+		return 0
+	fi
+	printf '%s\n' "${ROOT_DIR}/bin/workerpoh"
 }
 
 build_worker_if_needed() {
@@ -137,7 +146,7 @@ build_worker_if_needed() {
 }
 
 backend="$(detect_gpu_backend)"
-bin_path="$(choose_worker_bin)"
+bin_path="$(choose_worker_bin "$backend")"
 build_worker_if_needed "$bin_path" "$backend"
 
 bin_help="$("$bin_path" -h 2>&1 || true)"
