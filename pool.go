@@ -1211,6 +1211,7 @@ func (a *app) handleGlobalMetrics(w http.ResponseWriter, r *http.Request) {
 			workPart["pool_hashrate_gh_s"] = ws["pool_hashrate_gh_s"]
 			workPart["workers"] = ws["workers"]
 			workPart["miners"] = ws["miners"]
+			workPart["active_rigs"] = ws["active_rigs"]
 			wc := asUint64(ws["workers_count"])
 			if wc == 0 {
 				wc = uint64(len(mapFromAny(ws["workers"])))
@@ -1224,6 +1225,7 @@ func (a *app) handleGlobalMetrics(w http.ResponseWriter, r *http.Request) {
 		workPart["reason"] = "coordinator_not_configured"
 	}
 	applyPoolHashrateToNetwork(networkPart, workPart)
+	mergeWorkActiveRigsIntoNetwork(networkPart, workPart)
 	// If coordinator target_mod is unavailable, pull canonical target_mod so
 	// follower dashboards keep difficulty fresh while idle.
 	if asUint64(workPart["target_mod"]) == 0 {
@@ -1363,6 +1365,44 @@ func repairWorkerSettlementState(state *workerSettlementState, workers map[strin
 		}
 	}
 	return changed
+}
+
+// mergeWorkActiveRigsIntoNetwork merges coordinator submit hashrate rigs into network active_rigs.
+func mergeWorkActiveRigsIntoNetwork(networkPart, workPart map[string]any) {
+	if networkPart == nil {
+		return
+	}
+	byID := map[string]map[string]any{}
+	for _, row := range anySlice(networkPart["active_rigs"]) {
+		m := mapFromAny(row)
+		if wid := strings.TrimSpace(asString(m["worker_id"])); wid != "" {
+			byID[wid] = m
+		}
+	}
+	if workPart != nil {
+		for _, row := range anySlice(workPart["active_rigs"]) {
+			m := mapFromAny(row)
+			wid := strings.TrimSpace(asString(m["worker_id"]))
+			if wid == "" {
+				continue
+			}
+			if cur, ok := byID[wid]; ok {
+				if parseAnyFloat(m["hashrate_gh_s"]) > parseAnyFloat(cur["hashrate_gh_s"]) {
+					byID[wid] = m
+				}
+			} else {
+				byID[wid] = m
+			}
+		}
+	}
+	if len(byID) == 0 {
+		return
+	}
+	out := make([]any, 0, len(byID))
+	for _, r := range byID {
+		out = append(out, r)
+	}
+	networkPart["active_rigs"] = out
 }
 
 // applyPoolHashrateToNetwork sets global_hashrate_th_s from work pool_hashrate_gh_s and active rigs (best of both).

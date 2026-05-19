@@ -38,12 +38,14 @@ COORD_URL="${COORD_URL:-http://127.0.0.1:18081}"
 CHAIN_BASE="${CHAIN_BASE:-http://127.0.0.1:18080}"
 ADMIN_TOKEN="${ADMIN_TOKEN:-${HACKME_ADMIN_TOKEN:-}}"
 COORD_ADMIN_TOKEN="${COORD_ADMIN_TOKEN:-${HACKME_COORDINATOR_ADMIN_TOKEN:-${COORD_TOKEN:-}}}"
-MIN_SETTLE_HMC="${MIN_SETTLE_HMC:-0.01}"
+MIN_SETTLE_HMC="${MIN_SETTLE_HMC:-0.0001}"
 DAILY_FORCE_INTERVAL_SEC="${DAILY_FORCE_INTERVAL_SEC:-86400}"
 DAILY_MIN_SETTLE_HMC="${DAILY_MIN_SETTLE_HMC:-0.0001}"
 FORCE_SETTLE_ALL="${FORCE_SETTLE_ALL:-0}"
 STATE_FILE="${STATE_FILE:-data/worker_settlement_state.json}"
 WORKER_PAYOUT_MAP="${WORKER_PAYOUT_MAP:-}"
+SETTLE_TX_WAIT_SEC="${SETTLE_TX_WAIT_SEC:-45}"
+SETTLE_SEQUENTIAL="${SETTLE_SEQUENTIAL:-1}"
 MIN_FEE_UNITS=1000
 UNITS_PER_HMC=100000000
 
@@ -84,6 +86,40 @@ if ! flock -n 9; then
   echo "[settle-workers] skip: another instance holds ${LOCK_FILE}" >&2
   exit 0
 fi
+
+tx_pool_pending_count() {
+  curl -fsS "${CHAIN_BASE}/api/tx/pool" | jq '.txs | if . == null then 0 else length end' 2>/dev/null || echo 0
+}
+
+wait_tx_pool_clear() {
+  local deadline=$((SECONDS + SETTLE_TX_WAIT_SEC))
+  while (( SECONDS < deadline )); do
+    if [[ "$(tx_pool_pending_count)" == "0" ]]; then
+      return 0
+    fi
+    sleep 5
+  done
+  echo "[settle-workers] warn: tx pool still pending after ${SETTLE_TX_WAIT_SEC}s" >&2
+  return 1
+}
+
+send_settlement_tx() {
+  local from_addr="$1" to_addr="$2" amount_units="$3" ts="$4" nonce="$5"
+  local tx_body resp
+  tx_body="$(jq -nc \
+    --arg from "$from_addr" \
+    --arg to "$to_addr" \
+    --argjson amount "$amount_units" \
+    --argjson fee "$MIN_FEE_UNITS" \
+    --argjson nonce "$nonce" \
+    --argjson ts "$ts" \
+    '{tx_type:"transfer_v1",from:$from,to:$to,amount_units:$amount,fee_units:$fee,nonce:$nonce,timestamp_unix:$ts,memo:"worker_settlement"}')"
+  resp="$(curl -sS -X POST "${CHAIN_BASE}/api/tx/send" \
+    -H "Content-Type: application/json" \
+    -H "X-Hackme-Admin-Token: ${ADMIN_TOKEN}" \
+    -d "$tx_body")"
+  printf '%s' "$resp"
+}
 
 if ! jq -e '.workers | type=="object"' "$STATE_FILE" >/dev/null 2>&1; then
   tmp="$(mktemp)"
@@ -164,6 +200,7 @@ if [[ -z "$workers_list" ]]; then
 fi
 
 settled_any=0
+payouts_sent=0
 while IFS= read -r item; do
   [[ -z "$item" ]] && continue
   row="$(printf '%s' "$item" | base64 -d)"
@@ -222,32 +259,37 @@ PY
   fi
 
   ts="$(date +%s)"
+  if [[ "$SETTLE_SEQUENTIAL" == "1" && "$payouts_sent" -gt 0 ]]; then
+    wait_tx_pool_clear || true
+  fi
   nonce="$(curl -fsS "${CHAIN_BASE}/api/address/${payer_addr}" | jq -r '.next_nonce // 0')"
-  tx_body="$(jq -nc \
-    --arg from "$payer_addr" \
-    --arg to "$to_addr" \
-    --argjson amount "$amount_units" \
-    --argjson fee "$MIN_FEE_UNITS" \
-    --argjson nonce "$nonce" \
-    --argjson ts "$ts" \
-    '{tx_type:"transfer_v1",from:$from,to:$to,amount_units:$amount,fee_units:$fee,nonce:$nonce,timestamp_unix:$ts,memo:"worker_settlement"}')"
 
-  resp="$(curl -sS -X POST "${CHAIN_BASE}/api/tx/send" \
-    -H "Content-Type: application/json" \
-    -H "X-Hackme-Admin-Token: ${ADMIN_TOKEN}" \
-    -d "$tx_body")"
+  resp="$(send_settlement_tx "$payer_addr" "$to_addr" "$amount_units" "$ts" "$nonce")"
   ok="$(jq -r '.ok // false' <<<"$resp" 2>/dev/null || echo "false")"
+  code="$(jq -r '.code // ""' <<<"$resp" 2>/dev/null || echo "")"
+  if [[ "$ok" != "true" && "$code" == "pending_nonce_conflict" ]]; then
+    wait_tx_pool_clear || true
+    sleep 3
+    nonce="$(curl -fsS "${CHAIN_BASE}/api/address/${payer_addr}" | jq -r '.next_nonce // 0')"
+    resp="$(send_settlement_tx "$payer_addr" "$to_addr" "$amount_units" "$ts" "$nonce")"
+    ok="$(jq -r '.ok // false' <<<"$resp" 2>/dev/null || echo "false")"
+  fi
   if [[ "$ok" != "true" ]]; then
     echo "[settle-workers] ERROR settle ${worker_id} -> ${to_addr}: ${resp}" >&2
     continue
   fi
   tx_hash="$(jq -r '.tx_hash // ""' <<<"$resp")"
   settled_any=1
+  payouts_sent=$((payouts_sent + 1))
   echo "[settle-workers] settled ${worker_id} -> ${to_addr} delta=${delta_hmc} HMC tx=${tx_hash}"
   tmp="$(mktemp)"
   jq --arg wid "$worker_id" --arg addr "$to_addr" --argjson settled "$payout_hmc" --arg tx "$tx_hash" --argjson ts "$ts" \
     '.workers[$wid] = {settled_hmc:$settled,payout_address:$addr,last_tx_hash:$tx,last_settle_unix:$ts}' \
     "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
+  if [[ "$(id -u)" -eq 0 ]]; then
+    chown hackme:hackme "$STATE_FILE" 2>/dev/null || true
+    chmod 600 "$STATE_FILE" 2>/dev/null || true
+  fi
 done <<<"$workers_list"
 
 if [[ "$settled_any" == "1" ]]; then
