@@ -262,6 +262,67 @@
 		}
 		.quick-btn:hover { background: rgba(0,209,255,0.11); border-color: rgba(0,209,255,0.35); color: #bff6ff; }
 		.quick-btn.active { border-color: rgba(57,255,20,0.45); color: #8eff74; background: rgba(57,255,20,0.1); }
+		.mine-calc-hero {
+			background: linear-gradient(135deg, rgba(0,209,255,0.08) 0%, rgba(57,255,20,0.06) 45%, rgba(0,0,0,0.35) 100%);
+			border: 1px solid rgba(0,209,255,0.28);
+			box-shadow: 0 0 40px rgba(0,209,255,0.06), inset 0 1px 0 rgba(255,255,255,0.04);
+		}
+		.mine-calc-input {
+			width: 100%;
+			font-size: 11px;
+			font-family: ui-monospace, monospace;
+			border-radius: 0.4rem;
+			border: 1px solid rgba(255,255,255,0.12);
+			background: rgba(0,0,0,0.45);
+			color: #d8ffe8;
+			padding: 0.45rem 0.55rem;
+		}
+		.mine-calc-input:focus { outline: none; border-color: rgba(0,209,255,0.45); box-shadow: 0 0 0 1px rgba(0,209,255,0.25); }
+		.mine-calc-range {
+			-webkit-appearance: none;
+			appearance: none;
+			width: 100%;
+			height: 6px;
+			border-radius: 999px;
+			background: linear-gradient(90deg, rgba(0,209,255,0.35), rgba(57,255,20,0.35));
+			outline: none;
+		}
+		.mine-calc-range::-webkit-slider-thumb {
+			-webkit-appearance: none;
+			width: 16px; height: 16px;
+			border-radius: 50%;
+			background: #39ff14;
+			border: 2px solid #0a140a;
+			box-shadow: 0 0 12px rgba(57,255,20,0.55);
+			cursor: pointer;
+		}
+		.mine-calc-kpi {
+			border: 1px solid rgba(255,255,255,0.1);
+			background: rgba(0,0,0,0.35);
+			border-radius: 0.5rem;
+			padding: 0.75rem;
+		}
+		.mine-calc-kpi.highlight { border-color: rgba(57,255,20,0.35); background: rgba(57,255,20,0.06); }
+		.mine-calc-bar-track {
+			height: 8px;
+			border-radius: 999px;
+			background: rgba(255,255,255,0.06);
+			overflow: hidden;
+		}
+		.mine-calc-bar-fill {
+			height: 100%;
+			border-radius: 999px;
+			transition: width 0.45s ease;
+		}
+		.mine-calc-preset {
+			font-size: 9px;
+			padding: 0.3rem 0.55rem;
+			border-radius: 0.35rem;
+			border: 1px solid rgba(0,209,255,0.25);
+			color: #9ee8ff;
+			background: rgba(0,209,255,0.06);
+		}
+		.mine-calc-preset:hover { background: rgba(0,209,255,0.14); border-color: rgba(0,209,255,0.45); }
 		@media (max-width: 640px) {
 			.quick-actions .mobile-compact-hide { display: none; }
 			.quick-actions { gap: 0.3rem; }
@@ -967,6 +1028,146 @@
 								</div>
 							</div>
 						</div>
+
+						<div id="mine-calc-section" class="card card-glow mine-calc-hero rounded-lg p-4 md:p-5 mb-4 border-neon/25">
+							<div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+								<div>
+									<h3 class="font-display text-[10px] tracking-[0.25em] text-neon uppercase flex items-center gap-2">
+										<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+										Mining calculator
+									</h3>
+									<p class="text-[10px] text-gray-500 mt-1 max-w-2xl">Live pool economics: hashrate → HMC yield, PoH ETA, electricity ROI, pool vs chain comparison. Params sync from <code class="text-neon/70">/api/work/stats</code> and metrics.</p>
+								</div>
+								<div class="flex flex-wrap gap-1.5">
+									<button type="button" id="btn-mine-calc-live" class="mine-calc-preset">Use my worker</button>
+									<button type="button" id="btn-mine-calc-pool" class="mine-calc-preset">Pool average</button>
+									<button type="button" id="btn-mine-calc-gpu" class="mine-calc-preset">GPU ~20 GH/s</button>
+									<button type="button" id="btn-mine-calc-cpu" class="mine-calc-preset">CPU ~0.35 GH/s</button>
+									<button type="button" id="btn-mine-calc-export" class="mine-calc-preset">Copy JSON</button>
+								</div>
+							</div>
+
+							<div id="mine-calc-live-strip" class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4 text-[10px] font-mono">
+								<div class="rounded border border-white/10 bg-black/30 px-2 py-1.5"><span class="text-gray-500">reward/M</span><div id="mine-calc-net-rpm" class="text-neon">—</div></div>
+								<div class="rounded border border-white/10 bg-black/30 px-2 py-1.5"><span class="text-gray-500">target_mod</span><div id="mine-calc-net-target" class="text-white">—</div></div>
+								<div class="rounded border border-white/10 bg-black/30 px-2 py-1.5"><span class="text-gray-500">found bonus</span><div id="mine-calc-net-found" class="text-matrix">—</div></div>
+								<div class="rounded border border-white/10 bg-black/30 px-2 py-1.5"><span class="text-gray-500">pool GH/s</span><div id="mine-calc-net-pool-gh" class="text-white">—</div></div>
+								<div class="rounded border border-white/10 bg-black/30 px-2 py-1.5"><span class="text-gray-500">sync</span><div id="mine-calc-net-sync" class="text-gray-400">—</div></div>
+							</div>
+
+							<div class="grid lg:grid-cols-12 gap-4">
+								<div class="lg:col-span-5 space-y-3">
+									<div>
+										<label class="text-[10px] text-gray-500 uppercase tracking-wider flex justify-between"><span>Hashrate (GH/s)</span><span id="mine-calc-gh-label" class="text-neon font-mono">10</span></label>
+										<input type="range" id="mine-calc-gh-slider" class="mine-calc-range mt-1" min="0.01" max="500" step="0.01" value="10">
+										<input type="number" id="mine-calc-gh" class="mine-calc-input mt-1" min="0.001" step="0.001" value="10">
+									</div>
+									<div class="grid grid-cols-2 gap-2">
+										<div>
+											<label class="text-[10px] text-gray-500 uppercase tracking-wider">Rigs / GPUs</label>
+											<input type="number" id="mine-calc-rigs" class="mine-calc-input mt-1" min="1" max="9999" step="1" value="1">
+										</div>
+										<div>
+											<label class="text-[10px] text-gray-500 uppercase tracking-wider">Pool share %</label>
+											<input type="number" id="mine-calc-share" class="mine-calc-input mt-1" min="0.01" max="100" step="0.01" value="100">
+										</div>
+									</div>
+									<div class="grid grid-cols-2 gap-2">
+										<div>
+											<label class="text-[10px] text-gray-500 uppercase tracking-wider">Power (W / rig)</label>
+											<input type="number" id="mine-calc-power" class="mine-calc-input mt-1" min="0" step="1" value="180">
+										</div>
+										<div>
+											<label class="text-[10px] text-gray-500 uppercase tracking-wider">Electricity ($/kWh)</label>
+											<input type="number" id="mine-calc-kwh" class="mine-calc-input mt-1" min="0" step="0.001" value="0.12">
+										</div>
+									</div>
+									<div class="grid grid-cols-2 gap-2">
+										<div>
+											<label class="text-[10px] text-gray-500 uppercase tracking-wider">HMC price ($)</label>
+											<input type="number" id="mine-calc-hmc-usd" class="mine-calc-input mt-1" min="0" step="0.000001" placeholder="optional">
+										</div>
+										<div>
+											<label class="text-[10px] text-gray-500 uppercase tracking-wider">Hardware cost ($)</label>
+											<input type="number" id="mine-calc-hw-cost" class="mine-calc-input mt-1" min="0" step="1" value="0">
+										</div>
+									</div>
+									<div>
+										<label class="text-[10px] text-gray-500 uppercase tracking-wider flex justify-between"><span>Uptime</span><span id="mine-calc-uptime-label" class="text-matrix font-mono">95%</span></label>
+										<input type="range" id="mine-calc-uptime" class="mine-calc-range mt-1" min="50" max="100" step="1" value="95">
+									</div>
+									<div>
+										<label class="text-[10px] text-gray-500 uppercase tracking-wider">Scenario</label>
+										<select id="mine-calc-scenario" class="mine-calc-input mt-1">
+											<option value="pool">Pool work (reward/M)</option>
+											<option value="compare">Compare: pool vs chain empty</option>
+											<option value="fleet">Fleet planner (N identical rigs)</option>
+										</select>
+									</div>
+								</div>
+
+								<div class="lg:col-span-7 space-y-3">
+									<div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+										<div class="mine-calc-kpi highlight">
+											<div class="text-[9px] text-gray-500 uppercase">HMC / hour</div>
+											<div id="mine-calc-out-hour" class="font-display text-lg text-matrix">—</div>
+										</div>
+										<div class="mine-calc-kpi">
+											<div class="text-[9px] text-gray-500 uppercase">HMC / day</div>
+											<div id="mine-calc-out-day" class="font-mono text-sm text-white">—</div>
+										</div>
+										<div class="mine-calc-kpi">
+											<div class="text-[9px] text-gray-500 uppercase">HMC / month</div>
+											<div id="mine-calc-out-month" class="font-mono text-sm text-white">—</div>
+										</div>
+										<div class="mine-calc-kpi">
+											<div class="text-[9px] text-gray-500 uppercase">Attempts / sec</div>
+											<div id="mine-calc-out-aps" class="font-mono text-sm text-neon">—</div>
+										</div>
+									</div>
+
+									<div class="grid md:grid-cols-2 gap-3">
+										<div class="rounded border border-white/10 bg-black/25 p-3">
+											<div class="text-[10px] text-gray-500 uppercase tracking-wider mb-2">PoH progress model</div>
+											<div class="flex justify-between text-[10px] mb-1"><span class="text-gray-500">ETA to solve</span><span id="mine-calc-out-eta" class="text-white font-mono">—</span></div>
+											<div class="flex justify-between text-[10px] mb-2"><span class="text-gray-500">Expected found bonus / day</span><span id="mine-calc-out-found-day" class="text-matrix font-mono">—</span></div>
+											<div class="mine-calc-bar-track"><div id="mine-calc-bar-poh" class="mine-calc-bar-fill bg-gradient-to-r from-neon/80 to-matrix/80" style="width:0%"></div></div>
+											<p id="mine-calc-poh-note" class="text-[9px] text-gray-600 mt-2"></p>
+										</div>
+										<div class="rounded border border-white/10 bg-black/25 p-3">
+											<div class="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Electricity & ROI</div>
+											<div class="flex justify-between text-[10px] mb-1"><span class="text-gray-500">Power draw</span><span id="mine-calc-out-power-total" class="text-white font-mono">—</span></div>
+											<div class="flex justify-between text-[10px] mb-1"><span class="text-gray-500">Cost / day</span><span id="mine-calc-out-cost-day" class="text-warn font-mono">—</span></div>
+											<div class="flex justify-between text-[10px] mb-1"><span class="text-gray-500">Revenue / day ($)</span><span id="mine-calc-out-rev-day" class="text-matrix font-mono">—</span></div>
+											<div class="flex justify-between text-[10px] mb-2"><span class="text-gray-500">Net / day</span><span id="mine-calc-out-net-day" class="font-mono">—</span></div>
+											<div class="flex justify-between text-[10px]"><span class="text-gray-500">Break-even</span><span id="mine-calc-out-breakeven" class="text-gray-300 font-mono">—</span></div>
+										</div>
+									</div>
+
+									<div id="mine-calc-compare-wrap" class="rounded border border-white/10 bg-black/25 p-3 hidden">
+										<div class="text-[10px] text-gray-500 uppercase tracking-wider mb-3">Pool vs chain empty (relative HMC/h)</div>
+										<div class="space-y-2 text-[10px]">
+											<div>
+												<div class="flex justify-between mb-0.5"><span class="text-neon">Pool work</span><span id="mine-calc-cmp-pool" class="font-mono text-white">—</span></div>
+												<div class="mine-calc-bar-track"><div id="mine-calc-bar-pool" class="mine-calc-bar-fill bg-neon/70" style="width:0%"></div></div>
+											</div>
+											<div>
+												<div class="flex justify-between mb-0.5"><span class="text-gray-400">Chain empty baseline</span><span id="mine-calc-cmp-chain" class="font-mono text-gray-300">—</span></div>
+												<div class="mine-calc-bar-track"><div id="mine-calc-bar-chain" class="mine-calc-bar-fill bg-gray-500/60" style="width:0%"></div></div>
+											</div>
+											<div>
+												<div class="flex justify-between mb-0.5"><span class="text-matrix">Your pool share of total</span><span id="mine-calc-cmp-share" class="font-mono text-matrix">—</span></div>
+												<div class="mine-calc-bar-track"><div id="mine-calc-bar-share" class="mine-calc-bar-fill bg-matrix/70" style="width:0%"></div></div>
+											</div>
+										</div>
+										<p id="mine-calc-compare-note" class="text-[9px] text-gray-600 mt-2"></p>
+									</div>
+
+									<p id="mine-calc-footnote" class="text-[9px] text-gray-600 leading-relaxed"></p>
+								</div>
+							</div>
+						</div>
+
 						<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
 							<p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-display">Session log</p>
 							<span id="mining-log-transport" class="text-[9px] font-mono px-2 py-0.5 rounded border border-white/10 text-gray-500" title="Local PoH: SSE or buffer. Pool worker: log tail (poll).">—</span>
@@ -3094,6 +3295,342 @@
 			const mm = m % 60;
 			return h + 'h ' + mm + 'm';
 		}
+		function fmtDur(sec) {
+			if (sec == null || !Number.isFinite(sec) || sec < 0) return '—';
+			if (sec < 1) return '<1 s';
+			const s = Math.max(0, Math.round(sec));
+			if (s < 60) return s + ' s';
+			const m = Math.floor(s / 60);
+			const r = s % 60;
+			if (m < 60) return m + 'm ' + r + 's';
+			const h = Math.floor(m / 60);
+			const mm = m % 60;
+			return h + 'h ' + mm + 'm';
+		}
+
+		const MINE_CALC_PREFS_KEY = 'hackme.mine_calc.v1';
+		let mineCalcPrefsLoaded = false;
+		let mineCalcLastExport = null;
+
+		function mineCalcEl(id) { return $(id); }
+
+		function loadMineCalcPrefs() {
+			if (mineCalcPrefsLoaded) return;
+			mineCalcPrefsLoaded = true;
+			try {
+				const raw = localStorage.getItem(MINE_CALC_PREFS_KEY);
+				if (!raw) return;
+				const p = JSON.parse(raw);
+				if (!p || typeof p !== 'object') return;
+				const map = {
+					'mine-calc-gh': 'hashrateGh',
+					'mine-calc-rigs': 'rigCount',
+					'mine-calc-share': 'poolSharePct',
+					'mine-calc-power': 'powerW',
+					'mine-calc-kwh': 'kwhUsd',
+					'mine-calc-hmc-usd': 'hmcUsd',
+					'mine-calc-hw-cost': 'hwCostUsd',
+					'mine-calc-uptime': 'uptimePct',
+					'mine-calc-scenario': 'scenario',
+				};
+				Object.entries(map).forEach(([elId, key]) => {
+					const el = mineCalcEl(elId);
+					if (!el || p[key] == null) return;
+					el.value = String(p[key]);
+				});
+				const gh = Number(p.hashrateGh);
+				const slider = mineCalcEl('mine-calc-gh-slider');
+				if (slider && Number.isFinite(gh) && gh > 0) slider.value = String(Math.min(500, Math.max(0.01, gh)));
+			} catch (_) {}
+		}
+
+		function saveMineCalcPrefs(inputs) {
+			try {
+				localStorage.setItem(MINE_CALC_PREFS_KEY, JSON.stringify(inputs));
+			} catch (_) {}
+		}
+
+		function readMineCalcInputs() {
+			const gh = Number((mineCalcEl('mine-calc-gh') || {}).value || 0);
+			const uptimePct = Number((mineCalcEl('mine-calc-uptime') || {}).value || 95);
+			return {
+				hashrateGh: gh > 0 ? gh : 0,
+				rigCount: Math.max(1, Math.floor(Number((mineCalcEl('mine-calc-rigs') || {}).value || 1))),
+				poolSharePct: Number((mineCalcEl('mine-calc-share') || {}).value || 100),
+				powerW: Math.max(0, Number((mineCalcEl('mine-calc-power') || {}).value || 0)),
+				kwhUsd: Math.max(0, Number((mineCalcEl('mine-calc-kwh') || {}).value || 0)),
+				hmcUsd: Number((mineCalcEl('mine-calc-hmc-usd') || {}).value || 0),
+				hwCostUsd: Math.max(0, Number((mineCalcEl('mine-calc-hw-cost') || {}).value || 0)),
+				uptimePct: Number.isFinite(uptimePct) ? uptimePct : 95,
+				scenario: String((mineCalcEl('mine-calc-scenario') || {}).value || 'pool'),
+			};
+		}
+
+		function syncMineCalcSliders() {
+			const ghEl = mineCalcEl('mine-calc-gh');
+			const ghSlider = mineCalcEl('mine-calc-gh-slider');
+			const ghLabel = mineCalcEl('mine-calc-gh-label');
+			const gh = Number(ghEl && ghEl.value || 0);
+			if (ghSlider && gh > 0) {
+				const clamped = Math.min(500, Math.max(0.01, gh));
+				if (Math.abs(Number(ghSlider.value) - clamped) > 0.0001) ghSlider.value = String(clamped);
+			}
+			if (ghLabel) ghLabel.textContent = gh > 0 ? fmt(gh, gh >= 10 ? 1 : 3) : '0';
+			const upEl = mineCalcEl('mine-calc-uptime');
+			const upLabel = mineCalcEl('mine-calc-uptime-label');
+			if (upLabel && upEl) upLabel.textContent = fmt(Number(upEl.value || 95), 0) + '%';
+		}
+
+		function getMineCalcNetworkParams() {
+			const ws = lastGoodWorkStats || latestWorkStats || {};
+			const m = lastMetricsPayload || {};
+			const wst = latestWorkerStatus || {};
+			const st = latestStatus || {};
+			let targetMod = workStatsTargetMod(ws);
+			if (targetMod <= 0) targetMod = Math.max(251, Number(m.mining_target_mod || lastGlobalTargetMod || 0));
+			const rewardPerM = Number(ws.reward_per_m || 0);
+			const foundBonus = Number(ws.found_bonus_hmc || 0);
+			const emptyHour = Number(m.econ_expected_empty_hmc_hour || 0);
+			let poolGh = 0;
+			const netTh = Number((latestNetworkStats && latestNetworkStats.global_hashrate_th_s) || 0);
+			if (netTh > 0) poolGh = netTh * 1000;
+			if (!(poolGh > 0) && Number(workerDerived.attemptsPerSec || 0) > 0) {
+				poolGh = Number(workerDerived.attemptsPerSec) / 1e9;
+				const wc = Math.max(1, Number(ws.workers_count || Object.keys(ws.workers || {}).length || 1));
+				poolGh *= wc;
+			}
+			if (!(poolGh > 0)) {
+				let sumGh = 0;
+				((latestNetworkStats && latestNetworkStats.active_rigs) || []).forEach((r) => {
+					sumGh += Number(r.hashrate_gh_s || 0);
+				});
+				if (sumGh > 0) poolGh = sumGh;
+			}
+			const workerGh = Number(wst.measured_hashrate_gh_s || wst.hashrate_gh_s || 0);
+			let mySharePct = 100;
+			const myId = String(wst.worker_id || '');
+			const poolAttempts = Number(ws.accepted_attempts || 0);
+			if (myId && ws.workers && ws.workers[myId]) {
+				const mineAtt = Number(ws.workers[myId].accepted_attempts || 0);
+				if (poolAttempts > 0 && mineAtt > 0) mySharePct = Math.min(100, (mineAtt / poolAttempts) * 100);
+			}
+			const syncAge = lastWorkStatsOkUnix > 0 ? Math.max(0, Math.floor(Date.now() / 1000) - lastWorkStatsOkUnix) : -1;
+			return {
+				targetMod,
+				rewardPerM,
+				foundBonus,
+				emptyHour,
+				poolGh,
+				workerGh,
+				mySharePct,
+				schedulerMode: String(ws.scheduler_mode || 'baseline'),
+				syncAgeSec: syncAge,
+				hasLive: !!(ws && ws.ok !== false && rewardPerM > 0),
+				netMode: !!st.network_mode_active,
+			};
+		}
+
+		function computeMineCalc(inputs, net) {
+			const gh = Math.max(0, Number(inputs.hashrateGh) || 0);
+			const rigs = Math.max(1, Math.floor(Number(inputs.rigCount) || 1));
+			const uptime = Math.max(0.5, Math.min(1, Number(inputs.uptimePct || 95) / 100));
+			const sharePct = Math.max(0.01, Math.min(100, Number(inputs.poolSharePct) || 100));
+			const share = sharePct / 100;
+			const fleetGh = gh * rigs;
+			const aps = fleetGh * 1e9 * uptime;
+			const rpm = Math.max(0, Number(net.rewardPerM) || 0);
+			const targetMod = Math.max(251, Number(net.targetMod) || 251);
+			const poolHmcPerSec = rpm > 0 ? (aps / 1e6) * rpm : 0;
+			const poolHmcHour = poolHmcPerSec * 3600 * share;
+			const poolHmcDay = poolHmcHour * 24;
+			const poolHmcMonth = poolHmcDay * 30;
+			const solvesPerSec = aps / targetMod;
+			const foundBonusHour = Number(net.foundBonus) > 0 ? solvesPerSec * Number(net.foundBonus) * 3600 * share : 0;
+			const foundBonusDay = foundBonusHour * 24;
+			const totalHmcHour = poolHmcHour + foundBonusHour;
+			const totalHmcDay = totalHmcHour * 24;
+			const totalHmcMonth = totalHmcDay * 30;
+			const etaSec = aps > 0 ? targetMod / aps : -1;
+			const pohProgress = aps > 0 ? Math.min(0.995, 1 - Math.exp(-aps / targetMod)) : 0;
+			const powerTotalW = Math.max(0, Number(inputs.powerW) || 0) * rigs;
+			const kwhDay = (powerTotalW / 1000) * 24 * uptime;
+			const costDay = kwhDay * Math.max(0, Number(inputs.kwhUsd) || 0);
+			const hmcUsd = Math.max(0, Number(inputs.hmcUsd) || 0);
+			const revDay = hmcUsd > 0 ? totalHmcDay * hmcUsd : null;
+			const netDay = revDay != null ? revDay - costDay : null;
+			let breakEven = '—';
+			if (Number(inputs.hwCostUsd) > 0 && netDay != null && netDay > 0) {
+				breakEven = fmt(Math.ceil(Number(inputs.hwCostUsd) / netDay), 0) + ' days';
+			} else if (Number(inputs.hwCostUsd) > 0 && netDay != null && netDay <= 0) {
+				breakEven = 'never (negative margin)';
+			}
+			let chainHour = 0;
+			if (Number(net.emptyHour) > 0 && Number(net.poolGh) > 0 && fleetGh > 0) {
+				chainHour = Number(net.emptyHour) * (fleetGh / Number(net.poolGh)) * uptime;
+			}
+			const poolShareOfTotal = Number(net.poolGh) > 0 ? Math.min(100, (fleetGh / Number(net.poolGh)) * 100) : 0;
+			return {
+				aps, poolHmcHour, poolHmcDay, poolHmcMonth, totalHmcHour, totalHmcDay, totalHmcMonth,
+				foundBonusDay, etaSec, pohProgress, powerTotalW, kwhDay, costDay, revDay, netDay, breakEven,
+				chainHour, poolShareOfTotal, solvesPerSec,
+			};
+		}
+
+		function setMineCalcBar(id, pct) {
+			const el = mineCalcEl(id);
+			if (!el) return;
+			const p = Math.max(0, Math.min(100, Number(pct) || 0));
+			el.style.width = p + '%';
+		}
+
+		function renderMineCalc() {
+			if (!mineCalcEl('mine-calc-section')) return;
+			loadMineCalcPrefs();
+			syncMineCalcSliders();
+			const inputs = readMineCalcInputs();
+			const net = getMineCalcNetworkParams();
+			const out = computeMineCalc(inputs, net);
+			saveMineCalcPrefs(inputs);
+
+			if (mineCalcEl('mine-calc-net-rpm')) mineCalcEl('mine-calc-net-rpm').textContent = net.rewardPerM > 0 ? fmt(net.rewardPerM, 6) : '—';
+			if (mineCalcEl('mine-calc-net-target')) mineCalcEl('mine-calc-net-target').textContent = net.targetMod > 0 ? fmtUInt(net.targetMod) : '—';
+			if (mineCalcEl('mine-calc-net-found')) mineCalcEl('mine-calc-net-found').textContent = net.foundBonus > 0 ? fmt(net.foundBonus, 6) + ' HMC' : '—';
+			if (mineCalcEl('mine-calc-net-pool-gh')) mineCalcEl('mine-calc-net-pool-gh').textContent = net.poolGh > 0 ? fmt(net.poolGh, 2) : '—';
+			if (mineCalcEl('mine-calc-net-sync')) {
+				if (net.syncAgeSec < 0) mineCalcEl('mine-calc-net-sync').textContent = net.hasLive ? 'live' : 'offline';
+				else if (net.syncAgeSec <= 15) mineCalcEl('mine-calc-net-sync').textContent = 'live · ' + net.syncAgeSec + 's';
+				else mineCalcEl('mine-calc-net-sync').textContent = fmtDur(net.syncAgeSec) + ' ago';
+			}
+
+			if (mineCalcEl('mine-calc-out-hour')) mineCalcEl('mine-calc-out-hour').textContent = fmt(out.totalHmcHour, 6);
+			if (mineCalcEl('mine-calc-out-day')) mineCalcEl('mine-calc-out-day').textContent = fmt(out.totalHmcDay, 4);
+			if (mineCalcEl('mine-calc-out-month')) mineCalcEl('mine-calc-out-month').textContent = fmt(out.totalHmcMonth, 2);
+			if (mineCalcEl('mine-calc-out-aps')) mineCalcEl('mine-calc-out-aps').textContent = fmtMiningTrialRate(out.aps) || fmt(out.aps, 0);
+			if (mineCalcEl('mine-calc-out-eta')) mineCalcEl('mine-calc-out-eta').textContent = out.etaSec > 0 ? fmtDur(out.etaSec) : '—';
+			if (mineCalcEl('mine-calc-out-found-day')) mineCalcEl('mine-calc-out-found-day').textContent = out.foundBonusDay > 0 ? fmt(out.foundBonusDay, 6) : '—';
+			setMineCalcBar('mine-calc-bar-poh', out.pohProgress * 100);
+			if (mineCalcEl('mine-calc-poh-note')) {
+				mineCalcEl('mine-calc-poh-note').textContent =
+					'Poisson model: P(solve within 1 mod window) ≈ ' + fmt(out.pohProgress * 100, 1) + '% · scheduler ' + net.schedulerMode +
+					(out.solvesPerSec > 0 ? (' · ~' + fmt(out.solvesPerSec * 3600, 4) + ' solves/h fleet-wide') : '');
+			}
+			if (mineCalcEl('mine-calc-out-power-total')) mineCalcEl('mine-calc-out-power-total').textContent = fmt(out.powerTotalW, 0) + ' W';
+			if (mineCalcEl('mine-calc-out-cost-day')) mineCalcEl('mine-calc-out-cost-day').textContent = inputs.kwhUsd > 0 ? ('$' + fmt(out.costDay, 2)) : '—';
+			if (mineCalcEl('mine-calc-out-rev-day')) mineCalcEl('mine-calc-out-rev-day').textContent = inputs.hmcUsd > 0 ? ('$' + fmt(out.revDay, 2)) : 'set HMC price';
+			if (mineCalcEl('mine-calc-out-net-day')) {
+				const el = mineCalcEl('mine-calc-out-net-day');
+				if (inputs.hmcUsd > 0) {
+					el.textContent = (out.netDay >= 0 ? '$' : '-$') + fmt(Math.abs(out.netDay), 2);
+					el.className = 'font-mono ' + (out.netDay >= 0 ? 'text-matrix' : 'text-danger');
+				} else {
+					el.textContent = '—';
+					el.className = 'font-mono text-gray-400';
+				}
+			}
+			if (mineCalcEl('mine-calc-out-breakeven')) mineCalcEl('mine-calc-out-breakeven').textContent = out.breakEven;
+
+			const cmpWrap = mineCalcEl('mine-calc-compare-wrap');
+			const showCompare = inputs.scenario === 'compare' || inputs.scenario === 'fleet';
+			if (cmpWrap) cmpWrap.classList.toggle('hidden', !showCompare);
+			if (showCompare) {
+				const maxH = Math.max(out.poolHmcHour, out.chainHour, 1e-12);
+				if (mineCalcEl('mine-calc-cmp-pool')) mineCalcEl('mine-calc-cmp-pool').textContent = fmt(out.poolHmcHour, 6) + ' HMC/h';
+				if (mineCalcEl('mine-calc-cmp-chain')) mineCalcEl('mine-calc-cmp-chain').textContent = out.chainHour > 0 ? (fmt(out.chainHour, 6) + ' HMC/h') : '—';
+				if (mineCalcEl('mine-calc-cmp-share')) mineCalcEl('mine-calc-cmp-share').textContent = out.poolShareOfTotal > 0 ? (fmt(out.poolShareOfTotal, 2) + '% of pool') : '—';
+				setMineCalcBar('mine-calc-bar-pool', (out.poolHmcHour / maxH) * 100);
+				setMineCalcBar('mine-calc-bar-chain', (out.chainHour / maxH) * 100);
+				setMineCalcBar('mine-calc-bar-share', Math.min(100, out.poolShareOfTotal));
+				if (mineCalcEl('mine-calc-compare-note')) {
+					let note = '';
+					if (out.chainHour > 0 && out.poolHmcHour > 0) {
+						const ratio = out.poolHmcHour / out.chainHour;
+						note = ratio >= 1
+							? ('Pool work pays ~' + fmt(ratio, 2) + '× vs chain empty baseline at current reward/M.')
+							: ('Chain empty baseline ~' + fmt(out.chainHour / out.poolHmcHour, 2) + '× pool work at current params.');
+					} else if (!net.hasLive) {
+						note = 'Start pool worker or connect coordinator for live reward/M and pool hashrate.';
+					}
+					mineCalcEl('mine-calc-compare-note').textContent = note;
+				}
+			}
+
+			if (mineCalcEl('mine-calc-footnote')) {
+				const parts = [
+					'Formula: (GH/s × 10⁹ × uptime × rigs / 10⁶) × reward_per_m × pool_share.',
+					net.foundBonus > 0 ? ('Found bonus: ~(attempts/s ÷ target_mod) × ' + fmt(net.foundBonus, 4) + ' HMC per solve.') : '',
+					inputs.scenario === 'fleet' ? ('Fleet: ' + inputs.rigCount + ' × ' + fmt(inputs.hashrateGh, 2) + ' GH/s = ' + fmt(inputs.hashrateGh * inputs.rigCount, 2) + ' GH/s aggregate.') : '',
+					'Estimates only — actual payout depends on coordinator acceptance, orders scheduler, and network conditions.',
+				].filter(Boolean);
+				mineCalcEl('mine-calc-footnote').textContent = parts.join(' ');
+			}
+
+			mineCalcLastExport = { inputs, net, out, exported_at_unix: Math.floor(Date.now() / 1000) };
+		}
+
+		function applyMineCalcPreset(kind) {
+			const net = getMineCalcNetworkParams();
+			const ghEl = mineCalcEl('mine-calc-gh');
+			const shareEl = mineCalcEl('mine-calc-share');
+			if (!ghEl) return;
+			if (kind === 'live' && net.workerGh > 0) {
+				ghEl.value = String(net.workerGh);
+				if (shareEl) shareEl.value = String(fmt(net.mySharePct, 2));
+			} else if (kind === 'pool' && net.poolGh > 0) {
+				const wc = Math.max(1, Number((lastGoodWorkStats || latestWorkStats || {}).workers_count || Object.keys((lastGoodWorkStats || {}).workers || {}).length || 1));
+				ghEl.value = String(net.poolGh / wc);
+				if (shareEl) shareEl.value = '100';
+			} else if (kind === 'gpu') {
+				ghEl.value = '20';
+				if (mineCalcEl('mine-calc-power')) mineCalcEl('mine-calc-power').value = '180';
+			} else if (kind === 'cpu') {
+				ghEl.value = '0.35';
+				if (mineCalcEl('mine-calc-power')) mineCalcEl('mine-calc-power').value = '95';
+			}
+			renderMineCalc();
+		}
+
+		function bindMineCalcEvents() {
+			if (!mineCalcEl('mine-calc-section')) return;
+			loadMineCalcPrefs();
+			const rerender = () => { try { renderMineCalc(); } catch (_) {} };
+			const ids = ['mine-calc-gh', 'mine-calc-rigs', 'mine-calc-share', 'mine-calc-power', 'mine-calc-kwh', 'mine-calc-hmc-usd', 'mine-calc-hw-cost', 'mine-calc-scenario'];
+			ids.forEach((id) => {
+				const el = mineCalcEl(id);
+				if (!el) return;
+				el.addEventListener('input', rerender);
+				el.addEventListener('change', rerender);
+			});
+			const ghSlider = mineCalcEl('mine-calc-gh-slider');
+			const ghInput = mineCalcEl('mine-calc-gh');
+			if (ghSlider && ghInput) {
+				ghSlider.addEventListener('input', () => { ghInput.value = ghSlider.value; rerender(); });
+				ghInput.addEventListener('input', () => {
+					const v = Number(ghInput.value || 0);
+					if (v > 0 && v <= 500) ghSlider.value = String(v);
+					rerender();
+				});
+			}
+			const upSlider = mineCalcEl('mine-calc-uptime');
+			if (upSlider) upSlider.addEventListener('input', rerender);
+			if (mineCalcEl('btn-mine-calc-live')) mineCalcEl('btn-mine-calc-live').addEventListener('click', () => applyMineCalcPreset('live'));
+			if (mineCalcEl('btn-mine-calc-pool')) mineCalcEl('btn-mine-calc-pool').addEventListener('click', () => applyMineCalcPreset('pool'));
+			if (mineCalcEl('btn-mine-calc-gpu')) mineCalcEl('btn-mine-calc-gpu').addEventListener('click', () => applyMineCalcPreset('gpu'));
+			if (mineCalcEl('btn-mine-calc-cpu')) mineCalcEl('btn-mine-calc-cpu').addEventListener('click', () => applyMineCalcPreset('cpu'));
+			if (mineCalcEl('btn-mine-calc-export')) {
+				mineCalcEl('btn-mine-calc-export').addEventListener('click', async () => {
+					renderMineCalc();
+					const txt = JSON.stringify(mineCalcLastExport || {}, null, 2);
+					try {
+						await navigator.clipboard.writeText(txt);
+						logLine('[calc] mining calculator JSON copied');
+					} catch (_) {
+						logLine('[calc] clipboard failed');
+					}
+				});
+			}
+			renderMineCalc();
+		}
+
 		function updateOrdersWalletGate() {
 			const el = $('orders-wallet-gate');
 			if (!el) return;
@@ -4842,6 +5379,7 @@
 			if ($('econ-window-meta')) $('econ-window-meta').textContent =
 				fmtUInt(Number(payload.econ_window_blocks || 0)) + ' blocks · base ' + fmtUInt(Number(payload.econ_window_base_blocks || 0)) +
 				' · order ' + fmtUInt(Number(payload.econ_window_order_blocks || 0));
+			try { renderMineCalc(); } catch (_) {}
 		}
 
 		function deriveCanonicalStatusURLFromCoordinator(coordURL) {
@@ -7381,6 +7919,7 @@
 				if ($('btn-admin-token-clear')) $('btn-admin-token-clear').addEventListener('click', clearAdminToken);
 				if ($('btn-mining-start')) $('btn-mining-start').addEventListener('click', () => { void postMiningControl('start'); });
 				if ($('btn-mining-stop')) $('btn-mining-stop').addEventListener('click', () => { void postMiningControl('stop'); });
+				try { bindMineCalcEvents(); } catch (_) {}
 				document.querySelectorAll('[data-wallet-earnings-period]').forEach((btn) => {
 					btn.addEventListener('click', () => {
 						const p = btn.getAttribute('data-wallet-earnings-period');
