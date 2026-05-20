@@ -147,6 +147,21 @@ func asFloat64(v any) float64 {
 	}
 }
 
+func asInt64(v any) int64 {
+	switch n := v.(type) {
+	case int64:
+		return n
+	case int:
+		return int64(n)
+	case float64:
+		return int64(n)
+	case uint64:
+		return int64(n)
+	default:
+		return 0
+	}
+}
+
 func asString(v any) string {
 	if v == nil {
 		return ""
@@ -1592,6 +1607,43 @@ func walletAccrualFromCoordinator(ws map[string]any, stateWorkers map[string]wor
 	return
 }
 
+// fetchCanonicalJSON GETs JSON from canonical with a bounded timeout.
+func fetchCanonicalJSON(ctx context.Context, url string, timeout time.Duration) (map[string]any, bool) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, false
+	}
+	cl := &http.Client{Timeout: timeout}
+	resp, err := cl.Do(req)
+	if err != nil || resp == nil {
+		return nil, false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, false
+	}
+	var remote map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&remote); err != nil {
+		return nil, false
+	}
+	return remote, true
+}
+
+func applyCanonicalBlockEconomics(s *MetricsSnapshot, bh uint64) bool {
+	if s == nil || bh == 0 {
+		return false
+	}
+	s.BlockHeight = bh
+	s.EconNextHalvingBlock = chain.NextHalvingBlock(bh)
+	s.EconExpectedEmptyHmcHour = chain.ExpectedEmptyMiningHMCPerHour(bh)
+	s.EconBaseRewardNowHMC = chain.BaseRewardForBlockIndex(bh + 1)
+	s.EconRewardTailFloorHMC = chain.RewardTailFloorHMC
+	if strings.TrimSpace(s.MiningTaskSource) != chain.TaskSourceOrder {
+		s.MiningRewardHMC = s.EconBaseRewardNowHMC
+	}
+	return true
+}
+
 // overlayCanonicalMiningIntoSnapshot aligns PoH modulus / block-height-derived economics with the canonical
 // command node when local PoH search is idle (dashboard worker subprocess or coordinator follower env).
 func (a *app) overlayCanonicalMiningIntoSnapshot(ctx context.Context, s *MetricsSnapshot) bool {
@@ -1612,24 +1664,44 @@ func (a *app) overlayCanonicalMiningIntoSnapshot(ctx context.Context, s *Metrics
 	if base == "" {
 		return false
 	}
+	out := false
+	if status, ok := fetchCanonicalJSON(ctx, base+"/api/status", 6*time.Second); ok {
+		if bh := asUint64(status["tip_height"]); bh > 0 {
+			if applyCanonicalBlockEconomics(s, bh) {
+				out = true
+			}
+			if tm := asUint64(status["mining_target_mod"]); tm > 0 {
+				s.MiningTargetMod = tm
+				s.MiningTargetModAtCap = chain.IsPoHTargetModAtCap(tm)
+				out = true
+			}
+			if obs := canonicalMiningObservedSec(status); obs > 0 {
+				s.MiningObservedBlockSec = obs
+				out = true
+			}
+		}
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/metrics", nil)
 	if err != nil {
-		return false
+		return out
 	}
-	cl := &http.Client{Timeout: 2800 * time.Millisecond}
+	metricsTimeout := 12 * time.Second
+	if out {
+		metricsTimeout = 4 * time.Second
+	}
+	cl := &http.Client{Timeout: metricsTimeout}
 	resp, err := cl.Do(req)
 	if err != nil || resp == nil {
-		return false
+		return out
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return false
+		return out
 	}
 	var remote map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&remote); err != nil {
-		return false
+		return out
 	}
-	out := false
 	sched := false
 	if tm := asUint64(remote["mining_target_mod"]); tm > 0 {
 		s.MiningTargetMod = tm
@@ -1653,6 +1725,51 @@ func (a *app) overlayCanonicalMiningIntoSnapshot(ctx context.Context, s *Metrics
 		if strings.TrimSpace(s.MiningTaskSource) != chain.TaskSourceOrder {
 			s.MiningRewardHMC = s.EconBaseRewardNowHMC
 		}
+	}
+	if v := asFloat64(remote["econ_window_total_hmc"]); v > 0 {
+		s.EconWindowTotalHMC = v
+		out = true
+	}
+	if v := asFloat64(remote["econ_window_base_hmc"]); v > 0 {
+		s.EconWindowBaseHMC = v
+		out = true
+	}
+	if v := asFloat64(remote["econ_window_order_hmc"]); v > 0 {
+		s.EconWindowOrderHMC = v
+		out = true
+	}
+	if v := asInt64(remote["econ_window_blocks"]); v > 0 {
+		s.EconWindowBlocks = int(v)
+		s.MiningPohBlocksLast1h = int(v)
+		out = true
+	}
+	if v := asInt64(remote["econ_window_base_blocks"]); v > 0 {
+		s.EconWindowBaseBlocks = int(v)
+		out = true
+	}
+	if v := asInt64(remote["econ_window_order_blocks"]); v > 0 {
+		s.EconWindowOrderBlocks = int(v)
+		out = true
+	}
+	if v := asFloat64(remote["mining_hmc_last_hour_approx"]); v > 0 {
+		s.MiningHmcLastHourApprox = v
+		out = true
+	} else if s.EconWindowTotalHMC > 0 {
+		s.MiningHmcLastHourApprox = s.EconWindowTotalHMC
+		out = true
+	}
+	if v := asInt64(remote["mining_poh_blocks_last_1h"]); v > 0 {
+		s.MiningPohBlocksLast1h = int(v)
+		out = true
+	}
+	if v := asFloat64(remote["econ_window_order_share_pct"]); v > 0 {
+		s.EconWindowOrderShare = v
+		out = true
+	} else if s.EconWindowTotalHMC > 1e-12 {
+		s.EconWindowOrderShare = 100 * s.EconWindowOrderHMC / s.EconWindowTotalHMC
+	}
+	if s.EconWindowSec <= 0 {
+		s.EconWindowSec = 3600
 	}
 	return out
 }
