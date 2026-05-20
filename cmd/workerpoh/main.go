@@ -297,11 +297,11 @@ func (g gpuSearcher) Search(ctxTimeout time.Duration, base, count, mod uint64) (
 	sec := time.Since(t0).Seconds()
 	switch strings.ToLower(strings.TrimSpace(g.acc.Backend())) {
 	case "cuda":
-		if k := gpupoh.LastCUDAKernelSeconds(); k > sec {
+		if k := gpupoh.LastCUDAKernelSeconds(); k > 0 {
 			sec = k
 		}
 	case "opencl":
-		if k := gpupoh.LastOCLKernelSeconds(); k > sec {
+		if k := gpupoh.LastOCLKernelSeconds(); k > 0 {
 			sec = k
 		}
 	}
@@ -397,17 +397,30 @@ func envFloatGHS(keys ...string) float64 {
 	return 0
 }
 
-func effectiveSearchSeconds(searchSec float64) float64 {
-	sec := searchSec
+func lastGPUKernelSeconds() float64 {
 	if cudaBackendConfigured() {
-		if k := gpupoh.LastCUDAKernelSeconds(); k > sec {
-			sec = k
-		}
-	} else if openclBackendConfigured() {
-		if k := gpupoh.LastOCLKernelSeconds(); k > sec {
-			sec = k
-		}
+		return gpupoh.LastCUDAKernelSeconds()
 	}
+	if openclBackendConfigured() {
+		return gpupoh.LastOCLKernelSeconds()
+	}
+	return 0
+}
+
+func gpuKernelTimingActive() bool {
+	return gpuBackendConfigured() && lastGPUKernelSeconds() > 0
+}
+
+func effectiveSearchSeconds(searchSec float64) float64 {
+	if k := lastGPUKernelSeconds(); k > 0 {
+		// Fast CUDA/OpenCL batches can be sub-millisecond; do not clamp to 50ms (that pinned ~0.08 GH/s).
+		const kernelFloor = 1e-6
+		if k < kernelFloor {
+			return kernelFloor
+		}
+		return k
+	}
+	sec := searchSec
 	const minSec = 0.05
 	if sec < minSec {
 		sec = minSec
@@ -482,18 +495,30 @@ func calibrateGPUHashrateGHS(srch searcher, batch, mod uint64) float64 {
 	return sum / float64(n)
 }
 
-// submitHashrateGHS reports GH/s from GPU search time (batch / searchSec).
-// OpenCL: when timing is bogus (too slow), fall back to declared GH/s so workers are not under-paid.
-// CUDA: use calibrated + measured; declared is a minimum hint only (never a ceiling).
+// submitHashrateGHS reports GH/s from GPU search time (batch / kernelSec).
+// CUDA: dynamic EMA from measured kernel time; calibration is fallback only when timing is missing.
+// OpenCL: when timing is bogus (too slow), fall back to calibrated/declared so workers are not under-paid.
 func submitHashrateGHS(batch uint64, searchSec float64, mode string) float64 {
 	inst := measureWorkerHashrateGHS(batch, searchSec)
-	if gpuBackendConfigured() {
+	kernelTimed := mode == "gpu" && gpuKernelTimingActive()
+	if gpuBackendConfigured() && !kernelTimed {
 		if inst < 2 && gpuCalibratedGHS > 0 {
 			inst = gpuCalibratedGHS
 		}
 		if inst < gpuCalibratedGHS*0.7 && gpuCalibratedGHS > 0 {
 			inst = gpuCalibratedGHS
 		}
+	} else if gpuBackendConfigured() && kernelTimed && openclBackendConfigured() && !cudaBackendConfigured() {
+		// OpenCL-only: reject bogus slow wall/kernel timing.
+		if inst < 2 && gpuCalibratedGHS > 0 {
+			inst = gpuCalibratedGHS
+		}
+		if inst < gpuCalibratedGHS*0.7 && gpuCalibratedGHS > 0 {
+			inst = gpuCalibratedGHS
+		}
+	} else if cudaBackendConfigured() && kernelTimed && gpuCalibratedGHS > 0 && inst > gpuCalibratedGHS*2.5 {
+		// Cap absurd over-report spikes; trust live measurement otherwise.
+		inst = gpuCalibratedGHS * 1.15
 	}
 	if inst > 0 {
 		if submitHashrateEMA <= 0 {
@@ -707,11 +732,12 @@ func main() {
 		if searched > 0 && searched < hashBatch {
 			hashBatch = searched
 		}
+		instGHS := measureWorkerHashrateGHS(hashBatch, elapsed)
 		ghs := submitHashrateGHS(hashBatch, elapsed, mode)
 		if os.Getenv("HACKME_CUDA_VERBOSE") == "1" && mode == "gpu" {
-			kern := gpupoh.LastCUDAKernelSeconds()
-			fmt.Fprintf(os.Stderr, "workerpoh: search_sec=%.4f kernel_sec=%.4f inst_ghs=%.2f submit_ghs=%.2f calib=%.2f\n",
-				elapsed, kern, measureWorkerHashrateGHS(hashBatch, effectiveSearchSeconds(elapsed)), ghs, gpuCalibratedGHS)
+			kern := lastGPUKernelSeconds()
+			fmt.Fprintf(os.Stderr, "workerpoh: search_sec=%.6f kernel_sec=%.6f inst_ghs=%.2f submit_ghs=%.2f calib=%.2f\n",
+				elapsed, kern, instGHS, ghs, gpuCalibratedGHS)
 		}
 		out := submitReq{
 			WorkerID:    *workerID,
@@ -771,7 +797,7 @@ func main() {
 			okSubmits++
 		}
 		pushWorkSnapshot(pushCL, *coordURL, *token, *workerID, workerName, ghs, subWrap.Accepted, okSubmits)
-		fmt.Printf("submit ok found=%v batch=%d mod=%d ghs=%.6f\n", found, cr.BatchSize, cr.TargetMod, ghs)
+		fmt.Printf("submit ok found=%v batch=%d mod=%d ghs=%.6f inst_ghs=%.2f\n", found, cr.BatchSize, cr.TargetMod, ghs, instGHS)
 		if ms := envIntMs("HACKME_WORKER_CLAIM_COOLDOWN_MS", 0); ms > 0 {
 			time.Sleep(time.Duration(ms) * time.Millisecond)
 		}
