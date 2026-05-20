@@ -296,6 +296,8 @@
         $('kpi-height').textContent = String(primaryH || 0);
         $('kpi-tip').textContent = short(primaryHash || '—', 22);
         const poolTM = Number(s.pool_target_mod || 0);
+        const poolLoadHint = Number(s.pool_target_mod_load_hint || 0);
+        const poolLoadCapped = s.pool_target_mod_load_capped === true;
         const poolTH = Number(s.pool_global_hashrate_th_s || 0);
         const poolSrc = String(s.pool_target_mod_source || '').trim();
         const ptEl = $('kpi-pool-target');
@@ -312,7 +314,11 @@
             const wkLbl = wk > 0 ? ('workers ' + wk) : '';
             poolStrip.textContent = 'pool: target ' + poolTM + ' · hash ' + th + ' · ' + minerLbl + (wkLbl ? (' · ' + wkLbl) : '');
             poolStrip.className = 'badge ok';
-            poolStrip.title = poolSrc ? ('target_mod from ' + poolSrc) : 'pool lane from /api/status';
+            let poolTitle = poolSrc ? ('target_mod from ' + poolSrc) : 'pool lane from /api/status';
+            if (poolLoadHint > poolTM * 1.02) {
+              poolTitle += ' · load hint ~' + poolLoadHint + (poolLoadCapped ? ' (applied M capped)' : '');
+            }
+            poolStrip.title = poolTitle;
           } else {
             poolStrip.textContent = 'pool: target unavailable (set coordinator URL or canonical for metrics)';
             poolStrip.className = 'badge warn';

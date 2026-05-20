@@ -950,6 +950,20 @@ func (a *app) attachPoolLaneToStatus(ctx context.Context, statusBody map[string]
 			statusBody["pool_target_mod"] = tm
 			statusBody["pool_target_mod_source"] = "coordinator"
 		}
+		if hint := asUint64(ws["target_mod_load_hint"]); hint > 0 {
+			statusBody["pool_target_mod_load_hint"] = hint
+		}
+		if _, ok := ws["target_mod_load_capped"]; ok {
+			if b, ok := ws["target_mod_load_capped"].(bool); ok {
+				statusBody["pool_target_mod_load_capped"] = b
+			}
+		}
+		if min := asUint64(ws["target_mod_min"]); min > 0 {
+			statusBody["pool_target_mod_min"] = min
+		}
+		if max := asUint64(ws["target_mod_max"]); max > 0 {
+			statusBody["pool_target_mod_max"] = max
+		}
 		statusBody["pool_workers_count"] = asUint64(ws["workers_count"])
 	} else if coord != "" && wsErr != nil {
 		statusBody["pool_work_stats_error"] = wsErr.Error()

@@ -233,7 +233,8 @@ count_gpus_for_backend() {
       for f in /sys/class/drm/card*/device/vendor; do
         [[ -f "$f" ]] || continue
         v="$(cat "$f" 2>/dev/null || true)"
-        if [[ "$v" == "0x1002" || "$v" == "4098" ]]; then
+        # AMD 0x1002, Intel 0x8086 (OpenCL fleet count when clinfo missing)
+        if [[ "$v" == "0x1002" || "$v" == "4098" || "$v" == "0x8086" || "$v" == "32902" ]]; then
           n=$((n + 1))
         fi
       done
