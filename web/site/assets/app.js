@@ -31,6 +31,7 @@
     releaseChannel: RELEASE_VER,
     releaseChannelNote: "desktop mode candidate",
     releaseBase: `/dist/release_${RELEASE_VER}`,
+    windowsInstaller: `/dist/release_${RELEASE_VER}/HackMe-Setup-${RELEASE_VER}.exe`,
     windowsBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows_setup.zip`,
     windowsBundleLegacy: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows.zip`,
     linuxBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_linux.tar.gz`,
@@ -92,6 +93,16 @@
     document.querySelectorAll(".footer-nav").forEach((nav) => {
       ensureFooterLink(nav, COMMUNITY.github, "GitHub");
     });
+  }
+
+  async function resolveWindowsDownloadHref() {
+    const inst = CONFIG.windowsInstaller;
+    if (!inst) return CONFIG.windowsBundle;
+    try {
+      const r = await fetch(inst, { method: "HEAD", cache: "no-store" });
+      if (r.ok) return inst;
+    } catch (_) {}
+    return CONFIG.windowsBundle;
   }
 
   function wireDownloadLinks() {
@@ -389,6 +400,13 @@
   wireNewsLinks();
   wireCommunityFooter();
   wireDownloadLinks();
+  void resolveWindowsDownloadHref().then((href) => {
+    setHref("download-win", href);
+    const primary = document.getElementById("download-win");
+    if (primary && href && href.endsWith(".exe")) {
+      primary.textContent = "Download HackMe Setup (.exe)";
+    }
+  });
   void renderNewsPage();
   void renderNewsHealth();
   void updateLiveStatus(liveEl);
