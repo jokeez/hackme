@@ -1,0 +1,21 @@
+HackMe is installed.
+===================
+
+What was configured:
+  • hackme.env with pool token (from pool.miner.token)
+  • Local admin token for the dashboard
+  • GPU backend per your wizard choice
+  • Start menu + optional desktop shortcut
+
+Start mining:
+  • Open "HackMe Miner" from the Start menu or desktop
+  • Browser: http://127.0.0.1:8080/#mining
+
+Install folder (default):
+  C:\Program Files\HackMe
+
+If mining does not start:
+  • Start menu → HackMe → Configure miner
+  • Or reinstall from https://hackme.tech/downloads.html
+
+Support: https://hackme.tech
