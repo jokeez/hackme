@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-05-20-windows-installer-rc11e",
+      "date": "2026-05-20",
+      "title": "Release 0.1.0-rc11e: Windows installer + GPU wizard + pool token fix",
+      "summary": "Official HackMe-Setup.exe (Inno Setup) replaces zip-only onboarding: Program Files install, Start menu/desktop shortcuts, registry entries, preconfigured pool token. Wizard page detects GPU (Auto / NVIDIA CUDA / AMD OpenCL / CPU). Rig profiles for RX 580 2048SP. Fixes Program Files path quoting and hackme.env repair from pool.miner.token.",
+      "tags": ["release", "mining", "pool", "windows", "gpu"],
+      "impact": "Windows miners: one .exe install, no manual token hunt. Pool ~69 GH/s live; difficulty M auto-retargets. Dashboard shows per-worker GH/s and HMC accrual.",
+      "action": "Download HackMe-Setup-0.1.0-rc11e.exe from https://hackme.tech/downloads.html · AMD RX 580: choose Auto or OpenCL in installer · Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme",
+        "downloads": "https://hackme.tech/downloads.html",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-19-cuda-rc10-gpu-backends",
       "date": "2026-05-19",
       "title": "Release 0.1.0-rc10: native NVIDIA CUDA + AMD/Intel OpenCL",
