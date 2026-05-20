@@ -26,7 +26,7 @@ set_kv "$DESKTOP_ENV" HACKME_GPU_BACKEND cuda
 set_kv "$DESKTOP_ENV" HACKME_DESKTOP_GPU_POOL 1
 set_kv "$DESKTOP_ENV" HACKME_WORKER_CLAIM_TIMEOUT 90s
 set_kv "$DESKTOP_ENV" HACKME_WORKER_SUBMIT_TIMEOUT 120s
-set_kv "$DESKTOP_ENV" WORKER_PAYOUT_MAP "worker-kapa-pc=${WALLET},worker-vps-msk-01=${WALLET},vps-canary-01=${WALLET}"
+set_kv "$DESKTOP_ENV" WORKER_PAYOUT_MAP "worker-kapa-pc=${WALLET},worker-vps-msk-01=${WALLET},vps-canary-01=${WALLET},worker-vps-62-01=${WALLET}"
 
 echo "[desktop-gpu] build native CUDA workerpoh (production path)"
 GPU_BACKEND=opencl

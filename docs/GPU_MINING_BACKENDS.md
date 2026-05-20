@@ -136,3 +136,42 @@ curl -fsS https://hackme.tech/pool/coordinator/api/work/stats \
 ## MiningPoolStats / listing
 
 Pool API exposes `pool_hashrate_gh_s` from live worker submits. Use **CUDA on the main GPU rig** so listed hashrate reflects real contribution; MSK CPU worker stays on low OpenCL/CPU settings.
+
+## Multi-GPU fleet (one worker per card)
+
+When `HACKME_GPU_FLEET=1` (default) and multiple GPUs are visible:
+
+- **NVIDIA:** `worker_autostart.sh` spawns `WORKER_ID-gpu0`, `-gpu1`, … each with `-gpu-device N`
+- **OpenCL:** same pattern; device count from `clinfo` or sysfs (AMD `0x1002`, Intel `0x8086`)
+- Coordinator sees **separate rows** in `active_rigs` — pool hash is the **sum** of all worker GH/s
+
+Per-vendor in one OS: use **CUDA for NVIDIA** and a **second machine or VM** with OpenCL for AMD, or `HACKME_FORCE_OPENCL=1` on the AMD-only host. One `workerpoh` process does not mix CUDA + OpenCL accelerators.
+
+`CUDA_VISIBLE_DEVICES=0,1` is honored by the driver (device index is within the visible set); combine with `-gpu-device` / `HACKME_GPU_DEVICE`.
+
+## Full rig / GPU test suite
+
+Run on any rig before joining the pool:
+
+```bash
+bash scripts/tests/gpu_rig_suite.sh
+# Report: reports/tests/<RUN_ID>/gpu_rig_suite/summary.json
+```
+
+Covers: host inventory (`nvidia-smi`, `clinfo`, sysfs vendors), backend auto-detect, `build_gpu_workers.sh --probe`, unit tests (`gputune` model matrix for RTX/AMD/Intel names), **CUDA smoke on every device**, OpenCL list/init, fleet count vs discovery, short `-gpu-device` worker smoke, power-limit hints.
+
+CUDA integration test (optional):
+
+```bash
+source scripts/ops/cuda_env.sh
+HACKME_GPU_INTEGRATION=1 go test -tags cuda ./internal/gpupoh -run TestDiscoverAcceleratorsCUDA -v
+```
+
+Single-GPU probe:
+
+```bash
+HACKME_CUDA_VERBOSE=1 bin/gpuprobe-cuda
+HACKME_OPENCL_VERBOSE=1 bin/gpuprobe-opencl
+go run ./tools/listgpu   # with -tags cuda or opencl
+go run ./tools/gpuhint "NVIDIA GeForce RTX 5060 Ti"
+```

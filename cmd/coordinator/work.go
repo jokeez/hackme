@@ -58,6 +58,9 @@ type workManager struct {
 	foundHits       uint64
 	lastFoundHitUnix int64
 	poolRetarget    bool
+	// Pool M bounds (defaults poolTargetModMin/Max; override via HACKME_COORDINATOR_POOL_TARGET_MOD_{MIN,MAX}).
+	targetModMin       uint64
+	targetModMax       uint64
 	targetModUpdatedUnix int64
 	poolRetargetMinSec int64
 	lastPoolRetargetUnix int64
@@ -181,8 +184,26 @@ func newWorkManagerFromEnv() *workManager {
 			mod = x
 		}
 	}
-	if mod < poolTargetModMin {
-		mod = poolTargetModMin
+	minM := uint64(poolTargetModMin)
+	if v := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_POOL_TARGET_MOD_MIN")); v != "" {
+		if x, err := strconv.ParseUint(v, 10, 64); err == nil && x >= 500_000 && x <= 100_000_000 {
+			minM = x
+		}
+	}
+	maxM := uint64(poolTargetModMax)
+	if v := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_POOL_TARGET_MOD_MAX")); v != "" {
+		if x, err := strconv.ParseUint(v, 10, 64); err == nil && x >= minM && x <= 2_000_000_000 {
+			maxM = x
+		}
+	}
+	if minM > maxM {
+		minM, maxM = uint64(poolTargetModMin), uint64(poolTargetModMax)
+	}
+	if mod < minM {
+		mod = minM
+	}
+	if mod > maxM {
+		mod = maxM
 	}
 	targetURL := strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_TARGET_SOURCE_URL")), "/")
 	targetEvery := int64(3)
@@ -335,9 +356,61 @@ func newWorkManagerFromEnv() *workManager {
 		hybridSignerStrict:       hybridSignerStrict,
 		hybridRequireFoundSig:    hybridRequireFoundSig,
 		poolRetarget:             poolRetarget,
+		targetModMin:             minM,
+		targetModMax:             maxM,
 		targetModUpdatedUnix:     time.Now().Unix(),
 		poolRetargetMinSec:       poolRetargetMinSec,
 	}
+}
+
+func (m *workManager) targetModMinOrDefault() uint64 {
+	if m == nil || m.targetModMin == 0 {
+		return poolTargetModMin
+	}
+	return m.targetModMin
+}
+
+func (m *workManager) targetModMaxOrDefault() uint64 {
+	if m == nil || m.targetModMax == 0 {
+		return poolTargetModMax
+	}
+	return m.targetModMax
+}
+
+// poolLoadHintUnclamped is the fleet-hash + miner-count difficulty the coordinator *would* use
+// before applying targetModMax (for honest UI / pool listings).
+func poolLoadHintUnclamped(poolGH float64, miners int, modMin uint64) uint64 {
+	if poolGH < 0.01 {
+		return 0
+	}
+	if modMin == 0 {
+		modMin = poolTargetModMin
+	}
+	modPerGH := float64(modMin)
+	loadM := poolGH * modPerGH
+	if miners > 1 {
+		boost := 1.0 + 0.04*float64(min(miners, 12))
+		loadM *= boost
+	}
+	if loadM >= float64(^uint64(0)>>1) {
+		return ^uint64(0) >> 1
+	}
+	return uint64(loadM + 0.5)
+}
+
+func (m *workManager) clampTargetMod(u uint64) uint64 {
+	minM := m.targetModMinOrDefault()
+	maxM := m.targetModMaxOrDefault()
+	if minM > maxM {
+		minM, maxM = uint64(poolTargetModMin), uint64(poolTargetModMax)
+	}
+	if u < minM {
+		return minM
+	}
+	if u > maxM {
+		return maxM
+	}
+	return u
 }
 
 func validFoundNonceV1(foundNonce, targetMod uint64) bool {
@@ -424,24 +497,14 @@ func (m *workManager) applyChainTargetMod(parsed uint64, now int64) {
 		return
 	}
 	if !m.poolRetarget {
-		m.targetMod = clampPoolTargetMod(parsed)
+		m.targetMod = m.clampTargetMod(parsed)
 		m.targetModUpdatedUnix = now
 		return
 	}
-	if m.targetMod < poolTargetModMin {
-		m.targetMod = clampPoolTargetMod(parsed)
+	if m.targetMod < m.targetModMinOrDefault() {
+		m.targetMod = m.clampTargetMod(parsed)
 		m.targetModUpdatedUnix = now
 	}
-}
-
-func clampPoolTargetMod(m uint64) uint64 {
-	if m < poolTargetModMin {
-		return poolTargetModMin
-	}
-	if m > poolTargetModMax {
-		return poolTargetModMax
-	}
-	return m
 }
 
 func clampWorkerHashrateGHS(ghs float64) float64 {
@@ -487,7 +550,7 @@ func (m *workManager) maybeRetargetPoolMod(now int64) {
 		if delta < 1 {
 			delta = 1
 		}
-		prev := clampPoolTargetMod(m.targetMod)
+		prev := m.clampTargetMod(m.targetMod)
 		var next uint64
 		// Fast solves → harder (larger M). Slow gaps → slightly easier, never below pool floor.
 		switch {
@@ -507,7 +570,7 @@ func (m *workManager) maybeRetargetPoolMod(now int64) {
 			m.lastFoundHitUnix = now
 			return
 		}
-		next = clampPoolTargetMod(next)
+		next = m.clampTargetMod(next)
 		if next != m.targetMod {
 			m.targetMod = next
 			m.targetModUpdatedUnix = now
@@ -528,24 +591,29 @@ func (m *workManager) maybeRetargetPoolMod(now int64) {
 
 // maybeRetargetPoolLoad nudges M from fleet hashrate + miner count (more miners/hash → higher M).
 func (m *workManager) maybeRetargetPoolLoad(now int64, poolGH float64, miners int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.maybeRetargetPoolLoadLocked(now, poolGH, miners)
+}
+
+// maybeRetargetPoolLoadLocked is maybeRetargetPoolLoad; caller must hold m.mu.
+func (m *workManager) maybeRetargetPoolLoadLocked(now int64, poolGH float64, miners int) {
 	if !m.poolRetarget || poolGH < 0.01 {
 		return
 	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	if m.lastPoolRetargetUnix > 0 && now-m.lastPoolRetargetUnix < m.poolRetargetMinSec {
 		return
 	}
-	// Scale M with fleet GH/s (~2M per GH/s) so more hash → higher M, less hash → lower M.
-	// Do not use poolGH*1e9*targetSec (that overshoots poolTargetModMax immediately).
-	const modPerGH = float64(poolTargetModMin) // 2M per 1 GH/s baseline
+	// Scale M with fleet GH/s (targetModMin per 1 GH/s) so more hash → higher M, less hash → lower M.
+	// Do not use poolGH*1e9*targetSec (that overshoots targetModMax immediately).
+	modPerGH := float64(m.targetModMinOrDefault())
 	loadM := poolGH * modPerGH
 	if miners > 1 {
 		boost := 1.0 + 0.04*float64(min(miners, 12))
 		loadM *= boost
 	}
-	target := clampPoolTargetMod(uint64(loadM + 0.5))
-	prev := clampPoolTargetMod(m.targetMod)
+	target := m.clampTargetMod(uint64(loadM + 0.5))
+	prev := m.clampTargetMod(m.targetMod)
 	if target == prev {
 		return
 	}
@@ -561,7 +629,7 @@ func (m *workManager) maybeRetargetPoolLoad(now int64, poolGH float64, miners in
 			next = target
 		}
 	}
-	next = clampPoolTargetMod(next)
+	next = m.clampTargetMod(next)
 	if next == m.targetMod {
 		return
 	}
@@ -1090,6 +1158,11 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	st.PayoutHMC += payout
 	m.worker[req.WorkerID] = st
 	m.totalPayoutHMC += payout
+	// Keep pool M aligned with live fleet GH/s even when nothing polls /api/work/stats (top pools
+	// continuously adjust difficulty from observed work; we approximate via submit heartbeats).
+	retNow := time.Now().Unix()
+	poolGH, online, _ := m.poolOnlineSummaryUnlocked(120, retNow)
+	m.maybeRetargetPoolLoadLocked(retNow, poolGH, online)
 	return req.Found, "", payout, signerAddr, signerAddr != ""
 }
 
@@ -1185,14 +1258,11 @@ func (m *workManager) pruneAbuseStateLocked(now int64) {
 	}
 }
 
-// poolOnlineSummary aggregates live hashrate from recent worker submits (public pool rigs).
-func (m *workManager) poolOnlineSummary(staleSec int64) (poolGH float64, online int, rigs []map[string]any) {
+// poolOnlineSummaryUnlocked aggregates live hashrate; caller must hold m.mu.
+func (m *workManager) poolOnlineSummaryUnlocked(staleSec, now int64) (poolGH float64, online int, rigs []map[string]any) {
 	if m == nil {
 		return 0, 0, nil
 	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	now := time.Now().Unix()
 	for id, st := range m.worker {
 		if st.LastSeenUnix <= 0 || (now-st.LastSeenUnix) > staleSec {
 			continue
@@ -1212,6 +1282,17 @@ func (m *workManager) poolOnlineSummary(staleSec int64) (poolGH float64, online 
 		})
 	}
 	return poolGH, online, rigs
+}
+
+// poolOnlineSummary aggregates live hashrate from recent worker submits (public pool rigs).
+func (m *workManager) poolOnlineSummary(staleSec int64) (poolGH float64, online int, rigs []map[string]any) {
+	if m == nil {
+		return 0, 0, nil
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	now := time.Now().Unix()
+	return m.poolOnlineSummaryUnlocked(staleSec, now)
 }
 
 // enrichPoolStatsForPublic adds hashrate/worker fields expected by pool listing sites (e.g. MiningPoolStats API poll).
@@ -1244,10 +1325,25 @@ func enrichPoolStatsForPublic(out map[string]any, reg *lanpool.Registry, wm *wor
 	}
 	if wm != nil {
 		wm.maybeRetargetPoolLoad(time.Now().Unix(), poolGH, online)
-		out["target_mod"] = clampPoolTargetMod(wm.targetMod)
-		out["target_mod_updated_unix"] = wm.targetModUpdatedUnix
-		if wm.rewardAuto {
-			out["reward_per_m"] = wm.rewardPerM
+		wm.mu.Lock()
+		applied := wm.clampTargetMod(wm.targetMod)
+		hint := poolLoadHintUnclamped(poolGH, online, wm.targetModMinOrDefault())
+		minM := wm.targetModMinOrDefault()
+		maxM := wm.targetModMaxOrDefault()
+		updated := wm.targetModUpdatedUnix
+		rpm := wm.rewardPerM
+		ra := wm.rewardAuto
+		wm.mu.Unlock()
+		out["target_mod"] = applied
+		out["target_mod_updated_unix"] = updated
+		out["target_mod_min"] = minM
+		out["target_mod_max"] = maxM
+		if hint > 0 {
+			out["target_mod_load_hint"] = hint
+		}
+		out["target_mod_load_capped"] = hint > maxM && maxM > 0
+		if ra {
+			out["reward_per_m"] = rpm
 		}
 	}
 	// Never overwrite workers{} breakdown map (settlement + dashboard need payout_hmc per id).
@@ -1274,9 +1370,13 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 	ordersActive := m.lastOrdersActive
 	lastProbe := m.lastOrdersProbeUnix
 	m.schedulerMu.Unlock()
+	poolGHStat, onlineStat, _ := m.poolOnlineSummaryUnlocked(120, now)
+	hintStat := poolLoadHintUnclamped(poolGHStat, onlineStat, m.targetModMinOrDefault())
+	minStat := m.targetModMinOrDefault()
+	maxStat := m.targetModMaxOrDefault()
 	out := map[string]any{
 		"default_batch":                m.defaultBatch,
-		"target_mod":                   clampPoolTargetMod(m.targetMod),
+		"target_mod":                   m.clampTargetMod(m.targetMod),
 		"target_mod_updated_unix":      m.targetModUpdatedUnix,
 		"pool_retarget_enabled":        m.poolRetarget,
 		"lease_sec":                    m.leaseSec,
@@ -1324,6 +1424,12 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 		"signed_submits_rejected":      m.signedRejects,
 		"last_signed_miner_address":    m.lastSignedMiner,
 	}
+	out["target_mod_min"] = minStat
+	out["target_mod_max"] = maxStat
+	if hintStat > 0 {
+		out["target_mod_load_hint"] = hintStat
+	}
+	out["target_mod_load_capped"] = hintStat > maxStat && maxStat > 0
 	if includeDetails {
 		active := make([]leaseRecord, 0, len(m.active))
 		workers := make(map[string]workerPayoutStat, len(m.worker))

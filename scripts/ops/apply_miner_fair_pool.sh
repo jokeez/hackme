@@ -8,7 +8,7 @@ WALLET="${WALLET:-HMC-91fe007e4036c602}"
 NODE_SSH="${NODE_SSH:-hackme-vps}"
 SSH_KEY="${SSH_KEY:-${HOME}/.ssh/id_ed25519}"
 DEPLOY="${NODE_DEPLOY_DIR:-/opt/hackme}"
-PAYOUT_MAP="worker-kapa-pc=${WALLET},worker-vps-msk-01=${WALLET},vps-canary-01=${WALLET}"
+PAYOUT_MAP="worker-kapa-pc=${WALLET},worker-vps-msk-01=${WALLET},vps-canary-01=${WALLET},worker-vps-62-01=${WALLET}"
 
 ssh_opts=(-o BatchMode=yes -o ConnectTimeout=12)
 [[ -f "$SSH_KEY" ]] && ssh_opts+=(-i "$SSH_KEY")

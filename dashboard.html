@@ -889,7 +889,7 @@
 						<div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px] font-mono">
 							<div class="rounded border border-neon/20 bg-black/40 px-3 py-2">Pool miners<br><span id="mining-strip-miners" class="text-neon text-sm">—</span></div>
 							<div class="rounded border border-matrix/20 bg-black/40 px-3 py-2"><span id="mining-strip-th-label">Pool hash</span><br><span id="mining-strip-th" class="text-matrix text-sm">—</span></div>
-							<div class="rounded border border-warn/20 bg-black/40 px-3 py-2">Worker online<br><span id="mining-strip-workers" class="text-warn text-sm">—</span></div>
+							<div class="rounded border border-warn/20 bg-black/40 px-3 py-2">Workers online<br><span id="mining-strip-workers" class="text-warn text-sm">—</span></div>
 							<div class="rounded border border-white/10 bg-black/40 px-3 py-2"><span id="mining-strip-solves-label">Session solves</span><br><span id="mining-strip-solves" class="text-gray-200 text-sm">—</span></div>
 						</div>
 					</div>
@@ -2017,6 +2017,24 @@
 			}
 			return 0;
 		}
+		/** Pool load retarget telemetry from coordinator (applied M may be clamped). */
+		function workStatsLoadTelemetry(ws) {
+			const empty = { loadHint: 0, loadCapped: false, minM: 0, maxM: 0 };
+			if (!ws || typeof ws !== 'object' || ws.ok === false) return empty;
+			const wk = ws.work && typeof ws.work === 'object' ? ws.work : null;
+			const num = (k) => {
+				let v = Number(ws[k] || 0);
+				if (!(v > 0) && wk) v = Number(wk[k] || 0);
+				return v > 0 ? Math.floor(v) : 0;
+			};
+			const boolPick = (k) => ws[k] === true || (wk && wk[k] === true);
+			return {
+				loadHint: num('target_mod_load_hint'),
+				loadCapped: boolPick('target_mod_load_capped'),
+				minM: num('target_mod_min'),
+				maxM: num('target_mod_max'),
+			};
+		}
 		const POOL_TARGET_MOD_FLOOR = 2000000;
 		/** True when UI should treat coordinator as source of truth for M and payouts. */
 		function isPoolWorkContext() {
@@ -2629,6 +2647,22 @@
 			}
 			return 0;
 		}
+		/** Same GH/s source as pool strip / Mining → Pool hash (coordinator Σ, then network fallback). */
+		function resolvePoolAggregateGh(wsOpt) {
+			const ws = wsOpt || latestWorkStats || {};
+			let gh = poolGhFromWorkStats(ws);
+			if (!(gh > 0)) {
+				const netTh = Number((latestNetworkStats && latestNetworkStats.global_hashrate_th_s) || 0);
+				if (netTh > 0 && netTh <= 10) gh = netTh * 1000;
+			}
+			if (!(gh > 0)) gh = sumActiveRigsGh((latestNetworkStats && latestNetworkStats.active_rigs) || []);
+			if (gh > 5000) gh = 5000;
+			return gh;
+		}
+		function poolHashLabelFromGh(gh, suffix) {
+			if (!(Number(gh) > 0)) return '—';
+			return fmtPoolAggHashrate(Number(gh) / 1000, suffix || '');
+		}
 		function applyPoolHashDisplayGh(gh, suffix) {
 			if (!(gh > 0)) return;
 			const estTH = gh / 1000;
@@ -2974,6 +3008,8 @@
 					total_payout_hmc: Number(ws.total_payout_hmc || 0),
 					mining_strip_solves: $('mining-strip-solves') ? String($('mining-strip-solves').textContent || '') : '',
 					mining_strip_workers: $('mining-strip-workers') ? String($('mining-strip-workers').textContent || '') : '',
+					pool_strip_hash: $('pool-strip-hash') ? String($('pool-strip-hash').textContent || '') : '',
+					mining_strip_th: $('mining-strip-th') ? String($('mining-strip-th').textContent || '') : '',
 				};
 				localStorage.setItem(DASH_SNAPSHOT_KEY, JSON.stringify(snap));
 			} catch (_) {}
@@ -3018,21 +3054,16 @@
 					const cur = String($('mining-strip-workers').textContent || '').trim();
 					if (!cur || cur === '—') $('mining-strip-workers').textContent = s.mining_strip_workers;
 				}
-				const gh = Number(s.measured_hashrate_gh_s || 0);
-				if (gh > 0) {
-					const estTH = gh / 1000;
-					const lbl = fmtPoolAggHashrate(estTH, '*');
+				const primePoolHash = String(s.pool_strip_hash || s.mining_strip_th || '').trim();
+				if (primePoolHash && primePoolHash !== '—') {
 					if ($('pool-strip-hash')) {
 						const cur = String($('pool-strip-hash').textContent || '').trim();
-						if (!cur || cur === '—' || /\b0\.000/.test(cur)) $('pool-strip-hash').textContent = lbl;
+						if (!cur || cur === '—' || /\b0\.000/.test(cur)) $('pool-strip-hash').textContent = primePoolHash;
 					}
 					if ($('mining-strip-th')) {
 						const cur = String($('mining-strip-th').textContent || '').trim();
-						if (!cur || cur === '—' || /\b0\.000/.test(cur)) $('mining-strip-th').textContent = lbl;
+						if (!cur || cur === '—' || /\b0\.000/.test(cur)) $('mining-strip-th').textContent = primePoolHash;
 					}
-				} else if (s.pool_strip_hash && $('pool-strip-hash')) {
-					const cur = String($('pool-strip-hash').textContent || '').trim();
-					if (!cur || cur === '—' || /\b0\.000/.test(cur)) $('pool-strip-hash').textContent = s.pool_strip_hash;
 				}
 			} catch (_) {}
 		}
@@ -3638,6 +3669,7 @@
 				if (poolAttempts > 0 && mineAtt > 0) mySharePct = Math.min(100, (mineAtt / poolAttempts) * 100);
 			}
 			const syncAge = lastWorkStatsOkUnix > 0 ? Math.max(0, Math.floor(Date.now() / 1000) - lastWorkStatsOkUnix) : -1;
+			const loadTel = workStatsLoadTelemetry(ws);
 			const poolPayout = Number(ws.total_payout_hmc || 0);
 			let observedRewardPerM = 0;
 			if (poolAttempts > 0 && poolPayout > 0) {
@@ -3666,6 +3698,10 @@
 				observedPayoutPerHour,
 				poolAttemptsPerSec,
 				workerAttemptsPerSec,
+				loadHint: loadTel.loadHint,
+				loadCapped: loadTel.loadCapped,
+				targetModMin: loadTel.minM,
+				targetModMax: loadTel.maxM,
 			};
 		}
 
@@ -3790,7 +3826,23 @@
 			saveMineCalcPrefs(inputs);
 
 			if (mineCalcEl('mine-calc-net-rpm')) mineCalcEl('mine-calc-net-rpm').textContent = net.rewardPerM > 0 ? fmt(net.rewardPerM, 6) : '—';
-			if (mineCalcEl('mine-calc-net-target')) mineCalcEl('mine-calc-net-target').textContent = net.targetMod > 0 ? fmtUInt(net.targetMod) : '—';
+			if (mineCalcEl('mine-calc-net-target')) {
+				const tEl = mineCalcEl('mine-calc-net-target');
+				tEl.textContent = net.targetMod > 0 ? fmtUInt(net.targetMod) : '—';
+				let tip = '';
+				if (net.poolWork && net.targetMod > 0) {
+					tip = 'Applied pool target_mod M used for claim/submit validation and reward/M.';
+					if (net.loadHint > net.targetMod * 1.02) {
+						tip += ' Load-based retarget would prefer ~' + fmtUInt(net.loadHint) + ' (uncapped curve from pool GH/s).';
+					}
+					if (net.loadCapped && net.targetModMax > 0) {
+						tip += ' Currently capped at max ' + fmtUInt(net.targetModMax) + ' (raise HACKME_COORDINATOR_POOL_TARGET_MOD_MAX to allow higher M).';
+					} else if (net.targetModMax > 0 && net.targetMod >= net.targetModMax * 0.999) {
+						tip += ' At configured ceiling max M ' + fmtUInt(net.targetModMax) + '.';
+					}
+				}
+				tEl.title = tip;
+			}
 			if (mineCalcEl('mine-calc-net-found')) mineCalcEl('mine-calc-net-found').textContent = net.foundBonus > 0 ? fmt(net.foundBonus, 6) + ' HMC' : '—';
 			if (mineCalcEl('mine-calc-net-pool-gh')) {
 				mineCalcEl('mine-calc-net-pool-gh').textContent = net.poolGh > 0
@@ -4596,14 +4648,16 @@
 			lastNetworkStatsOkUnix = Math.floor(Date.now() / 1000);
 			$('hive-total-miners').textContent = fmtUInt(ts.total_miners ?? 0);
 			const aggHashLbl = fmtPoolAggHashrate(ts.global_hashrate_th_s ?? 0);
-			if ($('hive-global-th')) $('hive-global-th').textContent = aggHashLbl;
+			const coordGh = resolvePoolAggregateGh(latestWorkStats);
+			const poolStripLbl = coordGh > 0 ? poolHashLabelFromGh(coordGh, '*') : aggHashLbl;
+			if ($('hive-global-th')) $('hive-global-th').textContent = poolStripLbl;
 			$('hive-peers').textContent = fmtUInt(ts.peer_connections ?? 0);
 			if ($('pool-strip-miners')) $('pool-strip-miners').textContent = fmtUInt(ts.total_miners ?? 0);
-			if ($('pool-strip-hash')) $('pool-strip-hash').textContent = aggHashLbl;
+			if ($('pool-strip-hash')) $('pool-strip-hash').textContent = poolStripLbl;
 			if ($('mining-strip-miners')) $('mining-strip-miners').textContent = fmtUInt(ts.total_miners ?? 0);
 			if ($('mining-strip-th-label')) $('mining-strip-th-label').textContent =
 				(Number(ts.global_hashrate_th_s ?? 0) > 0 && Number(ts.global_hashrate_th_s ?? 0) < 1) ? 'Pool hash (Σ GH/s)' : 'Pool hash';
-			if ($('mining-strip-th')) $('mining-strip-th').textContent = aggHashLbl;
+			if ($('mining-strip-th')) $('mining-strip-th').textContent = poolStripLbl;
 			if ($('hive-note')) $('hive-note').textContent = ts.note || '';
 			const b = $('hive-mock-badge');
 			if (b) {
@@ -5616,8 +5670,19 @@
 				const age = lastTargetModUpdatedUnix > 0 ? Math.max(0, Math.floor(Date.now() / 1000) - lastTargetModUpdatedUnix) : -1;
 				const ageTxt = age >= 0 && age <= 120 ? (' · updated ' + (age < 2 ? 'now' : fmtDur(age) + ' ago')) : '';
 				const retarget = ws && ws.pool_retarget_enabled === true ? ' · auto-retarget ON' : '';
+				const tel = workStatsLoadTelemetry(lastGoodWorkStats || latestWorkStats || {});
+				const poolCtxDiff = isPoolWorkContext();
+				let loadExtra = '';
+				if (poolCtxDiff && tm > 0 && tel.loadHint > tm * 1.02) {
+					loadExtra = ' · load curve ~' + fmtUInt(tel.loadHint);
+					if (tel.loadCapped && tel.maxM > 0) {
+						loadExtra += ' (applied M capped, max ' + fmtUInt(tel.maxM) + ')';
+					}
+				} else if (poolCtxDiff && tm > 0 && tel.maxM > 0 && tm >= tel.maxM * 0.999 && tel.loadHint > 0 && tel.loadHint <= tm * 1.02) {
+					loadExtra = ' · at pool max M ' + fmtUInt(tel.maxM);
+				}
 				diffSub.textContent = tm > 0
-					? ((src || 'live') + ageTxt + retarget)
+					? ((src || 'live') + ageTxt + retarget + loadExtra)
 					: 'waiting for work/stats or metrics…';
 			}
 			const poolWorker = isPoolWorkContext();
@@ -6225,8 +6290,28 @@
 			} else if (localRun) {
 				tone = 'border-matrix/35 bg-matrix/[0.08]';
 				titleTxt = 'Mining active';
-				const gh = Number(wst.measured_hashrate_gh_s || wst.hashrate_gh_s || 0);
-				lines.push('Worker ' + String(wst.worker_id || myWorker) + ' running' + (gh > 0 ? (' · ~' + fmt(gh, 2) + ' GH/s') : '') + '.');
+				const wid = String(wst.worker_id || myWorker);
+				const poolGh = resolvePoolAggregateGh(ws);
+				const nWorkers = Math.max(Object.keys(workers).length, Number(ws.workers_count || 0));
+				let poolLbl = poolGh > 0 ? poolHashLabelFromGh(poolGh, '*') : '';
+				if (!poolLbl || poolLbl === '—') {
+					const strip = $('pool-strip-hash') ? String($('pool-strip-hash').textContent || '').trim() : '';
+					if (strip && strip !== '—') poolLbl = strip;
+				}
+				const parts = ['Worker ' + wid + ' running'];
+				if (poolLbl && poolLbl !== '—') {
+					parts.push('pool hash ' + poolLbl);
+					if (nWorkers > 0) parts.push(fmtUInt(nWorkers) + ' workers');
+				} else {
+					let workerGh = Number(wst.measured_hashrate_gh_s || wst.hashrate_gh_s || 0);
+					const row = workers[wid] || mine;
+					if (row) {
+						const liveGh = Number((row.live && row.live.hashrate_gh_s) || row.hashrate_gh_s || 0);
+						if (liveGh > 0) workerGh = liveGh;
+					}
+					if (workerGh > 0) parts.push('~' + fmtRigHashrateGHS(workerGh) + ' GH/s');
+				}
+				lines.push(parts.join(' · ') + '.');
 			}
 			if (hasUnpaid) {
 				lines.push('Settlement: ' + unpaidTxt.trim() + ' unpaid — ready for VPS payout when above min threshold.');
@@ -6406,6 +6491,7 @@
 				if (!r.ok) throw new Error('HTTP ' + r.status);
 				const j = await r.json();
 				latestWorkerStatus = j || null;
+				try { refreshDesktopStatusBanner(); } catch (_) {}
 				const running = localPoolWorkerActive();
 				const wid = String((j && j.worker_id) || 'worker-unknown');
 				const ghMeas = Number((j && j.measured_hashrate_gh_s) || 0);
@@ -6423,7 +6509,7 @@
 					if (running || subprocessOn) {
 						const ext = !!(j && j.external_worker) || (running && !(j && j.pid));
 						el.textContent = 'Worker mode: running · ' + (wid !== 'worker-unknown' ? wid : 'workerpoh') +
-							(gh > 0 ? (' · ' + fmt(gh, 2) + ' GH/s' + ghTag) : '') +
+							(gh > 0 ? (' · ' + fmtRigHashrateGHS(gh) + ' GH/s' + ghTag) : '') +
 							(ext ? ' · autostart' : '');
 						el.title = ext
 							? 'workerpoh detected via log tail (worker_autostart.sh), not node subprocess.'
