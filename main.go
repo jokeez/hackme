@@ -2783,7 +2783,7 @@ func workerActiveFromLog(logDir string, staleSec int64) bool {
 	return parseWorkerpohMeasuredGHs(logDir) > 0
 }
 
-// parseWorkerpohMeasuredGHs reads the latest ghs=… from workerpoh submit ok lines.
+// parseWorkerpohMeasuredGHs reads the latest inst_ghs= or ghs= from workerpoh submit ok lines.
 func parseWorkerpohMeasuredGHs(logDir string) float64 {
 	p := latestWorkerpohLogPath(logDir)
 	if p == "" {
@@ -2795,25 +2795,27 @@ func parseWorkerpohMeasuredGHs(logDir string) float64 {
 	}
 	for i := len(lines) - 1; i >= 0; i-- {
 		line := lines[i]
-		idx := strings.LastIndex(line, "ghs=")
-		if idx < 0 {
-			continue
-		}
-		rest := strings.TrimSpace(line[idx+4:])
-		end := 0
-		for end < len(rest) {
-			c := rest[end]
-			if (c >= '0' && c <= '9') || c == '.' {
-				end++
+		for _, key := range []string{"inst_ghs=", "ghs="} {
+			idx := strings.LastIndex(line, key)
+			if idx < 0 {
 				continue
 			}
-			break
-		}
-		if end == 0 {
-			continue
-		}
-		if f, err := strconv.ParseFloat(rest[:end], 64); err == nil && f > 0 {
-			return f
+			rest := strings.TrimSpace(line[idx+len(key):])
+			end := 0
+			for end < len(rest) {
+				c := rest[end]
+				if (c >= '0' && c <= '9') || c == '.' {
+					end++
+					continue
+				}
+				break
+			}
+			if end == 0 {
+				continue
+			}
+			if f, err := strconv.ParseFloat(rest[:end], 64); err == nil && f > 0 {
+				return f
+			}
 		}
 	}
 	return 0
