@@ -2974,14 +2974,12 @@ func (a *app) handleTasks(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		ctx := r.Context()
-		rows, err := a.chain.ListOrderTasks(ctx)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		var rows []chain.OrderTaskRow
 		// Follower UX: prefer a remote /api/tasks list so the dashboard orders tab
 		// matches paid orders on the network. Base URL: first HACKME_P2P_PEERS, else
 		// canonicalChainBaseURL when it would not loop back to this listener.
+		// Proxy runs before local SQLite so follower nodes are not blocked on chain
+		// mutex/expire while P2P sync or fuzz jobs hold the store.
 		// (Previously proxy ran only while the local miner was idle, which hid VPS
 		// orders whenever PoW/pool search was active.) Dev-only local rows:
 		// HACKME_TASKS_LIST_LOCAL_ONLY=1.
@@ -2993,27 +2991,42 @@ func (a *app) handleTasks(w http.ResponseWriter, r *http.Request) {
 		}
 		localTasksOnly := strings.EqualFold(strings.TrimSpace(os.Getenv("HACKME_TASKS_LIST_LOCAL_ONLY")), "1") ||
 			strings.EqualFold(strings.TrimSpace(os.Getenv("HACKME_TASKS_LIST_LOCAL_ONLY")), "true")
+		proxied := false
 		if tasksBase != "" && !localTasksOnly {
 			req, _ := http.NewRequestWithContext(ctx, http.MethodGet, tasksBase+"/api/tasks", nil)
 			if tok := strings.TrimSpace(extractAdminSecret(r)); tok != "" {
 				req.Header.Set("X-Hackme-Admin-Token", tok)
 			}
-			if resp, err := http.DefaultClient.Do(req); err == nil && resp != nil {
-				defer resp.Body.Close()
-				if resp.StatusCode == http.StatusOK {
-					var remote struct {
-						Tasks []chain.OrderTaskRow `json:"tasks"`
-					}
-					if err := json.NewDecoder(resp.Body).Decode(&remote); err == nil {
-						w.Header().Set("X-Hackme-Tasks-Source", "canonical-peer")
-						rows = remote.Tasks
-						log.Printf("tasks: canonical proxy active base=%s tasks=%d", tasksBase, len(rows))
+			cl := &http.Client{Timeout: 12 * time.Second}
+			if resp, err := cl.Do(req); err == nil && resp != nil {
+				func() {
+					defer resp.Body.Close()
+					if resp.StatusCode == http.StatusOK {
+						var remote struct {
+							Tasks []chain.OrderTaskRow `json:"tasks"`
+						}
+						if err := json.NewDecoder(resp.Body).Decode(&remote); err == nil {
+							w.Header().Set("X-Hackme-Tasks-Source", "canonical-peer")
+							rows = remote.Tasks
+							proxied = true
+							log.Printf("tasks: canonical proxy active base=%s tasks=%d", tasksBase, len(rows))
+						} else {
+							log.Printf("tasks: canonical proxy decode failed base=%s err=%v", tasksBase, err)
+						}
 					} else {
-						log.Printf("tasks: canonical proxy decode failed base=%s err=%v", tasksBase, err)
+						log.Printf("tasks: canonical proxy http=%d base=%s", resp.StatusCode, tasksBase)
 					}
-				} else {
-					log.Printf("tasks: canonical proxy http=%d base=%s", resp.StatusCode, tasksBase)
-				}
+				}()
+			} else if err != nil {
+				log.Printf("tasks: canonical proxy failed base=%s err=%v", tasksBase, err)
+			}
+		}
+		if !proxied {
+			var err error
+			rows, err = a.chain.ListOrderTasks(ctx)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
 			}
 		}
 		if rows == nil {
