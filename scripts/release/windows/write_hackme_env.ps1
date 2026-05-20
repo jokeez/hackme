@@ -8,7 +8,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-# Batch "%~dp0" + closing quote turns trailing \ into an escaped quote — strip junk chars.
+# Batch "%~dp0" + closing quote turns trailing \ into an escaped quote - strip junk chars.
 $dir = $InstallDir.Trim().Trim('"').TrimEnd([char]'\', '/')
 if (-not $dir) { Write-Error "InstallDir is empty" }
 
@@ -19,11 +19,11 @@ if (-not (Test-Path -LiteralPath $exePath)) {
 
 $poolFile = Join-Path -Path $dir -ChildPath "pool.miner.token"
 if (-not (Test-Path -LiteralPath $poolFile)) {
-    Write-Error "pool.miner.token missing in $dir — download a fresh installer from https://hackme.tech/downloads.html"
+    Write-Error "pool.miner.token missing in $dir - download a fresh installer from https://hackme.tech/downloads.html"
 }
 $poolToken = [System.IO.File]::ReadAllText($poolFile).Trim()
-if (-not $poolToken -or $poolToken -eq "REPLACE_WITH_POOL_TOKEN" -or $poolToken -match 'ТОКЕН|ВАШ_') {
-    Write-Error "pool.miner.token is empty or placeholder — ask pool operator for a new release build."
+if (-not $poolToken -or $poolToken -eq "REPLACE_WITH_POOL_TOKEN" -or $poolToken -match 'REPLACE|YOUR_|TOKEN_HERE') {
+    Write-Error "pool.miner.token is empty or placeholder - ask pool operator for a new release build."
 }
 
 $envPath = Join-Path $dir "hackme.env"
@@ -114,7 +114,7 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 Write-Host "OK: $envPath"
 Write-Host "Admin token (dashboard): $admin"
 Write-Host "Pool token: configured ($($poolToken.Length) chars)"
-Write-Host "GPU backend: $GpuBackend$(if ($RigProfile) { " · rig $RigProfile" })"
+Write-Host "GPU backend: $GpuBackend$(if ($RigProfile) { " rig $RigProfile" })"
 
 if (-not $RepairOnly) {
     $desktopBat = Join-Path $env:USERPROFILE "Desktop\Start HackMe Miner.bat"
