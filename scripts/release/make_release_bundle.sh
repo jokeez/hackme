@@ -170,36 +170,60 @@ EOF
 (
   cd "${DIST_DIR}"
   zip -r "hackme_${VERSION}_windows.zip" "windows" >/dev/null
-  # Flat zip: extract and double-click setup — no nested windows\ folder confusion.
+  # Flat zip: portable fallback (installer is primary on hackme.tech/downloads).
   (cd "windows" && zip -r "../hackme_${VERSION}_windows_setup.zip" . >/dev/null)
   tar -czf "hackme_${VERSION}_linux.tar.gz" "linux"
-  sha256sum "hackme_${VERSION}_windows.zip" "hackme_${VERSION}_windows_setup.zip" "hackme_${VERSION}_linux.tar.gz" > "SHA256SUMS.txt"
 )
 
+if [[ -f "${ROOT_DIR}/scripts/release/windows/build_installer.sh" ]]; then
+  bash "${ROOT_DIR}/scripts/release/windows/build_installer.sh" "${VERSION}" || true
+fi
+
+(
+  cd "${DIST_DIR}"
+  SUM_FILES=( "hackme_${VERSION}_windows.zip" "hackme_${VERSION}_windows_setup.zip" "hackme_${VERSION}_linux.tar.gz" )
+  if [[ -f "HackMe-Setup-${VERSION}.exe" ]]; then
+    SUM_FILES+=( "HackMe-Setup-${VERSION}.exe" )
+    echo "[release] Windows installer: HackMe-Setup-${VERSION}.exe"
+  else
+    echo "[release] WARN: HackMe-Setup-${VERSION}.exe not built (install iscc or use Docker for Inno Setup)" >&2
+  fi
+  sha256sum "${SUM_FILES[@]}" > "SHA256SUMS.txt"
+)
+
+WIN_INSTALLER="${DIST_DIR}/HackMe-Setup-${VERSION}.exe"
 WIN_ARCHIVE="${DIST_DIR}/hackme_${VERSION}_windows.zip"
 LINUX_ARCHIVE="${DIST_DIR}/hackme_${VERSION}_linux.tar.gz"
-WIN_SHA="$(awk '/windows\.zip$/ {print $1}' "${DIST_DIR}/SHA256SUMS.txt")"
+if [[ -f "${WIN_INSTALLER}" ]]; then
+  WIN_PRIMARY="${WIN_INSTALLER}"
+  WIN_SHA="$(awk '/HackMe-Setup-.*\.exe$/ {print $1}' "${DIST_DIR}/SHA256SUMS.txt")"
+else
+  WIN_PRIMARY="${DIST_DIR}/hackme_${VERSION}_windows_setup.zip"
+  WIN_SHA="$(awk '/windows_setup\.zip$/ {print $1}' "${DIST_DIR}/SHA256SUMS.txt")"
+fi
 LINUX_SHA="$(awk '/linux\.tar\.gz$/ {print $1}' "${DIST_DIR}/SHA256SUMS.txt")"
-WIN_SIZE="$(stat -c%s "${WIN_ARCHIVE}")"
+WIN_SIZE="$(stat -c%s "${WIN_PRIMARY}")"
 LINUX_SIZE="$(stat -c%s "${LINUX_ARCHIVE}")"
 jq -nc \
   --arg app "$APP_NAME" \
   --arg version "$VERSION" \
   --arg commit "$COMMIT_SHA" \
   --arg build_date_utc "$BUILD_DATE_UTC" \
-  --arg windows_file "$(basename "${WIN_ARCHIVE}")" \
+  --arg windows_file "$(basename "${WIN_PRIMARY}")" \
   --arg windows_sha256 "$WIN_SHA" \
   --argjson windows_size_bytes "$WIN_SIZE" \
   --arg linux_file "$(basename "${LINUX_ARCHIVE}")" \
   --arg linux_sha256 "$LINUX_SHA" \
   --argjson linux_size_bytes "$LINUX_SIZE" \
+  --argjson has_installer "$( [[ -f "${WIN_INSTALLER}" ]] && echo true || echo false )" \
   '{
     app:$app,
     version:$version,
     commit:$commit,
     build_date_utc:$build_date_utc,
+    windows_installer:$has_installer,
     artifacts:[
-      {platform:"windows",file:$windows_file,sha256:$windows_sha256,size_bytes:$windows_size_bytes},
+      {platform:"windows",file:$windows_file,sha256:$windows_sha256,size_bytes:$windows_size_bytes,kind:(if $has_installer then "installer" else "zip" end)},
       {platform:"linux",file:$linux_file,sha256:$linux_sha256,size_bytes:$linux_size_bytes}
     ]
   }' > "${DIST_DIR}/RELEASE_MANIFEST.json"
