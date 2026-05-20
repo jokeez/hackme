@@ -740,3 +740,36 @@ func TestRefreshTargetModDoesNotDowngradePoolRetargetM(t *testing.T) {
 		t.Fatalf("without pool retarget chain mod clamps to pool floor, got %d", wm.targetMod)
 	}
 }
+
+func TestPoolMinerCountBoostScalesManyMiners(t *testing.T) {
+	if poolMinerCountBoost(1) != 1.0 {
+		t.Fatalf("single miner boost want 1.0")
+	}
+	b12 := poolMinerCountBoost(12)
+	b100k := poolMinerCountBoost(100_000)
+	if b100k <= b12 {
+		t.Fatalf("100k miners should boost more than 12: b12=%v b100k=%v", b12, b100k)
+	}
+	if b100k > 1.35 {
+		t.Fatalf("boost cap 1.35, got %v", b100k)
+	}
+}
+
+func TestPoolLoadHintUnclampedLargeFleet(t *testing.T) {
+	// 30 GH/s fleet at min 2M/GH/s → ~60M hint (below 1B default max).
+	hint := poolLoadHintUnclamped(30.0, 3, poolTargetModMin)
+	if hint < 50_000_000 || hint > 100_000_000 {
+		t.Fatalf("30 GH/s hint want ~60M, got %d", hint)
+	}
+	hint100k := poolLoadHintUnclamped(30.0, 100_000, poolTargetModMin)
+	if hint100k <= hint {
+		t.Fatalf("100k miners should raise hint above small fleet: %d vs %d", hint100k, hint)
+	}
+	wm := &workManager{
+		targetModMin: poolTargetModMin,
+		targetModMax: poolTargetModMax,
+	}
+	if wm.clampTargetMod(hint) >= poolTargetModMax {
+		t.Fatalf("30 GH/s should not hit new default max")
+	}
+}
