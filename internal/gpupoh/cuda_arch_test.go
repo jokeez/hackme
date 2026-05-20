@@ -3,7 +3,10 @@ package gpupoh
 import "testing"
 
 func TestCudaComputeArch(t *testing.T) {
-	cases := []struct{ maj, min int; want string }{
+	cases := []struct {
+		maj, min int
+		want     string
+	}{
 		{12, 0, "compute_120"},
 		{8, 9, "compute_89"},
 		{7, 5, "compute_75"},

@@ -119,6 +119,10 @@ cp "${ROOT_DIR}/scripts/release/windows/stop_hackme_desktop_mode.bat" "${WIN_DIR
 cp "${ROOT_DIR}/scripts/release/windows/hackme_autostart_boot.bat" "${WIN_DIR}/hackme_autostart_boot.bat"
 cp "${ROOT_DIR}/scripts/release/windows/env.public_pool.example" "${WIN_DIR}/env.public_pool.example"
 cp "${ROOT_DIR}/scripts/release/windows/start_hackme_public_pool.bat" "${WIN_DIR}/start_hackme_public_pool.bat"
+cp "${ROOT_DIR}/scripts/release/windows/setup_hackme_miner.bat" "${WIN_DIR}/setup_hackme_miner.bat"
+cp "${ROOT_DIR}/scripts/release/windows/start_hackme_miner.bat" "${WIN_DIR}/start_hackme_miner.bat"
+cp "${ROOT_DIR}/scripts/release/windows/autostart_pool_worker.bat" "${WIN_DIR}/autostart_pool_worker.bat"
+cp "${ROOT_DIR}/docs/MINER_WINDOWS_ONE_CLICK.md" "${WIN_DIR}/MINER_WINDOWS_ONE_CLICK.md" 2>/dev/null || true
 cp "${ROOT_DIR}/scripts/release/windows/hackme.ico" "${WIN_DIR}/hackme.ico"
 cp "${ROOT_DIR}/scripts/release/windows/hackme.png" "${WIN_DIR}/hackme.png"
 cp "${ROOT_DIR}/scripts/release/linux/install_hackme.sh" "${LINUX_DIR}/install_hackme.sh"
@@ -138,6 +142,19 @@ chmod +x "${LINUX_DIR}/install_linux_desktop_launcher.sh"
 chmod +x "${LINUX_DIR}/install_from_code_toolchains.sh"
 chmod +x "${LINUX_DIR}/workerpoh"
 
+POOL_MINER_TOKEN="${HACKME_RELEASE_POOL_MINER_TOKEN:-}"
+if [[ -z "${POOL_MINER_TOKEN}" && -f "${ROOT_DIR}/.secrets/hackme_coordinator_worker_token" ]]; then
+  POOL_MINER_TOKEN="$(tr -d '\r\n' <"${ROOT_DIR}/.secrets/hackme_coordinator_worker_token")"
+fi
+if [[ -z "${POOL_MINER_TOKEN}" ]]; then
+  echo "[release] WARN: no pool miner token — run: bash scripts/ops/gen_coordinator_worker_token.sh" >&2
+  echo "[release]       then: HACKME_COORDINATOR_WORKER_TOKEN on VPS + rebuild release" >&2
+  POOL_MINER_TOKEN="REPLACE_WITH_POOL_TOKEN"
+else
+  printf '%s' "${POOL_MINER_TOKEN}" >"${WIN_DIR}/pool.miner.token"
+  echo "[release] wrote pool.miner.token (${#POOL_MINER_TOKEN} chars) for Windows miners"
+fi
+
 cat > "${DIST_DIR}/BUILD_INFO.txt" <<EOF
 app=${APP_NAME}
 version=${VERSION}
@@ -151,8 +168,10 @@ EOF
 (
   cd "${DIST_DIR}"
   zip -r "hackme_${VERSION}_windows.zip" "windows" >/dev/null
+  # Flat zip: extract and double-click setup — no nested windows\ folder confusion.
+  (cd "windows" && zip -r "../hackme_${VERSION}_windows_setup.zip" . >/dev/null)
   tar -czf "hackme_${VERSION}_linux.tar.gz" "linux"
-  sha256sum "hackme_${VERSION}_windows.zip" "hackme_${VERSION}_linux.tar.gz" > "SHA256SUMS.txt"
+  sha256sum "hackme_${VERSION}_windows.zip" "hackme_${VERSION}_windows_setup.zip" "hackme_${VERSION}_linux.tar.gz" > "SHA256SUMS.txt"
 )
 
 WIN_ARCHIVE="${DIST_DIR}/hackme_${VERSION}_windows.zip"
@@ -189,6 +208,7 @@ bash "${ROOT_DIR}/scripts/release/smoke_artifacts.sh" "${DIST_DIR}"
 echo "[release] done"
 echo "[release] artifacts:"
 echo "  ${DIST_DIR}/hackme_${VERSION}_windows.zip"
+echo "  ${DIST_DIR}/hackme_${VERSION}_windows_setup.zip  (flat — recommended for miners)"
 echo "  ${DIST_DIR}/hackme_${VERSION}_linux.tar.gz"
 echo "  ${DIST_DIR}/SHA256SUMS.txt"
 echo "  ${DIST_DIR}/RELEASE_MANIFEST.json"

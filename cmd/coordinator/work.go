@@ -52,28 +52,28 @@ type workManager struct {
 	signedSubmitNonceMax   map[string]uint64
 	lastSignedMiner        string
 
-	issuedRanges    uint64
-	reissuedRanges  uint64
-	submittedItems  uint64
-	foundHits       uint64
+	issuedRanges     uint64
+	reissuedRanges   uint64
+	submittedItems   uint64
+	foundHits        uint64
 	lastFoundHitUnix int64
-	poolRetarget    bool
+	poolRetarget     bool
 	// Pool M bounds (defaults poolTargetModMin/Max; override via HACKME_COORDINATOR_POOL_TARGET_MOD_{MIN,MAX}).
-	targetModMin       uint64
-	targetModMax       uint64
+	targetModMin         uint64
+	targetModMax         uint64
 	targetModUpdatedUnix int64
-	poolRetargetMinSec int64
+	poolRetargetMinSec   int64
 	lastPoolRetargetUnix int64
-	expiredLeases   uint64
-	unknownSubmits  uint64
-	staleSubmits    uint64
-	rejectedSubmits uint64
-	totalAttempts   uint64
-	totalPayoutHMC  float64
-	dedupSubmits    uint64
-	dedupFoundNonce uint64
-	signedAccepts   uint64
-	signedRejects   uint64
+	expiredLeases        uint64
+	unknownSubmits       uint64
+	staleSubmits         uint64
+	rejectedSubmits      uint64
+	totalAttempts        uint64
+	totalPayoutHMC       float64
+	dedupSubmits         uint64
+	dedupFoundNonce      uint64
+	signedAccepts        uint64
+	signedRejects        uint64
 
 	claimPerMin     int
 	submitPerMin    int
@@ -139,6 +139,7 @@ type workerPayoutStat struct {
 	PayoutAddress   string  `json:"payout_address,omitempty"`
 	SignedSubmits   uint64  `json:"signed_submits,omitempty"`
 	LastHashrateGHS float64 `json:"hashrate_gh_s,omitempty"`
+	PeakHashrateGHS float64 `json:"peak_hashrate_gh_s,omitempty"`
 	LastSeenUnix    int64   `json:"last_seen_unix,omitempty"`
 }
 
@@ -1162,6 +1163,9 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	}
 	if gh > 0 {
 		st.LastHashrateGHS = gh
+		if gh > st.PeakHashrateGHS {
+			st.PeakHashrateGHS = gh
+		}
 	}
 	st.LastSeenUnix = time.Now().Unix()
 	st.PayoutHMC += payout
@@ -1439,21 +1443,22 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 		out["target_mod_load_hint"] = hintStat
 	}
 	out["target_mod_load_capped"] = hintStat > maxStat && maxStat > 0
+	// Per-worker payout summary is public pool transparency; miner UIs need it without admin token.
+	workers := make(map[string]workerPayoutStat, len(m.worker))
+	for k, v := range m.worker {
+		workers[k] = v
+	}
+	out["workers"] = workers
 	if includeDetails {
 		active := make([]leaseRecord, 0, len(m.active))
-		workers := make(map[string]workerPayoutStat, len(m.worker))
 		abuse := make(map[string]workerAbuseState, len(m.abuse))
 		for _, rec := range m.active {
 			active = append(active, rec)
-		}
-		for k, v := range m.worker {
-			workers[k] = v
 		}
 		for k, v := range m.abuse {
 			abuse[k] = v
 		}
 		out["active_leases"] = active
-		out["workers"] = workers
 		out["abuse"] = abuse
 	}
 	return out
@@ -1667,8 +1672,8 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"ok":      true,
-			"cleared": cleared,
+			"ok":        true,
+			"cleared":   cleared,
 			"worker_id": strings.TrimSpace(req.WorkerID),
 		})
 	})

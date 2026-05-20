@@ -910,6 +910,27 @@
 							</div>
 						</div>
 						<p id="worker-mode-status" class="text-[10px] text-gray-500 font-mono mb-3">Worker mode: checking…</p>
+						<div id="rig-profile-card" class="mb-4 rounded-lg border border-neon/25 bg-black/35 p-4 space-y-3">
+							<div class="flex flex-wrap items-start justify-between gap-2">
+								<div>
+									<h3 class="font-display text-[10px] tracking-[0.25em] text-neon uppercase">Rig profile · GPU tune</h3>
+									<p class="text-[10px] text-gray-600 mt-1 max-w-2xl leading-relaxed">Auto batch, claim cooldown, thermal guard, and vendor OC guide. Writes <code class="text-neon/70">hackme.env</code> — restart pool worker after apply.</p>
+								</div>
+								<div class="flex flex-wrap gap-2">
+									<button type="button" id="btn-rig-profile-detect" class="px-3 py-1.5 rounded border border-white/20 text-gray-300 text-[10px] uppercase tracking-wider hover:bg-white/5">Detect GPU</button>
+									<button type="button" id="btn-rig-profile-apply" class="px-3 py-1.5 rounded border border-neon/40 bg-neon/10 text-neon text-[10px] uppercase tracking-wider hover:bg-neon/20">Apply profile</button>
+								</div>
+							</div>
+							<p id="rig-profile-status" class="text-[10px] font-mono text-gray-500">—</p>
+							<div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-[10px]">
+								<label class="text-gray-500">Profile<br>
+									<select id="rig-profile-select" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1.5 text-neon"></select>
+								</label>
+								<div class="rounded border border-white/10 bg-black/40 p-2 font-mono text-gray-400" id="rig-profile-env-preview">env: —</div>
+							</div>
+							<div id="rig-profile-oc" class="rounded border border-warn/20 bg-warn/5 p-3 text-[10px] text-gray-400 leading-relaxed hidden"></div>
+							<p id="rig-profile-platform" class="text-[9px] text-warn/80 font-mono"></p>
+						</div>
 						<div id="mining-admin-hint" class="hidden mb-3 rounded border border-warn/35 bg-warn/5 px-3 py-2 text-[10px] text-warn/95 font-mono leading-relaxed"></div>
 						<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2 lg:gap-3">
 							<div class="rounded-lg border border-warn/35 bg-warn/5 p-3 text-center lg:text-left">
@@ -3604,7 +3625,12 @@
 			const rpm = Math.max(0, Number(net.rewardPerM) || 0);
 			const effGh = poolGh > 0 ? Math.min(fleetGh, poolGh) : fleetGh;
 			const maxTrialAps = Math.max(effGh, workerGh, poolGh) * 1e9;
-			if (observed > 0 && workerGh > 0 && fleetGh > 0) {
+			const sharePct = Math.max(0.01, Math.min(100, Number(inputs.poolSharePct) || 100));
+			// Live payout rate from coordinator: scale by this worker's pool share, not whole-pool Δ.
+			if (observed > 0 && net.mySharePct > 0 && net.mySharePct < 99.5) {
+				return Math.max(0, observed * (sharePct / 100));
+			}
+			if (observed > 0 && workerGh > 0 && fleetGh > 0 && workerGh <= fleetGh * 1.05) {
 				return Math.max(0, observed * (effGh / workerGh));
 			}
 			if (observed > 0 && poolGh > 0 && fleetGh > 0) {
@@ -3621,10 +3647,23 @@
 				billingAps = ((observed / 3600) / rpm) * 1e6;
 			}
 			if (billingAps > maxTrialAps && maxTrialAps > 0) billingAps = maxTrialAps;
-			const share = Math.max(0.01, Math.min(100, Number(inputs.poolSharePct) || 100)) / 100;
+			const share = sharePct / 100;
 			if (billingAps > 0 && rpm > 0) {
 				return Math.max(0, (billingAps / 1e6) * rpm * 3600 * share);
 			}
+			return 0;
+		}
+
+		function coordinatorWorkerGH(ws, wst) {
+			const myId = String((wst && wst.worker_id) || '').trim();
+			if (myId && ws && ws.workers && ws.workers[myId]) {
+				const gh = clampRigHashrateGHS(ws.workers[myId].hashrate_gh_s);
+				if (gh > 0) return gh;
+			}
+			const measured = Number((wst && wst.measured_hashrate_gh_s) || 0);
+			if (measured > 0) return measured;
+			const declared = Number((wst && wst.hashrate_gh_s) || 0);
+			if (declared > 0 && declared < 2) return declared;
 			return 0;
 		}
 
@@ -3672,7 +3711,7 @@
 				if (sumGhRows > 0) poolGh = sumGhRows;
 			}
 			if (poolGh > 5000) poolGh = 5000;
-			const workerGh = Number(wst.measured_hashrate_gh_s || wst.hashrate_gh_s || 0);
+			const workerGh = coordinatorWorkerGH(ws, wst);
 			let mySharePct = 100;
 			const myId = String(wst.worker_id || '');
 			const poolAttempts = Number(ws.accepted_attempts || 0);
@@ -3821,12 +3860,12 @@
 			syncMineCalcSliders();
 			let inputs = readMineCalcInputs();
 			const net = getMineCalcNetworkParams();
-			if (!(inputs.hashrateGh > 0) && net.workerGh > 0) {
+			if ((!mineCalcGhTouched || !(inputs.hashrateGh > 0)) && net.workerGh > 0) {
 				const ghEl = mineCalcEl('mine-calc-gh');
 				const ghSlider = mineCalcEl('mine-calc-gh-slider');
 				if (ghEl) ghEl.value = String(net.workerGh);
 				if (ghSlider) ghSlider.value = String(Math.min(2000, Math.max(0.01, net.workerGh)));
-				if (net.mySharePct > 0 && net.mySharePct < 100 && mineCalcEl('mine-calc-share')) {
+				if (!mineCalcShareTouched && net.mySharePct > 0 && net.mySharePct < 100 && mineCalcEl('mine-calc-share')) {
 					mineCalcEl('mine-calc-share').value = String(fmt(net.mySharePct, 2));
 				}
 				inputs = readMineCalcInputs();
@@ -5732,12 +5771,8 @@
 			const apsFmt = fmtMiningTrialRate(aps);
 			let measuredGH = Number(wst.measured_hashrate_gh_s || 0);
 			const declaredGH = Number(wst.hashrate_gh_s || 0);
-			const myWid = String(wst.worker_id || '').trim();
-			let poolReportedGH = 0;
-			if (myWid && ws && ws.workers && ws.workers[myWid]) {
-				poolReportedGH = Number((ws.workers[myWid].live && ws.workers[myWid].live.hashrate_gh_s) || ws.workers[myWid].hashrate_gh_s || 0);
-			}
-			const workerGH = measuredGH > 0 ? measuredGH : (poolReportedGH > 0 ? poolReportedGH : declaredGH);
+			const poolReportedGH = coordinatorWorkerGH(ws, wst);
+			const workerGH = poolReportedGH > 0 ? poolReportedGH : (measuredGH > 0 ? measuredGH : (declaredGH > 0 && declaredGH < 2 ? declaredGH : 0));
 			if ($('mine-stat-aps')) {
 				if (poolWorker && wst.running && workerGH > 0) {
 					let txt = fmt(workerGH, 2) + ' GH/s';
@@ -5755,7 +5790,7 @@
 			}
 			if ($('mine-stat-aps-label')) {
 				if (poolWorker && wst.running) {
-					$('mine-stat-aps-label').textContent = measuredGH > 0 ? 'worker hashrate (measured)' : (poolReportedGH > 0 ? 'worker hashrate (pool reported)' : 'worker hashrate (declared)');
+					$('mine-stat-aps-label').textContent = poolReportedGH > 0 ? 'worker hashrate (pool reported)' : (measuredGH > 0 ? 'worker hashrate (measured)' : (declaredGH > 0 ? 'worker hashrate (declared)' : 'worker hashrate'));
 				} else if (netMode && !apsFmt && workerGH > 0) {
 					$('mine-stat-aps-label').textContent = measuredGH > 0 ? 'worker hashrate (measured)' : 'worker hashrate (declared)';
 				} else {
@@ -6022,6 +6057,7 @@
 					? (fmtUInt(blocks) + ' blocks · base ' + fmtUInt(baseB) + ' · order ' + fmtUInt(ordB))
 					: (poolWorker ? 'Pool follower — chain window from canonical when synced' : '0 blocks · base 0 · order 0');
 			}
+			try { updateRigProfileLiveMetrics(ws, wst); } catch (_) {}
 			try { renderMineCalc(); } catch (_) {}
 		}
 
@@ -8085,6 +8121,135 @@
 			return jj;
 		}
 
+		let rigProfilesCache = [];
+		let rigDetectCache = null;
+
+		function renderRigProfileOC(p) {
+			const ocEl = $('rig-profile-oc');
+			if (!ocEl || !p || !p.manual_oc) {
+				if (ocEl) ocEl.classList.add('hidden');
+				return;
+			}
+			const oc = p.manual_oc;
+			const notes = (oc.notes || []).map((n) => '<li>' + escapeHtml(n) + '</li>').join('');
+			ocEl.innerHTML =
+				'<p class="text-warn/90 uppercase tracking-wider text-[9px] mb-1">Manual OC (' + escapeHtml(oc.vendor || 'GPU') + ')</p>' +
+				'<p><strong class="text-gray-300">Tools:</strong> ' + escapeHtml((oc.tools || []).join(' · ')) + '</p>' +
+				(oc.core_mhz ? '<p><strong class="text-gray-300">Core:</strong> ' + escapeHtml(oc.core_mhz) + '</p>' : '') +
+				(oc.mem_mhz ? '<p><strong class="text-gray-300">Mem:</strong> ' + escapeHtml(oc.mem_mhz) + '</p>' : '') +
+				(oc.power_limit ? '<p><strong class="text-gray-300">Power:</strong> ' + escapeHtml(oc.power_limit) + '</p>' : '') +
+				(notes ? '<ul class="list-disc ml-4 mt-1">' + notes + '</ul>' : '');
+			ocEl.classList.remove('hidden');
+		}
+
+		function updateRigProfilePreview() {
+			const sel = $('rig-profile-select');
+			const prev = $('rig-profile-env-preview');
+			if (!sel || !prev) return;
+			const id = String(sel.value || '');
+			const p = rigProfilesCache.find((x) => x.id === id);
+			if (!p || !p.env) {
+				prev.textContent = 'env: —';
+				renderRigProfileOC(null);
+				return;
+			}
+			const keys = ['HACKME_GPU_BACKEND', 'HACKME_WORKER_BATCH_SIZE', 'GPU_CHUNK', 'HACKME_WORKER_CLAIM_COOLDOWN_MS', 'HACKME_GPU_TEMP_PAUSE_C'];
+			prev.textContent = keys.map((k) => k + '=' + (p.env[k] || '—')).join(' · ');
+			renderRigProfileOC(p);
+		}
+
+		async function refreshRigProfilesList() {
+			try {
+				const r = await fetch('/api/hardware/rig-profiles', { cache: 'no-store' });
+				if (!r.ok) return;
+				const j = await r.json();
+				rigProfilesCache = Array.isArray(j.profiles) ? j.profiles : [];
+				const sel = $('rig-profile-select');
+				if (!sel) return;
+				const active = String(j.active_id || '');
+				sel.innerHTML = rigProfilesCache.map((p) =>
+					'<option value="' + escapeHtml(p.id) + '"' + (p.id === active ? ' selected' : '') + '>' + escapeHtml(p.label || p.id) + '</option>'
+				).join('');
+				if (rigDetectCache && rigDetectCache.profile_id) {
+					sel.value = rigDetectCache.profile_id;
+				}
+				updateRigProfilePreview();
+				if ($('rig-profile-status')) {
+					$('rig-profile-status').textContent = active ? ('active: ' + active) : 'no profile in env yet';
+				}
+				if ($('rig-profile-platform')) $('rig-profile-platform').textContent = String(j.platform_note || '');
+			} catch (_) {}
+		}
+
+		async function detectRigProfile() {
+			if ($('rig-profile-status')) $('rig-profile-status').textContent = 'detecting GPU…';
+			try {
+				const r = await fetch('/api/hardware/rig-profiles/detect', { cache: 'no-store' });
+				const j = await r.json();
+				rigDetectCache = j;
+				const names = (j.gpu_names || []).join(', ') || '—';
+				if ($('rig-profile-status')) {
+					$('rig-profile-status').textContent = j.detected
+						? ('detected: ' + j.profile_id + ' · ' + names)
+						: ('no match · GPUs: ' + names);
+				}
+				if (j.detected && $('rig-profile-select')) {
+					$('rig-profile-select').value = j.profile_id;
+					updateRigProfilePreview();
+				}
+				if ($('rig-profile-platform')) $('rig-profile-platform').textContent = String(j.platform_note || '');
+			} catch (e) {
+				if ($('rig-profile-status')) $('rig-profile-status').textContent = 'detect failed: ' + (e && e.message ? e.message : 'error');
+			}
+		}
+
+		async function applyRigProfile() {
+			const sel = $('rig-profile-select');
+			const pid = sel ? String(sel.value || '').trim() : '';
+			if (!pid) return;
+			if ($('rig-profile-status')) $('rig-profile-status').textContent = 'applying ' + pid + '…';
+			try {
+				const r = await fetch('/api/hardware/rig-profiles/apply', {
+					method: 'POST',
+					headers: Object.assign({ 'Content-Type': 'application/json' }, adminHeaders()),
+					body: JSON.stringify({ profile_id: pid, restart_worker: false }),
+				});
+				const raw = await r.text();
+				let j = null;
+				try { j = JSON.parse(raw); } catch (_) {}
+				if (!r.ok) throw new Error((j && (j.error || j.message)) || raw.slice(0, 200));
+				if ($('rig-profile-status')) $('rig-profile-status').textContent = 'applied ' + pid + ' → ' + (j.env_file || 'hackme.env') + ' · stop/start worker';
+				await refreshRigProfilesList();
+				try {
+					await fetch('/api/worker/stop', { method: 'POST', headers: adminHeaders() });
+					const gpu = (j.profile && j.profile.env && j.profile.env.HACKME_GPU_BACKEND) || 'auto';
+					const batch = Number((j.profile && j.profile.env && j.profile.env.HACKME_WORKER_BATCH_SIZE) || 0) || undefined;
+					await fetch('/api/worker/start', {
+						method: 'POST',
+						headers: Object.assign({ 'Content-Type': 'application/json' }, adminHeaders()),
+						body: JSON.stringify({ gpu_backend: gpu, batch_size: batch }),
+					});
+					if ($('rig-profile-status')) $('rig-profile-status').textContent += ' · worker restarted';
+				} catch (we) {
+					if ($('rig-profile-status')) $('rig-profile-status').textContent += ' · worker restart: ' + (we && we.message ? we.message : 'manual');
+				}
+			} catch (e) {
+				if ($('rig-profile-status')) $('rig-profile-status').textContent = 'apply failed: ' + (e && e.message ? e.message : 'error');
+			}
+		}
+
+		function updateRigProfileLiveMetrics(ws, wst) {
+			const st = $('rig-profile-status');
+			if (!st || !ws) return;
+			const base = String(st.textContent || '').split(' · live')[0];
+			const m = Number(ws.target_mod || 0);
+			const gh = Number((wst && (wst.measured_hashrate_gh_s || wst.hashrate_gh_s)) || 0);
+			const rpm = Number(ws.reward_per_m || 0);
+			if (m > 0 || gh > 0) {
+				st.textContent = base + ' · live M=' + fmtUInt(m) + ' GH=' + fmt(gh, 3) + ' reward/M=' + fmt(rpm, 6);
+			}
+		}
+
 		async function refreshHardwareTune() {
 			const cpuMount = $('hardware-cpu-mount');
 			const gpuMount = $('hardware-gpu-cards');
@@ -8122,6 +8287,9 @@
 			document.querySelectorAll('.tab-panel').forEach((p) => p.classList.toggle('active', p.id === 'panel-' + name));
 			document.querySelectorAll('#tab-bar .tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
 			document.querySelectorAll('#sidebar-nav .sidebar-link').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
+			if (name === 'mining') {
+				void refreshRigProfilesList();
+			}
 			if (name === 'chain') refreshChainList();
 			if (name === 'reports') refreshReportsList();
 			if (name === 'orders') {
@@ -8633,6 +8801,10 @@
 					}
 				});
 				if ($('btn-desktop-start-worker')) $('btn-desktop-start-worker').addEventListener('click', () => { void desktopStartWorkerMode(); });
+				if ($('btn-rig-profile-detect')) $('btn-rig-profile-detect').addEventListener('click', () => { void detectRigProfile(); });
+				if ($('btn-rig-profile-apply')) $('btn-rig-profile-apply').addEventListener('click', () => { void applyRigProfile(); });
+				if ($('rig-profile-select')) $('rig-profile-select').addEventListener('change', () => updateRigProfilePreview());
+				void refreshRigProfilesList();
 				if ($('btn-genesis')) {
 					$('btn-genesis').addEventListener('click', async () => {
 						try {

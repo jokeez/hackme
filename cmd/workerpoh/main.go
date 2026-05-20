@@ -238,6 +238,22 @@ func workerHTTPDuration(envKey string, fallback time.Duration) time.Duration {
 	return fallback
 }
 
+// workerClaimCooldownMS returns pause between claim/submit cycles.
+// HACKME_WORKER_CLAIM_COOLDOWN_MS=0 on GPU rigs means "use smart default" (not zero delay).
+func workerClaimCooldownMS(mode string) int {
+	ms := envIntMs("HACKME_WORKER_CLAIM_COOLDOWN_MS", -1)
+	if ms < 0 {
+		if mode == "gpu" && gpuBackendConfigured() {
+			return 80
+		}
+		return 0
+	}
+	if ms == 0 && mode == "gpu" && gpuBackendConfigured() {
+		return 80
+	}
+	return ms
+}
+
 func envIntMs(envKey string, fallback int) int {
 	v := strings.TrimSpace(os.Getenv(envKey))
 	if v == "" {
@@ -433,29 +449,47 @@ func effectiveSearchSeconds(searchSec float64) float64 {
 }
 
 var (
-	submitHashrateEMA  float64
-	gpuCalibratedGHS   float64
-	workerGPUBackend   string
+	submitHashrateEMA float64
+	gpuCalibratedGHS  float64
+	workerGPUBackend  string
 )
 
-func cudaBackendConfigured() bool {
-	if strings.EqualFold(strings.TrimSpace(workerGPUBackend), "cuda") {
-		return true
+func effectiveGPUBackend() string {
+	b := strings.ToLower(strings.TrimSpace(workerGPUBackend))
+	if b == "cuda" || b == "opencl" {
+		return b
 	}
-	b := strings.ToLower(strings.TrimSpace(os.Getenv("HACKME_GPU_BACKEND")))
-	return b == "cuda"
+	b = strings.ToLower(strings.TrimSpace(os.Getenv("HACKME_GPU_BACKEND")))
+	if b == "cuda" || b == "opencl" {
+		return b
+	}
+	return ""
+}
+
+func cudaBackendConfigured() bool {
+	return effectiveGPUBackend() == "cuda"
 }
 
 func openclBackendConfigured() bool {
-	if strings.EqualFold(strings.TrimSpace(workerGPUBackend), "opencl") {
-		return true
-	}
-	b := strings.ToLower(strings.TrimSpace(os.Getenv("HACKME_GPU_BACKEND")))
-	return b == "opencl"
+	return effectiveGPUBackend() == "opencl"
 }
 
 func gpuBackendConfigured() bool {
-	return cudaBackendConfigured() || openclBackendConfigured()
+	return effectiveGPUBackend() != ""
+}
+
+func syncWorkerGPUBackendFromSearcher(srch searcher, mode string) {
+	if mode != "gpu" {
+		return
+	}
+	gs, ok := srch.(gpuSearcher)
+	if !ok {
+		return
+	}
+	b := strings.ToLower(strings.TrimSpace(gs.acc.Backend()))
+	if b == "cuda" || b == "opencl" {
+		workerGPUBackend = b
+	}
 }
 
 func calibrateGPUHashrateGHS(srch searcher, batch, mod uint64) float64 {
@@ -523,6 +557,13 @@ func submitHashrateGHS(batch uint64, searchSec float64, mode string) float64 {
 	} else if cudaBackendConfigured() && kernelTimed && gpuCalibratedGHS > 0 && inst > gpuCalibratedGHS*2.5 {
 		// Cap absurd over-report spikes; trust live measurement otherwise.
 		inst = gpuCalibratedGHS * 1.15
+	} else if cudaBackendConfigured() && kernelTimed && gpuCalibratedGHS > 10 && inst > 0 && inst < gpuCalibratedGHS*0.25 {
+		// Desktop GPU contention (browser/IDE): avoid pinning pool stats and coordinator
+		// rate limits to a one-off slow kernel sample.
+		floor := gpuCalibratedGHS * 0.55
+		if inst < floor {
+			inst = floor
+		}
 	}
 	if inst > 0 {
 		if submitHashrateEMA <= 0 {
@@ -650,7 +691,9 @@ func main() {
 	}
 	srch, cleanup, mode := pickSearcher(preferredBackend, *gpuDevice, *gpuDisable)
 	defer cleanup()
-	fmt.Fprintf(os.Stderr, "workerpoh: searcher=%s mode=%s hybrid_sign=%v\n", srch.Label(), mode, signHybrid)
+	syncWorkerGPUBackendFromSearcher(srch, mode)
+	fmt.Fprintf(os.Stderr, "workerpoh: searcher=%s mode=%s backend=%s hybrid_sign=%v\n",
+		srch.Label(), mode, effectiveGPUBackend(), signHybrid)
 	if mode == "gpu" && gpuBackendConfigured() {
 		calibMod := uint64(19_485_298)
 		if v := strings.TrimSpace(os.Getenv("HACKME_GPU_CALIBRATE_MOD")); v != "" {
@@ -812,7 +855,7 @@ func main() {
 		}
 		pushWorkSnapshot(pushCL, *coordURL, *token, *workerID, workerName, ghs, subWrap.Accepted, okSubmits)
 		fmt.Printf("submit ok found=%v batch=%d mod=%d ghs=%.6f inst_ghs=%.2f\n", found, cr.BatchSize, cr.TargetMod, ghs, instGHS)
-		if ms := envIntMs("HACKME_WORKER_CLAIM_COOLDOWN_MS", 0); ms > 0 {
+		if ms := workerClaimCooldownMS(mode); ms > 0 {
 			time.Sleep(time.Duration(ms) * time.Millisecond)
 		}
 	}

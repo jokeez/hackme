@@ -721,11 +721,11 @@ func TestMaybeRetargetPoolModIncreasesOnFastHits(t *testing.T) {
 
 func TestRefreshTargetModDoesNotDowngradePoolRetargetM(t *testing.T) {
 	wm := &workManager{
-		targetMod:    1_120_000,
-		poolRetarget: true,
-		targetEvery:  1,
-		targetLastAt: 0,
-		rewardAuto:   true,
+		targetMod:     1_120_000,
+		poolRetarget:  true,
+		targetEvery:   1,
+		targetLastAt:  0,
+		rewardAuto:    true,
 		baseRewardHMC: 0.01,
 	}
 	// Simulate chain metrics with solo-floor mod; pool retarget must keep its M.

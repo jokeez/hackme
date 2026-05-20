@@ -56,6 +56,10 @@ Source: "dist\release_{#MyAppVersion}\windows\workerpoh.exe"; DestDir: "{app}"; 
 Source: "dist\release_{#MyAppVersion}\windows\minersign.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\release_{#MyAppVersion}\windows\start_hackme_dashboard.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\release_{#MyAppVersion}\windows\start_hackme_public_pool.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\release_{#MyAppVersion}\windows\setup_hackme_miner.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\release_{#MyAppVersion}\windows\start_hackme_miner.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\release_{#MyAppVersion}\windows\autostart_pool_worker.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\release_{#MyAppVersion}\windows\pool.miner.token"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "dist\release_{#MyAppVersion}\windows\start_hackme_desktop_mode.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\release_{#MyAppVersion}\windows\stop_hackme_desktop_mode.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\release_{#MyAppVersion}\windows\status_hackme_desktop_mode.bat"; DestDir: "{app}"; Flags: ignoreversion
@@ -66,13 +70,15 @@ Source: "dist\release_{#MyAppVersion}\windows\README.md"; DestDir: "{app}"; Flag
 Source: "dist\release_{#MyAppVersion}\windows\EXPLORER_SUBDOMAIN_RUNBOOK.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
+Name: "{group}\Start HackMe Miner"; Filename: "{app}\start_hackme_miner.bat"; IconFilename: "{app}\{#MyAppExeName}"
+Name: "{group}\Setup HackMe Miner (first run)"; Filename: "{app}\setup_hackme_miner.bat"; IconFilename: "{app}\{#MyAppExeName}"
 Name: "{group}\Start HackMe (public pool)"; Filename: "{app}\start_hackme_public_pool.bat"; IconFilename: "{app}\{#MyAppExeName}"
 Name: "{group}\HackMe Desktop Mode"; Filename: "{app}\start_hackme_desktop_mode.bat"; IconFilename: "{app}\{#MyAppExeName}"
 Name: "{group}\Start HackMe node only"; Filename: "{app}\start_hackme_dashboard.bat"; IconFilename: "{app}\{#MyAppExeName}"
 Name: "{group}\HackMe Dashboard"; Filename: "http://127.0.0.1:8080"
 Name: "{group}\HackMe Explorer"; Filename: "http://127.0.0.1:8080/explorer"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\HackMe (public pool)"; Filename: "{app}\start_hackme_public_pool.bat"; Tasks: desktopicon; IconFilename: "{app}\{#MyAppExeName}"
+Name: "{autodesktop}\Start HackMe Miner"; Filename: "{app}\start_hackme_miner.bat"; Tasks: desktopicon; IconFilename: "{app}\{#MyAppExeName}"
 
 [Registry]
 Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "HackMe"; ValueData: """{app}\hackme_autostart_boot.bat"""; Flags: uninsdeletevalue; Tasks: autostart
