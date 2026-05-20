@@ -896,7 +896,14 @@ func fetchCoordinatorWorkStats(ctx context.Context, base string, includeDetails 
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(io.LimitReader(res.Body, 1024))
-		return nil, fmt.Errorf("coordinator work stats status=%d body=%s", res.StatusCode, strings.TrimSpace(string(b)))
+		body := strings.TrimSpace(string(b))
+		// Miner releases ship worker token only; details=1 needs admin. Fall back to public summary.
+		if includeDetails && res.StatusCode == http.StatusUnauthorized {
+			if basic, err2 := fetchCoordinatorWorkStats(ctx, base, false); err2 == nil {
+				return basic, nil
+			}
+		}
+		return nil, fmt.Errorf("coordinator work stats status=%d body=%s", res.StatusCode, body)
 	}
 	var out map[string]any
 	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {

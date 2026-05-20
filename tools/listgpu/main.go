@@ -1,6 +1,7 @@
 // List GPUs via gpupoh (build with -tags cuda and/or opencl).
-//   go run -tags cuda ./tools/listgpu
-//   go run -tags opencl ./tools/listgpu
+//
+//	go run -tags cuda ./tools/listgpu
+//	go run -tags opencl ./tools/listgpu
 package main
 
 import (

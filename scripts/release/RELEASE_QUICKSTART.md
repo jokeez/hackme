@@ -4,11 +4,13 @@ Local-only solo mining was removed. Use the **public pool** at `https://hackme.t
 
 ## Windows
 
-1. Unzip `hackme_*_windows.zip` to a folder (e.g. `C:\HackMe`).
-2. **Recommended:** double-click **`start_hackme_public_pool.bat`** — sets `HACKME_PUBLIC_AUTHORITY_BASE`, opens dashboard → Mining tab.
-3. Or **`start_hackme_desktop_mode.bat`** — creates `.env.desktop.windows` with a generated admin token (worker profile + public authority).
-4. Paste **admin token** in the dashboard (first-run wizard) and **coordinator token** from the pool operator (`hackme.env` or UI).
-5. Mining tab → **Start worker**.
+1. Download **`hackme_*_windows_setup.zip`** (flat layout — all files in zip root).
+2. Run **`setup_hackme_miner.bat`** once (installs to `C:\HackMe`, generates local admin token, applies pool miner token from `pool.miner.token`).
+3. Run **`start_hackme_miner.bat`** (or desktop shortcut **Start HackMe Miner**).
+4. Browser opens → **Mining** tab; worker autostarts when the node is up.
+5. Legacy: **`start_hackme_public_pool.bat`** forwards to `start_hackme_miner.bat`.
+
+See `docs/MINER_WINDOWS_ONE_CLICK.md` in the repo.
 
 Binaries: `hackme.exe` (node), `workerpoh.exe` (pool worker), `minersign.exe` (hybrid signer).
 

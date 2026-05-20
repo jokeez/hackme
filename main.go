@@ -276,6 +276,7 @@ func (a *app) readCanonicalWalletCache(addr string) (float64, uint64, uint64, bo
 func main() {
 	ensureStableWorkingDir()
 	loadHackmeDotEnv()
+	applyRigProfileAtStartup()
 	ensurePoolCoordinatorTokenEnv()
 	applyFromCodeToolchainEnv()
 	logsetup.ConfigureFromEnv("HACKME_NODE")
@@ -406,6 +407,9 @@ func main() {
 	mux.HandleFunc("/api/mining/logs/stream", a.handleMiningLogsStream)
 	mux.HandleFunc("/api/hardware/tune", a.handleHardwareTune)
 	mux.HandleFunc("/api/gpu/tune", a.handleHardwareTune) // alias
+	mux.HandleFunc("/api/hardware/rig-profiles", a.handleRigProfiles)
+	mux.HandleFunc("/api/hardware/rig-profiles/detect", a.handleRigProfilesDetect)
+	mux.HandleFunc("/api/hardware/rig-profiles/apply", a.handleRigProfilesApply)
 	mux.HandleFunc("/api/tasks", a.handleTasks)
 	mux.HandleFunc("/api/tasks/from_code", a.handleTaskFromCode)
 	mux.HandleFunc("/api/fuzz/campaigns", a.handleFuzzCampaigns)
@@ -2095,9 +2099,7 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 				hashrateGHS = x
 			}
 		}
-		if hashrateGHS <= 0 {
-			hashrateGHS = 0.9
-		}
+		// Leave 0 — workerpoh reports live GH/s to coordinator; no fake 0.9 GH/s floor on CPU rigs.
 	}
 	coordToken := resolveCoordinatorToken(strings.TrimSpace(req.CoordToken))
 	if coordToken == "" {
@@ -2165,7 +2167,15 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 	if gpuBackend == "" {
 		gpuBackend = strings.TrimSpace(os.Getenv("HACKME_GPU_BACKEND"))
 	}
-	if gpuBackend != "" {
+	if gpuBackend == "" || strings.EqualFold(gpuBackend, "auto") {
+		cudaBin := filepath.Join(repoRoot, "bin", "workerpoh-cuda")
+		if st, err := os.Stat(cudaBin); err == nil && !st.IsDir() {
+			if _, err := exec.Command("nvidia-smi", "-L").Output(); err == nil {
+				gpuBackend = "cuda"
+			}
+		}
+	}
+	if gpuBackend != "" && !strings.EqualFold(gpuBackend, "auto") {
 		workerEnv = append(workerEnv, "HACKME_GPU_BACKEND="+gpuBackend)
 	}
 	if strings.EqualFold(gpuBackend, "cuda") {
@@ -2183,6 +2193,7 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 	if v := strings.TrimSpace(os.Getenv("SEARCH_TIMEOUT_MS")); v != "" {
 		workerEnv = append(workerEnv, "SEARCH_TIMEOUT_MS="+v)
 	}
+	workerEnv = appendWorkerEnvPassthrough(workerEnv)
 	if v := strings.TrimSpace(os.Getenv("HACKME_WORKER_SUBMIT_TIMEOUT")); v != "" {
 		workerEnv = append(workerEnv, "HACKME_WORKER_SUBMIT_TIMEOUT="+v)
 	} else if remoteCoord {
@@ -2782,40 +2793,49 @@ func workerActiveFromLog(logDir string, staleSec int64) bool {
 	return parseWorkerpohMeasuredGHs(logDir) > 0
 }
 
-// parseWorkerpohMeasuredGHs reads the latest inst_ghs= or ghs= from workerpoh submit ok lines.
+// parseWorkerpohGHField reads a floating GH/s value after key= on a log line (token-safe:
+// avoids matching ghs= inside inst_ghs=).
+func parseWorkerpohGHField(line, key string) float64 {
+	for _, tok := range strings.Fields(line) {
+		if !strings.HasPrefix(tok, key) {
+			continue
+		}
+		rest := strings.TrimSpace(tok[len(key):])
+		if f, err := strconv.ParseFloat(rest, 64); err == nil && f > 0 && f <= 500 {
+			return f
+		}
+	}
+	return 0
+}
+
+// parseWorkerpohMeasuredGHs reads recent submit ok lines; prefers reported ghs= (after floor)
+// over raw inst_ghs= so the dashboard matches pool payout hashrate.
 func parseWorkerpohMeasuredGHs(logDir string) float64 {
 	p := latestWorkerpohLogPath(logDir)
 	if p == "" {
 		return 0
 	}
-	lines, err := tailFileLastLines(p, 40, 64*1024)
+	lines, err := tailFileLastLines(p, 60, 96*1024)
 	if err != nil || len(lines) == 0 {
 		return 0
 	}
-	for i := len(lines) - 1; i >= 0; i-- {
+	best := 0.0
+	start := len(lines) - 25
+	if start < 0 {
+		start = 0
+	}
+	for i := len(lines) - 1; i >= start; i-- {
 		line := lines[i]
-		idx := strings.LastIndex(line, "inst_ghs=")
-		if idx < 0 {
+		if !strings.Contains(line, "submit ok") {
 			continue
 		}
-		rest := strings.TrimSpace(line[idx+len("inst_ghs="):])
-		end := 0
-		for end < len(rest) {
-			c := rest[end]
-			if (c >= '0' && c <= '9') || c == '.' {
-				end++
-				continue
+		for _, key := range []string{"ghs=", "inst_ghs="} {
+			if g := parseWorkerpohGHField(line, key); g > best {
+				best = g
 			}
-			break
-		}
-		if end == 0 {
-			continue
-		}
-		if f, err := strconv.ParseFloat(rest[:end], 64); err == nil && f > 0 {
-			return f
 		}
 	}
-	return 0
+	return best
 }
 
 // latestWorkerpohLogPath returns the newest workerpoh-*.log under logDir (per-run tee log).

@@ -100,16 +100,16 @@ func compilePTXOnce(arch string) (ptx string, kname string, err error) {
 }
 
 type cudaAccel struct {
-	devID      int
-	devName    string
-	arch       string
-	ctx        cu.CUContext
-	mod        cu.Module
-	kernel     cu.Function
-	dOut       cu.DevicePtr
-	blockSz    int
-	haveCtx    bool
-	haveMod    bool
+	devID   int
+	devName string
+	arch    string
+	ctx     cu.CUContext
+	mod     cu.Module
+	kernel  cu.Function
+	dOut    cu.DevicePtr
+	blockSz int
+	haveCtx bool
+	haveMod bool
 }
 
 func newCUDAAccelerator(devID int) (Accelerator, error) {

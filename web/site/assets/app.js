@@ -1,6 +1,6 @@
 (() => {
   /** Bump together with dist/release_<VERSION>/ and scripts/release/make_release_bundle.sh */
-  const RELEASE_VER = "0.1.0-rc10";
+  const RELEASE_VER = "0.1.0-rc11c";
 
   /** Sub-1 TH/s → GH/s (matches dashboard / explorer pool strip). */
   function fmtPoolHashrateTHS(ths, mock) {
@@ -31,7 +31,8 @@
     releaseChannel: RELEASE_VER,
     releaseChannelNote: "desktop mode candidate",
     releaseBase: `/dist/release_${RELEASE_VER}`,
-    windowsBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows.zip`,
+    windowsBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows_setup.zip`,
+    windowsBundleLegacy: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows.zip`,
     linuxBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_linux.tar.gz`,
     shaSums: `/dist/release_${RELEASE_VER}/SHA256SUMS.txt`,
     manifest: `/dist/release_${RELEASE_VER}/RELEASE_MANIFEST.json`,
