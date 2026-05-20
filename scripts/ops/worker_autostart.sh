@@ -59,7 +59,7 @@ coord_looks_remote() {
   return 0
 }
 
-if coord_looks_remote "$COORD_URL"; then
+	if coord_looks_remote "$COORD_URL"; then
   # Desktop GPU rigs: larger batches (fewer HTTPS round-trips, more attempts per range).
   if [[ -z "${BATCH_SIZE:-}" && "${HACKME_DESKTOP_GPU_POOL:-0}" == "1" ]]; then
     BATCH_SIZE=4194304
@@ -77,11 +77,14 @@ else
 fi
 if [[ "${HACKME_DESKTOP_GPU_POOL:-0}" == "1" ]]; then
   SEARCH_TIMEOUT_MS="${SEARCH_TIMEOUT_MS:-12000}"
-  export HASHRATE_GHS="${HASHRATE_GHS:-${HACKME_WORKER_HASHRATE_GHS:-20}}"
 else
   SEARCH_TIMEOUT_MS="${SEARCH_TIMEOUT_MS:-2500}"
 fi
-export HASHRATE_GHS="${HASHRATE_GHS:-${HACKME_WORKER_HASHRATE_GHS:-}}"
+if [[ -n "${HACKME_WORKER_HASHRATE_GHS:-}" ]]; then
+  export HASHRATE_GHS="${HACKME_WORKER_HASHRATE_GHS}"
+else
+  unset HASHRATE_GHS 2>/dev/null || true
+fi
 
 if [[ -z "${COORD_TOKEN}" ]]; then
   echo "[worker-autostart] set COORD_TOKEN (or COORD_ADMIN_TOKEN/ADMIN_TOKEN)" >&2

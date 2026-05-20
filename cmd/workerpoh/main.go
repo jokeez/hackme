@@ -353,6 +353,10 @@ func pickSearcher(preferredBackend string, preferredDevice int, disableGPU bool)
 		}
 		return gpuSearcher{acc: pick}, cleanup, "gpu"
 	}
+	if preferredBackend == "cuda" || preferredBackend == "opencl" {
+		fmt.Fprintf(os.Stderr, "workerpoh: WARN no %s accelerator found (%v); falling back to CPU — rebuild with: bash scripts/ops/build_cuda_worker.sh\n",
+			preferredBackend, err)
+	}
 	return cpuSearcher{}, func() {}, "cpu"
 }
 
@@ -501,14 +505,14 @@ func calibrateGPUHashrateGHS(srch searcher, batch, mod uint64) float64 {
 func submitHashrateGHS(batch uint64, searchSec float64, mode string) float64 {
 	inst := measureWorkerHashrateGHS(batch, searchSec)
 	kernelTimed := mode == "gpu" && gpuKernelTimingActive()
-	if gpuBackendConfigured() && !kernelTimed {
+	if gpuBackendConfigured() && mode == "gpu" && !kernelTimed {
 		if inst < 2 && gpuCalibratedGHS > 0 {
 			inst = gpuCalibratedGHS
 		}
 		if inst < gpuCalibratedGHS*0.7 && gpuCalibratedGHS > 0 {
 			inst = gpuCalibratedGHS
 		}
-	} else if gpuBackendConfigured() && kernelTimed && openclBackendConfigured() && !cudaBackendConfigured() {
+	} else if gpuBackendConfigured() && mode == "gpu" && kernelTimed && openclBackendConfigured() && !cudaBackendConfigured() {
 		// OpenCL-only: reject bogus slow wall/kernel timing.
 		if inst < 2 && gpuCalibratedGHS > 0 {
 			inst = gpuCalibratedGHS
@@ -523,12 +527,23 @@ func submitHashrateGHS(batch uint64, searchSec float64, mode string) float64 {
 	if inst > 0 {
 		if submitHashrateEMA <= 0 {
 			submitHashrateEMA = inst
+		} else if cudaBackendConfigured() && kernelTimed {
+			// CUDA: track live kernel timing; decay quickly when performance drops so pool
+			// stats are not stuck on an early calibration spike.
+			if inst < submitHashrateEMA*0.6 {
+				submitHashrateEMA = 0.75*inst + 0.25*submitHashrateEMA
+			} else {
+				submitHashrateEMA = 0.55*inst + 0.45*submitHashrateEMA
+			}
 		} else {
 			submitHashrateEMA = 0.35*inst + 0.65*submitHashrateEMA
 		}
 	}
 	ghs := inst
-	if submitHashrateEMA > ghs {
+	if cudaBackendConfigured() && kernelTimed && inst > 0 {
+		// Prefer live measurement for pool payout; EMA is diagnostic only.
+		ghs = inst
+	} else if submitHashrateEMA > ghs {
 		ghs = submitHashrateEMA
 	}
 	declared := envFloatGHS("HASHRATE_GHS", "HACKME_WORKER_HASHRATE_GHS", "HACKME_WORKER_DECLARED_HASHRATE_GHS")
@@ -536,28 +551,27 @@ func submitHashrateGHS(batch uint64, searchSec float64, mode string) float64 {
 		if ghs <= 0 && gpuCalibratedGHS > 0 {
 			ghs = gpuCalibratedGHS
 		}
-		if declared > 0 && ghs > 0 && ghs < declared*0.5 {
-			ghs = declared * 0.5
-		}
 		if ghs > 500 {
 			return 500
 		}
 		return ghs
 	}
 	if declared <= 0 {
-		return ghs
-	}
-	floor := declared * 0.2
-	if mode != "gpu" {
-		floor = declared * 0.5
-	}
-	if ghs <= 0 || ghs < floor {
-		if declared > 500 {
+		if ghs > 500 {
 			return 500
 		}
-		return declared
+		return ghs
 	}
-	return ghs
+	if ghs > 0 {
+		if ghs > 500 {
+			return 500
+		}
+		return ghs
+	}
+	if declared > 500 {
+		return 500
+	}
+	return declared
 }
 
 func main() {

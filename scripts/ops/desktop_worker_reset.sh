@@ -94,7 +94,11 @@ start_cuda_worker_direct() {
   export WORKER_BIN="$cuda_bin"
   export HACKME_DESKTOP_GPU_POOL=1
   export SKIP_WORKER_BUILD=1
-  export HASHRATE_GHS="${HACKME_WORKER_HASHRATE_GHS:-20}"
+  if [[ -n "${HACKME_WORKER_HASHRATE_GHS:-}" ]]; then
+    export HASHRATE_GHS="${HACKME_WORKER_HASHRATE_GHS}"
+  else
+    unset HASHRATE_GHS 2>/dev/null || true
+  fi
   export HACKME_WORKER_CLAIM_TIMEOUT="${HACKME_WORKER_CLAIM_TIMEOUT:-90s}"
   export HACKME_WORKER_SUBMIT_TIMEOUT="${HACKME_WORKER_SUBMIT_TIMEOUT:-120s}"
   export HACKME_WORKER_CLAIM_COOLDOWN_MS="${HACKME_WORKER_CLAIM_COOLDOWN_MS:-0}"
@@ -103,6 +107,10 @@ start_cuda_worker_direct() {
   export HACKME_MINER_NONCE_FILE="$ROOT_DIR/logs/miner_submit_nonce.${safe_wid}.seq"
 
   echo "[worker-reset] CUDA direct start: bin=$cuda_bin worker=$WORKER_ID batch=$BATCH_SIZE"
+  if [[ -x "$ROOT_DIR/scripts/ops/build_cuda_worker.sh" ]]; then
+    bash "$ROOT_DIR/scripts/ops/build_cuda_worker.sh"
+    cuda_bin="$ROOT_DIR/bin/workerpoh-cuda"
+  fi
   nohup bash "$ROOT_DIR/scripts/ops/worker_autostart.sh" >>"$ROOT_DIR/logs/worker_participant.log" 2>&1 &
   local apid=$!
   echo "[worker-reset] worker_autostart pid=$apid (log=logs/worker_participant.log)"

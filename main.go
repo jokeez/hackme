@@ -1014,26 +1014,31 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	canonMiningOverlay := a.overlayCanonicalMiningIntoSnapshot(ctx, &s)
+	overlayCtx, overlayCancel := context.WithTimeout(ctx, 8*time.Second)
+	canonMiningOverlay := a.overlayCanonicalMiningIntoSnapshot(overlayCtx, &s)
+	overlayCancel()
 
 	since1h := time.Now().Unix() - 3600
 	if rw, err := a.chain.RewardWindowBreakdownSince(ctx, since1h); err == nil {
-		s.EconWindowSec = 3600
-		s.EconWindowBlocks = rw.Blocks
-		s.EconWindowBaseBlocks = rw.BaseBlocks
-		s.EconWindowOrderBlocks = rw.OrderBlocks
-		s.EconWindowBaseHMC = rw.BaseHMC
-		s.EconWindowOrderHMC = rw.OrderHMC
-		s.EconWindowTotalHMC = rw.TotalHMC
-		if rw.TotalHMC > 1e-12 {
-			s.EconWindowOrderShare = 100 * rw.OrderHMC / rw.TotalHMC
+		localHasChain := rw.Blocks > 0 || rw.TotalHMC > 1e-12
+		if localHasChain || !canonMiningOverlay {
+			s.EconWindowSec = 3600
+			s.EconWindowBlocks = rw.Blocks
+			s.EconWindowBaseBlocks = rw.BaseBlocks
+			s.EconWindowOrderBlocks = rw.OrderBlocks
+			s.EconWindowBaseHMC = rw.BaseHMC
+			s.EconWindowOrderHMC = rw.OrderHMC
+			s.EconWindowTotalHMC = rw.TotalHMC
+			if rw.TotalHMC > 1e-12 {
+				s.EconWindowOrderShare = 100 * rw.OrderHMC / rw.TotalHMC
+			}
+			s.MiningPohBlocksLast1h = rw.Blocks
+			s.MiningHmcLastHourApprox = rw.TotalHMC
 		}
-		s.MiningPohBlocksLast1h = rw.Blocks
-		s.MiningHmcLastHourApprox = rw.TotalHMC
 	}
 	s.MiningInsightNote = "ETA/progress: heuristic (M × eval/s). HMC/hour = PoH blocks on this chain in the window; wallet follows /api/wallet/*."
 	if canonMiningOverlay {
-		s.MiningInsightNote = "M and economics follow canonical when reachable. " + s.MiningInsightNote
+		s.MiningInsightNote = "Chain economics from canonical when local tip is empty. " + s.MiningInsightNote
 	}
 	s.MiningTargetBlockSec = chain.PoHRetargetTargetSec
 	if s.MiningObservedBlockSec <= 0 {
@@ -2092,12 +2097,6 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 		}
 		if hashrateGHS <= 0 {
 			hashrateGHS = 0.9
-			repoRoot := resolveWorkerRepoRoot(strings.TrimSpace(a.dataDir))
-			if st, err := os.Stat(filepath.Join(repoRoot, "bin", "workerpoh-cuda")); err == nil && !st.IsDir() {
-				hashrateGHS = 9.0
-			} else if st, err := os.Stat(filepath.Join(repoRoot, "bin", "workerpoh-opencl")); err == nil && !st.IsDir() {
-				hashrateGHS = 9.0
-			}
 		}
 	}
 	coordToken := resolveCoordinatorToken(strings.TrimSpace(req.CoordToken))
@@ -2795,27 +2794,25 @@ func parseWorkerpohMeasuredGHs(logDir string) float64 {
 	}
 	for i := len(lines) - 1; i >= 0; i-- {
 		line := lines[i]
-		for _, key := range []string{"inst_ghs=", "ghs="} {
-			idx := strings.LastIndex(line, key)
-			if idx < 0 {
+		idx := strings.LastIndex(line, "inst_ghs=")
+		if idx < 0 {
+			continue
+		}
+		rest := strings.TrimSpace(line[idx+len("inst_ghs="):])
+		end := 0
+		for end < len(rest) {
+			c := rest[end]
+			if (c >= '0' && c <= '9') || c == '.' {
+				end++
 				continue
 			}
-			rest := strings.TrimSpace(line[idx+len(key):])
-			end := 0
-			for end < len(rest) {
-				c := rest[end]
-				if (c >= '0' && c <= '9') || c == '.' {
-					end++
-					continue
-				}
-				break
-			}
-			if end == 0 {
-				continue
-			}
-			if f, err := strconv.ParseFloat(rest[:end], 64); err == nil && f > 0 {
-				return f
-			}
+			break
+		}
+		if end == 0 {
+			continue
+		}
+		if f, err := strconv.ParseFloat(rest[:end], 64); err == nil && f > 0 {
+			return f
 		}
 	}
 	return 0
