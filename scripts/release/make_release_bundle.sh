@@ -122,6 +122,8 @@ cp "${ROOT_DIR}/scripts/release/windows/start_hackme_public_pool.bat" "${WIN_DIR
 cp "${ROOT_DIR}/scripts/release/windows/setup_hackme_miner.bat" "${WIN_DIR}/setup_hackme_miner.bat"
 cp "${ROOT_DIR}/scripts/release/windows/start_hackme_miner.bat" "${WIN_DIR}/start_hackme_miner.bat"
 cp "${ROOT_DIR}/scripts/release/windows/autostart_pool_worker.bat" "${WIN_DIR}/autostart_pool_worker.bat"
+cp "${ROOT_DIR}/scripts/release/windows/detect_gpu.ps1" "${WIN_DIR}/detect_gpu.ps1"
+cp "${ROOT_DIR}/scripts/release/windows/write_hackme_env.ps1" "${WIN_DIR}/write_hackme_env.ps1"
 cp "${ROOT_DIR}/docs/MINER_WINDOWS_ONE_CLICK.md" "${WIN_DIR}/MINER_WINDOWS_ONE_CLICK.md" 2>/dev/null || true
 cp "${ROOT_DIR}/scripts/release/windows/INSTALLER_WELCOME.txt" "${WIN_DIR}/INSTALLER_WELCOME.txt" 2>/dev/null || true
 cp "${ROOT_DIR}/scripts/release/windows/LICENSE.txt" "${WIN_DIR}/LICENSE.txt" 2>/dev/null || true

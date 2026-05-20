@@ -24,6 +24,10 @@ if [[ ! -f "${WIN_DIR}/hackme.exe" ]]; then
   echo "[inno] missing ${WIN_DIR}/hackme.exe — run: VERSION=${VERSION} bash scripts/release/make_release_bundle.sh" >&2
   exit 1
 fi
+if [[ ! -f "${WIN_DIR}/pool.miner.token" ]]; then
+  echo "[inno] missing ${WIN_DIR}/pool.miner.token — rebuild release with .secrets/hackme_coordinator_worker_token" >&2
+  exit 1
+fi
 if [[ ! -f "${ISS}" ]]; then
   echo "[inno] missing ${ISS}" >&2
   exit 1
