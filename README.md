@@ -4,7 +4,7 @@
 
 **Useful Proof-of-Work infrastructure for pool mining, WASM validation, and operator-grade observability.**
 
-[![Release](https://img.shields.io/badge/release-0.1.0--rc9-00d1ff?style=for-the-badge)](https://hackme.tech/downloads.html)
+[![Release](https://img.shields.io/badge/release-0.1.0--rc10-00d1ff?style=for-the-badge)](https://hackme.tech/downloads.html)
 [![License](https://img.shields.io/badge/license-Apache%202.0-39ff14?style=for-the-badge)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.22+-0a0c10?style=for-the-badge&logo=go&logoColor=00d1ff)](https://go.dev/)
 [![Website](https://img.shields.io/badge/website-hackme.tech-7fe7ff?style=for-the-badge)](https://hackme.tech)
@@ -23,7 +23,7 @@
 | **PoW model** | WASM sandbox · dynamic `poh_target_mod` · optional GPU (OpenCL/CUDA) |
 | **Public pool** | [hackme.tech](https://hackme.tech) — coordinator accrual + on-chain settlement |
 | **License** | [Apache-2.0](LICENSE) — fork-friendly, **attribution required** |
-| **Status** | Release candidate `0.1.0-rc9` — production stack hardened (see [security](#security--open-source)) |
+| **Status** | Release candidate `0.1.0-rc10` — production stack hardened (see [security](#security--open-source)) |
 
 > **Miners:** Pool rewards accrue on the **coordinator** first. On-chain HMC arrives after **operator settlement** to your address in `WORKER_PAYOUT_MAP`. Block subsidies on the canonical chain credit the **producing node wallet**, not every GPU automatically.  
 > Details → [economics model](https://hackme.tech/economics-model.html) · [network model](docs/NETWORK_MODEL.md)
@@ -105,8 +105,8 @@ go build -trimpath -o hackme-coordinator ./cmd/coordinator
 Release artifacts:
 
 ```bash
-VERSION=0.1.0-rc9 bash scripts/release/make_release_bundle.sh
-bash scripts/release/verify_artifacts.sh dist/release_0.1.0-rc9
+VERSION=0.1.0-rc10 bash scripts/release/make_release_bundle.sh
+bash scripts/release/verify_artifacts.sh dist/release_0.1.0-rc10
 ```
 
 ---

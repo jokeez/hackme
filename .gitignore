@@ -8,6 +8,13 @@ hackme-node-local-treasury
 hackme-coordinator
 minersign
 /bin/
+# Root-level `go build -o …` artifacts (never commit; use GitHub Releases / dist/)
+/hackme
+/coordinator
+/workerpoh
+
+# Local Python venv for one-off ops scripts (never commit)
+.venv-deploy/
 
 # Local chain state, wallets, settlement — never commit (entire data/ tree)
 data/
