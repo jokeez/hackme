@@ -35,6 +35,7 @@
 
 - Задайте **`HACKME_PUBLIC_AUTHORITY_BASE`** (или явно **`HACKME_CANONICAL_CHAIN_URL`** + **`HACKME_POOL_COORDINATOR_URL`**) — узел будет тянуть агрегаты и подсказки высоты с command node, даже без `HACKME_P2P_PEERS` (см. подсказки в `GET /api/status` в коде `main.go`).
 - **P2P** (`HACKME_P2P_PEERS`, …) нужен, если хотите, чтобы **локальный SQLite** на follower приближался к сети (sync блоков), а не только UI/API в «каноническом» режиме.
+- **`GET /api/tasks` (вкладка «Заказы» в дашборде):** список **подставляется с канона**, если задан первый peer в `HACKME_P2P_PEERS` **или** настроен базовый URL канона (`HACKME_CANONICAL_CHAIN_URL` / вывод из координатора / `HACKME_PUBLIC_AUTHORITY_BASE`), и запрос не уходит в loopback на тот же HTTP listener. Чтобы при этом смотреть **только** локальный SQLite (редкий dev-сценарий), задайте **`HACKME_TASKS_LIST_LOCAL_ONLY=1`**.
 
 Итого: **майнить через пул** можно без P2P; **копия цепи на диске** как у лидера — с P2P или one-shot скриптами (`follower_bootstrap_from_vps.sh`, `prefinal_public_sync.sh` и т.д., см. основной `README.md`).
 

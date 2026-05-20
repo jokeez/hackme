@@ -24,12 +24,13 @@ check_json() {
 
 log "=== coordinator work/stats ==="
 WS="$(check_json work_stats "$COORD_URL/api/work/stats?details=1" "X-Hackme-Admin-Token: $TOKEN")"
-M="$(echo "$WS" | jq -r '.target_mod // 0')"
+M=$(echo "$WS" | jq -r '.target_mod // 0')
+MAX_M=$(echo "$WS" | jq -r '.target_mod_max // 1000000000')
 POOL_GH="$(echo "$WS" | jq -r '.pool_hashrate_gh_s // 0')"
 RPM="$(echo "$WS" | jq -r '.reward_per_m // 0')"
 ATT="$(echo "$WS" | jq -r '.accepted_attempts // 0')"
 PAYOUT="$(echo "$WS" | jq -r '.total_payout_hmc // 0')"
-log "  M=$M pool_gh=$POOL_GH reward/M=$RPM attempts=$ATT payout=$PAYOUT"
+log "  M=$M max_M=$MAX_M pool_gh=$POOL_GH reward/M=$RPM attempts=$ATT payout=$PAYOUT"
 echo "$WS" | jq -r '.workers | to_entries[] | "  \(.key): ghs=\(.value.hashrate_gh_s // 0) payout=\(.value.payout_hmc // 0)"'
 
 log "=== desktop status + metrics ==="
@@ -43,14 +44,14 @@ log "=== calculator sanity (pool cap + live payout) ==="
 DESKTOP_WS="$(curl -fsS "$DESKTOP_BASE/api/work/stats" 2>/dev/null || echo '{}')"
 WST="$(curl -fsS "$DESKTOP_BASE/api/worker/status" 2>/dev/null || echo '{}')"
 WORKER_GH="$(echo "$WST" | jq -r '.measured_hashrate_gh_s // 0')"
-python3 - "$M" "$POOL_GH" "$RPM" "$WORKER_GH" <<'PY'
+python3 - "$M" "$POOL_GH" "$RPM" "$WORKER_GH" "$MAX_M" <<'PY'
 import sys
-M, pool_gh, rpm, worker_gh = map(float, sys.argv[1:5])
+M, pool_gh, rpm, worker_gh, max_m = map(float, sys.argv[1:6])
 user_gh = 20.0
 eff = min(user_gh, pool_gh) if pool_gh > 0 else user_gh
 formula_h = (eff * 1e9 / 1e6) * rpm * 3600
 # Live payout ~0.006/min from dashboard is realistic band
-print(f"  pool M={M:.0f} pool_gh={pool_gh:.2f} worker_gh={worker_gh:.2f}")
+print(f"  pool M={M:.0f} max_M={max_m:.0f} pool_gh={pool_gh:.2f} worker_gh={worker_gh:.2f}")
 print(f"  formula@20GH/s (capped eff {eff:.2f}) ≈ {formula_h:.2f} HMC/h")
 if formula_h > 500:
     print("  WARN: formula still high — UI should prefer payout Δ/min (live) as primary")
@@ -59,8 +60,8 @@ else:
 if M < 2_000_000:
     print("  FAIL: M below pool floor")
     sys.exit(2)
-if M > 50_000_000:
-    print("  WARN: M at/near max cap")
+if max_m > 0 and M >= max_m * 0.995:
+    print(f"  WARN: M at/near configured max cap ({max_m:.0f}) — raise HACKME_COORDINATOR_POOL_TARGET_MOD_MAX")
 print("  PASS: M in pool range")
 PY
 

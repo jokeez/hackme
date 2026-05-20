@@ -2979,32 +2979,40 @@ func (a *app) handleTasks(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		// Follower UX consistency: when local miner is idle and a canonical peer
-		// is configured, prefer canonical /api/tasks view so dashboard order table
-		// matches VPS and does not show stale local-only test rows.
-		if !a.miner.Running() {
-			if peer := strings.TrimSpace(strings.Split(os.Getenv("HACKME_P2P_PEERS"), ",")[0]); peer != "" {
-				peer = strings.TrimRight(peer, "/")
-				req, _ := http.NewRequestWithContext(ctx, http.MethodGet, peer+"/api/tasks", nil)
-				if tok := strings.TrimSpace(extractAdminSecret(r)); tok != "" {
-					req.Header.Set("X-Hackme-Admin-Token", tok)
-				}
-				if resp, err := http.DefaultClient.Do(req); err == nil && resp != nil {
-					defer resp.Body.Close()
-					if resp.StatusCode == http.StatusOK {
-						var remote struct {
-							Tasks []chain.OrderTaskRow `json:"tasks"`
-						}
-						if err := json.NewDecoder(resp.Body).Decode(&remote); err == nil {
-							w.Header().Set("X-Hackme-Tasks-Source", "canonical-peer")
-							rows = remote.Tasks
-							log.Printf("tasks: canonical proxy active peer=%s tasks=%d", peer, len(rows))
-						} else {
-							log.Printf("tasks: canonical proxy decode failed peer=%s err=%v", peer, err)
-						}
-					} else {
-						log.Printf("tasks: canonical proxy http=%d peer=%s", resp.StatusCode, peer)
+		// Follower UX: prefer a remote /api/tasks list so the dashboard orders tab
+		// matches paid orders on the network. Base URL: first HACKME_P2P_PEERS, else
+		// canonicalChainBaseURL when it would not loop back to this listener.
+		// (Previously proxy ran only while the local miner was idle, which hid VPS
+		// orders whenever PoW/pool search was active.) Dev-only local rows:
+		// HACKME_TASKS_LIST_LOCAL_ONLY=1.
+		tasksBase := strings.TrimRight(strings.TrimSpace(strings.Split(os.Getenv("HACKME_P2P_PEERS"), ",")[0]), "/")
+		if tasksBase == "" {
+			if b := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/"); b != "" && !canonicalBaseWouldLoopbackProxy(r, b) {
+				tasksBase = b
+			}
+		}
+		localTasksOnly := strings.EqualFold(strings.TrimSpace(os.Getenv("HACKME_TASKS_LIST_LOCAL_ONLY")), "1") ||
+			strings.EqualFold(strings.TrimSpace(os.Getenv("HACKME_TASKS_LIST_LOCAL_ONLY")), "true")
+		if tasksBase != "" && !localTasksOnly {
+			req, _ := http.NewRequestWithContext(ctx, http.MethodGet, tasksBase+"/api/tasks", nil)
+			if tok := strings.TrimSpace(extractAdminSecret(r)); tok != "" {
+				req.Header.Set("X-Hackme-Admin-Token", tok)
+			}
+			if resp, err := http.DefaultClient.Do(req); err == nil && resp != nil {
+				defer resp.Body.Close()
+				if resp.StatusCode == http.StatusOK {
+					var remote struct {
+						Tasks []chain.OrderTaskRow `json:"tasks"`
 					}
+					if err := json.NewDecoder(resp.Body).Decode(&remote); err == nil {
+						w.Header().Set("X-Hackme-Tasks-Source", "canonical-peer")
+						rows = remote.Tasks
+						log.Printf("tasks: canonical proxy active base=%s tasks=%d", tasksBase, len(rows))
+					} else {
+						log.Printf("tasks: canonical proxy decode failed base=%s err=%v", tasksBase, err)
+					}
+				} else {
+					log.Printf("tasks: canonical proxy http=%d base=%s", resp.StatusCode, tasksBase)
 				}
 			}
 		}

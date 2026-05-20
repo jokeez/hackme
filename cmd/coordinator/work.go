@@ -116,7 +116,9 @@ type workKey struct {
 const (
 	poolTargetModDefault = 5_000_000
 	poolTargetModMin     = 2_000_000
-	poolTargetModMax     = 50_000_000
+	// Default cap 1e9 — headroom for large fleets (100k+ workers) without UI stuck at max.
+	// Override via HACKME_COORDINATOR_POOL_TARGET_MOD_MAX (hard limit 2e9 in env parser).
+	poolTargetModMax = 1_000_000_000
 )
 
 type leaseRecord struct {
@@ -377,6 +379,19 @@ func (m *workManager) targetModMaxOrDefault() uint64 {
 	return m.targetModMax
 }
 
+// poolMinerCountBoost scales difficulty slightly with distinct online workers (log curve, capped).
+// Dominated by fleet GH/s; this nudges M up when many small rigs join (100k miners scenario).
+func poolMinerCountBoost(miners int) float64 {
+	if miners <= 1 {
+		return 1.0
+	}
+	boost := 1.0 + math.Log10(float64(miners))*0.05
+	if boost > 1.35 {
+		return 1.35
+	}
+	return boost
+}
+
 // poolLoadHintUnclamped is the fleet-hash + miner-count difficulty the coordinator *would* use
 // before applying targetModMax (for honest UI / pool listings).
 func poolLoadHintUnclamped(poolGH float64, miners int, modMin uint64) uint64 {
@@ -388,10 +403,7 @@ func poolLoadHintUnclamped(poolGH float64, miners int, modMin uint64) uint64 {
 	}
 	modPerGH := float64(modMin)
 	loadM := poolGH * modPerGH
-	if miners > 1 {
-		boost := 1.0 + 0.04*float64(min(miners, 12))
-		loadM *= boost
-	}
+	loadM *= poolMinerCountBoost(miners)
 	if loadM >= float64(^uint64(0)>>1) {
 		return ^uint64(0) >> 1
 	}
@@ -608,10 +620,7 @@ func (m *workManager) maybeRetargetPoolLoadLocked(now int64, poolGH float64, min
 	// Do not use poolGH*1e9*targetSec (that overshoots targetModMax immediately).
 	modPerGH := float64(m.targetModMinOrDefault())
 	loadM := poolGH * modPerGH
-	if miners > 1 {
-		boost := 1.0 + 0.04*float64(min(miners, 12))
-		loadM *= boost
-	}
+	loadM *= poolMinerCountBoost(miners)
 	target := m.clampTargetMod(uint64(loadM + 0.5))
 	prev := m.clampTargetMod(m.targetMod)
 	if target == prev {
