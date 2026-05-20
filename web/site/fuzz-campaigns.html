@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe — Fuzz campaigns (read-only)</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="./assets/styles.css" />
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0c10; color: #e8eaed; margin: 0; padding: 24px; }
+    h1 { font-size: 1.25rem; margin: 0 0 8px; }
+    p.sub { color: #9aa0a6; font-size: 0.85rem; margin: 0 0 20px; max-width: 720px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    th, td { border: 1px solid #2a2f3a; padding: 8px 10px; text-align: left; }
+    th { background: #141820; color: #7fe7ff; }
+    tr:nth-child(even) { background: #11151c; }
+    .err { color: #f87171; }
+    .ok { color: #4ade80; }
+    a { color: #7fe7ff; }
+  </style>
+</head>
+<body>
+  <h1>Fuzz campaigns</h1>
+  <p class="sub">
+    Read-only snapshot from <code>GET /api/fuzz/campaigns</code> on this host.
+    To <strong>create</strong> campaigns use the full node dashboard (<code>/</code> on your HackMe node) → Fuzz tab, or <code>POST /api/fuzz/campaigns</code> with admin token.
+  </p>
+  <p id="status" class="sub">Loading…</p>
+  <div style="overflow-x:auto;">
+    <table id="tbl" style="display:none;">
+      <thead>
+        <tr>
+          <th>id</th>
+          <th>type</th>
+          <th>status</th>
+          <th>runs done / budget</th>
+          <th>started</th>
+          <th>owner</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <p class="sub" style="margin-top:24px;"><a href="./index.html">← Home</a></p>
+  <script>
+    function fmtTs(u) {
+      if (!u) return '—';
+      try { return new Date(u * 1000).toISOString().slice(0, 19).replace('T', ' '); } catch (_) { return String(u); }
+    }
+    function runsDone(c) {
+      const s = c.summary || {};
+      const v = s.runs_done ?? s.runsDone ?? 0;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    }
+    async function load() {
+      const st = document.getElementById('status');
+      const tbl = document.getElementById('tbl');
+      const tbody = document.getElementById('rows');
+      try {
+        const r = await fetch('/api/fuzz/campaigns?limit=100', { cache: 'no-store' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const j = await r.json();
+        const rows = Array.isArray(j.campaigns) ? j.campaigns : [];
+        tbody.innerHTML = '';
+        rows.forEach((c) => {
+          const tr = document.createElement('tr');
+          const done = runsDone(c);
+          const bud = Number(c.budget_runs) || 0;
+          const cellRuns = bud > 0 ? (done + ' / ' + bud) : String(done);
+          tr.innerHTML =
+            '<td>' + (c.id || '—') + '</td>' +
+            '<td>' + (c.campaign_type || '—') + '</td>' +
+            '<td>' + (c.status || '—') + '</td>' +
+            '<td>' + cellRuns + '</td>' +
+            '<td>' + fmtTs(c.started_at) + '</td>' +
+            '<td>' + (c.owner_ref || '—') + '</td>';
+          tbody.appendChild(tr);
+        });
+        st.textContent = rows.length ? ('Loaded ' + rows.length + ' campaign(s).') : 'No campaigns yet.';
+        st.className = 'sub ok';
+        tbl.style.display = rows.length ? 'table' : 'none';
+      } catch (e) {
+        st.textContent = 'Failed: ' + (e && e.message ? e.message : e);
+        st.className = 'sub err';
+      }
+    }
+    load();
+  </script>
+</body>
+</html>
