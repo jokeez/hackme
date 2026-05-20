@@ -637,7 +637,12 @@ func (m *workManager) workerRateLimitPerMin(workerID string, globalMax int) int 
 	}
 	// ~15 claim/submit cycles per minute per 1 GH/s (caps CPU submit-spam rigs).
 	lim := int(gh * 15)
-	if lim < 20 {
+	if gh < 1 {
+		// Sub-1 GH/s CPU rigs: do not apply the 20/min floor (was letting 0.02 GH/s spam ~20 claims/min).
+		if lim < 2 {
+			lim = 2
+		}
+	} else if lim < 20 {
 		lim = 20
 	}
 	if lim > globalMax {
