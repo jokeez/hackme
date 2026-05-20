@@ -23,28 +23,28 @@ $tips = @()
 if ($combined -match 'nvidia|geforce|quadro|tesla|rtx|gtx') {
     $vendor = "NVIDIA"
     $suggestBackend = "cuda"
-    $tips += "NVIDIA detected — CUDA backend recommended on Windows (auto falls back if OpenCL/CUDA binary missing)."
+    $tips += "NVIDIA detected - CUDA backend recommended on Windows (auto falls back if OpenCL/CUDA binary missing)."
 } elseif ($combined -match 'amd|radeon') {
     $vendor = "AMD"
     $suggestBackend = "opencl"
     if ($combined -match '580' -and $combined -match '2048') {
         $rigProfile = "amd_rx580_2048sp"
-        $tips += "RX 580 2048SP — daily rig profile (conservative batch, thermal guard)."
+        $tips += "RX 580 2048SP - daily rig profile (conservative batch, thermal guard)."
     } elseif ($combined -match '580') {
         $rigProfile = "amd_rx580_generic"
-        $tips += "RX 580 — generic AMD profile."
+        $tips += "RX 580 - generic AMD profile."
     } else {
-        $tips += "AMD GPU — OpenCL/auto; tune in AMD Adrenalin."
+        $tips += "AMD GPU - OpenCL/auto; tune in AMD Adrenalin."
     }
 } elseif ($combined -match 'intel.*arc') {
     $vendor = "Intel"
     $suggestBackend = "opencl"
-    $tips += "Intel Arc — OpenCL/auto backend."
+    $tips += "Intel Arc - OpenCL/auto backend."
 }
 
 if (-not $names.Count) {
     $suggestBackend = "auto"
-    $tips += "No discrete GPU detected — CPU mining (low GH/s)."
+    $tips += "No discrete GPU detected - CPU mining (low GH/s)."
 }
 
 $obj = [ordered]@{
