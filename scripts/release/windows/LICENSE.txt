@@ -1,0 +1,8 @@
+HackMe Network — Windows miner installer
+
+Copyright HackMe contributors. Licensed under Apache-2.0.
+See https://github.com/jokeez/hackme and https://hackme.tech
+
+This installer places HackMe node binaries on your PC for participation in the
+public Useful PoW pool at hackme.tech. GPU overclocking is your responsibility;
+use vendor tools (AMD Adrenalin, NVIDIA App) at your own risk.

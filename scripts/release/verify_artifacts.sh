@@ -43,7 +43,7 @@ if ! ls hackme_*_linux.tar.gz >/dev/null 2>&1; then
 fi
 
 if [[ -f "RELEASE_MANIFEST.json" ]] && command -v jq >/dev/null 2>&1; then
-  if ! jq -e '.version != null and (.artifacts|type=="array") and (.artifacts|length==2)' RELEASE_MANIFEST.json >/dev/null; then
+  if ! jq -e '.version != null and (.artifacts|type=="array") and (.artifacts|length>=2)' RELEASE_MANIFEST.json >/dev/null; then
     echo "[verify] RELEASE_MANIFEST.json has invalid shape" >&2
     exit 1
   fi

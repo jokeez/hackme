@@ -34,8 +34,10 @@
     <section class="grid grid-2">
       <article class="card glass">
         <h3>Windows</h3>
-        <p>Portable bundle + installer assets for signed distribution.</p>
-        <a id="download-win" class="btn btn-primary btn-block" href="#">Download Windows Bundle</a>
+        <p>Official installer (Inno Setup): unpacks to Program Files, Start menu + desktop shortcuts, registry entries, pool token preconfigured.</p>
+        <a id="download-win" class="btn btn-primary btn-block" href="#">Download HackMe Setup (.exe)</a>
+        <a id="download-win-zip" class="btn btn-block mt-2" href="#" style="margin-top:0.75rem">Portable ZIP (advanced)</a>
+        <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem">Version <span id="dl-release-ver">—</span> · verify with SHA256SUMS.txt</p>
       </article>
       <article class="card glass">
         <h3>Linux</h3>
@@ -84,7 +86,7 @@
       <ol class="steps">
         <li>Download your platform bundle and checksum file.</li>
         <li>Verify hash locally.</li>
-        <li>Install using bundled script/installer.</li>
+        <li>Windows: run <strong>HackMe-Setup-*.exe</strong> (recommended) or extract ZIP + setup bat.</li>
         <li>Configure node, coordinator URL, and tokens.</li>
         <li>Run post-install health checks and sync verification.</li>
       </ol>

@@ -123,6 +123,8 @@ cp "${ROOT_DIR}/scripts/release/windows/setup_hackme_miner.bat" "${WIN_DIR}/setu
 cp "${ROOT_DIR}/scripts/release/windows/start_hackme_miner.bat" "${WIN_DIR}/start_hackme_miner.bat"
 cp "${ROOT_DIR}/scripts/release/windows/autostart_pool_worker.bat" "${WIN_DIR}/autostart_pool_worker.bat"
 cp "${ROOT_DIR}/docs/MINER_WINDOWS_ONE_CLICK.md" "${WIN_DIR}/MINER_WINDOWS_ONE_CLICK.md" 2>/dev/null || true
+cp "${ROOT_DIR}/scripts/release/windows/INSTALLER_WELCOME.txt" "${WIN_DIR}/INSTALLER_WELCOME.txt" 2>/dev/null || true
+cp "${ROOT_DIR}/scripts/release/windows/LICENSE.txt" "${WIN_DIR}/LICENSE.txt" 2>/dev/null || true
 cp "${ROOT_DIR}/scripts/release/windows/hackme.ico" "${WIN_DIR}/hackme.ico"
 cp "${ROOT_DIR}/scripts/release/windows/hackme.png" "${WIN_DIR}/hackme.png"
 cp "${ROOT_DIR}/scripts/release/linux/install_hackme.sh" "${LINUX_DIR}/install_hackme.sh"
@@ -208,7 +210,10 @@ bash "${ROOT_DIR}/scripts/release/smoke_artifacts.sh" "${DIST_DIR}"
 echo "[release] done"
 echo "[release] artifacts:"
 echo "  ${DIST_DIR}/hackme_${VERSION}_windows.zip"
-echo "  ${DIST_DIR}/hackme_${VERSION}_windows_setup.zip  (flat — recommended for miners)"
+echo "  ${DIST_DIR}/hackme_${VERSION}_windows_setup.zip  (flat zip — advanced)"
+if [[ -f "${DIST_DIR}/HackMe-Setup-${VERSION}.exe" ]]; then
+  echo "  ${DIST_DIR}/HackMe-Setup-${VERSION}.exe  (installer — recommended for miners)"
+fi
 echo "  ${DIST_DIR}/hackme_${VERSION}_linux.tar.gz"
 echo "  ${DIST_DIR}/SHA256SUMS.txt"
 echo "  ${DIST_DIR}/RELEASE_MANIFEST.json"

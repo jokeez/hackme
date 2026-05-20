@@ -95,11 +95,14 @@
   }
 
   function wireDownloadLinks() {
-    setHref("download-win", CONFIG.windowsBundle);
+    setHref("download-win", CONFIG.windowsInstaller || CONFIG.windowsBundle);
+    setHref("download-win-zip", CONFIG.windowsBundle);
     setHref("download-linux", CONFIG.linuxBundle);
     setHref("download-sha", CONFIG.shaSums);
     setHref("download-manifest", CONFIG.manifest);
     setHref("download-buildinfo", CONFIG.buildInfo);
+    const verEl = document.getElementById("dl-release-ver");
+    if (verEl) verEl.textContent = CONFIG.releaseChannel || RELEASE_VER;
   }
 
   /** Public hackme.tech nginx exposes read APIs under /pool/api; dev localhost uses /api. */
