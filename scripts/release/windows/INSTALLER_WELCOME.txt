@@ -1,0 +1,20 @@
+HackMe — public Useful PoW pool miner
+========================================
+
+You are installing the official HackMe node for Windows.
+
+What this installer does:
+  • Copies hackme.exe, workerpoh, and pool configuration
+  • Creates hackme.env (local admin token + pool token)
+  • Adds Start menu and desktop shortcuts
+  • Registers install path under HKLM\Software\HackMe Network\HackMe
+
+Mining pool: https://hackme.tech/pool/coordinator
+
+After install, open "HackMe Miner" — the browser will show the Mining tab.
+Keep the miner window open while participating in the pool.
+
+For AMD RX 580 / 2048SP rigs, GPU tuning hints are applied automatically.
+Manual overclock: AMD Adrenalin → Performance → Tuning.
+
+Support: https://hackme.tech — Telegram links on the website.

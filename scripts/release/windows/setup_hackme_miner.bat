@@ -1,37 +1,26 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
-title HackMe — install miner (one-time)
+title HackMe — configure miner (one-time)
 cd /d "%~dp0"
 
-set "INSTALL_DIR=C:\HackMe"
-set "SRC_DIR=%~dp0"
+set "INSTALL_DIR=%~dp0"
+if not "%HACKME_INSTALL_DIR%"=="" set "INSTALL_DIR=%HACKME_INSTALL_DIR%"
+if not "%INSTALL_DIR:~-1%"=="\" set "INSTALL_DIR=%INSTALL_DIR%\"
+cd /d "%INSTALL_DIR%"
 
 echo.
 echo === HackMe miner setup ===
-echo Source: %SRC_DIR%
-echo Install: %INSTALL_DIR%
+echo Folder: %INSTALL_DIR%
 echo.
 
-if not exist "%SRC_DIR%hackme.exe" (
-  echo ERROR: hackme.exe not found next to this script.
-  echo Run setup from the extracted HackMe folder ^(or re-download hackme_*_windows_setup.zip^).
-  pause
+if not exist "%INSTALL_DIR%hackme.exe" (
+  echo ERROR: hackme.exe not found in this folder.
+  echo Re-run the HackMe installer or extract the release zip here.
+  if /I not "%HACKME_SETUP_NONINTERACTIVE%"=="1" pause
   exit /b 1
 )
 
-if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
-
-echo Copying files...
-xcopy /E /I /Y /Q "%SRC_DIR%*" "%INSTALL_DIR%\" >nul
-if errorlevel 1 (
-  echo ERROR: copy failed. Close HackMe if it is running and retry.
-  pause
-  exit /b 1
-)
-
-cd /d "%INSTALL_DIR%"
-
-rem --- pool token: always prefer pool.miner.token from release zip ---
+rem --- pool token: always prefer pool.miner.token from release ---
 set "POOL_TOKEN="
 if exist "pool.miner.token" (
   for /f "usebackq delims=" %%T in ("pool.miner.token") do set "POOL_TOKEN=%%T"
@@ -114,11 +103,15 @@ if "!RIG_PROFILE!"=="" (
   if not "!CALIB_GHS!"=="" echo HACKME_CUDA_CALIBRATE_GHS=!CALIB_GHS!
 ) > "hackme.env"
 
+if not exist "logs" mkdir "logs" >nul 2>&1
+if not exist "data" mkdir "data" >nul 2>&1
+
 echo.
-echo OK. Installed to %INSTALL_DIR%
-echo Local admin token for dashboard: !ADMIN_TOKEN!
+echo OK. Configured in %INSTALL_DIR%
+echo Admin token for dashboard: !ADMIN_TOKEN!
+echo Pool token: preconfigured from release.
 echo.
-echo Next: double-click "Start HackMe Miner.bat" on Desktop or in %INSTALL_DIR%
+echo Next: Start HackMe Miner from the Start menu or desktop shortcut.
 echo.
 
 if not exist "%USERPROFILE%\Desktop\Start HackMe Miner.bat" (
