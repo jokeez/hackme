@@ -8,13 +8,17 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$dir = $InstallDir.TrimEnd('\')
-if (-not (Test-Path (Join-Path $dir "hackme.exe"))) {
+# Batch "%~dp0" + closing quote turns trailing \ into an escaped quote — strip junk chars.
+$dir = $InstallDir.Trim().Trim('"').TrimEnd([char]'\', '/')
+if (-not $dir) { Write-Error "InstallDir is empty" }
+
+$exePath = Join-Path -Path $dir -ChildPath "hackme.exe"
+if (-not (Test-Path -LiteralPath $exePath)) {
     Write-Error "hackme.exe not found in $dir"
 }
 
-$poolFile = Join-Path $dir "pool.miner.token"
-if (-not (Test-Path $poolFile)) {
+$poolFile = Join-Path -Path $dir -ChildPath "pool.miner.token"
+if (-not (Test-Path -LiteralPath $poolFile)) {
     Write-Error "pool.miner.token missing in $dir — download a fresh installer from https://hackme.tech/downloads.html"
 }
 $poolToken = [System.IO.File]::ReadAllText($poolFile).Trim()
@@ -76,8 +80,12 @@ if ($GpuBackend -eq "cpu") {
     $batch = 1048576
 }
 
-if (-not (Test-Path (Join-Path $dir "logs"))) { New-Item -ItemType Directory -Path (Join-Path $dir "logs") -Force | Out-Null }
-if (-not (Test-Path (Join-Path $dir "data"))) { New-Item -ItemType Directory -Path (Join-Path $dir "data") -Force | Out-Null }
+if (-not (Test-Path -LiteralPath (Join-Path -Path $dir -ChildPath "logs"))) {
+    New-Item -ItemType Directory -Path (Join-Path -Path $dir -ChildPath "logs") -Force | Out-Null
+}
+if (-not (Test-Path -LiteralPath (Join-Path -Path $dir -ChildPath "data"))) {
+    New-Item -ItemType Directory -Path (Join-Path -Path $dir -ChildPath "data") -Force | Out-Null
+}
 
 $lines = @(
     "HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech",
