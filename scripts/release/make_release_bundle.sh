@@ -67,6 +67,13 @@ GOOS=linux GOARCH="${LINUX_ARCH}" CGO_ENABLED="${CGO_ENABLED}" \
   go build -trimpath -ldflags "-s -w" -o "${LINUX_DIR}/workerpoh" ./cmd/workerpoh
 GOOS=windows GOARCH="${WIN_ARCH}" CGO_ENABLED="${CGO_ENABLED}" \
   go build -trimpath -ldflags "-s -w" -o "${WIN_DIR}/workerpoh.exe" ./cmd/workerpoh
+# Windows OpenCL worker (AMD RX 580 etc.): docker mingw or host mingw when available.
+if [[ -x "${ROOT_DIR}/scripts/release/windows/build_workerpoh_opencl.sh" ]] && command -v docker >/dev/null 2>&1; then
+  if [[ ! -f "${WIN_DIR}/workerpoh-opencl.exe" ]]; then
+    bash "${ROOT_DIR}/scripts/release/windows/build_workerpoh_opencl.sh" "${WIN_DIR}/workerpoh-opencl.exe" || \
+      echo "[release] WARN: workerpoh-opencl.exe build failed" >&2
+  fi
+fi
 if [[ "${CGO_ENABLED}" == "1" ]] && (pkg-config --exists OpenCL 2>/dev/null || [[ -f /usr/include/CL/cl.h ]]); then
   echo "[release] building workerpoh-opencl (AMD/Intel/NVIDIA via OpenCL ICD)"
   GOOS=linux GOARCH="${LINUX_ARCH}" CGO_ENABLED=1 \
@@ -76,8 +83,11 @@ if [[ "${CGO_ENABLED}" == "1" ]] && (pkg-config --exists OpenCL 2>/dev/null || [
     CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ \
       GOOS=windows GOARCH="${WIN_ARCH}" CGO_ENABLED=1 \
       go build -tags opencl -trimpath -ldflags "-s -w" -o "${WIN_DIR}/workerpoh-opencl.exe" ./cmd/workerpoh
+  elif command -v docker >/dev/null 2>&1 && [[ -f "${ROOT_DIR}/scripts/release/windows/build_workerpoh_opencl.sh" ]]; then
+    echo "[release] building workerpoh-opencl.exe (docker mingw)"
+    bash "${ROOT_DIR}/scripts/release/windows/build_workerpoh_opencl.sh" "${WIN_DIR}/workerpoh-opencl.exe"
   else
-    echo "[release] WARN: skip workerpoh-opencl.exe (install mingw-w64 for Windows OpenCL build)" >&2
+    echo "[release] WARN: skip workerpoh-opencl.exe (install mingw-w64 or docker for Windows OpenCL build)" >&2
   fi
 fi
 if [[ -x "${ROOT_DIR}/scripts/ops/build_cuda_worker.sh" ]]; then
@@ -125,6 +135,8 @@ cp "${ROOT_DIR}/scripts/release/windows/autostart_pool_worker.bat" "${WIN_DIR}/a
 cp "${ROOT_DIR}/scripts/release/windows/detect_gpu.ps1" "${WIN_DIR}/detect_gpu.ps1"
 cp "${ROOT_DIR}/scripts/release/windows/write_hackme_env.ps1" "${WIN_DIR}/write_hackme_env.ps1"
 cp "${ROOT_DIR}/scripts/release/windows/lib_hackme_dir.bat" "${WIN_DIR}/lib_hackme_dir.bat" 2>/dev/null || true
+cp "${ROOT_DIR}/scripts/release/windows/build_workerpoh_opencl.ps1" "${WIN_DIR}/build_workerpoh_opencl.ps1" 2>/dev/null || true
+cp "${ROOT_DIR}/scripts/release/windows/patch_opencl_env.bat" "${WIN_DIR}/patch_opencl_env.bat" 2>/dev/null || true
 cp "${ROOT_DIR}/docs/MINER_WINDOWS_ONE_CLICK.md" "${WIN_DIR}/MINER_WINDOWS_ONE_CLICK.md" 2>/dev/null || true
 cp "${ROOT_DIR}/scripts/release/windows/INSTALLER_WELCOME.txt" "${WIN_DIR}/INSTALLER_WELCOME.txt" 2>/dev/null || true
 cp "${ROOT_DIR}/scripts/release/windows/LICENSE.txt" "${WIN_DIR}/LICENSE.txt" 2>/dev/null || true

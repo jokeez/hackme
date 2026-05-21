@@ -11,7 +11,7 @@ package gpupoh
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
 #else
-#include <CL/opencl.h>
+#include <CL/cl.h>
 #endif
 
 #include <stdlib.h>

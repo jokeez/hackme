@@ -59,17 +59,21 @@ if (-not $RigProfile) {
     }
 }
 
+$hasOpenCLBin = Test-Path -LiteralPath (Join-Path -Path $dir -ChildPath "workerpoh-opencl.exe")
+
 switch ($RigProfile) {
     "amd_rx580_2048sp" {
-        $GpuBackend = if ($GpuBackend -eq "cuda") { "auto" } else { $GpuBackend }
-        if ($GpuBackend -eq "auto" -or $GpuBackend -eq "opencl") { $GpuBackend = "auto" }
-        $batch = 1048576; $chunk = 524288; $searchMs = 4500; $claimMs = 150
-        $tempPause = 78; $tempResume = 72; $calibGhs = "0.12"
+        if ($GpuBackend -eq "cuda") { $GpuBackend = "auto" }
+        if ($hasOpenCLBin -and ($GpuBackend -eq "auto" -or $GpuBackend -eq "opencl")) { $GpuBackend = "opencl" }
+        $batch = 1048576; $chunk = 524288; $searchMs = 4500; $claimMs = 200
+        $tempPause = 78; $tempResume = 72
+        $calibGhs = if ($hasOpenCLBin) { "3.5" } else { "0.12" }
     }
     "amd_rx580_generic" {
-        if ($GpuBackend -eq "opencl") { $GpuBackend = "auto" }
-        $batch = 2097152; $chunk = 1048576; $searchMs = 4000; $claimMs = 100
-        $tempPause = 80; $tempResume = 74; $calibGhs = "0.2"
+        if ($hasOpenCLBin -and ($GpuBackend -eq "auto" -or $GpuBackend -eq "opencl")) { $GpuBackend = "opencl" }
+        $batch = 2097152; $chunk = 1048576; $searchMs = 4000; $claimMs = 150
+        $tempPause = 80; $tempResume = 74
+        $calibGhs = if ($hasOpenCLBin) { "4" } else { "0.2" }
     }
 }
 
