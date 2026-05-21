@@ -22,6 +22,20 @@ func TestDetectRigProfileGeneric580(t *testing.T) {
 	}
 }
 
+func TestDetectRigProfileIntelArc(t *testing.T) {
+	p, ok := DetectRigProfile([]string{"Intel Arc A770 Graphics"})
+	if !ok || p.ID != "intel_arc_daily" {
+		t.Fatalf("got ok=%v id=%q", ok, p.ID)
+	}
+}
+
+func TestDetectRigProfileRTX5060(t *testing.T) {
+	p, ok := DetectRigProfile([]string{"NVIDIA GeForce RTX 5060 Ti"})
+	if !ok || p.ID != "nvidia_rtx_50_daily" {
+		t.Fatalf("got ok=%v id=%q", ok, p.ID)
+	}
+}
+
 func TestGetRigProfileMissing(t *testing.T) {
 	if _, ok := GetRigProfile("nope"); ok {
 		t.Fatal("expected missing")

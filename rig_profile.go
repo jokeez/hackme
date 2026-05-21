@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -112,28 +111,13 @@ type rigProfileError struct{ msg string }
 func (e *rigProfileError) Error() string { return e.msg }
 
 func collectLocalGPUNames() []string {
-	var names []string
-	if runtime.GOOS == "windows" {
-		out, err := exec.Command("wmic", "path", "win32_VideoController", "get", "name").Output()
-		if err == nil {
-			for _, line := range strings.Split(string(out), "\n") {
-				line = strings.TrimSpace(line)
-				if line == "" || strings.EqualFold(line, "Name") {
-					continue
-				}
-				names = append(names, line)
-			}
-		}
+	names := gpuhost.CollectGPUNames()
+	if len(names) > 0 {
 		return names
 	}
 	for _, row := range queryNVIDIAMulti() {
 		if strings.TrimSpace(row.Name) != "" {
 			names = append(names, row.Name)
-		}
-	}
-	for _, c := range gpuhost.ListAMDGPUTelemetry() {
-		if strings.TrimSpace(c.Name) != "" {
-			names = append(names, c.Name)
 		}
 	}
 	return names
@@ -160,16 +144,31 @@ func (a *app) handleRigProfilesDetect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	names := collectLocalGPUNames()
+	rep := gpuhost.DetectHostGPUs()
+	if len(rep.Names) == 0 && len(names) > 0 {
+		rep.Names = names
+	}
 	p, ok := gputune.DetectRigProfile(names)
 	if ok {
 		p = gputune.AdaptRigProfileForHost(p)
 	}
+	rep = enrichHostReportWithProfile(rep)
+	repoRoot := resolveWorkerRepoRoot(strings.TrimSpace(a.dataDir))
+	backend := resolveAutoGPUBackend(repoRoot)
 	writeJSON(w, map[string]any{
-		"gpu_names":     names,
-		"detected":      ok,
-		"profile":       p,
-		"profile_id":    p.ID,
-		"platform_note": rigPlatformNote(),
+		"gpu_names":          names,
+		"detected":           ok,
+		"profile":            p,
+		"profile_id":         p.ID,
+		"platform_note":      rigPlatformNote(),
+		"host":               rep,
+		"suggested_backend":  backend,
+		"has_nvidia":         rep.HasNVIDIA,
+		"has_amd":            rep.HasAMD,
+		"has_intel":          rep.HasIntel,
+		"hybrid":             rep.Hybrid,
+		"vendor_summary":     rep.VendorSummary,
+		"notes":              rep.Notes,
 	})
 }
 
@@ -267,8 +266,9 @@ func hackmeEnvLacksRigTune() bool {
 func applyRigProfileAtStartup() {
 	pid := strings.TrimSpace(os.Getenv("HACKME_RIG_PROFILE"))
 	if pid == "" {
-		if strings.TrimSpace(os.Getenv("HACKME_RIG_PROFILE_AUTO")) != "1" &&
-			strings.TrimSpace(os.Getenv("HACKME_DESKTOP_MODE")) != "1" {
+		autoOff := strings.EqualFold(strings.TrimSpace(os.Getenv("HACKME_RIG_PROFILE_AUTO")), "0") ||
+			strings.EqualFold(strings.TrimSpace(os.Getenv("HACKME_RIG_PROFILE_AUTO")), "false")
+		if autoOff {
 			return
 		}
 		if !hackmeEnvLacksRigTune() {

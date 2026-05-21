@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"math"
 	"net/http"
@@ -410,17 +411,37 @@ type nvidiaGPURow struct {
 	Name  string
 }
 
-// queryNVIDIAMulti returns one row per physical NVIDIA GPU (index matches CUDA ordinal).
-func queryNVIDIAMulti() []nvidiaGPURow {
-	cmd := exec.Command("nvidia-smi",
-		"--query-gpu=index,temperature.gpu,utilization.gpu,name",
-		"--format=csv,noheader,nounits")
+const nvidiaSMITimeout = 2500 * time.Millisecond
+
+func nvidiaSMIRun(args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), nvidiaSMITimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "nvidia-smi", args...)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
+}
+
+// queryNVIDIAMulti returns one row per physical NVIDIA GPU (index matches CUDA ordinal).
+func queryNVIDIAMulti() []nvidiaGPURow {
+	rows := queryNVIDIAMultiSMI()
+	if len(rows) > 0 {
+		return rows
+	}
+	return queryNVIDIAMultiProc()
+}
+
+func queryNVIDIAMultiSMI() []nvidiaGPURow {
+	out, err := nvidiaSMIRun(
+		"--query-gpu=index,temperature.gpu,utilization.gpu,name",
+		"--format=csv,noheader,nounits")
+	if err != nil {
 		return nil
 	}
-	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	var rows []nvidiaGPURow
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -443,18 +464,39 @@ func queryNVIDIAMulti() []nvidiaGPURow {
 	return rows
 }
 
+func queryNVIDIAMultiProc() []nvidiaGPURow {
+	proc := gpuhost.ListNVIDIAProcCards()
+	if len(proc) == 0 {
+		return nil
+	}
+	rows := make([]nvidiaGPURow, 0, len(proc))
+	for _, c := range proc {
+		rows = append(rows, nvidiaGPURow{
+			Index: c.Index,
+			Name:  c.Name,
+			Util:  -1,
+			TempC: -1,
+		})
+	}
+	return rows
+}
+
 func queryNVIDIA() (util float64, memPct float64, name string, tempC float64) {
 	util, memPct, tempC = -1, -1, -1
-	// name last so commas in GPU name don't break CSV fields.
-	cmd := exec.Command("nvidia-smi",
+	if rows := queryNVIDIAMulti(); len(rows) > 0 {
+		r := rows[0]
+		return r.Util, memPct, r.Name, r.TempC
+	}
+	out, err := nvidiaSMIRun(
 		"--query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu,name",
 		"--format=csv,noheader,nounits")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	if err := cmd.Run(); err != nil {
+	if err != nil {
+		if proc := queryNVIDIAMultiProc(); len(proc) > 0 {
+			return -1, -1, proc[0].Name, -1
+		}
 		return -1, -1, "", -1
 	}
-	line := strings.TrimSpace(out.String())
+	line := strings.TrimSpace(string(out))
 	if line == "" {
 		return -1, -1, "", -1
 	}

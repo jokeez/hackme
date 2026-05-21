@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
+	<!-- Technical tokens (worker IDs, GPU names, API paths) use class notranslate so browser translators do not rewrite them. -->
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>HackMe — Pool &amp; Command Node</title>
 	<link rel="icon" href="/favicon.ico" type="image/x-icon">
@@ -90,12 +91,88 @@
 			font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
 			border: 1px solid rgba(0,209,255,0.25); color: rgba(0,209,255,0.85); padding: 2px 8px; border-radius: 2px;
 		}
-		.tab-bar { border-bottom: 1px solid rgba(0,209,255,0.2); background: rgba(3,8,14,0.55); }
-		.tab-btn {
-			padding: 0.65rem 1rem; font-size: 10px; font-family: 'Orbitron', sans-serif; font-weight: 600;
-			letter-spacing: 0.12em; text-transform: uppercase; color: #6b7280; border-bottom: 2px solid transparent;
-			transition: color 0.15s, border-color 0.15s, background 0.15s;
+		.tab-bar {
+			border-bottom: 1px solid rgba(0,209,255,0.2);
+			background: rgba(3,8,14,0.55);
+			align-items: stretch;
+			padding: 0.4rem 0.5rem 0;
 		}
+		.tab-btn {
+			padding: 0.85rem 1.15rem;
+			font-size: 11px;
+			font-family: 'Orbitron', sans-serif;
+			font-weight: 600;
+			letter-spacing: 0.16em;
+			text-transform: uppercase;
+			color: #6b7280;
+			border-bottom: 2px solid transparent;
+			transition: color 0.15s, border-color 0.15s, background 0.15s;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			min-height: 2.75rem;
+		}
+		.overview-miners-table thead th {
+			color: #a8b4c4;
+			padding: 0.7rem 0.85rem;
+			vertical-align: middle;
+		}
+		.overview-miners-table tbody td {
+			padding: 0.7rem 0.85rem;
+			vertical-align: middle;
+		}
+		.kpi-stat-card {
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: flex-start;
+			gap: 0.4rem;
+			padding: 1.25rem !important;
+			min-height: 7.5rem;
+		}
+		.kpi-stat-card .kpi-label {
+			color: #94a3b8;
+			margin: 0 !important;
+		}
+		.kpi-stat-card .font-display.tabular-nums {
+			margin: 0;
+			line-height: 1.15;
+		}
+		.kpi-stat-card .text-\[10px\].text-gray-500 {
+			margin-top: 0 !important;
+		}
+		.useful-pow-block p + p { margin-top: 0.75rem; }
+		.useful-pow-hints p { margin-top: 0.5rem; }
+		.useful-pow-hints p:first-child { margin-top: 0; }
+		.compute-gauges-wrap { display: flex; flex-direction: column; align-items: center; width: 100%; }
+		.compute-gauges-row { display: flex; justify-content: center; align-items: center; gap: 2.5rem; width: 100%; flex-wrap: wrap; }
+		.compute-gauge-unit { position: relative; width: 7.25rem; height: 7.25rem; flex-shrink: 0; margin: 0 auto; }
+		.compute-gauge-unit svg { display: block; width: 100%; height: 100%; }
+		.compute-gauge-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; text-align: center; }
+		.compute-gpu-name { font-size: 12px; line-height: 1.35; color: #94a3b8; text-align: center; width: 100%; max-width: 20rem; margin: 1.1rem auto 0; padding: 0 0.5rem; }
+		.hive-stat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; align-items: stretch; }
+		.hive-stat-tile { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 5.75rem; padding: 1rem 0.75rem; text-align: center; }
+		.hive-stat-tile .hive-stat-label { margin-bottom: 0.35rem; }
+		.hive-stat-tile .hive-stat-value { font-size: 1.35rem; line-height: 1.2; min-height: 1.65rem; display: flex; align-items: center; justify-content: center; width: 100%; }
+		.analytics-table th, .analytics-table td { padding: 0.65rem 1.25rem; vertical-align: middle; }
+		.analytics-table thead th { color: #a8b4c4; }
+		.analytics-log-inner { padding: 0.85rem; }
+		#panel-analytics .analytics-log-card { padding: 1.15rem 1.25rem !important; }
+		#analytics-pow-compact.hidden { display: none !important; }
+		#desktop-status-banner:not(.hidden) { margin-bottom: 1.25rem; }
+		#panel-hardware .hardware-disclaimer-block { margin-top: 0.5rem; }
+		.hardware-cpu-card { padding-left: 1.25rem !important; padding-right: 1.25rem !important; }
+		.btn-hw-cpu-apply { font-size: 12px; font-weight: 700; padding: 0.55rem 1.15rem; letter-spacing: 0.08em; }
+		.hardware-gpu-empty {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+			min-height: 9rem;
+			max-height: 11rem;
+			padding: 1.5rem 1.25rem;
+		}
+		.hardware-tune-subtitle { color: rgba(148, 163, 184, 0.72); margin-right: 1.25rem; }
 		.tab-btn:hover { color: #c6d4e3; background: rgba(0,209,255,0.08); }
 		.tab-btn.active { color: #4fe6ff; border-bottom-color: #00d1ff; background: rgba(0,209,255,0.14); text-shadow: 0 0 12px rgba(0,209,255,0.35); }
 		/* Minimal utility fallbacks when Tailwind CDN is unavailable. */
@@ -155,7 +232,8 @@
 		}
 		body.tw-fallback .tab-btn {
 			font-size: 11px;
-			padding: 8px 10px;
+			padding: 10px 12px;
+			letter-spacing: 0.14em;
 			border: 1px solid rgba(0,209,255,0.18);
 			border-radius: 6px;
 			white-space: nowrap;
@@ -437,7 +515,7 @@
 				</button>
 				<button type="button" data-tab="mining" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-sm text-gray-500">
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-					Mining
+					Workers
 				</button>
 				<button type="button" data-tab="hardware" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-sm text-gray-500">
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2-4H3m18 4h-2m2 4h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
@@ -518,7 +596,7 @@
 					<button type="button" id="btn-ui-compact" class="quick-btn">Compact</button>
 					<button type="button" id="btn-ui-reduced" class="quick-btn mobile-compact-hide">Reduced effects</button>
 					<button type="button" id="btn-tab-overview" class="quick-btn">Overview</button>
-					<button type="button" id="btn-tab-mining" class="quick-btn">Mining</button>
+					<button type="button" id="btn-tab-mining" class="quick-btn">Workers</button>
 					<button type="button" id="btn-tab-hardware" class="quick-btn mobile-compact-hide">Hardware</button>
 					<button type="button" id="btn-tab-orders" class="quick-btn mobile-compact-hide">Orders</button>
 					<button type="button" id="btn-tab-fuzz" class="quick-btn mobile-compact-hide">Fuzz</button>
@@ -528,13 +606,13 @@
 				<nav class="tab-bar -mx-4 lg:-mx-8 px-2 lg:px-6 flex flex-wrap gap-0 overflow-x-auto" id="tab-bar" aria-label="Main sections">
 					<button type="button" class="tab-btn active" data-tab="overview">Overview</button>
 					<button type="button" class="tab-btn" data-tab="analytics">Analytics</button>
-					<button type="button" class="tab-btn" data-tab="mining">Mining</button>
+					<button type="button" class="tab-btn" data-tab="mining">Workers</button>
 					<button type="button" class="tab-btn" data-tab="hardware">Hardware tune</button>
 					<button type="button" class="tab-btn" data-tab="chain">Chain</button>
 					<button type="button" class="tab-btn" data-tab="wallet">Wallet</button>
 					<button type="button" class="tab-btn" data-tab="reports">Reports</button>
 					<button type="button" class="tab-btn" data-tab="orders">Orders</button>
-					<button type="button" class="tab-btn" data-tab="fuzz">Fuzz campaigns</button>
+					<button type="button" class="tab-btn" data-tab="fuzz">Fuzz</button>
 				</nav>
 			</header>
 
@@ -565,15 +643,16 @@
 							</div>
 						</div>
 					</div>
-					<div id="public-miner-guide" class="card card-glow rounded-lg p-4 border-matrix/30 bg-gradient-to-r from-matrix/[0.07] to-transparent">
+					<div id="public-miner-guide" class="card card-glow useful-pow-block rounded-lg p-5 border-matrix/30 bg-gradient-to-r from-matrix/[0.07] to-transparent">
 						<div class="flex flex-wrap items-start justify-between gap-3">
-							<div>
-								<h3 class="font-display text-xs font-semibold tracking-[0.2em] text-matrix uppercase mb-1">Public mining readiness</h3>
-								<p id="public-miner-readiness-sub" class="text-[10px] text-gray-500 max-w-3xl">Badges show pool wiring. Large canon Δ with block height 0 means local SQLite is not synced yet — optional P2P pulls blocks; pool payouts still work.</p>
+							<div class="max-w-3xl space-y-3">
+								<h3 class="font-display text-xs font-semibold tracking-[0.2em] text-matrix uppercase">Useful PoW</h3>
+								<p id="public-miner-readiness-sub" class="text-[11px] text-gray-400 leading-relaxed">Pool and canonical network status. Badges below show coordinator, canonical base, and optional P2P.</p>
+								<p class="text-[11px] text-gray-500 leading-relaxed">Large canon Δ at block height 0 means local SQLite is still syncing — P2P catches up; pool payouts still work.</p>
 							</div>
 							<button type="button" id="btn-copy-miner-env" class="text-[10px] px-3 py-1.5 rounded border border-neon/35 text-neon hover:bg-neon/10 uppercase tracking-wider shrink-0">Copy env snippet</button>
 						</div>
-						<div class="flex flex-wrap gap-2 mt-3 text-[10px] font-mono">
+						<div class="flex flex-wrap gap-2 mt-4 text-[10px] font-mono">
 							<span id="pm-badge-network" class="px-2 py-1 rounded border border-white/15 text-gray-400">network mode: …</span>
 							<span id="pm-badge-canonical" class="px-2 py-1 rounded border border-white/15 text-gray-400">canonical: …</span>
 							<span id="pm-badge-coordinator" class="px-2 py-1 rounded border border-white/15 text-gray-400">coordinator: …</span>
@@ -581,8 +660,10 @@
 							<span id="pm-badge-ledger" class="px-2 py-1 rounded border border-white/15 text-gray-400">ledger: …</span>
 							<span id="pm-badge-release" class="px-2 py-1 rounded border border-matrix/30 text-matrix/90">release: …</span>
 						</div>
-						<pre id="public-staging-env-snippet" class="hidden mt-3 text-[10px] font-mono text-neon/90 whitespace-pre-wrap leading-relaxed p-3 rounded border border-neon/25 bg-black/40"></pre>
-						<pre id="public-miner-hints" class="mt-3 text-[10px] font-mono text-gray-400 whitespace-pre-wrap leading-relaxed">Loading…</pre>
+						<pre id="public-staging-env-snippet" class="hidden mt-4 text-[10px] font-mono text-neon/90 whitespace-pre-wrap leading-relaxed p-3 rounded border border-neon/25 bg-black/40"></pre>
+						<div id="public-miner-hints" class="useful-pow-hints mt-4 text-[11px] font-mono text-gray-400 leading-relaxed space-y-2">
+							<p>Loading…</p>
+						</div>
 					</div>
 					<div id="desktop-first-run" class="card card-glow rounded-lg p-4 border-neon/30 bg-gradient-to-r from-neon/[0.08] to-transparent">
 						<div class="flex flex-wrap items-center justify-between gap-3">
@@ -610,8 +691,8 @@
 					</div>
 					<div class="card card-glow rounded-lg p-4 border-matrix/20">
 						<div class="flex items-center justify-between gap-2 mb-2">
-							<h3 class="font-display text-xs font-semibold tracking-[0.2em] text-gray-400 uppercase">Public pool miners</h3>
-							<span class="text-[10px] text-gray-600 font-mono">top payout · pool view</span>
+							<h3 class="font-display text-xs font-semibold tracking-[0.2em] text-gray-400 uppercase">Miners from public pools</h3>
+							<span class="text-[10px] text-gray-500 font-mono">top payout · pool view</span>
 						</div>
 						<div class="flex flex-wrap items-center gap-2 mb-2">
 							<select id="overview-miners-filter" class="text-[10px] font-mono rounded border border-white/20 bg-black/50 px-2 py-1 text-gray-300">
@@ -627,9 +708,9 @@
 							<span id="overview-miners-meta" class="text-[9px] text-gray-600 font-mono">—</span>
 						</div>
 						<div class="overflow-x-auto rounded border border-white/8">
-							<table class="w-full text-left text-[11px] font-mono">
-								<thead class="bg-black/60 text-gray-500 uppercase tracking-wider text-[9px]">
-									<tr><th class="px-2 py-2">#</th><th class="px-2 py-2">Worker</th><th class="px-2 py-2">Status</th><th class="px-2 py-2">Hashrate</th><th class="px-2 py-2">Share</th><th class="px-2 py-2">Attempts</th><th class="px-2 py-2">Payout</th></tr>
+							<table class="overview-miners-table w-full text-left text-[11px] font-mono">
+								<thead class="bg-black/60 uppercase tracking-wider text-[10px]">
+									<tr><th>#</th><th>Worker</th><th>Status</th><th>Hashrate</th><th>Share</th><th>Attempts</th><th>Payout</th></tr>
 								</thead>
 								<tbody id="overview-top-miners" class="text-gray-300 divide-y divide-white/5"></tbody>
 							</table>
@@ -647,31 +728,31 @@
 						</div>
 					</div>
 					<div class="grid grid-cols-2 xl:grid-cols-5 gap-3 lg:gap-4">
-						<div class="card card-glow rounded-lg p-4 relative overflow-hidden">
+						<div class="card card-glow kpi-stat-card rounded-lg relative overflow-hidden">
 							<div class="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-neon/10 blur-2xl pulse-ring"></div>
-							<p class="text-[10px] uppercase tracking-[0.28em] text-gray-500 mb-1" id="kpi-hash-label">PoH / telemetry</p>
+							<p class="kpi-label text-[10px] uppercase tracking-[0.28em] mb-2" id="kpi-hash-label">PoH / telemetry</p>
 							<p class="font-display text-2xl lg:text-3xl font-bold text-neon tabular-nums" id="kpi-hash">—</p>
-							<p class="text-[10px] text-gray-600 mt-1 font-mono" id="kpi-hash-sub">idle · synthetic TH/s</p>
+							<p class="text-[10px] text-gray-500 mt-2 font-mono" id="kpi-hash-sub">idle · synthetic TH/s</p>
 						</div>
-						<div class="card card-glow rounded-lg p-4">
-							<p class="text-[10px] uppercase tracking-[0.28em] text-gray-500 mb-1" id="kpi-challenge-label">Challenge</p>
+						<div class="card card-glow kpi-stat-card rounded-lg">
+							<p class="kpi-label text-[10px] uppercase tracking-[0.28em] mb-2" id="kpi-challenge-label">Challenge</p>
 							<p class="font-display text-2xl lg:text-3xl font-bold text-matrix tabular-nums" id="kpi-challenge">—</p>
-							<p class="text-[10px] text-gray-600 mt-1" id="kpi-challenge-sub">CPU-derived</p>
+							<p class="text-[10px] text-gray-500 mt-2" id="kpi-challenge-sub">CPU-derived</p>
 						</div>
-						<div class="card card-glow rounded-lg p-4 cursor-pointer border-neon/10 hover:border-neon/30" id="kpi-block-card" title="Open Chain tab">
-							<p id="kpi-block-title" class="text-[10px] uppercase tracking-[0.28em] text-gray-500 mb-1">Block height</p>
+						<div class="card card-glow kpi-stat-card rounded-lg cursor-pointer border-neon/10 hover:border-neon/30" id="kpi-block-card" title="Open Chain tab">
+							<p id="kpi-block-title" class="kpi-label text-[10px] uppercase tracking-[0.28em] mb-2">Block height</p>
 							<p class="font-display text-2xl lg:text-3xl font-bold text-gray-100 tabular-nums"><span id="kpi-block">0</span></p>
-							<p id="kpi-block-sub" class="text-[10px] text-gray-600 mt-1 font-mono leading-snug">This node · Chain tab</p>
+							<p id="kpi-block-sub" class="text-[10px] text-gray-500 mt-2 font-mono leading-snug">This node · Chain tab</p>
 						</div>
-						<div class="card card-glow rounded-lg p-4 border-warn/20 bg-warn/5">
-							<p class="text-[10px] uppercase tracking-[0.28em] text-gray-500 mb-1">Difficulty (M)</p>
+						<div class="card card-glow kpi-stat-card rounded-lg border-warn/20 bg-warn/5">
+							<p class="kpi-label text-[10px] uppercase tracking-[0.28em] mb-2">Difficulty (M)</p>
 							<p id="kpi-poh-difficulty" class="font-display text-xl lg:text-2xl font-bold text-warn tabular-nums">—</p>
-							<p class="text-[10px] text-gray-600 mt-1 font-mono">Pool / PoH M · ~30 s/block target</p>
+							<p class="text-[10px] text-gray-500 mt-2 font-mono">Pool / PoH M · ~30 s/block target</p>
 						</div>
-						<div class="card card-glow rounded-lg p-4 border-matrix/25 cursor-pointer hover:border-matrix/50" id="kpi-balance-card" title="Open Wallet tab">
-							<p class="text-[10px] uppercase tracking-[0.28em] text-gray-500 mb-1">Balance</p>
+						<div class="card card-glow kpi-stat-card rounded-lg border-matrix/25 cursor-pointer hover:border-matrix/50" id="kpi-balance-card" title="Open Wallet tab">
+							<p class="kpi-label text-[10px] uppercase tracking-[0.28em] mb-2">Balance</p>
 							<p class="font-display text-2xl lg:text-3xl font-bold text-matrix tabular-nums"><span id="kpi-balance">0.00</span> <span class="text-neon/70 text-lg">HMC</span></p>
-							<p id="balance-sub" class="text-[10px] text-gray-600 mt-1">genesis pending</p>
+							<p id="balance-sub" class="text-[10px] text-gray-500 mt-2">genesis pending</p>
 							<p id="kpi-network-circulating" class="text-[9px] text-gray-500 mt-1 font-mono leading-snug hidden" title="Network-wide circulating supply (not your balance)"></p>
 						</div>
 					</div>
@@ -721,7 +802,14 @@
 				</div>
 
 				<!-- ANALYTICS -->
-				<div id="panel-analytics" class="tab-panel max-w-[1600px] mx-auto">
+				<div id="panel-analytics" class="tab-panel max-w-[1600px] mx-auto space-y-4">
+					<div id="analytics-pow-compact" class="card card-glow rounded-lg border-matrix/25 bg-matrix/[0.06] px-4 py-2.5">
+						<div class="flex flex-wrap items-center justify-between gap-2">
+							<p id="analytics-pow-oneline" class="text-[11px] text-gray-300 font-mono leading-snug flex-1 min-w-0 notranslate">Useful PoW — loading…</p>
+							<button type="button" id="btn-analytics-pow-toggle" class="text-[9px] px-2 py-1 rounded border border-white/15 text-gray-400 uppercase tracking-wider hover:bg-white/5 shrink-0" aria-expanded="false">Details</button>
+						</div>
+						<div id="analytics-pow-details" class="hidden mt-2 text-[10px] text-gray-500 leading-relaxed border-t border-white/8 pt-2"></div>
+					</div>
 					<div class="grid grid-cols-1 xl:grid-cols-12 gap-4 lg:gap-5">
 						<section class="xl:col-span-8 space-y-4">
 							<div class="card card-glow rounded-lg p-4 lg:p-5">
@@ -743,32 +831,34 @@
 							</div>
 							<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div class="card card-glow rounded-lg p-4 lg:p-5">
-									<h2 class="font-display text-xs font-semibold tracking-[0.2em] text-gray-400 uppercase mb-4">Compute</h2>
-									<div class="flex justify-around items-center gap-4 flex-wrap">
-										<div class="relative w-28 h-28">
-											<svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
-												<circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
-												<circle id="ring-cpu" cx="50" cy="50" r="42" fill="none" stroke="url(#gCpu)" stroke-width="8" stroke-linecap="round" stroke-dasharray="0 264"/>
-												<defs><linearGradient id="gCpu" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#00d1ff"/><stop offset="100%" stop-color="#39ff14"/></linearGradient></defs>
-											</svg>
-											<div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-												<span class="text-[9px] text-gray-600 uppercase">CPU</span>
-												<span id="gauge-cpu" class="font-display text-xl font-bold text-neon">—</span>
+									<h2 class="font-display text-xs font-semibold tracking-[0.2em] text-gray-400 uppercase mb-4 text-center md:text-left">Compute</h2>
+									<div class="compute-gauges-wrap">
+										<div class="compute-gauges-row">
+											<div class="compute-gauge-unit">
+												<svg viewBox="0 0 100 100" class="-rotate-90" aria-hidden="true">
+													<circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
+													<circle id="ring-cpu" cx="50" cy="50" r="42" fill="none" stroke="url(#gCpu)" stroke-width="8" stroke-linecap="round" stroke-dasharray="0 264"/>
+													<defs><linearGradient id="gCpu" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#00d1ff"/><stop offset="100%" stop-color="#39ff14"/></linearGradient></defs>
+												</svg>
+												<div class="compute-gauge-overlay">
+													<span class="text-[9px] text-gray-500 uppercase tracking-wider">CPU</span>
+													<span id="gauge-cpu" class="font-display text-xl font-bold text-neon leading-none mt-0.5">—</span>
+												</div>
+											</div>
+											<div class="compute-gauge-unit">
+												<svg viewBox="0 0 100 100" class="-rotate-90" aria-hidden="true">
+													<circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
+													<circle id="ring-gpu" cx="50" cy="50" r="42" fill="none" stroke="#39ff14" stroke-width="8" stroke-linecap="round" stroke-dasharray="0 264" opacity="0.9"/>
+												</svg>
+												<div class="compute-gauge-overlay">
+													<span class="text-[9px] text-gray-500 uppercase tracking-wider">GPU</span>
+													<span id="gauge-gpu" class="font-display text-xl font-bold text-matrix leading-none mt-0.5">—</span>
+												</div>
 											</div>
 										</div>
-										<div class="relative w-28 h-28">
-											<svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
-												<circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
-												<circle id="ring-gpu" cx="50" cy="50" r="42" fill="none" stroke="#39ff14" stroke-width="8" stroke-linecap="round" stroke-dasharray="0 264" opacity="0.9"/>
-											</svg>
-											<div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-												<span class="text-[9px] text-gray-600 uppercase">GPU</span>
-												<span id="gauge-gpu" class="font-display text-xl font-bold text-matrix">—</span>
-											</div>
-										</div>
+										<p id="gpu-name" class="compute-gpu-name truncate font-mono notranslate" translate="no">GPU…</p>
+										<p id="compute-worker-hint" class="text-[9px] text-center text-gray-500 mt-1 leading-snug px-1 max-w-md mx-auto"></p>
 									</div>
-									<p id="gpu-name" class="text-[10px] text-center text-gray-500 mt-3 truncate font-mono">GPU…</p>
-									<p id="compute-worker-hint" class="text-[9px] text-center text-gray-600 mt-2 leading-snug px-1"></p>
 								</div>
 								<div class="card card-glow rounded-lg p-4 lg:p-5">
 									<h2 class="font-display text-xs font-semibold tracking-[0.2em] text-gray-400 uppercase mb-4">Memory · Disk</h2>
@@ -806,16 +896,19 @@
 									<div><span class="text-gray-600 uppercase tracking-wider">PoH est.</span><p id="lbl-poh-est" class="text-gray-300 mt-0.5" title="Mining insight ETA or trial rate">—</p></div>
 								</div>
 							</div>
-							<div class="card card-glow rounded-lg p-4 lg:p-5 flex flex-col min-h-[200px]">
-								<div class="flex justify-between items-center mb-2">
-									<h2 class="font-display text-xs font-semibold tracking-[0.2em] text-gray-400 uppercase">System log</h2>
+							<div class="card card-glow analytics-log-card rounded-lg flex flex-col min-h-[200px]">
+								<div class="flex justify-between items-center mb-3 px-0">
+									<h2 class="font-display text-xs font-semibold tracking-[0.2em] text-gray-400 uppercase">Command center</h2>
 									<div class="flex items-center gap-2">
 										<button type="button" id="btn-analytics-chart-pause" class="text-[9px] px-2 py-1 rounded border border-white/15 text-gray-400 uppercase tracking-wider hover:bg-white/5">Pause chart</button>
 										<button type="button" id="btn-analytics-log-clear" class="text-[9px] px-2 py-1 rounded border border-white/15 text-gray-400 uppercase tracking-wider hover:bg-white/5">Clear</button>
 										<span class="text-[9px] text-matrix font-mono">LIVE</span>
 									</div>
 								</div>
-								<div id="terminal" class="flex-1 rounded border border-white/5 bg-[#040506] p-3 font-mono text-[10px] leading-relaxed text-gray-500 overflow-y-auto max-h-64 space-y-1"></div>
+								<p class="text-[10px] text-gray-500 mb-2 px-0">Active workers / nodes · event stream</p>
+								<div class="analytics-log-inner flex-1 min-h-0">
+									<div id="terminal" class="h-full min-h-[10rem] rounded border border-white/8 bg-[#040506] p-3 font-mono text-[10px] leading-relaxed text-gray-500 overflow-y-auto max-h-64 space-y-1"></div>
+								</div>
 							</div>
 						</section>
 					</div>
@@ -824,37 +917,37 @@
 						<div class="card card-glow rounded-xl p-5 lg:p-6 border-neon/20">
 							<div class="flex flex-wrap items-center justify-between gap-2 mb-4">
 								<div>
-									<p class="font-display text-[10px] tracking-[0.35em] text-neon uppercase mb-1">The Hive</p>
+									<p class="font-display text-[10px] tracking-[0.35em] text-neon uppercase mb-1">Network pool</p>
 									<h2 class="font-display text-sm font-bold text-white tracking-wide">LAN pool · network stats</h2>
-									<p id="hive-note" class="text-[10px] text-gray-600 mt-1 max-w-xl">—</p>
+									<p id="hive-note" class="text-[10px] text-gray-500 mt-1 max-w-xl">—</p>
 								</div>
 								<span id="hive-mock-badge" class="hidden text-[9px] px-2 py-1 rounded border border-warn/40 text-warn uppercase tracking-widest">mock</span>
 							</div>
-							<div class="grid grid-cols-3 gap-3 mb-4">
-								<div class="rounded-lg border border-neon/20 bg-black/50 p-3 text-center">
-									<p class="text-[9px] text-gray-600 uppercase mb-1">Total miners</p>
-									<p id="hive-total-miners" class="font-display text-xl text-neon tabular-nums">—</p>
+							<div class="hive-stat-grid mb-4">
+								<div class="rounded-lg border border-neon/20 bg-black/50 hive-stat-tile">
+									<p class="text-[9px] text-gray-500 uppercase hive-stat-label">Miners</p>
+									<p id="hive-total-miners" class="font-display text-neon tabular-nums hive-stat-value">—</p>
 								</div>
-								<div class="rounded-lg border border-matrix/25 bg-black/50 p-3 text-center">
-									<p class="text-[9px] text-gray-600 uppercase mb-1">Global TH/s</p>
-									<p id="hive-global-th" class="font-display text-xl text-matrix tabular-nums">—</p>
+								<div class="rounded-lg border border-matrix/25 bg-black/50 hive-stat-tile">
+									<p class="text-[9px] text-gray-500 uppercase hive-stat-label">Global TH/s</p>
+									<p id="hive-global-th" class="font-display text-matrix tabular-nums hive-stat-value">—</p>
 								</div>
-								<div class="rounded-lg border border-white/10 bg-black/50 p-3 text-center">
-									<p class="text-[9px] text-gray-600 uppercase mb-1">Peer links</p>
-									<p id="hive-peers" class="font-display text-xl text-gray-200 tabular-nums">—</p>
+								<div class="rounded-lg border border-white/10 bg-black/50 hive-stat-tile">
+									<p class="text-[9px] text-gray-500 uppercase hive-stat-label">Workers online</p>
+									<p id="hive-peers" class="font-display text-gray-200 tabular-nums hive-stat-value">—</p>
 								</div>
 							</div>
-							<h3 class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">Top miners (sample)</h3>
-							<div class="overflow-x-auto rounded border border-white/8 mb-4">
-								<table class="w-full text-left text-[11px] font-mono">
-									<thead class="bg-black/60 text-gray-500 uppercase tracking-wider text-[9px]"><tr><th class="px-3 py-2">#</th><th class="px-3 py-2">Address</th></tr></thead>
+							<h3 class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">Top workers (sample)</h3>
+							<div class="overflow-x-auto rounded border border-white/8 mb-4 mx-0.5">
+								<table class="analytics-table w-full text-left text-[11px] font-mono">
+									<thead class="bg-black/60 uppercase tracking-wider text-[9px]"><tr><th>#</th><th>Worker</th><th>GH/s</th></tr></thead>
 									<tbody id="hive-top-miners" class="text-gray-300 divide-y divide-white/5"></tbody>
 								</table>
 							</div>
-							<h3 class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">Fleet · active rigs</h3>
-							<div class="overflow-x-auto rounded border border-white/8">
-								<table class="w-full text-left text-[11px] font-mono">
-									<thead class="bg-black/60 text-gray-500 uppercase tracking-wider text-[9px]"><tr><th class="px-2 py-2"></th><th class="px-2 py-2">Worker</th><th class="px-2 py-2">GH/s</th><th class="px-2 py-2">IP</th><th class="px-2 py-2">SIM</th></tr></thead>
+							<h3 class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">Fleet · active workers</h3>
+							<div class="overflow-x-auto rounded border border-white/8 mx-0.5">
+								<table class="analytics-table w-full text-left text-[11px] font-mono">
+									<thead class="bg-black/60 uppercase tracking-wider text-[9px]"><tr><th></th><th>Worker</th><th>GH/s</th><th>IP</th><th>SIM</th></tr></thead>
 									<tbody id="hive-fleet-rows" class="text-gray-300 divide-y divide-white/5"></tbody>
 								</table>
 							</div>
@@ -871,11 +964,11 @@
 						</div>
 						<div class="card card-glow rounded-xl p-5 lg:p-6 border-matrix/25">
 							<p class="font-display text-[10px] tracking-[0.35em] text-matrix uppercase mb-1">Command node</p>
-							<h2 class="font-display text-sm font-bold text-white tracking-wide mb-2">Active rigs · metrics</h2>
-							<p class="text-[10px] text-gray-600 mb-4">Hive: LAN workers via <code class="text-neon/80">POST /api/push_work</code>. <code class="text-warn/90">HACKME_NETWORK_MOCK=1</code> adds legacy mock globals.</p>
-							<div class="overflow-x-auto rounded border border-white/8">
-								<table class="w-full text-left text-[11px] font-mono">
-									<thead class="bg-black/60 text-gray-500 uppercase tracking-wider text-[9px]"><tr><th class="px-2 py-2"></th><th class="px-2 py-2">Name</th><th class="px-2 py-2">Worker ID</th><th class="px-2 py-2">GH/s</th><th class="px-2 py-2">GPU °C</th><th class="px-2 py-2">IP</th><th class="px-2 py-2">Src</th></tr></thead>
+							<h2 class="font-display text-sm font-bold text-white tracking-wide mb-2">Active workers / nodes · metrics</h2>
+							<p class="text-[10px] text-gray-500 mb-4">LAN workers via <code class="text-neon/80">POST /api/push_work</code>. <code class="text-warn/90">HACKME_NETWORK_MOCK=1</code> — legacy mock globals.</p>
+							<div class="overflow-x-auto rounded border border-white/8 p-1 mx-0.5">
+								<table class="analytics-table w-full text-left text-[11px] font-mono">
+									<thead class="bg-black/60 uppercase tracking-wider text-[9px]"><tr><th></th><th>Name</th><th>Worker ID</th><th>GH/s</th><th>GPU °C</th><th>IP</th><th>Src</th></tr></thead>
 									<tbody id="metrics-rigs-rows" class="text-gray-300 divide-y divide-white/5"></tbody>
 								</table>
 							</div>
@@ -910,27 +1003,6 @@
 							</div>
 						</div>
 						<p id="worker-mode-status" class="text-[10px] text-gray-500 font-mono mb-3">Worker mode: checking…</p>
-						<div id="rig-profile-card" class="mb-4 rounded-lg border border-neon/25 bg-black/35 p-4 space-y-3">
-							<div class="flex flex-wrap items-start justify-between gap-2">
-								<div>
-									<h3 class="font-display text-[10px] tracking-[0.25em] text-neon uppercase">Rig profile · GPU tune</h3>
-									<p class="text-[10px] text-gray-600 mt-1 max-w-2xl leading-relaxed">Auto batch, claim cooldown, thermal guard, and vendor OC guide. Writes <code class="text-neon/70">hackme.env</code> — restart pool worker after apply.</p>
-								</div>
-								<div class="flex flex-wrap gap-2">
-									<button type="button" id="btn-rig-profile-detect" class="px-3 py-1.5 rounded border border-white/20 text-gray-300 text-[10px] uppercase tracking-wider hover:bg-white/5">Detect GPU</button>
-									<button type="button" id="btn-rig-profile-apply" class="px-3 py-1.5 rounded border border-neon/40 bg-neon/10 text-neon text-[10px] uppercase tracking-wider hover:bg-neon/20">Apply profile</button>
-								</div>
-							</div>
-							<p id="rig-profile-status" class="text-[10px] font-mono text-gray-500">—</p>
-							<div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-[10px]">
-								<label class="text-gray-500">Profile<br>
-									<select id="rig-profile-select" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1.5 text-neon"></select>
-								</label>
-								<div class="rounded border border-white/10 bg-black/40 p-2 font-mono text-gray-400" id="rig-profile-env-preview">env: —</div>
-							</div>
-							<div id="rig-profile-oc" class="rounded border border-warn/20 bg-warn/5 p-3 text-[10px] text-gray-400 leading-relaxed hidden"></div>
-							<p id="rig-profile-platform" class="text-[9px] text-warn/80 font-mono"></p>
-						</div>
 						<div id="mining-admin-hint" class="hidden mb-3 rounded border border-warn/35 bg-warn/5 px-3 py-2 text-[10px] text-warn/95 font-mono leading-relaxed"></div>
 						<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2 lg:gap-3">
 							<div class="rounded-lg border border-warn/35 bg-warn/5 p-3 text-center lg:text-left">
@@ -1290,20 +1362,41 @@
 
 				<!-- HARDWARE TUNE (CPU soft cap + GPU: NVIDIA power / AMD telemetry) -->
 				<div id="panel-hardware" class="tab-panel max-w-[1600px] mx-auto space-y-4">
-					<div class="rounded-lg border border-warn/40 bg-warn/5 p-4 text-[11px] text-gray-400 leading-relaxed">
+					<div class="hardware-disclaimer-block rounded-lg border border-warn/40 bg-warn/5 p-4 text-[11px] text-gray-400 leading-relaxed">
 						<p class="font-display text-[10px] tracking-[0.2em] text-warn uppercase mb-2">Disclaimer</p>
 						<p><strong class="text-gray-300">CPU:</strong> soft load cap (not OS power policy). <strong class="text-gray-300">GPU:</strong> heuristics only; OC at your risk. <strong class="text-gray-300">NVIDIA:</strong> <code class="text-neon/90">nvidia-smi -pl</code>. <strong class="text-gray-300">AMD:</strong> sysfs telemetry; no PL via API. <code class="text-matrix/90">HACKME_GPU_TEMP_*</code> — restart after changes.</p>
 					</div>
-					<div class="flex flex-wrap items-center justify-between gap-3">
-						<div>
+					<div class="flex flex-wrap items-start justify-between gap-4">
+						<div class="flex-1 min-w-0 max-w-3xl">
 							<h2 class="font-display text-sm font-bold tracking-[0.15em] text-white uppercase">Hardware tune</h2>
-							<p class="text-[11px] text-gray-500 mt-1 max-w-3xl leading-relaxed"><code class="text-neon/80">GET/POST /api/hardware/tune</code> — admin token required for POST.</p>
+							<p class="hardware-tune-subtitle text-[11px] mt-1 leading-relaxed"><code class="text-neon/60">GET/POST /api/hardware/tune</code> <span class="text-gray-600">— admin token required for POST</span></p>
 						</div>
-						<button type="button" id="btn-hardware-refresh" class="text-[10px] px-3 py-1.5 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
+						<button type="button" id="btn-hardware-refresh" class="shrink-0 text-[10px] px-3 py-1.5 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
 					</div>
 					<div class="rounded-lg border border-white/10 bg-black/25 px-3 py-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
 						<span id="hardware-tune-env" class="text-[10px] text-gray-500 font-mono"></span>
 						<span id="hardware-tune-msg" class="text-[10px] text-warn/85 font-mono max-w-full xl:max-w-[36rem] truncate" title=""></span>
+					</div>
+					<div id="rig-profile-card" class="rounded-lg border border-neon/25 bg-black/35 p-4 space-y-3">
+						<div class="flex flex-wrap items-start justify-between gap-2">
+							<div>
+								<h3 class="font-display text-[10px] tracking-[0.25em] text-neon uppercase">Rig profile · GPU tune & OC</h3>
+								<p class="text-[10px] text-gray-600 mt-1 max-w-2xl leading-relaxed">Stage 1 auto-detect: batch, claim cooldown, thermal guard, vendor OC guide. Writes <code class="text-neon/70">hackme.env</code> — restart pool worker after apply.</p>
+							</div>
+							<div class="flex flex-wrap gap-2">
+								<button type="button" id="btn-rig-profile-detect" class="px-3 py-1.5 rounded border border-white/20 text-gray-300 text-[10px] uppercase tracking-wider hover:bg-white/5">Detect GPU</button>
+								<button type="button" id="btn-rig-profile-apply" class="px-3 py-1.5 rounded border border-neon/40 bg-neon/10 text-neon text-[10px] uppercase tracking-wider hover:bg-neon/20">Apply profile</button>
+							</div>
+						</div>
+						<p id="rig-profile-status" class="text-[10px] font-mono text-gray-500">—</p>
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-[10px]">
+							<label class="text-gray-500">Profile<br>
+								<select id="rig-profile-select" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1.5 text-neon"></select>
+							</label>
+							<div class="rounded border border-white/10 bg-black/40 p-2 font-mono text-gray-400" id="rig-profile-env-preview">env: —</div>
+						</div>
+						<div id="rig-profile-oc" class="rounded border border-warn/20 bg-warn/5 p-3 text-[10px] text-gray-400 leading-relaxed hidden"></div>
+						<p id="rig-profile-platform" class="text-[9px] text-warn/80 font-mono"></p>
 					</div>
 					<div class="grid grid-cols-1 xl:grid-cols-2 gap-5 xl:gap-8 items-start">
 						<div class="min-w-0 space-y-2">
@@ -2318,6 +2411,7 @@
 		let latestWorkerRows = [];
 		let overviewMinersFilter = 'all';
 		let overviewMinersLimit = 8;
+		let rigProfileAutoDetectDone = false;
 		let lastStatusOkUnix = 0;
 		let lastNetworkStatsOkUnix = 0;
 		let lastWorkStatsOkUnix = 0;
@@ -3860,7 +3954,7 @@
 			syncMineCalcSliders();
 			let inputs = readMineCalcInputs();
 			const net = getMineCalcNetworkParams();
-			if ((!mineCalcGhTouched || !(inputs.hashrateGh > 0)) && net.workerGh > 0) {
+			if (!mineCalcGhTouched && !(inputs.hashrateGh > 0) && net.workerGh > 0) {
 				const ghEl = mineCalcEl('mine-calc-gh');
 				const ghSlider = mineCalcEl('mine-calc-gh-slider');
 				if (ghEl) ghEl.value = String(net.workerGh);
@@ -4069,10 +4163,12 @@
 				if (!el) return;
 				el.addEventListener('input', () => {
 					if (id === 'mine-calc-share') mineCalcShareTouched = true;
+					if (id === 'mine-calc-gh') mineCalcGhTouched = true;
 					rerender();
 				});
 				el.addEventListener('change', () => {
 					if (id === 'mine-calc-share') mineCalcShareTouched = true;
+					if (id === 'mine-calc-gh') mineCalcGhTouched = true;
 					rerender();
 				});
 			});
@@ -4368,6 +4464,54 @@
 			const t = document.createElement('span');
 			t.textContent = s == null ? '' : String(s);
 			return t.innerHTML;
+		}
+		function formatHiveWorkerLabel(s) {
+			const t = String(s || '').trim();
+			if (!t) return '—';
+			if (t.startsWith('HMC-')) return t.slice(4);
+			return t;
+		}
+		function renderHiveTopMiners(rows) {
+			const top = $('hive-top-miners');
+			if (!top) return;
+			top.innerHTML = '';
+			const list = Array.isArray(rows) ? rows.slice() : [];
+			if (!list.length) {
+				top.innerHTML = '<tr><td colspan="3" class="text-gray-600 text-center">—</td></tr>';
+				return;
+			}
+			list.sort((a, b) => {
+				const ghA = Number(a.hashrate_gh_s ?? (a.live && a.live.hashrate_gh_s) ?? 0);
+				const ghB = Number(b.hashrate_gh_s ?? (b.live && b.live.hashrate_gh_s) ?? 0);
+				if (ghB !== ghA) return ghB - ghA;
+				return Number(b.payout || 0) - Number(a.payout || 0);
+			});
+			list.slice(0, 5).forEach((row, i) => {
+				const wid = String(row.worker_id || row.id || row.name || '');
+				const gh = Number(row.hashrate_gh_s ?? (row.live && row.live.hashrate_gh_s) ?? 0);
+				const tr = document.createElement('tr');
+				tr.innerHTML = '<td class="text-gray-500">' + String(i + 1) + '</td>' +
+					'<td class="text-neon/95 truncate max-w-[280px] notranslate" translate="no" title="' + escapeHtml(wid) + '">' + escapeHtml(formatHiveWorkerLabel(wid)) + '</td>' +
+					'<td class="text-matrix tabular-nums">' + (gh > 0 ? fmtRigHashrateGHS(gh) : '—') + '</td>';
+				top.appendChild(tr);
+			});
+		}
+		function updateAnalyticsPowCompact() {
+			const line = $('analytics-pow-oneline');
+			if (!line) return;
+			const s = latestStatus;
+			const net = !!(s && s.network_mode);
+			const miners = $('hive-total-miners') ? String($('hive-total-miners').textContent || '—') : '—';
+			const gh = $('hive-global-th') ? String($('hive-global-th').textContent || '—') : '—';
+			const note = $('hive-note') ? String($('hive-note').textContent || '').trim() : '';
+			line.textContent = 'Useful PoW · pool ' + (net ? 'ON' : 'off') +
+				' · miners ' + miners + ' · hash ' + gh + (note ? ' · ' + note.slice(0, 72) : '');
+			line.classList.add('notranslate');
+			const det = $('analytics-pow-details');
+			if (det && !$('analytics-pow-details').classList.contains('hidden')) {
+				const sub = $('public-miner-readiness-sub');
+				det.textContent = sub ? String(sub.textContent || sub.innerText || '').trim() : '';
+			}
 		}
 		function tryDecodeTaskPayloadB64(b64) {
 			try {
@@ -4712,12 +4856,17 @@
 			}
 			latestNetworkStats = ts;
 			lastNetworkStatsOkUnix = Math.floor(Date.now() / 1000);
-			$('hive-total-miners').textContent = fmtUInt(ts.total_miners ?? 0);
+			const wsN = latestWorkStats && latestWorkStats.ok !== false
+				? Math.max(Object.keys(latestWorkStats.workers || {}).length, Number(latestWorkStats.workers_count || 0))
+				: 0;
+			const rigsOnline = (ts.active_rigs || []).filter((r) => !!r.online).length;
+			const minersN = Math.max(Number(ts.total_miners ?? 0), wsN);
+			$('hive-total-miners').textContent = fmtUInt(minersN);
 			const aggHashLbl = fmtPoolAggHashrate(ts.global_hashrate_th_s ?? 0);
 			const coordGh = resolvePoolAggregateGh(latestWorkStats);
 			const poolStripLbl = coordGh > 0 ? poolHashLabelFromGh(coordGh, '*') : aggHashLbl;
 			if ($('hive-global-th')) $('hive-global-th').textContent = poolStripLbl;
-			$('hive-peers').textContent = fmtUInt(ts.peer_connections ?? 0);
+			$('hive-peers').textContent = fmtUInt(Math.max(Number(ts.peer_connections ?? 0), rigsOnline, wsN > 0 ? wsN : 0));
 			if ($('pool-strip-miners')) $('pool-strip-miners').textContent = fmtUInt(ts.total_miners ?? 0);
 			if ($('pool-strip-hash')) $('pool-strip-hash').textContent = poolStripLbl;
 			if ($('mining-strip-miners')) $('mining-strip-miners').textContent = fmtUInt(ts.total_miners ?? 0);
@@ -4730,14 +4879,24 @@
 				if (ts.global_mock) b.classList.remove('hidden');
 				else b.classList.add('hidden');
 			}
-			const top = $('hive-top-miners');
-			if (top) {
-				top.innerHTML = '';
-				(ts.top_miners || []).forEach((addr, i) => {
-					const tr = document.createElement('tr');
-					tr.innerHTML = '<td class="px-3 py-1.5 text-gray-500">' + (i + 1) + '</td><td class="px-3 py-1.5 text-neon/95 truncate max-w-[280px]">' + escapeHtml(addr) + '</td>';
-					top.appendChild(tr);
-				});
+			const rigRows = (ts.active_rigs || []).map((row) => ({
+				worker_id: row.worker_id || row.name,
+				name: row.name,
+				hashrate_gh_s: row.hashrate_gh_s ?? 0,
+				online: row.online,
+			}));
+			if (rigRows.length) {
+				renderHiveTopMiners(rigRows);
+			} else if (latestWorkerRows && latestWorkerRows.length) {
+				renderHiveTopMiners(latestWorkerRows.map((r) => ({
+					id: r.id,
+					worker_id: r.id,
+					hashrate_gh_s: Number((r.live && r.live.hashrate_gh_s) || r.hashrate_gh_s || 0),
+					payout: r.payout,
+				})));
+			} else {
+				const fallback = (ts.top_miners || []).map((addr) => ({ worker_id: addr, hashrate_gh_s: 0 }));
+				renderHiveTopMiners(fallback);
 			}
 			const fleet = $('hive-fleet-rows');
 			if (fleet) {
@@ -4781,6 +4940,7 @@
 			reconcilePoolStripWithWorkStats();
 			renderMinerLookupResult();
 			void refreshOperatorHealth();
+			try { updateAnalyticsPowCompact(); } catch (_) {}
 		}
 		function renderMetricsRigsRows(rows) {
 			const tb = $('metrics-rigs-rows');
@@ -4878,6 +5038,151 @@
 				return null;
 			}
 		}
+		function overviewMinerOnline(r, ws, sampleUnix) {
+			const abuse = r.abuse || {};
+			const minuteUnix = Number(abuse.minute_unix || 0);
+			const staleSec = minuteUnix > 0 ? Math.max(0, sampleUnix - (minuteUnix * 60)) : -1;
+			const runningWorkerID = String((latestWorkerStatus && latestWorkerStatus.worker_id) || '');
+			const hiThr = Number(r.hashrate_gh_s || 0) > 0.01 || Number(r.attempts || 0) >= 1e7;
+			const totA = Number((ws && ws.accepted_attempts) || 0);
+			const rowShare = totA > 0 ? (Number(r.attempts || 0) / totA) : 0;
+			const dominantRow = (latestWorkerRows && latestWorkerRows.length <= 1) || rowShare >= 0.05 || Number(r.attempts || 0) >= 1e7;
+			const poolAggPulse = !!(ws && ws.ok !== false) &&
+				totA >= 1e7 &&
+				Number(ws.submitted_items || 0) >= 50 &&
+				dominantRow;
+			const workerPulse = (!!ws && ws.ok !== false) && (hiThr || poolAggPulse);
+			const coordinatorSynthOnline = ws && ws.ok !== false &&
+				(r.id === 'worker-active' || r.id === 'worker-unknown') &&
+				Number(r.attempts || 0) >= 1e6;
+			return !!(r.live && r.live.online) ||
+				(staleSec >= 0 && staleSec <= 90) ||
+				(!!(latestWorkerStatus && latestWorkerStatus.running) &&
+					(r.id === runningWorkerID || r.id === 'worker-active')) ||
+				workerPulse ||
+				coordinatorSynthOnline;
+		}
+
+		function renderOverviewTopMiners(ws, rows) {
+			const overviewTB = $('overview-top-miners');
+			if (!overviewTB) return;
+			const list = Array.isArray(rows) ? rows.slice() : [];
+			const sampleUnix = Number((ws && ws.now_unix) || Math.floor(Date.now() / 1000));
+			overviewTB.innerHTML = '';
+			if (!list.length) {
+				overviewTB.innerHTML = '<tr><td colspan="7" class="px-3 py-3 text-gray-600 text-center">No miners yet</td></tr>';
+				const meta = $('overview-miners-meta');
+				if (meta) meta.textContent = '—';
+				return;
+			}
+			const totalPayoutNum = Math.max(0, Number((ws && ws.total_payout_hmc) || 0));
+			const filtered = list.filter((r) => {
+				const online = overviewMinerOnline(r, ws, sampleUnix);
+				if (overviewMinersFilter === 'live') return online;
+				if (overviewMinersFilter === 'offline') return !online;
+				return true;
+			});
+			const limitN = Math.max(1, Number(overviewMinersLimit || 8));
+			const shown = filtered.slice(0, limitN);
+			const meta = $('overview-miners-meta');
+			if (meta) meta.textContent = 'showing ' + fmtUInt(shown.length) + ' / ' + fmtUInt(list.length) + ' · filter=' + overviewMinersFilter;
+			if (!shown.length) {
+				overviewTB.innerHTML = '<tr><td colspan="7" class="px-3 py-3 text-gray-600 text-center">No miners for selected filter</td></tr>';
+				return;
+			}
+			shown.forEach((r, idx) => {
+				const online = overviewMinerOnline(r, ws, sampleUnix);
+				const prevRate = workAttemptsRate.get(r.id);
+				const monoNow = Date.now();
+				let attemptsPerMin = 0;
+				if (prevRate && prevRate.attempts <= r.attempts && (prevRate.monoMs || 0) > 0) {
+					const dt = Math.max(0.25, (monoNow - prevRate.monoMs) / 1000);
+					attemptsPerMin = ((r.attempts - prevRate.attempts) * 60.0) / dt;
+				}
+				if (!(attemptsPerMin > 0) && r.live && Number(r.live.hashrate_gh_s || 0) > 0) {
+					attemptsPerMin = clampRigHashrateGHS(r.live.hashrate_gh_s) * 1e9 * 60;
+				}
+				const hrGHS = estimateMinerHashrateGHS(r, attemptsPerMin, sampleUnix);
+				const hrEst = hrGHS > 0 && attemptsPerMin > 0 && !(r.live && Number(r.live.hashrate_gh_s || 0) > 0);
+				const hr = hrGHS > 0 ? (fmtRigHashrateGHS(hrGHS) + ' GH/s' + (hrEst ? '*' : '')) : '—';
+				const share = totalPayoutNum > 0 ? (fmt((r.payout / totalPayoutNum) * 100, 2) + '%') : '—';
+				const tr = document.createElement('tr');
+				tr.className = 'cursor-pointer hover:bg-white/5';
+				tr.addEventListener('click', () => {
+					if ($('overview-miner-search')) $('overview-miner-search').value = String(r.id || '');
+					void runMinerLookup();
+				});
+				tr.innerHTML = '<td class="text-gray-500">' + String(idx + 1) + '</td>' +
+					'<td class="text-neon/90 truncate max-w-[220px]" title="' + escapeHtml(r.id) + '">' + escapeHtml(r.id) + '</td>' +
+					'<td class="' + (online ? 'text-matrix' : 'text-gray-500') + '">' + (online ? 'live' : 'offline') + '</td>' +
+					'<td class="text-neon/80 tabular-nums">' + hr + '</td>' +
+					'<td class="tabular-nums">' + share + '</td>' +
+					'<td class="tabular-nums">' + fmtUInt(r.attempts) + '</td>' +
+					'<td class="text-warn tabular-nums">' + fmt(r.payout, 6) + ' HMC</td>';
+				overviewTB.appendChild(tr);
+			});
+		}
+
+		let overviewMinersControlsBound = false;
+		function bindOverviewMinersControls() {
+			if (overviewMinersControlsBound) return;
+			const filt = $('overview-miners-filter');
+			const lim = $('overview-miners-limit');
+			if (!filt && !lim) return;
+			overviewMinersControlsBound = true;
+			const rerender = () => {
+				renderOverviewTopMiners(latestWorkStats, latestWorkerRows);
+			};
+			if (filt) {
+				overviewMinersFilter = String(filt.value || 'all');
+				filt.addEventListener('change', () => {
+					overviewMinersFilter = String(filt.value || 'all');
+					rerender();
+				});
+			}
+			if (lim) {
+				overviewMinersLimit = Number(lim.value || 8);
+				lim.addEventListener('change', () => {
+					overviewMinersLimit = Number(lim.value || 8);
+					rerender();
+				});
+			}
+		}
+
+		function applyTelemetryFallbackFromPool() {
+			const ws = lastGoodWorkStats || latestWorkStats;
+			const net = latestNetworkStats;
+			const wst = latestWorkerStatus || {};
+			let hashTh = 0;
+			if (ws && ws.ok !== false) {
+				const gh = poolGhFromWorkStats(ws);
+				if (gh > 0) hashTh = gh / 1000;
+			}
+			if (!(hashTh > 0) && net && Number(net.global_hashrate_th_s || 0) > 0 && Number(net.global_hashrate_th_s) <= 10) {
+				hashTh = Number(net.global_hashrate_th_s);
+			}
+			const ghWorker = Number(wst.measured_hashrate_gh_s || wst.hashrate_gh_s || 0);
+			if (!(hashTh > 0) && ghWorker > 0) hashTh = ghWorker / 1000;
+			if (!(hashTh > 0)) return;
+			const m = lastMetricsPayload && typeof lastMetricsPayload === 'object' ? lastMetricsPayload : {};
+			if (!(Number(m.hashrate_th_s || 0) > 1e-12)) m.hashrate_th_s = hashTh;
+			if (!(Number(m.mining_attempts_per_sec || 0) > 0.25) && ws && ws.ok !== false) {
+				const aps = Number(poolDerived.attemptsPerSec || workerDerived.attemptsPerSec || 0);
+				if (aps > 0.25) m.mining_attempts_per_sec = aps;
+			}
+			if (!(Number(m.cpu_pct || 0) > 0) && Number(m.cpu_pct || 0) !== 0) { /* keep host metrics when present */ }
+			lastMetricsPayload = m;
+			push(series.hash, hashTh);
+			if (currentTab === 'analytics') {
+				const fn = $('chart-metrics-footnote');
+				if (fn) fn.textContent = 'pool/work stats · chart seeded (host /api/metrics pending)';
+				requestAnimationFrame(() => drawChart($('chart-main')));
+			}
+			if ($('lbl-poh-est') && hashTh > 0) {
+				$('lbl-poh-est').textContent = fmtPoolAggHashrate(hashTh) || '—';
+			}
+		}
+
 		function renderWorkStats(ws) {
 			const tb = $('work-stats-workers');
 			const hd = $('work-stats-headline');
@@ -5036,9 +5341,16 @@
 			if ($('pool-strip-miners')) $('pool-strip-miners').textContent = fmtUInt(workerCount);
 			if ($('mining-strip-miners')) $('mining-strip-miners').textContent = fmtUInt(workerCount);
 			if ($('mining-strip-workers')) $('mining-strip-workers').textContent = fmtUInt(workerCount);
-			if ($('hive-total-miners')) {
-				const shownMiners = Number((latestNetworkStats && latestNetworkStats.total_miners) || 0);
-				if (shownMiners <= 0 && workerCount > 0) $('hive-total-miners').textContent = fmtUInt(workerCount);
+			if ($('hive-total-miners') && workerCount > 0) {
+				$('hive-total-miners').textContent = fmtUInt(workerCount);
+			}
+			if ($('hive-peers') && workerCount > 0) {
+				let onlineN = 0;
+				Object.values(workers).forEach((st) => {
+					const ls = Number(st.last_seen_unix || 0);
+					if (ls > 0 && sampleUnix - ls < 300) onlineN++;
+				});
+				$('hive-peers').textContent = fmtUInt(Math.max(onlineN, workerCount));
 			}
 			const totalAttempts = Number(ws.accepted_attempts || 0);
 			const rigsGhNow = poolGhFromWorkStats(ws);
@@ -5100,59 +5412,17 @@
 					live: null,
 				});
 			}
-			const overviewTB = $('overview-top-miners');
-			if (overviewTB) {
-				overviewTB.innerHTML = '';
-				if (!rows.length) {
-					overviewTB.innerHTML = '<tr><td colspan="7" class="px-3 py-3 text-gray-600 text-center">No miners yet</td></tr>';
-				} else {
-					const totalPayoutNum = Math.max(0, Number(ws.total_payout_hmc || 0));
-					const filtered = rows.filter((r) => {
-						const online = !!(r.live && r.live.online);
-						if (overviewMinersFilter === 'live') return online;
-						if (overviewMinersFilter === 'offline') return !online;
-						return true;
-					});
-					const shown = filtered.slice(0, Math.max(1, Number(overviewMinersLimit || 8)));
-					const meta = $('overview-miners-meta');
-					if (meta) meta.textContent = 'showing ' + fmtUInt(shown.length) + ' / ' + fmtUInt(rows.length) + ' · filter=' + overviewMinersFilter;
-					shown.forEach((r, idx) => {
-						const online = !!(r.live && r.live.online);
-						const prevRate = workAttemptsRate.get(r.id);
-						const monoNow = Date.now();
-						let attemptsPerMin = 0;
-						if (prevRate && prevRate.attempts <= r.attempts && (prevRate.monoMs || 0) > 0) {
-							const dt = Math.max(0.25, (monoNow - prevRate.monoMs) / 1000);
-							attemptsPerMin = ((r.attempts - prevRate.attempts) * 60.0) / dt;
-						}
-						if (!(attemptsPerMin > 0) && r.live && Number(r.live.hashrate_gh_s || 0) > 0) {
-							attemptsPerMin = clampRigHashrateGHS(r.live.hashrate_gh_s) * 1e9 * 60;
-						}
-						const hrGHS = estimateMinerHashrateGHS(r, attemptsPerMin, sampleUnix);
-						const trialsPerMin = hrGHS > 0 ? hrGHS * 1e9 * 60 : attemptsPerMin;
-						const hrEst = hrGHS > 0 && attemptsPerMin > 0 && !(r.live && Number(r.live.hashrate_gh_s || 0) > 0);
-						const hr = hrGHS > 0 ? (fmtRigHashrateGHS(hrGHS) + ' GH/s' + (hrEst ? '*' : '')) : '—';
-						const share = totalPayoutNum > 0 ? (fmt((r.payout / totalPayoutNum) * 100, 2) + '%') : '—';
-						const tr = document.createElement('tr');
-						tr.className = 'cursor-pointer hover:bg-white/5';
-						tr.addEventListener('click', () => {
-							if ($('overview-miner-search')) $('overview-miner-search').value = String(r.id || '');
-							void runMinerLookup();
-						});
-						tr.innerHTML = '<td class="px-2 py-1.5 text-gray-500">' + String(idx + 1) + '</td>' +
-							'<td class="px-2 py-1.5 text-neon/90 truncate max-w-[220px]" title="' + escapeHtml(r.id) + '">' + escapeHtml(r.id) + '</td>' +
-							'<td class="px-2 py-1.5 ' + (online ? 'text-matrix' : 'text-gray-500') + '">' + (online ? 'live' : 'offline') + '</td>' +
-							'<td class="px-2 py-1.5 text-neon/80 tabular-nums">' + hr + '</td>' +
-							'<td class="px-2 py-1.5 tabular-nums">' + share + '</td>' +
-							'<td class="px-2 py-1.5 tabular-nums">' + fmtUInt(r.attempts) + '</td>' +
-							'<td class="px-2 py-1.5 text-warn tabular-nums">' + fmt(r.payout, 6) + ' HMC</td>';
-						overviewTB.appendChild(tr);
-					});
-					if (!shown.length) {
-						overviewTB.innerHTML = '<tr><td colspan="7" class="px-3 py-3 text-gray-600 text-center">No miners for selected filter</td></tr>';
-					}
-				}
+			if (rows.length) {
+				renderHiveTopMiners(rows.map((r) => ({
+					id: r.id,
+					worker_id: r.id,
+					hashrate_gh_s: Number((r.live && r.live.hashrate_gh_s) || r.hashrate_gh_s || 0),
+					payout: r.payout,
+					live: r.live,
+				})));
 			}
+			bindOverviewMinersControls();
+			renderOverviewTopMiners(ws, rows);
 			if (!rows.length) {
 				tb.innerHTML = '<tr><td colspan="8" class="px-3 py-3 text-gray-600 text-center">No worker payouts yet</td></tr>';
 				renderMinerLookupResult();
@@ -5241,15 +5511,17 @@
 			const cardEl = $('public-miner-guide');
 			if (subEl) {
 				if (!net) {
-					subEl.textContent = desktop
-						? 'Local chain: pool env below only if you join the public pool.'
-						: 'Local solo until network mode + coordinator are set.';
+					subEl.innerHTML = desktop
+						? '<p>Local chain: pool env below only when joining the public pool.</p>'
+						: '<p>Local solo until network mode and coordinator are set.</p>';
 				} else {
-					subEl.textContent = 'Badges: network · canonical · coordinator · P2P · ledger. Env snippet optional.';
+					subEl.innerHTML =
+						'<p>Badges: network · canonical · coordinator · P2P · ledger.</p>' +
+						'<p>Env snippet optional — copy via the button on the right.</p>';
 				}
 			}
 			if (cardEl) {
-				cardEl.className = 'card card-glow rounded-lg p-4 bg-gradient-to-r to-transparent ' +
+				cardEl.className = 'card card-glow useful-pow-block rounded-lg p-5 bg-gradient-to-r to-transparent ' +
 					(!net ? 'border-neon/25 from-neon/[0.06]' : 'border-matrix/30 from-matrix/[0.07]');
 			}
 			if ($('pm-badge-network')) {
@@ -5303,29 +5575,33 @@
 				if (lastStagingJoinEnvExport) {
 					snap.classList.remove('hidden');
 					snap.textContent = lastStagingJoinEnvExport +
-						'\n# Restart node, then Mining → Start Worker.';
+						'\n# Restart node, then Workers → Start Worker.';
 				} else {
 					snap.textContent = '';
 					snap.classList.add('hidden');
 				}
 			}
 			if ($('public-miner-hints')) {
-				const maxHints = net ? 1 : 1;
+				const hintsEl = $('public-miner-hints');
+				const maxHints = 4;
 				if (!hints.length) {
 					const ready = net && coord && (can || !!(s && s.canonical_tip_ok));
-					$('public-miner-hints').textContent = ready
-						? 'Pool path ready — Mining → Start worker.'
-						: '—';
-					$('public-miner-hints').title = ready ? '' : '';
+					hintsEl.innerHTML = ready
+						? '<p>Pool connected — <strong class="text-matrix">Workers</strong> tab → Start worker.</p>'
+						: '<p>—</p>';
+					hintsEl.title = ready ? '' : '';
 				} else {
-					const prefix = '';
 					const shown = hints.slice(0, maxHints);
 					const more = hints.length - shown.length;
-					$('public-miner-hints').textContent = prefix +
-						shown.map((h) => h).join(' · ') + (more > 0 ? '\n\n… +' + more + ' (GET /api/status → miner_public_ux.hints_en)' : '');
-					$('public-miner-hints').title = hints.join('\n\n');
+					let html = shown.map((h) => '<p>' + escapeHtml(String(h)) + '</p>').join('');
+					if (more > 0) {
+						html += '<p class="text-gray-500">… +' + more + ' hints (GET /api/status → miner_public_ux.hints_en)</p>';
+					}
+					hintsEl.innerHTML = html;
+					hintsEl.title = hints.join('\n\n');
 				}
 			}
+			try { updateAnalyticsPowCompact(); } catch (_) {}
 			if ($('desktop-mode-badge')) {
 				const on = !!(s && s.desktop_mode);
 				$('desktop-mode-badge').textContent = 'desktop mode: ' + (on ? 'ON' : 'OFF');
@@ -5523,13 +5799,25 @@
 		}
 
 		async function refreshMiningMetricsSnapshot() {
+			let applied = false;
 			try {
 				const r = await fetchWithTimeout('/api/metrics', { cache: 'no-store' }, METRICS_FETCH_TIMEOUT_MS);
-				if (!r.ok) return;
+				if (!r.ok) {
+					try { applyTelemetryFallbackFromPool(); } catch (_) {}
+					return;
+				}
 				lastMetricsPayload = await r.json();
 				applyTelemetryFromMetrics(lastMetricsPayload);
+				applied = true;
+				const m = lastMetricsPayload || {};
+				if (!(Number(m.hashrate_th_s || 0) > 1e-12) && !(series.hash.length > 0)) {
+					try { applyTelemetryFallbackFromPool(); } catch (_) {}
+				}
 			} catch (_) {
 				/* keep lastMetricsPayload — do not blank mining panel on flaky /api/metrics */
+			}
+			if (!applied) {
+				try { applyTelemetryFallbackFromPool(); } catch (_) {}
 			}
 		}
 
@@ -6450,7 +6738,7 @@
 				wrap.classList.add('hidden');
 				return;
 			}
-			wrap.className = 'mb-4 max-w-[1600px] mx-auto rounded-lg border px-4 py-3 text-[11px] leading-relaxed ' + tone;
+			wrap.className = 'mb-5 max-w-[1600px] mx-auto rounded-lg border px-4 py-3 text-[11px] leading-relaxed ' + tone;
 			wrap.classList.remove('hidden');
 			if (title) title.textContent = titleTxt;
 			body.textContent = lines.join(' ');
@@ -7993,23 +8281,32 @@
 			const adminWarn = tokenOk ? '' : '<p class="text-[10px] text-warn mt-2">Set admin token (header), or POST will fail.</p>';
 
 			cpuEl.innerHTML =
-				'<div class="rounded-xl border border-white/10 bg-black/40 p-4 space-y-2">' +
+				'<div class="hardware-cpu-card rounded-xl border border-white/10 bg-black/40 py-4 pr-4 space-y-2">' +
 				'<h3 class="text-[10px] uppercase tracking-[0.2em] text-matrix">CPU — soft load cap (PoH)</h3>' +
 				'<p class="text-[11px] text-gray-400">' + escapeHtml(String(cpu.note || '')) + '</p>' +
 				'<p class="text-[10px] text-gray-500 font-mono">' + escapeHtml(String(cpu.env_var || '')) + (cpu.env_overrides ? ' · ' + escapeHtml(String(cpu.env_overrides)) : '') + '</p>' +
 				envLine +
-				'<div class="flex flex-wrap items-end gap-3 mt-3">' +
+				'<div class="flex flex-wrap items-end gap-4 mt-3">' +
 				'<label class="text-[10px] text-gray-500">soft_cap_pct (' + minP + '–' + maxP + ')<br>' +
 				'<input id="hw-cpu-cap-input" type="number" min="' + minP + '" max="' + maxP + '" step="1" class="mt-1 w-24 text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="' + escapeHtml(String(Math.round(curCap))) + '" /></label>' +
-				'<button type="button" id="btn-hw-cpu-apply" class="px-3 py-1.5 rounded border border-neon/30 text-neon text-[10px] uppercase tracking-wider hover:bg-neon/10"' + dis + '>Apply CPU</button>' +
+				'<button type="button" id="btn-hw-cpu-apply" class="btn-hw-cpu-apply rounded border border-neon/30 text-neon uppercase tracking-wider hover:bg-neon/10"' + dis + '>Apply CPU</button>' +
 				'</div>' + adminWarn + tipsHtml + '</div>';
 
 			const devs = Array.isArray(j.devices) ? j.devices : [];
 			const canPL = !!j.can_set_power_limit;
+			const presetsAvail = !!j.presets_available;
+			const drvMismatch = !!j.driver_mismatch;
+			const activeRig = String(j.active_rig_profile_id || '').trim();
 			let gpuHtml = hintBar;
+			if (drvMismatch) {
+				gpuHtml += '<p class="text-[10px] text-warn/90 mb-3 font-mono leading-relaxed">NVML/driver mismatch: reboot after NVIDIA driver update for live temp/util. Eco/Daily/Turbo still run <code class="text-neon/80">nvidia-smi -pl</code> (often needs sudo on Linux).</p>';
+			}
+			if (activeRig) {
+				gpuHtml += '<p class="text-[10px] text-matrix/80 mb-2 font-mono">Active rig profile: <span class="text-neon">' + escapeHtml(activeRig) + '</span></p>';
+			}
 			if (!devs.length) {
-				const fallback = String(j.message || '').trim() || 'No GPU data (no NVIDIA nvidia-smi and no amdgpu sysfs on this host). CPU tuning above still works.';
-				gpuHtml += '<div class="rounded-xl border border-white/10 bg-black/35 p-4 text-[11px] text-gray-500 leading-relaxed">' + escapeHtml(fallback) + '</div>';
+				const fallback = String(j.message || '').trim() || 'No GPU telemetry (no NVIDIA nvidia-smi and no amdgpu sysfs on this host). CPU tuning still works.';
+				gpuHtml += '<div class="hardware-gpu-empty rounded-xl border border-white/10 bg-black/35 text-[11px] text-gray-400 leading-relaxed max-w-lg mx-auto">' + escapeHtml(fallback) + '</div>';
 			} else {
 				devs.forEach((d, k) => {
 					const idx = Number(d.index != null ? d.index : k);
@@ -8021,14 +8318,30 @@
 					const recPl = h.recommended_pl_pct != null ? escapeHtml(String(h.recommended_pl_pct)) : '—';
 					const tempStr = Number(d.temp_c) >= 0 ? fmt(d.temp_c, 0) + '°C' : '—';
 					const utilStr = Number(d.util_pct) >= 0 ? fmt(d.util_pct, 0) + '%' : '—';
-					const plControls = canPL
+					const showPresets = canPL || presetsAvail || !!d.presets_available || Number(d.preset_daily_w) > 0;
+					const smiCmd = String(d.nvidia_smi_pl_command || '').trim();
+					const oc = d.manual_oc || {};
+					const ocTools = (oc.tools || []).map((t) => escapeHtml(String(t))).join(' · ');
+					const ocNotes = (oc.notes || []).map((n) => '<li class="text-[10px] text-gray-500">' + escapeHtml(String(n)) + '</li>').join('');
+					const ocBlock = (oc.vendor || ocTools) ? (
+						'<div class="rounded border border-warn/25 bg-warn/5 p-3 mt-2 space-y-1">' +
+						'<p class="text-[9px] uppercase tracking-wider text-warn/90">Manual OC · ' + escapeHtml(String(oc.vendor || 'GPU')) + '</p>' +
+						(ocTools ? '<p class="text-[10px] text-gray-400"><strong class="text-gray-300">Tools:</strong> ' + ocTools + '</p>' : '') +
+						(oc.core_mhz ? '<p class="text-[10px] text-gray-400"><strong class="text-gray-300">Core:</strong> ' + escapeHtml(oc.core_mhz) + '</p>' : '') +
+						(oc.mem_mhz ? '<p class="text-[10px] text-gray-400"><strong class="text-gray-300">Mem:</strong> ' + escapeHtml(oc.mem_mhz) + '</p>' : '') +
+						(oc.power_limit ? '<p class="text-[10px] text-gray-400"><strong class="text-gray-300">Power:</strong> ' + escapeHtml(oc.power_limit) + '</p>' : '') +
+						(ocNotes ? '<ul class="list-disc pl-4">' + ocNotes + '</ul>' : '') +
+						'</div>'
+					) : '';
+					const plControls = showPresets
 						? '<div class="flex flex-wrap gap-2 mt-2">' +
-							'<button type="button" class="btn-hw-mode px-2 py-1 rounded border border-white/20 text-[10px] uppercase' + dis + '" data-idx="' + idx + '" data-mode="eco">Eco</button>' +
-							'<button type="button" class="btn-hw-mode px-2 py-1 rounded border border-white/20 text-[10px] uppercase' + dis + '" data-idx="' + idx + '" data-mode="daily">Daily</button>' +
-							'<button type="button" class="btn-hw-mode px-2 py-1 rounded border border-white/20 text-[10px] uppercase' + dis + '" data-idx="' + idx + '" data-mode="turbo">Turbo</button></div>' +
+							'<button type="button" class="btn-hw-mode px-2 py-1 rounded border border-neon/35 bg-neon/10 text-neon text-[10px] uppercase' + dis + '" data-idx="' + idx + '" data-mode="eco" title="' + fmt(d.preset_eco_w, 0) + ' W">Eco</button>' +
+							'<button type="button" class="btn-hw-mode px-2 py-1 rounded border border-matrix/35 bg-matrix/10 text-matrix text-[10px] uppercase' + dis + '" data-idx="' + idx + '" data-mode="daily" title="' + fmt(d.preset_daily_w, 0) + ' W">Daily</button>' +
+							'<button type="button" class="btn-hw-mode px-2 py-1 rounded border border-warn/35 bg-warn/10 text-warn text-[10px] uppercase' + dis + '" data-idx="' + idx + '" data-mode="turbo" title="' + fmt(d.preset_turbo_w, 0) + ' W">Turbo</button></div>' +
 							'<div class="flex flex-wrap items-end gap-2 mt-2">' +
-							'<label class="text-[10px] text-gray-500">power_limit_w (W)<br><input id="hw-pl-w-' + idx + '" type="number" min="1" step="1" class="mt-1 w-28 text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="' + escapeHtml(String(pl > 0 ? pl : '')) + '" /></label>' +
-							'<button type="button" class="btn-hw-pl-apply px-2 py-1 rounded border border-neon/30 text-neon text-[10px] uppercase' + dis + '" data-idx="' + idx + '">Apply W</button></div>'
+							'<label class="text-[10px] text-gray-500">power_limit_w (W)<br><input id="hw-pl-w-' + idx + '" type="number" min="1" step="1" class="mt-1 w-28 text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="' + escapeHtml(String(pl > 0 ? pl : (Number(d.preset_daily_w) > 0 ? Math.round(d.preset_daily_w) : ''))) + '" /></label>' +
+							'<button type="button" class="btn-hw-pl-apply px-2 py-1 rounded border border-neon/30 text-neon text-[10px] uppercase' + dis + '" data-idx="' + idx + '">Apply W</button></div>' +
+							(smiCmd ? '<p class="text-[9px] text-gray-600 font-mono mt-1">CLI: <code class="text-neon/70">' + escapeHtml(smiCmd) + '</code></p>' : '')
 						: '<p class="text-[10px] text-gray-500 mt-2">Power limit via this API is NVIDIA-only (<code class="text-neon/80">nvidia-smi -pl</code>). On AMD use Radeon Software / CoreCtrl.</p>';
 					gpuHtml +=
 						'<div class="rounded-xl border border-neon/25 bg-gradient-to-br from-black/55 via-black/40 to-neon/[0.07] p-4 sm:p-5 space-y-3 shadow-lg shadow-black/30 ring-1 ring-white/[0.06]">' +
@@ -8044,10 +8357,12 @@
 						'<div><span class="text-gray-500">Preset W</span><br><span class="text-neon/90">' + fmt(d.preset_eco_w, 0) + ' / ' + fmt(d.preset_daily_w, 0) + ' / ' + fmt(d.preset_turbo_w, 0) + '</span></div></div>' +
 						'<div class="pt-1 space-y-2">' + plControls + '</div>' +
 						'<p class="text-[10px] text-gray-500 border-t border-white/5 pt-2">Family: ' + escapeHtml(String(h.family || '—')) + ' · vendor: ' + escapeHtml(String(h.vendor || '—')) + ' · rec PL%: ' + recPl + '</p>' +
-						htipsHtml + '</div>';
+						htipsHtml + ocBlock + '</div>';
 				});
 			}
 			gpuEl.innerHTML = gpuHtml;
+			try { markTechnicalNotranslate(gpuEl); } catch (_) {}
+			try { markTechnicalNotranslate(cpuEl); } catch (_) {}
 
 			const cpuBtn = $('btn-hw-cpu-apply');
 			if (cpuBtn) {
@@ -8188,10 +8503,21 @@
 				const j = await r.json();
 				rigDetectCache = j;
 				const names = (j.gpu_names || []).join(', ') || '—';
+				const backend = String(j.suggested_backend || (j.host && j.host.suggested_backend) || '');
+				const vendor = String(j.vendor_summary || (j.host && j.host.vendor_summary) || '');
+				const hybrid = !!(j.hybrid || (j.host && j.host.hybrid));
 				if ($('rig-profile-status')) {
-					$('rig-profile-status').textContent = j.detected
+					let st = j.detected
 						? ('detected: ' + j.profile_id + ' · ' + names)
-						: ('no match · GPUs: ' + names);
+						: ('no profile match · GPUs: ' + names);
+					if (vendor) st += ' · ' + vendor;
+					if (backend) st += ' · backend ' + backend;
+					if (hybrid) st += ' · hybrid (see notes)';
+					$('rig-profile-status').textContent = st;
+				}
+				if (hybrid && $('rig-profile-platform')) {
+					const notes = Array.isArray(j.notes) ? j.notes.join(' ') : '';
+					if (notes) $('rig-profile-platform').textContent = notes;
 				}
 				if (j.detected && $('rig-profile-select')) {
 					$('rig-profile-select').value = j.profile_id;
@@ -8222,7 +8548,8 @@
 				await refreshRigProfilesList();
 				try {
 					await fetch('/api/worker/stop', { method: 'POST', headers: adminHeaders() });
-					const gpu = (j.profile && j.profile.env && j.profile.env.HACKME_GPU_BACKEND) || 'auto';
+					const gpu = (j.profile && j.profile.env && j.profile.env.HACKME_GPU_BACKEND) ||
+						String(j.suggested_backend || '') || 'auto';
 					const batch = Number((j.profile && j.profile.env && j.profile.env.HACKME_WORKER_BATCH_SIZE) || 0) || undefined;
 					await fetch('/api/worker/start', {
 						method: 'POST',
@@ -8265,6 +8592,10 @@
 					$('hardware-tune-msg').title = tm ? '' : (String(j.message || '').trim() || '');
 				}
 				renderHardwareTunePanels(j);
+				try {
+					if (!rigProfilesCache.length) await refreshRigProfilesList();
+					else updateRigProfilePreview();
+				} catch (_) {}
 			} catch (e) {
 				if ($('hardware-tune-env')) $('hardware-tune-env').textContent = '';
 				if ($('hardware-tune-msg')) {
@@ -8284,10 +8615,12 @@
 				history.replaceState(null, '', '#' + name);
 				try { localStorage.setItem(DASH_LAST_TAB_KEY, name); } catch (_) {}
 			}
+			const powGuide = $('public-miner-guide');
+			if (powGuide) powGuide.classList.toggle('hidden', name !== 'overview');
 			document.querySelectorAll('.tab-panel').forEach((p) => p.classList.toggle('active', p.id === 'panel-' + name));
 			document.querySelectorAll('#tab-bar .tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
 			document.querySelectorAll('#sidebar-nav .sidebar-link').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
-			if (name === 'mining') {
+			if (name === 'mining' || name === 'hardware') {
 				void refreshRigProfilesList();
 			}
 			if (name === 'chain') refreshChainList();
@@ -8305,16 +8638,28 @@
 					void refreshFuzzSelectionDetail();
 				});
 			}
-			if (name === 'hardware') void refreshHardwareTune();
+			if (name === 'hardware') {
+				void refreshHardwareTune();
+				if (!rigProfileAutoDetectDone) {
+					rigProfileAutoDetectDone = true;
+					void detectRigProfile();
+				}
+			}
 			if (name === 'wallet') {
 				window.setTimeout(() => scheduleWalletEarningsRefresh(true), 400);
 			}
-			if (name === 'overview' || name === 'analytics') scheduleGlobalMetricsRefresh(true);
+			if (name === 'overview') {
+				scheduleGlobalMetricsRefresh(true);
+				bindOverviewMinersControls();
+				if (latestWorkerRows.length) renderOverviewTopMiners(latestWorkStats, latestWorkerRows);
+			}
+			if (name === 'analytics') scheduleGlobalMetricsRefresh(true);
 			if (name === 'analytics') {
 				scheduleMetricsSnapshotRefresh(true);
 				ensureAnalyticsChartObserver();
 				scheduleAnalyticsChartRedraw();
 				if (typeof refreshWorkerStatus === 'function') void refreshWorkerStatus();
+				try { updateAnalyticsPowCompact(); } catch (_) {}
 			}
 			if (name === 'mining') {
 				void refreshMiningDevices();
@@ -8662,10 +9007,19 @@
 			}
 		}
 
+		function markTechnicalNotranslate(root) {
+			const scope = root && root.querySelectorAll ? root : document;
+			scope.querySelectorAll('code, .tabular-nums, #gpu-name, [id^="pool-strip-"], [id^="hive-"], [id^="kpi-"], [id^="gauge-"]').forEach((el) => {
+				el.classList.add('notranslate');
+				el.setAttribute('translate', 'no');
+			});
+		}
+
 		(async function bootstrapDashboard() {
 			try {
 				await syncDesktopAdminTokenFromNode();
 				applyUIPrefs();
+				markTechnicalNotranslate(document);
 				updateQuickButtons();
 				setWalletSimpleMode(walletSimpleMode);
 				wireWalletTransferPanel();
@@ -8741,6 +9095,17 @@
 					});
 				}
 				if ($('btn-analytics-log-clear')) $('btn-analytics-log-clear').addEventListener('click', clearSystemLog);
+				if ($('btn-analytics-pow-toggle')) {
+					$('btn-analytics-pow-toggle').addEventListener('click', () => {
+						const det = $('analytics-pow-details');
+						const btn = $('btn-analytics-pow-toggle');
+						if (!det || !btn) return;
+						const collapsed = det.classList.toggle('hidden');
+						btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+						btn.textContent = collapsed ? 'Details' : 'Collapse';
+						if (!collapsed) updateAnalyticsPowCompact();
+					});
+				}
 				if ($('btn-ui-compact')) $('btn-ui-compact').addEventListener('click', () => {
 					document.body.classList.toggle('ui-compact');
 					saveUIPrefs();
@@ -8766,6 +9131,7 @@
 				if ($('btn-mining-start')) $('btn-mining-start').addEventListener('click', () => { void postMiningControl('start'); });
 				if ($('btn-mining-stop')) $('btn-mining-stop').addEventListener('click', () => { void postMiningControl('stop'); });
 				try { bindMineCalcEvents(); } catch (_) {}
+				try { bindOverviewMinersControls(); } catch (_) {}
 				document.querySelectorAll('[data-wallet-earnings-period]').forEach((btn) => {
 					btn.addEventListener('click', () => {
 						const p = btn.getAttribute('data-wallet-earnings-period');
