@@ -47,7 +47,6 @@ var rigProfiles = []RigProfile{
 			"HACKME_GPU_TEMP_PAUSE_C":         "78",
 			"HACKME_GPU_TEMP_RESUME_C":        "72",
 			"HACKME_DESKTOP_GPU_POOL":         "1",
-			"HACKME_CUDA_CALIBRATE_GHS":       "3.5",
 		},
 		ManualOC: RigManualOC{
 			Vendor:     "AMD",
@@ -79,7 +78,6 @@ var rigProfiles = []RigProfile{
 			"HACKME_GPU_TEMP_PAUSE_C":         "80",
 			"HACKME_GPU_TEMP_RESUME_C":        "74",
 			"HACKME_DESKTOP_GPU_POOL":         "1",
-			"HACKME_CUDA_CALIBRATE_GHS":       "0.18",
 		},
 		ManualOC: RigManualOC{
 			Vendor:     "AMD",
@@ -108,7 +106,6 @@ var rigProfiles = []RigProfile{
 			"HACKME_GPU_TEMP_PAUSE_C":         "80",
 			"HACKME_GPU_TEMP_RESUME_C":        "74",
 			"HACKME_DESKTOP_GPU_POOL":         "1",
-			"HACKME_CUDA_CALIBRATE_GHS":       "0.2",
 		},
 		ManualOC: RigManualOC{
 			Vendor:     "AMD",
@@ -133,7 +130,6 @@ var rigProfiles = []RigProfile{
 			"HACKME_GPU_TEMP_PAUSE_C":         "78",
 			"HACKME_GPU_TEMP_RESUME_C":        "72",
 			"HACKME_DESKTOP_GPU_POOL":         "1",
-			"HACKME_CUDA_CALIBRATE_GHS":       "2.0",
 		},
 		ManualOC: RigManualOC{
 			Vendor:     "Intel",

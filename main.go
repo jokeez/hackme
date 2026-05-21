@@ -1063,6 +1063,7 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		s.MiningEtaProgress = 0
 		s.MiningProjectedHmcHour = 0
 	}
+	a.fillMetricsFleetHashrate(ctx, &s)
 	writeMetricsJSON(w, s)
 }
 

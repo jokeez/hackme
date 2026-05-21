@@ -263,11 +263,6 @@ func (m *metricsCollector) snapshot() MetricsSnapshot {
 		m.cpuModel = detectCPUModel()
 	}
 
-	// Synthetic hashrate curve: base + CPU coupling + slow oscillation (placeholder until real chain).
-	t := float64(now.UnixNano()) / 1e9
-	hashTH := 12.4 + (cpuVal/100)*6.2 + 1.8*math.Sin(t/7.3) + 0.4*math.Sin(t*1.1)
-	challenge := math.Min(100, 22+cpuVal*0.35+10*math.Sin(t/3.1))
-
 	return MetricsSnapshot{
 		TS:            now.UnixMilli(),
 		CPUPct:        round2(cpuVal),
@@ -290,9 +285,9 @@ func (m *metricsCollector) snapshot() MetricsSnapshot {
 		Goroutines:    runtime.NumGoroutine(),
 		UptimeSec:     round2(now.Sub(m.start).Seconds()),
 		CPUModel:      m.cpuModel,
-		HashrateTHs:   round2(hashTH),
-		ChallengeLoad: round2(challenge),
-		Peers:         1,
+		HashrateTHs:   0,
+		ChallengeLoad: 0,
+		Peers:         0,
 		BlockHeight:   0,
 	}
 }
