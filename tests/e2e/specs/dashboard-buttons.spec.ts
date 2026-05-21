@@ -1,0 +1,100 @@
+import { test, expect } from '@playwright/test';
+
+const ADMIN = process.env.E2E_ADMIN_TOKEN || 'e2e-admin-token-test';
+
+test.describe('Dashboard UI buttons and API wiring', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript((token) => {
+      sessionStorage.setItem('hackme_admin_token', token);
+      localStorage.setItem('hackme_admin_token', token);
+    }, ADMIN);
+    await page.goto('/#overview');
+    await page.waitForSelector('body.js-ui', { timeout: 15_000 });
+  });
+
+  test('tab navigation switches visible panel', async ({ page }) => {
+    await page.click('#tab-bar .tab-btn[data-tab="orders"]');
+    await expect(page.locator('#panel-orders')).toHaveClass(/active/);
+    await expect(page.locator('#panel-overview')).not.toHaveClass(/active/);
+  });
+
+  test('Refresh now triggers status or metrics fetch', async ({ page }) => {
+    const resp = page.waitForResponse(
+      (r) => r.url().includes('/api/status') || r.url().includes('/api/metrics'),
+      { timeout: 15_000 }
+    );
+    await page.click('#btn-quick-refresh');
+    const got = await resp;
+    expect(got.ok()).toBeTruthy();
+  });
+
+  test('Mining stop button POSTs mining stop', async ({ page }) => {
+    await page.click('#tab-bar .tab-btn[data-tab="mining"]');
+    const stopReq = page.waitForRequest(
+      (r) => r.method() === 'POST' && r.url().includes('/api/mining/stop'),
+      { timeout: 15_000 }
+    );
+    await page.click('#btn-mining-stop');
+    const req = await stopReq;
+    expect(req.method()).toBe('POST');
+  });
+
+  test('Orders language buttons fill code editor', async ({ page }) => {
+    await page.click('#tab-bar .tab-btn[data-tab="orders"]');
+    const ta = page.locator('#orders-code-input');
+    await expect(ta).toBeVisible();
+    await page.click('#btn-orders-code-rust');
+    await expect(ta).toHaveValue(/extern "C"/, { timeout: 15_000 });
+    await page.click('#btn-orders-code-zig');
+    await expect(ta).toHaveValue(/export fn check/);
+    await page.click('#btn-orders-code-cpp');
+    await expect(ta).toHaveValue(/extern "C"/);
+  });
+
+  test('Orders POST /api/tasks sends JSON body', async ({ page }) => {
+    await page.click('#tab-bar .tab-btn[data-tab="orders"]');
+    await page.fill('#orders-form-id', 'e2e-order-' + Date.now());
+    await page.fill('#orders-form-reward', '0.01');
+    const postReq = page.waitForRequest(
+      (r) => r.method() === 'POST' && /\/api\/tasks$/.test(r.url()),
+      { timeout: 15_000 }
+    );
+    await page.click('#btn-orders-submit');
+    const req = await postReq;
+    const body = req.postDataJSON();
+    expect(body).toBeTruthy();
+    expect(body.id || body.task_id).toBeTruthy();
+  });
+
+  test('Fuzz create then start posts campaign status', async ({ page }) => {
+    await page.click('#tab-bar .tab-btn[data-tab="fuzz"]');
+    const createReq = page.waitForRequest(
+      (r) => r.method() === 'POST' && r.url().includes('/api/fuzz/campaigns') && !r.url().includes('/status'),
+      { timeout: 20_000 }
+    );
+    await page.click('#btn-fuzz-create');
+    await createReq;
+    await page.waitForTimeout(500);
+    const firstRow = page.locator('#fuzz-campaign-rows tr').first();
+    await firstRow.click();
+    const statusReq = page.waitForRequest(
+      (r) => r.method() === 'POST' && /\/api\/fuzz\/campaigns\/[^/]+\/status$/.test(r.url()),
+      { timeout: 20_000 }
+    );
+    await page.click('#btn-fuzz-quick-running');
+    const req = await statusReq;
+    const body = req.postDataJSON();
+    expect(body?.status).toBe('running');
+  });
+
+  test('Hardware refresh loads tune API', async ({ page }) => {
+    await page.click('#tab-bar .tab-btn[data-tab="hardware"]');
+    const tuneResp = page.waitForResponse(
+      (r) => r.url().includes('/api/hardware/tune') && r.request().method() === 'GET',
+      { timeout: 20_000 }
+    );
+    await page.click('#btn-hardware-refresh');
+    const resp = await tuneResp;
+    expect(resp.ok()).toBeTruthy();
+  });
+});

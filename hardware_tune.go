@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log"
 	"math"
@@ -19,22 +20,26 @@ import (
 )
 
 type gpuTuneDevice struct {
-	Index         int           `json:"index"`
-	Name          string        `json:"name"`
-	TempC         float64       `json:"temp_c"`
-	UtilPct       float64       `json:"util_pct"`
-	PowerDrawW    float64       `json:"power_draw_w"`
-	PowerLimitW   float64       `json:"power_limit_w"`
-	PowerMinW     float64       `json:"power_min_w"`
-	PowerMaxW     float64       `json:"power_max_w"`
-	SafeMinW      float64       `json:"safe_min_w,omitempty"`
-	SafeMaxW      float64       `json:"safe_max_w,omitempty"`
-	TurboMaxW     float64       `json:"turbo_max_w,omitempty"`
-	PresetEcoW    float64       `json:"preset_eco_w,omitempty"`
-	PresetDailyW  float64       `json:"preset_daily_w,omitempty"`
-	PresetTurboW  float64       `json:"preset_turbo_w,omitempty"`
-	Hints         gputune.Hints `json:"hints"`
-	PowerReadable bool          `json:"power_readable"`
+	Index              int                 `json:"index"`
+	Name               string              `json:"name"`
+	TempC              float64             `json:"temp_c"`
+	UtilPct            float64             `json:"util_pct"`
+	PowerDrawW         float64             `json:"power_draw_w"`
+	PowerLimitW        float64             `json:"power_limit_w"`
+	PowerMinW          float64             `json:"power_min_w"`
+	PowerMaxW          float64             `json:"power_max_w"`
+	SafeMinW           float64             `json:"safe_min_w,omitempty"`
+	SafeMaxW           float64             `json:"safe_max_w,omitempty"`
+	TurboMaxW          float64             `json:"turbo_max_w,omitempty"`
+	PresetEcoW         float64             `json:"preset_eco_w,omitempty"`
+	PresetDailyW       float64             `json:"preset_daily_w,omitempty"`
+	PresetTurboW       float64             `json:"preset_turbo_w,omitempty"`
+	Hints              gputune.Hints       `json:"hints"`
+	ManualOC           gputune.RigManualOC `json:"manual_oc,omitempty"`
+	PowerReadable      bool                `json:"power_readable"`
+	PresetsAvailable   bool                `json:"presets_available"`
+	DriverMismatch     bool                `json:"driver_mismatch,omitempty"`
+	NvidiaSMIPlCommand string              `json:"nvidia_smi_pl_command,omitempty"`
 }
 
 type hardwareTuneEnv struct {
@@ -56,14 +61,17 @@ type cpuTuneBlock struct {
 }
 
 type hardwareTuneResponse struct {
-	NvidiaSMI        bool            `json:"nvidia_smi"`
-	AMDTelemetry     bool            `json:"amd_telemetry"`
-	CanSetPowerLimit bool            `json:"can_set_power_limit"`
-	PowerLimitHint   string          `json:"power_limit_hint,omitempty"`
-	Env              hardwareTuneEnv `json:"env"`
-	CPU              cpuTuneBlock    `json:"cpu"`
-	Devices          []gpuTuneDevice `json:"devices"`
-	Message          string          `json:"message,omitempty"`
+	NvidiaSMI          bool            `json:"nvidia_smi"`
+	AMDTelemetry       bool            `json:"amd_telemetry"`
+	CanSetPowerLimit   bool            `json:"can_set_power_limit"`
+	PresetsAvailable   bool            `json:"presets_available"`
+	DriverMismatch     bool            `json:"driver_mismatch,omitempty"`
+	ActiveRigProfileID string          `json:"active_rig_profile_id,omitempty"`
+	PowerLimitHint     string          `json:"power_limit_hint,omitempty"`
+	Env                hardwareTuneEnv `json:"env"`
+	CPU                cpuTuneBlock    `json:"cpu"`
+	Devices            []gpuTuneDevice `json:"devices"`
+	Message            string          `json:"message,omitempty"`
 }
 
 type nvidiaPowerRow struct {
@@ -152,6 +160,46 @@ func enrichPowerTune(d *gpuTuneDevice) {
 	d.PresetEcoW = powerTargetByPct(base, recPct-10, minW, maxW)
 	d.PresetDailyW = powerTargetByPct(base, recPct, minW, maxW)
 	d.PresetTurboW = powerTargetByPct(base, recPct+8, minW, d.TurboMaxW)
+	if d.PresetDailyW > 0 {
+		d.PresetsAvailable = true
+	}
+	if d.PowerMaxW <= 0 && d.Hints.TypicalTDPW > 0 {
+		tdp := float64(d.Hints.TypicalTDPW)
+		d.PowerMinW = tdp * 0.5
+		d.PowerMaxW = tdp
+	}
+}
+
+func attachRigManualOC(dev *gpuTuneDevice) {
+	if dev == nil || strings.TrimSpace(dev.Name) == "" {
+		return
+	}
+	if pid := strings.TrimSpace(os.Getenv("HACKME_RIG_PROFILE")); pid != "" {
+		if p, ok := gputune.GetRigProfile(pid); ok {
+			dev.ManualOC = p.ManualOC
+			return
+		}
+	}
+	if p, ok := gputune.DetectRigProfile([]string{dev.Name}); ok {
+		dev.ManualOC = p.ManualOC
+	}
+}
+
+func finalizeTuneDevice(dev *gpuTuneDevice, idx int, driverMismatch bool) {
+	enrichPowerTune(dev)
+	attachRigManualOC(dev)
+	dev.PresetsAvailable = dev.PresetDailyW > 0
+	dev.DriverMismatch = driverMismatch
+	if dev.PresetsAvailable {
+		w := int(math.Round(dev.PresetDailyW))
+		if w > 0 {
+			dev.NvidiaSMIPlCommand = "nvidia-smi -i " + strconv.Itoa(idx) + " -pl " + strconv.Itoa(w)
+		}
+	}
+}
+
+func hostHasNVIDIAGPU() bool {
+	return len(queryNVIDIAMulti()) > 0 || len(gpuhost.ListNVIDIAProcCards()) > 0
 }
 
 func cpuSoftCapHints() cpuTuneBlock {
@@ -172,7 +220,9 @@ func cpuSoftCapHints() cpuTuneBlock {
 
 // queryNVIDIAPowerRows returns per-GPU power stats; PowerOK false if query fails.
 func queryNVIDIAPowerRows() []nvidiaPowerRow {
-	cmd := exec.Command("nvidia-smi",
+	ctx, cancel := context.WithTimeout(context.Background(), nvidiaSMITimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "nvidia-smi",
 		"--query-gpu=index,power.draw,power.limit,power.min_limit,power.max_limit",
 		"--format=csv,noheader,nounits")
 	var out bytes.Buffer
@@ -265,6 +315,8 @@ func (a *app) buildHardwareTuneResponse() hardwareTuneResponse {
 	nvRows := queryNVIDIAMulti()
 	powerRows := queryNVIDIAPowerRows()
 	amdList := gpuhost.ListAMDGPUTelemetry()
+	procCards := gpuhost.ListNVIDIAProcCards()
+	driverMismatch := len(powerRows) == 0 && len(procCards) > 0 && len(nvRows) > 0
 
 	resp := hardwareTuneResponse{
 		NvidiaSMI:        len(nvRows) > 0 || len(powerRows) > 0,
@@ -275,7 +327,9 @@ func (a *app) buildHardwareTuneResponse() hardwareTuneResponse {
 			GPUTempResumeC: envFloatTune("HACKME_GPU_TEMP_RESUME_C", 0),
 			Note:           "GPU thermal guard: HACKME_GPU_TEMP_PAUSE_C / HACKME_GPU_TEMP_RESUME_C (°C). 0 = off. Restart node after env changes.",
 		},
-		CPU: cpu,
+		CPU:                cpu,
+		ActiveRigProfileID: strings.TrimSpace(os.Getenv("HACKME_RIG_PROFILE")),
+		DriverMismatch:     driverMismatch,
 	}
 	if runtime.GOOS == "linux" && os.Geteuid() != 0 {
 		resp.PowerLimitHint = "Linux: nvidia-smi -pl often needs root or GPU-capable groups."
@@ -300,8 +354,16 @@ func (a *app) buildHardwareTuneResponse() hardwareTuneResponse {
 				PowerDrawW: p.DrawW, PowerLimitW: p.LimitW, PowerMinW: p.MinW, PowerMaxW: p.MaxW,
 				Hints: gputune.ForGPUName(nv.Name), PowerReadable: p.PowerOK,
 			}
-			enrichPowerTune(&dev)
+			finalizeTuneDevice(&dev, nv.Index, driverMismatch)
 			resp.Devices = append(resp.Devices, dev)
+			if dev.PresetsAvailable {
+				resp.PresetsAvailable = true
+			}
+		}
+		if driverMismatch {
+			resp.CanSetPowerLimit = false
+			resp.PresetsAvailable = true
+			resp.Message = "GPU detected (driver active). NVML/nvidia-smi power query unavailable — reboot after driver update for live telemetry. Eco/Daily/Turbo presets still apply via nvidia-smi -pl when permissions allow."
 		}
 		return resp
 	}
@@ -318,8 +380,11 @@ func (a *app) buildHardwareTuneResponse() hardwareTuneResponse {
 				PowerDrawW: am.PowerDrawW, PowerLimitW: 0, PowerMinW: 0, PowerMaxW: 0,
 				Hints: gputune.ForGPUName(am.Name), PowerReadable: am.PowerAverage,
 			}
-			enrichPowerTune(&dev)
+			finalizeTuneDevice(&dev, am.Index, false)
 			resp.Devices = append(resp.Devices, dev)
+			if dev.PresetsAvailable {
+				resp.PresetsAvailable = true
+			}
 		}
 		resp.Message = "AMD: temp/load from sysfs (amdgpu). Power limit via API is NVIDIA-only (nvidia-smi -pl); on AMD use vendor tools / BIOS."
 		return resp
@@ -333,8 +398,27 @@ func (a *app) buildHardwareTuneResponse() hardwareTuneResponse {
 			PowerDrawW: p.DrawW, PowerLimitW: p.LimitW, PowerMinW: p.MinW, PowerMaxW: p.MaxW,
 			Hints: gputune.ForGPUName(name), PowerReadable: p.PowerOK,
 		}
-		enrichPowerTune(&dev)
+		finalizeTuneDevice(&dev, 0, driverMismatch)
 		resp.Devices = append(resp.Devices, dev)
+		if dev.PresetsAvailable {
+			resp.PresetsAvailable = true
+		}
+		return resp
+	}
+
+	// NVIDIA driver loaded but nvidia-smi name query empty — still show proc cards.
+	if len(procCards) > 0 {
+		for _, c := range procCards {
+			dev := gpuTuneDevice{
+				Index: c.Index, Name: c.Name, TempC: -1, UtilPct: -1,
+				Hints: gputune.ForGPUName(c.Name),
+			}
+			finalizeTuneDevice(&dev, c.Index, true)
+			resp.Devices = append(resp.Devices, dev)
+			resp.PresetsAvailable = true
+		}
+		resp.DriverMismatch = true
+		resp.Message = "GPU via /proc/driver/nvidia. Reboot after driver update, then Eco/Daily/Turbo and nvidia-smi -pl work with telemetry."
 		return resp
 	}
 
@@ -389,7 +473,7 @@ func (a *app) handleHardwareTune(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
-		if (hasGPU || hasPL) && len(queryNVIDIAMulti()) == 0 && len(queryNVIDIAPowerRows()) == 0 && len(gpuhost.ListAMDGPUTelemetry()) > 0 {
+		if (hasGPU || hasPL) && !hostHasNVIDIAGPU() && len(gpuhost.ListAMDGPUTelemetry()) > 0 {
 			http.Error(w, "GPU power limit and presets require NVIDIA (nvidia-smi). AMD: use Radeon Software, CoreCtrl, or BIOS power limits.", http.StatusBadRequest)
 			return
 		}
@@ -421,37 +505,66 @@ func (a *app) handleHardwareTune(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "mode must be eco|daily|turbo", http.StatusBadRequest)
 				return
 			}
-			nvRows := queryNVIDIAMulti()
-			gpuName := ""
-			for _, nv := range nvRows {
-				if nv.Index == body.GPUIndex {
-					gpuName = strings.TrimSpace(nv.Name)
-					break
+			for _, d := range a.buildHardwareTuneResponse().Devices {
+				if d.Index != body.GPUIndex {
+					continue
 				}
-			}
-			h := gputune.ForGPUName(gpuName)
-			base := 0.0
-			if selected != nil {
-				base = powerBaseForPreset(selected.LimitW, selected.MaxW, h)
-			}
-			rec := float64(h.RecommendedPL)
-			if rec <= 0 {
-				rec = 82
-			}
-			targetPct := rec
-			if mode == "eco" {
-				targetPct = rec - 10
-			} else if mode == "turbo" {
-				targetPct = rec + 8
-			}
-			minW, maxW := 0.0, 0.0
-			if selected != nil {
-				minW, maxW = selected.MinW, selected.MaxW
-				if mode == "turbo" && maxW > 0 {
-					maxW = maxW * 0.97 // avoid max-edge instability
+				switch mode {
+				case "eco":
+					body.PowerLimitW = d.PresetEcoW
+				case "turbo":
+					body.PowerLimitW = d.PresetTurboW
+				default:
+					body.PowerLimitW = d.PresetDailyW
 				}
+				break
 			}
-			body.PowerLimitW = powerTargetByPct(base, targetPct, minW, maxW)
+			if body.PowerLimitW <= 0 {
+				nvRows := queryNVIDIAMulti()
+				gpuName := ""
+				for _, nv := range nvRows {
+					if nv.Index == body.GPUIndex {
+						gpuName = strings.TrimSpace(nv.Name)
+						break
+					}
+				}
+				if gpuName == "" {
+					for _, c := range gpuhost.ListNVIDIAProcCards() {
+						if c.Index == body.GPUIndex {
+							gpuName = c.Name
+							break
+						}
+					}
+				}
+				h := gputune.ForGPUName(gpuName)
+				base := 0.0
+				if selected != nil {
+					base = powerBaseForPreset(selected.LimitW, selected.MaxW, h)
+				} else if h.TypicalTDPW > 0 {
+					base = float64(h.TypicalTDPW)
+				}
+				rec := float64(h.RecommendedPL)
+				if rec <= 0 {
+					rec = 82
+				}
+				targetPct := rec
+				if mode == "eco" {
+					targetPct = rec - 10
+				} else if mode == "turbo" {
+					targetPct = rec + 8
+				}
+				minW, maxW := 0.0, 0.0
+				if selected != nil {
+					minW, maxW = selected.MinW, selected.MaxW
+					if mode == "turbo" && maxW > 0 {
+						maxW = maxW * 0.97
+					}
+				} else if h.TypicalTDPW > 0 {
+					maxW = float64(h.TypicalTDPW)
+					minW = maxW * 0.5
+				}
+				body.PowerLimitW = powerTargetByPct(base, targetPct, minW, maxW)
+			}
 		}
 		if body.PowerLimitW <= 0 {
 			http.Error(w, "expected soft_cap_pct (1..100) or gpu_index>=0 with power_limit_w>0", http.StatusBadRequest)

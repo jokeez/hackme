@@ -1018,7 +1018,8 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	overlayCtx, overlayCancel := context.WithTimeout(ctx, 8*time.Second)
+	// Keep /api/metrics fast for dashboard telemetry (canonical overlay is best-effort).
+	overlayCtx, overlayCancel := context.WithTimeout(ctx, 2*time.Second)
 	canonMiningOverlay := a.overlayCanonicalMiningIntoSnapshot(overlayCtx, &s)
 	overlayCancel()
 
@@ -1995,10 +1996,19 @@ func (a *app) handleMiningStop(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"ok": true})
 }
 
-// resolveWorkerpohExePath returns workerpoh.exe next to hackme (prefers workerpoh-opencl.exe when shipped).
+// resolveWorkerpohExePath returns workerpoh.exe next to hackme (backend-aware when possible).
 func resolveWorkerpohExePath() (string, error) {
+	backend := strings.TrimSpace(os.Getenv("HACKME_GPU_BACKEND"))
+	return resolveWorkerpohExePathForBackend(backend)
+}
+
+func resolveWorkerpohExePathForBackend(backend string) (string, error) {
 	tryDir := func(dir string) (string, bool) {
-		for _, name := range []string{"workerpoh-opencl.exe", "workerpoh.exe"} {
+		names := []string{"workerpoh-opencl.exe", "workerpoh.exe"}
+		if strings.EqualFold(backend, "cuda") {
+			names = []string{"workerpoh-cuda.exe", "workerpoh-opencl.exe", "workerpoh.exe"}
+		}
+		for _, name := range names {
 			wp := filepath.Join(dir, name)
 			if st, err := os.Stat(wp); err == nil && !st.IsDir() {
 				if abs, err := filepath.Abs(wp); err == nil {
@@ -2168,18 +2178,13 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 		gpuBackend = strings.TrimSpace(os.Getenv("HACKME_GPU_BACKEND"))
 	}
 	if gpuBackend == "" || strings.EqualFold(gpuBackend, "auto") {
-		if runtime.GOOS == "windows" {
-			if wp, err := resolveWorkerpohExePath(); err == nil && strings.Contains(strings.ToLower(filepath.Base(wp)), "opencl") {
-				gpuBackend = "opencl"
-			}
+		if v := resolveAutoGPUBackend(repoRoot); v != "" {
+			gpuBackend = v
 		}
-		cudaBin := filepath.Join(repoRoot, "bin", "workerpoh-cuda")
-		if gpuBackend == "" || strings.EqualFold(gpuBackend, "auto") {
-			if st, err := os.Stat(cudaBin); err == nil && !st.IsDir() {
-				if _, err := exec.Command("nvidia-smi", "-L").Output(); err == nil {
-					gpuBackend = "cuda"
-				}
-			}
+	}
+	if gpuBackend == "" || strings.EqualFold(gpuBackend, "auto") {
+		if v := strings.TrimSpace(os.Getenv("HACKME_GPU_BACKEND")); v != "" && !strings.EqualFold(v, "auto") {
+			gpuBackend = v
 		}
 	}
 	if gpuBackend != "" && !strings.EqualFold(gpuBackend, "auto") {
@@ -2258,7 +2263,15 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 	}
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		wp, err := resolveWorkerpohExePath()
+		winBackend := gpuBackend
+		if winBackend == "" || strings.EqualFold(winBackend, "auto") {
+			if v := resolveAutoGPUBackend(repoRoot); v != "" {
+				winBackend = v
+			} else {
+				winBackend = "auto"
+			}
+		}
+		wp, err := resolveWorkerpohExePathForBackend(winBackend)
 		if err != nil {
 			_ = f.Close()
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -2276,12 +2289,8 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 			"-worker", workerID,
 			"-batch", strconv.FormatUint(batchSize, 10),
 		}
-		gpuBackend := strings.TrimSpace(os.Getenv("HACKME_GPU_BACKEND"))
-		if gpuBackend == "" {
-			gpuBackend = "auto"
-		}
-		if !strings.EqualFold(gpuBackend, "cpu") && !strings.EqualFold(os.Getenv("HACKME_GPU_DISABLE"), "1") {
-			wpArgs = append(wpArgs, "-gpu-backend", gpuBackend)
+		if !strings.EqualFold(winBackend, "cpu") && !strings.EqualFold(os.Getenv("HACKME_GPU_DISABLE"), "1") {
+			wpArgs = append(wpArgs, "-gpu-backend", winBackend)
 		}
 		if v := strings.TrimSpace(os.Getenv("HACKME_GPU_DEVICE")); v != "" {
 			wpArgs = append(wpArgs, "-gpu-device", v)

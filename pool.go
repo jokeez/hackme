@@ -1614,6 +1614,22 @@ func walletAccrualFromCoordinator(ws map[string]any, stateWorkers map[string]wor
 	return
 }
 
+func canonicalFetchBudget(ctx context.Context, defaultDur time.Duration) time.Duration {
+	if ctx == nil {
+		return defaultDur
+	}
+	if dl, ok := ctx.Deadline(); ok {
+		left := time.Until(dl)
+		if left <= 0 {
+			return 50 * time.Millisecond
+		}
+		if left < defaultDur {
+			return left
+		}
+	}
+	return defaultDur
+}
+
 // fetchCanonicalJSON GETs JSON from canonical with a bounded timeout.
 func fetchCanonicalJSON(ctx context.Context, url string, timeout time.Duration) (map[string]any, bool) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -1672,7 +1688,7 @@ func (a *app) overlayCanonicalMiningIntoSnapshot(ctx context.Context, s *Metrics
 		return false
 	}
 	out := false
-	if status, ok := fetchCanonicalJSON(ctx, base+"/api/status", 6*time.Second); ok {
+	if status, ok := fetchCanonicalJSON(ctx, base+"/api/status", canonicalFetchBudget(ctx, 4*time.Second)); ok {
 		if bh := asUint64(status["tip_height"]); bh > 0 {
 			if applyCanonicalBlockEconomics(s, bh) {
 				out = true
@@ -1692,9 +1708,9 @@ func (a *app) overlayCanonicalMiningIntoSnapshot(ctx context.Context, s *Metrics
 	if err != nil {
 		return out
 	}
-	metricsTimeout := 12 * time.Second
+	metricsTimeout := canonicalFetchBudget(ctx, 3*time.Second)
 	if out {
-		metricsTimeout = 4 * time.Second
+		metricsTimeout = canonicalFetchBudget(ctx, 2*time.Second)
 	}
 	cl := &http.Client{Timeout: metricsTimeout}
 	resp, err := cl.Do(req)

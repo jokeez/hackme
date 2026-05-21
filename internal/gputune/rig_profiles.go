@@ -23,7 +23,8 @@ type RigProfile struct {
 	ID          string            `json:"id"`
 	Label       string            `json:"label"`
 	Description string            `json:"description"`
-	GPUMatch    []string          `json:"gpu_match"` // substrings on lowercased GPU name
+	GPUMatch    []string          `json:"gpu_match"` // substrings on lowercased GPU name (OR unless MatchAll)
+	MatchAll    bool              `json:"match_all,omitempty"` // all GPUMatch needles required (e.g. RX 580 + 2048)
 	Env         map[string]string `json:"env"`
 	ManualOC    RigManualOC       `json:"manual_oc"`
 }
@@ -35,6 +36,7 @@ var rigProfiles = []RigProfile{
 		Label:       "AMD RX 580 2048SP (Polaris · daily)",
 		Description: "Chinese 2048SP refresh / RX 570-class die: conservative batch, OpenCL, thermal guard. Pair with Adrenalin undervolt.",
 		GPUMatch:    []string{"rx 580", "2048"},
+		MatchAll:    true,
 		Env: map[string]string{
 			"HACKME_RIG_PROFILE":              "amd_rx580_2048sp",
 			"HACKME_GPU_BACKEND":              "opencl",
@@ -66,6 +68,7 @@ var rigProfiles = []RigProfile{
 		Label:       "AMD RX 580 2048SP (turbo · manual OC)",
 		Description: "After stable Adrenalin OC: slightly larger batches. Use only if temps stay under guard.",
 		GPUMatch:    []string{"rx 580", "2048"},
+		MatchAll:    true,
 		Env: map[string]string{
 			"HACKME_RIG_PROFILE":              "amd_rx580_2048sp_turbo",
 			"HACKME_GPU_BACKEND":              "opencl",
@@ -116,10 +119,107 @@ var rigProfiles = []RigProfile{
 		},
 	},
 	{
+		ID:          "intel_arc_daily",
+		Label:       "Intel Arc (daily · OpenCL)",
+		Description: "Intel discrete Arc: OpenCL compute runtime; conservative batch for stability.",
+		GPUMatch:    []string{"arc a770", "arc a750", "arc a580", "arc a380", "intel arc"},
+		Env: map[string]string{
+			"HACKME_RIG_PROFILE":              "intel_arc_daily",
+			"HACKME_GPU_BACKEND":              "opencl",
+			"HACKME_WORKER_BATCH_SIZE":        "2097152",
+			"GPU_CHUNK":                       "1048576",
+			"SEARCH_TIMEOUT_MS":               "3500",
+			"HACKME_WORKER_CLAIM_COOLDOWN_MS": "80",
+			"HACKME_GPU_TEMP_PAUSE_C":         "78",
+			"HACKME_GPU_TEMP_RESUME_C":        "72",
+			"HACKME_DESKTOP_GPU_POOL":         "1",
+			"HACKME_CUDA_CALIBRATE_GHS":       "2.0",
+		},
+		ManualOC: RigManualOC{
+			Vendor:     "Intel",
+			Tools:      []string{"Intel Arc Control", "intel_gpu_top (Linux)"},
+			PowerLimit: "Use Arc Control power limit; start −5…10%",
+			Notes: []string{
+				"Install Intel compute/OpenCL runtime (intel-opencl-icd) on Linux.",
+				"Driver updates matter — match kernel and user-space compute stack.",
+			},
+		},
+	},
+	{
+		ID:          "amd_rdna3_daily",
+		Label:       "AMD RDNA 3 (RX 7000 · daily)",
+		Description: "RDNA 3 desktop: OpenCL (ROCm/rusticl); thermal guard for long PoH runs.",
+		GPUMatch:    []string{"rx 7900", "rx 7800", "rx 7700", "rx 7600", "w7900", "w7800"},
+		Env: map[string]string{
+			"HACKME_RIG_PROFILE":              "amd_rdna3_daily",
+			"HACKME_GPU_BACKEND":              "opencl",
+			"HACKME_WORKER_BATCH_SIZE":        "4194304",
+			"GPU_CHUNK":                       "2097152",
+			"SEARCH_TIMEOUT_MS":               "3000",
+			"HACKME_WORKER_CLAIM_COOLDOWN_MS": "60",
+			"HACKME_GPU_TEMP_PAUSE_C":         "82",
+			"HACKME_GPU_TEMP_RESUME_C":        "75",
+			"HACKME_DESKTOP_GPU_POOL":         "1",
+		},
+		ManualOC: RigManualOC{
+			Vendor:     "AMD",
+			Tools:      []string{"AMD Adrenalin", "rocm-smi"},
+			PowerLimit: "−5…12% power cap via Adrenalin",
+		},
+	},
+	{
+		ID:          "nvidia_rtx_40_daily",
+		Label:       "NVIDIA RTX 40xx (Ada · daily)",
+		Description: "Ada Lovelace: CUDA, large batch; watch VRAM thermals under sustained PoH.",
+		GPUMatch:    []string{"rtx 40"},
+		Env: map[string]string{
+			"HACKME_RIG_PROFILE":              "nvidia_rtx_40_daily",
+			"HACKME_GPU_BACKEND":              "cuda",
+			"HACKME_WORKER_BATCH_SIZE":        "4194304",
+			"GPU_CHUNK":                       "4194304",
+			"SEARCH_TIMEOUT_MS":               "2400",
+			"HACKME_WORKER_CLAIM_COOLDOWN_MS": "0",
+			"HACKME_GPU_TEMP_PAUSE_C":         "82",
+			"HACKME_GPU_TEMP_RESUME_C":        "75",
+			"HACKME_DESKTOP_GPU_POOL":         "1",
+		},
+		ManualOC: RigManualOC{
+			Vendor:     "NVIDIA",
+			Tools:      []string{"nvidia-smi -pl", "NVIDIA App"},
+			PowerLimit: "−10…15% PL — GDDR6X thermals under load",
+		},
+	},
+	{
+		ID:          "nvidia_rtx_50_daily",
+		Label:       "NVIDIA RTX 50xx / Blackwell (daily)",
+		Description: "Blackwell desktop: CUDA, conservative PL; start PL −10…15% in Hardware tune.",
+		GPUMatch:    []string{"rtx 50"},
+		Env: map[string]string{
+			"HACKME_RIG_PROFILE":              "nvidia_rtx_50_daily",
+			"HACKME_GPU_BACKEND":              "cuda",
+			"HACKME_WORKER_BATCH_SIZE":        "4194304",
+			"GPU_CHUNK":                       "4194304",
+			"SEARCH_TIMEOUT_MS":               "2200",
+			"HACKME_WORKER_CLAIM_COOLDOWN_MS":  "0",
+			"HACKME_GPU_TEMP_PAUSE_C":         "80",
+			"HACKME_GPU_TEMP_RESUME_C":        "73",
+			"HACKME_DESKTOP_GPU_POOL":         "1",
+		},
+		ManualOC: RigManualOC{
+			Vendor:     "NVIDIA",
+			Tools:      []string{"nvidia-smi -pl", "NVIDIA App", "Hardware tune tab"},
+			PowerLimit: "−10…−15% PL — verify stability after any clock change",
+			Notes: []string{
+				"RTX 50xx is sensitive to power cap and cooling — tune one knob at a time.",
+				"If nvidia-smi shows driver/library mismatch, reboot after driver update for full telemetry.",
+			},
+		},
+	},
+	{
 		ID:          "nvidia_rtx_30_daily",
 		Label:       "NVIDIA RTX 30xx (daily)",
 		Description: "Ampere pool desktop: CUDA, large batch, smart claim cooldown.",
-		GPUMatch:    []string{"rtx 30", "rtx 3090", "rtx 3080", "rtx 3070", "rtx 3060"},
+		GPUMatch:    []string{"rtx 3090", "rtx 3080", "rtx 3070", "rtx 3060", "rtx 3050", "geforce rtx 30"},
 		Env: map[string]string{
 			"HACKME_RIG_PROFILE":              "nvidia_rtx_30_daily",
 			"HACKME_GPU_BACKEND":              "cuda",
@@ -164,7 +264,16 @@ func DetectRigProfile(gpuNames []string) (RigProfile, bool) {
 	}
 	combined := strings.ToLower(strings.Join(gpuNames, " "))
 	// Prefer specific 2048SP before generic 580.
-	order := []string{"amd_rx580_2048sp", "amd_rx580_generic", "nvidia_rtx_30_daily"}
+	order := []string{
+		"amd_rx580_2048sp",
+		"amd_rx580_2048sp_turbo",
+		"amd_rx580_generic",
+		"intel_arc_daily",
+		"amd_rdna3_daily",
+		"nvidia_rtx_50_daily",
+		"nvidia_rtx_40_daily",
+		"nvidia_rtx_30_daily",
+	}
 	for _, pid := range order {
 		p, ok := GetRigProfile(pid)
 		if !ok {
@@ -186,12 +295,20 @@ func profileMatchesName(p RigProfile, combinedLower string) bool {
 	if len(p.GPUMatch) == 0 {
 		return false
 	}
+	if p.MatchAll {
+		for _, needle := range p.GPUMatch {
+			if !strings.Contains(combinedLower, strings.ToLower(strings.TrimSpace(needle))) {
+				return false
+			}
+		}
+		return true
+	}
 	for _, needle := range p.GPUMatch {
-		if !strings.Contains(combinedLower, strings.ToLower(strings.TrimSpace(needle))) {
-			return false
+		if strings.Contains(combinedLower, strings.ToLower(strings.TrimSpace(needle))) {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 // AdaptRigProfileForHost adjusts env for platform limits (e.g. Windows without OpenCL binary).

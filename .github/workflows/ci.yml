@@ -40,3 +40,32 @@ jobs:
         env:
           RUN_ID: ci-${{ github.run_id }}
         run: MODE=lang_static bash scripts/tests/run_daily.sh
+
+  coordinator-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+          cache-dependency-path: go.sum
+      - name: Coordinator payout and difficulty tests
+        run: go test ./cmd/coordinator/... ./internal/chain/... -count=1 -run 'TestPayout|TestPool|TestMaybeRetarget|TestRetarget'
+
+  ui-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+          cache-dependency-path: go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Build e2e binaries
+        run: |
+          go build -trimpath -o bin/coordinator-e2e ./cmd/coordinator
+          go build -trimpath -o bin/hackme-e2e .
+      - name: Playwright E2E
+        run: bash scripts/tests/run_ui_e2e.sh

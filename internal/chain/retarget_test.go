@@ -67,6 +67,25 @@ func TestRetargetMicroStepRespondsToFastAndSlowBlocks(t *testing.T) {
 	}
 }
 
+func TestRetargetWindowStableAtTargetBlockTime(t *testing.T) {
+	prev := uint64(5_000_000)
+	ideal := PoHRetargetWindowBlocks * PoHRetargetTargetSec
+	next := RetargetWindow(prev, ideal, ideal)
+	if next != prev {
+		t.Fatalf("on-target window should keep M: prev=%d next=%d", prev, next)
+	}
+}
+
+func TestRetargetWindowHarderOnHashrateSpike(t *testing.T) {
+	prev := uint64(2_000_000)
+	ideal := PoHRetargetWindowBlocks * PoHRetargetTargetSec
+	// Blocks arrived 5x faster than target → difficulty up.
+	fast := RetargetWindow(prev, ideal/5, ideal)
+	if fast <= prev {
+		t.Fatalf("fast blocks should increase M: prev=%d fast=%d", prev, fast)
+	}
+}
+
 func TestRetargetMicroStepIsBounded(t *testing.T) {
 	prev := uint64(1_000_000)
 	up := RetargetMicroStep(prev, 1, PoHRetargetTargetSec)

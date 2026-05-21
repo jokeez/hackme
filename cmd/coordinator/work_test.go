@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"math"
+	"strconv"
 	"testing"
 	"time"
 
@@ -752,6 +753,137 @@ func TestPoolMinerCountBoostScalesManyMiners(t *testing.T) {
 	}
 	if b100k > 1.35 {
 		t.Fatalf("boost cap 1.35, got %v", b100k)
+	}
+}
+
+func TestPayoutFoundOnlyDisabledAccruesAttempts(t *testing.T) {
+	wm := newTestWorkManagerForPayout(1.0, false)
+	base, size, _, _, _, okClaim, _ := wm.claim("w-pay0", 0)
+	if !okClaim {
+		t.Fatal("claim failed")
+	}
+	_, reason, payout, _, _ := wm.submit(submitWorkRequest{
+		WorkerID: "w-pay0", BaseNonce: base, BatchSize: size,
+		WorkID: buildWorkID("w-pay0", base, size), Attempts: size, Found: false,
+		ResultHash: "no-hit-hash", HashrateGHS: 5.0,
+	})
+	if reason != "" {
+		t.Fatalf("submit rejected reason=%q", reason)
+	}
+	want := (float64(size) / 1_000_000.0) * 1.0
+	if math.Abs(payout-want) > 1e-12 {
+		t.Fatalf("want %f HMC for %d attempts at 1 HMC/M, got %f", want, size, payout)
+	}
+}
+
+func TestPayoutFoundOnlySkipsAttemptAccrual(t *testing.T) {
+	wm := newTestWorkManagerForPayout(1.0, true)
+	base, size, _, _, _, okClaim, _ := wm.claim("w-pay1", 0)
+	if !okClaim {
+		t.Fatal("claim failed")
+	}
+	_, reason, payout, _, _ := wm.submit(submitWorkRequest{
+		WorkerID: "w-pay1", BaseNonce: base, BatchSize: size,
+		WorkID: buildWorkID("w-pay1", base, size), Attempts: size, Found: false,
+		ResultHash: "no-hit-hash", HashrateGHS: 5.0,
+	})
+	if reason != "" {
+		t.Fatalf("submit rejected reason=%q", reason)
+	}
+	if payout != 0 {
+		t.Fatalf("payout_found_only=1 should skip attempt payout, got %f", payout)
+	}
+}
+
+func TestPayoutSharesNoSystematicLoss(t *testing.T) {
+	wm := newTestWorkManagerForPayout(0.001, false)
+	var sum float64
+	for i := 0; i < 7; i++ {
+		wid := "w-loss-" + strconv.Itoa(i)
+		base, size, _, _, _, okClaim, _ := wm.claim(wid, uint64(i)*2000)
+		if !okClaim {
+			t.Fatalf("claim %s failed", wid)
+		}
+		_, reason, payout, _, _ := wm.submit(submitWorkRequest{
+			WorkerID: wid, BaseNonce: base, BatchSize: size,
+			WorkID: buildWorkID(wid, base, size), Attempts: size, Found: false,
+			ResultHash: "h-" + wid, HashrateGHS: 2.5,
+		})
+		if reason != "" {
+			t.Fatalf("submit %s reason=%q", wid, reason)
+		}
+		sum += payout
+	}
+	st := wm.stats(true)
+	total, _ := st["total_payout_hmc"].(float64)
+	if math.Abs(sum-total) > 1e-12 {
+		t.Fatalf("worker ledger sum %f != pool total_payout_hmc %f", sum, total)
+	}
+	if sum <= 0 {
+		t.Fatal("expected positive pooled payout")
+	}
+}
+
+func TestPoolDifficultyStableAtSteadyHashrate(t *testing.T) {
+	wm := &workManager{
+		targetMod:          4_000_000,
+		targetModMin:       poolTargetModMin,
+		targetModMax:       poolTargetModMax,
+		poolRetarget:       true,
+		poolRetargetMinSec: 1,
+	}
+	now := time.Now().Unix()
+	const poolGH = 12.5
+	const miners = 4
+	converged := false
+	for i := 0; i < 48; i++ {
+		prev := wm.targetMod
+		wm.maybeRetargetPoolLoadLocked(now+int64(i*30), poolGH, miners)
+		if i > 8 && wm.targetMod == prev {
+			converged = true
+			break
+		}
+	}
+	if !converged {
+		t.Fatalf("steady GH/s did not converge within 48 steps, target_mod=%d", wm.targetMod)
+	}
+}
+
+func TestPoolDifficultyRisesOnMinerSurge(t *testing.T) {
+	wm := &workManager{
+		targetMod:          2_000_000,
+		targetModMin:       poolTargetModMin,
+		targetModMax:       poolTargetModMax,
+		poolRetarget:       true,
+		poolRetargetMinSec: 1,
+	}
+	now := time.Now().Unix()
+	wm.maybeRetargetPoolLoadLocked(now, 0.5, 1)
+	low := wm.targetMod
+	wm.maybeRetargetPoolLoadLocked(now+30, 45.0, 18)
+	high := wm.targetMod
+	if high <= low {
+		t.Fatalf("surge should raise target_mod: low=%d high=%d", low, high)
+	}
+	if poolMinerCountBoost(18) <= poolMinerCountBoost(1) {
+		t.Fatal("miner boost should increase with fleet size")
+	}
+}
+
+func newTestWorkManagerForPayout(rewardPerM float64, payoutFoundOnly bool) *workManager {
+	return &workManager{
+		defaultBatch:         1000,
+		targetMod:            997,
+		leaseSec:             30,
+		rewardPerM:           rewardPerM,
+		payoutFoundOnly:      payoutFoundOnly,
+		maxWorkers:           1000,
+		maxActiveLeases:      1000,
+		maxDedupEntries:      1000,
+		active:               make(map[workKey]leaseRecord),
+		worker:               make(map[string]workerPayoutStat),
+		acceptedResultHashes: make(map[string]struct{}),
+		acceptedFoundNonces:  make(map[uint64]struct{}),
 	}
 }
 
