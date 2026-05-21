@@ -1,5 +1,11 @@
 # Архитектура HackMe (MVP)
 
+<div align="center">
+
+**HackMe Network** · `0.1.0-rc11g` · [hackme.tech](https://hackme.tech) · [Telegram](https://t.me/hackme_tech)
+
+</div>
+
 ## Обзор
 
 Один процесс Go поднимает HTTP-сервер. Состояние цепи и кошелька хранится в **SQLite**. Тяжёлые или изолированные вещи: сбор метрик ОС, исполнение **WASM** в отдельном рантайме wazero, фоновый майнер.

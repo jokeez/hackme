@@ -64,6 +64,14 @@ for _ in $(seq 1 60); do
   if curl -fsS "$COORD_URL/health" >/dev/null 2>&1 && curl -fsS "$NODE_URL/api/status" >/dev/null 2>&1; then
     curl -fsS -X POST -H "X-Hackme-Admin-Token: $ADMIN_TOKEN" "$NODE_URL/api/genesis" >/dev/null 2>&1 || true
     echo "[e2e-stack] ready coord=$COORD_URL node=$NODE_URL"
+    if [[ "${E2E_STACK_READY_ONLY:-0}" == "1" ]]; then
+      exit 0
+    fi
+    # Playwright webServer: command must stay alive while tests run.
+    trap 'stop_pid "$LOG_DIR/coordinator.pid"; stop_pid "$LOG_DIR/node.pid"' EXIT INT TERM
+    coord_pid="$(cat "$LOG_DIR/coordinator.pid")"
+    node_pid="$(cat "$LOG_DIR/node.pid")"
+    wait "$coord_pid" "$node_pid" 2>/dev/null || tail -f /dev/null
     exit 0
   fi
   sleep 0.5

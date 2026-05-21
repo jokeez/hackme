@@ -1,6 +1,23 @@
 {
   "items": [
     {
+      "id": "2026-05-21-coordinator-stress-bct",
+      "date": "2026-05-21",
+      "title": "Coordinator stress test passed · Bitcointalk update · MiningPoolStats listing",
+      "summary": "10-minute mega stress: 100 virtual workers, 0% hard errors, no coordinator crash, RAM stable (~12→20 MB), halving at block 2,102,401 verified (0.01→0.005 HMC). Malformed ingress and chaos disconnects handled cleanly. Public pool on hackme.tech — HTTP coordinator (not Stratum). Bitcointalk ANN updated; MiningPoolStats submission in progress.",
+      "tags": ["infrastructure", "pool", "security", "mining"],
+      "impact": "Miners can trust coordinator stability under load; follow the official ANN thread for setup. OpenCL Windows builds (rc11g) and live pool stats unchanged.",
+      "action": "Read the update on Bitcointalk: https://bitcointalk.org/index.php?topic=5583373.0 · Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats · Downloads: https://hackme.tech/downloads.html · Stress harness in repo: scripts/tests/coordinator_mega_stress.sh",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme",
+        "downloads": "https://hackme.tech/downloads.html",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "bitcointalk": "https://bitcointalk.org/index.php?topic=5583373.0",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-21-windows-opencl-rc11g",
       "date": "2026-05-21",
       "title": "Release 0.1.0-rc11g: Windows OpenCL worker (AMD RX 580 full GPU)",

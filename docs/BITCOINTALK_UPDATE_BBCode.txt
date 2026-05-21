@@ -1,0 +1,63 @@
+[b][size=12pt][color=#00d1ff]HackMe Network — May 2026 update[/color][/size][/b]
+[i]Coordinator stress test · public pool live · MiningPoolStats listing · Windows OpenCL (AMD)[/i]
+
+[hr]
+
+[b]Coordinator stress test (10 min, 100 virtual workers)[/b]
+
+We ran an isolated [b]mega stress[/b] against the coordinator core (claim/submit flood, 30s lease boundary burst, [b]50 workers killed mid-flight[/b], [b]1000 malformed[/b] HTTP bodies):
+
+[table]
+[tr][td][b]Hard errors[/b] (5xx, timeouts)[/td][td][b]0%[/b][/td][/tr]
+[tr][td][b]Process crash[/b][/td][td][b]none[/b][/td][/tr]
+[tr][td][b]RAM[/b] (10 min)[/td][td]~12 → ~20 MB — [b]no runaway leak[/b][/td][/tr]
+[tr][td][b]Latency[/b] p50 / p99[/td][td][b]0.9 ms / 10.3 ms[/b][/td][/tr]
+[tr][td][b]Halving[/b] block [mono]2,102,401[/mono][/td][td]reward [b]0.01 → 0.005 HMC[/b] (verified under load)[/td][/tr]
+[tr][td][b]Bad payloads[/b][/td][td][b]1000/1000[/b] fast reject — no CPU hang on parse[/td][/tr]
+[/table]
+
+At unrealistic request rates the pool returns [b]429 backpressure[/b] instead of corrupting leases or payouts. Open-source harness: [mono]scripts/tests/coordinator_mega_stress.sh[/mono] in the repo.
+
+[hr]
+
+[b][color=#39ff14]Mine on the official pool[/color][/b]
+
+[table]
+[tr][td][b]Website[/b][/td][td][url=https://hackme.tech]https://hackme.tech[/url][/td][/tr]
+[tr][td][b]Pool stats API[/b][/td][td][url=https://hackme.tech/pool/coordinator/api/pool/stats].../api/pool/stats[/url][/td][/tr]
+[tr][td][b]Explorer[/b][/td][td][url=https://hackme.tech/pool/explorer]pool/explorer[/url][/td][/tr]
+[tr][td][b]Downloads[/b] (SHA256)[/td][td][url=https://hackme.tech/downloads.html]downloads.html[/url][/td][/tr]
+[tr][td][b]Source[/b][/td][td][url=https://github.com/jokeez/hackme]github.com/jokeez/hackme[/url][/td][/tr]
+[/table]
+
+[b]Important:[/b] HackMe is [b]not Stratum[/b]. You run [mono]hackme-node[/mono] + [mono]workerpoh[/mono]; the worker claims work over HTTP at [mono]/pool/coordinator[/mono].
+
+[list=1]
+[*] Download [b]Windows[/b] [mono]HackMe-Setup-0.1.0-rc11g.exe[/mono] or [b]Linux[/b] bundle — verify [b]SHA256[/b] on the downloads page.
+[*] Map your worker id → [mono]HMC-…[/mono] payout address ([mono]WORKER_PAYOUT_MAP[/mono] / hybrid signer).
+[*] Start the pool worker from the local dashboard ([url=http://127.0.0.1:8080]127.0.0.1:8080[/url] → Mining).
+[*] Track accrual on the dashboard; on-chain settlement after operator batch (see [url=https://hackme.tech/economics-model.html]economics[/url]).
+[/list]
+
+[b]GPU[/b]
+[list]
+[*] [b]Windows / AMD:[/b] OpenCL build + RX 580 rig profile ([mono]workerpoh-opencl.exe[/mono] in rc11g installer).
+[*] [b]Linux / NVIDIA:[/b] CUDA path when driver OK ([mono]workerpoh-cuda[/mono]).
+[*] [b]CPU:[/b] always available fallback.
+[/list]
+
+[hr]
+
+[b]MiningPoolStats[/b]
+We submitted [b]HackMe Official Pool[/b] for review ([i]HTTP coordinator — not TCP Stratum on :3333[/i]). Stats URL for moderators: [url=https://hackme.tech/pool/coordinator/api/pool/stats]api/pool/stats[/url].
+
+[hr]
+
+[b]Security[/b]
+[list]
+[*] Official domain only: [url=https://hackme.tech]hackme.tech[/url]
+[*] No ICO · no token sale
+[*] Responsible disclosure: [url=https://hackme.tech/contacts.html]contacts.html[/url]
+[/list]
+
+[i]Experimental RC — verify payouts on the explorer before scaling. Pool parameters may change with notice on the website.[/i]
