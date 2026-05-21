@@ -42,6 +42,18 @@ if [[ ! -d "$ROOT_DIR/web/site" ]]; then
   exit 2
 fi
 
+if [[ -f "$ROOT_DIR/web/site/assets/news.json" ]]; then
+  echo "[deploy-hackme-site] build news-feed.json (recent items for Telegram/pollers)"
+  python3 - <<'PY' "$ROOT_DIR/web/site/assets/news.json" "$ROOT_DIR/web/site/assets/news-feed.json"
+import json, sys
+src, dst = sys.argv[1], sys.argv[2]
+data = json.load(open(src, encoding="utf-8"))
+items = data.get("items", [])[:12]
+json.dump({"items": items, "feed": "recent"}, open(dst, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
+print(f"[deploy-hackme-site] news-feed items={len(items)}")
+PY
+fi
+
 echo "[deploy-hackme-site] rsync web/site -> ${NODE_SSH}:${NODE_DEPLOY_DIR}/web/site/"
 deploy_ssh_retry_run rsync -az --delete --mkpath \
   "${ROOT_DIR}/web/site/" "${NODE_SSH}:${NODE_DEPLOY_DIR}/web/site/"
