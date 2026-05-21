@@ -1,6 +1,6 @@
 (() => {
   /** Bump together with dist/release_<VERSION>/ and scripts/release/make_release_bundle.sh */
-  const RELEASE_VER = "0.1.0-rc11e";
+  const RELEASE_VER = "0.1.0-rc11f";
 
   /** Sub-1 TH/s → GH/s (matches dashboard / explorer pool strip). */
   function fmtPoolHashrateTHS(ths, mock) {
