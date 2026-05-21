@@ -4,7 +4,7 @@
 	<meta charset="UTF-8">
 	<!-- Technical tokens (worker IDs, GPU names, API paths) use class notranslate so browser translators do not rewrite them. -->
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>HackMe — Pool &amp; Command Node</title>
+	<title>HackMe — Mining Ecosystem</title>
 	<link rel="icon" href="/favicon.ico" type="image/x-icon">
 	<link rel="icon" href="/assets/logo-hex.png" type="image/png">
 	{{ .DesktopAdminTokenScript }}
@@ -511,6 +511,146 @@
 			.hdr-ascii { display: block; }
 		}
 		body.ui-compact .hdr-ascii { display: none !important; }
+		/* Ecosystem home — multi-coin mining launcher */
+		.eco-hero {
+			position: relative;
+			overflow: hidden;
+			border-radius: 0.75rem;
+			padding: 1.75rem 1.5rem 1.5rem;
+			background:
+				radial-gradient(ellipse 80% 60% at 10% 0%, rgba(0,209,255,0.14), transparent 55%),
+				radial-gradient(ellipse 60% 50% at 90% 20%, rgba(57,255,20,0.1), transparent 50%),
+				linear-gradient(145deg, rgba(12,18,28,0.97), rgba(4,8,14,0.99));
+			border: 1px solid rgba(0,209,255,0.28);
+			box-shadow: 0 0 48px rgba(0,209,255,0.08), inset 0 1px 0 rgba(255,255,255,0.04);
+		}
+		.eco-hero::after {
+			content: '';
+			position: absolute;
+			inset: 0;
+			background: linear-gradient(105deg, transparent 40%, rgba(0,209,255,0.03) 50%, transparent 60%);
+			pointer-events: none;
+		}
+		.eco-stat-pill {
+			display: flex;
+			flex-direction: column;
+			gap: 0.25rem;
+			padding: 0.85rem 1rem;
+			border-radius: 0.5rem;
+			border: 1px solid rgba(255,255,255,0.08);
+			background: rgba(0,0,0,0.35);
+		}
+		.eco-table-wrap {
+			border-radius: 0.65rem;
+			overflow: hidden;
+			border: 1px solid rgba(0,209,255,0.22);
+			box-shadow: 0 18px 50px rgba(0,0,0,0.45);
+		}
+		.eco-coins-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+		.eco-coins-table thead {
+			background: linear-gradient(180deg, rgba(0,209,255,0.12), rgba(0,0,0,0.5));
+			position: sticky;
+			top: 0;
+			z-index: 2;
+		}
+		.eco-coins-table thead th {
+			padding: 0.85rem 0.75rem;
+			text-align: left;
+			font-family: 'Orbitron', sans-serif;
+			font-size: 9px;
+			font-weight: 600;
+			letter-spacing: 0.14em;
+			text-transform: uppercase;
+			color: rgba(168,180,196,0.95);
+			border-bottom: 1px solid rgba(0,209,255,0.2);
+			white-space: nowrap;
+		}
+		.eco-coins-table tbody tr {
+			border-bottom: 1px solid rgba(255,255,255,0.05);
+			transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+		}
+		.eco-coins-table tbody tr.eco-row-live {
+			cursor: pointer;
+		}
+		.eco-coins-table tbody tr.eco-row-live:hover {
+			background: linear-gradient(90deg, rgba(0,209,255,0.08), rgba(57,255,20,0.05));
+			box-shadow: inset 3px 0 0 rgba(57,255,20,0.75);
+		}
+		.eco-coins-table tbody tr.eco-row-planned {
+			opacity: 0.55;
+		}
+		.eco-coins-table tbody td {
+			padding: 0.9rem 0.75rem;
+			vertical-align: middle;
+			color: #d1d9e4;
+		}
+		.eco-coin-cell {
+			display: flex;
+			align-items: center;
+			gap: 0.75rem;
+			min-width: 10rem;
+		}
+		.eco-coin-icon {
+			width: 2.25rem;
+			height: 2.25rem;
+			border-radius: 9999px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-family: 'Orbitron', sans-serif;
+			font-size: 10px;
+			font-weight: 700;
+			flex-shrink: 0;
+			border: 1px solid rgba(255,255,255,0.12);
+			box-shadow: 0 0 16px rgba(0,209,255,0.25);
+		}
+		.eco-coin-icon img { width: 1.5rem; height: 1.5rem; object-fit: contain; }
+		.eco-coin-icon.live {
+			background: linear-gradient(135deg, rgba(0,209,255,0.35), rgba(57,255,20,0.2));
+			border-color: rgba(57,255,20,0.45);
+		}
+		.eco-coin-icon.planned {
+			background: rgba(255,255,255,0.04);
+			box-shadow: none;
+		}
+		.eco-badge-live {
+			font-size: 8px;
+			letter-spacing: 0.12em;
+			text-transform: uppercase;
+			padding: 2px 7px;
+			border-radius: 3px;
+			border: 1px solid rgba(57,255,20,0.45);
+			color: #39ff14;
+			background: rgba(57,255,20,0.08);
+		}
+		.eco-badge-soon {
+			font-size: 8px;
+			letter-spacing: 0.12em;
+			text-transform: uppercase;
+			padding: 2px 7px;
+			border-radius: 3px;
+			border: 1px solid rgba(255,176,32,0.35);
+			color: #ffb020;
+			background: rgba(255,176,32,0.06);
+		}
+		.eco-mine-btn {
+			font-size: 9px;
+			letter-spacing: 0.12em;
+			text-transform: uppercase;
+			padding: 0.35rem 0.65rem;
+			border-radius: 4px;
+			border: 1px solid rgba(57,255,20,0.4);
+			color: #39ff14;
+			background: rgba(57,255,20,0.08);
+		}
+		.eco-coins-table .num { font-variant-numeric: tabular-nums; color: #eef2f7; }
+		.eco-coins-table .muted { color: #6b7280; }
+		@media (max-width: 1100px) {
+			.eco-coins-table .eco-hide-md { display: none; }
+		}
+		@media (max-width: 768px) {
+			.eco-coins-table .eco-hide-sm { display: none; }
+		}
 	</style>
 </head>
 	<body class="min-h-screen bg-grid overflow-x-hidden">
@@ -528,8 +668,12 @@
 				<span class="tag-pill">LOCAL</span>
 			</div>
 			<nav class="space-y-0.5 flex-1 text-[12px] lg:text-[13px]" id="sidebar-nav">
-				<button type="button" data-tab="overview" class="sidebar-link active w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-sm text-matrix">
-					<svg class="w-5 h-5 text-neon shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+				<button type="button" data-tab="ecosystem" class="sidebar-link active w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-sm text-matrix">
+					<svg class="w-5 h-5 text-neon shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+					Ecosystem
+				</button>
+				<button type="button" data-tab="overview" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-sm text-gray-500">
+					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
 					Overview
 				</button>
 				<button type="button" data-tab="analytics" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-sm text-gray-500">
@@ -633,16 +777,18 @@
 					<button type="button" id="btn-quick-poll" class="quick-btn">Pause polling</button>
 					<button type="button" id="btn-ui-compact" class="quick-btn">Compact</button>
 					<button type="button" id="btn-ui-reduced" class="quick-btn mobile-compact-hide">Reduced effects</button>
+					<button type="button" id="btn-tab-ecosystem" class="quick-btn">Ecosystem</button>
 					<button type="button" id="btn-tab-overview" class="quick-btn">Overview</button>
 					<button type="button" id="btn-tab-mining" class="quick-btn">Workers</button>
 					<button type="button" id="btn-tab-hardware" class="quick-btn mobile-compact-hide">Hardware</button>
 					<button type="button" id="btn-tab-orders" class="quick-btn mobile-compact-hide">Orders</button>
 					<button type="button" id="btn-tab-fuzz" class="quick-btn mobile-compact-hide">Fuzz</button>
 					<button type="button" id="btn-open-explorer" class="quick-btn">Explorer</button>
-					<span class="text-[10px] text-gray-500 ml-auto font-mono hidden lg:inline">Shortcuts: <span class="kbd">g</span> then <span class="kbd">o/m/h/c/w/r/t/f</span> · <span class="kbd">?</span></span>
+					<span class="text-[10px] text-gray-500 ml-auto font-mono hidden lg:inline">Shortcuts: <span class="kbd">g</span> then <span class="kbd">e/o/m/h/c/w/r/t/f</span> · <span class="kbd">?</span></span>
 				</div>
 				<nav class="tab-bar -mx-4 lg:-mx-8 px-2 lg:px-6 flex flex-wrap gap-0 overflow-x-auto" id="tab-bar" aria-label="Main sections">
-					<button type="button" class="tab-btn active" data-tab="overview">Overview</button>
+					<button type="button" class="tab-btn active" data-tab="ecosystem">Ecosystem</button>
+					<button type="button" class="tab-btn" data-tab="overview">Overview</button>
 					<button type="button" class="tab-btn" data-tab="analytics">Analytics</button>
 					<button type="button" class="tab-btn" data-tab="mining">Workers</button>
 					<button type="button" class="tab-btn" data-tab="hardware">Hardware tune</button>
@@ -664,8 +810,71 @@
 					<p id="desktop-status-banner-body" class="text-gray-200/95"></p>
 					<div id="desktop-status-banner-actions" class="mt-2 flex flex-wrap gap-2"></div>
 				</div>
+				<!-- ECOSYSTEM — main home: coins & mining entry -->
+				<div id="panel-ecosystem" class="tab-panel active max-w-[1600px] mx-auto space-y-5">
+					<section class="eco-hero">
+						<div class="relative z-10 flex flex-wrap items-end justify-between gap-4">
+							<div class="max-w-2xl">
+								<p class="font-display text-[10px] tracking-[0.4em] text-neon uppercase mb-2">HackMe network</p>
+								<h1 class="font-display text-2xl lg:text-3xl font-bold text-white tracking-wide mb-2">Mining ecosystem</h1>
+								<p class="text-sm text-gray-400 leading-relaxed max-w-xl">Choose a coin pool to mine. Live pools pull coordinator stats in real time; upcoming assets are staged for new chain launches.</p>
+							</div>
+							<div class="flex flex-wrap gap-2 text-[10px] font-mono">
+								<span class="px-2 py-1 rounded border border-matrix/35 text-matrix">live pools: <span id="eco-live-count">—</span></span>
+								<span class="px-2 py-1 rounded border border-neon/35 text-neon">Σ hash: <span id="eco-total-hash">—</span></span>
+								<button type="button" id="btn-eco-refresh" class="px-3 py-1.5 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
+							</div>
+						</div>
+					</section>
+					<div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+						<div class="eco-stat-pill">
+							<span class="text-[9px] uppercase tracking-[0.2em] text-gray-500">Active miners</span>
+							<span id="eco-kpi-miners" class="font-display text-xl text-matrix tabular-nums">—</span>
+						</div>
+						<div class="eco-stat-pill">
+							<span class="text-[9px] uppercase tracking-[0.2em] text-gray-500">Pool difficulty (M)</span>
+							<span id="eco-kpi-target-mod" class="font-display text-xl text-warn tabular-nums">—</span>
+						</div>
+						<div class="eco-stat-pill">
+							<span class="text-[9px] uppercase tracking-[0.2em] text-gray-500">Reward / M</span>
+							<span id="eco-kpi-reward-m" class="font-display text-xl text-neon tabular-nums">—</span>
+						</div>
+						<div class="eco-stat-pill">
+							<span class="text-[9px] uppercase tracking-[0.2em] text-gray-500">Chain height</span>
+							<span id="eco-kpi-height" class="font-display text-xl text-gray-100 tabular-nums">—</span>
+						</div>
+					</div>
+					<div class="card card-glow rounded-lg p-0 overflow-hidden border-neon/25">
+						<div class="px-4 py-3 border-b border-white/10 flex flex-wrap items-center justify-between gap-2 bg-black/40">
+							<h2 class="font-display text-xs font-semibold tracking-[0.22em] text-gray-300 uppercase">Coin pools</h2>
+							<p class="text-[10px] text-gray-500 font-mono">Click a live row → Workers · mine coordinator ranges</p>
+						</div>
+						<div class="eco-table-wrap overflow-x-auto max-h-[min(70vh,640px)] overflow-y-auto">
+							<table class="eco-coins-table" id="ecosystem-coins-table">
+								<thead>
+									<tr>
+										<th>Pool</th>
+										<th>Pool hashrate</th>
+										<th class="eco-hide-sm">Blocks</th>
+										<th class="eco-hide-md" title="Found hits ÷ issued ranges on coordinator (not classic block luck)">Hit rate</th>
+										<th>Network hashrate</th>
+										<th>Network difficulty</th>
+										<th class="eco-hide-sm">Est. price</th>
+										<th class="eco-hide-sm">Block reward</th>
+										<th></th>
+									</tr>
+								</thead>
+								<tbody id="ecosystem-coins-body">
+									<tr><td colspan="9" class="px-4 py-8 text-center text-gray-500">Loading pools…</td></tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+					<p class="text-[10px] text-gray-600 font-mono text-center">Planned coins show roadmap slots — not mineable until chain + coordinator pool goes live.</p>
+				</div>
+
 				<!-- OVERVIEW -->
-				<div id="panel-overview" class="tab-panel active max-w-[1600px] mx-auto space-y-5">
+				<div id="panel-overview" class="tab-panel max-w-[1600px] mx-auto space-y-5">
 					<div class="card card-glow rounded-lg p-3 border-neon/20">
 						<div class="flex flex-wrap items-center justify-between gap-2">
 							<div class="flex flex-wrap items-center gap-2 text-[10px] font-mono">
@@ -2062,6 +2271,7 @@
 				</div>
 				<div class="card rounded p-3 border-white/10">
 					<p class="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Tabs</p>
+					<p><span class="kbd">g</span> + <span class="kbd">e</span> ecosystem (home)</p>
 					<p><span class="kbd">g</span> + <span class="kbd">o</span> overview</p>
 					<p><span class="kbd">g</span> + <span class="kbd">m</span> mining</p>
 					<p><span class="kbd">g</span> + <span class="kbd">h</span> hardware</p>
@@ -2142,7 +2352,7 @@
 		let logEventSource = null;
 		let gpuPowerLimitLocked = false;
 		let lastMiningLen = 0;
-		let currentTab = 'overview';
+		let currentTab = 'ecosystem';
 		let selectedFuzzCampaignId = '';
 		let fuzzCampaignPanelWired = false;
 		let ordersAdvanced = false;
@@ -2188,6 +2398,53 @@
 			};
 		}
 		const POOL_TARGET_MOD_FLOOR = 2000000;
+		/** Ecosystem registry — extend when new chains/pools launch. */
+		const ECOSYSTEM_COINS = [
+			{
+				id: 'hmc',
+				symbol: 'HMC',
+				name: 'HackMe Coin',
+				status: 'live',
+				chainId: 'hackme-dev-mainnet',
+				iconHtml: '<img src="/assets/logo-hex.png" alt="HMC" />',
+				accent: 'live',
+				mineTab: 'mining',
+				roadmap: null,
+			},
+			{
+				id: 'hmc-alpha',
+				symbol: 'HMC-α',
+				name: 'HackMe Alpha',
+				status: 'planned',
+				chainId: '—',
+				iconHtml: 'α',
+				accent: 'planned',
+				mineTab: null,
+				roadmap: 'Q3 · testnet PoH',
+			},
+			{
+				id: 'hmc-orders',
+				symbol: 'ORD',
+				name: 'Orders lane',
+				status: 'planned',
+				chainId: '—',
+				iconHtml: '◇',
+				accent: 'planned',
+				mineTab: 'orders',
+				roadmap: 'Orders + PoH hybrid',
+			},
+			{
+				id: 'hmc-shard',
+				symbol: 'SHD',
+				name: 'Shard pool',
+				status: 'planned',
+				chainId: '—',
+				iconHtml: '⬡',
+				accent: 'planned',
+				mineTab: null,
+				roadmap: 'Multi-pool coordinator',
+			},
+		];
 		/** True when UI should treat coordinator as source of truth for M and payouts. */
 		function isPoolWorkContext() {
 			const st = latestStatus || {};
@@ -2364,7 +2621,7 @@
 
 		function scheduleGlobalMetricsRefresh(force) {
 			const now = Date.now();
-			if (currentTab !== 'overview' && currentTab !== 'analytics') return;
+			if (currentTab !== 'ecosystem' && currentTab !== 'overview' && currentTab !== 'analytics') return;
 			if (!force && (now - lastGlobalMetricsMs) < GLOBAL_METRICS_INTERVAL_MS) return;
 			lastGlobalMetricsMs = now;
 			void refreshGlobalMetrics(lastMetricsPayload);
@@ -4873,6 +5130,108 @@
 			};
 		}
 		/** When global/hive metrics report 0 miners/hash but coordinator work stats are live, keep pool strip truthful. */
+		function formatEcoDifficulty(m) {
+			const n = Number(m) || 0;
+			if (n <= 0) return '—';
+			if (n >= 1e9) return fmt(n / 1e9, 3) + ' G';
+			if (n >= 1e6) return fmt(n / 1e6, 3) + ' M';
+			if (n >= 1e3) return fmt(n / 1e3, 2) + ' K';
+			return fmtUInt(Math.floor(n));
+		}
+		function liveHmcCoinMetrics() {
+			const ws = latestWorkStats || {};
+			const st = latestStatus || {};
+			const poolGh = resolvePoolAggregateGh(ws);
+			const tm = effectiveMiningTargetMod(null, ws).mod;
+			const miners = Math.max(
+				Object.keys(ws.workers || {}).length,
+				Number(ws.workers_count || 0),
+				Number((latestNetworkStats && latestNetworkStats.total_miners) || 0)
+			);
+			const height = Number(st.canonical_tip_height || st.tip_height || latestGlobalChainHeight || 0);
+			const blocks = height > 0 ? height : 0;
+			const rewardM = Number(ws.reward_per_m || 0);
+			const baseReward = Number(ws.base_reward_hmc || 0.01);
+			const foundHits = Number(ws.found_hits || 0);
+			const issued = Number(ws.issued_ranges || 0);
+			const poolLuck = (issued > 0 && foundHits > 0) ? Math.min(100, (foundHits / issued) * 100) : null;
+			return {
+				poolGh,
+				poolGhLabel: poolGh > 0 ? poolHashLabelFromGh(poolGh, '') : '—',
+				networkGhLabel: poolGh > 0 ? poolHashLabelFromGh(poolGh, '') : '—',
+				blocks: blocks > 0 ? fmtUInt(blocks) : '—',
+				poolLuck: poolLuck != null ? fmt(poolLuck, 1) + '%' : '—',
+				targetMod: tm > 0 ? fmtUInt(tm) : '—',
+				rewardM: rewardM > 0 ? fmt(rewardM, 6) : '—',
+				blockReward: baseReward > 0 ? fmt(baseReward, 4) + ' HMC' : '—',
+				price: '$1.00',
+				miners,
+			};
+		}
+		function renderEcosystemCoins() {
+			const tb = $('ecosystem-coins-body');
+			if (!tb) return;
+			const live = ECOSYSTEM_COINS.filter((c) => c.status === 'live');
+			const planned = ECOSYSTEM_COINS.filter((c) => c.status !== 'live');
+			const hmc = liveHmcCoinMetrics();
+			if ($('eco-live-count')) $('eco-live-count').textContent = fmtUInt(live.length);
+			if ($('eco-total-hash')) $('eco-total-hash').textContent = hmc.poolGhLabel;
+			if ($('eco-kpi-miners')) $('eco-kpi-miners').textContent = fmtUInt(hmc.miners);
+			if ($('eco-kpi-target-mod')) $('eco-kpi-target-mod').textContent = hmc.targetMod;
+			if ($('eco-kpi-reward-m')) $('eco-kpi-reward-m').textContent = hmc.rewardM;
+			if ($('eco-kpi-height')) $('eco-kpi-height').textContent = hmc.blocks;
+			tb.innerHTML = '';
+			const renderRow = (coin, metrics) => {
+				const isLive = coin.status === 'live';
+				const tr = document.createElement('tr');
+				tr.className = isLive ? 'eco-row-live' : 'eco-row-planned';
+				if (isLive && coin.mineTab) {
+					tr.title = 'Open ' + coin.name + ' mining (Workers tab)';
+					tr.addEventListener('click', () => openEcosystemCoin(coin));
+				}
+				const badge = isLive
+					? '<span class="eco-badge-live">Live</span>'
+					: '<span class="eco-badge-soon">Soon</span>';
+				const sub = isLive ? (coin.chainId || '') : (coin.roadmap || 'planned');
+				const action = isLive
+					? '<span class="eco-mine-btn">Mine →</span>'
+					: '<span class="muted">—</span>';
+				const m = metrics || {};
+				tr.innerHTML =
+					'<td><div class="eco-coin-cell">' +
+					'<div class="eco-coin-icon ' + coin.accent + '">' + coin.iconHtml + '</div>' +
+					'<div><div class="font-display text-sm text-white tracking-wide">' + escapeHtml(coin.name) + '</div>' +
+					'<div class="text-[10px] text-gray-500">' + escapeHtml(coin.symbol) + ' · ' + escapeHtml(sub) + ' ' + badge + '</div></div></div></td>' +
+					'<td class="num">' + escapeHtml(m.poolGhLabel || '—') + '</td>' +
+					'<td class="num eco-hide-sm">' + escapeHtml(m.blocks || '—') + '</td>' +
+					'<td class="num eco-hide-md">' + escapeHtml(m.poolLuck || '—') + '</td>' +
+					'<td class="num">' + escapeHtml(m.networkGhLabel || '—') + '</td>' +
+					'<td class="num">' + escapeHtml(m.targetMod || '—') + '</td>' +
+					'<td class="num eco-hide-sm muted">' + escapeHtml(m.price || '—') + '</td>' +
+					'<td class="num eco-hide-sm">' + escapeHtml(m.blockReward || '—') + '</td>' +
+					'<td>' + action + '</td>';
+				tb.appendChild(tr);
+			};
+			live.forEach((coin) => {
+				renderRow(coin, coin.id === 'hmc' ? hmc : null);
+			});
+			planned.forEach((coin) => {
+				renderRow(coin, {
+					poolGhLabel: '—',
+					blocks: '—',
+					poolLuck: '—',
+					networkGhLabel: '—',
+					targetMod: '—',
+					price: '—',
+					blockReward: '—',
+				});
+			});
+		}
+		function openEcosystemCoin(coin) {
+			if (!coin || coin.status !== 'live') return;
+			if (coin.mineTab === 'mining') switchTab('mining');
+			else if (coin.mineTab) switchTab(coin.mineTab);
+		}
 		function reconcilePoolStripWithWorkStats() {
 			const needStrip = $('pool-strip-miners') || $('pool-strip-hash') || $('mining-strip-miners') || $('mining-strip-th');
 			if (!needStrip) return;
@@ -4991,6 +5350,7 @@
 				if (gtot) gtot.textContent = '—';
 			}
 			reconcilePoolStripWithWorkStats();
+			try { renderEcosystemCoins(); } catch (_) {}
 			renderMinerLookupResult();
 			void refreshOperatorHealth();
 			try { updateAnalyticsPowCompact(); } catch (_) {}
@@ -7637,6 +7997,7 @@
 				}
 				try { syncOverviewHeightCard(null, null); } catch (_) {}
 				try { updateOrdersWalletGate(); } catch (_) {}
+				try { renderEcosystemCoins(); } catch (_) {}
 			} catch (_) {}
 		}
 
@@ -8676,7 +9037,7 @@
 
 		function switchTab(name) {
 			currentTab = name;
-			if (['overview', 'analytics', 'mining', 'hardware', 'chain', 'wallet', 'reports', 'orders', 'fuzz'].includes(name)) {
+			if (['ecosystem', 'overview', 'analytics', 'mining', 'hardware', 'chain', 'wallet', 'reports', 'orders', 'fuzz'].includes(name)) {
 				history.replaceState(null, '', '#' + name);
 				try { localStorage.setItem(DASH_LAST_TAB_KEY, name); } catch (_) {}
 			}
@@ -8712,6 +9073,11 @@
 			}
 			if (name === 'wallet') {
 				window.setTimeout(() => scheduleWalletEarningsRefresh(true), 400);
+			}
+			if (name === 'ecosystem') {
+				scheduleGlobalMetricsRefresh(true);
+				try { renderEcosystemCoins(); } catch (_) {}
+				if (typeof refreshWorkStats === 'function') void refreshWorkStats(true);
 			}
 			if (name === 'overview') {
 				scheduleGlobalMetricsRefresh(true);
@@ -8828,7 +9194,7 @@
 			if (pendingGoto && ev.key !== 'g' && ev.key !== 'G') {
 				pendingGoto = false;
 				const k = ev.key.toLowerCase();
-				const map = { o: 'overview', a: 'analytics', m: 'mining', h: 'hardware', c: 'chain', w: 'wallet', r: 'reports', t: 'orders', f: 'fuzz' };
+				const map = { e: 'ecosystem', o: 'overview', a: 'analytics', m: 'mining', h: 'hardware', c: 'chain', w: 'wallet', r: 'reports', t: 'orders', f: 'fuzz' };
 				if (map[k]) {
 					ev.preventDefault();
 					switchTab(map[k]);
@@ -9028,7 +9394,7 @@
 			pollSeq += 1;
 			const wantWallet = currentTab === 'wallet' || currentTab === 'overview';
 			const wantWalletCore = wantWallet;
-			const wantPoolStats = currentTab === 'mining' || currentTab === 'overview' || currentTab === 'analytics';
+			const wantPoolStats = currentTab === 'ecosystem' || currentTab === 'mining' || currentTab === 'overview' || currentTab === 'analytics';
 			try {
 				const jobs = [
 					(typeof refreshStatus === 'function') ? refreshStatus() : Promise.resolve(),
@@ -9189,7 +9555,13 @@
 					saveUIPrefs();
 					updateQuickButtons();
 				});
+				if ($('btn-tab-ecosystem')) $('btn-tab-ecosystem').addEventListener('click', () => switchTab('ecosystem'));
 				if ($('btn-tab-overview')) $('btn-tab-overview').addEventListener('click', () => switchTab('overview'));
+				if ($('btn-eco-refresh')) $('btn-eco-refresh').addEventListener('click', () => {
+					void refreshWorkStats(true);
+					scheduleGlobalMetricsRefresh(true);
+					try { renderEcosystemCoins(); } catch (_) {}
+				});
 				if ($('btn-tab-mining')) $('btn-tab-mining').addEventListener('click', () => switchTab('mining'));
 				if ($('btn-tab-hardware')) $('btn-tab-hardware').addEventListener('click', () => switchTab('hardware'));
 				if ($('btn-tab-orders')) $('btn-tab-orders').addEventListener('click', () => switchTab('orders'));
@@ -9271,7 +9643,7 @@
 				if ($('btn-deployment-sync-chain')) {
 					$('btn-deployment-sync-chain').addEventListener('click', () => switchTab('chain'));
 				}
-				const allowedTabs = ['overview', 'analytics', 'mining', 'hardware', 'chain', 'wallet', 'reports', 'orders', 'fuzz'];
+				const allowedTabs = ['ecosystem', 'overview', 'analytics', 'mining', 'hardware', 'chain', 'wallet', 'reports', 'orders', 'fuzz'];
 				let initTab = String((location.hash || '').replace(/^#/, '').replace(/\/$/, '') || '');
 				if (!initTab || !allowedTabs.includes(initTab)) {
 					try {
@@ -9279,7 +9651,7 @@
 						if (t && allowedTabs.includes(t)) initTab = t;
 					} catch (_) {}
 				}
-				if (!initTab) initTab = 'overview';
+				if (!initTab) initTab = 'ecosystem';
 				switchTab(initTab);
 				document.addEventListener('visibilitychange', () => {
 					if (!uiPollingPaused) scheduleNextPoll();

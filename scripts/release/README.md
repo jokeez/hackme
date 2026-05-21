@@ -54,6 +54,19 @@ pwsh -File scripts/release/windows/build_installer.ps1 -Version 0.1.0-rc11d
 
 The wizard installs to `Program Files\HackMe`, creates Start menu + desktop shortcuts, writes registry keys, runs `setup_hackme_miner.bat` (pool token + `hackme.env`). ZIP remains as an advanced fallback.
 
+## HackMe OS (Linux mining rigs)
+
+Bootable live ISO — CPU isolation, RT scheduler, GPU performance mode, auto rig profile, public pool worker.
+
+```bash
+export HACKME_RELEASE_POOL_MINER_TOKEN="$(cat .secrets/hackme_coordinator_worker_token)"
+VERSION=0.1.0-rc11g bash scripts/release/iso/build_hackme_miner_iso.sh
+```
+
+→ `dist/release_<VERSION>/HackMe-OS-<VERSION>-amd64.iso`
+
+Details: [docs/HACKME_OS.md](../../docs/HACKME_OS.md).
+
 ## Publish site + downloads on VPS
 
 From a machine with SSH access:

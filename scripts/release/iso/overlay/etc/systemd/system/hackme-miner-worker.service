@@ -1,0 +1,31 @@
+[Unit]
+Description=HackMe OS pool worker (max priority → hackme.tech)
+After=network-online.target hackme-os-tune.service hackme-miner-firstboot.service
+Requires=hackme-os-tune.service
+Wants=network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=6
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/hackme
+EnvironmentFile=-/etc/hackme/miner.env
+EnvironmentFile=-/var/lib/hackme/miner.env
+EnvironmentFile=-/var/lib/hackme/rig.env
+ExecStart=/opt/hackme/scripts/release/iso/run-miner-worker.sh
+Restart=always
+RestartSec=3
+Nice=-20
+CPUSchedulingPolicy=fifo
+CPUSchedulingPriority=90
+IOSchedulingClass=realtime
+IOSchedulingPriority=0
+LimitNOFILE=65535
+LimitMEMLOCK=infinity
+LimitRTPRIO=99
+AmbientCapabilities=CAP_SYS_NICE CAP_IPC_LOCK
+
+[Install]
+WantedBy=multi-user.target

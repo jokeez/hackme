@@ -1,0 +1,16 @@
+[Unit]
+Description=HackMe OS — CPU isolation, scheduler, GPU performance mode
+DefaultDependencies=no
+After=local-fs.target
+Before=network-pre.target hackme-miner-firstboot.service hackme-miner-worker.service
+Conflicts=shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/hackme/scripts/release/iso/hackme-os-tune.sh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=sysinit.target

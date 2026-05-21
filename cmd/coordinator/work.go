@@ -846,25 +846,62 @@ func (m *workManager) recordDrop(reason string) {
 	m.mu.Unlock()
 }
 
-func (m *workManager) markSubmitOutcome(workerID, reason string, now int64) {
+// submitRejectHTTPStatus maps coordinator reject reasons to HTTP status for miners.
+func submitRejectHTTPStatus(reason string) int {
+	switch reason {
+	case "invalid_signature", "invalid_pubkey", "pubkey_address_mismatch", "missing_signature_fields",
+		"signature_required", "found_signature_required", "replay", "duplicate_signed_payload",
+		"unsupported_sig_alg":
+		return http.StatusForbidden
+	case "work_id_mismatch", "unknown_or_already_closed_range", "range_leased_to_another_worker",
+		"found_nonce_out_of_range", "result_hash_required_for_found", "duplicate_found_nonce":
+		return http.StatusBadRequest
+	default:
+		if reason != "" {
+			return http.StatusConflict
+		}
+		return http.StatusOK
+	}
+}
+
+func (m *workManager) markSubmitOutcome(workerID, ipKey, reason string, now int64) {
 	if reason == "" {
 		return
 	}
+	workerStrike := false
+	ipStrike := false
 	switch reason {
-	case "unknown_or_already_closed_range", "work_id_mismatch", "range_leased_to_another_worker", "found_nonce_out_of_range", "result_hash_required_for_found", "duplicate_found_nonce", "invalid_signature", "invalid_pubkey", "pubkey_address_mismatch", "missing_signature_fields", "signature_required", "found_signature_required", "duplicate_signed_payload":
-		// Penalize clearly bad / abusive submit patterns (replay is benign after worker restart).
+	case "unknown_or_already_closed_range", "work_id_mismatch", "range_leased_to_another_worker",
+		"found_nonce_out_of_range", "result_hash_required_for_found", "duplicate_found_nonce",
+		"invalid_signature", "invalid_pubkey", "pubkey_address_mismatch", "missing_signature_fields",
+		"signature_required", "found_signature_required", "duplicate_signed_payload", "unsupported_sig_alg":
+		workerStrike = true
+		ipStrike = true
+	case "replay":
+		// Replay: penalize attacking IP; do not ban worker id (legitimate after restart).
+		ipStrike = true
 	default:
 		return
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	s := m.abuse[workerID]
-	s.BadStrikes++
-	if s.BadStrikes >= m.badStrikesToBan {
-		s.BannedUntil = now + m.banSec
-		s.BadStrikes = 0
+	applyStrike := func(s workerAbuseState) workerAbuseState {
+		if !workerStrike && !ipStrike {
+			return s
+		}
+		s.BadStrikes++
+		if s.BadStrikes >= m.badStrikesToBan {
+			s.BannedUntil = now + m.banSec
+			s.BadStrikes = 0
+		}
+		return s
 	}
-	m.abuse[workerID] = s
+	if workerStrike && workerID != "" {
+		m.abuse[workerID] = applyStrike(m.abuse[workerID])
+	}
+	if ipStrike && strings.TrimSpace(ipKey) != "" {
+		m.ipAbuse[ipKey] = applyStrike(m.ipAbuse[ipKey])
+	}
 }
 
 // clearWorkerAbuse removes rate-limit / ban state for a worker (and optional IP key).
@@ -1702,7 +1739,7 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 		latMs := uint64(time.Since(start).Milliseconds())
 		wm.ackLatencyMsSum.Add(latMs)
 		wm.ackLatencySamples.Add(1)
-		wm.markSubmitOutcome(workerID, reason, now)
+		wm.markSubmitOutcome(workerID, ipKey, reason, now)
 		if reason != "" {
 			wm.recordDrop(reason)
 		}
@@ -1714,7 +1751,7 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		okResp := true
 		if reason != "" {
-			w.WriteHeader(http.StatusConflict)
+			w.WriteHeader(submitRejectHTTPStatus(reason))
 			okResp = false
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
