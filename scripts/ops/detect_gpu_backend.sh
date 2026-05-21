@@ -24,8 +24,12 @@ if truthy "${HACKME_FORCE_OPENCL:-0}"; then
   exit 0
 fi
 
-# NVIDIA: native CUDA when toolkit binary exists.
-if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
+# NVIDIA: CUDA only when driver is healthy (NVML/library mismatch → use OpenCL or CPU).
+nvidia_driver_ok() {
+  command -v nvidia-smi >/dev/null 2>&1 || return 1
+  nvidia-smi -L >/dev/null 2>&1
+}
+if nvidia_driver_ok; then
   root="${HACKME_REPO_ROOT:-}"
   if [[ -z "$root" ]]; then
     root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -37,16 +41,29 @@ if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
 fi
 
 # AMD / Intel / other: OpenCL (Mesa rusticl, ROCm, Intel compute runtime).
+opencl_gpu_count() {
+  if ! command -v clinfo >/dev/null 2>&1; then
+    echo 0
+    return
+  fi
+  clinfo 2>/dev/null | awk '/Number of devices/ {print $4; exit}'
+}
+
 has_opencl_gpu() {
+  local n
   if command -v clinfo >/dev/null 2>&1; then
-    clinfo 2>/dev/null | awk 'BEGIN{ok=0} /Device Type[[:space:]]+GPU/{ok=1} END{exit ok?0:1}' && return 0
+    n="$(opencl_gpu_count)"
+    if [[ -n "$n" && "$n" -gt 0 ]]; then
+      return 0
+    fi
+    return 1
   fi
   local f v
   for f in /sys/class/drm/card*/device/vendor; do
     [[ -f "$f" ]] || continue
     v="$(cat "$f" 2>/dev/null || true)"
     case "$v" in
-      0x1002|4098|0x8086|32902) return 0 ;; # AMD, Intel
+      0x1002|4098|0x8086|32902|0x10de|4318) return 0 ;; # AMD, Intel, NVIDIA
     esac
   done
   return 1

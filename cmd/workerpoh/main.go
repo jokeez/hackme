@@ -347,6 +347,10 @@ func pickSearcher(preferredBackend string, preferredDevice int, disableGPU bool)
 			if preferredBackend != "" && preferredBackend != "auto" {
 				order = []string{strings.ToLower(preferredBackend)}
 			}
+			if strings.EqualFold(strings.TrimSpace(os.Getenv("HACKME_GPU_BACKEND")), "opencl") ||
+				strings.TrimSpace(os.Getenv("HACKME_FORCE_OPENCL")) == "1" {
+				order = []string{"opencl"}
+			}
 			for _, want := range order {
 				for _, a := range accs {
 					if strings.EqualFold(strings.TrimSpace(a.Backend()), want) {

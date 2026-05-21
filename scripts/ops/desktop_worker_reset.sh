@@ -133,9 +133,45 @@ start_cuda_worker_direct() {
 
 stop_all_workers
 
+nvidia_driver_ok() {
+  command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1
+}
+
 if [[ "$GPU_BACKEND" == "cuda" ]]; then
-  start_cuda_worker_direct
-  exit $?
+  if nvidia_driver_ok; then
+    start_cuda_worker_direct && exit $?
+  fi
+  echo "[worker-reset] WARN: NVIDIA driver unhealthy (NVML mismatch?) — falling back from cuda" >&2
+  if [[ -x "$ROOT_DIR/bin/workerpoh-opencl" ]] && bash "$ROOT_DIR/scripts/ops/detect_gpu_backend.sh" 2>/dev/null | grep -qx opencl; then
+    GPU_BACKEND=opencl
+    export HACKME_GPU_BACKEND=opencl
+    export HACKME_FORCE_OPENCL=1
+  else
+    GPU_BACKEND=cpu
+    export HACKME_GPU_BACKEND=cpu
+    export HACKME_GPU_DISABLE=1
+  fi
+fi
+
+if [[ "$GPU_BACKEND" == "opencl" && -x "$ROOT_DIR/bin/workerpoh-opencl" ]]; then
+  load_miner_seed_hex
+  export COORD_URL="$COORD_URL"
+  export COORD_TOKEN="${HACKME_POOL_COORDINATOR_TOKEN}"
+  export WORKER_ID BATCH_SIZE
+  export WORKER_BIN="$ROOT_DIR/bin/workerpoh-opencl"
+  export HACKME_GPU_BACKEND=opencl
+  export HACKME_FORCE_OPENCL=1
+  export HACKME_DESKTOP_GPU_POOL=1
+  export SKIP_WORKER_BUILD=1
+  export HACKME_WORKER_SIGN_SUBMITS=1
+  safe_wid="${WORKER_ID//[^a-zA-Z0-9_-]/_}"
+  export HACKME_MINER_NONCE_FILE="$ROOT_DIR/logs/miner_submit_nonce.${safe_wid}.seq"
+  nohup bash "$ROOT_DIR/scripts/ops/worker_autostart.sh" >>"$ROOT_DIR/logs/worker_participant.log" 2>&1 &
+  echo "[worker-reset] opencl autostart pid=$! (bin/workerpoh-opencl)"
+  sleep 6
+  pgrep -af workerpoh-opencl && exit 0
+  echo "[worker-reset] opencl failed — see logs/worker_participant.log" >&2
+  tail -n 20 "$ROOT_DIR/logs/worker_participant.log" >&2 || true
 fi
 
 echo "[worker-reset] starting single worker id=$WORKER_ID coord=$COORD_URL (batch=$BATCH_SIZE backend=$GPU_BACKEND)"

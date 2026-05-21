@@ -2197,6 +2197,18 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 			workerEnv = append(workerEnv, "WORKER_BIN="+cudaBin)
 		}
 	}
+	if strings.EqualFold(gpuBackend, "opencl") {
+		oclBin := filepath.Join(repoRoot, "bin", "workerpoh-opencl")
+		if st, err := os.Stat(oclBin); err == nil && !st.IsDir() {
+			workerEnv = append(workerEnv, "WORKER_BIN="+oclBin, "HACKME_FORCE_OPENCL=1")
+		}
+	}
+	if strings.EqualFold(gpuBackend, "cpu") || strings.TrimSpace(os.Getenv("HACKME_GPU_DISABLE")) == "1" {
+		cpuBin := filepath.Join(repoRoot, "bin", "workerpoh-cpu")
+		if st, err := os.Stat(cpuBin); err == nil && !st.IsDir() {
+			workerEnv = append(workerEnv, "WORKER_BIN="+cpuBin)
+		}
+	}
 	if strings.TrimSpace(os.Getenv("HACKME_DESKTOP_GPU_POOL")) == "1" {
 		workerEnv = append(workerEnv, "HACKME_DESKTOP_GPU_POOL=1")
 	}

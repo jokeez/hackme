@@ -16,8 +16,15 @@ func hostGPUInventory() gpuhost.HostGPUReport {
 }
 
 func nvidiaSMILinesOK() bool {
-	out, err := exec.Command("nvidia-smi", "-L").Output()
-	return err == nil && len(out) > 0
+	out, err := exec.Command("nvidia-smi", "-L").CombinedOutput()
+	if err != nil {
+		return false
+	}
+	s := strings.ToLower(string(out))
+	if strings.Contains(s, "driver/library version mismatch") || strings.Contains(s, "failed to initialize nvml") {
+		return false
+	}
+	return len(out) > 0
 }
 
 // resolveAutoGPUBackend picks cuda vs opencl vs cpu from host hardware (Stage 1 — no manual vendor flag).
