@@ -5,7 +5,14 @@
     <link>https://hackme.tech/news.html</link>
     <description>Official HackMe Network release, infrastructure, economics, and security updates.</description>
     <language>en-us</language>
-    <lastBuildDate>Thu, 21 May 2026 04:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Thu, 21 May 2026 10:00:00 GMT</lastBuildDate>
+    <item>
+      <title>Release 0.1.0-rc11g: Windows OpenCL worker for AMD RX 580</title>
+      <link>https://hackme.tech/news.html#2026-05-21-windows-opencl-rc11g</link>
+      <guid>https://hackme.tech/news.html#2026-05-21-windows-opencl-rc11g</guid>
+      <pubDate>Thu, 21 May 2026 10:00:00 GMT</pubDate>
+      <description>workerpoh-opencl.exe ships in Windows installer; AMD GPU mining ~0.12+ GH/s vs CPU ~0.02 GH/s. HackMe-Setup-0.1.0-rc11g.exe on downloads.</description>
+    </item>
     <item>
       <title>Release 0.1.0-rc11f: Windows CP1251 fix + pool token repair</title>
       <link>https://hackme.tech/news.html#2026-05-21-windows-installer-rc11f</link>

@@ -2168,10 +2168,17 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 		gpuBackend = strings.TrimSpace(os.Getenv("HACKME_GPU_BACKEND"))
 	}
 	if gpuBackend == "" || strings.EqualFold(gpuBackend, "auto") {
+		if runtime.GOOS == "windows" {
+			if wp, err := resolveWorkerpohExePath(); err == nil && strings.Contains(strings.ToLower(filepath.Base(wp)), "opencl") {
+				gpuBackend = "opencl"
+			}
+		}
 		cudaBin := filepath.Join(repoRoot, "bin", "workerpoh-cuda")
-		if st, err := os.Stat(cudaBin); err == nil && !st.IsDir() {
-			if _, err := exec.Command("nvidia-smi", "-L").Output(); err == nil {
-				gpuBackend = "cuda"
+		if gpuBackend == "" || strings.EqualFold(gpuBackend, "auto") {
+			if st, err := os.Stat(cudaBin); err == nil && !st.IsDir() {
+				if _, err := exec.Command("nvidia-smi", "-L").Output(); err == nil {
+					gpuBackend = "cuda"
+				}
 			}
 		}
 	}

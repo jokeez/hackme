@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-05-21-windows-opencl-rc11g",
+      "date": "2026-05-21",
+      "title": "Release 0.1.0-rc11g: Windows OpenCL worker (AMD RX 580 full GPU)",
+      "summary": "Windows bundle now ships workerpoh-opencl.exe (mingw cross-build). AMD Radeon rigs use native OpenCL instead of CPU-only ~0.02 GH/s. Tested on RX 580 2048SP: ~0.12+ GH/s in pool (vs ~0.021 CPU). Rig profile keeps opencl when the binary is present.",
+      "tags": ["release", "mining", "windows", "opencl", "gpu"],
+      "impact": "Windows AMD miners get real GPU mining in one installer; pool token and amd_rx580_2048sp profile unchanged.",
+      "action": "Download HackMe-Setup-0.1.0-rc11g.exe · Existing installs: copy workerpoh-opencl.exe next to hackme.exe and set HACKME_GPU_BACKEND=opencl, or reinstall rc11g.",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme",
+        "downloads": "https://hackme.tech/downloads.html",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-21-windows-installer-rc11f",
       "date": "2026-05-21",
       "title": "Release 0.1.0-rc11f: Windows CP1251 fix + pool token repair",

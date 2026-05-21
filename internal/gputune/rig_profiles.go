@@ -1,6 +1,8 @@
 package gputune
 
 import (
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -43,7 +45,7 @@ var rigProfiles = []RigProfile{
 			"HACKME_GPU_TEMP_PAUSE_C":         "78",
 			"HACKME_GPU_TEMP_RESUME_C":        "72",
 			"HACKME_DESKTOP_GPU_POOL":         "1",
-			"HACKME_CUDA_CALIBRATE_GHS":       "0.12",
+			"HACKME_CUDA_CALIBRATE_GHS":       "3.5",
 		},
 		ManualOC: RigManualOC{
 			Vendor:     "AMD",
@@ -55,7 +57,7 @@ var rigProfiles = []RigProfile{
 			Notes: []string{
 				"2048SP often has tighter memory — raise mem clock only after 30+ min stability in FurMark/OCCT.",
 				"Target: <80°C hotspot, no compute artifacts in worker log.",
-				"Windows zip without workerpoh-opencl.exe mines CPU until OpenCL build is shipped — GH/s stays ~0.05–0.15.",
+				"Windows: use workerpoh-opencl.exe (release bundle) for full RX 580 GH/s; CPU-only ~0.02–0.15 GH/s.",
 			},
 		},
 	},
@@ -198,6 +200,19 @@ func AdaptRigProfileForHost(p RigProfile) RigProfile {
 }
 
 // adaptRigProfileForHost adjusts env for platform limits (e.g. Windows without OpenCL binary).
+func windowsHasOpenCLWorkerExe() bool {
+	exe, err := os.Executable()
+	if err != nil {
+		return false
+	}
+	if sym, err := filepath.EvalSymlinks(exe); err == nil && sym != "" {
+		exe = sym
+	}
+	wp := filepath.Join(filepath.Dir(exe), "workerpoh-opencl.exe")
+	st, err := os.Stat(wp)
+	return err == nil && !st.IsDir()
+}
+
 func adaptRigProfileForHost(p RigProfile) RigProfile {
 	if runtime.GOOS != "windows" {
 		return p
@@ -207,8 +222,8 @@ func adaptRigProfileForHost(p RigProfile) RigProfile {
 	for k, v := range p.Env {
 		env[k] = v
 	}
-	// OpenCL binary may be absent in Windows zip — auto still tries CPU path with tuned batch.
-	if strings.EqualFold(env["HACKME_GPU_BACKEND"], "opencl") {
+	// OpenCL binary may be absent in older Windows zips — keep opencl when workerpoh-opencl.exe is shipped.
+	if strings.EqualFold(env["HACKME_GPU_BACKEND"], "opencl") && !windowsHasOpenCLWorkerExe() {
 		env["HACKME_GPU_BACKEND"] = "auto"
 		if _, ok := env["HACKME_WORKER_BATCH_SIZE"]; ok {
 			env["HACKME_WORKER_BATCH_SIZE"] = "1048576"

@@ -1,0 +1,20 @@
+# Cross-build workerpoh-opencl.exe for Windows (AMD/Intel/NVIDIA via OpenCL ICD).
+FROM golang:1.24-bookworm
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 \
+    opencl-headers ocl-icd-opencl-dev ca-certificates git \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+ENV CGO_ENABLED=1
+ENV GOOS=windows
+ENV GOARCH=amd64
+ENV CC=x86_64-w64-mingw32-gcc
+ENV CXX=x86_64-w64-mingw32-g++
+# Khronos CL headers for mingw (do not add host glibc -I/usr/include to CGO_CFLAGS).
+RUN mkdir -p /usr/x86_64-w64-mingw32/include && cp -r /usr/include/CL /usr/x86_64-w64-mingw32/include/
+RUN x86_64-w64-mingw32-dlltool -d scripts/release/windows/mingw-opencl.def -l libOpenCL.dll.a -D OpenCL.dll \
+    && cp libOpenCL.dll.a /usr/x86_64-w64-mingw32/lib/
+RUN go build -tags opencl -trimpath -ldflags "-s -w" -o /out/workerpoh-opencl.exe ./cmd/workerpoh
