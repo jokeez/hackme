@@ -1230,6 +1230,9 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	// continuously adjust difficulty from observed work; we approximate via submit heartbeats).
 	retNow := time.Now().Unix()
 	poolGH, online, _ := m.poolOnlineSummaryUnlocked(120, retNow)
+	if smoothed := m.smoothPoolGHSample(poolGH); smoothed > poolGH {
+		poolGH = smoothed
+	}
 	m.maybeRetargetPoolLoadLocked(retNow, poolGH, online)
 	return req.Found, "", payout, signerAddr, signerAddr != ""
 }
@@ -1498,6 +1501,10 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 		out["target_mod_load_hint"] = hintStat
 	}
 	out["target_mod_load_capped"] = hintStat > maxStat && maxStat > 0
+	out["pool_hashrate_gh_s"] = poolGHStat
+	if m.poolGHSmoothed > poolGHStat {
+		out["pool_hashrate_gh_s_smoothed"] = m.poolGHSmoothed
+	}
 	// Per-worker payout summary is public pool transparency; miner UIs need it without admin token.
 	workers := make(map[string]workerPayoutStat, len(m.worker))
 	for k, v := range m.worker {
