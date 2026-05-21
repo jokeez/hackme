@@ -1329,10 +1329,15 @@ func (m *workManager) pruneAbuseStateLocked(now int64) {
 	}
 }
 
+const poolHashrateStaleSec int64 = 300 // include GPU rigs with 90s leases + submit jitter (120s hid Windows ~3 GH/s)
+
 // poolOnlineSummaryUnlocked aggregates live hashrate; caller must hold m.mu.
 func (m *workManager) poolOnlineSummaryUnlocked(staleSec, now int64) (poolGH float64, online int, rigs []map[string]any) {
 	if m == nil {
 		return 0, 0, nil
+	}
+	if staleSec < poolHashrateStaleSec {
+		staleSec = poolHashrateStaleSec
 	}
 	for id, st := range m.worker {
 		if st.LastSeenUnix <= 0 || (now-st.LastSeenUnix) > staleSec {
@@ -1353,6 +1358,23 @@ func (m *workManager) poolOnlineSummaryUnlocked(staleSec, now int64) (poolGH flo
 		})
 	}
 	return poolGH, online, rigs
+}
+
+// poolHashrateFromWorkersUnlocked sums hashrate_gh_s for all workers with a recent last_seen (caller holds m.mu).
+func (m *workManager) poolHashrateFromWorkersUnlocked(now int64) float64 {
+	if m == nil {
+		return 0
+	}
+	var sum float64
+	for _, st := range m.worker {
+		if st.LastSeenUnix <= 0 || (now-st.LastSeenUnix) > poolHashrateStaleSec {
+			continue
+		}
+		if gh := st.LastHashrateGHS; gh > 0 {
+			sum += gh
+		}
+	}
+	return sum
 }
 
 // poolOnlineSummary aggregates live hashrate from recent worker submits (public pool rigs).
@@ -1441,7 +1463,11 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 	ordersActive := m.lastOrdersActive
 	lastProbe := m.lastOrdersProbeUnix
 	m.schedulerMu.Unlock()
-	poolGHStat, onlineStat, _ := m.poolOnlineSummaryUnlocked(120, now)
+	poolGHStat, onlineStat, _ := m.poolOnlineSummaryUnlocked(poolHashrateStaleSec, now)
+	workersGH := m.poolHashrateFromWorkersUnlocked(now)
+	if workersGH > poolGHStat {
+		poolGHStat = workersGH
+	}
 	hintStat := poolLoadHintUnclamped(poolGHStat, onlineStat, m.targetModMinOrDefault())
 	minStat := m.targetModMinOrDefault()
 	maxStat := m.targetModMaxOrDefault()
@@ -1502,6 +1528,8 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 	}
 	out["target_mod_load_capped"] = hintStat > maxStat && maxStat > 0
 	out["pool_hashrate_gh_s"] = poolGHStat
+	out["hashrate"] = poolGHStat * 1e9
+	out["hashrate_hs"] = poolGHStat * 1e9
 	if m.poolGHSmoothed > poolGHStat {
 		out["pool_hashrate_gh_s_smoothed"] = m.poolGHSmoothed
 	}

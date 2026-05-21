@@ -2809,10 +2809,6 @@
 		}
 		function poolGhFromWorkStats(ws) {
 			if (!ws || typeof ws !== 'object') return 0;
-			let gh = sumActiveRigsGh(ws.active_rigs);
-			if (gh > 0) return Math.min(gh, 5000);
-			const poolField = Number(ws.pool_hashrate_gh_s || 0);
-			if (poolField > 0) return Math.min(poolField, 5000);
 			const workers = ws.workers;
 			if (workers && typeof workers === 'object') {
 				let sum = 0;
@@ -2822,6 +2818,10 @@
 				}
 				if (sum > 0) return Math.min(sum, 5000);
 			}
+			let gh = sumActiveRigsGh(ws.active_rigs);
+			if (gh > 0) return Math.min(gh, 5000);
+			const poolField = Number(ws.pool_hashrate_gh_s || 0);
+			if (poolField > 0) return Math.min(poolField, 5000);
 			const fromDelta = poolGhFromAttemptsDelta(ws);
 			if (fromDelta > 0) return fromDelta;
 			return 0;
@@ -4896,11 +4896,10 @@
 			if (rigsGh > 0) {
 				applyPoolHashDisplayGh(rigsGh, '*');
 				if ($('hive-note') && !$('hive-note').textContent) {
-					$('hive-note').textContent = 'pool strip: Σ active_rigs hashrate from coordinator (*)';
+					$('hive-note').textContent = 'pool strip: Σ worker hashrate from coordinator (*)';
 				}
 				return;
 			}
-			if (hiveTH > 0 && hiveTH <= 10 && hiveTH * 1000 >= 0.01) return;
 		}
 		function renderHive(ts, metrics) {
 			if (!$('hive-total-miners')) return;

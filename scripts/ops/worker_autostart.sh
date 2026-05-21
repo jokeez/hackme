@@ -182,6 +182,13 @@ backend="$(detect_gpu_backend)"
 # Pin native CUDA binary when configured (avoid stale opencl path after toolkit install).
 if [[ "$backend" == "cuda" && -x "${ROOT_DIR}/bin/workerpoh-cuda" ]]; then
   export WORKER_BIN="${ROOT_DIR}/bin/workerpoh-cuda"
+  if ! nvidia-smi -L >/dev/null 2>&1; then
+    echo "[worker-autostart] WARN: CUDA requested but nvidia-smi failed — using cpu" >&2
+    backend=cpu
+    export HACKME_GPU_BACKEND=cpu
+    export HACKME_GPU_DISABLE=1
+    unset WORKER_BIN
+  fi
 fi
 bin_path="$(choose_worker_bin "$backend")"
 build_worker_if_needed "$bin_path" "$backend"
