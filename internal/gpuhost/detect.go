@@ -9,7 +9,7 @@ type HostGPUReport struct {
 	HasNVIDIA          bool     `json:"has_nvidia"`
 	HasAMD             bool     `json:"has_amd"`
 	HasIntel           bool     `json:"has_intel"`
-	Hybrid             bool     `json:"hybrid"` // NVIDIA + AMD discrete
+	Hybrid             bool     `json:"hybrid"`            // NVIDIA + AMD discrete
 	SuggestedBackend   string   `json:"suggested_backend"` // cuda | opencl | cpu
 	SuggestedProfileID string   `json:"suggested_profile_id,omitempty"`
 	VendorSummary      string   `json:"vendor_summary"`

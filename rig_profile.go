@@ -156,19 +156,19 @@ func (a *app) handleRigProfilesDetect(w http.ResponseWriter, r *http.Request) {
 	repoRoot := resolveWorkerRepoRoot(strings.TrimSpace(a.dataDir))
 	backend := resolveAutoGPUBackend(repoRoot)
 	writeJSON(w, map[string]any{
-		"gpu_names":          names,
-		"detected":           ok,
-		"profile":            p,
-		"profile_id":         p.ID,
-		"platform_note":      rigPlatformNote(),
-		"host":               rep,
-		"suggested_backend":  backend,
-		"has_nvidia":         rep.HasNVIDIA,
-		"has_amd":            rep.HasAMD,
-		"has_intel":          rep.HasIntel,
-		"hybrid":             rep.Hybrid,
-		"vendor_summary":     rep.VendorSummary,
-		"notes":              rep.Notes,
+		"gpu_names":         names,
+		"detected":          ok,
+		"profile":           p,
+		"profile_id":        p.ID,
+		"platform_note":     rigPlatformNote(),
+		"host":              rep,
+		"suggested_backend": backend,
+		"has_nvidia":        rep.HasNVIDIA,
+		"has_amd":           rep.HasAMD,
+		"has_intel":         rep.HasIntel,
+		"hybrid":            rep.Hybrid,
+		"vendor_summary":    rep.VendorSummary,
+		"notes":             rep.Notes,
 	})
 }
 

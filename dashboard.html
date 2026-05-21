@@ -488,6 +488,29 @@
 			font-size: 10px;
 			font-family: 'JetBrains Mono', ui-monospace, monospace;
 		}
+		.hdr-ascii {
+			display: none;
+			margin-right: 0.25rem;
+			padding: 0.35rem 0.5rem 0.2rem;
+			border-radius: 0.35rem;
+			border: 1px solid rgba(0,209,255,0.22);
+			background: linear-gradient(135deg, rgba(0,209,255,0.06), rgba(57,255,20,0.04));
+			box-shadow: 0 0 24px rgba(0,209,255,0.08);
+		}
+		.hdr-ascii pre {
+			margin: 0;
+			font-family: 'JetBrains Mono', ui-monospace, monospace;
+			font-size: 5.5px;
+			line-height: 1.06;
+			letter-spacing: 0.02em;
+			color: rgba(0,209,255,0.92);
+			text-shadow: 0 0 12px rgba(0,209,255,0.35);
+			white-space: pre;
+		}
+		@media (min-width: 1024px) {
+			.hdr-ascii { display: block; }
+		}
+		body.ui-compact .hdr-ascii { display: none !important; }
 	</style>
 </head>
 	<body class="min-h-screen bg-grid overflow-x-hidden">
@@ -556,7 +579,22 @@
 						<button type="button" id="btn-sidebar-toggle" class="lg:hidden p-2 rounded border border-neon/30 text-neon hover:bg-neon/10" aria-label="Open menu" aria-expanded="false">
 							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16"/></svg>
 						</button>
-						<span class="text-[10px] text-gray-600 uppercase tracking-[0.35em]">System</span>
+						<div class="hdr-ascii" aria-hidden="true" title="HackMe Network">
+							<pre>HACKME
+██╗  ██╗ █████╗  ██████╗██╗  ██╗███╗   ███╗███████╗
+██║  ██║██╔══██╗██╔════╝██║ ██╔╝████╗ ████║██╔════╝
+███████║███████║██║     █████╔╝ ██╔████╔██║█████╗
+██╔══██║██╔══██║██║     ██╔═██╗ ██║╚██╔╝██║██╔══╝
+██║  ██║██║  ██║╚██████╗██║  ██╗██║ ╚═╝ ██║███████╗
+╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝
+███╗   ██╗███████╗████████╗██╗    ██╗ ██████╗ ██████╗ ██╗  ██╗
+████╗  ██║██╔════╝╚══██╔══╝██║    ██║██╔═══██╗██╔══██╗██║ ██╔╝
+██╔██╗ ██║█████╗     ██║   ██║ █╗ ██║██║   ██║██████╔╝█████╔╝
+██║╚██╗██║██╔══╝     ██║   ██║███╗██║██║   ██║██╔══██╗██╔═██╗
+██║ ╚████║███████╗   ██║   ╚███╔███╔╝╚██████╔╝██║  ██║██║  ██╗
+╚═╝  ╚═══╝╚══════╝   ╚═╝    ╚══╝╚══╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝</pre>
+						</div>
+						<span class="text-[10px] text-gray-600 uppercase tracking-[0.35em] hidden xl:inline">System</span>
 						<div class="flex items-center gap-2 font-display text-xs font-semibold">
 							<span id="hdr-status" class="text-matrix tracking-widest">ONLINE</span>
 							<span class="text-neon/40">/</span>

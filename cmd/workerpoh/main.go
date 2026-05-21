@@ -254,6 +254,18 @@ func workerClaimCooldownMS(mode string) int {
 	return ms
 }
 
+// effectiveClaimCooldownMS aligns worker pacing with coordinator per-GH rate caps (~2/min when gh < 1).
+func effectiveClaimCooldownMS(mode string, ghs float64) int {
+	ms := workerClaimCooldownMS(mode)
+	if mode == "gpu" && ghs > 0 && ghs < 1.0 {
+		const subGHMin = 25000
+		if ms < subGHMin {
+			return subGHMin
+		}
+	}
+	return ms
+}
+
 func envIntMs(envKey string, fallback int) int {
 	v := strings.TrimSpace(os.Getenv(envKey))
 	if v == "" {
@@ -871,7 +883,7 @@ func main() {
 		}
 		pushWorkSnapshot(pushCL, *coordURL, *token, *workerID, workerName, ghs, subWrap.Accepted, okSubmits)
 		fmt.Printf("submit ok found=%v batch=%d mod=%d ghs=%.6f inst_ghs=%.2f\n", found, cr.BatchSize, cr.TargetMod, ghs, instGHS)
-		if ms := workerClaimCooldownMS(mode); ms > 0 {
+		if ms := effectiveClaimCooldownMS(mode, ghs); ms > 0 {
 			time.Sleep(time.Duration(ms) * time.Millisecond)
 		}
 	}

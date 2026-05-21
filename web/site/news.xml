@@ -5,7 +5,14 @@
     <link>https://hackme.tech/news.html</link>
     <description>Official HackMe Network release, infrastructure, economics, and security updates.</description>
     <language>en-us</language>
-    <lastBuildDate>Thu, 21 May 2026 10:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Thu, 21 May 2026 14:30:00 GMT</lastBuildDate>
+    <item>
+      <title>Coordinator stress test passed · Bitcointalk update · MiningPoolStats listing</title>
+      <link>https://hackme.tech/news.html#2026-05-21-coordinator-stress-bct</link>
+      <guid>https://hackme.tech/news.html#2026-05-21-coordinator-stress-bct</guid>
+      <pubDate>Thu, 21 May 2026 14:30:00 GMT</pubDate>
+      <description>10-min stress: 100 workers, 0% hard errors, stable RAM, halving block 2,102,401 verified. Public pool hackme.tech (HTTP coordinator). Bitcointalk ANN updated; MPS listing in progress.</description>
+    </item>
     <item>
       <title>Release 0.1.0-rc11g: Windows OpenCL worker for AMD RX 580</title>
       <link>https://hackme.tech/news.html#2026-05-21-windows-opencl-rc11g</link>

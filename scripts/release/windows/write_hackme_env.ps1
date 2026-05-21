@@ -66,13 +66,13 @@ switch ($RigProfile) {
     "amd_rx580_2048sp" {
         if ($GpuBackend -eq "cuda") { $GpuBackend = "auto" }
         if ($hasOpenCLBin -and ($GpuBackend -eq "auto" -or $GpuBackend -eq "opencl")) { $GpuBackend = "opencl" }
-        $batch = 1048576; $chunk = 524288; $searchMs = 4500; $claimMs = 200
+        $batch = 1048576; $chunk = 524288; $searchMs = 4500; $claimMs = 28000
         $tempPause = 78; $tempResume = 72
         # No fixed CALIBRATE_GHS — worker measures OpenCL kernel time.
     }
     "amd_rx580_generic" {
         if ($hasOpenCLBin -and ($GpuBackend -eq "auto" -or $GpuBackend -eq "opencl")) { $GpuBackend = "opencl" }
-        $batch = 2097152; $chunk = 1048576; $searchMs = 4000; $claimMs = 150
+        $batch = 2097152; $chunk = 1048576; $searchMs = 4000; $claimMs = 28000
         $tempPause = 80; $tempResume = 74
     }
 }

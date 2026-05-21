@@ -1,5 +1,11 @@
 # Модель сети HackMe: VPS, пул, P2P
 
+<div align="center">
+
+**HackMe Network** · `0.1.0-rc11g` · [Pool](https://hackme.tech/pool/explorer) · [Telegram](https://t.me/hackme_tech)
+
+</div>
+
 Кратко для операторов и майнеров: **кто пишет блоки**, **как участвуют ПК**, **зачем P2P** и **как связаны награда за блок и выплаты пула**. Детали API — [`docs/API.md`](API.md), экономика — [`docs/ECONOMICS_DASHBOARD.md`](ECONOMICS_DASHBOARD.md).
 
 ---

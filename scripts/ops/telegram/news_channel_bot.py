@@ -60,14 +60,24 @@ def env_truthy(name: str, default: bool) -> bool:
 def load_json_url(url: str, timeout_sec: int, max_retries: int) -> Dict[str, Any]:
     """Fetch JSON with small exponential backoff (CDN / TLS flakes)."""
     last_err: Exception | None = None
+    fetch_url = url
+    if "?" not in fetch_url:
+        fetch_url = f"{fetch_url.rstrip('/')}?_ts={int(time.time())}"
     for attempt in range(1, max(1, max_retries) + 1):
         req = urllib.request.Request(
-            url,
-            headers={"User-Agent": "hackme-news-bot/2.1"},
+            fetch_url,
+            headers={
+                "User-Agent": "hackme-news-bot/2.2",
+                "Accept": "application/json",
+                "Accept-Encoding": "identity",
+            },
         )
         try:
             with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
-                return json.loads(resp.read().decode("utf-8"))
+                raw = resp.read()
+                if len(raw) < 32:
+                    raise ValueError(f"feed too short ({len(raw)} bytes)")
+                return json.loads(raw.decode("utf-8"))
         except Exception as e:  # noqa: BLE001
             last_err = e
             if attempt < max_retries:

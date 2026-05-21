@@ -23,7 +23,7 @@ type RigProfile struct {
 	ID          string            `json:"id"`
 	Label       string            `json:"label"`
 	Description string            `json:"description"`
-	GPUMatch    []string          `json:"gpu_match"` // substrings on lowercased GPU name (OR unless MatchAll)
+	GPUMatch    []string          `json:"gpu_match"`           // substrings on lowercased GPU name (OR unless MatchAll)
 	MatchAll    bool              `json:"match_all,omitempty"` // all GPUMatch needles required (e.g. RX 580 + 2048)
 	Env         map[string]string `json:"env"`
 	ManualOC    RigManualOC       `json:"manual_oc"`
@@ -43,7 +43,7 @@ var rigProfiles = []RigProfile{
 			"HACKME_WORKER_BATCH_SIZE":        "1048576",
 			"GPU_CHUNK":                       "524288",
 			"SEARCH_TIMEOUT_MS":               "4500",
-			"HACKME_WORKER_CLAIM_COOLDOWN_MS": "150",
+			"HACKME_WORKER_CLAIM_COOLDOWN_MS": "28000",
 			"HACKME_GPU_TEMP_PAUSE_C":         "78",
 			"HACKME_GPU_TEMP_RESUME_C":        "72",
 			"HACKME_DESKTOP_GPU_POOL":         "1",
@@ -74,7 +74,7 @@ var rigProfiles = []RigProfile{
 			"HACKME_WORKER_BATCH_SIZE":        "2097152",
 			"GPU_CHUNK":                       "1048576",
 			"SEARCH_TIMEOUT_MS":               "5000",
-			"HACKME_WORKER_CLAIM_COOLDOWN_MS": "120",
+			"HACKME_WORKER_CLAIM_COOLDOWN_MS": "28000",
 			"HACKME_GPU_TEMP_PAUSE_C":         "80",
 			"HACKME_GPU_TEMP_RESUME_C":        "74",
 			"HACKME_DESKTOP_GPU_POOL":         "1",
@@ -102,7 +102,7 @@ var rigProfiles = []RigProfile{
 			"HACKME_WORKER_BATCH_SIZE":        "2097152",
 			"GPU_CHUNK":                       "1048576",
 			"SEARCH_TIMEOUT_MS":               "4000",
-			"HACKME_WORKER_CLAIM_COOLDOWN_MS": "100",
+			"HACKME_WORKER_CLAIM_COOLDOWN_MS": "28000",
 			"HACKME_GPU_TEMP_PAUSE_C":         "80",
 			"HACKME_GPU_TEMP_RESUME_C":        "74",
 			"HACKME_DESKTOP_GPU_POOL":         "1",
@@ -196,7 +196,7 @@ var rigProfiles = []RigProfile{
 			"HACKME_WORKER_BATCH_SIZE":        "4194304",
 			"GPU_CHUNK":                       "4194304",
 			"SEARCH_TIMEOUT_MS":               "2200",
-			"HACKME_WORKER_CLAIM_COOLDOWN_MS":  "0",
+			"HACKME_WORKER_CLAIM_COOLDOWN_MS": "0",
 			"HACKME_GPU_TEMP_PAUSE_C":         "80",
 			"HACKME_GPU_TEMP_RESUME_C":        "73",
 			"HACKME_DESKTOP_GPU_POOL":         "1",
