@@ -785,7 +785,7 @@
 						<div class="card card-glow kpi-stat-card rounded-lg border-warn/20 bg-warn/5">
 							<p class="kpi-label text-[10px] uppercase tracking-[0.28em] mb-2">Difficulty (M)</p>
 							<p id="kpi-poh-difficulty" class="font-display text-xl lg:text-2xl font-bold text-warn tabular-nums">—</p>
-							<p class="text-[10px] text-gray-500 mt-2 font-mono">Pool / PoH M · ~30 s/block target</p>
+							<p id="kpi-poh-difficulty-sub" class="text-[10px] text-gray-500 mt-2 font-mono">Pool M from coordinator when mining pool work</p>
 						</div>
 						<div class="card card-glow kpi-stat-card rounded-lg border-matrix/25 cursor-pointer hover:border-matrix/50" id="kpi-balance-card" title="Open Wallet tab">
 							<p class="kpi-label text-[10px] uppercase tracking-[0.28em] mb-2">Balance</p>
@@ -2315,17 +2315,19 @@
 		let latestCanonicalChainHeight = 0;
 		let lastStagingJoinEnvExport = '';
 		let pollSeq = 0;
+		let workStatsPollSeq = 0;
 		let lastHeavyPollSeq = -1;
 		let pollInFlight = false;
 		let pollTimer = null;
-		const POLL_INTERVAL_MS = 8000;
-		const POLL_INTERVAL_WALLET_MS = 4000;
-		const POLL_INTERVAL_HIDDEN_MS = 45000;
+		const POLL_INTERVAL_MS = 12000;
+		const POLL_INTERVAL_WALLET_MS = 6000;
+		const POLL_INTERVAL_HIDDEN_MS = 60000;
 		const WALLET_EARNINGS_INTERVAL_MS = 55000;
-		const WORK_STATS_FETCH_MS = 8000;
-		const GLOBAL_METRICS_INTERVAL_MS = 90000;
-		const METRICS_SNAPSHOT_INTERVAL_MS = 30000;
-		const METRICS_ANALYTICS_INTERVAL_MS = 12000;
+		const WORK_STATS_FETCH_MS = 3500;
+		const WORK_STATS_DETAIL_EVERY = 5;
+		const GLOBAL_METRICS_INTERVAL_MS = 120000;
+		const METRICS_SNAPSHOT_INTERVAL_MS = 45000;
+		const METRICS_ANALYTICS_INTERVAL_MS = 20000;
 		const METRICS_FETCH_TIMEOUT_MS = 6000;
 		const GLOBAL_METRICS_FETCH_TIMEOUT_MS = 12000;
 		let lastWalletEarningsMs = 0;
@@ -3639,8 +3641,10 @@
 		function computeMiningInsightJS(attempts, targetMod, attemptsPerSec, rewardHMC, poolWork) {
 			let M = Math.floor(Number(targetMod) || 0);
 			if (poolWork) {
-				if (M < POOL_TARGET_MOD_FLOOR) M = POOL_TARGET_MOD_FLOOR;
-			} else if (M < 251) {
+				const eff = effectiveMiningTargetMod(null, latestWorkStats || lastGoodWorkStats || {});
+				if (eff.mod >= POOL_TARGET_MOD_FLOOR) M = eff.mod;
+				else if (M < POOL_TARGET_MOD_FLOOR) M = POOL_TARGET_MOD_FLOOR;
+			} else if (!poolWork && M < 251) {
 				M = 251;
 			}
 			const rate = Number(attemptsPerSec) || 0;
@@ -5908,9 +5912,10 @@
 			if ($('lbl-load1')) $('lbl-load1').textContent = Number(x.load_avg_1) >= 0 ? fmt(Number(x.load_avg_1), 2) : '—';
 			if ($('lbl-poh-est')) {
 				const poolCtx = isPoolWorkContext();
+				const effTmLbl = effectiveMiningTargetMod(x, latestWorkStats || lastGoodWorkStats || {});
 				const ins = computeMiningInsightJS(
 					Number(x.mining_attempts_total || 0),
-					Number(x.mining_target_mod || lastGlobalTargetMod || 0),
+					effTmLbl.mod > 0 ? effTmLbl.mod : Number(x.mining_target_mod || lastGlobalTargetMod || 0),
 					Number(x.mining_attempts_per_sec || 0),
 					Number(x.mining_projected_hmc_hour || 0),
 					poolCtx
@@ -6939,9 +6944,12 @@
 			}
 			void refreshP2PSyncSnapshot();
 		}
-		async function refreshWorkStats() {
+		async function refreshWorkStats(forceDetails) {
+			workStatsPollSeq += 1;
+			const wantDetails = !!forceDetails || (workStatsPollSeq % WORK_STATS_DETAIL_EVERY === 0);
+			const url = wantDetails ? '/api/work/stats?details=1' : '/api/work/stats?details=0';
 			try {
-				const r = await fetchWithTimeout('/api/work/stats?details=1', {}, WORK_STATS_FETCH_MS);
+				const r = await fetchWithTimeout(url, { cache: 'no-store' }, WORK_STATS_FETCH_MS);
 				if (!r.ok) throw new Error('HTTP ' + r.status);
 				const j = await r.json();
 				renderWorkStats(j);
@@ -7610,7 +7618,11 @@
 				const pm = Number(s.pool_target_mod || 0);
 				if (pm > 0) {
 					lastGlobalTargetMod = pm;
+					lastTargetModSource = 'pool coordinator';
 					if ($('kpi-poh-difficulty')) $('kpi-poh-difficulty').textContent = fmtUInt(pm);
+				}
+				if ($('kpi-poh-difficulty-sub') && pm >= POOL_TARGET_MOD_FLOOR) {
+					$('kpi-poh-difficulty-sub').textContent = 'Pool M · coordinator (not local WASM 251)';
 				}
 				const elCirc = $('kpi-network-circulating');
 				if (elCirc) {
@@ -8799,6 +8811,7 @@
 			if (currentTab === 'mining') {
 				void refreshMiningDevices();
 				void refreshMiningLogsOnce();
+				void refreshWorkStats(true);
 			}
 		}
 
@@ -9049,7 +9062,12 @@
 			try { if (typeof syncOverviewHeightCard === 'function') syncOverviewHeightCard(null, null); } catch (_) {}
 			try {
 				if (typeof syncMiningPanelFromMetrics === 'function') {
-					syncMiningPanelFromMetrics(lastMetricsPayload && typeof lastMetricsPayload === 'object' ? lastMetricsPayload : {});
+					const mp = lastMetricsPayload && typeof lastMetricsPayload === 'object' ? lastMetricsPayload : {};
+					if (typeof requestAnimationFrame === 'function') {
+						requestAnimationFrame(() => { try { syncMiningPanelFromMetrics(mp); } catch (_) {} });
+					} else {
+						syncMiningPanelFromMetrics(mp);
+					}
 				}
 			} catch (_) {}
 			const hl = $('hdr-link');
@@ -9124,6 +9142,8 @@
 				refreshFuzzAdminActionState();
 				if ($('btn-hardware-refresh')) $('btn-hardware-refresh').addEventListener('click', () => { void refreshHardwareTune(); });
 				if ($('btn-quick-refresh')) $('btn-quick-refresh').addEventListener('click', refreshAllNow);
+				if ($('btn-work-stats-refresh')) $('btn-work-stats-refresh').addEventListener('click', () => { void refreshWorkStats(true); });
+				if ($('btn-operator-health-refresh')) $('btn-operator-health-refresh').addEventListener('click', () => { refreshOperatorHealth(); void refreshWorkStats(true); });
 				if ($('btn-copy-miner-env')) $('btn-copy-miner-env').addEventListener('click', async () => {
 					const snap = $('public-staging-env-snippet');
 					const txt = (snap && !snap.classList.contains('hidden') && String(snap.textContent || '').trim())

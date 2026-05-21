@@ -691,6 +691,95 @@ func TestWorkManagerHybridFoundRequiresSignature(t *testing.T) {
 	}
 }
 
+func TestWorkManagerHybridSignerRejectsTamperedSignatureByte(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wm := newHybridTestWorkManager(true, true)
+	base, size, _, _, _, okClaim, reasonClaim := wm.claim("w-tamper", 1000)
+	if !okClaim || reasonClaim != "" {
+		t.Fatalf("claim failed: %v %q", okClaim, reasonClaim)
+	}
+	req := submitWorkRequest{
+		WorkerID:     "w-tamper",
+		BaseNonce:    base,
+		BatchSize:    size,
+		WorkID:       buildWorkID("w-tamper", base, size),
+		Attempts:     800,
+		SubmitNonce:  42,
+		MinerPubKey:  hex.EncodeToString(pub),
+		MinerAddress: signerAddr(pub),
+		MinerSigAlg:  "ed25519",
+	}
+	req.MinerSig = hex.EncodeToString(ed25519.Sign(priv, canonicalSubmitBytes(req)))
+	sig, _ := hex.DecodeString(req.MinerSig)
+	sig[0] ^= 0xFF
+	req.MinerSig = hex.EncodeToString(sig)
+	ok, reason, payout, _, _ := wm.submit(req)
+	if ok || reason != "invalid_signature" {
+		t.Fatalf("want invalid_signature, got ok=%v reason=%q payout=%v", ok, reason, payout)
+	}
+	if payout != 0 {
+		t.Fatalf("tampered submit must not accrue payout, got %v", payout)
+	}
+}
+
+func TestWorkManagerHybridSignerRejectsTamperedPayloadField(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wm := newHybridTestWorkManager(true, true)
+	base, size, _, _, _, okClaim, reasonClaim := wm.claim("w-tamper2", 1000)
+	if !okClaim || reasonClaim != "" {
+		t.Fatalf("claim failed: %v %q", okClaim, reasonClaim)
+	}
+	req := submitWorkRequest{
+		WorkerID:     "w-tamper2",
+		BaseNonce:    base,
+		BatchSize:    size,
+		WorkID:       buildWorkID("w-tamper2", base, size),
+		Attempts:     500,
+		SubmitNonce:  7,
+		MinerPubKey:  hex.EncodeToString(pub),
+		MinerAddress: signerAddr(pub),
+		MinerSigAlg:  "ed25519",
+	}
+	req.MinerSig = hex.EncodeToString(ed25519.Sign(priv, canonicalSubmitBytes(req)))
+	req.Attempts = 501 // one byte of logical payload changed after sign
+	ok, reason, payout, _, _ := wm.submit(req)
+	if ok || reason != "invalid_signature" {
+		t.Fatalf("want invalid_signature, got ok=%v reason=%q payout=%v", ok, reason, payout)
+	}
+	if payout != 0 {
+		t.Fatalf("tampered attempts must not accrue, got %v", payout)
+	}
+}
+
+func newHybridTestWorkManager(strict, requireFound bool) *workManager {
+	return &workManager{
+		defaultBatch:           1000,
+		targetMod:              1_000_000,
+		leaseSec:               30,
+		maxWorkers:             1000,
+		maxActiveLeases:        1000,
+		maxDedupEntries:        1000,
+		hybridSignerEnabled:    true,
+		hybridSignerStrict:     strict,
+		hybridRequireFoundSig:  requireFound,
+		rewardPerM:             1.0,
+		payoutFoundOnly:        false,
+		active:                 make(map[workKey]leaseRecord),
+		worker:                 make(map[string]workerPayoutStat),
+		acceptedResultHashes:   make(map[string]struct{}),
+		acceptedFoundNonces:    make(map[uint64]struct{}),
+		acceptedSubmitNonces:   make(map[string]struct{}),
+		acceptedSignedPayloads: make(map[string]struct{}),
+		signedSubmitNonceMax:   make(map[string]uint64),
+	}
+}
+
 func TestMaybeRetargetPoolModIncreasesOnFastHits(t *testing.T) {
 	wm := &workManager{
 		targetMod:          1_000_000,

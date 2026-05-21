@@ -188,6 +188,83 @@ var (
 	coordHTTPClient  *http.Client
 )
 
+const (
+	workStatsCacheFreshSec   = 6  // serve immediately without coordinator round-trip
+	workStatsCacheStaleMaxSec = 45 // return cached body while revalidating in background
+)
+
+func copyCachedWorkStats(maxAgeSec int64) (map[string]any, int64, bool) {
+	workStatsCacheMu.RLock()
+	defer workStatsCacheMu.RUnlock()
+	if workStatsCache == nil || workStatsCacheTS == 0 {
+		return nil, 0, false
+	}
+	age := time.Now().Unix() - workStatsCacheTS
+	if maxAgeSec > 0 && age > maxAgeSec {
+		return nil, age, false
+	}
+	out := make(map[string]any, len(workStatsCache))
+	for k, v := range workStatsCache {
+		out[k] = v
+	}
+	return out, age, true
+}
+
+func storeWorkStatsCache(ws map[string]any) {
+	if ws == nil {
+		return
+	}
+	workStatsCacheMu.Lock()
+	workStatsCache = ws
+	workStatsCacheTS = time.Now().Unix()
+	workStatsCacheMu.Unlock()
+}
+
+func applyWorkStatsPoolFields(statusBody map[string]any, ws map[string]any) {
+	if statusBody == nil || ws == nil {
+		return
+	}
+	if tm := asUint64(ws["target_mod"]); tm > 0 {
+		statusBody["pool_target_mod"] = tm
+		statusBody["pool_target_mod_source"] = "coordinator"
+	}
+	if hint := asUint64(ws["target_mod_load_hint"]); hint > 0 {
+		statusBody["pool_target_mod_load_hint"] = hint
+	}
+	if _, ok := ws["target_mod_load_capped"]; ok {
+		if b, ok := ws["target_mod_load_capped"].(bool); ok {
+			statusBody["pool_target_mod_load_capped"] = b
+		}
+	}
+	if min := asUint64(ws["target_mod_min"]); min > 0 {
+		statusBody["pool_target_mod_min"] = min
+	}
+	if max := asUint64(ws["target_mod_max"]); max > 0 {
+		statusBody["pool_target_mod_max"] = max
+	}
+	statusBody["pool_workers_count"] = asUint64(ws["workers_count"])
+	if rpm := parseAnyFloat(ws["reward_per_m"]); rpm > 0 {
+		statusBody["pool_reward_per_m"] = rpm
+	}
+}
+
+func (a *app) warmWorkStatsCacheAsync(base string, details bool) {
+	base = strings.TrimRight(strings.TrimSpace(base), "/")
+	if base == "" {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		ws, err := fetchCoordinatorWorkStats(ctx, base, details)
+		if err != nil || ws == nil {
+			return
+		}
+		ensureCoordinatorWorkersMap(ws)
+		storeWorkStatsCache(ws)
+	}()
+}
+
 func coordinatorHTTPClient() *http.Client {
 	coordHTTPOnce.Do(func() {
 		tr := &http.Transport{
@@ -758,7 +835,13 @@ func (a *app) fetchCanonicalStatusTip(ctx context.Context) (hasGenesis bool, tip
 		}
 	}
 	// On some VPN/mobile setups Go's HTTPS path can flap while curl still succeeds.
-	curlCtx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	curlTimeout := 6 * time.Second
+	if deadline, ok := ctx.Deadline(); ok {
+		if d := time.Until(deadline); d > 0 && d < curlTimeout {
+			curlTimeout = d
+		}
+	}
+	curlCtx, cancel := context.WithTimeout(context.Background(), curlTimeout)
 	defer cancel()
 	parsed, curlErr := fetchJSONViaCurl(curlCtx, u, nil)
 	if curlErr != nil {
@@ -938,6 +1021,19 @@ func fetchGlobalMetricsFromCoordinatorHost(ctx context.Context, coordBase string
 	return out, nil
 }
 
+// attachPoolLaneCached fills pool difficulty from coordinator cache only (no blocking HTTP).
+// Used by /api/status?lite=1 so dashboard polls stay sub-second.
+func (a *app) attachPoolLaneCached(statusBody map[string]any) {
+	if ws, age, ok := copyCachedWorkStats(workStatsCacheStaleMaxSec); ok {
+		applyWorkStatsPoolFields(statusBody, ws)
+		statusBody["pool_work_stats_cached_sec"] = age
+	}
+	coord := strings.TrimRight(strings.TrimSpace(a.coordinatorBaseURL()), "/")
+	if coord != "" && asUint64(statusBody["pool_target_mod"]) == 0 {
+		a.warmWorkStatsCacheAsync(coord, false)
+	}
+}
+
 // attachPoolLaneToStatus adds pool/coordinator and canonical-metric fields so read-only
 // UIs (explorer, same-origin dashboard) see VPS-aligned difficulty without cross-origin fetches.
 func (a *app) attachPoolLaneToStatus(ctx context.Context, statusBody map[string]any) {
@@ -946,47 +1042,42 @@ func (a *app) attachPoolLaneToStatus(ctx context.Context, statusBody map[string]
 	var wsErr error
 	var netStats lanpool.NetworkStatsResponse
 	var netErr error
-	if coord != "" {
+	if cached, _, ok := copyCachedWorkStats(workStatsCacheStaleMaxSec); ok {
+		ws = cached
+	}
+	if coord != "" && ws == nil {
 		var wg sync.WaitGroup
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			cctx, cancel := context.WithTimeout(ctx, 2500*time.Millisecond)
+			cctx, cancel := context.WithTimeout(ctx, 2000*time.Millisecond)
 			defer cancel()
 			m, err := fetchCoordinatorWorkStats(cctx, coord, false)
 			ws = m
 			wsErr = err
+			if err == nil && m != nil {
+				ensureCoordinatorWorkersMap(m)
+				storeWorkStatsCache(m)
+			}
 		}()
 		go func() {
 			defer wg.Done()
-			cctx, cancel := context.WithTimeout(ctx, 2500*time.Millisecond)
+			cctx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
 			defer cancel()
 			s, err := fetchCoordinatorStats(cctx, coord)
 			netStats = s
 			netErr = err
 		}()
 		wg.Wait()
+	} else if coord != "" {
+		cctx, cancel := context.WithTimeout(ctx, 1200*time.Millisecond)
+		s, err := fetchCoordinatorStats(cctx, coord)
+		cancel()
+		netStats = s
+		netErr = err
 	}
-	if coord != "" && wsErr == nil && ws != nil {
-		if tm := asUint64(ws["target_mod"]); tm > 0 {
-			statusBody["pool_target_mod"] = tm
-			statusBody["pool_target_mod_source"] = "coordinator"
-		}
-		if hint := asUint64(ws["target_mod_load_hint"]); hint > 0 {
-			statusBody["pool_target_mod_load_hint"] = hint
-		}
-		if _, ok := ws["target_mod_load_capped"]; ok {
-			if b, ok := ws["target_mod_load_capped"].(bool); ok {
-				statusBody["pool_target_mod_load_capped"] = b
-			}
-		}
-		if min := asUint64(ws["target_mod_min"]); min > 0 {
-			statusBody["pool_target_mod_min"] = min
-		}
-		if max := asUint64(ws["target_mod_max"]); max > 0 {
-			statusBody["pool_target_mod_max"] = max
-		}
-		statusBody["pool_workers_count"] = asUint64(ws["workers_count"])
+	if coord != "" && ws != nil {
+		applyWorkStatsPoolFields(statusBody, ws)
 	} else if coord != "" && wsErr != nil {
 		statusBody["pool_work_stats_error"] = wsErr.Error()
 	}
@@ -1321,28 +1412,62 @@ func (a *app) handleWorkStats(w http.ResponseWriter, r *http.Request) {
 	}
 	includeDetails := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("details")))
 	details := includeDetails == "1" || includeDetails == "true" || includeDetails == "yes"
-	// Keep this longer than browser poll cadence to allow at least some successful
-	// refreshes on slow links (VPN/mobile), while still bounded for UI responsiveness.
-	coordCtx, cancel := context.WithTimeout(context.Background(), 9*time.Second)
+	maxCacheAge := int64(workStatsCacheFreshSec)
+	if details {
+		maxCacheAge = 12
+	}
+	if cached, age, ok := copyCachedWorkStats(maxCacheAge); ok {
+		out := map[string]any{}
+		for k, v := range cached {
+			out[k] = v
+		}
+		ensureCoordinatorWorkersMap(out)
+		out["ok"] = true
+		out["source"] = base
+		out["stale"] = age > int64(workStatsCacheFreshSec)
+		out["stale_sec"] = age
+		out["cache_hit"] = true
+		writeJSON(w, out)
+		if age >= int64(workStatsCacheFreshSec) {
+			a.warmWorkStatsCacheAsync(base, details)
+		}
+		return
+	}
+	if cached, age, ok := copyCachedWorkStats(workStatsCacheStaleMaxSec); ok {
+		out := map[string]any{}
+		for k, v := range cached {
+			out[k] = v
+		}
+		ensureCoordinatorWorkersMap(out)
+		out["ok"] = true
+		out["source"] = base
+		out["stale"] = true
+		out["stale_sec"] = age
+		out["cache_hit"] = true
+		writeJSON(w, out)
+		a.warmWorkStatsCacheAsync(base, details)
+		return
+	}
+	fetchTimeout := 4 * time.Second
+	if details {
+		fetchTimeout = 7 * time.Second
+	}
+	coordCtx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 	defer cancel()
 	ws, err := fetchCoordinatorWorkStats(coordCtx, base, details)
 	if err != nil {
 		log.Printf("work/stats coordinator fallback: %v", err)
-		workStatsCacheMu.RLock()
-		cached := workStatsCache
-		cachedTS := workStatsCacheTS
-		workStatsCacheMu.RUnlock()
-		if cached != nil {
+		if cached, age, ok := copyCachedWorkStats(workStatsCacheStaleMaxSec); ok {
 			out := map[string]any{}
 			for k, v := range cached {
 				out[k] = v
 			}
+			ensureCoordinatorWorkersMap(out)
+			out["ok"] = true
 			out["source"] = base
 			out["stale"] = true
 			out["stale_reason"] = err.Error()
-			if cachedTS > 0 {
-				out["stale_sec"] = time.Now().Unix() - cachedTS
-			}
+			out["stale_sec"] = age
 			writeJSON(w, out)
 			return
 		}
@@ -1364,10 +1489,7 @@ func (a *app) handleWorkStats(w http.ResponseWriter, r *http.Request) {
 	ws["source"] = base
 	ws["stale"] = false
 	ws["stale_sec"] = int64(0)
-	workStatsCacheMu.Lock()
-	workStatsCache = ws
-	workStatsCacheTS = time.Now().Unix()
-	workStatsCacheMu.Unlock()
+	storeWorkStatsCache(ws)
 	writeJSON(w, ws)
 }
 

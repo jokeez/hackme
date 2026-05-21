@@ -98,7 +98,7 @@ $lines = @(
     "HACKME_REQUIRE_ADMIN_TOKEN=1",
     "HACKME_DESKTOP_MODE=1",
     "HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1",
-    "HACKME_RIG_PROFILE_AUTO=1",
+    "HACKME_RIG_PROFILE_AUTO=0",
     "HACKME_GPU_BACKEND=$GpuBackend",
     "HACKME_WORKER_BATCH_SIZE=$batch",
     "GPU_CHUNK=$chunk",
@@ -113,6 +113,13 @@ $lines = @(
 if ($RigProfile) { $lines += "HACKME_RIG_PROFILE=$RigProfile" }
 if ($floorGhs) { $lines += "HACKME_GPU_HASHRATE_FLOOR_GHS=$floorGhs" }
 if ($gpuDisable) { $lines += "HACKME_GPU_DISABLE=$gpuDisable" }
+# Hard-lock AMD RX profiles: never leave auto/150ms cooldown from stale merges.
+if ($RigProfile -match '^amd_rx580') {
+    $lines = @($lines | Where-Object { $_ -notmatch '^(HACKME_GPU_BACKEND|HACKME_WORKER_CLAIM_COOLDOWN_MS|HACKME_CUDA_CALIBRATE_GHS)=' })
+    $lines += 'HACKME_GPU_BACKEND=opencl'
+    $lines += 'HACKME_WORKER_CLAIM_COOLDOWN_MS=28000'
+}
+if ($claimMs -le 0) { $lines += 'HACKME_WORKER_CLAIM_COOLDOWN_MS=28000' }
 
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 [System.IO.File]::WriteAllLines($envPath, $lines, $utf8NoBom)

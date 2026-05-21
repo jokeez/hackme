@@ -19,7 +19,9 @@ for /f "usebackq delims=" %%H in (`powershell -NoProfile -Command "(hostname).To
 set "WORKER_ID=worker-!HOST!"
 set "GPU_BACKEND=auto"
 set "WORKER_BATCH=4194304"
+if exist "workerpoh-opencl.exe" set "GPU_BACKEND=opencl"
 for /f "tokens=1,* delims==" %%A in ('findstr /B /I "HACKME_GPU_BACKEND=" hackme.env 2^>nul') do set "GPU_BACKEND=%%B"
+if /I "!GPU_BACKEND!"=="auto" if exist "workerpoh-opencl.exe" set "GPU_BACKEND=opencl"
 for /f "tokens=1,* delims==" %%A in ('findstr /B /I "HACKME_WORKER_BATCH_SIZE=" hackme.env 2^>nul') do set "WORKER_BATCH=%%B"
 
 set /a N=0
