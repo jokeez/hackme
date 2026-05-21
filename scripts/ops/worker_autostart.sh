@@ -124,10 +124,6 @@ choose_worker_bin() {
 		printf '%s\n' "$WORKER_BIN"
 		return 0
 	fi
-	if [[ "$backend" == "cpu" && -x "${ROOT_DIR}/bin/workerpoh" ]]; then
-		printf '%s\n' "${ROOT_DIR}/bin/workerpoh"
-		return 0
-	fi
 	if [[ "$backend" == "cuda" && -x "${ROOT_DIR}/bin/workerpoh-cuda" ]]; then
 		printf '%s\n' "${ROOT_DIR}/bin/workerpoh-cuda"
 		return 0
@@ -136,19 +132,15 @@ choose_worker_bin() {
 		printf '%s\n' "${ROOT_DIR}/bin/workerpoh-opencl"
 		return 0
 	fi
-	if [[ -x "${ROOT_DIR}/bin/workerpoh-cuda" ]]; then
-		printf '%s\n' "${ROOT_DIR}/bin/workerpoh-cuda"
+	if [[ "$backend" == "cpu" && -x "${ROOT_DIR}/bin/workerpoh-cpu" ]]; then
+		printf '%s\n' "${ROOT_DIR}/bin/workerpoh-cpu"
 		return 0
 	fi
-	if [[ -x "${ROOT_DIR}/bin/workerpoh-opencl" ]]; then
-		printf '%s\n' "${ROOT_DIR}/bin/workerpoh-opencl"
-		return 0
-	fi
-	if [[ -x "${ROOT_DIR}/bin/workerpoh" ]]; then
+	if [[ "$backend" == "cpu" && -x "${ROOT_DIR}/bin/workerpoh" ]]; then
 		printf '%s\n' "${ROOT_DIR}/bin/workerpoh"
 		return 0
 	fi
-	printf '%s\n' "${ROOT_DIR}/bin/workerpoh"
+	printf '%s\n' "${ROOT_DIR}/bin/workerpoh-cpu"
 }
 
 build_worker_if_needed() {

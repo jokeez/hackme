@@ -46,7 +46,8 @@ $searchMs = 2500
 $claimMs = 0
 $tempPause = 83
 $tempResume = 76
-$calibGhs = ""
+# Optional floor only when kernel timing fails — never pin pool GH/s (see HACKME_GPU_HASHRATE_FLOOR_GHS).
+$floorGhs = ""
 
 if (-not $RigProfile) {
     $gpuJson = Join-Path $dir "gpu_detect.json"
@@ -67,13 +68,12 @@ switch ($RigProfile) {
         if ($hasOpenCLBin -and ($GpuBackend -eq "auto" -or $GpuBackend -eq "opencl")) { $GpuBackend = "opencl" }
         $batch = 1048576; $chunk = 524288; $searchMs = 4500; $claimMs = 200
         $tempPause = 78; $tempResume = 72
-        $calibGhs = if ($hasOpenCLBin) { "3.5" } else { "0.12" }
+        # No fixed CALIBRATE_GHS — worker measures OpenCL kernel time.
     }
     "amd_rx580_generic" {
         if ($hasOpenCLBin -and ($GpuBackend -eq "auto" -or $GpuBackend -eq "opencl")) { $GpuBackend = "opencl" }
         $batch = 2097152; $chunk = 1048576; $searchMs = 4000; $claimMs = 150
         $tempPause = 80; $tempResume = 74
-        $calibGhs = if ($hasOpenCLBin) { "4" } else { "0.2" }
     }
 }
 
@@ -106,10 +106,12 @@ $lines = @(
     "HACKME_WORKER_CLAIM_COOLDOWN_MS=$claimMs",
     "HACKME_GPU_TEMP_PAUSE_C=$tempPause",
     "HACKME_GPU_TEMP_RESUME_C=$tempResume",
-    "HACKME_DESKTOP_GPU_POOL=1"
+    "HACKME_DESKTOP_GPU_POOL=1",
+    "HACKME_BIND_ADDR=127.0.0.1:8080",
+    "HACKME_WORKER_SIGN_SUBMITS=1"
 )
 if ($RigProfile) { $lines += "HACKME_RIG_PROFILE=$RigProfile" }
-if ($calibGhs) { $lines += "HACKME_CUDA_CALIBRATE_GHS=$calibGhs" }
+if ($floorGhs) { $lines += "HACKME_GPU_HASHRATE_FLOOR_GHS=$floorGhs" }
 if ($gpuDisable) { $lines += "HACKME_GPU_DISABLE=$gpuDisable" }
 
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false

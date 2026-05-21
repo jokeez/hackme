@@ -7,11 +7,19 @@ import (
 	"strings"
 )
 
-// DiscoverAccelerators prefers CUDA when built and devices exist, unless
-// HACKME_FORCE_OPENCL=1 (then OpenCL only). OpenCL is used when no CUDA devices
-// or when the binary is opencl-only.
-func DiscoverAccelerators() ([]Accelerator, error) {
+func preferOpenCLFromEnv() bool {
 	if forceOpenCL() {
+		return true
+	}
+	b := strings.ToLower(strings.TrimSpace(os.Getenv("HACKME_GPU_BACKEND")))
+	return b == "opencl"
+}
+
+// DiscoverAccelerators prefers CUDA when built and devices exist, unless
+// HACKME_FORCE_OPENCL=1 or HACKME_GPU_BACKEND=opencl (then OpenCL only). OpenCL is
+// used when no CUDA devices or when the binary is opencl-only.
+func DiscoverAccelerators() ([]Accelerator, error) {
+	if preferOpenCLFromEnv() {
 		return tryOpenCLAccelerators()
 	}
 	cudaAcc, err := tryCUDAAccelerators()
