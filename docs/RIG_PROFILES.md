@@ -38,7 +38,7 @@ Profile id: `amd_rx580_2048sp`
 | `SEARCH_TIMEOUT_MS` | `4500` | Avoid timeout on slow kernels |
 | `HACKME_WORKER_CLAIM_COOLDOWN_MS` | `150` | Fewer 429s on sub-1 GH/s rigs |
 | `HACKME_GPU_TEMP_PAUSE_C` | `78` | Thermal hold |
-| `HACKME_CUDA_CALIBRATE_GHS` | `0.12` | Submit fallback floor |
+| `HACKME_GPU_HASHRATE_FLOOR_GHS` | *(optional)* | Minimum GH/s floor only if kernel timing fails — do not pin pool difficulty |
 
 **Manual OC (vendor tools):** core 1150–1200 MHz, mem 2000–2100 MHz effective, power −5…−8%.  
 After stable OC, switch to `amd_rx580_2048sp_turbo` in the dashboard.

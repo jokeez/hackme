@@ -417,6 +417,11 @@ func envFloatGHS(keys ...string) float64 {
 	return 0
 }
 
+// gpuHashrateFloorGHS is a minimum submit/calibration floor only — never a hard cap on measured GH/s.
+func gpuHashrateFloorGHS() float64 {
+	return envFloatGHS("HACKME_GPU_HASHRATE_FLOOR_GHS", "HACKME_CUDA_CALIBRATE_GHS")
+}
+
 func lastGPUKernelSeconds() float64 {
 	if cudaBackendConfigured() {
 		return gpupoh.LastCUDAKernelSeconds()
@@ -496,9 +501,6 @@ func calibrateGPUHashrateGHS(srch searcher, batch, mod uint64) float64 {
 	if batch == 0 {
 		return 0
 	}
-	if v := envFloatGHS("HACKME_CUDA_CALIBRATE_GHS"); v > 0 {
-		return v
-	}
 	const warmup = 1
 	const samples = 4
 	var sum float64
@@ -522,15 +524,23 @@ func calibrateGPUHashrateGHS(srch searcher, batch, mod uint64) float64 {
 			continue
 		}
 		g := rawHashrateGHS(batch, sec)
-		if g >= 1 && g <= 500 {
+		if g >= 0.01 && g <= 500 {
 			sum += g
 			n++
 		}
 	}
-	if n == 0 {
-		return 0
+	var measured float64
+	if n > 0 {
+		measured = sum / float64(n)
 	}
-	return sum / float64(n)
+	floor := gpuHashrateFloorGHS()
+	if measured > 0 {
+		if floor > 0 && measured < floor*0.5 {
+			return floor
+		}
+		return measured
+	}
+	return floor
 }
 
 // submitHashrateGHS reports GH/s from GPU search time (batch / kernelSec).
@@ -539,19 +549,18 @@ func calibrateGPUHashrateGHS(srch searcher, batch, mod uint64) float64 {
 func submitHashrateGHS(batch uint64, searchSec float64, mode string) float64 {
 	inst := measureWorkerHashrateGHS(batch, searchSec)
 	kernelTimed := mode == "gpu" && gpuKernelTimingActive()
+	floor := gpuHashrateFloorGHS()
 	if gpuBackendConfigured() && mode == "gpu" && !kernelTimed {
 		if inst < 2 && gpuCalibratedGHS > 0 {
 			inst = gpuCalibratedGHS
-		}
-		if inst < gpuCalibratedGHS*0.7 && gpuCalibratedGHS > 0 {
+		} else if inst < gpuCalibratedGHS*0.7 && gpuCalibratedGHS > 0 {
 			inst = gpuCalibratedGHS
 		}
 	} else if gpuBackendConfigured() && mode == "gpu" && kernelTimed && openclBackendConfigured() && !cudaBackendConfigured() {
-		// OpenCL-only: reject bogus slow wall/kernel timing.
+		// OpenCL-only: reject bogus slow wall/kernel timing; trust calibration/EMA.
 		if inst < 2 && gpuCalibratedGHS > 0 {
 			inst = gpuCalibratedGHS
-		}
-		if inst < gpuCalibratedGHS*0.7 && gpuCalibratedGHS > 0 {
+		} else if inst < gpuCalibratedGHS*0.7 && gpuCalibratedGHS > 0 {
 			inst = gpuCalibratedGHS
 		}
 	} else if cudaBackendConfigured() && kernelTimed && gpuCalibratedGHS > 0 && inst > gpuCalibratedGHS*2.5 {
@@ -560,9 +569,9 @@ func submitHashrateGHS(batch uint64, searchSec float64, mode string) float64 {
 	} else if cudaBackendConfigured() && kernelTimed && gpuCalibratedGHS > 10 && inst > 0 && inst < gpuCalibratedGHS*0.25 {
 		// Desktop GPU contention (browser/IDE): avoid pinning pool stats and coordinator
 		// rate limits to a one-off slow kernel sample.
-		floor := gpuCalibratedGHS * 0.55
-		if inst < floor {
-			inst = floor
+		contentionFloor := gpuCalibratedGHS * 0.55
+		if inst < contentionFloor {
+			inst = contentionFloor
 		}
 	}
 	if inst > 0 {
@@ -591,6 +600,9 @@ func submitHashrateGHS(batch uint64, searchSec float64, mode string) float64 {
 	if gpuBackendConfigured() {
 		if ghs <= 0 && gpuCalibratedGHS > 0 {
 			ghs = gpuCalibratedGHS
+		}
+		if floor > 0 && ghs > 0 && ghs < floor {
+			ghs = floor
 		}
 		if ghs > 500 {
 			return 500

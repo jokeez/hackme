@@ -57,6 +57,7 @@ type workManager struct {
 	submittedItems   uint64
 	foundHits        uint64
 	lastFoundHitUnix int64
+	poolGHSmoothed   float64 // EMA of fleet GH/s for load retarget (avoids 0.15 GH/s pin → M runaway)
 	poolRetarget     bool
 	// Pool M bounds (defaults poolTargetModMin/Max; override via HACKME_COORDINATOR_POOL_TARGET_MOD_{MIN,MAX}).
 	targetModMin         uint64
@@ -382,6 +383,45 @@ func (m *workManager) targetModMaxOrDefault() uint64 {
 
 // poolMinerCountBoost scales difficulty slightly with distinct online workers (log curve, capped).
 // Dominated by fleet GH/s; this nudges M up when many small rigs join (100k miners scenario).
+const poolGHEMAAlpha = 0.3
+
+// smoothPoolGHSample updates fleet GH/s EMA; fast-tracks when measured hash jumps (GPU came online).
+func (m *workManager) smoothPoolGHSample(raw float64) float64 {
+	if m == nil || raw <= 0 || math.IsNaN(raw) || math.IsInf(raw, 0) {
+		return 0
+	}
+	if raw > 5000 {
+		raw = 5000
+	}
+	if m.poolGHSmoothed <= 0 {
+		m.poolGHSmoothed = raw
+		return m.poolGHSmoothed
+	}
+	alpha := poolGHEMAAlpha
+	if raw > m.poolGHSmoothed*1.8 {
+		alpha = 0.55
+	} else if raw < m.poolGHSmoothed*0.35 {
+		alpha = 0.15
+	}
+	m.poolGHSmoothed = alpha*raw + (1-alpha)*m.poolGHSmoothed
+	return m.poolGHSmoothed
+}
+
+func smoothWorkerHashrateGHS(prev, sample float64) float64 {
+	sample = clampWorkerHashrateGHS(sample)
+	if sample <= 0 {
+		return clampWorkerHashrateGHS(prev)
+	}
+	if prev <= 0 {
+		return sample
+	}
+	alpha := 0.35
+	if sample > prev*1.8 {
+		alpha = 0.55
+	}
+	return clampWorkerHashrateGHS(alpha*sample + (1-alpha)*prev)
+}
+
 func poolMinerCountBoost(miners int) float64 {
 	if miners <= 1 {
 		return 1.0
@@ -566,11 +606,21 @@ func (m *workManager) maybeRetargetPoolMod(now int64) {
 		prev := m.clampTargetMod(m.targetMod)
 		var next uint64
 		// Fast solves → harder (larger M). Slow gaps → slightly easier, never below pool floor.
+		poolGH := m.poolGHSmoothed
+		if poolGH <= 0 {
+			poolGH, _, _ = m.poolOnlineSummaryUnlocked(120, now)
+			m.smoothPoolGHSample(poolGH)
+			poolGH = m.poolGHSmoothed
+		}
 		switch {
 		case delta <= chain.PoHRetargetTargetSec*2:
 			ratio := float64(chain.PoHRetargetTargetSec) / float64(delta)
 			if ratio > 1.12 {
 				ratio = 1.12
+			}
+			// Under-reported fleet GH/s (e.g. stale 0.15 GH/s calib) + fast hits must not explode M.
+			if poolGH > 0 && poolGH < 1.0 && ratio > 1.0 {
+				ratio = 1.01
 			}
 			next = uint64(float64(prev)*ratio + 0.5)
 		case delta >= chain.PoHRetargetTargetSec*6:
@@ -616,6 +666,10 @@ func (m *workManager) maybeRetargetPoolLoadLocked(now int64, poolGH float64, min
 	}
 	if m.lastPoolRetargetUnix > 0 && now-m.lastPoolRetargetUnix < m.poolRetargetMinSec {
 		return
+	}
+	smoothed := m.smoothPoolGHSample(poolGH)
+	if smoothed > 0 {
+		poolGH = smoothed
 	}
 	// Scale M with fleet GH/s (targetModMin per 1 GH/s) so more hash → higher M, less hash → lower M.
 	// Do not use poolGH*1e9*targetSec (that overshoots targetModMax immediately).
@@ -1121,7 +1175,8 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	if attempts > req.BatchSize {
 		attempts = req.BatchSize
 	}
-	gh := workerHashrateGHSForSubmit(req.HashrateGHS, req.BatchSize, rec.IssuedAt, now, m.worker[req.WorkerID].LastHashrateGHS)
+	rawGH := workerHashrateGHSForSubmit(req.HashrateGHS, req.BatchSize, rec.IssuedAt, now, m.worker[req.WorkerID].LastHashrateGHS)
+	gh := smoothWorkerHashrateGHS(m.worker[req.WorkerID].LastHashrateGHS, rawGH)
 	if gh > 0 {
 		issuedAt := rec.IssuedAt
 		if issuedAt <= 0 {

@@ -887,6 +887,30 @@ func newTestWorkManagerForPayout(rewardPerM float64, payoutFoundOnly bool) *work
 	}
 }
 
+func TestPoolDifficultyLowGHNoHitRunaway(t *testing.T) {
+	wm := &workManager{
+		targetMod:          4_000_000,
+		targetModMin:       poolTargetModMin,
+		targetModMax:       poolTargetModMax,
+		poolRetarget:       true,
+		poolRetargetMinSec: 1,
+		poolGHSmoothed:     0.15,
+	}
+	now := time.Now().Unix()
+	const poolGH = 0.15
+	for i := 0; i < 40; i++ {
+		wm.maybeRetargetPoolLoadLocked(now+int64(i*30), poolGH, 1)
+	}
+	loadStable := wm.targetMod
+	for i := 0; i < 24; i++ {
+		wm.lastFoundHitUnix = now + int64(i*5)
+		wm.maybeRetargetPoolMod(now + int64(i*20))
+	}
+	if wm.targetMod > loadStable*3 {
+		t.Fatalf("low reported GH/s + fast hits should not explode M: load=%d after_hits=%d", loadStable, wm.targetMod)
+	}
+}
+
 func TestPoolLoadHintUnclampedLargeFleet(t *testing.T) {
 	// 30 GH/s fleet at min 2M/GH/s → ~60M hint (below 1B default max).
 	hint := poolLoadHintUnclamped(30.0, 3, poolTargetModMin)

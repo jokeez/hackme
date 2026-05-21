@@ -1667,6 +1667,44 @@ func applyCanonicalBlockEconomics(s *MetricsSnapshot, bh uint64) bool {
 	return true
 }
 
+// fillMetricsFleetHashrate sets hashrate_th_s from live GPU/worker/pool data (never synthetic).
+func (a *app) fillMetricsFleetHashrate(ctx context.Context, s *MetricsSnapshot) {
+	if a == nil || s == nil {
+		return
+	}
+	if s.MiningGPUTotalGHS > 0 {
+		s.HashrateTHs = s.MiningGPUTotalGHS / 1000.0
+		return
+	}
+	base := strings.TrimRight(a.coordinatorBaseURL(), "/")
+	if base == "" {
+		return
+	}
+	cctx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
+	defer cancel()
+	ws, err := fetchCoordinatorWorkStats(cctx, base, false)
+	if err != nil || ws == nil {
+		return
+	}
+	gh := parseAnyFloat(ws["pool_hashrate_gh_s"])
+	if gh <= 0 {
+		for _, row := range anySlice(ws["active_rigs"]) {
+			gh += parseAnyFloat(mapFromAny(row)["hashrate_gh_s"])
+		}
+	}
+	if gh <= 0 {
+		for _, row := range coordinatorWorkersMap(ws) {
+			gh += parseAnyFloat(mapFromAny(row)["hashrate_gh_s"])
+		}
+	}
+	if gh > 0 {
+		if gh > 5000 {
+			gh = 5000
+		}
+		s.HashrateTHs = gh / 1000.0
+	}
+}
+
 // overlayCanonicalMiningIntoSnapshot aligns PoH modulus / block-height-derived economics with the canonical
 // command node when local PoH search is idle (dashboard worker subprocess or coordinator follower env).
 func (a *app) overlayCanonicalMiningIntoSnapshot(ctx context.Context, s *MetricsSnapshot) bool {

@@ -2752,13 +2752,23 @@
 			if (!(workTotalAttemptsPrevTs > 0 && sampleUnix > workTotalAttemptsPrevTs)) return 0;
 			const dt = sampleUnix - workTotalAttemptsPrevTs;
 			const dAttempts = Number(ws.accepted_attempts || 0) - workTotalAttemptsPrev;
-			if (dt < 15 || dAttempts <= 0) return 0;
-			return Math.min((dAttempts / dt) / 1e9, 5000);
+			if (dt < 20 || dAttempts <= 0) return 0;
+			const est = (dAttempts / dt) / 1e9;
+			if (!(est > 0)) return 0;
+			const rigsGh = sumActiveRigsGh(ws.active_rigs);
+			const workers = ws.workers;
+			let workersGh = 0;
+			if (workers && typeof workers === 'object') {
+				for (const id of Object.keys(workers)) {
+					workersGh += clampRigHashrateGHS(workers[id] && workers[id].hashrate_gh_s);
+				}
+			}
+			const ref = Math.max(rigsGh, workersGh, Number(ws.pool_hashrate_gh_s || 0));
+			if (ref > 0 && est > ref * 4) return 0;
+			return Math.min(est, 5000);
 		}
 		function poolGhFromWorkStats(ws) {
 			if (!ws || typeof ws !== 'object') return 0;
-			const fromDelta = poolGhFromAttemptsDelta(ws);
-			if (fromDelta > 0) return fromDelta;
 			let gh = sumActiveRigsGh(ws.active_rigs);
 			if (gh > 0) return Math.min(gh, 5000);
 			const poolField = Number(ws.pool_hashrate_gh_s || 0);
@@ -2772,6 +2782,8 @@
 				}
 				if (sum > 0) return Math.min(sum, 5000);
 			}
+			const fromDelta = poolGhFromAttemptsDelta(ws);
+			if (fromDelta > 0) return fromDelta;
 			return 0;
 		}
 		/** Same GH/s source as pool strip / Mining → Pool hash (coordinator Σ, then network fallback). */
@@ -5834,6 +5846,10 @@
 			const ghMeas = Number(wst.measured_hashrate_gh_s || 0);
 			if ((!Number.isFinite(hash) || hash < 1e-9) && ghMeas > 0) {
 				hash = ghMeas / 1000;
+			}
+			if ((!Number.isFinite(hash) || hash < 1e-9) && isPoolWorkContext()) {
+				const poolGh = resolvePoolAggregateGh(latestWorkStats);
+				if (poolGh > 0) hash = poolGh / 1000;
 			}
 			const netUp = Number(x.net_sent_mbps || 0);
 			const netDown = Number(x.net_recv_mbps || 0);
