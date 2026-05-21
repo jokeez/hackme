@@ -376,14 +376,14 @@ func TestWorkManagerBanAfterBadSubmits(t *testing.T) {
 		abuse:           make(map[string]workerAbuseState),
 	}
 	now := int64(1_700_000_000)
-	wm.markSubmitOutcome("w-abuse", "work_id_mismatch", now)
-	wm.markSubmitOutcome("w-abuse", "unknown_or_already_closed_range", now)
+	wm.markSubmitOutcome("w-abuse", "", "work_id_mismatch", now)
+	wm.markSubmitOutcome("w-abuse", "", "unknown_or_already_closed_range", now)
 	if ok, reason := wm.allowSubmit("w-abuse", "", now+1); ok || reason != "worker_temporarily_banned" {
 		t.Fatalf("expected worker_temporarily_banned, got ok=%v reason=%q", ok, reason)
 	}
-	wm.markSubmitOutcome("w-replay", "replay", now)
-	wm.markSubmitOutcome("w-replay", "replay", now)
-	wm.markSubmitOutcome("w-replay", "replay", now)
+	wm.markSubmitOutcome("w-replay", "", "replay", now)
+	wm.markSubmitOutcome("w-replay", "", "replay", now)
+	wm.markSubmitOutcome("w-replay", "", "replay", now)
 	if ok, reason := wm.allowSubmit("w-replay", "", now+1); !ok {
 		t.Fatalf("replay alone must not ban worker, got reason=%q", reason)
 	}
@@ -772,6 +772,9 @@ func newHybridTestWorkManager(strict, requireFound bool) *workManager {
 		payoutFoundOnly:        false,
 		active:                 make(map[workKey]leaseRecord),
 		worker:                 make(map[string]workerPayoutStat),
+		abuse:                  make(map[string]workerAbuseState),
+		ipAbuse:                make(map[string]workerAbuseState),
+		dropReasonCount:        make(map[string]uint64),
 		acceptedResultHashes:   make(map[string]struct{}),
 		acceptedFoundNonces:    make(map[uint64]struct{}),
 		acceptedSubmitNonces:   make(map[string]struct{}),
@@ -971,6 +974,9 @@ func newTestWorkManagerForPayout(rewardPerM float64, payoutFoundOnly bool) *work
 		maxDedupEntries:      1000,
 		active:               make(map[workKey]leaseRecord),
 		worker:               make(map[string]workerPayoutStat),
+		abuse:                make(map[string]workerAbuseState),
+		ipAbuse:              make(map[string]workerAbuseState),
+		dropReasonCount:      make(map[string]uint64),
 		acceptedResultHashes: make(map[string]struct{}),
 		acceptedFoundNonces:  make(map[uint64]struct{}),
 	}

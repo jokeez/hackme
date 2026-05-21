@@ -1,0 +1,13 @@
+[Unit]
+Description=HackMe Miner first-boot identity (worker id + payout seed)
+ConditionPathExists=!/var/lib/hackme/.firstboot_done
+After=network-online.target
+Before=hackme-miner-worker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/hackme/scripts/release/iso/hackme-miner-firstboot.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -5,7 +5,14 @@
     <link>https://hackme.tech/news.html</link>
     <description>Official HackMe Network release, infrastructure, economics, and security updates.</description>
     <language>en-us</language>
-    <lastBuildDate>Thu, 21 May 2026 14:30:00 GMT</lastBuildDate>
+    <lastBuildDate>Fri, 22 May 2026 08:00:00 GMT</lastBuildDate>
+    <item>
+      <title>Ecosystem dashboard · nightly chaos guard · HackMe OS miner ISO</title>
+      <link>https://hackme.tech/news.html#2026-05-22-ecosystem-chaos-hackme-os</link>
+      <guid>https://hackme.tech/news.html#2026-05-22-ecosystem-chaos-hackme-os</guid>
+      <pubDate>Fri, 22 May 2026 08:00:00 GMT</pubDate>
+      <description>Ecosystem home UI for HMC pool mining. Nightly chaos guard: ledger 5000×, replay 403, init-worker.ini. HackMe OS ISO pipeline with CPU/GPU tuning for fair pool workers.</description>
+    </item>
     <item>
       <title>Coordinator stress test passed · Bitcointalk update · MiningPoolStats listing</title>
       <link>https://hackme.tech/news.html#2026-05-21-coordinator-stress-bct</link>

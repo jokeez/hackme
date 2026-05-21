@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-05-22-ecosystem-chaos-hackme-os",
+      "date": "2026-05-22",
+      "title": "Ecosystem dashboard · nightly chaos guard · HackMe OS miner ISO",
+      "summary": "Desktop dashboard home is now the Ecosystem coin table (Hive-style): live HMC pool stats, clickable mining entry, roadmap slots for future chains. Nightly chaos guard tests 5000 payout ledger drift, HTTP replay/tamper (403), and HackMe OS init-worker.ini hardening. HackMe OS live USB build: CPU isolation, RT scheduler, GPU performance mode, fair pool worker autostart.",
+      "tags": ["release", "mining", "pool", "security", "infrastructure"],
+      "impact": "Miners get a clearer pool-first UI; operators get automated security regression tests; Linux rigs can boot a dedicated HackMe OS image pointed at hackme.tech pool.",
+      "action": "Pull latest main · Dashboard: http://127.0.0.1:8080 (Ecosystem tab) · Pool: https://hackme.tech/pool/coordinator/api/work/stats · Docs: docs/HACKME_OS.md · Chaos tests: bash scripts/tests/nightly_chaos_guard.sh",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme",
+        "downloads": "https://hackme.tech/downloads.html",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/work/stats",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-21-coordinator-stress-bct",
       "date": "2026-05-21",
       "title": "Coordinator stress test passed · Bitcointalk update · MiningPoolStats listing",

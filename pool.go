@@ -243,6 +243,10 @@ func applyWorkStatsPoolFields(statusBody map[string]any, ws map[string]any) {
 		statusBody["pool_target_mod_max"] = max
 	}
 	statusBody["pool_workers_count"] = asUint64(ws["workers_count"])
+	if gh := parseAnyFloat(ws["pool_hashrate_gh_s"]); gh > 0 {
+		statusBody["pool_hashrate_gh_s"] = gh
+		statusBody["pool_global_hashrate_th_s"] = gh / 1000.0
+	}
 	if rpm := parseAnyFloat(ws["reward_per_m"]); rpm > 0 {
 		statusBody["pool_reward_per_m"] = rpm
 	}

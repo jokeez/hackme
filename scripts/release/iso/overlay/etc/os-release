@@ -1,0 +1,11 @@
+NAME="HackMe OS"
+PRETTY_NAME="HackMe OS — mining rig distribution"
+ID=hackme-os
+ID_LIKE=debian
+VERSION_ID="0.1.0"
+VERSION_CODENAME=pool
+HOME_URL="https://hackme.tech/"
+SUPPORT_URL="https://hackme.tech/downloads.html"
+BUG_REPORT_URL="https://hackme.tech/"
+PRIVACY_POLICY_URL="https://hackme.tech/"
+LOGO=hackme

@@ -1,0 +1,12 @@
+[Unit]
+Description=HackMe OS init-worker (safe hackme.ini parse)
+After=hackme-os-tune.service
+Before=hackme-miner-firstboot.service hackme-miner-worker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/hackme/scripts/release/iso/init-worker.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
