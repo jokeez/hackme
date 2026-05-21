@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-05-21-windows-installer-rc11f",
+      "date": "2026-05-21",
+      "title": "Release 0.1.0-rc11f: Windows CP1251 fix + pool token repair",
+      "summary": "Installer and scripts use ASCII-only PowerShell (Russian Windows no longer breaks detect_gpu / write_hackme_env). Auto-repair hackme.env from pool.miner.token on miner start. RX 580 2048SP rig profile applied when GPU is detected. Pool live ~69 GH/s, M ~143M.",
+      "tags": ["release", "mining", "pool", "windows", "gpu"],
+      "impact": "Windows miners on RU locales: install and Start HackMe Miner without PowerShell parse errors; pool token and amd_rx580_2048sp profile written reliably.",
+      "action": "Download HackMe-Setup-0.1.0-rc11f.exe from https://hackme.tech/downloads.html · Existing installs: run start_hackme_miner.bat (repairs env) or reinstall rc11f.",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme",
+        "downloads": "https://hackme.tech/downloads.html",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-20-windows-installer-rc11e",
       "date": "2026-05-20",
       "title": "Release 0.1.0-rc11e: Windows installer + GPU wizard + pool token fix",

@@ -5,7 +5,14 @@
     <link>https://hackme.tech/news.html</link>
     <description>Official HackMe Network release, infrastructure, economics, and security updates.</description>
     <language>en-us</language>
-    <lastBuildDate>Wed, 20 May 2026 19:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Thu, 21 May 2026 04:00:00 GMT</lastBuildDate>
+    <item>
+      <title>Release 0.1.0-rc11f: Windows CP1251 fix + pool token repair</title>
+      <link>https://hackme.tech/news.html#2026-05-21-windows-installer-rc11f</link>
+      <guid>https://hackme.tech/news.html#2026-05-21-windows-installer-rc11f</guid>
+      <pubDate>Thu, 21 May 2026 04:00:00 GMT</pubDate>
+      <description>ASCII-only PowerShell for Russian Windows; hackme.env auto-repair from pool.miner.token; RX 580 2048SP rig profile. HackMe-Setup-0.1.0-rc11f.exe on hackme.tech/downloads.html</description>
+    </item>
     <item>
       <title>Release 0.1.0-rc11e: Windows installer + GPU wizard + pool token fix</title>
       <link>https://hackme.tech/news.html#2026-05-20-windows-installer-rc11e</link>
