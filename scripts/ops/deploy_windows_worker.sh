@@ -16,17 +16,19 @@ if command -v docker >/dev/null 2>&1 && [[ -f "$ROOT/scripts/release/windows/Doc
   bash "$ROOT/scripts/release/windows/build_workerpoh_opencl.sh" "$OUT" 2>/dev/null || true
 fi
 if [[ ! -f "$OUT" ]]; then
-  GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o "$ROOT/dist/windows/workerpoh.exe" ./cmd/workerpoh
-  echo "[deploy-win] WARN: CGO_ENABLED=0 CPU-only workerpoh.exe (no OpenCL). Install MinGW+OpenCL for full AMD GH/s." >&2
-  OUT="$ROOT/dist/windows/workerpoh.exe"
+  echo "[deploy-win] ERROR: no workerpoh-opencl.exe — build on Windows: pwsh -File scripts/release/windows/build_workerpoh_opencl.ps1" >&2
+  exit 1
 fi
 if [[ -f "$ROOT/scripts/release/windows/build_workerpoh_opencl.ps1" ]]; then
   echo "[deploy-win] if OpenCL exe missing on host, build on Windows via build_workerpoh_opencl.ps1"
 fi
 
-echo "[deploy-win] scp binaries -> $WIN_SSH"
-scp -q "$OUT" "$WIN_SSH:$WIN_DIR/workerpoh-opencl.exe"
-[[ -f "$ROOT/dist/windows/workerpoh.exe" ]] && scp -q "$ROOT/dist/windows/workerpoh.exe" "$WIN_SSH:$WIN_DIR/workerpoh.exe" || true
+echo "[deploy-win] scp scripts -> $WIN_SSH (do not overwrite opencl.exe unless OUT is a real OpenCL build)"
+if [[ -f "$OUT" && "$(file -b "$OUT" 2>/dev/null)" != *"PE32+"* ]]; then
+  echo "[deploy-win] skip binary upload — build OpenCL on the Windows host" >&2
+else
+  scp -q "$OUT" "$WIN_SSH:'C:/Program Files/HackMe/workerpoh-opencl.new.exe'" 2>/dev/null || true
+fi
 for f in write_hackme_env.ps1 detect_gpu.ps1 autostart_pool_worker.bat; do
   scp -q "$ROOT/scripts/release/windows/$f" "$WIN_SSH:$WIN_DIR/"
 done
