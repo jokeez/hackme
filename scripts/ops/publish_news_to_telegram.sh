@@ -8,12 +8,12 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 NODE_SSH="${NODE_SSH:-hackme-vps}"
 FORCE_ID="${FORCE_NEWS_ID:-}"
 
-echo "[news-tg] verify live feed"
-curl -fsS --max-time 45 "https://hackme.tech/assets/news.json" | python3 -c "
+echo "[news-tg] verify live feed (from VPS — avoids CDN truncation on slow paths)"
+ssh -o BatchMode=yes "$NODE_SSH" "curl -fsS --max-time 20 -H 'Accept-Encoding: identity' 'https://hackme.tech/assets/news.json' | python3 -c \"
 import json,sys
 d=json.load(sys.stdin)
 print('top:', d['items'][0]['id'], d['items'][0]['title'][:60])
-"
+\""
 
 if [[ -n "$FORCE_ID" ]]; then
   echo "[news-tg] remove $FORCE_ID from posted_ids on $NODE_SSH (force republish)"

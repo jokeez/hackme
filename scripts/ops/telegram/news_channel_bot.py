@@ -403,7 +403,7 @@ def main() -> int:
 
     bot_token = env_str("TG_BOT_TOKEN")
     chat_id = env_str("TG_CHAT_ID")
-    news_url = env_str("NEWS_FEED_URL", "https://hackme.tech/assets/news.json")
+    news_url = env_str("NEWS_FEED_URL", "https://hackme.tech/assets/news-feed.json")
     news_page_base = env_str("NEWS_PAGE_BASE", "https://hackme.tech/news.html#")
     interval_sec = env_int("POLL_INTERVAL_SEC", 60)
     timeout_sec = env_int("HTTP_TIMEOUT_SEC", 20)
