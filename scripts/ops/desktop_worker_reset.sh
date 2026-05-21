@@ -61,6 +61,7 @@ stop_all_workers() {
   pkill -f 'scripts/ops/worker_autostart.sh' 2>/dev/null || true
   pkill -f 'workerpoh-opencl' 2>/dev/null || true
   pkill -f 'workerpoh-cuda' 2>/dev/null || true
+  pkill -f 'workerpoh-cpu' 2>/dev/null || true
   pkill -f 'workerpoh ' 2>/dev/null || true
   sleep 2
 

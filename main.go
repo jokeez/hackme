@@ -1702,25 +1702,13 @@ func (a *app) buildStatusLite(ctx context.Context) map[string]any {
 		"status_lite":                    true,
 		"tip_sync_source":                "local_ledger",
 	}
+	// Hot dashboard poll: never block on remote canonical /api/status (curl fallback can take 6s).
 	if hasC, hC, tipC, ok := a.readCanonicalTipCache(); ok {
 		body["canonical_tip_height"] = hC
 		body["canonical_tip_hash"] = tipC
 		body["canonical_tip_has_genesis"] = hasC
 		body["canonical_tip_ok"] = true
 		body["canonical_tip_sync_source"] = "canonical_peer_cache"
-	}
-	if networkModeActive && !a.miner.Running() {
-		quickCtx, quickCancel := context.WithTimeout(ctx, 700*time.Millisecond)
-		hasGen, hNow, tipNow, okNow := a.fetchCanonicalStatusTip(quickCtx)
-		quickCancel()
-		if okNow && strings.TrimSpace(tipNow) != "" {
-			body["canonical_tip_height"] = hNow
-			body["canonical_tip_hash"] = tipNow
-			body["canonical_tip_has_genesis"] = hasGen
-			body["canonical_tip_ok"] = true
-			body["canonical_tip_sync_source"] = "canonical_peer"
-			a.cacheCanonicalTip(hasGen, hNow, tipNow)
-		}
 	}
 	localCtx, localCancel := context.WithTimeout(ctx, 250*time.Millisecond)
 	has, _ := a.chain.HasGenesis(localCtx)
@@ -1735,9 +1723,10 @@ func (a *app) buildStatusLite(ctx context.Context) map[string]any {
 	if pub := strings.TrimSpace(os.Getenv("HACKME_PUBLIC_AUTHORITY_BASE")); pub != "" {
 		body["public_authority_base"] = pub
 	}
-	poolCtx, poolCancel := context.WithTimeout(ctx, 2*time.Second)
-	a.attachPoolLaneToStatus(poolCtx, body)
-	poolCancel()
+	a.attachPoolLaneCached(body)
+	if strings.TrimSpace(a.coordinatorBaseURL()) != "" {
+		a.warmWorkStatsCacheAsync(a.coordinatorBaseURL(), false)
+	}
 	return body
 }
 

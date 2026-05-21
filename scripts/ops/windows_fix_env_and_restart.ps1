@@ -26,6 +26,17 @@ if (-not $hadBackend) { $out.Add('HACKME_GPU_BACKEND=opencl') }
 if (-not $hadBind) { $out.Add('HACKME_BIND_ADDR=127.0.0.1:8080') }
 if (-not $hadCooldown) { $out.Add('HACKME_WORKER_CLAIM_COOLDOWN_MS=28000') }
 if (-not ($out -match '^\s*HACKME_WORKER_SIGN_SUBMITS=')) { $out.Add('HACKME_WORKER_SIGN_SUBMITS=1') }
+$hostWid = 'worker-' + (($env:COMPUTERNAME).ToLower() -replace '[^a-z0-9-]', '-')
+if (-not ($out -match '^\s*WORKER_ID=')) { $out.Add("WORKER_ID=$hostWid") }
+$batchArg = '1048576'
+$chunkArg = '524288'
+$searchMs = '4500'
+foreach ($l in $out) {
+    if ($l -match '^\s*HACKME_WORKER_BATCH_SIZE=(\d+)') { $batchArg = $Matches[1] }
+    if ($l -match '^\s*GPU_CHUNK=(\d+)') { $chunkArg = $Matches[1] }
+    if ($l -match '^\s*SEARCH_TIMEOUT_MS=(\d+)') { $searchMs = $Matches[1] }
+    if ($l -match '^\s*WORKER_ID=(.+)') { $hostWid = $Matches[1].Trim() }
+}
 [System.IO.File]::WriteAllLines($envf, $out.ToArray())
 Write-Host "patched $envf"
 $poolTok = (Get-Content $envf | Where-Object { $_ -match '^\s*HACKME_POOL_COORDINATOR_TOKEN=' }) -replace 'HACKME_POOL_COORDINATOR_TOKEN=',''
@@ -48,18 +59,20 @@ $env:HACKME_WORKER_SIGN_SUBMITS = '1'
 $logDir = Join-Path $dir 'logs'
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $liveLog = Join-Path $logDir 'worker-opencl-live.log'
-$wid = 'worker-desktop-1rgp4ge'
-foreach ($l in $out) {
-    if ($l -match '^\s*WORKER_ID=') { $wid = ($l -replace 'WORKER_ID=','').Trim(); break }
-}
+$wid = $hostWid
 $env:HACKME_WORKER_CLAIM_COOLDOWN_MS = '28000'
 $env:HACKME_WORKER_SIGN_SUBMITS = '1'
-Start-Process $ocl -WorkingDirectory $dir -WindowStyle Minimized -ArgumentList @(
+$env:HACKME_GPU_BACKEND = 'opencl'
+$argList = @(
     '-coord', 'https://hackme.tech/pool/coordinator',
     '-token', $poolTok,
     '-worker', $wid,
-    '-batch', '2097152',
+    '-batch', $batchArg,
+    '-gpu-chunk', $chunkArg,
+    '-search-timeout-ms', $searchMs,
     '-gpu-backend', 'opencl'
 )
-Start-Sleep -Seconds 10
+Start-Process $ocl -WorkingDirectory $dir -WindowStyle Minimized -ArgumentList $argList
+Start-Sleep -Seconds 25
+if (Test-Path $liveLog) { Get-Content $liveLog -Tail 8 }
 Get-Process hackme,workerpoh* -ErrorAction SilentlyContinue | Format-Table Name, Id -AutoSize

@@ -29,20 +29,29 @@ set_kv "$DESKTOP_ENV" HACKME_WORKER_SUBMIT_TIMEOUT 120s
 set_kv "$DESKTOP_ENV" WORKER_PAYOUT_MAP "worker-kapa-pc=${WALLET},worker-vps-msk-01=${WALLET},vps-canary-01=${WALLET},worker-vps-62-01=${WALLET}"
 
 echo "[desktop-gpu] build native CUDA workerpoh (production path)"
-GPU_BACKEND=opencl
-if command -v nvidia-smi >/dev/null 2>&1; then
+GPU_BACKEND=cpu
+HAS_NVIDIA_SYSFS=0
+if [[ -f /sys/class/drm/card1/device/vendor ]] && grep -q 0x10de /sys/class/drm/card1/device/vendor 2>/dev/null; then
+  HAS_NVIDIA_SYSFS=1
+fi
+if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
   if bash "$ROOT/scripts/ops/build_cuda_worker.sh" || [[ -x "$ROOT/bin/workerpoh-cuda" ]]; then
     GPU_BACKEND=cuda
     echo "[desktop-gpu] using bin/workerpoh-cuda (native CUDA)"
-  else
-    echo "[desktop-gpu] WARN: CUDA build failed — see docs/CUDA_PRODUCTION.md" >&2
-    (cd "$ROOT" && go build -tags opencl -o "$ROOT/bin/workerpoh-opencl" ./cmd/workerpoh)
-    ln -sf workerpoh-opencl "$ROOT/bin/workerpoh" 2>/dev/null || true
   fi
-else
-  (cd "$ROOT" && go build -tags opencl -o "$ROOT/bin/workerpoh-opencl" ./cmd/workerpoh)
-  ln -sf workerpoh-opencl "$ROOT/bin/workerpoh" 2>/dev/null || true
-  echo "[desktop-gpu] no NVIDIA GPU detected — OpenCL/CPU only"
+elif [[ "$HAS_NVIDIA_SYSFS" == "1" ]] && [[ -x "$ROOT/bin/workerpoh-cuda" ]]; then
+  GPU_BACKEND=cuda
+  echo "[desktop-gpu] WARN: nvidia-smi broken (NVML mismatch?) — trying CUDA binary anyway (reboot if worker fails)"
+elif [[ "$HAS_NVIDIA_SYSFS" == "1" ]] || command -v clinfo >/dev/null 2>&1; then
+  (cd "$ROOT" && go build -tags opencl -o "$ROOT/bin/workerpoh-opencl" ./cmd/workerpoh) 2>/dev/null || true
+  if [[ -x "$ROOT/bin/workerpoh-opencl" ]]; then
+    GPU_BACKEND=opencl
+    ln -sf workerpoh-opencl "$ROOT/bin/workerpoh" 2>/dev/null || true
+    echo "[desktop-gpu] using OpenCL (NVML/CUDA unavailable)"
+  fi
+fi
+if [[ "$GPU_BACKEND" == "cpu" ]]; then
+  echo "[desktop-gpu] WARN: GPU backend is cpu — fix NVML (reboot) or install OpenCL for ~0.01 GH/s only" >&2
 fi
 set_kv "$DESKTOP_ENV" HACKME_GPU_BACKEND "$GPU_BACKEND"
 set_kv "$DESKTOP_ENV" HACKME_CUDA_VERBOSE 1

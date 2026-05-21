@@ -1,0 +1,228 @@
+[center][size=16pt][b][color=#00d1ff]HackMe Network[/color][/b][/size]
+[size=12pt][b]HMC economics — full guide[/b][/size]
+[size=10pt][i]Chain emission · coordinator pool · settlement · audit orders[/i][/size][/center]
+
+[hr]
+
+[b][size=11pt][color=#39ff14]TL;DR for miners[/color][/size][/b]
+
+[table]
+[tr][td][b]You are NOT on Stratum[/b][/td][td]HTTP coordinator + [mono]workerpoh[/mono] leases — no :3333 share accounting[/td][/tr]
+[tr][td][b]Your paycheck story[/b][/td][td][b]Coordinator accrual[/b] for accepted work → [b]operator settlement[/b] → your [mono]HMC-…[/mono] wallet[/td][/tr]
+[tr][td][b]PoH block subsidy[/b][/td][td]Goes to the [b]block-producing node’s primary wallet[/b] — [b]not[/b] auto-split to every remote GPU[/td][/tr]
+[tr][td][b]More miners ≠ more coins[/b][/td][td]~[b]120 blocks/hour[/b] network-wide (30s target) — fleet size [b]splits[/b] competition, not inflation[/td][/tr]
+[/table]
+
+[i]Read once before scaling hashrate. Numbers below match open-source constants in [mono]internal/chain/economics.go[/mono] and the live [url=https://hackme.tech/economics-model.html]economics page[/url].[/i]
+
+[hr]
+
+[b][size=11pt]The #1 misconception (please read)[/size][/b]
+
+[quote][b]“If I mine on the HackMe pool, every new block pays my GPU like a classic BTC pool.”[/b]
+
+[b]No.[/b] HackMe separates [b]consensus emission[/b] (PoH blocks on the chain) from [b]pool accounting[/b] (coordinator + settlement). Remote workers earn through [b]accepted lease work[/b] credited off-chain, then settled on-chain — unless you yourself operate the node that appends blocks.[/quote]
+
+[hr]
+
+[b][size=11pt][color=#00d1ff]Three layers — one picture[/color][/size][/b]
+
+[code]
+   YOUR RIG (CPU / OpenCL / CUDA)
+        |
+        |  claim lease  +  submit batch (hybrid-signed)
+        v
+ +---------------------------+
+ |   COORDINATOR (pool)    |  <-- off-chain ledger: payout_hmc, stats
+ +---------------------------+
+        |
+        |  settlement timer / operator batch
+        v
+   YOUR HMC- ADDRESS  (on-chain balance after credit)
+
+   (parallel, network-wide)
+
+ +---------------------------+
+ |   PoH CHAIN (consensus)   |  ~30s blocks, halving schedule
+ +---------------------------+
+        |
+        |  block reward -> primary wallet of PRODUCING NODE only
+        v
+   operator / leader node wallet (not auto per GPU)
+[/code]
+
+[i]Three layers = three different clocks. Accrual can move every minute; chain height moves every ~30s; your wallet updates when settlement runs.[/i]
+
+[hr]
+
+[b][size=11pt]Layer 1 — Chain (PoH emission)[/size][/b]
+
+[b]What it is[/b]
+Useful Proof-of-Work: WASM-gated nonce search, dynamic difficulty [mono]target_mod[/mono], tip grows on valid blocks.
+
+[b]Supply cap[/b]
+[table]
+[tr][td][b]Max supply[/b][/td][td][b]100,000,000 HMC[/b][/td][/tr]
+[tr][td][b]Genesis policy[/b][/td][td]Locked in code ([mono]policy_hash[/mono] in metrics) — no hidden mint switch[/td][/tr]
+[/table]
+
+[b]Base block reward (empty mining — no open paid order on block)[/b]
+Halving every [b]2,102,400[/b] blocks (~[b]2 years[/b] at 30s/block target), then a [b]tail floor[/b]:
+
+[table]
+[tr][td][b]Epoch[/b] (blocks after genesis)[/td][td][b]Base reward / block[/b][/td][td][b]Notes[/b][/td][/tr]
+[tr][td]0 — blocks 1 … 2,102,400[/td][td][b]0.010000[/b] HMC[/td][td]Initial schedule[/td][/tr]
+[tr][td]1 — … 4,204,800[/td][td][b]0.005000[/b] HMC[/td][td]First halving (verified under coordinator stress load)[/td][/tr]
+[tr][td]2 — … 6,307,200[/td][td][b]0.002500[/b] HMC[/td][td][/td][/tr]
+[tr][td]3+ (floor reached)[/td][td][b]0.002000[/b] HMC[/td][td]Tail floor [mono]RewardTailFloorHMC[/mono] — long-term incentive[/td][/tr]
+[/table]
+
+[b]Network-wide emission (empty mining only)[/b]
+Roughly [b]120 blocks/hour[/b] × current base reward — [b]independent[/b] of how many pool workers exist.
+
+[table]
+[tr][td][b]At 0.01 HMC/block[/b][/td][td]~[b]1.2 HMC/hour[/b] total base emission (whole network)[/td][/tr]
+[tr][td][b]At 0.005 HMC/block[/b][/td][td]~[b]0.6 HMC/hour[/b] (post first halving)[/td][/tr]
+[/table]
+
+[b]Who receives the block subsidy on-chain?[/b]
+The implementation credits the node’s [b]primary wallet row[/b] (so [mono]GET /api/wallet[/mono] matches ledger state). The block may still record a [mono]minerAddress[/mono] for transparency — credits follow [b]primary wallet[/b], not a blind header split.
+
+[hr]
+
+[b][size=11pt]Layer 2 — Coordinator (how [u]your[/u] rig earns on the public pool)[/size][/b]
+
+[b]Official fair pool mode[/b] ([mono]payout_found_only=0[/mono], [mono]reward_auto=1[/mono], hybrid signer strict):
+You earn for [b]accepted attempts[/b] inside each lease (capped by batch size), plus a [b]found bonus[/b] when you submit a valid hit.
+
+[b]Formula[/b] (matches coordinator code + [url=https://hackme.tech/economics-model.html]site docs[/url]):
+
+[code]
+payout_per_submit  =  (paid_attempts / 1_000_000) × reward_per_m  +  found_bonus (if valid found)
+
+reward_per_m       ≈  base_reward_hmc × 1_000_000 / target_mod
+                     (auto-synced from canonical chain metrics when reward_auto=1)
+[/code]
+
+[b]Worked example[/b] (illustrative — live [mono]target_mod[/mono] moves with pool load):
+[table]
+[tr][td][b]base_reward_hmc[/b][/td][td][b]0.01[/b][/td][/tr]
+[tr][td][b]target_mod[/b][/td][td][b]1,000,000[/b][/td][/tr]
+[tr][td][b]reward_per_m[/b][/td][td]0.01 × 1,000,000 / 1,000,000 = [b]0.01 HMC[/b] per million attempts[/td][/tr]
+[tr][td][b]Your batch[/b] (lease cap)[/td][td][b]4,000,000[/b] attempts accepted[/td][/tr]
+[tr][td][b]Attempt payout[/b][/td][td](4M / 1M) × 0.01 = [b]0.04 HMC[/b][/td][/tr]
+[tr][td][b]Valid found hit[/b][/td][td]+ [b]found_bonus[/b] (pool default often ~0.01 HMC — see [mono]/api/pool/stats[/mono])[/td][/tr]
+[/table]
+
+[i]Higher pool difficulty ([mono]target_mod[/mono]↑) lowers [mono]reward_per_m[/mono] so coordinator payouts stay tied to chain economics — not arbitrary inflation.[/i]
+
+[b]Fairness guards on the public pool[/b]
+[list]
+[*][b]Hybrid Ed25519[/b] on submits when strict mode is on — reduces fake-attempt payout games.
+[*][b]Per-worker lease cap[/b] — official pool configures a max concurrent leases per worker id so one rig cannot monopolize the fleet.
+[*][b]429 backpressure[/b] under abuse — coordinator rejects overload instead of corrupting leases.
+[*][b]Replay / stale work[/b] protection — bad submits do not accrue.
+[/list]
+
+[b]What you see locally[/b]
+[list]
+[*]Dashboard → [b]Unpaid worker accrual[/b] (pool paycheck meter).
+[*]Pool API → [mono]total_payout_hmc[/mono], worker stats.
+[*]This is [b]off-chain[/b] until settlement — not the same as wallet balance yet.
+[/list]
+
+[hr]
+
+[b][size=11pt]Layer 3 — Settlement (off-chain → on-chain)[/size][/b]
+
+[b]Flow[/b]
+[list=1]
+[*]You map [mono]worker-id=HMC-youraddress[/mono] via [mono]WORKER_PAYOUT_MAP[/mono] (must match operator map on settlement host).
+[*]Coordinator accumulates [mono]payout_hmc[/mono] per worker id.
+[*]Operator runs [mono]settle_worker_payouts[/mono] automation (official pool: timer on the order of [b]minutes[/b], not “once a week”).
+[*]Explorer / wallet shows on-chain credit to your [mono]HMC-…[/mono] address.
+[/list]
+
+[b]Rule of thumb[/b]
+[color=#39ff14][b]Accrual ≠ wallet[/b][/color] until settlement completes. Always verify on [url=https://hackme.tech/pool/explorer]pool/explorer[/url] before scaling hardware spend.
+
+[hr]
+
+[b][size=11pt][color=#00d1ff]Layer 4 (product) — Paid audit orders[/color][/size][/b]
+
+HackMe is also a [b]useful-work marketplace[/b]: clients escrow HMC for WASM-gated audit tasks; PoH blocks tied to an open order must match task reward or the chain rejects the append.
+
+[b]When a customer opens a prepaid order[/b]
+[table]
+[tr][td][b]Escrow (prepaid)[/b][/td][td][mono]reward_hmc × target_solves[/mono] — held for miners solving the task[/td][/tr]
+[tr][td][b]Platform fee[/b][/td][td][b]5%[/b] of prepaid → [mono]DevFeeAddress[/mono] ([mono]OrderPlatformFeeRate = 0.05[/mono])[/td][/tr]
+[tr][td][b]Burn accounting[/b][/td][td][b]10%[/b] of prepaid tallied as burned supply metadata ([mono]OrderBurnRate = 0.10[/mono]) — separate from transfer fees[/td][/tr]
+[/table]
+
+[b]On-chain transfer fees[/b] (different split — do not mix with order open):
+[table]
+[tr][td][b]Burn share[/b][/td][td][b]30%[/b] of [mono]fee_units[/mono][/td][/tr]
+[tr][td][b]Dev/platform share[/b][/td][td][b]70%[/b] of [mono]fee_units[/mono][/td][/tr]
+[/table]
+
+[i]Orders are the long-term [b]demand layer[/b] for useful compute; the public pool’s steady accrual path is coordinator-based even when you are not solving a commercial order yourself.[/i]
+
+[hr]
+
+[b][size=11pt]HackMe vs classic Stratum pool[/size][/b]
+
+[table]
+[tr][td][/td][td][b]Classic Stratum (BTC-style)[/b][/td][td][b]HackMe official pool[/b][/td][/tr]
+[tr][td][b]Protocol[/b][/td][td]TCP :3333 shares[/td][td]HTTP [mono]/pool/coordinator[/mono] leases[/td][/tr]
+[tr][td][b]Share → block[/b][/td][td]Pro-rata block reward split[/td][td]Coordinator [mono]payout_hmc[/mono] policy + settlement[/td][/tr]
+[tr][td][b]Block finder[/b][/td][td]Pool wallet often central[/td][td]Producer node primary wallet + separate pool ledger[/td][/tr]
+[tr][td][b]Work unit[/b][/td][td]Hash on block header[/td][td]WASM PoH nonce ranges + hybrid signatures[/td][/tr]
+[/table]
+
+[hr]
+
+[b][size=11pt][color=#39ff14]Miner checklist (official pool)[/color][/size][/b]
+
+[list=1]
+[*] Download only from [url=https://hackme.tech/downloads.html]hackme.tech/downloads.html[/url] — verify [b]SHA256[/b].
+[*] Set [mono]HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech[/mono].
+[*] Configure [mono]WORKER_PAYOUT_MAP[/mono] → your real [mono]HMC-…[/mono] payout address.
+[*] Start [mono]hackme-node[/mono] + [mono]workerpoh[/mono] (Windows installer or Linux bundle).
+[*] Watch [b]Unpaid worker accrual[/b] on [url=http://127.0.0.1:8080]127.0.0.1:8080[/url].
+[*] Confirm settlement on [url=https://hackme.tech/pool/explorer]explorer[/url] before buying more rigs.
+[/list]
+
+[hr]
+
+[b][size=11pt]Live numbers & transparency[/size][/b]
+
+[table]
+[tr][td][b]Economics page[/b][/td][td][url=https://hackme.tech/economics-model.html]hackme.tech/economics-model.html[/url][/td][/tr]
+[tr][td][b]Pool stats API[/b][/td][td][url=https://hackme.tech/pool/coordinator/api/pool/stats].../api/pool/stats[/url][/td][/tr]
+[tr][td][b]Canonical metrics[/b][/td][td][mono]/api/metrics[/mono] on authority node ([mono]econ_*[/mono] fields)[/td][/tr]
+[tr][td][b]Open-source policy[/b][/td][td][url=https://github.com/jokeez/hackme/blob/main/internal/chain/economics.go]economics.go[/url] · [url=https://github.com/jokeez/hackme/blob/main/docs/MINER_POOL_ECONOMICS.md]MINER_POOL_ECONOMICS.md[/url][/td][/tr]
+[/table]
+
+[hr]
+
+[b][size=11pt]FAQ[/size][/b]
+
+[b]Q: I found a block — why didn’t my GPU wallet jump instantly?[/b]
+A: Block subsidy credited the [b]producing node’s[/b] primary wallet path. Your rig’s income is still coordinator accrual → settlement unless you run the producer yourself.
+
+[b]Q: Does adding 1,000 miners mint more HMC per hour?[/b]
+A: [b]No[/b] for base schedule — only ~120 blocks/hour. More miners compete for coordinator accrual and block-finding probability.
+
+[b]Q: Is this an ICO or pre-mine sale?[/b]
+A: [b]No ICO · no token sale.[/b] Experimental RC network — verify everything on explorer before trusting payouts.
+
+[b]Q: Can policy change?[/b]
+A: Pool coordinator knobs and settlement timing are [b]operator policy[/b] (announced on [url=https://hackme.tech/news.html]News[/url]). Chain constants require a [b]coordinated upgrade[/b] — not a silent remote toggle.
+
+[hr]
+
+[b]Disclaimer[/b]
+[i]HackMe Network is experimental release-candidate software (0.1.0-rc11g at time of writing). Mining and cryptocurrency involve risk. This post is technical documentation, not investment advice. Pool parameters and settlement timing may change with notice on the official website. English is authoritative; translate at your own risk.[/i]
+
+[hr]
+[center][size=10pt][i]HackMe Network · [url=https://hackme.tech]hackme.tech[/url] · [url=https://github.com/jokeez/hackme]source[/url] · [url=https://hackme.tech/contacts.html]responsible disclosure[/url][/i][/center]

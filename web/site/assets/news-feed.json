@@ -245,6 +245,5 @@
       "status": "published"
     }
   ],
-  "feed": "recent",
-  "generated_from": "news.json"
+  "feed": "recent"
 }
