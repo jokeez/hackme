@@ -20,6 +20,20 @@ fi
 export HACKME_DATA_DIR="${HACKME_DATA_DIR:-$ROOT/logs/desktop/data}"
 mkdir -p "$LOG_DIR" "$HACKME_DATA_DIR" "$ROOT/bin" "$ROOT/logs"
 
+load_coord_token() {
+  if [[ -n "${HACKME_POOL_COORDINATOR_TOKEN:-}" ]]; then
+    printf '%s' "$HACKME_POOL_COORDINATOR_TOKEN"
+    return
+  fi
+  local wt="${ROOT}/.secrets/hackme_coordinator_worker_token"
+  local at="${ROOT}/.secrets/hackme_coordinator_admin_token"
+  if [[ -f "$wt" ]]; then
+    tr -d '\r\n' <"$wt"
+  elif [[ -f "$at" ]]; then
+    tr -d '\r\n' <"$at"
+  fi
+}
+
 echo "[restart-linux] build workers (cpu + opencl + cuda optional)"
 go build -trimpath -o "$ROOT/bin/workerpoh-cpu" ./cmd/workerpoh
 if pkg-config --exists OpenCL 2>/dev/null || [[ -f /usr/include/CL/cl.h ]]; then
@@ -88,7 +102,7 @@ else
 fi
 
 if [[ "$BACKEND" == "cpu" ]]; then
-  COORD_TOKEN="${HACKME_POOL_COORDINATOR_TOKEN:-$(tr -d '\r\n' <"$ROOT/.secrets/hackme_coordinator_admin_token" 2>/dev/null || true)}"
+  COORD_TOKEN="$(load_coord_token)"
   SEED="$(tr -d '\r\n' <"$HACKME_DATA_DIR/node_ed25519.seed" 2>/dev/null || tr -d '\r\n' <"$HACKME_DATA_DIR/miner_submit_ed25519_seed.hex" 2>/dev/null || true)"
   export HACKME_MINER_ED25519_SEED_HEX="$SEED" HACKME_WORKER_SIGN_SUBMITS=1
   LOG="$ROOT/logs/workerpoh-worker-kapa-pc-$(date -u +%Y%m%dT%H%M%SZ).log"
@@ -104,7 +118,7 @@ fi
 
 bash "$ROOT/scripts/ops/desktop_worker_reset.sh" || {
   echo "[restart-linux] worker_reset failed; trying API start with backend=$BACKEND"
-  COORD_TOKEN="${HACKME_POOL_COORDINATOR_TOKEN:-$(tr -d '\r\n' <"$ROOT/.secrets/hackme_coordinator_admin_token" 2>/dev/null || true)}"
+  COORD_TOKEN="$(load_coord_token)"
   curl -fsS -X POST -H "Content-Type: application/json" -H "X-Hackme-Admin-Token: ${HACKME_ADMIN_TOKEN}" \
     -d "{\"coord_url\":\"${HACKME_POOL_COORDINATOR_URL:-https://hackme.tech/pool/coordinator}\",\"worker_id\":\"${WORKER_ID:-worker-kapa-pc}\",\"batch_size\":${HACKME_WORKER_BATCH_SIZE:-524288},\"coord_token\":\"$COORD_TOKEN\",\"gpu_backend\":\"$BACKEND\"}" \
     "http://127.0.0.1:8080/api/worker/start"

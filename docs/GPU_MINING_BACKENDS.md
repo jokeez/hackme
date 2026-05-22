@@ -16,6 +16,18 @@ HackMe pool workers support **native CUDA** (NVIDIA) and **OpenCL** (AMD, Intel,
 ## Why CUDA is ideal on NVIDIA
 
 1. **Direct driver API** — no ICD layer (`pci id … driver (null)` OpenCL issues on new Blackwell cards).
+
+### Global GPU matrix audit (all generations, simulated)
+
+Cross-vendor compatibility and chaos resilience (VRAM/TDR/thermal → CPU fallback, no worker panic):
+
+```bash
+bash scripts/tests/global_gpu_matrix_hardware_audit.sh
+# optional live probes on this host:
+LIVE_HOST=1 bash scripts/tests/global_gpu_matrix_hardware_audit.sh
+```
+
+Covers Pascal→Blackwell/H100/B200 (Green), Polaris/RDNA (Red), Intel Arc (Blue). Reports under `reports/tests/<run_id>/global_gpu_matrix/`.
 2. **NVRTC JIT** — kernel compiled for exact compute capability (`compute_120` on RTX 50).
 3. **Stable timing** — kernel duration after `cuSynchronize`; pool hashrate matches real throughput.
 4. **Production path** — `build_cuda_worker.sh`, `apply_desktop_gpu_pool.sh`, `desktop_worker_reset.sh` (CUDA direct start).

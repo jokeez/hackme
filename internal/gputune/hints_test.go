@@ -28,6 +28,10 @@ func TestForGPUName_ModelMatrix(t *testing.T) {
 		family string
 		vendor string
 	}{
+		{"NVIDIA H100 80GB", "Hopper", "NVIDIA"},
+		{"NVIDIA B200", "Hopper", "NVIDIA"},
+		{"NVIDIA GeForce RTX 2060", "Turing", "NVIDIA"},
+		{"NVIDIA GeForce GTX 1060", "Pascal", "NVIDIA"},
 		{"NVIDIA GeForce RTX 5060 Ti", "Blackwell (hint)", "NVIDIA"},
 		{"NVIDIA GeForce RTX 5070", "Blackwell (hint)", "NVIDIA"},
 		{"NVIDIA GeForce RTX 5080", "Blackwell (hint)", "NVIDIA"},

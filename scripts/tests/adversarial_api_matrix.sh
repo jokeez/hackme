@@ -63,8 +63,9 @@ else
 fi
 
 # 3) Transfer malformed payload should be rejected (or rate-limited under stress).
+# Desktop nodes with HACKME_ADMIN_TOKEN return 401 before body parse — still fail-closed.
 tx_bad_http="$(curl --max-time "$CURL_MAX_TIME" -sS -o "$tmp" -w '%{http_code}' -X POST "$BASE/api/tx/send" -H "Content-Type: application/json" --data-binary '{' || true)"
-if is_any "$tx_bad_http" "400" "429"; then
+if is_any "$tx_bad_http" "400" "401" "429"; then
   record_result "tx-malformed-rejected" "pass" "http=$tx_bad_http"
 else
   record_result "tx-malformed-rejected" "fail" "unexpected http=$tx_bad_http"
