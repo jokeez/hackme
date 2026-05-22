@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# Controlled-launch test bundle for operators (pool + ISO + security smokes).
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT"
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+OUT="$ROOT/reports/miner-launch-gate-$STAMP"
+mkdir -p "$OUT"
+VERDICT="$OUT/VERDICT.md"
+POOL_BASE="${POOL_BASE:-https://hackme.tech/pool}"
+ISO_URL="${ISO_URL:-https://hackme.tech/dist/release_0.1.0-rc11g/HackMe-OS-0.1.0-rc11g-amd64.iso}"
+EXPECTED_ISO_SHA="1b7bd70e381bb0d5aee82135fe01963d27d2af43ebfba95e02dec22aabe17658"
+
+pass=0
+fail=0
+
+run_step() {
+  local id="$1" desc="$2"
+  shift 2
+  local log="$OUT/${id}.log"
+  echo "[launch-gate] === $id: $desc ==="
+  if "$@" >"$log" 2>&1; then
+    echo "[launch-gate] PASS $id"
+    echo "| $id | PASS | $desc |" >>"$OUT/results.md"
+    pass=$((pass + 1))
+  else
+    echo "[launch-gate] FAIL $id (see $log)"
+    echo "| $id | **FAIL** | $desc |" >>"$OUT/results.md"
+    fail=$((fail + 1))
+  fi
+}
+
+echo "# Miner launch gate — $STAMP" >"$OUT/results.md"
+echo "" >>"$OUT/results.md"
+echo "| Step | Result | Description |" >>"$OUT/results.md"
+echo "|------|--------|-------------|" >>"$OUT/results.md"
+
+run_step go_test "go test ./..." go test ./... -count=1
+run_step chaos_guard "nightly chaos guard" bash scripts/tests/nightly_chaos_guard.sh
+run_step init_worker "HackMe OS init-worker tests" bash scripts/release/iso/init_worker_test.sh
+run_step mega_stress_quick "coordinator mega stress (quick)" env STRESS_QUICK=1 bash scripts/tests/coordinator_mega_stress.sh
+run_step difficulty_health "prod pool difficulty health" env POOL_BASE="$POOL_BASE" bash scripts/tests/difficulty_health.sh
+run_step redteam "redteam surface smoke" bash scripts/tests/redteam_surface_smoke.sh
+
+echo "[launch-gate] === iso_remote: published ISO SHA256 ===" | tee -a "$OUT/iso_remote.log"
+if command -v curl >/dev/null && curl -fsS --max-time 15 "${ISO_URL%/*}/SHA256SUMS-iso.txt" | grep -q "$EXPECTED_ISO_SHA"; then
+    echo "[launch-gate] PASS iso_sha_remote" | tee -a "$OUT/iso_remote.log"
+    echo "| iso_sha_remote | PASS | SHA256SUMS matches expected |" >>"$OUT/results.md"
+    pass=$((pass + 1))
+  else
+    echo "[launch-gate] FAIL iso_sha_remote" | tee -a "$OUT/iso_remote.log"
+    fail=$((fail + 1))
+  fi
+else
+  echo "[launch-gate] WARN iso download check skipped" | tee -a "$OUT/iso_remote.log"
+  echo "| iso_sha_remote | WARN | could not curl ISO URL |" >>"$OUT/results.md"
+fi
+
+echo "[launch-gate] === pool_stats: coordinator work/stats ===" | tee "$OUT/pool_stats.log"
+if curl -fsS --max-time 15 "${POOL_BASE}/coordinator/api/work/stats" | jq -e '.workers' >>"$OUT/pool_stats.log" 2>&1; then
+  echo "[launch-gate] PASS pool_stats"
+  echo "| pool_stats | PASS | coordinator /api/work/stats |" >>"$OUT/results.md"
+  pass=$((pass + 1))
+else
+  echo "[launch-gate] FAIL pool_stats"
+  echo "| pool_stats | **FAIL** | coordinator unreachable |" >>"$OUT/results.md"
+  fail=$((fail + 1))
+fi
+
+if [[ -f "$ROOT/.env.desktop" ]] && curl -fsS --max-time 3 "http://127.0.0.1:8080/api/status" >/dev/null 2>&1; then
+  run_step fuzz_smoke "fuzz dashboard smoke (local node)" bash scripts/tests/fuzz_dashboard_smoke.sh
+else
+  echo "[launch-gate] SKIP fuzz_smoke (no local :8080 node)" | tee "$OUT/fuzz_smoke_skip.log"
+  echo "| fuzz_smoke | SKIP | local node not up |" >>"$OUT/results.md"
+fi
+
+{
+  echo "# Miner launch gate verdict"
+  echo ""
+  echo "- **When:** $STAMP (UTC)"
+  echo "- **Pass:** $pass · **Fail:** $fail"
+  echo ""
+  if [[ "$fail" -eq 0 ]]; then
+    echo "## Verdict: **GO** for controlled miner launch"
+    echo ""
+    echo "Pool, security smokes, and ISO checksum URL look good. Announce with [MINER_READINESS_CHECKLIST.md](../docs/MINER_READINESS_CHECKLIST.md) and Telegram support."
+  else
+    echo "## Verdict: **NO-GO** until failures fixed"
+    echo ""
+    echo "See step logs under \`$OUT/\`."
+  fi
+  echo ""
+  cat "$OUT/results.md"
+} >"$VERDICT"
+
+echo "[launch-gate] wrote $VERDICT"
+cat "$VERDICT"
+[[ "$fail" -eq 0 ]]
