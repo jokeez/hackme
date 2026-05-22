@@ -1591,6 +1591,23 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 	return out
 }
 
+// workersByPayoutAddress returns pool workers paying out to the given HMC address (case-insensitive).
+func (m *workManager) workersByPayoutAddress(addr string) map[string]workerPayoutStat {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	addr = strings.TrimSpace(addr)
+	out := make(map[string]workerPayoutStat)
+	if addr == "" {
+		return out
+	}
+	for id, st := range m.worker {
+		if strings.EqualFold(strings.TrimSpace(st.PayoutAddress), addr) {
+			out[id] = st
+		}
+	}
+	return out
+}
+
 func validCoordinatorWorkerID(id string) bool {
 	if id == "" || len(id) > 128 {
 		return false
@@ -1802,6 +1819,31 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 			"ok":        true,
 			"cleared":   cleared,
 			"worker_id": strings.TrimSpace(req.WorkerID),
+		})
+	})
+
+	mux.HandleFunc("/api/work/by-wallet", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		addr := strings.TrimSpace(r.URL.Query().Get("address"))
+		if addr == "" {
+			http.Error(w, "address query required (HMC-...)", http.StatusBadRequest)
+			return
+		}
+		if !strings.HasPrefix(addr, "HMC-") || len(addr) > 96 {
+			http.Error(w, "invalid HMC address", http.StatusBadRequest)
+			return
+		}
+		workers := wm.workersByPayoutAddress(addr)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok":            true,
+			"address":       addr,
+			"workers_count": len(workers),
+			"workers":       workers,
 		})
 	})
 
