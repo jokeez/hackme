@@ -1,6 +1,28 @@
 {
   "items": [
     {
+      "id": "2026-05-22-ecosystem-chaos-hackme-os",
+      "date": "2026-05-22",
+      "title": "Ecosystem dashboard · nightly chaos guard · HackMe OS miner ISO",
+      "summary": "Desktop dashboard home is now the Ecosystem coin table (Hive-style): live HMC pool stats, clickable mining entry, roadmap slots for future chains. Nightly chaos guard tests 5000 payout ledger drift, HTTP replay/tamper (403), and HackMe OS init-worker.ini hardening. HackMe OS live USB build: CPU isolation, RT scheduler, GPU performance mode, fair pool worker autostart.",
+      "tags": [
+        "release",
+        "mining",
+        "pool",
+        "security",
+        "infrastructure"
+      ],
+      "impact": "Miners get a clearer pool-first UI; operators get automated security regression tests; Linux rigs can boot a dedicated HackMe OS image pointed at hackme.tech pool.",
+      "action": "Pull latest main · Dashboard: http://127.0.0.1:8080 (Ecosystem tab) · Pool: https://hackme.tech/pool/coordinator/api/work/stats · Docs: docs/HACKME_OS.md · Chaos tests: bash scripts/tests/nightly_chaos_guard.sh",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme",
+        "downloads": "https://hackme.tech/downloads.html",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/work/stats",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-21-coordinator-stress-bct",
       "date": "2026-05-21",
       "title": "Coordinator stress test passed · Bitcointalk update · MiningPoolStats listing",
@@ -227,22 +249,6 @@
         "bitcointalk": "https://github.com/jokeez/hackme/blob/main/docs/BITCOINTALK_ANN.md",
         "telegram": "https://t.me/hackme_tech"
       }
-    },
-    {
-      "id": "2026-05-15-pool-release-1-0-0-pool-live",
-      "date": "2026-05-15",
-      "title": "Pool release 1.0.0-pool is live — public mining, faster dashboard, production deploy",
-      "summary": "HackMe public pool is open for workers: coordinator on hackme.tech, hybrid signer payouts, top-pool readiness gate green (2+ workers, ~26s block cadence). Desktop dashboard is faster (non-blocking poll, earnings on a separate cadence, no UI freeze on slow canonical proxy). Wallet earnings fix: no more 502 loops on the command node; followers get canonical_peer without hanging the whole UI.",
-      "tags": [
-        "release",
-        "mining",
-        "pool",
-        "ux",
-        "production"
-      ],
-      "impact": "Miners can join with HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech, start the pool worker from the Mining tab, and accrue HMC via the coordinator path. Operators: stack deployed to production VPS with nginx TLS, settlement API, and work/stats proxy.",
-      "action": "Join: export HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech — open local dashboard → Mining → Start pool worker (once). Hard-refresh (Ctrl+Shift+R) after updating the node binary. Downloads: check / for release bundles; verify with PROFILE=canary BASE=https://hackme.tech bash scripts/ops/top_pool_readiness_gate.sh.",
-      "status": "published"
     }
   ],
   "feed": "recent"

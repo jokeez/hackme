@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>HackMe Downloads</title>
-  <meta name="description" content="Download HackMe node builds for Windows and Linux with checksums and release manifest." />
+  <meta name="description" content="Download HackMe OS live ISO, Windows installer, and Linux bundles. Zero-Knowledge Start — flash USB and mine with no wallet setup." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
@@ -18,6 +18,7 @@
     <nav class="nav">
       <a href="./index.html">Home</a>
       <a href="./docs.html">Docs</a>
+      <a href="./news.html">News</a>
       <a href="./contacts.html">Contacts</a>
       <a href="./legal.html">Legal</a>
       <a id="explorer-link-top" href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
@@ -28,21 +29,49 @@
     <section class="hero glass hero-small">
       <p class="kicker">Downloads</p>
       <h1>Official HackMe release artifacts</h1>
-      <p class="hero-copy">Use checksums before install. Run only builds published through your official release channel.</p>
+      <p class="hero-copy">Verify SHA256 before install. Version <strong id="dl-release-ver">—</strong> · open source on <a href="https://github.com/jokeez/hackme" target="_blank" rel="noreferrer">GitHub</a>.</p>
+    </section>
+
+    <section id="hackme-os" class="panel glass" style="border:1px solid rgba(0,255,136,0.25)">
+      <div class="panel-head">
+        <p class="kicker" style="color:#00ff88">HackMe OS · Zero-Knowledge Start</p>
+        <h2>Bootable mining rig ISO (live USB)</h2>
+        <p class="subtle">Flash with Balena Etcher or <code>dd</code>, boot the rig — <strong>no wallet, pool URL, or worker setup</strong>. The OS generates a fresh <code>HMC-…</code> address and 24-word recovery phrase on screen, saves <code>hackme.ini</code>, and starts mining on <strong>hackme.tech</strong> automatically.</p>
+      </div>
+      <div class="grid grid-2" style="margin-top:1rem">
+        <article class="card glass">
+          <h3>Live ISO (amd64)</h3>
+          <p>HiveOS-style rig OS: CPU isolation, RT scheduler, GPU performance mode, AMD RX 580 rig profiles, public pool worker.</p>
+          <a id="download-iso" class="btn btn-primary btn-block" href="#">Download HackMe OS (.iso)</a>
+          <p id="download-iso-status" class="subtle" style="margin-top:0.75rem;font-size:0.85rem">Checking availability…</p>
+          <a id="download-iso-sha" class="btn btn-block mt-2" href="#" style="margin-top:0.5rem">SHA256SUMS (ISO)</a>
+        </article>
+        <article class="card glass">
+          <h3>3 steps</h3>
+          <ol class="steps">
+            <li>Download ISO + verify <code>SHA256SUMS-iso.txt</code>.</li>
+            <li>Flash to USB 8&nbsp;GB+ (Etcher recommended).</li>
+            <li>Boot → read recovery phrase on TTY1 → mining starts.</li>
+          </ol>
+          <p class="subtle" style="margin-top:0.75rem">Commands on rig: <code>hackme-os-status</code> · <code>hackme-show-wallet</code> · <code>hackme-os-install /dev/sda</code> (persist to disk).</p>
+          <p class="subtle"><a href="https://github.com/jokeez/hackme/blob/main/docs/HACKME_OS.md" target="_blank" rel="noreferrer">Full HackMe OS docs →</a></p>
+        </article>
+      </div>
     </section>
 
     <section class="grid grid-2">
       <article class="card glass">
         <h3>Windows</h3>
-        <p>Official installer (Inno Setup): unpacks to Program Files, Start menu + desktop shortcuts, registry entries, pool token preconfigured.</p>
+        <p>Installer (Inno Setup): Program Files, shortcuts, pool token preconfigured, <strong>worker watchdog</strong> keeps mining alive after GPU hiccups.</p>
         <a id="download-win" class="btn btn-primary btn-block" href="#">Download HackMe Setup (.exe)</a>
         <a id="download-win-zip" class="btn btn-block mt-2" href="#" style="margin-top:0.75rem">Portable ZIP (advanced)</a>
-        <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem">Version <span id="dl-release-ver">—</span> · verify with SHA256SUMS.txt</p>
+        <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem">Run <strong>Start HackMe Miner</strong> — keep the window open; worker auto-restarts if it stops.</p>
       </article>
       <article class="card glass">
         <h3>Linux</h3>
-        <p>Tarball bundle with service templates and install script.</p>
+        <p>Tarball with <code>hackme</code>, <code>workerpoh</code>, service templates, and GPU helper scripts.</p>
         <a id="download-linux" class="btn btn-primary btn-block" href="#">Download Linux Bundle</a>
+        <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem">For servers and custom rigs — not required if you use HackMe OS ISO.</p>
       </article>
     </section>
 
@@ -51,45 +80,39 @@
       <div class="quick-links">
         <a id="download-sha" class="quick-item" href="#">
           <h4>SHA256SUMS</h4>
-          <p>Verify package integrity before deployment.</p>
+          <p>Windows + Linux release hashes.</p>
+        </a>
+        <a id="download-iso-sha-card" class="quick-item" href="#">
+          <h4>SHA256SUMS (ISO)</h4>
+          <p>Bootable HackMe OS image hash.</p>
         </a>
         <a id="download-manifest" class="quick-item" href="#">
           <h4>RELEASE_MANIFEST.json</h4>
-          <p>Machine-readable release metadata (version, hashes, sizes).</p>
+          <p>Version, commit, artifact sizes (incl. ISO when published).</p>
         </a>
         <a id="download-buildinfo" class="quick-item" href="#">
           <h4>BUILD_INFO.txt</h4>
-          <p>Build timestamp, commit metadata, and architecture details.</p>
+          <p>Build timestamp and git commit.</p>
         </a>
       </div>
     </section>
+
     <section class="panel glass">
       <div class="panel-head">
         <h2>Download verification</h2>
-        <p class="subtle">Quick operator checklist before running binaries in production.</p>
+        <p class="subtle">Operator checklist before production.</p>
       </div>
       <ol class="steps">
-        <li>Match filename, version, and platform with release announcement.</li>
-        <li>Validate SHA256 from <code>SHA256SUMS.txt</code> locally.</li>
-        <li>Review <code>RELEASE_MANIFEST.json</code> for hash and size parity.</li>
-        <li>Store bundle and checksum evidence in your rollout log.</li>
+        <li>Match version with the news announcement on <a href="./news.html">News</a>.</li>
+        <li>Validate SHA256 locally (<code>sha256sum -c SHA256SUMS*.txt</code>).</li>
+        <li>Compare sizes with <code>RELEASE_MANIFEST.json</code>.</li>
+        <li>Never run binaries from unofficial mirrors or Telegram DMs.</li>
       </ol>
     </section>
 
     <section class="panel glass">
       <div class="panel-head"><h2>Open source</h2></div>
-      <p class="subtle">Build and audit the same code that runs the public pool. Official repository: <a href="https://github.com/jokeez/hackme" target="_blank" rel="noreferrer">github.com/jokeez/hackme</a> (Apache-2.0). Production binaries on this page must match <strong>SHA256SUMS</strong> — do not trust unofficial mirrors.</p>
-    </section>
-
-    <section class="panel glass">
-      <div class="panel-head"><h2>Installation flow</h2></div>
-      <ol class="steps">
-        <li>Download your platform bundle and checksum file.</li>
-        <li>Verify hash locally.</li>
-        <li>Windows: run <strong>HackMe-Setup-*.exe</strong> (recommended) or extract ZIP + setup bat.</li>
-        <li>Configure node, coordinator URL, and tokens.</li>
-        <li>Run post-install health checks and sync verification.</li>
-      </ol>
+      <p class="subtle">Audit and build the same stack: <a href="https://github.com/jokeez/hackme" target="_blank" rel="noreferrer">github.com/jokeez/hackme</a> (Apache-2.0). Production artifacts on this page must match published checksums.</p>
     </section>
   </main>
 
@@ -106,6 +129,6 @@
     </div>
   </footer>
 
-  <script src="./assets/app.js?v=20260520rc11d"></script>
+  <script src="./assets/app.js?v=20260522dl"></script>
 </body>
 </html>

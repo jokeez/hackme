@@ -88,7 +88,7 @@ menuentry "HackMe Miner (live — safe graphics)" {
 }
 GRUB
 
-ISO_NAME="HackMe-Miner-${VERSION}-amd64.iso"
+ISO_NAME="HackMe-OS-${VERSION}-amd64.iso"
 OUT_ISO="${OUT_DIR}/${ISO_NAME}"
 rm -f "$OUT_ISO"
 

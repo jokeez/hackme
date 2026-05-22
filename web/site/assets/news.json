@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-05-22-zero-knowledge-start-downloads",
+      "date": "2026-05-22",
+      "title": "Zero-Knowledge Start · HackMe OS on downloads · Windows worker watchdog",
+      "summary": "HackMe OS: flash USB, boot — empty hackme.ini triggers auto HMC wallet + 24-word recovery phrase on screen, then instant pool mining (no config). New downloads section for the live ISO. Windows installer ships worker watchdog (mining stays up after GPU crashes). Site + manifests updated.",
+      "tags": ["release", "mining", "hackme-os", "windows", "infrastructure"],
+      "impact": "Miners can start in zero seconds on ISO rigs; Windows rigs auto-restart the pool worker; official ISO and checksums appear on hackme.tech/downloads when the build is published.",
+      "action": "Downloads: https://hackme.tech/downloads.html#hackme-os · Windows: HackMe-Setup exe · ISO docs: https://github.com/jokeez/hackme/blob/main/docs/HACKME_OS.md · Pool: https://hackme.tech/pool/coordinator/api/work/stats",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme",
+        "downloads": "https://hackme.tech/downloads.html#hackme-os",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/work/stats",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-22-ecosystem-chaos-hackme-os",
       "date": "2026-05-22",
       "title": "Ecosystem dashboard · nightly chaos guard · HackMe OS miner ISO",
