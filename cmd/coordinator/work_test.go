@@ -1024,3 +1024,23 @@ func TestPoolLoadHintUnclampedLargeFleet(t *testing.T) {
 		t.Fatalf("30 GH/s should not hit new default max")
 	}
 }
+
+func TestWorkManagerWorkersByPayoutAddress(t *testing.T) {
+	wm := &workManager{
+		worker: map[string]workerPayoutStat{
+			"worker-a": {PayoutAddress: "HMC-abc123", PayoutHMC: 1.5},
+			"worker-b": {PayoutAddress: "HMC-other", PayoutHMC: 0.1},
+			"worker-c": {PayoutAddress: "hmc-abc123", PayoutHMC: 0.2},
+		},
+	}
+	got := wm.workersByPayoutAddress("HMC-abc123")
+	if len(got) != 2 {
+		t.Fatalf("want 2 workers for wallet, got %d", len(got))
+	}
+	if _, ok := got["worker-a"]; !ok || got["worker-a"].PayoutHMC != 1.5 {
+		t.Fatalf("worker-a: %+v", got["worker-a"])
+	}
+	if _, ok := got["worker-c"]; !ok {
+		t.Fatalf("case-insensitive match missing worker-c")
+	}
+}

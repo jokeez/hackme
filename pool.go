@@ -934,6 +934,33 @@ func fetchCoordinatorStats(ctx context.Context, base string) (lanpool.NetworkSta
 	return out, nil
 }
 
+func fetchCoordinatorWorkersByWallet(ctx context.Context, base, address string) (map[string]any, error) {
+	base = strings.TrimRight(strings.TrimSpace(base), "/")
+	if base == "" {
+		return nil, fmt.Errorf("coordinator url is empty")
+	}
+	u := base + "/api/work/by-wallet?address=" + neturl.QueryEscape(strings.TrimSpace(address))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set(coordinatorForwardHeader, "1")
+	res, err := coordinatorHTTPClient().Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(io.LimitReader(res.Body, 4096))
+		return nil, fmt.Errorf("coordinator by-wallet http %d: %s", res.StatusCode, strings.TrimSpace(string(b)))
+	}
+	var out map[string]any
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func fetchCoordinatorWorkStats(ctx context.Context, base string, includeDetails bool) (map[string]any, error) {
 	base = strings.TrimRight(strings.TrimSpace(base), "/")
 	if base == "" {
@@ -1495,6 +1522,35 @@ func (a *app) handleWorkStats(w http.ResponseWriter, r *http.Request) {
 	ws["stale_sec"] = int64(0)
 	storeWorkStatsCache(ws)
 	writeJSON(w, ws)
+}
+
+func (a *app) handleWorkByWallet(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	addr := strings.TrimSpace(r.URL.Query().Get("address"))
+	if addr == "" {
+		writeJSON(w, map[string]any{"ok": false, "reason": "address_required", "message": "pass ?address=HMC-..."})
+		return
+	}
+	base := a.coordinatorBaseURL()
+	if base == "" {
+		writeJSON(w, map[string]any{
+			"ok":      false,
+			"reason":  "coordinator_not_configured",
+			"message": "set HACKME_POOL_COORDINATOR_URL",
+		})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	out, err := fetchCoordinatorWorkersByWallet(ctx, base, addr)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "reason": "coordinator_unavailable", "message": err.Error(), "address": addr})
+		return
+	}
+	writeJSON(w, out)
 }
 
 func mapFromAny(v any) map[string]any {
