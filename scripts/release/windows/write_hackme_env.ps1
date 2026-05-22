@@ -91,6 +91,10 @@ if (-not (Test-Path -LiteralPath (Join-Path -Path $dir -ChildPath "data"))) {
     New-Item -ItemType Directory -Path (Join-Path -Path $dir -ChildPath "data") -Force | Out-Null
 }
 
+$hostWid = 'worker-' + (($env:COMPUTERNAME).ToLower() -replace '[^a-z0-9-]', '-')
+$hostWid = $hostWid.Trim('-')
+if (-not $hostWid -or $hostWid -eq 'worker-') { $hostWid = 'worker-desktop' }
+
 $lines = @(
     "HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech",
     "HACKME_ADMIN_TOKEN=$admin",
@@ -108,7 +112,11 @@ $lines = @(
     "HACKME_GPU_TEMP_RESUME_C=$tempResume",
     "HACKME_DESKTOP_GPU_POOL=1",
     "HACKME_BIND_ADDR=127.0.0.1:8080",
-    "HACKME_WORKER_SIGN_SUBMITS=1"
+    "HACKME_WORKER_SIGN_SUBMITS=1",
+    "WORKER_ID=$hostWid",
+    "HACKME_WORKER_WATCHDOG=1",
+    "HACKME_WORKER_WATCHDOG_SEC=45",
+    "HACKME_POOL_COORDINATOR_URL=https://hackme.tech/pool/coordinator"
 )
 if ($RigProfile) { $lines += "HACKME_RIG_PROFILE=$RigProfile" }
 if ($floorGhs) { $lines += "HACKME_GPU_HASHRATE_FLOOR_GHS=$floorGhs" }

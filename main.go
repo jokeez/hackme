@@ -500,6 +500,7 @@ func main() {
 		}
 	}
 	a.startFuzzAutoRunner(context.Background())
+	a.startPoolWorkerWatchdog()
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           hardenHTTPHandler(mux),
@@ -2063,8 +2064,11 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 	}
 	workerID := strings.TrimSpace(req.WorkerID)
 	if workerID == "" {
+		workerID = strings.TrimSpace(os.Getenv("WORKER_ID"))
+	}
+	if workerID == "" {
 		if h, err := os.Hostname(); err == nil && strings.TrimSpace(h) != "" {
-			workerID = "worker-" + strings.TrimSpace(h)
+			workerID = "worker-" + sanitizeWorkerIDHost(h)
 		} else {
 			workerID = "worker-local-01"
 		}
@@ -2856,22 +2860,45 @@ func parseWorkerpohMeasuredGHs(logDir string) float64 {
 	return best
 }
 
-// latestWorkerpohLogPath returns the newest workerpoh-*.log under logDir (per-run tee log).
-func latestWorkerpohLogPath(logDir string) string {
-	matches, err := filepath.Glob(filepath.Join(logDir, "workerpoh-*.log"))
-	if err != nil || len(matches) == 0 {
-		return ""
+// sanitizeWorkerIDHost maps hostname to a stable coordinator worker id (matches Windows autostart).
+func sanitizeWorkerIDHost(host string) string {
+	host = strings.ToLower(strings.TrimSpace(host))
+	var b strings.Builder
+	for _, r := range host {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-':
+			b.WriteRune(r)
+		default:
+			b.WriteRune('-')
+		}
 	}
+	out := strings.Trim(b.String(), "-")
+	if out == "" {
+		return "local"
+	}
+	return out
+}
+
+func considerNewestLogPath(best string, bestMod time.Time, candidate string) (string, time.Time) {
+	fi, err := os.Stat(candidate)
+	if err != nil {
+		return best, bestMod
+	}
+	if best == "" || fi.ModTime().After(bestMod) {
+		return candidate, fi.ModTime()
+	}
+	return best, bestMod
+}
+
+// latestWorkerpohLogPath returns the newest pool worker log under logDir (workerpoh-*.log or worker_participant.log).
+func latestWorkerpohLogPath(logDir string) string {
 	var best string
 	var bestMod time.Time
-	for _, p := range matches {
-		fi, err := os.Stat(p)
-		if err != nil {
-			continue
-		}
-		if best == "" || fi.ModTime().After(bestMod) {
-			best = p
-			bestMod = fi.ModTime()
+	best, bestMod = considerNewestLogPath(best, bestMod, filepath.Join(logDir, "worker_participant.log"))
+	matches, err := filepath.Glob(filepath.Join(logDir, "workerpoh-*.log"))
+	if err == nil {
+		for _, p := range matches {
+			best, bestMod = considerNewestLogPath(best, bestMod, p)
 		}
 	}
 	return best
