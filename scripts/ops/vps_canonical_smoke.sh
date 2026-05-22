@@ -6,7 +6,7 @@
 # Usage:
 #   bash scripts/ops/vps_canonical_smoke.sh
 # Optional:
-#   VPS_SSH=hackme-vps NODE_BASE=http://132.243.112.100:18080 COORD_BASE=http://132.243.112.100:18081
+#   VPS_SSH=hackme-vps NODE_BASE=http://hackme-vps:18080 COORD_BASE=http://hackme-vps:18081
 
 set -euo pipefail
 
@@ -26,8 +26,8 @@ require_cmd jq
 require_cmd bash
 
 VPS_SSH="${VPS_SSH:-hackme-vps}"
-NODE_BASE="${NODE_BASE:-http://132.243.112.100:18080}"
-COORD_BASE="${COORD_BASE:-http://132.243.112.100:18081}"
+NODE_BASE="${NODE_BASE:-http://hackme-vps:18080}"
+COORD_BASE="${COORD_BASE:-http://hackme-vps:18081}"
 REMOTE_ENV="${REMOTE_ENV:-/opt/hackme/.env.vps}"
 REMOTE_COORD_ENV="${REMOTE_COORD_ENV:-/opt/hackme/.env.coord}"
 

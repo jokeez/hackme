@@ -1,7 +1,7 @@
 <div align="center">
 
 <pre aria-label="HackMe Network ASCII logo">
-██╗  ██╗ █████╗  ██████╗██╗  ██╗███╗   ███╗███████╗    ███╗   ██╗███████╗████████╗██╗    ██╗ ██████╗ ██████╗ ██╗  ██╗
+██╗  ██╗ █████╗  █████╗ ██╗  ██╗███╗   ███╗███████╗    ███╗   ██╗███████╗████████╗██╗    ██╗ ██████╗ ██████╗ ██╗  ██╗
 ██║  ██║██╔══██╗██╔════╝██║ ██╔╝████╗ ████║██╔════╝    ████╗  ██║██╔════╝╚══██╔══╝██║    ██║██╔═══██╗██╔══██╗██║ ██╔╝
 ███████║███████║██║     █████╔╝ ██╔████╔██║█████╗      ██╔██╗ ██║█████╗     ██║   ██║ █╗ ██║██║   ██║██████╔╝█████╔╝
 ██╔══██║██╔══██║██║     ██╔═██╗ ██║╚██╔╝██║██╔══╝      ██║╚██╗██║██╔══╝     ██║   ██║███╗██║██║   ██║██╔══██╗██╔═██╗
@@ -11,145 +11,121 @@
 
 # HackMe Network
 
-**Useful Proof-of-Work · public HTTP pool · WASM validation · GPU mining (CUDA / OpenCL)**
+**Useful Proof-of-Work · public HTTP pool · GPU mining (CUDA / OpenCL)**
 
 [![Release](https://img.shields.io/badge/release-0.1.0--rc11g-00d1ff?style=for-the-badge)](https://hackme.tech/downloads.html)
 [![License](https://img.shields.io/badge/license-Apache%202.0-39ff14?style=for-the-badge)](LICENSE)
-[![Go](https://img.shields.io/badge/Go-1.22+-0a0c10?style=for-the-badge&logo=go&logoColor=00d1ff)](https://go.dev/)
 [![Website](https://img.shields.io/badge/website-hackme.tech-7fe7ff?style=for-the-badge)](https://hackme.tech)
-[![Telegram](https://img.shields.io/badge/Telegram-@hackme__tech-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/hackme_tech)
-[![Bitcointalk](https://img.shields.io/badge/Bitcointalk-ANN-FF9900?style=for-the-badge)](https://bitcointalk.org/index.php?topic=5583373.0)
 
-[⬇ Downloads](https://hackme.tech/downloads.html) · [📊 Pool stats](https://hackme.tech/pool/coordinator/api/pool/stats) · [🔍 Explorer](https://hackme.tech/pool/explorer) · [📰 News](https://hackme.tech/news.html) · [📖 Docs](https://hackme.tech/docs.html) · [💰 Economics](https://hackme.tech/economics-model.html) · [🛡 Security](https://hackme.tech/security-rewards.html)
+[Downloads](https://hackme.tech/downloads.html) · [Pool stats](https://hackme.tech/pool/coordinator/api/work/stats) · [Explorer](https://hackme.tech/pool/explorer) · [Setup guide](docs/SETUP.md) · [All docs](docs/INDEX.md)
 
 </div>
 
 ---
 
-## What is HackMe?
+## What you get
 
-HackMe is **open mining infrastructure**: a desktop **node** (dashboard + wallet view) and a **pool worker** (`workerpoh`) connect to the operator **coordinator** on [hackme.tech](https://hackme.tech). You submit verifiable nonce ranges; the pool accrues **off-chain HMC** credits. On-chain payouts arrive after **operator settlement** — not inside every PoH block.
+HackMe is open mining infrastructure: a **desktop node** (dashboard at `:8080`) and a **pool worker** (`workerpoh`) submit work to the coordinator on [hackme.tech](https://hackme.tech). Rewards accrue as **off-chain HMC** until operator settlement.
 
 | | |
 |:---|:---|
-| **Algorithm** | Useful PoW / WASM sandbox · dynamic `target_mod` |
-| **Pool transport** | **HTTP coordinator** (not Stratum TCP) |
-| **GPU** | NVIDIA **CUDA** · AMD/Intel **OpenCL** · CPU fallback |
-| **License** | [Apache-2.0](LICENSE) — fork OK, **brand protection** applies |
-| **Release** | **`0.1.0-rc11g`** — Windows installer + OpenCL for RX 580 |
-| **Community** | [Telegram @hackme_tech](https://t.me/hackme_tech) · [Bitcointalk ANN](https://bitcointalk.org/index.php?topic=5583373.0) |
+| **Pool** | HTTP coordinator (not Stratum) · dynamic `target_mod` |
+| **GPU** | NVIDIA CUDA · AMD/Intel OpenCL · CPU fallback |
+| **Release** | `0.1.0-rc11g` — Windows installer, Linux bundle, HackMe OS ISO |
+| **License** | [Apache-2.0](LICENSE) |
 
-> **Miners:** Accrual on the coordinator ≠ wallet balance until settlement. Map your worker id → `HMC-…` in `WORKER_PAYOUT_MAP`.  
-> [Economics](https://hackme.tech/economics-model.html) · [Network model](docs/NETWORK_MODEL.md)
+> Wallet balance on the dashboard ≠ pool payout until settlement. Map `WORKER_ID` → `HMC-…` with the operator. See [docs/NETWORK_MODEL.md](docs/NETWORK_MODEL.md).
 
 ---
 
-## Architecture
+## Quick start (5 minutes)
 
-```mermaid
-flowchart LR
-  subgraph rig["Your rig"]
-    N["hackme-node<br/>:8080"]
-    W["workerpoh<br/>CUDA / OpenCL / CPU"]
-  end
-  subgraph cloud["hackme.tech VPS"]
-    C["Command node<br/>canonical chain"]
-    CO["Coordinator<br/>claim · submit"]
-  end
-  N -->|read-only| C
-  W -->|signed work| CO
-  CO -->|accrual| CO
-  C -->|settlement| Wallets[(HMC wallets)]
-```
-
-| Component | Role |
-|-----------|------|
-| **Node** | Dashboard, explorer link, worker launcher, orders/fuzz API |
-| **Worker** | Claims leases, submits results, hybrid Ed25519 when required |
-| **Coordinator** | Fair leases, rate limits, payout ledger (off-chain) |
-| **Site** | Downloads, SHA256, news RSS — [`web/site/`](web/site/) |
-
-**Stress-tested:** 100 virtual workers · 10 min · 0% hard errors · stable RAM — see [docs/COORDINATOR_MEGA_STRESS.md](docs/COORDINATOR_MEGA_STRESS.md).
-
----
-
-## Quick start
-
-### Linux (public pool)
+### Linux
 
 ```bash
 git clone https://github.com/jokeez/hackme.git && cd hackme
-
-export HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech
-# export WORKER_PAYOUT_MAP=worker-$(hostname -s)=HMC-your-address
-
+cp .env.desktop.example .env.desktop    # edit WORKER_PAYOUT_MAP + optional tokens
 bash scripts/ops/desktop_mode_up.sh
 ```
 
-Open **http://127.0.0.1:8080** → **Workers** → **Start pool worker**.
-
-```bash
-bash scripts/ops/desktop_mode_stop.sh   # stop
-bash scripts/ops/restart_linux_desktop_worker.sh   # GPU-aware restart
-```
+Open **http://127.0.0.1:8080** → **Workers** → start pool worker.  
+Full steps: **[docs/SETUP.md](docs/SETUP.md)**
 
 ### Windows
 
-1. [Download **HackMe-Setup-0.1.0-rc11g.exe**](https://hackme.tech/downloads.html)  
-2. Verify **SHA256** on the downloads page  
-3. Run **Start HackMe Miner** (pool token preconfigured)  
-4. **AMD RX 580:** installer selects **OpenCL** when `workerpoh-opencl.exe` is present  
+1. [Download installer](https://hackme.tech/downloads.html) and verify SHA256 on that page  
+2. Run **Start HackMe Miner**  
 
-### Build from source
+### HackMe OS (USB rig)
+
+Flash ISO from downloads → boot **HackMe OS** menu → wallet + mining auto-start.  
+Verify ISO: `bash scripts/tests/verify_hackme_iso.sh your.iso`
+
+---
+
+## Configuration files (do not commit secrets)
+
+| File | Purpose |
+|------|---------|
+| `.env.desktop` | Local node + dashboard (`HACKME_ADMIN_TOKEN`, pool URL) |
+| `.secrets/hackme_coordinator_worker_token` | Pool worker token (one line) |
+| `.secrets/hackme_coordinator_admin_token` | **Operators only** — never publish |
+| `HACKME_MINER_ED25519_SEED_HEX` | Per-rig signing key (`minersign -gen-seed`) |
+
+Templates: `.env.desktop.example`, `scripts/ops/worker.env.example`.  
+**Read before pushing to GitHub:** [docs/SECURITY_REPO.md](docs/SECURITY_REPO.md)
+
+---
+
+## Build from source
 
 ```bash
 go build -trimpath -o hackme-node .
-
 go build -trimpath -tags opencl -o workerpoh-opencl ./cmd/workerpoh
 go build -trimpath -o hackme-coordinator ./cmd/coordinator
-
 VERSION=0.1.0-rc11g bash scripts/release/make_release_bundle.sh
 ```
 
 ---
 
-## Documentation
+## Health checks
 
-| Doc | Topic |
-|-----|--------|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design |
-| [docs/NETWORK_MODEL.md](docs/NETWORK_MODEL.md) | VPS, workers, P2P, settlement |
-| [docs/OPEN_POOL_MINERS.md](docs/OPEN_POOL_MINERS.md) | Miner setup |
-| [docs/GPU_MINING_BACKENDS.md](docs/GPU_MINING_BACKENDS.md) | CUDA / OpenCL matrix |
+```bash
+bash scripts/ops/verify_project_health.sh
+bash scripts/tests/public_site_smoke.sh
+bash scripts/ops/run_miner_launch_gate.sh    # operators — RC gate
+```
+
+Current RC status: [docs/STATUS.md](docs/STATUS.md)
+
+---
+
+## Documentation map
+
+| | |
+|--|--|
+| [docs/SETUP.md](docs/SETUP.md) | Install paths (Linux / Windows / ISO / CLI) |
+| [docs/INDEX.md](docs/INDEX.md) | Full doc index |
+| [docs/OPEN_POOL_MINERS.md](docs/OPEN_POOL_MINERS.md) | Pool rules for miners |
+| [docs/GPU_MINING_BACKENDS.md](docs/GPU_MINING_BACKENDS.md) | GPU matrix |
 | [docs/API.md](docs/API.md) | HTTP API |
-| [docs/MININGPOOLSTATS_LISTING.md](docs/MININGPOOLSTATS_LISTING.md) | Pool listing |
-| [docs/BITCOINTALK_ANN.md](docs/BITCOINTALK_ANN.md) | Forum ANN + [BBCode](docs/BITCOINTALK_ANN_BBCode.txt) |
-| [docs/SECURITY_AUDIT_REDTEAM.md](docs/SECURITY_AUDIT_REDTEAM.md) | Red-team report |
 | [scripts/release/README.md](scripts/release/README.md) | Release pipeline |
 
 ---
 
-## Security & trust
+## Security
 
-| Check | Official |
-|-------|----------|
-| Website | **https://hackme.tech** only |
+| | |
+|--|--|
+| Official site | **https://hackme.tech** only |
 | Downloads | SHA256 on [downloads.html](https://hackme.tech/downloads.html) |
-| Source | [github.com/jokeez/hackme](https://github.com/jokeez/hackme) |
-| Reports | [contacts.html](https://hackme.tech/contacts.html) — no public 0-days |
-
-```bash
-bash scripts/ops/verify_project_health.sh
-bash scripts/ops/public_release_readiness.sh
-```
-
-CI: [.github/workflows/ci.yml](.github/workflows/ci.yml)
+| Vulnerabilities | [contacts.html](https://hackme.tech/contacts.html) — no public 0-days |
 
 ---
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Security: responsible disclosure via [hackme.tech/contacts.html](https://hackme.tech/contacts.html).
+See [CONTRIBUTING.md](CONTRIBUTING.md). Do not commit `.env`, `.secrets`, `data/`, or `logs/` ([`.gitignore`](.gitignore)).
 
 ---
 

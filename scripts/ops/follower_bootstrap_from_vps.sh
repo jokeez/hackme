@@ -35,11 +35,11 @@ AUTO_START_MINING_WHEN_SYNCED="${AUTO_START_MINING_WHEN_SYNCED:-0}"
 RESET_NODE_SEED="${RESET_NODE_SEED:-1}"
 
 if [[ -z "$VPS_SSH" ]]; then
-  echo "[follower-bootstrap] VPS_SSH is required (e.g. root@132.243.112.100)" >&2
+  echo "[follower-bootstrap] VPS_SSH is required (e.g. hackme-vps)" >&2
   exit 1
 fi
 if [[ -z "$LEADER_URL" ]]; then
-  echo "[follower-bootstrap] LEADER_URL is required (e.g. http://132.243.112.100:18080)" >&2
+  echo "[follower-bootstrap] LEADER_URL is required (e.g. http://hackme-vps:18080)" >&2
   exit 1
 fi
 if [[ -z "$ADVERTISE_URL" ]]; then

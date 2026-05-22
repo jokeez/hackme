@@ -20,7 +20,7 @@ Lock feature work, validate operational/security baseline, and produce a single 
 ADMIN_TOKEN='<admin-token>' \
 BASE='http://127.0.0.1:8080' \
 COORD='http://127.0.0.1:8081' \
-VPS_BASE='http://132.243.112.100:18080' \
+VPS_BASE='http://hackme-vps:18080' \
 bash scripts/ops/rc_freeze_gate.sh
 ```
 
@@ -68,7 +68,7 @@ Run every night to keep constant release readiness signal:
 ADMIN_TOKEN='<admin-token>' \
 BASE='http://127.0.0.1:8080' \
 COORD='http://127.0.0.1:8081' \
-VPS_BASE='http://132.243.112.100:18080' \
+VPS_BASE='http://hackme-vps:18080' \
 bash scripts/ops/rc_freeze_nightly.sh
 ```
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # HackMe — nginx interest tracker for downloads.html + HackMe OS ISO (956 MB).
 #
-# Run on VPS 132.243.112.100 (or any host with nginx access logs):
+# Run on VPS hackme-vps (or any host with nginx access logs):
 #
 #   # Real-time dashboard (last 60 min, refreshes every 2s)
 #   bash scripts/ops/nginx_downloads_interest.sh live

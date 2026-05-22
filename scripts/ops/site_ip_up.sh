@@ -4,7 +4,7 @@ set -euo pipefail
 # Configure public website by bare IP (no domain / no TLS yet).
 #
 # Usage on VPS:
-#   SERVER_NAME=132.243.112.100 \
+#   SERVER_NAME=hackme-vps \
 #   UPSTREAM=127.0.0.1:18080 \
 #   bash scripts/ops/site_ip_up.sh
 

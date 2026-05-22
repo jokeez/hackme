@@ -5,7 +5,7 @@ set -euo pipefail
 # Verifies tip alignment, address mirrors, tx lookup, and worker health.
 #
 # Usage:
-#   LOCAL_BASE=http://127.0.0.1:8080 VPS_BASE=http://132.243.112.100:18080 \
+#   LOCAL_BASE=http://127.0.0.1:8080 VPS_BASE=http://hackme-vps:18080 \
 #   bash scripts/ops/canonical_consistency_smoke.sh
 #
 # Optional:
@@ -27,8 +27,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 LOCAL_BASE="${LOCAL_BASE:-http://127.0.0.1:8080}"
-VPS_BASE="${VPS_BASE:-http://132.243.112.100:18080}"
-COORD_URL="${COORD_URL:-http://132.243.112.100:18081}"
+VPS_BASE="${VPS_BASE:-http://hackme-vps:18080}"
+COORD_URL="${COORD_URL:-http://hackme-vps:18081}"
 CHECK_TX_HASH="${CHECK_TX_HASH:-}"
 CHECK_ADDRESS="${CHECK_ADDRESS:-HMC-381c0c5e2cfcc714}"
 # Optional extra address comparison. Keep empty by default to avoid false negatives:

@@ -102,4 +102,4 @@ curl -sS https://hackme.tech/pool/coordinator/api/work/stats | jq '{workers:(.wo
 
 ---
 
-See also: [HACKME_OS.md](HACKME_OS.md) · [MINER_ISO.md](MINER_ISO.md) · [MEGA_TEST_VERDICT_2026-05-22.md](MEGA_TEST_VERDICT_2026-05-22.md)
+See also: [HACKME_OS.md](HACKME_OS.md) · [MINER_ISO.md](MINER_ISO.md) · [STATUS.md](STATUS.md) · [SETUP.md](SETUP.md)

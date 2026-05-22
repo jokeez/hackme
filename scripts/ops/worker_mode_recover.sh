@@ -22,8 +22,8 @@ require_cmd curl
 require_cmd jq
 
 VPS_SSH="${VPS_SSH:-}"
-VPS_BASE="${VPS_BASE:-http://132.243.112.100:18080}"
-COORD_URL="${COORD_URL:-http://132.243.112.100:18081}"
+VPS_BASE="${VPS_BASE:-http://hackme-vps:18080}"
+COORD_URL="${COORD_URL:-http://hackme-vps:18081}"
 ADVERTISE_URL="${ADVERTISE_URL:-}"
 ADMIN_TOKEN="${ADMIN_TOKEN:-${HACKME_ADMIN_TOKEN:-}}"
 P2P_TOKEN="${P2P_TOKEN:-${HACKME_P2P_TOKEN:-}}"
