@@ -61,11 +61,15 @@ pkill -f 'bin/workerpoh' 2>/dev/null || true
 sleep 2
 rm -f "$ROOT/logs/.worker_autostart.lock"
 
-# Node
-if [[ ! -x "$NODE_BIN" ]]; then
-  SKIP_TOOLCHAINS=1 HACKME_DESKTOP_GPU_BUILD=0 bash "$ROOT/scripts/ops/desktop_mode_up.sh" || {
-    go build -trimpath -o "$NODE_BIN" .
-  }
+# Node — rebuild when dashboard or Go sources changed (embedded UI stale otherwise).
+need_node_rebuild() {
+  [[ ! -x "$NODE_BIN" ]] && return 0
+  [[ "$ROOT/dashboard.html" -nt "$NODE_BIN" ]] && return 0
+  find "$ROOT" -maxdepth 3 -name '*.go' -newer "$NODE_BIN" -print -quit | grep -q .
+}
+if need_node_rebuild; then
+  echo "[restart-linux] rebuilding $NODE_BIN (dashboard.html or Go sources newer)"
+  go build -trimpath -o "$NODE_BIN" .
 fi
 if [[ -f "$LOG_DIR/node.pid" ]] && kill -0 "$(cat "$LOG_DIR/node.pid")" 2>/dev/null; then
   kill "$(cat "$LOG_DIR/node.pid")" 2>/dev/null || true
