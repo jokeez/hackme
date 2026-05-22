@@ -1,0 +1,10 @@
+[Plymouth Theme]
+Name=HackMe
+Description=HackMe OS compute engine boot
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/hackme
+ScriptFile=/usr/share/plymouth/themes/hackme/hackme.script
+ConsoleLogBackgroundColor=0x000000
+ConsoleLogForegroundColor=0x00ff66

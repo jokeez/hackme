@@ -8,7 +8,7 @@ Flash the ISO (Balena Etcher, `dd`, etc.), boot the rig — **no wallet setup**.
 
 1. `init-worker.sh` reads `hackme.ini` (empty `wallet=` by default).
 2. If no valid `HMC-…` address is set, the rig **locally** generates a new Ed25519 mining key (`minersign -gen-seed`).
-3. A **24-word recovery phrase** (BIP39 encoding of the 32-byte seed) and payout address are shown on the **console (TTY1)**.
+3. A **24-word recovery phrase** (BIP39 encoding of the 32-byte seed) and payout address are shown on **TTY1** inside a neon `#00ff66` ASCII frame (photo-worthy Zero-Knowledge banner).
 4. Credentials are saved to `/var/lib/hackme/hackme.ini` and mining starts on the public pool automatically.
 
 Commands: `hackme-show-wallet` · `hackme-os-status`
