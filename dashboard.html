@@ -939,7 +939,7 @@
 					<div class="card card-glow rounded-lg p-4 border-matrix/20">
 						<div class="flex items-center justify-between gap-2 mb-2">
 							<h3 class="font-display text-xs font-semibold tracking-[0.2em] text-gray-400 uppercase">Miners from public pools</h3>
-							<span class="text-[10px] text-gray-500 font-mono">top payout · pool view</span>
+							<span class="text-[10px] text-gray-500 font-mono">payout % ≠ hashrate % · cumulative attempts</span>
 						</div>
 						<div class="flex flex-wrap items-center gap-2 mb-2">
 							<select id="overview-miners-filter" class="text-[10px] font-mono rounded border border-white/20 bg-black/50 px-2 py-1 text-gray-300">
@@ -957,7 +957,7 @@
 						<div class="overflow-x-auto rounded border border-white/8">
 							<table class="overview-miners-table w-full text-left text-[11px] font-mono">
 								<thead class="bg-black/60 uppercase tracking-wider text-[10px]">
-									<tr><th>#</th><th>Worker</th><th>Wallet</th><th>Status</th><th>Hashrate</th><th>Share</th><th>Attempts</th><th>Payout</th></tr>
+									<tr><th>#</th><th>Worker</th><th>Wallet</th><th>Status</th><th>Hashrate</th><th>Hash %</th><th>Payout %</th><th>Attempts</th><th>Payout</th></tr>
 								</thead>
 								<tbody id="overview-top-miners" class="text-gray-300 divide-y divide-white/5"></tbody>
 							</table>
@@ -982,7 +982,7 @@
 							<p class="text-[10px] text-gray-500 mt-2 font-mono" id="kpi-hash-sub">idle · synthetic TH/s</p>
 						</div>
 						<div class="card card-glow kpi-stat-card rounded-lg">
-							<p class="kpi-label text-[10px] uppercase tracking-[0.28em] mb-2" id="kpi-challenge-label">Challenge</p>
+							<p class="kpi-label text-[10px] uppercase tracking-[0.28em] mb-2" id="kpi-challenge-label">Work residue</p>
 							<p class="font-display text-2xl lg:text-3xl font-bold text-matrix tabular-nums" id="kpi-challenge">—</p>
 							<p class="text-[10px] text-gray-500 mt-2" id="kpi-challenge-sub">CPU-derived</p>
 						</div>
@@ -5507,12 +5507,17 @@
 			const sampleUnix = Number((ws && ws.now_unix) || Math.floor(Date.now() / 1000));
 			overviewTB.innerHTML = '';
 			if (!list.length) {
-				overviewTB.innerHTML = '<tr><td colspan="8" class="px-3 py-3 text-gray-600 text-center">No miners yet</td></tr>';
+				overviewTB.innerHTML = '<tr><td colspan="9" class="px-3 py-3 text-gray-600 text-center">No miners yet</td></tr>';
 				const meta = $('overview-miners-meta');
 				if (meta) meta.textContent = '—';
 				return;
 			}
 			const totalPayoutNum = Math.max(0, Number((ws && ws.total_payout_hmc) || 0));
+			let totalHashGHS = 0;
+			list.forEach((r) => {
+				const gh = Number((r.live && r.live.hashrate_gh_s) || r.hashrate_gh_s || 0);
+				if (gh > 0) totalHashGHS += gh;
+			});
 			const filtered = list.filter((r) => {
 				const online = overviewMinerOnline(r, ws, sampleUnix);
 				if (overviewMinersFilter === 'live') return online;
@@ -5524,7 +5529,7 @@
 			const meta = $('overview-miners-meta');
 			if (meta) meta.textContent = 'showing ' + fmtUInt(shown.length) + ' / ' + fmtUInt(list.length) + ' · filter=' + overviewMinersFilter;
 			if (!shown.length) {
-				overviewTB.innerHTML = '<tr><td colspan="8" class="px-3 py-3 text-gray-600 text-center">No miners for selected filter</td></tr>';
+				overviewTB.innerHTML = '<tr><td colspan="9" class="px-3 py-3 text-gray-600 text-center">No miners for selected filter</td></tr>';
 				return;
 			}
 			shown.forEach((r, idx) => {
@@ -5542,7 +5547,9 @@
 				const hrGHS = estimateMinerHashrateGHS(r, attemptsPerMin, sampleUnix);
 				const hrEst = hrGHS > 0 && attemptsPerMin > 0 && !(r.live && Number(r.live.hashrate_gh_s || 0) > 0);
 				const hr = hrGHS > 0 ? (fmtRigHashrateGHS(hrGHS) + ' GH/s' + (hrEst ? '*' : '')) : '—';
-				const share = totalPayoutNum > 0 ? (fmt((r.payout / totalPayoutNum) * 100, 2) + '%') : '—';
+				const payoutPct = totalPayoutNum > 0 ? (fmt((r.payout / totalPayoutNum) * 100, 2) + '%') : '—';
+				const ghNow = Number((r.live && r.live.hashrate_gh_s) || r.hashrate_gh_s || 0);
+				const hashPct = totalHashGHS > 0 && ghNow > 0 ? (fmt((ghNow / totalHashGHS) * 100, 2) + '%') : '—';
 				const tr = document.createElement('tr');
 				tr.className = 'cursor-pointer hover:bg-white/5';
 				tr.addEventListener('click', () => {
@@ -5555,7 +5562,8 @@
 					'<td class="text-gray-400 truncate max-w-[180px]" title="' + escapeHtml(wallet) + '">' + escapeHtml(wallet) + '</td>' +
 					'<td class="' + (online ? 'text-matrix' : 'text-gray-500') + '">' + (online ? 'live' : 'offline') + '</td>' +
 					'<td class="text-neon/80 tabular-nums">' + hr + '</td>' +
-					'<td class="tabular-nums">' + share + '</td>' +
+					'<td class="tabular-nums text-gray-400" title="instantaneous pool hashrate share">' + hashPct + '</td>' +
+					'<td class="tabular-nums text-warn/90" title="cumulative payout share (attempts × reward/M + found bonus)">' + payoutPct + '</td>' +
 					'<td class="tabular-nums">' + fmtUInt(r.attempts) + '</td>' +
 					'<td class="text-warn tabular-nums">' + fmt(r.payout, 6) + ' HMC</td>';
 				overviewTB.appendChild(tr);
@@ -6410,6 +6418,18 @@
 			}
 			if ($('kpi-poh-difficulty') && tmDisp > 0) {
 				$('kpi-poh-difficulty').textContent = fmtUInt(tmDisp);
+			}
+			const loadTel = workStatsLoadTelemetry(ws);
+			const subDiff = $('kpi-poh-difficulty-sub');
+			if (subDiff && tmDisp > 0) {
+				let diffNote = 'Pool target_mod M · coordinator (fair retarget vs fleet GH/s)';
+				if (loadTel.loadHint > 0 && loadTel.loadHint !== tmDisp) {
+					diffNote += ' · load hint ' + fmtUInt(loadTel.loadHint) + (loadTel.loadCapped ? ' (capped)' : '');
+				}
+				if (ws && Number(ws.reward_per_m || 0) > 0) {
+					diffNote += ' · reward/M ' + fmt(Number(ws.reward_per_m), 6);
+				}
+				subDiff.textContent = diffNote;
 			}
 		}
 
