@@ -21,6 +21,7 @@ import (
 
 	"hackme/internal/chain"
 	"hackme/internal/gpupoh"
+	"hackme/internal/gputune"
 	"hackme/internal/worksubmit"
 )
 
@@ -811,7 +812,11 @@ func main() {
 				elapsed += sec
 				searched += n
 				if err != nil {
-					// On transient GPU errors, fallback to CPU for this claim.
+					// On transient GPU errors, fallback to CPU for this claim (preserve session; log for coordinator tail).
+					class := gputune.ClassifyGPUFailure(err)
+					if gputune.ShouldCPUFallback(class) {
+						fmt.Fprintf(os.Stderr, "workerpoh: %s\n", gputune.FormatWorkerGPUEvent(*workerID, workerGPUBackend, class, err))
+					}
 					f2, nonce2 := findHitCPU(cur, n, cr.TargetMod)
 					if f2 {
 						found, foundNonce = true, nonce2

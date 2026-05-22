@@ -31,6 +31,9 @@ COORD_PUSH_WORK="${COORD_PUSH_WORK:-1}"
 # Coordinator claim/submit needs HACKME_COORDINATOR_ADMIN_TOKEN from the coordinator process,
 # not the command-node admin. Precedence: explicit coord env > on-disk coord secret > generic admin env.
 TOKEN="${COORD_ADMIN_TOKEN:-${HACKME_COORDINATOR_ADMIN_TOKEN:-${COORD_TOKEN:-}}}"
+if [[ -z "$TOKEN" && -f "$ROOT_DIR/.secrets/hackme_coordinator_worker_token" ]]; then
+  TOKEN="$(head -n1 "$ROOT_DIR/.secrets/hackme_coordinator_worker_token" | tr -d '\r\n')"
+fi
 if [[ -z "$TOKEN" && -f "$ROOT_DIR/.secrets/hackme_coordinator_admin_token" ]]; then
   TOKEN="$(head -n1 "$ROOT_DIR/.secrets/hackme_coordinator_admin_token" | tr -d '\r\n')"
 fi

@@ -46,3 +46,8 @@ func nvrtcArchChain(major, minor int) []string {
 	}
 	return out
 }
+
+// NVRTCArchChainForTest exposes the NVRTC target chain (audit / gputune matrix).
+func NVRTCArchChainForTest(major, minor int) []string {
+	return nvrtcArchChain(major, minor)
+}

@@ -10,6 +10,7 @@ cd "$ROOT_DIR"
 DESKTOP_ENV_FILE="${DESKTOP_ENV_FILE:-$ROOT_DIR/.env.desktop}"
 BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
 SECRET_COORD="${SECRET_COORD:-$ROOT_DIR/.secrets/hackme_coordinator_admin_token}"
+WORKER_TOKEN_FILE="${WORKER_TOKEN_FILE:-$ROOT_DIR/.secrets/hackme_coordinator_worker_token}"
 
 set -a
 # shellcheck disable=SC1090
@@ -20,11 +21,14 @@ if [[ -z "${HACKME_ADMIN_TOKEN:-}" ]]; then
   echo "[worker-reset] HACKME_ADMIN_TOKEN missing in $DESKTOP_ENV_FILE" >&2
   exit 2
 fi
-if [[ -z "${HACKME_POOL_COORDINATOR_TOKEN:-}" && -f "$SECRET_COORD" ]]; then
+# Pool claim/submit: prefer scoped worker token (not admin) when available.
+if [[ -f "$WORKER_TOKEN_FILE" ]]; then
+  export HACKME_POOL_COORDINATOR_TOKEN="$(tr -d '\r\n' <"$WORKER_TOKEN_FILE")"
+elif [[ -z "${HACKME_POOL_COORDINATOR_TOKEN:-}" && -f "$SECRET_COORD" ]]; then
   export HACKME_POOL_COORDINATOR_TOKEN="$(tr -d '\r\n' <"$SECRET_COORD")"
 fi
 if [[ -z "${HACKME_POOL_COORDINATOR_TOKEN:-}" ]]; then
-  echo "[worker-reset] set HACKME_POOL_COORDINATOR_TOKEN or create $SECRET_COORD" >&2
+  echo "[worker-reset] create $WORKER_TOKEN_FILE or set HACKME_POOL_COORDINATOR_TOKEN" >&2
   exit 2
 fi
 

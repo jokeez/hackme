@@ -46,6 +46,17 @@ func ForGPUName(name string) Hints {
 	}
 
 	switch {
+	case containsAny(n, "h100", "h200", "b200", "b100", "hopper", "blackwell datacenter"):
+		h.Family = "Hopper"
+		h.Vendor = "NVIDIA"
+		h.TypicalTDPW = 700
+		h.RecommendedPL = 90
+		h.PLRangeMin = 80
+		h.PLRangeMax = 100
+		h.Tips = append(h.Tips,
+			"Datacenter accelerators: use data-center driver branch and nvidia-smi persistence mode.",
+			"HMAI / vector workloads: cap batch growth until thermals and ECC are verified.",
+		)
 	case containsAny(n, "rtx 50", "rtx 5090", "rtx 5080", "rtx 5070", "rtx 5060", "rtx 5050"):
 		h.Family = "Blackwell (hint)"
 		h.Vendor = "NVIDIA"
