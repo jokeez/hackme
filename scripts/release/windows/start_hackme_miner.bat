@@ -56,13 +56,14 @@ if "!HACKME_POOL_COORDINATOR_TOKEN!"=="" (
 echo.
 echo HackMe public pool miner
 echo Install: %HACKME_DIR%
-echo Dashboard: http://127.0.0.1:8080/#mining
+echo Dashboard: http://127.0.0.1:8080/#ecosystem
 echo.
 echo Keep this window open while mining.
 echo.
 
-start "hackme-browser" cmd /c "timeout /t 3 /nobreak >nul && start http://127.0.0.1:8080/#mining"
-start "hackme-autoworker" /min cmd /c call "%HACKME_DIR%\autostart_pool_worker.bat"
+start "hackme-browser" cmd /c "timeout /t 3 /nobreak >nul && start http://127.0.0.1:8080/#ecosystem"
+rem Keep pool worker alive (restarts after GPU crash / thermal / node hiccup). Node also runs an internal watchdog when HACKME_WORKER_WATCHDOG=1.
+start "hackme-watchdog" /min cmd /c call "%HACKME_DIR%\watchdog_pool_worker.bat"
 
 cd /d "%HACKME_DIR%"
 hackme.exe

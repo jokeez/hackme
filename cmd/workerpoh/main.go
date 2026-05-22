@@ -643,6 +643,24 @@ func submitHashrateGHS(batch uint64, searchSec float64, mode string) float64 {
 	return declared
 }
 
+func sanitizeWorkerHostname(host string) string {
+	host = strings.ToLower(strings.TrimSpace(host))
+	var b strings.Builder
+	for _, r := range host {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-':
+			b.WriteRune(r)
+		default:
+			b.WriteRune('-')
+		}
+	}
+	out := strings.Trim(b.String(), "-")
+	if out == "" {
+		return "local"
+	}
+	return out
+}
+
 func main() {
 	var (
 		coordURL        = flag.String("coord", strings.TrimSpace(os.Getenv("COORD_URL")), "coordinator base URL")
@@ -678,9 +696,9 @@ func main() {
 	if *workerID == "" {
 		hn, _ := os.Hostname()
 		if hn == "" {
-			hn = "worker"
+			hn = "local"
 		}
-		*workerID = "worker-" + hn
+		*workerID = "worker-" + sanitizeWorkerHostname(hn)
 	}
 
 	priv, pubHex, signHybrid, err := loadHybridSigningMaterial()
