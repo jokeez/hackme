@@ -147,7 +147,7 @@
           </tbody>
         </table>
       </div>
-      <p class="muted">Pool hashrate comes from the global aggregate API (coordinator plus registered workers), not the synthetic ticker on the node metrics endpoint. Large integers use US-style grouping (comma between thousands). Asterisk marks simulated totals when mock network mode is enabled.</p>
+      <p class="muted">Live data from <code>/pool/api/global/metrics</code> and <code>/pool/coordinator/api/work/stats</code> (fast paths; we do not call the slow node <code>/metrics</code> endpoint on the public site). Sub-1 TH/s pool totals display as GH/s. US-style thousands separators. Asterisk (*) = simulated totals when mock network mode is on.</p>
     </section>
 
     <section class="panel glass">

@@ -155,6 +155,32 @@
     return "/pool/api";
   }
 
+  /** Coordinator HTTP API (work stats — fast, authoritative for pool hash / difficulty). */
+  function coordinatorApi(path) {
+    const p = String(path || "").startsWith("/") ? path : `/${path}`;
+    const h = (window.location.hostname || "").toLowerCase();
+    if (h === "localhost" || h === "127.0.0.1" || h === "") {
+      return `/pool/coordinator${p}`;
+    }
+    return `/pool/coordinator${p}`;
+  }
+
+  const API_PROBE_MS = 4500;
+
+  async function fetchJson(url, timeoutMs = API_PROBE_MS) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const resp = await fetch(url, { cache: "no-store", signal: ctrl.signal });
+      if (!resp.ok) return null;
+      return await resp.json();
+    } catch (_) {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   function paintDomainMeta() {
     const domainEl = document.getElementById("site-domain-status");
     const liveEl = document.getElementById("site-live-status");
@@ -198,32 +224,34 @@
     const tipEl = document.getElementById("news-health-tip");
     const hashrateEl = document.getElementById("news-health-hashrate");
     const miningEl = document.getElementById("news-health-mining");
-    try {
-      const root = apiRoot();
-      const [statusR, globalR] = await Promise.all([
-        fetch(`${root}/status`, { cache: "no-store" }),
-        fetch(`${root}/global/metrics`, { cache: "no-store" }),
-      ]);
-      if (!statusR.ok) throw new Error("status unavailable");
-      const status = await statusR.json();
-      let global = null;
-      if (globalR.ok) global = await globalR.json();
-      const height = Number(status.tip_height || 0);
-      const tip = String(status.tip_hash || "");
-      let poolTH = NaN;
-      if (global && global.network) {
-        poolTH = Number(global.network.global_hashrate_th_s);
-      }
-      heightEl.textContent = Number.isFinite(height) ? Math.floor(height).toLocaleString("en-US") : "—";
-      tipEl.textContent = shortHash(tip, 22);
-      tipEl.title = tip || "";
-      hashrateEl.textContent = Number.isFinite(poolTH) ? `${poolTH.toFixed(4)} TH/s` : "—";
-      miningEl.textContent = status.mining ? "online / mining" : "online";
-    } catch (_) {
+    const global = await fetchJson(`${apiRoot()}/global/metrics`);
+    if (!global) {
       heightEl.textContent = "—";
       if (tipEl) tipEl.textContent = "—";
       if (hashrateEl) hashrateEl.textContent = "—";
       if (miningEl) miningEl.textContent = "degraded";
+      return;
+    }
+    const height = Number(global.chain && global.chain.tip_height != null ? global.chain.tip_height : 0);
+    const tip = String((global.chain && global.chain.tip_hash) || "");
+    const poolTH = Number(global.network && global.network.global_hashrate_th_s);
+    const mock = global.network && global.network.global_mock === true;
+    heightEl.textContent = Number.isFinite(height) && height > 0 ? Math.floor(height).toLocaleString("en-US") : "—";
+    if (tipEl) {
+      tipEl.textContent = shortHash(tip, 22);
+      tipEl.title = tip || "";
+    }
+    if (hashrateEl) {
+      hashrateEl.textContent = Number.isFinite(poolTH) && poolTH > 0 ? fmtPoolHashrateTHS(poolTH, mock) : "—";
+    }
+    if (miningEl) {
+      const miners = Number(global.work && global.work.workers_count);
+      miningEl.textContent =
+        global.work && global.work.ok
+          ? miners > 0
+            ? `online · ${miners} worker${miners === 1 ? "" : "s"}`
+            : "online"
+          : "online";
     }
   }
 
@@ -345,86 +373,93 @@
     const dEl = document.getElementById("pool-live-diff");
     const sEl = document.getElementById("pool-live-status");
     if (!hashEl || !hEl || !rEl || !dEl || !sEl) return;
-    try {
-      const root = apiRoot();
-      const [globalR, statusR, metricsR] = await Promise.all([
-        fetch(`${root}/global/metrics`, { cache: "no-store" }),
-        fetch(`${root}/status`, { cache: "no-store" }),
-        fetch(`${root}/metrics`, { cache: "no-store" }),
-      ]);
-      if (!statusR.ok || !metricsR.ok) throw new Error("api unavailable");
-      const status = await statusR.json();
-      const metrics = await metricsR.json();
 
-      let global = null;
-      if (globalR.ok) {
-        global = await globalR.json();
-      }
+    const root = apiRoot();
+    const [global, work] = await Promise.all([
+      fetchJson(`${root}/global/metrics`),
+      fetchJson(coordinatorApi("/api/work/stats")),
+    ]);
 
-      let poolTH = NaN;
-      let poolMock = false;
-      if (global && global.network) {
-        poolTH = Number(global.network.global_hashrate_th_s);
-        poolMock = global.network.global_mock === true;
-      }
-      if (!Number.isFinite(poolTH)) {
-        const nsR = await fetch(`${root}/network/stats`, { cache: "no-store" });
-        if (nsR.ok) {
-          const ns = await nsR.json();
-          poolTH = Number(ns.global_hashrate_th_s);
-          poolMock = ns.global_mock === true;
-        }
-      }
-
-      if (Number.isFinite(poolTH) && poolTH >= 0) {
-        hashEl.textContent = fmtPoolHashrateTHS(poolTH, poolMock);
-        hashEl.title = poolMock
-          ? "Simulated totals (HACKME_NETWORK_MOCK)."
-          : "Coordinator aggregate hashrate (GH/s below 0.1 TH/s for readability).";
-      } else {
-        hashEl.textContent = "—";
-        hashEl.title = "Pool aggregate unavailable.";
-      }
-
-      const tipRaw =
-        global && global.chain != null && global.chain.tip_height != null
-          ? global.chain.tip_height
-          : status.tip_height;
-      const tipHeight = Number(tipRaw);
-      hEl.textContent =
-        Number.isFinite(tipHeight) && tipHeight >= 0
-          ? Math.floor(tipHeight).toLocaleString("en-US")
-          : "—";
-
-      let diff = global && global.work ? Number(global.work.target_mod) : NaN;
-      if (!Number.isFinite(diff) || diff <= 0) {
-        diff = Number(metrics.mining_target_mod || 0);
-      }
-      dEl.textContent =
-        Number.isFinite(diff) && diff > 0 ? Math.floor(diff).toLocaleString("en-US") : "—";
-
-      const reward = Number(metrics.econ_base_reward_now_hmc || 0);
-      rEl.textContent = Number.isFinite(reward) ? `${reward.toFixed(6)} HMC` : "—";
-
-      sEl.textContent = status.mining ? "online / mining" : "online";
-    } catch (_) {
+    if (!global && !work) {
       hashEl.textContent = "—";
       hashEl.removeAttribute("title");
       hEl.textContent = "—";
       rEl.textContent = "—";
       dEl.textContent = "—";
       sEl.textContent = "degraded";
+      return;
+    }
+
+    let poolTH = NaN;
+    let poolMock = false;
+    if (global && global.network) {
+      poolTH = Number(global.network.global_hashrate_th_s);
+      poolMock = global.network.global_mock === true;
+    }
+    if ((!Number.isFinite(poolTH) || poolTH <= 0) && global && global.work) {
+      const gh = Number(global.work.pool_hashrate_gh_s);
+      if (Number.isFinite(gh) && gh > 0) poolTH = gh / 1000;
+    }
+    if ((!Number.isFinite(poolTH) || poolTH <= 0) && work) {
+      const hs = Number(work.hashrate || work.hashrate_hs || 0);
+      if (hs > 0) poolTH = hs / 1e12;
+    }
+
+    if (Number.isFinite(poolTH) && poolTH > 0) {
+      hashEl.textContent = fmtPoolHashrateTHS(poolTH, poolMock);
+      hashEl.title = poolMock
+        ? "Simulated totals (HACKME_NETWORK_MOCK)."
+        : "Live coordinator aggregate (sub-1 TH/s shown as GH/s).";
+    } else {
+      hashEl.textContent = "—";
+      hashEl.title = "Pool aggregate unavailable.";
+    }
+
+    let tipHeight = global && global.chain ? Number(global.chain.tip_height) : NaN;
+    if (!Number.isFinite(tipHeight) || tipHeight < 0) {
+      tipHeight = Number(work && (work.canonical_tip_height != null ? work.canonical_tip_height : work.tip_height));
+    }
+    hEl.textContent =
+      Number.isFinite(tipHeight) && tipHeight >= 0
+        ? Math.floor(tipHeight).toLocaleString("en-US")
+        : "—";
+
+    let diff = global && global.work ? Number(global.work.target_mod) : NaN;
+    if (!Number.isFinite(diff) || diff <= 0) {
+      diff = Number(work && work.target_mod);
+    }
+    dEl.textContent =
+      Number.isFinite(diff) && diff > 0 ? Math.floor(diff).toLocaleString("en-US") : "—";
+
+    let reward = Number(work && work.base_reward_hmc);
+    if (!Number.isFinite(reward) || reward <= 0) {
+      reward = Number(work && work.found_bonus_hmc);
+    }
+    rEl.textContent = Number.isFinite(reward) && reward > 0 ? `${reward.toFixed(6)} HMC` : "—";
+
+    const miners = Number(
+      (global && global.work && global.work.workers_count) ||
+        (work && work.workers_count) ||
+        (work && work.workers && Object.keys(work.workers).length) ||
+        0
+    );
+    const poolOk = (global && global.work && global.work.ok) || (work && work.issued_ranges != null);
+    if (poolOk) {
+      sEl.textContent = miners > 0 ? `online · ${miners} worker${miners === 1 ? "" : "s"}` : "online";
+    } else {
+      sEl.textContent = "degraded";
     }
   }
 
   async function updateLiveStatus(liveEl) {
     if (!liveEl) return;
-    try {
-      const resp = await fetch(`${apiRoot()}/status`, { cache: "no-store" });
-      liveEl.textContent = resp.ok ? "online" : "degraded";
-    } catch (_) {
-      liveEl.textContent = "degraded";
+    const work = await fetchJson(coordinatorApi("/api/work/stats"), 3500);
+    if (work && work.issued_ranges != null) {
+      liveEl.textContent = "online";
+      return;
     }
+    const global = await fetchJson(`${apiRoot()}/global/metrics`, 3500);
+    liveEl.textContent = global && global.work && global.work.ok ? "online" : "degraded";
   }
 
   const { liveEl } = paintDomainMeta();
@@ -443,7 +478,7 @@
   void renderNewsHealth();
   void updateLiveStatus(liveEl);
   void loadPoolOverview();
-  setInterval(() => updateLiveStatus(liveEl), 10000);
-  setInterval(loadPoolOverview, 5000);
-  setInterval(renderNewsHealth, 12000);
+  setInterval(() => updateLiveStatus(liveEl), 15000);
+  setInterval(loadPoolOverview, 12000);
+  setInterval(renderNewsHealth, 20000);
 })();
