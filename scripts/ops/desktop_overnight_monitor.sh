@@ -8,6 +8,8 @@ require_cmd jq
 require_cmd python3
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck disable=SC1091
+source "$ROOT/scripts/ops/_json_curl_helpers.sh"
 DESKTOP_ENV="${DESKTOP_ENV_FILE:-$ROOT/.env.desktop}"
 [[ -f "$DESKTOP_ENV" ]] && set -a && . "$DESKTOP_ENV" && set +a
 
@@ -53,18 +55,17 @@ snapshot_once() {
   coord_hdr=()
   [[ -n "$COORD_TOKEN" ]] && coord_hdr=(-H "X-Hackme-Admin-Token: $COORD_TOKEN")
 
-  local st_lite wallet work worker coord coord_pub
-  st_lite="$(curl -fsS --max-time 20 "${hdr[@]}" "$LOCAL_BASE/api/status?lite=1" 2>/dev/null || echo '{}')"
-  wallet="$(curl -fsS --max-time 25 "${hdr[@]}" "$LOCAL_BASE/api/wallet?fresh=1" 2>/dev/null || echo '{}')"
-  work="$(curl -fsS --max-time 20 "${hdr[@]}" "$LOCAL_BASE/api/work/stats?details=1" 2>/dev/null || echo '{}')"
-  worker="$(curl -fsS --max-time 10 "${hdr[@]}" "$LOCAL_BASE/api/worker/status" 2>/dev/null || echo '{}')"
-  coord="$(curl -fsS --max-time 25 "${coord_hdr[@]}" "$COORD_BASE/api/work/stats?details=1" 2>/dev/null || echo '{}')"
-  coord_pub="$(curl -fsS --max-time 15 "$CANON_BASE/api/status?lite=1" 2>/dev/null || echo '{}')"
-  metrics="$(curl -fsS --max-time 15 "${hdr[@]}" "$LOCAL_BASE/api/metrics" 2>/dev/null || echo '{}')"
-  canon_wallet='{}'
+  local st_lite wallet work worker coord coord_pub metrics canon_wallet wallet_addr
+  st_lite="$(fetch_json "$LOCAL_BASE/api/status?lite=1" 20 "${hdr[@]}")"
+  wallet="$(fetch_json "$LOCAL_BASE/api/wallet?fresh=1" 25 "${hdr[@]}")"
+  work="$(fetch_json "$LOCAL_BASE/api/work/stats?details=1" 20 "${hdr[@]}")"
+  worker="$(fetch_json "$LOCAL_BASE/api/worker/status" 10 "${hdr[@]}")"
+  coord="$(fetch_json "$COORD_BASE/api/work/stats?details=1" 25 "${coord_hdr[@]}")"
+  coord_pub="$(fetch_json "$CANON_BASE/api/status?lite=1" 15)"
+  metrics="$(fetch_json "$LOCAL_BASE/api/metrics" 15 "${hdr[@]}")"
   wallet_addr="$(echo "$wallet" | jq -r '.address // empty' 2>/dev/null || true)"
   [[ -z "$wallet_addr" ]] && wallet_addr="HMC-91fe007e4036c602"
-  canon_wallet="$(curl -fsS --max-time 20 "$CANON_BASE/api/address/$wallet_addr" 2>/dev/null || echo '{}')"
+  canon_wallet="$(fetch_json "$CANON_BASE/api/address/$wallet_addr" 20)"
 
   jq -nc \
     --arg ts "$ts" \
@@ -122,7 +123,7 @@ while [[ "$(date +%s)" -lt "$END_EPOCH" ]]; do
   if (( idx % 10 == 0 )); then
   pgrep -f 'workerpoh-cuda|workerpoh-opencl|workerpoh ' >/dev/null || {
     echo "[overnight] WARN workerpoh missing at $(date -Is); attempting reset"
-    bash "$ROOT/scripts/ops/desktop_worker_reset.sh" || true
+    bash "$ROOT/scripts/ops/desktop_worker_reset.sh" >>"$LOG" 2>&1 || true
   }
   fi
   sleep "$INTERVAL_SEC"

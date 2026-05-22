@@ -4,6 +4,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck disable=SC1091
+source "$ROOT/scripts/ops/_json_curl_helpers.sh"
 DESKTOP_ENV="${DESKTOP_ENV_FILE:-$ROOT/.env.desktop}"
 [[ -f "$DESKTOP_ENV" ]] && set -a && . "$DESKTOP_ENV" && set +a
 
@@ -30,30 +32,25 @@ coord_hdr=()
 ts_utc="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ts_local="$(date -Is)"
 
-fetch() {
-  local url="$1" timeout="${2:-25}"
-  shift 2 || true
-  curl -fsS --max-time "$timeout" "$@" "$url" 2>/dev/null || echo '{}'
-}
-
-st_lite="$(fetch "$LOCAL_BASE/api/status?lite=1" 20 "${hdr[@]}")"
-st_full="$(fetch "$LOCAL_BASE/api/status" 30 "${hdr[@]}")"
-wallet="$(fetch "$LOCAL_BASE/api/wallet?fresh=1" 35 "${hdr[@]}")"
-work="$(fetch "$LOCAL_BASE/api/work/stats?details=1" 30 "${hdr[@]}")"
-worker="$(fetch "$LOCAL_BASE/api/worker/status" 15 "${hdr[@]}")"
-metrics="$(fetch "$LOCAL_BASE/api/metrics" 20 "${hdr[@]}")"
-coord="$(fetch "$COORD_BASE/api/work/stats?details=1" 30 "${coord_hdr[@]}")"
-coord_pub="$(fetch "$CANON_BASE/api/status?lite=1" 20)"
-canon_wallet="$(fetch "$CANON_BASE/api/address/$WALLET" 25)"
+st_lite="$(fetch_json "$LOCAL_BASE/api/status?lite=1" 20 "${hdr[@]}")"
+st_full="$(fetch_json "$LOCAL_BASE/api/status" 30 "${hdr[@]}")"
+wallet="$(fetch_json "$LOCAL_BASE/api/wallet?fresh=1" 35 "${hdr[@]}")"
+work="$(fetch_json "$LOCAL_BASE/api/work/stats?details=1" 30 "${hdr[@]}")"
+worker="$(fetch_json "$LOCAL_BASE/api/worker/status" 15 "${hdr[@]}")"
+metrics="$(fetch_json "$LOCAL_BASE/api/metrics" 20 "${hdr[@]}")"
+coord="$(fetch_json "$COORD_BASE/api/work/stats?details=1" 30 "${coord_hdr[@]}")"
+coord_pub="$(fetch_json "$CANON_BASE/api/status?lite=1" 20)"
+canon_wallet="$(fetch_json "$CANON_BASE/api/address/$WALLET" 25)"
 
 settle_local='{}'
-[[ -f "${HACKME_WORKER_SETTLEMENT_STATE_FILE:-$ROOT/logs/desktop/data/worker_settlement_state.json}" ]] && \
-  settle_local="$(cat "${HACKME_WORKER_SETTLEMENT_STATE_FILE:-$ROOT/logs/desktop/data/worker_settlement_state.json}")"
+if [[ -f "${HACKME_WORKER_SETTLEMENT_STATE_FILE:-$ROOT/logs/desktop/data/worker_settlement_state.json}" ]]; then
+  settle_local="$(json_sanitize "$(cat "${HACKME_WORKER_SETTLEMENT_STATE_FILE:-$ROOT/logs/desktop/data/worker_settlement_state.json}")")"
+fi
 
 settle_vps='{}'
 if ssh -o BatchMode=yes -o ConnectTimeout=8 "$NODE_SSH" true 2>/dev/null; then
-  settle_vps="$(ssh -o BatchMode=yes -o ConnectTimeout=12 "$NODE_SSH" \
-    'cat /opt/hackme/data/worker_settlement_state.json 2>/dev/null || echo {}' 2>/dev/null || echo '{}')"
+  settle_vps="$(json_sanitize "$(ssh -o BatchMode=yes -o ConnectTimeout=12 "$NODE_SSH" \
+    'cat /opt/hackme/data/worker_settlement_state.json 2>/dev/null || echo {}' 2>/dev/null || echo '{}')")"
 fi
 
 pgrep -af 'hackme-node|workerpoh' >"$OUT/processes.txt" 2>/dev/null || true

@@ -48,12 +48,12 @@ fi
 if [[ -z "$DEPLOY_VERSION" ]]; then
   DEPLOY_VERSION="dev"
 fi
-COMMIT_SHA="${DEPLOY_COMMIT:-}"
+COMMIT_SHA="${DEPLOY_COMMIT:-$(git -C "$ROOT_DIR" rev-parse --short=12 HEAD 2>/dev/null || true)}"
 if [[ -z "$COMMIT_SHA" ]] && [[ -f "$ROOT_DIR/dist/release_${DEPLOY_VERSION}/BUILD_INFO.txt" ]]; then
   COMMIT_SHA="$(grep -E '^commit=' "$ROOT_DIR/dist/release_${DEPLOY_VERSION}/BUILD_INFO.txt" | head -1 | cut -d= -f2)"
 fi
 if [[ -z "$COMMIT_SHA" ]]; then
-  COMMIT_SHA="$(git -C "$ROOT_DIR" rev-parse --short=12 HEAD 2>/dev/null || echo nogit)"
+  COMMIT_SHA="nogit"
 fi
 BUILD_DATE_UTC="${DEPLOY_BUILD_DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
 LDFLAGS_NODE="-X main.Version=${DEPLOY_VERSION} -X main.Commit=${COMMIT_SHA} -X main.BuildDate=${BUILD_DATE_UTC}"
