@@ -88,9 +88,11 @@ cat >/etc/motd <<'MOTD'
 ║  Pool worker · CPU isolation · GPU performance mode      ║
 ╠══════════════════════════════════════════════════════════╣
 ║  hackme-os-status      rig + pool snapshot               ║
+║  hackme-show-wallet    payout HMC + recovery phrase      ║
 ║  hackme-os-benchmark   60s local speed test              ║
 ║  hackme-os-install     install to disk /dev/sdX          ║
 ║  journalctl -u hackme-miner-worker -f                    ║
+║  Empty hackme.ini = Zero-Knowledge Start (auto wallet) ║
 ╚══════════════════════════════════════════════════════════╝
 MOTD
 

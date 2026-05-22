@@ -2,10 +2,24 @@
 
 Bootable **mining rig distribution** (live USB or disk install). All hashpower goes to the public HackMe pool — like HiveOS, but for **HackMe Coin (HMC)** PoH workers.
 
+## Zero-Knowledge Start
+
+Flash the ISO (Balena Etcher, `dd`, etc.), boot the rig — **no wallet setup**.
+
+1. `init-worker.sh` reads `hackme.ini` (empty `wallet=` by default).
+2. If no valid `HMC-…` address is set, the rig **locally** generates a new Ed25519 mining key (`minersign -gen-seed`).
+3. A **24-word recovery phrase** (BIP39 encoding of the 32-byte seed) and payout address are shown on the **console (TTY1)**.
+4. Credentials are saved to `/var/lib/hackme/hackme.ini` and mining starts on the public pool automatically.
+
+Commands: `hackme-show-wallet` · `hackme-os-status`
+
+**Important:** The phrase encodes your HackMe **mining** key (HMC payouts), not a Bitcoin/Ethereum HD wallet. Write it on paper to claim mined HMC later. For persistence across live-USB reboots, use `hackme-os-install` or casper writable overlay.
+
 ## Features
 
 | Feature | Detail |
 |---------|--------|
+| **Zero-Knowledge Start** | Empty `hackme.ini` → auto `HMC-…` + recovery phrase + pool worker |
 | **CPU isolation** | GRUB: `isolcpus`, `nohz_full`, `rcu_nocbs`; worker on dedicated cores via `taskset` + systemd `CPUAffinity` |
 | **Scheduler** | Worker: `SCHED_FIFO` priority 90, `Nice=-20`, realtime I/O |
 | **GPU** | AMD: `power_dpm` performance + compute profile; NVIDIA: persistence mode |

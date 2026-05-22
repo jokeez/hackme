@@ -1,0 +1,11 @@
+[Unit]
+Description=HackMe OS Zero-Knowledge wallet banner (TTY)
+After=hackme-init-worker.service
+ConditionPathExists=/run/hackme-os/zk-wallet.json
+
+[Service]
+Type=oneshot
+ExecStart=/opt/hackme/scripts/release/iso/hackme-zk-display.sh /run/hackme-os/zk-wallet.json
+
+[Install]
+WantedBy=multi-user.target
