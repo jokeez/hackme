@@ -31,6 +31,21 @@ run_step() {
   fi
 }
 
+run_step_optional() {
+  local id="$1" desc="$2"
+  shift 2
+  local log="$OUT/${id}.log"
+  echo "[launch-gate] === $id (optional): $desc ==="
+  if "$@" >"$log" 2>&1; then
+    echo "[launch-gate] PASS $id"
+    echo "| $id | PASS | $desc |" >>"$OUT/results.md"
+    pass=$((pass + 1))
+  else
+    echo "[launch-gate] SKIP/WARN $id"
+    echo "| $id | WARN | $desc |" >>"$OUT/results.md"
+  fi
+}
+
 echo "# Miner launch gate — $STAMP" >"$OUT/results.md"
 echo "" >>"$OUT/results.md"
 echo "| Step | Result | Description |" >>"$OUT/results.md"
@@ -73,6 +88,12 @@ if [[ -f "$ROOT/.env.desktop" ]] && curl -fsS --max-time 3 "http://127.0.0.1:808
 else
   echo "[launch-gate] SKIP fuzz_smoke (no local :8080 node)" | tee "$OUT/fuzz_smoke_skip.log"
   echo "| fuzz_smoke | SKIP | local node not up |" >>"$OUT/results.md"
+fi
+
+if [[ "${RUN_CRYPTO_MATRIX:-0}" == "1" ]]; then
+  run_step_optional crypto_matrix "hybrid crypto matrix (PACKETS=${PACKETS:-200})" \
+    env PACKETS="${PACKETS:-200}" COORD_URL="${COORD_URL:-https://hackme.tech/pool/coordinator}" \
+    REQUIRE_STRICT="${REQUIRE_STRICT:-1}" bash "$ROOT/scripts/tests/hybrid_crypto_matrix.sh"
 fi
 
 {

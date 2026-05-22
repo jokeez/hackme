@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -1336,6 +1337,43 @@ func (m *workManager) schedulerModeNow() string {
 	return last
 }
 
+func bytesToMB(b uint64) float64 {
+	return float64(b) / (1024 * 1024)
+}
+
+// runtimeMemSnapshot returns coordinator heap stats and in-memory map sizes (for leak audits).
+func (m *workManager) runtimeMemSnapshot() map[string]any {
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+	m.mu.Lock()
+	abuseN := len(m.abuse)
+	ipAbuseN := len(m.ipAbuse)
+	workerN := len(m.worker)
+	activeN := len(m.active)
+	dedupN := len(m.acceptedSignedPayloads)
+	now := time.Now().Unix()
+	_, _, rigs := m.poolOnlineSummaryUnlocked(poolHashrateStaleSec, now)
+	rigsN := len(rigs)
+	m.mu.Unlock()
+	return map[string]any{
+		"heap_alloc_mb":      roundMemMB(bytesToMB(ms.HeapAlloc)),
+		"heap_inuse_mb":      roundMemMB(bytesToMB(ms.HeapInuse)),
+		"heap_sys_mb":        roundMemMB(bytesToMB(ms.HeapSys)),
+		"stack_inuse_mb":     roundMemMB(bytesToMB(ms.StackInuse)),
+		"gc_cycles":          ms.NumGC,
+		"abuse_workers":      abuseN,
+		"ip_abuse_entries":   ipAbuseN,
+		"workers_tracked":    workerN,
+		"active_leases":      activeN,
+		"active_rigs":        rigsN,
+		"signed_dedup_cache": dedupN,
+	}
+}
+
+func roundMemMB(v float64) float64 {
+	return math.Round(v*100) / 100
+}
+
 func (m *workManager) pruneAbuseStateLocked(now int64) {
 	if now-m.lastAbusePruneUnix < 60 {
 		return
@@ -1819,6 +1857,45 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 			"ok":        true,
 			"cleared":   cleared,
 			"worker_id": strings.TrimSpace(req.WorkerID),
+		})
+	})
+
+	mux.HandleFunc("/api/work/admin/memstats", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !coordinatorPOSTAuthed(r, adminToken, allowInsecure) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
+			http.Error(w, "admin authentication required", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		out := wm.runtimeMemSnapshot()
+		out["ok"] = true
+		_ = json.NewEncoder(w).Encode(out)
+	})
+
+	mux.HandleFunc("/api/work/admin/gc", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !coordinatorPOSTAuthed(r, adminToken, allowInsecure) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
+			http.Error(w, "admin authentication required", http.StatusUnauthorized)
+			return
+		}
+		before := wm.runtimeMemSnapshot()
+		runtime.GC()
+		runtime.GC()
+		after := wm.runtimeMemSnapshot()
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok":     true,
+			"before": before,
+			"after":  after,
 		})
 	})
 

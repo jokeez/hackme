@@ -25,6 +25,16 @@ Automated bundle:
 bash scripts/ops/run_miner_launch_gate.sh
 ```
 
+Deep audits (on demand):
+
+```bash
+LEAK_SPEC_QUICK=1 bash scripts/tests/coordinator_memory_leak_spec.sh   # 3 min
+bash scripts/tests/coordinator_memory_leak_spec.sh                     # 2 h / 500 workers
+PACKETS=200 COORD_URL=https://hackme.tech/pool/coordinator REQUIRE_STRICT=1 \
+  COORD_TOKEN=... bash scripts/tests/hybrid_crypto_matrix.sh
+go test ./internal/worksubmit/... -run Matrix -count=1
+```
+
 ---
 
 ## Published ISO verify (any machine)
