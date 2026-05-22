@@ -44,6 +44,24 @@ sudo dd if=dist/release_0.1.0-rc11g/HackMe-OS-0.1.0-rc11g-amd64.iso of=/dev/sdX 
 
 Choose **HackMe OS (live · max performance)** in GRUB.
 
+### Wrong boot screen?
+
+| You see | Meaning |
+|---------|---------|
+| GRUB **HackMe OS (live …)** then mining status / wallet phrase | Correct ISO |
+| **Alpine Linux 3.x** `localhost login:` | **Wrong device or wrong ISO** — not HackMe OS (our image is Ubuntu + casper, not Alpine) |
+
+Before flashing, verify the file:
+
+```bash
+bash scripts/tests/verify_hackme_iso.sh /path/to/HackMe-OS-0.1.0-rc11g-amd64.iso
+```
+
+Published SHA256: `https://hackme.tech/dist/release_0.1.0-rc11g/SHA256SUMS-iso.txt`  
+Expected: `1b7bd70e381bb0d5aee82135fe01963d27d2af43ebfba95e02dec22aabe17658`
+
+Re-flash with Balena Etcher (verify SHA256), boot **only** that USB, disable other OS entries in BIOS if needed.
+
 ## Commands on rig
 
 ```bash
