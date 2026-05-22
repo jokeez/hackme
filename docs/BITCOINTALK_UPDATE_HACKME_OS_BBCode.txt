@@ -1,67 +1,119 @@
-[b][size=12pt][color=#00d1ff]HackMe Network — HackMe OS live ISO · Zero-Knowledge Start[/color][/size][/b]
-[i]Bootable rig OS · flash USB · auto wallet + pool worker · rc11g[/i]
+[center][size=16pt][b][color=#00d1ff]HackMe Network[/color][/b][/size]
+[size=11pt][b]Update — HackMe OS live ISO[/b] · Zero-Knowledge Start · [mono]0.1.0-rc11g[/mono][/size]
+[size=10pt][i]Bootable rig OS · flash USB · auto wallet · instant pool worker · [b]not Stratum[/b][/i][/size][/center]
 
 [hr]
 
-[b][color=#39ff14]HackMe OS — mine with zero setup[/color][/b]
-
-We published a [b]bootable amd64 ISO[/b] (live USB) aimed at dedicated mining rigs — similar idea to HiveOS, but for the [b]HackMe HTTP coordinator[/b] ([b]not Stratum[/b]).
-
-[list=1]
-[*] Download + verify [b]SHA256[/b]: [url=https://hackme.tech/downloads.html#hackme-os]hackme.tech/downloads.html#hackme-os[/url]
-[*] Flash with Etcher or [mono]dd[/mono] (8 GB+ USB).
-[*] Boot [b]HackMe OS (live · max performance)[/b].
-[*] Read [b]TTY1[/b]: new [mono]HMC-…[/mono] payout address + [b]24-word recovery phrase[/b] (HackMe mining key — write it down).
-[*] Mining starts on [url=https://hackme.tech/pool/coordinator]https://hackme.tech/pool/coordinator[/url] automatically.
+[b][size=12pt][color=#39ff14]TL;DR[/color][/size][/b]
+[list]
+[*] [b]HackMe OS[/b] = amd64 live ISO (~956 MB) — HiveOS-style workflow for the [b]HackMe HTTP coordinator[/b].
+[*] [b]Zero-Knowledge Start:[/b] empty config → new [mono]HMC-…[/mono] + [b]24-word phrase[/b] on screen → mining on [url=https://hackme.tech/pool/coordinator]hackme.tech[/url] in minutes.
+[*] [b]SHA256 verified[/b] on [url=https://hackme.tech/downloads.html#hackme-os]downloads[/url] — ISO is live (HTTP 200).
+[*] Public pool: ~[b]2.4 GH/s[/b] aggregate · fair economics ([mono]payout_found_only=0[/mono]) · hybrid signing required.
 [/list]
 
-[b]On-rig commands:[/b] [mono]hackme-os-status[/mono] · [mono]hackme-show-wallet[/mono] · [mono]hackme-os-install /dev/sdX[/mono] (persist to SSD)
+[hr]
 
-[i]Live USB without disk install regenerates a new wallet each reboot — use disk install for farms.[/i]
+[center][size=13pt][b]━━━ Zero-Knowledge Start ━━━[/b][/size][/center]
+
+[i]No wallet file. No pool URL hunt. No worker wizard.[/i]
+
+[table]
+[tr][td][b]Step[/b][/td][td][b]What happens[/b][/td][/tr]
+[tr][td]1 · Download[/td][td]Grab [mono]HackMe-OS-0.1.0-rc11g-amd64.iso[/mono] + [mono]SHA256SUMS-iso.txt[/mono] from [url=https://hackme.tech/downloads.html#hackme-os]official downloads[/url][/td][/tr]
+[tr][td]2 · Verify[/td][td][mono]sha256sum -c SHA256SUMS-iso.txt[/mono] — [b]do not skip[/b] on production rigs[/td][/tr]
+[tr][td]3 · Flash[/td][td]Balena Etcher or [mono]dd[/mono] to 8 GB+ USB ([mono]conv=fsync[/mono] recommended)[/td][/tr]
+[tr][td]4 · Boot[/td][td]GRUB → [b]HackMe OS (live · max performance)[/b] — [mono]toram[/mono], CPU perf governor, worker RT priority[/td][/tr]
+[tr][td]5 · TTY1[/td][td]Banner shows [b]HMC- payout address[/b] + [b]24-word recovery phrase[/b] ([i]HackMe mining key — not a BTC/Eth HD wallet[/i])[/td][/tr]
+[tr][td]6 · Mine[/td][td][mono]workerpoh[/mono] claims/submits to [url=https://hackme.tech/pool/coordinator]coordinator[/url] automatically; check [mono]hackme-os-status[/mono][/td][/tr]
+[/table]
+
+[b]Farm tip:[/b] live USB [b]without[/b] [mono]hackme-os-install[/mono] generates a [b]new[/b] wallet every reboot — install to SSD for persistent identity.
+
+[b]On-rig tools:[/b] [mono]hackme-os-status[/mono] · [mono]hackme-show-wallet[/mono] · [mono]hackme-os-benchmark[/mono] · [mono]hackme-os-install /dev/sdX[/mono]
 
 [hr]
 
-[b]Release [mono]0.1.0-rc11g[/mono][/b]
+[center][size=13pt][b]━━━ Release [mono]0.1.0-rc11g[/mono] ━━━[/b][/size][/center]
 
 [table]
-[tr][td][b]HackMe OS ISO[/b][/td][td][mono]HackMe-OS-0.1.0-rc11g-amd64.iso[/mono] (~956 MB)[/td][/tr]
+[tr][td][b]Artifact[/b][/td][td][b]Details[/b][/td][/tr]
+[tr][td][color=#39ff14][b]★ HackMe OS ISO[/b][/color][/td][td][mono]HackMe-OS-0.1.0-rc11g-amd64.iso[/mono] · [b]~956 MB[/b] · amd64 live USB[/td][/tr]
 [tr][td][b]SHA256[/b][/td][td][mono]1b7bd70e381bb0d5aee82135fe01963d27d2af43ebfba95e02dec22aabe17658[/mono][/td][/tr]
-[tr][td][b]Windows[/b][/td][td][mono]HackMe-Setup-0.1.0-rc11g.exe[/mono] — OpenCL for AMD RX 580[/td][/tr]
-[tr][td][b]Linux[/b][/td][td]tarball with [mono]hackme[/mono] + [mono]workerpoh[/mono] + [mono]minersign[/mono][/td][/tr]
-[tr][td][b]Source[/b][/td][td][url=https://github.com/jokeez/hackme]github.com/jokeez/hackme[/url][/td][/tr]
+[tr][td][b]Windows[/b][/td][td][mono]HackMe-Setup-0.1.0-rc11g.exe[/mono] — pool token + [mono]workerpoh-opencl[/mono] (AMD RX 580 profile)[/td][/tr]
+[tr][td][b]Linux tarball[/b][/td][td][mono]hackme[/mono] · [mono]workerpoh[/mono] · [mono]minersign[/mono] + GPU helper scripts[/td][/tr]
+[tr][td][b]Docs[/b][/td][td][url=https://github.com/jokeez/hackme/blob/main/docs/HACKME_OS.md]HACKME_OS.md[/url] · build from source (Apache-2.0)[/td][/tr]
 [/table]
+
+[b]Downloads (checksums on page):[/b] [url=https://hackme.tech/downloads.html]https://hackme.tech/downloads.html[/url]
 
 [hr]
 
-[b]Public pool (live)[/b]
+[center][size=13pt][b]━━━ HackMe OS vs classic miner zip ━━━[/b][/size][/center]
 
 [table]
-[tr][td][b]Pool stats[/b][/td][td][url=https://hackme.tech/pool/coordinator/api/work/stats].../api/work/stats[/url][/td][/tr]
-[tr][td][b]Explorer[/b][/td][td][url=https://hackme.tech/pool/explorer]pool/explorer[/url][/td][/tr]
-[tr][td][b]Hashrate[/b][/td][td]~[b]2.4 GH/s[/b] (5 workers)[/td][/tr]
-[tr][td][b]Difficulty[/b] ([mono]target_mod[/mono])[/td][td]~[b]4.97M[/b][/td][/tr]
-[tr][td][b]Economics[/b][/td][td]Fair mode — [mono]payout_found_only=0[/mono] (accrual for accepted work)[/td][/tr]
+[tr][td][b][/b][/td][td][b]ZIP + scripts[/b][/td][td][b]HackMe OS ISO[/b][/td][/tr]
+[tr][td]Wallet setup[/td][td]Manual [mono]hackme.ini[/mono] / dashboard[/td][td][b]Auto[/b] Zero-Knowledge Start[/td][/tr]
+[tr][td]Pool URL / token[/td][td]Copy from docs / installer[/td][td][b]Embedded[/b] at image build[/td][/tr]
+[tr][td]CPU tuning[/td][td]DIY [mono]cpufreq[/mono] / [mono]taskset[/mono][/td][td][b]Built-in[/b] isolcpus · RT worker · swapoff[/td][/tr]
+[tr][td]GPU[/td][td]OpenCL/CUDA per host[/td][td]AMD OOTB · NVIDIA after disk + driver[/td][/tr]
+[tr][td]Best for[/td][td]Desktop / server you already run[/td][td][b]Dedicated rig[/b] · old laptop · farm USB[/td][/tr]
 [/table]
 
-[b]Hybrid signer strict[/b] is enabled — use ISO / [mono]minersign[/mono] signing (unsigned submits → 403). Map worker id → [mono]HMC-…[/mono] for settlement.
+[hr]
+
+[center][size=13pt][b]━━━ Public pool snapshot (live) ━━━[/b][/size][/center]
+
+[i]Not TCP Stratum on :3333 — [mono]hackme-node[/mono] + [mono]workerpoh[/mono] over HTTP to [mono]/pool/coordinator[/mono].[/i]
+
+[table]
+[tr][td][b]Metric[/b][/td][td][b]Value[/b][/td][/tr]
+[tr][td][b]Pool stats API[/b][/td][td][url=https://hackme.tech/pool/coordinator/api/work/stats].../api/work/stats[/url][/td][/tr]
+[tr][td][b]Explorer / payouts[/b][/td][td][url=https://hackme.tech/pool/explorer]hackme.tech/pool/explorer[/url][/td][/tr]
+[tr][td][b]Aggregate hashrate[/b][/td][td]~[b]2.4 GH/s[/b] (coordinator-reported; sub-1 TH/s shown as GH/s on site)[/td][/tr]
+[tr][td][b]Network difficulty[/b][/td][td][mono]target_mod[/mono] ~[b]4.9M[/b] (dynamic)[/td][/tr]
+[tr][td][b]Block reward (epoch)[/b][/td][td][b]0.01 HMC[/b] base (+ halving schedule on chain)[/td][/tr]
+[tr][td][b]Economics[/b][/td][td][b]Fair pool:[/b] [mono]payout_found_only=0[/mono] — accrual for [b]accepted work[/b], not only rare “found” hits[/td][/tr]
+[tr][td][b]Signing[/b][/td][td][b]Hybrid signer strict[/b] — ISO auto-configures signing; unsigned submits → [b]403[/b][/td][/tr]
+[/table]
+
+[b]Payout path:[/b] accrual on coordinator → map worker id → [mono]HMC-…[/mono] → operator settlement → on-chain balance. Details: [url=https://hackme.tech/economics-model.html]economics-model.html[/url]
 
 [hr]
 
-[b]QA (operator)[/b]
+[center][size=13pt][b]━━━ Operator QA (this release) ━━━[/b][/size][/center]
+
+[table]
+[tr][td][b]Check[/b][/td][td][b]Result[/b][/td][/tr]
+[tr][td][mono]go test ./...[/mono][/td][td][color=#39ff14][b]PASS[/b][/color][/td][/tr]
+[tr][td]Nightly chaos guard[/td][td][color=#39ff14][b]PASS[/b][/color] — 5000 payout ledger · HTTP replay/tamper · [mono]init-worker[/mono] hardening[/td][/tr]
+[tr][td]Prior coordinator stress[/td][td][b]0%[/b] hard errors · p50 [b]0.9 ms[/b] · RAM flat ~20 MB · [b]429[/b] backpressure under flood (by design)[/td][/tr]
+[tr][td]ISO contents[/td][td][mono]pool.token[/mono] · [mono]minersign[/mono] · [mono]workerpoh[/mono] embedded; claim canary [b]HTTP 200[/b][/td][/tr]
+[tr][td]ISO on CDN[/td][td][color=#39ff14][b]LIVE[/b][/color] at [url=https://hackme.tech/dist/release_0.1.0-rc11g/HackMe-OS-0.1.0-rc11g-amd64.iso]official dist URL[/url][/td][/tr]
+[/table]
+
+[hr]
+
+[b][size=12pt]Also on this thread[/size][/b]
 [list]
-[*] [mono]go test ./...[/mono] — pass
-[*] Nightly chaos guard (5000 payouts, HTTP tamper, init-worker) — pass
-[*] Prior coordinator stress: [b]0%[/b] hard errors, p50 [b]0.9 ms[/b], stable RAM
-[*] ISO contains pool token + worker binaries; claim canary HTTP [b]200[/b]
+[*] Coordinator [b]10-minute mega stress[/b] (100 vworkers, halving block [mono]2,102,401[/mono] verified) — see earlier update.
+[*] [b]Windows OpenCL[/b] for AMD RX 580 (~0.12+ GH/s class vs CPU-only).
+[*] [b]MiningPoolStats[/b] listing submitted ([i]HTTP coordinator — not Stratum[/i]).
 [/list]
 
 [hr]
 
-[b]Trust[/b]
-[list]
-[*] Official site only: [url=https://hackme.tech]hackme.tech[/url]
-[*] No ICO · no token sale
-[*] Security: [url=https://hackme.tech/contacts.html]contacts.html[/url]
-[/list]
+[b][color=#00d1ff]Official links only[/color][/b]
+[table]
+[tr][td][b]Website[/b][/td][td][url=https://hackme.tech]https://hackme.tech[/url][/td][/tr]
+[tr][td][b]Downloads[/b][/td][td][url=https://hackme.tech/downloads.html#hackme-os]downloads.html#hackme-os[/url][/td][/tr]
+[tr][td][b]Source[/b][/td][td][url=https://github.com/jokeez/hackme]github.com/jokeez/hackme[/url][/td][/tr]
+[tr][td][b]Security[/b][/td][td][url=https://hackme.tech/contacts.html]responsible disclosure[/url][/td][/tr]
+[/table]
 
-[i]Experimental RC software — verify checksums and explorer accrual before scaling hash. Pool parameters may change with notice on the website.[/i]
+[hr]
+
+[quote][i][b]Disclaimer[/b] — HackMe is experimental release-candidate software ([mono]0.1.0-rc11g[/mono]). Mining carries technical and financial risk. [b]Write down your recovery phrase.[/b] Verify SHA256 and explorer accrual before scaling hash. No ICO · no token sale. Pool parameters may change with notice on the website.[/i][/quote]
+
+[hr]
+[size=9pt][i]Re: [ANN] HackMe — HackMe OS live ISO · Zero-Knowledge Start · rc11g · May 2026[/i][/size]
