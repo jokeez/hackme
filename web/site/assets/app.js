@@ -35,6 +35,9 @@
     windowsBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows_setup.zip`,
     windowsBundleLegacy: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows.zip`,
     linuxBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_linux.tar.gz`,
+    hackmeOSIso: `/dist/release_${RELEASE_VER}/HackMe-OS-${RELEASE_VER}-amd64.iso`,
+    hackmeOSIsoLegacy: `/dist/release_${RELEASE_VER}/HackMe-Miner-${RELEASE_VER}-amd64.iso`,
+    hackmeOSSha: `/dist/release_${RELEASE_VER}/SHA256SUMS-iso.txt`,
     shaSums: `/dist/release_${RELEASE_VER}/SHA256SUMS.txt`,
     manifest: `/dist/release_${RELEASE_VER}/RELEASE_MANIFEST.json`,
     buildInfo: `/dist/release_${RELEASE_VER}/BUILD_INFO.txt`,
@@ -105,15 +108,44 @@
     return CONFIG.windowsBundle;
   }
 
+  async function resolveHackMeOSIsoHref() {
+    const candidates = [CONFIG.hackmeOSIso, CONFIG.hackmeOSIsoLegacy].filter(Boolean);
+    for (const url of candidates) {
+      try {
+        const r = await fetch(url, { method: "HEAD", cache: "no-store" });
+        if (r.ok) return url;
+      } catch (_) {}
+    }
+    return "";
+  }
+
   function wireDownloadLinks() {
     setHref("download-win", CONFIG.windowsInstaller || CONFIG.windowsBundle);
     setHref("download-win-zip", CONFIG.windowsBundle);
     setHref("download-linux", CONFIG.linuxBundle);
     setHref("download-sha", CONFIG.shaSums);
+    setHref("download-iso-sha", CONFIG.hackmeOSSha);
+    setHref("download-iso-sha-card", CONFIG.hackmeOSSha);
     setHref("download-manifest", CONFIG.manifest);
     setHref("download-buildinfo", CONFIG.buildInfo);
     const verEl = document.getElementById("dl-release-ver");
     if (verEl) verEl.textContent = CONFIG.releaseChannel || RELEASE_VER;
+    void resolveHackMeOSIsoHref().then((isoHref) => {
+      const isoBtn = document.getElementById("download-iso");
+      const isoStat = document.getElementById("download-iso-status");
+      if (!isoBtn) return;
+      if (isoHref) {
+        isoBtn.href = isoHref;
+        isoBtn.classList.remove("btn-disabled");
+        if (isoStat) isoStat.textContent = "ISO available — verify SHA256SUMS-iso.txt before flashing.";
+      } else {
+        isoBtn.href = "#hackme-os";
+        if (isoStat) {
+          isoStat.textContent =
+            "ISO build publishing soon — watch News or build from source: scripts/release/iso/build_hackme_miner_iso.sh";
+        }
+      }
+    });
   }
 
   /** Public hackme.tech nginx exposes read APIs under /pool/api; dev localhost uses /api. */

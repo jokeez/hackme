@@ -5,7 +5,14 @@
     <link>https://hackme.tech/news.html</link>
     <description>Official HackMe Network release, infrastructure, economics, and security updates.</description>
     <language>en-us</language>
-    <lastBuildDate>Fri, 22 May 2026 08:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Fri, 22 May 2026 12:00:00 GMT</lastBuildDate>
+    <item>
+      <title>Zero-Knowledge Start · HackMe OS on downloads · Windows worker watchdog</title>
+      <link>https://hackme.tech/news.html#2026-05-22-zero-knowledge-start-downloads</link>
+      <guid>https://hackme.tech/news.html#2026-05-22-zero-knowledge-start-downloads</guid>
+      <pubDate>Fri, 22 May 2026 12:00:00 GMT</pubDate>
+      <description>Flash HackMe OS USB — auto wallet + recovery phrase, zero config mining. Downloads page ISO section. Windows watchdog keeps pool worker online.</description>
+    </item>
     <item>
       <title>Ecosystem dashboard · nightly chaos guard · HackMe OS miner ISO</title>
       <link>https://hackme.tech/news.html#2026-05-22-ecosystem-chaos-hackme-os</link>

@@ -207,6 +207,23 @@ fi
   sha256sum "${SUM_FILES[@]}" > "SHA256SUMS.txt"
 )
 
+# Optional: bootable HackMe OS ISO (built separately; symlink legacy Miner name → OS name).
+ISO_OS="HackMe-OS-${VERSION}-amd64.iso"
+ISO_LEGACY="HackMe-Miner-${VERSION}-amd64.iso"
+if [[ -f "${DIST_DIR}/${ISO_LEGACY}" && ! -f "${DIST_DIR}/${ISO_OS}" ]]; then
+  ln -sf "${ISO_LEGACY}" "${DIST_DIR}/${ISO_OS}"
+  echo "[release] ISO: symlink ${ISO_OS} → ${ISO_LEGACY}"
+fi
+if [[ -f "${DIST_DIR}/${ISO_OS}" ]]; then
+  (cd "${DIST_DIR}" && sha256sum "$(basename "${ISO_OS}")" > SHA256SUMS-iso.txt)
+  echo "[release] HackMe OS ISO: ${ISO_OS} ($(du -h "${DIST_DIR}/${ISO_OS}" | awk '{print $1}'))"
+elif [[ -f "${DIST_DIR}/${ISO_LEGACY}" ]]; then
+  (cd "${DIST_DIR}" && sha256sum "$(basename "${ISO_LEGACY}")" > SHA256SUMS-iso.txt)
+  echo "[release] HackMe OS ISO (legacy name): ${ISO_LEGACY}"
+else
+  echo "[release] ISO not in dist yet (run: VERSION=${VERSION} bash scripts/release/iso/build_hackme_miner_iso.sh)" >&2
+fi
+
 WIN_INSTALLER="${DIST_DIR}/HackMe-Setup-${VERSION}.exe"
 WIN_ARCHIVE="${DIST_DIR}/hackme_${VERSION}_windows.zip"
 LINUX_ARCHIVE="${DIST_DIR}/hackme_${VERSION}_linux.tar.gz"
@@ -220,6 +237,18 @@ fi
 LINUX_SHA="$(awk '/linux\.tar\.gz$/ {print $1}' "${DIST_DIR}/SHA256SUMS.txt")"
 WIN_SIZE="$(stat -c%s "${WIN_PRIMARY}")"
 LINUX_SIZE="$(stat -c%s "${LINUX_ARCHIVE}")"
+ISO_FILE=""
+ISO_SHA=""
+ISO_SIZE=0
+if [[ -f "${DIST_DIR}/${ISO_OS}" ]]; then
+  ISO_FILE="${ISO_OS}"
+elif [[ -f "${DIST_DIR}/${ISO_LEGACY}" ]]; then
+  ISO_FILE="${ISO_LEGACY}"
+fi
+if [[ -n "$ISO_FILE" && -f "${DIST_DIR}/SHA256SUMS-iso.txt" ]]; then
+  ISO_SHA="$(awk -v f="$ISO_FILE" '$2==f || $2 ~ f {print $1; exit}' "${DIST_DIR}/SHA256SUMS-iso.txt")"
+  ISO_SIZE="$(stat -c%s "${DIST_DIR}/${ISO_FILE}")"
+fi
 jq -nc \
   --arg app "$APP_NAME" \
   --arg version "$VERSION" \
@@ -232,16 +261,23 @@ jq -nc \
   --arg linux_sha256 "$LINUX_SHA" \
   --argjson linux_size_bytes "$LINUX_SIZE" \
   --argjson has_installer "$( [[ -f "${WIN_INSTALLER}" ]] && echo true || echo false )" \
+  --arg iso_file "$ISO_FILE" \
+  --arg iso_sha256 "$ISO_SHA" \
+  --argjson iso_size_bytes "$ISO_SIZE" \
   '{
     app:$app,
     version:$version,
     commit:$commit,
     build_date_utc:$build_date_utc,
     windows_installer:$has_installer,
-    artifacts:[
-      {platform:"windows",file:$windows_file,sha256:$windows_sha256,size_bytes:$windows_size_bytes,kind:(if $has_installer then "installer" else "zip" end)},
-      {platform:"linux",file:$linux_file,sha256:$linux_sha256,size_bytes:$linux_size_bytes}
-    ]
+    hackme_os_iso: ($iso_file != ""),
+    artifacts: (
+      [
+        {platform:"windows",file:$windows_file,sha256:$windows_sha256,size_bytes:$windows_size_bytes,kind:(if $has_installer then "installer" else "zip" end)},
+        {platform:"linux",file:$linux_file,sha256:$linux_sha256,size_bytes:$linux_size_bytes}
+      ]
+      + (if $iso_file != "" then [{platform:"hackme-os",file:$iso_file,sha256:$iso_sha256,size_bytes:$iso_size_bytes,kind:"iso",features:["zero_knowledge_start","live_usb"]}] else [] end)
+    )
   }' > "${DIST_DIR}/RELEASE_MANIFEST.json"
 
 bash "${ROOT_DIR}/scripts/release/verify_artifacts.sh" "${DIST_DIR}"

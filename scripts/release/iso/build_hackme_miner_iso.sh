@@ -102,3 +102,5 @@ fi
 
 echo "[iso] artifacts:"
 ls -lh "${OUT_DIR}"/HackMe-OS-"${VERSION}"-amd64.iso "${OUT_DIR}"/SHA256SUMS-iso.txt 2>/dev/null || true
+# Legacy name from older builds
+ls -lh "${OUT_DIR}"/HackMe-Miner-"${VERSION}"-amd64.iso 2>/dev/null || true
