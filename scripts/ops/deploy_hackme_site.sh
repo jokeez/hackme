@@ -20,6 +20,22 @@ _OPS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$_OPS_DIR/_deploy_ssh_retry.sh"
 
+# Optional: HACKME_DEPLOY_SSH_IDENTITY=/path/to/ed25519 (chmod 600, never commit)
+_deploy_ssh() {
+  if [[ -n "${HACKME_DEPLOY_SSH_IDENTITY:-}" && -f "${HACKME_DEPLOY_SSH_IDENTITY}" ]]; then
+    ssh -i "${HACKME_DEPLOY_SSH_IDENTITY}" -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$@"
+  else
+    ssh "$@"
+  fi
+}
+_deploy_rsync() {
+  if [[ -n "${HACKME_DEPLOY_SSH_IDENTITY:-}" && -f "${HACKME_DEPLOY_SSH_IDENTITY}" ]]; then
+    rsync -e "ssh -i ${HACKME_DEPLOY_SSH_IDENTITY} -o BatchMode=yes -o StrictHostKeyChecking=accept-new" "$@"
+  else
+    rsync "$@"
+  fi
+}
+
 NODE_SSH="${NODE_SSH:-}"
 NODE_DEPLOY_DIR="${NODE_DEPLOY_DIR:-/opt/hackme}"
 SKIP_DIST="${SKIP_DIST:-0}"
@@ -55,17 +71,17 @@ PY
 fi
 
 echo "[deploy-hackme-site] rsync web/site -> ${NODE_SSH}:${NODE_DEPLOY_DIR}/web/site/"
-deploy_ssh_retry_run rsync -az --delete --mkpath \
+deploy_ssh_retry_run _deploy_rsync -az --delete --mkpath \
   "${ROOT_DIR}/web/site/" "${NODE_SSH}:${NODE_DEPLOY_DIR}/web/site/"
 
 if [[ "$SKIP_DIST" != "1" && -d "${ROOT_DIR}/dist" ]]; then
   echo "[deploy-hackme-site] rsync dist/ -> ${NODE_SSH}:${NODE_DEPLOY_DIR}/dist/"
-  deploy_ssh_retry_run rsync -az --mkpath "${ROOT_DIR}/dist/" "${NODE_SSH}:${NODE_DEPLOY_DIR}/dist/"
+  deploy_ssh_retry_run _deploy_rsync -az --mkpath "${ROOT_DIR}/dist/" "${NODE_SSH}:${NODE_DEPLOY_DIR}/dist/"
 fi
 
 if [[ "$RELOAD_NGINX" == "1" ]]; then
   echo "[deploy-hackme-site] nginx reload (best-effort)"
-  deploy_ssh_retry_run ssh "$NODE_SSH" "sudo nginx -t && sudo systemctl reload nginx" || {
+  deploy_ssh_retry_run _deploy_ssh "$NODE_SSH" "sudo nginx -t && sudo systemctl reload nginx" || {
     echo "[deploy-hackme-site] WARN: nginx reload failed (check sudo/nginx on host)" >&2
   }
 fi
