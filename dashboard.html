@@ -1370,81 +1370,55 @@
 							</div>
 						</div>
 
-						<div id="mine-calc-section" class="card card-glow mine-calc-hero rounded-lg p-4 md:p-5 mb-4 border-neon/25">
-							<div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+						<div id="mine-calc-section" class="card card-glow mine-calc-hero rounded-lg p-4 md:p-5 mb-4 border-neon/25" data-calc-coin="hmc">
+							<div class="flex flex-wrap items-start justify-between gap-3 mb-3">
 								<div>
-									<h3 class="font-display text-[10px] tracking-[0.25em] text-neon uppercase flex items-center gap-2">
-										<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-										Mining calculator
-									</h3>
-									<p class="text-[10px] text-gray-500 mt-1 max-w-2xl">Live pool economics: hashrate → HMC yield, PoH ETA, electricity ROI, pool vs chain comparison. Params sync from <code class="text-neon/70">/api/work/stats</code> and metrics.</p>
+									<h3 class="font-display text-[10px] tracking-[0.25em] text-neon uppercase">Mining calculator</h3>
+									<p id="mine-calc-coin-label" class="text-[10px] text-gray-500 mt-1">HMC · HackMe Coin — pool payout estimate</p>
 								</div>
-								<div class="flex flex-wrap gap-1.5">
-									<button type="button" id="btn-mine-calc-live" class="mine-calc-preset">Use my worker</button>
-									<button type="button" id="btn-mine-calc-pool" class="mine-calc-preset">Pool average</button>
-									<button type="button" id="btn-mine-calc-gpu" class="mine-calc-preset">GPU ~20 GH/s</button>
-									<button type="button" id="btn-mine-calc-cpu" class="mine-calc-preset">CPU ~0.35 GH/s</button>
-									<button type="button" id="btn-mine-calc-export" class="mine-calc-preset">Copy JSON</button>
+								<div class="flex flex-wrap items-center gap-2">
+									<select id="mine-calc-coin" class="mine-calc-input text-[10px] py-1 max-w-[8rem]" title="Future: multi-coin pools">
+										<option value="hmc" selected>HMC</option>
+									</select>
+									<button type="button" id="btn-mine-calc-live" class="mine-calc-preset">My rig (live)</button>
 								</div>
 							</div>
 
-							<div id="mine-calc-live-strip" class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4 text-[10px] font-mono">
+							<div id="mine-calc-live-strip" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 text-[10px] font-mono">
 								<div class="rounded border border-white/10 bg-black/30 px-2 py-1.5"><span class="text-gray-500">reward/M</span><div id="mine-calc-net-rpm" class="text-neon">—</div></div>
-								<div class="rounded border border-white/10 bg-black/30 px-2 py-1.5"><span class="text-gray-500">target_mod</span><div id="mine-calc-net-target" class="text-white">—</div></div>
-								<div class="rounded border border-white/10 bg-black/30 px-2 py-1.5"><span class="text-gray-500">found bonus</span><div id="mine-calc-net-found" class="text-matrix">—</div></div>
+								<div class="rounded border border-white/10 bg-black/30 px-2 py-1.5"><span class="text-gray-500">difficulty M</span><div id="mine-calc-net-target" class="text-white">—</div></div>
 								<div class="rounded border border-white/10 bg-black/30 px-2 py-1.5"><span class="text-gray-500">pool GH/s</span><div id="mine-calc-net-pool-gh" class="text-white">—</div></div>
-								<div class="rounded border border-white/10 bg-black/30 px-2 py-1.5"><span class="text-gray-500">sync</span><div id="mine-calc-net-sync" class="text-gray-400">—</div></div>
+								<div class="rounded border border-white/10 bg-black/30 px-2 py-1.5"><span class="text-gray-500">found hit</span><div id="mine-calc-net-found" class="text-matrix">—</div></div>
 							</div>
 
 							<div class="grid lg:grid-cols-12 gap-4">
-								<div class="lg:col-span-5 space-y-3">
-									<div>
-										<label class="text-[10px] text-gray-500 uppercase tracking-wider flex justify-between"><span>Hashrate (GH/s)</span><span id="mine-calc-gh-label" class="text-neon font-mono">10</span></label>
-										<input type="range" id="mine-calc-gh-slider" class="mine-calc-range mt-1" min="0.01" max="2000" step="0.01" value="10">
-										<input type="number" id="mine-calc-gh" class="mine-calc-input mt-1" min="0.001" step="0.001" value="10">
+								<div class="lg:col-span-4 space-y-3">
+									<div class="rounded border border-neon/20 bg-black/35 p-3">
+										<label class="text-[10px] text-gray-500 uppercase tracking-wider flex justify-between items-center">
+											<span>Your hashrate</span>
+											<span id="mine-calc-gh-label" class="text-neon font-mono text-sm">10 GH/s</span>
+										</label>
+										<input type="range" id="mine-calc-gh-slider" class="mine-calc-range mt-2 w-full" min="0.01" max="500" step="0.01" value="10">
+										<input type="hidden" id="mine-calc-gh" value="10">
+										<p class="text-[9px] text-gray-600 mt-2">Drag to estimate payout at this speed. Capped to pool scale — not infinite scroll.</p>
 									</div>
-									<div class="grid grid-cols-2 gap-2">
-										<div>
-											<label class="text-[10px] text-gray-500 uppercase tracking-wider">Rigs / GPUs</label>
-											<input type="number" id="mine-calc-rigs" class="mine-calc-input mt-1" min="1" max="9999" step="1" value="1">
+									<details id="mine-calc-advanced" class="rounded border border-white/10 bg-black/25 px-3 py-2 text-[10px]">
+										<summary class="text-gray-500 uppercase tracking-wider cursor-pointer select-none">Electricity &amp; share (optional)</summary>
+										<div class="mt-3 space-y-2">
+											<div class="grid grid-cols-2 gap-2">
+												<label class="text-gray-500">Power W<input type="number" id="mine-calc-power" class="mine-calc-input mt-1 w-full" min="0" step="1" value="180"></label>
+												<label class="text-gray-500">$/kWh<input type="number" id="mine-calc-kwh" class="mine-calc-input mt-1 w-full" min="0" step="0.001" value="0.12"></label>
+											</div>
+											<div class="grid grid-cols-2 gap-2">
+												<label class="text-gray-500" title="Payout weight from pool attempts, not GH/s">Share %<input type="number" id="mine-calc-share" class="mine-calc-input mt-1 w-full" min="0.01" max="100" step="0.01" value="100"></label>
+												<label class="text-gray-500">Rigs<input type="number" id="mine-calc-rigs" class="mine-calc-input mt-1 w-full" min="1" max="999" step="1" value="1"></label>
+											</div>
+											<label class="text-gray-500">HMC $ (optional)<input type="number" id="mine-calc-hmc-usd" class="mine-calc-input mt-1 w-full" min="0" step="0.000001" placeholder="—"></label>
+											<input type="hidden" id="mine-calc-scenario" value="pool">
+											<input type="hidden" id="mine-calc-uptime" value="95">
+											<input type="hidden" id="mine-calc-hw-cost" value="0">
 										</div>
-										<div>
-											<label class="text-[10px] text-gray-500 uppercase tracking-wider" title="Share of pool accepted_attempts (payout weight), not instantaneous GH/s">Pool share % (attempts)</label>
-											<input type="number" id="mine-calc-share" class="mine-calc-input mt-1" min="0.01" max="100" step="0.01" value="100">
-										</div>
-									</div>
-									<div class="grid grid-cols-2 gap-2">
-										<div>
-											<label class="text-[10px] text-gray-500 uppercase tracking-wider">Power (W / rig)</label>
-											<input type="number" id="mine-calc-power" class="mine-calc-input mt-1" min="0" step="1" value="180">
-										</div>
-										<div>
-											<label class="text-[10px] text-gray-500 uppercase tracking-wider">Electricity ($/kWh)</label>
-											<input type="number" id="mine-calc-kwh" class="mine-calc-input mt-1" min="0" step="0.001" value="0.12">
-										</div>
-									</div>
-									<div class="grid grid-cols-2 gap-2">
-										<div>
-											<label class="text-[10px] text-gray-500 uppercase tracking-wider">HMC price ($)</label>
-											<input type="number" id="mine-calc-hmc-usd" class="mine-calc-input mt-1" min="0" step="0.000001" placeholder="optional">
-										</div>
-										<div>
-											<label class="text-[10px] text-gray-500 uppercase tracking-wider">Hardware cost ($)</label>
-											<input type="number" id="mine-calc-hw-cost" class="mine-calc-input mt-1" min="0" step="1" value="0">
-										</div>
-									</div>
-									<div>
-										<label class="text-[10px] text-gray-500 uppercase tracking-wider flex justify-between"><span>Uptime</span><span id="mine-calc-uptime-label" class="text-matrix font-mono">95%</span></label>
-										<input type="range" id="mine-calc-uptime" class="mine-calc-range mt-1" min="50" max="100" step="1" value="95">
-									</div>
-									<div>
-										<label class="text-[10px] text-gray-500 uppercase tracking-wider">Scenario</label>
-										<select id="mine-calc-scenario" class="mine-calc-input mt-1">
-											<option value="pool">Pool work (reward/M)</option>
-											<option value="compare">Compare: pool vs chain empty</option>
-											<option value="fleet">Fleet planner (N identical rigs)</option>
-										</select>
-									</div>
+									</details>
 								</div>
 
 								<div class="lg:col-span-7 space-y-3">
@@ -1486,25 +1460,6 @@
 										</div>
 									</div>
 
-									<div id="mine-calc-compare-wrap" class="rounded border border-white/10 bg-black/25 p-3 hidden">
-										<div class="text-[10px] text-gray-500 uppercase tracking-wider mb-3">Pool vs chain empty (relative HMC/h)</div>
-										<div class="space-y-2 text-[10px]">
-											<div>
-												<div class="flex justify-between mb-0.5"><span class="text-neon">Pool work</span><span id="mine-calc-cmp-pool" class="font-mono text-white">—</span></div>
-												<div class="mine-calc-bar-track"><div id="mine-calc-bar-pool" class="mine-calc-bar-fill bg-neon/70" style="width:0%"></div></div>
-											</div>
-											<div>
-												<div class="flex justify-between mb-0.5"><span class="text-gray-400">Chain empty baseline</span><span id="mine-calc-cmp-chain" class="font-mono text-gray-300">—</span></div>
-												<div class="mine-calc-bar-track"><div id="mine-calc-bar-chain" class="mine-calc-bar-fill bg-gray-500/60" style="width:0%"></div></div>
-											</div>
-											<div>
-												<div class="flex justify-between mb-0.5"><span class="text-matrix">Your pool share of total</span><span id="mine-calc-cmp-share" class="font-mono text-matrix">—</span></div>
-												<div class="mine-calc-bar-track"><div id="mine-calc-bar-share" class="mine-calc-bar-fill bg-matrix/70" style="width:0%"></div></div>
-											</div>
-										</div>
-										<p id="mine-calc-compare-note" class="text-[9px] text-gray-600 mt-2"></p>
-									</div>
-
 									<p id="mine-calc-footnote" class="text-[9px] text-gray-600 leading-relaxed"></p>
 								</div>
 							</div>
@@ -1541,35 +1496,13 @@
 								</table>
 							</div>
 						</div>
-						<div class="mt-4 card card-glow rounded-lg p-4 border-white/10">
-							<h3 class="font-display text-[10px] tracking-[0.25em] text-gray-400 uppercase mb-2">Fleet snapshot</h3>
-							<div class="overflow-x-auto rounded border border-white/8">
-								<table class="w-full text-left text-[11px] font-mono">
-									<thead class="bg-black/60 text-gray-500 uppercase tracking-wider text-[9px]"><tr><th class="px-2 py-2"></th><th class="px-2 py-2">Name</th><th class="px-2 py-2">GH/s</th><th class="px-2 py-2">IP</th></tr></thead>
-									<tbody id="mining-fleet-rows" class="text-gray-300 divide-y divide-white/5"></tbody>
-								</table>
-							</div>
-						</div>
-						<div class="mt-4 card card-glow rounded-lg p-4 border-neon/20">
-							<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-								<h3 class="font-display text-[10px] tracking-[0.25em] text-neon uppercase">Operator health</h3>
-								<button type="button" id="btn-operator-health-refresh" class="text-[10px] px-3 py-1 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
-							</div>
-							<p id="operator-health-headline" class="text-[10px] text-gray-500 font-mono mb-2">runtime: collecting snapshots...</p>
-							<div class="flex flex-wrap items-center gap-2 text-[9px] font-mono uppercase tracking-wider">
-								<span id="operator-health-pill-p2p" class="px-2 py-0.5 rounded border border-white/15 text-gray-500">p2p: —</span>
-								<span id="operator-health-pill-sync" class="px-2 py-0.5 rounded border border-white/15 text-gray-500">sync: —</span>
-								<span id="operator-health-pill-work" class="px-2 py-0.5 rounded border border-white/15 text-gray-500">work: —</span>
-								<span id="operator-health-pill-gate" class="px-2 py-0.5 rounded border border-white/15 text-gray-500">gate: —</span>
-							</div>
-							<pre id="operator-health-notes" class="mt-2 text-[10px] font-mono text-gray-500 overflow-x-auto whitespace-pre-wrap rounded border border-white/8 bg-black/40 p-2">—</pre>
-						</div>
 						<div class="mt-4 card card-glow rounded-lg p-4 border-neon/20">
 							<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
 								<h3 class="font-display text-[10px] tracking-[0.25em] text-neon uppercase">Work payout (coordinator)</h3>
 								<button type="button" id="btn-work-stats-refresh" class="text-[10px] px-3 py-1 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
 							</div>
-							<p id="work-stats-headline" class="text-[10px] text-gray-500 font-mono mb-1">GET /api/work/stats</p>
+							<p id="mining-pool-status-line" class="text-[10px] text-gray-500 font-mono mb-2 leading-relaxed">Pool status: —</p>
+							<p id="work-stats-headline" class="text-[10px] text-gray-500 font-mono mb-1">—</p>
 							<p id="work-payout-hint" class="text-[10px] text-gray-500 mb-3 max-w-3xl leading-relaxed hidden"></p>
 							<div class="overflow-x-auto rounded border border-white/8">
 								<table class="w-full text-left text-[11px] font-mono">
@@ -1589,21 +1522,22 @@
 								</table>
 							</div>
 						</div>
-						<div class="mt-4 card card-glow rounded-lg p-4 border-white/10">
+						<details id="p2p-peers-section" class="mt-4 card card-glow rounded-lg p-4 border-white/10 hidden">
+							<summary class="font-display text-[10px] tracking-[0.25em] text-gray-400 uppercase cursor-pointer select-none">Advanced · P2P chain sync (optional)</summary>
+							<p class="text-[10px] text-gray-600 mt-2 mb-2">Not required for pool mining. Use when mirroring the canonical SQLite DB from a follower node.</p>
 							<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-								<h3 class="font-display text-[10px] tracking-[0.25em] text-gray-300 uppercase">P2P peers</h3>
+								<p id="p2p-peers-headline" class="text-[10px] text-gray-500 font-mono">—</p>
 								<button type="button" id="btn-p2p-peers-refresh" class="text-[10px] px-3 py-1 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
 							</div>
-							<p id="p2p-peers-headline" class="text-[10px] text-gray-500 font-mono mb-3">GET /api/p2p/peers</p>
 							<div class="overflow-x-auto rounded border border-white/8">
 								<table class="w-full text-left text-[11px] font-mono">
 									<thead class="bg-black/60 text-gray-500 uppercase tracking-wider text-[9px]">
-										<tr><th class="px-2 py-2">State</th><th class="px-2 py-2">Peer URL</th><th class="px-2 py-2">Node</th><th class="px-2 py-2">Height</th><th class="px-2 py-2">Seen</th><th class="px-2 py-2">RTT ms</th><th class="px-2 py-2">Next retry</th><th class="px-2 py-2">Quality</th><th class="px-2 py-2">Failures</th><th class="px-2 py-2">Last error</th></tr>
+										<tr><th class="px-2 py-2">State</th><th class="px-2 py-2">Peer URL</th><th class="px-2 py-2">Node</th><th class="px-2 py-2">Height</th><th class="px-2 py-2">Seen</th><th class="px-2 py-2">RTT ms</th><th class="px-2 py-2">Quality</th><th class="px-2 py-2">Last error</th></tr>
 									</thead>
 									<tbody id="p2p-peers-rows" class="text-gray-300 divide-y divide-white/5"></tbody>
 								</table>
 							</div>
-						</div>
+						</details>
 					</div>
 				</div>
 
@@ -3934,11 +3868,14 @@
 			return h + 'h ' + mm + 'm';
 		}
 
-		const MINE_CALC_PREFS_KEY = 'hackme.mine_calc.v1';
+		const MINE_CALC_PREFS_KEY = 'hackme.mine_calc.v2';
+		const MINE_CALC_GH_SLIDER_MAX = 500;
+		const MINE_CALC_COINS = [{ id: 'hmc', label: 'HMC', name: 'HackMe Coin', active: true }];
 		let mineCalcPrefsLoaded = false;
 		let mineCalcLastExport = null;
 		let mineCalcGhTouched = false;
 		let mineCalcShareTouched = false;
+		let mineCalcCoinId = 'hmc';
 
 		function mineCalcEl(id) { return $(id); }
 
@@ -3968,14 +3905,15 @@
 					el.value = String(p[key]);
 				});
 				const gh = Number(p.hashrateGh);
-				const slider = mineCalcEl('mine-calc-gh-slider');
-				if (slider && Number.isFinite(gh) && gh > 0) slider.value = String(Math.min(2000, Math.max(0.01, gh)));
+				if (Number.isFinite(gh) && gh > 0) setMineCalcGhValue(gh, { skipRender: true });
+				if (p.coinId && MINE_CALC_COINS.some((c) => c.id === p.coinId)) mineCalcCoinId = p.coinId;
 			} catch (_) {}
 		}
 
 		function saveMineCalcPrefs(inputs) {
 			try {
-				localStorage.setItem(MINE_CALC_PREFS_KEY, JSON.stringify(inputs));
+				const payload = Object.assign({}, inputs, { coinId: mineCalcCoinId });
+				localStorage.setItem(MINE_CALC_PREFS_KEY, JSON.stringify(payload));
 			} catch (_) {}
 		}
 
@@ -3995,18 +3933,44 @@
 			};
 		}
 
+		function mineCalcGhSliderCap() {
+			const net = getMineCalcNetworkParams();
+			let cap = MINE_CALC_GH_SLIDER_MAX;
+			if (net.poolGh > 0) cap = Math.min(MINE_CALC_GH_SLIDER_MAX, Math.max(20, net.poolGh * 1.15));
+			return cap;
+		}
+
+		function clampMineCalcGh(v) {
+			const cap = mineCalcGhSliderCap();
+			return Math.min(cap, Math.max(0.01, Number(v) || 0));
+		}
+
+		function setMineCalcGhValue(gh, opts) {
+			opts = opts || {};
+			const cap = mineCalcGhSliderCap();
+			const clamped = Math.min(cap, Math.max(0.01, Number(gh) || 0));
+			const ghEl = mineCalcEl('mine-calc-gh');
+			const ghSlider = mineCalcEl('mine-calc-gh-slider');
+			const ghLabel = mineCalcEl('mine-calc-gh-label');
+			if (ghSlider) {
+				ghSlider.max = String(cap);
+				ghSlider.value = String(clamped);
+			}
+			if (ghEl) ghEl.value = String(clamped);
+			if (ghLabel) ghLabel.textContent = fmt(clamped, clamped >= 10 ? 1 : 3) + ' GH/s';
+			if (!opts.skipRender) syncMineCalcSliders();
+		}
+
 		function syncMineCalcSliders() {
 			const ghEl = mineCalcEl('mine-calc-gh');
 			const ghSlider = mineCalcEl('mine-calc-gh-slider');
 			const ghLabel = mineCalcEl('mine-calc-gh-label');
-			const gh = Number(ghEl && ghEl.value || 0);
-			if (ghSlider && gh > 0) {
-				const sliderMax = Math.max(2000, Number(ghSlider.max || 2000), gh * 1.05);
-				if (Number(ghSlider.max) < sliderMax) ghSlider.max = String(sliderMax);
-				const clamped = Math.min(sliderMax, Math.max(0.01, gh));
-				if (Math.abs(Number(ghSlider.value) - clamped) > 0.0001) ghSlider.value = String(clamped);
-			}
-			if (ghLabel) ghLabel.textContent = gh > 0 ? fmt(gh, gh >= 10 ? 1 : 3) : '0';
+			const cap = mineCalcGhSliderCap();
+			if (ghSlider) ghSlider.max = String(cap);
+			const gh = clampMineCalcGh(ghSlider ? ghSlider.value : (ghEl && ghEl.value));
+			if (ghSlider && Math.abs(Number(ghSlider.value) - gh) > 0.0001) ghSlider.value = String(gh);
+			if (ghEl && String(ghEl.value) !== String(gh)) ghEl.value = String(gh);
+			if (ghLabel) ghLabel.textContent = (gh > 0 ? fmt(gh, gh >= 10 ? 1 : 3) : '0') + ' GH/s';
 			const upEl = mineCalcEl('mine-calc-uptime');
 			const upLabel = mineCalcEl('mine-calc-uptime-label');
 			if (upLabel && upEl) upLabel.textContent = fmt(Number(upEl.value || 95), 0) + '%';
@@ -4266,15 +4230,14 @@
 			let inputs = readMineCalcInputs();
 			const net = getMineCalcNetworkParams();
 			if (!mineCalcGhTouched && !(inputs.hashrateGh > 0) && net.workerGh > 0) {
-				const ghEl = mineCalcEl('mine-calc-gh');
-				const ghSlider = mineCalcEl('mine-calc-gh-slider');
-				if (ghEl) ghEl.value = String(net.workerGh);
-				if (ghSlider) ghSlider.value = String(Math.min(2000, Math.max(0.01, net.workerGh)));
+				setMineCalcGhValue(net.workerGh, { skipRender: true });
 				if (!mineCalcShareTouched && net.mySharePct > 0 && net.mySharePct < 100 && mineCalcEl('mine-calc-share')) {
 					mineCalcEl('mine-calc-share').value = String(fmt(net.mySharePct, 2));
 				}
 				inputs = readMineCalcInputs();
 			}
+			const coin = MINE_CALC_COINS.find((c) => c.id === mineCalcCoinId) || MINE_CALC_COINS[0];
+			if (mineCalcEl('mine-calc-coin-label')) mineCalcEl('mine-calc-coin-label').textContent = coin.label + ' · ' + coin.name;
 			const out = computeMineCalc(inputs, net, {});
 			const displayHmcHour = out.poolWork ? out.displayHmcHour : (out.scaledObservedHour > 0 ? out.scaledObservedHour : out.poolHmcHour);
 			const displayHmcDay = displayHmcHour * 24;
@@ -4415,13 +4378,10 @@
 			if (mineCalcEl('mine-calc-footnote')) {
 				const parts = [
 					out.poolWork
-						? 'Pool: HMC/h from live coordinator payout (scaled to slider GH/s).'
-						: 'Calculator: HMC/h = (GH/s × 10⁹ × uptime / 10⁶) × reward/M × pool_share.',
-					out.poolWork && out.theoreticalUncappedHour > Math.max(displayHmcHour, 1e-9) * 10
-						? ('Uncapped GH/s×10⁹ fantasy ~' + fmt(out.theoreticalUncappedHour, 1) + ' HMC/h — not used for pool work.')
-						: '',
+						? 'Estimate from live coordinator reward/M and your GH/s slider (share % in advanced = attempts weight, not hash %).'
+						: 'Connect pool worker for live coordinator stats.',
 					out.poolWork && net.foundBonus > 0
-						? ('Found bonus +' + fmt(net.foundBonus, 6) + ' HMC per valid hit on submit — not in HMC/h average.')
+						? ('Rare found bonus +' + fmt(net.foundBonus, 6) + ' HMC per hit — not averaged into HMC/h.')
 						: '',
 					'Higher M (more miners/hash) → lower reward/M. See Work payout for actual settled HMC.',
 					inputs.scenario === 'fleet' ? ('Fleet: ' + inputs.rigCount + ' × ' + fmt(inputs.hashrateGh, 2) + ' GH/s = ' + fmt(inputs.hashrateGh * inputs.rigCount, 2) + ' GH/s aggregate.') : '',
@@ -4445,21 +4405,8 @@
 				if (kind !== 'pool') mineCalcShareTouched = true;
 			}
 			if (kind === 'live' && net.workerGh > 0) {
-				ghEl.value = String(net.workerGh);
+				setMineCalcGhValue(net.workerGh, { skipRender: true });
 				if (shareEl) shareEl.value = String(fmt(Math.max(0.01, Math.min(100, net.mySharePct || 100)), 2));
-			} else if (kind === 'pool' && net.poolGh > 0) {
-				mineCalcShareTouched = false;
-				const wc = Math.max(1, Number((lastGoodWorkStats || latestWorkStats || {}).workers_count || Object.keys((lastGoodWorkStats || {}).workers || {}).length || 1));
-				const avgGh = net.poolGh / wc;
-				ghEl.value = String(fmt(avgGh, avgGh >= 10 ? 1 : 3));
-				if (shareEl) shareEl.value = String(fmt(100 / wc, 2));
-			} else if (kind === 'gpu') {
-				const gGpu = net.workerGh > 5 ? net.workerGh : 20;
-				ghEl.value = String(fmt(gGpu, gGpu >= 10 ? 1 : 2));
-				if (mineCalcEl('mine-calc-power')) mineCalcEl('mine-calc-power').value = '180';
-			} else if (kind === 'cpu') {
-				ghEl.value = '0.35';
-				if (mineCalcEl('mine-calc-power')) mineCalcEl('mine-calc-power').value = '95';
 			}
 			renderMineCalc();
 		}
@@ -4484,49 +4431,25 @@
 				});
 			});
 			const ghSlider = mineCalcEl('mine-calc-gh-slider');
-			const ghInput = mineCalcEl('mine-calc-gh');
-			if (ghSlider && ghInput) {
+			if (ghSlider) {
 				const onGhSlider = () => {
 					mineCalcGhTouched = true;
-					ghInput.value = ghSlider.value;
-					syncMineCalcSliders();
+					setMineCalcGhValue(ghSlider.value, { skipRender: true });
 					rerender();
 				};
 				ghSlider.addEventListener('input', onGhSlider);
 				ghSlider.addEventListener('change', onGhSlider);
-				const onGhInput = () => {
-					mineCalcGhTouched = true;
-					const v = Number(ghInput.value || 0);
-					const max = Math.max(2000, v > 0 ? v * 1.05 : 2000, Number(ghSlider.max || 2000));
-					ghSlider.max = String(max);
-					if (v > 0) ghSlider.value = String(Math.min(max, Math.max(0.01, v)));
-					syncMineCalcSliders();
-					rerender();
-				};
-				ghInput.addEventListener('input', onGhInput);
-				ghInput.addEventListener('change', onGhInput);
 			}
-			const upSlider = mineCalcEl('mine-calc-uptime');
-			if (upSlider) {
-				upSlider.addEventListener('input', () => { syncMineCalcSliders(); rerender(); });
-				upSlider.addEventListener('change', rerender);
-			}
-			if (mineCalcEl('btn-mine-calc-live')) mineCalcEl('btn-mine-calc-live').addEventListener('click', () => applyMineCalcPreset('live'));
-			if (mineCalcEl('btn-mine-calc-pool')) mineCalcEl('btn-mine-calc-pool').addEventListener('click', () => applyMineCalcPreset('pool'));
-			if (mineCalcEl('btn-mine-calc-gpu')) mineCalcEl('btn-mine-calc-gpu').addEventListener('click', () => applyMineCalcPreset('gpu'));
-			if (mineCalcEl('btn-mine-calc-cpu')) mineCalcEl('btn-mine-calc-cpu').addEventListener('click', () => applyMineCalcPreset('cpu'));
-			if (mineCalcEl('btn-mine-calc-export')) {
-				mineCalcEl('btn-mine-calc-export').addEventListener('click', async () => {
+			const coinSel = mineCalcEl('mine-calc-coin');
+			if (coinSel) {
+				coinSel.addEventListener('change', () => {
+					mineCalcCoinId = String(coinSel.value || 'hmc');
+					const sec = mineCalcEl('mine-calc-section');
+					if (sec) sec.setAttribute('data-calc-coin', mineCalcCoinId);
 					renderMineCalc();
-					const txt = JSON.stringify(mineCalcLastExport || {}, null, 2);
-					try {
-						await navigator.clipboard.writeText(txt);
-						logLine('[calc] mining calculator JSON copied');
-					} catch (_) {
-						logLine('[calc] clipboard failed');
-					}
 				});
 			}
+			if (mineCalcEl('btn-mine-calc-live')) mineCalcEl('btn-mine-calc-live').addEventListener('click', () => applyMineCalcPreset('live'));
 			renderMineCalc();
 		}
 
@@ -5400,26 +5323,6 @@
 				const td4 = document.createElement('td'); td4.className = 'px-2 py-1.5 text-gray-500'; td4.textContent = row.ip || '—';
 				const td5 = document.createElement('td'); td5.className = 'px-2 py-1.5 text-gray-600'; td5.textContent = row.source || '—';
 				tr.appendChild(td0); tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td3b); tr.appendChild(td4); tr.appendChild(td5);
-				tb.appendChild(tr);
-			});
-		}
-		function renderMiningFleetRows(rows) {
-			const tb = $('mining-fleet-rows');
-			if (!tb) return;
-			tb.innerHTML = '';
-			if (!rows || !rows.length) {
-				const tr = document.createElement('tr');
-				tr.innerHTML = '<td colspan="4" class="px-3 py-3 text-gray-600 text-center">—</td>';
-				tb.appendChild(tr);
-				return;
-			}
-			rows.forEach((row) => {
-				const tr = document.createElement('tr');
-				const td0 = document.createElement('td'); td0.className = 'px-2 py-1.5'; td0.appendChild(dotOnline(!!row.online));
-				const td1 = document.createElement('td'); td1.className = 'px-2 py-1.5 truncate max-w-[200px]'; td1.textContent = row.name || row.worker_id || '—';
-				const td2 = document.createElement('td'); td2.className = 'px-2 py-1.5 text-matrix'; td2.textContent = fmtRigHashrateGHS(row.hashrate_gh_s ?? 0);
-				const td3 = document.createElement('td'); td3.className = 'px-2 py-1.5 text-gray-500'; td3.textContent = row.ip || '—';
-				tr.appendChild(td0); tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
 				tb.appendChild(tr);
 			});
 		}
@@ -6347,7 +6250,6 @@
 			if (currentTab === 'analytics') requestAnimationFrame(() => drawChart($('chart-main')));
 			if (Array.isArray(x.mining_rigs)) {
 				renderMetricsRigsRows(x.mining_rigs);
-				renderMiningFleetRows(x.mining_rigs);
 			}
 		}
 
@@ -7081,7 +6983,7 @@
 			if (data && data.enabled !== false) lastP2PPeersOkUnix = nowUnix;
 			if (!data || data.enabled === false) {
 				hd.textContent = 'p2p disabled (set HACKME_P2P_PEERS) · not required for coordinator worker mining; set peers for DB sync to canonical';
-				tb.innerHTML = '<tr><td colspan="10" class="px-3 py-3 text-gray-600 text-center">No configured peers</td></tr>';
+				tb.innerHTML = '<tr><td colspan="8" class="px-3 py-3 text-gray-600 text-center">No configured peers</td></tr>';
 				return;
 			}
 			const peers = Array.isArray(data.peers) ? data.peers : [];
@@ -7089,8 +6991,9 @@
 			const unstableCount = peers.filter((p) => !!p.unstable).length;
 			const allDown = peers.length > 0 && healthyCount === 0;
 			hd.textContent = 'configured ' + fmtUInt(peers.length) + ' · healthy ' + fmtUInt(healthyCount) + ' · unstable ' + fmtUInt(unstableCount) + (allDown ? ' · ALERT all peers down' : '');
+			updateMiningAdvancedPanels();
 			if (!peers.length) {
-				tb.innerHTML = '<tr><td colspan="10" class="px-3 py-3 text-gray-600 text-center">No peer snapshots yet</td></tr>';
+				tb.innerHTML = '<tr><td colspan="8" class="px-3 py-3 text-gray-600 text-center">No peer snapshots yet</td></tr>';
 				return;
 			}
 			tb.innerHTML = '';
@@ -7230,90 +7133,42 @@
 				}
 			}
 		}
+		function updateMiningAdvancedPanels() {
+			const peerData = latestP2PPeers || {};
+			const peers = Array.isArray(peerData.peers) ? peerData.peers : [];
+			const p2pSec = $('p2p-peers-section');
+			if (p2pSec) {
+				if (peers.length > 0) p2pSec.classList.remove('hidden');
+				else p2pSec.classList.add('hidden');
+			}
+		}
+
 		function refreshOperatorHealth() {
 			updatePoolNetworkStrip();
 			refreshDesktopStatusBanner();
-			const hd = $('operator-health-headline');
-			const notes = $('operator-health-notes');
-			if (!hd || !notes) return;
+			const statusLine = $('mining-pool-status-line');
 			const peerData = latestP2PPeers || {};
 			const peers = Array.isArray(peerData.peers) ? peerData.peers : [];
 			const healthy = peers.filter((p) => !!p.healthy).length;
-			const bad = peers.filter((p) => String(p.quality || '') === 'bad').length;
-			const unstable = peers.filter((p) => !!p.unstable).length;
 			const ws = latestWorkStats || {};
 			const sync = latestP2PSync || {};
-			const localSoloNoCoordinator = isLocalSoloMiningContext();
 			const nowUnix = Math.floor(Date.now() / 1000);
 			const workStaleSec = lastWorkStatsOkUnix > 0 ? Math.max(0, nowUnix - lastWorkStatsOkUnix) : -1;
-			const netStaleSec = lastNetworkStatsOkUnix > 0 ? Math.max(0, nowUnix - lastNetworkStatsOkUnix) : -1;
-			const p2pStaleSec = lastP2PPeersOkUnix > 0 ? Math.max(0, nowUnix - lastP2PPeersOkUnix) : -1;
-			const statusStaleSec = lastStatusOkUnix > 0 ? Math.max(0, nowUnix - lastStatusOkUnix) : -1;
-			// In worker-only public mode, missing P2P peers is informational (not a gate failure).
-			const p2pState = (peerData.enabled === false || peers.length === 0) ? 'na' : (healthy > 0 ? 'ok' : 'warn');
-			const syncBlocked = !!sync.sync_blocked;
-			const syncNeeded = !!sync.sync_needed;
-			const syncDisabled = sync.enabled === false;
-			const syncState = syncBlocked ? 'bad' : (syncDisabled ? 'na' : (syncNeeded ? 'warn' : 'ok'));
 			const workUnavailable = (!ws || ws.ok === false);
-			const workState = (localSoloNoCoordinator && workUnavailable)
-				? 'na'
-				: (workUnavailable ? 'warn' : ((workStaleSec >= 0 && workStaleSec > 20) ? 'warn' : 'ok'));
-			const workPillText = workState === 'na'
-				? 'n/a (solo)'
-				: (workUnavailable ? 'pending' : (workStaleSec > 20 ? 'stale' : 'ok'));
 			const workersMap = (ws && typeof ws.workers === 'object' && ws.workers) ? ws.workers : {};
 			const workerCount = Math.max(Object.keys(workersMap).length, Number((ws && ws.workers_count) || 0));
-			const workerHealthy = workerCount > 0 ? 'online' : 'pending';
-			const p2pGatePass = (p2pState === 'ok' || p2pState === 'na');
-			const syncGateOk = (syncState === 'ok' || syncState === 'na');
-			const workGateOk = (workState === 'ok' || workState === 'na');
-			const gateState = (p2pGatePass && syncGateOk && workGateOk) ? 'ok' : ((p2pState === 'bad' || syncState === 'bad') ? 'bad' : 'warn');
-			setOperatorHealthPill('operator-health-pill-p2p', p2pState, 'p2p: healthy ' + String(healthy) + '/' + String(peers.length));
-			setOperatorHealthPill('operator-health-pill-sync', syncState, 'sync: lag ' + String(sync.lag_blocks || 0));
-			setOperatorHealthPill('operator-health-pill-work', workState, 'work: ' + workPillText);
-			setOperatorHealthPill('operator-health-pill-gate', gateState, 'gate: ' + (gateState === 'ok' ? 'ready' : 'attention'));
+			const poolGh = poolGhFromWorkStats(ws);
 			if ($('pool-strip-diff')) {
-				if (peerData.enabled === false || peers.length === 0) {
-					$('pool-strip-diff').textContent = 'optional';
-				} else {
-					$('pool-strip-diff').textContent = String(healthy) + '/' + String(peers.length);
-				}
+				$('pool-strip-diff').textContent = (peerData.enabled === false || peers.length === 0) ? 'optional' : (String(healthy) + '/' + String(peers.length));
 			}
 			if ($('pool-strip-block-age')) $('pool-strip-block-age').textContent = String(sync.lag_blocks || 0) + ' blocks';
-			hd.textContent = 'peers=' + String(peers.length) + ' healthy=' + String(healthy) + ' unstable=' + String(unstable) + ' bad=' + String(bad) +
-				' · sync_needed=' + String(syncNeeded) + ' sync_blocked=' + String(syncBlocked) +
-				' · ws_age=' + (workStaleSec >= 0 ? fmtDur(workStaleSec) : '—') +
-				' · net_age=' + (netStaleSec >= 0 ? fmtDur(netStaleSec) : '—') +
-				' · p2p_age=' + (p2pStaleSec >= 0 ? fmtDur(p2pStaleSec) : '—') +
-				' · status_age=' + (statusStaleSec >= 0 ? fmtDur(statusStaleSec) : '—') +
-				' · worker_health=' + workerHealthy + ' (' + String(workerCount) + ')';
-			const lines = ['worker health: ' + workerHealthy + ' · workers=' + String(workerCount)];
-			if (p2pState === 'warn') lines.push('p2p: check peer routes/token/firewall; healthy peers are required for strict follower sync.');
-			if (p2pState === 'na') lines.push('p2p: optional in worker-only mode (coordinator payout path is active).');
-			if (syncBlocked) lines.push('sync: blocked, action=' + String(sync.sync_action || 'inspect /api/p2p/sync'));
-			if (syncNeeded && !syncBlocked) lines.push('sync: lag detected, syncing/pending (run follower sync loop until lag=0).');
-			const nsOp = latestNetworkSync || {};
-			if (Number(nsOp.canonical_ledger_lag_blocks || 0) > 0) {
-				lines.push('canonical ledger lag: ' + String(nsOp.canonical_ledger_lag_blocks) + ' blocks (SQLite behind public tip — expected until P2P/bootstrap catches up).');
+			if (statusLine) {
+				const workTag = workUnavailable ? 'coordinator pending' : (workStaleSec > 25 ? ('work stale ' + fmtDur(workStaleSec)) : 'coordinator live');
+				const p2pTag = peers.length === 0 ? 'P2P optional' : ('P2P ' + healthy + '/' + peers.length);
+				statusLine.textContent = 'Pool status: ' + workerCount + ' workers · ' +
+					(poolGh > 0 ? fmt(poolGh, 1) + ' GH/s fleet · ' : '') + workTag + ' · ' + p2pTag;
 			}
-			if (nsOp.p2p_enabled && nsOp.p2p_sync_hint && Number(nsOp.p2p_sync_hint.lag_blocks || 0) > 0) {
-				lines.push('P2P height lag: ' + String(nsOp.p2p_sync_hint.lag_blocks) + ' blocks vs healthy peer.');
-			}
-			const peer403 = peers.some((p) => /403|forbidden/i.test(String(p.last_error || '')));
-			if (peer403) {
-				lines.push('p2p HTTP 403: public frontends often block node APIs. Peer must be node API URL (e.g. http://<command-ip>:18080), not only the site root.');
-			}
-			if (sync && sync.budget_reason) lines.push('sync budget: ' + String(sync.budget_reason));
-			if (workUnavailable && localSoloNoCoordinator) {
-				lines.push('coordinator/work: not configured (normal for local WASM PoH / solo).');
-			} else if (workUnavailable) {
-				lines.push('coordinator/work: pending (' + String(ws.reason || 'unknown') + ').');
-			}
-			if (!workUnavailable && workStaleSec > 20) lines.push('coordinator/work: stale snapshot (' + fmtDur(workStaleSec) + ' ago).');
-			if (netStaleSec > 20) lines.push('network/stats snapshot is stale (' + fmtDur(netStaleSec) + ' ago).');
-			if (!lines.length) lines.push('operator health is stable; strict gate preconditions look good.');
-			notes.textContent = lines.join('\n');
+			updateMiningAdvancedPanels();
 		}
 		function updateSyncForkBanner(sync) {
 			const wrap = $('sync-fork-banner');
@@ -9566,7 +9421,6 @@
 				if ($('btn-hardware-refresh')) $('btn-hardware-refresh').addEventListener('click', () => { void refreshHardwareTune(); });
 				if ($('btn-quick-refresh')) $('btn-quick-refresh').addEventListener('click', refreshAllNow);
 				if ($('btn-work-stats-refresh')) $('btn-work-stats-refresh').addEventListener('click', () => { void refreshWorkStats(true); });
-				if ($('btn-operator-health-refresh')) $('btn-operator-health-refresh').addEventListener('click', () => { refreshOperatorHealth(); void refreshWorkStats(true); });
 				if ($('btn-copy-miner-env')) $('btn-copy-miner-env').addEventListener('click', async () => {
 					const snap = $('public-staging-env-snippet');
 					const txt = (snap && !snap.classList.contains('hidden') && String(snap.textContent || '').trim())
