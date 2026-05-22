@@ -210,6 +210,13 @@ func (a *cudaAccel) Search(ctx context.Context, base, count, mod uint64) (found 
 		return false, 0, ctx.Err()
 	default:
 	}
+	// gorgonia/cu Memcpy/Launch use the driver current context — bind this device's ctx to this OS thread.
+	if a.haveCtx {
+		if err := a.ctx.Lock(); err != nil {
+			return false, 0, errors.Wrap(err, "gpupoh: ctx.Lock")
+		}
+		defer func() { _ = a.ctx.Unlock() }()
+	}
 	t0 := time.Now()
 
 	bt := a.blockSz
