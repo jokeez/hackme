@@ -29,4 +29,12 @@ python3 -m http.server 8090
 NODE_SSH=hackme-vps NODE_DEPLOY_DIR=/opt/hackme bash scripts/ops/deploy_hackme_site.sh
 ```
 
-Node/coordinator source code lives in the repository root — see [README.md](../../README.md).
+Do **not** commit operator tokens, VPS passwords, or analytics exports into this tree.
+
+## Verify after deploy
+
+```bash
+bash scripts/tests/public_site_smoke.sh
+```
+
+Node/coordinator source: [README.md](../../README.md) · setup: [docs/SETUP.md](../../docs/SETUP.md)

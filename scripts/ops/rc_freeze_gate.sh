@@ -8,7 +8,7 @@ set -euo pipefail
 #
 # Usage:
 #   ADMIN_TOKEN=... BASE=http://127.0.0.1:8080 COORD=http://127.0.0.1:8081 \
-#   VPS_BASE=http://132.243.112.100:18080 \
+#   VPS_BASE=http://hackme-vps:18080 \
 #   bash scripts/ops/rc_freeze_gate.sh
 #
 # Optional:
@@ -18,7 +18,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 BASE="${BASE:-http://127.0.0.1:8080}"
-VPS_BASE="${VPS_BASE:-http://132.243.112.100:18080}"
+VPS_BASE="${VPS_BASE:-http://hackme-vps:18080}"
 COORD="${COORD:-http://127.0.0.1:8081}"
 ADMIN_TOKEN="${ADMIN_TOKEN:-${HACKME_ADMIN_TOKEN:-}}"
 OUT_DIR="${OUT_DIR:-$ROOT_DIR/reports/gates}"

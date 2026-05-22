@@ -9,7 +9,7 @@ Thanks for your interest in HackMe.
    bash scripts/ops/verify_project_health.sh
    ```
 2. Keep changes focused; match existing Go and shell style.
-3. Do not commit secrets, databases, or local env files (see `.gitignore`).
+3. Do not commit secrets, databases, or local env files (see `.gitignore` and [docs/SECURITY_REPO.md](docs/SECURITY_REPO.md)).
 4. User-facing strings in **new** UI or public docs should be **English**.
 
 ## Reporting security issues

@@ -8,7 +8,7 @@ set -euo pipefail
 #   DURATION_SEC=1800 INTERVAL_SEC=30 \
 #   LOCAL_BASE=http://127.0.0.1:8080 \
 #   CANON_BASE=https://hackme.tech \
-#   COORD_BASE=http://132.243.112.100:18081 \
+#   COORD_BASE=http://hackme-vps:18081 \
 #   bash scripts/ops/mining_long_soak.sh
 
 require_cmd() {

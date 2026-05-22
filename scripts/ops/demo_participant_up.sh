@@ -72,7 +72,7 @@ if [[ "$ROLE" != "follower" ]]; then
   exit 1
 fi
 if [[ -z "$LEADER_URL" ]]; then
-  echo "[demo-participant-up] LEADER_URL is required (e.g. http://132.243.112.100:18080)" >&2
+  echo "[demo-participant-up] LEADER_URL is required (e.g. http://hackme-vps:18080)" >&2
   exit 1
 fi
 if [[ -z "$ADVERTISE_URL" ]]; then

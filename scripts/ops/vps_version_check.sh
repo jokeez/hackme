@@ -4,8 +4,8 @@ set -euo pipefail
 # Read-only health/version probe for node + coordinator.
 #
 # Usage:
-#   NODE_BASE=http://132.243.112.100:18080 \
-#   COORD_BASE=http://132.243.112.100:18081 \
+#   NODE_BASE=http://hackme-vps:18080 \
+#   COORD_BASE=http://hackme-vps:18081 \
 #   bash scripts/ops/vps_version_check.sh
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

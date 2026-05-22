@@ -34,7 +34,7 @@ HASHRATE_GHS="${HASHRATE_GHS:-0.01}"
 WORKER_LOG="${WORKER_LOG:-$ROOT_DIR/logs/worker_participant.log}"
 
 if [[ -z "$VPS_SSH" ]]; then
-  echo "[worker-participant-up] VPS_SSH is required (e.g. root@132.243.112.100)" >&2
+  echo "[worker-participant-up] VPS_SSH is required (e.g. hackme-vps)" >&2
   exit 1
 fi
 if [[ -z "$ADVERTISE_URL" ]]; then

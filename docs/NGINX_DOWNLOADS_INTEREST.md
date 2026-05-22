@@ -2,7 +2,7 @@
 
 Track how many visitors open **downloads.html** and start the **956 MB** `HackMe-OS-0.1.0-rc11g-amd64.iso` on the canonical VPS.
 
-## On VPS `132.243.112.100`
+## On VPS `hackme-vps`
 
 Scripts live under `/opt/hackme/scripts/ops/` (deploy from repo or rsync).
 
@@ -57,7 +57,7 @@ Bots (curl, `Go-http-client`, `HackMe-Verdict`, etc.) are excluded by default.
 ## From your laptop (SSH)
 
 ```bash
-ssh -i ~/.ssh/your_key root@132.243.112.100 \
+ssh -i ~/.ssh/your_key hackme-vps \
   'cd /opt/hackme && bash scripts/ops/nginx_downloads_interest.sh report --minutes 60'
 ```
 

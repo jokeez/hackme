@@ -23,7 +23,7 @@ require_cmd ssh
 require_cmd ss
 
 VPS_SSH="${VPS_SSH:-}"
-VPS_BASE="${VPS_BASE:-http://132.243.112.100:18080}"
+VPS_BASE="${VPS_BASE:-http://hackme-vps:18080}"
 LOCAL_BASE="${LOCAL_BASE:-http://127.0.0.1:8080}"
 ADVERTISE_URL="${ADVERTISE_URL:-}"
 ADMIN_TOKEN="${ADMIN_TOKEN:-${HACKME_ADMIN_TOKEN:-}}"
@@ -33,7 +33,7 @@ AUTO_START_MINING_WHEN_SYNCED="${AUTO_START_MINING_WHEN_SYNCED:-0}"
 LOCAL_BIND_PORT="${LOCAL_BIND_PORT:-8080}"
 
 if [[ -z "$VPS_SSH" ]]; then
-  echo "[prefinal-sync] VPS_SSH is required (e.g. root@132.243.112.100)" >&2
+  echo "[prefinal-sync] VPS_SSH is required (e.g. hackme-vps)" >&2
   exit 1
 fi
 if [[ -z "$ADVERTISE_URL" ]]; then

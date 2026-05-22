@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
-VPS_BASE="${VPS_BASE:-http://132.243.112.100:18080}"
-COORD_URL="${COORD_URL:-http://132.243.112.100:18081}"
+VPS_BASE="${VPS_BASE:-http://hackme-vps:18080}"
+COORD_URL="${COORD_URL:-http://hackme-vps:18081}"
 LOCAL_BASE="${LOCAL_BASE:-http://127.0.0.1:8080}"
 
 echo "[worker-mine-status] local node:"

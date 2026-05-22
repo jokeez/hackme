@@ -20,8 +20,11 @@ minersign
 data/
 !data/.gitkeep
 
-# Secrets and operator env
+# Secrets and operator env (never commit real tokens/seeds)
 .secrets/
+*.seed
+*.seed.hex
+**/miner_submit_ed25519_seed.hex
 .env
 .env.*
 !.env.*.example
