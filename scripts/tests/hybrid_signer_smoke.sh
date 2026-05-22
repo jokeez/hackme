@@ -60,11 +60,15 @@ if [[ "$REQUIRE_STRICT" == "1" && "$hybrid_strict" != "true" ]]; then
 fi
 
 echo "[hybrid-smoke] unsigned submit behavior check"
-c1="$(post_json "/api/work/claim" "{\"worker_id\":\"${WORKER_ID}\",\"batch_size\":1000}")"
-base1="$(printf '%s' "$c1" | jq -r '.base_nonce')"
+c1="$(post_json "/api/work/claim" "{\"worker_id\":\"${WORKER_ID}-unsigned\",\"batch_size\":1000}")"
+base1="$(printf '%s' "$c1" | jq -r '.base_nonce // empty')"
+if [[ -z "$base1" ]]; then
+  echo "[hybrid-smoke] ERROR: claim failed: $c1" >&2
+  exit 5
+fi
 batch1="$(printf '%s' "$c1" | jq -r '.batch_size')"
 work1="$(printf '%s' "$c1" | jq -r '.work_id')"
-s1="$(post_json "/api/work/submit" "{\"worker_id\":\"${WORKER_ID}\",\"base_nonce\":${base1},\"batch_size\":${batch1},\"work_id\":\"${work1}\",\"attempts\":1000}")"
+s1="$(post_json "/api/work/submit" "{\"worker_id\":\"${WORKER_ID}-unsigned\",\"base_nonce\":${base1},\"batch_size\":${batch1},\"work_id\":\"${work1}\",\"attempts\":1000}")"
 ok1="$(printf '%s' "$s1" | jq -r '.ok // false')"
 reason1="$(printf '%s' "$s1" | jq -r '.reason // ""')"
 if [[ "$hybrid_strict" == "true" ]]; then
@@ -80,14 +84,18 @@ else
 fi
 
 echo "[hybrid-smoke] partial signature submit should reject only when hybrid is on"
-c2="$(post_json "/api/work/claim" "{\"worker_id\":\"${WORKER_ID}\",\"batch_size\":1000}")"
-base2="$(printf '%s' "$c2" | jq -r '.base_nonce')"
+c2="$(post_json "/api/work/claim" "{\"worker_id\":\"${WORKER_ID}-partial\",\"batch_size\":1000}")"
+base2="$(printf '%s' "$c2" | jq -r '.base_nonce // empty')"
+if [[ -z "$base2" ]]; then
+  echo "[hybrid-smoke] ERROR: claim2 failed: $c2" >&2
+  exit 5
+fi
 batch2="$(printf '%s' "$c2" | jq -r '.batch_size')"
 work2="$(printf '%s' "$c2" | jq -r '.work_id')"
 s2="$(curl -sS -X POST "${COORD_URL}/api/work/submit" \
   -H "Content-Type: application/json" \
   -H "X-Hackme-Admin-Token: ${COORD_TOKEN}" \
-  -d "{\"worker_id\":\"${WORKER_ID}\",\"base_nonce\":${base2},\"batch_size\":${batch2},\"work_id\":\"${work2}\",\"attempts\":1000,\"miner_address\":\"HMC-deadbeefdeadbeef\",\"submit_nonce\":1}")"
+  -d "{\"worker_id\":\"${WORKER_ID}-partial\",\"base_nonce\":${base2},\"batch_size\":${batch2},\"work_id\":\"${work2}\",\"attempts\":1000,\"miner_address\":\"HMC-deadbeefdeadbeef\",\"submit_nonce\":1}")"
 reason2="$(printf '%s' "$s2" | jq -r '.reason // ""')"
 ok2="$(printf '%s' "$s2" | jq -r '.ok // false')"
 if [[ "$hybrid_enabled" == "true" ]]; then

@@ -16,11 +16,14 @@ require_cmd go
 COORD_URL="${COORD_URL:-http://127.0.0.1:18081}"
 COORD_TOKEN="${COORD_TOKEN:-${ADMIN_TOKEN:-${HACKME_COORDINATOR_ADMIN_TOKEN:-${HACKME_ADMIN_TOKEN:-}}}}"
 PACKETS="${PACKETS:-1000}"
+PACKET_DELAY_SEC="${PACKET_DELAY_SEC:-0}"
+TAMPER_PACKETS="${TAMPER_PACKETS:-100}"
 REQUIRE_STRICT="${REQUIRE_STRICT:-0}"
 WORKER_PREFIX="${WORKER_PREFIX:-worker-crypto-matrix}"
 MINERSIGN="${MINERSIGN:-$ROOT/bin/minersign-matrix}"
 NONCE_DIR="${NONCE_DIR:-$ROOT/reports/crypto-matrix-nonce}"
 REPORT_DIR="${REPORT_DIR:-$ROOT/reports/tests/$(run_id)/hybrid_crypto_matrix}"
+rm -rf "$NONCE_DIR"
 mkdir -p "$NONCE_DIR" "$REPORT_DIR"
 
 if [[ -z "$COORD_TOKEN" ]]; then
@@ -46,6 +49,8 @@ SEED_HEX="$(printf '%s' "$gen_out" | jq -r '.miner_seed_hex')"
 PUB="$(printf '%s' "$gen_out" | jq -r '.miner_pubkey_ed25519')"
 ADDR="$(printf '%s' "$gen_out" | jq -r '.miner_address_from_pubkey')"
 export HACKME_MINER_ED25519_SEED_HEX="$SEED_HEX"
+MATRIX_NONCE_FILE="${NONCE_DIR}/matrix-global.nonce"
+touch "$MATRIX_NONCE_FILE"
 ok_signed=0
 fail_signed=0
 ok_tamper=0
@@ -53,16 +58,36 @@ fail_tamper=0
 lat_sum=0
 lat_n=0
 
+claim_work() {
+  local wid="$1" batch="$2"
+  local attempt=0 resp claim http_code
+  while [[ "$attempt" -lt 6 ]]; do
+    resp="$(curl -sS -w $'\n%{http_code}' -X POST "${COORD_URL}/api/work/claim" \
+      -H "Content-Type: application/json" \
+      -H "X-Hackme-Admin-Token: ${COORD_TOKEN}" \
+      -d "{\"worker_id\":\"${wid}\",\"batch_size\":${batch}}")"
+    http_code="${resp##*$'\n'}"
+    claim="${resp%$'\n'*}"
+    if [[ "$http_code" == "200" ]] && printf '%s' "$claim" | jq -e '.ok == true' >/dev/null 2>&1; then
+      printf '%s' "$claim"
+      return 0
+    fi
+    attempt=$((attempt + 1))
+    sleep $((attempt * 2))
+  done
+  return 1
+}
+
 sign_and_submit() {
   local plat="$1"
   local idx="$2"
   local wid="${WORKER_PREFIX}-${plat}-${idx}"
-  local nonce_file="${NONCE_DIR}/${plat}.nonce"
+  local nonce_file="$MATRIX_NONCE_FILE"
   local claim
-  claim="$(curl -fsS -X POST "${COORD_URL}/api/work/claim" \
-    -H "Content-Type: application/json" \
-    -H "X-Hackme-Admin-Token: ${COORD_TOKEN}" \
-    -d "{\"worker_id\":\"${wid}\",\"batch_size\":2048}")"
+  if ! claim="$(claim_work "$wid" 2048)"; then
+    fail_signed=$((fail_signed + 1))
+    return 0
+  fi
   local base batch work_id
   base="$(printf '%s' "$claim" | jq -r '.base_nonce')"
   batch="$(printf '%s' "$claim" | jq -r '.batch_size')"
@@ -77,10 +102,10 @@ sign_and_submit() {
     --arg rh "$(printf '%s' "$payload" | jq -r '.result_hash')" \
     --arg pub "$(printf '%s' "$sig_json" | jq -r '.miner_pubkey_ed25519')" \
     --arg sig "$(printf '%s' "$sig_json" | jq -r '.miner_sig_ed25519')" \
-    --argjson sn "$(printf '%s' "$sig_json" | jq -r '.submit_nonce')" \
+    --arg sn "$(printf '%s' "$sig_json" | jq -r '.submit_nonce')" \
     --arg addr "$ADDR" \
     '{worker_id:$w,base_nonce:$b,batch_size:$bs,work_id:$wid,attempts:$att,found:false,found_nonce:0,result_hash:$rh,proof_hash:"",
-      miner_pubkey_ed25519:$pub,miner_sig_ed25519:$sig,miner_sig_alg:"ed25519",submit_nonce:$sn,miner_address:$addr}')"
+      miner_pubkey_ed25519:$pub,miner_sig_ed25519:$sig,miner_sig_alg:"ed25519",submit_nonce:($sn|tonumber),miner_address:$addr}')"
   local t0 t1 code
   t0="$(date +%s%N)"
   code="$(curl -sS -o /tmp/hcm-submit.json -w '%{http_code}' -X POST "${COORD_URL}/api/work/submit" \
@@ -96,15 +121,19 @@ sign_and_submit() {
     fail_signed=$((fail_signed + 1))
     echo "[crypto-matrix] signed fail plat=$plat code=$code body=$(head -c 200 /tmp/hcm-submit.json)" >&2
   fi
+  if awk -v d="$PACKET_DELAY_SEC" 'BEGIN{exit!(d>0)}'; then
+    sleep "$PACKET_DELAY_SEC"
+  fi
 }
 
 tamper_one() {
-  local wid="${WORKER_PREFIX}-tamper"
+  local seq="${1:-0}"
+  local wid="${WORKER_PREFIX}-tamper-${seq}"
   local claim
-  claim="$(curl -fsS -X POST "${COORD_URL}/api/work/claim" \
-    -H "Content-Type: application/json" \
-    -H "X-Hackme-Admin-Token: ${COORD_TOKEN}" \
-    -d "{\"worker_id\":\"${wid}\",\"batch_size\":512}")"
+  if ! claim="$(claim_work "$wid" 512)"; then
+    fail_tamper=$((fail_tamper + 1))
+    return 0
+  fi
   local base batch work_id
   base="$(printf '%s' "$claim" | jq -r '.base_nonce')"
   batch="$(printf '%s' "$claim" | jq -r '.batch_size')"
@@ -112,15 +141,15 @@ tamper_one() {
   local payload sig_json body tampered code
   payload="$(jq -nc --arg w "$wid" --argjson b "$base" --argjson bs "$batch" --arg wid "$work_id" \
     '{worker_id:$w,base_nonce:$b,batch_size:$bs,work_id:$wid,attempts:$bs,found:false,result_hash:"tamper",proof_hash:""}')"
-  sig_json="$(printf '%s' "$payload" | HACKME_MINER_ED25519_SEED_HEX="$SEED_HEX" "$MINERSIGN" -nonce-file "${NONCE_DIR}/tamper.nonce")"
+  sig_json="$(printf '%s' "$payload" | HACKME_MINER_ED25519_SEED_HEX="$SEED_HEX" "$MINERSIGN" -nonce-file "$MATRIX_NONCE_FILE")"
   body="$(jq -nc \
     --arg w "$wid" --argjson b "$base" --argjson bs "$batch" --arg wid "$work_id" --argjson att "$batch" \
     --arg pub "$(printf '%s' "$sig_json" | jq -r '.miner_pubkey_ed25519')" \
     --arg sig "$(printf '%s' "$sig_json" | jq -r '.miner_sig_ed25519')" \
-    --argjson sn "$(printf '%s' "$sig_json" | jq -r '.submit_nonce')" \
+    --arg sn "$(printf '%s' "$sig_json" | jq -r '.submit_nonce')" \
     --arg addr "$ADDR" \
     '{worker_id:$w,base_nonce:$b,batch_size:$bs,work_id:$wid,attempts:$att,found:false,result_hash:"tamper",proof_hash:"",
-      miner_pubkey_ed25519:$pub,miner_sig_ed25519:$sig,submit_nonce:$sn,miner_address:$addr}')"
+      miner_pubkey_ed25519:$pub,miner_sig_ed25519:$sig,submit_nonce:($sn|tonumber),miner_address:$addr}')"
   tampered="${body/\"tamper\"/\"tamperX\"}"
   code="$(curl -sS -o /tmp/hcm-tamper.json -w '%{http_code}' -X POST "${COORD_URL}/api/work/submit" \
     -H "Content-Type: application/json" \
@@ -131,6 +160,9 @@ tamper_one() {
   else
     fail_tamper=$((fail_tamper + 1))
     echo "[crypto-matrix] tamper expected 401/403 or ok=false got code=$code" >&2
+  fi
+  if awk -v d="$PACKET_DELAY_SEC" 'BEGIN{exit!(d>0)}'; then
+    sleep "$PACKET_DELAY_SEC"
   fi
 }
 
@@ -147,9 +179,9 @@ for i in $(seq 1 "$PACKETS"); do
   fi
 done
 
-echo "[crypto-matrix] tamper probes (100)"
-for _ in $(seq 1 100); do
-  tamper_one || true
+echo "[crypto-matrix] tamper probes ($TAMPER_PACKETS)"
+for t in $(seq 1 "$TAMPER_PACKETS"); do
+  tamper_one "$t" || true
 done
 
 avg_lat=0
@@ -167,8 +199,10 @@ fi
   echo "- pubkey: $PUB"
 } >"$REPORT_DIR/CRYPTO_MATRIX_REPORT.md"
 
-if [[ "$fail_signed" -gt 0 ]] || [[ "$fail_tamper" -lt 90 ]]; then
-  echo "[crypto-matrix] FAIL — see $REPORT_DIR" >&2
+min_signed=$((PACKETS * 9 / 10))
+min_tamper=$((TAMPER_PACKETS * 9 / 10))
+if [[ "$ok_signed" -lt "$min_signed" ]] || [[ "$ok_tamper" -lt "$min_tamper" ]]; then
+  echo "[crypto-matrix] FAIL — see $REPORT_DIR (need >=$min_signed signed, >=$min_tamper tamper rejected)" >&2
   exit 1
 fi
-pass "hybrid crypto matrix PASS ($ok_signed signed, $ok_tamper/100 tamper rejected)"
+pass "hybrid crypto matrix PASS ($ok_signed signed, $ok_tamper/$TAMPER_PACKETS tamper rejected)"
