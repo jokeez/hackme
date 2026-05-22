@@ -141,11 +141,13 @@ hackme_ui_gpu_metrics() {
   # Prints lines: temp|fan|name — best-effort RX 580 / NVIDIA
   local temp="—" fan="—" name="—" util="—"
   if command -v nvidia-smi >/dev/null 2>&1; then
-    read -r name util temp fan < <(nvidia-smi --query-gpu=name,utilization.gpu,temperature.gpu,fan.speed \
-      --format=csv,noheader,nounits 2>/dev/null | head -1 | tr ',' ' ')
-    temp="${temp:-—}°C"
-    fan="${fan:-—}%"
-    util="${util:-—}%"
+    name="$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1 | tr -d '\r')"
+    util="$(nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d '\r')"
+    temp="$(nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d '\r')"
+    fan="$(nvidia-smi --query-gpu=fan.speed --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d '\r')"
+    [[ -n "$temp" && "$temp" != "[N/A]" ]] && temp="${temp}°C" || temp="—"
+    [[ -n "$fan" && "$fan" != "[N/A]" ]] && fan="${fan}%" || fan="—"
+    [[ -n "$util" ]] && util="${util}%" || util="—"
   elif command -v sensors >/dev/null 2>&1; then
     local st
     st="$(sensors 2>/dev/null | grep -iE 'edge:|junction:|temp1:' | head -1 | awk '{print $2}')"

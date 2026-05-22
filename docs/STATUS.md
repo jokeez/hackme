@@ -9,12 +9,15 @@
 | Miner launch gate | **GO** — `bash scripts/ops/run_miner_launch_gate.sh` |
 | Site smoke | **PASS** — `bash scripts/tests/public_site_smoke.sh` |
 | Dashboard UI (local) | **PASS** — Playwright `tests/e2e/specs/solopool-dashboard.spec.ts` |
+| HackMe OS visual overhaul (source) | **GO** — GRUB/Plymouth/TTY in `visual_overhaul.sh`; **rebuild ISO** to ship on USB |
+| Published ISO on hackme.tech | **UNCHANGED visuals** until new `build_hackme_miner_iso.sh` + upload |
 
 ## Open operator items (non-blocking for miners)
 
 1. Set `TG_ADMIN_CHAT_ID` in VPS `/opt/hackme/.env.newsbot` for pool heartbeat ([TELEGRAM_NEWS_BOT_RUNBOOK.md](TELEGRAM_NEWS_BOT_RUNBOOK.md)).
 2. Do not run 1000-packet `hybrid_crypto_matrix.sh` against prod in a loop (rate limits).
 3. HMS / HMAI vectors in dashboard are **preview** — only **HMC** pool is mineable today.
+4. Rebuild and publish ISO after visual overhaul (`0532ef5`) so GRUB/Plymouth/ZK banner appear on downloads.
 
 ## Morning check (your rig)
 
