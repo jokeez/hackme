@@ -22,12 +22,24 @@ cp /opt/hackme/scripts/ops/telegram/newsbot.env.example /opt/hackme/.env.newsbot
 chmod 600 /opt/hackme/.env.newsbot
 ```
 
-3. Set real values in `/opt/hackme/.env.newsbot`:
+3. Set real values in `/opt/hackme/.env.newsbot` (include admin chat for pool heartbeat):
 
-- `TG_BOT_TOKEN`
-- `TG_CHAT_ID` (e.g. `@hackme_tech`)
+```bash
+TG_ADMIN_CHAT_ID=-1001234567890   # operator group (numeric id)
+POOL_HEARTBEAT_INTERVAL_SEC=14400 # 4 hours
+POOL_STATUS_URL=https://hackme.tech/api/status?lite=1
+POOL_WORK_STATS_URL=https://hackme.tech/pool/coordinator/api/work/stats?details=0
+```
 
-4. Install/start service:
+Dry-run heartbeat:
+
+```bash
+TG_ADMIN_CHAT_ID=... TG_BOT_TOKEN=... python3 scripts/ops/telegram/news_channel_bot.py --heartbeat-once --dry-run
+```
+
+4. Set `TG_BOT_TOKEN`, `TG_CHAT_ID` (e.g. `@hackme_tech`), and optional `TG_ADMIN_CHAT_ID` for heartbeat.
+
+5. Install/start service:
 
 ```bash
 sudo bash /opt/hackme/scripts/ops/setup_news_bot_service.sh

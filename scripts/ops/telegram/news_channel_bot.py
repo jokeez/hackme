@@ -187,6 +187,89 @@ def parse_date(v: str) -> dt.datetime:
     return dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)
 
 
+def fetch_json_url_optional(url: str, timeout_sec: int, max_retries: int) -> Dict[str, Any] | None:
+    try:
+        return load_json_url(url, timeout_sec, max_retries)
+    except Exception as e:  # noqa: BLE001
+        print(f"[news-bot] fetch failed {url}: {e}", file=sys.stderr)
+        return None
+
+
+def pool_ledger_drift_hmc(work_stats: Dict[str, Any]) -> float:
+    """Worker payout sum vs coordinator total_payout_hmc (treasury invariant proxy)."""
+    total = float(work_stats.get("total_payout_hmc") or 0)
+    workers = work_stats.get("workers")
+    if not isinstance(workers, dict):
+        return 0.0
+    worker_sum = 0.0
+    for row in workers.values():
+        if isinstance(row, dict):
+            worker_sum += float(row.get("payout_hmc") or 0)
+    return abs(worker_sum - total)
+
+
+def format_pool_heartbeat_message(status: Dict[str, Any], work_stats: Dict[str, Any]) -> str:
+    pool_gh = float(work_stats.get("pool_hashrate_gh_s") or work_stats.get("hashrate") or 0)
+    if pool_gh <= 0 and work_stats.get("hashrate_hs"):
+        pool_gh = float(work_stats["hashrate_hs"]) / 1e9
+    workers_n = 0
+    wmap = work_stats.get("workers")
+    if isinstance(wmap, dict):
+        workers_n = len(wmap)
+    if workers_n <= 0:
+        workers_n = int(work_stats.get("workers_online") or work_stats.get("miners") or 0)
+    blocks = int(
+        status.get("tip_height")
+        or status.get("canonical_tip_height")
+        or work_stats.get("tip_height")
+        or 0
+    )
+    mining = bool(status.get("mining")) or pool_gh > 0.01 or workers_n > 0
+    active = "ACTIVE" if mining or pool_gh > 0.01 or workers_n > 0 else "IDLE"
+    drift = pool_ledger_drift_hmc(work_stats)
+    ver = html.escape(str(status.get("version") or work_stats.get("version") or "—"))
+    return (
+        f"<b>POOL HEARTBEAT</b> ({html.escape(dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M UTC'))})\n"
+        f"<code>[POOL STATUS: {active} | HASH: {pool_gh:.2f} GH/s | WORKERS: {workers_n} | "
+        f"BLOCKS: {blocks} | LEDGER DRIFT: {drift:.6f} HMC]</code>\n"
+        f"<i>release {ver}</i>"
+    )
+
+
+def run_pool_heartbeat(
+    bot_token: str,
+    admin_chat_id: str,
+    status_url: str,
+    work_stats_url: str,
+    timeout_sec: int,
+    fetch_retries: int,
+    max_retries: int,
+    dry_run: bool,
+) -> int:
+    """POST pool status snapshot to admin chat (every POOL_HEARTBEAT_INTERVAL_SEC)."""
+    if not admin_chat_id:
+        print("[news-bot] heartbeat skipped: TG_ADMIN_CHAT_ID empty", file=sys.stderr)
+        return 0
+    status = fetch_json_url_optional(status_url, timeout_sec, fetch_retries) or {}
+    stats = fetch_json_url_optional(work_stats_url, timeout_sec, fetch_retries) or {}
+    text = format_pool_heartbeat_message(status, stats)
+    if dry_run:
+        print(f"[news-bot] DRY_RUN heartbeat:\n{text}")
+        return 0
+    payload: Dict[str, Any] = {
+        "chat_id": admin_chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+    }
+    ok, detail = tg_post(bot_token, payload, timeout_sec, max_retries)
+    if not ok:
+        print(f"[news-bot] heartbeat post failed: {detail}", file=sys.stderr)
+        return 1
+    print("[news-bot] heartbeat posted to admin chat")
+    return 0
+
+
 def site_home_url(news_page_base: str, override: str) -> str:
     o = (override or "").strip()
     if o:
@@ -398,6 +481,7 @@ def run_once(
 def main() -> int:
     parser = argparse.ArgumentParser(description="HackMe Telegram channel news bot")
     parser.add_argument("--once", action="store_true", help="run a single polling cycle")
+    parser.add_argument("--heartbeat-once", action="store_true", help="send pool status heartbeat only")
     parser.add_argument("--dry-run", action="store_true", help="render messages without sending")
     args = parser.parse_args()
 
@@ -416,6 +500,12 @@ def main() -> int:
     miner_button_row = env_truthy("NEWS_MINER_BUTTON_ROW", True)
     miner_hint = env_truthy("NEWS_MINER_HINT_LINE", True)
     post_gap_sec = env_float("POST_GAP_SEC", 1.1)
+    heartbeat_interval_sec = env_int("POOL_HEARTBEAT_INTERVAL_SEC", 4 * 3600)
+    status_url = env_str("POOL_STATUS_URL", "https://hackme.tech/pool/coordinator/api/work/stats?details=0")
+    work_stats_url = env_str(
+        "POOL_WORK_STATS_URL", "https://hackme.tech/pool/coordinator/api/work/stats?details=0"
+    )
+    admin_chat_id = env_str("TG_ADMIN_CHAT_ID", env_str("TG_OPERATOR_CHAT_ID", ""))
     if post_gap_sec < 0.2:
         post_gap_sec = 0.2
     if post_gap_sec > 30:
@@ -437,6 +527,18 @@ def main() -> int:
     if interval_sec < 15:
         interval_sec = 15
 
+    if args.heartbeat_once:
+        return run_pool_heartbeat(
+            bot_token=bot_token,
+            admin_chat_id=admin_chat_id,
+            status_url=status_url,
+            work_stats_url=work_stats_url,
+            timeout_sec=timeout_sec,
+            fetch_retries=fetch_retries,
+            max_retries=max_retries,
+            dry_run=args.dry_run,
+        )
+
     if args.once:
         return run_once(
             bot_token=bot_token,
@@ -457,9 +559,26 @@ def main() -> int:
         )
 
     print(
-        f"[news-bot] start polling interval={interval_sec}s feed={news_url} chat={chat_id or 'dry-run'}"
+        f"[news-bot] start polling interval={interval_sec}s feed={news_url} chat={chat_id or 'dry-run'} "
+        f"heartbeat_every={heartbeat_interval_sec}s admin={admin_chat_id or 'off'}"
     )
+    last_heartbeat = 0.0
     while True:
+        now = time.time()
+        if admin_chat_id and heartbeat_interval_sec > 0 and (now - last_heartbeat) >= heartbeat_interval_sec:
+            hb_code = run_pool_heartbeat(
+                bot_token=bot_token,
+                admin_chat_id=admin_chat_id,
+                status_url=status_url,
+                work_stats_url=work_stats_url,
+                timeout_sec=timeout_sec,
+                fetch_retries=fetch_retries,
+                max_retries=max_retries,
+                dry_run=args.dry_run,
+            )
+            last_heartbeat = now
+            if hb_code != 0:
+                print(f"[news-bot] heartbeat cycle code={hb_code}", file=sys.stderr)
         code = run_once(
             bot_token=bot_token,
             chat_id=chat_id,
