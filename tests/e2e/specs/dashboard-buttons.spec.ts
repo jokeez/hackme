@@ -87,6 +87,30 @@ test.describe('Dashboard UI buttons and API wiring', () => {
     expect(body?.status).toBe('running');
   });
 
+  test('Mining calculator GH/s slider stays capped', async ({ page }) => {
+    await page.click('#tab-bar .tab-btn[data-tab="mining"]');
+    const slider = page.locator('#mine-calc-gh-slider');
+    await expect(slider).toBeVisible();
+    await page.waitForFunction(() => {
+      const el = document.querySelector('#mine-calc-gh-slider') as HTMLInputElement | null;
+      return el && Number(el.max) > 0 && Number(el.max) <= 500;
+    });
+    const maxBefore = await slider.evaluate((el) => Number((el as HTMLInputElement).max));
+    expect(maxBefore).toBeGreaterThan(0);
+    expect(maxBefore).toBeLessThanOrEqual(500);
+    await slider.evaluate((el) => {
+      const s = el as HTMLInputElement;
+      s.value = String(Number(s.max));
+      s.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const maxAfter = await slider.evaluate((el) => Number((el as HTMLInputElement).max));
+    expect(maxAfter).toBe(maxBefore);
+    const label = await page.locator('#mine-calc-gh-label').textContent();
+    expect(label || '').toMatch(/GH\/s$/);
+    await expect(page.locator('#p2p-peers-section')).toHaveClass(/hidden/);
+    await expect(page.locator('#mining-pool-status-line')).toBeVisible();
+  });
+
   test('Hardware refresh loads tune API', async ({ page }) => {
     await page.click('#tab-bar .tab-btn[data-tab="hardware"]');
     const tuneResp = page.waitForResponse(

@@ -3879,9 +3879,22 @@
 
 		function mineCalcEl(id) { return $(id); }
 
+		function migrateMineCalcPrefsV1() {
+			try {
+				const legacy = localStorage.getItem('hackme.mine_calc');
+				if (!legacy || localStorage.getItem(MINE_CALC_PREFS_KEY)) return;
+				const p = JSON.parse(legacy);
+				if (!p || typeof p !== 'object') return;
+				if (Number(p.hashrateGh) > MINE_CALC_GH_SLIDER_MAX) p.hashrateGh = MINE_CALC_GH_SLIDER_MAX;
+				localStorage.setItem(MINE_CALC_PREFS_KEY, JSON.stringify(p));
+				localStorage.removeItem('hackme.mine_calc');
+			} catch (_) {}
+		}
+
 		function loadMineCalcPrefs() {
 			if (mineCalcPrefsLoaded) return;
 			mineCalcPrefsLoaded = true;
+			migrateMineCalcPrefsV1();
 			try {
 				const raw = localStorage.getItem(MINE_CALC_PREFS_KEY);
 				if (!raw) return;
@@ -3904,8 +3917,11 @@
 					if (key === 'hashrateGh' && Number(p[key]) <= 0) return;
 					el.value = String(p[key]);
 				});
-				const gh = Number(p.hashrateGh);
-				if (Number.isFinite(gh) && gh > 0) setMineCalcGhValue(gh, { skipRender: true });
+				let gh = Number(p.hashrateGh);
+				if (Number.isFinite(gh) && gh > 0) {
+					gh = Math.min(MINE_CALC_GH_SLIDER_MAX, gh);
+					setMineCalcGhValue(gh, { skipRender: true });
+				}
 				if (p.coinId && MINE_CALC_COINS.some((c) => c.id === p.coinId)) mineCalcCoinId = p.coinId;
 			} catch (_) {}
 		}
@@ -3971,9 +3987,6 @@
 			if (ghSlider && Math.abs(Number(ghSlider.value) - gh) > 0.0001) ghSlider.value = String(gh);
 			if (ghEl && String(ghEl.value) !== String(gh)) ghEl.value = String(gh);
 			if (ghLabel) ghLabel.textContent = (gh > 0 ? fmt(gh, gh >= 10 ? 1 : 3) : '0') + ' GH/s';
-			const upEl = mineCalcEl('mine-calc-uptime');
-			const upLabel = mineCalcEl('mine-calc-uptime-label');
-			if (upLabel && upEl) upLabel.textContent = fmt(Number(upEl.value || 95), 0) + '%';
 		}
 
 		/** Reject mislabeled GH/s×10⁹ passed as attempts/s (caps coordinator billing). */
@@ -4268,12 +4281,6 @@
 					? (fmt(net.poolGh, net.poolGh >= 10 ? 1 : 2) + ' GH/s')
 					: '—';
 			}
-			if (mineCalcEl('mine-calc-net-sync')) {
-				if (net.syncAgeSec < 0) mineCalcEl('mine-calc-net-sync').textContent = net.hasLive ? 'live' : 'offline';
-				else if (net.syncAgeSec <= 15) mineCalcEl('mine-calc-net-sync').textContent = 'live · ' + net.syncAgeSec + 's';
-				else mineCalcEl('mine-calc-net-sync').textContent = fmtDur(net.syncAgeSec) + ' ago';
-			}
-
 			if (mineCalcEl('mine-calc-out-hour')) mineCalcEl('mine-calc-out-hour').textContent = fmt(displayHmcHour, 6);
 			const hourSub = mineCalcEl('mine-calc-out-hour-sub');
 			if (hourSub) {
@@ -4347,32 +4354,6 @@
 					be = 'never (negative margin)';
 				}
 				mineCalcEl('mine-calc-out-breakeven').textContent = be;
-			}
-
-			const cmpWrap = mineCalcEl('mine-calc-compare-wrap');
-			const showCompare = inputs.scenario === 'compare' || inputs.scenario === 'fleet';
-			if (cmpWrap) cmpWrap.classList.toggle('hidden', !showCompare);
-			if (showCompare) {
-				const cmpPoolH = out.poolWork ? displayHmcHour : out.poolHmcHour;
-				const maxH = Math.max(cmpPoolH, out.chainHour, 1e-12);
-				if (mineCalcEl('mine-calc-cmp-pool')) mineCalcEl('mine-calc-cmp-pool').textContent = fmt(cmpPoolH, 6) + ' HMC/h';
-				if (mineCalcEl('mine-calc-cmp-chain')) mineCalcEl('mine-calc-cmp-chain').textContent = out.chainHour > 0 ? (fmt(out.chainHour, 6) + ' HMC/h') : '—';
-				if (mineCalcEl('mine-calc-cmp-share')) mineCalcEl('mine-calc-cmp-share').textContent = out.poolShareOfTotal > 0 ? (fmt(out.poolShareOfTotal, 2) + '% of pool') : '—';
-				setMineCalcBar('mine-calc-bar-pool', (cmpPoolH / maxH) * 100);
-				setMineCalcBar('mine-calc-bar-chain', (out.chainHour / maxH) * 100);
-				setMineCalcBar('mine-calc-bar-share', Math.min(100, out.poolShareOfTotal));
-				if (mineCalcEl('mine-calc-compare-note')) {
-					let note = '';
-					if (out.chainHour > 0 && out.poolHmcHour > 0) {
-						const ratio = out.poolHmcHour / out.chainHour;
-						note = ratio >= 1
-							? ('Pool work pays ~' + fmt(ratio, 2) + '× vs chain empty baseline at current reward/M.')
-							: ('Chain empty baseline ~' + fmt(out.chainHour / out.poolHmcHour, 2) + '× pool work at current params.');
-					} else if (!net.hasLive) {
-						note = 'Start pool worker or connect coordinator for live reward/M and pool hashrate.';
-					}
-					mineCalcEl('mine-calc-compare-note').textContent = note;
-				}
 			}
 
 			if (mineCalcEl('mine-calc-footnote')) {
