@@ -23,9 +23,9 @@ type FaultTransport struct {
 	mu     sync.Mutex
 	rng    *rand.Rand
 
-	Calls      int
-	Dropped    int
-	Delivered  int
+	Calls     int
+	Dropped   int
+	Delivered int
 }
 
 func NewFaultTransport(base http.RoundTripper, cfg FaultConfig) *FaultTransport {
@@ -83,8 +83,8 @@ type netFaultError struct {
 	msg string
 }
 
-func (e *netFaultError) Error() string { return e.msg }
-func (e *netFaultError) Timeout() bool { return true }
+func (e *netFaultError) Error() string   { return e.msg }
+func (e *netFaultError) Timeout() bool   { return true }
 func (e *netFaultError) Temporary() bool { return true }
 
 // Snapshot returns transport counters.

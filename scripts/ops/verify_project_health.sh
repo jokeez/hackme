@@ -18,12 +18,7 @@ require_cmd jq
 require_cmd python3
 
 echo "[verify] gofmt (no dirty Go files)"
-bad_fmt="$(gofmt -l . || true)"
-if [[ -n "$bad_fmt" ]]; then
-  echo "[verify] FAIL: run gofmt -w on:" >&2
-  echo "$bad_fmt" >&2
-  exit 1
-fi
+bash "$ROOT_DIR/scripts/ops/gofmt_check.sh"
 
 echo "[verify] code quality audit"
 bash "$ROOT_DIR/scripts/ops/code_quality_audit.sh"

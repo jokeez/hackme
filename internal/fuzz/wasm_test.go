@@ -90,7 +90,6 @@ func TestMaliciousWasm_WASIImportRejectedBeforeHostAccess(t *testing.T) {
 	}
 }
 
-
 // --- PoH lock eval path (embedded worker sandbox.Eval) ---
 
 func TestMaliciousWasm_EvalInfiniteLoopChild(t *testing.T) {

@@ -17,23 +17,23 @@ const (
 // SimArch is a synthetic hardware profile for cross-generation matrix audits.
 // Values are conservative heuristics for batch/WASM/OpenCL limits — not live PCI IDs.
 type SimArch struct {
-	ID                  string  `json:"id"`
-	MarketingName       string  `json:"marketing_name"`
-	Camp                GPUCamp `json:"camp"`
-	Family              string  `json:"family"`
-	Backend             string  `json:"backend"` // cuda | opencl
-	VRAMMiB             int     `json:"vram_mib"`
-	CUDACores           int     `json:"cuda_cores,omitempty"`
-	ComputeCapability   string  `json:"compute_capability,omitempty"`
-	MinDriverCUDA       string  `json:"min_driver_cuda,omitempty"`
-	OpenCLStack         string  `json:"opencl_stack,omitempty"` // rocm | adrenalin | neo
-	LocalWorkSize       int     `json:"local_work_size,omitempty"`
-	Wavefront           int     `json:"wavefront,omitempty"`
-	TargetStableGHS     float64 `json:"target_stable_ghs,omitempty"`
-	MaxWorkerBatch      uint64  `json:"max_worker_batch"`
-	MaxGPUChunk         uint64  `json:"max_gpu_chunk"`
-	SandboxWasmBytes    int     `json:"sandbox_wasm_bytes_hint"`
-	LegacyCUDAFallback  bool    `json:"legacy_cuda_fallback"` // Pascal/Turing NVRTC chain
+	ID                 string  `json:"id"`
+	MarketingName      string  `json:"marketing_name"`
+	Camp               GPUCamp `json:"camp"`
+	Family             string  `json:"family"`
+	Backend            string  `json:"backend"` // cuda | opencl
+	VRAMMiB            int     `json:"vram_mib"`
+	CUDACores          int     `json:"cuda_cores,omitempty"`
+	ComputeCapability  string  `json:"compute_capability,omitempty"`
+	MinDriverCUDA      string  `json:"min_driver_cuda,omitempty"`
+	OpenCLStack        string  `json:"opencl_stack,omitempty"` // rocm | adrenalin | neo
+	LocalWorkSize      int     `json:"local_work_size,omitempty"`
+	Wavefront          int     `json:"wavefront,omitempty"`
+	TargetStableGHS    float64 `json:"target_stable_ghs,omitempty"`
+	MaxWorkerBatch     uint64  `json:"max_worker_batch"`
+	MaxGPUChunk        uint64  `json:"max_gpu_chunk"`
+	SandboxWasmBytes   int     `json:"sandbox_wasm_bytes_hint"`
+	LegacyCUDAFallback bool    `json:"legacy_cuda_fallback"` // Pascal/Turing NVRTC chain
 }
 
 // GreenCampCatalog — NVIDIA generations (Pascal → Blackwell/HMAI).

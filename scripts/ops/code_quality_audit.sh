@@ -42,7 +42,7 @@ root = Path(sys.argv[1])
 summary_path = Path(sys.argv[2])
 
 skip_dirs = {
-    ".git", ".cursor", "bin", "dist", "data", "logs", "tmp", "node_modules",
+    ".git", ".cursor", ".cache", "bin", "dist", "data", "logs", "tmp", "node_modules",
     "reports", "__pycache__", "data_backup_20260426_203131", "data_tmp_20260426_203243"
 }
 source_ext = {".go", ".sh", ".md", ".html", ".js", ".ts", ".css", ".json", ".yml", ".yaml"}

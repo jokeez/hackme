@@ -189,7 +189,7 @@ var (
 )
 
 const (
-	workStatsCacheFreshSec   = 6  // serve immediately without coordinator round-trip
+	workStatsCacheFreshSec    = 6  // serve immediately without coordinator round-trip
 	workStatsCacheStaleMaxSec = 45 // return cached body while revalidating in background
 )
 
