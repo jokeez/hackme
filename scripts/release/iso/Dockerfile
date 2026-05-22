@@ -2,7 +2,7 @@
 FROM ubuntu:24.04
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
   && apt-get install -y --no-install-recommends \
-    debootstrap squashfs-tools xorriso \
+    debootstrap squashfs-tools xorriso mtools dosfstools \
     grub-pc-bin grub-efi-amd64-bin \
     ca-certificates rsync \
   && rm -rf /var/lib/apt/lists/*

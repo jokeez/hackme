@@ -24,6 +24,7 @@ require_cmd debootstrap
 require_cmd mksquashfs
 require_cmd xorriso
 require_cmd grub-mkrescue
+require_cmd mformat
 
 mkdir -p "$OUT_DIR" "$WORK"
 rm -rf "$CHROOT" "$ISO_TREE"
@@ -36,7 +37,13 @@ mount --bind /dev "$CHROOT/dev"
 mount --bind /dev/pts "$CHROOT/dev/pts"
 mount -t proc proc "$CHROOT/proc"
 mount -t sysfs sysfs "$CHROOT/sys"
-trap 'umount -R "$CHROOT" 2>/dev/null || true' EXIT
+unmount_chroot_vfs() {
+  umount "$CHROOT/proc" 2>/dev/null || umount -l "$CHROOT/proc" 2>/dev/null || true
+  umount "$CHROOT/sys" 2>/dev/null || umount -l "$CHROOT/sys" 2>/dev/null || true
+  umount "$CHROOT/dev/pts" 2>/dev/null || umount -l "$CHROOT/dev/pts" 2>/dev/null || true
+  umount "$CHROOT/dev" 2>/dev/null || umount -l "$CHROOT/dev" 2>/dev/null || true
+}
+trap 'unmount_chroot_vfs' EXIT
 
 mkdir -p "$CHROOT/tmp/payload" "$CHROOT/tmp/iso-scripts" "$CHROOT/tmp/iso-overlay"
 if [[ -d "$PAYLOAD_DIR" ]]; then
@@ -54,6 +61,9 @@ cp "$(dirname "$0")/chroot-install.sh" "$CHROOT/tmp/chroot-install.sh"
 chmod +x "$CHROOT/tmp/chroot-install.sh"
 chroot "$CHROOT" bash /tmp/chroot-install.sh
 
+# Unmount virtual filesystems before squashfs (avoids packing live /proc).
+unmount_chroot_vfs
+
 KERNEL="$(ls -1 "$CHROOT"/boot/vmlinuz-* 2>/dev/null | sort -V | tail -1)"
 INITRD="$(ls -1 "$CHROOT"/boot/initrd.img-* 2>/dev/null | sort -V | tail -1)"
 if [[ -z "$KERNEL" || -z "$INITRD" ]]; then
@@ -63,7 +73,10 @@ fi
 
 echo "[iso-inner] squashfs"
 mkdir -p "$ISO_TREE/casper"
-mksquashfs "$CHROOT" "$ISO_TREE/casper/filesystem.squashfs" -comp zstd -Xcompression-level 6 -noappend
+# Exclude virtual fs trees if mounts were left behind; normal chroot has no proc/sys after umount above.
+mksquashfs "$CHROOT" "$ISO_TREE/casper/filesystem.squashfs" \
+  -comp zstd -Xcompression-level 6 -noappend \
+  -e proc sys dev run tmp
 cp "$KERNEL" "$ISO_TREE/casper/vmlinuz"
 cp "$INITRD" "$ISO_TREE/casper/initrd"
 du -sh "$ISO_TREE/casper/filesystem.squashfs"
@@ -78,12 +91,12 @@ mkdir -p "$ISO_TREE/boot/grub"
 cat >"$ISO_TREE/boot/grub/grub.cfg" <<'GRUB'
 set default=0
 set timeout=3
-menuentry "HackMe Miner (live)" {
-  linux /casper/vmlinuz boot=casper toram quiet splash ---
+menuentry "HackMe OS (live · max performance)" {
+  linux /casper/vmlinuz boot=casper toram quiet splash isolcpus=1 nohz_full=1 rcu_nocbs=1 ---
   initrd /casper/initrd
 }
-menuentry "HackMe Miner (live — safe graphics)" {
-  linux /casper/vmlinuz boot=casper nomodeset toram quiet ---
+menuentry "HackMe OS (live — safe graphics)" {
+  linux /casper/vmlinuz boot=casper nomodeset toram quiet isolcpus=1 nohz_full=1 rcu_nocbs=1 ---
   initrd /casper/initrd
 }
 GRUB
