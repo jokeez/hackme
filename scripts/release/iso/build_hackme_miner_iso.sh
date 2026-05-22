@@ -85,7 +85,7 @@ build_host() {
   export ISO_SCRIPTS="${ISO_DIR}"
   export ISO_OVERLAY="${ISO_DIR}/overlay"
   export OUT_DIR
-  export WORK="${ROOT_DIR}/.cache/iso-work-${VERSION}"
+  export WORK="${WORK:-${ROOT_DIR}/.cache/iso-work-${VERSION}}"
   bash "${ISO_DIR}/build_inner.sh"
 }
 
@@ -96,7 +96,7 @@ elif command -v debootstrap >/dev/null 2>&1; then
   build_host
 else
   echo "[iso] install docker or debootstrap to build ISO" >&2
-  echo "[iso]   sudo apt install docker.io   OR   sudo apt install debootstrap squashfs-tools xorriso grub-pc-bin" >&2
+  echo "[iso]   sudo apt install docker.io   OR   sudo apt install debootstrap squashfs-tools xorriso mtools dosfstools grub-pc-bin" >&2
   exit 1
 fi
 

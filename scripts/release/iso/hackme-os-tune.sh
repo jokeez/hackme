@@ -9,6 +9,14 @@ exec > >(tee -a "$LOG") 2>&1
 
 echo "[hackme-os] tune start $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
+# Live rig: no swap jitter (toram already in GRUB).
+if command -v swapoff >/dev/null 2>&1; then
+  swapoff -a 2>/dev/null || true
+fi
+for sw in /etc/fstab; do
+  [[ -f "$sw" ]] && sed -i 's/^[[:space:]]*[^#].*[[:space:]]swap[[:space:]]/## swap disabled by hackme-os /' "$sw" 2>/dev/null || true
+done
+
 NCPU="$(nproc 2>/dev/null || echo 2)"
 SYS_CPUS="0"
 MINE_CPUS="0"
