@@ -8,6 +8,10 @@ E2E_DIR="$ROOT_DIR/tests/e2e"
 export E2E_BASE_URL="${E2E_BASE_URL:-http://127.0.0.1:19080}"
 export E2E_ADMIN_TOKEN="${E2E_ADMIN_TOKEN:-e2e-admin-token-test}"
 
+echo "[ui-e2e] rebuild embedded-dashboard binaries"
+(cd "$ROOT_DIR" && go build -trimpath -o "$ROOT_DIR/bin/hackme-e2e" .)
+(cd "$ROOT_DIR" && go build -trimpath -o "$ROOT_DIR/bin/coordinator-e2e" ./cmd/coordinator)
+
 cd "$E2E_DIR"
 if [[ ! -d node_modules/@playwright/test ]]; then
   npm install --no-audit --no-fund
