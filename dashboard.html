@@ -651,6 +651,34 @@
 		@media (max-width: 768px) {
 			.eco-coins-table .eco-hide-sm { display: none; }
 		}
+		.solopool-vector-btn {
+			font-family: var(--font-display, ui-monospace, monospace);
+			font-size: 10px;
+			letter-spacing: 0.18em;
+			text-transform: uppercase;
+			padding: 0.45rem 0.85rem;
+			border-radius: 4px;
+			border: 1px solid rgba(255,255,255,0.12);
+			color: #9ca3af;
+			background: rgba(0,0,0,0.45);
+			transition: border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+		}
+		.solopool-vector-btn.active {
+			color: var(--neon, #00d1ff);
+			border-color: rgba(0,209,255,0.55);
+			box-shadow: 0 0 18px rgba(0,209,255,0.22);
+		}
+		.solopool-vector-btn[data-vector="hmc"].active { color: #39ff14; border-color: rgba(57,255,20,0.5); box-shadow: 0 0 18px rgba(57,255,20,0.18); }
+		.solopool-vector-btn[data-vector="hmai"].active { color: #fbbf24; border-color: rgba(251,191,36,0.45); box-shadow: 0 0 18px rgba(251,191,36,0.15); }
+		#overview-miner-result.miner-lookup-err {
+			border-color: rgba(255,51,85,0.55) !important;
+			color: #ff6b8a;
+			background: rgba(255,51,85,0.08);
+		}
+		#overview-miner-result.miner-lookup-warn {
+			border-color: rgba(251,191,36,0.4) !important;
+			color: #fcd34d;
+		}
 	</style>
 </head>
 	<body class="min-h-screen bg-grid overflow-x-hidden">
@@ -936,7 +964,18 @@
 							<span id="desktop-wizard-note" class="text-[10px] text-gray-500 font-mono self-center">wizard: ready</span>
 						</div>
 					</div>
-					<div class="card card-glow rounded-lg p-4 border-matrix/20">
+					<div class="card card-glow rounded-lg p-4 border-matrix/20" id="solopool-dashboard-card">
+						<div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+							<div>
+								<h3 class="font-display text-xs font-semibold tracking-[0.2em] text-gray-400 uppercase">SoloPool · multi-vector</h3>
+								<p id="solopool-vector-status" class="text-[10px] text-gray-500 font-mono mt-1">HMC · live pool · GH/s</p>
+							</div>
+							<div id="solopool-vector-bar" class="flex flex-wrap gap-2" role="tablist" aria-label="Crypto vectors">
+								<button type="button" class="solopool-vector-btn active" data-vector="hmc" aria-selected="true">HMC</button>
+								<button type="button" class="solopool-vector-btn" data-vector="hms" aria-selected="false">HMS</button>
+								<button type="button" class="solopool-vector-btn" data-vector="hmai" aria-selected="false">HMAI</button>
+							</div>
+						</div>
 						<div class="flex items-center justify-between gap-2 mb-2">
 							<h3 class="font-display text-xs font-semibold tracking-[0.2em] text-gray-400 uppercase">Miners from public pools</h3>
 							<span class="text-[10px] text-gray-500 font-mono">payout % ≠ hashrate % · cumulative attempts</span>
@@ -957,7 +996,7 @@
 						<div class="overflow-x-auto rounded border border-white/8">
 							<table class="overview-miners-table w-full text-left text-[11px] font-mono">
 								<thead class="bg-black/60 uppercase tracking-wider text-[10px]">
-									<tr><th>#</th><th>Worker</th><th>Wallet</th><th>Status</th><th>Hashrate</th><th>Hash %</th><th>Payout %</th><th>Attempts</th><th>Payout</th></tr>
+									<tr><th>#</th><th>Worker</th><th>Wallet</th><th>Status</th><th>Pool hashrate</th><th>Hash %</th><th>Payout %</th><th>Attempts</th><th>Payout</th></tr>
 								</thead>
 								<tbody id="overview-top-miners" class="text-gray-300 divide-y divide-white/5"></tbody>
 							</table>
@@ -1377,8 +1416,10 @@
 									<p id="mine-calc-coin-label" class="text-[10px] text-gray-500 mt-1">HMC · HackMe Coin — pool payout estimate</p>
 								</div>
 								<div class="flex flex-wrap items-center gap-2">
-									<select id="mine-calc-coin" class="mine-calc-input text-[10px] py-1 max-w-[8rem]" title="Future: multi-coin pools">
+									<select id="mine-calc-coin" class="mine-calc-input text-[10px] py-1 max-w-[8rem]" title="Multi-vector pools (HMC live; HMS/HMAI preview)">
 										<option value="hmc" selected>HMC</option>
+										<option value="hms">HMS</option>
+										<option value="hmai">HMAI</option>
 									</select>
 									<button type="button" id="btn-mine-calc-live" class="mine-calc-preset">My rig (live)</button>
 								</div>
@@ -3870,7 +3911,17 @@
 
 		const MINE_CALC_PREFS_KEY = 'hackme.mine_calc.v2';
 		const MINE_CALC_GH_SLIDER_MAX = 500;
-		const MINE_CALC_COINS = [{ id: 'hmc', label: 'HMC', name: 'HackMe Coin', active: true }];
+		const MINE_CALC_COINS = [
+			{ id: 'hmc', label: 'HMC', name: 'HackMe Coin', active: true, unit: 'GH/s', speedLabel: 'Hashrate' },
+			{ id: 'hms', label: 'HMS', name: 'HackMe Storage (preview)', active: false, unit: 'MB/s', speedLabel: 'Throughput' },
+			{ id: 'hmai', label: 'HMAI', name: 'HackMe AI vector (preview)', active: false, unit: 'TFLOPS', speedLabel: 'Compute' },
+		];
+		const SOLOPOOL_VECTORS = {
+			hmc: { symbol: 'HMC', unit: 'GH/s', kpiLabel: 'Pool hashrate', accent: 'text-matrix', live: true },
+			hms: { symbol: 'HMS', unit: 'MB/s', kpiLabel: 'Storage lane', accent: 'text-neon', live: false },
+			hmai: { symbol: 'HMAI', unit: 'TFLOPS', kpiLabel: 'Vector compute', accent: 'text-warn', live: false },
+		};
+		let solopoolVectorId = 'hmc';
 		let mineCalcPrefsLoaded = false;
 		let mineCalcLastExport = null;
 		let mineCalcGhTouched = false;
@@ -4250,7 +4301,15 @@
 				inputs = readMineCalcInputs();
 			}
 			const coin = MINE_CALC_COINS.find((c) => c.id === mineCalcCoinId) || MINE_CALC_COINS[0];
-			if (mineCalcEl('mine-calc-coin-label')) mineCalcEl('mine-calc-coin-label').textContent = coin.label + ' · ' + coin.name;
+			if (mineCalcEl('mine-calc-coin-label')) {
+				mineCalcEl('mine-calc-coin-label').textContent = coin.label + ' · ' + coin.name +
+					(coin.active ? ' — pool payout estimate' : ' — preview (' + coin.unit + ')');
+			}
+			const ghLbl = mineCalcEl('mine-calc-gh-label');
+			if (ghLbl && coin.unit) {
+				const ghVal = Number((mineCalcEl('mine-calc-gh') || {}).value || 0);
+				ghLbl.textContent = (ghVal > 0 ? fmt(ghVal, ghVal >= 10 ? 1 : 2) : '10') + ' ' + coin.unit;
+			}
 			const out = computeMineCalc(inputs, net, {});
 			const displayHmcHour = out.poolWork ? out.displayHmcHour : (out.scaledObservedHour > 0 ? out.scaledObservedHour : out.poolHmcHour);
 			const displayHmcDay = displayHmcHour * 24;
@@ -4427,6 +4486,7 @@
 					mineCalcCoinId = String(coinSel.value || 'hmc');
 					const sec = mineCalcEl('mine-calc-section');
 					if (sec) sec.setAttribute('data-calc-coin', mineCalcCoinId);
+					applySolopoolVector(mineCalcCoinId);
 					renderMineCalc();
 				});
 			}
@@ -4924,13 +4984,79 @@
 		function normMinerKey(s) {
 			return String(s || '').trim().toLowerCase();
 		}
+		function validateWalletQuery(raw) {
+			const q = String(raw || '').trim();
+			if (!q) return { ok: false, code: 'empty', message: '[lookup] ERROR: empty query — enter HMC-… wallet or worker id.' };
+			if (!q.startsWith('HMC-')) return { ok: true, kind: 'worker' };
+			if (q.length !== 20) {
+				return { ok: false, code: 'hmc_len', message: '[lookup] ERROR: invalid HMC address length (' + q.length + ' chars, expected 20 like HMC-91fe007e4036c602).' };
+			}
+			const suf = q.slice(4);
+			if (!/^[0-9a-fA-F]{16}$/.test(suf)) {
+				return { ok: false, code: 'hmc_hex', message: '[lookup] ERROR: HMC suffix must be 16 hex digits (got: ' + suf + ').' };
+			}
+			return { ok: true, kind: 'wallet' };
+		}
+		function setMinerLookupTerminal(text, tone) {
+			const out = $('overview-miner-result');
+			if (!out) return;
+			out.textContent = text;
+			out.classList.remove('miner-lookup-err', 'miner-lookup-warn');
+			if (tone === 'err') out.classList.add('miner-lookup-err');
+			else if (tone === 'warn') out.classList.add('miner-lookup-warn');
+		}
+		function applySolopoolVector(id) {
+			const v = SOLOPOOL_VECTORS[id] || SOLOPOOL_VECTORS.hmc;
+			solopoolVectorId = id in SOLOPOOL_VECTORS ? id : 'hmc';
+			document.querySelectorAll('.solopool-vector-btn').forEach((btn) => {
+				const on = btn.getAttribute('data-vector') === solopoolVectorId;
+				btn.classList.toggle('active', on);
+				btn.setAttribute('aria-selected', on ? 'true' : 'false');
+			});
+			const card = $('solopool-dashboard-card');
+			if (card) {
+				card.classList.remove('border-matrix/20', 'border-neon/25', 'border-warn/25');
+				if (solopoolVectorId === 'hmc') card.classList.add('border-matrix/20');
+				else if (solopoolVectorId === 'hms') card.classList.add('border-neon/25');
+				else card.classList.add('border-warn/25');
+			}
+			const st = $('solopool-vector-status');
+			if (st) {
+				st.textContent = v.symbol + ' · ' + (v.live ? 'live pool' : 'preview / not mineable') + ' · ' + v.unit;
+				st.className = 'text-[10px] font-mono mt-1 ' + v.accent;
+			}
+			const kl = $('kpi-hash-label');
+			if (kl) kl.textContent = v.kpiLabel;
+			const ks = $('kpi-hash-sub');
+			if (ks && !v.live) ks.textContent = 'preview vector · switch to HMC for live GH/s';
+			if (mineCalcCoinId !== solopoolVectorId && MINE_CALC_COINS.some((c) => c.id === solopoolVectorId)) {
+				mineCalcCoinId = solopoolVectorId;
+				const sel = $('mine-calc-coin');
+				if (sel) sel.value = solopoolVectorId;
+				renderMineCalc();
+			}
+		}
+		function bindSolopoolVectors() {
+			const bar = $('solopool-vector-bar');
+			if (!bar || bar.dataset.bound === '1') return;
+			bar.dataset.bound = '1';
+			bar.querySelectorAll('.solopool-vector-btn').forEach((btn) => {
+				btn.addEventListener('click', () => applySolopoolVector(btn.getAttribute('data-vector') || 'hmc'));
+			});
+			applySolopoolVector(solopoolVectorId);
+		}
 		function renderMinerLookupResult() {
 			const out = $('overview-miner-result');
 			const input = $('overview-miner-search');
 			if (!out || !input) return;
 			const queryRaw = String(input.value || '').trim();
 			if (!queryRaw) {
-				out.textContent = '—';
+				setMinerLookupTerminal('—', '');
+				return;
+			}
+			const vcheck = validateWalletQuery(queryRaw);
+			if (!vcheck.ok) {
+				setMinerLookupTerminal(vcheck.message, 'err');
 				return;
 			}
 			const q = normMinerKey(queryRaw);
@@ -4944,7 +5070,10 @@
 				rigs.find((r) => normMinerKey(r.worker_id).includes(q) || normMinerKey(r.name).includes(q) || normMinerKey(r.ip).includes(q));
 			const byWallet = topWallets.find((w) => normMinerKey(w) === q) || topWallets.find((w) => normMinerKey(w).includes(q));
 			if (!byWorker && !byPayout && !byRig && !byWallet) {
-				out.textContent = 'Miner not found in current sample.\nTry worker id, payout wallet (HMC-...), or IP.\nHint: click a row in Public pool miners table.\nPress Find miner for pool/chain lookup.';
+				setMinerLookupTerminal(
+					'[lookup] WARN: miner not found in current sample.\nTry worker id, payout wallet (HMC-...), or IP.\nHint: click a row in Public pool miners table.\nPress Find miner for pool/chain lookup.',
+					'warn'
+				);
 				return;
 			}
 			const lines = ['query: ' + queryRaw];
@@ -4964,7 +5093,7 @@
 				lines.push('rig_ip: ' + String(byRig.ip || '—'));
 			}
 			if (byWallet) lines.push('wallet_top_miner: ' + String(byWallet || '—'));
-			out.textContent = lines.join('\n');
+			setMinerLookupTerminal(lines.join('\n'), '');
 		}
 		async function runMinerLookup() {
 			renderMinerLookupResult();
@@ -4973,6 +5102,8 @@
 			if (!out || !input) return;
 			const queryRaw = String(input.value || '').trim();
 			if (!queryRaw) return;
+			const vcheck = validateWalletQuery(queryRaw);
+			if (!vcheck.ok) return;
 			const q = normMinerKey(queryRaw);
 			const workerRows = Array.isArray(latestWorkerRows) ? latestWorkerRows : [];
 			const rigs = (latestNetworkStats && Array.isArray(latestNetworkStats.active_rigs)) ? latestNetworkStats.active_rigs : [];
@@ -5765,6 +5896,7 @@
 				})));
 			}
 			bindOverviewMinersControls();
+			bindSolopoolVectors();
 			renderOverviewTopMiners(ws, rows);
 			if (!rows.length) {
 				tb.innerHTML = '<tr><td colspan="8" class="px-3 py-3 text-gray-600 text-center">No worker payouts yet</td></tr>';
@@ -8976,6 +9108,7 @@
 			if (name === 'overview') {
 				scheduleGlobalMetricsRefresh(true);
 				bindOverviewMinersControls();
+			bindSolopoolVectors();
 				if (latestWorkerRows.length) renderOverviewTopMiners(latestWorkStats, latestWorkerRows);
 			}
 			if (name === 'analytics') scheduleGlobalMetricsRefresh(true);
@@ -9469,7 +9602,7 @@
 				if ($('btn-mining-start')) $('btn-mining-start').addEventListener('click', () => { void postMiningControl('start'); });
 				if ($('btn-mining-stop')) $('btn-mining-stop').addEventListener('click', () => { void postMiningControl('stop'); });
 				try { bindMineCalcEvents(); } catch (_) {}
-				try { bindOverviewMinersControls(); } catch (_) {}
+				try { bindOverviewMinersControls(); bindSolopoolVectors(); } catch (_) {}
 				document.querySelectorAll('[data-wallet-earnings-period]').forEach((btn) => {
 					btn.addEventListener('click', () => {
 						const p = btn.getAttribute('data-wallet-earnings-period');
