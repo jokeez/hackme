@@ -87,6 +87,10 @@ printf '%s\n' \
   "Pool: https://hackme.tech/pool/coordinator" \
   >"$ISO_TREE/README.txt"
 
+if [[ -x "${ISO_SCRIPTS}/visual_overhaul.sh" ]]; then
+  echo "[iso-inner] visual overhaul (GRUB theme)"
+  bash "${ISO_SCRIPTS}/visual_overhaul.sh" iso-tree "$ISO_TREE"
+else
 mkdir -p "$ISO_TREE/boot/grub"
 cat >"$ISO_TREE/boot/grub/grub.cfg" <<'GRUB'
 set default=0
@@ -100,6 +104,7 @@ menuentry "HackMe OS (live — safe graphics)" {
   initrd /casper/initrd
 }
 GRUB
+fi
 
 ISO_NAME="HackMe-OS-${VERSION}-amd64.iso"
 OUT_ISO="${OUT_DIR}/${ISO_NAME}"

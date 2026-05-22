@@ -60,6 +60,9 @@ cp -f "${ROOT_DIR}/scripts/ops/detect_gpu_backend.sh" "${PAYLOAD_DIR}/detect_gpu
 chmod +x "${PAYLOAD_DIR}/detect_gpu_backend.sh" 2>/dev/null || true
 
 chmod +x "${ISO_DIR}"/*.sh
+if [[ -x "${ISO_DIR}/visual_overhaul.sh" ]]; then
+  echo "[iso] visual overhaul module present (GRUB + Plymouth + TTY UI)"
+fi
 
 build_docker() {
   echo "[iso] Docker build (VERSION=${VERSION})"

@@ -92,15 +92,14 @@ systemctl daemon-reload 2>/dev/null || true
 # Root shell branding
 cat >/etc/motd <<'MOTD'
 ╔══════════════════════════════════════════════════════════╗
-║  HackMe OS — mining rig OS (https://hackme.tech)         ║
-║  Pool worker · CPU isolation · GPU performance mode      ║
+║  HACKME OS — bare-metal kernel · neon pool rig           ║
+║  GRUB/Plymouth themed · Zero-Knowledge wallet on USB   ║
 ╠══════════════════════════════════════════════════════════╣
-║  hackme-os-status      rig + pool snapshot               ║
-║  hackme-show-wallet    payout HMC + recovery phrase      ║
+║  hackme-os-status      GPU temp · fans · GH/s · pool     ║
+║  hackme-show-wallet    HMC address + recovery phrase     ║
 ║  hackme-os-benchmark   60s local speed test              ║
-║  hackme-os-install     install to disk /dev/sdX          ║
+║  hackme-os-install     persist to disk /dev/sdX          ║
 ║  journalctl -u hackme-miner-worker -f                    ║
-║  Empty hackme.ini = Zero-Knowledge Start (auto wallet) ║
 ╚══════════════════════════════════════════════════════════╝
 MOTD
 

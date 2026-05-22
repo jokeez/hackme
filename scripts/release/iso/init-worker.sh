@@ -176,6 +176,15 @@ if [[ -z "$WALLET" ]]; then
       printf '%s\n' "$RECOVERY_PHRASE" >"${STATE_LIB}/recovery.phrase"
       chmod 600 "${STATE_LIB}/recovery.phrase"
     fi
+    UI="${ROOT}/scripts/release/iso/hackme-os-ui.sh"
+    if [[ -f "$UI" ]]; then
+      # shellcheck source=hackme-os-ui.sh
+      source "$UI"
+      VER="$(grep -E '^VERSION_ID=' /etc/os-release 2>/dev/null | cut -d= -f2- | tr -d '"' || echo "$HACKME_UI_VERSION")"
+      for tty in /dev/tty1 /dev/ttyS0 /dev/console; do
+        [[ -w "$tty" ]] && hackme_ui_zk_tty_banner "$WALLET" "$RECOVERY_PHRASE" "$POOL_URL" "$VER" >"$tty" 2>/dev/null || true
+      done
+    fi
   else
     WALLET="$DEFAULT_WALLET"
     log "wallet default (fund): $WALLET"

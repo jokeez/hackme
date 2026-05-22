@@ -5,37 +5,22 @@ set -euo pipefail
 ZK_JSON="${1:-/run/hackme-os/zk-wallet.json}"
 [[ -f "$ZK_JSON" ]] || exit 0
 
+UI="/opt/hackme/scripts/release/iso/hackme-os-ui.sh"
+[[ -f "$UI" ]] || exit 0
+# shellcheck source=hackme-os-ui.sh
+source "$UI"
+
 WALLET="$(jq -r '.wallet // empty' "$ZK_JSON" 2>/dev/null || true)"
 PHRASE="$(jq -r '.recovery_phrase // empty' "$ZK_JSON" 2>/dev/null || true)"
-INI="$(jq -r '.ini_path // empty' "$ZK_JSON" 2>/dev/null || true)"
+POOL="$(jq -r '.pool // empty' "$ZK_JSON" 2>/dev/null || true)"
+VER="$(grep -E '^VERSION_ID=' /etc/os-release 2>/dev/null | cut -d= -f2- | tr -d '"' || echo "$HACKME_UI_VERSION")"
 [[ -n "$WALLET" ]] || exit 0
 
-banner() {
-  cat <<BAN
-╔══════════════════════════════════════════════════════════════════════════╗
-║                    HACKME OS — ZERO-KNOWLEDGE START                      ║
-╠══════════════════════════════════════════════════════════════════════════╣
-║  [WALLET GENERATED] Your rig mines to:                                   ║
-║       ${WALLET}
-╠══════════════════════════════════════════════════════════════════════════╣
-║  [IMPORTANT] Write down your RECOVERY PHRASE to claim your HMC later:    ║
-║
-BAN
-  if [[ -n "$PHRASE" ]]; then
-    # Wrap phrase for 72-char terminal width.
-    echo "$PHRASE" | fold -s -w 68 | sed 's/^/║    /'
-  else
-    echo "║    (phrase unavailable — see /var/lib/hackme/miner.env seed hex)" >&2
-  fi
-  cat <<BAN2
-║                                                                          ║
-║  Saved to: ${INI:-/var/lib/hackme/hackme.ini}                            ║
-║  Mining starts automatically. Commands: hackme-os-status · hackme-show-wallet ║
-╚══════════════════════════════════════════════════════════════════════════╝
-BAN2
+render() {
+  hackme_ui_zk_tty_banner "$WALLET" "$PHRASE" "${POOL:-https://hackme.tech/pool/coordinator}" "$VER"
 }
 
 for tty in /dev/tty1 /dev/ttyS0 /dev/console; do
-  [[ -w "$tty" ]] && banner >"$tty" 2>/dev/null || true
+  [[ -w "$tty" ]] && render >"$tty" 2>/dev/null || true
 done
-banner | tee -a /var/log/hackme-zk-wallet.log >/dev/console 2>/dev/null || banner | tee -a /var/log/hackme-zk-wallet.log
+render | tee -a /var/log/hackme-zk-wallet.log >/dev/console 2>/dev/null || render | tee -a /var/log/hackme-zk-wallet.log

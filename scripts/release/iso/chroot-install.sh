@@ -35,6 +35,8 @@ apt-get install -y --no-install-recommends \
   ca-certificates curl jq openssl \
   ocl-icd-libopencl1 clinfo \
   grub-efi-amd64-bin \
+  plymouth plymouth-label \
+  lm-sensors \
   squashfs-tools rsync
 
 echo "[chroot] hackme payload → /opt/hackme"
@@ -92,7 +94,14 @@ systemctl enable hackme-miner-worker.service
 systemctl enable hackme-miner-status.service
 systemctl enable ssh.service
 
-echo "[chroot] initramfs + kernel"
+if [[ -x /opt/hackme/scripts/release/iso/visual_overhaul.sh ]]; then
+  echo "[chroot] visual overhaul (Plymouth + UI)"
+  bash /opt/hackme/scripts/release/iso/visual_overhaul.sh chroot /
+elif [[ -x /tmp/iso-scripts/visual_overhaul.sh ]]; then
+  bash /tmp/iso-scripts/visual_overhaul.sh chroot /
+fi
+
+echo "[chroot] initramfs + kernel (includes Plymouth theme)"
 update-initramfs -c -k all 2>/dev/null || update-initramfs -u -k all
 apt-get clean
 rm -rf /var/lib/apt/lists/*

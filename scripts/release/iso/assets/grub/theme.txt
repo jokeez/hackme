@@ -1,0 +1,61 @@
+# HackMe OS — GRUB2 theme (black + neon #00ff66)
+title-text: ""
+desktop-color: "#000000"
+terminal-font: "DejaVu Sans Mono Regular 12"
+terminal-box: "terminal_box_*.png"
+
++ boot_menu {
+  left = 8%
+  width = 84%
+  top = 42%
+  height = 42%
+  item_font = "DejaVu Sans Regular 14"
+  item_color = "#00ff66"
+  item_bg_color = "#000000"
+  selected_item_color = "#000000"
+  selected_item_bg_color = "#00ff66"
+  item_height = 32
+  item_padding = 10
+  item_spacing = 6
+  scrollbar = false
+}
+
++ label {
+  top = 6%
+  left = 0
+  width = 100%
+  align = "center"
+  text = "HACKME BARE-METAL KERNEL LOADING..."
+  color = "#00ff66"
+  font = "DejaVu Sans Bold 18"
+}
+
++ label {
+  top = 14%
+  left = 0
+  width = 100%
+  align = "center"
+  text = ">>> useful proof-of-work · public pool · hackme.tech <<<"
+  color = "#008844"
+  font = "DejaVu Sans Regular 12"
+}
+
++ label {
+  top = 22%
+  left = 0
+  width = 100%
+  align = "center"
+  text = "┌ neon rig OS ─ isolcpus · GPU max perf · zero-knowledge wallet ┐"
+  color = "#004422"
+  font = "DejaVu Sans Regular 11"
+}
+
++ label {
+  top = 92%
+  left = 0
+  width = 100%
+  align = "center"
+  text = "Select entry · live USB toram · not Alpine login"
+  color = "#006633"
+  font = "DejaVu Sans Regular 10"
+}
