@@ -18,9 +18,10 @@
 | **Public pool live** | **PASS** | ~**2.43 GH/s**, **5 workers**, economics fair mode |
 | **Hybrid signer** | **ENFORCED** | Unsigned submits → **403** `signature_required` (expected) |
 | **Rate limits** | **ACTIVE** | `claim_rate_limited` / `worker_temporarily_banned` under abuse |
-| **VPS deploy (this agent)** | **BLOCKED** | No SSH key to `root@82.146.53.7` — operator must run deploy script |
+| **VPS deploy** | **PASS** | `132.243.112.100` — ISO 956 MB, services active, SHA256 match |
+| **Site pool dashboard** | **PASS** | Fast endpoints only; `/pool/api/metrics` ~5s (intentionally avoided) |
 
-**Overall: READY for public ISO test-drive and pool mining.** Publish ISO to VPS `dist/` then reload nginx.
+**Overall: READY** — see **`docs/OPERATOR_VERDICT_FINAL_2026-05-22.md`** for full sweep table.
 
 ---
 
