@@ -5,7 +5,14 @@
     <link>https://hackme.tech/news.html</link>
     <description>Official HackMe Network release, infrastructure, economics, and security updates.</description>
     <language>en-us</language>
-    <lastBuildDate>Fri, 22 May 2026 12:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Fri, 22 May 2026 12:10:00 GMT</lastBuildDate>
+    <item>
+      <title>HackMe OS ISO published (956 MB) · SHA256 verified</title>
+      <link>https://hackme.tech/news.html#2026-05-22-hackme-os-iso-published</link>
+      <guid>https://hackme.tech/news.html#2026-05-22-hackme-os-iso-published</guid>
+      <pubDate>Fri, 22 May 2026 12:10:00 GMT</pubDate>
+      <description>Bootable HackMe-OS-0.1.0-rc11g-amd64.iso: Zero-Knowledge Start, pool token embedded, full QA pass. SHA256 1b7bd70e… on downloads.</description>
+    </item>
     <item>
       <title>Zero-Knowledge Start · HackMe OS on downloads · Windows worker watchdog</title>
       <link>https://hackme.tech/news.html#2026-05-22-zero-knowledge-start-downloads</link>
