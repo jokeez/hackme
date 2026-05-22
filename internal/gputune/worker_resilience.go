@@ -58,13 +58,13 @@ func ShouldCPUFallback(class GPUFailureClass) bool {
 
 // WorkerGPUEvent is a structured stderr/coordinator-adjacent log line (JSON).
 type WorkerGPUEvent struct {
-	Event      string          `json:"event"`
-	WorkerID   string          `json:"worker_id"`
-	Backend    string          `json:"backend"`
-	Failure    GPUFailureClass `json:"failure_class"`
-	Fallback   string          `json:"fallback"`
-	Detail     string          `json:"detail,omitempty"`
-	SessionOK  bool            `json:"session_preserved"`
+	Event     string          `json:"event"`
+	WorkerID  string          `json:"worker_id"`
+	Backend   string          `json:"backend"`
+	Failure   GPUFailureClass `json:"failure_class"`
+	Fallback  string          `json:"fallback"`
+	Detail    string          `json:"detail,omitempty"`
+	SessionOK bool            `json:"session_preserved"`
 }
 
 // FormatWorkerGPUEvent renders one JSON line for worker logs (pool operator tail).

@@ -25,7 +25,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Go fmt check
-        run: test -z "$(gofmt -l .)"
+        run: bash scripts/ops/gofmt_check.sh
 
       - name: Code quality audit
         run: bash scripts/ops/code_quality_audit.sh

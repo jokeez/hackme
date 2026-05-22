@@ -54,4 +54,3 @@ func TestPoolTreasuryLedgerFoundOnlySkipsAttempts(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-

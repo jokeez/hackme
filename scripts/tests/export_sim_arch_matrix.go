@@ -12,10 +12,10 @@ import (
 
 func main() {
 	out := map[string]any{
-		"green":  gputune.GreenCampCatalog(),
-		"red":    gputune.RedCampCatalog(),
-		"blue":   gputune.BlueCampCatalog(),
-		"total":  len(gputune.AllSimArch()),
+		"green":   gputune.GreenCampCatalog(),
+		"red":     gputune.RedCampCatalog(),
+		"blue":    gputune.BlueCampCatalog(),
+		"total":   len(gputune.AllSimArch()),
 		"catalog": gputune.AllSimArch(),
 	}
 	enc := json.NewEncoder(os.Stdout)
