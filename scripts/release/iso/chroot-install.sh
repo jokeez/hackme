@@ -75,6 +75,8 @@ ln -sf /opt/hackme/scripts/release/iso/hackme-miner-firstboot.sh /usr/local/bin/
 ln -sf /opt/hackme/scripts/release/iso/hackme-os-benchmark.sh /usr/local/bin/hackme-os-benchmark
 ln -sf /opt/hackme/scripts/release/iso/hackme-os-tune.sh /usr/local/bin/hackme-os-tune
 ln -sf /opt/hackme/scripts/release/iso/init-worker.sh /usr/local/bin/hackme-init-worker
+ln -sf /opt/hackme/scripts/release/iso/hackme-show-wallet.sh /usr/local/bin/hackme-show-wallet
+ln -sf /opt/hackme/scripts/release/iso/hackme-zk-display.sh /usr/local/bin/hackme-zk-display
 
 # Root access for rig operators (set password: passwd)
 passwd -d root 2>/dev/null || true
@@ -84,6 +86,7 @@ echo "hackme-os" >/etc/hostname
 systemctl enable NetworkManager.service
 systemctl enable hackme-os-tune.service
 systemctl enable hackme-init-worker.service
+systemctl enable hackme-zk-display.service
 systemctl enable hackme-miner-firstboot.service
 systemctl enable hackme-miner-worker.service
 systemctl enable hackme-miner-status.service
