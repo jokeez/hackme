@@ -86,6 +86,7 @@ passwd -d root 2>/dev/null || true
 echo 'root:hackme' | chpasswd 2>/dev/null || true
 
 echo "hackme-os" >/etc/hostname
+systemctl enable hackme-boot-banner.service
 systemctl enable getty@tty1.service
 systemctl enable serial-getty@ttyS0.service 2>/dev/null || true
 systemctl enable NetworkManager.service
