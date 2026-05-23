@@ -14,14 +14,16 @@ See `docs/MINER_WINDOWS_ONE_CLICK.md` in the repo.
 
 Binaries: `hackme.exe` (node), `workerpoh.exe` (pool worker), `minersign.exe` (hybrid signer).
 
-## Linux
+## Linux (one click — recommended)
 
-1. Extract `hackme_*_linux.tar.gz`.
-2. `bash install_hackme.sh` (optional systemd) or `bash desktop_mode_up.sh` from the `linux/` folder.
-3. Default `.env.desktop` uses **worker** profile and `https://hackme.tech` as public authority.
-4. **NVIDIA GPU:** install CUDA toolkit 12.x, then `bash build_cuda_worker.sh` and `export HACKME_GPU_BACKEND=cuda` (see `CUDA_PRODUCTION.md` in bundle).
-5. **AMD / Intel:** `export HACKME_GPU_BACKEND=opencl` and use `workerpoh-opencl` (see `GPU_MINING_BACKENDS.md`).
-6. Dashboard → Mining → Start worker, or `bash desktop_worker_reset.sh` on desktop rigs.
+1. Download **`hackme_*_linux.tar.gz`** from https://hackme.tech/downloads.html and verify `SHA256SUMS.txt`.
+2. `tar -xzf hackme_*_linux.tar.gz && cd linux`
+3. Run **`bash start_hackme_miner.sh`** — pool token is in `pool.miner.token`; setup runs once automatically.
+4. Browser opens the local dashboard; mining on **hackme.tech** starts without editing env files.
+
+**Advanced:** `sudo bash install_hackme.sh --archive ../hackme_*_linux.tar.gz` (systemd). Dev tree: `bash desktop_mode_up.sh` (needs Go).
+
+**GPU:** NVIDIA → `workerpoh-cuda` in bundle; AMD/Intel → `workerpoh-gpu` / OpenCL. See `GPU_MINING_BACKENDS.md`. Multi-GPU: `bash worker_autostart.sh` after `bin/fleetplan` (see docs).
 
 ## Downloads on the site
 

@@ -150,6 +150,8 @@ cp "${ROOT_DIR}/scripts/release/windows/LICENSE.txt" "${WIN_DIR}/LICENSE.txt" 2>
 cp "${ROOT_DIR}/scripts/release/windows/hackme.ico" "${WIN_DIR}/hackme.ico"
 cp "${ROOT_DIR}/scripts/release/windows/hackme.png" "${WIN_DIR}/hackme.png"
 cp "${ROOT_DIR}/scripts/release/linux/install_hackme.sh" "${LINUX_DIR}/install_hackme.sh"
+cp "${ROOT_DIR}/scripts/release/linux/setup_hackme_miner.sh" "${LINUX_DIR}/setup_hackme_miner.sh"
+cp "${ROOT_DIR}/scripts/release/linux/start_hackme_miner.sh" "${LINUX_DIR}/start_hackme_miner.sh"
 cp "${ROOT_DIR}/scripts/release/linux/hackme.desktop.template" "${LINUX_DIR}/hackme.desktop.template"
 cp "${ROOT_DIR}/scripts/release/linux/hackme-node.service.template" "${LINUX_DIR}/hackme-node.service.template"
 cp "${ROOT_DIR}/scripts/ops/desktop_mode_up.sh" "${LINUX_DIR}/desktop_mode_up.sh"
@@ -159,6 +161,8 @@ cp "${ROOT_DIR}/scripts/ops/install_linux_desktop_launcher.sh" "${LINUX_DIR}/ins
 cp "${ROOT_DIR}/scripts/ops/install_from_code_toolchains.sh" "${LINUX_DIR}/install_from_code_toolchains.sh"
 
 chmod +x "${LINUX_DIR}/install_hackme.sh"
+chmod +x "${LINUX_DIR}/setup_hackme_miner.sh"
+chmod +x "${LINUX_DIR}/start_hackme_miner.sh"
 chmod +x "${LINUX_DIR}/desktop_mode_up.sh"
 chmod +x "${LINUX_DIR}/desktop_mode_status.sh"
 chmod +x "${LINUX_DIR}/desktop_mode_stop.sh"
@@ -176,7 +180,8 @@ if [[ -z "${POOL_MINER_TOKEN}" ]]; then
   POOL_MINER_TOKEN="REPLACE_WITH_POOL_TOKEN"
 else
   printf '%s' "${POOL_MINER_TOKEN}" >"${WIN_DIR}/pool.miner.token"
-  echo "[release] wrote pool.miner.token (${#POOL_MINER_TOKEN} chars) for Windows miners"
+  printf '%s' "${POOL_MINER_TOKEN}" >"${LINUX_DIR}/pool.miner.token"
+  echo "[release] wrote pool.miner.token (${#POOL_MINER_TOKEN} chars) for Windows + Linux miners"
 fi
 
 cat > "${DIST_DIR}/BUILD_INFO.txt" <<EOF

@@ -34,7 +34,8 @@ if nvidia_driver_ok; then
   if [[ -z "$root" ]]; then
     root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
   fi
-  if [[ -x "${root}/bin/workerpoh-cuda" ]] || command -v nvcc >/dev/null 2>&1 || [[ -f /usr/local/cuda/include/nvrtc.h ]]; then
+  if [[ -x "${root}/bin/workerpoh-cuda" || -x "${root}/workerpoh-cuda" ]] \
+    || command -v nvcc >/dev/null 2>&1 || [[ -f /usr/local/cuda/include/nvrtc.h ]]; then
     echo cuda
     exit 0
   fi
