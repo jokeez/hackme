@@ -49,8 +49,9 @@ DeviceTimeout=8
 PLY
 
   if [[ -f "${chroot}/etc/default/grub" ]]; then
-    if ! grep -q 'splash' "${chroot}/etc/default/grub" 2>/dev/null; then
-      sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash /' \
+    # Installed systems: prefer text console (ISO GRUB uses grub-live.cfg).
+    if grep -q '^GRUB_CMDLINE_LINUX_DEFAULT=' "${chroot}/etc/default/grub" 2>/dev/null; then
+      sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=".*"/GRUB_CMDLINE_LINUX_DEFAULT="noplymouth console=tty1"/' \
         "${chroot}/etc/default/grub" 2>/dev/null || true
     fi
   fi

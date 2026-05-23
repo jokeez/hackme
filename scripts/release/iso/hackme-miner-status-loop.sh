@@ -5,6 +5,12 @@ set -uo pipefail
 STATUS="/opt/hackme/scripts/release/iso/hackme-miner-status.sh"
 TTY="/dev/tty1"
 
+# Wait for getty / boot banner before first paint.
+for _ in $(seq 1 30); do
+  [[ -w "$TTY" ]] && break
+  sleep 1
+done
+
 while true; do
   if [[ -x "$STATUS" && -w "$TTY" ]]; then
     {

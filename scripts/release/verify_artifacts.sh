@@ -47,6 +47,24 @@ if [[ -f "RELEASE_MANIFEST.json" ]] && command -v jq >/dev/null 2>&1; then
     echo "[verify] RELEASE_MANIFEST.json has invalid shape" >&2
     exit 1
   fi
+  if [[ -f SHA256SUMS-iso.txt ]]; then
+    iso_file="$(jq -r '.artifacts[]|select(.platform=="hackme-os")|.file // empty' RELEASE_MANIFEST.json)"
+    iso_manifest_sha="$(jq -r '.artifacts[]|select(.platform=="hackme-os")|.sha256 // empty' RELEASE_MANIFEST.json)"
+    iso_sums_sha="$(awk -v f="$iso_file" '$NF==f {print $1; exit}' SHA256SUMS-iso.txt)"
+    if [[ -n "$iso_file" && -n "$iso_manifest_sha" && "$iso_manifest_sha" != "$iso_sums_sha" ]]; then
+      echo "[verify] ISO sha mismatch: manifest=$iso_manifest_sha sums=$iso_sums_sha" >&2
+      echo "[verify] run: bash scripts/release/refresh_release_manifest.sh" >&2
+      exit 1
+    fi
+    if [[ -f "$iso_file" ]]; then
+      iso_actual="$(sha256sum "$iso_file" | awk '{print $1}')"
+      if [[ "$iso_actual" != "$iso_sums_sha" ]]; then
+        echo "[verify] ISO file sha mismatch (rebuild or refresh sums)" >&2
+        exit 1
+      fi
+      echo "[verify] ISO sha256 OK ($iso_file)"
+    fi
+  fi
 fi
 
 echo "[verify] PASS: artifacts look consistent"

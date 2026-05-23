@@ -1,0 +1,13 @@
+[Unit]
+Description=HackMe OS early boot banner on tty1
+DefaultDependencies=no
+After=local-fs.target
+Before=getty@tty1.service plymouth-start.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/hackme/scripts/release/iso/hackme-boot-banner.sh
+
+[Install]
+WantedBy=sysinit.target

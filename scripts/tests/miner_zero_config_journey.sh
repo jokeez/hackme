@@ -40,17 +40,24 @@ SHA_FILE="$(fetch SHA256SUMS.txt "$DIST_URL/SHA256SUMS.txt")"
 LINUX_TGZ="$(fetch "hackme_0.1.0-rc11g_linux.tar.gz" "$DIST_URL/hackme_0.1.0-rc11g_linux.tar.gz")"
 WIN_ZIP="$(fetch "hackme_0.1.0-rc11g_windows_setup.zip" "$DIST_URL/hackme_0.1.0-rc11g_windows_setup.zip")"
 
-sha_ok=0
-if grep -q 'hackme_0.1.0-rc11g_linux.tar.gz' "$SHA_FILE"; then
-  if (cd "$WORKDIR" && sha256sum -c SHA256SUMS.txt 2>/dev/null | grep -q 'linux.tar.gz: OK'); then
-    sha_ok=1
-    pass "linux SHA256"
-  elif [[ -f "$LOCAL_DIST/SHA256SUMS.txt" ]] && (cd "$LOCAL_DIST" && sha256sum -c SHA256SUMS.txt 2>/dev/null | grep -q 'linux.tar.gz: OK'); then
-    sha_ok=1
-    pass "linux SHA256 (release dir)"
-  fi
+verify_one_sha() {
+  local file="$1" sums="$2"
+  local exp got
+  exp="$(awk -v n="$(basename "$file")" '$NF==n {print $1; exit}' "$sums")"
+  got="$(sha256sum "$file" | awk '{print $1}')"
+  [[ -n "$exp" && "$exp" == "$got" ]]
+}
+
+if verify_one_sha "$LINUX_TGZ" "$SHA_FILE"; then
+  pass "linux SHA256"
+else
+  fail_msg "linux SHA256 mismatch ($(basename "$LINUX_TGZ"))"
 fi
-[[ "$sha_ok" == 1 ]] || fail_msg "linux SHA256 mismatch"
+if verify_one_sha "$WIN_ZIP" "$SHA_FILE"; then
+  pass "windows setup SHA256"
+else
+  fail_msg "windows setup SHA256 mismatch"
+fi
 
 # --- Linux unpack + layout ---
 EXTRACT="$WORKDIR/linux-extract"

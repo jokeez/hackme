@@ -50,7 +50,7 @@ else
   echo "[verify-iso] FAIL: missing filesystem.squashfs" >&2
   exit 6
 fi
-if grep -aq 'boot=casper username=root noplymouth console=tty1' "$ISO_PATH" 2>/dev/null; then
+if grep -aqE 'boot=casper username=root noplymouth.*console=tty1' "$ISO_PATH" 2>/dev/null; then
   echo "[verify-iso] PASS recommended entry (text console, no Plymouth black screen)"
 elif grep -aq 'boot=casper quiet splash' "$ISO_PATH" 2>/dev/null; then
   echo "[verify-iso] WARN: old ISO uses quiet splash default — rebuild for black-screen fix" >&2
