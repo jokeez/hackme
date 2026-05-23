@@ -50,6 +50,24 @@ else
   echo "[verify-iso] FAIL: missing filesystem.squashfs" >&2
   exit 6
 fi
+if grep -aq '\.disk/info' "$ISO_PATH" 2>/dev/null || grep -aq 'HackMe OS' "$ISO_PATH" 2>/dev/null; then
+  echo "[verify-iso] PASS .disk metadata"
+fi
+# Warn if ISO still uses zstd squashfs (causes casper panic exitcode=0x100 on many rigs).
+if command -v isoinfo >/dev/null 2>&1; then
+  SQ="$(mktemp)"
+  isoinfo -i "$ISO_PATH" -x /casper/filesystem.squashfs 2>/dev/null >"$SQ" || true
+  if [[ -s "$SQ" ]]; then
+    if head -c 4 "$SQ" | grep -q 'hsqs'; then
+      if unsquashfs -s "$SQ" 2>/dev/null | grep -qi 'Compression.*zstd'; then
+        echo "[verify-iso] WARN: squashfs uses zstd — rebuild with xz for casper boot" >&2
+      elif unsquashfs -s "$SQ" 2>/dev/null | grep -qi 'Compression.*xz'; then
+        echo "[verify-iso] PASS squashfs compression xz (casper-safe)"
+      fi
+    fi
+  fi
+  rm -f "$SQ"
+fi
 if grep -aqE 'boot=casper username=root noplymouth.*console=tty1' "$ISO_PATH" 2>/dev/null; then
   echo "[verify-iso] PASS recommended entry (text console, no Plymouth black screen)"
 elif grep -aq 'boot=casper quiet splash' "$ISO_PATH" 2>/dev/null; then
