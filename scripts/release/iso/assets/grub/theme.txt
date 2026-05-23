@@ -55,7 +55,7 @@ terminal-box: "terminal_box_*.png"
   left = 0
   width = 100%
   align = "center"
-  text = "Select entry · live USB toram · not Alpine login"
+  text = "Recommended = fast USB boot · Safe = nomodeset · Max = toram (8GB+ RAM)"
   color = "#006633"
   font = "DejaVu Sans Regular 10"
 }

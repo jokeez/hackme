@@ -30,7 +30,8 @@ apt-get update -y
 apt-get install -y --no-install-recommends \
   systemd systemd-sysv dbus \
   linux-image-generic \
-  live-boot-initramfs-tools live-config casper \
+  live-boot live-boot-initramfs-tools live-config live-config-systemd \
+  live-tools casper discover \
   network-manager openssh-server \
   ca-certificates curl jq openssl \
   ocl-icd-libopencl1 clinfo \
@@ -101,8 +102,20 @@ elif [[ -x /tmp/iso-scripts/visual_overhaul.sh ]]; then
   bash /tmp/iso-scripts/visual_overhaul.sh chroot /
 fi
 
-echo "[chroot] initramfs + kernel (includes Plymouth theme)"
+echo "[chroot] initramfs + kernel (live-boot + casper hooks)"
+if [[ ! -x /usr/share/initramfs-tools/scripts/casper ]]; then
+  echo "[chroot] WARN: casper initramfs hook missing — installing live-boot again" >&2
+  apt-get install -y --no-install-recommends live-boot casper || true
+fi
 update-initramfs -c -k all 2>/dev/null || update-initramfs -u -k all
+INITRD_CHECK="$(ls -1 /boot/initrd.img-* 2>/dev/null | sort -V | tail -1)"
+if [[ -n "$INITRD_CHECK" ]] && command -v lsinitramfs >/dev/null 2>&1; then
+  if lsinitramfs "$INITRD_CHECK" 2>/dev/null | grep -qE 'scripts/casper|scripts/casper-bottom'; then
+    echo "[chroot] initrd includes casper live hook"
+  else
+    echo "[chroot] WARN: initrd may lack casper — check live-boot package" >&2
+  fi
+fi
 apt-get clean
 rm -rf /var/lib/apt/lists/*
 

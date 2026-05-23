@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # HackMe OS boot tuning: CPU isolation mask, performance governor, IRQ affinity, drop-ins for worker RT.
-set -euo pipefail
+set -uo pipefail
 
 STATE_DIR="/run/hackme-os"
 mkdir -p "$STATE_DIR"

@@ -61,9 +61,6 @@ cp "$(dirname "$0")/chroot-install.sh" "$CHROOT/tmp/chroot-install.sh"
 chmod +x "$CHROOT/tmp/chroot-install.sh"
 chroot "$CHROOT" bash /tmp/chroot-install.sh
 
-# Unmount virtual filesystems before squashfs (avoids packing live /proc).
-unmount_chroot_vfs
-
 KERNEL="$(ls -1 "$CHROOT"/boot/vmlinuz-* 2>/dev/null | sort -V | tail -1)"
 INITRD="$(ls -1 "$CHROOT"/boot/initrd.img-* 2>/dev/null | sort -V | tail -1)"
 if [[ -z "$KERNEL" || -z "$INITRD" ]]; then
@@ -71,15 +68,32 @@ if [[ -z "$KERNEL" || -z "$INITRD" ]]; then
   exit 1
 fi
 
-echo "[iso-inner] squashfs"
+echo "[iso-inner] casper metadata (manifest + size)"
 mkdir -p "$ISO_TREE/casper"
-# Exclude virtual fs trees if mounts were left behind; normal chroot has no proc/sys after umount above.
+chroot "$CHROOT" dpkg-query -W --showformat='${Package} ${Version}\n' \
+  >"$ISO_TREE/casper/filesystem.manifest" 2>/dev/null || true
+cp -f "$ISO_TREE/casper/filesystem.manifest" "$ISO_TREE/casper/filesystem.manifest.du" 2>/dev/null || true
+du -sx --block-size=1 "$CHROOT" | cut -f1 >"$ISO_TREE/casper/filesystem.size"
+
+# Unmount virtual filesystems before squashfs (avoids packing live /proc).
+unmount_chroot_vfs
+
+echo "[iso-inner] squashfs (zstd-3 for faster USB read)"
 mksquashfs "$CHROOT" "$ISO_TREE/casper/filesystem.squashfs" \
-  -comp zstd -Xcompression-level 6 -noappend \
+  -comp zstd -Xcompression-level 3 -noappend \
   -e proc sys dev run tmp
 cp "$KERNEL" "$ISO_TREE/casper/vmlinuz"
 cp "$INITRD" "$ISO_TREE/casper/initrd"
 du -sh "$ISO_TREE/casper/filesystem.squashfs"
+
+if command -v lsinitramfs >/dev/null 2>&1; then
+  if lsinitramfs "$INITRD" 2>/dev/null | grep -qE 'scripts/casper|scripts/casper-bottom'; then
+    echo "[iso-inner] PASS initrd has casper hook"
+  else
+    echo "[iso-inner] FAIL initrd missing casper — ISO will not boot live" >&2
+    exit 1
+  fi
+fi
 
 printf '%s\n' \
   "HackMe Miner ${VERSION}" \
@@ -91,19 +105,23 @@ if [[ -x "${ISO_SCRIPTS}/visual_overhaul.sh" ]]; then
   echo "[iso-inner] visual overhaul (GRUB theme)"
   bash "${ISO_SCRIPTS}/visual_overhaul.sh" iso-tree "$ISO_TREE"
 else
-mkdir -p "$ISO_TREE/boot/grub"
-cat >"$ISO_TREE/boot/grub/grub.cfg" <<'GRUB'
+  mkdir -p "$ISO_TREE/boot/grub"
+  if [[ -f "${ISO_SCRIPTS}/grub-live.cfg" ]]; then
+    cp -f "${ISO_SCRIPTS}/grub-live.cfg" "$ISO_TREE/boot/grub/grub.cfg"
+  else
+    cat >"$ISO_TREE/boot/grub/grub.cfg" <<'GRUB'
 set default=0
-set timeout=3
-menuentry "HackMe OS (live · max performance)" {
-  linux /casper/vmlinuz boot=casper toram quiet splash isolcpus=1 nohz_full=1 rcu_nocbs=1 ---
+set timeout=6
+menuentry "HackMe OS (live · recommended)" {
+  linux /casper/vmlinuz boot=casper quiet splash ---
   initrd /casper/initrd
 }
-menuentry "HackMe OS (live — safe graphics)" {
-  linux /casper/vmlinuz boot=casper nomodeset toram quiet isolcpus=1 nohz_full=1 rcu_nocbs=1 ---
+menuentry "HackMe OS (live · safe graphics)" {
+  linux /casper/vmlinuz boot=casper nomodeset xforcevesa quiet splash ---
   initrd /casper/initrd
 }
 GRUB
+  fi
 fi
 
 ISO_NAME="HackMe-OS-${VERSION}-amd64.iso"
@@ -114,5 +132,8 @@ echo "[iso-inner] grub-mkrescue → ${OUT_ISO}"
 grub-mkrescue -o "$OUT_ISO" "$ISO_TREE" -- \
   -volid "HACKME_OS_${VERSION}" 2>&1 | tail -5
 
-sha256sum "$OUT_ISO" | tee "${OUT_DIR}/SHA256SUMS-iso.txt"
+{
+  sha256sum "$OUT_ISO" | awk -v f="$(basename "$OUT_ISO")" '{print $1"  "f}'
+} >"${OUT_DIR}/SHA256SUMS-iso.txt"
+chmod 644 "${OUT_DIR}/SHA256SUMS-iso.txt" 2>/dev/null || true
 echo "[iso-inner] done: ${OUT_ISO} ($(du -h "$OUT_ISO" | awk '{print $1}'))"
