@@ -149,6 +149,8 @@ cp "${ROOT_DIR}/scripts/release/windows/INSTALLER_WELCOME.txt" "${WIN_DIR}/INSTA
 cp "${ROOT_DIR}/scripts/release/windows/LICENSE.txt" "${WIN_DIR}/LICENSE.txt" 2>/dev/null || true
 cp "${ROOT_DIR}/scripts/release/windows/hackme.ico" "${WIN_DIR}/hackme.ico"
 cp "${ROOT_DIR}/scripts/release/windows/hackme.png" "${WIN_DIR}/hackme.png"
+cp "${ROOT_DIR}/scripts/release/windows/Install-HackMe.ps1" "${WIN_DIR}/Install-HackMe.ps1"
+cp "${ROOT_DIR}/scripts/release/windows/HackMe-Install.cmd" "${WIN_DIR}/HackMe-Install.cmd"
 cp "${ROOT_DIR}/scripts/release/linux/install_hackme.sh" "${LINUX_DIR}/install_hackme.sh"
 cp "${ROOT_DIR}/scripts/release/linux/setup_hackme_miner.sh" "${LINUX_DIR}/setup_hackme_miner.sh"
 cp "${ROOT_DIR}/scripts/release/linux/start_hackme_miner.sh" "${LINUX_DIR}/start_hackme_miner.sh"
@@ -205,6 +207,11 @@ EOF
 if [[ -f "${ROOT_DIR}/scripts/release/windows/build_installer.sh" ]]; then
   bash "${ROOT_DIR}/scripts/release/windows/build_installer.sh" "${VERSION}" || true
 fi
+for win_launcher in Install-HackMe.ps1 HackMe-Install.cmd; do
+  if [[ -f "${ROOT_DIR}/scripts/release/windows/${win_launcher}" ]]; then
+    cp -f "${ROOT_DIR}/scripts/release/windows/${win_launcher}" "${DIST_DIR}/${win_launcher}"
+  fi
+done
 
 (
   cd "${DIST_DIR}"
@@ -212,6 +219,11 @@ fi
   if [[ -f "HackMe-Setup-${VERSION}.exe" ]]; then
     SUM_FILES+=( "HackMe-Setup-${VERSION}.exe" )
     echo "[release] Windows installer: HackMe-Setup-${VERSION}.exe"
+  fi
+  [[ -f Install-HackMe.ps1 ]] && SUM_FILES+=( "Install-HackMe.ps1" )
+  [[ -f HackMe-Install.cmd ]] && SUM_FILES+=( "HackMe-Install.cmd" )
+  if [[ -f "HackMe-Setup-${VERSION}.exe" ]]; then
+    : # already logged
   else
     echo "[release] WARN: HackMe-Setup-${VERSION}.exe not built (install iscc or use Docker for Inno Setup)" >&2
   fi
