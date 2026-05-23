@@ -98,11 +98,11 @@ write_grub_cfg() {
 set default=0
 set timeout=6
 menuentry "HackMe OS (live · recommended)" {
-  linux /casper/vmlinuz boot=casper quiet splash ---
+  linux /casper/vmlinuz boot=casper username=root noplymouth console=tty1 ---
   initrd /casper/initrd
 }
 menuentry "HackMe OS (live · safe graphics)" {
-  linux /casper/vmlinuz boot=casper nomodeset xforcevesa quiet splash ---
+  linux /casper/vmlinuz boot=casper username=root nomodeset noplymouth console=tty1 ---
   initrd /casper/initrd
 }
 GRUB

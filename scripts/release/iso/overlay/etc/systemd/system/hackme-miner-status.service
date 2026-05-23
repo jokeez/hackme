@@ -1,17 +1,15 @@
 [Unit]
-Description=HackMe Miner console status (tty1)
-After=hackme-miner-worker.service
+Description=HackMe Miner console status on tty1 (does not replace getty)
+After=getty@tty1.service plymouth-quit.service hackme-init-worker.service hackme-zk-display.service
+Wants=getty@tty1.service
 
 [Service]
 Type=simple
-StandardInput=tty
-StandardOutput=tty
-TTYPath=/dev/tty1
-TTYReset=yes
-TTYVHangup=yes
-ExecStart=/bin/bash -c 'while true; do /opt/hackme/scripts/release/iso/hackme-miner-status.sh; echo; sleep 30; done'
+ExecStart=/opt/hackme/scripts/release/iso/hackme-miner-status-loop.sh
 Restart=always
-RestartSec=3
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
