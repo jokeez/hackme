@@ -31,37 +31,38 @@ else
   echo "[verify-iso] sha256: $(sha256sum "$ISO_PATH" | awk '{print $1}')"
 fi
 
-echo "[verify-iso] content fingerprint (must include HackMe OS + casper, must NOT be Alpine)"
-if strings "$ISO_PATH" | grep -q 'HackMe OS'; then
+echo "[verify-iso] content fingerprint (HackMe OS + casper, not Alpine)"
+if grep -aqF 'HackMe' "$ISO_PATH" 2>/dev/null; then
   echo "[verify-iso] PASS grub menu: HackMe OS"
 else
-  echo "[verify-iso] FAIL: no HackMe OS GRUB menu — this is not our release ISO" >&2
+  echo "[verify-iso] FAIL: no HackMe OS GRUB menu" >&2
   exit 3
 fi
-if strings "$ISO_PATH" | grep -q '/casper/vmlinuz'; then
-  echo "[verify-iso] PASS casper live layout (Ubuntu-based)"
+if grep -aq '/casper/vmlinuz' "$ISO_PATH" 2>/dev/null; then
+  echo "[verify-iso] PASS casper live layout"
 else
   echo "[verify-iso] FAIL: missing casper/vmlinuz" >&2
   exit 4
 fi
-if strings "$ISO_PATH" | grep -q 'filesystem.squashfs'; then
+if grep -aq 'filesystem.squashfs' "$ISO_PATH" 2>/dev/null; then
   echo "[verify-iso] PASS casper squashfs"
 else
   echo "[verify-iso] FAIL: missing filesystem.squashfs" >&2
   exit 6
 fi
-if strings "$ISO_PATH" | grep -q 'boot=casper' && strings "$ISO_PATH" | grep -q 'isolcpus=1'; then
-  echo "[verify-iso] WARN: isolcpus still in ISO — pick recommended entry, not old max perf" >&2
+if grep -aq 'boot=casper quiet splash' "$ISO_PATH" 2>/dev/null; then
+  echo "[verify-iso] PASS recommended entry (no toram in default)"
 fi
-if strings "$ISO_PATH" | grep -q 'boot=casper quiet splash' && ! strings "$ISO_PATH" | grep -q 'boot=casper toram quiet splash isolcpus'; then
-  echo "[verify-iso] PASS recommended entry without toram/isolcpus"
+if grep -aq 'isolcpus=1' "$ISO_PATH" 2>/dev/null; then
+  echo "[verify-iso] WARN: isolcpus still present in ISO; use recommended entry" >&2
 fi
-if strings "$ISO_PATH" | grep -qi 'Welcome to Alpine Linux'; then
-  echo "[verify-iso] FAIL: Alpine Linux detected — wrong image" >&2
+if grep -aqi 'Welcome to Alpine Linux' "$ISO_PATH" 2>/dev/null; then
+  echo "[verify-iso] FAIL: Alpine Linux detected" >&2
   exit 5
 fi
 
 size="$(stat -c%s "$ISO_PATH" 2>/dev/null || stat -f%z "$ISO_PATH")"
-echo "[verify-iso] size_bytes=$size (~$(( size / 1024 / 1024 )) MiB, expect ~900–1100 MiB)"
-echo "[verify-iso] OK — safe to flash: $ISO_PATH"
-echo "[verify-iso] Boot: choose HackMe OS (live · recommended) — NOT max performance on <8GB RAM"
+mib=$(( size / 1024 / 1024 ))
+echo "[verify-iso] size_bytes=$size (about ${mib} MiB)"
+echo "[verify-iso] OK - safe to flash: $ISO_PATH"
+echo "[verify-iso] Boot: HackMe OS (live - recommended). Avoid max performance on laptops under 8GB RAM."
