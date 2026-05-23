@@ -13,6 +13,8 @@ set -euo pipefail
 #   HACKME_GPU_BACKEND=opencl|cuda|auto
 #   HACKME_GPU_DEVICE=<int>
 #   HACKME_GPU_DISABLE=1
+#   HACKME_GPU_FLEET=1 (default) — one worker per GPU (up to HACKME_GPU_FLEET_MAX=20)
+#   HACKME_GPU_HYBRID=auto — NVIDIA→CUDA + AMD→OpenCL on same host
 #   WORKER_BIN=/path/to/workerpoh
 #   RESTART_MAX_BACKOFF_SEC=20
 
@@ -178,78 +180,38 @@ build_worker_if_needed() {
   fi
 }
 
-backend="$(detect_gpu_backend)"
-# Pin native CUDA binary when configured (avoid stale opencl path after toolkit install).
-if [[ "$backend" == "cuda" && -x "${ROOT_DIR}/bin/workerpoh-cuda" ]]; then
-  export WORKER_BIN="${ROOT_DIR}/bin/workerpoh-cuda"
-  if ! nvidia-smi -L >/dev/null 2>&1; then
-    echo "[worker-autostart] WARN: CUDA requested but nvidia-smi failed — using cpu" >&2
-    backend=cpu
-    export HACKME_GPU_BACKEND=cpu
-    export HACKME_GPU_DISABLE=1
-    unset WORKER_BIN
+load_fleet_plan_json() {
+  local fp="${ROOT_DIR}/bin/fleetplan"
+  if [[ ! -x "$fp" ]]; then
+    if command -v go >/dev/null 2>&1; then
+      (cd "$ROOT_DIR" && go build -o "$fp" ./cmd/fleetplan) 2>/dev/null || true
+    fi
   fi
-fi
-bin_path="$(choose_worker_bin "$backend")"
-build_worker_if_needed "$bin_path" "$backend"
-
-bin_help="$("$bin_path" -h 2>&1 || true)"
-supports_flag() {
-  local flag="$1"
-  [[ "$bin_help" == *"$flag"* ]]
+  if [[ -x "$fp" ]]; then
+    HACKME_REPO_ROOT="$ROOT_DIR" "$fp" -repo "$ROOT_DIR" -worker "$WORKER_ID" 2>/dev/null || true
+    return 0
+  fi
+  return 1
 }
 
-gpu_backend_flag=()
-gpu_device_flag=()
-gpu_disable_flag=()
-
-if [[ "$backend" == "cpu" ]]; then
-  if supports_flag "-gpu-disable"; then
-    gpu_disable_flag=(-gpu-disable)
-  fi
-else
-  if supports_flag "-gpu-backend"; then
-    gpu_backend_flag=(-gpu-backend "$backend")
-  fi
-fi
-if [[ -n "${HACKME_GPU_DEVICE:-}" ]] && supports_flag "-gpu-device"; then
-  gpu_device_flag=(-gpu-device "${HACKME_GPU_DEVICE}")
-fi
-
-count_gpus_for_backend() {
-  local b="$1"
-  case "$b" in
-    cuda)
-      if command -v nvidia-smi >/dev/null 2>&1; then
-        nvidia-smi -L 2>/dev/null | grep -c -E '^GPU ' || echo 0
-      else
-        echo 0
-      fi
-      ;;
-    opencl)
-      if command -v clinfo >/dev/null 2>&1; then
-        clinfo 2>/dev/null | awk '/Device Type/{if ($0 ~ /GPU/) n++} END{print n+0}'
-        return
-      fi
-      local n=0 v
-      for f in /sys/class/drm/card*/device/vendor; do
-        [[ -f "$f" ]] || continue
-        v="$(cat "$f" 2>/dev/null || true)"
-        # AMD 0x1002, Intel 0x8086 (OpenCL fleet count when clinfo missing)
-        if [[ "$v" == "0x1002" || "$v" == "4098" || "$v" == "0x8086" || "$v" == "32902" ]]; then
-          n=$((n + 1))
-        fi
-      done
-      echo "$n"
-      ;;
-    *) echo 0 ;;
-  esac
-}
-
-worker_run_loop() {
+worker_run_loop_slot() {
   local worker_id="$1"
-  local gpu_dev="${2:-}"
-  local dev_flag=()
+  local slot_backend="$2"
+  local gpu_dev="${3:-}"
+  local slot_batch="${4:-$BATCH_SIZE}"
+  local slot_chunk="${5:-$GPU_CHUNK}"
+  local slot_timeout="${6:-$SEARCH_TIMEOUT_MS}"
+  local slot_bin
+  slot_bin="$(choose_worker_bin "$slot_backend")"
+  build_worker_if_needed "$slot_bin" "$slot_backend"
+  local bin_help="$("$slot_bin" -h 2>&1 || true)"
+  supports_flag() { [[ "$bin_help" == *"$1"* ]]; }
+  local backend_flag=() dev_flag=() disable_flag=()
+  if [[ "$slot_backend" == "cpu" ]]; then
+    supports_flag "-gpu-disable" && disable_flag=(-gpu-disable)
+  else
+    supports_flag "-gpu-backend" && backend_flag=(-gpu-backend "$slot_backend")
+  fi
   if [[ -n "$gpu_dev" ]] && supports_flag "-gpu-device"; then
     dev_flag=(-gpu-device "$gpu_dev")
   fi
@@ -257,18 +219,18 @@ worker_run_loop() {
   while true; do
     ts="$(date +%Y%m%dT%H%M%S)"
     run_log="${LOG_DIR}/workerpoh-${worker_id}-${ts}.log"
-    echo "[worker-autostart] launch worker=${worker_id} device=${gpu_dev:-auto} log=${run_log}"
+    echo "[worker-autostart] launch worker=${worker_id} backend=${slot_backend} device=${gpu_dev:-auto} batch=${slot_batch} log=${run_log}"
     set +e
-    "${bin_path}" \
+    "${slot_bin}" \
       -coord "${COORD_URL}" \
       -token "${COORD_TOKEN}" \
       -worker "${worker_id}" \
-      -batch "${BATCH_SIZE}" \
-      -gpu-chunk "${GPU_CHUNK}" \
-      -search-timeout-ms "${SEARCH_TIMEOUT_MS}" \
-      "${gpu_backend_flag[@]}" \
+      -batch "${slot_batch}" \
+      -gpu-chunk "${slot_chunk}" \
+      -search-timeout-ms "${slot_timeout}" \
+      "${backend_flag[@]}" \
       "${dev_flag[@]}" \
-      "${gpu_disable_flag[@]}" \
+      "${disable_flag[@]}" \
       2>&1 | tee -a "${run_log}"
     rc="${PIPESTATUS[0]}"
     set -e
@@ -283,22 +245,113 @@ worker_run_loop() {
   done
 }
 
-echo "[worker-autostart] coord=${COORD_URL} worker=${WORKER_ID} backend=${backend} bin=${bin_path}"
-echo "[worker-autostart] batch=${BATCH_SIZE} gpu_chunk=${GPU_CHUNK} timeout_ms=${SEARCH_TIMEOUT_MS}"
-
-fleet_n=0
-if [[ "$backend" != "cpu" ]] && [[ -z "${HACKME_GPU_DEVICE:-}" ]] && truthy "${HACKME_GPU_FLEET:-1}"; then
-  fleet_n="$(count_gpus_for_backend "$backend")"
-fi
-if [[ "$fleet_n" =~ ^[0-9]+$ ]] && (( fleet_n > 1 )); then
-  echo "[worker-autostart] multi-GPU fleet: ${fleet_n} devices (${backend})"
-  fleet_pids=()
-  for ((i = 0; i < fleet_n; i++)); do
-    worker_run_loop "${WORKER_ID}-gpu${i}" "$i" &
-    fleet_pids+=("$!")
-  done
-  wait "${fleet_pids[@]}"
+plan_json=""
+if plan_json="$(load_fleet_plan_json)"; then
+  :
 else
-  worker_run_loop "${WORKER_ID}" "${HACKME_GPU_DEVICE:-}"
+  backend="$(detect_gpu_backend)"
+  plan_json="$(python3 - "$ROOT_DIR" "$WORKER_ID" "$backend" <<'PY' 2>/dev/null || true
+import json, os, subprocess, sys
+root, wid, backend = sys.argv[1:4]
+fp = os.path.join(root, "bin", "fleetplan")
+if os.path.isfile(fp) and os.access(fp, os.X_OK):
+    import os as O
+    env = dict(O.environ)
+    env["HACKME_REPO_ROOT"] = root
+    out = subprocess.check_output([fp, "-repo", root, "-worker", wid], env=env, text=True)
+    print(out.strip())
+else:
+    print(json.dumps({"total_slots":1,"slots":[{"worker_suffix":"","backend":backend,"device_index":0}]}))
+PY
+)"
 fi
+
+if [[ -z "$plan_json" ]]; then
+  backend="$(detect_gpu_backend)"
+  echo "[worker-autostart] WARN: fleet plan unavailable; single worker backend=${backend}" >&2
+  worker_run_loop_slot "${WORKER_ID}" "$backend" "${HACKME_GPU_DEVICE:-}" &
+  wait
+  exit 0
+fi
+
+echo "[worker-autostart] coord=${COORD_URL} base_worker=${WORKER_ID}"
+echo "[worker-autostart] fleet plan: $(echo "$plan_json" | python3 -c "import json,sys; p=json.load(sys.stdin); print('hybrid=%s slots=%s'%(p.get('hybrid'),p.get('total_slots')))" 2>/dev/null || echo '?')"
+
+fleet_pids=()
+while IFS= read -r slot_line; do
+  [[ -n "$slot_line" ]] || continue
+  eval "$(python3 - "$slot_line" <<'PY'
+import json, shlex, sys
+s = json.loads(sys.argv[1])
+wid = s.get("worker_id","")
+backend = s.get("backend","cpu")
+dev = s.get("device_index",0)
+batch = s.get("batch","")
+chunk = s.get("chunk","")
+timeout = s.get("timeout","")
+env_exports = s.get("env_exports","")
+print("slot_worker_id=" + shlex.quote(wid))
+print("slot_backend=" + shlex.quote(backend))
+print("slot_dev=" + shlex.quote(str(dev)))
+print("slot_batch=" + shlex.quote(batch))
+print("slot_chunk=" + shlex.quote(chunk))
+print("slot_timeout=" + shlex.quote(timeout))
+print("slot_env_exports=" + shlex.quote(env_exports))
+PY
+)"
+  # shellcheck disable=SC2086
+  (
+    if [[ -n "${slot_env_exports:-}" ]]; then
+      eval "$slot_env_exports"
+    fi
+    if [[ "$slot_backend" == "opencl" ]]; then
+      export HACKME_FORCE_OPENCL=1
+      export HACKME_GPU_BACKEND=opencl
+    fi
+    if [[ "$slot_backend" == "cuda" && -x "${ROOT_DIR}/bin/workerpoh-cuda" ]]; then
+      export WORKER_BIN="${ROOT_DIR}/bin/workerpoh-cuda"
+    fi
+    worker_run_loop_slot "$slot_worker_id" "$slot_backend" "$slot_dev" "${slot_batch:-$BATCH_SIZE}" "${slot_chunk:-$GPU_CHUNK}" "${slot_timeout:-$SEARCH_TIMEOUT_MS}"
+  ) &
+  fleet_pids+=("$!")
+done < <(echo "$plan_json" | python3 - "$WORKER_ID" "$BATCH_SIZE" "$GPU_CHUNK" "$SEARCH_TIMEOUT_MS" <<'PY'
+import json, os, shlex, sys
+plan = json.load(sys.stdin)
+base = sys.argv[1]
+def_batch = sys.argv[2]
+def_chunk = sys.argv[3]
+def_timeout = sys.argv[4]
+for slot in plan.get("slots") or []:
+    sfx = slot.get("worker_suffix") or ""
+    wid = base + sfx
+    env = slot.get("env") or {}
+    batch = env.get("HACKME_WORKER_BATCH_SIZE") or def_batch
+    chunk = env.get("GPU_CHUNK") or env.get("HACKME_WORKER_BATCH_SIZE") or def_chunk
+    timeout = env.get("SEARCH_TIMEOUT_MS") or def_timeout
+    exports = []
+    for k, v in env.items():
+        if v is None:
+            continue
+        exports.append(f"export {k}={shlex.quote(str(v))}")
+    row = {
+        "worker_id": wid,
+        "backend": slot.get("backend") or "cpu",
+        "device_index": int(slot.get("device_index") or 0),
+        "batch": str(batch),
+        "chunk": str(chunk),
+        "timeout": str(timeout),
+        "env_exports": "; ".join(exports),
+    }
+    print(json.dumps(row))
+PY
+)
+
+if [[ ${#fleet_pids[@]} -eq 0 ]]; then
+  backend="$(detect_gpu_backend)"
+  worker_run_loop_slot "${WORKER_ID}" "$backend" "${HACKME_GPU_DEVICE:-}" &
+  fleet_pids=("$!")
+fi
+
+echo "[worker-autostart] fleet workers=${#fleet_pids[@]} (max ${HACKME_GPU_FLEET_MAX:-20})"
+wait "${fleet_pids[@]}"
 

@@ -94,8 +94,7 @@ func finalizeHostReport(rep HostGPUReport) HostGPUReport {
 	}
 	if rep.Hybrid {
 		rep.Notes = append(rep.Notes,
-			"Hybrid rig: primary worker uses one backend (CUDA for NVIDIA). "+
-				"For AMD second GPU set HACKME_GPU_FLEET=1 or a second worker with HACKME_FORCE_OPENCL=1 and HACKME_GPU_DEVICE.")
+			"Hybrid rig: worker_autostart / fleetplan spawn CUDA per NVIDIA GPU and OpenCL per AMD GPU (HACKME_GPU_HYBRID=auto, HACKME_GPU_FLEET=1).")
 	}
 	return rep
 }

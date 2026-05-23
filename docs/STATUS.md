@@ -9,17 +9,29 @@
 | Miner launch gate | **GO** — `bash scripts/ops/run_miner_launch_gate.sh` |
 | Site smoke | **PASS** — `bash scripts/tests/public_site_smoke.sh` |
 | Dashboard UI (local) | **PASS** — Playwright `tests/e2e/specs/solopool-dashboard.spec.ts` |
-| HackMe OS visual overhaul (source) | **GO** — GRUB/Plymouth/TTY in `visual_overhaul.sh`; **rebuild ISO** to ship on USB |
-| Published ISO on hackme.tech | **UNCHANGED visuals** until new `build_hackme_miner_iso.sh` + upload |
+| Multi-GPU / hybrid fleet | **GO** — `fleetplan`, `HACKME_GPU_HYBRID=auto`, `worker_autostart.sh` (CUDA+OpenCL) |
+| HackMe OS visual overhaul (source) | **GO** — GRUB/Plymouth/TTY shipped on downloads ISO |
+| Published ISO on hackme.tech | **LIVE (visual overhaul)** — `3290445848…b228e` · **1 038 151 680** B (2026-05-23) |
 
 ## Open operator items (non-blocking for miners)
 
 1. Set `TG_ADMIN_CHAT_ID` in VPS `/opt/hackme/.env.newsbot` for pool heartbeat ([TELEGRAM_NEWS_BOT_RUNBOOK.md](TELEGRAM_NEWS_BOT_RUNBOOK.md)).
 2. Do not run 1000-packet `hybrid_crypto_matrix.sh` against prod in a loop (rate limits).
 3. HMS / HMAI vectors in dashboard are **preview** — only **HMC** pool is mineable today.
-4. Rebuild and publish ISO after visual overhaul (`0532ef5`) so GRUB/Plymouth/ZK banner appear on downloads.
+4. ~~Rebuild ISO with visual overhaul~~ — **done** (see `SHA256SUMS-iso.txt` on downloads).
 
-## Morning check (your rig)
+## Morning check (2026-05-23 UTC)
+
+| Check | Result |
+|-------|--------|
+| `worker-kapa-pc` hashrate | **~68.1 GH/s** (stable overnight) |
+| Pool attempts / payout | **~2.63B** attempts · **~0.425 HMC** |
+| Processes | `hackme-node-desktop` + `workerpoh-cuda` **running** |
+| `public_site_smoke.sh` | **PASS** (pages 200 · ISO **1 002 092 544** B) |
+| Published ISO visuals | **Shipped** — GRUB/Plymouth/ZK TTY (`build` 2026-05-23 UTC) |
+| Prod `/pool/api/metrics` | **Intermittent slow** (chain/coordinator OK; mining unaffected) |
+
+Snapshot: `reports/mining-night-20260523T043740Z/SNAPSHOT.md`
 
 ```bash
 bash scripts/ops/mining_night_snapshot.sh

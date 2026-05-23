@@ -149,15 +149,16 @@ curl -fsS https://hackme.tech/pool/coordinator/api/work/stats \
 
 Pool API exposes `pool_hashrate_gh_s` from live worker submits. Use **CUDA on the main GPU rig** so listed hashrate reflects real contribution; MSK CPU worker stays on low OpenCL/CPU settings.
 
-## Multi-GPU fleet (one worker per card)
+## Multi-GPU fleet (one worker per card, up to 20)
 
 When `HACKME_GPU_FLEET=1` (default) and multiple GPUs are visible:
 
-- **NVIDIA:** `worker_autostart.sh` spawns `WORKER_ID-gpu0`, `-gpu1`, … each with `-gpu-device N`
-- **OpenCL:** same pattern; device count from `clinfo` or sysfs (AMD `0x1002`, Intel `0x8086`)
+- **NVIDIA:** `worker_autostart.sh` spawns `WORKER_ID-gpu0`, `-gpu1`, … each with `-gpu-device N` (CUDA)
+- **OpenCL:** same pattern for AMD/Intel discrete GPUs
+- **Hybrid (NVIDIA + AMD on one PC):** `HACKME_GPU_HYBRID=auto` (default) runs **CUDA fleet + OpenCL fleet** with per-GPU rig profiles (`bin/fleetplan` prints the plan)
 - Coordinator sees **separate rows** in `active_rigs` — pool hash is the **sum** of all worker GH/s
 
-Per-vendor in one OS: use **CUDA for NVIDIA** and a **second machine or VM** with OpenCL for AMD, or `HACKME_FORCE_OPENCL=1` on the AMD-only host. One `workerpoh` process does not mix CUDA + OpenCL accelerators.
+One `workerpoh` process still uses **one backend**; hybrid rigs use **multiple processes** (not CPU fallback on the second vendor).
 
 `CUDA_VISIBLE_DEVICES=0,1` is honored by the driver (device index is within the visible set); combine with `-gpu-device` / `HACKME_GPU_DEVICE`.
 

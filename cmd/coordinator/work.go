@@ -906,6 +906,48 @@ func (m *workManager) markSubmitOutcome(workerID, ipKey, reason string, now int6
 }
 
 // clearWorkerAbuse removes rate-limit / ban state for a worker (and optional IP key).
+// pruneStaleWorkers drops workers matching prefix with low payout and old last_seen (not active leases).
+func (m *workManager) pruneStaleWorkers(prefix string, maxPayout float64, staleSec int64, dryRun bool) (removed, kept []string) {
+	if m == nil {
+		return nil, nil
+	}
+	now := time.Now().Unix()
+	prefix = strings.TrimSpace(prefix)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for id, st := range m.worker {
+		if prefix != "" && !strings.HasPrefix(id, prefix) {
+			kept = append(kept, id)
+			continue
+		}
+		if st.LastSeenUnix > 0 && (now-st.LastSeenUnix) <= staleSec {
+			kept = append(kept, id)
+			continue
+		}
+		if st.PayoutHMC > maxPayout {
+			kept = append(kept, id)
+			continue
+		}
+		busy := false
+		for _, rec := range m.active {
+			if rec.WorkerID == id {
+				busy = true
+				break
+			}
+		}
+		if busy {
+			kept = append(kept, id)
+			continue
+		}
+		removed = append(removed, id)
+		if !dryRun {
+			delete(m.worker, id)
+			delete(m.abuse, id)
+		}
+	}
+	return removed, kept
+}
+
 func (m *workManager) clearWorkerAbuse(workerID, ipKey string) bool {
 	if m == nil {
 		return false
@@ -1817,6 +1859,42 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 			"payout_hmc":     payout,
 			"signed_submit":  signedSubmit,
 			"signer_address": signerAddr,
+		})
+	})
+
+	// Remove offline test/stale workers from coordinator memory (dashboard workers list).
+	mux.HandleFunc("/api/work/admin/prune-workers", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !coordinatorPOSTAuthed(r, adminToken, allowInsecure) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
+			http.Error(w, "admin authentication required", http.StatusUnauthorized)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
+		var req struct {
+			Prefix         string  `json:"prefix"`
+			MaxPayoutHMC   float64 `json:"max_payout_hmc"`
+			StaleSec       int64   `json:"stale_sec"`
+			DryRun         bool    `json:"dry_run"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		if req.StaleSec <= 0 {
+			req.StaleSec = 3600
+		}
+		if req.MaxPayoutHMC <= 0 {
+			req.MaxPayoutHMC = 0.001
+		}
+		removed, kept := wm.pruneStaleWorkers(req.Prefix, req.MaxPayoutHMC, req.StaleSec, req.DryRun)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok":       true,
+			"removed":  removed,
+			"kept":     kept,
+			"dry_run":  req.DryRun,
+			"prefix":   strings.TrimSpace(req.Prefix),
 		})
 	})
 

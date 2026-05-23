@@ -63,13 +63,20 @@ func ProbeWorkerBins(repoRoot string) (cudaBin, oclBin bool) {
 	if repoRoot == "" {
 		return false, false
 	}
-	cudaPath := filepath.Join(repoRoot, "bin", "workerpoh-cuda")
-	if st, err := os.Stat(cudaPath); err == nil && !st.IsDir() {
-		cudaBin = true
-	}
-	oclPath := filepath.Join(repoRoot, "bin", "workerpoh-opencl")
-	if st, err := os.Stat(oclPath); err == nil && !st.IsDir() {
-		oclBin = true
+	roots := []string{repoRoot, filepath.Join(repoRoot, "bin")}
+	for _, root := range roots {
+		for _, name := range []string{"workerpoh-cuda", "workerpoh-cuda.exe"} {
+			if st, err := os.Stat(filepath.Join(root, name)); err == nil && !st.IsDir() {
+				cudaBin = true
+				break
+			}
+		}
+		for _, name := range []string{"workerpoh-opencl", "workerpoh-opencl.exe"} {
+			if st, err := os.Stat(filepath.Join(root, name)); err == nil && !st.IsDir() {
+				oclBin = true
+				break
+			}
+		}
 	}
 	return cudaBin, oclBin
 }

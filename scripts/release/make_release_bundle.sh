@@ -103,9 +103,15 @@ fi
 for doc in docs/GPU_MINING_BACKENDS.md docs/CUDA_PRODUCTION.md; do
   [[ -f "${ROOT_DIR}/${doc}" ]] && cp "${ROOT_DIR}/${doc}" "${LINUX_DIR}/"
 done
-for op in build_gpu_workers.sh build_cuda_worker.sh detect_gpu_backend.sh desktop_worker_reset.sh cuda_env.sh setup_cuda_desktop.sh; do
+for op in build_gpu_workers.sh build_cuda_worker.sh detect_gpu_backend.sh desktop_worker_reset.sh worker_autostart.sh purge_stale_pool_workers.sh cuda_env.sh setup_cuda_desktop.sh; do
   [[ -f "${ROOT_DIR}/scripts/ops/${op}" ]] && cp "${ROOT_DIR}/scripts/ops/${op}" "${LINUX_DIR}/"
 done
+chmod +x "${LINUX_DIR}/worker_autostart.sh" "${LINUX_DIR}/purge_stale_pool_workers.sh" 2>/dev/null || true
+echo "[release] building fleetplan (GPU fleet JSON)"
+GOOS=linux GOARCH="${LINUX_ARCH}" CGO_ENABLED=0 \
+  go build -trimpath -ldflags "-s -w" -o "${LINUX_DIR}/fleetplan" ./cmd/fleetplan
+GOOS=windows GOARCH="${WIN_ARCH}" CGO_ENABLED=0 \
+  go build -trimpath -ldflags "-s -w" -o "${WIN_DIR}/fleetplan.exe" ./cmd/fleetplan
 
 cp "${ROOT_DIR}/README.md" "${WIN_DIR}/README.md"
 cp "${ROOT_DIR}/README.md" "${LINUX_DIR}/README.md"
@@ -245,9 +251,13 @@ if [[ -f "${DIST_DIR}/${ISO_OS}" ]]; then
 elif [[ -f "${DIST_DIR}/${ISO_LEGACY}" ]]; then
   ISO_FILE="${ISO_LEGACY}"
 fi
-if [[ -n "$ISO_FILE" && -f "${DIST_DIR}/SHA256SUMS-iso.txt" ]]; then
-  ISO_SHA="$(awk -v f="$ISO_FILE" '$2==f || $2 ~ f {print $1; exit}' "${DIST_DIR}/SHA256SUMS-iso.txt")"
+if [[ -n "$ISO_FILE" && -f "${DIST_DIR}/${ISO_FILE}" ]]; then
   ISO_SIZE="$(stat -c%s "${DIST_DIR}/${ISO_FILE}")"
+  if [[ -f "${DIST_DIR}/SHA256SUMS-iso.txt" && -w "${DIST_DIR}/SHA256SUMS-iso.txt" ]]; then
+    ISO_SHA="$(awk -v f="$ISO_FILE" '$2==f || $2 ~ f {print $1; exit}' "${DIST_DIR}/SHA256SUMS-iso.txt")"
+  else
+    ISO_SHA="$(sha256sum "${DIST_DIR}/${ISO_FILE}" | awk '{print $1}')"
+  fi
 fi
 jq -nc \
   --arg app "$APP_NAME" \
