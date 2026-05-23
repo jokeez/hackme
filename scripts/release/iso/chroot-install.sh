@@ -105,6 +105,25 @@ elif [[ -x /tmp/iso-scripts/visual_overhaul.sh ]]; then
   bash /tmp/iso-scripts/visual_overhaul.sh chroot /
 fi
 
+# Casper expects a root home in the live filesystem.
+mkdir -p /root /run /var/lib/live
+chmod 700 /root
+
+echo "[chroot] initramfs modules (squashfs + overlay — required for live boot)"
+mkdir -p /etc/initramfs-tools
+cat >/etc/initramfs-tools/modules <<'MOD'
+squashfs
+loop
+overlay
+xz
+iso9660
+udf
+vfat
+ext4
+sd_mod
+usb_storage
+MOD
+
 echo "[chroot] initramfs + kernel (live-boot + casper hooks)"
 if [[ ! -x /usr/share/initramfs-tools/scripts/casper ]]; then
   echo "[chroot] WARN: casper initramfs hook missing — installing live-boot again" >&2

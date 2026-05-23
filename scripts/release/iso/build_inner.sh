@@ -78,9 +78,13 @@ du -sx --block-size=1 "$CHROOT" | cut -f1 >"$ISO_TREE/casper/filesystem.size"
 # Unmount virtual filesystems before squashfs (avoids packing live /proc).
 unmount_chroot_vfs
 
-echo "[iso-inner] squashfs (zstd-3 for faster USB read)"
+mkdir -p "${CHROOT}/root"
+chmod 700 "${CHROOT}/root"
+
+# Ubuntu casper initramfs reliably mounts xz squashfs (zstd caused exitcode=0x100 panics).
+echo "[iso-inner] squashfs (xz — casper-compatible, matches Ubuntu live)"
 mksquashfs "$CHROOT" "$ISO_TREE/casper/filesystem.squashfs" \
-  -comp zstd -Xcompression-level 3 -noappend \
+  -comp xz -Xbcj x86 -b 1M -noappend \
   -e proc sys dev run tmp
 cp "$KERNEL" "$ISO_TREE/casper/vmlinuz"
 cp "$INITRD" "$ISO_TREE/casper/initrd"
@@ -94,6 +98,9 @@ if command -v lsinitramfs >/dev/null 2>&1; then
     exit 1
   fi
 fi
+
+mkdir -p "$ISO_TREE/.disk"
+printf '%s\n' "HackMe OS ${VERSION} (Ubuntu casper live)" >"$ISO_TREE/.disk/info"
 
 printf '%s\n' \
   "HackMe Miner ${VERSION}" \
