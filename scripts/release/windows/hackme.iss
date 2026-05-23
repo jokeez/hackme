@@ -29,11 +29,12 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}/downloads.html
-DefaultDirName={autopf}\{#MyAppName}
+; Per-user install — no UAC prompt on double-click (common cause of "nothing happens").
+DefaultDirName={localappdata}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=no
-PrivilegesRequired=admin
-PrivilegesRequiredOverridesAllowed=dialog
+PrivilegesRequired=lowest
+PrivilegesRequiredOverridesAllowed=dialog commandline
 OutputBaseFilename=HackMe-Setup-{#MyAppVersion}
 OutputDir=..\..\..\dist\release_{#MyAppVersion}
 Compression=lzma2/ultra64
@@ -107,6 +108,8 @@ Source: "..\..\..\dist\release_{#MyAppVersion}\windows\env.public_pool.example";
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\MINER_WINDOWS_ONE_CLICK.md"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\RELEASE_QUICKSTART.md"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\README.md"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "Install-HackMe.ps1"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "HackMe-Install.cmd"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "detect_gpu.ps1"; Flags: dontcopy
 
 [Dirs]
@@ -122,10 +125,10 @@ Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName} Miner"; Filename: "{app}\start_hackme_miner.bat"; Tasks: desktopicon; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"
 
 [Registry]
-Root: HKLM; Subkey: "Software\{#MyAppPublisher}\{#MyAppName}"; ValueType: string; ValueName: "Version"; ValueData: "{#MyAppVersion}"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "Software\{#MyAppPublisher}\{#MyAppName}"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "Software\{#MyAppPublisher}\{#MyAppName}"; ValueType: string; ValueName: "GpuBackend"; ValueData: "{code:GetGpuBackendChoice}"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "HackMeNode"; ValueData: """{app}\hackme_autostart_boot.bat"""; Flags: uninsdeletevalue; Tasks: autostart
+Root: HKCU; Subkey: "Software\{#MyAppPublisher}\{#MyAppName}"; ValueType: string; ValueName: "Version"; ValueData: "{#MyAppVersion}"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\{#MyAppPublisher}\{#MyAppName}"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\{#MyAppPublisher}\{#MyAppName}"; ValueType: string; ValueName: "GpuBackend"; ValueData: "{code:GetGpuBackendChoice}"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "HackMeNode"; ValueData: """{app}\hackme_autostart_boot.bat"""; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
 Filename: "{app}\start_hackme_miner.bat"; Description: "Launch {#MyAppName} Miner"; Flags: nowait postinstall skipifsilent; Tasks: launchminer
@@ -140,6 +143,7 @@ var
   LblDetected, LblTip: TLabel;
   RbAuto, RbCuda, RbOpenCL, RbCpu: TRadioButton;
   GpuSummary, GpuTip, GpuBackendChoice: String;
+  GpuDetectDone: Boolean;
 
 function GetGpuBackendChoice(Param: String): String;
 begin
@@ -233,9 +237,7 @@ begin
   RbCpu.Width := GpuPage.SurfaceWidth;
   RbCpu.Caption := ExpandConstant('{cm:RbCpu}');
 
-  ExtractTemporaryFile('detect_gpu.ps1');
-  RunGpuDetect;
-  RefreshGpuPageText;
+  GpuDetectDone := False;
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
@@ -253,7 +255,19 @@ end;
 procedure CurPageChanged(CurPageID: Integer);
 begin
   if Assigned(GpuPage) and (CurPageID = GpuPage.ID) then
+  begin
+    if not GpuDetectDone then
+    begin
+      GpuDetectDone := True;
+      try
+        ExtractTemporaryFile('detect_gpu.ps1');
+        RunGpuDetect;
+      except
+        GpuSummary := '(GPU detect skipped)';
+      end;
+    end;
     RefreshGpuPageText;
+  end;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
