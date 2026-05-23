@@ -1,33 +1,37 @@
-# HackMe Plymouth — terminal-style boot splash (no distro spinner)
+# HackMe Plymouth — minimal script (must init globals or some GPUs show black forever)
 
 Window.SetBackgroundTopColor(0.0, 0.0, 0.0);
-Window.SetBackgroundBottomColor(0.0, 0.0, 0.0);
+Window.SetBackgroundBottomColor(0.02, 0.08, 0.02);
 
-message_sprite = Sprite(Text(""));
-message_sprite.SetPosition(Window.GetWidth() / 2, Window.GetHeight() / 2 - 30, 10000);
+my.pct = 0;
+my.blink = 0.0;
+my.dots = "";
+
+message_sprite = Sprite(Text("HackMe OS"));
+message_sprite.SetPosition(Window.GetWidth() / 2, Window.GetHeight() / 2 - 20, 10000);
 message_sprite.SetAlignment("center");
 
 sub_sprite = Sprite(Text(""));
-sub_sprite.SetPosition(Window.GetWidth() / 2, Window.GetHeight() / 2 + 10, 10000);
+sub_sprite.SetPosition(Window.GetWidth() / 2, Window.GetHeight() / 2 + 16, 10000);
 sub_sprite.SetAlignment("center");
 
 fun refresh_callback() {
-    my.blink += 0.08;
+    my.blink = my.blink + 0.08;
     if (my.blink > 1.0)
         my.blink = 0.0;
 }
 
 fun message_callback(text, progress) {
-    my.pct = Math.Int(progress * 100);
-    if (my.pct < 0)
-        my.pct = 0;
-    if (my.pct > 100)
-        my.pct = 100;
+    if (progress < 0)
+        progress = 0;
+    if (progress > 1)
+        progress = 1;
+    my.pct = progress * 100;
     my.dots = "";
     if (my.blink < 0.5)
         my.dots = "_";
-    message_sprite.SetText("HACKME BARE-METAL KERNEL LOADING...");
-    sub_sprite.SetText("[ COMPUTE ENGINE INITIALIZING... " + my.pct + "%" + my.dots + " ]");
+    message_sprite.SetText("HackMe OS — loading");
+    sub_sprite.SetText("compute engine " + my.pct + "%" + my.dots);
 }
 
 Plymouth.SetRefreshFunction(refresh_callback);
