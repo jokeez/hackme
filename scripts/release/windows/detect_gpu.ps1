@@ -18,13 +18,22 @@ $combined = ($names -join " ").ToLower()
 $suggestBackend = "auto"
 $rigProfile = ""
 $vendor = "Unknown"
+$hybrid = $false
 $tips = @()
 
-if ($combined -match 'nvidia|geforce|quadro|tesla|rtx|gtx') {
+$hasNvidia = $combined -match 'nvidia|geforce|quadro|tesla|rtx|gtx'
+$hasAmd = $combined -match 'amd|radeon'
+if ($hasNvidia -and $hasAmd) {
+    $hybrid = $true
+    $vendor = "NVIDIA+AMD"
+    $suggestBackend = "cuda"
+    $tips += "Hybrid rig: fleet mode runs CUDA on NVIDIA + OpenCL on AMD (HACKME_GPU_FLEET=1, HACKME_GPU_HYBRID=auto)."
+}
+elseif ($hasNvidia) {
     $vendor = "NVIDIA"
     $suggestBackend = "cuda"
     $tips += "NVIDIA detected - CUDA backend recommended on Windows (auto falls back if OpenCL/CUDA binary missing)."
-} elseif ($combined -match 'amd|radeon') {
+} elseif ($hasAmd) {
     $vendor = "AMD"
     $suggestBackend = "opencl"
     if ($combined -match '580' -and $combined -match '2048') {
@@ -50,6 +59,7 @@ if (-not $names.Count) {
 $obj = [ordered]@{
     gpu_names       = $names
     vendor          = $vendor
+    hybrid          = $hybrid
     suggest_backend = $suggestBackend
     rig_profile     = $rigProfile
     tips            = $tips

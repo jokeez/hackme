@@ -18,8 +18,18 @@ usage() {
 
 install_ui_scripts() {
   local dest="$1/opt/hackme/scripts/release/iso"
+  local src="${ROOT}/hackme-os-ui.sh"
+  local dst="${dest}/hackme-os-ui.sh"
   mkdir -p "$dest"
-  install -m 0644 "${ROOT}/hackme-os-ui.sh" "${dest}/hackme-os-ui.sh"
+  # chroot-install already copied scripts to /opt/hackme/... — skip self-install.
+  if [[ ! -f "$src" ]]; then
+    return 0
+  fi
+  if [[ ! -f "$dst" ]]; then
+    install -m 0644 "$src" "$dst"
+  elif ! cmp -s "$src" "$dst" 2>/dev/null; then
+    install -m 0644 "$src" "$dst"
+  fi
 }
 
 install_plymouth() {

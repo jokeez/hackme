@@ -7,6 +7,19 @@ import (
 	"strings"
 )
 
+// NVIDIASMILinesOK reports whether nvidia-smi is usable (no NVML mismatch).
+func NVIDIASMILinesOK() bool {
+	out, err := exec.Command("nvidia-smi", "-L").CombinedOutput()
+	if err != nil {
+		return false
+	}
+	s := strings.ToLower(string(out))
+	if strings.Contains(s, "driver/library version mismatch") || strings.Contains(s, "failed to initialize nvml") {
+		return false
+	}
+	return len(out) > 0
+}
+
 // NVIDIAGPUTemps returns GPU index → temperature °C from nvidia-smi. Empty map if unavailable.
 func NVIDIAGPUTemps() map[int]float64 {
 	cmd := exec.Command("nvidia-smi",

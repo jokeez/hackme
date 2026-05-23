@@ -2270,39 +2270,55 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 	}
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		winBackend := gpuBackend
-		if winBackend == "" || strings.EqualFold(winBackend, "auto") {
-			if v := resolveAutoGPUBackend(repoRoot); v != "" {
-				winBackend = v
-			} else {
-				winBackend = "auto"
+		winRoot := repoRoot
+		if exe, err := os.Executable(); err == nil {
+			winRoot = filepath.Dir(exe)
+		}
+		winFleetStarted := false
+		if fleetEnabledFromEnv() {
+			plan := buildWorkerFleetPlan(winRoot, workerID)
+			if plan.TotalSlots > 1 {
+				if cmds, err := startWorkerFleetProcesses(winRoot, coordURL, coordToken, workerID, batchSize, logPath); err == nil && len(cmds) > 0 {
+					cmd = cmds[0]
+					winFleetStarted = true
+				}
 			}
 		}
-		wp, err := resolveWorkerpohExePathForBackend(winBackend)
-		if err != nil {
-			_ = f.Close()
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			w.WriteHeader(http.StatusPreconditionFailed)
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"ok":    false,
-				"code":  "workerpoh_missing",
-				"error": err.Error(),
-			})
-			return
+		if !winFleetStarted {
+			winBackend := gpuBackend
+			if winBackend == "" || strings.EqualFold(winBackend, "auto") {
+				if v := resolveAutoGPUBackend(repoRoot); v != "" {
+					winBackend = v
+				} else {
+					winBackend = "auto"
+				}
+			}
+			wp, err := resolveWorkerpohExePathForBackend(winBackend)
+			if err != nil {
+				_ = f.Close()
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+				w.WriteHeader(http.StatusPreconditionFailed)
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"ok":    false,
+					"code":  "workerpoh_missing",
+					"error": err.Error(),
+				})
+				return
+			}
+			wpArgs := []string{
+				"-coord", coordURL,
+				"-token", coordToken,
+				"-worker", workerID,
+				"-batch", strconv.FormatUint(batchSize, 10),
+			}
+			if !strings.EqualFold(winBackend, "cpu") && !strings.EqualFold(os.Getenv("HACKME_GPU_DISABLE"), "1") {
+				wpArgs = append(wpArgs, "-gpu-backend", winBackend)
+			}
+			if v := strings.TrimSpace(os.Getenv("HACKME_GPU_DEVICE")); v != "" {
+				wpArgs = append(wpArgs, "-gpu-device", v)
+			}
+			cmd = exec.Command(wp, wpArgs...)
 		}
-		wpArgs := []string{
-			"-coord", coordURL,
-			"-token", coordToken,
-			"-worker", workerID,
-			"-batch", strconv.FormatUint(batchSize, 10),
-		}
-		if !strings.EqualFold(winBackend, "cpu") && !strings.EqualFold(os.Getenv("HACKME_GPU_DISABLE"), "1") {
-			wpArgs = append(wpArgs, "-gpu-backend", winBackend)
-		}
-		if v := strings.TrimSpace(os.Getenv("HACKME_GPU_DEVICE")); v != "" {
-			wpArgs = append(wpArgs, "-gpu-device", v)
-		}
-		cmd = exec.Command(wp, wpArgs...)
 	} else {
 		useGPUWorker := true
 		if v := strings.TrimSpace(os.Getenv("HACKME_WORKER_ENGINE")); v != "" {
@@ -2393,6 +2409,7 @@ func (a *app) handleWorkerStop(w http.ResponseWriter, r *http.Request) {
 	logAdminAction(r, "worker_stop")
 	a.workerMu.Lock()
 	defer a.workerMu.Unlock()
+	killExternalWorkerFleet(resolveWorkerRepoRoot(strings.TrimSpace(a.dataDir)))
 	if a.workerCmd == nil || a.workerCmd.Process == nil || a.workerCmd.ProcessState != nil {
 		a.workerCoordURL = ""
 		a.workerID = ""
