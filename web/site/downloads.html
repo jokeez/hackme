@@ -54,7 +54,7 @@
             <li>Boot → read recovery phrase on TTY1 → mining starts.</li>
           </ol>
           <p class="subtle" style="margin-top:0.75rem">Commands on rig: <code>hackme-os-status</code> · <code>hackme-show-wallet</code> · <code>hackme-os-install /dev/sda</code> (persist to disk).</p>
-          <p class="subtle" style="margin-top:0.75rem"><strong>Correct boot:</strong> GRUB menu <em>HackMe OS (live · max performance)</em> → TTY shows pool status / recovery phrase — <strong>not</strong> Alpine <code>localhost login:</code>. Login if needed: <code>root</code> / <code>hackme</code>. Before flash: <code>bash scripts/tests/verify_hackme_iso.sh your.iso</code> (must pass).</p>
+          <p class="subtle" style="margin-top:0.75rem"><strong>Correct boot:</strong> choose <em>HackMe OS (live · recommended)</em> in GRUB (not “max performance” on laptops &lt;8&nbsp;GB RAM). TTY shows pool status / recovery phrase — <strong>not</strong> Alpine <code>localhost login:</code>. Login if needed: <code>root</code> / <code>hackme</code>. Before flash: <code>bash scripts/tests/verify_hackme_iso.sh your.iso</code> (must pass).</p>
           <p class="subtle"><a href="https://github.com/jokeez/hackme/blob/main/docs/HACKME_OS.md" target="_blank" rel="noreferrer">Full HackMe OS docs →</a> · <a href="https://github.com/jokeez/hackme/blob/main/docs/MINER_READINESS_CHECKLIST.md" target="_blank" rel="noreferrer">Miner checklist (operators)</a></p>
           <p class="subtle" style="margin-top:0.5rem">Bugs &amp; setup help: <a href="https://t.me/hackme_ru" target="_blank" rel="noreferrer">Telegram RU</a> · <a href="https://t.me/hackme_en" target="_blank" rel="noreferrer">EN</a> — early RC; we fix from your reports.</p>
         </article>
@@ -71,9 +71,9 @@
       </article>
       <article class="card glass">
         <h3>Linux</h3>
-        <p>Tarball with <code>hackme</code>, <code>workerpoh</code>, service templates, and GPU helper scripts.</p>
+        <p>Tarball with <code>hackme</code>, <code>workerpoh</code>, pool token, and one-click <code>start_hackme_miner.sh</code>.</p>
         <a id="download-linux" class="btn btn-primary btn-block" href="#">Download Linux Bundle</a>
-        <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem">For servers and custom rigs — not required if you use HackMe OS ISO.</p>
+        <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem">Extract → <code>cd linux</code> → <code>bash start_hackme_miner.sh</code>. Not required if you use HackMe OS ISO.</p>
       </article>
     </section>
 

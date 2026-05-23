@@ -85,6 +85,18 @@ if ! grep -q '^linux/RELEASE_QUICKSTART\.md$' "${REL_DIR}/SMOKE_LINUX_LIST.txt";
   echo "[smoke] linux/RELEASE_QUICKSTART.md missing in tar.gz" >&2
   exit 1
 fi
+if ! grep -q '^linux/pool\.miner\.token$' "${REL_DIR}/SMOKE_LINUX_LIST.txt"; then
+  echo "[smoke] linux/pool.miner.token missing in tar.gz" >&2
+  exit 1
+fi
+if ! grep -q '^linux/start_hackme_miner\.sh$' "${REL_DIR}/SMOKE_LINUX_LIST.txt"; then
+  echo "[smoke] linux/start_hackme_miner.sh missing in tar.gz" >&2
+  exit 1
+fi
+if ! grep -q '^windows/pool\.miner\.token$' "${REL_DIR}/SMOKE_WINDOWS_LIST.txt"; then
+  echo "[smoke] windows/pool.miner.token missing in zip" >&2
+  exit 1
+fi
 
 echo "[smoke] extracting linux binary for runtime probe"
 TMP_DIR="$(mktemp -d)"
