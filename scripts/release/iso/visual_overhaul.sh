@@ -89,29 +89,24 @@ install_grub_theme_iso() {
 write_grub_cfg() {
   local iso="$1"
   local cfg="${iso}/boot/grub/grub.cfg"
+  local src="${ROOT}/grub-live.cfg"
   mkdir -p "$(dirname "$cfg")"
-  cat >"$cfg" <<'GRUB'
+  if [[ -f "$src" ]]; then
+    cp -f "$src" "$cfg"
+  else
+    cat >"$cfg" <<'GRUB'
 set default=0
-set timeout=4
-set gfxmode=1024x768,auto
-set gfxpayload=keep
-insmod gfxterm
-insmod png
-terminal_output gfxterm
-if [ -f ($root)/boot/grub/themes/hackme/theme.txt ]; then
-  set theme=($root)/boot/grub/themes/hackme/theme.txt
-  export theme
-fi
-
-menuentry "HackMe OS (live · max performance)" {
-  linux /casper/vmlinuz boot=casper toram quiet splash isolcpus=1 nohz_full=1 rcu_nocbs=1 ---
+set timeout=6
+menuentry "HackMe OS (live · recommended)" {
+  linux /casper/vmlinuz boot=casper quiet splash ---
   initrd /casper/initrd
 }
-menuentry "HackMe OS (live — safe graphics)" {
-  linux /casper/vmlinuz boot=casper nomodeset toram quiet splash ---
+menuentry "HackMe OS (live · safe graphics)" {
+  linux /casper/vmlinuz boot=casper nomodeset xforcevesa quiet splash ---
   initrd /casper/initrd
 }
 GRUB
+  fi
 }
 
 install_chroot() {

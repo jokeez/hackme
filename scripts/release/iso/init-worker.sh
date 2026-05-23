@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # HackMe OS worker init — safe hackme.ini parse OR Zero-Knowledge Start (auto wallet + recovery phrase).
 # Never aborts boot; corrupt ini falls back to ZK generation when enabled.
-set -euo pipefail
+set -uo pipefail
 
 ROOT="${HACKME_ROOT:-/opt/hackme}"
 OUT_ENV="${HACKME_INIT_ENV:-/var/lib/hackme/miner.env}"

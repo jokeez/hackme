@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # HackMe OS pool worker launcher (no Go toolchain on rig).
-set -euo pipefail
+set -uo pipefail
 
 ROOT="${HACKME_ROOT:-/opt/hackme}"
 ENV_MAIN="/etc/hackme/miner.env"
@@ -40,12 +40,14 @@ WORKER_ID="${WORKER_ID:-worker-$(hostname -s 2>/dev/null || echo rig)}"
 export WORKER_ID
 
 if [[ -z "${COORD_TOKEN:-}" || "${COORD_TOKEN}" == REPLACE_* ]]; then
-  echo "[hackme-os] ERROR: pool token missing — rebuild ISO with HACKME_RELEASE_POOL_MINER_TOKEN" >&2
-  exit 1
+  echo "[hackme-os] WARN: pool token missing — worker idle (rebuild ISO with pool token)" >&2
+  sleep 3600
+  exit 0
 fi
 if [[ -z "${HACKME_MINER_ED25519_SEED_HEX:-}" ]]; then
-  echo "[hackme-os] ERROR: miner seed missing — run: hackme-miner-firstboot" >&2
-  exit 1
+  echo "[hackme-os] WARN: miner seed missing — waiting for firstboot" >&2
+  sleep 30
+  exit 0
 fi
 
 detect="${ROOT}/scripts/ops/detect_gpu_backend.sh"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One-time rig identity: worker id + ed25519 seed (skipped when Zero-Knowledge Start already wrote env).
-set -euo pipefail
+set -uo pipefail
 
 ROOT="${HACKME_ROOT:-/opt/hackme}"
 ENV_STATE="/var/lib/hackme/miner.env"
