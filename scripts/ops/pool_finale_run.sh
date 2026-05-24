@@ -78,9 +78,9 @@ curl -fsS -H "X-Hackme-Admin-Token: $TOKEN" "$COORD_PUBLIC/api/work/stats?detail
   -o "$REPORT_DIR/public_coordinator_stats.json" 2>/dev/null || true
 
 DESK_ADMIN="$(grep '^HACKME_ADMIN_TOKEN=' "$DESK_ENV" | cut -d= -f2-)"
-curl -fsS "http://127.0.0.1:8080/api/worker/status" -H "X-Admin-Token: $DESK_ADMIN" \
+curl -fsS "http://127.0.0.1:8080/api/worker/status" -H "X-Hackme-Admin-Token: $DESK_ADMIN" \
   -o "$REPORT_DIR/desktop_worker.json" 2>/dev/null || true
-curl -fsS "http://127.0.0.1:8080/api/wallet" -H "X-Admin-Token: $DESK_ADMIN" \
+curl -fsS "http://127.0.0.1:8080/api/wallet" -H "X-Hackme-Admin-Token: $DESK_ADMIN" \
   -o "$REPORT_DIR/desktop_wallet.json" 2>/dev/null || true
 
 # --- Verdict markdown ---

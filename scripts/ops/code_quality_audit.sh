@@ -114,6 +114,18 @@ if dup_chunk_groups:
         "groups_count": len(dup_chunk_groups),
         "top_groups": top,
     })
+
+# 4) Ephemeral Go under reports/ (breaks go test ./... locally)
+report_go = []
+for p, rel in files:
+    if rel.startswith("reports/") and p.suffix == ".go":
+        report_go.append(rel)
+if report_go:
+    warnings.append({
+        "kind": "stale_go_under_reports",
+        "files": sorted(report_go)[:30],
+        "hint": "run: find reports -name sign_transfer_tmp.go -delete",
+    })
 fail_reasons = []
 if unexpected_dups:
     fail_reasons.append("unexpected_exact_duplicate_source_files")

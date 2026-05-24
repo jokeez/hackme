@@ -6,6 +6,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=scripts/tests/common.sh
 source "$ROOT_DIR/scripts/tests/common.sh"
+cleanup_stale_report_go_junk
 
 require_cmd go
 require_cmd jq

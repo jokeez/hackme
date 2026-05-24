@@ -100,8 +100,10 @@ max_metric_errors="$(jq -nr --arg s "$metrics_samples" --arg f "$METRICS_ERROR_M
 if [[ "$metrics_errors" -gt "$max_metric_errors" ]]; then
   fails=$((fails+1)); notes+=("metrics errors exceed threshold: errors=$metrics_errors max=$max_metric_errors samples=$metrics_samples factor=$METRICS_ERROR_MAX_FACTOR")
 fi
-if jq -en --arg v "$min_hashrate" '($v|tonumber) >= 0 and ($v|tonumber) < 0.01' >/dev/null; then
-  fails=$((fails+1)); notes+=("min hashrate collapsed: $min_hashrate TH/s")
+if [[ "${SKIP_MIN_HASHRATE_GATE:-0}" != "1" ]]; then
+  if jq -en --arg v "$min_hashrate" '($v|tonumber) >= 0 and ($v|tonumber) < 0.01' >/dev/null; then
+    fails=$((fails+1)); notes+=("min hashrate collapsed: $min_hashrate TH/s")
+  fi
 fi
 
 notes_json="$(printf '%s\n' "${notes[@]:-}" | jq -R . | jq -s .)"

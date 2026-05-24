@@ -1,0 +1,14 @@
+#!/bin/sh
+# Force live-boot modules into initramfs (overlay/squashfs must load before casper panics).
+PREREQ=""
+prereqs() { echo "$PREREQ"; }
+
+case "$1" in
+prereqs) prereqs; exit 0 ;;
+esac
+
+. /usr/share/initramfs-tools/hook-functions
+
+for mod in zstd squashfs loop overlay isofs iso9660 udf sd_mod usb_storage; do
+  manual_add_modules "$mod" 2>/dev/null || true
+done
