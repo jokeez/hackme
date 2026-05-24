@@ -50,11 +50,12 @@
           <h3>3 steps</h3>
           <ol class="steps">
             <li>Download ISO + verify <code>SHA256SUMS-iso.txt</code>.</li>
-            <li>Flash to USB 8&nbsp;GB+ (Etcher recommended).</li>
+            <li>Flash to USB 8&nbsp;GB+ — <strong>whole disk</strong>, not a partition (see below).</li>
             <li>Boot → read recovery phrase on TTY1 → mining starts.</li>
           </ol>
+          <p class="subtle" style="margin-top:0.75rem"><strong>Flash correctly:</strong> Balena Etcher or <code>sudo dd if=HackMe-OS-….iso of=/dev/sdX bs=4M conv=fsync status=progress</code> (replace <code>sdX</code> with the USB disk, not <code>sdX1</code>). In Rufus choose <strong>DD image</strong> mode. Avoid Ventoy/multi-partition USB unless you know casper — wrong flash causes <code>overlay … no support found</code> and GPT warnings.</p>
           <p class="subtle" style="margin-top:0.75rem">Commands on rig: <code>hackme-os-status</code> · <code>hackme-show-wallet</code> · <code>hackme-os-install /dev/sda</code> (persist to disk).</p>
-          <p class="subtle" style="margin-top:0.75rem"><strong>Boot:</strong> <em>HackMe OS (live · recommended)</em>. Login: <code>ubuntu</code> (empty password, press Enter) or <code>sudo -i</code> → root. If <code>kernel panic … exitcode=0x100</code>: re-download ISO, verify SHA256, full USB reflash.</p>
+          <p class="subtle" style="margin-top:0.75rem"><strong>Boot:</strong> <em>HackMe OS (live · recommended)</em>. Login: <code>ubuntu</code> (empty password, press Enter) or <code>sudo -i</code> → root. If <code>overlay … no support found</code> or <code>GPT PMBR size mismatch</code>: re-flash USB to <strong>whole disk</strong> (not partition), verify SHA256 first.</p>
           <p class="subtle"><a href="https://github.com/jokeez/hackme/blob/main/docs/HACKME_OS.md" target="_blank" rel="noreferrer">Full HackMe OS docs →</a> · <a href="https://github.com/jokeez/hackme/blob/main/docs/MINER_READINESS_CHECKLIST.md" target="_blank" rel="noreferrer">Miner checklist (operators)</a></p>
           <p class="subtle" style="margin-top:0.5rem">Bugs &amp; setup help: <a href="https://t.me/hackme_ru" target="_blank" rel="noreferrer">Telegram RU</a> · <a href="https://t.me/hackme_en" target="_blank" rel="noreferrer">EN</a> — early RC; we fix from your reports.</p>
         </article>

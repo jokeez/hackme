@@ -37,6 +37,7 @@ import (
 	"hackme/internal/p2p"
 	"hackme/internal/sandbox"
 	"hackme/internal/store"
+	"hackme/internal/workerid"
 )
 
 //go:embed dashboard.html
@@ -2880,21 +2881,7 @@ func parseWorkerpohMeasuredGHs(logDir string) float64 {
 
 // sanitizeWorkerIDHost maps hostname to a stable coordinator worker id (matches Windows autostart).
 func sanitizeWorkerIDHost(host string) string {
-	host = strings.ToLower(strings.TrimSpace(host))
-	var b strings.Builder
-	for _, r := range host {
-		switch {
-		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-':
-			b.WriteRune(r)
-		default:
-			b.WriteRune('-')
-		}
-	}
-	out := strings.Trim(b.String(), "-")
-	if out == "" {
-		return "local"
-	}
-	return out
+	return workerid.SanitizeHostname(host)
 }
 
 func considerNewestLogPath(best string, bestMod time.Time, candidate string) (string, time.Time) {

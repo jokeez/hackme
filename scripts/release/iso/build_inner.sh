@@ -114,6 +114,12 @@ if command -v lsinitramfs >/dev/null 2>&1; then
     echo "[iso-inner] FAIL initrd missing casper — ISO will not boot live" >&2
     exit 1
   fi
+  if lsinitramfs "$INITRD" 2>/dev/null | grep -q 'overlay.ko'; then
+    echo "[iso-inner] PASS initrd includes overlay.ko"
+  else
+    echo "[iso-inner] FAIL initrd missing overlay.ko — live boot will panic" >&2
+    exit 1
+  fi
 fi
 
 mkdir -p "$ISO_TREE/.disk"

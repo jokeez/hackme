@@ -27,8 +27,8 @@ TOKEN="$(tr -d '\r\n' <"$ROOT/.secrets/hackme_coordinator_admin_token")"
 curl -fsS -H "X-Hackme-Admin-Token: $TOKEN" \
   "https://hackme.tech/pool/coordinator/api/work/stats?details=1" -o "$DIR/pool.json" || true
 DESK=$(grep '^HACKME_ADMIN_TOKEN=' "$ROOT/.env.desktop" | cut -d= -f2-)
-curl -fsS "http://127.0.0.1:8080/api/worker/status" -H "X-Admin-Token: $DESK" -o "$DIR/worker.json" || true
-curl -fsS "http://127.0.0.1:8080/api/wallet" -H "X-Admin-Token: $DESK" -o "$DIR/wallet.json" || true
+curl -fsS "http://127.0.0.1:8080/api/worker/status" -H "X-Hackme-Admin-Token: $DESK" -o "$DIR/worker.json" || true
+curl -fsS "http://127.0.0.1:8080/api/wallet" -H "X-Hackme-Admin-Token: $DESK" -o "$DIR/wallet.json" || true
 
 python3 - "$DIR" "$REPORT" "$WALLET" <<'PY'
 import json, sys

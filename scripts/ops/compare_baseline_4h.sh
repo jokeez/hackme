@@ -21,9 +21,9 @@ mkdir -p "$NOW_DIR"
 curl -fsS -H "X-Hackme-Admin-Token: $TOKEN" \
   "https://hackme.tech/pool/coordinator/api/work/stats?details=1" \
   -o "$NOW_DIR/coordinator_stats.json"
-curl -fsS "http://127.0.0.1:8080/api/worker/status" -H "X-Admin-Token: $DESK_ADMIN" \
+curl -fsS "http://127.0.0.1:8080/api/worker/status" -H "X-Hackme-Admin-Token: $DESK_ADMIN" \
   -o "$NOW_DIR/desktop_worker.json" 2>/dev/null || true
-curl -fsS "http://127.0.0.1:8080/api/wallet" -H "X-Admin-Token: $DESK_ADMIN" \
+curl -fsS "http://127.0.0.1:8080/api/wallet" -H "X-Hackme-Admin-Token: $DESK_ADMIN" \
   -o "$NOW_DIR/desktop_wallet.json" 2>/dev/null || true
 
 python3 - "$BASELINE_DIR" "$NOW_DIR" <<'PY'

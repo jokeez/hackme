@@ -64,3 +64,27 @@ json_post() {
 pass() { printf '[PASS] %s\n' "$*"; }
 warn() { printf '[WARN] %s\n' "$*"; }
 fail() { printf '[FAIL] %s\n' "$*" >&2; exit 1; }
+
+# Shared pass/fail counters for multi-check test suites (gpu_rig_suite, mining_load_suite, …).
+test_suite_counters_init() {
+  TEST_SUITE_PASSES=0
+  TEST_SUITE_FAILURES=0
+}
+
+test_suite_record() {
+  local status="$1" name="$2" detail="${3:-}"
+  if [[ "$status" == "PASS" ]]; then
+    TEST_SUITE_PASSES=$((TEST_SUITE_PASSES + 1))
+    pass "$name${detail:+ — $detail}"
+  else
+    TEST_SUITE_FAILURES=$((TEST_SUITE_FAILURES + 1))
+    fail_msg "$name${detail:+ — $detail}"
+  fi
+}
+
+fail_msg() { printf '[FAIL] %s\n' "$*" >&2; }
+
+# Remove ephemeral Go sources left under reports/ by transfer_demo (pollutes go test ./...).
+cleanup_stale_report_go_junk() {
+  find reports -type f \( -name 'sign_transfer_tmp.go' -o -name '_sign_transfer.go' \) -delete 2>/dev/null || true
+}
