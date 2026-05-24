@@ -22,12 +22,12 @@ type FleetSlot struct {
 
 // FleetPlan describes how many workers to spawn on this host.
 type FleetPlan struct {
-	Hybrid       bool        `json:"hybrid"`
-	CUDACount    int         `json:"cuda_count"`
-	OpenCLCount  int         `json:"opencl_count"`
-	TotalSlots   int         `json:"total_slots"`
-	Slots        []FleetSlot `json:"slots"`
-	Notes        []string    `json:"notes,omitempty"`
+	Hybrid      bool        `json:"hybrid"`
+	CUDACount   int         `json:"cuda_count"`
+	OpenCLCount int         `json:"opencl_count"`
+	TotalSlots  int         `json:"total_slots"`
+	Slots       []FleetSlot `json:"slots"`
+	Notes       []string    `json:"notes,omitempty"`
 }
 
 // FleetPlanInput controls hybrid / caps.
@@ -272,4 +272,3 @@ func FindFleetplanBin(repoRoot string) string {
 	}
 	return ""
 }
-
