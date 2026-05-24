@@ -39,7 +39,23 @@ if /I "%HACKME_GPU_BACKEND_CHOICE%"=="cpu" set "GPU_ARG=cpu"
 
 set "PS_EXTRA="
 if /I "%HACKME_SETUP_NONINTERACTIVE%"=="1" set "PS_EXTRA=-NonInteractive"
+if /I "%~1"=="repair" goto :do_repair
+if /I "%HACKME_REPAIR_ONLY%"=="1" goto :do_repair
+goto :do_setup
 
+:do_repair
+powershell -NoProfile -ExecutionPolicy Bypass -File "%HACKME_DIR%\write_hackme_env.ps1" -InstallDir "%HACKME_DIR%" -RepairOnly %PS_EXTRA%
+if errorlevel 1 (
+  echo ERROR: failed to repair hackme.env
+  if /I not "%HACKME_SETUP_NONINTERACTIVE%"=="1" pause
+  exit /b 1
+)
+echo.
+echo Repaired hackme.env — restart start_hackme_miner.bat
+if /I not "%HACKME_SETUP_NONINTERACTIVE%"=="1" pause
+exit /b 0
+
+:do_setup
 powershell -NoProfile -ExecutionPolicy Bypass -File "%HACKME_DIR%\write_hackme_env.ps1" -InstallDir "%HACKME_DIR%" -GpuBackend %GPU_ARG% %PS_EXTRA%
 if errorlevel 1 (
   echo ERROR: failed to write hackme.env

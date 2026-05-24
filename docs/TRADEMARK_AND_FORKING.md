@@ -4,7 +4,7 @@ You are publishing **source code**, not giving away your **brand**, **domain**, 
 
 ---
 
-## What open source (Apache-2.0) actually means
+## What AGPL-3.0 means for HackMe
 
 | Others **can** | Others **cannot** (without consequences) |
 |----------------|------------------------------------------|
@@ -54,7 +54,7 @@ Already in `.gitignore`:
 **Legitimate fork:**
 
 - Renames the project (e.g. “AcmePool”)
-- Keeps Apache license and attribution
+- Keeps AGPL license and attribution
 - Runs on their own domain
 - Competes on features — **this is allowed**
 
@@ -89,6 +89,6 @@ Already in `.gitignore`:
 | “They will steal my project” | They can fork **code**, not your **running pool** or **domain** |
 | “They will steal miners” | Miners follow **official URLs + checksums** — educate in ANN |
 | “They will hack us because source is public” | Security comes from **hardening + tokens + policy**, not hiding code — see [SECURITY_AUDIT_REDTEAM.md](SECURITY_AUDIT_REDTEAM.md) |
-| “Someone will sell HackMe” | Apache allows commercial use of **code**, not your **trademark** |
+| “Someone will sell HackMe” | AGPL allows commercial use of **code**, not your **trademark** or official pool |
 
 Open source is a trade: **transparency and community** in exchange for **attribution and operational leadership**.
