@@ -9,20 +9,20 @@ import (
 
 func testWorkManagerBare() *workManager {
 	return &workManager{
-		defaultBatch:             1000,
-		targetMod:                1_000_000,
-		leaseSec:                 30,
-		maxWorkers:               1000,
-		maxActiveLeases:          1000,
-		maxDedupEntries:          1000,
-		active:                   make(map[workKey]leaseRecord),
-		worker:                   make(map[string]workerPayoutStat),
-		abuse:                    make(map[string]workerAbuseState),
-		ipAbuse:                  make(map[string]workerAbuseState),
-		acceptedSignedPayloads:   make(map[string]struct{}),
-		acceptedResultHashes:     make(map[string]struct{}),
-		acceptedFoundNonces:      make(map[uint64]struct{}),
-		acceptedSubmitNonces:     make(map[string]struct{}),
+		defaultBatch:           1000,
+		targetMod:              1_000_000,
+		leaseSec:               30,
+		maxWorkers:             1000,
+		maxActiveLeases:        1000,
+		maxDedupEntries:        1000,
+		active:                 make(map[workKey]leaseRecord),
+		worker:                 make(map[string]workerPayoutStat),
+		abuse:                  make(map[string]workerAbuseState),
+		ipAbuse:                make(map[string]workerAbuseState),
+		acceptedSignedPayloads: make(map[string]struct{}),
+		acceptedResultHashes:   make(map[string]struct{}),
+		acceptedFoundNonces:    make(map[uint64]struct{}),
+		acceptedSubmitNonces:   make(map[string]struct{}),
 	}
 }
 

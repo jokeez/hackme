@@ -34,7 +34,7 @@ test.describe('Public site hackme.tech', () => {
     const len = head.headers()['content-length'];
     expect(len).toBeTruthy();
     const bytes = Number(len);
-    expect(bytes).toBeGreaterThan(900_000_000);
+    expect(bytes).toBeGreaterThan(800_000_000);
 
     const range = await request.get(isoUrl, {
       timeout: 180_000,

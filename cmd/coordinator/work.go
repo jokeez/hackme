@@ -1875,10 +1875,10 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
 		var req struct {
-			Prefix         string  `json:"prefix"`
-			MaxPayoutHMC   float64 `json:"max_payout_hmc"`
-			StaleSec       int64   `json:"stale_sec"`
-			DryRun         bool    `json:"dry_run"`
+			Prefix       string  `json:"prefix"`
+			MaxPayoutHMC float64 `json:"max_payout_hmc"`
+			StaleSec     int64   `json:"stale_sec"`
+			DryRun       bool    `json:"dry_run"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&req)
 		if req.StaleSec <= 0 {
@@ -1890,11 +1890,11 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 		removed, kept := wm.pruneStaleWorkers(req.Prefix, req.MaxPayoutHMC, req.StaleSec, req.DryRun)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"ok":       true,
-			"removed":  removed,
-			"kept":     kept,
-			"dry_run":  req.DryRun,
-			"prefix":   strings.TrimSpace(req.Prefix),
+			"ok":      true,
+			"removed": removed,
+			"kept":    kept,
+			"dry_run": req.DryRun,
+			"prefix":  strings.TrimSpace(req.Prefix),
 		})
 	})
 

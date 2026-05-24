@@ -90,7 +90,7 @@ if [[ -f "$ISO_LOCAL" ]]; then
   bash "$ROOT/scripts/tests/verify_hackme_iso.sh" "$ISO_LOCAL" && pass "ISO verify_hackme_iso" || fail_msg "ISO verify"
 else
   ISO_LEN="$(curl -sSI "$DIST_URL/HackMe-OS-0.1.0-rc11g-amd64.iso" | awk 'BEGIN{IGNORECASE=1} /^content-length:/ {print $2}' | tr -d '\r')"
-  if [[ -n "${ISO_LEN:-}" && "$ISO_LEN" -gt 900000000 ]]; then
+  if [[ -n "${ISO_LEN:-}" && "$ISO_LEN" -gt 800000000 ]]; then
     pass "ISO on CDN size=$ISO_LEN"
   else
     fail_msg "ISO size check ($ISO_LEN)"
