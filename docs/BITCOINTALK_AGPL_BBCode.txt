@@ -1,0 +1,148 @@
+[center][size=20pt][b][color=#00d1ff]◆ HackMe Network[/color][/b][/size]
+[size=12pt][b][color=#39ff14]Major Update[/color][/b] · AGPLv3 · Brand protection · ISO boot fix · Windows fairness[/size]
+[size=10pt][i]Release [b]0.1.0-rc11g[/b] · May 2026[/i][/size][/center]
+
+[hr]
+
+[center][size=11pt][b]Open client you can audit[/b] · [b]Protected official pool[/b] · [b]Verify SHA256 before you mine[/b][/size][/center]
+
+[hr]
+
+[b][size=13pt][color=#00d1ff]▸ Why this update matters[/color][/size][/b]
+
+HackMe is growing. That attracts [b]copy-paste forks[/b], [b]fake download sites[/b], and [b]impersonators[/b]. This post explains how we protect the [b]real pool[/b] at [url=https://hackme.tech]hackme.tech[/url] — while keeping the [b]miner client fully open[/b] for inspection.
+
+[quote][b]TL;DR[/b]
+[list]
+[*] License: [b]Apache-2.0 → AGPL-3.0[/b] (public pool forks must open server code)
+[*] Brand: [b]HackMe™[/b] name & logo are [b]not[/b] free to clone
+[*] ISO: fixed [mono]kernel panic exitcode=0x100[/mono] — [b]re-download + re-flash USB[/b]
+[*] Windows: fixed unfair [mono]28s cooldown[/mono]; NVIDIA still ~9 GH/s OpenCL vs ~60+ GH/s CUDA on Linux/OS
+[*] Trust only: [url=https://hackme.tech/downloads.html]hackme.tech/downloads.html[/url] + SHA256
+[/list][/quote]
+
+[hr]
+
+[b][size=13pt][color=#00d1ff]▸ 1 · License: AGPL-3.0[/color][/size][/b]
+
+We are moving the public repository from permissive [b]Apache-2.0[/b] to [b][color=#39ff14]GNU Affero GPL v3 (AGPL-3.0)[/color][/b].
+
+[table]
+[tr][td][b]Apache problem[/b][/td][td]Anyone can copy, rebrand, and run a [b]commercial competing pool[/b] with almost no obligation to share changes.[/td][/tr]
+[tr][td][b]AGPL answer[/b][/td][td]Code stays [b]free & readable[/b]. Run a [b]modified network service[/b] (public coordinator, pool API)? You must [b]publish your server-side source[/b] under AGPL too.[/td][/tr]
+[tr][td][b]For miners[/b][/td][td]You can always download, audit, and run official builds from [url=https://hackme.tech]hackme.tech[/url].[/td][/tr]
+[/table]
+
+[b]Can I…?[/b]
+[table]
+[tr][td][b]Action[/b][/td][td][b]Allowed?[/b][/td][/tr]
+[tr][td]Download HackMe OS / Windows / Linux from [url=https://hackme.tech/downloads.html]official site[/url][/td][td][color=#39ff14][b]✓ YES[/b][/color][/td][/tr]
+[tr][td]Read & audit source on [url=https://github.com/jokeez/hackme]GitHub[/url][/td][td][color=#39ff14][b]✓ YES[/b][/color][/td][/tr]
+[tr][td]Private LAN fork (not exposed to the internet)[/td][td][color=#39ff14][b]✓ YES[/b][/color] [i](AGPL rules apply if you offer it as a service)[/i][/td][/tr]
+[tr][td]Public competing pool using our code + hidden backend[/td][td][color=#ff4444][b]✗ NO[/b][/color] [i](AGPL requires source disclosure)[/i][/td][/tr]
+[tr][td]Clone site named “HackMe Gold / Cash / Pro…”[/td][td][color=#ff4444][b]✗ NO[/b][/color] [i](trademark — see §3)[/i][/td][/tr]
+[/table]
+
+[b]Official links[/b]
+[table]
+[tr][td][b]Source[/b][/td][td][url=https://github.com/jokeez/hackme]github.com/jokeez/hackme[/url] · [b]AGPL-3.0[/b][/td][/tr]
+[tr][td][b]Downloads + SHA256[/b][/td][td][url=https://hackme.tech/downloads.html]hackme.tech/downloads.html[/url][/td][/tr]
+[tr][td][b]Trademark policy[/b][/td][td][mono]TRADEMARK.md[/mono] in repo[/td][/tr]
+[/table]
+
+[hr]
+
+[b][size=13pt][color=#00d1ff]▸ 2 · Hybrid architecture[/color][/size][/b]
+
+Smart infra projects split [b]what miners must trust[/b] from [b]what operators keep private[/b].
+
+[table]
+[tr][td][b][color=#39ff14]OPEN[/color][/b] [i](client — prove no malware)[/i][/td][td][b][color=#00d1ff]NOT PUBLISHED[/color][/b] [i](production ops)[/i][/td][/tr]
+[tr][td]
+[list]
+[*] HackMe OS ISO build scripts
+[*] Desktop miner ([mono]hackme[/mono], [mono]workerpoh[/mono])
+[*] Node + coordinator [b]source code[/b] in repo
+[*] Scripts you run on [b]your[/b] machine
+[/list]
+[/td][td]
+[list]
+[*] Live VPS [mono].env[/mono] & coordinator tokens
+[*] Payout keys & settlement wiring
+[*] Production [mono]WORKER_PAYOUT_MAP[/mono]
+[*] Release signing keys
+[/list]
+[/td][/tr]
+[/table]
+
+[i]A fork of the client alone does [b]not[/b] replace the official pool at [url=https://hackme.tech/pool/coordinator]hackme.tech[/url]. Always verify [b]SHA256[/b] on the website before running binaries.[/i]
+
+[hr]
+
+[b][size=13pt][color=#00d1ff]▸ 3 · Trademark & brand[/color][/size][/b]
+
+Under AGPL you may fork [b]code[/b]. You may [b]not[/b] impersonate [b]HackMe™[/b].
+
+[table]
+[tr][td][b]Protected[/b][/td][td][b]HackMe[/b] name · logo · [url=https://hackme.tech]hackme.tech[/url] as the official pool[/td][/tr]
+[tr][td][b]We will act on[/b][/td][td]Look-alike domains · fake GitHub releases · “HackMe Cash/Gold” clones · DMCA to hosts & registries[/td][/tr]
+[tr][td][b]Your safety[/b][/td][td]Bookmark [url=https://hackme.tech/downloads.html]downloads.html[/url] · check URL bar · match SHA256 every time[/td][/tr]
+[/table]
+
+[hr]
+
+[b][size=13pt][color=#39ff14]▸ 4 · Technical fixes (reported by miners)[/color][/size][/b]
+
+[b][color=#ffaa00]ISO — kernel panic [mono]exitcode=0x100[/mono][/color][/b]
+[table]
+[tr][td][b]Cause[/b][/td][td]Broken casper live config ([mono]username=root[/mono]) + bad [mono]filesystem.size[/mono] on older images[/td][/tr]
+[tr][td][b]Fix[/b][/td][td]New ISO: [mono]ubuntu[/mono] live user · xz squashfs · [mono]fsck.mode=skip[/mono] · correct size metadata[/td][/tr]
+[tr][td][b]You must[/b][/td][td][b]Re-download[/b] · verify SHA256 · [b]fully re-flash[/b] USB (not “update in place”)[/td][/tr]
+[tr][td][b]Boot menu[/b][/td][td][i]HackMe OS (live · recommended)[/i][/td][/tr]
+[tr][td][b]Login[/b][/td][td][mono]ubuntu[/mono] → Enter (empty password) · or [mono]sudo -i[/mono][/td][/tr]
+[/table]
+
+[b]Current ISO SHA256[/b] ([mono]HackMe-OS-0.1.0-rc11g-amd64.iso[/mono]):
+[quote][mono]e7b42baca799dff005362a3bd33700f1cb10eba2ecd7ccf2fa56cf7f7e5eea12[/mono][/quote]
+Manifest: [url=https://hackme.tech/dist/release_0.1.0-rc11g/SHA256SUMS-iso.txt]SHA256SUMS-iso.txt[/url]
+
+[b][color=#ffaa00]Windows — ~9 GH/s vs Linux ~60 GH/s (same GPU)[/color][/b]
+[table]
+[tr][td][b]Why[/b][/td][td]Windows NVIDIA uses [b]OpenCL[/b] (~9 GH/s). Linux / HackMe OS uses [b]CUDA[/b] (~60+ GH/s on same card)[/td][/tr]
+[tr][td][b]Bug fixed[/b][/td][td]Installer no longer forces [mono]HACKME_WORKER_CLAIM_COOLDOWN_MS=28000[/mono] on NVIDIA (28 s sleep after every submit)[/td][/tr]
+[tr][td][b]Windows now[/b][/td][td]Run [mono]repair_hackme_env.bat[/mono] in install folder → restart miner[/td][/tr]
+[tr][td][b]Max GH/s[/b][/td][td]Use [b]HackMe OS[/b] or [b]Linux bundle[/b] from official downloads[/td][/tr]
+[/table]
+
+[hr]
+
+[b][size=13pt][color=#00d1ff]▸ 5 · Verify before you mine[/color][/size][/b]
+
+[b]Linux / macOS[/b]
+[code]sha256sum HackMe-OS-0.1.0-rc11g-amd64.iso
+# must match e7b42baca799dff005362a3bd33700f1cb10eba2ecd7ccf2fa56cf7f7e5eea12[/code]
+
+[b]From repo[/b] (optional deep check):
+[code]bash scripts/tests/verify_hackme_iso.sh HackMe-OS-0.1.0-rc11g-amd64.iso[/code]
+
+[color=#39ff14][b]Golden rule:[/b][/color] if the hash does not match [url=https://hackme.tech/dist/release_0.1.0-rc11g/SHA256SUMS-iso.txt]the official sums file[/url] — [b]do not flash, do not run[/b].
+
+[hr]
+
+[b][size=13pt][color=#00d1ff]▸ 6 · Enterprise & community[/color][/size][/b]
+
+[list]
+[*] [b]Miners[/b] — we win with transparency: open client, signed releases, public explorer.
+[*] [b]Phasing / B2B clients[/b] — separate NDAs protect contracts, not the binary on your rig.
+[*] [b]Questions[/b] — reply in this thread or [url=https://github.com/jokeez/hackme/issues]GitHub issues[/url].
+[*] [b]Security[/b] — responsible disclosure via [url=https://hackme.tech/contacts.html]contacts.html[/url].
+[/list]
+
+[hr]
+
+[center][size=12pt][b][color=#39ff14]Mine official. Verify hashes. Ignore clones.[/color][/b][/size]
+[size=10pt][url=https://hackme.tech]hackme.tech[/url] · [url=https://hackme.tech/downloads.html]Downloads[/url] · [url=https://hackme.tech/pool/explorer]Explorer[/url] · [url=https://github.com/jokeez/hackme]GitHub (AGPL-3.0)[/url][/size]
+[size=9pt][i]— HackMe operators[/i][/size][/center]
+
+[hr]
+[i]Tags: [ANN][UPDATE][POOL][LEGAL][AGPL] · adjust to forum rules.[/i]

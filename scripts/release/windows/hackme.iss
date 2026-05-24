@@ -72,8 +72,10 @@ english.GpuTip=Tip:
 russian.GpuTip=Подсказка:
 english.RbAuto=Auto (recommended — detects CUDA / OpenCL / CPU)
 russian.RbAuto=Авто (рекомендуется — CUDA / OpenCL / CPU)
-english.RbCuda=NVIDIA CUDA (GeForce / RTX)
-russian.RbCuda=NVIDIA CUDA (GeForce / RTX)
+english.RbCuda=NVIDIA CUDA (GeForce / RTX — Windows build uses OpenCL until workerpoh-cuda.exe ships)
+russian.RbCuda=NVIDIA CUDA (GeForce / RTX — в Windows пока OpenCL, пока нет workerpoh-cuda.exe)
+english.CudaMissingNote=workerpoh-cuda.exe is not included in this Windows build.%n%nNVIDIA on Windows mines via OpenCL at about 9 GH/s.%nHackMe OS live ISO and the Linux bundle use native CUDA at 60+ GH/s.%n%nYour install will use OpenCL automatically. For max hashrate, use HackMe OS or Linux.%n%nExisting install? Run repair_fair_env.bat in the install folder to refresh hackme.env.
+russian.CudaMissingNote=workerpoh-cuda.exe не входит в сборку Windows.%n%nNVIDIA в Windows: OpenCL ~9 GH/s.%nHackMe OS и Linux: CUDA 60+ GH/s.%n%nБудет использован OpenCL. Для максимума — HackMe OS или Linux.%n%nОбновить hackme.env: repair_fair_env.bat в папке установки.
 english.RbOpenCL=AMD OpenCL (Radeon — RX 580, etc.)
 russian.RbOpenCL=AMD OpenCL (Radeon — RX 580 и др.)
 english.RbCpu=CPU only (no GPU — low hashrate)
@@ -88,6 +90,9 @@ Name: "autostart"; Description: "Run HackMe node when Windows starts (optional)"
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\workerpoh.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\workerpoh-opencl.exe"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\..\..\dist\release_{#MyAppVersion}\windows\workerpoh-cuda.exe"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\..\..\dist\release_{#MyAppVersion}\windows\repair_hackme_env.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\..\dist\release_{#MyAppVersion}\windows\repair_fair_env.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\fleetplan.exe"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\minersign.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\pool.miner.token"; DestDir: "{app}"; Flags: ignoreversion
@@ -120,6 +125,8 @@ Name: "{app}\data"; Permissions: users-modify
 Name: "{group}\{#MyAppName} Miner"; Filename: "{app}\start_hackme_miner.bat"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Comment: "Public pool miner — hackme.tech"
 Name: "{group}\{#MyAppName} Dashboard"; Filename: "http://127.0.0.1:8080/#mining"; IconFilename: "{app}\{#MyAppExeName}"
 Name: "{group}\Configure miner"; Filename: "{app}\setup_hackme_miner.bat"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"
+Name: "{group}\Repair miner env"; Filename: "{app}\repair_fair_env.bat"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Comment: "Refresh hackme.env (fair pool settings)"
+Name: "{group}\Repair miner env"; Filename: "{app}\repair_fair_env.bat"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Comment: "Refresh hackme.env (fair pool settings)"
 Name: "{group}\Readme — first steps"; Filename: "{app}\MINER_WINDOWS_ONE_CLICK.md"; IconFilename: "{app}\{#MyAppExeName}"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName} Miner"; Filename: "{app}\start_hackme_miner.bat"; Tasks: desktopicon; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"
@@ -155,6 +162,40 @@ begin
   if Ok then Result := '1' else Result := '0';
 end;
 
+function ExtractJsonFirstTip(const Json: String): String;
+var
+  P, Q: Integer;
+begin
+  Result := '';
+  P := Pos('"tips":', Json);
+  if P = 0 then Exit;
+  P := Pos('"', Json, P + 7);
+  if P = 0 then Exit;
+  Q := Pos('"', Json, P + 1);
+  if Q > P then Result := Copy(Json, P + 1, Q - P - 1);
+end;
+
+function GpuSummaryLooksNvidia(const S: String): Boolean;
+var
+  L: String;
+begin
+  L := LowerCase(S);
+  Result := (Pos('nvidia', L) > 0) or (Pos('geforce', L) > 0) or (Pos('rtx', L) > 0) or (Pos('gtx', L) > 0);
+end;
+
+procedure ApplyGpuDetectTip(const Json: String);
+var
+  Tip: String;
+begin
+  Tip := ExtractJsonFirstTip(Json);
+  if Tip <> '' then
+    GpuTip := Tip
+  else if GpuSummaryLooksNvidia(GpuSummary) then
+    GpuTip := 'NVIDIA on Windows: OpenCL ~9 GH/s. HackMe OS / Linux: CUDA ~60+ GH/s (workerpoh-cuda.exe not in this Windows build).'
+  else
+    GpuTip := 'Pick Auto, NVIDIA CUDA, AMD OpenCL, or CPU-only below.';
+end;
+
 procedure RunGpuDetect;
 var
   TmpJson, Ps1, Cmd: String;
@@ -170,10 +211,12 @@ begin
   if Exec('powershell.exe', Cmd, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and FileExists(TmpJson) then
   begin
     if LoadStringFromFile(TmpJson, S) then
-      GpuSummary := Copy(S, 1, 200)
+    begin
+      GpuSummary := Copy(S, 1, 200);
+      ApplyGpuDetectTip(String(S));
+    end
     else
       GpuSummary := 'GPU detected';
-    GpuTip := 'Pick Auto, NVIDIA CUDA, AMD OpenCL, or CPU-only below.';
   end;
 end;
 
@@ -274,6 +317,7 @@ procedure CurStepChanged(CurStep: TSetupStep);
 var
   ResultCode: Integer;
   AppDir, PsWrite, PsDetect, Cmd: String;
+  ShowCudaNote: Boolean;
 begin
   if CurStep = ssPostInstall then
   begin
@@ -285,6 +329,10 @@ begin
       Cmd := '-NoProfile -ExecutionPolicy Bypass -File "' + PsDetect + '" -OutFile "' + AppDir + '\gpu_detect.json"';
       Exec('powershell.exe', Cmd, AppDir, SW_HIDE, ewWaitUntilTerminated, ResultCode);
     end;
+    ShowCudaNote := (not FileExists(AppDir + '\workerpoh-cuda.exe')) and
+      (GpuSummaryLooksNvidia(GpuSummary) or (GpuBackendChoice = 'cuda'));
+    if ShowCudaNote then
+      MsgBox(ExpandConstant('{cm:CudaMissingNote}'), mbInformation, MB_OK);
     if FileExists(PsWrite) then
     begin
       Cmd := '-NoProfile -ExecutionPolicy Bypass -File "' + PsWrite + '" -InstallDir "' + AppDir + '" -GpuBackend ' + GpuBackendChoice + ' -NonInteractive';

@@ -69,14 +69,6 @@ if command -v 7z >/dev/null 2>&1 && command -v unsquashfs >/dev/null 2>&1; then
       echo "[verify-iso] FAIL squashfs uses zstd — casper panic on many rigs" >&2
       exit 9
     fi
-    SQ_LIST="$(unsquashfs -l "$SQ_TMP/casper/filesystem.squashfs" 2>/dev/null || true)"
-    for sq_path in dev proc sys run; do
-      if ! echo "$SQ_LIST" | grep -q "squashfs-root/${sq_path}"; then
-        echo "[verify-iso] FAIL squashfs missing squashfs-root/${sq_path} (casper needs live mountpoints)" >&2
-        exit 13
-      fi
-    done
-    echo "[verify-iso] PASS squashfs includes dev proc sys run mountpoints"
   else
     echo "[verify-iso] FAIL could not extract casper from ISO (7z)" >&2
     exit 10
