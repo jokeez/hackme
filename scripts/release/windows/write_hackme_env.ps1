@@ -49,18 +49,31 @@ $tempResume = 76
 # Optional floor only when kernel timing fails — never pin pool GH/s (see HACKME_GPU_HASHRATE_FLOOR_GHS).
 $floorGhs = ""
 
-if (-not $RigProfile) {
-    $gpuJson = Join-Path $dir "gpu_detect.json"
-    if (Test-Path $gpuJson) {
-        try {
-            $g = Get-Content $gpuJson -Raw | ConvertFrom-Json
-            if ($g.rig_profile) { $RigProfile = $g.rig_profile }
-            if ($GpuBackend -eq "auto" -and $g.suggest_backend) { $GpuBackend = $g.suggest_backend }
-        } catch { }
-    }
+$gpuVendor = ""
+$gpuJson = Join-Path $dir "gpu_detect.json"
+if (-not $RigProfile -and (Test-Path $gpuJson)) {
+    try {
+        $g = Get-Content $gpuJson -Raw | ConvertFrom-Json
+        if ($g.rig_profile) { $RigProfile = $g.rig_profile }
+        if ($GpuBackend -eq "auto" -and $g.suggest_backend) { $GpuBackend = $g.suggest_backend }
+        if ($g.vendor) { $gpuVendor = [string]$g.vendor }
+    } catch { }
 }
 
 $hasOpenCLBin = Test-Path -LiteralPath (Join-Path -Path $dir -ChildPath "workerpoh-opencl.exe")
+$hasCudaBin = Test-Path -LiteralPath (Join-Path -Path $dir -ChildPath "workerpoh-cuda.exe")
+
+# NVIDIA desktop: align with Linux fair pool (no 28s claim sleep; longer GPU search window).
+if (-not ($RigProfile -match '^amd_rx580') -and ($gpuVendor -match 'NVIDIA' -or $GpuBackend -eq 'cuda')) {
+    $searchMs = 12000
+    $claimMs = 0
+    if ($hasCudaBin) {
+        $GpuBackend = 'cuda'
+    } elseif ($hasOpenCLBin) {
+        $GpuBackend = 'opencl'
+        Write-Host 'NOTE: Windows NVIDIA uses OpenCL (~9 GH/s) until workerpoh-cuda.exe ships. HackMe OS / Linux: ~60+ GH/s with CUDA.'
+    }
+}
 
 switch ($RigProfile) {
     "amd_rx580_2048sp" {
@@ -127,7 +140,6 @@ if ($RigProfile -match '^amd_rx580') {
     $lines += 'HACKME_GPU_BACKEND=opencl'
     $lines += 'HACKME_WORKER_CLAIM_COOLDOWN_MS=28000'
 }
-if ($claimMs -le 0) { $lines += 'HACKME_WORKER_CLAIM_COOLDOWN_MS=28000' }
 
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 [System.IO.File]::WriteAllLines($envPath, $lines, $utf8NoBom)

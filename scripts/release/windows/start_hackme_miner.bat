@@ -53,6 +53,8 @@ if "!HACKME_POOL_COORDINATOR_TOKEN!"=="" (
   exit /b 1
 )
 
+powershell -NoProfile -ExecutionPolicy Bypass -File "%HACKME_DIR%\set_windows_power_perf.ps1" >nul 2>&1
+
 echo.
 echo HackMe public pool miner
 echo Install: %HACKME_DIR%

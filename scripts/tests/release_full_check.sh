@@ -26,6 +26,7 @@ run bash "$ROOT/scripts/release/smoke_artifacts.sh" "$REL_DIR"
 ISO="$REL_DIR/HackMe-OS-${VERSION}-amd64.iso"
 if [[ -f "$ISO" ]]; then
   run bash "$ROOT/scripts/tests/verify_hackme_iso.sh" "$ISO"
+  run bash "$ROOT/scripts/tests/iso_qemu_boot_smoke.sh" "$ISO"
 else
   echo "[full-check] WARN: ISO missing at $ISO" >&2
   fail=$((fail + 1))

@@ -98,6 +98,9 @@ systemctl enable hackme-miner-worker.service
 systemctl enable hackme-miner-status.service
 systemctl enable ssh.service
 
+# casper-md5check expects /cdrom/md5sum.txt (Ubuntu desktop ISO); we ship SHA256 on the website instead.
+systemctl disable casper-md5check.service 2>/dev/null || true
+
 if [[ -x /opt/hackme/scripts/release/iso/visual_overhaul.sh ]]; then
   echo "[chroot] visual overhaul (Plymouth + UI)"
   bash /opt/hackme/scripts/release/iso/visual_overhaul.sh chroot /
@@ -108,6 +111,10 @@ fi
 # Casper expects a root home in the live filesystem.
 mkdir -p /root /run /var/lib/live
 chmod 700 /root
+
+if [[ -f /etc/initramfs-tools/initramfs.conf ]]; then
+  sed -i 's/^MODULES=.*/MODULES=most/' /etc/initramfs-tools/initramfs.conf
+fi
 
 echo "[chroot] initramfs modules (squashfs + overlay — required for live boot)"
 mkdir -p /etc/initramfs-tools

@@ -32,7 +32,7 @@ if ($hasNvidia -and $hasAmd) {
 elseif ($hasNvidia) {
     $vendor = "NVIDIA"
     $suggestBackend = "cuda"
-    $tips += "NVIDIA detected - CUDA backend recommended on Windows (auto falls back if OpenCL/CUDA binary missing)."
+    $tips += "NVIDIA on Windows: OpenCL worker only (~9 GH/s). For full CUDA speed (~60+ GH/s) use HackMe OS or Linux bundle."
 } elseif ($hasAmd) {
     $vendor = "AMD"
     $suggestBackend = "opencl"

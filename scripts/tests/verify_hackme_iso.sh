@@ -24,8 +24,9 @@ if [[ -f "$SUMS" ]]; then
   if [[ -n "$EXPECTED" && "$EXPECTED" == "$ACTUAL" ]]; then
     echo "[verify-iso] PASS sha256"
   else
-    echo "[verify-iso] sha256: $ACTUAL"
-    echo "[verify-iso] expected: ${EXPECTED:-?} (see $SUMS)"
+    echo "[verify-iso] FAIL sha256: $ACTUAL" >&2
+    echo "[verify-iso] expected: ${EXPECTED:-?} (see $SUMS)" >&2
+    exit 8
   fi
 else
   echo "[verify-iso] sha256: $(sha256sum "$ISO_PATH" | awk '{print $1}')"
@@ -50,6 +51,41 @@ else
   echo "[verify-iso] FAIL: missing filesystem.squashfs" >&2
   exit 6
 fi
+if command -v 7z >/dev/null 2>&1 && command -v unsquashfs >/dev/null 2>&1; then
+  SQ_TMP="$(mktemp -d)"
+  FSZ_TMP="$(mktemp)"
+  if 7z x -y -o"$SQ_TMP" "$ISO_PATH" casper/filesystem.squashfs casper/filesystem.size >/dev/null 2>&1; then
+    SQ_UNC="$(unsquashfs -s "$SQ_TMP/casper/filesystem.squashfs" 2>/dev/null | awk '/^Filesystem size/ {print $3; exit}')"
+    SQ_FILE="$(tr -d '\r\n' <"$SQ_TMP/casper/filesystem.size" 2>/dev/null || true)"
+    if [[ -n "$SQ_UNC" && -n "$SQ_FILE" && "$SQ_UNC" == "$SQ_FILE" ]]; then
+      echo "[verify-iso] PASS filesystem.size matches squashfs ($SQ_UNC bytes)"
+    else
+      echo "[verify-iso] FAIL filesystem.size=$SQ_FILE squashfs=$SQ_UNC (casper will panic)" >&2
+      exit 7
+    fi
+    if unsquashfs -s "$SQ_TMP/casper/filesystem.squashfs" 2>/dev/null | grep -qi 'Compression.*xz'; then
+      echo "[verify-iso] PASS squashfs compression xz"
+    elif unsquashfs -s "$SQ_TMP/casper/filesystem.squashfs" 2>/dev/null | grep -qi 'Compression.*zstd'; then
+      echo "[verify-iso] FAIL squashfs uses zstd — casper panic on many rigs" >&2
+      exit 9
+    fi
+    SQ_LIST="$(unsquashfs -l "$SQ_TMP/casper/filesystem.squashfs" 2>/dev/null || true)"
+    for sq_path in dev proc sys run; do
+      if ! echo "$SQ_LIST" | grep -q "squashfs-root/${sq_path}"; then
+        echo "[verify-iso] FAIL squashfs missing squashfs-root/${sq_path} (casper needs live mountpoints)" >&2
+        exit 13
+      fi
+    done
+    echo "[verify-iso] PASS squashfs includes dev proc sys run mountpoints"
+  else
+    echo "[verify-iso] FAIL could not extract casper from ISO (7z)" >&2
+    exit 10
+  fi
+  rm -rf "$SQ_TMP" "$FSZ_TMP"
+elif [[ "${VERIFY_ISO_STRICT:-1}" == "1" ]]; then
+  echo "[verify-iso] FAIL: need p7zip-full + squashfs-tools for filesystem.size check" >&2
+  exit 11
+fi
 if grep -aq '\.disk/info' "$ISO_PATH" 2>/dev/null || grep -aq 'HackMe OS' "$ISO_PATH" 2>/dev/null; then
   echo "[verify-iso] PASS .disk metadata"
 fi
@@ -68,13 +104,13 @@ if command -v isoinfo >/dev/null 2>&1; then
   fi
   rm -f "$SQ"
 fi
-if grep -aqE 'boot=casper username=root noplymouth.*console=tty1' "$ISO_PATH" 2>/dev/null; then
-  echo "[verify-iso] PASS recommended entry (text console, no Plymouth black screen)"
+if grep -aqE 'boot=casper.*noplymouth.*console=tty1' "$ISO_PATH" 2>/dev/null && ! grep -aq 'username=root' "$ISO_PATH" 2>/dev/null; then
+  echo "[verify-iso] PASS recommended entry (text console, casper-safe user)"
+elif grep -aq 'username=root' "$ISO_PATH" 2>/dev/null; then
+  echo "[verify-iso] FAIL: username=root in ISO — casper panic exitcode=0x100; rebuild" >&2
+  exit 12
 elif grep -aq 'boot=casper quiet splash' "$ISO_PATH" 2>/dev/null; then
   echo "[verify-iso] WARN: old ISO uses quiet splash default — rebuild for black-screen fix" >&2
-fi
-if grep -aq 'boot=casper.*toram' "$ISO_PATH" 2>/dev/null && ! grep -aq 'max performance' "$ISO_PATH" 2>/dev/null; then
-  echo "[verify-iso] WARN: toram in default entry" >&2
 fi
 if grep -aq 'isolcpus=1' "$ISO_PATH" 2>/dev/null; then
   echo "[verify-iso] WARN: isolcpus still present in ISO; use recommended entry" >&2

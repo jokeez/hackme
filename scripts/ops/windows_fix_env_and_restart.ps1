@@ -7,6 +7,12 @@ if (-not (Test-Path (Join-Path $dir "hackme.exe"))) {
 Set-Location $dir
 $envf = Join-Path $dir "hackme.env"
 $lines = @(Get-Content $envf | Where-Object { $_ -notmatch '^\s*HACKME_CUDA_CALIBRATE_GHS=' })
+$rigProfile = ''
+foreach ($l in $lines) {
+    if ($l -match '^\s*HACKME_RIG_PROFILE=(.+)') { $rigProfile = $Matches[1].Trim() }
+}
+# RX 580 profiles need 28s claim cooldown; NVIDIA / other rigs use 0 (Linux desktop fair pool).
+$claimMs = if ($rigProfile -match '^amd_rx580') { '28000' } else { '0' }
 $out = [System.Collections.Generic.List[string]]::new()
 $hadBackend = $false
 $hadBind = $false
@@ -17,14 +23,14 @@ foreach ($l in $lines) {
     } elseif ($l -match '^\s*HACKME_BIND_ADDR=') {
         $out.Add('HACKME_BIND_ADDR=127.0.0.1:8080'); $hadBind = $true
     } elseif ($l -match '^\s*HACKME_WORKER_CLAIM_COOLDOWN_MS=') {
-        $out.Add('HACKME_WORKER_CLAIM_COOLDOWN_MS=28000'); $hadCooldown = $true
+        $out.Add("HACKME_WORKER_CLAIM_COOLDOWN_MS=$claimMs"); $hadCooldown = $true
     } else {
         $out.Add($l)
     }
 }
 if (-not $hadBackend) { $out.Add('HACKME_GPU_BACKEND=opencl') }
 if (-not $hadBind) { $out.Add('HACKME_BIND_ADDR=127.0.0.1:8080') }
-if (-not $hadCooldown) { $out.Add('HACKME_WORKER_CLAIM_COOLDOWN_MS=28000') }
+if (-not $hadCooldown) { $out.Add("HACKME_WORKER_CLAIM_COOLDOWN_MS=$claimMs") }
 if (-not ($out -match '^\s*HACKME_WORKER_SIGN_SUBMITS=')) { $out.Add('HACKME_WORKER_SIGN_SUBMITS=1') }
 $hostWid = 'worker-' + (($env:COMPUTERNAME).ToLower() -replace '[^a-z0-9-]', '-')
 if (-not ($out -match '^\s*WORKER_ID=')) { $out.Add("WORKER_ID=$hostWid") }
@@ -54,13 +60,13 @@ if (-not (Test-Path $seedPath)) {
 $seed = (Get-Content $seedPath -Raw).Trim().ToLower()
 if ($seed.Length -ne 64) { Write-Error "node_ed25519.seed invalid length" }
 $env:HACKME_MINER_ED25519_SEED_HEX = $seed
-$env:HACKME_WORKER_CLAIM_COOLDOWN_MS = '28000'
+$env:HACKME_WORKER_CLAIM_COOLDOWN_MS = $claimMs
 $env:HACKME_WORKER_SIGN_SUBMITS = '1'
 $logDir = Join-Path $dir 'logs'
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $liveLog = Join-Path $logDir 'worker-opencl-live.log'
 $wid = $hostWid
-$env:HACKME_WORKER_CLAIM_COOLDOWN_MS = '28000'
+$env:HACKME_WORKER_CLAIM_COOLDOWN_MS = $claimMs
 $env:HACKME_WORKER_SIGN_SUBMITS = '1'
 $env:HACKME_GPU_BACKEND = 'opencl'
 $argList = @(

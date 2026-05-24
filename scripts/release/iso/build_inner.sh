@@ -68,24 +68,41 @@ if [[ -z "$KERNEL" || -z "$INITRD" ]]; then
   exit 1
 fi
 
-echo "[iso-inner] casper metadata (manifest + size)"
+echo "[iso-inner] casper metadata (manifest)"
 mkdir -p "$ISO_TREE/casper"
 chroot "$CHROOT" dpkg-query -W --showformat='${Package} ${Version}\n' \
   >"$ISO_TREE/casper/filesystem.manifest" 2>/dev/null || true
 cp -f "$ISO_TREE/casper/filesystem.manifest" "$ISO_TREE/casper/filesystem.manifest.du" 2>/dev/null || true
-du -sx --block-size=1 "$CHROOT" | cut -f1 >"$ISO_TREE/casper/filesystem.size"
 
-# Unmount virtual filesystems before squashfs (avoids packing live /proc).
+# Unmount bind mounts before squashfs (du with /proc mounted inflates filesystem.size → casper panic 0x100).
 unmount_chroot_vfs
 
-mkdir -p "${CHROOT}/root"
+mkdir -p "${CHROOT}/dev" "${CHROOT}/proc" "${CHROOT}/sys" "${CHROOT}/run" "${CHROOT}/root" "${CHROOT}/tmp" "${CHROOT}/var/tmp"
 chmod 700 "${CHROOT}/root"
+find "${CHROOT}/tmp" "${CHROOT}/run" -mindepth 1 -delete 2>/dev/null || true
 
-# Ubuntu casper initramfs reliably mounts xz squashfs (zstd caused exitcode=0x100 panics).
-echo "[iso-inner] squashfs (xz — casper-compatible, matches Ubuntu live)"
+# Ubuntu casper initramfs reliably mounts xz squashfs.
+echo "[iso-inner] squashfs (xz — casper-compatible)"
 mksquashfs "$CHROOT" "$ISO_TREE/casper/filesystem.squashfs" \
   -comp xz -Xbcj x86 -b 1M -noappend \
-  -e proc sys dev run tmp
+  -e boot
+
+# filesystem.size MUST match squashfs uncompressed bytes (casper rejects mismatches).
+FS_SIZE=""
+if command -v unsquashfs >/dev/null 2>&1; then
+  FS_SIZE="$(unsquashfs -s "$ISO_TREE/casper/filesystem.squashfs" 2>/dev/null | awk '/^Filesystem size/ {print $3; exit}')"
+fi
+if [[ -z "$FS_SIZE" ]]; then
+  FS_SIZE="$(du -sx --block-size=1 "$CHROOT" 2>/dev/null | cut -f1)"
+fi
+printf '%s\n' "$FS_SIZE" >"$ISO_TREE/casper/filesystem.size"
+echo "[iso-inner] filesystem.size=${FS_SIZE} (must match squashfs uncompressed)"
+
+DU_CHROOT="$(du -sx --block-size=1 "$CHROOT" 2>/dev/null | cut -f1)"
+if [[ -n "$FS_SIZE" && -n "$DU_CHROOT" && "$FS_SIZE" != "$DU_CHROOT" ]]; then
+  echo "[iso-inner] NOTE: post-squashfs size ${FS_SIZE} vs chroot du ${DU_CHROOT} (using squashfs size for casper)"
+fi
+
 cp "$KERNEL" "$ISO_TREE/casper/vmlinuz"
 cp "$INITRD" "$ISO_TREE/casper/initrd"
 du -sh "$ISO_TREE/casper/filesystem.squashfs"
@@ -120,11 +137,11 @@ else
 set default=0
 set timeout=6
 menuentry "HackMe OS (live · recommended)" {
-  linux /casper/vmlinuz boot=casper username=root noplymouth console=tty1 ---
+  linux /casper/vmlinuz boot=casper noplymouth console=tty1 fsck.mode=skip ---
   initrd /casper/initrd
 }
 menuentry "HackMe OS (live · safe graphics)" {
-  linux /casper/vmlinuz boot=casper username=root nomodeset noplymouth console=tty1 ---
+  linux /casper/vmlinuz boot=casper nomodeset noplymouth console=tty1 fsck.mode=skip ---
   initrd /casper/initrd
 }
 GRUB
