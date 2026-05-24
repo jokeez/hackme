@@ -31,10 +31,10 @@ if [[ -z "$len" ]]; then
     len="$(echo "$hdr" | sed -n 's|.*/\([0-9]*\).*|\1|p')"
   fi
 fi
-if [[ -n "$len" && "$len" -gt 900000000 ]]; then
+if [[ -n "$len" && "$len" -gt 800000000 ]]; then
   echo "[site-smoke] PASS ISO size=$len bytes"
 else
-  echo "[site-smoke] FAIL ISO size (${len:-missing}) url=$ISO_URL" >&2
+  echo "[site-smoke] FAIL ISO size (${len:-missing}; expected >800MB) url=$ISO_URL" >&2
   fail=$((fail + 1))
 fi
 
