@@ -64,11 +64,13 @@ Pool / downloads: [url=https://hackme.tech]hackme.tech[/url] · ANN: [url=https:
 
 [hr]
 
-[b]Screenshots to attach[/b]
+[b]Screenshots attached[/b] (see also [mono]docs/screenshots/security-note-01/[/mono] in repo)
 
-1. HTML fuzz report — [b]clean[/b] verdict, campaign [mono]security-note-01[/mono], linked order [mono]order-security-script-push-001[/mono]  
-2. Orders tab — same order [b]completed[/b]  
-3. This source file open in editor (or the [code] block above is enough for text-only readers)
+1. [b]HTML fuzz report[/b] — styled page with verdict badge, metrics, top issues ([mono]redteam-property-fuzz[/mono] example: [mono]FAIL_HIGH[/mono] on property-fuzz sample; operator UI: Fuzz → Open report)  
+2. [b]Fuzz campaigns dashboard[/b] — live table, budget runs, completed campaigns  
+3. (Optional) Orders tab — useful-PoW order [mono]order-security-script-push-001[/mono] [b]completed[/b] · or the [code] block above for text-only readers
+
+[i]Note:[/i] [mono]FAIL_HIGH[/mono] on the property-fuzz screenshot is a [b]demo harness[/b] on [mono]rust_bounds_guard[/mono], not a claim of 80 flaws in Bitcoin Core. Security Note #1 push-bound campaign was [mono]clean[/mono] on its fuzz sample.
 
 [hr]
 

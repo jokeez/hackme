@@ -1,16 +1,20 @@
-📊 HackMe — красивые HTML-отчёты fuzz-кампаний
+📊 HackMe — HTML fuzz reports (operator-ready)
 
-Раньше отчёт открывался сырым JSON в blob-вкладке. Теперь по умолчанию — **оформленная HTML-страница**: verdict, метрики, top issues, рекомендации (тёмная тема, готово для скриншота).
+Fuzz campaigns now open as a styled HTML security report — verdict badge, metrics, top issues, recommendations. No more raw JSON in the browser.
 
-🔬 Security Note #1 (research): WASM-guard на правило push > 520 bytes (Bitcoin Script–style) — useful-PoW order **completed**, fuzz sample **clean** (ожидаемо: guard отрабатывает).
+Example (local operator run):
+• Campaign: redteam-property-fuzz · verdict FAIL_HIGH
+• Sample: 80 property checks on rust_bounds_guard WASM
+• Dashboard: Fuzz tab → Open report
 
-Как открыть (оператор, local/VPS с admin):
-• Dashboard → Fuzz → выбрать кампанию → **Open report**
-• API: GET /api/fuzz/campaigns/{id}/report (HTML) · JSON: ?format=json
+🔬 Security Note #1 (Bitcoin Script–style push bound, research):
+• Useful-PoW guard: OP_PUSHDATA1 + push > 520 bytes → flag
+• Source (AGPL): github.com/jokeez/hackme — tasks/sources/security/rust_script_push_bounds_guard.rs
+• Not a Bitcoin Core CVE — reproducible useful work on HackMe
 
-📎 Код guard (AGPL): github.com/jokeez/hackme — tasks/sources/security/rust_script_push_bounds_guard.rs
+🌐 https://hackme.tech · developers · pool stats
+📋 ANN https://bitcointalk.org/index.php?topic=5583373.0
 
-🌐 Pool · developers · fuzzing CLI: https://hackme.tech
-📋 ANN: https://bitcointalk.org/index.php?topic=5583373.0
+Attach screenshots: HTML report + Fuzz campaigns table (see docs/screenshots/security-note-01/).
 
 #HackMe #HMC #security #fuzzing #bitcoin
