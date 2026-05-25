@@ -58,7 +58,7 @@ go run ./cmd/telegrambot -help
 | `/status` | Chain tip, genesis, mining flag |
 | `/metrics` | Локальный PoH: target_mod, attempts/s, task kind, reward |
 | `/pool` | **Пул:** hashrate, active rigs, coordinator counters |
-| `/tasks` | **Заказы/phasing:** open/completed, reward, progress |
+| `/tasks` | **Заказы/fuzzing:** open/completed, reward, progress |
 | `/blocks [n]` | Последние блоки (task kind, hash) |
 | `/wallet` | Баланс кошелька узла |
 | `/worker` | Локальный worker + unpaid accrual |
@@ -76,18 +76,38 @@ go run ./cmd/telegrambot -help
 
 Для operator-бота нужен **отдельный** токен от [@BotFather](https://t.me/BotFather) (не тот же, что у канального news-бота, если не хотите смешивать роли).
 
-## Деплой на VPS (hackme.tech)
+## Деплой на VPS (hackme.tech) — вариант A
+
+Один operator-бот на прод-узле (`127.0.0.1:18080`), отдельный токен от news-канала.
+
+1. [@BotFather](https://t.me/BotFather) → **New bot** (не тот же, что для @hackme_tech).
+2. Локально (файл в `.gitignore`):
+
+   ```bash
+   echo '123456:ABC...' > .secrets/telegram_operator_bot_token
+   chmod 600 .secrets/telegram_operator_bot_token
+   ```
+
+3. Опционально — только ваш Telegram id ([@userinfobot](https://t.me/userinfobot)):
+
+   ```bash
+   export HACKME_TELEGRAM_ALLOWED_USER_IDS=123456789
+   ```
+
+4. С машины с SSH на VPS:
+
+   ```bash
+   NODE_SSH=hackme-vps bash scripts/ops/setup_telegram_operator_bot.sh
+   ```
+
+Скрипт собирает `hackme-telegrambot`, копирует `HACKME_ADMIN_TOKEN` из `/opt/hackme/.env.vps`, включает `hackme-telegrambot.service` (лог: `/opt/hackme/logs/telegram-operator-bot.log`).
+
+Без локального файла — на VPS:
 
 ```bash
-# На VPS один раз:
-ssh hackme-vps
-cp /opt/hackme/telegram_bot.env.example /opt/hackme/.env.telegram
-nano /opt/hackme/.env.telegram
-# TELEGRAM_BOT_TOKEN=...
-# HACKME_TELEGRAM_NODE_URL=http://127.0.0.1:18080
-# HACKME_TELEGRAM_ALLOWED_USER_IDS=123456789
-
-# С локальной машины:
+echo 'TOKEN' | sudo tee /opt/hackme/.secrets/telegram_operator_bot_token
+sudo chmod 600 /opt/hackme/.secrets/telegram_operator_bot_token
+sudo chown hackme:hackme /opt/hackme/.secrets/telegram_operator_bot_token
 NODE_SSH=hackme-vps bash scripts/ops/setup_telegram_operator_bot.sh
 ```
 

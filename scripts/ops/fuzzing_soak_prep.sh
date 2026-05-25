@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Post a small phasing order on VPS canonical + verify coordinator orders mode.
+# Post a small fuzzing order on VPS canonical + verify coordinator orders mode.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 NODE_SSH="${NODE_SSH:-hackme-vps}"
@@ -10,10 +10,10 @@ set -euo pipefail
 cd /opt/hackme
 ADMIN=$(grep '^HACKME_ADMIN_TOKEN=' .env.vps | cut -d= -f2-)
 TS=$(date +%s)
-ID="phasing-prep-$TS"
+ID="fuzzing-prep-$TS"
 HTTP=$(curl -sS -o /tmp/ph.json -w '%{http_code}' -X POST http://127.0.0.1:18080/api/tasks \
   -H "Content-Type: application/json" -H "X-Hackme-Admin-Token: $ADMIN" \
-  -d "{\"id\":\"$ID\",\"kind\":\"synthetic_poh_v1\",\"difficulty_score\":4,\"reward_hmc\":0.01,\"target_solves\":2,\"payer_ref\":\"phasing:prep\"}")
+  -d "{\"id\":\"$ID\",\"kind\":\"synthetic_poh_v1\",\"difficulty_score\":4,\"reward_hmc\":0.01,\"target_solves\":2,\"payer_ref\":\"fuzzing:prep\"}")
 echo "order $ID HTTP $HTTP"
 cat /tmp/ph.json | head -c 200
 echo

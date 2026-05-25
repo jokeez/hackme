@@ -11,6 +11,7 @@
 # Optional:
 #   SKIP_DIST=1       — do not rsync dist/ (large); site-only refresh
 #   RELOAD_NGINX=1    — default on; set RELOAD_NGINX=0 to skip systemctl reload
+#   SYNC_NGINX_SITE_CONF=1 — install scripts/ops/nginx/hackme-site-domain.tls.conf (wallet + pool routes)
 
 set -euo pipefail
 
@@ -40,6 +41,8 @@ NODE_SSH="${NODE_SSH:-}"
 NODE_DEPLOY_DIR="${NODE_DEPLOY_DIR:-/opt/hackme}"
 SKIP_DIST="${SKIP_DIST:-0}"
 RELOAD_NGINX="${RELOAD_NGINX:-1}"
+SYNC_NGINX_SITE_CONF="${SYNC_NGINX_SITE_CONF:-0}"
+NGINX_SITE_CONF="${NGINX_SITE_CONF:-$ROOT_DIR/scripts/ops/nginx/hackme-site-domain.tls.conf}"
 
 if [[ -z "$NODE_SSH" ]]; then
   echo "[deploy-hackme-site] set NODE_SSH (e.g. hackme-vps or root@host)" >&2
@@ -79,6 +82,17 @@ if [[ "$SKIP_DIST" != "1" && -d "${ROOT_DIR}/dist" ]]; then
   deploy_ssh_retry_run _deploy_rsync -az --mkpath "${ROOT_DIR}/dist/" "${NODE_SSH}:${NODE_DEPLOY_DIR}/dist/"
 fi
 
+if [[ "$SYNC_NGINX_SITE_CONF" == "1" ]]; then
+  if [[ ! -f "$NGINX_SITE_CONF" ]]; then
+    echo "[deploy-hackme-site] missing NGINX_SITE_CONF: $NGINX_SITE_CONF" >&2
+    exit 2
+  fi
+  echo "[deploy-hackme-site] sync nginx site conf -> /etc/nginx/sites-available/hackme-site-domain.conf"
+  deploy_ssh_retry_run _deploy_rsync -az "$NGINX_SITE_CONF" "${NODE_SSH}:/tmp/hackme-site-domain.conf.new"
+  deploy_ssh_retry_run _deploy_ssh "$NODE_SSH" \
+    "sudo cp /tmp/hackme-site-domain.conf.new /etc/nginx/sites-available/hackme-site-domain.conf"
+fi
+
 if [[ "$RELOAD_NGINX" == "1" ]]; then
   echo "[deploy-hackme-site] nginx reload (best-effort)"
   deploy_ssh_retry_run _deploy_ssh "$NODE_SSH" "sudo nginx -t && sudo systemctl reload nginx" || {
@@ -92,4 +106,13 @@ if [[ "$code" == "200" ]]; then
   echo "[deploy-hackme-site] PASS (HTTP ${code})"
 else
   echo "[deploy-hackme-site] WARN: unexpected HTTP ${code:-error}" >&2
+fi
+
+if command -v jq >/dev/null 2>&1; then
+  wcode="$(curl -fsS --max-time 15 -o /dev/null -w "%{http_code}" "https://hackme.tech/api/wallet" || true)"
+  if [[ "$wcode" == "200" ]]; then
+    echo "[deploy-hackme-site] GET /api/wallet HTTP 200"
+  else
+    echo "[deploy-hackme-site] WARN: GET /api/wallet HTTP ${wcode:-error} (run with SYNC_NGINX_SITE_CONF=1 if 403)" >&2
+  fi
 fi

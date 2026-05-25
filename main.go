@@ -31,6 +31,7 @@ import (
 
 	"hackme/internal/block"
 	"hackme/internal/chain"
+	"hackme/internal/integrator"
 	"hackme/internal/lanpool"
 	"hackme/internal/logsetup"
 	"hackme/internal/nodecrypto"
@@ -353,6 +354,13 @@ func main() {
 		taskProv,
 	)
 
+	if st, err := integrator.Open(absDataDir); err != nil {
+		log.Printf("integrator store init: %v", err)
+	} else {
+		integratorStore = st
+		log.Printf("integrator store: %s (%d active)", filepath.Join(absDataDir, "integrator_tokens.json"), st.ActiveCount())
+	}
+
 	a := &app{
 		tmpl:            template.Must(template.New("dash").Parse(embeddedDashboard)),
 		explorerTmpl:    template.Must(template.New("explorer").Parse(embeddedExplorer)),
@@ -414,6 +422,8 @@ func main() {
 	mux.HandleFunc("/api/hardware/rig-profiles/apply", a.handleRigProfilesApply)
 	mux.HandleFunc("/api/tasks", a.handleTasks)
 	mux.HandleFunc("/api/tasks/from_code", a.handleTaskFromCode)
+	mux.HandleFunc("/api/integrator/", a.handleIntegratorAPI)
+	mux.HandleFunc("/api/integrator", a.handleIntegratorAPI)
 	mux.HandleFunc("/api/fuzz/campaigns", a.handleFuzzCampaigns)
 	mux.HandleFunc("/api/fuzz/campaigns/", a.handleFuzzCampaigns)
 	mux.HandleFunc("/api/fuzz/housekeeping", a.handleFuzzHousekeeping)
@@ -3099,7 +3109,7 @@ func (a *app) handleTasks(w http.ResponseWriter, r *http.Request) {
 		if rows == nil {
 			rows = []chain.OrderTaskRow{}
 		}
-		if !adminRequestAuthed(r) {
+		if !tasksListShowsDetails(r) {
 			for i := range rows {
 				rows[i].PayerRef = ""
 				rows[i].ManifestJSON = ""
@@ -3113,7 +3123,7 @@ func (a *app) handleTasks(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode(map[string]any{"error": "rate limited", "code": "rate_limited"})
 			return
 		}
-		if !requireAdminAuth(w, r) {
+		if !requireDeveloperTasksAuth(w, r) {
 			return
 		}
 		logAdminAction(r, "tasks_post")

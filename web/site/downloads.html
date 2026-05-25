@@ -17,6 +17,7 @@
     <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe logo" /><span>HackMe Network</span></a>
     <nav class="nav">
       <a href="./index.html">Home</a>
+      <a href="./developers.html">Developers</a>
       <a href="./docs.html">Docs</a>
       <a href="./news.html">News</a>
       <a href="./contacts.html">Contacts</a>
@@ -30,6 +31,26 @@
       <p class="kicker">Downloads</p>
       <h1>Official HackMe release artifacts</h1>
       <p class="hero-copy">Verify SHA256 before install. Version <strong id="dl-release-ver">—</strong> · open source on <a href="https://github.com/jokeez/hackme" target="_blank" rel="noreferrer">GitHub</a>.</p>
+    </section>
+
+    <section id="fuzzing-client" class="panel glass" style="border:1px solid rgba(0,209,255,0.25)">
+      <div class="panel-head">
+        <p class="kicker" style="color:#00d1ff">B2B · Fuzzing</p>
+        <h2>hackme-fuzzing CLI (integrators)</h2>
+        <p class="subtle">Create paid fuzzing orders on hackme.tech <strong>without</strong> the mining dashboard or browser admin tokens. WASM is built on your machine; remote <code>from_code</code> is blocked on the public site. Request <code>X-Hackme-Developer-Token</code> via <a href="./contacts.html">contacts</a>.</p>
+      </div>
+      <div class="grid grid-2" style="margin-top:1rem">
+        <article class="card glass">
+          <h3>Windows</h3>
+          <a id="download-fuzzing-win" class="btn btn-primary btn-block" href="#">hackme-fuzzing (.exe)</a>
+        </article>
+        <article class="card glass">
+          <h3>Linux amd64</h3>
+          <a id="download-fuzzing-linux" class="btn btn-primary btn-block" href="#">hackme-fuzzing (binary)</a>
+          <p class="subtle" style="margin-top:0.75rem"><code>chmod +x hackme-fuzzing-*-linux-amd64</code> · <code>export HACKME_DEVELOPER_TOKEN=…</code> · <code>./hackme-fuzzing wallet</code></p>
+        </article>
+      </div>
+      <p class="subtle" style="margin-top:1rem"><a href="./developers.html">Developers landing</a> · <a href="./fuzzing-console.html">Public status tracker</a> (read-only)</p>
     </section>
 
     <section id="hackme-os" class="panel glass" style="border:1px solid rgba(0,255,136,0.25)">

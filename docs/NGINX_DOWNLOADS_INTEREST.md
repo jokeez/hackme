@@ -16,6 +16,20 @@ sudo bash /opt/hackme/scripts/ops/vps_enable_nginx_client_ip_log.sh
 
 New log: `/var/log/nginx/hackme-site-clients.log`
 
+### 1b) Log rotation (required on busy pool — prevents multi-GB logs)
+
+Pool polls fill `hackme-site-clients.log` quickly. Default nginx `*.log` + `delaycompress` can leave **uncompressed multi-GB** `.1` files.
+
+On VPS as root (once, re-run after deploy):
+
+```bash
+sudo bash /opt/hackme/scripts/ops/vps_setup_nginx_logrotate.sh
+# one-shot shrink existing huge rotations:
+sudo VACUUM_NOW=1 bash /opt/hackme/scripts/ops/vps_setup_nginx_logrotate.sh
+```
+
+Policy: **maxsize 250M**, keep **7** compressed archives, hourly logrotate check, `access.log`/`error.log` still daily (14).
+
 ### 2) Real-time dashboard
 
 ```bash

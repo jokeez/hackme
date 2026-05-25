@@ -62,7 +62,7 @@ lines = [
     f"| 3-rig pool (PC + 2 VPS) | OK |",
     f"| Payout map PC+MSK → your wallet | OK |",
     f"| On-chain settlement | OK (see settlement.log) |",
-    f"| Phasing / orders | OK (coordinator probe enabled) |",
+    f"| Fuzzing / orders | OK (coordinator probe enabled) |",
     f"| Dashboard + fuzz UI | OK (poll ~8s, smoke PASS) |",
     f"| Network | OK (PC timeouts = backoff, not outage) |",
     f"",

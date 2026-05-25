@@ -17,6 +17,7 @@
     <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe logo" /><span>HackMe Network</span></a>
     <nav class="nav">
       <a href="./index.html">Home</a>
+      <a href="./developers.html">Developers</a>
       <a href="./downloads.html">Downloads</a>
       <a href="./docs.html">Docs</a>
       <a href="./contacts.html">Contacts</a>
@@ -72,6 +73,11 @@
               <td>Start PoH mining (requires genesis; admin token if enabled).</td>
             </tr>
             <tr>
+              <td><span class="method-pill method-get">GET</span></td>
+              <td><span class="code-inline">/api/wallet</span></td>
+              <td>Treasury balance for fuzzing escrow (public on hackme.tech).</td>
+            </tr>
+            <tr>
               <td><span class="method-pill method-post">POST</span></td>
               <td><span class="code-inline">/api/tasks</span></td>
               <td>Create order/task with escrow, validation gates, and TTL logic.</td>
@@ -114,6 +120,10 @@
         <h3>Error model</h3>
         <p>Use HTTP + JSON code fields for machine handling: <span class="code-inline">400/401/402/409/412/429</span>.</p>
         <p>Rate-limit and anti-abuse are expected behavior under burst load.</p>
+      </article>
+      <article class="doc-card glass">
+        <h3>Fuzzing / B2B</h3>
+        <p>Orders without mining UI: <a href="./developers.html">developers.html</a> · <a href="./fuzzing-console.html">fuzzing console</a>.</p>
       </article>
       <article class="doc-card glass">
         <h3>Full specification</h3>

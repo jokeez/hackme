@@ -74,6 +74,7 @@ func main() {
 	if token == "" && !coordinatorBindLoopbackOnly(addr) && !allowInsecure {
 		log.Fatal("security: coordinator bind " + addr + " is not loopback-only — set HACKME_COORDINATOR_ADMIN_TOKEN")
 	}
+	initClientIPTrust(addr)
 
 	mux := http.NewServeMux()
 	wm := newWorkManagerFromEnv()
@@ -105,6 +106,9 @@ func main() {
 			http.Error(w, "invalid json", http.StatusBadRequest)
 			return
 		}
+		if body.IP == "" {
+			body.IP = clientIPKey(r)
+		}
 		if err := reg.Upsert(r.RemoteAddr, body); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -118,9 +122,12 @@ func main() {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(map[string]string{"ok": "coordinator"})
 	})
-	addWorkRoutes(mux, token, workerToken, allowInsecure, reg, wm)
+	addWorkRoutes(mux, token, workerToken, allowInsecure, reg, wm, db)
 
 	log.Printf("HackMe LAN coordinator → http://%s  (db %s)", addr, dbPath)
+	if trustClientForwardedFor {
+		log.Printf("client IP trust: CF-Connecting-IP / X-Forwarded-For / X-Real-IP enabled (bind %s)", addr)
+	}
 	if token != "" {
 		log.Printf("HACKME_COORDINATOR_ADMIN_TOKEN is set: admin routes + GET /api/work/stats?details=1")
 	}

@@ -22,7 +22,7 @@ func newChaosMux(t *testing.T) (*http.ServeMux, *workManager) {
 	wm.submitPerMin = 10_000
 	reg := lanpool.NewRegistry()
 	mux := http.NewServeMux()
-	addWorkRoutes(mux, "", "", true, reg, wm)
+	addWorkRoutes(mux, "", "", true, reg, wm, nil)
 	return mux, wm
 }
 
@@ -171,6 +171,60 @@ func TestSubmitRejectHTTPStatusMapping(t *testing.T) {
 		if got := submitRejectHTTPStatus(tc.reason); got != tc.want {
 			t.Fatalf("reason %q: got %d want %d", tc.reason, got, tc.want)
 		}
+	}
+}
+
+func TestHTTPSubmitRecordsIPAbuseFromXForwardedFor(t *testing.T) {
+	trustClientForwardedFor = true
+	mux, wm := newChaosMux(t)
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const attackerIP = "203.0.113.88"
+	base, size, _, _, _, ok, _ := wm.claim("w-xff-ip", 0)
+	if !ok {
+		t.Fatal("claim failed")
+	}
+	req := submitWorkRequest{
+		WorkerID:     "w-xff-ip",
+		BaseNonce:    base,
+		BatchSize:    size,
+		WorkID:       buildWorkID("w-xff-ip", base, size),
+		Attempts:     size,
+		SubmitNonce:  1,
+		MinerPubKey:  hex.EncodeToString(pub),
+		MinerAddress: signerAddr(pub),
+		MinerSigAlg:  "ed25519",
+	}
+	req.MinerSig = hex.EncodeToString(ed25519.Sign(priv, canonicalSubmitBytes(req)))
+	rec := httptest.NewRecorder()
+	b, _ := json.Marshal(req)
+	httpReq := httptest.NewRequest(http.MethodPost, "/api/work/submit", bytes.NewReader(b))
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.RemoteAddr = "127.0.0.1:18081"
+	httpReq.Header.Set("X-Forwarded-For", attackerIP)
+	mux.ServeHTTP(rec, httpReq)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("submit status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	for i := 0; i < 4; i++ {
+		bad := req
+		bad.SubmitNonce = uint64(10 + i)
+		bad.MinerSig = hex.EncodeToString(ed25519.Sign(priv, canonicalSubmitBytes(bad)))
+		rec2 := httptest.NewRecorder()
+		b2, _ := json.Marshal(bad)
+		r2 := httptest.NewRequest(http.MethodPost, "/api/work/submit", bytes.NewReader(b2))
+		r2.Header.Set("Content-Type", "application/json")
+		r2.RemoteAddr = "127.0.0.1:18081"
+		r2.Header.Set("X-Forwarded-For", attackerIP)
+		mux.ServeHTTP(rec2, r2)
+	}
+	wm.mu.Lock()
+	_, inIP := wm.ipAbuse[attackerIP]
+	wm.mu.Unlock()
+	if !inIP {
+		t.Fatal("expected ipAbuse keyed by X-Forwarded-For client IP, not 127.0.0.1")
 	}
 }
 

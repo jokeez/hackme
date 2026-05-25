@@ -1,0 +1,22 @@
+🔐 HackMe B2B fuzzing — security update
+
+We removed browser admin tokens from hackme.tech for integrators.
+
+✅ What's new
+• hackme-fuzzing CLI (Windows + Linux) — create paid fuzzing orders safely
+• Scoped developer token (tasks only — not mining admin)
+• Public page = read-only tracker (wallet + order progress)
+• Remote from_code & fuzz blocked on the public site (403)
+
+📥 Downloads
+https://hackme.tech/downloads.html#fuzzing-client
+
+📖 Developers
+https://hackme.tech/developers.html
+
+⛏ Miners unchanged
+HackMe OS ISO · Windows worker · pool https://hackme.tech/pool/coordinator/api/pool/stats
+
+B2B access: contact via https://hackme.tech/contacts.html
+
+#HackMe #HMC #fuzzing #security

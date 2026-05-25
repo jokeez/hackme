@@ -22,6 +22,15 @@
 | [COORDINATOR_MEGA_STRESS.md](COORDINATOR_MEGA_STRESS.md) | Stress test results |
 | [MEMORY_LEAK_SPEC.md](MEMORY_LEAK_SPEC.md) | Coordinator memory spec |
 
+## Fuzzing / B2B integrators
+
+| Doc / page | Topic |
+|------------|--------|
+| [DEVELOPERS_FUZZING.md](DEVELOPERS_FUZZING.md) | Orders API, limits, escrow |
+| [FUZZING_B2B_SECURITY_VERDICT.md](FUZZING_B2B_SECURITY_VERDICT.md) | B2B threat model & verdict |
+| [../web/site/developers.html](../web/site/developers.html) | Public landing (no mining UI) |
+| [../web/site/fuzzing-console.html](../web/site/fuzzing-console.html) | Wallet + order console |
+
 ## Architecture & API
 
 | Doc | Topic |

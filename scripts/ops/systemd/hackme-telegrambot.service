@@ -5,11 +5,20 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+User=hackme
+Group=hackme
 WorkingDirectory=/opt/hackme
 EnvironmentFile=/opt/hackme/.env.telegram
 ExecStart=/opt/hackme/hackme-telegrambot
 Restart=on-failure
 RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/hackme/logs
+StandardOutput=append:/opt/hackme/logs/telegram-operator-bot.log
+StandardError=append:/opt/hackme/logs/telegram-operator-bot.log
 
 [Install]
 WantedBy=multi-user.target

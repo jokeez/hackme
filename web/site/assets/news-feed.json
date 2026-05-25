@@ -1,6 +1,29 @@
 {
   "items": [
     {
+      "id": "2026-05-25-fuzzing-b2b-cli-hardening",
+      "date": "2026-05-25",
+      "title": "B2B fuzzing hardened · hackme-fuzzing CLI · no browser admin on hackme.tech",
+      "summary": "Integrators now use a scoped developer token and the hackme-fuzzing CLI (Windows/Linux) instead of pasting admin secrets into a web console. Public site: read-only wallet + order tracker only. Remote from_code and fuzz APIs return 403 on hackme.tech. WASM is built locally; POST /api/tasks uses X-Hackme-Developer-Token.",
+      "tags": [
+        "security",
+        "infrastructure",
+        "release",
+        "fuzzing"
+      ],
+      "impact": "B2B clients get a smaller attack surface; operators issue per-integrator tokens; miners unchanged (ISO/Windows pool).",
+      "action": "Downloads: https://hackme.tech/downloads.html#fuzzing-client · Docs: https://hackme.tech/developers.html · Status: https://hackme.tech/fuzzing-console.html · BCT: docs/BITCOINTALK_UPDATE_FUZZING_B2B_BBCode.txt · Telegram: docs/TELEGRAM_POST_FUZZING_B2B.txt",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme",
+        "developers": "https://hackme.tech/developers.html",
+        "downloads": "https://hackme.tech/downloads.html#fuzzing-client",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "bitcointalk": "https://bitcointalk.org/index.php?topic=5583373.0",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-22-hackme-os-iso-published",
       "date": "2026-05-22",
       "title": "HackMe OS ISO published (956 MB) · SHA256 verified · pool ~2.4 GH/s",
@@ -234,26 +257,6 @@
       "links": {
         "github": "https://github.com/jokeez/hackme/blob/main/docs/BUG_BOUNTY.md",
         "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-05-19-bitcointalk-ann-live",
-      "date": "2026-05-19",
-      "title": "Bitcointalk ANN is live — official pool thread",
-      "summary": "The HackMe pool announcement is published on Bitcoin Forum (Pools / Altcoins): topic 5583373. Links to hackme.tech, downloads, GitHub source, economics, and miner quick start.",
-      "tags": [
-        "community",
-        "announcement",
-        "mining",
-        "pool"
-      ],
-      "impact": "Miners can discuss setup, WORKER_PAYOUT_MAP, and economics in the official thread. Site Contacts now links to the live forum URL.",
-      "action": "Thread: https://bitcointalk.org/index.php?topic=5583373.0 — join mining via https://hackme.tech/downloads.html",
-      "status": "published",
-      "links": {
-        "bitcointalk": "https://bitcointalk.org/index.php?topic=5583373.0",
-        "telegram": "https://t.me/hackme_tech",
-        "github": "https://github.com/jokeez/hackme"
       }
     }
   ],

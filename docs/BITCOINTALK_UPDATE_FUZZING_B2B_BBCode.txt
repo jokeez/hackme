@@ -1,0 +1,58 @@
+[center]
+[size=16pt][b][color=#00D1FF]HackMe Network — B2B Fuzzing Security Update[/color][/b][/size]
+[size=10pt][color=#B8C5D6]May 2026 · [mono]0.1.0-rc11g[/mono][/color][/size]
+[/center]
+
+[hr]
+
+[b][color=#39FF14]Summary[/color][/b]
+
+Integrators posting paid fuzzing work on hackme.tech no longer use a web console with admin tokens. We ship a small CLI and a [b]scoped developer token[/b] (orders only). The public website shows a [b]read-only[/b] status tracker.
+
+[list]
+[*][b]hackme-fuzzing[/b] — Windows [.exe] and Linux binary on [url=https://hackme.tech/downloads.html#fuzzing-client]official downloads[/url]
+[*][b]No browser admin[/b] — do not paste production tokens into hackme.tech pages
+[*][b]WASM built locally[/b] — remote [mono]/api/tasks/from_code[/mono] returns [color=#FF6060][b]403[/b][/color] on the public host (compiler stays off the internet edge)
+[*][b]Fuzz API[/b] — not exposed on hackme.tech ([mono]403[/mono])
+[*][color=#00D1FF][b]Miners unchanged[/b][/color] — HackMe OS ISO, Windows worker, HTTP coordinator pool (~GH/s fleet on hackme.tech)
+[/list]
+
+[hr]
+
+[b][color=#00D1FF]Integrator quick start[/color][/b]
+
+[code]
+export HACKME_DEVELOPER_TOKEN='…'   # request via contacts on hackme.tech
+export HACKME_FUZZING_BASE=https://hackme.tech
+hackme-fuzzing wallet
+hackme-fuzzing create manifest.json
+hackme-fuzzing tasks
+[/code]
+
+Public read-only tracker: [url=https://hackme.tech/fuzzing-console.html]fuzzing-console.html[/url]
+Developer docs: [url=https://hackme.tech/developers.html]developers.html[/url]
+
+[hr]
+
+[b][color=#FFB020]Order limits (canonical node)[/color][/b]
+
+[table]
+[tr][td]difficulty_score[/td][td]1 – 100[/td][/tr]
+[tr][td]target_solves[/td][td]≤ 10 000[/td][/tr]
+[tr][td]fairness[/td][td]reward ≥ 0.0005 × difficulty[/td][/tr]
+[tr][td]rate[/td][td]~3 creates / min / IP[/td][/tr]
+[/table]
+
+Pool fills open orders when fuzzing escrow is active — same fair HTTP coordinator (not Stratum).
+
+[hr]
+
+[b]Links[/b]
+[list]
+[*][url=https://hackme.tech/downloads.html]Downloads[/url] (miners + fuzzing CLI)
+[*][url=https://hackme.tech/pool/coordinator/api/pool/stats]Live pool stats[/url]
+[*][url=https://github.com/jokeez/hackme]Source (AGPL)[/url]
+[*][url=https://bitcointalk.org/index.php?topic=5583373.0]ANN thread[/url]
+[/list]
+
+[i]B2B token requests: [url=https://hackme.tech/contacts.html]hackme.tech/contacts[/url][/i]

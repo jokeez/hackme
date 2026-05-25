@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sample pool worker share + coordinator difficulty while orders/phasing run.
+# Sample pool worker share + coordinator difficulty while orders/fuzzing run.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

@@ -40,7 +40,7 @@ func TestRuntimeMemSnapshotFields(t *testing.T) {
 func TestAdminMemstatsAndGC(t *testing.T) {
 	wm := testWorkManagerBare()
 	mux := http.NewServeMux()
-	addWorkRoutes(mux, "test-admin-token", "", false, nil, wm)
+	addWorkRoutes(mux, "test-admin-token", "", false, nil, wm, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/work/admin/memstats", nil)
 	req.Header.Set("X-Hackme-Admin-Token", "test-admin-token")
