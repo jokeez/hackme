@@ -7,6 +7,9 @@ fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
 
+/// Bitcoin Core-inspired: script.h MAX_SCRIPT_ELEMENT_SIZE (520), script.cpp GetScriptOp push parse.
+/// https://github.com/bitcoin/bitcoin/blob/master/src/script/script.h
+/// https://github.com/bitcoin/bitcoin/blob/master/src/script/script.cpp
 /// Simplified Bitcoin Script push-size rule (educational / research gate).
 /// Input packs: opcode in low byte, claimed push length in bits 8..23 (see check()).
 /// Returns 1 when the tuple violates the "max push element 520 bytes" style bound.

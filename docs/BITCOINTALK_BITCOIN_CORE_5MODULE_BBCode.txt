@@ -1,0 +1,100 @@
+[center]
+[size=14pt][b][color=#00D1FF]HackMe × Bitcoin Core — 5-module probe[/color][/b][/size]
+[size=10pt][i]Official [url=https://github.com/bitcoin/bitcoin]bitcoin/bitcoin[/url] references · WASM sandbox · May 2026[/i][/size]
+[/center]
+
+[hr]
+
+[b]Headline:[/b] [color=#39FF14]No exploitable WASM traps[/color] in 5 guards mapped to Core [font=Courier New]master[/font] (500 inputs/module).
+
+[b]Repo tested:[/b] [url=https://github.com/bitcoin/bitcoin]https://github.com/bitcoin/bitcoin[/url]  
+[b]Our code + report:[/b] [url=https://github.com/jokeez/hackme]jokeez/hackme[/url] · [url=https://hackme.tech/reports/bitcoin-core-5module.html]HTML report[/url]
+
+[hr]
+
+[b][size=11pt]What we tested (official Core locations)[/size][/b]
+
+Each row: [b]HackMe WASM guard[/b] → [b]exact area in Bitcoin Core[/b] → [b]our source file[/b].
+
+[table]
+[tr][td][b]#[/b][/td][td][b]HackMe guard[/b][/td][td][b]Bitcoin Core ([font=Courier New]master[/font]) — what & where[/b][/td][td][b]HackMe source[/b][/td][/tr]
+
+[tr][td]1[/td][td][font=Courier New]rust_script_push_bounds_guard[/font][/td][td]
+[b]Script push 520 B rule[/b]
+[list]
+[*][url=https://github.com/bitcoin/bitcoin/blob/master/src/script/script.h#L27-L28]script.h#L27-L28[/url] — [mono]MAX_SCRIPT_ELEMENT_SIZE = 520[/mono]
+[*][url=https://github.com/bitcoin/bitcoin/blob/master/src/script/script.h#L82]script.h#L82[/url] — [mono]OP_PUSHDATA1 = 0x4c[/mono]
+[*][url=https://github.com/bitcoin/bitcoin/blob/master/src/script/script.cpp#L312-L365]script.cpp#L312-L365[/url] — [mono]GetScriptOp()[/mono] (push length decode)
+[*][url=https://github.com/bitcoin/bitcoin/blob/master/src/script/interpreter.cpp#L447-L448]interpreter.cpp#L447-L448[/url] — [mono]SCRIPT_ERR_PUSH_SIZE[/mono] at run time
+[/list]
+[i]Guard flags: OP_PUSHDATA1 + claimed len > 520 (simplified).[/i]
+[/td][td][url=https://github.com/jokeez/hackme/blob/main/tasks/sources/security/rust_script_push_bounds_guard.rs]rust_script_push_bounds_guard.rs[/url][/td][/tr]
+
+[tr][td]2[/td][td][font=Courier New]rust_bounds_guard[/font][/td][td]
+[b]Script structure / valid opcodes[/b]
+[list]
+[*][url=https://github.com/bitcoin/bitcoin/blob/master/src/script/script.cpp#L299-L308]script.cpp#L299-L308[/url] — [mono]CScript::HasValidOps()[/mono] ([mono]item.size() > MAX_SCRIPT_ELEMENT_SIZE[/mono] → invalid)
+[*]Uses [url=https://github.com/bitcoin/bitcoin/blob/master/src/script/script.h#L27-L28]MAX_SCRIPT_ELEMENT_SIZE[/url] from [mono]script.h[/mono]
+[/list]
+[/td][td][url=https://github.com/jokeez/hackme/blob/main/tasks/sources/security/rust_bounds_guard.rs]rust_bounds_guard.rs[/url][/td][/tr]
+
+[tr][td]3[/td][td][font=Courier New]rust_overflow_guard[/font][/td][td]
+[b]Transaction output amounts[/b]
+[list]
+[*][url=https://github.com/bitcoin/bitcoin/blob/master/src/consensus/amount.h#L27]consensus/amount.h#L27[/url] — [mono]MoneyRange()[/mono] ([mono]0 … MAX_MONEY[/mono])
+[*][url=https://github.com/bitcoin/bitcoin/blob/master/src/consensus/tx_check.cpp#L11-L32]tx_check.cpp#L11-L32[/url] — [mono]CheckTransaction()[/mono] → [mono]if (!MoneyRange(nValueOut))[/mono]
+[/list]
+[/td][td][url=https://github.com/jokeez/hackme/blob/main/tasks/sources/security/rust_overflow_guard.rs]rust_overflow_guard.rs[/url][/td][/tr]
+
+[tr][td]4[/td][td][font=Courier New]rust_state_transition_guard[/font][/td][td]
+[b]Tx acceptance pipeline[/b] (simplified state machine, not a line-by-line port)
+[list]
+[*][url=https://github.com/bitcoin/bitcoin/blob/master/src/validation.cpp#L795-L796]validation.cpp#L795-L796[/url] — [mono]CheckTransaction()[/mono] before accept
+[*][url=https://github.com/bitcoin/bitcoin/blob/master/src/validation.cpp#L1774]validation.cpp#L1774[/url] — [mono]AcceptToMemoryPool()[/mono] entry
+[/list]
+[/td][td][url=https://github.com/jokeez/hackme/blob/main/tasks/sources/security/rust_state_transition_guard.rs]rust_state_transition_guard.rs[/url][/td][/tr]
+
+[tr][td]5[/td][td][font=Courier New]cpp_script_push_bounds_guard[/font][/td][td]
+[b]Same class as #1[/b] — C++ twin of push bound
+[list]
+[*][url=https://github.com/bitcoin/bitcoin/blob/master/src/script/interpreter.cpp#L447-L448]interpreter.cpp#L447-L448[/url] — [mono]vchPushValue.size() > MAX_SCRIPT_ELEMENT_SIZE[/mono]
+[*]Constant: [url=https://github.com/bitcoin/bitcoin/blob/master/src/script/script.h#L27-L28]script.h#L27-L28[/url]
+[/list]
+[/td][td][url=https://github.com/jokeez/hackme/blob/main/tasks/sources/security/cpp_script_push_bounds_guard.cpp]cpp_script_push_bounds_guard.cpp[/url][/td][/tr]
+[/table]
+
+[hr]
+
+[b][size=11pt]Sandbox results (HackMe, not Core CI)[/size][/b]
+
+[table]
+[tr][td][b]Module[/b][/td][td][b]Verdict[/b][/td][td][b]WASM traps[/b][/td][td][b]Note[/b][/td][/tr]
+[tr][td]#1 script push (Rust)[/td][td][color=#39FF14]CLEAN[/color][/td][td]0[/td][td]168/500 violation-class hits — gate works[/td][/tr]
+[tr][td]#2 HasValidOps-style[/td][td][color=#39FF14]CLEAN[/color][/td][td]0[/td][td]selective accepting set[/td][/tr]
+[tr][td]#3 MoneyRange-style[/td][td][color=#39FF14]CLEAN[/color][/td][td]0[/td][td]selective accepting set[/td][/tr]
+[tr][td]#4 validation-style[/td][td][color=#39FF14]CLEAN[/color][/td][td]0[/td][td]selective accepting set[/td][/tr]
+[tr][td]#5 script push (C++)[/td][td][color=#39FF14]CLEAN[/color][/td][td]0[/td][td]same class as #1[/td][/tr]
+[/table]
+
+[color=#6B7C93][i]Method: WASM [mono]check(i64)→i32[/mono] in HackMe sandbox (wazero), 500 samples/guard. [mono]check_fail[/mono] = input outside guard’s set — not “CVE in Core”.[/i]
+
+[hr]
+
+[b]We do [u]not[/u] claim[/b]
+[list]
+[*] A new vulnerability in [url=https://github.com/bitcoin/bitcoin]Bitcoin Core[/url] — use [url=https://github.com/bitcoin/bitcoin/tree/master/src/test/fuzz]Core fuzz tests[/url] + [url=mailto:security@bitcoincore.org]security@bitcoincore.org[/url] for that
+[*] Full [mono]bitcoind[/mono] coverage (we test small inspired gates on HackMe)
+[/list]
+
+[hr]
+
+[b]Reproduce[/b]
+[code]
+git clone https://github.com/jokeez/hackme.git && cd hackme
+bash scripts/build_security_task_pack.sh
+go run ./tools/bc5_report
+[/code]
+Link map (all URLs): [url=https://github.com/jokeez/hackme/blob/main/docs/BITCOIN_CORE_OFFICIAL_LINKS.md]docs/BITCOIN_CORE_OFFICIAL_LINKS.md[/url]
+
+[hr]
+[url=https://hackme.tech/pool/coordinator/api/pool/stats]Pool[/url] · [url=https://bitcointalk.org/index.php?topic=5583373.0]ANN[/url] · [url=https://t.me/hackme_tech]Telegram[/url]

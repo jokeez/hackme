@@ -1,0 +1,15 @@
+🔬 HackMe × Bitcoin Core — 5-module probe
+
+We mapped 5 WASM guards to real Core paths (script.h, script.cpp, tx_check, validation, interpreter) and ran 500 sandbox samples each.
+
+✅ Verdict: ALL CLEAN — 0 exploitable WASM traps
+📊 Script push guards: violation-class hits (OP_PUSHDATA1 / 520B) — expected
+❌ Not a Bitcoin Core CVE claim
+
+📄 Report: https://hackme.tech/reports/bitcoin-core-5module.html
+📦 Repo: https://github.com/jokeez/hackme
+⛏ Pool: https://hackme.tech
+
+Reproduce: go run ./tools/bc5_report
+
+#HackMe #Bitcoin #SecurityResearch #UsefulPoW

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>HackMe · Bitcoin Core 5-Module Research</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--neon:#00d1ff;--matrix:#39ff14;--warn:#ffb020;--bg:#05080f;--card:rgba(0,0,0,.45)}
+*{box-sizing:border-box}
+body{margin:0;font-family:"JetBrains Mono",ui-monospace,monospace;background:var(--bg);color:#c5d4e8;line-height:1.6;min-height:100vh}
+body::before{content:"";position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(0,209,255,.12),transparent),radial-gradient(ellipse 60% 40% at 100% 50%,rgba(57,255,20,.06),transparent);pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:2.5rem 1.25rem 4rem}
+.hero{text-align:center;padding:2.5rem 1.5rem 2rem;border:1px solid rgba(0,209,255,.28);border-radius:20px;background:linear-gradient(160deg,rgba(0,209,255,.08),rgba(0,0,0,.5));margin-bottom:2rem}
+.hero h1{font-family:"Space Grotesk",sans-serif;font-size:clamp(1.35rem,4vw,1.85rem);letter-spacing:.12em;text-transform:uppercase;color:var(--neon);margin:0 0 .5rem}
+.hero .tag{font-size:.72rem;color:#6d8099;text-transform:uppercase;letter-spacing:.2em}
+.hero-badge{display:inline-block;margin-top:1.25rem;padding:.55rem 1.4rem;border-radius:999px;border:2px solid #39ff14;color:#39ff14;font-weight:700;font-size:.95rem;letter-spacing:.2em;text-transform:uppercase;box-shadow:0 0 24px rgba(57,255,20,.25)}
+.hero p.lead{max-width:42rem;margin:1rem auto 0;font-size:.88rem;color:#9eb0c8}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;margin:1.5rem 0 2rem}
+.stat{border:1px solid rgba(0,209,255,.2);border-radius:12px;padding:1rem;background:var(--card)}
+.stat b{display:block;font-size:.62rem;text-transform:uppercase;letter-spacing:.12em;color:#6d8099;margin-bottom:.35rem}
+.stat .v{font-size:1.35rem;font-weight:700;color:#fff}
+.stat .v.neon{color:var(--neon)}
+.stat .v.ok{color:var(--matrix)}
+.lbl{font-size:.65rem;text-transform:uppercase;letter-spacing:.14em;color:var(--neon);margin:2rem 0 .75rem}
+.mod-card{border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:1.25rem 1.35rem;margin-bottom:1rem;background:linear-gradient(135deg,var(--card),rgba(0,209,255,.04));transition:border-color .2s}
+.mod-card:hover{border-color:rgba(0,209,255,.35)}
+.mod-head{display:flex;flex-wrap:wrap;align-items:flex-start;gap:.75rem 1rem}
+.mod-num{font-size:1.8rem;font-weight:700;color:rgba(0,209,255,.35);line-height:1}
+.mod-card h2{font-family:"Space Grotesk",sans-serif;font-size:1.05rem;margin:0;color:#fff}
+.mod-guard{margin:.2rem 0 0;font-size:.75rem}
+.mod-guard code{color:var(--matrix)}
+.mod-badge{margin-left:auto;padding:.25rem .75rem;border-radius:999px;border:1px solid;font-size:.68rem;font-weight:700;letter-spacing:.1em}
+.lbl2{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:#6d8099;margin:1rem 0 .35rem}
+.core-links{margin:.2rem 0 .6rem;padding-left:1.1rem;font-size:.72rem}
+.core-links a{color:var(--neon);word-break:break-all}
+.mod-ref{font-size:.78rem;margin:.35rem 0 .85rem}
+.mod-ref a{color:var(--matrix);text-decoration:none}
+.mod-ref a:hover{text-decoration:underline}
+.bar-track{display:flex;height:10px;border-radius:6px;overflow:hidden;background:rgba(255,255,255,.06);margin:.5rem 0}
+.bar.pass{background:linear-gradient(90deg,#1a6b2e,var(--matrix))}
+.bar.fail{background:linear-gradient(90deg,#4a3030,#6b7c93)}
+.bar-legend{display:flex;flex-wrap:wrap;gap:1rem;font-size:.68rem;color:#6d8099}
+.pass-t{color:var(--matrix)}
+.fail-t{color:#8fa3bc}
+.trap-t{color:var(--warn)}
+.mod-note{font-size:.76rem;color:#8fa3bc;margin:.75rem 0 0}
+.method{border-left:3px solid var(--neon);padding:.5rem 0 .5rem 1.25rem;margin:1.5rem 0;font-size:.82rem;color:#9eb0c8}
+.method ul{margin:.5rem 0;padding-left:1.2rem}
+.disclaimer{border:1px solid rgba(255,176,32,.35);border-radius:12px;padding:1rem 1.2rem;background:rgba(255,176,32,.06);font-size:.78rem;color:#d4b896;margin-top:2rem}
+footer{margin-top:2.5rem;padding-top:1.25rem;border-top:1px solid rgba(255,255,255,.08);font-size:.72rem;color:#6d8099;text-align:center}
+footer a{color:var(--neon)}
+@media print{body::before{display:none}.hero,.mod-card{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<section class="hero">
+<p class="tag">HackMe security research · bitcoin/bitcoin master</p>
+<h1>Bitcoin Core · 5-Module Probe</h1>
+<p class="lead">5 Bitcoin-Core-inspired modules · property probe · no exploitable traps</p>
+<span class="hero-badge">ALL MODULES CLEAN</span>
+</section>
+<div class="stats">
+<div class="stat"><b>Modules tested</b><span class="v neon">5</span></div>
+<div class="stat"><b>Samples / module</b><span class="v">5</span></div>
+<div class="stat"><b>WASM traps (total)</b><span class="v ok">500</span></div>
+<div class="stat"><b>Exploitable in probe</b><span class="v ok">0</span></div>
+<div class="stat"><b>Generated (UTC)</b><span class="v" style="font-size:.75rem">%!s(int=0)</span></div>
+</div>
+<p class="lbl">Module results</p>
+2026-05-25T14:54:40Z
+<div class="method">
+<p><strong>Methodology</strong></p>
+<ul>
+<li>WASM guards <code>check(i64)→i32</code> derived from Core areas (not full <code>bitcoind</code>).</li>
+<li>Property-style sampling: %!d(string=
+<article class="mod-card">
+  <div class="mod-head">
+    <span class="mod-num">01</span>
+    <div>
+      <h2>Script push · 520 B cap</h2>
+      <p class="mod-guard"><code>script_push_bounds_guard</code></p>
+    </div>
+    <span class="mod-badge" style="border-color:#39ff14;color:#39ff14">CLEAN</span>
+  </div>
+  <p class="lbl2">Bitcoin Core (official)</p>
+  <ul class="core-links"><li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/script/script.h#L27-L28" target="_blank" rel="noopener">src/script/script.h#L27-L28</a></li><li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/script/script.h#L82" target="_blank" rel="noopener">src/script/script.h#L82</a></li><li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/script/script.cpp#L312-L365" target="_blank" rel="noopener">src/script/script.cpp#L312-L365</a></li><li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/script/interpreter.cpp#L447-L448" target="_blank" rel="noopener">src/script/interpreter.cpp#L447-L448</a></li></ul>
+  <p class="lbl2">HackMe guard source</p>
+  <p class="mod-ref"><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/rust_script_push_bounds_guard.rs" target="_blank" rel="noopener">script_push_bounds_guard</a></p>
+  <div class="bar-track"><div class="bar pass" style="width:33.6%" title="check=1"></div><div class="bar fail" style="width:66.4%" title="check=0"></div></div>
+  <div class="bar-legend"><span class="pass-t">pass 168 (34%)</span><span class="fail-t">fail 332 (66%)</span><span class="trap-t">traps 0</span></div>
+  <p class="mod-note">No WASM sandbox traps. check_fail = inputs outside the accepting set (expected for selective guards). Violation-class (OP_PUSHDATA1 + len&gt;520): 168 hits in 500 samples.</p>
+</article>
+<article class="mod-card">
+  <div class="mod-head">
+    <span class="mod-num">02</span>
+    <div>
+      <h2>HasValidOps gate</h2>
+      <p class="mod-guard"><code>bounds_guard</code></p>
+    </div>
+    <span class="mod-badge" style="border-color:#39ff14;color:#39ff14">CLEAN</span>
+  </div>
+  <p class="lbl2">Bitcoin Core (official)</p>
+  <ul class="core-links"><li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/script/script.cpp#L299-L308" target="_blank" rel="noopener">src/script/script.cpp#L299-L308</a></li><li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/script/script.h#L27-L28" target="_blank" rel="noopener">src/script/script.h#L27-L28</a></li></ul>
+  <p class="lbl2">HackMe guard source</p>
+  <p class="mod-ref"><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/rust_bounds_guard.rs" target="_blank" rel="noopener">bounds_guard</a></p>
+  <div class="bar-track"><div class="bar pass" style="width:0.6%" title="check=1"></div><div class="bar fail" style="width:99.4%" title="check=0"></div></div>
+  <div class="bar-legend"><span class="pass-t">pass 3 (1%)</span><span class="fail-t">fail 497 (99%)</span><span class="trap-t">traps 0</span></div>
+  <p class="mod-note">No WASM sandbox traps. check_fail = inputs outside the accepting set (expected for selective guards).</p>
+</article>
+<article class="mod-card">
+  <div class="mod-head">
+    <span class="mod-num">03</span>
+    <div>
+      <h2>MoneyRange · outputs</h2>
+      <p class="mod-guard"><code>overflow_guard</code></p>
+    </div>
+    <span class="mod-badge" style="border-color:#39ff14;color:#39ff14">CLEAN</span>
+  </div>
+  <p class="lbl2">Bitcoin Core (official)</p>
+  <ul class="core-links"><li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/consensus/amount.h#L27" target="_blank" rel="noopener">src/consensus/amount.h#L27</a></li><li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/consensus/tx_check.cpp#L11-L32" target="_blank" rel="noopener">src/consensus/tx_check.cpp#L11-L32</a></li></ul>
+  <p class="lbl2">HackMe guard source</p>
+  <p class="mod-ref"><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/rust_overflow_guard.rs" target="_blank" rel="noopener">overflow_guard</a></p>
+  <div class="bar-track"><div class="bar fail" style="width:100.0%" title="check=0"></div></div>
+  <div class="bar-legend"><span class="pass-t">pass 0 (0%)</span><span class="fail-t">fail 500 (100%)</span><span class="trap-t">traps 0</span></div>
+  <p class="mod-note">No WASM sandbox traps. check_fail = inputs outside the accepting set (expected for selective guards).</p>
+</article>
+<article class="mod-card">
+  <div class="mod-head">
+    <span class="mod-num">04</span>
+    <div>
+      <h2>Tx accept pipeline</h2>
+      <p class="mod-guard"><code>state_transition_guard</code></p>
+    </div>
+    <span class="mod-badge" style="border-color:#39ff14;color:#39ff14">CLEAN</span>
+  </div>
+  <p class="lbl2">Bitcoin Core (official)</p>
+  <ul class="core-links"><li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/validation.cpp#L795-L796" target="_blank" rel="noopener">src/validation.cpp#L795-L796</a></li><li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/validation.cpp#L1774" target="_blank" rel="noopener">src/validation.cpp#L1774</a></li></ul>
+  <p class="lbl2">HackMe guard source</p>
+  <p class="mod-ref"><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/rust_state_transition_guard.rs" target="_blank" rel="noopener">state_transition_guard</a></p>
+  <div class="bar-track"><div class="bar fail" style="width:100.0%" title="check=0"></div></div>
+  <div class="bar-legend"><span class="pass-t">pass 0 (0%)</span><span class="fail-t">fail 500 (100%)</span><span class="trap-t">traps 0</span></div>
+  <p class="mod-note">No WASM sandbox traps. check_fail = inputs outside the accepting set (expected for selective guards).</p>
+</article>
+<article class="mod-card">
+  <div class="mod-head">
+    <span class="mod-num">05</span>
+    <div>
+      <h2>C++ push twin</h2>
+      <p class="mod-guard"><code>cpp_script_push_bounds_guard</code></p>
+    </div>
+    <span class="mod-badge" style="border-color:#39ff14;color:#39ff14">CLEAN</span>
+  </div>
+  <p class="lbl2">Bitcoin Core (official)</p>
+  <ul class="core-links"><li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/script/interpreter.cpp#L447-L448" target="_blank" rel="noopener">src/script/interpreter.cpp#L447-L448</a></li><li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/script/script.h#L27-L28" target="_blank" rel="noopener">src/script/script.h#L27-L28</a></li></ul>
+  <p class="lbl2">HackMe guard source</p>
+  <p class="mod-ref"><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/cpp_script_push_bounds_guard.cpp" target="_blank" rel="noopener">cpp_script_push_bounds_guard</a></p>
+  <div class="bar-track"><div class="bar pass" style="width:33.6%" title="check=1"></div><div class="bar fail" style="width:66.4%" title="check=0"></div></div>
+  <div class="bar-legend"><span class="pass-t">pass 168 (34%)</span><span class="fail-t">fail 332 (66%)</span><span class="trap-t">traps 0</span></div>
+  <p class="mod-note">No WASM sandbox traps. check_fail = inputs outside the accepting set (expected for selective guards). Violation-class (OP_PUSHDATA1 + len&gt;520): 168 hits in 500 samples.</p>
+</article>) pseudorandom inputs per module (+ targeted OP_PUSHDATA1 probes on script modules).</li>
+<li>Executed in HackMe sandbox (wazero) — same family as useful-PoW order gates on the live pool.</li>
+</ul>
+</div>
+<div class="disclaimer">
+<strong>Honest scope.</strong> This is <em>not</em> a claim of new CVEs in Bitcoin Core. A high <code>check_fail</code> rate on selective guards means “input not in the accepting set”, not “RCE in Core”. Violation-class hits on script push guards show the gate flags oversize pushes — expected for consensus-inspired checks.
+</div>
+<footer>
+<a href="https://github.com/jokeez/hackme">github.com/jokeez/hackme</a> ·
+<a href="https://hackme.tech">hackme.tech</a> ·
+<a href="https://hackme.tech/downloads.html#local-node">run orders locally</a> ·
+AGPL-3.0
+</footer>
+</div>
+</body>
+</html>%!(EXTRA int=500)
