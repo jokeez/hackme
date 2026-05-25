@@ -7,7 +7,9 @@ import (
 // writeWalletResponse hides operator treasury from the public internet and integrators.
 // Only loopback operators with admin token see address, balance, and data paths.
 func (a *app) writeWalletResponse(w http.ResponseWriter, r *http.Request, full map[string]any) {
-	if adminRequestAuthed(r) {
+	// Unlike other admin routes, never expose treasury when HACKME_ADMIN_TOKEN is unset.
+	expected := adminTokenFromEnv()
+	if expected != "" && secretsEqualConstantTime(extractAdminSecret(r), expected) {
 		writeJSON(w, full)
 		return
 	}
