@@ -246,7 +246,7 @@ func helpText(nodeBase string) string {
 	sb.WriteString("/wallet — balance and display mode\n")
 	sb.WriteString("/worker — pool worker subprocess (coordinator mode)\n")
 	sb.WriteString("/pool — global hashrate, active rigs, coordinator counters\n")
-	sb.WriteString("/tasks — open phasing/audit orders (escrow tasks)\n")
+	sb.WriteString("/tasks — open fuzzing/audit orders (escrow tasks)\n")
 	sb.WriteString("/blocks [n] — last blocks (default 8, max 25)\n")
 	sb.WriteString("/watch — notify when <code>tip_height</code> increases\n")
 	sb.WriteString("/unwatch — stop alerts\n")
@@ -590,7 +590,7 @@ func (b *bot) fmtTasks(ctx context.Context) string {
 	raw, _ := j["tasks"].([]any)
 	open, done, cancelled := 0, 0, 0
 	var sb strings.Builder
-	sb.WriteString("<b>Orders / phasing tasks</b>\n")
+	sb.WriteString("<b>Orders / fuzzing tasks</b>\n")
 	for _, it := range raw {
 		row, ok := it.(map[string]any)
 		if !ok {

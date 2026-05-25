@@ -122,6 +122,7 @@ cat >/etc/initramfs-tools/modules <<'MOD'
 squashfs
 loop
 overlay
+zstd
 xz
 iso9660
 udf
@@ -130,6 +131,12 @@ ext4
 sd_mod
 usb_storage
 MOD
+
+chmod +x /etc/initramfs-tools/hooks/hackme-live-modules 2>/dev/null || true
+if [[ -f /tmp/iso-overlay/etc/initramfs-tools/hooks/hackme-live-modules ]]; then
+  install -m 0755 /tmp/iso-overlay/etc/initramfs-tools/hooks/hackme-live-modules \
+    /etc/initramfs-tools/hooks/hackme-live-modules
+fi
 
 echo "[chroot] initramfs + kernel (live-boot + casper hooks)"
 if [[ ! -x /usr/share/initramfs-tools/scripts/casper ]]; then

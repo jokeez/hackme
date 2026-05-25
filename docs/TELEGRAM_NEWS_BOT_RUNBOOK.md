@@ -22,7 +22,15 @@ cp /opt/hackme/scripts/ops/telegram/newsbot.env.example /opt/hackme/.env.newsbot
 chmod 600 /opt/hackme/.env.newsbot
 ```
 
-3. Set real values in `/opt/hackme/.env.newsbot` (include admin chat for pool heartbeat):
+3. Set real values in `/opt/hackme/.env.newsbot` (include admin chat for pool heartbeat).
+
+From your workstation (chat id not stored in git):
+
+```bash
+TG_ADMIN_CHAT_ID=<your_numeric_chat_id> NODE_SSH=hackme-vps bash scripts/ops/vps_set_telegram_admin_chat.sh
+```
+
+Or edit on VPS:
 
 ```bash
 TG_ADMIN_CHAT_ID=-1001234567890   # operator group (numeric id)

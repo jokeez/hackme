@@ -270,6 +270,7 @@ EOF
 
 signed_json="$OUT/tx_signed.json"
 go run "$tmp_signer" "$unsigned_json" "$SEED_FILE" >"$signed_json"
+rm -f "$tmp_signer"
 
 send_http="$(curl -x "" -sS -o "$send_resp" -w '%{http_code}' -X POST "$BASE/api/tx/send" -H "Content-Type: application/json" --data-binary "@$signed_json" || true)"
 if [[ "$send_http" != "200" ]]; then

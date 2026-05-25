@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe for Developers — Fuzzing & API</title>
+  <meta name="description" content="Integrate HackMe fuzzing orders without the mining dashboard: wallet, escrow tasks, HTTP API, and lightweight web console." />
+  <link rel="canonical" href="https://hackme.tech/developers.html" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./assets/styles.css" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="./assets/favicon.png" type="image/png" />
+</head>
+<body>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe" /><span>HackMe Network</span></a>
+    <nav class="nav">
+      <a href="./developers.html" style="color:var(--text)">Developers</a>
+      <a href="./downloads.html">Downloads</a>
+      <a href="./docs.html">Docs</a>
+      <a href="./contacts.html">Contacts</a>
+      <a href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass">
+      <p class="kicker">Developers & B2B</p>
+      <h1>Fuzzing orders without the mining app</h1>
+      <p class="hero-copy">
+        Buy useful GPU work on the HackMe network: security gates, synthetic PoH audits, WASM-validated tasks.
+        You need a <strong>wallet</strong>, <strong>paid orders</strong>, and the HTTP API — not ISO images or pool workers.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="./downloads.html#fuzzing-client">Download hackme-fuzzing</a>
+        <a class="btn btn-secondary" href="./fuzzing-console.html">Public status tracker</a>
+      </div>
+      <div class="pill-row">
+        <span class="pill">Scoped developer token</span>
+        <span class="pill">WASM built locally</span>
+        <span class="pill">No browser admin</span>
+        <span class="pill">Pool fills orders</span>
+      </div>
+    </section>
+
+    <section id="integrator-token" class="panel glass dev-connect">
+      <div class="panel-head"><h2>Integrator API token (automatic)</h2></div>
+      <p class="subtle">Issue a scoped <span class="code-inline">X-Hackme-Developer-Token</span> without email support. Shown <strong>once</strong> — copy immediately. Or use CLI: <span class="code-inline">hackme-fuzzing register --save</span>.</p>
+      <label class="dev-field dev-field-full">
+        <span>Label (optional)</span>
+        <input id="integrator-label" type="text" placeholder="acme-security-audit" autocomplete="off" />
+      </label>
+      <div class="cta-row">
+        <button type="button" class="btn btn-primary" id="btn-integrator-register">Issue new token</button>
+        <button type="button" class="btn btn-secondary" id="btn-integrator-rotate" disabled>Rotate token</button>
+      </div>
+      <p id="integrator-token-out" class="code-block" style="display:none;word-break:break-all"></p>
+      <p id="integrator-status" class="dev-status"></p>
+    </section>
+
+    <section class="grid grid-2">
+      <article class="panel glass">
+        <div class="panel-head"><h2>Who this is for</h2></div>
+        <ul class="check-list">
+          <li>Security vendors posting audit workloads</li>
+          <li>Studios needing WASM gate verification</li>
+          <li>Integrators building on HMC escrow</li>
+          <li>Not for GPU miners — use <a href="./downloads.html">Downloads</a></li>
+        </ul>
+      </article>
+      <article class="panel glass">
+        <div class="panel-head"><h2>What you get</h2></div>
+        <ul class="check-list">
+          <li><strong>hackme-fuzzing CLI</strong> — Windows/Linux exe (token in env, not browser)</li>
+          <li><strong>Public tracker</strong> — read-only wallet + redacted orders</li>
+          <li><strong>Coordinator</strong> switches to orders mode when work is open</li>
+          <li>Full spec in <a href="https://github.com/jokeez/hackme/blob/main/docs/DEVELOPERS_FUZZING.md" target="_blank" rel="noreferrer">DEVELOPERS_FUZZING.md</a></li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Order limits (canonical node)</h2></div>
+      <div class="table-wrap">
+        <table class="endpoint-table">
+          <thead><tr><th>Field</th><th>Range / rule</th></tr></thead>
+          <tbody>
+            <tr><td><code>difficulty_score</code></td><td>1 – 100</td></tr>
+            <tr><td><code>reward_hmc</code></td><td>≥ 0.0005 × difficulty (fairness)</td></tr>
+            <tr><td><code>target_solves</code></td><td>1 – 10 000</td></tr>
+            <tr><td>Escrow / hour</td><td>~25 HMC per payer wallet (configurable on node)</td></tr>
+            <tr><td>Create rate</td><td>~3 POST /api/tasks per minute per IP</td></tr>
+            <tr><td>Platform fee</td><td>5% on top of prepaid escrow</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Quick start (curl)</h2></div>
+      <pre class="code-block"><code># Wallet (public)
+curl -sS https://hackme.tech/api/wallet | jq '{address,balance_hmc}'
+
+# Integrator CLI (token from support@hackme.tech — never paste in a web page)
+export HACKME_DEVELOPER_TOKEN='…'
+hackme-fuzzing wallet
+hackme-fuzzing create manifest.json
+hackme-fuzzing tasks
+
+# Auto token (no support ticket)
+hackme-fuzzing register --save
+hackme-fuzzing build -lang rust -source check.rs -out ./fuzzing-out
+hackme-fuzzing create ./fuzzing-out/my-order.manifest.json
+
+# Remote from_code returns HTTP 403 on hackme.tech (build WASM locally).</code></pre>
+      <p class="subtle">Miners earn HMC on the <a href="/pool/coordinator/api/pool/stats">public pool</a>; your order sets coordinator priority when active.</p>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Paths</h2></div>
+      <div class="quick-grid">
+        <a class="quick-item" href="./downloads.html#fuzzing-client">
+          <h4>hackme-fuzzing</h4>
+          <p>CLI — create orders safely</p>
+        </a>
+        <a class="quick-item" href="./fuzzing-console.html">
+          <h4>Status tracker</h4>
+          <p>Read-only — no tokens</p>
+        </a>
+        <a class="quick-item" href="./api-reference.html">
+          <h4>API Reference</h4>
+          <p>HTTP routes overview</p>
+        </a>
+        <a class="quick-item" href="./downloads.html">
+          <h4>Miners only</h4>
+          <p>ISO / worker / pool</p>
+        </a>
+        <a class="quick-item" href="#integrator-token">
+          <h4>Get API token</h4>
+          <p>Automatic self-service</p>
+        </a>
+      </div>
+    </section>
+  </main>
+  <script src="./assets/integrator-token.js" defer></script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-shot pool finale: payout map, settlement, phasing probe, health snapshot.
+# One-shot pool finale: payout map, settlement, fuzzing probe, health snapshot.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -38,15 +38,15 @@ ssh "$NODE_SSH" "cd '$NODE_DEPLOY_DIR' && set -a && . ./.env.settlement && set +
   FORCE_SETTLE_ALL=1 MIN_SETTLE_HMC=0.0001 DAILY_MIN_SETTLE_HMC=0.0001 \
   bash scripts/ops/settle_worker_payouts.sh" | tee -a "$REPORT_DIR/settlement.log" || true
 
-log "phasing order small if treasury funded"
+log "fuzzing order small if treasury funded"
 ssh "$NODE_SSH" "ADMIN=\$(grep '^HACKME_ADMIN_TOKEN=' '$NODE_DEPLOY_DIR/.env.vps' | cut -d= -f2)
 TS=\$(date +%s)
 curl -sS -w '\\nHTTP %{http_code}\\n' -X POST http://127.0.0.1:18080/api/tasks \\
   -H 'Content-Type: application/json' -H \"X-Hackme-Admin-Token: \$ADMIN\" \\
-  -d \"{\\\"id\\\":\\\"finale-phasing-\$TS\\\",\\\"kind\\\":\\\"synthetic_poh_v1\\\",\\\"difficulty_score\\\":5,\\\"reward_hmc\\\":0.012,\\\"target_solves\\\":2,\\\"payer_ref\\\":\\\"finale:auto\\\"}\"
+  -d \"{\\\"id\\\":\\\"finale-fuzzing-\$TS\\\",\\\"kind\\\":\\\"synthetic_poh_v1\\\",\\\"difficulty_score\\\":5,\\\"reward_hmc\\\":0.012,\\\"target_solves\\\":2,\\\"payer_ref\\\":\\\"finale:auto\\\"}\"
 sleep 4
 curl -fsS http://127.0.0.1:18081/api/work/stats | jq '{orders_active,scheduler_mode,target_mod}' || true
-" | tee -a "$REPORT_DIR/phasing_post.txt"
+" | tee -a "$REPORT_DIR/fuzzing_post.txt"
 
 ssh "$NODE_SSH" "curl -fsS http://127.0.0.1:18081/api/work/stats?details=1" >"$REPORT_DIR/vps_coordinator_stats.json" 2>/dev/null || true
 ssh "$NODE_SSH" "systemctl is-active hackme-node hackme-coordinator hackme-workerpoh" >"$REPORT_DIR/vps_services.txt" 2>/dev/null || true
@@ -78,9 +78,9 @@ curl -fsS -H "X-Hackme-Admin-Token: $TOKEN" "$COORD_PUBLIC/api/work/stats?detail
   -o "$REPORT_DIR/public_coordinator_stats.json" 2>/dev/null || true
 
 DESK_ADMIN="$(grep '^HACKME_ADMIN_TOKEN=' "$DESK_ENV" | cut -d= -f2-)"
-curl -fsS "http://127.0.0.1:8080/api/worker/status" -H "X-Admin-Token: $DESK_ADMIN" \
+curl -fsS "http://127.0.0.1:8080/api/worker/status" -H "X-Hackme-Admin-Token: $DESK_ADMIN" \
   -o "$REPORT_DIR/desktop_worker.json" 2>/dev/null || true
-curl -fsS "http://127.0.0.1:8080/api/wallet" -H "X-Admin-Token: $DESK_ADMIN" \
+curl -fsS "http://127.0.0.1:8080/api/wallet" -H "X-Hackme-Admin-Token: $DESK_ADMIN" \
   -o "$REPORT_DIR/desktop_wallet.json" 2>/dev/null || true
 
 # --- Verdict markdown ---
@@ -144,7 +144,7 @@ lines += [
 ]
 all_three = all(k in workers for k in ("vps-canary-01", "worker-kapa-pc", "worker-vps-msk-01"))
 if all_three and desk_w.get("running"):
-    lines.append("**PASS — Multi-rig pool mining operational.** Settlement + phasing path configured.")
+    lines.append("**PASS — Multi-rig pool mining operational.** Settlement + fuzzing path configured.")
 else:
     lines.append("**PARTIAL — Review finale.log and service units.**")
 

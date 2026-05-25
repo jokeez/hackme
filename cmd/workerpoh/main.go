@@ -22,6 +22,8 @@ import (
 	"hackme/internal/chain"
 	"hackme/internal/gpupoh"
 	"hackme/internal/gputune"
+	"hackme/internal/operator"
+	"hackme/internal/workerid"
 	"hackme/internal/worksubmit"
 )
 
@@ -138,28 +140,9 @@ func coordPushWorkEnabled() bool {
 	return isTruthy(v)
 }
 
-func coordinatorSecretPaths() []string {
-	var out []string
-	if root := strings.TrimSpace(os.Getenv("HACKME_REPO_ROOT")); root != "" {
-		out = append(out, filepath.Join(root, ".secrets", "hackme_coordinator_admin_token"))
-	}
-	out = append(out, filepath.Join(".secrets", "hackme_coordinator_admin_token"))
-	return out
-}
-
 // readCoordinatorTokenFromSecrets matches scripts/ops/worker_loop.sh (one line, no quotes).
 func readCoordinatorTokenFromSecrets() string {
-	for _, p := range coordinatorSecretPaths() {
-		b, err := os.ReadFile(p)
-		if err != nil {
-			continue
-		}
-		line := strings.TrimSpace(strings.SplitN(string(b), "\n", 2)[0])
-		if line != "" {
-			return line
-		}
-	}
-	return ""
+	return operator.ReadCoordinatorAdminToken()
 }
 
 func pushWorkSnapshot(cl *http.Client, coordURL, token, workerID, workerName string, ghs float64, shareAccepted bool, sharesOK int64) {
@@ -645,21 +628,7 @@ func submitHashrateGHS(batch uint64, searchSec float64, mode string) float64 {
 }
 
 func sanitizeWorkerHostname(host string) string {
-	host = strings.ToLower(strings.TrimSpace(host))
-	var b strings.Builder
-	for _, r := range host {
-		switch {
-		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-':
-			b.WriteRune(r)
-		default:
-			b.WriteRune('-')
-		}
-	}
-	out := strings.Trim(b.String(), "-")
-	if out == "" {
-		return "local"
-	}
-	return out
+	return workerid.SanitizeHostname(host)
 }
 
 func main() {

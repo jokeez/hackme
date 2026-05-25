@@ -6,8 +6,9 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
+
+	"hackme/internal/operator"
 )
 
 // adminTokenFromEnv returns HACKME_ADMIN_TOKEN when set (trimmed). Empty means auth is disabled.
@@ -64,45 +65,7 @@ func requireAdminAuth(w http.ResponseWriter, r *http.Request) bool {
 
 // coordinatorTokenFromSecrets loads the pool coordinator admin token (not the node HACKME_ADMIN_TOKEN).
 func coordinatorTokenFromSecrets() string {
-	var paths []string
-	secretName := filepath.Join(".secrets", "hackme_coordinator_admin_token")
-	if root := strings.TrimSpace(os.Getenv("HACKME_REPO_ROOT")); root != "" {
-		paths = append(paths, filepath.Join(root, secretName))
-	}
-	if exe, err := os.Executable(); err == nil {
-		dir := filepath.Dir(exe)
-		for i := 0; i < 6; i++ {
-			paths = append(paths, filepath.Join(dir, secretName))
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				break
-			}
-			dir = parent
-		}
-	}
-	if dataDir := strings.TrimSpace(os.Getenv("HACKME_DATA_DIR")); dataDir != "" {
-		dir := filepath.Dir(dataDir)
-		for i := 0; i < 4; i++ {
-			paths = append(paths, filepath.Join(dir, secretName))
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				break
-			}
-			dir = parent
-		}
-	}
-	paths = append(paths, secretName)
-	for _, p := range paths {
-		b, err := os.ReadFile(p)
-		if err != nil {
-			continue
-		}
-		line := strings.TrimSpace(strings.SplitN(string(b), "\n", 2)[0])
-		if line != "" {
-			return line
-		}
-	}
-	return ""
+	return operator.ReadCoordinatorAdminToken()
 }
 
 func ensurePoolCoordinatorTokenEnv() {

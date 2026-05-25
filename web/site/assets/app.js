@@ -38,6 +38,8 @@
     hackmeOSIso: `/dist/release_${RELEASE_VER}/HackMe-OS-${RELEASE_VER}-amd64.iso`,
     hackmeOSIsoLegacy: `/dist/release_${RELEASE_VER}/HackMe-Miner-${RELEASE_VER}-amd64.iso`,
     hackmeOSSha: `/dist/release_${RELEASE_VER}/SHA256SUMS-iso.txt`,
+    fuzzingLinux: `/dist/release_${RELEASE_VER}/hackme-fuzzing-${RELEASE_VER}-linux-amd64`,
+    fuzzingWindows: `/dist/release_${RELEASE_VER}/hackme-fuzzing-${RELEASE_VER}-windows-amd64.exe`,
     shaSums: `/dist/release_${RELEASE_VER}/SHA256SUMS.txt`,
     manifest: `/dist/release_${RELEASE_VER}/RELEASE_MANIFEST.json`,
     buildInfo: `/dist/release_${RELEASE_VER}/BUILD_INFO.txt`,
@@ -123,6 +125,8 @@
     setHref("download-win", CONFIG.windowsInstaller || CONFIG.windowsBundle);
     setHref("download-win-zip", CONFIG.windowsBundle);
     setHref("download-linux", CONFIG.linuxBundle);
+    setHref("download-fuzzing-linux", CONFIG.fuzzingLinux);
+    setHref("download-fuzzing-win", CONFIG.fuzzingWindows);
     setHref("download-sha", CONFIG.shaSums);
     setHref("download-iso-sha", CONFIG.hackmeOSSha);
     setHref("download-iso-sha-card", CONFIG.hackmeOSSha);

@@ -41,6 +41,9 @@ require_cmd python3
 RUN_LOCAL_STACK_SMOKE="${RUN_LOCAL_STACK_SMOKE:-0}"
 RUN_SHELLCHECK="${RUN_SHELLCHECK:-0}"
 
+echo "[repo-final-selfcheck] cleanup stale .go under reports/ (breaks go test ./...)"
+find reports -type f \( -name 'sign_transfer_tmp.go' -o -name '_sign_transfer.go' \) -delete 2>/dev/null || true
+
 echo "[repo-final-selfcheck] gofmt (must be clean)"
 if [[ -n "$(gofmt -l . 2>/dev/null || true)" ]]; then
   gofmt -l . >&2 || true

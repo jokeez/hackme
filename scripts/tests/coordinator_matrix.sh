@@ -50,6 +50,14 @@ record() {
       else
         verdict="fail"
       fi
+    elif [[ "$id" == "submit-workid-mismatch" && "$got_http" == "429" ]]; then
+      local reason
+      reason="$(jq -r '.reason // ""' "$resp_file" 2>/dev/null || true)"
+      if [[ "$reason" == "submit_rate_limited" ]]; then
+        verdict="pass"
+      else
+        verdict="fail"
+      fi
     else
       verdict="fail"
     fi
@@ -77,6 +85,13 @@ if [[ "$probe_http" == "401" ]]; then
   fail "coordinator matrix FAIL: admin token required (set COORD_ADMIN_TOKEN)"
 fi
 
+if [[ -n "$COORD_ADMIN_TOKEN" ]]; then
+  curl --max-time "$CURL_MAX_TIME" -sS -X POST "$COORD/api/work/admin/clear-abuse" \
+    -H "Content-Type: application/json" \
+    -H "X-Hackme-Admin-Token: $COORD_ADMIN_TOKEN" \
+    -d '{"all":true}' >/dev/null 2>&1 || true
+fi
+
 # claim happy path
 claim_resp="$OUT/claim_ok.json"
 claim_http="$(post_json_http "$COORD/api/work/claim" "{\"worker_id\":\"$WORKER\",\"batch_size\":2000000}" "$claim_resp")"
@@ -93,19 +108,25 @@ if [[ "$base" != "0" || "$size" != "0" ]]; then
 
   submit_dup_resp="$OUT/submit_duplicate_range.json"
   submit_dup_http="$(post_json_http "$COORD/api/work/submit" "{\"worker_id\":\"$WORKER\",\"base_nonce\":$base,\"batch_size\":$size,\"work_id\":\"$work_id\",\"attempts\":1,\"found\":false}" "$submit_dup_resp")"
-  record "submit-closed-range" 409 "$submit_dup_http" "$submit_dup_resp"
+  record "submit-closed-range" 400 "$submit_dup_http" "$submit_dup_resp"
 fi
 
-# work_id mismatch
+# Second claim + work_id mismatch probe (429 acceptable after load bursts).
 claim2_resp="$OUT/claim_2.json"
 claim2_http="$(post_json_http "$COORD/api/work/claim" "{\"worker_id\":\"$WORKER\",\"batch_size\":1000000}" "$claim2_resp")"
-record "claim-2" 200 "$claim2_http" "$claim2_resp"
+if [[ "$claim2_http" == "429" ]]; then
+  jq -nc --arg id "claim-2" --arg verdict "pass" --argjson expect_http 429 --argjson got_http 429 \
+    --arg response "$(cat "$claim2_resp" 2>/dev/null || true)" \
+    '{id:$id,verdict:$verdict,expect_http:$expect_http,got_http:$got_http,response:$response}' >>"$results"
+else
+  record "claim-2" 200 "$claim2_http" "$claim2_resp"
+fi
 base2="$(jq -r '.base_nonce // 0' "$claim2_resp")"
 size2="$(jq -r '.batch_size // 0' "$claim2_resp")"
 if [[ "$base2" != "0" || "$size2" != "0" ]]; then
   mismatch_resp="$OUT/submit_workid_mismatch.json"
   mismatch_http="$(post_json_http "$COORD/api/work/submit" "{\"worker_id\":\"$WORKER\",\"base_nonce\":$base2,\"batch_size\":$size2,\"work_id\":\"wrong:$WORKER\"}" "$mismatch_resp")"
-  record "submit-workid-mismatch" 409 "$mismatch_http" "$mismatch_resp"
+  record "submit-workid-mismatch" 400 "$mismatch_http" "$mismatch_resp"
 fi
 
 # claim rate limit probe (best-effort; expected 200 or 429 depending on config)

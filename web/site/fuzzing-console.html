@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe Fuzzing Status — Public tracker</title>
+  <meta name="description" content="Read-only fuzzing order tracker on hackme.tech. Integrators create orders with the hackme-fuzzing desktop CLI and a scoped developer token — no admin token in the browser." />
+  <link rel="canonical" href="https://hackme.tech/fuzzing-console.html" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./assets/styles.css" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="/assets/favicon.png" type="image/png" />
+</head>
+<body>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe" /><span>HackMe Network</span></a>
+    <nav class="nav">
+      <a href="./developers.html">Developers</a>
+      <a href="./downloads.html">Downloads</a>
+      <a href="./docs.html">Docs</a>
+      <a href="./contacts.html">Contacts</a>
+      <a href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass hero-small">
+      <p class="kicker">Fuzzing status</p>
+      <h1>Public tracker — read only</h1>
+      <p class="hero-copy">
+        This page does <strong>not</strong> accept API tokens. B2B integrators use the
+        <a href="./downloads.html#fuzzing-client">hackme-fuzzing</a> CLI (Windows/Linux) with an operator-issued
+        <span class="code-inline">X-Hackme-Developer-Token</span>. WASM is built locally; remote <span class="code-inline">from_code</span> is blocked on hackme.tech.
+      </p>
+      <p id="pool-hint" class="subtle"></p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="./downloads.html#fuzzing-client">Download hackme-fuzzing</a>
+        <button type="button" class="btn btn-secondary" id="btn-refresh">Refresh</button>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Treasury wallet (public)</h2></div>
+      <dl class="dev-kv">
+        <dt>Address</dt><dd id="wallet-address">—</dd>
+        <dt>Balance</dt><dd id="wallet-balance">—</dd>
+        <dt>Next nonce</dt><dd id="wallet-nonce">—</dd>
+        <dt>Source</dt><dd id="wallet-source">—</dd>
+      </dl>
+      <p id="wallet-status" class="dev-status"></p>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Open orders (redacted)</h2></div>
+      <div class="table-wrap">
+        <table class="endpoint-table">
+          <thead>
+            <tr><th>ID</th><th>Status</th><th>Diff</th><th>Target</th><th>Progress</th><th>Prepaid</th></tr>
+          </thead>
+          <tbody id="tasks-table-body">
+            <tr><td colspan="6" class="subtle">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p id="tasks-status" class="dev-status"></p>
+    </section>
+  </main>
+
+  <script src="./assets/fuzzing-console.js" defer></script>
+</body>
+</html>

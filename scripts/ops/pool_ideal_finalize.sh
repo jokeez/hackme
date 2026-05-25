@@ -27,8 +27,8 @@ TOKEN="$(tr -d '\r\n' <"$ROOT/.secrets/hackme_coordinator_admin_token")"
 curl -fsS -H "X-Hackme-Admin-Token: $TOKEN" \
   "https://hackme.tech/pool/coordinator/api/work/stats?details=1" -o "$DIR/pool.json" || true
 DESK=$(grep '^HACKME_ADMIN_TOKEN=' "$ROOT/.env.desktop" | cut -d= -f2-)
-curl -fsS "http://127.0.0.1:8080/api/worker/status" -H "X-Admin-Token: $DESK" -o "$DIR/worker.json" || true
-curl -fsS "http://127.0.0.1:8080/api/wallet" -H "X-Admin-Token: $DESK" -o "$DIR/wallet.json" || true
+curl -fsS "http://127.0.0.1:8080/api/worker/status" -H "X-Hackme-Admin-Token: $DESK" -o "$DIR/worker.json" || true
+curl -fsS "http://127.0.0.1:8080/api/wallet" -H "X-Hackme-Admin-Token: $DESK" -o "$DIR/wallet.json" || true
 
 python3 - "$DIR" "$REPORT" "$WALLET" <<'PY'
 import json, sys
@@ -62,7 +62,7 @@ lines = [
     f"| 3-rig pool (PC + 2 VPS) | OK |",
     f"| Payout map PC+MSK → your wallet | OK |",
     f"| On-chain settlement | OK (see settlement.log) |",
-    f"| Phasing / orders | OK (coordinator probe enabled) |",
+    f"| Fuzzing / orders | OK (coordinator probe enabled) |",
     f"| Dashboard + fuzz UI | OK (poll ~8s, smoke PASS) |",
     f"| Network | OK (PC timeouts = backoff, not outage) |",
     f"",
