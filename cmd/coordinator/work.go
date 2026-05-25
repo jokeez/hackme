@@ -1420,16 +1420,16 @@ func (m *workManager) runtimeMemSnapshot() map[string]any {
 	rigsN := len(rigs)
 	m.mu.Unlock()
 	return map[string]any{
-		"heap_alloc_mb":      roundMemMB(bytesToMB(ms.HeapAlloc)),
-		"heap_inuse_mb":      roundMemMB(bytesToMB(ms.HeapInuse)),
-		"heap_sys_mb":        roundMemMB(bytesToMB(ms.HeapSys)),
-		"stack_inuse_mb":     roundMemMB(bytesToMB(ms.StackInuse)),
-		"gc_cycles":          ms.NumGC,
-		"abuse_workers":      abuseN,
-		"ip_abuse_entries":   ipAbuseN,
-		"workers_tracked":    workerN,
-		"active_leases":      activeN,
-		"active_rigs":        rigsN,
+		"heap_alloc_mb":           roundMemMB(bytesToMB(ms.HeapAlloc)),
+		"heap_inuse_mb":           roundMemMB(bytesToMB(ms.HeapInuse)),
+		"heap_sys_mb":             roundMemMB(bytesToMB(ms.HeapSys)),
+		"stack_inuse_mb":          roundMemMB(bytesToMB(ms.StackInuse)),
+		"gc_cycles":               ms.NumGC,
+		"abuse_workers":           abuseN,
+		"ip_abuse_entries":        ipAbuseN,
+		"workers_tracked":         workerN,
+		"active_leases":           activeN,
+		"active_rigs":             rigsN,
 		"signed_dedup_cache":      dedupN,
 		"client_ip_trust_enabled": trustClientForwardedFor,
 	}

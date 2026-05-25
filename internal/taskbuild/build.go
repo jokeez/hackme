@@ -20,11 +20,11 @@ import (
 
 // Result holds compiled WASM and manifest fields for POST /api/tasks.
 type Result struct {
-	WasmPath       string
-	WasmBytes      []byte
-	ArtifactHash   string
-	ManifestJSON   []byte
-	CompileLog     string
+	WasmPath     string
+	WasmBytes    []byte
+	ArtifactHash string
+	ManifestJSON []byte
+	CompileLog   string
 }
 
 // Options for BuildFromSource.
@@ -166,14 +166,14 @@ func BuildFromSource(ctx context.Context, opt Options) (*Result, error) {
 	sum := sha256.Sum256(wasmBytes)
 	artifactHash := hex.EncodeToString(sum[:])
 	manifest := map[string]any{
-		"id":                id,
-		"kind":              "synthetic_poh_v1",
-		"reward_hmc":        opt.RewardHMC,
-		"difficulty_score":  opt.DifficultyScore,
-		"target_solves":     opt.TargetSolves,
-		"payer_ref":         strings.TrimSpace(opt.PayerRef),
-		"artifact_hash":     artifactHash,
-		"wasm_check_hex":    hex.EncodeToString(wasmBytes),
+		"id":               id,
+		"kind":             "synthetic_poh_v1",
+		"reward_hmc":       opt.RewardHMC,
+		"difficulty_score": opt.DifficultyScore,
+		"target_solves":    opt.TargetSolves,
+		"payer_ref":        strings.TrimSpace(opt.PayerRef),
+		"artifact_hash":    artifactHash,
+		"wasm_check_hex":   hex.EncodeToString(wasmBytes),
 	}
 	raw, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
