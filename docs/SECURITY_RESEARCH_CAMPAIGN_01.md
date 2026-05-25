@@ -1,5 +1,7 @@
 # Security research campaign #1 (operator plan)
 
+**Public write-up (screenshots, code, reproduce):** [security-note-01/README.md](security-note-01/README.md)
+
 Honest public story: **useful-PoW finds violation-class inputs** in WASM guards — not “we hacked Bitcoin Core.”
 
 ## What to run first (recommended)

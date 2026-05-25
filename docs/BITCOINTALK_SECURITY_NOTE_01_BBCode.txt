@@ -1,77 +1,45 @@
 [center][size=14pt][b][color=#00D1FF]HackMe Security Note #1[/color][/b][/size]
-[size=10pt][i]Useful-PoW · WASM guard · Bitcoin Script–inspired bounds · HTML fuzz reports[/i][/size][/center]
+[size=10pt][i]Useful-PoW · WASM guard · HTML fuzz reports · full write-up on GitHub[/i][/size][/center]
 
 [hr]
 
-[b]Summary[/b]
+[b]TL;DR[/b]
 
-We deployed a paid [b]useful Proof-of-Work[/b] order on the HackMe coordinator: miners search for inputs where a WASM [mono]check(i64)->i32[/mono] flags a [b]consensus-style violation class[/b] — [mono]OP_PUSHDATA1 (0x4c)[/mono] with claimed push length [b]> 520 bytes[/b] (simplified from Bitcoin Script element-size rules).
+We ran a [b]useful Proof-of-Work[/b] research order on HackMe: a WASM [mono]check(i64)->i32[/mono] flags [mono]OP_PUSHDATA1 (0x4c)[/mono] with push length [b]> 520 bytes[/b] (Bitcoin Script–style rule, simplified).
 
-A linked fuzz campaign produced verdict [b]clean[/b] on the demo sample (expected for a working guard). Operator reports now open as [b]styled HTML[/b] (not raw JSON) — suitable for screenshots and release notes.
-
-[b]This is not[/b] a claim of a new vulnerability in [b]Bitcoin Core[/b]. It is a [b]reproducible research demo[/b] of how our network runs security-class work (same infra as the live HMC pool and B2B fuzzing).
-
-[hr]
-
-[b]Checker source (Rust, AGPL)[/b]
-
-[code]
-#![no_std]
-
-use core::panic::PanicInfo;
-
-#[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    loop {}
-}
-
-/// Simplified Bitcoin Script push-size rule (educational / research gate).
-/// Input packs: opcode in low byte, claimed push length in bits 8..23 (see check()).
-/// Returns 1 when the tuple violates the "max push element 520 bytes" style bound.
-#[no_mangle]
-pub extern "C" fn check(n: i64) -> i32 {
-    if n <= 0 {
-        return 0;
-    }
-    let op = (n & 0xff) as u32;
-    let claimed_len = ((n >> 8) & 0xffff) as u32;
-    if op == 0x4c && claimed_len > 520 {
-        1
-    } else {
-        0
-    }
-}
-[/code]
-
-Path in tree: [mono]tasks/sources/security/rust_script_push_bounds_guard.rs[/mono]
+[list]
+[*][b]Not[/b] a Bitcoin Core CVE — reproducible demo on our open pool / fuzz stack
+[*]Useful-PoW order [mono]order-security-script-push-001[/mono] — [b]completed[/b]
+[*]Fuzz sample on the guard — [b]clean[/b] (expected)
+[*]New: fuzz reports open as [b]styled HTML[/b] (screenshots on GitHub)
+[/list]
 
 [hr]
 
-[b]Reproduce[/b]
+[b]Full post (code, screenshots, reproduce)[/b]
+
+[url=https://github.com/jokeez/hackme/blob/main/docs/security-note-01/README.md]github.com/jokeez/hackme — Security Note #1[/url]
+
+Direct images (raw):
+
+[img]https://raw.githubusercontent.com/jokeez/hackme/main/docs/screenshots/security-note-01/01-html-report-fail_high-redteam-property-fuzz.png[/img]
+
+[img]https://raw.githubusercontent.com/jokeez/hackme/main/docs/screenshots/security-note-01/02-fuzz-campaigns-dashboard.png[/img]
+
+Checker file: [url=https://github.com/jokeez/hackme/blob/main/tasks/sources/security/rust_script_push_bounds_guard.rs]rust_script_push_bounds_guard.rs[/url]
+
+[hr]
+
+[b]Quick reproduce[/b]
 
 [code]
 git clone https://github.com/jokeez/hackme.git && cd hackme
 bash scripts/build_security_task_pack.sh
-bash scripts/ops/run_security_research_campaign.sh
-# fuzz campaign + HTML report (local node with admin token):
 bash scripts/ops/bootstrap_security_fuzz_campaign.sh
-# dashboard: Fuzz tab → security-note-01 → Open report
 [/code]
 
-API: [mono]GET /api/fuzz/campaigns/{id}/report[/mono] → HTML by default · [mono]?format=json[/mono] for machines.
-
-Pool / downloads: [url=https://hackme.tech]hackme.tech[/url] · ANN: [url=https://bitcointalk.org/index.php?topic=5583373.0]topic 5583373[/url]
+Pool: [url=https://hackme.tech]hackme.tech[/url] · ANN: [url=https://bitcointalk.org/index.php?topic=5583373.0]this thread[/url] · TG: [url=https://t.me/hackme_tech]@hackme_tech[/url]
 
 [hr]
 
-[b]Screenshots attached[/b] (see also [mono]docs/screenshots/security-note-01/[/mono] in repo)
-
-1. [b]HTML fuzz report[/b] — styled page with verdict badge, metrics, top issues ([mono]redteam-property-fuzz[/mono] example: [mono]FAIL_HIGH[/mono] on property-fuzz sample; operator UI: Fuzz → Open report)  
-2. [b]Fuzz campaigns dashboard[/b] — live table, budget runs, completed campaigns  
-3. (Optional) Orders tab — useful-PoW order [mono]order-security-script-push-001[/mono] [b]completed[/b] · or the [code] block above for text-only readers
-
-[i]Note:[/i] [mono]FAIL_HIGH[/mono] on the property-fuzz screenshot is a [b]demo harness[/b] on [mono]rust_bounds_guard[/mono], not a claim of 80 flaws in Bitcoin Core. Security Note #1 push-bound campaign was [mono]clean[/mono] on its fuzz sample.
-
-[hr]
-
-[i]Next notes may target small OSS crypto parsers (miniscript-class), always with coordinated disclosure on real projects.[/i]
+[i]FAIL_HIGH in the HTML screenshot is a property-fuzz demo on rust_bounds_guard, not a claim of mass flaws in Bitcoin. Push-bound Security Note #1 fuzz was clean.[/i]
