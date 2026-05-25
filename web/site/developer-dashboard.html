@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HackMe — Developer Dashboard</title>
+  <meta name="description" content="B2B developer dashboard: orders, WASM upload, treasury wallet, fuzz reports — same visual language as the mining dashboard." />
+  <link rel="canonical" href="https://hackme.tech/developer-dashboard.html" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="/assets/favicon.png" type="image/png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { void: '#030306', neon: '#00d1ff', matrix: '#39ff14', warn: '#ffb020' },
+          fontFamily: { display: ['Orbitron', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+        },
+      },
+    };
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./assets/developer-dashboard.css" />
+  <style>
+    body { font-family: 'JetBrains Mono', monospace; background: #030306; color: #c8d0d8; }
+    .font-display { font-family: 'Orbitron', sans-serif; }
+    .bg-grid {
+      background-image: linear-gradient(rgba(0,209,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,209,255,0.04) 1px, transparent 1px);
+      background-size: 48px 48px;
+    }
+    .card {
+      background: linear-gradient(145deg, rgba(16,22,34,0.93), rgba(8,12,18,0.96));
+      border: 1px solid rgba(0,209,255,0.24);
+      box-shadow: inset 0 1px 0 rgba(0,209,255,0.12), 0 14px 36px rgba(0,0,0,0.35);
+    }
+    .sidebar-dev-link.active { background: rgba(0,209,255,0.12); border-color: rgba(0,209,255,0.35); color: #4fe6ff; }
+    .sidebar-dev-link { border: 1px solid transparent; transition: all 0.15s ease; }
+    .sidebar-dev-link:hover { background: rgba(0,209,255,0.06); color: #4fe6ff; }
+  </style>
+</head>
+<body class="bg-void bg-grid min-h-screen text-gray-300" data-dev-dashboard="1">
+  <div class="fixed inset-0 pointer-events-none opacity-10" style="background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.15) 2px,rgba(0,0,0,0.15) 4px)"></div>
+
+  <div class="relative flex min-h-screen">
+    <aside class="w-56 shrink-0 border-r border-neon/15 bg-black/50 p-4 flex flex-col gap-4">
+      <a href="./developers.html" class="flex items-center gap-2 font-display text-sm text-neon tracking-wider">
+        <img src="./assets/logo-hex.png" alt="" class="w-6 h-6" /> HackMe Dev
+      </a>
+      <p class="text-[9px] text-gray-500 uppercase tracking-[0.25em]">B2B · no mining</p>
+      <nav class="flex flex-col gap-1">
+        <button type="button" class="sidebar-dev-link active w-full text-left px-3 py-2 rounded text-[11px] uppercase tracking-wider" data-dev-tab="wallet">Wallet</button>
+        <button type="button" class="sidebar-dev-link w-full text-left px-3 py-2 rounded text-[11px] uppercase tracking-wider" data-dev-tab="orders">Orders</button>
+        <button type="button" class="sidebar-dev-link w-full text-left px-3 py-2 rounded text-[11px] uppercase tracking-wider" data-dev-tab="create">Create</button>
+        <button type="button" class="sidebar-dev-link w-full text-left px-3 py-2 rounded text-[11px] uppercase tracking-wider" data-dev-tab="report">Report</button>
+      </nav>
+      <div class="mt-auto space-y-2 text-[10px]">
+        <a href="./downloads.html#fuzzing-client" class="text-gray-500 hover:text-neon block">CLI download</a>
+        <a href="https://hackme.tech/fuzzing-console.html" class="text-gray-500 hover:text-neon block">Public tracker</a>
+      </div>
+    </aside>
+
+    <main class="flex-1 p-4 lg:p-6 space-y-4 max-w-[1400px]">
+      <header class="flex flex-wrap items-center justify-between gap-3 border-b border-neon/15 pb-3">
+        <div>
+          <p class="font-display text-[10px] tracking-[0.35em] text-neon uppercase">Developer dashboard</p>
+          <h1 class="font-display text-lg text-white tracking-wide">Orders &amp; useful-PoW</h1>
+          <p class="text-[11px] text-gray-500 mt-1">Simplified mining-style UI · scoped token only · pool fills your work</p>
+        </div>
+        <div class="flex flex-wrap gap-2 items-center">
+          <input id="dev-token-input" type="password" class="dev-input w-48" placeholder="developer token" autocomplete="off" />
+          <button type="button" id="btn-token-save" class="px-3 py-1.5 rounded border border-neon/40 text-neon text-[10px] uppercase hover:bg-neon/10">Save</button>
+          <button type="button" id="btn-token-clear" class="px-3 py-1.5 rounded border border-white/20 text-gray-400 text-[10px] uppercase hover:bg-white/5">Clear</button>
+          <button type="button" id="btn-console-refresh" class="px-3 py-1.5 rounded border border-matrix/40 text-matrix text-[10px] uppercase font-bold hover:bg-matrix/10">Refresh</button>
+          <a href="./developers.html#integrator-token" class="px-3 py-1.5 rounded border border-white/20 text-gray-400 text-[10px] uppercase hover:bg-white/5">Get token</a>
+        </div>
+      </header>
+      <p id="dev-token-status" class="dev-status-line"></p>
+
+      <!-- WALLET -->
+      <div id="dev-panel-wallet" class="dev-dash-panel dev-panel active space-y-4">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="card rounded-lg p-3"><span class="dev-label">Treasury address</span><p id="wallet-address" class="text-[10px] text-neon break-all mt-1">—</p></div>
+          <div class="card rounded-lg p-3"><span class="dev-label">Balance</span><p id="wallet-balance" class="dev-kpi-val mt-1">—</p></div>
+          <div class="card rounded-lg p-3"><span class="dev-label">Next nonce</span><p id="wallet-nonce" class="dev-kpi-val mt-1 text-neon">—</p></div>
+          <div class="card rounded-lg p-3"><span class="dev-label">Pool</span><p id="pool-hint" class="text-[10px] text-gray-400 mt-1 leading-snug">—</p></div>
+        </div>
+        <p id="wallet-status" class="dev-status-line"></p>
+        <p class="text-[10px] text-gray-500">Fund the treasury before <strong class="text-matrix">Create</strong>. Escrow debits the canonical node wallet, not your miner address.</p>
+      </div>
+
+      <!-- ORDERS -->
+      <div id="dev-panel-orders" class="dev-dash-panel dev-panel space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="font-display text-xs text-neon uppercase tracking-widest">Your orders</h2>
+          <button type="button" id="btn-orders-refresh" class="px-3 py-1 rounded border border-neon/30 text-neon text-[10px] uppercase hover:bg-neon/10">Refresh</button>
+        </div>
+        <div class="card rounded-lg overflow-x-auto">
+          <table class="w-full text-left text-[11px] font-mono">
+            <thead class="bg-black/60 text-gray-500 uppercase text-[9px]">
+              <tr><th class="px-3 py-2">ID</th><th class="px-3 py-2">Status</th><th class="px-3 py-2">Diff</th><th class="px-3 py-2">Reward</th><th class="px-3 py-2">Target</th><th class="px-3 py-2">Progress</th><th class="px-3 py-2">Prepaid</th></tr>
+            </thead>
+            <tbody id="orders-table-body" class="divide-y divide-white/5 text-gray-300"></tbody>
+          </table>
+        </div>
+        <p id="orders-status" class="dev-status-line"></p>
+        <div class="card rounded-lg p-3">
+          <p class="text-[9px] uppercase tracking-widest text-gray-500 mb-2">Manifest (selected row)</p>
+          <pre id="orders-manifest-pre" class="text-[10px] text-gray-400 overflow-auto max-h-40 whitespace-pre-wrap">—</pre>
+        </div>
+      </div>
+
+      <!-- CREATE -->
+      <div id="dev-panel-create" class="dev-dash-panel dev-panel space-y-3">
+        <h2 class="font-display text-xs text-matrix uppercase tracking-widest">Create order</h2>
+        <p id="create-fairness" class="text-[10px] text-gray-500 font-mono"></p>
+        <div class="card rounded-xl p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <label><span class="dev-label">Order ID</span><input id="create-id" class="dev-input" type="text" autocomplete="off" placeholder="acme-audit-001" /></label>
+          <label><span class="dev-label">Kind</span><input id="create-kind" class="dev-input" type="text" value="synthetic_poh_v1" /></label>
+          <label><span class="dev-label">Difficulty</span><input id="create-diff" class="dev-input" type="number" min="1" max="100" value="10" /></label>
+          <label><span class="dev-label">Reward HMC</span><input id="create-reward" class="dev-input" type="number" min="0.0001" step="0.0001" value="0.01" /></label>
+          <label><span class="dev-label">Target solves</span><input id="create-target" class="dev-input" type="number" min="1" max="10000" value="3" /></label>
+          <label><span class="dev-label">Payer ref</span><input id="create-payer" class="dev-input" type="text" placeholder="company:project" /></label>
+          <label class="md:col-span-2 lg:col-span-3"><span class="dev-label">WASM file (.wasm)</span><input id="create-wasm-file" class="dev-input" type="file" accept=".wasm,application/wasm" /></label>
+        </div>
+        <p id="create-wasm-meta" class="text-[10px] text-gray-500">Build locally: <code class="text-neon/80">hackme-fuzzing build</code> — remote from_code blocked on hackme.tech.</p>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" id="btn-template-small" class="px-3 py-1 rounded border border-white/20 text-[10px] uppercase text-gray-400 hover:bg-white/5">Small</button>
+          <button type="button" id="btn-template-medium" class="px-3 py-1 rounded border border-white/20 text-[10px] uppercase text-gray-400 hover:bg-white/5">Medium</button>
+          <button type="button" id="btn-template-audit" class="px-3 py-1 rounded border border-white/20 text-[10px] uppercase text-gray-400 hover:bg-white/5">Audit</button>
+          <button type="button" id="btn-fair-fill" class="px-3 py-1 rounded border border-matrix/30 text-[10px] uppercase text-matrix hover:bg-matrix/10">Min fair reward</button>
+          <button type="button" id="btn-create-submit" class="px-4 py-2 rounded-lg border border-matrix/40 bg-matrix/10 text-matrix text-[11px] font-display font-bold uppercase hover:bg-matrix/20">Create order</button>
+        </div>
+        <p id="create-status" class="dev-status-line"></p>
+        <div class="card rounded-lg p-3">
+          <p class="text-[9px] uppercase text-gray-500 mb-1">Manifest preview</p>
+          <pre id="create-manifest-pre" class="text-[10px] text-gray-400 max-h-32 overflow-auto">{}</pre>
+        </div>
+      </div>
+
+      <!-- REPORT -->
+      <div id="dev-panel-report" class="dev-dash-panel dev-panel space-y-3">
+        <h2 class="font-display text-xs text-warn uppercase tracking-widest">Fuzz report (deliverable)</h2>
+        <p class="text-[10px] text-gray-500">Operator shares <code class="text-neon/80">customer_report_token</code> — you view HTML here; you do not run fuzz campaigns on prod.</p>
+        <div class="card rounded-xl p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <label><span class="dev-label">Campaign ID</span><input id="report-campaign-id" class="dev-input" type="text" placeholder="security-note-01" /></label>
+          <label><span class="dev-label">Report token</span><input id="report-token" class="dev-input" type="password" autocomplete="off" /></label>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" id="btn-report-open" class="px-4 py-2 rounded-lg border border-neon/40 bg-neon/10 text-neon text-[11px] font-display font-bold uppercase hover:bg-neon/20">Open HTML report</button>
+          <button type="button" id="btn-report-json" class="px-3 py-1.5 rounded border border-white/20 text-[10px] uppercase text-gray-400 hover:bg-white/5">JSON</button>
+        </div>
+        <p id="report-status" class="dev-status-line"></p>
+      </div>
+    </main>
+  </div>
+
+  <script src="./assets/hackme-dev-common.js" defer></script>
+  <script src="./assets/developer-console.js" defer></script>
+</body>
+</html>

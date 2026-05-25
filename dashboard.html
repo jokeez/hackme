@@ -1639,13 +1639,13 @@
 						<div>
 							<p class="font-display text-[10px] tracking-[0.35em] text-neon uppercase mb-1">Useful-PoW market</p>
 							<h2 class="font-display text-sm font-bold text-white tracking-wide">Order market · paid tasks</h2>
-							<p id="orders-panel-subtitle" class="text-[11px] text-gray-500 mt-1 max-w-2xl">Open paid jobs on the network — miners earn HMC when the pool schedules order work. Post new orders from the <a href="https://hackme.tech/developer-console.html" class="text-neon/90 underline" target="_blank" rel="noreferrer">Developer Console</a> (B2B), not here.</p>
+							<p id="orders-panel-subtitle" class="text-[11px] text-gray-500 mt-1 max-w-2xl">Open paid jobs on the network — miners earn HMC when the pool schedules order work. Post new orders from the <a href="https://hackme.tech/developer-dashboard.html" class="text-neon/90 underline" target="_blank" rel="noreferrer">Developer Dashboard</a> (B2B), not here.</p>
 						</div>
 						<button type="button" id="btn-orders-refresh" class="text-[10px] px-3 py-1.5 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
 					</div>
 					<div id="orders-market-banner" class="rounded-lg border border-neon/25 bg-neon/5 p-3 text-[11px] text-gray-300 leading-snug">
 						<strong class="text-neon">Miner / viewer mode</strong> — this tab is read-only. Integrators create orders at
-						<a href="https://hackme.tech/developer-console.html" class="text-neon underline" target="_blank" rel="noreferrer">hackme.tech/developer-console.html</a>
+						<a href="https://hackme.tech/developer-dashboard.html" class="text-neon underline" target="_blank" rel="noreferrer">hackme.tech/developer-dashboard.html</a>
 						(token + WASM upload). Pool workers fill open orders automatically.
 					</div>
 					<div id="orders-wallet-gate" class="hidden rounded-lg border border-warn/35 bg-warn/5 p-3 text-[11px] text-warn/95 leading-snug"></div>
@@ -1751,7 +1751,7 @@
 				<div id="panel-fuzz" class="tab-panel max-w-[1600px] mx-auto space-y-4">
 					<div id="fuzz-market-banner" class="rounded-lg border border-warn/30 bg-warn/5 p-3 text-[11px] text-gray-300 leading-snug">
 						<strong class="text-warn">Fuzz campaigns are operator-only</strong> on the public network. B2B customers use the
-						<a href="https://hackme.tech/developer-console.html" class="text-neon underline" target="_blank" rel="noreferrer">Developer Console</a>
+						<a href="https://hackme.tech/developer-dashboard.html" class="text-neon underline" target="_blank" rel="noreferrer">Developer Dashboard</a>
 						for orders and open HTML reports with <code class="text-neon/80">X-Hackme-Report-Token</code>. Full fuzz admin requires a local node admin token below.
 					</div>
 					<div id="fuzz-admin-only" class="hidden space-y-4">
@@ -2921,7 +2921,7 @@
 			updateMiningAdminGate();
 		}
 		function developerConsoleURL() {
-			return 'https://hackme.tech/developer-console.html';
+			return 'https://hackme.tech/developer-dashboard.html';
 		}
 		function updateOrdersMarketUIMode() {
 			const admin = adminTokenCurrent().length > 0;
@@ -2933,7 +2933,7 @@
 			if (subtitle) {
 				subtitle.innerHTML = admin
 					? '<code class="text-neon/80">POST /api/tasks</code> — operator escrow from node wallet. Miners fill open orders on the pool (FIFO).'
-					: 'Read-only market — paid jobs on the network. Post work via <a href="' + developerConsoleURL() + '" class="text-neon/90 underline" target="_blank" rel="noreferrer">Developer Console</a> (B2B token + WASM upload).';
+					: 'Read-only market — paid jobs on the network. Post work via <a href="' + developerConsoleURL() + '" class="text-neon/90 underline" target="_blank" rel="noreferrer">Developer Dashboard</a> (B2B token + WASM upload).';
 			}
 			const fuzzBanner = $('fuzz-market-banner');
 			const fuzzAdmin = $('fuzz-admin-only');

@@ -1,0 +1,19 @@
+/* Developer dashboard — same neon shell as mining dashboard, B2B-only panels */
+.dev-dash-panel { display: none; }
+.dev-dash-panel.active { display: block; }
+.dev-input {
+  width: 100%;
+  font-size: 11px;
+  font-family: inherit;
+  border-radius: 0.25rem;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.55);
+  padding: 0.35rem 0.5rem;
+  color: #4fe6ff;
+}
+.dev-input:focus { outline: 2px solid rgba(0,209,255,0.45); outline-offset: 1px; }
+.dev-label { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.12em; display: block; margin-bottom: 0.25rem; }
+.dev-kpi-val { font-size: 1.1rem; color: #39ff14; font-variant-numeric: tabular-nums; }
+.dev-status-line { font-size: 10px; color: #9ca3af; min-height: 1.2em; }
+.dev-status-line.ok { color: #39ff14; }
+.dev-status-line.err { color: #ff8a8a; }

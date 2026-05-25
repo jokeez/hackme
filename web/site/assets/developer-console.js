@@ -10,9 +10,17 @@
 
   const $ = (id) => document.getElementById(id);
 
+  const dashUI = document.body && document.body.getAttribute("data-dev-dashboard") === "1";
+
   function setStatus(el, text, ok) {
     if (!el) return;
     el.textContent = text || "";
+    if (dashUI) {
+      el.classList.remove("ok", "err");
+      if (ok === true) el.classList.add("ok");
+      if (ok === false) el.classList.add("err");
+      return;
+    }
     el.classList.remove("dev-status-ok", "dev-status-err");
     if (ok === true) el.classList.add("dev-status-ok");
     if (ok === false) el.classList.add("dev-status-err");
@@ -289,14 +297,22 @@
     }
   }
 
+  function activateTab(tab, activeBtn) {
+    document.querySelectorAll(".dev-tab, .sidebar-dev-link").forEach((b) => {
+      const t = b.getAttribute("data-dev-tab");
+      b.classList.toggle("active", t === tab && (!activeBtn || b === activeBtn));
+    });
+    document.querySelectorAll(".dev-panel, .dev-dash-panel").forEach((p) => {
+      const on = p.id === "dev-panel-" + tab;
+      p.classList.toggle("active", on);
+      if (dashUI) p.classList.toggle("hidden", !on);
+    });
+  }
+
   function wireTabs() {
-    document.querySelectorAll(".dev-tab").forEach((btn) => {
+    document.querySelectorAll(".dev-tab, .sidebar-dev-link").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const tab = btn.getAttribute("data-dev-tab");
-        document.querySelectorAll(".dev-tab").forEach((b) => b.classList.toggle("active", b === btn));
-        document.querySelectorAll(".dev-panel").forEach((p) => {
-          p.classList.toggle("active", p.id === "dev-panel-" + tab);
-        });
+        activateTab(btn.getAttribute("data-dev-tab"), btn);
       });
     });
   }

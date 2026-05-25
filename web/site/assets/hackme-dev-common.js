@@ -36,9 +36,9 @@
   function developerConsoleURL() {
     const h = location.hostname;
     if (h === "hackme.tech" || h === "www.hackme.tech" || h === "localhost" || h === "127.0.0.1") {
-      return "./developer-console.html";
+      return "./developer-dashboard.html";
     }
-    return "https://hackme.tech/developer-console.html";
+    return "https://hackme.tech/developer-dashboard.html";
   }
 
   function escapeHtml(s) {
