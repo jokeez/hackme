@@ -421,6 +421,7 @@ func main() {
 	mux.HandleFunc("/api/hardware/rig-profiles/detect", a.handleRigProfilesDetect)
 	mux.HandleFunc("/api/hardware/rig-profiles/apply", a.handleRigProfilesApply)
 	mux.HandleFunc("/api/tasks", a.handleTasks)
+	mux.HandleFunc("/api/poh/solve-order", a.handlePohSolveOrder)
 	mux.HandleFunc("/api/tasks/from_code", a.handleTaskFromCode)
 	mux.HandleFunc("/api/integrator/", a.handleIntegratorAPI)
 	mux.HandleFunc("/api/integrator", a.handleIntegratorAPI)

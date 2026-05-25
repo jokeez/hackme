@@ -24,6 +24,7 @@ import (
 	"hackme/internal/gputune"
 	"hackme/internal/operator"
 	"hackme/internal/workerid"
+	"hackme/internal/sandbox"
 	"hackme/internal/worksubmit"
 )
 
@@ -44,13 +45,16 @@ import (
 // Note: coordinator validates PoH hit as eval_v1(n)=7n+13; eval(n)%target_mod==0.
 
 type claimResp struct {
-	OK        bool   `json:"ok"`
-	Reason    string `json:"reason,omitempty"`
-	WorkerID  string `json:"worker_id,omitempty"`
-	BaseNonce uint64 `json:"base_nonce"`
-	BatchSize uint64 `json:"batch_size"`
-	WorkID    string `json:"work_id,omitempty"`
-	TargetMod uint64 `json:"target_mod,omitempty"`
+	OK             bool    `json:"ok"`
+	Reason         string  `json:"reason,omitempty"`
+	WorkerID       string  `json:"worker_id,omitempty"`
+	BaseNonce      uint64  `json:"base_nonce"`
+	BatchSize      uint64  `json:"batch_size"`
+	WorkID         string  `json:"work_id,omitempty"`
+	TargetMod      uint64  `json:"target_mod,omitempty"`
+	OrderTaskID    string  `json:"order_task_id,omitempty"`
+	WasmCheckHex   string  `json:"wasm_check_hex,omitempty"`
+	OrderRewardHMC float64 `json:"order_reward_hmc,omitempty"`
 }
 
 type submitReq struct {
@@ -67,7 +71,9 @@ type submitReq struct {
 	MinerPubKey string `json:"miner_pubkey_ed25519,omitempty"`
 	MinerSig    string `json:"miner_sig_ed25519,omitempty"`
 	MinerSigAlg string `json:"miner_sig_alg,omitempty"`
-	SubmitNonce uint64 `json:"submit_nonce,omitempty"`
+	SubmitNonce  uint64 `json:"submit_nonce,omitempty"`
+	OrderTaskID  string `json:"order_task_id,omitempty"`
+	WasmGatePass bool   `json:"wasm_gate_pass,omitempty"`
 }
 
 func canonicalSubmitBytes(req submitReq) []byte {
@@ -816,6 +822,21 @@ func main() {
 			fmt.Fprintf(os.Stderr, "workerpoh: search_sec=%.6f kernel_sec=%.6f inst_ghs=%.2f submit_ghs=%.2f calib=%.2f\n",
 				elapsed, kern, instGHS, ghs, gpuCalibratedGHS)
 		}
+		wasmGatePass := false
+		if found && strings.TrimSpace(cr.WasmCheckHex) != "" && strings.TrimSpace(cr.OrderTaskID) != "" {
+			raw, err := hex.DecodeString(strings.TrimSpace(cr.WasmCheckHex))
+			if err == nil && len(raw) > 0 {
+				ok, err := sandbox.InvokeCheck(context.Background(), raw, foundNonce)
+				if err == nil && ok {
+					wasmGatePass = true
+				} else if err != nil {
+					fmt.Fprintf(os.Stderr, "workerpoh: wasm gate err: %v\n", err)
+				} else {
+					fmt.Fprintf(os.Stderr, "workerpoh: wasm gate rejected nonce=%d (order %s)\n", foundNonce, cr.OrderTaskID)
+					found = false
+				}
+			}
+		}
 		out := submitReq{
 			WorkerID:    *workerID,
 			BaseNonce:   cr.BaseNonce,
@@ -825,6 +846,10 @@ func main() {
 			Found:       found,
 			FoundNonce:  foundNonce,
 			HashrateGHS: ghs,
+		}
+		if strings.TrimSpace(cr.OrderTaskID) != "" {
+			out.OrderTaskID = strings.TrimSpace(cr.OrderTaskID)
+			out.WasmGatePass = wasmGatePass
 		}
 		if found {
 			sum := sha256.Sum256([]byte(fmt.Sprintf("%s:%d", *workerID, foundNonce)))

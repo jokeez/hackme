@@ -623,23 +623,17 @@ func (s *Service) AppendPoHBlock(ctx context.Context, minerAddress string, nonce
 		return nil, err
 	}
 	if rewardHMC > 0 {
-		var rewardCreditAddr string
-		if err := tx.QueryRowContext(ctx, `SELECT address FROM wallet WHERE id = 1`).Scan(&rewardCreditAddr); err != nil {
-			return nil, err
-		}
-		rewardCreditAddr = strings.TrimSpace(rewardCreditAddr)
-		if rewardCreditAddr == "" {
-			return nil, errors.New("chain: primary wallet address missing (cannot credit PoH reward)")
-		}
-		// Credits must hit the primary wallet row address: /api/wallet reads accounts[wallet.address].
-		// Block header still records minerAddress (node signer at solve time); if it diverges from
-		// wallet.address after backup/rebind drift, crediting minerAddress would strand units.
 		mintedUnits, burnedUnits, err := s.econTotalsUnits(ctx, tx)
 		if err != nil {
 			return nil, err
 		}
 		creditUnits := HMCToUnits(rewardHMC)
 		if orderTaskID != "" {
+			// Paid order: escrow pays the solver recorded in the block header (pool worker or chain leader).
+			minerAddress = strings.TrimSpace(minerAddress)
+			if minerAddress == "" || !strings.HasPrefix(minerAddress, "HMC-") {
+				return nil, errors.New("chain: valid miner_address required for order reward credit")
+			}
 			escrowUnits, err := s.metaUint(ctx, tx, metaOrderEscrowUnits, 0)
 			if err != nil {
 				return nil, err
@@ -647,13 +641,10 @@ func (s *Service) AppendPoHBlock(ctx context.Context, minerAddress string, nonce
 			if creditUnits > escrowUnits {
 				return nil, fmt.Errorf("chain: order escrow depleted (%d < %d)", escrowUnits, creditUnits)
 			}
-			if _, err := tx.ExecContext(ctx, `UPDATE wallet SET balance_units = balance_units + ?, balance_hmc = (balance_units + ?) / ? WHERE id = 1`, creditUnits, creditUnits, float64(UnitsPerHMC)); err != nil {
-				return nil, err
-			}
 			if _, err := tx.ExecContext(ctx,
 				`INSERT INTO accounts (address, balance_units, next_nonce, updated_at) VALUES (?, ?, 0, strftime('%s','now'))
 				 ON CONFLICT(address) DO UPDATE SET balance_units=accounts.balance_units + excluded.balance_units, updated_at=excluded.updated_at`,
-				rewardCreditAddr, creditUnits); err != nil {
+				minerAddress, creditUnits); err != nil {
 				return nil, err
 			}
 			if err := s.upsertMetaUint(ctx, tx, metaOrderEscrowUnits, escrowUnits-creditUnits); err != nil {
@@ -667,6 +658,15 @@ func (s *Service) AppendPoHBlock(ctx context.Context, minerAddress string, nonce
 				return nil, err
 			}
 		} else {
+			// Empty mining: credit primary wallet row (see TestAppendPoHCreditsPrimaryWalletNotMinerArg).
+			var rewardCreditAddr string
+			if err := tx.QueryRowContext(ctx, `SELECT address FROM wallet WHERE id = 1`).Scan(&rewardCreditAddr); err != nil {
+				return nil, err
+			}
+			rewardCreditAddr = strings.TrimSpace(rewardCreditAddr)
+			if rewardCreditAddr == "" {
+				return nil, errors.New("chain: primary wallet address missing (cannot credit PoH reward)")
+			}
 			maxSupplyUnits := HMCToUnits(MaxSupplyHMC)
 			var allowedUnits uint64
 			if mintedUnits >= maxSupplyUnits {

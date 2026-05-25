@@ -17,7 +17,7 @@ There is **no** order-creation UI on hackme.tech (removed `/pool/developer`).
 1. Install/run `hackme-node` (desktop `.env` or VPS-style layout on your PC).
 2. Open dashboard → **Developer token** → **Issue** (or `hackme-fuzzing register --base http://127.0.0.1:8080 --save`).
 3. **Market** → upload `.wasm` → POST order (debits local wallet).
-4. Miners on `hackme.tech` pool pick up open orders when scheduled.
+4. When an order is open, the public pool runs in **orders** mode: workers get `wasm_check_hex` in `/api/work/claim`, pass the gate on a PoH hit, and relay **`POST /api/poh/solve-order`** — escrow credits the solver’s `miner_address`. See `docs/ORDER_ECONOMICS.md`.
 
 ## Auth
 

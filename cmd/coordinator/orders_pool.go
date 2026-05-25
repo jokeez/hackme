@@ -1,0 +1,208 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
+	"hackme/internal/sandbox"
+)
+
+const maxOrderWasmClaimBytes = 512 * 1024
+
+type activeOrderSnap struct {
+	ID         string
+	RewardHMC  float64
+	WasmHex    string
+	ChainMod   uint64
+	FetchedAt  int64
+}
+
+func (m *workManager) ordersAdminToken() string {
+	if t := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_ORDERS_ADMIN_TOKEN")); t != "" {
+		return t
+	}
+	return strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_CHAIN_ADMIN_TOKEN"))
+}
+
+func (m *workManager) ordersSolveEnabled() bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_COORDINATOR_ORDERS_SOLVE_RELAY")))
+	if v == "" {
+		return strings.TrimSpace(m.ordersProbeURL) != ""
+	}
+	return v == "1" || v == "true" || v == "yes" || v == "on"
+}
+
+func (m *workManager) storeChainPoHMod(mod uint64) {
+	if mod == 0 {
+		return
+	}
+	m.schedulerMu.Lock()
+	m.chainPoHMod = mod
+	m.schedulerMu.Unlock()
+}
+
+func (m *workManager) chainPoHModNow() uint64 {
+	m.schedulerMu.Lock()
+	defer m.schedulerMu.Unlock()
+	if m.chainPoHMod > 0 {
+		return m.chainPoHMod
+	}
+	return m.targetMod
+}
+
+func (m *workManager) activeOrderSnapshot() activeOrderSnap {
+	m.schedulerMu.Lock()
+	defer m.schedulerMu.Unlock()
+	return m.refreshActiveOrderLocked()
+}
+
+func (m *workManager) refreshActiveOrderLocked() activeOrderSnap {
+	if strings.TrimSpace(m.ordersProbeURL) == "" {
+		return activeOrderSnap{}
+	}
+	now := time.Now().Unix()
+	if m.activeOrder.ID != "" && now-m.activeOrder.FetchedAt < m.ordersProbeEverySec {
+		return m.activeOrder
+	}
+	cl := &http.Client{Timeout: 3 * time.Second}
+	req, err := http.NewRequest(http.MethodGet, m.ordersProbeURL+"/api/tasks", nil)
+	if err != nil {
+		return activeOrderSnap{}
+	}
+	if tok := m.ordersAdminToken(); tok != "" {
+		req.Header.Set("X-Hackme-Admin-Token", tok)
+	}
+	resp, err := cl.Do(req)
+	if err != nil {
+		return activeOrderSnap{}
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return activeOrderSnap{}
+	}
+	var body struct {
+		Tasks []map[string]any `json:"tasks"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&body); err != nil {
+		return activeOrderSnap{}
+	}
+	var pick map[string]any
+	var pickCreated float64
+	for _, row := range body.Tasks {
+		if !strings.EqualFold(strings.TrimSpace(fmt.Sprintf("%v", row["status"])), "open") {
+			continue
+		}
+		cr, _ := row["created_at"].(float64)
+		if pick == nil || cr < pickCreated {
+			pick, pickCreated = row, cr
+		}
+	}
+	if pick == nil {
+		m.activeOrder = activeOrderSnap{}
+		return activeOrderSnap{}
+	}
+	id := strings.TrimSpace(fmt.Sprintf("%v", pick["id"]))
+	manifest := strings.TrimSpace(fmt.Sprintf("%v", pick["manifest_json"]))
+	if manifest == "" || manifest == "<nil>" {
+		m.activeOrder = activeOrderSnap{}
+		return activeOrderSnap{}
+	}
+	var mf struct {
+		WasmCheckHex string  `json:"wasm_check_hex"`
+		RewardHMC    float64 `json:"reward_hmc"`
+	}
+	_ = json.Unmarshal([]byte(manifest), &mf)
+	wasmHex := strings.TrimSpace(mf.WasmCheckHex)
+	if wasmHex == "" {
+		m.activeOrder = activeOrderSnap{}
+		return activeOrderSnap{}
+	}
+	raw, err := hex.DecodeString(wasmHex)
+	if err != nil || len(raw) == 0 || len(raw) > maxOrderWasmClaimBytes {
+		m.activeOrder = activeOrderSnap{}
+		return activeOrderSnap{}
+	}
+	if err := sandbox.ValidateCheckWasm(context.Background(), raw); err != nil {
+		m.activeOrder = activeOrderSnap{}
+		return activeOrderSnap{}
+	}
+	reward, _ := pick["reward"].(float64)
+	if reward <= 0 {
+		reward = mf.RewardHMC
+	}
+	snap := activeOrderSnap{
+		ID:        id,
+		RewardHMC: reward,
+		WasmHex:   wasmHex,
+		ChainMod:  m.chainPoHModNow(),
+		FetchedAt: now,
+	}
+	m.activeOrder = snap
+	return snap
+}
+
+type orderSolveRelayResult struct {
+	OK        bool
+	BlockHash string
+	Reason    string
+}
+
+func (m *workManager) relayOrderSolve(minerAddress string, foundNonce, targetMod uint64, orderTaskID string) orderSolveRelayResult {
+	out := orderSolveRelayResult{Reason: "orders_solve_disabled"}
+	if !m.ordersSolveEnabled() {
+		return out
+	}
+	base := strings.TrimRight(strings.TrimSpace(m.ordersProbeURL), "/")
+	if base == "" || strings.TrimSpace(orderTaskID) == "" || strings.TrimSpace(minerAddress) == "" {
+		out.Reason = "orders_url_or_fields_missing"
+		return out
+	}
+	tok := m.ordersAdminToken()
+	if tok == "" {
+		out.Reason = "orders_admin_token_missing"
+		return out
+	}
+	body, _ := json.Marshal(map[string]any{
+		"miner_address":  minerAddress,
+		"found_nonce":    foundNonce,
+		"target_mod":     targetMod,
+		"order_task_id":  orderTaskID,
+	})
+	req, err := http.NewRequest(http.MethodPost, base+"/api/poh/solve-order", bytes.NewReader(body))
+	if err != nil {
+		out.Reason = "relay_build_failed"
+		return out
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", tok)
+	cl := &http.Client{Timeout: 15 * time.Second}
+	resp, err := cl.Do(req)
+	if err != nil {
+		out.Reason = "relay_http_error"
+		return out
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	var decoded map[string]any
+	_ = json.Unmarshal(raw, &decoded)
+	if resp.StatusCode != http.StatusOK {
+		if r, _ := decoded["error"].(string); r != "" {
+			out.Reason = r
+		} else {
+			out.Reason = fmt.Sprintf("relay_http_%d", resp.StatusCode)
+		}
+		return out
+	}
+	out.OK = true
+	out.BlockHash, _ = decoded["block_hash"].(string)
+	out.Reason = ""
+	return out
+}

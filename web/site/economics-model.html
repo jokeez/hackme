@@ -64,9 +64,9 @@
             </tr>
             <tr>
               <td><strong>Order-linked PoH block</strong></td>
-              <td>Block reward must match the open task&apos;s escrowed reward; emission is constrained by order economics.</td>
-              <td>Same primary-wallet credit path on the producing node, funded from task escrow.</td>
-              <td>Task / order APIs; block tied to <span class="code-inline">orderTaskID</span> context.</td>
+              <td>Block reward must match the open task&apos;s escrowed reward; WASM gate must pass on the solving nonce.</td>
+              <td><strong>Miner who committed the block</strong> (<span class="code-inline">miner_address</span> / hybrid signer) — paid from order escrow via <span class="code-inline">POST /api/poh/solve-order</span> (pool relay or local node).</td>
+              <td>Task / order APIs; explorer block payload <span class="code-inline">order_task_id</span>; worker submit <span class="code-inline">order_chain_solve: true</span>.</td>
             </tr>
             <tr>
               <td><strong>Coordinator pool</strong></td>

@@ -120,7 +120,7 @@ hackme-fuzzing build -lang rust -source check.rs -out ./fuzzing-out
 hackme-fuzzing create ./fuzzing-out/my-order.manifest.json
 
 # Remote from_code returns HTTP 403 on hackme.tech (build WASM locally).</code></pre>
-      <p class="subtle">Miners earn HMC on the <a href="/pool/coordinator/api/pool/stats">public pool</a>; your order sets coordinator priority when active.</p>
+      <p class="subtle">When your order is open, pool workers receive the WASM gate in <span class="code-inline">/api/work/claim</span> and can commit order blocks — escrow pays the solver&apos;s <span class="code-inline">miner_address</span>, not a separate bounty for &quot;finding a CVE&quot;. Small coordinator accrual may still apply for attempts. See <a href="./economics-model.html">economics model</a>.</p>
     </section>
 
     <section class="panel glass">

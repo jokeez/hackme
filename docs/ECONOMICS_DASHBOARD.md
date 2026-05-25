@@ -71,10 +71,11 @@ So thousands/millions of miners do **not** increase total emission rate; they on
 
 When `AppendPoHBlock` credits a PoH reward:
 
-- Units are added to the node **primary wallet row** (`wallet WHERE id = 1`) and the matching `accounts` row for that address, so `/api/wallet` stays aligned with ledger state.
-- The block JSON/header can still record **`minerAddress`** (signer at solve time). Credits intentionally follow **primary wallet**, not blindly the header address, so backup/rebind drift does not strand balances.
+- **Empty mining** (`orderTaskID` empty): credits the node **primary wallet** (`wallet id = 1`) — see `TestAppendPoHCreditsPrimaryWalletNotMinerArg`.
+- **Paid order** (`orderTaskID` set): credits **`minerAddress`** on the block (pool hybrid signer or local node id) from **order escrow**.
+- Pool workers receive order escrow on-chain when coordinator relay succeeds; coordinator **found_bonus** is skipped for successful `order_chain_solve`.
 
-**Implication:** base or order-linked block subsidy on a given node accrues to **that node’s primary wallet**, not automatically to every GPU connected via the coordinator. Fleet rewards are expected through **coordinator accrual + settlement** (policy-dependent).
+**Implication:** B2B prepaid flows to **whoever commits the order block**, not only the VPS primary wallet. Coordinator accrual remains a separate layer for attempt subsidies.
 
 ## 6) Coordinator vs classic Stratum PoW pool
 

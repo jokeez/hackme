@@ -104,6 +104,8 @@ type workManager struct {
 	lastOrdersProbeUnix  int64
 	lastOrdersActive     bool
 	probeInFlight        bool
+	chainPoHMod          uint64
+	activeOrder          activeOrderSnap
 
 	lastAbusePruneUnix    int64
 	hybridSignerEnabled   bool
@@ -174,8 +176,10 @@ type submitWorkRequest struct {
 	MinerAddress string  `json:"miner_address,omitempty"`
 	MinerPubKey  string  `json:"miner_pubkey_ed25519,omitempty"`
 	MinerSig     string  `json:"miner_sig_ed25519,omitempty"`
-	MinerSigAlg  string  `json:"miner_sig_alg,omitempty"`
-	SubmitNonce  uint64  `json:"submit_nonce,omitempty"`
+	MinerSigAlg   string  `json:"miner_sig_alg,omitempty"`
+	SubmitNonce   uint64  `json:"submit_nonce,omitempty"`
+	OrderTaskID   string  `json:"order_task_id,omitempty"`
+	WasmGatePass  bool    `json:"wasm_gate_pass,omitempty"`
 }
 
 func newWorkManagerFromEnv() *workManager {
@@ -518,6 +522,7 @@ func (m *workManager) refreshTargetMod(now int64) {
 		}
 	}
 	if parsed > 0 {
+		m.storeChainPoHMod(parsed)
 		m.applyChainTargetMod(parsed, now)
 	}
 	if br, ok := body["econ_base_reward_now_hmc"]; ok {
@@ -1301,9 +1306,29 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	if m.payoutFoundOnly && !req.Found {
 		paidAttempts = 0
 	}
+	var chainSolve orderSolveRelayResult
+	orderID := strings.TrimSpace(req.OrderTaskID)
+	if req.Found && req.WasmGatePass && orderID != "" && signerAddr != "" {
+		snap := m.activeOrderSnapshot()
+		if snap.ID == orderID {
+			mod := leaseMod
+			if snap.ChainMod > 0 {
+				mod = snap.ChainMod
+			}
+			chainSolve = m.relayOrderSolve(signerAddr, req.FoundNonce, mod, orderID)
+			if !chainSolve.OK {
+				m.rejectedSubmits++
+				return false, "order_chain_solve_failed:" + chainSolve.Reason, 0, signerAddr, signerAddr != ""
+			}
+		}
+	}
 	payout := (float64(paidAttempts) / 1_000_000.0) * m.rewardPerM
-	if req.Found {
+	if req.Found && !chainSolve.OK {
 		payout += m.foundBonus
+	}
+	// Order block committed on chain: escrow pays miner_address; coordinator pays only small attempt accrual.
+	if chainSolve.OK {
+		payout = (float64(paidAttempts) / 1_000_000.0) * m.rewardPerM
 	}
 	if payout < 0 {
 		payout = 0
@@ -1388,6 +1413,11 @@ func (m *workManager) schedulerModeNow() string {
 		m.probeInFlight = false
 		m.lastOrdersProbeUnix = now
 		m.lastOrdersActive = active
+		if active {
+			_ = m.refreshActiveOrderLocked()
+		} else {
+			m.activeOrder = activeOrderSnap{}
+		}
 		if m.schedulerMode != mode {
 			m.schedulerMode = mode
 			m.schedulerTransitions++
@@ -1781,6 +1811,22 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 			return
 		}
 		base, size, leaseUntil, mod, reused, okClaim, reason := wm.claim(workerID, req.BatchSize)
+		if okClaim {
+			modePre := wm.schedulerModeNow()
+			if modePre == "orders" {
+				snap := wm.activeOrderSnapshot()
+				if snap.ID != "" && snap.ChainMod > 0 {
+					wm.mu.Lock()
+					k := workKey{base: base, batch: size}
+					if rec, ok := wm.active[k]; ok {
+						rec.TargetMod = snap.ChainMod
+						wm.active[k] = rec
+						mod = snap.ChainMod
+					}
+					wm.mu.Unlock()
+				}
+			}
+		}
 		if !okClaim {
 			wm.recordDrop(reason)
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -1798,20 +1844,35 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 		if mode == "orders" {
 			taskClass = "orders"
 		}
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		modOut := mod
+		resp := map[string]any{
 			"ok":               true,
 			"worker_id":        workerID,
 			"base_nonce":       base,
 			"batch_size":       size,
-			"target_mod":       mod,
+			"target_mod":       modOut,
 			"lease_expires_at": leaseUntil,
 			"reissued":         reused,
 			"work_id":          buildWorkID(workerID, base, size),
-			"chunk_id":         buildChunkID(base, size, mod),
+			"chunk_id":         buildChunkID(base, size, modOut),
 			"scheduler_mode":   mode,
 			"task_class":       taskClass,
-		})
+		}
+		if mode == "orders" {
+			snap := wm.activeOrderSnapshot()
+			if snap.ID != "" {
+				if snap.ChainMod > 0 {
+					modOut = snap.ChainMod
+					resp["target_mod"] = modOut
+					resp["chunk_id"] = buildChunkID(base, size, modOut)
+				}
+				resp["order_task_id"] = snap.ID
+				resp["order_reward_hmc"] = snap.RewardHMC
+				resp["wasm_check_hex"] = snap.WasmHex
+			}
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(resp)
 	})
 
 	mux.HandleFunc("/api/work/submit", func(w http.ResponseWriter, r *http.Request) {
@@ -1880,7 +1941,7 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 			w.WriteHeader(submitRejectHTTPStatus(reason))
 			okResp = false
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		out := map[string]any{
 			"ok":             okResp,
 			"worker_id":      workerID,
 			"accepted":       accepted,
@@ -1888,7 +1949,14 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 			"payout_hmc":     payout,
 			"signed_submit":  signedSubmit,
 			"signer_address": signerAddr,
-		})
+		}
+		if strings.HasPrefix(reason, "order_chain_solve_failed:") {
+			out["order_chain_solve"] = false
+			out["order_chain_reason"] = strings.TrimPrefix(reason, "order_chain_solve_failed:")
+		} else if accepted && strings.TrimSpace(req.OrderTaskID) != "" && req.WasmGatePass && req.Found {
+			out["order_chain_solve"] = true
+		}
+		_ = json.NewEncoder(w).Encode(out)
 	})
 
 	// Remove offline test/stale workers from coordinator memory (dashboard workers list).
