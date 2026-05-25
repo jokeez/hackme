@@ -22,6 +22,9 @@ check_http() {
 }
 
 check_http "developers.html" "$BASE/developers.html" "200"
+check_http "developer-console.html" "$BASE/developer-console.html" "200"
+check_http "developer-console.js" "$BASE/assets/developer-console.js" "200"
+check_http "hackme-dev-common.js" "$BASE/assets/hackme-dev-common.js" "200"
 check_http "fuzzing-console.html" "$BASE/fuzzing-console.html" "200"
 check_http "fuzzing-console.js" "$BASE/assets/fuzzing-console.js" "200"
 

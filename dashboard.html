@@ -730,7 +730,7 @@
 				</button>
 				<button type="button" data-tab="orders" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-sm text-gray-500">
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-					Orders
+					Market
 				</button>
 				<button type="button" data-tab="fuzz" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-sm text-gray-500">
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 3v3m4.5-3v3M4.5 9.75h15M6.75 6.75h10.5A2.25 2.25 0 0119.5 9v9.75A2.25 2.25 0 0117.25 21H6.75A2.25 2.25 0 014.5 18.75V9A2.25 2.25 0 016.75 6.75zM9 13.5h6M9 16.5h3"/></svg>
@@ -809,7 +809,7 @@
 					<button type="button" id="btn-tab-overview" class="quick-btn">Overview</button>
 					<button type="button" id="btn-tab-mining" class="quick-btn">Workers</button>
 					<button type="button" id="btn-tab-hardware" class="quick-btn mobile-compact-hide">Hardware</button>
-					<button type="button" id="btn-tab-orders" class="quick-btn mobile-compact-hide">Orders</button>
+					<button type="button" id="btn-tab-orders" class="quick-btn mobile-compact-hide">Market</button>
 					<button type="button" id="btn-tab-fuzz" class="quick-btn mobile-compact-hide">Fuzz</button>
 					<button type="button" id="btn-open-explorer" class="quick-btn">Explorer</button>
 					<span class="text-[10px] text-gray-500 ml-auto font-mono hidden lg:inline">Shortcuts: <span class="kbd">g</span> then <span class="kbd">e/o/m/h/c/w/r/t/f</span> · <span class="kbd">?</span></span>
@@ -823,7 +823,7 @@
 					<button type="button" class="tab-btn" data-tab="chain">Chain</button>
 					<button type="button" class="tab-btn" data-tab="wallet">Wallet</button>
 					<button type="button" class="tab-btn" data-tab="reports">Reports</button>
-					<button type="button" class="tab-btn" data-tab="orders">Orders</button>
+					<button type="button" class="tab-btn" data-tab="orders">Market</button>
 					<button type="button" class="tab-btn" data-tab="fuzz">Fuzz</button>
 				</nav>
 			</header>
@@ -1637,14 +1637,19 @@
 				<div id="panel-orders" class="tab-panel max-w-[1600px] mx-auto space-y-4">
 					<div class="flex flex-wrap items-center justify-between gap-3">
 						<div>
-							<p class="font-display text-[10px] tracking-[0.35em] text-neon uppercase mb-1">Admin</p>
-							<h2 class="font-display text-sm font-bold text-white tracking-wide">Orders · paid tasks</h2>
-							<p class="text-[11px] text-gray-500 mt-1 max-w-2xl"><code class="text-neon/80">POST /api/tasks</code> — escrow from node wallet; Ed25519 response. Miner prefers open orders (FIFO).</p>
+							<p class="font-display text-[10px] tracking-[0.35em] text-neon uppercase mb-1">Useful-PoW market</p>
+							<h2 class="font-display text-sm font-bold text-white tracking-wide">Order market · paid tasks</h2>
+							<p id="orders-panel-subtitle" class="text-[11px] text-gray-500 mt-1 max-w-2xl">Open paid jobs on the network — miners earn HMC when the pool schedules order work. Post new orders from the <a href="https://hackme.tech/developer-console.html" class="text-neon/90 underline" target="_blank" rel="noreferrer">Developer Console</a> (B2B), not here.</p>
 						</div>
 						<button type="button" id="btn-orders-refresh" class="text-[10px] px-3 py-1.5 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
 					</div>
+					<div id="orders-market-banner" class="rounded-lg border border-neon/25 bg-neon/5 p-3 text-[11px] text-gray-300 leading-snug">
+						<strong class="text-neon">Miner / viewer mode</strong> — this tab is read-only. Integrators create orders at
+						<a href="https://hackme.tech/developer-console.html" class="text-neon underline" target="_blank" rel="noreferrer">hackme.tech/developer-console.html</a>
+						(token + WASM upload). Pool workers fill open orders automatically.
+					</div>
 					<div id="orders-wallet-gate" class="hidden rounded-lg border border-warn/35 bg-warn/5 p-3 text-[11px] text-warn/95 leading-snug"></div>
-					<div class="card card-glow rounded-xl p-5 border-matrix/25">
+					<div id="orders-admin-create" class="hidden card card-glow rounded-xl p-5 border-matrix/25">
 						<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
 							<h3 class="text-[10px] uppercase tracking-[0.2em] text-gray-500">New order</h3>
 							<button type="button" id="btn-orders-toggle-advanced" class="px-3 py-1 rounded border border-white/20 text-gray-300 text-[10px] uppercase tracking-wider hover:bg-white/5">Advanced JSON: off</button>
@@ -1744,11 +1749,17 @@
 
 				<!-- FUZZ CAMPAIGNS -->
 				<div id="panel-fuzz" class="tab-panel max-w-[1600px] mx-auto space-y-4">
+					<div id="fuzz-market-banner" class="rounded-lg border border-warn/30 bg-warn/5 p-3 text-[11px] text-gray-300 leading-snug">
+						<strong class="text-warn">Fuzz campaigns are operator-only</strong> on the public network. B2B customers use the
+						<a href="https://hackme.tech/developer-console.html" class="text-neon underline" target="_blank" rel="noreferrer">Developer Console</a>
+						for orders and open HTML reports with <code class="text-neon/80">X-Hackme-Report-Token</code>. Full fuzz admin requires a local node admin token below.
+					</div>
+					<div id="fuzz-admin-only" class="hidden space-y-4">
 					<div class="flex flex-wrap items-center justify-between gap-3">
 						<div>
 							<p class="font-display text-[10px] tracking-[0.35em] text-neon uppercase mb-1">White-hat runtime</p>
 							<h2 class="font-display text-sm font-bold text-white tracking-wide">Fuzz campaigns · live operations</h2>
-							<p class="text-[11px] text-gray-500 mt-1 max-w-2xl">Operator UI for <code class="text-neon/80">/api/fuzz/campaigns</code>: list, pulse, diff, export. Uses same admin token as Orders (auto-loaded on localhost).</p>
+							<p class="text-[11px] text-gray-500 mt-1 max-w-2xl">Operator UI for <code class="text-neon/80">/api/fuzz/campaigns</code>: list, pulse, diff, export. Uses same admin token as Market tab (auto-loaded on localhost).</p>
 							<p id="fuzz-auth-hint" class="text-[10px] text-warn/90 font-mono mt-1"></p>
 						</div>
 						<div class="flex flex-wrap items-center gap-2">
@@ -1942,6 +1953,7 @@
 						<p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">Diff output</p>
 						<pre id="fuzz-diff-raw" class="text-[10px] sm:text-xs font-mono text-gray-400 overflow-x-auto whitespace-pre-wrap max-h-[min(45vh,360px)] overflow-y-auto p-3 rounded bg-black/50 border border-white/5 min-h-[4.5rem]"></pre>
 					</div>
+					</div><!-- /fuzz-admin-only -->
 				</div>
 
 				<!-- CHAIN -->
@@ -2775,6 +2787,7 @@
 			if (pill) pill.textContent = token ? 'token: loaded' : 'token: not set';
 			refreshFuzzAdminActionState();
 			updateMiningAdminGate();
+			updateOrdersMarketUIMode();
 		}
 		function setButtonEnabled(id, enabled, disabledTitle) {
 			const el = $(id);
@@ -2906,6 +2919,26 @@
 				}
 			}
 			updateMiningAdminGate();
+		}
+		function developerConsoleURL() {
+			return 'https://hackme.tech/developer-console.html';
+		}
+		function updateOrdersMarketUIMode() {
+			const admin = adminTokenCurrent().length > 0;
+			const marketBanner = $('orders-market-banner');
+			const adminCreate = $('orders-admin-create');
+			if (marketBanner) marketBanner.classList.toggle('hidden', admin);
+			if (adminCreate) adminCreate.classList.toggle('hidden', !admin);
+			const subtitle = $('orders-panel-subtitle');
+			if (subtitle) {
+				subtitle.innerHTML = admin
+					? '<code class="text-neon/80">POST /api/tasks</code> — operator escrow from node wallet. Miners fill open orders on the pool (FIFO).'
+					: 'Read-only market — paid jobs on the network. Post work via <a href="' + developerConsoleURL() + '" class="text-neon/90 underline" target="_blank" rel="noreferrer">Developer Console</a> (B2B token + WASM upload).';
+			}
+			const fuzzBanner = $('fuzz-market-banner');
+			const fuzzAdmin = $('fuzz-admin-only');
+			if (fuzzBanner) fuzzBanner.classList.toggle('hidden', admin);
+			if (fuzzAdmin) fuzzAdmin.classList.toggle('hidden', !admin);
 		}
 		function updateMiningAdminGate() {
 			const st = latestStatus || {};
@@ -9667,6 +9700,7 @@
 				});
 				wireFuzzCampaignPanel();
 				refreshFuzzAdminActionState();
+				updateOrdersMarketUIMode();
 				if ($('btn-hardware-refresh')) $('btn-hardware-refresh').addEventListener('click', () => { void refreshHardwareTune(); });
 				if ($('btn-quick-refresh')) $('btn-quick-refresh').addEventListener('click', refreshAllNow);
 				if ($('btn-work-stats-refresh')) $('btn-work-stats-refresh').addEventListener('click', () => { void refreshWorkStats(true); });

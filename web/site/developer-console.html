@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe Developer Console — Orders &amp; Reports</title>
+  <meta name="description" content="Visual B2B console for HackMe fuzzing orders: scoped developer token, treasury wallet, WASM upload, order tracking, and customer fuzz HTML reports." />
+  <link rel="canonical" href="https://hackme.tech/developer-console.html" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./assets/styles.css" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="/assets/favicon.png" type="image/png" />
+</head>
+<body>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe" /><span>HackMe Network</span></a>
+    <nav class="nav">
+      <a href="./developers.html">Developers</a>
+      <a href="./downloads.html">Downloads</a>
+      <a href="./fuzzing-console.html">Public tracker</a>
+      <a href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass hero-small">
+      <p class="kicker">Developer console</p>
+      <h1>Orders &amp; reports — visual B2B</h1>
+      <p class="hero-copy">
+        Create paid useful-PoW orders with a scoped <span class="code-inline">X-Hackme-Developer-Token</span>.
+        Build WASM locally and upload the <span class="code-inline">.wasm</span> file — remote <span class="code-inline">from_code</span> stays blocked on hackme.tech.
+        Token lives in <strong>sessionStorage</strong> only (this tab).
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-secondary" href="./developers.html#integrator-token">Get token</a>
+        <a class="btn btn-secondary" href="./downloads.html#fuzzing-client">hackme-fuzzing CLI</a>
+        <button type="button" class="btn btn-primary" id="btn-console-refresh">Refresh all</button>
+      </div>
+    </section>
+
+    <section class="panel glass dev-connect">
+      <div class="panel-head"><h2>Developer token</h2></div>
+      <p class="subtle">Paste a token from <a href="./developers.html#integrator-token">Issue new token</a> or <span class="code-inline">hackme-fuzzing register --save</span>. Never use the node admin token here.</p>
+      <label class="dev-field dev-field-full">
+        <span>X-Hackme-Developer-Token</span>
+        <input id="dev-token-input" type="password" autocomplete="off" placeholder="paste once per session" />
+      </label>
+      <div class="cta-row">
+        <button type="button" class="btn btn-primary" id="btn-token-save">Save session token</button>
+        <button type="button" class="btn btn-secondary" id="btn-token-clear">Clear</button>
+        <a class="btn btn-secondary" href="./developers.html#integrator-token">Issue on developers page</a>
+      </div>
+      <p id="dev-token-status" class="dev-status"></p>
+    </section>
+
+    <nav class="dev-tabs" role="tablist" aria-label="Console sections">
+      <button type="button" class="dev-tab active" data-dev-tab="wallet">Wallet</button>
+      <button type="button" class="dev-tab" data-dev-tab="orders">Orders</button>
+      <button type="button" class="dev-tab" data-dev-tab="create">Create order</button>
+      <button type="button" class="dev-tab" data-dev-tab="report">Fuzz report</button>
+    </nav>
+
+    <section id="dev-panel-wallet" class="panel glass dev-panel active">
+      <div class="panel-head"><h2>Treasury wallet (escrow)</h2></div>
+      <p class="subtle">Orders debit the <strong>canonical node wallet</strong> (not your personal miner address). Fund this address before creating orders.</p>
+      <dl class="dev-kv">
+        <dt>Address</dt><dd id="wallet-address">—</dd>
+        <dt>Balance</dt><dd id="wallet-balance">—</dd>
+        <dt>Next nonce</dt><dd id="wallet-nonce">—</dd>
+      </dl>
+      <p id="wallet-status" class="dev-status"></p>
+      <p id="pool-hint" class="subtle"></p>
+    </section>
+
+    <section id="dev-panel-orders" class="panel glass dev-panel">
+      <div class="panel-head">
+        <h2>Your orders</h2>
+        <button type="button" class="btn btn-secondary" id="btn-orders-refresh">Refresh</button>
+      </div>
+      <div class="table-wrap">
+        <table class="endpoint-table">
+          <thead>
+            <tr><th>ID</th><th>Status</th><th>Diff</th><th>Reward</th><th>Target</th><th>Progress</th><th>Prepaid</th></tr>
+          </thead>
+          <tbody id="orders-table-body">
+            <tr><td colspan="7" class="subtle">Save token and refresh.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p id="orders-status" class="dev-status"></p>
+      <details class="subtle" style="margin-top:0.75rem">
+        <summary>Selected order manifest (developer view)</summary>
+        <pre id="orders-manifest-pre" class="code-block" style="margin-top:0.5rem;max-height:12rem;overflow:auto">—</pre>
+      </details>
+    </section>
+
+    <section id="dev-panel-create" class="panel glass dev-panel">
+      <div class="panel-head"><h2>Create order</h2></div>
+      <p id="create-fairness" class="subtle">Fairness: reward_hmc ≥ difficulty_score × 0.0005 · prepaid = reward × target · +5% platform fee</p>
+      <div class="dev-grid-2">
+        <label class="dev-field"><span>Order ID</span><input id="create-id" type="text" autocomplete="off" placeholder="acme-audit-001" /></label>
+        <label class="dev-field"><span>Kind</span><input id="create-kind" type="text" value="synthetic_poh_v1" /></label>
+        <label class="dev-field"><span>Difficulty (1–100)</span><input id="create-diff" type="number" min="1" max="100" value="10" /></label>
+        <label class="dev-field"><span>Reward HMC / solve</span><input id="create-reward" type="number" min="0.0001" step="0.0001" value="0.01" /></label>
+        <label class="dev-field"><span>Target solves</span><input id="create-target" type="number" min="1" max="10000" value="3" /></label>
+        <label class="dev-field"><span>Payer ref</span><input id="create-payer" type="text" placeholder="company:project-42" /></label>
+        <label class="dev-field dev-field-full"><span>WASM file (.wasm)</span><input id="create-wasm-file" type="file" accept=".wasm,application/wasm" /></label>
+      </div>
+      <p id="create-wasm-meta" class="subtle">Upload a module built with <span class="code-inline">hackme-fuzzing build</span> or your pipeline. Max ~256 KiB recommended for public nodes.</p>
+      <div class="cta-row">
+        <button type="button" class="btn btn-secondary" id="btn-template-small">Template · small</button>
+        <button type="button" class="btn btn-secondary" id="btn-template-medium">Template · medium</button>
+        <button type="button" class="btn btn-secondary" id="btn-template-audit">Template · audit</button>
+        <button type="button" class="btn btn-secondary" id="btn-fair-fill">Min fair reward</button>
+      </div>
+      <div class="cta-row">
+        <button type="button" class="btn btn-primary" id="btn-create-submit">POST /api/tasks</button>
+      </div>
+      <p id="create-status" class="dev-status"></p>
+      <details class="subtle">
+        <summary>Manifest preview</summary>
+        <pre id="create-manifest-pre" class="code-block" style="margin-top:0.5rem;max-height:10rem;overflow:auto">{}</pre>
+      </details>
+    </section>
+
+    <section id="dev-panel-report" class="panel glass dev-panel">
+      <div class="panel-head"><h2>Customer fuzz report</h2></div>
+      <p class="subtle">If an operator shared a <span class="code-inline">customer_report_token</span> for your campaign, open the HTML report here. Creating fuzz campaigns remains operator-only; you only view deliverables.</p>
+      <div class="dev-grid-2">
+        <label class="dev-field"><span>Campaign ID</span><input id="report-campaign-id" type="text" autocomplete="off" placeholder="security-note-01" /></label>
+        <label class="dev-field"><span>X-Hackme-Report-Token</span><input id="report-token" type="password" autocomplete="off" /></label>
+      </div>
+      <div class="cta-row">
+        <button type="button" class="btn btn-primary" id="btn-report-open">Open HTML report</button>
+        <button type="button" class="btn btn-secondary" id="btn-report-json">Download JSON</button>
+      </div>
+      <p id="report-status" class="dev-status"></p>
+    </section>
+  </main>
+
+  <script src="./assets/hackme-dev-common.js" defer></script>
+  <script src="./assets/developer-console.js" defer></script>
+</body>
+</html>

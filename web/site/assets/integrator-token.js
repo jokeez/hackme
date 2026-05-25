@@ -1,23 +1,35 @@
 /* Self-service integrator token on developers.html — session only, never sent to static host. */
 (function () {
-  const SK = "hackme_developer_token";
+  const Dev = window.HackmeDev;
+  const SK = Dev ? Dev.TOKEN_KEY : "hackme_developer_token";
   const base = location.origin;
   const out = document.getElementById("integrator-token-out");
   const status = document.getElementById("integrator-status");
   const btnReg = document.getElementById("btn-integrator-register");
   const btnRot = document.getElementById("btn-integrator-rotate");
   const labelIn = document.getElementById("integrator-label");
+  const consoleLink = document.getElementById("integrator-console-link");
 
   function getTok() {
-    return sessionStorage.getItem(SK) || "";
+    return Dev ? Dev.getToken() : sessionStorage.getItem(SK) || "";
   }
   function setTok(t) {
-    if (t) sessionStorage.setItem(SK, t);
+    if (Dev) Dev.setToken(t);
+    else if (t) sessionStorage.setItem(SK, t);
     else sessionStorage.removeItem(SK);
     btnRot.disabled = !t;
+    updateConsoleLink();
+  }
+
+  function updateConsoleLink() {
+    if (!consoleLink) return;
+    const url = Dev ? Dev.developerConsoleURL() : "./developer-console.html";
+    consoleLink.href = url;
+    consoleLink.style.display = getTok() ? "inline-flex" : "none";
   }
 
   async function api(method, path, body) {
+    if (Dev) return Dev.api(method, path, body);
     const h = { "Content-Type": "application/json" };
     const tok = getTok();
     if (tok) h["X-Hackme-Developer-Token"] = tok;
@@ -40,7 +52,9 @@
   function showToken(tok, msg) {
     if (!out) return;
     out.style.display = "block";
-    out.textContent = tok + "\n\n" + (msg || "Copy now. Not stored on hackme.tech servers.");
+    out.textContent =
+      tok + "\n\n" + (msg || "Copy now. Not stored on hackme.tech servers.");
+    updateConsoleLink();
   }
 
   async function refreshStatus() {
@@ -65,7 +79,10 @@
     const tok = r.json.developer_token;
     if (tok) setTok(tok);
     showToken(tok, r.json.warning);
-    if (status) status.textContent = "Token issued (sessionStorage). Use hackme-fuzzing rotate to replace.";
+    if (status) {
+      status.textContent =
+        "Token issued (session). Open Developer Console to create orders visually.";
+    }
   });
 
   btnRot?.addEventListener("click", async () => {

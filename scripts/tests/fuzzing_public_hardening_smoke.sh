@@ -30,11 +30,18 @@ else
 fi
 fz="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$BASE/api/fuzz/campaigns" || echo 000)"
 if [[ "$fz" == "403" ]]; then
-  pass "GET /api/fuzz blocked HTTP $fz"
+  pass "GET /api/fuzz list blocked HTTP $fz"
 elif [[ "$fz" == "401" ]]; then
-  pass "GET /api/fuzz needs auth HTTP $fz (nginx hardening pending)"
+  pass "GET /api/fuzz list needs auth HTTP $fz"
 else
-  fail_msg "fuzz want 403/401 got $fz (deploy SYNC_NGINX_SITE_CONF=1)"
+  fail_msg "fuzz list want 403/401 got $fz (deploy SYNC_NGINX_SITE_CONF=1)"
+  failures=$((failures + 1))
+fi
+fr="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$BASE/api/fuzz/campaigns/smoke-nonexistent/report" || echo 000)"
+if [[ "$fr" == "401" || "$fr" == "403" || "$fr" == "404" ]]; then
+  pass "GET /api/fuzz/.../report proxied/gated HTTP $fr"
+else
+  fail_msg "fuzz report want 401/403/404 got $fr (nginx customer report route)"
   failures=$((failures + 1))
 fi
 code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' --max-time 20 "$BASE/api/tasks" || echo 000)"

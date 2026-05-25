@@ -10,7 +10,7 @@
 |------|------------|
 | Admin token theft via XSS/phishing on static site | No token fields on hackme.tech; CLI stores token in env |
 | Remote compiler abuse (`/api/tasks/from_code`) | HTTP **403** at nginx on public host; admin-only on loopback nodes |
-| Fuzz API exposed to internet | `/api/fuzz/*` → **403** on hackme.tech |
+| Fuzz API exposed to internet | `/api/fuzz/*` → **403** on hackme.tech except **GET** report/pulse/gate/csv (report token on node) |
 | Customer WASM/manifest leakage | `GET /api/tasks` redacts `manifest_json` without developer/admin auth |
 | Integrator over-privilege | Developer token: **only** `GET/POST /api/tasks` (not genesis, worker, tx/send, fuzz) |
 
@@ -18,6 +18,7 @@
 
 - `GET /api/wallet` — treasury balance for escrow planning
 - `GET /api/tasks` — redacted order summary (id, status, progress)
+- [developer-console.html](https://hackme.tech/developer-console.html) — scoped token in session; WASM upload client-side
 - Pool stats / explorer — same as miners
 
 ## Operator actions

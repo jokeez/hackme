@@ -36,7 +36,8 @@
         You need a <strong>wallet</strong>, <strong>paid orders</strong>, and the HTTP API — not ISO images or pool workers.
       </p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="./downloads.html#fuzzing-client">Download hackme-fuzzing</a>
+        <a class="btn btn-primary" href="./developer-console.html">Open Developer Console</a>
+        <a class="btn btn-secondary" href="./downloads.html#fuzzing-client">Download hackme-fuzzing</a>
         <a class="btn btn-secondary" href="./fuzzing-console.html">Public status tracker</a>
       </div>
       <div class="pill-row">
@@ -57,6 +58,7 @@
       <div class="cta-row">
         <button type="button" class="btn btn-primary" id="btn-integrator-register">Issue new token</button>
         <button type="button" class="btn btn-secondary" id="btn-integrator-rotate" disabled>Rotate token</button>
+        <a class="btn btn-secondary" id="integrator-console-link" href="./developer-console.html" style="display:none">Open Developer Console</a>
       </div>
       <p id="integrator-token-out" class="code-block" style="display:none;word-break:break-all"></p>
       <p id="integrator-status" class="dev-status"></p>
@@ -75,7 +77,8 @@
       <article class="panel glass">
         <div class="panel-head"><h2>What you get</h2></div>
         <ul class="check-list">
-          <li><strong>hackme-fuzzing CLI</strong> — Windows/Linux exe (token in env, not browser)</li>
+          <li><strong>Developer Console</strong> — visual orders, WASM upload, report viewer</li>
+          <li><strong>hackme-fuzzing CLI</strong> — automation (token in env file, not admin)</li>
           <li><strong>Public tracker</strong> — read-only wallet + redacted orders</li>
           <li><strong>Coordinator</strong> switches to orders mode when work is open</li>
           <li>Full spec in <a href="https://github.com/jokeez/hackme/blob/main/docs/DEVELOPERS_FUZZING.md" target="_blank" rel="noreferrer">DEVELOPERS_FUZZING.md</a></li>
@@ -123,9 +126,13 @@ hackme-fuzzing create ./fuzzing-out/my-order.manifest.json
     <section class="panel glass">
       <div class="panel-head"><h2>Paths</h2></div>
       <div class="quick-grid">
+        <a class="quick-item" href="./developer-console.html">
+          <h4>Developer Console</h4>
+          <p>Visual orders + WASM upload</p>
+        </a>
         <a class="quick-item" href="./downloads.html#fuzzing-client">
           <h4>hackme-fuzzing</h4>
-          <p>CLI — create orders safely</p>
+          <p>CLI — automation</p>
         </a>
         <a class="quick-item" href="./fuzzing-console.html">
           <h4>Status tracker</h4>
@@ -146,6 +153,7 @@ hackme-fuzzing create ./fuzzing-out/my-order.manifest.json
       </div>
     </section>
   </main>
+  <script src="./assets/hackme-dev-common.js" defer></script>
   <script src="./assets/integrator-token.js" defer></script>
 </body>
 </html>

@@ -79,7 +79,7 @@
     }
     if (t.ok && Array.isArray(t.json.tasks)) {
       renderTasks(t.json.tasks);
-      tasksStatus.textContent = "Public summary only (no manifest). Use hackme-fuzzing CLI to create orders.";
+      tasksStatus.textContent = "Public summary only (no manifest). Create orders: Developer Console or hackme-fuzzing CLI.";
     } else {
       tasksStatus.textContent = "Tasks HTTP " + t.status;
     }

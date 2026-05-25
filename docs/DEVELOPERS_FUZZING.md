@@ -5,7 +5,8 @@
 | Need | Use |
 |------|-----|
 | Mine HMC on a rig | [downloads.html](https://hackme.tech/downloads.html) · ISO / Windows worker |
-| Pay for fuzzing work | **hackme-fuzzing CLI** + scoped developer token |
+| Pay for fuzzing work | **[developer-console.html](https://hackme.tech/developer-console.html)** or **hackme-fuzzing CLI** + scoped developer token |
+| View open orders (no token) | [fuzzing-console.html](https://hackme.tech/fuzzing-console.html) |
 
 ## Integrator token (automatic)
 
@@ -13,7 +14,7 @@ No support ticket required on hackme.tech when `HACKME_INTEGRATOR_SELF_REGISTER=
 
 | Channel | Command / URL |
 |---------|----------------|
-| Web | [developers.html#integrator-token](https://hackme.tech/developers.html#integrator-token) — **Issue new token** |
+| Web | [developers.html#integrator-token](https://hackme.tech/developers.html#integrator-token) — **Issue new token** → [developer-console.html](https://hackme.tech/developer-console.html) |
 | CLI | `hackme-fuzzing register --save` |
 | HTTP | `POST /api/integrator/register` → `{ developer_token }` (once) |
 | Rotate | `POST /api/integrator/rotate` or `hackme-fuzzing rotate --save` |
@@ -22,11 +23,20 @@ Token file (CLI `--save`): `~/.config/hackme/developer.token` (mode 600).
 
 ## Security model (hackme.tech)
 
-- **No admin token** on public pages — [fuzzing-console.html](https://hackme.tech/fuzzing-console.html) is read-only.
+- **No admin token** on public pages — [developer-console.html](https://hackme.tech/developer-console.html) uses scoped developer token in sessionStorage only; [fuzzing-console.html](https://hackme.tech/fuzzing-console.html) is read-only without any token.
+- **GET** `/api/fuzz/campaigns/{id}/report` (and pulse/gate/csv) proxied for **customer report token** only; list/create fuzz routes stay blocked.
 - **`/api/tasks/from_code`** and **`/api/fuzz/*`** return HTTP 403 on the public edge.
 - WASM built **locally** (`hackme-fuzzing build`); manifest uses `wasm_check_hex`.
 
 See [FUZZING_B2B_SECURITY_VERDICT.md](FUZZING_B2B_SECURITY_VERDICT.md).
+
+## Web console (visual)
+
+1. [developers.html#integrator-token](https://hackme.tech/developers.html#integrator-token) — issue token (stored in session).
+2. [developer-console.html](https://hackme.tech/developer-console.html) — wallet, order list, **upload `.wasm`**, POST `/api/tasks`.
+3. Optional: paste `X-Hackme-Report-Token` to open HTML fuzz deliverables.
+
+Mining dashboard **Market** tab is read-only for miners; B2B create flow stays on the developer console.
 
 ## CLI workflow
 
