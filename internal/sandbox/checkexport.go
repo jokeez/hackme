@@ -293,7 +293,24 @@ func ValidateCheckWasm(ctx context.Context, wasm []byte) error {
 	if err != nil || len(res) != 1 {
 		_ = mod.Close(validateCtx)
 		_ = compiled.Close(validateCtx)
-		quarantineWasm(key, "check export call signature mismatch")
+		reason := "check export call signature mismatch"
+		if err != nil {
+			low := strings.ToLower(err.Error())
+			switch {
+			case strings.Contains(low, "out of bounds"), strings.Contains(low, "oob"):
+				reason = "check trapped: out-of-bounds memory access"
+			case strings.Contains(low, "divide by zero"):
+				reason = "check trapped: integer divide by zero"
+			case strings.Contains(low, "unreachable"), strings.Contains(low, "indirect call"):
+				reason = "check trapped: " + strings.TrimSpace(err.Error())
+			default:
+				reason = "check trapped during validation probe: " + strings.TrimSpace(err.Error())
+			}
+		}
+		quarantineWasm(key, reason)
+		if err != nil {
+			return fmt.Errorf("sandbox: %s", reason)
+		}
 		return errors.New("sandbox: check export must be callable as check(i64)->i32")
 	}
 	_ = mod.Close(validateCtx)

@@ -370,6 +370,9 @@ func classifyWasmTrap(inputN uint64, execErr error, hasWasm bool) (findingType, 
 	if strings.Contains(msg, "out of bounds") || strings.Contains(msg, "oob") {
 		return "crash", "critical", "WASM trap: out-of-bounds memory access"
 	}
+	if strings.Contains(msg, "quarantined") || strings.Contains(msg, "trapped during validation") {
+		return "sandbox_reject", "info", "Sandbox blocked WASM (invalid or trap-at-load module), not a target-code bug"
+	}
 	if hasWasm {
 		op, itemID, qty := wasmCheckInputParts(inputN)
 		if op == 2 && qty == 0 {
@@ -378,6 +381,9 @@ func classifyWasmTrap(inputN uint64, execErr error, hasWasm bool) (findingType, 
 		if op == 1 && itemID >= 3 {
 			return "crash", "critical", fmt.Sprintf("WASM trap during OOB item lookup (item_id=%d)", itemID)
 		}
+	}
+	if strings.Contains(msg, "check returned 0") || strings.Contains(msg, "property") {
+		return "property_violation", "medium", titleBase
 	}
 	return "crash", "high", "WASM trap: " + titleBase
 }

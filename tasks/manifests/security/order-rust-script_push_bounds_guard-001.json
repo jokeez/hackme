@@ -1,0 +1,10 @@
+{
+  "id":"order-rust-script_push_bounds_guard-001",
+  "kind":"synthetic_poh_v1",
+  "reward_hmc":0.02,
+  "difficulty_score":25,
+  "target_solves":3,
+  "payer_ref":"company:rust-script_push_bounds_guard",
+  "wasm_artifact_path":"security/rust_script_push_bounds_guard.wasm",
+  "artifact_hash":"9689a1d280443cc830c06f44a8a37505b22139955b8757be681e7f3179b81775"
+}

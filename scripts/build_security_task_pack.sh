@@ -60,7 +60,7 @@ mk_manifest() {
 EOF
 }
 
-tasks=(bounds_guard overflow_guard state_transition_guard)
+tasks=(bounds_guard overflow_guard state_transition_guard script_push_bounds_guard)
 
 echo "Building security task pack..."
 for t in "${tasks[@]}"; do

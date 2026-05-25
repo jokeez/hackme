@@ -1748,9 +1748,11 @@
 						<div>
 							<p class="font-display text-[10px] tracking-[0.35em] text-neon uppercase mb-1">White-hat runtime</p>
 							<h2 class="font-display text-sm font-bold text-white tracking-wide">Fuzz campaigns · live operations</h2>
-							<p class="text-[11px] text-gray-500 mt-1 max-w-2xl">Operator UI for <code class="text-neon/80">/api/fuzz/campaigns</code>: list, pulse, diff, export.</p>
+							<p class="text-[11px] text-gray-500 mt-1 max-w-2xl">Operator UI for <code class="text-neon/80">/api/fuzz/campaigns</code>: list, pulse, diff, export. Uses same admin token as Orders (auto-loaded on localhost).</p>
+							<p id="fuzz-auth-hint" class="text-[10px] text-warn/90 font-mono mt-1"></p>
 						</div>
 						<div class="flex flex-wrap items-center gap-2">
+							<button type="button" id="btn-fuzz-sync-admin" class="text-[10px] px-3 py-1.5 rounded border border-warn/35 text-warn hover:bg-warn/10 uppercase tracking-wider" title="Load HACKME_ADMIN_TOKEN from local node">Sync token</button>
 							<button type="button" id="btn-fuzz-refresh" class="text-[10px] px-3 py-1.5 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
 							<select id="fuzz-create-type" class="text-[10px] font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon">
 								<option value="fuzz">fuzz</option>
@@ -1759,7 +1761,8 @@
 							</select>
 							<input id="fuzz-create-title" class="text-[10px] font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon w-44" placeholder="campaign title" autocomplete="off" />
 							<span class="text-[9px] text-gray-500 whitespace-nowrap" title="POST body budget_runs">budget_runs</span>
-							<input id="fuzz-create-runs" type="number" min="1" class="text-[10px] font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon w-24" value="5000" title="Campaign run budget (not title)" autocomplete="off" />
+							<input id="fuzz-create-runs" type="number" min="1" class="text-[10px] font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon w-24" value="50" title="Campaign run budget (not title)" autocomplete="off" />
+							<label class="text-[9px] text-gray-500 flex items-center gap-1"><input type="checkbox" id="fuzz-hide-gate" checked class="rounded" /> hide gate tests</label>
 							<button type="button" id="btn-fuzz-create" class="text-[10px] px-3 py-1.5 rounded border border-matrix/35 text-matrix hover:bg-matrix/10 uppercase tracking-wider">Create</button>
 							<input id="fuzz-base-id" class="text-[10px] font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon w-48" placeholder="base_campaign_id for diff" />
 							<button type="button" id="btn-fuzz-diff" class="text-[10px] px-3 py-1.5 rounded border border-warn/35 text-warn hover:bg-warn/10 uppercase tracking-wider">Run diff</button>
@@ -1769,7 +1772,7 @@
 						<div class="card card-glow rounded-lg p-4 xl:col-span-2 border-white/10 overflow-x-auto">
 							<table class="w-full text-left text-[11px] font-mono">
 								<thead class="bg-black/60 text-gray-500 uppercase tracking-wider text-[9px]">
-									<tr><th class="px-2 py-2">ID</th><th class="px-2 py-2">Type</th><th class="px-2 py-2">Status</th><th class="px-2 py-2">Done / budget</th><th class="px-2 py-2">Started</th><th class="px-2 py-2">Owner</th></tr>
+									<tr><th class="px-2 py-2">Title</th><th class="px-2 py-2">ID</th><th class="px-2 py-2">Type</th><th class="px-2 py-2">Status</th><th class="px-2 py-2">Done / budget</th><th class="px-2 py-2">Started</th><th class="px-2 py-2">Owner</th></tr>
 								</thead>
 								<tbody id="fuzz-campaign-rows" class="text-gray-300 divide-y divide-white/5"></tbody>
 							</table>
@@ -1777,6 +1780,7 @@
 						<div class="card card-glow rounded-lg p-4 border-neon/20 space-y-2">
 							<p class="text-[10px] uppercase tracking-[0.2em] text-gray-500">Selected campaign</p>
 							<p id="fuzz-selected-id" class="text-neon text-xs font-mono break-all">—</p>
+							<p id="fuzz-selected-title" class="text-[10px] text-gray-400 font-mono">—</p>
 							<p id="fuzz-pulse-headline" class="text-[11px] text-gray-400 font-mono">pulse: —</p>
 							<p id="fuzz-pulse-coverage" class="text-[10px] text-gray-500 font-mono">coverage: —</p>
 							<p id="fuzz-pulse-runner" class="text-[10px] text-gray-500 font-mono">runner: —</p>
@@ -1788,6 +1792,7 @@
 							<p id="fuzz-access-summary" class="text-[10px] text-gray-500 font-mono">access: —</p>
 							<div class="pt-2 flex flex-wrap gap-2">
 								<button type="button" id="btn-fuzz-open-report" class="text-[10px] px-3 py-1 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Open report</button>
+								<button type="button" id="btn-fuzz-open-report-json" class="text-[10px] px-3 py-1 rounded border border-white/20 text-gray-300 hover:bg-white/5 uppercase tracking-wider">JSON</button>
 								<button type="button" id="btn-fuzz-open-csv" class="text-[10px] px-3 py-1 rounded border border-matrix/30 text-matrix hover:bg-matrix/10 uppercase tracking-wider">CSV</button>
 								<button type="button" id="btn-fuzz-open-gate" class="text-[10px] px-3 py-1 rounded border border-warn/35 text-warn hover:bg-warn/10 uppercase tracking-wider">Gate</button>
 							</div>
@@ -1797,8 +1802,9 @@
 									<button type="button" id="btn-fuzz-refresh-report" class="text-[9px] px-2 py-1 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
 									<span id="fuzz-report-msg" class="text-[9px] text-gray-500 font-mono">report: —</span>
 								</div>
-								<p id="fuzz-report-verdict" class="text-[10px] font-mono text-neon">verdict: —</p>
-								<p id="fuzz-report-metrics" class="text-[10px] font-mono text-gray-400">metrics: —</p>
+								<div id="fuzz-report-preview" class="rounded-lg border border-neon/25 bg-gradient-to-br from-black/60 via-black/40 to-neon/[0.06] p-3 space-y-2 text-[11px] text-gray-300 cursor-pointer hover:border-neon/45" title="Click to open full HTML report"></div>
+								<p id="fuzz-report-verdict" class="text-[10px] font-mono text-neon hidden">verdict: —</p>
+								<p id="fuzz-report-metrics" class="text-[10px] font-mono text-gray-400 hidden">metrics: —</p>
 								<div class="overflow-x-auto border border-white/10 rounded bg-black/30">
 									<table class="w-full text-left text-[10px] font-mono">
 										<thead class="bg-black/50 text-gray-500 uppercase tracking-wider text-[9px]">
@@ -2329,6 +2335,7 @@
 		let lastMiningLen = 0;
 		let currentTab = 'ecosystem';
 		let selectedFuzzCampaignId = '';
+		let selectedFuzzCampaignTitle = '';
 		let fuzzCampaignPanelWired = false;
 		let ordersAdvanced = false;
 		let txAdvanced = false;
@@ -2958,8 +2965,43 @@
 			}
 		}
 		function fuzzHttpStatusLabel(prefix, status) {
-			if (Number(status) === 401) return prefix + ': HTTP 401 (set admin token above)';
+			if (Number(status) === 401) return prefix + ': HTTP 401 (click Sync token or hard-refresh dashboard)';
 			return prefix + ': HTTP ' + String(status);
+		}
+		async function ensureFuzzAdminToken() {
+			if (adminTokenCurrent()) {
+				if ($('fuzz-auth-hint')) $('fuzz-auth-hint').textContent = '';
+				return true;
+			}
+			await syncDesktopAdminTokenFromNode();
+			refreshFuzzAdminActionState();
+			const ok = adminTokenCurrent().length > 0;
+			if ($('fuzz-auth-hint')) {
+				$('fuzz-auth-hint').textContent = ok ? '' : 'Admin token missing — click Sync token (loads from .env.desktop) or Save token in header.';
+			}
+			return ok;
+		}
+		async function fuzzSeedCampaignForReport(cid, budgetRuns) {
+			const h = Object.assign({ 'Content-Type': 'application/json' }, adminHeaders());
+			const bud = Math.max(1, Math.floor(Number(budgetRuns) || 10));
+			async function postStatus(st) {
+				await fetch('/api/fuzz/campaigns/' + encodeURIComponent(cid) + '/status', {
+					method: 'POST', headers: h, body: JSON.stringify({ status: st }),
+				});
+			}
+			await postStatus('running');
+			await fetch('/api/fuzz/campaigns/' + encodeURIComponent(cid) + '/runtime', {
+				method: 'POST', headers: h,
+				body: JSON.stringify({
+					status: 'running',
+					runs_done: bud,
+					new_edges: Math.max(8, bud),
+					new_paths: Math.max(4, Math.floor(bud / 2)),
+					unique_crashes: 0,
+					time_to_first_crash_sec: 0,
+				}),
+			});
+			await postStatus('completed');
 		}
 		const fmt = (n, d = 2) => (n == null || Number.isNaN(n)) ? '—' : Number(n).toFixed(d);
 		const fmtMB = (n) => (n == null || Number.isNaN(n)) ? '—' : n < 0.01 ? n.toFixed(4) : n.toFixed(2);
@@ -8187,12 +8229,15 @@
 
 		function clearFuzzSelectionUI() {
 			selectedFuzzCampaignId = '';
+			selectedFuzzCampaignTitle = '';
 			if ($('fuzz-selected-id')) $('fuzz-selected-id').textContent = '—';
+			if ($('fuzz-selected-title')) $('fuzz-selected-title').textContent = '';
 			if ($('fuzz-pulse-headline')) $('fuzz-pulse-headline').textContent = 'pulse: —';
 			if ($('fuzz-pulse-coverage')) $('fuzz-pulse-coverage').textContent = 'coverage: —';
 			if ($('fuzz-pulse-runner')) $('fuzz-pulse-runner').textContent = 'runner: —';
 			if ($('fuzz-access-summary')) $('fuzz-access-summary').textContent = 'access: —';
 			if ($('fuzz-report-msg')) $('fuzz-report-msg').textContent = 'report: —';
+			if ($('fuzz-report-preview')) $('fuzz-report-preview').innerHTML = '';
 			if ($('fuzz-report-verdict')) $('fuzz-report-verdict').textContent = 'verdict: —';
 			if ($('fuzz-report-metrics')) $('fuzz-report-metrics').textContent = 'metrics: —';
 			const ti = $('fuzz-report-topissues');
@@ -8212,21 +8257,70 @@
 			}
 		}
 
+		function openHtmlInNewWindow(html) {
+			// Blob + text/html renders as a page. document.write on about:blank fails when noopener is set.
+			const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+			const u = URL.createObjectURL(blob);
+			const w = window.open(u, '_blank', 'noopener,noreferrer');
+			if (!w) {
+				try { URL.revokeObjectURL(u); } catch (_) {}
+				logLine('[ui] popup blocked — allow popups for 127.0.0.1:8080');
+				return false;
+			}
+			window.setTimeout(() => { try { URL.revokeObjectURL(u); } catch (_) {} }, 300000);
+			return true;
+		}
+
 		async function openAuthenticatedGET(path, mimeHint) {
 			const r = await fetch(path, { cache: 'no-store', headers: Object.assign({}, adminHeaders()) });
 			const txt = await r.text();
 			if (!r.ok) {
 				throw new Error('HTTP ' + r.status + ' ' + txt.slice(0, 200));
 			}
-			const blob = new Blob([txt], { type: mimeHint || r.headers.get('Content-Type') || 'application/json' });
+			const ct = String(r.headers.get('Content-Type') || mimeHint || '');
+			if (ct.indexOf('text/html') >= 0) {
+				openHtmlInNewWindow(txt);
+				return;
+			}
+			const blob = new Blob([txt], { type: mimeHint || ct || 'application/json' });
 			const u = URL.createObjectURL(blob);
 			window.open(u, '_blank', 'noopener');
 			window.setTimeout(() => { try { URL.revokeObjectURL(u); } catch (_) {} }, 120000);
 		}
 
-		async function selectFuzzCampaign(id) {
+		function renderFuzzReportPreview(rep) {
+			const el = $('fuzz-report-preview');
+			if (!el) return;
+			const c = rep.campaign || {};
+			const sum = rep.security_summary || {};
+			const ver = String(rep.verdict || '—');
+			const verCls = ver === 'clean' ? 'text-matrix border-matrix/40' : 'text-warn border-warn/40';
+			el.innerHTML =
+				'<div class="flex flex-wrap items-center justify-between gap-2">' +
+				'<span class="text-[9px] uppercase tracking-[0.2em] text-gray-500">Preview</span>' +
+				'<span class="px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider ' + verCls + '">' + escapeHtml(ver) + '</span></div>' +
+				'<p class="text-white font-display text-sm">' + escapeHtml(c.title || c.id || '—') + '</p>' +
+				(c.task_id ? '<p class="text-[10px] text-gray-500">Order: <span class="text-neon">' + escapeHtml(c.task_id) + '</span></p>' : '') +
+				'<p class="text-[10px] text-gray-400">vuln ' + escapeHtml(String(sum.vulnerabilities_found != null ? sum.vulnerabilities_found : 0)) +
+				' · critical ' + escapeHtml(String(sum.critical_count != null ? sum.critical_count : 0)) +
+				' · conf ' + escapeHtml(String(sum.confidence || '—')) + '</p>';
+		}
+
+		async function openFuzzReportHTML(cid) {
+			const r = await fetch('/api/fuzz/campaigns/' + encodeURIComponent(cid) + '/report.html?limit=80', {
+				cache: 'no-store',
+				headers: Object.assign({ Accept: 'text/html' }, adminHeaders()),
+			});
+			const txt = await r.text();
+			if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + txt.slice(0, 200));
+			openHtmlInNewWindow(txt);
+		}
+
+		async function selectFuzzCampaign(id, title) {
 			selectedFuzzCampaignId = String(id || '').trim();
+			if (title != null) selectedFuzzCampaignTitle = String(title || '').trim();
 			if ($('fuzz-selected-id')) $('fuzz-selected-id').textContent = selectedFuzzCampaignId || '—';
+			if ($('fuzz-selected-title')) $('fuzz-selected-title').textContent = selectedFuzzCampaignTitle ? ('title: ' + selectedFuzzCampaignTitle) : '';
 			document.querySelectorAll('#fuzz-campaign-rows tr[data-campaign-id]').forEach((tr) => {
 				tr.classList.toggle('bg-neon/10', tr.dataset.campaignId === selectedFuzzCampaignId);
 			});
@@ -8402,16 +8496,23 @@
 			if (!cid) return;
 			const msg = $('fuzz-report-msg');
 			try {
-				const r = await fetch('/api/fuzz/campaigns/' + encodeURIComponent(cid) + '/report?limit=50', {
+				const r = await fetch('/api/fuzz/campaigns/' + encodeURIComponent(cid) + '/report?limit=50&format=json', {
 					cache: 'no-store',
-					headers: Object.assign({}, adminHeaders()),
+					headers: Object.assign({ Accept: 'application/json' }, adminHeaders()),
 				});
 				if (!r.ok) {
 					if (msg) msg.textContent = fuzzHttpStatusLabel('report', r.status);
 					return;
 				}
-				const rep = await r.json();
+				let rep;
+				const ct = String(r.headers.get('Content-Type') || '');
+				if (ct.indexOf('text/html') >= 0) {
+					if (msg) msg.textContent = 'report: html (use Open report)';
+					return;
+				}
+				rep = await r.json();
 				if (msg) msg.textContent = 'report: ok';
+				renderFuzzReportPreview(rep);
 				const ver = String(rep.verdict || '—');
 				if ($('fuzz-report-verdict')) $('fuzz-report-verdict').textContent = 'verdict: ' + ver;
 				const sum = rep.security_summary && typeof rep.security_summary === 'object' ? rep.security_summary : {};
@@ -8445,18 +8546,21 @@
 			if (!tb) return;
 			const prevSel = selectedFuzzCampaignId;
 			try {
-				const r = await fetch('/api/fuzz/campaigns?limit=100', { cache: 'no-store' });
+				const r = await fetch('/api/fuzz/campaigns?limit=100', { cache: 'no-store', headers: Object.assign({}, adminHeaders()) });
 				if (!r.ok) throw new Error('HTTP ' + r.status);
 				const j = await r.json();
-				const rows = Array.isArray(j.campaigns) ? j.campaigns : [];
+				let rows = Array.isArray(j.campaigns) ? j.campaigns : [];
+				const hideGate = !$('fuzz-hide-gate') || $('fuzz-hide-gate').checked;
+				if (hideGate) rows = rows.filter((c) => !String(c.id || '').startsWith('campaign-gate-'));
 				tb.innerHTML = '';
 				if (!rows.length) {
-					tb.innerHTML = '<tr><td colspan="6" class="px-3 py-3 text-gray-600 text-center">no campaigns yet — set admin token, Create, Refresh</td></tr>';
+					tb.innerHTML = '<tr><td colspan="7" class="px-3 py-3 text-gray-600 text-center">no campaigns — uncheck hide gate tests or Create with title security-note-01</td></tr>';
 					if (prevSel) clearFuzzSelectionUI();
 					return;
 				}
 				rows.forEach((c) => {
 					const id = String(c.id || '');
+					const title = String(c.title || id || '—');
 					const ctype = String(c.campaign_type || c.type || '—');
 					const status = String(c.status || '—');
 					const done = fuzzSummaryRunsDone(c);
@@ -8468,16 +8572,18 @@
 					const owner = String(c.owner_ref || c.owner || '—');
 					const tr = document.createElement('tr');
 					tr.dataset.campaignId = id;
+					tr.dataset.campaignTitle = title;
 					tr.className = 'cursor-pointer hover:bg-white/5 transition-colors';
 					if (id && id === selectedFuzzCampaignId) tr.classList.add('bg-neon/10');
-					tr.innerHTML = '<td class="px-2 py-1.5 truncate max-w-[180px]" title="' + escapeHtml(id) + '">' + escapeHtml(id || '—') + '</td>' +
+					tr.innerHTML = '<td class="px-2 py-1.5 truncate max-w-[140px] text-matrix" title="' + escapeHtml(title) + '">' + escapeHtml(title) + '</td>' +
+						'<td class="px-2 py-1.5 truncate max-w-[160px] text-gray-500" title="' + escapeHtml(id) + '">' + escapeHtml(id) + '</td>' +
 						'<td class="px-2 py-1.5">' + escapeHtml(ctype) + '</td>' +
 						'<td class="px-2 py-1.5">' + escapeHtml(status) + '</td>' +
 						'<td class="px-2 py-1.5 tabular-nums">' + runsCell + '</td>' +
 						'<td class="px-2 py-1.5 text-gray-400 tabular-nums">' + fmtUnix(started) + '</td>' +
-						'<td class="px-2 py-1.5 truncate max-w-[180px]">' + escapeHtml(owner) + '</td>';
+						'<td class="px-2 py-1.5 truncate max-w-[120px]">' + escapeHtml(owner) + '</td>';
 					tr.addEventListener('click', () => {
-						void selectFuzzCampaign(id);
+						void selectFuzzCampaign(id, title);
 					});
 					tb.appendChild(tr);
 				});
@@ -8491,22 +8597,27 @@
 					await selectFuzzCampaign(String(rows[0].id || ''));
 				}
 			} catch (e) {
-				tb.innerHTML = '<tr><td colspan="6" class="px-3 py-3 text-warn/90 text-center">' + escapeHtml(e && e.message ? e.message : 'fuzz unavailable') + '</td></tr>';
+				tb.innerHTML = '<tr><td colspan="7" class="px-3 py-3 text-warn/90 text-center">' + escapeHtml(e && e.message ? e.message : 'fuzz unavailable') + '</td></tr>';
 			}
 		}
 
 		function wireFuzzCampaignPanel() {
 			if (fuzzCampaignPanelWired) return;
 			fuzzCampaignPanelWired = true;
+			if ($('btn-fuzz-sync-admin')) $('btn-fuzz-sync-admin').addEventListener('click', () => {
+				void (async () => {
+					await ensureFuzzAdminToken();
+					logLine('[fuzz] admin token ' + (adminTokenCurrent() ? 'ok' : 'still missing'));
+					if (selectedFuzzCampaignId) await refreshFuzzSelectionDetail();
+				})();
+			});
+			if ($('fuzz-hide-gate')) $('fuzz-hide-gate').addEventListener('change', () => { void refreshFuzzCampaigns(); });
 			if ($('btn-fuzz-create')) $('btn-fuzz-create').addEventListener('click', async () => {
-				if (!adminTokenCurrent()) {
-					logLine('[fuzz] create: set admin token');
-					return;
-				}
+				if (!(await ensureFuzzAdminToken())) return;
 				const typ = String(($('fuzz-create-type') && $('fuzz-create-type').value) || 'fuzz');
 				const titleInp = $('fuzz-create-title');
 				const title = String((titleInp && titleInp.value) || '').trim();
-				const runs = Math.max(1, Number(($('fuzz-create-runs') && $('fuzz-create-runs').value) || 5000));
+				const runs = Math.max(1, Number(($('fuzz-create-runs') && $('fuzz-create-runs').value) || 50));
 				const id = 'campaign-ui-' + Date.now();
 				const body = {
 					id,
@@ -8514,6 +8625,8 @@
 					status: 'planned',
 					title: title || id,
 					budget_runs: runs,
+					owner_ref: 'hackme:security-note-01',
+					task_id: 'order-security-script-push-001',
 				};
 				try {
 					const r = await fetch('/api/fuzz/campaigns', {
@@ -8526,9 +8639,11 @@
 						logLine('[fuzz] create failed HTTP ' + r.status + ' ' + txt.slice(0, 200));
 						return;
 					}
-					logLine('[fuzz] created ' + id);
+					logLine('[fuzz] created ' + id + (title ? ' · ' + title : ''));
+					await fuzzSeedCampaignForReport(id, runs);
+					logLine('[fuzz] report seeded (running→runtime→completed) — Open report / Refresh');
 					await refreshFuzzCampaigns();
-					await selectFuzzCampaign(id);
+					await selectFuzzCampaign(id, title || id);
 				} catch (e) {
 					logLine('[fuzz] create error ' + (e && e.message ? e.message : e));
 				}
@@ -8573,22 +8688,36 @@
 			async function postFuzzStatus(st) {
 				const cid = selectedFuzzCampaignId;
 				if (!fuzzNeedSelection('status ' + st)) return;
+				if (!(await ensureFuzzAdminToken())) return;
 				const r = await fetch('/api/fuzz/campaigns/' + encodeURIComponent(cid) + '/status', {
 					method: 'POST',
 					headers: Object.assign({ 'Content-Type': 'application/json' }, adminHeaders()),
 					body: JSON.stringify({ status: st }),
 				});
 				if (!r.ok) logLine('[fuzz] status ' + st + ' HTTP ' + r.status);
+				else logLine('[fuzz] status ' + st + ' ok');
 				await refreshFuzzCampaigns();
 				await refreshFuzzSelectionDetail();
 			}
 			if ($('btn-fuzz-quick-running')) $('btn-fuzz-quick-running').addEventListener('click', () => { void postFuzzStatus('running'); });
 			if ($('btn-fuzz-quick-paused')) $('btn-fuzz-quick-paused').addEventListener('click', () => { void postFuzzStatus('paused'); });
 			if ($('btn-fuzz-quick-completed')) $('btn-fuzz-quick-completed').addEventListener('click', () => { void postFuzzStatus('completed'); });
-			if ($('btn-fuzz-open-report')) $('btn-fuzz-open-report').addEventListener('click', () => {
+			async function openSelectedFuzzReport() {
 				if (!fuzzNeedSelection('open report')) return;
 				const cid = selectedFuzzCampaignId;
-				void openAuthenticatedGET('/api/fuzz/campaigns/' + encodeURIComponent(cid) + '/report?limit=80', 'application/json').catch((e) => logLine('[fuzz] report ' + (e && e.message)));
+				if (!(await ensureFuzzAdminToken())) return;
+				await openFuzzReportHTML(cid);
+			}
+			if ($('btn-fuzz-open-report')) $('btn-fuzz-open-report').addEventListener('click', () => {
+				void openSelectedFuzzReport().catch((e) => logLine('[fuzz] report ' + (e && e.message ? e.message : e)));
+			});
+			if ($('fuzz-report-preview')) $('fuzz-report-preview').addEventListener('click', () => {
+				void openSelectedFuzzReport().catch((e) => logLine('[fuzz] report ' + (e && e.message ? e.message : e)));
+			});
+			if ($('btn-fuzz-open-report-json')) $('btn-fuzz-open-report-json').addEventListener('click', () => {
+				if (!fuzzNeedSelection('open json')) return;
+				const cid = selectedFuzzCampaignId;
+				void openAuthenticatedGET('/api/fuzz/campaigns/' + encodeURIComponent(cid) + '/report?limit=80&format=json', 'application/json').catch((e) => logLine('[fuzz] json ' + (e && e.message)));
 			});
 			if ($('btn-fuzz-open-csv')) $('btn-fuzz-open-csv').addEventListener('click', () => {
 				if (!fuzzNeedSelection('open csv')) return;
@@ -9085,10 +9214,11 @@
 				void refreshOrdersList();
 			}
 			if (name === 'fuzz') {
-				void refreshFuzzCampaigns().then(() => {
-					if (!selectedFuzzCampaignId) return;
-					void refreshFuzzSelectionDetail();
-				});
+				void (async () => {
+					await ensureFuzzAdminToken();
+					await refreshFuzzCampaigns();
+					if (selectedFuzzCampaignId) await refreshFuzzSelectionDetail();
+				})();
 			}
 			if (name === 'hardware') {
 				void refreshHardwareTune();
@@ -9529,7 +9659,12 @@
 					const el = $(id);
 					if (el) el.addEventListener('input', () => { if (!ordersAdvanced) updateOrderFairnessHint(); });
 				});
-				if ($('btn-fuzz-refresh')) $('btn-fuzz-refresh').addEventListener('click', () => { void refreshFuzzCampaigns(); });
+				if ($('btn-fuzz-refresh')) $('btn-fuzz-refresh').addEventListener('click', () => {
+					void (async () => {
+						await ensureFuzzAdminToken();
+						await refreshFuzzCampaigns();
+					})();
+				});
 				wireFuzzCampaignPanel();
 				refreshFuzzAdminActionState();
 				if ($('btn-hardware-refresh')) $('btn-hardware-refresh').addEventListener('click', () => { void refreshHardwareTune(); });

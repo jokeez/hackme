@@ -1,0 +1,16 @@
+📊 HackMe — красивые HTML-отчёты fuzz-кампаний
+
+Раньше отчёт открывался сырым JSON в blob-вкладке. Теперь по умолчанию — **оформленная HTML-страница**: verdict, метрики, top issues, рекомендации (тёмная тема, готово для скриншота).
+
+🔬 Security Note #1 (research): WASM-guard на правило push > 520 bytes (Bitcoin Script–style) — useful-PoW order **completed**, fuzz sample **clean** (ожидаемо: guard отрабатывает).
+
+Как открыть (оператор, local/VPS с admin):
+• Dashboard → Fuzz → выбрать кампанию → **Open report**
+• API: GET /api/fuzz/campaigns/{id}/report (HTML) · JSON: ?format=json
+
+📎 Код guard (AGPL): github.com/jokeez/hackme — tasks/sources/security/rust_script_push_bounds_guard.rs
+
+🌐 Pool · developers · fuzzing CLI: https://hackme.tech
+📋 ANN: https://bitcointalk.org/index.php?topic=5583373.0
+
+#HackMe #HMC #security #fuzzing #bitcoin

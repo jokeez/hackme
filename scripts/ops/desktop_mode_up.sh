@@ -34,6 +34,7 @@ BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
 DESKTOP_PROFILE="${DESKTOP_PROFILE:-worker}" # worker = public pool (default); command = dedicated chain leader only
 COORD_URL="${COORD_URL:-http://127.0.0.1:18081}"
 SECRET_COORD_TOKEN_FILE="${SECRET_COORD_TOKEN_FILE:-$ROOT_DIR/.secrets/hackme_coordinator_admin_token}"
+SECRET_ADMIN_FILE="${SECRET_ADMIN_FILE:-$ROOT_DIR/.secrets/hackme_admin_token}"
 WORKER_AUTOSTART="${WORKER_AUTOSTART:-0}"
 NODE_BIN="$LOG_DIR/hackme-node-desktop"
 
@@ -125,7 +126,15 @@ set +a
 # Removed env vars must not crash the node if still present in an old .env.desktop.
 unset HACKME_BEGINNER_SOLO HACKME_ALLOW_LOCAL_SOLO 2>/dev/null || true
 
-if [[ -z "${HACKME_ADMIN_TOKEN:-}" ]]; then
+if [[ -f "$SECRET_ADMIN_FILE" ]]; then
+  export HACKME_ADMIN_TOKEN="$(head -n1 "$SECRET_ADMIN_FILE" | tr -d '\r\n' | tr -d ' ')"
+  if grep -q '^HACKME_ADMIN_TOKEN=' "$DESKTOP_ENV_FILE" 2>/dev/null; then
+    sed -i "s|^HACKME_ADMIN_TOKEN=.*|HACKME_ADMIN_TOKEN=${HACKME_ADMIN_TOKEN}|" "$DESKTOP_ENV_FILE"
+  else
+    echo "HACKME_ADMIN_TOKEN=${HACKME_ADMIN_TOKEN}" >>"$DESKTOP_ENV_FILE"
+  fi
+  echo "[desktop-up] HACKME_ADMIN_TOKEN synced from $SECRET_ADMIN_FILE"
+elif [[ -z "${HACKME_ADMIN_TOKEN:-}" ]]; then
   tok="$(generate_token)"
   {
     echo "HACKME_ADMIN_TOKEN=$tok"

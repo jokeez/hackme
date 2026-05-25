@@ -1,0 +1,10 @@
+{
+  "id":"order-cpp-script_push_bounds_guard-001",
+  "kind":"synthetic_poh_v1",
+  "reward_hmc":0.02,
+  "difficulty_score":25,
+  "target_solves":3,
+  "payer_ref":"company:cpp-script_push_bounds_guard",
+  "wasm_artifact_path":"security/cpp_script_push_bounds_guard.wasm",
+  "artifact_hash":"e24aa586f35fdd36acf6f3a7809a245c920d539380933269e9add472730e96d2"
+}

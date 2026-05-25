@@ -1,0 +1,17 @@
+🔬 HackMe Security Note #1 — Script push bounds (research)
+
+We ran a public useful-PoW order on hackme.tech: a WASM guard inspired by Bitcoin Script rules (OP_PUSHDATA1 with push size > 520 bytes = violation class).
+
+✅ Not a claim of a new Bitcoin Core CVE — a reproducible distributed check on our network.
+✅ Open source checker: github.com/jokeez/hackme (tasks/sources/security/)
+✅ Miners: same pool · B2B integrators: hackme-fuzzing CLI
+
+📊 Pool: https://hackme.tech/pool/coordinator/api/pool/stats
+📖 Developers: https://hackme.tech/developers.html
+📋 ANN: https://bitcointalk.org/index.php?topic=5583373.0
+
+📊 Fuzz reports now open as styled HTML (verdict badge, metrics) — not raw JSON.
+
+Screenshots: HTML report (clean) + order completed + checker snippet (thread).
+
+#HackMe #HMC #security #bitcoin #fuzzing

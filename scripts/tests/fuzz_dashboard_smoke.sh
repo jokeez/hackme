@@ -54,7 +54,7 @@ for path in \
   "GET:/api/fuzz/campaigns/$CID/runtime/history?limit=10" \
   "GET:/api/fuzz/campaigns/$CID/crashes?limit=5" \
   "GET:/api/fuzz/campaigns/$CID/corpus?limit=5" \
-  "GET:/api/fuzz/campaigns/$CID/report?limit=10" \
+  "GET:/api/fuzz/campaigns/$CID/report?limit=10&format=json" \
   "GET:/api/fuzz/campaigns/$CID/gate?max_critical=0&max_high=5" \
   "GET:/api/fuzz/campaigns/$CID/diff?base_campaign_id=$HEAD_ID"
 do
@@ -86,5 +86,12 @@ code="$(http_code "$OUT/hk.json" POST "$BASE/api/fuzz/campaigns/$CID/housekeepin
 code="$(http_code "$OUT/hk_global.json" POST "$BASE/api/fuzz/housekeeping" \
   "${HDR_JSON[@]}" -d '{"max_findings":100,"max_corpus":100,"max_runtime_samples":100}')"
 [[ "$code" == "200" ]] || fail "global housekeeping HTTP $code"
+
+html_tmp="$OUT/report_html.body"
+code="$(http_code "$html_tmp" GET "$BASE/api/fuzz/campaigns/$CID/report.html?limit=5" "${HDR_AUTH[@]}")"
+[[ "$code" == "200" ]] || fail "report.html HTTP $code"
+grep -q '<!DOCTYPE html>' "$html_tmp" || fail "report.html missing doctype"
+grep -q 'HackMe Security Report' "$html_tmp" || fail "report.html missing title"
+log "report.html OK ($(wc -c <"$html_tmp") bytes)"
 
 pass "fuzz dashboard API smoke PASS — see $OUT"

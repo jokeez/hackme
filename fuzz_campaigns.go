@@ -459,10 +459,24 @@ func (a *app) handleFuzzCampaigns(w http.ResponseWriter, r *http.Request) {
 			writeAPIError(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed", nil)
 			return
 		}
-		if !a.requireFuzzReportAccess(w, r, campaignID, "report_json") {
+		kind := reportAccessKindHTML(r)
+		if !a.requireFuzzReportAccess(w, r, campaignID, kind) {
+			return
+		}
+		if kind == "report_html" {
+			a.handleFuzzCampaignReportHTML(w, r, campaignID)
 			return
 		}
 		a.handleFuzzCampaignReport(w, r, campaignID)
+	case "report.html":
+		if r.Method != http.MethodGet {
+			writeAPIError(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed", nil)
+			return
+		}
+		if !a.requireFuzzReportAccess(w, r, campaignID, "report_html") {
+			return
+		}
+		a.handleFuzzCampaignReportHTML(w, r, campaignID)
 	case "report.csv":
 		if r.Method != http.MethodGet {
 			writeAPIError(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed", nil)

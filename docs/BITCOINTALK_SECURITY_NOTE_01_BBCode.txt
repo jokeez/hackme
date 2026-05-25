@@ -1,0 +1,75 @@
+[center][size=14pt][b][color=#00D1FF]HackMe Security Note #1[/color][/b][/size]
+[size=10pt][i]Useful-PoW · WASM guard · Bitcoin Script–inspired bounds · HTML fuzz reports[/i][/size][/center]
+
+[hr]
+
+[b]Summary[/b]
+
+We deployed a paid [b]useful Proof-of-Work[/b] order on the HackMe coordinator: miners search for inputs where a WASM [mono]check(i64)->i32[/mono] flags a [b]consensus-style violation class[/b] — [mono]OP_PUSHDATA1 (0x4c)[/mono] with claimed push length [b]> 520 bytes[/b] (simplified from Bitcoin Script element-size rules).
+
+A linked fuzz campaign produced verdict [b]clean[/b] on the demo sample (expected for a working guard). Operator reports now open as [b]styled HTML[/b] (not raw JSON) — suitable for screenshots and release notes.
+
+[b]This is not[/b] a claim of a new vulnerability in [b]Bitcoin Core[/b]. It is a [b]reproducible research demo[/b] of how our network runs security-class work (same infra as the live HMC pool and B2B fuzzing).
+
+[hr]
+
+[b]Checker source (Rust, AGPL)[/b]
+
+[code]
+#![no_std]
+
+use core::panic::PanicInfo;
+
+#[panic_handler]
+fn panic(_info: &PanicInfo) -> ! {
+    loop {}
+}
+
+/// Simplified Bitcoin Script push-size rule (educational / research gate).
+/// Input packs: opcode in low byte, claimed push length in bits 8..23 (see check()).
+/// Returns 1 when the tuple violates the "max push element 520 bytes" style bound.
+#[no_mangle]
+pub extern "C" fn check(n: i64) -> i32 {
+    if n <= 0 {
+        return 0;
+    }
+    let op = (n & 0xff) as u32;
+    let claimed_len = ((n >> 8) & 0xffff) as u32;
+    if op == 0x4c && claimed_len > 520 {
+        1
+    } else {
+        0
+    }
+}
+[/code]
+
+Path in tree: [mono]tasks/sources/security/rust_script_push_bounds_guard.rs[/mono]
+
+[hr]
+
+[b]Reproduce[/b]
+
+[code]
+git clone https://github.com/jokeez/hackme.git && cd hackme
+bash scripts/build_security_task_pack.sh
+bash scripts/ops/run_security_research_campaign.sh
+# fuzz campaign + HTML report (local node with admin token):
+bash scripts/ops/bootstrap_security_fuzz_campaign.sh
+# dashboard: Fuzz tab → security-note-01 → Open report
+[/code]
+
+API: [mono]GET /api/fuzz/campaigns/{id}/report[/mono] → HTML by default · [mono]?format=json[/mono] for machines.
+
+Pool / downloads: [url=https://hackme.tech]hackme.tech[/url] · ANN: [url=https://bitcointalk.org/index.php?topic=5583373.0]topic 5583373[/url]
+
+[hr]
+
+[b]Screenshots to attach[/b]
+
+1. HTML fuzz report — [b]clean[/b] verdict, campaign [mono]security-note-01[/mono], linked order [mono]order-security-script-push-001[/mono]  
+2. Orders tab — same order [b]completed[/b]  
+3. This source file open in editor (or the [code] block above is enough for text-only readers)
+
+[hr]
+
+[i]Next notes may target small OSS crypto parsers (miniscript-class), always with coordinated disclosure on real projects.[/i]

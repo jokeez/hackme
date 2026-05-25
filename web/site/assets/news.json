@@ -1,6 +1,23 @@
 {
   "items": [
     {
+      "id": "2026-05-25-fuzz-html-reports-security-note-01",
+      "date": "2026-05-25",
+      "title": "Fuzz reports ship as HTML · Security Note #1 (Script push bounds) · useful-PoW completed",
+      "summary": "Customer fuzz reports now default to a styled HTML page (verdict badge, metrics, top issues) instead of raw JSON blobs. Security research campaign #1: Bitcoin Script–inspired WASM guard (OP_PUSHDATA1 push > 520 bytes) ran as a paid useful-PoW order on the live coordinator; demo fuzz campaign verdict clean. Open source checker in repo.",
+      "tags": ["security", "fuzzing", "release", "infrastructure"],
+      "impact": "Operators and B2B integrators get publication-ready security reports; miners see the same pool infra used for research-class WASM gates.",
+      "action": "Local dashboard: Fuzz → Open report · API: GET /api/fuzz/campaigns/{id}/report (HTML) or ?format=json · Guard source: tasks/sources/security/rust_script_push_bounds_guard.rs · Telegram: docs/TELEGRAM_POST_HTML_FUZZ_REPORTS.txt · BCT: docs/BITCOINTALK_SECURITY_NOTE_01_BBCode.txt",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme",
+        "developers": "https://hackme.tech/developers.html",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "bitcointalk": "https://bitcointalk.org/index.php?topic=5583373.0",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-25-fuzzing-b2b-cli-hardening",
       "date": "2026-05-25",
       "title": "B2B fuzzing hardened · hackme-fuzzing CLI · no browser admin on hackme.tech",
