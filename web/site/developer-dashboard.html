@@ -127,9 +127,41 @@
           <label><span class="dev-label">Reward HMC</span><input id="create-reward" class="dev-input" type="number" min="0.0001" step="0.0001" value="0.01" /></label>
           <label><span class="dev-label">Target solves</span><input id="create-target" class="dev-input" type="number" min="1" max="10000" value="3" /></label>
           <label><span class="dev-label">Payer ref</span><input id="create-payer" class="dev-input" type="text" placeholder="company:project" /></label>
-          <label class="md:col-span-2 lg:col-span-3"><span class="dev-label">WASM file (.wasm)</span><input id="create-wasm-file" class="dev-input" type="file" accept=".wasm,application/wasm" /></label>
         </div>
-        <p id="create-wasm-meta" class="text-[10px] text-gray-500">Build locally: <code class="text-neon/80">hackme-fuzzing build</code> — remote from_code blocked on hackme.tech.</p>
+        <div class="card rounded-xl p-4 border-neon/25 space-y-3">
+          <p class="font-display text-[10px] text-neon uppercase tracking-widest">Build from source (local)</p>
+          <p class="text-[10px] text-gray-500">Languages like the mining dashboard — compile on <strong>your PC</strong> with <code class="text-neon/80">hackme-fuzzing build</code>. Remote <code>from_code</code> stays blocked on hackme.tech (security).</p>
+          <div class="flex flex-wrap gap-2 items-center">
+            <label class="text-[10px] text-gray-500">Language
+              <select id="dev-code-lang" class="dev-input ml-1 w-28">
+                <option value="rust">Rust</option>
+                <option value="c">C</option>
+                <option value="cpp">C++</option>
+                <option value="tinygo">Go (TinyGo)</option>
+                <option value="zig">Zig</option>
+                <option value="assemblyscript">AssemblyScript</option>
+                <option value="wat">WAT</option>
+              </select>
+            </label>
+            <button type="button" class="px-2 py-1 rounded border border-white/20 text-[10px] uppercase text-gray-400 hover:bg-white/5" data-dev-lang="rust">Rust</button>
+            <button type="button" class="px-2 py-1 rounded border border-white/20 text-[10px] uppercase text-gray-400 hover:bg-white/5" data-dev-lang="c">C</button>
+            <button type="button" class="px-2 py-1 rounded border border-white/20 text-[10px] uppercase text-gray-400 hover:bg-white/5" data-dev-lang="cpp">C++</button>
+            <button type="button" class="px-2 py-1 rounded border border-white/20 text-[10px] uppercase text-gray-400 hover:bg-white/5" data-dev-lang="tinygo">Go</button>
+            <button type="button" class="px-2 py-1 rounded border border-white/20 text-[10px] uppercase text-gray-400 hover:bg-white/5" data-dev-lang="zig">Zig</button>
+            <button type="button" class="px-2 py-1 rounded border border-white/20 text-[10px] uppercase text-gray-400 hover:bg-white/5" data-dev-lang="wat">WAT</button>
+          </div>
+          <textarea id="dev-code-input" class="dev-input w-full h-40 font-mono text-[11px]" spellcheck="false"></textarea>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" id="btn-dev-save-source" class="px-3 py-1 rounded border border-neon/30 text-[10px] uppercase text-neon hover:bg-neon/10">Download source file</button>
+            <button type="button" id="btn-dev-copy-build" class="px-3 py-1 rounded border border-matrix/30 text-[10px] uppercase text-matrix hover:bg-matrix/10">Copy build command</button>
+          </div>
+          <pre id="dev-build-cmd" class="text-[10px] text-gray-500 bg-black/40 p-2 rounded border border-white/10 overflow-x-auto"></pre>
+        </div>
+        <div class="card rounded-xl p-4 border-matrix/20">
+          <p class="font-display text-[10px] text-matrix uppercase tracking-widest mb-2">Upload compiled WASM</p>
+          <label class="block"><span class="dev-label">WASM file (.wasm)</span><input id="create-wasm-file" class="dev-input mt-1" type="file" accept=".wasm,application/wasm" /></label>
+          <p id="create-wasm-meta" class="text-[10px] text-gray-500 mt-2">After build: upload <code>fuzzing-out/&lt;id&gt;.wasm</code> or manifest path from CLI <code>create</code>.</p>
+        </div>
         <div class="flex flex-wrap gap-2">
           <button type="button" id="btn-template-small" class="px-3 py-1 rounded border border-white/20 text-[10px] uppercase text-gray-400 hover:bg-white/5">Small</button>
           <button type="button" id="btn-template-medium" class="px-3 py-1 rounded border border-white/20 text-[10px] uppercase text-gray-400 hover:bg-white/5">Medium</button>
@@ -144,24 +176,32 @@
         </div>
       </div>
 
-      <!-- REPORT -->
+      <!-- REPORT (customer deliverables — like dashboard fuzz report exports) -->
       <div id="dev-panel-report" class="dev-dash-panel dev-panel space-y-3">
-        <h2 class="font-display text-xs text-warn uppercase tracking-widest">Fuzz report (deliverable)</h2>
-        <p class="text-[10px] text-gray-500">Operator shares <code class="text-neon/80">customer_report_token</code> — you view HTML here; you do not run fuzz campaigns on prod.</p>
+        <h2 class="font-display text-xs text-warn uppercase tracking-widest">Fuzz deliverables</h2>
+        <p class="text-[10px] text-gray-500">Full fuzz <strong>campaign admin</strong> (CSV corpus, housekeeping, create) is on <code class="text-neon/80">http://127.0.0.1:8080/dashboard</code> with <strong>admin token</strong> — not on hackme.tech. Here: view operator-shared reports only.</p>
         <div class="card rounded-xl p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-          <label><span class="dev-label">Campaign ID</span><input id="report-campaign-id" class="dev-input" type="text" placeholder="security-note-01" /></label>
-          <label><span class="dev-label">Report token</span><input id="report-token" class="dev-input" type="password" autocomplete="off" /></label>
+          <label><span class="dev-label">Campaign ID</span><input id="report-campaign-id" class="dev-input" type="text" placeholder="campaign-redteam-demo-1779703016" /></label>
+          <label><span class="dev-label">X-Hackme-Report-Token</span><input id="report-token" class="dev-input" type="password" autocomplete="off" /></label>
         </div>
         <div class="flex flex-wrap gap-2">
-          <button type="button" id="btn-report-open" class="px-4 py-2 rounded-lg border border-neon/40 bg-neon/10 text-neon text-[11px] font-display font-bold uppercase hover:bg-neon/20">Open HTML report</button>
+          <button type="button" id="btn-report-open" class="px-3 py-1.5 rounded border border-neon/40 bg-neon/10 text-neon text-[10px] uppercase font-bold hover:bg-neon/20">Open HTML</button>
           <button type="button" id="btn-report-json" class="px-3 py-1.5 rounded border border-white/20 text-[10px] uppercase text-gray-400 hover:bg-white/5">JSON</button>
+          <button type="button" id="btn-report-csv" class="px-3 py-1.5 rounded border border-matrix/30 text-[10px] uppercase text-matrix hover:bg-matrix/10">CSV</button>
+          <button type="button" id="btn-report-gate" class="px-3 py-1.5 rounded border border-warn/35 text-[10px] uppercase text-warn hover:bg-warn/10">Gate</button>
+          <button type="button" id="btn-report-pulse" class="px-3 py-1.5 rounded border border-white/20 text-[10px] uppercase text-gray-400 hover:bg-white/5">Pulse</button>
         </div>
         <p id="report-status" class="dev-status-line"></p>
+        <div class="card rounded-lg p-3">
+          <p class="text-[9px] uppercase text-gray-500 mb-1">Gate / pulse / JSON preview</p>
+          <pre id="report-preview" class="text-[10px] text-gray-400 max-h-48 overflow-auto whitespace-pre-wrap">—</pre>
+        </div>
       </div>
     </main>
   </div>
 
   <script src="./assets/hackme-dev-common.js" defer></script>
+  <script src="./assets/dev-code-templates.js" defer></script>
   <script src="./assets/developer-console.js" defer></script>
 </body>
 </html>

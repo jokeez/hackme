@@ -246,45 +246,130 @@
     await refreshPoolHint();
   }
 
-  async function openReport(format) {
-    const st = $("report-status");
+  function reportAuth() {
     const cid = String($("report-campaign-id")?.value || "").trim();
     const tok = String($("report-token")?.value || "").trim();
+    return { cid, tok };
+  }
+
+  async function openReport(format) {
+    const st = $("report-status");
+    const { cid, tok } = reportAuth();
     if (!cid || !tok) {
       setStatus(st, "Campaign ID and report token required.", false);
       return;
     }
-    const q = format === "json" ? "?format=json" : "";
-    const path = "/api/fuzz/campaigns/" + encodeURIComponent(cid) + "/report" + q;
-    setStatus(st, "Loading report…");
+    let path = "/api/fuzz/campaigns/" + encodeURIComponent(cid) + "/";
+    let accept = "";
+    if (format === "json") {
+      path += "report?format=json";
+      accept = "application/json";
+    } else if (format === "html") {
+      path += "report";
+    } else if (format === "csv") {
+      path += "report.csv";
+    } else if (format === "gate") {
+      path += "gate";
+    } else if (format === "pulse") {
+      path += "pulse";
+    } else {
+      path += "report";
+    }
+    setStatus(st, "Loading " + format + "…");
     try {
       const r = await fetch(Dev.base + path, {
-        headers: { "X-Hackme-Report-Token": tok },
+        headers: { "X-Hackme-Report-Token": tok, Accept: accept },
         cache: "no-store",
       });
+      const t = await r.text();
       if (!r.ok) {
-        const t = await r.text();
-        setStatus(st, "HTTP " + r.status + ": " + t.slice(0, 180), false);
+        setStatus(st, "HTTP " + r.status + ": " + t.slice(0, 220), false);
+        const pre = $("report-preview");
+        if (pre) pre.textContent = t.slice(0, 2000);
         return;
       }
-      const blob = await r.blob();
-      if (format === "json") {
+      if (format === "html") {
+        const url = URL.createObjectURL(new Blob([t], { type: "text/html;charset=utf-8" }));
+        window.open(url, "_blank", "noopener,noreferrer");
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        setStatus(st, "HTML report opened.", true);
+        return;
+      }
+      if (format === "json" || format === "gate" || format === "pulse") {
+        const pre = $("report-preview");
+        try {
+          if (pre) pre.textContent = JSON.stringify(JSON.parse(t), null, 2);
+        } catch (_) {
+          if (pre) pre.textContent = t.slice(0, 4000);
+        }
+        setStatus(st, format + " loaded.", true);
+        return;
+      }
+      if (format === "csv") {
         const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = cid + "-report.json";
+        a.href = URL.createObjectURL(new Blob([t], { type: "text/csv" }));
+        a.download = cid + "-report.csv";
         a.click();
         URL.revokeObjectURL(a.href);
-        setStatus(st, "JSON downloaded.", true);
-        return;
+        setStatus(st, "CSV downloaded.", true);
       }
-      const html = await blob.text();
-      const url = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
-      window.open(url, "_blank", "noopener,noreferrer");
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-      setStatus(st, "HTML report opened in new tab.", true);
     } catch (e) {
       setStatus(st, String(e && e.message ? e.message : e), false);
     }
+  }
+
+  function refreshBuildCmd() {
+    const T = window.HackmeDevTemplates;
+    const pre = $("dev-build-cmd");
+    if (!T || !pre) return;
+    const lang = ($("dev-code-lang") && $("dev-code-lang").value) || "rust";
+    pre.textContent = T.buildCLI(lang, {
+      id: String($("create-id")?.value || "").trim() || "my-order-001",
+      reward: $("create-reward")?.value,
+      difficulty: $("create-diff")?.value,
+      target: $("create-target")?.value,
+    });
+  }
+
+  function wireCodeBuild() {
+    const T = window.HackmeDevTemplates;
+    const ta = $("dev-code-input");
+    if (!T || !ta) return;
+    const langSel = $("dev-code-lang");
+    const apply = (lang) => {
+      if (langSel) langSel.value = lang;
+      T.apply(lang, ta);
+      refreshBuildCmd();
+    };
+    apply("rust");
+    document.querySelectorAll("[data-dev-lang]").forEach((btn) => {
+      btn.addEventListener("click", () => apply(btn.getAttribute("data-dev-lang")));
+    });
+    if (langSel) langSel.addEventListener("change", () => apply(langSel.value));
+    ["create-id", "create-reward", "create-diff", "create-target"].forEach((id) => {
+      $(id)?.addEventListener("input", refreshBuildCmd);
+    });
+    $("btn-dev-copy-build")?.addEventListener("click", async () => {
+      refreshBuildCmd();
+      const cmd = $("dev-build-cmd")?.textContent || "";
+      try {
+        await navigator.clipboard.writeText(cmd);
+        setStatus($("create-status"), "Build command copied.", true);
+      } catch (_) {
+        setStatus($("create-status"), cmd, true);
+      }
+    });
+    $("btn-dev-save-source")?.addEventListener("click", () => {
+      const lang = (langSel && langSel.value) || "rust";
+      const ext = T.extForLang(lang);
+      const blob = new Blob([ta.value || ""], { type: "text/plain" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "check." + ext;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setStatus($("create-status"), "Saved check." + ext + " — run copied build command in terminal.", true);
+    });
   }
 
   function activateTab(tab, activeBtn) {
@@ -350,7 +435,11 @@
   $("btn-create-submit")?.addEventListener("click", () => void submitOrder());
   $("btn-report-open")?.addEventListener("click", () => void openReport("html"));
   $("btn-report-json")?.addEventListener("click", () => void openReport("json"));
+  $("btn-report-csv")?.addEventListener("click", () => void openReport("csv"));
+  $("btn-report-gate")?.addEventListener("click", () => void openReport("gate"));
+  $("btn-report-pulse")?.addEventListener("click", () => void openReport("pulse"));
 
+  wireCodeBuild();
   wireTabs();
   syncTokenInput();
   refreshManifestPreview();
