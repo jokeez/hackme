@@ -30,14 +30,14 @@
   <main class="container">
     <section class="hero glass">
       <p class="kicker">Developers & B2B</p>
-      <h1>Fuzzing orders without the mining app</h1>
+      <h1>Fuzzing orders on your local node</h1>
       <p class="hero-copy">
         Buy useful GPU work on the HackMe network: security gates, synthetic PoH audits, WASM-validated tasks.
-        You need a <strong>wallet</strong>, <strong>paid orders</strong>, and the HTTP API — not ISO images or pool workers.
+        Run <strong>hackme-node</strong> on your PC — <code>127.0.0.1:8080/#wallet</code> and <code>#orders</code> — pool on hackme.tech fills the work.
       </p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="./developer-dashboard.html">Open Developer Dashboard</a>
-        <a class="btn btn-secondary" href="./downloads.html#fuzzing-client">Download hackme-fuzzing</a>
+        <a class="btn btn-primary" href="./downloads.html#local-node">Download &amp; local setup</a>
+        <a class="btn btn-secondary" href="./downloads.html#fuzzing-client">hackme-fuzzing CLI</a>
         <a class="btn btn-secondary" href="./fuzzing-console.html">Public status tracker</a>
       </div>
       <div class="pill-row">
@@ -50,7 +50,7 @@
 
     <section id="integrator-token" class="panel glass dev-connect">
       <div class="panel-head"><h2>Integrator API token (automatic)</h2></div>
-      <p class="subtle">Issue a scoped <span class="code-inline">X-Hackme-Developer-Token</span> without email support. Shown <strong>once</strong> — copy immediately. Or use CLI: <span class="code-inline">hackme-fuzzing register --save</span>.</p>
+      <p class="subtle">Issue a scoped <span class="code-inline">X-Hackme-Developer-Token</span> on <strong>your local node</strong> (dashboard header → Issue, or CLI below). Tokens issued here on hackme.tech are for API testing only — <strong>create orders on localhost</strong>, not in the browser on this site.</p>
       <label class="dev-field dev-field-full">
         <span>Label (optional)</span>
         <input id="integrator-label" type="text" placeholder="acme-security-audit" autocomplete="off" />
@@ -77,7 +77,7 @@
       <article class="panel glass">
         <div class="panel-head"><h2>What you get</h2></div>
         <ul class="check-list">
-          <li><strong>Developer Console</strong> — visual orders, WASM upload, report viewer</li>
+          <li><strong>Local dashboard</strong> — <code>127.0.0.1:8080/#orders</code>, WASM upload, wallet escrow</li>
           <li><strong>hackme-fuzzing CLI</strong> — automation (token in env file, not admin)</li>
           <li><strong>Public tracker</strong> — read-only wallet + redacted orders</li>
           <li><strong>Coordinator</strong> switches to orders mode when work is open</li>
@@ -126,9 +126,9 @@ hackme-fuzzing create ./fuzzing-out/my-order.manifest.json
     <section class="panel glass">
       <div class="panel-head"><h2>Paths</h2></div>
       <div class="quick-grid">
-        <a class="quick-item" href="./developer-dashboard.html">
-          <h4>Developer Dashboard</h4>
-          <p>Mining-style UI · orders + WASM</p>
+        <a class="quick-item" href="./downloads.html#local-node">
+          <h4>Local node (#orders)</h4>
+          <p>Wallet + WASM on 127.0.0.1:8080</p>
         </a>
         <a class="quick-item" href="./downloads.html#fuzzing-client">
           <h4>hackme-fuzzing</h4>

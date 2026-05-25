@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HackMe — Developer Dashboard</title>
   <meta name="description" content="B2B developer dashboard: orders, WASM upload, treasury wallet, fuzz reports — same visual language as the mining dashboard." />
-  <link rel="canonical" href="https://hackme.tech/developer-dashboard.html" />
+  <link rel="canonical" href="https://hackme.tech/downloads.html#local-node" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
   <link rel="icon" href="/assets/favicon.png" type="image/png" />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -20,7 +20,7 @@
     };
   </script>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./assets/developer-dashboard.css" />
+  <link rel="stylesheet" href="/assets/developer-dashboard.css" />
   <style>
     body { font-family: 'JetBrains Mono', monospace; background: #030306; color: #c8d0d8; }
     .font-display { font-family: 'Orbitron', sans-serif; }
@@ -45,7 +45,7 @@
   <div class="relative flex min-h-screen">
     <aside class="w-56 shrink-0 border-r border-neon/15 bg-black/50 p-4 flex flex-col gap-4">
       <a href="./developers.html" class="flex items-center gap-2 font-display text-sm text-neon tracking-wider">
-        <img src="./assets/logo-hex.png" alt="" class="w-6 h-6" /> HackMe Dev
+        <img src="/assets/logo-hex.png" alt="" class="w-6 h-6" /> HackMe Dev
       </a>
       <p class="text-[9px] text-gray-500 uppercase tracking-[0.25em]">B2B · no mining</p>
       <nav class="flex flex-col gap-1">
@@ -55,8 +55,9 @@
         <button type="button" class="sidebar-dev-link w-full text-left px-3 py-2 rounded text-[11px] uppercase tracking-wider" data-dev-tab="report">Report</button>
       </nav>
       <div class="mt-auto space-y-2 text-[10px]">
-        <a href="./downloads.html#fuzzing-client" class="text-gray-500 hover:text-neon block">CLI download</a>
-        <a href="https://hackme.tech/fuzzing-console.html" class="text-gray-500 hover:text-neon block">Public tracker</a>
+        <a href="/downloads.html#fuzzing-client" class="text-gray-500 hover:text-neon block">CLI download</a>
+        <a href="/fuzzing-console.html" class="text-gray-500 hover:text-neon block">Public tracker</a>
+        <a href="/developers.html" class="text-gray-500 hover:text-neon block">Developers landing</a>
       </div>
     </aside>
 
@@ -72,7 +73,7 @@
           <button type="button" id="btn-token-save" class="px-3 py-1.5 rounded border border-neon/40 text-neon text-[10px] uppercase hover:bg-neon/10">Save</button>
           <button type="button" id="btn-token-clear" class="px-3 py-1.5 rounded border border-white/20 text-gray-400 text-[10px] uppercase hover:bg-white/5">Clear</button>
           <button type="button" id="btn-console-refresh" class="px-3 py-1.5 rounded border border-matrix/40 text-matrix text-[10px] uppercase font-bold hover:bg-matrix/10">Refresh</button>
-          <a href="./developers.html#integrator-token" class="px-3 py-1.5 rounded border border-white/20 text-gray-400 text-[10px] uppercase hover:bg-white/5">Get token</a>
+          <a href="/developers.html#integrator-token" class="px-3 py-1.5 rounded border border-white/20 text-gray-400 text-[10px] uppercase hover:bg-white/5">Get token</a>
         </div>
       </header>
       <p id="dev-token-status" class="dev-status-line"></p>
@@ -179,7 +180,7 @@
       <!-- REPORT (customer deliverables — like dashboard fuzz report exports) -->
       <div id="dev-panel-report" class="dev-dash-panel dev-panel space-y-3">
         <h2 class="font-display text-xs text-warn uppercase tracking-widest">Fuzz deliverables</h2>
-        <p class="text-[10px] text-gray-500">Full fuzz <strong>campaign admin</strong> (CSV corpus, housekeeping, create) is on <code class="text-neon/80">http://127.0.0.1:8080/dashboard</code> with <strong>admin token</strong> — not on hackme.tech. Here: view operator-shared reports only.</p>
+        <p class="text-[10px] text-gray-500">Full fuzz <strong>campaign admin</strong> (CSV, corpus, create) is <strong>operator-only</strong> on your local node (<code class="text-neon/80">127.0.0.1:8080</code> + admin). Public users never get open fuzz — only deliverables with report token.</p>
         <div class="card rounded-xl p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
           <label><span class="dev-label">Campaign ID</span><input id="report-campaign-id" class="dev-input" type="text" placeholder="campaign-redteam-demo-1779703016" /></label>
           <label><span class="dev-label">X-Hackme-Report-Token</span><input id="report-token" class="dev-input" type="password" autocomplete="off" /></label>
@@ -200,8 +201,8 @@
     </main>
   </div>
 
-  <script src="./assets/hackme-dev-common.js" defer></script>
-  <script src="./assets/dev-code-templates.js" defer></script>
-  <script src="./assets/developer-console.js" defer></script>
+  <script src="/assets/hackme-dev-common.js" defer></script>
+  <script src="/assets/dev-code-templates.js" defer></script>
+  <script src="/assets/developer-console.js" defer></script>
 </body>
 </html>

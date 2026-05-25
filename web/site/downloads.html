@@ -33,11 +33,27 @@
       <p class="hero-copy">Verify SHA256 before install. Version <strong id="dl-release-ver">—</strong> · open source on <a href="https://github.com/jokeez/hackme" target="_blank" rel="noreferrer">GitHub</a>.</p>
     </section>
 
+    <section id="local-node" class="panel glass" style="border:1px solid rgba(0,209,255,0.35)">
+      <div class="panel-head">
+        <p class="kicker" style="color:#00d1ff">B2B · Local node (recommended)</p>
+        <h2>Orders &amp; wallet on your PC — not on hackme.tech</h2>
+        <p class="subtle">Run <strong>hackme-node</strong> (same stack as mining rigs). Open <code>http://127.0.0.1:8080/</code> → <strong>Wallet</strong> (your HMC in local DB) → <strong>Market</strong> (create order, upload WASM). Pool on VPS picks up work; you see hash rate like a miner. No web portal, no operator treasury on the site.</p>
+      </div>
+      <ol class="check-list" style="margin-top:1rem">
+        <li>Download node binary or HackMe OS below (or build from GitHub).</li>
+        <li>Start node — dashboard at <code>127.0.0.1:8080</code>.</li>
+        <li>Header → <strong>Developer token</strong> → <em>Issue</em> (or <code>hackme-fuzzing register --base http://127.0.0.1:8080 --save</code>).</li>
+        <li><strong>#orders</strong> — build WASM locally, upload file, POST order (escrow from your wallet).</li>
+        <li>Watch pool stats / Workers tab while miners complete the job.</li>
+      </ol>
+      <p class="subtle" style="margin-top:1rem"><a href="./developers.html#integrator-token">Token docs</a> · <a href="./fuzzing-console.html">Public order tracker</a> (read-only)</p>
+    </section>
+
     <section id="fuzzing-client" class="panel glass" style="border:1px solid rgba(0,209,255,0.25)">
       <div class="panel-head">
         <p class="kicker" style="color:#00d1ff">B2B · Fuzzing</p>
         <h2>hackme-fuzzing CLI (integrators)</h2>
-        <p class="subtle">Create paid fuzzing orders via the <a href="./developer-dashboard.html">Developer Dashboard</a> (visual UI) or CLI — <strong>without</strong> the mining dashboard or browser admin tokens. WASM is built on your machine; remote <code>from_code</code> is blocked on the public site. <a href="./developers.html#integrator-token">Issue a developer token</a> automatically.</p>
+        <p class="subtle">Automation CLI for local node: <code>hackme-fuzzing</code> talks to <code>127.0.0.1:8080</code>. Visual UI: <a href="#local-node">local dashboard #orders</a>. Remote <code>from_code</code> is blocked on hackme.tech.</p>
       </div>
       <div class="grid grid-2" style="margin-top:1rem">
         <article class="card glass">
@@ -50,7 +66,7 @@
           <p class="subtle" style="margin-top:0.75rem"><code>chmod +x hackme-fuzzing-*-linux-amd64</code> · <code>export HACKME_DEVELOPER_TOKEN=…</code> · <code>./hackme-fuzzing wallet</code></p>
         </article>
       </div>
-      <p class="subtle" style="margin-top:1rem"><a href="./developer-dashboard.html">Developer Dashboard</a> · <a href="./developers.html">Developers landing</a> · <a href="./fuzzing-console.html">Public status tracker</a></p>
+      <p class="subtle" style="margin-top:1rem"><a href="#local-node">Local node guide</a> · <a href="./developers.html">Developers</a> · <a href="./fuzzing-console.html">Public tracker</a></p>
     </section>
 
     <section id="hackme-os" class="panel glass" style="border:1px solid rgba(0,255,136,0.25)">

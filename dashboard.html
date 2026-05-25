@@ -732,7 +732,7 @@
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
 					Market
 				</button>
-				<button type="button" data-tab="fuzz" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-sm text-gray-500">
+				<button type="button" data-tab="fuzz" class="sidebar-link fuzz-operator-only w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-sm text-gray-500">
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 3v3m4.5-3v3M4.5 9.75h15M6.75 6.75h10.5A2.25 2.25 0 0119.5 9v9.75A2.25 2.25 0 0117.25 21H6.75A2.25 2.25 0 014.5 18.75V9A2.25 2.25 0 016.75 6.75zM9 13.5h6M9 16.5h3"/></svg>
 					Fuzz
 				</button>
@@ -786,6 +786,13 @@
 							<button id="btn-admin-token-save" type="button" class="text-[10px] px-2 py-1 rounded border border-neon/30 text-neon hover:bg-neon/10">Save</button>
 							<button id="btn-admin-token-clear" type="button" class="text-[10px] px-2 py-1 rounded border border-danger/40 text-danger hover:bg-danger/10">Clear</button>
 						</div>
+						<div class="flex items-center gap-2 rounded border border-matrix/25 bg-black/40 px-2 py-1">
+							<label for="developer-token-input" class="text-[9px] uppercase tracking-wider text-matrix/80">Developer token</label>
+							<input id="developer-token-input" type="password" autocomplete="off" spellcheck="false" class="w-40 lg:w-56 text-[10px] font-mono rounded border border-white/10 bg-black/60 px-2 py-1 text-matrix" placeholder="integrator token…" />
+							<button id="btn-developer-token-save" type="button" class="text-[10px] px-2 py-1 rounded border border-matrix/30 text-matrix hover:bg-matrix/10">Save</button>
+							<button id="btn-developer-token-clear" type="button" class="text-[10px] px-2 py-1 rounded border border-danger/40 text-danger hover:bg-danger/10">Clear</button>
+							<button id="btn-developer-token-register" type="button" class="text-[10px] px-2 py-1 rounded border border-white/20 text-gray-400 hover:bg-white/5" title="POST /api/integrator/register on this node">Issue</button>
+						</div>
 						<div class="hidden sm:block text-right">
 							<p class="text-[9px] text-gray-600 uppercase tracking-widest">UTC</p>
 							<p id="clock-utc" class="text-gray-300 font-mono tabular-nums">--:--:--</p>
@@ -810,7 +817,7 @@
 					<button type="button" id="btn-tab-mining" class="quick-btn">Workers</button>
 					<button type="button" id="btn-tab-hardware" class="quick-btn mobile-compact-hide">Hardware</button>
 					<button type="button" id="btn-tab-orders" class="quick-btn mobile-compact-hide">Market</button>
-					<button type="button" id="btn-tab-fuzz" class="quick-btn mobile-compact-hide">Fuzz</button>
+					<button type="button" id="btn-tab-fuzz" class="quick-btn mobile-compact-hide fuzz-operator-only">Fuzz</button>
 					<button type="button" id="btn-open-explorer" class="quick-btn">Explorer</button>
 					<span class="text-[10px] text-gray-500 ml-auto font-mono hidden lg:inline">Shortcuts: <span class="kbd">g</span> then <span class="kbd">e/o/m/h/c/w/r/t/f</span> · <span class="kbd">?</span></span>
 				</div>
@@ -824,7 +831,7 @@
 					<button type="button" class="tab-btn" data-tab="wallet">Wallet</button>
 					<button type="button" class="tab-btn" data-tab="reports">Reports</button>
 					<button type="button" class="tab-btn" data-tab="orders">Market</button>
-					<button type="button" class="tab-btn" data-tab="fuzz">Fuzz</button>
+					<button type="button" class="tab-btn fuzz-operator-only" data-tab="fuzz">Fuzz</button>
 				</nav>
 			</header>
 
@@ -1639,13 +1646,12 @@
 						<div>
 							<p class="font-display text-[10px] tracking-[0.35em] text-neon uppercase mb-1">Useful-PoW market</p>
 							<h2 class="font-display text-sm font-bold text-white tracking-wide">Order market · paid tasks</h2>
-							<p id="orders-panel-subtitle" class="text-[11px] text-gray-500 mt-1 max-w-2xl">Open paid jobs on the network — miners earn HMC when the pool schedules order work. Post new orders from the <a href="https://hackme.tech/developer-dashboard.html" class="text-neon/90 underline" target="_blank" rel="noreferrer">Developer Dashboard</a> (B2B), not here.</p>
+							<p id="orders-panel-subtitle" class="text-[11px] text-gray-500 mt-1 max-w-2xl">Open paid jobs on the network — pool miners fill your order when it is active. Create here on <strong>this node</strong> (<code class="text-neon/80">#wallet</code> escrow + developer or admin token).</p>
 						</div>
 						<button type="button" id="btn-orders-refresh" class="text-[10px] px-3 py-1.5 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
 					</div>
 					<div id="orders-market-banner" class="rounded-lg border border-neon/25 bg-neon/5 p-3 text-[11px] text-gray-300 leading-snug">
-						<strong class="text-neon">Miner / viewer mode</strong> — read-only order list. <strong>Operator:</strong> Save admin token to show create-order + all languages + <code class="text-neon/80">from_code</code> below.
-						<strong>B2B:</strong> <a href="https://hackme.tech/developer-dashboard.html" class="text-neon underline" target="_blank" rel="noreferrer">developer-dashboard.html</a> (local WASM build + upload).
+						<strong class="text-neon">Read-only</strong> — save a <strong>developer token</strong> (header → Issue / Save) or <strong>admin token</strong> to create orders. Escrow debits your local wallet (<a href="#" class="text-neon/90 underline" data-goto-tab="wallet">Wallet tab</a>). Build WASM locally (<code class="text-neon/80">hackme-fuzzing build</code>) and upload below, or use <code class="text-neon/80">from_code</code> with admin only.
 					</div>
 					<div id="orders-wallet-gate" class="hidden rounded-lg border border-warn/35 bg-warn/5 p-3 text-[11px] text-warn/95 leading-snug"></div>
 					<div id="orders-admin-create" class="hidden card card-glow rounded-xl p-5 border-matrix/25">
@@ -1682,12 +1688,17 @@
 								<button type="button" id="btn-orders-template-heavy" class="px-3 py-1.5 rounded border border-white/20 text-gray-300 text-[10px] uppercase tracking-wider hover:bg-white/5">Template heavy</button>
 							</div>
 						</div>
+						<div class="mt-3 rounded-lg border border-matrix/20 bg-black/30 p-3">
+							<p class="text-[10px] uppercase tracking-[0.2em] text-matrix mb-2">Upload compiled WASM (optional)</p>
+							<label class="text-[10px] text-gray-500 block">File <input id="orders-wasm-file" type="file" accept=".wasm,application/wasm" class="mt-1 text-[10px] text-gray-400" /></label>
+							<p id="orders-wasm-meta" class="text-[10px] text-gray-500 mt-1 font-mono">No WASM loaded — order may still validate if manifest includes wasm_check_hex.</p>
+						</div>
 						<div class="mt-2 flex flex-wrap gap-2 items-center">
 							<button type="button" id="btn-orders-submit" class="px-4 py-2 rounded-lg border border-matrix/40 bg-matrix/10 text-matrix text-[11px] font-display font-bold uppercase tracking-wider hover:bg-matrix/20">POST /api/tasks</button>
 							<p id="orders-submit-msg" class="text-[10px] text-gray-500 font-mono"></p>
 						</div>
-						<p id="orders-submit-hint" class="mt-2 text-[10px] text-gray-600 font-mono">Reject hints: 400 fairness/validation, 401 admin token, 402 insufficient escrow wallet, 429 rate-limit.</p>
-						<div class="mt-4 rounded-lg border border-neon/20 bg-black/30 p-3">
+						<p id="orders-submit-hint" class="mt-2 text-[10px] text-gray-600 font-mono">Reject hints: 400 fairness/validation, 401 developer/admin token, 402 insufficient local wallet, 429 rate-limit.</p>
+						<div id="orders-from-code-block" class="mt-4 rounded-lg border border-neon/20 bg-black/30 p-3">
 							<p class="text-[10px] uppercase tracking-[0.2em] text-neon mb-2">Code -> Order (auto compile)</p>
 							<p class="text-[10px] text-gray-500 mb-2">Exports <code class="text-neon/80">check(i64)→i32</code>; compiled to WASM. See API for language aliases.</p>
 							<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 mb-2">
@@ -1751,7 +1762,7 @@
 					<div id="fuzz-market-banner" class="rounded-lg border border-warn/30 bg-warn/5 p-3 text-[11px] text-gray-300 leading-snug">
 						<strong class="text-warn">Operator Fuzz UI is hidden until admin token is loaded.</strong>
 						Click <strong>Sync token</strong> above (or header → Save admin from <code class="text-neon/80">.env.desktop</code>) to restore campaigns, CSV, corpus, housekeeping — the full panel you used locally.
-						B2B customers: <a href="https://hackme.tech/developer-dashboard.html" class="text-neon underline" target="_blank" rel="noreferrer">Developer Dashboard</a> (orders + report token only, not campaign admin).
+						Customers create orders on <strong>their local node</strong> (<code class="text-neon/80">127.0.0.1:8080/#orders</code> + developer token). This tab is operator fuzz admin only.
 					</div>
 					<div id="fuzz-admin-only" class="hidden space-y-4">
 					<div class="flex flex-wrap items-center justify-between gap-3">
@@ -2778,6 +2789,97 @@
 			if (!t) return {};
 			return { 'X-Hackme-Admin-Token': t };
 		}
+		const developerTokenStorageKey = 'hackme_developer_token';
+		function developerTokenCurrent() {
+			return sanitizeAdminTokenForHTTP(sessionStorage.getItem(developerTokenStorageKey) || '');
+		}
+		function developerHeaders() {
+			const t = developerTokenCurrent();
+			if (!t) return {};
+			return { 'X-Hackme-Developer-Token': t };
+		}
+		function tasksAuthHeaders() {
+			const a = adminHeaders();
+			if (a['X-Hackme-Admin-Token']) return a;
+			return developerHeaders();
+		}
+		function canCreateOrders() {
+			return adminTokenCurrent().length > 0 || developerTokenCurrent().length > 0;
+		}
+		function saveDeveloperTokenFromInput() {
+			const input = $('developer-token-input');
+			if (!input) return;
+			const token = sanitizeAdminTokenForHTTP(String(input.value || '').trim());
+			if (token) sessionStorage.setItem(developerTokenStorageKey, token);
+			else sessionStorage.removeItem(developerTokenStorageKey);
+			input.value = '';
+			updateDeveloperTokenUI();
+			if (currentTab === 'orders') void refreshOrdersList();
+		}
+		function clearDeveloperToken() {
+			sessionStorage.removeItem(developerTokenStorageKey);
+			updateDeveloperTokenUI();
+			if (currentTab === 'orders') void refreshOrdersList();
+		}
+		async function registerDeveloperTokenLocal() {
+			const msg = $('orders-submit-msg');
+			try {
+				const r = await fetch('/api/integrator/register', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ label: 'dashboard:' + (latestStatus && latestStatus.node_id ? latestStatus.node_id : 'local') }),
+				});
+				const j = await r.json().catch(() => ({}));
+				if (!r.ok) {
+					const err = (j && (j.error || j.code)) || ('HTTP ' + r.status);
+					if (msg) msg.textContent = 'Issue token: ' + err;
+					logLine('[developer] register failed: ' + err);
+					return;
+				}
+				const tok = sanitizeAdminTokenForHTTP(j.developer_token || '');
+				if (!tok) {
+					if (msg) msg.textContent = 'Issue token: empty response';
+					return;
+				}
+				sessionStorage.setItem(developerTokenStorageKey, tok);
+				updateDeveloperTokenUI();
+				if (msg) msg.textContent = 'Developer token issued — saved for this browser tab.';
+				logLine('[developer] token issued (integrator register)');
+			} catch (e) {
+				if (msg) msg.textContent = 'Issue token: ' + String(e && e.message ? e.message : e);
+			}
+		}
+		function updateDeveloperTokenUI() {
+			updateOrdersMarketUIMode();
+		}
+		let ordersWasmBytes = null;
+		let ordersWasmHash = '';
+		let ordersWasmHex = '';
+		async function onOrdersWasmFileSelected(file) {
+			const meta = $('orders-wasm-meta');
+			if (!file) {
+				ordersWasmBytes = null;
+				ordersWasmHash = '';
+				ordersWasmHex = '';
+				if (meta) meta.textContent = 'No WASM loaded.';
+				return;
+			}
+			if (file.size > 256 * 1024) {
+				if (meta) meta.textContent = 'WASM too large (max 256 KiB).';
+				ordersWasmBytes = null;
+				return;
+			}
+			const buf = await file.arrayBuffer();
+			ordersWasmBytes = new Uint8Array(buf);
+			ordersWasmHex = Array.from(ordersWasmBytes)
+				.map((b) => b.toString(16).padStart(2, '0'))
+				.join('');
+			const hash = await crypto.subtle.digest('SHA-256', ordersWasmBytes);
+			ordersWasmHash = Array.from(new Uint8Array(hash))
+				.map((b) => b.toString(16).padStart(2, '0'))
+				.join('');
+			if (meta) meta.textContent = file.name + ' · ' + ordersWasmBytes.length + ' bytes · sha256 ' + ordersWasmHash.slice(0, 16) + '…';
+		}
 		function updateAdminTokenUI() {
 			const input = $('admin-token-input');
 			const token = adminTokenCurrent();
@@ -2919,25 +3021,36 @@
 			}
 			updateMiningAdminGate();
 		}
-		function developerConsoleURL() {
-			return 'https://hackme.tech/developer-dashboard.html';
-		}
 		function updateOrdersMarketUIMode() {
 			const admin = adminTokenCurrent().length > 0;
+			const canCreate = canCreateOrders();
+			document.querySelectorAll('.fuzz-operator-only').forEach((el) => {
+				el.classList.toggle('hidden', !admin);
+				el.setAttribute('aria-hidden', admin ? 'false' : 'true');
+			});
 			const marketBanner = $('orders-market-banner');
 			const adminCreate = $('orders-admin-create');
-			if (marketBanner) marketBanner.classList.toggle('hidden', admin);
-			if (adminCreate) adminCreate.classList.toggle('hidden', !admin);
+			if (marketBanner) marketBanner.classList.toggle('hidden', canCreate);
+			if (adminCreate) adminCreate.classList.toggle('hidden', !canCreate);
+			const fromCode = $('orders-from-code-block');
+			if (fromCode) fromCode.classList.toggle('hidden', !admin);
 			const subtitle = $('orders-panel-subtitle');
 			if (subtitle) {
-				subtitle.innerHTML = admin
-					? '<code class="text-neon/80">POST /api/tasks</code> — operator escrow from node wallet. Miners fill open orders on the pool (FIFO).'
-					: 'Read-only market — paid jobs on the network. Post work via <a href="' + developerConsoleURL() + '" class="text-neon/90 underline" target="_blank" rel="noreferrer">Developer Dashboard</a> (B2B token + WASM upload).';
+				subtitle.innerHTML = canCreate
+					? '<code class="text-neon/80">POST /api/tasks</code> debits <strong>this node\'s wallet</strong>. Pool miners pick up open orders — watch hash rate on Workers / pool stats.'
+					: 'Read-only market — save <strong>developer</strong> or <strong>admin</strong> token in the header to create orders on this node.';
 			}
 			const fuzzBanner = $('fuzz-market-banner');
 			const fuzzAdmin = $('fuzz-admin-only');
 			if (fuzzBanner) fuzzBanner.classList.toggle('hidden', admin);
 			if (fuzzAdmin) fuzzAdmin.classList.toggle('hidden', !admin);
+			enforceOperatorTabAccess();
+		}
+		function enforceOperatorTabAccess() {
+			const admin = adminTokenCurrent().length > 0;
+			if (!admin && currentTab === 'fuzz') {
+				switchTab('ecosystem');
+			}
 		}
 		function updateMiningAdminGate() {
 			const st = latestStatus || {};
@@ -4584,7 +4697,8 @@
 		function explainOrderSubmitError(msg) {
 			const m = String(msg || '');
 			if (!m) return 'unknown error';
-			if (m.includes('admin authentication required') || m.includes('401')) return '401: set correct admin token (X-Hackme-Admin-Token)';
+			if (m.includes('developer authentication required')) return '401: save developer token (header → Issue / Save)';
+			if (m.includes('admin authentication required') || m.includes('401')) return '401: save developer or admin token in header';
 			if (m.includes('insufficient') || m.includes('402')) return '402: insufficient wallet for escrow (reward_hmc × target_solves)';
 			if (m.includes('genesis required') || m.includes('wallet row missing')) {
 				return 'No local genesis/wallet — POST /api/tasks disabled. Pool worker can still mine; for orders: genesis or P2P-sync with chain + wallet.';
@@ -4674,9 +4788,9 @@
 		}
 		async function submitOrdersPOST() {
 			const msg = $('orders-submit-msg');
-			if (!adminTokenCurrent()) {
-				if (msg) msg.textContent = 'No admin token — use header → Save';
-				logLine('[orders] blocked: no admin token');
+			if (!canCreateOrders()) {
+				if (msg) msg.textContent = 'No developer/admin token — header → Issue or Save';
+				logLine('[orders] blocked: no auth token');
 				return;
 			}
 			let raw;
@@ -4691,10 +4805,14 @@
 				if (msg) msg.textContent = 'JSON: ' + String(e && e.message ? e.message : e);
 				return;
 			}
+			if (ordersWasmHex && ordersWasmHash) {
+				raw.artifact_hash = ordersWasmHash;
+				raw.wasm_check_hex = ordersWasmHex;
+			}
 			try {
 				const r = await fetch('/api/tasks', {
 					method: 'POST',
-					headers: Object.assign({ 'Content-Type': 'application/json' }, adminHeaders()),
+					headers: Object.assign({ 'Content-Type': 'application/json' }, tasksAuthHeaders()),
 					body: JSON.stringify(raw),
 				});
 				const txt = await r.text();
@@ -9846,7 +9964,21 @@
 					} catch (_) {}
 				}
 				if (!initTab) initTab = 'ecosystem';
+				if (!adminTokenCurrent() && initTab === 'fuzz') initTab = 'ecosystem';
 				switchTab(initTab);
+				document.querySelectorAll('[data-goto-tab]').forEach((el) => {
+					el.addEventListener('click', (ev) => {
+						ev.preventDefault();
+						const t = el.getAttribute('data-goto-tab');
+						if (t) switchTab(t);
+					});
+				});
+				const wasmIn = $('orders-wasm-file');
+				if (wasmIn) wasmIn.addEventListener('change', () => { void onOrdersWasmFileSelected(wasmIn.files && wasmIn.files[0]); });
+				if ($('btn-developer-token-save')) $('btn-developer-token-save').addEventListener('click', saveDeveloperTokenFromInput);
+				if ($('btn-developer-token-clear')) $('btn-developer-token-clear').addEventListener('click', clearDeveloperToken);
+				if ($('btn-developer-token-register')) $('btn-developer-token-register').addEventListener('click', () => { void registerDeveloperTokenLocal(); });
+				updateDeveloperTokenUI();
 				document.addEventListener('visibilitychange', () => {
 					if (!uiPollingPaused) scheduleNextPoll();
 				});

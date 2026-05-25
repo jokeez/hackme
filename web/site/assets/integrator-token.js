@@ -81,7 +81,7 @@
     showToken(tok, r.json.warning);
     if (status) {
       status.textContent =
-        "Token issued (session). Open Developer Console to create orders visually.";
+        "Token issued (session). For orders: run hackme-node locally → http://127.0.0.1:8080/#orders (not hackme.tech).";
     }
   });
 

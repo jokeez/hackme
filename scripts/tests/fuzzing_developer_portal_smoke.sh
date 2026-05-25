@@ -22,9 +22,21 @@ check_http() {
 }
 
 check_http "developers.html" "$BASE/developers.html" "200"
-check_http "developer-dashboard.html" "$BASE/developer-dashboard.html" "200"
-check_http "developer-console.js" "$BASE/assets/developer-console.js" "200"
-check_http "developer-dashboard.css" "$BASE/assets/developer-dashboard.css" "200"
+code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 25 -L "$BASE/pool/developer" || echo 000)"
+if [[ "$code" == "200" ]]; then
+  pass "pool/developer redirects to downloads#local-node HTTP $code"
+else
+  fail_msg "pool/developer redirect expected 200 after follow got $code"
+  failures=$((failures + 1))
+fi
+code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 25 -L "$BASE/developer-dashboard.html" || echo 000)"
+if [[ "$code" == "200" ]]; then
+  pass "developer-dashboard.html redirects to local-node guide HTTP $code"
+else
+  fail_msg "developer-dashboard.html redirect expected 200 got $code"
+  failures=$((failures + 1))
+fi
+check_http "downloads.html#local-node anchor" "$BASE/downloads.html" "200"
 check_http "hackme-dev-common.js" "$BASE/assets/hackme-dev-common.js" "200"
 check_http "fuzzing-console.html" "$BASE/fuzzing-console.html" "200"
 check_http "fuzzing-console.js" "$BASE/assets/fuzzing-console.js" "200"

@@ -20,7 +20,7 @@
 
 - `GET /api/wallet` — **redacted** for the public (no operator address/balance/paths); full wallet **admin-only**
 - `GET /api/tasks` — redacted order summary (id, status, progress)
-- [developer-console.html](https://hackme.tech/developer-console.html) — scoped token in session; WASM upload client-side
+- Order creation on **local node only** (`127.0.0.1:8080/#orders`); hackme.tech redirects old portal URLs to downloads
 - Pool stats / explorer — same as miners
 
 ## Operator actions
