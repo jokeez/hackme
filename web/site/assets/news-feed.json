@@ -1,6 +1,29 @@
 {
   "items": [
     {
+      "id": "2026-05-26-order-pool-live-5hmc-rc11h",
+      "date": "2026-05-26",
+      "title": "Order pool live · 5 HMC test completed (rc11h)",
+      "summary": "Production useful-PoW order order-live-5hmc-202605251816: prepaid 5 HMC (5×1 HMC reward), minimal WASM gate, completed 5/5 in ~2 minutes. Escrow fee 0.25 HMC, burn 0.5 HMC. All five order blocks credited miner_address HMC-381c0c5e2cfcc714 on the canonical node. Pool workers (rc11h) receive order WASM in claim and relay solves to POST /api/poh/solve-order so escrow follows the hybrid signer, not only the operator wallet.",
+      "tags": [
+        "mining",
+        "release",
+        "economics",
+        "pool"
+      ],
+      "impact": "Miners on rc11h ISO/Windows/Linux can earn order escrow when their hybrid address wins the chain block; operators see verified prepaid/burn/fee on live mainnet.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats · Economics: https://hackme.tech/economics-model.html · BC5 report: https://hackme.tech/reports/bitcoin-core-5module.html · Telegram draft: docs/TELEGRAM_POST_ORDER_POOL_RC11H.txt",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme",
+        "downloads": "https://hackme.tech/downloads.html",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "economics": "https://hackme.tech/economics-model.html",
+        "report_bc5": "https://hackme.tech/reports/bitcoin-core-5module.html",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-25-fuzz-html-reports-security-note-01",
       "date": "2026-05-25",
       "title": "Fuzz reports ship as HTML · Security Note #1 (Script push bounds) · useful-PoW completed",
@@ -241,26 +264,6 @@
         "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
         "downloads": "https://hackme.tech/downloads.html",
         "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-05-19-mining-calculator-dashboard",
-      "date": "2026-05-19",
-      "title": "Advanced mining calculator in node dashboard",
-      "summary": "The embedded dashboard (Mining tab) now includes a live mining calculator: hashrate → HMC/hour, PoH ETA, found-bonus estimates, electricity ROI, break-even, and pool vs chain-empty comparison. Params sync from /api/work/stats and /api/metrics (reward/M, target_mod, pool GH/s). Presets: your worker, pool average, GPU/CPU rigs.",
-      "tags": [
-        "mining",
-        "pool",
-        "dashboard",
-        "economics"
-      ],
-      "impact": "Miners can model payout and power costs before joining the pool or scaling rigs — no spreadsheet required.",
-      "action": "Open your node dashboard → Mining tab → Mining calculator. Public pool: https://hackme.tech/pool/ — downloads: https://hackme.tech/downloads.html",
-      "status": "published",
-      "links": {
-        "site": "https://hackme.tech/downloads.html",
-        "economics": "https://hackme.tech/economics-model.html",
-        "github": "https://github.com/jokeez/hackme"
       }
     }
   ],

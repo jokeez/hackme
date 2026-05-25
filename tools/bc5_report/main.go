@@ -15,19 +15,19 @@ import (
 )
 
 type modResult struct {
-	Module      int      `json:"module"`
-	Guard       string   `json:"guard"`
-	Title       string   `json:"title"`
-	BitcoinRef  string   `json:"bitcoin_core_ref"`
-	GithubURL   string   `json:"github_url"`
-	CoreLinks   []string `json:"core_links"`
-	HackmeURL   string   `json:"hackme_source_url"`
-	Samples    int    `json:"samples"`
-	Pass       int    `json:"check_pass"`
-	Fail       int    `json:"check_fail"`
-	Traps      int    `json:"wasm_traps"`
-	Verdict    string `json:"verdict"`
-	Note       string `json:"note"`
+	Module     int      `json:"module"`
+	Guard      string   `json:"guard"`
+	Title      string   `json:"title"`
+	BitcoinRef string   `json:"bitcoin_core_ref"`
+	GithubURL  string   `json:"github_url"`
+	CoreLinks  []string `json:"core_links"`
+	HackmeURL  string   `json:"hackme_source_url"`
+	Samples    int      `json:"samples"`
+	Pass       int      `json:"check_pass"`
+	Fail       int      `json:"check_fail"`
+	Traps      int      `json:"wasm_traps"`
+	Verdict    string   `json:"verdict"`
+	Note       string   `json:"note"`
 }
 
 var modules = []struct {
@@ -122,8 +122,8 @@ func main() {
 	}
 
 	summary := map[string]any{
-		"timestamp":   time.Now().UTC().Format(time.RFC3339),
-		"upstream":    "https://github.com/bitcoin/bitcoin",
+		"timestamp":     time.Now().UTC().Format(time.RFC3339),
+		"upstream":      "https://github.com/bitcoin/bitcoin",
 		"modules":       rows,
 		"all_clean":     trapsTotal == 0,
 		"samples":       samples,
@@ -327,7 +327,7 @@ AGPL-3.0
 </html>`,
 		heroColor, heroColor,
 		headline, heroBadge,
-		len(rows), samples, intFrom(summary["traps_total"]), gen,
+		samples, intFrom(summary["traps_total"]), gen,
 		cards, samples)
 }
 

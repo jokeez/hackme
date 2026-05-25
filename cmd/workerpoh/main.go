@@ -23,8 +23,8 @@ import (
 	"hackme/internal/gpupoh"
 	"hackme/internal/gputune"
 	"hackme/internal/operator"
-	"hackme/internal/workerid"
 	"hackme/internal/sandbox"
+	"hackme/internal/workerid"
 	"hackme/internal/worksubmit"
 )
 
@@ -68,9 +68,9 @@ type submitReq struct {
 	ResultHash  string  `json:"result_hash,omitempty"`
 	HashrateGHS float64 `json:"hashrate_gh_s,omitempty"`
 
-	MinerPubKey string `json:"miner_pubkey_ed25519,omitempty"`
-	MinerSig    string `json:"miner_sig_ed25519,omitempty"`
-	MinerSigAlg string `json:"miner_sig_alg,omitempty"`
+	MinerPubKey  string `json:"miner_pubkey_ed25519,omitempty"`
+	MinerSig     string `json:"miner_sig_ed25519,omitempty"`
+	MinerSigAlg  string `json:"miner_sig_alg,omitempty"`
 	SubmitNonce  uint64 `json:"submit_nonce,omitempty"`
 	OrderTaskID  string `json:"order_task_id,omitempty"`
 	WasmGatePass bool   `json:"wasm_gate_pass,omitempty"`

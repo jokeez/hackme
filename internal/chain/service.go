@@ -523,8 +523,14 @@ func (s *Service) AppendPoHBlock(ctx context.Context, minerAddress string, nonce
 	if err != nil {
 		return nil, err
 	}
-	if targetMod != metaMod {
-		return nil, fmt.Errorf("chain: poh target mod mismatch (chain %d, submitted %d)", metaMod, targetMod)
+	orderTaskID = strings.TrimSpace(orderTaskID)
+	if orderTaskID == "" {
+		if targetMod != metaMod {
+			return nil, fmt.Errorf("chain: poh target mod mismatch (chain %d, submitted %d)", metaMod, targetMod)
+		}
+	} else {
+		// Pool order solve: lease M from coordinator (validated in SubmitOrderPoHSolve).
+		targetMod = ClampPoHTargetMod(targetMod)
 	}
 
 	var maxIdx sql.NullInt64

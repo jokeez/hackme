@@ -25,10 +25,10 @@ type modResult struct {
 }
 
 var modules = []struct {
-	N    int
+	N     int
 	Guard string
-	Ref  string
-	File string
+	Ref   string
+	File  string
 }{
 	{1, "script_push_bounds_guard", "script.h MAX_SCRIPT_ELEMENT_SIZE + script.cpp GetScriptOp", "rust_script_push_bounds_guard.wasm"},
 	{2, "bounds_guard", "script.cpp HasValidOps / push bounds", "rust_bounds_guard.wasm"},
@@ -99,11 +99,11 @@ func main() {
 		out = append(out, modResult{m.N, m.Guard, m.Ref, samples, pass, fail, traps, verdict, note})
 	}
 	summary := map[string]any{
-		"timestamp":      time.Now().UTC().Format(time.RFC3339),
-		"upstream":       "https://github.com/bitcoin/bitcoin",
-		"modules":        out,
-		"post_claim":     "5 Core-inspired WASM modules probed — no exploitable traps in offline campaign",
-		"all_clean":      allClean(out),
+		"timestamp":  time.Now().UTC().Format(time.RFC3339),
+		"upstream":   "https://github.com/bitcoin/bitcoin",
+		"modules":    out,
+		"post_claim": "5 Core-inspired WASM modules probed — no exploitable traps in offline campaign",
+		"all_clean":  allClean(out),
 	}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")

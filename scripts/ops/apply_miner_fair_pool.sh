@@ -43,11 +43,20 @@ if grep -q '^HACKME_CHAIN_LEADER_LOCAL_POH=' "$ENV" 2>/dev/null; then
 else
   echo 'HACKME_CHAIN_LEADER_LOCAL_POH=1' >>"$ENV"
 fi
-grep '^HACKME_CHAIN_LEADER_LOCAL_POH=' "$ENV" || true
+# Open orders: pool workers only (no local leader grabbing escrow on command node).
+if grep -q '^HACKME_CHAIN_LEADER_ORDERS_VIA_POOL_ONLY=' "$ENV" 2>/dev/null; then
+  sed -i 's/^HACKME_CHAIN_LEADER_ORDERS_VIA_POOL_ONLY=.*/HACKME_CHAIN_LEADER_ORDERS_VIA_POOL_ONLY=1/' "$ENV"
+else
+  echo 'HACKME_CHAIN_LEADER_ORDERS_VIA_POOL_ONLY=1' >>"$ENV"
+fi
+grep -E '^HACKME_CHAIN_LEADER_(LOCAL_POH|ORDERS_VIA_POOL_ONLY)=' "$ENV" || true
 REMOTE
 
 log "build coordinator + worker on VPS"
-ssh "${ssh_opts[@]}" "$NODE_SSH" "cd '$DEPLOY' && go build -o bin/coordinator ./cmd/coordinator && go build -o bin/workerpoh ./cmd/workerpoh"
+ssh "${ssh_opts[@]}" "$NODE_SSH" "cd '$DEPLOY' && go build -o bin/coordinator ./cmd/coordinator && go build -o bin/workerpoh ./cmd/workerpoh && \
+  sudo systemctl stop hackme-coordinator 2>/dev/null || true; \
+  sudo cp bin/coordinator '$DEPLOY/coordinator' && \
+  sudo cp bin/workerpoh '$DEPLOY/workerpoh' 2>/dev/null || cp bin/workerpoh '$DEPLOY/workerpoh'"
 
 log "patch .env.coord (fair leases + longer deadline)"
 ssh "${ssh_opts[@]}" "$NODE_SSH" "bash -s" <<REMOTE
@@ -76,7 +85,11 @@ set_kv HACKME_POOL_HYBRID_REQUIRE_FOUND_SIG 1
 # Pool difficulty bounds: M scales ~ target_mod_min per GH/s; raise max so large fleets are not stuck at cap.
 set_kv HACKME_COORDINATOR_POOL_TARGET_MOD_MIN 2000000
 set_kv HACKME_COORDINATOR_POOL_TARGET_MOD_MAX 1000000000
-grep -E 'LEASE|ACTIVE_LEASES|CLAIM|SUBMIT|ORDERS|PAYOUT|REWARD|HYBRID|TARGET_MOD' "\$ENV" | tail -16
+NODE_ADMIN=\$(grep '^HACKME_ADMIN_TOKEN=' '$DEPLOY/.env.vps' 2>/dev/null | cut -d= -f2- || true)
+if [[ -n "\$NODE_ADMIN" ]]; then
+  set_kv HACKME_COORDINATOR_ORDERS_ADMIN_TOKEN "\$NODE_ADMIN"
+fi
+grep -E 'LEASE|ACTIVE_LEASES|CLAIM|SUBMIT|ORDERS|PAYOUT|REWARD|HYBRID|TARGET_MOD|ORDERS_ADMIN' "\$ENV" | tail -18
 REMOTE
 
 log "patch .env.worker canary throttle"
@@ -112,9 +125,9 @@ fi
 grep WORKER_PAYOUT_MAP "\$ENV"
 REMOTE
 
-log "restart coordinator + canary worker"
-ssh "${ssh_opts[@]}" "$NODE_SSH" "sudo systemctl restart hackme-coordinator.service hackme-workerpoh.service 2>/dev/null || \
-  (systemctl restart hackme-coordinator hackme-workerpoh 2>/dev/null || true)"
+log "restart node + coordinator + canary worker"
+ssh "${ssh_opts[@]}" "$NODE_SSH" "sudo systemctl restart hackme-node.service hackme-coordinator.service hackme-workerpoh.service 2>/dev/null || \
+  (systemctl restart hackme-node hackme-coordinator hackme-workerpoh 2>/dev/null || true)"
 
 sleep 4
 log "run settlement"

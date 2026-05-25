@@ -103,6 +103,15 @@ func TestInsertOrderTaskAndStoreTaskProvider(t *testing.T) {
 	if spec.ID != "ord-1" || spec.Source != TaskSourceOrder || spec.RewardHMC != 0.03 {
 		t.Fatalf("snapshot spec: %+v", spec)
 	}
+	t.Setenv("HACKME_CHAIN_LEADER_ORDERS_VIA_POOL_ONLY", "1")
+	specPool, err := prov.Snapshot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if specPool.Source == TaskSourceOrder {
+		t.Fatalf("pool-only leader must not load open orders locally: %+v", specPool)
+	}
+	t.Setenv("HACKME_CHAIN_LEADER_ORDERS_VIA_POOL_ONLY", "")
 	m0, _ := svc.PoHTargetMod(ctx)
 	n, ev := firstPoHHit(m0)
 	if _, err := svc.AppendPoHBlock(ctx, addr, n, ev, 0.03, m0, "ord-1"); err != nil {

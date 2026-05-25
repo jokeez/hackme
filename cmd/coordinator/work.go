@@ -176,10 +176,10 @@ type submitWorkRequest struct {
 	MinerAddress string  `json:"miner_address,omitempty"`
 	MinerPubKey  string  `json:"miner_pubkey_ed25519,omitempty"`
 	MinerSig     string  `json:"miner_sig_ed25519,omitempty"`
-	MinerSigAlg   string  `json:"miner_sig_alg,omitempty"`
-	SubmitNonce   uint64  `json:"submit_nonce,omitempty"`
-	OrderTaskID   string  `json:"order_task_id,omitempty"`
-	WasmGatePass  bool    `json:"wasm_gate_pass,omitempty"`
+	MinerSigAlg  string  `json:"miner_sig_alg,omitempty"`
+	SubmitNonce  uint64  `json:"submit_nonce,omitempty"`
+	OrderTaskID  string  `json:"order_task_id,omitempty"`
+	WasmGatePass bool    `json:"wasm_gate_pass,omitempty"`
 }
 
 func newWorkManagerFromEnv() *workManager {
@@ -1201,6 +1201,7 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	if rec.TargetMod > 0 {
 		leaseMod = rec.TargetMod
 	}
+	validateMod := leaseMod
 	if req.Found {
 		if _, exists := m.acceptedFoundNonces[req.FoundNonce]; exists {
 			m.dedupFoundNonce++
@@ -1219,7 +1220,7 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 			m.rejectedSubmits++
 			return false, "result_hash_required_for_found", 0, "", false
 		}
-		if !validFoundNonceV1(req.FoundNonce, leaseMod) {
+		if !validFoundNonceV1(req.FoundNonce, validateMod) {
 			m.rejectedSubmits++
 			return false, "found_nonce_invalid_for_target_mod", 0, "", false
 		}
@@ -1369,7 +1370,14 @@ func (m *workManager) probeOrdersActive() bool {
 		return false
 	}
 	cl := &http.Client{Timeout: 1200 * time.Millisecond}
-	resp, err := cl.Get(m.ordersProbeURL + "/api/tasks")
+	req, err := http.NewRequest(http.MethodGet, m.ordersProbeURL+"/api/tasks", nil)
+	if err != nil {
+		return false
+	}
+	if tok := m.ordersAdminToken(); tok != "" {
+		req.Header.Set("X-Hackme-Admin-Token", tok)
+	}
+	resp, err := cl.Do(req)
 	if err != nil {
 		return false
 	}
@@ -1865,6 +1873,13 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 					modOut = snap.ChainMod
 					resp["target_mod"] = modOut
 					resp["chunk_id"] = buildChunkID(base, size, modOut)
+					wm.mu.Lock()
+					wk := workKey{base: base, batch: size}
+					if rec, ok := wm.active[wk]; ok {
+						rec.TargetMod = modOut
+						wm.active[wk] = rec
+					}
+					wm.mu.Unlock()
 				}
 				resp["order_task_id"] = snap.ID
 				resp["order_reward_hmc"] = snap.RewardHMC

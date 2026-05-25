@@ -51,7 +51,7 @@ func TestSubmitOrderPoHSolveCreditsMinerNotPrimary(t *testing.T) {
 				t.Fatal(err)
 			}
 			if ok {
-				n, ev = x, ev
+				n = x
 				break
 			}
 		}

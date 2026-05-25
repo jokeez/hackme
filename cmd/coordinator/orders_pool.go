@@ -18,18 +18,70 @@ import (
 const maxOrderWasmClaimBytes = 512 * 1024
 
 type activeOrderSnap struct {
-	ID         string
-	RewardHMC  float64
-	WasmHex    string
-	ChainMod   uint64
-	FetchedAt  int64
+	ID        string
+	RewardHMC float64
+	WasmHex   string
+	ChainMod  uint64
+	FetchedAt int64
 }
 
 func (m *workManager) ordersAdminToken() string {
-	if t := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_ORDERS_ADMIN_TOKEN")); t != "" {
-		return t
+	for _, key := range []string{
+		"HACKME_COORDINATOR_ORDERS_ADMIN_TOKEN",
+		"HACKME_COORDINATOR_CHAIN_ADMIN_TOKEN",
+		"HACKME_COORDINATOR_ADMIN_TOKEN",
+	} {
+		if t := strings.TrimSpace(os.Getenv(key)); t != "" {
+			return t
+		}
 	}
-	return strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_CHAIN_ADMIN_TOKEN"))
+	return ""
+}
+
+// liveChainPoHModFromNode returns canonical mining_target_mod from the chain node metrics API.
+func (m *workManager) liveChainPoHModFromNode() uint64 {
+	base := strings.TrimRight(strings.TrimSpace(m.ordersProbeURL), "/")
+	if base == "" {
+		base = strings.TrimRight(strings.TrimSpace(m.targetURL), "/")
+	}
+	if base == "" {
+		return 0
+	}
+	cl := &http.Client{Timeout: 2 * time.Second}
+	req, err := http.NewRequest(http.MethodGet, base+"/api/metrics", nil)
+	if err != nil {
+		return 0
+	}
+	if tok := m.ordersAdminToken(); tok != "" {
+		req.Header.Set("X-Hackme-Admin-Token", tok)
+	}
+	resp, err := cl.Do(req)
+	if err != nil {
+		return 0
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return 0
+	}
+	var body map[string]any
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&body); err != nil {
+		return 0
+	}
+	v, ok := body["mining_target_mod"]
+	if !ok {
+		return 0
+	}
+	switch t := v.(type) {
+	case float64:
+		if t > 0 {
+			return uint64(t)
+		}
+	case json.Number:
+		if x, err := t.Int64(); err == nil && x > 0 {
+			return uint64(x)
+		}
+	}
+	return 0
 }
 
 func (m *workManager) ordersSolveEnabled() bool {
@@ -52,6 +104,11 @@ func (m *workManager) storeChainPoHMod(mod uint64) {
 func (m *workManager) chainPoHModNow() uint64 {
 	m.schedulerMu.Lock()
 	defer m.schedulerMu.Unlock()
+	return m.chainPoHModUnlocked()
+}
+
+// chainPoHModUnlocked reads chainPoHMod/targetMod; caller must hold schedulerMu.
+func (m *workManager) chainPoHModUnlocked() uint64 {
 	if m.chainPoHMod > 0 {
 		return m.chainPoHMod
 	}
@@ -101,7 +158,8 @@ func (m *workManager) refreshActiveOrderLocked() activeOrderSnap {
 			continue
 		}
 		cr, _ := row["created_at"].(float64)
-		if pick == nil || cr < pickCreated {
+		// Newest open order first (avoids stale queue blocking fresh campaigns).
+		if pick == nil || cr > pickCreated {
 			pick, pickCreated = row, cr
 		}
 	}
@@ -138,11 +196,19 @@ func (m *workManager) refreshActiveOrderLocked() activeOrderSnap {
 	if reward <= 0 {
 		reward = mf.RewardHMC
 	}
+	// Order pool work uses coordinator pool M (fair for remote miners), not canonical chain solo M.
+	poolMod := m.clampTargetMod(m.targetMod)
+	if poolMod == 0 {
+		poolMod = m.chainPoHModUnlocked()
+	}
+	if live := m.liveChainPoHModFromNode(); live > 0 {
+		m.chainPoHMod = live
+	}
 	snap := activeOrderSnap{
 		ID:        id,
 		RewardHMC: reward,
 		WasmHex:   wasmHex,
-		ChainMod:  m.chainPoHModNow(),
+		ChainMod:  poolMod,
 		FetchedAt: now,
 	}
 	m.activeOrder = snap
@@ -171,10 +237,10 @@ func (m *workManager) relayOrderSolve(minerAddress string, foundNonce, targetMod
 		return out
 	}
 	body, _ := json.Marshal(map[string]any{
-		"miner_address":  minerAddress,
-		"found_nonce":    foundNonce,
-		"target_mod":     targetMod,
-		"order_task_id":  orderTaskID,
+		"miner_address": minerAddress,
+		"found_nonce":   foundNonce,
+		"target_mod":    targetMod,
+		"order_task_id": orderTaskID,
 	})
 	req, err := http.NewRequest(http.MethodPost, base+"/api/poh/solve-order", bytes.NewReader(body))
 	if err != nil {

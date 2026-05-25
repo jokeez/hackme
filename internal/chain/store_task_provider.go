@@ -5,9 +5,26 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"os"
 	"strings"
 	"time"
 )
+
+// ordersViaPoolOnly is set on the chain command node when open orders must be solved
+// only via the public pool (coordinator claim → worker → POST /api/poh/solve-order).
+// Local PoH mining still runs for baseline blocks using the internal task fallback.
+func ordersViaPoolOnly() bool {
+	v := strings.TrimSpace(os.Getenv("HACKME_CHAIN_LEADER_ORDERS_VIA_POOL_ONLY"))
+	if v == "" {
+		v = strings.TrimSpace(os.Getenv("HACKME_ORDERS_POOL_ONLY"))
+	}
+	switch strings.ToLower(v) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
 
 // StoreTaskProvider prefers open paid tasks from SQLite; otherwise falls back to file/internal.
 type StoreTaskProvider struct {
@@ -30,6 +47,9 @@ func (p *StoreTaskProvider) Snapshot(ctx context.Context) (TaskSpec, error) {
 	}
 	if err := p.svc.ExpireOpenOrderTasks(ctx); err != nil {
 		return TaskSpec{}, err
+	}
+	if ordersViaPoolOnly() {
+		return p.fallback.Snapshot(ctx)
 	}
 	var id, artifact, manifest, kindStr string
 	var reward float64

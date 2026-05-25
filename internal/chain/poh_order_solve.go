@@ -26,19 +26,17 @@ func (s *Service) SubmitOrderPoHSolve(ctx context.Context, minerAddress string, 
 		return nil, fmt.Errorf("chain: invalid miner_address %q", minerAddress)
 	}
 
-	chainMod, err := s.PoHTargetMod(ctx)
-	if err != nil {
-		return nil, err
-	}
 	if targetMod == 0 {
+		chainMod, err := s.PoHTargetMod(ctx)
+		if err != nil {
+			return nil, err
+		}
 		targetMod = chainMod
 	}
-	if targetMod != chainMod {
-		return nil, fmt.Errorf("chain: poh target mod mismatch (chain %d, submitted %d)", chainMod, targetMod)
-	}
+	targetMod = ClampPoHTargetMod(targetMod)
 	eval := PohEval(nonce)
 	if targetMod == 0 || eval%targetMod != 0 {
-		return nil, errors.New("chain: invalid poh solution for current target_mod")
+		return nil, errors.New("chain: invalid poh solution for submitted target_mod")
 	}
 
 	var manifestJSON string

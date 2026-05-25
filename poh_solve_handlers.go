@@ -40,10 +40,10 @@ func (a *app) handlePohSolveOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{
-		"ok":          true,
-		"block_hash":  b.Hash,
-		"block_index": b.Index,
-		"miner":       b.MinerAddress,
+		"ok":            true,
+		"block_hash":    b.Hash,
+		"block_index":   b.Index,
+		"miner":         b.MinerAddress,
 		"order_task_id": strings.TrimSpace(req.OrderTaskID),
 	})
 }

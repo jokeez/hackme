@@ -1,0 +1,19 @@
+🔷 HackMe · Order pool live (rc11h)
+
+На mainnet прошёл боевой заказ на 5 HMC prepaid (5×1 HMC, minimal WASM gate).
+
+✅ order-live-5hmc-202605251816 — completed 5/5 за ~2 мин
+💰 Эскроу: prepaid 5.0 · fee 0.25 · burn 0.5 HMC
+⛏ Все 5 order-блоков → майнер HMC-381c0c5e2cfcc714 (канонический узел / pool operator)
+
+Что нового в rc11h:
+• Пул-воркеры получают WASM заказа в claim
+• Hit → WASM gate → relay solve-order → эскроу на hybrid signer (miner_address), не только на VPS-кошелёк
+• Координатор не дублирует found_bonus при успешном chain solve
+
+Скачать: https://hackme.tech/downloads.html (0.1.0-rc11h)
+Пул: https://hackme.tech/pool/coordinator/api/pool/stats
+Экономика: https://hackme.tech/economics-model.html
+BC5 отчёт: https://hackme.tech/reports/bitcoin-core-5module.html
+
+Канал: @hackme_tech · BCT: topic 5583373
