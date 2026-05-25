@@ -12,7 +12,7 @@ This document is the **logical test order** after private pool validation.
 |------|--------|
 | PC + 2 VPS workers in pool | Done |
 | Settlement → HMC-91fe | Done |
-| Phasing orders (manual) | Proven |
+| Fuzzing orders (manual) | Proven |
 | Dashboard / fuzz UI | Fixed |
 | Baseline / compare scripts | `compare_baseline_4h.sh`, `pool_ideal_finalize.sh` |
 
@@ -50,13 +50,13 @@ This document is the **logical test order** after private pool validation.
 
 ---
 
-## Phase 3 — Phasing at scale
+## Phase 3 — Fuzzing at scale
 
 | Test | Command |
 |------|---------|
 | Orders matrix | `BASE=http://127.0.0.1:18080 ADMIN_TOKEN=... bash scripts/tests/orders_matrix.sh` |
 | Multilang orders | `bash scripts/tests/orders_multilang_audit.sh` |
-| Phasing soak | `bash scripts/ops/phasing_soak_prep.sh` (VPS treasury) |
+| Fuzzing soak | `bash scripts/ops/fuzzing_soak_prep.sh` (VPS treasury) |
 | Monitor share | `bash scripts/ops/pool_multi_rig_monitor.sh` during open orders |
 
 Coordinator must have `HACKME_COORDINATOR_ORDERS_URL` + `ORDERS_PRIORITY=1` (already on VPS).

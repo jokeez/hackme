@@ -193,12 +193,12 @@ desktop_gpu_build_tags() {
     if [[ -f "$ROOT_DIR/scripts/ops/cuda_env.sh" ]]; then
       # shellcheck source=/dev/null
       if source "$ROOT_DIR/scripts/ops/cuda_env.sh" 2>/dev/null; then
-        echo "cuda,opencl"
+        echo "cuda opencl"
         return 0
       fi
     fi
     if command -v nvcc >/dev/null 2>&1 || [[ -f /usr/local/cuda/include/nvrtc.h ]]; then
-      echo "cuda,opencl"
+      echo "cuda opencl"
       return 0
     fi
   fi
@@ -210,6 +210,11 @@ desktop_gpu_build_tags() {
 
 if [[ ! -f "$PID_FILE" ]]; then
   gpu_tags="$(desktop_gpu_build_tags || true)"
+  # desktop_gpu_build_tags may source cuda_env inside $(...) — re-apply for go build in this shell.
+  if [[ -n "$gpu_tags" ]] && [[ "$gpu_tags" == *cuda* ]] && [[ -f "$ROOT_DIR/scripts/ops/cuda_env.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "$ROOT_DIR/scripts/ops/cuda_env.sh" 2>/dev/null || true
+  fi
   if [[ -n "$gpu_tags" ]]; then
     echo "[desktop-up] go build -tags ${gpu_tags} -> $NODE_BIN (GPU PoH enabled)"
     go build -trimpath -tags "$gpu_tags" -o "$NODE_BIN" .

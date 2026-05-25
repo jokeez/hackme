@@ -133,7 +133,7 @@ Manifest: [url=https://hackme.tech/dist/release_0.1.0-rc11g/SHA256SUMS-iso.txt]S
 
 [list]
 [*] [b]Miners[/b] — we win with transparency: open client, signed releases, public explorer.
-[*] [b]Phasing / B2B clients[/b] — separate NDAs protect contracts, not the binary on your rig.
+[*] [b]Fuzzing / B2B clients[/b] — separate NDAs protect contracts, not the binary on your rig.
 [*] [b]Questions[/b] — reply in this thread or [url=https://github.com/jokeez/hackme/issues]GitHub issues[/url].
 [*] [b]Security[/b] — responsible disclosure via [url=https://hackme.tech/contacts.html]contacts.html[/url].
 [/list]

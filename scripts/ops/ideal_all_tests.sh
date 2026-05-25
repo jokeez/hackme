@@ -65,7 +65,7 @@ run_step redteam_public env BASE=https://hackme.tech bash scripts/tests/redteam_
 run_step redteam_local env BASE=http://127.0.0.1:8080 bash scripts/tests/redteam_surface_smoke.sh || true
 run_step security_local env BASE=http://127.0.0.1:8080 bash scripts/tests/security_assertions.sh || true
 run_step new_miner_journey env WORKER_SMOKE=0 bash scripts/ops/new_miner_journey_gate.sh || true
-run_optional phasing_soak bash scripts/ops/phasing_soak_prep.sh
+run_optional fuzzing_soak bash scripts/ops/fuzzing_soak_prep.sh
 run_optional network_soak env BASE=https://hackme.tech DURATION_SEC=120 INTERVAL_SEC=15 \
   bash scripts/ops/network_stability_soak.sh
 run_optional go_test_short go test ./... -short -count=1 -timeout=300s

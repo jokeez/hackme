@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/ed25519"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -143,6 +144,7 @@ type workerPayoutStat struct {
 	LastHashrateGHS float64 `json:"hashrate_gh_s,omitempty"`
 	PeakHashrateGHS float64 `json:"peak_hashrate_gh_s,omitempty"`
 	LastSeenUnix    int64   `json:"last_seen_unix,omitempty"`
+	LastClientIP    string  `json:"last_client_ip,omitempty"`
 }
 
 type workerAbuseState struct {
@@ -724,6 +726,26 @@ func keyFromRemoteAddr(remoteAddr string) string {
 		return strings.TrimSpace(remoteAddr)
 	}
 	return strings.TrimSpace(host)
+}
+
+func (m *workManager) noteWorkerClientIP(workerID, ip string) {
+	workerID = strings.TrimSpace(workerID)
+	ip = strings.TrimSpace(ip)
+	if workerID == "" || ip == "" {
+		return
+	}
+	now := time.Now().Unix()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	st, ok := m.worker[workerID]
+	if !ok {
+		st = workerPayoutStat{}
+	}
+	st.LastClientIP = ip
+	if st.LastSeenUnix == 0 {
+		st.LastSeenUnix = now
+	}
+	m.worker[workerID] = st
 }
 
 func (m *workManager) allowRateSlot(state workerAbuseState, now int64, limit int, claim bool) (workerAbuseState, bool) {
@@ -1408,7 +1430,8 @@ func (m *workManager) runtimeMemSnapshot() map[string]any {
 		"workers_tracked":    workerN,
 		"active_leases":      activeN,
 		"active_rigs":        rigsN,
-		"signed_dedup_cache": dedupN,
+		"signed_dedup_cache":      dedupN,
+		"client_ip_trust_enabled": trustClientForwardedFor,
 	}
 }
 
@@ -1723,7 +1746,7 @@ func coordinatorWorkPOSTAuthed(r *http.Request, adminToken, workerToken string, 
 	return false
 }
 
-func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInsecure bool, reg *lanpool.Registry, wm *workManager) {
+func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInsecure bool, reg *lanpool.Registry, wm *workManager, db *sql.DB) {
 	mux.HandleFunc("/api/work/claim", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -1745,7 +1768,7 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 			http.Error(w, "invalid worker_id", http.StatusBadRequest)
 			return
 		}
-		ipKey := keyFromRemoteAddr(r.RemoteAddr)
+		ipKey := clientIPKey(r)
 		if ok, reason := wm.allowClaim(workerID, ipKey, time.Now().Unix()); !ok {
 			wm.recordDrop(reason)
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -1769,6 +1792,7 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 			})
 			return
 		}
+		wm.noteWorkerClientIP(workerID, ipKey)
 		mode := wm.schedulerModeNow()
 		taskClass := "baseline"
 		if mode == "orders" {
@@ -1816,7 +1840,7 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 			return
 		}
 		now := time.Now().Unix()
-		ipKey := keyFromRemoteAddr(r.RemoteAddr)
+		ipKey := clientIPKey(r)
 		if ok, reason := wm.allowSubmit(workerID, ipKey, now); !ok {
 			wm.recordDrop(reason)
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -1842,9 +1866,14 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 		}
 		_ = reg.Upsert(r.RemoteAddr, lanpool.PushWorkBody{
 			WorkerID:      workerID,
+			IP:            ipKey,
 			HashrateGHS:   req.HashrateGHS,
 			ShareAccepted: &accepted,
 		})
+		wm.noteWorkerClientIP(workerID, ipKey)
+		if db != nil {
+			persistPeer(r.Context(), db, workerID, reg)
+		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		okResp := true
 		if reason != "" {
