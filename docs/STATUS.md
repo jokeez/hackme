@@ -15,7 +15,7 @@
 
 ## Open operator items (non-blocking for miners)
 
-1. Set `TG_ADMIN_CHAT_ID` in VPS `/opt/hackme/.env.newsbot` for pool heartbeat ([TELEGRAM_NEWS_BOT_RUNBOOK.md](TELEGRAM_NEWS_BOT_RUNBOOK.md)).
+1. ~~Set `TG_ADMIN_CHAT_ID`~~ — **done on VPS** (pool heartbeat every 4h; see [TELEGRAM_NEWS_BOT_RUNBOOK.md](TELEGRAM_NEWS_BOT_RUNBOOK.md)). Republish channel news when SSH is up: `FORCE_NEWS_ID=2026-05-25-fuzzing-b2b-cli-hardening bash scripts/ops/publish_news_to_telegram.sh`.
 2. Do not run 1000-packet `hybrid_crypto_matrix.sh` against prod in a loop (rate limits).
 3. HMS / HMAI vectors in dashboard are **preview** — only **HMC** pool is mineable today.
 4. ~~Rebuild ISO with visual overhaul~~ — **done** (see `SHA256SUMS-iso.txt` on downloads).
