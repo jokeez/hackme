@@ -1,12 +1,7 @@
-/* Read-only fuzzing status on hackme.tech — no admin token in browser. */
+/* Read-only fuzzing status on hackme.tech — no admin token, no operator treasury. */
 (function () {
   const base = location.origin;
   const poolHint = document.getElementById("pool-hint");
-  const walletAddress = document.getElementById("wallet-address");
-  const walletBalance = document.getElementById("wallet-balance");
-  const walletNonce = document.getElementById("wallet-nonce");
-  const walletSource = document.getElementById("wallet-source");
-  const walletStatus = document.getElementById("wallet-status");
   const tasksBody = document.getElementById("tasks-table-body");
   const tasksStatus = document.getElementById("tasks-status");
 
@@ -20,14 +15,6 @@
       j = { error: t.slice(0, 200) };
     }
     return { ok: r.ok, status: r.status, json: j };
-  }
-
-  function setWallet(w) {
-    walletAddress.textContent = w.address || "—";
-    walletBalance.textContent =
-      w.balance_hmc != null ? String(w.balance_hmc) + " HMC" : "—";
-    walletNonce.textContent = w.next_nonce != null ? String(w.next_nonce) : "—";
-    walletSource.textContent = w.wallet_source || "canonical";
   }
 
   function renderTasks(tasks) {
@@ -64,26 +51,19 @@
   }
 
   async function refresh() {
-    walletStatus.textContent = "Loading…";
     tasksStatus.textContent = "";
-    const [w, t, p] = await Promise.all([
-      get("/api/wallet"),
+    const [t, p] = await Promise.all([
       get("/api/tasks"),
       get("/pool/coordinator/api/pool/stats"),
     ]);
-    if (w.ok) {
-      setWallet(w.json);
-      walletStatus.textContent = "";
-    } else {
-      walletStatus.textContent = "Wallet HTTP " + w.status;
-    }
     if (t.ok && Array.isArray(t.json.tasks)) {
       renderTasks(t.json.tasks);
-      tasksStatus.textContent = "Public summary only (no manifest). Create orders: Developer Console or hackme-fuzzing CLI.";
+      tasksStatus.textContent =
+        "Public summary only (no manifest). Create orders: Developer Dashboard or hackme-fuzzing CLI.";
     } else {
       tasksStatus.textContent = "Tasks HTTP " + t.status;
     }
-    if (p.ok && p.json.status === "ok") {
+    if (p.ok && p.json.status === "ok" && poolHint) {
       const mode = p.json.scheduler_mode || "—";
       const active = p.json.orders_active ?? "—";
       poolHint.textContent =

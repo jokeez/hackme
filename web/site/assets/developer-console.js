@@ -136,17 +136,7 @@
     refreshManifestPreview();
   }
 
-  async function refreshWallet() {
-    const r = await Dev.api("GET", "/api/wallet");
-    if (r.ok) {
-      $("wallet-address").textContent = r.json.address || "—";
-      $("wallet-balance").textContent =
-        r.json.balance_hmc != null ? String(r.json.balance_hmc) + " HMC" : "—";
-      $("wallet-nonce").textContent = r.json.next_nonce != null ? String(r.json.next_nonce) : "—";
-      setStatus($("wallet-status"), "", true);
-    } else {
-      setStatus($("wallet-status"), "Wallet HTTP " + r.status, false);
-    }
+  async function refreshPoolHint() {
     const p = await Dev.api("GET", "/pool/coordinator/api/pool/stats");
     if (p.ok && p.json.status === "ok" && $("pool-hint")) {
       $("pool-hint").textContent =
@@ -154,7 +144,7 @@
         (p.json.scheduler_mode || "—") +
         " · orders_active=" +
         (p.json.orders_active ?? "—") +
-        " — miners fill your open orders.";
+        " — miners fill your open orders when work is queued.";
     }
   }
 
@@ -253,7 +243,7 @@
       true
     );
     await refreshOrders();
-    await refreshWallet();
+    await refreshPoolHint();
   }
 
   async function openReport(format) {
@@ -339,7 +329,7 @@
     syncTokenInput();
   });
   $("btn-console-refresh")?.addEventListener("click", () => {
-    void refreshWallet();
+    void refreshPoolHint();
     void refreshOrders();
   });
   $("btn-orders-refresh")?.addEventListener("click", () => void refreshOrders());
@@ -364,7 +354,7 @@
   wireTabs();
   syncTokenInput();
   refreshManifestPreview();
-  void refreshWallet();
+  void refreshPoolHint();
 
   const params = new URLSearchParams(location.search);
   if (params.get("token")) {

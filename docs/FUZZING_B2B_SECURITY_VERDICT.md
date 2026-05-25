@@ -13,10 +13,12 @@
 | Fuzz API exposed to internet | `/api/fuzz/*` → **403** on hackme.tech except **GET** report/pulse/gate/csv (report token on node) |
 | Customer WASM/manifest leakage | `GET /api/tasks` redacts `manifest_json` without developer/admin auth |
 | Integrator over-privilege | Developer token: **only** `GET/POST /api/tasks` (not genesis, worker, tx/send, fuzz) |
+| Treasury address harvesting (gobuster/scrapers) | Public `GET /api/wallet` returns billing notice only — no `address`, `data_directory`, or `database_file` |
+| Malicious WASM upload | Server: size cap, `ValidateCheckWasm`, fairness guards; no `from_code` on hackme.tech |
 
 ## What remains public (by design)
 
-- `GET /api/wallet` — treasury balance for escrow planning
+- `GET /api/wallet` — **redacted** for the public (no operator address/balance/paths); full wallet **admin-only**
 - `GET /api/tasks` — redacted order summary (id, status, progress)
 - [developer-console.html](https://hackme.tech/developer-console.html) — scoped token in session; WASM upload client-side
 - Pool stats / explorer — same as miners

@@ -1342,25 +1342,27 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 		"balance_display_units":      dispU,
 		"balance_display_mode":       dispMode,
 	}
-	if strings.TrimSpace(a.dataDir) != "" {
-		out["data_directory"] = a.dataDir
-	}
-	if strings.TrimSpace(a.dbPath) != "" {
-		out["database_file"] = a.dbPath
-	}
-	if a.signer != nil {
-		out["signing_address"] = strings.TrimSpace(a.signer.Address())
-	}
-	devAddr := chain.DevFeeAddress
-	if ec, err := a.chain.Economics(ctx); err == nil {
-		if v := strings.TrimSpace(ec.DevFeeAddress); v != "" {
-			devAddr = v
+	if adminRequestAuthed(r) {
+		if strings.TrimSpace(a.dataDir) != "" {
+			out["data_directory"] = a.dataDir
 		}
+		if strings.TrimSpace(a.dbPath) != "" {
+			out["database_file"] = a.dbPath
+		}
+		if a.signer != nil {
+			out["signing_address"] = strings.TrimSpace(a.signer.Address())
+		}
+		devAddr := chain.DevFeeAddress
+		if ec, err := a.chain.Economics(ctx); err == nil {
+			if v := strings.TrimSpace(ec.DevFeeAddress); v != "" {
+				devAddr = v
+			}
+		}
+		out["transfer_fee_platform_address"] = devAddr
+		out["network_fee_dev_share"] = chain.NetworkFeeDevShare
+		out["network_fee_burn_share"] = chain.NetworkFeeBurnShare
 	}
-	out["transfer_fee_platform_address"] = devAddr
-	out["network_fee_dev_share"] = chain.NetworkFeeDevShare
-	out["network_fee_burn_share"] = chain.NetworkFeeBurnShare
-	writeJSON(w, out)
+	a.writeWalletResponse(w, r, out)
 }
 
 func walletEarningsInt64Field(m map[string]any, key string) int64 {

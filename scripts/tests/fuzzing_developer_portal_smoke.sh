@@ -30,11 +30,13 @@ check_http "fuzzing-console.html" "$BASE/fuzzing-console.html" "200"
 check_http "fuzzing-console.js" "$BASE/assets/fuzzing-console.js" "200"
 
 wallet="$(curl -fsS --max-time 20 "$BASE/api/wallet" 2>/dev/null || echo '{}')"
-if echo "$wallet" | jq -e '.address and (.balance_hmc != null)' >/dev/null 2>&1; then
-  pass "GET /api/wallet JSON"
-else
-  fail_msg "GET /api/wallet missing address/balance"
+if echo "$wallet" | jq -e '.public_redacted == true and .do_not_send_hmc == true' >/dev/null 2>&1; then
+  pass "GET /api/wallet redacted (no treasury leak)"
+elif echo "$wallet" | jq -e '.address' >/dev/null 2>&1; then
+  fail_msg "GET /api/wallet still exposes address (deploy node with wallet redaction)"
   failures=$((failures + 1))
+else
+  pass "GET /api/wallet JSON"
 fi
 
 tasks="$(curl -fsS --max-time 20 "$BASE/api/tasks" 2>/dev/null || echo '{}')"

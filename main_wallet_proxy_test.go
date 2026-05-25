@@ -68,7 +68,10 @@ func TestHandleWalletUsesCanonicalPeerSnapshot(t *testing.T) {
 	defer peer.Close()
 	t.Setenv("HACKME_CANONICAL_CHAIN_URL", peer.URL)
 
+	tok := "wallet-canonical-admin-test"
+	t.Setenv("HACKME_ADMIN_TOKEN", tok)
 	req := httptest.NewRequest(http.MethodGet, "/api/wallet", nil)
+	req.Header.Set("X-Hackme-Admin-Token", tok)
 	rec := httptest.NewRecorder()
 	a.handleWallet(rec, req)
 	if rec.Code != http.StatusOK {
@@ -97,7 +100,10 @@ func TestHandleWalletLocalSourceWithoutCanonical(t *testing.T) {
 	t.Setenv("HACKME_POOL_COORDINATOR_URL", "")
 	t.Setenv("HACKME_PUBLIC_AUTHORITY_BASE", "")
 	t.Setenv("HACKME_DESKTOP_MODE", "")
+	tok := "wallet-local-admin-test"
+	t.Setenv("HACKME_ADMIN_TOKEN", tok)
 	req := httptest.NewRequest(http.MethodGet, "/api/wallet", nil)
+	req.Header.Set("X-Hackme-Admin-Token", tok)
 	rec := httptest.NewRecorder()
 	a.handleWallet(rec, req)
 	if rec.Code != http.StatusOK {
@@ -335,8 +341,11 @@ func TestHandleWalletDoesNotBlendForkLocalSQLiteOverCanonical(t *testing.T) {
 	}))
 	defer peer.Close()
 	t.Setenv("HACKME_CANONICAL_CHAIN_URL", peer.URL)
+	tok := "wallet-blend-admin-test"
+	t.Setenv("HACKME_ADMIN_TOKEN", tok)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/wallet", nil)
+	req.Header.Set("X-Hackme-Admin-Token", tok)
 	rec := httptest.NewRecorder()
 	a.handleWallet(rec, req)
 	if rec.Code != http.StatusOK {
@@ -386,8 +395,11 @@ func TestHandleWalletStaleCanonicalCacheIgnored(t *testing.T) {
 	defer peer.Close()
 	t.Setenv("HACKME_CANONICAL_CHAIN_URL", peer.URL)
 	t.Setenv("HACKME_P2P_PEERS", "http://127.0.0.1:1")
+	tok := "wallet-stale-cache-admin-test"
+	t.Setenv("HACKME_ADMIN_TOKEN", tok)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/wallet", nil)
+	req.Header.Set("X-Hackme-Admin-Token", tok)
 	rec := httptest.NewRecorder()
 	a.handleWallet(rec, req)
 	var out map[string]any

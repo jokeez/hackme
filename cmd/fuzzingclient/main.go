@@ -241,6 +241,16 @@ func doWallet(base, token string) error {
 	if code != http.StatusOK {
 		return fmt.Errorf("GET /api/wallet HTTP %d: %s", code, strings.TrimSpace(string(b)))
 	}
+	var j map[string]any
+	_ = json.Unmarshal(b, &j)
+	if j["public_redacted"] == true {
+		fmt.Println("Billing: network operator escrow (no public treasury address).")
+		if note, _ := j["note"].(string); note != "" {
+			fmt.Println(note)
+		}
+		fmt.Println("Track orders: hackme-fuzzing tasks · payer_ref in your manifest.")
+		return nil
+	}
 	fmt.Println(string(prettyJSON(b)))
 	return nil
 }

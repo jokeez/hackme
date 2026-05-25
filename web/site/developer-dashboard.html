@@ -49,7 +49,7 @@
       </a>
       <p class="text-[9px] text-gray-500 uppercase tracking-[0.25em]">B2B · no mining</p>
       <nav class="flex flex-col gap-1">
-        <button type="button" class="sidebar-dev-link active w-full text-left px-3 py-2 rounded text-[11px] uppercase tracking-wider" data-dev-tab="wallet">Wallet</button>
+        <button type="button" class="sidebar-dev-link active w-full text-left px-3 py-2 rounded text-[11px] uppercase tracking-wider" data-dev-tab="guide">Guide</button>
         <button type="button" class="sidebar-dev-link w-full text-left px-3 py-2 rounded text-[11px] uppercase tracking-wider" data-dev-tab="orders">Orders</button>
         <button type="button" class="sidebar-dev-link w-full text-left px-3 py-2 rounded text-[11px] uppercase tracking-wider" data-dev-tab="create">Create</button>
         <button type="button" class="sidebar-dev-link w-full text-left px-3 py-2 rounded text-[11px] uppercase tracking-wider" data-dev-tab="report">Report</button>
@@ -77,20 +77,26 @@
       </header>
       <p id="dev-token-status" class="dev-status-line"></p>
 
-      <!-- WALLET -->
-      <div id="dev-panel-wallet" class="dev-dash-panel dev-panel active space-y-4">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div class="card rounded-lg p-3"><span class="dev-label">Treasury address</span><p id="wallet-address" class="text-[10px] text-neon break-all mt-1">—</p></div>
-          <div class="card rounded-lg p-3"><span class="dev-label">Balance</span><p id="wallet-balance" class="dev-kpi-val mt-1">—</p></div>
-          <div class="card rounded-lg p-3"><span class="dev-label">Next nonce</span><p id="wallet-nonce" class="dev-kpi-val mt-1 text-neon">—</p></div>
-          <div class="card rounded-lg p-3"><span class="dev-label">Pool</span><p id="pool-hint" class="text-[10px] text-gray-400 mt-1 leading-snug">—</p></div>
+      <!-- GUIDE (no operator treasury — never send HMC to a public address) -->
+      <div id="dev-panel-guide" class="dev-dash-panel dev-panel active space-y-4">
+        <div class="card rounded-xl p-4 border-warn/30 space-y-3">
+          <p class="font-display text-[10px] text-warn uppercase tracking-widest">Billing &amp; security</p>
+          <ul class="text-[11px] text-gray-400 space-y-2 list-disc pl-4 leading-relaxed">
+            <li><strong class="text-white">No public treasury wallet.</strong> Escrow is managed by the network operator. You do <em>not</em> top up an address shown on this site.</li>
+            <li>Use a unique <code class="text-neon/80">payer_ref</code> and <code class="text-neon/80">order id</code> to track your jobs. Commercial prepayment: <a href="./contacts.html" class="text-neon underline">contacts</a>.</li>
+            <li><strong class="text-matrix">WASM only:</strong> upload a compiled <code>.wasm</code> check module — not raw source. Source stays on your machine unless you choose to share it with the operator separately.</li>
+            <li>Server validates WASM size, ABI (<code>check(i64)→i32</code>), and sandbox rules before accepting an order.</li>
+            <li>Developer token in <strong>sessionStorage</strong> (this tab only). Prefer CLI <code>~/.config/hackme/developer.token</code> for automation.</li>
+          </ul>
         </div>
-        <p id="wallet-status" class="dev-status-line"></p>
-        <p class="text-[10px] text-gray-500">Fund the treasury before <strong class="text-matrix">Create</strong>. Escrow debits the canonical node wallet, not your miner address.</p>
+        <div class="card rounded-lg p-3">
+          <span class="dev-label">Pool status</span>
+          <p id="pool-hint" class="text-[10px] text-gray-400 mt-2 leading-snug">—</p>
+        </div>
       </div>
 
       <!-- ORDERS -->
-      <div id="dev-panel-orders" class="dev-dash-panel dev-panel space-y-3">
+      <div id="dev-panel-orders" class="dev-dash-panel dev-panel hidden space-y-3">
         <div class="flex items-center justify-between">
           <h2 class="font-display text-xs text-neon uppercase tracking-widest">Your orders</h2>
           <button type="button" id="btn-orders-refresh" class="px-3 py-1 rounded border border-neon/30 text-neon text-[10px] uppercase hover:bg-neon/10">Refresh</button>
