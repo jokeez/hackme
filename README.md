@@ -31,7 +31,7 @@ HackMe is open mining infrastructure: a **desktop node** (dashboard at `:8080`) 
 |:---|:---|
 | **Pool** | HTTP coordinator (not Stratum) · dynamic `target_mod` |
 | **GPU** | NVIDIA CUDA · AMD/Intel OpenCL · CPU fallback |
-| **Release** | `0.1.0-rc11g` — Windows installer, Linux bundle, HackMe OS ISO |
+| **Release** | `0.1.0-rc11h` — Windows installer, Linux bundle, HackMe OS ISO |
 | **License** | [AGPL-3.0](LICENSE) · [Trademark](TRADEMARK.md) |
 
 > Wallet balance on the dashboard ≠ pool payout until settlement. Map `WORKER_ID` → `HMC-…` with the operator. See [docs/NETWORK_MODEL.md](docs/NETWORK_MODEL.md).
@@ -83,7 +83,7 @@ Templates: `.env.desktop.example`, `scripts/ops/worker.env.example`.
 go build -trimpath -o hackme-node .
 go build -trimpath -tags opencl -o workerpoh-opencl ./cmd/workerpoh
 go build -trimpath -o hackme-coordinator ./cmd/coordinator
-VERSION=0.1.0-rc11g bash scripts/release/make_release_bundle.sh
+VERSION=0.1.0-rc11h bash scripts/release/make_release_bundle.sh
 ```
 
 ---
