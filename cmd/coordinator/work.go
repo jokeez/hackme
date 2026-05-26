@@ -147,6 +147,7 @@ type workerPayoutStat struct {
 	PeakHashrateGHS float64 `json:"peak_hashrate_gh_s,omitempty"`
 	LastSeenUnix    int64   `json:"last_seen_unix,omitempty"`
 	LastClientIP    string  `json:"last_client_ip,omitempty"`
+	Online          bool    `json:"online,omitempty"`
 }
 
 type workerAbuseState struct {
@@ -933,8 +934,8 @@ func (m *workManager) markSubmitOutcome(workerID, ipKey, reason string, now int6
 }
 
 // clearWorkerAbuse removes rate-limit / ban state for a worker (and optional IP key).
-// pruneStaleWorkers drops workers matching prefix with low payout and old last_seen (not active leases).
-func (m *workManager) pruneStaleWorkers(prefix string, maxPayout float64, staleSec int64, dryRun bool) (removed, kept []string) {
+// pruneStaleWorkers drops offline workers (no active lease). When ignorePayout is false, also requires payout <= maxPayout.
+func (m *workManager) pruneStaleWorkers(prefix string, maxPayout float64, staleSec int64, dryRun bool, ignorePayout bool) (removed, kept []string) {
 	if m == nil {
 		return nil, nil
 	}
@@ -951,7 +952,7 @@ func (m *workManager) pruneStaleWorkers(prefix string, maxPayout float64, staleS
 			kept = append(kept, id)
 			continue
 		}
-		if st.PayoutHMC > maxPayout {
+		if !ignorePayout && st.PayoutHMC > maxPayout {
 			kept = append(kept, id)
 			continue
 		}
@@ -1714,7 +1715,13 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 	// Per-worker payout summary is public pool transparency; miner UIs need it without admin token.
 	workers := make(map[string]workerPayoutStat, len(m.worker))
 	for k, v := range m.worker {
-		workers[k] = v
+		st := v
+		online := st.LastSeenUnix > 0 && (now-st.LastSeenUnix) <= poolHashrateStaleSec
+		st.Online = online
+		if !online {
+			st.LastHashrateGHS = 0
+		}
+		workers[k] = st
 	}
 	out["workers"] = workers
 	if includeDetails {
@@ -1991,6 +1998,7 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 			MaxPayoutHMC float64 `json:"max_payout_hmc"`
 			StaleSec     int64   `json:"stale_sec"`
 			DryRun       bool    `json:"dry_run"`
+			IgnorePayout bool    `json:"ignore_payout"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&req)
 		if req.StaleSec <= 0 {
@@ -1999,7 +2007,7 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 		if req.MaxPayoutHMC <= 0 {
 			req.MaxPayoutHMC = 0.001
 		}
-		removed, kept := wm.pruneStaleWorkers(req.Prefix, req.MaxPayoutHMC, req.StaleSec, req.DryRun)
+		removed, kept := wm.pruneStaleWorkers(req.Prefix, req.MaxPayoutHMC, req.StaleSec, req.DryRun, req.IgnorePayout)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"ok":      true,

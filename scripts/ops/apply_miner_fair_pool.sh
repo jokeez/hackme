@@ -8,7 +8,7 @@ WALLET="${WALLET:-HMC-91fe007e4036c602}"
 NODE_SSH="${NODE_SSH:-hackme-vps}"
 SSH_KEY="${SSH_KEY:-${HOME}/.ssh/id_ed25519}"
 DEPLOY="${NODE_DEPLOY_DIR:-/opt/hackme}"
-PAYOUT_MAP="worker-kapa-pc=${WALLET},worker-vps-msk-01=${WALLET},vps-canary-01=${WALLET},worker-vps-62-01=${WALLET}"
+PAYOUT_MAP="worker-kapa-pc=${WALLET},worker-kapa-rig-1=${WALLET},worker-kapa-rig-2=${WALLET},worker-kapa-rig-3=${WALLET},worker-kapa-fair-1=${WALLET},worker-kapa-fair-2=${WALLET},worker-kapa-fair-3=${WALLET},worker-vps-msk-01=${WALLET},worker-vps-62-01=${WALLET},vps-canary-01=${WALLET}"
 
 ssh_opts=(-o BatchMode=yes -o ConnectTimeout=12)
 [[ -f "$SSH_KEY" ]] && ssh_opts+=(-i "$SSH_KEY")
@@ -133,5 +133,18 @@ sleep 4
 log "run settlement"
 ssh "${ssh_opts[@]}" "$NODE_SSH" "cd '$DEPLOY' && set -a && source .env.settlement && set +a && \
   FORCE_SETTLE_ALL=1 bash scripts/ops/settle_worker_payouts.sh" 2>&1 | tail -20
+
+log "prune offline cosmetic/legacy worker rows on coordinator"
+COORD_ADMIN="$(tr -d '\r\n' <"${ROOT}/.secrets/hackme_coordinator_admin_token" 2>/dev/null || true)"
+if [[ -n "$COORD_ADMIN" ]]; then
+  for prefix in worker-kapa-fair- worker-kapa-rig-; do
+    curl -fsS -X POST "https://hackme.tech/pool/coordinator/api/work/admin/prune-workers" \
+      -H "X-Hackme-Admin-Token: ${COORD_ADMIN}" \
+      -H "Content-Type: application/json" \
+      -d "{\"prefix\":\"${prefix}\",\"stale_sec\":300,\"ignore_payout\":true}" 2>/dev/null \
+      | python3 -c "import sys,json; d=json.load(sys.stdin); print('  ',d.get('prefix'),'removed',len(d.get('removed') or []))" \
+      || true
+  done
+fi
 
 log "done — run: bash scripts/ops/miner_happiness_check.sh"

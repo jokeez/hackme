@@ -1025,6 +1025,31 @@ func TestPoolLoadHintUnclampedLargeFleet(t *testing.T) {
 	}
 }
 
+func TestWorkManagerStatsMarksStaleWorkersOffline(t *testing.T) {
+	now := time.Now().Unix()
+	wm := &workManager{
+		defaultBatch:    1000,
+		targetMod:       1_000_000,
+		leaseSec:        30,
+		maxWorkers:      1000,
+		maxActiveLeases: 1000,
+		maxDedupEntries: 1000,
+		active:          make(map[workKey]leaseRecord),
+		worker: map[string]workerPayoutStat{
+			"live":  {LastSeenUnix: now - 10, LastHashrateGHS: 25.5, PayoutHMC: 1},
+			"stale": {LastSeenUnix: now - 600, LastHashrateGHS: 99.0, PayoutHMC: 2},
+		},
+	}
+	st := wm.stats(false)
+	workers, _ := st["workers"].(map[string]workerPayoutStat)
+	if !workers["live"].Online || workers["live"].LastHashrateGHS != 25.5 {
+		t.Fatalf("live: %+v", workers["live"])
+	}
+	if workers["stale"].Online || workers["stale"].LastHashrateGHS != 0 {
+		t.Fatalf("stale: %+v", workers["stale"])
+	}
+}
+
 func TestWorkManagerWorkersByPayoutAddress(t *testing.T) {
 	wm := &workManager{
 		worker: map[string]workerPayoutStat{

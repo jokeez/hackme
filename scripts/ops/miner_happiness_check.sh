@@ -63,10 +63,16 @@ else:
     print(f"WARN PC share {pct_pc:.1f}% — run apply_miner_fair_pool.sh if home miner should earn more")
 PY
 
-# --- PC worker ---
+# --- PC worker (ideal single miner or legacy name) ---
+PC_PID=""
 if pgrep -f 'workerpoh.*worker-kapa-pc' >/dev/null 2>&1; then
-  ok "worker-kapa-pc process running"
-  LOG="$(ls -t "$ROOT"/logs/workerpoh-worker-kapa-pc-*.log 2>/dev/null | head -1)"
+  PC_PID=pc
+elif pgrep -f 'workerpoh.*worker-kapa-rig-' >/dev/null 2>&1; then
+  PC_PID=rig
+fi
+if [[ -n "$PC_PID" ]]; then
+  ok "local pool worker running (mode=${PC_PID})"
+  LOG="$(ls -t "$ROOT"/logs/workerpoh-worker-kapa-pc-*.log "$ROOT"/logs/ideal-miner/*.log "$ROOT"/logs/pool-display-rig/*.log 2>/dev/null | head -1)"
   if [[ -n "$LOG" ]]; then
     GH="$(grep 'submit ok' "$LOG" | tail -15 | sed -n 's/.*ghs=\([0-9.]*\).*/\1/p' | awk '{s+=$1;n++} END{if(n) printf "%.1f", s/n; else print "0"}')"
     TO="$(tail -200 "$LOG" | grep -cE 'claim error|submit error' || true)"
@@ -83,7 +89,7 @@ if pgrep -f 'workerpoh.*worker-kapa-pc' >/dev/null 2>&1; then
     fi
   fi
 else
-  bad "worker-kapa-pc not running — start: bash scripts/ops/worker_autostart.sh or desktop dashboard"
+  bad "no local pool worker — start: bash scripts/ops/start_local_ideal_miner.sh"
 fi
 
 # --- wallet ---
