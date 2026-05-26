@@ -3,27 +3,9 @@ package main
 import (
 	"crypto/ed25519"
 	"encoding/hex"
-	"encoding/json"
 	"strconv"
 	"strings"
 )
-
-type fuzzSubmitSignPayload struct {
-	WorkerID    string `json:"worker_id"`
-	CampaignID  string `json:"campaign_id"`
-	ItemID      int64  `json:"item_id"`
-	InputN      uint64 `json:"input_n"`
-	ActualInput uint64 `json:"actual_input"`
-	CheckResult int32  `json:"check_result"`
-	SubmitNonce uint64 `json:"submit_nonce"`
-}
-
-func canonicalFuzzSubmitBytes(p fuzzSubmitSignPayload) []byte {
-	p.WorkerID = strings.TrimSpace(p.WorkerID)
-	p.CampaignID = strings.TrimSpace(p.CampaignID)
-	b, _ := json.Marshal(p)
-	return b
-}
 
 type fuzzSubmitAuth struct {
 	WorkerID     string

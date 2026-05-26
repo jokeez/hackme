@@ -12,6 +12,8 @@ import (
 	"hackme/internal/poolfuzz"
 )
 
+func canonFuzzSign(p poolfuzz.SubmitSignPayload) []byte { return poolfuzz.CanonicalSubmitBytes(p) }
+
 func TestFuzzSubmitTamperedMinerRejected(t *testing.T) {
 	wm := &workManager{
 		hybridSignerEnabled: true,
@@ -22,10 +24,10 @@ func TestFuzzSubmitTamperedMinerRejected(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	payload := fuzzSubmitSignPayload{
+	payload := poolfuzz.SubmitSignPayload{
 		WorkerID: "w-rt", CampaignID: "c1", ItemID: 1, InputN: 1, ActualInput: 2, CheckResult: 0, SubmitNonce: 1,
 	}
-	body := canonicalFuzzSubmitBytes(payload)
+	body := canonFuzzSign(payload)
 	sig := ed25519.Sign(priv, body)
 	reqBody, _ := json.Marshal(map[string]any{
 		"worker_id": "w-rt", "campaign_id": "c1", "item_id": 1, "input_n": 1, "actual_input": 2,
@@ -39,7 +41,7 @@ func TestFuzzSubmitTamperedMinerRejected(t *testing.T) {
 	decoded["miner_address"] = "HMC-ffffffffffffffff"
 	reqBody, _ = json.Marshal(decoded)
 
-	signBody := canonicalFuzzSubmitBytes(payload)
+	signBody := canonFuzzSign(payload)
 	ok, reason, _ := wm.validateFuzzHybridSignature(fuzzSubmitAuth{
 		WorkerID: "w-rt", MinerAddress: "HMC-ffffffffffffffff",
 		MinerPubKey: hex.EncodeToString(pub), MinerSig: hex.EncodeToString(sig), SubmitNonce: 1,
@@ -56,8 +58,8 @@ func TestFuzzSubmitReplayNonceRejected(t *testing.T) {
 		signedSubmitNonceMax: make(map[string]uint64),
 	}
 	pub, priv, _ := ed25519.GenerateKey(nil)
-	payload := fuzzSubmitSignPayload{WorkerID: "w", CampaignID: "c", ItemID: 1, SubmitNonce: 7}
-	body := canonicalFuzzSubmitBytes(payload)
+	payload := poolfuzz.SubmitSignPayload{WorkerID: "w", CampaignID: "c", ItemID: 1, SubmitNonce: 7}
+	body := canonFuzzSign(payload)
 	sig := hex.EncodeToString(ed25519.Sign(priv, body))
 	auth := fuzzSubmitAuth{
 		WorkerID: "w", MinerPubKey: hex.EncodeToString(pub), MinerSig: sig, SubmitNonce: 7,

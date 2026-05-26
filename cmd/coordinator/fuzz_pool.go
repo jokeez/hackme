@@ -192,7 +192,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			http.Error(w, "invalid submit payload", http.StatusBadRequest)
 			return
 		}
-		signBody := canonicalFuzzSubmitBytes(fuzzSubmitSignPayload{
+		signBody := poolfuzz.CanonicalSubmitBytes(poolfuzz.SubmitSignPayload{
 			WorkerID: req.WorkerID, CampaignID: req.CampaignID, ItemID: req.ItemID,
 			InputN: req.InputN, ActualInput: req.ActualInput, CheckResult: req.CheckResult, SubmitNonce: req.SubmitNonce,
 		})
