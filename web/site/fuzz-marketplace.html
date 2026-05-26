@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe Fuzz Marketplace — Pool campaigns</title>
+  <meta name="description" content="Public pool fuzz campaigns: coverage runs (20% budget) and bounty for real findings (80%)." />
+  <link rel="stylesheet" href="./assets/styles.css" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+</head>
+<body>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe" /><span>HackMe Network</span></a>
+    <nav class="nav">
+      <a href="./fuzzing-console.html">Fuzzing status</a>
+      <a href="./developers.html">Developers</a>
+      <a href="./downloads.html">Downloads</a>
+    </nav>
+  </header>
+  <main class="container">
+    <section class="hero glass hero-small">
+      <p class="kicker">Fuzz marketplace</p>
+      <h1>Pool campaigns (20/80 escrow)</h1>
+      <p class="hero-copy">
+        <strong>20%</strong> of budget pays miners per verified run (coverage).
+        <strong>80%</strong> is the bounty pool — first qualifying finding takes it (minus 5% platform fee on payout).
+        Unused bounty is refunded when the campaign completes.
+      </p>
+      <button type="button" class="btn btn-secondary" id="btn-refresh">Refresh</button>
+    </section>
+    <section class="panel glass">
+      <div class="panel-head"><h2>Active pool campaigns</h2></div>
+      <p id="pool-stats" class="subtle"></p>
+      <div class="table-wrap">
+        <table class="endpoint-table">
+          <thead>
+            <tr><th>ID</th><th>Title</th><th>Status</th><th>Runs</th><th>Findings</th><th>Budget HMC</th></tr>
+          </thead>
+          <tbody id="campaigns-body"><tr><td colspan="6">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script>
+    const COORD = '/pool/coordinator';
+    async function load() {
+      const statsEl = document.getElementById('pool-stats');
+      const body = document.getElementById('campaigns-body');
+      try {
+        const [st, list] = await Promise.all([
+          fetch(COORD + '/api/fuzz/pool/stats').then(r => r.json()),
+          fetch(COORD + '/api/fuzz/pool/campaigns/list').then(r => r.json()),
+        ]);
+        if (st.ok) {
+          statsEl.textContent = `Pool: ${st.campaigns_running || 0} running · ${st.work_done || 0} work items done · ${st.work_pending || 0} pending`;
+        }
+        const rows = list.campaigns || [];
+        if (!rows.length) {
+          body.innerHTML = '<tr><td colspan="6">No pool campaigns yet.</td></tr>';
+          return;
+        }
+        body.innerHTML = rows.map(c => `<tr>
+          <td><code>${c.id}</code></td>
+          <td>${escapeHtml(c.title || '')}</td>
+          <td>${c.status}</td>
+          <td>${c.runs_done || 0} / ${c.budget_runs || 0}</td>
+          <td>${c.findings || 0}</td>
+          <td>${c.budget_hmc ? c.budget_hmc.toFixed(2) : '—'}</td>
+        </tr>`).join('');
+      } catch (e) {
+        body.innerHTML = '<tr><td colspan="6">Could not load pool data.</td></tr>';
+        statsEl.textContent = String(e);
+      }
+    }
+    function escapeHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    document.getElementById('btn-refresh').addEventListener('click', load);
+    load();
+  </script>
+</body>
+</html>

@@ -388,6 +388,8 @@ func doCampaign(base string, args []string) error {
 		fs := flag.NewFlagSet("campaign-create", flag.ExitOnError)
 		title := fs.String("title", "property-fuzz-v2", "campaign title")
 		runs := fs.Int("runs", 120, "budget_runs")
+		budgetHMC := fs.Float64("budget-hmc", 0, "escrow budget HMC (20%% runs / 80%% bounty)")
+		pool := fs.Bool("pool", false, "register on pool coordinator (pool_distributed)")
 		taskID := fs.String("task-id", "", "linked order task id")
 		wasmHex := fs.String("wasm-hex", "", "inline wasm_check_hex")
 		ctype := fs.String("type", "property", "campaign_type")
@@ -397,18 +399,26 @@ func doCampaign(base string, args []string) error {
 			"mutation_rounds":     4,
 			"coverage_guided":     true,
 		}
+		if *pool {
+			cfg["pool_distributed"] = true
+			cfg["auto_runner"] = "0"
+		}
 		if *wasmHex != "" {
 			cfg["wasm_check_hex"] = *wasmHex
 		}
-		body, _ := json.Marshal(map[string]any{
-			"campaign_type": *ctype,
-			"title":         *title,
-			"description":   "HackMe fuzz engine v2 — seed corpus + mutation + coverage buckets",
-			"budget_runs":   *runs,
+		payload := map[string]any{
+			"campaign_type":  *ctype,
+			"title":          *title,
+			"description":    "HackMe fuzz engine v2 — seed corpus + mutation + coverage buckets",
+			"budget_runs":    *runs,
 			"budget_seconds": 3600,
-			"task_id":       *taskID,
-			"config":        cfg,
-		})
+			"task_id":        *taskID,
+			"config":         cfg,
+		}
+		if *budgetHMC > 0 {
+			payload["budget_hmc"] = *budgetHMC
+		}
+		body, _ := json.Marshal(payload)
 		b, code, err := apiDoAdmin(base, adm, http.MethodPost, "/api/fuzz/campaigns", body)
 		if err != nil {
 			return err

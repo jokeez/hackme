@@ -57,6 +57,7 @@ type fuzzCampaignCreateRequest struct {
 	TargetRef     string         `json:"target_ref"`
 	BudgetRuns    int            `json:"budget_runs"`
 	BudgetSeconds int            `json:"budget_seconds"`
+	BudgetHMC     float64        `json:"budget_hmc"`
 	Config        map[string]any `json:"config"`
 }
 
@@ -526,6 +527,21 @@ func (a *app) handleFuzzCampaigns(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		a.handleFuzzCampaignDiff(w, r, campaignID)
+	case "escrow":
+		if r.Method != http.MethodGet {
+			writeAPIError(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed", nil)
+			return
+		}
+		a.handleFuzzEscrowGet(w, r, campaignID)
+	case "proof-bundle":
+		if r.Method != http.MethodGet {
+			writeAPIError(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed", nil)
+			return
+		}
+		if !a.requireFuzzReportAccess(w, r, campaignID, "proof_bundle") {
+			return
+		}
+		a.handleFuzzCampaignProofBundle(w, r, campaignID)
 	default:
 		writeAPIError(w, http.StatusNotFound, "not_found", "not found", nil)
 	}
@@ -666,18 +682,74 @@ func (a *app) handleFuzzCampaignCreate(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	if req.BudgetHMC > 0 {
+		if req.BudgetRuns < 8 {
+			writeAPIError(w, http.StatusBadRequest, "invalid_budget_runs", "budget_runs must be >= 8 when budget_hmc is set", nil)
+			return
+		}
+		escrow, err := a.chain.OpenFuzzEscrow(r.Context(), id, req.BudgetHMC, req.BudgetRuns)
+		if err != nil {
+			_, _ = a.db.ExecContext(r.Context(), `DELETE FROM fuzz_campaigns WHERE id=?`, id)
+			writeAPIError(w, http.StatusPaymentRequired, "escrow_failed", err.Error(), nil)
+			return
+		}
+		cfgMap["budget_hmc"] = req.BudgetHMC
+		cfgMap["escrow_split"] = "20_80"
+		cfg = marshalMapJSON(cfgMap)
+		_, _ = a.db.ExecContext(r.Context(), `UPDATE fuzz_campaigns SET config_json=? WHERE id=?`, cfg, id)
+		respEscrow := escrow
+		c, err := a.getFuzzCampaign(r.Context(), id)
+		if err != nil {
+			writeAPIError(w, http.StatusInternalServerError, "load_failed", "campaign created but readback failed", nil)
+			return
+		}
+		resp := map[string]any{
+			"ok":                     true,
+			"campaign":               c,
+			"fuzz_engine":            fuzzEngineMetaFromConfig(cfgMap),
+			"customer_report_token":  reportToken,
+			"customer_report_header": "X-Hackme-Report-Token",
+			"escrow":                 respEscrow,
+		}
+		if poolDistributedCampaign(cfgMap) {
+			resp["pool_distributed"] = true
+			fc := fuzzAutoCampaign{ID: id, BudgetRuns: req.BudgetRuns, BudgetSeconds: req.BudgetSeconds, ConfigJSON: cfg}
+			if err := a.syncPoolFuzzCampaign(r.Context(), fc); err != nil {
+				resp["pool_sync_warning"] = err.Error()
+			} else {
+				resp["pool_sync"] = "ok"
+			}
+		}
+		writeJSON(w, resp)
+		return
+	}
 	c, err := a.getFuzzCampaign(r.Context(), id)
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, "load_failed", "campaign created but readback failed", nil)
 		return
 	}
-	writeJSON(w, map[string]any{
+	resp := map[string]any{
 		"ok":                     true,
 		"campaign":               c,
 		"fuzz_engine":            fuzzEngineMetaFromConfig(cfgMap),
 		"customer_report_token":  reportToken,
 		"customer_report_header": "X-Hackme-Report-Token",
-	})
+	}
+	if poolDistributedCampaign(cfgMap) {
+		resp["pool_distributed"] = true
+		fc := fuzzAutoCampaign{
+			ID:            id,
+			BudgetRuns:    req.BudgetRuns,
+			BudgetSeconds: req.BudgetSeconds,
+			ConfigJSON:    cfg,
+		}
+		if err := a.syncPoolFuzzCampaign(r.Context(), fc); err != nil {
+			resp["pool_sync_warning"] = err.Error()
+		} else {
+			resp["pool_sync"] = "ok"
+		}
+	}
+	writeJSON(w, resp)
 }
 
 func (a *app) handleFuzzCampaignsList(w http.ResponseWriter, r *http.Request) {

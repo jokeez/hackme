@@ -18,6 +18,7 @@ import (
 
 	"hackme/internal/lanpool"
 	"hackme/internal/logsetup"
+	"hackme/internal/poolfuzz"
 	"hackme/internal/store"
 )
 
@@ -123,6 +124,12 @@ func main() {
 		_ = json.NewEncoder(w).Encode(map[string]string{"ok": "coordinator"})
 	})
 	addWorkRoutes(mux, token, workerToken, allowInsecure, reg, wm, db)
+	pf := &poolfuzz.Service{DB: db}
+	if strings.TrimSpace(wm.ordersProbeURL) != "" {
+		pf.Settler = wmFuzzSettler{m: wm}
+	}
+	addFuzzPoolRoutes(mux, token, workerToken, allowInsecure, wm, pf)
+	startPoolFuzzTicker(context.Background(), pf)
 
 	log.Printf("HackMe LAN coordinator → http://%s  (db %s)", addr, dbPath)
 	if trustClientForwardedFor {
@@ -134,6 +141,7 @@ func main() {
 	if workerToken != "" {
 		log.Printf("HACKME_COORDINATOR_WORKER_TOKEN is set: remote miners may claim/submit with worker token (not clear-abuse or stats details)")
 	}
+	log.Printf("Pool fuzz: POST /api/fuzz/work/claim|submit  POST /api/fuzz/pool/campaigns (admin)  GET /api/fuzz/pool/stats")
 	if token == "" && workerToken == "" && allowInsecure {
 		log.Printf("security warning: HACKME_COORDINATOR_ALLOW_INSECURE=1 — claim/submit/push_work allowed without token on %s (dev only)", addr)
 	}

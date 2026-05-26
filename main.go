@@ -428,6 +428,7 @@ func main() {
 	mux.HandleFunc("/api/integrator", a.handleIntegratorAPI)
 	mux.HandleFunc("/api/fuzz/campaigns", a.handleFuzzCampaigns)
 	mux.HandleFunc("/api/fuzz/campaigns/", a.handleFuzzCampaigns)
+	mux.HandleFunc("/api/fuzz/pool/settle", a.handleFuzzPoolSettle)
 	mux.HandleFunc("/api/fuzz/housekeeping", a.handleFuzzHousekeeping)
 	mux.HandleFunc("/api/fuzz/artifacts/cleanup", a.handleFuzzArtifactsCleanup)
 	mux.HandleFunc("/api/tx/send", a.handleTransferSend)

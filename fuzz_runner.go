@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"hackme/internal/fuzzengine"
 	"hackme/internal/sandbox"
 )
 
@@ -92,6 +93,10 @@ func (a *app) fuzzAutoRunnerTick(ctx context.Context) error {
 			if strings.EqualFold(strings.TrimSpace(toString(v)), "0") || strings.EqualFold(strings.TrimSpace(toString(v)), "false") {
 				continue
 			}
+		}
+		if poolDistributedCampaign(cfg) {
+			_ = a.syncPoolFuzzCampaign(ctx, c)
+			continue
 		}
 		status := strings.TrimSpace(strings.ToLower(c.Status))
 		if status == "planned" {
@@ -270,10 +275,17 @@ func (a *app) executeWorkItem(ctx context.Context, c fuzzAutoCampaign, cfg map[s
 	defer cancel()
 	wasm := a.loadCampaignWasm(runCtx, c, cfg)
 	actualInput := deriveFuzzInput(it.InputN, cfg)
+	sem := fuzzengine.ParseCheckSemantics(cfg)
 	pass := true
 	var execErr error
+	checkRet := int32(0)
 	if len(wasm) > 0 {
-		pass, execErr = sandbox.InvokeCheck(runCtx, wasm, actualInput)
+		var invokeOK bool
+		invokeOK, execErr = sandbox.InvokeCheck(runCtx, wasm, actualInput)
+		if invokeOK {
+			checkRet = 1
+		}
+		pass, _ = fuzzengine.EvalCheck(sem, checkRet, execErr)
 	} else {
 		pass = (actualInput%17 != 0)
 	}
@@ -305,8 +317,14 @@ func (a *app) executeWorkItem(ctx context.Context, c fuzzAutoCampaign, cfg map[s
 	if err := a.recordCoverageBuckets(ctx, c.ID, actualInput, now); err != nil {
 		return err
 	}
-	if !pass {
-		if err := a.insertWorkerWasmCheckFail(ctx, c.ID, it.InputN, actualInput, now, len(wasm) > 0); err != nil {
+	recordFinding := false
+	if len(wasm) > 0 {
+		_, recordFinding = fuzzengine.EvalCheck(sem, checkRet, execErr)
+	} else if !pass {
+		recordFinding = true
+	}
+	if recordFinding {
+		if err := a.insertWorkerWasmCheckFail(ctx, c.ID, it.InputN, actualInput, now, len(wasm) > 0, sem); err != nil {
 			return err
 		}
 	}
@@ -332,32 +350,6 @@ func (a *app) recordCoverageBuckets(ctx context.Context, campaignID string, inpu
 		`INSERT OR IGNORE INTO fuzz_coverage_seen (campaign_id, kind, bucket, first_seen_at) VALUES (?, 'path', ?, ?)`,
 		campaignID, pathBucket, now)
 	return err
-}
-
-func wasmCheckInputParts(n uint64) (opType int, itemID int, quantity int64) {
-	return int(n & 0xff), int((n >> 8) & 0xffff), int64(n >> 24)
-}
-
-func classifyWasmCheckFail(inputN uint64, hasWasm bool) (findingType, severity, title string) {
-	if !hasWasm {
-		return "property_violation", "medium", fmt.Sprintf("check failed for input %d", inputN)
-	}
-	op, itemID, qty := wasmCheckInputParts(inputN)
-	switch op {
-	case 1:
-		if itemID >= 3 {
-			return "crash", "critical", fmt.Sprintf("OOB item table read (item_id=%d)", itemID)
-		}
-	case 2:
-		if qty == 0 {
-			return "crash", "high", "division by zero in average_spend (quantity=0)"
-		}
-	case 3:
-		if qty > 200000 {
-			return "interesting_input", "medium", fmt.Sprintf("integer overflow risk in total_cost (quantity=%d)", qty)
-		}
-	}
-	return "property_violation", "medium", fmt.Sprintf("check returned 0 for input %d", inputN)
 }
 
 func classifyWasmTrap(inputN uint64, execErr error, hasWasm bool) (findingType, severity, title string) {
@@ -437,8 +429,8 @@ func (a *app) insertWorkerFindingClassified(ctx context.Context, campaignID stri
 	return nil
 }
 
-func (a *app) insertWorkerWasmCheckFail(ctx context.Context, campaignID string, inputN, actualInput uint64, now int64, hasWasm bool) error {
-	ft, sev, title := classifyWasmCheckFail(actualInput, hasWasm)
+func (a *app) insertWorkerWasmCheckFail(ctx context.Context, campaignID string, inputN, actualInput uint64, now int64, hasWasm bool, sem fuzzengine.CheckSemantics) error {
+	ft, sev, title := fuzzengine.ClassifyCheckFail(actualInput, hasWasm, sem)
 	return a.insertWorkerFindingClassified(ctx, campaignID, inputN, actualInput, now, ft, sev, title)
 }
 

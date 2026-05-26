@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"hackme/internal/fuzzengine"
+)
 
 func TestDeriveFuzzInputUsesSeeds(t *testing.T) {
 	cfg := map[string]any{
@@ -28,7 +32,7 @@ func TestFuzzInputSHA256Stable(t *testing.T) {
 
 func TestNormalizeFuzzCampaignConfigDefaults(t *testing.T) {
 	cfg := normalizeFuzzCampaignConfig(nil, "property")
-	if cfg["fuzz_engine_version"] != FuzzEngineVersion {
+	if cfg["fuzz_engine_version"] != fuzzengine.Version {
 		t.Fatalf("version missing")
 	}
 	seeds, ok := cfg["seed_corpus"].([]any)

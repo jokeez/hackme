@@ -12,7 +12,7 @@ import (
 
 // CurrentSchemaVersion is the value written to PRAGMA user_version after migrate() completes.
 // Bump when adding a new migration step (and document in README / MASTER_PLAN).
-const CurrentSchemaVersion = 11
+const CurrentSchemaVersion = 12
 
 // Open opens SQLite at path (directories created as needed).
 func Open(dbPath string) (*sql.DB, error) {
@@ -92,6 +92,9 @@ func migrate(db *sql.DB) error {
 		return err
 	}
 	if err := migrateFuzzCampaigns(db); err != nil {
+		return err
+	}
+	if err := migrateFuzzEscrow(db); err != nil {
 		return err
 	}
 	return bumpUserVersion(db)
@@ -395,4 +398,23 @@ func migrateFuzzCampaigns(db *sql.DB) error {
 		}
 	}
 	return nil
+}
+
+func migrateFuzzEscrow(db *sql.DB) error {
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS fuzz_campaign_escrow (
+		campaign_id TEXT PRIMARY KEY,
+		budget_units INTEGER NOT NULL,
+		runs_pool_units INTEGER NOT NULL,
+		bounty_pool_units INTEGER NOT NULL,
+		runs_paid_units INTEGER NOT NULL DEFAULT 0,
+		bounty_paid_units INTEGER NOT NULL DEFAULT 0,
+		runs_done INTEGER NOT NULL DEFAULT 0,
+		budget_runs INTEGER NOT NULL,
+		per_run_units INTEGER NOT NULL,
+		finding_winner TEXT NOT NULL DEFAULT '',
+		status TEXT NOT NULL DEFAULT 'open',
+		refunded_bounty_units INTEGER NOT NULL DEFAULT 0,
+		created_at INTEGER NOT NULL
+	)`)
+	return err
 }
