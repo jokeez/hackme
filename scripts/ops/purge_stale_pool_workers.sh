@@ -12,9 +12,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 COORD_URL="${COORD_URL:-https://hackme.tech/pool/coordinator}"
 ADMIN_TOKEN="${ADMIN_TOKEN:-${HACKME_COORDINATOR_ADMIN_TOKEN:-}}"
-PREFIX="${PREFIX:-worker-crypto-matrix}"
+PREFIX="${PREFIX:-worker-kapa-fair-}"
 MAX_PAYOUT="${MAX_PAYOUT_HMC:-0.001}"
-STALE_SEC="${STALE_SEC:-3600}"
+STALE_SEC="${STALE_SEC:-300}"
+IGNORE_PAYOUT="${IGNORE_PAYOUT:-1}"
 DRY_RUN="${DRY_RUN:-0}"
 
 if [[ -z "$ADMIN_TOKEN" && -f "$ROOT/.secrets/hackme_coordinator_admin_token" ]]; then
@@ -28,13 +29,14 @@ fi
 dry=false
 [[ "$DRY_RUN" == "1" ]] && dry=true
 
-body="$(python3 - "$PREFIX" "$MAX_PAYOUT" "$STALE_SEC" "$DRY_RUN" <<'PY'
+body="$(python3 - "$PREFIX" "$MAX_PAYOUT" "$STALE_SEC" "$IGNORE_PAYOUT" "$DRY_RUN" <<'PY'
 import json, sys
-prefix, max_p, stale, dry = sys.argv[1:5]
+prefix, max_p, stale, ignore, dry = sys.argv[1:6]
 print(json.dumps({
   "prefix": prefix,
   "max_payout_hmc": float(max_p),
   "stale_sec": int(stale),
+  "ignore_payout": ignore == "1",
   "dry_run": dry == "1",
 }))
 PY
