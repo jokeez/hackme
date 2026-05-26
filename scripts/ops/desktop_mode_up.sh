@@ -35,7 +35,7 @@ DESKTOP_PROFILE="${DESKTOP_PROFILE:-worker}" # worker = public pool (default); c
 COORD_URL="${COORD_URL:-http://127.0.0.1:18081}"
 SECRET_COORD_TOKEN_FILE="${SECRET_COORD_TOKEN_FILE:-$ROOT_DIR/.secrets/hackme_coordinator_admin_token}"
 SECRET_ADMIN_FILE="${SECRET_ADMIN_FILE:-$ROOT_DIR/.secrets/hackme_admin_token}"
-WORKER_AUTOSTART="${WORKER_AUTOSTART:-0}"
+WORKER_AUTOSTART="${WORKER_AUTOSTART:-1}"
 NODE_BIN="$LOG_DIR/hackme-node-desktop"
 
 mkdir -p "$LOG_DIR"
@@ -181,6 +181,33 @@ if [[ -n "${HACKME_CANONICAL_RELAY_ADMIN_TOKEN:-}" ]]; then
   fi
 fi
 
+ensure_desktop_gpu_backend_env() {
+  local backend
+  backend="$(HACKME_GPU_BACKEND=auto HACKME_REPO_ROOT="$ROOT_DIR" bash "$ROOT_DIR/scripts/ops/detect_gpu_backend.sh" 2>/dev/null || echo cpu)"
+  if [[ "$backend" == "cuda" ]] && ! command -v nvidia-smi >/dev/null 2>&1; then
+    backend=opencl
+  fi
+  if [[ "$backend" == "cuda" ]] && ! nvidia-smi -L >/dev/null 2>&1; then
+    echo "[desktop-up] WARN: NVIDIA driver unavailable — using GPU backend: opencl (not cuda)" >&2
+    backend=opencl
+  fi
+  export HACKME_GPU_BACKEND="$backend"
+  if grep -q '^HACKME_GPU_BACKEND=' "$DESKTOP_ENV_FILE" 2>/dev/null; then
+    sed -i "s|^HACKME_GPU_BACKEND=.*|HACKME_GPU_BACKEND=${backend}|" "$DESKTOP_ENV_FILE"
+  else
+    echo "HACKME_GPU_BACKEND=${backend}" >>"$DESKTOP_ENV_FILE"
+  fi
+  if [[ "$backend" == "opencl" ]]; then
+    export HACKME_FORCE_OPENCL=1
+    if ! grep -q '^HACKME_FORCE_OPENCL=' "$DESKTOP_ENV_FILE" 2>/dev/null; then
+      echo "HACKME_FORCE_OPENCL=1" >>"$DESKTOP_ENV_FILE"
+    fi
+  fi
+  echo "[desktop-up] GPU backend for pool worker: $backend"
+}
+
+ensure_desktop_gpu_backend_env
+
 if [[ "${DESKTOP_PROFILE}" == "command" ]]; then
   export HACKME_CHAIN_LEADER_LOCAL_POH=1
   unset HACKME_POOL_COORDINATOR_URL HACKME_POOL_COORDINATOR_TOKEN 2>/dev/null || true
@@ -230,11 +257,15 @@ desktop_gpu_build_tags() {
   if [[ "${HACKME_DESKTOP_GPU_BUILD:-1}" != "1" ]]; then
     return 0
   fi
+  nvidia_driver_ok=0
+  if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
+    nvidia_driver_ok=1
+  fi
   # NVIDIA: prefer native CUDA when toolkit is available.
-  if command -v nvidia-smi >/dev/null 2>&1; then
+  if [[ "$nvidia_driver_ok" == "1" ]]; then
     if [[ -f "$ROOT_DIR/scripts/ops/cuda_env.sh" ]]; then
       # shellcheck source=/dev/null
-      if source "$ROOT_DIR/scripts/ops/cuda_env.sh" 2>/dev/null; then
+      if source "$ROOT_DIR/scripts/ops/cuda_env.sh" >/dev/null 2>&1; then
         echo "cuda opencl"
         return 0
       fi
@@ -255,7 +286,7 @@ if [[ ! -f "$PID_FILE" ]]; then
   # desktop_gpu_build_tags may source cuda_env inside $(...) — re-apply for go build in this shell.
   if [[ -n "$gpu_tags" ]] && [[ "$gpu_tags" == *cuda* ]] && [[ -f "$ROOT_DIR/scripts/ops/cuda_env.sh" ]]; then
     # shellcheck source=/dev/null
-    source "$ROOT_DIR/scripts/ops/cuda_env.sh" 2>/dev/null || true
+    source "$ROOT_DIR/scripts/ops/cuda_env.sh" >/dev/null 2>&1 || true
   fi
   if [[ -n "$gpu_tags" ]]; then
     echo "[desktop-up] go build -tags ${gpu_tags} -> $NODE_BIN (GPU PoH enabled)"

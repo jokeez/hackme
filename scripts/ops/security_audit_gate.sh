@@ -33,7 +33,11 @@ assert d.get("ok"), d
 assert d.get("order_id"), d
 assert d.get("campaign_id"), d
 assert d.get("customer_report_token"), d
-print("ok order", d["order_id"], "campaign", d["campaign_id"], "pool", d.get("pool_sync") or d.get("pool_sync_warning"))
+ps = d.get("pool_sync") or ""
+warn = d.get("pool_sync_warning") or ""
+print("ok order", d["order_id"], "campaign", d["campaign_id"], "pool_sync", ps, warn or "")
+if ps not in ("ok", "queued"):
+    raise SystemExit("unexpected pool_sync status: %r" % ps)
 '
 
 TOK="$(echo "$resp" | python3 -c 'import json,sys; print(json.load(sys.stdin)["customer_report_token"])')"

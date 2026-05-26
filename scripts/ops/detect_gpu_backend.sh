@@ -15,8 +15,20 @@ if truthy "${HACKME_GPU_DISABLE:-0}"; then
 fi
 
 if [[ -n "${HACKME_GPU_BACKEND:-}" && "${HACKME_GPU_BACKEND}" != "auto" ]]; then
-  echo "${HACKME_GPU_BACKEND}"
-  exit 0
+  req="$(printf '%s' "${HACKME_GPU_BACKEND}" | tr '[:upper:]' '[:lower:]')"
+  if [[ "$req" == "cuda" ]]; then
+    if nvidia_driver_ok; then
+      echo cuda
+      exit 0
+    fi
+    # Env asks for cuda but driver is down — fall through to opencl/cpu detection.
+  elif [[ "$req" == "opencl" || "$req" == "cpu" ]]; then
+    echo "$req"
+    exit 0
+  else
+    echo "${HACKME_GPU_BACKEND}"
+    exit 0
+  fi
 fi
 
 if truthy "${HACKME_FORCE_OPENCL:-0}"; then

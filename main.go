@@ -112,6 +112,11 @@ type app struct {
 	p2pTokenFail map[string]int
 	// Limits concurrent expensive P2P sync operations under storm load.
 	p2pSyncHeavySem chan struct{}
+	poolSyncOnce      sync.Once
+	poolSyncCh        chan poolSyncJob
+	poolSyncMu        sync.Mutex
+	poolSyncFailed    map[string]string // campaign_id → last error
+	poolSyncQueued    map[string]struct{}
 	// Throttles stale rig pruning to keep network stats cheap.
 	rigPruneLastUnix      int64
 	workerMu              sync.Mutex
@@ -1825,6 +1830,7 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 			"fork_action":             "followers_stop_mining_and_reseed_from_canonical",
 			"hybrid_signer_enabled":   envBool("HACKME_POOL_HYBRID_SIGNER_ENABLED", false),
 		},
+		"pool_sync": a.poolSyncStatusPayload(),
 	}
 	if networkModeActive && !a.miner.Running() {
 		// Canonical snapshot for pool/network dashboards — never replaces local SQLite tip_height.

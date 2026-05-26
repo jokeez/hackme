@@ -93,9 +93,14 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		_ = pf.EnsureWorkItems(r.Context(), req.ID, time.Now().Unix())
+		campaignID := req.ID
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			_ = pf.EnsureWorkItems(ctx, campaignID, time.Now().Unix())
+		}()
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "campaign_id": req.ID, "pool_distributed": true})
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "campaign_id": req.ID, "pool_distributed": true, "work_queue": "async"})
 	})
 
 	mux.HandleFunc("/api/fuzz/work/claim", func(w http.ResponseWriter, r *http.Request) {

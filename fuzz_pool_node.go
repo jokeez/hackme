@@ -1,15 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"hackme/internal/poolfuzz"
 )
@@ -18,60 +13,44 @@ func poolDistributedCampaign(cfg map[string]any) bool {
 	return poolfuzz.PoolDistributed(cfg)
 }
 
-func (a *app) syncPoolFuzzCampaign(ctx context.Context, c fuzzAutoCampaign) error {
-	coordURL := strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_POOL_COORDINATOR_URL")), "/")
-	if coordURL == "" {
-		coordURL = strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_URL")), "/")
+func poolSyncCoordinatorConfigured() bool {
+	u := strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_POOL_COORDINATOR_URL")), "/")
+	if u == "" {
+		u = strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_URL")), "/")
 	}
-	cfg := parseMapJSON(c.ConfigJSON)
-	if !poolDistributedCampaign(cfg) {
+	return u != ""
+}
+
+// applyPoolSyncResponse enqueues or runs coordinator registration and sets JSON fields.
+func (a *app) applyPoolSyncResponse(resp map[string]any, ctx context.Context, c fuzzAutoCampaign) {
+	if !poolDistributedCampaign(parseMapJSON(c.ConfigJSON)) {
+		return
+	}
+	if !poolSyncCoordinatorConfigured() {
+		resp["pool_sync"] = "fail"
+		resp["pool_sync_warning"] = "pool_distributed: set HACKME_POOL_COORDINATOR_URL on the node"
+		return
+	}
+	mode, warn := a.schedulePoolFuzzSync(ctx, c)
+	resp["pool_sync"] = mode
+	if warn != "" {
+		resp["pool_sync_warning"] = warn
+	}
+}
+
+func (a *app) syncPoolFuzzCampaign(ctx context.Context, c fuzzAutoCampaign) error {
+	if !poolDistributedCampaign(parseMapJSON(c.ConfigJSON)) {
 		return nil
 	}
-	if coordURL == "" {
-		return fmt.Errorf("pool_distributed: set HACKME_POOL_COORDINATOR_URL on the node (e.g. https://hackme.tech/pool/coordinator)")
+	if !poolSyncCoordinatorConfigured() {
+		return fmt.Errorf("pool_distributed: set HACKME_POOL_COORDINATOR_URL on the node")
 	}
-	token := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_ADMIN_TOKEN"))
-	if token == "" {
-		token = strings.TrimSpace(os.Getenv("HACKME_POOL_COORDINATOR_ADMIN_TOKEN"))
+	mode, warn := a.schedulePoolFuzzSync(ctx, c)
+	if warn != "" && mode != "queued" {
+		return fmt.Errorf("%s", warn)
 	}
-	if token == "" {
-		token = strings.TrimSpace(os.Getenv("HACKME_POOL_COORDINATOR_TOKEN"))
-	}
-	if token == "" {
-		return fmt.Errorf("pool_distributed: HACKME_COORDINATOR_ADMIN_TOKEN not set on node for pool register")
-	}
-	var title, desc, ctype string
-	_ = a.db.QueryRowContext(ctx,
-		`SELECT title, description, campaign_type FROM fuzz_campaigns WHERE id=?`, c.ID).
-		Scan(&title, &desc, &ctype)
-	if strings.TrimSpace(ctype) == "" {
-		ctype = "property"
-	}
-	body, _ := json.Marshal(map[string]any{
-		"id":             c.ID,
-		"campaign_type":  ctype,
-		"title":          title,
-		"description":    desc,
-		"status":         "running",
-		"budget_runs":    c.BudgetRuns,
-		"budget_seconds": c.BudgetSeconds,
-		"config":         cfg,
-	})
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, coordURL+"/api/fuzz/pool/campaigns", bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Hackme-Admin-Token", token)
-	cl := &http.Client{Timeout: 8 * time.Second}
-	res, err := cl.Do(req)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	b, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
-	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("pool register HTTP %d: %s", res.StatusCode, strings.TrimSpace(string(b)))
+	if mode == "fail" {
+		return fmt.Errorf("pool sync failed (see /api/status pool_sync)")
 	}
 	return nil
 }

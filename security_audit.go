@@ -269,11 +269,7 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	if poolDistributedCampaign(cfgMap) {
 		resp["pool_distributed"] = true
 		fc := fuzzAutoCampaign{ID: campaignID, BudgetRuns: budgetRuns, BudgetSeconds: budgetSeconds, ConfigJSON: cfg}
-		if err := a.syncPoolFuzzCampaign(r.Context(), fc); err != nil {
-			resp["pool_sync_warning"] = err.Error()
-		} else {
-			resp["pool_sync"] = "ok"
-		}
+		a.applyPoolSyncResponse(resp, r.Context(), fc)
 	}
 
 	writeJSON(w, resp)

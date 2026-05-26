@@ -716,11 +716,7 @@ func (a *app) handleFuzzCampaignCreate(w http.ResponseWriter, r *http.Request) {
 		if poolDistributedCampaign(cfgMap) {
 			resp["pool_distributed"] = true
 			fc := fuzzAutoCampaign{ID: id, BudgetRuns: req.BudgetRuns, BudgetSeconds: req.BudgetSeconds, ConfigJSON: cfg}
-			if err := a.syncPoolFuzzCampaign(r.Context(), fc); err != nil {
-				resp["pool_sync_warning"] = err.Error()
-			} else {
-				resp["pool_sync"] = "ok"
-			}
+			a.applyPoolSyncResponse(resp, r.Context(), fc)
 		}
 		writeJSON(w, resp)
 		return
@@ -745,11 +741,7 @@ func (a *app) handleFuzzCampaignCreate(w http.ResponseWriter, r *http.Request) {
 			BudgetSeconds: req.BudgetSeconds,
 			ConfigJSON:    cfg,
 		}
-		if err := a.syncPoolFuzzCampaign(r.Context(), fc); err != nil {
-			resp["pool_sync_warning"] = err.Error()
-		} else {
-			resp["pool_sync"] = "ok"
-		}
+		a.applyPoolSyncResponse(resp, r.Context(), fc)
 	}
 	writeJSON(w, resp)
 }

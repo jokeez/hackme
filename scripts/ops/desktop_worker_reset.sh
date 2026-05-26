@@ -37,6 +37,19 @@ WORKER_ID="${WORKER_ID:-worker-kapa-pc}"
 BATCH_SIZE="${HACKME_WORKER_BATCH_SIZE:-4194304}"
 GPU_BACKEND="${HACKME_GPU_BACKEND:-auto}"
 
+if [[ "$GPU_BACKEND" == "auto" || -z "$GPU_BACKEND" ]]; then
+  GPU_BACKEND="$(HACKME_REPO_ROOT="$ROOT_DIR" bash "$ROOT_DIR/scripts/ops/detect_gpu_backend.sh" 2>/dev/null || echo cpu)"
+fi
+if [[ "$GPU_BACKEND" == "cuda" ]] && ! nvidia-smi -L >/dev/null 2>&1; then
+  echo "[worker-reset] WARN: cuda requested but NVIDIA driver unhealthy — re-detecting backend" >&2
+  GPU_BACKEND="$(HACKME_GPU_BACKEND=auto HACKME_REPO_ROOT="$ROOT_DIR" bash "$ROOT_DIR/scripts/ops/detect_gpu_backend.sh" 2>/dev/null || echo opencl)"
+  export HACKME_GPU_BACKEND="$GPU_BACKEND"
+fi
+if [[ "$GPU_BACKEND" == "opencl" && ! -x "$ROOT_DIR/bin/workerpoh-opencl" ]]; then
+  echo "[worker-reset] building bin/workerpoh-opencl..."
+  (cd "$ROOT_DIR" && go build -trimpath -tags opencl -o "$ROOT_DIR/bin/workerpoh-opencl" ./cmd/workerpoh)
+fi
+
 load_miner_seed_hex() {
   local data_dir="${HACKME_DATA_DIR:-$ROOT_DIR/logs/desktop/data}"
   local seed=""
@@ -147,13 +160,12 @@ if [[ "$GPU_BACKEND" == "cuda" ]]; then
     start_cuda_worker_direct && exit $?
   fi
   echo "[worker-reset] WARN: NVIDIA driver unhealthy (NVML mismatch?) — falling back from cuda" >&2
-  if [[ -x "$ROOT_DIR/bin/workerpoh-opencl" ]] && bash "$ROOT_DIR/scripts/ops/detect_gpu_backend.sh" 2>/dev/null | grep -qx opencl; then
-    GPU_BACKEND=opencl
-    export HACKME_GPU_BACKEND=opencl
+  GPU_BACKEND="$(HACKME_REPO_ROOT="$ROOT_DIR" bash "$ROOT_DIR/scripts/ops/detect_gpu_backend.sh" 2>/dev/null || echo opencl)"
+  export HACKME_GPU_BACKEND="$GPU_BACKEND"
+  if [[ "$GPU_BACKEND" == "opencl" ]]; then
     export HACKME_FORCE_OPENCL=1
-  else
-    GPU_BACKEND=cpu
-    export HACKME_GPU_BACKEND=cpu
+  fi
+  if [[ "$GPU_BACKEND" == "cpu" ]]; then
     export HACKME_GPU_DISABLE=1
   fi
 fi
