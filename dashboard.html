@@ -732,7 +732,7 @@
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
 					Market
 				</button>
-				<button type="button" data-tab="fuzz" class="sidebar-link fuzz-operator-only w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-sm text-gray-500">
+				<button type="button" data-tab="fuzz" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-sm text-gray-500">
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 3v3m4.5-3v3M4.5 9.75h15M6.75 6.75h10.5A2.25 2.25 0 0119.5 9v9.75A2.25 2.25 0 0117.25 21H6.75A2.25 2.25 0 014.5 18.75V9A2.25 2.25 0 016.75 6.75zM9 13.5h6M9 16.5h3"/></svg>
 					Fuzz
 				</button>
@@ -817,7 +817,7 @@
 					<button type="button" id="btn-tab-mining" class="quick-btn">Workers</button>
 					<button type="button" id="btn-tab-hardware" class="quick-btn mobile-compact-hide">Hardware</button>
 					<button type="button" id="btn-tab-orders" class="quick-btn mobile-compact-hide">Market</button>
-					<button type="button" id="btn-tab-fuzz" class="quick-btn mobile-compact-hide fuzz-operator-only">Fuzz</button>
+					<button type="button" id="btn-tab-fuzz" class="quick-btn mobile-compact-hide">Fuzz</button>
 					<button type="button" id="btn-open-explorer" class="quick-btn">Explorer</button>
 					<span class="text-[10px] text-gray-500 ml-auto font-mono hidden lg:inline">Shortcuts: <span class="kbd">g</span> then <span class="kbd">e/o/m/h/c/w/r/t/f</span> · <span class="kbd">?</span></span>
 				</div>
@@ -831,7 +831,7 @@
 					<button type="button" class="tab-btn" data-tab="wallet">Wallet</button>
 					<button type="button" class="tab-btn" data-tab="reports">Reports</button>
 					<button type="button" class="tab-btn" data-tab="orders">Market</button>
-					<button type="button" class="tab-btn fuzz-operator-only" data-tab="fuzz">Fuzz</button>
+					<button type="button" class="tab-btn" data-tab="fuzz">Fuzz</button>
 				</nav>
 			</header>
 
@@ -1645,15 +1645,51 @@
 					<div class="flex flex-wrap items-center justify-between gap-3">
 						<div>
 							<p class="font-display text-[10px] tracking-[0.35em] text-neon uppercase mb-1">Useful-PoW market</p>
-							<h2 class="font-display text-sm font-bold text-white tracking-wide">Order market · paid tasks</h2>
-							<p id="orders-panel-subtitle" class="text-[11px] text-gray-500 mt-1 max-w-2xl">Open paid jobs on the network — pool miners fill your order when it is active. Create here on <strong>this node</strong> (<code class="text-neon/80">#wallet</code> escrow + developer or admin token).</p>
+							<h2 class="font-display text-sm font-bold text-white tracking-wide">Security audits &amp; orders</h2>
+							<p id="orders-panel-subtitle" class="text-[11px] text-gray-500 mt-1 max-w-2xl">Full audit = useful-PoW order + distributed fuzz + HTML report (like Bitcoin Core research). Debits <a href="#" class="text-neon/90 underline" data-goto-tab="wallet">Wallet</a> on this node.</p>
 						</div>
 						<button type="button" id="btn-orders-refresh" class="text-[10px] px-3 py-1.5 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
 					</div>
 					<div id="orders-market-banner" class="rounded-lg border border-neon/25 bg-neon/5 p-3 text-[11px] text-gray-300 leading-snug">
-						<strong class="text-neon">Read-only</strong> — save a <strong>developer token</strong> (header → Issue / Save) or <strong>admin token</strong> to create orders. Escrow debits your local wallet (<a href="#" class="text-neon/90 underline" data-goto-tab="wallet">Wallet tab</a>). Build WASM locally (<code class="text-neon/80">hackme-fuzzing build</code>) and upload below, or use <code class="text-neon/80">from_code</code> with admin only.
+						<strong class="text-neon">Read-only</strong> — save a <strong>developer token</strong> (header → Issue / Save) or <strong>admin token</strong> to run audits. Reports open on the <a href="#" class="text-neon/90 underline" data-goto-tab="fuzz">Fuzz tab</a>.
 					</div>
 					<div id="orders-wallet-gate" class="hidden rounded-lg border border-warn/35 bg-warn/5 p-3 text-[11px] text-warn/95 leading-snug"></div>
+					<div id="orders-security-audit" class="hidden card card-glow rounded-xl p-5 border-neon/30">
+						<h3 class="text-[10px] uppercase tracking-[0.2em] text-neon mb-2">Security audit (recommended)</h3>
+						<p class="text-[11px] text-gray-500 mb-3 leading-relaxed">One click: compile guard (or upload WASM) → <strong>PoH order</strong> on the pool + <strong>distributed fuzz</strong> (20/80 escrow) → <strong>HTML report</strong> with report token. Same pipeline as <code class="text-neon/80">run_bitcoin_core_5module_research.sh</code>.</p>
+						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+							<label class="text-[10px] text-gray-500">Title<br><input id="audit-title" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="My protocol audit" /></label>
+							<label class="text-[10px] text-gray-500">Payer ref<br><input id="audit-payer" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="company:acme-2026" /></label>
+							<label class="text-[10px] text-gray-500">Fuzz budget HMC<br><input id="audit-budget-hmc" type="number" min="0.1" step="0.1" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="1" /></label>
+							<label class="text-[10px] text-gray-500">Fuzz runs<br><input id="audit-runs" type="number" min="8" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="64" /></label>
+						</div>
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+							<label class="text-[10px] text-gray-500">Language<br>
+								<select id="audit-code-lang" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon">
+									<option value="rust">rust</option><option value="c">c</option><option value="cpp">cpp</option><option value="tinygo">tinygo</option><option value="zig">zig</option><option value="assemblyscript">assemblyscript</option><option value="wat" selected>wat</option>
+								</select>
+							</label>
+							<label class="text-[10px] text-gray-500">Or WASM file (skips compile)<br><input id="audit-wasm-file" type="file" accept=".wasm" class="mt-1 text-[10px] text-gray-400 w-full" /></label>
+						</div>
+						<p id="audit-wasm-meta" class="text-[10px] text-gray-500 mt-1 font-mono">Paste <code class="text-neon/80">check(i64)→i32</code> below, or upload .wasm.</p>
+						<textarea id="audit-code-input" class="mt-2 w-full h-32 text-[11px] font-mono rounded border border-white/10 bg-black/50 p-3 text-gray-300" spellcheck="false">(module
+  (func (export "check") (param i64) (result i32)
+    local.get 0
+    i64.const 23
+    i64.rem_s
+    i64.eqz
+    if (result i32) i32.const 1 else i32.const 0 end))</textarea>
+						<label class="mt-2 text-[10px] text-gray-500 flex items-center gap-2"><input type="checkbox" id="audit-include-poh" checked class="rounded" /> Include useful-PoW order (miners on pool + fuzz workers)</label>
+						<div class="mt-3 flex flex-wrap gap-2 items-center">
+							<button type="button" id="btn-audit-run" class="px-5 py-2.5 rounded-lg border border-neon/50 bg-neon/15 text-neon text-[11px] font-display font-bold uppercase tracking-wider hover:bg-neon/25">Run full security audit</button>
+							<button type="button" id="btn-audit-goto-report" class="px-3 py-2 rounded border border-white/20 text-gray-300 text-[10px] uppercase tracking-wider hover:bg-white/5">Open reports</button>
+						</div>
+						<p id="audit-run-msg" class="mt-2 text-[10px] font-mono text-gray-500"></p>
+						<div id="audit-run-result" class="hidden mt-2 rounded border border-matrix/25 bg-black/40 p-3 text-[10px] font-mono text-gray-300 space-y-1"></div>
+						<pre id="audit-compile-log" class="hidden mt-2 text-[10px] font-mono text-gray-400 overflow-x-auto whitespace-pre-wrap max-h-28 overflow-y-auto p-2 rounded bg-black/50 border border-white/10"></pre>
+					</div>
+					<div id="orders-poh-advanced-wrap" class="hidden mt-4">
+					<button type="button" id="btn-orders-toggle-poh-advanced" class="mb-2 px-3 py-1.5 rounded border border-white/20 text-gray-400 text-[10px] uppercase tracking-wider hover:bg-white/5">Show PoH-only tools (advanced)</button>
 					<div id="orders-admin-create" class="hidden card card-glow rounded-xl p-5 border-matrix/25">
 						<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
 							<h3 class="text-[10px] uppercase tracking-[0.2em] text-gray-500">New order</h3>
@@ -1738,6 +1774,7 @@
 							<p class="mt-2 text-[10px] text-gray-600 font-mono">Host <code class="text-neon/70">PATH</code>: rustc, clang, tinygo, zig, asc, wat2wasm. See <code class="text-neon/70">scripts/ops/install_vps_from_code_toolchains.sh</code>.</p>
 						</div>
 					</div>
+					</div>
 					<div class="card card-glow rounded-lg border-white/10 overflow-hidden">
 						<div class="overflow-x-auto">
 							<table class="w-full text-left text-[11px] font-mono">
@@ -1750,6 +1787,7 @@
 									<th class="px-3 py-2">Progress</th>
 									<th class="px-3 py-2">Artifact</th>
 									<th class="px-3 py-2">Created</th>
+									<th class="px-3 py-2">Report</th>
 								</tr></thead>
 								<tbody id="orders-rows" class="text-gray-300 divide-y divide-white/5"></tbody>
 							</table>
@@ -1759,10 +1797,43 @@
 
 				<!-- FUZZ CAMPAIGNS -->
 				<div id="panel-fuzz" class="tab-panel max-w-[1600px] mx-auto space-y-4">
-					<div id="fuzz-market-banner" class="rounded-lg border border-warn/30 bg-warn/5 p-3 text-[11px] text-gray-300 leading-snug">
-						<strong class="text-warn">Operator Fuzz UI is hidden until admin token is loaded.</strong>
-						Click <strong>Sync token</strong> above (or header → Save admin from <code class="text-neon/80">.env.desktop</code>) to restore campaigns, CSV, corpus, housekeeping — the full panel you used locally.
-						Customers create orders on <strong>their local node</strong> (<code class="text-neon/80">127.0.0.1:8080/#orders</code> + developer token). This tab is operator fuzz admin only.
+					<div id="fuzz-market-banner" class="rounded-lg border border-neon/25 bg-neon/5 p-3 text-[11px] text-gray-300 leading-snug">
+						<strong class="text-neon">Customer:</strong> create pool campaigns in <code class="text-neon/80">#orders</code> (developer token). View reports here with your <strong>report token</strong> saved automatically.
+						<strong class="text-warn">Operator:</strong> load admin token for full fuzz ops (CSV, diff, housekeeping).
+					</div>
+					<div id="fuzz-customer-only" class="hidden space-y-4">
+						<div class="flex flex-wrap items-center justify-between gap-2">
+							<div>
+								<p class="font-display text-[10px] tracking-[0.35em] text-neon uppercase mb-1">Your fuzz campaigns</p>
+								<h2 class="font-display text-sm font-bold text-white">Reports &amp; proof bundle</h2>
+								<p class="text-[11px] text-gray-500 mt-1">Campaigns you created on this node. Report token is stored in this browser — required for HTML/JSON report.</p>
+							</div>
+							<button type="button" id="btn-fuzz-customer-refresh" class="text-[10px] px-3 py-1.5 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
+						</div>
+						<div class="card card-glow rounded-lg p-4 border-white/10 overflow-x-auto">
+							<table class="w-full text-left text-[11px] font-mono">
+								<thead class="bg-black/60 text-gray-500 uppercase tracking-wider text-[9px]">
+									<tr><th class="px-2 py-2">Title</th><th class="px-2 py-2">ID</th><th class="px-2 py-2">Status</th><th class="px-2 py-2">Runs</th><th class="px-2 py-2">Escrow</th></tr>
+								</thead>
+								<tbody id="fuzz-customer-rows" class="text-gray-300 divide-y divide-white/5"></tbody>
+							</table>
+						</div>
+						<div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+							<div class="card card-glow rounded-lg p-4 border-neon/20 space-y-2">
+								<p class="text-[10px] uppercase tracking-[0.2em] text-gray-500">Selected campaign</p>
+								<p id="fuzz-customer-selected-id" class="text-neon text-xs font-mono break-all">—</p>
+								<p id="fuzz-customer-escrow" class="text-[10px] text-gray-500 font-mono">escrow: —</p>
+								<div class="flex flex-wrap gap-2 pt-1">
+									<button type="button" id="btn-fuzz-customer-report-html" class="text-[10px] px-3 py-1 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Open HTML report</button>
+									<button type="button" id="btn-fuzz-customer-report-json" class="text-[10px] px-3 py-1 rounded border border-white/20 text-gray-300 hover:bg-white/5 uppercase tracking-wider">JSON</button>
+									<button type="button" id="btn-fuzz-customer-proof" class="text-[10px] px-3 py-1 rounded border border-matrix/30 text-matrix hover:bg-matrix/10 uppercase tracking-wider">Proof bundle</button>
+								</div>
+							</div>
+							<div class="card card-glow rounded-lg p-4 border-neon/20">
+								<div id="fuzz-customer-report-preview" class="rounded-lg border border-neon/25 bg-black/40 p-3 text-[11px] text-gray-300 min-h-[120px]">Select a campaign row.</div>
+								<p id="fuzz-customer-report-msg" class="text-[10px] text-gray-500 font-mono mt-2">report: —</p>
+							</div>
+						</div>
 					</div>
 					<div id="fuzz-admin-only" class="hidden space-y-4">
 					<div class="flex flex-wrap items-center justify-between gap-3">
@@ -2364,6 +2435,8 @@
 		let lastMiningLen = 0;
 		let currentTab = 'ecosystem';
 		let selectedFuzzCampaignId = '';
+		let selectedFuzzCustomerCampaignId = '';
+		let ordersFuzzWasmHex = '';
 		let selectedFuzzCampaignTitle = '';
 		let fuzzCampaignPanelWired = false;
 		let ordersAdvanced = false;
@@ -2828,6 +2901,77 @@
 			if (a['X-Hackme-Admin-Token']) return a;
 			return developerHeaders();
 		}
+		const fuzzCustomerStoreKey = 'hackme_customer_fuzz_campaigns';
+		const securityAuditStoreKey = 'hackme_security_audits';
+		let auditWasmHex = '';
+		let ordersPohAdvancedOpen = false;
+		function loadSecurityAudits() {
+			try {
+				const raw = localStorage.getItem(securityAuditStoreKey);
+				const arr = raw ? JSON.parse(raw) : [];
+				return Array.isArray(arr) ? arr : [];
+			} catch (_) {
+				return [];
+			}
+		}
+		function saveSecurityAudit(rec) {
+			if (!rec || !rec.campaign_id) return;
+			const list = loadSecurityAudits().filter((x) => String(x.campaign_id || '') !== String(rec.campaign_id));
+			list.unshift({
+				order_id: String(rec.order_id || ''),
+				campaign_id: String(rec.campaign_id),
+				title: String(rec.title || rec.campaign_id),
+				report_token: String(rec.report_token || ''),
+				created_at: Number(rec.created_at || Date.now() / 1000),
+			});
+			try { localStorage.setItem(securityAuditStoreKey, JSON.stringify(list.slice(0, 64))); } catch (_) {}
+			saveCustomerFuzzCampaign({
+				id: rec.campaign_id,
+				title: rec.title || rec.campaign_id,
+				report_token: rec.report_token || '',
+			});
+		}
+		function securityAuditByOrderId(orderId) {
+			const id = String(orderId || '').trim();
+			if (!id) return null;
+			return loadSecurityAudits().find((x) => String(x.order_id || '') === id) || null;
+		}
+		function loadCustomerFuzzCampaigns() {
+			try {
+				const raw = localStorage.getItem(fuzzCustomerStoreKey);
+				const arr = raw ? JSON.parse(raw) : [];
+				return Array.isArray(arr) ? arr : [];
+			} catch (_) {
+				return [];
+			}
+		}
+		function saveCustomerFuzzCampaign(rec) {
+			if (!rec || !rec.id) return;
+			const list = loadCustomerFuzzCampaigns().filter((x) => String(x.id || '') !== String(rec.id));
+			list.unshift({
+				id: String(rec.id),
+				title: String(rec.title || rec.id),
+				report_token: String(rec.report_token || ''),
+				created_at: Number(rec.created_at || Date.now() / 1000),
+			});
+			try { localStorage.setItem(fuzzCustomerStoreKey, JSON.stringify(list.slice(0, 64))); } catch (_) {}
+		}
+		function getCustomerFuzzReportToken(cid) {
+			const id = String(cid || '').trim();
+			if (!id) return '';
+			const row = loadCustomerFuzzCampaigns().find((x) => String(x.id || '') === id);
+			return row && row.report_token ? String(row.report_token).trim() : '';
+		}
+		function fuzzAccessHeaders(cid) {
+			const a = adminHeaders();
+			if (a['X-Hackme-Admin-Token']) return a;
+			const tok = getCustomerFuzzReportToken(cid);
+			if (tok) return { 'X-Hackme-Report-Token': tok };
+			return tasksAuthHeaders();
+		}
+		function canViewFuzzTab() {
+			return adminTokenCurrent().length > 0 || developerTokenCurrent().length > 0 || loadCustomerFuzzCampaigns().length > 0;
+		}
 		function canCreateOrders() {
 			return adminTokenCurrent().length > 0 || developerTokenCurrent().length > 0;
 		}
@@ -3057,27 +3201,36 @@
 				el.setAttribute('aria-hidden', admin ? 'false' : 'true');
 			});
 			const marketBanner = $('orders-market-banner');
-			const adminCreate = $('orders-admin-create');
 			if (marketBanner) marketBanner.classList.toggle('hidden', canCreate);
-			if (adminCreate) adminCreate.classList.toggle('hidden', !canCreate);
 			const fromCode = $('orders-from-code-block');
 			if (fromCode) fromCode.classList.toggle('hidden', !admin);
 			const subtitle = $('orders-panel-subtitle');
 			if (subtitle) {
 				subtitle.innerHTML = canCreate
-					? '<code class="text-neon/80">POST /api/tasks</code> debits <strong>this node\'s wallet</strong>. Pool miners pick up open orders — watch hash rate on Workers / pool stats.'
-					: 'Read-only market — save <strong>developer</strong> or <strong>admin</strong> token in the header to create orders on this node.';
+					? 'Recommended: <strong>Run full security audit</strong> (PoH order + pool fuzz + HTML report). Admin: PoH-only tools below.'
+					: 'Read-only — save <strong>developer</strong> or <strong>admin</strong> token in the header.';
 			}
+			const auditBlock = $('orders-security-audit');
+			if (auditBlock) auditBlock.classList.toggle('hidden', !canCreate);
+			const pohWrap = $('orders-poh-advanced-wrap');
+			if (pohWrap) pohWrap.classList.toggle('hidden', !admin);
+			const adminCreate = $('orders-admin-create');
+			if (adminCreate && !ordersPohAdvancedOpen) adminCreate.classList.add('hidden');
 			const fuzzBanner = $('fuzz-market-banner');
 			const fuzzAdmin = $('fuzz-admin-only');
+			const fuzzCustomer = $('fuzz-customer-only');
+			const showCustomerFuzz = canCreate || loadCustomerFuzzCampaigns().length > 0;
 			if (fuzzBanner) fuzzBanner.classList.toggle('hidden', admin);
 			if (fuzzAdmin) fuzzAdmin.classList.toggle('hidden', !admin);
+			if (fuzzCustomer) fuzzCustomer.classList.toggle('hidden', !showCustomerFuzz || admin);
+			document.querySelectorAll('[data-tab="fuzz"]').forEach((el) => {
+				el.classList.toggle('hidden', !canViewFuzzTab());
+			});
 			enforceOperatorTabAccess();
 		}
 		function enforceOperatorTabAccess() {
-			const admin = adminTokenCurrent().length > 0;
-			if (!admin && currentTab === 'fuzz') {
-				switchTab('ecosystem');
+			if (currentTab === 'fuzz' && !canViewFuzzTab()) {
+				switchTab('orders');
 			}
 		}
 		function updateMiningAdminGate() {
@@ -8699,29 +8852,43 @@
 				tb.innerHTML = '';
 				if (!rows.length) {
 					tb.innerHTML =
-						'<tr><td colspan="8" class="px-3 py-3 text-gray-500 text-center text-[11px] leading-relaxed">' +
+						'<tr><td colspan="9" class="px-3 py-3 text-gray-500 text-center text-[11px] leading-relaxed">' +
 						'No orders in local SQLite. POST /api/tasks needs genesis/sync — normal for pool-only followers.' +
 						'</td></tr>';
 					return;
 				}
 				rows.forEach((o) => {
 					const tr = document.createElement('tr');
+					const oid = String(o.id || '');
 					const rw = Number(o.reward != null ? o.reward : o.reward_hmc);
 					const prog = Number(o.progress_count != null ? o.progress_count : o.progress);
 					const art = String(o.artifact_hash != null ? o.artifact_hash : o.artifact || '');
-					tr.innerHTML = '<td class="px-2 py-1.5 truncate max-w-[180px]">' + escapeHtml(String(o.id || '—')) + '</td>' +
+					const aud = securityAuditByOrderId(oid);
+					let reportCell = '<span class="text-gray-600">—</span>';
+					if (aud && aud.campaign_id) {
+						reportCell = '<button type="button" class="text-neon hover:underline audit-open-report" data-campaign-id="' + escapeHtml(aud.campaign_id) + '">#fuzz</button>';
+					}
+					tr.innerHTML = '<td class="px-2 py-1.5 truncate max-w-[180px]">' + escapeHtml(oid || '—') + '</td>' +
 						'<td class="px-2 py-1.5">' + escapeHtml(String(o.status || '—')) + '</td>' +
 						'<td class="px-2 py-1.5 tabular-nums">' + fmt(rw, 4) + '</td>' +
 						'<td class="px-2 py-1.5 tabular-nums">' + fmt(o.prepaid_hmc || 0, 4) + '</td>' +
 						'<td class="px-2 py-1.5 truncate max-w-[180px]">' + escapeHtml(String(o.payer_ref || '—')) + '</td>' +
 						'<td class="px-2 py-1.5 tabular-nums">' + fmtUInt(prog) + '</td>' +
 						'<td class="px-2 py-1.5 truncate max-w-[180px]" title="' + escapeHtml(art) + '">' + escapeHtml(art ? (art.slice(0, 14) + (art.length > 14 ? '…' : '')) : '—') + '</td>' +
-						'<td class="px-2 py-1.5 text-gray-400 tabular-nums">' + fmtUnix(o.created_at || o.created_unix || 0) + '</td>';
+						'<td class="px-2 py-1.5 text-gray-400 tabular-nums">' + fmtUnix(o.created_at || o.created_unix || 0) + '</td>' +
+						'<td class="px-2 py-1.5">' + reportCell + '</td>';
+					const btn = tr.querySelector('.audit-open-report');
+					if (btn) {
+						btn.addEventListener('click', () => {
+							selectedFuzzCustomerCampaignId = String(aud.campaign_id || '');
+							switchTab('fuzz');
+						});
+					}
 					tb.appendChild(tr);
 				});
 			} catch (e) {
 				const why = escapeHtml(String(e && e.message ? e.message : e));
-				tb.innerHTML = '<tr><td colspan="8" class="px-3 py-3 text-warn/90 text-center text-[11px]">orders unavailable — ' + why + '</td></tr>';
+				tb.innerHTML = '<tr><td colspan="9" class="px-3 py-3 text-warn/90 text-center text-[11px]">orders unavailable — ' + why + '</td></tr>';
 			}
 		}
 
@@ -8777,8 +8944,8 @@
 			return true;
 		}
 
-		async function openAuthenticatedGET(path, mimeHint) {
-			const r = await fetch(path, { cache: 'no-store', headers: Object.assign({}, adminHeaders()) });
+		async function openAuthenticatedGET(path, mimeHint, cid) {
+			const r = await fetch(path, { cache: 'no-store', headers: Object.assign({}, fuzzAccessHeaders(cid || selectedFuzzCampaignId)) });
 			const txt = await r.text();
 			if (!r.ok) {
 				throw new Error('HTTP ' + r.status + ' ' + txt.slice(0, 200));
@@ -8815,7 +8982,7 @@
 		async function openFuzzReportHTML(cid) {
 			const r = await fetch('/api/fuzz/campaigns/' + encodeURIComponent(cid) + '/report.html?limit=80', {
 				cache: 'no-store',
-				headers: Object.assign({ Accept: 'text/html' }, adminHeaders()),
+				headers: Object.assign({ Accept: 'text/html' }, fuzzAccessHeaders(cid)),
 			});
 			const txt = await r.text();
 			if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + txt.slice(0, 200));
@@ -9004,7 +9171,7 @@
 			try {
 				const r = await fetch('/api/fuzz/campaigns/' + encodeURIComponent(cid) + '/report?limit=50&format=json', {
 					cache: 'no-store',
-					headers: Object.assign({ Accept: 'application/json' }, adminHeaders()),
+					headers: Object.assign({ Accept: 'application/json' }, fuzzAccessHeaders(cid)),
 				});
 				if (!r.ok) {
 					if (msg) msg.textContent = fuzzHttpStatusLabel('report', r.status);
@@ -9104,6 +9271,283 @@
 				}
 			} catch (e) {
 				tb.innerHTML = '<tr><td colspan="7" class="px-3 py-3 text-warn/90 text-center">' + escapeHtml(e && e.message ? e.message : 'fuzz unavailable') + '</td></tr>';
+			}
+		}
+
+		function renderFuzzCustomerReportPreview(rep) {
+			const el = $('fuzz-customer-report-preview');
+			if (!el) return;
+			const c = rep.campaign || {};
+			const sum = rep.security_summary || {};
+			const ver = String(rep.verdict || '—');
+			const verCls = ver === 'clean' ? 'text-matrix border-matrix/40' : 'text-warn border-warn/40';
+			el.innerHTML =
+				'<div class="flex flex-wrap items-center justify-between gap-2">' +
+				'<span class="text-[9px] uppercase tracking-[0.2em] text-gray-500">Preview</span>' +
+				'<span class="px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider ' + verCls + '">' + escapeHtml(ver) + '</span></div>' +
+				'<p class="text-white font-display text-sm">' + escapeHtml(c.title || c.id || '—') + '</p>' +
+				'<p class="text-[10px] text-gray-400">vuln ' + escapeHtml(String(sum.vulnerabilities_found != null ? sum.vulnerabilities_found : 0)) +
+				' · critical ' + escapeHtml(String(sum.critical_count != null ? sum.critical_count : 0)) + '</p>';
+		}
+
+		async function selectFuzzCustomerCampaign(id, title) {
+			selectedFuzzCustomerCampaignId = String(id || '').trim();
+			if ($('fuzz-customer-selected-id')) $('fuzz-customer-selected-id').textContent = selectedFuzzCustomerCampaignId || '—';
+			document.querySelectorAll('#fuzz-customer-rows tr[data-campaign-id]').forEach((tr) => {
+				tr.classList.toggle('bg-neon/10', tr.dataset.campaignId === selectedFuzzCustomerCampaignId);
+			});
+			await refreshFuzzCustomerSelectionDetail();
+		}
+
+		async function refreshFuzzCustomerSelectionDetail() {
+			const cid = selectedFuzzCustomerCampaignId;
+			if (!cid) return;
+			const escrowEl = $('fuzz-customer-escrow');
+			try {
+				const r = await fetch('/api/fuzz/campaigns?limit=200', { cache: 'no-store' });
+				if (r.ok) {
+					const j = await r.json();
+					const rows = Array.isArray(j.campaigns) ? j.campaigns : [];
+					const c = rows.find((x) => String(x.id || '') === cid);
+					if (c && escrowEl) {
+						const cfg = c.config && typeof c.config === 'object' ? c.config : {};
+						const bud = cfg.budget_hmc != null ? cfg.budget_hmc : '—';
+						escrowEl.textContent = 'status=' + String(c.status || '—') + ' · budget_hmc=' + String(bud) + ' · runs ' + fmtUInt(fuzzSummaryRunsDone(c)) + '/' + fmtUInt(c.budget_runs);
+					}
+				}
+			} catch (_) {}
+			const msg = $('fuzz-customer-report-msg');
+			try {
+				const rr = await fetch('/api/fuzz/campaigns/' + encodeURIComponent(cid) + '/report?limit=50&format=json', {
+					cache: 'no-store',
+					headers: Object.assign({ Accept: 'application/json' }, fuzzAccessHeaders(cid)),
+				});
+				if (!rr.ok) {
+					if (msg) msg.textContent = fuzzHttpStatusLabel('report', rr.status) + ' — need report token from create (saved in this browser)';
+					return;
+				}
+				const rep = await rr.json();
+				if (msg) msg.textContent = 'report: ok · verdict=' + String(rep.verdict || '—');
+				renderFuzzCustomerReportPreview(rep);
+			} catch (e) {
+				if (msg) msg.textContent = 'report: ' + (e && e.message ? e.message : 'error');
+			}
+		}
+
+		async function refreshFuzzCustomerCampaigns() {
+			const tb = $('fuzz-customer-rows');
+			if (!tb) return;
+			const mine = loadCustomerFuzzCampaigns();
+			if (!mine.length) {
+				tb.innerHTML = '<tr><td colspan="5" class="px-3 py-3 text-gray-600 text-center">No campaigns yet — create one in <strong>#orders</strong> (Fuzz pool campaign).</td></tr>';
+				selectedFuzzCustomerCampaignId = '';
+				return;
+			}
+			let pub = [];
+			try {
+				const r = await fetch('/api/fuzz/campaigns?limit=200', { cache: 'no-store' });
+				if (r.ok) {
+					const j = await r.json();
+					pub = Array.isArray(j.campaigns) ? j.campaigns : [];
+				}
+			} catch (_) {}
+			const byId = {};
+			pub.forEach((c) => { byId[String(c.id || '')] = c; });
+			tb.innerHTML = '';
+			mine.forEach((m) => {
+				const id = String(m.id || '');
+				const c = byId[id] || {};
+				const title = String(m.title || c.title || id);
+				const status = String(c.status || '—');
+				const done = fuzzSummaryRunsDone(c);
+				const bud = Number(c.budget_runs);
+				const runsCell = (Number.isFinite(bud) && bud > 0) ? (fmtUInt(done) + ' / ' + fmtUInt(bud)) : fmtUInt(done);
+				const cfg = c.config && typeof c.config === 'object' ? c.config : {};
+				const escrow = cfg.budget_hmc != null ? String(cfg.budget_hmc) + ' HMC' : '—';
+				const tr = document.createElement('tr');
+				tr.dataset.campaignId = id;
+				tr.className = 'cursor-pointer hover:bg-white/5';
+				if (id === selectedFuzzCustomerCampaignId) tr.classList.add('bg-neon/10');
+				tr.innerHTML = '<td class="px-2 py-1.5 text-matrix truncate max-w-[140px]">' + escapeHtml(title) + '</td>' +
+					'<td class="px-2 py-1.5 text-gray-500 truncate max-w-[160px]" title="' + escapeHtml(id) + '">' + escapeHtml(id) + '</td>' +
+					'<td class="px-2 py-1.5">' + escapeHtml(status) + '</td>' +
+					'<td class="px-2 py-1.5 tabular-nums">' + runsCell + '</td>' +
+					'<td class="px-2 py-1.5">' + escapeHtml(escrow) + '</td>';
+				tr.addEventListener('click', () => { void selectFuzzCustomerCampaign(id, title); });
+				tb.appendChild(tr);
+			});
+			if (!selectedFuzzCustomerCampaignId && mine.length) {
+				await selectFuzzCustomerCampaign(String(mine[0].id || ''), String(mine[0].title || ''));
+			} else if (selectedFuzzCustomerCampaignId) {
+				await refreshFuzzCustomerSelectionDetail();
+			}
+		}
+
+		let securityAuditPanelWired = false;
+		function wireSecurityAuditPanel() {
+			if (securityAuditPanelWired) return;
+			securityAuditPanelWired = true;
+			const wasmInp = $('audit-wasm-file');
+			if (wasmInp) {
+				wasmInp.addEventListener('change', async () => {
+					const meta = $('audit-wasm-meta');
+					const f = wasmInp.files && wasmInp.files[0];
+					if (!f) {
+						auditWasmHex = '';
+						if (meta) meta.textContent = 'Paste check() source below, or upload .wasm.';
+						return;
+					}
+					if (f.size > 256 * 1024) {
+						auditWasmHex = '';
+						if (meta) meta.textContent = 'WASM too large (max 256 KiB).';
+						return;
+					}
+					const buf = await f.arrayBuffer();
+					auditWasmHex = Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+					if (meta) meta.textContent = 'Using file: ' + f.name + ' · ' + fmtUInt(f.size) + ' bytes (compile skipped)';
+				});
+			}
+			if ($('btn-audit-goto-report')) {
+				$('btn-audit-goto-report').addEventListener('click', () => switchTab('fuzz'));
+			}
+			if ($('btn-audit-run')) {
+				$('btn-audit-run').addEventListener('click', () => { void submitSecurityAudit(); });
+			}
+			if ($('btn-orders-toggle-poh-advanced')) {
+				$('btn-orders-toggle-poh-advanced').addEventListener('click', () => {
+					ordersPohAdvancedOpen = !ordersPohAdvancedOpen;
+					const ac = $('orders-admin-create');
+					const btn = $('btn-orders-toggle-poh-advanced');
+					if (ac) ac.classList.toggle('hidden', !ordersPohAdvancedOpen);
+					if (btn) btn.textContent = ordersPohAdvancedOpen ? 'Hide PoH-only tools' : 'Show PoH-only tools (advanced)';
+				});
+			}
+		}
+
+		async function submitSecurityAudit() {
+			const msg = $('audit-run-msg');
+			const box = $('audit-run-result');
+			const logPre = $('audit-compile-log');
+			if (!canCreateOrders()) {
+				if (msg) msg.textContent = 'Save developer or admin token first.';
+				return;
+			}
+			const code = String(($('audit-code-input') && $('audit-code-input').value) || '').trim();
+			if (!auditWasmHex && !code) {
+				if (msg) msg.textContent = 'Paste guard source or upload WASM.';
+				return;
+			}
+			const title = String(($('audit-title') && $('audit-title').value) || '').trim() || ('audit-' + Date.now());
+			const payerRef = String(($('audit-payer') && $('audit-payer').value) || '').trim() || ('audit:' + title.slice(0, 32));
+			const budgetHmc = Math.max(0.1, Number(($('audit-budget-hmc') && $('audit-budget-hmc').value) || 1));
+			const budgetRuns = Math.max(8, Math.floor(Number(($('audit-runs') && $('audit-runs').value) || 64)));
+			const includePoH = !$('audit-include-poh') || $('audit-include-poh').checked;
+			const lang = String(($('audit-code-lang') && $('audit-code-lang').value) || 'wat').trim();
+			if (msg) msg.textContent = 'Running audit (compile → order → fuzz)…';
+			if (box) box.classList.add('hidden');
+			if (logPre) {
+				logPre.classList.add('hidden');
+				logPre.textContent = '';
+			}
+			try {
+				const body = {
+					title,
+					payer_ref: payerRef,
+					budget_hmc: budgetHmc,
+					budget_runs: budgetRuns,
+					budget_seconds: 3600,
+					create_poh_order: includePoH,
+					pool_distributed: true,
+				};
+				if (auditWasmHex) body.wasm_check_hex = auditWasmHex;
+				else {
+					body.language = lang;
+					body.code = code;
+				}
+				const r = await fetch('/api/security-audit', {
+					method: 'POST',
+					headers: Object.assign({ 'Content-Type': 'application/json' }, tasksAuthHeaders()),
+					body: JSON.stringify(body),
+				});
+				const j = await r.json().catch(() => ({}));
+				if (!r.ok) {
+					const err = (j && (j.error || j.message)) || ('HTTP ' + r.status);
+					if (msg) msg.textContent = 'Audit failed: ' + err;
+					if (logPre && j.compile_log) {
+						logPre.textContent = String(j.compile_log);
+						logPre.classList.remove('hidden');
+					}
+					return;
+				}
+				const cid = String(j.campaign_id || (j.campaign && j.campaign.id) || '');
+				const oid = String(j.order_id || '');
+				const tok = String(j.customer_report_token || '');
+				saveSecurityAudit({ order_id: oid, campaign_id: cid, title, report_token: tok });
+				updateOrdersMarketUIMode();
+				if (msg) {
+					msg.textContent = 'Audit started · order ' + oid + ' · campaign ' + cid +
+						(j.pool_sync === 'ok' ? ' · pool ok' : (j.pool_sync_warning ? ' · ' + j.pool_sync_warning : ''));
+				}
+				if (box) {
+					box.classList.remove('hidden');
+					const esc = j.escrow && typeof j.escrow === 'object' ? j.escrow : {};
+					box.innerHTML =
+						'<p><strong class="text-neon">order</strong> ' + escapeHtml(oid) + ' · <strong class="text-neon">campaign</strong> ' + escapeHtml(cid) + '</p>' +
+						'<p>fuzz escrow: runs ' + escapeHtml(String(esc.runs_locked_hmc != null ? esc.runs_locked_hmc : '—')) +
+						' HMC · bounty ' + escapeHtml(String(esc.bounty_locked_hmc != null ? esc.bounty_locked_hmc : '—')) + ' HMC</p>' +
+						'<p class="text-gray-500">Report token saved — <a href="#" class="text-neon underline" data-goto-tab="fuzz">#fuzz</a> → Open HTML report.</p>';
+				}
+				if (logPre && j.compile_log) {
+					logPre.textContent = String(j.compile_log);
+					logPre.classList.remove('hidden');
+				}
+				logLine('[audit] ' + cid + ' order=' + oid);
+				void refreshOrdersList();
+				selectedFuzzCustomerCampaignId = cid;
+			} catch (e) {
+				if (msg) msg.textContent = 'Audit error: ' + (e && e.message ? e.message : e);
+			}
+		}
+
+		let fuzzCustomerPanelWired = false;
+		function wireFuzzCustomerPanel() {
+			if (fuzzCustomerPanelWired) return;
+			fuzzCustomerPanelWired = true;
+			if ($('btn-fuzz-customer-refresh')) {
+				$('btn-fuzz-customer-refresh').addEventListener('click', () => { void refreshFuzzCustomerCampaigns(); });
+			}
+			if ($('btn-fuzz-customer-report-html')) {
+				$('btn-fuzz-customer-report-html').addEventListener('click', async () => {
+					const cid = selectedFuzzCustomerCampaignId;
+					if (!cid) return;
+					try {
+						await openFuzzReportHTML(cid);
+					} catch (e) {
+						logLine('[fuzz] report html: ' + (e && e.message ? e.message : e));
+					}
+				});
+			}
+			if ($('btn-fuzz-customer-report-json')) {
+				$('btn-fuzz-customer-report-json').addEventListener('click', async () => {
+					const cid = selectedFuzzCustomerCampaignId;
+					if (!cid) return;
+					try {
+						await openAuthenticatedGET('/api/fuzz/campaigns/' + encodeURIComponent(cid) + '/report?limit=50&format=json', 'application/json', cid);
+					} catch (e) {
+						logLine('[fuzz] report json: ' + (e && e.message ? e.message : e));
+					}
+				});
+			}
+			if ($('btn-fuzz-customer-proof')) {
+				$('btn-fuzz-customer-proof').addEventListener('click', async () => {
+					const cid = selectedFuzzCustomerCampaignId;
+					if (!cid) return;
+					try {
+						await openAuthenticatedGET('/api/fuzz/campaigns/' + encodeURIComponent(cid) + '/proof-bundle', 'application/json', cid);
+					} catch (e) {
+						logLine('[fuzz] proof bundle: ' + (e && e.message ? e.message : e));
+					}
+				});
 			}
 		}
 
@@ -9721,9 +10165,14 @@
 			}
 			if (name === 'fuzz') {
 				void (async () => {
-					await ensureFuzzAdminToken();
-					await refreshFuzzCampaigns();
-					if (selectedFuzzCampaignId) await refreshFuzzSelectionDetail();
+					if (adminTokenCurrent()) {
+						await ensureFuzzAdminToken();
+						await refreshFuzzCampaigns();
+						if (selectedFuzzCampaignId) await refreshFuzzSelectionDetail();
+					} else {
+						await refreshFuzzCustomerCampaigns();
+						if (selectedFuzzCustomerCampaignId) await refreshFuzzCustomerSelectionDetail();
+					}
 				})();
 			}
 			if (name === 'hardware') {
@@ -10207,6 +10656,8 @@
 						await refreshFuzzCampaigns();
 					})();
 				});
+				wireSecurityAuditPanel();
+				wireFuzzCustomerPanel();
 				wireFuzzCampaignPanel();
 				refreshFuzzAdminActionState();
 				updateOrdersMarketUIMode();

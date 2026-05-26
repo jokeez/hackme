@@ -63,3 +63,8 @@ func requireDeveloperTasksAuth(w http.ResponseWriter, r *http.Request) bool {
 func tasksListShowsDetails(r *http.Request) bool {
 	return adminRequestAuthed(r) || developerRequestAuthed(r)
 }
+
+// requireFuzzCampaignCreateAuth allows fuzz campaign create with admin or developer token.
+func requireFuzzCampaignCreateAuth(w http.ResponseWriter, r *http.Request) bool {
+	return requireDeveloperTasksAuth(w, r)
+}

@@ -158,8 +158,8 @@ func (m *workManager) refreshActiveOrderLocked() activeOrderSnap {
 			continue
 		}
 		cr, _ := row["created_at"].(float64)
-		// Newest open order first (avoids stale queue blocking fresh campaigns).
-		if pick == nil || cr > pickCreated {
+		// Oldest open order first — fair FIFO for paying customers.
+		if pick == nil || cr < pickCreated {
 			pick, pickCreated = row, cr
 		}
 	}

@@ -23,17 +23,23 @@ func (a *app) syncPoolFuzzCampaign(ctx context.Context, c fuzzAutoCampaign) erro
 	if coordURL == "" {
 		coordURL = strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_URL")), "/")
 	}
-	if coordURL == "" {
+	cfg := parseMapJSON(c.ConfigJSON)
+	if !poolDistributedCampaign(cfg) {
 		return nil
+	}
+	if coordURL == "" {
+		return fmt.Errorf("pool_distributed: set HACKME_POOL_COORDINATOR_URL on the node (e.g. https://hackme.tech/pool/coordinator)")
 	}
 	token := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_ADMIN_TOKEN"))
 	if token == "" {
 		token = strings.TrimSpace(os.Getenv("HACKME_POOL_COORDINATOR_ADMIN_TOKEN"))
 	}
 	if token == "" {
-		return nil
+		token = strings.TrimSpace(os.Getenv("HACKME_POOL_COORDINATOR_TOKEN"))
 	}
-	cfg := parseMapJSON(c.ConfigJSON)
+	if token == "" {
+		return fmt.Errorf("pool_distributed: HACKME_COORDINATOR_ADMIN_TOKEN not set on node for pool register")
+	}
 	var title, desc, ctype string
 	_ = a.db.QueryRowContext(ctx,
 		`SELECT title, description, campaign_type FROM fuzz_campaigns WHERE id=?`, c.ID).
@@ -57,7 +63,7 @@ func (a *app) syncPoolFuzzCampaign(ctx context.Context, c fuzzAutoCampaign) erro
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Hackme-Admin-Token", token)
-	cl := &http.Client{Timeout: 30 * time.Second}
+	cl := &http.Client{Timeout: 8 * time.Second}
 	res, err := cl.Do(req)
 	if err != nil {
 		return err

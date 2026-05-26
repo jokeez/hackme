@@ -424,6 +424,7 @@ func main() {
 	mux.HandleFunc("/api/tasks", a.handleTasks)
 	mux.HandleFunc("/api/poh/solve-order", a.handlePohSolveOrder)
 	mux.HandleFunc("/api/tasks/from_code", a.handleTaskFromCode)
+	mux.HandleFunc("/api/security-audit", a.handleSecurityAudit)
 	mux.HandleFunc("/api/integrator/", a.handleIntegratorAPI)
 	mux.HandleFunc("/api/integrator", a.handleIntegratorAPI)
 	mux.HandleFunc("/api/fuzz/campaigns", a.handleFuzzCampaigns)

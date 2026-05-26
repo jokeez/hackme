@@ -337,6 +337,95 @@ func compileTaskWASM(ctx context.Context, lang, srcPath, outPath string) (string
 	return logText, nil
 }
 
+// compileTaskFromCode builds and validates WASM for export check(i64)->i32.
+func (a *app) compileTaskFromCode(ctx context.Context, req taskFromCodeRequest) (wasmBytes []byte, artifactHash, artifactRelPath, compileLog string, err error) {
+	req.Language = normalizeFromCodeLanguage(req.Language)
+	req.Code = strings.TrimSpace(req.Code)
+	if req.Language == "" {
+		return nil, "", "", "", errors.New("language required")
+	}
+	if req.Code == "" {
+		return nil, "", "", "", errors.New("code required")
+	}
+	if len(req.Code) > maxTaskCodeBytes {
+		return nil, "", "", "", errors.New("code too large")
+	}
+	if code, hint := validateFromCodeTaskShape(req.Language, req.Code); code != "" {
+		return nil, "", "", "", fmt.Errorf("%s: %s", code, hint)
+	}
+	if strings.TrimSpace(req.ID) == "" {
+		req.ID = "order-code-" + time.Now().UTC().Format("20060102t150405")
+	}
+	artifactRoot := chain.DefaultArtifactRoot()
+	if err := os.MkdirAll(artifactRoot, 0o755); err != nil {
+		return nil, "", "", "", err
+	}
+	artifactRootAbs, err := filepath.Abs(artifactRoot)
+	if err != nil {
+		return nil, "", "", "", err
+	}
+	tmpDir, err := os.MkdirTemp("", "hackme-task-code-*")
+	if err != nil {
+		return nil, "", "", "", err
+	}
+	defer os.RemoveAll(tmpDir)
+	srcName := "check.rs"
+	switch req.Language {
+	case "c":
+		srcName = "check.c"
+	case "cpp":
+		srcName = "check.cpp"
+	case "tinygo":
+		srcName = "check.go"
+	case "wat":
+		srcName = "check.wat"
+	case "zig":
+		srcName = "check.zig"
+	case "assemblyscript":
+		srcName = "check.ts"
+	}
+	srcPath := filepath.Join(tmpDir, srcName)
+	if err := os.WriteFile(srcPath, []byte(req.Code), 0o600); err != nil {
+		return nil, "", "", "", err
+	}
+	base := sanitizeCodeID(req.ID) + "-" + req.Language + "-" + time.Now().UTC().Format("20060102t150405")
+	outName := base + ".wasm"
+	outPath := filepath.Join(artifactRootAbs, outName)
+	compileTimeout := taskCompileTimeout
+	switch req.Language {
+	case "tinygo":
+		compileTimeout = taskCompileTimeoutGoWASM
+	case "zig", "assemblyscript":
+		compileTimeout = taskCompileTimeoutZigOrASC
+	}
+	cctx, cancel := context.WithTimeout(ctx, compileTimeout)
+	defer cancel()
+	compileLog, compileErr := compileTaskWASM(cctx, req.Language, srcPath, outPath)
+	if compileErr != nil {
+		return nil, "", "", compileLog, compileErr
+	}
+	wasmBytes, err = os.ReadFile(outPath)
+	if err != nil {
+		return nil, "", "", compileLog, err
+	}
+	if req.Language == "tinygo" || req.Language == "zig" || req.Language == "assemblyscript" {
+		if sanitized, serr := tinygoSanitizeWasm(wasmBytes); serr == nil {
+			wasmBytes = sanitized
+			_ = os.WriteFile(outPath, wasmBytes, 0o644)
+		} else {
+			_ = os.Remove(outPath)
+			return nil, "", "", compileLog, serr
+		}
+	}
+	if err := sandbox.ValidateCheckWasm(ctx, wasmBytes); err != nil {
+		_ = os.Remove(outPath)
+		return nil, "", "", compileLog, err
+	}
+	sum := sha256.Sum256(wasmBytes)
+	artifactHash = hex.EncodeToString(sum[:])
+	return wasmBytes, artifactHash, outName, compileLog, nil
+}
+
 func (a *app) handleTaskFromCode(w http.ResponseWriter, r *http.Request) {
 	if !a.allowRate("tasks_from_code:"+clientIP(r), 2) {
 		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
@@ -387,92 +476,12 @@ func (a *app) handleTaskFromCode(w http.ResponseWriter, r *http.Request) {
 	if req.ID == "" {
 		req.ID = "order-code-" + time.Now().UTC().Format("20060102t150405")
 	}
-	artifactRoot := chain.DefaultArtifactRoot()
-	if err := os.MkdirAll(artifactRoot, 0o755); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "artifact_root_error", "artifact root error", nil)
-		return
-	}
-	artifactRootAbs, err := filepath.Abs(artifactRoot)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "artifact_root_error", "artifact root path error", nil)
-		return
-	}
 
-	tmpDir, err := os.MkdirTemp("", "hackme-task-code-*")
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "tmp_dir_error", "tmp dir error", nil)
-		return
-	}
-	defer os.RemoveAll(tmpDir)
-
-	srcName := "check.rs"
-	switch req.Language {
-	case "c":
-		srcName = "check.c"
-	case "cpp":
-		srcName = "check.cpp"
-	case "tinygo":
-		srcName = "check.go"
-	case "wat":
-		srcName = "check.wat"
-	case "zig":
-		srcName = "check.zig"
-	case "assemblyscript":
-		srcName = "check.ts"
-	}
-	srcPath := filepath.Join(tmpDir, srcName)
-	if err := os.WriteFile(srcPath, []byte(req.Code), 0o600); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "source_write_error", "source write error", nil)
-		return
-	}
-
-	base := sanitizeCodeID(req.ID) + "-" + req.Language + "-" + time.Now().UTC().Format("20060102t150405")
-	outName := base + ".wasm"
-	outPath := filepath.Join(artifactRootAbs, outName)
-
-	compileTimeout := taskCompileTimeout
-	switch req.Language {
-	case "tinygo":
-		compileTimeout = taskCompileTimeoutGoWASM
-	case "zig", "assemblyscript":
-		compileTimeout = taskCompileTimeoutZigOrASC
-	}
-	cctx, cancel := context.WithTimeout(r.Context(), compileTimeout)
-	defer cancel()
-	compileLog, compileErr := compileTaskWASM(cctx, req.Language, srcPath, outPath)
+	_, artifactHash, outName, compileLog, compileErr := a.compileTaskFromCode(r.Context(), req)
 	if compileErr != nil {
-		writeAPIError(w, http.StatusBadRequest, "compile_failed", "compile failed", map[string]any{"compile_log": compileLog})
+		writeAPIError(w, http.StatusBadRequest, "compile_failed", "compile failed", map[string]any{"compile_log": compileLog, "detail": compileErr.Error()})
 		return
 	}
-
-	wasmBytes, err := os.ReadFile(outPath)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "compiled_wasm_read_error", "compiled wasm read error", map[string]any{"detail": err.Error(), "artifact_path": outName})
-		return
-	}
-	// TinyGo/Zig/AssemblyScript often emit memory/globals or extra function exports; strip to exactly export "check".
-	if req.Language == "tinygo" || req.Language == "zig" || req.Language == "assemblyscript" {
-		if sanitized, serr := tinygoSanitizeWasm(wasmBytes); serr == nil {
-			wasmBytes = sanitized
-			_ = os.WriteFile(outPath, wasmBytes, 0o644)
-		} else {
-			_ = os.Remove(outPath)
-			writeAPIError(w, http.StatusBadRequest, "wasm_sanitize_failed", "wasm export sanitize failed", map[string]any{"detail": serr.Error()})
-			return
-		}
-	}
-	if err := sandbox.ValidateCheckWasm(r.Context(), wasmBytes); err != nil {
-		_ = os.Remove(outPath)
-		extra := map[string]any{"detail": err.Error()}
-		if req.Language == "tinygo" || req.Language == "zig" || req.Language == "assemblyscript" {
-			extra["hint"] = "module failed strict ABI gate after sanitize (only check(i64)->i32 function export allowed)"
-		}
-		writeAPIError(w, http.StatusBadRequest, "wasm_validation_failed", "compiled wasm failed ABI/sandbox validation", extra)
-		return
-	}
-
-	sum := sha256.Sum256(wasmBytes)
-	artifactHash := hex.EncodeToString(sum[:])
 	m := generatedManifest{
 		ID:               strings.TrimSpace(req.ID),
 		Kind:             "synthetic_poh_v1",
@@ -485,14 +494,12 @@ func (a *app) handleTaskFromCode(w http.ResponseWriter, r *http.Request) {
 	}
 	rawManifest, err := json.Marshal(m)
 	if err != nil {
-		_ = os.Remove(outPath)
 		writeAPIError(w, http.StatusInternalServerError, "manifest_build_error", "manifest build error", nil)
 		return
 	}
 
 	res, err := a.chain.InsertOrderTask(r.Context(), rawManifest)
 	if err != nil {
-		_ = os.Remove(outPath)
 		code := http.StatusBadRequest
 		if errors.Is(err, chain.ErrInsufficientBalance) {
 			code = http.StatusPaymentRequired

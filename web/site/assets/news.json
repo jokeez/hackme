@@ -1,6 +1,23 @@
 {
   "items": [
     {
+      "id": "2026-05-26-security-audit-one-click",
+      "date": "2026-05-26",
+      "title": "Security Audit — one click (order + pool fuzz + HTML report)",
+      "summary": "Customers launch a full audit from dashboard #orders: compile guard or upload WASM, POST /api/security-audit creates linked useful-PoW order + distributed fuzz campaign (20/80 escrow), report token opens HTML/JSON in #fuzz. Same pipeline as Bitcoin Core 5-module research. PoH order queue is now FIFO-fair on the coordinator.",
+      "tags": ["security", "fuzzing", "product", "orders", "release"],
+      "impact": "B2B customers get one product story; miners earn on both workerpoh and workerfuzz; operators keep advanced PoH-only tools under admin.",
+      "action": "Try: local dashboard → Security audit → Run full security audit · Gate: bash scripts/ops/security_audit_gate.sh · Telegram: docs/TELEGRAM_POST_SECURITY_AUDIT_LAUNCH.txt",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme",
+        "downloads": "https://hackme.tech/downloads.html",
+        "report_bc5": "https://hackme.tech/reports/bitcoin-core-5module.html",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-26-fuzz-engine-v2-rc11i",
       "date": "2026-05-26",
       "title": "Release 0.1.0-rc11i · Fuzz Engine v2 + wallet/settlement fixes",

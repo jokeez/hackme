@@ -623,10 +623,12 @@ func (a *app) handleFuzzHousekeeping(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleFuzzCampaignCreate(w http.ResponseWriter, r *http.Request) {
-	if !requireAdminAuth(w, r) {
+	if !requireFuzzCampaignCreateAuth(w, r) {
 		return
 	}
-	logAdminAction(r, "fuzz_campaign_create")
+	if hasValidAdminAuth(r) {
+		logAdminAction(r, "fuzz_campaign_create")
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
 	defer r.Body.Close()
 	var req fuzzCampaignCreateRequest
