@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>HackMe · L1 Crypto Stack Security Probe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--neon:#00d1ff;--matrix:#39ff14;--warn:#ffb020;--bg:#05080f;--card:rgba(0,0,0,.45)}
+*{box-sizing:border-box}
+body{margin:0;font-family:"JetBrains Mono",ui-monospace,monospace;background:var(--bg);color:#c5d4e8;line-height:1.6;min-height:100vh}
+body::before{content:"";position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(0,209,255,.12),transparent),radial-gradient(ellipse 60% 40% at 100% 50%,rgba(57,255,20,.06),transparent);pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:2.5rem 1.25rem 4rem}
+.hero{text-align:center;padding:2.5rem 1.5rem 2rem;border:1px solid rgba(0,209,255,.28);border-radius:20px;background:linear-gradient(160deg,rgba(0,209,255,.08),rgba(0,0,0,.5));margin-bottom:2rem}
+.hero h1{font-family:"Space Grotesk",sans-serif;font-size:clamp(1.2rem,3.5vw,1.75rem);letter-spacing:.1em;text-transform:uppercase;color:var(--neon);margin:0 0 .5rem}
+.hero .tag{font-size:.72rem;color:#6d8099;text-transform:uppercase;letter-spacing:.2em}
+.hero-badge{display:inline-block;margin-top:1.25rem;padding:.55rem 1.4rem;border-radius:999px;border:2px solid #39ff14;color:#39ff14;font-weight:700;font-size:.95rem;letter-spacing:.2em;text-transform:uppercase;box-shadow:0 0 24px rgba(57,255,20,.25)}
+.hero p.lead{max-width:44rem;margin:1rem auto 0;font-size:.88rem;color:#9eb0c8}
+.chains-row{display:flex;flex-wrap:wrap;justify-content:center;gap:.5rem;margin-top:1.25rem}
+.chains-row span{font-size:.68rem;padding:.35rem .75rem;border-radius:999px;border:1px solid rgba(255,255,255,.15)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;margin:1.5rem 0 2rem}
+.stat{border:1px solid rgba(0,209,255,.2);border-radius:12px;padding:1rem;background:var(--card)}
+.stat b{display:block;font-size:.62rem;text-transform:uppercase;letter-spacing:.12em;color:#6d8099;margin-bottom:.35rem}
+.stat .v{font-size:1.35rem;font-weight:700;color:#fff}
+.stat .v.neon{color:var(--neon)}
+.stat .v.ok{color:var(--matrix)}
+.lbl{font-size:.65rem;text-transform:uppercase;letter-spacing:.14em;color:var(--neon);margin:2rem 0 .75rem}
+.mod-card{border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:1.25rem 1.35rem;margin-bottom:1rem;background:linear-gradient(135deg,var(--card),rgba(0,209,255,.04))}
+.mod-head{display:flex;flex-wrap:wrap;align-items:flex-start;gap:.75rem 1rem}
+.mod-num{font-size:1.8rem;font-weight:700;color:rgba(0,209,255,.35);line-height:1}
+.chain-pill{font-size:.62rem;text-transform:uppercase;letter-spacing:.14em;border:1px solid;padding:.15rem .55rem;border-radius:999px;display:inline-block;margin:0 0 .35rem}
+.mod-card h2{font-family:"Space Grotesk",sans-serif;font-size:1.05rem;margin:0;color:#fff}
+.mod-guard{margin:.2rem 0 0;font-size:.75rem}
+.mod-guard code{color:var(--matrix)}
+.mod-badge{margin-left:auto;padding:.25rem .75rem;border-radius:999px;border:1px solid;font-size:.68rem;font-weight:700;letter-spacing:.1em}
+.lbl2{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:#6d8099;margin:1rem 0 .35rem}
+.core-links{margin:.2rem 0 .6rem;padding-left:1.1rem;font-size:.72rem}
+.core-links a{color:var(--neon);word-break:break-all}
+.mod-ref{font-size:.78rem;margin:.35rem 0 .85rem}
+.mod-ref a{color:var(--matrix);text-decoration:none}
+.bar-track{display:flex;height:10px;border-radius:6px;overflow:hidden;background:rgba(255,255,255,.06);margin:.5rem 0}
+.bar.pass{background:linear-gradient(90deg,#1a6b2e,var(--matrix))}
+.bar.fail{background:linear-gradient(90deg,#4a3030,#6b7c93)}
+.bar-legend{display:flex;flex-wrap:wrap;gap:1rem;font-size:.68rem;color:#6d8099}
+.pass-t{color:var(--matrix)}.fail-t{color:#8fa3bc}.trap-t{color:var(--warn)}
+.mod-note{font-size:.76rem;color:#8fa3bc;margin:.75rem 0 0}
+.method{border-left:3px solid var(--neon);padding:.5rem 0 .5rem 1.25rem;margin:1.5rem 0;font-size:.82rem;color:#9eb0c8}
+.method ul{margin:.5rem 0;padding-left:1.2rem}
+.disclaimer{border:1px solid rgba(255,176,32,.35);border-radius:12px;padding:1rem 1.2rem;background:rgba(255,176,32,.06);font-size:.78rem;color:#d4b896;margin-top:2rem}
+footer{margin-top:2.5rem;padding-top:1.25rem;border-top:1px solid rgba(255,255,255,.08);font-size:.72rem;color:#6d8099;text-align:center}
+footer a{color:var(--neon)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<section class="hero">
+<p class="tag">HackMe security research · multi-chain L1 stack</p>
+<h1>L1 Crypto Stack · 5-Chain Probe</h1>
+<p class="lead">Bitcoin · Ethereum · Dogecoin · Litecoin · HackMe — ported upstream excerpts · property probe · no sandbox traps</p>
+<div class="chains-row">
+<span style="color:#f7931a;border-color:#f7931a">Bitcoin</span>
+<span style="color:#627eea;border-color:#627eea">Ethereum</span>
+<span style="color:#c2a633;border-color:#c2a633">Dogecoin</span>
+<span style="color:#345d9d;border-color:#345d9d">Litecoin</span>
+<span style="color:#00d1ff;border-color:#00d1ff">HackMe</span>
+</div>
+<span class="hero-badge">ALL CHAINS CLEAN</span>
+</section>
+<div class="stats">
+<div class="stat"><b>Chains profiled</b><span class="v neon">5</span></div>
+<div class="stat"><b>Samples / guard</b><span class="v">500</span></div>
+<div class="stat"><b>WASM traps (total)</b><span class="v ok">0</span></div>
+<div class="stat"><b>Exploitable in probe</b><span class="v ok">0</span></div>
+<div class="stat"><b>Generated (UTC)</b><span class="v" style="font-size:.75rem">2026-05-26T17:08:02Z</span></div>
+</div>
+<p class="lbl">Per-chain results</p>
+
+<article class="mod-card" style="border-left:3px solid #f7931a">
+  <div class="mod-head">
+    <span class="mod-num">01</span>
+    <div>
+      <p class="chain-pill" style="color:#f7931a;border-color:#f7931a">Bitcoin</p>
+      <h2>GetScriptOp · push &gt; 520 B</h2>
+      <p class="mod-guard"><code>upstream_bitcoin_getscriptop</code></p>
+    </div>
+    <span class="mod-badge" style="border-color:#39ff14;color:#39ff14">CLEAN</span>
+  </div>
+  <p class="lbl2">Upstream reference</p>
+  <p class="mod-ref"><a href="https://github.com/bitcoin/bitcoin" target="_blank" rel="noopener">bitcoin/bitcoin · script.cpp GetScriptOp + script.h MAX_SCRIPT_ELEMENT_SIZE</a></p>
+  <ul class="core-links"><li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/script/script.h#L27-L28" target="_blank" rel="noopener">bitcoin/bitcoin/blob/master/src/script/script.h#L27-L28</a></li><li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/script/script.cpp#L312-L365" target="_blank" rel="noopener">bitcoin/bitcoin/blob/master/src/script/script.cpp#L312-L365</a></li></ul>
+  <p class="lbl2">HackMe ported source</p>
+  <p class="mod-ref"><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_getscriptop.c" target="_blank" rel="noopener">upstream_bitcoin_getscriptop</a></p>
+  <div class="bar-track"><div class="bar pass" style="width:68.4%"></div><div class="bar fail" style="width:31.6%"></div></div>
+  <div class="bar-legend"><span class="pass-t">signal 342 (68%)</span><span class="fail-t">reject 158 (32%)</span><span class="trap-t">traps 0</span></div>
+  <p class="mod-note">Ported upstream excerpt in WASM. check_pass = consensus/policy violation signal (check→1); check_fail = clean reject. No sandbox traps. Violation signals: 342 / 500 samples.</p>
+</article>
+<article class="mod-card" style="border-left:3px solid #627eea">
+  <div class="mod-head">
+    <span class="mod-num">02</span>
+    <div>
+      <p class="chain-pill" style="color:#627eea;border-color:#627eea">Ethereum</p>
+      <h2>State transition · value overflow</h2>
+      <p class="mod-guard"><code>upstream_ethereum_value_overflow</code></p>
+    </div>
+    <span class="mod-badge" style="border-color:#39ff14;color:#39ff14">CLEAN</span>
+  </div>
+  <p class="lbl2">Upstream reference</p>
+  <p class="mod-ref"><a href="https://github.com/ethereum/go-ethereum" target="_blank" rel="noopener">go-ethereum · state_transition.go uint256.FromBig(tx.Value())</a></p>
+  <ul class="core-links"><li><a href="https://github.com/ethereum/go-ethereum/blob/master/core/state_transition.go#L262-L265" target="_blank" rel="noopener">ethereum/go-ethereum/blob/master/core/state_transition.go#L262-L265</a></li></ul>
+  <p class="lbl2">HackMe ported source</p>
+  <p class="mod-ref"><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/ethereum_value_overflow.c" target="_blank" rel="noopener">upstream_ethereum_value_overflow</a></p>
+  <div class="bar-track"><div class="bar pass" style="width:16.8%"></div><div class="bar fail" style="width:83.2%"></div></div>
+  <div class="bar-legend"><span class="pass-t">signal 84 (17%)</span><span class="fail-t">reject 416 (83%)</span><span class="trap-t">traps 0</span></div>
+  <p class="mod-note">Ported upstream excerpt in WASM. check_pass = consensus/policy violation signal (check→1); check_fail = clean reject. No sandbox traps. Violation signals: 84 / 500 samples.</p>
+</article>
+<article class="mod-card" style="border-left:3px solid #c2a633">
+  <div class="mod-head">
+    <span class="mod-num">03</span>
+    <div>
+      <p class="chain-pill" style="color:#c2a633;border-color:#c2a633">Dogecoin</p>
+      <h2>HasValidOps · script window</h2>
+      <p class="mod-guard"><code>upstream_dogecoin_hasvalidops</code></p>
+    </div>
+    <span class="mod-badge" style="border-color:#39ff14;color:#39ff14">CLEAN</span>
+  </div>
+  <p class="lbl2">Upstream reference</p>
+  <p class="mod-ref"><a href="https://github.com/dogecoin/dogecoin" target="_blank" rel="noopener">dogecoin/dogecoin · script.cpp CScript::HasValidOps (BTC fork)</a></p>
+  <ul class="core-links"><li><a href="https://github.com/dogecoin/dogecoin/blob/master/src/script/script.cpp" target="_blank" rel="noopener">dogecoin/dogecoin/blob/master/src/script/script.cpp</a></li></ul>
+  <p class="lbl2">HackMe ported source</p>
+  <p class="mod-ref"><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/dogecoin_hasvalidops.c" target="_blank" rel="noopener">upstream_dogecoin_hasvalidops</a></p>
+  <div class="bar-track"><div class="bar pass" style="width:82.0%"></div><div class="bar fail" style="width:18.0%"></div></div>
+  <div class="bar-legend"><span class="pass-t">signal 410 (82%)</span><span class="fail-t">reject 90 (18%)</span><span class="trap-t">traps 0</span></div>
+  <p class="mod-note">Ported upstream excerpt in WASM. check_pass = consensus/policy violation signal (check→1); check_fail = clean reject. No sandbox traps. Violation signals: 410 / 500 samples.</p>
+</article>
+<article class="mod-card" style="border-left:3px solid #345d9d">
+  <div class="mod-head">
+    <span class="mod-num">04</span>
+    <div>
+      <p class="chain-pill" style="color:#345d9d;border-color:#345d9d">Litecoin</p>
+      <h2>GetScriptOp · LTC script.cpp</h2>
+      <p class="mod-guard"><code>upstream_litecoin_getscriptop</code></p>
+    </div>
+    <span class="mod-badge" style="border-color:#39ff14;color:#39ff14">CLEAN</span>
+  </div>
+  <p class="lbl2">Upstream reference</p>
+  <p class="mod-ref"><a href="https://github.com/litecoin-project/litecoin" target="_blank" rel="noopener">litecoin-project/litecoin · script.cpp GetScriptOp family</a></p>
+  <ul class="core-links"><li><a href="https://github.com/litecoin-project/litecoin/blob/master/src/script/script.cpp" target="_blank" rel="noopener">litecoin-project/litecoin/blob/master/src/script/script.cpp</a></li></ul>
+  <p class="lbl2">HackMe ported source</p>
+  <p class="mod-ref"><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/litecoin_getscriptop.c" target="_blank" rel="noopener">upstream_litecoin_getscriptop</a></p>
+  <div class="bar-track"><div class="bar pass" style="width:68.4%"></div><div class="bar fail" style="width:31.6%"></div></div>
+  <div class="bar-legend"><span class="pass-t">signal 342 (68%)</span><span class="fail-t">reject 158 (32%)</span><span class="trap-t">traps 0</span></div>
+  <p class="mod-note">Ported upstream excerpt in WASM. check_pass = consensus/policy violation signal (check→1); check_fail = clean reject. No sandbox traps. Violation signals: 342 / 500 samples.</p>
+</article>
+<article class="mod-card" style="border-left:3px solid #00d1ff">
+  <div class="mod-head">
+    <span class="mod-num">05</span>
+    <div>
+      <p class="chain-pill" style="color:#00d1ff;border-color:#00d1ff">HackMe Network</p>
+      <h2>InsertOrderTask · manifest gate</h2>
+      <p class="mod-guard"><code>upstream_hackme_order_gate</code></p>
+    </div>
+    <span class="mod-badge" style="border-color:#39ff14;color:#39ff14">CLEAN</span>
+  </div>
+  <p class="lbl2">Upstream reference</p>
+  <p class="mod-ref"><a href="https://hackme.tech" target="_blank" rel="noopener">HackMe · order_tasks.go + economics.go prepaid/difficulty floors</a></p>
+  <ul class="core-links"><li><a href="https://github.com/jokeez/hackme/blob/main/internal/chain/order_tasks.go" target="_blank" rel="noopener">jokeez/hackme/blob/main/internal/chain/order_tasks.go</a></li><li><a href="https://github.com/jokeez/hackme/blob/main/internal/chain/economics.go#L37-L38" target="_blank" rel="noopener">jokeez/hackme/blob/main/internal/chain/economics.go#L37-L38</a></li></ul>
+  <p class="lbl2">HackMe ported source</p>
+  <p class="mod-ref"><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/hackme_order_gate.c" target="_blank" rel="noopener">upstream_hackme_order_gate</a></p>
+  <div class="bar-track"><div class="bar pass" style="width:23.6%"></div><div class="bar fail" style="width:76.4%"></div></div>
+  <div class="bar-legend"><span class="pass-t">signal 118 (24%)</span><span class="fail-t">reject 382 (76%)</span><span class="trap-t">traps 0</span></div>
+  <p class="mod-note">Ported upstream excerpt in WASM. check_pass = consensus/policy violation signal (check→1); check_fail = clean reject. No sandbox traps. Violation signals: 118 / 500 samples.</p>
+</article>
+<div class="method">
+<p><strong>Methodology</strong></p>
+<ul>
+<li>WASM <code>check(i64)→i32</code> from <strong>ported C excerpts</strong> (see <code>tasks/sources/security/upstream/</code> + ATTRIBUTION.md) — not full node binaries.</li>
+<li>500 inputs per chain: pseudorandom + targeted violation class (oversize push, MoneyRange overflow, uint256 carry, invalid order manifest).</li>
+<li>Same sandbox as useful-PoW orders and <a href="https://hackme.tech">Security Audit</a> on HackMe open stack.</li>
+<li>Live pool: useful-PoW + distributed fuzz + escrow — see <a href="https://hackme.tech/reports/bitcoin-core-5module.html">Bitcoin Core 5-module</a> companion study.</li>
+</ul>
+</div>
+<div class="disclaimer">
+<strong>Honest scope.</strong> Logic is ported from named upstream functions (GetScriptOp, HasValidOps, CheckTransaction/MoneyRange, geth value overflow path, HackMe InsertOrderTask). We do not run upstream binaries in CI. <code>check_pass</code> bars = violation signals on probe inputs, not “chains hacked”. For customer audits use Security Audit + live fuzz pool.
+</div>
+<footer>
+<a href="https://hackme.tech">hackme.tech</a> · <a href="https://github.com/jokeez/hackme">source</a> · useful-PoW · fuzz pool · HMC escrow
+</footer>
+</div>
+</body>
+</html>%!(EXTRA string=2026-05-26T17:08:02Z)

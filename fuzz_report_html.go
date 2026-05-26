@@ -128,6 +128,7 @@ pre.repro{margin:.5rem 0 0;padding:.75rem 1rem;background:rgba(0,0,0,.45);border
 .tag.expected{background:rgba(0,209,255,.15);color:#00d1ff}
 .tag.needs{background:rgba(255,96,96,.2);color:#ff9090}
 .tag.sandbox{background:rgba(255,176,32,.15);color:#ffb020}
+.tag.guard{background:rgba(57,255,20,.12);color:#7dffb8}
 table{width:100%%;border-collapse:collapse;font-size:.78rem;margin-top:.65rem}
 th,td{border-bottom:1px solid rgba(255,255,255,.08);padding:.5rem .55rem;text-align:left;vertical-align:top}
 th{color:#6b7c93;text-transform:uppercase;font-size:.62rem;letter-spacing:.06em}
@@ -173,8 +174,8 @@ a{color:#00d1ff}
 </html>`,
 		html.EscapeString(title),
 		verColor, verColor,
-		engineNote,
 		html.EscapeString(gen),
+		engineNote,
 		html.EscapeString(title),
 		html.EscapeString(toString(c["id"])),
 		html.EscapeString(toString(c["campaign_type"])),
@@ -210,6 +211,8 @@ func renderFuzzIssueRows(report map[string]any) string {
 			tagClass = "needs"
 		case "sandbox":
 			tagClass = "sandbox"
+		case "guard_signal":
+			tagClass = "guard"
 		}
 		reproCell := `<span class="muted">—</span>`
 		if strings.TrimSpace(i.ReproCmd) != "" {

@@ -86,8 +86,9 @@
     <section class="panel glass">
       <div class="panel-head"><h2>Orders from code · WASM languages</h2></div>
       <p class="section-lede">
-        Operators can compile gate modules via <span class="code-inline">POST /api/tasks/from_code</span> when node toolchains are installed.
+        On a <strong>local node</strong>, operators compile gate modules via <span class="code-inline">POST /api/tasks/from_code</span> when toolchains are installed (dashboard Orders tab).
         Each pipeline emits a hashed WASM artifact with export <span class="code-inline">check(i64) → i32</span>.
+        Remote <span class="code-inline">from_code</span> on <span class="code-inline">hackme.tech</span> is blocked — build WASM locally or use <span class="code-inline">POST /api/security-audit</span> on your node.
       </p>
       <div class="lang-strip">
         <span class="pill">Rust</span>
@@ -182,8 +183,8 @@
         </article>
         <article class="path-card">
           <h3>Fuzzing / B2B</h3>
-          <p>Orders and wallet without mining UI — landing, console, and public treasury read for escrow planning.</p>
-          <span class="mono-hint"><a href="./developers.html">developers.html</a> · GET /api/wallet</span>
+          <p>Local node: security-audit + fuzz_report_v2. Public site: read-only campaign list and research reports.</p>
+          <span class="mono-hint"><a href="./developers.html">developers.html</a> · <a href="./fuzz-guide.html">fuzz-guide</a></span>
         </article>
         <article class="path-card">
           <h3>Create orders (API)</h3>

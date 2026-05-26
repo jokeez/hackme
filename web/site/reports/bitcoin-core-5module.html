@@ -64,18 +64,13 @@ footer a{color:var(--neon)}
 </section>
 <div class="stats">
 <div class="stat"><b>Modules tested</b><span class="v neon">5</span></div>
-<div class="stat"><b>Samples / module</b><span class="v">5</span></div>
-<div class="stat"><b>WASM traps (total)</b><span class="v ok">500</span></div>
+<div class="stat"><b>Samples / module</b><span class="v">500</span></div>
+<div class="stat"><b>WASM traps (total)</b><span class="v ok">0</span></div>
 <div class="stat"><b>Exploitable in probe</b><span class="v ok">0</span></div>
-<div class="stat"><b>Generated (UTC)</b><span class="v" style="font-size:.75rem">%!s(int=0)</span></div>
+<div class="stat"><b>Generated (UTC)</b><span class="v" style="font-size:.75rem">2026-05-26T17:00:13Z</span></div>
 </div>
 <p class="lbl">Module results</p>
-2026-05-25T14:54:40Z
-<div class="method">
-<p><strong>Methodology</strong></p>
-<ul>
-<li>WASM guards <code>check(i64)→i32</code> derived from Core areas (not full <code>bitcoind</code>).</li>
-<li>Property-style sampling: %!d(string=
+
 <article class="mod-card">
   <div class="mod-head">
     <span class="mod-num">01</span>
@@ -160,7 +155,12 @@ footer a{color:var(--neon)}
   <div class="bar-track"><div class="bar pass" style="width:33.6%" title="check=1"></div><div class="bar fail" style="width:66.4%" title="check=0"></div></div>
   <div class="bar-legend"><span class="pass-t">pass 168 (34%)</span><span class="fail-t">fail 332 (66%)</span><span class="trap-t">traps 0</span></div>
   <p class="mod-note">No WASM sandbox traps. check_fail = inputs outside the accepting set (expected for selective guards). Violation-class (OP_PUSHDATA1 + len&gt;520): 168 hits in 500 samples.</p>
-</article>) pseudorandom inputs per module (+ targeted OP_PUSHDATA1 probes on script modules).</li>
+</article>
+<div class="method">
+<p><strong>Methodology</strong></p>
+<ul>
+<li>WASM guards <code>check(i64)→i32</code> derived from Core areas (not full <code>bitcoind</code>).</li>
+<li>Property-style sampling: 500 pseudorandom inputs per module (+ targeted OP_PUSHDATA1 probes on script modules).</li>
 <li>Executed in HackMe sandbox (wazero) — same family as useful-PoW order gates on the live pool.</li>
 </ul>
 </div>
@@ -168,6 +168,7 @@ footer a{color:var(--neon)}
 <strong>Honest scope.</strong> This is <em>not</em> a claim of new CVEs in Bitcoin Core. A high <code>check_fail</code> rate on selective guards means “input not in the accepting set”, not “RCE in Core”. Violation-class hits on script push guards show the gate flags oversize pushes — expected for consensus-inspired checks.
 </div>
 <footer>
+<a href="https://hackme.tech/reports/l1-crypto-stack.html">L1 Crypto Stack (5 chains)</a> ·
 <a href="https://github.com/jokeez/hackme">github.com/jokeez/hackme</a> ·
 <a href="https://hackme.tech">hackme.tech</a> ·
 <a href="https://hackme.tech/downloads.html#local-node">run orders locally</a> ·
@@ -175,4 +176,4 @@ AGPL-3.0
 </footer>
 </div>
 </body>
-</html>%!(EXTRA int=500)
+</html>

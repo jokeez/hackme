@@ -20,10 +20,11 @@
   </style>
 </head>
 <body>
+  <p class="sub" style="margin-bottom:12px"><a href="./index.html">Home</a> · <a href="./developers.html">Developers</a> · <a href="./reports/l1-crypto-stack-v3.html">L1 research v3</a> · <a href="./fuzz-guide.html">Fuzz guide</a></p>
   <h1>Fuzz campaigns</h1>
   <p class="sub">
     Read-only snapshot from <code>GET /api/fuzz/campaigns</code> on this host.
-    To <strong>create</strong> campaigns use the full node dashboard (<code>/</code> on your HackMe node) → Fuzz tab, or <code>POST /api/fuzz/campaigns</code> with admin token.
+    To <strong>create</strong> campaigns use your local node dashboard (<code>/</code> on <code>127.0.0.1:8080</code>) → <strong>Orders</strong> → Security audit, or <code>POST /api/fuzz/campaigns</code> / <code>hackme-fuzzing</code> with a token.
     Per-campaign security reports (<code>fuzz_report_v2</code>: triage, <code>repro_cmd</code>, artifacts) are <strong>token-gated</strong> — not listed here.
     Public L1 stack research (qa-assets corpus, upstream pins) is separate: see the v3 repro banner below.
   </p>

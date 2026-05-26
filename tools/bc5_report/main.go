@@ -317,6 +317,7 @@ footer a{color:var(--neon)}
 <strong>Honest scope.</strong> This is <em>not</em> a claim of new CVEs in Bitcoin Core. A high <code>check_fail</code> rate on selective guards means “input not in the accepting set”, not “RCE in Core”. Violation-class hits on script push guards show the gate flags oversize pushes — expected for consensus-inspired checks.
 </div>
 <footer>
+<a href="https://hackme.tech/reports/l1-crypto-stack.html">L1 Crypto Stack (5 chains)</a> ·
 <a href="https://github.com/jokeez/hackme">github.com/jokeez/hackme</a> ·
 <a href="https://hackme.tech">hackme.tech</a> ·
 <a href="https://hackme.tech/downloads.html#local-node">run orders locally</a> ·

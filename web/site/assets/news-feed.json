@@ -1,6 +1,52 @@
 {
   "items": [
     {
+      "id": "2026-05-26-l1-crypto-stack-v3-official",
+      "date": "2026-05-26",
+      "title": "L1 Crypto Stack v3 — official Bitcoin Core fuzz corpus + upstream pins",
+      "summary": "Breakthrough research report: 1,675 official qa-assets eval_script seeds probed through WASM ports of GetScriptOp (0 sandbox traps). Pinned bitcoin/bitcoin v28.1, go-ethereum, Dogecoin, Litecoin + marker fidelity. HackMe InsertOrderTask golden: 20,000 inputs WASM == Go.",
+      "tags": [
+        "security",
+        "research",
+        "marketing",
+        "bitcoin",
+        "fuzzing"
+      ],
+      "impact": "Strongest public proof story: maintainer corpora + reproducible pipeline; honest scope vs full bitcoind fuzz documented.",
+      "action": "Report: https://hackme.tech/reports/l1-crypto-stack-v3.html · Reproduce: bash scripts/ops/run_l1_crypto_stack_v3_research.sh · Telegram: docs/TELEGRAM_POST_L1_CRYPTO_STACK_V3.txt · Bitcointalk: docs/BITCOINTALK_L1_CRYPTO_STACK_V3_BBCode.txt",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme",
+        "report_v3": "https://hackme.tech/reports/l1-crypto-stack-v3.html",
+        "report_v2": "https://hackme.tech/reports/l1-crypto-stack.html",
+        "report_bc5": "https://hackme.tech/reports/bitcoin-core-5module.html",
+        "qa_assets": "https://github.com/bitcoin-core/qa-assets",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
+      "id": "2026-05-26-l1-crypto-stack-5chain",
+      "date": "2026-05-26",
+      "title": "L1 Crypto Stack v2 — upstream-ported guards (BTC · ETH · DOGE · LTC · HackMe)",
+      "summary": "Public research: WASM built from ported C excerpts of Bitcoin GetScriptOp, Ethereum state_transition value overflow, Dogecoin/Litecoin script.cpp, and HackMe InsertOrderTask. 500 targeted samples per chain, zero sandbox traps. Sources in tasks/sources/security/upstream/.",
+      "tags": [
+        "security",
+        "research",
+        "marketing",
+        "fuzzing"
+      ],
+      "impact": "Strong B2B/Telegram story next to bc5; honest scope (no fake CVE claims); links to Security Audit product.",
+      "action": "Report: https://hackme.tech/reports/l1-crypto-stack.html · Regenerate: bash scripts/ops/run_l1_crypto_stack_research.sh · Gate: bash scripts/ops/l1_crypto_stack_gate.sh · Telegram: docs/TELEGRAM_POST_L1_CRYPTO_STACK.txt · Bitcointalk: docs/BITCOINTALK_L1_CRYPTO_STACK_BBCode.txt",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme",
+        "report_l1stack": "https://hackme.tech/reports/l1-crypto-stack.html",
+        "report_bc5": "https://hackme.tech/reports/bitcoin-core-5module.html",
+        "downloads": "https://hackme.tech/downloads.html",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-26-security-audit-one-click",
       "date": "2026-05-26",
       "title": "Security Audit — one click (order + pool fuzz + HTML report)",
@@ -217,50 +263,6 @@
       ],
       "impact": "Windows AMD miners get real GPU mining in one installer; pool token and amd_rx580_2048sp profile unchanged.",
       "action": "Download HackMe-Setup-0.1.0-rc11g.exe · Existing installs: copy workerpoh-opencl.exe next to hackme.exe and set HACKME_GPU_BACKEND=opencl, or reinstall rc11g.",
-      "status": "published",
-      "links": {
-        "github": "https://github.com/jokeez/hackme",
-        "downloads": "https://hackme.tech/downloads.html",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
-        "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-05-21-windows-installer-rc11f",
-      "date": "2026-05-21",
-      "title": "Release 0.1.0-rc11f: Windows CP1251 fix + pool token repair",
-      "summary": "Installer and scripts use ASCII-only PowerShell (Russian Windows no longer breaks detect_gpu / write_hackme_env). Auto-repair hackme.env from pool.miner.token on miner start. RX 580 2048SP rig profile applied when GPU is detected. Pool live ~69 GH/s, M ~143M.",
-      "tags": [
-        "release",
-        "mining",
-        "pool",
-        "windows",
-        "gpu"
-      ],
-      "impact": "Windows miners on RU locales: install and Start HackMe Miner without PowerShell parse errors; pool token and amd_rx580_2048sp profile written reliably.",
-      "action": "Download HackMe-Setup-0.1.0-rc11f.exe from https://hackme.tech/downloads.html · Existing installs: run start_hackme_miner.bat (repairs env) or reinstall rc11f.",
-      "status": "published",
-      "links": {
-        "github": "https://github.com/jokeez/hackme",
-        "downloads": "https://hackme.tech/downloads.html",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
-        "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-05-20-windows-installer-rc11e",
-      "date": "2026-05-20",
-      "title": "Release 0.1.0-rc11e: Windows installer + GPU wizard + pool token fix",
-      "summary": "Official HackMe-Setup.exe (Inno Setup) replaces zip-only onboarding: Program Files install, Start menu/desktop shortcuts, registry entries, preconfigured pool token. Wizard page detects GPU (Auto / NVIDIA CUDA / AMD OpenCL / CPU). Rig profiles for RX 580 2048SP. Fixes Program Files path quoting and hackme.env repair from pool.miner.token.",
-      "tags": [
-        "release",
-        "mining",
-        "pool",
-        "windows",
-        "gpu"
-      ],
-      "impact": "Windows miners: one .exe install, no manual token hunt. Pool ~69 GH/s live; difficulty M auto-retargets. Dashboard shows per-worker GH/s and HMC accrual.",
-      "action": "Download HackMe-Setup-0.1.0-rc11e.exe from https://hackme.tech/downloads.html · AMD RX 580: choose Auto or OpenCL in installer · Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats",
       "status": "published",
       "links": {
         "github": "https://github.com/jokeez/hackme",

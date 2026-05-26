@@ -186,14 +186,14 @@
 
     <section class="panel glass">
       <div class="panel-head">
-        <h2>How to Create Audit Orders</h2>
-        <p class="subtle">Request useful work from the network in deterministic, verifiable flow.</p>
+        <h2>Security audit &amp; fuzz reports</h2>
+        <p class="subtle">One-click audit on your <strong>local node dashboard</strong> (#orders) or integrator CLI — not on the public site API.</p>
       </div>
       <ol class="steps">
-        <li>Prepare task source (<code class="code-inline">rust</code>, <code class="code-inline">c</code>, <code class="code-inline">cpp</code>, <code class="code-inline">tinygo</code>, <code class="code-inline">zig</code>, <code class="code-inline">assemblyscript</code>, <code class="code-inline">wat</code>) with strict <code class="code-inline">check(i64)→i32</code> contract.</li>
-        <li>Submit via dashboard Orders tab or API (`POST /api/tasks/from_code`).</li>
-        <li>Escrow is locked up-front, order progress is tracked on-chain, and settlements are transparent.</li>
-        <li>Use reports/pulse/gate endpoints for campaign-level vulnerability outcomes.</li>
+        <li>Download a node, open the embedded dashboard → <strong>Orders</strong> → <strong>Run full security audit</strong> (guard WASM + useful-PoW order + distributed fuzz).</li>
+        <li>Receive a <strong>report token</strong> and open <code class="code-inline">fuzz_report_v2</code> HTML with triage, <code class="code-inline">repro_cmd</code>, and artifacts (<code class="code-inline">check_repro</code>).</li>
+        <li>Integrators: <code class="code-inline">hackme-fuzzing</code> on <code class="code-inline">127.0.0.1:8080</code> — see <a href="./developers.html">Developers</a> and <a href="./fuzz-guide.html">Fuzz guide</a>.</li>
+        <li>Public research (honest scope): <a href="./reports/l1-crypto-stack-v3.html">L1 crypto stack v3</a> · live campaign list: <a href="./fuzz-campaigns.html">Fuzz campaigns</a>.</li>
       </ol>
     </section>
 
@@ -331,6 +331,10 @@
         <a href="./downloads.html" class="quick-item">
           <h4>Windows &amp; Linux</h4>
           <p>Installer (.exe), portable ZIP, Linux tarball, checksums, and release manifest.</p>
+        </a>
+        <a href="./reports/l1-crypto-stack-v3.html" class="quick-item">
+          <h4>L1 security research (v3)</h4>
+          <p>Official Bitcoin qa-assets corpus, pinned upstream, reproducible WASM probes — public report with honest scope.</p>
         </a>
         <a href="./docs.html" class="quick-item">
           <h4>Read Technical Docs</h4>

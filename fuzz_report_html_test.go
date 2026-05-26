@@ -20,14 +20,14 @@ func TestRenderFuzzReportHTML_v2ReproAndTriage(t *testing.T) {
 		},
 		"top_issues": []fuzzTopIssue{{
 			Severity: "medium", FindingType: "property_violation",
-			Title: "check rejected input",
-			ReproCmd: `go run ./tools/check_repro -wasm "data/fuzz-artifacts/camp-1/guard.wasm" -input "0x4c210"`,
-			Artifact: "/tmp/x.input",
+			Title:       "check rejected input",
+			ReproCmd:    `go run ./tools/check_repro -wasm "data/fuzz-artifacts/camp-1/guard.wasm" -input "0x4c210"`,
+			Artifact:    "/tmp/x.input",
 			TriageClass: "expected_signal",
 			TriageNote:  "Property signal",
 		}},
 		"recommendations": []string{"Review property signals."},
-		"fuzz_engine": map[string]any{"semantics": "detector", "sandbox": "wazero"},
+		"fuzz_engine":     map[string]any{"semantics": "detector", "sandbox": "wazero"},
 	}
 	html := renderFuzzReportHTML(report)
 	for _, want := range []string{

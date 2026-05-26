@@ -112,11 +112,11 @@ type app struct {
 	p2pTokenFail map[string]int
 	// Limits concurrent expensive P2P sync operations under storm load.
 	p2pSyncHeavySem chan struct{}
-	poolSyncOnce      sync.Once
-	poolSyncCh        chan poolSyncJob
-	poolSyncMu        sync.Mutex
-	poolSyncFailed    map[string]string // campaign_id → last error
-	poolSyncQueued    map[string]struct{}
+	poolSyncOnce    sync.Once
+	poolSyncCh      chan poolSyncJob
+	poolSyncMu      sync.Mutex
+	poolSyncFailed  map[string]string // campaign_id → last error
+	poolSyncQueued  map[string]struct{}
 	// Throttles stale rig pruning to keep network stats cheap.
 	rigPruneLastUnix      int64
 	workerMu              sync.Mutex

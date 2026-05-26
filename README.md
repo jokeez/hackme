@@ -83,7 +83,7 @@ Templates: `.env.desktop.example`, `scripts/ops/worker.env.example`.
 go build -trimpath -o hackme-node .
 go build -trimpath -tags opencl -o workerpoh-opencl ./cmd/workerpoh
 go build -trimpath -o hackme-coordinator ./cmd/coordinator
-VERSION=0.1.0-rc11h bash scripts/release/make_release_bundle.sh
+VERSION=0.1.0-rc11i bash scripts/release/make_release_bundle.sh
 ```
 
 ---

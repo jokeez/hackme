@@ -26,10 +26,13 @@
 
 | Doc / page | Topic |
 |------------|--------|
+| [FUZZ_PRODUCT_GUIDE.md](FUZZ_PRODUCT_GUIDE.md) | Campaigns, autorunner, CI gate, `fuzz_report_v2` |
+| [CUSTOMER_FUZZ_DELIVERABLES.md](CUSTOMER_FUZZ_DELIVERABLES.md) | Report token, repro, artifacts |
 | [DEVELOPERS_FUZZING.md](DEVELOPERS_FUZZING.md) | Orders API, limits, escrow |
 | [FUZZING_B2B_SECURITY_VERDICT.md](FUZZING_B2B_SECURITY_VERDICT.md) | B2B threat model & verdict |
 | [../web/site/developers.html](../web/site/developers.html) | Public landing (no mining UI) |
-| [../web/site/fuzzing-console.html](../web/site/fuzzing-console.html) | Wallet + order console |
+| [../web/site/fuzzing-console.html](../web/site/fuzzing-console.html) | Read-only order tracker (not create) |
+| Local node dashboard `#orders` | **Security audit** — create campaigns + HTML report |
 
 ## Architecture & API
 

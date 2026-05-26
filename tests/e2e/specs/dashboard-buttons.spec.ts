@@ -1,6 +1,12 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 const ADMIN = process.env.E2E_ADMIN_TOKEN || 'e2e-admin-token-test';
+
+async function openOrdersAdvanced(page: Page) {
+  await page.click('#tab-bar .tab-btn[data-tab="orders"]');
+  await page.click('#btn-orders-toggle-poh-advanced');
+  await expect(page.locator('#orders-admin-create')).toBeVisible({ timeout: 10_000 });
+}
 
 test.describe('Dashboard UI buttons and API wiring', () => {
   test.beforeEach(async ({ page }) => {
@@ -40,7 +46,7 @@ test.describe('Dashboard UI buttons and API wiring', () => {
   });
 
   test('Orders language buttons fill code editor', async ({ page }) => {
-    await page.click('#tab-bar .tab-btn[data-tab="orders"]');
+    await openOrdersAdvanced(page);
     const ta = page.locator('#orders-code-input');
     await expect(ta).toBeVisible();
     await page.click('#btn-orders-code-rust');
@@ -52,7 +58,7 @@ test.describe('Dashboard UI buttons and API wiring', () => {
   });
 
   test('Orders POST /api/tasks sends JSON body', async ({ page }) => {
-    await page.click('#tab-bar .tab-btn[data-tab="orders"]');
+    await openOrdersAdvanced(page);
     await page.fill('#orders-form-id', 'e2e-order-' + Date.now());
     await page.fill('#orders-form-reward', '0.01');
     const postReq = page.waitForRequest(

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>HackMe · L1 Crypto Stack v3 — Official Corpus Report</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--neon:#00d1ff;--matrix:#39ff14;--warn:#ffb020;--bg:#05080f;--card:rgba(0,0,0,.45)}
+body{margin:0;font-family:"JetBrains Mono",monospace;background:var(--bg);color:#c5d4e8;line-height:1.6}
+.wrap{max-width:980px;margin:0 auto;padding:2rem 1.25rem 4rem}
+.hero{text-align:center;padding:2rem;border:1px solid rgba(0,209,255,.3);border-radius:20px;background:linear-gradient(160deg,rgba(0,209,255,.1),transparent);margin-bottom:1.5rem}
+.hero h1{font-family:"Space Grotesk",sans-serif;color:var(--neon);font-size:1.5rem;margin:0}
+.hero .tag{font-size:.7rem;color:#6d8099;letter-spacing:.15em;text-transform:uppercase}
+.badge{display:inline-block;margin-top:1rem;padding:.5rem 1.2rem;border-radius:999px;border:2px solid #39ff14;color:#39ff14;font-weight:700;font-size:.85rem}
+.official-card{border:1px solid rgba(57,255,20,.35);border-radius:14px;padding:1.2rem;margin:1rem 0;background:rgba(57,255,20,.05)}
+.official-card h3{color:var(--matrix);margin:0 0 .5rem;font-family:"Space Grotesk",sans-serif}
+.mod-card{border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:1rem;margin:.75rem 0;background:var(--card)}
+.chain-pill{font-size:.62rem;border:1px solid;padding:.1rem .5rem;border-radius:999px;text-transform:uppercase}
+.mod-guard code{color:var(--matrix)}
+.bar-track{display:flex;height:8px;border-radius:4px;overflow:hidden;background:#222;margin:.5rem 0}
+.bar.pass{background:var(--matrix)}.bar.fail{background:#556}
+.mod-note{font-size:.75rem;color:#8fa3bc}
+.mod-ref a{color:var(--neon)}
+.repro-table{width:100%;border-collapse:collapse;font-size:.78rem}
+.repro-table th,.repro-table td{border:1px solid rgba(255,255,255,.15);padding:.4rem .55rem;text-align:left;vertical-align:top}
+.lbl{font-size:.65rem;text-transform:uppercase;color:var(--neon);letter-spacing:.12em;margin:1.5rem 0 .5rem}
+.disclaimer{border:1px solid rgba(255,176,32,.4);border-radius:12px;padding:1rem;font-size:.78rem;color:#d4b896;margin-top:2rem}
+footer{text-align:center;font-size:.72rem;color:#6d8099;margin-top:2rem}
+footer a{color:var(--neon)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<section class="hero">
+<p class="tag">HackMe · L1 Crypto Stack v3 · breakthrough report</p>
+<h1>Official Upstream Corpus + Ported Logic</h1>
+<p>Official Bitcoin Core fuzz corpus · pinned upstream commits · HackMe WASM ports · 20k golden match</p>
+<span class="badge">FIDELITY VERIFIED</span>
+</section>
+<p class="lbl">① Official Bitcoin Core fuzz corpora (qa-assets)</p>
+
+<article class="official-card">
+  <h3>Official corpus · eval_script</h3>
+  <p class="mod-ref"><a href="https://github.com/bitcoin-core/qa-assets" target="_blank" rel="noopener">bitcoin-core/qa-assets</a> · path <code>.cache/upstream/qa-assets/fuzz_corpora/eval_script</code></p>
+  <p>Seeds in repo: <b>1675</b> · probed: <b>1675</b> · violation signals: <b>720</b> (43.0%) · WASM traps: <b>0</b></p>
+  <p class="mod-note">Each seed's first 8 bytes fed to HackMe WASM port <code>upstream_bitcoin_getscriptop</code> (same predicate as Core <code>eval_script</code> class inputs).</p>
+</article>
+<p class="lbl">② Upstream source fidelity · Bitcoin 32efe850438e</p>
+<p class="mod-note">Marker verification against pinned <code>bitcoin/bitcoin</code> tree. Ports: <code>tasks/sources/security/upstream/</code></p>
+<p class="lbl">③ HackMe golden · order gate</p>
+<p class="mod-note"><b>PASS — 20,000 inputs WASM == Go InsertOrderTask floors</b></p>
+<p class="lbl">④ Per-chain WASM probes (500 samples each)</p>
+
+<article class="mod-card" style="border-left:3px solid #f7931a">
+  <p class="chain-pill" style="color:#f7931a;border-color:#f7931a">Bitcoin</p>
+  <h2>GetScriptOp · push &gt; 520 B</h2>
+  <p class="mod-guard"><code>upstream_bitcoin_getscriptop</code></p>
+  <div class="bar-track"><div class="bar pass" style="width:68.4%"></div><div class="bar fail" style="width:31.6%"></div></div>
+  <p class="mod-note">WASM port + property probe. check_pass = violation signal. Signals: 342/500.</p>
+</article>
+<article class="mod-card" style="border-left:3px solid #627eea">
+  <p class="chain-pill" style="color:#627eea;border-color:#627eea">Ethereum</p>
+  <h2>State transition · value overflow</h2>
+  <p class="mod-guard"><code>upstream_ethereum_value_overflow</code></p>
+  <div class="bar-track"><div class="bar pass" style="width:16.8%"></div><div class="bar fail" style="width:83.2%"></div></div>
+  <p class="mod-note">WASM port + property probe. check_pass = violation signal. Signals: 84/500.</p>
+</article>
+<article class="mod-card" style="border-left:3px solid #c2a633">
+  <p class="chain-pill" style="color:#c2a633;border-color:#c2a633">Dogecoin</p>
+  <h2>HasValidOps</h2>
+  <p class="mod-guard"><code>upstream_dogecoin_hasvalidops</code></p>
+  <div class="bar-track"><div class="bar pass" style="width:82.0%"></div><div class="bar fail" style="width:18.0%"></div></div>
+  <p class="mod-note">WASM port + property probe. check_pass = violation signal. Signals: 410/500.</p>
+</article>
+<article class="mod-card" style="border-left:3px solid #345d9d">
+  <p class="chain-pill" style="color:#345d9d;border-color:#345d9d">Litecoin</p>
+  <h2>GetScriptOp · LTC</h2>
+  <p class="mod-guard"><code>upstream_litecoin_getscriptop</code></p>
+  <div class="bar-track"><div class="bar pass" style="width:68.4%"></div><div class="bar fail" style="width:31.6%"></div></div>
+  <p class="mod-note">WASM port + property probe. check_pass = violation signal. Signals: 342/500.</p>
+</article>
+<article class="mod-card" style="border-left:3px solid #00d1ff">
+  <p class="chain-pill" style="color:#00d1ff;border-color:#00d1ff">HackMe Network</p>
+  <h2>InsertOrderTask gate</h2>
+  <p class="mod-guard"><code>upstream_hackme_order_gate</code></p>
+  <div class="bar-track"><div class="bar pass" style="width:23.6%"></div><div class="bar fail" style="width:76.4%"></div></div>
+  <p class="mod-note">WASM port + property probe. check_pass = violation signal. Signals: 118/500.</p>
+</article>
+<p class="lbl">⑤ Repro Artifacts (Bitcoin/Ethereum)</p>
+<table class="repro-table"><thead><tr><th>chain</th><th>input</th><th>repro</th><th>classification</th><th>kind</th></tr></thead><tbody><tr><td>BITCOIN</td><td><code>0x12954c000000994c</code></td><td><code>go run ./tools/check_repro -wasm &#34;tasks/artifacts/security/upstream_bitcoin_getscriptop.wasm&#34; -input &#34;0x12954c000000994c&#34;</code></td><td>policy_violation_signal</td><td>signal</td></tr><tr><td>BITCOIN</td><td><code>0xa24c00000000954c</code></td><td><code>go run ./tools/check_repro -wasm &#34;tasks/artifacts/security/upstream_bitcoin_getscriptop.wasm&#34; -input &#34;0xa24c00000000954c&#34;</code></td><td>policy_violation_signal</td><td>signal</td></tr><tr><td>BITCOIN</td><td><code>0x938cff0800</code></td><td><code>go run ./tools/check_repro -wasm &#34;tasks/artifacts/security/upstream_bitcoin_getscriptop.wasm&#34; -input &#34;0x938cff0800&#34;</code></td><td>policy_violation_signal</td><td>signal</td></tr><tr><td>BITCOIN</td><td><code>0x221010217301a5e</code></td><td><code>go run ./tools/check_repro -wasm &#34;tasks/artifacts/security/upstream_bitcoin_getscriptop.wasm&#34; -input &#34;0x221010217301a5e&#34;</code></td><td>policy_violation_signal</td><td>signal</td></tr><tr><td>BITCOIN</td><td><code>0x200fe768b4f0205</code></td><td><code>go run ./tools/check_repro -wasm &#34;tasks/artifacts/security/upstream_bitcoin_getscriptop.wasm&#34; -input &#34;0x200fe768b4f0205&#34;</code></td><td>policy_violation_signal</td><td>signal</td></tr><tr><td>BITCOIN</td><td><code>0x31313131313131ab</code></td><td><code>go run ./tools/check_repro -wasm &#34;tasks/artifacts/security/upstream_bitcoin_getscriptop.wasm&#34; -input &#34;0x31313131313131ab&#34;</code></td><td>policy_violation_signal</td><td>signal</td></tr><tr><td>BITCOIN</td><td><code>0xb2b2b3022100</code></td><td><code>go run ./tools/check_repro -wasm &#34;tasks/artifacts/security/upstream_bitcoin_getscriptop.wasm&#34; -input &#34;0xb2b2b3022100&#34;</code></td><td>policy_violation_signal</td><td>signal</td></tr><tr><td>BITCOIN</td><td><code>0x17373730001004d</code></td><td><code>go run ./tools/check_repro -wasm &#34;tasks/artifacts/security/upstream_bitcoin_getscriptop.wasm&#34; -input &#34;0x17373730001004d&#34;</code></td><td>policy_violation_signal</td><td>signal</td></tr><tr><td>ETHEREUM</td><td><code>0xffffffffffffffff</code></td><td><code>go run ./tools/check_repro -wasm &#34;tasks/artifacts/security/upstream_ethereum_value_overflow.wasm&#34; -input &#34;0xffffffffffffffff&#34;</code></td><td>overflow_signal</td><td>signal</td></tr><tr><td>ETHEREUM</td><td><code>0xffffffffffffffff</code></td><td><code>go run ./tools/check_repro -wasm &#34;tasks/artifacts/security/upstream_ethereum_value_overflow.wasm&#34; -input &#34;0xffffffffffffffff&#34;</code></td><td>overflow_signal</td><td>signal</td></tr><tr><td>ETHEREUM</td><td><code>0xffffffffffffffff</code></td><td><code>go run ./tools/check_repro -wasm &#34;tasks/artifacts/security/upstream_ethereum_value_overflow.wasm&#34; -input &#34;0xffffffffffffffff&#34;</code></td><td>overflow_signal</td><td>signal</td></tr><tr><td>ETHEREUM</td><td><code>0xffffffffffffffff</code></td><td><code>go run ./tools/check_repro -wasm &#34;tasks/artifacts/security/upstream_ethereum_value_overflow.wasm&#34; -input &#34;0xffffffffffffffff&#34;</code></td><td>overflow_signal</td><td>signal</td></tr><tr><td>ETHEREUM</td><td><code>0xffffffffffffffff</code></td><td><code>go run ./tools/check_repro -wasm &#34;tasks/artifacts/security/upstream_ethereum_value_overflow.wasm&#34; -input &#34;0xffffffffffffffff&#34;</code></td><td>overflow_signal</td><td>signal</td></tr><tr><td>ETHEREUM</td><td><code>0xffffffffffffffff</code></td><td><code>go run ./tools/check_repro -wasm &#34;tasks/artifacts/security/upstream_ethereum_value_overflow.wasm&#34; -input &#34;0xffffffffffffffff&#34;</code></td><td>overflow_signal</td><td>signal</td></tr><tr><td>ETHEREUM</td><td><code>0xffffffffffffffff</code></td><td><code>go run ./tools/check_repro -wasm &#34;tasks/artifacts/security/upstream_ethereum_value_overflow.wasm&#34; -input &#34;0xffffffffffffffff&#34;</code></td><td>overflow_signal</td><td>signal</td></tr><tr><td>ETHEREUM</td><td><code>0xffffffffffffffff</code></td><td><code>go run ./tools/check_repro -wasm &#34;tasks/artifacts/security/upstream_ethereum_value_overflow.wasm&#34; -input &#34;0xffffffffffffffff&#34;</code></td><td>overflow_signal</td><td>signal</td></tr></tbody></table>
+<p class="mod-note">No reproducible WASM crashes for Bitcoin/Ethereum in extracted repro set; signals map to modeled policy/overflow predicates.</p>
+<div class="disclaimer">
+<b>What this proves:</b> We fed <em>maintainer-minimized</em> Bitcoin Core fuzz seeds (qa-assets) through WASM compiled from ported <code>GetScriptOp</code> / <code>MoneyRange</code> logic, with 0 sandbox traps. <b>What it is not:</b> a replacement for running <code>build_fuzz/bin/fuzz</code> on full Core — run native fuzz locally via <code>doc/fuzzing.md</code>. HackMe product line = useful-PoW + distributed fuzz + Security Audit on these guards.
+</div>
+<footer>
+<a href="https://hackme.tech/reports/l1-crypto-stack.html">v2 report</a> ·
+<a href="https://hackme.tech/reports/bitcoin-core-5module.html">BC5</a> ·
+<a href="https://github.com/jokeez/hackme">source</a> · generated 2026-05-26T17:34:44Z UTC
+</footer>
+</div>
+</body>
+</html>

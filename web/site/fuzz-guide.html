@@ -69,8 +69,9 @@
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>3. Customer report token</h2></div>
-      <p class="hero-copy">Creating a campaign returns a one-time <strong>customer_report_token</strong>. For JSON/CSV/pulse/gate/corpus/crash views, send <span class="code-inline">X-Hackme-Report-Token</span> or use an admin token.</p>
+      <div class="panel-head"><h2>3. Customer reports (<span class="code-inline">fuzz_report_v2</span>)</h2></div>
+      <p class="hero-copy">Creating a campaign or <span class="code-inline">POST /api/security-audit</span> on your node returns a one-time <strong>customer_report_token</strong>. HTML reports include triage, <span class="code-inline">repro_cmd</span>, and artifact paths — replay with <span class="code-inline">go run ./tools/check_repro</span> in the repo.</p>
+      <p class="muted" style="margin-top:0.75rem">Public research (no token): <a href="./reports/l1-crypto-stack-v3.html">L1 crypto stack v3</a> · <a href="./fuzz-campaigns.html">live campaign snapshot</a>.</p>
     </section>
 
     <section class="panel glass">

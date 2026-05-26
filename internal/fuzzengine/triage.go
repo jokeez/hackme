@@ -39,6 +39,13 @@ func ClassifyFinding(findingType, severity string) Triage {
 			Note:        "check() returned outside the accepting set (detector/PoW semantics). Often expected fuzz noise, not exploitable crash.",
 			ZeroDayHint: "low",
 		}
+	case "consensus_script_push", "security_violation", "interesting_input":
+		return Triage{
+			Class:       "guard_signal",
+			Label:       "Guard signal",
+			Note:        "WASM guard flagged this input. Reproduce with repro_cmd; validate on native upstream before claiming CVE or 0-day.",
+			ZeroDayHint: "unknown_until_native_repro",
+		}
 	default:
 		_ = sev
 		return Triage{

@@ -1646,7 +1646,7 @@
 						<div>
 							<p class="font-display text-[10px] tracking-[0.35em] text-neon uppercase mb-1">Useful-PoW market</p>
 							<h2 class="font-display text-sm font-bold text-white tracking-wide">Security audits &amp; orders</h2>
-							<p id="orders-panel-subtitle" class="text-[11px] text-gray-500 mt-1 max-w-2xl">Full audit = useful-PoW order + distributed fuzz + HTML report (like Bitcoin Core research). Debits <a href="#" class="text-neon/90 underline" data-goto-tab="wallet">Wallet</a> on this node.</p>
+							<p id="orders-panel-subtitle" class="text-[11px] text-gray-500 mt-1 max-w-2xl">Full audit = useful-PoW order + distributed fuzz + <code class="text-neon/80">fuzz_report_v2</code> HTML (repro + triage). Public research: <a href="https://hackme.tech/reports/l1-crypto-stack-v3.html" class="text-neon/90 underline" target="_blank" rel="noopener">L1 v3</a>. Debits <a href="#" class="text-neon/90 underline" data-goto-tab="wallet">Wallet</a>.</p>
 						</div>
 						<button type="button" id="btn-orders-refresh" class="text-[10px] px-3 py-1.5 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
 					</div>
@@ -1656,7 +1656,7 @@
 					<div id="orders-wallet-gate" class="hidden rounded-lg border border-warn/35 bg-warn/5 p-3 text-[11px] text-warn/95 leading-snug"></div>
 					<div id="orders-security-audit" class="hidden card card-glow rounded-xl p-5 border-neon/30">
 						<h3 class="text-[10px] uppercase tracking-[0.2em] text-neon mb-2">Security audit (recommended)</h3>
-						<p class="text-[11px] text-gray-500 mb-3 leading-relaxed">One click: compile guard (or upload WASM) → <strong>PoH order</strong> on the pool + <strong>distributed fuzz</strong> (20/80 escrow) → <strong>HTML report</strong> with report token. Same pipeline as <code class="text-neon/80">run_bitcoin_core_5module_research.sh</code>.</p>
+						<p class="text-[11px] text-gray-500 mb-3 leading-relaxed">One click: compile guard (or upload WASM) → <strong>PoH order</strong> on the pool + <strong>distributed fuzz</strong> (20/80 escrow) → <strong>fuzz_report_v2</strong> HTML with report token, <code class="text-neon/80">repro_cmd</code>, and <code class="text-neon/80">.input</code> artifacts. WASM sandbox only — not a full upstream node audit.</p>
 						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
 							<label class="text-[10px] text-gray-500">Title<br><input id="audit-title" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="My protocol audit" /></label>
 							<label class="text-[10px] text-gray-500">Payer ref<br><input id="audit-payer" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="company:acme-2026" /></label>
@@ -1798,15 +1798,15 @@
 				<!-- FUZZ CAMPAIGNS -->
 				<div id="panel-fuzz" class="tab-panel max-w-[1600px] mx-auto space-y-4">
 					<div id="fuzz-market-banner" class="rounded-lg border border-neon/25 bg-neon/5 p-3 text-[11px] text-gray-300 leading-snug">
-						<strong class="text-neon">Customer:</strong> create pool campaigns in <code class="text-neon/80">#orders</code> (developer token). View reports here with your <strong>report token</strong> saved automatically.
-						<strong class="text-warn">Operator:</strong> load admin token for full fuzz ops (CSV, diff, housekeeping).
+						<strong class="text-neon">Customer:</strong> run <strong>Security audit</strong> in <code class="text-neon/80">#orders</code> (admin or developer token) — report token saved here. Open <strong>fuzz_report_v2</strong> HTML with repro commands.
+						<strong class="text-warn">Operator:</strong> admin token for full fuzz ops (CSV, diff, housekeeping). Public L1 research: <a href="https://hackme.tech/reports/l1-crypto-stack-v3.html" class="text-neon/90 underline" target="_blank" rel="noopener">hackme.tech/reports/l1-crypto-stack-v3.html</a> (separate from token-gated campaigns).
 					</div>
 					<div id="fuzz-customer-only" class="hidden space-y-4">
 						<div class="flex flex-wrap items-center justify-between gap-2">
 							<div>
 								<p class="font-display text-[10px] tracking-[0.35em] text-neon uppercase mb-1">Your fuzz campaigns</p>
 								<h2 class="font-display text-sm font-bold text-white">Reports &amp; proof bundle</h2>
-								<p class="text-[11px] text-gray-500 mt-1">Campaigns you created on this node. Report token is stored in this browser — required for HTML/JSON report.</p>
+								<p class="text-[11px] text-gray-500 mt-1">Campaigns from <strong>Security audit</strong> on this node. Report token is stored in this browser — required for HTML/JSON (<code class="text-neon/70">fuzz_report_v2</code>).</p>
 							</div>
 							<button type="button" id="btn-fuzz-customer-refresh" class="text-[10px] px-3 py-1.5 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
 						</div>
@@ -9289,6 +9289,7 @@
 			if (!el) return;
 			const c = rep.campaign || {};
 			const sum = rep.security_summary || {};
+			const topIssues = Array.isArray(rep.top_issues) ? rep.top_issues : [];
 			const ver = String(rep.verdict || '—');
 			const verCls = ver === 'clean' ? 'text-matrix border-matrix/40' : 'text-warn border-warn/40';
 			el.innerHTML =
@@ -9297,7 +9298,9 @@
 				'<span class="px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider ' + verCls + '">' + escapeHtml(ver) + '</span></div>' +
 				'<p class="text-white font-display text-sm">' + escapeHtml(c.title || c.id || '—') + '</p>' +
 				'<p class="text-[10px] text-gray-400">vuln ' + escapeHtml(String(sum.vulnerabilities_found != null ? sum.vulnerabilities_found : 0)) +
-				' · critical ' + escapeHtml(String(sum.critical_count != null ? sum.critical_count : 0)) + '</p>';
+				' · critical ' + escapeHtml(String(sum.critical_count != null ? sum.critical_count : 0)) +
+				' · high ' + escapeHtml(String(sum.high_count != null ? sum.high_count : 0)) + '</p>' +
+				(topIssues.length ? '<p class="text-[10px] text-gray-500 mt-1">top: ' + escapeHtml(String(topIssues[0].title || topIssues[0].finding_type || '')) + '</p>' : '');
 		}
 
 		async function selectFuzzCustomerCampaign(id, title) {
@@ -9349,7 +9352,7 @@
 			if (!tb) return;
 			const mine = loadCustomerFuzzCampaigns();
 			if (!mine.length) {
-				tb.innerHTML = '<tr><td colspan="5" class="px-3 py-3 text-gray-600 text-center">No campaigns yet — create one in <strong>#orders</strong> (Fuzz pool campaign).</td></tr>';
+				tb.innerHTML = '<tr><td colspan="5" class="px-3 py-3 text-gray-600 text-center">No campaigns yet — run <strong>Security audit</strong> in <strong>#orders</strong>.</td></tr>';
 				selectedFuzzCustomerCampaignId = '';
 				return;
 			}
