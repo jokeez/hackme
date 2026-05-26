@@ -23,11 +23,11 @@ func TestPoolFuzzClaimSubmitDetector(t *testing.T) {
 	ctx := context.Background()
 	violation := uint64(0x4c | (521 << 8))
 	cfg := fuzzengine.NormalizeCampaignConfig(map[string]any{
-		"pool_distributed":  true,
-		"check_semantics":   "detector",
-		"wasm_check_hex":    mustReadWasmHex(t, "../../tasks/artifacts/security/rust_script_push_bounds_guard.wasm"),
-		"seed_corpus":       []any{violation, uint64(0)},
-		"mutation_rounds":   1,
+		"pool_distributed": true,
+		"check_semantics":  "detector",
+		"wasm_check_hex":   mustReadWasmHex(t, "../../tasks/artifacts/security/rust_script_push_bounds_guard.wasm"),
+		"seed_corpus":      []any{violation, uint64(0)},
+		"mutation_rounds":  1,
 	}, "property")
 	id := "pool-test-detector"
 	if err := svc.RegisterCampaign(ctx, Campaign{

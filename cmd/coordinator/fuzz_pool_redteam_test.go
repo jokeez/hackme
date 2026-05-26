@@ -16,7 +16,7 @@ func canonFuzzSign(p poolfuzz.SubmitSignPayload) []byte { return poolfuzz.Canoni
 
 func TestFuzzSubmitTamperedMinerRejected(t *testing.T) {
 	wm := &workManager{
-		hybridSignerEnabled: true,
+		hybridSignerEnabled:  true,
 		acceptedSubmitNonces: make(map[string]struct{}),
 		signedSubmitNonceMax: make(map[string]uint64),
 	}
@@ -32,8 +32,8 @@ func TestFuzzSubmitTamperedMinerRejected(t *testing.T) {
 	reqBody, _ := json.Marshal(map[string]any{
 		"worker_id": "w-rt", "campaign_id": "c1", "item_id": 1, "input_n": 1, "actual_input": 2,
 		"check_result": 0, "submit_nonce": 1,
-		"miner_pubkey": hex.EncodeToString(pub),
-		"miner_sig":    hex.EncodeToString(sig),
+		"miner_pubkey":  hex.EncodeToString(pub),
+		"miner_sig":     hex.EncodeToString(sig),
 		"miner_address": signerAddr(pub),
 	})
 	var decoded map[string]any

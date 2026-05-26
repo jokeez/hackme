@@ -2,7 +2,7 @@
 
 ## Customer pays for volume (target_solves)
 
-- **Prepaid** = `reward_hmc × target_solves` (held in `meta_order_escrow_units`).
+- **Prepaid** = `reward_hmc × target_solves` (held in `meta_order_escrow_units`). **Minimum prepaid = 0.05 HMC** (`MinOrderPrepaidHMC`) — prevents dust orders that pay miners negligible per-solve slices.
 - **Platform fee** = 5% of prepaid at order open (to dev fee address).
 - **Burn tally** = 10% of prepaid recorded in supply metadata at open.
 

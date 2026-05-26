@@ -155,6 +155,9 @@ func (s *Service) InsertOrderTask(ctx context.Context, manifestJSON []byte) (*In
 	if prepaid <= 0 || prepaid != prepaid { // NaN
 		return nil, errors.New("chain: invalid prepaid total")
 	}
+	if prepaid+1e-12 < MinOrderPrepaidHMC {
+		return nil, fmt.Errorf("chain: prepaid total too low (min %.2f HMC for reward_hmc × target_solves)", MinOrderPrepaidHMC)
+	}
 	orderFee := prepaid * OrderPlatformFeeRate
 	if orderFee < 0 || orderFee != orderFee {
 		return nil, errors.New("chain: invalid order fee total")

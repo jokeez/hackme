@@ -1660,7 +1660,7 @@
 						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
 							<label class="text-[10px] text-gray-500">Title<br><input id="audit-title" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="My protocol audit" /></label>
 							<label class="text-[10px] text-gray-500">Payer ref<br><input id="audit-payer" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="company:acme-2026" /></label>
-							<label class="text-[10px] text-gray-500">Fuzz budget HMC<br><input id="audit-budget-hmc" type="number" min="0.1" step="0.1" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="1" /></label>
+							<label class="text-[10px] text-gray-500">Fuzz budget HMC (min 0.5)<br><input id="audit-budget-hmc" type="number" min="0.5" step="0.1" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="1" /></label>
 							<label class="text-[10px] text-gray-500">Fuzz runs<br><input id="audit-runs" type="number" min="8" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="64" /></label>
 						</div>
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
@@ -1705,14 +1705,14 @@
   "payer_ref": "company:acme-audit-2026"
 }</textarea>
 						</div>
-						<p id="orders-fairness-hint" class="mt-2 text-[10px] text-gray-500 font-mono">fairness: min reward_hmc = difficulty_score × 0.0005</p>
+						<p id="orders-fairness-hint" class="mt-2 text-[10px] text-gray-500 font-mono">fairness: min reward_hmc = difficulty × 0.0005 · min prepaid (reward × target) = 0.05 HMC</p>
 						<div class="mt-3 rounded-lg border border-white/10 bg-black/30 p-3">
 							<p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">Quick order form</p>
 							<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
 								<label class="text-[10px] text-gray-500">ID<br><input id="orders-form-id" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="order-demo-1" /></label>
 								<label class="text-[10px] text-gray-500">Kind<br><input id="orders-form-kind" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="synthetic_poh_v1" /></label>
 								<label class="text-[10px] text-gray-500">Difficulty<br><input id="orders-form-diff" type="number" min="1" max="100" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="10" /></label>
-								<label class="text-[10px] text-gray-500">Reward HMC<br><input id="orders-form-reward" type="number" min="0.0001" step="0.0001" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="0.02" /></label>
+								<label class="text-[10px] text-gray-500">Reward HMC<br><input id="orders-form-reward" type="number" min="0.0001" step="0.0001" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="0.05" /></label>
 								<label class="text-[10px] text-gray-500">Target solves<br><input id="orders-form-target" type="number" min="1" step="1" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="1" /></label>
 								<label class="text-[10px] text-gray-500">Payer ref<br><input id="orders-form-payer" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="company:acme-audit-2026" /></label>
 							</div>
@@ -5212,6 +5212,7 @@
 			if (m.includes('genesis required') || m.includes('wallet row missing')) {
 				return 'No local genesis/wallet — POST /api/tasks disabled. Pool worker can still mine; for orders: genesis or P2P-sync with chain + wallet.';
 			}
+			if (m.includes('prepaid total too low')) return '400: prepaid too low (reward_hmc × target_solves ≥ 0.05 HMC)';
 			if (m.includes('fairness') || m.includes('reward_hmc must be') || m.includes('difficulty_score')) return '400: fairness guard (increase reward_hmc or lower difficulty)';
 			if (m.includes('rate') || m.includes('429')) return '429: throttled, retry after short pause';
 			if (m.includes('artifact') || m.includes('wasm')) return '400: wasm/artifact validation mismatch';
@@ -5225,7 +5226,16 @@
 			if (!diffEl || !rewEl || !hint) return;
 			const diff = Math.max(0, Number(diffEl.value || 0));
 			const minR = diff > 0 ? diff * 0.0005 : 0;
-			hint.textContent = 'fairness: min reward_hmc = difficulty_score × 0.0005 → ' + (minR > 0 ? minR.toFixed(6) : '—') + ' HMC · form reward: ' + String(rewEl.value || '');
+			const target = Math.max(1, Math.floor(Number($('orders-form-target') && $('orders-form-target').value) || 1));
+			const rew = Number(rewEl.value) || 0;
+			const prepaid = rew * target;
+			hint.textContent =
+				'fairness min reward_hmc = difficulty × 0.0005 → ' +
+				(minR > 0 ? minR.toFixed(6) : '—') +
+				' HMC · prepaid ' +
+				prepaid.toFixed(4) +
+				' (min 0.05) · reward: ' +
+				String(rewEl.value || '');
 		}
 		function syncOrdersJSONFromForm() {
 			const idEl = $('orders-form-id');
@@ -9439,7 +9449,7 @@
 			}
 			const title = String(($('audit-title') && $('audit-title').value) || '').trim() || ('audit-' + Date.now());
 			const payerRef = String(($('audit-payer') && $('audit-payer').value) || '').trim() || ('audit:' + title.slice(0, 32));
-			const budgetHmc = Math.max(0.1, Number(($('audit-budget-hmc') && $('audit-budget-hmc').value) || 1));
+			const budgetHmc = Math.max(0.5, Number(($('audit-budget-hmc') && $('audit-budget-hmc').value) || 1));
 			const budgetRuns = Math.max(8, Math.floor(Number(($('audit-runs') && $('audit-runs').value) || 64)));
 			const includePoH = !$('audit-include-poh') || $('audit-include-poh').checked;
 			const lang = String(($('audit-code-lang') && $('audit-code-lang').value) || 'wat').trim();

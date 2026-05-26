@@ -4,11 +4,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"hackme/internal/chain"
+	"hackme/internal/fuzzescrow"
 	"hackme/internal/sandbox"
 )
 
@@ -121,6 +123,11 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	if budgetHMC <= 0 {
 		budgetHMC = 1.0
 	}
+	if budgetHMC < fuzzescrow.MinCampaignBudgetHMC {
+		writeAPIError(w, http.StatusBadRequest, "budget_too_low",
+			fmt.Sprintf("budget_hmc must be >= %.2f", fuzzescrow.MinCampaignBudgetHMC), nil)
+		return
+	}
 	budgetRuns := req.BudgetRuns
 	if budgetRuns < 8 {
 		budgetRuns = 64
@@ -128,6 +135,10 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	budgetSeconds := req.BudgetSeconds
 	if budgetSeconds < 60 {
 		budgetSeconds = 3600
+	}
+	targetSolves := req.TargetSolves
+	if targetSolves < 1 {
+		targetSolves = 1
 	}
 	difficulty := req.DifficultyScore
 	if difficulty < chain.MinDifficultyScore {
@@ -139,11 +150,13 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 		rewardHMC = minReward
 	}
 	if rewardHMC <= 0 {
-		rewardHMC = 0.01
+		rewardHMC = minReward
 	}
-	targetSolves := req.TargetSolves
-	if targetSolves < 1 {
-		targetSolves = 1
+	if createPoH {
+		minPerSolve := chain.MinOrderPrepaidHMC / float64(targetSolves)
+		if rewardHMC+1e-12 < minPerSolve {
+			rewardHMC = minPerSolve
+		}
 	}
 	payerRef := strings.TrimSpace(req.PayerRef)
 	if payerRef == "" {

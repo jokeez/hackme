@@ -42,16 +42,16 @@ type ClaimedWork struct {
 }
 
 type SubmitRequest struct {
-	WorkerID      string
-	MinerAddress  string
-	WorkID        string
-	CampaignID    string
-	ItemID        int64
-	InputN        uint64
-	ActualInput   uint64
-	CheckResult   int32
-	DurationMS    int
-	Trap          string
+	WorkerID     string
+	MinerAddress string
+	WorkID       string
+	CampaignID   string
+	ItemID       int64
+	InputN       uint64
+	ActualInput  uint64
+	CheckResult  int32
+	DurationMS   int
+	Trap         string
 }
 
 // RegisterCampaign upserts a pool-distributed fuzz campaign and marks it running.
@@ -347,15 +347,15 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 	findingID := fmt.Sprintf("finding-pool-%s-%d-%d", req.CampaignID, req.ItemID, now)
 	op, itemID, qty := fuzzengine.WasmCheckInputParts(req.ActualInput)
 	detail, _ := json.Marshal(map[string]any{
-		"source":        "pool_fuzz_worker_v1",
-		"worker_id":     req.WorkerID,
-		"input_n":       req.InputN,
-		"actual_input":  req.ActualInput,
-		"check_result":  req.CheckResult,
-		"op_type":       op,
-		"item_id":       itemID,
-		"quantity":      qty,
-		"trap":          req.Trap,
+		"source":          "pool_fuzz_worker_v1",
+		"worker_id":       req.WorkerID,
+		"input_n":         req.InputN,
+		"actual_input":    req.ActualInput,
+		"check_result":    req.CheckResult,
+		"op_type":         op,
+		"item_id":         itemID,
+		"quantity":        qty,
+		"trap":            req.Trap,
 		"check_semantics": string(sem),
 	})
 	_, err := s.DB.ExecContext(ctx,
@@ -425,12 +425,12 @@ func (s *Service) PoolStats(ctx context.Context) (map[string]any, error) {
 	_ = s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_work_items WHERE status='pending'`).Scan(&workPending)
 	_ = s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_work_items WHERE status='done'`).Scan(&workDone)
 	return map[string]any{
-		"ok":              true,
-		"pool_fuzz":       true,
-		"campaigns_total": campaigns,
+		"ok":                true,
+		"pool_fuzz":         true,
+		"campaigns_total":   campaigns,
 		"campaigns_running": running,
-		"work_pending":    workPending,
-		"work_done":       workDone,
+		"work_pending":      workPending,
+		"work_done":         workDone,
 	}, nil
 }
 

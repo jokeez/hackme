@@ -24,7 +24,7 @@ echo "[audit-gate] POST /api/security-audit $CID"
 resp="$(curl -fsS -X POST "$BASE/api/security-audit" \
   -H "Content-Type: application/json" \
   -H "X-Hackme-Admin-Token: $ADMIN" \
-  -d "{\"title\":\"gate-audit\",\"payer_ref\":\"gate:audit\",\"budget_hmc\":0.15,\"budget_runs\":8,\"wasm_check_hex\":\"$WASM_HEX\",\"create_poh_order\":true}")"
+  -d "{\"title\":\"gate-audit\",\"payer_ref\":\"gate:audit\",\"budget_hmc\":0.5,\"budget_runs\":8,\"wasm_check_hex\":\"$WASM_HEX\",\"create_poh_order\":true}")"
 
 echo "$resp" | python3 -c '
 import json,sys

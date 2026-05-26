@@ -21,16 +21,16 @@ var (
 
 // FuzzEscrowRow is the locked 20/80 state for a campaign.
 type FuzzEscrowRow struct {
-	CampaignID      string  `json:"campaign_id"`
-	BudgetHMC       float64 `json:"budget_hmc"`
-	RunsPoolHMC     float64 `json:"runs_pool_hmc"`
-	BountyPoolHMC   float64 `json:"bounty_pool_hmc"`
-	RunsPaidHMC     float64 `json:"runs_paid_hmc"`
-	BountyPaidHMC   float64 `json:"bounty_paid_hmc"`
-	RunsDone        int     `json:"runs_done"`
-	BudgetRuns      int     `json:"budget_runs"`
-	FindingWinner   string  `json:"finding_winner,omitempty"`
-	Status          string  `json:"status"`
+	CampaignID        string  `json:"campaign_id"`
+	BudgetHMC         float64 `json:"budget_hmc"`
+	RunsPoolHMC       float64 `json:"runs_pool_hmc"`
+	BountyPoolHMC     float64 `json:"bounty_pool_hmc"`
+	RunsPaidHMC       float64 `json:"runs_paid_hmc"`
+	BountyPaidHMC     float64 `json:"bounty_paid_hmc"`
+	RunsDone          int     `json:"runs_done"`
+	BudgetRuns        int     `json:"budget_runs"`
+	FindingWinner     string  `json:"finding_winner,omitempty"`
+	Status            string  `json:"status"`
 	RefundedBountyHMC float64 `json:"refunded_bounty_hmc,omitempty"`
 }
 
@@ -258,17 +258,17 @@ func (s *Service) FinalizeFuzzEscrow(ctx context.Context, campaignID string) (*F
 }
 
 type fuzzEscrowDBRow struct {
-	campaignID        string
-	budgetUnits       uint64
-	runsPoolUnits     uint64
-	bountyPoolUnits   uint64
-	runsPaidUnits     uint64
-	bountyPaidUnits   uint64
-	runsDone          int
-	budgetRuns        int
-	perRunUnits       uint64
-	findingWinner     string
-	status            string
+	campaignID          string
+	budgetUnits         uint64
+	runsPoolUnits       uint64
+	bountyPoolUnits     uint64
+	runsPaidUnits       uint64
+	bountyPaidUnits     uint64
+	runsDone            int
+	budgetRuns          int
+	perRunUnits         uint64
+	findingWinner       string
+	status              string
 	refundedBountyUnits uint64
 }
 
@@ -300,16 +300,16 @@ func (s *Service) GetFuzzEscrow(ctx context.Context, campaignID string) (*FuzzEs
 		return nil, err
 	}
 	return &FuzzEscrowRow{
-		CampaignID:    r.campaignID,
-		BudgetHMC:     UnitsToHMC(r.budgetUnits),
-		RunsPoolHMC:   UnitsToHMC(r.runsPoolUnits),
-		BountyPoolHMC: UnitsToHMC(r.bountyPoolUnits),
-		RunsPaidHMC:   UnitsToHMC(r.runsPaidUnits),
-		BountyPaidHMC: UnitsToHMC(r.bountyPaidUnits),
-		RunsDone:      r.runsDone,
-		BudgetRuns:    r.budgetRuns,
-		FindingWinner: r.findingWinner,
-		Status:        r.status,
+		CampaignID:        r.campaignID,
+		BudgetHMC:         UnitsToHMC(r.budgetUnits),
+		RunsPoolHMC:       UnitsToHMC(r.runsPoolUnits),
+		BountyPoolHMC:     UnitsToHMC(r.bountyPoolUnits),
+		RunsPaidHMC:       UnitsToHMC(r.runsPaidUnits),
+		BountyPaidHMC:     UnitsToHMC(r.bountyPaidUnits),
+		RunsDone:          r.runsDone,
+		BudgetRuns:        r.budgetRuns,
+		FindingWinner:     r.findingWinner,
+		Status:            r.status,
 		RefundedBountyHMC: UnitsToHMC(r.refundedBountyUnits),
 	}, nil
 }

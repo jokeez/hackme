@@ -12,9 +12,9 @@ type Settler interface {
 // NoopSettler skips settlement (local gate tests without a node wallet).
 type NoopSettler struct{}
 
-func (NoopSettler) PayRun(context.Context, string, string) error      { return nil }
+func (NoopSettler) PayRun(context.Context, string, string) error             { return nil }
 func (NoopSettler) PayFinding(context.Context, string, string, string) error { return nil }
-func (NoopSettler) Finalize(context.Context, string) error             { return nil }
+func (NoopSettler) Finalize(context.Context, string) error                   { return nil }
 
 func escrowEnabled(cfg map[string]any) bool {
 	if v, ok := cfg["budget_hmc"]; ok {

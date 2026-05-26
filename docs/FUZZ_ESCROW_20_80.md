@@ -11,7 +11,7 @@ Unused bounty (no winner) is **refunded** to the campaign payer wallet on `Final
 
 ## API (local node)
 
-- `POST /api/fuzz/campaigns` with `"budget_hmc": 10.0` opens escrow (requires `budget_runs` ≥ 8).
+- `POST /api/fuzz/campaigns` with `"budget_hmc": 10.0` opens escrow (requires `budget_runs` ≥ 8, **budget_hmc ≥ 0.5 HMC**, per-run slice ≥ 0.0001 HMC).
 - `POST /api/fuzz/pool/settle` (admin): `{ "kind": "run|finding|finalize", "campaign_id", "miner_address", "severity" }`.
 - `GET /api/fuzz/campaigns/{id}/escrow` — public escrow state.
 - `GET /api/fuzz/campaigns/{id}/proof-bundle` — report + findings + escrow (report token).

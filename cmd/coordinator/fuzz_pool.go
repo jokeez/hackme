@@ -143,17 +143,17 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		wm.noteWorkerClientIP(workerID, ipKey)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"ok":               true,
-			"worker_id":        workerID,
-			"work_id":          work.WorkID,
-			"campaign_id":      work.CampaignID,
-			"item_id":          work.ItemID,
-			"input_n":          work.InputN,
-			"actual_input":     work.ActualInput,
-			"wasm_check_hex":   work.WasmCheckHex,
-			"check_semantics":  work.CheckSemantics,
-			"task_class":       "fuzz",
-			"scheduler_mode":   "fuzz",
+			"ok":              true,
+			"worker_id":       workerID,
+			"work_id":         work.WorkID,
+			"campaign_id":     work.CampaignID,
+			"item_id":         work.ItemID,
+			"input_n":         work.InputN,
+			"actual_input":    work.ActualInput,
+			"wasm_check_hex":  work.WasmCheckHex,
+			"check_semantics": work.CheckSemantics,
+			"task_class":      "fuzz",
+			"scheduler_mode":  "fuzz",
 		})
 	})
 

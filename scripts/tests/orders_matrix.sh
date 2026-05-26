@@ -72,11 +72,11 @@ try:
     bal = float(sys.argv[1].strip() or "0")
 except Exception:
     bal = 0.0
-raise SystemExit(0 if bal >= 0.02 else 1)
+raise SystemExit(0 if bal >= 0.06 else 1)
 PY
 then
   run_case "order-valid-small" \
-    "{\"id\":\"order-valid-small-${TASK_NS}\",\"kind\":\"synthetic_poh_v1\",\"difficulty_score\":1,\"reward_hmc\":0.01,\"target_solves\":1,\"payer_ref\":\"qa:valid\"}" \
+    "{\"id\":\"order-valid-small-${TASK_NS}\",\"kind\":\"synthetic_poh_v1\",\"difficulty_score\":1,\"reward_hmc\":0.05,\"target_solves\":1,\"payer_ref\":\"qa:valid\"}" \
     200
 else
   warn "wallet balance too low for positive order case (balance_hmc=$balance); skipping order-valid-small"

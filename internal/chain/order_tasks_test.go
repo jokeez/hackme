@@ -201,7 +201,7 @@ func TestInsertOrderTaskWasmArtifactPath(t *testing.T) {
 	preFundEscrow(t, ctx, db, addr, 10.0)
 	sum := sha256.Sum256(raw)
 	h := hex.EncodeToString(sum[:])
-	manifest := []byte(`{"id":"ord-wasm","kind":"synthetic_poh_v1","reward_hmc":0.02,"target_solves":1,"payer_ref":"t",
+	manifest := []byte(`{"id":"ord-wasm","kind":"synthetic_poh_v1","reward_hmc":0.05,"target_solves":1,"payer_ref":"t",
 		"wasm_artifact_path":"demo.wasm","artifact_hash":"` + h + `"}`)
 	res, err := svc.InsertOrderTask(ctx, manifest)
 	if err != nil || res == nil || res.ID != "ord-wasm" {
@@ -237,7 +237,11 @@ func TestInsertOrderTaskDifficultyMinReward(t *testing.T) {
 	if _, err := svc.InsertOrderTask(ctx, manifestBad); err == nil {
 		t.Fatal("expected min reward validation error")
 	}
-	manifestOK := []byte(`{"id":"ord-diff-ok","kind":"synthetic_poh_v1","reward_hmc":0.005,"difficulty_score":10,"target_solves":1}`)
+	manifestDust := []byte(`{"id":"ord-diff-dust","kind":"synthetic_poh_v1","reward_hmc":0.005,"difficulty_score":10,"target_solves":1}`)
+	if _, err := svc.InsertOrderTask(ctx, manifestDust); err == nil {
+		t.Fatal("expected min prepaid validation error")
+	}
+	manifestOK := []byte(`{"id":"ord-diff-ok","kind":"synthetic_poh_v1","reward_hmc":0.005,"difficulty_score":10,"target_solves":10}`)
 	if _, err := svc.InsertOrderTask(ctx, manifestOK); err != nil {
 		t.Fatalf("insert diff ok: %v", err)
 	}
@@ -271,7 +275,7 @@ func TestInsertOrderTaskRejectsWhenAccountUnitsInsufficient(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `UPDATE accounts SET balance_units = ? WHERE address = ?`, uint64(1000), addr); err != nil {
 		t.Fatal(err)
 	}
-	manifest := []byte(`{"id":"ord-units-low","kind":"synthetic_poh_v1","reward_hmc":0.02,"target_solves":1}`)
+	manifest := []byte(`{"id":"ord-units-low","kind":"synthetic_poh_v1","reward_hmc":0.05,"target_solves":1}`)
 	if _, err := svc.InsertOrderTask(ctx, manifest); !errors.Is(err, ErrInsufficientBalance) {
 		t.Fatalf("expected ErrInsufficientBalance, got %v", err)
 	}
@@ -321,11 +325,11 @@ func TestInsertOrderTaskEscrowHourlyCap(t *testing.T) {
 		t.Fatal(err)
 	}
 	preFundEscrow(t, ctx, db, addr, 10.0)
-	okManifest := []byte(`{"id":"ord-hour-ok","kind":"synthetic_poh_v1","reward_hmc":0.03,"target_solves":1}`)
+	okManifest := []byte(`{"id":"ord-hour-ok","kind":"synthetic_poh_v1","reward_hmc":0.05,"target_solves":1}`)
 	if _, err := svc.InsertOrderTask(ctx, okManifest); err != nil {
 		t.Fatalf("first order should pass: %v", err)
 	}
-	blockedManifest := []byte(`{"id":"ord-hour-block","kind":"synthetic_poh_v1","reward_hmc":0.03,"target_solves":1}`)
+	blockedManifest := []byte(`{"id":"ord-hour-block","kind":"synthetic_poh_v1","reward_hmc":0.05,"target_solves":1}`)
 	if _, err := svc.InsertOrderTask(ctx, blockedManifest); !errors.Is(err, ErrOrderEscrowRateLimited) {
 		t.Fatalf("expected ErrOrderEscrowRateLimited, got %v", err)
 	}
@@ -346,7 +350,7 @@ func TestAppendPoHBlockRejectsOrderRewardMismatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	preFundEscrow(t, ctx, db, addr, 10.0)
-	manifest := []byte(`{"id":"ord-reward-check","kind":"synthetic_poh_v1","reward_hmc":0.01,"target_solves":1}`)
+	manifest := []byte(`{"id":"ord-reward-check","kind":"synthetic_poh_v1","reward_hmc":0.05,"target_solves":1}`)
 	if _, err := svc.InsertOrderTask(ctx, manifest); err != nil {
 		t.Fatal(err)
 	}
@@ -466,7 +470,7 @@ func TestExpiredOrderCannotBeMinedEvenBeforeListSweep(t *testing.T) {
 	preFundEscrow(t, ctx, db, addr, 5.0)
 	t.Setenv("HACKME_ORDER_MIN_TTL_SEC", "1")
 	t.Setenv("HACKME_ORDER_MAX_TTL_SEC", "10")
-	manifest := []byte(`{"id":"ord-expired-guard","kind":"synthetic_poh_v1","reward_hmc":0.01,"target_solves":1,"ttl_sec":1}`)
+	manifest := []byte(`{"id":"ord-expired-guard","kind":"synthetic_poh_v1","reward_hmc":0.05,"target_solves":1,"ttl_sec":1}`)
 	if _, err := svc.InsertOrderTask(ctx, manifest); err != nil {
 		t.Fatal(err)
 	}

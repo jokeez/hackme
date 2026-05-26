@@ -1,6 +1,52 @@
 {
   "items": [
     {
+      "id": "2026-05-26-security-audit-one-click",
+      "date": "2026-05-26",
+      "title": "Security Audit — one click (order + pool fuzz + HTML report)",
+      "summary": "Customers launch a full audit from dashboard #orders: compile guard or upload WASM, POST /api/security-audit creates linked useful-PoW order + distributed fuzz campaign (20/80 escrow), report token opens HTML/JSON in #fuzz. Same pipeline as Bitcoin Core 5-module research. PoH order queue is now FIFO-fair on the coordinator.",
+      "tags": [
+        "security",
+        "fuzzing",
+        "product",
+        "orders",
+        "release"
+      ],
+      "impact": "B2B customers get one product story; miners earn on both workerpoh and workerfuzz; operators keep advanced PoH-only tools under admin.",
+      "action": "Try: local dashboard → Security audit → Run full security audit · Gate: bash scripts/ops/security_audit_gate.sh · Telegram: docs/TELEGRAM_POST_SECURITY_AUDIT_LAUNCH.txt",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme",
+        "downloads": "https://hackme.tech/downloads.html",
+        "report_bc5": "https://hackme.tech/reports/bitcoin-core-5module.html",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
+      "id": "2026-05-26-fuzz-engine-v2-rc11i",
+      "date": "2026-05-26",
+      "title": "Release 0.1.0-rc11i · Fuzz Engine v2 + wallet/settlement fixes",
+      "summary": "Major fuzz upgrade: seed corpus and bit-flip mutation (not raw counters), coverage buckets v2 from real 64-bit inputs, SHA256(input) artifacts with check(0x…) repro, diff coverage_delta vs baseline campaigns, fuzz_report_v2. Desktop wallet uses canonical balance without admin header on loopback; VPS settlement timer fixed (/dev/null + admin wallet lookup). New CLI: hackme-fuzzing campaign create|status.",
+      "tags": [
+        "release",
+        "fuzzing",
+        "security",
+        "infrastructure",
+        "mining"
+      ],
+      "impact": "B2B integrators get stronger property-fuzz reports; miners get rc11i binaries with fair pool + order escrow unchanged.",
+      "action": "Downloads: https://hackme.tech/downloads.html · BC5 report: https://hackme.tech/reports/bitcoin-core-5module.html · Telegram: docs/TELEGRAM_POST_FUZZING_V2.txt · Bitcointalk: docs/BITCOINTALK_FUZZING_V2_BBCode.txt · Gate: bash scripts/ops/fuzz_engine_v2_gate.sh",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme",
+        "downloads": "https://hackme.tech/downloads.html",
+        "report_bc5": "https://hackme.tech/reports/bitcoin-core-5module.html",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-26-order-pool-live-5hmc-rc11h",
       "date": "2026-05-26",
       "title": "Order pool live · 5 HMC test completed (rc11h)",
@@ -220,49 +266,6 @@
         "github": "https://github.com/jokeez/hackme",
         "downloads": "https://hackme.tech/downloads.html",
         "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
-        "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-05-19-cuda-rc10-gpu-backends",
-      "date": "2026-05-19",
-      "title": "Release 0.1.0-rc10: native NVIDIA CUDA + AMD/Intel OpenCL",
-      "summary": "Linux bundle adds workerpoh-cuda (NVRTC, Blackwell compute_120), honest pool hashrate calibration (~80–120 GH/s on RTX 50), and GPU backend auto-detect. Windows zip: hackme.exe + workerpoh-opencl.exe. Docs: GPU_MINING_BACKENDS.md, CUDA_PRODUCTION.md.",
-      "tags": [
-        "mining",
-        "pool",
-        "release",
-        "cuda",
-        "gpu"
-      ],
-      "impact": "NVIDIA miners should use CUDA on Linux for full GPU throughput; AMD/Intel use OpenCL. Pool stats and payouts reflect measured GH/s.",
-      "action": "Download 0.1.0-rc10 from https://hackme.tech/downloads.html · Linux NVIDIA: HACKME_GPU_BACKEND=cuda · See docs/GPU_MINING_BACKENDS.md",
-      "status": "published",
-      "links": {
-        "github": "https://github.com/jokeez/hackme",
-        "downloads": "https://hackme.tech/downloads.html",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats"
-      }
-    },
-    {
-      "id": "2026-05-19-pool-fairness-settlement-mps",
-      "date": "2026-05-19",
-      "title": "Pool fairness: GPU-weighted limits, faster settlement, MPS prep",
-      "summary": "Coordinator now caps paid attempts by measured GH/s (stops CPU submit-spam), limits claim/submit rate per worker, and settlement runs every ~30s. Dashboard calculator slider fixed; unpaid accrual display syncs from hackme.tech. MiningPoolStats listing checklist + exchange roadmap docs added. Desktop miners: use batch 4M + OpenCL/CUDA; remote VPS workers should use worker token (not full admin).",
-      "tags": [
-        "mining",
-        "pool",
-        "security",
-        "economics",
-        "release"
-      ],
-      "impact": "Your PC GPU rig should earn proportionally to hashrate; payouts above min threshold reach on-chain faster. Public stats: https://hackme.tech/pool/coordinator/api/pool/stats",
-      "action": "Pull latest from GitHub · Restart pool worker after update · MPS: docs/MININGPOOLSTATS_LISTING.md · Fair tuning: scripts/ops/apply_desktop_gpu_pool.sh",
-      "status": "published",
-      "links": {
-        "github": "https://github.com/jokeez/hackme",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
-        "downloads": "https://hackme.tech/downloads.html",
         "telegram": "https://t.me/hackme_tech"
       }
     }

@@ -1,7 +1,7 @@
 // workerfuzz — pool distributed fuzz worker (claims WASM check work from coordinator).
 //
-//   COORD_URL=https://hackme.tech/pool/coordinator COORD_TOKEN=... WORKER_ID=rig-fuzz-01 \
-//   HACKME_MINER_ED25519_SEED_HEX=... go run ./cmd/workerfuzz
+//	COORD_URL=https://hackme.tech/pool/coordinator COORD_TOKEN=... WORKER_ID=rig-fuzz-01 \
+//	HACKME_MINER_ED25519_SEED_HEX=... go run ./cmd/workerfuzz
 package main
 
 import (
@@ -159,16 +159,16 @@ func runCheck(cr claimResp, timeoutMS int) (checkResult int32, durationMS int, t
 
 func submit(cl *http.Client, base, token, workerID, minerAddress string, priv ed25519.PrivateKey, pubHex string, hybrid bool, nonce uint64, cr claimResp, checkResult int32, durationMS int, trap string) error {
 	payload := map[string]any{
-		"worker_id":     workerID,
-		"work_id":       cr.WorkID,
-		"campaign_id":   cr.CampaignID,
-		"item_id":       cr.ItemID,
-		"input_n":       cr.InputN,
-		"actual_input":  cr.ActualInput,
-		"check_result":  checkResult,
-		"duration_ms":   durationMS,
-		"trap":          trap,
-		"submit_nonce":  nonce,
+		"worker_id":    workerID,
+		"work_id":      cr.WorkID,
+		"campaign_id":  cr.CampaignID,
+		"item_id":      cr.ItemID,
+		"input_n":      cr.InputN,
+		"actual_input": cr.ActualInput,
+		"check_result": checkResult,
+		"duration_ms":  durationMS,
+		"trap":         trap,
+		"submit_nonce": nonce,
 	}
 	if hybrid {
 		if priv == nil {

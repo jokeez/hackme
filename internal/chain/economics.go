@@ -34,6 +34,8 @@ const (
 	RewardPerDifficultyUnit = 0.0005
 	MinDifficultyScore      = 1
 	MaxDifficultyScore      = 100
+	// MinOrderPrepaidHMC is the minimum total escrow (reward_hmc × target_solves) for a paid PoH order.
+	MinOrderPrepaidHMC = 0.05
 	// RewardTailFloorHMC documents the intended long-term floor for future reward schedule work.
 	RewardTailFloorHMC = 0.002
 )

@@ -16,10 +16,10 @@ func (a *app) handleFuzzCampaignProofBundle(w http.ResponseWriter, r *http.Reque
 	}
 	findings, _ := a.queryFuzzFindings(r.Context(), campaignID, 100)
 	bundle := map[string]any{
-		"ok":        true,
-		"campaign":  c,
-		"findings":  findings,
-		"proof_v":   "fuzz_proof_bundle_v1",
+		"ok":         true,
+		"campaign":   c,
+		"findings":   findings,
+		"proof_v":    "fuzz_proof_bundle_v1",
 		"report_url": "/api/fuzz/campaigns/" + campaignID + "/report.html",
 	}
 	if esc, err := a.chain.GetFuzzEscrow(r.Context(), campaignID); err == nil {
