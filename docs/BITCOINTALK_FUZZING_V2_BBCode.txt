@@ -1,0 +1,46 @@
+[b]HackMe Fuzz Engine v2 — property fuzz on useful-PoW (May 2026)[/b]
+
+We shipped a real upgrade to the [i]fuzz worker pipeline[/i], not a marketing rename. The pool still runs [mono]check(i64)->i32[/mono] WASM gates; the [b]input generator[/b] and [b]reports[/b] are what changed.
+
+[b]What is new (fuzz_engine_v2)[/b]
+
+[list]
+[li][b]Seed corpus[/b] — campaigns default to security-oriented 64-bit seeds (zero, OOB-class op/item patterns, overflow-class quantity). Config: [mono]"seed_corpus": [0, 1, 0x...][/mono][/li]
+[li][b]Mutation[/b] — each work item = seed + splitmix64 bit-flip rounds ([mono]mutation_rounds[/mono], default 4), not raw [mono]input_n[/mono] only[/li]
+[li][b]Coverage buckets v2[/b] — edge/path buckets derived from the actual input bytes (FNV + op/item/qty), better diversity metric for reports[/li]
+[li][b]Artifacts[/b] — findings store SHA256(input), repro [mono]check(0x…)[/mono], on-disk [mono].input[/mono] artifact under [mono]data/fuzz-artifacts/[/mono][/li]
+[li][b]Diff++[/b] — [mono]GET /api/fuzz/campaigns/{id}/diff?base_campaign_id=…[/mono] now includes [mono]coverage_delta[/mono] (new edges/paths vs baseline)[/li]
+[li][b]Reports[/b] — [mono]fuzz_report_v2[/mono] + [mono]fuzz_engine[/mono] block (version, seed_count, features)[/li]
+[li][b]CLI[/b] — [mono]hackme-fuzzing campaign create|status|report-url[/mono] (requires [mono]HACKME_ADMIN_TOKEN[/mono] on your local node)[/li]
+[/list]
+
+[b]What did NOT change (honest scope)[/b]
+
+[list]
+[li]Still WASM property gates — not full-binary AFL on your server[/li]
+[li]Still useful-PoW + pool for scale — hashrate finds more [i]inputs[/i], not magic CVEs[/li]
+[li]Customer orders still on [b]local[/b] [mono]hackme-node[/mono] ([mono]127.0.0.1:8080[/mono]); public site stays read-only for fuzz admin[/li]
+[/list]
+
+[b]Try it[/b]
+
+[code]
+git clone https://github.com/jokeez/hackme.git
+cd hackme
+go test -run TestDeriveFuzzInput ./...
+export HACKME_ADMIN_TOKEN=…   # local node
+bash scripts/ops/fuzz_engine_v2_gate.sh
+go run ./cmd/fuzzingclient campaign create -runs 200 -title "my-module-v2"
+[/code]
+
+[b]Related proof[/b]
+
+[list]
+[li]Bitcoin Core 5-module WASM research: [url=https://hackme.tech/reports/bitcoin-core-5module.html]report[/url][/li]
+[li]Downloads / pool: [url=https://hackme.tech]hackme.tech[/url][/li]
+[li]Source: [url=https://github.com/jokeez/hackme]github.com/jokeez/hackme[/url][/li]
+[/list]
+
+[i]We do not claim to replace libFuzzer or find consensus bugs in upstream Core without a coordinated target. We claim a stronger distributed property-fuzz layer for [mono]your[/mono] WASM guards on open infrastructure.[/i]
+
+— useful PoW · fair pool · open reports

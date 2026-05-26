@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -267,19 +269,20 @@ func (a *app) executeWorkItem(ctx context.Context, c fuzzAutoCampaign, cfg map[s
 	runCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMS)*time.Millisecond)
 	defer cancel()
 	wasm := a.loadCampaignWasm(runCtx, c, cfg)
+	actualInput := deriveFuzzInput(it.InputN, cfg)
 	pass := true
 	var execErr error
 	if len(wasm) > 0 {
-		pass, execErr = sandbox.InvokeCheck(runCtx, wasm, it.InputN)
+		pass, execErr = sandbox.InvokeCheck(runCtx, wasm, actualInput)
 	} else {
-		pass = (it.InputN%17 != 0)
+		pass = (actualInput%17 != 0)
 	}
 	durationMS := int(time.Since(start).Milliseconds())
 	if durationMS < 0 {
 		durationMS = 0
 	}
 	if execErr != nil {
-		_ = a.insertWorkerWasmAnomaly(ctx, c.ID, it.InputN, now, execErr, len(wasm) > 0)
+		_ = a.insertWorkerWasmAnomaly(ctx, c.ID, it.InputN, actualInput, now, execErr, len(wasm) > 0)
 		maxAttempts := retentionLimitFromEnv("HACKME_FUZZ_WORK_MAX_ATTEMPTS", 4, 20)
 		nextStatus := "pending"
 		if it.Attempts+1 >= maxAttempts {
@@ -299,11 +302,11 @@ func (a *app) executeWorkItem(ctx context.Context, c fuzzAutoCampaign, cfg map[s
 		boolToInt(pass), durationMS, now, it.ID); err != nil {
 		return err
 	}
-	if err := a.recordCoverageBuckets(ctx, c.ID, it.InputN, now); err != nil {
+	if err := a.recordCoverageBuckets(ctx, c.ID, actualInput, now); err != nil {
 		return err
 	}
 	if !pass {
-		if err := a.insertWorkerWasmCheckFail(ctx, c.ID, it.InputN, now, len(wasm) > 0); err != nil {
+		if err := a.insertWorkerWasmCheckFail(ctx, c.ID, it.InputN, actualInput, now, len(wasm) > 0); err != nil {
 			return err
 		}
 	}
@@ -317,9 +320,8 @@ func boolToInt(v bool) int {
 	return 0
 }
 
-func (a *app) recordCoverageBuckets(ctx context.Context, campaignID string, inputN uint64, now int64) error {
-	edgeBucket := int(inputN % 257)
-	pathBucket := int((inputN*1315423911 + 0x9e3779b97f4a7c15) % 509)
+func (a *app) recordCoverageBuckets(ctx context.Context, campaignID string, input uint64, now int64) error {
+	edgeBucket, pathBucket := fuzzCoverageBuckets(input)
 	_, err := a.db.ExecContext(ctx,
 		`INSERT OR IGNORE INTO fuzz_coverage_seen (campaign_id, kind, bucket, first_seen_at) VALUES (?, 'edge', ?, ?)`,
 		campaignID, edgeBucket, now)
@@ -388,66 +390,86 @@ func classifyWasmTrap(inputN uint64, execErr error, hasWasm bool) (findingType, 
 	return "crash", "high", "WASM trap: " + titleBase
 }
 
-func (a *app) insertWorkerFindingClassified(ctx context.Context, campaignID string, inputN uint64, now int64, findingType, severity, title string) error {
-	inputSHA := fmt.Sprintf("input-%016x", inputN)
+func (a *app) writeFuzzInputArtifact(campaignID, inputSHA string, input uint64) string {
+	root := fuzzArtifactRoot()
+	dir := filepath.Join(root, campaignID)
+	_ = os.MkdirAll(dir, 0o700)
+	path := filepath.Join(dir, inputSHA+".input")
+	var buf [8]byte
+	binary.LittleEndian.PutUint64(buf[:], input)
+	payload := fmt.Sprintf("input_hex=0x%x\ninput_dec=%d\nsha256=%s\n", input, input, inputSHA)
+	if err := os.WriteFile(path, append([]byte(payload), buf[:]...), 0o600); err != nil {
+		return ""
+	}
+	return path
+}
+
+func (a *app) insertWorkerFindingClassified(ctx context.Context, campaignID string, inputN, actualInput uint64, now int64, findingType, severity, title string) error {
+	inputSHA := fuzzInputSHA256(actualInput)
+	artifactPath := a.writeFuzzInputArtifact(campaignID, inputSHA, actualInput)
 	findingID := fmt.Sprintf("finding-worker-%s-%d-%d", campaignID, inputN, now)
 	detail := map[string]any{
-		"source":    "fuzz_worker_pipeline_v1",
-		"input_n":   inputN,
-		"timestamp": now,
+		"source":       "fuzz_worker_pipeline_v2",
+		"input_n":      inputN,
+		"actual_input": actualInput,
+		"timestamp":    now,
 	}
-	op, itemID, qty := wasmCheckInputParts(inputN)
+	op, itemID, qty := wasmCheckInputParts(actualInput)
 	detail["op_type"] = op
 	detail["item_id"] = itemID
 	detail["quantity"] = qty
 	if _, err := a.db.ExecContext(ctx,
 		`INSERT OR IGNORE INTO fuzz_findings
 		 (id, campaign_id, finding_type, severity, title, input_sha256, artifact_path, repro_cmd, detail_json, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, '', ?, ?, ?)`,
-		findingID, campaignID, findingType, severity, title, inputSHA, fmt.Sprintf("check(%d)", inputN), marshalMapJSON(detail), now); err != nil {
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		findingID, campaignID, findingType, severity, title, inputSHA, artifactPath, fuzzInputReproCmd(actualInput), marshalMapJSON(detail), now); err != nil {
 		return err
 	}
 	_, _ = a.db.ExecContext(ctx,
 		`INSERT INTO fuzz_corpus (campaign_id, input_sha256, first_seen_at, last_seen_at, hits, last_finding_id, artifact_path)
-		 VALUES (?, ?, ?, ?, 1, ?, '')
+		 VALUES (?, ?, ?, ?, 1, ?, ?)
 		 ON CONFLICT(campaign_id, input_sha256) DO UPDATE SET
 		   last_seen_at=excluded.last_seen_at,
 		   hits=fuzz_corpus.hits+1,
-		   last_finding_id=excluded.last_finding_id`,
-		campaignID, inputSHA, now, now, findingID)
+		   last_finding_id=excluded.last_finding_id,
+		   artifact_path=CASE WHEN excluded.artifact_path<>'' THEN excluded.artifact_path ELSE fuzz_corpus.artifact_path END`,
+		campaignID, inputSHA, now, now, findingID, artifactPath)
 	return nil
 }
 
-func (a *app) insertWorkerWasmCheckFail(ctx context.Context, campaignID string, inputN uint64, now int64, hasWasm bool) error {
-	ft, sev, title := classifyWasmCheckFail(inputN, hasWasm)
-	return a.insertWorkerFindingClassified(ctx, campaignID, inputN, now, ft, sev, title)
+func (a *app) insertWorkerWasmCheckFail(ctx context.Context, campaignID string, inputN, actualInput uint64, now int64, hasWasm bool) error {
+	ft, sev, title := classifyWasmCheckFail(actualInput, hasWasm)
+	return a.insertWorkerFindingClassified(ctx, campaignID, inputN, actualInput, now, ft, sev, title)
 }
 
-func (a *app) insertWorkerWasmAnomaly(ctx context.Context, campaignID string, inputN uint64, now int64, execErr error, hasWasm bool) error {
-	ft, sev, title := classifyWasmTrap(inputN, execErr, hasWasm)
+func (a *app) insertWorkerWasmAnomaly(ctx context.Context, campaignID string, inputN, actualInput uint64, now int64, execErr error, hasWasm bool) error {
+	ft, sev, title := classifyWasmTrap(actualInput, execErr, hasWasm)
 	detail := map[string]any{
-		"source":    "fuzz_worker_pipeline_v1",
-		"input_n":   inputN,
-		"timestamp": now,
-		"trap":      execErr.Error(),
+		"source":       "fuzz_worker_pipeline_v2",
+		"input_n":      inputN,
+		"actual_input": actualInput,
+		"timestamp":    now,
+		"trap":         execErr.Error(),
 	}
-	inputSHA := fmt.Sprintf("input-%016x", inputN)
+	inputSHA := fuzzInputSHA256(actualInput)
+	artifactPath := a.writeFuzzInputArtifact(campaignID, inputSHA, actualInput)
 	findingID := fmt.Sprintf("finding-worker-%s-%d-%d-trap", campaignID, inputN, now)
 	if _, err := a.db.ExecContext(ctx,
 		`INSERT OR IGNORE INTO fuzz_findings
 		 (id, campaign_id, finding_type, severity, title, input_sha256, artifact_path, repro_cmd, detail_json, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, '', ?, ?, ?)`,
-		findingID, campaignID, ft, sev, title, inputSHA, fmt.Sprintf("check(%d)", inputN), marshalMapJSON(detail), now); err != nil {
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		findingID, campaignID, ft, sev, title, inputSHA, artifactPath, fuzzInputReproCmd(actualInput), marshalMapJSON(detail), now); err != nil {
 		return err
 	}
 	_, _ = a.db.ExecContext(ctx,
 		`INSERT INTO fuzz_corpus (campaign_id, input_sha256, first_seen_at, last_seen_at, hits, last_finding_id, artifact_path)
-		 VALUES (?, ?, ?, ?, 1, ?, '')
+		 VALUES (?, ?, ?, ?, 1, ?, ?)
 		 ON CONFLICT(campaign_id, input_sha256) DO UPDATE SET
 		   last_seen_at=excluded.last_seen_at,
 		   hits=fuzz_corpus.hits+1,
-		   last_finding_id=excluded.last_finding_id`,
-		campaignID, inputSHA, now, now, findingID)
+		   last_finding_id=excluded.last_finding_id,
+		   artifact_path=CASE WHEN excluded.artifact_path<>'' THEN excluded.artifact_path ELSE fuzz_corpus.artifact_path END`,
+		campaignID, inputSHA, now, now, findingID, artifactPath)
 	return nil
 }
 
@@ -477,6 +499,10 @@ func (a *app) recomputeCampaignProgress(ctx context.Context, campaignID string, 
 		return err
 	}
 	summary := parseMapJSON(summaryJSON)
+	var cfgJSON string
+	_ = a.db.QueryRowContext(ctx, `SELECT config_json FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgJSON)
+	cfg := parseMapJSON(cfgJSON)
+	summary["fuzz_engine"] = fuzzEngineMetaFromConfig(cfg)
 	summary["runs_done"] = done
 	summary["new_edges"] = edges
 	summary["new_paths"] = paths

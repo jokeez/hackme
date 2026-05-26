@@ -646,7 +646,8 @@ func (a *app) handleFuzzCampaignCreate(w http.ResponseWriter, r *http.Request) {
 	if status == "completed" || status == "cancelled" {
 		completedAt = now
 	}
-	cfg := marshalMapJSON(req.Config)
+	cfgMap := normalizeFuzzCampaignConfig(req.Config, ctype)
+	cfg := marshalMapJSON(cfgMap)
 	err := execContextRetryBusy(r.Context(), a.db,
 		`INSERT INTO fuzz_campaigns
 		 (id, campaign_type, status, title, description, owner_ref, task_id, target_ref, budget_runs, budget_seconds, config_json, summary_json, report_token_hash, report_token_issued_at, created_at, started_at, completed_at)
@@ -673,6 +674,7 @@ func (a *app) handleFuzzCampaignCreate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{
 		"ok":                     true,
 		"campaign":               c,
+		"fuzz_engine":            fuzzEngineMetaFromConfig(cfgMap),
 		"customer_report_token":  reportToken,
 		"customer_report_header": "X-Hackme-Report-Token",
 	})
@@ -1468,19 +1470,50 @@ func (a *app) handleFuzzCampaignDiff(w http.ResponseWriter, r *http.Request, cam
 			BaseSeverity: bf.Severity,
 		})
 	}
+	headCov, _ := a.campaignCoverageCounts(r.Context(), campaignID)
+	baseCov, _ := a.campaignCoverageCounts(r.Context(), baseID)
+	coverageDelta := map[string]any{
+		"head_edges": headCov["edges"],
+		"head_paths": headCov["paths"],
+		"base_edges": baseCov["edges"],
+		"base_paths": baseCov["paths"],
+	}
+	if he, ok := headCov["edges"].(int); ok {
+		if be, ok2 := baseCov["edges"].(int); ok2 {
+			coverageDelta["new_edges"] = he - be
+		}
+	}
+	if hp, ok := headCov["paths"].(int); ok {
+		if bp, ok2 := baseCov["paths"].(int); ok2 {
+			coverageDelta["new_paths"] = hp - bp
+		}
+	}
 	writeJSON(w, map[string]any{
 		"ok":               true,
 		"campaign_id":      campaignID,
 		"base_campaign_id": baseID,
+		"fuzz_engine":      FuzzEngineVersion,
 		"summary": map[string]any{
 			"new_count":       len(newItems),
 			"fixed_count":     len(fixedItems),
 			"regressed_count": len(regressedItems),
 		},
+		"coverage_delta":     coverageDelta,
 		"new_findings":       newItems,
 		"fixed_findings":     fixedItems,
 		"regressed_findings": regressedItems,
 	})
+}
+
+func (a *app) campaignCoverageCounts(ctx context.Context, campaignID string) (map[string]any, error) {
+	var edges, paths int
+	if err := a.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_coverage_seen WHERE campaign_id=? AND kind='edge'`, campaignID).Scan(&edges); err != nil {
+		return nil, err
+	}
+	if err := a.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_coverage_seen WHERE campaign_id=? AND kind='path'`, campaignID).Scan(&paths); err != nil {
+		return nil, err
+	}
+	return map[string]any{"edges": edges, "paths": paths}, nil
 }
 
 func (a *app) handleFuzzCampaignIngestFindings(w http.ResponseWriter, r *http.Request, campaignID string) {
@@ -1750,9 +1783,11 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 	} else if sampleN >= 20 {
 		confidence = "medium"
 	}
+	engineMeta := fuzzEngineMetaFromConfig(c.Config)
 	return map[string]any{
 		"ok":                true,
-		"report_version":    "fuzz_report_v1",
+		"report_version":    "fuzz_report_v2",
+		"fuzz_engine":       engineMeta,
 		"generated_at_unix": time.Now().Unix(),
 		"campaign":          c,
 		"security_summary": map[string]any{

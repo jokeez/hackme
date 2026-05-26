@@ -70,6 +70,10 @@ func main() {
 		if err := doBuild(rest); err != nil {
 			fail(err)
 		}
+	case "campaign":
+		if err := doCampaign(*base, rest); err != nil {
+			fail(err)
+		}
 	default:
 		usage()
 		os.Exit(2)
@@ -85,8 +89,12 @@ func usage() {
   hackme-fuzzing wallet
   hackme-fuzzing create manifest.json
   hackme-fuzzing tasks
+  hackme-fuzzing campaign create -title "..." -runs 200 [-task-id ORDER]
+  hackme-fuzzing campaign status CAMPAIGN_ID
+  hackme-fuzzing campaign report-url CAMPAIGN_ID
 
 Env: HACKME_FUZZING_BASE, HACKME_DEVELOPER_TOKEN
+Campaign admin: HACKME_ADMIN_TOKEN (create/status on local node)
 Config: %s
 `, tokenConfigPath())
 }
@@ -146,6 +154,36 @@ func saveToken(tok string) error {
 		return err
 	}
 	return os.WriteFile(p, []byte(tok+"\n"), 0o600)
+}
+
+func adminToken() string {
+	return strings.TrimSpace(os.Getenv("HACKME_ADMIN_TOKEN"))
+}
+
+func apiDoAdmin(base, adminTok, method, path string, body []byte) ([]byte, int, error) {
+	url := strings.TrimRight(base, "/") + path
+	var rdr io.Reader
+	if len(body) > 0 {
+		rdr = bytes.NewReader(body)
+	}
+	req, err := http.NewRequest(method, url, rdr)
+	if err != nil {
+		return nil, 0, err
+	}
+	if len(body) > 0 {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if adminTok != "" {
+		req.Header.Set("X-Hackme-Admin-Token", adminTok)
+	}
+	cl := &http.Client{Timeout: 90 * time.Second}
+	resp, err := cl.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer resp.Body.Close()
+	b, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+	return b, resp.StatusCode, err
 }
 
 func apiDo(base, token, method, path string, body []byte) ([]byte, int, error) {
@@ -335,4 +373,74 @@ func printJSON(v any) {
 		fail(err)
 	}
 	fmt.Println(string(b))
+}
+
+func doCampaign(base string, args []string) error {
+	adm := adminToken()
+	if adm == "" {
+		return fmt.Errorf("HACKME_ADMIN_TOKEN required for campaign commands (local node admin)")
+	}
+	if len(args) < 1 {
+		return fmt.Errorf("usage: hackme-fuzzing campaign create|status|report-url ...")
+	}
+	switch args[0] {
+	case "create":
+		fs := flag.NewFlagSet("campaign-create", flag.ExitOnError)
+		title := fs.String("title", "property-fuzz-v2", "campaign title")
+		runs := fs.Int("runs", 120, "budget_runs")
+		taskID := fs.String("task-id", "", "linked order task id")
+		wasmHex := fs.String("wasm-hex", "", "inline wasm_check_hex")
+		ctype := fs.String("type", "property", "campaign_type")
+		_ = fs.Parse(args[1:])
+		cfg := map[string]any{
+			"fuzz_engine_version": "fuzz_engine_v2",
+			"mutation_rounds":     4,
+			"coverage_guided":     true,
+		}
+		if *wasmHex != "" {
+			cfg["wasm_check_hex"] = *wasmHex
+		}
+		body, _ := json.Marshal(map[string]any{
+			"campaign_type": *ctype,
+			"title":         *title,
+			"description":   "HackMe fuzz engine v2 — seed corpus + mutation + coverage buckets",
+			"budget_runs":   *runs,
+			"budget_seconds": 3600,
+			"task_id":       *taskID,
+			"config":        cfg,
+		})
+		b, code, err := apiDoAdmin(base, adm, http.MethodPost, "/api/fuzz/campaigns", body)
+		if err != nil {
+			return err
+		}
+		if code != http.StatusOK {
+			return fmt.Errorf("POST /api/fuzz/campaigns HTTP %d: %s", code, strings.TrimSpace(string(b)))
+		}
+		fmt.Println(string(prettyJSON(b)))
+		return nil
+	case "status":
+		if len(args) < 2 {
+			return fmt.Errorf("usage: hackme-fuzzing campaign status CAMPAIGN_ID")
+		}
+		id := args[1]
+		b, code, err := apiDoAdmin(base, adm, http.MethodGet, "/api/fuzz/campaigns/"+id, nil)
+		if err != nil {
+			return err
+		}
+		if code != http.StatusOK {
+			return fmt.Errorf("GET campaign HTTP %d: %s", code, strings.TrimSpace(string(b)))
+		}
+		fmt.Println(string(prettyJSON(b)))
+		return nil
+	case "report-url":
+		if len(args) < 2 {
+			return fmt.Errorf("usage: hackme-fuzzing campaign report-url CAMPAIGN_ID")
+		}
+		id := args[1]
+		fmt.Printf("%s/api/fuzz/campaigns/%s/report.html\n", strings.TrimRight(base, "/"), id)
+		fmt.Fprintf(os.Stderr, "Pass X-Hackme-Report-Token from create response to view.\n")
+		return nil
+	default:
+		return fmt.Errorf("unknown campaign subcommand %q", args[0])
+	}
 }
