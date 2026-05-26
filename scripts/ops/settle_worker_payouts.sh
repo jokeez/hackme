@@ -20,10 +20,12 @@ set -euo pipefail
 # - Fallback source: WORKER_PAYOUT_MAP mapping.
 
 require_cmd() {
-  command -v "$1" >/dev/null 2>&1 || {
-    echo "[settle-workers] missing command: $1" >&2
-    exit 1
-  }
+  # VPS safety: broken /dev/null (regular file) breaks `command -v … >/dev/null`.
+  if command -v "$1" 2>&1 | grep -q .; then
+    return 0
+  fi
+  echo "[settle-workers] missing command: $1 (PATH=${PATH:-})" >&2
+  exit 1
 }
 
 require_cmd curl
@@ -145,7 +147,7 @@ if [[ "$force_settle" == "1" ]]; then
 fi
 
 stats_json="$(curl -fsS -H "X-Hackme-Admin-Token: ${COORD_ADMIN_TOKEN}" "${COORD_URL}/api/work/stats?details=1")"
-payer_addr="$(curl -fsS "${CHAIN_BASE}/api/wallet" | jq -r '.address // ""')"
+payer_addr="$(curl -fsS -H "X-Hackme-Admin-Token: ${ADMIN_TOKEN}" "${CHAIN_BASE}/api/wallet" | jq -r '.address // ""')"
 if [[ -z "$payer_addr" ]]; then
   echo "[settle-workers] failed to resolve payer wallet address from ${CHAIN_BASE}/api/wallet" >&2
   exit 1

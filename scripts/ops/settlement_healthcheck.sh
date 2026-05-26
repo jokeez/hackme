@@ -5,10 +5,11 @@ set -euo pipefail
 # Verifies payout settlement loop is healthy and sync assumptions hold.
 
 require_cmd() {
-  command -v "$1" >/dev/null 2>&1 || {
-    echo "[settlement-health] missing command: $1" >&2
-    exit 1
-  }
+  if command -v "$1" 2>&1 | grep -q .; then
+    return 0
+  fi
+  echo "[settlement-health] missing command: $1" >&2
+  exit 1
 }
 
 require_cmd curl
@@ -57,7 +58,11 @@ stats="$(curl -fsS --max-time 15 -H "X-Hackme-Admin-Token: ${COORD_ADMIN_TOKEN}"
 hybrid="$(printf '%s' "$stats" | jq -r '.hybrid_signer_enabled // false')"
 workers="$(printf '%s' "$stats" | jq -c '.workers // {}')"
 
-wallet_src="$(curl -fsS --max-time 15 "${LOCAL_BASE}/api/wallet" | jq -r '.wallet_source // ""' || true)"
+wallet_hdr=()
+if [[ -n "$ADMIN_TOKEN" ]]; then
+  wallet_hdr=(-H "X-Hackme-Admin-Token: ${ADMIN_TOKEN}")
+fi
+wallet_src="$(curl -fsS --max-time 15 "${wallet_hdr[@]}" "${LOCAL_BASE}/api/wallet" | jq -r '.wallet_source // ""' || true)"
 wallet_ok=0
 IFS=',' read -r -a expected_sources <<<"$EXPECTED_WALLET_SOURCES"
 for src in "${expected_sources[@]}"; do

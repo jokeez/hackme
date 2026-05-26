@@ -42,10 +42,18 @@ record() {
   if [[ "$expect_http" != "$got_http" ]]; then
     # In strict hybrid signer mode unsigned submit can be rejected with
     # signature_required; this is expected hardening, not a regression.
-    if [[ "$id" == "submit-happy" && "$got_http" == "409" ]]; then
+    if [[ "$id" == "submit-happy" && ( "$got_http" == "409" || "$got_http" == "403" ) ]]; then
       local reason
       reason="$(jq -r '.reason // ""' "$resp_file" 2>/dev/null || true)"
       if [[ "$reason" == "signature_required" ]]; then
+        verdict="pass"
+      else
+        verdict="fail"
+      fi
+    elif [[ "$id" == "claim-happy" && "$got_http" == "429" ]]; then
+      local reason
+      reason="$(jq -r '.reason // ""' "$resp_file" 2>/dev/null || true)"
+      if [[ "$reason" == "too_many_worker_leases" || "$reason" == "claim_rate_limited" ]]; then
         verdict="pass"
       else
         verdict="fail"

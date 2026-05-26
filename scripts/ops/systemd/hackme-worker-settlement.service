@@ -6,6 +6,7 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 WorkingDirectory=/opt/hackme
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 EnvironmentFile=/opt/hackme/.env.settlement
 # ExecStartPre runs as root; main settle script as hackme (fixes root-owned state after manual ops).
 PermissionsStartOnly=true
