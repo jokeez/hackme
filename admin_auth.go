@@ -91,6 +91,19 @@ func requestFromLoopback(r *http.Request) bool {
 	return host == "127.0.0.1" || host == "localhost" || host == "::1"
 }
 
+// canonicalRelayAdminToken is used when desktop forwards a signed transfer to hackme.tech (remote still requires admin on older builds).
+func canonicalRelayAdminToken(r *http.Request) string {
+	if t := strings.TrimSpace(os.Getenv("HACKME_CANONICAL_RELAY_ADMIN_TOKEN")); t != "" {
+		return t
+	}
+	if r != nil {
+		if t := strings.TrimSpace(extractAdminSecret(r)); t != "" {
+			return t
+		}
+	}
+	return adminTokenFromEnv()
+}
+
 // handleDesktopLocalAuth exposes HACKME_ADMIN_TOKEN to the dashboard on loopback only (desktop mode).
 func handleDesktopLocalAuth(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -107,9 +120,9 @@ func handleDesktopLocalAuth(w http.ResponseWriter, r *http.Request) {
 	out := map[string]any{
 		"ok":                     true,
 		"admin_token_configured": tok != "",
-		"hint":                   "token is embedded in dashboard HTML on loopback desktop mode; set HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1 only for legacy clients",
+		"hint":                   "token is embedded in dashboard HTML on loopback; /api/desktop/local-auth also returns it for Sync token",
 	}
-	if expose && tok != "" {
+	if tok != "" && (expose || envBool("HACKME_DESKTOP_MODE", false)) {
 		out["admin_token"] = tok
 	}
 	_ = json.NewEncoder(w).Encode(out)

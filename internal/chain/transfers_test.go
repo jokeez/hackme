@@ -248,6 +248,48 @@ func TestTransferRejectReplayDuplicate(t *testing.T) {
 	}
 }
 
+func TestRejectStaleLocalPending(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "stale_pending.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := New(db)
+	pubA, privA, _ := ed25519.GenerateKey(rand.Reader)
+	pubB, _, _ := ed25519.GenerateKey(rand.Reader)
+	addrA, _ := addressFromPubKeyHex(hex.EncodeToString(pubA))
+	addrB, _ := addressFromPubKeyHex(hex.EncodeToString(pubB))
+	if _, err := db.ExecContext(ctx, `INSERT INTO accounts (address, balance_units, next_nonce, updated_at) VALUES (?, ?, 0, strftime('%s','now'))`, addrA, uint64(5_000_000)); err != nil {
+		t.Fatal(err)
+	}
+	tx0 := signTransfer(t, TransferTx{
+		TxType:        "transfer_v1",
+		From:          addrA,
+		To:            addrB,
+		AmountUnits:   10_000,
+		FeeUnits:      DefaultTransferMinFee,
+		Nonce:         0,
+		TimestampUnix: time.Now().Unix(),
+		PubKeyEd25519: hex.EncodeToString(pubA),
+	}, privA)
+	if _, _, err := svc.SubmitTransferTx(ctx, tx0); err != nil {
+		t.Fatal(err)
+	}
+	n, err := svc.RejectStaleLocalPending(ctx, addrA, 8)
+	if err != nil || n != 1 {
+		t.Fatalf("reject stale: n=%d err=%v", n, err)
+	}
+	pool, err := svc.TransferPool(ctx, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pool) != 0 {
+		t.Fatalf("expected empty pending pool, got %d", len(pool))
+	}
+}
+
 func TestTransferRejectPendingNonceConflict(t *testing.T) {
 	ctx := context.Background()
 	dir := t.TempDir()

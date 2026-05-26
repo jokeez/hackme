@@ -30,6 +30,30 @@ func TestHandleWalletPublicRedacted(t *testing.T) {
 	}
 }
 
+func TestHandleWalletDesktopLoopbackShowsTreasury(t *testing.T) {
+	a, _ := newWalletTestApp(t)
+	tok := "test-admin-wallet-redact"
+	t.Setenv("HACKME_ADMIN_TOKEN", tok)
+	t.Setenv("HACKME_DESKTOP_MODE", "1")
+	req := httptest.NewRequest(http.MethodGet, "/api/wallet", nil)
+	req.Host = "127.0.0.1:8080"
+	rec := httptest.NewRecorder()
+	a.handleWallet(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var out map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if out["public_redacted"] == true {
+		t.Fatalf("loopback desktop should see full wallet")
+	}
+	if out["address"] == nil || out["address"] == "" {
+		t.Fatalf("expected address on loopback desktop")
+	}
+}
+
 func TestHandleWalletAdminShowsTreasury(t *testing.T) {
 	a, _ := newWalletTestApp(t)
 	tok := "test-admin-wallet-redact"

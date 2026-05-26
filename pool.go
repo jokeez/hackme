@@ -364,7 +364,7 @@ func fetchJSONViaCurlDesktop(u string, maxTimeSec int) (map[string]any, error) {
 }
 
 // postJSONViaCurl POSTs JSON to URL via curl (TLS subprocess fallback when net/http to public canonical fails).
-func postJSONViaCurl(ctx context.Context, targetURL string, jsonBody []byte) (statusCode int, respBody []byte, err error) {
+func postJSONViaCurl(ctx context.Context, targetURL string, jsonBody []byte, extraHeaders ...map[string]string) (statusCode int, respBody []byte, err error) {
 	if coordinatorURLIsLoopback(targetURL) {
 		return 0, nil, fmt.Errorf("curl post fallback disabled on loopback")
 	}
@@ -389,12 +389,19 @@ func postJSONViaCurl(ctx context.Context, targetURL string, jsonBody []byte) (st
 	if err := tmp.Close(); err != nil {
 		return 0, nil, err
 	}
-	cmd := exec.CommandContext(ctx, "curl", "--max-time", "12", "-sS", "-X", "POST",
+	curlArgs := []string{"--max-time", "12", "-sS", "-X", "POST",
 		"-H", "Content-Type: application/json",
-		"--data-binary", "@"+tmpPath,
-		"-w", "\n%{http_code}",
-		targetURL,
-	)
+	}
+	if len(extraHeaders) > 0 && extraHeaders[0] != nil {
+		for k, v := range extraHeaders[0] {
+			if strings.TrimSpace(k) == "" || strings.TrimSpace(v) == "" {
+				continue
+			}
+			curlArgs = append(curlArgs, "-H", k+": "+v)
+		}
+	}
+	curlArgs = append(curlArgs, "--data-binary", "@"+tmpPath, "-w", "\n%{http_code}", targetURL)
+	cmd := exec.CommandContext(ctx, "curl", curlArgs...)
 	out, err := cmd.Output()
 	if err != nil {
 		return 0, nil, err
@@ -707,10 +714,50 @@ func (a *app) shouldUseCanonicalChainAPI() bool {
 	if a == nil {
 		return false
 	}
+	if envBool("HACKME_DESKTOP_MODE", false) {
+		if base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/"); walletCanonicalBaseUsable(base) {
+			return true
+		}
+	}
 	if a.networkModeActive() {
 		return true
 	}
 	return !a.miner.Running()
+}
+
+// desktopCanonicalTransfersRequired is true when this node must not submit transfers to local SQLite fork.
+func (a *app) desktopCanonicalTransfersRequired() bool {
+	if a == nil || !envBool("HACKME_DESKTOP_MODE", false) {
+		return false
+	}
+	base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/")
+	return walletCanonicalBaseUsable(base) && a.networkModeActive()
+}
+
+// pruneDesktopStaleLocalTransfers rejects pending local mempool rows that do not match canonical next_nonce.
+func (a *app) pruneDesktopStaleLocalTransfers(ctx context.Context) {
+	if a == nil || a.chain == nil || !a.desktopCanonicalTransfersRequired() || a.signer == nil {
+		return
+	}
+	now := time.Now().Unix()
+	a.canonMu.Lock()
+	if now-a.lastDesktopPruneUnix < 45 {
+		a.canonMu.Unlock()
+		return
+	}
+	a.lastDesktopPruneUnix = now
+	a.canonMu.Unlock()
+	from := strings.TrimSpace(a.signer.Address())
+	if from == "" {
+		return
+	}
+	pruneCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
+	_, canonNonce, ok := a.fetchCanonicalAddressState(pruneCtx, from)
+	cancel()
+	if !ok {
+		return
+	}
+	_, _ = a.chain.RejectStaleLocalPending(ctx, from, canonNonce)
 }
 
 func walletCanonicalBaseUsable(base string) bool {

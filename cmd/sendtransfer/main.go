@@ -75,6 +75,11 @@ func main() {
 	url := strings.TrimRight(*base, "/") + "/api/tx/send"
 	req, _ := http.NewRequest(http.MethodPost, url, bytes.NewReader(raw))
 	req.Header.Set("Content-Type", "application/json")
+	if t := strings.TrimSpace(os.Getenv("HACKME_CANONICAL_RELAY_ADMIN_TOKEN")); t != "" {
+		req.Header.Set("X-Hackme-Admin-Token", t)
+	} else if t := strings.TrimSpace(os.Getenv("HACKME_ADMIN_TOKEN")); t != "" {
+		req.Header.Set("X-Hackme-Admin-Token", t)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "http:", err)

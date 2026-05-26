@@ -428,6 +428,24 @@ func (s *Service) WalletEarningsSummary(ctx context.Context, address string, win
 	}, nil
 }
 
+// RejectStaleLocalPending marks pending transfers from addr whose nonce does not match the
+// authoritative next_nonce (desktop followers must not show local-fork ghost txs).
+func (s *Service) RejectStaleLocalPending(ctx context.Context, from string, authoritativeNonce uint64) (int64, error) {
+	from = strings.TrimSpace(from)
+	if from == "" {
+		return 0, nil
+	}
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE tx_pool SET status='rejected', reject_code='stale_local_fork'
+		 WHERE from_address=? AND status='pending' AND nonce != ?`,
+		from, authoritativeNonce,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 func (s *Service) TransferPool(ctx context.Context, limit int) ([]TransferStatusRow, error) {
 	if limit <= 0 {
 		limit = 200

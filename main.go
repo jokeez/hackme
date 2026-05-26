@@ -131,6 +131,7 @@ type app struct {
 	canonWalletUnits      uint64
 	canonWalletNonce      uint64
 	canonWalletCachedUnix int64
+	lastDesktopPruneUnix  int64
 }
 
 const (
@@ -1290,10 +1291,18 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 	// In worker/follower mode, prefer canonical wallet/address snapshot so UI
 	// always matches VPS leader even when P2P peers are not configured.
 	wantCanon := a.shouldUseCanonicalChainAPI() || a.networkModeActive()
-	if wantCanon && lookupAddr != "" {
+	if wantCanon && lookupAddr != "" && !skipCache {
+		if hmc, units, nonce, ok := a.readCanonicalWalletCache(lookupAddr); ok {
+			bal = hmc
+			balanceUnits = units
+			nextNonce = nonce
+			walletSource = "canonical_peer_cache"
+		}
+	}
+	if wantCanon && lookupAddr != "" && (skipCache || walletSource != "canonical_peer_cache") {
 		peerTimeout := 8 * time.Second
 		if envBool("HACKME_DESKTOP_MODE", false) {
-			peerTimeout = 20 * time.Second
+			peerTimeout = 12 * time.Second
 		}
 		peerCtx, cancel := context.WithTimeout(ctx, peerTimeout)
 		if units, nonce, ok := a.fetchCanonicalAddressState(peerCtx, lookupAddr); ok {
@@ -1306,13 +1315,6 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 	}
 	if walletSource == "canonical_peer" {
 		a.cacheCanonicalWallet(lookupAddr, bal, balanceUnits, nextNonce)
-	} else if wantCanon && !skipCache {
-		if hmc, units, nonce, ok := a.readCanonicalWalletCache(lookupAddr); ok {
-			bal = hmc
-			balanceUnits = units
-			nextNonce = nonce
-			walletSource = "canonical_peer_cache"
-		}
 	}
 	blendLocal := envBool("HACKME_WALLET_DESKTOP_BLEND_LOCAL", envBool("HACKME_DESKTOP_MODE", false))
 	// Never overlay fork-local SQLite balances when canonical peer data exists — forked accounts rows could show bogus multi‑thousand HMC until reseed.
@@ -1508,8 +1510,11 @@ func (a *app) handleWalletEarnings(w http.ResponseWriter, r *http.Request) {
 	source := "local_db"
 	canonAttempted := false
 	canonOK := false
-	// Followers overlay canonical earnings; leaders with local PoH must not self-fetch (nginx loop / 502).
-	if !a.miner.Running() && a.networkModeActive() {
+	// Followers overlay canonical earnings; desktop always uses canonical even when local PoH miner runs.
+	// Command leaders keep local ledger while mining to avoid self-proxy loops.
+	useCanonEarnings := a.shouldUseCanonicalChainAPI() && a.networkModeActive() &&
+		(!a.miner.Running() || envBool("HACKME_DESKTOP_MODE", false))
+	if useCanonEarnings {
 		if base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/"); base != "" {
 			if u, err := url.Parse(base); err == nil {
 				host := strings.ToLower(strings.TrimSpace(u.Host))
@@ -3182,11 +3187,13 @@ func (a *app) allowLoopbackAdminTxSend(r *http.Request) bool {
 	return secretsEqualConstantTime(extractAdminSecret(r), adminTokenFromEnv())
 }
 
+// allowLoopbackDesktopDashboardAuth lets same-origin desktop dashboard POST transfers without
+// repeating the admin header (wallet is already loopback-trusted). Does not skip canonical relay.
+func (a *app) allowLoopbackDesktopDashboardAuth(r *http.Request) bool {
+	return adminAuthEnabled() && envBool("HACKME_DESKTOP_MODE", false) && requestFromLoopback(r)
+}
+
 func (a *app) handleTransferSend(w http.ResponseWriter, r *http.Request) {
-	// Remote callers must present admin token; loopback may use allowLoopbackAdminTxSend.
-	if !a.allowLoopbackAdminTxSend(r) && !requireAdminAuth(w, r) {
-		return
-	}
 	if !a.allowRate("tx_send:"+clientIP(r), 20) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusTooManyRequests)
@@ -3214,7 +3221,19 @@ func (a *app) handleTransferSend(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"error": "invalid json", "code": "invalid_json"})
 		return
 	}
-	if strings.TrimSpace(tx.PubKeyEd25519) == "" && strings.TrimSpace(tx.SigEd25519) == "" {
+	simpleSign := strings.TrimSpace(tx.PubKeyEd25519) == "" && strings.TrimSpace(tx.SigEd25519) == ""
+	// Pre-signed wire txs are public mempool submit (exchange integrators). Simple/node signing needs admin.
+	if simpleSign && !a.allowLoopbackAdminTxSend(r) && !a.allowLoopbackDesktopDashboardAuth(r) && !requireAdminAuth(w, r) {
+		return
+	}
+	a.pruneDesktopStaleLocalTransfers(r.Context())
+	if simpleSign {
+		if strings.TrimSpace(tx.From) == "" && a.signer != nil {
+			tx.From = strings.TrimSpace(a.signer.Address())
+		}
+		if tx.TimestampUnix <= 0 {
+			tx.TimestampUnix = time.Now().Unix()
+		}
 		if code, msg := chain.ValidateTransferShape(tx); code != "" {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			w.WriteHeader(http.StatusBadRequest)
@@ -3224,7 +3243,8 @@ func (a *app) handleTransferSend(w http.ResponseWriter, r *http.Request) {
 	}
 	canonicalBase := ""
 	// Loopback admin tx (settle_worker_payouts.sh) must use local SQLite nonce + mempool on the chain host.
-	loopbackAdminSettle := a.allowLoopbackAdminTxSend(r)
+	// Desktop wallet sends also use loopback + admin token — must still relay to canonical, not local fork.
+	loopbackAdminSettle := a.allowLoopbackAdminTxSend(r) && !a.desktopCanonicalTransfersRequired()
 	// Match handleWalletEarnings: in network/follower mode keep submitting to canonical even if a stale
 	// local miner flag is set; otherwise POST falls through to empty SQLite and returns insufficient_balance.
 	if a.shouldUseCanonicalChainAPI() && !loopbackAdminSettle {
@@ -3239,12 +3259,20 @@ func (a *app) handleTransferSend(w http.ResponseWriter, r *http.Request) {
 			tx.From = from
 		}
 		if from != "" {
-			nonceCtx, nonceCancel := context.WithTimeout(r.Context(), 12*time.Second)
-			_, canonNonce, nonceOK := a.fetchCanonicalAddressState(nonceCtx, from)
-			nonceCancel()
-			if nonceOK {
-				tx.Nonce = canonNonce
-			} else if a.networkModeActive() {
+			nonceOK := false
+			var canonNonce uint64
+			if _, _, cachedNonce, ok := a.readCanonicalWalletCache(from); ok {
+				tx.Nonce = cachedNonce
+				nonceOK = true
+			} else {
+				nonceCtx, nonceCancel := context.WithTimeout(context.Background(), 8*time.Second)
+				_, canonNonce, nonceOK = a.fetchCanonicalAddressState(nonceCtx, from)
+				nonceCancel()
+				if nonceOK {
+					tx.Nonce = canonNonce
+				}
+			}
+			if !nonceOK {
 				w.Header().Set("Content-Type", "application/json; charset=utf-8")
 				w.WriteHeader(http.StatusBadGateway)
 				_ = json.NewEncoder(w).Encode(map[string]any{
@@ -3307,17 +3335,32 @@ func (a *app) handleTransferSend(w http.ResponseWriter, r *http.Request) {
 	if canonicalBase != "" {
 		var canonStatus int
 		var canonBody []byte
-		req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, canonicalBase+"/api/tx/send", bytes.NewReader(submitRaw))
+		txTimeout := 8 * time.Second
+		curlSec := 12
+		if envBool("HACKME_DESKTOP_MODE", false) {
+			txTimeout = 12 * time.Second
+			curlSec = 14
+		}
+		forwardCtx, forwardCancel := context.WithTimeout(context.Background(), txTimeout+time.Duration(curlSec+2)*time.Second)
+		defer forwardCancel()
+		req, err := http.NewRequestWithContext(forwardCtx, http.MethodPost, canonicalBase+"/api/tx/send", bytes.NewReader(submitRaw))
 		if err == nil {
 			req.Header.Set("Content-Type", "application/json")
-			client := &http.Client{Timeout: 8 * time.Second}
+			if relayTok := canonicalRelayAdminToken(r); relayTok != "" {
+				req.Header.Set("X-Hackme-Admin-Token", relayTok)
+			}
+			client := &http.Client{Timeout: txTimeout}
 			if resp, err := client.Do(req); err == nil && resp != nil {
 				defer resp.Body.Close()
 				canonBody, _ = io.ReadAll(resp.Body)
 				canonStatus = resp.StatusCode
 			} else if !coordinatorURLIsLoopback(canonicalBase) {
-				curlCtx, cancelCurl := context.WithTimeout(r.Context(), 14*time.Second)
-				st, bod, cerr := postJSONViaCurl(curlCtx, canonicalBase+"/api/tx/send", submitRaw)
+				curlCtx, cancelCurl := context.WithTimeout(context.Background(), time.Duration(curlSec+2)*time.Second)
+				curlHdr := map[string]string{"Content-Type": "application/json"}
+				if relayTok := canonicalRelayAdminToken(r); relayTok != "" {
+					curlHdr["X-Hackme-Admin-Token"] = relayTok
+				}
+				st, bod, cerr := postJSONViaCurl(curlCtx, canonicalBase+"/api/tx/send", submitRaw, curlHdr)
 				cancelCurl()
 				if cerr == nil && st > 0 {
 					canonStatus = st
@@ -3331,7 +3374,7 @@ func (a *app) handleTransferSend(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write(canonBody)
 			return
 		}
-		if a.networkModeActive() {
+		if a.networkModeActive() || a.desktopCanonicalTransfersRequired() {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			w.WriteHeader(http.StatusBadGateway)
 			_ = json.NewEncoder(w).Encode(map[string]any{
@@ -3342,6 +3385,16 @@ func (a *app) handleTransferSend(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if a.desktopCanonicalTransfersRequired() {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusBadGateway)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"error":  "desktop mode requires canonical chain for transfers",
+			"code":   "canonical_required",
+		})
+		return
+	}
+	a.pruneDesktopStaleLocalTransfers(r.Context())
 	txHash, status, err := a.chain.SubmitTransferTx(r.Context(), tx)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -3466,12 +3519,31 @@ func (a *app) handleTransferAddressState(w http.ResponseWriter, r *http.Request)
 	}
 	if a.shouldUseCanonicalChainAPI() {
 		if base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/"); base != "" && walletCanonicalBaseUsable(base) {
-			if units, nonce, ok := a.fetchCanonicalAddressState(r.Context(), addr); ok {
+			if hmc, units, nonce, ok := a.readCanonicalWalletCache(addr); ok {
 				writeJSON(w, map[string]any{
 					"address":       addr,
 					"balance_units": units,
 					"next_nonce":    nonce,
-					"balance_hmc":   float64(units) / 100_000_000.0,
+					"balance_hmc":   hmc,
+					"source":        "canonical_peer_cache",
+				})
+				return
+			}
+			peerTimeout := 6 * time.Second
+			if envBool("HACKME_DESKTOP_MODE", false) {
+				peerTimeout = 8 * time.Second
+			}
+			peerCtx, cancel := context.WithTimeout(r.Context(), peerTimeout)
+			units, nonce, ok := a.fetchCanonicalAddressState(peerCtx, addr)
+			cancel()
+			if ok {
+				hmc := float64(units) / 100_000_000.0
+				a.cacheCanonicalWallet(addr, hmc, units, nonce)
+				writeJSON(w, map[string]any{
+					"address":       addr,
+					"balance_units": units,
+					"next_nonce":    nonce,
+					"balance_hmc":   hmc,
 					"source":        "canonical_peer",
 				})
 				return

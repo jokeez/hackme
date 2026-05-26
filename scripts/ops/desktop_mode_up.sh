@@ -148,6 +148,25 @@ if [[ -z "${HACKME_POOL_COORDINATOR_TOKEN:-}" && -f "$SECRET_COORD_TOKEN_FILE" ]
   echo "[desktop-up] HACKME_POOL_COORDINATOR_TOKEN loaded from $SECRET_COORD_TOKEN_FILE"
 fi
 
+# Relay signed transfers to hackme.tech (forwards admin token on POST /api/tx/send).
+if [[ -z "${HACKME_CANONICAL_RELAY_ADMIN_TOKEN:-}" ]]; then
+  export HACKME_CANONICAL_RELAY_ADMIN_TOKEN="${HACKME_ADMIN_TOKEN:-}"
+fi
+if [[ -z "${HACKME_CANONICAL_RELAY_ADMIN_TOKEN:-}" && -n "${NODE_SSH:-}" ]]; then
+  relay="$(ssh -o BatchMode=yes -o ConnectTimeout=8 "${NODE_SSH}" "grep '^HACKME_ADMIN_TOKEN=' '${NODE_DEPLOY_DIR:-/opt/hackme}/.env.vps' 2>/dev/null | cut -d= -f2-" 2>/dev/null || true)"
+  if [[ -n "$relay" ]]; then
+    export HACKME_CANONICAL_RELAY_ADMIN_TOKEN="$relay"
+    echo "[desktop-up] HACKME_CANONICAL_RELAY_ADMIN_TOKEN synced from VPS .env.vps"
+  fi
+fi
+if [[ -n "${HACKME_CANONICAL_RELAY_ADMIN_TOKEN:-}" ]]; then
+  if grep -q '^HACKME_CANONICAL_RELAY_ADMIN_TOKEN=' "$DESKTOP_ENV_FILE" 2>/dev/null; then
+    sed -i "s|^HACKME_CANONICAL_RELAY_ADMIN_TOKEN=.*|HACKME_CANONICAL_RELAY_ADMIN_TOKEN=${HACKME_CANONICAL_RELAY_ADMIN_TOKEN}|" "$DESKTOP_ENV_FILE"
+  else
+    echo "HACKME_CANONICAL_RELAY_ADMIN_TOKEN=${HACKME_CANONICAL_RELAY_ADMIN_TOKEN}" >>"$DESKTOP_ENV_FILE"
+  fi
+fi
+
 if [[ "${DESKTOP_PROFILE}" == "command" ]]; then
   export HACKME_CHAIN_LEADER_LOCAL_POH=1
   unset HACKME_POOL_COORDINATOR_URL HACKME_POOL_COORDINATOR_TOKEN 2>/dev/null || true

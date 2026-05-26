@@ -2230,6 +2230,13 @@
 							<button type="button" id="btn-tx-fill-time" class="px-3 py-2 rounded border border-white/20 text-gray-300 text-[10px] uppercase tracking-wider hover:bg-white/5 tx-pro-field">Set now</button>
 							<p id="tx-send-msg" class="text-[10px] text-gray-500 font-mono"></p>
 						</div>
+						<div id="tx-track-panel" class="hidden mt-2 rounded border border-matrix/25 bg-black/50 px-3 py-2 max-w-2xl">
+							<p id="tx-track-phase" class="text-[11px] text-matrix font-mono">—</p>
+							<p id="tx-track-detail" class="text-[10px] text-gray-500 font-mono mt-1 leading-relaxed">—</p>
+							<div class="mt-2 h-1.5 rounded bg-white/10 overflow-hidden">
+								<div id="tx-track-bar" class="h-full bg-matrix/70 transition-all duration-500 ease-out" style="width:0%"></div>
+							</div>
+						</div>
 						<div class="mt-2 flex flex-wrap gap-2 items-end">
 							<label class="text-[10px] text-gray-500">Address lookup
 								<input id="tx-address-input" class="mt-1 w-64 text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="HMC-..." />
@@ -2789,6 +2796,24 @@
 			if (!t) return {};
 			return { 'X-Hackme-Admin-Token': t };
 		}
+		function walletKnownAddress() {
+			const snap = String(walletSnapshot.address || '').trim();
+			if (snap.startsWith('HMC-')) return snap;
+			const el = $('wallet-address-display');
+			if (el) {
+				const dom = String(el.textContent || '').trim();
+				if (dom.startsWith('HMC-')) return dom;
+			}
+			const st = latestStatus || {};
+			const da = String(st.display_wallet_address || st.node_address || '').trim();
+			if (da.startsWith('HMC-')) return da;
+			return '';
+		}
+		async function ensureWalletAdminToken() {
+			if (adminTokenCurrent()) return true;
+			await syncDesktopAdminTokenFromNode();
+			return adminTokenCurrent().length > 0;
+		}
 		const developerTokenStorageKey = 'hackme_developer_token';
 		function developerTokenCurrent() {
 			return sanitizeAdminTokenForHTTP(sessionStorage.getItem(developerTokenStorageKey) || '');
@@ -2925,6 +2950,7 @@
 					sessionStorage.setItem(adminTokenStorageKey, emb);
 					localStorage.setItem(adminTokenStorageKey, emb);
 					updateAdminTokenUI();
+					void refreshWallet(true);
 					return true;
 				}
 			} catch (_) {}
@@ -2939,6 +2965,7 @@
 							localStorage.setItem(adminTokenStorageKey, tok);
 							updateAdminTokenUI();
 							try { logLine('[admin] loaded token from local desktop node (.env.desktop)'); } catch (_) {}
+							void refreshWallet(true);
 							return true;
 						}
 					}
@@ -2959,6 +2986,7 @@
 				localStorage.setItem(adminTokenStorageKey, tok);
 				updateAdminTokenUI();
 				try { logLine('[admin] re-synced token from local desktop node'); } catch (_) {}
+				void refreshWallet(true);
 				return true;
 			} catch (_) {
 				return false;
@@ -3478,8 +3506,164 @@
 			return /^[0-9a-f]{64}$/.test(h);
 		}
 
+		const TX_TRACK_STORAGE_KEY = 'hackme.wallet.tx_track.v1';
+		const TX_CONFIRM_POLL_MS = 3000;
+		const TX_CONFIRM_MAX_MS = 180000;
+		const TX_EST_BLOCK_SEC = 50;
+		let txSendInFlight = false;
+		let txTrackPollTimer = null;
+		let txTrackActive = false;
+
+		function txTrackPanel(show) {
+			const p = $('tx-track-panel');
+			if (p) p.classList.toggle('hidden', !show);
+		}
+		function txTrackSetProgress(pct) {
+			const bar = $('tx-track-bar');
+			if (bar) bar.style.width = Math.max(0, Math.min(100, pct)) + '%';
+		}
+		function txTrackSetPhase(phase, detail) {
+			const ph = $('tx-track-phase');
+			const det = $('tx-track-detail');
+			if (ph) ph.textContent = String(phase || '—');
+			if (det) det.textContent = String(detail || '');
+		}
+		function txTrackSave(state) {
+			try {
+				sessionStorage.setItem(TX_TRACK_STORAGE_KEY, JSON.stringify(state));
+			} catch (_) {}
+		}
+		function txTrackLoad() {
+			try {
+				const raw = sessionStorage.getItem(TX_TRACK_STORAGE_KEY);
+				if (!raw) return null;
+				const s = JSON.parse(raw);
+				if (!s || !s.tx_hash) return null;
+				if (Date.now() - Number(s.started_ms || 0) > TX_CONFIRM_MAX_MS) return null;
+				return s;
+			} catch (_) {
+				return null;
+			}
+		}
+		function txTrackClear() {
+			txTrackActive = false;
+			if (txTrackPollTimer) {
+				window.clearInterval(txTrackPollTimer);
+				txTrackPollTimer = null;
+			}
+			try {
+				sessionStorage.removeItem(TX_TRACK_STORAGE_KEY);
+			} catch (_) {}
+			txTrackPanel(false);
+		}
+		function txEtaText(startMs) {
+			const elapsed = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+			const remain = Math.max(0, TX_EST_BLOCK_SEC - elapsed);
+			if (remain <= 0) return 'usually within the next PoH block (any moment)';
+			return '≈ ' + remain + '–' + (remain + 30) + ' s until ledger inclusion';
+		}
+		async function fetchTxStatusByHash(hash) {
+			const h = String(hash || '').trim().toLowerCase();
+			if (!looksLikeTxHash(h)) return null;
+			try {
+				const r = await fetchWithTimeout('/api/tx/' + encodeURIComponent(h), { cache: 'no-store', headers: adminHeaders() }, 12000);
+				if (!r.ok) return null;
+				return await r.json();
+			} catch (_) {
+				return null;
+			}
+		}
+		function txStatusIsFinal(st) {
+			const s = String(st || '').toLowerCase();
+			return s === 'applied' || s === 'confirmed' || s === 'mined' || s === 'included';
+		}
+		function startTransferConfirmationTrack(track) {
+			if (!track || !track.tx_hash) return;
+			txTrackActive = true;
+			txTrackPanel(true);
+			const startMs = Number(track.started_ms || Date.now());
+			const txHash = String(track.tx_hash);
+			const amountHmc = Number(track.amount_hmc || 0);
+			const startNonce = Number(track.start_nonce || 0);
+			let polls = 0;
+			const tick = async () => {
+				if (!txTrackActive) return;
+				polls += 1;
+				const elapsed = Date.now() - startMs;
+				const pct = Math.min(95, Math.floor((elapsed / TX_EST_BLOCK_SEC) * 100));
+				txTrackSetProgress(pct);
+				txTrackSetPhase(
+					'Confirming on-chain',
+					'tx ' + txHash.slice(0, 18) + '… · ' + txEtaText(startMs) + ' · poll #' + polls
+				);
+				const row = await fetchTxStatusByHash(txHash);
+				if (row && txStatusIsFinal(row.status)) {
+					txTrackSetProgress(100);
+					txTrackSetPhase('Confirmed', 'Included in ledger · status ' + String(row.status));
+					txFormSetSendMsg('Confirmed · ' + fmt(amountHmc, 8) + ' HMC sent · ' + txHash.slice(0, 16) + '…');
+					txTrackClear();
+					void refreshWallet(true);
+					void refreshWalletEarnings();
+					void refreshTxPoolTable();
+					return;
+				}
+				try {
+					const wr = await fetchWithTimeout('/api/wallet', { cache: 'no-store', headers: adminHeaders() }, 10000);
+					if (wr.ok) {
+						const wj = await wr.json();
+						if (!wj.public_redacted) {
+							const nn = Number(wj.next_nonce || 0);
+							if (startNonce > 0 && nn > startNonce) {
+								txTrackSetProgress(100);
+								txTrackSetPhase('Confirmed', 'Wallet nonce advanced ' + startNonce + ' → ' + nn + ' (funds debited)');
+								txFormSetSendMsg('Confirmed · balance updated · nonce ' + nn);
+								walletSnapshot.nextNonce = nn;
+								walletSnapshot.balanceHMC = Number(wj.balance_hmc || wj.balance_display_hmc || walletSnapshot.balanceHMC);
+								walletSnapshot.balanceUnits = Number(wj.balance_units || wj.balance_display_units || walletSnapshot.balanceUnits);
+								syncTxFormFromWalletSnapshot();
+								if ($('wallet-balance-big')) $('wallet-balance-big').textContent = fmt(walletSnapshot.balanceHMC, 8);
+								txTrackClear();
+								void refreshWalletEarnings();
+								void refreshTxPoolTable();
+								return;
+							}
+						}
+					}
+				} catch (_) {}
+				const poolR = await fetchWithTimeout('/api/tx/pool', { cache: 'no-store', headers: adminHeaders() }, 10000).catch(() => null);
+				if (poolR && poolR.ok) {
+					const pj = await poolR.json();
+					const txs = Array.isArray(pj.txs) ? pj.txs : [];
+					const pending = txs.some((t) => String(t.tx_hash || t.hash || '').toLowerCase() === txHash);
+					if (pending) {
+						txTrackSetPhase('In mempool (pending)', txEtaText(startMs) + ' · waiting for miner inclusion');
+						txTrackSetProgress(Math.max(15, pct));
+					}
+				}
+				if (elapsed >= TX_CONFIRM_MAX_MS) {
+					txTrackSetPhase('Still pending', 'No final status in 3 min — check tx hash on explorer; funds may still confirm');
+					txFormSetSendMsg('Submitted · confirmation timeout — use tx hash lookup or Refresh pool');
+					txTrackClear();
+					void refreshWallet(true);
+					return;
+				}
+			};
+			void tick();
+			if (txTrackPollTimer) window.clearInterval(txTrackPollTimer);
+			txTrackPollTimer = window.setInterval(() => { void tick(); }, TX_CONFIRM_POLL_MS);
+		}
+		function resumeTransferTrackFromStorage() {
+			const t = txTrackLoad();
+			if (!t) return;
+			txFormSetSendMsg('Resuming transfer tracking…');
+			startTransferConfirmationTrack(t);
+		}
+
 		async function submitTransferTx() {
-			txFormSetSendMsg('');
+			if (txSendInFlight) return;
+			txFormSetValidation('');
+			await ensureWalletAdminToken();
+			const btn = $('btn-tx-send');
 			let bodyObj;
 			if (txFormAdvanced && $('tx-json-input')) {
 				try {
@@ -3489,16 +3673,21 @@
 					return;
 				}
 			} else {
-				try {
-					const wr = await fetch('/api/wallet?fresh=1', { cache: 'no-store' });
-					if (wr.ok) {
-						const wj = await wr.json();
-						walletSnapshot.address = String(wj.address || walletSnapshot.address || '').trim();
-						walletSnapshot.nextNonce = Number(wj.next_nonce || walletSnapshot.nextNonce || 0);
-						walletSnapshot.balanceUnits = Number(wj.balance_units || walletSnapshot.balanceUnits || 0);
-						syncTxFormFromWalletSnapshot();
-					}
-				} catch (_) {}
+				const addrOk = walletKnownAddress().startsWith('HMC-');
+				if (!addrOk || !(Number(walletSnapshot.nextNonce) >= 0)) {
+					try {
+						const wr = await fetchWithTimeout('/api/wallet', { cache: 'no-store', headers: adminHeaders() }, 12000);
+						if (wr.ok) {
+							const wj = await wr.json();
+							if (!wj.public_redacted) {
+								walletSnapshot.address = String(wj.address || walletSnapshot.address || '').trim();
+								walletSnapshot.nextNonce = Number(wj.next_nonce || walletSnapshot.nextNonce || 0);
+								walletSnapshot.balanceUnits = Number(wj.balance_units || walletSnapshot.balanceUnits || 0);
+								syncTxFormFromWalletSnapshot();
+							}
+						}
+					} catch (_) {}
+				}
 				const tx = buildTransferTxFromForm();
 				if (!tx.to || !tx.to.startsWith('HMC-')) {
 					txFormSetValidation('To: required HMC- address');
@@ -3512,38 +3701,72 @@
 					txFormSetValidation('Fee must be ≥ ' + MIN_TX_FEE_UNITS + ' Kapa');
 					return;
 				}
-				// Simple mode: node re-fetches canonical next_nonce before sign; omit stale form nonce.
 				if (walletSimpleMode) {
 					delete tx.nonce;
 				}
 				bodyObj = tx;
 			}
+			const amountHmc = Number(bodyObj.amount_units || 0) / UNITS_PER_HMC;
+			const startNonce = Math.floor(Number(walletSnapshot.nextNonce) || 0);
+			txTrackPanel(true);
+			txTrackSetProgress(8);
+			txTrackSetPhase('Broadcasting', 'Signing locally and submitting to hackme.tech canonical…');
+			txFormSetSendMsg('Sending… (usually 10–30 s)');
+			if (btn) btn.disabled = true;
+			txSendInFlight = true;
 			try {
-				const r = await fetch('/api/tx/send', {
+				const r = await fetchWithTimeout('/api/tx/send', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: Object.assign({ 'Content-Type': 'application/json' }, adminHeaders()),
 					body: JSON.stringify(bodyObj),
-				});
+				}, 65000);
 				const txt = await r.text();
 				let hint = '';
+				let j = null;
 				try {
-					const j = JSON.parse(txt);
-					if (j && j.code === 'invalid_nonce') {
-						hint = ' — refresh wallet (pending tx may have consumed this nonce); retry Send';
-					}
-					if (j && j.code === 'canonical_nonce_unavailable') {
-						hint = ' — check network/VPN to hackme.tech; retry in a few seconds';
-					}
+					j = JSON.parse(txt);
 				} catch (_) {}
-				txFormSetSendMsg('HTTP ' + r.status + ' · ' + txt.slice(0, 320) + hint);
-				if (r.ok) {
-					logLine('[tx] submit ok');
-					void refreshWallet(true);
-				} else if (txt.includes('invalid_nonce')) {
-					void refreshWallet(true);
+				if (j && j.code === 'invalid_nonce') {
+					hint = ' — refresh wallet (pending tx may have consumed this nonce); retry Send';
+				}
+				if (j && j.code === 'canonical_nonce_unavailable') {
+					hint = ' — check network/VPN to hackme.tech; retry in a few seconds';
+				}
+				if (j && (j.code === 'canonical_unreachable' || r.status === 401)) {
+					hint = ' — canonical relay failed; hard-refresh dashboard (Ctrl+Shift+R) and retry';
+				}
+				if (r.ok && j && j.ok === true && j.tx_hash) {
+					const txHash = String(j.tx_hash);
+					txTrackSetProgress(20);
+					txTrackSetPhase('Submitted (pending)', 'Accepted by network · ' + txEtaText(Date.now()));
+					txFormSetSendMsg('Submitted · tx ' + txHash.slice(0, 16) + '… · tracking confirmation…');
+					if ($('tx-hash-input')) $('tx-hash-input').value = txHash;
+					logLine('[tx] submit ok ' + txHash.slice(0, 16));
+					const track = {
+						tx_hash: txHash,
+						started_ms: Date.now(),
+						amount_hmc: amountHmc,
+						start_nonce: startNonce,
+						to: String(bodyObj.to || ''),
+					};
+					txTrackSave(track);
+					startTransferConfirmationTrack(track);
+					void refreshTxPoolTable();
+					void refreshWallet(false);
+				} else {
+					txTrackClear();
+					txFormSetSendMsg('HTTP ' + r.status + ' · ' + txt.slice(0, 320) + hint);
+					if (txt.includes('invalid_nonce')) {
+						void refreshWallet(true);
+					}
 				}
 			} catch (e) {
-				txFormSetSendMsg(String(e && e.message ? e.message : e));
+				txTrackClear();
+				const m = String(e && e.message ? e.message : e);
+				txFormSetSendMsg(/abort/i.test(m) ? 'Timed out (65s) — check hackme.tech; tx may still have been submitted' : m);
+			} finally {
+				txSendInFlight = false;
+				if (btn) btn.disabled = false;
 			}
 		}
 
@@ -3551,7 +3774,7 @@
 			const tb = $('tx-pool-rows');
 			if (!tb) return;
 			try {
-				const r = await fetch('/api/tx/pool', { cache: 'no-store' });
+				const r = await fetch('/api/tx/pool', { cache: 'no-store', headers: adminHeaders() });
 				const txt = await r.text();
 				let rows = [];
 				if (r.ok) {
@@ -3565,6 +3788,14 @@
 					tb.innerHTML = '<tr><td colspan="7" class="px-3 py-3 text-gray-600 text-center">No pending txs</td></tr>';
 					return;
 				}
+				const expectNonce = Math.floor(Number(walletSnapshot.nextNonce) || 0);
+				if (expectNonce > 0) {
+					rows = rows.filter((t) => {
+						const n = t.nonce != null ? Math.floor(Number(t.nonce)) : -1;
+						if (String(t.status || '') === 'pending' && n >= 0 && n !== expectNonce) return false;
+						return true;
+					});
+				}
 				rows.forEach((t) => {
 					const tr = document.createElement('tr');
 					const h = String(t.tx_hash || t.hash || '—');
@@ -3572,8 +3803,11 @@
 					const to = String(t.to || '—');
 					const amt = Number(t.amount_units || 0) / UNITS_PER_HMC;
 					const fee = Number(t.fee_units || 0);
+					const nonceNum = t.nonce != null ? Math.floor(Number(t.nonce)) : -1;
 					const nonce = t.nonce != null ? String(t.nonce) : '—';
 					const st = String(t.status || '—');
+					const badNonce = expectNonce > 0 && nonceNum >= 0 && nonceNum !== expectNonce;
+					const stShow = badNonce ? (st + ' · wrong nonce') : st;
 					tr.innerHTML =
 						'<td class="px-2 py-1.5 truncate max-w-[140px]" title="' + escapeHtml(h) + '">' + escapeHtml(h.length > 20 ? h.slice(0, 18) + '…' : h) + '</td>' +
 						'<td class="px-2 py-1.5 truncate max-w-[100px]" title="' + escapeHtml(from) + '">' + escapeHtml(from) + '</td>' +
@@ -3581,7 +3815,7 @@
 						'<td class="px-2 py-1.5">' + escapeHtml(fmt(amt, 6)) + '</td>' +
 						'<td class="px-2 py-1.5">' + escapeHtml(String(fee)) + '</td>' +
 						'<td class="px-2 py-1.5">' + escapeHtml(nonce) + '</td>' +
-						'<td class="px-2 py-1.5">' + escapeHtml(st) + '</td>';
+						'<td class="px-2 py-1.5">' + escapeHtml(stShow) + '</td>';
 					tb.appendChild(tr);
 				});
 			} catch (e) {
@@ -3666,6 +3900,126 @@
 			} catch (_) {}
 		}
 
+		function canonicalApiBase() {
+			return String((latestStatus && latestStatus.public_authority_base) || 'https://hackme.tech').replace(/\/$/, '');
+		}
+		function formatAddressLookupLine(j) {
+			if (!j || typeof j !== 'object') return '—';
+			const u = Number(j.balance_units);
+			const bal = Number.isFinite(Number(j.balance_hmc)) ? Number(j.balance_hmc) : (Number.isFinite(u) ? u / UNITS_PER_HMC : 0);
+			const nonce = j.next_nonce != null ? String(j.next_nonce) : '—';
+			const src = String(j.source || j.wallet_source || '').trim();
+			return 'balance ' + fmt(bal, 8) + ' HMC · nonce ' + nonce + (src ? ' · ' + src : '');
+		}
+		function formatTxLookupLine(j) {
+			if (!j || typeof j !== 'object') return '—';
+			const amt = Number(j.amount_units || 0) / UNITS_PER_HMC;
+			const fee = Number(j.fee_units || 0);
+			const st = String(j.status || '—');
+			const from = String(j.from || '—');
+			const to = String(j.to || '—');
+			return 'status ' + st + ' · ' + fmt(amt, 6) + ' HMC · fee ' + fee + ' · ' + from + ' → ' + to;
+		}
+		async function fetchTxByHashFrom(url, timeoutMs, useAdmin) {
+			const r = await fetchWithTimeout(url, {
+				cache: 'no-store',
+				headers: useAdmin ? adminHeaders() : {},
+			}, timeoutMs);
+			const txt = await r.text();
+			if (!r.ok) throw new Error('HTTP ' + r.status + ' · ' + txt.slice(0, 120));
+			const j = JSON.parse(txt);
+			return j;
+		}
+		async function lookupTxByHashFull(hash, out) {
+			const h = String(hash || '').trim().toLowerCase();
+			if (out) out.textContent = 'Loading…';
+			const localURL = '/api/tx/' + encodeURIComponent(h);
+			const canonURL = canonicalApiBase() + '/api/tx/' + encodeURIComponent(h);
+			const attempts = [
+				fetchTxByHashFrom(localURL, 12000, true).then((j) => ({ label: '', line: formatTxLookupLine(j) })),
+				fetchTxByHashFrom(canonURL, 12000, false).then((j) => ({ label: 'canonical · ', line: formatTxLookupLine(j) })),
+			];
+			try {
+				const hit = await Promise.any(attempts);
+				if (out) out.textContent = hit.label + hit.line;
+				return true;
+			} catch (_) {}
+			if (out) out.textContent = 'Tx not found (local + hackme.tech)';
+			return false;
+		}
+		async function lookupAddressState(addr) {
+			const out = $('tx-address-msg');
+			if (out) out.textContent = 'Loading…';
+			const canonLine = (fb) => 'canonical · balance ' + fmt(fb.balance_hmc, 8) + ' HMC · nonce ' + fb.next_nonce;
+			const attempts = [
+				fetchCanonicalWalletFallback(addr, 10000).then((fb) => {
+					if (!fb) throw new Error('canonical miss');
+					return { line: canonLine(fb) };
+				}),
+				fetchWithTimeout('/api/address/' + encodeURIComponent(addr), { cache: 'no-store', headers: adminHeaders() }, 12000).then(async (r) => {
+					const txt = await r.text();
+					if (!r.ok) throw new Error('local ' + r.status);
+					const j = JSON.parse(txt);
+					return { line: formatAddressLookupLine(j) };
+				}),
+			];
+			try {
+				const hit = await Promise.any(attempts);
+				if (out) out.textContent = hit.line;
+				return;
+			} catch (_) {}
+			if (out) out.textContent = 'Lookup failed — check VPN / hackme.tech';
+		}
+		async function lookupTxHashInput(raw) {
+			const out = $('tx-hash-msg');
+			const h = String(raw || '').trim().toLowerCase();
+			if (!h) {
+				if (out) out.textContent = 'Enter tx hash';
+				return;
+			}
+			if (looksLikeTxHash(h)) {
+				if (out) out.textContent = 'Loading…';
+				await lookupTxByHashFull(h, out);
+				return;
+			}
+			if (/^[0-9a-f]{6,63}$/i.test(h)) {
+				if (out) out.textContent = 'Searching mempool by prefix…';
+				const poolRowsFrom = async (url, useAdmin) => {
+					const r = await fetchWithTimeout(url, { cache: 'no-store', headers: useAdmin ? adminHeaders() : {} }, 10000);
+					if (!r.ok) return [];
+					const j = await r.json();
+					return Array.isArray(j.txs) ? j.txs : [];
+				};
+				try {
+					const pools = await Promise.allSettled([
+						poolRowsFrom('/api/tx/pool', true),
+						poolRowsFrom(canonicalApiBase() + '/api/tx/pool', false),
+					]);
+					const rows = [];
+					for (const p of pools) {
+						if (p.status === 'fulfilled') rows.push(...p.value);
+					}
+					const seen = new Set();
+					const match = rows.find((t) => {
+						const full = String(t.tx_hash || t.hash || '').toLowerCase();
+						if (!full || seen.has(full)) return false;
+						seen.add(full);
+						return full.startsWith(h);
+					});
+					if (match) {
+						const full = String(match.tx_hash || match.hash).toLowerCase();
+						if ($('tx-hash-input')) $('tx-hash-input').value = full;
+						if (out) out.textContent = 'Matched pool tx — loading full hash…';
+						await lookupTxByHashFull(full, out);
+						return;
+					}
+				} catch (_) {}
+				if (out) out.textContent = 'No pool match — paste full 64-char hex hash';
+				return;
+			}
+			if (out) out.textContent = 'Use 64-char hex hash (or ≥6 hex chars to search pool prefix)';
+		}
+
 		function wireWalletTransferPanel() {
 			document.querySelectorAll('.tx-amount-preset').forEach((btn) => {
 				btn.addEventListener('click', () => {
@@ -3735,45 +4089,46 @@
 			}
 			if ($('btn-tx-send')) $('btn-tx-send').addEventListener('click', () => { void submitTransferTx(); });
 			if ($('btn-tx-pool-refresh')) $('btn-tx-pool-refresh').addEventListener('click', () => { void refreshTxPoolTable(); });
-			if ($('btn-tx-address-check')) {
-				$('btn-tx-address-check').addEventListener('click', async () => {
-					const addr = String($('tx-address-input') && $('tx-address-input').value || '').trim();
+			const addrInp = $('tx-address-input');
+			if (addrInp && !String(addrInp.value || '').trim()) {
+				const wa = walletKnownAddress();
+				if (wa.startsWith('HMC-')) addrInp.value = wa;
+			}
+			const runAddrLookup = () => {
+				const addr = String($('tx-address-input') && $('tx-address-input').value || '').trim();
+				if (!addr) {
+					txFormSetValidation('');
 					const out = $('tx-address-msg');
-					if (!addr) {
-						if (out) out.textContent = 'Enter HMC- address';
-						return;
-					}
-					if (!addr.startsWith('HMC-')) {
-						if (out) out.textContent = 'Address must start with HMC-';
-						return;
-					}
-					try {
-						const r = await fetch('/api/address/' + encodeURIComponent(addr) + '?fresh=1', { cache: 'no-store' });
-						const txt = await r.text();
-						if (out) out.textContent = 'HTTP ' + r.status + ' ' + txt.slice(0, 400);
-					} catch (e) {
-						if (out) out.textContent = String(e && e.message ? e.message : e);
+					if (out) out.textContent = 'Enter HMC- address';
+					return;
+				}
+				if (!addr.startsWith('HMC-')) {
+					const out = $('tx-address-msg');
+					if (out) out.textContent = 'Address must start with HMC-';
+					return;
+				}
+				void lookupAddressState(addr);
+			};
+			const runHashLookup = () => {
+				const h = String($('tx-hash-input') && $('tx-hash-input').value || '').trim();
+				void lookupTxHashInput(h);
+			};
+			if ($('btn-tx-address-check')) $('btn-tx-address-check').addEventListener('click', runAddrLookup);
+			if (addrInp) {
+				addrInp.addEventListener('keydown', (ev) => {
+					if (ev.key === 'Enter') {
+						ev.preventDefault();
+						runAddrLookup();
 					}
 				});
 			}
-			if ($('btn-tx-hash-check')) {
-				$('btn-tx-hash-check').addEventListener('click', async () => {
-					const h = String($('tx-hash-input') && $('tx-hash-input').value || '').trim();
-					const out = $('tx-hash-msg');
-					if (!h) {
-						if (out) out.textContent = 'Enter tx hash';
-						return;
-					}
-					if (!looksLikeTxHash(h)) {
-						if (out) out.textContent = 'Expected 64-char hex tx hash (not an HMC- address)';
-						return;
-					}
-					try {
-						const r = await fetch('/api/tx/' + encodeURIComponent(h), { cache: 'no-store' });
-						const txt = await r.text();
-						if (out) out.textContent = 'HTTP ' + r.status + ' ' + txt.slice(0, 400);
-					} catch (e) {
-						if (out) out.textContent = String(e && e.message ? e.message : e);
+			if ($('btn-tx-hash-check')) $('btn-tx-hash-check').addEventListener('click', runHashLookup);
+			const hashInp = $('tx-hash-input');
+			if (hashInp) {
+				hashInp.addEventListener('keydown', (ev) => {
+					if (ev.key === 'Enter') {
+						ev.preventDefault();
+						runHashLookup();
 					}
 				});
 			}
@@ -3945,12 +4300,13 @@
 			const q = walletEarningsQueryParams();
 			const periodLbl = walletEarningsPeriodLabel();
 			try {
-				const earnAddr = String(walletSnapshot.address || '').trim();
+				await ensureWalletAdminToken();
+				const earnAddr = walletKnownAddress();
 				const earnQ =
 					'window_hours=' + encodeURIComponent(String(q.window_hours)) +
 					'&bucket_sec=' + encodeURIComponent(String(q.bucket_sec)) +
 					(earnAddr.startsWith('HMC-') ? '&address=' + encodeURIComponent(earnAddr) : '');
-				const er = await fetchWithTimeout('/api/wallet/earnings?' + earnQ, {}, 28000);
+				const er = await fetchWithTimeout('/api/wallet/earnings?' + earnQ, { headers: adminHeaders() }, 28000);
 				if (!er.ok) throw new Error('wallet_earnings_unavailable');
 				const payload = await er.json();
 				let d = payload && payload.data != null ? payload.data : null;
@@ -5668,11 +6024,11 @@
 				? 'Syncing balance for ' + nodeAddr + ' from canonical chain…'
 				: 'Waiting for wallet address…';
 		}
-		async function fetchCanonicalWalletFallback(addr) {
+		async function fetchCanonicalWalletFallback(addr, timeoutMs) {
 			const base = String((latestStatus && latestStatus.public_authority_base) || 'https://hackme.tech').replace(/\/$/, '');
 			if (!addr || !addr.startsWith('HMC-')) return null;
 			try {
-				const r = await fetch(base + '/api/address/' + encodeURIComponent(addr), { cache: 'no-store' });
+				const r = await fetchWithTimeout(base + '/api/address/' + encodeURIComponent(addr), { cache: 'no-store' }, timeoutMs || 12000);
 				if (!r.ok) return null;
 				const j = await r.json();
 				const u = Number(j.balance_units);
@@ -7133,7 +7489,7 @@
 				try {
 					const [stRes, wlRes, wkRes] = await Promise.all([
 						fetch('/api/status', { cache: 'no-store' }),
-						fetch('/api/wallet', { cache: 'no-store' }),
+						fetch('/api/wallet', { cache: 'no-store', headers: adminHeaders() }),
 						fetch('/api/work/stats', { cache: 'no-store' }),
 					]);
 					st = stRes.ok ? await stRes.json() : null;
@@ -9409,8 +9765,9 @@
 				})();
 			}
 			if (name === 'wallet') {
-				void refreshWallet(true);
+				void refreshWallet(!txTrackActive);
 				void refreshTxPoolTable();
+				resumeTransferTrackFromStorage();
 			}
 		}
 
@@ -9564,33 +9921,59 @@
 
 		async function refreshWallet(forceFresh) {
 			try {
+				await ensureWalletAdminToken();
 				const q = forceFresh ? '?fresh=1' : '';
-				const [wr, sr] = await Promise.all([
-					fetch('/api/wallet' + q, { cache: 'no-store' }),
+				const addrHint = walletKnownAddress();
+				const canonPrimed = addrHint ? fetchCanonicalWalletFallback(addrHint) : Promise.resolve(null);
+				const [wr, sr, canonPrimedRes] = await Promise.all([
+					fetch('/api/wallet' + q, { cache: 'no-store', headers: adminHeaders() }),
 					fetch('/api/worker/settlement', { cache: 'no-store' }).catch(() => null),
+					canonPrimed,
 				]);
 				if (sr && sr.ok) {
 					const s = await sr.json();
 					if (s && s.ok === true) latestWorkerSettlementSnap = s;
 				}
-				const r = wr;
+				let r = wr;
 				if (r.ok) {
-					const w = await r.json();
-				if (w.address && $('wallet-address-display')) $('wallet-address-display').textContent = w.address;
-				walletSnapshot.address = String(w.address || walletSnapshot.address || '');
+					let w = await r.json();
+					if (w.public_redacted) {
+						await syncDesktopAdminTokenFromNode();
+						const r2 = await fetch('/api/wallet' + q, { cache: 'no-store', headers: adminHeaders() });
+						if (r2.ok) {
+							r = r2;
+							w = await r2.json();
+						}
+					}
+				const addrFromApi = String(w.address || '').trim();
+				if (addrFromApi.startsWith('HMC-')) {
+					walletSnapshot.address = addrFromApi;
+					if ($('wallet-address-display')) $('wallet-address-display').textContent = addrFromApi;
+				} else if (addrHint.startsWith('HMC-')) {
+					walletSnapshot.address = addrHint;
+				}
 				const dispH = Number(w.balance_display_hmc);
 				const dispU = Number(w.balance_display_units);
 				const authH = Number(w.balance_hmc || 0);
 				const authU = Number(w.balance_units || 0);
 				let balH = (Number.isFinite(dispH) && dispH >= 0) ? dispH : authH;
 				let balU = (Number.isFinite(dispU) && dispU >= 0) ? dispU : authU;
-				const wsrc = String(w.wallet_source || '');
+				let wsrc = String(w.wallet_source || '');
+				if (balH < 0.000001 && canonPrimedRes) {
+					balH = canonPrimedRes.balance_hmc;
+					balU = canonPrimedRes.balance_units;
+					w.wallet_source = 'canonical_peer_ui_fallback';
+					wsrc = w.wallet_source;
+					if (canonPrimedRes.next_nonce != null) w.next_nonce = canonPrimedRes.next_nonce;
+				}
 				if (balH < 0.000001 && walletSnapshot.address && !wsrc.includes('canonical')) {
 					const fb = await fetchCanonicalWalletFallback(walletSnapshot.address);
 					if (fb) {
 						balH = fb.balance_hmc;
 						balU = fb.balance_units;
 						w.wallet_source = 'canonical_peer_ui_fallback';
+						wsrc = w.wallet_source;
+						if (fb.next_nonce != null) w.next_nonce = fb.next_nonce;
 					}
 				}
 				walletSnapshot.balanceHMC = balH;
@@ -9712,7 +10095,9 @@
 				if (wantPoolStats) {
 					jobs.push(typeof refreshWorkerStatus === 'function' ? refreshWorkerStatus() : Promise.resolve());
 				}
-				if (wantWalletCore) jobs.push(typeof refreshWallet === 'function' ? refreshWallet(currentTab === 'wallet') : Promise.resolve());
+				if (wantWalletCore && !txTrackActive) {
+					jobs.push(typeof refreshWallet === 'function' ? refreshWallet(false) : Promise.resolve());
+				}
 				await Promise.allSettled(jobs);
 				scheduleMetricsSnapshotRefresh(false);
 				scheduleGlobalMetricsRefresh(false);
@@ -9767,6 +10152,13 @@
 				updateQuickButtons();
 				setWalletSimpleMode(walletSimpleMode);
 				wireWalletTransferPanel();
+				resumeTransferTrackFromStorage();
+				window.addEventListener('beforeunload', (ev) => {
+					if (txSendInFlight || txTrackActive) {
+						ev.preventDefault();
+						ev.returnValue = '';
+					}
+				});
 				applyDashboardSnapshotPrimed();
 				if ($('btn-refresh-chain')) $('btn-refresh-chain').addEventListener('click', () => { void refreshChainList(); });
 				if ($('btn-refresh-reports')) $('btn-refresh-reports').addEventListener('click', () => { void refreshReportsList(); });
