@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -57,6 +58,18 @@ func TestPoolFuzzClaimSubmitDetector(t *testing.T) {
 	_ = db.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_findings WHERE campaign_id=?`, id).Scan(&findings)
 	if findings < 1 {
 		t.Fatalf("expected detector findings, got %d", findings)
+	}
+	var repro, artifact string
+	if err := db.QueryRowContext(ctx,
+		`SELECT repro_cmd, artifact_path FROM fuzz_findings WHERE campaign_id=? LIMIT 1`, id).
+		Scan(&repro, &artifact); err != nil {
+		t.Fatal(err)
+	}
+	if repro == "" || !strings.Contains(repro, "check_repro") {
+		t.Fatalf("expected repro_cmd with check_repro, got %q", repro)
+	}
+	if artifact == "" {
+		t.Fatal("expected artifact_path on pool finding")
 	}
 	// Claim/submit loop smoke
 	done := 0

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"hackme/internal/fuzzartifacts"
 	"hackme/internal/fuzzengine"
 	"hackme/internal/sandbox"
 )
@@ -346,6 +347,11 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 	}
 	findingID := fmt.Sprintf("finding-pool-%s-%d-%d", req.CampaignID, req.ItemID, now)
 	op, itemID, qty := fuzzengine.WasmCheckInputParts(req.ActualInput)
+	wasmHex, _ := cfg["wasm_check_hex"].(string)
+	wasmPath := fuzzartifacts.WriteWasmHex(req.CampaignID, wasmHex)
+	artifactPath := fuzzartifacts.WriteInput(req.CampaignID, inputSHA, req.ActualInput)
+	repro := fuzzengine.ReproCmdTool(wasmPath, req.ActualInput)
+	triage := fuzzengine.ClassifyFinding(ft, sev)
 	detail, _ := json.Marshal(map[string]any{
 		"source":          "pool_fuzz_worker_v1",
 		"worker_id":       req.WorkerID,
@@ -357,13 +363,28 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 		"quantity":        qty,
 		"trap":            req.Trap,
 		"check_semantics": string(sem),
+		"triage_class":    triage.Class,
+		"triage_label":    triage.Label,
+		"zero_day_hint":   triage.ZeroDayHint,
 	})
 	_, err := s.DB.ExecContext(ctx,
 		`INSERT OR IGNORE INTO fuzz_findings
 		 (id, campaign_id, finding_type, severity, title, input_sha256, artifact_path, repro_cmd, detail_json, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, '', ?, ?, ?)`,
-		findingID, req.CampaignID, ft, sev, title, inputSHA, fuzzengine.ReproCmd(req.ActualInput), string(detail), now)
-	return err
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		findingID, req.CampaignID, ft, sev, title, inputSHA, artifactPath, repro, string(detail), now)
+	if err != nil {
+		return err
+	}
+	_, _ = s.DB.ExecContext(ctx,
+		`INSERT INTO fuzz_corpus (campaign_id, input_sha256, first_seen_at, last_seen_at, hits, last_finding_id, artifact_path)
+		 VALUES (?, ?, ?, ?, 1, ?, ?)
+		 ON CONFLICT(campaign_id, input_sha256) DO UPDATE SET
+		   last_seen_at=excluded.last_seen_at,
+		   hits=fuzz_corpus.hits+1,
+		   last_finding_id=excluded.last_finding_id,
+		   artifact_path=CASE WHEN excluded.artifact_path<>'' THEN excluded.artifact_path ELSE fuzz_corpus.artifact_path END`,
+		req.CampaignID, inputSHA, now, now, findingID, artifactPath)
+	return nil
 }
 
 func (s *Service) recomputeProgress(ctx context.Context, campaignID string, now int64) (completed bool, err error) {

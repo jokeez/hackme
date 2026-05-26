@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"hackme/internal/fuzzengine"
 )
 
 type fuzzCampaign struct {
@@ -89,6 +91,8 @@ type fuzzTopIssue struct {
 	Impact      string `json:"impact"`
 	ReproCmd    string `json:"repro_cmd"`
 	Artifact    string `json:"artifact_path"`
+	TriageClass string `json:"triage_class"`
+	TriageNote  string `json:"triage_note"`
 }
 
 type fuzzReportAccessEvent struct {
@@ -1803,6 +1807,7 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 		if len(topIssues) >= 5 {
 			break
 		}
+		triage := fuzzengine.ClassifyFinding(f.FindingType, f.Severity)
 		topIssues = append(topIssues, fuzzTopIssue{
 			ID:          f.ID,
 			Severity:    f.Severity,
@@ -1811,6 +1816,8 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 			Impact:      severityImpact(f.Severity),
 			ReproCmd:    f.ReproCmd,
 			Artifact:    f.Artifact,
+			TriageClass: triage.Class,
+			TriageNote:  triage.Note,
 		})
 	}
 	critical := bySeverity["critical"]

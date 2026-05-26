@@ -92,6 +92,7 @@ code="$(http_code "$html_tmp" GET "$BASE/api/fuzz/campaigns/$CID/report.html?lim
 [[ "$code" == "200" ]] || fail "report.html HTTP $code"
 grep -q '<!DOCTYPE html>' "$html_tmp" || fail "report.html missing doctype"
 grep -q 'HackMe Security Report' "$html_tmp" || fail "report.html missing title"
+grep -q 'fuzz_report_v2' "$html_tmp" || fail "report.html missing fuzz_report_v2"
 log "report.html OK ($(wc -c <"$html_tmp") bytes)"
 
 pass "fuzz dashboard API smoke PASS — see $OUT"

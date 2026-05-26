@@ -44,6 +44,23 @@ TOK="$(echo "$resp" | python3 -c 'import json,sys; print(json.load(sys.stdin)["c
 CID_OUT="$(echo "$resp" | python3 -c 'import json,sys; print(json.load(sys.stdin)["campaign_id"])')"
 
 curl -fsS "$BASE/api/fuzz/campaigns/${CID_OUT}/report?format=json&limit=5" \
-  -H "X-Hackme-Report-Token: $TOK" | python3 -c 'import json,sys; d=json.load(sys.stdin); print("report verdict", d.get("verdict","?"))'
+  -H "X-Hackme-Report-Token: $TOK" | python3 -c '
+import json,sys
+d=json.load(sys.stdin)
+ver = d.get("report_version","")
+assert ver == "fuzz_report_v2", ver
+issues = d.get("top_issues") or []
+for it in issues:
+    if it.get("repro_cmd"):
+        assert "check_repro" in it["repro_cmd"], it["repro_cmd"]
+    if it.get("triage_class"):
+        assert it["triage_class"] in ("expected_signal","needs_triage","sandbox","review"), it
+print("report verdict", d.get("verdict","?"), "version", ver, "issues", len(issues))
+'
+
+html="$(curl -fsS "$BASE/api/fuzz/campaigns/${CID_OUT}/report?format=html&limit=5" \
+  -H "X-Hackme-Report-Token: $TOK")"
+echo "$html" | grep -q 'fuzz_report_v2' || { echo "[audit-gate] HTML missing fuzz_report_v2" >&2; exit 1; }
+echo "$html" | grep -q 'Scope &amp; honesty' || { echo "[audit-gate] HTML missing scope block" >&2; exit 1; }
 
 echo "[audit-gate] PASS"

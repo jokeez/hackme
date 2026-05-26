@@ -24,8 +24,11 @@
   <p class="sub">
     Read-only snapshot from <code>GET /api/fuzz/campaigns</code> on this host.
     To <strong>create</strong> campaigns use the full node dashboard (<code>/</code> on your HackMe node) → Fuzz tab, or <code>POST /api/fuzz/campaigns</code> with admin token.
+    Per-campaign security reports (<code>fuzz_report_v2</code>: triage, <code>repro_cmd</code>, artifacts) are <strong>token-gated</strong> — not listed here.
+    Public L1 stack research (qa-assets corpus, upstream pins) is separate: see the v3 repro banner below.
   </p>
   <p id="status" class="sub">Loading…</p>
+  <p id="reproVerdict" class="sub">Loading repro verdict…</p>
   <div style="overflow-x:auto;">
     <table id="tbl" style="display:none;">
       <thead>
@@ -85,7 +88,25 @@
         st.className = 'sub err';
       }
     }
+    async function loadReproVerdict() {
+      const el = document.getElementById('reproVerdict');
+      try {
+        const r = await fetch('/reports/l1-crypto-stack-v3-repro.json', { cache: 'no-store' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const j = await r.json();
+        const v = j && j.verdict ? j.verdict : {};
+        const status = v.status || 'unknown';
+        const summary = v.summary || 'No summary';
+        el.innerHTML = 'L1 v3 repro verdict: <strong>' + status + '</strong> — ' + summary +
+          ' <a href="/reports/l1-crypto-stack-v3.html" target="_blank" rel="noopener">open report</a>';
+        el.className = 'sub ok';
+      } catch (e) {
+        el.textContent = 'Repro verdict unavailable: ' + (e && e.message ? e.message : e);
+        el.className = 'sub err';
+      }
+    }
     load();
+    loadReproVerdict();
   </script>
 </body>
 </html>
