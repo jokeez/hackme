@@ -1,4 +1,4 @@
-[b]HackMe Fuzz Engine v2 — property fuzz on useful-PoW (May 2026)[/b]
+[b]HackMe Fuzz Engine v2 — property fuzz on useful-PoW (release 0.1.0-rc11i)[/b]
 
 We shipped a real upgrade to the [i]fuzz worker pipeline[/i], not a marketing rename. The pool still runs [mono]check(i64)->i32[/mono] WASM gates; the [b]input generator[/b] and [b]reports[/b] are what changed.
 

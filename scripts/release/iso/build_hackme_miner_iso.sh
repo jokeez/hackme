@@ -15,7 +15,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$ROOT_DIR"
 
-VERSION="${VERSION:-0.1.0-rc11g}"
+VERSION="${VERSION:-0.1.0-rc11i}"
 LINUX_TAR="${LINUX_TAR:-${ROOT_DIR}/dist/release_${VERSION}/hackme_${VERSION}_linux.tar.gz}"
 OUT_DIR="${OUT_DIR:-${ROOT_DIR}/dist/release_${VERSION}}"
 ISO_DIR="${ROOT_DIR}/scripts/release/iso"

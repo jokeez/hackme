@@ -8,7 +8,7 @@ Bootable **live USB** image that sends **100% of rig hashpower** to the public H
 # Pool worker token (same as Windows pool.miner.token)
 export HACKME_RELEASE_POOL_MINER_TOKEN="$(cat .secrets/hackme_coordinator_worker_token)"
 
-VERSION=0.1.0-rc11g bash scripts/release/iso/build_hackme_miner_iso.sh
+VERSION=0.1.0-rc11i bash scripts/release/iso/build_hackme_miner_iso.sh
 ```
 
 Output: `dist/release_<VERSION>/HackMe-Miner-<VERSION>-amd64.iso`
@@ -18,7 +18,7 @@ Requires **Docker** (default) or host `debootstrap` + `squashfs-tools` + `xorris
 ## Flash USB
 
 ```bash
-sudo dd if=dist/release_0.1.0-rc11g/HackMe-Miner-0.1.0-rc11g-amd64.iso of=/dev/sdX bs=4M status=progress conv=fsync
+sudo dd if=dist/release_0.1.0-rc11i/HackMe-Miner-0.1.0-rc11i-amd64.iso of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
 Replace `/dev/sdX` with your USB device (not a partition).

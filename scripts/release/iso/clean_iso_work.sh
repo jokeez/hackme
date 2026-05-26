@@ -2,7 +2,7 @@
 # Safely drop ISO build work dirs (unmount chroot vfs before rm).
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-VERSION="${VERSION:-0.1.0-rc11g}"
+VERSION="${VERSION:-0.1.0-rc11i}"
 WORK="${WORK:-${ROOT}/.cache/iso-work-${VERSION}}"
 CHROOT="${WORK}/chroot"
 

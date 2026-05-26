@@ -19,7 +19,7 @@ run() {
 run bash scripts/ops/mps_listing_readiness.sh --vps
 run ssh -o BatchMode=yes "$NODE_SSH" 'sudo bash /opt/hackme/scripts/ops/vps_host_sanity.sh'
 run ssh -o BatchMode=yes "$NODE_SSH" 'bash /opt/hackme/scripts/ops/settlement_healthcheck.sh'
-run bash scripts/ops/exchange_listing_smoke.sh
+run env CURL_MAX=60 bash scripts/ops/exchange_listing_smoke.sh
 run bash scripts/ops/public_release_readiness.sh
 run bash scripts/tests/redteam_surface_smoke.sh
 run CURL_MAX_TIME=45 bash scripts/tests/security_assertions.sh

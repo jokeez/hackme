@@ -13,7 +13,7 @@
 
 **Useful Proof-of-Work · public HTTP pool · GPU mining (CUDA / OpenCL)**
 
-[![Release](https://img.shields.io/badge/release-0.1.0--rc11g-00d1ff?style=for-the-badge)](https://hackme.tech/downloads.html)
+[![Release](https://img.shields.io/badge/release-0.1.0--rc11i-00d1ff?style=for-the-badge)](https://hackme.tech/downloads.html)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-39ff14?style=for-the-badge)](LICENSE)
 [![Website](https://img.shields.io/badge/website-hackme.tech-7fe7ff?style=for-the-badge)](https://hackme.tech)
 
@@ -31,7 +31,7 @@ HackMe is open mining infrastructure: a **desktop node** (dashboard at `:8080`) 
 |:---|:---|
 | **Pool** | HTTP coordinator (not Stratum) · dynamic `target_mod` |
 | **GPU** | NVIDIA CUDA · AMD/Intel OpenCL · CPU fallback |
-| **Release** | `0.1.0-rc11h` — Windows installer, Linux bundle, HackMe OS ISO |
+| **Release** | `0.1.0-rc11i` — Windows installer, Linux bundle, HackMe OS ISO · **Fuzz Engine v2** |
 | **License** | [AGPL-3.0](LICENSE) · [Trademark](TRADEMARK.md) |
 
 > Wallet balance on the dashboard ≠ pool payout until settlement. Map `WORKER_ID` → `HMC-…` with the operator. See [docs/NETWORK_MODEL.md](docs/NETWORK_MODEL.md).

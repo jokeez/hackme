@@ -1,6 +1,6 @@
 # Miner readiness checklist (controlled launch)
 
-**Release:** `0.1.0-rc11g` · **Pool:** `https://hackme.tech/pool/coordinator`  
+**Release:** `0.1.0-rc11i` · **Pool:** `https://hackme.tech/pool/coordinator`  
 **Support:** report bugs in Telegram — we fix and ship updates (no SLA yet).
 
 Use this before announcing “open for miners” and when onboarding a new rig.
@@ -41,11 +41,11 @@ go test ./internal/worksubmit/... -run Matrix -count=1
 
 ```bash
 # After download:
-sha256sum HackMe-OS-0.1.0-rc11g-amd64.iso
+sha256sum HackMe-OS-0.1.0-rc11i-amd64.iso
 # Must match:
 # 1b7bd70e381bb0d5aee82135fe01963d27d2af43ebfba95e02dec22aabe17658
 
-bash scripts/tests/verify_hackme_iso.sh /path/to/HackMe-OS-0.1.0-rc11g-amd64.iso
+bash scripts/tests/verify_hackme_iso.sh /path/to/HackMe-OS-0.1.0-rc11i-amd64.iso
 ```
 
 **Wrong boot:** Alpine `localhost login:` → wrong USB or wrong file.  

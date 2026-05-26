@@ -1,6 +1,23 @@
 {
   "items": [
     {
+      "id": "2026-05-26-fuzz-engine-v2-rc11i",
+      "date": "2026-05-26",
+      "title": "Release 0.1.0-rc11i · Fuzz Engine v2 + wallet/settlement fixes",
+      "summary": "Major fuzz upgrade: seed corpus and bit-flip mutation (not raw counters), coverage buckets v2 from real 64-bit inputs, SHA256(input) artifacts with check(0x…) repro, diff coverage_delta vs baseline campaigns, fuzz_report_v2. Desktop wallet uses canonical balance without admin header on loopback; VPS settlement timer fixed (/dev/null + admin wallet lookup). New CLI: hackme-fuzzing campaign create|status.",
+      "tags": ["release", "fuzzing", "security", "infrastructure", "mining"],
+      "impact": "B2B integrators get stronger property-fuzz reports; miners get rc11i binaries with fair pool + order escrow unchanged.",
+      "action": "Downloads: https://hackme.tech/downloads.html · BC5 report: https://hackme.tech/reports/bitcoin-core-5module.html · Telegram: docs/TELEGRAM_POST_FUZZING_V2.txt · Bitcointalk: docs/BITCOINTALK_FUZZING_V2_BBCode.txt · Gate: bash scripts/ops/fuzz_engine_v2_gate.sh",
+      "status": "published",
+      "links": {
+        "github": "https://github.com/jokeez/hackme",
+        "downloads": "https://hackme.tech/downloads.html",
+        "report_bc5": "https://hackme.tech/reports/bitcoin-core-5module.html",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-26-order-pool-live-5hmc-rc11h",
       "date": "2026-05-26",
       "title": "Order pool live · 5 HMC test completed (rc11h)",

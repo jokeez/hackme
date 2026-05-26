@@ -139,6 +139,7 @@ cp "${ROOT_DIR}/scripts/release/windows/setup_hackme_miner.bat" "${WIN_DIR}/setu
 cp "${ROOT_DIR}/scripts/release/windows/start_hackme_miner.bat" "${WIN_DIR}/start_hackme_miner.bat"
 cp "${ROOT_DIR}/scripts/release/windows/autostart_pool_worker.bat" "${WIN_DIR}/autostart_pool_worker.bat"
 cp "${ROOT_DIR}/scripts/release/windows/watchdog_pool_worker.bat" "${WIN_DIR}/watchdog_pool_worker.bat"
+cp "${ROOT_DIR}/scripts/release/windows/detect_gpu.ps1" "${WIN_DIR}/detect_gpu.ps1"
 cp "${ROOT_DIR}/scripts/release/windows/set_windows_power_perf.ps1" "${WIN_DIR}/set_windows_power_perf.ps1"
 cp "${ROOT_DIR}/scripts/release/windows/repair_hackme_env.bat" "${WIN_DIR}/repair_hackme_env.bat"
 cp "${ROOT_DIR}/scripts/release/windows/repair_fair_env.bat" "${WIN_DIR}/repair_fair_env.bat"

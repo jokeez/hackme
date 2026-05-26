@@ -1,6 +1,12 @@
 # HackMe RC status (operator snapshot)
 
-**Release:** `0.1.0-rc11g` · **Site:** https://hackme.tech · **Branch:** `cursor/iso-audit-build-02a1`
+**Release:** `0.1.0-rc11i` · **Site:** https://hackme.tech · **Branch:** `main`
+
+| Highlight (2026-05-26) | |
+|------------------------|--|
+| **Fuzz Engine v2** | Seed corpus · bit-flip mutation · coverage buckets v2 · reproducible artifacts · `fuzz_report_v2` |
+| **Wallet / settlement** | Desktop canonical wallet, settlement timer fix, `/dev/null` VPS sanity |
+| **Downloads** | Rebuild `0.1.0-rc11i` Windows `.exe` + Linux tarball on https://hackme.tech/downloads.html |
 
 | Area | Verdict |
 |------|---------|
