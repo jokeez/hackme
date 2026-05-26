@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe Explorer Lite</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="./assets/styles.css" />
+</head>
+<body>
+  <main class="container" style="padding-top:24px">
+    <section class="panel glass">
+      <h1 style="margin-top:0">HackMe Explorer (Lite)</h1>
+      <p class="subtle">Stable public view for pool listings and operators. Full explorer UI is available at <a href="/pool/explorer/live">/pool/explorer/live</a>.</p>
+      <p id="status" class="subtle">Loading...</p>
+    </section>
+
+    <section class="panel glass">
+      <h2 style="margin-top:0">Pool Stats</h2>
+      <pre id="poolStats" style="white-space:pre-wrap">Loading...</pre>
+    </section>
+
+    <section class="panel glass">
+      <h2 style="margin-top:0">Coordinator Work Stats</h2>
+      <pre id="workStats" style="white-space:pre-wrap">Loading...</pre>
+    </section>
+
+    <section class="panel glass">
+      <h2 style="margin-top:0">Quick Links</h2>
+      <ul>
+        <li><a href="/pool/coordinator/api/pool/stats">/pool/coordinator/api/pool/stats</a></li>
+        <li><a href="/pool/coordinator/api/work/stats">/pool/coordinator/api/work/stats</a></li>
+        <li><a href="/api/status">/api/status</a></li>
+        <li><a href="/pool/explorer/live">Full Explorer UI (live)</a></li>
+      </ul>
+    </section>
+  </main>
+
+  <script>
+    async function loadJSON(url, id) {
+      const el = document.getElementById(id);
+      try {
+        const r = await fetch(url, { cache: 'no-store' });
+        const t = await r.text();
+        if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + t.slice(0, 120));
+        try {
+          el.textContent = JSON.stringify(JSON.parse(t), null, 2);
+        } catch {
+          el.textContent = t;
+        }
+      } catch (e) {
+        el.textContent = 'ERROR: ' + (e && e.message ? e.message : e);
+      }
+    }
+    Promise.all([
+      loadJSON('/pool/coordinator/api/pool/stats', 'poolStats'),
+      loadJSON('/pool/coordinator/api/work/stats', 'workStats')
+    ]).then(() => {
+      const st = document.getElementById('status');
+      st.textContent = 'Explorer Lite ready.';
+    });
+  </script>
+</body>
+</html>
