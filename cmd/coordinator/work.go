@@ -948,6 +948,11 @@ func (m *workManager) pruneStaleWorkers(prefix string, maxPayout float64, staleS
 			kept = append(kept, id)
 			continue
 		}
+		// Keep rigs with pool history so miner dashboards and settlement retain per-worker rows.
+		if st.PayoutHMC > 0 || st.AcceptedAtt > 0 || st.AcceptedRanges > 0 {
+			kept = append(kept, id)
+			continue
+		}
 		if st.LastSeenUnix > 0 && (now-st.LastSeenUnix) <= staleSec {
 			kept = append(kept, id)
 			continue

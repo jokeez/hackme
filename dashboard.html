@@ -2214,6 +2214,7 @@
 								</div>
 								<p id="wallet-earnings-total-note" class="text-[10px] text-gray-500 font-mono flex-1 min-w-[200px]">period net: — | txs: —</p>
 							</div>
+							<p id="wallet-earnings-accrual-hint" class="mt-1 text-[10px] text-matrix/80 font-mono break-words">Chart = on-chain transfers only. Pool mining accrual stays in Unpaid worker accrual until settlement credits your wallet.</p>
 							<p id="wallet-earnings-sync-hint" class="hidden mt-1 text-[10px] text-amber-500/90 font-mono break-words" aria-live="polite"></p>
 							<p id="wallet-earnings-timeline" class="mt-2 text-[10px] text-gray-500 font-mono break-all">timeline: loading...</p>
 							<div class="mt-3 overflow-x-auto rounded border border-white/10">
@@ -2445,6 +2446,7 @@
 		let latestNetworkStats = null;
 		let latestWorkStats = null;
 		let latestWorkerStatus = null;
+		let workerStatusHydrated = false;
 		let latestWorkerSettlementSnap = null;
 		/** Last good snapshots — poll must not flash empty UI on transient fetch errors. */
 		let lastGoodWorkStats = null;
@@ -4536,8 +4538,13 @@
 
 				if ($('wallet-earnings-timeline')) {
 					const tail = rolling24 ? buckets.slice(-12) : buckets.slice(-14);
+					const unpaidSnap = latestWorkerSettlementSnap ? Number(latestWorkerSettlementSnap.wallet_unpaid_hmc || 0) : 0;
 					if (!tail.length) {
-						$('wallet-earnings-timeline').textContent = 'timeline: no transfers in selected window';
+						let tl = 'timeline: no on-chain transfers in selected window';
+						if (unpaidSnap > 1e-9) {
+							tl += ' · pool accrual (unsettled) ~' + fmt(unpaidSnap, 6) + ' HMC — chart shows settled chain txs only; payout after VPS settlement';
+						}
+						$('wallet-earnings-timeline').textContent = tl;
 					} else {
 						const isHourly = Number(d.bucket_sec || 0) < 86400;
 						$('wallet-earnings-timeline').textContent =
@@ -6641,18 +6648,24 @@
 				const coordinatorSynthOnline = ws.ok !== false &&
 					(r.id === 'worker-active' || r.id === 'worker-unknown') &&
 					Number(r.attempts || 0) >= 1e6;
-				const online = !!(r.live && r.live.online) ||
+				const rowSt = workers[r.id] || {};
+				const coordPruned = !!(rowSt.coordinator_pruned);
+				const localPoolOnly = !!(rowSt.local_pool_worker);
+				const online = !coordPruned && (
+					!!(r.live && r.live.online) ||
 					(staleSec >= 0 && staleSec <= 90) ||
 					(!!(latestWorkerStatus && latestWorkerStatus.running) &&
 						(r.id === runningWorkerID || r.id === 'worker-active')) ||
 					workerPulse ||
-					coordinatorSynthOnline;
+					coordinatorSynthOnline ||
+					localPoolOnly
+				);
 				const hasActiveBan = !!(r.abuse.banned_until && Number(r.abuse.banned_until) > sampleUnix);
 				// Do not alarm miners with historical strikes while worker is currently live.
 				const lastReason = hasActiveBan
 					? ('banned until ' + fmtUnix(Number(r.abuse.banned_until)))
-					: (online ? 'ok' : (Number(r.abuse.bad_strikes || 0) > 0 ? ('bad_strikes=' + fmtUInt(r.abuse.bad_strikes || 0)) : 'ok'));
-				const stateText = online ? 'live' : 'offline';
+					: (coordPruned ? 'pruned on coordinator (idle) — local mirror' : (localPoolOnly ? 'registering on coordinator…' : (online ? 'ok' : (Number(r.abuse.bad_strikes || 0) > 0 ? ('bad_strikes=' + fmtUInt(r.abuse.bad_strikes || 0)) : 'ok'))));
+				const stateText = online ? (localPoolOnly ? 'local ON' : 'live') : (coordPruned ? 'pruned' : 'offline');
 				const stateClass = online ? 'text-matrix' : 'text-gray-500';
 				const tr = document.createElement('tr');
 				const isMine = r.id === 'worker-kapa-pc' || r.id === String((latestWorkerStatus && latestWorkerStatus.worker_id) || '');
@@ -7875,6 +7888,21 @@
 			}
 			return false;
 		}
+		function poolWorkerVisibleOnCoordinator(ws) {
+			const mine = (ws && ws.workers && ws.workers['worker-kapa-pc']) || null;
+			if (!mine) return false;
+			return !!(
+				mine.online ||
+				mine.local_pool_worker ||
+				Number(mine.hashrate_gh_s || 0) > 0.01 ||
+				Number(mine.accepted_ranges || 0) > 0
+			);
+		}
+		function shouldRequestPoolWorkerLogs() {
+			if (localPoolWorkerActive()) return true;
+			const st = latestStatus || {};
+			return !!(st.network_mode_active && String(st.pool_coordinator_url_effective || st.pool_coordinator_url || '').trim());
+		}
 		function refreshDesktopStatusBanner() {
 			const wrap = $('desktop-status-banner');
 			const title = $('desktop-status-banner-title');
@@ -7885,6 +7913,8 @@
 			const wst = latestWorkerStatus || {};
 			const ws = latestWorkStats || {};
 			const localRun = localPoolWorkerActive();
+			const coordRun = poolWorkerVisibleOnCoordinator(ws);
+			const miningActive = localRun || coordRun;
 			const net = !!st.network_mode_active;
 			const lines = [];
 			let tone = 'border-neon/30 bg-neon/[0.06]';
@@ -7895,15 +7925,25 @@
 			const unpaidEl = $('wallet-unpaid-hmc');
 			const unpaidTxt = unpaidEl ? String(unpaidEl.textContent || '') : '';
 			const hasUnpaid = unpaidTxt && !/^0\.0+\s*HMC/i.test(unpaidTxt.trim()) && unpaidTxt !== '—';
-			if (net && !localRun) {
+			if (net && !miningActive && !workerStatusHydrated) {
+				tone = 'border-white/20 bg-black/40';
+				titleTxt = 'Checking mining status…';
+				lines.push('Refreshing pool worker state after page load (this clears in a few seconds).');
+			} else if (net && !miningActive) {
 				tone = 'border-warn/40 bg-warn/[0.08]';
 				titleTxt = 'Mining paused locally';
-				lines.push('Pool worker subprocess is OFF on this PC. Coordinator may still show historical stats for ' + myWorker + '.');
+				lines.push('Pool worker subprocess is OFF on this PC. WASM PoH (sandbox) does not register on the pool coordinator.');
 				if (mine) {
-					lines.push('Your row on pool: ~' + fmt(Number(mine.payout_hmc || 0), 5) + ' HMC accrued · ' + fmtUInt(Number(mine.accepted_ranges || 0)) + ' ranges submitted.');
+					if (mine.coordinator_pruned) {
+						lines.push('Coordinator pruned ' + myWorker + ' while idle — local mirror: ~' + fmt(Number(mine.payout_hmc || 0), 5) + ' HMC · ' + fmtUInt(Number(mine.accepted_ranges || 0)) + ' ranges (historical).');
+					} else {
+						lines.push('Your row on pool: ~' + fmt(Number(mine.payout_hmc || 0), 5) + ' HMC accrued · ' + fmtUInt(Number(mine.accepted_ranges || 0)) + ' ranges submitted.');
+					}
+				} else {
+					lines.push('Start pool worker (not WASM PoH alone) so ' + myWorker + ' appears on the coordinator again.');
 				}
-				lines.push('Click Mining → Start pool worker to resume GPU work.');
-			} else if (localRun) {
+				lines.push('Click Mining → Start pool worker to resume GPU pool work.');
+			} else if (miningActive) {
 				tone = 'border-matrix/35 bg-matrix/[0.08]';
 				titleTxt = 'Mining active';
 				const wid = String(wst.worker_id || myWorker);
@@ -7947,7 +7987,7 @@
 			body.textContent = lines.join(' ');
 			if (actions) {
 				actions.innerHTML = '';
-				if (net && !localRun) {
+				if (net && !miningActive && workerStatusHydrated) {
 					const btn = document.createElement('button');
 					btn.type = 'button';
 					btn.className = 'text-[10px] px-3 py-1 rounded border border-warn/50 text-warn hover:bg-warn/15 uppercase tracking-wider';
@@ -8062,6 +8102,7 @@
 				if (!r.ok) throw new Error('HTTP ' + r.status);
 				const j = await r.json();
 				latestWorkerStatus = j || null;
+				workerStatusHydrated = true;
 				try { refreshDesktopStatusBanner(); } catch (_) {}
 				const running = localPoolWorkerActive();
 				const wid = String((j && j.worker_id) || 'worker-unknown');
@@ -8462,8 +8503,7 @@
 			const transport = $('mining-log-transport');
 			if (!el) return;
 			try {
-				const ws = latestWorkerStatus || {};
-				const wantWorker = !!ws.running;
+				const wantWorker = shouldRequestPoolWorkerLogs();
 				let tok = adminTokenCurrent();
 				if (wantWorker && !tok) await syncDesktopAdminTokenFromNode();
 				tok = adminTokenCurrent();
@@ -8488,7 +8528,7 @@
 				if (lines.length) {
 					lastMiningLogEmptyHint = '';
 					renderMiningLogLines(el, lines);
-				} else if (wantWorker && wr) {
+				} else if (wantWorker && (wr || localPoolWorkerActive())) {
 					const hint = '[pool] worker running; waiting for log lines — ' + logBase;
 					if (hint !== lastMiningLogEmptyHint) {
 						lastMiningLogEmptyHint = hint;
@@ -10554,7 +10594,8 @@
 				if (wantPoolStats && typeof refreshWorkStats === 'function') {
 					jobs.push(refreshWorkStats());
 				}
-				if (wantPoolStats) {
+				const desktop = !!(latestStatus && latestStatus.desktop_mode);
+				if (wantPoolStats || desktop) {
 					jobs.push(typeof refreshWorkerStatus === 'function' ? refreshWorkerStatus() : Promise.resolve());
 				}
 				if (wantWalletCore && !txTrackActive) {
@@ -10821,6 +10862,11 @@
 				}
 				if (!initTab) initTab = 'ecosystem';
 				if (!adminTokenCurrent() && initTab === 'fuzz') initTab = 'ecosystem';
+				if (typeof refreshWorkerStatus === 'function') {
+					try {
+						await refreshWorkerStatus();
+					} catch (_) {}
+				}
 				switchTab(initTab);
 				document.querySelectorAll('[data-goto-tab]').forEach((el) => {
 					el.addEventListener('click', (ev) => {

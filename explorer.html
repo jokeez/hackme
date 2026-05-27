@@ -519,14 +519,17 @@
           const live = w.live || {};
           const seen = Number(w.last_seen_unix || live.last_seen_unix || 0);
           const gh = Number(w.hashrate_gh_s || live.hashrate_gh_s || 0);
-          const online = !!(live.online) || gh > 0.001 || (seen > 0 && (Math.floor(Date.now() / 1000) - seen) < 120);
+          const pruned = w.coordinator_pruned === true;
+          const localOnly = w.local_pool_worker === true;
+          const online = !pruned && (!!(live.online) || localOnly || gh > 0.001 || (seen > 0 && (Math.floor(Date.now() / 1000) - seen) < 120));
           const ranges = Number(w.accepted_ranges ?? w.ranges ?? 0);
           const attempts = Number(w.accepted_attempts ?? w.attempts ?? 0);
           const payout = Number(w.payout_hmc ?? w.payout ?? 0);
           const tr = document.createElement('tr');
+          const nameSuffix = pruned ? ' <span class="muted">(mirror)</span>' : (localOnly ? ' <span class="muted">(local)</span>' : '');
           tr.innerHTML =
             '<td class="' + (online ? 'worker-online' : 'worker-off') + '">' + (online ? '●' : '○') + '</td>' +
-            '<td class="mono">' + esc(id) + '</td>' +
+            '<td class="mono">' + esc(id) + nameSuffix + '</td>' +
             '<td class="mono">' + String(ranges) + '</td>' +
             '<td class="mono">' + String(attempts) + '</td>' +
             '<td class="mono">' + payout.toFixed(6) + '</td>';
@@ -535,7 +538,11 @@
         if (note) {
           const wc = Number(j.workers_count || ids.length);
           const stale = j.stale === true ? (' · stale ' + Number(j.stale_sec || 0) + 's') : '';
-          note.textContent = 'Registered coordinator workers: ' + wc + ' · pool attempts ' + String(j.accepted_attempts || 0) + stale;
+          const desk = String(j.desktop_worker_id || '').trim();
+          const injected = j.desktop_worker_injected === true;
+          let extra = '';
+          if (injected && desk) extra = ' · ' + desk + ' shown from local mirror (re-start pool worker to re-register on coordinator)';
+          note.textContent = 'Registered coordinator workers: ' + wc + ' · pool attempts ' + String(j.accepted_attempts || 0) + stale + extra;
         }
       } catch (e) {
         tb.innerHTML = '<tr><td colspan="5" class="muted">' + esc(String(e.message || 'unavailable')) + '</td></tr>';

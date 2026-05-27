@@ -214,6 +214,7 @@ func storeWorkStatsCache(ws map[string]any) {
 	if ws == nil {
 		return
 	}
+	persistWorkerCoordinatorMirrorFromStats(ws)
 	workStatsCacheMu.Lock()
 	workStatsCache = ws
 	workStatsCacheTS = time.Now().Unix()
@@ -1500,6 +1501,7 @@ func (a *app) handleWorkStats(w http.ResponseWriter, r *http.Request) {
 			out[k] = v
 		}
 		ensureCoordinatorWorkersMap(out)
+		a.enrichWorkStatsDesktopWorker(out)
 		out["ok"] = true
 		out["source"] = base
 		out["stale"] = age > int64(workStatsCacheFreshSec)
@@ -1517,6 +1519,7 @@ func (a *app) handleWorkStats(w http.ResponseWriter, r *http.Request) {
 			out[k] = v
 		}
 		ensureCoordinatorWorkersMap(out)
+		a.enrichWorkStatsDesktopWorker(out)
 		out["ok"] = true
 		out["source"] = base
 		out["stale"] = true
@@ -1541,6 +1544,7 @@ func (a *app) handleWorkStats(w http.ResponseWriter, r *http.Request) {
 				out[k] = v
 			}
 			ensureCoordinatorWorkersMap(out)
+			a.enrichWorkStatsDesktopWorker(out)
 			out["ok"] = true
 			out["source"] = base
 			out["stale"] = true
@@ -1567,6 +1571,7 @@ func (a *app) handleWorkStats(w http.ResponseWriter, r *http.Request) {
 	ws["source"] = base
 	ws["stale"] = false
 	ws["stale_sec"] = int64(0)
+	a.enrichWorkStatsDesktopWorker(ws)
 	storeWorkStatsCache(ws)
 	writeJSON(w, ws)
 }

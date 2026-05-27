@@ -2956,6 +2956,29 @@ func workerIDFromLatestWorkerpohLog(logDir string) string {
 	return ""
 }
 
+// poolWorkerLogTail reports whether a pool worker is active (subprocess or autostart log) and which file to tail.
+func (a *app) poolWorkerLogTail() (running bool, tailPath string) {
+	a.workerMu.Lock()
+	running = a.workerCmd != nil && a.workerCmd.Process != nil && a.workerCmd.ProcessState == nil
+	tailPath = strings.TrimSpace(a.workerLogPath)
+	a.workerMu.Unlock()
+	repoRoot := resolveWorkerRepoRoot(strings.TrimSpace(a.dataDir))
+	logRoot := filepath.Join(repoRoot, "logs")
+	if running {
+		if wp := latestWorkerpohLogPath(logRoot); wp != "" {
+			tailPath = wp
+		}
+		return running, tailPath
+	}
+	if workerLogFresh(logRoot, 120) && parseWorkerpohMeasuredGHs(logRoot) > 0 {
+		running = true
+		if wp := latestWorkerpohLogPath(logRoot); wp != "" {
+			tailPath = wp
+		}
+	}
+	return running, tailPath
+}
+
 func (a *app) handleMiningLogs(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -2967,26 +2990,16 @@ func (a *app) handleMiningLogs(w http.ResponseWriter, r *http.Request) {
 	if includeWorker && !allowWorkerTail && !requireAdminAuth(w, r) {
 		return
 	}
+	workerRunning, tailPath := a.poolWorkerLogTail()
 	minerLines := a.miner.Logs()
+	// Pool-worker mode: do not replay stale local WASM PoH buffer (misleading after F5).
+	if includeWorker && workerRunning && !a.miner.Running() {
+		minerLines = nil
+	}
 	lines := append([]string(nil), minerLines...)
 	logMode := "empty"
 	if len(minerLines) > 0 {
 		logMode = "miner"
-	}
-	var workerRunning bool
-	var logPath string
-	a.workerMu.Lock()
-	if a.workerCmd != nil && a.workerCmd.Process != nil && a.workerCmd.ProcessState == nil {
-		workerRunning = true
-	}
-	logPath = strings.TrimSpace(a.workerLogPath)
-	a.workerMu.Unlock()
-	tailPath := logPath
-	if workerRunning {
-		repoRoot := resolveWorkerRepoRoot(strings.TrimSpace(a.dataDir))
-		if wp := latestWorkerpohLogPath(filepath.Join(repoRoot, "logs")); wp != "" {
-			tailPath = wp
-		}
 	}
 	if includeWorker && workerRunning && tailPath != "" {
 		if tail, err := tailFileLastLines(tailPath, 120, 512*1024); err == nil && len(tail) > 0 {
