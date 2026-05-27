@@ -20,10 +20,17 @@ export HACKME_SUP_ON_CHAIN_SETTLE=1   # coordinator stats + redeploy
 bash scripts/ops/settle_worker_sup.sh
 ```
 
-Optional timer (after HMC settlement timer is stable):
+Automatic settlement (recommended on VPS):
 
 ```bash
-# cron: */15 * * * * cd /opt/hackme && MIN_SETTLE_SUP=0.01 bash scripts/ops/settle_worker_sup.sh
+sudo bash /opt/hackme/scripts/ops/setup_worker_settlement_service.sh
+# installs hackme-worker-sup-settlement.timer (~every 3 min, 90s after HMC settle)
+```
+
+Manual one-shot:
+
+```bash
+cd /opt/hackme && MIN_SETTLE_SUP=0.01 bash scripts/ops/settle_worker_sup.sh
 ```
 
 ## Policy unchanged

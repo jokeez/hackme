@@ -100,12 +100,24 @@ PY
     echo "[settle-sup] skip ${worker_id}: delta ${delta_sup} SUP < min ${MIN_SETTLE_SUP}"
     continue
   fi
-  resp="$(curl -sS -X POST "${CHAIN_BASE}/api/sup/mint" \
-    -H "X-Hackme-Admin-Token: ${ADMIN_TOKEN}" \
-    -H "Content-Type: application/json" \
-    -d "$(jq -nc --arg to "$to_addr" --argjson amt "$delta_sup" --arg wid "$worker_id" \
-      '{to:$to, amount_sup: ($amt|tonumber), memo: ("worker_sup_settlement:"+ $wid)}')")"
-  ok="$(jq -r '.ok // false' <<<"$resp")"
+  resp=""
+  ok="false"
+  for attempt in 1 2 3 4 5; do
+    resp="$(curl -sS -X POST "${CHAIN_BASE}/api/sup/mint" \
+      -H "X-Hackme-Admin-Token: ${ADMIN_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d "$(jq -nc --arg to "$to_addr" --argjson amt "$delta_sup" --arg wid "$worker_id" \
+        '{to:$to, amount_sup: ($amt|tonumber), memo: ("worker_sup_settlement:"+ $wid)}')")"
+    ok="$(jq -r '.ok // false' <<<"$resp")"
+    if [[ "$ok" == "true" ]]; then
+      break
+    fi
+    if [[ "$resp" == *"database is locked"* || "$resp" == *"SQLITE_BUSY"* ]]; then
+      sleep $((attempt * 2))
+      continue
+    fi
+    break
+  done
   if [[ "$ok" != "true" ]]; then
     echo "[settle-sup] ERROR ${worker_id}: $resp" >&2
     continue

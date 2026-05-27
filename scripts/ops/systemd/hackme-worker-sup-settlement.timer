@@ -1,0 +1,12 @@
+[Unit]
+Description=Run HackMe worker SUP settlement (offset from HMC payout timer)
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=3min
+RandomizedDelaySec=30s
+Persistent=true
+Unit=hackme-worker-sup-settlement.service
+
+[Install]
+WantedBy=timers.target

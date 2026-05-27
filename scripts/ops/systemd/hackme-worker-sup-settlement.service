@@ -1,0 +1,20 @@
+[Unit]
+Description=HackMe Worker SUP Settlement
+After=network-online.target hackme-worker-settlement.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hackme
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+EnvironmentFile=/opt/hackme/.env.settlement
+# Offset from HMC settlement to reduce SQLite lock contention on hackme-node.
+ExecStartPre=/bin/sleep 90
+PermissionsStartOnly=true
+ExecStartPre=/bin/bash -c 'install -d -o hackme -g hackme -m 700 /opt/hackme/data; for f in worker_settlement_state.json worker_settlement_state.json.sup.flock; do touch "/opt/hackme/data/$f"; chown hackme:hackme "/opt/hackme/data/$f"; done; chmod 600 /opt/hackme/data/worker_settlement_state.json'
+ExecStart=/bin/bash -lc 'MIN_SETTLE_SUP=${MIN_SETTLE_SUP:-0.01} /opt/hackme/scripts/ops/settle_worker_sup.sh'
+User=hackme
+Group=hackme
+
+[Install]
+WantedBy=multi-user.target

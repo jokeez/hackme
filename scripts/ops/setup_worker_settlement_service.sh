@@ -14,6 +14,8 @@ units=(
   "hackme-worker-settlement.timer"
   "hackme-worker-settlement-healthcheck.service"
   "hackme-worker-settlement-healthcheck.timer"
+  "hackme-worker-sup-settlement.service"
+  "hackme-worker-sup-settlement.timer"
 )
 
 for u in "${units[@]}"; do
@@ -39,14 +41,17 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 chmod +x "${ROOT}/scripts/ops/settle_worker_payouts.sh"
+chmod +x "${ROOT}/scripts/ops/settle_worker_sup.sh"
 chmod +x "${ROOT}/scripts/ops/settlement_healthcheck.sh"
 
 systemctl daemon-reload
 systemctl enable --now hackme-worker-settlement.timer
 systemctl enable --now hackme-worker-settlement-healthcheck.timer
+systemctl enable --now hackme-worker-sup-settlement.timer
 
 echo "[settlement-setup] timers enabled"
 systemctl --no-pager --full status hackme-worker-settlement.timer || true
+systemctl --no-pager --full status hackme-worker-sup-settlement.timer || true
 systemctl --no-pager --full status hackme-worker-settlement-healthcheck.timer || true
 
 echo

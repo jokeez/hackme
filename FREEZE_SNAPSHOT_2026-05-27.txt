@@ -1,0 +1,12 @@
+HackMe project freeze snapshot
+================================
+Created (local): 2026-05-27 (Wednesday)
+Archive name:    HackMe-freeze-2026-05-27.zip
+Git branch:      main
+Git commit:      0ff112c2ab82 (Ship SUP on-chain ledger, settlement, and wallet UX.)
+
+Purpose: point-in-time backup of source + git history + docs.
+Excluded from zip (too large or unsafe): logs/, dist/, backups/, bin/,
+  local secrets (.secrets/, hackme.env, .env.*), runtime binaries.
+
+Restore: unzip, then `git status` and copy secrets from your password manager.
