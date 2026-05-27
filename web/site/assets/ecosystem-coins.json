@@ -1,0 +1,72 @@
+{
+  "updated": "2026-05-27",
+  "primary": "hmc",
+  "coins": [
+    {
+      "id": "hmc",
+      "symbol": "HMC",
+      "name": "HackMe Coin",
+      "status": "live",
+      "tagline": "Primary useful-PoW chain & official pool settlement",
+      "algorithm": "Useful PoW / PoH (WASM sandbox)",
+      "icon": "./assets/logo-hex.png",
+      "iconType": "image",
+      "listing": "MiningPoolStats pending · public pool live",
+      "earn": "Mine on the official coordinator · on-chain after VPS settlement",
+      "trade": "On-chain transfers live on hackme.tech chain",
+      "links": {
+        "pool": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "explorer": "https://hackme.tech/explorer-lite.html",
+        "dashboard": "https://hackme.tech/dashboard.html",
+        "economics": "https://hackme.tech/economics-model.html"
+      }
+    },
+    {
+      "id": "sup",
+      "symbol": "SUP",
+      "name": "HackMe Support",
+      "status": "prelaunch",
+      "tagline": "Scarce loyalty & network-health asset — built for exchange listing",
+      "algorithm": "Earned via HMC pool (quality-gated accrual)",
+      "icon": "./assets/coin-sup.svg",
+      "iconType": "image",
+      "listing": "Roadmap: CEX/DEX after on-chain launch · MPS companion ticker",
+      "earn": "No faucet. Hybrid-signed pool work + uptime & reputation gates",
+      "trade": "Transfers enabled at SUP genesis — trading pairs post-listing",
+      "highlights": [
+        "Separate emission schedule from HMC (lower, halving)",
+        "Max ~8–12% of primary attempt value before quality multipliers",
+        "Streak bonus only after 72h clean mining",
+        "Spend: audit discounts, pool priority, governance signal"
+      ]
+    },
+    {
+      "id": "ord",
+      "symbol": "ORD",
+      "name": "Orders lane",
+      "status": "planned",
+      "tagline": "Paid security-audit & fuzz escrow mining",
+      "algorithm": "Useful PoW · order-bound WASM",
+      "iconLetter": "◇",
+      "iconType": "letter",
+      "accent": "amber",
+      "listing": "Planned",
+      "earn": "Mine audit campaigns when coordinator lane goes live",
+      "trade": "—"
+    },
+    {
+      "id": "shd",
+      "symbol": "SHD",
+      "name": "Shard pool",
+      "status": "planned",
+      "tagline": "Horizontally scaled coordinators",
+      "algorithm": "Useful PoW / PoH",
+      "iconLetter": "⬡",
+      "iconType": "letter",
+      "accent": "cyan",
+      "listing": "Planned",
+      "earn": "—",
+      "trade": "—"
+    }
+  ]
+}

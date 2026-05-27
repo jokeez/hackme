@@ -76,6 +76,30 @@
     ensureNewsLink(".footer-nav");
   }
 
+  function ensureCoinsLink(selector) {
+    const container = document.querySelector(selector);
+    if (!container) return;
+    const exists = Array.from(container.querySelectorAll("a")).some((a) => {
+      const href = (a.getAttribute("href") || "").trim().toLowerCase();
+      return href.endsWith("/coins.html") || href === "./coins.html" || href === "coins.html";
+    });
+    if (exists) return;
+    const link = document.createElement("a");
+    link.href = "./coins.html";
+    link.textContent = "Coins";
+    const news = container.querySelector('a[href*="news"]');
+    if (news && news.parentNode) {
+      news.parentNode.insertBefore(link, news.nextSibling);
+    } else {
+      container.appendChild(link);
+    }
+  }
+
+  function wireCoinsLinks() {
+    ensureCoinsLink(".nav");
+    ensureCoinsLink(".footer-nav");
+  }
+
   function ensureFooterLink(nav, href, text) {
     if (!nav || !href) return;
     const norm = href.toLowerCase();
@@ -469,6 +493,7 @@
   const { liveEl } = paintDomainMeta();
   wireExplorerLinks();
   wireNewsLinks();
+  wireCoinsLinks();
   wireCommunityFooter();
   wireDownloadLinks();
   void resolveWindowsDownloadHref().then((href) => {

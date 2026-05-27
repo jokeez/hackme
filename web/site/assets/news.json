@@ -1,6 +1,23 @@
 {
   "items": [
     {
+      "id": "2026-05-27-hackme-support-sup-prelaunch",
+      "date": "2026-05-27",
+      "title": "HackMe Support (SUP) — scarce ecosystem coin announced",
+      "summary": "Second HackMe asset for listing & trading: no faucet, quality-gated accrual while mining HMC on the official pool. Public spec, Coins page, Wallet hub roadmap.",
+      "tags": ["ecosystem", "marketing", "mining", "listing"],
+      "impact": "Clear story for exchanges & miners: SUP is hard to earn, utility-first (audit discounts, pool priority, governance signal).",
+      "action": "Coins: https://hackme.tech/coins.html · Spec: docs/SUPPORT_COIN_UTILITY.md · Telegram: docs/TELEGRAM_POST_SUPPORT_COIN.txt",
+      "status": "published",
+      "links": {
+        "coins": "https://hackme.tech/coins.html",
+        "dashboard": "https://hackme.tech/dashboard.html",
+        "downloads": "https://hackme.tech/downloads.html",
+        "github_spec": "https://github.com/jokeez/hackme/blob/main/docs/SUPPORT_COIN_UTILITY.md",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-26-l1-crypto-stack-v3-official",
       "date": "2026-05-26",
       "title": "L1 Crypto Stack v3 — official Bitcoin Core fuzz corpus + upstream pins",
