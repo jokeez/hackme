@@ -1,37 +1,32 @@
-🟣💎 HackMe Support (SUP) — вторая монета экосистемы (PRE-LAUNCH)
+🟣💎 HackMe Support (SUP) — accrual live (listing after HMC)
 
-Мы объявляем **HackMe Support (SUP)** — не «лёгкий аирдроп», а **редкий актив** под листинг и торговлю, который **тяжело заработать**.
+**SUP** капает в coordinator за **честный** hybrid-signed майнинг HMC. Это не кран и не «лёгкий аирдроп».
 
-✅ **Как получить SUP**
-• Майнишь **HMC** на официальном пуле hackme.tech (hybrid-signed worker)
-• **Нет крана** · нет бесплатной раздачи
-• База: ≤8–10% от attempt-начисления HMC (до множителей качества)
-• **72h** чистого аптайма → бонусный множитель
-• Strike / ban / грязные submit → **0 SUP**
+✅ **Как копится SUP**
+• Официальный пул hackme.tech · hybrid-signed worker
+• База ≤8% от attempt-начисления HMC (не от found-бонуса)
+• Strike / ban / высокий stale → **0 SUP**
+• 72h чистого аптайма → бонусный множитель
+• Дневной fleet-cap против ферм
 
-✅ **Зачем SUP**
-• Скидки на **Security Audit** (часть escrow в SUP)
-• Приоритет lease в пуле при нагрузке
-• Публичный статус **Support miner**
-• Голос по параметрам coordinator (сигнал, не DAO-театр)
+✅ **Честно и без абуза**
+• Unsigned submit → 0 SUP
+• Только attempt-slice, не копия HMC found bonus
+• Red-team gate: `scripts/ops/sup_accrual_gate.sh`
 
-✅ **Торговля & листинг**
-• Отдельная эмиссия · halving · on-chain transfers после genesis SUP
-• Companion ticker к HMC на агрегаторах (MiningPoolStats и др.)
-• Полная спека: github.com/jokeez/hackme → docs/SUPPORT_COIN_UTILITY.md
+✅ **Что ещё НЕ сделано (намеренно)**
+• Нет on-chain SUP · нет биржевого листинга
+• **Листим SUP на биржах только после листинга основной монеты (HMC/HCM)**
+• Settlement SUP on-chain — Phase C
 
-🌐 Страница монет:
-https://hackme.tech/coins.html
+✅ **Зачем копить**
+• Скидки Security Audit · приоритет lease · Support miner badge
 
-📊 Wallet hub (портфель HMC + roadmap SUP):
-https://hackme.tech/dashboard.html
+🌐 https://hackme.tech/coins.html
+📊 Wallet hub: https://hackme.tech/dashboard.html
+📄 Spec: docs/SUPPORT_COIN_UTILITY.md
 
-⛏ Начать майнить HMC (SUP капает поверх):
-https://hackme.tech/downloads.html
-
-#HackMe #SUP #HMC #Crypto #Mining #UsefulPoW #Listing #DeFi
+#HackMe #SUP #HMC #Mining #UsefulPoW
 
 ---
-EN short (for @hackme_en):
-
-🟣 HackMe Support ($SUP) — scarce ecosystem coin (pre-launch). No faucet. Earn only via **quality HMC pool mining** (signed work, uptime streaks, anti-abuse gates). Built for **utility + exchange listing**. Spec & coins page: https://hackme.tech/coins.html
+EN: SUP accrual is live in the pool coordinator (off-chain). No faucet. Exchange listing only after primary HMC lists. https://hackme.tech/coins.html

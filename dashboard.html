@@ -971,7 +971,7 @@
 							<div class="max-w-2xl">
 								<p class="font-display text-[10px] tracking-[0.4em] text-neon uppercase mb-2">HackMe network</p>
 								<h1 class="font-display text-2xl lg:text-3xl font-bold text-white tracking-wide mb-2">Mining ecosystem</h1>
-								<p class="text-sm text-gray-400 leading-relaxed max-w-xl">Choose a coin pool to mine. Live pools pull coordinator stats in real time; upcoming assets are staged for new chain launches.</p>
+								<p class="text-sm text-gray-400 leading-relaxed max-w-xl">Mine <strong class="text-white/90">HMC</strong> on the live coordinator pool. Bonus assets (SUP) and roadmap coins accrue in <strong class="text-neon/90">Wallet hub</strong> — not separate pools here.</p>
 							</div>
 							<div class="flex flex-wrap gap-2 text-[10px] font-mono">
 								<span class="px-2 py-1 rounded border border-matrix/35 text-matrix">live pools: <span id="eco-live-count">—</span></span>
@@ -1000,8 +1000,8 @@
 					</div>
 					<div class="card card-glow rounded-lg p-0 overflow-hidden border-neon/25">
 						<div class="px-4 py-3 border-b border-white/10 flex flex-wrap items-center justify-between gap-2 bg-black/40">
-							<h2 class="font-display text-xs font-semibold tracking-[0.22em] text-gray-300 uppercase">Coin pools</h2>
-							<p class="text-[10px] text-gray-500 font-mono">Click a live row → Workers · mine coordinator ranges</p>
+							<h2 class="font-display text-xs font-semibold tracking-[0.22em] text-gray-300 uppercase">Live mining</h2>
+							<p class="text-[10px] text-gray-500 font-mono">Only mineable chains · click row → Workers tab</p>
 						</div>
 						<div class="eco-table-wrap overflow-x-auto max-h-[min(70vh,640px)] overflow-y-auto">
 							<table class="eco-coins-table" id="ecosystem-coins-table">
@@ -1024,7 +1024,7 @@
 							</table>
 						</div>
 					</div>
-					<p class="text-[10px] text-gray-600 font-mono text-center">Planned coins show roadmap slots — not mineable until chain + coordinator pool goes live.</p>
+					<p class="text-[10px] text-gray-600 font-mono text-center">SUP, Alpha, Orders, Shard — balances &amp; roadmap in <button type="button" class="text-neon/80 hover:text-neon underline" data-goto-tab="wallet">Wallet hub</button>. New mineable pools appear here when coordinators go live.</p>
 				</div>
 
 				<!-- OVERVIEW -->
@@ -2275,7 +2275,7 @@
 							<div>
 								<p class="font-display text-[10px] tracking-[0.4em] text-neon uppercase mb-1">HackMe network</p>
 								<h1 class="font-display text-2xl lg:text-3xl font-bold text-white tracking-wide mb-1">Wallet hub</h1>
-								<p class="text-sm text-gray-400 max-w-xl">Exchange-style portfolio for all ecosystem coins. Live balances today; bonus and lane coins unlock as coordinators go live.</p>
+								<p class="text-sm text-gray-400 max-w-xl">All ecosystem assets — HMC on-chain, SUP bonus accrual while mining, roadmap lanes. Mining entry is only on live pools in Ecosystem.</p>
 							</div>
 							<div class="flex flex-wrap gap-2 text-[10px] font-mono items-center">
 								<span class="px-2 py-1 rounded border border-matrix/35 text-matrix">portfolio: <span id="wallet-portfolio-total">—</span></span>
@@ -2298,7 +2298,7 @@
 								<p id="wallet-planned-symbol" class="text-neon font-mono text-sm mb-3">—</p>
 								<p id="wallet-planned-desc" class="text-sm text-gray-400 max-w-md mx-auto mb-4">—</p>
 								<p id="wallet-planned-roadmap" class="text-[10px] text-warn font-mono uppercase tracking-wider mb-4">—</p>
-								<button type="button" id="btn-wallet-planned-ecosystem" class="px-4 py-2 rounded border border-neon/35 text-neon text-[10px] uppercase tracking-wider hover:bg-neon/10" data-goto-tab="ecosystem">View in Mining ecosystem</button>
+								<button type="button" id="btn-wallet-planned-ecosystem" class="px-4 py-2 rounded border border-neon/35 text-neon text-[10px] uppercase tracking-wider hover:bg-neon/10" data-goto-tab="ecosystem">Mine HMC →</button>
 							</div>
 							<div id="wallet-live-pane">
 								<div class="wallet-detail-tabs" role="tablist">
@@ -2312,28 +2312,47 @@
 						<p class="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-matrix drop-shadow-matrix tabular-nums mb-2"><span id="wallet-balance-big">0.00</span> <span id="wallet-symbol-big" class="text-2xl sm:text-3xl text-neon/80">HMC</span></p>
 						<p id="wallet-balance-caption" class="text-sm text-gray-500 mb-2">Node wallet (local view)</p>
 						<p id="wallet-miner-payout-note" class="text-[10px] text-gray-400 mb-6 max-w-2xl mx-auto leading-relaxed hidden"></p>
-						<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 max-w-5xl mx-auto mb-5 text-left">
-							<div class="wallet-stat" title="1 HMC = 100,000,000 Kapa. Matches HMC balance above (full precision).">
+						<div id="wallet-overview-stats-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 max-w-5xl mx-auto mb-5 text-left">
+							<div class="wallet-stat wallet-detail-hmc-only" title="1 HMC = 100,000,000 Kapa. Matches HMC balance above (full precision).">
 								<p class="wallet-stat-label">Units (Kapa)</p>
 								<p id="wallet-balance-units" class="wallet-stat-value">0</p>
 								<p id="wallet-balance-units-hmc-echo" class="text-[10px] text-gray-500 mt-1 font-mono">≈ 0 HMC</p>
 							</div>
-							<div class="wallet-stat">
+							<div class="wallet-stat wallet-detail-hmc-only">
 								<p class="wallet-stat-label">Next nonce</p>
 								<p id="wallet-next-nonce" class="wallet-stat-value">0</p>
 							</div>
-							<div class="wallet-stat" title="Minimum fee in transfer accounting units.">
+							<div class="wallet-stat wallet-detail-hmc-only" title="Minimum fee in transfer accounting units.">
 								<p class="wallet-stat-label">Min fee</p>
 								<p id="wallet-min-fee" class="wallet-stat-value">1,000 Kapa</p>
 							</div>
-							<div class="wallet-stat">
+							<div class="wallet-stat wallet-detail-hmc-only">
 								<p class="wallet-stat-label">Max send now</p>
 								<p id="wallet-sendable-hmc" class="wallet-stat-value">0.000000 HMC</p>
 							</div>
-							<div class="wallet-stat">
+							<div class="wallet-stat wallet-detail-hmc-only">
 								<p class="wallet-stat-label">Unpaid worker accrual</p>
 								<p id="wallet-unpaid-hmc" class="wallet-stat-value">0.000000 HMC</p>
 								<p id="wallet-unpaid-note" class="text-[10px] text-gray-500 mt-1 font-mono">settlement: checking...</p>
+							</div>
+							<div class="wallet-stat wallet-detail-sup-only hidden">
+								<p class="wallet-stat-label">On-chain</p>
+								<p id="wallet-sup-onchain" class="wallet-stat-value">0 SUP</p>
+								<p class="text-[10px] text-gray-500 mt-1 font-mono">settled / minted / transfers</p>
+							</div>
+							<div class="wallet-stat wallet-detail-sup-only hidden">
+								<p class="wallet-stat-label">Pool accrued</p>
+								<p id="wallet-sup-accrued" class="wallet-stat-value">0 SUP</p>
+								<p class="text-[10px] text-gray-500 mt-1 font-mono">coordinator (pre-settle)</p>
+							</div>
+							<div class="wallet-stat wallet-detail-sup-only hidden">
+								<p class="wallet-stat-label">Unsettled</p>
+								<p id="wallet-sup-unpaid" class="wallet-stat-value">0 SUP</p>
+								<p id="wallet-sup-accrual-note" class="text-[10px] text-gray-500 mt-1 font-mono">mint via settle_worker_sup.sh</p>
+							</div>
+							<div class="wallet-stat wallet-detail-sup-only hidden sm:col-span-2">
+								<p class="wallet-stat-label">Policy</p>
+								<p id="wallet-sup-policy-note" class="wallet-stat-value text-sm leading-snug">—</p>
 							</div>
 						</div>
 						<div class="text-left max-w-lg mx-auto mt-4">
@@ -2383,6 +2402,8 @@
 								</div>
 								<p id="wallet-earnings-total-note" class="text-[10px] text-gray-500 font-mono flex-1 min-w-[200px]">period net: — | txs: —</p>
 							</div>
+							<p id="wallet-earnings-hmc-only-msg" class="hidden mt-3 text-sm text-gray-400 text-center py-6 border border-white/10 rounded">On-chain earnings chart is <strong class="text-white/90">HMC-only</strong> today. SUP accrual is shown on the Overview tab for HackMe Support.</p>
+							<div id="wallet-earnings-hmc-body">
 							<p id="wallet-earnings-accrual-hint" class="mt-1 text-[10px] text-matrix/80 font-mono break-words">Chart = on-chain transfers only. Pool mining accrual stays in Unpaid worker accrual until settlement credits your wallet.</p>
 							<p id="wallet-earnings-sync-hint" class="hidden mt-1 text-[10px] text-amber-500/90 font-mono break-words" aria-live="polite"></p>
 							<p id="wallet-earnings-timeline" class="mt-2 text-[10px] text-gray-500 font-mono break-all">timeline: loading...</p>
@@ -2400,9 +2421,10 @@
 									<tbody id="wallet-earnings-table-body"></tbody>
 								</table>
 							</div>
+							</div>
 						</div>
 								</div>
-								<div id="wallet-section-transfer" class="wallet-detail-section">
+								<div id="wallet-section-transfer" class="wallet-detail-section wallet-detail-hmc-only">
 					<div class="card card-glow rounded-xl p-5 border-neon/20">
 						<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
 							<h3 class="font-display text-[10px] tracking-[0.25em] text-neon uppercase">Transfer tx (v1)</h3>
@@ -2668,15 +2690,15 @@
 				id: 'support',
 				symbol: 'SUP',
 				name: 'HackMe Support',
-				status: 'planned',
+				status: 'accrual',
 				chainId: 'bonus lane',
 				iconHtml: 'SUP',
 				accent: 'bonus',
 				mineTab: null,
-				roadmap: 'Fractal-style bonus while mining HMC',
-				walletLive: false,
+				roadmap: 'Accrual live · exchange listing after HMC lists',
+				walletLive: true,
 				walletRole: 'bonus',
-				walletDesc: 'Scarce listing-grade asset — earn only via quality HMC pool mining (no faucet). See hackme.tech/coins.html',
+				walletDesc: 'Earn via hybrid-signed HMC pool work only (no faucet). Accrual in coordinator; not tradable until HMC is listed on exchanges.',
 				estPriceUsd: 0,
 			},
 			{
@@ -2747,7 +2769,26 @@
 				};
 			}
 			if (coin && coin.walletRole === 'bonus') {
-				return { main: '0', sub: 'accrues with HMC mining' };
+				const onChain = Number(walletSnapshot.balanceSUP || 0);
+				const accrued = latestWorkerSettlementSnap
+					? Number(latestWorkerSettlementSnap.wallet_accrued_sup || 0)
+					: 0;
+				const unpaid = latestWorkerSettlementSnap
+					? Number(latestWorkerSettlementSnap.wallet_unpaid_sup || 0)
+					: 0;
+				if (onChain > 0.000001) {
+					return {
+						main: fmt(onChain, 4),
+						sub: accrued > unpaid + 0.000001 ? '+ ' + fmt(unpaid, 4) + ' pool unsettled' : 'on-chain SUP',
+					};
+				}
+				if (accrued > 0.000001 || unpaid > 0.000001) {
+					return {
+						main: fmt(unpaid > 0 ? unpaid : accrued, 4),
+						sub: 'pool accrual · settle to chain',
+					};
+				}
+				return { main: '0', sub: 'mine HMC with hybrid signer' };
 			}
 			return { main: '—', sub: coin && coin.status === 'planned' ? 'soon' : '—' };
 		}
@@ -2769,9 +2810,132 @@
 			}
 			if ($('wallet-portfolio-live-count')) $('wallet-portfolio-live-count').textContent = fmtUInt(live.length);
 		}
+		function walletSelectedCoin() {
+			return walletHubCoinById(walletSelectedCoinId) || walletHubCoins()[0];
+		}
+		function isWalletCoinHMC(coin) {
+			return !!(coin && coin.id === 'hmc');
+		}
+		function isWalletCoinSUP(coin) {
+			return !!(coin && (coin.id === 'support' || coin.symbol === 'SUP'));
+		}
+		function applyWalletHmcOnChainFields() {
+			if ($('wallet-balance-units')) $('wallet-balance-units').textContent = fmtUInt(walletSnapshot.balanceUnits);
+			if ($('wallet-balance-units-hmc-echo')) {
+				$('wallet-balance-units-hmc-echo').textContent = '≈ ' + fmt(walletSnapshot.balanceUnits / 100000000, 8) + ' HMC';
+			}
+			if ($('wallet-next-nonce')) $('wallet-next-nonce').textContent = fmtUInt(walletSnapshot.nextNonce);
+			const minFeeUnits = 1000;
+			const bu = Math.floor(Number(walletSnapshot.balanceUnits) || 0);
+			const maxAmtUnits = bu > minFeeUnits ? (bu - minFeeUnits) : 0;
+			const maxSendHmc = maxAmtUnits / 100000000;
+			if ($('wallet-sendable-hmc')) {
+				$('wallet-sendable-hmc').textContent = fmt(maxSendHmc, 8) + ' HMC';
+				$('wallet-sendable-hmc').title = 'Estimate: full balance minus minimum fee (' + minFeeUnits + ' Kapa).';
+			}
+		}
+		function renderWalletSelectedCoinDetail() {
+			const coin = walletSelectedCoin();
+			if (!coin) return;
+			const isHmc = isWalletCoinHMC(coin);
+			const isSup = isWalletCoinSUP(coin);
+			const sym = coin.symbol || '—';
+			if ($('wallet-selected-coin-name')) $('wallet-selected-coin-name').textContent = coin.name || sym;
+			if ($('wallet-symbol-big')) $('wallet-symbol-big').textContent = sym;
+			if ($('wallet-earnings-coin-label')) $('wallet-earnings-coin-label').textContent = sym;
+			document.querySelectorAll('.wallet-detail-hmc-only').forEach((el) => {
+				el.classList.toggle('hidden', !isHmc);
+			});
+			document.querySelectorAll('.wallet-detail-sup-only').forEach((el) => {
+				el.classList.toggle('hidden', !isSup);
+			});
+			const statsGrid = $('wallet-overview-stats-grid');
+			if (statsGrid) {
+				statsGrid.classList.toggle('lg:grid-cols-5', isHmc);
+				statsGrid.classList.toggle('lg:grid-cols-3', isSup);
+			}
+			const transferTab = document.querySelector('.wallet-detail-tab[data-wallet-section="transfer"]');
+			if (transferTab) transferTab.classList.toggle('hidden', !isHmc);
+			const earningsTab = document.querySelector('.wallet-detail-tab[data-wallet-section="earnings"]');
+			if (earningsTab) {
+				earningsTab.classList.toggle('opacity-40', !isHmc);
+				earningsTab.classList.toggle('pointer-events-none', !isHmc);
+				earningsTab.title = isHmc ? '' : 'Earnings chart is HMC on-chain only';
+			}
+			const earningsHmcBody = $('wallet-earnings-hmc-body');
+			const earningsSupMsg = $('wallet-earnings-hmc-only-msg');
+			if (earningsHmcBody) earningsHmcBody.classList.toggle('hidden', !isHmc);
+			if (earningsSupMsg) earningsSupMsg.classList.toggle('hidden', isHmc);
+			if (!isHmc && walletDetailSection === 'transfer') setWalletDetailSection('overview');
+			if (!isHmc && walletDetailSection === 'earnings' && !isSup) setWalletDetailSection('overview');
+			const st = latestWorkerSettlementSnap || {};
+			const cap = $('wallet-balance-caption');
+			const note = $('wallet-miner-payout-note');
+			if (isSup) {
+				const onChain = Number(walletSnapshot.balanceSUP || 0);
+				const accrued = Number(st.wallet_accrued_sup || 0);
+				const unpaid = Number(st.wallet_unpaid_sup || 0);
+				if ($('wallet-balance-big')) $('wallet-balance-big').textContent = fmt(onChain, 8);
+				if (cap) {
+					const parts = [];
+					if (onChain > 0.000001) parts.push('On-chain ' + fmt(onChain, 6) + ' SUP');
+					if (unpaid > 0.000001) parts.push('Pool unsettled ' + fmt(unpaid, 6) + ' SUP');
+					cap.textContent = parts.length
+						? parts.join(' · ') + '. CEX listing only after HMC lists.'
+						: 'Pool accrual only — run settlement mint on chain host.';
+				}
+				if (note) {
+					const policyNote = String(st.sup_settlement_note || '').trim();
+					note.textContent = policyNote ||
+						'Earned only via hybrid-signed HMC pool mining. On-chain SUP follows HMC exchange listing.';
+					note.classList.remove('hidden');
+					note.className = 'text-[10px] text-gray-400 mb-6 max-w-2xl mx-auto leading-relaxed';
+				}
+				if ($('wallet-sup-accrued')) {
+					$('wallet-sup-accrued').textContent = fmt(accrued, 8) + ' SUP';
+				}
+				if ($('wallet-sup-unpaid')) {
+					$('wallet-sup-unpaid').textContent = fmt(unpaid, 8) + ' SUP';
+				}
+				const supOnChainEl = $('wallet-sup-onchain');
+				if (supOnChainEl) supOnChainEl.textContent = fmt(onChain, 8) + ' SUP';
+				const sp = st.sup_policy || {};
+				if ($('wallet-sup-policy-note')) {
+					const ratePct = Number(sp.rate_of_hmc || 0.08) * 100;
+					const hybrid = sp.require_hybrid !== false ? 'hybrid required' : 'hybrid optional';
+					$('wallet-sup-policy-note').textContent =
+						'~' + fmt(ratePct, 1) + '% of attempt HMC · ' + hybrid + ' · daily fleet cap';
+				}
+				if ($('wallet-sync-badge')) {
+					$('wallet-sync-badge').textContent = onChain > 0
+						? 'On-chain SUP: active (transfer_sup_v1)'
+						: 'On-chain SUP: accrual only until settlement mint';
+				}
+				if ($('wallet-chain-meta')) {
+					$('wallet-chain-meta').textContent =
+						'SUP shares your HMC address. Mine HMC with hybrid signer → pool accrual → optional on-chain mint.';
+				}
+				if ($('wallet-signer-note')) {
+					const signer = String(st.last_signed_miner_address || '').trim();
+					$('wallet-signer-note').textContent = signer
+						? 'Hybrid signer: ' + signer
+						: 'Hybrid-signed pool work required for SUP accrual.';
+				}
+				return;
+			}
+			if (isHmc) {
+				if ($('wallet-balance-big')) $('wallet-balance-big').textContent = fmt(Number(walletSnapshot.balanceHMC || 0), 8);
+				applyWalletHmcOnChainFields();
+				const unpaidHmc = Number(st.wallet_unpaid_hmc || 0);
+				if ($('wallet-unpaid-hmc') && Number.isFinite(unpaidHmc)) {
+					$('wallet-unpaid-hmc').textContent = fmt(unpaidHmc, 6) + ' HMC';
+				}
+				syncWalletMinerPayoutNote();
+			}
+		}
 		function syncWalletDetailPanes() {
-			const coin = walletHubCoinById(walletSelectedCoinId);
-			const isLive = !!(coin && (coin.walletLive || coin.status === 'live'));
+			const coin = walletSelectedCoin();
+			const isLive = !!(coin && (coin.walletLive || coin.status === 'live' || coin.status === 'accrual'));
 			const planned = $('wallet-planned-pane');
 			const live = $('wallet-live-pane');
 			if (planned) planned.classList.toggle('hidden', isLive);
@@ -2786,12 +2950,9 @@
 				if ($('wallet-planned-symbol')) $('wallet-planned-symbol').textContent = coin.symbol || '—';
 				if ($('wallet-planned-desc')) $('wallet-planned-desc').textContent = coin.walletDesc || coin.roadmap || 'Coming soon.';
 				if ($('wallet-planned-roadmap')) $('wallet-planned-roadmap').textContent = coin.roadmap || 'Planned';
+				return;
 			}
-			if (isLive) {
-				if ($('wallet-symbol-big')) $('wallet-symbol-big').textContent = coin.symbol || 'HMC';
-				if ($('wallet-selected-coin-name')) $('wallet-selected-coin-name').textContent = coin.name || 'HackMe Coin';
-				if ($('wallet-earnings-coin-label')) $('wallet-earnings-coin-label').textContent = coin.symbol || 'HMC';
-			}
+			if (isLive) renderWalletSelectedCoinDetail();
 		}
 		function setWalletDetailSection(section) {
 			walletDetailSection = section || 'overview';
@@ -2823,11 +2984,13 @@
 				const bal = walletCoinBalanceDisplay(coin);
 				const row = document.createElement('button');
 				row.type = 'button';
-				row.className = 'wallet-coin-row' + (walletSelectedCoinId === coin.id ? ' active' : '') + (coin.status !== 'live' ? ' planned' : '');
+				row.className = 'wallet-coin-row' + (walletSelectedCoinId === coin.id ? ' active' : '') + (coin.walletLive || coin.status === 'live' ? '' : ' planned');
 				row.dataset.coinId = coin.id;
 				const badge =
 					coin.status === 'live'
 						? '<span class="wallet-coin-badge live">Live</span>'
+						: coin.status === 'accrual'
+							? '<span class="wallet-coin-badge bonus">Accrual</span>'
 						: coin.walletRole === 'bonus'
 							? '<span class="wallet-coin-badge bonus">Bonus</span>'
 							: '<span class="wallet-coin-badge soon">Soon</span>';
@@ -3827,7 +3990,7 @@
 		}
 		const UNITS_PER_HMC = 100000000;
 		const MIN_TX_FEE_UNITS = 1000;
-		let walletSnapshot = { address: '', balanceHMC: 0, balanceUnits: 0, nextNonce: 0 };
+		let walletSnapshot = { address: '', balanceHMC: 0, balanceUnits: 0, balanceSUP: 0, balanceSUPUnits: 0, nextNonce: 0, supNextNonce: 0 };
 		const WALLET_EARNINGS_PERIOD_KEY = 'hackme_wallet_earnings_period';
 		let walletEarningsPeriod = '24h';
 		try {
@@ -4108,7 +4271,8 @@
 								walletSnapshot.balanceHMC = Number(wj.balance_hmc || wj.balance_display_hmc || walletSnapshot.balanceHMC);
 								walletSnapshot.balanceUnits = Number(wj.balance_units || wj.balance_display_units || walletSnapshot.balanceUnits);
 								syncTxFormFromWalletSnapshot();
-								if ($('wallet-balance-big')) $('wallet-balance-big').textContent = fmt(walletSnapshot.balanceHMC, 8);
+								applyWalletHmcOnChainFields();
+								renderWalletSelectedCoinDetail();
 								txTrackClear();
 								void refreshWalletEarnings();
 								void refreshTxPoolTable();
@@ -6277,13 +6441,15 @@
 				miners,
 			};
 		}
+		function ecosystemMineableCoins() {
+			return ECOSYSTEM_COINS.filter((c) => c.status === 'live' && c.mineTab);
+		}
 		function renderEcosystemCoins() {
 			const tb = $('ecosystem-coins-body');
 			if (!tb) return;
-			const live = ECOSYSTEM_COINS.filter((c) => c.status === 'live');
-			const planned = ECOSYSTEM_COINS.filter((c) => c.status !== 'live');
+			const mineable = ecosystemMineableCoins();
 			const hmc = liveHmcCoinMetrics();
-			if ($('eco-live-count')) $('eco-live-count').textContent = fmtUInt(live.length);
+			if ($('eco-live-count')) $('eco-live-count').textContent = fmtUInt(mineable.length);
 			if ($('eco-total-hash')) $('eco-total-hash').textContent = hmc.poolGhLabel;
 			if ($('eco-kpi-miners')) $('eco-kpi-miners').textContent = fmtUInt(hmc.miners);
 			if ($('eco-kpi-target-mod')) $('eco-kpi-target-mod').textContent = hmc.targetMod;
@@ -6321,19 +6487,12 @@
 					'<td>' + action + '</td>';
 				tb.appendChild(tr);
 			};
-			live.forEach((coin) => {
+			if (mineable.length === 0) {
+				tb.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-center text-gray-500">No live mining pools yet.</td></tr>';
+				return;
+			}
+			mineable.forEach((coin) => {
 				renderRow(coin, coin.id === 'hmc' ? hmc : null);
-			});
-			planned.forEach((coin) => {
-				renderRow(coin, {
-					poolGhLabel: '—',
-					blocks: '—',
-					poolLuck: '—',
-					networkGhLabel: '—',
-					targetMod: '—',
-					price: '—',
-					blockReward: '—',
-				});
 			});
 		}
 		function openEcosystemCoin(coin) {
@@ -6492,6 +6651,8 @@
 			return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
 		}
 		function syncWalletMinerPayoutNote() {
+			const coin = walletSelectedCoin();
+			if (coin && !isWalletCoinHMC(coin)) return;
 			const note = $('wallet-miner-payout-note');
 			const cap = $('wallet-balance-caption');
 			if (!note || !cap) return;
@@ -10813,10 +10974,14 @@
 				}
 				walletSnapshot.balanceHMC = balH;
 				walletSnapshot.balanceUnits = balU;
+				walletSnapshot.balanceSUP = Number(w.balance_sup || 0);
+				walletSnapshot.balanceSUPUnits = Number(w.balance_sup_units || 0);
+				walletSnapshot.supNextNonce = Number(w.sup_next_nonce || 0);
 				walletSnapshot.nextNonce = Number(w.next_nonce || walletSnapshot.nextNonce || 0);
-				if ($('wallet-balance-big')) $('wallet-balance-big').textContent = fmt(walletSnapshot.balanceHMC, 8);
-				if ($('wallet-balance-units')) $('wallet-balance-units').textContent = fmtUInt(walletSnapshot.balanceUnits);
-				if ($('wallet-balance-units-hmc-echo')) $('wallet-balance-units-hmc-echo').textContent = '≈ ' + fmt(walletSnapshot.balanceUnits / 100000000, 8) + ' HMC';
+				applyWalletHmcOnChainFields();
+				if (isWalletCoinHMC(walletSelectedCoin()) && $('wallet-balance-big')) {
+					$('wallet-balance-big').textContent = fmt(walletSnapshot.balanceHMC, 8);
+				}
 				if ($('kpi-balance')) {
 					const bh = Number(walletSnapshot.balanceHMC || 0);
 					$('kpi-balance').textContent = bh >= 100 ? fmt(bh, 4) : fmt(bh, 8);
@@ -10837,14 +11002,6 @@
 					const src = String(w.wallet_source || 'local_db');
 					const canonOn = src.includes('canonical');
 					$('wallet-sync-badge').textContent = 'Canonical sync: ' + (canonOn ? 'ON' : 'OFF') + ' (' + src + ')';
-				}
-				if ($('wallet-sendable-hmc')) {
-					const minFeeUnits = 1000;
-					const bu = Math.floor(Number(walletSnapshot.balanceUnits) || 0);
-					const maxAmtUnits = bu > minFeeUnits ? (bu - minFeeUnits) : 0;
-					const maxSendHmc = maxAmtUnits / 100000000;
-					$('wallet-sendable-hmc').textContent = fmt(maxSendHmc, 8) + ' HMC';
-					$('wallet-sendable-hmc').title = 'Estimate: full balance minus minimum fee (' + minFeeUnits + ' Kapa). Actual fee may be higher — send amount lower.';
 				}
 				if ($('balance-sub')) {
 					const st = latestStatus || {};
@@ -10871,7 +11028,7 @@
 						$('balance-sub').textContent = base + (canon ? ' · wallet: canonical view' : ' · wallet: local ledger');
 					}
 				}
-				syncWalletMinerPayoutNote();
+				if (isWalletCoinHMC(walletSelectedCoin())) syncWalletMinerPayoutNote();
 				}
 			} catch (_) {}
 			try {
@@ -10885,20 +11042,26 @@
 						ok: true,
 						last_signed_miner_address: String(s.last_signed_miner_address || ''),
 						accrual_source: String(s.accrual_source || ''),
-						wallet_unpaid_hmc: Number(s.wallet_unpaid_hmc || s.total_unpaid_hmc || 0)
+						wallet_unpaid_hmc: Number(s.wallet_unpaid_hmc || s.total_unpaid_hmc || 0),
+						wallet_accrued_sup: Number(s.wallet_accrued_sup || s.total_accrued_sup || 0),
+						wallet_unpaid_sup: Number(s.wallet_unpaid_sup || s.total_unpaid_sup || 0),
+						sup_policy: s.sup_policy || null,
+						sup_settlement_note: String(s.sup_settlement_note || '')
 					};
-					const unpaidHmc = Number(s.wallet_unpaid_hmc ?? s.total_unpaid_hmc);
-					if ($('wallet-unpaid-hmc') && Number.isFinite(unpaidHmc)) {
-						$('wallet-unpaid-hmc').textContent = fmt(unpaidHmc, 6) + ' HMC';
-					}
-					if ($('wallet-unpaid-note')) {
-						const threshold = Number(s.min_settle_hmc || 0);
-						const thresholdReady = !!s.threshold_ready;
-						const nextSweep = Number(s.next_daily_sweep_unix || 0);
-						const sweepText = nextSweep > 0 ? fmtUnix(nextSweep) : '—';
-						$('wallet-unpaid-note').textContent =
-							'threshold ' + fmt(threshold, 6) + ' HMC: ' + (thresholdReady ? 'ready' : 'pending') +
-							' | next sweep: ' + sweepText;
+					if (isWalletCoinHMC(walletSelectedCoin())) {
+						const unpaidHmc = Number(s.wallet_unpaid_hmc ?? s.total_unpaid_hmc);
+						if ($('wallet-unpaid-hmc') && Number.isFinite(unpaidHmc)) {
+							$('wallet-unpaid-hmc').textContent = fmt(unpaidHmc, 6) + ' HMC';
+						}
+						if ($('wallet-unpaid-note')) {
+							const threshold = Number(s.min_settle_hmc || 0);
+							const thresholdReady = !!s.threshold_ready;
+							const nextSweep = Number(s.next_daily_sweep_unix || 0);
+							const sweepText = nextSweep > 0 ? fmtUnix(nextSweep) : '—';
+							$('wallet-unpaid-note').textContent =
+								'threshold ' + fmt(threshold, 6) + ' HMC: ' + (thresholdReady ? 'ready' : 'pending') +
+								' | next sweep: ' + sweepText;
+						}
 					}
 				} else {
 					latestWorkerSettlementSnap = null;
@@ -10909,12 +11072,13 @@
 				if ($('wallet-unpaid-hmc')) $('wallet-unpaid-hmc').textContent = '—';
 				if ($('wallet-unpaid-note')) $('wallet-unpaid-note').textContent = 'settlement: unavailable';
 			}
-			syncWalletMinerPayoutNote();
+			if (isWalletCoinHMC(walletSelectedCoin())) syncWalletMinerPayoutNote();
 			updateWalletEarningsPeriodButtons();
 			try {
 				renderWalletCoinSidebar();
 				renderWalletPortfolioSummary();
 				syncWalletDetailPanes();
+				renderWalletSelectedCoinDetail();
 			} catch (_) {}
 		}
 

@@ -73,6 +73,12 @@ type workManager struct {
 	rejectedSubmits      uint64
 	totalAttempts        uint64
 	totalPayoutHMC       float64
+	totalPayoutSUP       float64
+	supPolicy            supPolicy
+	supMeta              map[string]workerSupMeta
+	supDayID             int64
+	supAccruedDay        float64
+	hmcAccruedDay        float64
 	dedupSubmits         uint64
 	dedupFoundNonce      uint64
 	signedAccepts        uint64
@@ -141,6 +147,7 @@ type workerPayoutStat struct {
 	AcceptedHits    uint64  `json:"accepted_hits"`
 	AcceptedAtt     uint64  `json:"accepted_attempts"`
 	PayoutHMC       float64 `json:"payout_hmc"`
+	PayoutSUP       float64 `json:"payout_sup"`
 	PayoutAddress   string  `json:"payout_address,omitempty"`
 	SignedSubmits   uint64  `json:"signed_submits,omitempty"`
 	LastHashrateGHS float64 `json:"hashrate_gh_s,omitempty"`
@@ -372,6 +379,8 @@ func newWorkManagerFromEnv() *workManager {
 		targetModMax:             maxM,
 		targetModUpdatedUnix:     time.Now().Unix(),
 		poolRetargetMinSec:       poolRetargetMinSec,
+		supPolicy:                supPolicyFromEnv(),
+		supMeta:                  make(map[string]workerSupMeta),
 	}
 }
 
@@ -949,7 +958,7 @@ func (m *workManager) pruneStaleWorkers(prefix string, maxPayout float64, staleS
 			continue
 		}
 		// Keep rigs with pool history so miner dashboards and settlement retain per-worker rows.
-		if st.PayoutHMC > 0 || st.AcceptedAtt > 0 || st.AcceptedRanges > 0 {
+		if st.PayoutHMC > 0 || st.PayoutSUP > 0 || st.AcceptedAtt > 0 || st.AcceptedRanges > 0 {
 			kept = append(kept, id)
 			continue
 		}
@@ -1201,6 +1210,7 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	if rec.ExpiresAt < now {
 		delete(m.active, k)
 		m.staleSubmits++
+		m.noteWorkerStale(req.WorkerID, now)
 		return false, "lease_expired", 0, "", false
 	}
 	leaseMod := m.targetMod
@@ -1358,6 +1368,11 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	}
 	st.LastSeenUnix = time.Now().Unix()
 	st.PayoutHMC += payout
+	hybridOK := signerAddr != ""
+	if sup := m.computeSUPAccrual(req.WorkerID, payout, paidAttempts, hybridOK, now); sup > 0 {
+		st.PayoutSUP += sup
+		m.totalPayoutSUP += sup
+	}
 	m.worker[req.WorkerID] = st
 	m.totalPayoutHMC += payout
 	// Keep pool M aligned with live fleet GH/s even when nothing polls /api/work/stats (top pools
@@ -1680,6 +1695,8 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 		"dedup_found_nonce":            m.dedupFoundNonce,
 		"accepted_attempts":            m.totalAttempts,
 		"total_payout_hmc":             m.totalPayoutHMC,
+		"total_payout_sup":             m.totalPayoutSUP,
+		"sup_policy":                   m.supPolicyStats(),
 		"claim_per_min":                m.claimPerMin,
 		"submit_per_min":               m.submitPerMin,
 		"ban_sec":                      m.banSec,

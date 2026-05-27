@@ -710,6 +710,9 @@ func (s *Service) AppendPoHBlock(ctx context.Context, minerAddress string, nonce
 	if err := s.applyPendingTransfers(ctx, tx, nextIdx, b.Hash); err != nil {
 		return nil, err
 	}
+	if err := s.applyPendingSupTransfers(ctx, tx, nextIdx, b.Hash); err != nil {
+		return nil, err
+	}
 	nextModStr := strconv.FormatUint(nextMod, 10)
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO meta (key, value) VALUES ('poh_target_mod', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,

@@ -79,6 +79,9 @@ func migrate(db *sql.DB) error {
 	if err := migrateTransferLedger(db); err != nil {
 		return err
 	}
+	if err := migrateSUPLedger(db); err != nil {
+		return err
+	}
 	if err := migrateWalletUnits(db); err != nil {
 		return err
 	}
@@ -191,6 +194,56 @@ func migrateTransferLedger(db *sql.DB) error {
 		 ON CONFLICT(address) DO NOTHING`,
 	); err != nil {
 		return err
+	}
+	return nil
+}
+
+func migrateSUPLedger(db *sql.DB) error {
+	alters := []string{
+		`ALTER TABLE accounts ADD COLUMN balance_sup_units INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE accounts ADD COLUMN sup_next_nonce INTEGER NOT NULL DEFAULT 0`,
+	}
+	for _, s := range alters {
+		if _, err := db.Exec(s); err != nil {
+			if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+				return err
+			}
+		}
+	}
+	stmts := []string{
+		`CREATE TABLE IF NOT EXISTS sup_tx_pool (
+			tx_hash TEXT PRIMARY KEY,
+			tx_json TEXT NOT NULL,
+			from_address TEXT NOT NULL,
+			to_address TEXT NOT NULL,
+			nonce INTEGER NOT NULL,
+			fee_units INTEGER NOT NULL,
+			amount_units INTEGER NOT NULL,
+			received_at INTEGER NOT NULL,
+			status TEXT NOT NULL DEFAULT 'pending',
+			reject_code TEXT NOT NULL DEFAULT ''
+		)`,
+		`CREATE TABLE IF NOT EXISTS sup_tx_history (
+			tx_hash TEXT PRIMARY KEY,
+			tx_json TEXT NOT NULL,
+			from_address TEXT NOT NULL,
+			to_address TEXT NOT NULL,
+			nonce INTEGER NOT NULL,
+			fee_units INTEGER NOT NULL,
+			amount_units INTEGER NOT NULL,
+			status TEXT NOT NULL,
+			block_index INTEGER NOT NULL DEFAULT -1,
+			block_hash TEXT NOT NULL DEFAULT '',
+			applied_at INTEGER NOT NULL,
+			reject_code TEXT NOT NULL DEFAULT ''
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_sup_tx_pool_from_nonce ON sup_tx_pool(from_address, nonce)`,
+		`CREATE INDEX IF NOT EXISTS idx_sup_tx_history_to_applied ON sup_tx_history(to_address, applied_at DESC)`,
+	}
+	for _, s := range stmts {
+		if _, err := db.Exec(s); err != nil {
+			return err
+		}
 	}
 	return nil
 }

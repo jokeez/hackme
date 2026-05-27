@@ -1635,8 +1635,20 @@ func repairWorkerSettlementState(state *workerSettlementState, workers map[strin
 			accrued = 0
 		}
 		ent := state.Workers[wid]
+		rowChanged := false
 		if ent.SettledHMC > accrued+1e-12 {
 			ent.SettledHMC = accrued
+			rowChanged = true
+		}
+		accruedSUP := parseAnyFloat(row["payout_sup"])
+		if accruedSUP < 0 {
+			accruedSUP = 0
+		}
+		if ent.SettledSUP > accruedSUP+1e-12 {
+			ent.SettledSUP = accruedSUP
+			rowChanged = true
+		}
+		if rowChanged {
 			state.Workers[wid] = ent
 			changed = true
 		}
@@ -1785,6 +1797,47 @@ func settlementDisplayWalletAddress(nodeAddress string, payoutMap map[string]str
 		}
 	}
 	return strings.TrimSpace(nodeAddress)
+}
+
+// walletAccrualSUPFromCoordinator derives accrued/unpaid SUP for the desktop wallet (off-chain until SUP genesis).
+func walletAccrualSUPFromCoordinator(ws map[string]any, stateWorkers map[string]workerSettlementStateEntry, nodeAddress, desktopWorkerID string, payoutMap map[string]string) (accrued, settled, unpaid float64) {
+	if ws == nil {
+		return 0, 0, 0
+	}
+	workers := coordinatorWorkersMap(ws)
+	if len(workers) == 0 {
+		return 0, 0, 0
+	}
+	nodeAddr := settlementDisplayWalletAddress(nodeAddress, payoutMap)
+	wid := strings.TrimSpace(desktopWorkerID)
+	if wid == "" {
+		wid = "worker-kapa-pc"
+	}
+	var sumAccrued, sumSettled float64
+	for workerID, v := range workers {
+		if !walletWorkerRowMatches(nodeAddr, workerID, mapFromAny(v), ws, payoutMap) {
+			continue
+		}
+		row := mapFromAny(v)
+		rowAccrued := parseAnyFloat(row["payout_sup"])
+		if rowAccrued < 0 {
+			rowAccrued = 0
+		}
+		rowSettled := stateWorkers[workerID].SettledSUP
+		if rowSettled < 0 {
+			rowSettled = 0
+		}
+		if rowSettled > rowAccrued {
+			rowSettled = rowAccrued
+		}
+		sumAccrued += rowAccrued
+		sumSettled += rowSettled
+	}
+	unpaid = sumAccrued - sumSettled
+	if unpaid < 0 {
+		unpaid = 0
+	}
+	return sumAccrued, sumSettled, unpaid
 }
 
 // walletAccrualFromCoordinator derives accrued/settled/unpaid HMC for the desktop wallet from coordinator stats.

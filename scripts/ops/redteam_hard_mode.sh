@@ -64,6 +64,9 @@ gate_run_case "redteam-hard" "$RESULTS" "$OUT_DIR" "coordinator-matrix" "coordin
 gate_run_case "redteam-hard" "$RESULTS" "$OUT_DIR" "hybrid-signer-smoke" "strict hybrid signer rejects unsigned submits" "" \
   env COORD_URL="$COORD" COORD_TOKEN="$ADMIN_TOKEN" REQUIRE_HYBRID=1 bash scripts/tests/hybrid_signer_smoke.sh
 
+gate_run_case "redteam-hard" "$RESULTS" "$OUT_DIR" "sup-accrual-gate" "SUP honest accrual policy unit tests pass" "" \
+  env COORD_URL="$COORD" bash scripts/ops/sup_accrual_gate.sh
+
 gate_run_case "redteam-hard" "$RESULTS" "$OUT_DIR" "difficulty-health" "difficulty retarget health within policy bounds" "" \
   env RUN_ID="$RUN_ID" BASE="$BASE" bash scripts/tests/difficulty_health.sh
 

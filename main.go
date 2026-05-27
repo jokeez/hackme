@@ -438,6 +438,10 @@ func main() {
 	mux.HandleFunc("/api/fuzz/housekeeping", a.handleFuzzHousekeeping)
 	mux.HandleFunc("/api/fuzz/artifacts/cleanup", a.handleFuzzArtifactsCleanup)
 	mux.HandleFunc("/api/tx/send", a.handleTransferSend)
+	mux.HandleFunc("/api/sup/economics", a.handleSUPEconomics)
+	mux.HandleFunc("/api/sup/genesis", a.handleSUPGenesisInit)
+	mux.HandleFunc("/api/sup/mint", a.handleSUPMint)
+	mux.HandleFunc("/api/sup/tx/send", a.handleSUPTransferSend)
 	mux.HandleFunc("/api/tx/pool", a.handleTransferPool)
 	mux.HandleFunc("/api/tx/", a.handleTransferByHash)
 	mux.HandleFunc("/api/address/", a.handleTransferAddressState)
@@ -1340,10 +1344,14 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 	if displayAddr == "" {
 		displayAddr = lookupAddr
 	}
+	supSt, _ := a.chain.SupAddressState(ctx, lookupAddr)
 	out := map[string]any{
 		"address":                    displayAddr,
 		"balance_hmc":                bal,
 		"balance_units":              balanceUnits,
+		"balance_sup":                supSt.BalanceSUP,
+		"balance_sup_units":          supSt.BalanceSUPUnits,
+		"sup_next_nonce":             supSt.SUPNextNonce,
 		"next_nonce":                 nextNonce,
 		"wallet_source":              walletSource,
 		"balance_local_mirror_hmc":   localMirrorHMC,
@@ -2508,6 +2516,7 @@ func (a *app) handleWorkerStatus(w http.ResponseWriter, r *http.Request) {
 
 type workerSettlementStateEntry struct {
 	SettledHMC     float64 `json:"settled_hmc"`
+	SettledSUP     float64 `json:"settled_sup,omitempty"`
 	PayoutAddress  string  `json:"payout_address,omitempty"`
 	LastTxHash     string  `json:"last_tx_hash,omitempty"`
 	LastSettleUnix int64   `json:"last_settle_unix,omitempty"`
@@ -2647,6 +2656,12 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 	}
 	workers := coordinatorWorkersMap(ws)
 	minSettleHMC, dailyForceIntervalSec, dailyMinSettleHMC := settlementWindowConfigNow()
+	minSettleSUP := 0.01
+	if v := strings.TrimSpace(os.Getenv("MIN_SETTLE_SUP")); v != "" {
+		if n, err := strconv.ParseFloat(v, 64); err == nil && n > 0 {
+			minSettleSUP = n
+		}
+	}
 	nowUnix := time.Now().Unix()
 	lastForceUnix := state.Meta.LastForceUnix
 	if lastForceUnix < 0 {
@@ -2664,6 +2679,7 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 	payoutMap := workerPayoutMapFromEnv()
 	displayWallet := settlementDisplayWalletAddress(a.nodeID, payoutMap)
 	walletAccrued, walletSettled, walletUnpaid, accrualSource := walletAccrualFromCoordinator(ws, state.Workers, a.nodeID, a.workerID, payoutMap, a.workerProcessRunning())
+	walletAccruedSUP, walletSettledSUP, walletUnpaidSUP := walletAccrualSUPFromCoordinator(ws, state.Workers, a.nodeID, a.workerID, payoutMap)
 	desktopWorkerID := strings.TrimSpace(a.workerID)
 	if desktopWorkerID == "" {
 		desktopWorkerID = "worker-kapa-pc"
@@ -2680,6 +2696,7 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		coordinatorPending = desktopWorkerAccrued
 	}
 	var totalAccrued, totalSettled, totalUnpaid float64
+	var totalAccruedSUP, totalSettledSUP, totalUnpaidSUP float64
 	for workerID, v := range workers {
 		if coordOmittedBreakdown && workerID == "worker-active" {
 			continue
@@ -2700,6 +2717,20 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		totalAccrued += accrued
 		totalSettled += settled
 		totalUnpaid += unpaid
+		accruedSUP := parseAnyFloat(row["payout_sup"])
+		if accruedSUP < 0 {
+			accruedSUP = 0
+		}
+		settledSUP := state.Workers[workerID].SettledSUP
+		if settledSUP < 0 {
+			settledSUP = 0
+		}
+		if settledSUP > accruedSUP {
+			settledSUP = accruedSUP
+		}
+		totalAccruedSUP += accruedSUP
+		totalSettledSUP += settledSUP
+		totalUnpaidSUP += accruedSUP - settledSUP
 	}
 	displayUnpaid := walletUnpaid
 	if strings.TrimSpace(a.nodeID) == "" {
@@ -2720,6 +2751,9 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 			walletSettled = totalSettled
 			walletUnpaid = totalUnpaid
 			displayUnpaid = totalUnpaid
+			walletAccruedSUP = totalAccruedSUP
+			walletSettledSUP = totalSettledSUP
+			walletUnpaidSUP = totalUnpaidSUP
 			if accrualSource == "none" {
 				accrualSource = "unified_payout_map"
 			}
@@ -2750,12 +2784,27 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		if settled > accrued {
 			settled = accrued
 		}
+		accruedSUP := parseAnyFloat(row["payout_sup"])
+		if accruedSUP < 0 {
+			accruedSUP = 0
+		}
+		settledSUP := state.Workers[workerID].SettledSUP
+		if settledSUP < 0 {
+			settledSUP = 0
+		}
+		if settledSUP > accruedSUP {
+			settledSUP = accruedSUP
+		}
 		workerBreakdown[workerID] = map[string]any{
 			"accrued_hmc": accrued,
 			"settled_hmc": settled,
 			"unpaid_hmc":  accrued - settled,
+			"accrued_sup": accruedSUP,
+			"settled_sup": settledSUP,
+			"unpaid_sup":  accruedSUP - settledSUP,
 		}
 	}
+	supPolicy, _ := ws["sup_policy"].(map[string]any)
 	writeJSON(w, map[string]any{
 		"ok":                                    true,
 		"source":                                base,
@@ -2766,6 +2815,15 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		"wallet_accrued_hmc":                    walletAccrued,
 		"wallet_settled_hmc":                    walletSettled,
 		"wallet_unpaid_hmc":                     walletUnpaid,
+		"wallet_accrued_sup":                  walletAccruedSUP,
+		"wallet_settled_sup":                  walletSettledSUP,
+		"wallet_unpaid_sup":                   walletUnpaidSUP,
+		"total_accrued_sup":                   totalAccruedSUP,
+		"total_unpaid_sup":                    totalUnpaidSUP,
+		"coordinator_total_payout_sup":        parseAnyFloat(ws["total_payout_sup"]),
+		"sup_policy":                          supPolicy,
+		"min_settle_sup":                      minSettleSUP,
+		"sup_settlement_note":                 a.supSettlementNoteForAPI(ctx),
 		"display_wallet_address":                displayWallet,
 		"desktop_worker_id":                     desktopWorkerID,
 		"desktop_worker_accrued_hmc":            desktopWorkerAccrued,
@@ -3576,7 +3634,16 @@ func (a *app) handleTransferAddressState(w http.ResponseWriter, r *http.Request)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, row)
+	supSt, _ := a.chain.SupAddressState(r.Context(), addr)
+	writeJSON(w, map[string]any{
+		"address":           row.Address,
+		"balance_units":     row.BalanceUnits,
+		"next_nonce":        row.NextNonce,
+		"balance_hmc":       chain.UnitsToHMC(row.BalanceUnits),
+		"balance_sup":       supSt.BalanceSUP,
+		"balance_sup_units": supSt.BalanceSUPUnits,
+		"sup_next_nonce":    supSt.SUPNextNonce,
+	})
 }
 
 func (a *app) handleP2PHandshake(w http.ResponseWriter, r *http.Request) {

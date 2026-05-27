@@ -1,6 +1,6 @@
 # HackMe Support (SUP) — utility & emission spec
 
-**Status:** prelaunch (announced 2026-05-27). On-chain genesis and trading pairs follow dedicated rollout; not a free airdrop coin.
+**Status:** Phase B+C (2026-05-27) — coordinator accrual + on-chain SUP ledger (mint/transfer_sup_v1) + settlement script; **CEX listing still only after primary HMC is listed** (Phase D).
 
 ## Positioning
 
@@ -27,7 +27,7 @@ SUP is designed for **exchange listing**: fixed policy, on-chain transfers, publ
    - `+0.25` only after **72h continuous** clean mining (same worker_id + payout)
 5. **Found-hit rule** — SUP does **not** copy HMC found bonus; optional tiny SUP for verified useful finds only (operator policy).
 6. **Per-epoch fleet cap** — global SUP accrual per day capped (% of daily HMC pool payout) so bot farms cannot drain.
-7. **Settlement** — SUP accrues off-chain like HMC until `min_settle_sup` and settlement script; separate state file.
+7. **Settlement** — coordinator accrual, then `settle_worker_sup.sh` mints on-chain (`MIN_SETTLE_SUP`, shared `worker_settlement_state.json` with `settled_sup`).
 
 ## Utility (why hold / trade)
 
@@ -48,10 +48,10 @@ SUP is designed for **exchange listing**: fixed policy, on-chain transfers, publ
 
 | Phase | Deliverable |
 |-------|-------------|
-| A (now) | Public spec, site Coins page, wallet hub placeholder, Telegram |
-| B | Coordinator dual accrual fields + dashboard “HMC + SUP” |
-| C | SUP chain genesis or shared-ledger asset id + settlement |
-| D | CEX/DEX outreach with supply proof + 30d emission chart |
+| A | Public spec, site Coins page, Telegram |
+| B (live) | Coordinator `payout_sup` + `sup_policy` + dashboard wallet accrual |
+| C (live) | On-chain SUP (`balance_sup_units`, `POST /api/sup/mint`, `settle_worker_sup.sh`) — see `docs/SUP_PHASE_C.md` |
+| D | CEX/DEX listing **only after HMC is listed** + 30d emission chart |
 
 ## Honest limits
 

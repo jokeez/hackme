@@ -23,6 +23,8 @@ type securityAuditRequest struct {
 	Code            string   `json:"code"`
 	WasmCheckHex    string   `json:"wasm_check_hex"`
 	BudgetHMC       float64  `json:"budget_hmc"`
+	UseSUPDiscount  *bool    `json:"use_sup_discount"`
+	PayerWallet     string   `json:"payer_wallet"`
 	BudgetRuns      int      `json:"budget_runs"`
 	BudgetSeconds   int      `json:"budget_seconds"`
 	SeedCorpus      []uint64 `json:"seed_corpus"`
@@ -162,6 +164,31 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	if payerRef == "" {
 		payerRef = "audit:" + campaignID
 	}
+	payerWallet := strings.TrimSpace(req.PayerWallet)
+	if payerWallet == "" && strings.HasPrefix(payerRef, "HMC-") {
+		payerWallet = payerRef
+	}
+	if payerWallet == "" {
+		if addr, _, err := a.chain.Wallet(r.Context()); err == nil {
+			payerWallet = strings.TrimSpace(addr)
+		}
+	}
+	useSUP := req.UseSUPDiscount == nil || *req.UseSUPDiscount
+	var supDiscountUsed float64
+	escrowBudgetHMC := budgetHMC
+	if useSUP && payerWallet != "" {
+		supSt, err := a.chain.SupAddressState(r.Context(), payerWallet)
+		if err == nil && supSt.BalanceSUP > 0 {
+			cash, supUsed := chain.ApplyAuditSUPDiscount(budgetHMC, supSt.BalanceSUP)
+			if supUsed > 0 {
+				units := chain.SUPToUnits(supUsed)
+				if code, err := a.chain.BurnSUPForService(r.Context(), payerWallet, units, "security_audit:"+campaignID); err == nil && code == "" {
+					escrowBudgetHMC = cash
+					supDiscountUsed = supUsed
+				}
+			}
+		}
+	}
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
 		title = "Security audit " + campaignID
@@ -246,7 +273,7 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	escrow, err := a.chain.OpenFuzzEscrow(r.Context(), campaignID, budgetHMC, budgetRuns)
+	escrow, err := a.chain.OpenFuzzEscrow(r.Context(), campaignID, escrowBudgetHMC, budgetRuns)
 	if err != nil {
 		_, _ = a.db.ExecContext(r.Context(), `DELETE FROM fuzz_campaigns WHERE id=?`, campaignID)
 		writeAPIError(w, http.StatusPaymentRequired, "escrow_failed", err.Error(), nil)
@@ -261,6 +288,11 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 
 	resp["campaign"] = c
 	resp["escrow"] = escrow
+	if supDiscountUsed > 0 {
+		resp["sup_discount_used"] = supDiscountUsed
+		resp["budget_hmc_cash"] = escrowBudgetHMC
+		resp["budget_hmc_nominal"] = budgetHMC
+	}
 	resp["customer_report_token"] = reportToken
 	resp["customer_report_header"] = "X-Hackme-Report-Token"
 	resp["fuzz_engine"] = fuzzEngineMetaFromConfig(cfgMap)
