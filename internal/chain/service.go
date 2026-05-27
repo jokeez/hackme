@@ -340,6 +340,34 @@ func (s *Service) Tip(ctx context.Context) (height uint64, hash string, err erro
 	return height, hash, nil
 }
 
+// TipFast reads tip via meta tip_hash (point lookup). Prefer for hot /api/status under mining write load.
+func (s *Service) TipFast(ctx context.Context) (height uint64, hash string, err error) {
+	var tipHash string
+	err = s.db.QueryRowContext(ctx, `SELECT value FROM meta WHERE key = 'tip_hash'`).Scan(&tipHash)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, "", nil
+		}
+		return 0, "", err
+	}
+	tipHash = strings.TrimSpace(tipHash)
+	if tipHash == "" {
+		return 0, "", nil
+	}
+	var idx sql.NullInt64
+	err = s.db.QueryRowContext(ctx, `SELECT block_index FROM blocks WHERE hash = ?`, tipHash).Scan(&idx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, tipHash, nil
+		}
+		return 0, "", err
+	}
+	if idx.Valid {
+		height = uint64(idx.Int64)
+	}
+	return height, tipHash, nil
+}
+
 // ListBlocks returns last `limit` blocks oldest-first.
 func (s *Service) ListBlocks(ctx context.Context, limit int) ([]json.RawMessage, error) {
 	if limit <= 0 {

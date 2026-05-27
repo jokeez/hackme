@@ -65,7 +65,7 @@ echo "[soak] RUN_ID=$RUN_ID BASE=$base_trim every ${INTERVAL_SEC}s for ${DURATIO
 while (( $(date +%s) < deadline )); do
   iter=$((iter + 1))
 
-  meta="$(curl_json_meta "$base_trim/api/status" || echo "0 0")"
+  meta="$(curl_json_meta "$base_trim/api/status?lite=1" || curl_json_meta "$base_trim/api/status" || echo "0 0")"
   code="$(echo "$meta" | awk '{print $1}')"
   tt="$(echo "$meta" | awk '{print $2}')"
   lat_ms="$(awk -v t="$tt" 'BEGIN{printf "%.0f", t*1000}')"

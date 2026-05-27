@@ -60,6 +60,18 @@ func TestAppendPoHBlockAndMetaRetarget(t *testing.T) {
 		t.Fatalf("index: %d", b.Index)
 	}
 
+	hFast, tipFast, err := svc.TipFast(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hSlow, tipSlow, err := svc.Tip(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hFast != hSlow || tipFast != tipSlow {
+		t.Fatalf("TipFast mismatch: fast=%d/%s slow=%d/%s", hFast, tipFast, hSlow, tipSlow)
+	}
+
 	var raw string
 	if err := db.QueryRowContext(ctx, `SELECT json FROM blocks WHERE block_index = 1`).Scan(&raw); err != nil {
 		t.Fatal(err)

@@ -137,6 +137,11 @@ type app struct {
 	canonWalletNonce      uint64
 	canonWalletCachedUnix int64
 	lastDesktopPruneUnix  int64
+	localTipMu            sync.RWMutex
+	localTipHasGenesis    bool
+	localTipHeight        uint64
+	localTipHash          string
+	localTipCachedUnix    int64
 }
 
 const (
@@ -331,6 +336,7 @@ func main() {
 	log.Printf("Task WASM artifact root: %s (env HACKME_TASK_ARTIFACT_DIR)", chain.DefaultArtifactRoot())
 	tasksDir := filepath.Join(".", "tasks")
 	taskProv := chain.NewStoreTaskProvider(ch, chain.NewFileTaskProvider(tasksDir, chain.InternalTaskProvider{}))
+	var liveApp *app
 	var miner *chain.Miner
 	miner = chain.NewMiner(chain.InitialBaseRewardHMC,
 		func(ctx context.Context) (uint64, error) { return ch.PoHTargetMod(ctx) },
@@ -349,6 +355,9 @@ func main() {
 			b, err := ch.AppendPoHBlock(ctx, nodeID, nonce, v, reward, targetMod, orderID)
 			if err != nil {
 				return err
+			}
+			if liveApp != nil {
+				liveApp.cacheLocalLedgerTip(true, b.Index, b.Hash)
 			}
 			// Log the task active at solve time (Snapshot is refreshed only after onSolve returns).
 			log.Printf("POH block hash=%s index=%d nonce=%d target_mod=%d reward=%.4f task_id=%q source=%s",
@@ -394,6 +403,15 @@ func main() {
 	if err := loadLANPeersIntoRegistry(db, a.rigs); err != nil {
 		log.Printf("lan_peer_rigs load: %v", err)
 	}
+	liveApp = a
+	go func() {
+		wctx, wcancel := context.WithTimeout(context.Background(), 3*time.Second)
+		a.warmLocalLedgerTipCache(wctx)
+		wcancel()
+		if coord := strings.TrimRight(strings.TrimSpace(a.coordinatorBaseURL()), "/"); coord != "" {
+			a.warmWorkStatsCacheAsync(coord, false)
+		}
+	}()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/assets/logo-hex.png", a.handleBrandLogo)
@@ -1746,13 +1764,13 @@ func (a *app) buildStatusLite(ctx context.Context) map[string]any {
 		body["canonical_tip_ok"] = true
 		body["canonical_tip_sync_source"] = "canonical_peer_cache"
 	}
-	localCtx, localCancel := context.WithTimeout(ctx, 250*time.Millisecond)
-	has, _ := a.chain.HasGenesis(localCtx)
-	h, tip, _ := a.chain.Tip(localCtx)
-	localCancel()
+	has, h, tip, tipStale := a.chainTipForStatus(ctx)
 	body["has_genesis"] = has
 	body["tip_height"] = h
 	body["tip_hash"] = tip
+	if tipStale {
+		body["tip_read_stale"] = true
+	}
 	if canonBase != "" {
 		body["canonical_chain_base_url"] = canonBase
 	}
@@ -1777,26 +1795,24 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 	// Keep /api/status responsive even under transient DB contention.
-	statusCtx, cancelStatus := context.WithTimeout(ctx, 5*time.Second)
+	statusCtx, cancelStatus := context.WithTimeout(ctx, 3*time.Second)
 	defer cancelStatus()
 	networkModeActive := a.networkModeActive()
-	has := false
-	h := uint64(0)
-	tip := ""
 	// Only chain command nodes may HTTP-start local WASM PoH; followers use worker/coordinator.
 	localSoloAllowed := envBool("HACKME_CHAIN_LEADER_LOCAL_POH", false)
 	sv := 0
 	economics := any(nil)
-	// Always report local SQLite schema revision for migrations and private_stage_gate.
-	if v, err := a.chain.SchemaVersion(statusCtx); err == nil {
+	schemaCtx, schemaCancel := context.WithTimeout(statusCtx, 200*time.Millisecond)
+	if v, err := a.chain.SchemaVersion(schemaCtx); err == nil {
 		sv = v
 	}
-	// Always snapshot local ledger tip + economics. Canonical / public-chain heights are separate fields.
-	has, _ = a.chain.HasGenesis(statusCtx)
-	h, tip, _ = a.chain.Tip(statusCtx)
-	if ec, err := a.chain.Economics(statusCtx); err == nil {
+	schemaCancel()
+	has, h, tip, tipStale := a.chainTipForStatus(statusCtx)
+	econCtx, econCancel := context.WithTimeout(statusCtx, 350*time.Millisecond)
+	if ec, err := a.chain.Economics(econCtx); err == nil {
 		economics = ec
 	}
+	econCancel()
 	poolCoordURL := strings.TrimSpace(os.Getenv("HACKME_POOL_COORDINATOR_URL"))
 	statusBody := map[string]any{
 		"chain_id":               block.ChainID,
@@ -1839,6 +1855,9 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 			"hybrid_signer_enabled":   envBool("HACKME_POOL_HYBRID_SIGNER_ENABLED", false),
 		},
 		"pool_sync": a.poolSyncStatusPayload(),
+	}
+	if tipStale {
+		statusBody["tip_read_stale"] = true
 	}
 	if networkModeActive && !a.miner.Running() {
 		// Canonical snapshot for pool/network dashboards — never replaces local SQLite tip_height.
@@ -1966,9 +1985,17 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"staging_join_env_export":    stagingJoin,
 	}
 
-	poolLaneCtx, poolLaneCancel := context.WithTimeout(ctx, 3*time.Second)
-	a.attachPoolLaneToStatus(poolLaneCtx, statusBody)
-	poolLaneCancel()
+	a.attachPoolLaneCached(statusBody)
+	if asUint64(statusBody["pool_target_mod"]) == 0 {
+		if coord := strings.TrimRight(strings.TrimSpace(a.coordinatorBaseURL()), "/"); coord != "" {
+			laneCtx, laneCancel := context.WithTimeout(ctx, 700*time.Millisecond)
+			a.attachPoolLaneToStatus(laneCtx, statusBody)
+			laneCancel()
+			a.warmWorkStatsCacheAsync(coord, false)
+		}
+	} else if coord := strings.TrimRight(strings.TrimSpace(a.coordinatorBaseURL()), "/"); coord != "" {
+		a.warmWorkStatsCacheAsync(coord, false)
+	}
 
 	writeJSON(w, statusBody)
 }
