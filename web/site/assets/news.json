@@ -1,6 +1,39 @@
 {
   "items": [
     {
+      "id": "2026-05-28-official-pool-recovered",
+      "date": "2026-05-28",
+      "title": "Official pool restored after VPS incident",
+      "summary": "HackMe Official Pool is live again: node, coordinator, nginx, and worker settlement timers recovered. Public pool stats API is responding; /api/status latency optimized (fast tip cache, non-blocking coordinator lane).",
+      "tags": ["infrastructure", "mining", "pool", "release"],
+      "impact": "Miners can reconnect with confidence; MPS pool registration can proceed with stable stats endpoint.",
+      "action": "Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats · Dashboard: https://hackme.tech/dashboard.html · MPS coin: https://miningpoolstats.app/coins/HMC",
+      "status": "published",
+      "links": {
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "status": "https://hackme.tech/api/status",
+        "dashboard": "https://hackme.tech/dashboard.html",
+        "mps": "https://miningpoolstats.app/coins/HMC",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
+      "id": "2026-05-27-hmc-miningpoolstats-coin-page",
+      "date": "2026-05-27",
+      "title": "HMC listed on MiningPoolStats (coin page live)",
+      "summary": "HackMe (HMC) is visible on MiningPoolStats. Pool operator registration submitted for HackMe Official Pool; hashrate will populate after MPS indexes our public stats API.",
+      "tags": ["marketing", "mining", "listing"],
+      "impact": "Discoverability for solo miners and aggregators; SUP stays off MPS (utility coin, HMC-first listing policy).",
+      "action": "Coin: https://miningpoolstats.app/coins/HMC · Pool API: https://hackme.tech/pool/coordinator/api/pool/stats · Posts: docs/TELEGRAM_POST_MPS_LISTING.txt",
+      "status": "published",
+      "links": {
+        "mps": "https://miningpoolstats.app/coins/HMC",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "coins": "https://hackme.tech/coins.html",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-27-hackme-support-sup-prelaunch",
       "date": "2026-05-27",
       "title": "HackMe Support (SUP) — scarce ecosystem coin announced",

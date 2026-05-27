@@ -1,0 +1,53 @@
+[center][size=16pt][b]HACKME (HMC) BREAKTHROUGH: NOW LIVE ON MININGPOOLSTATS[/b][/size][/center]
+[center]Useful PoW / PoH (WASM sandbox) enters public mining discovery[/center]
+
+[b]Official coin page:[/b]
+[url=https://miningpoolstats.app/coins/HMC]https://miningpoolstats.app/coins/HMC[/url]
+
+[hr]
+[b]Why this is a major step[/b]
+[list]
+[*][b]Public discoverability unlocked[/b] — miners can now find HMC in the same interface they use for established PoW ecosystems.
+[*][b]Trust signal unlocked[/b] — transparent algorithm, reward, supply, and chain profile visible on a neutral stats platform.
+[*][b]Growth pipeline unlocked[/b] — this is the gateway to scalable worker inflow, pool competition, and stronger network security.
+[/list]
+
+[b]What makes HackMe different[/b]
+[list]
+[*][b]Algorithm:[/b] Useful PoW / PoH (WASM sandbox), not synthetic idle hashing.
+[*][b]Current base reward:[/b] [b]0.01000000 HMC[/b]
+[*][b]Max supply:[/b] [b]100,000,000 HMC[/b]
+[*][b]Hybrid work model:[/b] coordinator tracks accepted work; settlement credits miner [mono]HMC-...[/mono] on-chain.
+[*][b]SUP utility lane:[/b] support-accrual for honest hybrid mining (listing policy remains after primary HMC listing).
+[/list]
+
+[hr]
+[b]Infrastructure status (transparent note)[/b]
+[list]
+[*]We currently have a temporary host-side outage with our VPS provider (hardware/cooling incident).
+[*]During this window, some public pool endpoints may return timeout/520/522.
+[*]This does [b]not[/b] change chain economics or roadmap; it only delays public pool registration switch-on.
+[/list]
+
+[b]Recovery playbook (already queued)[/b]
+[list]
+[*]Restore canonical stack: [mono]hackme-node + coordinator + nginx[/mono]
+[*]Run end-to-end health gates + settlement verification
+[*]Confirm stable worker accept/submit window
+[*]Finalize MPS pool registration and publish "POOL LIVE" verification update in-thread
+[/list]
+
+[hr]
+[b]Call to miners / pool operators[/b]
+If you mine useful-work networks and want early access positioning, watch this thread.
+As soon as provider recovery is confirmed, we post:
+[list]
+[*]live pool endpoint
+[*]verified uptime snapshot
+[*]worker onboarding command set
+[/list]
+
+[b]Tracking link:[/b]
+[url=https://miningpoolstats.app/coins/HMC]MiningPoolStats — HackMe (HMC)[/url]
+
+[i]Next update in this thread: provider recovery confirmation + pool registration activation.[/i]

@@ -1,0 +1,17 @@
+🚨✅ HackMe (HMC) на MiningPoolStats
+
+Страница монеты:
+https://miningpoolstats.app/coins/HMC
+
+Пул восстановлен после инцидента VPS — API стабилен:
+https://hackme.tech/pool/coordinator/api/pool/stats
+
+Что дальше:
+• дождаться индексации пула на MPS (hashrate/workers)
+• майнить через official pool (HMC + SUP utility)
+• SUP на MPS не выносим — сначала HMC
+
+Downloads: https://hackme.tech/downloads.html
+Dashboard: https://hackme.tech/dashboard.html
+
+#HackMe #HMC #MiningPoolStats #PoH #MiningPool
