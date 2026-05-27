@@ -1,0 +1,10 @@
+Operator name: Kapa
+Role: Owner / Pool Operator (HackMe Official Pool)
+Project: HackMe (HMC)
+Website: https://hackme.tech
+Pool stats API: https://hackme.tech/pool/coordinator/api/pool/stats
+MPS coin page: https://miningpoolstats.app/coins/HMC
+
+Verification: I can add a signed message on the website or GitHub repo on request.
+
+Note: We previously requested ticker review HMC → HCM if still pending.
