@@ -275,7 +275,11 @@ PY
   ok="$(jq -r '.ok // false' <<<"$resp" 2>/dev/null || echo "false")"
   code="$(jq -r '.code // ""' <<<"$resp" 2>/dev/null || echo "")"
   attempt=1
-  while [[ "$ok" != "true" && "$code" == "pending_nonce_conflict" && "$attempt" -lt "$SETTLE_NONCE_RETRIES" ]]; do
+  while [[ "$ok" != "true" && "$attempt" -lt "$SETTLE_NONCE_RETRIES" ]]; do
+    case "$code" in
+      pending_nonce_conflict|invalid_nonce) ;;
+      *) break ;;
+    esac
     wait_tx_pool_clear || true
     sleep $((SETTLE_PAYOUT_PAUSE_SEC + attempt * 2))
     nonce="$(curl -fsS "${CHAIN_BASE}/api/address/${payer_addr}" | jq -r '.next_nonce // 0')"
