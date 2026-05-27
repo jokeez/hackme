@@ -463,6 +463,125 @@
 			background: rgba(0,209,255,0.16);
 			border-color: rgba(0,209,255,0.44);
 		}
+		.wallet-hero {
+			position: relative;
+			overflow: hidden;
+			border-radius: 1rem;
+			border: 1px solid rgba(0, 255, 136, 0.22);
+			background: linear-gradient(135deg, rgba(0, 20, 12, 0.92) 0%, rgba(0, 12, 24, 0.95) 55%, rgba(8, 0, 20, 0.9) 100%);
+			padding: 1.25rem 1.5rem;
+		}
+		.wallet-hero::before {
+			content: '';
+			position: absolute;
+			inset: 0;
+			background: radial-gradient(ellipse 70% 80% at 100% 0%, rgba(0, 209, 255, 0.12), transparent 55%);
+			pointer-events: none;
+		}
+		.wallet-layout { align-items: start; }
+		.wallet-sidebar {
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 0.85rem;
+			background: rgba(0, 0, 0, 0.45);
+			padding: 0.65rem;
+			max-height: min(78vh, 720px);
+			overflow-y: auto;
+		}
+		.wallet-coin-row {
+			display: flex;
+			align-items: center;
+			gap: 0.65rem;
+			width: 100%;
+			text-align: left;
+			padding: 0.55rem 0.6rem;
+			border-radius: 0.65rem;
+			border: 1px solid transparent;
+			transition: background 0.15s, border-color 0.15s;
+			cursor: pointer;
+		}
+		.wallet-coin-row:hover { background: rgba(255, 255, 255, 0.04); }
+		.wallet-coin-row.active {
+			border-color: rgba(0, 255, 136, 0.45);
+			background: linear-gradient(90deg, rgba(0, 255, 136, 0.1), rgba(0, 209, 255, 0.06));
+		}
+		.wallet-coin-row.planned { opacity: 0.72; cursor: default; }
+		.wallet-coin-row.planned.active { opacity: 1; cursor: pointer; }
+		.wallet-coin-icon {
+			width: 2.35rem;
+			height: 2.35rem;
+			border-radius: 50%;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			flex-shrink: 0;
+			font-family: 'Orbitron', sans-serif;
+			font-size: 0.7rem;
+			font-weight: 700;
+			overflow: hidden;
+			box-shadow: 0 0 12px rgba(0, 0, 0, 0.45);
+		}
+		.wallet-coin-icon img { width: 100%; height: 100%; object-fit: cover; }
+		.wallet-coin-icon.live {
+			border: 1px solid rgba(0, 255, 136, 0.5);
+			background: rgba(0, 40, 24, 0.6);
+		}
+		.wallet-coin-icon.planned {
+			border: 1px solid rgba(255, 180, 0, 0.35);
+			color: #fbbf24;
+		}
+		.wallet-coin-icon.bonus {
+			border: 1px solid rgba(168, 85, 247, 0.45);
+			background: linear-gradient(145deg, #2e1064, #581c87);
+			color: #e9d5ff;
+		}
+		.wallet-coin-meta { flex: 1; min-width: 0; }
+		.wallet-coin-symbol { font-size: 0.72rem; color: #9ca3af; letter-spacing: 0.08em; }
+		.wallet-coin-bal { font-size: 0.85rem; color: #e5e7eb; font-variant-numeric: tabular-nums; }
+		.wallet-coin-badge {
+			font-size: 8px;
+			text-transform: uppercase;
+			letter-spacing: 0.12em;
+			padding: 0.12rem 0.35rem;
+			border-radius: 999px;
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			color: #9ca3af;
+		}
+		.wallet-coin-badge.live { border-color: rgba(0, 255, 136, 0.45); color: #6ee7b7; }
+		.wallet-coin-badge.soon { border-color: rgba(251, 191, 36, 0.4); color: #fcd34d; }
+		.wallet-coin-badge.bonus { border-color: rgba(192, 132, 252, 0.45); color: #d8b4fe; }
+		.wallet-detail-tabs {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.35rem;
+			margin-bottom: 1rem;
+		}
+		.wallet-detail-tab {
+			font-size: 10px;
+			text-transform: uppercase;
+			letter-spacing: 0.14em;
+			padding: 0.4rem 0.75rem;
+			border-radius: 0.4rem;
+			border: 1px solid rgba(255, 255, 255, 0.12);
+			color: #9ca3af;
+			background: transparent;
+		}
+		.wallet-detail-tab.active {
+			border-color: rgba(0, 209, 255, 0.45);
+			color: #7dd3fc;
+			background: rgba(0, 209, 255, 0.1);
+		}
+		.wallet-detail-section { display: none; }
+		.wallet-detail-section.active { display: block; }
+		.wallet-planned-card {
+			border: 1px dashed rgba(251, 191, 36, 0.35);
+			border-radius: 1rem;
+			padding: 2rem 1.5rem;
+			text-align: center;
+			background: rgba(0, 0, 0, 0.35);
+		}
+		@media (max-width: 1023px) {
+			.wallet-sidebar { max-height: none; }
+		}
 		.modal-backdrop {
 			position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.72);
 			display: none; align-items: center; justify-content: center; padding: 1rem;
@@ -2150,12 +2269,49 @@
 				</div>
 
 				<!-- WALLET -->
-				<div id="panel-wallet" class="tab-panel max-w-[900px] mx-auto">
-					<div class="card card-glow rounded-2xl p-8 lg:p-12 border-matrix/30 text-center">
-						<p class="text-[10px] uppercase tracking-[0.35em] text-gray-500 mb-4">Balance</p>
-						<p class="font-display text-5xl sm:text-6xl lg:text-7xl font-bold text-matrix drop-shadow-matrix tabular-nums mb-2"><span id="wallet-balance-big">0.00</span> <span class="text-2xl sm:text-3xl text-neon/80">HMC</span></p>
+				<div id="panel-wallet" class="tab-panel max-w-[1600px] mx-auto space-y-4">
+					<section class="wallet-hero">
+						<div class="relative z-10 flex flex-wrap items-end justify-between gap-4">
+							<div>
+								<p class="font-display text-[10px] tracking-[0.4em] text-neon uppercase mb-1">HackMe network</p>
+								<h1 class="font-display text-2xl lg:text-3xl font-bold text-white tracking-wide mb-1">Wallet hub</h1>
+								<p class="text-sm text-gray-400 max-w-xl">Exchange-style portfolio for all ecosystem coins. Live balances today; bonus and lane coins unlock as coordinators go live.</p>
+							</div>
+							<div class="flex flex-wrap gap-2 text-[10px] font-mono items-center">
+								<span class="px-2 py-1 rounded border border-matrix/35 text-matrix">portfolio: <span id="wallet-portfolio-total">—</span></span>
+								<span class="px-2 py-1 rounded border border-neon/35 text-neon">live: <span id="wallet-portfolio-live-count">1</span></span>
+								<button type="button" id="btn-wallet-refresh" class="px-3 py-1.5 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
+								<button type="button" id="btn-wallet-goto-ecosystem" class="px-3 py-1.5 rounded border border-white/15 text-gray-300 hover:bg-white/5 uppercase tracking-wider" data-goto-tab="ecosystem">Mine a pool →</button>
+							</div>
+						</div>
+					</section>
+					<div class="wallet-layout grid grid-cols-1 lg:grid-cols-[minmax(260px,300px)_1fr] gap-4">
+						<aside class="wallet-sidebar">
+							<p class="text-[9px] uppercase tracking-[0.22em] text-gray-500 px-2 mb-2">Assets</p>
+							<div id="wallet-coin-list" class="space-y-1" role="listbox" aria-label="Ecosystem coins"></div>
+							<p class="text-[9px] text-gray-600 font-mono px-2 mt-3 leading-relaxed">One address (<span class="text-neon/80">HMC-…</span>) for the primary chain today. Lane coins will map payouts to the same wallet when live.</p>
+						</aside>
+						<div id="wallet-detail-root" class="min-w-0">
+							<div id="wallet-planned-pane" class="wallet-planned-card hidden">
+								<div id="wallet-planned-icon" class="wallet-coin-icon planned mx-auto mb-4 text-lg"></div>
+								<h2 id="wallet-planned-title" class="font-display text-lg text-white mb-2">—</h2>
+								<p id="wallet-planned-symbol" class="text-neon font-mono text-sm mb-3">—</p>
+								<p id="wallet-planned-desc" class="text-sm text-gray-400 max-w-md mx-auto mb-4">—</p>
+								<p id="wallet-planned-roadmap" class="text-[10px] text-warn font-mono uppercase tracking-wider mb-4">—</p>
+								<button type="button" id="btn-wallet-planned-ecosystem" class="px-4 py-2 rounded border border-neon/35 text-neon text-[10px] uppercase tracking-wider hover:bg-neon/10" data-goto-tab="ecosystem">View in Mining ecosystem</button>
+							</div>
+							<div id="wallet-live-pane">
+								<div class="wallet-detail-tabs" role="tablist">
+									<button type="button" class="wallet-detail-tab active" data-wallet-section="overview">Overview</button>
+									<button type="button" class="wallet-detail-tab" data-wallet-section="earnings">Earnings</button>
+									<button type="button" class="wallet-detail-tab" data-wallet-section="transfer">Transfer</button>
+								</div>
+								<div id="wallet-section-overview" class="wallet-detail-section active">
+					<div class="card card-glow rounded-2xl p-6 lg:p-10 border-matrix/30 text-center">
+						<p class="text-[10px] uppercase tracking-[0.35em] text-gray-500 mb-4"><span id="wallet-selected-coin-name">HackMe Coin</span> · balance</p>
+						<p class="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-matrix drop-shadow-matrix tabular-nums mb-2"><span id="wallet-balance-big">0.00</span> <span id="wallet-symbol-big" class="text-2xl sm:text-3xl text-neon/80">HMC</span></p>
 						<p id="wallet-balance-caption" class="text-sm text-gray-500 mb-2">Node wallet (local view)</p>
-						<p id="wallet-miner-payout-note" class="text-[10px] text-gray-400 mb-8 max-w-2xl mx-auto leading-relaxed hidden"></p>
+						<p id="wallet-miner-payout-note" class="text-[10px] text-gray-400 mb-6 max-w-2xl mx-auto leading-relaxed hidden"></p>
 						<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 max-w-5xl mx-auto mb-5 text-left">
 							<div class="wallet-stat" title="1 HMC = 100,000,000 Kapa. Matches HMC balance above (full precision).">
 								<p class="wallet-stat-label">Units (Kapa)</p>
@@ -2180,9 +2336,22 @@
 								<p id="wallet-unpaid-note" class="text-[10px] text-gray-500 mt-1 font-mono">settlement: checking...</p>
 							</div>
 						</div>
-						<div class="rounded-lg border border-white/10 bg-black/30 p-3 max-w-5xl mx-auto mb-5 text-left">
+						<div class="text-left max-w-lg mx-auto mt-4">
+							<p class="text-[10px] uppercase tracking-widest text-gray-600 mb-2">Address</p>
+							<div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+								<code id="wallet-address-display" class="flex-1 text-xs text-neon bg-black/60 px-3 py-2 rounded border border-neon/20 break-all">{{ .NodeID }}</code>
+								<button type="button" id="btn-copy-address" class="shrink-0 px-4 py-2 rounded border border-neon/40 text-neon text-[10px] font-display font-bold uppercase tracking-wider hover:bg-neon/10">Copy</button>
+							</div>
+							<p id="wallet-sync-badge" class="mt-2 inline-flex items-center rounded border border-yellow-500/40 bg-yellow-500/10 px-2 py-1 text-[10px] uppercase tracking-wider text-yellow-200">Canonical sync: checking...</p>
+							<p id="wallet-signer-note" class="mt-2 text-[10px] text-gray-500 font-mono"></p>
+							<p id="wallet-chain-meta" class="mt-4 text-[10px] text-gray-500 leading-relaxed text-left"></p>
+						</div>
+					</div>
+								</div>
+								<div id="wallet-section-earnings" class="wallet-detail-section">
+						<div class="rounded-lg border border-white/10 bg-black/30 p-3 text-left">
 							<div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-								<p class="text-[10px] uppercase tracking-[0.2em] text-gray-500">Wallet earnings</p>
+								<p class="text-[10px] uppercase tracking-[0.2em] text-gray-500">Wallet earnings · <span id="wallet-earnings-coin-label">HMC</span></p>
 								<div class="flex flex-wrap gap-1">
 									<button type="button" class="wallet-earnings-period px-2 py-1 rounded border border-white/15 text-[10px] uppercase tracking-wider text-gray-400 hover:bg-white/5" data-wallet-earnings-period="24h">24h</button>
 									<button type="button" class="wallet-earnings-period px-2 py-1 rounded border border-white/15 text-[10px] uppercase tracking-wider text-gray-400 hover:bg-white/5" data-wallet-earnings-period="7d">7d</button>
@@ -2232,18 +2401,9 @@
 								</table>
 							</div>
 						</div>
-						<div class="text-left max-w-lg mx-auto">
-							<p class="text-[10px] uppercase tracking-widest text-gray-600 mb-2">Address</p>
-							<div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-								<code id="wallet-address-display" class="flex-1 text-xs text-neon bg-black/60 px-3 py-2 rounded border border-neon/20 break-all">{{ .NodeID }}</code>
-								<button type="button" id="btn-copy-address" class="shrink-0 px-4 py-2 rounded border border-neon/40 text-neon text-[10px] font-display font-bold uppercase tracking-wider hover:bg-neon/10">Copy</button>
-							</div>
-							<p id="wallet-sync-badge" class="mt-2 inline-flex items-center rounded border border-yellow-500/40 bg-yellow-500/10 px-2 py-1 text-[10px] uppercase tracking-wider text-yellow-200">Canonical sync: checking...</p>
-							<p id="wallet-signer-note" class="mt-2 text-[10px] text-gray-500 font-mono"></p>
-							<p id="wallet-chain-meta" class="mt-4 text-[10px] text-gray-500 leading-relaxed text-left"></p>
-						</div>
-					</div>
-					<div class="mt-4 card card-glow rounded-xl p-5 border-neon/20">
+								</div>
+								<div id="wallet-section-transfer" class="wallet-detail-section">
+					<div class="card card-glow rounded-xl p-5 border-neon/20">
 						<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
 							<h3 class="font-display text-[10px] tracking-[0.25em] text-neon uppercase">Transfer tx (v1)</h3>
 							<div class="flex flex-wrap items-center gap-2">
@@ -2331,6 +2491,10 @@
 								</thead>
 								<tbody id="tx-pool-rows" class="text-gray-300 divide-y divide-white/5"></tbody>
 							</table>
+						</div>
+					</div>
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -2496,6 +2660,24 @@
 				accent: 'live',
 				mineTab: 'mining',
 				roadmap: null,
+				walletLive: true,
+				walletDesc: 'Primary chain · on-chain balance · pool settlement to your HMC address.',
+				estPriceUsd: 1,
+			},
+			{
+				id: 'support',
+				symbol: 'SUP',
+				name: 'HackMe Support',
+				status: 'planned',
+				chainId: 'bonus lane',
+				iconHtml: 'SUP',
+				accent: 'bonus',
+				mineTab: null,
+				roadmap: 'Fractal-style bonus while mining HMC',
+				walletLive: false,
+				walletRole: 'bonus',
+				walletDesc: 'Auto-accrued support token while you mine the primary pool — no extra worker config (planned).',
+				estPriceUsd: 0,
 			},
 			{
 				id: 'hmc-alpha',
@@ -2507,6 +2689,7 @@
 				accent: 'planned',
 				mineTab: null,
 				roadmap: 'Q3 · testnet PoH',
+				walletDesc: 'Public testnet wallet lane with faucet — separate coordinator when live.',
 			},
 			{
 				id: 'hmc-orders',
@@ -2518,6 +2701,7 @@
 				accent: 'planned',
 				mineTab: 'orders',
 				roadmap: 'Orders + PoH hybrid',
+				walletDesc: 'Paid security-audit orders · escrow and miner payouts on a dedicated lane.',
 			},
 			{
 				id: 'hmc-shard',
@@ -2529,8 +2713,156 @@
 				accent: 'planned',
 				mineTab: null,
 				roadmap: 'Multi-pool coordinator',
+				walletDesc: 'Sharded coordinators for scale — aggregated in this hub when deployed.',
 			},
 		];
+		let walletSelectedCoinId = 'hmc';
+		let walletDetailSection = 'overview';
+		const WALLET_DETAIL_SECTION_KEY = 'hackme.wallet.detail_section.v1';
+		function walletHubCoins() {
+			return ECOSYSTEM_COINS.slice();
+		}
+		function walletHubCoinById(id) {
+			return walletHubCoins().find((c) => c.id === id) || walletHubCoins()[0];
+		}
+		function walletCoinIconInner(coin) {
+			if (!coin) return '?';
+			if (coin.iconHtml && coin.iconHtml.indexOf('<img') >= 0) return coin.iconHtml;
+			return escapeHtml(String(coin.iconHtml || coin.symbol || '?').slice(0, 4));
+		}
+		function walletCoinIconClass(coin) {
+			if (coin.accent === 'live' || coin.status === 'live') return 'live';
+			if (coin.walletRole === 'bonus' || coin.accent === 'bonus') return 'bonus';
+			return 'planned';
+		}
+		function walletCoinBalanceDisplay(coin) {
+			if (coin && coin.id === 'hmc' && (coin.walletLive || coin.status === 'live')) {
+				const onChain = Number(walletSnapshot.balanceHMC || 0);
+				const unpaid = latestWorkerSettlementSnap
+					? Number(latestWorkerSettlementSnap.wallet_unpaid_hmc || 0)
+					: 0;
+				return {
+					main: fmt(onChain, 4),
+					sub: unpaid > 0.000001 ? '+' + fmt(unpaid, 4) + ' unpaid' : 'on-chain',
+				};
+			}
+			if (coin && coin.walletRole === 'bonus') {
+				return { main: '0', sub: 'accrues with HMC mining' };
+			}
+			return { main: '—', sub: coin && coin.status === 'planned' ? 'soon' : '—' };
+		}
+		function renderWalletPortfolioSummary() {
+			const live = walletHubCoins().filter((c) => c.status === 'live' || c.walletLive);
+			let totalUsd = 0;
+			live.forEach((c) => {
+				const px = Number(c.estPriceUsd || 0);
+				if (px <= 0) return;
+				const onChain = Number(walletSnapshot.balanceHMC || 0);
+				const unpaid = c.id === 'hmc' && latestWorkerSettlementSnap
+					? Number(latestWorkerSettlementSnap.wallet_unpaid_hmc || 0)
+					: 0;
+				totalUsd += (onChain + unpaid) * px;
+			});
+			if ($('wallet-portfolio-total')) {
+				$('wallet-portfolio-total').textContent =
+					totalUsd > 0 ? ('≈ $' + fmt(totalUsd, 2)) : (fmt(Number(walletSnapshot.balanceHMC || 0), 4) + ' HMC');
+			}
+			if ($('wallet-portfolio-live-count')) $('wallet-portfolio-live-count').textContent = fmtUInt(live.length);
+		}
+		function syncWalletDetailPanes() {
+			const coin = walletHubCoinById(walletSelectedCoinId);
+			const isLive = !!(coin && (coin.walletLive || coin.status === 'live'));
+			const planned = $('wallet-planned-pane');
+			const live = $('wallet-live-pane');
+			if (planned) planned.classList.toggle('hidden', isLive);
+			if (live) live.classList.toggle('hidden', !isLive);
+			if (!isLive && planned) {
+				const icon = $('wallet-planned-icon');
+				if (icon) {
+					icon.className = 'wallet-coin-icon ' + walletCoinIconClass(coin) + ' mx-auto mb-4 text-lg';
+					icon.innerHTML = walletCoinIconInner(coin);
+				}
+				if ($('wallet-planned-title')) $('wallet-planned-title').textContent = coin.name || '—';
+				if ($('wallet-planned-symbol')) $('wallet-planned-symbol').textContent = coin.symbol || '—';
+				if ($('wallet-planned-desc')) $('wallet-planned-desc').textContent = coin.walletDesc || coin.roadmap || 'Coming soon.';
+				if ($('wallet-planned-roadmap')) $('wallet-planned-roadmap').textContent = coin.roadmap || 'Planned';
+			}
+			if (isLive) {
+				if ($('wallet-symbol-big')) $('wallet-symbol-big').textContent = coin.symbol || 'HMC';
+				if ($('wallet-selected-coin-name')) $('wallet-selected-coin-name').textContent = coin.name || 'HackMe Coin';
+				if ($('wallet-earnings-coin-label')) $('wallet-earnings-coin-label').textContent = coin.symbol || 'HMC';
+			}
+		}
+		function setWalletDetailSection(section) {
+			walletDetailSection = section || 'overview';
+			try { localStorage.setItem(WALLET_DETAIL_SECTION_KEY, walletDetailSection); } catch (_) {}
+			document.querySelectorAll('.wallet-detail-tab').forEach((btn) => {
+				btn.classList.toggle('active', btn.dataset.walletSection === walletDetailSection);
+			});
+			document.querySelectorAll('.wallet-detail-section').forEach((el) => {
+				const id = el.id || '';
+				const sec = id.replace('wallet-section-', '');
+				el.classList.toggle('active', sec === walletDetailSection);
+			});
+			if (walletDetailSection === 'earnings') scheduleWalletEarningsRefresh(true);
+		}
+		function selectWalletCoin(id) {
+			const coin = walletHubCoinById(id);
+			if (!coin) return;
+			walletSelectedCoinId = coin.id;
+			try { localStorage.setItem('hackme.wallet.selected_coin.v1', walletSelectedCoinId); } catch (_) {}
+			renderWalletCoinSidebar();
+			syncWalletDetailPanes();
+			renderWalletPortfolioSummary();
+		}
+		function renderWalletCoinSidebar() {
+			const list = $('wallet-coin-list');
+			if (!list) return;
+			list.innerHTML = '';
+			walletHubCoins().forEach((coin) => {
+				const bal = walletCoinBalanceDisplay(coin);
+				const row = document.createElement('button');
+				row.type = 'button';
+				row.className = 'wallet-coin-row' + (walletSelectedCoinId === coin.id ? ' active' : '') + (coin.status !== 'live' ? ' planned' : '');
+				row.dataset.coinId = coin.id;
+				const badge =
+					coin.status === 'live'
+						? '<span class="wallet-coin-badge live">Live</span>'
+						: coin.walletRole === 'bonus'
+							? '<span class="wallet-coin-badge bonus">Bonus</span>'
+							: '<span class="wallet-coin-badge soon">Soon</span>';
+				row.innerHTML =
+					'<div class="wallet-coin-icon ' + walletCoinIconClass(coin) + '">' + walletCoinIconInner(coin) + '</div>' +
+					'<div class="wallet-coin-meta">' +
+					'<div class="font-display text-xs text-white tracking-wide">' + escapeHtml(coin.name) + '</div>' +
+					'<div class="wallet-coin-symbol">' + escapeHtml(coin.symbol) + '</div>' +
+					'<div class="wallet-coin-bal">' + escapeHtml(bal.main) + ' <span class="text-gray-500 text-[9px]">' + escapeHtml(bal.sub) + '</span></div>' +
+					'</div>' + badge;
+				row.addEventListener('click', () => selectWalletCoin(coin.id));
+				list.appendChild(row);
+			});
+			syncWalletDetailPanes();
+		}
+		function initWalletHubUi() {
+			try {
+				const saved = localStorage.getItem('hackme.wallet.selected_coin.v1');
+				if (saved && walletHubCoinById(saved)) walletSelectedCoinId = saved;
+				const sec = localStorage.getItem(WALLET_DETAIL_SECTION_KEY);
+				if (sec === 'overview' || sec === 'earnings' || sec === 'transfer') walletDetailSection = sec;
+			} catch (_) {}
+			renderWalletCoinSidebar();
+			renderWalletPortfolioSummary();
+			setWalletDetailSection(walletDetailSection);
+			document.querySelectorAll('.wallet-detail-tab').forEach((btn) => {
+				btn.addEventListener('click', () => setWalletDetailSection(btn.dataset.walletSection));
+			});
+			if ($('btn-wallet-refresh')) {
+				$('btn-wallet-refresh').addEventListener('click', () => {
+					void refreshWallet(true);
+					scheduleWalletEarningsRefresh(true);
+				});
+			}
+		}
 		/** True when UI should treat coordinator as source of truth for M and payouts. */
 		function isPoolWorkContext() {
 			const st = latestStatus || {};
@@ -10236,6 +10568,7 @@
 				}
 			}
 			if (name === 'wallet') {
+				try { renderWalletCoinSidebar(); renderWalletPortfolioSummary(); } catch (_) {}
 				window.setTimeout(() => scheduleWalletEarningsRefresh(true), 400);
 			}
 			if (name === 'ecosystem') {
@@ -10578,6 +10911,11 @@
 			}
 			syncWalletMinerPayoutNote();
 			updateWalletEarningsPeriodButtons();
+			try {
+				renderWalletCoinSidebar();
+				renderWalletPortfolioSummary();
+				syncWalletDetailPanes();
+			} catch (_) {}
 		}
 
 		async function poll() {
@@ -10785,6 +11123,7 @@
 				if ($('btn-mining-start')) $('btn-mining-start').addEventListener('click', () => { void postMiningControl('start'); });
 				if ($('btn-mining-stop')) $('btn-mining-stop').addEventListener('click', () => { void postMiningControl('stop'); });
 				try { bindMineCalcEvents(); } catch (_) {}
+				try { initWalletHubUi(); } catch (_) {}
 				try { bindOverviewMinersControls(); bindSolopoolVectors(); } catch (_) {}
 				document.querySelectorAll('[data-wallet-earnings-period]').forEach((btn) => {
 					btn.addEventListener('click', () => {

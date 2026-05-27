@@ -14,8 +14,9 @@ HackMe already has an **Ecosystem** tab in `dashboard.html` (HMC live; Alpha / O
 
 ## Phase 2 — Unified operator dashboard
 
+- **Wallet hub (UI v1 in `dashboard.html`)**: exchange-style sidebar (coin icons + balances), portfolio header, per-coin planned cards, live HMC with Overview / Earnings / Transfer sub-tabs. Registry = `ECOSYSTEM_COINS` (+ planned **SUP** bonus lane).
 - **Global header**: pick coin → coordinator URL + explorer + downloads deep link.
-- **Wallet hub**: one search box → pool workers + chain balance + settlement history + explorer txs.
+- **Wallet hub (API next)**: one search box → pool workers + chain balance + settlement history + explorer txs.
 - **Fleet view**: map `worker_id` ↔ `payout_address` ↔ rig label ↔ last seen (persist labels in localStorage).
 - **Alerts**: worker offline >5 min, hashrate drop >30%, settlement lag.
 
