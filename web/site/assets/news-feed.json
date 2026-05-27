@@ -1,6 +1,48 @@
 {
   "items": [
     {
+      "id": "2026-05-28-official-pool-recovered",
+      "date": "2026-05-28",
+      "title": "Official pool restored after VPS incident",
+      "summary": "HackMe Official Pool is live again: node, coordinator, nginx, and worker settlement timers recovered. Public pool stats API is responding; /api/status latency optimized (fast tip cache, non-blocking coordinator lane).",
+      "tags": [
+        "infrastructure",
+        "mining",
+        "pool",
+        "release"
+      ],
+      "impact": "Miners can reconnect with confidence; MPS pool registration can proceed with stable stats endpoint.",
+      "action": "Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats · Dashboard: https://hackme.tech/dashboard.html · MPS coin: https://miningpoolstats.app/coins/HMC",
+      "status": "published",
+      "links": {
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "status": "https://hackme.tech/api/status",
+        "dashboard": "https://hackme.tech/dashboard.html",
+        "mps": "https://miningpoolstats.app/coins/HMC",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
+      "id": "2026-05-27-hmc-miningpoolstats-coin-page",
+      "date": "2026-05-27",
+      "title": "HMC listed on MiningPoolStats (coin page live)",
+      "summary": "HackMe (HMC) is visible on MiningPoolStats. Pool operator registration submitted for HackMe Official Pool; hashrate will populate after MPS indexes our public stats API.",
+      "tags": [
+        "marketing",
+        "mining",
+        "listing"
+      ],
+      "impact": "Discoverability for solo miners and aggregators; SUP stays off MPS (utility coin, HMC-first listing policy).",
+      "action": "Coin: https://miningpoolstats.app/coins/HMC · Pool API: https://hackme.tech/pool/coordinator/api/pool/stats · Posts: docs/TELEGRAM_POST_MPS_LISTING.txt",
+      "status": "published",
+      "links": {
+        "mps": "https://miningpoolstats.app/coins/HMC",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "coins": "https://hackme.tech/coins.html",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-27-hackme-support-sup-prelaunch",
       "date": "2026-05-27",
       "title": "HackMe Support (SUP) — scarce ecosystem coin announced",
@@ -224,50 +266,6 @@
         "github": "https://github.com/jokeez/hackme",
         "downloads": "https://hackme.tech/downloads.html#hackme-os",
         "pool_stats": "https://hackme.tech/pool/coordinator/api/work/stats",
-        "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-05-22-ecosystem-chaos-hackme-os",
-      "date": "2026-05-22",
-      "title": "Ecosystem dashboard · nightly chaos guard · HackMe OS miner ISO",
-      "summary": "Desktop dashboard home is now the Ecosystem coin table (Hive-style): live HMC pool stats, clickable mining entry, roadmap slots for future chains. Nightly chaos guard tests 5000 payout ledger drift, HTTP replay/tamper (403), and HackMe OS init-worker.ini hardening. HackMe OS live USB build: CPU isolation, RT scheduler, GPU performance mode, fair pool worker autostart.",
-      "tags": [
-        "release",
-        "mining",
-        "pool",
-        "security",
-        "infrastructure"
-      ],
-      "impact": "Miners get a clearer pool-first UI; operators get automated security regression tests; Linux rigs can boot a dedicated HackMe OS image pointed at hackme.tech pool.",
-      "action": "Pull latest main · Dashboard: http://127.0.0.1:8080 (Ecosystem tab) · Pool: https://hackme.tech/pool/coordinator/api/work/stats · Docs: docs/HACKME_OS.md · Chaos tests: bash scripts/tests/nightly_chaos_guard.sh",
-      "status": "published",
-      "links": {
-        "github": "https://github.com/jokeez/hackme",
-        "downloads": "https://hackme.tech/downloads.html",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/work/stats",
-        "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-05-21-coordinator-stress-bct",
-      "date": "2026-05-21",
-      "title": "Coordinator stress test passed · Bitcointalk update · MiningPoolStats listing",
-      "summary": "10-minute mega stress: 100 virtual workers, 0% hard errors, no coordinator crash, RAM stable (~12→20 MB), halving at block 2,102,401 verified (0.01→0.005 HMC). Malformed ingress and chaos disconnects handled cleanly. Public pool on hackme.tech — HTTP coordinator (not Stratum). Bitcointalk ANN updated; MiningPoolStats submission in progress.",
-      "tags": [
-        "infrastructure",
-        "pool",
-        "security",
-        "mining"
-      ],
-      "impact": "Miners can trust coordinator stability under load; follow the official ANN thread for setup. OpenCL Windows builds (rc11g) and live pool stats unchanged.",
-      "action": "Read the update on Bitcointalk: https://bitcointalk.org/index.php?topic=5583373.0 · Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats · Downloads: https://hackme.tech/downloads.html · Stress harness in repo: scripts/tests/coordinator_mega_stress.sh",
-      "status": "published",
-      "links": {
-        "github": "https://github.com/jokeez/hackme",
-        "downloads": "https://hackme.tech/downloads.html",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
-        "bitcointalk": "https://bitcointalk.org/index.php?topic=5583373.0",
         "telegram": "https://t.me/hackme_tech"
       }
     }
