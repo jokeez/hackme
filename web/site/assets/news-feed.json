@@ -1,6 +1,27 @@
 {
   "items": [
     {
+      "id": "2026-05-29-hms-ui-preview",
+      "date": "2026-05-29",
+      "title": "HackMe Storage (HMS) — ecosystem UI preview",
+      "summary": "Dashboard and coins page now show HMC / SUP / HMS context with per-coin Ecosystem KPIs. HMS storage+seal lane is preview-only; production coordinator deploys on a dedicated heavy VPS before go-live.",
+      "tags": [
+        "ecosystem",
+        "hms",
+        "mining",
+        "preview"
+      ],
+      "impact": "Clearer story for miners: hub hosts UI and HMC/SUP; HMS backend is isolated on VPS #2 when ready.",
+      "action": "Coins: https://hackme.tech/coins.html#hms · Roadmap: https://hackme.tech/docs/HMS_PUBLIC_ROADMAP.md · Telegram: docs/TELEGRAM_POST_HMS_UI_PREVIEW.txt",
+      "status": "published",
+      "links": {
+        "coins": "https://hackme.tech/coins.html#hms",
+        "roadmap": "https://hackme.tech/docs/HMS_PUBLIC_ROADMAP.md",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-28-official-pool-recovered",
       "date": "2026-05-28",
       "title": "Official pool restored after VPS incident",
@@ -244,28 +265,6 @@
         "downloads": "https://hackme.tech/downloads.html#hackme-os",
         "pool_stats": "https://hackme.tech/pool/coordinator/api/work/stats",
         "bitcointalk": "https://bitcointalk.org/index.php?topic=5583373.0",
-        "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-05-22-zero-knowledge-start-downloads",
-      "date": "2026-05-22",
-      "title": "Zero-Knowledge Start · HackMe OS on downloads · Windows worker watchdog",
-      "summary": "HackMe OS: flash USB, boot — empty hackme.ini triggers auto HMC wallet + 24-word recovery phrase on screen, then instant pool mining (no config). New downloads section for the live ISO. Windows installer ships worker watchdog (mining stays up after GPU crashes). Site + manifests updated.",
-      "tags": [
-        "release",
-        "mining",
-        "hackme-os",
-        "windows",
-        "infrastructure"
-      ],
-      "impact": "Miners can start in zero seconds on ISO rigs; Windows rigs auto-restart the pool worker; official ISO and checksums appear on hackme.tech/downloads when the build is published.",
-      "action": "Downloads: https://hackme.tech/downloads.html#hackme-os · Windows: HackMe-Setup exe · ISO docs: https://github.com/jokeez/hackme/blob/main/docs/HACKME_OS.md · Pool: https://hackme.tech/pool/coordinator/api/work/stats",
-      "status": "published",
-      "links": {
-        "github": "https://github.com/jokeez/hackme",
-        "downloads": "https://hackme.tech/downloads.html#hackme-os",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/work/stats",
         "telegram": "https://t.me/hackme_tech"
       }
     }
