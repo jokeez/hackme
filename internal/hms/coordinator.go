@@ -75,15 +75,15 @@ func (c *Coordinator) tickEpoch() error {
 }
 
 type epochRow struct {
-	EpochID       int64
-	StartedUnix   int64
-	FreezeUnix    int64
-	SealEndUnix   int64
-	ManifestRoot  []byte
-	SealTarget    []byte
-	SealNonce     int64
-	SealWorkerID  string
-	Sealed        int
+	EpochID        int64
+	StartedUnix    int64
+	FreezeUnix     int64
+	SealEndUnix    int64
+	ManifestRoot   []byte
+	SealTarget     []byte
+	SealNonce      int64
+	SealWorkerID   string
+	Sealed         int
 	PayoutsEnabled int
 }
 
@@ -366,11 +366,11 @@ func (c *Coordinator) SealWork() (map[string]any, error) {
 	var root [32]byte
 	copy(root[:], ep.ManifestRoot)
 	return map[string]any{
-		"epoch_id":       ep.EpochID,
-		"manifest_root":  encodeHex(root[:]),
-		"target":         encodeHex(ep.SealTarget),
-		"pool_id":        c.cfg.PoolID,
-		"seal_end_unix":  ep.SealEndUnix,
+		"epoch_id":      ep.EpochID,
+		"manifest_root": encodeHex(root[:]),
+		"target":        encodeHex(ep.SealTarget),
+		"pool_id":       c.cfg.PoolID,
+		"seal_end_unix": ep.SealEndUnix,
 	}, nil
 }
 

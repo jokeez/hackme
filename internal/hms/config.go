@@ -9,16 +9,16 @@ import (
 
 // Config tunes the HMS lane coordinator (heavy VPS #2).
 type Config struct {
-	PoolID          string
-	EpochDuration   time.Duration
-	FreezeAfter     time.Duration // from epoch start
-	SealWindow      time.Duration // after freeze
-	MinQuotaGB      int
-	MaxQuotaGB      int
-	MaxStrikes      int
-	ChallengeTTL    time.Duration
+	PoolID            string
+	EpochDuration     time.Duration
+	FreezeAfter       time.Duration // from epoch start
+	SealWindow        time.Duration // after freeze
+	MinQuotaGB        int
+	MaxQuotaGB        int
+	MaxStrikes        int
+	ChallengeTTL      time.Duration
 	InitialSealTarget []byte // 32-byte big-endian difficulty
-	DesiredSealSec  int
+	DesiredSealSec    int
 	SealRetargetClamp float64
 }
 

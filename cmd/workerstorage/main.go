@@ -78,7 +78,7 @@ func seedChunk(coord, token, workerID, dir, chunkID string) {
 	_ = postJSON(coord+"/api/storage/chunk", token, map[string]any{
 		"chunk_id": chunkID, "worker_id": workerID,
 		"ciphertext_sha256": hex.EncodeToString(sum[:]),
-		"size": len(data),
+		"size":              len(data),
 	}, nil)
 	log.Printf("seeded demo chunk %s", chunkID)
 }

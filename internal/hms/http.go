@@ -120,11 +120,11 @@ func RegisterHTTP(mux *http.ServeMux, coord *Coordinator, adminToken, workerToke
 			return
 		}
 		var req struct {
-			ChunkID           string `json:"chunk_id"`
-			WorkerID          string `json:"worker_id"`
-			CiphertextSHA256  string `json:"ciphertext_sha256"`
-			Size              uint64 `json:"size"`
-			ErasureMetaHex    string `json:"erasure_meta_hex"`
+			ChunkID          string `json:"chunk_id"`
+			WorkerID         string `json:"worker_id"`
+			CiphertextSHA256 string `json:"ciphertext_sha256"`
+			Size             uint64 `json:"size"`
+			ErasureMetaHex   string `json:"erasure_meta_hex"`
 		}
 		if !readJSON(r, &req) {
 			http.Error(w, "bad json", http.StatusBadRequest)
