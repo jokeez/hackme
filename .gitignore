@@ -68,6 +68,7 @@ backups/
 !web/site/**
 
 # Local future-architecture planning (keep local, never push)
+# HMS lane: full spec + mocks under adapters/hms/ — commit only docs/HMS_PUBLIC_ROADMAP.md + site preview
 adapters/
 scripts/ops/adapter_pack_smoke.sh
 docs/HUB_ADAPTER_ONBOARDING_CHECKLIST.md

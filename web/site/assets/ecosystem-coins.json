@@ -1,5 +1,5 @@
 {
-  "updated": "2026-05-27",
+  "updated": "2026-05-28",
   "primary": "hmc",
   "coins": [
     {
@@ -39,6 +39,29 @@
         "Streak bonus only after 72h clean mining",
         "Spend: audit discounts, pool priority, governance signal"
       ]
+    },
+    {
+      "id": "hms",
+      "symbol": "HMS",
+      "name": "HackMe Storage",
+      "status": "prelaunch",
+      "tagline": "Encrypted storage + hourly manifest seal — disk & ASIC lanes",
+      "algorithm": "Proof-of-Storage (disk) + SHA256 Seal (ASIC/CPU)",
+      "icon": "./assets/coin-hms.svg",
+      "iconType": "image",
+      "listing": "MiningPoolStats: add under HackMe Official Pool when lane is live",
+      "earn": "Allocate disk quota (PoSt) and/or run seal worker — preview only today",
+      "trade": "HMS settlement after lane on dedicated VPS (not on hub yet)",
+      "highlights": [
+        "Client-side AES-GCM — operators cannot read ciphertext",
+        "Erasure-coded chunks across distributed workers",
+        "Hourly manifest_root sealed on SHA256 (useful ASIC work)",
+        "Heavy VPS in Amsterdam — hub stays lean"
+      ],
+      "links": {
+        "roadmap": "https://hackme.tech/coins.html#hms",
+        "docs": "https://github.com/jokeez/hackme/blob/main/docs/HMS_PUBLIC_ROADMAP.md"
+      }
     },
     {
       "id": "ord",

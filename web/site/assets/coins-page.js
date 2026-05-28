@@ -11,14 +11,15 @@
   }
 
   function statusClass(st) {
-    if (st === "live") return "live";
+    if (st === "live" || st === "accrual") return "live";
     if (st === "prelaunch") return "prelaunch";
     return "planned";
   }
 
   function iconHtml(coin) {
     if (coin.iconType === "image" && coin.icon) {
-      const cls = coin.id === "sup" ? "sup" : coin.id === "hmc" ? "live" : "planned";
+      const cls =
+        coin.id === "sup" ? "sup" : coin.id === "hmc" ? "live" : coin.id === "hms" ? "hms" : "planned";
       return `<div class="coin-icon ${cls}"><img src="${esc(coin.icon)}" alt="${esc(coin.symbol)}" width="52" height="52" /></div>`;
     }
     const accent = coin.accent || "planned";
@@ -37,7 +38,7 @@
           .join("")
       : "";
     return `
-      <article class="coin-card glass" data-coin-id="${esc(coin.id)}" style="--coin-glow:${coin.id === "sup" ? "#a855f7" : "#4de4ff"}">
+      <article class="coin-card glass" data-coin-id="${esc(coin.id)}" style="--coin-glow:${coin.id === "sup" ? "#a855f7" : coin.id === "hms" ? "#34d399" : "#4de4ff"}">
         <div class="coin-card-head">
           ${iconHtml(coin)}
           <div>
