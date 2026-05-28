@@ -28,67 +28,14 @@
     Per-campaign security reports (<code>fuzz_report_v2</code>: triage, <code>repro_cmd</code>, artifacts) are <strong>token-gated</strong> — not listed here.
     Public L1 stack research (qa-assets corpus, upstream pins) is separate: see the v3 repro banner below.
   </p>
-  <p id="status" class="sub">Loading…</p>
+  <p id="status" class="sub ok">Public campaign widget is disabled on hackme.tech.</p>
+  <p class="sub">
+    For campaign creation and private campaign status, use your local node dashboard at
+    <code>http://127.0.0.1:8080</code> (Orders → Security audit), or authenticated API/CLI with token.
+  </p>
   <p id="reproVerdict" class="sub">Loading repro verdict…</p>
-  <div style="overflow-x:auto;">
-    <table id="tbl" style="display:none;">
-      <thead>
-        <tr>
-          <th>id</th>
-          <th>type</th>
-          <th>status</th>
-          <th>runs done / budget</th>
-          <th>started</th>
-          <th>owner</th>
-        </tr>
-      </thead>
-      <tbody id="rows"></tbody>
-    </table>
-  </div>
   <p class="sub" style="margin-top:24px;"><a href="./index.html">← Home</a></p>
   <script>
-    function fmtTs(u) {
-      if (!u) return '—';
-      try { return new Date(u * 1000).toISOString().slice(0, 19).replace('T', ' '); } catch (_) { return String(u); }
-    }
-    function runsDone(c) {
-      const s = c.summary || {};
-      const v = s.runs_done ?? s.runsDone ?? 0;
-      const n = Number(v);
-      return Number.isFinite(n) ? n : 0;
-    }
-    async function load() {
-      const st = document.getElementById('status');
-      const tbl = document.getElementById('tbl');
-      const tbody = document.getElementById('rows');
-      try {
-        const r = await fetch('/api/fuzz/campaigns?limit=100', { cache: 'no-store' });
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        const j = await r.json();
-        const rows = Array.isArray(j.campaigns) ? j.campaigns : [];
-        tbody.innerHTML = '';
-        rows.forEach((c) => {
-          const tr = document.createElement('tr');
-          const done = runsDone(c);
-          const bud = Number(c.budget_runs) || 0;
-          const cellRuns = bud > 0 ? (done + ' / ' + bud) : String(done);
-          tr.innerHTML =
-            '<td>' + (c.id || '—') + '</td>' +
-            '<td>' + (c.campaign_type || '—') + '</td>' +
-            '<td>' + (c.status || '—') + '</td>' +
-            '<td>' + cellRuns + '</td>' +
-            '<td>' + fmtTs(c.started_at) + '</td>' +
-            '<td>' + (c.owner_ref || '—') + '</td>';
-          tbody.appendChild(tr);
-        });
-        st.textContent = rows.length ? ('Loaded ' + rows.length + ' campaign(s).') : 'No campaigns yet.';
-        st.className = 'sub ok';
-        tbl.style.display = rows.length ? 'table' : 'none';
-      } catch (e) {
-        st.textContent = 'Failed: ' + (e && e.message ? e.message : e);
-        st.className = 'sub err';
-      }
-    }
     async function loadReproVerdict() {
       const el = document.getElementById('reproVerdict');
       try {
@@ -106,7 +53,6 @@
         el.className = 'sub err';
       }
     }
-    load();
     loadReproVerdict();
   </script>
 </body>

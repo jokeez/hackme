@@ -304,7 +304,7 @@ PY
 )"
   tmp="$(mktemp)"
   jq --arg wid "$worker_id" --arg addr "$to_addr" --argjson settled "$new_settled_hmc" --arg tx "$tx_hash" --argjson ts "$ts" \
-    '.workers[$wid] = {settled_hmc:$settled,payout_address:$addr,last_tx_hash:$tx,last_settle_unix:$ts}' \
+    '.workers[$wid] = ((.workers[$wid] // {}) + {settled_hmc:$settled,payout_address:$addr,last_tx_hash:$tx,last_settle_unix:$ts})' \
     "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
   if [[ "$(id -u)" -eq 0 ]]; then
     chown hackme:hackme "$STATE_FILE" 2>/dev/null || true
