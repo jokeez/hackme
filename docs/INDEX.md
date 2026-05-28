@@ -22,6 +22,7 @@
 | [COORDINATOR_MEGA_STRESS.md](COORDINATOR_MEGA_STRESS.md) | Stress test results |
 | [MEMORY_LEAK_SPEC.md](MEMORY_LEAK_SPEC.md) | Coordinator memory spec |
 | [HMS_PUBLIC_ROADMAP.md](HMS_PUBLIC_ROADMAP.md) | HackMe Storage (HMS) — prelaunch, VPS #2 backend |
+| [HMS_BACKEND.md](HMS_BACKEND.md) | HMS coordinator + workers (committed Go code) |
 | [SUPPORT_COIN_UTILITY.md](SUPPORT_COIN_UTILITY.md) | HackMe Support (SUP) accrual rules |
 
 ## Fuzzing / B2B integrators

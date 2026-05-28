@@ -109,6 +109,7 @@ Current RC status: [docs/STATUS.md](docs/STATUS.md)
 | [docs/INDEX.md](docs/INDEX.md) | Full doc index |
 | [docs/OPEN_POOL_MINERS.md](docs/OPEN_POOL_MINERS.md) | Pool rules for miners |
 | [docs/HMS_PUBLIC_ROADMAP.md](docs/HMS_PUBLIC_ROADMAP.md) | HackMe Storage (HMS) prelaunch roadmap |
+| [docs/HMS_BACKEND.md](docs/HMS_BACKEND.md) | HMS coordinator, storage/seal workers, Stratum pilot |
 | [docs/SUPPORT_COIN_UTILITY.md](docs/SUPPORT_COIN_UTILITY.md) | HackMe Support (SUP) accrual |
 | [docs/GPU_MINING_BACKENDS.md](docs/GPU_MINING_BACKENDS.md) | GPU matrix |
 | [docs/API.md](docs/API.md) | HTTP API |
