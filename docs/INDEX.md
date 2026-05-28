@@ -21,6 +21,8 @@
 | [MINER_WINDOWS_ONE_CLICK.md](MINER_WINDOWS_ONE_CLICK.md) | Windows installer |
 | [COORDINATOR_MEGA_STRESS.md](COORDINATOR_MEGA_STRESS.md) | Stress test results |
 | [MEMORY_LEAK_SPEC.md](MEMORY_LEAK_SPEC.md) | Coordinator memory spec |
+| [HMS_PUBLIC_ROADMAP.md](HMS_PUBLIC_ROADMAP.md) | HackMe Storage (HMS) — prelaunch, VPS #2 backend |
+| [SUPPORT_COIN_UTILITY.md](SUPPORT_COIN_UTILITY.md) | HackMe Support (SUP) accrual rules |
 
 ## Fuzzing / B2B integrators
 

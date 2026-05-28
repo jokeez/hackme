@@ -17,7 +17,7 @@
 [![License](https://img.shields.io/badge/license-AGPL--3.0-39ff14?style=for-the-badge)](LICENSE)
 [![Website](https://img.shields.io/badge/website-hackme.tech-7fe7ff?style=for-the-badge)](https://hackme.tech)
 
-[Downloads](https://hackme.tech/downloads.html) · [Pool stats](https://hackme.tech/pool/coordinator/api/work/stats) · [Explorer](https://hackme.tech/pool/explorer) · [Setup guide](docs/SETUP.md) · [All docs](docs/INDEX.md)
+[Downloads](https://hackme.tech/downloads.html) · [Coins](https://hackme.tech/coins.html) · [Pool stats](https://hackme.tech/pool/coordinator/api/pool/stats) · [Explorer](https://hackme.tech/pool/explorer) · [Setup guide](docs/SETUP.md) · [All docs](docs/INDEX.md)
 
 </div>
 
@@ -31,6 +31,7 @@ HackMe is open mining infrastructure: a **desktop node** (dashboard at `:8080`) 
 |:---|:---|
 | **Pool** | HTTP coordinator (not Stratum) · dynamic `target_mod` |
 | **GPU** | NVIDIA CUDA · AMD/Intel OpenCL · CPU fallback |
+| **Ecosystem** | **HMC** live pool · **SUP** accrual (hybrid HMC work) · **HMS** storage+seal lane (UI preview; backend on dedicated VPS #2 before go-live) |
 | **Release** | `0.1.0-rc11i` — Windows installer, Linux bundle, HackMe OS ISO · **Fuzz Engine v2** |
 | **License** | [AGPL-3.0](LICENSE) · [Trademark](TRADEMARK.md) |
 
@@ -107,6 +108,8 @@ Current RC status: [docs/STATUS.md](docs/STATUS.md)
 | [docs/SETUP.md](docs/SETUP.md) | Install paths (Linux / Windows / ISO / CLI) |
 | [docs/INDEX.md](docs/INDEX.md) | Full doc index |
 | [docs/OPEN_POOL_MINERS.md](docs/OPEN_POOL_MINERS.md) | Pool rules for miners |
+| [docs/HMS_PUBLIC_ROADMAP.md](docs/HMS_PUBLIC_ROADMAP.md) | HackMe Storage (HMS) prelaunch roadmap |
+| [docs/SUPPORT_COIN_UTILITY.md](docs/SUPPORT_COIN_UTILITY.md) | HackMe Support (SUP) accrual |
 | [docs/GPU_MINING_BACKENDS.md](docs/GPU_MINING_BACKENDS.md) | GPU matrix |
 | [docs/API.md](docs/API.md) | HTTP API |
 | [scripts/release/README.md](scripts/release/README.md) | Release pipeline |

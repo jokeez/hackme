@@ -16,13 +16,13 @@ import (
 )
 
 const (
-	MaxSupplySUP              = 21_000_000
-	metaSUPMaxSupplyUnits       = "sup_max_supply_units"
-	metaSUPTotalMintedUnits     = "sup_total_minted_units"
-	metaSUPGenesisUnix          = "sup_genesis_unix"
-	metaSUPMintEnabled          = "sup_mint_enabled"
-	DefaultSUPTransferMinFee    = uint64(1000)
-	DefaultSUPTransferMaxBatch  = 128
+	MaxSupplySUP               = 21_000_000
+	metaSUPMaxSupplyUnits      = "sup_max_supply_units"
+	metaSUPTotalMintedUnits    = "sup_total_minted_units"
+	metaSUPGenesisUnix         = "sup_genesis_unix"
+	metaSUPMintEnabled         = "sup_mint_enabled"
+	DefaultSUPTransferMinFee   = uint64(1000)
+	DefaultSUPTransferMaxBatch = 128
 )
 
 // SupTransferTx moves SUP on the parallel ledger (same address format as HMC).
@@ -41,23 +41,23 @@ type SupTransferTx struct {
 }
 
 type SupAddressState struct {
-	Address          string  `json:"address"`
-	BalanceSUPUnits  uint64  `json:"balance_sup_units"`
-	BalanceSUP       float64 `json:"balance_sup"`
-	SUPNextNonce     uint64  `json:"sup_next_nonce"`
+	Address         string  `json:"address"`
+	BalanceSUPUnits uint64  `json:"balance_sup_units"`
+	BalanceSUP      float64 `json:"balance_sup"`
+	SUPNextNonce    uint64  `json:"sup_next_nonce"`
 }
 
 type SUPEconomics struct {
-	MaxSupplySUP       float64 `json:"max_supply_sup"`
-	TotalMintedSUP     float64 `json:"total_minted_sup"`
-	RemainingSUP       float64 `json:"remaining_sup"`
-	GenesisUnix        int64   `json:"genesis_unix,omitempty"`
-	MintEnabled        bool    `json:"mint_enabled"`
-	OnChainSettleLive  bool    `json:"on_chain_settle_live"`
+	MaxSupplySUP      float64 `json:"max_supply_sup"`
+	TotalMintedSUP    float64 `json:"total_minted_sup"`
+	RemainingSUP      float64 `json:"remaining_sup"`
+	GenesisUnix       int64   `json:"genesis_unix,omitempty"`
+	MintEnabled       bool    `json:"mint_enabled"`
+	OnChainSettleLive bool    `json:"on_chain_settle_live"`
 }
 
 func SUPToUnits(v float64) uint64 { return HMCToUnits(v) }
-func UnitsToSUP(v uint64) float64  { return UnitsToHMC(v) }
+func UnitsToSUP(v uint64) float64 { return UnitsToHMC(v) }
 
 func supMintEnabledFromEnv() bool {
 	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_SUP_MINT_ENABLED")))

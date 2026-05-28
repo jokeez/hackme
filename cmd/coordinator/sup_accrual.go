@@ -10,20 +10,20 @@ import (
 
 // workerSupMeta tracks clean-mining streaks for SUP quality multiplier.
 type workerSupMeta struct {
-	CleanSinceUnix int64 `json:"clean_since_unix,omitempty"`
+	CleanSinceUnix int64  `json:"clean_since_unix,omitempty"`
 	RollingAccepts uint64 `json:"rolling_accepts,omitempty"`
 	RollingStale   uint64 `json:"rolling_stale,omitempty"`
 }
 
 type supPolicy struct {
-	Enabled         bool
-	RateOfHMC       float64 // base SUP = attempt-only HMC slice * rate
-	StreakSec       int64
-	StreakBonus     float64 // added to multiplier (e.g. 0.25 -> 1.25x)
-	DailyCapRatio   float64 // max SUP accrual per UTC day <= ratio * HMC accrued that day
-	RequireHybrid   bool
-	StaleRateMax    float64 // above this accept/(accept+stale) -> 0.25x
-	ReducedMult     float64 // multiplier when stale rate high
+	Enabled       bool
+	RateOfHMC     float64 // base SUP = attempt-only HMC slice * rate
+	StreakSec     int64
+	StreakBonus   float64 // added to multiplier (e.g. 0.25 -> 1.25x)
+	DailyCapRatio float64 // max SUP accrual per UTC day <= ratio * HMC accrued that day
+	RequireHybrid bool
+	StaleRateMax  float64 // above this accept/(accept+stale) -> 0.25x
+	ReducedMult   float64 // multiplier when stale rate high
 }
 
 func supOnChainSettleEnabled() bool {

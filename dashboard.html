@@ -838,6 +838,10 @@
 		body.coin-ctx-sup .coin-ctx-pill.active { border-color: rgba(168,85,247,0.55); box-shadow: 0 0 16px rgba(168,85,247,0.15); }
 		.coin-tab-hidden { display: none !important; }
 		[data-coin-scope].coin-scope-hidden { display: none !important; }
+		.eco-coins-table tr.eco-row-active td { background: rgba(0,209,255,0.06); }
+		body.coin-ctx-hms .eco-coins-table tr.eco-row-active td { background: rgba(52,211,153,0.08); }
+		body.coin-ctx-sup .eco-coins-table tr.eco-row-active td { background: rgba(168,85,247,0.08); }
+		#eco-kpi-strip[data-eco-preview="1"] .eco-stat-pill { border-color: rgba(251,191,36,0.25); }
 		#overview-miner-result.miner-lookup-err {
 			border-color: rgba(255,51,85,0.55) !important;
 			color: #ff6b8a;
@@ -1036,21 +1040,21 @@
 							</div>
 						</div>
 					</section>
-					<div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+					<div id="eco-kpi-strip" class="grid grid-cols-2 lg:grid-cols-4 gap-3" data-eco-preview="0">
 						<div class="eco-stat-pill">
-							<span class="text-[9px] uppercase tracking-[0.2em] text-gray-500">Active miners</span>
+							<span id="eco-kpi-miners-label" class="text-[9px] uppercase tracking-[0.2em] text-gray-500">Active miners</span>
 							<span id="eco-kpi-miners" class="font-display text-xl text-matrix tabular-nums">—</span>
 						</div>
 						<div class="eco-stat-pill">
-							<span class="text-[9px] uppercase tracking-[0.2em] text-gray-500">Pool difficulty (M)</span>
+							<span id="eco-kpi-target-mod-label" class="text-[9px] uppercase tracking-[0.2em] text-gray-500">Pool difficulty (M)</span>
 							<span id="eco-kpi-target-mod" class="font-display text-xl text-warn tabular-nums">—</span>
 						</div>
 						<div class="eco-stat-pill">
-							<span class="text-[9px] uppercase tracking-[0.2em] text-gray-500">Reward / M</span>
+							<span id="eco-kpi-reward-m-label" class="text-[9px] uppercase tracking-[0.2em] text-gray-500">Reward / M</span>
 							<span id="eco-kpi-reward-m" class="font-display text-xl text-neon tabular-nums">—</span>
 						</div>
 						<div class="eco-stat-pill">
-							<span class="text-[9px] uppercase tracking-[0.2em] text-gray-500">Chain height</span>
+							<span id="eco-kpi-height-label" class="text-[9px] uppercase tracking-[0.2em] text-gray-500">Chain height</span>
 							<span id="eco-kpi-height" class="font-display text-xl text-gray-100 tabular-nums">—</span>
 						</div>
 					</div>
@@ -2974,19 +2978,109 @@
 			if (c && profile.heroCopy) c.innerHTML = profile.heroCopy;
 			if (h && profile.hint) h.textContent = profile.hint;
 		}
-		function updateHmsMockKpis() {
+		const ECO_KPI_LABELS = {
+			hmc: {
+				miners: 'Active miners',
+				targetMod: 'Pool difficulty (M)',
+				rewardM: 'Reward / M',
+				height: 'Chain height',
+			},
+			sup: {
+				miners: 'HMC workers (SUP accrual)',
+				targetMod: 'HMC pool mod · accrual base',
+				rewardM: 'SUP slice (max)',
+				height: 'SUP accrued (pool)',
+			},
+			hms: {
+				miners: 'Storage workers',
+				targetMod: 'Challenge mod (M)',
+				rewardM: 'HMS / GB·epoch',
+				height: 'Manifest epoch',
+			},
+		};
+		function dashboardCoinMetrics(coinId) {
+			const id = normalizeDashboardCoinId(coinId);
+			if (id === 'hms') return hmsCoinMetrics();
+			if (id === 'sup') return supCoinMetrics();
+			return liveHmcCoinMetrics();
+		}
+		function hmsCoinMetrics() {
+			const gb = Number(($('hms-preview-quota') && $('hms-preview-quota').value) || 200) || 200;
+			const challengeMod = Math.max(1, Math.floor(gb * 18640));
+			const now = new Date();
+			const epochId =
+				now.getUTCFullYear() +
+				'-' +
+				String(now.getUTCMonth() + 1).padStart(2, '0') +
+				'-' +
+				String(now.getUTCDate()).padStart(2, '0') +
+				' ' +
+				String(now.getUTCHours()).padStart(2, '0') +
+				':00';
+			return {
+				miners: 0,
+				targetMod: fmtUInt(challengeMod),
+				rewardM: 'preview',
+				blocks: epochId,
+				poolGhLabel: gb + ' GB committed',
+				poolLuck: '—',
+				networkGhLabel: 'seal: preview',
+				blockReward: 'HMS (TBD)',
+				price: '—',
+				preview: true,
+			};
+		}
+		function supCoinMetrics() {
+			const hmc = liveHmcCoinMetrics();
+			const st = latestWorkerSettlementSnap || {};
+			const accrued = Number(st.wallet_accrued_sup || 0);
+			const unpaid = Number(st.wallet_unpaid_sup || 0);
+			const supTotal = accrued + unpaid;
+			return {
+				miners: hmc.miners,
+				targetMod: hmc.targetMod,
+				rewardM: '≤8%',
+				blocks: supTotal > 0.000001 ? fmt(supTotal, 4) + ' SUP' : '—',
+				poolGhLabel: hmc.poolGhLabel,
+				poolLuck: hmc.poolLuck,
+				networkGhLabel: hmc.networkGhLabel,
+				blockReward: 'via HMC pool',
+				price: '—',
+				preview: false,
+			};
+		}
+		function applyEcoKpisForActiveCoin() {
+			const coinId = activeDashboardCoinId || 'hmc';
+			const m = dashboardCoinMetrics(coinId);
+			const labels = ECO_KPI_LABELS[coinId] || ECO_KPI_LABELS.hmc;
+			const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
+			set('eco-kpi-miners-label', labels.miners);
+			set('eco-kpi-target-mod-label', labels.targetMod);
+			set('eco-kpi-reward-m-label', labels.rewardM);
+			set('eco-kpi-height-label', labels.height);
+			set('eco-kpi-miners', fmtUInt(m.miners));
+			set('eco-kpi-target-mod', m.targetMod);
+			set('eco-kpi-reward-m', m.rewardM);
+			set('eco-kpi-height', m.blocks);
+			if ($('eco-total-hash')) $('eco-total-hash').textContent = m.poolGhLabel || '—';
+			const strip = $('eco-kpi-strip');
+			if (strip) strip.setAttribute('data-eco-preview', m.preview ? '1' : '0');
+			document.querySelectorAll('#ecosystem-coins-body tr[data-eco-coin]').forEach((tr) => {
+				tr.classList.toggle('eco-row-active', tr.getAttribute('data-eco-coin') === coinId);
+			});
+			if (coinId === 'hms') updateHmsOverviewMock(m);
+		}
+		function updateHmsOverviewMock(m) {
+			const metrics = m || hmsCoinMetrics();
 			const gb = ($('hms-preview-quota') && $('hms-preview-quota').value) || '200';
 			const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
 			set('hms-mock-committed', gb + ' GB');
 			set('hms-mock-workers', '0');
 			set('hms-mock-seal', '— GH/s');
 			set('hms-mock-manifest', 'not sealed (preview)');
-			set('eco-kpi-miners', '0');
-			set('eco-kpi-target-mod', '—');
-			set('eco-kpi-reward-m', '—');
-			set('eco-kpi-height', 'manifest');
-			const hashEl = $('eco-total-hash');
-			if (hashEl) hashEl.textContent = 'preview';
+		}
+		function updateHmsMockKpis() {
+			applyEcoKpisForActiveCoin();
 		}
 		function renderCoinContextPills() {
 			const wrap = $('coin-context-pills');
@@ -3039,7 +3133,7 @@
 				quota.disabled = !enableSlider;
 				quota.title = enableSlider ? 'Preview quota (UI only)' : 'Enable after HMS lane deploy';
 			}
-			if (norm === 'hms') updateHmsMockKpis();
+			applyEcoKpisForActiveCoin();
 			if (opts.switchTab !== false) {
 				const next = opts.tab || firstVisibleTabForProfile(profile, opts.preferTab);
 				if (next) switchTab(next);
@@ -6767,17 +6861,20 @@
 			const mineable = ecosystemMineableCoins();
 			const hmc = liveHmcCoinMetrics();
 			if ($('eco-live-count')) $('eco-live-count').textContent = fmtUInt(mineable.length);
-			if ($('eco-total-hash')) $('eco-total-hash').textContent = hmc.poolGhLabel;
-			if ($('eco-kpi-miners')) $('eco-kpi-miners').textContent = fmtUInt(hmc.miners);
-			if ($('eco-kpi-target-mod')) $('eco-kpi-target-mod').textContent = hmc.targetMod;
-			if ($('eco-kpi-reward-m')) $('eco-kpi-reward-m').textContent = hmc.rewardM;
-			if ($('eco-kpi-height')) $('eco-kpi-height').textContent = hmc.blocks;
 			tb.innerHTML = '';
+			const ecoCoinCtxId = (c) => {
+				if (!c) return 'hmc';
+				if (c.id === 'support') return 'sup';
+				if (c.id === 'hms') return 'hms';
+				if (c.id === 'hmc') return 'hmc';
+				return 'hmc';
+			};
 			const renderRow = (coin, metrics, opts) => {
 				const o = opts || {};
 				const isLive = coin.status === 'live';
 				const isPrelaunch = coin.status === 'prelaunch' || coin.preview === true;
 				const tr = document.createElement('tr');
+				tr.setAttribute('data-eco-coin', ecoCoinCtxId(coin));
 				tr.className = isLive ? 'eco-row-live' : (isPrelaunch ? 'eco-row-prelaunch' : 'eco-row-planned');
 				if (isLive && coin.mineTab) {
 					tr.title = 'Open ' + coin.name + ' mining (Workers tab)';
@@ -6810,18 +6907,18 @@
 				tb.appendChild(tr);
 			};
 			mineable.forEach((coin) => {
-				renderRow(coin, coin.id === 'hmc' ? hmc : null);
+				const ctx = ecoCoinCtxId(coin);
+				const rowMetrics = coin.id === 'hmc' ? hmc : dashboardCoinMetrics(ctx);
+				renderRow(coin, rowMetrics);
 			});
 			ecosystemPreviewCoins().forEach((coin) => {
 				if (mineable.some((m) => m.id === coin.id)) return;
-				const previewMetrics = coin.id === 'hms'
-					? { poolGhLabel: '—', blocks: '—', poolLuck: '—', networkGhLabel: '—', targetMod: '—', price: '—', blockReward: 'HMS (TBD)' }
-					: null;
-				renderRow(coin, previewMetrics);
+				renderRow(coin, dashboardCoinMetrics(ecoCoinCtxId(coin)));
 			});
 			if (mineable.length === 0 && ecosystemPreviewCoins().length === 0) {
 				tb.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-center text-gray-500">No live mining pools yet.</td></tr>';
 			}
+			applyEcoKpisForActiveCoin();
 		}
 		function openEcosystemCoin(coin) {
 			if (!coin) return;
@@ -6851,7 +6948,7 @@
 			if (quota && quotaLabel) {
 				quota.addEventListener('input', () => {
 					quotaLabel.textContent = quota.value + ' GB';
-					if (activeDashboardCoinId === 'hms') updateHmsMockKpis();
+					if (activeDashboardCoinId === 'hms') applyEcoKpisForActiveCoin();
 				});
 			}
 			if (epochEl) {

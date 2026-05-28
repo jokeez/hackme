@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-05-29-hms-ui-preview",
+      "date": "2026-05-29",
+      "title": "HackMe Storage (HMS) — ecosystem UI preview",
+      "summary": "Dashboard and coins page now show HMC / SUP / HMS context with per-coin Ecosystem KPIs. HMS storage+seal lane is preview-only; production coordinator deploys on a dedicated heavy VPS before go-live.",
+      "tags": ["ecosystem", "hms", "mining", "preview"],
+      "impact": "Clearer story for miners: hub hosts UI and HMC/SUP; HMS backend is isolated on VPS #2 when ready.",
+      "action": "Coins: https://hackme.tech/coins.html#hms · Roadmap: https://hackme.tech/docs/HMS_PUBLIC_ROADMAP.md · Telegram: docs/TELEGRAM_POST_HMS_UI_PREVIEW.txt",
+      "status": "published",
+      "links": {
+        "coins": "https://hackme.tech/coins.html#hms",
+        "roadmap": "https://hackme.tech/docs/HMS_PUBLIC_ROADMAP.md",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-28-official-pool-recovered",
       "date": "2026-05-28",
       "title": "Official pool restored after VPS incident",
