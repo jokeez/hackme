@@ -84,6 +84,84 @@ func (m *workManager) liveChainPoHModFromNode() uint64 {
 	return 0
 }
 
+// parseJSONUint64 reads a positive integer from common JSON number encodings.
+func parseJSONUint64(v any) (uint64, bool) {
+	switch t := v.(type) {
+	case float64:
+		if t > 0 {
+			return uint64(t), true
+		}
+	case json.Number:
+		if x, err := t.Int64(); err == nil && x > 0 {
+			return uint64(x), true
+		}
+	case int:
+		if t > 0 {
+			return uint64(t), true
+		}
+	case int64:
+		if t > 0 {
+			return uint64(t), true
+		}
+	case uint64:
+		if t > 0 {
+			return t, true
+		}
+	}
+	return 0, false
+}
+
+func nodeProbeBaseURL(m *workManager) string {
+	base := strings.TrimRight(strings.TrimSpace(m.ordersProbeURL), "/")
+	if base == "" {
+		base = strings.TrimRight(strings.TrimSpace(m.targetURL), "/")
+	}
+	return base
+}
+
+// liveCanonicalTipHeightFromNode returns canonical chain tip height from the linked hackme-node.
+func (m *workManager) liveCanonicalTipHeightFromNode() (uint64, bool) {
+	base := nodeProbeBaseURL(m)
+	if base == "" {
+		return 0, false
+	}
+	cl := &http.Client{Timeout: 2 * time.Second}
+	tok := m.ordersAdminToken()
+
+	fetch := func(path string) (uint64, bool) {
+		req, err := http.NewRequest(http.MethodGet, base+path, nil)
+		if err != nil {
+			return 0, false
+		}
+		if tok != "" {
+			req.Header.Set("X-Hackme-Admin-Token", tok)
+		}
+		resp, err := cl.Do(req)
+		if err != nil {
+			return 0, false
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return 0, false
+		}
+		var body map[string]any
+		if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&body); err != nil {
+			return 0, false
+		}
+		for _, key := range []string{"tip_height", "block_height", "canonical_tip_height"} {
+			if h, ok := parseJSONUint64(body[key]); ok {
+				return h, true
+			}
+		}
+		return 0, false
+	}
+
+	if h, ok := fetch("/api/status"); ok {
+		return h, true
+	}
+	return fetch("/api/metrics")
+}
+
 func (m *workManager) ordersSolveEnabled() bool {
 	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_COORDINATOR_ORDERS_SOLVE_RELAY")))
 	if v == "" {

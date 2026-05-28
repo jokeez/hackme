@@ -2206,12 +2206,20 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		pub := map[string]any{
 			"status":   "ok",
 			"pool":     "HackMe Official Pool",
 			"hashrate": hr,
 			"workers":  wc,
 			"miners":   wc,
-		})
+		}
+		if tip, ok := wm.liveCanonicalTipHeightFromNode(); ok {
+			// Common keys for pool listing pollers (e.g. MiningPoolStats). Not pool-found blocks.
+			pub["block_height"] = tip
+			pub["tip_height"] = tip
+			pub["network_block_height"] = tip
+			pub["last_block_height"] = tip
+		}
+		_ = json.NewEncoder(w).Encode(pub)
 	})
 }

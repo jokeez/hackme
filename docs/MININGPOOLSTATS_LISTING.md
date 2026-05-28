@@ -46,7 +46,7 @@ Use this **after** public pool + settlement are stable (no recurring `admin auth
 | Min payout | 0.01 |
 | Payment | Other / Custom (or PPS with note: accrual + settlement) |
 | Pool software | Other / Custom |
-| **API stats URL** | `https://hackme.tech/pool/coordinator/api/pool/stats` (minimal JSON for pollers) |
+| **API stats URL** | `https://hackme.tech/pool/coordinator/api/pool/stats` (minimal JSON for pollers; includes `block_height` / `tip_height` from canonical node when reachable) |
 | **Payment** | **Other / Custom** — not PPS (we are not Stratum shares) |
 | **Fee %** | `1` if `0` fails validation |
 
@@ -80,6 +80,12 @@ See also [MINER_POOL_ECONOMICS.md](MINER_POOL_ECONOMICS.md).
 - Coin page for **HMC** (if new to their DB).
 - Pool row with live **hashrate**, **workers**, network context.
 - Organic traffic from “new coins” — send them to calculator + downloads, not fixed $/day claims.
+
+### Blocks (24h) vs block height on MPS
+
+- **`GET /api/pool/stats`** exposes canonical **`block_height`** / **`tip_height`** (chain tip from linked node).
+- MPS **“Blocks (24h)”** usually means **blocks found by the pool**, not network height — extra JSON fields may **not** fill that column until MPS maps them or you agree a custom note with moderators.
+- After coordinator deploy, verify: `curl -fsS https://hackme.tech/pool/coordinator/api/pool/stats | jq '{block_height,tip_height,hashrate,workers}'`
 
 ### Keep hub VPS healthy (moderation ping)
 
