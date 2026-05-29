@@ -7,9 +7,9 @@ export TMPDIR="${TMPDIR:-/tmp}"
 mkdir -p "$ROOT/logs"
 
 echo "[fuzz-redteam-gate] Go unit + red-team tests"
-go test -count=1 ./internal/fuzzescrow/... ./internal/fuzzengine/... ./internal/poolfuzz/... \
+go test -count=1 -timeout=180s ./internal/fuzzescrow/... ./internal/fuzzengine/... ./internal/poolfuzz/... \
   ./internal/chain/ -run 'Fuzz|Pool|Split|Redteam|Escrow|Detector|Tamper|Replay|Submit' 2>&1
-go test -count=1 ./cmd/coordinator/ -run 'Fuzz|Tamper|Replay|HTTPFuzz' 2>&1
+go test -count=1 -timeout=120s ./cmd/coordinator/ -run 'Fuzz|Tamper|Replay|HTTPFuzz' 2>&1
 
 echo "[fuzz-redteam-gate] distributed pool smoke"
 COORD_DB="${COORD_DB:-$ROOT/logs/pool_fuzz_redteam_$(date +%s).db}"

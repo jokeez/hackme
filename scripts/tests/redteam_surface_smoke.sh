@@ -8,6 +8,7 @@ set -euo pipefail
 #   BASE=http://127.0.0.1:8080 scripts/tests/redteam_surface_smoke.sh
 
 BASE="${BASE:-http://127.0.0.1:8080}"
+CURL_MAX_TIME="${CURL_MAX_TIME:-15}"
 
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "${tmp_dir}"' EXIT
@@ -21,12 +22,12 @@ check_reject() {
   local body_file="${tmp_dir}/${name}.json"
   local code
   if [[ -n "${data}" ]]; then
-    code="$(curl -x "" -sS -o "${body_file}" -w '%{http_code}' -X "${method}" \
+    code="$(curl -x "" -sS --max-time "${CURL_MAX_TIME}" -o "${body_file}" -w '%{http_code}' -X "${method}" \
       -H "Content-Type: application/json" \
       -d "${data}" \
       "${BASE}${path}" || true)"
   else
-    code="$(curl -x "" -sS -o "${body_file}" -w '%{http_code}' -X "${method}" \
+    code="$(curl -x "" -sS --max-time "${CURL_MAX_TIME}" -o "${body_file}" -w '%{http_code}' -X "${method}" \
       "${BASE}${path}" || true)"
   fi
   if [[ ",${accepted_codes}," == *",${code},"* ]]; then
