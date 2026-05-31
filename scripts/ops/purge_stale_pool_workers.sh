@@ -5,7 +5,7 @@
 #   COORD_URL=https://hackme.tech/pool/coordinator \
 #   ADMIN_TOKEN=... bash scripts/ops/purge_stale_pool_workers.sh
 #
-# Optional: PREFIX=worker-crypto-matrix DRY_RUN=1
+# Optional: PREFIX=l1v4- DRY_RUN=1
 
 set -euo pipefail
 

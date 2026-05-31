@@ -1,0 +1,60 @@
+{
+  "generated_for": "l1-crypto-stack-v3",
+  "repos": {
+    "bitcoin": {
+      "remote": "https://github.com/bitcoin/bitcoin.git",
+      "tag": "v28.1",
+      "commit": "9a8782c9c473e241a28daa27d071403f732e1921",
+      "fuzz_doc": "https://github.com/bitcoin/bitcoin/blob/master/doc/fuzzing.md",
+      "fuzz_harness": "eval_script",
+      "corpus_repo": "https://github.com/bitcoin-core/qa-assets.git",
+      "corpus_path": "fuzz_corpora/eval_script",
+      "source_files": [
+        "src/script/script.cpp",
+        "src/script/script.h",
+        "src/consensus/tx_check.cpp",
+        "src/consensus/amount.h"
+      ]
+    },
+    "ethereum": {
+      "remote": "https://github.com/ethereum/go-ethereum.git",
+      "tag": "v1.14.12",
+      "commit": "5eb0bb8ae2526b4dabd4b6980c0896e73812a82a",
+      "source_files": [
+        "core/state_transition.go"
+      ]
+    },
+    "dogecoin": {
+      "remote": "https://github.com/dogecoin/dogecoin.git",
+      "tag": "v1.14.9",
+      "commit": "573728ba9d9c7eb48eeb77ec47c9ac053a0a5912",
+      "source_files": [
+        "src/script/script.cpp"
+      ]
+    },
+    "litecoin": {
+      "remote": "https://github.com/litecoin-project/litecoin.git",
+      "tag": "v0.21.4",
+      "commit": "beb7fbf4f44bd0a350e4df818971be85e7b1b1c3",
+      "source_files": [
+        "src/script/script.cpp"
+      ]
+    },
+    "hackme": {
+      "remote": "https://github.com/jokeez/hackme.git",
+      "ref": "main",
+      "source_files": [
+        "internal/chain/order_tasks.go",
+        "internal/chain/economics.go"
+      ]
+    },
+    "qa_assets": {
+      "remote": "https://github.com/bitcoin-core/qa-assets.git",
+      "branch": "main",
+      "corpus_paths": {
+        "bitcoin_eval_script": "fuzz_corpora/eval_script",
+        "bitcoin_tx": "fuzz_corpora/tx"
+      }
+    }
+  }
+}

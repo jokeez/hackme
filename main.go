@@ -420,6 +420,7 @@ func main() {
 	mux.HandleFunc("/api/global/metrics", a.handleGlobalMetrics)
 	mux.HandleFunc("/api/network/stats", a.handleNetworkStats)
 	mux.HandleFunc("/api/work/stats", a.handleWorkStats)
+	mux.HandleFunc("/api/work/admin/prune-workers", a.handleWorkAdminPruneWorkers)
 	mux.HandleFunc("/api/work/by-wallet", a.handleWorkByWallet)
 	mux.HandleFunc("/api/push_work", a.handlePushWork)
 	mux.HandleFunc("/api/genesis", a.handleGenesis)
@@ -460,6 +461,11 @@ func main() {
 	mux.HandleFunc("/api/sup/genesis", a.handleSUPGenesisInit)
 	mux.HandleFunc("/api/sup/mint", a.handleSUPMint)
 	mux.HandleFunc("/api/sup/tx/send", a.handleSUPTransferSend)
+	mux.HandleFunc("/api/hms/economics", a.handleHMSEconomics)
+	mux.HandleFunc("/api/hms/genesis", a.handleHMSGenesisInit)
+	mux.HandleFunc("/api/hms/mint", a.handleHMSMint)
+	mux.HandleFunc("/api/hms/tx/send", a.handleHMSTransferSend)
+	mux.HandleFunc("/api/local/disks", a.handleLocalDisks)
 	mux.HandleFunc("/api/tx/pool", a.handleTransferPool)
 	mux.HandleFunc("/api/tx/", a.handleTransferByHash)
 	mux.HandleFunc("/api/address/", a.handleTransferAddressState)
@@ -472,6 +478,7 @@ func main() {
 	mux.HandleFunc("/api/p2p/sync/apply", a.handleP2PSyncApply)
 	mux.HandleFunc("/api/p2p/sync/run", a.handleP2PSyncRun)
 	mux.HandleFunc("/api/mining/devices", a.handleMiningDevices)
+	registerHMSMarketRoutes(mux, a)
 	mux.HandleFunc("/explorer", a.handleExplorer)
 	mux.HandleFunc("/dashboard", a.handleDashboardRedirect)
 	mux.HandleFunc("/", a.handleIndex)
@@ -1363,6 +1370,14 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 		displayAddr = lookupAddr
 	}
 	supSt, _ := a.chain.SupAddressState(ctx, lookupAddr)
+	if wantCanon && lookupAddr != "" {
+		supCtx, supCancel := context.WithTimeout(ctx, 10*time.Second)
+		if supUnits, ok := a.fetchCanonicalSupAddressState(supCtx, lookupAddr); ok && supUnits > 0 {
+			supSt.BalanceSUPUnits = supUnits
+			supSt.BalanceSUP = chain.UnitsToSUP(supUnits)
+		}
+		supCancel()
+	}
 	out := map[string]any{
 		"address":                    displayAddr,
 		"balance_hmc":                bal,
@@ -1756,14 +1771,6 @@ func (a *app) buildStatusLite(ctx context.Context) map[string]any {
 		"status_lite":                    true,
 		"tip_sync_source":                "local_ledger",
 	}
-	// Hot dashboard poll: never block on remote canonical /api/status (curl fallback can take 6s).
-	if hasC, hC, tipC, ok := a.readCanonicalTipCache(); ok {
-		body["canonical_tip_height"] = hC
-		body["canonical_tip_hash"] = tipC
-		body["canonical_tip_has_genesis"] = hasC
-		body["canonical_tip_ok"] = true
-		body["canonical_tip_sync_source"] = "canonical_peer_cache"
-	}
 	has, h, tip, tipStale := a.chainTipForStatus(ctx)
 	body["has_genesis"] = has
 	body["tip_height"] = h
@@ -1771,6 +1778,18 @@ func (a *app) buildStatusLite(ctx context.Context) map[string]any {
 	if tipStale {
 		body["tip_read_stale"] = true
 	}
+	a.applyFollowerCanonicalTipSnapshot(ctx, body, 700*time.Millisecond)
+	if ct := asUint64(body["canonical_tip_height"]); ct > 0 && has {
+		lag := int64(ct) - int64(h)
+		if lag < 0 {
+			lag = 0
+		}
+		body["network_sync"] = map[string]any{
+			"canonical_ledger_lag_blocks": uint64(lag),
+			"public_authority_base":       strings.TrimSpace(os.Getenv("HACKME_PUBLIC_AUTHORITY_BASE")),
+		}
+	}
+	applyDisplayTipHeight(body)
 	if canonBase != "" {
 		body["canonical_chain_base_url"] = canonBase
 	}
@@ -1996,6 +2015,7 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 	} else if coord := strings.TrimRight(strings.TrimSpace(a.coordinatorBaseURL()), "/"); coord != "" {
 		a.warmWorkStatsCacheAsync(coord, false)
 	}
+	applyDisplayTipHeight(statusBody)
 
 	writeJSON(w, statusBody)
 }
@@ -2759,12 +2779,13 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		totalSettledSUP += settledSUP
 		totalUnpaidSUP += accruedSUP - settledSUP
 	}
-	displayUnpaid := walletUnpaid
 	if strings.TrimSpace(a.nodeID) == "" {
-		displayUnpaid = totalUnpaid
 		accrualSource = "fleet_aggregate"
 	}
-	// All workers routed to one payout wallet via WORKER_PAYOUT_MAP → show fleet totals on wallet card.
+	// All workers routed to one payout wallet via WORKER_PAYOUT_MAP — fleet totals for settlement ops only.
+	payoutWalletUnpaidHMC := walletUnpaid
+	payoutWalletAccruedHMC := walletAccrued
+	payoutWalletUnpaidSUP := walletUnpaidSUP
 	if len(payoutMap) > 0 && totalUnpaid >= 0 {
 		targets := map[string]struct{}{}
 		for _, t := range payoutMap {
@@ -2774,13 +2795,9 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if len(targets) == 1 {
-			walletAccrued = totalAccrued
-			walletSettled = totalSettled
-			walletUnpaid = totalUnpaid
-			displayUnpaid = totalUnpaid
-			walletAccruedSUP = totalAccruedSUP
-			walletSettledSUP = totalSettledSUP
-			walletUnpaidSUP = totalUnpaidSUP
+			payoutWalletAccruedHMC = totalAccrued
+			payoutWalletUnpaidHMC = totalUnpaid
+			payoutWalletUnpaidSUP = totalUnpaidSUP
 			if accrualSource == "none" {
 				accrualSource = "unified_payout_map"
 			}
@@ -2831,6 +2848,23 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 			"unpaid_sup":  accruedSUP - settledSUP,
 		}
 	}
+	desktopWorkerUnpaidHMC := 0.0
+	desktopWorkerAccruedHMC := 0.0
+	desktopWorkerSettledHMC := 0.0
+	if bd, ok := workerBreakdown[desktopWorkerID].(map[string]any); ok {
+		desktopWorkerAccruedHMC = parseAnyFloat(bd["accrued_hmc"])
+		desktopWorkerSettledHMC = parseAnyFloat(bd["settled_hmc"])
+		desktopWorkerUnpaidHMC = parseAnyFloat(bd["unpaid_hmc"])
+	}
+	// Dashboard: show this PC worker unsettled accrual, not fleet-wide pool total.
+	walletAccrued = desktopWorkerAccruedHMC
+	walletSettled = desktopWorkerSettledHMC
+	walletUnpaid = desktopWorkerUnpaidHMC
+	if bd, ok := workerBreakdown[desktopWorkerID].(map[string]any); ok {
+		walletAccruedSUP = parseAnyFloat(bd["accrued_sup"])
+		walletSettledSUP = parseAnyFloat(bd["settled_sup"])
+		walletUnpaidSUP = parseAnyFloat(bd["unpaid_sup"])
+	}
 	supPolicy, _ := ws["sup_policy"].(map[string]any)
 	writeJSON(w, map[string]any{
 		"ok":                                    true,
@@ -2838,10 +2872,16 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		"workers_count":                         len(workers),
 		"total_accrued_hmc":                     totalAccrued,
 		"total_settled_hmc":                     totalSettled,
-		"total_unpaid_hmc":                      displayUnpaid,
+		"total_unpaid_hmc":                      totalUnpaid,
 		"wallet_accrued_hmc":                    walletAccrued,
 		"wallet_settled_hmc":                    walletSettled,
 		"wallet_unpaid_hmc":                     walletUnpaid,
+		"desktop_worker_unpaid_hmc":             desktopWorkerUnpaidHMC,
+		"desktop_worker_accrued_hmc":            desktopWorkerAccruedHMC,
+		"payout_wallet_unpaid_hmc":              payoutWalletUnpaidHMC,
+		"payout_wallet_accrued_hmc":             payoutWalletAccruedHMC,
+		"payout_wallet_unpaid_sup":              payoutWalletUnpaidSUP,
+		"wallet_unpaid_scope":                   "desktop_worker",
 		"wallet_accrued_sup":                    walletAccruedSUP,
 		"wallet_settled_sup":                    walletSettledSUP,
 		"wallet_unpaid_sup":                     walletUnpaidSUP,
@@ -2853,7 +2893,7 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		"sup_settlement_note":                   a.supSettlementNoteForAPI(ctx),
 		"display_wallet_address":                displayWallet,
 		"desktop_worker_id":                     desktopWorkerID,
-		"desktop_worker_accrued_hmc":            desktopWorkerAccrued,
+		"coordinator_raw_payout_hmc":            desktopWorkerAccrued,
 		"coordinator_pending_hmc":               coordinatorPending,
 		"accrual_source":                        accrualSource,
 		"last_signed_miner_address":             strings.TrimSpace(asString(ws["last_signed_miner_address"])),
@@ -3626,13 +3666,17 @@ func (a *app) handleTransferAddressState(w http.ResponseWriter, r *http.Request)
 	if a.shouldUseCanonicalChainAPI() {
 		if base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/"); base != "" && walletCanonicalBaseUsable(base) {
 			if hmc, units, nonce, ok := a.readCanonicalWalletCache(addr); ok {
-				writeJSON(w, map[string]any{
+				out := map[string]any{
 					"address":       addr,
 					"balance_units": units,
 					"next_nonce":    nonce,
 					"balance_hmc":   hmc,
 					"source":        "canonical_peer_cache",
-				})
+				}
+				for k, v := range a.addressSupFieldsForResponse(r.Context(), addr) {
+					out[k] = v
+				}
+				writeJSON(w, out)
 				return
 			}
 			peerTimeout := 6 * time.Second
@@ -3645,13 +3689,17 @@ func (a *app) handleTransferAddressState(w http.ResponseWriter, r *http.Request)
 			if ok {
 				hmc := float64(units) / 100_000_000.0
 				a.cacheCanonicalWallet(addr, hmc, units, nonce)
-				writeJSON(w, map[string]any{
+				out := map[string]any{
 					"address":       addr,
 					"balance_units": units,
 					"next_nonce":    nonce,
 					"balance_hmc":   hmc,
 					"source":        "canonical_peer",
-				})
+				}
+				for k, v := range a.addressSupFieldsForResponse(r.Context(), addr) {
+					out[k] = v
+				}
+				writeJSON(w, out)
 				return
 			}
 		}

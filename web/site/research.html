@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe Research — Multi-chain L1 &amp; Security Reports</title>
+  <meta name="description" content="Public security research for the HackMe ecosystem: live L1 v4 prod fuzz (BTC, ETH, DOGE, LTC, HackMe), offline corpora, upstream WASM fidelity, and honest scope notes." />
+  <link rel="canonical" href="https://hackme.tech/research.html" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="./assets/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="./index.html">
+      <img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe logo" />
+      <span>HackMe Network</span>
+    </a>
+    <nav class="nav">
+      <a href="./index.html">Home</a>
+      <a href="./coins.html">Coins</a>
+      <a href="./developers.html">Developers</a>
+      <a href="./downloads.html">Downloads</a>
+      <a href="./fuzz-campaigns.html">Fuzz</a>
+      <a href="./news.html">News</a>
+      <a href="./docs.html">Docs</a>
+      <a href="./contacts.html">Contacts</a>
+      <a href="./legal.html">Legal</a>
+      <a id="explorer-link-top" href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass hero-small">
+      <p class="kicker">Security research · Ecosystem</p>
+      <h1>Multi-chain L1 stack &amp; live prod fuzz</h1>
+      <p class="hero-copy">
+        HackMe is <strong>not a single-chain fork</strong>. Public research covers
+        <strong>Bitcoin · Ethereum · Dogecoin · Litecoin · HackMe</strong> upstream guards,
+        plus <strong>live useful-PoW fuzz</strong> on hackme.tech with real HMC escrow.
+        Customer audit reports stay <strong>token-gated</strong> — see <a href="./developers.html">Developers</a>.
+      </p>
+      <div class="pill-row">
+        <span class="pill">HMC mining + pool</span>
+        <span class="pill">SUP accrual</span>
+        <span class="pill">B2B fuzz (local node)</span>
+        <span class="pill">5-chain L1 WASM</span>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head">
+        <h2>Featured · L1 Crypto Stack v4 (live)</h2>
+        <p class="subtle">Production campaigns on the public pool — escrow, workerfuzz, published HTML ledger.</p>
+      </div>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="./reports/l1-crypto-stack-v4.html">Open v4 report</a>
+        <a class="btn btn-secondary" href="https://hackme.tech/reports/l1-crypto-stack-v4.html" target="_blank" rel="noreferrer">Canonical URL</a>
+        <a class="btn btn-secondary" href="./fuzz-campaigns.html">Fuzz hub</a>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head">
+        <h2>All public reports</h2>
+      </div>
+      <div class="quick-links">
+        <a class="quick-item" href="./reports/l1-crypto-stack-v4.html">
+          <h4>L1 Crypto Stack v4</h4>
+          <p>Live prod fuzz · BTC/ETH/DOGE/LTC/HackMe · wallet + campaign table · May 2026.</p>
+        </a>
+        <a class="quick-item" href="./reports/l1-crypto-stack-v3.html">
+          <h4>L1 Crypto Stack v3</h4>
+          <p>Official Bitcoin Core qa-assets corpus · pinned upstream · 20k golden match.</p>
+        </a>
+        <a class="quick-item" href="./reports/l1-crypto-stack.html">
+          <h4>L1 Crypto Stack v2</h4>
+          <p>Five-chain property probes · upstream excerpts · no sandbox traps.</p>
+        </a>
+        <a class="quick-item" href="./reports/bitcoin-core-5module.html">
+          <h4>Bitcoin Core 5-module</h4>
+          <p>Companion study · Core-inspired guards · honest non-CVE scope.</p>
+        </a>
+        <a class="quick-item" href="./fuzz-guide.html">
+          <h4>Fuzz operator guide</h4>
+          <p>Campaign lifecycle, gates, autorunner — for node operators.</p>
+        </a>
+        <a class="quick-item" href="./security-rewards.html">
+          <h4>Security rewards</h4>
+          <p>Bounty policy and disclosure channels for the network.</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Honest scope</h2></div>
+      <ul class="list">
+        <li>Research WASM ports exercise <em>selected</em> upstream logic — not a replacement for running full node fuzz binaries locally.</li>
+        <li>Live v4 proves pool + escrow + coordinator + workerfuzz on production — not private customer source unless they chose to fuzz it on their local node.</li>
+        <li>Mining economics (HMC, SUP, orders) are documented on <a href="./economics-model.html">Economics</a> and <a href="./coins.html">Coins</a>.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>HackMe Network</p>
+    <p class="muted">Ecosystem: mine · fuzz · research · explore.</p>
+    <div class="footer-nav">
+      <a href="./index.html">Home</a>
+      <a href="./coins.html">Coins</a>
+      <a href="./downloads.html">Downloads</a>
+      <a href="./docs.html">Docs</a>
+      <a href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </div>
+  </footer>
+  <script src="./assets/app.js?v=20260531research"></script>
+</body>
+</html>

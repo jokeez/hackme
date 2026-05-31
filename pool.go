@@ -221,6 +221,13 @@ func storeWorkStatsCache(ws map[string]any) {
 	workStatsCacheMu.Unlock()
 }
 
+func invalidateWorkStatsCache() {
+	workStatsCacheMu.Lock()
+	workStatsCache = nil
+	workStatsCacheTS = 0
+	workStatsCacheMu.Unlock()
+}
+
 func applyWorkStatsPoolFields(statusBody map[string]any, ws map[string]any) {
 	if statusBody == nil || ws == nil {
 		return
@@ -857,6 +864,75 @@ func (a *app) fetchCanonicalAddressState(ctx context.Context, addr string) (bala
 	return fetchCurl()
 }
 
+// fetchCanonicalSupAddressState loads balance_sup_units from the public command node address API.
+func (a *app) fetchCanonicalSupAddressState(ctx context.Context, addr string) (supUnits uint64, ok bool) {
+	addr = strings.TrimSpace(addr)
+	if addr == "" || a == nil {
+		return 0, false
+	}
+	base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/")
+	if !walletCanonicalBaseUsable(base) {
+		return 0, false
+	}
+	u := base + "/api/address/" + neturl.PathEscape(addr)
+	parseSup := func(parsed map[string]any) (uint64, bool) {
+		if parsed == nil {
+			return 0, false
+		}
+		if v := asUint64(parsed["balance_sup_units"]); v > 0 {
+			return v, true
+		}
+		if f := parseAnyFloat(parsed["balance_sup"]); f > 0 {
+			return chain.SUPToUnits(f), true
+		}
+		return 0, false
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err == nil {
+		client := &http.Client{Timeout: 12 * time.Second}
+		if resp, err := client.Do(req); err == nil && resp != nil {
+			defer resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				var st struct {
+					BalanceSUPUnits uint64  `json:"balance_sup_units"`
+					BalanceSUP      float64 `json:"balance_sup"`
+				}
+				if err := json.NewDecoder(resp.Body).Decode(&st); err == nil {
+					if st.BalanceSUPUnits > 0 {
+						return st.BalanceSUPUnits, true
+					}
+					if st.BalanceSUP > 0 {
+						return chain.SUPToUnits(st.BalanceSUP), true
+					}
+				}
+			}
+		}
+	}
+	curlCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if parsed, err := fetchJSONViaCurl(curlCtx, u, nil); err == nil {
+		if units, ok := parseSup(parsed); ok {
+			return units, true
+		}
+	}
+	return 0, false
+}
+
+func (a *app) addressSupFieldsForResponse(ctx context.Context, addr string) map[string]any {
+	out := map[string]any{}
+	if a == nil {
+		return out
+	}
+	supSt, err := a.chain.SupAddressState(ctx, addr)
+	if err != nil || supSt.BalanceSUPUnits == 0 && supSt.BalanceSUP <= 0 {
+		return out
+	}
+	out["balance_sup"] = supSt.BalanceSUP
+	out["balance_sup_units"] = supSt.BalanceSUPUnits
+	out["sup_next_nonce"] = supSt.SUPNextNonce
+	return out
+}
+
 func (a *app) fetchCanonicalStatusTip(ctx context.Context) (hasGenesis bool, tipHeight uint64, tipHash string, ok bool) {
 	if a == nil || a.miner.Running() {
 		return false, 0, "", false
@@ -942,8 +1018,85 @@ func (a *app) applyCanonicalChainTipToStatusMap(ctx context.Context, dst map[str
 	dst["canonical_tip_sync_source"] = "canonical_peer"
 }
 
+// applyFollowerCanonicalTipSnapshot fills canonical_tip_* via HTTP overlay to the public command node (P2P not required).
+func (a *app) applyFollowerCanonicalTipSnapshot(ctx context.Context, dst map[string]any, quickTimeout time.Duration) {
+	if a == nil || dst == nil || a.miner.Running() || !a.networkModeActive() {
+		return
+	}
+	if hasC, hC, tipC, ok := a.readCanonicalTipCache(); ok {
+		dst["canonical_tip_height"] = hC
+		dst["canonical_tip_hash"] = tipC
+		dst["canonical_tip_has_genesis"] = hasC
+		dst["canonical_tip_ok"] = true
+		dst["canonical_tip_sync_source"] = "canonical_peer_cache"
+	}
+	if quickTimeout <= 0 {
+		quickTimeout = 900 * time.Millisecond
+	}
+	quickCtx, cancel := context.WithTimeout(ctx, quickTimeout)
+	hasGen, hNow, tipNow, okNow := a.fetchCanonicalStatusTip(quickCtx)
+	cancel()
+	if okNow && strings.TrimSpace(tipNow) != "" {
+		dst["canonical_tip_height"] = hNow
+		dst["canonical_tip_hash"] = tipNow
+		dst["canonical_tip_has_genesis"] = hasGen
+		dst["canonical_tip_ok"] = true
+		dst["canonical_tip_sync_source"] = "canonical_peer"
+		a.cacheCanonicalTip(hasGen, hNow, tipNow)
+	}
+}
+
+// applyDisplayTipHeight sets display_tip_height for dashboards: canonical on followers, local SQLite on command nodes.
+func applyDisplayTipHeight(dst map[string]any) {
+	if dst == nil {
+		return
+	}
+	display := asUint64(dst["tip_height"])
+	net, _ := dst["network_mode_active"].(bool)
+	if ct := asUint64(dst["canonical_tip_height"]); net && ct > 0 {
+		display = ct
+	}
+	dst["display_tip_height"] = display
+}
+
 func coordinatorToken() string {
 	return strings.TrimSpace(os.Getenv("HACKME_POOL_COORDINATOR_TOKEN"))
+}
+
+func coordinatorAdminToken() string {
+	if t := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_ADMIN_TOKEN")); t != "" {
+		return t
+	}
+	return coordinatorToken()
+}
+
+func postCoordinatorWorkAdmin(ctx context.Context, base, path string, body []byte) (map[string]any, int, error) {
+	base = strings.TrimRight(strings.TrimSpace(base), "/")
+	if base == "" {
+		return nil, 0, fmt.Errorf("coordinator url is empty")
+	}
+	tok := coordinatorAdminToken()
+	if tok == "" {
+		return nil, 0, fmt.Errorf("coordinator admin token not configured")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+path, bytes.NewReader(body))
+	if err != nil {
+		return nil, 0, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", tok)
+	req.Header.Set(coordinatorForwardHeader, "1")
+	res, err := coordinatorHTTPClient().Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer res.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+	out := map[string]any{}
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &out)
+	}
+	return out, res.StatusCode, nil
 }
 
 func fetchCoordinatorStats(ctx context.Context, base string) (lanpool.NetworkStatsResponse, error) {
@@ -1473,6 +1626,51 @@ func (a *app) handleGlobalMetrics(w http.ResponseWriter, r *http.Request) {
 		"network":       networkPart,
 		"work":          workPart,
 	})
+}
+
+func (a *app) handleWorkAdminPruneWorkers(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !requireAdminAuth(w, r) {
+		return
+	}
+	base := a.coordinatorBaseURL()
+	if base == "" {
+		writeJSON(w, map[string]any{"ok": false, "reason": "coordinator_not_configured"})
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "reason": "read_body", "message": err.Error()})
+		return
+	}
+	if len(body) == 0 {
+		body = []byte(`{"stale_sec":600,"max_payout_hmc":0.001}`)
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
+	defer cancel()
+	out, code, err := postCoordinatorWorkAdmin(ctx, base, "/api/work/admin/prune-workers", body)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "reason": "coordinator_unavailable", "message": err.Error()})
+		return
+	}
+	if code != http.StatusOK {
+		writeJSON(w, map[string]any{"ok": false, "reason": "coordinator_http", "status": code, "coordinator": out})
+		return
+	}
+	if removed, ok := out["removed"].([]any); ok && len(removed) > 0 {
+		ids := make([]string, 0, len(removed))
+		for _, v := range removed {
+			if s := strings.TrimSpace(fmt.Sprintf("%v", v)); s != "" {
+				ids = append(ids, s)
+			}
+		}
+		pruneWorkerCoordinatorMirror(ids)
+	}
+	invalidateWorkStatsCache()
+	writeJSON(w, out)
 }
 
 func (a *app) handleWorkStats(w http.ResponseWriter, r *http.Request) {

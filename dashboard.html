@@ -1787,8 +1787,17 @@
 						<div class="mt-4 card card-glow rounded-lg p-4 border-neon/20">
 							<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
 								<h3 class="font-display text-[10px] tracking-[0.25em] text-neon uppercase">Work payout (coordinator)</h3>
-								<button type="button" id="btn-work-stats-refresh" class="text-[10px] px-3 py-1 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
+								<div class="flex flex-wrap items-center gap-2">
+									<select id="mining-workers-filter" class="text-[10px] font-mono rounded border border-white/20 bg-black/50 px-2 py-1 text-gray-300" title="Hide idle test workers (l1v4-*, qa-*) with zero payout">
+										<option value="active" selected>active miners</option>
+										<option value="all">all workers</option>
+										<option value="live">live only</option>
+										<option value="offline">offline only</option>
+									</select>
+									<button type="button" id="btn-work-stats-refresh" class="text-[10px] px-3 py-1 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
+								</div>
 							</div>
+							<p id="mining-workers-meta" class="text-[9px] text-gray-600 font-mono mb-1">—</p>
 							<p id="mining-pool-status-line" class="text-[10px] text-gray-500 font-mono mb-2 leading-relaxed">Pool status: —</p>
 							<p id="work-stats-headline" class="text-[10px] text-gray-500 font-mono mb-1">—</p>
 							<p id="work-payout-hint" class="text-[10px] text-gray-500 mb-3 max-w-3xl leading-relaxed hidden"></p>
@@ -3697,6 +3706,8 @@
 		let latestWorkerRows = [];
 		let overviewMinersFilter = 'all';
 		let overviewMinersLimit = 8;
+		let miningWorkersFilter = 'active';
+		let miningWorkersControlsBound = false;
 		let rigProfileAutoDetectDone = false;
 		let lastStatusOkUnix = 0;
 		let lastNetworkStatsOkUnix = 0;
@@ -7191,6 +7202,29 @@
 				coordinatorSynthOnline;
 		}
 
+		function miningWorkerRowVisible(r, rowSt, online, sampleUnix) {
+			const myId = String((latestWorkerStatus && latestWorkerStatus.worker_id) || 'worker-kapa-pc');
+			const isMine = r.id === myId || r.id === 'worker-kapa-pc';
+			const hasHistory = Number(r.payout || 0) > 0 || Number(r.attempts || 0) > 0 || Number(r.ranges || 0) > 0;
+			if (miningWorkersFilter === 'all') return true;
+			if (miningWorkersFilter === 'live') return online;
+			if (miningWorkersFilter === 'offline') return !online;
+			return online || isMine || hasHistory;
+		}
+
+		function bindMiningWorkersControls() {
+			if (miningWorkersControlsBound) return;
+			miningWorkersControlsBound = true;
+			const filt = $('mining-workers-filter');
+			if (filt) {
+				filt.value = miningWorkersFilter;
+				filt.addEventListener('change', () => {
+					miningWorkersFilter = String(filt.value || 'active');
+					if (lastGoodWorkStats) renderWorkStats(lastGoodWorkStats);
+				});
+			}
+		}
+
 		function renderOverviewTopMiners(ws, rows) {
 			const overviewTB = $('overview-top-miners');
 			if (!overviewTB) return;
@@ -7573,6 +7607,7 @@
 			}
 			bindOverviewMinersControls();
 			bindSolopoolVectors();
+			bindMiningWorkersControls();
 			renderOverviewTopMiners(ws, rows);
 			if (!rows.length) {
 				tb.innerHTML = '<tr><td colspan="8" class="px-3 py-3 text-gray-600 text-center">No worker payouts yet</td></tr>';
@@ -7580,7 +7615,32 @@
 				try { updateMiningPayoutLiveStrip(); } catch (_) {}
 				return;
 			}
-			rows.forEach((r) => {
+			const visibleRows = rows.filter((r) => {
+				const rowSt = workers[r.id] || {};
+				const coordPruned = !!(rowSt.coordinator_pruned);
+				const runningWorkerID = String((latestWorkerStatus && latestWorkerStatus.worker_id) || '');
+				const minuteUnix = Number((abuse[r.id] || {}).minute_unix || 0);
+				const staleSec = minuteUnix > 0 ? Math.max(0, sampleUnix - (minuteUnix * 60)) : -1;
+				const online = !coordPruned && (
+					!!(r.live && r.live.online) ||
+					(staleSec >= 0 && staleSec <= 90) ||
+					(!!(latestWorkerStatus && latestWorkerStatus.running) &&
+						(r.id === runningWorkerID || r.id === 'worker-active')) ||
+					!!(rowSt.local_pool_worker)
+				);
+				return miningWorkerRowVisible(r, rowSt, online, sampleUnix);
+			});
+			const metaEl = $('mining-workers-meta');
+			if (metaEl) {
+				metaEl.textContent = 'showing ' + fmtUInt(visibleRows.length) + ' / ' + fmtUInt(rows.length) + ' · filter=' + miningWorkersFilter;
+			}
+			if (!visibleRows.length) {
+				tb.innerHTML = '<tr><td colspan="8" class="px-3 py-3 text-gray-600 text-center">No miners match filter — try “all workers”</td></tr>';
+				renderMinerLookupResult();
+				try { updateMiningPayoutLiveStrip(); } catch (_) {}
+				return;
+			}
+			visibleRows.forEach((r) => {
 				const prev = workAttemptsRate.get(r.id);
 				const monoNow = Date.now();
 				let attemptsPerMin = 0;
@@ -8138,12 +8198,13 @@
 			if (!(canonH > 0) && latestCanonicalChainHeight > 0) {
 				canonH = latestCanonicalChainHeight;
 			}
+			const displayField = Number((c.display_tip_height != null && c.display_tip_height !== '') ? c.display_tip_height : (s.display_tip_height ?? 0));
 			const canonOk = (c.canonical_tip_ok === true) || (s.canonical_tip_ok === true);
 			const tipCanon = String(c.canonical_tip_hash || s.canonical_tip_hash || '').trim();
 			const net = !!(s.network_mode_active);
-			const preferCanon = canonH > 0 && (canonOk || net || tipCanon.length >= 16);
-			const display = preferCanon ? canonH : localH;
-			return { display, localH, canonH, preferCanon, net };
+			const preferCanon = displayField > 0 || (canonH > 0 && (canonOk || net || tipCanon.length >= 16));
+			const display = displayField > 0 ? displayField : (preferCanon ? canonH : localH);
+			return { display, localH, canonH: canonH > 0 ? canonH : displayField, preferCanon, net };
 		}
 
 		function syncOverviewHeightCard(chainOverride, statusOverride) {

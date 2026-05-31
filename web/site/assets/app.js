@@ -100,6 +100,39 @@
     ensureCoinsLink(".footer-nav");
   }
 
+  /** Insert nav link if missing (fixes scattered menus on older pages). */
+  function ensureNavLink(selector, href, text, afterHrefPart) {
+    const container = document.querySelector(selector);
+    if (!container || !href) return;
+    const norm = href.toLowerCase();
+    const exists = Array.from(container.querySelectorAll("a")).some((a) => {
+      const h = (a.getAttribute("href") || "").trim().toLowerCase();
+      return h === norm || h.endsWith(norm.replace("./", ""));
+    });
+    if (exists) return;
+    const link = document.createElement("a");
+    link.href = href;
+    link.textContent = text;
+    if (afterHrefPart) {
+      const anchor = Array.from(container.querySelectorAll("a")).find((a) =>
+        (a.getAttribute("href") || "").includes(afterHrefPart)
+      );
+      if (anchor && anchor.parentNode) {
+        anchor.insertAdjacentElement("afterend", link);
+        return;
+      }
+    }
+    container.appendChild(link);
+  }
+
+  function wireStandardNav() {
+    ensureNavLink(".nav", "./coins.html", "Coins", "index");
+    ensureNavLink(".nav", "./developers.html", "Developers", "coins");
+    ensureNavLink(".nav", "./downloads.html", "Downloads", "developers");
+    ensureNavLink(".nav", "./fuzz-campaigns.html", "Fuzz", "downloads");
+    ensureNavLink(".footer-nav", "./research.html", "Research", "coins");
+  }
+
   function ensureFooterLink(nav, href, text) {
     if (!nav || !href) return;
     const norm = href.toLowerCase();
@@ -494,6 +527,7 @@
   wireExplorerLinks();
   wireNewsLinks();
   wireCoinsLinks();
+  wireStandardNav();
   wireCommunityFooter();
   wireDownloadLinks();
   void resolveWindowsDownloadHref().then((href) => {

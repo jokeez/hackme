@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>HackMe · L1 Crypto Stack v4 — Live Production Fuzz</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--neon:#00d1ff;--matrix:#39ff14;--warn:#ffb020;--bg:#05080f;--card:rgba(0,0,0,.45)}
+body{margin:0;font-family:"JetBrains Mono",monospace;background:var(--bg);color:#c5d4e8;line-height:1.6}
+.wrap{max-width:1020px;margin:0 auto;padding:2rem 1.25rem 4rem}
+.hero{text-align:center;padding:2rem;border:1px solid rgba(0,209,255,.35);border-radius:20px;background:linear-gradient(160deg,rgba(0,209,255,.12),transparent);margin-bottom:1.5rem}
+.hero h1{font-family:"Space Grotesk",sans-serif;color:var(--neon);font-size:1.55rem;margin:0}
+.hero .tag{font-size:.7rem;color:#6d8099;letter-spacing:.15em;text-transform:uppercase}
+.badge{display:inline-block;margin:.8rem .4rem 0;padding:.45rem 1rem;border-radius:999px;border:2px solid #39ff14;color:#39ff14;font-weight:700;font-size:.78rem}
+.live-badge{border-color:var(--matrix);color:var(--matrix)}
+section{margin:1.5rem 0;padding:1.2rem;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:var(--card)}
+section h2{font-family:"Space Grotesk",sans-serif;color:var(--neon);font-size:1.1rem;margin:0 0 .8rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.8rem;margin:.8rem 0}
+.stat{border:1px solid rgba(0,209,255,.25);border-radius:10px;padding:.8rem;text-align:center}
+.stat b{display:block;font-size:1.2rem;color:var(--matrix)}
+table{width:100%;border-collapse:collapse;font-size:.75rem;margin-top:.6rem}
+th,td{border:1px solid #2a3544;padding:.45rem .5rem;text-align:left;vertical-align:top}
+th{background:#141820;color:var(--neon)}
+a{color:var(--neon)}
+footer{margin-top:2rem;font-size:.7rem;color:#6d8099;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+<p class="tag">HackMe Network · L1 Research · 20260531T070852Z-219318 UTC</p>
+<h1>L1 Crypto Stack v4</h1>
+<p>Official Bitcoin Core corpus (offline) + <b>live useful-PoW fuzz</b> on upstream WASM guards at <a href="https://hackme.tech">https://hackme.tech</a></p>
+<span class="badge live-badge">LIVE PRODUCTION FUZZ</span>
+<span class="badge" style="border-color:#39ff14;color:#39ff14">OFFLINE CORPUS OK</span>
+</header>
+
+<section>
+<h2>Wallet &amp; chain ledger</h2>
+<div class="grid">
+<div class="stat"><span>Operator wallet</span><b>HMC-381c0c5e2cfcc714</b><small>HMC before → after</small></div>
+<div class="stat"><span>Spent (escrow)</span><b>2.500000 HMC</b><small>51.5757 → 51.7280</small></div>
+<div class="stat"><span>Blocks mined Δ</span><b>17</b><small>tip 50956 → 50973</small></div>
+<div class="stat"><span>Fuzz runs paid</span><b>0.091667 HMC</b><small>bounty 1.600000 HMC</small></div>
+</div>
+<p class="tag">Payouts: 20% runs pool to workers · 80% bounty pool · escrow debited from operator node wallet on canonical hub.</p>
+</section>
+
+<section>
+<h2>Live campaigns (5 chains · production pool)</h2>
+<p>Total runs executed: <b>11</b> across <b>5</b> campaigns. Each row links to auto-generated <code>fuzz_report_v2</code> HTML on the hub.</p>
+<table>
+<thead><tr><th>Chain</th><th>Guard</th><th>Campaign</th><th>Status</th><th>Runs</th><th>Verdict</th><th>Findings</th><th>Runs paid</th><th>Bounty paid</th><th>Winner</th><th>Report</th></tr></thead>
+<tbody><tr>
+<td>Bitcoin</td><td><code>upstream_bitcoin_getscriptop</code></td><td>l1v4-bitcoin-20260531T070852Z-219318-m1</td><td>bounty_paid</td>
+<td>1 / 12</td><td style="color:#39ff14;font-weight:700">clean</td><td>0</td>
+<td>0.0083</td><td>0.4000</td><td><code>HMC-719006d93916ad52</code></td><td><a href="https://hackme.tech/api/fuzz/campaigns/l1v4-bitcoin-20260531T070852Z-219318-m1/report.html" target="_blank" rel="noopener">report.html</a></td></tr><tr>
+<td>Ethereum</td><td><code>upstream_ethereum_value_overflow</code></td><td>l1v4-ethereum-20260531T070852Z-219318-m2</td><td>closed</td>
+<td>7 / 12</td><td style="color:#39ff14;font-weight:700">clean</td><td>0</td>
+<td>0.0583</td><td>0.0000</td><td><code></code></td><td><a href="https://hackme.tech/api/fuzz/campaigns/l1v4-ethereum-20260531T070852Z-219318-m2/report.html" target="_blank" rel="noopener">report.html</a></td></tr><tr>
+<td>Dogecoin</td><td><code>upstream_dogecoin_hasvalidops</code></td><td>l1v4-dogecoin-20260531T070852Z-219318-m3</td><td>bounty_paid</td>
+<td>1 / 12</td><td style="color:#39ff14;font-weight:700">clean</td><td>0</td>
+<td>0.0083</td><td>0.4000</td><td><code>HMC-719006d93916ad52</code></td><td><a href="https://hackme.tech/api/fuzz/campaigns/l1v4-dogecoin-20260531T070852Z-219318-m3/report.html" target="_blank" rel="noopener">report.html</a></td></tr><tr>
+<td>Litecoin</td><td><code>upstream_litecoin_getscriptop</code></td><td>l1v4-litecoin-20260531T070852Z-219318-m4</td><td>closed</td>
+<td>1 / 12</td><td style="color:#39ff14;font-weight:700">clean</td><td>0</td>
+<td>0.0083</td><td>0.4000</td><td><code>HMC-719006d93916ad52</code></td><td><a href="https://hackme.tech/api/fuzz/campaigns/l1v4-litecoin-20260531T070852Z-219318-m4/report.html" target="_blank" rel="noopener">report.html</a></td></tr><tr>
+<td>HackMe</td><td><code>upstream_hackme_order_gate</code></td><td>l1v4-hackme-20260531T070852Z-219318-m5</td><td>closed</td>
+<td>1 / 12</td><td style="color:#39ff14;font-weight:700">clean</td><td>0</td>
+<td>0.0083</td><td>0.4000</td><td><code>HMC-719006d93916ad52</code></td><td><a href="https://hackme.tech/api/fuzz/campaigns/l1v4-hackme-20260531T070852Z-219318-m5/report.html" target="_blank" rel="noopener">report.html</a></td></tr></tbody>
+</table>
+</section>
+
+<section>
+<h2>Offline layer (v3 · official qa-assets corpus)</h2>
+<table>
+<thead><tr><th>Corpus</th><th>Seeds probed</th><th>Violation signals</th><th>WASM traps</th></tr></thead>
+<tbody><tr><td>eval_script</td><td>1675</td><td><nil></td><td><nil></td></tr>
+</tbody>
+</table>
+<p><a href="l1-crypto-stack-v3.html">Full v3 report</a> · <a href="bitcoin-core-5module.html">BC5 deep-dive</a></p>
+</section>
+
+<section>
+<h2>Honest scope</h2>
+<ul>
+<li>Live phase debits real HMC from the operator wallet and pays pool workers via fuzz escrow — verifiable on-chain / in wallet API.</li>
+<li>Offline phase uses <code>bitcoin-core/qa-assets</code> seeds through WASM ports — not a claim of running full <code>bitcoind</code>.</li>
+<li>Native libFuzzer differential vs Core binary is the planned v4.1 follow-up.</li>
+</ul>
+</section>
+
+<footer>
+HackMe Network · L1 v4 · Reproduce: <code>bash scripts/ops/run_l1_crypto_stack_v4_live.sh</code> · 20260531T070852Z-219318
+</footer>
+</div>
+</body>
+</html>

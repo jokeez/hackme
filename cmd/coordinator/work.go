@@ -114,6 +114,7 @@ type workManager struct {
 	activeOrder          activeOrderSnap
 
 	lastAbusePruneUnix    int64
+	lastIdlePruneUnix     int64
 	hybridSignerEnabled   bool
 	hybridSignerStrict    bool
 	hybridRequireFoundSig bool
@@ -943,15 +944,29 @@ func (m *workManager) markSubmitOutcome(workerID, ipKey, reason string, now int6
 }
 
 // clearWorkerAbuse removes rate-limit / ban state for a worker (and optional IP key).
-// pruneStaleWorkers drops offline workers (no active lease). When ignorePayout is false, also requires payout <= maxPayout.
-func (m *workManager) pruneStaleWorkers(prefix string, maxPayout float64, staleSec int64, dryRun bool, ignorePayout bool) (removed, kept []string) {
+func coordinatorIdlePruneSec() int64 {
+	if v := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_IDLE_PRUNE_SEC")); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n >= 120 {
+			return n
+		}
+	}
+	return 600
+}
+
+func coordinatorAutoPruneIdle() bool {
+	v := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_AUTO_PRUNE_IDLE"))
+	if v == "" {
+		return true
+	}
+	return v == "1" || strings.EqualFold(v, "true") || strings.EqualFold(v, "yes")
+}
+
+// pruneStaleWorkersLocked drops idle workers; caller must hold m.mu.
+func (m *workManager) pruneStaleWorkersLocked(prefix string, maxPayout float64, staleSec int64, dryRun bool, ignorePayout bool, now int64) (removed, kept []string) {
 	if m == nil {
 		return nil, nil
 	}
-	now := time.Now().Unix()
 	prefix = strings.TrimSpace(prefix)
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	for id, st := range m.worker {
 		if prefix != "" && !strings.HasPrefix(id, prefix) {
 			kept = append(kept, id)
@@ -988,6 +1003,28 @@ func (m *workManager) pruneStaleWorkers(prefix string, maxPayout float64, staleS
 		}
 	}
 	return removed, kept
+}
+
+// pruneStaleWorkers drops offline workers (no active lease). When ignorePayout is false, also requires payout <= maxPayout.
+func (m *workManager) pruneStaleWorkers(prefix string, maxPayout float64, staleSec int64, dryRun bool, ignorePayout bool) (removed, kept []string) {
+	if m == nil {
+		return nil, nil
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.pruneStaleWorkersLocked(prefix, maxPayout, staleSec, dryRun, ignorePayout, time.Now().Unix())
+}
+
+func (m *workManager) pruneIdleWorkersLocked(now int64) []string {
+	if m == nil || !coordinatorAutoPruneIdle() {
+		return nil
+	}
+	if now-m.lastIdlePruneUnix < 300 {
+		return nil
+	}
+	m.lastIdlePruneUnix = now
+	removed, _ := m.pruneStaleWorkersLocked("", 0.001, coordinatorIdlePruneSec(), false, false, now)
+	return removed
 }
 
 func (m *workManager) clearWorkerAbuse(workerID, ipKey string) bool {
@@ -1645,6 +1682,7 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	now := time.Now().Unix()
+	_ = m.pruneIdleWorkersLocked(now)
 	m.refreshTargetMod(now)
 	drops := make(map[string]uint64, len(m.dropReasonCount))
 	for k, v := range m.dropReasonCount {

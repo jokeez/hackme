@@ -32,6 +32,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go coord.RunEpochLoop(ctx)
+	go coord.RunHealthLoop(ctx)
 	if os.Getenv("HMS_STRATUM_ENABLE") == "1" {
 		go hms.RunStratumBridge(coord, os.Getenv("HMS_STRATUM_ADDR"))
 	}

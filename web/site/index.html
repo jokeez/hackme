@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HackMe Network — Next-Generation Decentralized Fuzzing Pool</title>
-  <meta name="description" content="Mine vulnerabilities through distributed fuzzing. Earn HMC while helping C++, Rust, and Go projects become more secure." />
+  <title>HackMe Network — Ecosystem: Mining, Fuzz, Multi-chain L1</title>
+  <meta name="description" content="HackMe ecosystem: HMC useful-PoW mining, SUP accrual, B2B fuzz on your local node, multi-chain L1 security research (BTC, ETH, DOGE, LTC), public pool on hackme.tech." />
   <link rel="canonical" href="https://hackme.tech/" />
   <link rel="sitemap" type="application/xml" title="Sitemap" href="https://hackme.tech/sitemap.xml" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
@@ -46,11 +46,11 @@
 
   <main class="container">
     <section class="hero glass">
-      <p class="kicker">Production-ready PoH Platform</p>
-      <h1>Secure mining infrastructure with transparent economics and enterprise-grade validation</h1>
+      <p class="kicker">HackMe ecosystem · PoH · Fuzz · Multi-chain L1</p>
+      <h1>Mine HMC, run B2B security audits, and verify upstream guards across five chains</h1>
       <p class="hero-copy">
-        HackMe combines deterministic PoH mining, hardened WASM task validation, and operator-ready observability.
-        Built for real miners, real workloads, and release discipline.
+        One network: <strong>useful-PoW mining</strong> (HMC + SUP), <strong>token-gated fuzz</strong> for customers on a local node,
+        and <strong>public L1 research</strong> (Bitcoin, Ethereum, Dogecoin, Litecoin, HackMe) with live prod campaigns — not a single-coin fork.
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="./downloads.html">Download Node</a>
@@ -58,9 +58,10 @@
         <a id="explorer-link-hero" class="btn btn-secondary" href="/pool/explorer" target="_blank" rel="noreferrer">Open Explorer</a>
       </div>
       <div class="pill-row">
-        <span class="pill">WASM sandbox locked by default</span>
-        <span class="pill">Cross-platform release bundles</span>
-        <span class="pill">Coordinator + worker architecture</span>
+        <span class="pill">HMC + SUP coins</span>
+        <span class="pill">5-chain L1 WASM research</span>
+        <span class="pill">B2B fuzz · local node</span>
+        <span class="pill">Public pool coordinator</span>
       </div>
       <div class="hero-meta">
         <div class="meta-chip">
@@ -75,6 +76,27 @@
           <span class="label">Network Status</span>
           <span id="site-live-status" class="value">checking...</span>
         </div>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head">
+        <h2>Ecosystem at a glance</h2>
+        <p class="subtle">Everything shares one pool, one explorer, and one release channel — pick your lane.</p>
+      </div>
+      <div class="grid grid-3">
+        <article class="card glass">
+          <h3><a href="./coins.html">Coins</a></h3>
+          <p><strong>HMC</strong> — primary useful-PoW. <strong>SUP</strong> — scarce pool accrual. <strong>HMS</strong> — storage lane (preview).</p>
+        </article>
+        <article class="card glass">
+          <h3><a href="./developers.html">Fuzz &amp; orders</a></h3>
+          <p>B2B audits on <code>127.0.0.1:8080</code> — confidential reports via token. Pool fills work on hackme.tech.</p>
+        </article>
+        <article class="card glass">
+          <h3><a href="./research.html">L1 research</a></h3>
+          <p>Multi-chain upstream WASM · live v4 prod fuzz · honest scope — BTC, ETH, DOGE, LTC, HackMe.</p>
+        </article>
       </div>
     </section>
 
@@ -206,7 +228,7 @@
         <li>Download a node, open the embedded dashboard → <strong>Orders</strong> → <strong>Run full security audit</strong> (guard WASM + useful-PoW order + distributed fuzz).</li>
         <li>Receive a <strong>report token</strong> and open <code class="code-inline">fuzz_report_v2</code> HTML with triage, <code class="code-inline">repro_cmd</code>, and artifacts (<code class="code-inline">check_repro</code>).</li>
         <li>Integrators: <code class="code-inline">hackme-fuzzing</code> on <code class="code-inline">127.0.0.1:8080</code> — see <a href="./developers.html">Developers</a> and <a href="./fuzz-guide.html">Fuzz guide</a>.</li>
-        <li>Public research (honest scope): <a href="./reports/l1-crypto-stack-v3.html">L1 crypto stack v3</a> · live campaign list: <a href="./fuzz-campaigns.html">Fuzz campaigns</a>.</li>
+        <li>Public research (multi-chain, honest scope): <a href="./research.html">Research hub</a> · featured <a href="./reports/l1-crypto-stack-v4.html">L1 v4 live</a> · <a href="./fuzz-campaigns.html">Fuzz overview</a>.</li>
       </ol>
     </section>
 
@@ -345,9 +367,9 @@
           <h4>Windows &amp; Linux</h4>
           <p>Installer (.exe), portable ZIP, Linux tarball, checksums, and release manifest.</p>
         </a>
-        <a href="./reports/l1-crypto-stack-v3.html" class="quick-item">
-          <h4>L1 security research (v3)</h4>
-          <p>Official Bitcoin qa-assets corpus, pinned upstream, reproducible WASM probes — public report with honest scope.</p>
+        <a href="./research.html" class="quick-item">
+          <h4>L1 security research (5 chains)</h4>
+          <p>BTC · ETH · DOGE · LTC · HackMe — v4 live prod fuzz, v3 corpus, upstream pins. One hub, no scatter.</p>
         </a>
         <a href="./docs.html" class="quick-item">
           <h4>Read Technical Docs</h4>
@@ -375,6 +397,7 @@
     <div class="footer-nav">
       <a href="https://github.com/jokeez/hackme" target="_blank" rel="noreferrer">GitHub</a>
       <a href="./coins.html">Coins</a>
+      <a href="./research.html">Research</a>
       <a href="./news.html">News</a>
       <a href="./downloads.html">Downloads</a>
       <a href="./docs.html">Docs</a>

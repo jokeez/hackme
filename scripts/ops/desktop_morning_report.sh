@@ -48,13 +48,15 @@ print("  total payout end:  ", fmt_hmc(f.get("coord_total_payout_hmc")), "HMC")
 print("  payout delta:      ", fmt_hmc(d.get("coord_total_payout_hmc")), "HMC")
 print("  submitted delta:   ", d.get("coord_submitted_items", "—"), "ranges")
 print()
-for label, key in [("Desktop worker (worker-kapa-pc)", "worker_kapa_pc"), ("VPS worker (worker-active)", "worker_active")]:
-    wp = f.get(key) or {}
-    bp = b.get(key) or {}
-    print(label)
+for wid in ["worker-kapa-pc", "worker-vps-msk-01", "vps-canary-01", "worker-vps-62-01"]:
+    wp = (f.get("workers") or {}).get(wid) or {}
+    bp = (b.get("workers") or {}).get(wid) or {}
+    if not wp and not bp:
+        continue
+    print(f"Worker ({wid})")
     print("  payout start:", fmt_hmc(bp.get("payout_hmc")), "→ end:", fmt_hmc(wp.get("payout_hmc")))
-    print("  ranges delta:", d.get(key + "_ranges", "—"))
-    print("  payout delta:", fmt_hmc(d.get(key + "_payout_hmc")), "HMC")
+    print("  ranges delta:", d.get(wid + "_ranges", "—"))
+    print("  payout delta:", fmt_hmc(d.get(wid + "_payout_hmc")), "HMC")
     print()
 print("Desktop GPU worker")
 print("  running (end):", f.get("desktop_worker_running"))

@@ -74,9 +74,21 @@
   </url>
   <url>
     <loc>https://hackme.tech/fuzz-campaigns.html</loc>
-    <lastmod>2026-05-26</lastmod>
-    <changefreq>daily</changefreq>
+    <lastmod>2026-05-31</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>0.82</priority>
+  </url>
+  <url>
+    <loc>https://hackme.tech/research.html</loc>
+    <lastmod>2026-05-31</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.86</priority>
+  </url>
+  <url>
+    <loc>https://hackme.tech/reports/l1-crypto-stack-v4.html</loc>
+    <lastmod>2026-05-31</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.88</priority>
   </url>
   <url>
     <loc>https://hackme.tech/reports/l1-crypto-stack-v3.html</loc>

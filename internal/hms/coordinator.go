@@ -15,17 +15,19 @@ import (
 
 // Coordinator is the HMS lane state machine (storage + seal).
 type Coordinator struct {
-	cfg   Config
-	db    *sql.DB
-	guard *AbuseGuard
-	mu    sync.RWMutex
+	cfg     Config
+	db      *sql.DB
+	guard   *AbuseGuard
+	stratum *StratumRegistry
+	mu      sync.RWMutex
 }
 
 func NewCoordinator(db *sql.DB, cfg Config) *Coordinator {
 	return &Coordinator{
-		cfg:   cfg,
-		db:    db,
-		guard: NewAbuseGuard(120, time.Minute),
+		cfg:     cfg,
+		db:      db,
+		guard:   NewAbuseGuard(120, time.Minute),
+		stratum: NewStratumRegistry(),
 	}
 }
 
@@ -136,8 +138,13 @@ func (c *Coordinator) RegisterStorageWorker(workerID, pubHex string, quotaGB int
 	if err := ValidateQuota(c.cfg, quotaGB); err != nil {
 		return err
 	}
+	var existingLast int64
+	err := c.db.QueryRow(`SELECT last_seen_unix FROM hms_workers WHERE worker_id=?`, workerID).Scan(&existingLast)
+	if err == nil && existingLast < c.workerOnlineCutoff() {
+		return errors.New("worker offline — heartbeat required before quota update")
+	}
 	now := time.Now().Unix()
-	_, err := c.db.Exec(`INSERT INTO hms_workers(worker_id, role, pubkey_hex, quota_gb, last_seen_unix, created_unix)
+	_, err = c.db.Exec(`INSERT INTO hms_workers(worker_id, role, pubkey_hex, quota_gb, last_seen_unix, created_unix)
 		VALUES(?, 'storage', ?, ?, ?, ?)
 		ON CONFLICT(worker_id) DO UPDATE SET pubkey_hex=excluded.pubkey_hex, quota_gb=excluded.quota_gb, last_seen_unix=excluded.last_seen_unix`,
 		workerID, pubHex, quotaGB, now, now)
@@ -277,7 +284,7 @@ func (c *Coordinator) SubmitStorageProof(p StorageSubmitPayload, pubHex, sigHex 
 	var exp int64
 	_ = c.db.QueryRow(`SELECT expires_unix FROM hms_challenges WHERE challenge_id=?`, p.ChallengeID).Scan(&exp)
 	if time.Now().Unix() > exp {
-		_ = c.addStrike(p.WorkerID, epochID)
+		c.markStorageChallengeFailed(p.WorkerID, chunkID, epochID, p.ChallengeID)
 		return errors.New("challenge expired")
 	}
 	sectorBytes, err := hex.DecodeString(strings.TrimSpace(p.ProofHex))
@@ -285,8 +292,7 @@ func (c *Coordinator) SubmitStorageProof(p StorageSubmitPayload, pubHex, sigHex 
 		if len(proof) == 32 {
 			sectorBytes = proof
 		} else {
-			_ = c.addStrike(p.WorkerID, epochID)
-			_, _ = c.db.Exec(`UPDATE hms_challenges SET answered=1, ok=0 WHERE challenge_id=?`, p.ChallengeID)
+			c.markStorageChallengeFailed(p.WorkerID, chunkID, epochID, p.ChallengeID)
 			return errors.New("invalid proof_hex (want 32-byte sector hash)")
 		}
 	}
@@ -296,8 +302,7 @@ func (c *Coordinator) SubmitStorageProof(p StorageSubmitPayload, pubHex, sigHex 
 	}
 	rebind := ProofBinding(epochID, p.WorkerID, chunkID, uint64(offset), ct)
 	if len(binding) != 32 || string(binding) != string(rebind[:]) {
-		_ = c.addStrike(p.WorkerID, epochID)
-		_, _ = c.db.Exec(`UPDATE hms_challenges SET answered=1, ok=0 WHERE challenge_id=?`, p.ChallengeID)
+		c.markStorageChallengeFailed(p.WorkerID, chunkID, epochID, p.ChallengeID)
 		return errors.New("challenge binding mismatch")
 	}
 	var bind [32]byte
@@ -307,8 +312,7 @@ func (c *Coordinator) SubmitStorageProof(p StorageSubmitPayload, pubHex, sigHex 
 	_ = ExpectedProofHash(bind, sector)
 	ok := len(sectorBytes) == 32
 	if !ok {
-		_ = c.addStrike(p.WorkerID, epochID)
-		_, _ = c.db.Exec(`UPDATE hms_challenges SET answered=1, ok=0 WHERE challenge_id=?`, p.ChallengeID)
+		c.markStorageChallengeFailed(p.WorkerID, chunkID, epochID, p.ChallengeID)
 		return errors.New("invalid proof")
 	}
 	_, err = c.db.Exec(`UPDATE hms_challenges SET answered=1, ok=1 WHERE challenge_id=?`, p.ChallengeID)
@@ -321,7 +325,9 @@ func (c *Coordinator) SubmitStorageProof(p StorageSubmitPayload, pubHex, sigHex 
 }
 
 func (c *Coordinator) buildManifestLocked(epochID int64) ([32]byte, error) {
-	rows, err := c.db.Query(`SELECT chunk_id, ciphertext_sha256, size, COALESCE(erasure_meta,'') FROM hms_chunks WHERE epoch_id=?`, epochID)
+	// Customer market blobs (ord-*) participate in PoSt but not in the hourly seal manifest.
+	rows, err := c.db.Query(`SELECT chunk_id, ciphertext_sha256, size, COALESCE(erasure_meta,'') FROM hms_chunks
+		WHERE epoch_id=? AND chunk_id NOT LIKE 'ord-%'`, epochID)
 	if err != nil {
 		return [32]byte{}, err
 	}
@@ -441,6 +447,7 @@ func (c *Coordinator) PoolStats() map[string]any {
 	var committed float64
 	_ = c.db.QueryRow(`SELECT COUNT(*) FROM hms_workers WHERE role='storage'`).Scan(&storageWorkers)
 	_ = c.db.QueryRow(`SELECT COUNT(*) FROM hms_workers WHERE role='seal'`).Scan(&sealWorkers)
+	capSnap, _ := c.NetworkCapacity()
 	_ = c.db.QueryRow(`SELECT COALESCE(SUM(quota_gb),0) FROM hms_workers WHERE role='storage'`).Scan(&committed)
 	out := map[string]any{
 		"status":               "ok",
@@ -449,6 +456,7 @@ func (c *Coordinator) PoolStats() map[string]any {
 		"storage_workers":      storageWorkers,
 		"seal_workers":         sealWorkers,
 		"storage_committed_gb": committed,
+		"network_capacity":     capSnap,
 		"seal_hashrate":        0,
 		"current_epoch":        ep.EpochID,
 		"epoch_sealed":         ep.Sealed == 1,
@@ -462,6 +470,27 @@ func (c *Coordinator) PoolStats() map[string]any {
 		out["last_seal_nonce"] = ep.SealNonce
 	}
 	return out
+}
+
+func (c *Coordinator) markStorageChallengeFailed(workerID, chunkID string, epochID int64, challengeID string) {
+	_ = c.addStrike(workerID, epochID)
+	_, _ = c.db.Exec(`UPDATE hms_challenges SET answered=1, ok=0 WHERE challenge_id=?`, challengeID)
+	c.recordStorageProofFailure(workerID, chunkID)
+}
+
+// WorkerEpochStorageEligible is false when worker failed PoSt or is slashed for market replicas.
+func (c *Coordinator) WorkerEpochStorageEligible(workerID string, epochID int64) (bool, error) {
+	ok, err := c.WorkerEligibleForStoragePayout(workerID)
+	if err != nil || !ok {
+		return ok, err
+	}
+	var failed int
+	err = c.db.QueryRow(`SELECT COUNT(*) FROM hms_challenges WHERE worker_id=? AND epoch_id=? AND answered=1 AND ok=0`,
+		workerID, epochID).Scan(&failed)
+	if err != nil {
+		return false, err
+	}
+	return failed == 0, nil
 }
 
 func (c *Coordinator) Guard() *AbuseGuard { return c.guard }

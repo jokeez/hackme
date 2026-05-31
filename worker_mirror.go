@@ -34,6 +34,31 @@ func loadWorkerCoordinatorMirror() workerCoordinatorMirror {
 	return out
 }
 
+func pruneWorkerCoordinatorMirror(workerIDs []string) {
+	if len(workerIDs) == 0 {
+		return
+	}
+	mirror := loadWorkerCoordinatorMirror()
+	changed := false
+	for _, id := range workerIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := mirror.Workers[id]; ok {
+			delete(mirror.Workers, id)
+			changed = true
+		}
+	}
+	if !changed {
+		return
+	}
+	path := workerCoordinatorMirrorPath()
+	if b, err := json.MarshalIndent(mirror, "", "  "); err == nil {
+		_ = os.WriteFile(path, b, 0o600)
+	}
+}
+
 func persistWorkerCoordinatorMirrorFromStats(ws map[string]any) {
 	workers := coordinatorWorkersMap(ws)
 	if len(workers) == 0 {

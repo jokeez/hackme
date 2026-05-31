@@ -3,38 +3,91 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HackMe — Fuzz campaigns (read-only)</title>
+  <title>HackMe Fuzz — B2B audits &amp; public research</title>
+  <meta name="description" content="HackMe fuzzing: local-node B2B campaigns with token-gated reports, public multi-chain L1 research, and read-only pool marketplace status." />
+  <link rel="canonical" href="https://hackme.tech/fuzz-campaigns.html" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
   <link rel="stylesheet" href="./assets/styles.css" />
-  <style>
-    body { font-family: system-ui, sans-serif; background: #0a0c10; color: #e8eaed; margin: 0; padding: 24px; }
-    h1 { font-size: 1.25rem; margin: 0 0 8px; }
-    p.sub { color: #9aa0a6; font-size: 0.85rem; margin: 0 0 20px; max-width: 720px; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-    th, td { border: 1px solid #2a2f3a; padding: 8px 10px; text-align: left; }
-    th { background: #141820; color: #7fe7ff; }
-    tr:nth-child(even) { background: #11151c; }
-    .err { color: #f87171; }
-    .ok { color: #4ade80; }
-    a { color: #7fe7ff; }
-  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
 </head>
 <body>
-  <p class="sub" style="margin-bottom:12px"><a href="./index.html">Home</a> · <a href="./developers.html">Developers</a> · <a href="./reports/l1-crypto-stack-v3.html">L1 research v3</a> · <a href="./fuzz-guide.html">Fuzz guide</a></p>
-  <h1>Fuzz campaigns</h1>
-  <p class="sub">
-    Read-only snapshot from <code>GET /api/fuzz/campaigns</code> on this host.
-    To <strong>create</strong> campaigns use your local node dashboard (<code>/</code> on <code>127.0.0.1:8080</code>) → <strong>Orders</strong> → Security audit, or <code>POST /api/fuzz/campaigns</code> / <code>hackme-fuzzing</code> with a token.
-    Per-campaign security reports (<code>fuzz_report_v2</code>: triage, <code>repro_cmd</code>, artifacts) are <strong>token-gated</strong> — not listed here.
-    Public L1 stack research (qa-assets corpus, upstream pins) is separate: see the v3 repro banner below.
-  </p>
-  <p id="status" class="sub ok">Public campaign widget is disabled on hackme.tech.</p>
-  <p class="sub">
-    For campaign creation and private campaign status, use your local node dashboard at
-    <code>http://127.0.0.1:8080</code> (Orders → Security audit), or authenticated API/CLI with token.
-  </p>
-  <p id="reproVerdict" class="sub">Loading repro verdict…</p>
-  <p class="sub" style="margin-top:24px;"><a href="./index.html">← Home</a></p>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="./index.html">
+      <img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe logo" />
+      <span>HackMe Network</span>
+    </a>
+    <nav class="nav">
+      <a href="./index.html">Home</a>
+      <a href="./coins.html">Coins</a>
+      <a href="./developers.html">Developers</a>
+      <a href="./downloads.html">Downloads</a>
+      <a href="./fuzz-campaigns.html" aria-current="page">Fuzz</a>
+      <a href="./news.html">News</a>
+      <a href="./docs.html">Docs</a>
+      <a href="./contacts.html">Contacts</a>
+      <a id="explorer-link-top" href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass hero-small">
+      <p class="kicker">Fuzz · Ecosystem</p>
+      <h1>Security audits &amp; distributed fuzz</h1>
+      <p class="hero-copy">
+        <strong>Customers</strong> create paid campaigns on a <strong>local hackme-node</strong> (<code>127.0.0.1:8080</code>) — wallet, escrow, WASM gates.
+        The <strong>public pool</strong> on hackme.tech fills work. Detailed reports need your private
+        <code>X-Hackme-Report-Token</code>. Public multi-chain research is separate — see <a href="./research.html">Research hub</a>.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="./developers.html">Developers &amp; local setup</a>
+        <a class="btn btn-secondary" href="./reports/l1-crypto-stack-v4.html">L1 v4 live report</a>
+        <a class="btn btn-secondary" href="./fuzz-marketplace.html">Pool marketplace</a>
+      </div>
+    </section>
+
+    <section class="grid grid-3">
+      <article class="card glass">
+        <h3>B2B customer path</h3>
+        <p>Download node → <code>#orders</code> → Security audit or <code>hackme-fuzzing</code> CLI. Confidential findings via report token only.</p>
+      </article>
+      <article class="card glass">
+        <h3>Miners &amp; pool</h3>
+        <p>Useful-PoW + distributed fuzz workers earn HMC/SUP on the coordinator. No access to private customer reports.</p>
+      </article>
+      <article class="card glass">
+        <h3>Public L1 research</h3>
+        <p>BTC · ETH · DOGE · LTC · HackMe upstream WASM — offline corpora and live v4 prod campaigns.</p>
+      </article>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head">
+        <h2>Public campaign list</h2>
+        <p class="subtle">Read-only widget is intentionally limited on hackme.tech (nginx hardening).</p>
+      </div>
+      <p id="status" class="subtle ok">Campaign list API is gated on the public site — use local dashboard or Research reports for transparency.</p>
+      <p id="reproVerdict" class="subtle">Loading L1 repro status…</p>
+      <p class="subtle" style="margin-top:1rem">
+        <a href="./research.html">← All research reports</a> ·
+        <a href="./fuzz-guide.html">Fuzz guide</a> ·
+        <a href="./fuzzing-console.html">Network status</a>
+      </p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>HackMe Network</p>
+    <div class="footer-nav">
+      <a href="./index.html">Home</a>
+      <a href="./research.html">Research</a>
+      <a href="./developers.html">Developers</a>
+      <a href="./downloads.html">Downloads</a>
+    </div>
+  </footer>
   <script>
     async function loadReproVerdict() {
       const el = document.getElementById('reproVerdict');
@@ -42,18 +95,17 @@
         const r = await fetch('/reports/l1-crypto-stack-v3-repro.json', { cache: 'no-store' });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const j = await r.json();
-        const v = j && j.verdict ? j.verdict : {};
-        const status = v.status || 'unknown';
-        const summary = v.summary || 'No summary';
-        el.innerHTML = 'L1 v3 repro verdict: <strong>' + status + '</strong> — ' + summary +
-          ' <a href="/reports/l1-crypto-stack-v3.html" target="_blank" rel="noopener">open report</a>';
-        el.className = 'sub ok';
+        const v = (j && j.verdict) || {};
+        el.innerHTML = 'L1 v3 repro: <strong>' + (v.status || 'unknown') + '</strong> — ' + (v.summary || '') +
+          ' · <a href="./reports/l1-crypto-stack-v4.html">v4 live</a> · <a href="./research.html">all reports</a>';
+        el.className = 'subtle ok';
       } catch (e) {
-        el.textContent = 'Repro verdict unavailable: ' + (e && e.message ? e.message : e);
-        el.className = 'sub err';
+        el.textContent = 'See multi-chain reports on the Research hub.';
+        el.className = 'subtle';
       }
     }
     loadReproVerdict();
   </script>
+  <script src="./assets/app.js?v=20260531fuzz"></script>
 </body>
 </html>

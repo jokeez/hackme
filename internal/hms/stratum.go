@@ -3,6 +3,7 @@ package hms
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -57,12 +58,7 @@ func handleStratumConn(coord *Coordinator, conn net.Conn) {
 			}
 			replyStratum(conn, msg.ID, []any{true, "hms-seal"})
 		case "mining.submit":
-			if len(msg.Params) < 2 {
-				replyStratumErr(conn, msg.ID, "bad params")
-				continue
-			}
-			nonceStr := fmt.Sprint(msg.Params[1])
-			nonce, err := strconv.ParseUint(nonceStr, 10, 64)
+			nonce, err := parseStratumSubmitNonce(msg.Params)
 			if err != nil {
 				replyStratumErr(conn, msg.ID, "bad nonce")
 				continue
@@ -116,4 +112,20 @@ func replyStratum(conn net.Conn, id any, result any) {
 func replyStratumErr(conn net.Conn, id any, msg string) {
 	b, _ := json.Marshal(map[string]any{"id": id, "error": []any{21, msg, nil}})
 	_, _ = conn.Write(append(b, '\n'))
+}
+
+// parseStratumSubmitNonce accepts simple [worker, nonce] or Antminer [worker, job, ex2, ntime, nonce].
+func parseStratumSubmitNonce(params []any) (uint64, error) {
+	if len(params) < 2 {
+		return 0, errors.New("bad params")
+	}
+	nonceStr := fmt.Sprint(params[1])
+	if len(params) >= 5 {
+		nonceStr = fmt.Sprint(params[4])
+	}
+	nonceStr = strings.TrimSpace(nonceStr)
+	if strings.HasPrefix(strings.ToLower(nonceStr), "0x") {
+		return strconv.ParseUint(nonceStr[2:], 16, 64)
+	}
+	return strconv.ParseUint(nonceStr, 10, 64)
 }

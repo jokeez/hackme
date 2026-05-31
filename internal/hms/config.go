@@ -17,6 +17,9 @@ type Config struct {
 	MaxQuotaGB        int
 	MaxStrikes        int
 	ChallengeTTL      time.Duration
+	WorkerOnlineSec   int64 // storage worker considered offline after this silence
+	RepairIntervalSec int
+	HealthSlashStreak int
 	InitialSealTarget []byte // 32-byte big-endian difficulty
 	DesiredSealSec    int
 	SealRetargetClamp float64
@@ -50,6 +53,13 @@ func ConfigFromEnv() Config {
 	c.MinQuotaGB = envInt("HMS_MIN_QUOTA_GB", c.MinQuotaGB)
 	c.MaxQuotaGB = envInt("HMS_MAX_QUOTA_GB", c.MaxQuotaGB)
 	c.MaxStrikes = envInt("HMS_MAX_STRIKES", c.MaxStrikes)
+	if n := envInt("HMS_WORKER_ONLINE_SEC", 300); n > 0 {
+		c.WorkerOnlineSec = int64(n)
+	} else {
+		c.WorkerOnlineSec = 300
+	}
+	c.RepairIntervalSec = envInt("HMS_REPAIR_INTERVAL_SEC", 30)
+	c.HealthSlashStreak = envInt("HMS_HEALTH_SLASH_STREAK", c.MaxStrikes)
 	if n := envInt("HMS_CHALLENGE_TTL_SEC", 900); n > 0 {
 		c.ChallengeTTL = time.Duration(n) * time.Second
 	}
