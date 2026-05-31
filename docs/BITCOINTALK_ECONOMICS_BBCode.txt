@@ -222,7 +222,7 @@ A: Pool coordinator knobs and settlement timing are [b]operator policy[/b] (anno
 [hr]
 
 [b]Disclaimer[/b]
-[i]HackMe Network is experimental release-candidate software (0.1.0-rc11g at time of writing). Mining and cryptocurrency involve risk. This post is technical documentation, not investment advice. Pool parameters and settlement timing may change with notice on the official website. English is authoritative; translate at your own risk.[/i]
+[i]HackMe Network is experimental release-candidate software (0.1.0-rc11i at time of writing). Mining and cryptocurrency involve risk. This post is technical documentation, not investment advice. Pool parameters and settlement timing may change with notice on the official website. English is authoritative; translate at your own risk.[/i]
 
 [hr]
 [center][size=10pt][i]HackMe Network · [url=https://hackme.tech]hackme.tech[/url] · [url=https://github.com/jokeez/hackme]source[/url] · [url=https://hackme.tech/contacts.html]responsible disclosure[/url][/i][/center]

@@ -3,7 +3,7 @@
 [size=16pt][b][color=#00D1FF]║[/color] [color=#FFFFFF]HackMe Network[/color] [color=#00D1FF]║[/color][/b][/size]
 [size=11pt][b][color=#00D1FF]╚══════════════════════════════════════╝[/color][/b][/size]
 [size=12pt][color=#39FF14][b]HackMe OS — Live Bootable ISO[/b][/color][/size]
-[size=10pt][color=#B8C5D6]Zero-Knowledge Start · Release [mono]0.1.0-rc11g[/mono] · May 2026[/color][/size]
+[size=10pt][color=#B8C5D6]Zero-Knowledge Start · Release [mono]0.1.0-rc11i[/mono] · May 2026[/color][/size]
 [size=9pt][i][color=#8899AA]Useful PoW · HTTP coordinator · [b]not Stratum[/b][/color][/i][/size]
 [/center]
 
@@ -25,7 +25,7 @@
 [/table]
 
 [list]
-[*][color=#39FF14][b]HackMe OS[/b][/color] — amd64 live ISO ([b]~956 MB[/b]) for dedicated rigs. Same idea as HiveOS, built for the [b]HackMe coordinator[/b].
+[*][color=#39FF14][b]HackMe OS[/b][/color] — amd64 live ISO ([b]~834 MB[/b]) for dedicated rigs. Same idea as HiveOS, built for the [b]HackMe coordinator[/b].
 [*][color=#00D1FF][b]Zero-Knowledge Start[/b][/color] — [b]no[/b] wallet file, [b]no[/b] manual pool setup: boot → read [mono]HMC-…[/mono] + [b]24 words[/b] on screen → worker online.
 [*][color=#FFB020][b]Checksums on[/b][/color] [url=https://hackme.tech/downloads.html#hackme-os]hackme.tech/downloads[/url] — ISO is [color=#39FF14][b]live[/b][/color] (verified HTTP 200).
 [*][color=#00D1FF][b]Public pool[/b][/color] ~[b]2.4 GH/s[/b] · fair economics · hybrid signing enforced.
@@ -45,7 +45,7 @@
 [/tr]
 [tr]
 [td][center][b][color=#00D1FF]01[/color][/b][/center][/td]
-[td][b]Download[/b] [mono]HackMe-OS-0.1.0-rc11g-amd64.iso[/mono] + [mono]SHA256SUMS-iso.txt[/mono] from [url=https://hackme.tech/downloads.html#hackme-os][color=#00D1FF]official downloads[/color][/url][/td]
+[td][b]Download[/b] [mono]HackMe-OS-0.1.0-rc11i-amd64.iso[/mono] + [mono]SHA256SUMS-iso.txt[/mono] from [url=https://hackme.tech/downloads.html#hackme-os][color=#00D1FF]official downloads[/color][/url][/td]
 [/tr]
 [tr]
 [td][center][b][color=#00D1FF]02[/color][/b][/center][/td]
@@ -76,7 +76,7 @@
 [hr]
 
 [center][size=12pt][b][color=#00D1FF]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/color][/b][/size]
-[size=12pt][b][color=#39FF14]RELEASE ARTIFACTS[/color][/b] [color=#B8C5D6][mono]0.1.0-rc11g[/mono][/color][/size]
+[size=12pt][b][color=#39FF14]RELEASE ARTIFACTS[/color][/b] [color=#B8C5D6][mono]0.1.0-rc11i[/mono][/color][/size]
 [center][size=12pt][b][color=#00D1FF]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/color][/b][/size][/center]
 
 [table]
@@ -86,15 +86,15 @@
 [/tr]
 [tr]
 [td][center][color=#39FF14][b]★ ISO[/b][/color][/center][/td]
-[td][b]File:[/b] [mono]HackMe-OS-0.1.0-rc11g-amd64.iso[/mono] [color=#B8C5D6](~956 MB · amd64 live)[/color][/td]
+[td][b]File:[/b] [mono]HackMe-OS-0.1.0-rc11i-amd64.iso[/mono] [color=#B8C5D6](~834 MB · amd64 live)[/color][/td]
 [/tr]
 [tr]
 [td][center][b][color=#00D1FF]HASH[/color][/b][/center][/td]
-[td][mono]1b7bd70e381bb0d5aee82135fe01963d27d2af43ebfba95e02dec22aabe17658[/mono][/td]
+[td][mono]43abb592d7e4222f8d47d528d0b8ec190958cdb91a4441cc56395b3f667d6125[/mono][/td]
 [/tr]
 [tr]
 [td][center][b][color=#00D1FF]WIN[/color][/b][/center][/td]
-[td][mono]HackMe-Setup-0.1.0-rc11g.exe[/mono] — pool token + [mono]workerpoh-opencl[/mono] (AMD RX 580 profile)[/td]
+[td][mono]HackMe-Setup-0.1.0-rc11i.exe[/mono] — pool token + [mono]workerpoh-opencl[/mono] (AMD RX 580 profile)[/td]
 [/tr]
 [tr]
 [td][center][b][color=#00D1FF]LINUX[/color][/b][/center][/td]
@@ -221,7 +221,7 @@
 [/tr]
 [tr]
 [td][center]CDN[/center][/td]
-[td][center][color=#39FF14][b]LIVE[/b][/color] [url=https://hackme.tech/dist/release_0.1.0-rc11g/HackMe-OS-0.1.0-rc11g-amd64.iso][color=#00D1FF]direct ISO URL[/color][/url][/center][/td]
+[td][center][color=#39FF14][b]LIVE[/b][/color] [url=https://hackme.tech/dist/release_0.1.0-rc11i/HackMe-OS-0.1.0-rc11i-amd64.iso][color=#00D1FF]direct ISO URL[/color][/url][/center][/td]
 [/tr]
 [/table]
 
@@ -258,7 +258,7 @@
 [hr]
 
 [center]
-[quote][size=10pt][i][color=#B8C5D6][b]Disclaimer[/b] — HackMe is experimental RC software ([mono]0.1.0-rc11g[/mono]). Mining involves risk. [color=#FFB020][b]Write down your 24-word phrase.[/b][/color] Verify SHA256 and explorer accrual before scaling. [b]No ICO · no token sale.[/b] Pool parameters may change with notice on the website.[/i][/color][/quote]
+[quote][size=10pt][i][color=#B8C5D6][b]Disclaimer[/b] — HackMe is experimental RC software ([mono]0.1.0-rc11i[/mono]). Mining involves risk. [color=#FFB020][b]Write down your 24-word phrase.[/b][/color] Verify SHA256 and explorer accrual before scaling. [b]No ICO · no token sale.[/b] Pool parameters may change with notice on the website.[/i][/color][/quote]
 [/center]
 
-[center][size=9pt][i][color=#8899AA]Re: [ANN] HackMe — HackMe OS live ISO · Zero-Knowledge Start · rc11g[/color][/i][/size][/center]
+[center][size=9pt][i][color=#8899AA]Re: [ANN] HackMe — HackMe OS live ISO · Zero-Knowledge Start · rc11i[/color][/i][/size][/center]

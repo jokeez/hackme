@@ -62,7 +62,7 @@
 1. Публичный путь майнера: **`README.md`** → раздел **Worker-mode** (скрипты `worker_mode_*`, health, recover).  
 2. Экономика и ожидания от пула: **`docs/ECONOMICS_DASHBOARD.md`**.  
 3. Чеклист перед широким запуском: **`docs/PUBLIC_LAUNCH_VERDICT.md`**.  
-4. Краткий обзор функционала: **`README_COMPLETE.md`** (таблица API и вкладок).
+4. Краткий обзор функционала: **`README.md`** + **`docs/API.md`** (таблица API и вкладок).
 
 ### Проверка синхронизации (оператор)
 

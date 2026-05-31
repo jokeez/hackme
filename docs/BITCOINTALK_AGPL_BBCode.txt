@@ -1,6 +1,6 @@
 [center][size=20pt][b][color=#00d1ff]◆ HackMe Network[/color][/b][/size]
 [size=12pt][b][color=#39ff14]Major Update[/color][/b] · AGPLv3 · Brand protection · ISO boot fix · Windows fairness[/size]
-[size=10pt][i]Release [b]0.1.0-rc11g[/b] · May 2026[/i][/size][/center]
+[size=10pt][i]Release [b]0.1.0-rc11i[/b] · May 2026[/i][/size][/center]
 
 [hr]
 
@@ -102,9 +102,9 @@ Under AGPL you may fork [b]code[/b]. You may [b]not[/b] impersonate [b]HackMe™
 [tr][td][b]Login[/b][/td][td][mono]ubuntu[/mono] → Enter (empty password) · or [mono]sudo -i[/mono][/td][/tr]
 [/table]
 
-[b]Current ISO SHA256[/b] ([mono]HackMe-OS-0.1.0-rc11g-amd64.iso[/mono]):
-[quote][mono]e7b42baca799dff005362a3bd33700f1cb10eba2ecd7ccf2fa56cf7f7e5eea12[/mono][/quote]
-Manifest: [url=https://hackme.tech/dist/release_0.1.0-rc11g/SHA256SUMS-iso.txt]SHA256SUMS-iso.txt[/url]
+[b]Current ISO SHA256[/b] ([mono]HackMe-OS-0.1.0-rc11i-amd64.iso[/mono]):
+[quote][mono]43abb592d7e4222f8d47d528d0b8ec190958cdb91a4441cc56395b3f667d6125[/mono][/quote]
+Manifest: [url=https://hackme.tech/dist/release_0.1.0-rc11i/SHA256SUMS-iso.txt]SHA256SUMS-iso.txt[/url]
 
 [b][color=#ffaa00]Windows — ~9 GH/s vs Linux ~60 GH/s (same GPU)[/color][/b]
 [table]
@@ -119,13 +119,13 @@ Manifest: [url=https://hackme.tech/dist/release_0.1.0-rc11g/SHA256SUMS-iso.txt]S
 [b][size=13pt][color=#00d1ff]▸ 5 · Verify before you mine[/color][/size][/b]
 
 [b]Linux / macOS[/b]
-[code]sha256sum HackMe-OS-0.1.0-rc11g-amd64.iso
-# must match e7b42baca799dff005362a3bd33700f1cb10eba2ecd7ccf2fa56cf7f7e5eea12[/code]
+[code]sha256sum HackMe-OS-0.1.0-rc11i-amd64.iso
+# must match 43abb592d7e4222f8d47d528d0b8ec190958cdb91a4441cc56395b3f667d6125[/code]
 
 [b]From repo[/b] (optional deep check):
-[code]bash scripts/tests/verify_hackme_iso.sh HackMe-OS-0.1.0-rc11g-amd64.iso[/code]
+[code]bash scripts/tests/verify_hackme_iso.sh HackMe-OS-0.1.0-rc11i-amd64.iso[/code]
 
-[color=#39ff14][b]Golden rule:[/b][/color] if the hash does not match [url=https://hackme.tech/dist/release_0.1.0-rc11g/SHA256SUMS-iso.txt]the official sums file[/url] — [b]do not flash, do not run[/b].
+[color=#39ff14][b]Golden rule:[/b][/color] if the hash does not match [url=https://hackme.tech/dist/release_0.1.0-rc11i/SHA256SUMS-iso.txt]the official sums file[/url] — [b]do not flash, do not run[/b].
 
 [hr]
 

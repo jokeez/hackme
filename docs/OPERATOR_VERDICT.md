@@ -1,5 +1,7 @@
 # Operator verdict — HackMe public pool (2026-05-19)
 
+> **Historical snapshot.** For the current release verdict see **[STATUS.md](STATUS.md)** and **[OPERATOR_FINAL_CHECKLIST.md](OPERATOR_FINAL_CHECKLIST.md)**.
+
 Snapshot for the operator: what works, what was fixed, what to do next.
 
 ## Verdict: **GO for public mining** (with ops discipline)

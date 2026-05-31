@@ -2,7 +2,7 @@
 # Build bootable HackMe Miner ISO (live USB → public pool worker).
 #
 # Usage:
-#   VERSION=0.1.0-rc11g bash scripts/release/iso/build_hackme_miner_iso.sh
+#   VERSION=0.1.0-rc11i bash scripts/release/iso/build_hackme_miner_iso.sh
 #
 # Requires: Docker (recommended) or host debootstrap + squashfs-tools + xorriso + grub-mkrescue.
 # Pool token: HACKME_RELEASE_POOL_MINER_TOKEN or .secrets/hackme_coordinator_worker_token

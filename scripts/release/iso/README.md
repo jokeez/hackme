@@ -1,10 +1,10 @@
 # HackMe Miner ISO build
 
-See [docs/MINER_ISO.md](../../../docs/MINER_ISO.md) for operator/miner usage.
+See [docs/HACKME_OS.md](../../../docs/HACKME_OS.md) for operator/miner usage.
 
 ```bash
 export HACKME_RELEASE_POOL_MINER_TOKEN="$(cat ../../.secrets/hackme_coordinator_worker_token)"
-VERSION=0.1.0-rc11g bash build_hackme_miner_iso.sh
+VERSION=0.1.0-rc11i bash build_hackme_miner_iso.sh
 ```
 
 ## Visual overhaul (before final ISO)

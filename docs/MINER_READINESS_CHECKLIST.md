@@ -16,7 +16,7 @@ Use this before announcing “open for miners” and when onboarding a new rig.
 | Mega stress (quick) | `STRESS_QUICK=1 bash scripts/tests/coordinator_mega_stress.sh` | ☐ |
 | Prod difficulty | `POOL_BASE=https://hackme.tech/pool bash scripts/tests/difficulty_health.sh` | ☐ |
 | Redteam surface | `bash scripts/tests/redteam_surface_smoke.sh` | ☐ |
-| ISO on CDN | `ssh VPS` → SHA256 `1b7bd70e…` + GRUB “HackMe OS” (see below) | ☐ |
+| ISO on CDN | SHA256 `43abb592…` + GRUB “HackMe OS” (see below) | ☐ |
 | Site downloads | https://hackme.tech/downloads.html — ISO link HTTP 200 | ☐ |
 
 Automated bundle:
@@ -43,7 +43,7 @@ go test ./internal/worksubmit/... -run Matrix -count=1
 # After download:
 sha256sum HackMe-OS-0.1.0-rc11i-amd64.iso
 # Must match:
-# 1b7bd70e381bb0d5aee82135fe01963d27d2af43ebfba95e02dec22aabe17658
+# 43abb592d7e4222f8d47d528d0b8ec190958cdb91a4441cc56395b3f667d6125
 
 bash scripts/tests/verify_hackme_iso.sh /path/to/HackMe-OS-0.1.0-rc11i-amd64.iso
 ```

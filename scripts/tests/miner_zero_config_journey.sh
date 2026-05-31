@@ -4,7 +4,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SITE="${SITE_BASE:-https://hackme.tech}"
-REL="release_0.1.0-rc11g"
+VERSION="${VERSION:-0.1.0-rc11i}"
+REL="release_${VERSION}"
 DIST_URL="$SITE/dist/$REL"
 WORKDIR="${WORKDIR:-/tmp/hackme-miner-journey-$$}"
 LOCAL_DIST="${LOCAL_DIST:-$ROOT/dist/$REL}"
@@ -37,8 +38,8 @@ bash "$ROOT/scripts/tests/public_site_smoke.sh" || fail_msg "public_site_smoke"
 
 # --- Artifacts ---
 SHA_FILE="$(fetch SHA256SUMS.txt "$DIST_URL/SHA256SUMS.txt")"
-LINUX_TGZ="$(fetch "hackme_0.1.0-rc11g_linux.tar.gz" "$DIST_URL/hackme_0.1.0-rc11g_linux.tar.gz")"
-WIN_ZIP="$(fetch "hackme_0.1.0-rc11g_windows_setup.zip" "$DIST_URL/hackme_0.1.0-rc11g_windows_setup.zip")"
+LINUX_TGZ="$(fetch "hackme_${VERSION}_linux.tar.gz" "$DIST_URL/hackme_${VERSION}_linux.tar.gz")"
+WIN_ZIP="$(fetch "hackme_${VERSION}_windows_setup.zip" "$DIST_URL/hackme_${VERSION}_windows_setup.zip")"
 
 verify_one_sha() {
   local file="$1" sums="$2"
@@ -85,11 +86,11 @@ for f in hackme.exe pool.miner.token start_hackme_miner.bat setup_hackme_miner.b
 done
 
 # --- ISO verify (local or HEAD only) ---
-ISO_LOCAL="$LOCAL_DIST/HackMe-OS-0.1.0-rc11g-amd64.iso"
+ISO_LOCAL="$LOCAL_DIST/HackMe-OS-${VERSION}-amd64.iso"
 if [[ -f "$ISO_LOCAL" ]]; then
   bash "$ROOT/scripts/tests/verify_hackme_iso.sh" "$ISO_LOCAL" && pass "ISO verify_hackme_iso" || fail_msg "ISO verify"
 else
-  ISO_LEN="$(curl -sSI "$DIST_URL/HackMe-OS-0.1.0-rc11g-amd64.iso" | awk 'BEGIN{IGNORECASE=1} /^content-length:/ {print $2}' | tr -d '\r')"
+  ISO_LEN="$(curl -sSI "$DIST_URL/HackMe-OS-${VERSION}-amd64.iso" | awk 'BEGIN{IGNORECASE=1} /^content-length:/ {print $2}' | tr -d '\r')"
   if [[ -n "${ISO_LEN:-}" && "$ISO_LEN" -gt 800000000 ]]; then
     pass "ISO on CDN size=$ISO_LEN"
   else

@@ -24,8 +24,8 @@ POOL_TOKEN="${POOL_TOKEN:-}"
 if [[ -z "$POOL_TOKEN" && -f "$ROOT/.secrets/hackme_coordinator_worker_token" ]]; then
   POOL_TOKEN="$(tr -d '\r\n' <"$ROOT/.secrets/hackme_coordinator_worker_token")"
 fi
-if [[ -z "$POOL_TOKEN" && -f "$ROOT/dist/release_0.1.0-rc11h/linux/pool.miner.token" ]]; then
-  POOL_TOKEN="$(tr -d '\r\n' <"$ROOT/dist/release_0.1.0-rc11h/linux/pool.miner.token")"
+if [[ -z "$POOL_TOKEN" && -f "$ROOT/dist/release_0.1.0-rc11i/linux/pool.miner.token" ]]; then
+  POOL_TOKEN="$(tr -d '\r\n' <"$ROOT/dist/release_0.1.0-rc11i/linux/pool.miner.token")"
 fi
 if [[ -z "$POOL_TOKEN" ]]; then
   echo "[display-rig] set POOL_TOKEN or create .secrets/hackme_coordinator_worker_token" >&2

@@ -17,7 +17,7 @@
 | Dashboard UI (local) | **PASS** — Playwright `tests/e2e/specs/solopool-dashboard.spec.ts` |
 | Multi-GPU / hybrid fleet | **GO** — `fleetplan`, `HACKME_GPU_HYBRID=auto`, `worker_autostart.sh` (CUDA+OpenCL) |
 | HackMe OS visual overhaul (source) | **GO** — GRUB/Plymouth/TTY shipped on downloads ISO |
-| Published ISO on hackme.tech | **LIVE (visual overhaul)** — `3290445848…b228e` · **1 038 151 680** B (2026-05-23) |
+| Published ISO on hackme.tech | **LIVE** — `43abb592…67d6125` · **874 442 752** B (~834 MiB) · [SHA256SUMS-iso.txt](https://hackme.tech/dist/release_0.1.0-rc11i/SHA256SUMS-iso.txt) |
 
 ## Open operator items (non-blocking for miners)
 
@@ -33,9 +33,9 @@
 | `worker-kapa-pc` hashrate | **~68.1 GH/s** (stable overnight) |
 | Pool attempts / payout | **~2.63B** attempts · **~0.425 HMC** |
 | Processes | `hackme-node-desktop` + `workerpoh-cuda` **running** |
-| `public_site_smoke.sh` | **PASS** (pages 200 · ISO **1 002 092 544** B) |
-| Published ISO visuals | **Shipped** — GRUB/Plymouth/ZK TTY (`build` 2026-05-23 UTC) |
-| Prod `/pool/api/metrics` | **Intermittent slow** (chain/coordinator OK; mining unaffected) |
+| `public_site_smoke.sh` | **PASS** (pages 200 · ISO **874 442 752** B) |
+| Published ISO visuals | **Shipped** — GRUB/Plymouth/ZK TTY |
+| Prod `GET /api/global/metrics` | OK — use this for aggregate stats (not legacy `/pool/api/metrics`) |
 
 Snapshot: `reports/mining-night-20260523T043740Z/SNAPSHOT.md`
 

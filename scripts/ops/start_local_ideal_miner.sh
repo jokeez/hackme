@@ -30,7 +30,7 @@ fi
 # Fallback: direct CUDA worker
 DATA_DIR="${HACKME_DATA_DIR:-$ROOT/data}"
 SEED="$(tr -d '\r\n' <"$DATA_DIR/node_ed25519.seed")"
-POOL_TOKEN="$(tr -d '\r\n' <"$ROOT/.secrets/hackme_coordinator_worker_token" 2>/dev/null || tr -d '\r\n' <"$ROOT/dist/release_0.1.0-rc11h/linux/pool.miner.token")"
+POOL_TOKEN="$(tr -d '\r\n' <"$ROOT/.secrets/hackme_coordinator_worker_token" 2>/dev/null || tr -d '\r\n' <"$ROOT/dist/release_0.1.0-rc11i/linux/pool.miner.token")"
 mkdir -p "$ROOT/logs/ideal-miner"
 HACKME_MINER_ED25519_SEED_HEX="$SEED" \
 HACKME_WORKER_SIGN_SUBMITS=1 \

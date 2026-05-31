@@ -18,7 +18,7 @@
 # Env:
 #   NGINX_ACCESS_LOG   default /var/log/nginx/access.log
 #   NGINX_CLIENT_LOG   default /var/log/nginx/hackme-site-clients.log (if exists)
-#   HACKME_ISO_SUBPATH default HackMe-OS-0.1.0-rc11g-amd64.iso
+#   HACKME_ISO_SUBPATH default HackMe-OS-0.1.0-rc11i-amd64.iso
 #
 set -euo pipefail
 
@@ -36,7 +36,7 @@ require_cmd python3
 
 NGINX_ACCESS_LOG="${NGINX_ACCESS_LOG:-/var/log/nginx/access.log}"
 NGINX_CLIENT_LOG="${NGINX_CLIENT_LOG:-/var/log/nginx/hackme-site-clients.log}"
-HACKME_ISO_SUBPATH="${HACKME_ISO_SUBPATH:-HackMe-OS-0.1.0-rc11g-amd64.iso}"
+HACKME_ISO_SUBPATH="${HACKME_ISO_SUBPATH:-HackMe-OS-0.1.0-rc11i-amd64.iso}"
 
 CLIENT_ARG=()
 if [[ -f "$NGINX_CLIENT_LOG" ]]; then

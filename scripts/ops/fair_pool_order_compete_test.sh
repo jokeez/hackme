@@ -13,7 +13,7 @@ REWARD="${REWARD_HMC:-0.5}"
 TARGET="${TARGET_SOLVES:-4}"
 PREPAID="$(python3 -c "print(${REWARD}*${TARGET})")"
 
-POOL_TOKEN="${POOL_TOKEN:-$(cat "$ROOT/dist/release_0.1.0-rc11h/linux/pool.miner.token" 2>/dev/null || true)}"
+POOL_TOKEN="${POOL_TOKEN:-$(cat "$ROOT/dist/release_0.1.0-rc11i/linux/pool.miner.token" 2>/dev/null || true)}"
 if [[ -z "$POOL_TOKEN" ]]; then
   echo "[fair-test] set POOL_TOKEN or build dist release with pool.miner.token" >&2
   exit 1

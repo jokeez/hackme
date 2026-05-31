@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**HackMe Network** · `0.1.0-rc11g` · [hackme.tech](https://hackme.tech) · [Telegram](https://t.me/hackme_tech)
+**HackMe Network** · `0.1.0-rc11i` · [hackme.tech](https://hackme.tech) · [Telegram](https://t.me/hackme_tech)
 
 </div>
 

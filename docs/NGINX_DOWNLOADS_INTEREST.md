@@ -1,6 +1,6 @@
 # Nginx interest tracker — downloads.html & HackMe OS ISO
 
-Track how many visitors open **downloads.html** and start the **956 MB** `HackMe-OS-0.1.0-rc11g-amd64.iso` on the canonical VPS.
+Track how many visitors open **downloads.html** and start the **~834 MB** `HackMe-OS-0.1.0-rc11i-amd64.iso` on the canonical VPS.
 
 ## On VPS `hackme-vps`
 
@@ -81,4 +81,4 @@ ssh -i ~/.ssh/your_key hackme-vps \
 |----------|---------|
 | `NGINX_ACCESS_LOG` | `/var/log/nginx/access.log` |
 | `NGINX_CLIENT_LOG` | `/var/log/nginx/hackme-site-clients.log` (auto if exists) |
-| `HACKME_ISO_SUBPATH` | `HackMe-OS-0.1.0-rc11g-amd64.iso` |
+| `HACKME_ISO_SUBPATH` | `HackMe-OS-0.1.0-rc11i-amd64.iso` |

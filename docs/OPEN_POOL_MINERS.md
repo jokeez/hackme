@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**HackMe Network** · release **0.1.0-rc11g**
+**HackMe Network** · release **0.1.0-rc11i**
 
 [hackme.tech](https://hackme.tech) · [Downloads](https://hackme.tech/downloads.html) · [Pool stats](https://hackme.tech/pool/coordinator/api/pool/stats) · [Telegram](https://t.me/hackme_tech) · [Bitcointalk](https://bitcointalk.org/index.php?topic=5583373.0)
 
@@ -22,11 +22,11 @@ Public coordinator: `https://hackme.tech/pool/coordinator`
 
 ## New miner (Windows)
 
-1. Download: `https://hackme.tech/` → release ZIP (`hackme_*_windows.zip`).
-2. Unzip; copy `env.public_pool.example` → `.env` next to `hackme.exe`.
-3. Run `start_hackme_public_pool.bat` or `start_hackme_dashboard.bat`.
-4. Dashboard → **Start pool worker** (needs coordinator token from operator, or public signup flow).
-5. Wallet address in hybrid submits or `WORKER_PAYOUT_MAP` on settlement host.
+1. Download: https://hackme.tech/downloads.html → **HackMe-Setup.exe** (recommended) or portable zip.
+2. Run the installer — pool token is **preconfigured**.
+3. Launch **HackMe Miner** from the Start menu or desktop shortcut.
+4. Dashboard → verify worker connects to `https://hackme.tech/pool/coordinator`.
+5. Register payout wallet (`HMC-…`) on the coordinator for your worker ID.
 
 ## New miner (Linux / second PC)
 

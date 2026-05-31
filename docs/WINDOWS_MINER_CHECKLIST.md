@@ -10,7 +10,7 @@
 ## 2. Запуск на втором ПК
 
 1. Распакуй zip **в одну папку** (рядом `hackme.exe` и bat).
-2. Запусти **`start_hackme_dashboard.bat`** (или `start_hackme_beginner_solo.bat` — он **только** поднимает локальную ноду + браузер; «solo» в сеть не майнит, см. текст в bat).
+2. Запусти **`start_hackme_dashboard.bat`** (или ярлык **HackMe Miner** после установки через `HackMe-Setup.exe`).
 3. В браузере `http://127.0.0.1:8080` → **шапка**: вставь **admin token** (тот же класс секрета, что принимает твой узел при `HACKME_REQUIRE_ADMIN_TOKEN`, иначе POST не пройдут).
 4. **Mining** → **Start worker** (или мастер Desktop в worker-режиме): укажи **`COORD_URL`** публичного coordinator (как на VPS, часто HTTPS + путь `/pool/coordinator` — см. nginx-сниппеты в репо).
 5. Нужен **coordinator token**: из переменных на VPS / то, что выдал оператор пула (`HACKME_POOL_COORDINATOR_TOKEN` или admin token, если так настроено) — иначе API вернёт `412 coordinator_token_required`.

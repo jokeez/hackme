@@ -58,7 +58,7 @@ bash scripts/tests/verify_hackme_iso.sh /path/to/HackMe-OS-0.1.0-rc11i-amd64.iso
 ```
 
 Published SHA256: `https://hackme.tech/dist/release_0.1.0-rc11i/SHA256SUMS-iso.txt`  
-Expected: `1b7bd70e381bb0d5aee82135fe01963d27d2af43ebfba95e02dec22aabe17658`
+Expected: `43abb592d7e4222f8d47d528d0b8ec190958cdb91a4441cc56395b3f667d6125` (874 442 752 bytes)
 
 Re-flash with Balena Etcher (verify SHA256), boot **only** that USB, disable other OS entries in BIOS if needed.
 

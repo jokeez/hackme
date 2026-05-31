@@ -33,7 +33,7 @@ At unrealistic request rates the pool returns [b]429 backpressure[/b] instead of
 [b]Important:[/b] HackMe is [b]not Stratum[/b]. You run [mono]hackme-node[/mono] + [mono]workerpoh[/mono]; the worker claims work over HTTP at [mono]/pool/coordinator[/mono].
 
 [list=1]
-[*] Download [b]Windows[/b] [mono]HackMe-Setup-0.1.0-rc11g.exe[/mono] or [b]Linux[/b] bundle — verify [b]SHA256[/b] on the downloads page.
+[*] Download [b]Windows[/b] [mono]HackMe-Setup-0.1.0-rc11i.exe[/mono] or [b]Linux[/b] bundle — verify [b]SHA256[/b] on the downloads page.
 [*] Map your worker id → [mono]HMC-…[/mono] payout address ([mono]WORKER_PAYOUT_MAP[/mono] / hybrid signer).
 [*] Start the pool worker from the local dashboard ([url=http://127.0.0.1:8080]127.0.0.1:8080[/url] → Mining).
 [*] Track accrual on the dashboard; on-chain settlement after operator batch (see [url=https://hackme.tech/economics-model.html]economics[/url]).
@@ -41,7 +41,7 @@ At unrealistic request rates the pool returns [b]429 backpressure[/b] instead of
 
 [b]GPU[/b]
 [list]
-[*] [b]Windows / AMD:[/b] OpenCL build + RX 580 rig profile ([mono]workerpoh-opencl.exe[/mono] in rc11g installer).
+[*] [b]Windows / AMD:[/b] OpenCL build + RX 580 rig profile ([mono]workerpoh-opencl.exe[/mono] in rc11i installer).
 [*] [b]Linux / NVIDIA:[/b] CUDA path when driver OK ([mono]workerpoh-cuda[/mono]).
 [*] [b]CPU:[/b] always available fallback.
 [/list]

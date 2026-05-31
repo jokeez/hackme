@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Publish rc11g release artifacts (incl. HackMe OS ISO) + site to canonical VPS.
+# Publish release artifacts (incl. HackMe OS ISO) + site to canonical VPS.
+# Set VERSION (default rc11i). Wrapper: deploy_release_rc11i_iso.sh
 #
 # Usage:
 #   NODE_SSH=hackme-vps NODE_DEPLOY_DIR=/opt/hackme bash scripts/ops/deploy_release_rc11g_iso.sh
 #
-# Prereq: passwordless SSH, dist/release_0.1.0-rc11g/HackMe-OS-*.iso built locally.
+# Prereq: passwordless SSH, dist/release_<VERSION>/HackMe-OS-*.iso built locally.
 
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -12,7 +13,7 @@ cd "$ROOT"
 # shellcheck source=scripts/ops/_deploy_ssh_retry.sh
 source "$ROOT/scripts/ops/_deploy_ssh_retry.sh"
 
-VERSION="${VERSION:-0.1.0-rc11g}"
+VERSION="${VERSION:-0.1.0-rc11i}"
 NODE_SSH="${NODE_SSH:-}"
 NODE_DEPLOY_DIR="${NODE_DEPLOY_DIR:-/opt/hackme}"
 DIST="${ROOT}/dist/release_${VERSION}"

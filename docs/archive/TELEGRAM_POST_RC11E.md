@@ -1,4 +1,6 @@
-# Telegram post draft — rc11e (copy-paste if bot unavailable)
+# Telegram post draft — rc11e (historical)
+
+> **Superseded** by `0.1.0-rc11i` and [../TELEGRAM_POST_HACKME_OS.md](../TELEGRAM_POST_HACKME_OS.md). Kept for reference only.
 
 **EN**
 

@@ -17,7 +17,7 @@
 | [OPEN_POOL_MINERS.md](OPEN_POOL_MINERS.md) | Public pool rules & fairness |
 | [NETWORK_MODEL.md](NETWORK_MODEL.md) | Coordinator, settlement, P2P |
 | [GPU_MINING_BACKENDS.md](GPU_MINING_BACKENDS.md) | CUDA / OpenCL / CPU |
-| [MINER_ISO.md](MINER_ISO.md) / [HACKME_OS.md](HACKME_OS.md) | Bootable rig OS |
+| [HACKME_OS.md](HACKME_OS.md) | Bootable rig OS (supersedes MINER_ISO.md) |
 | [MINER_WINDOWS_ONE_CLICK.md](MINER_WINDOWS_ONE_CLICK.md) | Windows installer |
 | [COORDINATOR_MEGA_STRESS.md](COORDINATOR_MEGA_STRESS.md) | Stress test results |
 | [MEMORY_LEAK_SPEC.md](MEMORY_LEAK_SPEC.md) | Coordinator memory spec |
@@ -50,10 +50,15 @@
 
 | Doc | Topic |
 |-----|--------|
+| [OPERATOR_FINAL_CHECKLIST.md](OPERATOR_FINAL_CHECKLIST.md) | Production checklist |
+| [CANONICAL_RELEASE_CHECKS.md](CANONICAL_RELEASE_CHECKS.md) | Schema / fuzz gates |
+| [OPERATIONS_MONITORING.md](OPERATIONS_MONITORING.md) | Metrics, alerts, pool health |
+| [PUBLIC_LAUNCH_VERDICT.md](PUBLIC_LAUNCH_VERDICT.md) | Launch criteria |
 | [scripts/release/README.md](../scripts/release/README.md) | Build ISO / Windows / bundles |
 | [TESTING.md](TESTING.md) | Test matrix |
 | [TELEGRAM_NEWS_BOT_RUNBOOK.md](TELEGRAM_NEWS_BOT_RUNBOOK.md) | News bot + pool heartbeat |
 | [NGINX_DOWNLOADS_INTEREST.md](NGINX_DOWNLOADS_INTEREST.md) | Download analytics |
+| [MININGPOOLSTATS_LISTING.md](MININGPOOLSTATS_LISTING.md) | MPS listing notes |
 
 ## Community
 

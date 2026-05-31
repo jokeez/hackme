@@ -1,5 +1,7 @@
 # HMS backend (committed)
 
+> **Prelaunch.** HMS is **not deployed** on the hub VPS (`hackme.tech`). Use this doc for local dev only until HMS goes live on a separate backend.
+
 Production HMS lane code lives in the **main repo** (not only `adapters/hms/`).
 
 ## Binaries

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SITE="${SITE_BASE:-https://hackme.tech}"
-ISO_URL="${ISO_URL:-$SITE/dist/release_0.1.0-rc11g/HackMe-OS-0.1.0-rc11g-amd64.iso}"
+ISO_URL="${ISO_URL:-$SITE/dist/release_0.1.0-rc11i/HackMe-OS-0.1.0-rc11i-amd64.iso}"
 
 fail=0
 check() {

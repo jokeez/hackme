@@ -9,7 +9,7 @@ Use **pool / worker mining** instead:
 
 **Local WASM PoH** via **`POST /api/mining/start`** exists only on processes explicitly marked as the chain command node with **`HACKME_CHAIN_LEADER_LOCAL_POH=1`**. Typical desktop / pool participants do **not** set this; they mine through the worker.
 
-Windows quick start: **`scripts/release/windows/start_hackme_dashboard.bat`** or **`start_hackme_beginner_solo.bat`** (wrapper that starts the same local node without solo env).
+Windows quick start: **`scripts/release/windows/start_hackme_dashboard.bat`**.
 
 See **`README.md`** (worker-mode section) and **`docs/API.md`** (`/api/worker/start`, `/api/mining/start`).
 
