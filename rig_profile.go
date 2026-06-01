@@ -25,10 +25,20 @@ var rigProfilePreserveKeys = map[string]bool{
 }
 
 func rigProfileEnvPath() string {
+	root := resolveWorkerRepoRoot(strings.TrimSpace(os.Getenv("HACKME_DATA_DIR")))
 	for _, name := range []string{"hackme.env", ".env"} {
+		if root != "" {
+			p := filepath.Join(root, name)
+			if _, err := os.Stat(p); err == nil {
+				return p
+			}
+		}
 		if _, err := os.Stat(name); err == nil {
 			return name
 		}
+	}
+	if root != "" {
+		return filepath.Join(root, "hackme.env")
 	}
 	return "hackme.env"
 }
