@@ -322,6 +322,7 @@ func (a *app) buildHardwareTuneResponse() hardwareTuneResponse {
 		NvidiaSMI:        len(nvRows) > 0 || len(powerRows) > 0,
 		AMDTelemetry:     len(amdList) > 0,
 		CanSetPowerLimit: len(nvRows) > 0 || len(powerRows) > 0,
+		Devices:          []gpuTuneDevice{},
 		Env: hardwareTuneEnv{
 			GPUTempPauseC:  envFloatTune("HACKME_GPU_TEMP_PAUSE_C", 0),
 			GPUTempResumeC: envFloatTune("HACKME_GPU_TEMP_RESUME_C", 0),
@@ -370,23 +371,38 @@ func (a *app) buildHardwareTuneResponse() hardwareTuneResponse {
 
 	if len(amdList) > 0 {
 		resp.CanSetPowerLimit = false
+		resp.PresetsAvailable = false
+		lspciNames := collectLocalGPUNames()
 		for _, am := range amdList {
 			util := -1.0
 			if am.BusyPct >= 0 {
 				util = am.BusyPct
 			}
+			gpuName := strings.TrimSpace(am.Name)
+			for _, n := range lspciNames {
+				ln := strings.ToLower(strings.TrimSpace(n))
+				if ln == "" || strings.HasPrefix(ln, "amd gpu (") || ln == "amd gpu" {
+					continue
+				}
+				if strings.Contains(ln, "radeon") || strings.Contains(ln, "rx ") || strings.Contains(ln, "polaris") ||
+					strings.Contains(ln, "geforce") || strings.Contains(ln, "nvidia") {
+					gpuName = strings.TrimSpace(n)
+					break
+				}
+			}
 			dev := gpuTuneDevice{
-				Index: am.Index, Name: am.Name, TempC: am.TempC, UtilPct: util,
+				Index: am.Index, Name: gpuName, TempC: am.TempC, UtilPct: util,
 				PowerDrawW: am.PowerDrawW, PowerLimitW: 0, PowerMinW: 0, PowerMaxW: 0,
-				Hints: gputune.ForGPUName(am.Name), PowerReadable: am.PowerAverage,
+				Hints: gputune.ForGPUName(gpuName), PowerReadable: am.PowerAverage,
 			}
 			finalizeTuneDevice(&dev, am.Index, false)
+			dev.PresetsAvailable = false // NVIDIA -pl presets; AMD uses vendor tools only
 			resp.Devices = append(resp.Devices, dev)
-			if dev.PresetsAvailable {
-				resp.PresetsAvailable = true
-			}
 		}
 		resp.Message = "AMD: temp/load from sysfs (amdgpu). Power limit via API is NVIDIA-only (nvidia-smi -pl); on AMD use vendor tools / BIOS."
+		if strings.Contains(strings.ToLower(resp.ActiveRigProfileID), "nvidia") {
+			resp.Message += " Env HACKME_RIG_PROFILE looks NVIDIA-specific — use Hardware → Detect GPU → Apply AMD profile."
+		}
 		return resp
 	}
 

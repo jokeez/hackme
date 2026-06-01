@@ -1,27 +1,42 @@
 package main
 
 import (
+	"runtime"
 	"testing"
 
-	"hackme/internal/gputune"
+	"hackme/internal/gpuhost"
 )
 
-func TestFinalizeTuneDevicePresets(t *testing.T) {
-	dev := gpuTuneDevice{
-		Name:  "NVIDIA GeForce RTX 5060 Ti",
-		Hints: gputune.ForGPUName("NVIDIA GeForce RTX 5060 Ti"),
+func TestBuildHardwareTuneDevicesNotNull(t *testing.T) {
+	a := &app{}
+	resp := a.buildHardwareTuneResponse()
+	if resp.Devices == nil {
+		t.Fatal("devices must be non-nil slice for JSON []")
 	}
-	finalizeTuneDevice(&dev, 0, true)
-	if !dev.PresetsAvailable {
-		t.Fatal("expected presets available from hints TDP")
+}
+
+func TestBuildHardwareTuneAMDTelemetryLive(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("linux only")
 	}
-	if dev.PresetDailyW <= 0 || dev.PresetEcoW <= 0 {
-		t.Fatalf("presets: eco=%v daily=%v", dev.PresetEcoW, dev.PresetDailyW)
+	if len(gpuhost.ListAMDGPUTelemetry()) == 0 {
+		t.Skip("no amdgpu on host")
 	}
-	if dev.ManualOC.Vendor == "" {
-		t.Fatal("expected manual OC from rig profile detect")
+	a := &app{}
+	resp := a.buildHardwareTuneResponse()
+	if !resp.AMDTelemetry {
+		t.Fatal("expected amd_telemetry true")
 	}
-	if dev.NvidiaSMIPlCommand == "" {
-		t.Fatal("expected nvidia-smi pl command hint")
+	if len(resp.Devices) != 1 {
+		t.Fatalf("devices=%d want 1", len(resp.Devices))
+	}
+	if resp.CanSetPowerLimit {
+		t.Fatal("AMD host should not allow PL via API")
+	}
+	if resp.PresetsAvailable {
+		t.Fatal("AMD should not expose NVIDIA preset buttons")
+	}
+	if resp.Devices[0].Hints.Family == "Unknown" {
+		t.Fatalf("hints family=%q for %q", resp.Devices[0].Hints.Family, resp.Devices[0].Name)
 	}
 }

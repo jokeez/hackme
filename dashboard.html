@@ -1489,17 +1489,24 @@
 							<div class="max-w-2xl">
 								<p class="font-display text-[10px] tracking-[0.35em] text-emerald-400 uppercase mb-1">HMS · prelaunch</p>
 								<h3 class="font-display text-sm font-semibold text-white tracking-wide">Storage + seal lane (preview)</h3>
-								<p class="text-[11px] text-gray-400 leading-relaxed mt-1">Allocate disk for encrypted chunks (Proof-of-Storage) and/or run a <strong class="text-white/90">SHA256 seal</strong> worker (ASIC-friendly). Network requires a hourly <strong class="text-white/90">manifest seal</strong> before storage pays out. <span class="text-warn">Not connected to production — buttons are UI-only until heavy VPS #2.</span></p>
+								<p class="text-[11px] text-gray-400 leading-relaxed mt-1">Pick a <strong class="text-white/90">local disk</strong> for encrypted chunks (Proof-of-Storage) and/or point an ASIC at Stratum for <strong class="text-white/90">SHA256 seal</strong>. Hourly manifest seal gates storage payout. <span id="hms-lane-backend-hint" class="text-warn">Start HMS coordinator locally to enable workers.</span></p>
 							</div>
 							<span class="tag-pill border-emerald-500/40 text-emerald-300">preview</span>
 						</div>
 						<div class="grid md:grid-cols-2 gap-4">
 							<div class="rounded border border-white/10 bg-black/35 p-3 space-y-3">
 								<p class="text-[10px] uppercase tracking-wider text-gray-500">Disk worker (PoSt)</p>
+								<p id="hms-disk-scan-status" class="text-[10px] text-gray-500 font-mono">Scanning local drives…</p>
+								<div id="hms-disk-list" class="space-y-1.5 max-h-52 overflow-y-auto pr-1" role="radiogroup" aria-label="HMS storage disk"></div>
+								<p id="hms-disk-path" class="text-[9px] text-gray-500 font-mono break-all leading-relaxed">—</p>
 								<label class="text-[10px] text-gray-500 flex justify-between"><span>Quota GB</span><span id="hms-preview-quota-label" class="text-emerald-300 font-mono">200 GB</span></label>
-								<input type="range" id="hms-preview-quota" class="w-full" min="50" max="2000" step="50" value="200" disabled title="Enable after HMS lane deploy">
-								<p class="text-[9px] text-gray-600">Min free space reserved for OS · challenges hourly on sealed manifest</p>
-								<button type="button" id="btn-hms-storage-enable" class="text-[10px] px-3 py-1.5 rounded border border-emerald-500/40 text-emerald-300 uppercase tracking-wider opacity-60 cursor-not-allowed" disabled>Enable storage mode</button>
+								<input type="range" id="hms-preview-quota" class="w-full" min="50" max="2000" step="50" value="200" disabled title="Select a disk first">
+								<p class="text-[9px] text-gray-600">OS reserve applied per drive · coordinator must be reachable</p>
+								<div class="flex flex-wrap gap-2">
+									<button type="button" id="btn-hms-storage-enable" class="text-[10px] px-3 py-1.5 rounded border border-emerald-500/40 text-emerald-300 uppercase tracking-wider opacity-60 cursor-not-allowed" disabled>Start storage worker</button>
+									<button type="button" id="btn-hms-storage-stop" class="text-[10px] px-3 py-1.5 rounded border border-white/20 text-gray-400 uppercase tracking-wider opacity-60 cursor-not-allowed" disabled>Stop</button>
+								</div>
+								<p id="hms-storage-run-status" class="text-[9px] font-mono text-gray-500">—</p>
 							</div>
 							<div class="rounded border border-white/10 bg-black/35 p-3 space-y-3">
 								<p class="text-[10px] uppercase tracking-wider text-gray-500">Seal worker (SHA256)</p>
@@ -2762,6 +2769,10 @@
 		let walletSimpleMode = true;
 		let latestNetworkStats = null;
 		let latestWorkStats = null;
+		let latestHmsPoolStats = null;
+		let latestHmsLocalDisks = null;
+		let hmsSelectedDiskId = '';
+		const HMS_DISK_STORAGE_KEY = 'hackme.hms.disk.v1';
 		let latestWorkerStatus = null;
 		let workerStatusHydrated = false;
 		let latestWorkerSettlementSnap = null;
@@ -3001,8 +3012,8 @@
 				height: 'SUP accrued (pool)',
 			},
 			hms: {
-				miners: 'Storage workers',
-				targetMod: 'Challenge mod (M)',
+				miners: 'Seal miners (Stratum)',
+				targetMod: 'Seal difficulty (M)',
 				rewardM: 'HMS / GB·epoch',
 				height: 'Manifest epoch',
 			},
@@ -3013,9 +3024,55 @@
 			if (id === 'sup') return supCoinMetrics();
 			return liveHmcCoinMetrics();
 		}
+		function hmsEpochLabelFromUnix(unix) {
+			const ts = Number(unix || 0);
+			if (!(ts > 0)) return '—';
+			const d = new Date(ts * 1000);
+			return (
+				d.getUTCFullYear() +
+				'-' +
+				String(d.getUTCMonth() + 1).padStart(2, '0') +
+				'-' +
+				String(d.getUTCDate()).padStart(2, '0') +
+				' ' +
+				String(d.getUTCHours()).padStart(2, '0') +
+				':00'
+			);
+		}
+		function hmsCoinMetricsFromStats(st) {
+			const cap = st.network_capacity || {};
+			const gb = Number(st.storage_committed_gb || 0);
+			const storageOnline = Number(st.storage_workers_online || cap.online_workers || 0);
+			const sealMiners = Number(st.seal_miners_connected || 0);
+			const th = Number(st.seal_hashrate_th || st.seal_hashrate || 0);
+			const mod = Number(st.seal_target_mod_m || 0);
+			const freeze = Number(st.epoch_freeze_unix || 0);
+			const sealed = st.epoch_sealed === true;
+			const manifest = String(st.last_manifest_root || '').trim();
+			const sealLbl = th > 0 ? fmtPoolAggHashrate(th, '') : sealMiners > 0 ? '0 TH/s (warming)' : '—';
+			return {
+				miners: sealMiners,
+				storageOnline,
+				targetMod: mod > 0 ? fmtUInt(mod) : '—',
+				rewardM: sealed ? 'epoch sealed' : 'accrual',
+				blocks: hmsEpochLabelFromUnix(freeze),
+				poolGhLabel: (gb > 0 ? fmt(gb, 0) + ' GB' : '—') + (storageOnline > 0 ? ' · ' + storageOnline + ' disk' : ''),
+				poolLuck: sealed ? 'sealed' : 'open',
+				networkGhLabel: sealLbl,
+				blockReward: 'HMS seal',
+				price: '—',
+				preview: false,
+				live: true,
+				manifest,
+				committedGb: gb,
+			};
+		}
 		function hmsCoinMetrics() {
-			const gb = Number(($('hms-preview-quota') && $('hms-preview-quota').value) || 200) || 200;
-			const challengeMod = Math.max(1, Math.floor(gb * 18640));
+			const st = latestHmsPoolStats;
+			if (st && String(st.status || '') === 'ok') return hmsCoinMetricsFromStats(st);
+			const disk = hmsSelectedDisk();
+			const gb = Number(($('hms-preview-quota') && $('hms-preview-quota').value) || (disk && disk.allocatable_gb) || 200) || 200;
+			const challengeMod = Number((latestHmsPoolStats && latestHmsPoolStats.seal_target_mod_m) || 0) || Math.max(1, Math.floor(gb * 18640));
 			const now = new Date();
 			const epochId =
 				now.getUTCFullYear() +
@@ -3028,16 +3085,30 @@
 				':00';
 			return {
 				miners: 0,
+				storageOnline: 0,
 				targetMod: fmtUInt(challengeMod),
 				rewardM: 'preview',
 				blocks: epochId,
 				poolGhLabel: gb + ' GB committed',
 				poolLuck: '—',
-				networkGhLabel: 'seal: preview',
+				networkGhLabel: 'seal: offline',
 				blockReward: 'HMS (TBD)',
 				price: '—',
 				preview: true,
+				live: false,
+				manifest: '',
+				committedGb: gb,
 			};
+		}
+		async function fetchHmsPoolStats() {
+			try {
+				const r = await fetch('/api/hms/pool/stats', { cache: 'no-store' });
+				if (!r.ok) return null;
+				const j = await r.json();
+				return j && String(j.status || '') === 'ok' ? j : null;
+			} catch (_) {
+				return null;
+			}
 		}
 		function supCoinMetrics() {
 			const hmc = liveHmcCoinMetrics();
@@ -3071,7 +3142,13 @@
 			set('eco-kpi-target-mod', m.targetMod);
 			set('eco-kpi-reward-m', m.rewardM);
 			set('eco-kpi-height', m.blocks);
-			if ($('eco-total-hash')) $('eco-total-hash').textContent = m.poolGhLabel || '—';
+			if ($('eco-total-hash')) {
+				if (coinId === 'hms' && m.live && m.networkGhLabel && m.networkGhLabel !== '—') {
+					$('eco-total-hash').textContent = m.networkGhLabel;
+				} else {
+					$('eco-total-hash').textContent = m.poolGhLabel || '—';
+				}
+			}
 			const strip = $('eco-kpi-strip');
 			if (strip) strip.setAttribute('data-eco-preview', m.preview ? '1' : '0');
 			document.querySelectorAll('#ecosystem-coins-body tr[data-eco-coin]').forEach((tr) => {
@@ -3081,12 +3158,30 @@
 		}
 		function updateHmsOverviewMock(m) {
 			const metrics = m || hmsCoinMetrics();
-			const gb = ($('hms-preview-quota') && $('hms-preview-quota').value) || '200';
 			const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
-			set('hms-mock-committed', gb + ' GB');
-			set('hms-mock-workers', '0');
-			set('hms-mock-seal', '— GH/s');
-			set('hms-mock-manifest', 'not sealed (preview)');
+			const gb = metrics.live
+				? (metrics.committedGb > 0 ? fmt(metrics.committedGb, 0) + ' GB' : '—')
+				: (($('hms-preview-quota') && $('hms-preview-quota').value) || '200') + ' GB';
+			const workers = metrics.live
+				? fmtUInt(metrics.storageOnline || 0) + ' disk · ' + fmtUInt(metrics.miners || 0) + ' seal'
+				: '0';
+			const seal = metrics.live ? (metrics.networkGhLabel || '—') : '—';
+			const manifest = metrics.live
+				? (metrics.manifest ? metrics.manifest.slice(0, 16) + '…' : 'pending freeze')
+				: 'not sealed (preview)';
+			set('hms-mock-committed', gb);
+			set('hms-mock-workers', workers);
+			set('hms-mock-seal', seal);
+			set('hms-mock-manifest', manifest);
+			const panel = $('overview-hms-panel');
+			if (panel) {
+				const note = panel.querySelector('p.text-gray-400');
+				if (note) {
+					note.innerHTML = metrics.live
+						? 'Live from <strong class="text-emerald-300/90">HMS coordinator</strong> — disk quota + Stratum seal miners. Seal difficulty retargets after each epoch seal.'
+						: 'Encrypted chunks on disk + hourly <strong class="text-white/90">manifest seal</strong> (SHA256 / ASIC). Values below are <strong class="text-warn/90">preview mocks</strong> until coordinator is reachable.';
+				}
+			}
 		}
 		function updateHmsMockKpis() {
 			applyEcoKpisForActiveCoin();
@@ -3136,11 +3231,10 @@
 			if (typeof applySolopoolVector === 'function' && profile.solopoolVector) {
 				try { applySolopoolVector(profile.solopoolVector); } catch (_) {}
 			}
-			const quota = $('hms-preview-quota');
-			if (quota) {
-				const enableSlider = norm === 'hms';
-				quota.disabled = !enableSlider;
-				quota.title = enableSlider ? 'Preview quota (UI only)' : 'Enable after HMS lane deploy';
+			if (norm === 'hms') {
+				void refreshHmsDiskPanel();
+			} else if (typeof updateHmsStorageControls === 'function') {
+				updateHmsStorageControls();
 			}
 			applyEcoKpisForActiveCoin();
 			if (opts.switchTab !== false) {
@@ -6950,7 +7044,246 @@
 				});
 			}
 		}
+		function hmsCoordinatorReachable() {
+			return !!(latestHmsPoolStats && String(latestHmsPoolStats.status || '') === 'ok');
+		}
+		function hmsSelectedDisk() {
+			const disks = (latestHmsLocalDisks && latestHmsLocalDisks.disks) || [];
+			return disks.find((d) => d.id === hmsSelectedDiskId) || null;
+		}
+		function loadHmsDiskSelection() {
+			try {
+				const raw = localStorage.getItem(HMS_DISK_STORAGE_KEY);
+				if (!raw) return;
+				const o = JSON.parse(raw);
+				if (o && o.disk_id) hmsSelectedDiskId = String(o.disk_id);
+			} catch (_) {}
+		}
+		function saveHmsDiskSelection() {
+			const d = hmsSelectedDisk();
+			if (!d) return;
+			try {
+				localStorage.setItem(
+					HMS_DISK_STORAGE_KEY,
+					JSON.stringify({
+						disk_id: d.id,
+						storage_dir: d.storage_path_suggest,
+						quota_gb: Number(($('hms-preview-quota') && $('hms-preview-quota').value) || 0),
+					})
+				);
+			} catch (_) {}
+		}
+		function applyHmsQuotaFromDisk(disk) {
+			const quota = $('hms-preview-quota');
+			const quotaLabel = $('hms-preview-quota-label');
+			if (!quota || !disk) return;
+			const minQ = Number((latestHmsLocalDisks && latestHmsLocalDisks.min_quota_gb) || 50);
+			const maxQ = Math.max(minQ, Math.floor(Number(disk.allocatable_gb || 0)));
+			quota.min = String(minQ);
+			quota.max = String(Math.max(minQ, maxQ));
+			quota.disabled = maxQ < minQ;
+			let val = Math.min(maxQ, Math.max(minQ, Number(quota.value || 200)));
+			if (val > maxQ) val = maxQ;
+			quota.value = String(val);
+			if (quotaLabel) quotaLabel.textContent = val + ' GB';
+		}
+		function renderHmsDiskList() {
+			const list = $('hms-disk-list');
+			const scan = $('hms-disk-scan-status');
+			const pathEl = $('hms-disk-path');
+			if (!list) return;
+			const resp = latestHmsLocalDisks;
+			if (!resp || resp.status !== 'ok') {
+				if (scan) scan.textContent = (resp && resp.error) || 'Drive scan unavailable (open dashboard via hackme-node)';
+				list.innerHTML = '';
+				return;
+			}
+			const disks = (resp.disks || []).filter((d) => Number(d.allocatable_gb || 0) >= Number(resp.min_quota_gb || 50));
+			if (scan) {
+				scan.textContent =
+					disks.length > 0
+						? disks.length + ' drive(s) · min quota ' + (resp.min_quota_gb || 50) + ' GB'
+						: 'No drives with enough free space (need ≥' + (resp.min_quota_gb || 50) + ' GB allocatable)';
+			}
+			if (!disks.length) {
+				list.innerHTML = '<p class="text-[10px] text-warn/90">Mount a data disk or free space on a non-system volume.</p>';
+				return;
+			}
+			if (!hmsSelectedDiskId || !disks.some((d) => d.id === hmsSelectedDiskId)) {
+				const prefer = disks.find((d) => !d.system_disk && !d.hms_active) || disks.find((d) => !d.system_disk) || disks[0];
+				hmsSelectedDiskId = prefer.id;
+			}
+			list.innerHTML = '';
+			disks.forEach((d) => {
+				const row = document.createElement('label');
+				const selected = d.id === hmsSelectedDiskId;
+				row.className =
+					'flex items-start gap-2 rounded border px-2 py-1.5 cursor-pointer text-[10px] font-mono ' +
+					(selected ? 'border-emerald-500/50 bg-emerald-950/30' : 'border-white/10 bg-black/25 hover:border-white/20');
+				const badges = [];
+				if (d.system_disk) badges.push('<span class="text-warn/90">system</span>');
+				if (d.hms_active) badges.push('<span class="text-emerald-400">HMS</span>');
+				if (d.removable) badges.push('<span class="text-gray-500">usb</span>');
+				row.innerHTML =
+					'<input type="radio" name="hms-disk" class="mt-0.5" ' +
+					(selected ? 'checked' : '') +
+					' value="' +
+					escapeHtml(d.id) +
+					'" />' +
+					'<span class="flex-1 min-w-0">' +
+					'<span class="text-white/90">' +
+					escapeHtml(d.model || d.device || d.id) +
+					'</span> · ' +
+					escapeHtml(d.mount || 'unmounted') +
+					' · <span class="text-emerald-300">' +
+					fmt(d.allocatable_gb, 0) +
+					' GB free</span> ' +
+					badges.join(' ') +
+					'<br><span class="text-gray-600">' +
+					escapeHtml(d.device || '') +
+					' · ' +
+					fmt(d.size_gb, 0) +
+					' GB total · ' +
+					fmt(d.used_pct, 0) +
+					'% used</span></span>';
+				row.querySelector('input').addEventListener('change', () => {
+					hmsSelectedDiskId = d.id;
+					saveHmsDiskSelection();
+					renderHmsDiskList();
+					updateHmsStorageControls();
+					if (activeDashboardCoinId === 'hms') applyEcoKpisForActiveCoin();
+				});
+				list.appendChild(row);
+			});
+			const sel = hmsSelectedDisk();
+			if (pathEl && sel) {
+				pathEl.textContent = 'Storage path: ' + (sel.storage_path_suggest || '—');
+				if (sel.system_disk) {
+					pathEl.textContent += ' · prefer a secondary data disk for production';
+				}
+			}
+			applyHmsQuotaFromDisk(sel);
+		}
+		async function fetchHmsLocalDisks() {
+			try {
+				const r = await fetch('/api/local/disks', { cache: 'no-store' });
+				if (!r.ok) return null;
+				return await r.json();
+			} catch (_) {
+				return null;
+			}
+		}
+		async function refreshHmsDiskPanel() {
+			latestHmsLocalDisks = await fetchHmsLocalDisks();
+			renderHmsDiskList();
+			updateHmsStorageControls();
+			await refreshHmsStorageWorkerStatus();
+		}
+		function updateHmsStorageControls() {
+			const live = hmsCoordinatorReachable();
+			const disk = hmsSelectedDisk();
+			const quota = $('hms-preview-quota');
+			const btnStart = $('btn-hms-storage-enable');
+			const btnStop = $('btn-hms-storage-stop');
+			const hint = $('hms-lane-backend-hint');
+			if (hint) {
+				hint.className = live ? 'text-emerald-300/90' : 'text-warn';
+				hint.textContent = live
+					? 'Coordinator live — pick disk, set quota, start storage worker.'
+					: 'Start hmscoordinator (port 18082) or set HACKME_HMS_COORDINATOR_URL on the node.';
+			}
+			if (quota) quota.disabled = !disk;
+			const canStart = live && disk && Number(disk.allocatable_gb || 0) >= Number((latestHmsLocalDisks && latestHmsLocalDisks.min_quota_gb) || 50);
+			if (btnStart) {
+				btnStart.disabled = !canStart;
+				btnStart.classList.toggle('opacity-60', !canStart);
+				btnStart.classList.toggle('cursor-not-allowed', !canStart);
+			}
+			if (btnStop) {
+				const running = !!window.__hmsStorageRunning;
+				btnStop.disabled = !running;
+				btnStop.classList.toggle('opacity-60', !running);
+				btnStop.classList.toggle('cursor-not-allowed', !running);
+			}
+			const tag = document.querySelector('#hms-lane-preview .tag-pill');
+			if (tag) {
+				tag.textContent = live ? 'local pilot' : 'preview';
+				tag.className = live
+					? 'tag-pill border-emerald-500/40 text-emerald-300'
+					: 'tag-pill border-emerald-500/40 text-emerald-300';
+			}
+		}
+		async function refreshHmsStorageWorkerStatus() {
+			const el = $('hms-storage-run-status');
+			try {
+				const r = await fetch('/api/hms/storage/status', { cache: 'no-store' });
+				const j = r.ok ? await r.json() : null;
+				window.__hmsStorageRunning = !!(j && j.running);
+				if (el) {
+					el.textContent = j && j.running
+						? 'Running pid ' + j.pid + ' · ' + (j.worker_id || '') + ' · ' + (j.quota_gb || '') + ' GB'
+						: 'Storage worker stopped';
+				}
+			} catch (_) {
+				window.__hmsStorageRunning = false;
+				if (el) el.textContent = 'Storage worker status unavailable';
+			}
+			updateHmsStorageControls();
+		}
+		async function startHmsStorageWorker() {
+			const disk = hmsSelectedDisk();
+			const toast = $('hms-preview-toast');
+			if (!disk) {
+				if (toast) toast.textContent = 'Select a disk first.';
+				return;
+			}
+			const quota = Number(($('hms-preview-quota') && $('hms-preview-quota').value) || 0);
+			const coord =
+				(latestStatus && latestStatus.hms_coordinator_url) ||
+				'http://127.0.0.1:18082';
+			try {
+				const r = await fetch('/api/hms/storage/start', {
+					method: 'POST',
+					headers: Object.assign({ 'Content-Type': 'application/json' }, adminHeaders()),
+					body: JSON.stringify({
+						coord_url: coord,
+						storage_dir: disk.storage_path_suggest,
+						quota_gb: quota,
+						disk_id: disk.id,
+					}),
+				});
+				const j = await r.json();
+				if (toast) {
+					toast.textContent = j.ok
+						? 'Storage worker started: ' + (j.worker_id || '') + ' → ' + (j.storage_dir || '')
+						: 'Start failed: ' + (j.error || r.status);
+				}
+				saveHmsDiskSelection();
+				await refreshHmsStorageWorkerStatus();
+				await fetchHmsPoolStats().then((hs) => {
+					if (hs) latestHmsPoolStats = hs;
+					if (activeDashboardCoinId === 'hms') applyEcoKpisForActiveCoin();
+				});
+			} catch (e) {
+				if (toast) toast.textContent = 'Start failed: ' + e;
+			}
+		}
+		async function stopHmsStorageWorker() {
+			const toast = $('hms-preview-toast');
+			try {
+				const r = await fetch('/api/hms/storage/stop', {
+					method: 'POST',
+					headers: adminHeaders(),
+				});
+				const j = await r.json();
+				if (toast) toast.textContent = j.ok ? 'Storage worker stopped.' : 'Stop failed: ' + (j.error || r.status);
+				await refreshHmsStorageWorkerStatus();
+			} catch (e) {
+				if (toast) toast.textContent = 'Stop failed: ' + e;
+			}
+		}
 		function initHmsPreviewUi() {
+			loadHmsDiskSelection();
 			const quota = $('hms-preview-quota');
 			const quotaLabel = $('hms-preview-quota-label');
 			const epochEl = $('hms-preview-epoch');
@@ -6959,22 +7292,36 @@
 			if (quota && quotaLabel) {
 				quota.addEventListener('input', () => {
 					quotaLabel.textContent = quota.value + ' GB';
+					saveHmsDiskSelection();
 					if (activeDashboardCoinId === 'hms') applyEcoKpisForActiveCoin();
 				});
 			}
 			if (epochEl) {
-				const h = new Date();
-				epochEl.textContent = h.getUTCFullYear() + '-' + String(h.getUTCMonth() + 1).padStart(2, '0') + '-' + String(h.getUTCDate()).padStart(2, '0') + ' ' + String(h.getUTCHours()).padStart(2, '0') + ':00 UTC (demo)';
+				const freeze = latestHmsPoolStats && Number(latestHmsPoolStats.epoch_freeze_unix || 0);
+				epochEl.textContent = freeze > 0 ? hmsEpochLabelFromUnix(freeze) + ' UTC' : 'waiting for coordinator…';
 			}
-			if (manifestEl) manifestEl.textContent = 'not sealed (preview)';
-			const previewMsg = 'HMS lane is preview-only — deploy on dedicated VPS before enabling.';
-			['btn-hms-storage-enable', 'btn-hms-seal-enable'].forEach((id) => {
-				const btn = $(id);
-				if (!btn) return;
-				btn.addEventListener('click', () => {
-					if (toast) toast.textContent = previewMsg;
+			if (manifestEl) {
+				const m = latestHmsPoolStats && String(latestHmsPoolStats.last_manifest_root || '').trim();
+				manifestEl.textContent = m ? m.slice(0, 18) + '…' : hmsCoordinatorReachable() ? 'pending freeze' : 'not sealed (preview)';
+			}
+			const btnStart = $('btn-hms-storage-enable');
+			const btnStop = $('btn-hms-storage-stop');
+			if (btnStart) btnStart.addEventListener('click', () => void startHmsStorageWorker());
+			if (btnStop) btnStop.addEventListener('click', () => void stopHmsStorageWorker());
+			const btnSeal = $('btn-hms-seal-enable');
+			if (btnSeal) {
+				btnSeal.addEventListener('click', () => {
+					if (toast) {
+						toast.textContent = hmsCoordinatorReachable()
+							? 'Point ASIC Stratum to this PC :3334 (see docs/HMS_ASIC_PILOT.md). Seal hashrate shows in Ecosystem when submits arrive.'
+							: 'Start HMS coordinator + Stratum :3334 first.';
+					}
 				});
-			});
+				btnSeal.disabled = false;
+				btnSeal.classList.remove('opacity-60', 'cursor-not-allowed');
+				btnSeal.textContent = 'Stratum seal info';
+			}
+			void refreshHmsDiskPanel();
 		}
 		function reconcilePoolStripWithWorkStats() {
 			const needStrip = $('pool-strip-miners') || $('pool-strip-hash') || $('mining-strip-miners') || $('mining-strip-th');
@@ -8829,6 +9176,24 @@
 				refreshChainHeightDisambiguation();
 				syncOverviewHeightCard(null, stFb || latestStatus);
 			}
+			try {
+				const hs = await fetchHmsPoolStats();
+				if (hs) {
+					latestHmsPoolStats = hs;
+					if (typeof updateHmsStorageControls === 'function') updateHmsStorageControls();
+					const ep = $('hms-preview-epoch');
+					const mf = $('hms-preview-manifest');
+					if (ep && Number(hs.epoch_freeze_unix || 0) > 0) {
+						ep.textContent = hmsEpochLabelFromUnix(hs.epoch_freeze_unix) + ' UTC';
+					}
+					if (mf) {
+						const root = String(hs.last_manifest_root || '').trim();
+						mf.textContent = root ? root.slice(0, 18) + '…' : 'pending freeze';
+					}
+					if ($('ecosystem-coins-body')) renderEcosystemCoins();
+					else if (activeDashboardCoinId === 'hms') applyEcoKpisForActiveCoin();
+				}
+			} catch (_) {}
 		}
 		function renderP2PPeers(data) {
 			const tb = $('p2p-peers-rows');
@@ -10898,8 +11263,14 @@
 			const devs = Array.isArray(j.devices) ? j.devices : [];
 			const canPL = !!j.can_set_power_limit;
 			const presetsAvail = !!j.presets_available;
+			const amdTel = !!j.amd_telemetry;
 			const drvMismatch = !!j.driver_mismatch;
 			const activeRig = String(j.active_rig_profile_id || '').trim();
+			const wstHw = latestWorkerStatus || {};
+			const liveGhHw = Number(wstHw.measured_hashrate_gh_s || wstHw.hashrate_gh_s || 0);
+			if (activeRig && amdTel && !canPL && /nvidia/i.test(activeRig)) {
+				gpuHtml += '<p class="text-[10px] text-warn/90 mb-3 font-mono leading-relaxed">Env rig profile <span class="text-neon">' + escapeHtml(activeRig) + '</span> is NVIDIA-oriented but this host reports AMD only — use <strong>Detect GPU</strong> and apply an AMD profile (e.g. RX 580).</p>';
+			}
 			let gpuHtml = hintBar;
 			if (drvMismatch) {
 				gpuHtml += '<p class="text-[10px] text-warn/90 mb-3 font-mono leading-relaxed">NVML/driver mismatch: reboot after NVIDIA driver update for live temp/util. Eco/Daily/Turbo still run <code class="text-neon/80">nvidia-smi -pl</code> (often needs sudo on Linux).</p>';
@@ -10920,8 +11291,13 @@
 					const pl = Math.round(Number(d.power_limit_w) || 0);
 					const recPl = h.recommended_pl_pct != null ? escapeHtml(String(h.recommended_pl_pct)) : '—';
 					const tempStr = Number(d.temp_c) >= 0 ? fmt(d.temp_c, 0) + '°C' : '—';
-					const utilStr = Number(d.util_pct) >= 0 ? fmt(d.util_pct, 0) + '%' : '—';
-					const showPresets = canPL || presetsAvail || !!d.presets_available || Number(d.preset_daily_w) > 0;
+					let utilStr = Number(d.util_pct) >= 0 ? fmt(d.util_pct, 0) + '%' : '—';
+					if (Number(d.util_pct) === 0 && liveGhHw > 0.01) {
+						utilStr += ' <span class="text-matrix/80">(mining ~' + fmt(liveGhHw, 2) + ' GH/s)</span>';
+					} else if (Number(d.util_pct) < 0 && liveGhHw > 0.01) {
+						utilStr = '<span class="text-matrix/80">pool ~' + fmt(liveGhHw, 2) + ' GH/s</span>';
+					}
+					const showPresets = canPL;
 					const smiCmd = String(d.nvidia_smi_pl_command || '').trim();
 					const oc = d.manual_oc || {};
 					const ocTools = (oc.tools || []).map((t) => escapeHtml(String(t))).join(' · ');
@@ -11184,6 +11560,10 @@
 			const cpuMount = $('hardware-cpu-mount');
 			const gpuMount = $('hardware-gpu-cards');
 			try {
+				try {
+					const wr = await fetch('/api/worker/status', { cache: 'no-store' });
+					if (wr.ok) latestWorkerStatus = await wr.json();
+				} catch (_) {}
 				const r = await fetch('/api/hardware/tune', { cache: 'no-store' });
 				if (!r.ok) throw new Error('HTTP ' + r.status);
 				const j = await r.json();

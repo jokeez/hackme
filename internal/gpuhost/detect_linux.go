@@ -6,8 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
+
+var lspciRevSuffixRe = regexp.MustCompile(`\s*\(rev [^)]+\)\s*$`)
 
 func detectHostGPUs() HostGPUReport {
 	var rep HostGPUReport
@@ -55,14 +58,29 @@ func lspciGPUNames() []string {
 			continue
 		}
 		model := strings.TrimSpace(parts[2])
+		model = lspciRevSuffixRe.ReplaceAllString(model, "")
+		var productFromBracket string
 		for {
 			i := strings.Index(model, "[")
 			j := strings.Index(model, "]")
-			if i >= 0 && j > i {
-				model = strings.TrimSpace(model[:i] + model[j+1:])
-				continue
+			if i < 0 || j <= i {
+				break
 			}
-			break
+			inner := strings.TrimSpace(model[i+1 : j])
+			lowInner := strings.ToLower(inner)
+			if strings.Contains(lowInner, "radeon") || strings.Contains(lowInner, "geforce") ||
+				strings.Contains(lowInner, "quadro") || strings.Contains(lowInner, "arc ") ||
+				strings.Contains(lowInner, "rx ") || strings.Contains(lowInner, "gtx ") ||
+				strings.Contains(lowInner, "rtx ") {
+				if productFromBracket == "" {
+					productFromBracket = inner
+				}
+			}
+			model = strings.TrimSpace(model[:i] + model[j+1:])
+		}
+		model = strings.TrimSpace(strings.ReplaceAll(model, "[AMD/ATI]", ""))
+		if productFromBracket != "" {
+			model = strings.TrimSpace(model + " " + productFromBracket)
 		}
 		model = strings.Join(strings.Fields(model), " ")
 		if model != "" && !strings.Contains(strings.ToLower(model), "device ") {

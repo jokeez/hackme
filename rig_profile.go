@@ -154,7 +154,13 @@ func (a *app) handleRigProfilesDetect(w http.ResponseWriter, r *http.Request) {
 	}
 	rep = enrichHostReportWithProfile(rep)
 	repoRoot := resolveWorkerRepoRoot(strings.TrimSpace(a.dataDir))
-	backend := resolveAutoGPUBackend(repoRoot)
+	backend := strings.TrimSpace(rep.SuggestedBackend)
+	if backend == "" {
+		backend = resolveAutoGPUBackend(repoRoot)
+	}
+	if ok && strings.TrimSpace(p.Env["HACKME_GPU_BACKEND"]) != "" {
+		backend = strings.TrimSpace(p.Env["HACKME_GPU_BACKEND"])
+	}
 	writeJSON(w, map[string]any{
 		"gpu_names":         names,
 		"detected":          ok,

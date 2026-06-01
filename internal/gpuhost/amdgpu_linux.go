@@ -37,7 +37,8 @@ func ListAMDGPUTelemetry() []AMDGPUCardTelemetry {
 	}
 	var ids []cardID
 	for _, e := range ents {
-		if e.IsDir() && drmCardNameRe.MatchString(e.Name()) {
+		// DRM cardN entries are symlinks (not IsDir); match name only then verify amdgpu driver.
+		if drmCardNameRe.MatchString(e.Name()) {
 			m := drmCardNameRe.FindStringSubmatch(e.Name())
 			if len(m) < 2 {
 				continue
