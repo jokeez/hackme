@@ -32,7 +32,7 @@ fetch_status() {
   return 1
 }
 
-st="$(fetch_status "$BASE/api/status?lite=1" || fetch_status "$BASE/api/status" || true)"
+st="$(fetch_status "$BASE/api/status" || fetch_status "$BASE/api/status?lite=1" || true)"
 if [[ -z "$st" ]]; then
   bad "GET /api/status timeout"
   echo "[exchange-smoke] pass=$pass fail=$fail"

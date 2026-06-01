@@ -104,6 +104,8 @@ run_job "hms_market_redteam" bash "$ROOT/scripts/tests/hms_market_redteam.sh"
 if curl -fsS --max-time 5 "${BASE_LOCAL}/api/status?lite=1" >/dev/null 2>&1; then
   run_job "redteam_local" env BASE="$BASE_LOCAL" bash "$ROOT/scripts/tests/redteam_surface_smoke.sh"
   if [[ -n "$ADMIN_TOKEN" ]]; then
+    run_job "economics_confidence" env DESKTOP_ENV_FILE="$ROOT/.env.desktop" \
+      bash "$ROOT/scripts/tests/economics_confidence_gate.sh"
     run_job "hardware_tab_gate" env DESKTOP_ENV_FILE="$ROOT/.env.desktop" \
       bash "$ROOT/scripts/tests/hardware_tab_gate.sh"
     run_job "fuzz_dashboard_local" env BASE="$BASE_LOCAL" ADMIN_TOKEN="$ADMIN_TOKEN" \

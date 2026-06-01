@@ -1800,6 +1800,11 @@ func (a *app) buildStatusLite(ctx context.Context) map[string]any {
 	if strings.TrimSpace(a.coordinatorBaseURL()) != "" {
 		a.warmWorkStatsCacheAsync(a.coordinatorBaseURL(), false)
 	}
+	econCtx, econCancel := context.WithTimeout(ctx, 250*time.Millisecond)
+	if ec, err := a.chain.Economics(econCtx); err == nil {
+		body["economics"] = ec
+	}
+	econCancel()
 	return body
 }
 
