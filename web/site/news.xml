@@ -5,7 +5,14 @@
     <link>https://hackme.tech/news.html</link>
     <description>Official HackMe Network release, infrastructure, economics, and security updates.</description>
     <language>en-us</language>
-    <lastBuildDate>Mon, 02 Jun 2026 16:45:00 GMT</lastBuildDate>
+    <lastBuildDate>Mon, 02 Jun 2026 22:00:00 GMT</lastBuildDate>
+    <item>
+      <title>Release 0.1.0-rc11j — GPU matrix final (CUDA fallback, ISO, Windows Setup)</title>
+      <link>https://hackme.tech/news.html#2026-06-02-rc11j-gpu-matrix-final</link>
+      <guid>https://hackme.tech/news.html#2026-06-02-rc11j-gpu-matrix-final</guid>
+      <pubDate>Mon, 02 Jun 2026 22:00:00 GMT</pubDate>
+      <description>Miner release after GPU matrix: CUDA→OpenCL auto-fallback, multi-GPU pool UI, Vast pack, rc11j Windows/Linux/ISO downloads.</description>
+    </item>
     <item>
       <title>GPU Matrix complete — Pascal through Blackwell on live HMC pool</title>
       <link>https://hackme.tech/news.html#2026-06-02-gpu-matrix-field-test</link>

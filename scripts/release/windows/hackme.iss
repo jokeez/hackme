@@ -72,10 +72,10 @@ english.GpuTip=Tip:
 russian.GpuTip=Подсказка:
 english.RbAuto=Auto (recommended — detects CUDA / OpenCL / CPU)
 russian.RbAuto=Авто (рекомендуется — CUDA / OpenCL / CPU)
-english.RbCuda=NVIDIA CUDA (GeForce / RTX — Windows build uses OpenCL until workerpoh-cuda.exe ships)
-russian.RbCuda=NVIDIA CUDA (GeForce / RTX — в Windows пока OpenCL, пока нет workerpoh-cuda.exe)
-english.CudaMissingNote=workerpoh-cuda.exe is not included in this Windows build.%n%nNVIDIA on Windows mines via OpenCL at about 9 GH/s.%nHackMe OS live ISO and the Linux bundle use native CUDA at 60+ GH/s.%n%nYour install will use OpenCL automatically. For max hashrate, use HackMe OS or Linux.%n%nExisting install? Run repair_fair_env.bat in the install folder to refresh hackme.env.
-russian.CudaMissingNote=workerpoh-cuda.exe не входит в сборку Windows.%n%nNVIDIA в Windows: OpenCL ~9 GH/s.%nHackMe OS и Linux: CUDA 60+ GH/s.%n%nБудет использован OpenCL. Для максимума — HackMe OS или Linux.%n%nОбновить hackme.env: repair_fair_env.bat в папке установки.
+english.RbCuda=NVIDIA CUDA (GeForce / RTX — auto OpenCL fallback if CUDA cannot init)
+russian.RbCuda=NVIDIA CUDA (GeForce / RTX — авто OpenCL если CUDA недоступен)
+english.CudaMissingNote=workerpoh-cuda.exe is not in this Windows installer.%n%nNVIDIA on Windows will use OpenCL (workerpoh-opencl.exe) with fair-pool batch tuning.%nLinux tarball and HackMe OS ISO include workerpoh-cuda with CUDA→OpenCL auto-fallback (rc11j).%n%nFor maximum GH/s on NVIDIA: prefer HackMe OS live USB or Linux bundle.%n%nRepair env: repair_fair_env.bat in the install folder.
+russian.CudaMissingNote=workerpoh-cuda.exe не входит в установщик Windows.%n%nNVIDIA в Windows: OpenCL (workerpoh-opencl.exe).%nВ Linux и HackMe OS — workerpoh-cuda с авто-fallback на OpenCL (rc11j).%n%nМаксимум GH/s на NVIDIA: HackMe OS или Linux.%n%nОбновить env: repair_fair_env.bat в папке установки.
 english.RbOpenCL=AMD OpenCL (Radeon — RX 580, etc.)
 russian.RbOpenCL=AMD OpenCL (Radeon — RX 580 и др.)
 english.RbCpu=CPU only (no GPU — low hashrate)
@@ -162,6 +162,17 @@ begin
   if Ok then Result := '1' else Result := '0';
 end;
 
+function PosFrom(const SubStr, S: String; Start: Integer): Integer;
+var
+  T: String;
+begin
+  if Start < 1 then Start := 1;
+  T := Copy(S, Start, MaxInt);
+  Result := Pos(SubStr, T);
+  if Result <> 0 then
+    Result := Result + Start - 1;
+end;
+
 function ExtractJsonFirstTip(const Json: String): String;
 var
   P, Q: Integer;
@@ -169,9 +180,9 @@ begin
   Result := '';
   P := Pos('"tips":', Json);
   if P = 0 then Exit;
-  P := Pos('"', Json, P + 7);
+  P := PosFrom('"', Json, P + 7);
   if P = 0 then Exit;
-  Q := Pos('"', Json, P + 1);
+  Q := PosFrom('"', Json, P + 1);
   if Q > P then Result := Copy(Json, P + 1, Q - P - 1);
 end;
 

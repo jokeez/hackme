@@ -3,6 +3,7 @@
 package gpupoh
 
 import (
+	"fmt"
 	"os"
 	"strings"
 )
@@ -23,13 +24,26 @@ func DiscoverAccelerators() ([]Accelerator, error) {
 		return tryOpenCLAccelerators()
 	}
 	cudaAcc, err := tryCUDAAccelerators()
+	if err == nil && len(cudaAcc) > 0 {
+		return cudaAcc, nil
+	}
+	if err != nil && os.Getenv("HACKME_CUDA_VERBOSE") == "1" {
+		fmt.Fprintf(os.Stderr, "gpupoh: CUDA unavailable (%v); trying OpenCL\n", err)
+	}
+	ocl, oclErr := tryOpenCLAccelerators()
+	if oclErr != nil {
+		if err != nil {
+			return nil, fmt.Errorf("gpupoh: cuda failed (%v); opencl failed (%v)", err, oclErr)
+		}
+		return nil, oclErr
+	}
+	if len(ocl) > 0 {
+		return ocl, nil
+	}
 	if err != nil {
 		return nil, err
 	}
-	if len(cudaAcc) > 0 {
-		return cudaAcc, nil
-	}
-	return tryOpenCLAccelerators()
+	return ocl, nil
 }
 
 func forceOpenCL() bool {

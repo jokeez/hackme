@@ -1,6 +1,25 @@
 {
   "items": [
     {
+      "id": "2026-06-02-rc11j-gpu-matrix-final",
+      "date": "2026-06-02",
+      "title": "Release 0.1.0-rc11j — GPU matrix final (CUDA auto-fallback, installer, ISO)",
+      "summary": "Production miner release after Pascal→Blackwell field tests: CUDA→OpenCL auto-fallback in workerpoh-cuda, multi-GPU pool UI aggregation, refreshed Vast pack, Windows Setup wizard, Linux bundle and HackMe OS ISO with fair-pool tuning.",
+      "tags": ["release", "mining", "gpu", "infrastructure"],
+      "impact": "Miners on CUDA 13 / Vast no longer need manual OpenCL switches; Windows/Linux/ISO downloads aligned with live pool fixes.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Verdict: https://hackme.tech/docs/HACKME_RC11J_FINAL_VERDICT.md · Matrix: https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md",
+      "status": "published",
+      "links": {
+        "downloads": "https://hackme.tech/downloads.html",
+        "verdict": "https://hackme.tech/docs/HACKME_RC11J_FINAL_VERDICT.md",
+        "matrix": "https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "news": "https://hackme.tech/news.html",
+        "github": "https://github.com/jokeez/hackme",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-06-02-gpu-matrix-field-test",
       "date": "2026-06-02",
       "title": "GPU Matrix complete — Pascal through Blackwell on live HMC pool",

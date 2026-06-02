@@ -18,9 +18,9 @@ func TestMarketUploadDuringEpochFreeze(t *testing.T) {
 
 	cfg := Config{
 		MinQuotaGB: 10, MaxQuotaGB: 100,
-		EpochDuration: 30 * time.Second,
-		FreezeAfter:   1 * time.Second,
-		SealWindow:    5 * time.Second,
+		EpochDuration:     30 * time.Second,
+		FreezeAfter:       1 * time.Second,
+		SealWindow:        5 * time.Second,
 		InitialSealTarget: defaultSealTarget(),
 	}
 	coord := NewCoordinator(db, cfg)

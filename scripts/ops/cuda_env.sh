@@ -9,12 +9,12 @@ cuda_find_home() {
     "${CUDA_HOME:-}" \
     "${CUDA_PATH:-}" \
     /usr/local/cuda \
+    /usr/local/cuda-13.0 \
+    /usr/local/cuda-13 \
     /usr/local/cuda-12.8 \
     /usr/local/cuda-12.6 \
     /usr/local/cuda-12.4 \
     /usr/local/cuda-12.2 \
-    /usr/local/cuda-12.8 \
-    /usr/local/cuda-12.6 \
     /usr/local/cuda-12.0 \
     /opt/cuda \
     /usr/lib/cuda

@@ -69,9 +69,10 @@ if (-not ($RigProfile -match '^amd_rx580') -and ($gpuVendor -match 'NVIDIA' -or 
     $claimMs = 0
     if ($hasCudaBin) {
         $GpuBackend = 'cuda'
+        Write-Host 'NVIDIA: workerpoh-cuda.exe (CUDA with automatic OpenCL fallback if NVRTC/driver mismatch).'
     } elseif ($hasOpenCLBin) {
         $GpuBackend = 'opencl'
-        Write-Host 'NOTE: Windows NVIDIA uses OpenCL (~9 GH/s) until workerpoh-cuda.exe ships. HackMe OS / Linux: ~60+ GH/s with CUDA.'
+        Write-Host 'NVIDIA on Windows: OpenCL worker (workerpoh-opencl.exe). For native CUDA use HackMe OS ISO or Linux bundle (rc11j).'
     }
 }
 

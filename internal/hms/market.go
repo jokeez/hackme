@@ -296,17 +296,17 @@ func (c *Coordinator) UploadOrderChunk(orderID, uploadToken string, chunkIndex i
 		return nil, err
 	}
 	return map[string]any{
-		"ok":            true,
-		"order_id":      orderID,
-		"chunk_id":      chunkID,
-		"chunk_index":   chunkIndex,
-		"worker_id":     workerID,
-		"replica_count": len(written),
-		"replica_hosts": written,
+		"ok":             true,
+		"order_id":       orderID,
+		"chunk_id":       chunkID,
+		"chunk_index":    chunkIndex,
+		"worker_id":      workerID,
+		"replica_count":  len(written),
+		"replica_hosts":  written,
 		"replica_target": replicaN,
-		"degraded":      warnDegraded,
-		"size":          len(ciphertext),
-		"sha256":        encodeHex(sum[:]),
+		"degraded":       warnDegraded,
+		"size":           len(ciphertext),
+		"sha256":         encodeHex(sum[:]),
 	}, nil
 }
 

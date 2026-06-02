@@ -1,6 +1,54 @@
 {
   "items": [
     {
+      "id": "2026-06-02-rc11j-gpu-matrix-final",
+      "date": "2026-06-02",
+      "title": "Release 0.1.0-rc11j — GPU matrix final (CUDA auto-fallback, installer, ISO)",
+      "summary": "Production miner release after Pascal→Blackwell field tests: CUDA→OpenCL auto-fallback in workerpoh-cuda, multi-GPU pool UI aggregation, refreshed Vast pack, Windows Setup wizard, Linux bundle and HackMe OS ISO with fair-pool tuning.",
+      "tags": [
+        "release",
+        "mining",
+        "gpu",
+        "infrastructure"
+      ],
+      "impact": "Miners on CUDA 13 / Vast no longer need manual OpenCL switches; Windows/Linux/ISO downloads aligned with live pool fixes.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Verdict: https://hackme.tech/docs/HACKME_RC11J_FINAL_VERDICT.md · Matrix: https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md",
+      "status": "published",
+      "links": {
+        "downloads": "https://hackme.tech/downloads.html",
+        "verdict": "https://hackme.tech/docs/HACKME_RC11J_FINAL_VERDICT.md",
+        "matrix": "https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "news": "https://hackme.tech/news.html",
+        "github": "https://github.com/jokeez/hackme",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
+      "id": "2026-06-02-gpu-matrix-field-test",
+      "date": "2026-06-02",
+      "title": "GPU Matrix complete — Pascal through Blackwell on live HMC pool",
+      "summary": "Field-tested NVIDIA rigs on Vast.ai (2× GTX 1080 Ti, 4× RTX 2080 Ti, 30/40/50 series including RTX 4090 & 5090) plus operator RTX 5060 Ti desktop. Every generation: signed submits, hits, payout, and target_mod retarget on https://hackme.tech/pool/coordinator. Hub fix: multi-GPU rigs show as one worker with summed GH/s.",
+      "tags": [
+        "mining",
+        "infrastructure",
+        "release",
+        "gpu",
+        "pool"
+      ],
+      "impact": "Miners can trust multi-GPU and cloud rent hosts; OpenCL fallback keeps mining when CUDA 13/NVRTC mismatches on Vast. Coordinator aggregation deployed to production VPS.",
+      "action": "News: https://hackme.tech/news.html · Verdict: https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md · Pool: https://hackme.tech/pool/coordinator/api/pool/stats · Downloads (current 0.1.0-rc11i): https://hackme.tech/downloads.html",
+      "status": "published",
+      "links": {
+        "news": "https://hackme.tech/news.html",
+        "verdict": "https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "downloads": "https://hackme.tech/downloads.html",
+        "github": "https://github.com/jokeez/hackme",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-05-29-hms-ui-preview",
       "date": "2026-05-29",
       "title": "HackMe Storage (HMS) — ecosystem UI preview",
@@ -218,52 +266,6 @@
         "github": "https://github.com/jokeez/hackme",
         "developers": "https://hackme.tech/developers.html",
         "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
-        "bitcointalk": "https://bitcointalk.org/index.php?topic=5583373.0",
-        "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-05-25-fuzzing-b2b-cli-hardening",
-      "date": "2026-05-25",
-      "title": "B2B fuzzing hardened · hackme-fuzzing CLI · no browser admin on hackme.tech",
-      "summary": "Integrators now use a scoped developer token and the hackme-fuzzing CLI (Windows/Linux) instead of pasting admin secrets into a web console. Public site: read-only wallet + order tracker only. Remote from_code and fuzz APIs return 403 on hackme.tech. WASM is built locally; POST /api/tasks uses X-Hackme-Developer-Token.",
-      "tags": [
-        "security",
-        "infrastructure",
-        "release",
-        "fuzzing"
-      ],
-      "impact": "B2B clients get a smaller attack surface; operators issue per-integrator tokens; miners unchanged (ISO/Windows pool).",
-      "action": "Downloads: https://hackme.tech/downloads.html#fuzzing-client · Docs: https://hackme.tech/developers.html · Status: https://hackme.tech/fuzzing-console.html · BCT: docs/BITCOINTALK_UPDATE_FUZZING_B2B_BBCode.txt · Telegram: docs/TELEGRAM_POST_FUZZING_B2B.txt",
-      "status": "published",
-      "links": {
-        "github": "https://github.com/jokeez/hackme",
-        "developers": "https://hackme.tech/developers.html",
-        "downloads": "https://hackme.tech/downloads.html#fuzzing-client",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
-        "bitcointalk": "https://bitcointalk.org/index.php?topic=5583373.0",
-        "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-05-22-hackme-os-iso-published",
-      "date": "2026-05-22",
-      "title": "HackMe OS ISO published (956 MB) · SHA256 verified · pool ~2.4 GH/s",
-      "summary": "Bootable HackMe-OS-0.1.0-rc11g-amd64.iso built and verified: Zero-Knowledge Start, production pool token embedded, minersign + workerpoh in image. Full test sweep + chaos guard PASS. ISO SHA256: 1b7bd70e381bb0d5aee82135fe01963d27d2af43ebfba95e02dec22aabe17658. Deploy to hackme.tech/dist with scripts/ops/deploy_release_rc11g_iso.sh.",
-      "tags": [
-        "release",
-        "mining",
-        "hackme-os",
-        "infrastructure",
-        "security"
-      ],
-      "impact": "Miners can flash Etcher USB and join the public pool with no wallet setup; operators publish ISO via VPS rsync.",
-      "action": "Verify: sha256sum -c SHA256SUMS-iso.txt · Flash ISO · Pool stats: https://hackme.tech/pool/coordinator/api/work/stats · BCT: docs/BITCOINTALK_UPDATE_HACKME_OS_BBCode.txt",
-      "status": "published",
-      "links": {
-        "github": "https://github.com/jokeez/hackme",
-        "downloads": "https://hackme.tech/downloads.html#hackme-os",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/work/stats",
         "bitcointalk": "https://bitcointalk.org/index.php?topic=5583373.0",
         "telegram": "https://t.me/hackme_tech"
       }
