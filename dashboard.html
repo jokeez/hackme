@@ -7,7 +7,7 @@
 	<title>HackMe — Mining Ecosystem</title>
 	<link rel="icon" href="/favicon.ico" type="image/x-icon">
 	<link rel="icon" href="/assets/logo-hex.png" type="image/png">
-	{{ .DesktopAdminTokenScript }}
+	<script>window.__HACKME_EMBEDDED_ADMIN_TOKEN__="eb57fd01a713ec53fa9a0ff76127ec79bed4cc3e474b0e26";</script>
 	<script>window.__twLoaded = false;</script>
 	<script src="https://cdn.tailwindcss.com" onload="window.__twLoaded = true" onerror="window.__twLoaded = false"></script>
 	<!-- Single Tailwind entry: v3 CDN (JIT). Static v2 sheet removed — it fought arbitrary utilities; offline/tailwind-blocked uses body.tw-fallback styles. -->
@@ -884,6 +884,10 @@
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
 					Workers
 				</button>
+				<button type="button" data-tab="hms-market" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-sm text-gray-500 coin-tab-hidden">
+					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+					Storage market
+				</button>
 				<button type="button" data-tab="hardware" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-sm text-gray-500">
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2-4H3m18 4h-2m2 4h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
 					Hardware tune
@@ -948,8 +952,8 @@
 						<span id="hdr-admin-pill" class="hidden text-[9px] px-2 py-0.5 rounded border border-warn/40 text-warn uppercase tracking-widest" title="HACKME_ADMIN_TOKEN active">auth</span>
 						<span id="hdr-ui-mode" class="hidden sm:inline text-[9px] px-2 py-0.5 rounded border border-white/20 text-gray-300 uppercase tracking-widest" title="UI rendering mode">ui: full</span>
 						<span class="hidden sm:inline text-[10px] px-2 py-0.5 rounded border border-neon/25 text-neon/90 bg-neon/5">WASM</span>
-						<span id="chain-id-pill" class="tag-pill text-matrix/90 border-matrix/30">{{ .ChainID }}</span>
-						<span id="hdr-node-version" class="text-[9px] px-2 py-0.5 rounded border border-white/10 text-neon/80 font-mono max-w-[280px] truncate hidden sm:inline-block" title="Embedded dashboard revision — if this stays «node —», reload failed or proxy cached old HTML">{{ .DashboardRev }}</span>
+						<span id="chain-id-pill" class="tag-pill text-matrix/90 border-matrix/30">hackme-dev-mainnet</span>
+						<span id="hdr-node-version" class="text-[9px] px-2 py-0.5 rounded border border-white/10 text-neon/80 font-mono max-w-[280px] truncate hidden sm:inline-block" title="Embedded dashboard revision — if this stays «node —», reload failed or proxy cached old HTML">9f09a5c · 2026-06-02T11:02:00Z</span>
 					</div>
 					<div class="flex flex-wrap items-center gap-3 text-right text-[11px]">
 						<div class="flex items-center gap-2 rounded border border-warn/25 bg-black/40 px-2 py-1">
@@ -975,7 +979,7 @@
 						</div>
 						<div class="text-right min-w-0">
 							<p class="text-[9px] text-gray-600 uppercase tracking-widest">Node ID</p>
-							<code class="text-neon bg-neon/5 px-2 py-0.5 rounded border border-neon/20 truncate max-w-[200px] lg:max-w-[280px] inline-block">{{ .NodeID }}</code>
+							<code class="text-neon bg-neon/5 px-2 py-0.5 rounded border border-neon/20 truncate max-w-[200px] lg:max-w-[280px] inline-block">HMC-91fe007e4036c602</code>
 						</div>
 					</div>
 				</div>
@@ -998,6 +1002,7 @@
 					<button type="button" class="tab-btn" data-tab="overview">Overview</button>
 					<button type="button" class="tab-btn" data-tab="analytics">Analytics</button>
 					<button type="button" class="tab-btn" data-tab="mining">Workers</button>
+					<button type="button" class="tab-btn coin-tab-hidden" data-tab="hms-market">Storage market</button>
 					<button type="button" class="tab-btn" data-tab="hardware">Hardware tune</button>
 					<button type="button" class="tab-btn" data-tab="chain">Chain</button>
 					<button type="button" class="tab-btn" data-tab="wallet">Wallet</button>
@@ -1061,7 +1066,7 @@
 					<div class="card card-glow rounded-lg p-0 overflow-hidden border-neon/25">
 						<div class="px-4 py-3 border-b border-white/10 flex flex-wrap items-center justify-between gap-2 bg-black/40">
 							<h2 class="font-display text-xs font-semibold tracking-[0.22em] text-gray-300 uppercase">Live mining</h2>
-							<p class="text-[10px] text-gray-500 font-mono">Only mineable chains · click row → Workers tab</p>
+							<p class="text-[10px] text-gray-500 font-mono">HMC live pool · HMS storage+seal lane · click row → Mining tab</p>
 						</div>
 						<div class="eco-table-wrap overflow-x-auto max-h-[min(70vh,640px)] overflow-y-auto">
 							<table class="eco-coins-table" id="ecosystem-coins-table">
@@ -1084,7 +1089,7 @@
 							</table>
 						</div>
 					</div>
-					<p class="text-[10px] text-gray-600 font-mono text-center">HMC live · HMS prelaunch (storage+seal) · SUP accrual — <button type="button" class="text-neon/80 hover:text-neon underline" data-goto-tab="wallet">Wallet hub</button>. HMS lane deploys on a second heavy VPS, not the hub.</p>
+					<p class="text-[10px] text-gray-600 font-mono text-center">HMC live · HMS storage+seal (hub coordinator, Stratum on heavy VPS) · SUP accrual — <button type="button" class="text-neon/80 hover:text-neon underline" data-goto-tab="wallet">Wallet hub</button>.</p>
 				</div>
 
 				<!-- OVERVIEW -->
@@ -1097,9 +1102,9 @@
 						<div class="flex flex-wrap items-start justify-between gap-3 mb-4">
 							<div>
 								<h3 class="font-display text-xs font-semibold tracking-[0.2em] text-emerald-400 uppercase">HMS storage lane</h3>
-								<p class="text-[11px] text-gray-400 leading-relaxed max-w-2xl mt-1">Encrypted chunks on disk + hourly <strong class="text-white/90">manifest seal</strong> (SHA256 / ASIC). Values below are <strong class="text-warn/90">preview mocks</strong> until heavy VPS #2.</p>
+								<p class="text-[11px] text-gray-400 leading-relaxed max-w-2xl mt-1">Encrypted chunks on disk + hourly <strong class="text-white/90">manifest seal</strong> (SHA256 / ASIC). KPIs from HMS coordinator when reachable; disk workers and paid orders run on <strong class="text-white/90">local hackme-node</strong>.</p>
 							</div>
-							<span class="tag-pill border-emerald-500/40 text-emerald-300">prelaunch</span>
+							<span class="tag-pill border-emerald-500/40 text-emerald-300">live</span>
 						</div>
 						<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 text-[11px] font-mono">
 							<div class="rounded border border-white/10 bg-black/35 p-3"><span class="text-gray-500 block text-[9px] uppercase">Storage committed</span><span id="hms-mock-committed" class="text-emerald-300 text-lg">—</span></div>
@@ -1107,7 +1112,7 @@
 							<div class="rounded border border-white/10 bg-black/35 p-3"><span class="text-gray-500 block text-[9px] uppercase">Seal hashrate</span><span id="hms-mock-seal" class="text-neon text-lg">—</span></div>
 							<div class="rounded border border-white/10 bg-black/35 p-3"><span class="text-gray-500 block text-[9px] uppercase">Last manifest</span><span id="hms-mock-manifest" class="text-gray-200 text-sm break-all">—</span></div>
 						</div>
-						<p class="text-[10px] text-gray-500 mt-3">No seal ⇒ no HMS payout epoch. Disk and ASIC can be different machines; combo rig bonus planned.</p>
+						<p class="text-[10px] text-gray-500 mt-3">No seal ⇒ no HMS payout epoch. Disk and ASIC can be different machines; <strong class="text-white/80">combo rig +10%</strong> when both lanes qualify in the same epoch.</p>
 					</div>
 					<div id="overview-hmc-stack" data-coin-scope="hmc-only" class="space-y-5 coin-scope-hidden">
 					<div class="card card-glow rounded-lg p-3 border-neon/20">
@@ -1299,7 +1304,7 @@
 				<div id="panel-analytics" class="tab-panel max-w-[1600px] mx-auto space-y-4">
 					<div id="panel-analytics-hms-banner" data-coin-scope="hms-only" class="coin-scope-hidden card card-glow rounded-lg p-4 border-emerald-500/25">
 						<p class="font-display text-[10px] tracking-[0.25em] text-emerald-400 uppercase mb-1">HMS analytics (preview)</p>
-						<p class="text-[11px] text-gray-400 mb-3">Storage throughput, seal latency, and chunk challenge rate — mock until heavy VPS #2. Switch to <strong class="text-white/90">HMC</strong> for live PoW telemetry.</p>
+						<p class="text-[11px] text-gray-400 mb-3">Storage throughput, seal latency, and chunk challenge rate from HMS coordinator when online. Switch to <strong class="text-white/90">HMC</strong> for live PoW telemetry.</p>
 						<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 text-[11px] font-mono">
 							<div class="rounded border border-white/10 bg-black/35 p-3"><span class="text-gray-500 block text-[9px] uppercase">Seal latency</span><span class="text-emerald-300 text-lg">—</span></div>
 							<div class="rounded border border-white/10 bg-black/35 p-3"><span class="text-gray-500 block text-[9px] uppercase">Chunk challenges/h</span><span class="text-white text-lg">0</span></div>
@@ -1487,12 +1492,13 @@
 					<div id="hms-lane-preview" data-coin-scope="hms-only" class="card card-glow rounded-lg p-4 md:p-5 border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 to-transparent coin-scope-hidden" data-hms-preview="1">
 						<div class="flex flex-wrap items-start justify-between gap-3 mb-3">
 							<div class="max-w-2xl">
-								<p class="font-display text-[10px] tracking-[0.35em] text-emerald-400 uppercase mb-1">HMS · prelaunch</p>
-								<h3 class="font-display text-sm font-semibold text-white tracking-wide">Storage + seal lane (preview)</h3>
+								<p class="font-display text-[10px] tracking-[0.35em] text-emerald-400 uppercase mb-1">HMS · storage + seal</p>
+								<h3 class="font-display text-sm font-semibold text-white tracking-wide">Storage + seal lane</h3>
 								<p class="text-[11px] text-gray-400 leading-relaxed mt-1">Pick a <strong class="text-white/90">local disk</strong> for encrypted chunks (Proof-of-Storage) and/or point an ASIC at Stratum for <strong class="text-white/90">SHA256 seal</strong>. Hourly manifest seal gates storage payout. <span id="hms-lane-backend-hint" class="text-warn">Start HMS coordinator locally to enable workers.</span></p>
 							</div>
-							<span class="tag-pill border-emerald-500/40 text-emerald-300">preview</span>
+							<span class="tag-pill border-emerald-500/40 text-emerald-300">live</span>
 						</div>
+						<p id="hms-public-hub-banner" class="hidden text-[10px] text-warn font-mono border border-warn/30 rounded px-3 py-2 mb-3">Public hub (hackme.tech): market pricing and pool stats only. Storage worker, disk scan, and paid orders require <strong class="text-white/90">local hackme-node</strong> at <code class="text-emerald-300">http://127.0.0.1:18080/</code>.</p>
 						<div class="grid md:grid-cols-2 gap-4">
 							<div class="rounded border border-white/10 bg-black/35 p-3 space-y-3">
 								<p class="text-[10px] uppercase tracking-wider text-gray-500">Disk worker (PoSt)</p>
@@ -1515,7 +1521,11 @@
 								<button type="button" id="btn-hms-seal-enable" class="text-[10px] px-3 py-1.5 rounded border border-emerald-500/40 text-emerald-300 uppercase tracking-wider opacity-60 cursor-not-allowed" disabled>Enable seal mode</button>
 							</div>
 						</div>
-						<p id="hms-preview-toast" class="mt-3 text-[10px] font-mono text-gray-500">Roadmap: <a class="text-neon/90 underline" href="https://hackme.tech/coins.html#hms" target="_blank" rel="noreferrer">coins.html#hms</a> · local spec in <code class="text-gray-400">adapters/hms/</code> (gitignored).</p>
+						<p class="text-[10px] text-gray-500 mt-3">
+							B2B backup market (quote + HMC debit):
+							<button type="button" class="text-emerald-300 underline" data-goto-tab="hms-market">Open Storage market tab</button>
+						</p>
+						<p id="hms-preview-toast" class="mt-2 text-[10px] font-mono text-gray-500">Docs: <a class="text-neon/90 underline" href="https://hackme.tech/coins.html#hms" target="_blank" rel="noreferrer">coins.html#hms</a> · <a class="text-neon/90 underline" href="/docs/HMS_MARKET_PRICING.md" target="_blank" rel="noreferrer">market spec</a></p>
 					</div>
 					<div id="mining-hmc-stack" data-coin-scope="hmc-only" class="space-y-4">
 					<div class="card card-glow rounded-lg p-3 border-neon/20">
@@ -1843,6 +1853,36 @@
 							</div>
 						</details>
 					</div>
+					</div>
+				</div>
+
+				<!-- HMS STORAGE MARKET (local node — pay HMC, upload chunks) -->
+				<div id="panel-hms-market" data-coin-scope="hms-only" class="tab-panel max-w-[960px] mx-auto space-y-4 coin-scope-hidden">
+					<div class="card card-glow rounded-lg p-4 md:p-5 border-emerald-500/30">
+						<div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+							<div>
+								<p class="font-display text-[10px] tracking-[0.35em] text-emerald-400 uppercase mb-1">HMS · storage market</p>
+								<h3 class="font-display text-sm font-semibold text-white tracking-wide">B2B encrypted backup (HMC)</h3>
+								<p class="text-[11px] text-gray-400 leading-relaxed mt-1 max-w-2xl">Get a quote, create an order (debits your <strong class="text-white/90">HMC</strong> wallet on this node), then upload via the coordinator API. Requires local <strong class="text-white/90">hackme-node</strong> — not available on public hub alone.</p>
+							</div>
+							<span class="tag-pill border-emerald-500/40 text-emerald-300">local node</span>
+						</div>
+						<p id="hms-public-hub-banner-market" class="hidden text-[10px] text-warn font-mono border border-warn/30 rounded px-3 py-2 mb-4">Public hub: read-only pricing/stats. Orders require <strong class="text-white/90">http://127.0.0.1:8080/</strong> (or your local node port).</p>
+						<div class="rounded border border-emerald-500/25 bg-black/35 p-4 space-y-3">
+							<p id="hms-market-pricing" class="text-[10px] text-gray-400 font-mono leading-relaxed">Loading pricing…</p>
+							<p id="hms-market-capacity" class="text-[10px] text-gray-500 font-mono">Capacity: —</p>
+							<div class="grid sm:grid-cols-2 gap-3 text-[10px]">
+								<label class="text-gray-500">Plan GB<input type="number" id="hms-market-gb" class="mt-1 w-full rounded border border-white/15 bg-black/50 px-2 py-1.5 text-emerald-200 font-mono" min="5" max="16384" step="1" value="50"></label>
+								<label class="text-gray-500">Retention days<input type="number" id="hms-market-retention" class="mt-1 w-full rounded border border-white/15 bg-black/50 px-2 py-1.5 text-emerald-200 font-mono" min="7" max="365" step="1" value="30"></label>
+							</div>
+							<label class="text-gray-500 text-[10px] block">Order label<input type="text" id="hms-market-label" class="mt-1 w-full rounded border border-white/15 bg-black/50 px-2 py-1.5 text-emerald-200 font-mono" maxlength="64" value="storage-backup"></label>
+							<div class="flex flex-wrap gap-2">
+								<button type="button" id="btn-hms-market-quote" class="text-[10px] px-4 py-2 rounded border border-emerald-500/40 text-emerald-300 uppercase tracking-wider">Get HMC quote</button>
+								<button type="button" id="btn-hms-market-order" class="text-[10px] px-4 py-2 rounded border border-neon/40 text-neon uppercase tracking-wider opacity-60 cursor-not-allowed" disabled title="Get a quote first (local node only)">Create order (debit HMC)</button>
+							</div>
+							<p id="hms-market-quote-out" class="text-[10px] font-mono text-gray-300 break-all min-h-[1.25rem]">—</p>
+							<p id="hms-market-order-out" class="text-[10px] font-mono text-gray-400 break-all min-h-[1.25rem]">—</p>
+						</div>
 					</div>
 				</div>
 
@@ -2496,7 +2536,7 @@
 						<div class="text-left max-w-lg mx-auto mt-4">
 							<p class="text-[10px] uppercase tracking-widest text-gray-600 mb-2">Address</p>
 							<div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-								<code id="wallet-address-display" class="flex-1 text-xs text-neon bg-black/60 px-3 py-2 rounded border border-neon/20 break-all">{{ .NodeID }}</code>
+								<code id="wallet-address-display" class="flex-1 text-xs text-neon bg-black/60 px-3 py-2 rounded border border-neon/20 break-all">HMC-91fe007e4036c602</code>
 								<button type="button" id="btn-copy-address" class="shrink-0 px-4 py-2 rounded border border-neon/40 text-neon text-[10px] font-display font-bold uppercase tracking-wider hover:bg-neon/10">Copy</button>
 							</div>
 							<p id="wallet-sync-badge" class="mt-2 inline-flex items-center rounded border border-yellow-500/40 bg-yellow-500/10 px-2 py-1 text-[10px] uppercase tracking-wider text-yellow-200">Canonical sync: checking...</p>
@@ -2847,16 +2887,15 @@
 				id: 'hms',
 				symbol: 'HMS',
 				name: 'HackMe Storage',
-				status: 'prelaunch',
-				chainId: 'storage lane (preview)',
+				status: 'accrual',
+				chainId: 'storage lane',
 				iconHtml: 'HMS',
 				accent: 'hms',
-				mineTab: 'hms-preview',
-				roadmap: 'Dedicated Amsterdam VPS · not on hub yet',
-				walletLive: false,
-				walletDesc: 'Earn HMS for disk Proof-of-Storage and hourly manifest seal (SHA256/ASIC). Preview UI only — coordinator deploy after heavy VPS #2.',
+				mineTab: 'mining',
+				roadmap: 'Hub coordinator live · Stratum ASIC on heavy VPS · epoch mint via ops',
+				walletLive: true,
+				walletDesc: 'On-chain HMS for storage+seal epoch payouts (mint after sealed epoch). Run disk/ASIC workers on local node; hub shows public metrics.',
 				estPriceUsd: 0,
-				preview: true,
 			},
 			{
 				id: 'hmc-alpha',
@@ -2896,13 +2935,14 @@
 			},
 		];
 		const DASH_ACTIVE_COIN_KEY = 'hackme.dashboard.active_coin.v1';
-		const DASH_COIN_TAB_IDS = ['ecosystem', 'overview', 'analytics', 'mining', 'hardware', 'chain', 'wallet', 'reports', 'orders', 'fuzz'];
+		const DASH_COIN_TAB_IDS = ['ecosystem', 'overview', 'analytics', 'mining', 'hms-market', 'hardware', 'chain', 'wallet', 'reports', 'orders', 'fuzz'];
+		const DASH_HMC_TAB_IDS = DASH_COIN_TAB_IDS.filter((t) => t !== 'hms-market');
 		let activeDashboardCoinId = 'hmc';
 		const COIN_DASH_PROFILES = {
 			hmc: {
 				walletCoinId: 'hmc',
 				symbol: 'HMC',
-				tabs: DASH_COIN_TAB_IDS.slice(),
+				tabs: DASH_HMC_TAB_IDS.slice(),
 				miningTabLabel: 'Workers',
 				heroKicker: 'HackMe network',
 				heroTitle: 'Mining ecosystem',
@@ -2926,12 +2966,13 @@
 			hms: {
 				walletCoinId: 'hms',
 				symbol: 'HMS',
-				tabs: ['ecosystem', 'overview', 'analytics', 'mining', 'wallet', 'reports'],
+				tabs: ['ecosystem', 'overview', 'analytics', 'mining', 'hms-market', 'wallet', 'reports'],
 				miningTabLabel: 'Storage',
-				heroKicker: 'Storage lane · prelaunch',
+				marketTabLabel: 'Market',
+				heroKicker: 'Storage lane · live',
 				heroTitle: 'HackMe Storage (HMS)',
-				heroCopy: 'Encrypted disk <strong class="text-white/90">Proof-of-Storage</strong> + hourly <strong class="text-white/90">manifest seal</strong> (SHA256 / ASIC-friendly). Preview UI only — coordinator on dedicated heavy VPS #2, not the Amsterdam hub.',
-				hint: 'Preview · disk + seal coupled at network level · no production backend on hub',
+				heroCopy: 'Encrypted disk <strong class="text-white/90">Proof-of-Storage</strong> + hourly <strong class="text-white/90">manifest seal</strong> (SHA256 / ASIC-friendly). Hub serves coordinator metrics; workers and market orders on <strong class="text-white/90">local hackme-node</strong>.',
+				hint: 'Combo rig +10% · epoch base 0.5 HMS · mint via scripts/ops/hms_epoch_settle.sh',
 				defaultTab: 'mining',
 				solopoolVector: 'hms',
 			},
@@ -2986,6 +3027,11 @@
 			document.querySelectorAll('[data-tab="mining"]').forEach((btn) => {
 				if (btn.classList.contains('tab-btn')) btn.textContent = label;
 				else if (btn.classList.contains('sidebar-link')) setSidebarMiningTabLabel(btn, label);
+			});
+			const mlabel = profile.marketTabLabel || 'Storage market';
+			document.querySelectorAll('[data-tab="hms-market"]').forEach((btn) => {
+				if (btn.classList.contains('tab-btn')) btn.textContent = mlabel;
+				else if (btn.classList.contains('sidebar-link')) setSidebarMiningTabLabel(btn, mlabel);
 			});
 		}
 		function updateEcoHeroForCoin(profile) {
@@ -3233,6 +3279,11 @@
 			}
 			if (norm === 'hms') {
 				void refreshHmsDiskPanel();
+				void refreshHmsMarketPanel();
+				void fetchHmsPoolStats().then((hs) => {
+					if (hs) latestHmsPoolStats = hs;
+					applyEcoKpisForActiveCoin();
+				});
 			} else if (typeof updateHmsStorageControls === 'function') {
 				updateHmsStorageControls();
 			}
@@ -3268,6 +3319,26 @@
 			if (coin.accent === 'hms' || coin.id === 'hms') return 'hms';
 			return 'planned';
 		}
+		function isWalletCoinHMS(coin) {
+			return !!(coin && coin.id === 'hms');
+		}
+		function isPublicHackmeHub() {
+			const h = String(location.hostname || '').toLowerCase();
+			return h === 'hackme.tech' || h.endsWith('.hackme.tech');
+		}
+		function updateHmsPublicHubBanner() {
+			const pub = isPublicHackmeHub();
+			['hms-public-hub-banner', 'hms-public-hub-banner-market'].forEach((id) => {
+				const el = $(id);
+				if (el) el.classList.toggle('hidden', !pub);
+			});
+			const btnOrder = $('btn-hms-market-order');
+			if (btnOrder && pub) {
+				btnOrder.disabled = true;
+				btnOrder.classList.add('opacity-60', 'cursor-not-allowed');
+				btnOrder.title = 'Create order requires local hackme-node';
+			}
+		}
 		function walletCoinBalanceDisplay(coin) {
 			if (coin && coin.id === 'hmc' && (coin.walletLive || coin.status === 'live')) {
 				const onChain = Number(walletSnapshot.balanceHMC || 0);
@@ -3301,6 +3372,13 @@
 				}
 				return { main: '0', sub: 'mine HMC with hybrid signer' };
 			}
+			if (coin && isWalletCoinHMS(coin) && (coin.walletLive || coin.status === 'live' || coin.status === 'accrual')) {
+				const onChain = Number(walletSnapshot.balanceHMS || 0);
+				return {
+					main: fmt(onChain, 4),
+					sub: onChain > 0.000001 ? 'on-chain HMS' : 'epoch mint after seal',
+				};
+			}
 			return { main: '—', sub: coin && coin.status === 'planned' ? 'soon' : '—' };
 		}
 		function renderWalletPortfolioSummary() {
@@ -3330,6 +3408,12 @@
 		function isWalletCoinSUP(coin) {
 			return !!(coin && (coin.id === 'support' || coin.symbol === 'SUP'));
 		}
+		function applyWalletHmsOnChainFields() {
+			if ($('wallet-balance-units-hmc-echo')) {
+				const u = Number(walletSnapshot.balanceHMSUnits || 0);
+				$('wallet-balance-units-hmc-echo').textContent = '≈ ' + fmt(u / 100000000, 8) + ' HMS';
+			}
+		}
 		function applyWalletHmcOnChainFields() {
 			if ($('wallet-balance-units')) $('wallet-balance-units').textContent = fmtUInt(walletSnapshot.balanceUnits);
 			if ($('wallet-balance-units-hmc-echo')) {
@@ -3350,6 +3434,7 @@
 			if (!coin) return;
 			const isHmc = isWalletCoinHMC(coin);
 			const isSup = isWalletCoinSUP(coin);
+			const isHms = isWalletCoinHMS(coin);
 			const sym = coin.symbol || '—';
 			if ($('wallet-selected-coin-name')) $('wallet-selected-coin-name').textContent = coin.name || sym;
 			if ($('wallet-symbol-big')) $('wallet-symbol-big').textContent = sym;
@@ -3366,7 +3451,7 @@
 				statsGrid.classList.toggle('lg:grid-cols-3', isSup);
 			}
 			const transferTab = document.querySelector('.wallet-detail-tab[data-wallet-section="transfer"]');
-			if (transferTab) transferTab.classList.toggle('hidden', !isHmc);
+			if (transferTab) transferTab.classList.toggle('hidden', !isHmc || isHms);
 			const earningsTab = document.querySelector('.wallet-detail-tab[data-wallet-section="earnings"]');
 			if (earningsTab) {
 				earningsTab.classList.toggle('opacity-40', !isHmc);
@@ -3378,10 +3463,35 @@
 			if (earningsHmcBody) earningsHmcBody.classList.toggle('hidden', !isHmc);
 			if (earningsSupMsg) earningsSupMsg.classList.toggle('hidden', isHmc);
 			if (!isHmc && walletDetailSection === 'transfer') setWalletDetailSection('overview');
-			if (!isHmc && walletDetailSection === 'earnings' && !isSup) setWalletDetailSection('overview');
+			if (!isHmc && walletDetailSection === 'earnings' && !isSup && !isHms) setWalletDetailSection('overview');
 			const st = latestWorkerSettlementSnap || {};
 			const cap = $('wallet-balance-caption');
 			const note = $('wallet-miner-payout-note');
+			if (isHms) {
+				const onChain = Number(walletSnapshot.balanceHMS || 0);
+				if ($('wallet-balance-big')) $('wallet-balance-big').textContent = fmt(onChain, 8);
+				applyWalletHmsOnChainFields();
+				if (cap) {
+					cap.textContent =
+						onChain > 0.000001
+							? 'On-chain HMS · storage+seal lane'
+							: 'HMS ledger live — payouts minted after sealed epochs (see scripts/ops/hms_epoch_settle.sh).';
+				}
+				if (note) {
+					note.textContent =
+						'Earn via local storage worker and/or Stratum seal. Market backup debits HMC; HMS rewards use epoch settlement.';
+					note.classList.remove('hidden');
+					note.className = 'text-[10px] text-gray-400 mb-6 max-w-2xl mx-auto leading-relaxed';
+				}
+				if ($('wallet-sync-badge')) {
+					$('wallet-sync-badge').textContent =
+						onChain > 0.000001 ? 'On-chain HMS: active' : 'On-chain HMS: ready (awaiting epoch mint)';
+				}
+				if ($('wallet-chain-meta')) {
+					$('wallet-chain-meta').textContent = 'HMS shares your HMC address namespace on the HackMe chain.';
+				}
+				return;
+			}
 			if (isSup) {
 				const onChain = Number(walletSnapshot.balanceSUP || 0);
 				const accrued = Number(st.wallet_accrued_sup || 0);
@@ -4503,7 +4613,18 @@
 		}
 		const UNITS_PER_HMC = 100000000;
 		const MIN_TX_FEE_UNITS = 1000;
-		let walletSnapshot = { address: '', balanceHMC: 0, balanceUnits: 0, balanceSUP: 0, balanceSUPUnits: 0, nextNonce: 0, supNextNonce: 0 };
+		let walletSnapshot = {
+			address: '',
+			balanceHMC: 0,
+			balanceUnits: 0,
+			balanceSUP: 0,
+			balanceSUPUnits: 0,
+			balanceHMS: 0,
+			balanceHMSUnits: 0,
+			nextNonce: 0,
+			supNextNonce: 0,
+			hmsNextNonce: 0,
+		};
 		const WALLET_EARNINGS_PERIOD_KEY = 'hackme_wallet_earnings_period';
 		let walletEarningsPeriod = '24h';
 		try {
@@ -6958,7 +7079,9 @@
 			return ECOSYSTEM_COINS.filter((c) => c.status === 'live' && c.mineTab);
 		}
 		function ecosystemPreviewCoins() {
-			return ECOSYSTEM_COINS.filter((c) => c.preview === true || c.status === 'prelaunch');
+			return ECOSYSTEM_COINS.filter(
+				(c) => c.preview === true || c.status === 'prelaunch' || (c.status === 'accrual' && c.mineTab),
+			);
 		}
 		function renderEcosystemCoins() {
 			const tb = $('ecosystem-coins-body');
@@ -6977,24 +7100,38 @@
 			const renderRow = (coin, metrics, opts) => {
 				const o = opts || {};
 				const isLive = coin.status === 'live';
+				const isAccrual = coin.status === 'accrual';
 				const isPrelaunch = coin.status === 'prelaunch' || coin.preview === true;
+				const isLane = isLive || isAccrual || isPrelaunch;
 				const tr = document.createElement('tr');
 				tr.setAttribute('data-eco-coin', ecoCoinCtxId(coin));
-				tr.className = isLive ? 'eco-row-live' : (isPrelaunch ? 'eco-row-prelaunch' : 'eco-row-planned');
+				tr.className = isLive
+					? 'eco-row-live'
+					: isAccrual
+						? 'eco-row-prelaunch'
+						: isPrelaunch
+							? 'eco-row-prelaunch'
+							: 'eco-row-planned';
 				if (isLive && coin.mineTab) {
 					tr.title = 'Open ' + coin.name + ' mining (Workers tab)';
 					tr.addEventListener('click', () => openEcosystemCoin(coin));
-				} else if (isPrelaunch && coin.mineTab) {
-					tr.title = 'Preview ' + coin.name + ' lane (Mining tab)';
+				} else if (isLane && coin.mineTab) {
+					tr.title = (isAccrual ? 'Open ' : 'Preview ') + coin.name + ' lane (Mining tab)';
 					tr.addEventListener('click', () => openEcosystemCoin(coin));
 				}
 				const badge = isLive
 					? '<span class="eco-badge-live">Live</span>'
-					: (isPrelaunch ? '<span class="eco-badge-pre">Prelaunch</span>' : '<span class="eco-badge-soon">Soon</span>');
-				const sub = isLive ? (coin.chainId || '') : (coin.roadmap || 'planned');
+					: isAccrual
+						? '<span class="eco-badge-pre">Storage lane</span>'
+						: isPrelaunch
+							? '<span class="eco-badge-pre">Prelaunch</span>'
+							: '<span class="eco-badge-soon">Soon</span>';
+				const sub = isLive || isAccrual ? (coin.chainId || '') : (coin.roadmap || 'planned');
 				const action = isLive
 					? '<span class="eco-mine-btn">Mine →</span>'
-					: (isPrelaunch ? '<span class="eco-mine-btn text-emerald-400">Preview →</span>' : '<span class="muted">—</span>');
+					: isLane && coin.mineTab
+						? '<span class="eco-mine-btn text-emerald-400">Mine →</span>'
+						: '<span class="muted">—</span>';
 				const m = metrics || {};
 				tr.innerHTML =
 					'<td><div class="eco-coin-cell">' +
@@ -7029,7 +7166,11 @@
 			if (!coin) return;
 			const ctx = dashboardCoinIdFromEcosystem(coin);
 			setActiveDashboardCoin(ctx, { switchTab: false });
-			if (coin.status === 'live') {
+			if (coin.status === 'live' || coin.status === 'accrual') {
+				if (coin.id === 'hms') {
+					switchTab('mining');
+					return;
+				}
 				if (coin.mineTab === 'mining') switchTab('mining');
 				else if (coin.mineTab) switchTab(coin.mineTab);
 				return;
@@ -7076,13 +7217,21 @@
 		function applyHmsQuotaFromDisk(disk) {
 			const quota = $('hms-preview-quota');
 			const quotaLabel = $('hms-preview-quota-label');
-			if (!quota || !disk) return;
+			if (!quota) return;
+			if (!disk) {
+				quota.disabled = true;
+				if (quotaLabel) quotaLabel.textContent = '—';
+				return;
+			}
 			const minQ = Number((latestHmsLocalDisks && latestHmsLocalDisks.min_quota_gb) || 50);
 			const maxQ = Math.max(minQ, Math.floor(Number(disk.allocatable_gb || 0)));
 			quota.min = String(minQ);
-			quota.max = String(Math.max(minQ, maxQ));
+			quota.max = String(maxQ);
+			const span = Math.max(0, maxQ - minQ);
+			quota.step = span <= 80 ? '1' : span <= 400 ? '5' : '10';
 			quota.disabled = maxQ < minQ;
-			let val = Math.min(maxQ, Math.max(minQ, Number(quota.value || 200)));
+			let val = Number(quota.value || minQ);
+			if (!Number.isFinite(val) || val < minQ) val = minQ;
 			if (val > maxQ) val = maxQ;
 			quota.value = String(val);
 			if (quotaLabel) quotaLabel.textContent = val + ' GB';
@@ -7098,32 +7247,45 @@
 				list.innerHTML = '';
 				return;
 			}
-			const disks = (resp.disks || []).filter((d) => Number(d.allocatable_gb || 0) >= Number(resp.min_quota_gb || 50));
+			const minQ = Number(resp.min_quota_gb || 50);
+			const all = resp.disks || [];
+			const disks = all.filter((d) => Number(d.allocatable_gb || 0) >= minQ);
+			const low = all.filter((d) => Number(d.allocatable_gb || 0) > 0 && Number(d.allocatable_gb || 0) < minQ);
 			if (scan) {
-				scan.textContent =
-					disks.length > 0
-						? disks.length + ' drive(s) · min quota ' + (resp.min_quota_gb || 50) + ' GB'
-						: 'No drives with enough free space (need ≥' + (resp.min_quota_gb || 50) + ' GB allocatable)';
+				let msg = all.length + ' volume(s) scanned · min quota ' + minQ + ' GB';
+				if (disks.length) msg = disks.length + ' ready · ' + msg;
+				if (low.length) msg += ' · ' + low.length + ' low space';
+				scan.textContent = msg;
 			}
-			if (!disks.length) {
-				list.innerHTML = '<p class="text-[10px] text-warn/90">Mount a data disk or free space on a non-system volume.</p>';
+			const show = disks.length ? disks : all;
+			if (!show.length) {
+				list.innerHTML = '<p class="text-[10px] text-warn/90">No drives found — run via local hackme-node (GET /api/local/disks).</p>';
 				return;
 			}
-			if (!hmsSelectedDiskId || !disks.some((d) => d.id === hmsSelectedDiskId)) {
-				const prefer = disks.find((d) => !d.system_disk && !d.hms_active) || disks.find((d) => !d.system_disk) || disks[0];
+			if (!hmsSelectedDiskId || !show.some((d) => d.id === hmsSelectedDiskId)) {
+				const prefer =
+					disks.find((d) => !d.system_disk && !d.hms_active) ||
+					disks.find((d) => !d.system_disk) ||
+					disks[0] ||
+					show.find((d) => !d.system_disk) ||
+					show[0];
 				hmsSelectedDiskId = prefer.id;
 			}
 			list.innerHTML = '';
-			disks.forEach((d) => {
+			show.forEach((d) => {
+				const ready = Number(d.allocatable_gb || 0) >= minQ;
 				const row = document.createElement('label');
 				const selected = d.id === hmsSelectedDiskId;
 				row.className =
-					'flex items-start gap-2 rounded border px-2 py-1.5 cursor-pointer text-[10px] font-mono ' +
+					'flex items-start gap-2 rounded border px-2 py-1.5 text-[10px] font-mono ' +
+					(ready ? 'cursor-pointer ' : 'opacity-70 cursor-not-allowed ') +
 					(selected ? 'border-emerald-500/50 bg-emerald-950/30' : 'border-white/10 bg-black/25 hover:border-white/20');
 				const badges = [];
 				if (d.system_disk) badges.push('<span class="text-warn/90">system</span>');
 				if (d.hms_active) badges.push('<span class="text-emerald-400">HMS</span>');
 				if (d.removable) badges.push('<span class="text-gray-500">usb</span>');
+				if (!d.mounted) badges.push('<span class="text-gray-500">unmounted</span>');
+				if (!ready) badges.push('<span class="text-warn/90">low space</span>');
 				row.innerHTML =
 					'<input type="radio" name="hms-disk" class="mt-0.5" ' +
 					(selected ? 'checked' : '') +
@@ -7146,13 +7308,18 @@
 					' GB total · ' +
 					fmt(d.used_pct, 0) +
 					'% used</span></span>';
-				row.querySelector('input').addEventListener('change', () => {
-					hmsSelectedDiskId = d.id;
-					saveHmsDiskSelection();
-					renderHmsDiskList();
-					updateHmsStorageControls();
-					if (activeDashboardCoinId === 'hms') applyEcoKpisForActiveCoin();
-				});
+				const inp = row.querySelector('input');
+				if (inp) {
+					inp.disabled = !ready;
+					inp.addEventListener('change', () => {
+						if (!ready) return;
+						hmsSelectedDiskId = d.id;
+						saveHmsDiskSelection();
+						renderHmsDiskList();
+						updateHmsStorageControls();
+						if (activeDashboardCoinId === 'hms') applyEcoKpisForActiveCoin();
+					});
+				}
 				list.appendChild(row);
 			});
 			const sel = hmsSelectedDisk();
@@ -7192,8 +7359,9 @@
 					? 'Coordinator live — pick disk, set quota, start storage worker.'
 					: 'Start hmscoordinator (port 18082) or set HACKME_HMS_COORDINATOR_URL on the node.';
 			}
-			if (quota) quota.disabled = !disk;
-			const canStart = live && disk && Number(disk.allocatable_gb || 0) >= Number((latestHmsLocalDisks && latestHmsLocalDisks.min_quota_gb) || 50);
+			const minQ = Number((latestHmsLocalDisks && latestHmsLocalDisks.min_quota_gb) || 50);
+			if (disk) applyHmsQuotaFromDisk(disk);
+			const canStart = live && disk && Number(disk.allocatable_gb || 0) >= minQ;
 			if (btnStart) {
 				btnStart.disabled = !canStart;
 				btnStart.classList.toggle('opacity-60', !canStart);
@@ -7282,7 +7450,132 @@
 				if (toast) toast.textContent = 'Stop failed: ' + e;
 			}
 		}
+		async function refreshHmsMarketPanel() {
+			const prEl = $('hms-market-pricing');
+			const capEl = $('hms-market-capacity');
+			try {
+				const [pr, st] = await Promise.all([
+					fetch('/api/hms/market/pricing', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)),
+					fetch('/api/hms/market/stats', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)),
+				]);
+				if (prEl && pr && pr.pricing) {
+					const p = pr.pricing;
+					prEl.textContent =
+						fmt(p.storage_hmc_per_gb_month, 4) +
+						' HMC/GB·mo · platform fee ' +
+						fmt((Number(p.platform_fee_rate || 0) * 100), 0) +
+						'% · burn ' +
+						fmt((Number(p.burn_rate || 0) * 100), 0) +
+						'% · min prepaid ' +
+						fmt(p.min_prepaid_hmc, 2) +
+						' HMC';
+				} else if (prEl) prEl.textContent = 'Market pricing unavailable (start node + HMS coordinator).';
+				if (capEl && st && st.market && st.market.capacity) {
+					const c = st.market.capacity;
+					capEl.textContent =
+						'Capacity: ' +
+						fmt(c.free_gb, 0) +
+						' GB free / ' +
+						fmt(c.total_quota_gb, 0) +
+						' GB quota · ' +
+						fmtUInt(c.online_workers || 0) +
+						' storage workers online · replica target ' +
+						fmtUInt(st.market.replica_target || 2);
+				} else if (capEl) capEl.textContent = 'Capacity: no storage workers yet on coordinator.';
+			} catch (_) {
+				if (prEl) prEl.textContent = 'Market API error.';
+			}
+		}
+		async function hmsMarketQuote() {
+			const out = $('hms-market-quote-out');
+			const gb = Math.max(5, Number(($('hms-market-gb') && $('hms-market-gb').value) || 50));
+			const days = Math.max(7, Math.min(365, Number(($('hms-market-retention') && $('hms-market-retention').value) || 30)));
+			if (out) out.textContent = 'Quoting…';
+			try {
+				const r = await fetch('/api/hms/market/quote', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ size_bytes: Math.floor(gb * 1024 * 1024 * 1024), retention_days: days }),
+				});
+				const j = r.ok ? await r.json() : null;
+				if (!j || !j.quote) {
+					if (out) out.textContent = 'Quote failed: HTTP ' + r.status;
+					return;
+				}
+				const q = j.quote;
+				if (out) {
+					out.textContent =
+						'Billable ' +
+						fmt(q.storage_gb, 0) +
+						' GB · ' +
+						fmt(q.gb_months, 1) +
+						' GB·mo → debit ' +
+						fmt(q.total_debit_hmc, 4) +
+						' HMC (storage ' +
+						fmt(q.storage_subtotal_hmc, 4) +
+						' + fee ' +
+						fmt(q.platform_fee_hmc, 4) +
+						', burn ' +
+						fmt(q.burn_hmc, 4) +
+						') · hash ' +
+						String(q.quote_hash || '').slice(0, 12) +
+						'…';
+				}
+				window.__hmsLastQuote = q;
+				const btnOrder = $('btn-hms-market-order');
+				if (btnOrder && !isPublicHackmeHub()) {
+					btnOrder.disabled = false;
+					btnOrder.classList.remove('opacity-60', 'cursor-not-allowed');
+					btnOrder.title = 'Debits HMC wallet and creates coordinator order';
+				}
+			} catch (e) {
+				if (out) out.textContent = 'Quote error: ' + e;
+			}
+		}
+		async function hmsMarketCreateOrder() {
+			const out = $('hms-market-order-out');
+			if (isPublicHackmeHub()) {
+				if (out) out.textContent = 'Create order requires local hackme-node (not public hub).';
+				return;
+			}
+			const q = window.__hmsLastQuote;
+			if (!q || !q.quote_hash) {
+				if (out) out.textContent = 'Get a quote first.';
+				return;
+			}
+			const gb = Math.max(5, Number(($('hms-market-gb') && $('hms-market-gb').value) || 50));
+			const days = Math.max(7, Math.min(365, Number(($('hms-market-retention') && $('hms-market-retention').value) || 30)));
+			const label = String(($('hms-market-label') && $('hms-market-label').value) || 'storage-backup').trim();
+			if (out) out.textContent = 'Creating order…';
+			try {
+				const r = await fetch('/api/hms/market/orders', {
+					method: 'POST',
+					headers: Object.assign({ 'Content-Type': 'application/json' }, adminHeaders()),
+					body: JSON.stringify({
+						label,
+						size_plan_bytes: Math.floor(gb * 1024 * 1024 * 1024),
+						retention_days: days,
+						quote_hash: q.quote_hash,
+					}),
+				});
+				const j = r.ok ? await r.json() : null;
+				if (!j || j.ok === false) {
+					if (out) out.textContent = 'Order failed: ' + (j && j.error ? j.error : 'HTTP ' + r.status);
+					return;
+				}
+				const oid = (j.order && j.order.order_id) || j.order_id || '';
+				if (out) {
+					out.textContent = oid
+						? 'Order ' + oid + ' created — upload via local API (payment_id ' + String(j.payment_id || '—') + ')'
+						: 'Order created: ' + JSON.stringify(j).slice(0, 120);
+				}
+				void refreshHmsMarketPanel();
+			} catch (e) {
+				if (out) out.textContent = 'Order error: ' + e;
+			}
+		}
 		function initHmsPreviewUi() {
+			updateHmsPublicHubBanner();
 			loadHmsDiskSelection();
 			const quota = $('hms-preview-quota');
 			const quotaLabel = $('hms-preview-quota-label');
@@ -7321,6 +7614,11 @@
 				btnSeal.classList.remove('opacity-60', 'cursor-not-allowed');
 				btnSeal.textContent = 'Stratum seal info';
 			}
+			const btnQuote = $('btn-hms-market-quote');
+			if (btnQuote) btnQuote.addEventListener('click', () => void hmsMarketQuote());
+			const btnOrder = $('btn-hms-market-order');
+			if (btnOrder) btnOrder.addEventListener('click', () => void hmsMarketCreateOrder());
+			void refreshHmsMarketPanel();
 			void refreshHmsDiskPanel();
 		}
 		function reconcilePoolStripWithWorkStats() {
@@ -9190,6 +9488,7 @@
 						const root = String(hs.last_manifest_root || '').trim();
 						mf.textContent = root ? root.slice(0, 18) + '…' : 'pending freeze';
 					}
+					if (typeof refreshHmsMarketPanel === 'function') void refreshHmsMarketPanel();
 					if ($('ecosystem-coins-body')) renderEcosystemCoins();
 					else if (activeDashboardCoinId === 'hms') applyEcoKpisForActiveCoin();
 				}
@@ -10130,7 +10429,7 @@
 						(gOk ? 'border-matrix/35 text-matrix' : 'border-warn/40 text-warn');
 				}
 				if ($('chain-mining-badge')) $('chain-mining-badge').textContent = (s.mining ? 'Miner: running' : 'Miner: idle');
-				if ($('chain-id-pill')) $('chain-id-pill').textContent = String(s.chain_id || '{{ .ChainID }}');
+				if ($('chain-id-pill')) $('chain-id-pill').textContent = String(s.chain_id || 'hackme-dev-mainnet');
 				renderPublicMinerGuide(s);
 				updateGenesisDeploymentUI(s);
 				refreshChainHeightDisambiguation();
@@ -11598,7 +11897,7 @@
 				name = firstVisibleTabForProfile(prof);
 			}
 			currentTab = name;
-			if (['ecosystem', 'overview', 'analytics', 'mining', 'hardware', 'chain', 'wallet', 'reports', 'orders', 'fuzz'].includes(name)) {
+			if (['ecosystem', 'overview', 'analytics', 'mining', 'hms-market', 'hardware', 'chain', 'wallet', 'reports', 'orders', 'fuzz'].includes(name)) {
 				history.replaceState(null, '', '#' + name);
 				try { localStorage.setItem(DASH_LAST_TAB_KEY, name); } catch (_) {}
 			}
@@ -11663,12 +11962,26 @@
 			}
 			if (name === 'mining') {
 				void refreshMiningDevices();
+				if (activeDashboardCoinId === 'hms') {
+					void refreshHmsDiskPanel();
+					void fetchHmsPoolStats().then((hs) => {
+						if (hs) latestHmsPoolStats = hs;
+						updateHmsStorageControls();
+					});
+				}
 				void (async () => {
 					try {
 						if (typeof refreshWorkerStatus === 'function') await refreshWorkerStatus();
 					} catch (_) {}
 					void refreshMiningLogsOnce();
 				})();
+			}
+			if (name === 'hms-market') {
+				updateHmsPublicHubBanner();
+				void refreshHmsMarketPanel();
+				void fetchHmsPoolStats().then((hs) => {
+					if (hs) latestHmsPoolStats = hs;
+				});
 			}
 			if (name === 'wallet') {
 				void refreshWallet(!txTrackActive);
@@ -11886,11 +12199,17 @@
 				walletSnapshot.balanceUnits = balU;
 				walletSnapshot.balanceSUP = Number(w.balance_sup || 0);
 				walletSnapshot.balanceSUPUnits = Number(w.balance_sup_units || 0);
+				walletSnapshot.balanceHMS = Number(w.balance_hms || 0);
+				walletSnapshot.balanceHMSUnits = Number(w.balance_hms_units || 0);
 				walletSnapshot.supNextNonce = Number(w.sup_next_nonce || 0);
+				walletSnapshot.hmsNextNonce = Number(w.hms_next_nonce || 0);
 				walletSnapshot.nextNonce = Number(w.next_nonce || walletSnapshot.nextNonce || 0);
 				applyWalletHmcOnChainFields();
 				if (isWalletCoinHMC(walletSelectedCoin()) && $('wallet-balance-big')) {
 					$('wallet-balance-big').textContent = fmt(walletSnapshot.balanceHMC, 8);
+				}
+				if (isWalletCoinHMS(walletSelectedCoin()) && $('wallet-balance-big')) {
+					$('wallet-balance-big').textContent = fmt(walletSnapshot.balanceHMS, 8);
 				}
 				if ($('kpi-balance')) {
 					const bh = Number(walletSnapshot.balanceHMC || 0);
@@ -12267,7 +12586,7 @@
 				if ($('btn-deployment-sync-chain')) {
 					$('btn-deployment-sync-chain').addEventListener('click', () => switchTab('chain'));
 				}
-				const allowedTabs = ['ecosystem', 'overview', 'analytics', 'mining', 'hardware', 'chain', 'wallet', 'reports', 'orders', 'fuzz'];
+				const allowedTabs = ['ecosystem', 'overview', 'analytics', 'mining', 'hms-market', 'hardware', 'chain', 'wallet', 'reports', 'orders', 'fuzz'];
 				let initTab = String((location.hash || '').replace(/^#/, '').replace(/\/$/, '') || '');
 				if (!initTab || !allowedTabs.includes(initTab)) {
 					try {

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-VERSION="${VERSION:-0.1.0-rc11i}"
+VERSION="${VERSION:-0.1.0-rc11j}"
 ISO_PATH="${1:-}"
 
 if [[ -z "$ISO_PATH" ]]; then

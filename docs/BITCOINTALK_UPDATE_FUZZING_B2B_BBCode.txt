@@ -1,6 +1,6 @@
 [center]
 [size=16pt][b][color=#00D1FF]HackMe Network — B2B Fuzzing Security Update[/color][/b][/size]
-[size=10pt][color=#B8C5D6]May 2026 · [mono]0.1.0-rc11i[/mono][/color][/size]
+[size=10pt][color=#B8C5D6]May 2026 · [mono]0.1.0-rc11j[/mono][/color][/size]
 [/center]
 
 [hr]

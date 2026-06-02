@@ -1,4 +1,4 @@
-🔬 HackMe Fuzz Engine v2 — release 0.1.0-rc11i is live
+🔬 HackMe Fuzz Engine v2 — release 0.1.0-rc11j is live
 
 We upgraded the fuzz pipeline (not just more hashrate):
 

@@ -33,6 +33,8 @@ if [[ "$SKIP_BUILD" != "1" ]]; then
   bash "$ROOT/scripts/ops/build_gpu_workers.sh" || {
     echo "[vast-pack] WARN: build_gpu_workers failed; packing existing bin/ if present" >&2
   }
+fi
+if [[ ! -x "$PACK_DIR/bin/minersign" || ! -x "$PACK_DIR/bin/fleetplan" ]]; then
   echo "[vast-pack] building minersign + fleetplan (linux amd64)"
   export GOCACHE="${GOCACHE:-$ROOT/.cache/go-build}"
   GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o "$PACK_DIR/bin/minersign" ./cmd/minersign

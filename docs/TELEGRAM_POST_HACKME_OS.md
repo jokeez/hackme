@@ -9,7 +9,7 @@
 
 **HackMe OS — live ISO на флешку**
 
-Загрузочный образ **0.1.0-rc11i** (~834 MB):
+Загрузочный образ **0.1.0-rc11j** (~834 MB):
 
 • **Zero-Knowledge Start** — пустой `hackme.ini` → на экране новый **HMC-…** + **24 слова** (запишите!) → майнинг на пул сразу  
 • Пул: `https://hackme.tech/pool/coordinator`  
@@ -29,7 +29,7 @@ RC / DYOR — без записи фразы на live USB после перез
 
 **HackMe OS — bootable live ISO**
 
-Release **0.1.0-rc11i** (~834 MB) is on the downloads page:
+Release **0.1.0-rc11j** (~834 MB) is on the downloads page:
 
 • **Zero-Knowledge Start** — flash USB, boot, read **HMC-…** + **24-word phrase** on TTY1, mining starts automatically  
 • Pool: https://hackme.tech/pool/coordinator  

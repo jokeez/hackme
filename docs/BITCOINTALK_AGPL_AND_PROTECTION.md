@@ -1,7 +1,7 @@
 # BitcoinTalk — AGPLv3 update & project protection
 
 **Language:** English (forum standard)  
-**Release:** `0.1.0-rc11i`  
+**Release:** `0.1.0-rc11j`  
 **Thread:** reply in [ANN] HackMe · hackme.tech
 
 ---
@@ -17,7 +17,7 @@
 ## Suggested title
 
 ```text
-[Update] HackMe → AGPLv3 · open client / protected brand · ISO panic fix · Windows fairness · rc11i
+[Update] HackMe → AGPLv3 · open client / protected brand · ISO panic fix · Windows fairness · rc11j
 ```
 
 Alternative (shorter):
@@ -47,7 +47,7 @@ The live post lives in **BITCOINTALK_AGPL_BBCode.txt**. Below is a plain preview
 ### Hero
 
 **HackMe Network — Major Update**  
-AGPLv3 · Brand protection · ISO boot fix · Windows fairness · `0.1.0-rc11i`
+AGPLv3 · Brand protection · ISO boot fix · Windows fairness · `0.1.0-rc11j`
 
 Open client you can audit · Protected official pool · Verify SHA256 before you mine
 
@@ -63,10 +63,10 @@ Open client you can audit · Protected official pool · Verify SHA256 before you
 ### Current ISO checksum
 
 ```text
-43abb592d7e4222f8d47d528d0b8ec190958cdb91a4441cc56395b3f667d6125  HackMe-OS-0.1.0-rc11i-amd64.iso
+43abb592d7e4222f8d47d528d0b8ec190958cdb91a4441cc56395b3f667d6125  HackMe-OS-0.1.0-rc11j-amd64.iso
 ```
 
-Official sums: https://hackme.tech/dist/release_0.1.0-rc11i/SHA256SUMS-iso.txt
+Official sums: https://hackme.tech/dist/release_0.1.0-rc11j/SHA256SUMS-iso.txt
 
 ---
 

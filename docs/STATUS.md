@@ -1,12 +1,12 @@
 # HackMe RC status (operator snapshot)
 
-**Release:** `0.1.0-rc11i` · **Site:** https://hackme.tech · **Branch:** `main`
+**Release:** `0.1.0-rc11j` · **Site:** https://hackme.tech · **Branch:** `main`
 
 | Highlight (2026-05-26) | |
 |------------------------|--|
 | **Fuzz Engine v2** | Seed corpus · bit-flip mutation · coverage buckets v2 · reproducible artifacts · `fuzz_report_v2` |
 | **Wallet / settlement** | Desktop canonical wallet, settlement timer fix, `/dev/null` VPS sanity |
-| **Downloads** | Rebuild `0.1.0-rc11i` Windows `.exe` + Linux tarball on https://hackme.tech/downloads.html |
+| **Downloads** | Rebuild `0.1.0-rc11j` Windows `.exe` + Linux tarball on https://hackme.tech/downloads.html |
 
 | Area | Verdict |
 |------|---------|
@@ -17,7 +17,7 @@
 | Dashboard UI (local) | **PASS** — Playwright `tests/e2e/specs/solopool-dashboard.spec.ts` |
 | Multi-GPU / hybrid fleet | **GO** — `fleetplan`, `HACKME_GPU_HYBRID=auto`, `worker_autostart.sh` (CUDA+OpenCL) |
 | HackMe OS visual overhaul (source) | **GO** — GRUB/Plymouth/TTY shipped on downloads ISO |
-| Published ISO on hackme.tech | **LIVE** — `43abb592…67d6125` · **874 442 752** B (~834 MiB) · [SHA256SUMS-iso.txt](https://hackme.tech/dist/release_0.1.0-rc11i/SHA256SUMS-iso.txt) |
+| Published ISO on hackme.tech | **LIVE** — `43abb592…67d6125` · **874 442 752** B (~834 MiB) · [SHA256SUMS-iso.txt](https://hackme.tech/dist/release_0.1.0-rc11j/SHA256SUMS-iso.txt) |
 
 ## Open operator items (non-blocking for miners)
 

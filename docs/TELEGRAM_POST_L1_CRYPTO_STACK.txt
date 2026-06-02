@@ -1,0 +1,23 @@
+🔬🌐 HackMe L1 Crypto Stack v2 — **реальный портированный код** upstream
+
+Не синтетические заглушки: в WASM собраны **C-выдержки** из известных файлов:
+
+🟠 **Bitcoin** — `GetScriptOp` + push &gt; 520 B (`script.cpp` / `script.h`)
+🔷 **Ethereum** — overflow path `uint256.FromBig(tx.Value())` (`state_transition.go`)
+🐕 **Dogecoin** — `CScript::HasValidOps()` (BTC-fork `script.cpp`)
+⚪ **Litecoin** — `GetScriptOp` (LTC `script.cpp`)
+⚡ **HackMe** — `InsertOrderTask` + economic floors (`order_tasks.go`)
+
+📊 Отчёт (500 samples/guard, violation bars, 0 sandbox traps):
+https://hackme.tech/reports/l1-crypto-stack.html
+
+Исходники портов в репо:
+`tasks/sources/security/upstream/` + ATTRIBUTION.md
+
+🛡 Честно: это **не** «мы взломали Ethereum». Это reproducible probe на HackMe sandbox — тот же стек, что Security Audit + useful-PoW pool.
+
+BC5 deep-dive: https://hackme.tech/reports/bitcoin-core-5module.html
+
+📦 github.com/jokeez/hackme · 🌐 hackme.tech
+
+#L1 #Bitcoin #Ethereum #SecurityAudit #Fuzzing #UsefulPoW #HackMe

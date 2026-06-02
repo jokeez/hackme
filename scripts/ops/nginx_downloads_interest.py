@@ -53,7 +53,7 @@ BOT_UA_SUBSTR = (
     "bingpreview",
 )
 
-DEFAULT_ISO_SUFFIX = "HackMe-OS-0.1.0-rc11g-amd64.iso"
+DEFAULT_ISO_SUFFIX = "HackMe-OS-0.1.0-rc11j-amd64.iso"
 DEFAULT_DOWNLOADS_PATH = "/downloads.html"
 
 

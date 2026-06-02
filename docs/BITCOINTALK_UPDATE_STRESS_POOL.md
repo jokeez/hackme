@@ -8,7 +8,7 @@
 
 ## Suggested reply title
 
-`Re: [ANN] HackMe — coordinator stress test · MPS listing · rc11i Windows OpenCL`
+`Re: [ANN] HackMe — coordinator stress test · MPS listing · rc11j Windows OpenCL`
 
 ---
 
@@ -36,7 +36,7 @@ Under extreme RPS the pool applies **429 backpressure** (rate limits) instead of
 - Downloads (SHA256 on page): https://hackme.tech/downloads.html  
 
 **Miners**
-- **Windows:** `HackMe-Setup-0.1.0-rc11i.exe` — installer, pool token preconfigured, **OpenCL** for AMD (RX 580 profile).  
+- **Windows:** `HackMe-Setup-0.1.0-rc11j.exe` — installer, pool token preconfigured, **OpenCL** for AMD (RX 580 profile).  
 - **Linux:** CUDA (NVIDIA) or OpenCL or CPU — see repo `docs/GPU_MINING_BACKENDS.md`.  
 - Set **`WORKER_PAYOUT_MAP`** / hybrid signer so your worker id → **`HMC-…`** address for settlement.
 
