@@ -9013,6 +9013,7 @@
 			const workerStartedUnix = Number((wst && wst.started_at_unix) || 0);
 			let wallWorkerSec = 0;
 			if (wst && wst.running && workerStartedUnix > 0) wallWorkerSec = Math.max(0, Date.now() / 1000 - workerStartedUnix);
+			else if (wst && wst.running && wst.external_worker && workerDerived.sessionSec > 0) wallWorkerSec = workerDerived.sessionSec;
 			const md = latestMiningDevices || {};
 			const muxUx = (latestStatus && latestStatus.miner_public_ux) || {};
 			const poolRun = !!(md.pool_worker_running || muxUx.worker_subprocess_running);
@@ -9814,6 +9815,10 @@
 				const j = await r.json();
 				latestWorkerStatus = j || null;
 				workerStatusHydrated = true;
+				const startedUx = Number((j && j.started_at_unix) || 0);
+				if (j && j.running && startedUx > 0) {
+					workerDerived.sessionSec = Math.max(0, Math.floor(Date.now() / 1000 - startedUx));
+				}
 				try { refreshDesktopStatusBanner(); } catch (_) {}
 				const running = localPoolWorkerActive();
 				const wid = String((j && j.worker_id) || 'worker-unknown');

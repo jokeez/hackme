@@ -72,6 +72,7 @@
   }
 
   function wireNewsLinks() {
+    if (document.querySelector(".nav-more")) return;
     ensureNewsLink(".nav");
     ensureNewsLink(".footer-nav");
   }
@@ -96,6 +97,7 @@
   }
 
   function wireCoinsLinks() {
+    if (document.querySelector(".nav-more")) return;
     ensureCoinsLink(".nav");
     ensureCoinsLink(".footer-nav");
   }
@@ -126,6 +128,7 @@
   }
 
   function wireStandardNav() {
+    if (document.querySelector(".nav-more")) return;
     ensureNavLink(".nav", "./coins.html", "Coins", "index");
     ensureNavLink(".nav", "./developers.html", "Developers", "coins");
     ensureNavLink(".nav", "./downloads.html", "Downloads", "developers");
@@ -152,6 +155,7 @@
   }
 
   function wireCommunityFooter() {
+    if (document.querySelector(".footer-nav-cols")) return;
     document.querySelectorAll(".footer-nav").forEach((nav) => {
       ensureFooterLink(nav, COMMUNITY.github, "GitHub");
     });

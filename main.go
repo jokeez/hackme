@@ -2548,6 +2548,22 @@ func (a *app) handleWorkerStatus(w http.ResponseWriter, r *http.Request) {
 			logPath = latestWorkerpohLogPath(logRoot)
 		}
 	}
+	if running && pid == 0 {
+		wp := latestWorkerpohWorkerLogPath(logRoot)
+		if wp != "" {
+			if workerID == "" {
+				workerID = workerIDFromLatestWorkerpohLog(logRoot)
+			}
+			if startedAt == 0 {
+				startedAt = workerLogStartedUnix(wp)
+			}
+			if strings.HasSuffix(filepath.Base(logPath), "worker_participant.log") {
+				logPath = wp
+			}
+		} else if startedAt == 0 && logPath != "" {
+			startedAt = workerLogStartedUnix(logPath)
+		}
+	}
 	if !running && measuredGH > 0 && !logFresh {
 		measuredGH = 0
 	}
@@ -3065,9 +3081,53 @@ func latestWorkerpohLogPath(logDir string) string {
 	return best
 }
 
+// workerLogStartedUnix parses UTC start time from workerpoh-<id>-20260603T000053Z.log filename.
+func workerLogStartedUnix(logPath string) int64 {
+	if logPath == "" {
+		return 0
+	}
+	base := strings.TrimSuffix(filepath.Base(logPath), ".log")
+	parts := strings.Split(base, "-")
+	if len(parts) < 2 {
+		return 0
+	}
+	stamp := parts[len(parts)-1]
+	if len(stamp) < 9 || !strings.Contains(stamp, "T") {
+		return 0
+	}
+	if !strings.HasSuffix(strings.ToUpper(stamp), "Z") {
+		stamp += "Z"
+	}
+	t, err := time.Parse(time.RFC3339, stamp)
+	if err != nil {
+		t, err = time.Parse("20060102T150405Z", stamp)
+		if err != nil {
+			return 0
+		}
+	}
+	return t.Unix()
+}
+
+// latestWorkerpohWorkerLogPath returns newest workerpoh-<worker>-<stamp>.log (excludes worker_participant.log).
+func latestWorkerpohWorkerLogPath(logDir string) string {
+	var best string
+	var bestMod time.Time
+	matches, err := filepath.Glob(filepath.Join(logDir, "workerpoh-*.log"))
+	if err != nil {
+		return ""
+	}
+	for _, p := range matches {
+		if filepath.Base(p) == "workerpoh.log" {
+			continue
+		}
+		best, bestMod = considerNewestLogPath(best, bestMod, p)
+	}
+	return best
+}
+
 // workerIDFromLatestWorkerpohLog infers worker id from newest workerpoh-<id>-<stamp>.log filename.
 func workerIDFromLatestWorkerpohLog(logDir string) string {
-	p := latestWorkerpohLogPath(logDir)
+	p := latestWorkerpohWorkerLogPath(logDir)
 	if p == "" {
 		return ""
 	}

@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HackMe Network — Ecosystem: Mining, Fuzz, Multi-chain L1</title>
-  <meta name="description" content="HackMe ecosystem: HMC useful-PoW mining, SUP accrual, B2B fuzz on your local node, multi-chain L1 security research (BTC, ETH, DOGE, LTC), public pool on hackme.tech." />
+  <title>HackMe Network — Mine · Fuzz · Multi-chain L1</title>
+  <meta name="description" content="HackMe: useful-PoW mining (HMC, SUP, HMS), B2B fuzz on your local node, and five-chain L1 security research — one pool on hackme.tech." />
   <link rel="canonical" href="https://hackme.tech/" />
   <link rel="sitemap" type="application/xml" title="Sitemap" href="https://hackme.tech/sitemap.xml" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
@@ -12,380 +12,227 @@
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://hackme.tech/" />
   <meta property="og:title" content="HackMe Network | Useful PoW Mining" />
-  <meta property="og:description" content="Join a distributed bug-finding network with transparent operations and useful Proof-of-Work." />
+  <meta property="og:description" content="One network: mining, token-gated fuzz, and public L1 research — not a single-coin fork." />
   <meta property="og:image" content="https://hackme.tech/assets/logo-hex.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="HackMe Network | Useful PoW Mining" />
-  <meta name="twitter:description" content="Join a distributed bug-finding network with transparent operations and useful Proof-of-Work." />
-  <meta name="twitter:image" content="https://hackme.tech/assets/logo-hex.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./assets/styles.css" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20260601hub" />
 </head>
 <body>
-  <div class="bg-glow bg-glow-a"></div>
-  <div class="bg-glow bg-glow-b"></div>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
   <header class="topbar">
     <a class="brand" href="./index.html">
       <img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe logo" />
       <span>HackMe Network</span>
     </a>
-    <nav class="nav">
-      <a href="./coins.html">Coins</a>
-      <a href="./developers.html">Developers</a>
-      <a href="./downloads.html">Downloads</a>
-      <a href="./fuzz-campaigns.html">Fuzz</a>
-      <a href="./news.html">News</a>
-      <a href="./docs.html">Docs</a>
-      <a href="./contacts.html">Contacts</a>
-      <a href="./legal.html">Legal</a>
-      <a id="explorer-link-top" href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
-    </nav>
+    <nav class="nav" data-site-page="home"></nav>
   </header>
 
   <main class="container">
     <section class="hero glass">
-      <p class="kicker">HackMe ecosystem · PoH · Fuzz · Multi-chain L1</p>
-      <h1>Mine HMC, run B2B security audits, and verify upstream guards across five chains</h1>
+      <p class="kicker">One network · three lanes</p>
+      <h1>Mine useful work. Audit with fuzz. Verify five chains.</h1>
       <p class="hero-copy">
-        One network: <strong>useful-PoW mining</strong> (HMC + SUP), <strong>token-gated fuzz</strong> for customers on a local node,
-        and <strong>public L1 research</strong> (Bitcoin, Ethereum, Dogecoin, Litecoin, HackMe) with live prod campaigns — not a single-coin fork.
+        <strong>HMC</strong> useful-PoW on the public pool,
+        <strong>B2B security audits</strong> on your local node (<code>127.0.0.1:8080</code>),
+        and <strong>L1 research</strong> (BTC, ETH, DOGE, LTC, HackMe) with live campaigns — plus
+        <strong>HMS</strong> storage+seal on the same coordinator.
       </p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="./downloads.html">Download Node</a>
-        <a class="btn btn-secondary" href="./coins.html">Ecosystem coins</a>
-        <a id="explorer-link-hero" class="btn btn-secondary" href="/pool/explorer" target="_blank" rel="noreferrer">Open Explorer</a>
-      </div>
-      <div class="pill-row">
-        <span class="pill">HMC + SUP coins</span>
-        <span class="pill">5-chain L1 WASM research</span>
-        <span class="pill">B2B fuzz · local node</span>
-        <span class="pill">Public pool coordinator</span>
+        <a class="btn btn-primary" href="./downloads.html#start">Start mining</a>
+        <a class="btn btn-secondary" href="./coins.html">All coins</a>
+        <a id="explorer-link-hero" class="btn btn-secondary" href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
       </div>
       <div class="hero-meta">
         <div class="meta-chip">
-          <span class="label">Public Domain</span>
+          <span class="label">Domain</span>
           <span id="site-domain-status" class="value">hackme.tech</span>
         </div>
         <div class="meta-chip">
-          <span class="label">Release Channel</span>
+          <span class="label">Release</span>
           <span id="site-release-channel" class="value">loading…</span>
         </div>
         <div class="meta-chip">
-          <span class="label">Network Status</span>
-          <span id="site-live-status" class="value">checking...</span>
+          <span class="label">Network</span>
+          <span id="site-live-status" class="value">checking…</span>
         </div>
       </div>
     </section>
 
-    <section class="panel glass">
+    <nav class="hub-jump glass" aria-label="On this page">
+      <a href="#lanes">Lanes</a>
+      <a href="#start">Get started</a>
+      <a href="#pool">Live pool</a>
+      <a href="#learn">Learn more</a>
+      <a href="#community">Community</a>
+    </nav>
+
+    <section id="lanes" class="panel glass">
       <div class="panel-head">
-        <h2>Ecosystem at a glance</h2>
-        <p class="subtle">Everything shares one pool, one explorer, and one release channel — pick your lane.</p>
+        <h2>Pick your lane</h2>
+        <p class="subtle">Same pool, one explorer, one release channel — choose what you run today.</p>
       </div>
-      <div class="grid grid-3">
-        <article class="card glass">
-          <h3><a href="./coins.html">Coins</a></h3>
-          <p><strong>HMC</strong> — primary useful-PoW. <strong>SUP</strong> — scarce pool accrual. <strong>HMS</strong> — storage lane (preview).</p>
+      <div class="lane-grid">
+        <article class="lane-card">
+          <span class="lane-tag">Mine</span>
+          <h3>HMC + SUP</h3>
+          <p>Useful-PoW on the official coordinator. SUP accrues from quality pool work — no faucet.</p>
+          <a class="btn btn-secondary" href="./downloads.html#start">Download node</a>
         </article>
-        <article class="card glass">
-          <h3><a href="./developers.html">Fuzz &amp; orders</a></h3>
-          <p>B2B audits on <code>127.0.0.1:8080</code> — confidential reports via token. Pool fills work on hackme.tech.</p>
+        <article class="lane-card lane-hms">
+          <span class="lane-tag">Storage</span>
+          <h3>HMS</h3>
+          <p>Encrypted B2B backup, disk proof-of-storage, hourly manifest seal. Hub metrics live; capacity on heavy VPS.</p>
+          <a class="btn btn-secondary" href="./coins.html#hms">HMS overview</a>
         </article>
-        <article class="card glass">
-          <h3><a href="./research.html">L1 research</a></h3>
-          <p>Multi-chain upstream WASM · live v4 prod fuzz · honest scope — BTC, ETH, DOGE, LTC, HackMe.</p>
+        <article class="lane-card">
+          <span class="lane-tag">Audit</span>
+          <h3>Fuzz &amp; orders</h3>
+          <p>Run campaigns on your machine. Confidential HTML reports via token — not on the public site API.</p>
+          <a class="btn btn-secondary" href="./fuzz-campaigns.html">Fuzz hub</a>
+        </article>
+        <article class="lane-card">
+          <span class="lane-tag">Research</span>
+          <h3>L1 · 5 chains</h3>
+          <p>Upstream WASM guards, v4 live prod fuzz, honest scope. One research hub — no scattered reports.</p>
+          <a class="btn btn-secondary" href="./research.html">Research hub</a>
         </article>
       </div>
     </section>
 
-    <section class="panel glass coins-hero-sup" style="padding:1.25rem 1.5rem">
-      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:1rem;justify-content:space-between">
-        <div style="max-width:52rem">
-          <p class="kicker" style="color:#d8b4fe">New · HackMe Support (SUP)</p>
-          <h2 style="margin-top:0.35rem">Second coin — hard to earn, built to trade</h2>
-          <p class="subtle" style="margin:0;line-height:1.55">No faucet. Earn SUP only through quality HMC pool mining. Listing-grade policy published on the <a href="./coins.html">Coins</a> page.</p>
+    <section id="start" class="panel glass hub-split">
+      <div>
+        <div class="panel-head">
+          <h2>Get started in minutes</h2>
+          <p class="subtle">Public pool worker flow (recommended for most miners).</p>
         </div>
-        <img src="./assets/coin-sup.svg" alt="SUP" width="72" height="72" />
+        <ol class="steps">
+          <li><a href="./downloads.html">Download</a> the node and verify SHA256 on the release manifest.</li>
+          <li>Open the dashboard → genesis once → <strong>Start worker</strong> on Mining (or use <strong>Desktop Mode</strong> wizard).</li>
+          <li>Payout accrues on the coordinator; on-chain balance follows settlement on the canonical chain.</li>
+        </ol>
+        <p class="muted" style="margin-top:0.75rem">
+          Set <code>HACKME_POOL_COORDINATOR_URL</code> to the public coordinator base — details in <a href="./docs.html">Docs</a>.
+          Fleet rewards use coordinator accrual, not per-GPU block splits. <a href="./economics-model.html">Economics →</a>
+        </p>
       </div>
+      <aside class="card glass" style="padding:1.1rem">
+        <h3 style="margin-top:0">Desktop Mode</h3>
+        <p>App-like local UX: auto admin token, <code>.env.desktop</code>, one-click worker start.</p>
+        <ul class="list compact">
+          <li>Linux: <code>install_linux_desktop_launcher.sh</code></li>
+          <li>Windows: bundled start/status scripts</li>
+        </ul>
+        <a class="btn btn-primary btn-block" href="./downloads.html">Install</a>
+      </aside>
     </section>
 
-    <section class="panel glass miner-quick">
+    <section id="pool" class="panel glass">
       <div class="panel-head">
-        <h2>Miner quick path</h2>
-        <p class="subtle">Recommended flow for public pool participation (coordinator + worker)</p>
-      </div>
-      <ol class="miner-quick-steps">
-        <li><strong>Install</strong> the node from <a href="./downloads.html">Downloads</a> and verify checksums.</li>
-        <li><strong>Set</strong> <code>HACKME_POOL_COORDINATOR_URL</code> to your pool coordinator HTTP base (see <a href="./docs.html">Docs</a>). Optionally set <code>HACKME_CANONICAL_CHAIN_URL</code> / <code>HACKME_P2P_PEERS</code> so local height and mempool match the network.</li>
-        <li><strong>Open</strong> the dashboard → install genesis once → <strong>Start worker</strong> on the Mining tab. Payout accrues on the coordinator; on-chain balance follows the public chain after settlement.</li>
-      </ol>
-      <p class="subtle" style="margin-top:0.75rem">
-        Block subsidy on the canonical producer credits that node&apos;s <strong>primary wallet</strong>; fleet rewards flow through <strong>coordinator accrual</strong>, not automatic per-GPU splits of every block. See <a href="./economics-model.html">Economics: chain, pool &amp; orders</a>.
-      </p>
-      <p class="subtle footer-links"><a href="./news.html">News</a> · <a href="https://github.com/jokeez/hackme" target="_blank" rel="noreferrer">GitHub</a> · <a href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a> · <a href="./contacts.html">Support</a></p>
-    </section>
-
-    <section class="panel glass">
-      <div class="panel-head">
-        <h2>Desktop Mode (new)</h2>
-        <p class="subtle">App-like local UX for miners who want zero CLI friction.</p>
-      </div>
-      <ol class="steps">
-        <li>Linux: install launcher with <code class="code-inline">scripts/ops/install_linux_desktop_launcher.sh</code> and open <strong>HackMe Desktop</strong> from your app menu.</li>
-        <li>First run auto-generates admin token and bootstraps local profile (<code class="code-inline">.env.desktop</code>).</li>
-        <li>In dashboard, use <strong>Desktop first-run wizard</strong> to generate/save token and start <strong>Solo</strong> or <strong>Worker</strong> mode.</li>
-        <li>Windows bundles include matching start/status/stop scripts for the same flow.</li>
-      </ol>
-    </section>
-
-    <section class="grid grid-3">
-      <article class="card glass">
-        <h3>Security Model</h3>
-        <p>Strict admin/P2P auth, rate limits, signature checks, WASM ABI validation, and quarantine flow for unsafe artifacts.</p>
-      </article>
-      <article class="card glass">
-        <h3>Economics</h3>
-        <p>Deterministic reward model, order escrow, burn accounting, fairness gates, and canonical metrics. <a href="./economics-model.html">How chain, pool, and orders pay</a>.</p>
-      </article>
-      <article class="card glass">
-        <h3>Operations</h3>
-        <p>Preflight gates, adversarial smoke packs, release manifests, checksum verification, and scripted deployment workflows.</p>
-      </article>
-    </section>
-
-    <section class="panel glass">
-      <div class="panel-head">
-        <h2>Pool Overview (Live)</h2>
+        <h2>Live pool</h2>
+        <p class="subtle">Fast public metrics — no slow <code>/metrics</code> scrape on this page.</p>
       </div>
       <div class="table-wrap">
         <table class="pool-table">
           <thead>
             <tr>
               <th>Pool</th>
-              <th>Pool Hashrate</th>
-              <th>Chain Height</th>
-              <th>Block Reward</th>
-              <th>Network Difficulty</th>
+              <th>Hashrate</th>
+              <th>Height</th>
+              <th>Reward</th>
+              <th>Difficulty</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td><strong>HackMe PoH</strong></td>
-              <td id="pool-live-hash">loading...</td>
-              <td id="pool-live-height">loading...</td>
-              <td id="pool-live-reward">loading...</td>
-              <td id="pool-live-diff">loading...</td>
-              <td id="pool-live-status">loading...</td>
+              <td id="pool-live-hash">loading…</td>
+              <td id="pool-live-height">loading…</td>
+              <td id="pool-live-reward">loading…</td>
+              <td id="pool-live-diff">loading…</td>
+              <td id="pool-live-status">loading…</td>
             </tr>
           </tbody>
         </table>
       </div>
-      <p class="muted">Live data from <code>/pool/api/global/metrics</code> and <code>/pool/coordinator/api/work/stats</code> (fast paths; we do not call the slow node <code>/metrics</code> endpoint on the public site). Sub-1 TH/s pool totals display as GH/s. US-style thousands separators. Asterisk (*) = simulated totals when mock network mode is on.</p>
+      <p class="muted">Sub-1 TH/s totals show as GH/s. Asterisk (*) = simulated when mock network mode is on.</p>
     </section>
 
-    <section class="panel glass">
+    <section id="learn" class="panel glass hub-panel">
       <div class="panel-head">
-        <h2>Why miners and operators choose HackMe</h2>
+        <h2>Learn more</h2>
+        <p class="subtle">Deep dives live on dedicated pages — expand only what you need here.</p>
       </div>
-      <div class="grid grid-2">
-        <ul class="list">
-          <li>Canonical follower mode keeps wallet/tasks/height synced to VPS source of truth.</li>
-          <li>Worker mode supports stable throughput while preserving chain consistency.</li>
-          <li>Explorer-ready API surface for public read-only transparency.</li>
-          <li>Release workflow includes artifacts, checksums, smoke checks, and build metadata.</li>
-        </ul>
-        <ul class="list">
-          <li>Task gates run through controlled WASM checks (size, signature, timeout, memory).</li>
-          <li>Security and stress scripts are integrated into daily and ultimate test packs.</li>
-          <li>UI separates global canonical metrics from local rig telemetry to reduce operator confusion.</li>
-          <li>Roadmap supports safe extension with additional WASM-compatible languages.</li>
-        </ul>
-      </div>
+      <details>
+        <summary>Security audits &amp; fuzz reports</summary>
+        <div class="details-body">
+          <p>One-click audit in the local dashboard (<strong>Orders</strong>) or integrator CLI. You receive a report token and HTML with triage + <code>repro_cmd</code>.</p>
+          <p><a href="./developers.html">Developers</a> · <a href="./fuzz-guide.html">Fuzz guide</a> · <a href="./reports/l1-crypto-stack-v4.html">L1 v4 live</a></p>
+        </div>
+      </details>
+      <details>
+        <summary>Proof of Analysis (useful work)</summary>
+        <div class="details-body">
+          <p>Paid jobs split into deterministic fuzz segments — rewards tie to real input ranges and findings, not lottery hashes.</p>
+          <ul>
+            <li>Traceable chunk assignment and completion</li>
+            <li>Coverage, crashes, and evidence in customer reports</li>
+          </ul>
+        </div>
+      </details>
+      <details>
+        <summary>Tokenomics snapshot (HMC)</summary>
+        <div class="details-body">
+          <p>Base block <strong>0.01 HMC</strong>, halving every 2,102,400 blocks, tail <strong>0.002 HMC</strong>. Orders: 5% platform fee + 10% burn tally on prepaid; transfers 70/30 dev/burn on fees.</p>
+          <p><a href="./economics-model.html">Full economics model →</a></p>
+        </div>
+      </details>
+      <details>
+        <summary>Why operators choose HackMe</summary>
+        <div class="details-body">
+          <ul>
+            <li>Canonical follower sync for wallet, height, and tasks</li>
+            <li>WASM task gates, release checksums, and adversarial test packs</li>
+            <li>Public explorer and read-only APIs</li>
+          </ul>
+          <p><a href="./operator-checklist.html">Operator checklist →</a></p>
+        </div>
+      </details>
     </section>
 
-    <section class="panel glass">
+    <section id="community" class="panel glass">
       <div class="panel-head">
-        <h2>How to Start Mining</h2>
-        <p class="subtle">From zero to first accepted work in a few minutes.</p>
+        <h2>Community</h2>
+        <p class="subtle"><a href="./contacts.html">All contacts</a> · <a href="https://github.com/jokeez/hackme" target="_blank" rel="noreferrer">GitHub</a></p>
       </div>
-      <ol class="steps">
-        <li>Download the node bundle from <a href="./downloads.html">Downloads</a> and run your platform installer.</li>
-        <li>Open local dashboard, set admin token, and verify node health + wallet address.</li>
-        <li>Connect worker mode to the pool coordinator and start mining (<code class="code-inline">POST /api/worker/start</code>).</li>
-        <li>Watch accepted shares, payout counters, and chain-confirmed balance in Wallet tab.</li>
-      </ol>
-    </section>
-
-    <section class="panel glass">
-      <div class="panel-head">
-        <h2>Security audit &amp; fuzz reports</h2>
-        <p class="subtle">One-click audit on your <strong>local node dashboard</strong> (#orders) or integrator CLI — not on the public site API.</p>
-      </div>
-      <ol class="steps">
-        <li>Download a node, open the embedded dashboard → <strong>Orders</strong> → <strong>Run full security audit</strong> (guard WASM + useful-PoW order + distributed fuzz).</li>
-        <li>Receive a <strong>report token</strong> and open <code class="code-inline">fuzz_report_v2</code> HTML with triage, <code class="code-inline">repro_cmd</code>, and artifacts (<code class="code-inline">check_repro</code>).</li>
-        <li>Integrators: <code class="code-inline">hackme-fuzzing</code> on <code class="code-inline">127.0.0.1:8080</code> — see <a href="./developers.html">Developers</a> and <a href="./fuzz-guide.html">Fuzz guide</a>.</li>
-        <li>Public research (multi-chain, honest scope): <a href="./research.html">Research hub</a> · featured <a href="./reports/l1-crypto-stack-v4.html">L1 v4 live</a> · <a href="./fuzz-campaigns.html">Fuzz overview</a>.</li>
-      </ol>
-    </section>
-
-    <section class="panel glass">
-      <div class="panel-head">
-        <h2>Proof of Analysis (Utility Algorithm)</h2>
-      </div>
-      <p class="hero-copy">
-        HackMe is not a random-number lottery. Paid audit jobs are split into deterministic fuzzing/analysis segments.
-        Workers are rewarded for processing unique input ranges that exercise real code paths and surface real findings,
-        so each watt maps to measurable security work.
-      </p>
-      <ul class="list">
-        <li>Order payload is partitioned into work chunks with traceable assignment and completion.</li>
-        <li>Each accepted result is tied to unique input space, campaign context, and runtime metadata.</li>
-        <li>Reports aggregate coverage, crashes, and vulnerability evidence for auditors and clients.</li>
-      </ul>
-    </section>
-
-    <section class="panel glass">
-      <div class="panel-head">
-        <h2>Tokenomics and Halving Cycles</h2>
-      </div>
-      <div class="table-wrap">
-        <table class="pool-table">
-          <thead>
-            <tr>
-              <th>Parameter</th>
-              <th>Current Policy</th>
-              <th>Why It Matters</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Initial Base Reward</td>
-              <td>0.010000 HMC per empty-mining block</td>
-              <td>Predictable miner baseline before order bonus layer.</td>
-            </tr>
-            <tr>
-              <td>Halving Schedule</td>
-              <td>Every 2,102,400 blocks</td>
-              <td>Programmable long-term inflation reduction toward tail floor.</td>
-            </tr>
-            <tr>
-              <td>Tail Floor</td>
-              <td>0.002000 HMC</td>
-              <td>Maintains liveness and security budget after multiple halvings.</td>
-            </tr>
-            <tr>
-              <td>Transfer network fee split</td>
-              <td>70% dev/service · 30% burn</td>
-              <td>Applies to <span class="code-inline">fee_units</span> on signed transfers — not to opening orders.</td>
-            </tr>
-            <tr>
-              <td>Order platform fee</td>
-              <td>5% of prepaid</td>
-              <td>Credited to the consensus dev/service address when the order is created.</td>
-            </tr>
-            <tr>
-              <td>Order-open burn tally</td>
-              <td>10% of prepaid</td>
-              <td><span class="code-inline">OrderBurnRate</span>: counted toward aggregate burned supply at creation (see chain economics).</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="muted">Policy fields are exposed via public APIs and release gates for auditability.</p>
-    </section>
-
-    <section class="panel glass">
-      <div class="panel-head">
-        <h2>Orders vs transfers (burn accounting)</h2>
-      </div>
-      <p class="hero-copy">Opening an order debits your wallet once for escrow plus platform fee. Transfer transactions burn part of their <span class="code-inline">fee_units</span> separately:</p>
-      <div class="formula-box">
-        prepaid = reward_hmc × target_solves<br />
-        order_fee = prepaid × 0.05 → dev/service<br />
-        burn_recorded = prepaid × 0.10 (supply tally)<br />
-        wallet_debit = prepaid + order_fee
-      </div>
-      <p class="muted">
-        Example: 1000 HMC prepaid workload → you pay <strong>1050 HMC</strong> up front (1000 escrow + 50 platform fee). Supply accounting adds <strong>100 HMC</strong> burned from the prepaid bucket (<span class="code-inline">OrderBurnRate</span>). Transfer fees still split <strong>70% / 30%</strong> dev vs burn.
-      </p>
-    </section>
-
-    <section class="panel glass" id="contacts">
-      <div class="panel-head">
-        <h2>Community and Contact Hub</h2>
-        <p class="subtle">Support, announcements, and miner coordination channels.</p>
-      </div>
-      <div class="quick-links">
-        <a class="quick-item" href="https://github.com/jokeez/hackme" target="_blank" rel="noreferrer">
-          <h4>GitHub — source code</h4>
-          <p>Apache-2.0: node, coordinator, worker, dashboard. Star the repo, audit, build from source — verify SHA256 on Downloads.</p>
+      <div class="community-grid">
+        <a class="community-tile" href="https://t.me/hackme_tech" target="_blank" rel="noreferrer">
+          <h4>Telegram channel</h4>
+          <p>Releases, maintenance, security announcements.</p>
         </a>
-        <a class="quick-item" href="https://t.me/hackme_tech" target="_blank" rel="noreferrer">
-          <h4>Telegram Main Channel</h4>
-          <p>Official launch updates, release notes, maintenance windows, and security announcements.</p>
+        <a class="community-tile" href="https://t.me/hackme_en" target="_blank" rel="noreferrer">
+          <h4>Telegram EN</h4>
+          <p>Miner setup help and pool discussion.</p>
         </a>
-        <a class="quick-item" href="https://t.me/hackme_en" target="_blank" rel="noreferrer">
-          <h4>Telegram International Group (EN)</h4>
-          <p>Global miner community, setup help, and operational support in English.</p>
+        <a class="community-tile" href="https://t.me/hackme_ru" target="_blank" rel="noreferrer">
+          <h4>Telegram RU</h4>
+          <p>Russian-speaking miner community.</p>
         </a>
-        <a class="quick-item" href="https://discord.gg/QMxSeaTSrQ" target="_blank" rel="noreferrer">
+        <a class="community-tile" href="https://discord.gg/QMxSeaTSrQ" target="_blank" rel="noreferrer">
           <h4>Discord</h4>
-          <p>International community, dev discussions, and campaign collaboration.</p>
+          <p>Dev discussions and campaigns.</p>
         </a>
-      </div>
-      <div class="quick-links quick-links-two">
-        <a class="quick-item" href="https://t.me/hackme_ru" target="_blank" rel="noreferrer">
-          <h4>Telegram Russian Group (RU)</h4>
-          <p>Russian-speaking community for miners: support, discussion, and operational coordination.</p>
-        </a>
-        <a class="quick-item" href="https://bitcointalk.org/index.php?topic=5583373.0" target="_blank" rel="noreferrer">
+        <a class="community-tile" href="https://bitcointalk.org/index.php?topic=5583373.0" target="_blank" rel="noreferrer">
           <h4>Bitcointalk ANN</h4>
-          <p>Live announcement thread on Bitcoin Forum — Pools (Altcoins).</p>
+          <p>Official pool announcement thread.</p>
         </a>
-        <a class="quick-item" href="mailto:support@hackme.tech">
-          <h4>Direct Contact</h4>
-          <p>Business and audit-partner communication: support@hackme.tech</p>
-        </a>
-      </div>
-    </section>
-
-    <section class="panel glass">
-      <div class="panel-head">
-        <h2>Quick Access</h2>
-        <p class="subtle">Everything needed to join mining and monitor chain state from one domain.</p>
-      </div>
-      <div class="quick-links">
-        <a href="./downloads.html#hackme-os" class="quick-item">
-          <h4>HackMe OS (ISO)</h4>
-          <p>Zero-Knowledge Start: flash USB, boot — auto wallet + recovery phrase, mine on hackme.tech with no setup.</p>
-        </a>
-        <a href="./downloads.html" class="quick-item">
-          <h4>Windows &amp; Linux</h4>
-          <p>Installer (.exe), portable ZIP, Linux tarball, checksums, and release manifest.</p>
-        </a>
-        <a href="./research.html" class="quick-item">
-          <h4>L1 security research (5 chains)</h4>
-          <p>BTC · ETH · DOGE · LTC · HackMe — v4 live prod fuzz, v3 corpus, upstream pins. One hub, no scatter.</p>
-        </a>
-        <a href="./docs.html" class="quick-item">
-          <h4>Read Technical Docs</h4>
-          <p>Architecture, mining modes, economics notes, and operational runbooks.</p>
-        </a>
-        <a href="https://github.com/jokeez/hackme" class="quick-item" target="_blank" rel="noreferrer">
-          <h4>Source on GitHub</h4>
-          <p>Open-source pool stack (Apache-2.0): clone, audit, contribute — jokeez/hackme.</p>
-        </a>
-        <a href="./contacts.html" class="quick-item">
-          <h4>Join Community</h4>
-          <p>Telegram, Discord, Bitcointalk ANN, and support for miners and partners.</p>
-        </a>
-        <a id="explorer-link-card" href="/pool/explorer" class="quick-item" target="_blank" rel="noreferrer">
-          <h4>Track Chain Live</h4>
-          <p>Inspect blocks, transactions, and addresses in the public explorer.</p>
+        <a class="community-tile" href="mailto:support@hackme.tech">
+          <h4>support@hackme.tech</h4>
+          <p>Business and audit partners.</p>
         </a>
       </div>
     </section>
@@ -394,22 +241,10 @@
   <footer class="footer">
     <p>HackMe Network</p>
     <p class="muted">Release-quality mining infrastructure. Built for secure public operations.</p>
-    <div class="footer-nav">
-      <a href="https://github.com/jokeez/hackme" target="_blank" rel="noreferrer">GitHub</a>
-      <a href="./coins.html">Coins</a>
-      <a href="./research.html">Research</a>
-      <a href="./news.html">News</a>
-      <a href="./downloads.html">Downloads</a>
-      <a href="./docs.html">Docs</a>
-      <a href="./economics-model.html">Economics</a>
-      <a href="./operator-checklist.html">Operators</a>
-      <a href="./contacts.html">Contacts</a>
-      <a href="./legal.html">Legal</a>
-      <a href="./legal-privacy.html">Privacy</a>
-      <a href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
-    </div>
+    <div class="footer-nav"></div>
   </footer>
 
-  <script src="./assets/app.js?v=20260511dist"></script>
+  <script src="./assets/site-shell.js?v=20260601hub"></script>
+  <script src="./assets/app.js?v=20260601hub"></script>
 </body>
 </html>

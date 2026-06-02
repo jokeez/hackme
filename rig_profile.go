@@ -279,8 +279,32 @@ func hackmeEnvLacksRigTune() bool {
 	return true
 }
 
+func rigProfileVendorMismatch(stored string, detected gputune.RigProfile) bool {
+	stored = strings.ToLower(strings.TrimSpace(stored))
+	did := strings.ToLower(strings.TrimSpace(detected.ID))
+	if stored == "" || did == "" {
+		return false
+	}
+	storedAMD := strings.Contains(stored, "amd_") || strings.Contains(stored, "rx580")
+	storedNVIDIA := strings.Contains(stored, "nvidia_") || strings.Contains(stored, "rtx_")
+	detAMD := strings.Contains(did, "amd_") || strings.Contains(did, "rx580")
+	detNVIDIA := strings.Contains(did, "nvidia_") || strings.Contains(did, "rtx_")
+	if storedAMD && detNVIDIA {
+		return true
+	}
+	if storedNVIDIA && detAMD {
+		return true
+	}
+	return false
+}
+
 func applyRigProfileAtStartup() {
 	pid := strings.TrimSpace(os.Getenv("HACKME_RIG_PROFILE"))
+	names := collectLocalGPUNames()
+	if det, ok := gputune.DetectRigProfile(names); ok && pid != "" && rigProfileVendorMismatch(pid, det) {
+		log.Printf("hackme: rig profile %q mismatches GPU %v; switching to %q", pid, names, det.ID)
+		pid = det.ID
+	}
 	if pid == "" {
 		autoOff := strings.EqualFold(strings.TrimSpace(os.Getenv("HACKME_RIG_PROFILE_AUTO")), "0") ||
 			strings.EqualFold(strings.TrimSpace(os.Getenv("HACKME_RIG_PROFILE_AUTO")), "false")
@@ -290,7 +314,6 @@ func applyRigProfileAtStartup() {
 		if !hackmeEnvLacksRigTune() {
 			return
 		}
-		names := collectLocalGPUNames()
 		if p, ok := gputune.DetectRigProfile(names); ok {
 			pid = p.ID
 			log.Printf("hackme: auto-detected rig profile %q from GPU %v", pid, names)

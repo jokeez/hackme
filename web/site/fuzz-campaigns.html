@@ -20,17 +20,7 @@
       <img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe logo" />
       <span>HackMe Network</span>
     </a>
-    <nav class="nav">
-      <a href="./index.html">Home</a>
-      <a href="./coins.html">Coins</a>
-      <a href="./developers.html">Developers</a>
-      <a href="./downloads.html">Downloads</a>
-      <a href="./fuzz-campaigns.html" aria-current="page">Fuzz</a>
-      <a href="./news.html">News</a>
-      <a href="./docs.html">Docs</a>
-      <a href="./contacts.html">Contacts</a>
-      <a id="explorer-link-top" href="/pool/explorer" target="_blank" rel="noreferrer">Explorer</a>
-    </nav>
+    <nav class="nav" data-site-page="fuzz"></nav>
   </header>
 
   <main class="container">
@@ -81,12 +71,7 @@
 
   <footer class="footer">
     <p>HackMe Network</p>
-    <div class="footer-nav">
-      <a href="./index.html">Home</a>
-      <a href="./research.html">Research</a>
-      <a href="./developers.html">Developers</a>
-      <a href="./downloads.html">Downloads</a>
-    </div>
+    <div class="footer-nav"></div>
   </footer>
   <script>
     async function loadReproVerdict() {
@@ -106,6 +91,7 @@
     }
     loadReproVerdict();
   </script>
+  <script src="./assets/site-shell.js?v=20260601hub"></script>
   <script src="./assets/app.js?v=20260531fuzz"></script>
 </body>
 </html>
