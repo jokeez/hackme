@@ -1,0 +1,51 @@
+{
+  "coord_url": "https://hackme.tech/pool/coordinator",
+  "pack_tarball": "dist/vast-gpu-matrix-20260602T050843Z.tar.gz",
+  "instances": [
+    {
+      "name": "rtx5090-01",
+      "host": "REPLACE_SSH_HOST",
+      "port": 22,
+      "user": "root",
+      "worker_id": "vast-5090-01",
+      "ssh_key": "/home/REPLACE_USER/Desktop/HackMe/.secrets/vast/id_ed25519_vast",
+      "run_seconds": 3600,
+      "fleet": false,
+      "gpu_label": "RTX 5090 #1",
+      "region": "US-East",
+      "notes": "latency + shares test"
+    },
+    {
+      "name": "rtx5090-02",
+      "host": "REPLACE_SSH_HOST",
+      "port": 22,
+      "user": "root",
+      "worker_id": "vast-5090-02",
+      "ssh_key": "/home/REPLACE_USER/Desktop/HackMe/.secrets/vast/id_ed25519_vast",
+      "run_seconds": 3600,
+      "fleet": false,
+      "gpu_label": "RTX 5090 #2",
+      "region": "EU-West"
+    },
+    {
+      "name": "fleet-6gpu",
+      "host": "REPLACE_SSH_HOST",
+      "port": 22,
+      "user": "root",
+      "worker_id": "vast-fleet-6g",
+      "ssh_key": "/home/REPLACE_USER/Desktop/HackMe/.secrets/vast/id_ed25519_vast",
+      "run_seconds": 2700,
+      "fleet": true,
+      "gpu_label": "6x GPU fleet",
+      "region": "US-Central"
+    }
+  ],
+  "regions_to_try": [
+    "US-East",
+    "US-West",
+    "EU-West",
+    "EU-North",
+    "Asia-South",
+    "Asia-East"
+  ]
+}

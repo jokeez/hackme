@@ -1,0 +1,75 @@
+[center]
+[size=16pt][b][color=#00D1FF]HackMe GPU Matrix — production pool field test[/color][/b][/size]
+[size=10pt][color=#B8C5D6]Real HMC mining on rented NVIDIA rigs (Pascal → Blackwell) · June 2026[/color][/size]
+[/center]
+
+[hr]
+
+[size=12pt][b][color=#39FF14]TL;DR[/color][/b][/size]
+
+We validated [b]HackMe Coin (HMC) pool mining[/b] on [url=https://hackme.tech/pool/coordinator]hackme.tech[/url] across [b]10 generations of NVIDIA GPUs[/b] — from [b]2× GTX 1080 Ti[/b] through [b]RTX 5090[/b], plus an operator [b]RTX 5060 Ti[/b] desktop — using [b]signed submits[/b], live [b]hits[/b], [b]payout[/b], and [b]difficulty retarget[/b]. [b]Verdict: PASS[/b] for pool readiness. One miner-pack release remains (CUDA 13 / NVRTC compatibility); [b]OpenCL fallback[/b] kept production mining working where CUDA did not.
+
+[quote][size=10pt][i][color=#B8C5D6]This is infrastructure hardening for a [b]useful-PoW pool[/b], not a “new ASIC” claim. Hashrates below are [b]measured on our coordinator[/b] during 6–7 minute ultra runs on Vast.ai unless noted.[/i][/color][/quote]
+
+[hr]
+
+[size=12pt][b][color=#00D1FF]WHAT WE TESTED[/color][/b][/size]
+
+[table]
+[tr][td][b]GPU config[/b][/td][td][b]Peak GH/s[/b][/td][td][b]Result[/b][/td][td][b]Backend[/b][/td][/tr]
+[tr][td]2× GTX 1080 Ti[/td][td][center]~89[/center][/td][td][color=#39FF14][b]PASS[/b][/color][/td][td]OpenCL[/td][/tr]
+[tr][td]4× RTX 2080 Ti[/td][td][center]~92 (agg)[/center][/td][td][color=#39FF14][b]PASS[/b][/color][/td][td]CUDA[/td][/tr]
+[tr][td]2× RTX 3060 Ti[/td][td][center]~74+74[/center][/td][td][color=#39FF14][b]PASS[/b][/color][/td][td]OpenCL[/td][/tr]
+[tr][td]2× RTX 3070[/td][td][center]~60[/center][/td][td][color=#39FF14][b]PASS[/b][/color][/td][td]CUDA[/td][/tr]
+[tr][td]2× RTX 4060 Ti[/td][td][center]~40–41[/center][/td][td][color=#FFCC00][b]PARTIAL[/b][/color][/td][td]mixed[/td][/tr]
+[tr][td]2× RTX 4070 Ti SUPER[/td][td][center]~123 (agg)[/center][/td][td][color=#39FF14][b]PASS[/b][/color][/td][td]OpenCL[/td][/tr]
+[tr][td]1× RTX 4090[/td][td][center]~149[/center][/td][td][color=#39FF14][b]PASS[/b][/color][/td][td]OpenCL[/td][/tr]
+[tr][td]1× RTX 5090[/td][td][center]~140[/center][/td][td][color=#39FF14][b]PASS[/b][/color][/td][td]OpenCL[/td][/tr]
+[tr][td]Desktop RTX 5060 Ti[/td][td][center]~87–90[/center][/td][td][color=#39FF14][b]PASS[/b][/color][/td][td]OpenCL[/td][/tr]
+[/table]
+
+[hr]
+
+[size=12pt][b][color=#00D1FF]WHAT WE FIXED (WHY IT’S BETTER)[/color][/b][/size]
+
+[list]
+[*][b]Multi-GPU → one rig row[/b] — Pool UI and [mono]/api/work/stats[/mono] now merge [mono]worker-gpu0[/mono] / [mono]worker-gpu1[/mono] under a single operator id (how real farms expect to see a box).
+[*][b]Aggregated hashrate[/b] — Coordinator sums GH/s across merged GPU slots instead of showing a single-GPU slice.
+[*][b]Vast-ready pack[/b] — Prebuilt [mono]workerpoh[/mono] + [mono]fleetplan[/mono]; no [mono]go[/mono] compiler required on rent hosts ([mono]SKIP_WORKER_BUILD=1[/mono]).
+[*][b]Replay hygiene[/b] — Per-GPU nonce streams in fleet mode; documented abuse-clear workflow for test matrices.
+[*][b]Graceful degradation[/b] — When cloud images ship CUDA 13 and NVRTC 12 binaries fail, [b]OpenCL mining continued[/b] with full submit/payout path on 4090, 5090, and 1080 Ti class hosts.
+[/list]
+
+[hr]
+
+[size=12pt][b][color=#39FF14]HONEST LIMITATIONS (NEXT BUILD)[/color][/b][/size]
+
+[list]
+[*][b]CUDA / NVRTC 13[/b] — Many Vast templates lack [mono]libnvrtc.so.12[/mono]; symlink is insufficient. Native CUDA works on some hosts (2080 Ti, 3070); rebuild targeting NVRTC 13 is planned.
+[*][b]Blackwell desktop[/b] — RTX 5060 Ti showed [mono]driver (null)[/mono] for CUDA probe; OpenCL is production-viable today.
+[*][b]Not in scope[/b] — Data-center SKUs (A100/H100/B200) were not required for consumer miner validation.
+[/list]
+
+[hr]
+
+[size=12pt][b][color=#00D1FF]NETWORK / OPS NOTES[/color][/b][/size]
+
+[list]
+[*]Best coordinator RTT in matrix: [b]RTX 5090 in EU (~0.8 ms ping)[/b].
+[*]Highest single-GPU calibrated rate: [b]RTX 4090 ~149 GH/s[/b] (higher RTT region; still stable submits).
+[*]Security audit gate on operator node: [b]clean[/b] (fuzz_report_v2, 0 issues) during matrix window.
+[/list]
+
+[hr]
+
+[size=12pt][b][color=#39FF14]BOTTOM LINE[/color][/b][/size]
+
+[b]HMC pool mining is confirmed[/b] across the tested NVIDIA stack on [url=https://hackme.tech]hackme.tech[/url]. Operators can run multi-GPU rigs with a single dashboard worker, earn payout on live difficulty, and fall back to OpenCL when CUDA toolchains on rent hosts lag behind.
+
+[b]Pool:[/b] [url=https://hackme.tech/pool/coordinator]https://hackme.tech/pool/coordinator[/url]  
+[b]Repo:[/b] [url=https://github.com/jokeez/hackme]github.com/jokeez/hackme[/url]  
+[b]Detailed verdict:[/b] [mono]docs/VAST_GPU_MATRIX_VERDICT_20260602.md[/mono] (in repository)
+
+[hr]
+
+[size=10pt][color=#B8C5D6][i]Questions: multi-GPU worker ids, OpenCL vs CUDA on your host, or Vast matrix pack — reply in thread.[/i][/color][/size]

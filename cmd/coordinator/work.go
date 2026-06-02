@@ -1535,6 +1535,44 @@ func roundMemMB(v float64) float64 {
 	return math.Round(v*100) / 100
 }
 
+func fleetBaseWorkerID(id string) string {
+	i := strings.LastIndex(id, "-gpu")
+	if i <= 0 || i+4 >= len(id) {
+		return id
+	}
+	for _, c := range id[i+4:] {
+		if c < '0' || c > '9' {
+			return id
+		}
+	}
+	return id[:i]
+}
+
+func mergeWorkerStat(dst, src workerPayoutStat) workerPayoutStat {
+	dst.AcceptedRanges += src.AcceptedRanges
+	dst.AcceptedHits += src.AcceptedHits
+	dst.AcceptedAtt += src.AcceptedAtt
+	dst.PayoutHMC += src.PayoutHMC
+	dst.PayoutSUP += src.PayoutSUP
+	dst.SignedSubmits += src.SignedSubmits
+	dst.LastHashrateGHS += src.LastHashrateGHS
+	dst.PeakHashrateGHS += src.PeakHashrateGHS
+	if dst.LastHashrateGHS > dst.PeakHashrateGHS {
+		dst.PeakHashrateGHS = dst.LastHashrateGHS
+	}
+	if src.LastSeenUnix > dst.LastSeenUnix {
+		dst.LastSeenUnix = src.LastSeenUnix
+	}
+	if dst.PayoutAddress == "" && src.PayoutAddress != "" {
+		dst.PayoutAddress = src.PayoutAddress
+	}
+	if dst.LastClientIP == "" && src.LastClientIP != "" {
+		dst.LastClientIP = src.LastClientIP
+	}
+	dst.Online = dst.Online || src.Online
+	return dst
+}
+
 func (m *workManager) pruneAbuseStateLocked(now int64) {
 	if now-m.lastAbusePruneUnix < 60 {
 		return
@@ -1575,6 +1613,11 @@ func (m *workManager) poolOnlineSummaryUnlocked(staleSec, now int64) (poolGH flo
 	if staleSec < poolHashrateStaleSec {
 		staleSec = poolHashrateStaleSec
 	}
+	type rigAgg struct {
+		gh       float64
+		lastSeen int64
+	}
+	agg := make(map[string]rigAgg, len(m.worker))
 	for id, st := range m.worker {
 		if st.LastSeenUnix <= 0 || (now-st.LastSeenUnix) > staleSec {
 			continue
@@ -1583,14 +1626,23 @@ func (m *workManager) poolOnlineSummaryUnlocked(staleSec, now int64) (poolGH flo
 		if gh > 0 {
 			poolGH += gh
 		}
+		base := fleetBaseWorkerID(id)
+		cur := agg[base]
+		cur.gh += gh
+		if st.LastSeenUnix > cur.lastSeen {
+			cur.lastSeen = st.LastSeenUnix
+		}
+		agg[base] = cur
+	}
+	for id, st := range agg {
 		online++
 		rigs = append(rigs, map[string]any{
 			"worker_id":      id,
 			"name":           id,
-			"hashrate_gh_s":  gh,
+			"hashrate_gh_s":  st.gh,
 			"online":         true,
 			"source":         "coordinator_submit",
-			"last_seen_unix": st.LastSeenUnix,
+			"last_seen_unix": st.lastSeen,
 		})
 	}
 	return poolGH, online, rigs
@@ -1781,7 +1833,8 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 		if !online {
 			st.LastHashrateGHS = 0
 		}
-		workers[k] = st
+		base := fleetBaseWorkerID(k)
+		workers[base] = mergeWorkerStat(workers[base], st)
 	}
 	out["workers"] = workers
 	if includeDetails {

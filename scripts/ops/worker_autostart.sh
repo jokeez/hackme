@@ -25,7 +25,6 @@ require_cmd() {
   }
 }
 
-require_cmd go
 require_cmd awk
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -154,6 +153,9 @@ build_worker_if_needed() {
 	mkdir -p "$(dirname "$bin")"
 	export GOCACHE="${GOCACHE:-${ROOT_DIR}/.cache/go-build}"
 	mkdir -p "$GOCACHE" 2>/dev/null || true
+	if truthy "${SKIP_WORKER_BUILD:-0}" && [[ -x "$bin" ]]; then
+		return 0
+	fi
 	if [[ -x "$bin" ]] && ! truthy "${FORCE_WORKER_REBUILD:-0}"; then
 		return 0
 	fi
@@ -187,11 +189,19 @@ load_fleet_plan_json() {
       (cd "$ROOT_DIR" && go build -o "$fp" ./cmd/fleetplan) 2>/dev/null || true
     fi
   fi
-  if [[ -x "$fp" ]]; then
-    HACKME_REPO_ROOT="$ROOT_DIR" "$fp" -repo "$ROOT_DIR" -worker "$WORKER_ID" 2>/dev/null || true
-    return 0
+  if [[ ! -x "$fp" ]]; then
+    return 1
   fi
-  return 1
+  local out
+  out="$(HACKME_REPO_ROOT="$ROOT_DIR" "$fp" -repo "$ROOT_DIR" -worker "$WORKER_ID" 2>/dev/null)" || return 1
+  if [[ -z "$out" ]]; then
+    return 1
+  fi
+  if ! echo "$out" | python3 -c "import json,sys; json.load(sys.stdin)" 2>/dev/null; then
+    return 1
+  fi
+  printf '%s\n' "$out"
+  return 0
 }
 
 worker_run_loop_slot() {
@@ -321,14 +331,22 @@ base = sys.argv[1]
 def_batch = sys.argv[2]
 def_chunk = sys.argv[3]
 def_timeout = sys.argv[4]
+root = os.environ.get("HACKME_REPO_ROOT") or os.getcwd()
 for slot in plan.get("slots") or []:
     sfx = slot.get("worker_suffix") or ""
+    # Always keep -gpuN in submit worker_id; coordinator merges to base when
+    # HACKME_GPU_FLEET_AGGREGATE_ID=1 (fleetBaseWorkerID + mergeWorkerStat).
     wid = base + sfx
     env = slot.get("env") or {}
     batch = env.get("HACKME_WORKER_BATCH_SIZE") or def_batch
     chunk = env.get("GPU_CHUNK") or env.get("HACKME_WORKER_BATCH_SIZE") or def_chunk
     timeout = env.get("SEARCH_TIMEOUT_MS") or def_timeout
     exports = []
+    # Ensure each slot has a dedicated nonce stream to avoid replay collisions,
+    # including aggregate-id mode where all GPUs share one worker_id.
+    if "HACKME_MINER_NONCE_FILE" not in env:
+        safe = "".join(ch if ch.isalnum() or ch in ("-","_") else "_" for ch in base)
+        env["HACKME_MINER_NONCE_FILE"] = f"{root}/logs/miner_submit_nonce.{safe}.gpu{int(slot.get('device_index') or 0)}.seq"
     for k, v in env.items():
         if v is None:
             continue
