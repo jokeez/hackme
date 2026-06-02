@@ -9,6 +9,28 @@ truthy() {
   [[ "$v" == "1" || "$v" == "true" || "$v" == "yes" || "$v" == "on" ]]
 }
 
+nvidia_driver_ok() {
+  command -v nvidia-smi >/dev/null 2>&1 || return 1
+  nvidia-smi -L >/dev/null 2>&1
+}
+
+cuda_worker_usable() {
+  local root="$1"
+  local bin=""
+  for bin in "${root}/bin/workerpoh-cuda" "${root}/workerpoh-cuda"; do
+    [[ -x "$bin" ]] || continue
+    if command -v timeout >/dev/null 2>&1; then
+      if timeout 12 env HACKME_REPO_ROOT="$root" "$bin" -h >/dev/null 2>&1; then
+        return 0
+      fi
+    elif "$bin" -h >/dev/null 2>&1; then
+      return 0
+    fi
+    return 0
+  done
+  return 1
+}
+
 if truthy "${HACKME_GPU_DISABLE:-0}"; then
   echo cpu
   exit 0
@@ -37,29 +59,6 @@ if truthy "${HACKME_FORCE_OPENCL:-0}"; then
 fi
 
 # NVIDIA: CUDA only when driver is healthy (NVML/library mismatch → use OpenCL or CPU).
-nvidia_driver_ok() {
-  command -v nvidia-smi >/dev/null 2>&1 || return 1
-  nvidia-smi -L >/dev/null 2>&1
-}
-cuda_worker_usable() {
-  local root="$1"
-  local bin=""
-  for bin in "${root}/bin/workerpoh-cuda" "${root}/workerpoh-cuda"; do
-    [[ -x "$bin" ]] || continue
-    # Quick runtime probe: DiscoverAccelerators (CUDA or OpenCL fallback inside binary).
-    if command -v timeout >/dev/null 2>&1; then
-      if timeout 12 env HACKME_REPO_ROOT="$root" "$bin" -h >/dev/null 2>&1; then
-        return 0
-      fi
-    elif "$bin" -h >/dev/null 2>&1; then
-      return 0
-    fi
-    # Binary exists and driver OK — still try cuda (worker may fall back at runtime).
-    return 0
-  done
-  return 1
-}
-
 if nvidia_driver_ok; then
   root="${HACKME_REPO_ROOT:-}"
   if [[ -z "$root" ]]; then

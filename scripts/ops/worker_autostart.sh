@@ -285,7 +285,18 @@ if [[ -z "$plan_json" ]]; then
 fi
 
 echo "[worker-autostart] coord=${COORD_URL} base_worker=${WORKER_ID}"
-echo "[worker-autostart] fleet plan: $(echo "$plan_json" | python3 -c "import json,sys; p=json.load(sys.stdin); print('hybrid=%s slots=%s'%(p.get('hybrid'),p.get('total_slots')))" 2>/dev/null || echo '?')"
+echo "[worker-autostart] fleet plan: $(printf '%s' "$plan_json" | python3 -c "
+import json, sys
+raw = sys.stdin.read().strip()
+if not raw:
+    print('?')
+else:
+    try:
+        p = json.loads(raw)
+        print('hybrid=%s slots=%s' % (p.get('hybrid'), p.get('total_slots')))
+    except json.JSONDecodeError:
+        print('? (invalid json)')
+" 2>/dev/null || echo '?')"
 
 fleet_pids=()
 while IFS= read -r slot_line; do

@@ -3654,7 +3654,12 @@
 			if (!!st.network_mode_active) return true;
 			if (!!wst.running && String(wst.worker_id || '').trim()) return true;
 			const coord = String(st.pool_coordinator_url_effective || st.pool_coordinator_url || '').trim();
-			return !!coord;
+			if (coord) return true;
+			const ws = latestWorkStats || lastGoodWorkStats || {};
+			if (ws.ok !== false && Number(ws.workers_count || 0) > 0 && workStatsTargetMod(ws) >= POOL_TARGET_MOD_FLOOR) {
+				return true;
+			}
+			return false;
 		}
 		/** Pool M from coordinator; never chain solo floor (251) when pool work is active. */
 		function effectiveMiningTargetMod(payload, ws) {
@@ -3666,16 +3671,22 @@
 				if (tmWork >= POOL_TARGET_MOD_FLOOR) return { mod: tmWork, src: 'pool coordinator' };
 				if (pm >= POOL_TARGET_MOD_FLOOR) return { mod: pm, src: 'pool coordinator' };
 				if (tmWork > 0) return { mod: tmWork, src: 'pool coordinator' };
+				const cached = Number(lastGlobalTargetMod || 0);
+				if (cached >= POOL_TARGET_MOD_FLOOR) {
+					return { mod: cached, src: lastTargetModSource || 'pool coordinator' };
+				}
+				return { mod: 0, src: 'pool coordinator' };
 			}
 			const tmMetrics = Number((payload && payload.mining_target_mod) || 0);
-			if (tmMetrics > 0 && (!poolCtx || tmMetrics >= POOL_TARGET_MOD_FLOOR)) {
+			if (tmMetrics > 0 && tmMetrics >= POOL_TARGET_MOD_FLOOR) {
 				return { mod: tmMetrics, src: 'local metrics' };
 			}
 			if (tmWork > 0) return { mod: tmWork, src: 'pool coordinator' };
 			const tmC = Number(lastGlobalTargetMod || 0);
-			if (tmC > 0 && (!poolCtx || tmC >= POOL_TARGET_MOD_FLOOR)) {
+			if (tmC > 0 && tmC >= POOL_TARGET_MOD_FLOOR) {
 				return { mod: tmC, src: lastTargetModSource || 'network status' };
 			}
+			if (tmMetrics > 0) return { mod: tmMetrics, src: 'local metrics' };
 			return { mod: 0, src: '' };
 		}
 		function isLocalPoolWorkerActive() {
@@ -8816,7 +8827,13 @@
 			if ($('kpi-challenge-sub')) $('kpi-challenge-sub').textContent = chSub;
 			let tmDisp = effectiveMiningTargetMod(m, ws).mod;
 			if (!tmDisp) {
-				tmDisp = tmL || workStatsTargetMod(ws) || Number(lastGlobalTargetMod || 0);
+				if (isPoolWorkContext()) {
+					tmDisp = workStatsTargetMod(ws) || workStatsTargetMod(lastGoodWorkStats) ||
+						Number((latestStatus || {}).pool_target_mod || 0) ||
+						(lastGlobalTargetMod >= POOL_TARGET_MOD_FLOOR ? lastGlobalTargetMod : 0);
+				} else {
+					tmDisp = tmL || workStatsTargetMod(ws) || Number(lastGlobalTargetMod || 0);
+				}
 			}
 			if ($('kpi-poh-difficulty') && tmDisp > 0) {
 				$('kpi-poh-difficulty').textContent = fmtUInt(tmDisp);
@@ -8901,8 +8918,19 @@
 			const running = !!payload.mining_running || !!(latestStatus && latestStatus.mining) ||
 				(netMode && Number(ws.workers_count || 0) > 0) || coordTraffic ||
 				(!!(latestWorkerStatus && latestWorkerStatus.running));
-			const effTm = effectiveMiningTargetMod(payload, ws);
-			const tm = effTm.mod;
+			let effTm = effectiveMiningTargetMod(payload, ws);
+			let tm = effTm.mod;
+			if (!tm && isPoolWorkContext()) {
+				const pm = Number((latestStatus || {}).pool_target_mod || 0);
+				const wsTm = workStatsTargetMod(ws) || workStatsTargetMod(lastGoodWorkStats);
+				if (pm >= POOL_TARGET_MOD_FLOOR) {
+					tm = pm;
+					effTm = { mod: pm, src: 'pool coordinator' };
+				} else if (wsTm > 0) {
+					tm = wsTm;
+					effTm = { mod: wsTm, src: 'pool coordinator' };
+				}
+			}
 			if ($('mine-stat-difficulty')) $('mine-stat-difficulty').textContent = tm > 0 ? fmtUInt(tm) : '—';
 			const diffSub = $('mine-stat-difficulty-sub');
 			if (diffSub) {
@@ -10440,8 +10468,10 @@
 					lastTargetModSource = 'pool coordinator';
 					if ($('kpi-poh-difficulty')) $('kpi-poh-difficulty').textContent = fmtUInt(pm);
 				}
-				if ($('kpi-poh-difficulty-sub') && pm >= POOL_TARGET_MOD_FLOOR) {
-					$('kpi-poh-difficulty-sub').textContent = 'Pool M · coordinator (not local WASM 251)';
+				if ($('kpi-poh-difficulty-sub') && pm > 0) {
+					$('kpi-poh-difficulty-sub').textContent = pm >= POOL_TARGET_MOD_FLOOR
+						? 'Pool M · coordinator (not local WASM 251)'
+						: ('Pool M · coordinator · ' + fmtUInt(pm));
 				}
 				const elCirc = $('kpi-network-circulating');
 				if (elCirc) {
