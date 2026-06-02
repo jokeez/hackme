@@ -18,8 +18,9 @@ We rented rigs on Vast.ai + ran the operator desktop and mined on the **live coo
 ⚠️ **Honest WARN (next pack build)**  
 Many cloud images ship **CUDA 13** — our CUDA binary still wants NVRTC 12. **OpenCL fallback mined fine** on 4090/5090/1080 Ti; native CUDA rebuild is queued — not a pool blocker.
 
-📊 Full verdict (tables, per-GPU reports):  
-https://hackme.tech — pool live · matrix write-up in repo `docs/VAST_GPU_MATRIX_VERDICT_20260602.md`
+📊 Full story on site:  
+https://hackme.tech/news.html  
+https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md
 
 🌐 hackme.tech · github.com/jokeez/hackme  
 #HackMe #HMC #Mining #GPU #VastAI #OpenCL #Pool #ProofOfUsefulWork
