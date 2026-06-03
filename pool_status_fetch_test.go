@@ -31,3 +31,14 @@ func TestCanonicalBaseIsSelfNode_p2pPeer(t *testing.T) {
 		t.Fatal("expected P2P peer to match self")
 	}
 }
+
+func TestCanonicalChainBaseURL_prefersPublicAuthorityOverP2P(t *testing.T) {
+	t.Setenv("HACKME_CANONICAL_CHAIN_URL", "")
+	t.Setenv("HACKME_PUBLIC_AUTHORITY_BASE", "https://hackme.tech")
+	t.Setenv("HACKME_P2P_PEERS", "http://10.0.0.5:18080")
+	t.Setenv("HACKME_POOL_COORDINATOR_URL", "")
+	a := &app{}
+	if got := a.canonicalChainBaseURL(); got != "https://hackme.tech" {
+		t.Fatalf("got %q want https://hackme.tech", got)
+	}
+}

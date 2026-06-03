@@ -127,6 +127,9 @@ type app struct {
 	workerID              string
 	workerBatchSize       uint64
 	workerHashrate        float64
+	workerRunningCached   bool
+	workerRunningCacheAt  int64
+	workerRunningCacheMu sync.Mutex
 	canonMu               sync.RWMutex
 	canonHasGenesis       bool
 	canonTipHeight        uint64
@@ -1897,7 +1900,7 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 		a.applyFollowerCanonicalTipSnapshot(statusCtx, statusBody, 900*time.Millisecond)
 	}
 	a.mergeCanonicalEconomicsIntoStatus(statusCtx, statusBody)
-	if !networkModeActive || a.miner.Running() {
+	if !a.miner.Running() && !networkModeActive {
 		a.applyCanonicalChainTipToStatusMap(statusCtx, statusBody)
 		if ct := asUint64(statusBody["canonical_tip_height"]); ct > 0 && strings.TrimSpace(asString(statusBody["canonical_tip_hash"])) != "" {
 			hasG, _ := statusBody["canonical_tip_has_genesis"].(bool)
@@ -1919,7 +1922,7 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 	if tipOk, _ := statusBody["canonical_tip_ok"].(bool); tipOk && canonConfigured {
 		remoteCanon = true
 	}
-	if !remoteCanon && canonConfigured {
+	if !remoteCanon && canonConfigured && !a.miner.Running() {
 		probeCtx, probeCancel := context.WithTimeout(statusCtx, 800*time.Millisecond)
 		_, _, _, remoteCanon = a.fetchCanonicalStatusTip(probeCtx)
 		probeCancel()

@@ -277,6 +277,32 @@ func (a *app) warmWorkStatsCacheAsync(base string, details bool) {
 	}()
 }
 
+var statusOverlayHTTPOnce sync.Once
+var statusOverlayHTTP *http.Client
+
+// statusOverlayHTTPClient is a short-timeout client for canonical /api/status?lite=1 overlays only.
+func statusOverlayHTTPClient() *http.Client {
+	statusOverlayHTTPOnce.Do(func() {
+		tr := &http.Transport{
+			Proxy: nil,
+			DialContext: (&net.Dialer{
+				Timeout:   1500 * time.Millisecond,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			ForceAttemptHTTP2:     false,
+			MaxIdleConns:          32,
+			IdleConnTimeout:       60 * time.Second,
+			TLSHandshakeTimeout:   3 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		}
+		statusOverlayHTTP = &http.Client{
+			Timeout:   2 * time.Second,
+			Transport: tr,
+		}
+	})
+	return statusOverlayHTTP
+}
+
 func coordinatorHTTPClient() *http.Client {
 	coordHTTPOnce.Do(func() {
 		tr := &http.Transport{
@@ -576,15 +602,30 @@ func (a *app) workerProcessRunning() bool {
 	if a == nil {
 		return false
 	}
+	const cacheTTL = 3 * time.Second
+	now := time.Now().Unix()
+	a.workerRunningCacheMu.Lock()
+	if a.workerRunningCacheAt > 0 && now-a.workerRunningCacheAt < int64(cacheTTL.Seconds()) {
+		v := a.workerRunningCached
+		a.workerRunningCacheMu.Unlock()
+		return v
+	}
+	a.workerRunningCacheMu.Unlock()
+
 	a.workerMu.Lock()
 	subprocess := a.workerCmd != nil && a.workerCmd.Process != nil && a.workerCmd.ProcessState == nil
 	dataDir := strings.TrimSpace(a.dataDir)
 	a.workerMu.Unlock()
-	if subprocess {
-		return true
+	running := subprocess
+	if !running {
+		logRoot := filepath.Join(resolveWorkerRepoRoot(dataDir), "logs")
+		running = workerActiveFromLog(logRoot, 120)
 	}
-	logRoot := filepath.Join(resolveWorkerRepoRoot(dataDir), "logs")
-	return workerActiveFromLog(logRoot, 120)
+	a.workerRunningCacheMu.Lock()
+	a.workerRunningCached = running
+	a.workerRunningCacheAt = now
+	a.workerRunningCacheMu.Unlock()
+	return running
 }
 
 func canonicalMiningObservedSec(remote map[string]any) float64 {
@@ -674,7 +715,8 @@ func (a *app) canonicalChainBaseURL() string {
 	if v := strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_CANONICAL_CHAIN_URL")), "/"); v != "" {
 		return v
 	}
-	if v := canonicalPeerBaseURLFromEnv(); v != "" {
+	// Hub/command nodes: public authority wins over follower P2P peer (avoids blocking /api/status on a stale peer).
+	if v := strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_PUBLIC_AUTHORITY_BASE")), "/"); v != "" {
 		return v
 	}
 	if v := inferCanonicalChainBaseFromCoordinatorURL(); v != "" {
@@ -685,7 +727,7 @@ func (a *app) canonicalChainBaseURL() string {
 			return v
 		}
 	}
-	if v := strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_PUBLIC_AUTHORITY_BASE")), "/"); v != "" {
+	if v := canonicalPeerBaseURLFromEnv(); v != "" {
 		return v
 	}
 	return ""
@@ -1001,8 +1043,10 @@ func (a *app) fetchCanonicalStatusTip(ctx context.Context) (hasGenesis bool, tip
 	if err != nil {
 		return false, 0, "", false
 	}
-	u := statusURL
-	resp, err := coordinatorHTTPClient().Do(req)
+	if ctx.Err() != nil {
+		return false, 0, "", false
+	}
+	resp, err := statusOverlayHTTPClient().Do(req)
 	if err == nil && resp != nil {
 		defer resp.Body.Close()
 		if resp.StatusCode == http.StatusOK {
@@ -1016,28 +1060,8 @@ func (a *app) fetchCanonicalStatusTip(ctx context.Context) (hasGenesis bool, tip
 			}
 		}
 	}
-	// On some VPN/mobile setups Go's HTTPS path can flap while curl still succeeds.
-	curlTimeout := 6 * time.Second
-	if deadline, ok := ctx.Deadline(); ok {
-		if d := time.Until(deadline); d > 0 && d < curlTimeout {
-			curlTimeout = d
-		}
-	}
-	curlCtx, cancel := context.WithTimeout(context.Background(), curlTimeout)
-	defer cancel()
-	parsed, curlErr := fetchJSONViaCurl(curlCtx, u, nil)
-	if curlErr != nil {
-		return false, 0, "", false
-	}
-	tip := strings.TrimSpace(asString(parsed["tip_hash"]))
-	if tip == "" {
-		return false, 0, "", false
-	}
-	hasGen := false
-	if b, ok := parsed["has_genesis"].(bool); ok {
-		hasGen = b
-	}
-	return hasGen, asUint64(parsed["tip_height"]), tip, true
+	// No curl subprocess: it ignored parent deadlines and fork-stormed the hub under public /api/status load.
+	return false, 0, "", false
 }
 
 // applyCanonicalChainTipToMap adds canonical_peer tip fields for /api/global/metrics without replacing local SQLite tip_height.
