@@ -1,7 +1,7 @@
 # BitcoinTalk — AGPLv3 update & project protection
 
 **Language:** English (forum standard)  
-**Release:** `0.1.0-rc11j`  
+**Release:** `0.1.0-rc11k` (current downloads)  
 **Thread:** reply in [ANN] HackMe · hackme.tech
 
 ---
@@ -35,7 +35,7 @@ HackMe → AGPLv3: fork our public pool = open your server code too.
 HackMe™ brand protected. New ISO fixes casper panic 0x100.
 Windows: repair_hackme_env.bat (no more 28s cooldown trap).
 SHA256 + downloads ONLY: hackme.tech/downloads.html
-ISO: 43abb592d7e4222f8d47d528d0b8ec190958cdb91a4441cc56395b3f667d6125
+ISO: fc1b0ff4446262a415f2a99b9a9da4840f17777e0761667ec90e363372fb76d1
 ```
 
 ---
@@ -47,7 +47,7 @@ The live post lives in **BITCOINTALK_AGPL_BBCode.txt**. Below is a plain preview
 ### Hero
 
 **HackMe Network — Major Update**  
-AGPLv3 · Brand protection · ISO boot fix · Windows fairness · `0.1.0-rc11j`
+AGPLv3 · Brand protection · ISO boot fix · Windows fairness · `0.1.0-rc11k`
 
 Open client you can audit · Protected official pool · Verify SHA256 before you mine
 
@@ -63,10 +63,10 @@ Open client you can audit · Protected official pool · Verify SHA256 before you
 ### Current ISO checksum
 
 ```text
-43abb592d7e4222f8d47d528d0b8ec190958cdb91a4441cc56395b3f667d6125  HackMe-OS-0.1.0-rc11j-amd64.iso
+fc1b0ff4446262a415f2a99b9a9da4840f17777e0761667ec90e363372fb76d1  HackMe-OS-0.1.0-rc11k-amd64.iso
 ```
 
-Official sums: https://hackme.tech/dist/release_0.1.0-rc11j/SHA256SUMS-iso.txt
+Official sums: https://hackme.tech/dist/release_0.1.0-rc11k/SHA256SUMS-iso.txt
 
 ---
 

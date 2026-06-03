@@ -12,7 +12,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "$ROOT/scripts/tests/common.sh"
 
 SITE="${SITE_BASE:-https://hackme.tech}"
-VERSION="${VERSION:-0.1.0-rc11j}"
+VERSION="${VERSION:-0.1.0-rc11k}"
 REL="release_${VERSION}"
 DIST_URL="$SITE/dist/$REL"
 COORD="${COORD_URL:-${SITE%/}/pool/coordinator}"

@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SITE="${SITE_BASE:-https://hackme.tech}"
-VERSION="${VERSION:-0.1.0-rc11j}"
+VERSION="${VERSION:-0.1.0-rc11k}"
 REL="release_${VERSION}"
 DIST_URL="$SITE/dist/$REL"
 WORKDIR="${WORKDIR:-/tmp/hackme-miner-journey-$$}"

@@ -13,7 +13,7 @@ cd "$ROOT"
 # shellcheck source=scripts/ops/_deploy_ssh_retry.sh
 source "$ROOT/scripts/ops/_deploy_ssh_retry.sh"
 
-VERSION="${VERSION:-0.1.0-rc11j}"
+VERSION="${VERSION:-0.1.0-rc11k}"
 NODE_SSH="${NODE_SSH:-}"
 NODE_DEPLOY_DIR="${NODE_DEPLOY_DIR:-/opt/hackme}"
 DIST="${ROOT}/dist/release_${VERSION}"

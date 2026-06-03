@@ -5,7 +5,14 @@
     <link>https://hackme.tech/news.html</link>
     <description>Official HackMe Network release, infrastructure, economics, and security updates.</description>
     <language>en-us</language>
-    <lastBuildDate>Mon, 02 Jun 2026 22:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Tue, 03 Jun 2026 12:00:00 GMT</lastBuildDate>
+    <item>
+      <title>Release 0.1.0-rc11k — launch candidate (production miner)</title>
+      <link>https://hackme.tech/news.html#2026-06-03-rc11k-launch-candidate</link>
+      <guid>https://hackme.tech/news.html#2026-06-03-rc11k-launch-candidate</guid>
+      <pubDate>Tue, 03 Jun 2026 12:00:00 GMT</pubDate>
+      <description>Production download channel: /api/status fix, coordinator telemetry, rc11k Windows Setup, Linux bundle, HackMe OS ISO on hackme.tech/downloads.html.</description>
+    </item>
     <item>
       <title>Release 0.1.0-rc11j — GPU matrix final (CUDA fallback, ISO, Windows Setup)</title>
       <link>https://hackme.tech/news.html#2026-06-02-rc11j-gpu-matrix-final</link>
