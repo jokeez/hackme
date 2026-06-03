@@ -1,0 +1,22 @@
+#!/bin/sh
+# Load live-boot filesystem modules before casper-premount (fixes "overlay … no support found").
+PREREQ=""
+
+prereqs() { echo "$PREREQ"; }
+
+case "$1" in
+prereqs)
+  prereqs
+  exit 0
+  ;;
+esac
+
+for m in zstd lz4 lzma2 xz squashfs loop overlay isofs iso9660 udf vfat ext4 sd_mod usb_storage; do
+  modprobe "$m" 2>/dev/null || true
+done
+
+if ! grep -q overlay /proc/filesystems 2>/dev/null; then
+  echo "hackme-live: overlay still missing after modprobe" >/dev/kmsg 2>/dev/null || true
+fi
+
+exit 0

@@ -57,7 +57,15 @@ if [[ -d "$ISO_OVERLAY" ]]; then
 fi
 printf '%s' "$POOL_TOKEN" >"$CHROOT/tmp/pool.token"
 
-cp "$(dirname "$0")/chroot-install.sh" "$CHROOT/tmp/chroot-install.sh"
+CHROOT_INSTALL="${ISO_SCRIPTS}/chroot-install.sh"
+if [[ ! -f "$CHROOT_INSTALL" ]]; then
+  CHROOT_INSTALL="$(dirname "$0")/chroot-install.sh"
+fi
+if [[ ! -f "$CHROOT_INSTALL" ]]; then
+  echo "[iso-inner] missing chroot-install.sh (ISO_SCRIPTS=$ISO_SCRIPTS)" >&2
+  exit 1
+fi
+cp "$CHROOT_INSTALL" "$CHROOT/tmp/chroot-install.sh"
 chmod +x "$CHROOT/tmp/chroot-install.sh"
 chroot "$CHROOT" bash /tmp/chroot-install.sh
 
@@ -108,18 +116,29 @@ cp "$INITRD" "$ISO_TREE/casper/initrd"
 du -sh "$ISO_TREE/casper/filesystem.squashfs"
 
 if command -v lsinitramfs >/dev/null 2>&1; then
-  if lsinitramfs "$INITRD" 2>/dev/null | grep -qE 'scripts/casper|scripts/casper-bottom'; then
+  IR_LIST="$(mktemp)"
+  lsinitramfs "$INITRD" >"$IR_LIST" 2>/dev/null || true
+  if grep -Eq 'scripts/casper|scripts/casper-bottom' "$IR_LIST" 2>/dev/null; then
     echo "[iso-inner] PASS initrd has casper hook"
   else
     echo "[iso-inner] FAIL initrd missing casper — ISO will not boot live" >&2
     exit 1
   fi
-  if lsinitramfs "$INITRD" 2>/dev/null | grep -q 'overlay.ko'; then
+  if grep -Fq 'overlay.ko' "$IR_LIST" 2>/dev/null; then
     echo "[iso-inner] PASS initrd includes overlay.ko"
   else
     echo "[iso-inner] FAIL initrd missing overlay.ko — live boot will panic" >&2
+    rm -f "$IR_LIST"
     exit 1
   fi
+  if grep -Fq 'hackme-overlay-modules' "$IR_LIST" 2>/dev/null; then
+    echo "[iso-inner] PASS initrd includes hackme-overlay-modules premount"
+  else
+    echo "[iso-inner] FAIL initrd missing hackme-overlay-modules" >&2
+    rm -f "$IR_LIST"
+    exit 1
+  fi
+  rm -f "$IR_LIST"
 fi
 
 mkdir -p "$ISO_TREE/.disk"
@@ -161,6 +180,11 @@ rm -f "$OUT_ISO"
 echo "[iso-inner] grub-mkrescue → ${OUT_ISO}"
 grub-mkrescue -o "$OUT_ISO" "$ISO_TREE" -- \
   -volid "HACKME_OS_${VERSION}" 2>&1 | tail -5
+
+if command -v isohybrid >/dev/null 2>&1; then
+  echo "[iso-inner] isohybrid (USB whole-disk boot / GPT-friendly MBR)"
+  isohybrid --uefi "$OUT_ISO" 2>/dev/null || isohybrid "$OUT_ISO" 2>/dev/null || true
+fi
 
 {
   sha256sum "$OUT_ISO" | awk -v f="$(basename "$OUT_ISO")" '{print $1"  "f}'

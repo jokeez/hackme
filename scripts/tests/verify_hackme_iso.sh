@@ -45,6 +45,25 @@ else
   echo "[verify-iso] FAIL: missing casper/vmlinuz" >&2
   exit 4
 fi
+if command -v 7z >/dev/null 2>&1 && command -v lsinitramfs >/dev/null 2>&1; then
+  IR_TMP="$(mktemp -d)"
+  if 7z x -y -o"$IR_TMP" "$ISO_PATH" casper/initrd >/dev/null 2>&1; then
+    lsinitramfs "$IR_TMP/casper/initrd" >"$IR_TMP/initrd.ls" 2>/dev/null || true
+    if grep -Fq 'hackme-overlay-modules' "$IR_TMP/initrd.ls" 2>/dev/null; then
+      echo "[verify-iso] PASS initrd hackme-overlay-modules premount"
+    else
+      echo "[verify-iso] FAIL: initrd missing hackme-overlay-modules (overlay boot broken)" >&2
+      exit 13
+    fi
+    if grep -Fq 'overlay.ko' "$IR_TMP/initrd.ls" 2>/dev/null; then
+      echo "[verify-iso] PASS initrd overlay.ko"
+    else
+      echo "[verify-iso] FAIL: initrd missing overlay.ko" >&2
+      exit 14
+    fi
+  fi
+  rm -rf "$IR_TMP"
+fi
 if grep -aq 'filesystem.squashfs' "$ISO_PATH" 2>/dev/null; then
   echo "[verify-iso] PASS casper squashfs"
 else

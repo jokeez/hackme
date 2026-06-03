@@ -22,7 +22,7 @@ rm -f "$LOG"
 echo "[iso-qemu] boot ISO mode=$BOOT_MODE timeout=${TIMEOUT_SEC}s"
 echo "[iso-qemu] log=$LOG"
 
-panic_patterns='kernel panic|exitcode=0x100|Unable to find live|failed to mount.*squashfs|/init: can.t open /root/dev'
+panic_patterns='kernel panic|exitcode=0x100|Unable to find live|failed to mount.*squashfs|/init: can.t open /root/dev|/cow format specified as .overlay. and no support found|overlay.*no support found'
 
 run_qemu() {
   timeout "$TIMEOUT_SEC" qemu-system-x86_64 \
@@ -68,6 +68,12 @@ fi
 
 if grep -qiE 'username=root' "$LOG" 2>/dev/null || grep -aq 'username=root' "${ISO}" 2>/dev/null; then
   echo "[iso-qemu] WARN: ISO still uses username=root (casper panic risk on hardware)" >&2
+fi
+
+if grep -qiE 'overlay.*no support found|/cow format specified' "$LOG" 2>/dev/null; then
+  echo "[iso-qemu] FAIL: casper overlay not available (rebuild ISO with hackme-overlay-modules)" >&2
+  grep -iE 'overlay|/cow' "$LOG" | tail -n 15 >&2 || true
+  exit 1
 fi
 
 if grep -qi '(initramfs)' "$LOG" 2>/dev/null && ! grep -qiE 'systemd|login:' "$LOG" 2>/dev/null; then

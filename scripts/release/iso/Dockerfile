@@ -6,6 +6,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     grub-pc-bin grub-efi-amd64-bin \
     ca-certificates rsync \
   && rm -rf /var/lib/apt/lists/*
+ARG CACHEBUST=1
 COPY build_inner.sh chroot-install.sh /build/
 RUN chmod +x /build/build_inner.sh /build/chroot-install.sh
 WORKDIR /build

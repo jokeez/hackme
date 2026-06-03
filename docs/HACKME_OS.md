@@ -58,7 +58,7 @@ bash scripts/tests/verify_hackme_iso.sh /path/to/HackMe-OS-0.1.0-rc11k-amd64.iso
 ```
 
 Published SHA256: `https://hackme.tech/dist/release_0.1.0-rc11k/SHA256SUMS-iso.txt`  
-Expected: `43abb592d7e4222f8d47d528d0b8ec190958cdb91a4441cc56395b3f667d6125` (874 442 752 bytes)
+Expected SHA256: see `SHA256SUMS-iso.txt` next to the ISO (rc11k: `fc1b0ff4446262a415f2a99b9a9da4840f17777e0761667ec90e363372fb76d1`, ~838 MiB). Rebuild after overlay-boot fixes changes the hash — always verify the sums file you downloaded.
 
 Re-flash with Balena Etcher (verify SHA256), boot **only** that USB, disable other OS entries in BIOS if needed.
 

@@ -61,6 +61,12 @@ if [[ -d /tmp/iso-overlay ]]; then
   cp -a /tmp/iso-overlay/etc/. /etc/
 fi
 
+mkdir -p /etc/initramfs-tools/scripts/local-premount
+if [[ -f /tmp/iso-overlay/etc/initramfs-tools/scripts/local-premount/hackme-overlay-modules ]]; then
+  install -m 0755 /tmp/iso-overlay/etc/initramfs-tools/scripts/local-premount/hackme-overlay-modules \
+    /etc/initramfs-tools/scripts/local-premount/hackme-overlay-modules
+fi
+
 mkdir -p /etc/hackme /var/lib/hackme
 chmod 700 /etc/hackme /var/lib/hackme
 if [[ -f /tmp/pool.token ]]; then
@@ -139,19 +145,12 @@ if [[ -f /tmp/iso-overlay/etc/initramfs-tools/hooks/hackme-live-modules ]]; then
 fi
 
 echo "[chroot] initramfs + kernel (live-boot + casper hooks)"
-if [[ ! -x /usr/share/initramfs-tools/scripts/casper ]]; then
+if ! ls /usr/share/initramfs-tools/hooks/*casper* >/dev/null 2>&1; then
   echo "[chroot] WARN: casper initramfs hook missing — installing live-boot again" >&2
   apt-get install -y --no-install-recommends live-boot casper || true
 fi
 update-initramfs -c -k all 2>/dev/null || update-initramfs -u -k all
-INITRD_CHECK="$(ls -1 /boot/initrd.img-* 2>/dev/null | sort -V | tail -1)"
-if [[ -n "$INITRD_CHECK" ]] && command -v lsinitramfs >/dev/null 2>&1; then
-  if lsinitramfs "$INITRD_CHECK" 2>/dev/null | grep -qE 'scripts/casper|scripts/casper-bottom'; then
-    echo "[chroot] initrd includes casper live hook"
-  else
-    echo "[chroot] WARN: initrd may lack casper — check live-boot package" >&2
-  fi
-fi
+# Initrd content checks run in build_inner.sh on the host (pipefail + chroot grep quirks).
 apt-get clean
 rm -rf /var/lib/apt/lists/*
 
