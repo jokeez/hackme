@@ -28,6 +28,30 @@ cat >"$cases_file" <<JSONL
 {"id":"tx-invalid-signature","kind":"json","body":{"tx_type":"transfer_v1","from":"HMC-a","to":"HMC-b","amount_units":1,"fee_units":1000,"nonce":0,"timestamp_unix":$NOW_TS,"pubkey_ed25519":"00","sig_ed25519":"00"},"expect_http":400,"expect_code":"invalid_signature"}
 JSONL
 
+python3 - "$cases_file" "$NOW_TS" <<'PY' >>"$cases_file"
+import json, sys, time
+path, now = sys.argv[1], int(sys.argv[2])
+memo256 = "я" * 128
+memo257 = "я" * 129
+base = {
+    "tx_type": "transfer_v1",
+    "from": "HMC-aaaaaaaaaaaaaaaa",
+    "to": "HMC-bbbbbbbbbbbbbbbb",
+    "amount_units": 1,
+    "fee_units": 1000,
+    "nonce": 0,
+    "timestamp_unix": now,
+    "pubkey_ed25519": "00",
+    "sig_ed25519": "00",
+}
+for mid, memo, expect_code in [
+    ("tx-memo-256-cyrillic", memo256, "invalid_signature"),
+    ("tx-memo-257-cyrillic", memo257, "invalid_memo"),
+]:
+    body = dict(base, memo=memo)
+    print(json.dumps({"id": mid, "kind": "json", "body": body, "expect_http": 400, "expect_code": expect_code}, separators=(",", ":")))
+PY
+
 if [[ -n "${SIGNED_TX_JSON:-}" && -f "${SIGNED_TX_JSON:-}" ]]; then
   jq -c '{id:"tx-valid-signed",kind:"json",body:.,expect_http:200,expect_ok:true}' "$SIGNED_TX_JSON" >>"$cases_file"
 fi
@@ -50,7 +74,7 @@ run_case() {
   else
     http="$(curl -sS -o "$tmp_resp" -w '%{http_code}' -X POST "$BASE/api/tx/send" -H "Content-Type: application/json" -d "$body" || true)"
   fi
-  body_resp="$(<"$tmp_resp")"
+  body_resp="$(cat "$tmp_resp" 2>/dev/null || true)"
   code="$(jq -r '.code // empty' "$tmp_resp" 2>/dev/null || true)"
   ok="$(jq -r '.ok // false' "$tmp_resp" 2>/dev/null || true)"
   verdict="pass"

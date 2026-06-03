@@ -358,6 +358,14 @@ func (m *Miner) Running() bool {
 	return m.running.Load()
 }
 
+// SetRunningForTest pins the running flag for unit tests (avoids full PoH batch completing in <1s).
+func (m *Miner) SetRunningForTest(on bool) {
+	if m == nil {
+		return
+	}
+	m.running.Store(on)
+}
+
 // Stop cancels background search.
 func (m *Miner) Stop() {
 	if !m.running.Load() {

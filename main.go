@@ -1568,8 +1568,9 @@ func (a *app) handleWalletEarnings(w http.ResponseWriter, r *http.Request) {
 	canonAttempted := false
 	canonOK := false
 	// Followers overlay canonical earnings; desktop always uses canonical even when local PoH miner runs.
-	// Command leaders keep local ledger while mining to avoid self-proxy loops.
-	useCanonEarnings := a.shouldUseCanonicalChainAPI() && a.networkModeActive() &&
+	// Command leaders keep local ledger while mining (never proxy earnings mid-round).
+	forceLocalEarnings := a.miner.Running() && !envBool("HACKME_DESKTOP_MODE", false)
+	useCanonEarnings := !forceLocalEarnings && a.shouldUseCanonicalChainAPI() && a.networkModeActive() &&
 		(!a.miner.Running() || envBool("HACKME_DESKTOP_MODE", false))
 	if useCanonEarnings {
 		if base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/"); base != "" {

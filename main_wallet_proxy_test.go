@@ -154,16 +154,12 @@ func TestHandleWalletEarningsUsesLocalLedgerWhileMiningWhenNetworked(t *testing.
 	defer peer.Close()
 
 	t.Setenv("HACKME_CANONICAL_CHAIN_URL", peer.URL)
+	t.Setenv("HACKME_DESKTOP_MODE", "0")
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	miner := &chain.Miner{}
+	miner := chain.NewMiner(0.01, nil, nil, chain.InternalTaskProvider{})
 	a.miner = miner
-	miner.Start(ctx)
-	defer miner.Stop()
-	if !miner.Running() {
-		t.Fatal("expected miner running for test premise")
-	}
+	miner.SetRunningForTest(true)
+	defer miner.SetRunningForTest(false)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/wallet/earnings?window_hours=24&bucket_sec=3600", nil)
 	rec := httptest.NewRecorder()

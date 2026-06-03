@@ -96,6 +96,12 @@ python3 "$ROOT/scripts/tests/tools/coordinator_mega_stress.py" \
   --report-dir "$REPORT_DIR" \
   --root "$ROOT"
 
+if grep -Eqi 'database is locked|SQLITE_BUSY|panic:' "$COORD_LOG"; then
+  echo "[mega-stress] FAIL: coordinator log contains sqlite lock or panic" >&2
+  grep -Ei 'database is locked|SQLITE_BUSY|panic:' "$COORD_LOG" | tail -20 >&2 || true
+  exit 1
+fi
+
 ln -sfn "$REPORT_DIR" "$ROOT/reports/coordinator-mega-stress-LATEST"
 cp -f "$REPORT_DIR/MEGA_STRESS_REPORT.md" "$ROOT/reports/COORDINATOR_MEGA_STRESS_REPORT.md" 2>/dev/null || true
 
