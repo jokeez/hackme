@@ -717,6 +717,52 @@ func canonicalBaseWouldLoopbackProxy(r *http.Request, base string) bool {
 	return false
 }
 
+// canonicalPeerStatusURL is the fast status path for in-process HTTP overlays (no coordinator fan-out).
+func canonicalPeerStatusURL(base string) string {
+	base = strings.TrimRight(strings.TrimSpace(base), "/")
+	if base == "" {
+		return ""
+	}
+	return base + "/api/status?lite=1"
+}
+
+// canonicalBaseIsSelfNode reports when an outbound canonical /api/status would hit this same command node (P2P peer, public authority, or bind addr).
+func (a *app) canonicalBaseIsSelfNode(base string) bool {
+	base = strings.TrimRight(strings.TrimSpace(base), "/")
+	if base == "" {
+		return false
+	}
+	if pub := strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_PUBLIC_AUTHORITY_BASE")), "/"); pub != "" && strings.EqualFold(pub, base) {
+		return true
+	}
+	if peer := strings.TrimRight(canonicalPeerBaseURLFromEnv(), "/"); peer != "" && strings.EqualFold(peer, base) {
+		return true
+	}
+	if bind := strings.TrimSpace(os.Getenv("HACKME_BIND_ADDR")); bind != "" {
+		u, err := neturl.Parse(base)
+		if err != nil {
+			return false
+		}
+		canonHost := strings.ToLower(strings.TrimSpace(u.Host))
+		bindHost := strings.ToLower(bind)
+		if canonHost == bindHost {
+			return true
+		}
+		if strings.HasPrefix(bindHost, "0.0.0.0:") {
+			port := bindHost[len("0.0.0.0:"):]
+			if canonHost == "127.0.0.1:"+port || canonHost == "localhost:"+port {
+				return true
+			}
+		}
+	}
+	if a != nil {
+		if inf := strings.TrimRight(inferCommandNodeBaseFromCoordinatorURL(a.coordinatorBaseURL()), "/"); inf != "" && strings.EqualFold(inf, base) {
+			return true
+		}
+	}
+	return false
+}
+
 // shouldUseCanonicalChainAPI is true for pool followers / desktop public mode: read and submit transfers against canonical chain, not empty local SQLite.
 func (a *app) shouldUseCanonicalChainAPI() bool {
 	if a == nil {
@@ -943,11 +989,19 @@ func (a *app) fetchCanonicalStatusTip(ctx context.Context) (hasGenesis bool, tip
 	if base == "" {
 		return false, 0, "", false
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(base, "/")+"/api/status", nil)
+	if a.canonicalBaseIsSelfNode(base) {
+		has, h, tip, _ := a.chainTipForStatus(ctx)
+		if strings.TrimSpace(tip) != "" {
+			return has, h, tip, true
+		}
+		return false, 0, "", false
+	}
+	statusURL := canonicalPeerStatusURL(base)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, statusURL, nil)
 	if err != nil {
 		return false, 0, "", false
 	}
-	u := strings.TrimRight(base, "/") + "/api/status"
+	u := statusURL
 	resp, err := coordinatorHTTPClient().Do(req)
 	if err == nil && resp != nil {
 		defer resp.Body.Close()

@@ -1710,7 +1710,7 @@ func (a *app) mergeCanonicalEconomicsIntoStatus(ctx context.Context, statusBody 
 		return
 	}
 	base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/")
-	if base == "" {
+	if base == "" || a.canonicalBaseIsSelfNode(base) {
 		return
 	}
 	u, err := url.Parse(base)
@@ -1721,11 +1721,11 @@ func (a *app) mergeCanonicalEconomicsIntoStatus(ctx context.Context, statusBody 
 	if host == "127.0.0.1:8080" || host == "localhost:8080" {
 		return
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/status", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, canonicalPeerStatusURL(base), nil)
 	if err != nil {
 		return
 	}
-	client := &http.Client{Timeout: 4 * time.Second}
+	client := &http.Client{Timeout: 2 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil || resp == nil {
 		return
@@ -1894,28 +1894,10 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 		statusBody["tip_read_stale"] = true
 	}
 	if networkModeActive && !a.miner.Running() {
-		// Canonical snapshot for pool/network dashboards — never replaces local SQLite tip_height.
-		if hasC, hC, tipC, ok := a.readCanonicalTipCache(); ok {
-			statusBody["canonical_tip_height"] = hC
-			statusBody["canonical_tip_hash"] = tipC
-			statusBody["canonical_tip_has_genesis"] = hasC
-			statusBody["canonical_tip_ok"] = true
-			statusBody["canonical_tip_sync_source"] = "canonical_peer_cache"
-		}
-		quickCtx, quickCancel := context.WithTimeout(ctx, 900*time.Millisecond)
-		hasGen, hNow, tipNow, okNow := a.fetchCanonicalStatusTip(quickCtx)
-		quickCancel()
-		if okNow && strings.TrimSpace(tipNow) != "" {
-			statusBody["canonical_tip_height"] = hNow
-			statusBody["canonical_tip_hash"] = tipNow
-			statusBody["canonical_tip_has_genesis"] = hasGen
-			statusBody["canonical_tip_ok"] = true
-			statusBody["canonical_tip_sync_source"] = "canonical_peer"
-			a.cacheCanonicalTip(hasGen, hNow, tipNow)
-		}
-		a.mergeCanonicalEconomicsIntoStatus(statusCtx, statusBody)
-	} else {
-		a.mergeCanonicalEconomicsIntoStatus(statusCtx, statusBody)
+		a.applyFollowerCanonicalTipSnapshot(statusCtx, statusBody, 900*time.Millisecond)
+	}
+	a.mergeCanonicalEconomicsIntoStatus(statusCtx, statusBody)
+	if !networkModeActive || a.miner.Running() {
 		a.applyCanonicalChainTipToStatusMap(statusCtx, statusBody)
 		if ct := asUint64(statusBody["canonical_tip_height"]); ct > 0 && strings.TrimSpace(asString(statusBody["canonical_tip_hash"])) != "" {
 			hasG, _ := statusBody["canonical_tip_has_genesis"].(bool)
@@ -1938,7 +1920,7 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 		remoteCanon = true
 	}
 	if !remoteCanon && canonConfigured {
-		probeCtx, probeCancel := context.WithTimeout(ctx, 2*time.Second)
+		probeCtx, probeCancel := context.WithTimeout(statusCtx, 800*time.Millisecond)
 		_, _, _, remoteCanon = a.fetchCanonicalStatusTip(probeCtx)
 		probeCancel()
 	}
@@ -2020,14 +2002,7 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.attachPoolLaneCached(statusBody)
-	if asUint64(statusBody["pool_target_mod"]) == 0 {
-		if coord := strings.TrimRight(strings.TrimSpace(a.coordinatorBaseURL()), "/"); coord != "" {
-			laneCtx, laneCancel := context.WithTimeout(ctx, 700*time.Millisecond)
-			a.attachPoolLaneToStatus(laneCtx, statusBody)
-			laneCancel()
-			a.warmWorkStatsCacheAsync(coord, false)
-		}
-	} else if coord := strings.TrimRight(strings.TrimSpace(a.coordinatorBaseURL()), "/"); coord != "" {
+	if coord := strings.TrimRight(strings.TrimSpace(a.coordinatorBaseURL()), "/"); coord != "" {
 		a.warmWorkStatsCacheAsync(coord, false)
 	}
 	applyDisplayTipHeight(statusBody)

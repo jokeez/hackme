@@ -80,7 +80,7 @@ log ""
 
 log "--- 2) Public stack (as in browser / first open) ---"
 probe_http "site_root" "${BASE%/}/" || fail "site root unreachable"
-probe_http "api_status" "${BASE%/}/api/status" || fail "public /api/status failed"
+probe_http "api_status" "${BASE%/}/api/status?lite=1" || fail "public /api/status?lite=1 failed"
 probe_http "api_global" "${BASE%/}/api/global/metrics" || warn "global metrics failed (non-fatal)"
 probe_http "coord_work_stats" "${COORD_URL%/}/api/work/stats" || fail "coordinator work/stats failed"
 probe_http "coord_work_details" "${COORD_URL%/}/api/work/stats?details=1" || warn "work/stats?details=1 failed"
@@ -102,7 +102,7 @@ log ""
 
 log "--- 4) Desktop path (participant with local dashboard) ---"
 log "  Simulates: download -> .env.desktop -> desktop_mode_up -> Start worker"
-if [[ -f "$ROOT_DIR/.env.desktop" ]] && curl -fsS --max-time 5 http://127.0.0.1:8080/api/status >/dev/null 2>&1; then
+if [[ -f "$ROOT_DIR/.env.desktop" ]] && curl -fsS --max-time 5 'http://127.0.0.1:8080/api/status?lite=1' >/dev/null 2>&1; then
   loc="$(curl -fsS --max-time 8 http://127.0.0.1:8080/api/worker/status 2>/dev/null | jq -c '{running,worker_id,measured_hashrate_gh_s,external_worker}' 2>/dev/null || echo '{}')"
   log "  local dashboard: $loc"
 else

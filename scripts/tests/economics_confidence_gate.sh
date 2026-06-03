@@ -121,7 +121,7 @@ def get(url, timeout=25):
         return {"_error": str(e)}
 
 def econ_block(label, base):
-    st = get(f"{base}/api/status") or get(f"{base}/api/status?lite=1")
+    st = get(f"{base}/api/status?lite=1", timeout=12) or get(f"{base}/api/status", timeout=25)
     m = get(f"{base}/api/metrics")
     ec = st.get("economics") if isinstance(st.get("economics"), dict) else {}
     if not ec and isinstance(st, dict):
