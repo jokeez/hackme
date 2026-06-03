@@ -56,6 +56,8 @@ export HACKME_POOL_COORDINATOR_URL="$COORD_URL"
 export HACKME_POOL_COORDINATOR_TOKEN="$ADMIN_TOKEN"
 export HACKME_NETWORK_MOCK=0
 export HACKME_BIND_ADDR="$NODE_ADDR"
+export HACKME_DATA_DIR="$LOG_DIR/node-data"
+mkdir -p "$HACKME_DATA_DIR"
 
 nohup "$NODE_BIN" >"$LOG_DIR/node.log" 2>&1 &
 echo $! >"$LOG_DIR/node.pid"

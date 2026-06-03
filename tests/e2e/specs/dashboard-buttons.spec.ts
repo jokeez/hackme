@@ -72,26 +72,37 @@ test.describe('Dashboard UI buttons and API wiring', () => {
     expect(body.id || body.task_id).toBeTruthy();
   });
 
-  test('Fuzz create then start posts campaign status', async ({ page }) => {
+  test('Fuzz create then start posts campaign status', async ({ page, request }) => {
+    const cid = `campaign-ui-e2e-${Date.now()}`;
+    const hdrs = { 'X-Hackme-Admin-Token': ADMIN, 'Content-Type': 'application/json' };
+    const seeded = await request.post('/api/fuzz/campaigns', {
+      headers: hdrs,
+      data: {
+        id: cid,
+        campaign_type: 'fuzz',
+        status: 'planned',
+        title: 'e2e fuzz',
+        budget_runs: 50,
+        owner_ref: 'hackme:security-note-01',
+        task_id: 'order-security-script-push-001',
+      },
+    });
+    expect(seeded.ok(), `seed create HTTP ${seeded.status()}`).toBeTruthy();
+
+    await page.fill('#admin-token-input', ADMIN);
+    await page.click('#btn-admin-token-save');
     await page.click('#tab-bar .tab-btn[data-tab="fuzz"]');
-    const createReq = page.waitForRequest(
-      (r) => r.method() === 'POST' && r.url().includes('/api/fuzz/campaigns') && !r.url().includes('/status'),
-      { timeout: 20_000 }
-    );
-    await page.click('#btn-fuzz-create');
-    await createReq;
-    const row = page.locator('#fuzz-campaign-rows tr[data-campaign-id]').first();
+    const row = page.locator(`#fuzz-campaign-rows tr[data-campaign-id="${cid}"]`);
     await expect(row).toBeVisible({ timeout: 20_000 });
     await row.click();
-    await expect(page.locator('#fuzz-selected-id')).not.toHaveText(/^—/, { timeout: 15_000 });
+    await expect(page.locator('#fuzz-selected-id')).toContainText(cid, { timeout: 10_000 });
     const statusReq = page.waitForRequest(
-      (r) => r.method() === 'POST' && /\/api\/fuzz\/campaigns\/[^/]+\/status$/.test(r.url()),
+      (r) => r.method() === 'POST' && r.url().includes(`/api/fuzz/campaigns/${encodeURIComponent(cid)}/status`),
       { timeout: 20_000 }
     );
     await page.click('#btn-fuzz-quick-running');
     const req = await statusReq;
-    const body = req.postDataJSON();
-    expect(body?.status).toBe('running');
+    expect(req.postDataJSON()?.status).toBe('running');
   });
 
   test('Mining calculator GH/s slider stays capped', async ({ page }) => {
