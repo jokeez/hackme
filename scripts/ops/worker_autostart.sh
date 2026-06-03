@@ -335,9 +335,9 @@ PY
     worker_run_loop_slot "$slot_worker_id" "$slot_backend" "$slot_dev" "${slot_batch:-$BATCH_SIZE}" "${slot_chunk:-$GPU_CHUNK}" "${slot_timeout:-$SEARCH_TIMEOUT_MS}"
   ) &
   fleet_pids+=("$!")
-done < <(echo "$plan_json" | python3 - "$WORKER_ID" "$BATCH_SIZE" "$GPU_CHUNK" "$SEARCH_TIMEOUT_MS" <<'PY'
+done < <(PLAN_JSON="$plan_json" python3 - "$WORKER_ID" "$BATCH_SIZE" "$GPU_CHUNK" "$SEARCH_TIMEOUT_MS" <<'PY'
 import json, os, shlex, sys
-plan = json.load(sys.stdin)
+plan = json.loads(os.environ["PLAN_JSON"])
 base = sys.argv[1]
 def_batch = sys.argv[2]
 def_chunk = sys.argv[3]
