@@ -347,17 +347,8 @@ else
 fi
 
 if [[ "${DESKTOP_PROFILE}" == "worker" && "${WORKER_AUTOSTART}" == "1" ]]; then
-  coord_url_for_start="${HACKME_POOL_COORDINATOR_URL:-}"
-  if [[ -z "$coord_url_for_start" ]]; then
-    coord_url_for_start="$(curl -fsS "$BASE_URL/api/status" | python3 -c 'import sys,json; d=json.load(sys.stdin); print((d.get("pool_coordinator_url_effective") or d.get("pool_coordinator_url") or "").strip())' 2>/dev/null || true)"
-  fi
-  [[ -n "$coord_url_for_start" ]] || coord_url_for_start="$COORD_URL"
-  export _HM_DESKTOP_COORD_URL="$coord_url_for_start"
-  curl -fsS -X POST "$BASE_URL/api/worker/start" \
-    -H "Content-Type: application/json" \
-    -H "X-Hackme-Admin-Token: ${HACKME_ADMIN_TOKEN}" \
-    -d "$(python3 -c 'import json,os; print(json.dumps({"coord_url": os.environ.get("_HM_DESKTOP_COORD_URL","")}))')" >/dev/null 2>&1 || true
-  unset _HM_DESKTOP_COORD_URL
+  echo "[desktop-up] golden path: GPU detect + pool worker..."
+  bash "$ROOT_DIR/scripts/ops/desktop_worker_reset.sh" || true
 fi
 
 echo "[desktop-up] pid_file=$PID_FILE log_file=$NODE_LOG_FILE env_file=$DESKTOP_ENV_FILE"

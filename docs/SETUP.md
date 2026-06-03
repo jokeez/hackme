@@ -5,6 +5,30 @@ Official coordinator: `https://hackme.tech/pool/coordinator`
 
 ---
 
+## Golden path (recommended — ~2 minutes)
+
+**One entry point per platform.** Detect GPU → start node → start worker → pool row on coordinator.
+
+| Platform | Command |
+|----------|---------|
+| **Linux (dev checkout)** | `bash scripts/ops/start_pool_miner.sh` |
+| **Linux (release tarball)** | `bash start_hackme_miner.sh` |
+| **Windows** | Start menu → **HackMe Miner** (`start_hackme_miner.bat`) |
+| **HackMe OS (USB)** | Boot — auto wallet + mining (no config) |
+
+After start, open **http://127.0.0.1:8080/#ecosystem** — **Workers** tab shows your row with **GH/s from the coordinator** (same source as the public pool UI).
+
+Verify locally:
+
+```bash
+bash scripts/ops/start_pool_miner.sh          # full path + wait for pool row
+curl -s http://127.0.0.1:8080/api/worker/status | jq '{running,worker_id,hashrate_gh_s,coordinator_hashrate_gh_s,telemetry_source}'
+```
+
+Do **not** mix `restart_linux_desktop_worker.sh`, manual `workerpoh` CLI, and `desktop_worker_reset.sh` unless debugging — use the golden path above.
+
+---
+
 ## Before you start
 
 1. Clone: `git clone https://github.com/jokeez/hackme.git && cd hackme`
@@ -35,16 +59,15 @@ bin/minersign -gen-seed   # → HACKME_MINER_ED25519_SEED_HEX + HMC- address
 
 ---
 
-## Path A — Linux desktop (recommended)
+## Path A — Linux desktop (dev)
 
 ```bash
 # Edit .env.desktop: WORKER_PAYOUT_MAP=worker-$(hostname -s)=HMC-your16hex
-bash scripts/ops/desktop_mode_up.sh
+bash scripts/ops/start_pool_miner.sh
 ```
 
 - Dashboard: **http://127.0.0.1:8080**
-- **Workers** tab → **Start pool worker** (or `bash scripts/ops/restart_linux_desktop_worker.sh` for CUDA/OpenCL)
-- Stop: `bash scripts/ops/desktop_mode_stop.sh`
+- Stop node: `bash scripts/ops/desktop_mode_stop.sh`
 
 GPU backend is auto-detected (`cuda` → `opencl` → `cpu`). Override with `HACKME_GPU_BACKEND=cuda` in `.env.desktop`.
 
@@ -72,7 +95,9 @@ Details: [HACKME_OS.md](HACKME_OS.md)
 
 ---
 
-## Path D — CLI worker (servers)
+## Path D — CLI worker (servers / advanced)
+
+For operators who need raw `workerpoh` without the dashboard:
 
 ```bash
 cp scripts/ops/worker.env.example .env.worker
@@ -96,6 +121,7 @@ Smoke: `bash scripts/ops/new_miner_journey_gate.sh`
 ## Verify everything works
 
 ```bash
+bash scripts/ops/start_pool_miner.sh                 # golden path + pool row wait
 bash scripts/ops/miner_happiness_check.sh          # pool health
 bash scripts/tests/public_site_smoke.sh            # hackme.tech pages + ISO size
 bash scripts/ops/run_miner_launch_gate.sh          # full RC gate (operators)
@@ -119,24 +145,12 @@ bash scripts/ops/mining_night_snapshot.sh
 
 ## Operators (VPS deploy)
 
-SSH host alias `hackme-vps` in `~/.ssh/config` (see your internal runbook — **do not commit** host keys or passwords).
-
-```bash
-NODE_SSH=hackme-vps bash scripts/ops/deploy_hackme_node.sh
-NODE_SSH=hackme-vps bash scripts/ops/deploy_hackme_site.sh
-```
-
-Coordinator admin token **only** on the server and in local `.secrets/` — never in GitHub.
+See [OPERATOR_CHECKLIST.md](OPERATOR_CHECKLIST.md) and `scripts/ops/deploy_hackme_public_stack.sh`.
 
 ---
 
-## Troubleshooting
+## Dashboard telemetry
 
-| Symptom | Fix |
-|---------|-----|
-| `401` / `signature_required` | Enable hybrid seed: `HACKME_WORKER_SIGN_SUBMITS=1` + `HACKME_MINER_ED25519_SEED_HEX` |
-| `429` / `worker_temporarily_banned` | Back off 1–5 min; reduce burst tests against prod |
-| Stale dashboard UI | Rebuild node: `go build -o logs/desktop/hackme-node-desktop .` then restart |
-| Local chain height 0 | Normal for pool follower; use `canonical_tip_height` or P2P sync scripts |
-
-More: [OPEN_POOL_MINERS.md](OPEN_POOL_MINERS.md) · [GPU_MINING_BACKENDS.md](GPU_MINING_BACKENDS.md) · [API.md](API.md)
+- **Hashrate & session (pool mode):** dashboard reads **`GET /api/work/stats`** from the coordinator (via local proxy). Local log GH/s is diagnostic only.
+- **`GET /api/metrics`:** host CPU/GPU telemetry; `pool_worker_hashrate_gh_s` mirrors coordinator when mining.
+- **Public pool UI:** [hackme.tech/pool/coordinator](https://hackme.tech/pool/coordinator) — same worker rows.

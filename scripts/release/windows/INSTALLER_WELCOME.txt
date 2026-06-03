@@ -11,8 +11,9 @@ What this installer does:
 
 Mining pool: https://hackme.tech/pool/coordinator
 
-After install, open "HackMe Miner" — the browser will show the Mining tab.
+After install, open "HackMe Miner" — one click starts detect → pool worker (~2 min to pool row).
 Keep the miner window open while participating in the pool.
+Dashboard GH/s and session follow the coordinator (same as hackme.tech/pool).
 
 For AMD RX 580 / 2048SP rigs, GPU tuning hints are applied automatically.
 Manual overclock: AMD Adrenalin → Performance → Tuning.

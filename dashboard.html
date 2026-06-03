@@ -5937,10 +5937,12 @@
 				const gh = clampRigHashrateGHS(ws.workers[myId].hashrate_gh_s);
 				if (gh > 0) return gh;
 			}
-			const measured = Number((wst && wst.measured_hashrate_gh_s) || 0);
-			if (measured > 0) return measured;
-			const declared = Number((wst && wst.hashrate_gh_s) || 0);
-			if (declared > 0 && declared < 2) return declared;
+			const coord = Number((wst && wst.coordinator_hashrate_gh_s) || 0);
+			if (coord > 0) return coord;
+			const poolGh = Number((latestMiningDevices && latestMiningDevices.pool_worker_hashrate_gh_s) || 0);
+			if (poolGh > 0) return poolGh;
+			const metricsGh = Number((lastMetricsPayload && lastMetricsPayload.pool_worker_hashrate_gh_s) || 0);
+			if (metricsGh > 0) return metricsGh;
 			return 0;
 		}
 
@@ -8000,7 +8002,7 @@
 			if (!(hashTh > 0) && net && Number(net.global_hashrate_th_s || 0) > 0 && Number(net.global_hashrate_th_s) <= 10) {
 				hashTh = Number(net.global_hashrate_th_s);
 			}
-			const ghWorker = Number(wst.measured_hashrate_gh_s || wst.hashrate_gh_s || 0);
+			const ghWorker = coordinatorWorkerGH(ws, wst) || Number(wst.coordinator_hashrate_gh_s || wst.hashrate_gh_s || 0);
 			if (!(hashTh > 0) && ghWorker > 0) hashTh = ghWorker / 1000;
 			if (!(hashTh > 0)) return;
 			const m = lastMetricsPayload && typeof lastMetricsPayload === 'object' ? lastMetricsPayload : {};
@@ -8970,11 +8972,11 @@
 			const workerGH = poolReportedGH > 0 ? poolReportedGH : (measuredGH > 0 ? measuredGH : (declaredGH > 0 && declaredGH < 2 ? declaredGH : 0));
 			if ($('mine-stat-aps')) {
 				if (poolWorker && wst.running && workerGH > 0) {
-					let txt = fmt(workerGH, 2) + ' GH/s';
-					if (measuredGH > 0 && poolReportedGH > 0 && Math.abs(measuredGH - poolReportedGH) / Math.max(measuredGH, poolReportedGH) > 0.15) {
-						txt += ' · pool ' + fmt(poolReportedGH, 2);
-					}
-					$('mine-stat-aps').textContent = txt;
+					const src = poolReportedGH > 0 ? 'coordinator' : (measuredGH > 0 ? 'measured' : 'declared');
+					$('mine-stat-aps').textContent = fmt(workerGH, 2) + ' GH/s';
+					$('mine-stat-aps').title = src === 'coordinator'
+						? 'Pool-reported hashrate (GET /api/work/stats — source of truth)'
+						: '';
 				} else if (apsFmt) {
 					$('mine-stat-aps').textContent = apsFmt;
 				} else if (netMode && workerGH > 0) {
@@ -8985,7 +8987,7 @@
 			}
 			if ($('mine-stat-aps-label')) {
 				if (poolWorker && wst.running) {
-					$('mine-stat-aps-label').textContent = poolReportedGH > 0 ? 'worker hashrate (pool reported)' : (measuredGH > 0 ? 'worker hashrate (measured)' : (declaredGH > 0 ? 'worker hashrate (declared)' : 'worker hashrate'));
+					$('mine-stat-aps-label').textContent = poolReportedGH > 0 ? 'worker hashrate (pool · coordinator)' : (measuredGH > 0 ? 'worker hashrate (measured)' : (declaredGH > 0 ? 'worker hashrate (declared)' : 'worker hashrate'));
 				} else if (netMode && !apsFmt && workerGH > 0) {
 					$('mine-stat-aps-label').textContent = measuredGH > 0 ? 'worker hashrate (measured)' : 'worker hashrate (declared)';
 				} else {
@@ -9013,6 +9015,7 @@
 			const workerStartedUnix = Number((wst && wst.started_at_unix) || 0);
 			let wallWorkerSec = 0;
 			if (wst && wst.running && workerStartedUnix > 0) wallWorkerSec = Math.max(0, Date.now() / 1000 - workerStartedUnix);
+			else if (wst && wst.running && Number(wst.session_seconds || 0) > 0) wallWorkerSec = Number(wst.session_seconds);
 			else if (wst && wst.running && wst.external_worker && workerDerived.sessionSec > 0) wallWorkerSec = workerDerived.sessionSec;
 			const md = latestMiningDevices || {};
 			const muxUx = (latestStatus && latestStatus.miner_public_ux) || {};
@@ -9025,7 +9028,9 @@
 			else if (sess <= 0) sess = Number(workerDerived.sessionSec || 0);
 			if ($('mine-stat-sec')) {
 				$('mine-stat-sec').textContent = sess > 0 ? fmt(sess, 2) + ' s' : '—';
-				if (netMode && !leaderLocal && poolRun && poolSess > 0 && !(wallWorkerSec > 0)) {
+				if (poolReportedGH > 0 || (wst && wst.telemetry_source === 'coordinator')) {
+					$('mine-stat-sec').title = 'Session wall time since worker log start; hashrate from coordinator work/stats.';
+				} else if (netMode && !leaderLocal && poolRun && poolSess > 0 && !(wallWorkerSec > 0)) {
 					$('mine-stat-sec').title = 'Pool worker subprocess uptime (/api/mining/devices pool_worker_session_seconds).';
 				} else if (netMode && !leaderLocal && wallWorkerSec > 0) {
 					$('mine-stat-sec').title = 'Wall time since local worker start (GET /api/worker/status started_at_unix), not WASM session.';
@@ -9818,14 +9823,17 @@
 				const startedUx = Number((j && j.started_at_unix) || 0);
 				if (j && j.running && startedUx > 0) {
 					workerDerived.sessionSec = Math.max(0, Math.floor(Date.now() / 1000 - startedUx));
+				} else if (j && j.running && Number(j.session_seconds || 0) > 0) {
+					workerDerived.sessionSec = Math.floor(Number(j.session_seconds));
 				}
 				try { refreshDesktopStatusBanner(); } catch (_) {}
 				const running = localPoolWorkerActive();
 				const wid = String((j && j.worker_id) || 'worker-unknown');
+				const coordGh = Number((j && j.coordinator_hashrate_gh_s) || 0);
 				const ghMeas = Number((j && j.measured_hashrate_gh_s) || 0);
 				const ghDecl = Number((j && j.hashrate_gh_s) || 0);
-				const gh = ghMeas > 0 ? ghMeas : ghDecl;
-				const ghTag = ghMeas > 0 ? ' (measured)' : (ghDecl > 0 ? ' (declared)' : '');
+				const gh = coordGh > 0 ? coordGh : (ghMeas > 0 ? ghMeas : ghDecl);
+				const ghTag = coordGh > 0 ? ' (pool)' : (ghMeas > 0 ? ' (measured)' : (ghDecl > 0 ? ' (declared)' : ''));
 				const st = latestStatus || {};
 				const net = !!st.network_mode_active;
 				const mux = st.miner_public_ux || {};

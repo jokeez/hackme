@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 )
+
+const coordinatorWorkerFreshSec int64 = 300
 
 // workerCoordinatorMirror persists last-known per-worker rows from coordinator work/stats
 // so desktop UIs still show worker-kapa-pc after coordinator prune (idle rigs).
@@ -165,4 +169,110 @@ func (a *app) enrichWorkStatsDesktopWorker(ws map[string]any) {
 	ws["desktop_worker_id"] = wid
 	ws["desktop_worker_on_coordinator"] = false
 	ws["desktop_worker_injected"] = true
+}
+
+func coordinatorWorkerRowFromStats(ws map[string]any, workerID string) (map[string]any, bool) {
+	if ws == nil {
+		return nil, false
+	}
+	row, ok := coordinatorWorkersMap(ws)[strings.TrimSpace(workerID)]
+	if !ok {
+		return nil, false
+	}
+	m := mapFromAny(row)
+	if len(m) == 0 {
+		return nil, false
+	}
+	return m, true
+}
+
+func coordinatorRowOnline(row map[string]any) bool {
+	if row == nil {
+		return false
+	}
+	if v, ok := row["online"]; ok {
+		switch x := v.(type) {
+		case bool:
+			return x
+		case string:
+			return strings.EqualFold(x, "true") || x == "1"
+		}
+	}
+	lastSeen := int64(parseAnyFloat(row["last_seen_unix"]))
+	if lastSeen <= 0 {
+		return false
+	}
+	return time.Now().Unix()-lastSeen <= coordinatorWorkerFreshSec
+}
+
+func poolWorkerWallSessionSec(logRoot string) float64 {
+	wp := latestWorkerpohWorkerLogPath(logRoot)
+	if wp == "" {
+		wp = latestWorkerpohLogPath(logRoot)
+	}
+	ux := workerLogStartedUnix(wp)
+	if ux <= 0 {
+		return 0
+	}
+	sec := float64(time.Now().Unix() - ux)
+	if sec < 0 {
+		return 0
+	}
+	return math.Round(sec*100) / 100
+}
+
+func poolWorkerLogStartedUnix(logRoot string) int64 {
+	wp := latestWorkerpohWorkerLogPath(logRoot)
+	if wp == "" {
+		wp = latestWorkerpohLogPath(logRoot)
+	}
+	return workerLogStartedUnix(wp)
+}
+
+// cachedCoordinatorWorkerRow returns the live coordinator row for workerID (cache-first, then fetch).
+func (a *app) cachedCoordinatorWorkerRow(workerID string) (map[string]any, bool) {
+	wid := strings.TrimSpace(workerID)
+	if wid == "" {
+		wid = a.desktopWorkerID()
+	}
+	if cached, _, ok := copyCachedWorkStats(workStatsCacheStaleMaxSec); ok {
+		if row, found := coordinatorWorkerRowFromStats(cached, wid); found {
+			return row, true
+		}
+	}
+	base := strings.TrimRight(a.coordinatorBaseURL(), "/")
+	if base == "" {
+		return nil, false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	ws, err := fetchCoordinatorWorkStats(ctx, base, false)
+	if err != nil {
+		return nil, false
+	}
+	return coordinatorWorkerRowFromStats(ws, wid)
+}
+
+// overlayPoolWorkerMetrics aligns dashboard /api/metrics with coordinator + worker log (pool follower mode).
+func (a *app) overlayPoolWorkerMetrics(s *MetricsSnapshot) {
+	if a == nil || s == nil {
+		return
+	}
+	logRoot := filepath.Join(resolveWorkerRepoRoot(strings.TrimSpace(a.dataDir)), "logs")
+	running, _, wid := a.desktopWorkerLiveStatus()
+	if !running && !a.workerProcessRunning() {
+		return
+	}
+	if sec := poolWorkerWallSessionSec(logRoot); sec > 0 {
+		s.MiningSessionSec = sec
+	}
+	if row, ok := a.cachedCoordinatorWorkerRow(wid); ok {
+		gh := parseAnyFloat(row["hashrate_gh_s"])
+		if gh > 0 {
+			s.PoolWorkerHashrateGHS = gh
+			if s.MiningGPUTotalGHS <= 0 {
+				s.MiningGPUTotalGHS = gh
+			}
+		}
+	}
 }

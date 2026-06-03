@@ -1115,6 +1115,15 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		s.MiningProjectedHmcHour = 0
 	}
 	a.fillMetricsFleetHashrate(ctx, &s)
+	a.overlayPoolWorkerMetrics(&s)
+	if s.PoolWorkerHashrateGHS > 0 {
+		s.PoolWorkerTelemetry = "coordinator"
+	} else if s.MiningSessionSec > 0 {
+		run, _, _ := a.desktopWorkerLiveStatus()
+		if run || a.workerProcessRunning() {
+			s.PoolWorkerTelemetry = "local"
+		}
+	}
 	writeMetricsJSON(w, s)
 }
 
@@ -2567,18 +2576,55 @@ func (a *app) handleWorkerStatus(w http.ResponseWriter, r *http.Request) {
 	if !running && measuredGH > 0 && !logFresh {
 		measuredGH = 0
 	}
+	if running && startedAt == 0 {
+		if ux := poolWorkerLogStartedUnix(logRoot); ux > 0 {
+			startedAt = ux
+		}
+	}
+	sessionSec := float64(0)
+	if running && startedAt > 0 {
+		delta := time.Now().Unix() - startedAt
+		if delta < 0 {
+			delta = 0
+		}
+		sessionSec = math.Round(float64(delta)*100) / 100
+	}
+	coordOnline := false
+	coordGH := float64(0)
+	coordLastSeen := int64(0)
+	telemetrySource := "local"
+	displayGH := hashrateGHS
+	if measuredGH > 0 && displayGH <= 0 {
+		displayGH = measuredGH
+	}
+	if row, ok := a.cachedCoordinatorWorkerRow(workerID); ok {
+		coordGH = parseAnyFloat(row["hashrate_gh_s"])
+		coordLastSeen = int64(parseAnyFloat(row["last_seen_unix"]))
+		coordOnline = coordinatorRowOnline(row)
+		if coordGH > 0 {
+			displayGH = coordGH
+			telemetrySource = "coordinator"
+		} else if coordOnline {
+			telemetrySource = "coordinator"
+		}
+	}
 	writeJSON(w, map[string]any{
-		"ok":                     true,
-		"running":                running,
-		"pid":                    pid,
-		"started_at_unix":        startedAt,
-		"coord_url":              coordURL,
-		"worker_id":              workerID,
-		"batch_size":             a.workerBatchSize,
-		"hashrate_gh_s":          hashrateGHS,
-		"measured_hashrate_gh_s": measuredGH,
-		"log_path":               logPath,
-		"external_worker":        running && pid == 0,
+		"ok":                          true,
+		"running":                     running,
+		"pid":                         pid,
+		"started_at_unix":             startedAt,
+		"session_seconds":             sessionSec,
+		"coord_url":                   coordURL,
+		"worker_id":                   workerID,
+		"batch_size":                  a.workerBatchSize,
+		"hashrate_gh_s":               displayGH,
+		"measured_hashrate_gh_s":      measuredGH,
+		"coordinator_hashrate_gh_s":   coordGH,
+		"coordinator_online":          coordOnline,
+		"coordinator_last_seen_unix":  coordLastSeen,
+		"telemetry_source":            telemetrySource,
+		"log_path":                    logPath,
+		"external_worker":             running && pid == 0,
 	})
 }
 
@@ -5016,6 +5062,20 @@ func (a *app) handleMiningDevices(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		a.workerMu.Unlock()
+		logRoot := filepath.Join(resolveWorkerRepoRoot(strings.TrimSpace(a.dataDir)), "logs")
+		extRunning, _, wid := a.desktopWorkerLiveStatus()
+		if extRunning && !poolWorkerRunning {
+			poolWorkerRunning = true
+		}
+		if sec := poolWorkerWallSessionSec(logRoot); sec > 0 {
+			poolWorkerSessionSec = sec
+		}
+		coordGH := float64(0)
+		coordOnline := false
+		if row, ok := a.cachedCoordinatorWorkerRow(wid); ok {
+			coordGH = parseAnyFloat(row["hashrate_gh_s"])
+			coordOnline = coordinatorRowOnline(row)
+		}
 		writeJSON(w, map[string]any{
 			"cpu_model":       s.CPUModel,
 			"cpu_alias":       a.loadGPUAlias(r.Context(), "cpu", 0),
@@ -5025,7 +5085,18 @@ func (a *app) handleMiningDevices(w http.ResponseWriter, r *http.Request) {
 			// Local WASM PoH session is often 0 when follower uses coordinator worker; expose pool child uptime for UI.
 			"pool_worker_running":         poolWorkerRunning,
 			"pool_worker_session_seconds": math.Round(poolWorkerSessionSec*100) / 100,
-			"gpu_count":                   len(devs),
+			"pool_worker_hashrate_gh_s":   coordGH,
+			"coordinator_online":          coordOnline,
+			"pool_worker_telemetry_source": func() string {
+				if coordGH > 0 {
+					return "coordinator"
+				}
+				if poolWorkerRunning && poolWorkerSessionSec > 0 {
+					return "local"
+				}
+				return ""
+			}(),
+			"gpu_count":     len(devs),
 			"gpu_active":                  activeGPU,
 			"profile_mode":                profile,
 			"gpu_devices":                 devs,

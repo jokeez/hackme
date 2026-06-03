@@ -7,10 +7,10 @@ What was configured:
   • GPU backend per your wizard choice
   • Start menu + optional desktop shortcut
 
-Start mining:
-  • Open "HackMe Miner" from the Start menu or desktop
+Start mining (golden path):
+  • Open "HackMe Miner" from the Start menu or desktop — ONE step (detect GPU → node → pool worker)
   • Keep that window open — a background watchdog restarts the pool worker if GPU stops
-  • Browser: http://127.0.0.1:8080/#ecosystem
+  • Browser: http://127.0.0.1:8080/#ecosystem — Workers tab GH/s matches the public pool coordinator
 
 Linux rigs: use HackMe OS live ISO from https://hackme.tech/downloads.html#hackme-os
   (Zero-Knowledge Start — no wallet setup; write down the recovery phrase on screen)

@@ -121,6 +121,10 @@ type MetricsSnapshot struct {
 	MiningGPUDevices  []MiningGPUDeviceMetrics `json:"mining_gpu_devices,omitempty"`
 	MiningGPUTotalGHS float64                  `json:"mining_gpu_total_gh_s,omitempty"`
 	MiningGPUCount    int                      `json:"mining_gpu_count,omitempty"`
+
+	// Pool worker on coordinator (source of truth when local WASM PoH is idle).
+	PoolWorkerHashrateGHS float64 `json:"pool_worker_hashrate_gh_s,omitempty"`
+	PoolWorkerTelemetry   string  `json:"pool_worker_telemetry_source,omitempty"` // coordinator | local
 }
 
 // MiningGPUDeviceMetrics mirrors chain.GPUMiningDeviceStat for JSON in main package.
