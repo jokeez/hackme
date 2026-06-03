@@ -80,9 +80,10 @@ test.describe('Dashboard UI buttons and API wiring', () => {
     );
     await page.click('#btn-fuzz-create');
     await createReq;
-    await page.waitForTimeout(500);
-    const firstRow = page.locator('#fuzz-campaign-rows tr').first();
-    await firstRow.click();
+    const row = page.locator('#fuzz-campaign-rows tr[data-campaign-id]').first();
+    await expect(row).toBeVisible({ timeout: 20_000 });
+    await row.click();
+    await expect(page.locator('#fuzz-selected-id')).not.toHaveText(/^—/, { timeout: 15_000 });
     const statusReq = page.waitForRequest(
       (r) => r.method() === 'POST' && /\/api\/fuzz\/campaigns\/[^/]+\/status$/.test(r.url()),
       { timeout: 20_000 }

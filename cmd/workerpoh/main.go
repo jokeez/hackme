@@ -229,7 +229,7 @@ func workerHTTPDuration(envKey string, fallback time.Duration) time.Duration {
 }
 
 // workerClaimCooldownMS returns pause between claim/submit cycles.
-// HACKME_WORKER_CLAIM_COOLDOWN_MS=0 on GPU rigs means "use smart default" (not zero delay).
+// Unset env uses 80ms on GPU (anti hammer); explicit HACKME_WORKER_CLAIM_COOLDOWN_MS=0 means no sleep.
 func workerClaimCooldownMS(mode string) int {
 	ms := envIntMs("HACKME_WORKER_CLAIM_COOLDOWN_MS", -1)
 	if ms < 0 {
@@ -237,9 +237,6 @@ func workerClaimCooldownMS(mode string) int {
 			return 80
 		}
 		return 0
-	}
-	if ms == 0 && mode == "gpu" && gpuBackendConfigured() {
-		return 80
 	}
 	return ms
 }

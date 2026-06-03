@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"net"
 	"net/http"
@@ -493,65 +494,84 @@ func validFoundNonceV1(foundNonce, targetMod uint64) bool {
 	return chain.PohEval(foundNonce)%targetMod == 0
 }
 
-func (m *workManager) refreshTargetMod(now int64) {
-	if strings.TrimSpace(m.targetURL) == "" {
-		return
+// fetchChainMetricsFromNode loads mining_target_mod from the node metrics URL without holding workManager.mu.
+func fetchChainMetricsFromNode(targetURL string) (parsed uint64, baseRewardHMC float64, hasMod, hasBase bool) {
+	targetURL = strings.TrimRight(strings.TrimSpace(targetURL), "/")
+	if targetURL == "" {
+		return 0, 0, false, false
 	}
-	if now-m.targetLastAt < m.targetEvery {
-		return
-	}
-	cl := &http.Client{Timeout: 1200 * time.Millisecond}
-	resp, err := cl.Get(m.targetURL + "/api/metrics")
+	cl := &http.Client{Timeout: 800 * time.Millisecond}
+	resp, err := cl.Get(targetURL + "/api/metrics")
 	if err != nil {
-		m.targetLastAt = now
-		return
+		return 0, 0, false, false
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		m.targetLastAt = now
-		return
+		return 0, 0, false, false
 	}
 	var body map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		m.targetLastAt = now
-		return
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&body); err != nil {
+		return 0, 0, false, false
 	}
-	v, ok := body["mining_target_mod"]
-	if !ok {
-		m.targetLastAt = now
-		return
-	}
-	var parsed uint64
-	switch t := v.(type) {
-	case float64:
-		if t > 0 {
-			parsed = uint64(t)
+	if v, okField := body["mining_target_mod"]; okField {
+		switch t := v.(type) {
+		case float64:
+			if t > 0 {
+				parsed = uint64(t)
+				hasMod = true
+			}
+		case json.Number:
+			if x, err := t.Int64(); err == nil && x > 0 {
+				parsed = uint64(x)
+				hasMod = true
+			}
 		}
-	case json.Number:
-		if x, err := t.Int64(); err == nil && x > 0 {
-			parsed = uint64(x)
-		}
-	}
-	if parsed > 0 {
-		m.storeChainPoHMod(parsed)
-		m.applyChainTargetMod(parsed, now)
 	}
 	if br, ok := body["econ_base_reward_now_hmc"]; ok {
+		hasBase = true
 		switch t := br.(type) {
 		case float64:
 			if t >= 0 {
-				m.baseRewardHMC = t
+				baseRewardHMC = t
 			}
 		case json.Number:
 			if x, err := t.Float64(); err == nil && x >= 0 {
-				m.baseRewardHMC = x
+				baseRewardHMC = x
 			}
 		}
 	}
-	// Auto-payout mode ties worker payout to canonical economics:
-	// expected payout per attempt ~= base_reward / target_mod.
-	// per 1,000,000 attempts => base_reward * 1e6 / target_mod.
-	if m.rewardAuto && m.targetMod > 0 && m.baseRewardHMC > 0 {
+	return parsed, baseRewardHMC, hasMod, hasBase
+}
+
+// prefetchTargetMod refreshes chain target from the node metrics URL. Call without holding m.mu.
+func (m *workManager) prefetchTargetMod(now int64) {
+	if strings.TrimSpace(m.targetURL) == "" {
+		return
+	}
+	m.mu.Lock()
+	if now-m.targetLastAt < m.targetEvery {
+		m.mu.Unlock()
+		return
+	}
+	targetURL := m.targetURL
+	rewardAuto := m.rewardAuto
+	m.mu.Unlock()
+
+	parsed, baseReward, hasMod, hasBase := fetchChainMetricsFromNode(targetURL)
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if now-m.targetLastAt < m.targetEvery && !hasMod && !hasBase {
+		return
+	}
+	if hasMod {
+		m.storeChainPoHMod(parsed)
+		m.applyChainTargetMod(parsed, now)
+	}
+	if hasBase {
+		m.baseRewardHMC = baseReward
+	}
+	if rewardAuto && m.targetMod > 0 && m.baseRewardHMC > 0 {
 		m.rewardPerM = (m.baseRewardHMC * 1_000_000.0) / float64(m.targetMod)
 		if m.rewardPerM < 0 {
 			m.rewardPerM = 0
@@ -1156,8 +1176,8 @@ func (m *workManager) claim(workerID string, batch uint64) (base uint64, size ui
 		batch = m.defaultBatch
 	}
 	now := time.Now().Unix()
+	m.prefetchTargetMod(now)
 	m.mu.Lock()
-	m.refreshTargetMod(now)
 	if _, exists := m.worker[workerID]; !exists && len(m.worker) >= m.maxWorkers {
 		m.mu.Unlock()
 		return 0, 0, 0, m.targetMod, false, false, "too_many_workers"
@@ -1731,11 +1751,11 @@ func enrichPoolStatsForPublic(out map[string]any, reg *lanpool.Registry, wm *wor
 }
 
 func (m *workManager) stats(includeDetails bool) map[string]any {
+	now := time.Now().Unix()
+	m.prefetchTargetMod(now)
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	now := time.Now().Unix()
 	_ = m.pruneIdleWorkersLocked(now)
-	m.refreshTargetMod(now)
 	drops := make(map[string]uint64, len(m.dropReasonCount))
 	for k, v := range m.dropReasonCount {
 		drops[k] = v
