@@ -480,9 +480,17 @@
       hashEl.title = "Pool aggregate unavailable.";
     }
 
-    let tipHeight = global && global.chain ? Number(global.chain.tip_height) : NaN;
+    let tipHeight = NaN;
+    if (global && global.chain) {
+      const canon = Number(global.chain.canonical_tip_height);
+      const local = Number(global.chain.tip_height);
+      if (Number.isFinite(canon) && canon > 0) tipHeight = canon;
+      else if (Number.isFinite(local) && local >= 0) tipHeight = local;
+    }
     if (!Number.isFinite(tipHeight) || tipHeight < 0) {
-      tipHeight = Number(work && (work.canonical_tip_height != null ? work.canonical_tip_height : work.tip_height));
+      const wc = work && work.canonical_tip_height != null ? Number(work.canonical_tip_height) : NaN;
+      if (Number.isFinite(wc) && wc > 0) tipHeight = wc;
+      else tipHeight = Number(work && work.tip_height);
     }
     hEl.textContent =
       Number.isFinite(tipHeight) && tipHeight >= 0

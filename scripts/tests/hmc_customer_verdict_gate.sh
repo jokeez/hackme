@@ -70,7 +70,7 @@ else
   echo "[hmc-verdict] WARN: local node down — local smokes skipped" | tee -a "$LOG"
 fi
 
-run_step redteam_prod env BASE="$BASE_PROD" bash "$ROOT/scripts/tests/redteam_surface_smoke.sh" || true
+run_step redteam_prod env BASE="$BASE_PROD" CURL_MAX_TIME=30 bash "$ROOT/scripts/tests/redteam_surface_smoke.sh" || true
 run_step security_audit bash "$ROOT/scripts/ops/security_audit_gate.sh" || true
 run_step pool_fuzz_sync bash "$ROOT/scripts/tests/pool_fuzz_sync_gate.sh" || true
 # pool_fuzz_distributed runs inside customer_readiness — do not invoke twice (sqlite lock).

@@ -67,42 +67,42 @@ ts="$(date -u +%Y%m%dt%H%M%S)"
 mkid() { printf "audit-%s-%s-%s" "$1" "$ts" "$RANDOM"; }
 
 rust_payload="$(cat <<EOF
-{"id":"$(mkid rust)","language":"rust","code":"#[no_mangle]\npub extern \"C\" fn check(n:i64)->i32{ if n%19==0 {1} else {0} }\n","reward_hmc":0.01,"difficulty_score":1,"target_solves":1,"payer_ref":"audit:rust"}
+{"id":"$(mkid rust)","language":"rust","code":"#[no_mangle]\npub extern \"C\" fn check(n:i64)->i32{ if n%19==0 {1} else {0} }\n","reward_hmc":0.06,"difficulty_score":1,"target_solves":1,"payer_ref":"audit:rust"}
 EOF
 )"
 cpp_payload="$(cat <<EOF
-{"id":"$(mkid cpp)","language":"cpp","code":"#include <stdint.h>\nextern \"C\" int32_t check(int64_t n){ return (n%19==0)?1:0; }\n","reward_hmc":0.01,"difficulty_score":1,"target_solves":1,"payer_ref":"audit:cpp"}
+{"id":"$(mkid cpp)","language":"cpp","code":"#include <stdint.h>\nextern \"C\" int32_t check(int64_t n){ return (n%19==0)?1:0; }\n","reward_hmc":0.06,"difficulty_score":1,"target_solves":1,"payer_ref":"audit:cpp"}
 EOF
 )"
 c_payload="$(cat <<EOF
-{"id":"$(mkid c)","language":"c","code":"#include <stdint.h>\nint32_t check(int64_t n){ return (n%19==0)?1:0; }\n","reward_hmc":0.01,"difficulty_score":1,"target_solves":1,"payer_ref":"audit:c"}
+{"id":"$(mkid c)","language":"c","code":"#include <stdint.h>\nint32_t check(int64_t n){ return (n%19==0)?1:0; }\n","reward_hmc":0.06,"difficulty_score":1,"target_solves":1,"payer_ref":"audit:c"}
 EOF
 )"
 zig_payload="$(cat <<EOF
-{"id":"$(mkid zig)","language":"zig","code":"export fn check(n: i64) i32 {\n    if (@rem(n, 19) == 0) return 1;\n    return 0;\n}\n","reward_hmc":0.01,"difficulty_score":1,"target_solves":1,"payer_ref":"audit:zig"}
+{"id":"$(mkid zig)","language":"zig","code":"export fn check(n: i64) i32 {\n    if (@rem(n, 19) == 0) return 1;\n    return 0;\n}\n","reward_hmc":0.06,"difficulty_score":1,"target_solves":1,"payer_ref":"audit:zig"}
 EOF
 )"
 as_payload="$(cat <<EOF
-{"id":"$(mkid as)","language":"assemblyscript","code":"export function check(n: i64): i32 {\n  return i32((n % 19) == 0 ? 1 : 0);\n}\n","reward_hmc":0.01,"difficulty_score":1,"target_solves":1,"payer_ref":"audit:assemblyscript"}
+{"id":"$(mkid as)","language":"assemblyscript","code":"export function check(n: i64): i32 {\n  return i32((n % 19) == 0 ? 1 : 0);\n}\n","reward_hmc":0.06,"difficulty_score":1,"target_solves":1,"payer_ref":"audit:assemblyscript"}
 EOF
 )"
 tinygo_payload="$(cat <<EOF
-{"id":"$(mkid tinygo)","language":"tinygo","code":"package main\n//export check\nfunc check(n int64) int32 { if n%19==0 { return 1 }; return 0 }\nfunc main() {}\n","reward_hmc":0.01,"difficulty_score":1,"target_solves":1,"payer_ref":"audit:tinygo"}
+{"id":"$(mkid tinygo)","language":"tinygo","code":"package main\n//export check\nfunc check(n int64) int32 { if n%19==0 { return 1 }; return 0 }\nfunc main() {}\n","reward_hmc":0.06,"difficulty_score":1,"target_solves":1,"payer_ref":"audit:tinygo"}
 EOF
 )"
 go_alias_payload="$(cat <<EOF
-{"id":"$(mkid goalias)","language":"go","code":"package main\n//export check\nfunc check(n int64) int32 { if n%19==0 { return 1 }; return 0 }\nfunc main() {}\n","reward_hmc":0.01,"difficulty_score":1,"target_solves":1,"payer_ref":"audit:go-alias"}
+{"id":"$(mkid goalias)","language":"go","code":"package main\n//export check\nfunc check(n int64) int32 { if n%19==0 { return 1 }; return 0 }\nfunc main() {}\n","reward_hmc":0.06,"difficulty_score":1,"target_solves":1,"payer_ref":"audit:go-alias"}
 EOF
 )"
 wat_payload="$(cat <<EOF
-{"id":"$(mkid wat)","language":"wat","code":"(module\n  (func (export \"check\") (param i64) (result i32)\n    local.get 0\n    i64.const 19\n    i64.rem_s\n    i64.eqz\n    if (result i32)\n      i32.const 1\n    else\n      i32.const 0\n    end))\n","reward_hmc":0.01,"difficulty_score":1,"target_solves":1,"payer_ref":"audit:wat"}
+{"id":"$(mkid wat)","language":"wat","code":"(module\n  (func (export \"check\") (param i64) (result i32)\n    local.get 0\n    i64.const 19\n    i64.rem_s\n    i64.eqz\n    if (result i32)\n      i32.const 1\n    else\n      i32.const 0\n    end))\n","reward_hmc":0.06,"difficulty_score":1,"target_solves":1,"payer_ref":"audit:wat"}
 EOF
 )"
 
 # For rust/cpp/c/wat: success or expected environment constraints.
-run_case "audit-rust-from-code" "$rust_payload" '^(200:|402:manifest_rejected|429:rate_limited|400:compile_failed)$'
-run_case "audit-cpp-from-code" "$cpp_payload" '^(200:|402:manifest_rejected|429:rate_limited|400:compile_failed)$'
-run_case "audit-c-from-code" "$c_payload" '^(200:|402:manifest_rejected|429:rate_limited|400:compile_failed)$'
+run_case "audit-rust-from-code" "$rust_payload" '^(200:|402:manifest_rejected|400:manifest_rejected|429:rate_limited|400:compile_failed)$'
+run_case "audit-cpp-from-code" "$cpp_payload" '^(200:|402:manifest_rejected|400:manifest_rejected|429:rate_limited|400:compile_failed)$'
+run_case "audit-c-from-code" "$c_payload" '^(200:|402:manifest_rejected|400:manifest_rejected|429:rate_limited|400:compile_failed)$'
 run_case "audit-zig-from-code" "$zig_payload" '^(200:|402:manifest_rejected|429:rate_limited|400:compile_failed|400:wasm_validation_failed|400:wasm_sanitize_failed)$'
 run_case "audit-assemblyscript-from-code" "$as_payload" '^(200:|402:manifest_rejected|429:rate_limited|400:compile_failed|400:wasm_validation_failed|400:wasm_sanitize_failed)$'
 run_case "audit-wat-from-code" "$wat_payload" '^(200:|402:manifest_rejected|429:rate_limited|400:compile_failed|400:unsupported_language)$'

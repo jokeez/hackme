@@ -14,12 +14,23 @@ func TestCanonicalPeerStatusURL(t *testing.T) {
 func TestCanonicalBaseIsSelfNode_publicAuthority(t *testing.T) {
 	t.Setenv("HACKME_PUBLIC_AUTHORITY_BASE", "https://hackme.tech")
 	t.Setenv("HACKME_P2P_PEERS", "")
+	t.Setenv("HACKME_DESKTOP_MODE", "0")
 	a := &app{}
 	if !a.canonicalBaseIsSelfNode("https://hackme.tech") {
-		t.Fatal("expected public authority to match self")
+		t.Fatal("expected public authority to match self on command node")
 	}
 	if a.canonicalBaseIsSelfNode("https://other.example") {
 		t.Fatal("unexpected self match")
+	}
+}
+
+func TestCanonicalBaseIsSelfNode_publicAuthorityDesktopFollower(t *testing.T) {
+	t.Setenv("HACKME_PUBLIC_AUTHORITY_BASE", "https://hackme.tech")
+	t.Setenv("HACKME_CANONICAL_CHAIN_URL", "https://hackme.tech")
+	t.Setenv("HACKME_DESKTOP_MODE", "1")
+	a := &app{}
+	if a.canonicalBaseIsSelfNode("https://hackme.tech") {
+		t.Fatal("desktop follower must HTTP-overlay public authority, not treat as self")
 	}
 }
 

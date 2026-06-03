@@ -3871,7 +3871,7 @@
 		const HACKME_PUBLIC_COORD_DEFAULT = 'https://hackme.tech/pool/coordinator';
 		async function workerStartCoordURL() {
 			try {
-				const r = await fetch('/api/status', { cache: 'no-store' });
+				const r = await fetch('/api/status?lite=1', { cache: 'no-store' });
 				if (!r.ok) {
 					throw new Error('status ' + r.status);
 				}
@@ -7068,7 +7068,8 @@
 				Number(ws.workers_count || 0),
 				Number((latestNetworkStats && latestNetworkStats.total_miners) || 0)
 			);
-			const height = Number(st.canonical_tip_height || st.tip_height || latestGlobalChainHeight || 0);
+			const heightNums = overviewChainHeightNumbers(st, null);
+			const height = Number(heightNums.display || latestCanonicalChainHeight || 0);
 			const blocks = height > 0 ? height : 0;
 			const rewardM = Number(ws.reward_per_m || 0);
 			const baseReward = Number(ws.base_reward_hmc || 0.01);
@@ -9362,7 +9363,7 @@
 				let st = null;
 				try {
 					const [stRes, wlRes, wkRes] = await Promise.all([
-						fetch('/api/status', { cache: 'no-store' }),
+						fetch('/api/status?lite=1', { cache: 'no-store' }),
 						fetch('/api/wallet', { cache: 'no-store', headers: adminHeaders() }),
 						fetch('/api/work/stats', { cache: 'no-store' }),
 					]);

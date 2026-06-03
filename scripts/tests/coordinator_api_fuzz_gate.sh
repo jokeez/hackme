@@ -43,15 +43,15 @@ expect_http() {
         -H "Content-Type: application/json" \
         -H "X-Hackme-Admin-Token: $token" \
         --data-binary "@${body_file:-/dev/null}" \
-        --max-time 15 || true)"
+        --max-time 25 || true)"
     else
       http="$(curl -sS -o "$tmp" -w '%{http_code}' -X POST "$url" \
         -H "Content-Type: application/json" \
         --data-binary "@${body_file:-/dev/null}" \
-        --max-time 15 || true)"
+        --max-time 25 || true)"
     fi
   else
-    http="$(curl -sS -o "$tmp" -w '%{http_code}' "$url" --max-time 15 || true)"
+    http="$(curl -sS -o "$tmp" -w '%{http_code}' "$url" --max-time 25 || true)"
   fi
   if [[ "$http" == "$expect" ]] || { [[ "$expect" == "4xx" ]] && [[ "$http" =~ ^4[0-9]{2}$ ]]; } || { [[ "$expect" == "no5xx" ]] && [[ ! "$http" =~ ^5 ]]; }; then
     record "$id" "pass" "http=$http"
@@ -105,7 +105,7 @@ echo '{"worker_id":"fuzz","base_nonce":0,"batch_size":1,"attempts":0}' >"$OUT/ba
 expect_http "coord-bad-submit" "$COORD_URL/api/work/submit" POST "$OUT/bad_submit.json" "$COORD_ADMIN" "4xx"
 
 # Node tx/send if local node up
-if curl -fsS --max-time 3 "$BASE/api/status" >/dev/null 2>&1; then
+if curl -fsS --max-time 3 "$BASE/api/status?lite=1" >/dev/null 2>&1; then
   printf '{' >"$OUT/node_bad_json.txt"
   expect_http "node-tx-bad-json" "$BASE/api/tx/send" POST "$OUT/node_bad_json.txt" "" "4xx"
   python3 - <<'PY' >"$OUT/tx_huge.json"

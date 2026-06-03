@@ -598,11 +598,18 @@ func (a *app) networkModeActive() bool {
 	return strings.TrimSpace(a.coordinatorBaseURL()) != ""
 }
 
+func workerRunningCacheTTL() time.Duration {
+	if envBool("HACKME_DESKTOP_MODE", false) {
+		return 3 * time.Second
+	}
+	return 30 * time.Second
+}
+
 func (a *app) workerProcessRunning() bool {
 	if a == nil {
 		return false
 	}
-	const cacheTTL = 3 * time.Second
+	cacheTTL := workerRunningCacheTTL()
 	now := time.Now().Unix()
 	a.workerRunningCacheMu.Lock()
 	if a.workerRunningCacheAt > 0 && now-a.workerRunningCacheAt < int64(cacheTTL.Seconds()) {
@@ -619,7 +626,11 @@ func (a *app) workerProcessRunning() bool {
 	running := subprocess
 	if !running {
 		logRoot := filepath.Join(resolveWorkerRepoRoot(dataDir), "logs")
-		running = workerActiveFromLog(logRoot, 120)
+		if envBool("HACKME_DESKTOP_MODE", false) {
+			running = workerActiveFromLog(logRoot, 120)
+		} else {
+			running = workerActiveFromParticipantLog(logRoot, 120)
+		}
 	}
 	a.workerRunningCacheMu.Lock()
 	a.workerRunningCached = running
@@ -774,7 +785,11 @@ func (a *app) canonicalBaseIsSelfNode(base string) bool {
 	if base == "" {
 		return false
 	}
+	// Follower/desktop nodes pin PUBLIC_AUTHORITY to hackme.tech but are not the command ledger host.
 	if pub := strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_PUBLIC_AUTHORITY_BASE")), "/"); pub != "" && strings.EqualFold(pub, base) {
+		if envBool("HACKME_DESKTOP_MODE", false) {
+			return false
+		}
 		return true
 	}
 	if peer := strings.TrimRight(canonicalPeerBaseURLFromEnv(), "/"); peer != "" && strings.EqualFold(peer, base) {
@@ -1022,7 +1037,7 @@ func (a *app) addressSupFieldsForResponse(ctx context.Context, addr string) map[
 }
 
 func (a *app) fetchCanonicalStatusTip(ctx context.Context) (hasGenesis bool, tipHeight uint64, tipHash string, ok bool) {
-	if a == nil || a.miner.Running() {
+	if a == nil || (a.miner.Running() && !envBool("HACKME_DESKTOP_MODE", false)) {
 		return false, 0, "", false
 	}
 	// Resolve intent via canonicalChainBaseURL (env, P2P peer, coordinator env,
@@ -1098,7 +1113,10 @@ func (a *app) applyCanonicalChainTipToStatusMap(ctx context.Context, dst map[str
 
 // applyFollowerCanonicalTipSnapshot fills canonical_tip_* via HTTP overlay to the public command node (P2P not required).
 func (a *app) applyFollowerCanonicalTipSnapshot(ctx context.Context, dst map[string]any, quickTimeout time.Duration) {
-	if a == nil || dst == nil || a.miner.Running() || !a.networkModeActive() {
+	if a == nil || dst == nil || !a.networkModeActive() {
+		return
+	}
+	if a.miner.Running() && !envBool("HACKME_DESKTOP_MODE", false) {
 		return
 	}
 	if hasC, hC, tipC, ok := a.readCanonicalTipCache(); ok {

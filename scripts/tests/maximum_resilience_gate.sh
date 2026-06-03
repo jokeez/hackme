@@ -75,7 +75,7 @@ fi
 # --- 3) API fuzz (garbage JSON, huge body, bad tx, memo 257) ---
 step "coordinator-api-fuzz" env RUN_ID="${RID}_fuzz" bash "$ROOT/scripts/tests/coordinator_api_fuzz_gate.sh"
 
-if curl -fsS --max-time 3 "${BASE:-http://127.0.0.1:8080}/api/status" >/dev/null 2>&1; then
+if curl -fsS --max-time 3 "${BASE:-http://127.0.0.1:8080}/api/status?lite=1" >/dev/null 2>&1; then
   if env RUN_ID="${RID}_adv" BASE="${BASE:-http://127.0.0.1:8080}" bash "$ROOT/scripts/tests/adversarial_api_matrix.sh" >>"$LOG" 2>&1; then
     record "adversarial-api-matrix" "pass" "adversarial matrix ok"
   else
@@ -97,7 +97,7 @@ fi
 # --- 4) Memo UTF-8 256-byte validation ---
 step "transfer-memo-utf8" go test ./internal/chain/ -run TestValidateTransferShapeMemoByteLimit -count=1 -timeout=30s
 
-if curl -fsS --max-time 3 "${BASE:-http://127.0.0.1:8080}/api/status" >/dev/null 2>&1; then
+if curl -fsS --max-time 3 "${BASE:-http://127.0.0.1:8080}/api/status?lite=1" >/dev/null 2>&1; then
   if env RUN_ID="${RID}_txmatrix" BASE="${BASE:-http://127.0.0.1:8080}" bash "$ROOT/scripts/tests/transfers_matrix.sh" >>"$LOG" 2>&1; then
     record "transfers-matrix" "pass" "transfers matrix ok"
   else

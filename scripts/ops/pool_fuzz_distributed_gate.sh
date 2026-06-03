@@ -7,8 +7,8 @@ cd "$ROOT"
 echo "[pool-fuzz-gate] unit tests"
 go test -count=1 ./internal/fuzzengine/... ./internal/poolfuzz/...
 
-COORD_DB="${COORD_DB:-$ROOT/logs/pool_fuzz_gate_coordinator.db}"
-rm -f "$COORD_DB"
+COORD_DB="${COORD_DB:-$(mktemp "${TMPDIR:-/tmp}/hackme-pool-fuzz-gate.XXXXXX.db")}"
+rm -f "$COORD_DB" "${COORD_DB}-wal" "${COORD_DB}-shm" 2>/dev/null || true
 export HACKME_COORDINATOR_DB="$COORD_DB"
 COORD_PORT="${COORD_PORT:-$((18100 + RANDOM % 800))}"
 export HACKME_COORDINATOR_ADDR="127.0.0.1:${COORD_PORT}"
@@ -20,7 +20,11 @@ export HACKME_COORDINATOR_WORKER_TOKEN="pool-fuzz-gate-worker"
 echo "[pool-fuzz-gate] start coordinator"
 go run ./cmd/coordinator &
 CPID=$!
-trap 'kill $CPID 2>/dev/null || true' EXIT
+cleanup_gate() {
+  kill "$CPID" 2>/dev/null || true
+  rm -f "$COORD_DB" "${COORD_DB}-wal" "${COORD_DB}-shm" 2>/dev/null || true
+}
+trap cleanup_gate EXIT
 for _ in $(seq 1 30); do
   if curl -fsS --max-time 2 "${BASE}/health" >/dev/null 2>&1; then
     break

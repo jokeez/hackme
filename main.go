@@ -1818,6 +1818,7 @@ func (a *app) buildStatusLite(ctx context.Context) map[string]any {
 		body["economics"] = ec
 	}
 	econCancel()
+	body["pool_sync"] = a.poolSyncStatusPayload()
 	return body
 }
 
@@ -3031,6 +3032,38 @@ func workerActiveFromLog(logDir string, staleSec int64) bool {
 	return parseWorkerpohMeasuredGHs(logDir) > 0
 }
 
+// workerActiveFromParticipantLog checks only worker_participant.log (hub autostart; avoids scanning huge log dirs).
+func workerActiveFromParticipantLog(logDir string, staleSec int64) bool {
+	p := filepath.Join(logDir, "worker_participant.log")
+	fi, err := os.Stat(p)
+	if err != nil {
+		return false
+	}
+	if staleSec > 0 && time.Since(fi.ModTime()) > time.Duration(staleSec)*time.Second {
+		return false
+	}
+	lines, err := tailFileLastLines(p, 60, 96*1024)
+	if err != nil || len(lines) == 0 {
+		return false
+	}
+	start := len(lines) - 25
+	if start < 0 {
+		start = 0
+	}
+	for i := len(lines) - 1; i >= start; i-- {
+		line := lines[i]
+		if !strings.Contains(line, "submit ok") {
+			continue
+		}
+		for _, key := range []string{"ghs=", "inst_ghs="} {
+			if parseWorkerpohGHField(line, key) > 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // parseWorkerpohGHField reads a floating GH/s value after key= on a log line (token-safe:
 // avoids matching ghs= inside inst_ghs=).
 func parseWorkerpohGHField(line, key string) float64 {
@@ -3092,18 +3125,66 @@ func considerNewestLogPath(best string, bestMod time.Time, candidate string) (st
 	return best, bestMod
 }
 
-// latestWorkerpohLogPath returns the newest pool worker log under logDir (workerpoh-*.log or worker_participant.log).
-func latestWorkerpohLogPath(logDir string) string {
+var (
+	workerpohLogPathCacheMu sync.Mutex
+	workerpohLogPathCache   = make(map[string]cachedWorkerLogPath)
+)
+
+type cachedWorkerLogPath struct {
+	path string
+	at   int64
+}
+
+// scanNewestWorkerpohLogs picks the newest workerpoh-*.log; optionally includes worker_participant.log.
+func scanNewestWorkerpohLogs(logDir string, includeParticipant bool) string {
 	var best string
 	var bestMod time.Time
-	best, bestMod = considerNewestLogPath(best, bestMod, filepath.Join(logDir, "worker_participant.log"))
-	matches, err := filepath.Glob(filepath.Join(logDir, "workerpoh-*.log"))
-	if err == nil {
-		for _, p := range matches {
-			best, bestMod = considerNewestLogPath(best, bestMod, p)
+	if includeParticipant {
+		best, bestMod = considerNewestLogPath(best, bestMod, filepath.Join(logDir, "worker_participant.log"))
+	}
+	entries, err := os.ReadDir(logDir)
+	if err != nil {
+		if best != "" {
+			return best
+		}
+		return ""
+	}
+	for _, ent := range entries {
+		if ent.IsDir() {
+			continue
+		}
+		name := ent.Name()
+		if !strings.HasPrefix(name, "workerpoh-") || !strings.HasSuffix(name, ".log") || name == "workerpoh.log" {
+			continue
+		}
+		info, err := ent.Info()
+		if err != nil {
+			continue
+		}
+		if best == "" || info.ModTime().After(bestMod) {
+			best = filepath.Join(logDir, name)
+			bestMod = info.ModTime()
 		}
 	}
 	return best
+}
+
+// latestWorkerpohLogPath returns the newest pool worker log under logDir (workerpoh-*.log or worker_participant.log).
+func latestWorkerpohLogPath(logDir string) string {
+	const cacheTTL = 5 * time.Second
+	now := time.Now().Unix()
+	workerpohLogPathCacheMu.Lock()
+	if c, ok := workerpohLogPathCache[logDir]; ok && now-c.at < int64(cacheTTL.Seconds()) {
+		p := c.path
+		workerpohLogPathCacheMu.Unlock()
+		return p
+	}
+	workerpohLogPathCacheMu.Unlock()
+	p := scanNewestWorkerpohLogs(logDir, true)
+	workerpohLogPathCacheMu.Lock()
+	workerpohLogPathCache[logDir] = cachedWorkerLogPath{path: p, at: now}
+	workerpohLogPathCacheMu.Unlock()
+	return p
 }
 
 // workerLogStartedUnix parses UTC start time from workerpoh-<id>-20260603T000053Z.log filename.
@@ -3135,19 +3216,7 @@ func workerLogStartedUnix(logPath string) int64 {
 
 // latestWorkerpohWorkerLogPath returns newest workerpoh-<worker>-<stamp>.log (excludes worker_participant.log).
 func latestWorkerpohWorkerLogPath(logDir string) string {
-	var best string
-	var bestMod time.Time
-	matches, err := filepath.Glob(filepath.Join(logDir, "workerpoh-*.log"))
-	if err != nil {
-		return ""
-	}
-	for _, p := range matches {
-		if filepath.Base(p) == "workerpoh.log" {
-			continue
-		}
-		best, bestMod = considerNewestLogPath(best, bestMod, p)
-	}
-	return best
+	return scanNewestWorkerpohLogs(logDir, false)
 }
 
 // workerIDFromLatestWorkerpohLog infers worker id from newest workerpoh-<id>-<stamp>.log filename.

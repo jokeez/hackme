@@ -51,7 +51,7 @@ resp="$(curl -fsS --max-time 60 -X POST "${BASE}/api/security-audit" \
 echo "$resp" | jq -e '.ok and (.pool_sync == "ok" or .pool_sync == "queued")' >/dev/null
 node_cid="$(echo "$resp" | jq -r '.campaign_id')"
 sleep 8
-st="$(curl -fsS "${BASE}/api/status" | jq -r --arg c "$node_cid" '.pool_sync.failed_campaigns[$c] // empty')"
+st="$(curl -fsS --max-time 20 "${BASE}/api/status?lite=1" | jq -r --arg c "$node_cid" '.pool_sync.failed_campaigns[$c] // empty')"
 if [[ -n "$st" ]]; then
   echo "[pool-sync-gate] pool_sync failed for $node_cid: $st" >&2
   exit 1
