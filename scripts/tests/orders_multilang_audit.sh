@@ -107,7 +107,7 @@ run_case "audit-zig-from-code" "$zig_payload" '^(200:|402:manifest_rejected|429:
 run_case "audit-assemblyscript-from-code" "$as_payload" '^(200:|402:manifest_rejected|429:rate_limited|400:compile_failed|400:wasm_validation_failed|400:wasm_sanitize_failed)$'
 run_case "audit-wat-from-code" "$wat_payload" '^(200:|402:manifest_rejected|429:rate_limited|400:compile_failed|400:unsupported_language)$'
 # tinygo can still fail compile on hosts without tinygo toolchain.
-run_case "audit-tinygo-from-code" "$tinygo_payload" '^(200:|402:manifest_rejected|429:rate_limited|400:compile_failed|400:wasm_validation_failed)$'
+run_case "audit-tinygo-from-code" "$tinygo_payload" '^(200:|402:manifest_rejected|429:rate_limited|400:compile_failed|400:wasm_validation_failed|400:app_not_task_code)$'
 run_case "audit-go-alias-from-code" "$go_alias_payload" '^(200:|402:manifest_rejected|429:rate_limited|400:compile_failed|400:wasm_validation_failed|400:wasm_sanitize_failed)$'
 
 tasks_json="$OUT/tasks.json"

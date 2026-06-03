@@ -18,11 +18,15 @@ fail=0
 skip=0
 
 step() {
-  local id="$1"
+  local id="$1" rc
   shift
   echo ""
   echo "========== [$id] $(date -u +%H:%M:%S) =========="
-  if "$@"; then
+  set +e
+  "$@"
+  rc=$?
+  set -e
+  if [[ "$rc" -eq 0 ]]; then
     echo "[$id] PASS"
     pass=$((pass + 1))
   else
@@ -32,11 +36,15 @@ step() {
 }
 
 step_optional() {
-  local id="$1"
+  local id="$1" rc
   shift
   echo ""
   echo "========== [$id] optional $(date -u +%H:%M:%S) =========="
-  if "$@"; then
+  set +e
+  "$@"
+  rc=$?
+  set -e
+  if [[ "$rc" -eq 0 ]]; then
     echo "[$id] PASS"
     pass=$((pass + 1))
   else
@@ -48,10 +56,10 @@ step_optional() {
 echo "[nightly-max] stamp=$STAMP out=$OUT iso=$ISO"
 
 step iso_verify bash "$ROOT/scripts/tests/verify_hackme_iso.sh" "$ISO"
-step iso_qemu TIMEOUT_SEC=300 bash "$ROOT/scripts/tests/iso_qemu_boot_smoke.sh" "$ISO" "$OUT/iso-qemu.log"
+step iso_qemu env TIMEOUT_SEC=300 bash "$ROOT/scripts/tests/iso_qemu_boot_smoke.sh" "$ISO" "$OUT/iso-qemu.log"
 step public_site bash "$ROOT/scripts/tests/public_site_smoke.sh"
 step_optional site_release bash "$ROOT/scripts/tests/site_release_consistency_gate.sh"
-step go_test_short env -u HACKME_PUBLIC_AUTHORITY_BASE go test -short -count=1 ./... -timeout=600s
+step go_test_short bash -c 'cd "$1" && env -u HACKME_PUBLIC_AUTHORITY_BASE go test -short -count=1 ./... -timeout=600s' _ "$ROOT"
 step economics bash "$ROOT/scripts/tests/economics_confidence_gate.sh"
 if [[ -n "$ADMIN" ]]; then
   step orders_multilang env ADMIN_TOKEN="$ADMIN" HACKME_ADMIN_TOKEN="$ADMIN" \
