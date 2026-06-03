@@ -1,6 +1,25 @@
 {
   "items": [
     {
+      "id": "2026-06-03-rc11k-launch-candidate",
+      "date": "2026-06-03",
+      "title": "Release 0.1.0-rc11k — launch candidate (production miner)",
+      "summary": "Production download channel after rc11j GPU matrix: fixed public /api/status canonical loop, coordinator-first dashboard telemetry, resilience and economics gates PASS, golden-path onboarding. Windows Setup, Linux bundle, and HackMe OS ISO rebuilt with hackme node fix — not a demo build.",
+      "tags": ["release", "mining", "infrastructure", "pool"],
+      "impact": "New miners should install rc11k; rc11j remains documented for GPU matrix history. Pool hub and installers aligned on the same commit.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Verdict: https://hackme.tech/docs/HACKME_RC11K_LAUNCH_CANDIDATE.md · Pool: https://hackme.tech/pool/coordinator/api/work/stats",
+      "status": "published",
+      "links": {
+        "downloads": "https://hackme.tech/downloads.html",
+        "verdict": "https://hackme.tech/docs/HACKME_RC11K_LAUNCH_CANDIDATE.md",
+        "setup": "https://hackme.tech/docs/SETUP.md",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/work/stats",
+        "news": "https://hackme.tech/news.html",
+        "github": "https://github.com/jokeez/hackme",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-06-02-rc11j-gpu-matrix-final",
       "date": "2026-06-02",
       "title": "Release 0.1.0-rc11j — GPU matrix final (CUDA auto-fallback, installer, ISO)",
