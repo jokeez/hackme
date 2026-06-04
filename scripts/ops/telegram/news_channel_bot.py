@@ -280,44 +280,85 @@ def site_home_url(news_page_base: str, override: str) -> str:
     return "https://hackme.tech"
 
 
+def _cap(s: str, n: int) -> str:
+    if len(s) <= n:
+        return s
+    return s[: max(0, n - 1)] + "…"
+
+
+def _sentences(text: str, max_n: int = 3) -> List[str]:
+    raw = (text or "").replace("\n", " ").strip()
+    if not raw:
+        return []
+    parts: List[str] = []
+    buf = ""
+    for ch in raw:
+        buf += ch
+        if ch in ".!?" and len(buf.strip()) > 24:
+            parts.append(buf.strip())
+            buf = ""
+            if len(parts) >= max_n:
+                break
+    if buf.strip() and len(parts) < max_n:
+        parts.append(buf.strip())
+    return parts[:max_n]
+
+
+def _telegram_copy(item: Dict[str, Any]) -> Dict[str, Any]:
+    tg = item.get("telegram")
+    return tg if isinstance(tg, dict) else {}
+
+
+def _is_telegram_url(url: str) -> bool:
+    u = (url or "").strip().lower()
+    return "t.me/" in u or "telegram.me/" in u or u.startswith("tg://")
+
+
 def render_message(item: Dict[str, Any], max_len: int = 3900, *, miner_hint: bool = True) -> str:
-    title = html.escape(str(item.get("title", "HackMe Update")))
-    date = html.escape(str(item.get("date", "")))
-    status = html.escape(str(item.get("status", "update")))
-    summary = html.escape(str(item.get("summary", "")))
-    impact = html.escape(str(item.get("impact", "")))
-    action = html.escape(str(item.get("action", "")))
-    tags = item.get("tags", [])
-    tags_text = " ".join(f"#{html.escape(str(t)).replace(' ', '_')}" for t in tags if str(t).strip())
+    """Miner-friendly channel post: no tags, no status boilerplate, no in-channel Telegram links."""
+    tg = _telegram_copy(item)
+    title = html.escape(str(tg.get("headline") or item.get("title", "HackMe update")))
+    date = html.escape(str(item.get("date", "")).strip())
+    summary = str(item.get("summary", "")).strip()
+    impact = str(item.get("impact", "")).strip()
 
-    # Keep channel posts readable; long "action" lines break mobile Telegram.
-    def cap(s: str, n: int) -> str:
-        if len(s) <= n:
-            return s
-        return s[: max(0, n - 1)] + "…"
+    lead = str(tg.get("lead", "")).strip()
+    if not lead:
+        parts = _sentences(summary, 2)
+        lead = parts[0] if parts else summary
 
-    summary = cap(summary, 2200)
-    impact = cap(impact, 900)
-    action = cap(action, 900)
+    bullets: List[str] = []
+    raw_bullets = tg.get("bullets")
+    if isinstance(raw_bullets, list):
+        bullets = [str(b).strip() for b in raw_bullets if str(b).strip()][:6]
+    if not bullets:
+        for line in _sentences(summary, 3)[1:]:
+            bullets.append(line)
+        if impact and impact not in lead:
+            bullets.append(impact)
 
-    lines = [
-        "<b>HackMe Network Update</b>",
-        "",
-        f"<b>{title}</b>",
-        f"Date: {date}",
-        f"Status: <code>{status}</code>",
-        "",
-        f"<b>Summary:</b> {summary}" if summary else "",
-        f"<b>Impact:</b> {impact}" if impact else "",
-        f"<b>Action:</b> {action}" if action else "",
-        f"<b>Tags:</b> {tags_text}" if tags_text else "",
-    ]
-    if miner_hint:
-        lines.extend(["", "<i>Miners: bundles &amp; pool economics on the site — use the buttons below.</i>"])
+    foot = str(tg.get("footer", "")).strip()
+    if not foot and miner_hint:
+        foot = "Скачивания и SHA256 — кнопки ниже."
+
+    lines: List[str] = ["<b>⚡ HackMe</b>"]
+    if date:
+        lines.append(f"<i>{date}</i>")
+    lines.append("")
+    lines.append(f"<b>{title}</b>")
+    lines.append("")
+    if lead:
+        lines.append(html.escape(_cap(lead, 1200)))
+    for b in bullets:
+        lines.append(f"• {html.escape(_cap(b, 420))}")
+    if foot:
+        lines.append("")
+        lines.append(f"<i>{html.escape(_cap(foot, 280))}</i>")
+
     out = "\n".join(line for line in lines if line != "")
     if len(out) <= max_len:
         return out
-    return out[: max_len - 60] + "\n\n<i>(truncated for Telegram)</i>"
+    return out[: max_len - 60] + "\n\n<i>…</i>"
 
 
 def build_button_url(base: str, item_id: str) -> str:
@@ -333,31 +374,33 @@ def build_reply_markup(
     site_home: str,
     extra_row: bool,
     item_links: Dict[str, Any] | None = None,
+    show_github: bool,
 ) -> Dict[str, Any]:
-    rows: List[List[Dict[str, str]]] = [
-        [{"text": "Read full update", "url": btn_url}],
-    ]
-    if extra_row and site_home:
-        h = site_home.rstrip("/")
-        rows.append(
-            [
-                {"text": "Downloads", "url": f"{h}/downloads.html"},
-                {"text": "Economics", "url": f"{h}/economics-model.html"},
-                {"text": "All news", "url": f"{h}/news.html"},
-            ]
-        )
-    if isinstance(item_links, dict):
-        link_row: List[Dict[str, str]] = []
-        for key, label in (
-            ("github", "GitHub ⭐"),
-            ("bitcointalk", "Bitcointalk"),
-            ("telegram", "Telegram"),
-        ):
-            u = str(item_links.get(key, "")).strip()
-            if u:
-                link_row.append({"text": label, "url": u})
-        if link_row:
-            rows.append(link_row[:3])
+    rows: List[List[Dict[str, str]]] = []
+    h = site_home.rstrip("/") if site_home else ""
+    links = item_links if isinstance(item_links, dict) else {}
+
+    row1: List[Dict[str, str]] = [{"text": "Подробнее на сайте", "url": btn_url}]
+    dl = str(links.get("downloads", "")).strip()
+    if not dl and h:
+        dl = f"{h}/downloads.html"
+    if dl and not _is_telegram_url(dl):
+        row1.append({"text": "Скачать", "url": dl})
+    rows.append(row1[:2])
+
+    if extra_row and h:
+        pool = str(links.get("pool_stats", "")).strip()
+        if not pool:
+            pool = f"{h}/pool/coordinator/api/work/stats"
+        row2 = [{"text": "Пул", "url": pool}]
+        row2.append({"text": "Экономика", "url": f"{h}/economics-model.html"})
+        rows.append(row2[:2])
+
+    if show_github:
+        gh = str(links.get("github", "")).strip()
+        if gh and not _is_telegram_url(gh):
+            rows.append([{"text": "GitHub", "url": gh}])
+
     return {"inline_keyboard": rows}
 
 
@@ -378,6 +421,7 @@ def run_once(
     post_gap_sec: float,
     max_text: int,
     miner_hint: bool,
+    show_github: bool,
 ) -> int:
     try:
         payload = load_json_url(news_url, timeout_sec, fetch_retries)
@@ -452,6 +496,7 @@ def run_once(
                 site_home=site_home,
                 extra_row=miner_button_row,
                 item_links=it.get("links") if isinstance(it.get("links"), dict) else None,
+                show_github=show_github,
             ),
         }
 
@@ -499,6 +544,7 @@ def main() -> int:
     site_home = site_home_url(news_page_base, env_str("NEWS_SITE_HOME"))
     miner_button_row = env_truthy("NEWS_MINER_BUTTON_ROW", True)
     miner_hint = env_truthy("NEWS_MINER_HINT_LINE", True)
+    show_github = env_truthy("NEWS_SHOW_GITHUB_BUTTON", False)
     post_gap_sec = env_float("POST_GAP_SEC", 1.1)
     heartbeat_interval_sec = env_int("POOL_HEARTBEAT_INTERVAL_SEC", 4 * 3600)
     status_url = env_str("POOL_STATUS_URL", "https://hackme.tech/pool/coordinator/api/work/stats?details=0")
@@ -556,6 +602,7 @@ def main() -> int:
             post_gap_sec=post_gap_sec,
             max_text=max_text,
             miner_hint=miner_hint,
+            show_github=show_github,
         )
 
     print(
@@ -595,6 +642,7 @@ def main() -> int:
             post_gap_sec=post_gap_sec,
             max_text=max_text,
             miner_hint=miner_hint,
+            show_github=show_github,
         )
         if code != 0:
             print(f"[news-bot] cycle ended with code={code}", file=sys.stderr)

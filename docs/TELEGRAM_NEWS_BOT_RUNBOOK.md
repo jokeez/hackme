@@ -68,9 +68,30 @@ python3 /opt/hackme/scripts/ops/telegram/news_channel_bot.py --once --dry-run
 - **`posted_ids`**: news item ids successfully sent to Telegram (bounded to last 500).
 - **`ignored_ids`**: ids skipped because `status` matched `NEWS_BLOCKED_STATUSES` (default `draft`), so the bot does not retry them every poll. Clear manually if you later publish that item under a new id.
 
-## Miner-facing extras (defaults on)
+## Channel post format (v3)
 
-The bot adds a short miner hint line and a second inline row: **Downloads**, **Economics**, **All news** (URLs from `NEWS_SITE_HOME` or derived from `NEWS_PAGE_BASE`). Disable with `NEWS_MINER_BUTTON_ROW=0` and/or `NEWS_MINER_HINT_LINE=0` in `.env.newsbot`.
+- **No** `#tags`, **no** `Status: published` boilerplate, **no** raw `Action:` URL dumps.
+- **No** inline button linking to `t.me/…` (you are already in Telegram).
+- Optional per-item copy in `news.json`:
+
+```json
+"telegram": {
+  "headline": "Short title",
+  "lead": "One opening sentence.",
+  "bullets": ["Point one", "Point two"],
+  "footer": "Optional closing hint."
+}
+```
+
+Preview locally:
+
+```bash
+bash scripts/ops/telegram/preview_channel_post.sh 2026-06-04-rc11l-iso-live-boot
+```
+
+Buttons (default): **Подробнее на сайте** · **Скачать** · **Пул** · **Экономика**. Set `NEWS_SHOW_GITHUB_BUTTON=1` to add GitHub. Disable rows with `NEWS_MINER_BUTTON_ROW=0` / `NEWS_MINER_HINT_LINE=0`.
+
+Verdicts for GitHub operators: [verdicts/INDEX.md](verdicts/INDEX.md) — not `docs/TELEGRAM_POST_*` drafts.
 
 ## Operational Monitoring
 

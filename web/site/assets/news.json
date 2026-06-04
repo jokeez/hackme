@@ -4,10 +4,28 @@
       "id": "2026-06-04-rc11l-iso-live-boot",
       "date": "2026-06-04",
       "title": "HackMe OS 0.1.0-rc11l — live USB overlay boot fix",
-      "summary": "Physical hardware failed with initramfs overlay panic — live boot never runs local-premount. rc11l loads overlay in casper-premount. Win/Linux same as rc11k; unified download channel rc11l.",
-      "impact": "Current downloads: 0.1.0-rc11l until USB boot verified on hardware.",
-      "action": "https://hackme.tech/downloads.html#hackme-os · SHA256SUMS-iso.txt on dist/release_0.1.0-rc11l/",
-      "status": "published"
+      "summary": "Live USB on laptops panicked with overlay not loaded: casper live boot never runs local-premount. rc11l loads kernel modules in casper-premount before the squashfs mounts. Windows and Linux installers unchanged; download channel is rc11l.",
+      "impact": "Use HackMe-OS-0.1.0-rc11l-amd64.iso only for USB rigs until hardware sign-off.",
+      "action": "Downloads and SHA256: hackme.tech/downloads.html#hackme-os",
+      "status": "published",
+      "telegram": {
+        "headline": "HackMe OS rc11l — исправлена загрузка с USB",
+        "lead": "На ноутбуках live-ISO падало в initramfs: overlay не поднимался, потому что скрипт стоял не в той фазе загрузки.",
+        "bullets": [
+          "В rc11l модули overlay грузятся в casper-premount — до монтирования live-системы.",
+          "Канал скачиваний: 0.1.0-rc11l (Windows/Linux те же сборки, новый ISO).",
+          "Перед прошивкой проверь SHA256 на странице загрузок."
+        ],
+        "footer": "Прошивай весь диск (Etcher/dd), в GRUB — «HackMe OS (live — recommended)»."
+      },
+      "links": {
+        "downloads": "https://hackme.tech/downloads.html#hackme-os",
+        "hackme_os": "https://hackme.tech/docs/HACKME_OS.md",
+        "sha256": "https://hackme.tech/dist/release_0.1.0-rc11l/SHA256SUMS-iso.txt",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/work/stats",
+        "news": "https://hackme.tech/news.html#2026-06-04-rc11l-iso-live-boot",
+        "github": "https://github.com/jokeez/hackme"
+      }
     },
     {
       "id": "2026-06-03-rc11k-launch-candidate",
