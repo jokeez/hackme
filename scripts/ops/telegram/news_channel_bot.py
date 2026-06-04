@@ -314,8 +314,21 @@ def _is_telegram_url(url: str) -> bool:
     return "t.me/" in u or "telegram.me/" in u or u.startswith("tg://")
 
 
+def _format_hashtags(item: Dict[str, Any]) -> str:
+    """Hashtags only — no 'Tags:' label (channel posts are English)."""
+    tags = item.get("tags", [])
+    if not isinstance(tags, list):
+        return ""
+    parts: List[str] = []
+    for t in tags:
+        s = str(t).strip().lower().replace(" ", "_")
+        if s:
+            parts.append(f"#{html.escape(s)}")
+    return " ".join(parts)
+
+
 def render_message(item: Dict[str, Any], max_len: int = 3900, *, miner_hint: bool = True) -> str:
-    """Miner-friendly channel post: no tags, no status boilerplate, no in-channel Telegram links."""
+    """Miner-friendly channel post (English). No status boilerplate; hashtags without a Tags: header."""
     tg = _telegram_copy(item)
     title = html.escape(str(tg.get("headline") or item.get("title", "HackMe update")))
     date = html.escape(str(item.get("date", "")).strip())
@@ -339,7 +352,9 @@ def render_message(item: Dict[str, Any], max_len: int = 3900, *, miner_hint: boo
 
     foot = str(tg.get("footer", "")).strip()
     if not foot and miner_hint:
-        foot = "Скачивания и SHA256 — кнопки ниже."
+        foot = "Downloads and SHA256 sums — use the buttons below."
+
+    tags_line = _format_hashtags(item)
 
     lines: List[str] = ["<b>⚡ HackMe</b>"]
     if date:
@@ -354,6 +369,9 @@ def render_message(item: Dict[str, Any], max_len: int = 3900, *, miner_hint: boo
     if foot:
         lines.append("")
         lines.append(f"<i>{html.escape(_cap(foot, 280))}</i>")
+    if tags_line:
+        lines.append("")
+        lines.append(tags_line)
 
     out = "\n".join(line for line in lines if line != "")
     if len(out) <= max_len:
@@ -380,20 +398,20 @@ def build_reply_markup(
     h = site_home.rstrip("/") if site_home else ""
     links = item_links if isinstance(item_links, dict) else {}
 
-    row1: List[Dict[str, str]] = [{"text": "Подробнее на сайте", "url": btn_url}]
+    row1: List[Dict[str, str]] = [{"text": "Read on site", "url": btn_url}]
     dl = str(links.get("downloads", "")).strip()
     if not dl and h:
         dl = f"{h}/downloads.html"
     if dl and not _is_telegram_url(dl):
-        row1.append({"text": "Скачать", "url": dl})
+        row1.append({"text": "Downloads", "url": dl})
     rows.append(row1[:2])
 
     if extra_row and h:
         pool = str(links.get("pool_stats", "")).strip()
         if not pool:
             pool = f"{h}/pool/coordinator/api/work/stats"
-        row2 = [{"text": "Пул", "url": pool}]
-        row2.append({"text": "Экономика", "url": f"{h}/economics-model.html"})
+        row2 = [{"text": "Pool stats", "url": pool}]
+        row2.append({"text": "Economics", "url": f"{h}/economics-model.html"})
         rows.append(row2[:2])
 
     if show_github:

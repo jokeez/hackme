@@ -70,11 +70,14 @@ python3 /opt/hackme/scripts/ops/telegram/news_channel_bot.py --once --dry-run
 
 ## Channel post format (v3)
 
-- **No** `#tags`, **no** `Status: published` boilerplate, **no** raw `Action:` URL dumps.
+- **English only** in `telegram` blocks (headline, lead, bullets, footer). Site `summary` can stay technical English too.
+- **No** `Status:` / `Tags:` labels. Hashtags from `tags` in JSON appear at the bottom as `#release #mining` (no “Tags:” line).
+- **No** raw `Action:` URL dumps in the message body.
 - **No** inline button linking to `t.me/…` (you are already in Telegram).
 - Optional per-item copy in `news.json`:
 
 ```json
+"tags": ["release", "mining"],
 "telegram": {
   "headline": "Short title",
   "lead": "One opening sentence.",
@@ -89,7 +92,7 @@ Preview locally:
 bash scripts/ops/telegram/preview_channel_post.sh 2026-06-04-rc11l-iso-live-boot
 ```
 
-Buttons (default): **Подробнее на сайте** · **Скачать** · **Пул** · **Экономика**. Set `NEWS_SHOW_GITHUB_BUTTON=1` to add GitHub. Disable rows with `NEWS_MINER_BUTTON_ROW=0` / `NEWS_MINER_HINT_LINE=0`.
+Buttons (default): **Read on site** · **Downloads** · **Pool stats** · **Economics**. Set `NEWS_SHOW_GITHUB_BUTTON=1` to add GitHub. Disable rows with `NEWS_MINER_BUTTON_ROW=0` / `NEWS_MINER_HINT_LINE=0`.
 
 Verdicts for GitHub operators: [verdicts/INDEX.md](verdicts/INDEX.md) — not `docs/TELEGRAM_POST_*` drafts.
 

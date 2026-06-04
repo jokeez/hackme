@@ -7,16 +7,17 @@
       "summary": "Live USB on laptops panicked with overlay not loaded: casper live boot never runs local-premount. rc11l loads kernel modules in casper-premount before the squashfs mounts. Windows and Linux installers unchanged; download channel is rc11l.",
       "impact": "Use HackMe-OS-0.1.0-rc11l-amd64.iso only for USB rigs until hardware sign-off.",
       "action": "Downloads and SHA256: hackme.tech/downloads.html#hackme-os",
+      "tags": ["release", "hackme-os", "iso", "mining"],
       "status": "published",
       "telegram": {
-        "headline": "HackMe OS rc11l — исправлена загрузка с USB",
-        "lead": "На ноутбуках live-ISO падало в initramfs: overlay не поднимался, потому что скрипт стоял не в той фазе загрузки.",
+        "headline": "HackMe OS rc11l — live USB boot fix",
+        "lead": "Some laptops hit an initramfs overlay panic: the loader script was in local-premount, but live casper never runs that phase.",
         "bullets": [
-          "В rc11l модули overlay грузятся в casper-premount — до монтирования live-системы.",
-          "Канал скачиваний: 0.1.0-rc11l (Windows/Linux те же сборки, новый ISO).",
-          "Перед прошивкой проверь SHA256 на странице загрузок."
+          "rc11l loads overlay modules in casper-premount, before the live root mounts.",
+          "Download channel: 0.1.0-rc11l (same Windows/Linux builds, new ISO).",
+          "Verify SHA256 on the downloads page before flashing."
         ],
-        "footer": "Прошивай весь диск (Etcher/dd), в GRUB — «HackMe OS (live — recommended)»."
+        "footer": "Flash the whole disk (Etcher or dd). In GRUB pick “HackMe OS (live — recommended)”."
       },
       "links": {
         "downloads": "https://hackme.tech/downloads.html#hackme-os",

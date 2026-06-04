@@ -7,6 +7,6 @@ Files named `docs/TELEGRAM_POST_*` are **operator paste templates** for manual o
 - `web/site/assets/news.json` → `news-feed.json` (top 12 items)
 - `scripts/ops/telegram/news_channel_bot.py` (HTML formatting, buttons)
 
-Optional per-item copy: `"telegram": { "headline", "lead", "bullets", "footer" }` in `news.json`.
+Optional per-item copy: `"telegram": { "headline", "lead", "bullets", "footer" }` in `news.json` — **English only**. Hashtags come from `"tags"` (rendered as `#release`, no “Tags:” label).
 
 Do not duplicate long Telegram prose into `reports/` or commit social threads as if they were test verdicts.
