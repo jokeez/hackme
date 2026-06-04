@@ -19,6 +19,8 @@
   const COMMUNITY = {
     github: "https://github.com/jokeez/hackme",
     annMd: "https://github.com/jokeez/hackme/blob/main/docs/BITCOINTALK_ANN.md",
+    x: "https://x.com/HackMeTech",
+    discord: "https://discord.gg/QMxSeaTSrQ",
     tgChannel: "https://t.me/hackme_tech",
     tgEn: "https://t.me/hackme_en",
     tgRu: "https://t.me/hackme_ru",
