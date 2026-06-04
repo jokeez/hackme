@@ -129,7 +129,7 @@ type app struct {
 	workerHashrate        float64
 	workerRunningCached   bool
 	workerRunningCacheAt  int64
-	workerRunningCacheMu sync.Mutex
+	workerRunningCacheMu  sync.Mutex
 	canonMu               sync.RWMutex
 	canonHasGenesis       bool
 	canonTipHeight        uint64
@@ -2589,22 +2589,22 @@ func (a *app) handleWorkerStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, map[string]any{
-		"ok":                          true,
-		"running":                     running,
-		"pid":                         pid,
-		"started_at_unix":             startedAt,
-		"session_seconds":             sessionSec,
-		"coord_url":                   coordURL,
-		"worker_id":                   workerID,
-		"batch_size":                  a.workerBatchSize,
-		"hashrate_gh_s":               displayGH,
-		"measured_hashrate_gh_s":      measuredGH,
-		"coordinator_hashrate_gh_s":   coordGH,
-		"coordinator_online":          coordOnline,
-		"coordinator_last_seen_unix":  coordLastSeen,
-		"telemetry_source":            telemetrySource,
-		"log_path":                    logPath,
-		"external_worker":             running && pid == 0,
+		"ok":                         true,
+		"running":                    running,
+		"pid":                        pid,
+		"started_at_unix":            startedAt,
+		"session_seconds":            sessionSec,
+		"coord_url":                  coordURL,
+		"worker_id":                  workerID,
+		"batch_size":                 a.workerBatchSize,
+		"hashrate_gh_s":              displayGH,
+		"measured_hashrate_gh_s":     measuredGH,
+		"coordinator_hashrate_gh_s":  coordGH,
+		"coordinator_online":         coordOnline,
+		"coordinator_last_seen_unix": coordLastSeen,
+		"telemetry_source":           telemetrySource,
+		"log_path":                   logPath,
+		"external_worker":            running && pid == 0,
 	})
 }
 
@@ -5144,10 +5144,10 @@ func (a *app) handleMiningDevices(w http.ResponseWriter, r *http.Request) {
 				}
 				return ""
 			}(),
-			"gpu_count":     len(devs),
-			"gpu_active":                  activeGPU,
-			"profile_mode":                profile,
-			"gpu_devices":                 devs,
+			"gpu_count":    len(devs),
+			"gpu_active":   activeGPU,
+			"profile_mode": profile,
+			"gpu_devices":  devs,
 		})
 	case http.MethodPost:
 		if !requireAdminAuth(w, r) {
