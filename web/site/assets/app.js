@@ -1,6 +1,6 @@
 (() => {
-  /** Bump together with dist/release_<VERSION>/ and scripts/release/make_release_bundle.sh */
-  const RELEASE_VER = "0.1.0-rc11k";
+  /** Bump with scripts/release/CURRENT_VERSION, dist/release_<VERSION>/, main.go Version */
+  const RELEASE_VER = "0.1.0-rc11l";
 
   /** Sub-1 TH/s → GH/s (matches dashboard / explorer pool strip). */
   function fmtPoolHashrateTHS(ths, mock) {
@@ -29,7 +29,7 @@
     newsUrl: "./news.html",
     newsFeed: "./assets/news.json",
     releaseChannel: RELEASE_VER,
-    releaseChannelNote: "launch candidate — production miner (not demo)",
+    releaseChannelNote: "launch candidate — rc11l ISO live-boot fix; Win/Linux same build as rc11k",
     releaseBase: `/dist/release_${RELEASE_VER}`,
     windowsInstaller: `/dist/release_${RELEASE_VER}/HackMe-Setup-${RELEASE_VER}.exe`,
     windowsBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows_setup.zip`,

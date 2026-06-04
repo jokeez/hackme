@@ -1,7 +1,7 @@
 # Bitcointalk announcement — HackMe Network
 
 **Language:** English only (forum post)  
-**Version:** `0.1.0-rc11k` (current downloads; rc11j = GPU matrix history)  
+**Version:** `0.1.0-rc11l` (current downloads; rc11k/rc11j = history)  
 **Source:** https://github.com/jokeez/hackme  
 **Live thread:** https://bitcointalk.org/index.php?topic=5583373.0
 
@@ -108,7 +108,7 @@ No ICO. No token sale. Pool / infrastructure thread.
 
 #### Disclaimer
 
-Cryptocurrency mining involves technical and financial risk. HackMe is **experimental** release-candidate software (`0.1.0-rc11k`). Not investment advice. Pool parameters (difficulty, payout policy) may change with notice on the website. Run only software you have verified.
+Cryptocurrency mining involves technical and financial risk. HackMe is **experimental** release-candidate software (`0.1.0-rc11l`). Not investment advice. Pool parameters (difficulty, payout policy) may change with notice on the website. Run only software you have verified.
 
 ---
 

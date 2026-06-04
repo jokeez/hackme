@@ -22,6 +22,22 @@ _OPS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$_OPS_DIR/_deploy_ssh_retry.sh"
 
+# Optional: HACKME_DEPLOY_SSH_IDENTITY=/path/to/key (chmod 600, never commit)
+_deploy_ssh() {
+  if [[ -n "${HACKME_DEPLOY_SSH_IDENTITY:-}" && -f "${HACKME_DEPLOY_SSH_IDENTITY}" ]]; then
+    ssh -i "${HACKME_DEPLOY_SSH_IDENTITY}" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$@"
+  else
+    ssh "$@"
+  fi
+}
+_deploy_rsync() {
+  if [[ -n "${HACKME_DEPLOY_SSH_IDENTITY:-}" && -f "${HACKME_DEPLOY_SSH_IDENTITY}" ]]; then
+    rsync -e "ssh -i ${HACKME_DEPLOY_SSH_IDENTITY} -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new" "$@"
+  else
+    rsync "$@"
+  fi
+}
+
 NODE_SSH="${NODE_SSH:-}"
 NODE_DEPLOY_DIR="${NODE_DEPLOY_DIR:-/opt/hackme}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
@@ -80,18 +96,18 @@ RSYNC_EXCLUDES=(
 if [[ "$SYNC_DIST" != "1" ]]; then
   RSYNC_EXCLUDES+=(--exclude 'dist/')
 fi
-deploy_ssh_retry_run rsync -az --delete \
+deploy_ssh_retry_run _deploy_rsync -az --delete \
   "${RSYNC_EXCLUDES[@]}" \
   "$ROOT_DIR/" "$NODE_SSH:$NODE_DEPLOY_DIR/"
 
 if [[ "$INSTALL_FROM_CODE_TOOLCHAINS" == "1" ]]; then
   echo "[deploy-hackme-node] remote from-code toolchains"
-  deploy_ssh_retry_run ssh "$NODE_SSH" "bash -lc '$NODE_DEPLOY_DIR/scripts/ops/install_vps_from_code_toolchains.sh'"
+  deploy_ssh_retry_run _deploy_ssh "$NODE_SSH" "bash -lc '$NODE_DEPLOY_DIR/scripts/ops/install_vps_from_code_toolchains.sh'"
 fi
 
 # One SSH session after rsync: fewer TCP connects when port 22 flakes between commands.
 echo "[deploy-hackme-node] chmod, restart hackme-node/coordinator, smoke (single SSH)"
-deploy_ssh_retry_run ssh "$NODE_SSH" bash -s <<REMOTE_EOF
+deploy_ssh_retry_run _deploy_ssh "$NODE_SSH" bash -s <<REMOTE_EOF
 set -euo pipefail
 d='$NODE_DEPLOY_DIR'
 if [[ ! -f "\$d/.env.vps" ]]; then

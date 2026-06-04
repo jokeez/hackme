@@ -3,7 +3,7 @@
 # Source:  source /opt/hackme/scripts/release/iso/hackme-os-ui.sh
 set -euo pipefail
 
-HACKME_UI_VERSION="${HACKME_UI_VERSION:-0.1.0-rc11k}"
+HACKME_UI_VERSION="${HACKME_UI_VERSION:-0.1.0-rc11l}"
 HACKME_UI_NEON="${HACKME_UI_NEON:-#00ff66}"
 
 if [[ -t 1 ]] && [[ "${NO_COLOR:-}" != "1" ]]; then

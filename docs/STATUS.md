@@ -1,12 +1,12 @@
 # HackMe RC status (operator snapshot)
 
-**Release:** `0.1.0-rc11k` · **Site:** https://hackme.tech · **Branch:** `main`
+**Release:** `0.1.0-rc11l` · **Site:** https://hackme.tech · **Branch:** `main`
 
-| Highlight (2026-05-26) | |
+| Highlight (2026-06-04) | |
 |------------------------|--|
-| **Fuzz Engine v2** | Seed corpus · bit-flip mutation · coverage buckets v2 · reproducible artifacts · `fuzz_report_v2` |
-| **Wallet / settlement** | Desktop canonical wallet, settlement timer fix, `/dev/null` VPS sanity |
-| **Downloads** | Current channel `0.1.0-rc11k` — Windows Setup, Linux tarball, HackMe OS ISO on https://hackme.tech/downloads.html |
+| **HackMe OS ISO** | Live USB overlay fix — `05-hackme-overlay-modules` in `casper-premount` (not `local-premount`) |
+| **Channel** | `0.1.0-rc11l` on downloads — Windows/Linux same binaries as rc11k; **new ISO only** until hardware verified |
+| **Downloads** | https://hackme.tech/downloads.html |
 
 | Area | Verdict |
 |------|---------|
@@ -17,30 +17,16 @@
 | Dashboard UI (local) | **PASS** — Playwright `tests/e2e/specs/solopool-dashboard.spec.ts` |
 | Multi-GPU / hybrid fleet | **GO** — `fleetplan`, `HACKME_GPU_HYBRID=auto`, `worker_autostart.sh` (CUDA+OpenCL) |
 | HackMe OS visual overhaul (source) | **GO** — GRUB/Plymouth/TTY shipped on downloads ISO |
-| Published ISO on hackme.tech | **LIVE** — `fc1b0ff4…fb76d1` · **878 454 784** B (~838 MiB) · [SHA256SUMS-iso.txt](https://hackme.tech/dist/release_0.1.0-rc11k/SHA256SUMS-iso.txt) |
+| Published ISO on hackme.tech | **LIVE** — `81a1f1f1…cad30b0db` · **878 454 784** B (~838 MiB) · [SHA256SUMS-iso.txt](https://hackme.tech/dist/release_0.1.0-rc11l/SHA256SUMS-iso.txt) |
 
 ## Open operator items (non-blocking for miners)
 
-1. ~~Set `TG_ADMIN_CHAT_ID`~~ — **done on VPS** (pool heartbeat every 4h; see [TELEGRAM_NEWS_BOT_RUNBOOK.md](TELEGRAM_NEWS_BOT_RUNBOOK.md)). Republish channel news when SSH is up: `FORCE_NEWS_ID=2026-05-25-fuzzing-b2b-cli-hardening bash scripts/ops/publish_news_to_telegram.sh`.
+1. **Acer / physical USB** — confirm boot with rc11l ISO SHA before any version bump past `rc11l`.
 2. Do not run 1000-packet `hybrid_crypto_matrix.sh` against prod in a loop (rate limits).
 3. HMS / HMAI vectors in dashboard are **preview** — only **HMC** pool is mineable today.
-4. ~~Rebuild ISO with visual overhaul~~ — **done** (see `SHA256SUMS-iso.txt` on downloads).
 
-## Morning check (2026-05-23 UTC)
+## Version source of truth
 
-| Check | Result |
-|-------|--------|
-| `worker-kapa-pc` hashrate | **~68.1 GH/s** (stable overnight) |
-| Pool attempts / payout | **~2.63B** attempts · **~0.425 HMC** |
-| Processes | `hackme-node-desktop` + `workerpoh-cuda` **running** |
-| `public_site_smoke.sh` | **PASS** (pages 200 · ISO **874 442 752** B) |
-| Published ISO visuals | **Shipped** — GRUB/Plymouth/ZK TTY |
-| Prod `GET /api/global/metrics` | OK — use this for aggregate stats (not legacy `/pool/api/metrics`) |
-
-Snapshot: `reports/mining-night-20260523T043740Z/SNAPSHOT.md`
-
-```bash
-bash scripts/ops/mining_night_snapshot.sh
-```
-
-Historical dated verdicts moved to [archive/](archive/README.md).
+- `scripts/release/CURRENT_VERSION` — operator scripts default
+- `web/site/assets/app.js` → `RELEASE_VER` — site + dashboard download URLs
+- `main.go` → `Version` — node binary embed (rebuild/deploy to match)

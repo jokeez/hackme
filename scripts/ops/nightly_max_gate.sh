@@ -7,7 +7,7 @@ cd "$ROOT"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT="${OUT:-$ROOT/reports/nightly-max-$STAMP}"
 LOG="$OUT/run.log"
-ISO="${ISO:-$ROOT/dist/release_0.1.0-rc11k/HackMe-OS-0.1.0-rc11k-amd64.iso}"
+ISO="${ISO:-$ROOT/dist/release_0.1.0-rc11l/HackMe-OS-0.1.0-rc11l-amd64.iso}"
 ADMIN="$(tr -d '\r\n' <"$ROOT/.secrets/hackme_admin_token" 2>/dev/null || true)"
 
 mkdir -p "$OUT"

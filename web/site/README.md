@@ -12,7 +12,7 @@ Static front-end for [hackme.tech](https://hackme.tech). Served separately from 
 | `economics-model.html` | Chain / pool / orders economics |
 | `pool/explorer` (proxied) | Live explorer on production |
 
-Release label and download URLs: `assets/app.js` → `RELEASE_VER` (must match `dist/release_<VERSION>/` on the server).
+Release label and download URLs: `assets/app.js` → `RELEASE_VER` (must match `scripts/release/CURRENT_VERSION` and `dist/release_<VERSION>/` on the server).
 
 ## Local preview
 

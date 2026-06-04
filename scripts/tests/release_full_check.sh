@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-VERSION="${VERSION:-0.1.0-rc11k}"
+VERSION="${VERSION:-0.1.0-rc11l}"
 REL_DIR="${REL_DIR:-$ROOT/dist/release_${VERSION}}"
 SITE="${SITE_BASE:-https://hackme.tech}"
 VERIFY_CDN="${VERIFY_CDN:-1}"

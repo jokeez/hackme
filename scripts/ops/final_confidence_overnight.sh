@@ -70,7 +70,7 @@ step phasing_full env PHASE_FROM=1 POLL_SEC=300 RATE_SLEEP=22 BUDGET_RUNS=24 POO
   bash "$ROOT/scripts/tests/customer_real_network_phasing.sh"
 step release_local env VERIFY_CDN=0 bash "$ROOT/scripts/tests/release_full_check.sh"
 
-# After deploy (if deploy log reports PASS), verify CDN ISO SHA matches local rc11k.
+# After deploy (if deploy log reports PASS), verify CDN ISO SHA matches local CURRENT_VERSION (rc11l).
 DEPLOY_LOG="$ROOT/reports/deploy-latest.log"
 if [[ -f "$DEPLOY_LOG" ]] && grep -q 'PASS (HTTP 200)' "$DEPLOY_LOG" 2>/dev/null; then
   step cdn_iso_sha env VERIFY_CDN=1 bash "$ROOT/scripts/tests/release_full_check.sh"

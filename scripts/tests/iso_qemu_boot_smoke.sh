@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-VERSION="${VERSION:-0.1.0-rc11k}"
+VERSION="${VERSION:-0.1.0-rc11l}"
 ISO="${1:-${ROOT}/dist/release_${VERSION}/HackMe-OS-${VERSION}-amd64.iso}"
 LOG="${2:-/tmp/hackme-iso-qemu-$$.log}"
 TIMEOUT_SEC="${TIMEOUT_SEC:-300}"
@@ -71,7 +71,7 @@ if grep -qiE 'username=root' "$LOG" 2>/dev/null || grep -aq 'username=root' "${I
 fi
 
 if grep -qiE 'overlay.*no support found|/cow format specified' "$LOG" 2>/dev/null; then
-  echo "[iso-qemu] FAIL: casper overlay not available (rebuild ISO with 00-hackme-overlay-modules)" >&2
+  echo "[iso-qemu] FAIL: casper overlay not available (rebuild ISO with 05-hackme-overlay-modules in casper-premount)" >&2
   grep -iE 'overlay|/cow' "$LOG" | tail -n 15 >&2 || true
   exit 1
 fi

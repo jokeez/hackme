@@ -1,6 +1,39 @@
 {
   "items": [
     {
+      "id": "2026-06-04-rc11l-iso-live-boot",
+      "date": "2026-06-04",
+      "title": "HackMe OS 0.1.0-rc11l — live USB overlay boot fix",
+      "summary": "Physical hardware failed with initramfs overlay panic — live boot never runs local-premount. rc11l loads overlay in casper-premount. Win/Linux same as rc11k; unified download channel rc11l.",
+      "impact": "Current downloads: 0.1.0-rc11l until USB boot verified on hardware.",
+      "action": "https://hackme.tech/downloads.html#hackme-os · SHA256SUMS-iso.txt on dist/release_0.1.0-rc11l/",
+      "status": "published"
+    },
+    {
+      "id": "2026-06-03-rc11k-launch-candidate",
+      "date": "2026-06-03",
+      "title": "Release 0.1.0-rc11k — launch candidate (production miner)",
+      "summary": "Production download channel after rc11j GPU matrix: fixed public /api/status canonical loop, coordinator-first dashboard telemetry, resilience and economics gates PASS, golden-path onboarding. Windows Setup, Linux bundle, and HackMe OS ISO rebuilt with hackme node fix — not a demo build.",
+      "tags": [
+        "release",
+        "mining",
+        "infrastructure",
+        "pool"
+      ],
+      "impact": "Superseded for HackMe OS ISO by rc11l (2026-06-04). Downloads channel: rc11l.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Verdict: https://hackme.tech/docs/HACKME_RC11K_LAUNCH_CANDIDATE.md · Pool: https://hackme.tech/pool/coordinator/api/work/stats",
+      "status": "published",
+      "links": {
+        "downloads": "https://hackme.tech/downloads.html",
+        "verdict": "https://hackme.tech/docs/HACKME_RC11K_LAUNCH_CANDIDATE.md",
+        "setup": "https://hackme.tech/docs/SETUP.md",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/work/stats",
+        "news": "https://hackme.tech/news.html",
+        "github": "https://github.com/jokeez/hackme",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-06-02-rc11j-gpu-matrix-final",
       "date": "2026-06-02",
       "title": "Release 0.1.0-rc11j — GPU matrix final (CUDA auto-fallback, installer, ISO)",
@@ -37,7 +70,7 @@
         "pool"
       ],
       "impact": "Miners can trust multi-GPU and cloud rent hosts; OpenCL fallback keeps mining when CUDA 13/NVRTC mismatches on Vast. Coordinator aggregation deployed to production VPS.",
-      "action": "News: https://hackme.tech/news.html · Verdict: https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md · Pool: https://hackme.tech/pool/coordinator/api/pool/stats · Downloads (current 0.1.0-rc11j): https://hackme.tech/downloads.html",
+      "action": "News: https://hackme.tech/news.html · Verdict: https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md · Pool: https://hackme.tech/pool/coordinator/api/pool/stats · Downloads (current rc11l): https://hackme.tech/downloads.html",
       "status": "published",
       "links": {
         "news": "https://hackme.tech/news.html",
@@ -222,51 +255,6 @@
         "downloads": "https://hackme.tech/downloads.html",
         "report_bc5": "https://hackme.tech/reports/bitcoin-core-5module.html",
         "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
-        "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-05-26-order-pool-live-5hmc-rc11h",
-      "date": "2026-05-26",
-      "title": "Order pool live · 5 HMC test completed (rc11h)",
-      "summary": "Production useful-PoW order order-live-5hmc-202605251816: prepaid 5 HMC (5×1 HMC reward), minimal WASM gate, completed 5/5 in ~2 minutes. Escrow fee 0.25 HMC, burn 0.5 HMC. All five order blocks credited miner_address HMC-381c0c5e2cfcc714 on the canonical node. Pool workers (rc11h) receive order WASM in claim and relay solves to POST /api/poh/solve-order so escrow follows the hybrid signer, not only the operator wallet.",
-      "tags": [
-        "mining",
-        "release",
-        "economics",
-        "pool"
-      ],
-      "impact": "Miners on rc11h ISO/Windows/Linux can earn order escrow when their hybrid address wins the chain block; operators see verified prepaid/burn/fee on live mainnet.",
-      "action": "Downloads: https://hackme.tech/downloads.html · Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats · Economics: https://hackme.tech/economics-model.html · BC5 report: https://hackme.tech/reports/bitcoin-core-5module.html · Telegram draft: docs/TELEGRAM_POST_ORDER_POOL_RC11H.txt",
-      "status": "published",
-      "links": {
-        "github": "https://github.com/jokeez/hackme",
-        "downloads": "https://hackme.tech/downloads.html",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
-        "economics": "https://hackme.tech/economics-model.html",
-        "report_bc5": "https://hackme.tech/reports/bitcoin-core-5module.html",
-        "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-05-25-fuzz-html-reports-security-note-01",
-      "date": "2026-05-25",
-      "title": "Fuzz reports ship as HTML · Security Note #1 (Script push bounds) · useful-PoW completed",
-      "summary": "Customer fuzz reports now default to a styled HTML page (verdict badge, metrics, top issues) instead of raw JSON blobs. Security research campaign #1: Bitcoin Script–inspired WASM guard (OP_PUSHDATA1 push > 520 bytes) ran as a paid useful-PoW order on the live coordinator; demo fuzz campaign verdict clean. Open source checker in repo.",
-      "tags": [
-        "security",
-        "fuzzing",
-        "release",
-        "infrastructure"
-      ],
-      "impact": "Operators and B2B integrators get publication-ready security reports; miners see the same pool infra used for research-class WASM gates.",
-      "action": "Local dashboard: Fuzz → Open report · API: GET /api/fuzz/campaigns/{id}/report (HTML) or ?format=json · Guard source: tasks/sources/security/rust_script_push_bounds_guard.rs · Telegram: docs/TELEGRAM_POST_HTML_FUZZ_REPORTS.txt · BCT: docs/BITCOINTALK_SECURITY_NOTE_01_BBCode.txt",
-      "status": "published",
-      "links": {
-        "github": "https://github.com/jokeez/hackme",
-        "developers": "https://hackme.tech/developers.html",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
-        "bitcointalk": "https://bitcointalk.org/index.php?topic=5583373.0",
         "telegram": "https://t.me/hackme_tech"
       }
     }

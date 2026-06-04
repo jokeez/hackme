@@ -1,0 +1,36 @@
+#!/bin/sh
+# Live USB boots via scripts/casper mountroot(), not local-premount.
+# overlay must load here (before 10driver_updates) so setup_overlay() can modprobe overlay.
+PREREQ=""
+
+prereqs() { echo "$PREREQ"; }
+
+case "$1" in
+prereqs)
+  prereqs
+  exit 0
+  ;;
+esac
+
+for m in zstd lz4 lzma2 xz squashfs loop overlay isofs iso9660 udf vfat ext4 sd_mod usb_storage; do
+  modprobe "$m" 2>/dev/null || true
+done
+
+if ! grep -q overlay /proc/filesystems 2>/dev/null; then
+  kver="$(uname -r)"
+  for ko in \
+    "/lib/modules/${kver}/kernel/fs/overlayfs/overlay.ko.zst" \
+    "/lib/modules/${kver}/kernel/fs/overlayfs/overlay.ko"; do
+    if [ -f "$ko" ]; then
+      modprobe -f overlay 2>/dev/null || insmod "$ko" 2>/dev/null || true
+      break
+    fi
+  done
+fi
+
+if ! grep -q overlay /proc/filesystems 2>/dev/null; then
+  echo "hackme-live: FATAL overlay module not loaded (casper-premount)" >/dev/console 2>/dev/null || true
+  echo "hackme-live: FATAL overlay module not loaded (casper-premount)" >/dev/kmsg 2>/dev/null || true
+fi
+
+exit 0

@@ -131,10 +131,10 @@ if command -v lsinitramfs >/dev/null 2>&1; then
     rm -f "$IR_LIST"
     exit 1
   fi
-  if grep -Fq '00-hackme-overlay-modules' "$IR_LIST" 2>/dev/null; then
-    echo "[iso-inner] PASS initrd includes 00-hackme-overlay-modules (before casper)"
+  if grep -Fq '05-hackme-overlay-modules' "$IR_LIST" 2>/dev/null; then
+    echo "[iso-inner] PASS initrd includes 05-hackme-overlay-modules (casper-premount)"
   else
-    echo "[iso-inner] FAIL initrd missing 00-hackme-overlay-modules" >&2
+    echo "[iso-inner] FAIL initrd missing 05-hackme-overlay-modules" >&2
     rm -f "$IR_LIST"
     exit 1
   fi

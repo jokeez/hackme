@@ -1,12 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-06-04-rc11l-iso-live-boot",
+      "date": "2026-06-04",
+      "title": "HackMe OS 0.1.0-rc11l — live USB overlay boot fix",
+      "summary": "Physical hardware failed with initramfs overlay panic — live boot never runs local-premount. rc11l loads overlay in casper-premount. Win/Linux same as rc11k; unified download channel rc11l.",
+      "impact": "Current downloads: 0.1.0-rc11l until USB boot verified on hardware.",
+      "action": "https://hackme.tech/downloads.html#hackme-os · SHA256SUMS-iso.txt on dist/release_0.1.0-rc11l/",
+      "status": "published"
+    },
+    {
       "id": "2026-06-03-rc11k-launch-candidate",
       "date": "2026-06-03",
       "title": "Release 0.1.0-rc11k — launch candidate (production miner)",
       "summary": "Production download channel after rc11j GPU matrix: fixed public /api/status canonical loop, coordinator-first dashboard telemetry, resilience and economics gates PASS, golden-path onboarding. Windows Setup, Linux bundle, and HackMe OS ISO rebuilt with hackme node fix — not a demo build.",
       "tags": ["release", "mining", "infrastructure", "pool"],
-      "impact": "New miners should install rc11k; rc11j remains documented for GPU matrix history. Pool hub and installers aligned on the same commit.",
+      "impact": "Superseded for HackMe OS ISO by rc11l (2026-06-04). Downloads channel: rc11l.",
       "action": "Downloads: https://hackme.tech/downloads.html · Verdict: https://hackme.tech/docs/HACKME_RC11K_LAUNCH_CANDIDATE.md · Pool: https://hackme.tech/pool/coordinator/api/work/stats",
       "status": "published",
       "links": {
@@ -45,7 +54,7 @@
       "summary": "Field-tested NVIDIA rigs on Vast.ai (2× GTX 1080 Ti, 4× RTX 2080 Ti, 30/40/50 series including RTX 4090 & 5090) plus operator RTX 5060 Ti desktop. Every generation: signed submits, hits, payout, and target_mod retarget on https://hackme.tech/pool/coordinator. Hub fix: multi-GPU rigs show as one worker with summed GH/s.",
       "tags": ["mining", "infrastructure", "release", "gpu", "pool"],
       "impact": "Miners can trust multi-GPU and cloud rent hosts; OpenCL fallback keeps mining when CUDA 13/NVRTC mismatches on Vast. Coordinator aggregation deployed to production VPS.",
-      "action": "News: https://hackme.tech/news.html · Verdict: https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md · Pool: https://hackme.tech/pool/coordinator/api/pool/stats · Downloads (historical rc11j; current rc11k): https://hackme.tech/downloads.html",
+      "action": "News: https://hackme.tech/news.html · Verdict: https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md · Pool: https://hackme.tech/pool/coordinator/api/pool/stats · Downloads (current rc11l): https://hackme.tech/downloads.html",
       "status": "published",
       "links": {
         "news": "https://hackme.tech/news.html",

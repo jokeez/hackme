@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-VERSION="${VERSION:-0.1.0-rc11k}"
+VERSION="${VERSION:-$(tr -d ' \n\r' <"${ROOT}/scripts/release/CURRENT_VERSION" 2>/dev/null || echo 0.1.0-rc11l)}"
 DIST_DIR="${1:-${ROOT}/dist/release_${VERSION}}"
 
 if [[ ! -d "$DIST_DIR" ]]; then

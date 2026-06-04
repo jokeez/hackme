@@ -36,7 +36,7 @@ Under extreme RPS the pool applies **429 backpressure** (rate limits) instead of
 - Downloads (SHA256 on page): https://hackme.tech/downloads.html  
 
 **Miners**
-- **Windows:** `HackMe-Setup-0.1.0-rc11k.exe` — installer, pool token preconfigured, **OpenCL** for AMD (RX 580 profile).  
+- **Windows:** `HackMe-Setup-0.1.0-rc11l.exe` — installer, pool token preconfigured, **OpenCL** for AMD (RX 580 profile).  
 - **Linux:** CUDA (NVIDIA) or OpenCL or CPU — see repo `docs/GPU_MINING_BACKENDS.md`.  
 - Set **`WORKER_PAYOUT_MAP`** / hybrid signer so your worker id → **`HMC-…`** address for settlement.
 

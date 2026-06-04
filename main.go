@@ -55,7 +55,7 @@ var embeddedFaviconICO []byte
 
 // Build metadata (overridden by -ldflags in release builds).
 var (
-	Version   = "0.1.0-rc11k"
+	Version   = "0.1.0-rc11l"
 	Commit    = "nogit"
 	BuildDate = "unknown"
 )

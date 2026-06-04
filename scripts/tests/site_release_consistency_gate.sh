@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verify hackme.tech site pages and rc11k download URLs match assets/app.js RELEASE_VER.
+# Verify hackme.tech site pages and CURRENT_VERSION download URLs match assets/app.js RELEASE_VER.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SITE="${SITE_BASE:-https://hackme.tech}"
@@ -48,4 +48,4 @@ check_head "iso" "${BASE}/HackMe-OS-${VER}-amd64.iso" 800000000
 lite="$(curl -fsS --max-time 15 "${SITE}/api/status?lite=1" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('version',''),d.get('commit','')[:12])" 2>/dev/null || echo FAIL)"
 echo "[site-release] api/status?lite=1 → $lite"
 if [[ "$fail" -gt 0 ]]; then echo "[site-release] FAIL ($fail checks)" >&2; exit 1; fi
-echo "[site-release] PASS — site + rc11k artifacts consistent"
+echo "[site-release] PASS — site + ${VER} artifacts consistent"

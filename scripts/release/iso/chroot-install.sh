@@ -61,7 +61,11 @@ if [[ -d /tmp/iso-overlay ]]; then
   cp -a /tmp/iso-overlay/etc/. /etc/
 fi
 
-mkdir -p /etc/initramfs-tools/scripts/local-premount
+mkdir -p /etc/initramfs-tools/scripts/casper-premount /etc/initramfs-tools/scripts/local-premount
+if [[ -f /tmp/iso-overlay/etc/initramfs-tools/scripts/casper-premount/05-hackme-overlay-modules ]]; then
+  install -m 0755 /tmp/iso-overlay/etc/initramfs-tools/scripts/casper-premount/05-hackme-overlay-modules \
+    /etc/initramfs-tools/scripts/casper-premount/05-hackme-overlay-modules
+fi
 if [[ -f /tmp/iso-overlay/etc/initramfs-tools/scripts/local-premount/00-hackme-overlay-modules ]]; then
   install -m 0755 /tmp/iso-overlay/etc/initramfs-tools/scripts/local-premount/00-hackme-overlay-modules \
     /etc/initramfs-tools/scripts/local-premount/00-hackme-overlay-modules

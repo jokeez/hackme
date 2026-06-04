@@ -1,6 +1,6 @@
 # Ecosystem dashboard roadmap (multi-coin vision)
 
-HackMe already has an **Ecosystem** tab in `dashboard.html` (HMC live; Alpha / Orders / Shard as placeholders). This doc sequences work toward a real multi-pool UI without breaking rc11k production.
+HackMe already has an **Ecosystem** tab in `dashboard.html` (HMC live; Alpha / Orders / Shard as placeholders). This doc sequences work toward a real multi-pool UI without breaking rc11l production.
 
 ## Phase 1 — HMC pool transparency (now)
 

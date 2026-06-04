@@ -12,11 +12,15 @@ esac
 for mod in zstd lz4 lzma2 xz squashfs loop overlay isofs iso9660 udf vfat ext4 sd_mod usb_storage; do
   manual_add_modules "$mod" 2>/dev/null || true
 done
-if [ -x /etc/initramfs-tools/scripts/local-premount/00-hackme-overlay-modules ]; then
-  copy_exec /etc/initramfs-tools/scripts/local-premount/00-hackme-overlay-modules \
-    /scripts/local-premount/00-hackme-overlay-modules
-fi
-# Ensure depmod ran so modprobe in local-premount resolves .ko.zst chains.
+for _hm_script in \
+  /etc/initramfs-tools/scripts/casper-premount/05-hackme-overlay-modules \
+  /etc/initramfs-tools/scripts/local-premount/00-hackme-overlay-modules; do
+  if [ -x "$_hm_script" ]; then
+    _hm_dest="/scripts/$(basename "$(dirname "$_hm_script")")/$(basename "$_hm_script")"
+    copy_exec "$_hm_script" "$_hm_dest"
+  fi
+done
+# Ensure depmod ran so modprobe in premount resolves .ko.zst chains.
 if command -v depmod >/dev/null 2>&1; then
   depmod -a 2>/dev/null || true
 fi

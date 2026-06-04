@@ -1,4 +1,4 @@
-🔬 HackMe Fuzz Engine v2 — current miner channel 0.1.0-rc11k is live
+🔬 HackMe Fuzz Engine v2 — current miner channel 0.1.0-rc11l is live
 
 We upgraded the fuzz pipeline (not just more hashrate):
 

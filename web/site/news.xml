@@ -5,7 +5,14 @@
     <link>https://hackme.tech/news.html</link>
     <description>Official HackMe Network release, infrastructure, economics, and security updates.</description>
     <language>en-us</language>
-    <lastBuildDate>Tue, 03 Jun 2026 12:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Wed, 04 Jun 2026 12:00:00 GMT</lastBuildDate>
+    <item>
+      <title>HackMe OS 0.1.0-rc11l — live USB overlay boot fix</title>
+      <link>https://hackme.tech/news.html#2026-06-04-rc11l-iso-live-boot</link>
+      <guid>https://hackme.tech/news.html#2026-06-04-rc11l-iso-live-boot</guid>
+      <pubDate>Wed, 04 Jun 2026 12:00:00 GMT</pubDate>
+      <description>rc11l fixes initramfs overlay panic on physical USB — modules in casper-premount. Current downloads on hackme.tech.</description>
+    </item>
     <item>
       <title>Release 0.1.0-rc11k — launch candidate (production miner)</title>
       <link>https://hackme.tech/news.html#2026-06-03-rc11k-launch-candidate</link>

@@ -2,7 +2,7 @@
 # Build bootable HackMe Miner ISO (live USB → public pool worker).
 #
 # Usage:
-#   VERSION=0.1.0-rc11k bash scripts/release/iso/build_hackme_miner_iso.sh
+#   VERSION=0.1.0-rc11l bash scripts/release/iso/build_hackme_miner_iso.sh
 #
 # Requires: Docker (recommended) or host debootstrap + squashfs-tools + xorriso + grub-mkrescue.
 # Pool token: HACKME_RELEASE_POOL_MINER_TOKEN or .secrets/hackme_coordinator_worker_token
@@ -15,7 +15,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$ROOT_DIR"
 
-VERSION="${VERSION:-0.1.0-rc11k}"
+VERSION="${VERSION:-0.1.0-rc11l}"
 LINUX_TAR="${LINUX_TAR:-${ROOT_DIR}/dist/release_${VERSION}/hackme_${VERSION}_linux.tar.gz}"
 OUT_DIR="${OUT_DIR:-${ROOT_DIR}/dist/release_${VERSION}}"
 ISO_DIR="${ROOT_DIR}/scripts/release/iso"

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-VERSION="${VERSION:-0.1.0-rc11k}"
+VERSION="${VERSION:-0.1.0-rc11l}"
 ISO_PATH="${1:-}"
 
 if [[ -z "$ISO_PATH" ]]; then
@@ -49,10 +49,10 @@ if command -v 7z >/dev/null 2>&1 && command -v lsinitramfs >/dev/null 2>&1; then
   IR_TMP="$(mktemp -d)"
   if 7z x -y -o"$IR_TMP" "$ISO_PATH" casper/initrd >/dev/null 2>&1; then
     lsinitramfs "$IR_TMP/casper/initrd" >"$IR_TMP/initrd.ls" 2>/dev/null || true
-    if grep -Fq '00-hackme-overlay-modules' "$IR_TMP/initrd.ls" 2>/dev/null; then
-      echo "[verify-iso] PASS initrd 00-hackme-overlay-modules (runs before casper-premount)"
+    if grep -Fq '05-hackme-overlay-modules' "$IR_TMP/initrd.ls" 2>/dev/null; then
+      echo "[verify-iso] PASS initrd 05-hackme-overlay-modules (casper-premount phase)"
     else
-      echo "[verify-iso] FAIL: initrd missing 00-hackme-overlay-modules (overlay boot broken)" >&2
+      echo "[verify-iso] FAIL: initrd missing 05-hackme-overlay-modules (overlay boot broken)" >&2
       exit 13
     fi
     if grep -Fq 'overlay.ko' "$IR_TMP/initrd.ls" 2>/dev/null; then

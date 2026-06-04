@@ -1,5 +1,5 @@
 #!/bin/sh
-# Must run before casper-premount (lexical order: 00-* < casper-premount).
+# Fallback for non-casper local boots. Live USB uses casper-premount/05-hackme-overlay-modules.
 # Fixes: (initramfs) /cow format specified as 'overlay' and no support found
 PREREQ=""
 
