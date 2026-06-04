@@ -62,9 +62,9 @@ if [[ -d /tmp/iso-overlay ]]; then
 fi
 
 mkdir -p /etc/initramfs-tools/scripts/local-premount
-if [[ -f /tmp/iso-overlay/etc/initramfs-tools/scripts/local-premount/hackme-overlay-modules ]]; then
-  install -m 0755 /tmp/iso-overlay/etc/initramfs-tools/scripts/local-premount/hackme-overlay-modules \
-    /etc/initramfs-tools/scripts/local-premount/hackme-overlay-modules
+if [[ -f /tmp/iso-overlay/etc/initramfs-tools/scripts/local-premount/00-hackme-overlay-modules ]]; then
+  install -m 0755 /tmp/iso-overlay/etc/initramfs-tools/scripts/local-premount/00-hackme-overlay-modules \
+    /etc/initramfs-tools/scripts/local-premount/00-hackme-overlay-modules
 fi
 
 mkdir -p /etc/hackme /var/lib/hackme

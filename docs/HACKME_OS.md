@@ -58,7 +58,7 @@ bash scripts/tests/verify_hackme_iso.sh /path/to/HackMe-OS-0.1.0-rc11k-amd64.iso
 ```
 
 Published SHA256: `https://hackme.tech/dist/release_0.1.0-rc11k/SHA256SUMS-iso.txt`  
-Expected SHA256: see `SHA256SUMS-iso.txt` next to the ISO (rc11k: `fc1b0ff4446262a415f2a99b9a9da4840f17777e0761667ec90e363372fb76d1`, ~838 MiB). Rebuild after overlay-boot fixes changes the hash — always verify the sums file you downloaded.
+Expected SHA256: see `SHA256SUMS-iso.txt` next to the ISO (~837 MiB). **Must** include initrd script `00-hackme-overlay-modules` (runs **before** `casper-premount`). Older rc11k builds that only had `hackme-overlay-modules` without the `00-` prefix still fail on hardware with `/cow … overlay … no support found`. Always verify the sums file you downloaded.
 
 Re-flash with Balena Etcher (verify SHA256), boot **only** that USB, disable other OS entries in BIOS if needed.
 

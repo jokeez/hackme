@@ -71,7 +71,7 @@ if grep -qiE 'username=root' "$LOG" 2>/dev/null || grep -aq 'username=root' "${I
 fi
 
 if grep -qiE 'overlay.*no support found|/cow format specified' "$LOG" 2>/dev/null; then
-  echo "[iso-qemu] FAIL: casper overlay not available (rebuild ISO with hackme-overlay-modules)" >&2
+  echo "[iso-qemu] FAIL: casper overlay not available (rebuild ISO with 00-hackme-overlay-modules)" >&2
   grep -iE 'overlay|/cow' "$LOG" | tail -n 15 >&2 || true
   exit 1
 fi
