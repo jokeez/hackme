@@ -47,8 +47,7 @@ DEV_TOKEN="$HACKME_DEVELOPER_TOKEN" BASE=https://hackme.tech \
 
 ## Posts
 
-- Telegram: `docs/TELEGRAM_POST_SECURITY_RESEARCH_01.txt`
-- Bitcointalk: `docs/BITCOINTALK_SECURITY_NOTE_01_BBCode.txt`
+- Announce: https://hackme.tech/news.html · https://t.me/hackme_tech
 
 ## Phase 2 targets (pick one after #1)
 

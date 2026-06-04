@@ -11,8 +11,7 @@ Factual pass/fail snapshots for releases and gates. **Not** social copy for Tele
 
 ## Do not treat as verdicts
 
-- `docs/TELEGRAM_POST_*` — channel drafts (see [../archive/telegram/README.md](../archive/telegram/README.md))
-- `docs/BITCOINTALK_*_BBCode.txt` — forum paste templates
+- Social drafts (`TELEGRAM_POST_*`, `BITCOINTALK_*`) are **not** in the repo — publish via [../TELEGRAM_NEWS_BOT_RUNBOOK.md](../TELEGRAM_NEWS_BOT_RUNBOOK.md) and https://hackme.tech/news.html
 - `web/site/assets/news.json` — public site + Telegram bot feed (marketing tone OK)
 
 ## Version policy

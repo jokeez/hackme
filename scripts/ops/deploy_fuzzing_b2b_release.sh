@@ -14,5 +14,4 @@ SYNC_NGINX_SITE_CONF=1 bash scripts/ops/deploy_hackme_site.sh
 bash scripts/tests/fuzzing_public_hardening_smoke.sh
 bash scripts/tests/fuzzing_developer_portal_smoke.sh
 bash scripts/tests/integrator_self_service_smoke.sh
-echo "[deploy-fuzzing-b2b] done — post Telegram: docs/TELEGRAM_POST_FUZZING_B2B.txt"
-echo "[deploy-fuzzing-b2b] Bitcointalk: docs/BITCOINTALK_UPDATE_FUZZING_B2B_BBCode.txt"
+echo "[deploy-fuzzing-b2b] done — announce via https://hackme.tech/news.html + @hackme_tech (news bot runbook)"

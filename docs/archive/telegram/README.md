@@ -1,12 +1,5 @@
-# Telegram post drafts (not GitHub “verdicts”)
+# Telegram / forum drafts (removed from repo)
 
-Files named `docs/TELEGRAM_POST_*` are **operator paste templates** for manual or one-off sends. They are kept for history but are **not** release verdicts.
+Paste templates for manual Telegram or Bitcointalk replies are **not** stored in GitHub anymore (see root `.gitignore`: `docs/TELEGRAM_POST_*`, `docs/BITCOINTALK_*`).
 
-**Canonical automated channel posts** come from:
-
-- `web/site/assets/news.json` → `news-feed.json` (top 12 items)
-- `scripts/ops/telegram/news_channel_bot.py` (HTML formatting, buttons)
-
-Optional per-item copy: `"telegram": { "headline", "lead", "bullets", "footer" }` in `news.json` — **English only**. Hashtags come from `"tags"` (rendered as `#release`, no “Tags:” label).
-
-Do not duplicate long Telegram prose into `reports/` or commit social threads as if they were test verdicts.
+**Operators:** use [../../TELEGRAM_NEWS_BOT_RUNBOOK.md](../../TELEGRAM_NEWS_BOT_RUNBOOK.md) for channel posts from `web/site/assets/news.json`, or keep local drafts outside the repo.

@@ -64,7 +64,6 @@
 
 | Doc | Topic |
 |-----|--------|
-| [BITCOINTALK_ANN.md](BITCOINTALK_ANN.md) | Forum announcement |
 | [BUG_BOUNTY.md](BUG_BOUNTY.md) | Security rewards |
 | [TRADEMARK_AND_FORKING.md](TRADEMARK_AND_FORKING.md) | Brand & forks |
 

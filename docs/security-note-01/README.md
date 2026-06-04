@@ -89,4 +89,4 @@ API: `GET /api/fuzz/campaigns/{id}/report` (HTML) · `?format=json` for automati
 
 - [Security research campaign runbook](../SECURITY_RESEARCH_CAMPAIGN_01.md)
 - [Screenshot & post checklist](../SCREENSHOT_AND_POST_CHECKLIST.md)
-- [Bitcointalk BBCode snippet](../BITCOINTALK_SECURITY_NOTE_01_BBCode.txt) (short thread reply — links here)
+- Forum thread: https://bitcointalk.org/index.php?topic=5583373.0 (reply with link to this pack)

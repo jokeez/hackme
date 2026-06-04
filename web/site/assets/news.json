@@ -1,13 +1,51 @@
 {
   "items": [
     {
+      "id": "2026-06-04-live-fuzz-security-audits",
+      "date": "2026-06-04",
+      "title": "Live fuzz security audits — Solana SPL & Bitcoin Core guards (completed)",
+      "summary": "We ran two real customer-style security audits on a local HackMe node: upstream WASM guards (Solana Token owner-check, Bitcoin Core HasValidOps), local autorunner, HMC fuzz escrow, and fuzz_report_v2 HTML with executive summary, triage, and repro_cmd. Solana: 64/64 runs, warn_guard_signals (detector semantics — guard signals, not mainnet CVEs). Bitcoin: 48/48 runs in seconds, warn_medium, 0 critical/high. Operator phasing gate: 37 pass / 0 fail on the same wallet pipeline.",
+      "impact": "B2B audits are live on the node — not slides. Customers run Security audit on localhost; reports are token-gated. Choose pow_gate + upstream guards for honest executive verdicts; detector-only on strict guards can look like dozens of highs without triage context.",
+      "action": "Local node: http://127.0.0.1:8080/#orders (Security audit) · Fuzz guide: https://hackme.tech/fuzz-guide.html · Downloads: https://hackme.tech/downloads.html#local-node",
+      "tags": [
+        "fuzz",
+        "security",
+        "infrastructure",
+        "research"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "Live fuzz audits — Solana + Bitcoin upstream guards",
+        "lead": "Two completed campaigns on a real node: WASM sandbox, escrow, HTML reports — not a mock deck.",
+        "bullets": [
+          "Solana SPL owner-check · 64/64 runs · verdict warn_guard_signals (64 guard_signal hits, not 64 Solana CVEs).",
+          "Bitcoin HasValidOps excerpt · 48/48 runs · warn_medium · 0 critical/high · pow_gate semantics.",
+          "Customer phasing on operator wallet: 37/37 pass. Reports: executive summary + repro_cmd per finding."
+        ],
+        "footer": "Audits debit local node HMC escrow; on-chain mining balance stays on canonical hackme.tech — see fuzz guide for wallet model."
+      },
+      "links": {
+        "fuzz_guide": "https://hackme.tech/fuzz-guide.html",
+        "downloads": "https://hackme.tech/downloads.html#local-node",
+        "developers": "https://hackme.tech/developers.html",
+        "research": "https://hackme.tech/research.html",
+        "news": "https://hackme.tech/news.html#2026-06-04-live-fuzz-security-audits",
+        "github": "https://github.com/jokeez/hackme"
+      }
+    },
+    {
       "id": "2026-06-04-rc11l-iso-live-boot",
       "date": "2026-06-04",
       "title": "HackMe OS 0.1.0-rc11l — live USB overlay boot fix",
       "summary": "Live USB on laptops panicked with overlay not loaded: casper live boot never runs local-premount. rc11l loads kernel modules in casper-premount before the squashfs mounts. Windows and Linux installers unchanged; download channel is rc11l.",
       "impact": "Use HackMe-OS-0.1.0-rc11l-amd64.iso only for USB rigs until hardware sign-off.",
       "action": "Downloads and SHA256: hackme.tech/downloads.html#hackme-os",
-      "tags": ["release", "hackme-os", "iso", "mining"],
+      "tags": [
+        "release",
+        "hackme-os",
+        "iso",
+        "mining"
+      ],
       "status": "published",
       "telegram": {
         "headline": "HackMe OS rc11l — live USB boot fix",
@@ -33,7 +71,12 @@
       "date": "2026-06-03",
       "title": "Release 0.1.0-rc11k — launch candidate (production miner)",
       "summary": "Production download channel after rc11j GPU matrix: fixed public /api/status canonical loop, coordinator-first dashboard telemetry, resilience and economics gates PASS, golden-path onboarding. Windows Setup, Linux bundle, and HackMe OS ISO rebuilt with hackme node fix — not a demo build.",
-      "tags": ["release", "mining", "infrastructure", "pool"],
+      "tags": [
+        "release",
+        "mining",
+        "infrastructure",
+        "pool"
+      ],
       "impact": "Superseded for HackMe OS ISO by rc11l (2026-06-04). Downloads channel: rc11l.",
       "action": "Downloads: https://hackme.tech/downloads.html · Verdict: https://hackme.tech/docs/HACKME_RC11K_LAUNCH_CANDIDATE.md · Pool: https://hackme.tech/pool/coordinator/api/work/stats",
       "status": "published",
@@ -52,7 +95,12 @@
       "date": "2026-06-02",
       "title": "Release 0.1.0-rc11j — GPU matrix final (CUDA auto-fallback, installer, ISO)",
       "summary": "Production miner release after Pascal→Blackwell field tests: CUDA→OpenCL auto-fallback in workerpoh-cuda, multi-GPU pool UI aggregation, refreshed Vast pack, Windows Setup wizard, Linux bundle and HackMe OS ISO with fair-pool tuning.",
-      "tags": ["release", "mining", "gpu", "infrastructure"],
+      "tags": [
+        "release",
+        "mining",
+        "gpu",
+        "infrastructure"
+      ],
       "impact": "Miners on CUDA 13 / Vast no longer need manual OpenCL switches; Windows/Linux/ISO downloads aligned with live pool fixes.",
       "action": "Downloads: https://hackme.tech/downloads.html · Verdict: https://hackme.tech/docs/HACKME_RC11J_FINAL_VERDICT.md · Matrix: https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md",
       "status": "published",
@@ -71,7 +119,13 @@
       "date": "2026-06-02",
       "title": "GPU Matrix complete — Pascal through Blackwell on live HMC pool",
       "summary": "Field-tested NVIDIA rigs on Vast.ai (2× GTX 1080 Ti, 4× RTX 2080 Ti, 30/40/50 series including RTX 4090 & 5090) plus operator RTX 5060 Ti desktop. Every generation: signed submits, hits, payout, and target_mod retarget on https://hackme.tech/pool/coordinator. Hub fix: multi-GPU rigs show as one worker with summed GH/s.",
-      "tags": ["mining", "infrastructure", "release", "gpu", "pool"],
+      "tags": [
+        "mining",
+        "infrastructure",
+        "release",
+        "gpu",
+        "pool"
+      ],
       "impact": "Miners can trust multi-GPU and cloud rent hosts; OpenCL fallback keeps mining when CUDA 13/NVRTC mismatches on Vast. Coordinator aggregation deployed to production VPS.",
       "action": "News: https://hackme.tech/news.html · Verdict: https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md · Pool: https://hackme.tech/pool/coordinator/api/pool/stats · Downloads (current rc11l): https://hackme.tech/downloads.html",
       "status": "published",
@@ -89,9 +143,14 @@
       "date": "2026-05-29",
       "title": "HackMe Storage (HMS) — ecosystem UI preview",
       "summary": "Dashboard and coins page now show HMC / SUP / HMS context with per-coin Ecosystem KPIs. HMS storage+seal lane is preview-only; production coordinator deploys on a dedicated heavy VPS before go-live.",
-      "tags": ["ecosystem", "hms", "mining", "preview"],
+      "tags": [
+        "ecosystem",
+        "hms",
+        "mining",
+        "preview"
+      ],
       "impact": "Clearer story for miners: hub hosts UI and HMC/SUP; HMS backend is isolated on VPS #2 when ready.",
-      "action": "Coins: https://hackme.tech/coins.html#hms · Roadmap: https://hackme.tech/docs/HMS_PUBLIC_ROADMAP.md · Telegram: docs/TELEGRAM_POST_HMS_UI_PREVIEW.txt",
+      "action": "Coins: https://hackme.tech/coins.html#hms · Roadmap: https://hackme.tech/docs/HMS_PUBLIC_ROADMAP.md",
       "status": "published",
       "links": {
         "coins": "https://hackme.tech/coins.html#hms",
@@ -105,7 +164,12 @@
       "date": "2026-05-28",
       "title": "Official pool restored after VPS incident",
       "summary": "HackMe Official Pool is live again: node, coordinator, nginx, and worker settlement timers recovered. Public pool stats API is responding; /api/status latency optimized (fast tip cache, non-blocking coordinator lane).",
-      "tags": ["infrastructure", "mining", "pool", "release"],
+      "tags": [
+        "infrastructure",
+        "mining",
+        "pool",
+        "release"
+      ],
       "impact": "Miners can reconnect with confidence; MPS pool registration can proceed with stable stats endpoint.",
       "action": "Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats · Dashboard: https://hackme.tech/dashboard.html · MPS coin: https://miningpoolstats.app/coins/HMC",
       "status": "published",
@@ -122,9 +186,13 @@
       "date": "2026-05-27",
       "title": "HMC listed on MiningPoolStats (coin page live)",
       "summary": "HackMe (HMC) is visible on MiningPoolStats. Pool operator registration submitted for HackMe Official Pool; hashrate will populate after MPS indexes our public stats API.",
-      "tags": ["marketing", "mining", "listing"],
+      "tags": [
+        "marketing",
+        "mining",
+        "listing"
+      ],
       "impact": "Discoverability for solo miners and aggregators; SUP stays off MPS (utility coin, HMC-first listing policy).",
-      "action": "Coin: https://miningpoolstats.app/coins/HMC · Pool API: https://hackme.tech/pool/coordinator/api/pool/stats · Posts: docs/TELEGRAM_POST_MPS_LISTING.txt",
+      "action": "Coin: https://miningpoolstats.app/coins/HMC · Pool API: https://hackme.tech/pool/coordinator/api/pool/stats ·",
       "status": "published",
       "links": {
         "mps": "https://miningpoolstats.app/coins/HMC",
@@ -138,9 +206,14 @@
       "date": "2026-05-27",
       "title": "HackMe Support (SUP) — scarce ecosystem coin announced",
       "summary": "Second HackMe asset for listing & trading: no faucet, quality-gated accrual while mining HMC on the official pool. Public spec, Coins page, Wallet hub roadmap.",
-      "tags": ["ecosystem", "marketing", "mining", "listing"],
+      "tags": [
+        "ecosystem",
+        "marketing",
+        "mining",
+        "listing"
+      ],
       "impact": "Clear story for exchanges & miners: SUP is hard to earn, utility-first (audit discounts, pool priority, governance signal).",
-      "action": "Coins: https://hackme.tech/coins.html · Spec: docs/SUPPORT_COIN_UTILITY.md · Telegram: docs/TELEGRAM_POST_SUPPORT_COIN.txt",
+      "action": "Coins: https://hackme.tech/coins.html · Spec: docs/SUPPORT_COIN_UTILITY.md",
       "status": "published",
       "links": {
         "coins": "https://hackme.tech/coins.html",
@@ -155,9 +228,15 @@
       "date": "2026-05-26",
       "title": "L1 Crypto Stack v3 — official Bitcoin Core fuzz corpus + upstream pins",
       "summary": "Breakthrough research report: 1,675 official qa-assets eval_script seeds probed through WASM ports of GetScriptOp (0 sandbox traps). Pinned bitcoin/bitcoin v28.1, go-ethereum, Dogecoin, Litecoin + marker fidelity. HackMe InsertOrderTask golden: 20,000 inputs WASM == Go.",
-      "tags": ["security", "research", "marketing", "bitcoin", "fuzzing"],
+      "tags": [
+        "security",
+        "research",
+        "marketing",
+        "bitcoin",
+        "fuzzing"
+      ],
       "impact": "Strongest public proof story: maintainer corpora + reproducible pipeline; honest scope vs full bitcoind fuzz documented.",
-      "action": "Report: https://hackme.tech/reports/l1-crypto-stack-v3.html · Reproduce: bash scripts/ops/run_l1_crypto_stack_v3_research.sh · Telegram: docs/TELEGRAM_POST_L1_CRYPTO_STACK_V3.txt · Bitcointalk: docs/BITCOINTALK_L1_CRYPTO_STACK_V3_BBCode.txt",
+      "action": "Report: https://hackme.tech/reports/l1-crypto-stack-v3.html · Reproduce: bash scripts/ops/run_l1_crypto_stack_v3_research.sh",
       "status": "published",
       "links": {
         "github": "https://github.com/jokeez/hackme",
@@ -173,9 +252,14 @@
       "date": "2026-05-26",
       "title": "L1 Crypto Stack v2 — upstream-ported guards (BTC · ETH · DOGE · LTC · HackMe)",
       "summary": "Public research: WASM built from ported C excerpts of Bitcoin GetScriptOp, Ethereum state_transition value overflow, Dogecoin/Litecoin script.cpp, and HackMe InsertOrderTask. 500 targeted samples per chain, zero sandbox traps. Sources in tasks/sources/security/upstream/.",
-      "tags": ["security", "research", "marketing", "fuzzing"],
+      "tags": [
+        "security",
+        "research",
+        "marketing",
+        "fuzzing"
+      ],
       "impact": "Strong B2B/Telegram story next to bc5; honest scope (no fake CVE claims); links to Security Audit product.",
-      "action": "Report: https://hackme.tech/reports/l1-crypto-stack.html · Regenerate: bash scripts/ops/run_l1_crypto_stack_research.sh · Gate: bash scripts/ops/l1_crypto_stack_gate.sh · Telegram: docs/TELEGRAM_POST_L1_CRYPTO_STACK.txt · Bitcointalk: docs/BITCOINTALK_L1_CRYPTO_STACK_BBCode.txt",
+      "action": "Report: https://hackme.tech/reports/l1-crypto-stack.html · Regenerate: bash scripts/ops/run_l1_crypto_stack_research.sh · Gate: bash scripts/ops/l1_crypto_stack_gate.sh",
       "status": "published",
       "links": {
         "github": "https://github.com/jokeez/hackme",
@@ -190,9 +274,15 @@
       "date": "2026-05-26",
       "title": "Security Audit — one click (order + pool fuzz + HTML report)",
       "summary": "Customers launch a full audit from dashboard #orders: compile guard or upload WASM, POST /api/security-audit creates linked useful-PoW order + distributed fuzz campaign (20/80 escrow), report token opens HTML/JSON in #fuzz. Same pipeline as Bitcoin Core 5-module research. PoH order queue is now FIFO-fair on the coordinator.",
-      "tags": ["security", "fuzzing", "product", "orders", "release"],
+      "tags": [
+        "security",
+        "fuzzing",
+        "product",
+        "orders",
+        "release"
+      ],
       "impact": "B2B customers get one product story; miners earn on both workerpoh and workerfuzz; operators keep advanced PoH-only tools under admin.",
-      "action": "Try: local dashboard → Security audit → Run full security audit · Gate: bash scripts/ops/security_audit_gate.sh · Telegram: docs/TELEGRAM_POST_SECURITY_AUDIT_LAUNCH.txt",
+      "action": "Try: local dashboard → Security audit → Run full security audit · Gate: bash scripts/ops/security_audit_gate.sh",
       "status": "published",
       "links": {
         "github": "https://github.com/jokeez/hackme",
@@ -207,9 +297,15 @@
       "date": "2026-05-26",
       "title": "Release 0.1.0-rc11i · Fuzz Engine v2 + wallet/settlement fixes",
       "summary": "Major fuzz upgrade: seed corpus and bit-flip mutation (not raw counters), coverage buckets v2 from real 64-bit inputs, SHA256(input) artifacts with check(0x…) repro, diff coverage_delta vs baseline campaigns, fuzz_report_v2. Desktop wallet uses canonical balance without admin header on loopback; VPS settlement timer fixed (/dev/null + admin wallet lookup). New CLI: hackme-fuzzing campaign create|status.",
-      "tags": ["release", "fuzzing", "security", "infrastructure", "mining"],
+      "tags": [
+        "release",
+        "fuzzing",
+        "security",
+        "infrastructure",
+        "mining"
+      ],
       "impact": "B2B integrators get stronger property-fuzz reports; miners get rc11i binaries with fair pool + order escrow unchanged.",
-      "action": "Downloads: https://hackme.tech/downloads.html · BC5 report: https://hackme.tech/reports/bitcoin-core-5module.html · Telegram: docs/TELEGRAM_POST_FUZZING_V2.txt · Bitcointalk: docs/BITCOINTALK_FUZZING_V2_BBCode.txt · Gate: bash scripts/ops/fuzz_engine_v2_gate.sh",
+      "action": "Downloads: https://hackme.tech/downloads.html · BC5 report: https://hackme.tech/reports/bitcoin-core-5module.html· Gate: bash scripts/ops/fuzz_engine_v2_gate.sh",
       "status": "published",
       "links": {
         "github": "https://github.com/jokeez/hackme",
@@ -224,9 +320,14 @@
       "date": "2026-05-26",
       "title": "Order pool live · 5 HMC test completed (rc11h)",
       "summary": "Production useful-PoW order order-live-5hmc-202605251816: prepaid 5 HMC (5×1 HMC reward), minimal WASM gate, completed 5/5 in ~2 minutes. Escrow fee 0.25 HMC, burn 0.5 HMC. All five order blocks credited miner_address HMC-381c0c5e2cfcc714 on the canonical node. Pool workers (rc11h) receive order WASM in claim and relay solves to POST /api/poh/solve-order so escrow follows the hybrid signer, not only the operator wallet.",
-      "tags": ["mining", "release", "economics", "pool"],
+      "tags": [
+        "mining",
+        "release",
+        "economics",
+        "pool"
+      ],
       "impact": "Miners on rc11h ISO/Windows/Linux can earn order escrow when their hybrid address wins the chain block; operators see verified prepaid/burn/fee on live mainnet.",
-      "action": "Downloads: https://hackme.tech/downloads.html · Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats · Economics: https://hackme.tech/economics-model.html · BC5 report: https://hackme.tech/reports/bitcoin-core-5module.html · Telegram draft: docs/TELEGRAM_POST_ORDER_POOL_RC11H.txt",
+      "action": "Downloads: https://hackme.tech/downloads.html · Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats · Economics: https://hackme.tech/economics-model.html · BC5 report: https://hackme.tech/reports/bitcoin-core-5module.html",
       "status": "published",
       "links": {
         "github": "https://github.com/jokeez/hackme",
@@ -242,9 +343,14 @@
       "date": "2026-05-25",
       "title": "Fuzz reports ship as HTML · Security Note #1 (Script push bounds) · useful-PoW completed",
       "summary": "Customer fuzz reports now default to a styled HTML page (verdict badge, metrics, top issues) instead of raw JSON blobs. Security research campaign #1: Bitcoin Script–inspired WASM guard (OP_PUSHDATA1 push > 520 bytes) ran as a paid useful-PoW order on the live coordinator; demo fuzz campaign verdict clean. Open source checker in repo.",
-      "tags": ["security", "fuzzing", "release", "infrastructure"],
+      "tags": [
+        "security",
+        "fuzzing",
+        "release",
+        "infrastructure"
+      ],
       "impact": "Operators and B2B integrators get publication-ready security reports; miners see the same pool infra used for research-class WASM gates.",
-      "action": "Local dashboard: Fuzz → Open report · API: GET /api/fuzz/campaigns/{id}/report (HTML) or ?format=json · Guard source: tasks/sources/security/rust_script_push_bounds_guard.rs · Telegram: docs/TELEGRAM_POST_HTML_FUZZ_REPORTS.txt · BCT: docs/BITCOINTALK_SECURITY_NOTE_01_BBCode.txt",
+      "action": "Local dashboard: Fuzz → Open report · API: GET /api/fuzz/campaigns/{id}/report (HTML) or ?format=json · Guard source: tasks/sources/security/rust_script_push_bounds_guard.rs",
       "status": "published",
       "links": {
         "github": "https://github.com/jokeez/hackme",
@@ -259,9 +365,14 @@
       "date": "2026-05-25",
       "title": "B2B fuzzing hardened · hackme-fuzzing CLI · no browser admin on hackme.tech",
       "summary": "Integrators now use a scoped developer token and the hackme-fuzzing CLI (Windows/Linux) instead of pasting admin secrets into a web console. Public site: read-only wallet + order tracker only. Remote from_code and fuzz APIs return 403 on hackme.tech. WASM is built locally; POST /api/tasks uses X-Hackme-Developer-Token.",
-      "tags": ["security", "infrastructure", "release", "fuzzing"],
+      "tags": [
+        "security",
+        "infrastructure",
+        "release",
+        "fuzzing"
+      ],
       "impact": "B2B clients get a smaller attack surface; operators issue per-integrator tokens; miners unchanged (ISO/Windows pool).",
-      "action": "Downloads: https://hackme.tech/downloads.html#fuzzing-client · Docs: https://hackme.tech/developers.html · Status: https://hackme.tech/fuzzing-console.html · BCT: docs/BITCOINTALK_UPDATE_FUZZING_B2B_BBCode.txt · Telegram: docs/TELEGRAM_POST_FUZZING_B2B.txt",
+      "action": "Downloads: https://hackme.tech/downloads.html#fuzzing-client · Docs: https://hackme.tech/developers.html · Status: https://hackme.tech/fuzzing-console.html",
       "status": "published",
       "links": {
         "github": "https://github.com/jokeez/hackme",
@@ -277,9 +388,15 @@
       "date": "2026-05-22",
       "title": "HackMe OS ISO published (956 MB) · SHA256 verified · pool ~2.4 GH/s",
       "summary": "Bootable HackMe-OS-0.1.0-rc11g-amd64.iso built and verified: Zero-Knowledge Start, production pool token embedded, minersign + workerpoh in image. Full test sweep + chaos guard PASS. ISO SHA256: 1b7bd70e381bb0d5aee82135fe01963d27d2af43ebfba95e02dec22aabe17658. Deploy to hackme.tech/dist with scripts/ops/deploy_release_rc11g_iso.sh.",
-      "tags": ["release", "mining", "hackme-os", "infrastructure", "security"],
+      "tags": [
+        "release",
+        "mining",
+        "hackme-os",
+        "infrastructure",
+        "security"
+      ],
       "impact": "Miners can flash Etcher USB and join the public pool with no wallet setup; operators publish ISO via VPS rsync.",
-      "action": "Verify: sha256sum -c SHA256SUMS-iso.txt · Flash ISO · Pool stats: https://hackme.tech/pool/coordinator/api/work/stats · BCT: docs/BITCOINTALK_UPDATE_HACKME_OS_BBCode.txt",
+      "action": "Verify: sha256sum -c SHA256SUMS-iso.txt · Flash ISO · Pool stats: https://hackme.tech/pool/coordinator/api/work/stats",
       "status": "published",
       "links": {
         "github": "https://github.com/jokeez/hackme",
@@ -294,7 +411,13 @@
       "date": "2026-05-22",
       "title": "Zero-Knowledge Start · HackMe OS on downloads · Windows worker watchdog",
       "summary": "HackMe OS: flash USB, boot — empty hackme.ini triggers auto HMC wallet + 24-word recovery phrase on screen, then instant pool mining (no config). New downloads section for the live ISO. Windows installer ships worker watchdog (mining stays up after GPU crashes). Site + manifests updated.",
-      "tags": ["release", "mining", "hackme-os", "windows", "infrastructure"],
+      "tags": [
+        "release",
+        "mining",
+        "hackme-os",
+        "windows",
+        "infrastructure"
+      ],
       "impact": "Miners can start in zero seconds on ISO rigs; Windows rigs auto-restart the pool worker; official ISO and checksums appear on hackme.tech/downloads when the build is published.",
       "action": "Downloads: https://hackme.tech/downloads.html#hackme-os · Windows: HackMe-Setup exe · ISO docs: https://github.com/jokeez/hackme/blob/main/docs/HACKME_OS.md · Pool: https://hackme.tech/pool/coordinator/api/work/stats",
       "status": "published",
@@ -310,7 +433,13 @@
       "date": "2026-05-22",
       "title": "Ecosystem dashboard · nightly chaos guard · HackMe OS miner ISO",
       "summary": "Desktop dashboard home is now the Ecosystem coin table (Hive-style): live HMC pool stats, clickable mining entry, roadmap slots for future chains. Nightly chaos guard tests 5000 payout ledger drift, HTTP replay/tamper (403), and HackMe OS init-worker.ini hardening. HackMe OS live USB build: CPU isolation, RT scheduler, GPU performance mode, fair pool worker autostart.",
-      "tags": ["release", "mining", "pool", "security", "infrastructure"],
+      "tags": [
+        "release",
+        "mining",
+        "pool",
+        "security",
+        "infrastructure"
+      ],
       "impact": "Miners get a clearer pool-first UI; operators get automated security regression tests; Linux rigs can boot a dedicated HackMe OS image pointed at hackme.tech pool.",
       "action": "Pull latest main · Dashboard: http://127.0.0.1:8080 (Ecosystem tab) · Pool: https://hackme.tech/pool/coordinator/api/work/stats · Docs: docs/HACKME_OS.md · Chaos tests: bash scripts/tests/nightly_chaos_guard.sh",
       "status": "published",
@@ -326,7 +455,12 @@
       "date": "2026-05-21",
       "title": "Coordinator stress test passed · Bitcointalk update · MiningPoolStats listing",
       "summary": "10-minute mega stress: 100 virtual workers, 0% hard errors, no coordinator crash, RAM stable (~12→20 MB), halving at block 2,102,401 verified (0.01→0.005 HMC). Malformed ingress and chaos disconnects handled cleanly. Public pool on hackme.tech — HTTP coordinator (not Stratum). Bitcointalk ANN updated; MiningPoolStats submission in progress.",
-      "tags": ["infrastructure", "pool", "security", "mining"],
+      "tags": [
+        "infrastructure",
+        "pool",
+        "security",
+        "mining"
+      ],
       "impact": "Miners can trust coordinator stability under load; follow the official ANN thread for setup. OpenCL Windows builds (rc11g) and live pool stats unchanged.",
       "action": "Read the update on Bitcointalk: https://bitcointalk.org/index.php?topic=5583373.0 · Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats · Downloads: https://hackme.tech/downloads.html · Stress harness in repo: scripts/tests/coordinator_mega_stress.sh",
       "status": "published",
@@ -343,7 +477,13 @@
       "date": "2026-05-21",
       "title": "Release 0.1.0-rc11g: Windows OpenCL worker (AMD RX 580 full GPU)",
       "summary": "Windows bundle now ships workerpoh-opencl.exe (mingw cross-build). AMD Radeon rigs use native OpenCL instead of CPU-only ~0.02 GH/s. Tested on RX 580 2048SP: ~0.12+ GH/s in pool (vs ~0.021 CPU). Rig profile keeps opencl when the binary is present.",
-      "tags": ["release", "mining", "windows", "opencl", "gpu"],
+      "tags": [
+        "release",
+        "mining",
+        "windows",
+        "opencl",
+        "gpu"
+      ],
       "impact": "Windows AMD miners get real GPU mining in one installer; pool token and amd_rx580_2048sp profile unchanged.",
       "action": "Download HackMe-Setup-0.1.0-rc11g.exe · Existing installs: copy workerpoh-opencl.exe next to hackme.exe and set HACKME_GPU_BACKEND=opencl, or reinstall rc11g.",
       "status": "published",
@@ -359,7 +499,13 @@
       "date": "2026-05-21",
       "title": "Release 0.1.0-rc11f: Windows CP1251 fix + pool token repair",
       "summary": "Installer and scripts use ASCII-only PowerShell (Russian Windows no longer breaks detect_gpu / write_hackme_env). Auto-repair hackme.env from pool.miner.token on miner start. RX 580 2048SP rig profile applied when GPU is detected. Pool live ~69 GH/s, M ~143M.",
-      "tags": ["release", "mining", "pool", "windows", "gpu"],
+      "tags": [
+        "release",
+        "mining",
+        "pool",
+        "windows",
+        "gpu"
+      ],
       "impact": "Windows miners on RU locales: install and Start HackMe Miner without PowerShell parse errors; pool token and amd_rx580_2048sp profile written reliably.",
       "action": "Download HackMe-Setup-0.1.0-rc11f.exe from https://hackme.tech/downloads.html · Existing installs: run start_hackme_miner.bat (repairs env) or reinstall rc11f.",
       "status": "published",
@@ -375,7 +521,13 @@
       "date": "2026-05-20",
       "title": "Release 0.1.0-rc11e: Windows installer + GPU wizard + pool token fix",
       "summary": "Official HackMe-Setup.exe (Inno Setup) replaces zip-only onboarding: Program Files install, Start menu/desktop shortcuts, registry entries, preconfigured pool token. Wizard page detects GPU (Auto / NVIDIA CUDA / AMD OpenCL / CPU). Rig profiles for RX 580 2048SP. Fixes Program Files path quoting and hackme.env repair from pool.miner.token.",
-      "tags": ["release", "mining", "pool", "windows", "gpu"],
+      "tags": [
+        "release",
+        "mining",
+        "pool",
+        "windows",
+        "gpu"
+      ],
       "impact": "Windows miners: one .exe install, no manual token hunt. Pool ~69 GH/s live; difficulty M auto-retargets. Dashboard shows per-worker GH/s and HMC accrual.",
       "action": "Download HackMe-Setup-0.1.0-rc11e.exe from https://hackme.tech/downloads.html · AMD RX 580: choose Auto or OpenCL in installer · Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats",
       "status": "published",
@@ -391,7 +543,13 @@
       "date": "2026-05-19",
       "title": "Release 0.1.0-rc10: native NVIDIA CUDA + AMD/Intel OpenCL",
       "summary": "Linux bundle adds workerpoh-cuda (NVRTC, Blackwell compute_120), honest pool hashrate calibration (~80–120 GH/s on RTX 50), and GPU backend auto-detect. Windows zip: hackme.exe + workerpoh-opencl.exe. Docs: GPU_MINING_BACKENDS.md, CUDA_PRODUCTION.md.",
-      "tags": ["mining", "pool", "release", "cuda", "gpu"],
+      "tags": [
+        "mining",
+        "pool",
+        "release",
+        "cuda",
+        "gpu"
+      ],
       "impact": "NVIDIA miners should use CUDA on Linux for full GPU throughput; AMD/Intel use OpenCL. Pool stats and payouts reflect measured GH/s.",
       "action": "Download 0.1.0-rc10 from https://hackme.tech/downloads.html · Linux NVIDIA: HACKME_GPU_BACKEND=cuda · See docs/GPU_MINING_BACKENDS.md",
       "status": "published",
@@ -406,7 +564,13 @@
       "date": "2026-05-19",
       "title": "Pool fairness: GPU-weighted limits, faster settlement, MPS prep",
       "summary": "Coordinator now caps paid attempts by measured GH/s (stops CPU submit-spam), limits claim/submit rate per worker, and settlement runs every ~30s. Dashboard calculator slider fixed; unpaid accrual display syncs from hackme.tech. MiningPoolStats listing checklist + exchange roadmap docs added. Desktop miners: use batch 4M + OpenCL/CUDA; remote VPS workers should use worker token (not full admin).",
-      "tags": ["mining", "pool", "security", "economics", "release"],
+      "tags": [
+        "mining",
+        "pool",
+        "security",
+        "economics",
+        "release"
+      ],
       "impact": "Your PC GPU rig should earn proportionally to hashrate; payouts above min threshold reach on-chain faster. Public stats: https://hackme.tech/pool/coordinator/api/pool/stats",
       "action": "Pull latest from GitHub · Restart pool worker after update · MPS: docs/MININGPOOLSTATS_LISTING.md · Fair tuning: scripts/ops/apply_desktop_gpu_pool.sh",
       "status": "published",
@@ -422,7 +586,12 @@
       "date": "2026-05-19",
       "title": "Advanced mining calculator in node dashboard",
       "summary": "The embedded dashboard (Mining tab) now includes a live mining calculator: hashrate → HMC/hour, PoH ETA, found-bonus estimates, electricity ROI, break-even, and pool vs chain-empty comparison. Params sync from /api/work/stats and /api/metrics (reward/M, target_mod, pool GH/s). Presets: your worker, pool average, GPU/CPU rigs.",
-      "tags": ["mining", "pool", "dashboard", "economics"],
+      "tags": [
+        "mining",
+        "pool",
+        "dashboard",
+        "economics"
+      ],
       "impact": "Miners can model payout and power costs before joining the pool or scaling rigs — no spreadsheet required.",
       "action": "Open your node dashboard → Mining tab → Mining calculator. Public pool: https://hackme.tech/pool/ — downloads: https://hackme.tech/downloads.html",
       "status": "published",
@@ -437,7 +606,11 @@
       "date": "2026-05-19",
       "title": "Security rewards program — small HMC bug bounty",
       "summary": "Private security and UI reports can earn discretionary on-chain HMC after verified fixes. Tiers are modest (roughly 1–200 HMC per issue, ~200 HMC/month program cap) — not investment income. Full policy on security-rewards.html and GitHub docs/BUG_BOUNTY.md.",
-      "tags": ["security", "community", "opensource"],
+      "tags": [
+        "security",
+        "community",
+        "opensource"
+      ],
       "impact": "Researchers and miners know how to report without public 0-days; rewards stay aligned with treasury economics.",
       "action": "Report: https://hackme.tech/contacts.html · Tiers: https://hackme.tech/security-rewards.html · Policy: https://github.com/jokeez/hackme/blob/main/docs/BUG_BOUNTY.md",
       "status": "published",
@@ -451,7 +624,12 @@
       "date": "2026-05-19",
       "title": "Bitcointalk ANN is live — official pool thread",
       "summary": "The HackMe pool announcement is published on Bitcoin Forum (Pools / Altcoins): topic 5583373. Links to hackme.tech, downloads, GitHub source, economics, and miner quick start.",
-      "tags": ["community", "announcement", "mining", "pool"],
+      "tags": [
+        "community",
+        "announcement",
+        "mining",
+        "pool"
+      ],
       "impact": "Miners can discuss setup, WORKER_PAYOUT_MAP, and economics in the official thread. Site Contacts now links to the live forum URL.",
       "action": "Thread: https://bitcointalk.org/index.php?topic=5583373.0 — join mining via https://hackme.tech/downloads.html",
       "status": "published",
@@ -466,7 +644,12 @@
       "date": "2026-05-18",
       "title": "Public pool economics: fair attempt-based accrual for all miners",
       "summary": "Official pool policy updated: payout_found_only=0 with reward_auto and hybrid signer strict — miners accrue HMC for accepted work (capped per batch), not only on rare found hits. Settlement loop verified; see economics-model.html and docs/MINER_POOL_ECONOMICS.md.",
-      "tags": ["economics", "mining", "pool", "transparency"],
+      "tags": [
+        "economics",
+        "mining",
+        "pool",
+        "transparency"
+      ],
       "impact": "New and existing miners see Unpaid worker accrual grow with hashrate/submits. Found bonus still applies. Block subsidy remains on the producing node wallet; pool paycheck = coordinator accrual + settlement.",
       "action": "Set WORKER_PAYOUT_MAP=your-worker-id=HMC-your-address. Read https://hackme.tech/economics-model.html — verify SHA256 on Downloads. GitHub: https://github.com/jokeez/hackme",
       "status": "published",
@@ -480,13 +663,18 @@
       "date": "2026-05-18",
       "title": "🚀 Open source: HackMe stack on GitHub (Apache-2.0)",
       "summary": "The full public pool stack is now open: node, coordinator, worker, dashboard, explorer UI, and operator scripts — licensed under Apache-2.0. Repository: github.com/jokeez/hackme. Build from source, audit security hardening, or send pull requests. Always verify release SHA256 on hackme.tech/downloads.html (official binaries only).",
-      "tags": ["opensource", "release", "security", "community"],
+      "tags": [
+        "opensource",
+        "release",
+        "security",
+        "community"
+      ],
       "impact": "Miners and auditors can review coordinator auth, hybrid signer paths, and settlement tooling. Community can spot fake pools by diffing against the official repository and checksums on hackme.tech.",
-      "action": "⭐ Star & clone: https://github.com/jokeez/hackme · 📥 Downloads: https://hackme.tech/downloads.html · 💬 Telegram: @hackme_tech (channel), @hackme_en (EN group), @hackme_ru (RU group) · 📋 Bitcointalk ANN (BBCode): github.com/jokeez/hackme/blob/main/docs/BITCOINTALK_ANN_BBCode.txt",
+      "action": "⭐ Star & clone: https://github.com/jokeez/hackme · 📥 Downloads: https://hackme.tech/downloads.html · 💬 Telegram: @hackme_tech (channel), @hackme_en (EN group), @hackme_ru (RU group) · 📋 Bitcointalk: https://bitcointalk.org/index.php?topic=5583373.0",
       "status": "published",
       "links": {
         "github": "https://github.com/jokeez/hackme",
-        "bitcointalk": "https://github.com/jokeez/hackme/blob/main/docs/BITCOINTALK_ANN.md",
+        "bitcointalk": "https://bitcointalk.org/index.php?topic=5583373.0",
         "telegram": "https://t.me/hackme_tech"
       }
     },
@@ -495,7 +683,13 @@
       "date": "2026-05-15",
       "title": "Pool release 1.0.0-pool is live — public mining, faster dashboard, production deploy",
       "summary": "HackMe public pool is open for workers: coordinator on hackme.tech, hybrid signer payouts, top-pool readiness gate green (2+ workers, ~26s block cadence). Desktop dashboard is faster (non-blocking poll, earnings on a separate cadence, no UI freeze on slow canonical proxy). Wallet earnings fix: no more 502 loops on the command node; followers get canonical_peer without hanging the whole UI.",
-      "tags": ["release", "mining", "pool", "ux", "production"],
+      "tags": [
+        "release",
+        "mining",
+        "pool",
+        "ux",
+        "production"
+      ],
       "impact": "Miners can join with HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech, start the pool worker from the Mining tab, and accrue HMC via the coordinator path. Operators: stack deployed to production VPS with nginx TLS, settlement API, and work/stats proxy.",
       "action": "Join: export HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech — open local dashboard → Mining → Start pool worker (once). Hard-refresh (Ctrl+Shift+R) after updating the node binary. Downloads: check / for release bundles; verify with PROFILE=canary BASE=https://hackme.tech bash scripts/ops/top_pool_readiness_gate.sh.",
       "status": "published"
@@ -505,7 +699,12 @@
       "date": "2026-05-14",
       "title": "Pool ops: coordinator secret file, fleet env generator, public worker smoke",
       "summary": "Worker clients now resolve coordinator admin in a fixed order: COORD_ADMIN_TOKEN / HACKME_COORDINATOR_ADMIN_TOKEN / COORD_TOKEN env, then optional one-line .secrets/hackme_coordinator_admin_token (same value as VPS HACKME_COORDINATOR_ADMIN_TOKEN), then legacy shared ADMIN_TOKEN for same-token dev stacks. Added scripts/ops/run_public_worker_smoke.sh and optional RUN_PUBLIC_WORKER_SMOKE=1 in repo_final_selfcheck. Per-rig identity stays unique WORKER_ID plus HACKME_MINER_ED25519_SEED_HEX; operators scale with prepare_worker_fleet_envs.sh (manifest maps worker_id to payout address).",
-      "tags": ["mining", "ops", "security", "release"],
+      "tags": [
+        "mining",
+        "ops",
+        "security",
+        "release"
+      ],
       "impact": "Less confusion between node admin tokens and coordinator tokens (fewer 401s on /api/work/claim). CI can run a short live coordinator smoke when the gitignored coordinator secret file exists, without baking secrets into scripts.",
       "action": "Operators: keep coordinator admin only on the server and in operator .secrets; never commit it. Deploy site+node so news.json and binaries refresh: NODE_SSH=hackme-vps bash scripts/ops/deploy_hackme_public_stack.sh (set SKIP_NGINX=1 if the TLS vhost is frozen). After placing .secrets/hackme_coordinator_admin_token locally: PUBLIC_RO_BASE=https://hackme.tech RUN_PUBLIC_WORKER_SMOKE=1 bash scripts/ops/repo_final_selfcheck.sh. Miners: one env per machine from fleet generator or minersign -gen-seed; see README pool bullet and scripts/ops/worker.env.example.",
       "status": "published"
@@ -515,7 +714,13 @@
       "date": "2026-05-13",
       "title": "Miner onboarding: Windows pool worker, .env autoload, release 0.1.0-rc9",
       "summary": "Windows dashboard worker start now launches native workerpoh.exe (release zips never shipped bash/curl loops). hackme loads .env / hackme.env beside the binary without overriding existing OS env. Dashboard defaults pool worker; API mining policy covered by tests. Bundle adds start_hackme_public_pool.bat + env.public_pool.example, Linux workerpoh binary, and opens the Mining tab by default.",
-      "tags": ["release", "mining", "ux", "windows", "ops"],
+      "tags": [
+        "release",
+        "mining",
+        "ux",
+        "windows",
+        "ops"
+      ],
       "impact": "Public pool participants on Windows can run Start pool worker without WSL; operators can distribute one zip plus a short env template for HACKME_PUBLIC_AUTHORITY_BASE and HACKME_POOL_COORDINATOR_TOKEN.",
       "action": "Deploy web/site/assets/news.json to the site static path; upload dist/release_0.1.0-rc9/hackme_0.1.0-rc9_{windows,linux}.* + SHA256SUMS.txt + RELEASE_MANIFEST.json to Downloads; restart node/coordinator only if you also roll server binaries from the linux tarball. Telegram: operator bot unchanged — see docs/TELEGRAM_BOT.md; channel bot reposts when NEWS_FEED_URL points at the updated news.json.",
       "status": "published"
@@ -525,7 +730,12 @@
       "date": "2026-05-07",
       "title": "Desktop Mode: Linux Launcher + Windows Scripts + First-Run Wizard",
       "summary": "Shipped app-like desktop operations: Linux .desktop launcher installer, Windows start/stop/status scripts, and a built-in dashboard first-run wizard for token generation and Solo/Worker quick start.",
-      "tags": ["desktop", "ux", "release", "ops"],
+      "tags": [
+        "desktop",
+        "ux",
+        "release",
+        "ops"
+      ],
       "impact": "New miners can start with fewer manual steps: local node startup, admin token bootstrap, and worker-mode onboarding are now guided in one flow.",
       "action": "Linux: run scripts/ops/install_linux_desktop_launcher.sh then desktop_mode_up.sh. Windows: use start_hackme_desktop_mode.bat and verify /api/status via status_hackme_desktop_mode.bat.",
       "status": "deployed"
@@ -535,7 +745,12 @@
       "date": "2026-05-07",
       "title": "/api/status: Schema Always + Canonical Economics Overlay",
       "summary": "Follower/worker nodes now always report local SQLite schema_version for migration gates; remote canonical URL merges economics/crypto/consensus_policy from canon /api/status so fuzz_release_gate economics checks work on pool followers.",
-      "tags": ["core", "ops", "fuzz", "release"],
+      "tags": [
+        "core",
+        "ops",
+        "fuzz",
+        "release"
+      ],
       "impact": "private_stage_gate schema-version-match passes on migrated DBs; dashboards show canon-aligned policy without implying local ledger economics.",
       "action": "Rebuild/restart nodes; verify GET /api/status schema fields; optional ADMIN_TOKEN BASE=https://hackme.tech bash scripts/ops/run_canonical_fuzz_gate.sh when ops-approved.",
       "status": "published"
@@ -545,7 +760,12 @@
       "date": "2026-05-07",
       "title": "Fuzz Campaigns Guide (Docs + Site)",
       "summary": "Added docs/FUZZ_PRODUCT_GUIDE.md and public fuzz-guide.html covering fuzz_release_gate.sh, HACKME_FUZZ_AUTORUN and artifact env, report tokens, CI gate endpoint, and housekeeping APIs.",
-      "tags": ["docs", "fuzz", "security", "release"],
+      "tags": [
+        "docs",
+        "fuzz",
+        "security",
+        "release"
+      ],
       "impact": "Operators and auditors have a single fuzz onboarding path linked from Docs, API reference, and operator checklist.",
       "action": "Visit /fuzz-guide.html after deploy; keep fuzz_release_gate green before tagging releases.",
       "status": "published"
@@ -555,7 +775,11 @@
       "date": "2026-05-07",
       "title": "Operator Final Checklist (Repo + Site)",
       "summary": "Added docs/OPERATOR_FINAL_CHECKLIST.md and public operator-checklist.html linking predeploy/fuzz gates, deploy commands, settlement scripts, and troubleshooting flow.",
-      "tags": ["docs", "ops", "release"],
+      "tags": [
+        "docs",
+        "ops",
+        "release"
+      ],
       "impact": "Operators have one path for pre-final verification without hunting scattered runbooks.",
       "action": "Open /operator-checklist.html after deploy; keep fuzz_release_gate green on release candidates.",
       "status": "published"
@@ -565,7 +789,11 @@
       "date": "2026-05-07",
       "title": "Site Tokenomics: Order Fees vs Transfer Burns (Copy Fix)",
       "summary": "Home and Docs pages now match chain rules: order opening debits prepaid plus a 5% platform fee to DevFeeAddress, with a separate 10% prepaid burn tally (OrderBurnRate); the 70%/30% burn split applies to transfer fee_units only.",
-      "tags": ["docs", "economics", "transparency"],
+      "tags": [
+        "docs",
+        "economics",
+        "transparency"
+      ],
       "impact": "Community explanations and audits align with internal/chain/order_tasks.go and economics constants — less confusion vs Ethereum-style fee wording.",
       "action": "Hard-refresh hackme.tech index/docs after deploy; reference docs/ECONOMICS_DASHBOARD.md §8 for formulas.",
       "status": "published"
@@ -575,7 +803,12 @@
       "date": "2026-05-07",
       "title": "Public Economics Model (Chain · Pool · Orders)",
       "summary": "A dedicated site page and docs cross-links explain how PoH block credits (primary wallet on the producing node), coordinator worker accrual/settlement, and paid audit orders fit together — explicitly not classic Ethereum-style pooled block subsidy.",
-      "tags": ["docs", "mining", "economics", "community"],
+      "tags": [
+        "docs",
+        "mining",
+        "economics",
+        "community"
+      ],
       "impact": "Miners and partners get a single reference for expectations: block header transparency vs wallet credit path, and why fleet income follows coordinator policy.",
       "action": "Share economics-model.html from the Docs hub; operators keep settlement automation and dashboards as the source of truth for accrued vs settled HMC.",
       "status": "published"
@@ -585,7 +818,12 @@
       "date": "2026-05-07",
       "title": "Release Fast-Pack PASS + Final Linux/Windows Artifacts",
       "summary": "Final fast-profile release validation passed end-to-end (health, ultimate quick gate, security assertions, and worker dominance), and fresh Linux/Windows binaries were rebuilt with new SHA256 checksums.",
-      "tags": ["release", "testing", "security", "ops"],
+      "tags": [
+        "release",
+        "testing",
+        "security",
+        "ops"
+      ],
       "impact": "Operators can deploy updated binaries with a deterministic release checklist and shorter, timeout-safe validation flow.",
       "action": "Deploy dist/release_final_20260507 binaries to VPS, publish SHA256SUMS.txt with the release post, and run post-deploy smoke checks on status/work/global metrics.",
       "status": "deployed"
@@ -595,7 +833,12 @@
       "date": "2026-05-05",
       "title": "RC7 Release Pack + Hybrid Anti-Replay Hardening",
       "summary": "Release 0.1.0-rc7 artifacts for Linux and Windows were rebuilt with fresh checksums, while coordinator Hybrid signer received stricter anti-replay and duplicate-signed-payload protections.",
-      "tags": ["release", "security", "ops", "explorer"],
+      "tags": [
+        "release",
+        "security",
+        "ops",
+        "explorer"
+      ],
       "impact": "Operators can distribute updated binaries and run stronger pool-side submit validation without breaking current worker-mode staging flow.",
       "action": "Use dist/release_0.1.0-rc7 artifacts, keep predeploy gate with hybrid smoke enabled, and canary-enable strict signer mode before full rollout.",
       "status": "deployed"
@@ -605,7 +848,12 @@
       "date": "2026-05-05",
       "title": "Auto-Settlement Timers are Live",
       "summary": "Systemd automation for worker payout settlement is now active with periodic settlement and healthcheck timers on the canonical VPS.",
-      "tags": ["ops", "mining", "wallet", "release"],
+      "tags": [
+        "ops",
+        "mining",
+        "wallet",
+        "release"
+      ],
       "impact": "Worker accrual can now be settled to on-chain wallet balances automatically, reducing manual intervention and payout drift.",
       "action": "Monitor settlement services via systemctl and journalctl; adjust MIN_SETTLE_HMC and payout mapping in /opt/hackme/.env.settlement as needed.",
       "status": "deployed"
@@ -615,7 +863,12 @@
       "date": "2026-05-05",
       "title": "V3 Worker Settlement Bridge Added",
       "summary": "A new settlement operator script converts coordinator off-chain worker accrual into on-chain transfer payouts with nonce-safe submission and self-pay protection.",
-      "tags": ["release", "ops", "mining", "wallet"],
+      "tags": [
+        "release",
+        "ops",
+        "mining",
+        "wallet"
+      ],
       "impact": "Operators can now automate payout settlement from worker accrual counters to real wallet balances, reducing confusion between accrued and settled rewards.",
       "action": "Use scripts/ops/settle_worker_payouts.sh with payout mapping (or hybrid signed payout_address) and a minimum settlement threshold.",
       "status": "deployed"
@@ -625,7 +878,12 @@
       "date": "2026-05-05",
       "title": "Hybrid Signer v2 Dark Launch (Safe Fallback Active)",
       "summary": "Coordinator now supports optional miner-signed submit payloads with ed25519 verification, replay protection, and deterministic reject reasons. Backward-compatible unsigned worker flow remains active.",
-      "tags": ["core", "mining", "ops", "release"],
+      "tags": [
+        "core",
+        "mining",
+        "ops",
+        "release"
+      ],
       "impact": "Pool operators can enable Hybrid v2 gradually without breaking existing worker clients, while gaining signer telemetry and stricter anti-abuse validation.",
       "action": "Enable HACKME_POOL_HYBRID_SIGNER_ENABLED=1 on coordinator, run hybrid_signer_smoke.sh, and rollout workers in phases.",
       "status": "deployed"
@@ -635,7 +893,12 @@
       "date": "2026-05-05",
       "title": "Predeploy Gate Added, Canonical Ops Pass Confirmed",
       "summary": "A new one-command predeploy gate is now live with practical checks for test suite, canonical proxy parity, wallet source consistency, and worker-mode health. Public stack deployment completed successfully after gate pass.",
-      "tags": ["release", "ops", "explorer", "mining"],
+      "tags": [
+        "release",
+        "ops",
+        "explorer",
+        "mining"
+      ],
       "impact": "Operators can validate follower and worker readiness before rollout with a deterministic PASS/FAIL flow, reducing drift between local dashboards and canonical chain reality.",
       "action": "Run scripts/ops/predeploy_gate.sh before each public deployment and monitor worker-mode health and canonical parity in regular operations.",
       "status": "deployed"
@@ -645,7 +908,11 @@
       "date": "2026-05-04",
       "title": "Telegram Channel Bot is Live",
       "summary": "Official HackMe channel automation is now active: new News entries are published directly to Telegram with status, impact, action, and deep links.",
-      "tags": ["ops", "news", "community"],
+      "tags": [
+        "ops",
+        "news",
+        "community"
+      ],
       "impact": "Community updates now ship in real time without waiting for manual reposts, improving communication reliability for miners and operators.",
       "action": "Follow the official channel and use the News page as the source of truth for release and operations updates.",
       "status": "deployed"
@@ -655,7 +922,11 @@
       "date": "2026-05-04",
       "title": "Canonical Consistency Upgrade for Follower Nodes",
       "summary": "Follower-mode APIs now mirror canonical chain responses for transfer pool, address lookups, transaction lookups, and status economics to prevent mixed local/canonical views.",
-      "tags": ["core", "explorer", "infra"],
+      "tags": [
+        "core",
+        "explorer",
+        "infra"
+      ],
       "impact": "Operators now see one consistent reality between local dashboard/explorer and the public VPS chain, including nonce and pending transaction behavior.",
       "action": "Recommended: hard-refresh browser cache and restart local follower nodes to pick up latest frontend/backend behavior.",
       "status": "deployed"
@@ -665,7 +936,10 @@
       "date": "2026-05-04",
       "title": "Simple Send Nonce Auto-Sync",
       "summary": "In network mode, simple wallet sends now auto-resolve nonce from canonical address state before submission, reducing invalid nonce conflicts after included transactions.",
-      "tags": ["wallet", "core"],
+      "tags": [
+        "wallet",
+        "core"
+      ],
       "impact": "Transfer UX is smoother for users operating in follower mode against a canonical VPS node.",
       "action": "No manual nonce management required in simple mode.",
       "status": "deployed"
@@ -675,7 +949,11 @@
       "date": "2026-05-04",
       "title": "VPS Sweep Behavior Clarified",
       "summary": "Automated sweep-to-primary flow on VPS remains active to keep miner wallet near reserve and consolidate balances to the primary policy wallet.",
-      "tags": ["economics", "infra", "ops"],
+      "tags": [
+        "economics",
+        "infra",
+        "ops"
+      ],
       "impact": "Miner wallet balance may look nearly static while rewards continue to accrue and be transferred to the primary address.",
       "action": "Use canonical address API for both miner and primary addresses when auditing balances.",
       "status": "monitoring"
@@ -685,7 +963,10 @@
       "date": "2026-05-03",
       "title": "Release Candidate 0.1.0-rc6 Published",
       "summary": "RC6 release bundles, checksums, and deployment automation were refreshed with latest stability and validation updates.",
-      "tags": ["release", "ops"],
+      "tags": [
+        "release",
+        "ops"
+      ],
       "impact": "Improved deployment consistency and repeatability across local and VPS environments.",
       "action": "Operators should use only RC6 artifacts from the Downloads page.",
       "status": "deployed"
@@ -695,7 +976,11 @@
       "date": "2026-05-02",
       "title": "Security Hardening Pack Extended",
       "summary": "WASM validation gates, signature checks, and fail-closed controls were expanded and integrated into daily/ultimate validation packs.",
-      "tags": ["security", "core", "testing"],
+      "tags": [
+        "security",
+        "core",
+        "testing"
+      ],
       "impact": "Lower risk of unsafe task execution and stronger deterministic verification in pipeline.",
       "action": "Run production runbooks before major operator changes.",
       "status": "deployed"

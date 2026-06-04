@@ -53,4 +53,4 @@ Per module: small useful-PoW order + **property** fuzz campaign (`budget_runs=80
 ## Artifacts
 
 - Run summary: `reports/bitcoin-core-5module/summary.json`
-- BBCode: `docs/BITCOINTALK_BITCOIN_CORE_5MODULE_BBCode.txt`
+- Public report: https://hackme.tech/reports/bitcoin-core-5module.html

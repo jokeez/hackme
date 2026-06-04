@@ -1,6 +1,39 @@
 {
   "items": [
     {
+      "id": "2026-06-04-live-fuzz-security-audits",
+      "date": "2026-06-04",
+      "title": "Live fuzz security audits — Solana SPL & Bitcoin Core guards (completed)",
+      "summary": "We ran two real customer-style security audits on a local HackMe node: upstream WASM guards (Solana Token owner-check, Bitcoin Core HasValidOps), local autorunner, HMC fuzz escrow, and fuzz_report_v2 HTML with executive summary, triage, and repro_cmd. Solana: 64/64 runs, warn_guard_signals (detector semantics — guard signals, not mainnet CVEs). Bitcoin: 48/48 runs in seconds, warn_medium, 0 critical/high. Operator phasing gate: 37 pass / 0 fail on the same wallet pipeline.",
+      "impact": "B2B audits are live on the node — not slides. Customers run Security audit on localhost; reports are token-gated. Choose pow_gate + upstream guards for honest executive verdicts; detector-only on strict guards can look like dozens of highs without triage context.",
+      "action": "Local node: http://127.0.0.1:8080/#orders (Security audit) · Fuzz guide: https://hackme.tech/fuzz-guide.html · Downloads: https://hackme.tech/downloads.html#local-node",
+      "tags": [
+        "fuzz",
+        "security",
+        "infrastructure",
+        "research"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "Live fuzz audits — Solana + Bitcoin upstream guards",
+        "lead": "Two completed campaigns on a real node: WASM sandbox, escrow, HTML reports — not a mock deck.",
+        "bullets": [
+          "Solana SPL owner-check · 64/64 runs · verdict warn_guard_signals (64 guard_signal hits, not 64 Solana CVEs).",
+          "Bitcoin HasValidOps excerpt · 48/48 runs · warn_medium · 0 critical/high · pow_gate semantics.",
+          "Customer phasing on operator wallet: 37/37 pass. Reports: executive summary + repro_cmd per finding."
+        ],
+        "footer": "Audits debit local node HMC escrow; on-chain mining balance stays on canonical hackme.tech — see fuzz guide for wallet model."
+      },
+      "links": {
+        "fuzz_guide": "https://hackme.tech/fuzz-guide.html",
+        "downloads": "https://hackme.tech/downloads.html#local-node",
+        "developers": "https://hackme.tech/developers.html",
+        "research": "https://hackme.tech/research.html",
+        "news": "https://hackme.tech/news.html#2026-06-04-live-fuzz-security-audits",
+        "github": "https://github.com/jokeez/hackme"
+      }
+    },
+    {
       "id": "2026-06-04-rc11l-iso-live-boot",
       "date": "2026-06-04",
       "title": "HackMe OS 0.1.0-rc11l — live USB overlay boot fix",
@@ -117,7 +150,7 @@
         "preview"
       ],
       "impact": "Clearer story for miners: hub hosts UI and HMC/SUP; HMS backend is isolated on VPS #2 when ready.",
-      "action": "Coins: https://hackme.tech/coins.html#hms · Roadmap: https://hackme.tech/docs/HMS_PUBLIC_ROADMAP.md · Telegram: docs/TELEGRAM_POST_HMS_UI_PREVIEW.txt",
+      "action": "Coins: https://hackme.tech/coins.html#hms · Roadmap: https://hackme.tech/docs/HMS_PUBLIC_ROADMAP.md",
       "status": "published",
       "links": {
         "coins": "https://hackme.tech/coins.html#hms",
@@ -159,7 +192,7 @@
         "listing"
       ],
       "impact": "Discoverability for solo miners and aggregators; SUP stays off MPS (utility coin, HMC-first listing policy).",
-      "action": "Coin: https://miningpoolstats.app/coins/HMC · Pool API: https://hackme.tech/pool/coordinator/api/pool/stats · Posts: docs/TELEGRAM_POST_MPS_LISTING.txt",
+      "action": "Coin: https://miningpoolstats.app/coins/HMC · Pool API: https://hackme.tech/pool/coordinator/api/pool/stats ·",
       "status": "published",
       "links": {
         "mps": "https://miningpoolstats.app/coins/HMC",
@@ -180,7 +213,7 @@
         "listing"
       ],
       "impact": "Clear story for exchanges & miners: SUP is hard to earn, utility-first (audit discounts, pool priority, governance signal).",
-      "action": "Coins: https://hackme.tech/coins.html · Spec: docs/SUPPORT_COIN_UTILITY.md · Telegram: docs/TELEGRAM_POST_SUPPORT_COIN.txt",
+      "action": "Coins: https://hackme.tech/coins.html · Spec: docs/SUPPORT_COIN_UTILITY.md",
       "status": "published",
       "links": {
         "coins": "https://hackme.tech/coins.html",
@@ -203,7 +236,7 @@
         "fuzzing"
       ],
       "impact": "Strongest public proof story: maintainer corpora + reproducible pipeline; honest scope vs full bitcoind fuzz documented.",
-      "action": "Report: https://hackme.tech/reports/l1-crypto-stack-v3.html · Reproduce: bash scripts/ops/run_l1_crypto_stack_v3_research.sh · Telegram: docs/TELEGRAM_POST_L1_CRYPTO_STACK_V3.txt · Bitcointalk: docs/BITCOINTALK_L1_CRYPTO_STACK_V3_BBCode.txt",
+      "action": "Report: https://hackme.tech/reports/l1-crypto-stack-v3.html · Reproduce: bash scripts/ops/run_l1_crypto_stack_v3_research.sh",
       "status": "published",
       "links": {
         "github": "https://github.com/jokeez/hackme",
@@ -226,7 +259,7 @@
         "fuzzing"
       ],
       "impact": "Strong B2B/Telegram story next to bc5; honest scope (no fake CVE claims); links to Security Audit product.",
-      "action": "Report: https://hackme.tech/reports/l1-crypto-stack.html · Regenerate: bash scripts/ops/run_l1_crypto_stack_research.sh · Gate: bash scripts/ops/l1_crypto_stack_gate.sh · Telegram: docs/TELEGRAM_POST_L1_CRYPTO_STACK.txt · Bitcointalk: docs/BITCOINTALK_L1_CRYPTO_STACK_BBCode.txt",
+      "action": "Report: https://hackme.tech/reports/l1-crypto-stack.html · Regenerate: bash scripts/ops/run_l1_crypto_stack_research.sh · Gate: bash scripts/ops/l1_crypto_stack_gate.sh",
       "status": "published",
       "links": {
         "github": "https://github.com/jokeez/hackme",
@@ -249,30 +282,7 @@
         "release"
       ],
       "impact": "B2B customers get one product story; miners earn on both workerpoh and workerfuzz; operators keep advanced PoH-only tools under admin.",
-      "action": "Try: local dashboard → Security audit → Run full security audit · Gate: bash scripts/ops/security_audit_gate.sh · Telegram: docs/TELEGRAM_POST_SECURITY_AUDIT_LAUNCH.txt",
-      "status": "published",
-      "links": {
-        "github": "https://github.com/jokeez/hackme",
-        "downloads": "https://hackme.tech/downloads.html",
-        "report_bc5": "https://hackme.tech/reports/bitcoin-core-5module.html",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
-        "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-05-26-fuzz-engine-v2-rc11i",
-      "date": "2026-05-26",
-      "title": "Release 0.1.0-rc11i · Fuzz Engine v2 + wallet/settlement fixes",
-      "summary": "Major fuzz upgrade: seed corpus and bit-flip mutation (not raw counters), coverage buckets v2 from real 64-bit inputs, SHA256(input) artifacts with check(0x…) repro, diff coverage_delta vs baseline campaigns, fuzz_report_v2. Desktop wallet uses canonical balance without admin header on loopback; VPS settlement timer fixed (/dev/null + admin wallet lookup). New CLI: hackme-fuzzing campaign create|status.",
-      "tags": [
-        "release",
-        "fuzzing",
-        "security",
-        "infrastructure",
-        "mining"
-      ],
-      "impact": "B2B integrators get stronger property-fuzz reports; miners get rc11i binaries with fair pool + order escrow unchanged.",
-      "action": "Downloads: https://hackme.tech/downloads.html · BC5 report: https://hackme.tech/reports/bitcoin-core-5module.html · Telegram: docs/TELEGRAM_POST_FUZZING_V2.txt · Bitcointalk: docs/BITCOINTALK_FUZZING_V2_BBCode.txt · Gate: bash scripts/ops/fuzz_engine_v2_gate.sh",
+      "action": "Try: local dashboard → Security audit → Run full security audit · Gate: bash scripts/ops/security_audit_gate.sh",
       "status": "published",
       "links": {
         "github": "https://github.com/jokeez/hackme",

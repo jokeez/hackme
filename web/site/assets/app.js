@@ -18,7 +18,7 @@
 
   const COMMUNITY = {
     github: "https://github.com/jokeez/hackme",
-    annMd: "https://github.com/jokeez/hackme/blob/main/docs/BITCOINTALK_ANN.md",
+    annMd: "https://bitcointalk.org/index.php?topic=5583373.0",
     x: "https://x.com/HackMeTech",
     discord: "https://discord.gg/QMxSeaTSrQ",
     tgChannel: "https://t.me/hackme_tech",
@@ -31,7 +31,7 @@
     newsUrl: "./news.html",
     newsFeed: "./assets/news.json",
     releaseChannel: RELEASE_VER,
-    releaseChannelNote: "launch candidate — rc11l ISO live-boot fix; Win/Linux same build as rc11k",
+    releaseChannelNote: "rc11l — ISO live-boot overlay fix; verify SHA256 before flash",
     releaseBase: `/dist/release_${RELEASE_VER}`,
     windowsInstaller: `/dist/release_${RELEASE_VER}/HackMe-Setup-${RELEASE_VER}.exe`,
     windowsBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows_setup.zip`,
@@ -196,7 +196,10 @@
     setHref("download-manifest", CONFIG.manifest);
     setHref("download-buildinfo", CONFIG.buildInfo);
     const verEl = document.getElementById("dl-release-ver");
-    if (verEl) verEl.textContent = CONFIG.releaseChannel || RELEASE_VER;
+    const verMeta = document.getElementById("dl-release-meta");
+    const verLabel = CONFIG.releaseChannel || RELEASE_VER;
+    if (verEl) verEl.textContent = verLabel;
+    if (verMeta) verMeta.textContent = verLabel;
     void resolveHackMeOSIsoHref().then((isoHref) => {
       const isoBtn = document.getElementById("download-iso");
       const isoStat = document.getElementById("download-iso-status");

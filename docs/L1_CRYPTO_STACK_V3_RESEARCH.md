@@ -18,8 +18,7 @@ bash scripts/ops/deploy_hackme_site.sh
 
 ## Marketing copy
 
-- Telegram: `docs/TELEGRAM_POST_L1_CRYPTO_STACK_V3.txt`
-- Bitcointalk: `docs/BITCOINTALK_L1_CRYPTO_STACK_V3_BBCode.txt`
+- Announce: https://hackme.tech/news.html · https://t.me/hackme_tech
 
 ## Native Core fuzz (optional next step)
 
