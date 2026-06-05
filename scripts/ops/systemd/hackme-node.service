@@ -1,5 +1,5 @@
 [Unit]
-Description=HackMe Node
+Description=HackMe Node (production binary)
 After=network-online.target
 Wants=network-online.target
 
@@ -9,10 +9,11 @@ User=hackme
 Group=hackme
 WorkingDirectory=/opt/hackme
 EnvironmentFile=/opt/hackme/.env.vps
-ExecStart=/usr/bin/env bash -lc 'go run .'
+ExecStart=/opt/hackme/hackme-node
 Restart=always
-RestartSec=3
-TimeoutStopSec=20
+RestartSec=5
+TimeoutStartSec=120
+TimeoutStopSec=30
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
@@ -21,8 +22,10 @@ ProtectKernelTunables=true
 ProtectControlGroups=true
 ProtectKernelModules=true
 LockPersonality=true
-MemoryDenyWriteExecute=true
 LimitNOFILE=65535
+# Prevent OOM from taking down nginx/ssh (adjust to VPS RAM)
+MemoryMax=3G
+MemoryHigh=2500M
 
 [Install]
 WantedBy=multi-user.target

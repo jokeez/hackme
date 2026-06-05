@@ -118,6 +118,10 @@ if [[ ! -f "\$d/.env.vps" ]]; then
 fi
 chmod 755 "\$d/hackme-node"
 if [[ -f "\$d/coordinator" ]]; then chmod 755 "\$d/coordinator"; fi
+if [[ -f "\$d/scripts/ops/systemd/hackme-node.service" ]]; then
+  cp -a "\$d/scripts/ops/systemd/hackme-node.service" /etc/systemd/system/hackme-node.service
+  echo "[deploy-hackme-node] installed systemd unit (binary ExecStart, not go run)"
+fi
 systemctl daemon-reload
 systemctl restart hackme-node
 if systemctl is-active --quiet hackme-coordinator; then systemctl restart hackme-coordinator; fi
