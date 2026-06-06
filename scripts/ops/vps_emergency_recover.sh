@@ -45,10 +45,11 @@ log "start node + coordinator"
 systemctl daemon-reload
 systemctl enable hackme-node 2>/dev/null || true
 systemctl restart hackme-node
+systemctl enable hackme-coordinator 2>/dev/null || true
 if systemctl list-unit-files | grep -q hackme-coordinator; then
   systemctl restart hackme-coordinator 2>/dev/null || true
 fi
-sleep 3
+sleep 15
 
 log "loopback smoke"
 curl -fsS --max-time 5 -o /dev/null -w 'static_index:%{http_code}\n' http://127.0.0.1/index.html || echo "static FAIL"
