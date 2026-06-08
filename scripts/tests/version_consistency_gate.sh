@@ -16,4 +16,5 @@ if [[ "$GO_VER" != "$CUR_VER" ]]; then
   fail=$((fail + 1))
 fi
 if [[ "$fail" -gt 0 ]]; then exit 1; fi
-echo "[version-gate] OK — single channel $GO_VER (hold at rc11l until hardware verified)"
+ISO_VER="$(tr -d ' \n\r' <"$ROOT/scripts/release/CURRENT_ISO_VERSION" 2>/dev/null || echo 0.1.0-rc11l)"
+echo "[version-gate] OK — Win/Linux channel $GO_VER · ISO channel $ISO_VER"

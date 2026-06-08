@@ -4,7 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| `0.1.0-rc11i` | Yes (current release candidate) |
+| `0.1.0-rc11m` | Yes (current release candidate) |
+| `0.1.0-rc11l`–`rc11i` | Best effort only |
 | Older rc / dev builds | Best effort only |
 
 ## Reporting a vulnerability

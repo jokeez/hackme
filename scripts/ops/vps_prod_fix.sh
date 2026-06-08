@@ -5,7 +5,7 @@
 set -euo pipefail
 
 DEPLOY="${NODE_DEPLOY_DIR:-/opt/hackme}"
-REL="${RELEASE_VER:-0.1.0-rc11l}"
+REL="${RELEASE_VER:-0.1.0-rc11m}"
 REL_DIR="${DEPLOY}/dist/release_${REL}"
 log() { echo "[vps-prod-fix] $*"; }
 

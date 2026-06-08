@@ -1005,7 +1005,7 @@
 						<span id="hdr-ui-mode" class="hidden sm:inline text-[9px] px-2 py-0.5 rounded border border-white/20 text-gray-300 uppercase tracking-widest" title="UI rendering mode">ui: full</span>
 						<span class="hidden sm:inline text-[10px] px-2 py-0.5 rounded border border-neon/25 text-neon/90 bg-neon/5">WASM</span>
 						<span id="chain-id-pill" class="tag-pill text-matrix/90 border-matrix/30">hackme-dev-mainnet</span>
-						<span id="hdr-node-version" class="text-[9px] px-2 py-0.5 rounded border border-white/10 text-neon/80 font-mono max-w-[280px] truncate hidden sm:inline-block" title="Embedded dashboard revision — if this stays «node —», reload failed or proxy cached old HTML">9f09a5c · 2026-06-02T11:02:00Z</span>
+						<span id="hdr-node-version" class="text-[9px] px-2 py-0.5 rounded border border-white/10 text-neon/80 font-mono max-w-[280px] truncate hidden sm:inline-block" title="Node version · commit · build date from /api/status">0.1.0-rc11m · …</span>
 					</div>
 					<div class="flex flex-wrap items-center gap-3 text-right text-[11px]">
 						<div class="flex items-center gap-2 rounded border border-warn/25 bg-black/40 px-2 py-1">
@@ -8803,6 +8803,16 @@
 				const ver = String((s && s.version) || 'dev').trim();
 				$('pm-badge-release').textContent = 'release: ' + (ver.length > 24 ? ver.slice(0, 22) + '…' : ver);
 				$('pm-badge-release').title = 'Node build version (API status)';
+			}
+			if ($('hdr-node-version') && s) {
+				const ver = String(s.version || 'dev').trim();
+				const commit = String(s.commit || '').trim();
+				const bd = String(s.build_date || '').trim();
+				const parts = [ver];
+				if (commit && commit !== 'nogit') parts.push(commit.length > 10 ? commit.slice(0, 10) : commit);
+				if (bd && bd !== 'unknown') parts.push(bd);
+				$('hdr-node-version').textContent = parts.join(' · ');
+				$('hdr-node-version').title = 'Node ' + ver + ' — from GET /api/status';
 			}
 		}
 

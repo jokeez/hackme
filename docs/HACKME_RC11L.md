@@ -1,6 +1,6 @@
-# HackMe 0.1.0-rc11l — current download channel
+# HackMe 0.1.0-rc11l — HackMe OS ISO channel
 
-**Status:** ISO live-boot fix shipped; **hardware verification pending** before any tag after `rc11l`.
+**Status:** ISO live-boot fix shipped; **current ISO on downloads** until rc11m ISO is built. Win/Linux channel: [HACKME_RC11M.md](HACKME_RC11M.md).
 
 ## What changed vs rc11k
 

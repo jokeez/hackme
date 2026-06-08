@@ -3,7 +3,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-VERSION="${VERSION:-0.1.0-rc11l}"
+ISO_VER="$(tr -d ' \n\r' <"$ROOT/scripts/release/CURRENT_ISO_VERSION" 2>/dev/null || echo 0.1.0-rc11l)"
+VERSION="${VERSION:-$ISO_VER}"
 ISO="${1:-${ROOT}/dist/release_${VERSION}/HackMe-OS-${VERSION}-amd64.iso}"
 LOG="${2:-/tmp/hackme-iso-qemu-$$.log}"
 TIMEOUT_SEC="${TIMEOUT_SEC:-300}"

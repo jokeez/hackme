@@ -1,6 +1,8 @@
 (() => {
   /** Bump with scripts/release/CURRENT_VERSION, dist/release_<VERSION>/, main.go Version */
   const RELEASE_VER = "0.1.0-rc11m";
+  /** HackMe OS ISO — separate until rc11m ISO is built (Win/Linux use RELEASE_VER). */
+  const ISO_CHANNEL = "0.1.0-rc11l";
 
   /** Sub-1 TH/s → GH/s (matches dashboard / explorer pool strip). */
   function fmtPoolHashrateTHS(ths, mock) {
@@ -31,15 +33,16 @@
     newsUrl: "./news.html",
     newsFeed: "./assets/news.json",
     releaseChannel: RELEASE_VER,
-    releaseChannelNote: "rc11m — wallet treasury fix; canonical on-chain + SUP display",
+    releaseChannelNote: "rc11m — wallet treasury fix; ISO still rc11l until next ISO build",
     releaseBase: `/dist/release_${RELEASE_VER}`,
     windowsInstaller: `/dist/release_${RELEASE_VER}/HackMe-Setup-${RELEASE_VER}.exe`,
     windowsBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows_setup.zip`,
     windowsBundleLegacy: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows.zip`,
     linuxBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_linux.tar.gz`,
-    hackmeOSIso: `/dist/release_${RELEASE_VER}/HackMe-OS-${RELEASE_VER}-amd64.iso`,
-    hackmeOSIsoLegacy: `/dist/release_${RELEASE_VER}/HackMe-Miner-${RELEASE_VER}-amd64.iso`,
-    hackmeOSSha: `/dist/release_${RELEASE_VER}/SHA256SUMS-iso.txt`,
+    hackmeOSIso: `/dist/release_${ISO_CHANNEL}/HackMe-OS-${ISO_CHANNEL}-amd64.iso`,
+    hackmeOSIsoLegacy: `/dist/release_${ISO_CHANNEL}/HackMe-Miner-${ISO_CHANNEL}-amd64.iso`,
+    hackmeOSSha: `/dist/release_${ISO_CHANNEL}/SHA256SUMS-iso.txt`,
+    isoChannel: ISO_CHANNEL,
     fuzzingLinux: `/dist/release_${RELEASE_VER}/hackme-fuzzing-${RELEASE_VER}-linux-amd64`,
     fuzzingWindows: `/dist/release_${RELEASE_VER}/hackme-fuzzing-${RELEASE_VER}-windows-amd64.exe`,
     shaSums: `/dist/release_${RELEASE_VER}/SHA256SUMS.txt`,

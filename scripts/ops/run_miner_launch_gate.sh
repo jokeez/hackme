@@ -10,7 +10,8 @@ mkdir -p "$OUT"
 VERDICT="$OUT/VERDICT.md"
 POOL_BASE="${POOL_BASE:-https://hackme.tech/pool}"
 SITE_BASE="${SITE_BASE:-https://hackme.tech}"
-ISO_URL="${ISO_URL:-https://hackme.tech/dist/release_0.1.0-rc11l/HackMe-OS-0.1.0-rc11l-amd64.iso}"
+ISO_VER="$(tr -d ' \n\r' <"$ROOT/scripts/release/CURRENT_ISO_VERSION" 2>/dev/null || echo 0.1.0-rc11l)"
+ISO_URL="${ISO_URL:-https://hackme.tech/dist/release_${ISO_VER}/HackMe-OS-${ISO_VER}-amd64.iso}"
 EXPECTED_ISO_SHA="43abb592d7e4222f8d47d528d0b8ec190958cdb91a4441cc56395b3f667d6125"
 
 pass=0

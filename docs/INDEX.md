@@ -54,6 +54,7 @@
 | [CANONICAL_RELEASE_CHECKS.md](CANONICAL_RELEASE_CHECKS.md) | Schema / fuzz gates |
 | [OPERATIONS_MONITORING.md](OPERATIONS_MONITORING.md) | Metrics, alerts, pool health |
 | [PUBLIC_LAUNCH_VERDICT.md](PUBLIC_LAUNCH_VERDICT.md) | Launch criteria |
+| [HACKME_RC11M.md](HACKME_RC11M.md) | **Current** Win/Linux channel |
 | [scripts/release/README.md](../scripts/release/README.md) | Build ISO / Windows / bundles |
 | [TESTING.md](TESTING.md) | Test matrix |
 | [TELEGRAM_NEWS_BOT_RUNBOOK.md](TELEGRAM_NEWS_BOT_RUNBOOK.md) | News bot + pool heartbeat |

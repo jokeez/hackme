@@ -13,7 +13,7 @@
 
 **Useful Proof-of-Work · public HTTP pool · GPU mining (CUDA / OpenCL)**
 
-[![Release](https://img.shields.io/badge/release-0.1.0--rc11l-00d1ff?style=for-the-badge)](https://hackme.tech/downloads.html)
+[![Release](https://img.shields.io/badge/release-0.1.0--rc11m-00d1ff?style=for-the-badge)](https://hackme.tech/downloads.html)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-39ff14?style=for-the-badge)](LICENSE)
 [![Website](https://img.shields.io/badge/website-hackme.tech-7fe7ff?style=for-the-badge)](https://hackme.tech)
 
@@ -32,7 +32,7 @@ HackMe is open mining infrastructure: a **desktop node** (dashboard at `:8080`) 
 | **Pool** | HTTP coordinator (not Stratum) · dynamic `target_mod` |
 | **GPU** | NVIDIA CUDA · AMD/Intel OpenCL · CPU fallback |
 | **Ecosystem** | **HMC** live pool · **SUP** accrual (hybrid HMC work) · **HMS** storage+seal lane (UI preview; backend on dedicated VPS #2 before go-live) |
-| **Release** | `0.1.0-rc11l` — launch candidate: Windows installer, Linux bundle, HackMe OS ISO (live-boot fix) |
+| **Release** | `0.1.0-rc11m` — Windows/Linux + wallet treasury fix; HackMe OS ISO still `rc11l` until next ISO build |
 | **License** | [AGPL-3.0](LICENSE) · [Trademark](TRADEMARK.md) |
 
 > Wallet balance on the dashboard ≠ pool payout until settlement. Map `WORKER_ID` → `HMC-…` with the operator. See [docs/NETWORK_MODEL.md](docs/NETWORK_MODEL.md).
@@ -84,7 +84,7 @@ Templates: `.env.desktop.example`, `scripts/ops/worker.env.example`.
 go build -trimpath -o hackme-node .
 go build -trimpath -tags opencl -o workerpoh-opencl ./cmd/workerpoh
 go build -trimpath -o hackme-coordinator ./cmd/coordinator
-VERSION=0.1.0-rc11l bash scripts/release/make_release_bundle.sh
+VERSION=0.1.0-rc11m bash scripts/release/make_release_bundle.sh
 ```
 
 ---

@@ -1,32 +1,37 @@
 # HackMe RC status (operator snapshot)
 
-**Release:** `0.1.0-rc11l` · **Site:** https://hackme.tech · **Branch:** `main`
+**Release:** `0.1.0-rc11m` · **Site:** https://hackme.tech · **Branch:** `main`
 
-| Highlight (2026-06-04) | |
+| Highlight (2026-06-08) | |
 |------------------------|--|
-| **HackMe OS ISO** | Live USB overlay fix — `05-hackme-overlay-modules` in `casper-premount` (not `local-premount`) |
-| **Channel** | `0.1.0-rc11l` on downloads — Windows/Linux same binaries as rc11k; **new ISO only** until hardware verified |
+| **Wallet treasury** | Canonical on-chain HMC + SUP; pool accrual and orders shown separately |
+| **Channel** | `0.1.0-rc11m` — Windows installer + Linux tarball on downloads |
+| **HackMe OS ISO** | Still `0.1.0-rc11l` (live-boot fix) until rc11m ISO rebuild |
 | **Downloads** | https://hackme.tech/downloads.html |
 
 | Area | Verdict |
 |------|---------|
 | Public pool + coordinator | **Live** — hybrid Ed25519 strict on prod |
-| ISO / downloads | **Published** — verify SHA256 on downloads page |
+| Win/Linux downloads (rc11m) | **Published** — verify SHA256 on downloads page |
+| HackMe OS ISO (rc11l) | **Published** — [SHA256SUMS-iso.txt](https://hackme.tech/dist/release_0.1.0-rc11l/SHA256SUMS-iso.txt) |
 | Miner launch gate | **GO** — `bash scripts/ops/run_miner_launch_gate.sh` |
 | Site smoke | **PASS** — `bash scripts/tests/public_site_smoke.sh` |
-| Dashboard UI (local) | **PASS** — Playwright `tests/e2e/specs/solopool-dashboard.spec.ts` |
-| Multi-GPU / hybrid fleet | **GO** — `fleetplan`, `HACKME_GPU_HYBRID=auto`, `worker_autostart.sh` (CUDA+OpenCL) |
-| HackMe OS visual overhaul (source) | **GO** — GRUB/Plymouth/TTY shipped on downloads ISO |
-| Published ISO on hackme.tech | **LIVE** — `81a1f1f1…cad30b0db` · **878 454 784** B (~838 MiB) · [SHA256SUMS-iso.txt](https://hackme.tech/dist/release_0.1.0-rc11l/SHA256SUMS-iso.txt) |
+| Version consistency | **PASS** — `bash scripts/tests/version_consistency_gate.sh` |
+| Dashboard wallet (local) | **PASS** — canonical peer cache 418+ HMC on prod wallet |
 
 ## Open operator items (non-blocking for miners)
 
-1. **Acer / physical USB** — confirm boot with rc11l ISO SHA before any version bump past `rc11l`.
-2. Do not run 1000-packet `hybrid_crypto_matrix.sh` against prod in a loop (rate limits).
+1. **rc11m ISO** — optional rebuild when USB image should match Win/Linux channel.
+2. **Acer / physical USB** — confirm boot with rc11l ISO SHA before bumping ISO channel.
 3. HMS / HMAI vectors in dashboard are **preview** — only **HMC** pool is mineable today.
 
 ## Version source of truth
 
-- `scripts/release/CURRENT_VERSION` — operator scripts default
-- `web/site/assets/app.js` → `RELEASE_VER` — site + dashboard download URLs
-- `main.go` → `Version` — node binary embed (rebuild/deploy to match)
+| File | Role |
+|------|------|
+| `scripts/release/CURRENT_VERSION` | Win/Linux release channel (`0.1.0-rc11m`) |
+| `scripts/release/CURRENT_ISO_VERSION` | HackMe OS ISO channel (`0.1.0-rc11l`) |
+| `web/site/assets/app.js` → `RELEASE_VER` | Site + dashboard download URLs |
+| `main.go` → `Version` | Node binary embed (rebuild/deploy to match) |
+
+Detail: [HACKME_RC11M.md](HACKME_RC11M.md)
