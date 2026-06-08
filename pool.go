@@ -900,9 +900,9 @@ func (a *app) fetchCanonicalAddressState(ctx context.Context, addr string) (bala
 	curlSec := 8
 	tryCurlFirst := false
 	if envBool("HACKME_DESKTOP_MODE", false) {
-		// Desktop: prefer net/http first (stable); longer curl fallback when VPN breaks Go TLS.
-		httpSec = 12
-		curlSec = 15
+		// Desktop wallet: short blocking fetch; background warm retries with longer curl.
+		httpSec = 4
+		curlSec = 10
 		tryCurlFirst = false
 	} else if !coordinatorURLIsLoopback(base) {
 		tryCurlFirst = true
@@ -963,6 +963,13 @@ func (a *app) fetchCanonicalAddressState(ctx context.Context, addr string) (bala
 	}
 	if units, nonce, ok := fetchHTTP(); ok {
 		return units, nonce, true
+	}
+	if err := ctx.Err(); err != nil {
+		return 0, 0, false
+	}
+	// Desktop wallet: never block the HTTP handler on curl (10–12s). Background warm retries.
+	if envBool("HACKME_DESKTOP_MODE", false) {
+		return 0, 0, false
 	}
 	return fetchCurl()
 }

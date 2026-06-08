@@ -554,6 +554,58 @@
 		.wallet-coin-badge.live { border-color: rgba(0, 255, 136, 0.45); color: #6ee7b7; }
 		.wallet-coin-badge.soon { border-color: rgba(251, 191, 36, 0.4); color: #fcd34d; }
 		.wallet-coin-badge.bonus { border-color: rgba(192, 132, 252, 0.45); color: #d8b4fe; }
+		.wallet-treasury {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 0.5rem;
+			max-width: 36rem;
+			margin: 0 auto 1.25rem;
+			text-align: left;
+		}
+		@media (max-width: 640px) {
+			.wallet-treasury { grid-template-columns: 1fr; }
+		}
+		.wallet-treasury-item {
+			border-radius: 0.65rem;
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			background: linear-gradient(145deg, rgba(0, 0, 0, 0.55), rgba(0, 40, 30, 0.25));
+			padding: 0.55rem 0.65rem;
+		}
+		.wallet-treasury-item.onchain { border-color: rgba(0, 255, 136, 0.28); }
+		.wallet-treasury-item.accrual { border-color: rgba(0, 209, 255, 0.28); }
+		.wallet-treasury-item.orders { border-color: rgba(192, 132, 252, 0.28); }
+		.wallet-treasury-item.warn { border-color: rgba(251, 191, 36, 0.45); background: linear-gradient(145deg, rgba(40, 28, 0, 0.35), rgba(0, 0, 0, 0.5)); }
+		.wallet-treasury-label {
+			font-size: 9px;
+			text-transform: uppercase;
+			letter-spacing: 0.16em;
+			color: #6b7280;
+			margin-bottom: 0.2rem;
+		}
+		.wallet-treasury-value {
+			font-family: var(--font-display, ui-monospace, monospace);
+			font-size: 0.95rem;
+			color: #e5e7eb;
+			font-variant-numeric: tabular-nums;
+		}
+		.wallet-treasury-sub {
+			font-size: 9px;
+			color: #6b7280;
+			margin-top: 0.15rem;
+			font-family: ui-monospace, monospace;
+		}
+		.orders-balance-strip {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 0.65rem 1rem;
+			border-radius: 0.65rem;
+			border: 1px solid rgba(192, 132, 252, 0.28);
+			background: linear-gradient(90deg, rgba(192, 132, 252, 0.08), rgba(0, 0, 0, 0.35));
+			padding: 0.65rem 0.85rem;
+			font-size: 11px;
+		}
+		.orders-balance-strip strong { color: #e9d5ff; font-variant-numeric: tabular-nums; }
 		.wallet-detail-tabs {
 			display: flex;
 			flex-wrap: wrap;
@@ -1951,6 +2003,13 @@
 						<strong class="text-neon">Read-only</strong> — save a <strong>developer token</strong> (header → Issue / Save) or <strong>admin token</strong> to run audits. Reports open on the <a href="#" class="text-neon/90 underline" data-goto-tab="fuzz">Fuzz tab</a>.
 					</div>
 					<div id="orders-wallet-gate" class="hidden rounded-lg border border-warn/35 bg-warn/5 p-3 text-[11px] text-warn/95 leading-snug"></div>
+					<div id="orders-balance-strip" class="orders-balance-strip hidden">
+						<span class="text-[10px] uppercase tracking-[0.18em] text-gray-500">Order wallet</span>
+						<strong id="orders-spendable-hmc">— HMC</strong>
+						<span id="orders-onchain-hmc" class="text-gray-500 font-mono text-[10px]"></span>
+						<span id="orders-balance-alignment" class="text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border border-white/10 text-gray-400"></span>
+						<a href="#" class="text-neon/90 underline text-[10px] ml-auto" data-goto-tab="wallet">Wallet breakdown →</a>
+					</div>
 					<div id="orders-security-audit" class="hidden card card-glow rounded-xl p-5 border-neon/30">
 						<h3 class="text-[10px] uppercase tracking-[0.2em] text-neon mb-2">Security audit (recommended)</h3>
 						<p class="text-[11px] text-gray-500 mb-3 leading-relaxed">One click: compile guard (or upload WASM) → <strong>PoH order</strong> on the pool + <strong>distributed fuzz</strong> (20/80 escrow) → <strong>fuzz_report_v2</strong> HTML with report token, <code class="text-neon/80">repro_cmd</code>, and <code class="text-neon/80">.input</code> artifacts. WASM sandbox only — not a full upstream node audit.</p>
@@ -2489,6 +2548,24 @@
 						<p class="text-[10px] uppercase tracking-[0.35em] text-gray-500 mb-4"><span id="wallet-selected-coin-name">HackMe Coin</span> · balance</p>
 						<p class="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-matrix drop-shadow-matrix tabular-nums mb-2"><span id="wallet-balance-big">0.00</span> <span id="wallet-symbol-big" class="text-2xl sm:text-3xl text-neon/80">HMC</span></p>
 						<p id="wallet-balance-caption" class="text-sm text-gray-500 mb-2">Node wallet (local view)</p>
+						<div id="wallet-treasury" class="wallet-treasury hidden wallet-detail-hmc-only">
+							<div class="wallet-treasury-item onchain">
+								<p class="wallet-treasury-label">On-chain</p>
+								<p id="wallet-treasury-onchain" class="wallet-treasury-value">—</p>
+								<p class="wallet-treasury-sub">transfers · canonical</p>
+							</div>
+							<div class="wallet-treasury-item accrual">
+								<p class="wallet-treasury-label">Pool accrual</p>
+								<p id="wallet-treasury-accrual" class="wallet-treasury-value">—</p>
+								<p class="wallet-treasury-sub">mining · not settled</p>
+							</div>
+							<div class="wallet-treasury-item orders" id="wallet-treasury-orders-card">
+								<p class="wallet-treasury-label">Orders debit</p>
+								<p id="wallet-treasury-orders" class="wallet-treasury-value">—</p>
+								<p id="wallet-treasury-orders-note" class="wallet-treasury-sub">local ledger · POST /api/tasks</p>
+							</div>
+						</div>
+						<p id="wallet-alignment-banner" class="hidden text-[10px] text-warn/90 mb-4 max-w-xl mx-auto leading-relaxed font-mono"></p>
 						<p id="wallet-miner-payout-note" class="text-[10px] text-gray-400 mb-6 max-w-2xl mx-auto leading-relaxed hidden"></p>
 						<div id="wallet-overview-stats-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 max-w-5xl mx-auto mb-5 text-left">
 							<div class="wallet-stat wallet-detail-hmc-only" title="1 HMC = 100,000,000 Kapa. Matches HMC balance above (full precision).">
@@ -3341,13 +3418,17 @@
 		}
 		function walletCoinBalanceDisplay(coin) {
 			if (coin && coin.id === 'hmc' && (coin.walletLive || coin.status === 'live')) {
-				const onChain = Number(walletSnapshot.balanceHMC || 0);
-				const unpaid = latestWorkerSettlementSnap
-					? Number(latestWorkerSettlementSnap.wallet_unpaid_hmc || 0)
-					: 0;
+				const onChain = Number(walletSnapshot.onChainHMC || walletSnapshot.balanceHMC || 0);
+				const unpaid = walletUnpaidHmc();
+				const orders = Number(walletSnapshot.ordersSpendableHMC || 0);
+				const align = walletSnapshot.balanceAlignment || '';
+				let sub = unpaid > 0.000001 ? ('+' + fmt(unpaid, 4) + ' accrual') : 'on-chain';
+				if (align === 'local_ahead' || align === 'canonical_ahead') {
+					sub = 'orders ' + fmt(orders, 4) + ' · ' + sub;
+				}
 				return {
-					main: fmt(onChain, 4),
-					sub: unpaid > 0.000001 ? '+' + fmt(unpaid, 4) + ' unpaid' : 'on-chain',
+					main: fmt(onChain > 0 ? onChain : walletSnapshot.balanceHMC, 4),
+					sub: sub,
 				};
 			}
 			if (coin && coin.walletRole === 'bonus') {
@@ -3387,10 +3468,8 @@
 			live.forEach((c) => {
 				const px = Number(c.estPriceUsd || 0);
 				if (px <= 0) return;
-				const onChain = Number(walletSnapshot.balanceHMC || 0);
-				const unpaid = c.id === 'hmc' && latestWorkerSettlementSnap
-					? Number(latestWorkerSettlementSnap.wallet_unpaid_hmc || 0)
-					: 0;
+				const onChain = Number(walletSnapshot.onChainHMC || walletSnapshot.balanceHMC || 0);
+				const unpaid = c.id === 'hmc' ? walletUnpaidHmc() : 0;
 				totalUsd += (onChain + unpaid) * px;
 			});
 			if ($('wallet-portfolio-total')) {
@@ -3793,6 +3872,170 @@
 		const POLL_INTERVAL_WALLET_MS = 6000;
 		const POLL_INTERVAL_HIDDEN_MS = 60000;
 		const WALLET_EARNINGS_INTERVAL_MS = 55000;
+		const WALLET_FETCH_TIMEOUT_MS = 5000;
+		const WALLET_SNAP_CACHE_KEY = 'hackme.wallet.snapshot.v2';
+		function restoreWalletSnapshotCache() {
+			try {
+				const raw = sessionStorage.getItem(WALLET_SNAP_CACHE_KEY);
+				if (!raw) return false;
+				const j = JSON.parse(raw);
+				if (!j || Date.now() - Number(j.ts || 0) > 86400000) return false;
+				if (j.address) walletSnapshot.address = String(j.address);
+				if (Number.isFinite(Number(j.balanceHMC))) walletSnapshot.balanceHMC = Number(j.balanceHMC);
+				if (Number.isFinite(Number(j.balanceUnits))) walletSnapshot.balanceUnits = Number(j.balanceUnits);
+				if (Number.isFinite(Number(j.onChainHMC))) walletSnapshot.onChainHMC = Number(j.onChainHMC);
+				if (Number.isFinite(Number(j.ordersSpendableHMC))) walletSnapshot.ordersSpendableHMC = Number(j.ordersSpendableHMC);
+				if (j.balanceAlignment) walletSnapshot.balanceAlignment = String(j.balanceAlignment);
+				if (j.walletSource) walletSnapshot.walletSource = String(j.walletSource);
+				if (Number.isFinite(Number(j.nextNonce))) walletSnapshot.nextNonce = Number(j.nextNonce);
+				if (Number.isFinite(Number(j.balanceSUP))) walletSnapshot.balanceSUP = Number(j.balanceSUP);
+				return !!(walletSnapshot.address || walletSnapshot.balanceHMC > 0);
+			} catch (_) {
+				return false;
+			}
+		}
+		function persistWalletSnapshotCache() {
+			try {
+				sessionStorage.setItem(WALLET_SNAP_CACHE_KEY, JSON.stringify({
+					ts: Date.now(),
+					address: walletSnapshot.address,
+					balanceHMC: walletSnapshot.balanceHMC,
+					balanceUnits: walletSnapshot.balanceUnits,
+					onChainHMC: walletSnapshot.onChainHMC,
+					ordersSpendableHMC: walletSnapshot.ordersSpendableHMC,
+					balanceAlignment: walletSnapshot.balanceAlignment,
+					walletSource: walletSnapshot.walletSource,
+					nextNonce: walletSnapshot.nextNonce,
+					balanceSUP: walletSnapshot.balanceSUP,
+				}));
+			} catch (_) {}
+		}
+		function walletUnpaidHmc() {
+			return latestWorkerSettlementSnap
+				? Number(latestWorkerSettlementSnap.wallet_unpaid_hmc || 0)
+				: 0;
+		}
+		function applyWalletBalanceFromApi(w) {
+			if (!w || typeof w !== 'object') return;
+			const primaryH = Number(w.balance_primary_hmc);
+			const primaryU = Number(w.balance_primary_units);
+			const dispH = Number(w.balance_display_hmc);
+			const dispU = Number(w.balance_display_units);
+			const authH = Number(w.balance_hmc || 0);
+			const authU = Number(w.balance_units || 0);
+			const onChainH = Number(w.balance_on_chain_hmc);
+			const ordersH = Number(w.balance_orders_spendable_hmc);
+			const localH = Number(w.balance_local_mirror_hmc || 0);
+			let balH = Number.isFinite(primaryH) && primaryH >= 0 ? primaryH
+				: (Number.isFinite(dispH) && dispH >= 0 ? dispH : authH);
+			let balU = Number.isFinite(primaryU) && primaryU >= 0 ? primaryU
+				: (Number.isFinite(dispU) && dispU >= 0 ? dispU : authU);
+			walletSnapshot.balanceHMC = balH;
+			walletSnapshot.balanceUnits = balU;
+			walletSnapshot.onChainHMC = Number.isFinite(onChainH) && onChainH >= 0
+				? onChainH
+				: (String(w.wallet_source || '').includes('canonical') ? authH : 0);
+			walletSnapshot.ordersSpendableHMC = Number.isFinite(ordersH) && ordersH >= 0 ? ordersH : localH;
+			walletSnapshot.balanceAlignment = String(w.balance_alignment || 'local_only');
+			walletSnapshot.walletSource = String(w.wallet_source || '');
+			walletSnapshot.balanceSUP = Number(w.balance_sup || 0);
+			walletSnapshot.balanceSUPUnits = Number(w.balance_sup_units || 0);
+			walletSnapshot.balanceHMS = Number(w.balance_hms || 0);
+			walletSnapshot.balanceHMSUnits = Number(w.balance_hms_units || 0);
+			walletSnapshot.supNextNonce = Number(w.sup_next_nonce || 0);
+			walletSnapshot.hmsNextNonce = Number(w.hms_next_nonce || 0);
+			walletSnapshot.nextNonce = Number(w.next_nonce || walletSnapshot.nextNonce || 0);
+		}
+		function walletAlignmentLabel(code) {
+			switch (String(code || '')) {
+				case 'synced': return { text: 'Synced', cls: 'text-matrix border-matrix/40' };
+				case 'local_ahead': return { text: 'Local ahead', cls: 'text-warn border-warn/40' };
+				case 'canonical_ahead': return { text: 'Chain ahead', cls: 'text-warn border-warn/40' };
+				case 'canonical_pending': return { text: 'Syncing…', cls: 'text-gray-400 border-white/15' };
+				default: return { text: 'Local ledger', cls: 'text-gray-400 border-white/15' };
+			}
+		}
+		function renderWalletTreasury() {
+			const root = $('wallet-treasury');
+			if (!root || !isWalletCoinHMC(walletSelectedCoin())) return;
+			const onChain = Number(walletSnapshot.onChainHMC || 0);
+			const orders = Number(walletSnapshot.ordersSpendableHMC || 0);
+			const unpaid = walletUnpaidHmc();
+			const showOnChain = onChain > 0 || String(walletSnapshot.walletSource || '').includes('canonical');
+			root.classList.toggle('hidden', false);
+			if ($('wallet-treasury-onchain')) {
+				$('wallet-treasury-onchain').textContent = showOnChain ? fmt(onChain, 8) + ' HMC' : '…';
+			}
+			if ($('wallet-treasury-accrual')) {
+				$('wallet-treasury-accrual').textContent = unpaid > 0.000001 ? ('+' + fmt(unpaid, 6) + ' HMC') : '0 HMC';
+			}
+			if ($('wallet-treasury-orders')) {
+				$('wallet-treasury-orders').textContent = fmt(orders, 8) + ' HMC';
+			}
+			const ordersCard = $('wallet-treasury-orders-card');
+			const align = walletSnapshot.balanceAlignment || 'local_only';
+			if (ordersCard) {
+				ordersCard.classList.toggle('warn', align === 'local_ahead' || align === 'canonical_ahead');
+			}
+			const banner = $('wallet-alignment-banner');
+			if (banner) {
+				if (align === 'local_ahead') {
+					banner.classList.remove('hidden');
+					banner.textContent = 'Local SQLite is higher than canonical on-chain — orders may accept debits the fork ledger cannot settle on hackme.tech. Reseed or sync before large escrows.';
+				} else if (align === 'canonical_ahead') {
+					banner.classList.remove('hidden');
+					banner.textContent = 'On-chain balance exceeds local ledger — mining settlement may be ahead of SQLite. Orders use local ledger until sync catches up.';
+				} else {
+					banner.classList.add('hidden');
+					banner.textContent = '';
+				}
+			}
+		}
+		function renderOrdersBalanceStrip() {
+			const strip = $('orders-balance-strip');
+			if (!strip) return;
+			const st = latestStatus || {};
+			if (!st.has_genesis) {
+				strip.classList.add('hidden');
+				return;
+			}
+			strip.classList.remove('hidden');
+			const orders = Number(walletSnapshot.ordersSpendableHMC || 0);
+			const onChain = Number(walletSnapshot.onChainHMC || 0);
+			if ($('orders-spendable-hmc')) $('orders-spendable-hmc').textContent = fmt(orders, 6) + ' HMC spendable';
+			if ($('orders-onchain-hmc')) {
+				$('orders-onchain-hmc').textContent = onChain > 0.000001
+					? ('on-chain ' + fmt(onChain, 6) + ' · accrual +' + fmt(walletUnpaidHmc(), 4))
+					: ('mining accrual +' + fmt(walletUnpaidHmc(), 4));
+			}
+			const badge = $('orders-balance-alignment');
+			if (badge) {
+				const lab = walletAlignmentLabel(walletSnapshot.balanceAlignment);
+				badge.textContent = lab.text;
+				badge.className = 'text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border ' + lab.cls;
+			}
+		}
+		function paintWalletShellInstant() {
+			restoreWalletSnapshotCache();
+			const addr = walletKnownAddress();
+			if (addr.startsWith('HMC-')) {
+				walletSnapshot.address = addr;
+				if ($('wallet-address-display')) $('wallet-address-display').textContent = addr;
+			}
+			if (walletSnapshot.balanceHMC > 0 || walletSnapshot.balanceUnits > 0 || walletSnapshot.address) {
+				applyWalletHmcOnChainFields();
+				if (isWalletCoinHMC(walletSelectedCoin()) && $('wallet-balance-big')) {
+					$('wallet-balance-big').textContent = fmt(walletSnapshot.balanceHMC, 8);
+				}
+				if ($('wallet-balance-caption')) {
+					$('wallet-balance-caption').textContent = walletSnapshot.onChainHMC > 0
+						? 'On-chain balance (cached · refreshing…)'
+						: 'Balance (cached · refreshing…)';
+				}
+				try { renderWalletTreasury(); renderOrdersBalanceStrip(); } catch (_) {}
+			}
+			try { renderWalletCoinSidebar(); renderWalletPortfolioSummary(); } catch (_) {}
+		}
 		const WORK_STATS_FETCH_MS = 3500;
 		const WORK_STATS_DETAIL_EVERY = 5;
 		const GLOBAL_METRICS_INTERVAL_MS = 120000;
@@ -3824,7 +4067,7 @@
 		function scheduleWalletEarningsRefresh(force) {
 			const now = Date.now();
 			if (walletEarningsInFlight) return;
-			if (currentTab !== 'wallet') return;
+			if (currentTab !== 'wallet' || walletDetailSection !== 'earnings') return;
 			const due = force || (now - lastWalletEarningsMs) >= WALLET_EARNINGS_INTERVAL_MS;
 			if (!due) return;
 			walletEarningsInFlight = true;
@@ -4358,6 +4601,7 @@
 				el.classList.toggle('hidden', !canViewFuzzTab());
 			});
 			enforceOperatorTabAccess();
+			renderOrdersBalanceStrip();
 		}
 		function enforceOperatorTabAccess() {
 			if (currentTab === 'fuzz' && !canViewFuzzTab()) {
@@ -4628,6 +4872,10 @@
 			address: '',
 			balanceHMC: 0,
 			balanceUnits: 0,
+			onChainHMC: 0,
+			ordersSpendableHMC: 0,
+			balanceAlignment: 'local_only',
+			walletSource: '',
 			balanceSUP: 0,
 			balanceSUPUnits: 0,
 			balanceHMS: 0,
@@ -5602,7 +5850,7 @@
 					'window_hours=' + encodeURIComponent(String(q.window_hours)) +
 					'&bucket_sec=' + encodeURIComponent(String(q.bucket_sec)) +
 					(earnAddr.startsWith('HMC-') ? '&address=' + encodeURIComponent(earnAddr) : '');
-				const er = await fetchWithTimeout('/api/wallet/earnings?' + earnQ, { headers: adminHeaders() }, 28000);
+				const er = await fetchWithTimeout('/api/wallet/earnings?' + earnQ, { headers: adminHeaders() }, 12000);
 				if (!er.ok) throw new Error('wallet_earnings_unavailable');
 				const payload = await er.json();
 				let d = payload && payload.data != null ? payload.data : null;
@@ -7826,7 +8074,7 @@
 			const base = String((latestStatus && latestStatus.public_authority_base) || 'https://hackme.tech').replace(/\/$/, '');
 			if (!addr || !addr.startsWith('HMC-')) return null;
 			try {
-				const r = await fetchWithTimeout(base + '/api/address/' + encodeURIComponent(addr), { cache: 'no-store' }, timeoutMs || 12000);
+				const r = await fetchWithTimeout(base + '/api/address/' + encodeURIComponent(addr), { cache: 'no-store' }, timeoutMs || 3500);
 				if (!r.ok) return null;
 				const j = await r.json();
 				const u = Number(j.balance_units);
@@ -11959,7 +12207,8 @@
 				const oci = $('orders-code-input');
 				if (oci && !String(oci.value || '').trim()) applyOrderCodeTemplate('wat');
 				updateOrderFairnessHint();
-				try { updateOrdersWalletGate(); } catch (_) {}
+				try { updateOrdersWalletGate(); renderOrdersBalanceStrip(); } catch (_) {}
+				void refreshWallet(false);
 				void refreshOrdersList();
 			}
 			if (name === 'fuzz') {
@@ -11982,8 +12231,8 @@
 				}
 			}
 			if (name === 'wallet') {
-				try { renderWalletCoinSidebar(); renderWalletPortfolioSummary(); } catch (_) {}
-				window.setTimeout(() => scheduleWalletEarningsRefresh(true), 400);
+				paintWalletShellInstant();
+				void refreshWallet(false);
 			}
 			if (name === 'ecosystem') {
 				scheduleGlobalMetricsRefresh(true);
@@ -12087,7 +12336,7 @@
 		function refreshAllNow() {
 			const wasPaused = uiPollingPaused;
 			uiPollingPaused = false;
-			if (currentTab === 'wallet') scheduleWalletEarningsRefresh(true);
+			if (currentTab === 'wallet' && walletDetailSection === 'earnings') scheduleWalletEarningsRefresh(true);
 			if (currentTab === 'overview' || currentTab === 'analytics') scheduleGlobalMetricsRefresh(true);
 			void poll().finally(() => {
 				uiPollingPaused = wasPaused;
@@ -12184,15 +12433,14 @@
 
 		async function refreshWallet(forceFresh) {
 			try {
-				await ensureWalletAdminToken();
+				paintWalletShellInstant();
 				const q = forceFresh ? '?fresh=1' : '';
-				const addrHint = walletKnownAddress();
-				const canonPrimed = addrHint ? fetchCanonicalWalletFallback(addrHint) : Promise.resolve(null);
-				const [wr, sr, canonPrimedRes] = await Promise.all([
-					fetch('/api/wallet' + q, { cache: 'no-store', headers: adminHeaders() }),
+				const tokenP = ensureWalletAdminToken();
+				const [wr, sr] = await Promise.all([
+					fetchWithTimeout('/api/wallet' + q, { cache: 'no-store', headers: adminHeaders() }, WALLET_FETCH_TIMEOUT_MS),
 					fetch('/api/worker/settlement', { cache: 'no-store' }).catch(() => null),
-					canonPrimed,
 				]);
+				await tokenP;
 				if (sr && sr.ok) {
 					const s = await sr.json();
 					if (s && s.ok === true) latestWorkerSettlementSnap = s;
@@ -12202,13 +12450,14 @@
 					let w = await r.json();
 					if (w.public_redacted) {
 						await syncDesktopAdminTokenFromNode();
-						const r2 = await fetch('/api/wallet' + q, { cache: 'no-store', headers: adminHeaders() });
+						const r2 = await fetchWithTimeout('/api/wallet' + q, { cache: 'no-store', headers: adminHeaders() }, WALLET_FETCH_TIMEOUT_MS);
 						if (r2.ok) {
 							r = r2;
 							w = await r2.json();
 						}
 					}
 				const addrFromApi = String(w.address || '').trim();
+				const addrHint = walletKnownAddress();
 				if (addrFromApi.startsWith('HMC-')) {
 					walletSnapshot.address = addrFromApi;
 					if ($('wallet-address-display')) $('wallet-address-display').textContent = addrFromApi;
@@ -12219,35 +12468,10 @@
 				const dispU = Number(w.balance_display_units);
 				const authH = Number(w.balance_hmc || 0);
 				const authU = Number(w.balance_units || 0);
-				let balH = (Number.isFinite(dispH) && dispH >= 0) ? dispH : authH;
-				let balU = (Number.isFinite(dispU) && dispU >= 0) ? dispU : authU;
-				let wsrc = String(w.wallet_source || '');
-				if (balH < 0.000001 && canonPrimedRes) {
-					balH = canonPrimedRes.balance_hmc;
-					balU = canonPrimedRes.balance_units;
-					w.wallet_source = 'canonical_peer_ui_fallback';
-					wsrc = w.wallet_source;
-					if (canonPrimedRes.next_nonce != null) w.next_nonce = canonPrimedRes.next_nonce;
-				}
-				if (balH < 0.000001 && walletSnapshot.address && !wsrc.includes('canonical')) {
-					const fb = await fetchCanonicalWalletFallback(walletSnapshot.address);
-					if (fb) {
-						balH = fb.balance_hmc;
-						balU = fb.balance_units;
-						w.wallet_source = 'canonical_peer_ui_fallback';
-						wsrc = w.wallet_source;
-						if (fb.next_nonce != null) w.next_nonce = fb.next_nonce;
-					}
-				}
-				walletSnapshot.balanceHMC = balH;
-				walletSnapshot.balanceUnits = balU;
-				walletSnapshot.balanceSUP = Number(w.balance_sup || 0);
-				walletSnapshot.balanceSUPUnits = Number(w.balance_sup_units || 0);
-				walletSnapshot.balanceHMS = Number(w.balance_hms || 0);
-				walletSnapshot.balanceHMSUnits = Number(w.balance_hms_units || 0);
-				walletSnapshot.supNextNonce = Number(w.sup_next_nonce || 0);
-				walletSnapshot.hmsNextNonce = Number(w.hms_next_nonce || 0);
-				walletSnapshot.nextNonce = Number(w.next_nonce || walletSnapshot.nextNonce || 0);
+				applyWalletBalanceFromApi(w);
+				let balH = walletSnapshot.balanceHMC;
+				let balU = walletSnapshot.balanceUnits;
+				let wsrc = walletSnapshot.walletSource;
 				applyWalletHmcOnChainFields();
 				if (isWalletCoinHMC(walletSelectedCoin()) && $('wallet-balance-big')) {
 					$('wallet-balance-big').textContent = fmt(walletSnapshot.balanceHMC, 8);
@@ -12266,8 +12490,9 @@
 					const src = String(w.wallet_source || 'local_db');
 					const canonOn = src.includes('canonical');
 					let line = 'Canonical sync: ' + (canonOn ? 'ON' : 'OFF') + ' (' + src + ')';
-					if (String(w.balance_display_mode || '') === 'desktop_blend_local_gt_canonical') {
-						line += ' · display: max(SQLite mirror, canonical on-chain). Transfers follow authoritative canonical nonce/balance.';
+					const align = String(w.balance_alignment || walletSnapshot.balanceAlignment || '');
+					if (align && align !== 'synced' && align !== 'local_only') {
+						line += ' · ' + walletAlignmentLabel(align).text;
 					}
 					$('wallet-sync-note').textContent = line;
 				}
@@ -12348,10 +12573,13 @@
 			if (isWalletCoinHMC(walletSelectedCoin())) syncWalletMinerPayoutNote();
 			updateWalletEarningsPeriodButtons();
 			try {
+				renderWalletTreasury();
+				renderOrdersBalanceStrip();
 				renderWalletCoinSidebar();
 				renderWalletPortfolioSummary();
 				syncWalletDetailPanes();
 				renderWalletSelectedCoinDetail();
+				persistWalletSnapshotCache();
 			} catch (_) {}
 		}
 
