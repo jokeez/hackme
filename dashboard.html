@@ -3910,6 +3910,45 @@
 				}));
 			} catch (_) {}
 		}
+		function walletDisplayHmc() {
+			const on = Number(walletSnapshot.onChainHMC || 0);
+			if (on > 0.000001) return on;
+			return Number(walletSnapshot.balanceHMC || 0);
+		}
+		function walletDisplaySup() {
+			return Number(walletSnapshot.balanceSUP || 0);
+		}
+		async function refreshWalletCanonicalBoost() {
+			const addr = walletKnownAddress();
+			if (!addr.startsWith('HMC-')) return false;
+			const on = Number(walletSnapshot.onChainHMC || 0);
+			const align = String(walletSnapshot.balanceAlignment || '');
+			const need = align === 'canonical_pending' || align === 'local_only'
+				|| (on < 1 && walletDisplayHmc() < 50);
+			if (!need && on > 0.000001) return false;
+			const fb = await fetchCanonicalWalletFallback(addr, 8000);
+			if (!fb) return false;
+			walletSnapshot.onChainHMC = fb.balance_hmc;
+			walletSnapshot.balanceHMC = fb.balance_hmc;
+			walletSnapshot.balanceUnits = fb.balance_units;
+			walletSnapshot.nextNonce = fb.next_nonce;
+			if (Number(fb.balance_sup) > 0) walletSnapshot.balanceSUP = Number(fb.balance_sup);
+			walletSnapshot.walletSource = 'canonical_peer_ui';
+			walletSnapshot.balanceAlignment = 'synced';
+			if ($('wallet-balance-big') && isWalletCoinHMC(walletSelectedCoin())) {
+				$('wallet-balance-big').textContent = fmt(walletDisplayHmc(), 8);
+			}
+			if (isWalletCoinSUP(walletSelectedCoin()) && $('wallet-balance-big')) {
+				$('wallet-balance-big').textContent = fmt(walletDisplaySup(), 8);
+			}
+			applyWalletHmcOnChainFields();
+			renderWalletTreasury();
+			renderWalletCoinSidebar();
+			renderWalletPortfolioSummary();
+			syncWalletMinerPayoutNote();
+			persistWalletSnapshotCache();
+			return true;
+		}
 		function walletUnpaidHmc() {
 			return latestWorkerSettlementSnap
 				? Number(latestWorkerSettlementSnap.wallet_unpaid_hmc || 0)
@@ -3945,6 +3984,14 @@
 			walletSnapshot.supNextNonce = Number(w.sup_next_nonce || 0);
 			walletSnapshot.hmsNextNonce = Number(w.hms_next_nonce || 0);
 			walletSnapshot.nextNonce = Number(w.next_nonce || walletSnapshot.nextNonce || 0);
+			if (walletSnapshot.onChainHMC > 0) {
+				walletSnapshot.balanceHMC = walletSnapshot.onChainHMC;
+				if (Number.isFinite(onChainH) && onChainH >= 0 && Number(w.balance_on_chain_units) >= 0) {
+					walletSnapshot.balanceUnits = Number(w.balance_on_chain_units);
+				} else if (String(w.wallet_source || '').includes('canonical')) {
+					walletSnapshot.balanceUnits = authU;
+				}
+			}
 		}
 		function walletAlignmentLabel(code) {
 			switch (String(code || '')) {
@@ -3958,7 +4005,7 @@
 		function renderWalletTreasury() {
 			const root = $('wallet-treasury');
 			if (!root || !isWalletCoinHMC(walletSelectedCoin())) return;
-			const onChain = Number(walletSnapshot.onChainHMC || 0);
+			const onChain = Number(walletSnapshot.onChainHMC || walletDisplayHmc() || 0);
 			const orders = Number(walletSnapshot.ordersSpendableHMC || 0);
 			const unpaid = walletUnpaidHmc();
 			const showOnChain = onChain > 0 || String(walletSnapshot.walletSource || '').includes('canonical');
@@ -4035,6 +4082,7 @@
 				try { renderWalletTreasury(); renderOrdersBalanceStrip(); } catch (_) {}
 			}
 			try { renderWalletCoinSidebar(); renderWalletPortfolioSummary(); } catch (_) {}
+			void refreshWalletCanonicalBoost();
 		}
 		const WORK_STATS_FETCH_MS = 3500;
 		const WORK_STATS_DETAIL_EVERY = 5;
@@ -8079,7 +8127,13 @@
 				const j = await r.json();
 				const u = Number(j.balance_units);
 				if (!Number.isFinite(u)) return null;
-				return { balance_units: u, next_nonce: Number(j.next_nonce || 0), balance_hmc: u / 100000000 };
+				return {
+					balance_units: u,
+					next_nonce: Number(j.next_nonce || 0),
+					balance_hmc: u / 100000000,
+					balance_sup: Number(j.balance_sup || 0),
+					balance_sup_units: Number(j.balance_sup_units || 0),
+				};
 			} catch (_) {
 				return null;
 			}
@@ -12474,10 +12528,13 @@
 				let wsrc = walletSnapshot.walletSource;
 				applyWalletHmcOnChainFields();
 				if (isWalletCoinHMC(walletSelectedCoin()) && $('wallet-balance-big')) {
-					$('wallet-balance-big').textContent = fmt(walletSnapshot.balanceHMC, 8);
+					$('wallet-balance-big').textContent = fmt(walletDisplayHmc(), 8);
 				}
 				if (isWalletCoinHMS(walletSelectedCoin()) && $('wallet-balance-big')) {
 					$('wallet-balance-big').textContent = fmt(walletSnapshot.balanceHMS, 8);
+				}
+				if (isWalletCoinSUP(walletSelectedCoin()) && $('wallet-balance-big')) {
+					$('wallet-balance-big').textContent = fmt(walletDisplaySup(), 8);
 				}
 				if ($('kpi-balance')) {
 					const bh = Number(walletSnapshot.balanceHMC || 0);
@@ -12581,6 +12638,7 @@
 				renderWalletSelectedCoinDetail();
 				persistWalletSnapshotCache();
 			} catch (_) {}
+			void refreshWalletCanonicalBoost();
 		}
 
 		async function poll() {

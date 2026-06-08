@@ -55,7 +55,7 @@ var embeddedFaviconICO []byte
 
 // Build metadata (overridden by -ldflags in release builds).
 var (
-	Version   = "0.1.0-rc11l"
+	Version   = "0.1.0-rc11m"
 	Commit    = "nogit"
 	BuildDate = "unknown"
 )
@@ -138,6 +138,7 @@ type app struct {
 	canonWalletHMC        float64
 	canonWalletUnits      uint64
 	canonWalletNonce      uint64
+	canonWalletSUPUnits   uint64
 	canonWalletCachedUnix int64
 	canonWalletWarmUnix   int64
 	lastDesktopPruneUnix  int64
@@ -274,20 +275,20 @@ func canonicalWalletFetchTimeout() time.Duration {
 	return 6 * time.Second
 }
 
-func (a *app) readCanonicalWalletStaleCache(addr string) (float64, uint64, uint64, bool) {
+func (a *app) readCanonicalWalletStaleCache(addr string) (float64, uint64, uint64, uint64, bool) {
 	if a == nil {
-		return 0, 0, 0, false
+		return 0, 0, 0, 0, false
 	}
 	want := strings.TrimSpace(addr)
 	a.canonMu.RLock()
 	defer a.canonMu.RUnlock()
 	if want == "" || !strings.EqualFold(want, strings.TrimSpace(a.canonWalletAddr)) {
-		return 0, 0, 0, false
+		return 0, 0, 0, 0, false
 	}
 	if a.canonWalletCachedUnix <= 0 {
-		return 0, 0, 0, false
+		return 0, 0, 0, 0, false
 	}
-	return a.canonWalletHMC, a.canonWalletUnits, a.canonWalletNonce, true
+	return a.canonWalletHMC, a.canonWalletUnits, a.canonWalletNonce, a.canonWalletSUPUnits, true
 }
 
 func (a *app) scheduleCanonicalWalletWarm(addr string) {
@@ -314,11 +315,15 @@ func (a *app) scheduleCanonicalWalletWarm(addr string) {
 			return
 		}
 		hmc := float64(units) / 100_000_000.0
-		a.cacheCanonicalWallet(addr, hmc, units, nonce)
+		var supUnits uint64
+		if su, ok := a.fetchCanonicalSupAddressState(ctx, addr); ok {
+			supUnits = su
+		}
+		a.cacheCanonicalWallet(addr, hmc, units, nonce, supUnits)
 	}()
 }
 
-func (a *app) cacheCanonicalWallet(addr string, hmc float64, units, nonce uint64) {
+func (a *app) cacheCanonicalWallet(addr string, hmc float64, units, nonce, supUnits uint64) {
 	if a == nil || strings.TrimSpace(addr) == "" {
 		return
 	}
@@ -327,13 +332,14 @@ func (a *app) cacheCanonicalWallet(addr string, hmc float64, units, nonce uint64
 	a.canonWalletHMC = hmc
 	a.canonWalletUnits = units
 	a.canonWalletNonce = nonce
+	a.canonWalletSUPUnits = supUnits
 	a.canonWalletCachedUnix = time.Now().Unix()
 	a.canonMu.Unlock()
 }
 
-func (a *app) readCanonicalWalletCache(addr string) (float64, uint64, uint64, bool) {
+func (a *app) readCanonicalWalletCache(addr string) (float64, uint64, uint64, uint64, bool) {
 	if a == nil {
-		return 0, 0, 0, false
+		return 0, 0, 0, 0, false
 	}
 	want := strings.TrimSpace(addr)
 	now := time.Now().Unix()
@@ -341,12 +347,12 @@ func (a *app) readCanonicalWalletCache(addr string) (float64, uint64, uint64, bo
 	a.canonMu.RLock()
 	defer a.canonMu.RUnlock()
 	if want == "" || !strings.EqualFold(want, strings.TrimSpace(a.canonWalletAddr)) {
-		return 0, 0, 0, false
+		return 0, 0, 0, 0, false
 	}
 	if a.canonWalletCachedUnix > 0 && now-a.canonWalletCachedUnix >= ttl {
-		return 0, 0, 0, false
+		return 0, 0, 0, 0, false
 	}
-	return a.canonWalletHMC, a.canonWalletUnits, a.canonWalletNonce, true
+	return a.canonWalletHMC, a.canonWalletUnits, a.canonWalletNonce, a.canonWalletSUPUnits, true
 }
 
 func main() {
@@ -1417,14 +1423,22 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 	// always matches VPS leader even when P2P peers are not configured.
 	wantCanon := a.shouldUseCanonicalChainAPI() || a.networkModeActive()
 	desktopFast := envBool("HACKME_DESKTOP_MODE", false) && requestFromLoopback(r)
+	var cachedSUPUnits uint64
 	if wantCanon && lookupAddr != "" && !skipCache {
-		if hmc, units, nonce, ok := a.readCanonicalWalletCache(lookupAddr); ok {
+		if hmc, units, nonce, supU, ok := a.readCanonicalWalletCache(lookupAddr); ok {
 			bal = hmc
 			balanceUnits = units
 			nextNonce = nonce
+			cachedSUPUnits = supU
 			walletSource = "canonical_peer_cache"
+		} else if hmc, units, nonce, supU, ok := a.readCanonicalWalletStaleCache(lookupAddr); ok {
+			bal = hmc
+			balanceUnits = units
+			nextNonce = nonce
+			cachedSUPUnits = supU
+			walletSource = "canonical_peer_cache_stale"
+			a.scheduleCanonicalWalletWarm(lookupAddr)
 		} else if desktopFast {
-			// Desktop UI on loopback: return local SQLite immediately; warm canonical in background.
 			a.scheduleCanonicalWalletWarm(lookupAddr)
 		}
 	}
@@ -1438,10 +1452,11 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 			bal = float64(units) / 100_000_000.0
 			walletSource = "canonical_peer"
 		} else if walletSource != "canonical_peer_cache_stale" {
-			if hmc, units, nonce, ok := a.readCanonicalWalletStaleCache(lookupAddr); ok {
+			if hmc, units, nonce, supU, ok := a.readCanonicalWalletStaleCache(lookupAddr); ok {
 				bal = hmc
 				balanceUnits = units
 				nextNonce = nonce
+				cachedSUPUnits = supU
 				walletSource = "canonical_peer_cache_stale"
 				a.scheduleCanonicalWalletWarm(lookupAddr)
 			} else {
@@ -1451,7 +1466,13 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 		cancel()
 	}
 	if walletSource == "canonical_peer" {
-		a.cacheCanonicalWallet(lookupAddr, bal, balanceUnits, nextNonce)
+		var supUnits uint64
+		supCtx, supCancel := context.WithTimeout(ctx, 2*time.Second)
+		if su, ok := a.fetchCanonicalSupAddressState(supCtx, lookupAddr); ok {
+			supUnits = su
+		}
+		supCancel()
+		a.cacheCanonicalWallet(lookupAddr, bal, balanceUnits, nextNonce, supUnits)
 	}
 	canonActive := strings.Contains(walletSource, "canonical")
 	primaryHMC := bal
@@ -1475,7 +1496,10 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 		displayAddr = lookupAddr
 	}
 	supSt, _ := a.chain.SupAddressState(ctx, lookupAddr)
-	if wantCanon && lookupAddr != "" && strings.Contains(walletSource, "canonical") {
+	if cachedSUPUnits > 0 {
+		supSt.BalanceSUPUnits = cachedSUPUnits
+		supSt.BalanceSUP = chain.UnitsToSUP(cachedSUPUnits)
+	} else if wantCanon && lookupAddr != "" && strings.Contains(walletSource, "canonical") {
 		supCtx, supCancel := context.WithTimeout(ctx, 2*time.Second)
 		if supUnits, ok := a.fetchCanonicalSupAddressState(supCtx, lookupAddr); ok && supUnits > 0 {
 			supSt.BalanceSUPUnits = supUnits
@@ -3668,7 +3692,7 @@ func (a *app) handleTransferSend(w http.ResponseWriter, r *http.Request) {
 		if from != "" {
 			nonceOK := false
 			var canonNonce uint64
-			if _, _, cachedNonce, ok := a.readCanonicalWalletCache(from); ok {
+			if _, _, cachedNonce, _, ok := a.readCanonicalWalletCache(from); ok {
 				tx.Nonce = cachedNonce
 				nonceOK = true
 			} else {
@@ -3926,7 +3950,7 @@ func (a *app) handleTransferAddressState(w http.ResponseWriter, r *http.Request)
 	}
 	if a.shouldUseCanonicalChainAPI() {
 		if base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/"); base != "" && walletCanonicalBaseUsable(base) {
-			if hmc, units, nonce, ok := a.readCanonicalWalletCache(addr); ok {
+			if hmc, units, nonce, _, ok := a.readCanonicalWalletCache(addr); ok {
 				out := map[string]any{
 					"address":       addr,
 					"balance_units": units,
@@ -3949,7 +3973,11 @@ func (a *app) handleTransferAddressState(w http.ResponseWriter, r *http.Request)
 			cancel()
 			if ok {
 				hmc := float64(units) / 100_000_000.0
-				a.cacheCanonicalWallet(addr, hmc, units, nonce)
+				var supUnits uint64
+				if su, okSup := a.fetchCanonicalSupAddressState(r.Context(), addr); okSup {
+					supUnits = su
+				}
+				a.cacheCanonicalWallet(addr, hmc, units, nonce, supUnits)
 				out := map[string]any{
 					"address":       addr,
 					"balance_units": units,

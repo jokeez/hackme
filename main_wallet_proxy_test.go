@@ -372,7 +372,7 @@ func TestHandleWalletStaleCanonicalCacheIgnored(t *testing.T) {
 	}
 	const staleUnits = uint64(1_449_069)
 	const remoteUnits = uint64(1_789_448_069)
-	a.cacheCanonicalWallet(addr, float64(staleUnits)/100_000_000.0, staleUnits, 1)
+	a.cacheCanonicalWallet(addr, float64(staleUnits)/100_000_000.0, staleUnits, 1, 0)
 	a.canonMu.Lock()
 	a.canonWalletCachedUnix = time.Now().Unix() - 120
 	a.canonMu.Unlock()

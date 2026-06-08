@@ -5,7 +5,14 @@
     <link>https://hackme.tech/news.html</link>
     <description>Official HackMe Network release, infrastructure, economics, and security updates.</description>
     <language>en-us</language>
-    <lastBuildDate>Wed, 04 Jun 2026 12:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Sun, 08 Jun 2026 17:30:00 GMT</lastBuildDate>
+    <item>
+      <title>Release 0.1.0-rc11m — wallet treasury &amp; canonical balance fix</title>
+      <link>https://hackme.tech/news.html#2026-06-08-rc11m-wallet-treasury</link>
+      <guid>https://hackme.tech/news.html#2026-06-08-rc11m-wallet-treasury</guid>
+      <pubDate>Sun, 08 Jun 2026 17:30:00 GMT</pubDate>
+      <description>Desktop wallet shows real on-chain HMC and SUP from hackme.tech; treasury columns for on-chain, pool accrual, and orders debit.</description>
+    </item>
     <item>
       <title>HackMe OS 0.1.0-rc11l — live USB overlay boot fix</title>
       <link>https://hackme.tech/news.html#2026-06-04-rc11l-iso-live-boot</link>

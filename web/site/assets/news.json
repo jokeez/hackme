@@ -1,6 +1,33 @@
 {
   "items": [
     {
+      "id": "2026-06-08-rc11m-wallet-treasury",
+      "date": "2026-06-08",
+      "title": "Release 0.1.0-rc11m — wallet treasury & canonical balance fix",
+      "summary": "Desktop wallet now shows your real on-chain HMC and SUP from hackme.tech (not stale local SQLite). Three-column treasury: on-chain · pool accrual · orders debit. Instant UI cache + background canonical sync. VPS node recovery when /api/address was timing out.",
+      "impact": "Miners with ~400 HMC on-chain were seeing ~15 HMC when the hub node hung — fixed. Refresh Wallet or reopen #wallet after update.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Local dashboard: http://127.0.0.1:8080/#wallet · Explorer: https://hackme.tech/pool/explorer",
+      "tags": ["release", "wallet", "mining", "infrastructure"],
+      "status": "published",
+      "telegram": {
+        "headline": "rc11m — wallet shows real on-chain balance",
+        "lead": "Desktop wallet treasury: on-chain HMC + SUP from canonical chain, pool accrual separate, orders use local ledger.",
+        "bullets": [
+          "Fix: hub node hang showed 15 HMC instead of 400+ on-chain — stale cache + canonical fetch restored.",
+          "Wallet UI: On-chain · Pool accrual · Orders debit columns; Refresh pulls hackme.tech.",
+          "Download channel 0.1.0-rc11m (Windows/Linux rebuilt with embedded dashboard)."
+        ],
+        "footer": "Your coins were never lost — display synced to canonical HMC-91fe… on hackme.tech."
+      },
+      "links": {
+        "downloads": "https://hackme.tech/downloads.html",
+        "wallet_docs": "https://hackme.tech/docs.html",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "news": "https://hackme.tech/news.html#2026-06-08-rc11m-wallet-treasury",
+        "github": "https://github.com/jokeez/hackme"
+      }
+    },
+    {
       "id": "2026-06-04-live-fuzz-security-audits",
       "date": "2026-06-04",
       "title": "Live fuzz security audits — Solana SPL & Bitcoin Core guards (completed)",
