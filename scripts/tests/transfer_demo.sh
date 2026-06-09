@@ -150,7 +150,20 @@ print(secrets.token_hex(8))
 PY
 )"
 
-nonce="$(jq -r '.next_nonce // 0' "$sender_before")"
+# Desktop nodes mirror canonical chain; on-chain nonce comes from hackme.tech, not local SQLite.
+CANONICAL_BASE="${CANONICAL_BASE:-https://hackme.tech}"
+USE_CANONICAL_NONCE="${USE_CANONICAL_NONCE:-auto}"
+local_nonce="$(jq -r '.next_nonce // 0' "$sender_before")"
+nonce="$local_nonce"
+if [[ "$USE_CANONICAL_NONCE" == "1" ]] || [[ "$USE_CANONICAL_NONCE" == "auto" && "$BASE" != "$CANONICAL_BASE" ]]; then
+  canon_addr="$OUT/sender_canonical.json"
+  if curl -x "" -fsS --max-time 20 "${CANONICAL_BASE}/api/address/${sender_addr}" >"$canon_addr"; then
+    canon_nonce="$(jq -r '.next_nonce // empty' "$canon_addr")"
+    if [[ -n "$canon_nonce" && "$canon_nonce" != "null" ]]; then
+      nonce="$canon_nonce"
+    fi
+  fi
+fi
 ts_now="$(date +%s)"
 memo="demo:${RUN_ID}"
 

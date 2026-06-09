@@ -31,7 +31,8 @@ func TestEnrichWorkStatsDesktopWorkerFromMirror(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(dir, "worker_coordinator_mirror.json"), raw, 0o600)
 
 	t.Setenv("WORKER_ID", mirrorID)
-	a := &app{}
+	// Isolate log discovery from repo-root workerpoh logs (marathon / live desktop).
+	a := &app{dataDir: dir}
 	ws := map[string]any{
 		"workers": map[string]any{
 			"worker-vps-62-01": map[string]any{"payout_hmc": 0.1},

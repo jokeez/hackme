@@ -122,7 +122,14 @@ if [[ -f "\$d/scripts/ops/systemd/hackme-node.service" ]]; then
   cp -a "\$d/scripts/ops/systemd/hackme-node.service" /etc/systemd/system/hackme-node.service
   echo "[deploy-hackme-node] installed systemd unit (binary ExecStart, not go run)"
 fi
+for u in hackme-node-watchdog.service hackme-node-watchdog.timer; do
+  if [[ -f "\$d/scripts/ops/systemd/\$u" ]]; then
+    cp -a "\$d/scripts/ops/systemd/\$u" "/etc/systemd/system/\$u"
+  fi
+done
+chmod +x "\$d/scripts/ops/node_healthcheck.sh" 2>/dev/null || true
 systemctl daemon-reload
+systemctl enable --now hackme-node-watchdog.timer 2>/dev/null || true
 systemctl restart hackme-node
 if systemctl is-active --quiet hackme-coordinator; then systemctl restart hackme-coordinator; fi
 sleep 2

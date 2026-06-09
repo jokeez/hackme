@@ -1,18 +1,19 @@
 # HackMe RC status (operator snapshot)
 
-**Release:** `0.1.0-rc11m` · **Site:** https://hackme.tech · **Branch:** `main`
+**Release:** `0.1.0-rc11n` · **Site:** https://hackme.tech · **Branch:** `main`
 
-| Highlight (2026-06-08) | |
+| Highlight (2026-06-09) | |
 |------------------------|--|
-| **Wallet treasury** | Canonical on-chain HMC + SUP; pool accrual and orders shown separately |
-| **Channel** | `0.1.0-rc11m` — Windows installer + Linux tarball on downloads |
-| **HackMe OS ISO** | Still `0.1.0-rc11l` (live-boot fix) until rc11m ISO rebuild |
+| **Node watchdog** | VPS HTTP health timer restarts hung `hackme-node` |
+| **Payments E2E** | Canonical nonce in `transfer_demo.sh`; `payments_e2e_max.sh` pack |
+| **Channel** | `0.1.0-rc11n` — Windows installer + Linux tarball on downloads |
+| **HackMe OS ISO** | Still `0.1.0-rc11l` (live-boot fix) until next ISO rebuild |
 | **Downloads** | https://hackme.tech/downloads.html |
 
 | Area | Verdict |
 |------|---------|
 | Public pool + coordinator | **Live** — hybrid Ed25519 strict on prod |
-| Win/Linux downloads (rc11m) | **Published** — verify SHA256 on downloads page |
+| Win/Linux downloads (rc11n) | **Published** — verify SHA256 on downloads page |
 | HackMe OS ISO (rc11l) | **Published** — [SHA256SUMS-iso.txt](https://hackme.tech/dist/release_0.1.0-rc11l/SHA256SUMS-iso.txt) |
 | Miner launch gate | **GO** — `bash scripts/ops/run_miner_launch_gate.sh` |
 | Site smoke | **PASS** — `bash scripts/tests/public_site_smoke.sh` |
@@ -29,9 +30,9 @@
 
 | File | Role |
 |------|------|
-| `scripts/release/CURRENT_VERSION` | Win/Linux release channel (`0.1.0-rc11m`) |
+| `scripts/release/CURRENT_VERSION` | Win/Linux release channel (`0.1.0-rc11n`) |
 | `scripts/release/CURRENT_ISO_VERSION` | HackMe OS ISO channel (`0.1.0-rc11l`) |
 | `web/site/assets/app.js` → `RELEASE_VER` | Site + dashboard download URLs |
 | `main.go` → `Version` | Node binary embed (rebuild/deploy to match) |
 
-Detail: [HACKME_RC11M.md](HACKME_RC11M.md)
+Detail: [HACKME_RC11N.md](HACKME_RC11N.md)

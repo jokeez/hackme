@@ -5,7 +5,14 @@
     <link>https://hackme.tech/news.html</link>
     <description>Official HackMe Network release, infrastructure, economics, and security updates.</description>
     <language>en-us</language>
-    <lastBuildDate>Sun, 08 Jun 2026 17:30:00 GMT</lastBuildDate>
+    <lastBuildDate>Tue, 09 Jun 2026 13:30:00 GMT</lastBuildDate>
+    <item>
+      <title>Release 0.1.0-rc11n — hub stability, transfers &amp; payments E2E</title>
+      <link>https://hackme.tech/news.html#2026-06-09-rc11n-stability-payments</link>
+      <guid>https://hackme.tech/news.html#2026-06-09-rc11n-stability-payments</guid>
+      <pubDate>Tue, 09 Jun 2026 13:30:00 GMT</pubDate>
+      <description>rc11n: VPS node HTTP watchdog, canonical transfer nonce for desktop nodes, payments E2E pack. Win/Linux downloads updated; HackMe OS ISO stays rc11l.</description>
+    </item>
     <item>
       <title>Release 0.1.0-rc11m — wallet treasury &amp; canonical balance fix</title>
       <link>https://hackme.tech/news.html#2026-06-08-rc11m-wallet-treasury</link>

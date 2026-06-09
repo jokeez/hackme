@@ -1,6 +1,38 @@
 {
   "items": [
     {
+      "id": "2026-06-09-rc11n-stability-payments",
+      "date": "2026-06-09",
+      "title": "Release 0.1.0-rc11n — hub stability, transfers & payments E2E",
+      "summary": "Production download channel bumped to rc11n. VPS hub runs an HTTP health watchdog that restarts hackme-node when /api/status stops responding (fixes hung hub and stale wallet cache). Desktop transfers and payment demos now use the canonical nonce from hackme.tech. Repeatable payments E2E test pack for operators. HackMe OS ISO stays on rc11l.",
+      "impact": "Miners on Windows/Linux should update from downloads — same wallet treasury as rc11m, plus more reliable hub uptime and correct on-chain transfer nonces from local nodes.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Dashboard: http://127.0.0.1:8080/#wallet · Pool: https://hackme.tech/pool/coordinator",
+      "tags": [
+        "release",
+        "infrastructure",
+        "wallet",
+        "mining"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "rc11n — hub watchdog + canonical transfers",
+        "lead": "Win/Linux channel 0.1.0-rc11n live on hackme.tech. ISO unchanged (rc11l).",
+        "bullets": [
+          "VPS: HTTP watchdog restarts hung hackme-node every minute — wallet canonical fetch stays online.",
+          "Transfers: local nodes use canonical nonce from hackme.tech (no more invalid_nonce on desktop demos).",
+          "Operator pack: scripts/tests/payments_e2e_max.sh — transfer demo + matrix + settlement smoke."
+        ],
+        "footer": "Wallet treasury from rc11m unchanged — on-chain HMC + SUP from canonical chain. Update installer or Linux tarball when convenient."
+      },
+      "links": {
+        "downloads": "https://hackme.tech/downloads.html",
+        "wallet_docs": "https://hackme.tech/docs.html",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "news": "https://hackme.tech/news.html#2026-06-09-rc11n-stability-payments",
+        "github": "https://github.com/jokeez/hackme"
+      }
+    },
+    {
       "id": "2026-06-08-rc11m-wallet-treasury",
       "date": "2026-06-08",
       "title": "Release 0.1.0-rc11m — wallet treasury & canonical balance fix",
@@ -276,51 +308,6 @@
         "report_v2": "https://hackme.tech/reports/l1-crypto-stack.html",
         "report_bc5": "https://hackme.tech/reports/bitcoin-core-5module.html",
         "qa_assets": "https://github.com/bitcoin-core/qa-assets",
-        "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-05-26-l1-crypto-stack-5chain",
-      "date": "2026-05-26",
-      "title": "L1 Crypto Stack v2 — upstream-ported guards (BTC · ETH · DOGE · LTC · HackMe)",
-      "summary": "Public research: WASM built from ported C excerpts of Bitcoin GetScriptOp, Ethereum state_transition value overflow, Dogecoin/Litecoin script.cpp, and HackMe InsertOrderTask. 500 targeted samples per chain, zero sandbox traps. Sources in tasks/sources/security/upstream/.",
-      "tags": [
-        "security",
-        "research",
-        "marketing",
-        "fuzzing"
-      ],
-      "impact": "Strong B2B/Telegram story next to bc5; honest scope (no fake CVE claims); links to Security Audit product.",
-      "action": "Report: https://hackme.tech/reports/l1-crypto-stack.html · Regenerate: bash scripts/ops/run_l1_crypto_stack_research.sh · Gate: bash scripts/ops/l1_crypto_stack_gate.sh",
-      "status": "published",
-      "links": {
-        "github": "https://github.com/jokeez/hackme",
-        "report_l1stack": "https://hackme.tech/reports/l1-crypto-stack.html",
-        "report_bc5": "https://hackme.tech/reports/bitcoin-core-5module.html",
-        "downloads": "https://hackme.tech/downloads.html",
-        "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-05-26-security-audit-one-click",
-      "date": "2026-05-26",
-      "title": "Security Audit — one click (order + pool fuzz + HTML report)",
-      "summary": "Customers launch a full audit from dashboard #orders: compile guard or upload WASM, POST /api/security-audit creates linked useful-PoW order + distributed fuzz campaign (20/80 escrow), report token opens HTML/JSON in #fuzz. Same pipeline as Bitcoin Core 5-module research. PoH order queue is now FIFO-fair on the coordinator.",
-      "tags": [
-        "security",
-        "fuzzing",
-        "product",
-        "orders",
-        "release"
-      ],
-      "impact": "B2B customers get one product story; miners earn on both workerpoh and workerfuzz; operators keep advanced PoH-only tools under admin.",
-      "action": "Try: local dashboard → Security audit → Run full security audit · Gate: bash scripts/ops/security_audit_gate.sh",
-      "status": "published",
-      "links": {
-        "github": "https://github.com/jokeez/hackme",
-        "downloads": "https://hackme.tech/downloads.html",
-        "report_bc5": "https://hackme.tech/reports/bitcoin-core-5module.html",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
         "telegram": "https://t.me/hackme_tech"
       }
     }

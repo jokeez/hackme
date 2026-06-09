@@ -1,6 +1,6 @@
 (() => {
   /** Bump with scripts/release/CURRENT_VERSION, dist/release_<VERSION>/, main.go Version */
-  const RELEASE_VER = "0.1.0-rc11m";
+  const RELEASE_VER = "0.1.0-rc11n";
   /** HackMe OS ISO — separate until rc11m ISO is built (Win/Linux use RELEASE_VER). */
   const ISO_CHANNEL = "0.1.0-rc11l";
 

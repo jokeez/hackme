@@ -1,6 +1,38 @@
 {
   "items": [
     {
+      "id": "2026-06-09-rc11n-stability-payments",
+      "date": "2026-06-09",
+      "title": "Release 0.1.0-rc11n — hub stability, transfers & payments E2E",
+      "summary": "Production download channel bumped to rc11n. VPS hub runs an HTTP health watchdog that restarts hackme-node when /api/status stops responding (fixes hung hub and stale wallet cache). Desktop transfers and payment demos now use the canonical nonce from hackme.tech. Repeatable payments E2E test pack for operators. HackMe OS ISO stays on rc11l.",
+      "impact": "Miners on Windows/Linux should update from downloads — same wallet treasury as rc11m, plus more reliable hub uptime and correct on-chain transfer nonces from local nodes.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Dashboard: http://127.0.0.1:8080/#wallet · Pool: https://hackme.tech/pool/coordinator",
+      "tags": [
+        "release",
+        "infrastructure",
+        "wallet",
+        "mining"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "rc11n — hub watchdog + canonical transfers",
+        "lead": "Win/Linux channel 0.1.0-rc11n live on hackme.tech. ISO unchanged (rc11l).",
+        "bullets": [
+          "VPS: HTTP watchdog restarts hung hackme-node every minute — wallet canonical fetch stays online.",
+          "Transfers: local nodes use canonical nonce from hackme.tech (no more invalid_nonce on desktop demos).",
+          "Operator pack: scripts/tests/payments_e2e_max.sh — transfer demo + matrix + settlement smoke."
+        ],
+        "footer": "Wallet treasury from rc11m unchanged — on-chain HMC + SUP from canonical chain. Update installer or Linux tarball when convenient."
+      },
+      "links": {
+        "downloads": "https://hackme.tech/downloads.html",
+        "wallet_docs": "https://hackme.tech/docs.html",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "news": "https://hackme.tech/news.html#2026-06-09-rc11n-stability-payments",
+        "github": "https://github.com/jokeez/hackme"
+      }
+    },
+    {
       "id": "2026-06-08-rc11m-wallet-treasury",
       "date": "2026-06-08",
       "title": "Release 0.1.0-rc11m — wallet treasury & canonical balance fix",

@@ -1,0 +1,8 @@
+[Unit]
+Description=HackMe Node HTTP Watchdog Check
+After=network-online.target hackme-node.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/hackme/scripts/ops/node_healthcheck.sh

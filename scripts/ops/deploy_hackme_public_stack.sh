@@ -21,6 +21,21 @@ _OPS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$_OPS_DIR/_deploy_ssh_retry.sh"
 
+_deploy_ssh() {
+  if [[ -n "${HACKME_DEPLOY_SSH_IDENTITY:-}" && -f "${HACKME_DEPLOY_SSH_IDENTITY}" ]]; then
+    ssh -i "${HACKME_DEPLOY_SSH_IDENTITY}" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$@"
+  else
+    ssh "$@"
+  fi
+}
+_deploy_scp() {
+  if [[ -n "${HACKME_DEPLOY_SSH_IDENTITY:-}" && -f "${HACKME_DEPLOY_SSH_IDENTITY}" ]]; then
+    scp -i "${HACKME_DEPLOY_SSH_IDENTITY}" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$@"
+  else
+    scp "$@"
+  fi
+}
+
 NODE_SSH="${NODE_SSH:-}"
 NODE_DEPLOY_DIR="${NODE_DEPLOY_DIR:-/opt/hackme}"
 SKIP_NGINX="${SKIP_NGINX:-0}"
@@ -47,19 +62,23 @@ if [[ "$SKIP_NGINX" != "1" ]]; then
     exit 2
   fi
   echo "[deploy-public-stack] install nginx vhost from $NGINX_SITE_CONF"
-  deploy_ssh_retry_run scp "$NGINX_SITE_CONF" "${NODE_SSH}:/tmp/hackme-site-domain.conf.new"
-  deploy_ssh_retry_run ssh "$NODE_SSH" "sudo cp /tmp/hackme-site-domain.conf.new /etc/nginx/sites-available/hackme-site-domain.conf && sudo nginx -t && sudo systemctl reload nginx"
+  deploy_ssh_retry_run _deploy_scp "$NGINX_SITE_CONF" "${NODE_SSH}:/tmp/hackme-site-domain.conf.new"
+  deploy_ssh_retry_run _deploy_ssh "$NODE_SSH" "sudo cp /tmp/hackme-site-domain.conf.new /etc/nginx/sites-available/hackme-site-domain.conf && sudo nginx -t && sudo systemctl reload nginx"
 fi
 
 if [[ "$SKIP_NODE" != "1" ]]; then
-  NODE_SSH="$NODE_SSH" NODE_DEPLOY_DIR="$NODE_DEPLOY_DIR" SYNC_DIST="$SYNC_DIST" bash "$ROOT_DIR/scripts/ops/deploy_hackme_node.sh"
+  NODE_SSH="$NODE_SSH" NODE_DEPLOY_DIR="$NODE_DEPLOY_DIR" SYNC_DIST="$SYNC_DIST" \
+    HACKME_DEPLOY_SSH_IDENTITY="${HACKME_DEPLOY_SSH_IDENTITY:-}" \
+    bash "$ROOT_DIR/scripts/ops/deploy_hackme_node.sh"
 fi
 
 if [[ "$SKIP_SITE" != "1" ]]; then
-  NODE_SSH="$NODE_SSH" NODE_DEPLOY_DIR="$NODE_DEPLOY_DIR" bash "$ROOT_DIR/scripts/ops/deploy_hackme_site.sh"
+  NODE_SSH="$NODE_SSH" NODE_DEPLOY_DIR="$NODE_DEPLOY_DIR" \
+    HACKME_DEPLOY_SSH_IDENTITY="${HACKME_DEPLOY_SSH_IDENTITY:-}" \
+    bash "$ROOT_DIR/scripts/ops/deploy_hackme_site.sh"
 elif [[ "$SKIP_NODE" != "1" ]]; then
   echo "[deploy-public-stack] nginx reload after node rsync (SKIP_SITE=1)"
-  deploy_ssh_retry_run ssh "$NODE_SSH" "sudo nginx -t && sudo systemctl reload nginx" || {
+  deploy_ssh_retry_run _deploy_ssh "$NODE_SSH" "sudo nginx -t && sudo systemctl reload nginx" || {
     echo "[deploy-public-stack] WARN: nginx reload failed" >&2
   }
 fi
