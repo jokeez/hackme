@@ -33,7 +33,7 @@ http_code() {
 log "BASE=$BASE"
 
 # list
-code="$(http_code "$OUT/list.json" GET "$BASE/api/fuzz/campaigns?limit=20")"
+code="$(http_code "$OUT/list.json" GET "$BASE/api/fuzz/campaigns?limit=20" "${HDR_AUTH[@]}")"
 [[ "$code" == "200" ]] || fail "list HTTP $code"
 HEAD_ID="$(jq -r '.campaigns[0].id // empty' "$OUT/list.json")"
 [[ -n "$HEAD_ID" ]] || fail "no campaigns in DB"

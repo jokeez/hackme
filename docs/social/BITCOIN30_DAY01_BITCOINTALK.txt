@@ -1,0 +1,69 @@
+[b]HackMe — Bitcoin Core 30-day fuzz · Day 1/30: GetScriptOp (live)[/b]
+
+[i]Reply to ANN · 10 June 2026 · reproducible sandbox slice, not a full bitcoind audit[/i]
+
+---
+
+[b]Series kickoff[/b]
+
+One real Bitcoin Core module per day for 30 days — live fuzz on HackMe + public numbers.
+
+[b]Day 1 target[/b]
+
+[list]
+[*][b]Function:[/b] [code]GetScriptOp[/code] + [code]MAX_SCRIPT_ELEMENT_SIZE[/code] (520-byte push cap)
+[*][b]Upstream:[/b] [url=https://github.com/bitcoin/bitcoin/blob/master/src/script/script.cpp#L312-L365]bitcoin/bitcoin — script.cpp GetScriptOp[/url] · [url=https://github.com/bitcoin/bitcoin/blob/master/src/script/script.h#L27-L28]script.h[/url]
+[*][b]HackMe port:[/b] [code]tasks/sources/security/upstream/bitcoin_getscriptop.c[/code] (311 B WASM guard)
+[*][b]Engine:[/b] fuzz_engine_v2 · coverage-guided · 64 budget runs
+[/list]
+
+---
+
+[b]Results (live audit, 10 Jun 2026)[/b]
+
+[table]
+Campaign|campaign-btc30-d1-20260610T090429Z
+Runs|64/64
+Critical|0
+Sandbox escape|0
+Guard signals (high triage)|59
+New coverage edges|57
+New paths|57
+Wall time|~22 seconds
+Verdict|fail_high (detector semantics on strict guard)
+[/table]
+
+[b]How to read this honestly:[/b]
+
+The 59 "high" findings are [b]guard_signal[/b] triage — inputs where the ported guard correctly flags invalid push/parse bytes. That is the guard [i]doing its job[/i], not evidence of a new Bitcoin Core vulnerability.
+
+We do [b]not[/b] claim CVEs or 0-days from WASM-only runs. Every finding ships [code]repro_cmd[/code]; native upstream validation is required before any disclosure.
+
+Methodology: [url=https://hackme.tech/reports/bitcoin-core-5module.html]Bitcoin Core 5-module report[/url].
+
+---
+
+[b]Tomorrow (Day 2)[/b]
+
+[code]CScript::HasValidOps()[/code] — next module from [code]script.cpp[/code].
+
+---
+
+[b]Free fuzz pilot — 5 slots[/b]
+
+[url=https://hackme.tech/contacts.html]Contact us[/url] or open a GitHub issue tagged [code]fuzz-pilot[/code].
+
+---
+
+[b]Links[/b]
+
+[list]
+[*]Site: [url=https://hackme.tech]hackme.tech[/url]
+[*]Downloads (rc11n): [url=https://hackme.tech/downloads.html]downloads[/url]
+[*]Developers: [url=https://hackme.tech/developers.html]developers[/url]
+[*]GitHub: [url=https://github.com/jokeez/hackme]github.com/jokeez/hackme[/url]
+[/list]
+
+---
+
+[i]HackMe Network — useful Proof-of-Work pool + WASM fuzz marketplace. AGPL-3.0.[/i]

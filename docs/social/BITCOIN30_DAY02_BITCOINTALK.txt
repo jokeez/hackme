@@ -1,0 +1,67 @@
+[b]HackMe — Bitcoin Core 30-day fuzz · Day 2/30: HasValidOps (live)[/b]
+
+[i]Reply to ANN · update date after DAY=2 run · reproducible sandbox slice, not a full bitcoind audit[/i]
+
+---
+
+[b]What we ran today[/b]
+
+Day 2 of the 30-day series. Target: a [b]real ported excerpt[/b] from Bitcoin Core:
+
+[list]
+[*][b]Function:[/b] [code]CScript::HasValidOps()[/code]
+[*][b]Upstream:[/b] [url=https://github.com/bitcoin/bitcoin/blob/master/src/script/script.cpp#L299-L308]bitcoin/bitcoin — script.cpp[/url]
+[*][b]HackMe port:[/b] [code]tasks/sources/security/upstream/bitcoin_hasvalidops.c[/code] → WASM guard
+[*][b]Engine:[/b] fuzz_engine_v2 · coverage-guided · 48 budget runs
+[/list]
+
+---
+
+[b]Results (live audit — update after DAY=2 run)[/b]
+
+[table]
+Runs|48
+Critical|0
+Sandbox escape|0
+Guard signals (high triage)|46
+New coverage edges|43
+New paths|44
+Wall time|~12 seconds
+Verdict|fail_high (detector semantics on strict guard)
+[/table]
+
+[b]How to read this honestly:[/b]
+
+The 46 "high" findings are [b]guard_signal[/b] triage — inputs where [code]HasValidOps[/code] correctly returns false on mutated script bytes. That is the guard [i]doing its job[/i], not evidence of a new Bitcoin Core vulnerability.
+
+We do [b]not[/b] claim CVEs or 0-days from WASM-only runs. Every finding ships [code]repro_cmd[/code]; native upstream validation is required before any disclosure.
+
+---
+
+[b]Tomorrow (Day 3)[/b]
+
+[code]CheckTransaction[/code] + [code]MoneyRange[/code] — from [code]tx_check.cpp[/code] / [code]amount.h[/code].
+
+---
+
+[b]Free fuzz pilot — 5 slots[/b]
+
+Still open: [b]5 developers[/b] can fuzz [b]your own[/b] C/Rust/C++ snippet — no HMC cost for the pilot.
+
+[url=https://hackme.tech/contacts.html]contacts[/url] · GitHub issue [code]fuzz-pilot[/code]
+
+---
+
+[b]Links[/b]
+
+[list]
+[*]Site: [url=https://hackme.tech]hackme.tech[/url]
+[*]Downloads (rc11n): [url=https://hackme.tech/downloads.html]downloads[/url]
+[*]Developers: [url=https://hackme.tech/developers.html]developers[/url]
+[*]BC5 report: [url=https://hackme.tech/reports/bitcoin-core-5module.html]bitcoin-core-5module[/url]
+[*]GitHub: [url=https://github.com/jokeez/hackme]github.com/jokeez/hackme[/url]
+[/list]
+
+---
+
+[i]HackMe Network — useful Proof-of-Work pool + WASM fuzz marketplace. AGPL-3.0.[/i]

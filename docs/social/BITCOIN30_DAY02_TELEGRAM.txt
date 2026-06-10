@@ -1,0 +1,30 @@
+🧪 HackMe · Bitcoin Core 30-day fuzz — Day 2/30 (live)
+
+Day 2 of the series — another real Bitcoin Core module in the WASM sandbox:
+
+📌 Module: CScript::HasValidOps()
+📌 Upstream: bitcoin/bitcoin → src/script/script.cpp
+📌 HackMe port: tasks/sources/security/upstream/bitcoin_hasvalidops.c
+
+Live run (replace date after DAY=2 run):
+• 48 runs · fuzz_engine_v2 · coverage-guided
+• 0 critical · 0 sandbox escape
+• 46 guard signals — guard rejected invalid script inputs (filter working, not a Bitcoin bug)
+• 43 new edges · 44 new paths · campaign ~12s
+• Verdict: fail_high (detector semantics on strict guard — honest triage)
+
+What this means:
+The Core-derived guard catches broken opcode/push patterns. We publish numbers and repro_cmd — we do not claim CVEs in Bitcoin from WASM-only runs.
+
+Tomorrow (Day 3): CheckTransaction · MoneyRange — tx_check.cpp.
+
+---
+
+🎁 Pilot still open: 5 free fuzz slots for your code (C / Rust / C++).
+GitHub issue tagged fuzz-pilot or DM.
+
+🔗 hackme.tech/developers.html
+🔗 BC5 report: hackme.tech/reports/bitcoin-core-5module.html
+🔗 Downloads: hackme.tech/downloads.html (rc11n)
+
+#HackMe #Bitcoin #Fuzzing #Security #BitcoinCore

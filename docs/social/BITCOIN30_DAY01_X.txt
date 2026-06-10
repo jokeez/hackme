@@ -1,0 +1,23 @@
+Bitcoin Core 30-day fuzz · Day 1/30 — live report
+
+Module: GetScriptOp + MAX_SCRIPT_ELEMENT_SIZE (520 B)
+Upstream: bitcoin/bitcoin src/script/script.cpp · script.h
+HackMe port: tasks/sources/security/upstream/bitcoin_getscriptop.c (311 B WASM)
+
+Live run (10 Jun 2026):
+• 64 runs · fuzz_engine_v2 · coverage-guided · ~22s
+• 0 critical · 0 sandbox traps
+• 59 guard signals — invalid push/parse rejected (guard working, not a Core CVE)
+• 57 new edges · 57 paths · TTF signal ~2s
+• Verdict: fail_high (honest triage on strict WASM guard)
+
+We publish numbers + repro_cmd. Native upstream validation before any 0-day claim.
+
+Tomorrow Day 2: CScript::HasValidOps()
+
+5 free fuzz pilot slots for YOUR code → GitHub issue "fuzz-pilot"
+
+hackme.tech/developers.html
+hackme.tech/reports/bitcoin-core-5module.html
+
+#Bitcoin #Fuzzing #HackMe #BitcoinCore #OpenSource

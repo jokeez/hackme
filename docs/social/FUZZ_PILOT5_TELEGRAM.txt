@@ -1,0 +1,22 @@
+🧪 HackMe Fuzz Pilot — 5 free security fuzz runs
+
+Opening 5 slots: we fuzz your code in the HackMe WASM sandbox — free, no HMC during the pilot.
+
+What you get:
+• fuzz campaign on your C / Rust / C++ / WAT snippet
+• fuzz_report_v2 deliverable (verdict + stats)
+• repro_cmd for every signal
+• optional public case study — only with your consent
+
+What we need from you:
+• short description + source or manifest
+• language and target (guard, parser, crypto helper, etc.)
+
+How to apply (5 slots, first come first served):
+📩 Telegram DM: @hackme_tech
+📧 Email: support@hackme.tech
+🔗 Contacts: hackme.tech/contacts.html
+
+Pilot is live. Next wave — standard HMC escrow pricing.
+
+#HackMe #Fuzzing #Security #OpenSource

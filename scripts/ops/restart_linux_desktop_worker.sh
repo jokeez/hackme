@@ -75,6 +75,16 @@ if [[ -f "$LOG_DIR/node.pid" ]] && kill -0 "$(cat "$LOG_DIR/node.pid")" 2>/dev/n
   kill "$(cat "$LOG_DIR/node.pid")" 2>/dev/null || true
   sleep 1
 fi
+# Kill stale listener if node.pid drifted (e.g. after hung from_code audit).
+bind_port="${HACKME_BIND_ADDR##*:}"
+if command -v ss >/dev/null && [[ -n "$bind_port" ]]; then
+  stale_pid="$(ss -tlnp 2>/dev/null | grep "127.0.0.1:${bind_port}" | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | head -1 || true)"
+  if [[ -n "$stale_pid" ]] && kill -0 "$stale_pid" 2>/dev/null; then
+    echo "[restart-linux] stopping stale listener pid=$stale_pid on 127.0.0.1:${bind_port}"
+    kill "$stale_pid" 2>/dev/null || true
+    sleep 1
+  fi
+fi
 export HACKME_BIND_ADDR="${HACKME_BIND_ADDR:-127.0.0.1:8080}"
 nohup "$NODE_BIN" >>"$LOG_DIR/node.log" 2>&1 &
 echo $! >"$LOG_DIR/node.pid"

@@ -47,6 +47,7 @@ check_reject "worker_start_unauth" "POST" "/api/worker/start" '{"hashrate_gh_s":
 check_reject "hardware_tune_unauth" "POST" "/api/hardware/tune" '{"gpu_index":0,"power_limit_w":120}'
 check_reject "sync_run_unauth" "POST" "/api/p2p/sync/run?depth_limit=8&max_apply=8"
 check_reject "fuzz_cleanup_unauth" "POST" "/api/fuzz/artifacts/cleanup" '{}'
+check_reject "fuzz_list_unauth" "GET" "/api/fuzz/campaigns"
 check_reject "fuzz_pool_settle_unauth" "POST" "/api/fuzz/pool/settle" '{"kind":"run","campaign_id":"x","miner_address":"HMC-0000000000000000"}'
 # Some deployments intentionally do not expose runtime_post endpoint (404).
 check_reject "runtime_post_unauth" "POST" "/api/fuzz/runtime/post" '{"campaign_id":"noop"}' "401,403,404"

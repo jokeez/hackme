@@ -1,0 +1,21 @@
+HackMe fuzz pilot — 5 FREE security fuzz runs 🧪
+
+We're offering 5 developers a free WASM fuzz campaign on YOUR code (C / Rust / C++ / WAT).
+
+You get:
+• real fuzz run on HackMe sandbox
+• fuzz_report_v2 HTML + verdict
+• repro_cmd per finding
+• optional public case study (your call)
+
+How to apply (first come, first served):
+→ DM @HackMeTech on X
+→ Telegram: @hackme_tech
+→ Email: support@hackme.tech
+→ hackme.tech/contacts.html
+
+Send: short description + source snippet or manifest.
+
+5 slots only. Pilot starts now.
+
+#Fuzzing #Security #HackMe #OpenSource

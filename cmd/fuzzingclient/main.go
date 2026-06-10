@@ -18,7 +18,7 @@ import (
 )
 
 func main() {
-	base := flag.String("base", envOr("HACKME_FUZZING_BASE", "https://hackme.tech"), "API base URL")
+	base := flag.String("base", envOr("HACKME_FUZZING_BASE", "http://127.0.0.1:8080"), "local node API base (integrators: loopback, not hackme.tech)")
 	token := flag.String("token", "", "developer token (or load from config file)")
 	save := flag.Bool("save", false, "with register/rotate: save token to config file")
 	flag.Parse()
@@ -30,16 +30,17 @@ func main() {
 	tok := resolveToken(*token)
 	cmd := args[0]
 	rest := args[1:]
+	saveTok := wantsSave(*save, rest...)
 	switch cmd {
 	case "register":
-		if err := doRegister(*base, *save); err != nil {
+		if err := doRegister(*base, saveTok); err != nil {
 			fail(err)
 		}
 	case "rotate":
 		if tok == "" {
 			failMsg("token required: hackme-fuzzing rotate (or set HACKME_DEVELOPER_TOKEN / run register --save)")
 		}
-		if err := doRotate(*base, tok, *save); err != nil {
+		if err := doRotate(*base, tok, saveTok); err != nil {
 			fail(err)
 		}
 	case "wallet":
@@ -60,10 +61,11 @@ func main() {
 		if tok == "" {
 			failMsg("token required for create")
 		}
-		if len(rest) < 1 {
+		manifest := firstPositionalArg(rest)
+		if manifest == "" {
 			failMsg("usage: hackme-fuzzing create manifest.json")
 		}
-		if err := doCreate(*base, tok, rest[0]); err != nil {
+		if err := doCreate(*base, tok, manifest); err != nil {
 			fail(err)
 		}
 	case "build":
@@ -97,6 +99,29 @@ Env: HACKME_FUZZING_BASE, HACKME_DEVELOPER_TOKEN
 Campaign admin: HACKME_ADMIN_TOKEN (create/status on local node)
 Config: %s
 `, tokenConfigPath())
+}
+
+// wantsSave accepts --save before or after the subcommand (Go flags stop at first positional).
+func wantsSave(flagVal bool, args ...string) bool {
+	if flagVal {
+		return true
+	}
+	for _, a := range args {
+		if a == "--save" {
+			return true
+		}
+	}
+	return false
+}
+
+func firstPositionalArg(args []string) string {
+	for _, a := range args {
+		if strings.HasPrefix(a, "-") {
+			continue
+		}
+		return a
+	}
+	return ""
 }
 
 func envOr(k, def string) string {

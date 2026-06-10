@@ -39,6 +39,20 @@ func TestValidateCheckWasmRejectsTooLarge(t *testing.T) {
 	}
 }
 
+func TestValidateCheckWasmRejectsStartSection(t *testing.T) {
+	// wat2wasm: (module (func $s (loop br 0)) (start $s) (func (export "check") (param i64) (result i32) i32.const 0))
+	const withStart = "0061736d0100000001090260000060017e017f030302000107090105636865636b00010801000a0e02070003400c000b0b040041000b"
+	raw, err := hex.DecodeString(withStart)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateCheckWasm(context.Background(), raw); err == nil {
+		t.Fatal("expected start section rejection")
+	} else if !strings.Contains(err.Error(), "start section") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestValidateCheckWasmRejectsInvalidHeader(t *testing.T) {
 	bad := []byte{0x00, 0x61, 0x73, 0x6d, 0x02, 0x00, 0x00, 0x00}
 	if err := ValidateCheckWasm(context.Background(), bad); err == nil {

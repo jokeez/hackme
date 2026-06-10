@@ -751,6 +751,9 @@ func (a *app) handleFuzzCampaignCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleFuzzCampaignsList(w http.ResponseWriter, r *http.Request) {
+	if !requireAdminAuth(w, r) {
+		return
+	}
 	limit := 50
 	if s := strings.TrimSpace(r.URL.Query().Get("limit")); s != "" {
 		if n, err := strconv.Atoi(s); err == nil && n > 0 && n <= 200 {
@@ -798,6 +801,9 @@ func (a *app) getFuzzCampaign(ctx context.Context, id string) (fuzzCampaign, err
 }
 
 func (a *app) handleFuzzCampaignGet(w http.ResponseWriter, r *http.Request, campaignID string) {
+	if !requireAdminAuth(w, r) {
+		return
+	}
 	c, err := a.getFuzzCampaign(r.Context(), campaignID)
 	if err == sql.ErrNoRows {
 		writeAPIError(w, http.StatusNotFound, "campaign_not_found", "campaign not found", nil)
