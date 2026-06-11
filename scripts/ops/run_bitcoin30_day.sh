@@ -154,4 +154,5 @@ summary = {
 print(json.dumps(summary, indent=2))
 PY
 
-log "done → $OUT/DAY_SUMMARY.json + report.html"
+ln -sfn "$(basename "$OUT")" "$ROOT/reports/bitcoin30/CURRENT"
+log "done → $OUT/DAY_SUMMARY.json + report.html (CURRENT → $(basename "$OUT"))"

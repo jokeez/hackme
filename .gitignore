@@ -68,6 +68,7 @@ backups/
 !web/site/**
 
 # Social/marketing drafts (publish via site news + Telegram bot — not in repo)
+docs/social/
 docs/TELEGRAM_POST_*
 docs/BITCOINTALK_*
 docs/SOCIAL_POSTING_CHECKLIST.md

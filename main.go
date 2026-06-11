@@ -1442,8 +1442,9 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 			a.scheduleCanonicalWalletWarm(lookupAddr)
 		}
 	}
+	// Fresh cache only: stale cache still triggers a blocking peer fetch when reachable.
 	needBlockingCanon := wantCanon && lookupAddr != "" && (skipCache ||
-		(walletSource != "canonical_peer_cache" && walletSource != "canonical_peer_cache_stale"))
+		walletSource != "canonical_peer_cache")
 	if needBlockingCanon {
 		peerCtx, cancel := context.WithTimeout(ctx, canonicalWalletFetchTimeout())
 		if units, nonce, ok := a.fetchCanonicalAddressState(peerCtx, lookupAddr); ok {

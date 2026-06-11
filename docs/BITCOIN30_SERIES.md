@@ -15,18 +15,13 @@ Current report: `reports/bitcoin30/CURRENT/`
 | Day | Module | WASM | Core reference |
 |-----|--------|------|----------------|
 | 1 | GetScriptOp · 520 B cap | `upstream_bitcoin_getscriptop.wasm` | `script.cpp` GetScriptOp · `script.h` MAX_SCRIPT_ELEMENT_SIZE |
-| 2 | HasValidOps | `upstream_bitcoin_hasvalidops.wasm` | `script.cpp` HasValidOps |
+| 2 | HasValidOps | `upstream_bitcoin_hasvalidops.wasm` | `script.cpp` HasValidOps · live `day02-20260611T135419Z` (62 guard signals, 0 critical) |
 | 3 | CheckTransaction · MoneyRange | `upstream_bitcoin_tx_check.wasm` | `tx_check.cpp` · `amount.h` |
 | 4–30 | TBD | extend `run_bitcoin30_day.sh` | see `docs/BITCOIN_CORE_OFFICIAL_LINKS.md` |
 
-## Social copy (English)
+## Social copy (English, local only)
 
-| Day | Telegram | X | Bitcointalk |
-|-----|----------|---|-------------|
-| 1 | `docs/social/BITCOIN30_DAY01_TELEGRAM.txt` | `docs/social/BITCOIN30_DAY01_X.txt` | `docs/social/BITCOIN30_DAY01_BITCOINTALK.txt` |
-| 2 | `docs/social/BITCOIN30_DAY02_TELEGRAM.txt` | `docs/social/BITCOIN30_DAY02_X.txt` | `docs/social/BITCOIN30_DAY02_BITCOINTALK.txt` |
-
-Pilot (all channels): `docs/social/FUZZ_PILOT5_*.txt`
+Drafts live under `docs/social/` (gitignored). After each `DAY=N` run, update Telegram / X thread / Bitcointalk from `reports/bitcoin30/CURRENT/DAY_SUMMARY.json`.
 
 ## Disclaimer
 
