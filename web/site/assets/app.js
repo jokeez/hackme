@@ -45,6 +45,8 @@
     isoChannel: ISO_CHANNEL,
     fuzzingLinux: `/dist/release_${RELEASE_VER}/hackme-fuzzing-${RELEASE_VER}-linux-amd64`,
     fuzzingWindows: `/dist/release_${RELEASE_VER}/hackme-fuzzing-${RELEASE_VER}-windows-amd64.exe`,
+    fuzzingBuildLinux: `/dist/release_${RELEASE_VER}/hackme-fuzzing-build-${RELEASE_VER}-linux-amd64`,
+    fuzzingBuildWindows: `/dist/release_${RELEASE_VER}/hackme-fuzzing-build-${RELEASE_VER}-windows-amd64.exe`,
     shaSums: `/dist/release_${RELEASE_VER}/SHA256SUMS.txt`,
     manifest: `/dist/release_${RELEASE_VER}/RELEASE_MANIFEST.json`,
     buildInfo: `/dist/release_${RELEASE_VER}/BUILD_INFO.txt`,
@@ -193,6 +195,8 @@
     setHref("download-linux", CONFIG.linuxBundle);
     setHref("download-fuzzing-linux", CONFIG.fuzzingLinux);
     setHref("download-fuzzing-win", CONFIG.fuzzingWindows);
+    setHref("download-fuzzing-build-linux", CONFIG.fuzzingBuildLinux);
+    setHref("download-fuzzing-build-win", CONFIG.fuzzingBuildWindows);
     setHref("download-sha", CONFIG.shaSums);
     setHref("download-iso-sha", CONFIG.hackmeOSSha);
     setHref("download-iso-sha-card", CONFIG.hackmeOSSha);

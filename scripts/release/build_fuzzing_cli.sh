@@ -19,6 +19,8 @@ done
 
 LINUX_OUT="${DIST_DIR}/hackme-fuzzing-${VERSION}-linux-amd64"
 WIN_OUT="${DIST_DIR}/hackme-fuzzing-${VERSION}-windows-amd64.exe"
+LINUX_BUILD="${DIST_DIR}/hackme-fuzzing-build-${VERSION}-linux-amd64"
+WIN_BUILD="${DIST_DIR}/hackme-fuzzing-build-${VERSION}-windows-amd64.exe"
 LDFLAGS="-s -w"
 
 echo "[fuzzing-cli] build linux → $(basename "$LINUX_OUT")"
@@ -30,21 +32,35 @@ echo "[fuzzing-cli] build windows → $(basename "$WIN_OUT")"
 GOOS=windows GOARCH=amd64 CGO_ENABLED=0 \
   go build -trimpath -ldflags "$LDFLAGS" -o "$WIN_OUT" ./cmd/fuzzingclient
 
+echo "[fuzzing-build] build linux → $(basename "$LINUX_BUILD")"
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
+  go build -trimpath -ldflags "$LDFLAGS" -o "$LINUX_BUILD" ./cmd/fuzzingbuild
+chmod 755 "$LINUX_BUILD"
+
+echo "[fuzzing-build] build windows → $(basename "$WIN_BUILD")"
+GOOS=windows GOARCH=amd64 CGO_ENABLED=0 \
+  go build -trimpath -ldflags "$LDFLAGS" -o "$WIN_BUILD" ./cmd/fuzzingbuild
+
 # Refresh SHA256SUMS.txt (keep existing lines, update fuzzing entries)
 (
   cd "$DIST_DIR"
-  mapfile -t existing < <(grep -v 'hackme-fuzzing-' SHA256SUMS.txt 2>/dev/null || true)
+  mapfile -t existing < <(grep -vE 'hackme-fuzzing(-build)?-' SHA256SUMS.txt 2>/dev/null || true)
   {
     for line in "${existing[@]}"; do echo "$line"; done
-    sha256sum "$(basename "$LINUX_OUT")" "$(basename "$WIN_OUT")"
+    sha256sum "$(basename "$LINUX_OUT")" "$(basename "$WIN_OUT")" \
+      "$(basename "$LINUX_BUILD")" "$(basename "$WIN_BUILD")"
   } > SHA256SUMS.txt.new
   mv SHA256SUMS.txt.new SHA256SUMS.txt
 )
 
 LINUX_SHA="$(sha256sum "$LINUX_OUT" | awk '{print $1}')"
 WIN_SHA="$(sha256sum "$WIN_OUT" | awk '{print $1}')"
+LINUX_BUILD_SHA="$(sha256sum "$LINUX_BUILD" | awk '{print $1}')"
+WIN_BUILD_SHA="$(sha256sum "$WIN_BUILD" | awk '{print $1}')"
 LINUX_SIZE="$(stat -c%s "$LINUX_OUT")"
 WIN_SIZE="$(stat -c%s "$WIN_OUT")"
+LINUX_BUILD_SIZE="$(stat -c%s "$LINUX_BUILD")"
+WIN_BUILD_SIZE="$(stat -c%s "$WIN_BUILD")"
 COMMIT_SHA="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 BUILD_DATE_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
@@ -54,12 +70,16 @@ if [[ -f "$MANIFEST" ]]; then
   jq --arg v "$VERSION" \
     --arg linux_f "$(basename "$LINUX_OUT")" --arg linux_sha "$LINUX_SHA" --argjson linux_sz "$LINUX_SIZE" \
     --arg win_f "$(basename "$WIN_OUT")" --arg win_sha "$WIN_SHA" --argjson win_sz "$WIN_SIZE" \
+    --arg linux_bf "$(basename "$LINUX_BUILD")" --arg linux_bsha "$LINUX_BUILD_SHA" --argjson linux_bsz "$LINUX_BUILD_SIZE" \
+    --arg win_bf "$(basename "$WIN_BUILD")" --arg win_bsha "$WIN_BUILD_SHA" --argjson win_bsz "$WIN_BUILD_SIZE" \
     --arg commit "$COMMIT_SHA" --arg build_date "$BUILD_DATE_UTC" \
     '.commit = $commit | .build_date_utc = $build_date |
-     .artifacts = ([.artifacts[] | select(.platform != "fuzzing-linux" and .platform != "fuzzing-windows")] +
+     .artifacts = ([.artifacts[] | select(.platform | test("^fuzzing") | not)] +
        [
          {platform:"fuzzing-linux",file:$linux_f,sha256:$linux_sha,size_bytes:$linux_sz,kind:"cli"},
-         {platform:"fuzzing-windows",file:$win_f,sha256:$win_sha,size_bytes:$win_sz,kind:"cli"}
+         {platform:"fuzzing-windows",file:$win_f,sha256:$win_sha,size_bytes:$win_sz,kind:"cli"},
+         {platform:"fuzzing-build-linux",file:$linux_bf,sha256:$linux_bsha,size_bytes:$linux_bsz,kind:"cli"},
+         {platform:"fuzzing-build-windows",file:$win_bf,sha256:$win_bsha,size_bytes:$win_bsz,kind:"cli"}
        ])' "$MANIFEST" > "${MANIFEST}.new"
   mv "${MANIFEST}.new" "$MANIFEST"
 else
@@ -69,6 +89,8 @@ fi
 echo "[fuzzing-cli] OK"
 echo "  $LINUX_OUT ($(du -h "$LINUX_OUT" | awk '{print $1}'))"
 echo "  $WIN_OUT ($(du -h "$WIN_OUT" | awk '{print $1}'))"
+echo "  $LINUX_BUILD ($(du -h "$LINUX_BUILD" | awk '{print $1}'))"
+echo "  $WIN_BUILD ($(du -h "$WIN_BUILD" | awk '{print $1}'))"
 
 if [[ "$DEPLOY" == "1" ]]; then
   NODE_SSH="${NODE_SSH:-root@132.243.112.100}"
@@ -81,7 +103,8 @@ if [[ "$DEPLOY" == "1" ]]; then
   REMOTE="${NODE_DEPLOY_DIR:-/opt/hackme}/dist/release_${VERSION}/"
   echo "[fuzzing-cli] rsync → ${NODE_SSH}:${REMOTE}"
   rsync -e "${RSYNC_SSH[*]}" -avz \
-    "$LINUX_OUT" "$WIN_OUT" "${DIST_DIR}/SHA256SUMS.txt" "${DIST_DIR}/RELEASE_MANIFEST.json" \
+    "$LINUX_OUT" "$WIN_OUT" "$LINUX_BUILD" "$WIN_BUILD" \
+    "${DIST_DIR}/SHA256SUMS.txt" "${DIST_DIR}/RELEASE_MANIFEST.json" \
     "${NODE_SSH}:${REMOTE}"
   echo "[fuzzing-cli] deploy OK"
 fi

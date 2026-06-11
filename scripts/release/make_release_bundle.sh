@@ -312,6 +312,10 @@ jq -nc \
 
 bash "${ROOT_DIR}/scripts/release/verify_artifacts.sh" "${DIST_DIR}"
 bash "${ROOT_DIR}/scripts/release/smoke_artifacts.sh" "${DIST_DIR}"
+if [[ -x "${ROOT_DIR}/scripts/release/build_fuzzing_cli.sh" ]]; then
+  VERSION="${VERSION}" DIST_DIR="${DIST_DIR}" bash "${ROOT_DIR}/scripts/release/build_fuzzing_cli.sh" || \
+    echo "[release] WARN: hackme-fuzzing CLI build failed" >&2
+fi
 
 echo "[release] done"
 echo "[release] artifacts:"

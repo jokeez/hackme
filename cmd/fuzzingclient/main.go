@@ -3,18 +3,18 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"hackme/internal/taskbuild"
+	"hackme/internal/fuzzingcli"
 )
 
 func main() {
@@ -69,7 +69,7 @@ func main() {
 			fail(err)
 		}
 	case "build":
-		if err := doBuild(rest); err != nil {
+		if err := delegateBuild(rest); err != nil {
 			fail(err)
 		}
 	case "campaign":
@@ -87,7 +87,7 @@ func usage() {
 
   hackme-fuzzing register [--save]     # auto-issue developer token (POST /api/integrator/register)
   hackme-fuzzing rotate [--save]       # rotate token (invalidates old)
-  hackme-fuzzing build -lang rust -source check.rs [-out dir] [-id name] ...
+  hackme-fuzzing build -lang rust -source check.rs   (runs hackme-fuzzing-build beside this binary)
   hackme-fuzzing wallet
   hackme-fuzzing create manifest.json
   hackme-fuzzing tasks
@@ -98,7 +98,7 @@ func usage() {
 Env: HACKME_FUZZING_BASE, HACKME_DEVELOPER_TOKEN
 Campaign admin: HACKME_ADMIN_TOKEN (create/status on local node)
 Config: %s
-`, tokenConfigPath())
+`, fuzzingcli.TokenConfigPath())
 }
 
 // wantsSave accepts --save before or after the subcommand (Go flags stop at first positional).
@@ -146,19 +146,6 @@ func failMsg(msg string) {
 	os.Exit(2)
 }
 
-func tokenConfigPath() string {
-	if v := strings.TrimSpace(os.Getenv("HACKME_DEVELOPER_TOKEN_FILE")); v != "" {
-		return v
-	}
-	if h := os.Getenv("XDG_CONFIG_HOME"); h != "" {
-		return filepath.Join(h, "hackme", "developer.token")
-	}
-	if home, _ := os.UserHomeDir(); home != "" {
-		return filepath.Join(home, ".config", "hackme", "developer.token")
-	}
-	return "developer.token"
-}
-
 func resolveToken(flagTok string) string {
 	if t := strings.TrimSpace(flagTok); t != "" {
 		return t
@@ -166,7 +153,7 @@ func resolveToken(flagTok string) string {
 	if t := strings.TrimSpace(os.Getenv("HACKME_DEVELOPER_TOKEN")); t != "" {
 		return t
 	}
-	b, err := os.ReadFile(tokenConfigPath())
+	b, err := os.ReadFile(fuzzingcli.TokenConfigPath())
 	if err == nil {
 		return strings.TrimSpace(string(b))
 	}
@@ -174,7 +161,7 @@ func resolveToken(flagTok string) string {
 }
 
 func saveToken(tok string) error {
-	p := tokenConfigPath()
+	p := fuzzingcli.TokenConfigPath()
 	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
 		return err
 	}
@@ -259,7 +246,7 @@ func doRegister(base string, save bool) error {
 		if err := saveToken(tok); err != nil {
 			return err
 		}
-		fmt.Fprintf(os.Stderr, "saved token to %s\n", tokenConfigPath())
+		fmt.Fprintf(os.Stderr, "saved token to %s\n", fuzzingcli.TokenConfigPath())
 	} else {
 		fmt.Fprintln(os.Stderr, "tip: re-run with --save or export HACKME_DEVELOPER_TOKEN=…")
 	}
@@ -282,7 +269,7 @@ func doRotate(base, old string, save bool) error {
 	printJSON(out)
 	if save && tok != "" {
 		_ = saveToken(tok)
-		fmt.Fprintf(os.Stderr, "saved new token to %s\n", tokenConfigPath())
+		fmt.Fprintf(os.Stderr, "saved new token to %s\n", fuzzingcli.TokenConfigPath())
 	}
 	return nil
 }
@@ -346,42 +333,45 @@ func doCreate(base, token, manifestPath string) error {
 	return nil
 }
 
-func doBuild(args []string) error {
-	fs := flag.NewFlagSet("build", flag.ExitOnError)
-	lang := fs.String("lang", "rust", "language")
-	source := fs.String("source", "", "source file path")
-	out := fs.String("out", "fuzzing-out", "output directory")
-	id := fs.String("id", "", "order id")
-	reward := fs.Float64("reward", 0.01, "reward_hmc per solve")
-	diff := fs.Int("difficulty", 5, "difficulty_score")
-	target := fs.Int("target", 3, "target_solves")
-	payer := fs.String("payer-ref", "", "payer_ref")
-	_ = fs.Parse(args)
-	if *source == "" {
-		return fmt.Errorf("build requires -source file")
-	}
-	code, err := os.ReadFile(*source)
+func delegateBuild(args []string) error {
+	helper, err := locateBuildHelper()
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancel()
-	res, err := taskbuild.BuildFromSource(ctx, taskbuild.Options{
-		ID:              *id,
-		Language:        *lang,
-		Source:          string(code),
-		RewardHMC:       *reward,
-		DifficultyScore: *diff,
-		TargetSolves:    *target,
-		PayerRef:        *payer,
-		OutDir:          *out,
-	})
-	if err != nil {
+	cmd := exec.Command(helper, args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			os.Exit(exitErr.ExitCode())
+		}
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "wasm: %s (%d bytes) sha256=%s\n", res.WasmPath, len(res.WasmBytes), res.ArtifactHash)
-	fmt.Println(string(res.ManifestJSON))
 	return nil
+}
+
+func locateBuildHelper() (string, error) {
+	if v := strings.TrimSpace(os.Getenv("HACKME_FUZZING_BUILD")); v != "" {
+		if st, err := os.Stat(v); err == nil && !st.IsDir() {
+			return v, nil
+		}
+		return "", fmt.Errorf("HACKME_FUZZING_BUILD not found: %s", v)
+	}
+	for _, c := range fuzzingcli.BuildHelperCandidates() {
+		if st, err := os.Stat(c); err == nil && !st.IsDir() {
+			return c, nil
+		}
+	}
+	return "", fmt.Errorf("hackme-fuzzing-build not found beside %s — download from hackme.tech/downloads.html#fuzzing-client or set HACKME_FUZZING_BUILD", mustExecutable())
+}
+
+func mustExecutable() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return "hackme-fuzzing"
+	}
+	return exe
 }
 
 func prettyJSON(b []byte) []byte {
