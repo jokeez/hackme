@@ -4005,10 +4005,11 @@
 		function renderWalletTreasury() {
 			const root = $('wallet-treasury');
 			if (!root || !isWalletCoinHMC(walletSelectedCoin())) return;
-			const onChain = Number(walletSnapshot.onChainHMC || walletDisplayHmc() || 0);
+			const onChain = Number(walletSnapshot.onChainHMC || 0);
 			const orders = Number(walletSnapshot.ordersSpendableHMC || 0);
 			const unpaid = walletUnpaidHmc();
-			const showOnChain = onChain > 0 || String(walletSnapshot.walletSource || '').includes('canonical');
+			const canonKnown = onChain > 0.000001 || String(walletSnapshot.walletSource || '').includes('canonical');
+			const showOnChain = canonKnown;
 			root.classList.toggle('hidden', false);
 			if ($('wallet-treasury-onchain')) {
 				$('wallet-treasury-onchain').textContent = showOnChain ? fmt(onChain, 8) + ' HMC' : '…';

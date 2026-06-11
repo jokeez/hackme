@@ -770,6 +770,40 @@ func canonicalBaseWouldLoopbackProxy(r *http.Request, base string) bool {
 	return false
 }
 
+// resolveP2PPeerURLs merges explicit HACKME_P2P_PEERS with canonical HTTPS bases on desktop followers.
+// Port 18080 is often firewalled; hackme.tech/pool/api/chain remains the sync source of truth.
+func resolveP2PPeerURLs() []string {
+	seen := make(map[string]struct{})
+	out := make([]string, 0, 4)
+	add := func(raw string) {
+		raw = strings.TrimRight(strings.TrimSpace(raw), "/")
+		if raw == "" {
+			return
+		}
+		key := strings.ToLower(raw)
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		out = append(out, raw)
+	}
+	for _, p := range strings.Split(strings.TrimSpace(os.Getenv("HACKME_P2P_PEERS")), ",") {
+		add(p)
+	}
+	if envBool("HACKME_DESKTOP_MODE", false) || envBool("HACKME_P2P_CANONICAL_PEER", false) {
+		pub := strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_PUBLIC_AUTHORITY_BASE")), "/")
+		canon := strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_CANONICAL_CHAIN_URL")), "/")
+		for _, base := range []string{pub, canon} {
+			if base == "" {
+				continue
+			}
+			add(base + "/pool")
+			add(base)
+		}
+	}
+	return out
+}
+
 // canonicalPeerStatusURL is the fast status path for in-process HTTP overlays (no coordinator fan-out).
 func canonicalPeerStatusURL(base string) string {
 	base = strings.TrimRight(strings.TrimSpace(base), "/")
@@ -900,10 +934,10 @@ func (a *app) fetchCanonicalAddressState(ctx context.Context, addr string) (bala
 	curlSec := 8
 	tryCurlFirst := false
 	if envBool("HACKME_DESKTOP_MODE", false) {
-		// Desktop wallet: short blocking fetch; background warm retries with longer curl.
-		httpSec = 4
-		curlSec = 10
-		tryCurlFirst = false
+		// Desktop wallet: curl fallback first (Go HTTPS client can stall on some VPN setups).
+		httpSec = 5
+		curlSec = 12
+		tryCurlFirst = true
 	} else if !coordinatorURLIsLoopback(base) {
 		tryCurlFirst = true
 	}

@@ -270,7 +270,7 @@ func canonicalWalletFetchTimeout() time.Duration {
 		return time.Duration(ms) * time.Millisecond
 	}
 	if envBool("HACKME_DESKTOP_MODE", false) {
-		return 2500 * time.Millisecond
+		return 8 * time.Second
 	}
 	return 6 * time.Second
 }
@@ -462,7 +462,7 @@ func main() {
 		p2pTokenFail:    make(map[string]int),
 		p2pSyncHeavySem: make(chan struct{}, 3),
 		p2p: p2p.NewManager(nodeID,
-			strings.Split(strings.TrimSpace(os.Getenv("HACKME_P2P_PEERS")), ","),
+			resolveP2PPeerURLs(),
 			strings.TrimSpace(os.Getenv("HACKME_P2P_TOKEN")),
 			envBool("HACKME_P2P_DISCOVERY", false),
 			strings.TrimSpace(os.Getenv("HACKME_P2P_ADVERTISE_URL")),
@@ -1443,7 +1443,7 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	needBlockingCanon := wantCanon && lookupAddr != "" && (skipCache ||
-		(!desktopFast && walletSource != "canonical_peer_cache"))
+		(walletSource != "canonical_peer_cache" && walletSource != "canonical_peer_cache_stale"))
 	if needBlockingCanon {
 		peerCtx, cancel := context.WithTimeout(ctx, canonicalWalletFetchTimeout())
 		if units, nonce, ok := a.fetchCanonicalAddressState(peerCtx, lookupAddr); ok {
