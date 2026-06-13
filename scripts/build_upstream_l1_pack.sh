@@ -25,6 +25,8 @@ for t in \
   bitcoin_getscriptop \
   bitcoin_hasvalidops \
   bitcoin_tx_check \
+  bitcoin_tx_dup_inputs \
+  bitcoin_evalscript_push \
   ethereum_value_overflow \
   dogecoin_hasvalidops \
   litecoin_getscriptop \

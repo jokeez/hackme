@@ -40,7 +40,15 @@ case "$DAY" in
      TITLE="Bitcoin Core CheckTransaction · MoneyRange"
      CORE_REF="bitcoin/bitcoin src/consensus/tx_check.cpp · amount.h MoneyRange"
      SRC="tasks/sources/security/upstream/bitcoin_tx_check.c" ;;
-  *) fail "DAY=$DAY not in schedule (1-3 wired; extend run_bitcoin30_day.sh)" ;;
+  4) WASM_REL="upstream_bitcoin_tx_dup_inputs.wasm"; GUARD="upstream_bitcoin_tx_dup_inputs"
+     TITLE="Bitcoin Core CheckTransaction · duplicate inputs (CVE-2018-17144)"
+     CORE_REF="bitcoin/bitcoin src/consensus/tx_check.cpp duplicate prevout check"
+     SRC="tasks/sources/security/upstream/bitcoin_tx_dup_inputs.c" ;;
+  5) WASM_REL="upstream_bitcoin_evalscript_push.wasm"; GUARD="upstream_bitcoin_evalscript_push"
+     TITLE="Bitcoin Core EvalScript · SCRIPT_ERR_PUSH_SIZE (520 B)"
+     CORE_REF="bitcoin/bitcoin src/script/interpreter.cpp EvalScript push size L457-L458"
+     SRC="tasks/sources/security/upstream/bitcoin_evalscript_push.c" ;;
+  *) fail "DAY=$DAY not in schedule (1-5 wired; extend run_bitcoin30_day.sh)" ;;
 esac
 
 WASM="$ROOT/tasks/artifacts/security/$WASM_REL"
