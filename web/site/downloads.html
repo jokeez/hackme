@@ -52,7 +52,18 @@
           <h3>Windows</h3>
           <a id="download-fuzzing-win" class="btn btn-primary btn-block" href="#">hackme-fuzzing (.exe)</a>
           <a id="download-fuzzing-build-win" class="btn btn-secondary btn-block" href="#" style="margin-top:0.5rem">hackme-fuzzing-build (.exe)</a>
-          <p class="subtle" style="margin-top:0.75rem">Keep both in the same folder. Main CLI is lightweight (~3&nbsp;MB); build helper compiles WASM locally.</p>
+          <p class="subtle" style="margin-top:0.75rem">Keep <strong>both</strong> .exe in one folder (e.g. <code>%USERPROFILE%\HackMe</code>). Main CLI ~5&nbsp;MB; build helper compiles WASM locally.</p>
+          <details class="dev-details" style="margin-top:0.75rem">
+            <summary>Windows quick start (PowerShell)</summary>
+            <pre class="code-block" style="margin-top:0.5rem;font-size:0.85rem"><code># 1) Start HackMe Miner / hackme.exe — dashboard on http://127.0.0.1:8080
+# 2) From repo or after git clone:
+powershell -ExecutionPolicy Bypass -File scripts/ops/fuzzing_windows_quickstart.ps1
+
+# Manual:
+# cd %USERPROFILE%\HackMe
+# .\hackme-fuzzing-*-windows-amd64.exe register --base http://127.0.0.1:8080 --save
+# .\hackme-fuzzing-*-windows-amd64.exe wallet</code></pre>
+          </details>
         </article>
         <article class="card glass">
           <h3>Linux amd64</h3>
@@ -62,6 +73,14 @@
         </article>
       </div>
       <p class="subtle" style="margin-top:1rem"><a href="#local-node">Local node guide</a> · <a href="./developers.html">Developers</a> · <a href="./fuzzing-console.html">Public tracker</a></p>
+      <details class="dev-details" style="margin-top:1rem">
+        <summary>Русский · B2B фаззинг (кратко)</summary>
+        <p class="subtle" style="margin-top:0.5rem">Скачайте <strong>оба</strong> файла в одну папку. Запустите локальный <code>hackme-node</code> → <code>127.0.0.1:8080</code>. CLI работает только с локальным узлом; на hackme.tech удалённый <code>from_code</code> заблокирован.</p>
+        <pre class="code-block"><code>.\hackme-fuzzing-*-windows-amd64.exe register --base http://127.0.0.1:8080 --save
+.\hackme-fuzzing-*-windows-amd64.exe wallet
+.\hackme-fuzzing-*-windows-amd64.exe build -lang rust -source check.rs -out .\fuzzing-out
+.\hackme-fuzzing-*-windows-amd64.exe create .\fuzzing-out\manifest.json</code></pre>
+      </details>
     </section>
 
     <section class="panel glass" style="border:1px solid rgba(0,255,136,0.35);margin-bottom:1.5rem">

@@ -67,6 +67,14 @@ In pool notes: *Not Stratum — hackme-node + workerpoh, coordinator at /pool/co
 
 See also [MINER_POOL_ECONOMICS.md](MINER_POOL_ECONOMICS.md).
 
+### Suggested coin description (paste in MPS “Suggest Edit”)
+
+```
+Public HackMe pool at hackme.tech. Miners use official hackme-node + workerpoh (HTTP coordinator at /pool/coordinator — NOT Stratum). Coordinator accrues HMC off-chain; operator settles to miner HMC-… addresses on-chain. Algorithm: Useful PoW / PoH with WASM sandbox gates. Source: github.com/jokeez/hackme (AGPL-3.0). Downloads: hackme.tech/downloads.html · Contact: support@hackme.tech
+```
+
+**Fix on MPS if listed as Stratum:** payment = Other/Custom · connection = HTTP worker · note: *No Stratum TCP — use workerpoh + coordinator URL.*
+
 ## After moderators approve (Approved)
 
 ### Your MPS dashboard

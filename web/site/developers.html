@@ -97,8 +97,20 @@
       </div>
     </section>
 
+    <section id="windows-cli" class="panel glass" style="border:1px solid rgba(0,209,255,0.2)">
+      <div class="panel-head"><h2>Windows integrator path</h2></div>
+      <ol class="check-list">
+        <li>Install node from <a href="./downloads.html">Downloads</a> — start dashboard at <code>127.0.0.1:8080</code>.</li>
+        <li>Download <strong>both</strong> <code>hackme-fuzzing</code> and <code>hackme-fuzzing-build</code> into the same folder.</li>
+        <li>Run <code>powershell -ExecutionPolicy Bypass -File scripts/ops/fuzzing_windows_quickstart.ps1</code> (from git clone) or register manually.</li>
+        <li>Build WASM locally, then <code>hackme-fuzzing create manifest.json</code> — escrow from your local wallet.</li>
+        <li>Track order on <code>#orders</code> or <a href="./fuzzing-console.html">public tracker</a> (read-only).</li>
+      </ol>
+      <p class="subtle">Token on <strong>hackme.tech</strong> in the browser is for API smoke tests only — create orders on <strong>localhost</strong>.</p>
+    </section>
+
     <section class="panel glass">
-      <div class="panel-head"><h2>Quick start (curl)</h2></div>
+      <div class="panel-head"><h2>Quick start (curl / CLI)</h2></div>
       <pre class="code-block"><code># Wallet (public)
 curl -sS https://hackme.tech/api/wallet | jq '{address,balance_hmc}'
 
