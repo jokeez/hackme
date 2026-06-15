@@ -16,6 +16,7 @@ STAMP="${STAMP:-$(date -u +%Y%m%dT%H%M%SZ)}"
 OUT="${OUT:-$ROOT/reports/bitcoin30/day$(printf '%02d' "$DAY")-$STAMP}"
 CHECK_SEMANTICS="${CHECK_SEMANTICS:-pow_gate}"
 BUDGET_RUNS="${BUDGET_RUNS:-64}"
+[[ "$DAY" == "6" && "${BUDGET_RUNS}" == "64" && -z "${BUDGET_RUNS_FORCE:-}" ]] && BUDGET_RUNS=128
 BUDGET_HMC="${BUDGET_HMC:-0.5}"
 
 require_cmd curl jq xxd go
@@ -48,7 +49,11 @@ case "$DAY" in
      TITLE="Bitcoin Core EvalScript · SCRIPT_ERR_PUSH_SIZE (520 B)"
      CORE_REF="bitcoin/bitcoin src/script/interpreter.cpp EvalScript push size L457-L458"
      SRC="tasks/sources/security/upstream/bitcoin_evalscript_push.c" ;;
-  *) fail "DAY=$DAY not in schedule (1-5 wired; extend run_bitcoin30_day.sh)" ;;
+  6) WASM_REL="upstream_bitcoin_witness_stack.wasm"; GUARD="upstream_bitcoin_witness_stack"
+     TITLE="Bitcoin Core SegWit witness stack · SCRIPT_ERR_PUSH_SIZE"
+     CORE_REF="bitcoin/bitcoin src/script/interpreter.cpp VerifyWitnessProgram witness stack L1861-L1864"
+     SRC="tasks/sources/security/upstream/bitcoin_witness_stack.c" ;;
+  *) fail "DAY=$DAY not in schedule (1-6 wired; extend run_bitcoin30_day.sh)" ;;
 esac
 
 WASM="$ROOT/tasks/artifacts/security/$WASM_REL"
