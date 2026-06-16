@@ -8,7 +8,11 @@ fail=0
 check() {
   local path="$1"
   local code
-  code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 45 "${SITE}${path}")"
+  if [[ "$path" == *.pdf ]]; then
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 -I "${SITE}${path}")"
+  else
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 45 "${SITE}${path}")"
+  fi
   if [[ "$code" == "200" ]]; then
     echo "[site-pages] PASS $path"
   else
@@ -47,6 +51,9 @@ PAGES=(
   /api-reference.html
   /dist/docs/HMC_Listing_Pack.pdf
   /dist/docs/SUP_Companion_Overview.pdf
+  /dist/docs/HackMe_Network_Pitch.pdf
+  /dist/docs/HackMe_Legal_and_Rights.pdf
+  /dist/docs/AGPL-3.0_License.pdf
 )
 
 for p in "${PAGES[@]}"; do

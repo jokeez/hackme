@@ -15,7 +15,8 @@ Snapshot for the operator: what works, what was fixed, what to do next.
 | Desktop mining | OK | Worker connects to public coordinator; canonical wallet sync |
 | Settlement | **Fixed** | Was blocked by wrong `ADMIN_TOKEN` + over-counted state file |
 | Security rewards | OK | Modest HMC tiers documented |
-| CEX / MPS listing | **Later** | After stable payouts + visible community hashrate |
+| MiningPoolStats (HMC) | **Live** | https://miningpoolstats.app/coins/HMC (since May 2026) |
+| PoW CEX listing | **Later** | After sustained pool activity + disclosure pack |
 
 ## Settlement (critical path)
 
@@ -45,7 +46,7 @@ Or step-by-step: `sync_settlement_admin_token.sh` → `repair_worker_settlement_
 ## Growth order
 
 1. Keep settlement green (`settlement_healthcheck.sh` in timer/cron).
-2. MiningPoolStats — [MININGPOOLSTATS_LISTING.md](MININGPOOLSTATS_LISTING.md).
+2. Keep MiningPoolStats healthy — [MININGPOOLSTATS_LISTING.md](MININGPOOLSTATS_LISTING.md) (HMC page live).
 3. Telegram / ANN updates when economics or security policy changes.
 4. CEX outreach only after sustained pool activity and clear disclosure (RC, not investment product).
 

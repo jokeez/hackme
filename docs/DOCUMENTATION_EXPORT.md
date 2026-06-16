@@ -15,12 +15,20 @@ Output:
 |------|----------|
 | `dist/docs/HMC_Listing_Pack.pdf` | Listing memo + HMC tokenomics + allocation |
 | `dist/docs/SUP_Companion_Overview.pdf` | SUP tokenomics + utility policy |
+| `dist/docs/HackMe_Network_Pitch.pdf` | Pitch outline + ecosystem overview |
+| `dist/docs/HackMe_Legal_and_Rights.pdf` | Rights, disclosures, trademark & forking |
+| `dist/docs/AGPL-3.0_License.pdf` | Full AGPL-3.0 license text (verbatim) |
 | `dist/docs/SHA256SUMS-docs.txt` | SHA256 checksums |
+
+Branding: `scripts/release/pandoc/hackme-header.tex` (title page, headers, HackMe colors).
 
 Published URLs (after deploy):
 
 - https://hackme.tech/dist/docs/HMC_Listing_Pack.pdf
 - https://hackme.tech/dist/docs/SUP_Companion_Overview.pdf
+- https://hackme.tech/dist/docs/HackMe_Network_Pitch.pdf
+- https://hackme.tech/dist/docs/HackMe_Legal_and_Rights.pdf
+- https://hackme.tech/dist/docs/AGPL-3.0_License.pdf
 
 ## Manual pandoc (if script unavailable)
 
@@ -80,6 +88,19 @@ pandoc docs/SUP_TOKENOMICS.md docs/SUPPORT_COIN_UTILITY.md \
 |---------|-------------|
 | Slides | `docs/LISTING_PITCH_OUTLINE.md` |
 | Ecosystem | `docs/ECOSYSTEM_OVERVIEW.md` |
+
+### Legal pack (`HackMe_Legal_and_Rights`)
+
+| Section | Source file |
+|---------|-------------|
+| Rights & disclosures | `docs/RIGHTS_AND_DISCLOSURES.md` |
+| Trademark & forking | `docs/TRADEMARK_AND_FORKING.md` |
+
+### AGPL license (`AGPL-3.0_License`)
+
+| Section | Source file |
+|---------|-------------|
+| Full license | `LICENSE` (verbatim export) |
 
 ## Deploy PDFs to hackme.tech
 

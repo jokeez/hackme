@@ -59,7 +59,7 @@ Three layers on one stack:
 ## Slide 9 — Traction (honest)
 
 - Public pool on hackme.tech
-- MiningPoolStats submission in progress
+- MiningPoolStats: HMC live — https://miningpoolstats.app/coins/HMC
 - Research reports + Telegram channel
 - **No CEX volume yet**
 

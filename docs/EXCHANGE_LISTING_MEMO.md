@@ -63,7 +63,7 @@ HackMe is **useful-compute infrastructure**: a native PoH chain (HMC), coordinat
 
 ## Market / liquidity (honest)
 
-- **Current stage:** early PoW network; MiningPoolStats moderation pending
+- **Current stage:** early PoW network; **listed on MiningPoolStats** (HMC coin page live)
 - **Near-term CEX targets:** Xeggex, NonKYC, TradeOgre (see [EXCHANGE_LISTING_ROADMAP.md](EXCHANGE_LISTING_ROADMAP.md))
 - **Liquidity:** no MM engaged yet — plan after first listing
 - **No ROI promises** in official channels
@@ -79,8 +79,8 @@ HackMe is **useful-compute infrastructure**: a native PoH chain (HMC), coordinat
 - Bitcointalk ANN topic 5583373
 - Telegram: @hackme_tech
 - GitHub releases: `0.1.0-rc11n`
-- MiningPoolStats: HMC coin page (pending approval)
+- MiningPoolStats: https://miningpoolstats.app/coins/HMC (live)
 
 ---
 
-**Attachments (generate):** `HMC_Listing_Pack.pdf`, `SUP_Companion_Overview.pdf` — see [DOCUMENTATION_EXPORT.md](DOCUMENTATION_EXPORT.md)
+**Attachments (generate):** five branded PDFs — see [DOCUMENTATION_EXPORT.md](DOCUMENTATION_EXPORT.md) and https://hackme.tech/listing.html

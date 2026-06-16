@@ -1,8 +1,10 @@
-# MiningPoolStats listing checklist — HackMe (HMC)
+# MiningPoolStats — HackMe (HMC)
 
-Use this **after** public pool + settlement are stable (no recurring `admin authentication required` in settlement logs).
+**Status: LIVE** — [miningpoolstats.app/coins/HMC](https://miningpoolstats.app/coins/HMC) (listed May 2026).
 
-## Pool facts (fill for submission)
+This doc is the **operator maintenance checklist** (stats API uptime, Stratum label notes, miner onboarding). For first-time submission history, see news `2026-05-27-hmc-miningpoolstats-coin-page`.
+
+## Pool facts (public listing)
 
 | Field | Value |
 |-------|--------|

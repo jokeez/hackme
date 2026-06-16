@@ -13,7 +13,7 @@
 | Открытый GitHub | ✅ | https://github.com/jokeez/hackme |
 | Bitcointalk ANN | ✅ | topic 5583373 |
 | Пул в работе + stats API | ✅ | `.../pool/coordinator/api/pool/stats` |
-| MiningPoolStats (модерация) | ⏳ | [MININGPOOLSTATS_LISTING.md](MININGPOOLSTATS_LISTING.md) |
+| MiningPoolStats (HMC coin page) | ✅ | https://miningpoolstats.app/coins/HMC · [MININGPOOLSTATS_LISTING.md](MININGPOOLSTATS_LISTING.md) |
 | Стабильный settlement on-chain | ✅ | `hackme-worker-settlement.timer` (30s) на hub VPS |
 
 Проверка одной командой:
@@ -40,7 +40,7 @@ PUBLIC_BASE=https://hackme.tech NODE_SSH=hackme-vps bash scripts/ops/mps_listing
    - `docs/API.md` (раздел transfers)
    - `docs/EXCHANGE_LISTING_WALLET_PREP.md`
    - Ссылка на explorer: https://hackme.tech/pool/explorer
-   - Ссылка на **MiningPoolStats** (после Approved)
+   - Ссылка на **MiningPoolStats** — https://miningpoolstats.app/coins/HMC (live)
 
 2. **Описание монеты**
    - Useful PoW / PoH, WASM tasks, coordinator pool (не Stratum)
@@ -67,8 +67,8 @@ PUBLIC_BASE=https://hackme.tech NODE_SSH=hackme-vps bash scripts/ops/mps_listing
 
 ## Связь с MiningPoolStats
 
-После **Approved** на miningpoolstats.app:
+**HMC live** на [miningpoolstats.app/coins/HMC](https://miningpoolstats.app/coins/HMC) (listed since May 2026).
 
-- В форме биржи укажите карточку пула как доказательство live network
+- В форме биржи укажите карточку MPS как доказательство live network
 - Следите, чтобы `api/pool/stats` не падал (робот MPS опрашивает каждые минуты)
 - Шаблон для новых майнеров: **[MINER_WELCOME_MPS_APPROVED.md](MINER_WELCOME_MPS_APPROVED.md)**

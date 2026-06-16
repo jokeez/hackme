@@ -1,0 +1,74 @@
+% HackMe PDF branding — included via pandoc --include-in-header
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+
+\definecolor{HackMeDark}{HTML}{05070D}
+\definecolor{HackMeCyan}{HTML}{4DE4FF}
+\definecolor{HackMeCyanDark}{HTML}{00B8FF}
+\definecolor{HackMeMuted}{HTML}{8EA3C2}
+\definecolor{HackMeOk}{HTML}{6EFFAD}
+\definecolor{HackMeWarn}{HTML}{FFD39A}
+
+\AtBeginDocument{%
+  \hypersetup{%
+    colorlinks=true,%
+    linkcolor=HackMeCyanDark,%
+    urlcolor=HackMeCyan,%
+    citecolor=HackMeMuted,%
+    pdftitle={HackMe Network},%
+    pdfauthor={HackMe contributors}%
+  }%
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{HackMeMuted}{HackMe Network}}
+\fancyhead[R]{\small\textcolor{HackMeMuted}{hackme.tech}}
+\fancyfoot[C]{\small\textcolor{HackMeMuted}{\thepage}}
+\renewcommand{\headrule}{\color{HackMeCyan}\hrule width\headwidth height 0.5pt}
+
+\titleformat{\section}{\Large\bfseries\color{HackMeDark}}{}{0em}{}[\vspace{0.25em}{\color{HackMeCyan}\titlerule[1.2pt]}]
+\titleformat{\subsection}{\large\bfseries\color{HackMeDark}}{}{0em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{HackMeDark}}{}{0em}{}
+
+\setlist[itemize]{itemsep=0.2em, topsep=0.35em, leftmargin=1.4em}
+\setlist[enumerate]{itemsep=0.2em, topsep=0.35em, leftmargin=1.6em}
+
+% Slightly softer table rules
+\renewcommand{\arraystretch}{1.15}
+
+\makeatletter
+\def\HackMeSubtitle{%
+  \@ifundefined{subtitle}{}{\subtitle}%
+}
+\renewcommand{\maketitle}{%
+  \begin{titlepage}
+    \centering
+    \vspace*{1.8cm}
+    {\color{HackMeCyan}\rule{0.85\linewidth}{2.5pt}\par}
+    \vspace{1.4cm}
+    {\fontsize{28}{32}\selectfont\bfseries\color{HackMeDark}\@title\par}
+    \vspace{0.9cm}
+    \HackMeSubtitle
+    \vspace{0.6cm}
+    {\large\color{HackMeMuted}\@author\par}
+    \vspace{0.35cm}
+    {\normalsize\color{HackMeMuted}\@date\par}
+    \vfill
+    {\color{HackMeCyan}\rule{0.35\linewidth}{1.2pt}\par}
+    \vspace{0.8cm}
+    {\small\color{HackMeMuted}%
+      https://hackme.tech\enspace·\enspace
+      AGPL-3.0 open source\enspace·\enspace
+      Not investment advice\par}
+    \vspace{1.2cm}
+  \end{titlepage}
+  \setcounter{page}{1}
+}
+\makeatother
