@@ -6,6 +6,9 @@
   const PAGES = {
     home: { href: "./index.html", label: "Home" },
     coins: { href: "./coins.html", label: "Coins" },
+    transparency: { href: "./token-transparency.html", label: "Transparency" },
+    roadmap: { href: "./roadmap.html", label: "Roadmap" },
+    listing: { href: "./listing.html", label: "Listing" },
     mine: { href: "./downloads.html#start", label: "Mine" },
     downloads: { href: "./downloads.html", label: "Download" },
     fuzz: { href: "./fuzz-campaigns.html", label: "Fuzz" },
@@ -23,11 +26,11 @@
   };
 
   const PRIMARY = ["mine", "coins", "fuzz", "research", "downloads", "docs"];
-  const MORE = ["news", "economics", "operators", "developers", "contacts", "legal", "privacy", "explorer"];
+  const MORE = ["news", "economics", "transparency", "roadmap", "listing", "operators", "developers", "contacts", "legal", "privacy", "explorer"];
 
   const FOOTER_GROUPS = [
-    { title: "Network", keys: ["home", "coins", "research", "github", "explorer"] },
-    { title: "Start", keys: ["mine", "downloads", "docs", "operators"] },
+    { title: "Network", keys: ["home", "coins", "transparency", "roadmap", "research", "github", "explorer"] },
+    { title: "Start", keys: ["mine", "downloads", "docs", "listing", "operators"] },
     { title: "Product", keys: ["fuzz", "developers", "economics", "news"] },
     { title: "Legal", keys: ["contacts", "legal", "privacy"] },
   ];
@@ -44,6 +47,12 @@
       "fuzz-campaigns": "fuzz",
       "fuzzing-console": "fuzz",
       "economics-model": "economics",
+      "token-transparency": "transparency",
+      "roadmap": "roadmap",
+      "listing": "listing",
+      "coin-hmc": "coins",
+      "coin-sup": "coins",
+      "coin-hms": "coins",
       "operator-checklist": "operators",
       "legal-privacy": "privacy",
       "legal-risk": "legal",

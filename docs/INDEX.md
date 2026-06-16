@@ -25,6 +25,23 @@
 | [HMS_BACKEND.md](HMS_BACKEND.md) | HMS coordinator + workers (committed Go code) |
 | [SUPPORT_COIN_UTILITY.md](SUPPORT_COIN_UTILITY.md) | HackMe Support (SUP) accrual rules |
 
+## Ecosystem & listing (public)
+
+| Doc / page | Topic |
+|------------|--------|
+| [ECOSYSTEM_OVERVIEW.md](ECOSYSTEM_OVERVIEW.md) | Multi-coin network map |
+| [HMC_TOKENOMICS.md](HMC_TOKENOMICS.md) | HMC supply, halving, utility |
+| [SUP_TOKENOMICS.md](SUP_TOKENOMICS.md) | SUP emission & listing policy |
+| [TOKEN_ALLOCATION_AND_VESTING.md](TOKEN_ALLOCATION_AND_VESTING.md) | Cap table · unlock calendar |
+| [EXCHANGE_LISTING_MEMO.md](EXCHANGE_LISTING_MEMO.md) | One-page CEX memo |
+| [LISTING_PITCH_OUTLINE.md](LISTING_PITCH_OUTLINE.md) | 10–12 slide deck source |
+| [DOCUMENTATION_EXPORT.md](DOCUMENTATION_EXPORT.md) | PDF/DOCX per ticker |
+| [EXCHANGE_LISTING_ROADMAP.md](EXCHANGE_LISTING_ROADMAP.md) | PoW CEX order |
+| [../web/site/coins.html](../web/site/coins.html) | Ecosystem registry |
+| [../web/site/token-transparency.html](../web/site/token-transparency.html) | Live supply APIs |
+| [../web/site/listing.html](../web/site/listing.html) | Listing readiness hub |
+| [../web/site/roadmap.html](../web/site/roadmap.html) | Shipped milestones |
+
 ## Fuzzing / B2B integrators
 
 | Doc / page | Topic |

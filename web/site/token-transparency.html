@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Token Transparency — HackMe Ecosystem (HMC · SUP · HMS)</title>
+  <meta name="description" content="Live circulating supply, treasury, emission policy, and on-chain economics for HackMe ecosystem coins — HMC, SUP, and HMS preview." />
+  <link rel="canonical" href="https://hackme.tech/token-transparency.html" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20260616trans" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+</head>
+<body>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="" /><span>HackMe Network</span></a>
+    <nav class="nav" data-site-page="transparency"></nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass hero-small">
+      <p class="kicker">Ecosystem · Transparency</p>
+      <h1>Token transparency — all HackMe assets</h1>
+      <p class="hero-copy">
+        Listing-grade supply disclosure for the <strong>whole ecosystem</strong>: primary chain coin (HMC), support coin (SUP), and storage lane (HMS preview).
+        Numbers below are fetched live from public APIs where available.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-secondary" href="./listing.html">Listing hub</a>
+        <a class="btn btn-secondary" href="https://github.com/jokeez/hackme/blob/main/docs/TOKEN_ALLOCATION_AND_VESTING.md" target="_blank" rel="noreferrer">Allocation doc</a>
+        <a class="btn btn-primary" href="/explorer-lite.html">Explorer</a>
+      </div>
+      <p id="transparency-updated" class="muted" style="margin-top:1rem"></p>
+    </section>
+
+    <section class="panel glass">
+      <div class="pill-row eco-tabs" role="tablist">
+        <button type="button" class="pill active" data-transparency-tab="hmc">HMC</button>
+        <button type="button" class="pill" data-transparency-tab="sup">SUP</button>
+        <button type="button" class="pill" data-transparency-tab="hms">HMS</button>
+      </div>
+
+      <div data-transparency-panel="hmc" class="eco-panel">
+        <h2>HackMe Coin (HMC)</h2>
+        <p class="subtle">Primary settlement asset · max 100M · halving + tail emission.</p>
+        <div id="transparency-hmc-pct" class="section-lede"></div>
+        <div id="transparency-hmc"><p class="muted">Loading…</p></div>
+        <p style="margin-top:1rem"><a href="./coin-hmc.html">Full HMC listing page →</a></p>
+      </div>
+
+      <div data-transparency-panel="sup" class="eco-panel" hidden>
+        <h2>HackMe Support (SUP)</h2>
+        <p class="subtle">Companion coin · max 21M · pool-quality mint only.</p>
+        <div id="transparency-sup-pct" class="section-lede"></div>
+        <div id="transparency-sup"><p class="muted">Loading…</p></div>
+        <p style="margin-top:1rem"><a href="./coin-sup.html">Full SUP page →</a></p>
+      </div>
+
+      <div data-transparency-panel="hms" class="eco-panel" hidden>
+        <h2>HackMe Storage (HMS)</h2>
+        <p class="subtle">Prelaunch · max 21M · 0.5% genesis treasury float at lane genesis.</p>
+        <div id="transparency-hms"><p class="muted">Loading…</p></div>
+        <p style="margin-top:1rem"><a href="./coin-hms.html">HMS prelaunch brief →</a></p>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>What we publish (and what is coming)</h2></div>
+      <div class="grid grid-3">
+        <article class="card glass">
+          <h3>Live today</h3>
+          <ul class="list">
+            <li>Max supply &amp; minted (HMC, SUP)</li>
+            <li>Policy hash &amp; economics API</li>
+            <li>Public treasury address</li>
+            <li>Allocation tables (GitHub)</li>
+          </ul>
+        </article>
+        <article class="card glass">
+          <h3>After first CEX</h3>
+          <ul class="list">
+            <li>30-day emission charts</li>
+            <li>Top-holder concentration report</li>
+            <li>PDF listing packs per ticker</li>
+          </ul>
+        </article>
+        <article class="card glass">
+          <h3>Honest limits</h3>
+          <ul class="list">
+            <li>No MM / liquidity yet</li>
+            <li>Single canonical hub (evolving)</li>
+            <li>HMS not tradable until lane live</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>HackMe Network — ecosystem transparency</p>
+    <div class="footer-nav"></div>
+  </footer>
+
+  <script src="./assets/site-shell.js?v=20260616trans"></script>
+  <script src="./assets/app.js?v=20260616trans"></script>
+  <script src="./assets/token-transparency.js?v=20260616trans"></script>
+</body>
+</html>

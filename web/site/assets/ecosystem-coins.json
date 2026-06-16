@@ -1,5 +1,5 @@
 {
-  "updated": "2026-05-28",
+  "updated": "2026-06-16",
   "primary": "hmc",
   "coins": [
     {
@@ -11,13 +11,14 @@
       "algorithm": "Useful PoW / PoH (WASM sandbox)",
       "icon": "./assets/logo-hex.png",
       "iconType": "image",
-      "listing": "MiningPoolStats pending · public pool live",
+      "listing": "PoW CEX outreach · MiningPoolStats pending",
       "earn": "Mine on the official coordinator · on-chain after VPS settlement",
       "trade": "On-chain transfers live on hackme.tech chain",
       "links": {
+        "profile": "https://hackme.tech/coin-hmc.html",
         "pool": "https://hackme.tech/pool/coordinator/api/pool/stats",
         "explorer": "https://hackme.tech/explorer-lite.html",
-        "dashboard": "https://hackme.tech/dashboard.html",
+        "transparency": "https://hackme.tech/token-transparency.html",
         "economics": "https://hackme.tech/economics-model.html"
       }
     },
@@ -25,20 +26,25 @@
       "id": "sup",
       "symbol": "SUP",
       "name": "HackMe Support",
-      "status": "accrual",
-      "tagline": "Pool accrual live — exchange listing only after HMC lists",
+      "status": "live",
+      "tagline": "Companion coin — on-chain mint live, CEX after HMC lists",
       "algorithm": "Earned via HMC pool (quality-gated accrual)",
       "icon": "./assets/coin-sup.svg",
       "iconType": "image",
-      "listing": "CEX/DEX outreach after HMC is listed · then SUP on-chain genesis",
-      "earn": "No faucet. Hybrid-signed HMC pool work + quality gates (coordinator accrual)",
-      "trade": "Not tradable yet — off-chain accrual in Wallet hub until SUP genesis",
+      "listing": "Companion listing after primary HMC on CEX",
+      "earn": "Hybrid-signed HMC pool work + quality gates",
+      "trade": "On-chain SUP transfers · GET /api/sup/economics",
       "highlights": [
-        "Separate emission schedule from HMC (lower, halving)",
-        "Max ~8–12% of primary attempt value before quality multipliers",
-        "Streak bonus only after 72h clean mining",
-        "Spend: audit discounts, pool priority, governance signal"
-      ]
+        "Max 21M · no faucet",
+        "Base ≤8% of HMC attempt value",
+        "72h streak bonus · fleet daily cap",
+        "Utility: audit discounts, pool priority"
+      ],
+      "links": {
+        "profile": "https://hackme.tech/coin-sup.html",
+        "economics": "https://hackme.tech/api/sup/economics",
+        "transparency": "https://hackme.tech/token-transparency.html"
+      }
     },
     {
       "id": "hms",
@@ -49,17 +55,18 @@
       "algorithm": "Proof-of-Storage (disk) + SHA256 Seal (ASIC/CPU)",
       "icon": "./assets/coin-hms.svg",
       "iconType": "image",
-      "listing": "MiningPoolStats: add under HackMe Official Pool when lane is live",
+      "listing": "Exchange submission only after lane genesis",
       "earn": "Allocate disk quota (PoSt) and/or run seal worker — preview only today",
-      "trade": "HMS settlement after lane on dedicated VPS (not on hub yet)",
+      "trade": "Not tradable until Amsterdam heavy VPS lane is live",
       "highlights": [
-        "Client-side AES-GCM — operators cannot read ciphertext",
-        "Erasure-coded chunks across distributed workers",
-        "Hourly manifest_root sealed on SHA256 (useful ASIC work)",
-        "Heavy VPS in Amsterdam — hub stays lean"
+        "Max 21M · 0.5% genesis treasury float",
+        "Client-side AES-GCM ciphertext",
+        "~12 HMS/day base at 1h epochs",
+        "Dedicated VPS — hub stays lean"
       ],
       "links": {
-        "roadmap": "https://hackme.tech/coins.html#hms",
+        "profile": "https://hackme.tech/coin-hms.html",
+        "roadmap": "https://hackme.tech/roadmap.html",
         "docs": "https://github.com/jokeez/hackme/blob/main/docs/HMS_PUBLIC_ROADMAP.md"
       }
     },

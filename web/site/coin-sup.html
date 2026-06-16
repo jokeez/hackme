@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SUP (HackMe Support) — Utility &amp; Tokenomics</title>
+  <meta name="description" content="HackMe Support (SUP): companion ecosystem coin, 21M max, earned only via quality HMC pool mining. On-chain live, CEX after HMC lists." />
+  <link rel="canonical" href="https://hackme.tech/coin-sup.html" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20260616sup" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+</head>
+<body>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="" /><span>HackMe Network</span></a>
+    <nav class="nav" data-site-page="coins"></nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass hero-small coins-hero-sup">
+      <div class="coin-detail-hero">
+        <div>
+          <p class="kicker">Companion asset · On-chain live</p>
+          <h1>HackMe Support (SUP)</h1>
+          <p class="hero-copy">
+            Second coin in the HackMe <strong>ecosystem</strong>. Scarce, quality-gated, designed for utility and
+            <strong>companion exchange listing after HMC</strong>. No faucet — earn only by honest HMC pool work.
+          </p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="./downloads.html">Mine HMC (earn SUP)</a>
+            <a class="btn btn-secondary" href="https://hackme.tech/api/sup/economics">Economics API</a>
+            <a class="btn btn-secondary" href="./coin-hmc.html">Primary: HMC</a>
+          </div>
+        </div>
+        <img src="./assets/coin-sup.svg" alt="SUP" width="96" height="96" />
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>At a glance</h2></div>
+      <div class="table-wrap">
+        <table class="pool-table">
+          <tbody>
+            <tr><th>Ticker</th><td><strong>SUP</strong></td></tr>
+            <tr><th>Max supply</th><td>21,000,000 SUP</td></tr>
+            <tr><th>Ledger</th><td>Parallel on HackMe node (same <code>HMC-</code> addresses)</td></tr>
+            <tr><th>Earn path</th><td>Hybrid-signed official HMC pool work only</td></tr>
+            <tr><th>Base accrual</th><td>≤ 8% of HMC attempt value (quality multiplier 0–1.25×)</td></tr>
+            <tr><th>Faucet / airdrop</th><td><strong>None</strong></td></tr>
+            <tr><th>On-chain</th><td>Mint + <code>transfer_sup_v1</code> live · <code>GET /api/sup/economics</code></td></tr>
+            <tr><th>CEX listing</th><td>After primary HMC lists</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Why SUP is hard to earn</h2></div>
+      <ul class="list">
+        <li>Strikes / bans → zero SUP for 24h rolling window</li>
+        <li>Stale submit rate &gt; 5% → 0.25× multiplier</li>
+        <li>72h clean streak → +0.25× bonus</li>
+        <li>Global fleet daily cap vs HMC pool payout</li>
+      </ul>
+      <p><a href="https://github.com/jokeez/hackme/blob/main/docs/SUPPORT_COIN_UTILITY.md" target="_blank" rel="noreferrer">Full policy document →</a></p>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Utility</h2></div>
+      <div class="grid grid-3">
+        <article class="card glass"><h3>Audit discounts</h3><p>Pay up to 15% of Security Audit escrow in SUP.</p></article>
+        <article class="card glass"><h3>Pool priority</h3><p>Higher lease weight when congested (SUP balance + clean history).</p></article>
+        <article class="card glass"><h3>Governance signal</h3><p>Non-binding votes on coordinator parameters (planned).</p></article>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Allocation</h2></div>
+      <p class="section-lede"><strong>100% work-based emission.</strong> No team pre-mine. See <a href="./token-transparency.html">live minted supply</a>.</p>
+      <p><a href="https://github.com/jokeez/hackme/blob/main/docs/SUP_TOKENOMICS.md" target="_blank" rel="noreferrer">SUP tokenomics doc →</a></p>
+    </section>
+
+    <section class="panel glass">
+      <p class="muted">Ecosystem: <a href="./coin-hmc.html">HMC</a> · <a href="./coin-hms.html">HMS</a> · <a href="./listing.html">Listing hub</a></p>
+    </section>
+  </main>
+
+  <footer class="footer"><p>HackMe Network · SUP</p><div class="footer-nav"></div></footer>
+  <script src="./assets/site-shell.js?v=20260616sup"></script>
+  <script src="./assets/app.js?v=20260616sup"></script>
+</body>
+</html>

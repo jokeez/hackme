@@ -2,6 +2,8 @@
 
 Технический пакет для интеграции: **[EXCHANGE_LISTING_WALLET_PREP.md](EXCHANGE_LISTING_WALLET_PREP.md)** · HTTP API: **`docs/API.md`** · спека: **`spec/CHAIN_SPEC.md`**
 
+**Публичные материалы (экосистема):** [listing.html](https://hackme.tech/listing.html) · [token-transparency.html](https://hackme.tech/token-transparency.html) · [EXCHANGE_LISTING_MEMO.md](EXCHANGE_LISTING_MEMO.md) · [TOKEN_ALLOCATION_AND_VESTING.md](TOKEN_ALLOCATION_AND_VESTING.md) · PDF: [DOCUMENTATION_EXPORT.md](DOCUMENTATION_EXPORT.md)
+
 ## Этап 0 — до заявки (сейчас)
 
 | Требование | Статус | Где проверить |
