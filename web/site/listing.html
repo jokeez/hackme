@@ -85,8 +85,26 @@
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>PDF / DOCX exports</h2></div>
-      <p>Markdown sources are on GitHub. Generate per-ticker PDF packs with pandoc — see <a href="https://github.com/jokeez/hackme/blob/main/docs/DOCUMENTATION_EXPORT.md" target="_blank" rel="noreferrer">DOCUMENTATION_EXPORT.md</a>. Published PDFs will attach here after first CEX submission.</p>
+      <div class="panel-head"><h2>PDF listing packs (download)</h2></div>
+      <p class="section-lede">Ready-to-attach documents for exchange application forms. Regenerate after tokenomics changes: <code>bash scripts/release/build_listing_pdfs.sh</code></p>
+      <div class="grid grid-3">
+        <article class="card glass">
+          <h3>HMC Listing Pack</h3>
+          <p>Memo + tokenomics + allocation/vesting (~60 KB PDF).</p>
+          <a class="btn btn-primary" href="/dist/docs/HMC_Listing_Pack.pdf" download>HMC_Listing_Pack.pdf</a>
+        </article>
+        <article class="card glass">
+          <h3>SUP Companion</h3>
+          <p>Tokenomics + utility policy (~50 KB PDF).</p>
+          <a class="btn btn-secondary" href="/dist/docs/SUP_Companion_Overview.pdf" download>SUP_Companion_Overview.pdf</a>
+        </article>
+        <article class="card glass">
+          <h3>Checksums</h3>
+          <p>SHA256 for both PDFs.</p>
+          <a href="/dist/docs/SHA256SUMS-docs.txt">SHA256SUMS-docs.txt</a>
+        </article>
+      </div>
+      <p class="muted" style="margin-top:1rem">Markdown sources: <a href="https://github.com/jokeez/hackme/blob/main/docs/DOCUMENTATION_EXPORT.md" target="_blank" rel="noreferrer">DOCUMENTATION_EXPORT.md</a></p>
     </section>
   </main>
 

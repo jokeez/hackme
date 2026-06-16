@@ -11,8 +11,8 @@ Public site: [coin-hmc.html](https://hackme.tech/coin-hmc.html) · Live API: `GE
 | **Max supply** | **100,000,000 HMC** | `internal/chain/economics.go` · locked tests |
 | **Genesis mint** | **50,000 HMC** | One-time treasury credit at block #0 |
 | **Genesis recipient** | `HMC-719006d93916ad52` (DevFee / ops treasury) | On-chain; explorer-verifiable |
-| **Circulating** | `total_minted − burned` | `GET /api/status` → `economics.circulating_hmc` |
-| **Unit scale** | 1 HMC = 10⁸ units | Same as SUP/HMS transfers |
+| **Circulating** | `total_minted - burned` | `GET /api/status` -> `economics.circulating_hmc` |
+| **Unit scale** | 1 HMC = 10^8 units | Same as SUP/HMS transfers |
 
 There is **no** separate pre-mine bucket beyond the disclosed genesis treasury. Remaining supply enters via **PoH block rewards** and **order escrow** (prepaid by customers, not inflation).
 
@@ -25,7 +25,7 @@ There is **no** separate pre-mine bucket beyond the disclosed genesis treasury. 
 | Tail floor | **0.002 HMC** per block (after halvings reach floor) |
 | Target block time | ~30 seconds |
 
-Formula: `reward_base(height) = max(tail_floor, initial_base / 2^epoch)` where `epoch = floor((height−1) / halving_interval)`.
+Formula: `reward_base(height) = max(tail_floor, initial_base / 2^epoch)` where `epoch = floor((height-1) / halving_interval)`.
 
 **Order-linked blocks** do not mint free inflation — reward comes from **task escrow** prepaid by the order creator.
 

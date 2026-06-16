@@ -1,6 +1,54 @@
 # Documentation export — PDF / DOCX per ticker
 
-HackMe maintains **Markdown as source of truth** on GitHub and **HTML on hackme.tech**. Exchange DD and investors often need **PDF or DOCX** attachments. This doc defines the repeatable export layout.
+HackMe maintains **Markdown as source of truth** on GitHub and **HTML on hackme.tech**. Exchange DD and investors often need **PDF or DOCX** attachments.
+
+## Quick build (recommended)
+
+```bash
+# From repo root — requires pandoc + texlive-xetex + fonts-dejavu-core
+bash scripts/release/build_listing_pdfs.sh
+```
+
+Output:
+
+| File | Contents |
+|------|----------|
+| `dist/docs/HMC_Listing_Pack.pdf` | Listing memo + HMC tokenomics + allocation |
+| `dist/docs/SUP_Companion_Overview.pdf` | SUP tokenomics + utility policy |
+| `dist/docs/SHA256SUMS-docs.txt` | SHA256 checksums |
+
+Published URLs (after deploy):
+
+- https://hackme.tech/dist/docs/HMC_Listing_Pack.pdf
+- https://hackme.tech/dist/docs/SUP_Companion_Overview.pdf
+
+## Manual pandoc (if script unavailable)
+
+```bash
+mkdir -p dist/docs
+
+pandoc docs/EXCHANGE_LISTING_MEMO.md docs/HMC_TOKENOMICS.md \
+  docs/TOKEN_ALLOCATION_AND_VESTING.md \
+  --pdf-engine=xelatex \
+  -V mainfont="DejaVu Sans" \
+  -V geometry:margin=1in \
+  -o dist/docs/HMC_Listing_Pack.pdf
+
+pandoc docs/SUP_TOKENOMICS.md docs/SUPPORT_COIN_UTILITY.md \
+  --pdf-engine=xelatex \
+  -V mainfont="DejaVu Sans" \
+  -o dist/docs/SUP_Companion_Overview.pdf
+```
+
+**Common pitfalls:**
+
+| Error | Fix |
+|-------|-----|
+| `does not exist` on input | Run from repo root (`cd ~/Desktop/HackMe`) |
+| `dist/docs/... does not exist` | `mkdir -p dist/docs` first |
+| Unicode LaTeX error | Use `--pdf-engine=xelatex` and `-V mainfont="DejaVu Sans"` |
+| `xelatex not found` | `sudo apt install texlive-xetex fonts-dejavu-core` |
+| Wrong output filename | SUP pack must be `SUP_Companion_Overview.pdf`, not `HMC_Listing_Pack.pdf` |
 
 ## Per-ticker document sets
 
@@ -10,18 +58,14 @@ HackMe maintains **Markdown as source of truth** on GitHub and **HTML on hackme.
 |---------|-------------|
 | Cover + memo | `docs/EXCHANGE_LISTING_MEMO.md` |
 | Tokenomics | `docs/HMC_TOKENOMICS.md` |
-| Allocation & vesting | `docs/TOKEN_ALLOCATION_AND_VESTING.md` (HMC table) |
-| Technical integration | `docs/EXCHANGE_LISTING_WALLET_PREP.md` |
-| Chain spec excerpt | `spec/CHAIN_SPEC.md` |
+| Allocation & vesting | `docs/TOKEN_ALLOCATION_AND_VESTING.md` |
 
 ### SUP pack (`SUP_Companion_Overview`)
 
 | Section | Source file |
 |---------|-------------|
-| Utility & policy | `docs/SUPPORT_COIN_UTILITY.md` |
 | Tokenomics | `docs/SUP_TOKENOMICS.md` |
-| Allocation | `docs/TOKEN_ALLOCATION_AND_VESTING.md` (SUP table) |
-| Phase C status | `docs/SUP_PHASE_C.md` |
+| Utility & policy | `docs/SUPPORT_COIN_UTILITY.md` |
 
 ### HMS pack (`HMS_Prelaunch_Brief`) — when lane goes live
 
@@ -29,7 +73,6 @@ HackMe maintains **Markdown as source of truth** on GitHub and **HTML on hackme.
 |---------|-------------|
 | Public roadmap | `docs/HMS_PUBLIC_ROADMAP.md` |
 | Tokenomics | `docs/HMS_TOKENOMICS.md` |
-| Allocation | `docs/TOKEN_ALLOCATION_AND_VESTING.md` (HMS table) |
 
 ### Network deck (`HackMe_Network_Pitch`)
 
@@ -38,39 +81,17 @@ HackMe maintains **Markdown as source of truth** on GitHub and **HTML on hackme.
 | Slides | `docs/LISTING_PITCH_OUTLINE.md` |
 | Ecosystem | `docs/ECOSYSTEM_OVERVIEW.md` |
 
-## Recommended export workflow
+## Deploy PDFs to hackme.tech
 
 ```bash
-# Option A — pandoc (local)
-cd /path/to/hackme
-pandoc docs/EXCHANGE_LISTING_MEMO.md docs/HMC_TOKENOMICS.md \
-  docs/TOKEN_ALLOCATION_AND_VESTING.md \
-  -o dist/docs/HMC_Listing_Pack.pdf --pdf-engine=xelatex -V geometry:margin=1in
-
-pandoc docs/SUP_TOKENOMICS.md docs/SUPPORT_COIN_UTILITY.md \
-  -o dist/docs/SUP_Companion_Overview.pdf --pdf-engine=xelatex
-
-# Option B — DOCX for exchange forms
-pandoc docs/HMC_TOKENOMICS.md -o dist/docs/HMC_Tokenomics.docx
+HACKME_DEPLOY_SSH_IDENTITY=~/.ssh/cursor_vps NODE_SSH=hackme-vps \
+  SKIP_NODE=1 bash scripts/ops/deploy_hackme_site.sh
 ```
 
-## Site attachment URLs (future)
-
-After PDF build + deploy to `dist/docs/`:
-
-- `https://hackme.tech/dist/docs/HMC_Listing_Pack.pdf`
-- `https://hackme.tech/dist/docs/SUP_Companion_Overview.pdf`
-
-Link from [listing.html](https://hackme.tech/listing.html) and per-coin pages.
-
-## Versioning
-
-- Bump `updated` in each markdown when economics change
-- Include `GET /api/status` → `policy_hash` in PDF footer
-- Match release channel (`scripts/release/CURRENT_VERSION`)
+(`dist/` rsync includes `dist/docs/` when present.)
 
 ## Operator checklist
 
 - [ ] Regenerate PDFs after any `economics.go` / SUP genesis change
 - [ ] Verify treasury address balance matches transparency page
-- [ ] Upload to exchange portals + link from listing.html
+- [ ] Attach PDFs to exchange portals + link from listing.html
