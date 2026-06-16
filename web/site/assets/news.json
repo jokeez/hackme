@@ -1,6 +1,37 @@
 {
   "items": [
     {
+      "id": "2026-06-16-site-ecosystem-docs-final",
+      "date": "2026-06-16",
+      "title": "Site final — ecosystem docs, legal hub, mobile polish",
+      "summary": "hackme.tech updated end-to-end: per-coin pages (HMC/SUP/HMS), token transparency, listing hub with PDF packs, legal center with AGPL-3.0, economics layout fix, and mobile-friendly tables. One ecosystem narrative — not a single-coin site.",
+      "impact": "Exchange DD and miners get consistent links: transparency, listing PDFs, roadmap, and legal policy v1.1. Economics page no longer breaks on phones.",
+      "action": "Coins: https://hackme.tech/coins.html · Legal: https://hackme.tech/legal.html · Listing PDFs: https://hackme.tech/listing.html",
+      "tags": [
+        "infrastructure",
+        "marketing",
+        "legal"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "hackme.tech site final — ecosystem docs live",
+        "lead": "Per-coin pages, token transparency, listing PDFs, legal hub (AGPL-3.0), mobile-friendly economics.",
+        "bullets": [
+          "HMC + SUP + HMS each have investor pages; live supply at /token-transparency",
+          "Listing hub: HMC_Listing_Pack.pdf + SUP_Companion_Overview.pdf for CEX forms",
+          "Legal v1.1: EULA, Terms, Privacy, Risk + open-source license links"
+        ],
+        "footer": "Mine: hackme.tech/downloads · Pool: hackme.tech/pool/coordinator"
+      },
+      "links": {
+        "coins": "https://hackme.tech/coins.html",
+        "legal": "https://hackme.tech/legal.html",
+        "listing": "https://hackme.tech/listing.html",
+        "transparency": "https://hackme.tech/token-transparency.html",
+        "github": "https://github.com/jokeez/hackme"
+      }
+    },
+    {
       "id": "2026-06-16-rc11n-production-final",
       "date": "2026-06-16",
       "title": "Production final — rc11n ISO aligned, SUP on-chain public",

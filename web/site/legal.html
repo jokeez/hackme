@@ -4,15 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>HackMe Legal</title>
-  <meta name="description" content="HackMe legal center: EULA, Terms of Use, Privacy Policy, and Risk Disclosure for public operations." />
+  <meta name="description" content="HackMe legal center: EULA, Terms, Privacy, Risk Disclosure, AGPL open-source license, and ecosystem token notices." />
+  <link rel="canonical" href="https://hackme.tech/legal.html" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./assets/styles.css" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20260616fin" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
   <link rel="icon" href="/assets/favicon.png" type="image/png" />
 </head>
 <body>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
   <header class="topbar">
     <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe logo" /><span>HackMe Network</span></a>
     <nav class="nav" data-site-page="legal"></nav>
@@ -21,44 +24,67 @@
   <main class="container">
     <section class="hero glass hero-small">
       <p class="kicker">Legal and Policy</p>
-      <h1>Public launch policy stack</h1>
-      <p class="hero-copy">Central legal center for HackMe public operations: EULA, Terms of Use, Privacy Policy, and Risk Disclosure.</p>
+      <h1>Public operations &amp; ecosystem notices</h1>
+      <p class="hero-copy">Central legal hub for HackMe software, the public pool (HMC · SUP · HMS preview), mining, and B2B security-audit services. Not investment advice.</p>
       <div class="pill-row">
-        <span class="pill">Policy pack: EULA + Terms + Privacy + Risk</span>
-        <span class="pill">Version 1.0</span>
+        <span class="pill">Policy pack v1.1</span>
+        <span class="pill">Effective 2026-06-16</span>
+        <span class="pill">AGPL-3.0 source</span>
       </div>
     </section>
 
-    <section class="grid grid-2">
+    <section class="grid grid-2 legal-hub-grid">
       <article class="card glass">
         <h3>EULA</h3>
-        <p>Define software license terms for installer and binary usage, support boundaries, and update policy.</p>
+        <p>Software license for installer, node binaries, coordinator, and release artifacts.</p>
         <a class="btn btn-secondary btn-block" href="./legal-eula.html">Open EULA</a>
       </article>
       <article class="card glass">
         <h3>Terms of Use</h3>
-        <p>Define service rules, acceptable use, restrictions, and operational obligations.</p>
+        <p>Service rules, acceptable use, pool participation, and operator obligations.</p>
         <a class="btn btn-secondary btn-block" href="./legal-terms.html">Open Terms</a>
       </article>
       <article class="card glass">
         <h3>Privacy Policy</h3>
-        <p>Describe what telemetry/logs are collected, retention windows, and user rights.</p>
+        <p>Telemetry, logs, retention, and data handling on hackme.tech and nodes.</p>
         <a class="btn btn-secondary btn-block" href="./legal-privacy.html">Open Privacy</a>
       </article>
       <article class="card glass">
         <h3>Risk Disclosure</h3>
-        <p>State mining volatility, uptime assumptions, and non-guaranteed outcomes.</p>
+        <p>Mining volatility, software risk, multi-coin ecosystem, and non-guaranteed outcomes.</p>
         <a class="btn btn-secondary btn-block" href="./legal-risk.html">Open Risk Disclosure</a>
       </article>
+    </section>
+
+    <section class="panel glass legal-license-panel">
+      <div class="panel-head"><h2>Open-source license</h2></div>
+      <p class="section-lede">HackMe node, coordinator, and published tooling are <strong>free software</strong> under the GNU Affero General Public License v3.0 (AGPL-3.0).</p>
+      <ul>
+        <li><a href="https://github.com/jokeez/hackme/blob/main/LICENSE" target="_blank" rel="noreferrer">Full LICENSE text (GitHub)</a></li>
+        <li><a href="https://github.com/jokeez/hackme" target="_blank" rel="noreferrer">Source repository</a> — AGPL applies to modifications; network use may require source offer for AGPL components.</li>
+        <li><a href="https://github.com/jokeez/hackme/blob/main/docs/TRADEMARK_AND_FORKING.md" target="_blank" rel="noreferrer">Trademark &amp; forking policy</a> — brand use restrictions.</li>
+        <li>Release checksums: verify SHA256 on <a href="./downloads.html">downloads</a> before install.</li>
+      </ul>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Ecosystem tokens (HMC · SUP · HMS)</h2></div>
+      <ul class="list">
+        <li><strong>HMC</strong> — primary chain asset for mining settlement and B2B audit escrow.</li>
+        <li><strong>SUP</strong> — companion support coin; on-chain ledger live; exchange listing planned after HMC.</li>
+        <li><strong>HMS</strong> — storage lane <em>prelaunch</em>; not marketed as tradable until genesis is announced.</li>
+        <li>Tokens are utility/infrastructure instruments — <strong>not</strong> deposits, securities, or guaranteed-yield products.</li>
+        <li>Public supply: <a href="./token-transparency.html">Token transparency</a> · Listing materials: <a href="./listing.html">Listing hub</a>.</li>
+      </ul>
     </section>
 
     <section class="panel glass">
       <div class="panel-head"><h2>Operational legal scope</h2></div>
       <ul class="list">
-        <li>Avoid statements that imply guaranteed profit or guaranteed security.</li>
-        <li>Use "technical validation" and "operational controls" wording instead of absolute claims.</li>
-        <li>Add "not investment advice" and jurisdiction-specific disclaimers.</li>
-        <li>Keep policy version and effective date visible on every legal page.</li>
+        <li>No guaranteed profit, exchange listing, or USD price.</li>
+        <li>Use &quot;technical validation&quot; and &quot;operational controls&quot; — not absolute security claims.</li>
+        <li>Jurisdiction-specific compliance is the user&apos;s responsibility.</li>
+        <li>Policy version and effective date are shown on each legal sub-page.</li>
       </ul>
     </section>
   </main>
@@ -69,7 +95,7 @@
     <div class="footer-nav"></div>
   </footer>
 
-  <script src="./assets/site-shell.js?v=20260601hub"></script>
-  <script src="./assets/app.js?v=20260430r6"></script>
+  <script src="./assets/site-shell.js?v=20260616fin"></script>
+  <script src="./assets/app.js?v=20260616fin"></script>
 </body>
 </html>

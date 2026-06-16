@@ -4,12 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>HackMe Economics — Chain, Pool &amp; Orders</title>
-  <meta name="description" content="How HackMe PoH block rewards, coordinator payouts, and audit orders fit together. Not Ethereum-style pooled block subsidy." />
+  <meta name="description" content="How HackMe PoH block rewards, coordinator payouts, and audit orders fit together. HMC economics with links to SUP and HMS ecosystem assets." />
   <link rel="canonical" href="https://hackme.tech/economics-model.html" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./assets/styles.css?v=20260507econ" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20260616fin" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
   <link rel="icon" href="/assets/favicon.png" type="image/png" />
 </head>
@@ -23,130 +23,117 @@
 
   <main class="container">
     <section class="hero glass hero-small">
-      <p class="kicker">Economics model</p>
+      <p class="kicker">Economics model · HMC focus</p>
       <h1>Chain rewards, coordinator payouts, and orders</h1>
       <p class="hero-copy">
-        HackMe is intentionally <strong>not</strong> a clone of classic pooled Proof-of-Work (where every hash‑rate share maps directly to a fraction of each chain block).
-        Three layers work together: <strong>on-chain PoH</strong>, <strong>coordinator accounting</strong>, and <strong>paid audit orders</strong>.
+        HackMe is <strong>not</strong> classic pooled PoW where every share maps to a block fraction.
+        Three layers: <strong>on-chain PoH</strong>, <strong>coordinator accounting</strong>, and <strong>paid audit orders</strong>.
+        Companion coins (<a href="./coin-sup.html">SUP</a>, <a href="./coin-hms.html">HMS</a>) use separate rules — see <a href="./coins.html">ecosystem registry</a>.
       </p>
       <div class="cta-row">
-        <a class="btn btn-secondary" href="./docs.html">Back to Docs</a>
-        <a class="btn btn-secondary" href="./operator-checklist.html">Operator checklist</a>
-        <a class="btn btn-primary" href="./api-reference.html">API reference</a>
+        <a class="btn btn-secondary" href="./token-transparency.html">Live supply</a>
+        <a class="btn btn-secondary" href="./docs.html">Docs</a>
+        <a class="btn btn-primary" href="./coin-hmc.html">HMC listing page</a>
       </div>
     </section>
 
     <section class="panel glass">
       <div class="panel-head"><h2>Where value comes from</h2></div>
-      <div class="table-wrap">
-        <table class="pool-table">
+      <p class="table-scroll-hint muted">Swipe table horizontally on mobile</p>
+      <div class="table-wrap table-wrap--scroll">
+        <table class="pool-table pool-table--wrap">
           <thead>
             <tr>
               <th>Source</th>
               <th>What it is</th>
-              <th>Who receives it (typical)</th>
+              <th>Who receives it</th>
               <th>Where you see it</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td><strong>Base PoH block</strong></td>
-              <td>Scheduled emission when the solved block is <em>not</em> tied to an open paid order task (halving + tail floor).</td>
-              <td>The node that successfully appended the block credits its <strong>primary wallet</strong> (chain accounting).</td>
-              <td>Explorer block metadata; node wallet balance for that producer.</td>
+              <td>Base PoH block</td>
+              <td>Scheduled emission when the block is <em>not</em> tied to a paid order (halving + 0.002 HMC tail).</td>
+              <td>Block-producing node <strong>primary wallet</strong> (chain accounting).</td>
+              <td>Explorer · node wallet.</td>
             </tr>
             <tr>
-              <td><strong>Order-linked PoH block</strong></td>
-              <td>Block reward must match the open task&apos;s escrowed reward; WASM gate must pass on the solving nonce.</td>
-              <td><strong>Miner who committed the block</strong> (<span class="code-inline">miner_address</span> / hybrid signer) — paid from order escrow via <span class="code-inline">POST /api/poh/solve-order</span> (pool relay or local node).</td>
-              <td>Task / order APIs; explorer block payload <span class="code-inline">order_task_id</span>; worker submit <span class="code-inline">order_chain_solve: true</span>.</td>
+              <td>Order-linked PoH</td>
+              <td>Reward matches open task escrow; WASM gate must pass.</td>
+              <td><strong>Miner who committed the block</strong> — order escrow via <code>POST /api/poh/solve-order</code>.</td>
+              <td>Order APIs · <code>order_chain_solve: true</code> on submit.</td>
             </tr>
             <tr>
-              <td><strong>Coordinator pool</strong></td>
-              <td>Off-chain accounting for leased ranges, accepted attempts, bonuses — operator policy.</td>
-              <td>Workers per pool rules; settled to on-chain balances via automation you configure.</td>
-              <td>Dashboard work stats, <span class="code-inline">total_payout_hmc</span>, settlement scripts.</td>
+              <td>Coordinator pool</td>
+              <td>Off-chain accrual for leased ranges and accepted attempts.</td>
+              <td>Workers per pool policy; settled on-chain via automation.</td>
+              <td><code>total_payout_hmc</code> · settlement scripts.</td>
             </tr>
           </tbody>
         </table>
       </div>
-      <p class="muted">Figures such as base reward, halving interval, tail floor, and fee splits are also summarized on the home page and in <span class="code-inline">docs/ECONOMICS_DASHBOARD.md</span> alongside <span class="code-inline">/api/metrics</span> fields.</p>
+      <p class="muted" style="margin-top:0.75rem">Constants: base <strong>0.01 HMC</strong>/block · halving every <strong>2,102,400</strong> blocks · max supply <strong>100M</strong>. Details: <a href="https://github.com/jokeez/hackme/blob/main/docs/HMC_TOKENOMICS.md" target="_blank" rel="noreferrer">HMC_TOKENOMICS.md</a> · <code>GET /api/status</code>.</p>
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>Critical nuance: block header vs wallet credit</h2></div>
-      <p class="section-lede">
-        When a PoH reward is minted, the implementation credits the <strong>primary wallet row</strong> on that node so <span class="code-inline">GET /api/wallet</span> stays consistent with <span class="code-inline">accounts</span>.
-        The block still records a <strong>miner address</strong> (signer at solve time) for transparency.
-      </p>
+      <div class="panel-head"><h2>Block header vs wallet credit</h2></div>
       <ul class="list">
-        <li>If those diverge after backup or wallet rebind, crediting the header address alone could strand balances — so credits follow the primary wallet.</li>
-        <li>This is <strong>not</strong> the same as &quot;every GPU in the pool automatically earns a pro‑rata slice of each new block&quot; unless your operator policy explicitly implements that via coordinator settlement.</li>
+        <li>PoH rewards credit the node <strong>primary wallet</strong> so <code>GET /api/wallet</code> stays consistent.</li>
+        <li>The block still records <code>miner_address</code> for transparency.</li>
+        <li>Pool GPUs do <strong>not</strong> automatically split each chain block unless coordinator settlement implements it.</li>
       </ul>
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>Why we separate chain and pool</h2></div>
-      <ul class="list">
-        <li><strong>Consensus cadence</strong>: PoH keeps difficulty and tip progression honest.</li>
-        <li><strong>Useful work</strong>: Coordinator metrics tie fleets to measurable throughput and anti‑abuse (replay, stale work, hybrid signer).</li>
-        <li><strong>Product economics</strong>: Audit orders bring escrow, fees, burns, and WASM‑gated tasks — the main demand layer for useful compute.</li>
-      </ul>
-      <p class="subtle">Expectations for miners: treat coordinator accrual and settlement as your primary &quot;pool paycheck&quot; story unless you operate the block-producing node yourself.</p>
-    </section>
-
-    <section class="panel glass">
-      <div class="panel-head"><h2>Public pool: how your rig earns (fair mode)</h2></div>
-      <p class="section-lede">
-        On the official pool, coordinator payout uses <strong>accepted attempts</strong> (capped per lease batch), tied to canonical economics via <span class="code-inline">reward_per_m</span>, plus a <strong>found bonus</strong> when you submit a valid hit.
-      </p>
-      <div class="code-block">
-        accrual ≈ (attempts / 1,000,000) × reward_per_m  +  found_bonus (on valid found)<br />
-        reward_per_m ≈ base_reward × 1,000,000 / target_mod  (auto from chain metrics)
+      <div class="panel-head"><h2>Public pool payout (fair mode)</h2></div>
+      <div class="formula-box">
+        accrual ≈ (attempts / 1,000,000) × reward_per_m + found_bonus<br />
+        reward_per_m ≈ base_reward × 1,000,000 / target_mod
       </div>
-      <ul class="list">
-        <li>Set <span class="code-inline">WORKER_PAYOUT_MAP</span> so your worker id maps to your <span class="code-inline">HMC-…</span> address before expecting settlement.</li>
-        <li><strong>Unpaid worker accrual</strong> on the dashboard is the pool paycheck story; on-chain balance updates after settlement runs.</li>
-        <li>Hybrid signing + per-worker lease caps keep the pool fair when many miners join.</li>
+      <ul class="list" style="margin-top:0.75rem">
+        <li>Set <code>WORKER_PAYOUT_MAP</code> before expecting settlement.</li>
+        <li>Dashboard accrual is the paycheck story; on-chain balance updates after settlement.</li>
+        <li>Hybrid Ed25519 signing + per-worker caps keep the pool fair.</li>
+        <li><strong>SUP</strong> accrual runs in parallel (quality-gated) — see <a href="./coin-sup.html">SUP page</a>.</li>
       </ul>
-      <p class="muted">Full miner guide: <a href="https://github.com/jokeez/hackme/blob/main/docs/MINER_POOL_ECONOMICS.md" target="_blank" rel="noreferrer">MINER_POOL_ECONOMICS.md</a></p>
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>Ecosystem assets (beyond HMC)</h2></div>
-      <p class="section-lede">This page focuses on <strong>HMC</strong> chain/coordinator/order economics. Companion assets use separate emission rules:</p>
-      <div class="grid grid-3">
-        <article class="card glass">
+      <div class="panel-head"><h2>Ecosystem assets</h2></div>
+      <p class="section-lede">This page is the <strong>HMC</strong> economics deep-dive. Other tickers:</p>
+      <div class="eco-link-grid">
+        <a class="eco-link-card" href="./coin-hmc.html">
+          <h3>HMC</h3>
+          <p>Primary · 100M max · mining + audit escrow · listing pack PDF.</p>
+          <span class="eco-link-cta">HMC page →</span>
+        </a>
+        <a class="eco-link-card" href="./coin-sup.html">
           <h3>SUP</h3>
-          <p>≤8% of HMC attempt accrual · quality gates · max 21M. <a href="./coin-sup.html">SUP page →</a></p>
-        </article>
-        <article class="card glass">
-          <h3>HMS</h3>
-          <p>Storage + seal epoch budget · prelaunch. <a href="./coin-hms.html">HMS brief →</a></p>
-        </article>
-        <article class="card glass">
+          <p>Companion · 21M max · pool-quality mint · on-chain live.</p>
+          <span class="eco-link-cta">SUP page →</span>
+        </a>
+        <a class="eco-link-card" href="./token-transparency.html">
           <h3>Transparency</h3>
-          <p>Live supply for all tickers. <a href="./token-transparency.html">Open →</a></p>
-        </article>
+          <p>Live circulating supply for all live tickers.</p>
+          <span class="eco-link-cta">Open →</span>
+        </a>
       </div>
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>Network-wide intuition vs your rig</h2></div>
-      <p class="hero-copy">
-        Empty‑mining emission is capped by protocol schedule (roughly ~120 blocks/hour at a 30s target). Adding more miners does not inflate total base emission; it changes how competitive finding the next valid block is.
-      </p>
-      <p class="muted">Your coordinator-facing income still follows <strong>accepted work</strong> and payout policy — consult your operator dashboard and settlement configuration.</p>
+      <div class="panel-head"><h2>Network-wide vs your rig</h2></div>
+      <p class="subtle">~120 empty blocks/hour at 30s target — more miners split the same emission schedule; they do not inflate total base mint.</p>
+      <p class="muted" style="margin-top:0.5rem"><a href="./legal-risk.html">Risk disclosure</a> before allocating hardware or funds.</p>
     </section>
   </main>
 
   <footer class="footer">
     <p>HackMe Network</p>
-    <p class="muted">Read alongside Legal / Risk disclosure before allocating hardware or funds.</p>
+    <p class="muted">Ecosystem: <a href="./coins.html">Coins</a> · <a href="./listing.html">Listing</a> · <a href="./legal.html">Legal</a></p>
     <div class="footer-nav"></div>
   </footer>
 
-  <script src="./assets/site-shell.js?v=20260601hub"></script>
-  <script src="./assets/app.js?v=20260507econ"></script>
+  <script src="./assets/site-shell.js?v=20260616fin"></script>
+  <script src="./assets/app.js?v=20260616fin"></script>
 </body>
 </html>

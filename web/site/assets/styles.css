@@ -328,6 +328,25 @@ h4 { font-size: 1.02rem; }
   text-transform: uppercase;
   letter-spacing: 0.09em;
 }
+.pool-table--wrap th,
+.pool-table--wrap td {
+  white-space: normal;
+  vertical-align: top;
+  line-height: 1.45;
+  min-width: 9rem;
+}
+.pool-table--wrap td:first-child {
+  font-weight: 600;
+  color: #e8f4ff;
+}
+.table-scroll-hint {
+  display: none;
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+}
+.table-wrap--scroll {
+  -webkit-overflow-scrolling: touch;
+}
 .pool-table tbody tr:hover {
   background: rgba(77, 228, 255, 0.08);
 }
@@ -1312,6 +1331,45 @@ h4 { font-size: 1.02rem; }
 }
 .listing-score .card { padding: 1rem; text-align: center; }
 .listing-score strong { font-size: 1.5rem; display: block; color: var(--primary); }
+
+/* Ecosystem link cards (economics, legal hub) */
+.eco-link-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.eco-link-card {
+  display: block;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(130, 162, 211, 0.28);
+  border-radius: 0.85rem;
+  background: rgba(8, 14, 27, 0.55);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.eco-link-card:hover {
+  border-color: rgba(77, 228, 255, 0.55);
+  transform: translateY(-1px);
+}
+.eco-link-card h3 { margin-top: 0; font-size: 1.05rem; }
+.eco-link-card p { margin: 0.35rem 0 0; color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
+.eco-link-card .eco-link-cta {
+  display: inline-block;
+  margin-top: 0.65rem;
+  font-size: 0.86rem;
+  color: var(--primary-strong);
+  font-weight: 600;
+}
+
+.legal-hub-grid .card { min-height: 10.5rem; display: flex; flex-direction: column; }
+.legal-hub-grid .card p { flex: 1; }
+.legal-license-panel ul { margin: 0.5rem 0 0; padding-left: 1.1rem; line-height: 1.65; color: var(--muted); }
+
+@media (max-width: 980px) {
+  .eco-link-grid { grid-template-columns: 1fr; }
+  .table-scroll-hint { display: block; }
+  .coin-detail-hero { grid-template-columns: 1fr; text-align: left; }
+  .coin-detail-hero img { justify-self: start; width: 72px; height: 72px; }
+}
 
 @media (max-width: 980px) {
   .lane-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
