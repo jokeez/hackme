@@ -1,8 +1,8 @@
 (() => {
   /** Bump with scripts/release/CURRENT_VERSION, dist/release_<VERSION>/, main.go Version */
   const RELEASE_VER = "0.1.0-rc11n";
-  /** HackMe OS ISO — separate until rc11m ISO is built (Win/Linux use RELEASE_VER). */
-  const ISO_CHANNEL = "0.1.0-rc11l";
+  /** HackMe OS ISO — aligned with Win/Linux channel (scripts/release/CURRENT_ISO_VERSION). */
+  const ISO_CHANNEL = "0.1.0-rc11n";
 
   /** Sub-1 TH/s → GH/s (matches dashboard / explorer pool strip). */
   function fmtPoolHashrateTHS(ths, mock) {
@@ -33,7 +33,7 @@
     newsUrl: "./news.html",
     newsFeed: "./assets/news.json",
     releaseChannel: RELEASE_VER,
-    releaseChannelNote: "rc11m — wallet treasury fix; ISO still rc11l until next ISO build",
+    releaseChannelNote: "rc11n — production final: SUP public economics, ISO aligned with Win/Linux",
     releaseBase: `/dist/release_${RELEASE_VER}`,
     windowsInstaller: `/dist/release_${RELEASE_VER}/HackMe-Setup-${RELEASE_VER}.exe`,
     windowsBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows_setup.zip`,

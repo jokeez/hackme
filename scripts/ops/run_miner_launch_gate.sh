@@ -12,7 +12,13 @@ POOL_BASE="${POOL_BASE:-https://hackme.tech/pool}"
 SITE_BASE="${SITE_BASE:-https://hackme.tech}"
 ISO_VER="$(tr -d ' \n\r' <"$ROOT/scripts/release/CURRENT_ISO_VERSION" 2>/dev/null || echo 0.1.0-rc11l)"
 ISO_URL="${ISO_URL:-https://hackme.tech/dist/release_${ISO_VER}/HackMe-OS-${ISO_VER}-amd64.iso}"
-EXPECTED_ISO_SHA="43abb592d7e4222f8d47d528d0b8ec190958cdb91a4441cc56395b3f667d6125"
+EXPECTED_ISO_SHA="${EXPECTED_ISO_SHA:-}"
+if [[ -z "$EXPECTED_ISO_SHA" && -f "$ROOT/dist/release_${ISO_VER}/SHA256SUMS-iso.txt" ]]; then
+  EXPECTED_ISO_SHA="$(awk '/HackMe-OS-.*\.iso/{print $1; exit}' "$ROOT/dist/release_${ISO_VER}/SHA256SUMS-iso.txt" || true)"
+fi
+if [[ -z "$EXPECTED_ISO_SHA" ]]; then
+  EXPECTED_ISO_SHA="43abb592d7e4222f8d47d528d0b8ec190958cdb91a4441cc56395b3f667d6125"
+fi
 
 pass=0
 fail=0

@@ -28,9 +28,11 @@ fi
 echo "[sup-verdict] === live chain economics ==="
 if ec="$(curl -fsS "${CHAIN_BASE%/}/api/sup/economics" 2>/dev/null)"; then
   mint="$(echo "$ec" | jq -r '.economics.mint_enabled // false')"
-  pass "sup economics mint_enabled=${mint}"
+  live="$(echo "$ec" | jq -r '.economics.on_chain_settle_live // false')"
+  [[ "$mint" == "true" ]] && pass "sup economics mint_enabled=true" || fail "sup economics mint_enabled=false"
+  [[ "$live" == "true" ]] && pass "sup economics on_chain_settle_live=true" || fail "sup economics on_chain_settle_live=false"
 else
-  echo "[sup-verdict] WARN: /api/sup/economics not on public URL (may be loopback-only on VPS)"
+  fail "/api/sup/economics unreachable at ${CHAIN_BASE%/}/api/sup/economics"
 fi
 
 echo "[sup-verdict] === abuse: mint without token ==="

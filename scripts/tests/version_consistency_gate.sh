@@ -15,6 +15,12 @@ if [[ "$GO_VER" != "$CUR_VER" ]]; then
   echo "[version-gate] FAIL main.go != CURRENT_VERSION" >&2
   fail=$((fail + 1))
 fi
+JS_ISO="$(grep -oE 'ISO_CHANNEL = "[^"]+"' "$ROOT/web/site/assets/app.js" | sed 's/.*"\([^"]*\)".*/\1/')"
+CUR_ISO="$(tr -d ' \n\r' <"$ROOT/scripts/release/CURRENT_ISO_VERSION" 2>/dev/null || echo 0.1.0-rc11l)"
+if [[ -n "$JS_ISO" && "$JS_ISO" != "$CUR_ISO" ]]; then
+  echo "[version-gate] FAIL app.js ISO_CHANNEL != CURRENT_ISO_VERSION" >&2
+  fail=$((fail + 1))
+fi
 if [[ "$fail" -gt 0 ]]; then exit 1; fi
-ISO_VER="$(tr -d ' \n\r' <"$ROOT/scripts/release/CURRENT_ISO_VERSION" 2>/dev/null || echo 0.1.0-rc11l)"
+ISO_VER="$CUR_ISO"
 echo "[version-gate] OK — Win/Linux channel $GO_VER · ISO channel $ISO_VER"

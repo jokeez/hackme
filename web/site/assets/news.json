@@ -1,6 +1,38 @@
 {
   "items": [
     {
+      "id": "2026-06-16-rc11n-production-final",
+      "date": "2026-06-16",
+      "title": "Production final — rc11n ISO aligned, SUP on-chain public",
+      "summary": "HackMe production stack finalized (except HMS prelaunch): Win/Linux and HackMe OS ISO now share channel 0.1.0-rc11n. SUP on-chain mint and coordinator settlement are live on hackme.tech. Public GET /api/sup/economics for transparency. Nginx + operator docs updated.",
+      "impact": "Miners can use one release version for Windows installer, Linux tarball, and USB ISO. SUP accrual while mining HMC now settles on-chain; economics visible without admin token.",
+      "action": "Downloads: https://hackme.tech/downloads.html · SUP: https://hackme.tech/api/sup/economics · Pool: https://hackme.tech/pool/coordinator",
+      "tags": [
+        "release",
+        "infrastructure",
+        "mining",
+        "sup"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "rc11n production final — ISO + SUP on-chain",
+        "lead": "Win/Linux and HackMe OS ISO are now the same channel (0.1.0-rc11n). SUP mint and settlement live on hackme.tech.",
+        "bullets": [
+          "HackMe OS ISO rebuilt at rc11n — USB live-boot matches desktop installer.",
+          "SUP: on-chain mint enabled, coordinator on_chain_settle=true, public /api/sup/economics.",
+          "Pool + fuzzing unchanged: hybrid-signed HMC mining, Bitcoin30 Week 1 report on site."
+        ],
+        "footer": "Update installer or ISO when convenient — wallet treasury unchanged. HMS stays prelaunch."
+      },
+      "links": {
+        "downloads": "https://hackme.tech/downloads.html",
+        "sup_economics": "https://hackme.tech/api/sup/economics",
+        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "news": "https://hackme.tech/news.html#2026-06-16-rc11n-production-final",
+        "github": "https://github.com/jokeez/hackme"
+      }
+    },
+    {
       "id": "2026-06-16-bitcoin30-week1",
       "date": "2026-06-16",
       "title": "Bitcoin Core 30-Day Fuzz — Week 1 public report",
