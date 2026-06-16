@@ -28,6 +28,7 @@ for t in \
   bitcoin_tx_dup_inputs \
   bitcoin_evalscript_push \
   bitcoin_witness_stack \
+  bitcoin_evalscript_opcount \
   ethereum_value_overflow \
   dogecoin_hasvalidops \
   litecoin_getscriptop \

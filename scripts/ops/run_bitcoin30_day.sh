@@ -53,7 +53,11 @@ case "$DAY" in
      TITLE="Bitcoin Core SegWit witness stack · SCRIPT_ERR_PUSH_SIZE"
      CORE_REF="bitcoin/bitcoin src/script/interpreter.cpp VerifyWitnessProgram witness stack L1861-L1864"
      SRC="tasks/sources/security/upstream/bitcoin_witness_stack.c" ;;
-  *) fail "DAY=$DAY not in schedule (1-6 wired; extend run_bitcoin30_day.sh)" ;;
+  7) WASM_REL="upstream_bitcoin_evalscript_opcount.wasm"; GUARD="upstream_bitcoin_evalscript_opcount"
+     TITLE="Bitcoin Core EvalScript · SCRIPT_ERR_OP_COUNT (201 ops)"
+     CORE_REF="bitcoin/bitcoin src/script/interpreter.cpp EvalScript nOpCount L462-L463 · script.h MAX_OPS_PER_SCRIPT"
+     SRC="tasks/sources/security/upstream/bitcoin_evalscript_opcount.c" ;;
+  *) fail "DAY=$DAY not in schedule (1-7 wired; extend run_bitcoin30_day.sh)" ;;
 esac
 
 WASM="$ROOT/tasks/artifacts/security/$WASM_REL"

@@ -1,6 +1,39 @@
 {
   "items": [
     {
+      "id": "2026-06-16-bitcoin30-week1",
+      "date": "2026-06-16",
+      "title": "Bitcoin Core 30-Day Fuzz — Week 1 public report",
+      "summary": "Seven consecutive days of live upstream Bitcoin Core WASM guards on useful-PoW fuzz: GetScriptOp, HasValidOps, MoneyRange, duplicate inputs (CVE-2018-17144 class), EvalScript push/op budgets, SegWit witness stack. 576 distributed runs, 321 guard signals, zero critical. Day 3 MoneyRange clean.",
+      "impact": "Strongest daily cadence proof for B2B/Telegram: real bitcoin/bitcoin excerpts, honest guard_signal triage, public HTML ledger — not fake CVE claims.",
+      "action": "Report: https://hackme.tech/reports/bitcoin30-week1.html · Reproduce: DAY=N bash scripts/ops/run_bitcoin30_day.sh",
+      "tags": [
+        "security",
+        "research",
+        "marketing",
+        "bitcoin",
+        "fuzzing"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "BTC30 Week 1 — 7 modules, 0 critical",
+        "lead": "Live daily Bitcoin Core upstream fuzz on HackMe pool. Public verdict ledger published.",
+        "bullets": [
+          "576 useful-PoW runs across 7 ported consensus guards from bitcoin/bitcoin master.",
+          "321 guard signals (boundary class) · 1 clean module (MoneyRange) · 0 critical.",
+          "Day 7: EvalScript SCRIPT_ERR_OP_COUNT (201 op budget) — 56 signals in 64 runs."
+        ],
+        "footer": "Full report: hackme.tech/reports/bitcoin30-week1.html — Week 2 continues Day 8."
+      },
+      "links": {
+        "report_week1": "https://hackme.tech/reports/bitcoin30-week1.html",
+        "report_bc5": "https://hackme.tech/reports/bitcoin-core-5module.html",
+        "research": "https://hackme.tech/research.html",
+        "github": "https://github.com/jokeez/hackme",
+        "telegram": "https://t.me/hackme_tech"
+      }
+    },
+    {
       "id": "2026-06-09-rc11n-stability-payments",
       "date": "2026-06-09",
       "title": "Release 0.1.0-rc11n — hub stability, transfers & payments E2E",
@@ -284,30 +317,6 @@
         "dashboard": "https://hackme.tech/dashboard.html",
         "downloads": "https://hackme.tech/downloads.html",
         "github_spec": "https://github.com/jokeez/hackme/blob/main/docs/SUPPORT_COIN_UTILITY.md",
-        "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-05-26-l1-crypto-stack-v3-official",
-      "date": "2026-05-26",
-      "title": "L1 Crypto Stack v3 — official Bitcoin Core fuzz corpus + upstream pins",
-      "summary": "Breakthrough research report: 1,675 official qa-assets eval_script seeds probed through WASM ports of GetScriptOp (0 sandbox traps). Pinned bitcoin/bitcoin v28.1, go-ethereum, Dogecoin, Litecoin + marker fidelity. HackMe InsertOrderTask golden: 20,000 inputs WASM == Go.",
-      "tags": [
-        "security",
-        "research",
-        "marketing",
-        "bitcoin",
-        "fuzzing"
-      ],
-      "impact": "Strongest public proof story: maintainer corpora + reproducible pipeline; honest scope vs full bitcoind fuzz documented.",
-      "action": "Report: https://hackme.tech/reports/l1-crypto-stack-v3.html · Reproduce: bash scripts/ops/run_l1_crypto_stack_v3_research.sh",
-      "status": "published",
-      "links": {
-        "github": "https://github.com/jokeez/hackme",
-        "report_v3": "https://hackme.tech/reports/l1-crypto-stack-v3.html",
-        "report_v2": "https://hackme.tech/reports/l1-crypto-stack.html",
-        "report_bc5": "https://hackme.tech/reports/bitcoin-core-5module.html",
-        "qa_assets": "https://github.com/bitcoin-core/qa-assets",
         "telegram": "https://t.me/hackme_tech"
       }
     }

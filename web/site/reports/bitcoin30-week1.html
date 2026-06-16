@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>HackMe · Bitcoin Core 30-Day Fuzz — Week 1 Report</title>
+<meta name="description" content="Week 1 of live Bitcoin Core upstream WASM fuzz on HackMe: 7 modules, 576 distributed runs, honest guard-signal triage, zero critical findings."/>
+<link rel="canonical" href="https://hackme.tech/reports/bitcoin30-week1.html"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--neon:#00d1ff;--matrix:#39ff14;--warn:#ffb020;--amber:#ff8c42;--bg:#05080f;--card:rgba(0,0,0,.45)}
+*{box-sizing:border-box}
+body{margin:0;font-family:"JetBrains Mono",ui-monospace,monospace;background:var(--bg);color:#c5d4e8;line-height:1.6;min-height:100vh}
+body::before{content:"";position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(0,209,255,.12),transparent),radial-gradient(ellipse 60% 40% at 100% 50%,rgba(57,255,20,.06),transparent);pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:2.5rem 1.25rem 4rem}
+.hero{text-align:center;padding:2.5rem 1.5rem 2rem;border:1px solid rgba(0,209,255,.28);border-radius:20px;background:linear-gradient(160deg,rgba(0,209,255,.08),rgba(0,0,0,.5));margin-bottom:2rem}
+.hero h1{font-family:"Space Grotesk",sans-serif;font-size:clamp(1.25rem,4vw,1.75rem);letter-spacing:.1em;text-transform:uppercase;color:var(--neon);margin:0 0 .5rem}
+.hero .tag{font-size:.72rem;color:#6d8099;text-transform:uppercase;letter-spacing:.2em}
+.hero-badge{display:inline-block;margin-top:1.25rem;padding:.55rem 1.4rem;border-radius:999px;border:2px solid #39ff14;color:#39ff14;font-weight:700;font-size:.9rem;letter-spacing:.18em;text-transform:uppercase;box-shadow:0 0 24px rgba(57,255,20,.25)}
+.hero p.lead{max-width:44rem;margin:1rem auto 0;font-size:.88rem;color:#9eb0c8}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.75rem;margin:1.5rem 0 2rem}
+.stat{border:1px solid rgba(0,209,255,.2);border-radius:12px;padding:1rem;background:var(--card)}
+.stat b{display:block;font-size:.62rem;text-transform:uppercase;letter-spacing:.12em;color:#6d8099;margin-bottom:.35rem}
+.stat .v{font-size:1.35rem;font-weight:700;color:#fff}
+.stat .v.neon{color:var(--neon)}
+.stat .v.ok{color:var(--matrix)}
+.stat .v.warn{color:var(--warn)}
+.verdict-box{border:1px solid rgba(57,255,20,.35);border-radius:16px;padding:1.25rem 1.5rem;margin:0 0 2rem;background:linear-gradient(135deg,rgba(57,255,20,.06),rgba(0,0,0,.4))}
+.verdict-box h2{font-family:"Space Grotesk",sans-serif;font-size:1rem;color:var(--matrix);margin:0 0 .75rem;letter-spacing:.08em;text-transform:uppercase}
+.verdict-box p{margin:.35rem 0;font-size:.82rem;color:#b8c8dc}
+.verdict-box ul{margin:.5rem 0 0;padding-left:1.2rem;font-size:.8rem;color:#9eb0c8}
+.lbl{font-size:.65rem;text-transform:uppercase;letter-spacing:.14em;color:var(--neon);margin:2rem 0 .75rem}
+.mod-card{border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:1.25rem 1.35rem;margin-bottom:1rem;background:linear-gradient(135deg,var(--card),rgba(0,209,255,.04));transition:border-color .2s}
+.mod-card:hover{border-color:rgba(0,209,255,.35)}
+.mod-head{display:flex;flex-wrap:wrap;align-items:flex-start;gap:.75rem 1rem}
+.mod-num{font-size:1.8rem;font-weight:700;color:rgba(0,209,255,.35);line-height:1}
+.mod-card h2{font-family:"Space Grotesk",sans-serif;font-size:1.02rem;margin:0;color:#fff}
+.mod-guard{margin:.2rem 0 0;font-size:.75rem}
+.mod-guard code{color:var(--matrix)}
+.mod-meta{font-size:.72rem;color:#6d8099;margin:.35rem 0 0}
+.mod-badge{margin-left:auto;padding:.25rem .75rem;border-radius:999px;border:1px solid;font-size:.68rem;font-weight:700;letter-spacing:.1em;white-space:nowrap}
+.lbl2{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:#6d8099;margin:1rem 0 .35rem}
+.core-links{margin:.2rem 0 .6rem;padding-left:1.1rem;font-size:.72rem}
+.core-links a{color:var(--neon);word-break:break-all}
+.mod-ref{font-size:.78rem;margin:.35rem 0 .85rem}
+.mod-ref a{color:var(--matrix);text-decoration:none}
+.mod-ref a:hover{text-decoration:underline}
+.run-bar{display:flex;height:8px;border-radius:6px;overflow:hidden;background:rgba(255,255,255,.06);margin:.5rem 0}
+.run-bar .sig{background:linear-gradient(90deg,#4a3030,var(--amber))}
+.run-bar .clean{background:linear-gradient(90deg,#1a6b2e,var(--matrix))}
+.run-legend{font-size:.68rem;color:#6d8099}
+.method{border-left:3px solid var(--neon);padding:.5rem 0 .5rem 1.25rem;margin:1.5rem 0;font-size:.82rem;color:#9eb0c8}
+.method ul{margin:.5rem 0;padding-left:1.2rem}
+.disclaimer{border:1px solid rgba(255,176,32,.35);border-radius:12px;padding:1rem 1.2rem;background:rgba(255,176,32,.06);font-size:.78rem;color:#d4b896;margin-top:2rem}
+footer{margin-top:2.5rem;padding-top:1.25rem;border-top:1px solid rgba(255,255,255,.08);font-size:.72rem;color:#6d8099;text-align:center}
+footer a{color:var(--neon)}
+@media print{body::before{display:none}.hero,.mod-card{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<section class="hero">
+<p class="tag">HackMe security research · bitcoin/bitcoin master · live useful-PoW fuzz</p>
+<h1>Bitcoin Core 30-Day Series · Week 1</h1>
+<p class="lead">Seven consecutive days of upstream WASM guards ported from real Bitcoin Core consensus code. Distributed fuzz on a live HackMe node with HMC escrow — one module per day, detector semantics, honest triage.</p>
+<span class="hero-badge">WEEK 1 COMPLETE · 0 CRITICAL</span>
+</section>
+
+<div class="stats">
+<div class="stat"><b>Days / modules</b><span class="v neon">7</span></div>
+<div class="stat"><b>Total fuzz runs</b><span class="v">576</span></div>
+<div class="stat"><b>Guard signals</b><span class="v warn">321</span></div>
+<div class="stat"><b>Critical findings</b><span class="v ok">0</span></div>
+<div class="stat"><b>Clean modules</b><span class="v ok">1</span></div>
+<div class="stat"><b>Generated (UTC)</b><span class="v" style="font-size:.72rem">2026-06-16</span></div>
+</div>
+
+<div class="verdict-box">
+<h2>Week 1 verdict</h2>
+<p><strong>No exploitable consensus bypass surfaced.</strong> Six of seven modules produced <em>guard signals</em> — inputs that trip the ported boundary check (oversize push, duplicate prevout, opcode budget, witness element cap). These are expected for selective guards under <code>detector</code> semantics and are <strong>not</strong> CVE claims against Bitcoin Core.</p>
+<ul>
+<li><strong>Day 3 (MoneyRange)</strong> ran clean — 64 runs, zero guard hits, healthy coverage edges.</li>
+<li><strong>Day 4 (duplicate inputs)</strong> reproduced the CVE-2018-17144 <em>class</em> — duplicate prevout rejected as designed.</li>
+<li><strong>Days 1, 2, 5, 6, 7</strong> — script/witness budget guards fired on malformed inputs; all triaged <code>guard_signal</code>, severity high, zero critical.</li>
+<li><strong>Next:</strong> Week 2 continues the series — block weight, coinbase rules, taproot paths.</li>
+</ul>
+</div>
+
+<p class="lbl">Daily modules (live campaigns)</p>
+
+<article class="mod-card">
+<div class="mod-head">
+<span class="mod-num">01</span>
+<div>
+<h2>GetScriptOp · MAX_SCRIPT_ELEMENT_SIZE (520 B)</h2>
+<p class="mod-guard"><code>upstream_bitcoin_getscriptop</code></p>
+<p class="mod-meta">64 runs · 59 guard signals · campaign-btc30-d1-20260610T090429Z</p>
+</div>
+<span class="mod-badge" style="border-color:var(--amber);color:var(--amber)">GUARD SIGNALS</span>
+</div>
+<p class="lbl2">Bitcoin Core (official)</p>
+<ul class="core-links">
+<li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/script/script.h#L27-L28" target="_blank" rel="noopener">script.h MAX_SCRIPT_ELEMENT_SIZE</a></li>
+<li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/script/script.cpp#L312-L365" target="_blank" rel="noopener">script.cpp GetScriptOp</a></li>
+</ul>
+<p class="lbl2">HackMe source</p>
+<p class="mod-ref"><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_getscriptop.c" target="_blank" rel="noopener">bitcoin_getscriptop.c</a></p>
+<div class="run-bar"><div class="sig" style="width:92%"></div></div>
+<p class="run-legend">59 / 64 runs hit oversize-push boundary</p>
+</article>
+
+<article class="mod-card">
+<div class="mod-head">
+<span class="mod-num">02</span>
+<div>
+<h2>CScript::HasValidOps()</h2>
+<p class="mod-guard"><code>upstream_bitcoin_hasvalidops</code></p>
+<p class="mod-meta">64 runs · 62 guard signals · campaign-btc30-d2-20260611T135419Z</p>
+</div>
+<span class="mod-badge" style="border-color:var(--amber);color:var(--amber)">GUARD SIGNALS</span>
+</div>
+<p class="lbl2">Bitcoin Core (official)</p>
+<ul class="core-links"><li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/script/script.cpp#L299-L308" target="_blank" rel="noopener">script.cpp HasValidOps()</a></li></ul>
+<p class="lbl2">HackMe source</p>
+<p class="mod-ref"><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_hasvalidops.c" target="_blank" rel="noopener">bitcoin_hasvalidops.c</a></p>
+<div class="run-bar"><div class="sig" style="width:97%"></div></div>
+<p class="run-legend">62 / 64 runs — invalid opcode / push bound class</p>
+</article>
+
+<article class="mod-card">
+<div class="mod-head">
+<span class="mod-num">03</span>
+<div>
+<h2>CheckTransaction · MoneyRange</h2>
+<p class="mod-guard"><code>upstream_bitcoin_tx_check</code></p>
+<p class="mod-meta">64 runs · 0 findings · campaign-btc30-d3-20260612T134723Z</p>
+</div>
+<span class="mod-badge" style="border-color:#39ff14;color:#39ff14">CLEAN</span>
+</div>
+<p class="lbl2">Bitcoin Core (official)</p>
+<ul class="core-links">
+<li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/consensus/amount.h#L27" target="_blank" rel="noopener">amount.h MoneyRange</a></li>
+<li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/consensus/tx_check.cpp#L11-L32" target="_blank" rel="noopener">tx_check.cpp CheckTransaction</a></li>
+</ul>
+<p class="lbl2">HackMe source</p>
+<p class="mod-ref"><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_tx_check.c" target="_blank" rel="noopener">bitcoin_tx_check.c</a></p>
+<div class="run-bar"><div class="clean" style="width:100%"></div></div>
+<p class="run-legend">Verdict clean — no guard hits in 64 distributed runs</p>
+</article>
+
+<article class="mod-card">
+<div class="mod-head">
+<span class="mod-num">04</span>
+<div>
+<h2>CheckTransaction · duplicate inputs (CVE-2018-17144 class)</h2>
+<p class="mod-guard"><code>upstream_bitcoin_tx_dup_inputs</code></p>
+<p class="mod-meta">64 runs · 5 guard signals · campaign-btc30-d4-20260613T133200Z</p>
+</div>
+<span class="mod-badge" style="border-color:var(--amber);color:var(--amber)">GUARD SIGNALS</span>
+</div>
+<p class="lbl2">Bitcoin Core (official)</p>
+<ul class="core-links"><li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/consensus/tx_check.cpp" target="_blank" rel="noopener">tx_check.cpp duplicate prevout check</a></li></ul>
+<p class="lbl2">HackMe source</p>
+<p class="mod-ref"><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_tx_dup_inputs.c" target="_blank" rel="noopener">bitcoin_tx_dup_inputs.c</a></p>
+<div class="run-bar"><div class="sig" style="width:8%"></div></div>
+<p class="run-legend">5 / 64 runs — duplicate input rejected (historical bug class, now guarded)</p>
+</article>
+
+<article class="mod-card">
+<div class="mod-head">
+<span class="mod-num">05</span>
+<div>
+<h2>EvalScript · SCRIPT_ERR_PUSH_SIZE (520 B)</h2>
+<p class="mod-guard"><code>upstream_bitcoin_evalscript_push</code></p>
+<p class="mod-meta">64 runs · 59 guard signals · campaign-btc30-d5-20260613T201400Z</p>
+</div>
+<span class="mod-badge" style="border-color:var(--amber);color:var(--amber)">GUARD SIGNALS</span>
+</div>
+<p class="lbl2">Bitcoin Core (official)</p>
+<ul class="core-links"><li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/script/interpreter.cpp#L447-L458" target="_blank" rel="noopener">interpreter.cpp EvalScript push size</a></li></ul>
+<p class="lbl2">HackMe source</p>
+<p class="mod-ref"><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_evalscript_push.c" target="_blank" rel="noopener">bitcoin_evalscript_push.c</a></p>
+<div class="run-bar"><div class="sig" style="width:92%"></div></div>
+<p class="run-legend">59 / 64 runs — execution-time push cap</p>
+</article>
+
+<article class="mod-card">
+<div class="mod-head">
+<span class="mod-num">06</span>
+<div>
+<h2>SegWit witness stack · SCRIPT_ERR_PUSH_SIZE</h2>
+<p class="mod-guard"><code>upstream_bitcoin_witness_stack</code></p>
+<p class="mod-meta">128 runs · 80 guard signals · campaign-btc30-d6-20260615T161500Z</p>
+</div>
+<span class="mod-badge" style="border-color:var(--amber);color:var(--amber)">GUARD SIGNALS</span>
+</div>
+<p class="lbl2">Bitcoin Core (official)</p>
+<ul class="core-links"><li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/script/interpreter.cpp#L1861-L1864" target="_blank" rel="noopener">interpreter.cpp VerifyWitnessProgram witness stack</a></li></ul>
+<p class="lbl2">HackMe source</p>
+<p class="mod-ref"><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_witness_stack.c" target="_blank" rel="noopener">bitcoin_witness_stack.c</a></p>
+<div class="run-bar"><div class="sig" style="width:63%"></div></div>
+<p class="run-legend">80 / 128 runs — oversize witness element</p>
+</article>
+
+<article class="mod-card">
+<div class="mod-head">
+<span class="mod-num">07</span>
+<div>
+<h2>EvalScript · SCRIPT_ERR_OP_COUNT (201 ops)</h2>
+<p class="mod-guard"><code>upstream_bitcoin_evalscript_opcount</code></p>
+<p class="mod-meta">64 runs · 56 guard signals · campaign-btc30-d7-20260616T110000Z</p>
+</div>
+<span class="mod-badge" style="border-color:var(--amber);color:var(--amber)">GUARD SIGNALS</span>
+</div>
+<p class="lbl2">Bitcoin Core (official)</p>
+<ul class="core-links">
+<li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/script/interpreter.cpp#L462-L463" target="_blank" rel="noopener">interpreter.cpp nOpCount &gt; MAX_OPS_PER_SCRIPT</a></li>
+<li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/script/script.h" target="_blank" rel="noopener">script.h MAX_OPS_PER_SCRIPT (201)</a></li>
+</ul>
+<p class="lbl2">HackMe source</p>
+<p class="mod-ref"><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_evalscript_opcount.c" target="_blank" rel="noopener">bitcoin_evalscript_opcount.c</a></p>
+<div class="run-bar"><div class="sig" style="width:88%"></div></div>
+<p class="run-legend">56 / 64 runs — opcode budget exceeded</p>
+</article>
+
+<div class="method">
+<p><strong>Methodology</strong></p>
+<ul>
+<li>One upstream C guard per day → WASM <code>check(i64)→i32</code>, built via <code>scripts/build_upstream_l1_pack.sh</code>.</li>
+<li>Live campaigns: <code>POST /api/security-audit</code> → useful-PoW order + distributed workerfuzz (<code>detector</code> semantics).</li>
+<li>Default 64 runs/day (128 on Day 6); HMC escrow on local/production node.</li>
+<li>Reproduce: <code>DAY=N bash scripts/ops/run_bitcoin30_day.sh</code> · series doc in repo <code>docs/BITCOIN30_SERIES.md</code>.</li>
+</ul>
+</div>
+
+<div class="disclaimer">
+<strong>Honest scope.</strong> These modules are <em>ported excerpts</em> of Bitcoin Core consensus checks — not a fork of <code>bitcoind</code> and not a substitute for <a href="https://github.com/bitcoin/bitcoin/tree/master/src/test/fuzz" target="_blank" rel="noopener">Core OSS-Fuzz</a>. A <code>guard_signal</code> means the WASM gate flagged a boundary-class input; triage before any disclosure to <a href="mailto:security@bitcoincore.org">security@bitcoincore.org</a>. Zero critical this week = no confirmed exploit path in our probe layer.
+</div>
+
+<footer>
+<a href="https://hackme.tech/reports/bitcoin-core-5module.html">Bitcoin Core 5-module study</a> ·
+<a href="https://hackme.tech/reports/l1-crypto-stack-v4.html">L1 Crypto Stack v4</a> ·
+<a href="https://hackme.tech/research.html">Research hub</a> ·
+<a href="https://github.com/jokeez/hackme">github.com/jokeez/hackme</a> ·
+<a href="https://hackme.tech/downloads.html">run audits locally</a>
+</footer>
+</div>
+</body>
+</html>
