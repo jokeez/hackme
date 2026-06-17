@@ -5,14 +5,16 @@ Live daily fuzz of upstream Bitcoin Core WASM guards on local HackMe node. One m
 ## Run
 
 ```bash
-DAY=7 bash scripts/ops/run_bitcoin30_day.sh
+DAY=8 bash scripts/ops/run_bitcoin30_day.sh
 ```
+
+Public day-8 report: [hackme.tech/reports/bitcoin30-day08.html](https://hackme.tech/reports/bitcoin30-day08.html)
 
 Current report: `reports/bitcoin30/CURRENT/`
 
 Public week-1 ledger: [hackme.tech/reports/bitcoin30-week1.html](https://hackme.tech/reports/bitcoin30-week1.html)
 
-## Schedule (days 1–7 · week 1 complete)
+## Schedule (days 1–8 · week 2 started)
 
 | Day | Module | WASM | Live result |
 |-----|--------|------|-------------|
@@ -23,7 +25,8 @@ Public week-1 ledger: [hackme.tech/reports/bitcoin30-week1.html](https://hackme.
 | 5 | EvalScript · SCRIPT_ERR_PUSH_SIZE | `upstream_bitcoin_evalscript_push.wasm` | 59 guard signals |
 | 6 | SegWit witness stack · push cap | `upstream_bitcoin_witness_stack.wasm` | 128 runs · 80 signals |
 | 7 | EvalScript · SCRIPT_ERR_OP_COUNT | `upstream_bitcoin_evalscript_opcount.wasm` | 64 runs · 56 signals · `day07-20260616T110000Z` |
-| 8–30 | TBD | extend `run_bitcoin30_day.sh` | see `docs/BITCOIN_CORE_OFFICIAL_LINKS.md` |
+| 8 | EvalScript · SCRIPT_ERR_STACK_SIZE | `upstream_bitcoin_evalscript_stack.wasm` | 64 runs · 64 guard signals · `day08-20260617T120000Z` |
+| 9–30 | TBD | extend `run_bitcoin30_day.sh` | block weight · coinbase · taproot |
 
 ### Week 1 verdict
 

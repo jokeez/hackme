@@ -1,6 +1,37 @@
 {
   "items": [
     {
+      "id": "2026-06-17-bitcoin30-day08",
+      "date": "2026-06-17",
+      "title": "Bitcoin Core 30-Day Fuzz — Day 8 (Week 2)",
+      "summary": "Week 2 kickoff: EvalScript MAX_STACK_SIZE guard from bitcoin/bitcoin interpreter — combined main+alt stack must stay ≤1000 elements. Live campaign on HackMe node: 64 runs, 64 guard signals, zero critical, 15s wall time.",
+      "impact": "Daily cadence continues after Week 1 wrap. Strong B2B proof: real Core stack budget, honest guard_signal triage, public HTML ledger — not fake CVE noise.",
+      "action": "Report: https://hackme.tech/reports/bitcoin30-day08.html · Reproduce: DAY=8 bash scripts/ops/run_bitcoin30_day.sh",
+      "tags": [
+        "security",
+        "research",
+        "bitcoin",
+        "fuzzing"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "Bitcoin30 Day 8/30 — EvalScript stack depth",
+        "lead": "Week 2 live. MAX_STACK_SIZE (1000) from Core interpreter. 64 runs · 64 guard signals · 0 critical.",
+        "bullets": [
+          "Module: SCRIPT_ERR_STACK_SIZE — main + alt stack budget during EvalScript",
+          "Source: bitcoin/bitcoin interpreter.cpp + script.h MAX_STACK_SIZE",
+          "Verdict fail_high (expected) — boundary inputs, not CVE claims"
+        ],
+        "footer": "Report: hackme.tech/reports/bitcoin30-day08.html · Week 1: bitcoin30-week1.html"
+      },
+      "links": {
+        "report_day8": "https://hackme.tech/reports/bitcoin30-day08.html",
+        "report_week1": "https://hackme.tech/reports/bitcoin30-week1.html",
+        "research": "https://hackme.tech/research.html",
+        "github": "https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_evalscript_stack.c"
+      }
+    },
+    {
       "id": "2026-06-16-rc11o-production-final",
       "date": "2026-06-16",
       "title": "Release 0.1.0-rc11o — analytics fix, PDF packs, full rebuild",
