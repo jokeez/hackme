@@ -1,6 +1,38 @@
 {
   "items": [
     {
+      "id": "2026-06-16-rc11o-production-final",
+      "date": "2026-06-16",
+      "title": "Release 0.1.0-rc11o — analytics fix, PDF packs, full rebuild",
+      "summary": "Production channel bumped to rc11o: embedded dashboard analytics (pool ON, Command node rigs, GPU telemetry for pool workers), five branded listing/legal PDFs on hackme.tech, MiningPoolStats marked live in docs. Windows installer, Linux tarball, and HackMe OS ISO rebuilt and verified.",
+      "impact": "Miners see accurate Analytics tab (no pool off / empty rigs). CEX and partners get downloadable PDF packs. One version across installer, tarball, and USB ISO.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Listing PDFs: https://hackme.tech/listing.html · Pool: https://miningpoolstats.app/coins/HMC",
+      "tags": [
+        "release",
+        "mining",
+        "infrastructure",
+        "marketing"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "rc11o production — dashboard + PDFs + full rebuild",
+        "lead": "Win/Linux/ISO 0.1.0-rc11o. Analytics tab fixed. Five DD PDFs live. MPS HMC listed.",
+        "bullets": [
+          "Analytics: pool ON, coordinator workers in Command node, GPU gauge from pool GH/s",
+          "PDFs: HMC listing, SUP companion, network pitch, legal/rights, AGPL-3.0",
+          "HackMe OS ISO rebuilt — same channel as desktop installer (verify SHA256)"
+        ],
+        "footer": "Downloads: hackme.tech/downloads · Mine pool: hackme.tech/pool/coordinator"
+      },
+      "links": {
+        "downloads": "https://hackme.tech/downloads.html",
+        "listing": "https://hackme.tech/listing.html",
+        "mps": "https://miningpoolstats.app/coins/HMC",
+        "news": "https://hackme.tech/news.html#2026-06-16-rc11o-production-final",
+        "github": "https://github.com/jokeez/hackme"
+      }
+    },
+    {
       "id": "2026-06-16-site-ecosystem-docs-final",
       "date": "2026-06-16",
       "title": "Site final — ecosystem docs, legal hub, mobile polish",
@@ -316,28 +348,6 @@
         "coins": "https://hackme.tech/coins.html#hms",
         "roadmap": "https://hackme.tech/docs/HMS_PUBLIC_ROADMAP.md",
         "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
-        "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-05-28-official-pool-recovered",
-      "date": "2026-05-28",
-      "title": "Official pool restored after VPS incident",
-      "summary": "HackMe Official Pool is live again: node, coordinator, nginx, and worker settlement timers recovered. Public pool stats API is responding; /api/status latency optimized (fast tip cache, non-blocking coordinator lane).",
-      "tags": [
-        "infrastructure",
-        "mining",
-        "pool",
-        "release"
-      ],
-      "impact": "Miners can reconnect with confidence; MPS pool registration can proceed with stable stats endpoint.",
-      "action": "Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats · Dashboard: https://hackme.tech/dashboard.html · MPS coin: https://miningpoolstats.app/coins/HMC",
-      "status": "published",
-      "links": {
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
-        "status": "https://hackme.tech/api/status",
-        "dashboard": "https://hackme.tech/dashboard.html",
-        "mps": "https://miningpoolstats.app/coins/HMC",
         "telegram": "https://t.me/hackme_tech"
       }
     }

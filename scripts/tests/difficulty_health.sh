@@ -22,8 +22,8 @@ MAX_FAST_RATIO="${MAX_FAST_RATIO:-0.25}"
 MAX_SLOW_RATIO="${MAX_SLOW_RATIO:-4.0}"
 ALLOW_TARGET_CAP="${ALLOW_TARGET_CAP:-0}"
 # Public HTTPS + busy canonical miner: large chain snapshots can stall mid-body (~20KiB) waiting on DB;
-# 25 blocks is enough for difficulty_health sampling and completes reliably against hackme.tech/pool.
-CHAIN_LIMIT="${CHAIN_LIMIT:-25}"
+# 10 PoH rows is enough for difficulty_health sampling and completes reliably against hackme.tech/pool.
+CHAIN_LIMIT="${CHAIN_LIMIT:-10}"
 METRICS_TIMEOUT="${METRICS_TIMEOUT:-45}"
 CHAIN_TIMEOUT="${CHAIN_TIMEOUT:-45}"
 

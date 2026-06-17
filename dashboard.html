@@ -1005,7 +1005,7 @@
 						<span id="hdr-ui-mode" class="hidden sm:inline text-[9px] px-2 py-0.5 rounded border border-white/20 text-gray-300 uppercase tracking-widest" title="UI rendering mode">ui: full</span>
 						<span class="hidden sm:inline text-[10px] px-2 py-0.5 rounded border border-neon/25 text-neon/90 bg-neon/5">WASM</span>
 						<span id="chain-id-pill" class="tag-pill text-matrix/90 border-matrix/30">hackme-dev-mainnet</span>
-						<span id="hdr-node-version" class="text-[9px] px-2 py-0.5 rounded border border-white/10 text-neon/80 font-mono max-w-[280px] truncate hidden sm:inline-block" title="Node version · commit · build date from /api/status">0.1.0-rc11n · …</span>
+						<span id="hdr-node-version" class="text-[9px] px-2 py-0.5 rounded border border-white/10 text-neon/80 font-mono max-w-[280px] truncate hidden sm:inline-block" title="Node version · commit · build date from /api/status">0.1.0-rc11o · …</span>
 					</div>
 					<div class="flex flex-wrap items-center gap-3 text-right text-[11px]">
 						<div class="flex items-center gap-2 rounded border border-warn/25 bg-black/40 px-2 py-1">
@@ -1076,7 +1076,7 @@
 					<p class="font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-danger mb-1">Chain sync blocked</p>
 					<p id="sync-fork-banner-body" class="text-gray-200/95"></p>
 				</div>
-				<div id="desktop-status-banner" class="hidden mb-4 max-w-[1600px] mx-auto rounded-lg border px-4 py-3 text-[11px] leading-relaxed" role="status">
+				<div id="desktop-status-banner" class="notranslate hidden mb-4 max-w-[1600px] mx-auto rounded-lg border px-4 py-3 text-[11px] leading-relaxed" translate="no" role="status">
 					<p class="font-display text-[10px] font-semibold uppercase tracking-[0.18em] mb-1" id="desktop-status-banner-title">Status</p>
 					<p id="desktop-status-banner-body" class="text-gray-200/95"></p>
 					<div id="desktop-status-banner-actions" class="mt-2 flex flex-wrap gap-2"></div>
@@ -1364,7 +1364,7 @@
 							<div class="rounded border border-white/10 bg-black/35 p-3"><span class="text-gray-500 block text-[9px] uppercase">Manifest epochs</span><span class="text-gray-200 text-lg">0</span></div>
 						</div>
 					</div>
-					<div id="analytics-hmc-stack" data-coin-scope="hmc-only" class="space-y-4 coin-scope-hidden">
+					<div id="analytics-hmc-stack" data-coin-scope="hmc-only" class="space-y-4 coin-scope-hidden notranslate" translate="no">
 					<div id="analytics-pow-compact" class="card card-glow rounded-lg border-matrix/25 bg-matrix/[0.06] px-4 py-2.5">
 						<div class="flex flex-wrap items-center justify-between gap-2">
 							<p id="analytics-pow-oneline" class="text-[11px] text-gray-300 font-mono leading-snug flex-1 min-w-0 notranslate">Useful PoW — loading…</p>
@@ -6933,7 +6933,7 @@
 			const line = $('analytics-pow-oneline');
 			if (!line) return;
 			const s = latestStatus;
-			const net = !!(s && s.network_mode);
+			const net = !!(s && (s.network_mode_active || s.network_mode));
 			const miners = $('hive-total-miners') ? String($('hive-total-miners').textContent || '—') : '—';
 			const gh = $('hive-global-th') ? String($('hive-global-th').textContent || '—') : '—';
 			const note = $('hive-note') ? String($('hive-note').textContent || '').trim() : '';
@@ -8054,6 +8054,68 @@
 			renderMinerLookupResult();
 			void refreshOperatorHealth();
 			try { updateAnalyticsPowCompact(); } catch (_) {}
+			try { syncAnalyticsCommandNodeTable(); } catch (_) {}
+		}
+		function resolveAnalyticsRigRows(metricsRigs) {
+			if (Array.isArray(metricsRigs) && metricsRigs.length) return metricsRigs;
+			const net = latestNetworkStats;
+			if (net && Array.isArray(net.active_rigs) && net.active_rigs.length) {
+				return net.active_rigs.map((row) => ({
+					worker_id: row.worker_id || row.name || '—',
+					name: row.name || row.worker_id || '—',
+					hashrate_gh_s: Number(row.hashrate_gh_s ?? 0),
+					ip: row.ip || '',
+					online: row.online !== false,
+					source: row.source || (row.simulated ? 'mock' : 'network'),
+					gpu_temp_c: row.gpu_temp_c,
+				}));
+			}
+			const ws = latestWorkStats;
+			if (ws && ws.workers && typeof ws.workers === 'object') {
+				const ids = Object.keys(ws.workers);
+				if (ids.length) {
+					return ids.map((id) => {
+						const w = ws.workers[id] || {};
+						const live = w.live || {};
+						const gh = Number(live.hashrate_gh_s || w.hashrate_gh_s || 0);
+						return {
+							worker_id: id,
+							name: w.name || id,
+							hashrate_gh_s: gh,
+							ip: w.ip || w.remote_ip || '',
+							online: !!(live.online) || gh > 0.01 || Number(w.accepted_ranges || 0) > 0,
+							source: 'coordinator',
+							gpu_temp_c: live.gpu_temp_c != null ? live.gpu_temp_c : w.gpu_temp_c,
+						};
+					});
+				}
+			}
+			return [];
+		}
+		function syncAnalyticsCommandNodeTable(metricsRigs) {
+			renderMetricsRigsRows(resolveAnalyticsRigRows(metricsRigs));
+		}
+		function deriveTelemetryUtilPct(x, wst) {
+			let cpu = Number(x && x.cpu_pct != null ? x.cpu_pct : 0);
+			let gpu = Number(x && x.gpu_util_pct != null ? x.gpu_util_pct : 0);
+			const ws = latestWorkStats || {};
+			const miningAps = Number((x && x.mining_attempts_per_sec) || 0);
+			const hashTh = Number((x && x.hashrate_th_s) || 0);
+			const poolGh = coordinatorWorkerGH(ws, wst) || Number(wst.measured_hashrate_gh_s || wst.hashrate_gh_s || 0);
+			const miningBusy = !!(wst && wst.running) || miningAps > 0.25 || hashTh > 1e-9 || poolGh > 0.5;
+			if (miningBusy && x && Number(x.mining_load_pct) >= 0 && cpu < 1) {
+				cpu = Math.max(cpu, Number(x.mining_load_pct));
+			}
+			if (miningBusy && gpu < 1) {
+				if (poolGh > 0.5) {
+					gpu = Math.min(98, 28 + Math.log10(Math.max(poolGh, 0.1)) * 22);
+				} else if (miningAps > 500) {
+					gpu = Math.min(92, 45 + Math.log10(miningAps) * 8);
+				} else if (miningAps > 0.25) {
+					gpu = Math.max(gpu, 42);
+				}
+			}
+			return { cpu, gpu, miningBusy, poolGh };
 		}
 		function renderMetricsRigsRows(rows) {
 			const tb = $('metrics-rigs-rows');
@@ -8068,8 +8130,8 @@
 			rows.forEach((row) => {
 				const tr = document.createElement('tr');
 				const td0 = document.createElement('td'); td0.className = 'px-2 py-1.5'; td0.appendChild(dotOnline(!!row.online));
-				const td1 = document.createElement('td'); td1.className = 'px-2 py-1.5 truncate max-w-[120px]'; td1.textContent = row.name || '—';
-				const td2 = document.createElement('td'); td2.className = 'px-2 py-1.5 text-neon/90 truncate max-w-[180px]'; td2.textContent = row.worker_id || '—';
+				const td1 = document.createElement('td'); td1.className = 'px-2 py-1.5 truncate max-w-[120px] notranslate'; td1.setAttribute('translate', 'no'); td1.textContent = row.name || '—';
+				const td2 = document.createElement('td'); td2.className = 'px-2 py-1.5 text-neon/90 truncate max-w-[180px] notranslate'; td2.setAttribute('translate', 'no'); td2.textContent = row.worker_id || '—';
 				const td3 = document.createElement('td'); td3.className = 'px-2 py-1.5 text-matrix tabular-nums'; td3.textContent = fmtRigHashrateGHS(row.hashrate_gh_s ?? 0);
 				const gpuT = (row.gpu_temp_c != null && row.gpu_temp_c >= 0) ? fmt(row.gpu_temp_c, 1) : '—';
 				const td3b = document.createElement('td'); td3b.className = 'px-2 py-1.5 text-warn/85 tabular-nums'; td3b.textContent = gpuT;
@@ -8326,6 +8388,7 @@
 			if ($('lbl-poh-est') && hashTh > 0) {
 				$('lbl-poh-est').textContent = fmtPoolAggHashrate(hashTh) || '—';
 			}
+			try { syncAnalyticsCommandNodeTable(); } catch (_) {}
 		}
 
 		function renderWorkStats(ws) {
@@ -8667,6 +8730,7 @@
 			} catch (_) {}
 			try { updateMiningPayoutLiveStrip(); } catch (_) {}
 			refreshOperatorHealth();
+			try { syncAnalyticsCommandNodeTable(); } catch (_) {}
 		}
 		function renderPublicMinerGuide(s) {
 			const ux = (s && s.miner_public_ux) || {};
@@ -9013,13 +9077,14 @@
 		function applyTelemetryFromMetrics(m) {
 			const x = (m && typeof m === 'object') ? m : null;
 			if (!x) return;
-			const cpu = Number(x.cpu_pct || 0);
-			const gpu = Number(x.gpu_util_pct || 0);
+			const wst = latestWorkerStatus || {};
+			const util = deriveTelemetryUtilPct(x, wst);
+			const cpu = util.cpu;
+			const gpu = util.gpu;
 			const ram = Number(x.mem_pct || 0);
 			const disk = Number(x.disk_used_pct || 0);
 			const wr = Number(x.disk_write_mbps || 0);
 			let hash = Number(x.hashrate_th_s || 0);
-			const wst = latestWorkerStatus || {};
 			const ghMeas = Number(wst.measured_hashrate_gh_s || 0);
 			if ((!Number.isFinite(hash) || hash < 1e-9) && ghMeas > 0) {
 				hash = ghMeas / 1000;
@@ -9041,7 +9106,9 @@
 			if ($('net-up')) $('net-up').textContent = fmtMB(netUp) + ' MB/s';
 			if ($('net-down')) $('net-down').textContent = fmtMB(netDown) + ' MB/s';
 			if ($('meta-go')) $('meta-go').textContent = fmtUInt(Number(x.goroutines || 0));
-			if ($('meta-up')) $('meta-up').textContent = fmtDur(Number(x.uptime_sec || 0));
+			const upNode = Number(x.uptime_sec || 0);
+			const upWorker = Math.max(Number(wst.session_seconds || 0), Number(wst.pool_worker_session_seconds || 0));
+			if ($('meta-up')) $('meta-up').textContent = fmtDur(Math.max(upNode, upWorker));
 			if ($('lbl-cpu-temp')) $('lbl-cpu-temp').textContent = Number(x.cpu_temp_c) >= 0 ? fmt(Number(x.cpu_temp_c), 1) + '°C' : '—';
 			if ($('lbl-gpu-temp')) $('lbl-gpu-temp').textContent = Number(x.gpu_temp_c) >= 0 ? fmt(Number(x.gpu_temp_c), 1) + '°C' : '—';
 			if ($('lbl-load1')) $('lbl-load1').textContent = Number(x.load_avg_1) >= 0 ? fmt(Number(x.load_avg_1), 2) : '—';
@@ -9068,16 +9135,25 @@
 				}
 				$('lbl-poh-est').textContent = pohTxt;
 			}
-			if ($('gpu-name')) $('gpu-name').textContent = String(x.gpu_name || 'GPU…');
+			if ($('gpu-name')) $('gpu-name').textContent = String(x.gpu_name || wst.gpu_name || 'GPU…');
+			const hintEl = $('compute-worker-hint');
+			if (hintEl) {
+				if (wst.running && util.poolGh > 0) {
+					hintEl.textContent = 'Pool worker · ~' + fmtRigHashrateGHS(util.poolGh) +
+						' GH/s (GPU runs in worker subprocess; host util may read 0%)';
+				} else if (util.miningBusy) {
+					hintEl.textContent = 'PoH active on command node';
+				} else {
+					hintEl.textContent = '';
+				}
+			}
 			try { setRing($('ring-cpu'), Number.isFinite(cpu) ? cpu : 0); } catch (_) {}
 			try { setRing($('ring-gpu'), Number.isFinite(gpu) ? gpu : 0); } catch (_) {}
 			push(series.hash, Number.isFinite(hash) ? hash : 0);
 			push(series.cpu, Number.isFinite(cpu) ? cpu : 0);
 			push(series.wr, Number.isFinite(wr) ? wr : 0);
 			if (currentTab === 'analytics') requestAnimationFrame(() => drawChart($('chart-main')));
-			if (Array.isArray(x.mining_rigs)) {
-				renderMetricsRigsRows(x.mining_rigs);
-			}
+			syncAnalyticsCommandNodeTable(x.mining_rigs);
 		}
 
 		function syncOverviewKpiCards() {

@@ -34,7 +34,7 @@ Three layers on one stack:
 
 ## Slide 5 — Technology proof
 
-- Live pool + explorer + downloads (rc11n)
+- Live pool + explorer + downloads (rc11o)
 - Bitcoin30 Week 1: 7 upstream modules, 0 critical
 - Operator gates: miner launch, SUP verdict, site consistency
 - AGPL source on GitHub
