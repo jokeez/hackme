@@ -53,9 +53,10 @@ Day 10 — BIP34 coinbase height push:
 📌 Upstream: bitcoin/bitcoin → validation.cpp ConnectBlock
 📌 HackMe: tasks/sources/security/upstream/bitcoin_coinbase_bip34.c
 
-Live run: see DAY_SUMMARY.json
-• 128 runs target · BIP34 height-in-coinbase guard
-• 0 critical expected · guard signals = malformed coinbase class
+Live run (local node):
+• 128/128 runs · ~31s
+• 0 critical · 80 guard signals (malformed coinbase — filter working)
+• 99 new edges · 110 paths
 
 Tomorrow (Day 11): duplicate-input deep pass (CVE-2018-17144 class).
 
@@ -72,11 +73,18 @@ Day 10/30 — Bitcoin Core BIP34 coinbase height guard on HackMe WASM fuzz.
 
 ---
 
-## Day 11 — Duplicate inputs deep pass
+## Day 11 — Duplicate inputs deep pass (published 18 Jun 2026)
 
 ### Telegram
 
 🧪 Day 11/30 — Deep pass: CheckTransaction duplicate inputs (CVE-2018-17144 *class*).
+
+Live run:
+• 256/256 runs · ~106s
+• 0 critical · 24 guard signals (duplicate-input class rejected)
+• 165 new edges · 199 paths
+
+🔗 hackme.tech/reports/bitcoin30-day11.html (after deploy)
 
 256 runs · same guard as Day 4, higher budget — hunting edge cases in prevout dedup.
 
