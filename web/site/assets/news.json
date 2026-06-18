@@ -1,6 +1,68 @@
 {
   "items": [
     {
+      "id": "2026-06-18-bitcoin30-day10",
+      "date": "2026-06-18",
+      "title": "Bitcoin Core 30-Day Fuzz — Day 10",
+      "summary": "BIP34 coinbase height push guard. Live campaign: 128 runs, 80 guard signals, zero critical, 31s.",
+      "impact": "First validation-layer coinbase guard in the series. Malformed height encodings tripped the ported gate — honest triage, not a CVE claim.",
+      "action": "Report: https://hackme.tech/reports/bitcoin30-day10.html · Reproduce: DAY=10 bash scripts/ops/run_bitcoin30_day.sh",
+      "tags": [
+        "security",
+        "research",
+        "bitcoin",
+        "fuzzing"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "Bitcoin30 Day 10/30 — BIP34 coinbase height",
+        "lead": "Coinbase must push block height · 128 runs · 80 guard signals · 0 critical.",
+        "bullets": [
+          "Module: BIP34 height-in-coinbase (ConnectBlock class)",
+          "Source: validation.cpp · HackMe bitcoin_coinbase_bip34.c",
+          "Days 11–14: deep passes scheduled (dup inputs, stack, witness, op count)"
+        ],
+        "footer": "Report: hackme.tech/reports/bitcoin30-day10.html · Day 9: bitcoin30-day09.html"
+      },
+      "links": {
+        "report_day10": "https://hackme.tech/reports/bitcoin30-day10.html",
+        "report_day9": "https://hackme.tech/reports/bitcoin30-day09.html",
+        "report_week1": "https://hackme.tech/reports/bitcoin30-week1.html",
+        "github": "https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_coinbase_bip34.c"
+      }
+    },
+    {
+      "id": "2026-06-18-bitcoin30-day09",
+      "date": "2026-06-18",
+      "title": "Bitcoin Core 30-Day Fuzz — Day 9",
+      "summary": "Week 2 continues: MAX_BLOCK_WEIGHT (4M WU) guard from Bitcoin Core consensus policy. Live HackMe campaign: 128 runs, 80 guard signals, zero critical, 30s wall time.",
+      "impact": "First block-level guard in the series (post-script week). Honest triage: overweight candidates flagged, not CVE claims. Public HTML + reproducible DAY=9 script.",
+      "action": "Report: https://hackme.tech/reports/bitcoin30-day09.html · Reproduce: DAY=9 bash scripts/ops/run_bitcoin30_day.sh",
+      "tags": [
+        "security",
+        "research",
+        "bitcoin",
+        "fuzzing"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "Bitcoin30 Day 9/30 — block weight cap",
+        "lead": "MAX_BLOCK_WEIGHT 4M WU · SegWit weight model. 128 runs · 80 guard signals · 0 critical.",
+        "bullets": [
+          "Module: block weight budget (stripped×3 + total)",
+          "Source: bitcoin/bitcoin validation.h · HackMe bitcoin_block_weight.c",
+          "Verdict fail_high — boundary triage, not exploitable bypass"
+        ],
+        "footer": "Report: hackme.tech/reports/bitcoin30-day09.html · Day 8: bitcoin30-day08.html"
+      },
+      "links": {
+        "report_day9": "https://hackme.tech/reports/bitcoin30-day09.html",
+        "report_day8": "https://hackme.tech/reports/bitcoin30-day08.html",
+        "report_week1": "https://hackme.tech/reports/bitcoin30-week1.html",
+        "github": "https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_block_weight.c"
+      }
+    },
+    {
       "id": "2026-06-17-bitcoin30-day08",
       "date": "2026-06-17",
       "title": "Bitcoin Core 30-Day Fuzz — Day 8 (Week 2)",

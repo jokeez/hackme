@@ -61,7 +61,36 @@ case "$DAY" in
      TITLE="Bitcoin Core EvalScript · SCRIPT_ERR_STACK_SIZE (1000 elements)"
      CORE_REF="bitcoin/bitcoin src/script/interpreter.cpp EvalScript stack+altstack L334-L335 · script.h MAX_STACK_SIZE"
      SRC="tasks/sources/security/upstream/bitcoin_evalscript_stack.c" ;;
-  *) fail "DAY=$DAY not in schedule (1-8 wired; extend run_bitcoin30_day.sh)" ;;
+  9) WASM_REL="upstream_bitcoin_block_weight.wasm"; GUARD="upstream_bitcoin_block_weight"
+     TITLE="Bitcoin Core block weight · MAX_BLOCK_WEIGHT (4M WU)"
+     CORE_REF="bitcoin/bitcoin src/consensus/validation.h MAX_BLOCK_WEIGHT · GetBlockWeight"
+     SRC="tasks/sources/security/upstream/bitcoin_block_weight.c" ;;
+  10) WASM_REL="upstream_bitcoin_coinbase_bip34.wasm"; GUARD="upstream_bitcoin_coinbase_bip34"
+     TITLE="Bitcoin Core BIP34 · coinbase must push block height"
+     CORE_REF="bitcoin/bitcoin validation.cpp ConnectBlock BIP34 coinbase height"
+     SRC="tasks/sources/security/upstream/bitcoin_coinbase_bip34.c"
+     [[ "${BUDGET_RUNS}" == "64" && -z "${BUDGET_RUNS_FORCE:-}" ]] && BUDGET_RUNS=128 ;;
+  11) WASM_REL="upstream_bitcoin_tx_dup_inputs.wasm"; GUARD="upstream_bitcoin_tx_dup_inputs"
+     TITLE="Bitcoin Core duplicate inputs · deep pass (CVE-2018-17144 class)"
+     CORE_REF="bitcoin/bitcoin src/consensus/tx_check.cpp duplicate prevout check"
+     SRC="tasks/sources/security/upstream/bitcoin_tx_dup_inputs.c"
+     [[ "${BUDGET_RUNS}" == "64" && -z "${BUDGET_RUNS_FORCE:-}" ]] && BUDGET_RUNS=256 ;;
+  12) WASM_REL="upstream_bitcoin_evalscript_stack.wasm"; GUARD="upstream_bitcoin_evalscript_stack"
+     TITLE="Bitcoin Core EvalScript · SCRIPT_ERR_STACK_SIZE · deep pass"
+     CORE_REF="bitcoin/bitcoin src/script/interpreter.cpp EvalScript stack+altstack L334-L335"
+     SRC="tasks/sources/security/upstream/bitcoin_evalscript_stack.c"
+     [[ "${BUDGET_RUNS}" == "64" && -z "${BUDGET_RUNS_FORCE:-}" ]] && BUDGET_RUNS=256 ;;
+  13) WASM_REL="upstream_bitcoin_witness_stack.wasm"; GUARD="upstream_bitcoin_witness_stack"
+     TITLE="Bitcoin Core SegWit witness stack · deep pass"
+     CORE_REF="bitcoin/bitcoin src/script/interpreter.cpp VerifyWitnessProgram witness stack"
+     SRC="tasks/sources/security/upstream/bitcoin_witness_stack.c"
+     [[ "${BUDGET_RUNS}" == "64" && -z "${BUDGET_RUNS_FORCE:-}" ]] && BUDGET_RUNS=256 ;;
+  14) WASM_REL="upstream_bitcoin_evalscript_opcount.wasm"; GUARD="upstream_bitcoin_evalscript_opcount"
+     TITLE="Bitcoin Core EvalScript · SCRIPT_ERR_OP_COUNT · deep pass"
+     CORE_REF="bitcoin/bitcoin src/script/interpreter.cpp EvalScript nOpCount L462-L463"
+     SRC="tasks/sources/security/upstream/bitcoin_evalscript_opcount.c"
+     [[ "${BUDGET_RUNS}" == "64" && -z "${BUDGET_RUNS_FORCE:-}" ]] && BUDGET_RUNS=256 ;;
+  *) fail "DAY=$DAY not in schedule (1-14 wired; extend run_bitcoin30_day.sh)" ;;
 esac
 
 WASM="$ROOT/tasks/artifacts/security/$WASM_REL"

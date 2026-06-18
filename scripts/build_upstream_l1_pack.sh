@@ -30,6 +30,8 @@ for t in \
   bitcoin_witness_stack \
   bitcoin_evalscript_opcount \
   bitcoin_evalscript_stack \
+  bitcoin_block_weight \
+  bitcoin_coinbase_bip34 \
   ethereum_value_overflow \
   dogecoin_hasvalidops \
   litecoin_getscriptop \

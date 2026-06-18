@@ -26,7 +26,26 @@ Public week-1 ledger: [hackme.tech/reports/bitcoin30-week1.html](https://hackme.
 | 6 | SegWit witness stack · push cap | `upstream_bitcoin_witness_stack.wasm` | 128 runs · 80 signals |
 | 7 | EvalScript · SCRIPT_ERR_OP_COUNT | `upstream_bitcoin_evalscript_opcount.wasm` | 64 runs · 56 signals · `day07-20260616T110000Z` |
 | 8 | EvalScript · SCRIPT_ERR_STACK_SIZE | `upstream_bitcoin_evalscript_stack.wasm` | 64 runs · 64 guard signals · `day08-20260617T120000Z` |
-| 9–30 | TBD | extend `run_bitcoin30_day.sh` | block weight · coinbase · taproot |
+| 9 | Block weight · MAX_BLOCK_WEIGHT | `upstream_bitcoin_block_weight.wasm` | 128 runs · 80 guard signals · `day09-20260618T030511Z` |
+| 10 | BIP34 coinbase height | `upstream_bitcoin_coinbase_bip34.wasm` | 128 runs · schedule |
+| 11 | Duplicate inputs · deep | `upstream_bitcoin_tx_dup_inputs.wasm` | 256 runs · CVE-2018-17144 class |
+| 12 | EvalScript stack · deep | `upstream_bitcoin_evalscript_stack.wasm` | 256 runs |
+| 13 | Witness stack · deep | `upstream_bitcoin_witness_stack.wasm` | 256 runs |
+| 14 | EvalScript op count · deep | `upstream_bitcoin_evalscript_opcount.wasm` | 256 runs |
+| 15–30 | TBD | extend `run_bitcoin30_day.sh` | taproot · new guards |
+
+### Week 2 schedule (5 days)
+
+```bash
+# One per day (09:00 UTC optional timer):
+DAY=10 bash scripts/ops/run_bitcoin30_day.sh
+
+# Or automated block:
+bash scripts/ops/start_bitcoin30_5days.sh
+# catch-up (no wait): WAIT_SEC=0 bash scripts/ops/start_bitcoin30_5days.sh
+```
+
+Social drafts: `docs/BITCOIN30_SOCIAL_WEEK2.md`
 
 ### Week 1 verdict
 

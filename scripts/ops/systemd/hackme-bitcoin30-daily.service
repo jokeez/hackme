@@ -1,0 +1,13 @@
+[Unit]
+Description=HackMe Bitcoin30 daily fuzz (DAY from calendar offset)
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/Desktop/HackMe
+Environment=PATH=%h/.local/bin:%h/.nvm/versions/node/v24.14.1/bin:/usr/bin
+# Day 10 = 2026-06-19 anchor; override DAY= explicitly to rerun.
+ExecStart=/bin/bash -c 'ROOT=%h/Desktop/HackMe; DAY=${DAY:-$((10 + ($(date -u +%%s) - $(date -u -d 2026-06-19 +%%s)) / 86400))}; [[ "$DAY" -le 14 ]] && DAY=$DAY bash "$ROOT/scripts/ops/run_bitcoin30_day.sh"'
+
+[Install]
+WantedBy=default.target
