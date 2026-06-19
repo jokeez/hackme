@@ -10,6 +10,8 @@ cd "$ROOT"
 STAMP="${STAMP:-$(date -u +%Y%m%dT%H%M%SZ)}"
 OUT="${OUT:-$ROOT/reports/bounty/bounty-lab-${STAMP}}"
 FUZZ="${FOUNDRY_FUZZ_RUNS:-4096}"
+CUSTOM_FUZZ="${CUSTOM_FUZZ_RUNS:-8192}"
+SKIP_UPSTREAM="${SKIP_UPSTREAM:-0}"
 LAB="$ROOT/bounty-lab"
 REPO_CACHE="${REPO_CACHE:-$ROOT/.cache/bounty-repos}"
 
@@ -117,13 +119,25 @@ deploy_tokenize_custom
 prepare_arcadia
 
 run_forge_summary arcadia_custom "$REPO_CACHE/arcadia-lending-v2" \
-  "--match-path 'test/hackme/*.sol' --fuzz-runs $FUZZ -vv"
+  "--match-path 'test/hackme/*.sol' --fuzz-runs $CUSTOM_FUZZ -vv"
 
 run_forge_summary tokenize_custom "$REPO_CACHE/tokenize-it" \
-  "--match-path 'test/hackme/*.sol' --fuzz-runs $FUZZ"
+  "--match-path 'test/hackme/*.sol' --fuzz-runs $CUSTOM_FUZZ"
 
-run_forge_summary tokenize_it "$REPO_CACHE/tokenize-it" \
-  "--no-match-test Mainnet --no-match-path 'test/hackme/*' --fuzz-runs $FUZZ"
+if [[ "$SKIP_UPSTREAM" != "1" ]]; then
+  run_forge_summary tokenize_it "$REPO_CACHE/tokenize-it" \
+    "--no-match-test Mainnet --no-match-path 'test/hackme/*' --fuzz-runs $FUZZ"
+else
+  log "skip tokenize_it upstream (SKIP_UPSTREAM=1)"
+  run_forge_summary tokenize_blind "$REPO_CACHE/tokenize-it" \
+    "--match-path 'test/VestingBlind.t.sol' --fuzz-runs $CUSTOM_FUZZ"
+  run_forge_summary tokenize_distribution "$REPO_CACHE/tokenize-it" \
+    "--match-path 'test/DistributionCloneFactory.t.sol' --fuzz-runs $CUSTOM_FUZZ"
+  run_forge_summary tokenize_timelock "$REPO_CACHE/tokenize-it" \
+    "--match-path 'test/TimeLockDistributeExit.t.sol' --fuzz-runs $CUSTOM_FUZZ"
+  run_forge_summary tokenize_coinvested "$REPO_CACHE/tokenize-it" \
+    "--match-path 'test/CoinvestedPosition*.t.sol' --fuzz-runs 2048"
+fi
 
 run_forge_summary arcadia_lending_deep "$REPO_CACHE/arcadia-lending-v2" \
   "--match-path 'test/fuzz/liquidators/**/*.fuzz.t.sol' --fuzz-runs $FUZZ"

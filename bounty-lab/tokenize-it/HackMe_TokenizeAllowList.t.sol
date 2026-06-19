@@ -40,7 +40,7 @@ contract HackMe_TokenizeAllowList_Test is Test {
 
     /// Non-owner cannot set attributes.
     function testFuzz_invariant_onlyOwnerSets(address attacker, address user, uint256 attrs) public {
-        vm.assume(attacker != owner && attacker != address(0));
+        vm.assume(attacker != owner && attacker != forwarder && attacker != address(0));
         vm.assume(user != address(0));
 
         vm.prank(attacker);

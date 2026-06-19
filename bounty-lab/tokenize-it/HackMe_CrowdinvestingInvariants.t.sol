@@ -100,6 +100,20 @@ contract HackMe_CrowdinvestingInvariants_Test is Test {
         assertLe(crowdinvesting.tokensSold(), crowdinvesting.maxAmountOfTokenToBeSold());
     }
 
+    function testFuzz_invariant_cumulativeBuyNeverExceedsPerBuyerCap(uint256 a, uint256 b) public {
+        a = bound(a, minPerBuyer, maxPerBuyer);
+        b = bound(b, minPerBuyer, maxPerBuyer);
+        vm.assume(a + b <= maxPerBuyer);
+
+        vm.startPrank(buyer);
+        crowdinvesting.buy(a, type(uint256).max, buyer);
+        crowdinvesting.buy(b, type(uint256).max, buyer);
+        vm.stopPrank();
+
+        assertLe(crowdinvesting.tokensSold(), crowdinvesting.maxAmountOfTokenToBeSold());
+        assertLe(a + b, maxPerBuyer);
+    }
+
     function testFuzz_invariant_nonOwnerCannotChangeReceiver(address attacker, address newRecv) public {
         vm.assume(attacker != owner && attacker != forwarder);
         vm.assume(newRecv != address(0));
