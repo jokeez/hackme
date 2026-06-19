@@ -60,16 +60,20 @@ Live run (local node):
 
 Tomorrow (Day 11): duplicate-input deep pass (CVE-2018-17144 class).
 
-🔗 hackme.tech/reports/bitcoin30-day10.html (after deploy)
-#HackMe #Bitcoin #BIP34
+🔗 hackme.tech/reports/bitcoin30-day10.html
+#HackMe #Bitcoin #BIP34 #Fuzzing
 
 ### X
 
 Day 10/30 — Bitcoin Core BIP34 coinbase height guard on HackMe WASM fuzz.
 
-128 runs on upstream_bitcoin_coinbase_bip34.wasm — honest guard-signal triage, not a CVE claim.
+128 runs · 0 critical · 80 guard signals (malformed coinbase class).
 
-#Bitcoin #Fuzzing
+Report: hackme.tech/reports/bitcoin30-day10.html
+
+Not a CVE claim — WASM guard inspired by Core, not bitcoind.
+
+#Bitcoin #Fuzzing #SecurityResearch
 
 ---
 

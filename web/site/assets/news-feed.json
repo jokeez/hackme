@@ -4,20 +4,31 @@
       "id": "2026-06-18-bitcoin30-day10",
       "date": "2026-06-18",
       "title": "Bitcoin Core 30-Day Fuzz — Day 10",
-      "summary": "BIP34 coinbase height push guard. 128 runs, 80 guard signals, zero critical.",
-      "impact": "Validation-layer coinbase guard — honest triage, not CVE.",
-      "action": "Report: https://hackme.tech/reports/bitcoin30-day10.html · DAY=10 bash scripts/ops/run_bitcoin30_day.sh",
-      "tags": ["security", "research", "bitcoin", "fuzzing"],
+      "summary": "BIP34 coinbase height push guard. Live campaign: 128 runs, 80 guard signals, zero critical, 31s.",
+      "impact": "First validation-layer coinbase guard in the series. Malformed height encodings tripped the ported gate — honest triage, not a CVE claim.",
+      "action": "Report: https://hackme.tech/reports/bitcoin30-day10.html · Reproduce: DAY=10 bash scripts/ops/run_bitcoin30_day.sh",
+      "tags": [
+        "security",
+        "research",
+        "bitcoin",
+        "fuzzing"
+      ],
       "status": "published",
       "telegram": {
         "headline": "Bitcoin30 Day 10/30 — BIP34 coinbase height",
-        "lead": "128 runs · 80 guard signals · 0 critical.",
-        "bullets": ["BIP34 height push guard", "Days 11–14 deep passes scheduled"],
-        "footer": "Report: hackme.tech/reports/bitcoin30-day10.html"
+        "lead": "Coinbase must push block height · 128 runs · 80 guard signals · 0 critical.",
+        "bullets": [
+          "Module: BIP34 height-in-coinbase (ConnectBlock class)",
+          "Source: validation.cpp · HackMe bitcoin_coinbase_bip34.c",
+          "Days 11–14: deep passes scheduled (dup inputs, stack, witness, op count)"
+        ],
+        "footer": "Report: hackme.tech/reports/bitcoin30-day10.html · Day 9: bitcoin30-day09.html"
       },
       "links": {
         "report_day10": "https://hackme.tech/reports/bitcoin30-day10.html",
-        "report_day9": "https://hackme.tech/reports/bitcoin30-day09.html"
+        "report_day9": "https://hackme.tech/reports/bitcoin30-day09.html",
+        "report_week1": "https://hackme.tech/reports/bitcoin30-week1.html",
+        "github": "https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_coinbase_bip34.c"
       }
     },
     {
@@ -27,7 +38,12 @@
       "summary": "Week 2 continues: MAX_BLOCK_WEIGHT (4M WU) guard from Bitcoin Core consensus policy. Live HackMe campaign: 128 runs, 80 guard signals, zero critical, 30s wall time.",
       "impact": "First block-level guard in the series (post-script week). Honest triage: overweight candidates flagged, not CVE claims. Public HTML + reproducible DAY=9 script.",
       "action": "Report: https://hackme.tech/reports/bitcoin30-day09.html · Reproduce: DAY=9 bash scripts/ops/run_bitcoin30_day.sh",
-      "tags": ["security", "research", "bitcoin", "fuzzing"],
+      "tags": [
+        "security",
+        "research",
+        "bitcoin",
+        "fuzzing"
+      ],
       "status": "published",
       "telegram": {
         "headline": "Bitcoin30 Day 9/30 — block weight cap",
@@ -46,6 +62,8 @@
         "github": "https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_block_weight.c"
       }
     },
+    {
+      "id": "2026-06-17-bitcoin30-day08",
       "date": "2026-06-17",
       "title": "Bitcoin Core 30-Day Fuzz — Day 8 (Week 2)",
       "summary": "Week 2 kickoff: EvalScript MAX_STACK_SIZE guard from bitcoin/bitcoin interpreter — combined main+alt stack must stay ≤1000 elements. Live campaign on HackMe node: 64 runs, 64 guard signals, zero critical, 15s wall time.",
@@ -353,54 +371,6 @@
         "setup": "https://hackme.tech/docs/SETUP.md",
         "pool_stats": "https://hackme.tech/pool/coordinator/api/work/stats",
         "news": "https://hackme.tech/news.html",
-        "github": "https://github.com/jokeez/hackme",
-        "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-06-02-rc11j-gpu-matrix-final",
-      "date": "2026-06-02",
-      "title": "Release 0.1.0-rc11j — GPU matrix final (CUDA auto-fallback, installer, ISO)",
-      "summary": "Production miner release after Pascal→Blackwell field tests: CUDA→OpenCL auto-fallback in workerpoh-cuda, multi-GPU pool UI aggregation, refreshed Vast pack, Windows Setup wizard, Linux bundle and HackMe OS ISO with fair-pool tuning.",
-      "tags": [
-        "release",
-        "mining",
-        "gpu",
-        "infrastructure"
-      ],
-      "impact": "Miners on CUDA 13 / Vast no longer need manual OpenCL switches; Windows/Linux/ISO downloads aligned with live pool fixes.",
-      "action": "Downloads: https://hackme.tech/downloads.html · Verdict: https://hackme.tech/docs/HACKME_RC11J_FINAL_VERDICT.md · Matrix: https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md",
-      "status": "published",
-      "links": {
-        "downloads": "https://hackme.tech/downloads.html",
-        "verdict": "https://hackme.tech/docs/HACKME_RC11J_FINAL_VERDICT.md",
-        "matrix": "https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
-        "news": "https://hackme.tech/news.html",
-        "github": "https://github.com/jokeez/hackme",
-        "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-06-02-gpu-matrix-field-test",
-      "date": "2026-06-02",
-      "title": "GPU Matrix complete — Pascal through Blackwell on live HMC pool",
-      "summary": "Field-tested NVIDIA rigs on Vast.ai (2× GTX 1080 Ti, 4× RTX 2080 Ti, 30/40/50 series including RTX 4090 & 5090) plus operator RTX 5060 Ti desktop. Every generation: signed submits, hits, payout, and target_mod retarget on https://hackme.tech/pool/coordinator. Hub fix: multi-GPU rigs show as one worker with summed GH/s.",
-      "tags": [
-        "mining",
-        "infrastructure",
-        "release",
-        "gpu",
-        "pool"
-      ],
-      "impact": "Miners can trust multi-GPU and cloud rent hosts; OpenCL fallback keeps mining when CUDA 13/NVRTC mismatches on Vast. Coordinator aggregation deployed to production VPS.",
-      "action": "News: https://hackme.tech/news.html · Verdict: https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md · Pool: https://hackme.tech/pool/coordinator/api/pool/stats · Downloads (current rc11l): https://hackme.tech/downloads.html",
-      "status": "published",
-      "links": {
-        "news": "https://hackme.tech/news.html",
-        "verdict": "https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
-        "downloads": "https://hackme.tech/downloads.html",
         "github": "https://github.com/jokeez/hackme",
         "telegram": "https://t.me/hackme_tech"
       }
