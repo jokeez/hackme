@@ -89,14 +89,15 @@ func TestWorkManagerSubmitPayout(t *testing.T) {
 		t.Fatal("failed to find valid foundNonce in test range")
 	}
 	ok, reason, payout, _, _ := wm.submit(submitWorkRequest{
-		WorkerID:   "w1",
-		BaseNonce:  base,
-		BatchSize:  size,
-		WorkID:     buildWorkID("w1", base, size),
-		Attempts:   500,
-		Found:      true,
-		FoundNonce: foundNonce,
-		ResultHash: "abc123",
+		WorkerID:    "w1",
+		BaseNonce:   base,
+		BatchSize:   size,
+		WorkID:      buildWorkID("w1", base, size),
+		Attempts:    500,
+		Found:       true,
+		FoundNonce:  foundNonce,
+		ResultHash:  "abc123",
+		HashrateGHS: 1.0,
 	})
 	if !ok || reason != "" {
 		t.Fatalf("submit not accepted ok=%v reason=%q", ok, reason)

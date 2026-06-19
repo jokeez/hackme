@@ -1810,6 +1810,44 @@ func (a *app) handleWorkAdminPruneWorkers(w http.ResponseWriter, r *http.Request
 	writeJSON(w, out)
 }
 
+func (a *app) handleWorkAdminRevokeWorker(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !requireAdminAuth(w, r) {
+		return
+	}
+	base := a.coordinatorBaseURL()
+	if base == "" {
+		writeJSON(w, map[string]any{"ok": false, "reason": "coordinator_not_configured"})
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "reason": "read_body", "message": err.Error()})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
+	defer cancel()
+	out, code, err := postCoordinatorWorkAdmin(ctx, base, "/api/work/admin/revoke-worker", body)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "reason": "coordinator_unavailable", "message": err.Error()})
+		return
+	}
+	if code != http.StatusOK {
+		writeJSON(w, map[string]any{"ok": false, "reason": "coordinator_http", "status": code, "coordinator": out})
+		return
+	}
+	if ok, _ := out["ok"].(bool); ok {
+		if wid := strings.TrimSpace(fmt.Sprintf("%v", out["worker_id"])); wid != "" {
+			pruneWorkerCoordinatorMirror([]string{wid})
+		}
+	}
+	invalidateWorkStatsCache()
+	writeJSON(w, out)
+}
+
 func (a *app) handleWorkStats(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

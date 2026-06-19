@@ -30,6 +30,7 @@ type workManager struct {
 	nextNonce atomic.Uint64
 
 	defaultBatch    uint64
+	maxClaimBatch   uint64 // hard cap on claim/submit batch_size (anti inflation)
 	targetMod       uint64
 	targetURL       string
 	targetEvery     int64
@@ -199,6 +200,15 @@ func newWorkManagerFromEnv() *workManager {
 			batch = x
 		}
 	}
+	maxClaim := batch * 4
+	if maxClaim < batch {
+		maxClaim = batch
+	}
+	if v := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_MAX_CLAIM_BATCH")); v != "" {
+		if x, err := strconv.ParseUint(v, 10, 64); err == nil && x >= 1000 {
+			maxClaim = x
+		}
+	}
 	mod := uint64(5_000_000)
 	if v := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_TARGET_MOD")); v != "" {
 		if x, err := strconv.ParseUint(v, 10, 64); err == nil && x > 0 {
@@ -342,6 +352,7 @@ func newWorkManagerFromEnv() *workManager {
 	}
 	return &workManager{
 		defaultBatch:             batch,
+		maxClaimBatch:            maxClaim,
 		targetMod:                mod,
 		targetURL:                targetURL,
 		targetEvery:              targetEvery,
@@ -603,28 +614,34 @@ func clampWorkerHashrateGHS(ghs float64) float64 {
 	if ghs <= 0 || math.IsNaN(ghs) || math.IsInf(ghs, 0) {
 		return 0
 	}
-	const maxGH = 500
+	const maxGH = 128
 	if ghs > maxGH {
 		return maxGH
 	}
 	return ghs
 }
 
-// workerHashrateGHSForSubmit prefers reported GH/s, then lease wall time, then last known.
+// workerHashrateGHSForSubmit prefers reported GH/s when consistent with lease wall time.
 func workerHashrateGHSForSubmit(reported float64, batch uint64, issuedAt, now int64, last float64) float64 {
-	gh := clampWorkerHashrateGHS(reported)
-	if gh > 0 {
-		return gh
-	}
+	wallGH := 0.0
+	wall := 0.0
 	if issuedAt > 0 && batch > 0 {
-		wall := float64(now - issuedAt)
+		wall = float64(now - issuedAt)
 		if wall < 0.05 {
 			wall = 0.05
 		}
-		gh = clampWorkerHashrateGHS(float64(batch) / wall / 1e9)
-		if gh > 0 {
-			return gh
+		wallGH = clampWorkerHashrateGHS(float64(batch) / wall / 1e9)
+	}
+	rep := clampWorkerHashrateGHS(reported)
+	if rep > 0 {
+		// Fast GPU cycles (claim→submit <1s) legitimately report calibration GH/s above batch/wall.
+		if wallGH > 0 && wall >= 1.0 && rep > wallGH*2.5 {
+			return wallGH
 		}
+		return rep
+	}
+	if wallGH > 0 {
+		return wallGH
 	}
 	return clampWorkerHashrateGHS(last)
 }
@@ -813,8 +830,13 @@ func (m *workManager) workerRateLimitPerMin(workerID string, globalMax int) int 
 		globalMax = 1
 	}
 	gh := float64(0)
+	peak := float64(0)
 	if st, ok := m.worker[workerID]; ok {
 		gh = st.LastHashrateGHS
+		peak = st.PeakHashrateGHS
+	}
+	if peak > gh*1.5 {
+		gh = peak * 0.65
 	}
 	if gh <= 0 {
 		if globalMax <= 20 {
@@ -938,6 +960,9 @@ func (m *workManager) markSubmitOutcome(workerID, ipKey, reason string, now int6
 		ipStrike = true
 	case "replay":
 		// Replay: penalize attacking IP; do not ban worker id (legitimate after restart).
+		ipStrike = true
+	case "batch_size_too_large", "impossible_found_rate":
+		workerStrike = true
 		ipStrike = true
 	default:
 		return
@@ -1175,6 +1200,9 @@ func (m *workManager) claim(workerID string, batch uint64) (base uint64, size ui
 	if batch == 0 {
 		batch = m.defaultBatch
 	}
+	if m.maxClaimBatch > 0 && batch > m.maxClaimBatch {
+		return 0, 0, 0, m.targetMod, false, false, "batch_size_too_large"
+	}
 	now := time.Now().Unix()
 	m.prefetchTargetMod(now)
 	m.mu.Lock()
@@ -1270,6 +1298,31 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		m.noteWorkerStale(req.WorkerID, now)
 		return false, "lease_expired", 0, "", false
 	}
+	if m.maxClaimBatch > 0 && req.BatchSize > m.maxClaimBatch {
+		delete(m.active, k)
+		m.rejectedSubmits++
+		m.permabanWorkerLocked(req.WorkerID, "")
+		return false, "batch_size_too_large", 0, "", false
+	}
+	if req.Found {
+		prev := m.worker[req.WorkerID]
+		avgAtt := uint64(0)
+		if prev.AcceptedRanges > 0 {
+			avgAtt = prev.AcceptedAtt / prev.AcceptedRanges
+		}
+		// 100% found with inflated attempts/range (hdssh-style), not fast GPU on easy M.
+		suspiciousAvg := m.defaultBatch * 2
+		if m.maxClaimBatch > 0 && m.maxClaimBatch*2 < suspiciousAvg {
+			suspiciousAvg = m.maxClaimBatch * 2
+		}
+		if prev.AcceptedRanges >= 10 && prev.AcceptedHits >= prev.AcceptedRanges &&
+			avgAtt > suspiciousAvg {
+			delete(m.active, k)
+			m.rejectedSubmits++
+			m.permabanWorkerLocked(req.WorkerID, prev.LastClientIP)
+			return false, "impossible_found_rate", 0, "", false
+		}
+	}
 	leaseMod := m.targetMod
 	if rec.TargetMod > 0 {
 		leaseMod = rec.TargetMod
@@ -1356,8 +1409,12 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	if attempts > req.BatchSize {
 		attempts = req.BatchSize
 	}
+	attempts = m.clampPaidAttempts(attempts, req.BatchSize)
 	rawGH := workerHashrateGHSForSubmit(req.HashrateGHS, req.BatchSize, rec.IssuedAt, now, m.worker[req.WorkerID].LastHashrateGHS)
 	gh := smoothWorkerHashrateGHS(m.worker[req.WorkerID].LastHashrateGHS, rawGH)
+	if req.Found && clampWorkerHashrateGHS(req.HashrateGHS) <= 0 {
+		gh = 0
+	}
 	if gh > 0 {
 		issuedAt := rec.IssuedAt
 		if issuedAt <= 0 {
@@ -1374,7 +1431,11 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	} else if !req.Found {
 		// No credible hashrate: do not pay attempt accrual (found proofs still validated).
 		attempts = 0
+	} else if req.Found && gh <= 0 {
+		// Found without hashrate proof: found_bonus only, no attempt inflation.
+		attempts = 0
 	}
+	attempts = m.clampPaidAttempts(attempts, req.BatchSize)
 	m.totalAttempts += attempts
 	paidAttempts := attempts
 	if m.payoutFoundOnly && !req.Found {
@@ -1406,6 +1467,11 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	}
 	if payout < 0 {
 		payout = 0
+	}
+	// Hard per-submit HMC ceiling (attempt accrual + found bonus).
+	maxSubmitHMC := (float64(m.defaultBatch)/1_000_000.0)*m.rewardPerM*1.05 + m.foundBonus*1.05
+	if payout > maxSubmitHMC {
+		payout = maxSubmitHMC
 	}
 	st := m.worker[req.WorkerID]
 	st.AcceptedRanges++
@@ -1782,6 +1848,7 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 	maxStat := m.targetModMaxOrDefault()
 	out := map[string]any{
 		"default_batch":                m.defaultBatch,
+		"max_claim_batch":              m.maxClaimBatch,
 		"target_mod":                   m.clampTargetMod(m.targetMod),
 		"target_mod_updated_unix":      m.targetModUpdatedUnix,
 		"pool_retarget_enabled":        m.poolRetarget,
@@ -2189,6 +2256,30 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 			"cleared":   cleared,
 			"worker_id": strings.TrimSpace(req.WorkerID),
 		})
+	})
+
+	mux.HandleFunc("/api/work/admin/revoke-worker", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !coordinatorPOSTAuthed(r, adminToken, allowInsecure) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
+			http.Error(w, "admin authentication required", http.StatusUnauthorized)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
+		var req struct {
+			WorkerID string `json:"worker_id"`
+			IPKey    string `json:"ip_key"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		out := wm.revokeWorker(req.WorkerID, req.IPKey, true)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(out)
 	})
 
 	mux.HandleFunc("/api/work/admin/memstats", func(w http.ResponseWriter, r *http.Request) {

@@ -490,6 +490,7 @@ func main() {
 	mux.HandleFunc("/api/network/stats", a.handleNetworkStats)
 	mux.HandleFunc("/api/work/stats", a.handleWorkStats)
 	mux.HandleFunc("/api/work/admin/prune-workers", a.handleWorkAdminPruneWorkers)
+	mux.HandleFunc("/api/work/admin/revoke-worker", a.handleWorkAdminRevokeWorker)
 	mux.HandleFunc("/api/work/by-wallet", a.handleWorkByWallet)
 	mux.HandleFunc("/api/push_work", a.handlePushWork)
 	mux.HandleFunc("/api/genesis", a.handleGenesis)
