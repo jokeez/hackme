@@ -2,6 +2,7 @@ package main
 
 import (
 	"math"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -31,19 +32,19 @@ func TestOversizedBatchClaimRejected(t *testing.T) {
 func TestOversizedBatchCannotDrainPool(t *testing.T) {
 	const batch = uint64(137_000_000_000)
 	wm := &workManager{
-		defaultBatch:      1 << 22,
-		maxClaimBatch:     1 << 24,
-		targetMod:         1_000_003,
-		leaseSec:          90,
-		rewardPerM:        0.001,
-		maxWorkers:        100,
-		maxActiveLeases:   100,
-		maxDedupEntries:   1000,
-		active:            make(map[workKey]leaseRecord),
-		worker:            make(map[string]workerPayoutStat),
-		abuse:             make(map[string]workerAbuseState),
-		ipAbuse:           make(map[string]workerAbuseState),
-		acceptedFoundNonces: make(map[uint64]struct{}),
+		defaultBatch:         1 << 22,
+		maxClaimBatch:        1 << 24,
+		targetMod:            1_000_003,
+		leaseSec:             90,
+		rewardPerM:           0.001,
+		maxWorkers:           100,
+		maxActiveLeases:      100,
+		maxDedupEntries:      1000,
+		active:               make(map[workKey]leaseRecord),
+		worker:               make(map[string]workerPayoutStat),
+		abuse:                make(map[string]workerAbuseState),
+		ipAbuse:              make(map[string]workerAbuseState),
+		acceptedFoundNonces:  make(map[uint64]struct{}),
 		acceptedResultHashes: make(map[string]struct{}),
 	}
 	now := time.Now().Unix()
@@ -84,7 +85,7 @@ func TestOversizedBatchCannotDrainPool(t *testing.T) {
 
 func TestRevokeWorkerRollsBackPayout(t *testing.T) {
 	wm := &workManager{
-		defaultBatch: 1000,
+		defaultBatch:  1000,
 		maxClaimBatch: 4000,
 		worker: map[string]workerPayoutStat{
 			"abuser": {
@@ -115,6 +116,26 @@ func TestRevokeWorkerRollsBackPayout(t *testing.T) {
 	}
 	if wm.abuse["abuser"].BannedUntil != coordinatorPermabanUntil {
 		t.Fatalf("not permabanned: %+v", wm.abuse["abuser"])
+	}
+}
+
+func TestPersistentPermabanSurvivesReload(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "coordinator_permaban.json")
+	t.Setenv("HACKME_COORDINATOR_PERM_BAN_FILE", path)
+
+	wm1 := newAbuseTestWM()
+	wm1.worker["evil"] = workerPayoutStat{PayoutHMC: 1, LastClientIP: "1.2.3.4"}
+	wm1.revokeWorker("evil", "1.2.3.4", true)
+	if !wm1.isHardPermabanned("evil", "1.2.3.4") {
+		t.Fatal("expected permaban after revoke")
+	}
+
+	wm2 := newAbuseTestWM()
+	wm2.initPersistentPermaban()
+	ok, reason := wm2.allowClaim("evil", "1.2.3.4", time.Now().Unix())
+	if ok || reason != "worker_permabanned" {
+		t.Fatalf("reload claim: ok=%v reason=%q", ok, reason)
 	}
 }
 
@@ -169,13 +190,13 @@ func TestFoundWithoutHashratePaysBonusOnly(t *testing.T) {
 		found++
 	}
 	_, _, payout, _, _ := wm.submit(submitWorkRequest{
-		WorkerID:   "w2",
-		BaseNonce:  base,
-		BatchSize:  size,
-		Attempts:   size,
-		Found:      true,
-		FoundNonce: found,
-		ResultHash: "abc123",
+		WorkerID:    "w2",
+		BaseNonce:   base,
+		BatchSize:   size,
+		Attempts:    size,
+		Found:       true,
+		FoundNonce:  found,
+		ResultHash:  "abc123",
 		HashrateGHS: 0,
 	})
 	if payout > wm.foundBonus+0.001 {

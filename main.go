@@ -530,6 +530,7 @@ func main() {
 	mux.HandleFunc("/api/sup/economics", a.handleSUPEconomics)
 	mux.HandleFunc("/api/sup/genesis", a.handleSUPGenesisInit)
 	mux.HandleFunc("/api/sup/mint", a.handleSUPMint)
+	mux.HandleFunc("/api/sup/burn", a.handleSUPBurn)
 	mux.HandleFunc("/api/sup/tx/send", a.handleSUPTransferSend)
 	mux.HandleFunc("/api/hms/economics", a.handleHMSEconomics)
 	mux.HandleFunc("/api/hms/genesis", a.handleHMSGenesisInit)

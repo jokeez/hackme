@@ -94,6 +94,56 @@ func (a *app) handleSUPMint(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"ok": true, "address_state": st})
 }
 
+func (a *app) handleSUPBurn(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !a.allowLoopbackAdminTxSend(r) && !requireAdminAuth(w, r) {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	var body struct {
+		From        string  `json:"from"`
+		AmountSUP   float64 `json:"amount_sup"`
+		AmountUnits uint64  `json:"amount_units"`
+		Memo        string  `json:"memo"`
+	}
+	if err := json.Unmarshal(raw, &body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	from := strings.TrimSpace(body.From)
+	if from == "" {
+		writeJSON(w, map[string]any{"ok": false, "code": "from_required", "error": "from address required"})
+		return
+	}
+	units := body.AmountUnits
+	if units == 0 && body.AmountSUP > 0 {
+		units = chain.SUPToUnits(body.AmountSUP)
+	}
+	if units == 0 {
+		st, _ := a.chain.SupAddressState(r.Context(), from)
+		units = st.BalanceSUPUnits
+	}
+	if units == 0 {
+		writeJSON(w, map[string]any{"ok": false, "code": "zero_balance", "error": "nothing to burn"})
+		return
+	}
+	code, err := a.chain.BurnSUPForService(r.Context(), from, units, body.Memo)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "code": code, "error": err.Error()})
+		return
+	}
+	st, _ := a.chain.SupAddressState(r.Context(), from)
+	writeJSON(w, map[string]any{"ok": true, "burned_sup_units": units, "address_state": st})
+}
+
 func (a *app) handleSUPTransferSend(w http.ResponseWriter, r *http.Request) {
 	if !a.allowRate("sup_tx_send:"+clientIP(r), 20) {
 		writeJSON(w, map[string]any{"ok": false, "code": "rate_limited"})

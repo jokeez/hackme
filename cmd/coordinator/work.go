@@ -868,6 +868,9 @@ func (m *workManager) allowClaim(workerID, ipKey string, now int64) (bool, strin
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.pruneAbuseStateLocked(now)
+	if m.isHardPermabannedLocked(workerID, ipKey) {
+		return false, "worker_permabanned"
+	}
 	if s := m.abuse[workerID]; s.BannedUntil > now {
 		return false, "worker_temporarily_banned"
 	}
@@ -895,6 +898,9 @@ func (m *workManager) allowSubmit(workerID, ipKey string, now int64) (bool, stri
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.pruneAbuseStateLocked(now)
+	if m.isHardPermabannedLocked(workerID, ipKey) {
+		return false, "worker_permabanned"
+	}
 	if s := m.abuse[workerID]; s.BannedUntil > now {
 		return false, "worker_temporarily_banned"
 	}
