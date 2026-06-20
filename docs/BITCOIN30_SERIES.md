@@ -12,6 +12,8 @@ Public day-8 report: [hackme.tech/reports/bitcoin30-day08.html](https://hackme.t
 
 Public day-11 report: [hackme.tech/reports/bitcoin30-day11.html](https://hackme.tech/reports/bitcoin30-day11.html)
 
+Public day-12 report: [hackme.tech/reports/bitcoin30-day12.html](https://hackme.tech/reports/bitcoin30-day12.html)
+
 Series hub: [hackme.tech/reports/bitcoin30.html](https://hackme.tech/reports/bitcoin30.html)
 
 mkpool case study: [docs/MKPOOL_CASE_STUDY.md](MKPOOL_CASE_STUDY.md) · report: [hackme.tech/reports/mkpool-fuzz/](https://hackme.tech/reports/mkpool-fuzz/)
@@ -35,7 +37,7 @@ Public week-1 ledger: [hackme.tech/reports/bitcoin30-week1.html](https://hackme.
 | 9 | Block weight · MAX_BLOCK_WEIGHT | `upstream_bitcoin_block_weight.wasm` | 128 runs · 80 guard signals · `day09-20260618T030511Z` |
 | 10 | BIP34 coinbase height | `upstream_bitcoin_coinbase_bip34.wasm` | 128 runs · 80 guard signals · `day10-20260618T122526Z` |
 | 11 | Duplicate inputs · deep | `upstream_bitcoin_tx_dup_inputs.wasm` | 256 runs · 24 guard signals · CVE-2018-17144 class · `day11-20260618T122959Z` |
-| 12 | EvalScript stack · deep | `upstream_bitcoin_evalscript_stack.wasm` | 256 runs |
+| 12 | EvalScript stack · deep | `upstream_bitcoin_evalscript_stack.wasm` | 256 runs · 80 guard signals · `day12-20260620T185923Z` |
 | 13 | Witness stack · deep | `upstream_bitcoin_witness_stack.wasm` | 256 runs |
 | 14 | EvalScript op count · deep | `upstream_bitcoin_evalscript_opcount.wasm` | 256 runs |
 | 15–30 | TBD | extend `run_bitcoin30_day.sh` | taproot · new guards |

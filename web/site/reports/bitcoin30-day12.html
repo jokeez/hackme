@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>HackMe · Bitcoin Core 30-Day Fuzz — Day 11</title>
-<meta name="description" content="Day 11: Bitcoin Core duplicate inputs deep pass (CVE-2018-17144 class) — 256 runs, 24 guard signals, 0 critical."/>
-<link rel="canonical" href="https://hackme.tech/reports/bitcoin30-day11.html"/>
+<title>HackMe · Bitcoin Core 30-Day Fuzz — Day 12</title>
+<meta name="description" content="Day 12: Bitcoin Core EvalScript MAX_STACK_SIZE deep pass — 256 runs, 80 guard signals, 0 critical."/>
+<link rel="canonical" href="https://hackme.tech/reports/bitcoin30-day12.html"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
 <style>
@@ -30,7 +30,7 @@ body::before{content:"";position:fixed;inset:0;background:radial-gradient(ellips
 .core-links{margin:.75rem 0;padding-left:1.1rem;font-size:.75rem}
 .core-links a{color:var(--neon)}
 .run-bar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:rgba(255,255,255,.06);margin:1rem 0 .5rem}
-.run-bar .sig{width:9.375%;background:linear-gradient(90deg,#4a3030,var(--amber))}
+.run-bar .sig{width:31.25%;background:linear-gradient(90deg,#4a3030,var(--amber))}
 .verdict{border-left:3px solid var(--matrix);padding:.75rem 1rem;margin:1.5rem 0;font-size:.82rem;color:#9eb0c8;background:rgba(57,255,20,.04);border-radius:0 8px 8px 0}
 .disclaimer{border:1px solid rgba(255,176,32,.35);border-radius:12px;padding:1rem;font-size:.78rem;color:#d4b896;margin-top:2rem}
 footer{margin-top:2rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,.08);font-size:.72rem;color:#6d8099;text-align:center}
@@ -40,46 +40,46 @@ footer a{color:var(--neon)}
 <body>
 <div class="wrap">
 <section class="hero">
-<p class="tag">Week 2 · Day 11/30 · bitcoin/bitcoin master</p>
-<h1>Duplicate inputs · deep pass</h1>
-<p>Week-2 deep fuzz on <code>CheckTransaction</code> prevout dedup — same guard as Day 4, 4× run budget (256 vs 64).</p>
-<span class="hero-badge">24 GUARD SIGNALS · 0 CRITICAL</span>
+<p class="tag">Week 2 · Day 12/30 · bitcoin/bitcoin master</p>
+<h1>EvalScript stack · deep pass</h1>
+<p>Week-2 deep fuzz on <code>EvalScript</code> stack + altstack size guard — same module as Day 8, 4× run budget (256 vs 64).</p>
+<span class="hero-badge">80 GUARD SIGNALS · 0 CRITICAL</span>
 </section>
 
 <div class="stats">
 <div class="stat"><b>Runs</b><span class="v">256</span></div>
-<div class="stat"><b>Guard signals</b><span class="v warn">24</span></div>
+<div class="stat"><b>Guard signals</b><span class="v warn">80</span></div>
 <div class="stat"><b>Critical</b><span class="v ok">0</span></div>
-<div class="stat"><b>Duration</b><span class="v" style="font-size:.9rem">106s</span></div>
+<div class="stat"><b>Duration</b><span class="v" style="font-size:.9rem">99s</span></div>
 <div class="stat"><b>New edges</b><span class="v">165</span></div>
-<div class="stat"><b>Date (UTC)</b><span class="v" style="font-size:.72rem">2026-06-18</span></div>
+<div class="stat"><b>Date (UTC)</b><span class="v" style="font-size:.72rem">2026-06-20</span></div>
 </div>
 
 <article class="mod-card">
-<h2>Module · <code>upstream_bitcoin_tx_dup_inputs</code></h2>
-<p class="mod-guard">CVE-2018-17144 <em>class</em>: transactions must not spend the same prevout twice. Detector semantics on ported WASM guard.</p>
-<p class="mod-guard">Campaign: <code>campaign-btc30-d11-20260618T122959Z</code></p>
+<h2>Module · <code>upstream_bitcoin_evalscript_stack</code></h2>
+<p class="mod-guard"><code>SCRIPT_ERR_STACK_SIZE</code> (1000 elements): main stack + altstack combined limit in interpreter. Detector semantics on ported WASM guard.</p>
+<p class="mod-guard">Campaign: <code>campaign-btc30-d12-20260620T185923Z-6782</code></p>
 <ul class="core-links">
-<li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/consensus/tx_check.cpp" target="_blank" rel="noopener">tx_check.cpp — duplicate input check</a></li>
-<li><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_tx_dup_inputs.c" target="_blank" rel="noopener">HackMe source: bitcoin_tx_dup_inputs.c</a></li>
-<li><a href="./bitcoin30-day10.html">Day 10 — BIP34 coinbase</a></li>
+<li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/script/interpreter.cpp" target="_blank" rel="noopener">interpreter.cpp — EvalScript stack checks (L334–335)</a></li>
+<li><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_evalscript_stack.c" target="_blank" rel="noopener">HackMe source: bitcoin_evalscript_stack.c</a></li>
+<li><a href="./bitcoin30-day08.html">Day 8 — first stack pass (64 runs)</a></li>
+<li><a href="./bitcoin30-day11.html">Day 11 — duplicate inputs deep</a></li>
 </ul>
 <div class="run-bar"><div class="sig"></div></div>
-<p style="font-size:.72rem;color:#6d8099">9.4% guard-signal rate — duplicate-prevout encodings rejected; filter behaving as expected.</p>
+<p style="font-size:.72rem;color:#6d8099">31.3% guard-signal rate — over-limit stack encodings rejected; filter behaving as expected.</p>
 </article>
 
 <div class="verdict">
-<strong>Verdict:</strong> <code>fail_high</code> under detector semantics — boundary-class duplicate-input inputs, not a new inflation bug. Core fixed CVE-2018-17144 in 0.16.3; this guard validates the rejection path only.
+<strong>Verdict:</strong> <code>fail_high</code> under detector semantics — boundary-class stack-overflow inputs, not a new consensus bug. Core enforces <code>MAX_STACK_SIZE</code> in production; this guard validates the rejection path only.
 </div>
 
 <div class="disclaimer">
-<strong>Honest scope.</strong> WASM excerpt — not <code>bitcoind</code>. Reproduce: <code>DAY=11 bash scripts/ops/run_bitcoin30_day.sh</code>.
+<strong>Honest scope.</strong> WASM excerpt — not <code>bitcoind</code>. Reproduce: <code>DAY=12 bash scripts/ops/run_bitcoin30_day.sh</code>.
 </div>
 
 <footer>
-<a href="./bitcoin30-day10.html">Day 10</a> ·
-<a href="./bitcoin30-day12.html">Day 12</a> ·
-<a href="./bitcoin30-week1.html">Week 1</a> ·
+<a href="./bitcoin30-day11.html">Day 11</a> ·
+<a href="./bitcoin30.html">Series hub</a> ·
 <a href="https://hackme.tech/research.html">Research</a>
 </footer>
 </div>
