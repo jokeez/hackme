@@ -6,6 +6,9 @@ Static front-end for [hackme.tech](https://hackme.tech). Served separately from 
 
 | File | Purpose |
 |------|---------|
+| `research.html` | Research hub (L1 · Bitcoin30 · OSS case studies) |
+| `reports/bitcoin30.html` | Bitcoin 30-Day series hub |
+| `reports/mkpool-fuzz/` | mkpool parser fuzz (fuzz_report_v2) |
 | `index.html` | Landing |
 | `downloads.html` | Release artifacts and checksums |
 | `docs.html` | Documentation hub |

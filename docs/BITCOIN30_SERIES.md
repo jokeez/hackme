@@ -12,6 +12,10 @@ Public day-8 report: [hackme.tech/reports/bitcoin30-day08.html](https://hackme.t
 
 Public day-11 report: [hackme.tech/reports/bitcoin30-day11.html](https://hackme.tech/reports/bitcoin30-day11.html)
 
+Series hub: [hackme.tech/reports/bitcoin30.html](https://hackme.tech/reports/bitcoin30.html)
+
+mkpool case study: [docs/MKPOOL_CASE_STUDY.md](MKPOOL_CASE_STUDY.md) · report: [hackme.tech/reports/mkpool-fuzz/](https://hackme.tech/reports/mkpool-fuzz/)
+
 Current report: `reports/bitcoin30/CURRENT/`
 
 Public week-1 ledger: [hackme.tech/reports/bitcoin30-week1.html](https://hackme.tech/reports/bitcoin30-week1.html)

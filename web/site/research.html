@@ -4,10 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>HackMe Research — Multi-chain L1 &amp; Security Reports</title>
-  <meta name="description" content="Public security research for the HackMe ecosystem: live L1 v4 prod fuzz (BTC, ETH, DOGE, LTC, HackMe), offline corpora, upstream WASM fidelity, and honest scope notes." />
+  <meta name="description" content="Public security research: L1 live prod fuzz, Bitcoin 30-Day series, OSS case studies (mkpool), upstream WASM — honest scope, fuzz_report_v2 ledgers." />
   <link rel="canonical" href="https://hackme.tech/research.html" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-  <link rel="stylesheet" href="./assets/styles.css" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20260620research" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
@@ -26,73 +26,125 @@
   <main class="container">
     <section class="hero glass hero-small">
       <p class="kicker">Security research · Ecosystem</p>
-      <h1>Multi-chain L1 stack &amp; live prod fuzz</h1>
+      <h1>Research hub</h1>
       <p class="hero-copy">
-        HackMe is <strong>not a single-chain fork</strong>. Public research covers
-        <strong>Bitcoin · Ethereum · Dogecoin · Litecoin · HackMe</strong> upstream guards,
-        plus <strong>live useful-PoW fuzz</strong> on hackme.tech with real HMC escrow.
-        Customer audit reports stay <strong>token-gated</strong> — see <a href="./developers.html">Developers</a>.
+        Public ledgers for <strong>live prod fuzz</strong>, the <strong>Bitcoin 30-Day</strong> series,
+        and <strong>OSS case studies</strong> — all in <code>fuzz_report_v2</code> or campaign HTML.
+        Customer audits stay <strong>token-gated</strong> on your local node — see <a href="./developers.html">Developers</a>.
       </p>
       <div class="pill-row">
-        <span class="pill">HMC mining + pool</span>
-        <span class="pill">SUP accrual</span>
-        <span class="pill">B2B fuzz (local node)</span>
         <span class="pill">5-chain L1 WASM</span>
+        <span class="pill">Bitcoin30 series</span>
+        <span class="pill">OSS parser fuzz</span>
+        <span class="pill">0 critical · honest triage</span>
       </div>
     </section>
 
-    <section class="panel glass">
-      <div class="panel-head">
-        <h2>Featured · L1 Crypto Stack v4 (live)</h2>
-        <p class="subtle">Production campaigns on the public pool — escrow, workerfuzz, published HTML ledger.</p>
+    <section class="panel glass research-section">
+      <div class="research-section-head">
+        <div>
+          <h2>Live production fuzz</h2>
+          <p class="subtle">Escrow · workerfuzz · coordinator · published HTML</p>
+        </div>
       </div>
-      <div class="cta-row">
+      <div class="research-grid">
+        <a class="research-card" href="./reports/l1-crypto-stack-v4.html">
+          <span class="research-tag live">Live · prod pool</span>
+          <h3>L1 Crypto Stack v4</h3>
+          <p>BTC · ETH · DOGE · LTC · HackMe — wallet + campaign table on hackme.tech.</p>
+          <div class="research-stats"><span>May 2026</span><span><b>5</b> chains</span></div>
+        </a>
+      </div>
+      <div class="cta-row" style="margin-top:1rem">
         <a class="btn btn-primary" href="./reports/l1-crypto-stack-v4.html">Open v4 report</a>
-        <a class="btn btn-secondary" href="https://hackme.tech/reports/l1-crypto-stack-v4.html" target="_blank" rel="noreferrer">Canonical URL</a>
-        <a class="btn btn-secondary" href="./fuzz-campaigns.html">Fuzz hub</a>
+        <a class="btn btn-secondary" href="./fuzz-campaigns.html">Fuzz marketplace</a>
       </div>
     </section>
 
-    <section class="panel glass">
-      <div class="panel-head">
-        <h2>All public reports</h2>
+    <section class="panel glass research-section">
+      <div class="research-section-head">
+        <div>
+          <h2>Bitcoin Core · 30-Day series</h2>
+          <p class="subtle">Daily upstream WASM · week ledgers — not a flat list of every day</p>
+        </div>
       </div>
-      <div class="quick-links">
-        <a class="quick-item" href="./reports/l1-crypto-stack-v4.html">
-          <h4>L1 Crypto Stack v4</h4>
-          <p>Live prod fuzz · BTC/ETH/DOGE/LTC/HackMe · wallet + campaign table · May 2026.</p>
+      <div class="research-grid">
+        <a class="research-card" href="./reports/bitcoin30.html">
+          <span class="research-tag series">Series hub</span>
+          <h3>Bitcoin 30-Day fuzz</h3>
+          <p>Week 1 complete · Week 2 in progress (days 8–11 live). Latest: duplicate-input deep pass.</p>
+          <div class="research-stats"><span>Week 1: <b>576</b> runs</span><span>Latest: <b>Day 11</b></span><span><b>0</b> critical</span></div>
         </a>
-        <a class="quick-item" href="./reports/l1-crypto-stack-v3.html">
-          <h4>L1 Crypto Stack v3</h4>
-          <p>Official Bitcoin Core qa-assets corpus · pinned upstream · 20k golden match.</p>
+        <a class="research-card" href="./reports/bitcoin30-week1.html">
+          <span class="research-tag series">Week 1 ledger</span>
+          <h3>Week 1 · days 1–7</h3>
+          <p>Seven modules · 321 guard signals · one clean module (MoneyRange).</p>
+          <div class="research-stats"><span><b>0</b> critical</span><span>576 runs</span></div>
         </a>
-        <a class="quick-item" href="./reports/l1-crypto-stack.html">
-          <h4>L1 Crypto Stack v2</h4>
-          <p>Five-chain property probes · upstream excerpts · no sandbox traps.</p>
+        <a class="research-card" href="./reports/bitcoin30-day11.html">
+          <span class="research-tag series">Current · week 2</span>
+          <h3>Day 11 · duplicate inputs</h3>
+          <p>Deep pass · CVE-2018-17144 class · 256 runs · guard signals on reject paths.</p>
+          <div class="research-stats"><span><b>0</b> critical</span><span>256 runs</span></div>
         </a>
-        <a class="quick-item" href="./reports/bitcoin-core-5module.html">
-          <h4>Bitcoin Core 5-module</h4>
-          <p>Companion study · Core-inspired guards · honest non-CVE scope.</p>
+      </div>
+    </section>
+
+    <section class="panel glass research-section">
+      <div class="research-section-head">
+        <div>
+          <h2>OSS case studies</h2>
+          <p class="subtle">Voluntary parser / consensus boundary fuzz · fuzz_report_v2 export</p>
+        </div>
+      </div>
+      <div class="research-grid">
+        <a class="research-card" href="./reports/mkpool-fuzz/">
+          <span class="research-tag case">Stratum · mkpool</span>
+          <h3>Mecanik / mkpool parser fuzz</h3>
+          <p>SV2 Reader · version mask · mining.submit hex · V1 framing — 4 guards, ~16k checks.</p>
+          <div class="research-stats"><span><b>0</b> critical</span><span>400 guard signals</span><span>no patch requested</span></div>
         </a>
-        <a class="quick-item" href="./reports/bitcoin30-day11.html">
-          <h4>Bitcoin 30-Day · Day 11</h4>
-          <p>Deep pass · duplicate inputs (CVE-2018-17144 class) · 256 runs · 0 critical · live ledger.</p>
+        <a class="research-card" href="./reports/bitcoin-core-5module.html">
+          <span class="research-tag case">Bitcoin Core</span>
+          <h3>Core 5-module study</h3>
+          <p>Companion guards · honest non-CVE scope · upstream excerpts.</p>
         </a>
-        <a class="quick-item" href="./reports/bitcoin30-day08.html">
-          <h4>Bitcoin 30-Day · Day 8</h4>
-          <p>Week 2 kickoff · EvalScript MAX_STACK_SIZE · 64 runs · 0 critical · live campaign ledger.</p>
+      </div>
+    </section>
+
+    <section class="panel glass research-section">
+      <div class="research-section-head">
+        <div>
+          <h2>Archive · L1 stack</h2>
+          <p class="subtle">Earlier corpora and property probes</p>
+        </div>
+      </div>
+      <div class="research-grid">
+        <a class="research-card" href="./reports/l1-crypto-stack-v3.html">
+          <span class="research-tag archive">Corpus v3</span>
+          <h3>L1 Crypto Stack v3</h3>
+          <p>Bitcoin Core qa-assets · pinned upstream · 20k golden match.</p>
         </a>
-        <a class="quick-item" href="./reports/bitcoin30-week1.html">
-          <h4>Bitcoin 30-Day · Week 1</h4>
-          <p>Live daily upstream fuzz Jun 2026 · 7 modules · 576 runs · 0 critical · public verdict ledger.</p>
+        <a class="research-card" href="./reports/l1-crypto-stack.html">
+          <span class="research-tag archive">v2</span>
+          <h3>L1 Crypto Stack v2</h3>
+          <p>Five-chain property probes · no sandbox traps.</p>
         </a>
+      </div>
+    </section>
+
+    <section class="panel glass research-section">
+      <div class="research-section-head">
+        <h2>Operators &amp; policy</h2>
+      </div>
+      <div class="quick-links quick-links-two">
         <a class="quick-item" href="./fuzz-guide.html">
           <h4>Fuzz operator guide</h4>
-          <p>Campaign lifecycle, gates, autorunner — for node operators.</p>
+          <p>Campaign lifecycle, gates, autorunner — local node <code>#fuzz</code>.</p>
         </a>
         <a class="quick-item" href="./security-rewards.html">
           <h4>Security rewards</h4>
-          <p>Bounty policy and disclosure channels for the network.</p>
+          <p>Bounty policy and disclosure channels.</p>
         </a>
       </div>
     </section>
@@ -100,9 +152,9 @@
     <section class="panel glass">
       <div class="panel-head"><h2>Honest scope</h2></div>
       <ul class="list">
-        <li>Research WASM ports exercise <em>selected</em> upstream logic — not a replacement for running full node fuzz binaries locally.</li>
-        <li>Live v4 proves pool + escrow + coordinator + workerfuzz on production — not private customer source unless they chose to fuzz it on their local node.</li>
-        <li>Mining economics (HMC, SUP, orders) are documented on <a href="./economics-model.html">Economics</a> and <a href="./coins.html">Coins</a>.</li>
+        <li>WASM guards exercise <em>selected</em> upstream logic — validate crash-class issues on native builds before CVE claims.</li>
+        <li><code>fail_high</code> + guard signals often mean <strong>expected rejections</strong>, not exploitable bugs.</li>
+        <li>Mining economics: <a href="./economics-model.html">Economics</a> · <a href="./coins.html">Coins</a>.</li>
       </ul>
     </section>
   </main>
@@ -113,6 +165,6 @@
     <div class="footer-nav"></div>
   </footer>
   <script src="./assets/site-shell.js?v=20260601hub"></script>
-  <script src="./assets/app.js?v=20260531research"></script>
+  <script src="./assets/app.js?v=20260620research"></script>
 </body>
 </html>

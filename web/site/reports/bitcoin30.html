@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>HackMe · Bitcoin Core 30-Day Fuzz Series</title>
+<meta name="description" content="Daily upstream Bitcoin Core WASM fuzz on HackMe — week ledgers, live reports, honest guard-signal triage."/>
+<link rel="canonical" href="https://hackme.tech/reports/bitcoin30.html"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--neon:#00d1ff;--matrix:#39ff14;--warn:#ffb020;--bg:#05080f;--card:rgba(0,0,0,.45)}
+*{box-sizing:border-box}
+body{margin:0;font-family:"JetBrains Mono",ui-monospace,monospace;background:var(--bg);color:#c5d4e8;line-height:1.6}
+body::before{content:"";position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(0,209,255,.12),transparent);pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:920px;margin:0 auto;padding:2.5rem 1.25rem 4rem}
+.hero{text-align:center;padding:2rem 1.5rem;border:1px solid rgba(0,209,255,.28);border-radius:20px;background:linear-gradient(160deg,rgba(0,209,255,.08),rgba(0,0,0,.5));margin-bottom:2rem}
+.hero h1{font-family:"Space Grotesk",sans-serif;font-size:clamp(1.2rem,4vw,1.65rem);letter-spacing:.1em;text-transform:uppercase;color:var(--neon);margin:0}
+.hero .tag{font-size:.72rem;color:#6d8099;text-transform:uppercase;letter-spacing:.2em;margin-top:.5rem}
+.week{border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:1.25rem;margin:1rem 0;background:var(--card)}
+.week h2{font-family:"Space Grotesk",sans-serif;font-size:1.05rem;color:#fff;margin:0 0 .5rem}
+.week p{font-size:.8rem;color:#9eb0c8;margin:.35rem 0}
+.week a.btn{display:inline-block;margin-top:.75rem;padding:.45rem 1rem;border:1px solid rgba(0,209,255,.4);border-radius:999px;color:var(--neon);font-size:.78rem;text-decoration:none}
+.week a.btn:hover{background:rgba(0,209,255,.1)}
+.days{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.5rem;margin-top:1rem}
+.days a{font-size:.72rem;padding:.5rem .65rem;border:1px solid rgba(255,255,255,.08);border-radius:8px;color:#b8c8dc;text-decoration:none}
+.days a:hover{border-color:rgba(0,209,255,.35);color:#fff}
+.days a.current{border-color:var(--matrix);color:var(--matrix)}
+footer{margin-top:2rem;text-align:center;font-size:.72rem;color:#6d8099}
+footer a{color:var(--neon)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<section class="hero">
+<p class="tag">bitcoin/bitcoin · upstream WASM guards · Jun 2026</p>
+<h1>Bitcoin Core 30-Day Fuzz</h1>
+<p style="font-size:.85rem;color:#9eb0c8;margin-top:1rem">One module per day · live HackMe security-audit · public HTML · <strong>0 critical</strong> across series so far</p>
+</section>
+
+<article class="week">
+<h2>Week 2 · in progress (days 8–14)</h2>
+<p>Deep passes on script limits, block weight, BIP34, duplicate inputs. Latest: <strong>Day 11</strong> — duplicate-input deep pass, 256 runs, 0 critical.</p>
+<a class="btn" href="./bitcoin30-day11.html">Open latest · Day 11</a>
+<div class="days">
+<a href="./bitcoin30-day08.html">Day 8 · stack</a>
+<a href="./bitcoin30-day09.html">Day 9 · weight</a>
+<a href="./bitcoin30-day10.html">Day 10 · BIP34</a>
+<a class="current" href="./bitcoin30-day11.html">Day 11 · dup inputs</a>
+</div>
+</article>
+
+<article class="week">
+<h2>Week 1 · complete (days 1–7)</h2>
+<p>576 runs · 7 modules · 321 guard signals · 0 critical · 1 clean module (Day 3).</p>
+<a class="btn" href="./bitcoin30-week1.html">Open Week 1 ledger</a>
+</article>
+
+<p style="font-size:.78rem;color:#6d8099;margin-top:1.5rem">Reproduce: <code>DAY=N bash scripts/ops/run_bitcoin30_day.sh</code> · Schedule: <code>docs/BITCOIN30_SERIES.md</code></p>
+
+<footer>
+<a href="../research.html">← Research hub</a> ·
+<a href="https://hackme.tech/research.html">hackme.tech/research</a>
+</footer>
+</div>
+</body>
+</html>
