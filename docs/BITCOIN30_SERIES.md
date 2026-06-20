@@ -14,6 +14,8 @@ Public day-11 report: [hackme.tech/reports/bitcoin30-day11.html](https://hackme.
 
 Public day-12 report: [hackme.tech/reports/bitcoin30-day12.html](https://hackme.tech/reports/bitcoin30-day12.html)
 
+Public two-week report (days 1–14): [hackme.tech/reports/bitcoin30-two-weeks.html](https://hackme.tech/reports/bitcoin30-two-weeks.html)
+
 Series hub: [hackme.tech/reports/bitcoin30.html](https://hackme.tech/reports/bitcoin30.html)
 
 mkpool case study: [docs/MKPOOL_CASE_STUDY.md](MKPOOL_CASE_STUDY.md) · report: [hackme.tech/reports/mkpool-fuzz/](https://hackme.tech/reports/mkpool-fuzz/)
@@ -38,9 +40,13 @@ Public week-1 ledger: [hackme.tech/reports/bitcoin30-week1.html](https://hackme.
 | 10 | BIP34 coinbase height | `upstream_bitcoin_coinbase_bip34.wasm` | 128 runs · 80 guard signals · `day10-20260618T122526Z` |
 | 11 | Duplicate inputs · deep | `upstream_bitcoin_tx_dup_inputs.wasm` | 256 runs · 24 guard signals · CVE-2018-17144 class · `day11-20260618T122959Z` |
 | 12 | EvalScript stack · deep | `upstream_bitcoin_evalscript_stack.wasm` | 256 runs · 80 guard signals · `day12-20260620T185923Z` |
-| 13 | Witness stack · deep | `upstream_bitcoin_witness_stack.wasm` | 256 runs |
-| 14 | EvalScript op count · deep | `upstream_bitcoin_evalscript_opcount.wasm` | 256 runs |
+| 13 | Witness stack · deep | `upstream_bitcoin_witness_stack.wasm` | 256 runs · 80 guard signals · `day13-20260620T195022Z` |
+| 14 | EvalScript op count · deep | `upstream_bitcoin_evalscript_opcount.wasm` | 256 runs · 80 guard signals · `day14-20260620T195316Z` |
 | 15–30 | TBD | extend `run_bitcoin30_day.sh` | taproot · new guards |
+
+### Two-week verdict (days 1–14)
+
+**1,856 runs · 809 guard signals · 0 critical · 1 clean module (Day 3).** Week 1: 512 runs. Week 2: 1,344 runs (deep passes). Public ledger: [bitcoin30-two-weeks.html](https://hackme.tech/reports/bitcoin30-two-weeks.html).
 
 ### Week 2 schedule (5 days)
 
@@ -57,7 +63,7 @@ Social drafts: `docs/BITCOIN30_SOCIAL_WEEK2.md`
 
 ### Week 1 verdict
 
-576 total runs · 321 guard signals · **0 critical** · 1 clean module (Day 3). Guard signals = boundary-class triage, not CVE claims.
+512 total runs · 321 guard signals · **0 critical** · 1 clean module (Day 3). Guard signals = boundary-class triage, not CVE claims.
 
 ## Social copy (English, local only)
 

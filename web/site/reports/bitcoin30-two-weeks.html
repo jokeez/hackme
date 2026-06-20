@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>HackMe · Bitcoin Core 30-Day Fuzz — Two-Week Report (Days 1–14)</title>
+<meta name="description" content="Combined two-week Bitcoin Core upstream WASM fuzz on HackMe: 14 modules, 1856 live runs, 809 guard signals, zero critical findings."/>
+<link rel="canonical" href="https://hackme.tech/reports/bitcoin30-two-weeks.html"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--neon:#00d1ff;--matrix:#39ff14;--warn:#ffb020;--amber:#ff8c42;--bg:#05080f;--card:rgba(0,0,0,.45)}
+*{box-sizing:border-box}
+body{margin:0;font-family:"JetBrains Mono",ui-monospace,monospace;background:var(--bg);color:#c5d4e8;line-height:1.6;min-height:100vh}
+body::before{content:"";position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(0,209,255,.12),transparent),radial-gradient(ellipse 50% 40% at 0% 80%,rgba(57,255,20,.05),transparent);pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:980px;margin:0 auto;padding:2.5rem 1.25rem 4rem}
+.hero{text-align:center;padding:2.5rem 1.5rem;border:1px solid rgba(0,209,255,.28);border-radius:20px;background:linear-gradient(160deg,rgba(0,209,255,.08),rgba(0,0,0,.5));margin-bottom:2rem}
+.hero h1{font-family:"Space Grotesk",sans-serif;font-size:clamp(1.2rem,4vw,1.65rem);letter-spacing:.1em;text-transform:uppercase;color:var(--neon);margin:0}
+.hero .tag{font-size:.72rem;color:#6d8099;text-transform:uppercase;letter-spacing:.2em;margin-top:.5rem}
+.hero-badge{display:inline-block;margin-top:1.25rem;padding:.55rem 1.4rem;border-radius:999px;border:2px solid var(--matrix);color:var(--matrix);font-weight:700;font-size:.9rem;letter-spacing:.18em;text-transform:uppercase}
+.hero p.lead{max-width:46rem;margin:1rem auto 0;font-size:.88rem;color:#9eb0c8}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.75rem;margin:1.5rem 0 2rem}
+.stat{border:1px solid rgba(0,209,255,.2);border-radius:12px;padding:1rem;background:var(--card)}
+.stat b{display:block;font-size:.62rem;text-transform:uppercase;letter-spacing:.12em;color:#6d8099;margin-bottom:.35rem}
+.stat .v{font-size:1.3rem;font-weight:700;color:#fff}
+.stat .v.ok{color:var(--matrix)}
+.stat .v.warn{color:var(--warn)}
+.stat .v.neon{color:var(--neon)}
+.week-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1.5rem 0}
+@media(max-width:640px){.week-row{grid-template-columns:1fr}}
+.week-box{border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:1.25rem;background:var(--card)}
+.week-box h2{font-family:"Space Grotesk",sans-serif;font-size:1rem;color:#fff;margin:0 0 .5rem}
+.week-box p{font-size:.78rem;color:#9eb0c8;margin:.3rem 0}
+.week-box a.btn{display:inline-block;margin-top:.6rem;padding:.4rem .9rem;border:1px solid rgba(0,209,255,.4);border-radius:999px;color:var(--neon);font-size:.72rem;text-decoration:none}
+.verdict-box{border:1px solid rgba(57,255,20,.35);border-radius:16px;padding:1.25rem;margin:1.5rem 0;background:rgba(57,255,20,.04)}
+.verdict-box h2{font-family:"Space Grotesk",sans-serif;font-size:.95rem;color:var(--matrix);margin:0 0 .6rem;text-transform:uppercase;letter-spacing:.08em}
+.verdict-box p,.verdict-box li{font-size:.8rem;color:#b8c8dc}
+table{width:100%;border-collapse:collapse;font-size:.72rem;margin:1rem 0}
+th,td{border:1px solid rgba(255,255,255,.08);padding:.45rem .5rem;text-align:left}
+th{color:var(--neon);font-weight:600;background:rgba(0,209,255,.06)}
+td a{color:var(--neon)}
+.disclaimer{border:1px solid rgba(255,176,32,.35);border-radius:12px;padding:1rem;font-size:.78rem;color:#d4b896;margin-top:2rem}
+footer{margin-top:2rem;text-align:center;font-size:.72rem;color:#6d8099}
+footer a{color:var(--neon)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<section class="hero">
+<p class="tag">HackMe security research · bitcoin/bitcoin master · Jun 2026</p>
+<h1>Bitcoin Core Fuzz · Two Weeks</h1>
+<p class="lead">Fourteen consecutive days of upstream WASM guards ported from Bitcoin Core consensus paths. Live HackMe security-audit pipeline (HMC escrow, WASM sandbox, detector semantics, public reports).</p>
+<span class="hero-badge">14 DAYS · 0 CRITICAL</span>
+</section>
+
+<div class="stats">
+<div class="stat"><b>Days / modules</b><span class="v neon">14</span></div>
+<div class="stat"><b>Total runs</b><span class="v">1,856</span></div>
+<div class="stat"><b>Guard signals</b><span class="v warn">809</span></div>
+<div class="stat"><b>Critical</b><span class="v ok">0</span></div>
+<div class="stat"><b>Clean modules</b><span class="v ok">1</span></div>
+<div class="stat"><b>Period</b><span class="v" style="font-size:.65rem">10–20 Jun</span></div>
+</div>
+
+<div class="week-row">
+<article class="week-box">
+<h2>Week 1 · days 1–7</h2>
+<p>512 runs · 321 guard signals · 1 clean module (Day 3 MoneyRange)</p>
+<p>Script parsing, tx checks, witness push cap, opcode budget.</p>
+<a class="btn" href="./bitcoin30-week1.html">Open Week 1 ledger</a>
+</article>
+<article class="week-box">
+<h2>Week 2 · days 8–14</h2>
+<p>1,344 runs · 488 guard signals · deep passes (256-run budget)</p>
+<p>Stack, block weight, BIP34, duplicate-input deep, witness/op deep.</p>
+<a class="btn" href="./bitcoin30.html">Series hub · daily pages</a>
+</article>
+</div>
+
+<div class="verdict-box">
+<h2>Two-week verdict</h2>
+<p><strong>No exploitable consensus bypass surfaced across 1,856 distributed runs.</strong> Guard signals are boundary-class inputs that trip ported checks — expected under <code>detector</code> semantics. These are <strong>not</strong> CVE claims against Bitcoin Core without native <code>bitcoind</code> reproduction.</p>
+<ul>
+<li><strong>Day 3</strong> — only clean module (MoneyRange, 64 runs, zero hits).</li>
+<li><strong>Day 4 / Day 11</strong> — duplicate-input class (CVE-2018-17144 historical); reject path validated.</li>
+<li><strong>Week 2</strong> — higher run budgets on repeat guards; no new critical class emerged.</li>
+</ul>
+</div>
+
+<p style="font-size:.65rem;text-transform:uppercase;letter-spacing:.14em;color:var(--neon);margin:1.5rem 0 .5rem">Daily ledger (live campaigns)</p>
+<table>
+<thead><tr><th>Day</th><th>Module</th><th>Runs</th><th>Signals</th><th>Critical</th><th>Report</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>GetScriptOp · 520 B</td><td>64</td><td>59</td><td>0</td><td><a href="./bitcoin30-week1.html">Week 1</a></td></tr>
+<tr><td>2</td><td>HasValidOps</td><td>64</td><td>62</td><td>0</td><td><a href="./bitcoin30-week1.html">Week 1</a></td></tr>
+<tr><td>3</td><td>MoneyRange</td><td>64</td><td>0</td><td>0</td><td><a href="./bitcoin30-week1.html">Week 1 · clean</a></td></tr>
+<tr><td>4</td><td>Dup inputs</td><td>64</td><td>5</td><td>0</td><td><a href="./bitcoin30-week1.html">Week 1</a></td></tr>
+<tr><td>5</td><td>EvalScript push</td><td>64</td><td>59</td><td>0</td><td><a href="./bitcoin30-week1.html">Week 1</a></td></tr>
+<tr><td>6</td><td>Witness stack</td><td>128</td><td>80</td><td>0</td><td><a href="./bitcoin30-week1.html">Week 1</a></td></tr>
+<tr><td>7</td><td>Op count</td><td>64</td><td>56</td><td>0</td><td><a href="./bitcoin30-week1.html">Week 1</a></td></tr>
+<tr><td>8</td><td>Stack size</td><td>64</td><td>64</td><td>0</td><td><a href="./bitcoin30-day08.html">Day 8</a></td></tr>
+<tr><td>9</td><td>Block weight</td><td>128</td><td>80</td><td>0</td><td><a href="./bitcoin30-day09.html">Day 9</a></td></tr>
+<tr><td>10</td><td>BIP34 coinbase</td><td>128</td><td>80</td><td>0</td><td><a href="./bitcoin30-day10.html">Day 10</a></td></tr>
+<tr><td>11</td><td>Dup inputs · deep</td><td>256</td><td>24</td><td>0</td><td><a href="./bitcoin30-day11.html">Day 11</a></td></tr>
+<tr><td>12</td><td>Stack · deep</td><td>256</td><td>80</td><td>0</td><td><a href="./bitcoin30-day12.html">Day 12</a></td></tr>
+<tr><td>13</td><td>Witness · deep</td><td>256</td><td>80</td><td>0</td><td><a href="./bitcoin30-day13.html">Day 13</a></td></tr>
+<tr><td>14</td><td>Op count · deep</td><td>256</td><td>80</td><td>0</td><td><a href="./bitcoin30-day14.html">Day 14</a></td></tr>
+</tbody>
+</table>
+
+<div class="disclaimer">
+<strong>Honest scope.</strong> WASM <code>check(i64)→i32</code> guards inspired by Core — not a full node. Reproduce any day: <code>DAY=N bash scripts/ops/run_bitcoin30_day.sh</code>.
+</div>
+
+<footer>
+<a href="./bitcoin30.html">Series hub</a> ·
+<a href="./bitcoin30-week1.html">Week 1</a> ·
+<a href="https://hackme.tech/research.html">Research</a>
+</footer>
+</div>
+</body>
+</html>

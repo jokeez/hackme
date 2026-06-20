@@ -102,19 +102,48 @@ Day 11/30 — 256-run deep fuzz on Bitcoin Core duplicate-input guard (CVE-2018-
 
 ---
 
-## Day 12 — EvalScript stack deep pass
+## Day 12 — EvalScript stack deep pass (published 20 Jun 2026)
 
 ### Telegram
 
-🧪 Day 12/30 — Deep pass: EvalScript MAX_STACK_SIZE (1000 elements).
+🧪 HackMe · Bitcoin Core 30-day fuzz — Day 12/30
 
-256 runs on interpreter stack guard. Week-2 focus: script resource limits.
+Day 12 — EvalScript stack + altstack size limit (deep pass):
 
-#HackMe #Bitcoin
+📌 Today: SCRIPT_ERR_STACK_SIZE · MAX_STACK_SIZE (1000 elements)
+📌 Upstream: bitcoin/bitcoin → interpreter.cpp EvalScript L334–335
+📌 HackMe: tasks/sources/security/upstream/bitcoin_evalscript_stack.c
+📌 Same guard as Day 8 — 4× run budget (256 vs 64)
+
+Live run (local node · full HackMe audit pipeline):
+• 256/256 runs · ~99s
+• 0 critical · 80 guard signals (over-limit stack encodings rejected)
+• 165 new edges · 199 paths · verdict fail_high (detector semantics)
+
+Honest triage: guard signals = filter doing its job, not a new consensus bug. WASM slice — not bitcoind.
+
+Series so far: Week 1 + days 8–12 → **0 critical** across all published runs.
+
+🔗 Report: hackme.tech/reports/bitcoin30-day12.html
+🔗 Hub: hackme.tech/reports/bitcoin30.html
+
+Mine useful PoW on the same stack → hackme.tech/downloads.html
+
+#HackMe #Bitcoin #Fuzzing #BitcoinCore #SecurityResearch
 
 ### X
 
-Day 12/30 — deep fuzz Bitcoin Core EvalScript stack-size guard. 256 runs · WASM guard · no CVE claim without native repro. #Fuzzing
+Day 12/30 — deep fuzz on a Bitcoin Core EvalScript MAX_STACK_SIZE guard (1000-element stack cap).
+
+256 runs · 0 critical · 80 guard signals on reject-path inputs · ~99s on @hackme open stack (escrow + WASM sandbox + public report).
+
+Same module as Day 8, higher budget — hunting edge cases in script resource limits.
+
+Report: hackme.tech/reports/bitcoin30-day12.html
+
+Not a CVE claim — WASM guard inspired by Core, not bitcoind. Guard signals ≠ bounty.
+
+#Bitcoin #Fuzzing #SecurityResearch #OpenSource
 
 ---
 
@@ -122,44 +151,102 @@ Day 12/30 — deep fuzz Bitcoin Core EvalScript stack-size guard. 256 runs · WA
 
 ### Telegram
 
-🧪 Day 13/30 — Deep pass: SegWit witness stack push cap.
+🧪 HackMe · Bitcoin Core 30-day fuzz — Day 13/30
 
-256 runs · VerifyWitnessProgram-inspired guard.
+Day 13 — SegWit witness stack push cap (deep pass):
 
-#HackMe #Bitcoin #SegWit
+📌 Today: VerifyWitnessProgram · SCRIPT_ERR_PUSH_SIZE on witness stack
+📌 Upstream: bitcoin/bitcoin → interpreter.cpp witness validation
+📌 HackMe: tasks/sources/security/upstream/bitcoin_witness_stack.c
 
-### X
+256 runs · 80 guard signals · 0 critical · ~155s on HackMe open stack (escrow + WASM sandbox + public report).
 
-Day 13/30 — SegWit witness stack guard, 256-run deep pass on HackMe. #Bitcoin #SecurityResearch
+Same module as Day 6, higher budget — hunting edge cases in witness resource limits.
 
----
+Report: hackme.tech/reports/bitcoin30-day13.html
 
-## Day 14 — Op count deep pass
-
-### Telegram
-
-🧪 Day 14/30 — Deep pass: EvalScript SCRIPT_ERR_OP_COUNT (201 ops).
-
-256 runs · closes week-2 block. Week 1 ledger: 576 runs · 0 critical.
+Not a CVE claim — WASM guard inspired by Core, not bitcoind. Guard signals ≠ bounty.
 
 Pilot: 5 free fuzz slots — GitHub issue `fuzz-pilot`.
 
-🔗 hackme.tech/reports/bitcoin30-week1.html
-#HackMe #Bitcoin
+#HackMe #Bitcoin #SegWit #Fuzzing #SecurityResearch
 
 ### X
 
-Day 14/30 — Bitcoin Core opcode-count guard, 256-run deep pass. Week 2 block done · 0 critical across series so far. hackme.tech #Fuzzing
+Day 13/30 — deep fuzz on a Bitcoin Core SegWit witness stack guard (push-size cap).
+
+256 runs · 0 critical · 80 guard signals on reject-path inputs · ~155s on @hackme open stack.
+
+Same module as Day 6, higher budget — witness resource limits.
+
+Report: hackme.tech/reports/bitcoin30-day13.html
+
+Not a CVE claim — WASM guard inspired by Core, not bitcoind.
+
+#Bitcoin #Fuzzing #SegWit #SecurityResearch
 
 ---
 
+## Day 14 — Op count deep pass · week 2 close
+
+### Telegram
+
+🧪 HackMe · Bitcoin Core 30-day fuzz — Day 14/30
+
+Day 14 — EvalScript SCRIPT_ERR_OP_COUNT (201 ops · deep pass):
+
+📌 Today: EvalScript nOpCount · opcode budget guard
+📌 Upstream: bitcoin/bitcoin → interpreter.cpp L462-L463
+📌 HackMe: tasks/sources/security/upstream/bitcoin_evalscript_opcount.c
+
+256 runs · 80 guard signals · 0 critical · ~129s on HackMe open stack.
+
+Week 2 block complete · two-week ledger: 1,856 runs · 809 guard signals · 0 critical.
+
+Two-week report: hackme.tech/reports/bitcoin30-two-weeks.html
+Day 14 report: hackme.tech/reports/bitcoin30-day14.html
+
+Not a CVE claim — WASM guard inspired by Core, not bitcoind.
+
+Pilot: 5 free fuzz slots — GitHub issue `fuzz-pilot`.
+
+#HackMe #Bitcoin #Fuzzing #SecurityResearch
+
+### X
+
+Day 14/30 — Bitcoin Core opcode-count guard, 256-run deep pass. Week 2 block done.
+
+256 runs · 0 critical · 80 guard signals · two-week total: 1,856 runs · 0 critical.
+
+Two-week ledger: hackme.tech/reports/bitcoin30-two-weeks.html
+
+#Bitcoin #Fuzzing #SecurityResearch
+## OSS repo fuzz queue (next targets)
+
+Rotate **1 Bitcoin30 day (15+)** + **1–2 OSS targets**. Write maintainers **only on critical** with raw repro.
+
+| Priority | Repo | Why | HackMe path | Estimate |
+|----------|------|-----|-------------|----------|
+| A | [ckpool](https://github.com/kano1ckpool/ckpool) | Classic stratum proxy · high miner exposure | Map `client.c` / line parser → WASM guards (mkpool playbook) | **High** · 2–3 days pack + campaign |
+| B | [stratum-mining/stratum](https://github.com/stratum-mining/stratum) | Sv2 reference · active spec work | Frame/codec bounds like WarpPool pass | **Medium** · guards exist, needs Sv2 wire map |
+| C | [dogecoin/dogecoin](https://github.com/dogecoin/dogecoin) | Fork script guards already ported | `run_oss_pr_fuzz_hunt.sh` → `dogecoin_hasvalidops` | **Low effort** · WASM ready, 1 day |
+| D | [mity/centijson](https://github.com/mity/centijson) | JSON nest-depth DoS · small surface | `upstream_centijson_nest_depth.wasm` ready | **Low effort** · quick win, non-Bitcoin |
+| Skip | WarpPool, mkpool | Already deep-passed · clean · no spam | Reopen only with native repro | Done |
+
+```bash
+DAY=15 bash scripts/ops/run_bitcoin30_day.sh   # when Day 15 guard wired
+bash scripts/ops/run_oss_pr_fuzz_hunt.sh       # pick from upstream/oss_pr_fuzz_queue.json
+```
+
 ## Posting schedule (suggested)
+
+Prefuzzed — post on your calendar; reports already live on hackme.tech.
 
 | Calendar | Day | Action |
 |----------|-----|--------|
-| 18 Jun | 9 | Post Day 9 TG + X (report live) |
-| 19 Jun | 10 | Run DAY=10 · post after DAY_SUMMARY |
-| 20 Jun | 11 | Deep dup-inputs |
-| 21 Jun | 12 | Deep stack |
-| 22 Jun | 13 | Deep witness |
-| 23 Jun | 14 | Deep op-count · week-2 recap thread |
+| 18 Jun | 9 | Post Day 9 TG + X |
+| 19 Jun | 10 | Post Day 10 TG + X |
+| 20 Jun | 11–12 | Post Day 11–12 TG + X |
+| 21 Jun | 13 | Post Day 13 TG + X · optional OSS fuzz (ckpool pack start) |
+| 22 Jun | 14 | Post Day 14 TG + X · **two-week recap thread** → bitcoin30-two-weeks.html |
+| 23+ | 15+ | Resume daily run + post · OSS rotation |
