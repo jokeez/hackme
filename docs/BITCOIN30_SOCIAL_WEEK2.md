@@ -88,7 +88,7 @@ Live run:
 • 0 critical · 24 guard signals (duplicate-input class rejected)
 • 165 new edges · 199 paths
 
-🔗 hackme.tech/reports/bitcoin30-day11.html (after deploy)
+🔗 hackme.tech/reports/bitcoin30-day11.html
 
 256 runs · same guard as Day 4, higher budget — hunting edge cases in prevout dedup.
 

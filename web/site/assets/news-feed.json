@@ -1,6 +1,37 @@
 {
   "items": [
     {
+      "id": "2026-06-18-bitcoin30-day11",
+      "date": "2026-06-18",
+      "title": "Bitcoin Core 30-Day Fuzz — Day 11",
+      "summary": "Week-2 deep pass: CheckTransaction duplicate inputs (CVE-2018-17144 class). 256 runs, 24 guard signals, zero critical, 106s.",
+      "impact": "4× run budget vs Day 4 on the same WASM guard — hunts edge cases in prevout dedup. Honest triage: rejections on duplicate-prevout encodings, not a new inflation CVE.",
+      "action": "Report: https://hackme.tech/reports/bitcoin30-day11.html · Reproduce: DAY=11 bash scripts/ops/run_bitcoin30_day.sh",
+      "tags": [
+        "security",
+        "research",
+        "bitcoin",
+        "fuzzing"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "Bitcoin30 Day 11/30 — duplicate inputs deep pass",
+        "lead": "CVE-2018-17144 class · 256 runs · 24 guard signals · 0 critical.",
+        "bullets": [
+          "Module: CheckTransaction duplicate prevout (tx_check.cpp)",
+          "Source: bitcoin_tx_dup_inputs.c · same guard as Day 4, higher budget",
+          "165 new edges · 199 paths · Day 12 next: EvalScript stack deep pass"
+        ],
+        "footer": "Report: hackme.tech/reports/bitcoin30-day11.html · Day 10: bitcoin30-day10.html"
+      },
+      "links": {
+        "report_day11": "https://hackme.tech/reports/bitcoin30-day11.html",
+        "report_day10": "https://hackme.tech/reports/bitcoin30-day10.html",
+        "report_week1": "https://hackme.tech/reports/bitcoin30-week1.html",
+        "github": "https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_tx_dup_inputs.c"
+      }
+    },
+    {
       "id": "2026-06-18-bitcoin30-day10",
       "date": "2026-06-18",
       "title": "Bitcoin Core 30-Day Fuzz — Day 10",

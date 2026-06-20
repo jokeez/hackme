@@ -10,6 +10,8 @@ DAY=8 bash scripts/ops/run_bitcoin30_day.sh
 
 Public day-8 report: [hackme.tech/reports/bitcoin30-day08.html](https://hackme.tech/reports/bitcoin30-day08.html)
 
+Public day-11 report: [hackme.tech/reports/bitcoin30-day11.html](https://hackme.tech/reports/bitcoin30-day11.html)
+
 Current report: `reports/bitcoin30/CURRENT/`
 
 Public week-1 ledger: [hackme.tech/reports/bitcoin30-week1.html](https://hackme.tech/reports/bitcoin30-week1.html)
@@ -27,8 +29,8 @@ Public week-1 ledger: [hackme.tech/reports/bitcoin30-week1.html](https://hackme.
 | 7 | EvalScript · SCRIPT_ERR_OP_COUNT | `upstream_bitcoin_evalscript_opcount.wasm` | 64 runs · 56 signals · `day07-20260616T110000Z` |
 | 8 | EvalScript · SCRIPT_ERR_STACK_SIZE | `upstream_bitcoin_evalscript_stack.wasm` | 64 runs · 64 guard signals · `day08-20260617T120000Z` |
 | 9 | Block weight · MAX_BLOCK_WEIGHT | `upstream_bitcoin_block_weight.wasm` | 128 runs · 80 guard signals · `day09-20260618T030511Z` |
-| 10 | BIP34 coinbase height | `upstream_bitcoin_coinbase_bip34.wasm` | 128 runs · schedule |
-| 11 | Duplicate inputs · deep | `upstream_bitcoin_tx_dup_inputs.wasm` | 256 runs · CVE-2018-17144 class |
+| 10 | BIP34 coinbase height | `upstream_bitcoin_coinbase_bip34.wasm` | 128 runs · 80 guard signals · `day10-20260618T122526Z` |
+| 11 | Duplicate inputs · deep | `upstream_bitcoin_tx_dup_inputs.wasm` | 256 runs · 24 guard signals · CVE-2018-17144 class · `day11-20260618T122959Z` |
 | 12 | EvalScript stack · deep | `upstream_bitcoin_evalscript_stack.wasm` | 256 runs |
 | 13 | Witness stack · deep | `upstream_bitcoin_witness_stack.wasm` | 256 runs |
 | 14 | EvalScript op count · deep | `upstream_bitcoin_evalscript_opcount.wasm` | 256 runs |
