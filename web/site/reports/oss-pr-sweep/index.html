@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>HackMe · OSS upstream fuzz sweep</title>
+<link rel="canonical" href="https://hackme.tech/reports/oss-pr-sweep/"/>
+<style>*{box-sizing:border-box}body{margin:0;font-family:ui-monospace,monospace;background:#070b12;color:#c8d6e8;line-height:1.55}
+.wrap{max-width:960px;margin:0 auto;padding:2.5rem 1.25rem 4rem}
+h1{font-family:system-ui,sans-serif;font-size:1.35rem;color:#00d1ff;letter-spacing:.08em;text-transform:uppercase;margin:0}
+.sub{color:#6b8099;font-size:.78rem;margin:.5rem 0 1.5rem}
+.badge{display:inline-block;padding:.45rem 1.1rem;border-radius:999px;border:2px solid #39ff14;color:#39ff14;font-weight:700;font-size:.85rem;margin:1rem 0}
+.card{border:1px solid rgba(0,209,255,.22);border-radius:14px;padding:1.2rem;margin:1rem 0;background:rgba(0,0,0,.4)}
+table{width:100%;border-collapse:collapse;font-size:.78rem}th,td{border:1px solid rgba(255,255,255,.08);padding:.5rem;text-align:left}
+th{color:#00d1ff}a{color:#00d1ff}footer{margin-top:2rem;font-size:.72rem;color:#6b8099}</style></head><body><div class="wrap">
+<h1>OSS upstream fuzz sweep</h1>
+<p class="sub">20260621T061332Z · 5 targets · 512 runs each · detector semantics · 2026-06-21 06:25 UTC</p>
+<span class="badge">0 CRITICAL · ROTATE CLEAN</span>
+<div class="card"><p>Guard signals on malformed inputs are expected reject paths — not CVE claims without native repro.</p>
+<table><thead><tr><th>Target</th><th>Repo</th><th>Critical</th><th>Signals</th><th>Verdict</th><th>Report</th></tr></thead>
+<tbody><tr><td>dogecoin_hasvalidops</td><td><a href="https://github.com/dogecoin/dogecoin">https://github.com/dogecoin/dogecoin</a></td><td>0</td><td>120</td><td>fail_high</td><td><a href="./dogecoin_hasvalidops.html">report</a></td></tr><tr><td>litecoin_getscriptop</td><td><a href="https://github.com/litecoin-project/litecoin">https://github.com/litecoin-project/litecoin</a></td><td>0</td><td>120</td><td>fail_high</td><td><a href="./litecoin_getscriptop.html">report</a></td></tr><tr><td>ethereum_value_overflow</td><td><a href="https://github.com/ethereum/go-ethereum">https://github.com/ethereum/go-ethereum</a></td><td>0</td><td>0</td><td>clean</td><td><a href="./ethereum_value_overflow.html">report</a></td></tr><tr><td>solana_spl_program_id</td><td><a href="https://github.com/solana-program/token">https://github.com/solana-program/token</a></td><td>0</td><td>120</td><td>fail_high</td><td><a href="./solana_spl_program_id.html">report</a></td></tr><tr><td>centijson_nest_depth</td><td><a href="https://github.com/mity/centijson">https://github.com/mity/centijson</a></td><td>0</td><td>24</td><td>fail_high</td><td><a href="./centijson_nest_depth.html">report</a></td></tr></tbody></table></div>
+<footer><a href="../research.html">Research hub</a> · HackMe Network</footer></div></body></html>

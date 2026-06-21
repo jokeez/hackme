@@ -1,0 +1,80 @@
+{
+  "updated": "2026-06-21",
+  "note": "OSS PR fuzz rotation — HackMe security-audit + optional pool_distributed",
+  "last_sweep": "20260621T061332Z",
+  "last_verdict": "ROTATE_CLEAN",
+  "defaults": {
+    "budget_runs": 512,
+    "budget_hmc": 0.5,
+    "check_semantics": "detector",
+    "pool_distributed": true
+  },
+  "completed_pools": [
+    {"id": "mkpool", "report": "https://hackme.tech/reports/mkpool-fuzz/", "critical": 0},
+    {"id": "ckpool", "report": "https://hackme.tech/reports/ckpool-fuzz/", "critical": 0},
+    {"id": "stratum-mining", "report": "https://hackme.tech/reports/stratum-mining-fuzz/", "critical": 0},
+    {"id": "warppool", "note": "clean — no public publish", "critical": 0}
+  ],
+  "next_candidates": [
+    {"repo": "https://github.com/btcsuite/btcd", "why": "wire protocol + tx script — fork guards"},
+    {"repo": "https://github.com/rust-bitcoin/rust-bitcoin", "why": "consensus crate — script parsing"},
+    {"repo": "https://github.com/bitcoin-core/secp256k1", "why": "ecdsa parse bounds — high value, needs new guards"}
+  ],
+  "targets": [
+    {
+      "id": "dogecoin_hasvalidops",
+      "repo": "https://github.com/dogecoin/dogecoin",
+      "wasm": "upstream_dogecoin_hasvalidops.wasm",
+      "source": "tasks/sources/security/upstream/dogecoin_hasvalidops.c",
+      "title": "Dogecoin CScript::HasValidOps (Bitcoin-fork script validation)",
+      "upstream_ref": "dogecoin/dogecoin src/script/script.cpp HasValidOps",
+      "last_run": "2026-06-21",
+      "last_critical": 0,
+      "last_guard_signals": 120
+    },
+    {
+      "id": "litecoin_getscriptop",
+      "repo": "https://github.com/litecoin-project/litecoin",
+      "wasm": "upstream_litecoin_getscriptop.wasm",
+      "source": "tasks/sources/security/upstream/litecoin_getscriptop.c",
+      "title": "Litecoin GetScriptOp · MAX_SCRIPT_ELEMENT_SIZE",
+      "upstream_ref": "litecoin-project/litecoin src/script/script.cpp GetScriptOp",
+      "last_run": "2026-06-21",
+      "last_critical": 0,
+      "last_guard_signals": 120
+    },
+    {
+      "id": "ethereum_value_overflow",
+      "repo": "https://github.com/ethereum/go-ethereum",
+      "wasm": "upstream_ethereum_value_overflow.wasm",
+      "source": "tasks/sources/security/upstream/ethereum_value_overflow.c",
+      "title": "go-ethereum tx value + balance uint256 overflow probe",
+      "upstream_ref": "ethereum/go-ethereum core/state_transition.go value overflow",
+      "last_run": "2026-06-21",
+      "last_critical": 0,
+      "last_guard_signals": 0
+    },
+    {
+      "id": "solana_spl_program_id",
+      "repo": "https://github.com/solana-program/token",
+      "wasm": "upstream_solana_spl_check_program_account.wasm",
+      "source": "tasks/sources/security/upstream/solana_spl_check_program_account.c",
+      "title": "Solana SPL Token · IncorrectProgramId guard",
+      "upstream_ref": "solana-program/token check_program_account",
+      "last_run": "2026-06-21",
+      "last_critical": 0,
+      "last_guard_signals": 120
+    },
+    {
+      "id": "centijson_nest_depth",
+      "repo": "https://github.com/mity/centijson",
+      "wasm": "upstream_centijson_nest_depth.wasm",
+      "source": "tasks/sources/security/upstream/centijson_nest_depth.c",
+      "title": "CentiJSON nesting depth DoS policy guard",
+      "upstream_ref": "mity/centijson json.c nesting limits",
+      "last_run": "2026-06-21",
+      "last_critical": 0,
+      "last_guard_signals": 24
+    }
+  ]
+}

@@ -110,6 +110,24 @@
           <p>SV2 Reader · version mask · mining.submit hex · V1 framing — 4 guards, ~16k checks.</p>
           <div class="research-stats"><span><b>0</b> critical</span><span>400 guard signals</span><span>no patch requested</span></div>
         </a>
+        <a class="research-card" href="./reports/ckpool-fuzz/">
+          <span class="research-tag case">Stratum · ckpool</span>
+          <h3>ckpool (Con Kolivas) parser fuzz</h3>
+          <p>MAX_MSGSIZE 1024 · parse_submit hex · version mask · ntime window — 5 guards, ~19.5k checks.</p>
+          <div class="research-stats"><span><b>0</b> critical</span><span>1,000 guard signals</span><span>no patch requested</span></div>
+        </a>
+        <a class="research-card" href="./reports/stratum-mining-fuzz/">
+          <span class="research-tag case">Sv2 · stratum-mining</span>
+          <h3>stratum-mining/stratum reference</h3>
+          <p>Sv2 frame bounds · extranonce · user identity · open_channel target — 4 guards, 8k checks.</p>
+          <div class="research-stats"><span><b>0</b> critical</span><span>800 guard signals</span><span>no patch requested</span></div>
+        </a>
+        <a class="research-card" href="./reports/oss-pr-sweep/">
+          <span class="research-tag case">OSS rotation · 5 targets</span>
+          <h3>Upstream guard sweep</h3>
+          <p>Dogecoin · Litecoin · geth · Solana SPL · CentiJSON — 2,560 runs · 384 guard signals.</p>
+          <div class="research-stats"><span><b>0</b> critical</span><span>5 repos</span><span>ROTATE CLEAN</span></div>
+        </a>
         <a class="research-card" href="./reports/bitcoin-core-5module.html">
           <span class="research-tag case">Bitcoin Core</span>
           <h3>Core 5-module study</h3>

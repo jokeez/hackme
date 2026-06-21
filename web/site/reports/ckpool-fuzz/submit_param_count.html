@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>HackMe Fuzz Report · ckpool parser — submit_param_count</title>
+<style>*{box-sizing:border-box}
+body{margin:0;font-family:ui-monospace,Menlo,Consolas,monospace;background:#070b12;color:#c8d6e5;line-height:1.55}
+.wrap{max-width:960px;margin:0 auto;padding:2.5rem 1.5rem 4rem}
+h1{font-size:1.4rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#00d1ff;margin:0}
+.sub{color:#6b7c93;font-size:.78rem;margin:.5rem 0 2rem}
+.badge{display:inline-block;margin-top:1rem;padding:.45rem 1.15rem;border-radius:999px;border:2px solid %s;color:%s;font-size:1.05rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em}
+.card{border:1px solid rgba(0,209,255,.22);border-radius:14px;background:linear-gradient(145deg,rgba(0,0,0,.55),rgba(0,209,255,.07));padding:1.35rem;margin:1.1rem 0}
+.card.scope{border-color:rgba(255,176,32,.35);background:linear-gradient(145deg,rgba(0,0,0,.5),rgba(255,176,32,.06))}
+.title{font-size:1.15rem;color:#fff;margin:.4rem 0}
+.muted{color:#6b7c93;font-size:.78rem}
+.lbl{color:#00d1ff;font-size:.68rem;text-transform:uppercase;letter-spacing:.1em}
+code{color:#39ff14;font-size:.82rem;word-break:break-all}
+pre.repro{margin:.5rem 0 0;padding:.75rem 1rem;background:rgba(0,0,0,.45);border-radius:8px;border:1px solid rgba(57,255,20,.2);overflow-x:auto;font-size:.75rem;color:#a8e6cf}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.7rem;margin-top:1.1rem}
+.stat{border:1px solid rgba(57,255,20,.18);border-radius:10px;padding:.7rem .9rem;background:rgba(0,0,0,.38)}
+.stat b{display:block;font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:#6b7c93;margin-bottom:.25rem}
+.tag{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.65rem;text-transform:uppercase;letter-spacing:.05em}
+.tag.expected{background:rgba(0,209,255,.15);color:#00d1ff}
+.tag.needs{background:rgba(255,96,96,.2);color:#ff9090}
+.tag.sandbox{background:rgba(255,176,32,.15);color:#ffb020}
+.tag.guard{background:rgba(57,255,20,.12);color:#7dffb8}
+table{width:100%;border-collapse:collapse;font-size:.78rem;margin-top:.65rem}
+th,td{border-bottom:1px solid rgba(255,255,255,.08);padding:.5rem .55rem;text-align:left;vertical-align:top}
+th{color:#6b7c93;text-transform:uppercase;font-size:.62rem;letter-spacing:.06em}
+ul{margin:.4rem 0 0;padding-left:1.2rem}
+footer{margin-top:2.5rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,.08);font-size:.72rem;color:#6b7c93}
+a{color:#00d1ff}</style>
+</head><body><div class="wrap">
+<h1>HackMe Security Report</h1>
+<p class="sub">fuzz_report_v2 · 2026-06-20 21:02:44 UTC · <a href="https://hackme.tech" target="_blank" rel="noopener">hackme.tech</a> · <a href="../">ckpool pack</a></p>
+<div class="card scope"><p class="lbl">Scope &amp; honesty</p>
+<p>This report covers <strong>WASM sandbox</strong> property guards mapped from
+<a href="https://github.com/mempool/ckpool">mempool/ckpool</a> (Con Kolivas) parser paths
+(<code>connector.c</code> MAX_MSGSIZE 1024, <code>stratifier.c</code> parse_submit) — not native ASAN on ckpool binary.
+<strong>Guard signals</strong> on malformed inputs are expected reject paths, not confirmed CVEs.</p></div>
+<div class="card">
+<p class="lbl">Campaign</p>
+<p class="title">ckpool parser — submit_param_count</p>
+<p class="muted"><code>campaign-ckpool-submit-param-count-20260621-010954</code> · property · status running</p>
+<span class="badge" style="border-color:#ff6060;color:#ff6060">fail_high</span>
+<div class="grid">
+<div class="stat"><b>Confidence</b>high</div>
+<div class="stat"><b>Guard signals</b>200</div>
+<div class="stat"><b>Critical</b>0</div>
+<div class="stat"><b>High</b>200</div>
+<div class="stat"><b>Runs done</b>4000</div>
+<div class="stat"><b>Budget runs</b>4096</div>
+</div></div>
+<div class="card"><p class="lbl">Top issues (with triage)</p>
+<table><thead><tr><th>Severity</th><th>Type</th><th>Triage</th><th>Title</th><th>Repro</th></tr></thead>
+<tbody><tr><td>high</td><td>security_violation</td><td><span class="tag guard">guard_signal</span><br/><span class="muted">WASM guard flagged this input. Reproduce with repro_cmd; validate on native upstream before claiming CVE or 0-day.</span></td><td>detector flagged input 0x2545e455d4e98c1b</td><td><code>go run ./tools/check_repro -wasm &quot;tasks/artifacts/security/ckpool/submit_param_count.wasm&quot; -input &quot;0x2545e455d4e98c1b&quot;</code></td></tr><tr><td>high</td><td>security_violation</td><td><span class="tag guard">guard_signal</span><br/><span class="muted">WASM guard flagged this input. Reproduce with repro_cmd; validate on native upstream before claiming CVE or 0-day.</span></td><td>detector flagged input 0xa64fe99a6916a949</td><td><code>go run ./tools/check_repro -wasm &quot;tasks/artifacts/security/ckpool/submit_param_count.wasm&quot; -input &quot;0xa64fe99a6916a949&quot;</code></td></tr><tr><td>high</td><td>security_violation</td><td><span class="tag guard">guard_signal</span><br/><span class="muted">WASM guard flagged this input. Reproduce with repro_cmd; validate on native upstream before claiming CVE or 0-day.</span></td><td>detector flagged input 0x99bdd90e6685e1cf</td><td><code>go run ./tools/check_repro -wasm &quot;tasks/artifacts/security/ckpool/submit_param_count.wasm&quot; -input &quot;0x99bdd90e6685e1cf&quot;</code></td></tr><tr><td>high</td><td>security_violation</td><td><span class="tag guard">guard_signal</span><br/><span class="muted">WASM guard flagged this input. Reproduce with repro_cmd; validate on native upstream before claiming CVE or 0-day.</span></td><td>detector flagged input 0xc27103cfd391e80f</td><td><code>go run ./tools/check_repro -wasm &quot;tasks/artifacts/security/ckpool/submit_param_count.wasm&quot; -input &quot;0xc27103cfd391e80f&quot;</code></td></tr><tr><td>high</td><td>security_violation</td><td><span class="tag guard">guard_signal</span><br/><span class="muted">WASM guard flagged this input. Reproduce with repro_cmd; validate on native upstream before claiming CVE or 0-day.</span></td><td>detector flagged input 0x9dd3ad18e3d47dd1</td><td><code>go run ./tools/check_repro -wasm &quot;tasks/artifacts/security/ckpool/submit_param_count.wasm&quot; -input &quot;0x9dd3ad18e3d47dd1&quot;</code></td></tr></tbody></table></div>
+<div class="card"><p class="lbl">Reproduction commands</p><div class="repro-block"><p class="lbl">high · security_violation</p><pre class="repro">go run ./tools/check_repro -wasm &quot;tasks/artifacts/security/ckpool/submit_param_count.wasm&quot; -input &quot;0x2545e455d4e98c1b&quot;</pre></div><div class="repro-block"><p class="lbl">high · security_violation</p><pre class="repro">go run ./tools/check_repro -wasm &quot;tasks/artifacts/security/ckpool/submit_param_count.wasm&quot; -input &quot;0xa64fe99a6916a949&quot;</pre></div><div class="repro-block"><p class="lbl">high · security_violation</p><pre class="repro">go run ./tools/check_repro -wasm &quot;tasks/artifacts/security/ckpool/submit_param_count.wasm&quot; -input &quot;0x99bdd90e6685e1cf&quot;</pre></div></div>
+<div class="card"><p class="lbl">Recommendations</p><ul><li>0 critical in this pass — no urgent patch requested for ckpool.</li><li>Re-run repro locally; validate any crash-class signal on native ckpool + ASAN before CVE claims.</li></ul></div>
+<footer>HackMe Network · fuzz_report_v2 · ckpool voluntary research · Generated 2026-06-20 21:02:44 UTC</footer>
+</div></body></html>
