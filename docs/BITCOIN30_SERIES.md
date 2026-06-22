@@ -14,6 +14,10 @@ Public day-11 report: [hackme.tech/reports/bitcoin30-day11.html](https://hackme.
 
 Public day-12 report: [hackme.tech/reports/bitcoin30-day12.html](https://hackme.tech/reports/bitcoin30-day12.html)
 
+Public day-13 report: [hackme.tech/reports/bitcoin30-day13.html](https://hackme.tech/reports/bitcoin30-day13.html)
+
+Public week-2 ledger: [hackme.tech/reports/bitcoin30-week2.html](https://hackme.tech/reports/bitcoin30-week2.html)
+
 Public two-week report (days 1–14): [hackme.tech/reports/bitcoin30-two-weeks.html](https://hackme.tech/reports/bitcoin30-two-weeks.html)
 
 Series hub: [hackme.tech/reports/bitcoin30.html](https://hackme.tech/reports/bitcoin30.html)
