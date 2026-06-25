@@ -67,7 +67,7 @@ func BuildTarget(ctx context.Context, repoRoot string, t Target) (binPath, clone
 		driverSrc,
 	}
 	for _, inc := range t.IncludeDirs {
-		args = append(args, "-I", filepath.Join(clonePath, inc))
+		args = append(args, "-I", includeDir(repoRoot, clonePath, inc))
 	}
 	for _, src := range t.UpstreamSrc {
 		args = append(args, filepath.Join(clonePath, src))
@@ -92,6 +92,13 @@ func BuildTarget(ctx context.Context, repoRoot string, t Target) (binPath, clone
 		return "", "", err
 	}
 	return binPath, clonePath, nil
+}
+
+func includeDir(repoRoot, clonePath, inc string) string {
+	if filepath.IsAbs(inc) || strings.HasPrefix(inc, "tasks/") {
+		return filepath.Join(repoRoot, inc)
+	}
+	return filepath.Join(clonePath, inc)
 }
 
 func cloneRepo(ctx context.Context, repo, ref, dest string) error {

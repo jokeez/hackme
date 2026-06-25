@@ -1,15 +1,18 @@
 {
-  "verdict": "CLEAN",
-  "summary": "CLEAN \u2014 no ASAN crash in budget. Publish as methodology case study.",
-  "cve_candidates": [],
-  "clean_targets": [
-    "jsmn",
-    "mjson",
-    "yyjson",
-    "parson",
-    "jansson",
-    "tomlc99",
-    "expat"
+  "verdict": "CVE_CANDIDATE",
+  "summary": "HOLD \u2014 native CVE candidate(s). Responsible disclosure required before publish.",
+  "cve_candidates": [
+    "libucl",
+    "cfgpack"
   ],
-  "publish_allowed": true
+  "clean_targets": [
+    "cyaml",
+    "tomlc17",
+    "parsello",
+    "cj5",
+    "libconfini",
+    "inih",
+    "sheredom"
+  ],
+  "publish_allowed": false
 }

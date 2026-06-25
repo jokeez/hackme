@@ -22,7 +22,13 @@
     "false",
     "\u0000\u0001\u0002\u00ff",
     "key=value\nfoo=bar",
-    "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"
+    "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n",
+    "key: value\n",
+    "&anchor\n*alias\n",
+    "|\n  block\n",
+    "---\n- item\n",
+    "\"\"\"\nml\n\"\"\"",
+    "{ section = true }\n"
   ],
   "targets": [
     {
@@ -169,10 +175,95 @@
       "wasm_guard": "expat_xml_guard",
       "cwe": ["CWE-125", "CWE-787"],
       "priority": 2
+    },
+    {
+      "id": "libucl",
+      "repo": "https://github.com/vstakhov/libucl",
+      "ref": "master",
+      "title": "vstakhov/libucl · ucl_parser",
+      "driver": "libucl_stdin",
+      "upstream_src": ["src/ucl_parser.c", "src/ucl_util.c", "src/ucl_hash.c", "src/ucl_schema.c", "src/ucl_emitter.c", "src/ucl_emitter_utils.c", "src/ucl_msgpack.c", "src/ucl_sexp.c"],
+      "include_dirs": ["include", "uthash", "klib", "src"],
+      "wasm_guard": "libucl_brace_guard",
+      "cwe": ["CWE-125", "CWE-787"],
+      "priority": 2,
+      "build_flags": ["-w"]
+    },
+    {
+      "id": "cyaml",
+      "repo": "https://github.com/andrewmd5/cyaml",
+      "ref": "master",
+      "title": "andrewmd5/cyaml · cyaml_parse",
+      "driver": "cyaml_stdin",
+      "upstream_src": ["src/cyaml.c", "src/cyaml_parser.c", "src/cyaml_emitter.c", "src/cyaml_events.c", "src/cyaml_json.c", "src/cyaml_modify.c", "src/cyaml_path.c", "src/cyaml_utf8.c"],
+      "include_dirs": ["src"],
+      "wasm_guard": "cyaml_anchor_guard",
+      "cwe": ["CWE-125", "CWE-787"],
+      "priority": 2
+    },
+    {
+      "id": "tomlc17",
+      "repo": "https://github.com/cktan/tomlc17",
+      "ref": "main",
+      "title": "cktan/tomlc17 · toml_parse",
+      "driver": "tomlc17_stdin",
+      "upstream_src": ["src/tomlc17.c"],
+      "include_dirs": ["src"],
+      "wasm_guard": "tomlc17_mlstring_guard",
+      "cwe": ["CWE-125"],
+      "priority": 2
+    },
+    {
+      "id": "parsello",
+      "repo": "https://github.com/icebreaker/parsello",
+      "ref": "master",
+      "title": "icebreaker/parsello · prs_parse",
+      "driver": "parsello_stdin",
+      "upstream_src": [],
+      "include_dirs": ["src"],
+      "wasm_guard": "parsello_quote_guard",
+      "cwe": ["CWE-125"],
+      "priority": 3
+    },
+    {
+      "id": "cfgpack",
+      "repo": "https://github.com/Arsievert/cfgpack",
+      "ref": "main",
+      "title": "Arsievert/cfgpack · msgpack decode",
+      "driver": "cfgpack_stdin",
+      "upstream_src": ["src/msgpack.c", "src/wbuf.c"],
+      "include_dirs": ["include"],
+      "wasm_guard": "cfgpack_msgpack_guard",
+      "cwe": ["CWE-125", "CWE-787"],
+      "priority": 2
+    },
+    {
+      "id": "cj5",
+      "repo": "https://github.com/septag/cj5",
+      "ref": "master",
+      "title": "septag/cj5 · cj5_parse JSON5",
+      "driver": "cj5_stdin",
+      "upstream_src": [],
+      "include_dirs": ["."],
+      "wasm_guard": "cj5_json5_guard",
+      "cwe": ["CWE-125"],
+      "priority": 2
+    },
+    {
+      "id": "libconfini",
+      "repo": "https://github.com/madmurphy/libconfini",
+      "ref": "master",
+      "title": "madmurphy/libconfini · strip_ini_cache",
+      "driver": "libconfini_stdin",
+      "upstream_src": ["src/confini.c"],
+      "include_dirs": ["src"],
+      "wasm_guard": "libconfini_section_guard",
+      "cwe": ["CWE-125"],
+      "priority": 3
     }
   ],
   "rotation": {
     "note": "nightly picks 2 targets by day-of-year mod queue length",
-    "queue": ["jsmn", "mjson", "yyjson", "parson", "jansson", "tomlc99", "expat", "sheredom", "inih", "md4c", "cjson"]
+    "queue": ["libucl", "cyaml", "tomlc17", "cfgpack", "parsello", "cj5", "libconfini", "jsmn", "mjson", "yyjson", "parson", "jansson", "tomlc99", "expat", "sheredom", "inih", "md4c", "cjson"]
   }
 }
