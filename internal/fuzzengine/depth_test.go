@@ -28,9 +28,9 @@ func TestApplyDepthTierBytesCorpus(t *testing.T) {
 
 func TestDeriveInputBytesDeterministic(t *testing.T) {
 	cfg := map[string]any{
-		"input_mode":        "bytes",
-		"seed_byte_corpus":  []any{"0100000001", "0200000001"},
-		"mutation_rounds":   2,
+		"input_mode":       "bytes",
+		"seed_byte_corpus": []any{"0100000001", "0200000001"},
+		"mutation_rounds":  2,
 	}
 	a := DeriveInputBytes(1, cfg)
 	b := DeriveInputBytes(2, cfg)

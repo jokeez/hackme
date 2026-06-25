@@ -179,21 +179,21 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
 		var req struct {
-			WorkerID     string `json:"worker_id"`
-			MinerAddress string `json:"miner_address"`
-			MinerPubKey  string `json:"miner_pubkey"`
-			MinerSig     string `json:"miner_sig"`
-			MinerSigAlg  string `json:"miner_sig_alg"`
-			SubmitNonce  uint64 `json:"submit_nonce"`
-			WorkID       string `json:"work_id"`
-			CampaignID   string `json:"campaign_id"`
-			ItemID       int64  `json:"item_id"`
-			InputN       uint64 `json:"input_n"`
-			ActualInput  uint64 `json:"actual_input"`
+			WorkerID      string `json:"worker_id"`
+			MinerAddress  string `json:"miner_address"`
+			MinerPubKey   string `json:"miner_pubkey"`
+			MinerSig      string `json:"miner_sig"`
+			MinerSigAlg   string `json:"miner_sig_alg"`
+			SubmitNonce   uint64 `json:"submit_nonce"`
+			WorkID        string `json:"work_id"`
+			CampaignID    string `json:"campaign_id"`
+			ItemID        int64  `json:"item_id"`
+			InputN        uint64 `json:"input_n"`
+			ActualInput   uint64 `json:"actual_input"`
 			InputBytesHex string `json:"input_bytes_hex"`
-			CheckResult  int32  `json:"check_result"`
-			DurationMS   int    `json:"duration_ms"`
-			Trap         string `json:"trap"`
+			CheckResult   int32  `json:"check_result"`
+			DurationMS    int    `json:"duration_ms"`
+			Trap          string `json:"trap"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid json", http.StatusBadRequest)

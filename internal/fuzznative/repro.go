@@ -50,6 +50,7 @@ func EvalRepro(upstreamTarget, guardName string, input []byte, pins *PinManifest
 	}
 	guard := strings.TrimSpace(strings.ToLower(guardName))
 	nativeHit := false
+	note := ""
 	switch {
 	case strings.Contains(guard, "dup_input") || strings.Contains(guard, "tx_dup"):
 		nativeHit = evalBitcoinDupInputs(input) != 0
@@ -57,19 +58,40 @@ func EvalRepro(upstreamTarget, guardName string, input []byte, pins *PinManifest
 		nativeHit = evalBitcoinBIP34Height(input) != 0
 	case strings.Contains(guard, "block_weight") || strings.Contains(guard, "weight"):
 		nativeHit = evalBitcoinBlockWeight(input) != 0
+	case strings.Contains(guard, "getscriptop"):
+		nativeHit = evalBitcoinGetScriptOp(input) != 0
+	case strings.Contains(guard, "hasvalidops"):
+		nativeHit = evalBitcoinHasValidOps(input) != 0
+	case strings.Contains(guard, "evalscript_push") || strings.Contains(guard, "push"):
+		nativeHit = evalBitcoinEvalScriptPush(input) != 0
+	case strings.Contains(guard, "witness_stack") || strings.Contains(guard, "witness"):
+		nativeHit = evalBitcoinWitnessStack(input) != 0
+	case strings.Contains(guard, "evalscript_stack") || strings.Contains(guard, "stack"):
+		nativeHit = evalBitcoinEvalScriptStack(input) != 0
+	case strings.Contains(guard, "opcount") || strings.Contains(guard, "op_count"):
+		nativeHit = evalBitcoinEvalScriptOpCount(input) != 0
+	case strings.Contains(guard, "tx_check") || strings.Contains(guard, "moneyrange"):
+		nativeHit = evalBitcoinTxCheckMoneyRange(input) != 0
 	default:
-		// Generic: treat non-zero duplicate-byte pattern in first 8 bytes as guard hit.
 		nativeHit = evalBitcoinDupInputs(input) != 0
-		res.Note = "generic dup-input native port"
+		note = "generic dup-input native port"
 	}
 	res.NativeSignal = nativeHit
 	res.GuardSignal = nativeHit
 	if nativeHit {
 		res.Status = StatusConfirmed
-		res.Note = fmt.Sprintf("native guard confirmed on pinned %s", target)
+		if note == "" {
+			res.Note = fmt.Sprintf("native guard confirmed on pinned %s (%s)", target, guardName)
+		} else {
+			res.Note = note
+		}
 	} else {
 		res.Status = StatusRejected
-		res.Note = fmt.Sprintf("wasm signal not reproduced on native %s port", target)
+		if note == "" {
+			res.Note = fmt.Sprintf("wasm signal not reproduced on native %s port (%s)", target, guardName)
+		} else {
+			res.Note = note
+		}
 	}
 	return res
 }

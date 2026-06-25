@@ -1,5 +1,7 @@
 # Bitcoin30 Week 3 — social copy (days 15–21 · wasm_native)
 
+> **Полный календарь 30 дней:** см. [`BITCOIN30_DAILY_SOCIAL.md`](./BITCOIN30_DAILY_SOCIAL.md) — Telegram + X на каждый день.
+
 **Week 3 totals:** 1,792 runs · 504 guard signals · 186 native_confirmed · **0 critical**
 
 ---
