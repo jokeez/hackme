@@ -4,7 +4,13 @@ Tier **oss_cve** runs mutation fuzz on **cloned upstream repos** with stdin ASAN
 
 ## Targets
 
-See `upstream/oss_cve_targets.json`: md4c, cJSON, centijson, jsmn, mjson, yyjson, parson, inih.
+See `upstream/oss_cve_targets.json` (12 targets):
+
+| Priority | Targets |
+|----------|---------|
+| 1 | md4c, cJSON, centijson |
+| 2 | jsmn, mjson, yyjson, parson, jansson, tomlc99, expat |
+| 3 | inih, sheredom |
 
 ## Run
 
@@ -17,6 +23,12 @@ TARGETS=md4c,cjson BUDGET=10000 TIME_LIMIT=120 bash scripts/ops/run_oss_cve_hunt
 
 # CI gate
 bash scripts/ops/oss_cve_gate.sh
+
+# Nightly rotation (2 targets/day, skips centijson until disclosed)
+bash scripts/ops/run_oss_cve_nightly.sh
+
+# Priority-2 sweep (excludes centijson)
+TARGETS=jsmn,mjson,yyjson,parson,jansson,tomlc99,expat BUDGET=50000 TIME_LIMIT=300 bash scripts/ops/run_oss_cve_hunt.sh
 ```
 
 ## Verdicts

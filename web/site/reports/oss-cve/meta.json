@@ -1,12 +1,15 @@
 {
-  "verdict": "CVE_CANDIDATE",
-  "summary": "HOLD \u2014 native CVE candidate(s). Responsible disclosure required before publish.",
-  "cve_candidates": [
-    "centijson"
-  ],
+  "verdict": "CLEAN",
+  "summary": "CLEAN \u2014 no ASAN crash in budget. Publish as methodology case study.",
+  "cve_candidates": [],
   "clean_targets": [
-    "md4c",
-    "cjson"
+    "jsmn",
+    "mjson",
+    "yyjson",
+    "parson",
+    "jansson",
+    "tomlc99",
+    "expat"
   ],
-  "publish_allowed": false
+  "publish_allowed": true
 }

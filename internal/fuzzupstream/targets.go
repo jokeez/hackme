@@ -13,8 +13,15 @@ type Manifest struct {
 	Updated  string   `json:"updated"`
 	Note     string   `json:"note"`
 	Defaults Defaults `json:"defaults"`
-	Seeds    []string `json:"seeds"`
-	Targets  []Target `json:"targets"`
+	Seeds    []string   `json:"seeds"`
+	Targets  []Target   `json:"targets"`
+	Rotation *Rotation  `json:"rotation,omitempty"`
+}
+
+// Rotation config for nightly target selection.
+type Rotation struct {
+	Note  string   `json:"note"`
+	Queue []string `json:"queue"`
 }
 
 // Defaults for OSS CVE hunts.
@@ -38,6 +45,7 @@ type Target struct {
 	WasmGuard   string   `json:"wasm_guard"`
 	CWE         []string `json:"cwe"`
 	Priority    int      `json:"priority"`
+	BuildFlags  []string `json:"build_flags,omitempty"`
 }
 
 // CrashFinding is a sanitizer crash on real upstream code.

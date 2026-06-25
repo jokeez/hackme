@@ -120,6 +120,59 @@
       "wasm_guard": "inih_line_guard",
       "cwe": ["CWE-125"],
       "priority": 3
+    },
+    {
+      "id": "jansson",
+      "repo": "https://github.com/akheron/jansson",
+      "ref": "master",
+      "title": "akheron/jansson · json_loadb",
+      "driver": "jansson_stdin",
+      "upstream_src": ["src/hashtable.c", "src/hashtable_seed.c", "src/load.c", "src/memory.c", "src/pack_unpack.c", "src/strbuffer.c", "src/strconv.c", "src/utf.c", "src/value.c", "src/dump.c", "src/error.c", "src/dtoa.c", "src/version.c"],
+      "include_dirs": ["src"],
+      "wasm_guard": "jansson_nest_guard",
+      "cwe": ["CWE-125", "CWE-787"],
+      "priority": 2,
+      "build_flags": ["-DHAVE_CONFIG_H"]
+    },
+    {
+      "id": "tomlc99",
+      "repo": "https://github.com/cktan/tomlc99",
+      "ref": "master",
+      "title": "cktan/tomlc99 · toml_parse",
+      "driver": "tomlc99_stdin",
+      "upstream_src": ["toml.c"],
+      "include_dirs": ["."],
+      "wasm_guard": "tomlc99_escape_guard",
+      "cwe": ["CWE-125"],
+      "priority": 2
+    },
+    {
+      "id": "sheredom",
+      "repo": "https://github.com/sheredom/json.h",
+      "ref": "master",
+      "title": "sheredom/json.h · json_parse",
+      "driver": "sheredom_stdin",
+      "upstream_src": [],
+      "include_dirs": ["."],
+      "wasm_guard": "sheredom_json_guard",
+      "cwe": ["CWE-125"],
+      "priority": 3
+    },
+    {
+      "id": "expat",
+      "repo": "https://github.com/libexpat/libexpat",
+      "ref": "master",
+      "title": "libexpat/libexpat · XML_Parse",
+      "driver": "expat_stdin",
+      "upstream_src": ["expat/lib/xmlparse.c", "expat/lib/xmltok.c", "expat/lib/xmlrole.c", "expat/lib/xmltok_impl.c", "expat/lib/xmltok_ns.c", "expat/lib/random_getrandom.c"],
+      "include_dirs": ["expat/lib"],
+      "wasm_guard": "expat_xml_guard",
+      "cwe": ["CWE-125", "CWE-787"],
+      "priority": 2
     }
-  ]
+  ],
+  "rotation": {
+    "note": "nightly picks 2 targets by day-of-year mod queue length",
+    "queue": ["jsmn", "mjson", "yyjson", "parson", "jansson", "tomlc99", "expat", "sheredom", "inih", "md4c", "cjson"]
+  }
 }

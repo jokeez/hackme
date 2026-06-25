@@ -166,3 +166,24 @@ func TargetIDsFromFlags(s string) []string {
 	}
 	return out
 }
+
+// NightlyTargetIDs picks count targets from rotation queue by day offset.
+func (m *Manifest) NightlyTargetIDs(dayOffset int, count int) []string {
+	if m == nil || m.Rotation == nil || len(m.Rotation.Queue) == 0 {
+		return nil
+	}
+	if count <= 0 {
+		count = 2
+	}
+	q := m.Rotation.Queue
+	n := len(q)
+	start := dayOffset % n
+	if start < 0 {
+		start = -start
+	}
+	var out []string
+	for i := 0; i < count && i < n; i++ {
+		out = append(out, q[(start+i)%n])
+	}
+	return out
+}

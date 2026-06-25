@@ -40,7 +40,8 @@ func BuildTarget(ctx context.Context, repoRoot string, t Target) (binPath, clone
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return "", "", err
 	}
-	sum := sha256.Sum256([]byte(t.ID + t.Repo + t.Ref + t.Driver))
+	sumInput := t.ID + t.Repo + t.Ref + t.Driver + strings.Join(t.UpstreamSrc, ",") + strings.Join(t.BuildFlags, ",")
+	sum := sha256.Sum256([]byte(sumInput))
 	binPath = filepath.Join(outDir, t.ID+"-"+hex.EncodeToString(sum[:6])+".bin")
 
 	buildMu.Lock()
@@ -56,10 +57,12 @@ func BuildTarget(ctx context.Context, repoRoot string, t Target) (binPath, clone
 	defer os.RemoveAll(tmpDir)
 	tmpBin := filepath.Join(tmpDir, "fuzz")
 
+	driverDir := filepath.Dir(driverSrc)
 	args := []string{
 		"-fsanitize=address,undefined",
 		"-fno-omit-frame-pointer",
 		"-g", "-O1",
+		"-I", driverDir,
 		"-o", tmpBin,
 		driverSrc,
 	}
@@ -68,6 +71,9 @@ func BuildTarget(ctx context.Context, repoRoot string, t Target) (binPath, clone
 	}
 	for _, src := range t.UpstreamSrc {
 		args = append(args, filepath.Join(clonePath, src))
+	}
+	for _, flag := range t.BuildFlags {
+		args = append(args, flag)
 	}
 
 	buildCtx, cancel := context.WithTimeout(ctx, 120*time.Second)

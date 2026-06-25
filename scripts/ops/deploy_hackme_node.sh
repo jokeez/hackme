@@ -127,14 +127,16 @@ if [[ -f "\$d/scripts/ops/systemd/hackme-coordinator.service" ]]; then
   cp -a "\$d/scripts/ops/systemd/hackme-coordinator.service" /etc/systemd/system/hackme-coordinator.service
   echo "[deploy-hackme-node] installed hackme-coordinator systemd unit"
 fi
-for u in hackme-node-watchdog.service hackme-node-watchdog.timer; do
+for u in hackme-node-watchdog.service hackme-node-watchdog.timer hackme-oss-cve-nightly.service hackme-oss-cve-nightly.timer; do
   if [[ -f "\$d/scripts/ops/systemd/\$u" ]]; then
     cp -a "\$d/scripts/ops/systemd/\$u" "/etc/systemd/system/\$u"
   fi
 done
 chmod +x "\$d/scripts/ops/node_healthcheck.sh" 2>/dev/null || true
+chmod +x "\$d/scripts/ops/run_oss_cve_nightly.sh" 2>/dev/null || true
 systemctl daemon-reload
 systemctl enable --now hackme-node-watchdog.timer 2>/dev/null || true
+systemctl enable --now hackme-oss-cve-nightly.timer 2>/dev/null || true
 systemctl enable hackme-coordinator 2>/dev/null || true
 systemctl restart hackme-node
 systemctl restart hackme-coordinator 2>/dev/null || true
