@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"hackme/internal/chain"
+	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzescrow"
 	"hackme/internal/sandbox"
 )
@@ -28,6 +29,8 @@ type securityAuditRequest struct {
 	BudgetRuns      int      `json:"budget_runs"`
 	BudgetSeconds   int      `json:"budget_seconds"`
 	SeedCorpus      []uint64 `json:"seed_corpus"`
+	DepthTier       string   `json:"depth_tier"`
+	GuardName       string   `json:"guard_name"`
 	CreatePoHOrder  *bool    `json:"create_poh_order"`
 	RewardHMC       float64  `json:"reward_hmc"`
 	DifficultyScore int      `json:"difficulty_score"`
@@ -121,7 +124,21 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 		poolDist = *req.PoolDistributed
 	}
 
+	depthTier := fuzzengine.DepthWasmOnly
+	if t := strings.TrimSpace(strings.ToLower(req.DepthTier)); t != "" {
+		depthTier = fuzzengine.DepthTier(t)
+	}
+
 	budgetHMC := req.BudgetHMC
+	budgetRuns := req.BudgetRuns
+	if preset, ok := fuzzengine.DepthPresetFor(depthTier); ok && strings.TrimSpace(req.DepthTier) != "" {
+		if budgetHMC <= 0 {
+			budgetHMC = preset.BudgetHMC
+		}
+		if budgetRuns < 8 {
+			budgetRuns = preset.BudgetRuns
+		}
+	}
 	if budgetHMC <= 0 {
 		budgetHMC = 1.0
 	}
@@ -130,7 +147,6 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("budget_hmc must be >= %.2f", fuzzescrow.MinCampaignBudgetHMC), nil)
 		return
 	}
-	budgetRuns := req.BudgetRuns
 	if budgetRuns < 8 {
 		budgetRuns = 64
 	}
@@ -248,6 +264,12 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 		"auto_runner":      "1",
 		"budget_hmc":       budgetHMC,
 		"escrow_split":     "20_80",
+		"depth_tier":       string(depthTier),
+	}
+	cfgMap = fuzzengine.ApplyDepthTier(cfgMap, depthTier)
+	if gn := strings.TrimSpace(req.GuardName); gn != "" {
+		cfgMap["guard_name"] = gn
+		cfgMap["upstream_guard"] = gn
 	}
 	cfgMap = normalizeFuzzCampaignConfig(cfgMap, "property")
 	cfg := marshalMapJSON(cfgMap)
@@ -296,6 +318,7 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	resp["customer_report_token"] = reportToken
 	resp["customer_report_header"] = "X-Hackme-Report-Token"
 	resp["fuzz_engine"] = fuzzEngineMetaFromConfig(cfgMap)
+	resp["depth_tier"] = string(depthTier)
 	resp["report_url"] = "/api/fuzz/campaigns/" + campaignID + "/report.html"
 
 	if poolDistributedCampaign(cfgMap) {

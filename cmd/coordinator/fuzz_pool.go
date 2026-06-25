@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -155,6 +156,10 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			"item_id":         work.ItemID,
 			"input_n":         work.InputN,
 			"actual_input":    work.ActualInput,
+			"input_mode":      work.InputMode,
+			"input_bytes_hex": hex.EncodeToString(work.InputBytes),
+			"depth_tier":      work.DepthTier,
+			"per_run_hmc":     work.PerRunHMC,
 			"wasm_check_hex":  work.WasmCheckHex,
 			"check_semantics": work.CheckSemantics,
 			"task_class":      "fuzz",
@@ -185,6 +190,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			ItemID       int64  `json:"item_id"`
 			InputN       uint64 `json:"input_n"`
 			ActualInput  uint64 `json:"actual_input"`
+			InputBytesHex string `json:"input_bytes_hex"`
 			CheckResult  int32  `json:"check_result"`
 			DurationMS   int    `json:"duration_ms"`
 			Trap         string `json:"trap"`
@@ -210,6 +216,10 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": reason})
 			return
 		}
+		var inputBytes []byte
+		if h := strings.TrimSpace(req.InputBytesHex); h != "" {
+			inputBytes, _ = hex.DecodeString(h)
+		}
 		if err := pf.Submit(r.Context(), poolfuzz.SubmitRequest{
 			WorkerID:     req.WorkerID,
 			MinerAddress: payoutAddr,
@@ -218,6 +228,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			ItemID:       req.ItemID,
 			InputN:       req.InputN,
 			ActualInput:  req.ActualInput,
+			InputBytes:   inputBytes,
 			CheckResult:  req.CheckResult,
 			DurationMS:   req.DurationMS,
 			Trap:         strings.TrimSpace(req.Trap),

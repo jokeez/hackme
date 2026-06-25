@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>HackMe · Fuzz Depth v3 — WASM + Native Bridge</title>
+<meta name="description" content="Fuzz Depth v3: depth tiers, native repro bridge, byte corpus mode, miner marketplace — duplicate inputs guard on Bitcoin Core WASM."/>
+<link rel="canonical" href="https://hackme.tech/reports/fuzz-depth-v3.html"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--neon:#00d1ff;--matrix:#39ff14;--warn:#ffb020;--purple:#b388ff;--bg:#05080f;--card:rgba(0,0,0,.45)}
+*{box-sizing:border-box}
+body{margin:0;font-family:"JetBrains Mono",ui-monospace,monospace;background:var(--bg);color:#c5d4e8;line-height:1.6;min-height:100vh}
+body::before{content:"";position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(179,136,255,.14),transparent);pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:2.5rem 1.25rem 4rem}
+.hero{text-align:center;padding:2rem 1.5rem;border:1px solid rgba(179,136,255,.35);border-radius:20px;background:linear-gradient(160deg,rgba(179,136,255,.1),rgba(0,0,0,.5));margin-bottom:2rem}
+.hero h1{font-family:"Space Grotesk",sans-serif;font-size:clamp(1.15rem,4vw,1.7rem);letter-spacing:.08em;text-transform:uppercase;color:var(--purple);margin:0 0 .5rem}
+.hero .tag{font-size:.72rem;color:#6d8099;text-transform:uppercase;letter-spacing:.2em}
+.hero-badge{display:inline-block;margin-top:1rem;padding:.5rem 1.2rem;border-radius:999px;border:2px solid var(--neon);color:var(--neon);font-weight:700;font-size:.82rem;letter-spacing:.12em;text-transform:uppercase}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.75rem;margin:1.5rem 0}
+.stat{border:1px solid rgba(0,209,255,.2);border-radius:12px;padding:1rem;background:var(--card)}
+.stat b{display:block;font-size:.62rem;text-transform:uppercase;letter-spacing:.12em;color:#6d8099;margin-bottom:.35rem}
+.stat .v{font-size:1.15rem;font-weight:700;color:#fff}
+.stat .v.ok{color:var(--matrix)}
+.stat .v.warn{color:var(--warn)}
+.tier-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem;margin:1.25rem 0}
+.tier{border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:1rem;background:var(--card);font-size:.78rem}
+.tier h3{font-family:"Space Grotesk",sans-serif;font-size:.9rem;margin:0 0 .4rem;color:#fff}
+.tier code{color:var(--matrix);font-size:.72rem}
+.tier.active{border-color:rgba(179,136,255,.5);box-shadow:0 0 20px rgba(179,136,255,.08)}
+.mod-card{border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:1.25rem;background:var(--card);margin:1.5rem 0}
+.mod-card h2{font-family:"Space Grotesk",sans-serif;font-size:1.05rem;margin:0 0 .5rem;color:#fff}
+.mod-guard code{color:var(--matrix);font-size:.78rem}
+.core-links{margin:.75rem 0;padding-left:1.1rem;font-size:.75rem}
+.core-links a{color:var(--neon)}
+.verdict{border-left:3px solid var(--matrix);padding:.75rem 1rem;margin:1.5rem 0;font-size:.82rem;color:#9eb0c8;background:rgba(57,255,20,.04);border-radius:0 8px 8px 0}
+.disclaimer{border:1px solid rgba(255,176,32,.35);border-radius:12px;padding:1rem;font-size:.78rem;color:#d4b896;margin-top:2rem}
+footer{margin-top:2rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,.08);font-size:.72rem;color:#6d8099;text-align:center}
+footer a{color:var(--neon)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<section class="hero">
+<p class="tag">Fuzz Depth v3 · rc11o · bitcoin/bitcoin guards</p>
+<h1>WASM scan → native repro → bounty gate</h1>
+<p>Three depth tiers in <code>#orders</code>, native bridge confirms findings against pinned upstream logic, miners see <code>per_run_hmc</code> in the fuzz marketplace.</p>
+<span class="hero-badge">4 GUARD SIGNALS · 4 NATIVE CONFIRMED · 0 CRITICAL</span>
+</section>
+
+<div class="stats">
+<div class="stat"><b>Depth tier</b><span class="v" style="font-size:.85rem">wasm_native</span></div>
+<div class="stat"><b>Budget</b><span class="v">5 HMC</span></div>
+<div class="stat"><b>Guard signals</b><span class="v warn">4</span></div>
+<div class="stat"><b>Native confirmed</b><span class="v ok">4</span></div>
+<div class="stat"><b>Critical</b><span class="v ok">0</span></div>
+<div class="stat"><b>Verdict</b><span class="v" style="font-size:.75rem">fail_high</span></div>
+<div class="stat"><b>Date (UTC)</b><span class="v" style="font-size:.72rem">2026-06-25</span></div>
+</div>
+
+<section class="tier-grid">
+<div class="tier"><h3>wasm_only</h3><code>1 HMC · 64 runs</code><p>WASM guard signals only. Bounty without native gate.</p></div>
+<div class="tier active"><h3>wasm_native</h3><code>5 HMC · 256 runs</code><p>Native queue: <code>confirmed</code> / <code>rejected</code> on pinned Bitcoin guards. Bounty requires native confirm.</p></div>
+<div class="tier"><h3>bytes_corpus</h3><code>10 HMC · 1000 runs</code><p>Structured byte inputs via <code>check_bytes(ptr,len)</code> for tx/script class bugs.</p></div>
+</section>
+
+<article class="mod-card">
+<h2>Demo guard · <code>bitcoin_tx_dup_inputs</code></h2>
+<p class="mod-guard">CVE-2018-17144 <em>class</em>: duplicate prevout rejection. WASM fuzz finds guard trips; native bridge re-evaluates the same input against a Go port of the upstream check.</p>
+<p class="mod-guard">Live campaign: <code>campaign-fuzz-v3-20260625T161200Z</code></p>
+<ul class="core-links">
+<li><a href="https://github.com/bitcoin/bitcoin/blob/master/src/consensus/tx_check.cpp" target="_blank" rel="noopener">tx_check.cpp — duplicate input check</a></li>
+<li><a href="https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_tx_dup_inputs.c" target="_blank" rel="noopener">HackMe WASM source</a></li>
+<li><a href="./bitcoin30-day11.html">Bitcoin30 Day 11 — same guard, pre-v3</a></li>
+</ul>
+</article>
+
+<div class="verdict">
+<strong>What's new vs Day 11.</strong> Same economics (HMC escrow, 20/80 split, <code>#orders</code> → <code>#fuzz</code>). New: depth presets, native repro status column, miner marketplace panel, byte corpus tier. Honest limit: native layer is pinned Go guards — not full <code>bitcoind</code> / libFuzzer yet.
+</div>
+
+<div class="disclaimer">
+<strong>Reproduce locally.</strong>
+<code>bash scripts/ops/fuzz_depth_v3_gate.sh</code> ·
+<code>POOL_DIST=0 bash scripts/ops/run_fuzz_depth_v3_live.sh</code>
+</div>
+
+<footer>
+<a href="./bitcoin30-day11.html">Bitcoin30 Day 11</a> ·
+<a href="https://hackme.tech/research.html">Research</a> ·
+<a href="https://hackme.tech/#mining">Mining · Fuzz marketplace</a>
+</footer>
+</div>
+</body>
+</html>

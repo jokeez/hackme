@@ -408,11 +408,15 @@ func doCampaign(base string, args []string) error {
 		taskID := fs.String("task-id", "", "linked order task id")
 		wasmHex := fs.String("wasm-hex", "", "inline wasm_check_hex")
 		ctype := fs.String("type", "property", "campaign_type")
+		depthTier := fs.String("depth-tier", "", "depth tier: wasm_only|wasm_native|bytes_corpus")
 		_ = fs.Parse(args[1:])
 		cfg := map[string]any{
 			"fuzz_engine_version": "fuzz_engine_v2",
 			"mutation_rounds":     4,
 			"coverage_guided":     true,
+		}
+		if dt := strings.TrimSpace(*depthTier); dt != "" {
+			cfg["depth_tier"] = dt
 		}
 		if *pool {
 			cfg["pool_distributed"] = true

@@ -18,6 +18,29 @@ func Root() string {
 	return v
 }
 
+// WriteInputBytes stores byte corpus input under campaignID/<sha>.input.
+func WriteInputBytes(campaignID, inputSHA string, input []byte) string {
+	campaignID = strings.TrimSpace(campaignID)
+	inputSHA = strings.TrimSpace(strings.ToLower(inputSHA))
+	if campaignID == "" || inputSHA == "" || len(input) == 0 {
+		return ""
+	}
+	root, err := filepath.Abs(Root())
+	if err != nil {
+		return ""
+	}
+	dir := filepath.Join(root, campaignID)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return ""
+	}
+	path := filepath.Join(dir, inputSHA+".input")
+	payload := fmt.Sprintf("input_mode=bytes\ninput_len=%d\nsha256=%s\ninput_hex=%x\n", len(input), inputSHA, input)
+	if err := os.WriteFile(path, append([]byte(payload), input...), 0o600); err != nil {
+		return ""
+	}
+	return path
+}
+
 // WriteInput stores a reproducible input under campaignID/<sha>.input; returns absolute path or "".
 func WriteInput(campaignID, inputSHA string, input uint64) string {
 	campaignID = strings.TrimSpace(campaignID)

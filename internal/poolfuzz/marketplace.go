@@ -56,8 +56,21 @@ func (s *Service) ListPublicCampaigns(ctx context.Context, limit int) ([]map[str
 		}
 		if fe, ok := summary["fuzz_engine"].(map[string]any); ok {
 			item["check_semantics"] = fe["check_semantics"]
+			item["depth_tier"] = fe["depth_tier"]
+			item["input_mode"] = fe["input_mode"]
 		} else if cs := strings.TrimSpace(jsonString(cfg["check_semantics"])); cs != "" {
 			item["check_semantics"] = cs
+		}
+		if dt := strings.TrimSpace(jsonString(cfg["depth_tier"])); dt != "" {
+			item["depth_tier"] = dt
+		}
+		if budgetHMC > 0 && budgetRuns >= 8 {
+			item["per_run_hmc"] = (budgetHMC * 0.20) / float64(budgetRuns)
+		}
+		if native, ok := summary["native"].(map[string]any); ok {
+			item["native_status"] = native["status"]
+		} else {
+			item["native_status"] = "n/a"
 		}
 		out = append(out, item)
 	}

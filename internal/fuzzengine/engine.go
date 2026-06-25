@@ -90,6 +90,12 @@ func NormalizeCampaignConfig(cfg map[string]any, campaignType string) map[string
 	if _, ok := cfg["coverage_guided"]; !ok {
 		cfg["coverage_guided"] = true
 	}
+	if _, ok := cfg["depth_tier"]; ok {
+		cfg = ApplyDepthTier(cfg, ParseDepthTier(cfg))
+	}
+	if _, ok := cfg["input_mode"]; !ok {
+		cfg["input_mode"] = string(ParseInputMode(cfg))
+	}
 	if _, ok := cfg["check_semantics"]; !ok {
 		if strings.EqualFold(strings.TrimSpace(toString(cfg["detector_mode"])), "1") ||
 			strings.EqualFold(strings.TrimSpace(toString(cfg["detector_mode"])), "true") {
@@ -243,12 +249,24 @@ func MetaFromConfig(cfg map[string]any) map[string]any {
 	if ParseCheckSemantics(cfg) == SemanticsDetector {
 		features = append(features, "detector_semantics")
 	}
+	if ParseInputMode(cfg) == InputModeBytes {
+		features = append(features, "byte_corpus", "structured_input")
+	}
+	if NativeReproEnabled(cfg) {
+		features = append(features, "native_repro_bridge")
+	}
+	if BountyRequiresNative(cfg) {
+		features = append(features, "bounty_requires_native")
+	}
 	return map[string]any{
 		"version":         Version,
 		"seed_count":      len(seeds),
 		"mutation_rounds": MutationRounds(cfg),
 		"coverage_guided": cfg != nil && strings.EqualFold(strings.TrimSpace(toString(cfg["coverage_guided"])), "true"),
 		"check_semantics": string(ParseCheckSemantics(cfg)),
+		"depth_tier":      string(ParseDepthTier(cfg)),
+		"input_mode":      string(ParseInputMode(cfg)),
+		"upstream_target": UpstreamTarget(cfg),
 		"features":        features,
 	}
 }

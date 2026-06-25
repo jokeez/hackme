@@ -52,6 +52,9 @@ func (a *app) startFuzzAutoRunner(ctx context.Context) {
 				if err := a.fuzzAutoRunnerTick(ctx); err != nil {
 					log.Printf("fuzz autorunner tick error: %v", err)
 				}
+				if err := a.fuzzNativeBridgeTick(ctx); err != nil {
+					log.Printf("fuzz native bridge tick error: %v", err)
+				}
 				cleanupEverySec := int64(60)
 				if s := strings.TrimSpace(os.Getenv("HACKME_FUZZ_RETENTION_INTERVAL_SEC")); s != "" {
 					if n, err := strconv.ParseInt(s, 10, 64); err == nil && n >= 10 && n <= 86400 {
@@ -278,13 +281,22 @@ func (a *app) executeWorkItem(ctx context.Context, c fuzzAutoCampaign, cfg map[s
 		wasmPath = fuzzartifacts.WriteWasmHex(c.ID, hex.EncodeToString(wasm))
 	}
 	actualInput := deriveFuzzInput(it.InputN, cfg)
+	var inputBytes []byte
+	if fuzzengine.ParseInputMode(cfg) == fuzzengine.InputModeBytes {
+		inputBytes = fuzzengine.DeriveInputBytes(it.InputN, cfg)
+		actualInput = fuzzengine.PackInputBytesToU64(inputBytes)
+	}
 	sem := fuzzengine.ParseCheckSemantics(cfg)
 	pass := true
 	var execErr error
 	checkRet := int32(0)
 	if len(wasm) > 0 {
 		var invokeOK bool
-		invokeOK, execErr = sandbox.InvokeCheck(runCtx, wasm, actualInput)
+		if len(inputBytes) > 0 {
+			invokeOK, execErr = sandbox.InvokeCheckInput(runCtx, wasm, inputBytes)
+		} else {
+			invokeOK, execErr = sandbox.InvokeCheck(runCtx, wasm, actualInput)
+		}
 		if invokeOK {
 			checkRet = 1
 		}
@@ -317,7 +329,7 @@ func (a *app) executeWorkItem(ctx context.Context, c fuzzAutoCampaign, cfg map[s
 		boolToInt(pass), durationMS, now, it.ID); err != nil {
 		return err
 	}
-	if err := a.recordCoverageBuckets(ctx, c.ID, actualInput, now); err != nil {
+	if err := a.recordCoverageBuckets(ctx, c.ID, actualInput, inputBytes, now); err != nil {
 		return err
 	}
 	recordFinding := false
@@ -327,7 +339,7 @@ func (a *app) executeWorkItem(ctx context.Context, c fuzzAutoCampaign, cfg map[s
 		recordFinding = true
 	}
 	if recordFinding {
-		if err := a.insertWorkerWasmCheckFail(ctx, c.ID, it.InputN, actualInput, now, len(wasm) > 0, sem, wasmPath); err != nil {
+		if err := a.insertWorkerWasmCheckFail(ctx, c.ID, it.InputN, actualInput, inputBytes, now, len(wasm) > 0, sem, wasmPath, cfg); err != nil {
 			return err
 		}
 	}
@@ -341,8 +353,13 @@ func boolToInt(v bool) int {
 	return 0
 }
 
-func (a *app) recordCoverageBuckets(ctx context.Context, campaignID string, input uint64, now int64) error {
-	edgeBucket, pathBucket := fuzzCoverageBuckets(input)
+func (a *app) recordCoverageBuckets(ctx context.Context, campaignID string, input uint64, inputBytes []byte, now int64) error {
+	var edgeBucket, pathBucket int
+	if len(inputBytes) > 0 {
+		edgeBucket, pathBucket = fuzzengine.CoverageBucketsFromBytes(inputBytes)
+	} else {
+		edgeBucket, pathBucket = fuzzCoverageBuckets(input)
+	}
 	_, err := a.db.ExecContext(ctx,
 		`INSERT OR IGNORE INTO fuzz_coverage_seen (campaign_id, kind, bucket, first_seen_at) VALUES (?, 'edge', ?, ?)`,
 		campaignID, edgeBucket, now)
@@ -385,16 +402,24 @@ func classifyWasmTrap(inputN uint64, execErr error, hasWasm bool) (findingType, 
 	return "crash", "high", "WASM trap: " + titleBase
 }
 
-func (a *app) insertWorkerFindingClassified(ctx context.Context, campaignID string, inputN, actualInput uint64, now int64, findingType, severity, title, wasmPath string) error {
-	inputSHA := fuzzInputSHA256(actualInput)
-	artifactPath := fuzzartifacts.WriteInput(campaignID, inputSHA, actualInput)
-	repro := fuzzengine.ReproCmdTool(wasmPath, actualInput)
+func (a *app) insertWorkerFindingClassified(ctx context.Context, campaignID string, inputN, actualInput uint64, inputBytes []byte, now int64, findingType, severity, title, wasmPath string, cfg map[string]any) error {
+	var inputSHA, artifactPath, repro string
+	if len(inputBytes) > 0 {
+		inputSHA = fuzzengine.InputBytesSHA256(inputBytes)
+		artifactPath = fuzzartifacts.WriteInputBytes(campaignID, inputSHA, inputBytes)
+		repro = fuzzengine.ReproCmdBytes(wasmPath, inputBytes)
+	} else {
+		inputSHA = fuzzInputSHA256(actualInput)
+		artifactPath = fuzzartifacts.WriteInput(campaignID, inputSHA, actualInput)
+		repro = fuzzengine.ReproCmdTool(wasmPath, actualInput)
+	}
 	triage := fuzzengine.ClassifyFinding(findingType, severity)
 	findingID := fmt.Sprintf("finding-worker-%s-%d-%d", campaignID, inputN, now)
 	detail := map[string]any{
-		"source":        "fuzz_worker_pipeline_v2",
+		"source":        "fuzz_worker_pipeline_v3",
 		"input_n":       inputN,
 		"actual_input":  actualInput,
+		"input_len":     len(inputBytes),
 		"timestamp":     now,
 		"triage_class":  triage.Class,
 		"triage_label":  triage.Label,
@@ -420,12 +445,22 @@ func (a *app) insertWorkerFindingClassified(ctx context.Context, campaignID stri
 		   last_finding_id=excluded.last_finding_id,
 		   artifact_path=CASE WHEN excluded.artifact_path<>'' THEN excluded.artifact_path ELSE fuzz_corpus.artifact_path END`,
 		campaignID, inputSHA, now, now, findingID, artifactPath)
+	if cfg != nil {
+		ib := inputBytes
+		if len(ib) == 0 {
+			ib = make([]byte, 8)
+			for i := 0; i < 8; i++ {
+				ib[i] = byte(actualInput >> (8 * i))
+			}
+		}
+		a.enqueueNativeReproForFinding(ctx, campaignID, findingID, inputSHA, ib, cfg, now)
+	}
 	return nil
 }
 
-func (a *app) insertWorkerWasmCheckFail(ctx context.Context, campaignID string, inputN, actualInput uint64, now int64, hasWasm bool, sem fuzzengine.CheckSemantics, wasmPath string) error {
+func (a *app) insertWorkerWasmCheckFail(ctx context.Context, campaignID string, inputN, actualInput uint64, inputBytes []byte, now int64, hasWasm bool, sem fuzzengine.CheckSemantics, wasmPath string, cfg map[string]any) error {
 	ft, sev, title := fuzzengine.ClassifyCheckFail(actualInput, hasWasm, sem)
-	return a.insertWorkerFindingClassified(ctx, campaignID, inputN, actualInput, now, ft, sev, title, wasmPath)
+	return a.insertWorkerFindingClassified(ctx, campaignID, inputN, actualInput, inputBytes, now, ft, sev, title, wasmPath, cfg)
 }
 
 func (a *app) insertWorkerWasmAnomaly(ctx context.Context, campaignID string, inputN, actualInput uint64, now int64, execErr error, hasWasm bool, wasmPath string) error {

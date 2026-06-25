@@ -11,6 +11,7 @@ import (
 
 	"hackme/internal/fuzzartifacts"
 	"hackme/internal/fuzzengine"
+	"hackme/internal/fuzznative"
 	"hackme/internal/sandbox"
 )
 
@@ -38,8 +39,12 @@ type ClaimedWork struct {
 	ItemID         int64
 	InputN         uint64
 	ActualInput    uint64
+	InputBytes     []byte
+	InputMode      string
 	WasmCheckHex   string
 	CheckSemantics string
+	DepthTier      string
+	PerRunHMC      float64
 }
 
 type SubmitRequest struct {
@@ -50,6 +55,7 @@ type SubmitRequest struct {
 	ItemID       int64
 	InputN       uint64
 	ActualInput  uint64
+	InputBytes   []byte
 	CheckResult  int32
 	DurationMS   int
 	Trap         string
@@ -165,6 +171,9 @@ func (s *Service) Tick(ctx context.Context) error {
 			return err
 		}
 	}
+	if pins, err := fuzznative.LoadPins(""); err == nil {
+		_, _ = fuzznative.ProcessPending(ctx, s.DB, pins, 5)
+	}
 	return rows.Err()
 }
 
@@ -215,16 +224,21 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 			continue
 		}
 		wasmHex := wasmHexFromConfig(cfg)
-		actual := derivePoolInput(inputN, cfg)
+		actualU, actualB := derivePoolInputs(inputN, cfg)
 		sem := fuzzengine.ParseCheckSemantics(cfg)
+		perRun := perRunHMCFromConfig(cfg)
 		out = ClaimedWork{
 			WorkID:         fmt.Sprintf("%s:%d", campaignID, itemID),
 			CampaignID:     campaignID,
 			ItemID:         itemID,
 			InputN:         inputN,
-			ActualInput:    actual,
+			ActualInput:    actualU,
+			InputBytes:     actualB,
+			InputMode:      string(fuzzengine.ParseInputMode(cfg)),
 			WasmCheckHex:   wasmHex,
 			CheckSemantics: string(sem),
+			DepthTier:      string(fuzzengine.ParseDepthTier(cfg)),
+			PerRunHMC:      perRun,
 		}
 		return out, true, nil
 	}
@@ -264,16 +278,15 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	if aff == 0 {
 		return nil
 	}
-	if err := s.recordCoverage(ctx, req.CampaignID, req.ActualInput, now); err != nil {
+	if err := s.recordCoverage(ctx, req.CampaignID, req.ActualInput, req.InputBytes, now); err != nil {
 		return err
 	}
 	var findingSeverity string
+	var findingID string
 	if recordFinding {
-		_, findingSeverity, _ = fuzzengine.ClassifyCheckFail(req.ActualInput, hasWasm, sem)
-		if strings.TrimSpace(req.Trap) != "" {
-			findingSeverity = "high"
-		}
-		if err := s.insertFinding(ctx, req, cfg, sem, hasWasm, now); err != nil {
+		var err error
+		findingID, findingSeverity, err = s.insertFinding(ctx, req, cfg, sem, hasWasm, now)
+		if err != nil {
 			return err
 		}
 	}
@@ -281,7 +294,7 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 		miner := strings.TrimSpace(req.MinerAddress)
 		if miner != "" {
 			_ = s.Settler.PayRun(ctx, req.CampaignID, miner)
-			if recordFinding && bountySeverity(findingSeverity) {
+			if recordFinding && bountySeverity(findingSeverity) && s.bountyAllowed(ctx, cfg, findingID) {
 				_ = s.Settler.PayFinding(ctx, req.CampaignID, miner, findingSeverity)
 			}
 		}
@@ -325,8 +338,24 @@ func ExecuteLocally(ctx context.Context, wasmHex string, input uint64, timeoutMS
 	return 0, durationMS, "", nil
 }
 
-func (s *Service) recordCoverage(ctx context.Context, campaignID string, input uint64, now int64) error {
-	edge, path := fuzzengine.CoverageBuckets(input)
+func (s *Service) bountyAllowed(ctx context.Context, cfg map[string]any, findingID string) bool {
+	if !fuzzengine.BountyRequiresNative(cfg) {
+		return true
+	}
+	if findingID == "" || s.DB == nil {
+		return false
+	}
+	ok, err := fuzznative.IsFindingNativeConfirmed(ctx, s.DB, findingID)
+	return err == nil && ok
+}
+
+func (s *Service) recordCoverage(ctx context.Context, campaignID string, input uint64, inputBytes []byte, now int64) error {
+	var edge, path int
+	if len(inputBytes) > 0 {
+		edge, path = fuzzengine.CoverageBucketsFromBytes(inputBytes)
+	} else {
+		edge, path = fuzzengine.CoverageBuckets(input)
+	}
 	_, err := s.DB.ExecContext(ctx,
 		`INSERT OR IGNORE INTO fuzz_coverage_seen (campaign_id, kind, bucket, first_seen_at) VALUES (?, 'edge', ?, ?)`,
 		campaignID, edge, now)
@@ -339,8 +368,24 @@ func (s *Service) recordCoverage(ctx context.Context, campaignID string, input u
 	return err
 }
 
-func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[string]any, sem fuzzengine.CheckSemantics, hasWasm bool, now int64) error {
-	inputSHA := fuzzengine.InputSHA256(req.ActualInput)
+func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[string]any, sem fuzzengine.CheckSemantics, hasWasm bool, now int64) (string, string, error) {
+	inputBytes := req.InputBytes
+	var inputSHA string
+	var artifactPath string
+	var repro string
+	if len(inputBytes) > 0 {
+		inputSHA = fuzzengine.InputBytesSHA256(inputBytes)
+		artifactPath = fuzzartifacts.WriteInputBytes(req.CampaignID, inputSHA, inputBytes)
+		wasmHex, _ := cfg["wasm_check_hex"].(string)
+		wasmPath := fuzzartifacts.WriteWasmHex(req.CampaignID, wasmHex)
+		repro = fuzzengine.ReproCmdBytes(wasmPath, inputBytes)
+	} else {
+		inputSHA = fuzzengine.InputSHA256(req.ActualInput)
+		wasmHex, _ := cfg["wasm_check_hex"].(string)
+		wasmPath := fuzzartifacts.WriteWasmHex(req.CampaignID, wasmHex)
+		artifactPath = fuzzartifacts.WriteInput(req.CampaignID, inputSHA, req.ActualInput)
+		repro = fuzzengine.ReproCmdTool(wasmPath, req.ActualInput)
+	}
 	ft, sev, title := fuzzengine.ClassifyCheckFail(req.ActualInput, hasWasm, sem)
 	if strings.TrimSpace(req.Trap) != "" {
 		ft, sev, title = "crash", "high", "WASM trap: "+truncate(req.Trap, 200)
@@ -348,15 +393,15 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 	findingID := fmt.Sprintf("finding-pool-%s-%d-%d", req.CampaignID, req.ItemID, now)
 	op, itemID, qty := fuzzengine.WasmCheckInputParts(req.ActualInput)
 	wasmHex, _ := cfg["wasm_check_hex"].(string)
-	wasmPath := fuzzartifacts.WriteWasmHex(req.CampaignID, wasmHex)
-	artifactPath := fuzzartifacts.WriteInput(req.CampaignID, inputSHA, req.ActualInput)
-	repro := fuzzengine.ReproCmdTool(wasmPath, req.ActualInput)
+	_ = fuzzartifacts.WriteWasmHex(req.CampaignID, wasmHex)
 	triage := fuzzengine.ClassifyFinding(ft, sev)
 	detail, _ := json.Marshal(map[string]any{
-		"source":          "pool_fuzz_worker_v1",
+		"source":          "pool_fuzz_worker_v2",
 		"worker_id":       req.WorkerID,
 		"input_n":         req.InputN,
 		"actual_input":    req.ActualInput,
+		"input_mode":      fuzzengine.ParseInputMode(cfg),
+		"input_len":       len(inputBytes),
 		"check_result":    req.CheckResult,
 		"op_type":         op,
 		"item_id":         itemID,
@@ -373,7 +418,7 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		findingID, req.CampaignID, ft, sev, title, inputSHA, artifactPath, repro, string(detail), now)
 	if err != nil {
-		return err
+		return "", "", err
 	}
 	_, _ = s.DB.ExecContext(ctx,
 		`INSERT INTO fuzz_corpus (campaign_id, input_sha256, first_seen_at, last_seen_at, hits, last_finding_id, artifact_path)
@@ -384,7 +429,21 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 		   last_finding_id=excluded.last_finding_id,
 		   artifact_path=CASE WHEN excluded.artifact_path<>'' THEN excluded.artifact_path ELSE fuzz_corpus.artifact_path END`,
 		req.CampaignID, inputSHA, now, now, findingID, artifactPath)
-	return nil
+	if fuzzengine.NativeReproEnabled(cfg) {
+		guard := strings.TrimSpace(jsonString(cfg["guard_name"]))
+		if guard == "" {
+			guard = strings.TrimSpace(jsonString(cfg["upstream_guard"]))
+		}
+		ib := inputBytes
+		if len(ib) == 0 {
+			ib = make([]byte, 8)
+			for i := 0; i < 8; i++ {
+				ib[i] = byte(req.ActualInput >> (8 * i))
+			}
+		}
+		_ = fuzznative.QueueJob(ctx, s.DB, findingID, req.CampaignID, inputSHA, ib, fuzzengine.UpstreamTarget(cfg), guard, now)
+	}
+	return findingID, sev, nil
 }
 
 func (s *Service) recomputeProgress(ctx context.Context, campaignID string, now int64) (completed bool, err error) {
@@ -455,12 +514,35 @@ func (s *Service) PoolStats(ctx context.Context) (map[string]any, error) {
 	}, nil
 }
 
-func derivePoolInput(inputN uint64, cfg map[string]any) uint64 {
+func derivePoolInputs(inputN uint64, cfg map[string]any) (uint64, []byte) {
+	if fuzzengine.ParseInputMode(cfg) == fuzzengine.InputModeBytes {
+		b := fuzzengine.DeriveInputBytes(inputN, cfg)
+		return fuzzengine.PackInputBytesToU64(b), b
+	}
 	seeds := fuzzengine.ParseSeedCorpus(cfg)
 	if fuzzengine.MutationRounds(cfg) == 0 && len(seeds) > 0 {
-		return seeds[inputN%uint64(len(seeds))]
+		u := seeds[inputN%uint64(len(seeds))]
+		return u, nil
 	}
-	return fuzzengine.DeriveInput(inputN, cfg)
+	u := fuzzengine.DeriveInput(inputN, cfg)
+	return u, nil
+}
+
+func derivePoolInput(inputN uint64, cfg map[string]any) uint64 {
+	u, _ := derivePoolInputs(inputN, cfg)
+	return u
+}
+
+func perRunHMCFromConfig(cfg map[string]any) float64 {
+	if cfg == nil {
+		return 0
+	}
+	budget := floatFromJSON(cfg["budget_hmc"])
+	runs := intFromJSON(cfg["budget_runs"])
+	if budget <= 0 || runs < 8 {
+		return 0
+	}
+	return (budget * 0.20) / float64(runs)
 }
 
 func wasmHexFromConfig(cfg map[string]any) string {

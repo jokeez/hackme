@@ -27,15 +27,19 @@ import (
 )
 
 type claimResp struct {
-	OK             bool   `json:"ok"`
-	Reason         string `json:"reason,omitempty"`
-	WorkID         string `json:"work_id,omitempty"`
-	CampaignID     string `json:"campaign_id,omitempty"`
-	ItemID         int64  `json:"item_id,omitempty"`
-	InputN         uint64 `json:"input_n,omitempty"`
-	ActualInput    uint64 `json:"actual_input,omitempty"`
-	WasmCheckHex   string `json:"wasm_check_hex,omitempty"`
-	CheckSemantics string `json:"check_semantics,omitempty"`
+	OK             bool    `json:"ok"`
+	Reason         string  `json:"reason,omitempty"`
+	WorkID         string  `json:"work_id,omitempty"`
+	CampaignID     string  `json:"campaign_id,omitempty"`
+	ItemID         int64   `json:"item_id,omitempty"`
+	InputN         uint64  `json:"input_n,omitempty"`
+	ActualInput    uint64  `json:"actual_input,omitempty"`
+	InputMode      string  `json:"input_mode,omitempty"`
+	InputBytesHex  string  `json:"input_bytes_hex,omitempty"`
+	DepthTier      string  `json:"depth_tier,omitempty"`
+	PerRunHMC      float64 `json:"per_run_hmc,omitempty"`
+	WasmCheckHex   string  `json:"wasm_check_hex,omitempty"`
+	CheckSemantics string  `json:"check_semantics,omitempty"`
 }
 
 func workerHTTPTimeout() time.Duration {
@@ -146,7 +150,7 @@ func runCheck(cr claimResp, timeoutMS int) (checkResult int32, durationMS int, t
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutMS)*time.Millisecond)
 	defer cancel()
-	ok, execErr := sandbox.InvokeCheck(ctx, wasm, cr.ActualInput)
+	ok, execErr := sandbox.InvokeCheckInput(ctx, wasm, inputForCheck(cr))
 	durationMS = int(time.Since(start).Milliseconds())
 	if execErr != nil {
 		return 0, durationMS, execErr.Error()
@@ -155,6 +159,15 @@ func runCheck(cr claimResp, timeoutMS int) (checkResult int32, durationMS int, t
 		return 1, durationMS, ""
 	}
 	return 0, durationMS, ""
+}
+
+func inputForCheck(cr claimResp) []byte {
+	if h := strings.TrimSpace(cr.InputBytesHex); h != "" {
+		if b, err := hex.DecodeString(h); err == nil && len(b) > 0 {
+			return b
+		}
+	}
+	return nil
 }
 
 func submit(cl *http.Client, base, token, workerID, minerAddress string, priv ed25519.PrivateKey, pubHex string, hybrid bool, nonce uint64, cr claimResp, checkResult int32, durationMS int, trap string) error {
@@ -185,6 +198,9 @@ func submit(cl *http.Client, base, token, workerID, minerAddress string, priv ed
 		payload["miner_address"] = minerAddress
 	} else if strings.TrimSpace(minerAddress) != "" {
 		payload["miner_address"] = strings.TrimSpace(minerAddress)
+	}
+	if strings.TrimSpace(cr.InputBytesHex) != "" {
+		payload["input_bytes_hex"] = strings.TrimSpace(cr.InputBytesHex)
 	}
 	body, _ := json.Marshal(payload)
 	req, _ := http.NewRequest(http.MethodPost, base+"/api/fuzz/work/submit", bytes.NewReader(body))

@@ -1605,6 +1605,14 @@
 							</div>
 						</div>
 						<p id="worker-mode-status" class="text-[10px] text-gray-500 font-mono mb-3">Worker mode: checking…</p>
+						<div id="mining-fuzz-marketplace" class="mb-4 rounded-lg border border-neon/25 bg-neon/5 p-3">
+							<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+								<p class="text-[10px] uppercase tracking-[0.2em] text-neon">Fuzz work · earn HMC</p>
+								<button type="button" id="btn-fuzz-market-refresh" class="text-[9px] px-2 py-1 rounded border border-neon/30 text-neon uppercase tracking-wider">Refresh</button>
+							</div>
+							<p class="text-[10px] text-gray-500 mb-2">Pool campaigns with escrow (20% runs pool). Run <code class="text-neon/80">workerfuzz</code> alongside PoH.</p>
+							<div id="mining-fuzz-market-rows" class="text-[10px] font-mono text-gray-400 space-y-1 max-h-36 overflow-y-auto">Loading…</div>
+						</div>
 						<div id="mining-admin-hint" class="hidden mb-3 rounded border border-warn/35 bg-warn/5 px-3 py-2 text-[10px] text-warn/95 font-mono leading-relaxed"></div>
 						<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2 lg:gap-3">
 							<div class="rounded-lg border border-warn/35 bg-warn/5 p-3 text-center lg:text-left">
@@ -2012,8 +2020,15 @@
 					</div>
 					<div id="orders-security-audit" class="hidden card card-glow rounded-xl p-5 border-neon/30">
 						<h3 class="text-[10px] uppercase tracking-[0.2em] text-neon mb-2">Security audit (recommended)</h3>
-						<p class="text-[11px] text-gray-500 mb-3 leading-relaxed">One click: compile guard (or upload WASM) → <strong>PoH order</strong> on the pool + <strong>distributed fuzz</strong> (20/80 escrow) → <strong>fuzz_report_v2</strong> HTML with report token, <code class="text-neon/80">repro_cmd</code>, and <code class="text-neon/80">.input</code> artifacts. WASM sandbox only — not a full upstream node audit.</p>
-						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+						<p class="text-[11px] text-gray-500 mb-3 leading-relaxed">One click: compile guard → <strong>PoH order</strong> + <strong>distributed fuzz</strong> (20/80 escrow) → <strong>fuzz_report_v2</strong>. Choose depth tier: WASM scan, WASM+native repro, or byte corpus (tx/script class).</p>
+						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
+							<label class="text-[10px] text-gray-500">Depth tier<br>
+								<select id="audit-depth-tier" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon">
+									<option value="wasm_only" selected>WASM scan (1 HMC / 64 runs)</option>
+									<option value="wasm_native">WASM + native (5 HMC / 256)</option>
+									<option value="bytes_corpus">Byte corpus deep (10 HMC / 1000)</option>
+								</select>
+							</label>
 							<label class="text-[10px] text-gray-500">Title<br><input id="audit-title" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="My protocol audit" /></label>
 							<label class="text-[10px] text-gray-500">Payer ref<br><input id="audit-payer" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="company:acme-2026" /></label>
 							<label class="text-[10px] text-gray-500">Fuzz budget HMC (min 0.5)<br><input id="audit-budget-hmc" type="number" min="0.5" step="0.1" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="1" /></label>
@@ -2169,7 +2184,7 @@
 						<div class="card card-glow rounded-lg p-4 border-white/10 overflow-x-auto">
 							<table class="w-full text-left text-[11px] font-mono">
 								<thead class="bg-black/60 text-gray-500 uppercase tracking-wider text-[9px]">
-									<tr><th class="px-2 py-2">Title</th><th class="px-2 py-2">ID</th><th class="px-2 py-2">Status</th><th class="px-2 py-2">Runs</th><th class="px-2 py-2">Escrow</th></tr>
+									<tr><th class="px-2 py-2">Title</th><th class="px-2 py-2">ID</th><th class="px-2 py-2">Status</th><th class="px-2 py-2">Runs</th><th class="px-2 py-2">Escrow</th><th class="px-2 py-2">Native</th></tr>
 								</thead>
 								<tbody id="fuzz-customer-rows" class="text-gray-300 divide-y divide-white/5"></tbody>
 							</table>
@@ -2220,7 +2235,7 @@
 						<div class="card card-glow rounded-lg p-4 xl:col-span-2 border-white/10 overflow-x-auto">
 							<table class="w-full text-left text-[11px] font-mono">
 								<thead class="bg-black/60 text-gray-500 uppercase tracking-wider text-[9px]">
-									<tr><th class="px-2 py-2">Title</th><th class="px-2 py-2">ID</th><th class="px-2 py-2">Type</th><th class="px-2 py-2">Status</th><th class="px-2 py-2">Done / budget</th><th class="px-2 py-2">Started</th><th class="px-2 py-2">Owner</th></tr>
+									<tr><th class="px-2 py-2">Title</th><th class="px-2 py-2">ID</th><th class="px-2 py-2">Type</th><th class="px-2 py-2">Status</th><th class="px-2 py-2">Done / budget</th><th class="px-2 py-2">Native</th><th class="px-2 py-2">Started</th><th class="px-2 py-2">Owner</th></tr>
 								</thead>
 								<tbody id="fuzz-campaign-rows" class="text-gray-300 divide-y divide-white/5"></tbody>
 							</table>
@@ -8247,6 +8262,9 @@
 					if (lastGoodWorkStats) renderWorkStats(lastGoodWorkStats);
 				});
 			}
+			if ($('btn-fuzz-market-refresh')) {
+				$('btn-fuzz-market-refresh').addEventListener('click', () => { void refreshMiningFuzzMarketplace(); });
+			}
 		}
 
 		function renderOverviewTopMiners(ws, rows) {
@@ -11380,6 +11398,50 @@
 			}
 		}
 
+		function fuzzNativeStatus(c) {
+			const sum = c && c.summary && typeof c.summary === 'object' ? c.summary : {};
+			const nat = sum.native && typeof sum.native === 'object' ? sum.native : {};
+			return String(nat.status || 'n/a');
+		}
+
+		function applyAuditDepthTierPreset() {
+			const sel = $('audit-depth-tier');
+			const tier = sel ? String(sel.value || 'wasm_only') : 'wasm_only';
+			const presets = {
+				wasm_only: { hmc: 1, runs: 64 },
+				wasm_native: { hmc: 5, runs: 256 },
+				bytes_corpus: { hmc: 10, runs: 1000 },
+			};
+			const p = presets[tier] || presets.wasm_only;
+			if ($('audit-budget-hmc')) $('audit-budget-hmc').value = String(p.hmc);
+			if ($('audit-runs')) $('audit-runs').value = String(p.runs);
+		}
+
+		async function refreshMiningFuzzMarketplace() {
+			const box = $('mining-fuzz-market-rows');
+			if (!box) return;
+			try {
+				const r = await fetch('/api/fuzz/marketplace', { cache: 'no-store' });
+				if (!r.ok) throw new Error('HTTP ' + r.status);
+				const j = await r.json();
+				const rows = Array.isArray(j.campaigns) ? j.campaigns : [];
+				if (!rows.length) {
+					box.innerHTML = '<span class="text-gray-600">No pool fuzz campaigns — create audit in #orders.</span>';
+					return;
+				}
+				box.innerHTML = rows.slice(0, 8).map((c) => {
+					const pr = c.per_run_hmc != null ? (Number(c.per_run_hmc).toFixed(4) + ' HMC/run') : '—';
+					return '<div class="flex flex-wrap gap-2 border-b border-white/5 pb-1">' +
+						'<span class="text-neon truncate max-w-[140px]">' + escapeHtml(String(c.title || c.id || '—')) + '</span>' +
+						'<span class="text-gray-500">' + escapeHtml(String(c.status || '—')) + '</span>' +
+						'<span class="text-matrix">' + pr + '</span>' +
+						'<span class="text-gray-600">native ' + escapeHtml(String(c.native_status || 'n/a')) + '</span></div>';
+				}).join('');
+			} catch (e) {
+				box.textContent = 'Marketplace: ' + (e && e.message ? e.message : e);
+			}
+		}
+
 		async function refreshFuzzCampaigns() {
 			const tb = $('fuzz-campaign-rows');
 			if (!tb) return;
@@ -11393,7 +11455,7 @@
 				if (hideGate) rows = rows.filter((c) => !String(c.id || '').startsWith('campaign-gate-'));
 				tb.innerHTML = '';
 				if (!rows.length) {
-					tb.innerHTML = '<tr><td colspan="7" class="px-3 py-3 text-gray-600 text-center">no campaigns — uncheck hide gate tests or Create with title security-note-01</td></tr>';
+					tb.innerHTML = '<tr><td colspan="8" class="px-3 py-3 text-gray-600 text-center">no campaigns — uncheck hide gate tests or Create with title security-note-01</td></tr>';
 					if (prevSel) clearFuzzSelectionUI();
 					return;
 				}
@@ -11409,6 +11471,7 @@
 						: fmtUInt(done);
 					const started = Number(c.started_at || c.started_unix || 0);
 					const owner = String(c.owner_ref || c.owner || '—');
+					const nativeSt = fuzzNativeStatus(c);
 					const tr = document.createElement('tr');
 					tr.dataset.campaignId = id;
 					tr.dataset.campaignTitle = title;
@@ -11419,6 +11482,7 @@
 						'<td class="px-2 py-1.5">' + escapeHtml(ctype) + '</td>' +
 						'<td class="px-2 py-1.5">' + escapeHtml(status) + '</td>' +
 						'<td class="px-2 py-1.5 tabular-nums">' + runsCell + '</td>' +
+						'<td class="px-2 py-1.5 text-gray-400">' + escapeHtml(nativeSt) + '</td>' +
 						'<td class="px-2 py-1.5 text-gray-400 tabular-nums">' + fmtUnix(started) + '</td>' +
 						'<td class="px-2 py-1.5 truncate max-w-[120px]">' + escapeHtml(owner) + '</td>';
 					tr.addEventListener('click', () => {
@@ -11436,7 +11500,7 @@
 					await selectFuzzCampaign(String(rows[0].id || ''));
 				}
 			} catch (e) {
-				tb.innerHTML = '<tr><td colspan="7" class="px-3 py-3 text-warn/90 text-center">' + escapeHtml(e && e.message ? e.message : 'fuzz unavailable') + '</td></tr>';
+				tb.innerHTML = '<tr><td colspan="8" class="px-3 py-3 text-warn/90 text-center">' + escapeHtml(e && e.message ? e.message : 'fuzz unavailable') + '</td></tr>';
 			}
 		}
 
@@ -11508,7 +11572,7 @@
 			if (!tb) return;
 			const mine = loadCustomerFuzzCampaigns();
 			if (!mine.length) {
-				tb.innerHTML = '<tr><td colspan="5" class="px-3 py-3 text-gray-600 text-center">No campaigns yet — run <strong>Security audit</strong> in <strong>#orders</strong>.</td></tr>';
+				tb.innerHTML = '<tr><td colspan="6" class="px-3 py-3 text-gray-600 text-center">No campaigns yet — run <strong>Security audit</strong> in <strong>#orders</strong>.</td></tr>';
 				selectedFuzzCustomerCampaignId = '';
 				return;
 			}
@@ -11533,6 +11597,7 @@
 				const runsCell = (Number.isFinite(bud) && bud > 0) ? (fmtUInt(done) + ' / ' + fmtUInt(bud)) : fmtUInt(done);
 				const cfg = c.config && typeof c.config === 'object' ? c.config : {};
 				const escrow = cfg.budget_hmc != null ? String(cfg.budget_hmc) + ' HMC' : '—';
+				const nativeSt = fuzzNativeStatus(c);
 				const tr = document.createElement('tr');
 				tr.dataset.campaignId = id;
 				tr.className = 'cursor-pointer hover:bg-white/5';
@@ -11541,7 +11606,8 @@
 					'<td class="px-2 py-1.5 text-gray-500 truncate max-w-[160px]" title="' + escapeHtml(id) + '">' + escapeHtml(id) + '</td>' +
 					'<td class="px-2 py-1.5">' + escapeHtml(status) + '</td>' +
 					'<td class="px-2 py-1.5 tabular-nums">' + runsCell + '</td>' +
-					'<td class="px-2 py-1.5">' + escapeHtml(escrow) + '</td>';
+					'<td class="px-2 py-1.5">' + escapeHtml(escrow) + '</td>' +
+					'<td class="px-2 py-1.5 text-gray-400">' + escapeHtml(nativeSt) + '</td>';
 				tr.addEventListener('click', () => { void selectFuzzCustomerCampaign(id, title); });
 				tb.appendChild(tr);
 			});
@@ -11582,6 +11648,9 @@
 			if ($('btn-audit-run')) {
 				$('btn-audit-run').addEventListener('click', () => { void submitSecurityAudit(); });
 			}
+			if ($('audit-depth-tier')) {
+				$('audit-depth-tier').addEventListener('change', applyAuditDepthTierPreset);
+			}
 			if ($('btn-orders-toggle-poh-advanced')) {
 				$('btn-orders-toggle-poh-advanced').addEventListener('click', () => {
 					ordersPohAdvancedOpen = !ordersPohAdvancedOpen;
@@ -11618,6 +11687,7 @@
 				logPre.classList.add('hidden');
 				logPre.textContent = '';
 			}
+			const depthTier = String(($('audit-depth-tier') && $('audit-depth-tier').value) || 'wasm_only');
 			try {
 				const body = {
 					title,
@@ -11627,6 +11697,7 @@
 					budget_seconds: 3600,
 					create_poh_order: includePoH,
 					pool_distributed: true,
+					depth_tier: depthTier,
 				};
 				if (auditWasmHex) body.wasm_check_hex = auditWasmHex;
 				else {
@@ -12396,6 +12467,7 @@
 			}
 			if (name === 'mining') {
 				void refreshMiningDevices();
+				void refreshMiningFuzzMarketplace();
 				if (activeDashboardCoinId === 'hms') {
 					void refreshHmsDiskPanel();
 					void fetchHmsPoolStats().then((hs) => {

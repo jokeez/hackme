@@ -338,6 +338,62 @@ func ValidateCheckWasm(ctx context.Context, wasm []byte) error {
 	return nil
 }
 
+// InvokeCheckInput runs check_bytes when exported, else packs bytes into check(i64).
+func InvokeCheckInput(ctx context.Context, wasm []byte, input []byte) (bool, error) {
+	if len(wasm) == 0 {
+		return true, nil
+	}
+	rt := ensureCheckRuntime()
+	key := compiledKey(wasm)
+	v, ok := checkCompiled.Load(key)
+	if !ok {
+		if err := ValidateCheckWasm(ctx, wasm); err != nil {
+			return false, err
+		}
+		v, _ = checkCompiled.Load(key)
+	}
+	compiled := v.(wazero.CompiledModule)
+	id := atomic.AddUint64(&checkInstSerial, 1)
+	instCtx, instCancel := context.WithTimeout(ctx, wasmCheckTimeout())
+	defer instCancel()
+	mod, err := rt.InstantiateModule(instCtx, compiled, wazero.NewModuleConfig().WithName(fmt.Sprintf("chk-%s-%d", key[:16], id)))
+	if err != nil {
+		return false, err
+	}
+	defer mod.Close(ctx)
+	if fn := mod.ExportedFunction("check_bytes"); fn != nil {
+		mem := mod.Memory()
+		if mem == nil {
+			return false, errors.New("sandbox: check_bytes requires memory export")
+		}
+		if len(input) == 0 {
+			input = []byte{0}
+		}
+		if len(input) > 4096 {
+			input = input[:4096]
+		}
+		off := uint32(0)
+		if !mem.Write(off, input) {
+			return false, errors.New("sandbox: check_bytes memory write failed")
+		}
+		callCtx, cancel := context.WithTimeout(ctx, wasmCheckTimeout())
+		defer cancel()
+		res, err := fn.Call(callCtx, uint64(off), uint64(len(input)))
+		if err != nil {
+			return false, err
+		}
+		if len(res) == 0 {
+			return false, nil
+		}
+		return res[0] != 0, nil
+	}
+	var n uint64
+	for i := 0; i < len(input) && i < 8; i++ {
+		n |= uint64(input[i]) << (8 * i)
+	}
+	return InvokeCheck(ctx, wasm, n)
+}
+
 // InvokeCheck runs export check(n) once; wasm must have passed ValidateCheckWasm.
 func InvokeCheck(ctx context.Context, wasm []byte, n uint64) (bool, error) {
 	if len(wasm) == 0 {

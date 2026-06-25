@@ -12,7 +12,7 @@ import (
 
 // CurrentSchemaVersion is the value written to PRAGMA user_version after migrate() completes.
 // Bump when adding a new migration step (and document in README / MASTER_PLAN).
-const CurrentSchemaVersion = 12
+const CurrentSchemaVersion = 13
 
 // Open opens SQLite at path (directories created as needed).
 func Open(dbPath string) (*sql.DB, error) {
@@ -101,6 +101,9 @@ func migrate(db *sql.DB) error {
 		return err
 	}
 	if err := migrateFuzzEscrow(db); err != nil {
+		return err
+	}
+	if err := migrateFuzzNativeQueue(db); err != nil {
 		return err
 	}
 	return bumpUserVersion(db)
@@ -504,6 +507,31 @@ func migrateFuzzCampaigns(db *sql.DB) error {
 		}
 	}
 	return nil
+}
+
+func migrateFuzzNativeQueue(db *sql.DB) error {
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS fuzz_native_queue (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		finding_id TEXT NOT NULL,
+		campaign_id TEXT NOT NULL,
+		input_sha256 TEXT NOT NULL DEFAULT '',
+		input_bytes BLOB,
+		status TEXT NOT NULL DEFAULT 'pending',
+		upstream_target TEXT NOT NULL DEFAULT '',
+		guard_name TEXT NOT NULL DEFAULT '',
+		detail_json TEXT NOT NULL DEFAULT '{}',
+		created_at INTEGER NOT NULL,
+		updated_at INTEGER NOT NULL
+	)`)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_fuzz_native_queue_status ON fuzz_native_queue(status, created_at ASC)`)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_fuzz_native_queue_finding ON fuzz_native_queue(finding_id)`)
+	return err
 }
 
 func migrateFuzzEscrow(db *sql.DB) error {

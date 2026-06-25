@@ -1,6 +1,37 @@
 {
   "items": [
     {
+      "id": "2026-06-25-fuzz-depth-v3",
+      "date": "2026-06-25",
+      "title": "Fuzz Depth v3 — WASM + Native Bridge",
+      "summary": "wasm_native tier on duplicate-inputs guard: 4 guard signals, 4 native_confirmed, 0 critical, verdict fail_high. Miner marketplace + depth presets in rc11o.",
+      "impact": "Stronger bounty triage without changing tokenomics: deep tiers require native_confirmed. Miners get visibility into fuzz escrow and per-run pay.",
+      "action": "Report: https://hackme.tech/reports/fuzz-depth-v3.html · Gate: bash scripts/ops/fuzz_depth_v3_gate.sh · Live: POOL_DIST=0 bash scripts/ops/run_fuzz_depth_v3_live.sh",
+      "tags": [
+        "security",
+        "research",
+        "bitcoin",
+        "fuzzing",
+        "mining"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "Fuzz Depth v3 — WASM + native bridge",
+        "lead": "3 tiers · native_confirmed bounty gate · miner marketplace.",
+        "bullets": [
+          "wasm_only / wasm_native / bytes_corpus presets in #orders",
+          "Native queue: confirmed vs rejected on pinned upstream guards",
+          "Demo: bitcoin_tx_dup_inputs · report on hackme.tech"
+        ],
+        "footer": "Report: hackme.tech/reports/fuzz-depth-v3.html · rc11o"
+      },
+      "links": {
+        "report": "https://hackme.tech/reports/fuzz-depth-v3.html",
+        "github": "https://github.com/jokeez/hackme/blob/main/internal/fuzzengine/depth.go",
+        "day11": "https://hackme.tech/reports/bitcoin30-day11.html"
+      }
+    },
+    {
       "id": "2026-06-18-bitcoin30-day11",
       "date": "2026-06-18",
       "title": "Bitcoin Core 30-Day Fuzz — Day 11",

@@ -73,3 +73,19 @@ func TestOpenMigratesEconomicsFloatMetaToUnits(t *testing.T) {
 		t.Fatalf("units_per_hmc mismatch: got %s", unitsPerHMC)
 	}
 }
+
+func TestFuzzNativeQueueMigration(t *testing.T) {
+	dir := t.TempDir()
+	db, err := Open(filepath.Join(dir, "fuzz_native.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var name string
+	if err := db.QueryRow(`SELECT name FROM sqlite_master WHERE type='table' AND name='fuzz_native_queue'`).Scan(&name); err != nil {
+		t.Fatal(err)
+	}
+	if name != "fuzz_native_queue" {
+		t.Fatalf("table %q", name)
+	}
+}
