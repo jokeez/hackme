@@ -10,11 +10,12 @@ import (
 type ReproStatus string
 
 const (
-	StatusPending   ReproStatus = "pending"
-	StatusRunning   ReproStatus = "running"
-	StatusConfirmed ReproStatus = "confirmed"
-	StatusRejected  ReproStatus = "rejected"
-	StatusSkipped   ReproStatus = "skipped"
+	StatusPending     ReproStatus = "pending"
+	StatusRunning     ReproStatus = "running"
+	StatusConfirmed   ReproStatus = "confirmed"
+	StatusRejected    ReproStatus = "rejected"
+	StatusSkipped     ReproStatus = "skipped"
+	StatusNativeCrash ReproStatus = "native_crash"
 )
 
 // ReproResult is returned by the native bridge evaluator.

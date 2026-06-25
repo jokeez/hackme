@@ -255,19 +255,23 @@ func MetaFromConfig(cfg map[string]any) map[string]any {
 	if NativeReproEnabled(cfg) {
 		features = append(features, "native_repro_bridge")
 	}
+	if NativeReproMode(cfg) == "asan_binary" {
+		features = append(features, "asan_binary_repro", "tier_c")
+	}
 	if BountyRequiresNative(cfg) {
 		features = append(features, "bounty_requires_native")
 	}
 	return map[string]any{
-		"version":         Version,
-		"seed_count":      len(seeds),
-		"mutation_rounds": MutationRounds(cfg),
-		"coverage_guided": cfg != nil && strings.EqualFold(strings.TrimSpace(toString(cfg["coverage_guided"])), "true"),
-		"check_semantics": string(ParseCheckSemantics(cfg)),
-		"depth_tier":      string(ParseDepthTier(cfg)),
-		"input_mode":      string(ParseInputMode(cfg)),
-		"upstream_target": UpstreamTarget(cfg),
-		"features":        features,
+		"version":           Version,
+		"seed_count":        len(seeds),
+		"mutation_rounds":   MutationRounds(cfg),
+		"coverage_guided":   cfg != nil && strings.EqualFold(strings.TrimSpace(toString(cfg["coverage_guided"])), "true"),
+		"check_semantics":   string(ParseCheckSemantics(cfg)),
+		"depth_tier":        string(ParseDepthTier(cfg)),
+		"input_mode":        string(ParseInputMode(cfg)),
+		"upstream_target":   UpstreamTarget(cfg),
+		"native_repro_mode": NativeReproMode(cfg),
+		"features":          features,
 	}
 }
 

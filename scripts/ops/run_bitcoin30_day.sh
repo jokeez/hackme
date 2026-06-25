@@ -21,7 +21,8 @@ BUDGET_HMC="${BUDGET_HMC:-0.5}"
 DEPTH_TIER="${DEPTH_TIER:-}"
 GUARD_NAME="${GUARD_NAME:-}"
 WEEK3=$(( DAY >= 15 && DAY <= 21 ))
-WEEK4=$(( DAY >= 22 && DAY <= 30 ))
+WEEK4=$(( DAY >= 22 && DAY <= 27 ))
+WEEK5=$(( DAY >= 28 && DAY <= 30 ))
 if [[ -z "$DEPTH_TIER" ]]; then
   if [[ "$WEEK3" == "1" ]]; then
     DEPTH_TIER=wasm_native
@@ -31,6 +32,11 @@ if [[ -z "$DEPTH_TIER" ]]; then
   if [[ "$WEEK4" == "1" ]]; then
     DEPTH_TIER=bytes_corpus
     [[ -z "${BUDGET_HMC_FORCE:-}" ]] && BUDGET_HMC=10
+    [[ -z "${BUDGET_RUNS_FORCE:-}" ]] && BUDGET_RUNS=512
+  fi
+  if [[ "$WEEK5" == "1" ]]; then
+    DEPTH_TIER=upstream_binary
+    [[ -z "${BUDGET_HMC_FORCE:-}" ]] && BUDGET_HMC=15
     [[ -z "${BUDGET_RUNS_FORCE:-}" ]] && BUDGET_RUNS=512
   fi
 fi
@@ -172,19 +178,19 @@ case "$DAY" in
      SRC="tasks/sources/security/upstream/bitcoin_tx_check.c"
      GUARD_NAME="${GUARD_NAME:-bitcoin_tx_check}" ;;
   28) WASM_REL="upstream_bitcoin_evalscript_push.wasm"; GUARD="upstream_bitcoin_evalscript_push"
-     TITLE="Bitcoin Core EvalScript push · bytes_corpus deep (Week 4)"
+     TITLE="Bitcoin Core EvalScript push · upstream_binary ASAN (Tier C Day 28)"
      CORE_REF="bitcoin/bitcoin EvalScript push size"
      SRC="tasks/sources/security/upstream/bitcoin_evalscript_push.c"
      GUARD_NAME="${GUARD_NAME:-bitcoin_evalscript_push}"
      [[ "${BUDGET_RUNS}" == "512" && -z "${BUDGET_RUNS_FORCE:-}" ]] && BUDGET_RUNS=1000 ;;
   29) WASM_REL="upstream_bitcoin_witness_stack.wasm"; GUARD="upstream_bitcoin_witness_stack"
-     TITLE="Bitcoin Core witness stack · bytes_corpus capstone (Day 29)"
+     TITLE="Bitcoin Core witness stack · upstream_binary ASAN (Tier C Day 29)"
      CORE_REF="bitcoin/bitcoin VerifyWitnessProgram witness stack"
      SRC="tasks/sources/security/upstream/bitcoin_witness_stack.c"
      GUARD_NAME="${GUARD_NAME:-bitcoin_witness_stack}"
      [[ "${BUDGET_RUNS}" == "512" && -z "${BUDGET_RUNS_FORCE:-}" ]] && BUDGET_RUNS=1000 ;;
   30) WASM_REL="upstream_bitcoin_evalscript_stack.wasm"; GUARD="upstream_bitcoin_evalscript_stack"
-     TITLE="Bitcoin Core EvalScript stack · bytes_corpus · Day 30 milestone"
+     TITLE="Bitcoin Core EvalScript stack · upstream_binary ASAN · Day 30 milestone"
      CORE_REF="bitcoin/bitcoin EvalScript stack limits"
      SRC="tasks/sources/security/upstream/bitcoin_evalscript_stack.c"
      GUARD_NAME="${GUARD_NAME:-bitcoin_evalscript_stack}"
@@ -310,6 +316,7 @@ summary = {
     "native_status": native.get("status"),
     "native_confirmed": native.get("confirmed_count", 0),
     "native_rejected": native.get("rejected_count", 0),
+    "native_crash": native.get("crash_count", 0),
     "new_edges": cs.get("new_edges", 0),
     "new_paths": cs.get("new_paths", 0),
     "unique_crashes": cs.get("unique_crashes", 0),

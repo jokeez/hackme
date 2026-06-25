@@ -35,6 +35,8 @@ for t in \
   ethereum_value_overflow \
   dogecoin_hasvalidops \
   litecoin_getscriptop \
+  solana_spl_check_program_account \
+  centijson_nest_depth \
   hackme_order_gate; do
   build_one "$t"
 done

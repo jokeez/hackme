@@ -7,6 +7,8 @@
     "budget_runs": 512,
     "budget_hmc": 0.5,
     "check_semantics": "detector",
+    "depth_tier": "upstream_binary",
+    "native_repro_mode": "asan_binary",
     "pool_distributed": true
   },
   "completed_pools": [

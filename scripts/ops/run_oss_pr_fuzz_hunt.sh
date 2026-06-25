@@ -19,7 +19,7 @@ MAX_TARGETS="${MAX_TARGETS:-0}"
 BUDGET_RUNS="${BUDGET_RUNS:-512}"
 BUDGET_HMC="${BUDGET_HMC:-0.5}"
 CHECK_SEMANTICS="${CHECK_SEMANTICS:-detector}"
-DEPTH_TIER="${DEPTH_TIER:-wasm_native}"
+DEPTH_TIER="${DEPTH_TIER:-upstream_binary}"
 POOL_DIST="${POOL_DIST:-0}"
 STOP_ON_CRASH="${STOP_ON_CRASH:-1}"
 POLL_TICKS="${POLL_TICKS:-450}"
@@ -82,6 +82,7 @@ run_one() {
             depth_tier: $tier,
             guard_name: $gname,
             native_repro_enabled: true,
+            native_repro_mode: "asan_binary",
             bounty_requires_native: true,
             pool_distributed: $pool,
             auto_runner: "1"

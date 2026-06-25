@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 )
@@ -39,6 +40,10 @@ func ProcessPending(ctx context.Context, db *sql.DB, pins *PinManifest, limit in
 	if limit <= 0 || limit > 50 {
 		limit = 10
 	}
+	repoRoot := strings.TrimSpace(os.Getenv("HACKME_REPO_ROOT"))
+	if repoRoot == "" {
+		repoRoot = "."
+	}
 	now := time.Now().Unix()
 	rows, err := db.QueryContext(ctx,
 		`SELECT id, finding_id, campaign_id, input_bytes, upstream_target, guard_name
@@ -55,7 +60,8 @@ func ProcessPending(ctx context.Context, db *sql.DB, pins *PinManifest, limit in
 			return processed, err
 		}
 		_, _ = db.ExecContext(ctx, `UPDATE fuzz_native_queue SET status='running', updated_at=? WHERE id=?`, now, id)
-		result := EvalRepro(upstream, guard, input, pins)
+		mode := campaignReproMode(ctx, db, campaignID)
+		result := EvalReproEx(mode, upstream, guard, input, pins, repoRoot)
 		detail, _ := json.Marshal(result)
 		_, err = db.ExecContext(ctx,
 			`UPDATE fuzz_native_queue SET status=?, detail_json=?, updated_at=? WHERE id=?`,
@@ -102,6 +108,9 @@ func updateCampaignNativeSummary(ctx context.Context, db *sql.DB, campaignID str
 	if result.Status == StatusRejected {
 		native["rejected_count"] = intFromSummary(summary, "native.rejected_count") + 1
 	}
+	if result.Status == StatusNativeCrash {
+		native["crash_count"] = intFromSummary(summary, "native.crash_count") + 1
+	}
 	summary["native"] = native
 	b, _ := json.Marshal(summary)
 	_, err := db.ExecContext(ctx, `UPDATE fuzz_campaigns SET summary_json=? WHERE id=?`, string(b), campaignID)
@@ -130,16 +139,44 @@ func intFromSummary(summary map[string]any, path string) int {
 
 // IsFindingNativeConfirmed returns true when queue row is confirmed for a finding.
 func IsFindingNativeConfirmed(ctx context.Context, db *sql.DB, findingID string) (bool, error) {
-	var status string
-	err := db.QueryRowContext(ctx,
+	ok, _, err := findingNativeStatus(ctx, db, findingID)
+	return ok, err
+}
+
+// IsFindingNativeEligibleForBounty returns true when native repro confirms guard or reports ASAN crash.
+func IsFindingNativeEligibleForBounty(ctx context.Context, db *sql.DB, findingID string) (bool, error) {
+	ok, _, err := findingNativeStatus(ctx, db, findingID)
+	return ok, err
+}
+
+func findingNativeStatus(ctx context.Context, db *sql.DB, findingID string) (eligible bool, status string, err error) {
+	err = db.QueryRowContext(ctx,
 		`SELECT status FROM fuzz_native_queue WHERE finding_id=? ORDER BY id DESC LIMIT 1`, findingID).Scan(&status)
 	if err == sql.ErrNoRows {
-		return false, nil
+		return false, "", nil
 	}
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
-	return strings.EqualFold(status, string(StatusConfirmed)), nil
+	switch strings.ToLower(status) {
+	case string(StatusConfirmed), string(StatusNativeCrash):
+		return true, status, nil
+	default:
+		return false, status, nil
+	}
+}
+
+func campaignReproMode(ctx context.Context, db *sql.DB, campaignID string) ReproMode {
+	if db == nil || strings.TrimSpace(campaignID) == "" {
+		return ReproModeGoPort
+	}
+	var configJSON string
+	if err := db.QueryRowContext(ctx, `SELECT config_json FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&configJSON); err != nil {
+		return ReproModeGoPort
+	}
+	cfg := map[string]any{}
+	_ = json.Unmarshal([]byte(configJSON), &cfg)
+	return ParseReproMode(cfg)
 }
 
 // CampaignNativeStatus reads summary_json native.status for a campaign.

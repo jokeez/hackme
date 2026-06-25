@@ -345,7 +345,7 @@ func (s *Service) bountyAllowed(ctx context.Context, cfg map[string]any, finding
 	if findingID == "" || s.DB == nil {
 		return false
 	}
-	ok, err := fuzznative.IsFindingNativeConfirmed(ctx, s.DB, findingID)
+	ok, err := fuzznative.IsFindingNativeEligibleForBounty(ctx, s.DB, findingID)
 	return err == nil && ok
 }
 

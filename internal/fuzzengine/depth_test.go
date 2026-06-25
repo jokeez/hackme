@@ -15,6 +15,22 @@ func TestApplyDepthTierWasmNative(t *testing.T) {
 	}
 }
 
+func TestApplyDepthTierUpstreamBinary(t *testing.T) {
+	cfg := ApplyDepthTier(map[string]any{}, DepthUpstreamBinary)
+	if !BountyRequiresNative(cfg) {
+		t.Fatal("upstream_binary should require native bounty")
+	}
+	if !NativeReproEnabled(cfg) {
+		t.Fatal("upstream_binary should enable native repro")
+	}
+	if NativeReproMode(cfg) != "asan_binary" {
+		t.Fatalf("expected asan_binary mode, got %s", NativeReproMode(cfg))
+	}
+	if ParseInputMode(cfg) != InputModeBytes {
+		t.Fatalf("upstream_binary input mode: %s", ParseInputMode(cfg))
+	}
+}
+
 func TestApplyDepthTierBytesCorpus(t *testing.T) {
 	cfg := ApplyDepthTier(map[string]any{}, DepthBytesCorpus)
 	if ParseInputMode(cfg) != InputModeBytes {
