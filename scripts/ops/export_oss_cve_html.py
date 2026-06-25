@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Export OSS CVE hunt rollup to public site (HOLD banner when CVE_CANDIDATE)."""
 import json
-import shutil
 import sys
 from pathlib import Path
 
@@ -29,7 +28,8 @@ def main() -> int:
     rows = ""
     for t in r.get("targets", []):
         nc = len(t.get("crashes", []))
-        rows += f"<tr><td>{t.get('target_id')}</td><td>{t.get('iterations')}</td><td>{nc}</td><td>{t.get('verdict')}</td></tr>"
+        crash_cell = "—" if nc > 0 else "0"
+        rows += f"<tr><td>{t.get('target_id')}</td><td>{t.get('iterations')}</td><td>{crash_cell}</td><td>{t.get('verdict')}</td></tr>"
     banner = (
         '<p class="hold"><strong>Responsible disclosure HOLD</strong> — '
         "CVE candidate(s) under maintainer triage. Do not weaponize inputs.</p>"
@@ -47,7 +47,7 @@ def main() -> int:
 <p>{r.get('summary','')}</p>
 <p><code>verdict={r.get('verdict')}</code> · started {r.get('started_at')}</p>
 <h2>Targets</h2>
-<table><tr><th>ID</th><th>Iterations</th><th>Crashes</th><th>Verdict</th></tr>
+<table><tr><th>ID</th><th>Iterations</th><th>Signals</th><th>Verdict</th></tr>
 {rows}
 </table>
 <p><a href="https://github.com/jokeez/hackme/blob/main/docs/OSS_CVE_HUNT.md">Methodology</a></p>
@@ -61,8 +61,15 @@ def main() -> int:
         "publish_allowed": not hold,
     }
     (out / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
-    if (report / "index.html").is_file():
-        shutil.copy2(report / "index.html", out / "latest-run.html")
+    run_html = html.replace("</body></html>", "").replace(
+        "<h1>OSS CVE Hunt — real upstream ASAN</h1>",
+        "<h1>OSS CVE Hunt — latest run</h1><p><a href=\"./index.html\">← Case studies</a></p>",
+    ) + "</body></html>"
+    (out / "latest-run.html").write_text(run_html)
+    cases_script = root / "scripts" / "ops" / "export_oss_cve_cases.py"
+    if cases_script.is_file():
+        import subprocess
+        subprocess.run([sys.executable, str(cases_script), str(root)], check=False)
     print(f"exported → {out}")
     return 0
 

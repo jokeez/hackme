@@ -45,6 +45,14 @@ TARGETS=jsmn,mjson,yyjson,parson,jansson,tomlc99,expat BUDGET=50000 TIME_LIMIT=3
 3. Email maintainer (security@ or GitHub advisory)
 4. Publish case study only after fix or timeout
 
+# After fix: set status → `fixed`, then `published`, fill `cve_id`, `fix_url`, `show_repro: true` in `upstream/oss_cve_cases.json`, run:
+
+```bash
+python3 scripts/ops/export_oss_cve_cases.py
+```
+
+Public hub: `web/site/reports/oss-cve/` — case cards without repro until published.
+
 ## Depth tier
 
 Campaign config: `"depth_tier": "oss_cve"` — triggers post-WASM upstream hunt on matching `wasm_guard`.

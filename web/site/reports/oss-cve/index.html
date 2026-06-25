@@ -1,16 +1,72 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><title>OSS CVE Hunt</title>
-<style>body{font-family:system-ui;max-width:920px;margin:2rem auto;padding:0 1rem;line-height:1.5}
-.hold{background:#fff3cd;border:1px solid #ffc107;padding:1rem;border-radius:6px}
-.clean{color:#0a0} table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:8px}</style>
-</head><body>
-<h1>OSS CVE Hunt — real upstream ASAN</h1>
-<p class="hold"><strong>Responsible disclosure HOLD</strong> — CVE candidate(s) under maintainer triage. Do not weaponize inputs.</p>
-<p>HOLD — native CVE candidate(s). Responsible disclosure required before publish.</p>
-<p><code>verdict=CVE_CANDIDATE</code> · started 2026-06-25T21:20:29Z</p>
-<h2>Targets</h2>
-<table><tr><th>ID</th><th>Iterations</th><th>Crashes</th><th>Verdict</th></tr>
-<tr><td>libucl</td><td>2075</td><td>271</td><td>CVE_CANDIDATE</td></tr><tr><td>cyaml</td><td>14455</td><td>0</td><td>CLEAN</td></tr><tr><td>tomlc17</td><td>17096</td><td>0</td><td>CLEAN</td></tr><tr><td>parsello</td><td>18448</td><td>0</td><td>CLEAN</td></tr><tr><td>cfgpack</td><td>15734</td><td>68</td><td>CVE_CANDIDATE</td></tr><tr><td>cj5</td><td>19752</td><td>0</td><td>CLEAN</td></tr><tr><td>libconfini</td><td>23604</td><td>0</td><td>CLEAN</td></tr><tr><td>inih</td><td>21496</td><td>0</td><td>CLEAN</td></tr><tr><td>sheredom</td><td>22831</td><td>0</td><td>CLEAN</td></tr>
-</table>
-<p><a href="https://github.com/jokeez/hackme/blob/main/docs/OSS_CVE_HUNT.md">Methodology</a></p>
-</body></html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>HackMe · OSS CVE case studies</title>
+<link rel="canonical" href="https://hackme.tech/reports/oss-cve/"/>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:#070b12;color:#c8d6e8;line-height:1.55}
+.wrap{max-width:960px;margin:0 auto;padding:2.5rem 1.25rem 4rem}
+h1{font-size:1.35rem;color:#00d1ff;letter-spacing:.06em;text-transform:uppercase;margin:0}
+.lead{color:#8fa3b8;max-width:52rem;margin:1rem 0 2rem}
+.stats{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:2rem;font-size:.85rem;color:#6b8099}
+.stats b{color:#00d1ff}
+.case-grid{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+.case-card{border:1px solid rgba(0,209,255,.2);border-radius:14px;padding:1.2rem;background:rgba(0,0,0,.35)}
+.case-card h2{font-size:1.05rem;margin:.6rem 0 .3rem}.case-card h2 a{color:#e8f4ff;text-decoration:none}
+.case-card .summary{font-size:.9rem;color:#a8b8cc}
+.case-card .meta{font-size:.75rem;color:#6b8099;margin-top:.75rem}
+.badge{display:inline-block;padding:.25rem .65rem;border-radius:999px;border:2px solid;font-size:.7rem;font-weight:600}
+.tier{float:right;font-size:.7rem;color:#6b8099}
+.panel{border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:1.2rem;margin-top:2.5rem}
+.policy{background:rgba(255,193,7,.06);border:1px solid rgba(255,193,7,.3);border-radius:10px;padding:1rem;margin-bottom:2rem;font-size:.9rem}
+a{color:#00d1ff}footer{margin-top:2.5rem;font-size:.75rem;color:#6b8099}
+</style></head><body><div class="wrap">
+<h1>OSS CVE case studies</h1>
+<p class="lead">Real upstream Tier-D ASAN hunts. Cases move from <em>hold</em> → <em>triage</em> → <em>fixed</em> → <em>published</em>.
+  Repro and CVE IDs appear only after coordinated disclosure.</p>
+<div class="policy"><strong>Public policy:</strong> We show pipeline activity and case status now; technical PoC and CVE numbers only after maintainer fix or agreed publish window.</div>
+<div class="stats"><span><b>3</b> tracked cases</span><span><b>3</b> in disclosure</span><span><b>0</b> published</span></div>
+<div class="case-grid">
+<article class="case-card status-triage">
+  <div class="case-head">
+    <span class="badge" style="border-color:#ffc107;color:#ffc107">Awaiting maintainer</span>
+    <span class="tier">oss_cve</span>
+  </div>
+  <h2><a href="./cases/centijson.html">mity/centijson</a></h2>
+  <p class="component">JSON DOM parser</p>
+  <p class="summary">Upstream JSON parse edge case identified via Tier-D ASAN hunt. Maintainer contacted; full repro withheld until triage.</p>
+  
+  <p class="meta">UBSan — memory safety (null deref class) · wave wave1</p>
+  <a class="case-link" href="./cases/centijson.html">Case page →</a>
+</article>
+<article class="case-card status-hold">
+  <div class="case-head">
+    <span class="badge" style="border-color:#ff9800;color:#ff9800">Responsible disclosure hold</span>
+    <span class="tier">oss_cve</span>
+  </div>
+  <h2><a href="./cases/cfgpack.html">Arsievert/cfgpack</a></h2>
+  <p class="component">MessagePack decode</p>
+  <p class="summary">Msgpack int64 decoder path triggers UBSan under mutation fuzz. Issue draft ready; coordinated disclosure pending.</p>
+  
+  <p class="meta">UBSan — signed integer overflow on decode · wave wave2</p>
+  <a class="case-link" href="./cases/cfgpack.html">Case page →</a>
+</article>
+<article class="case-card status-hold">
+  <div class="case-head">
+    <span class="badge" style="border-color:#ff9800;color:#ff9800">Responsible disclosure hold</span>
+    <span class="tier">oss_cve</span>
+  </div>
+  <h2><a href="./cases/libucl.html">vstakhov/libucl</a></h2>
+  <p class="component">UCL/JSON configuration parser</p>
+  <p class="summary">Tier-D hunt surfaced UBSan on parser teardown path. Issue draft ready; not yet sent to upstream.</p>
+  
+  <p class="meta">UBSan — C undefined behavior (callback typing) · wave wave2</p>
+  <a class="case-link" href="./cases/libucl.html">Case page →</a>
+</article>
+</div>
+<section class="panel">
+  <h2>Latest hunt run (methodology)</h2>
+  <p class="sub">Aggregate only — no weaponized inputs. <a href="./latest-run.html">run table</a></p>
+  <p><code>verdict=CVE_CANDIDATE</code> · 7 clean targets in last batch</p>
+</section>
+<footer><a href="../../research.html">Research hub</a> · <a href="https://github.com/jokeez/hackme/blob/main/docs/OSS_CVE_HUNT.md">Methodology</a></footer>
+</div></body></html>

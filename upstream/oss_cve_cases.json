@@ -1,0 +1,73 @@
+{
+  "updated": "2026-06-26",
+  "note": "Public-safe case registry. Repro/CVE details only when status=published.",
+  "status_labels": {
+    "pipeline": "In fuzz pipeline",
+    "hold": "Responsible disclosure hold",
+    "triage": "Reported — awaiting maintainer",
+    "fixed": "Fix merged — case study draft",
+    "published": "Published case study"
+  },
+  "cases": [
+    {
+      "id": "centijson",
+      "slug": "centijson",
+      "project": "mity/centijson",
+      "repo_url": "https://github.com/mity/centijson",
+      "component": "JSON DOM parser",
+      "tier": "oss_cve",
+      "status": "triage",
+      "severity": "medium",
+      "finding_class": "UBSan — memory safety (null deref class)",
+      "cve_id": null,
+      "fix_url": null,
+      "issue_url": null,
+      "reported_at": "2026-06-25",
+      "fixed_at": null,
+      "published_at": null,
+      "public_summary": "Upstream JSON parse edge case identified via Tier-D ASAN hunt. Maintainer contacted; full repro withheld until triage.",
+      "show_repro": false,
+      "hunt_wave": "wave1"
+    },
+    {
+      "id": "libucl",
+      "slug": "libucl",
+      "project": "vstakhov/libucl",
+      "repo_url": "https://github.com/vstakhov/libucl",
+      "component": "UCL/JSON configuration parser",
+      "tier": "oss_cve",
+      "status": "hold",
+      "severity": "low",
+      "finding_class": "UBSan — C undefined behavior (callback typing)",
+      "cve_id": null,
+      "fix_url": null,
+      "issue_url": null,
+      "reported_at": null,
+      "fixed_at": null,
+      "published_at": null,
+      "public_summary": "Tier-D hunt surfaced UBSan on parser teardown path. Issue draft ready; not yet sent to upstream.",
+      "show_repro": false,
+      "hunt_wave": "wave2"
+    },
+    {
+      "id": "cfgpack",
+      "slug": "cfgpack",
+      "project": "Arsievert/cfgpack",
+      "repo_url": "https://github.com/Arsievert/cfgpack",
+      "component": "MessagePack decode",
+      "tier": "oss_cve",
+      "status": "hold",
+      "severity": "low",
+      "finding_class": "UBSan — signed integer overflow on decode",
+      "cve_id": null,
+      "fix_url": null,
+      "issue_url": null,
+      "reported_at": null,
+      "fixed_at": null,
+      "published_at": null,
+      "public_summary": "Msgpack int64 decoder path triggers UBSan under mutation fuzz. Issue draft ready; coordinated disclosure pending.",
+      "show_repro": false,
+      "hunt_wave": "wave2"
+    }
+  ]
+}

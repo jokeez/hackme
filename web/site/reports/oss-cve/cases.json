@@ -1,0 +1,32 @@
+{
+  "updated": "2026-06-26",
+  "cases": [
+    {
+      "id": "centijson",
+      "slug": "centijson",
+      "project": "mity/centijson",
+      "status": "triage",
+      "severity": "medium",
+      "cve_id": null,
+      "published_at": null
+    },
+    {
+      "id": "libucl",
+      "slug": "libucl",
+      "project": "vstakhov/libucl",
+      "status": "hold",
+      "severity": "low",
+      "cve_id": null,
+      "published_at": null
+    },
+    {
+      "id": "cfgpack",
+      "slug": "cfgpack",
+      "project": "Arsievert/cfgpack",
+      "status": "hold",
+      "severity": "low",
+      "cve_id": null,
+      "published_at": null
+    }
+  ]
+}
