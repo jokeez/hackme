@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>HackMe · Bitcoin30 Week 4 — bytes_corpus + native bridge</title>
+<link rel="canonical" href="https://hackme.tech/reports/bitcoin30-week3.html"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--neon:#b388ff;--matrix:#39ff14;--warn:#ffb020;--bg:#05080f;--card:rgba(0,0,0,.45)}
+body{margin:0;font-family:"JetBrains Mono",monospace;background:var(--bg);color:#c5d4e8;line-height:1.6}
+.wrap{max-width:920px;margin:0 auto;padding:2rem 1.25rem 4rem}
+.hero{text-align:center;padding:2rem;border:1px solid rgba(179,136,255,.35);border-radius:20px;margin-bottom:2rem}
+.hero h1{font-family:"Space Grotesk",sans-serif;color:var(--neon);text-transform:uppercase;letter-spacing:.1em}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.75rem;margin:1.5rem 0}
+.stat{border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:1rem;background:var(--card)}
+.stat b{font-size:.62rem;color:#6d8099;text-transform:uppercase}
+.stat .v{font-size:1.2rem;font-weight:700;color:#fff}
+.stat .v.ok{color:var(--matrix)}.stat .v.warn{color:var(--warn)}
+.mod-card{border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:1rem;margin:.75rem 0;background:var(--card)}
+.mod-num{font-size:1.6rem;color:rgba(179,136,255,.4);font-weight:700}
+.mod-meta{font-size:.72rem;color:#6d8099}
+footer{margin-top:2rem;font-size:.72rem;color:#6d8099;text-align:center}
+footer a{color:var(--neon)}
+</style></head><body><div class="wrap">
+<section class="hero">
+<p style="font-size:.72rem;color:#6d8099">bytes_corpus tier · days 22–30</p>
+<h1>Bitcoin30 · Week 4</h1>
+<p>bytes_corpus tier — WASM guard signals confirmed via native bridge before bounty gate.</p>
+</section>
+<div class="stats">
+<div class="stat"><b>Days</b><span class="v">9</span></div>
+<div class="stat"><b>Runs</b><span class="v">5,160</span></div>
+<div class="stat"><b>Guard signals</b><span class="v warn">640</span></div>
+<div class="stat"><b>Native confirmed</b><span class="v ok">2660</span></div>
+<div class="stat"><b>Critical</b><span class="v ok">0</span></div>
+</div>
+
+<article class="mod-card">
+<div class="mod-head"><span class="mod-num">22</span><div>
+<h2><a href="./bitcoin30-day22.html" style="color:#fff;text-decoration:none">upstream_bitcoin_tx_dup_inputs</a></h2>
+<p class="mod-meta">80 guard signals · 504 native confirmed · tier bytes_corpus</p>
+</div></div></article>
+<article class="mod-card">
+<div class="mod-head"><span class="mod-num">23</span><div>
+<h2><a href="./bitcoin30-day23.html" style="color:#fff;text-decoration:none">upstream_bitcoin_coinbase_bip34</a></h2>
+<p class="mod-meta">80 guard signals · 4 native confirmed · tier bytes_corpus</p>
+</div></div></article>
+<article class="mod-card">
+<div class="mod-head"><span class="mod-num">24</span><div>
+<h2><a href="./bitcoin30-day24.html" style="color:#fff;text-decoration:none">upstream_bitcoin_block_weight</a></h2>
+<p class="mod-meta">80 guard signals · 10 native confirmed · tier bytes_corpus</p>
+</div></div></article>
+<article class="mod-card">
+<div class="mod-head"><span class="mod-num">25</span><div>
+<h2><a href="./bitcoin30-day25.html" style="color:#fff;text-decoration:none">upstream_bitcoin_getscriptop</a></h2>
+<p class="mod-meta">80 guard signals · 362 native confirmed · tier bytes_corpus</p>
+</div></div></article>
+<article class="mod-card">
+<div class="mod-head"><span class="mod-num">26</span><div>
+<h2><a href="./bitcoin30-day26.html" style="color:#fff;text-decoration:none">upstream_bitcoin_hasvalidops</a></h2>
+<p class="mod-meta">80 guard signals · 413 native confirmed · tier bytes_corpus</p>
+</div></div></article>
+<article class="mod-card">
+<div class="mod-head"><span class="mod-num">27</span><div>
+<h2><a href="./bitcoin30-day27.html" style="color:#fff;text-decoration:none">upstream_bitcoin_tx_check</a></h2>
+<p class="mod-meta">0 guard signals · 0 native confirmed · tier bytes_corpus</p>
+</div></div></article>
+<article class="mod-card">
+<div class="mod-head"><span class="mod-num">28</span><div>
+<h2><a href="./bitcoin30-day28.html" style="color:#fff;text-decoration:none">upstream_bitcoin_evalscript_push</a></h2>
+<p class="mod-meta">80 guard signals · 518 native confirmed · tier bytes_corpus</p>
+</div></div></article>
+<article class="mod-card">
+<div class="mod-head"><span class="mod-num">29</span><div>
+<h2><a href="./bitcoin30-day29.html" style="color:#fff;text-decoration:none">upstream_bitcoin_witness_stack</a></h2>
+<p class="mod-meta">80 guard signals · 456 native confirmed · tier bytes_corpus</p>
+</div></div></article>
+<article class="mod-card">
+<div class="mod-head"><span class="mod-num">30</span><div>
+<h2><a href="./bitcoin30-day30.html" style="color:#fff;text-decoration:none">upstream_bitcoin_evalscript_stack</a></h2>
+<p class="mod-meta">80 guard signals · 393 native confirmed · tier bytes_corpus</p>
+</div></div></article>
+<footer><a href="./bitcoin30.html">Series hub</a> · <a href="./fuzz-depth-v3.html">Fuzz v3</a></footer>
+</div></body></html>

@@ -1,6 +1,37 @@
 {
   "items": [
     {
+      "id": "2026-06-25-bitcoin30-week3",
+      "date": "2026-06-25",
+      "title": "Bitcoin Core 30-Day Fuzz — Week 3 Complete",
+      "summary": "Days 15–21 wasm_native tier: 1,792 runs, 504 guard signals, 186 native_confirmed, 0 critical. Fuzz Depth v3 native bridge on Bitcoin guards.",
+      "impact": "First full week on wasm_native depth tier. Dup-inputs, BIP34, and block-weight guards confirmed on native port. Series now 30/30 days complete (8,808 total runs).",
+      "action": "Ledger: https://hackme.tech/reports/bitcoin30-week3.html · Day 15: https://hackme.tech/reports/bitcoin30-day15.html · Reproduce: DAY=15 bash scripts/ops/run_bitcoin30_day.sh",
+      "tags": [
+        "security",
+        "research",
+        "bitcoin",
+        "fuzzing"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "Bitcoin30 Week 3 DONE — wasm_native + native bridge",
+        "lead": "1,792 runs · 504 signals · 186 native_confirmed · 0 critical",
+        "bullets": [
+          "Day 15: dup inputs 24→24 native confirmed",
+          "Days 16–17: BIP34 + block weight — 80 signals/day",
+          "Days 18–21: script/witness deep passes · Week 4 = bytes_corpus"
+        ],
+        "footer": "hackme.tech/reports/bitcoin30-week3.html · Series: bitcoin30.html"
+      },
+      "links": {
+        "week3": "https://hackme.tech/reports/bitcoin30-week3.html",
+        "series": "https://hackme.tech/reports/bitcoin30.html",
+        "day15": "https://hackme.tech/reports/bitcoin30-day15.html",
+        "fuzz_v3": "https://hackme.tech/reports/fuzz-depth-v3.html"
+      }
+    },
+    {
       "id": "2026-06-25-fuzz-depth-v3",
       "date": "2026-06-25",
       "title": "Fuzz Depth v3 — WASM + Native Bridge",

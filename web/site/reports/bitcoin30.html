@@ -4,12 +4,12 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>HackMe · Bitcoin Core 30-Day Fuzz Series</title>
-<meta name="description" content="Daily upstream Bitcoin Core WASM fuzz on HackMe — two-week ledger live, 1856 runs, 0 critical."/>
+<meta name="description" content="Bitcoin Core 30-day upstream WASM fuzz — 8,808 runs, 0 critical, Fuzz Depth v3 weeks 3–4 complete."/>
 <link rel="canonical" href="https://hackme.tech/reports/bitcoin30.html"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
 <style>
-:root{--neon:#00d1ff;--matrix:#39ff14;--warn:#ffb020;--bg:#05080f;--card:rgba(0,0,0,.45)}
+:root{--neon:#00d1ff;--matrix:#39ff14;--warn:#ffb020;--purple:#b388ff;--bg:#05080f;--card:rgba(0,0,0,.45)}
 *{box-sizing:border-box}
 body{margin:0;font-family:"JetBrains Mono",ui-monospace,monospace;background:var(--bg);color:#c5d4e8;line-height:1.6}
 body::before{content:"";position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(0,209,255,.12),transparent);pointer-events:none;z-index:0}
@@ -21,11 +21,9 @@ body::before{content:"";position:fixed;inset:0;background:radial-gradient(ellips
 .week h2{font-family:"Space Grotesk",sans-serif;font-size:1.05rem;color:#fff;margin:0 0 .5rem}
 .week p{font-size:.8rem;color:#9eb0c8;margin:.35rem 0}
 .week a.btn{display:inline-block;margin-top:.75rem;padding:.45rem 1rem;border:1px solid rgba(0,209,255,.4);border-radius:999px;color:var(--neon);font-size:.78rem;text-decoration:none}
-.week a.btn:hover{background:rgba(0,209,255,.1)}
-.days{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.5rem;margin-top:1rem}
-.days a{font-size:.72rem;padding:.5rem .65rem;border:1px solid rgba(255,255,255,.08);border-radius:8px;color:#b8c8dc;text-decoration:none}
+.days{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.5rem;margin-top:1rem}
+.days a{font-size:.7rem;padding:.45rem .55rem;border:1px solid rgba(255,255,255,.08);border-radius:8px;color:#b8c8dc;text-decoration:none}
 .days a:hover{border-color:rgba(0,209,255,.35);color:#fff}
-.days a.current{border-color:var(--matrix);color:var(--matrix)}
 footer{margin-top:2rem;text-align:center;font-size:.72rem;color:#6d8099}
 footer a{color:var(--neon)}
 </style>
@@ -33,51 +31,44 @@ footer a{color:var(--neon)}
 <body>
 <div class="wrap">
 <section class="hero">
-<p class="tag">bitcoin/bitcoin · upstream WASM guards · Jun 2026</p>
+<p class="tag">bitcoin/bitcoin · 30/30 days · Jun 2026</p>
 <h1>Bitcoin Core 30-Day Fuzz</h1>
-<p style="font-size:.85rem;color:#9eb0c8;margin-top:1rem">Days 1–14 complete · <strong>1,856 runs</strong> · <strong>0 critical</strong> · honest guard-signal triage</p>
+<p style="font-size:.85rem;color:#9eb0c8;margin-top:1rem"><strong>8,808 runs</strong> · <strong>1,953 guard signals</strong> · <strong>0 critical</strong> · Weeks 3–4 with Fuzz Depth v3</p>
 </section>
 
 <article class="week">
-<h2>Week 2 report · days 8–14</h2>
-<p>1,344 runs · 488 guard signals · 5 deep passes · <strong>0 critical</strong>. Post Day 13 today; Day 14 + week-2 verdict tomorrow.</p>
-<a class="btn" href="./bitcoin30-week2.html">Open Week 2 ledger</a>
-<a class="btn" href="./bitcoin30-day13.html" style="margin-left:.5rem">Today · Day 13</a>
+<h2>Week 4 · bytes_corpus (days 22–30)</h2>
+<p>Structured byte inputs · 10 HMC · 512–1000 runs · native bridge on deep tiers.</p>
+<a class="btn" href="./bitcoin30-week4.html">Week 4 ledger</a>
+<a class="btn" href="./bitcoin30-day30.html" style="margin-left:.5rem">Day 30 milestone</a>
 </article>
 
 <article class="week">
-<h2>Two-week report · days 1–14</h2>
-<p>Combined ledger: 809 guard signals, 1 clean module (Day 3). Week 2 deep passes prefuzzed — post daily on your schedule.</p>
-<a class="btn" href="./bitcoin30-two-weeks.html">Open two-week report</a>
-</article>
-
-<article class="week">
-<h2>Week 2 · complete (days 8–14)</h2>
-<p>Prefuzzed through Day 14. <strong>Post Day 13 today</strong> (witness deep) · Day 14 + week-2 verdict tomorrow.</p>
-<a class="btn" href="./bitcoin30-day13.html">Open today · Day 13</a>
+<h2>Week 3 · wasm_native (days 15–21)</h2>
+<p>1,792 runs · 504 guard signals · 186 native_confirmed · Fuzz Depth v3 native bridge.</p>
+<a class="btn" href="./bitcoin30-week3.html">Week 3 ledger</a>
 <div class="days">
-<a href="./bitcoin30-day08.html">Day 8 · stack</a>
-<a href="./bitcoin30-day09.html">Day 9 · weight</a>
-<a href="./bitcoin30-day10.html">Day 10 · BIP34</a>
-<a href="./bitcoin30-day11.html">Day 11 · dup deep</a>
-<a href="./bitcoin30-day12.html">Day 12 · stack deep</a>
-<a class="current" href="./bitcoin30-day13.html">Day 13 · witness deep</a>
-<a href="./bitcoin30-day14.html">Day 14 · op deep</a>
+<a href="./bitcoin30-day15.html">15 dup</a><a href="./bitcoin30-day16.html">16 BIP34</a>
+<a href="./bitcoin30-day17.html">17 weight</a><a href="./bitcoin30-day18.html">18 push</a>
+<a href="./bitcoin30-day19.html">19 witness</a><a href="./bitcoin30-day20.html">20 stack</a>
+<a href="./bitcoin30-day21.html">21 op</a>
 </div>
 </article>
 
 <article class="week">
-<h2>Week 1 · complete (days 1–7)</h2>
-<p>512 runs · 321 guard signals · 1 clean module.</p>
-<a class="btn" href="./bitcoin30-week1.html">Open Week 1 ledger</a>
+<h2>Week 2 · days 8–14</h2>
+<p>1,344 runs · deep passes · 0 critical.</p>
+<a class="btn" href="./bitcoin30-week2.html">Week 2 ledger</a>
 </article>
 
-<p style="font-size:.78rem;color:#6d8099;margin-top:1.5rem">Reproduce: <code>DAY=N bash scripts/ops/run_bitcoin30_day.sh</code></p>
+<article class="week">
+<h2>Week 1 · days 1–7</h2>
+<p>512 runs · first pass on all guards.</p>
+<a class="btn" href="./bitcoin30-week1.html">Week 1 ledger</a>
+</article>
 
-<footer>
-<a href="../research.html">← Research hub</a> ·
-<a href="https://hackme.tech/research.html">hackme.tech/research</a>
-</footer>
+<p style="font-size:.78rem;color:#6d8099">Reproduce: <code>DAY=N bash scripts/ops/run_bitcoin30_day.sh</code></p>
+<footer><a href="../research.html">Research</a> · <a href="./fuzz-depth-v3.html">Fuzz Depth v3</a></footer>
 </div>
 </body>
 </html>
