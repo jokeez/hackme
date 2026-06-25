@@ -1,0 +1,125 @@
+{
+  "updated": "2026-06-26",
+  "note": "Real upstream OSS CVE hunt — ASAN stdin drivers on cloned repos, not WASM excerpt guards",
+  "defaults": {
+    "budget_iterations": 60000,
+    "time_limit_sec": 600,
+    "max_input_bytes": 65536,
+    "workers": 1,
+    "depth_tier": "oss_cve"
+  },
+  "seeds": [
+    "",
+    "{}",
+    "[]",
+    "{\"a\":1}",
+    "[[[[",
+    "````````",
+    "[link](http://x)",
+    "# heading\n\n*emph*",
+    "null",
+    "true",
+    "false",
+    "\u0000\u0001\u0002\u00ff",
+    "key=value\nfoo=bar",
+    "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"
+  ],
+  "targets": [
+    {
+      "id": "md4c",
+      "repo": "https://github.com/mity/md4c",
+      "ref": "master",
+      "title": "mity/md4c · md_parse Markdown",
+      "driver": "md4c_stdin",
+      "upstream_src": ["src/md4c.c"],
+      "include_dirs": ["src"],
+      "wasm_guard": "md4c_fence_guard",
+      "cwe": ["CWE-125", "CWE-787"],
+      "priority": 1
+    },
+    {
+      "id": "cjson",
+      "repo": "https://github.com/DaveGamble/cJSON",
+      "ref": "master",
+      "title": "DaveGamble/cJSON · cJSON_Parse",
+      "driver": "cjson_stdin",
+      "upstream_src": ["cJSON.c"],
+      "include_dirs": ["."],
+      "wasm_guard": "cjson_nest_guard",
+      "cwe": ["CWE-125", "CWE-787"],
+      "priority": 1
+    },
+    {
+      "id": "centijson",
+      "repo": "https://github.com/mity/centijson",
+      "ref": "master",
+      "title": "mity/centijson · JSON parse",
+      "driver": "centijson_stdin",
+      "upstream_src": ["src/json.c", "src/json-dom.c", "src/value.c"],
+      "include_dirs": ["src", "include"],
+      "wasm_guard": "centijson_nest_depth",
+      "cwe": ["CWE-125", "CWE-787"],
+      "priority": 1
+    },
+    {
+      "id": "jsmn",
+      "repo": "https://github.com/zserge/jsmn",
+      "ref": "master",
+      "title": "zserge/jsmn · jsmn_parse",
+      "driver": "jsmn_stdin",
+      "upstream_src": [],
+      "include_dirs": ["."],
+      "wasm_guard": "jsmn_nest_depth",
+      "cwe": ["CWE-125"],
+      "priority": 2
+    },
+    {
+      "id": "mjson",
+      "repo": "https://github.com/cesanta/mjson",
+      "ref": "master",
+      "title": "cesanta/mjson · mjson_parse",
+      "driver": "mjson_stdin",
+      "upstream_src": ["src/mjson.c"],
+      "include_dirs": ["src"],
+      "wasm_guard": "mjson_token_guard",
+      "cwe": ["CWE-125"],
+      "priority": 2
+    },
+    {
+      "id": "yyjson",
+      "repo": "https://github.com/ibireme/yyjson",
+      "ref": "master",
+      "title": "ibireme/yyjson · yyjson_read",
+      "driver": "yyjson_stdin",
+      "upstream_src": ["src/yyjson.c"],
+      "include_dirs": ["src"],
+      "wasm_guard": "yyjson_nest_depth",
+      "cwe": ["CWE-125", "CWE-787"],
+      "priority": 2
+    },
+    {
+      "id": "parson",
+      "repo": "https://github.com/kgabis/parson",
+      "ref": "master",
+      "title": "kgabis/parson · json_parse_string",
+      "driver": "parson_stdin",
+      "upstream_src": ["parson.c"],
+      "include_dirs": ["."],
+      "wasm_guard": "parson_nest_guard",
+      "cwe": ["CWE-125"],
+      "priority": 2
+    },
+    {
+      "id": "inih",
+      "repo": "https://github.com/benhoyt/inih",
+      "ref": "master",
+      "title": "benhoyt/inih · ini_parse_string",
+      "driver": "inih_stdin",
+      "upstream_src": ["ini.c"],
+      "include_dirs": ["."],
+      "wasm_guard": "inih_line_guard",
+      "cwe": ["CWE-125"],
+      "priority": 3
+    }
+  ]
+}

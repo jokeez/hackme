@@ -227,3 +227,21 @@ else
   log "WARN native repro script failed — see hunt.log (no site export)"
 fi
 log "done → $OUT/rollup.json + $OUT/native_verdict.json"
+
+if [[ "${OSS_CVE_HUNT:-1}" == "1" ]]; then
+  log "deep OSS CVE hunt (real upstream ASAN)"
+  CVE_OUT="$OUT/cve-upstream"
+  if PRIORITY_MAX=1 BUDGET="${OSS_CVE_BUDGET:-15000}" TIME_LIMIT="${OSS_CVE_TIME:-180}" OUT="$CVE_OUT" \
+    bash "$ROOT/scripts/ops/run_oss_cve_hunt.sh" >>"$OUT/hunt.log" 2>&1; then
+    log "OSS CVE hunt CLEAN → $CVE_OUT/ROLLUP.json"
+  else
+    rc=$?
+    if [[ -f "$CVE_OUT/ROLLUP.json" ]] && jq -e '.verdict == "CVE_CANDIDATE"' "$CVE_OUT/ROLLUP.json" >/dev/null 2>&1; then
+      log "OSS CVE_CANDIDATE — HOLD disclosure; see $CVE_OUT/ROLLUP.json"
+      jq '. + {"oss_cve_verdict": "CVE_CANDIDATE", "publish_blocked": true}' \
+        "$OUT/rollup.json" >"$OUT/rollup.tmp" && mv "$OUT/rollup.tmp" "$OUT/rollup.json"
+    else
+      log "WARN OSS CVE hunt exit=$rc — see $OUT/hunt.log"
+    fi
+  fi
+fi

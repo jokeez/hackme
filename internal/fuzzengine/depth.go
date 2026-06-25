@@ -10,6 +10,7 @@ const (
 	DepthWasmNative     DepthTier = "wasm_native"
 	DepthBytesCorpus    DepthTier = "bytes_corpus"
 	DepthUpstreamBinary DepthTier = "upstream_binary"
+	DepthOSSCVE         DepthTier = "oss_cve"
 )
 
 // InputMode selects uint64 vs structured byte inputs for check().
@@ -55,6 +56,12 @@ var depthPresets = map[DepthTier]DepthPreset{
 		BountyRequiresNative: true, NativeReproEnabled: true,
 		UpstreamTarget: "bitcoin",
 	},
+	DepthOSSCVE: {
+		Tier: DepthOSSCVE, InputMode: InputModeBytes,
+		BudgetHMC: 25.0, BudgetRuns: 2000,
+		BountyRequiresNative: true, NativeReproEnabled: true,
+		UpstreamTarget: "oss",
+	},
 }
 
 // ParseDepthTier reads config depth_tier (defaults wasm_only).
@@ -70,6 +77,8 @@ func ParseDepthTier(cfg map[string]any) DepthTier {
 		return DepthBytesCorpus
 	case string(DepthUpstreamBinary), "tier_c", "asan_binary", "upstream":
 		return DepthUpstreamBinary
+	case string(DepthOSSCVE), "cve_hunt":
+		return DepthOSSCVE
 	default:
 		return DepthWasmOnly
 	}
@@ -85,12 +94,12 @@ func ParseInputMode(cfg map[string]any) InputMode {
 	case string(InputModeBytes), "byte", "corpus":
 		return InputModeBytes
 	case string(InputModeUint64), "u64", "":
-		if t := ParseDepthTier(cfg); t == DepthBytesCorpus || t == DepthUpstreamBinary {
+		if t := ParseDepthTier(cfg); t == DepthBytesCorpus || t == DepthUpstreamBinary || t == DepthOSSCVE {
 			return InputModeBytes
 		}
 		return InputModeUint64
 	default:
-		if t := ParseDepthTier(cfg); t == DepthBytesCorpus || t == DepthUpstreamBinary {
+		if t := ParseDepthTier(cfg); t == DepthBytesCorpus || t == DepthUpstreamBinary || t == DepthOSSCVE {
 			return InputModeBytes
 		}
 		return InputModeUint64
@@ -106,7 +115,7 @@ func BountyRequiresNative(cfg map[string]any) bool {
 		return strings.EqualFold(strings.TrimSpace(toString(v)), "true") || toString(v) == "1"
 	}
 	tier := ParseDepthTier(cfg)
-	return tier == DepthWasmNative || tier == DepthBytesCorpus || tier == DepthUpstreamBinary
+	return tier == DepthWasmNative || tier == DepthBytesCorpus || tier == DepthUpstreamBinary || tier == DepthOSSCVE
 }
 
 // NativeReproEnabled is true when findings enqueue the native repro bridge.
@@ -121,7 +130,7 @@ func NativeReproEnabled(cfg map[string]any) bool {
 		return true
 	}
 	tier := ParseDepthTier(cfg)
-	return tier == DepthWasmNative || tier == DepthBytesCorpus || tier == DepthUpstreamBinary
+	return tier == DepthWasmNative || tier == DepthBytesCorpus || tier == DepthUpstreamBinary || tier == DepthOSSCVE
 }
 
 // NativeReproMode returns asan_binary for upstream_binary tier unless overridden.
@@ -134,6 +143,9 @@ func NativeReproMode(cfg map[string]any) string {
 	}
 	if ParseDepthTier(cfg) == DepthUpstreamBinary {
 		return "asan_binary"
+	}
+	if ParseDepthTier(cfg) == DepthOSSCVE {
+		return "oss_upstream"
 	}
 	return "go_port"
 }
@@ -183,6 +195,14 @@ func ApplyDepthTier(cfg map[string]any, tier DepthTier) map[string]any {
 	if preset.Tier == DepthUpstreamBinary {
 		if _, ok := cfg["native_repro_mode"]; !ok {
 			cfg["native_repro_mode"] = "asan_binary"
+		}
+	}
+	if preset.Tier == DepthOSSCVE {
+		if _, ok := cfg["native_repro_mode"]; !ok {
+			cfg["native_repro_mode"] = "oss_upstream"
+		}
+		if _, ok := cfg["oss_cve_hunt"]; !ok {
+			cfg["oss_cve_hunt"] = true
 		}
 	}
 	cfg["fuzz_engine_version"] = Version

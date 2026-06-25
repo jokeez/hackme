@@ -1,0 +1,181 @@
+{
+  "updated": "2026-06-19",
+  "web_scan_script": "scripts/ops/run_bounty_web_scan.sh",
+  "overnight": {
+    "queue": "upstream/bounty_overnight_queue.json",
+    "start": "bash scripts/ops/start_bounty_overnight.sh",
+    "morning": "bash scripts/ops/bounty_morning_report.sh",
+    "duration_hours_default": 8,
+    "wasm_modules": 16,
+    "foundry_repos": 5
+  },
+  "strategy": "pool_for_platform_reputation + foundry_for_bounty_money",
+  "pool_verdict": "keep — reduce WASM mature reruns, keep coordinator/Bitcoin30/B2B",
+  "deep_push_script": "scripts/ops/run_bounty_deep_push.sh",
+  "oss_pr_fuzz_script": "scripts/ops/run_oss_pr_fuzz_hunt.sh",
+  "oss_pr_queue": "upstream/oss_pr_fuzz_queue.json",
+  "oss_cve_hunt_script": "scripts/ops/run_oss_cve_hunt.sh",
+  "oss_cve_targets": "upstream/oss_cve_targets.json",
+  "money_hunt_script": "scripts/ops/run_bounty_money_hunt.sh",
+  "tier_money_now": [
+    {
+      "id": "tokenize_it",
+      "platform": "hackenproof",
+      "url": "https://hackenproof.com/audit-programs/tokenize-it-token-sc-dualdefense-audit",
+      "max_usd": 5000,
+      "ends": "2026-06-27",
+      "submissions": 76,
+      "fit": "highest — our custom+fork tests ready",
+      "action": "register HackenProof, fork Gnosis, manual Coinvested/Exit"
+    },
+    {
+      "id": "darts_rwa",
+      "platform": "hackenproof",
+      "url": "https://hackenproof.com/audit-programs/darts-sc-dualdefense-audit",
+      "max_usd": 3000,
+      "ends": "2026-06-30",
+      "submissions": 18,
+      "critical_only": true,
+      "kyc": true,
+      "fit": "best subs/reward ratio — need private repo access",
+      "action": "HackenProof signup + KYC, request audit repo"
+    },
+    {
+      "id": "arcadia",
+      "platform": "hackenproof",
+      "max_usd": 25000,
+      "medium_usd": 2000,
+      "submissions": 63,
+      "fit": "medium $2k discretionary",
+      "action": "fork Base pool + custom invariants"
+    },
+    {
+      "id": "0xmarkets",
+      "platform": "hackenproof",
+      "url": "https://hackenproof.com/audit-programs/0xmarkets-audit-contest",
+      "ends": "2026-07-08",
+      "submissions": 81,
+      "max_usd": 12000,
+      "fee_usd": 7,
+      "public_recon": "github.com/taoshidev/0xmarkets_contract",
+      "fit": "GMX synthetics — KYC for official repo",
+      "action": "HackenProof KYC + Discord repo access"
+    },
+    {
+      "id": "kleidi",
+      "platform": "immunefi",
+      "url": "https://immunefi.com/bug-bounty/kleidi/",
+      "max_usd": 50000,
+      "note": "new wallet, 2 audits clean",
+      "repo": "solidity-labs-io/kleidi",
+      "fit": "Foundry fuzz in money-hunt"
+    },
+    {
+      "id": "tiprun",
+      "platform": "hackenproof",
+      "url": "https://hackenproof.com/audit-programs/tiprun-smart-contract-audit-contest",
+      "ends": "2026-06-24",
+      "submissions": 301,
+      "fee_usd": 5,
+      "critical_usd": 0,
+      "note": "SKIP — $5 fee, 300+ subs, no critical payout"
+    },
+    {
+      "id": "codehawks_first_flights",
+      "platform": "codehawks",
+      "url": "https://www.cyfrin.io/codehawks/first-flights",
+      "max_usd": 20000,
+      "note": "entry contests, lighter competition than TipRun 300+ subs",
+      "fit": "skill building + small USDC"
+    },
+    {
+      "id": "hackme_security_rewards",
+      "platform": "hackme",
+      "url": "https://hackme.tech/security-rewards.html",
+      "max_hmc": 200,
+      "note": "own stack — medium API/WASM findings",
+      "fit": "no competition, HMC not fiat"
+    }
+  ],
+  "platforms": ["immunefi", "hackenproof", "code4rena"],
+  "tier_s_early": [
+    {
+      "id": "arcadia",
+      "platform": "hackenproof",
+      "name": "Arcadia Finance",
+      "max_usd": 100000,
+      "started": "2026-06-10",
+      "submissions": 57,
+      "note": "Very new, low competition — Base/OP/Unichain DeFi",
+      "fit": "medium — Solidity-heavy"
+    },
+    {
+      "id": "zeko",
+      "platform": "hackenproof",
+      "name": "Zeko (Mina ZK)",
+      "max_usd": 100000,
+      "started": "2026-06-02",
+      "submissions": 198,
+      "fit": "low — ZK circuits, not WASM niche"
+    },
+    {
+      "id": "kleidi",
+      "platform": "immunefi",
+      "url": "https://immunefi.com/bug-bounty/kleidi/",
+      "max_usd": 50000,
+      "started": "2026-02-13",
+      "note": "Brand new wallet — 2 audits, no criticals found",
+      "repo": "solidity-labs-io/kleidi",
+      "fit": "medium — Foundry fuzz path"
+    },
+    {
+      "id": "sui_vm",
+      "platform": "hackenproof",
+      "url": "https://hackenproof.com/programs/sui-protocol",
+      "max_usd": 500000,
+      "scope": "sui-execution/latest/sui-adapter,sui-verifier",
+      "note": "New VM pre-mainnet — high reward, Rust/Move",
+      "fit": "high long-term — needs Rust native fuzz"
+    }
+  ],
+  "tier_a_infra": [
+    {
+      "id": "berachain",
+      "platform": "immunefi",
+      "url": "https://immunefi.com/bug-bounty/berachain/",
+      "max_usd": 250000,
+      "repo": "berachain/bera-reth",
+      "fork_only": true,
+      "wasm_targets": ["berachain_denominator", "berachain_pol", "berachain_prague_order"],
+      "fit": "high — Rust fork, our stack"
+    },
+    {
+      "id": "hedera",
+      "platform": "immunefi",
+      "max_usd": 30000,
+      "wasm_targets": 9,
+      "status": "deep_run_complete"
+    },
+    {
+      "id": "wormhole",
+      "platform": "immunefi",
+      "max_usd": 1000000,
+      "wasm_targets": 4,
+      "native_probe": "vaa.Unmarshal 500k",
+      "status": "deep_run_complete"
+    },
+    {
+      "id": "filecoin",
+      "platform": "immunefi",
+      "max_usd": 150000,
+      "repos": ["go-graphsync", "lotus"],
+      "note": "Requires audit-kit devnet PoC",
+      "fit": "high with devnet setup"
+    }
+  ],
+  "tier_b_mature": [
+    {"id": "optimism", "max_usd": 2000042},
+    {"id": "chainlink", "max_usd": 3000000},
+    {"id": "sei", "max_usd": 500000}
+  ]
+}

@@ -1,0 +1,22 @@
+[Unit]
+Description=HackMe Coordinator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hackme
+Group=hackme
+WorkingDirectory=/opt/hackme
+Environment=HACKME_REPO_ROOT=/opt/hackme
+EnvironmentFile=/opt/hackme/.env.coord
+Environment=HACKME_COORDINATOR_READ_TIMEOUT_SEC=60
+Environment=HACKME_COORDINATOR_WRITE_TIMEOUT_SEC=120
+ExecStart=/opt/hackme/coordinator
+Restart=always
+RestartSec=2
+LimitNOFILE=65535
+MemoryMax=2G
+
+[Install]
+WantedBy=multi-user.target

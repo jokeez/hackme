@@ -90,6 +90,7 @@ echo "[deploy-hackme-node] rsync -> $NODE_SSH:$NODE_DEPLOY_DIR (SYNC_DIST=${SYNC
 RSYNC_EXCLUDES=(
   --exclude '.git/' --exclude 'data/' --exclude 'reports/' --exclude 'node_modules/'
   --exclude 'backups/' --exclude 'logs/' --exclude '*.exe'
+  --exclude 'tasks/artifacts/' --exclude '.cache/'
   --exclude '.env' --exclude '.env.*'
   --exclude '.cargo/' --exclude '.npm-global/' --exclude '.rustup/'
 )
@@ -122,6 +123,10 @@ if [[ -f "\$d/scripts/ops/systemd/hackme-node.service" ]]; then
   cp -a "\$d/scripts/ops/systemd/hackme-node.service" /etc/systemd/system/hackme-node.service
   echo "[deploy-hackme-node] installed systemd unit (binary ExecStart, not go run)"
 fi
+if [[ -f "\$d/scripts/ops/systemd/hackme-coordinator.service" ]]; then
+  cp -a "\$d/scripts/ops/systemd/hackme-coordinator.service" /etc/systemd/system/hackme-coordinator.service
+  echo "[deploy-hackme-node] installed hackme-coordinator systemd unit"
+fi
 for u in hackme-node-watchdog.service hackme-node-watchdog.timer; do
   if [[ -f "\$d/scripts/ops/systemd/\$u" ]]; then
     cp -a "\$d/scripts/ops/systemd/\$u" "/etc/systemd/system/\$u"
@@ -130,10 +135,14 @@ done
 chmod +x "\$d/scripts/ops/node_healthcheck.sh" 2>/dev/null || true
 systemctl daemon-reload
 systemctl enable --now hackme-node-watchdog.timer 2>/dev/null || true
+systemctl enable hackme-coordinator 2>/dev/null || true
 systemctl restart hackme-node
-if systemctl is-active --quiet hackme-coordinator; then systemctl restart hackme-coordinator; fi
+systemctl restart hackme-coordinator 2>/dev/null || true
 sleep 2
 systemctl is-active hackme-node
+if systemctl is-enabled hackme-coordinator >/dev/null 2>&1; then
+  systemctl is-active hackme-coordinator 2>/dev/null || echo "[deploy-hackme-node] WARN: hackme-coordinator not active"
+fi
 echo "[deploy-hackme-node] smoke: GET /api/status on loopback"
 status_json="\$(curl -fsS --max-time 15 http://127.0.0.1:18080/api/status)"
 echo "\$status_json" | jq '{tip_height,mining,has_genesis,version,commit}' 2>/dev/null || echo "\$status_json" | head -c 240
