@@ -1,0 +1,10 @@
+#ifndef NGHTTP2_FUZZ_CONFIG_H
+#define NGHTTP2_FUZZ_CONFIG_H
+#define HAVE_CONFIG_H 1
+#define HAVE_ARPA_INET_H 1
+#define HAVE_NETINET_IN_H 1
+#define HAVE_UNISTD_H 1
+#define HAVE_FCNTL_H 1
+#define HAVE_NETDB_H 1
+#define HAVE_SYS_SOCKET_H 1
+#endif
