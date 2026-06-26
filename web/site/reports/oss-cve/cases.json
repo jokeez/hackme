@@ -27,6 +27,15 @@
       "severity": "low",
       "cve_id": null,
       "published_at": null
+    },
+    {
+      "id": "mxml",
+      "slug": "mxml",
+      "project": "michaelrsweet/mxml",
+      "status": "closed_wontfix",
+      "severity": "informational",
+      "cve_id": null,
+      "published_at": null
     }
   ]
 }

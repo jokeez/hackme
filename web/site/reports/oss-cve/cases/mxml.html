@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>HackMe · OSS disclosure · michaelrsweet/mxml</title>
+<meta name="description" content="michaelrsweet/mxml#353 closed wontfix — UBSan callback typing on mxmlLoadString, not CVE-class."/>
+<link rel="canonical" href="https://hackme.tech/reports/oss-cve/cases/mxml.html"/>
+<link rel="icon" href="/favicon.ico" type="image/x-icon" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../../../assets/styles.css?v=20260626osscveb" />
+<style>
+.oss-page { position: relative; min-height: 100vh; }
+.oss-hero {
+  position: relative; overflow: hidden;
+  padding: clamp(2rem, 5vw, 3.5rem);
+  border-radius: 1.25rem;
+  background: linear-gradient(135deg, rgba(12,22,48,.95) 0%, rgba(8,12,28,.92) 45%, rgba(40,20,60,.35) 100%);
+  border: 1px solid rgba(77,228,255,.35);
+  box-shadow: 0 0 80px rgba(0,184,255,.12), inset 0 1px 0 rgba(255,255,255,.06);
+}
+.oss-hero::before {
+  content: ""; position: absolute; inset: -40% -20% auto auto; width: 28rem; height: 28rem;
+  background: radial-gradient(circle, rgba(77,228,255,.18) 0%, transparent 70%);
+  pointer-events: none;
+}
+.oss-hero::after {
+  content: ""; position: absolute; bottom: -30%; left: -10%; width: 22rem; height: 22rem;
+  background: radial-gradient(circle, rgba(124,58,237,.2) 0%, transparent 70%);
+  pointer-events: none;
+}
+.oss-hero-inner { position: relative; z-index: 1; }
+.oss-hero h1 {
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  letter-spacing: -0.02em;
+  background: linear-gradient(90deg, #e8f6ff 0%, #4de4ff 55%, #a78bfa 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  margin-bottom: 0.75rem;
+}
+.oss-lead { color: var(--muted); max-width: 58ch; line-height: 1.65; font-size: 1.05rem; margin: 0 0 1.5rem; }
+.oss-pills { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.75rem; }
+.oss-pill {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em;
+  padding: 0.45rem 0.85rem; border-radius: 999px;
+  border: 1px solid rgba(77,228,255,.35); color: var(--primary);
+  background: rgba(77,228,255,.08);
+}
+.oss-pill.hot { border-color: rgba(255,200,87,.5); color: #ffc857; background: rgba(255,200,87,.1); }
+.oss-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem; margin-top: 0.5rem;
+}
+.oss-stat {
+  padding: 1.1rem 1.2rem; border-radius: 1rem;
+  background: rgba(0,0,0,.35); border: 1px solid rgba(87,118,168,.35);
+}
+.oss-stat b {
+  display: block; font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(2rem, 4vw, 2.75rem); line-height: 1; color: var(--primary);
+  text-shadow: 0 0 24px rgba(77,228,255,.35);
+}
+.oss-stat span { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.oss-pipeline {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.5rem;
+  margin: 2rem 0; padding: 1rem 1.25rem; border-radius: 1rem;
+  background: rgba(0,0,0,.25); border: 1px solid var(--line);
+  font-size: 0.82rem; color: var(--muted);
+}
+.oss-pipe-step {
+  padding: 0.35rem 0.75rem; border-radius: 999px; border: 1px solid var(--line);
+  color: var(--muted);
+}
+.oss-pipe-step.active { border-color: #ffc857; color: #ffc857; background: rgba(255,200,87,.08); }
+.oss-pipe-step.done { border-color: var(--ok); color: var(--ok); }
+.oss-pipe-arrow { color: var(--line); user-select: none; }
+.oss-grid {
+  display: grid; gap: 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  margin-top: 1.5rem;
+}
+.oss-card {
+  position: relative; padding: 1.35rem 1.4rem 1.2rem;
+  border-radius: 1.1rem; border: 1px solid rgba(87,118,168,.35);
+  background: linear-gradient(160deg, rgba(10,18,36,.9) 0%, rgba(6,10,20,.85) 100%);
+  transition: border-color .2s, transform .2s, box-shadow .2s;
+}
+.oss-card:hover {
+  border-color: rgba(77,228,255,.55);
+  transform: translateY(-3px);
+  box-shadow: 0 16px 48px rgba(0,20,50,.45);
+}
+.oss-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.65rem; }
+.oss-badge {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 0.3rem 0.65rem; border-radius: 999px; border: 2px solid; white-space: nowrap;
+}
+.oss-sev {
+  font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 0.25rem 0.55rem; border-radius: 6px; background: rgba(0,0,0,.4);
+}
+.oss-card h2 { font-size: 1.2rem; margin: 0 0 0.25rem; }
+.oss-card h2 a { color: #e8f4ff; }
+.oss-card h2 a:hover { color: var(--primary); }
+.oss-component { font-size: 0.85rem; color: var(--primary); opacity: 0.85; margin: 0 0 0.65rem; }
+.oss-summary { font-size: 0.92rem; color: var(--muted); line-height: 1.55; margin: 0 0 1rem; min-height: 3.2em; }
+.oss-card-meta { font-size: 0.75rem; color: #6b8099; margin-bottom: 1rem; }
+.oss-card-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.oss-btn {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  font-size: 0.8rem; font-weight: 600; padding: 0.5rem 0.9rem; border-radius: 8px;
+  border: 1px solid rgba(77,228,255,.4); color: var(--primary);
+  background: rgba(77,228,255,.08);
+}
+.oss-btn:hover { background: rgba(77,228,255,.16); }
+.oss-btn.secondary { border-color: var(--line); color: var(--muted); background: transparent; }
+.oss-policy {
+  margin: 1.5rem 0; padding: 1.1rem 1.25rem; border-radius: 1rem;
+  border: 1px solid rgba(255,200,87,.35); background: rgba(255,200,87,.06);
+  font-size: 0.9rem; color: #d4c4a8; line-height: 1.55;
+}
+.oss-panel { margin-top: 2rem; padding: 1.35rem; border-radius: 1rem; border: 1px solid var(--line); background: rgba(0,0,0,.2); }
+.oss-panel h2 { margin-top: 0; }
+.oss-method { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-top: 1rem; }
+.oss-method div { padding: 0.85rem; border-radius: 10px; border: 1px solid var(--line); font-size: 0.85rem; color: var(--muted); }
+.oss-method strong { display: block; color: var(--text); margin-bottom: 0.25rem; }
+.oss-hold {
+  margin: 1.5rem 0; padding: 1.25rem; border-radius: 1rem;
+  border: 1px dashed rgba(255,159,67,.45); background: rgba(255,159,67,.06);
+}
+.oss-timeline { list-style: none; padding: 0; margin: 1rem 0; }
+.oss-timeline li {
+  padding: 0.65rem 0 0.65rem 1.25rem; border-left: 2px solid rgba(77,228,255,.35);
+  margin-left: 0.5rem; color: var(--muted); font-size: 0.9rem;
+}
+.oss-timeline strong { color: var(--text); }
+.oss-footer { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); font-size: 0.8rem; color: var(--muted); }
+.oss-footer a { color: var(--primary); }
+.oss-case-body { padding: 1.5rem 1.6rem; margin-top: 1rem; }
+.oss-case-body h2 { font-size: 1.05rem; margin: 1.5rem 0 0.65rem; color: var(--primary); font-family: "Space Grotesk", Inter, sans-serif; }
+.oss-case-body h2:first-child { margin-top: 0; }
+.oss-case-subtitle { font-size: 1rem; color: var(--muted); margin: 0.35rem 0 1rem; line-height: 1.5; }
+.oss-pills-case { margin-bottom: 0; }
+.oss-issue-ref { font-size: 0.88rem; color: var(--muted); margin: 0.75rem 0 0; }
+.oss-issue-ref a { color: var(--primary); font-weight: 600; }
+.oss-dup-note { font-size: 0.8rem; color: #6b8099; margin-top: 0.5rem; }
+.oss-back { margin: 0 0 1rem; font-size: 0.9rem; }
+.oss-back a { color: var(--primary); }
+@media (max-width: 640px) { .oss-stats { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head><body class="oss-page">
+<div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+<div class="bg-glow bg-glow-b" aria-hidden="true"></div>
+<header class="topbar">
+  <a class="brand" href="../../../index.html">
+    <img class="brand-logo" src="../../../assets/logo-hex.png" alt="HackMe" />
+    <span>HackMe Network</span>
+  </a>
+  <nav class="nav">
+    <a href="../../../research.html">Research</a>
+    <a href="../../../developers.html">Developers</a>
+    <a href="../../../downloads.html">Downloads</a>
+  </nav>
+</header>
+<main class="container">
+  <p class="oss-back"><a href="../index.html">← OSS CVE hub</a></p>
+  <section class="oss-hero glass">
+    <div class="oss-hero-inner">
+      <p class="kicker">Tier-D · coordinated disclosure</p>
+      <h1>michaelrsweet/mxml</h1>
+      <p class="oss-case-subtitle">Mini-XML load (mxmlLoadString)</p>
+      <div class="oss-pills oss-pills-case">
+        <span class="oss-badge" style="border-color:#8ea3c2;color:#8ea3c2">Upstream wontfix</span>
+        <span class="oss-sev" style="color:#8ea3c2;border:1px solid #8ea3c240">not CVE-class</span>
+        <span class="oss-pill">oss_cve</span>
+      </div>
+      <p class="oss-lead" style="margin-top:1rem;margin-bottom:0">Upstream closed <a href="https://github.com/michaelrsweet/mxml/issues/353" rel="noopener">michaelrsweet/mxml#353</a> as wontfix — classic C callback cast pattern, not a valid security bug. UBSan-only on mxmlLoadString; no ASan memory corruption demonstrated.</p>
+      <p class="oss-issue-ref">Primary tracker: <a href="https://github.com/michaelrsweet/mxml/issues/353" rel="noopener">https://github.com/michaelrsweet/mxml/issues/353</a></p>
+      
+    </div>
+  </section>
+  <section class="glass oss-case-body">
+    <p class="oss-card-meta">UBSan — function pointer type mismatch on read callback (not CVE-class) · hunt wave6 · Upstream closed — wontfix</p>
+    
+    <h2>Timeline</h2><ul class="oss-timeline"><li><strong>Reported upstream</strong> — 2026-06-26</li><li><strong>Upstream closed (wontfix)</strong> — 2026-06-26 · maintainer: classic C API pattern, not a valid bug</li></ul>
+    <div class="oss-hold">
+  <p><strong>Upstream: wontfix, not CVE-class</strong> — Michael Sweet closed the issue as not planned. No CVE pursuit. Technical discussion and repro remain on <a href="https://github.com/michaelrsweet/mxml/issues/353" rel="noopener">GitHub #353</a>.</p>
+</div>
+    <div class="oss-card-actions"><a class="oss-btn secondary" href="https://github.com/michaelrsweet/mxml" rel="noopener">Upstream repo ↗</a><a class="oss-btn" href="https://github.com/michaelrsweet/mxml/issues/353" rel="noopener">GitHub issue ↗</a></div>
+  </section>
+  <p class="oss-footer">Updated 2026-06-26 15:52 UTC · <a href="../../../research.html">Research hub</a> · <a href="https://github.com/jokeez/hackme/blob/main/docs/OSS_CVE_HUNT.md">methodology</a></p>
+</main>
+<script src="/assets/disclosure-ticker.js?v=20260626ticker" defer></script>
+</body></html>

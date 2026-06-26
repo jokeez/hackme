@@ -7,12 +7,13 @@ import json
 import sys
 from pathlib import Path
 
-STATUS_ORDER = ("published", "fixed", "triage", "hold", "pipeline")
+STATUS_ORDER = ("published", "fixed", "triage", "hold", "closed_wontfix", "pipeline")
 STATUS_BADGE = {
     "published": ("published", "#39ff14", "Full case study"),
     "fixed": ("fixed", "#00d1ff", "Fix merged — publishing soon"),
     "triage": ("triage", "#ffc107", "Awaiting maintainer"),
     "hold": ("hold", "#ff9800", "Responsible disclosure hold"),
+    "closed_wontfix": ("wontfix", "#8ea3c2", "Upstream wontfix — not CVE-class"),
     "pipeline": ("pipeline", "#6b8099", "In fuzz pipeline"),
 }
 
@@ -63,6 +64,8 @@ def case_page(c: dict, labels: dict) -> str:
     timeline = []
     if c.get("reported_at"):
         timeline.append(("Reported", c["reported_at"]))
+    if c.get("closed_at"):
+        timeline.append(("Upstream closed", c["closed_at"]))
     if c.get("fixed_at"):
         timeline.append(("Fix merged", c["fixed_at"]))
     if c.get("published_at"):
@@ -73,7 +76,12 @@ def case_page(c: dict, labels: dict) -> str:
         tl_html = f'<h2>Timeline</h2><ul class="timeline">{items}</ul>'
 
     repro_block = ""
-    if c.get("show_repro") and status == "published":
+    if status == "closed_wontfix":
+        repro_block = """<div class="hold-box">
+  <p><strong>Upstream: wontfix, not CVE-class</strong> — maintainer declined to treat this as a bug
+  (classic C API callback pattern). See linked GitHub issue for discussion. No CVE pursuit.</p>
+</div>"""
+    elif c.get("show_repro") and status == "published":
         repro_block = '<h2>Reproduction</h2><p>See linked advisory for minimized input and upstream commit.</p>'
     else:
         repro_block = """<div class="hold-box">
@@ -130,6 +138,7 @@ def hub_page(cases: list, labels: dict, meta: dict | None) -> str:
     )
     cards = "\n".join(case_card(c) for c in sorted_cases)
     in_pipeline = sum(1 for c in cases if c.get("status") in ("hold", "triage"))
+    closed = sum(1 for c in cases if c.get("status") == "closed_wontfix")
     published = sum(1 for c in cases if c.get("status") == "published")
 
     run_note = ""
@@ -166,7 +175,7 @@ a{{color:#00d1ff}}footer{{margin-top:2.5rem;font-size:.75rem;color:#6b8099}}
 <p class="lead">Real upstream Tier-D ASAN hunts. Cases move from <em>hold</em> → <em>triage</em> → <em>fixed</em> → <em>published</em>.
   Repro and CVE IDs appear only after coordinated disclosure.</p>
 <div class="policy"><strong>Public policy:</strong> We show pipeline activity and case status now; technical PoC and CVE numbers only after maintainer fix or agreed publish window.</div>
-<div class="stats"><span><b>{len(cases)}</b> tracked cases</span><span><b>{in_pipeline}</b> in disclosure</span><span><b>{published}</b> published</span></div>
+<div class="stats"><span><b>{len(cases)}</b> tracked cases</span><span><b>{in_pipeline}</b> in disclosure</span><span><b>{closed}</b> closed wontfix</span><span><b>{published}</b> published</span></div>
 <div class="case-grid">
 {cards}
 </div>
@@ -204,7 +213,10 @@ def main() -> int:
     }, indent=2) + "\n")
 
     for c in cases:
-        (case_dir / f"{c['slug']}.html").write_text(case_page(c, labels))
+        out_path = case_dir / f"{c['slug']}.html"
+        if c.get("custom_page") and out_path.is_file():
+            continue
+        out_path.write_text(case_page(c, labels))
 
     (out / "index.html").write_text(hub_page(cases, labels, meta))
     print(f"exported {len(cases)} cases → {out}")

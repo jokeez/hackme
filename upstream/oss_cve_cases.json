@@ -5,6 +5,7 @@
     "pipeline": "In fuzz pipeline",
     "hold": "Responsible disclosure hold",
     "triage": "Reported — awaiting maintainer",
+    "closed_wontfix": "Upstream closed — wontfix (not CVE-class)",
     "fixed": "Fix merged — case study draft",
     "published": "Published case study"
   },
@@ -68,6 +69,28 @@
       "public_summary": "Msgpack int64 decoder path triggers UBSan under mutation fuzz. Issue draft ready; coordinated disclosure pending.",
       "show_repro": false,
       "hunt_wave": "wave2"
+    },
+    {
+      "id": "mxml",
+      "slug": "mxml",
+      "project": "michaelrsweet/mxml",
+      "repo_url": "https://github.com/michaelrsweet/mxml",
+      "component": "Mini-XML load (mxmlLoadString)",
+      "tier": "oss_cve",
+      "status": "closed_wontfix",
+      "severity": "informational",
+      "finding_class": "UBSan — function pointer type mismatch on read callback (not CVE-class)",
+      "cve_id": null,
+      "fix_url": null,
+      "issue_url": "https://github.com/michaelrsweet/mxml/issues/353",
+      "reported_at": "2026-06-26",
+      "fixed_at": null,
+      "published_at": null,
+      "closed_at": "2026-06-26",
+      "public_summary": "Upstream closed as wontfix: classic C callback cast pattern, not treated as a security bug. UBSan-only on core load path; no ASan memory corruption demonstrated. Not CVE-class.",
+      "show_repro": false,
+      "hunt_wave": "wave6",
+      "custom_page": true
     }
   ]
 }
