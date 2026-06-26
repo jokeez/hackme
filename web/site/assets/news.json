@@ -1,6 +1,36 @@
 {
   "items": [
     {
+      "id": "2026-06-27-rc11p-pool-metrics-security",
+      "date": "2026-06-27",
+      "title": "HackMe 0.1.0-rc11p — GPU pool hashrate + fast metrics",
+      "summary": "Win/Linux 0.1.0-rc11p published. Coordinator reports real GPU GH/s; desktop metrics no longer hang on large SQLite WAL; security regression pack green.",
+      "impact": "Home GPU rigs show 30–70+ GH/s on the public pool instead of stuck ~0.002 GH/s. Dashboard /api/metrics responds in seconds. Claim-rate floor restores fair slots for desktop miners.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Pool: https://hackme.tech/pool/coordinator · Gate: bash scripts/ops/new_miner_journey_gate.sh",
+      "tags": [
+        "release",
+        "mining",
+        "security",
+        "pool"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "rc11p — GPU pool hashrate + fast metrics",
+        "lead": "Win/Linux 0.1.0-rc11p · real GH/s on coordinator · metrics fixed",
+        "bullets": [
+          "Fix: desktop GPU ~35–70 GH/s on pool (was stuck at 0.002)",
+          "Fix: /api/metrics + SQLite WAL checkpoint — dashboard ~3s",
+          "Security: critical pack + coordinator hashrate tests PASS"
+        ],
+        "footer": "hackme.tech/downloads.html · pool: hackme.tech/pool/coordinator"
+      },
+      "links": {
+        "downloads": "https://hackme.tech/downloads.html",
+        "pool": "https://hackme.tech/pool/coordinator",
+        "github": "https://github.com/jokeez/hackme/releases"
+      }
+    },
+    {
       "id": "2026-06-25-bitcoin30-week3",
       "date": "2026-06-25",
       "title": "Bitcoin Core 30-Day Fuzz — Week 3 Complete",
