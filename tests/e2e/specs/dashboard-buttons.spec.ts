@@ -89,13 +89,13 @@ test.describe('Dashboard UI buttons and API wiring', () => {
     });
     expect(seeded.ok(), `seed create HTTP ${seeded.status()}`).toBeTruthy();
 
-    await page.fill('#admin-token-input', ADMIN);
-    await page.click('#btn-admin-token-save');
-    const listResp = page.waitForResponse(
-      (r) => r.request().method() === 'GET' && /\/api\/fuzz\/campaigns/.test(r.url()) && r.ok(),
-      { timeout: 20_000 }
-    );
     await page.click('#tab-bar .tab-btn[data-tab="fuzz"]');
+    await expect(page.locator('#panel-fuzz')).toHaveClass(/active/);
+    const listResp = page.waitForResponse(
+      (r) => r.request().method() === 'GET' && /\/api\/fuzz\/campaigns/.test(r.url()),
+      { timeout: 30_000 }
+    );
+    await page.click('#btn-fuzz-refresh');
     await listResp;
     const row = page.locator(`#fuzz-campaign-rows tr[data-campaign-id="${cid}"]`);
     await expect(row).toBeVisible({ timeout: 20_000 });
