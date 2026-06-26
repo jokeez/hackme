@@ -89,8 +89,19 @@ test.describe('Dashboard UI buttons and API wiring', () => {
     });
     expect(seeded.ok(), `seed create HTTP ${seeded.status()}`).toBeTruthy();
 
+    await expect.poll(async () => {
+      const r = await request.get('/api/fuzz/campaigns?limit=100', { headers: hdrs });
+      if (!r.ok()) return false;
+      const j = await r.json();
+      return Array.isArray(j.campaigns) && j.campaigns.some((c: { id?: string }) => c.id === cid);
+    }, { timeout: 30_000 }).toBe(true);
+
+    await page.fill('#admin-token-input', ADMIN);
+    await page.click('#btn-admin-token-save');
+    await expect(page.locator('#pill-admin')).toContainText('loaded', { timeout: 10_000 });
+
     await page.click('#tab-bar .tab-btn[data-tab="fuzz"]');
-    await expect(page.locator('#panel-fuzz')).toHaveClass(/active/);
+    await expect(page.locator('#fuzz-admin-only')).toBeVisible({ timeout: 10_000 });
     const listResp = page.waitForResponse(
       (r) => r.request().method() === 'GET' && /\/api\/fuzz\/campaigns/.test(r.url()),
       { timeout: 30_000 }
