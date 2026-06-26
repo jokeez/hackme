@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Strip Cursor co-author / attribution trailers before commit is recorded.
+set -euo pipefail
+msgfile="${1:?}"
+[[ -f "$msgfile" ]] || exit 0
+tmp="$(mktemp)"
+grep -viE '^(Co-authored-by:.*cursor|Made-with:.*cursor)' "$msgfile" >"$tmp" || true
+mv "$tmp" "$msgfile"
+exit 0

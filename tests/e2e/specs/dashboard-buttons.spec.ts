@@ -91,7 +91,12 @@ test.describe('Dashboard UI buttons and API wiring', () => {
 
     await page.fill('#admin-token-input', ADMIN);
     await page.click('#btn-admin-token-save');
+    const listResp = page.waitForResponse(
+      (r) => r.request().method() === 'GET' && /\/api\/fuzz\/campaigns/.test(r.url()) && r.ok(),
+      { timeout: 20_000 }
+    );
     await page.click('#tab-bar .tab-btn[data-tab="fuzz"]');
+    await listResp;
     const row = page.locator(`#fuzz-campaign-rows tr[data-campaign-id="${cid}"]`);
     await expect(row).toBeVisible({ timeout: 20_000 });
     await row.click();

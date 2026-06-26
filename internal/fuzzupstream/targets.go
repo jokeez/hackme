@@ -10,12 +10,12 @@ import (
 
 // Manifest is upstream/oss_cve_targets.json.
 type Manifest struct {
-	Updated  string   `json:"updated"`
-	Note     string   `json:"note"`
-	Defaults Defaults `json:"defaults"`
-	Seeds    []string   `json:"seeds"`
-	Targets  []Target   `json:"targets"`
-	Rotation *Rotation  `json:"rotation,omitempty"`
+	Updated  string    `json:"updated"`
+	Note     string    `json:"note"`
+	Defaults Defaults  `json:"defaults"`
+	Seeds    []string  `json:"seeds"`
+	Targets  []Target  `json:"targets"`
+	Rotation *Rotation `json:"rotation,omitempty"`
 }
 
 // Rotation config for nightly target selection.
