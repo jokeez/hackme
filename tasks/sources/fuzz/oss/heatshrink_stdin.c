@@ -10,15 +10,19 @@ int main(void) {
 	if (n == 0) {
 		return 0;
 	}
-	heatshrink_decoder hsd;
-	heatshrink_decoder_reset(&hsd);
+	/* HEATSHRINK_DYNAMIC_ALLOC=1: stack struct is too small (flexible buffers[]). */
+	heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 8, 4);
+	if (hsd == NULL) {
+		return 0;
+	}
 	size_t in_sz = n;
 	size_t out_sz = sizeof(outbuf);
 	size_t sunk = 0;
-	(void)heatshrink_decoder_sink(&hsd, inbuf, in_sz, &sunk);
+	(void)heatshrink_decoder_sink(hsd, inbuf, in_sz, &sunk);
 	out_sz = sizeof(outbuf);
 	size_t polled = 0;
-	(void)heatshrink_decoder_poll(&hsd, outbuf, out_sz, &polled);
-	(void)heatshrink_decoder_finish(&hsd);
+	(void)heatshrink_decoder_poll(hsd, outbuf, out_sz, &polled);
+	(void)heatshrink_decoder_finish(hsd);
+	heatshrink_decoder_free(hsd);
 	return 0;
 }

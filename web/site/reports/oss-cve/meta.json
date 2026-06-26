@@ -1,18 +1,18 @@
 {
-  "verdict": "CVE_CANDIDATE",
-  "summary": "HOLD \u2014 native CVE candidate(s). Responsible disclosure required before publish.",
-  "cve_candidates": [
-    "libucl",
-    "cfgpack"
-  ],
+  "verdict": "CLEAN",
+  "summary": "Wave 10 clean after heatshrink driver fix (false positive triaged). Wave 11 running.",
+  "cve_candidates": [],
   "clean_targets": [
-    "cyaml",
-    "tomlc17",
+    "jsmn",
+    "inih",
+    "cjson",
+    "tomlc99",
     "parsello",
     "cj5",
-    "libconfini",
-    "inih",
-    "sheredom"
+    "cmp",
+    "uriparser",
+    "heatshrink"
   ],
-  "publish_allowed": false
+  "publish_allowed": true,
+  "notes": "heatshrink: stack alloc bug in fuzz driver (fixed 2026-06-27), not upstream CVE"
 }
