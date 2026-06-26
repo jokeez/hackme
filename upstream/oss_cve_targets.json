@@ -624,10 +624,53 @@
       "cwe": ["CWE-125", "CWE-787"],
       "priority": 1,
       "build_flags": ["-w"]
+    },
+    {
+      "id": "cmp",
+      "repo": "https://github.com/camgunz/cmp",
+      "ref": "master",
+      "title": "camgunz/cmp · msgpack read_object",
+      "driver": "cmp_stdin",
+      "upstream_src": ["cmp.c"],
+      "include_dirs": ["."],
+      "wasm_guard": "cfgpack_msgpack_guard",
+      "cwe": ["CWE-125", "CWE-787"],
+      "priority": 1,
+      "build_flags": ["-w"]
+    },
+    {
+      "id": "uriparser",
+      "repo": "https://github.com/uriparser/uriparser",
+      "ref": "master",
+      "title": "uriparser/uriparser · uriParseSingleUriA",
+      "driver": "uriparser_stdin",
+      "upstream_src": [
+        "src/UriCommon.c", "src/UriMemory.c", "src/UriParse.c", "src/UriParseBase.c",
+        "src/UriNormalize.c", "src/UriNormalizeBase.c", "src/UriEscape.c",
+        "src/UriIp4.c", "src/UriIp4Base.c"
+      ],
+      "include_dirs": ["include", "src"],
+      "wasm_guard": "expat_xml_guard",
+      "cwe": ["CWE-125", "CWE-787"],
+      "priority": 1,
+      "build_flags": ["-DURI_STATIC_BUILD", "-w"]
+    },
+    {
+      "id": "heatshrink",
+      "repo": "https://github.com/atomicobject/heatshrink",
+      "ref": "master",
+      "title": "atomicobject/heatshrink · heatshrink_decoder",
+      "driver": "heatshrink_stdin",
+      "upstream_src": ["heatshrink_decoder.c"],
+      "include_dirs": ["."],
+      "wasm_guard": "expat_xml_guard",
+      "cwe": ["CWE-125", "CWE-787"],
+      "priority": 1,
+      "build_flags": ["-w"]
     }
   ],
   "rotation": {
     "note": "nightly picks 2 targets by day-of-year mod queue length",
-    "queue": ["cmark", "oniguruma", "miniz", "json-c", "duktape", "libxml2", "nghttp2", "libyaml", "pcre2", "quickjs", "lua", "zlib", "yajl", "expat", "jansson", "yyjson", "md4c", "cjson"]
+    "queue": ["jsmn", "inih", "cjson", "tomlc99", "parsello", "cj5", "cmp", "uriparser", "heatshrink", "centijson", "cfgpack", "libucl"]
   }
 }

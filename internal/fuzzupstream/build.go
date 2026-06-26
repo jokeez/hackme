@@ -156,6 +156,9 @@ func injectOSSCveBuildStubs(repoRoot, targetID, clonePath string) error {
 			return err
 		}
 		return copyStub(filepath.Join(cfgDir, "xmlversion.h"), filepath.Join(clonePath, "include", "libxml", "xmlversion.h"))
+	case "uriparser":
+		src := filepath.Join(repoRoot, "tasks", "sources", "fuzz", "oss", "uriparser-config", "UriConfig.h")
+		return copyStub(src, filepath.Join(clonePath, "src", "UriConfig.h"))
 	case "duktape":
 		if _, err := os.Stat(filepath.Join(clonePath, "src", "duktape.c")); err == nil {
 			return nil
