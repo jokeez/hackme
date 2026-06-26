@@ -5,6 +5,11 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 OUT="${1:-${ROOT}/dist/workerpoh-opencl.exe}"
 mkdir -p "$(dirname "$OUT")"
 
+if [[ -s "$OUT" ]]; then
+  echo "[opencl-win] skip build — existing $(ls -lh "$OUT" | awk '{print $5}') $OUT"
+  exit 0
+fi
+
 build_host_mingw() {
   if ! command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
     return 1
@@ -23,8 +28,12 @@ build_host_mingw() {
 }
 
 build_docker() {
-  echo "[opencl-win] docker build (mingw + OpenCL headers)"
-  docker build -f "${ROOT}/scripts/release/windows/Dockerfile.opencl-mingw" -t hackme-opencl-mingw "$ROOT"
+  if docker image inspect hackme-opencl-mingw >/dev/null 2>&1; then
+    echo "[opencl-win] reuse image hackme-opencl-mingw"
+  else
+    echo "[opencl-win] docker build (mingw + OpenCL headers)"
+    docker build -f "${ROOT}/scripts/release/windows/Dockerfile.opencl-mingw" -t hackme-opencl-mingw "$ROOT"
+  fi
   cid="$(docker create hackme-opencl-mingw)"
   docker cp "${cid}:/out/workerpoh-opencl.exe" "$OUT"
   docker rm -f "${cid}" >/dev/null

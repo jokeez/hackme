@@ -1,8 +1,8 @@
 (() => {
   /** Bump with scripts/release/CURRENT_VERSION, dist/release_<VERSION>/, main.go Version */
-  const RELEASE_VER = "0.1.0-rc11o";
+  const RELEASE_VER = "0.1.0-rc11p";
   /** HackMe OS ISO — aligned with Win/Linux channel (scripts/release/CURRENT_ISO_VERSION). */
-  const ISO_CHANNEL = "0.1.0-rc11o";
+  const ISO_CHANNEL = "0.1.0-rc11p";
 
   /** Sub-1 TH/s → GH/s (matches dashboard / explorer pool strip). */
   function fmtPoolHashrateTHS(ths, mock) {

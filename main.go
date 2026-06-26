@@ -55,7 +55,7 @@ var embeddedFaviconICO []byte
 
 // Build metadata (overridden by -ldflags in release builds).
 var (
-	Version   = "0.1.0-rc11o"
+	Version   = "0.1.0-rc11p"
 	Commit    = "nogit"
 	BuildDate = "unknown"
 )
@@ -1035,11 +1035,15 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	// Keep dashboard telemetry responsive: local chain DB can be huge (80k+ blocks, multi-GB WAL).
+	mctx, mcancel := context.WithTimeout(r.Context(), 4*time.Second)
+	defer mcancel()
+
 	s := collector.snapshot()
-	if h, _, err := a.chain.Tip(r.Context()); err == nil {
+	if h, _, err := a.chain.Tip(mctx); err == nil {
 		s.BlockHeight = h
 	}
-	if ec, err := a.chain.Economics(r.Context()); err == nil {
+	if ec, err := a.chain.Economics(mctx); err == nil {
 		s.EconMaxSupplyHMC = ec.MaxSupplyHMC
 		s.EconMintedHMC = ec.TotalMinted
 		s.EconBurnedHMC = ec.TotalBurned
@@ -1064,14 +1068,14 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	s.MiningLastMod997 = ms.LastEvalMod
 	s.MiningSessionSolves = ms.SessionSolves
 	s.MiningTargetMod = ms.TargetMod
-	if tm, err := a.chain.PoHTargetMod(r.Context()); err == nil && tm > 0 {
+	if tm, err := a.chain.PoHTargetMod(mctx); err == nil && tm > 0 {
 		s.MiningTargetMod = tm
 	}
 	s.MiningTargetModCap = chain.PoHTargetMaxMod
 	s.MiningTargetModAtCap = chain.IsPoHTargetModAtCap(ms.TargetMod)
 	s.MiningRewardHMC = ms.RewardHMC
 	if ms.TaskSource != chain.TaskSourceOrder {
-		if rw, err := a.chain.BaseRewardForNextBlock(r.Context()); err == nil {
+		if rw, err := a.chain.BaseRewardForNextBlock(mctx); err == nil {
 			s.MiningRewardHMC = rw
 		}
 	}
@@ -1104,7 +1108,7 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		alias := a.loadGPUAlias(r.Context(), g.Backend, g.Index)
+		alias := a.loadGPUAlias(mctx, g.Backend, g.Index)
 		displayName := strings.TrimSpace(alias)
 		if displayName == "" {
 			displayName = strings.TrimSpace(g.Name)
@@ -1140,14 +1144,15 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		s.MiningLoad = -1
 	}
 
-	ctx := r.Context()
 	// Keep /api/metrics fast for dashboard telemetry (canonical overlay is best-effort).
-	overlayCtx, overlayCancel := context.WithTimeout(ctx, 2*time.Second)
+	overlayCtx, overlayCancel := context.WithTimeout(mctx, 2*time.Second)
 	canonMiningOverlay := a.overlayCanonicalMiningIntoSnapshot(overlayCtx, &s)
 	overlayCancel()
 
 	since1h := time.Now().Unix() - 3600
-	if rw, err := a.chain.RewardWindowBreakdownSince(ctx, since1h); err == nil {
+	// Pool follower with canonical overlay: skip full-table PoH window scan on local DB.
+	if ms.Running || !canonMiningOverlay {
+	if rw, err := a.chain.RewardWindowBreakdownSince(mctx, since1h); err == nil {
 		localHasChain := rw.Blocks > 0 || rw.TotalHMC > 1e-12
 		if localHasChain || !canonMiningOverlay {
 			s.EconWindowSec = 3600
@@ -1164,13 +1169,14 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 			s.MiningHmcLastHourApprox = rw.TotalHMC
 		}
 	}
+	}
 	s.MiningInsightNote = "ETA/progress: heuristic (M × eval/s). HMC/hour = PoH blocks on this chain in the window; wallet follows /api/wallet/*."
 	if canonMiningOverlay {
 		s.MiningInsightNote = "Chain economics from canonical when local tip is empty. " + s.MiningInsightNote
 	}
 	s.MiningTargetBlockSec = chain.PoHRetargetTargetSec
 	if s.MiningObservedBlockSec <= 0 {
-		if avgSec, err := a.chain.RecentPoHAvgBlockSec(ctx, int(chain.PoHRetargetWindowBlocks)*4); err == nil && avgSec > 0 {
+		if avgSec, err := a.chain.RecentPoHAvgBlockSec(mctx, int(chain.PoHRetargetWindowBlocks)*4); err == nil && avgSec > 0 {
 			s.MiningObservedBlockSec = avgSec
 		} else {
 			s.MiningObservedBlockSec = -1
@@ -1186,7 +1192,7 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		s.MiningEtaProgress = 0
 		s.MiningProjectedHmcHour = 0
 	}
-	a.fillMetricsFleetHashrate(ctx, &s)
+	a.fillMetricsFleetHashrate(mctx, &s)
 	a.overlayPoolWorkerMetrics(&s)
 	if s.PoolWorkerHashrateGHS > 0 {
 		s.PoolWorkerTelemetry = "coordinator"

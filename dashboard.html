@@ -1005,7 +1005,7 @@
 						<span id="hdr-ui-mode" class="hidden sm:inline text-[9px] px-2 py-0.5 rounded border border-white/20 text-gray-300 uppercase tracking-widest" title="UI rendering mode">ui: full</span>
 						<span class="hidden sm:inline text-[10px] px-2 py-0.5 rounded border border-neon/25 text-neon/90 bg-neon/5">WASM</span>
 						<span id="chain-id-pill" class="tag-pill text-matrix/90 border-matrix/30">hackme-dev-mainnet</span>
-						<span id="hdr-node-version" class="text-[9px] px-2 py-0.5 rounded border border-white/10 text-neon/80 font-mono max-w-[280px] truncate hidden sm:inline-block" title="Node version · commit · build date from /api/status">0.1.0-rc11o · …</span>
+						<span id="hdr-node-version" class="text-[9px] px-2 py-0.5 rounded border border-white/10 text-neon/80 font-mono max-w-[280px] truncate hidden sm:inline-block" title="Node version · commit · build date from /api/status">0.1.0-rc11p · …</span>
 					</div>
 					<div class="flex flex-wrap items-center gap-3 text-right text-[11px]">
 						<div class="flex items-center gap-2 rounded border border-warn/25 bg-black/40 px-2 py-1">
@@ -7327,6 +7327,12 @@
 			const nowSec = Number(sampleUnix || (latestWorkStats && latestWorkStats.now_unix) || 0);
 			const wid = String((row && row.id) || (row && row.worker_id) || '');
 			const attemptsNow = Number((row && row.attempts) || 0);
+			const runningWid = String((latestWorkerStatus && latestWorkerStatus.worker_id) || 'worker-kapa-pc');
+			if (wid && wid === runningWid && latestWorkerStatus && latestWorkerStatus.running) {
+				const meas = clampRigHashrateGHS(latestWorkerStatus.measured_hashrate_gh_s);
+				const coordGH = clampRigHashrateGHS((row && row.hashrate_gh_s) || (row && row.live && row.live.hashrate_gh_s));
+				if (meas > 0 && (coordGH < 1 || meas > coordGH * 1.2)) return meas;
+			}
 			if (wid && nowSec > 0 && attemptsNow >= 0) {
 				const prev = workerAttemptsPrevMap[wid];
 				if (prev && prev.ts > 0 && nowSec > prev.ts && attemptsNow >= prev.attempts) {

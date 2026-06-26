@@ -449,7 +449,21 @@ func smoothWorkerHashrateGHS(prev, sample float64) float64 {
 	if sample > prev*1.8 {
 		alpha = 0.55
 	}
+	// Fast recovery when EMA was stuck low but GPU reports high throughput again.
+	if sample > 5 && prev < sample*0.15 {
+		alpha = 0.82
+	}
 	return clampWorkerHashrateGHS(alpha*sample + (1-alpha)*prev)
+}
+
+// effectiveWorkerHashrateGHS uses peak when rolling EMA collapsed far below observed GPU peak.
+func effectiveWorkerHashrateGHS(st workerPayoutStat) float64 {
+	gh := clampWorkerHashrateGHS(st.LastHashrateGHS)
+	peak := clampWorkerHashrateGHS(st.PeakHashrateGHS)
+	if peak > 1 && gh < peak*0.25 {
+		return peak * 0.72
+	}
+	return gh
 }
 
 func poolMinerCountBoost(miners int) float64 {
@@ -637,6 +651,9 @@ func workerHashrateGHSForSubmit(reported float64, batch uint64, issuedAt, now in
 		// Fast GPU cycles (claim→submit <1s) legitimately report calibration GH/s above batch/wall.
 		if wallGH > 0 && wall >= 1.0 && rep > wallGH*2.5 {
 			return wallGH
+		}
+		if wallGH > 0 && wall < 1.0 && rep > wallGH {
+			return rep
 		}
 		return rep
 	}
@@ -835,8 +852,8 @@ func (m *workManager) workerRateLimitPerMin(workerID string, globalMax int) int 
 		gh = st.LastHashrateGHS
 		peak = st.PeakHashrateGHS
 	}
-	if peak > gh*1.5 {
-		gh = peak * 0.65
+	if peak > gh*1.15 {
+		gh = peak * 0.82
 	}
 	if gh <= 0 {
 		if globalMax <= 20 {
@@ -860,6 +877,10 @@ func (m *workManager) workerRateLimitPerMin(workerID string, globalMax int) int 
 	}
 	if lim > globalMax {
 		lim = globalMax
+	}
+	// Public pool runs with high global ceilings (e.g. 6000/min); never throttle a live GPU rig to 2/min.
+	if globalMax >= 120 && lim < 120 {
+		lim = 120
 	}
 	return lim
 }
@@ -1416,9 +1437,13 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		attempts = req.BatchSize
 	}
 	attempts = m.clampPaidAttempts(attempts, req.BatchSize)
-	rawGH := workerHashrateGHSForSubmit(req.HashrateGHS, req.BatchSize, rec.IssuedAt, now, m.worker[req.WorkerID].LastHashrateGHS)
+	reportedGH := clampWorkerHashrateGHS(req.HashrateGHS)
+	rawGH := workerHashrateGHSForSubmit(reportedGH, req.BatchSize, rec.IssuedAt, now, m.worker[req.WorkerID].LastHashrateGHS)
+	if reportedGH > rawGH {
+		rawGH = reportedGH
+	}
 	gh := smoothWorkerHashrateGHS(m.worker[req.WorkerID].LastHashrateGHS, rawGH)
-	if req.Found && clampWorkerHashrateGHS(req.HashrateGHS) <= 0 {
+	if req.Found && reportedGH <= 0 {
 		gh = 0
 	}
 	if gh > 0 {
@@ -1714,7 +1739,7 @@ func (m *workManager) poolOnlineSummaryUnlocked(staleSec, now int64) (poolGH flo
 		if st.LastSeenUnix <= 0 || (now-st.LastSeenUnix) > staleSec {
 			continue
 		}
-		gh := st.LastHashrateGHS
+		gh := effectiveWorkerHashrateGHS(st)
 		if gh > 0 {
 			poolGH += gh
 		}
@@ -1750,7 +1775,7 @@ func (m *workManager) poolHashrateFromWorkersUnlocked(now int64) float64 {
 		if st.LastSeenUnix <= 0 || (now-st.LastSeenUnix) > poolHashrateStaleSec {
 			continue
 		}
-		if gh := st.LastHashrateGHS; gh > 0 {
+		if gh := effectiveWorkerHashrateGHS(st); gh > 0 {
 			sum += gh
 		}
 	}
@@ -1925,6 +1950,8 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 		st.Online = online
 		if !online {
 			st.LastHashrateGHS = 0
+		} else {
+			st.LastHashrateGHS = effectiveWorkerHashrateGHS(st)
 		}
 		base := fleetBaseWorkerID(k)
 		workers[base] = mergeWorkerStat(workers[base], st)

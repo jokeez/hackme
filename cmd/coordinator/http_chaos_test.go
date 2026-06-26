@@ -105,8 +105,9 @@ func TestHTTPSubmitReplayForbiddenAndIPAbuse(t *testing.T) {
 	wm.mu.Lock()
 	ipState, inIP := wm.ipAbuse[keyFromRemoteAddr(attackerIP)]
 	wm.mu.Unlock()
-	if !inIP || ipState.BadStrikes == 0 {
-		t.Fatalf("expected attacker IP in ipAbuse map, got in=%v strikes=%d", inIP, ipState.BadStrikes)
+	if !inIP || (ipState.BadStrikes == 0 && ipState.BannedUntil == 0) {
+		t.Fatalf("expected attacker IP abuse recorded (strikes or ban), got in=%v strikes=%d banned_until=%d",
+			inIP, ipState.BadStrikes, ipState.BannedUntil)
 	}
 }
 

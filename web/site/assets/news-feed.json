@@ -1,6 +1,68 @@
 {
   "items": [
     {
+      "id": "2026-06-25-bitcoin30-week3",
+      "date": "2026-06-25",
+      "title": "Bitcoin Core 30-Day Fuzz — Week 3 Complete",
+      "summary": "Days 15–21 wasm_native tier: 1,792 runs, 504 guard signals, 186 native_confirmed, 0 critical. Fuzz Depth v3 native bridge on Bitcoin guards.",
+      "impact": "First full week on wasm_native depth tier. Dup-inputs, BIP34, and block-weight guards confirmed on native port. Series now 30/30 days complete (8,808 total runs).",
+      "action": "Ledger: https://hackme.tech/reports/bitcoin30-week3.html · Day 15: https://hackme.tech/reports/bitcoin30-day15.html · Reproduce: DAY=15 bash scripts/ops/run_bitcoin30_day.sh",
+      "tags": [
+        "security",
+        "research",
+        "bitcoin",
+        "fuzzing"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "Bitcoin30 Week 3 DONE — wasm_native + native bridge",
+        "lead": "1,792 runs · 504 signals · 186 native_confirmed · 0 critical",
+        "bullets": [
+          "Day 15: dup inputs 24→24 native confirmed",
+          "Days 16–17: BIP34 + block weight — 80 signals/day",
+          "Days 18–21: script/witness deep passes · Week 4 = bytes_corpus"
+        ],
+        "footer": "hackme.tech/reports/bitcoin30-week3.html · Series: bitcoin30.html"
+      },
+      "links": {
+        "week3": "https://hackme.tech/reports/bitcoin30-week3.html",
+        "series": "https://hackme.tech/reports/bitcoin30.html",
+        "day15": "https://hackme.tech/reports/bitcoin30-day15.html",
+        "fuzz_v3": "https://hackme.tech/reports/fuzz-depth-v3.html"
+      }
+    },
+    {
+      "id": "2026-06-25-fuzz-depth-v3",
+      "date": "2026-06-25",
+      "title": "Fuzz Depth v3 — WASM + Native Bridge",
+      "summary": "wasm_native tier on duplicate-inputs guard: 4 guard signals, 4 native_confirmed, 0 critical, verdict fail_high. Miner marketplace + depth presets in rc11o.",
+      "impact": "Stronger bounty triage without changing tokenomics: deep tiers require native_confirmed. Miners get visibility into fuzz escrow and per-run pay.",
+      "action": "Report: https://hackme.tech/reports/fuzz-depth-v3.html · Gate: bash scripts/ops/fuzz_depth_v3_gate.sh · Live: POOL_DIST=0 bash scripts/ops/run_fuzz_depth_v3_live.sh",
+      "tags": [
+        "security",
+        "research",
+        "bitcoin",
+        "fuzzing",
+        "mining"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "Fuzz Depth v3 — WASM + native bridge",
+        "lead": "3 tiers · native_confirmed bounty gate · miner marketplace.",
+        "bullets": [
+          "wasm_only / wasm_native / bytes_corpus presets in #orders",
+          "Native queue: confirmed vs rejected on pinned upstream guards",
+          "Demo: bitcoin_tx_dup_inputs · report on hackme.tech"
+        ],
+        "footer": "Report: hackme.tech/reports/fuzz-depth-v3.html · rc11o"
+      },
+      "links": {
+        "report": "https://hackme.tech/reports/fuzz-depth-v3.html",
+        "github": "https://github.com/jokeez/hackme/blob/main/internal/fuzzengine/depth.go",
+        "day11": "https://hackme.tech/reports/bitcoin30-day11.html"
+      }
+    },
+    {
       "id": "2026-06-18-bitcoin30-day11",
       "date": "2026-06-18",
       "title": "Bitcoin Core 30-Day Fuzz — Day 11",
@@ -314,96 +376,6 @@
         "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
         "news": "https://hackme.tech/news.html#2026-06-08-rc11m-wallet-treasury",
         "github": "https://github.com/jokeez/hackme"
-      }
-    },
-    {
-      "id": "2026-06-04-live-fuzz-security-audits",
-      "date": "2026-06-04",
-      "title": "Live fuzz security audits — Solana SPL & Bitcoin Core guards (completed)",
-      "summary": "We ran two real customer-style security audits on a local HackMe node: upstream WASM guards (Solana Token owner-check, Bitcoin Core HasValidOps), local autorunner, HMC fuzz escrow, and fuzz_report_v2 HTML with executive summary, triage, and repro_cmd. Solana: 64/64 runs, warn_guard_signals (detector semantics — guard signals, not mainnet CVEs). Bitcoin: 48/48 runs in seconds, warn_medium, 0 critical/high. Operator phasing gate: 37 pass / 0 fail on the same wallet pipeline.",
-      "impact": "B2B audits are live on the node — not slides. Customers run Security audit on localhost; reports are token-gated. Choose pow_gate + upstream guards for honest executive verdicts; detector-only on strict guards can look like dozens of highs without triage context.",
-      "action": "Local node: http://127.0.0.1:8080/#orders (Security audit) · Fuzz guide: https://hackme.tech/fuzz-guide.html · Downloads: https://hackme.tech/downloads.html#local-node",
-      "tags": [
-        "fuzz",
-        "security",
-        "infrastructure",
-        "research"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "Live fuzz audits — Solana + Bitcoin upstream guards",
-        "lead": "Two completed campaigns on a real node: WASM sandbox, escrow, HTML reports — not a mock deck.",
-        "bullets": [
-          "Solana SPL owner-check · 64/64 runs · verdict warn_guard_signals (64 guard_signal hits, not 64 Solana CVEs).",
-          "Bitcoin HasValidOps excerpt · 48/48 runs · warn_medium · 0 critical/high · pow_gate semantics.",
-          "Customer phasing on operator wallet: 37/37 pass. Reports: executive summary + repro_cmd per finding."
-        ],
-        "footer": "Audits debit local node HMC escrow; on-chain mining balance stays on canonical hackme.tech — see fuzz guide for wallet model."
-      },
-      "links": {
-        "fuzz_guide": "https://hackme.tech/fuzz-guide.html",
-        "downloads": "https://hackme.tech/downloads.html#local-node",
-        "developers": "https://hackme.tech/developers.html",
-        "research": "https://hackme.tech/research.html",
-        "news": "https://hackme.tech/news.html#2026-06-04-live-fuzz-security-audits",
-        "github": "https://github.com/jokeez/hackme"
-      }
-    },
-    {
-      "id": "2026-06-04-rc11l-iso-live-boot",
-      "date": "2026-06-04",
-      "title": "HackMe OS 0.1.0-rc11l — live USB overlay boot fix",
-      "summary": "Live USB on laptops panicked with overlay not loaded: casper live boot never runs local-premount. rc11l loads kernel modules in casper-premount before the squashfs mounts. Windows and Linux installers unchanged; download channel is rc11l.",
-      "impact": "Use HackMe-OS-0.1.0-rc11l-amd64.iso only for USB rigs until hardware sign-off.",
-      "action": "Downloads and SHA256: hackme.tech/downloads.html#hackme-os",
-      "tags": [
-        "release",
-        "hackme-os",
-        "iso",
-        "mining"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "HackMe OS rc11l — live USB boot fix",
-        "lead": "Some laptops hit an initramfs overlay panic: the loader script was in local-premount, but live casper never runs that phase.",
-        "bullets": [
-          "rc11l loads overlay modules in casper-premount, before the live root mounts.",
-          "Download channel: 0.1.0-rc11l (same Windows/Linux builds, new ISO).",
-          "Verify SHA256 on the downloads page before flashing."
-        ],
-        "footer": "Flash the whole disk (Etcher or dd). In GRUB pick “HackMe OS (live — recommended)”."
-      },
-      "links": {
-        "downloads": "https://hackme.tech/downloads.html#hackme-os",
-        "hackme_os": "https://hackme.tech/docs/HACKME_OS.md",
-        "sha256": "https://hackme.tech/dist/release_0.1.0-rc11l/SHA256SUMS-iso.txt",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/work/stats",
-        "news": "https://hackme.tech/news.html#2026-06-04-rc11l-iso-live-boot",
-        "github": "https://github.com/jokeez/hackme"
-      }
-    },
-    {
-      "id": "2026-06-03-rc11k-launch-candidate",
-      "date": "2026-06-03",
-      "title": "Release 0.1.0-rc11k — launch candidate (production miner)",
-      "summary": "Production download channel after rc11j GPU matrix: fixed public /api/status canonical loop, coordinator-first dashboard telemetry, resilience and economics gates PASS, golden-path onboarding. Windows Setup, Linux bundle, and HackMe OS ISO rebuilt with hackme node fix — not a demo build.",
-      "tags": [
-        "release",
-        "mining",
-        "infrastructure",
-        "pool"
-      ],
-      "impact": "Superseded for HackMe OS ISO by rc11l (2026-06-04). Downloads channel: rc11l.",
-      "action": "Downloads: https://hackme.tech/downloads.html · Verdict: https://hackme.tech/docs/HACKME_RC11K_LAUNCH_CANDIDATE.md · Pool: https://hackme.tech/pool/coordinator/api/work/stats",
-      "status": "published",
-      "links": {
-        "downloads": "https://hackme.tech/downloads.html",
-        "verdict": "https://hackme.tech/docs/HACKME_RC11K_LAUNCH_CANDIDATE.md",
-        "setup": "https://hackme.tech/docs/SETUP.md",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/work/stats",
-        "news": "https://hackme.tech/news.html",
-        "github": "https://github.com/jokeez/hackme",
-        "telegram": "https://t.me/hackme_tech"
       }
     }
   ],

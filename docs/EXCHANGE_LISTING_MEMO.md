@@ -50,7 +50,7 @@ HackMe is **useful-compute infrastructure**: a native PoH chain (HMC), coordinat
 ## Technology transparency
 
 - Open source node, coordinator, worker binaries
-- Public operator checklist + release gates (rc11o)
+- Public operator checklist + release gates (rc11p)
 - Security research program (Bitcoin30 Week 1 public report)
 - Policy regression locks in Go (`economics_test.go`)
 
@@ -78,7 +78,7 @@ HackMe is **useful-compute infrastructure**: a native PoH chain (HMC), coordinat
 
 - Bitcointalk ANN topic 5583373
 - Telegram: @hackme_tech
-- GitHub releases: `0.1.0-rc11o`
+- GitHub releases: `0.1.0-rc11p`
 - MiningPoolStats: https://miningpoolstats.app/coins/HMC (live)
 
 ---
