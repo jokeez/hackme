@@ -261,13 +261,22 @@ func checkoutCloneRef(ctx context.Context, dest, ref string) error {
 	}
 	checkCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
-	fetch := exec.CommandContext(checkCtx, "git", "-C", dest, "fetch", "--depth", "1", "origin", "tag", ref)
-	_ = fetch.Run()
-	checkout := exec.CommandContext(checkCtx, "git", "-C", dest, "checkout", "--force", ref)
-	if err := checkout.Run(); err != nil {
-		return fmt.Errorf("git checkout %s in %s: %w", ref, dest, err)
+	refs := []string{ref}
+	if ref == "master" {
+		refs = append(refs, "main")
+	} else if ref == "main" {
+		refs = append(refs, "master")
 	}
-	return nil
+	for _, r := range refs {
+		_ = exec.CommandContext(checkCtx, "git", "-C", dest, "fetch", "--depth", "1", "origin", r).Run()
+		if exec.CommandContext(checkCtx, "git", "-C", dest, "checkout", "--force", r).Run() == nil {
+			return nil
+		}
+	}
+	if exec.CommandContext(checkCtx, "git", "-C", dest, "rev-parse", "HEAD").Run() == nil {
+		return nil
+	}
+	return fmt.Errorf("git checkout %s in %s: no valid ref", ref, dest)
 }
 
 func buildTimeout(t Target) time.Duration {

@@ -42,6 +42,9 @@ func main() {
 		fmt.Printf("CVE candidates: %v\n", rollup.CVECandidates)
 		for _, tr := range rollup.Targets {
 			for _, c := range tr.Crashes {
+				if !fuzzupstream.IsSecuritySanitizer(c.Sanitizer) {
+					continue
+				}
 				fmt.Printf("  [%s] %s input_len=%d iter=%d\n", c.TargetID, c.Sanitizer, c.InputLen, c.Iteration)
 			}
 		}

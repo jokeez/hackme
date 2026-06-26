@@ -160,7 +160,7 @@
     {
       "id": "sheredom",
       "repo": "https://github.com/sheredom/json.h",
-      "ref": "master",
+      "ref": "main",
       "title": "sheredom/json.h · json_parse",
       "driver": "sheredom_stdin",
       "upstream_src": [],
@@ -197,7 +197,7 @@
     {
       "id": "cyaml",
       "repo": "https://github.com/andrewmd5/cyaml",
-      "ref": "master",
+      "ref": "main",
       "title": "andrewmd5/cyaml · cyaml_parse",
       "driver": "cyaml_stdin",
       "upstream_src": ["src/cyaml.c", "src/cyaml_parser.c", "src/cyaml_emitter.c", "src/cyaml_events.c", "src/cyaml_json.c", "src/cyaml_modify.c", "src/cyaml_path.c", "src/cyaml_utf8.c"],
@@ -552,7 +552,7 @@
     {
       "id": "pcre2",
       "repo": "https://github.com/PCRE2Project/pcre2",
-      "ref": "master",
+      "ref": "main",
       "title": "PCRE2Project/pcre2 · pcre2_compile/match",
       "driver": "pcre2_stdin",
       "upstream_src": [
@@ -628,6 +628,6 @@
   ],
   "rotation": {
     "note": "nightly picks 2 targets by day-of-year mod queue length",
-    "queue": ["duktape", "libxml2", "nghttp2", "libyaml", "json-c", "pcre2", "quickjs", "lua", "zlib", "yajl", "cmark", "expat", "jansson", "yyjson", "md4c", "cjson"]
+    "queue": ["cmark", "oniguruma", "miniz", "json-c", "duktape", "libxml2", "nghttp2", "libyaml", "pcre2", "quickjs", "lua", "zlib", "yajl", "expat", "jansson", "yyjson", "md4c", "cjson"]
   }
 }

@@ -24,8 +24,16 @@ command -v clang >/dev/null || fail "clang required for OSS CVE hunt"
 mkdir -p "$OUT"
 log() { echo "[oss-cve $(date -u +%H:%M:%S)] $*"; }
 
-log "preflight: build OSS CVE pack (clone + compile drivers)"
-bash "$ROOT/scripts/ops/build_oss_cve_pack.sh" >>"$OUT/build.log" 2>&1
+if [[ "${SKIP_PACK_BUILD:-0}" == "1" ]]; then
+  if [[ -z "$TARGETS" || "$TARGETS" == "all" ]]; then
+    fail "SKIP_PACK_BUILD=1 requires explicit TARGETS=..."
+  fi
+  log "preflight: build selected targets ($TARGETS)"
+  TARGETS="$TARGETS" bash "$ROOT/scripts/ops/build_oss_cve_pack.sh" >>"$OUT/build.log" 2>&1
+else
+  log "preflight: build OSS CVE pack (clone + compile drivers)"
+  bash "$ROOT/scripts/ops/build_oss_cve_pack.sh" >>"$OUT/build.log" 2>&1
+fi
 
 ARGS=(-repo "$ROOT" -out "$OUT" -targets "$TARGETS")
 [[ "$BUDGET" -gt 0 ]] && ARGS+=(-budget "$BUDGET")

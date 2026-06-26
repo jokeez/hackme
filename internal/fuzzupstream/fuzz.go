@@ -72,6 +72,21 @@ func detectSanitizer(blob string) string {
 	return ""
 }
 
+func IsSecuritySanitizer(san string) bool {
+	if san == "" {
+		return false
+	}
+	if strings.Contains(san, "UndefinedBehaviorSanitizer") || strings.Contains(san, "runtime error:") {
+		return false
+	}
+	return strings.Contains(san, "AddressSanitizer") ||
+		strings.Contains(san, "heap-buffer-overflow") ||
+		strings.Contains(san, "stack-buffer-overflow") ||
+		strings.Contains(san, "use-after-free") ||
+		strings.Contains(san, "double-free") ||
+		strings.Contains(san, "SEGV on unknown address")
+}
+
 // Mutate applies 1–4 random mutations to a copy of input.
 func Mutate(input []byte, maxLen int, rnd []byte) []byte {
 	if maxLen <= 0 {
@@ -206,9 +221,18 @@ func Hunt(ctx context.Context, repoRoot string, t Target, binPath string, seeds 
 		rep.Crashes = append(rep.Crashes, cf)
 	}
 	rep.ElapsedSec = time.Since(start).Seconds()
-	if len(rep.Crashes) > 0 {
+	sec := 0
+	for _, c := range rep.Crashes {
+		if IsSecuritySanitizer(c.Sanitizer) {
+			sec++
+		}
+	}
+	switch {
+	case sec > 0:
 		rep.Verdict = "CVE_CANDIDATE"
-	} else {
+	case len(rep.Crashes) > 0:
+		rep.Verdict = "INFORMATIONAL"
+	default:
 		rep.Verdict = "CLEAN"
 	}
 	return rep, nil

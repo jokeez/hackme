@@ -91,9 +91,11 @@ func RunHunt(ctx context.Context, opts HuntOptions) (rollup *RollupReport, err e
 		b, _ := json.MarshalIndent(rep, "", "  ")
 		_ = os.WriteFile(targetPath, append(b, '\n'), 0o644)
 		rollup.Targets = append(rollup.Targets, *rep)
-		if len(rep.Crashes) > 0 {
+		if rep.Verdict == "CVE_CANDIDATE" {
 			rollup.Verdict = "CVE_CANDIDATE"
 			rollup.CVECandidates = append(rollup.CVECandidates, t.ID)
+		} else if rep.Verdict == "INFORMATIONAL" {
+			rollup.InformationalTargets = append(rollup.InformationalTargets, t.ID)
 		} else {
 			rollup.CleanTargets = append(rollup.CleanTargets, t.ID)
 		}
@@ -101,6 +103,8 @@ func RunHunt(ctx context.Context, opts HuntOptions) (rollup *RollupReport, err e
 	rollup.FinishedAt = time.Now().UTC().Format(time.RFC3339)
 	if rollup.Verdict == "CVE_CANDIDATE" {
 		rollup.Summary = "HOLD — native CVE candidate(s). Responsible disclosure required before publish."
+	} else if len(rollup.InformationalTargets) > 0 {
+		rollup.Summary = "INFORMATIONAL — UBSan-only findings (not CVE-class). See per-target reports."
 	} else {
 		rollup.Summary = "CLEAN — no ASAN crash in budget. Publish as methodology case study."
 	}
@@ -111,15 +115,16 @@ func RunHunt(ctx context.Context, opts HuntOptions) (rollup *RollupReport, err e
 
 // RollupReport aggregates multi-target hunt.
 type RollupReport struct {
-	StartedAt     string       `json:"started_at"`
-	FinishedAt    string       `json:"finished_at"`
-	OutDir        string       `json:"out_dir"`
-	Verdict       string       `json:"verdict"`
-	Summary       string       `json:"summary"`
-	CVECandidates []string     `json:"cve_candidates,omitempty"`
-	CleanTargets  []string     `json:"clean_targets,omitempty"`
-	BuildErrors   []string     `json:"build_errors,omitempty"`
-	Targets       []HuntReport `json:"targets"`
+	StartedAt            string       `json:"started_at"`
+	FinishedAt           string       `json:"finished_at"`
+	OutDir               string       `json:"out_dir"`
+	Verdict              string       `json:"verdict"`
+	Summary              string       `json:"summary"`
+	CVECandidates        []string     `json:"cve_candidates,omitempty"`
+	InformationalTargets []string     `json:"informational_targets,omitempty"`
+	CleanTargets         []string     `json:"clean_targets,omitempty"`
+	BuildErrors          []string     `json:"build_errors,omitempty"`
+	Targets              []HuntReport `json:"targets"`
 }
 
 func selectTargets(m *Manifest, opts HuntOptions) []Target {
