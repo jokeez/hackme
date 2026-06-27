@@ -1152,23 +1152,23 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	since1h := time.Now().Unix() - 3600
 	// Pool follower with canonical overlay: skip full-table PoH window scan on local DB.
 	if ms.Running || !canonMiningOverlay {
-	if rw, err := a.chain.RewardWindowBreakdownSince(mctx, since1h); err == nil {
-		localHasChain := rw.Blocks > 0 || rw.TotalHMC > 1e-12
-		if localHasChain || !canonMiningOverlay {
-			s.EconWindowSec = 3600
-			s.EconWindowBlocks = rw.Blocks
-			s.EconWindowBaseBlocks = rw.BaseBlocks
-			s.EconWindowOrderBlocks = rw.OrderBlocks
-			s.EconWindowBaseHMC = rw.BaseHMC
-			s.EconWindowOrderHMC = rw.OrderHMC
-			s.EconWindowTotalHMC = rw.TotalHMC
-			if rw.TotalHMC > 1e-12 {
-				s.EconWindowOrderShare = 100 * rw.OrderHMC / rw.TotalHMC
+		if rw, err := a.chain.RewardWindowBreakdownSince(mctx, since1h); err == nil {
+			localHasChain := rw.Blocks > 0 || rw.TotalHMC > 1e-12
+			if localHasChain || !canonMiningOverlay {
+				s.EconWindowSec = 3600
+				s.EconWindowBlocks = rw.Blocks
+				s.EconWindowBaseBlocks = rw.BaseBlocks
+				s.EconWindowOrderBlocks = rw.OrderBlocks
+				s.EconWindowBaseHMC = rw.BaseHMC
+				s.EconWindowOrderHMC = rw.OrderHMC
+				s.EconWindowTotalHMC = rw.TotalHMC
+				if rw.TotalHMC > 1e-12 {
+					s.EconWindowOrderShare = 100 * rw.OrderHMC / rw.TotalHMC
+				}
+				s.MiningPohBlocksLast1h = rw.Blocks
+				s.MiningHmcLastHourApprox = rw.TotalHMC
 			}
-			s.MiningPohBlocksLast1h = rw.Blocks
-			s.MiningHmcLastHourApprox = rw.TotalHMC
 		}
-	}
 	}
 	s.MiningInsightNote = "ETA/progress: heuristic (M × eval/s). HMC/hour = PoH blocks on this chain in the window; wallet follows /api/wallet/*."
 	if canonMiningOverlay {
