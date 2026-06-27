@@ -1,15 +1,17 @@
-# HackMe 0.1.0-rc11p — current download channel
+# HackMe 0.1.0-rc11p — superseded by rc11q
 
-**Status:** **LIVE** on [hackme.tech/downloads.html](https://hackme.tech/downloads.html) — Win/Linux + fuzz CLI; pool metrics and coordinator fixes.
+> **Current channel:** [HACKME_RC11Q.md](HACKME_RC11Q.md) · `0.1.0-rc11q` on [downloads](https://hackme.tech/downloads.html)
 
-## Artifacts
+**Status:** Superseded — kept for changelog reference.
+
+## Artifacts (historical)
 
 | Artifact | Channel | Notes |
 |----------|---------|-------|
 | Windows installer | **rc11p** | `HackMe-Setup-0.1.0-rc11p.exe` |
 | Linux tarball | **rc11p** | `hackme_0.1.0-rc11p_linux.tar.gz` |
 | Fuzz CLI | **rc11p** | `hackme-fuzzing-0.1.0-rc11p-*` |
-| HackMe OS ISO | **rc11o** (until rc11p ISO rebuild) | Same live-boot stack — [SHA256SUMS-iso.txt](https://hackme.tech/dist/release_0.1.0-rc11o/SHA256SUMS-iso.txt) |
+| HackMe OS ISO | **rc11o** | Pre-rc11q ISO channel |
 
 ## What changed vs rc11o
 

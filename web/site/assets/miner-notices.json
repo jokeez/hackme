@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "updated_unix": 1751068800,
+  "notices": [
+    {
+      "id": "2026-06-27-rc11q-settlement-banner",
+      "severity": "info",
+      "title": "Upgrade to HackMe 0.1.0-rc11q",
+      "body": "Settlement panel on the hub is fixed — unpaid HMC shows again without timeouts. Win, Linux, and HackMe OS ISO are all on rc11q now. Your pool accrual is safe; grab the fresh build when convenient.",
+      "link_url": "https://hackme.tech/downloads.html",
+      "link_label": "Download rc11q",
+      "dismiss_key": "rc11q-eco-banner",
+      "recommended_version": "0.1.0-rc11q",
+      "expires_unix": 1753660800
+    }
+  ]
+}

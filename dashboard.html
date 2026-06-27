@@ -1005,7 +1005,7 @@
 						<span id="hdr-ui-mode" class="hidden sm:inline text-[9px] px-2 py-0.5 rounded border border-white/20 text-gray-300 uppercase tracking-widest" title="UI rendering mode">ui: full</span>
 						<span class="hidden sm:inline text-[10px] px-2 py-0.5 rounded border border-neon/25 text-neon/90 bg-neon/5">WASM</span>
 						<span id="chain-id-pill" class="tag-pill text-matrix/90 border-matrix/30">hackme-dev-mainnet</span>
-						<span id="hdr-node-version" class="text-[9px] px-2 py-0.5 rounded border border-white/10 text-neon/80 font-mono max-w-[280px] truncate hidden sm:inline-block" title="Node version · commit · build date from /api/status">0.1.0-rc11p · …</span>
+						<span id="hdr-node-version" class="text-[9px] px-2 py-0.5 rounded border border-white/10 text-neon/80 font-mono max-w-[280px] truncate hidden sm:inline-block" title="Node version · commit · build date from /api/status">0.1.0-rc11q · …</span>
 					</div>
 					<div class="flex flex-wrap items-center gap-3 text-right text-[11px]">
 						<div class="flex items-center gap-2 rounded border border-warn/25 bg-black/40 px-2 py-1">
@@ -1097,6 +1097,18 @@
 							</div>
 						</div>
 					</section>
+					<div id="eco-miner-notice-banner" class="hidden rounded-lg border px-4 py-3 text-[11px] leading-relaxed" role="status" translate="no">
+						<div class="flex flex-wrap items-start justify-between gap-3">
+							<div class="min-w-0 flex-1">
+								<p class="font-display text-[10px] font-semibold uppercase tracking-[0.18em] mb-1" id="eco-miner-notice-title">Network notice</p>
+								<p id="eco-miner-notice-body" class="text-gray-200/95"></p>
+							</div>
+							<div class="flex flex-wrap items-center gap-2 shrink-0">
+								<a id="eco-miner-notice-link" href="https://hackme.tech/downloads.html" target="_blank" rel="noopener" class="hidden text-[10px] px-3 py-1.5 rounded border border-neon/40 text-neon hover:bg-neon/10 uppercase tracking-wider">Download</a>
+								<button type="button" id="eco-miner-notice-dismiss" class="text-[10px] px-2 py-1 rounded border border-white/15 text-gray-400 hover:text-gray-200 uppercase tracking-wider">Dismiss</button>
+							</div>
+						</div>
+					</div>
 					<div id="eco-kpi-strip" class="grid grid-cols-2 lg:grid-cols-4 gap-3" data-eco-preview="0">
 						<div class="eco-stat-pill">
 							<span id="eco-kpi-miners-label" class="text-[9px] uppercase tracking-[0.2em] text-gray-500">Active miners</span>
@@ -10034,6 +10046,59 @@
 			const st = latestStatus || {};
 			return !!(st.network_mode_active && String(st.pool_coordinator_url_effective || st.pool_coordinator_url || '').trim());
 		}
+		function refreshMinerNoticeBanner() {
+			const wrap = $('eco-miner-notice-banner');
+			const titleEl = $('eco-miner-notice-title');
+			const bodyEl = $('eco-miner-notice-body');
+			const linkEl = $('eco-miner-notice-link');
+			const dismissBtn = $('eco-miner-notice-dismiss');
+			if (!wrap || !bodyEl) return;
+			const st = latestStatus || {};
+			const nodeVer = String(st.version || '').trim();
+			fetch('/api/miner/notices', { cache: 'no-store' }).then(r => r.json()).then(doc => {
+				if (!doc || !doc.ok || !Array.isArray(doc.notices) || !doc.notices.length) {
+					wrap.classList.add('hidden');
+					return;
+				}
+				const n = doc.notices[0];
+				const dismissKey = String(n.dismiss_key || n.id || 'notice');
+				try {
+					if (localStorage.getItem('hackme_notice_dismiss:' + dismissKey) === '1') {
+						wrap.classList.add('hidden');
+						return;
+					}
+				} catch (_) {}
+				let tone = 'border-neon/35 bg-neon/[0.07]';
+				const sev = String(n.severity || 'info').toLowerCase();
+				if (sev === 'warn') tone = 'border-warn/45 bg-warn/[0.08]';
+				if (sev === 'critical') tone = 'border-danger/50 bg-danger/[0.10]';
+				wrap.className = 'rounded-lg border px-4 py-3 text-[11px] leading-relaxed ' + tone;
+				wrap.classList.remove('hidden');
+				if (titleEl) titleEl.textContent = String(n.title || 'Network notice');
+				let body = String(n.body || '');
+				if (nodeVer && n.recommended_version && nodeVer !== n.recommended_version) {
+					body += ' (running ' + nodeVer + ')';
+				}
+				bodyEl.textContent = body;
+				if (linkEl) {
+					const href = String(n.link_url || '').trim();
+					if (href) {
+						linkEl.href = href;
+						linkEl.textContent = String(n.link_label || 'Learn more');
+						linkEl.classList.remove('hidden');
+					} else {
+						linkEl.classList.add('hidden');
+					}
+				}
+				if (dismissBtn && !dismissBtn._bound) {
+					dismissBtn._bound = true;
+					dismissBtn.addEventListener('click', () => {
+						try { localStorage.setItem('hackme_notice_dismiss:' + dismissKey, '1'); } catch (_) {}
+						wrap.classList.add('hidden');
+					});
+				}
+			}).catch(() => { wrap.classList.add('hidden'); });
+		}
 		function refreshDesktopStatusBanner() {
 			const wrap = $('desktop-status-banner');
 			const title = $('desktop-status-banner-title');
@@ -10141,6 +10206,7 @@
 		function refreshOperatorHealth() {
 			updatePoolNetworkStrip();
 			refreshDesktopStatusBanner();
+			try { refreshMinerNoticeBanner(); } catch (_) {}
 			const statusLine = $('mining-pool-status-line');
 			const peerData = latestP2PPeers || {};
 			const peers = Array.isArray(peerData.peers) ? peerData.peers : [];

@@ -31,9 +31,8 @@ Commands: `hackme-show-wallet` · `hackme-os-status`
 
 ```bash
 export HACKME_RELEASE_POOL_MINER_TOKEN="$(cat .secrets/hackme_coordinator_worker_token)"
-VERSION=0.1.0-rc11p bash scripts/release/iso/build_hackme_miner_iso.sh
-# Published CDN ISO may still be rc11o until rebuild — see downloads page
-# Win/Linux channel: 0.1.0-rc11p — scripts/release/CURRENT_VERSION
+VERSION=0.1.0-rc11q bash scripts/release/iso/build_hackme_miner_iso.sh
+# Win/Linux + ISO channel: 0.1.0-rc11q — scripts/release/CURRENT_VERSION
 ```
 
 → `dist/release_<VERSION>/HackMe-OS-<VERSION>-amd64.iso`
@@ -41,7 +40,7 @@ VERSION=0.1.0-rc11p bash scripts/release/iso/build_hackme_miner_iso.sh
 ## Flash & boot
 
 ```bash
-sudo dd if=dist/release_0.1.0-rc11o/HackMe-OS-0.1.0-rc11o-amd64.iso of=/dev/sdX bs=4M status=progress conv=fsync
+sudo dd if=dist/release_0.1.0-rc11q/HackMe-OS-0.1.0-rc11q-amd64.iso of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
 Choose **HackMe OS (live · max performance)** in GRUB.
@@ -56,12 +55,10 @@ Choose **HackMe OS (live · max performance)** in GRUB.
 Before flashing, verify the file:
 
 ```bash
-bash scripts/tests/verify_hackme_iso.sh /path/to/HackMe-OS-0.1.0-rc11o-amd64.iso
+bash scripts/tests/verify_hackme_iso.sh /path/to/HackMe-OS-0.1.0-rc11q-amd64.iso
 ```
 
-Published SHA256: `https://hackme.tech/dist/release_0.1.0-rc11o/SHA256SUMS-iso.txt`  
-Official ISO SHA256: `81a1f1f180f72d1d56c29990e3a872ff1a9ecd0e0f3d141c5b49ad6cad30b0db`  
-Expected SHA256: see `SHA256SUMS-iso.txt` next to the ISO (~837 MiB). **Must** include initrd script `scripts/casper-premount/05-hackme-overlay-modules` (live USB never runs `local-premount`). Builds that only had `00-hackme-overlay-modules` under `local-premount` still panic with `/cow … overlay … no support found` on hardware. Always verify the sums file you downloaded.
+Published SHA256: `https://hackme.tech/dist/release_0.1.0-rc11q/SHA256SUMS-iso.txt`
 
 Re-flash with Balena Etcher (verify SHA256), boot **only** that USB, disable other OS entries in BIOS if needed.
 

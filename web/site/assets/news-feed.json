@@ -1,6 +1,55 @@
 {
   "items": [
     {
+      "id": "2026-06-27-rc11q-settlement-banner",
+      "date": "2026-06-27",
+      "title": "HackMe 0.1.0-rc11q — payouts visible again, updates without reinstall",
+      "summary": "The hub settlement panel stopped hanging. Win/Linux/ISO ship as one rc11q channel. Desktop miners get a live upgrade banner from the website — no new .exe just to read release notes.",
+      "impact": "If your Wallet tab showed a spinning settlement line while the pool kept accruing HMC, this build fixes that path. Public lite status now advertises sandbox lock + admin auth for auditors. Under the hood we carved ~800 lines out of main.go so security fixes ship faster.",
+      "action": "Download: https://hackme.tech/downloads.html · Verify SHA256 on the page · Pool: https://hackme.tech/pool/coordinator · Still on rc11p? You'll see a dismissible banner on Ecosystem.",
+      "tags": [
+        "release",
+        "mining",
+        "security",
+        "settlement",
+        "desktop"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "rc11q — settlement unblocked + live banner",
+        "lead": "Win/Linux/ISO 0.1.0-rc11q · hub payout API fixed · notices without rebuild",
+        "bullets": [
+          "Fix: /api/worker/settlement — no more infinite load on hackme.tech hub",
+          "New: Ecosystem banner pulls miner-notices.json (dismiss + download link)",
+          "ISO finally matches Win/Linux tag — one rc11q everywhere",
+          "Audit: GET /api/status?lite=1 shows sandbox_policy + admin_auth_enabled"
+        ],
+        "footer": "hackme.tech/downloads.html · @hackme_tech · Discord in bio"
+      },
+      "twitter": {
+        "thread": [
+          "HackMe 0.1.0-rc11q is live — settlement panel on the hub works again, and we can nudge you to upgrade without shipping a new installer just for copy.",
+          "What broke: /api/worker/settlement could time out while your pool accrual was fine. rc11q caches coordinator stats and stays inside an 8s budget.",
+          "What's new: Ecosystem tab reads miner-notices.json from hackme.tech — dismissible banner, download link, version check. Your HMC accrual was never lost; this is a client refresh.",
+          "Same tag everywhere: Win installer, Linux tarball, HackMe OS ISO — all 0.1.0-rc11q. Verify SHA256 on the downloads page before you flash USB.",
+          "Downloads → https://hackme.tech/downloads.html · Pool → https://hackme.tech/pool/coordinator"
+        ],
+        "single": "HackMe 0.1.0-rc11q: hub settlement fixed, live upgrade banner, ISO aligned with Win/Linux. https://hackme.tech/downloads.html"
+      },
+      "discord": {
+        "title": "Release 0.1.0-rc11q — settlement + live notices",
+        "body": "**TL;DR** — Payout panel on the public hub responds again. One download channel (Win/Linux/ISO). Ecosystem tab can show upgrade notices from the website.\n\n**Fixes**\n• `/api/worker/settlement` — cached work stats, no hub timeout\n• Lite status exposes `sandbox_policy` + `admin_auth_enabled` for audits\n\n**New**\n• Remote `miner-notices.json` → dismissible banner on Ecosystem\n• ISO channel bumped to **rc11q** (was rc11o on CDN)\n\n**Get it:** https://hackme.tech/downloads.html — check SHA256 before ISO flash.",
+        "ping": "@everyone optional — use #announcements"
+      },
+      "links": {
+        "downloads": "https://hackme.tech/downloads.html",
+        "pool": "https://hackme.tech/pool/coordinator",
+        "notices": "https://hackme.tech/assets/miner-notices.json",
+        "changelog": "https://hackme.tech/news.html#2026-06-27-rc11q-settlement-banner",
+        "github": "https://github.com/jokeez/hackme/releases"
+      }
+    },
+    {
       "id": "2026-06-27-rc11p-pool-metrics-security",
       "date": "2026-06-27",
       "title": "HackMe 0.1.0-rc11p — GPU pool hashrate + fast metrics",
@@ -373,38 +422,6 @@
         "wallet_docs": "https://hackme.tech/docs.html",
         "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
         "news": "https://hackme.tech/news.html#2026-06-09-rc11n-stability-payments",
-        "github": "https://github.com/jokeez/hackme"
-      }
-    },
-    {
-      "id": "2026-06-08-rc11m-wallet-treasury",
-      "date": "2026-06-08",
-      "title": "Release 0.1.0-rc11m — wallet treasury & canonical balance fix",
-      "summary": "Desktop wallet now shows your real on-chain HMC and SUP from hackme.tech (not stale local SQLite). Three-column treasury: on-chain · pool accrual · orders debit. Instant UI cache + background canonical sync. VPS node recovery when /api/address was timing out.",
-      "impact": "Miners with ~400 HMC on-chain were seeing ~15 HMC when the hub node hung — fixed. Refresh Wallet or reopen #wallet after update.",
-      "action": "Downloads: https://hackme.tech/downloads.html · Local dashboard: http://127.0.0.1:8080/#wallet · Explorer: https://hackme.tech/pool/explorer",
-      "tags": [
-        "release",
-        "wallet",
-        "mining",
-        "infrastructure"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "rc11m — wallet shows real on-chain balance",
-        "lead": "Desktop wallet treasury: on-chain HMC + SUP from canonical chain, pool accrual separate, orders use local ledger.",
-        "bullets": [
-          "Fix: hub node hang showed 15 HMC instead of 400+ on-chain — stale cache + canonical fetch restored.",
-          "Wallet UI: On-chain · Pool accrual · Orders debit columns; Refresh pulls hackme.tech.",
-          "Download channel 0.1.0-rc11m (Windows/Linux rebuilt with embedded dashboard)."
-        ],
-        "footer": "Your coins were never lost — display synced to canonical HMC-91fe… on hackme.tech."
-      },
-      "links": {
-        "downloads": "https://hackme.tech/downloads.html",
-        "wallet_docs": "https://hackme.tech/docs.html",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
-        "news": "https://hackme.tech/news.html#2026-06-08-rc11m-wallet-treasury",
         "github": "https://github.com/jokeez/hackme"
       }
     }
