@@ -221,6 +221,51 @@ func storeWorkStatsCache(ws map[string]any) {
 	workStatsCacheMu.Unlock()
 }
 
+// resolveCoordinatorWorkStats serves coordinator work stats cache-first (same strategy as /api/work/stats).
+// Returned stale is true when body came from cache older than workStatsCacheFreshSec.
+func (a *app) resolveCoordinatorWorkStats(ctx context.Context, base string, details bool) (ws map[string]any, stale bool, err error) {
+	base = strings.TrimRight(strings.TrimSpace(base), "/")
+	if base == "" {
+		return nil, false, fmt.Errorf("coordinator url is empty")
+	}
+	maxCacheAge := int64(workStatsCacheFreshSec)
+	if details {
+		maxCacheAge = 12
+	}
+	if cached, age, ok := copyCachedWorkStats(maxCacheAge); ok && cached != nil {
+		if age >= int64(workStatsCacheFreshSec) {
+			a.warmWorkStatsCacheAsync(base, details)
+		}
+		return cached, age > int64(workStatsCacheFreshSec), nil
+	}
+	if cached, _, ok := copyCachedWorkStats(workStatsCacheStaleMaxSec); ok && cached != nil {
+		a.warmWorkStatsCacheAsync(base, details)
+		return cached, true, nil
+	}
+	fetchTimeout := 4 * time.Second
+	if details {
+		fetchTimeout = 6 * time.Second
+	}
+	if deadline, ok := ctx.Deadline(); ok {
+		if rem := time.Until(deadline); rem > 0 && rem < fetchTimeout {
+			fetchTimeout = rem
+		}
+	}
+	coordCtx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
+	defer cancel()
+	ws, err = fetchCoordinatorWorkStats(coordCtx, base, details)
+	if err != nil {
+		if cached, _, ok := copyCachedWorkStats(workStatsCacheStaleMaxSec); ok && cached != nil {
+			a.warmWorkStatsCacheAsync(base, details)
+			return cached, true, nil
+		}
+		return nil, false, err
+	}
+	ensureCoordinatorWorkersMap(ws)
+	storeWorkStatsCache(ws)
+	return ws, false, nil
+}
+
 func invalidateWorkStatsCache() {
 	workStatsCacheMu.Lock()
 	workStatsCache = nil
@@ -1908,24 +1953,9 @@ func (a *app) handleWorkStats(w http.ResponseWriter, r *http.Request) {
 	}
 	coordCtx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 	defer cancel()
-	ws, err := fetchCoordinatorWorkStats(coordCtx, base, details)
+	ws, stale, err := a.resolveCoordinatorWorkStats(coordCtx, base, details)
 	if err != nil {
 		log.Printf("work/stats coordinator fallback: %v", err)
-		if cached, age, ok := copyCachedWorkStats(workStatsCacheStaleMaxSec); ok {
-			out := map[string]any{}
-			for k, v := range cached {
-				out[k] = v
-			}
-			ensureCoordinatorWorkersMap(out)
-			a.enrichWorkStatsDesktopWorker(out)
-			out["ok"] = true
-			out["source"] = base
-			out["stale"] = true
-			out["stale_reason"] = err.Error()
-			out["stale_sec"] = age
-			writeJSON(w, out)
-			return
-		}
 		writeJSON(w, map[string]any{
 			"ok":      false,
 			"reason":  "coordinator_unavailable",
@@ -1934,6 +1964,7 @@ func (a *app) handleWorkStats(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	_ = stale
 	ensureCoordinatorWorkersMap(ws)
 	workersMap := mapFromAny(ws["workers"])
 	workersCount := asUint64(ws["workers_count"])

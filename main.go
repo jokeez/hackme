@@ -389,6 +389,16 @@ func main() {
 		log.Fatalf("sqlite: %v", err)
 	}
 	defer db.Close()
+	store.StartWALMaintenance(context.Background(), absDBPath, db)
+	if wal := store.WALSizeBytes(absDBPath); wal >= store.WALCheckpointTruncateBytes {
+		cctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		if err := store.CheckpointTruncate(cctx, db); err != nil {
+			log.Printf("sqlite startup wal_checkpoint: %v (wal=%d bytes)", err, wal)
+		} else {
+			log.Printf("sqlite startup wal_checkpoint: wal %d -> %d bytes", wal, store.WALSizeBytes(absDBPath))
+		}
+		cancel()
+	}
 
 	signer, err := nodecrypto.LoadOrCreate(dataDir)
 	if err != nil {
@@ -1150,8 +1160,9 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	overlayCancel()
 
 	since1h := time.Now().Unix() - 3600
+	walHeavy := store.WALHeavyForMetrics(a.dbPath)
 	// Pool follower with canonical overlay: skip full-table PoH window scan on local DB.
-	if ms.Running || !canonMiningOverlay {
+	if !walHeavy && (ms.Running || !canonMiningOverlay) {
 		if rw, err := a.chain.RewardWindowBreakdownSince(mctx, since1h); err == nil {
 			localHasChain := rw.Blocks > 0 || rw.TotalHMC > 1e-12
 			if localHasChain || !canonMiningOverlay {
@@ -1175,7 +1186,7 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		s.MiningInsightNote = "Chain economics from canonical when local tip is empty. " + s.MiningInsightNote
 	}
 	s.MiningTargetBlockSec = chain.PoHRetargetTargetSec
-	if s.MiningObservedBlockSec <= 0 {
+	if !walHeavy && s.MiningObservedBlockSec <= 0 {
 		if avgSec, err := a.chain.RecentPoHAvgBlockSec(mctx, int(chain.PoHRetargetWindowBlocks)*4); err == nil && avgSec > 0 {
 			s.MiningObservedBlockSec = avgSec
 		} else {
@@ -2782,6 +2793,136 @@ func workerPayoutMapFromEnv() map[string]string {
 	return out
 }
 
+func canonicalSettlementStateURL() string {
+	if u := strings.TrimSpace(os.Getenv("HACKME_SETTLEMENT_CANONICAL_URL")); u != "" {
+		return u
+	}
+	return "https://hackme.tech/api/settlement/canonical.json"
+}
+
+func canonicalSettlementStateFile() string {
+	for _, key := range []string{"HACKME_SETTLEMENT_CANONICAL_FILE", "SETTLEMENT_CANONICAL_JSON"} {
+		if p := strings.TrimSpace(os.Getenv(key)); p != "" {
+			return p
+		}
+	}
+	for _, candidate := range []string{
+		filepath.Join(filepath.Dir(workerSettlementStatePath()), "settlement_canonical_public.json"),
+		func() string {
+			if dd := strings.TrimSpace(os.Getenv("HACKME_DATA_DIR")); dd != "" {
+				return filepath.Join(dd, "settlement_canonical_public.json")
+			}
+			return ""
+		}(),
+		filepath.Join("data", "settlement_canonical_public.json"),
+	} {
+		if candidate == "" || candidate == "." {
+			continue
+		}
+		if st, err := os.Stat(candidate); err == nil && !st.IsDir() {
+			return candidate
+		}
+	}
+	return ""
+}
+
+func readCanonicalSettlementStateFile(path string) (workerSettlementState, error) {
+	var out workerSettlementState
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return out, err
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return out, err
+	}
+	if out.Workers == nil {
+		out.Workers = map[string]workerSettlementStateEntry{}
+	}
+	return out, nil
+}
+
+var settlementCanonicalHTTPOnce sync.Once
+var settlementCanonicalHTTP *http.Client
+
+func settlementCanonicalHTTPClient() *http.Client {
+	settlementCanonicalHTTPOnce.Do(func() {
+		settlementCanonicalHTTP = &http.Client{
+			Timeout: 2 * time.Second,
+			Transport: &http.Transport{
+				Proxy:                 nil,
+				ForceAttemptHTTP2:     false,
+				TLSHandshakeTimeout:   3 * time.Second,
+				ResponseHeaderTimeout: 2 * time.Second,
+			},
+		}
+	})
+	return settlementCanonicalHTTP
+}
+
+func fetchCanonicalSettlementState(ctx context.Context) (workerSettlementState, error) {
+	if p := canonicalSettlementStateFile(); p != "" {
+		if out, err := readCanonicalSettlementStateFile(p); err == nil {
+			return out, nil
+		}
+	}
+	var out workerSettlementState
+	url := canonicalSettlementStateURL()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return out, err
+	}
+	resp, err := settlementCanonicalHTTPClient().Do(req)
+	if err != nil {
+		return out, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return out, fmt.Errorf("canonical settlement http %d", resp.StatusCode)
+	}
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return out, err
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return out, err
+	}
+	if out.Workers == nil {
+		out.Workers = map[string]workerSettlementStateEntry{}
+	}
+	return out, nil
+}
+
+func mergeCanonicalSettlementState(local *workerSettlementState, remote workerSettlementState) {
+	if local == nil {
+		return
+	}
+	if local.Workers == nil {
+		local.Workers = map[string]workerSettlementStateEntry{}
+	}
+	for wid, ent := range remote.Workers {
+		cur := local.Workers[wid]
+		if ent.SettledHMC > cur.SettledHMC {
+			cur.SettledHMC = ent.SettledHMC
+		}
+		if ent.SettledSUP > cur.SettledSUP {
+			cur.SettledSUP = ent.SettledSUP
+		}
+		if strings.TrimSpace(ent.PayoutAddress) != "" {
+			cur.PayoutAddress = ent.PayoutAddress
+		}
+		if strings.TrimSpace(ent.LastTxHash) != "" {
+			cur.LastTxHash = ent.LastTxHash
+		}
+		if ent.LastSettleUnix > cur.LastSettleUnix {
+			cur.LastSettleUnix = ent.LastSettleUnix
+		}
+		local.Workers[wid] = cur
+	}
+	if remote.Meta.LastForceUnix > local.Meta.LastForceUnix {
+		local.Meta.LastForceUnix = remote.Meta.LastForceUnix
+	}
+}
+
 func parseAnyFloat(v any) float64 {
 	switch t := v.(type) {
 	case float64:
@@ -2857,14 +2998,18 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
-	ws, err := fetchCoordinatorWorkStats(ctx, base, true)
-	if err != nil {
+	ws, statsStale, err := a.resolveCoordinatorWorkStats(ctx, base, true)
+	if err != nil || ws == nil {
+		msg := "coordinator_unavailable"
+		if err != nil {
+			msg = err.Error()
+		}
 		writeJSON(w, map[string]any{
 			"ok":      false,
 			"reason":  "coordinator_unavailable",
-			"message": err.Error(),
+			"message": msg,
 			"source":  base,
 		})
 		return
@@ -2877,12 +3022,20 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 			state.Workers = map[string]workerSettlementStateEntry{}
 		}
 	}
+	canonCtx, canonCancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+	if canon, err := fetchCanonicalSettlementState(canonCtx); err == nil {
+		mergeCanonicalSettlementState(&state, canon)
+	}
+	canonCancel()
 	ensureCoordinatorWorkersMap(ws)
 	if repairWorkerSettlementState(&state, coordinatorWorkersMap(ws)) {
-		if b, err := json.MarshalIndent(state, "", "  "); err == nil {
-			_ = os.MkdirAll(filepath.Dir(statePath), 0o700)
-			_ = os.WriteFile(statePath, b, 0o600)
-		}
+		stateCopy := state
+		go func() {
+			if b, err := json.MarshalIndent(stateCopy, "", "  "); err == nil {
+				_ = os.MkdirAll(filepath.Dir(statePath), 0o700)
+				_ = os.WriteFile(statePath, b, 0o600)
+			}
+		}()
 	}
 	workers := coordinatorWorkersMap(ws)
 	minSettleHMC, dailyForceIntervalSec, dailyMinSettleHMC := settlementWindowConfigNow()
@@ -3049,9 +3202,13 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		walletUnpaidSUP = parseAnyFloat(bd["unpaid_sup"])
 	}
 	supPolicy, _ := ws["sup_policy"].(map[string]any)
+	supNoteCtx, supNoteCancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
+	supNote := a.supSettlementNoteForAPI(supNoteCtx)
+	supNoteCancel()
 	writeJSON(w, map[string]any{
 		"ok":                                    true,
 		"source":                                base,
+		"coordinator_stats_stale":               statsStale,
 		"workers_count":                         len(workers),
 		"total_accrued_hmc":                     totalAccrued,
 		"total_settled_hmc":                     totalSettled,
@@ -3073,7 +3230,7 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		"coordinator_total_payout_sup":          parseAnyFloat(ws["total_payout_sup"]),
 		"sup_policy":                            supPolicy,
 		"min_settle_sup":                        minSettleSUP,
-		"sup_settlement_note":                   a.supSettlementNoteForAPI(ctx),
+		"sup_settlement_note":                   supNote,
 		"display_wallet_address":                displayWallet,
 		"desktop_worker_id":                     desktopWorkerID,
 		"coordinator_raw_payout_hmc":            desktopWorkerAccrued,
