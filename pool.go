@@ -1359,7 +1359,7 @@ func fetchCoordinatorWorkStats(ctx context.Context, base string, includeDetails 
 	}
 	req.Header.Set(coordinatorForwardHeader, "1")
 	if includeDetails {
-		if tok := coordinatorToken(); tok != "" {
+		if tok := coordinatorAdminToken(); tok != "" {
 			req.Header.Set("X-Hackme-Admin-Token", tok)
 		}
 	}

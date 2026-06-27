@@ -259,7 +259,7 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
-	ws, statsStale, err := a.resolveCoordinatorWorkStats(ctx, base, true)
+	ws, statsStale, err := a.resolveCoordinatorWorkStats(ctx, base, false)
 	if err != nil || ws == nil {
 		msg := "coordinator_unavailable"
 		if err != nil {
