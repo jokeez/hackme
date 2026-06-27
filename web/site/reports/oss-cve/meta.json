@@ -1,18 +1,10 @@
 {
   "verdict": "CLEAN",
-  "summary": "Wave 10 clean after heatshrink driver fix (false positive triaged). Wave 11 running.",
+  "summary": "Wave 10 clean; heatshrink triaged as fuzz-driver false positive (fixed 2026-06-27). HOLD: libucl, cfgpack, centijson, lua, quickjs.",
   "cve_candidates": [],
+  "hold_disclosure": ["libucl", "cfgpack", "centijson", "lua", "quickjs"],
   "clean_targets": [
-    "jsmn",
-    "inih",
-    "cjson",
-    "tomlc99",
-    "parsello",
-    "cj5",
-    "cmp",
-    "uriparser",
-    "heatshrink"
+    "jsmn", "inih", "cjson", "tomlc99", "parsello", "cj5", "cmp", "uriparser", "heatshrink"
   ],
-  "publish_allowed": true,
-  "notes": "heatshrink: stack alloc bug in fuzz driver (fixed 2026-06-27), not upstream CVE"
+  "publish_allowed": true
 }
