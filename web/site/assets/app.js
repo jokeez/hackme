@@ -2,7 +2,7 @@
   /** Bump with scripts/release/CURRENT_VERSION, dist/release_<VERSION>/, main.go Version */
   const RELEASE_VER = "0.1.0-rc11p";
   /** HackMe OS ISO — aligned with Win/Linux channel (scripts/release/CURRENT_ISO_VERSION). */
-  const ISO_CHANNEL = "0.1.0-rc11p";
+  const ISO_CHANNEL = "0.1.0-rc11o";
 
   /** Sub-1 TH/s → GH/s (matches dashboard / explorer pool strip). */
   function fmtPoolHashrateTHS(ths, mock) {
@@ -33,7 +33,7 @@
     newsUrl: "./news.html",
     newsFeed: "./assets/news.json",
     releaseChannel: RELEASE_VER,
-    releaseChannelNote: "rc11n — production final: SUP public economics, ISO aligned with Win/Linux",
+    releaseChannelNote: "rc11p — GPU pool hashrate, fast metrics, ISO aligned with Win/Linux",
     releaseBase: `/dist/release_${RELEASE_VER}`,
     windowsInstaller: `/dist/release_${RELEASE_VER}/HackMe-Setup-${RELEASE_VER}.exe`,
     windowsBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows_setup.zip`,
@@ -207,6 +207,8 @@
     const verLabel = CONFIG.releaseChannel || RELEASE_VER;
     if (verEl) verEl.textContent = verLabel;
     if (verMeta) verMeta.textContent = verLabel;
+    const contactsVer = document.getElementById("contacts-release-ver");
+    if (contactsVer) contactsVer.textContent = `release ${verLabel}`;
     void resolveHackMeOSIsoHref().then((isoHref) => {
       const isoBtn = document.getElementById("download-iso");
       const isoStat = document.getElementById("download-iso-status");

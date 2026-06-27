@@ -1322,6 +1322,11 @@ h4 { font-size: 1.02rem; }
   --social-icon-bg: rgba(247, 147, 26, 0.15);
 }
 .social-card--bitcointalk .social-card__icon { color: #f7931a; }
+.social-card--reddit {
+  border-color: rgba(255, 69, 0, 0.35);
+  background: linear-gradient(145deg, rgba(255, 69, 0, 0.08), rgba(15, 20, 28, 0.92));
+}
+.social-card--reddit .social-card__icon { color: #ff4500; }
 .social-card--telegram {
   --social-accent: #2aabee;
   --social-glow: rgba(42, 171, 238, 0.28);
