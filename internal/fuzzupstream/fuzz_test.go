@@ -22,6 +22,10 @@ func TestBuildAllTargets(t *testing.T) {
 		tgt := tgt
 		t.Run(tgt.ID, func(t *testing.T) {
 			t.Parallel()
+			driverSrc := filepath.Join(root, "tasks", "sources", "fuzz", "oss", tgt.Driver+".c")
+			if _, err := os.Stat(driverSrc); err != nil {
+				t.Skipf("driver not in repo: %s", tgt.Driver)
+			}
 			bin, clone, err := BuildTarget(ctx, root, tgt)
 			if err != nil {
 				t.Fatal(err)
