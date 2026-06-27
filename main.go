@@ -1929,6 +1929,8 @@ func (a *app) buildStatusLite(ctx context.Context) map[string]any {
 		"pool_coordinator_url_effective": coordEff,
 		"desktop_mode":                   envBool("HACKME_DESKTOP_MODE", false),
 		"status_lite":                    true,
+		"admin_auth_enabled":             adminAuthEnabled(),
+		"sandbox_policy":                 sandbox.Policy(),
 		"tip_sync_source":                "local_ledger",
 	}
 	has, h, tip, tipStale := a.chainTipForStatus(ctx)

@@ -163,7 +163,9 @@ if [[ "$SKIP_PUBLIC" != "1" ]]; then
     record "public_stats_details_auth" "fail" "stats?details=1 returned HTTP $pub_stats (expected 401/403)"
   fi
 
-  curl -fsS --max-time 25 "${PUBLIC_BASE}/api/status" >"$OUT/public_status.json" 2>/dev/null || echo '{}' >"$OUT/public_status.json"
+  curl -fsS --max-time 25 "${PUBLIC_BASE}/api/status" >"$OUT/public_status.json" 2>/dev/null \
+    || curl -fsS --max-time 15 "${PUBLIC_BASE}/api/status?lite=1" >"$OUT/public_status.json" 2>/dev/null \
+    || echo '{}' >"$OUT/public_status.json"
   if jq -e '.sandbox_policy.locked == true and .admin_auth_enabled == true' "$OUT/public_status.json" >/dev/null 2>&1; then
     record "public_sandbox_admin" "pass" "public node reports locked sandbox + admin auth"
   else
