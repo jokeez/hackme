@@ -107,7 +107,7 @@
       return;
     }
     const s = document.createElement("script");
-    s.src = "/assets/disclosure-ticker.js?v=20260627ticker";
+    s.src = "/assets/disclosure-ticker.js?v=20260627banner";
     s.defer = true;
     s.dataset.disclosureTicker = "1";
     document.body.appendChild(s);

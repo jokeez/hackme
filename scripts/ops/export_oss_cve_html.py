@@ -52,19 +52,37 @@ def main() -> int:
 </table>
 <p><a href="https://github.com/jokeez/hackme/blob/main/docs/OSS_CVE_HUNT.md">Methodology</a></p>
 </body></html>"""
-    (out / "index.html").write_text(html)
-    meta = {
-        "verdict": r.get("verdict"),
-        "summary": r.get("summary"),
-        "cve_candidates": r.get("cve_candidates", []),
-        "clean_targets": r.get("clean_targets", []),
-        "publish_allowed": not hold,
-    }
-    (out / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
     run_html = html.replace("</body></html>", "").replace(
         "<h1>OSS CVE Hunt — real upstream ASAN</h1>",
         "<h1>OSS CVE Hunt — latest run</h1><p><a href=\"./index.html\">← Case studies</a></p>",
     ) + "</body></html>"
+    meta = {
+        "verdict": r.get("verdict"),
+        "summary": r.get("summary"),
+        "cve_candidates": r.get("cve_candidates", []),
+        "informational_targets": r.get("informational_targets", []),
+        "clean_targets": r.get("clean_targets", []),
+        "hold_disclosure": ["centijson"],
+        "disclosed_closed": ["libucl", "cfgpack", "lua", "quickjs"],
+        "informational": ["mxml", "nghttp2", "duktape"],
+        "wave": report.name,
+        "started_at": r.get("started_at"),
+        "finished_at": r.get("finished_at"),
+        "publish_allowed": not hold,
+    }
+    existing_meta = out / "meta.json"
+    if existing_meta.is_file():
+        try:
+            prev = json.loads(existing_meta.read_text())
+            for k in ("hold_disclosure", "disclosed_closed", "informational"):
+                if k in prev:
+                    meta[k] = prev[k]
+            if r.get("informational_targets"):
+                info = list(dict.fromkeys(prev.get("informational", []) + r.get("informational_targets", [])))
+                meta["informational"] = info
+        except json.JSONDecodeError:
+            pass
+    (out / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
     (out / "latest-run.html").write_text(run_html)
     cases_script = root / "scripts" / "ops" / "export_oss_cve_cases.py"
     if cases_script.is_file():

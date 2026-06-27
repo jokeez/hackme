@@ -1,12 +1,33 @@
 {
   "verdict": "CLEAN",
-  "summary": "Wave 10 clean. heatshrink false positive (fixed). libucl/cfgpack disclosed (GitHub issues closed). lua/quickjs/mxml UBSan informational. WAL metrics fix 2026-06-27.",
+  "summary": "Wave 11 (2026-06-27): miniz/zlib/oniguruma/libxml2 clean. nghttp2/duktape UBSan informational. Wave 12 running: pcre2, picohttpparser, yajl, json-c, cmp, uriparser.",
   "cve_candidates": [],
-  "hold_disclosure": ["centijson"],
-  "disclosed_closed": ["libucl", "cfgpack", "lua", "quickjs"],
-  "informational": ["mxml"],
-  "clean_targets": [
-    "jsmn", "inih", "cjson", "tomlc99", "parsello", "cj5", "cmp", "uriparser", "heatshrink"
+  "informational_targets": [
+    "nghttp2",
+    "duktape"
   ],
+  "clean_targets": [
+    "miniz",
+    "oniguruma",
+    "zlib",
+    "libxml2"
+  ],
+  "hold_disclosure": [
+    "centijson"
+  ],
+  "disclosed_closed": [
+    "libucl",
+    "cfgpack",
+    "lua",
+    "quickjs"
+  ],
+  "informational": [
+    "mxml",
+    "nghttp2",
+    "duktape"
+  ],
+  "wave": "wave11-20260627T081617Z",
+  "started_at": "2026-06-27T08:17:17Z",
+  "finished_at": "2026-06-27T08:50:11Z",
   "publish_allowed": true
 }

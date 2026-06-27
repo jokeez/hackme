@@ -158,7 +158,7 @@ def hub_page(cases: list, labels: dict, meta: dict | None) -> str:
   <meta name="description" content="Real upstream Tier-D ASAN hunts. Coordinated disclosure pipeline — case status public, PoC after maintainer fix." />
   <link rel="canonical" href="https://hackme.tech/reports/oss-cve/" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-  <link rel="stylesheet" href="../../assets/styles.css?v=20260627ticker" />
+  <link rel="stylesheet" href="../../assets/styles.css?v=20260627banner" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
@@ -223,7 +223,7 @@ def hub_page(cases: list, labels: dict, meta: dict | None) -> str:
     <p class="muted">Ecosystem: mine · fuzz · research · explore.</p>
     <div class="footer-nav"></div>
   </footer>
-  <script src="../../assets/site-shell.js?v=20260627ticker"></script>
+  <script src="../../assets/site-shell.js?v=20260627banner"></script>
 </body>
 </html>"""
 

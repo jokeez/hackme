@@ -1464,81 +1464,69 @@ h4 { font-size: 1.02rem; }
   .nav-more-menu { right: auto; left: 0; }
 }
 
-/* Disclosure ticker — OSS CVE pipeline banner (pairs with disclosure-ticker.js) */
+/* Disclosure ticker — full-width rail below topbar (pairs with disclosure-ticker.js) */
 .disclosure-ticker {
   position: relative;
   z-index: 40;
-  overflow: hidden;
-  border-bottom: 1px solid rgba(77, 228, 255, 0.2);
-  background: linear-gradient(180deg, rgba(8, 14, 28, 0.98), rgba(6, 10, 18, 0.96));
-}
-.dt-aurora {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
+  border-bottom: 1px solid rgba(77, 228, 255, 0.14);
   background:
-    radial-gradient(ellipse 40% 120% at 8% 50%, rgba(77, 228, 255, 0.12), transparent 55%),
-    radial-gradient(ellipse 35% 100% at 92% 50%, rgba(167, 139, 250, 0.1), transparent 50%);
+    linear-gradient(180deg, rgba(6, 12, 24, 0.97) 0%, rgba(4, 8, 16, 0.98) 100%);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
-.dt-scanlines {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.04;
-  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255, 255, 255, 0.15) 2px, rgba(255, 255, 255, 0.15) 3px);
-}
-.dt-inner {
-  position: relative;
-  max-width: 1120px;
+.dt-shell {
+  max-width: 1180px;
   margin: 0 auto;
-  padding: 0.65rem 1.25rem 0.55rem;
+  padding: 0 1.2rem;
+}
+.dt-rail {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 0.85rem 1rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 0.85rem;
+  min-height: 4.25rem;
+  padding: 0.55rem 0 0.45rem;
 }
 .dt-live {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  align-self: center;
+  gap: 0.45rem;
   flex-shrink: 0;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(110, 255, 173, 0.35);
+  background: rgba(110, 255, 173, 0.06);
 }
 .dt-pulse {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: #6effad;
-  box-shadow: 0 0 10px #6effad;
-  animation: dt-pulse-beat 1.6s ease-in-out infinite;
+  box-shadow: 0 0 12px rgba(110, 255, 173, 0.85);
+  animation: dt-pulse-beat 1.8s ease-in-out infinite;
 }
 @keyframes dt-pulse-beat {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.55; transform: scale(0.85); }
+  50% { opacity: 0.5; transform: scale(0.82); }
 }
 .dt-live-label {
-  font-size: 0.62rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
+  font-family: "Space Grotesk", Inter, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
   color: #6effad;
 }
 .dt-stage {
   position: relative;
-  min-height: 2.4rem;
   min-width: 0;
-  overflow: hidden;
-}
-.dt-slide {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+}
+.dt-slide {
   width: 100%;
-  padding: 0.15rem 0;
-  border-left: 2px solid var(--dt-border, rgba(77, 228, 255, 0.45));
-  padding-left: 0.75rem;
-  background: linear-gradient(90deg, var(--dt-glow, rgba(77, 228, 255, 0.08)), transparent 70%);
   opacity: 0;
-  transform: translateY(6px);
-  transition: opacity 0.38s ease, transform 0.38s ease;
+  transform: translateY(8px);
+  transition: opacity 0.36s ease, transform 0.36s ease;
 }
 .dt-slide--active {
   opacity: 1;
@@ -1547,127 +1535,185 @@ h4 { font-size: 1.02rem; }
 .dt-slide--enter {
   position: absolute;
   inset: 0;
+  display: flex;
+  align-items: center;
   opacity: 0;
-  transform: translateY(8px);
+  transform: translateY(10px);
 }
 .dt-slide--exit {
   position: absolute;
   inset: 0;
-  opacity: 0;
-  transform: translateY(-6px);
-  transition: opacity 0.38s ease, transform 0.38s ease;
-}
-.dt-kind {
-  flex-shrink: 0;
-  font-size: 0.85rem;
-  color: var(--dt-accent, #4de4ff);
-  opacity: 0.9;
-}
-.dt-copy {
-  flex: 1;
-  min-width: 0;
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.35rem 0.65rem;
+  align-items: center;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.36s ease, transform 0.36s ease;
+}
+.dt-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  width: 100%;
+  padding: 0.7rem 0.95rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--dt-border, rgba(77, 228, 255, 0.28));
+  background:
+    linear-gradient(135deg, var(--dt-bg, rgba(77, 228, 255, 0.05)) 0%, rgba(0, 0, 0, 0.28) 55%, rgba(0, 0, 0, 0.15) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 28px rgba(0, 12, 32, 0.28);
+  position: relative;
+  overflow: hidden;
+}
+.dt-card-accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--dt-accent, #4de4ff), transparent);
+  box-shadow: 0 0 18px var(--dt-glow, rgba(77, 228, 255, 0.2));
+}
+.dt-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  padding-left: 0.35rem;
 }
 .dt-badge {
+  align-self: flex-start;
   font-size: 0.62rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--dt-accent, #4de4ff);
-  padding: 0.15rem 0.5rem;
-  border: 1px solid var(--dt-border, rgba(77, 228, 255, 0.4));
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--dt-border, rgba(77, 228, 255, 0.35));
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.22);
   white-space: nowrap;
+}
+.dt-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
 }
 .dt-title {
-  font-size: 0.88rem;
+  font-family: "Space Grotesk", Inter, sans-serif;
+  font-size: clamp(0.92rem, 1.6vw, 1.02rem);
   font-weight: 600;
-  color: #e8f4ff;
-  white-space: nowrap;
+  line-height: 1.25;
+  color: #eef6ff;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 18rem;
+  white-space: nowrap;
 }
 .dt-detail {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
   color: #8fa3b8;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .dt-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   flex-shrink: 0;
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--dt-accent, #4de4ff);
   text-decoration: none;
   white-space: nowrap;
-  padding: 0.35rem 0.65rem;
-  border-radius: 8px;
+  padding: 0.5rem 0.85rem;
+  border-radius: 0.65rem;
   border: 1px solid var(--dt-border, rgba(77, 228, 255, 0.35));
-  background: rgba(0, 0, 0, 0.2);
-  transition: background 0.15s;
+  background: rgba(0, 0, 0, 0.25);
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
 }
 .dt-cta:hover {
   background: rgba(77, 228, 255, 0.12);
+  border-color: var(--dt-accent, #4de4ff);
+  transform: translateY(-1px);
   text-decoration: none;
+}
+.dt-cta-arrow {
+  opacity: 0.85;
+  transition: transform 0.15s;
+}
+.dt-cta:hover .dt-cta-arrow {
+  transform: translateX(2px);
+}
+.dt-nav {
+  display: flex;
+  align-items: center;
+  align-self: center;
 }
 .dt-dots {
   display: flex;
-  gap: 0.3rem;
-  flex-shrink: 0;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 .dt-dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: rgba(143, 163, 184, 0.35);
+  background: rgba(143, 163, 184, 0.28);
   cursor: pointer;
-  transition: background 0.15s, transform 0.15s;
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 .dt-dot--on {
   background: var(--primary, #4de4ff);
-  transform: scale(1.25);
+  transform: scale(1.2);
+  box-shadow: 0 0 10px rgba(77, 228, 255, 0.55);
 }
 .dt-progress {
   height: 2px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0 0 2px 2px;
+  overflow: hidden;
 }
 .dt-progress-bar {
   display: block;
   height: 100%;
   width: 0;
-  background: linear-gradient(90deg, #4de4ff, #a78bfa);
-  animation: dt-progress-fill 6500ms linear forwards;
+  background: linear-gradient(90deg, #4de4ff, #a78bfa 70%, #ffc857);
+  animation: dt-progress-fill 7000ms linear forwards;
 }
 @keyframes dt-progress-fill {
   from { width: 0; }
   to { width: 100%; }
 }
-@media (max-width: 768px) {
-  .dt-inner {
-    grid-template-columns: auto 1fr;
-    grid-template-rows: auto auto;
+@media (max-width: 900px) {
+  .dt-rail {
+    grid-template-columns: auto minmax(0, 1fr);
+    min-height: auto;
+    padding: 0.5rem 0 0.4rem;
   }
-  .dt-dots {
+  .dt-nav {
     grid-column: 1 / -1;
     justify-content: center;
   }
-  .dt-title, .dt-detail {
-    max-width: 100%;
-    white-space: normal;
+  .dt-dots {
+    flex-direction: row;
+    gap: 0.4rem;
+  }
+  .dt-card {
+    grid-template-columns: 1fr;
+    padding: 0.65rem 0.85rem;
   }
   .dt-cta {
-    display: none;
+    justify-self: start;
   }
 }
-@media (max-width: 480px) {
-  .dt-inner { padding: 0.55rem 1rem; }
+@media (max-width: 560px) {
+  .dt-shell { padding: 0 1rem; }
+  .dt-live-label { display: none; }
   .dt-detail { display: none; }
+  .dt-title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .dt-cta span:first-child { max-width: 7rem; overflow: hidden; text-overflow: ellipsis; }
 }

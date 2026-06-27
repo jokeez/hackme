@@ -1,12 +1,21 @@
 {
-  "updated": "2026-06-27T12:00:00Z",
-  "interval_ms": 6500,
+  "updated": "2026-06-27T14:30:00Z",
+  "interval_ms": 7000,
   "slides": [
     {
       "kind": "hub",
-      "badge": "Live pipeline",
-      "title": "4 OSS cases tracked · 3 reported upstream",
-      "detail": "Tier-D ASAN · real clones · PoC after maintainer fix",
+      "badge": "Wave 11 · done",
+      "title": "zlib & libxml2 clean — 0 CVE",
+      "detail": "nghttp2/duktape UBSan only · not CVE-class",
+      "cta": "Latest run",
+      "href": "/reports/oss-cve/latest-run.html",
+      "accent": "success"
+    },
+    {
+      "kind": "hub",
+      "badge": "Wave 12 · running",
+      "title": "pcre2 · picohttp · yajl · json-c · cmp · uriparser",
+      "detail": "Tier-D ASAN · ~50k iter/target · est. 45–60 min",
       "cta": "OSS CVE hub",
       "href": "/reports/oss-cve/",
       "accent": "gold"
@@ -15,7 +24,7 @@
       "kind": "case",
       "badge": "Awaiting maintainer",
       "title": "mity/centijson",
-      "detail": "GitHub #13 · severity medium · coordinated disclosure",
+      "detail": "GitHub #13 · medium · coordinated disclosure",
       "cta": "Case page",
       "href": "/reports/oss-cve/cases/centijson.html",
       "accent": "medium"
@@ -23,8 +32,8 @@
     {
       "kind": "case",
       "badge": "Reported upstream",
-      "title": "vstakhov/libucl",
-      "detail": "GitHub #396 closed · UBSan teardown · not CVE-class",
+      "title": "vstakhov/libucl · #396 closed",
+      "detail": "UBSan teardown · not CVE-class",
       "cta": "Case page",
       "href": "/reports/oss-cve/cases/libucl.html",
       "accent": "cyan"
@@ -32,37 +41,19 @@
     {
       "kind": "case",
       "badge": "Reported upstream",
-      "title": "Arsievert/cfgpack",
-      "detail": "GitHub #2 closed · msgpack int64 UBSan · not CVE-class",
+      "title": "Arsievert/cfgpack · #2 closed",
+      "detail": "msgpack int64 UBSan · not CVE-class",
       "cta": "Case page",
       "href": "/reports/oss-cve/cases/cfgpack.html",
-      "accent": "cyan"
-    },
-    {
-      "kind": "case",
-      "badge": "Upstream wontfix",
-      "title": "michaelrsweet/mxml",
-      "detail": "GitHub #353 · informational · not CVE-class",
-      "cta": "Case page",
-      "href": "/reports/oss-cve/cases/mxml.html",
       "accent": "cyan"
     },
     {
       "kind": "b2b",
       "badge": "For teams",
       "title": "Security audits on your local node",
-      "detail": "fuzz_report_v2 HTML · CI gate · pool-distributed WASM fuzz",
-      "cta": "Developers & B2B",
+      "detail": "fuzz_report_v2 · CI gate · pool WASM fuzz",
+      "cta": "Developers",
       "href": "/developers.html",
-      "accent": "violet"
-    },
-    {
-      "kind": "b2b",
-      "badge": "Same engine",
-      "title": "OSS CVE hunts = your audit pipeline",
-      "detail": "Tier-D ASAN + guard sweeps — what we ship to upstream you can order",
-      "cta": "Download node",
-      "href": "/downloads.html#local-node",
       "accent": "violet"
     }
   ]
