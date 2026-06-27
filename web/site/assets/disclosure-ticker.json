@@ -1,0 +1,69 @@
+{
+  "updated": "2026-06-27T12:00:00Z",
+  "interval_ms": 6500,
+  "slides": [
+    {
+      "kind": "hub",
+      "badge": "Live pipeline",
+      "title": "4 OSS cases tracked · 3 reported upstream",
+      "detail": "Tier-D ASAN · real clones · PoC after maintainer fix",
+      "cta": "OSS CVE hub",
+      "href": "/reports/oss-cve/",
+      "accent": "gold"
+    },
+    {
+      "kind": "case",
+      "badge": "Awaiting maintainer",
+      "title": "mity/centijson",
+      "detail": "GitHub #13 · severity medium · coordinated disclosure",
+      "cta": "Case page",
+      "href": "/reports/oss-cve/cases/centijson.html",
+      "accent": "medium"
+    },
+    {
+      "kind": "case",
+      "badge": "Reported upstream",
+      "title": "vstakhov/libucl",
+      "detail": "GitHub #396 closed · UBSan teardown · not CVE-class",
+      "cta": "Case page",
+      "href": "/reports/oss-cve/cases/libucl.html",
+      "accent": "cyan"
+    },
+    {
+      "kind": "case",
+      "badge": "Reported upstream",
+      "title": "Arsievert/cfgpack",
+      "detail": "GitHub #2 closed · msgpack int64 UBSan · not CVE-class",
+      "cta": "Case page",
+      "href": "/reports/oss-cve/cases/cfgpack.html",
+      "accent": "cyan"
+    },
+    {
+      "kind": "case",
+      "badge": "Upstream wontfix",
+      "title": "michaelrsweet/mxml",
+      "detail": "GitHub #353 · informational · not CVE-class",
+      "cta": "Case page",
+      "href": "/reports/oss-cve/cases/mxml.html",
+      "accent": "cyan"
+    },
+    {
+      "kind": "b2b",
+      "badge": "For teams",
+      "title": "Security audits on your local node",
+      "detail": "fuzz_report_v2 HTML · CI gate · pool-distributed WASM fuzz",
+      "cta": "Developers & B2B",
+      "href": "/developers.html",
+      "accent": "violet"
+    },
+    {
+      "kind": "b2b",
+      "badge": "Same engine",
+      "title": "OSS CVE hunts = your audit pipeline",
+      "detail": "Tier-D ASAN + guard sweeps — what we ship to upstream you can order",
+      "cta": "Download node",
+      "href": "/downloads.html#local-node",
+      "accent": "violet"
+    }
+  ]
+}

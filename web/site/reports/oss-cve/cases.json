@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-26",
+  "updated": "2026-06-27",
   "cases": [
     {
       "id": "centijson",
@@ -14,7 +14,7 @@
       "id": "libucl",
       "slug": "libucl",
       "project": "vstakhov/libucl",
-      "status": "hold",
+      "status": "triage",
       "severity": "low",
       "cve_id": null,
       "published_at": null
@@ -23,7 +23,7 @@
       "id": "cfgpack",
       "slug": "cfgpack",
       "project": "Arsievert/cfgpack",
-      "status": "hold",
+      "status": "triage",
       "severity": "low",
       "cve_id": null,
       "published_at": null

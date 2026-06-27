@@ -1,8 +1,10 @@
 {
   "verdict": "CLEAN",
-  "summary": "Wave 10 clean; heatshrink triaged as fuzz-driver false positive (fixed 2026-06-27). HOLD: libucl, cfgpack, centijson, lua, quickjs.",
+  "summary": "Wave 10 clean. heatshrink false positive (fixed). libucl/cfgpack disclosed (GitHub issues closed). lua/quickjs/mxml UBSan informational. WAL metrics fix 2026-06-27.",
   "cve_candidates": [],
-  "hold_disclosure": ["libucl", "cfgpack", "centijson", "lua", "quickjs"],
+  "hold_disclosure": ["centijson"],
+  "disclosed_closed": ["libucl", "cfgpack", "lua", "quickjs"],
+  "informational": ["mxml"],
   "clean_targets": [
     "jsmn", "inih", "cjson", "tomlc99", "parsello", "cj5", "cmp", "uriparser", "heatshrink"
   ],

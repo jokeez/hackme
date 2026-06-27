@@ -143,45 +143,89 @@ def hub_page(cases: list, labels: dict, meta: dict | None) -> str:
 
     run_note = ""
     if meta:
-        run_note = f"""<section class="panel">
+        run_note = f"""<section class="panel glass oss-run-panel">
   <h2>Latest hunt run (methodology)</h2>
-  <p class="sub">Aggregate only — no weaponized inputs. <a href="./latest-run.html">run table</a></p>
+  <p class="subtle">Aggregate only — no weaponized inputs. <a href="./latest-run.html">run table</a></p>
   <p><code>verdict={esc(meta.get("verdict", ""))}</code> · {len(meta.get("clean_targets", []))} clean targets in last batch</p>
 </section>"""
 
-    return f"""<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>HackMe · OSS CVE case studies</title>
-<link rel="canonical" href="https://hackme.tech/reports/oss-cve/"/>
-<style>
-*{{box-sizing:border-box}}body{{margin:0;font-family:system-ui,sans-serif;background:#070b12;color:#c8d6e8;line-height:1.55}}
-.wrap{{max-width:960px;margin:0 auto;padding:2.5rem 1.25rem 4rem}}
-h1{{font-size:1.35rem;color:#00d1ff;letter-spacing:.06em;text-transform:uppercase;margin:0}}
-.lead{{color:#8fa3b8;max-width:52rem;margin:1rem 0 2rem}}
-.stats{{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:2rem;font-size:.85rem;color:#6b8099}}
-.stats b{{color:#00d1ff}}
-.case-grid{{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}}
-.case-card{{border:1px solid rgba(0,209,255,.2);border-radius:14px;padding:1.2rem;background:rgba(0,0,0,.35)}}
-.case-card h2{{font-size:1.05rem;margin:.6rem 0 .3rem}}.case-card h2 a{{color:#e8f4ff;text-decoration:none}}
-.case-card .summary{{font-size:.9rem;color:#a8b8cc}}
-.case-card .meta{{font-size:.75rem;color:#6b8099;margin-top:.75rem}}
-.badge{{display:inline-block;padding:.25rem .65rem;border-radius:999px;border:2px solid;font-size:.7rem;font-weight:600}}
-.tier{{float:right;font-size:.7rem;color:#6b8099}}
-.panel{{border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:1.2rem;margin-top:2.5rem}}
-.policy{{background:rgba(255,193,7,.06);border:1px solid rgba(255,193,7,.3);border-radius:10px;padding:1rem;margin-bottom:2rem;font-size:.9rem}}
-a{{color:#00d1ff}}footer{{margin-top:2.5rem;font-size:.75rem;color:#6b8099}}
-</style></head><body><div class="wrap">
-<h1>OSS CVE case studies</h1>
-<p class="lead">Real upstream Tier-D ASAN hunts. Cases move from <em>hold</em> → <em>triage</em> → <em>fixed</em> → <em>published</em>.
-  Repro and CVE IDs appear only after coordinated disclosure.</p>
-<div class="policy"><strong>Public policy:</strong> We show pipeline activity and case status now; technical PoC and CVE numbers only after maintainer fix or agreed publish window.</div>
-<div class="stats"><span><b>{len(cases)}</b> tracked cases</span><span><b>{in_pipeline}</b> in disclosure</span><span><b>{closed}</b> closed wontfix</span><span><b>{published}</b> published</span></div>
-<div class="case-grid">
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe · OSS CVE case studies</title>
+  <meta name="description" content="Real upstream Tier-D ASAN hunts. Coordinated disclosure pipeline — case status public, PoC after maintainer fix." />
+  <link rel="canonical" href="https://hackme.tech/reports/oss-cve/" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="../../assets/styles.css?v=20260627ticker" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <style>
+  .oss-hub-hero {{ margin-bottom: 1.5rem; }}
+  .oss-hub-stats {{ display: flex; gap: 1rem; flex-wrap: wrap; margin: 1rem 0 1.5rem; font-size: 0.85rem; color: var(--muted); }}
+  .oss-hub-stats b {{ color: var(--primary); }}
+  .oss-policy {{
+    margin: 1rem 0 1.5rem; padding: 1rem 1.15rem; border-radius: 1rem;
+    border: 1px solid rgba(255, 200, 87, 0.35); background: rgba(255, 200, 87, 0.06);
+    font-size: 0.9rem; color: #d4c4a8; line-height: 1.55;
+  }}
+  .oss-case-grid {{ display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }}
+  .case-card {{ border: 1px solid rgba(77, 228, 255, 0.22); border-radius: 14px; padding: 1.2rem; background: rgba(0, 0, 0, 0.35); }}
+  .case-card h2 {{ font-size: 1.05rem; margin: 0.6rem 0 0.3rem; }}
+  .case-card h2 a {{ color: #e8f4ff; text-decoration: none; }}
+  .case-card h2 a:hover {{ color: var(--primary); }}
+  .case-card .summary {{ font-size: 0.9rem; color: var(--muted); line-height: 1.5; }}
+  .case-card .meta {{ font-size: 0.75rem; color: #6b8099; margin-top: 0.75rem; }}
+  .case-card .badge {{ display: inline-block; padding: 0.25rem 0.65rem; border-radius: 999px; border: 2px solid; font-size: 0.7rem; font-weight: 600; }}
+  .case-card .tier {{ float: right; font-size: 0.7rem; color: #6b8099; }}
+  .case-card .case-link {{ display: inline-block; margin-top: 0.75rem; font-size: 0.82rem; font-weight: 600; color: var(--primary); }}
+  .oss-run-panel {{ margin-top: 2rem; }}
+  </style>
+</head>
+<body>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="../../index.html">
+      <img class="brand-logo" src="../../assets/logo-hex.png" alt="HackMe logo" />
+      <span>HackMe Network</span>
+    </a>
+    <nav class="nav" data-site-page="research"></nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass hero-small oss-hub-hero">
+      <p class="kicker">Tier-D · coordinated disclosure</p>
+      <h1>OSS CVE case studies</h1>
+      <p class="hero-copy">Real upstream Tier-D ASAN hunts. Cases move from <em>hold</em> → <em>triage</em> → <em>fixed</em> → <em>published</em>.
+        Repro and CVE IDs appear only after coordinated disclosure.</p>
+      <div class="oss-policy"><strong>Public policy:</strong> We show pipeline activity and case status now; technical PoC and CVE numbers only after maintainer fix or agreed publish window.</div>
+      <div class="oss-hub-stats">
+        <span><b>{len(cases)}</b> tracked cases</span>
+        <span><b>{in_pipeline}</b> in disclosure</span>
+        <span><b>{closed}</b> closed wontfix</span>
+        <span><b>{published}</b> published</span>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="oss-case-grid">
 {cards}
-</div>
+      </div>
+    </section>
 {run_note}
-<footer><a href="../../research.html">Research hub</a> · <a href="https://github.com/jokeez/hackme/blob/main/docs/OSS_CVE_HUNT.md">Methodology</a></footer>
-</div></body></html>"""
+  </main>
+
+  <footer class="footer">
+    <p>HackMe Network</p>
+    <p class="muted">Ecosystem: mine · fuzz · research · explore.</p>
+    <div class="footer-nav"></div>
+  </footer>
+  <script src="../../assets/site-shell.js?v=20260627ticker"></script>
+</body>
+</html>"""
 
 
 def main() -> int:

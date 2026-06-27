@@ -99,6 +99,20 @@
     ).join("");
   }
 
+  function ensureDisclosureTicker() {
+    if (!document.querySelector("header.topbar") || document.querySelector(".disclosure-ticker")) {
+      return;
+    }
+    if (document.querySelector('script[data-disclosure-ticker="1"]')) {
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = "/assets/disclosure-ticker.js?v=20260627ticker";
+    s.defer = true;
+    s.dataset.disclosureTicker = "1";
+    document.body.appendChild(s);
+  }
+
   function mount() {
     const active = pageKey();
     document.querySelectorAll(".topbar .nav:not([data-site-nav-skip])").forEach((nav) => {
@@ -111,6 +125,7 @@
     document.querySelectorAll("#explorer-link-top, #explorer-link-hero, #explorer-link-card").forEach((el) => {
       if (!el.getAttribute("href")) el.setAttribute("href", PAGES.explorer.href);
     });
+    ensureDisclosureTicker();
   }
 
   if (document.readyState === "loading") {
