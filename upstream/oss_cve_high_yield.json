@@ -1,0 +1,725 @@
+{
+  "updated": "2026-06-27",
+  "note": "Auto-ranked high-yield OSS CVE targets \u2014 ASAN-class hunt queue (wave14+)",
+  "method": "rank_oss_cve_targets.py",
+  "wave14": {
+    "targets": [
+      "libucl",
+      "cfgpack",
+      "nghttp2",
+      "duktape",
+      "miniz",
+      "oniguruma",
+      "zlib",
+      "libxml2",
+      "cjson",
+      "yajl-210",
+      "cj5"
+    ],
+    "budget_iterations": 250000,
+    "time_limit_sec": 7200,
+    "skip_ids": [
+      "centijson",
+      "heatshrink",
+      "lua",
+      "mxml",
+      "quickjs"
+    ]
+  },
+  "ranked": [
+    {
+      "id": "duktape",
+      "score": 210,
+      "repo": "https://github.com/svaarala/duktape",
+      "title": "svaarala/duktape \u00b7 duk_pcompile",
+      "priority": 1,
+      "category": "interpreter",
+      "last_verdict": "INFORMATIONAL",
+      "last_iterations": 9448,
+      "crash_count": 7784,
+      "asan_crashes": 0,
+      "reasons": [
+        "category=interpreter(+45)",
+        "INFORMATIONAL crashes=7784(+80)",
+        "priority=1(+10)",
+        "pinned_cve_chase(+75)"
+      ]
+    },
+    {
+      "id": "nghttp2",
+      "score": 195,
+      "repo": "https://github.com/nghttp2/nghttp2",
+      "title": "nghttp2/nghttp2 \u00b7 session mem_recv",
+      "priority": 1,
+      "category": "http",
+      "last_verdict": "INFORMATIONAL",
+      "last_iterations": 10988,
+      "crash_count": 8849,
+      "asan_crashes": 0,
+      "reasons": [
+        "category=http(+30)",
+        "INFORMATIONAL crashes=8849(+80)",
+        "priority=1(+10)",
+        "pinned_cve_chase(+75)"
+      ]
+    },
+    {
+      "id": "cfgpack",
+      "score": 172,
+      "repo": "https://github.com/Arsievert/cfgpack",
+      "title": "Arsievert/cfgpack \u00b7 msgpack decode",
+      "priority": 2,
+      "category": "msgpack",
+      "last_verdict": "INFORMATIONAL",
+      "last_iterations": 400000,
+      "crash_count": 1252,
+      "asan_crashes": 0,
+      "reasons": [
+        "category=msgpack(+35)",
+        "INFORMATIONAL crashes=1252(+62)",
+        "pinned_cve_chase(+75)"
+      ]
+    },
+    {
+      "id": "miniz",
+      "score": 170,
+      "repo": "https://github.com/richgel999/miniz",
+      "title": "richgel999/miniz \u00b7 mz_uncompress/tinfl",
+      "priority": 1,
+      "category": "compression",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "category=compression(+40)",
+        "never fuzzed(+120)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "oniguruma",
+      "score": 170,
+      "repo": "https://github.com/kkos/oniguruma",
+      "title": "kkos/oniguruma \u00b7 onig_match",
+      "priority": 1,
+      "category": "regex",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "category=regex(+40)",
+        "never fuzzed(+120)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "pcre2",
+      "score": 170,
+      "repo": "https://github.com/PCRE2Project/pcre2",
+      "title": "PCRE2Project/pcre2 \u00b7 pcre2_compile/match",
+      "priority": 1,
+      "category": "regex",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "category=regex(+40)",
+        "never fuzzed(+120)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "zlib",
+      "score": 170,
+      "repo": "https://github.com/madler/zlib",
+      "title": "madler/zlib \u00b7 inflate/uncompress",
+      "priority": 1,
+      "category": "compression",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "category=compression(+40)",
+        "never fuzzed(+120)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "cmp",
+      "score": 165,
+      "repo": "https://github.com/camgunz/cmp",
+      "title": "camgunz/cmp \u00b7 msgpack read_object",
+      "priority": 1,
+      "category": "msgpack",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "category=msgpack(+35)",
+        "never fuzzed(+120)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "libucl",
+      "score": 165,
+      "repo": "https://github.com/vstakhov/libucl",
+      "title": "vstakhov/libucl \u00b7 ucl_parser",
+      "priority": 2,
+      "category": "config",
+      "last_verdict": "INFORMATIONAL",
+      "last_iterations": 64479,
+      "crash_count": 5730,
+      "asan_crashes": 0,
+      "reasons": [
+        "category=config(+10)",
+        "INFORMATIONAL crashes=5730(+80)",
+        "pinned_cve_chase(+75)"
+      ]
+    },
+    {
+      "id": "libxml2",
+      "score": 165,
+      "repo": "https://github.com/GNOME/libxml2",
+      "title": "GNOME/libxml2 \u00b7 xmlReadMemory",
+      "priority": 1,
+      "category": "xml",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "category=xml(+35)",
+        "never fuzzed(+120)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "picohttpparser",
+      "score": 160,
+      "repo": "https://github.com/h2o/picohttpparser",
+      "title": "h2o/picohttpparser \u00b7 phr_parse_request",
+      "priority": 1,
+      "category": "http",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "category=http(+30)",
+        "never fuzzed(+120)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "expat",
+      "score": 155,
+      "repo": "https://github.com/libexpat/libexpat",
+      "title": "libexpat/libexpat \u00b7 XML_Parse",
+      "priority": 2,
+      "category": "xml",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "category=xml(+35)",
+        "never fuzzed(+120)"
+      ]
+    },
+    {
+      "id": "lua",
+      "score": 145,
+      "repo": "https://github.com/lua/lua",
+      "title": "lua/lua \u00b7 luaL_loadbuffer",
+      "priority": 1,
+      "category": "interpreter",
+      "last_verdict": "CVE_CANDIDATE",
+      "last_iterations": 10887,
+      "crash_count": 8771,
+      "asan_crashes": 0,
+      "reasons": [
+        "category=interpreter(+45)",
+        "CVE_CANDIDATE(+90)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "quickjs",
+      "score": 145,
+      "repo": "https://github.com/bellard/quickjs",
+      "title": "bellard/quickjs \u00b7 JS_Eval",
+      "priority": 1,
+      "category": "interpreter",
+      "last_verdict": "CVE_CANDIDATE",
+      "last_iterations": 8873,
+      "crash_count": 7268,
+      "asan_crashes": 0,
+      "reasons": [
+        "category=interpreter(+45)",
+        "CVE_CANDIDATE(+90)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "heatshrink",
+      "score": 140,
+      "repo": "https://github.com/atomicobject/heatshrink",
+      "title": "atomicobject/heatshrink \u00b7 heatshrink_decoder",
+      "priority": 1,
+      "category": "compression",
+      "last_verdict": "CVE_CANDIDATE",
+      "last_iterations": 50000,
+      "crash_count": 17,
+      "asan_crashes": 0,
+      "reasons": [
+        "category=compression(+40)",
+        "CVE_CANDIDATE(+90)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "cjson",
+      "score": 130,
+      "repo": "https://github.com/DaveGamble/cJSON",
+      "title": "DaveGamble/cJSON \u00b7 cJSON_Parse",
+      "priority": 1,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "cmark",
+      "score": 130,
+      "repo": "https://github.com/commonmark/cmark",
+      "title": "commonmark/cmark \u00b7 cmark_parse_document",
+      "priority": 1,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "json-c",
+      "score": 130,
+      "repo": "https://github.com/json-c/json-c",
+      "title": "json-c/json-c \u00b7 json_tokener_parse",
+      "priority": 1,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "libyaml",
+      "score": 130,
+      "repo": "https://github.com/yaml/libyaml",
+      "title": "yaml/libyaml \u00b7 yaml_parser_parse",
+      "priority": 1,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "md4c",
+      "score": 130,
+      "repo": "https://github.com/mity/md4c",
+      "title": "mity/md4c \u00b7 md_parse Markdown",
+      "priority": 1,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "uriparser",
+      "score": 130,
+      "repo": "https://github.com/uriparser/uriparser",
+      "title": "uriparser/uriparser \u00b7 uriParseSingleUriA",
+      "priority": 1,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "yajl",
+      "score": 130,
+      "repo": "https://github.com/lloyd/yajl",
+      "title": "lloyd/yajl \u00b7 yajl_parse",
+      "priority": 1,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "yajl-210",
+      "score": 130,
+      "repo": "https://github.com/lloyd/yajl",
+      "title": "lloyd/yajl@2.1.0 \u00b7 yajl_parse+tree (pre-patch)",
+      "priority": 1,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "mxml",
+      "score": 125,
+      "repo": "https://github.com/michaelrsweet/mxml",
+      "title": "michaelrsweet/mxml \u00b7 mxmlLoadString",
+      "priority": 1,
+      "category": "xml",
+      "last_verdict": "INFORMATIONAL",
+      "last_iterations": 9122,
+      "crash_count": 7477,
+      "asan_crashes": 0,
+      "reasons": [
+        "category=xml(+35)",
+        "INFORMATIONAL crashes=7477(+80)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "cj5",
+      "score": 120,
+      "repo": "https://github.com/septag/cj5",
+      "title": "septag/cj5 \u00b7 cj5_parse JSON5",
+      "priority": 2,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)"
+      ]
+    },
+    {
+      "id": "cyaml",
+      "score": 120,
+      "repo": "https://github.com/andrewmd5/cyaml",
+      "title": "andrewmd5/cyaml \u00b7 cyaml_parse",
+      "priority": 2,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)"
+      ]
+    },
+    {
+      "id": "inih",
+      "score": 120,
+      "repo": "https://github.com/benhoyt/inih",
+      "title": "benhoyt/inih \u00b7 ini_parse_string",
+      "priority": 3,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)"
+      ]
+    },
+    {
+      "id": "jansson",
+      "score": 120,
+      "repo": "https://github.com/akheron/jansson",
+      "title": "akheron/jansson \u00b7 json_loadb",
+      "priority": 2,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)"
+      ]
+    },
+    {
+      "id": "jsmn",
+      "score": 120,
+      "repo": "https://github.com/zserge/jsmn",
+      "title": "zserge/jsmn \u00b7 jsmn_parse",
+      "priority": 2,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)"
+      ]
+    },
+    {
+      "id": "libconfini",
+      "score": 120,
+      "repo": "https://github.com/madmurphy/libconfini",
+      "title": "madmurphy/libconfini \u00b7 strip_ini_cache",
+      "priority": 3,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)"
+      ]
+    },
+    {
+      "id": "mjson",
+      "score": 120,
+      "repo": "https://github.com/cesanta/mjson",
+      "title": "cesanta/mjson \u00b7 mjson_parse",
+      "priority": 2,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)"
+      ]
+    },
+    {
+      "id": "parsello",
+      "score": 120,
+      "repo": "https://github.com/icebreaker/parsello",
+      "title": "icebreaker/parsello \u00b7 prs_parse",
+      "priority": 3,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)"
+      ]
+    },
+    {
+      "id": "parson",
+      "score": 120,
+      "repo": "https://github.com/kgabis/parson",
+      "title": "kgabis/parson \u00b7 json_parse_string",
+      "priority": 2,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)"
+      ]
+    },
+    {
+      "id": "sheredom",
+      "score": 120,
+      "repo": "https://github.com/sheredom/json.h",
+      "title": "sheredom/json.h \u00b7 json_parse",
+      "priority": 3,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)"
+      ]
+    },
+    {
+      "id": "tomlc17",
+      "score": 120,
+      "repo": "https://github.com/cktan/tomlc17",
+      "title": "cktan/tomlc17 \u00b7 toml_parse",
+      "priority": 2,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)"
+      ]
+    },
+    {
+      "id": "tomlc99",
+      "score": 120,
+      "repo": "https://github.com/cktan/tomlc99",
+      "title": "cktan/tomlc99 \u00b7 toml_parse",
+      "priority": 2,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)"
+      ]
+    },
+    {
+      "id": "yyjson",
+      "score": 120,
+      "repo": "https://github.com/ibireme/yyjson",
+      "title": "ibireme/yyjson \u00b7 yyjson_read",
+      "priority": 2,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)"
+      ]
+    },
+    {
+      "id": "centijson",
+      "score": 45,
+      "repo": "https://github.com/mity/centijson",
+      "title": "mity/centijson \u00b7 JSON parse",
+      "priority": 1,
+      "category": "json",
+      "last_verdict": "INFORMATIONAL",
+      "last_iterations": 200000,
+      "crash_count": 2520,
+      "asan_crashes": 0,
+      "reasons": [
+        "INFORMATIONAL crashes=2520(+75)",
+        "priority=1(+10)",
+        "disclosure_hold(-40)"
+      ]
+    }
+  ],
+  "wave15": {
+    "targets": [
+      "pcre2",
+      "lua",
+      "quickjs",
+      "cmark",
+      "json-c",
+      "picohttpparser",
+      "cmp",
+      "uriparser",
+      "heatshrink",
+      "cjson",
+      "yajl-210",
+      "mxml",
+      "cj5",
+      "inih"
+    ],
+    "budget_iterations": 180000,
+    "time_limit_sec": 5400,
+    "skip_ids": [
+      "centijson",
+      "cfgpack",
+      "duktape",
+      "libucl",
+      "libxml2",
+      "miniz",
+      "msgpack-c",
+      "nghttp2",
+      "oniguruma",
+      "zlib"
+    ],
+    "strategy": "easy_never_fuzzed_parsers"
+  },
+  "wave16": {
+    "targets": [
+      "cjson",
+      "yajl-210",
+      "cj5",
+      "inih",
+      "jsmn",
+      "libconfini",
+      "parsello",
+      "tomlc99",
+      "mxml",
+      "heatshrink"
+    ],
+    "budget_iterations": 100000,
+    "time_limit_sec": 3600,
+    "skip_ids": [
+      "centijson",
+      "cfgpack",
+      "cmark",
+      "cmp",
+      "cyaml",
+      "duktape",
+      "expat",
+      "jansson",
+      "json-c",
+      "libucl",
+      "libxml2",
+      "libyaml",
+      "lua",
+      "md4c",
+      "miniz",
+      "mjson",
+      "msgpack-c",
+      "nghttp2",
+      "oniguruma",
+      "parson",
+      "pcre2",
+      "picohttpparser",
+      "quickjs",
+      "sheredom",
+      "tomlc17",
+      "uriparser",
+      "yajl",
+      "yyjson",
+      "zlib"
+    ],
+    "strategy": "sweep_remaining_easy"
+  }
+}
