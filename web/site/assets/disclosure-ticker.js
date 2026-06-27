@@ -2,7 +2,7 @@
  * Live OSS disclosure + B2B trust banner — data from disclosure-ticker.json
  */
 (() => {
-  const JSON_URL = "/assets/disclosure-ticker.json?v=20260627banner";
+  const JSON_URL = "/assets/disclosure-ticker.json?v=20260627banner2";
   const FALLBACK = {
     interval_ms: 7000,
     slides: [
@@ -19,11 +19,11 @@
   };
 
   const ACCENT = {
-    gold: { border: "rgba(255, 200, 87, 0.5)", glow: "rgba(255, 200, 87, 0.14)", dot: "#ffc857", bg: "rgba(255, 200, 87, 0.06)" },
-    cyan: { border: "rgba(77, 228, 255, 0.45)", glow: "rgba(77, 228, 255, 0.12)", dot: "#4de4ff", bg: "rgba(77, 228, 255, 0.06)" },
-    violet: { border: "rgba(167, 139, 250, 0.5)", glow: "rgba(167, 139, 250, 0.14)", dot: "#a78bfa", bg: "rgba(167, 139, 250, 0.08)" },
-    success: { border: "rgba(110, 255, 173, 0.5)", glow: "rgba(110, 255, 173, 0.12)", dot: "#6effad", bg: "rgba(110, 255, 173, 0.06)" },
-    medium: { border: "rgba(255, 200, 87, 0.5)", glow: "rgba(255, 200, 87, 0.14)", dot: "#ffc857", bg: "rgba(255, 200, 87, 0.06)" },
+    gold: { border: "rgba(255, 200, 87, 0.45)", dot: "#ffc857" },
+    cyan: { border: "rgba(77, 228, 255, 0.4)", dot: "#4de4ff" },
+    violet: { border: "rgba(167, 139, 250, 0.45)", dot: "#a78bfa" },
+    success: { border: "rgba(110, 255, 173, 0.45)", dot: "#6effad" },
+    medium: { border: "rgba(255, 200, 87, 0.45)", dot: "#ffc857" },
   };
 
   let state = { slides: [], index: 0, interval: 7000, timer: null };
@@ -42,21 +42,11 @@
     const a = accentOf(slide);
     const cls = entering ? "dt-slide dt-slide--enter" : "dt-slide dt-slide--active";
     return `
-      <div class="${cls}" style="--dt-accent:${a.dot};--dt-glow:${a.glow};--dt-border:${a.border};--dt-bg:${a.bg}">
-        <div class="dt-card">
-          <div class="dt-card-accent" aria-hidden="true"></div>
-          <div class="dt-card-body">
-            <span class="dt-badge">${esc(slide.badge)}</span>
-            <div class="dt-text">
-              <strong class="dt-title">${esc(slide.title)}</strong>
-              ${slide.detail ? `<span class="dt-detail">${esc(slide.detail)}</span>` : ""}
-            </div>
-          </div>
-          <a class="dt-cta" href="${esc(slide.href || "/reports/oss-cve/")}">
-            <span>${esc(slide.cta || "Learn more")}</span>
-            <span class="dt-cta-arrow" aria-hidden="true">→</span>
-          </a>
-        </div>
+      <div class="${cls}" style="--dt-accent:${a.dot};--dt-border:${a.border}">
+        <span class="dt-badge">${esc(slide.badge)}</span>
+        <strong class="dt-title">${esc(slide.title)}</strong>
+        ${slide.detail ? `<span class="dt-detail">${esc(slide.detail)}</span>` : ""}
+        <a class="dt-cta" href="${esc(slide.href || "/reports/oss-cve/")}">${esc(slide.cta || "Learn more")}<span aria-hidden="true">→</span></a>
       </div>`;
   }
 
@@ -67,17 +57,15 @@
     wrap.setAttribute("aria-label", "Live security research and disclosure updates");
     wrap.innerHTML = `
       <div class="dt-shell">
-        <div class="dt-rail">
+        <div class="dt-bar glass">
           <div class="dt-live" title="Live research pipeline">
             <span class="dt-pulse" aria-hidden="true"></span>
             <span class="dt-live-label">LIVE</span>
           </div>
           <div class="dt-stage" aria-live="polite"></div>
-          <div class="dt-nav" aria-hidden="true">
-            <div class="dt-dots"></div>
-          </div>
+          <div class="dt-dots" aria-hidden="true"></div>
+          <div class="dt-progress" aria-hidden="true"><span class="dt-progress-bar"></span></div>
         </div>
-        <div class="dt-progress" aria-hidden="true"><span class="dt-progress-bar"></span></div>
       </div>`;
     return wrap;
   }
@@ -127,7 +115,7 @@
       if (old) {
         old.classList.remove("dt-slide--active");
         old.classList.add("dt-slide--exit");
-        setTimeout(() => old.remove(), 400);
+        setTimeout(() => old.remove(), 360);
       }
       stage.insertAdjacentHTML("beforeend", renderSlide(slide, true));
       requestAnimationFrame(() => {
