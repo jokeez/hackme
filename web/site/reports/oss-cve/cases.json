@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-27",
+  "updated": "2026-06-28",
   "cases": [
     {
       "id": "centijson",
@@ -23,7 +23,7 @@
       "id": "cfgpack",
       "slug": "cfgpack",
       "project": "Arsievert/cfgpack",
-      "status": "triage",
+      "status": "fixed",
       "severity": "low",
       "cve_id": null,
       "published_at": null

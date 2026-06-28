@@ -1,6 +1,53 @@
 {
   "items": [
     {
+      "id": "2026-06-28-cfgpack-upstream-fix",
+      "date": "2026-06-28",
+      "title": "Upstream win: cfgpack MessagePack int64 UBSan — fixed in b5e7cff",
+      "summary": "HackMe Tier-D fuzz caught signed integer overflow in cfgpack_msgpack_decode_int64(). We reported cfgpack#1; maintainer @Arsievert merged fix b5e7cff. Not a CVE — real UB hardening before memory bugs ship.",
+      "impact": "Proof that oss_cve hunts land upstream: report → fix in days, no drama, no fake CVE. ASAN saw no heap corruption; UBSan did its job. Case study live on hackme.tech/reports/oss-cve/cases/cfgpack.html",
+      "action": "Case: https://hackme.tech/reports/oss-cve/cases/cfgpack.html · Issue: https://github.com/Arsievert/cfgpack/issues/1 · Fix: https://github.com/Arsievert/cfgpack/commit/b5e7cff",
+      "tags": [
+        "security",
+        "research",
+        "oss",
+        "disclosure"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "Upstream fix — cfgpack int64 UBSan",
+        "lead": "Reported #1 · fixed b5e7cff · not CVE · real win",
+        "bullets": [
+          "HackMe fuzz: MessagePack 0xd3 path → signed shift overflow msgpack.c:294",
+          "Maintainer closed issue completed — patch merged",
+          "No ASAN heap bug — UB hardening, exactly what Tier-D is for",
+          "Case study: hackme.tech/reports/oss-cve/cases/cfgpack.html"
+        ],
+        "footer": "OSS CVE hub: hackme.tech/reports/oss-cve/ · methodology on GitHub"
+      },
+      "twitter": {
+        "thread": [
+          "We don't only chase CVE numbers. Sometimes the win is simpler: find UB, report it, upstream ships a fix.",
+          "cfgpack (MessagePack decoder): our Tier-D fuzz hit cfgpack_msgpack_decode_int64() with a malformed 0xd3 payload. UBSan: signed left-shift overflow at msgpack.c:294.",
+          "Reported → github.com/Arsievert/cfgpack/issues/1. Maintainer @Arsievert closed it completed with fix b5e7cff.",
+          "Not CVE-class: no ASAN heap corruption. This is the kind of hardening that prevents worse bugs later.",
+          "Full case study → https://hackme.tech/reports/oss-cve/cases/cfgpack.html"
+        ],
+        "single": "HackMe fuzz → cfgpack int64 UBSan reported → upstream fixed in b5e7cff. Not a CVE. A real disclosure win. https://hackme.tech/reports/oss-cve/cases/cfgpack.html"
+      },
+      "discord": {
+        "title": "Research · cfgpack fixed upstream",
+        "body": "**Not every hunt ends in a CVE — this one ended better: a merged fix.**\n\n**What we found**\n• MessagePack `int64` decode (`0xd3`) — UBSan signed overflow in `cfgpack_msgpack_decode_int64()`\n• Tier-D mutation fuzz · wave2 · clang ASAN/UBSan\n\n**What happened**\n• Reported [cfgpack#1](https://github.com/Arsievert/cfgpack/issues/1)\n• Maintainer fix: [b5e7cff](https://github.com/Arsievert/cfgpack/commit/b5e7cff)\n• No CVE — no heap corruption demonstrated\n\n**Read:** https://hackme.tech/reports/oss-cve/cases/cfgpack.html",
+        "ping": "#research or #announcements"
+      },
+      "links": {
+        "case": "https://hackme.tech/reports/oss-cve/cases/cfgpack.html",
+        "issue": "https://github.com/Arsievert/cfgpack/issues/1",
+        "fix": "https://github.com/Arsievert/cfgpack/commit/b5e7cff",
+        "hub": "https://hackme.tech/reports/oss-cve/"
+      }
+    },
+    {
       "id": "2026-06-27-rc11q-settlement-banner",
       "date": "2026-06-27",
       "title": "HackMe 0.1.0-rc11q — payouts visible again, updates without reinstall",

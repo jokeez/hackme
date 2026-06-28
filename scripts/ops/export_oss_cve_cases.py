@@ -76,7 +76,13 @@ def case_page(c: dict, labels: dict) -> str:
         tl_html = f'<h2>Timeline</h2><ul class="timeline">{items}</ul>'
 
     repro_block = ""
-    if status == "closed_wontfix":
+    if status == "fixed":
+        repro_block = """<div class="hold-box" style="border-color:rgba(0,209,255,.4);background:rgba(0,209,255,.06)">
+  <p><strong>Fix merged upstream</strong> — maintainer closed the tracker issue with a patch.
+  Not assigned as CVE: UBSan undefined behavior only, no ASAN memory corruption demonstrated.
+  Full PoC may be published in a follow-up case study.</p>
+</div>"""
+    elif status == "closed_wontfix":
         repro_block = """<div class="hold-box">
   <p><strong>Upstream: wontfix, not CVE-class</strong> — maintainer declined to treat this as a bug
   (classic C API callback pattern). See linked GitHub issue for discussion. No CVE pursuit.</p>

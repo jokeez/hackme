@@ -53,7 +53,7 @@
       <div class="oss-policy"><strong>Public policy:</strong> We show pipeline activity and case status now; technical PoC and CVE numbers only after maintainer fix or agreed publish window.</div>
       <div class="oss-hub-stats">
         <span><b>4</b> tracked cases</span>
-        <span><b>3</b> in disclosure</span>
+        <span><b>2</b> in disclosure</span>
         <span><b>1</b> closed wontfix</span>
         <span><b>0</b> published</span>
       </div>
@@ -61,16 +61,16 @@
 
     <section class="panel glass">
       <div class="oss-case-grid">
-<article class="case-card status-triage">
+<article class="case-card status-fixed">
   <div class="case-head">
-    <span class="badge" style="border-color:#ffc107;color:#ffc107">Awaiting maintainer</span>
+    <span class="badge" style="border-color:#00d1ff;color:#00d1ff">Fix merged — publishing soon</span>
     <span class="tier">oss_cve</span>
   </div>
   <h2><a href="./cases/cfgpack.html">Arsievert/cfgpack</a></h2>
-  <p class="component">MessagePack decode</p>
-  <p class="summary">Msgpack int64 decoder path triggers UBSan under mutation fuzz. Reported upstream as cfgpack#2; maintainer closed. Coordinated disclosure hold on PoC.</p>
+  <p class="component">MessagePack decode (int64)</p>
+  <p class="summary">HackMe Tier-D fuzz found UBSan on MessagePack int64 decode (0xd3 path): signed left-shift overflow in msgpack.c:294. Reported as cfgpack#1; maintainer fixed in b5e7cff. No ASAN heap corruption — UB hardening, not a CVE.</p>
   
-  <p class="meta">UBSan — signed integer overflow on decode · wave wave2</p>
+  <p class="meta">UBSan — signed integer overflow in cfgpack_msgpack_decode_int64 (not CVE-class) · wave wave2</p>
   <a class="case-link" href="./cases/cfgpack.html">Case page →</a>
 </article>
 <article class="case-card status-triage">
@@ -114,7 +114,7 @@
 <section class="panel glass oss-run-panel">
   <h2>Latest hunt run (methodology)</h2>
   <p class="subtle">Aggregate only — no weaponized inputs. <a href="./latest-run.html">run table</a></p>
-  <p><code>verdict=CLEAN</code> · 4 clean targets in last batch</p>
+  <p><code>verdict=CLEAN</code> · 9 clean targets in last batch</p>
 </section>
   </main>
 

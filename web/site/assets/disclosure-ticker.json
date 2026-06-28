@@ -1,14 +1,14 @@
 {
-  "updated": "2026-06-27T14:30:00Z",
+  "updated": "2026-06-28T12:00:00Z",
   "interval_ms": 7000,
   "slides": [
     {
-      "kind": "hub",
-      "badge": "Wave 11 · done",
-      "title": "zlib & libxml2 clean — 0 CVE",
-      "detail": "nghttp2/duktape UBSan only · not CVE-class",
-      "cta": "Latest run",
-      "href": "/reports/oss-cve/latest-run.html",
+      "kind": "case",
+      "badge": "Fixed upstream ✓",
+      "title": "Arsievert/cfgpack · int64 UBSan",
+      "detail": "Reported #1 · fix b5e7cff · not CVE-class · real upstream win",
+      "cta": "Case study",
+      "href": "/reports/oss-cve/cases/cfgpack.html",
       "accent": "success"
     },
     {
@@ -41,11 +41,11 @@
     {
       "kind": "case",
       "badge": "Reported upstream",
-      "title": "Arsievert/cfgpack · #2 closed",
-      "detail": "msgpack int64 UBSan · not CVE-class",
+      "title": "Arsievert/cfgpack · #1 fixed",
+      "detail": "msgpack int64 UBSan · b5e7cff · not CVE",
       "cta": "Case page",
       "href": "/reports/oss-cve/cases/cfgpack.html",
-      "accent": "cyan"
+      "accent": "success"
     },
     {
       "kind": "b2b",

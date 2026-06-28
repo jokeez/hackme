@@ -1,16 +1,20 @@
 {
   "verdict": "CLEAN",
-  "summary": "Wave 11 (2026-06-27): miniz/zlib/oniguruma/libxml2 clean. nghttp2/duktape UBSan informational. Wave 12 running: pcre2, picohttpparser, yajl, json-c, cmp, uriparser.",
+  "summary": "INFORMATIONAL \u2014 UBSan-only findings (not CVE-class). See per-target reports.",
   "cve_candidates": [],
   "informational_targets": [
-    "nghttp2",
-    "duktape"
+    "mxml"
   ],
   "clean_targets": [
-    "miniz",
-    "oniguruma",
-    "zlib",
-    "libxml2"
+    "cjson",
+    "yajl-210",
+    "cj5",
+    "inih",
+    "jsmn",
+    "libconfini",
+    "parsello",
+    "tomlc99",
+    "heatshrink"
   ],
   "hold_disclosure": [
     "centijson"
@@ -24,10 +28,15 @@
   "informational": [
     "mxml",
     "nghttp2",
-    "duktape"
+    "duktape",
+    "centijson",
+    "lua",
+    "quickjs",
+    "libucl",
+    "cfgpack"
   ],
-  "wave": "wave11-20260627T081617Z",
-  "started_at": "2026-06-27T08:17:17Z",
-  "finished_at": "2026-06-27T08:50:11Z",
+  "wave": "wave17-20260628T033718Z-w17",
+  "started_at": "2026-06-28T10:24:34Z",
+  "finished_at": "2026-06-28T11:23:02Z",
   "publish_allowed": true
 }

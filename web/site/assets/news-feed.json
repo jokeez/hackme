@@ -1,6 +1,53 @@
 {
   "items": [
     {
+      "id": "2026-06-28-cfgpack-upstream-fix",
+      "date": "2026-06-28",
+      "title": "Upstream win: cfgpack MessagePack int64 UBSan — fixed in b5e7cff",
+      "summary": "HackMe Tier-D fuzz caught signed integer overflow in cfgpack_msgpack_decode_int64(). We reported cfgpack#1; maintainer @Arsievert merged fix b5e7cff. Not a CVE — real UB hardening before memory bugs ship.",
+      "impact": "Proof that oss_cve hunts land upstream: report → fix in days, no drama, no fake CVE. ASAN saw no heap corruption; UBSan did its job. Case study live on hackme.tech/reports/oss-cve/cases/cfgpack.html",
+      "action": "Case: https://hackme.tech/reports/oss-cve/cases/cfgpack.html · Issue: https://github.com/Arsievert/cfgpack/issues/1 · Fix: https://github.com/Arsievert/cfgpack/commit/b5e7cff",
+      "tags": [
+        "security",
+        "research",
+        "oss",
+        "disclosure"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "Upstream fix — cfgpack int64 UBSan",
+        "lead": "Reported #1 · fixed b5e7cff · not CVE · real win",
+        "bullets": [
+          "HackMe fuzz: MessagePack 0xd3 path → signed shift overflow msgpack.c:294",
+          "Maintainer closed issue completed — patch merged",
+          "No ASAN heap bug — UB hardening, exactly what Tier-D is for",
+          "Case study: hackme.tech/reports/oss-cve/cases/cfgpack.html"
+        ],
+        "footer": "OSS CVE hub: hackme.tech/reports/oss-cve/ · methodology on GitHub"
+      },
+      "twitter": {
+        "thread": [
+          "We don't only chase CVE numbers. Sometimes the win is simpler: find UB, report it, upstream ships a fix.",
+          "cfgpack (MessagePack decoder): our Tier-D fuzz hit cfgpack_msgpack_decode_int64() with a malformed 0xd3 payload. UBSan: signed left-shift overflow at msgpack.c:294.",
+          "Reported → github.com/Arsievert/cfgpack/issues/1. Maintainer @Arsievert closed it completed with fix b5e7cff.",
+          "Not CVE-class: no ASAN heap corruption. This is the kind of hardening that prevents worse bugs later.",
+          "Full case study → https://hackme.tech/reports/oss-cve/cases/cfgpack.html"
+        ],
+        "single": "HackMe fuzz → cfgpack int64 UBSan reported → upstream fixed in b5e7cff. Not a CVE. A real disclosure win. https://hackme.tech/reports/oss-cve/cases/cfgpack.html"
+      },
+      "discord": {
+        "title": "Research · cfgpack fixed upstream",
+        "body": "**Not every hunt ends in a CVE — this one ended better: a merged fix.**\n\n**What we found**\n• MessagePack `int64` decode (`0xd3`) — UBSan signed overflow in `cfgpack_msgpack_decode_int64()`\n• Tier-D mutation fuzz · wave2 · clang ASAN/UBSan\n\n**What happened**\n• Reported [cfgpack#1](https://github.com/Arsievert/cfgpack/issues/1)\n• Maintainer fix: [b5e7cff](https://github.com/Arsievert/cfgpack/commit/b5e7cff)\n• No CVE — no heap corruption demonstrated\n\n**Read:** https://hackme.tech/reports/oss-cve/cases/cfgpack.html",
+        "ping": "#research or #announcements"
+      },
+      "links": {
+        "case": "https://hackme.tech/reports/oss-cve/cases/cfgpack.html",
+        "issue": "https://github.com/Arsievert/cfgpack/issues/1",
+        "fix": "https://github.com/Arsievert/cfgpack/commit/b5e7cff",
+        "hub": "https://hackme.tech/reports/oss-cve/"
+      }
+    },
+    {
       "id": "2026-06-27-rc11q-settlement-banner",
       "date": "2026-06-27",
       "title": "HackMe 0.1.0-rc11q — payouts visible again, updates without reinstall",
@@ -391,38 +438,6 @@
         "research": "https://hackme.tech/research.html",
         "github": "https://github.com/jokeez/hackme",
         "telegram": "https://t.me/hackme_tech"
-      }
-    },
-    {
-      "id": "2026-06-09-rc11n-stability-payments",
-      "date": "2026-06-09",
-      "title": "Release 0.1.0-rc11n — hub stability, transfers & payments E2E",
-      "summary": "Production download channel bumped to rc11n. VPS hub runs an HTTP health watchdog that restarts hackme-node when /api/status stops responding (fixes hung hub and stale wallet cache). Desktop transfers and payment demos now use the canonical nonce from hackme.tech. Repeatable payments E2E test pack for operators. HackMe OS ISO stays on rc11l.",
-      "impact": "Miners on Windows/Linux should update from downloads — same wallet treasury as rc11m, plus more reliable hub uptime and correct on-chain transfer nonces from local nodes.",
-      "action": "Downloads: https://hackme.tech/downloads.html · Dashboard: http://127.0.0.1:8080/#wallet · Pool: https://hackme.tech/pool/coordinator",
-      "tags": [
-        "release",
-        "infrastructure",
-        "wallet",
-        "mining"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "rc11n — hub watchdog + canonical transfers",
-        "lead": "Win/Linux channel 0.1.0-rc11n live on hackme.tech. ISO unchanged (rc11l).",
-        "bullets": [
-          "VPS: HTTP watchdog restarts hung hackme-node every minute — wallet canonical fetch stays online.",
-          "Transfers: local nodes use canonical nonce from hackme.tech (no more invalid_nonce on desktop demos).",
-          "Operator pack: scripts/tests/payments_e2e_max.sh — transfer demo + matrix + settlement smoke."
-        ],
-        "footer": "Wallet treasury from rc11m unchanged — on-chain HMC + SUP from canonical chain. Update installer or Linux tarball when convenient."
-      },
-      "links": {
-        "downloads": "https://hackme.tech/downloads.html",
-        "wallet_docs": "https://hackme.tech/docs.html",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
-        "news": "https://hackme.tech/news.html#2026-06-09-rc11n-stability-payments",
-        "github": "https://github.com/jokeez/hackme"
       }
     }
   ],
