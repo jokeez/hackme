@@ -224,13 +224,13 @@ func (a *app) handleMinerNotices(w http.ResponseWriter, r *http.Request) {
 	}
 	active := filterActiveMinerNotices(doc, nodeVer)
 	writeJSON(w, map[string]any{
-		"ok":               true,
-		"source":           minerNoticesURL(),
-		"version":          doc.Version,
-		"updated_unix":     doc.UpdatedUnix,
-		"node_version":     nodeVer,
-		"notices":          active,
-		"notices_all":      len(doc.Notices),
+		"ok":                  true,
+		"source":              minerNoticesURL(),
+		"version":             doc.Version,
+		"updated_unix":        doc.UpdatedUnix,
+		"node_version":        nodeVer,
+		"notices":             active,
+		"notices_all":         len(doc.Notices),
 		"upgrade_recommended": len(active) > 0,
 	})
 }

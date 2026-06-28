@@ -13,7 +13,14 @@ if [[ "${1:-}" == "--fix" ]]; then
   FIX=1
 fi
 
-mapfile -t UNFMT < <(gofmt -l . 2>/dev/null || true)
+mapfile -t GOFILES < <(git ls-files '*.go' 2>/dev/null || find . -name '*.go' -not -path './vendor/*')
+UNFMT=()
+for f in "${GOFILES[@]}"; do
+  [[ -f "$f" ]] || continue
+  if gofmt -l "$f" | grep -q .; then
+    UNFMT+=("$f")
+  fi
+done
 
 if [[ "${#UNFMT[@]}" -eq 0 ]]; then
   echo "[gofmt-check] OK — all Go files formatted"
