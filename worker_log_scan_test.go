@@ -45,3 +45,25 @@ func TestWorkerActiveFromParticipantLog(t *testing.T) {
 		t.Fatal("expected active from participant log")
 	}
 }
+
+func TestWorkerLogStartedUnixFutureFilenameUsesMtime(t *testing.T) {
+	dir := t.TempDir()
+	// Filename stamp 2h in the future (local clock written as UTC).
+	future := time.Now().UTC().Add(2 * time.Hour).Format("20060102T150405Z")
+	p := filepath.Join(dir, "workerpoh-worker-kapa-pc-"+future+".log")
+	if err := os.WriteFile(p, []byte("submit ok\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now().Add(-30 * time.Minute)
+	if err := os.Chtimes(p, start, start); err != nil {
+		t.Fatal(err)
+	}
+	ux := workerLogStartedUnix(p)
+	if ux <= 0 {
+		t.Fatal("expected positive start unix")
+	}
+	now := time.Now().Unix()
+	if ux > now+120 {
+		t.Fatalf("start %d still in future (now %d)", ux, now)
+	}
+}

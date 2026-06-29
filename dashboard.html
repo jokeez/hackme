@@ -1806,11 +1806,11 @@
 											<div id="mine-calc-out-hour-sub" class="text-[8px] text-gray-600 font-mono mt-0.5">—</div>
 										</div>
 										<div class="mine-calc-kpi">
-											<div class="text-[9px] text-gray-500 uppercase">HMC / day</div>
+											<div class="text-[9px] text-gray-500 uppercase">HMC / day <span class="text-gray-600 normal-case">(tokens)</span></div>
 											<div id="mine-calc-out-day" class="font-mono text-sm text-white">—</div>
 										</div>
 										<div class="mine-calc-kpi">
-											<div class="text-[9px] text-gray-500 uppercase">HMC / month</div>
+											<div class="text-[9px] text-gray-500 uppercase">HMC / month <span class="text-gray-600 normal-case">(tokens)</span></div>
 											<div id="mine-calc-out-month" class="font-mono text-sm text-white">—</div>
 										</div>
 										<div class="mine-calc-kpi">
@@ -2583,7 +2583,7 @@
 							</div>
 							<div class="wallet-treasury-item accrual">
 								<p class="wallet-treasury-label">Pool accrual</p>
-								<p id="wallet-treasury-accrual" class="wallet-treasury-value">—</p>
+								<p id="wallet-treasury-accrual" class="wallet-treasury-value" title="Unsettled mining on coordinator — drops to ~0 after on-chain settlement (~90s). Not lost: moves to On-chain balance.">—</p>
 								<p class="wallet-treasury-sub">mining · not settled</p>
 							</div>
 							<div class="wallet-treasury-item orders" id="wallet-treasury-orders-card">
@@ -6142,12 +6142,20 @@
 					setMineCalcGhValue(gh, { skipRender: true });
 				}
 				if (p.coinId && MINE_CALC_COINS.some((c) => c.id === p.coinId)) mineCalcCoinId = p.coinId;
+				// Legacy default treated 1 HMC = $1 — clear unless user explicitly set a price.
+				const hmcUsdEl = mineCalcEl('mine-calc-hmc-usd');
+				if (hmcUsdEl && Number(hmcUsdEl.value) === 1 && !p.hmcUsdExplicit) {
+					hmcUsdEl.value = '';
+				}
 			} catch (_) {}
 		}
 
 		function saveMineCalcPrefs(inputs) {
 			try {
-				const payload = Object.assign({}, inputs, { coinId: mineCalcCoinId });
+				const payload = Object.assign({}, inputs, {
+					coinId: mineCalcCoinId,
+					hmcUsdExplicit: Number(inputs.hmcUsd) > 0,
+				});
 				localStorage.setItem(MINE_CALC_PREFS_KEY, JSON.stringify(payload));
 			} catch (_) {}
 		}
@@ -6594,6 +6602,8 @@
 						? ('Rare found bonus +' + fmt(net.foundBonus, 6) + ' HMC per hit — not averaged into HMC/h.')
 						: '',
 					'Higher M (more miners/hash) → lower reward/M. See Work payout for actual settled HMC.',
+					'HMC/day is token accrual, not USD — set optional HMC $ in advanced for revenue ROI only.',
+					'Pool accrual in Wallet resets after on-chain settlement; on-chain balance increases instead.',
 					inputs.scenario === 'fleet' ? ('Fleet: ' + inputs.rigCount + ' × ' + fmt(inputs.hashrateGh, 2) + ' GH/s = ' + fmt(inputs.hashrateGh * inputs.rigCount, 2) + ' GH/s aggregate.') : '',
 				].filter(Boolean);
 				mineCalcEl('mine-calc-footnote').textContent = parts.join(' ');
@@ -9448,8 +9458,13 @@
 			const poolRun = !!(md.pool_worker_running || muxUx.worker_subprocess_running);
 			const poolSess = Number(md.pool_worker_session_seconds || 0);
 			let sess = Number(payload.mining_session_sec || 0);
-			if (poolWorker && wst.running && wallWorkerSec > 0) sess = wallWorkerSec;
-			else if (sess <= 0 && netMode && !leaderLocal && wallWorkerSec > 0) sess = wallWorkerSec;
+			const apiWorkerSess = Number(wst.session_seconds || 0);
+			if (poolWorker && wst.running) {
+				if (apiWorkerSess > 0) sess = apiWorkerSess;
+				else if (wallWorkerSec > 0) sess = wallWorkerSec;
+				else if (poolSess > 0) sess = poolSess;
+				else if (sess <= 0) sess = Number(workerDerived.sessionSec || 0);
+			} else if (sess <= 0 && netMode && !leaderLocal && wallWorkerSec > 0) sess = wallWorkerSec;
 			else if (sess <= 0 && netMode && !leaderLocal && poolRun && poolSess > 0) sess = poolSess;
 			else if (sess <= 0) sess = Number(workerDerived.sessionSec || 0);
 			if ($('mine-stat-sec')) {

@@ -2669,18 +2669,28 @@ func latestWorkerpohLogPath(logDir string) string {
 	return p
 }
 
-// workerLogStartedUnix parses UTC start time from workerpoh-<id>-20260603T000053Z.log filename.
+// workerLogStartedUnix parses start time from worker log path (filename stamp or file mtime).
 func workerLogStartedUnix(logPath string) int64 {
 	if logPath == "" {
 		return 0
 	}
-	base := strings.TrimSuffix(filepath.Base(logPath), ".log")
-	parts := strings.Split(base, "-")
+	base := filepath.Base(logPath)
+	if base == "worker_participant.log" {
+		if fi, err := os.Stat(logPath); err == nil {
+			return fi.ModTime().Unix()
+		}
+		return 0
+	}
+	stem := strings.TrimSuffix(base, ".log")
+	parts := strings.Split(stem, "-")
 	if len(parts) < 2 {
 		return 0
 	}
 	stamp := parts[len(parts)-1]
 	if len(stamp) < 9 || !strings.Contains(stamp, "T") {
+		if fi, err := os.Stat(logPath); err == nil {
+			return fi.ModTime().Unix()
+		}
 		return 0
 	}
 	if !strings.HasSuffix(strings.ToUpper(stamp), "Z") {
@@ -2690,10 +2700,24 @@ func workerLogStartedUnix(logPath string) int64 {
 	if err != nil {
 		t, err = time.Parse("20060102T150405Z", stamp)
 		if err != nil {
+			if fi, err2 := os.Stat(logPath); err2 == nil {
+				return fi.ModTime().Unix()
+			}
 			return 0
 		}
 	}
-	return t.Unix()
+	ux := t.Unix()
+	now := time.Now().Unix()
+	// Filename may use local wall clock while parsed as UTC — fall back to mtime.
+	if ux > now+120 || ux <= 0 {
+		if fi, err := os.Stat(logPath); err == nil {
+			mt := fi.ModTime().Unix()
+			if mt > 0 && mt <= now+60 {
+				return mt
+			}
+		}
+	}
+	return ux
 }
 
 // latestWorkerpohWorkerLogPath returns newest workerpoh-<worker>-<stamp>.log (excludes worker_participant.log).
