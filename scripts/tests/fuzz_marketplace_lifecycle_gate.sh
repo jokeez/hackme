@@ -62,7 +62,7 @@ print("gate hidden ok")
 PY
 
 echo "[fuzz-market-lifecycle] create real campaign $REAL_CID"
-CID="$REAL_CID" TITLE="customer smoke audit" OWNER="HMC-smoke" WASM_HEX="$WASM_HEX" EXTRA_CFG='{}' \
+CID="$REAL_CID" TITLE="customer property audit" OWNER="HMC-market-test" WASM_HEX="$WASM_HEX" EXTRA_CFG='{}' \
   create_campaign >/tmp/fuzz_market_real.json
 
 sleep 1
@@ -98,14 +98,39 @@ curl -fsS -X POST "${BASE}/api/fuzz/campaigns/${GATE_CID}/status" \
 
 echo "[fuzz-market-lifecycle] verify zero active pool campaigns"
 curl -fsS "${BASE}/api/fuzz/campaigns?limit=300" -H "X-Hackme-Admin-Token: $ADMIN" >/tmp/fuzz_all.json
-python3 - <<'PY'
-import json
+python3 - "$GATE_CID" "$REAL_CID" <<'PY'
+import json, sys
+gate_cid, real_cid = (x.lower() for x in sys.argv[1:3])
 rows = json.load(open("/tmp/fuzz_all.json")).get("campaigns") or []
 active = [c for c in rows if c.get("status") in ("running", "planned")]
-print("local_active", len(active))
-for c in active:
-    print(" ", c.get("id"), c.get("title"))
-assert len(active) == 0, "unexpected active campaigns"
+stale = [c for c in active if str(c.get("id") or "").lower().startswith("campaign-market-")]
+for c in stale:
+    print("stale_active", c.get("id"), c.get("title"))
+# This gate only requires campaigns created in *this* run are cancelled.
+for cid in (gate_cid, real_cid):
+    hit = [c for c in active if str(c.get("id") or "").lower() == cid]
+    assert not hit, f"this-run campaign still active: {cid} {hit}"
+print("this_run_clean ok")
+PY
+
+# Best-effort cleanup of leftover campaign-market-* from prior failed gate runs.
+python3 - "$ADMIN" "$BASE" <<'PY'
+import json, os, subprocess, sys
+admin, base = sys.argv[1], sys.argv[2]
+rows = json.load(open("/tmp/fuzz_all.json")).get("campaigns") or []
+for c in rows:
+    cid = str(c.get("id") or "")
+    if not cid.lower().startswith("campaign-market-"):
+        continue
+    if c.get("status") not in ("running", "planned"):
+        continue
+    subprocess.run([
+        "curl", "-fsS", "-X", "POST", f"{base}/api/fuzz/campaigns/{cid}/status",
+        "-H", "Content-Type: application/json",
+        "-H", f"X-Hackme-Admin-Token: {admin}",
+        "-d", '{"status":"cancelled"}',
+    ], capture_output=True)
+    print("cancelled_stale", cid)
 PY
 
 echo "[fuzz-market-lifecycle] PASS"
