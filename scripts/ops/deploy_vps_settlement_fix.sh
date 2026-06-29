@@ -1,38 +1,55 @@
 #!/usr/bin/env bash
-# Fix VPS settlement: correct WORKER_PAYOUT_MAP, repair over-counted state, deploy settle script, run payout.
+# Deploy settlement fixes: scripts, treasury float, reconcile state, settle, publish canonical JSON.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 NODE_SSH="${NODE_SSH:-hackme-vps}"
 NODE_DEPLOY_DIR="${NODE_DEPLOY_DIR:-/opt/hackme}"
 WALLET="${WALLET:-HMC-91fe007e4036c602}"
-WORKER_ID="${WORKER_ID:-worker-kapa-pc}"
-# Default: route both your rigs to one wallet (override with WORKER_PAYOUT_MAP env).
-PAYOUT_MAP="${WORKER_PAYOUT_MAP:-worker-kapa-pc=${WALLET},worker-vps-msk-01=${WALLET}}"
 
-echo "[settle-fix] nginx coordinator query string (workers{} on HTTPS)"
-if [[ -f "$ROOT/scripts/ops/vps_patch_coordinator_nginx_query.sh" ]]; then
-  scp "$ROOT/scripts/ops/vps_patch_coordinator_nginx_query.sh" "$NODE_SSH:/tmp/"
-  ssh "$NODE_SSH" "sudo bash /tmp/vps_patch_coordinator_nginx_query.sh" || true
+log() { echo "[settle-deploy] $*"; }
+
+log "treasury float from operator wallet"
+bash "$ROOT/scripts/ops/ensure_settlement_treasury_float.sh" || true
+
+log "rsync settlement ops"
+for f in settle_worker_payouts.sh sync_settlement_admin_token.sh repair_worker_settlement_state.sh \
+  reconcile_settlement_state.sh publish_settlement_state.sh settlement_healthcheck.sh \
+  ensure_settlement_treasury_float.sh; do
+  rsync -az "$ROOT/scripts/ops/$f" "$NODE_SSH:$NODE_DEPLOY_DIR/scripts/ops/"
+done
+rsync -az "$ROOT/scripts/ops/systemd/hackme-worker-settlement.timer" "$NODE_SSH:/tmp/"
+ssh "$NODE_SSH" "sudo cp /tmp/hackme-worker-settlement.timer /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now hackme-worker-settlement.timer"
+
+log "nginx canonical settlement JSON"
+ssh "$NODE_SSH" "sudo mkdir -p /opt/hackme/data && sudo chown hackme:hackme /opt/hackme/data"
+if ! ssh "$NODE_SSH" "grep -q settlement/canonical.json /etc/nginx/sites-available/hackme-site-domain.conf 2>/dev/null"; then
+  ssh "$NODE_SSH" 'sudo sed -i "/location ~ \^\\/api\\/(status/i\\
+    location = /api/settlement/canonical.json {\\
+        alias /opt/hackme/data/settlement_canonical_public.json;\\
+        default_type application/json;\\
+        add_header Cache-Control \"no-store\";\\
+    }\\
+" /etc/nginx/sites-available/hackme-site-domain.conf && sudo nginx -t && sudo systemctl reload nginx'
 fi
 
-echo "[settle-fix] rsync settlement ops scripts"
-for f in settle_worker_payouts.sh sync_settlement_admin_token.sh repair_worker_settlement_state.sh settlement_healthcheck.sh; do
-  rsync -avz "$ROOT/scripts/ops/$f" "$NODE_SSH:$NODE_DEPLOY_DIR/scripts/ops/"
-done
-
-echo "[settle-fix] sync ADMIN_TOKEN with node"
 NODE_SSH="$NODE_SSH" NODE_DEPLOY_DIR="$NODE_DEPLOY_DIR" bash "$ROOT/scripts/ops/sync_settlement_admin_token.sh"
 
-echo "[settle-fix] WORKER_PAYOUT_MAP=${PAYOUT_MAP}"
-ssh "$NODE_SSH" "grep -q '^WORKER_PAYOUT_MAP=' '$NODE_DEPLOY_DIR/.env.settlement' && \
-  sed -i 's|^WORKER_PAYOUT_MAP=.*|WORKER_PAYOUT_MAP=${PAYOUT_MAP}|' '$NODE_DEPLOY_DIR/.env.settlement' || \
-  echo 'WORKER_PAYOUT_MAP=${PAYOUT_MAP}' >>'$NODE_DEPLOY_DIR/.env.settlement'"
+log "reconcile state (advance settled to coordinator payout)"
+ADVANCE_SETTLED=1 NODE_SSH="$NODE_SSH" NODE_DEPLOY_DIR="$NODE_DEPLOY_DIR" \
+  bash "$ROOT/scripts/ops/reconcile_settlement_state.sh"
 
-echo "[settle-fix] repair over-counted settlement state"
-NODE_SSH="$NODE_SSH" NODE_DEPLOY_DIR="$NODE_DEPLOY_DIR" bash "$ROOT/scripts/ops/repair_worker_settlement_state.sh"
-
-echo "[settle-fix] run settle_worker_payouts.sh"
+log "run settlement"
 ssh "$NODE_SSH" "cd '$NODE_DEPLOY_DIR' && set -a && . ./.env.settlement && set +a && bash scripts/ops/settle_worker_payouts.sh"
 
-echo "[settle-fix] coordinator worker row:"
-ssh "$NODE_SSH" 'TOKEN=$(tr -d "\r\n" <'"$NODE_DEPLOY_DIR"'/.secrets/hackme_coordinator_admin_token); curl -fsS -H "X-Hackme-Admin-Token: $TOKEN" http://127.0.0.1:18081/api/work/stats?details=1 | jq '"'"'.workers["'"$WORKER_ID"'"]'"'"''
+log "sync desktop canonical + rebuild node if local"
+bash "$ROOT/scripts/ops/sync_desktop_settlement_canonical.sh" || true
+
+if command -v go >/dev/null; then
+  log "rebuild local hackme-node (canonical merge)"
+  (cd "$ROOT" && go build -o logs/desktop/hackme-node-desktop .) || true
+fi
+
+log "verify"
+curl -fsS --max-time 20 "https://hackme.tech/api/settlement/canonical.json" | jq '{source,updated_unix,workers:(.workers|keys|length)}'
+curl -fsS --max-time 15 "http://127.0.0.1:8080/api/worker/settlement" | jq '{ok,wallet_unpaid_hmc,wallet_settled_hmc,total_unpaid_hmc}' || true
+log "done"

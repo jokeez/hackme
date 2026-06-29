@@ -4,8 +4,8 @@ Description=Run HackMe worker payout settlement (sequential payouts can take sev
 [Timer]
 OnBootSec=45s
 # After the oneshot unit finishes — not OnUnitActiveSec (that retriggers while a long run is still active).
-OnUnitInactiveSec=3min
-RandomizedDelaySec=15s
+OnUnitInactiveSec=60s
+RandomizedDelaySec=10s
 Persistent=true
 Unit=hackme-worker-settlement.service
 

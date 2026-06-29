@@ -10,7 +10,9 @@ Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 EnvironmentFile=/opt/hackme/.env.settlement
 # ExecStartPre runs as root; main settle script as hackme (fixes root-owned state after manual ops).
 PermissionsStartOnly=true
-ExecStartPre=/bin/bash -c 'install -d -o hackme -g hackme -m 700 /opt/hackme/data; for f in worker_settlement_state.json worker_settlement_state.json.flock; do touch "/opt/hackme/data/$f"; chown hackme:hackme "/opt/hackme/data/$f"; done; chmod 600 /opt/hackme/data/worker_settlement_state.json'
+ExecStartPre=/bin/bash -c 'install -d -o hackme -g hackme -m 700 /opt/hackme/data; for f in worker_settlement_state.json worker_settlement_state.json.flock; do touch "/opt/hackme/data/$f"; chown hackme:hackme "/opt/hackme/data/$f"; done; chmod 600 /opt/hackme/data/worker_settlement_state.json; chmod 755 /opt/hackme/data'
+# Never block payouts when treasury probe is slow (hub load); script exits 0 on probe failure.
+ExecStartPre=-/opt/hackme/scripts/ops/ensure_settlement_treasury_float.sh
 ExecStart=/opt/hackme/scripts/ops/settle_worker_payouts.sh
 User=hackme
 Group=hackme

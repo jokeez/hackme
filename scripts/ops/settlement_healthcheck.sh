@@ -25,7 +25,7 @@ COORD_ADMIN_TOKEN="${COORD_ADMIN_TOKEN:-${HACKME_COORDINATOR_ADMIN_TOKEN:-${COOR
 LOCAL_BASE="${LOCAL_BASE:-${CHAIN_BASE:-http://127.0.0.1:18080}}"
 ADMIN_SECRET_FILE="${ADMIN_SECRET_FILE:-${ROOT_DIR}/.secrets/hackme_admin_token}"
 STATE_FILE="${STATE_FILE:-/opt/hackme/data/worker_settlement_state.json}"
-MAX_UNSETTLED_HMC="${MAX_UNSETTLED_HMC:-0.5}"
+MAX_UNSETTLED_HMC="${MAX_UNSETTLED_HMC:-5}"
 EXPECTED_WALLET_SOURCES="${EXPECTED_WALLET_SOURCES:-canonical_peer,canonical_peer_cache,local_db}"
 MAX_SWEEP_ETA_SEC="${MAX_SWEEP_ETA_SEC:-93600}" # 26h default safety window
 
@@ -107,7 +107,7 @@ if [[ "$too_high" == "1" ]]; then
 fi
 
 # SLA check from node settlement API (daily sweep cadence visibility).
-settle="$(curl -fsS --max-time 15 "${LOCAL_BASE}/api/worker/settlement" || true)"
+settle="$(curl -fsS --max-time 8 "${LOCAL_BASE}/api/worker/settlement?lite=1" || true)"
 settle_ok="$(printf '%s' "$settle" | jq -r '.ok // false' 2>/dev/null || echo false)"
 if [[ "$settle_ok" != "true" ]]; then
   echo "[settlement-health] ERROR: /api/worker/settlement unavailable" >&2

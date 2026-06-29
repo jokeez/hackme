@@ -904,8 +904,13 @@ func (a *app) shouldUseCanonicalChainAPI() bool {
 	if a == nil {
 		return false
 	}
+	base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/")
+	// Command hub (hackme.tech VPS): local SQLite is the canonical ledger — never HTTP-loop via PUBLIC_AUTHORITY.
+	if base != "" && a.canonicalBaseIsSelfNode(base) {
+		return false
+	}
 	if envBool("HACKME_DESKTOP_MODE", false) {
-		if base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/"); walletCanonicalBaseUsable(base) {
+		if walletCanonicalBaseUsable(base) {
 			return true
 		}
 	}

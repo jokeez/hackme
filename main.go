@@ -2857,7 +2857,7 @@ func (a *app) handleTasks(w http.ResponseWriter, r *http.Request) {
 		// HACKME_TASKS_LIST_LOCAL_ONLY=1.
 		tasksBase := strings.TrimRight(strings.TrimSpace(strings.Split(os.Getenv("HACKME_P2P_PEERS"), ",")[0]), "/")
 		if tasksBase == "" {
-			if b := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/"); b != "" && !canonicalBaseWouldLoopbackProxy(r, b) {
+			if b := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/"); b != "" && !canonicalBaseWouldLoopbackProxy(r, b) && !a.canonicalBaseIsSelfNode(b) {
 				tasksBase = b
 			}
 		}
@@ -3305,7 +3305,7 @@ func (a *app) handleTransferAddressState(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if a.shouldUseCanonicalChainAPI() {
-		if base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/"); base != "" && walletCanonicalBaseUsable(base) {
+		if base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/"); base != "" && walletCanonicalBaseUsable(base) && !a.canonicalBaseIsSelfNode(base) {
 			if hmc, units, nonce, _, ok := a.readCanonicalWalletCache(addr); ok {
 				out := map[string]any{
 					"address":       addr,

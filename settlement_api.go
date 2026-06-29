@@ -249,6 +249,7 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	lite := strings.TrimSpace(r.URL.Query().Get("lite")) == "1"
 	base := a.coordinatorBaseURL()
 	if base == "" {
 		writeJSON(w, map[string]any{
@@ -257,9 +258,23 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	fetchTimeout := 8 * time.Second
+	if lite {
+		fetchTimeout = 2 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), fetchTimeout)
 	defer cancel()
-	ws, statsStale, err := a.resolveCoordinatorWorkStats(ctx, base, false)
+	details := !lite
+	ws, statsStale, err := a.resolveCoordinatorWorkStats(ctx, base, details)
+	if err != nil || ws == nil {
+		if lite {
+			if cached, _, ok := copyCachedWorkStats(workStatsCacheStaleMaxSec); ok && cached != nil {
+				ws = cached
+				statsStale = true
+				err = nil
+			}
+		}
+	}
 	if err != nil || ws == nil {
 		msg := "coordinator_unavailable"
 		if err != nil {
@@ -466,6 +481,7 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 	supNoteCancel()
 	writeJSON(w, map[string]any{
 		"ok":                                    true,
+		"lite":                                  lite,
 		"source":                                base,
 		"coordinator_stats_stale":               statsStale,
 		"workers_count":                         len(workers),

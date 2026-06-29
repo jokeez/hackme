@@ -53,3 +53,25 @@ func TestCanonicalChainBaseURL_prefersPublicAuthorityOverP2P(t *testing.T) {
 		t.Fatalf("got %q want https://hackme.tech", got)
 	}
 }
+
+func TestShouldUseCanonicalChainAPI_commandHubUsesLocalLedger(t *testing.T) {
+	t.Setenv("HACKME_PUBLIC_AUTHORITY_BASE", "https://hackme.tech")
+	t.Setenv("HACKME_POOL_COORDINATOR_URL", "http://127.0.0.1:18081")
+	t.Setenv("HACKME_DESKTOP_MODE", "0")
+	t.Setenv("HACKME_CANONICAL_CHAIN_URL", "")
+	a := &app{}
+	if a.shouldUseCanonicalChainAPI() {
+		t.Fatal("command hub must serve local SQLite, not canonical HTTP overlay")
+	}
+}
+
+func TestShouldUseCanonicalChainAPI_desktopFollowerUsesCanonical(t *testing.T) {
+	t.Setenv("HACKME_PUBLIC_AUTHORITY_BASE", "https://hackme.tech")
+	t.Setenv("HACKME_POOL_COORDINATOR_URL", "")
+	t.Setenv("HACKME_DESKTOP_MODE", "1")
+	t.Setenv("HACKME_CANONICAL_CHAIN_URL", "")
+	a := &app{}
+	if !a.shouldUseCanonicalChainAPI() {
+		t.Fatal("desktop follower should overlay canonical chain API")
+	}
+}

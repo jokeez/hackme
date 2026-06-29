@@ -50,8 +50,36 @@ SETTLE_TX_WAIT_SEC="${SETTLE_TX_WAIT_SEC:-90}"
 SETTLE_SEQUENTIAL="${SETTLE_SEQUENTIAL:-1}"
 SETTLE_PAYOUT_PAUSE_SEC="${SETTLE_PAYOUT_PAUSE_SEC:-10}"
 SETTLE_NONCE_RETRIES="${SETTLE_NONCE_RETRIES:-6}"
+CURL_MAX_TIME="${CURL_MAX_TIME:-60}"
+TREASURY_RESERVE_HMC="${TREASURY_RESERVE_HMC:-0.05}"
+SETTLE_MAX_CHUNK_HMC="${SETTLE_MAX_CHUNK_HMC:-40}"
 MIN_FEE_UNITS=1000
 UNITS_PER_HMC=100000000
+
+curl_json() {
+  local url="$1"
+  shift
+  local attempt=0
+  while (( attempt < 5 )); do
+    if out="$(curl -fsS --max-time "$CURL_MAX_TIME" "$@" "$url" 2>/dev/null)"; then
+      printf '%s' "$out"
+      return 0
+    fi
+    attempt=$((attempt + 1))
+    sleep $((attempt * 2))
+  done
+  return 1
+}
+
+payer_balance_hmc() {
+  local addr="$1"
+  curl_json "${CHAIN_BASE}/api/address/${addr}" | jq -r '(.balance_units // 0) / 100000000'
+}
+
+payer_nonce() {
+  local addr="$1"
+  curl_json "${CHAIN_BASE}/api/address/${addr}" | jq -r '.next_nonce // 0'
+}
 
 if [[ -z "$ADMIN_TOKEN" && -r "$ADMIN_SECRET_FILE" ]]; then
   ADMIN_TOKEN="$(tr -d '\r\n' <"$ADMIN_SECRET_FILE")"
@@ -91,6 +119,29 @@ if ! flock -n 9; then
   exit 0
 fi
 
+tx_response_ok() {
+  local resp="$1"
+  [[ -n "$resp" ]] || return 1
+  local ok status tx_hash
+  ok="$(jq -r '(.ok // false) | tostring' <<<"$resp" 2>/dev/null | tr -d '\r\n' || echo "false")"
+  status="$(jq -r '.status // ""' <<<"$resp" 2>/dev/null | tr -d '\r\n' || echo "")"
+  tx_hash="$(jq -r '.tx_hash // ""' <<<"$resp" 2>/dev/null | tr -d '\r\n' || echo "")"
+  [[ "$ok" == "true" && -n "$tx_hash" ]] && return 0
+  [[ -n "$tx_hash" && "$status" =~ ^(pending|accepted|included)$ ]] && return 0
+  return 1
+}
+
+normalize_tx_resp() {
+  local r="${1:-}"
+  r="${r//$'\r'/}"
+  r="${r//$'\n'/}"
+  while [[ "$r" == *'}}' ]]; do r="${r%?}"; done
+  if ! jq -e . <<<"$r" >/dev/null 2>&1; then
+    r="{}"
+  fi
+  printf '%s' "$r"
+}
+
 tx_pool_pending_count() {
   curl -fsS "${CHAIN_BASE}/api/tx/pool" | jq '.txs | if . == null then 0 else length end' 2>/dev/null || echo 0
 }
@@ -109,7 +160,7 @@ wait_tx_pool_clear() {
 
 send_settlement_tx() {
   local from_addr="$1" to_addr="$2" amount_units="$3" ts="$4" nonce="$5"
-  local tx_body resp
+  local tx_body resp attempt=0
   tx_body="$(jq -nc \
     --arg from "$from_addr" \
     --arg to "$to_addr" \
@@ -118,11 +169,18 @@ send_settlement_tx() {
     --argjson nonce "$nonce" \
     --argjson ts "$ts" \
     '{tx_type:"transfer_v1",from:$from,to:$to,amount_units:$amount,fee_units:$fee,nonce:$nonce,timestamp_unix:$ts,memo:"worker_settlement"}')"
-  resp="$(curl -sS -X POST "${CHAIN_BASE}/api/tx/send" \
-    -H "Content-Type: application/json" \
-    -H "X-Hackme-Admin-Token: ${ADMIN_TOKEN}" \
-    -d "$tx_body")"
-  printf '%s' "$resp"
+  while (( attempt < 4 )); do
+    if resp="$(curl -sS --max-time "$CURL_MAX_TIME" -X POST "${CHAIN_BASE}/api/tx/send" \
+      -H "Content-Type: application/json" \
+      -H "X-Hackme-Admin-Token: ${ADMIN_TOKEN}" \
+      -d "$tx_body" 2>/dev/null)"; then
+      printf '%s' "$resp"
+      return 0
+    fi
+    attempt=$((attempt + 1))
+    sleep $((attempt * 2))
+  done
+  return 1
 }
 
 if ! jq -e '.workers | type=="object"' "$STATE_FILE" >/dev/null 2>&1; then
@@ -262,6 +320,31 @@ PY
     continue
   fi
 
+  pbal="$(payer_balance_hmc "$payer_addr" 2>/dev/null || echo 0)"
+  max_pay_hmc="$(python3 - "$pbal" "$TREASURY_RESERVE_HMC" "$SETTLE_MAX_CHUNK_HMC" "$delta_hmc" <<'PY'
+import sys
+bal, res, chunk, delta = map(float, sys.argv[1:])
+avail = max(0.0, bal - res)
+cap = min(chunk, avail, delta)
+print(f"{cap:.12f}")
+PY
+)"
+  if awk -v m="$max_pay_hmc" 'BEGIN{exit !(m>0)}'; then
+    if awk -v a="$max_pay_hmc" -v d="$delta_hmc" 'BEGIN{exit !(a+0.0000001<d)}'; then
+      echo "[settle-workers] chunk ${worker_id}: treasury=${pbal} HMC — paying ${max_pay_hmc} of ${delta_hmc} HMC now"
+      delta_hmc="$max_pay_hmc"
+      amount_units="$(python3 - "$delta_hmc" <<'PY'
+import sys
+u=int(float(sys.argv[1])*100000000+0.5)
+print(max(0,u))
+PY
+)"
+    fi
+  else
+    echo "[settle-workers] ERROR settle ${worker_id}: treasury balance ${pbal} HMC too low (need topup)" >&2
+    continue
+  fi
+
   ts="$(date +%s)"
   if [[ "$SETTLE_SEQUENTIAL" == "1" && "$payouts_sent" -gt 0 ]]; then
     wait_tx_pool_clear || true
@@ -269,30 +352,50 @@ PY
       sleep "$SETTLE_PAYOUT_PAUSE_SEC"
     fi
   fi
-  nonce="$(curl -fsS "${CHAIN_BASE}/api/address/${payer_addr}" | jq -r '.next_nonce // 0')"
+  nonce="$(payer_nonce "$payer_addr" 2>/dev/null || echo 0)"
+  nonce_before="$nonce"
 
-  resp="$(send_settlement_tx "$payer_addr" "$to_addr" "$amount_units" "$ts" "$nonce")"
-  ok="$(jq -r '.ok // false' <<<"$resp" 2>/dev/null || echo "false")"
-  code="$(jq -r '.code // ""' <<<"$resp" 2>/dev/null || echo "")"
+  resp=""
+  if ! resp="$(send_settlement_tx "$payer_addr" "$to_addr" "$amount_units" "$ts" "$nonce")"; then
+    resp=""
+  fi
+  resp="$(normalize_tx_resp "${resp:-{}}")"
+  ok="$(jq -r '(.ok // false) | tostring' <<<"${resp:-{}}" 2>/dev/null | tr -d '\r\n' || echo "false")"
+  code="$(jq -r '.code // ""' <<<"${resp:-{}}" 2>/dev/null | tr -d '\r\n' || echo "")"
   attempt=1
-  while [[ "$ok" != "true" && "$attempt" -lt "$SETTLE_NONCE_RETRIES" ]]; do
+  while ! tx_response_ok "${resp:-{}}" && [[ "$attempt" -lt "$SETTLE_NONCE_RETRIES" ]]; do
     case "$code" in
       pending_nonce_conflict|invalid_nonce) ;;
+      insufficient_balance)
+        echo "[settle-workers] ERROR settle ${worker_id}: treasury insufficient_balance — run ensure_settlement_treasury_float.sh" >&2
+        break
+      ;;
       *) break ;;
     esac
     wait_tx_pool_clear || true
     sleep $((SETTLE_PAYOUT_PAUSE_SEC + attempt * 2))
-    nonce="$(curl -fsS "${CHAIN_BASE}/api/address/${payer_addr}" | jq -r '.next_nonce // 0')"
-    resp="$(send_settlement_tx "$payer_addr" "$to_addr" "$amount_units" "$ts" "$nonce")"
-    ok="$(jq -r '.ok // false' <<<"$resp" 2>/dev/null || echo "false")"
-    code="$(jq -r '.code // ""' <<<"$resp" 2>/dev/null || echo "")"
+    nonce="$(payer_nonce "$payer_addr" 2>/dev/null || echo 0)"
+    if ! resp="$(send_settlement_tx "$payer_addr" "$to_addr" "$amount_units" "$ts" "$nonce")"; then
+      resp=""
+    fi
+    resp="$(normalize_tx_resp "${resp:-{}}")"
+    ok="$(jq -r '(.ok // false) | tostring' <<<"${resp:-{}}" 2>/dev/null | tr -d '\r\n' || echo "false")"
+    code="$(jq -r '.code // ""' <<<"${resp:-{}}" 2>/dev/null | tr -d '\r\n' || echo "")"
     attempt=$((attempt + 1))
   done
-  if [[ "$ok" != "true" ]]; then
-    echo "[settle-workers] ERROR settle ${worker_id} -> ${to_addr}: ${resp}" >&2
-    continue
+  if ! tx_response_ok "${resp:-{}}"; then
+    nonce_after="$(payer_nonce "$payer_addr" 2>/dev/null || echo "$nonce_before")"
+    if [[ "$nonce_after" =~ ^[0-9]+$ && "$nonce_before" =~ ^[0-9]+$ && "$nonce_after" -gt "$nonce_before" ]]; then
+      ok="true"
+      tx_hash="$(jq -r '.tx_hash // "nonce-advanced"' <<<"${resp:-{}}")"
+      echo "[settle-workers] recovered ${worker_id} via nonce advance (${nonce_before}->${nonce_after})"
+    else
+      echo "[settle-workers] ERROR settle ${worker_id} -> ${to_addr}: ${resp:-curl_failed}" >&2
+      continue
+    fi
   fi
-  tx_hash="$(jq -r '.tx_hash // ""' <<<"$resp")"
+  tx_hash="$(jq -r '.tx_hash // ""' <<<"${resp:-{}}" 2>/dev/null || echo "")"
+  [[ -n "$tx_hash" ]] || tx_hash="ok"
   settled_any=1
   payouts_sent=$((payouts_sent + 1))
   echo "[settle-workers] settled ${worker_id} -> ${to_addr} delta=${delta_hmc} HMC tx=${tx_hash}"
@@ -303,9 +406,14 @@ print(f"{already + delta:.12f}")
 PY
 )"
   tmp="$(mktemp)"
-  jq --arg wid "$worker_id" --arg addr "$to_addr" --argjson settled "$new_settled_hmc" --arg tx "$tx_hash" --argjson ts "$ts" \
-    '.workers[$wid] = ((.workers[$wid] // {}) + {settled_hmc:$settled,payout_address:$addr,last_tx_hash:$tx,last_settle_unix:$ts})' \
-    "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
+  if ! jq --arg wid "$worker_id" --arg addr "$to_addr" --arg settled "$new_settled_hmc" --arg tx "$tx_hash" --argjson ts "$ts" \
+    '.workers[$wid] = ((.workers[$wid] // {}) + {settled_hmc:($settled|tonumber),payout_address:$addr,last_tx_hash:$tx,last_settle_unix:$ts})' \
+    "$STATE_FILE" >"$tmp"; then
+    rm -f "$tmp"
+    echo "[settle-workers] ERROR state update ${worker_id}: jq failed" >&2
+    continue
+  fi
+  mv "$tmp" "$STATE_FILE"
   if [[ "$(id -u)" -eq 0 ]]; then
     chown hackme:hackme "$STATE_FILE" 2>/dev/null || true
     chmod 600 "$STATE_FILE" 2>/dev/null || true
@@ -320,4 +428,10 @@ fi
 if [[ "$force_settle" == "1" ]]; then
   tmp="$(mktemp)"
   jq --argjson ts "$now_unix" '.meta.last_force_unix = $ts' "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
+fi
+
+if [[ -x "$ROOT_DIR/scripts/ops/publish_settlement_state.sh" ]]; then
+  STATE_FILE="$STATE_FILE" \
+    SETTLEMENT_CANONICAL_JSON="$(dirname "$STATE_FILE")/settlement_canonical_public.json" \
+    bash "$ROOT_DIR/scripts/ops/publish_settlement_state.sh" 2>/dev/null || true
 fi
