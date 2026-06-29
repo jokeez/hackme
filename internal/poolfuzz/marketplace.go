@@ -15,24 +15,28 @@ func (s *Service) ListPublicCampaigns(ctx context.Context, limit int) ([]map[str
 		limit = 50
 	}
 	rows, err := s.DB.QueryContext(ctx,
-		`SELECT id, campaign_type, status, title, budget_runs, summary_json, config_json, created_at, completed_at
+		`SELECT id, campaign_type, status, title, owner_ref, budget_runs, summary_json, config_json, created_at, completed_at
 		 FROM fuzz_campaigns
 		 WHERE json_extract(config_json, '$.pool_distributed') IN (1, 'true', '1')
+		   AND status IN ('planned', 'running')
 		 ORDER BY created_at DESC
-		 LIMIT ?`, limit)
+		 LIMIT ?`, limit*4)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []map[string]any
+	out := make([]map[string]any, 0, limit)
 	for rows.Next() {
-		var id, ctype, status, title, summaryJSON, cfgJSON string
+		var id, ctype, status, title, ownerRef, summaryJSON, cfgJSON string
 		var budgetRuns int
 		var createdAt, completedAt int64
-		if err := rows.Scan(&id, &ctype, &status, &title, &budgetRuns, &summaryJSON, &cfgJSON, &createdAt, &completedAt); err != nil {
+		if err := rows.Scan(&id, &ctype, &status, &title, &ownerRef, &budgetRuns, &summaryJSON, &cfgJSON, &createdAt, &completedAt); err != nil {
 			return nil, err
 		}
 		cfg := parseConfigJSON(cfgJSON)
+		if !IsMarketplaceCampaign(status, id, title, ownerRef, cfg) {
+			continue
+		}
 		summary := parseConfigJSON(summaryJSON)
 		var findings int
 		_ = s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_findings WHERE campaign_id=?`, id).Scan(&findings)
@@ -73,6 +77,9 @@ func (s *Service) ListPublicCampaigns(ctx context.Context, limit int) ([]map[str
 			item["native_status"] = "n/a"
 		}
 		out = append(out, item)
+		if len(out) >= limit {
+			break
+		}
 	}
 	return out, rows.Err()
 }

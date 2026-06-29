@@ -46,6 +46,64 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		_ = json.NewEncoder(w).Encode(st)
 	})
 
+	mux.HandleFunc("/api/fuzz/pool/campaigns/status", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if adminToken == "" && allowInsecure {
+			// loopback dev
+		} else if adminToken == "" || !coordAdminOK(r, adminToken) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
+			http.Error(w, "admin authentication required", http.StatusUnauthorized)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
+		var req struct {
+			ID     string `json:"id"`
+			Status string `json:"status"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		if strings.TrimSpace(req.ID) == "" {
+			http.Error(w, "id required", http.StatusBadRequest)
+			return
+		}
+		status := strings.TrimSpace(strings.ToLower(req.Status))
+		if status == "" {
+			status = "cancelled"
+		}
+		if err := pf.SetCampaignStatus(r.Context(), req.ID, status); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "id": req.ID, "status": status})
+	})
+
+	mux.HandleFunc("/api/fuzz/pool/campaigns/cleanup-gates", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if adminToken == "" && allowInsecure {
+			// loopback dev
+		} else if adminToken == "" || !coordAdminOK(r, adminToken) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
+			http.Error(w, "admin authentication required", http.StatusUnauthorized)
+			return
+		}
+		n, err := pf.CancelInternalGateCampaigns(r.Context(), 200)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "cancelled": n})
+	})
+
 	mux.HandleFunc("/api/fuzz/pool/campaigns", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

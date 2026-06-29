@@ -11497,11 +11497,20 @@
 				if (!r.ok) throw new Error('HTTP ' + r.status);
 				const j = await r.json();
 				const rows = Array.isArray(j.campaigns) ? j.campaigns : [];
-				if (!rows.length) {
+				const visible = rows.filter((c) => {
+					const st = String(c.status || '').toLowerCase();
+					if (st !== 'running' && st !== 'planned') return false;
+					const id = String(c.id || '');
+					const title = String(c.title || '').toLowerCase();
+					if (id.startsWith('pool-sync-gate') || id.includes('pool-sync-gate') || id.startsWith('pool-sync-node-')) return false;
+					if (id.endsWith('-probe') || id.includes('-probe-') || title === 'probe' || title === 'pool-sync-gate') return false;
+					return true;
+				});
+				if (!visible.length) {
 					box.innerHTML = '<span class="text-gray-600">No pool fuzz campaigns — create audit in #orders.</span>';
 					return;
 				}
-				box.innerHTML = rows.slice(0, 8).map((c) => {
+				box.innerHTML = visible.slice(0, 8).map((c) => {
 					const pr = c.per_run_hmc != null ? (Number(c.per_run_hmc).toFixed(4) + ' HMC/run') : '—';
 					return '<div class="flex flex-wrap gap-2 border-b border-white/5 pb-1">' +
 						'<span class="text-neon truncate max-w-[140px]">' + escapeHtml(String(c.title || c.id || '—')) + '</span>' +

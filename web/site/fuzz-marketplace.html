@@ -51,7 +51,15 @@
         if (st.ok) {
           statsEl.textContent = `Pool: ${st.campaigns_running || 0} running · ${st.work_done || 0} work items done · ${st.work_pending || 0} pending`;
         }
-        const rows = list.campaigns || [];
+        const rows = (list.campaigns || []).filter((c) => {
+          const st = String(c.status || '').toLowerCase();
+          if (st !== 'running' && st !== 'planned') return false;
+          const id = String(c.id || '');
+          const title = String(c.title || '').toLowerCase();
+          if (id.startsWith('pool-sync-gate') || id.includes('pool-sync-gate') || id.startsWith('pool-sync-node-')) return false;
+          if (id.endsWith('-probe') || title === 'probe' || title === 'pool-sync-gate' || title === 'gate-audit') return false;
+          return true;
+        });
         if (!rows.length) {
           body.innerHTML = '<tr><td colspan="6">No pool campaigns yet.</td></tr>';
           return;

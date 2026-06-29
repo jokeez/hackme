@@ -266,6 +266,12 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 		"escrow_split":     "20_80",
 		"depth_tier":       string(depthTier),
 	}
+	if strings.HasPrefix(strings.ToLower(payerRef), "gate:") ||
+		strings.EqualFold(title, "pool-sync-gate") ||
+		strings.Contains(strings.ToLower(title), "pool sync") && strings.Contains(strings.ToLower(title), "gate") {
+		cfgMap["internal_gate"] = true
+		cfgMap["auto_runner"] = "0"
+	}
 	cfgMap = fuzzengine.ApplyDepthTier(cfgMap, depthTier)
 	if gn := strings.TrimSpace(req.GuardName); gn != "" {
 		cfgMap["guard_name"] = gn

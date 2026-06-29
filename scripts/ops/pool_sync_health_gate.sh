@@ -30,6 +30,11 @@ if [[ ! -f "$ADMIN_FILE" ]]; then
 fi
 
 ADMIN="$(tr -d '\r\n' <"$ADMIN_FILE")"
+COORD_ADMIN_FILE="${COORD_ADMIN_FILE:-$ROOT/.secrets/hackme_coordinator_admin_token}"
+COORD_ADMIN=""
+if [[ -f "$COORD_ADMIN_FILE" ]]; then
+  COORD_ADMIN="$(tr -d '\r\n' <"$COORD_ADMIN_FILE")"
+fi
 WASM_HEX="${WASM_HEX:-$(xxd -p "$ROOT/tasks/artifacts/security/rust_script_push_bounds_guard.wasm" | tr -d '\n')}"
 CID="pool-sync-gate-$(date +%s)"
 echo "[pool-sync-gate] POST /api/security-audit $CID"
@@ -67,6 +72,19 @@ if st=='fail' and last.startswith('pool-sync-gate'):
 sys.exit(1)
 "; then
     echo "[pool-sync-gate] coordinator register confirmed"
+    if [[ -n "${CID:-}" && -f "$ADMIN_FILE" ]]; then
+      curl -fsS --max-time 10 -X POST "$BASE/api/fuzz/campaigns/${CID}/status" \
+        -H "Content-Type: application/json" \
+        -H "X-Hackme-Admin-Token: $ADMIN" \
+        -d '{"status":"cancelled"}' >/dev/null 2>&1 || true
+      if [[ -n "$COORD_ADMIN" ]]; then
+        curl -fsS --max-time 10 -X POST "${COORD_URL:-https://hackme.tech/pool/coordinator}/api/fuzz/pool/campaigns/status" \
+          -H "Content-Type: application/json" \
+          -H "X-Hackme-Admin-Token: $COORD_ADMIN" \
+          -d "{\"id\":\"${CID}\",\"status\":\"cancelled\"}" >/dev/null 2>&1 || true
+      fi
+      echo "[pool-sync-gate] cancelled gate campaign $CID"
+    fi
     echo "[pool-sync-gate] PASS"
     exit 0
   fi

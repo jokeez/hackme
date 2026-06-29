@@ -104,6 +104,85 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 	return err
 }
 
+// SetCampaignStatus updates campaign lifecycle and cancels pending work when stopping.
+func (s *Service) SetCampaignStatus(ctx context.Context, id, status string) error {
+	if s == nil || s.DB == nil {
+		return fmt.Errorf("poolfuzz: no database")
+	}
+	id = strings.TrimSpace(id)
+	status = strings.TrimSpace(strings.ToLower(status))
+	if id == "" {
+		return fmt.Errorf("poolfuzz: campaign id required")
+	}
+	switch status {
+	case "planned", "running", "paused", "completed", "cancelled":
+	default:
+		return fmt.Errorf("poolfuzz: invalid status %q", status)
+	}
+	now := time.Now().Unix()
+	completedAt := int64(0)
+	if status == "completed" || status == "cancelled" {
+		completedAt = now
+	}
+	res, err := s.DB.ExecContext(ctx,
+		`UPDATE fuzz_campaigns
+		 SET status=?, completed_at=CASE WHEN ?=0 THEN completed_at ELSE ? END
+		 WHERE id=?`,
+		status, completedAt, completedAt, id)
+	if err != nil {
+		return err
+	}
+	aff, _ := res.RowsAffected()
+	if aff == 0 {
+		return fmt.Errorf("poolfuzz: campaign not found")
+	}
+	if status == "completed" || status == "cancelled" || status == "paused" {
+		_, _ = s.DB.ExecContext(ctx,
+			`UPDATE fuzz_work_items
+			 SET status='cancelled', updated_at=?
+			 WHERE campaign_id=? AND status IN ('pending','leased')`,
+			now, id)
+	}
+	return nil
+}
+
+// CancelInternalGateCampaigns stops health-check / probe pool campaigns.
+func (s *Service) CancelInternalGateCampaigns(ctx context.Context, limit int) (int, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
+	rows, err := s.DB.QueryContext(ctx,
+		`SELECT id, title, owner_ref, config_json
+		 FROM fuzz_campaigns
+		 WHERE status IN ('planned','running')
+		   AND json_extract(config_json, '$.pool_distributed') IN (1, 'true', '1')
+		 ORDER BY created_at DESC
+		 LIMIT ?`, limit*4)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	n := 0
+	for rows.Next() {
+		var id, title, ownerRef, cfgJSON string
+		if err := rows.Scan(&id, &title, &ownerRef, &cfgJSON); err != nil {
+			return n, err
+		}
+		cfg := parseConfigJSON(cfgJSON)
+		if !IsInternalGateCampaign(id, title, ownerRef, cfg) {
+			continue
+		}
+		if err := s.SetCampaignStatus(ctx, id, "cancelled"); err != nil {
+			return n, err
+		}
+		n++
+		if n >= limit {
+			break
+		}
+	}
+	return n, rows.Err()
+}
+
 // EnsureWorkItems tops up pending queue for active pool campaigns.
 func (s *Service) EnsureWorkItems(ctx context.Context, campaignID string, now int64) error {
 	var budgetRuns int
@@ -189,7 +268,7 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 	}
 	leaseSec := leaseSeconds()
 	rows, err := s.DB.QueryContext(ctx,
-		`SELECT c.id, c.config_json, w.id, w.input_n
+		`SELECT c.id, c.title, c.owner_ref, c.config_json, w.id, w.input_n
 		 FROM fuzz_campaigns c
 		 JOIN fuzz_work_items w ON w.campaign_id = c.id
 		 WHERE c.status IN ('planned','running')
@@ -201,14 +280,17 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var campaignID, cfgJSON string
+		var campaignID, title, ownerRef, cfgJSON string
 		var itemID int64
 		var inputN uint64
-		if err := rows.Scan(&campaignID, &cfgJSON, &itemID, &inputN); err != nil {
+		if err := rows.Scan(&campaignID, &title, &ownerRef, &cfgJSON, &itemID, &inputN); err != nil {
 			return out, false, err
 		}
 		cfg := parseConfigJSON(cfgJSON)
 		if !poolDistributed(cfg) {
+			continue
+		}
+		if IsInternalGateCampaign(campaignID, title, ownerRef, cfg) {
 			continue
 		}
 		res, err := s.DB.ExecContext(ctx,
