@@ -2381,6 +2381,18 @@ func (a *app) handleWorkerStatus(w http.ResponseWriter, r *http.Request) {
 			if workerID == "" {
 				workerID = workerIDFromLatestWorkerpohLog(logRoot)
 			}
+			if ux := workerLogStartedUnix(wp); ux > 0 {
+				startedAt = ux
+			}
+			if strings.HasSuffix(filepath.Base(logPath), "worker_participant.log") {
+				logPath = wp
+			}
+		} else if startedAt == 0 && logPath != "" {
+			startedAt = workerLogStartedUnix(logPath)
+		}
+	} else if running {
+		wp := latestWorkerpohWorkerLogPath(logRoot)
+		if wp != "" {
 			if startedAt == 0 {
 				startedAt = workerLogStartedUnix(wp)
 			}
@@ -2669,15 +2681,15 @@ func latestWorkerpohLogPath(logDir string) string {
 	return p
 }
 
-// workerLogStartedUnix parses start time from worker log path (filename stamp or file mtime).
+// workerLogStartedUnix parses start time from worker log path (filename stamp in local TZ).
 func workerLogStartedUnix(logPath string) int64 {
 	if logPath == "" {
 		return 0
 	}
 	base := filepath.Base(logPath)
 	if base == "worker_participant.log" {
-		if fi, err := os.Stat(logPath); err == nil {
-			return fi.ModTime().Unix()
+		if wp := latestWorkerpohWorkerLogPath(filepath.Dir(logPath)); wp != "" {
+			return workerLogStartedUnix(wp)
 		}
 		return 0
 	}
@@ -2686,38 +2698,34 @@ func workerLogStartedUnix(logPath string) int64 {
 	if len(parts) < 2 {
 		return 0
 	}
-	stamp := parts[len(parts)-1]
+	stamp := strings.TrimSuffix(strings.ToUpper(parts[len(parts)-1]), "Z")
 	if len(stamp) < 9 || !strings.Contains(stamp, "T") {
-		if fi, err := os.Stat(logPath); err == nil {
-			return fi.ModTime().Unix()
-		}
 		return 0
 	}
-	if !strings.HasSuffix(strings.ToUpper(stamp), "Z") {
-		stamp += "Z"
-	}
-	t, err := time.Parse(time.RFC3339, stamp)
-	if err != nil {
-		t, err = time.Parse("20060102T150405Z", stamp)
-		if err != nil {
-			if fi, err2 := os.Stat(logPath); err2 == nil {
-				return fi.ModTime().Unix()
-			}
-			return 0
-		}
-	}
-	ux := t.Unix()
 	now := time.Now().Unix()
-	// Filename may use local wall clock while parsed as UTC — fall back to mtime.
-	if ux > now+120 || ux <= 0 {
-		if fi, err := os.Stat(logPath); err == nil {
-			mt := fi.ModTime().Unix()
-			if mt > 0 && mt <= now+60 {
-				return mt
-			}
+	var candidates []int64
+	if t, err := time.ParseInLocation("20060102T150405", stamp, time.Local); err == nil {
+		candidates = append(candidates, t.Unix())
+	}
+	if t, err := time.Parse("20060102T150405Z", stamp+"Z"); err == nil {
+		candidates = append(candidates, t.Unix())
+	}
+	var best int64
+	for _, ux := range candidates {
+		if ux <= 0 || ux > now+60 {
+			continue
+		}
+		if ux > best {
+			best = ux
 		}
 	}
-	return ux
+	if best > 0 {
+		return best
+	}
+	if len(candidates) > 0 {
+		return candidates[0]
+	}
+	return 0
 }
 
 // latestWorkerpohWorkerLogPath returns newest workerpoh-<worker>-<stamp>.log (excludes worker_participant.log).

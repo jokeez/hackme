@@ -46,24 +46,35 @@ func TestWorkerActiveFromParticipantLog(t *testing.T) {
 	}
 }
 
-func TestWorkerLogStartedUnixFutureFilenameUsesMtime(t *testing.T) {
+func TestWorkerLogStartedUnixLocalFilename(t *testing.T) {
 	dir := t.TempDir()
-	// Filename stamp 2h in the future (local clock written as UTC).
-	future := time.Now().UTC().Add(2 * time.Hour).Format("20060102T150405Z")
-	p := filepath.Join(dir, "workerpoh-worker-kapa-pc-"+future+".log")
+	stamp := time.Now().Add(-45 * time.Minute).Format("20060102T150405")
+	p := filepath.Join(dir, "workerpoh-worker-kapa-pc-"+stamp+".log")
 	if err := os.WriteFile(p, []byte("submit ok\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	start := time.Now().Add(-30 * time.Minute)
-	if err := os.Chtimes(p, start, start); err != nil {
 		t.Fatal(err)
 	}
 	ux := workerLogStartedUnix(p)
 	if ux <= 0 {
 		t.Fatal("expected positive start unix")
 	}
+	sec := time.Now().Unix() - ux
+	if sec < 40*60 || sec > 50*60 {
+		t.Fatalf("session ~45m wanted, got %ds from ux %d", sec, ux)
+	}
+}
+
+func TestWorkerLogStartedUnixFutureFilenameUsesMtime(t *testing.T) {
+	dir := t.TempDir()
+	// Wall-clock stamp 2h ahead in local TZ (autostart naming convention).
+	future := time.Now().Add(2 * time.Hour).Format("20060102T150405")
+	p := filepath.Join(dir, "workerpoh-worker-kapa-pc-"+future+".log")
+	if err := os.WriteFile(p, []byte("submit ok\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ux := workerLogStartedUnix(p)
+	// No valid past candidate — returns first parse (future); session clamped to 0 at API layer.
 	now := time.Now().Unix()
-	if ux > now+120 {
-		t.Fatalf("start %d still in future (now %d)", ux, now)
+	if ux <= now {
+		t.Fatalf("expected future unix from local stamp, ux=%d now=%d", ux, now)
 	}
 }
