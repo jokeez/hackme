@@ -183,6 +183,53 @@ func (s *Service) CancelInternalGateCampaigns(ctx context.Context, limit int) (i
 	return n, rows.Err()
 }
 
+// CancelZeroProgressPoolCampaigns stops pool campaigns that never completed a run.
+func (s *Service) CancelZeroProgressPoolCampaigns(ctx context.Context, minAgeSec int64, limit int) (int, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 200
+	}
+	now := time.Now().Unix()
+	if minAgeSec < 0 {
+		minAgeSec = 3600
+	}
+	rows, err := s.DB.QueryContext(ctx,
+		`SELECT c.id, c.title, c.owner_ref, c.config_json, c.summary_json, c.created_at
+		 FROM fuzz_campaigns c
+		 WHERE c.status IN ('planned','running')
+		   AND json_extract(c.config_json, '$.pool_distributed') IN (1, 'true', '1')
+		   AND (? - c.created_at) >= ?
+		 ORDER BY c.created_at ASC
+		 LIMIT ?`, now, minAgeSec, limit*4)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	n := 0
+	for rows.Next() {
+		var id, title, ownerRef, cfgJSON, summaryJSON string
+		var createdAt int64
+		if err := rows.Scan(&id, &title, &ownerRef, &cfgJSON, &summaryJSON, &createdAt); err != nil {
+			return n, err
+		}
+		cfg := parseConfigJSON(cfgJSON)
+		summary := parseConfigJSON(summaryJSON)
+		runsDone := intFromJSON(summary["runs_done"])
+		if runsDone > 0 {
+			continue
+		}
+		if err := s.SetCampaignStatus(ctx, id, "cancelled"); err != nil {
+			return n, err
+		}
+		n++
+		if n >= limit {
+			break
+		}
+		_ = cfg
+		_ = ownerRef
+	}
+	return n, rows.Err()
+}
+
 // EnsureWorkItems tops up pending queue for active pool campaigns.
 func (s *Service) EnsureWorkItems(ctx context.Context, campaignID string, now int64) error {
 	var budgetRuns int

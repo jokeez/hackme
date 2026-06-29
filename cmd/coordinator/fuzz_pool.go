@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -96,6 +97,33 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			return
 		}
 		n, err := pf.CancelInternalGateCampaigns(r.Context(), 200)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "cancelled": n})
+	})
+
+	mux.HandleFunc("/api/fuzz/pool/campaigns/cleanup-stale", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if adminToken == "" && allowInsecure {
+			// loopback dev
+		} else if adminToken == "" || !coordAdminOK(r, adminToken) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
+			http.Error(w, "admin authentication required", http.StatusUnauthorized)
+			return
+		}
+		minAge := int64(3600)
+		if s := strings.TrimSpace(r.URL.Query().Get("min_age_sec")); s != "" {
+			if n, err := strconv.ParseInt(s, 10, 64); err == nil && n >= 0 {
+				minAge = n
+			}
+		}
+		n, err := pf.CancelZeroProgressPoolCampaigns(r.Context(), minAge, 300)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

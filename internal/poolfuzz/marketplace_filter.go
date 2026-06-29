@@ -44,6 +44,21 @@ func IsInternalGateCampaign(id, title, ownerRef string, cfg map[string]any) bool
 	if strings.HasPrefix(id, "campaign-gate-") {
 		return true
 	}
+	if strings.HasPrefix(id, "probe-") || strings.HasPrefix(id, "probe") {
+		return true
+	}
+	if strings.HasPrefix(id, "l1v4-") {
+		return true
+	}
+	if strings.HasPrefix(id, "campaign-customer-up-") {
+		return true
+	}
+	if strings.HasPrefix(id, "test-") || strings.HasPrefix(id, "verify-") {
+		return true
+	}
+	if strings.Contains(title, "penny") || strings.Contains(title, "smoke") {
+		return true
+	}
 	if title == "pool-sync-gate" || title == "probe" || title == "gate-audit" {
 		return true
 	}
