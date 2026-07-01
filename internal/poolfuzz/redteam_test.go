@@ -47,12 +47,12 @@ func TestRedteamReplaySubmitNoDoubleSettle(t *testing.T) {
 	spy := &spySettler{}
 	svc := &Service{DB: db, Settler: spy}
 	ctx := context.Background()
-	cfg := map[string]any{
+	cfg := fuzzengine.NormalizeCampaignConfig(map[string]any{
 		"pool_distributed": true,
 		"budget_hmc":       1.0,
 		"check_semantics":  "pow_gate",
 		"wasm_check_hex":   "00",
-	}
+	}, "property")
 	id := "rt-replay"
 	if err := svc.RegisterCampaign(ctx, Campaign{ID: id, CampaignType: "property", Status: "running", BudgetRuns: 2, Config: cfg}); err != nil {
 		t.Fatal(err)
@@ -61,9 +61,10 @@ func TestRedteamReplaySubmitNoDoubleSettle(t *testing.T) {
 	if err := svc.EnsureWorkItems(ctx, id, now); err != nil {
 		t.Fatal(err)
 	}
+	inN, actual := actualInputForWorkItem(t, ctx, svc, id, 1, cfg)
 	sub := SubmitRequest{
 		WorkerID: "w1", MinerAddress: "HMC-1234567890123456",
-		WorkID: id + ":1", CampaignID: id, ItemID: 1, InputN: 1, ActualInput: 1, CheckResult: 1, DurationMS: 1,
+		WorkID: id + ":1", CampaignID: id, ItemID: 1, InputN: inN, ActualInput: actual, CheckResult: 1, DurationMS: 1,
 	}
 	if err := svc.Submit(ctx, sub); err != nil {
 		t.Fatal(err)
@@ -89,7 +90,7 @@ func TestRedteamWrongWorkerNoSettle(t *testing.T) {
 	spy := &spySettler{}
 	svc := &Service{DB: db, Settler: spy}
 	ctx := context.Background()
-	cfg := map[string]any{"pool_distributed": true, "budget_hmc": 1.0, "check_semantics": "pow_gate"}
+	cfg := fuzzengine.NormalizeCampaignConfig(map[string]any{"pool_distributed": true, "budget_hmc": 1.0, "check_semantics": "pow_gate"}, "property")
 	id := "rt-worker"
 	if err := svc.RegisterCampaign(ctx, Campaign{ID: id, CampaignType: "property", Status: "running", BudgetRuns: 1, Config: cfg}); err != nil {
 		t.Fatal(err)
@@ -100,9 +101,10 @@ func TestRedteamWrongWorkerNoSettle(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("claim: ok=%v err=%v", ok, err)
 	}
+	inN, actual := actualInputForWorkItem(t, ctx, svc, id, 1, cfg)
 	if err := svc.Submit(ctx, SubmitRequest{
 		WorkerID: "bob", MinerAddress: "HMC-1234567890123456",
-		CampaignID: id, ItemID: 1, InputN: 1, ActualInput: 1, CheckResult: 1, DurationMS: 1,
+		CampaignID: id, ItemID: 1, InputN: inN, ActualInput: actual, CheckResult: 1, DurationMS: 1,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -138,9 +140,10 @@ func TestRedteamPowGateFakeFinding(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = svc.EnsureWorkItems(ctx, id, time.Now().Unix())
+	inN, actual := actualInputForWorkItem(t, ctx, svc, id, 1, cfg)
 	// pow_gate: check_ret=1 is PASS — must not create finding
 	if err := svc.Submit(ctx, SubmitRequest{
-		WorkerID: "w", CampaignID: id, ItemID: 1, InputN: 1, ActualInput: 1, CheckResult: 1, DurationMS: 1,
+		WorkerID: "w", CampaignID: id, ItemID: 1, InputN: inN, ActualInput: actual, CheckResult: 1, DurationMS: 1,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -194,5 +197,53 @@ func TestRedteamBountySettleOnce(t *testing.T) {
 	spy.mu.Unlock()
 	if f != 2 {
 		t.Fatalf("each finding submit may call PayFinding (node dedupes); coordinator calls=%d", f)
+	}
+}
+
+func TestRedteamFabricatedTrapNoBounty(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "rt.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	spy := &spySettler{}
+	svc := &Service{DB: db, Settler: spy}
+	ctx := context.Background()
+	safeInput := uint64(42)
+	cfg := fuzzengine.NormalizeCampaignConfig(map[string]any{
+		"pool_distributed": true,
+		"budget_hmc":       2.0,
+		"check_semantics":  "detector",
+		"wasm_check_hex":   mustReadWasmHex(t, "../../tasks/artifacts/security/rust_script_push_bounds_guard.wasm"),
+		"seed_corpus":      []any{safeInput},
+		"mutation_rounds":  0,
+	}, "property")
+	id := "rt-fake-trap"
+	if err := svc.RegisterCampaign(ctx, Campaign{ID: id, CampaignType: "property", Status: "running", BudgetRuns: 1, Config: cfg}); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().Unix()
+	_, ok, err := svc.Claim(ctx, "w1", now)
+	if err != nil || !ok {
+		t.Fatalf("claim: ok=%v err=%v", ok, err)
+	}
+	if err := svc.Submit(ctx, SubmitRequest{
+		WorkerID: "w1", MinerAddress: "HMC-bbbbbbbbbbbbbbbb",
+		CampaignID: id, ItemID: 1, InputN: 1, ActualInput: safeInput,
+		CheckResult: 0, DurationMS: 1, Trap: "fabricated wasm trap",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var findings int
+	_ = db.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_findings WHERE campaign_id=?`, id).Scan(&findings)
+	if findings != 0 {
+		t.Fatalf("fabricated trap must not create finding, got %d", findings)
+	}
+	spy.mu.Lock()
+	paid := spy.findings
+	spy.mu.Unlock()
+	if paid != 0 {
+		t.Fatalf("fabricated trap must not pay bounty, PayFinding calls=%d", paid)
 	}
 }

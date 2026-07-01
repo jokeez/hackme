@@ -23,7 +23,7 @@
 
   function updateConsoleLink() {
     if (!consoleLink) return;
-    const url = Dev ? Dev.developerConsoleURL() : "./developer-console.html";
+    const url = Dev ? Dev.developerConsoleURL() : "./downloads.html#local-node";
     consoleLink.href = url;
     consoleLink.style.display = getTok() ? "inline-flex" : "none";
   }

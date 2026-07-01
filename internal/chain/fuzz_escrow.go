@@ -36,6 +36,8 @@ type FuzzEscrowRow struct {
 
 // OpenFuzzEscrow locks budget from the primary wallet into a 20/80 split.
 func (s *Service) OpenFuzzEscrow(ctx context.Context, campaignID string, budgetHMC float64, budgetRuns int) (*FuzzEscrowRow, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	campaignID = strings.TrimSpace(campaignID)
 	if campaignID == "" {
 		return nil, errors.New("chain: campaign_id required")
@@ -122,6 +124,8 @@ func (s *Service) creditUnits(ctx context.Context, tx *sql.Tx, addr string, unit
 
 // PayFuzzRun pays one run slice from the 20% pool to miner_address.
 func (s *Service) PayFuzzRun(ctx context.Context, campaignID, minerAddress string) (*FuzzEscrowRow, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	campaignID = strings.TrimSpace(campaignID)
 	minerAddress = strings.TrimSpace(minerAddress)
 	if !strings.HasPrefix(minerAddress, "HMC-") || len(minerAddress) != 20 {
@@ -165,6 +169,8 @@ func (s *Service) PayFuzzRun(ctx context.Context, campaignID, minerAddress strin
 
 // PayFuzzBounty pays the 80% pool to the first qualifying finder (minus 5% platform fee).
 func (s *Service) PayFuzzBounty(ctx context.Context, campaignID, minerAddress, severity string) (*FuzzEscrowRow, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	campaignID = strings.TrimSpace(campaignID)
 	minerAddress = strings.TrimSpace(minerAddress)
 	severity = strings.TrimSpace(strings.ToLower(severity))
@@ -215,6 +221,8 @@ func (s *Service) PayFuzzBounty(ctx context.Context, campaignID, minerAddress, s
 
 // FinalizeFuzzEscrow refunds unused bounty pool to the primary wallet and closes escrow.
 func (s *Service) FinalizeFuzzEscrow(ctx context.Context, campaignID string) (*FuzzEscrowRow, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	campaignID = strings.TrimSpace(campaignID)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

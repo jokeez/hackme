@@ -1,6 +1,55 @@
 {
   "items": [
     {
+      "id": "2026-07-01-b2b-fuzz-final",
+      "date": "2026-07-01",
+      "title": "B2B Fuzz Final — one command from WASM guard to CI gate",
+      "summary": "Ship a security guard, pick Scan · Audit · Deep, miners fuzz it on the pool, get an HTML report plus a pass/fail gate your pipeline can enforce. hackme-fuzzing wizard — no browser admin on the public site.",
+      "impact": "Protocol teams get a productized audit path: local node escrow (20/80 HMC), distributed useful-PoW workers, customer report token, GET /gate for CI. Coordinator now re-verifies WASM on found nonces — fabricated worker gate passes cannot drain bounty. Ops: fuzz_b2b_final_gate.sh → VERDICT.md.",
+      "action": "Developers: https://hackme.tech/developers.html · CLI: https://hackme.tech/downloads.html#fuzzing-client · Tracker: https://hackme.tech/fuzzing-console.html · Command: hackme-fuzzing wizard --wasm guard.wasm --package audit",
+      "tags": [
+        "fuzzing",
+        "b2b",
+        "security",
+        "product",
+        "devtools"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "B2B Fuzz FINAL — wizard + CI gate",
+        "lead": "guard.wasm → one CLI → report + gate · Scan 1 / Audit 5 / Deep 10 HMC",
+        "bullets": [
+          "hackme-fuzzing wizard — Scan · Audit · Deep packages, escrow 20/80 unchanged",
+          "Deliverables: report.html · pulse · GET /gate?pass= for CI (report token)",
+          "Security: orders on localhost only; coordinator WASM re-verify on pool submits",
+          "Ops gate: scripts/ops/fuzz_b2b_final_gate.sh → VERDICT GREEN/YELLOW"
+        ],
+        "footer": "hackme.tech/developers.html · downloads#fuzzing-client · fuzzing-console.html"
+      },
+      "twitter": {
+        "thread": [
+          "🛡️ B2B fuzz FINAL on HackMe: WASM guard → one CLI command → distributed pool fuzz → HTML report + CI gate URL.",
+          "hackme-fuzzing wizard --wasm guard.wasm --package audit → campaign_id + report token + gate?max_high=0",
+          "Packages: Scan 1 HMC·64 runs · Audit 5·256+pool · Deep 10·1000+corpus. Escrow 20/80 — same economics.",
+          "Security we kept: no orders on hackme.tech · coordinator re-runs WASM (workers can't fake gate pass) · report token in header only",
+          "Wire GET /gate into GitHub Actions — examples/github-actions/hackme-fuzz-gate.yml in the AGPL repo",
+          "Start: hackme.tech/downloads.html#fuzzing-client · Docs: hackme.tech/developers.html · Pool tracker: fuzzing-console.html"
+        ],
+        "single": "WASM guard → one command → report + CI gate. HackMe B2B fuzz final: wizard, Scan/Audit/Deep, distributed pool, HMC escrow. https://hackme.tech/developers.html"
+      },
+      "discord": {
+        "title": "Product · B2B Fuzz Final",
+        "body": "**One command. Three packages. A gate your CI can trust.**\n\n• `hackme-fuzzing wizard --wasm guard.wasm --package audit`\n• Scan 1 HMC · Audit 5 HMC · Deep 10 HMC — pool + escrow 20/80\n• HTML report + `GET …/gate` with report token\n• Coordinator server-side WASM re-verify\n\n**Links:** [developers](https://hackme.tech/developers.html) · [CLI](https://hackme.tech/downloads.html#fuzzing-client) · [console](https://hackme.tech/fuzzing-console.html)",
+        "ping": "#announcements"
+      },
+      "links": {
+        "developers": "https://hackme.tech/developers.html",
+        "downloads": "https://hackme.tech/downloads.html#fuzzing-client",
+        "console": "https://hackme.tech/fuzzing-console.html",
+        "pool": "https://hackme.tech/pool/coordinator"
+      }
+    },
+    {
       "id": "2026-06-28-cfgpack-upstream-fix",
       "date": "2026-06-28",
       "title": "Upstream win: cfgpack MessagePack int64 UBSan — fixed in b5e7cff",
@@ -373,71 +422,6 @@
         "listing": "https://hackme.tech/listing.html",
         "transparency": "https://hackme.tech/token-transparency.html",
         "github": "https://github.com/jokeez/hackme"
-      }
-    },
-    {
-      "id": "2026-06-16-rc11n-production-final",
-      "date": "2026-06-16",
-      "title": "Production final — rc11n ISO aligned, SUP on-chain public",
-      "summary": "HackMe production stack finalized (except HMS prelaunch): Win/Linux and HackMe OS ISO now share channel 0.1.0-rc11n. SUP on-chain mint and coordinator settlement are live on hackme.tech. Public GET /api/sup/economics for transparency. Nginx + operator docs updated.",
-      "impact": "Miners can use one release version for Windows installer, Linux tarball, and USB ISO. SUP accrual while mining HMC now settles on-chain; economics visible without admin token.",
-      "action": "Downloads: https://hackme.tech/downloads.html · SUP: https://hackme.tech/api/sup/economics · Pool: https://hackme.tech/pool/coordinator",
-      "tags": [
-        "release",
-        "infrastructure",
-        "mining",
-        "sup"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "rc11n production final — ISO + SUP on-chain",
-        "lead": "Win/Linux and HackMe OS ISO are now the same channel (0.1.0-rc11n). SUP mint and settlement live on hackme.tech.",
-        "bullets": [
-          "HackMe OS ISO rebuilt at rc11n — USB live-boot matches desktop installer.",
-          "SUP: on-chain mint enabled, coordinator on_chain_settle=true, public /api/sup/economics.",
-          "Pool + fuzzing unchanged: hybrid-signed HMC mining, Bitcoin30 Week 1 report on site."
-        ],
-        "footer": "Update installer or ISO when convenient — wallet treasury unchanged. HMS stays prelaunch."
-      },
-      "links": {
-        "downloads": "https://hackme.tech/downloads.html",
-        "sup_economics": "https://hackme.tech/api/sup/economics",
-        "pool_stats": "https://hackme.tech/pool/coordinator/api/pool/stats",
-        "news": "https://hackme.tech/news.html#2026-06-16-rc11n-production-final",
-        "github": "https://github.com/jokeez/hackme"
-      }
-    },
-    {
-      "id": "2026-06-16-bitcoin30-week1",
-      "date": "2026-06-16",
-      "title": "Bitcoin Core 30-Day Fuzz — Week 1 public report",
-      "summary": "Seven consecutive days of live upstream Bitcoin Core WASM guards on useful-PoW fuzz: GetScriptOp, HasValidOps, MoneyRange, duplicate inputs (CVE-2018-17144 class), EvalScript push/op budgets, SegWit witness stack. 576 distributed runs, 321 guard signals, zero critical. Day 3 MoneyRange clean.",
-      "impact": "Strongest daily cadence proof for B2B/Telegram: real bitcoin/bitcoin excerpts, honest guard_signal triage, public HTML ledger — not fake CVE claims.",
-      "action": "Report: https://hackme.tech/reports/bitcoin30-week1.html · Reproduce: DAY=N bash scripts/ops/run_bitcoin30_day.sh",
-      "tags": [
-        "security",
-        "research",
-        "marketing",
-        "bitcoin",
-        "fuzzing"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "BTC30 Week 1 — 7 modules, 0 critical",
-        "lead": "Live daily Bitcoin Core upstream fuzz on HackMe pool. Public verdict ledger published.",
-        "bullets": [
-          "576 useful-PoW runs across 7 ported consensus guards from bitcoin/bitcoin master.",
-          "321 guard signals (boundary class) · 1 clean module (MoneyRange) · 0 critical.",
-          "Day 7: EvalScript SCRIPT_ERR_OP_COUNT (201 op budget) — 56 signals in 64 runs."
-        ],
-        "footer": "Full report: hackme.tech/reports/bitcoin30-week1.html — Week 2 continues Day 8."
-      },
-      "links": {
-        "report_week1": "https://hackme.tech/reports/bitcoin30-week1.html",
-        "report_bc5": "https://hackme.tech/reports/bitcoin-core-5module.html",
-        "research": "https://hackme.tech/research.html",
-        "github": "https://github.com/jokeez/hackme",
-        "telegram": "https://t.me/hackme_tech"
       }
     }
   ],

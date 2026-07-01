@@ -8,6 +8,7 @@ source "$ROOT/scripts/tests/common.sh"
 VER="$(tr -d ' \n\r' <"$ROOT/scripts/release/CURRENT_VERSION" 2>/dev/null || true)"
 CLI="${FUZZING_CLI:-$ROOT/dist/release_${VER}/hackme-fuzzing-${VER}-linux-amd64}"
 BASE="${BASE:-http://127.0.0.1:8080}"
+export HACKME_FUZZING_BASE="$BASE"
 TOKEN_FILE="${HACKME_DEVELOPER_TOKEN_FILE:-$(mktemp -d)/developer.token}"
 
 [[ -x "$CLI" ]] || fail "fuzzing CLI not found: $CLI (run make_release_bundle or build_fuzzing_cli.sh)"
@@ -25,9 +26,9 @@ if ! "$CLI" wallet --base "$BASE" 2>/dev/null | jq -e '.address != ""' >/dev/nul
   fail "wallet after register --save failed"
 fi
 
-tasks_head="$("$CLI" tasks --base "$BASE" 2>/dev/null | head -c 128 || true)"
-if [[ "$tasks_head" != *'"tasks"'* ]]; then
-  fail "tasks list failed (expected JSON with tasks array)"
+tasks_json="$("$CLI" tasks --base "$BASE" 2>/dev/null || true)"
+if ! echo "$tasks_json" | jq -e '.tasks | type == "array"' >/dev/null 2>&1; then
+  fail "tasks list failed (expected JSON with tasks array; node slow? try BASE=http://127.0.0.1:18099)"
 fi
 
 pass "fuzzing_cli_smoke PASS ($CLI)"

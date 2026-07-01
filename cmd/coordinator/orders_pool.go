@@ -199,9 +199,28 @@ func (m *workManager) activeOrderSnapshot() activeOrderSnap {
 	return m.refreshActiveOrderLocked()
 }
 
+// verifyOrderWasmGate re-runs the order WASM check on the coordinator; worker wasm_gate_pass is not trusted alone.
+func (m *workManager) verifyOrderWasmGate(snap activeOrderSnap, nonce uint64) (bool, string) {
+	if snap.ID == "" || strings.TrimSpace(snap.WasmHex) == "" {
+		return true, ""
+	}
+	raw, err := hex.DecodeString(strings.TrimSpace(snap.WasmHex))
+	if err != nil || len(raw) == 0 {
+		return false, "wasm_gate_invalid_hex"
+	}
+	if err := sandbox.ValidateCheckWasm(context.Background(), raw); err != nil {
+		return false, "wasm_gate_server_reject"
+	}
+	ok, execErr := sandbox.InvokeCheck(context.Background(), raw, nonce)
+	if execErr != nil || !ok {
+		return false, "wasm_gate_server_reject"
+	}
+	return true, ""
+}
+
 func (m *workManager) refreshActiveOrderLocked() activeOrderSnap {
 	if strings.TrimSpace(m.ordersProbeURL) == "" {
-		return activeOrderSnap{}
+		return m.activeOrder
 	}
 	now := time.Now().Unix()
 	if m.activeOrder.ID != "" && now-m.activeOrder.FetchedAt < m.ordersProbeEverySec {

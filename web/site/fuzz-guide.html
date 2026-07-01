@@ -24,19 +24,36 @@
   <main class="container">
     <section class="hero glass hero-small">
       <p class="kicker">Product · security testing</p>
-      <h1>Fuzz campaigns</h1>
+      <h1>Fuzz campaigns &amp; B2B final</h1>
       <p class="hero-copy">
         Campaigns live under <span class="code-inline">/api/fuzz/campaigns</span> with findings, corpus, runtime telemetry, customer reports, and a machine-readable <strong>gate</strong> for CI.
-        Canonical Markdown: <span class="code-inline">docs/FUZZ_PRODUCT_GUIDE.md</span> in the repository.
+        <strong>Customers:</strong> <span class="code-inline">hackme-fuzzing wizard --wasm guard.wasm --package audit</span> on a local node.
+        Canonical Markdown: <span class="code-inline">docs/FUZZ_PRODUCT_GUIDE.md</span> · <span class="code-inline">docs/DEVELOPERS_FUZZING.md</span>.
       </p>
       <div class="cta-row">
+        <a class="btn btn-primary" href="./developers.html">B2B wizard &amp; packages</a>
         <a class="btn btn-secondary" href="./docs.html">Docs hub</a>
-        <a class="btn btn-primary" href="./api-reference.html">API reference</a>
+        <a class="btn btn-secondary" href="./api-reference.html">API reference</a>
       </div>
     </section>
 
+    <section class="panel glass" style="border:1px solid rgba(0,209,255,0.25)">
+      <div class="panel-head"><h2>0. B2B customer wizard (final)</h2></div>
+      <p class="section-lede">On your <strong>local node</strong> with <span class="code-inline">HACKME_ADMIN_TOKEN</span>:</p>
+      <div class="formula-box">
+        hackme-fuzzing wizard --wasm ./guard.wasm --package scan|audit|deep [--title "..."]
+      </div>
+      <ul class="list">
+        <li><strong>scan</strong> — 1 HMC · 64 runs · wasm_only</li>
+        <li><strong>audit</strong> — 5 HMC · 256 runs · pool + wasm_native</li>
+        <li><strong>deep</strong> — 10 HMC · 1000 runs · bytes_corpus + pool</li>
+      </ul>
+      <p class="muted">Returns one-time <span class="code-inline">customer_report_token</span>, <span class="code-inline">report_url</span>, <span class="code-inline">gate_url</span>. Wizard blocks non-loopback bases (no orders on hackme.tech).</p>
+      <p class="muted">Ops release check: <span class="code-inline">bash scripts/ops/fuzz_b2b_final_gate.sh</span> → <span class="code-inline">reports/fuzz-b2b-final-*/VERDICT.md</span></p>
+    </section>
+
     <section class="panel glass">
-      <div class="panel-head"><h2>0. Canon / prod gate</h2></div>
+      <div class="panel-head"><h2>1. Canon / prod gate</h2></div>
       <p class="section-lede">After upgrading nodes, <span class="code-inline">schema_version</span> on <span class="code-inline">GET /api/status</span> must equal <span class="code-inline">schema_expected</span>. Followers overlay canonical economics when a remote canon URL is set.</p>
       <div class="formula-box">
         ADMIN_TOKEN=… BASE=https://hackme.tech bash scripts/ops/run_canonical_fuzz_gate.sh
@@ -45,7 +62,7 @@
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>1. Ship checklist</h2></div>
+      <div class="panel-head"><h2>2. Ship checklist</h2></div>
       <p class="section-lede">Before calling a build production-ready, keep this gate green on your node:</p>
       <div class="formula-box">
         ADMIN_TOKEN=… BASE=http://127.0.0.1:8080 bash scripts/ops/fuzz_release_gate.sh
@@ -54,7 +71,7 @@
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>2. Autorunner &amp; disk</h2></div>
+      <div class="panel-head"><h2>3. Autorunner &amp; disk</h2></div>
       <ul class="list">
         <li><span class="code-inline">HACKME_FUZZ_AUTORUN</span> — default on; set <span class="code-inline">0</span> to disable in-process ticking.</li>
         <li><span class="code-inline">HACKME_FUZZ_AUTORUN_TICK_SEC</span> — tick cadence (1–60).</li>
@@ -64,21 +81,21 @@
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>3. Customer reports (<span class="code-inline">fuzz_report_v2</span>)</h2></div>
+      <div class="panel-head"><h2>4. Customer reports (<span class="code-inline">fuzz_report_v2</span>)</h2></div>
       <p class="hero-copy">Creating a campaign or <span class="code-inline">POST /api/security-audit</span> on your node returns a one-time <strong>customer_report_token</strong>. HTML reports include triage, <span class="code-inline">repro_cmd</span>, and artifact paths — replay with <span class="code-inline">go run ./tools/check_repro</span> in the repo.</p>
       <p class="muted" style="margin-top:0.75rem">Public research (no token): <a href="./reports/l1-crypto-stack-v3.html">L1 crypto stack v3</a> · <a href="./fuzz-campaigns.html">live campaign snapshot</a>.</p>
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>4. CI gate</h2></div>
+      <div class="panel-head"><h2>5. CI gate</h2></div>
       <div class="formula-box">
         GET /api/fuzz/campaigns/{id}/gate?max_critical=0&amp;max_high=0 …
       </div>
-      <p class="muted">Returns <span class="code-inline">pass</span> / <span class="code-inline">reasons[]</span> — wire into pipelines after a campaign finishes.</p>
+      <p class="muted">Returns <span class="code-inline">pass</span> / <span class="code-inline">reasons[]</span>. GitHub Action template: <span class="code-inline">examples/github-actions/hackme-fuzz-gate.yml</span> in the repo.</p>
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>5. Housekeeping</h2></div>
+      <div class="panel-head"><h2>6. Housekeeping</h2></div>
       <ul class="list">
         <li><span class="code-inline">POST /api/fuzz/housekeeping</span> — global sweep (admin).</li>
         <li><span class="code-inline">POST /api/fuzz/campaigns/{id}/housekeeping</span> — per campaign.</li>
@@ -87,7 +104,7 @@
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>6. Full API contract</h2></div>
+      <div class="panel-head"><h2>7. Full API contract</h2></div>
       <p class="hero-copy">Every path and payload is listed in <strong>docs/API.md</strong> (Fuzz Campaigns). The interactive summary page links there from <a href="./api-reference.html">API reference</a>.</p>
     </section>
   </main>

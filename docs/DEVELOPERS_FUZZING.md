@@ -33,6 +33,9 @@ export HACKME_FUZZING_BASE=http://127.0.0.1:8080
 hackme-fuzzing register --save
 hackme-fuzzing build -lang rust -source check.rs -out ./fuzzing-out
 hackme-fuzzing create ./fuzzing-out/my-order.manifest.json
+
+# B2B packages (local node + HACKME_ADMIN_TOKEN):
+hackme-fuzzing wizard --wasm ./guard.wasm --package audit --title "My guard"
 ```
 
 ## Public site limits (by design)

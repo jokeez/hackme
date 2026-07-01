@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>HackMe for Developers — Fuzzing & API</title>
-  <meta name="description" content="Integrate HackMe fuzzing orders without the mining dashboard: wallet, escrow tasks, HTTP API, and lightweight web console." />
+  <meta name="description" content="B2B fuzz final: hackme-fuzzing wizard (Scan · Audit · Deep), local node escrow, distributed pool, HTML report + CI gate. No browser admin on hackme.tech." />
   <link rel="canonical" href="https://hackme.tech/developers.html" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -24,10 +24,11 @@
   <main class="container">
     <section class="hero glass">
       <p class="kicker">Developers & B2B</p>
-      <h1>Fuzzing orders on your local node</h1>
+      <h1>B2B fuzz final — one command to report + CI gate</h1>
       <p class="hero-copy">
-        Buy useful GPU work on the HackMe network: security gates, synthetic PoH audits, WASM-validated tasks.
-        Run <strong>hackme-node</strong> on your PC — <code>127.0.0.1:8080/#wallet</code> and <code>#orders</code> — pool on hackme.tech fills the work.
+        Ship a WASM security guard, pick <strong>Scan · Audit · Deep</strong>, miners on the HackMe pool fuzz it — you get
+        <code>report.html</code>, live <code>pulse</code>, and <code>GET /gate</code> for CI.
+        Escrow stays on <strong>your local node</strong> (<code>127.0.0.1:8080</code>); hackme.tech delivers read-only tracker + token-gated reports.
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="./downloads.html#local-node">Download &amp; local setup</a>
@@ -35,10 +36,10 @@
         <a class="btn btn-secondary" href="./fuzzing-console.html">Public status tracker</a>
       </div>
       <div class="pill-row">
-        <span class="pill">Scoped developer token</span>
-        <span class="pill">WASM built locally</span>
-        <span class="pill">No browser admin</span>
-        <span class="pill">Pool fills orders</span>
+        <span class="pill">hackme-fuzzing wizard</span>
+        <span class="pill">Scan · Audit · Deep</span>
+        <span class="pill">CI gate endpoint</span>
+        <span class="pill">No browser admin on prod</span>
       </div>
     </section>
 
@@ -52,10 +53,48 @@
       <div class="cta-row">
         <button type="button" class="btn btn-primary" id="btn-integrator-register">Issue new token</button>
         <button type="button" class="btn btn-secondary" id="btn-integrator-rotate" disabled>Rotate token</button>
-        <a class="btn btn-secondary" id="integrator-console-link" href="./developer-console.html" style="display:none">Open Developer Console</a>
+        <a class="btn btn-secondary" id="integrator-console-link" href="./downloads.html#local-node" style="display:none">Open local node (#orders)</a>
       </div>
       <p id="integrator-token-out" class="code-block" style="display:none;word-break:break-all"></p>
       <p id="integrator-status" class="dev-status"></p>
+    </section>
+
+    <section class="panel glass" style="border:1px solid rgba(0,209,255,0.28)">
+      <div class="panel-head"><h2>Customer path — before vs now</h2></div>
+      <p class="subtle">Visual UI on hackme.tech did <strong>not</strong> get a new order portal (by design). What changed is the <strong>CLI product layer</strong> and site copy — fewer steps, fixed packages, CI gate URLs printed for you.</p>
+      <div class="table-wrap" style="margin-top:1rem">
+        <table class="endpoint-table">
+          <thead><tr><th>Step</th><th>Before (v3)</th><th>Now (B2B final)</th></tr></thead>
+          <tbody>
+            <tr><td>1 · Setup</td><td>Read 5 docs, guess budget</td><td><code>hackme-node</code> + fund wallet on <code>127.0.0.1:8080</code></td></tr>
+            <tr><td>2 · Build guard</td><td><code>hackme-fuzzing build</code> + manual manifest</td><td>Same, or existing <code>.wasm</code></td></tr>
+            <tr><td>3 · Order</td><td><code>create manifest.json</code> or long <code>curl security-audit</code></td><td><strong>One command:</strong> <code>wizard --wasm guard.wasm --package audit</code></td></tr>
+            <tr><td>4 · Package</td><td>Pick depth_tier + budget by hand</td><td><strong>Scan / Audit / Deep</strong> presets (1 / 5 / 10 HMC)</td></tr>
+            <tr><td>5 · Deliverable</td><td>Hunt for report token in JSON</td><td>Wizard prints <code>report_url</code>, <code>gate_url</code>, <code>pulse_url</code></td></tr>
+            <tr><td>6 · CI</td><td>Wire gate yourself</td><td>GitHub Action example in repo + gate URL in wizard output</td></tr>
+            <tr><td>Where</td><td>Same localhost model</td><td>Same — <strong>no</strong> public upload on hackme.tech</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>B2B packages</h2></div>
+      <div class="table-wrap">
+        <table class="endpoint-table">
+          <thead><tr><th>Package</th><th>HMC</th><th>Runs</th><th>Pool</th><th>Best for</th></tr></thead>
+          <tbody>
+            <tr><td><code>scan</code></td><td>1</td><td>64</td><td>local</td><td>CI smoke, nightly guard check</td></tr>
+            <tr><td><code>audit</code></td><td>5</td><td>256</td><td>yes</td><td>Protocol guards, DeFi invariants</td></tr>
+            <tr><td><code>deep</code></td><td>10</td><td>1000</td><td>yes</td><td>Byte corpus, full campaign</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <pre class="code-block" style="margin-top:1rem"><code>export HACKME_ADMIN_TOKEN=…   # local node only
+hackme-fuzzing wizard \
+  --wasm ./guard.wasm \
+  --package audit \
+  --title "Acme script bounds"</code></pre>
     </section>
 
     <section class="grid grid-2">
@@ -71,10 +110,9 @@
       <article class="panel glass">
         <div class="panel-head"><h2>What you get</h2></div>
         <ul class="check-list">
-          <li><strong>Local dashboard</strong> — <code>127.0.0.1:8080/#orders</code>, WASM upload, wallet escrow</li>
-          <li><strong>hackme-fuzzing CLI</strong> — automation (token in env file, not admin)</li>
-          <li><strong>Public tracker</strong> — read-only wallet + redacted orders</li>
-          <li><strong>Coordinator</strong> switches to orders mode when work is open</li>
+          <li><strong>hackme-fuzzing wizard</strong> — Scan / Audit / Deep in one POST (<code>security-audit</code>)</li>
+          <li><strong>CI gate</strong> — <code>GET …/gate</code> with report token</li>
+          <li><strong>Public tracker</strong> — redacted orders + pool stats (no manifest)</li>
           <li>Full spec in <a href="https://github.com/jokeez/hackme/blob/main/docs/DEVELOPERS_FUZZING.md" target="_blank" rel="noreferrer">DEVELOPERS_FUZZING.md</a></li>
         </ul>
       </article>
@@ -103,27 +141,29 @@
         <li>Install node from <a href="./downloads.html">Downloads</a> — start dashboard at <code>127.0.0.1:8080</code>.</li>
         <li>Download <strong>both</strong> <code>hackme-fuzzing</code> and <code>hackme-fuzzing-build</code> into the same folder.</li>
         <li>Run <code>powershell -ExecutionPolicy Bypass -File scripts/ops/fuzzing_windows_quickstart.ps1</code> (from git clone) or register manually.</li>
-        <li>Build WASM locally, then <code>hackme-fuzzing create manifest.json</code> — escrow from your local wallet.</li>
-        <li>Track order on <code>#orders</code> or <a href="./fuzzing-console.html">public tracker</a> (read-only).</li>
+        <li>Build WASM locally (or use an existing <code>.wasm</code> guard).</li>
+        <li><strong>Recommended:</strong> <code>hackme-fuzzing wizard --wasm guard.wasm --package audit</code> — escrow + pool + report token.</li>
+        <li>Classic path: <code>hackme-fuzzing create manifest.json</code> or local dashboard <code>#orders</code>.</li>
+        <li>Open report with <code>X-Hackme-Report-Token</code> · wire <code>gate_url</code> into CI.</li>
       </ol>
       <p class="subtle">Token on <strong>hackme.tech</strong> in the browser is for API smoke tests only — create orders on <strong>localhost</strong>.</p>
     </section>
 
     <section class="panel glass">
       <div class="panel-head"><h2>Quick start (curl / CLI)</h2></div>
-      <pre class="code-block"><code># Wallet (public)
-curl -sS https://hackme.tech/api/wallet | jq '{address,balance_hmc}'
+      <pre class="code-block"><code># Recommended — B2B final (local node + admin token)
+export HACKME_ADMIN_TOKEN=…
+hackme-fuzzing wizard --wasm ./guard.wasm --package audit --title "My guard"
+# → campaign_id, customer_report_token, report_url, gate_url
 
-# Integrator CLI (token from support@hackme.tech — never paste in a web page)
-export HACKME_DEVELOPER_TOKEN='…'
-hackme-fuzzing wallet
-hackme-fuzzing create manifest.json
-hackme-fuzzing tasks
-
-# Auto token (no support ticket)
+# Integrator token (orders via manifest — developer scope)
 hackme-fuzzing register --save
 hackme-fuzzing build -lang rust -source check.rs -out ./fuzzing-out
 hackme-fuzzing create ./fuzzing-out/my-order.manifest.json
+hackme-fuzzing tasks
+
+# Public wallet is redacted on hackme.tech (no treasury address)
+curl -sS https://hackme.tech/api/wallet | jq .
 
 # Remote from_code returns HTTP 403 on hackme.tech (build WASM locally).</code></pre>
       <p class="subtle">When your order is open, pool workers receive the WASM gate in <span class="code-inline">/api/work/claim</span> and can commit order blocks — escrow pays the solver&apos;s <span class="code-inline">miner_address</span>, not a separate bounty for &quot;finding a CVE&quot;. Small coordinator accrual may still apply for attempts. See <a href="./economics-model.html">economics model</a>.</p>
@@ -151,6 +191,10 @@ hackme-fuzzing create ./fuzzing-out/my-order.manifest.json
         <a class="quick-item" href="./downloads.html">
           <h4>Miners only</h4>
           <p>ISO / worker / pool</p>
+        </a>
+        <a class="quick-item" href="./fuzz-guide.html">
+          <h4>Fuzz guide</h4>
+          <p>Wizard, gate, operator gates</p>
         </a>
         <a class="quick-item" href="#integrator-token">
           <h4>Get API token</h4>

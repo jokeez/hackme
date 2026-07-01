@@ -35,7 +35,7 @@
         <li>Download node binary or HackMe OS below (or build from GitHub).</li>
         <li>Start node — dashboard at <code>127.0.0.1:8080</code>.</li>
         <li>Header → <strong>Developer token</strong> → <em>Issue</em> (or <code>hackme-fuzzing register --base http://127.0.0.1:8080 --save</code>).</li>
-        <li><strong>#orders</strong> — <strong>Security audit</strong> (guard + fuzz + <code>fuzz_report_v2</code>) or upload WASM / POST order (escrow from your wallet).</li>
+        <li><strong>#orders</strong> — <strong>Security audit</strong> tab, or faster: <code>hackme-fuzzing wizard --wasm guard.wasm --package audit</code> from CLI.</li>
         <li>Watch pool stats / Workers tab while miners complete the job.</li>
       </ol>
       <p class="subtle" style="margin-top:1rem"><a href="./developers.html#integrator-token">Token docs</a> · <a href="./fuzzing-console.html">Public order tracker</a> (read-only)</p>
@@ -45,7 +45,7 @@
       <div class="panel-head">
         <p class="kicker" style="color:#00d1ff">B2B · Fuzzing</p>
         <h2>hackme-fuzzing CLI (integrators)</h2>
-        <p class="subtle">Automation CLI for local node: <code>hackme-fuzzing</code> talks to <code>127.0.0.1:8080</code>. Visual UI: <a href="#local-node">local dashboard #orders</a>. Remote <code>from_code</code> is blocked on hackme.tech.</p>
+        <p class="subtle">Automation CLI for local node: <code>hackme-fuzzing wizard</code> (Scan · Audit · Deep) or classic <code>create manifest.json</code>. Talks to <code>127.0.0.1:8080</code> only — wizard refuses hackme.tech as base.</p>
       </div>
       <div class="grid grid-2" style="margin-top:1rem">
         <article class="card glass">
@@ -62,7 +62,7 @@ powershell -ExecutionPolicy Bypass -File scripts/ops/fuzzing_windows_quickstart.
 # Manual:
 # cd %USERPROFILE%\HackMe
 # .\hackme-fuzzing-*-windows-amd64.exe register --base http://127.0.0.1:8080 --save
-# .\hackme-fuzzing-*-windows-amd64.exe wallet</code></pre>
+# .\hackme-fuzzing-*-windows-amd64.exe wizard --wasm guard.wasm --package audit</code></pre>
           </details>
         </article>
         <article class="card glass">
@@ -77,7 +77,10 @@ powershell -ExecutionPolicy Bypass -File scripts/ops/fuzzing_windows_quickstart.
         <summary>Русский · B2B фаззинг (кратко)</summary>
         <p class="subtle" style="margin-top:0.5rem">Скачайте <strong>оба</strong> файла в одну папку. Запустите локальный <code>hackme-node</code> → <code>127.0.0.1:8080</code>. CLI работает только с локальным узлом; на hackme.tech удалённый <code>from_code</code> заблокирован.</p>
         <pre class="code-block"><code>.\hackme-fuzzing-*-windows-amd64.exe register --base http://127.0.0.1:8080 --save
-.\hackme-fuzzing-*-windows-amd64.exe wallet
+.\hackme-fuzzing-*-windows-amd64.exe wizard --wasm guard.wasm --package audit --title "Мой guard"
+# → report_url, gate_url, customer_report_token (сохраните один раз)
+
+# Классический путь:
 .\hackme-fuzzing-*-windows-amd64.exe build -lang rust -source check.rs -out .\fuzzing-out
 .\hackme-fuzzing-*-windows-amd64.exe create .\fuzzing-out\manifest.json</code></pre>
       </details>

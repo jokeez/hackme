@@ -27,8 +27,8 @@ func TestPoolFuzzClaimSubmitDetector(t *testing.T) {
 		"pool_distributed": true,
 		"check_semantics":  "detector",
 		"wasm_check_hex":   mustReadWasmHex(t, "../../tasks/artifacts/security/rust_script_push_bounds_guard.wasm"),
-		"seed_corpus":      []any{violation, uint64(0)},
-		"mutation_rounds":  1,
+		"seed_corpus":      []any{violation},
+		"mutation_rounds":  0,
 	}, "property")
 	id := "pool-test-detector"
 	if err := svc.RegisterCampaign(ctx, Campaign{
@@ -40,8 +40,9 @@ func TestPoolFuzzClaimSubmitDetector(t *testing.T) {
 	if err := svc.EnsureWorkItems(ctx, id, time.Now().Unix()); err != nil {
 		t.Fatal(err)
 	}
+	inN, actual := actualInputForWorkItem(t, ctx, svc, id, 1, cfg)
 	wasmHex := mustReadWasmHex(t, "../../tasks/artifacts/security/rust_script_push_bounds_guard.wasm")
-	cr, _, trap, err := ExecuteLocally(ctx, wasmHex, violation, 800)
+	cr, _, trap, err := ExecuteLocally(ctx, wasmHex, actual, 800)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +51,7 @@ func TestPoolFuzzClaimSubmitDetector(t *testing.T) {
 	}
 	if err := svc.Submit(ctx, SubmitRequest{
 		WorkerID: "worker-test", WorkID: id + ":1", CampaignID: id,
-		ItemID: 1, InputN: 1, ActualInput: violation, CheckResult: cr, DurationMS: 1, Trap: trap,
+		ItemID: 1, InputN: inN, ActualInput: actual, CheckResult: cr, DurationMS: 1, Trap: trap,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -103,4 +104,14 @@ func mustReadWasmHex(t *testing.T, path string) string {
 		t.Fatal(err)
 	}
 	return hex.EncodeToString(b)
+}
+
+func actualInputForWorkItem(t *testing.T, ctx context.Context, svc *Service, campaignID string, itemID int64, cfg map[string]any) (inputN, actual uint64) {
+	t.Helper()
+	if err := svc.DB.QueryRowContext(ctx,
+		`SELECT input_n FROM fuzz_work_items WHERE campaign_id=? AND id=?`, campaignID, itemID).Scan(&inputN); err != nil {
+		t.Fatal(err)
+	}
+	actual, _ = derivePoolInputs(inputN, cfg)
+	return inputN, actual
 }

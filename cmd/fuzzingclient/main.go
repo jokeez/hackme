@@ -18,43 +18,42 @@ import (
 )
 
 func main() {
-	base := flag.String("base", envOr("HACKME_FUZZING_BASE", "http://127.0.0.1:8080"), "local node API base (integrators: loopback, not hackme.tech)")
-	token := flag.String("token", "", "developer token (or load from config file)")
-	save := flag.Bool("save", false, "with register/rotate: save token to config file")
+	defaultBase := envOr("HACKME_FUZZING_BASE", "http://127.0.0.1:8080")
+	baseFlag := flag.String("base", defaultBase, "local node API base (integrators: loopback, not hackme.tech)")
+	tokenFlag := flag.String("token", "", "developer token (or load from config file)")
+	saveFlag := flag.Bool("save", false, "with register/rotate: save token to config file")
 	flag.Parse()
-	args := flag.Args()
-	if len(args) == 0 {
+	base, token, save, cmd, rest := reconcileCLI(*baseFlag, *tokenFlag, *saveFlag, flag.Args())
+	if cmd == "" {
 		usage()
 		os.Exit(2)
 	}
-	tok := resolveToken(*token)
-	cmd := args[0]
-	rest := args[1:]
-	saveTok := wantsSave(*save, rest...)
+	tok := resolveToken(token)
+	saveTok := wantsSave(save, rest...)
 	switch cmd {
 	case "register":
-		if err := doRegister(*base, saveTok); err != nil {
+		if err := doRegister(base, saveTok); err != nil {
 			fail(err)
 		}
 	case "rotate":
 		if tok == "" {
 			failMsg("token required: hackme-fuzzing rotate (or set HACKME_DEVELOPER_TOKEN / run register --save)")
 		}
-		if err := doRotate(*base, tok, saveTok); err != nil {
+		if err := doRotate(base, tok, saveTok); err != nil {
 			fail(err)
 		}
 	case "wallet":
 		if tok == "" {
 			failMsg("token required for wallet")
 		}
-		if err := doWallet(*base, tok); err != nil {
+		if err := doWallet(base, tok); err != nil {
 			fail(err)
 		}
 	case "tasks", "list":
 		if tok == "" {
 			failMsg("token required for tasks")
 		}
-		if err := doTasks(*base, tok); err != nil {
+		if err := doTasks(base, tok); err != nil {
 			fail(err)
 		}
 	case "create":
@@ -65,7 +64,7 @@ func main() {
 		if manifest == "" {
 			failMsg("usage: hackme-fuzzing create manifest.json")
 		}
-		if err := doCreate(*base, tok, manifest); err != nil {
+		if err := doCreate(base, tok, manifest); err != nil {
 			fail(err)
 		}
 	case "build":
@@ -73,7 +72,11 @@ func main() {
 			fail(err)
 		}
 	case "campaign":
-		if err := doCampaign(*base, rest); err != nil {
+		if err := doCampaign(base, rest); err != nil {
+			fail(err)
+		}
+	case "wizard":
+		if err := doWizard(base, rest); err != nil {
 			fail(err)
 		}
 	default:
@@ -94,9 +97,11 @@ func usage() {
   hackme-fuzzing campaign create -title "..." -runs 200 [-task-id ORDER]
   hackme-fuzzing campaign status CAMPAIGN_ID
   hackme-fuzzing campaign report-url CAMPAIGN_ID
+  hackme-fuzzing wizard --wasm guard.wasm [--package scan|audit|deep] [-title "..."]
 
 Env: HACKME_FUZZING_BASE, HACKME_DEVELOPER_TOKEN
-Campaign admin: HACKME_ADMIN_TOKEN (create/status on local node)
+Campaign admin: HACKME_ADMIN_TOKEN (create/status/wizard on local node)
+Public report base: HACKME_PUBLIC_REPORT_BASE (default https://hackme.tech)
 Config: %s
 `, fuzzingcli.TokenConfigPath())
 }
@@ -112,6 +117,41 @@ func wantsSave(flagVal bool, args ...string) bool {
 		}
 	}
 	return false
+}
+
+// reconcileCLI merges global flags from before and after the subcommand.
+// Go's flag package stops at the first positional, so `hackme-fuzzing tasks --base URL` must work.
+func reconcileCLI(base, token string, save bool, args []string) (string, string, bool, string, []string) {
+	if len(args) == 0 {
+		return base, token, save, "", nil
+	}
+	cmd := args[0]
+	rest := pullGlobalFlags(args[1:], &base, &token, &save)
+	return base, token, save, cmd, rest
+}
+
+func pullGlobalFlags(args []string, base, token *string, save *bool) []string {
+	out := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "--base" && i+1 < len(args):
+			*base = strings.TrimSpace(args[i+1])
+			i++
+		case strings.HasPrefix(a, "--base="):
+			*base = strings.TrimSpace(strings.TrimPrefix(a, "--base="))
+		case a == "--token" && i+1 < len(args):
+			*token = strings.TrimSpace(args[i+1])
+			i++
+		case strings.HasPrefix(a, "--token="):
+			*token = strings.TrimSpace(strings.TrimPrefix(a, "--token="))
+		case a == "--save":
+			*save = true
+		default:
+			out = append(out, a)
+		}
+	}
+	return out
 }
 
 func firstPositionalArg(args []string) string {

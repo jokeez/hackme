@@ -1,6 +1,7 @@
 package poolfuzz
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/hex"
@@ -383,14 +384,34 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	sem := fuzzengine.ParseCheckSemantics(cfg)
 	hasWasm := wasmHexFromConfig(cfg) != ""
 
-	var pass bool
-	var recordFinding bool
-	if strings.TrimSpace(req.Trap) != "" {
-		pass = false
-		recordFinding = true
-	} else {
-		pass, recordFinding = fuzzengine.EvalCheck(sem, req.CheckResult, nil)
+	var inputN uint64
+	if err := s.DB.QueryRowContext(ctx,
+		`SELECT input_n FROM fuzz_work_items WHERE id=? AND campaign_id=?`, req.ItemID, req.CampaignID).Scan(&inputN); err != nil {
+		return err
 	}
+	expectedU, expectedB := derivePoolInputs(inputN, cfg)
+	if req.InputN != 0 && req.InputN != inputN {
+		return fmt.Errorf("poolfuzz: input_n mismatch")
+	}
+	if req.ActualInput != expectedU {
+		return fmt.Errorf("poolfuzz: actual_input mismatch")
+	}
+	if len(expectedB) > 0 {
+		if len(req.InputBytes) != len(expectedB) || !bytes.Equal(req.InputBytes, expectedB) {
+			return fmt.Errorf("poolfuzz: input_bytes mismatch")
+		}
+	} else if len(req.InputBytes) > 0 {
+		return fmt.Errorf("poolfuzz: unexpected input_bytes")
+	}
+	checkResult, trap, pass, recordFinding, err := s.evalSubmitCheck(ctx, cfg, sem, expectedU, expectedB)
+	if err != nil {
+		return err
+	}
+	req.InputN = inputN
+	req.ActualInput = expectedU
+	req.InputBytes = expectedB
+	req.CheckResult = checkResult
+	req.Trap = trap
 
 	workerID := strings.TrimSpace(req.WorkerID)
 	res, err := s.DB.ExecContext(ctx,
@@ -422,9 +443,13 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	if s.Settler != nil && escrowEnabled(cfg) {
 		miner := strings.TrimSpace(req.MinerAddress)
 		if miner != "" {
-			_ = s.Settler.PayRun(ctx, req.CampaignID, miner)
+			if err := s.Settler.PayRun(ctx, req.CampaignID, miner); err != nil {
+				return fmt.Errorf("poolfuzz: settle run: %w", err)
+			}
 			if recordFinding && bountySeverity(findingSeverity) && s.bountyAllowed(ctx, cfg, findingID) {
-				_ = s.Settler.PayFinding(ctx, req.CampaignID, miner, findingSeverity)
+				if err := s.Settler.PayFinding(ctx, req.CampaignID, miner, findingSeverity); err != nil {
+					return fmt.Errorf("poolfuzz: settle finding: %w", err)
+				}
 			}
 		}
 	}
@@ -433,7 +458,9 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 		return err
 	}
 	if completed && s.Settler != nil && escrowEnabled(cfg) {
-		_ = s.Settler.Finalize(ctx, req.CampaignID)
+		if err := s.Settler.Finalize(ctx, req.CampaignID); err != nil {
+			return fmt.Errorf("poolfuzz: finalize escrow: %w", err)
+		}
 	}
 	return nil
 }
@@ -445,6 +472,44 @@ func bountySeverity(sev string) bool {
 	default:
 		return false
 	}
+}
+
+func (s *Service) evalSubmitCheck(ctx context.Context, cfg map[string]any, sem fuzzengine.CheckSemantics, inputU uint64, inputB []byte) (checkResult int32, trap string, pass bool, recordFinding bool, err error) {
+	wasmHex := wasmHexFromConfig(cfg)
+	if wasmHex == "" {
+		// Without WASM the coordinator cannot verify detector semantics; never pay bounty on worker claims.
+		return 0, "", true, false, nil
+	}
+	wasm, err := hex.DecodeString(wasmHex)
+	if err != nil || len(wasm) == 0 {
+		return 0, "", false, false, fmt.Errorf("poolfuzz: invalid campaign wasm")
+	}
+	if vErr := sandbox.ValidateCheckWasm(ctx, wasm); vErr != nil {
+		return 0, "", false, false, nil
+	}
+	timeoutMS := sandbox.Policy().CheckTimeoutMS
+	if timeoutMS <= 0 {
+		timeoutMS = 5000
+	}
+	runCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMS)*time.Millisecond)
+	defer cancel()
+	var execErr error
+	var ok bool
+	if len(inputB) > 0 {
+		ok, execErr = sandbox.InvokeCheckInput(runCtx, wasm, inputB)
+	} else {
+		ok, execErr = sandbox.InvokeCheck(runCtx, wasm, inputU)
+	}
+	if execErr != nil {
+		trap = execErr.Error()
+		pass, recordFinding = fuzzengine.EvalCheck(sem, 0, execErr)
+		return 0, trap, pass, recordFinding, nil
+	}
+	if ok {
+		checkResult = 1
+	}
+	pass, recordFinding = fuzzengine.EvalCheck(sem, checkResult, nil)
+	return checkResult, trap, pass, recordFinding, nil
 }
 
 // ExecuteLocally runs sandbox check on coordinator (used by tests); workers normally submit results.

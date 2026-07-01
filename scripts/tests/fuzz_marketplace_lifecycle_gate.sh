@@ -6,8 +6,11 @@ cd "$ROOT"
 
 BASE="${BASE:-http://127.0.0.1:8080}"
 ADMIN_FILE="${ADMIN_FILE:-$ROOT/.secrets/hackme_admin_token}"
-[[ -f "$ADMIN_FILE" ]] || { echo "[fuzz-market-lifecycle] missing admin token" >&2; exit 1; }
-ADMIN="$(tr -d '\r\n' <"$ADMIN_FILE")"
+ADMIN="${ADMIN_TOKEN:-}"
+if [[ -z "$ADMIN" && -f "$ADMIN_FILE" ]]; then
+  ADMIN="$(tr -d '\r\n' <"$ADMIN_FILE")"
+fi
+[[ -n "$ADMIN" ]] || { echo "[fuzz-market-lifecycle] missing admin token (ADMIN_TOKEN or $ADMIN_FILE)" >&2; exit 1; }
 WASM_HEX="$(xxd -p "$ROOT/tasks/artifacts/security/rust_script_push_bounds_guard.wasm" | tr -d '\n')"
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
 GATE_CID="campaign-market-gate-${TS}"

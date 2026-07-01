@@ -59,7 +59,7 @@
     if (t.ok && Array.isArray(t.json.tasks)) {
       renderTasks(t.json.tasks);
       tasksStatus.textContent =
-        "Public summary only (no manifest). Create orders: Developer Dashboard or hackme-fuzzing CLI.";
+        "Public summary only (no manifest). Create campaigns: local node wizard or #orders — see developers.html.";
     } else {
       tasksStatus.textContent = "Tasks HTTP " + t.status;
     }

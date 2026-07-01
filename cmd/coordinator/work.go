@@ -328,11 +328,14 @@ func newWorkManagerFromEnv() *workManager {
 			ordersProbeEverySec = x
 		}
 	}
-	hybridSignerEnabled := false
+	workerTokenEnv := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_WORKER_TOKEN"))
+	allowInsecureEnv := envBool("HACKME_COORDINATOR_ALLOW_INSECURE", false)
+	// Public pools with worker tokens should bind miner identity by default.
+	hybridSignerEnabled := workerTokenEnv != "" && !allowInsecureEnv
 	if v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_POOL_HYBRID_SIGNER_ENABLED"))); v != "" {
 		hybridSignerEnabled = v == "1" || v == "true" || v == "yes" || v == "on"
 	}
-	hybridSignerStrict := false
+	hybridSignerStrict := hybridSignerEnabled
 	if v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_POOL_HYBRID_SIGNER_STRICT"))); v != "" {
 		hybridSignerStrict = v == "1" || v == "true" || v == "yes" || v == "on"
 	}
@@ -1377,6 +1380,21 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 			m.rejectedSubmits++
 			return false, "found_nonce_invalid_for_target_mod", 0, "", false
 		}
+		orderSnap := m.activeOrderSnapshot()
+		if orderSnap.ID != "" && strings.TrimSpace(orderSnap.WasmHex) != "" {
+			if !req.WasmGatePass {
+				m.rejectedSubmits++
+				return false, "wasm_gate_required", 0, "", false
+			}
+			if ok, reason := m.verifyOrderWasmGate(orderSnap, req.FoundNonce); !ok {
+				m.rejectedSubmits++
+				return false, reason, 0, "", false
+			}
+			if oid := strings.TrimSpace(req.OrderTaskID); oid != "" && oid != orderSnap.ID {
+				m.rejectedSubmits++
+				return false, "order_task_mismatch", 0, "", false
+			}
+		}
 	}
 	delete(m.active, k)
 	m.submittedItems++
@@ -1439,9 +1457,6 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	attempts = m.clampPaidAttempts(attempts, req.BatchSize)
 	reportedGH := clampWorkerHashrateGHS(req.HashrateGHS)
 	rawGH := workerHashrateGHSForSubmit(reportedGH, req.BatchSize, rec.IssuedAt, now, m.worker[req.WorkerID].LastHashrateGHS)
-	if reportedGH > rawGH {
-		rawGH = reportedGH
-	}
 	gh := smoothWorkerHashrateGHS(m.worker[req.WorkerID].LastHashrateGHS, rawGH)
 	if req.Found && reportedGH <= 0 {
 		gh = 0

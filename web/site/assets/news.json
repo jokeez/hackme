@@ -1,6 +1,55 @@
 {
   "items": [
     {
+      "id": "2026-07-01-b2b-fuzz-final",
+      "date": "2026-07-01",
+      "title": "B2B Fuzz Final — one command from WASM guard to CI gate",
+      "summary": "Ship a security guard, pick Scan · Audit · Deep, miners fuzz it on the pool, get an HTML report plus a pass/fail gate your pipeline can enforce. hackme-fuzzing wizard — no browser admin on the public site.",
+      "impact": "Protocol teams get a productized audit path: local node escrow (20/80 HMC), distributed useful-PoW workers, customer report token, GET /gate for CI. Coordinator now re-verifies WASM on found nonces — fabricated worker gate passes cannot drain bounty. Ops: fuzz_b2b_final_gate.sh → VERDICT.md.",
+      "action": "Developers: https://hackme.tech/developers.html · CLI: https://hackme.tech/downloads.html#fuzzing-client · Tracker: https://hackme.tech/fuzzing-console.html · Command: hackme-fuzzing wizard --wasm guard.wasm --package audit",
+      "tags": [
+        "fuzzing",
+        "b2b",
+        "security",
+        "product",
+        "devtools"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "B2B Fuzz FINAL — wizard + CI gate",
+        "lead": "guard.wasm → one CLI → report + gate · Scan 1 / Audit 5 / Deep 10 HMC",
+        "bullets": [
+          "hackme-fuzzing wizard — Scan · Audit · Deep packages, escrow 20/80 unchanged",
+          "Deliverables: report.html · pulse · GET /gate?pass= for CI (report token)",
+          "Security: orders on localhost only; coordinator WASM re-verify on pool submits",
+          "Ops gate: scripts/ops/fuzz_b2b_final_gate.sh → VERDICT GREEN/YELLOW"
+        ],
+        "footer": "hackme.tech/developers.html · downloads#fuzzing-client · fuzzing-console.html"
+      },
+      "twitter": {
+        "thread": [
+          "🛡️ B2B fuzz FINAL on HackMe: WASM guard → one CLI command → distributed pool fuzz → HTML report + CI gate URL.",
+          "hackme-fuzzing wizard --wasm guard.wasm --package audit → campaign_id + report token + gate?max_high=0",
+          "Packages: Scan 1 HMC·64 runs · Audit 5·256+pool · Deep 10·1000+corpus. Escrow 20/80 — same economics.",
+          "Security we kept: no orders on hackme.tech · coordinator re-runs WASM (workers can't fake gate pass) · report token in header only",
+          "Wire GET /gate into GitHub Actions — examples/github-actions/hackme-fuzz-gate.yml in the AGPL repo",
+          "Start: hackme.tech/downloads.html#fuzzing-client · Docs: hackme.tech/developers.html · Pool tracker: fuzzing-console.html"
+        ],
+        "single": "WASM guard → one command → report + CI gate. HackMe B2B fuzz final: wizard, Scan/Audit/Deep, distributed pool, HMC escrow. https://hackme.tech/developers.html"
+      },
+      "discord": {
+        "title": "Product · B2B Fuzz Final",
+        "body": "**One command. Three packages. A gate your CI can trust.**\n\n• `hackme-fuzzing wizard --wasm guard.wasm --package audit`\n• Scan 1 HMC · Audit 5 HMC · Deep 10 HMC — pool + escrow 20/80\n• HTML report + `GET …/gate` with report token\n• Coordinator server-side WASM re-verify\n\n**Links:** [developers](https://hackme.tech/developers.html) · [CLI](https://hackme.tech/downloads.html#fuzzing-client) · [console](https://hackme.tech/fuzzing-console.html)",
+        "ping": "#announcements"
+      },
+      "links": {
+        "developers": "https://hackme.tech/developers.html",
+        "downloads": "https://hackme.tech/downloads.html#fuzzing-client",
+        "console": "https://hackme.tech/fuzzing-console.html",
+        "pool": "https://hackme.tech/pool/coordinator"
+      }
+    },
+    {
       "id": "2026-06-28-cfgpack-upstream-fix",
       "date": "2026-06-28",
       "title": "Upstream win: cfgpack MessagePack int64 UBSan — fixed in b5e7cff",

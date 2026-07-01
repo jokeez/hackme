@@ -1,0 +1,26 @@
+# Example: block merge when HackMe fuzz gate fails.
+# Copy to .github/workflows/hackme-fuzz-gate.yml and set secrets/vars.
+name: HackMe Fuzz Gate
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  fuzz-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check fuzz campaign gate
+        env:
+          HACKME_REPORT_TOKEN: ${{ secrets.HACKME_REPORT_TOKEN }}
+          CAMPAIGN_ID: ${{ vars.HACKME_CAMPAIGN_ID }}
+          HACKME_PUBLIC_BASE: ${{ vars.HACKME_PUBLIC_BASE }}
+        run: |
+          set -euo pipefail
+          BASE="${HACKME_PUBLIC_BASE:-https://hackme.tech}"
+          test -n "$HACKME_REPORT_TOKEN"
+          test -n "$CAMPAIGN_ID"
+          PASS=$(curl -fsS \
+            "${BASE}/api/fuzz/campaigns/${CAMPAIGN_ID}/gate?max_critical=0&max_high=0" \
+            -H "X-Hackme-Report-Token: ${HACKME_REPORT_TOKEN}" | jq -r .pass)
+          test "$PASS" = "true"

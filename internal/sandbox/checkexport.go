@@ -243,17 +243,20 @@ func ValidateCheckWasm(ctx context.Context, wasm []byte) error {
 	validateCtx, cancel := context.WithTimeout(ctx, wasmCheckTimeout())
 	defer cancel()
 	rt := ensureCheckRuntime()
-	checkCompileMu.Lock()
-	defer checkCompileMu.Unlock()
 	key := compiledKey(wasm)
+	checkCompileMu.Lock()
 	if blockQuarantinedWasm() {
 		if v, ok := checkQuarantine.Load(key); ok {
+			checkCompileMu.Unlock()
 			return fmt.Errorf("sandbox: wasm is quarantined: %v", v)
 		}
 	}
 	if _, ok := checkCompiled.Load(key); ok {
+		checkCompileMu.Unlock()
 		return nil
 	}
+	checkCompileMu.Unlock()
+
 	compiled, err := rt.CompileModule(validateCtx, wasm)
 	if err != nil {
 		quarantineWasm(key, "compile wasm failed")
@@ -292,6 +295,7 @@ func ValidateCheckWasm(ctx context.Context, wasm []byte) error {
 		quarantineWasm(key, "check export has invalid signature")
 		return errors.New("sandbox: check export must be exactly check(i64)->i32")
 	}
+	// Probe outside compile mutex so a CPU-bound loop cannot block all validations.
 	res, err := fn.Call(validateCtx, 0)
 	if err != nil || len(res) != 1 {
 		_ = mod.Close(validateCtx)
@@ -317,10 +321,21 @@ func ValidateCheckWasm(ctx context.Context, wasm []byte) error {
 		return errors.New("sandbox: check export must be callable as check(i64)->i32")
 	}
 	_ = mod.Close(validateCtx)
-	checkQuarantine.Delete(key)
-	if old, exists := checkCompiled.Load(key); exists {
-		_ = old.(wazero.CompiledModule).Close(validateCtx)
+
+	checkCompileMu.Lock()
+	defer checkCompileMu.Unlock()
+	if blockQuarantinedWasm() {
+		if v, ok := checkQuarantine.Load(key); ok {
+			_ = compiled.Close(validateCtx)
+			return fmt.Errorf("sandbox: wasm is quarantined: %v", v)
+		}
 	}
+	if old, exists := checkCompiled.Load(key); exists {
+		_ = compiled.Close(validateCtx)
+		_ = old.(wazero.CompiledModule).Close(validateCtx)
+		return nil
+	}
+	checkQuarantine.Delete(key)
 	checkCompiled.Store(key, compiled)
 	checkCompiledLRU = append(checkCompiledLRU, key)
 	maxEntries := compiledCacheMax()
