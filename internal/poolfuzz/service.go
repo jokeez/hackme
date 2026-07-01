@@ -322,7 +322,7 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 		 WHERE c.status IN ('planned','running')
 		   AND (w.status='pending' OR (w.status='leased' AND w.lease_until < ?))
 		 ORDER BY w.updated_at ASC
-		 LIMIT 20`, now)
+		 LIMIT 256`, now)
 	if err != nil {
 		return out, false, err
 	}
