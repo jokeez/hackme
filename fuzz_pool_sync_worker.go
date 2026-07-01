@@ -36,6 +36,7 @@ func (a *app) startPoolSyncWorker() {
 	a.poolSyncOnce.Do(func() {
 		a.poolSyncCh = make(chan poolSyncJob, 256)
 		go a.poolSyncWorkerLoop()
+		a.startFuzzSettlePullTicker()
 	})
 }
 

@@ -123,6 +123,12 @@ func RegisterOnce(ctx context.Context, coordURL, token string, req RegisterReque
 		req.Config = map[string]any{}
 	}
 	req.Config["pool_distributed"] = true
+	if base, pull := ResolveOrdersSettleBase(); base != "" {
+		req.Config["orders_settle_base"] = base
+		if pull {
+			req.Config["orders_settle_pull"] = true
+		}
+	}
 	body, _ := json.Marshal(req)
 	start := time.Now()
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, coordURL+"/api/fuzz/pool/campaigns", bytes.NewReader(body))

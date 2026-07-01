@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"hackme/internal/chain"
 )
@@ -62,6 +63,83 @@ func (a *app) handleFuzzPoolSettle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true, "escrow": row})
+}
+
+func (a *app) handleFuzzEscrowCleanupStale(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !requireAdminAuth(w, r) {
+		return
+	}
+	ctx := r.Context()
+	rows, err := a.db.QueryContext(ctx,
+		`SELECT c.id, c.status, e.status
+		 FROM fuzz_campaigns c
+		 JOIN fuzz_campaign_escrow e ON e.campaign_id = c.id
+		 WHERE e.status IN ('open', 'bounty_paid')
+		   AND c.status IN ('cancelled', 'completed')`)
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "query_failed", err.Error(), nil)
+		return
+	}
+	defer rows.Close()
+	type staleRow struct {
+		id, cStatus string
+	}
+	var pending []staleRow
+	for rows.Next() {
+		var cid, cStatus, eStatus string
+		if err := rows.Scan(&cid, &cStatus, &eStatus); err != nil {
+			writeAPIError(w, http.StatusInternalServerError, "scan_failed", err.Error(), nil)
+			return
+		}
+		pending = append(pending, staleRow{id: cid, cStatus: cStatus})
+	}
+	var cancelled, completed, failed int
+	var refundedHMC float64
+	var errs []string
+	for _, item := range pending {
+		var row *chain.FuzzEscrowRow
+		var err error
+		for attempt := 0; attempt < 5; attempt++ {
+			switch strings.TrimSpace(strings.ToLower(item.cStatus)) {
+			case "cancelled":
+				row, err = a.chain.CancelFuzzEscrow(ctx, item.id)
+			case "completed":
+				row, err = a.chain.FinalizeFuzzEscrow(ctx, item.id)
+			default:
+				err = nil
+			}
+			if err == nil || !strings.Contains(strings.ToLower(err.Error()), "database is locked") {
+				break
+			}
+			time.Sleep(time.Duration(attempt+1) * 50 * time.Millisecond)
+		}
+		if err != nil {
+			failed++
+			errs = append(errs, item.id+": "+err.Error())
+			continue
+		}
+		switch strings.TrimSpace(strings.ToLower(item.cStatus)) {
+		case "cancelled":
+			cancelled++
+		case "completed":
+			completed++
+		}
+		if row != nil {
+			refundedHMC += row.RefundedBountyHMC
+		}
+	}
+	writeJSON(w, map[string]any{
+		"ok":                  true,
+		"cancelled_closed":    cancelled,
+		"completed_closed":    completed,
+		"failed":              failed,
+		"refunded_bounty_hmc": refundedHMC,
+		"errors":              errs,
+	})
 }
 
 func (a *app) handleFuzzEscrowGet(w http.ResponseWriter, r *http.Request, campaignID string) {

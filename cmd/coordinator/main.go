@@ -126,8 +126,10 @@ func main() {
 	})
 	addWorkRoutes(mux, token, workerToken, allowInsecure, reg, wm, db)
 	pf := &poolfuzz.Service{DB: db}
-	if strings.TrimSpace(wm.ordersProbeURL) != "" {
-		pf.Settler = wmFuzzSettler{m: wm}
+	pf.Settler = &poolfuzz.RelaySettler{
+		Service:          pf,
+		DefaultOrdersURL: wm.ordersProbeURL,
+		AdminToken:       wm.ordersAdminToken,
 	}
 	addFuzzPoolRoutes(mux, token, workerToken, allowInsecure, wm, pf)
 	startPoolFuzzTicker(context.Background(), pf)

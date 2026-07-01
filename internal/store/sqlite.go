@@ -12,7 +12,7 @@ import (
 
 // CurrentSchemaVersion is the value written to PRAGMA user_version after migrate() completes.
 // Bump when adding a new migration step (and document in README / MASTER_PLAN).
-const CurrentSchemaVersion = 13
+const CurrentSchemaVersion = 14
 
 // Open opens SQLite at path (directories created as needed).
 func Open(dbPath string) (*sql.DB, error) {
@@ -104,6 +104,9 @@ func migrate(db *sql.DB) error {
 		return err
 	}
 	if err := migrateFuzzNativeQueue(db); err != nil {
+		return err
+	}
+	if err := migrateFuzzSettleOutbox(db); err != nil {
 		return err
 	}
 	return bumpUserVersion(db)
@@ -551,4 +554,26 @@ func migrateFuzzEscrow(db *sql.DB) error {
 		created_at INTEGER NOT NULL
 	)`)
 	return err
+}
+
+func migrateFuzzSettleOutbox(db *sql.DB) error {
+	stmts := []string{
+		`CREATE TABLE IF NOT EXISTS fuzz_settle_outbox (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			campaign_id TEXT NOT NULL,
+			kind TEXT NOT NULL,
+			miner_address TEXT NOT NULL DEFAULT '',
+			severity TEXT NOT NULL DEFAULT '',
+			status TEXT NOT NULL DEFAULT 'pending',
+			created_at INTEGER NOT NULL,
+			applied_at INTEGER NOT NULL DEFAULT 0
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_fuzz_settle_outbox_pending ON fuzz_settle_outbox(status, id)`,
+	}
+	for _, s := range stmts {
+		if _, err := db.Exec(s); err != nil {
+			return err
+		}
+	}
+	return nil
 }
