@@ -219,6 +219,57 @@ func (s *Service) PayFuzzBounty(ctx context.Context, campaignID, minerAddress, s
 	return s.GetFuzzEscrow(ctx, campaignID)
 }
 
+// CancelFuzzEscrow refunds all unpaid escrow slices to the operator wallet and closes.
+func (s *Service) CancelFuzzEscrow(ctx context.Context, campaignID string) (*FuzzEscrowRow, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	campaignID = strings.TrimSpace(campaignID)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	row, err := s.lockFuzzEscrowTx(ctx, tx, campaignID)
+	if err != nil {
+		return nil, err
+	}
+	if row.status == "closed" {
+		return s.GetFuzzEscrow(ctx, campaignID)
+	}
+	runsRefund := row.runsPoolUnits - row.runsPaidUnits
+	bountyRefund := row.bountyPoolUnits - row.bountyPaidUnits
+	if row.status == "bounty_paid" {
+		bountyRefund = 0
+	}
+	refund := runsRefund + bountyRefund
+	if refund > 0 {
+		var walletAddr string
+		if err := tx.QueryRowContext(ctx, `SELECT address FROM wallet WHERE id=1`).Scan(&walletAddr); err != nil {
+			return nil, err
+		}
+		if err := s.creditUnits(ctx, tx, walletAddr, refund); err != nil {
+			return nil, err
+		}
+	}
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE fuzz_campaign_escrow SET status='closed', refunded_bounty_units=refunded_bounty_units+? WHERE campaign_id=?`,
+		bountyRefund, campaignID); err != nil {
+		return nil, err
+	}
+	if err := s.checkEconomicInvariants(ctx, tx); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	out, err := s.GetFuzzEscrow(ctx, campaignID)
+	if err != nil {
+		return nil, err
+	}
+	out.RefundedBountyHMC = UnitsToHMC(bountyRefund)
+	return out, nil
+}
+
 // FinalizeFuzzEscrow refunds unused bounty pool to the primary wallet and closes escrow.
 func (s *Service) FinalizeFuzzEscrow(ctx context.Context, campaignID string) (*FuzzEscrowRow, error) {
 	s.mu.Lock()

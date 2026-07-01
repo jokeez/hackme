@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"hackme/internal/fuzzengine"
+	"hackme/internal/poolfuzz"
 )
 
 type fuzzCampaign struct {
@@ -770,6 +771,7 @@ func (a *app) handleFuzzCampaignsList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
+	showAll := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("all"))) == "1"
 	out := make([]fuzzCampaign, 0, limit)
 	for rows.Next() {
 		var c fuzzCampaign
@@ -780,9 +782,50 @@ func (a *app) handleFuzzCampaignsList(w http.ResponseWriter, r *http.Request) {
 		}
 		c.Config = parseMapJSON(cfg)
 		c.Summary = parseMapJSON(sum)
+		if !showAll && poolfuzz.IsInternalGateCampaign(c.ID, c.Title, c.OwnerRef, c.Config) {
+			continue
+		}
+		a.enrichFuzzCampaignFromCoordinator(r.Context(), &c)
 		out = append(out, c)
 	}
 	writeJSON(w, map[string]any{"ok": true, "campaigns": out, "count": len(out)})
+}
+
+func (a *app) enrichFuzzCampaignFromCoordinator(ctx context.Context, c *fuzzCampaign) {
+	if c == nil {
+		return
+	}
+	poolDist := false
+	if v, ok := c.Config["pool_distributed"]; ok {
+		switch x := v.(type) {
+		case bool:
+			poolDist = x
+		case string:
+			poolDist = strings.EqualFold(strings.TrimSpace(x), "true") || strings.TrimSpace(x) == "1"
+		}
+	}
+	if !poolDist {
+		return
+	}
+	rc, ok := a.fetchCoordinatorPoolCampaignProgress(ctx, c.ID)
+	if !ok {
+		return
+	}
+	if rc.RunsDone > intFromAny(c.Summary["runs_done"]) {
+		c.Summary["runs_done"] = rc.RunsDone
+	}
+	if rc.Findings > 0 {
+		c.Summary["findings"] = rc.Findings
+	}
+	if rc.BudgetRuns > 0 {
+		c.BudgetRuns = rc.BudgetRuns
+	}
+	st := strings.TrimSpace(strings.ToLower(rc.Status))
+	if st == "completed" || (rc.BudgetRuns > 0 && rc.RunsDone >= rc.BudgetRuns) {
+		c.Status = "completed"
+	} else if st != "" {
+		c.Status = st
+	}
 }
 
 func (a *app) getFuzzCampaign(ctx context.Context, id string) (fuzzCampaign, error) {
@@ -851,12 +894,25 @@ func (a *app) handleFuzzCampaignStatus(w http.ResponseWriter, r *http.Request, c
 		writeAPIError(w, http.StatusNotFound, "campaign_not_found", "campaign not found", nil)
 		return
 	}
+	a.tryCloseFuzzEscrowForStatus(r.Context(), campaignID, status)
 	c, err := a.getFuzzCampaign(r.Context(), campaignID)
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, "campaign_load_failed", "campaign load failed", nil)
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true, "campaign": c})
+}
+
+func (a *app) tryCloseFuzzEscrowForStatus(ctx context.Context, campaignID, status string) {
+	if a.chain == nil {
+		return
+	}
+	switch strings.TrimSpace(strings.ToLower(status)) {
+	case "cancelled":
+		_, _ = a.chain.CancelFuzzEscrow(ctx, campaignID)
+	case "completed":
+		_, _ = a.chain.FinalizeFuzzEscrow(ctx, campaignID)
+	}
 }
 
 func mergeRuntimeSummary(base map[string]any, req fuzzCampaignRuntimeUpdateRequest, heartbeatAt int64) map[string]any {

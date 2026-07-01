@@ -21,7 +21,7 @@ VERDICT="$OUT/VERDICT.md"
 ADMIN="$(resolve_admin_token "$ROOT" 2>/dev/null || true)"
 export HACKME_ADMIN_TOKEN="${HACKME_ADMIN_TOKEN:-$ADMIN}"
 export ADMIN_TOKEN="${ADMIN_TOKEN:-$ADMIN}"
-BASE_LOCAL="${BASE:-${BASE_LOCAL:-http://127.0.0.1:8080}}"
+BASE_LOCAL="${BASE_LOCAL:-http://127.0.0.1:8080}"
 BASE_PROD="${BASE_PROD:-https://hackme.tech}"
 
 pass_n=0

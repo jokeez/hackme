@@ -13,11 +13,11 @@ import (
 )
 
 type coordinatorPoolCampaign struct {
-	ID        string `json:"id"`
-	Status    string `json:"status"`
-	RunsDone  int    `json:"runs_done"`
-	BudgetRuns int   `json:"budget_runs"`
-	Findings  int    `json:"findings"`
+	ID         string `json:"id"`
+	Status     string `json:"status"`
+	RunsDone   int    `json:"runs_done"`
+	BudgetRuns int    `json:"budget_runs"`
+	Findings   int    `json:"findings"`
 }
 
 func (a *app) fetchCoordinatorPoolCampaigns(ctx context.Context) (map[string]coordinatorPoolCampaign, error) {
@@ -162,5 +162,11 @@ func (a *app) syncPoolCampaignProgressFromCoordinator(ctx context.Context, campa
 		 SET status=?, summary_json=?, completed_at=CASE WHEN ?='completed' AND completed_at=0 THEN ? ELSE completed_at END
 		 WHERE id=?`,
 		nextStatus, marshalMapJSON(summary), nextStatus, completedAt, campaignID)
-	return err
+	if err != nil {
+		return err
+	}
+	if nextStatus == "completed" {
+		a.tryCloseFuzzEscrowForStatus(ctx, campaignID, "completed")
+	}
+	return nil
 }
