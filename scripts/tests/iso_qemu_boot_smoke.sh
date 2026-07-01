@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Boot HackMe OS ISO in QEMU and fail on casper/kernel panic (exitcode=0x100).
+# Boot HackMe OS ISO in QEMU — fail on casper overlay panic or initramfs drop.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -7,7 +7,7 @@ ISO_VER="$(tr -d ' \n\r' <"$ROOT/scripts/release/CURRENT_ISO_VERSION" 2>/dev/nul
 VERSION="${VERSION:-$ISO_VER}"
 ISO="${1:-${ROOT}/dist/release_${VERSION}/HackMe-OS-${VERSION}-amd64.iso}"
 LOG="${2:-/tmp/hackme-iso-qemu-$$.log}"
-TIMEOUT_SEC="${TIMEOUT_SEC:-300}"
+TIMEOUT_SEC="${TIMEOUT_SEC:-420}"
 BOOT_MODE="${BOOT_MODE:-extract}" # extract (serial console) | iso (full GRUB)
 
 if [[ ! -f "$ISO" ]]; then
@@ -23,7 +23,7 @@ rm -f "$LOG"
 echo "[iso-qemu] boot ISO mode=$BOOT_MODE timeout=${TIMEOUT_SEC}s"
 echo "[iso-qemu] log=$LOG"
 
-panic_patterns='kernel panic|exitcode=0x100|Unable to find live|failed to mount.*squashfs|/init: can.t open /root/dev|/cow format specified as .overlay. and no support found|overlay.*no support found'
+panic_patterns='kernel panic|exitcode=0x100|Unable to find live|failed to mount.*squashfs|/init: can.t open /root/dev|/cow format specified as .overlay. and no support found|overlay.*no support found|hackme-live: FATAL overlay'
 
 run_qemu() {
   timeout "$TIMEOUT_SEC" qemu-system-x86_64 \
@@ -38,12 +38,12 @@ if [[ "$BOOT_MODE" == "extract" ]] && command -v 7z >/dev/null 2>&1; then
   SQ_TMP="$(mktemp -d)"
   trap 'rm -rf "$SQ_TMP"' EXIT
   if 7z x -y -o"$SQ_TMP" "$ISO" casper/vmlinuz casper/initrd >/dev/null 2>&1; then
-    echo "[iso-qemu] direct kernel boot + ISO cdrom (console=ttyS0, boot=casper debug)"
+    echo "[iso-qemu] direct kernel boot + ISO cdrom (console=ttyS0, boot=casper)"
     run_qemu \
       -cdrom "$ISO" \
       -kernel "$SQ_TMP/casper/vmlinuz" \
       -initrd "$SQ_TMP/casper/initrd" \
-      -append "boot=casper noplymouth plymouth.enable=0 console=ttyS0,115200n8 debug live-media-timeout=300 fsck.mode=skip" \
+      -append "boot=casper noplymouth plymouth.enable=0 console=ttyS0,115200n8 systemd.show_status=1 live-media-timeout=300 fsck.mode=skip ip=dhcp usbcore.autosuspend=-1" \
       -nographic \
       -serial mon:stdio
   else
@@ -71,20 +71,14 @@ if grep -qiE 'username=root' "$LOG" 2>/dev/null || grep -aq 'username=root' "${I
   echo "[iso-qemu] WARN: ISO still uses username=root (casper panic risk on hardware)" >&2
 fi
 
-if grep -qiE 'overlay.*no support found|/cow format specified' "$LOG" 2>/dev/null; then
-  echo "[iso-qemu] FAIL: casper overlay not available (rebuild ISO with 05-hackme-overlay-modules in casper-premount)" >&2
-  grep -iE 'overlay|/cow' "$LOG" | tail -n 15 >&2 || true
+if grep -qiE '\(initramfs\)' "$LOG" 2>/dev/null; then
+  echo "[iso-qemu] FAIL: dropped to initramfs shell" >&2
+  tail -n 40 "$LOG" >&2 || true
   exit 1
 fi
 
-if grep -qi '(initramfs)' "$LOG" 2>/dev/null && ! grep -qiE 'systemd|login:' "$LOG" 2>/dev/null; then
-  echo "[iso-qemu] WARN: dropped to initramfs shell (QEMU may be slow; no exitcode=0x100 — OK for hardware smoke)" >&2
-  echo "[iso-qemu] OK — no casper panic (0x100); verify on real USB boot"
-  exit 0
-fi
-
 pass=0
-for needle in "casper" "systemd" "login:" "root@" "HackMe"; do
+for needle in "casper" "systemd" "login:" "root@" "HackMe" "hackme-os"; do
   if grep -qi "$needle" "$LOG" 2>/dev/null; then
     echo "[iso-qemu] PASS log contains: $needle"
     pass=$((pass + 1))

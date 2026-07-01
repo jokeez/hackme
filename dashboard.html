@@ -7,7 +7,7 @@
 	<title>HackMe — Mining Ecosystem</title>
 	<link rel="icon" href="/favicon.ico" type="image/x-icon">
 	<link rel="icon" href="/assets/logo-hex.png" type="image/png">
-	<script>window.__HACKME_EMBEDDED_ADMIN_TOKEN__="eb57fd01a713ec53fa9a0ff76127ec79bed4cc3e474b0e26";</script>
+	{{ .DesktopAdminTokenScript }}
 	<script>window.__twLoaded = false;</script>
 	<script src="https://cdn.tailwindcss.com" onload="window.__twLoaded = true" onerror="window.__twLoaded = false"></script>
 	<!-- Single Tailwind entry: v3 CDN (JIT). Static v2 sheet removed — it fought arbitrary utilities; offline/tailwind-blocked uses body.tw-fallback styles. -->
@@ -4297,18 +4297,15 @@
 				}
 				return clean;
 			}
+			// One-time migration: drop persisted admin tokens from older builds.
 			raw = String(localStorage.getItem(adminTokenStorageKey) || '').trim();
 			if (raw) {
+				localStorage.removeItem(adminTokenStorageKey);
 				const clean = sanitizeAdminTokenForHTTP(raw);
-				if (clean !== raw) {
-					if (clean) localStorage.setItem(adminTokenStorageKey, clean);
-					else localStorage.removeItem(adminTokenStorageKey);
-				}
 				if (clean) {
 					sessionStorage.setItem(adminTokenStorageKey, clean);
 					return clean;
 				}
-				return '';
 			}
 			const inp = $('admin-token-input');
 			const draft = inp ? String(inp.value || '').trim() : '';
@@ -4542,7 +4539,6 @@
 					: '';
 				if (emb) {
 					sessionStorage.setItem(adminTokenStorageKey, emb);
-					localStorage.setItem(adminTokenStorageKey, emb);
 					updateAdminTokenUI();
 					void refreshWallet(true);
 					return true;
@@ -4556,7 +4552,6 @@
 						const tok = sanitizeAdminTokenForHTTP(j && j.admin_token);
 						if (tok) {
 							sessionStorage.setItem(adminTokenStorageKey, tok);
-							localStorage.setItem(adminTokenStorageKey, tok);
 							updateAdminTokenUI();
 							try { logLine('[admin] loaded token from local desktop node (.env.desktop)'); } catch (_) {}
 							void refreshWallet(true);
@@ -4577,7 +4572,6 @@
 				const tok = sanitizeAdminTokenForHTTP(j && j.admin_token);
 				if (!tok) return false;
 				sessionStorage.setItem(adminTokenStorageKey, tok);
-				localStorage.setItem(adminTokenStorageKey, tok);
 				updateAdminTokenUI();
 				try { logLine('[admin] re-synced token from local desktop node'); } catch (_) {}
 				void refreshWallet(true);
@@ -4598,10 +4592,8 @@
 			}
 			if (token) {
 				sessionStorage.setItem(adminTokenStorageKey, token);
-				localStorage.setItem(adminTokenStorageKey, token);
 			} else {
 				sessionStorage.removeItem(adminTokenStorageKey);
-				localStorage.removeItem(adminTokenStorageKey);
 			}
 			input.value = '';
 			updateAdminTokenUI();
@@ -13122,7 +13114,6 @@
 					const tok = randomHexToken(24);
 					if (!tok) return;
 					sessionStorage.setItem(adminTokenStorageKey, tok);
-					localStorage.setItem(adminTokenStorageKey, tok);
 					updateAdminTokenUI();
 					if ($('desktop-wizard-note')) $('desktop-wizard-note').textContent = 'wizard: new admin token generated and saved in browser storage';
 				});

@@ -1,11 +1,12 @@
 {
-  "updated": "2026-06-28",
+  "updated": "2026-06-30",
   "note": "Public-safe case registry. Repro/CVE details only when status=published.",
   "status_labels": {
     "pipeline": "In fuzz pipeline",
     "hold": "Responsible disclosure hold",
     "triage": "Reported — awaiting maintainer",
     "closed_wontfix": "Upstream closed — wontfix (not CVE-class)",
+    "closed_false_positive": "Harness/driver bug — not upstream CVE",
     "fixed": "Fix merged — case study draft",
     "published": "Published case study"
   },
@@ -92,6 +93,27 @@
       "show_repro": false,
       "hunt_wave": "wave6",
       "custom_page": true
+    },
+    {
+      "id": "heatshrink",
+      "slug": "heatshrink",
+      "project": "atomicobject/heatshrink",
+      "repo_url": "https://github.com/atomicobject/heatshrink",
+      "component": "heatshrink_decoder (fuzz harness)",
+      "tier": "oss_cve",
+      "status": "closed_false_positive",
+      "severity": "informational",
+      "finding_class": "ASAN stack-buffer-overflow in fuzz driver (stack alloc vs HEATSHRINK_DYNAMIC_ALLOC flexible buffers[])",
+      "cve_id": null,
+      "fix_url": null,
+      "issue_url": null,
+      "reported_at": null,
+      "fixed_at": "2026-06-27",
+      "published_at": null,
+      "closed_at": "2026-06-30",
+      "public_summary": "Wave10 CVE_CANDIDATE was a harness false positive: stdin driver placed heatshrink_decoder on stack while dynamic-alloc build needs heap (flexible buffers[]). Fixed in heatshrink_stdin.c (1229d30); 50k re-run CLEAN. Not an upstream atomicobject/heatshrink bug.",
+      "show_repro": false,
+      "hunt_wave": "heatshrink-verify50k-20260630T151652Z"
     }
   ]
 }

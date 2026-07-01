@@ -1,20 +1,10 @@
 {
   "verdict": "CLEAN",
-  "summary": "INFORMATIONAL \u2014 UBSan-only findings (not CVE-class). See per-target reports.",
+  "summary": "CLEAN \u2014 no ASAN crash in budget. Publish as methodology case study.",
   "cve_candidates": [],
-  "informational_targets": [
-    "mxml"
-  ],
+  "informational_targets": [],
   "clean_targets": [
-    "cjson",
-    "yajl-210",
-    "cj5",
-    "inih",
-    "jsmn",
-    "libconfini",
-    "parsello",
-    "tomlc99",
-    "heatshrink"
+    "pcre2"
   ],
   "hold_disclosure": [
     "centijson"
@@ -33,10 +23,12 @@
     "lua",
     "quickjs",
     "libucl",
-    "cfgpack"
+    "cfgpack",
+    "jsonparser",
+    "wren"
   ],
-  "wave": "wave17-20260628T033718Z-w17",
-  "started_at": "2026-06-28T10:24:34Z",
-  "finished_at": "2026-06-28T11:23:02Z",
+  "wave": "pcre2",
+  "started_at": "2026-07-01T09:57:38Z",
+  "finished_at": "2026-07-01T10:09:32Z",
   "publish_allowed": true
 }

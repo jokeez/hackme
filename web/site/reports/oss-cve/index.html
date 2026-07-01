@@ -52,7 +52,7 @@
         Repro and CVE IDs appear only after coordinated disclosure.</p>
       <div class="oss-policy"><strong>Public policy:</strong> We show pipeline activity and case status now; technical PoC and CVE numbers only after maintainer fix or agreed publish window.</div>
       <div class="oss-hub-stats">
-        <span><b>4</b> tracked cases</span>
+        <span><b>5</b> tracked cases</span>
         <span><b>2</b> in disclosure</span>
         <span><b>1</b> closed wontfix</span>
         <span><b>0</b> published</span>
@@ -109,12 +109,24 @@
   <p class="meta">UBSan — function pointer type mismatch on read callback (not CVE-class) · wave wave6</p>
   <a class="case-link" href="./cases/mxml.html">Case page →</a>
 </article>
+<article class="case-card status-closed_false_positive">
+  <div class="case-head">
+    <span class="badge" style="border-color:#ff9800;color:#ff9800">Responsible disclosure hold</span>
+    <span class="tier">oss_cve</span>
+  </div>
+  <h2><a href="./cases/heatshrink.html">atomicobject/heatshrink</a></h2>
+  <p class="component">heatshrink_decoder (fuzz harness)</p>
+  <p class="summary">Wave10 CVE_CANDIDATE was a harness false positive: stdin driver placed heatshrink_decoder on stack while dynamic-alloc build needs heap (flexible buffers[]). Fixed in heatshrink_stdin.c (1229d30); 50k re-run CLEAN. Not an upstream atomicobject/heatshrink bug.</p>
+  
+  <p class="meta">ASAN stack-buffer-overflow in fuzz driver (stack alloc vs HEATSHRINK_DYNAMIC_ALLOC flexible buffers[]) · wave heatshrink-verify50k-20260630T151652Z</p>
+  <a class="case-link" href="./cases/heatshrink.html">Case page →</a>
+</article>
       </div>
     </section>
 <section class="panel glass oss-run-panel">
   <h2>Latest hunt run (methodology)</h2>
   <p class="subtle">Aggregate only — no weaponized inputs. <a href="./latest-run.html">run table</a></p>
-  <p><code>verdict=CLEAN</code> · 9 clean targets in last batch</p>
+  <p><code>verdict=CLEAN</code> · 1 clean targets in last batch</p>
 </section>
   </main>
 

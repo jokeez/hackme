@@ -138,6 +138,23 @@ if command -v lsinitramfs >/dev/null 2>&1; then
     rm -f "$IR_LIST"
     exit 1
   fi
+  if grep -Fq 'hackme-kmods/overlay.ko' "$IR_LIST" 2>/dev/null; then
+    echo "[iso-inner] PASS initrd includes uncompressed hackme-kmods/overlay.ko"
+  else
+    echo "[iso-inner] FAIL initrd missing hackme-kmods/overlay.ko" >&2
+    rm -f "$IR_LIST"
+    exit 1
+  fi
+  if grep -Fq 'hackme-kmods/zstd.ko' "$IR_LIST" 2>/dev/null; then
+    echo "[iso-inner] PASS initrd includes hackme-kmods/zstd.ko"
+  else
+    echo "[iso-inner] WARN initrd missing hackme-kmods/zstd.ko" >&2
+  fi
+  if grep -Fq 'hackme-overlay-insmod' "$IR_LIST" 2>/dev/null; then
+    echo "[iso-inner] PASS initrd casper patched (hackme-overlay-insmod)"
+  else
+    echo "[iso-inner] WARN initrd casper missing hackme-overlay-insmod patch" >&2
+  fi
   rm -f "$IR_LIST"
 fi
 

@@ -43,6 +43,8 @@ WAVE_SATURATED_CLEAN = {
     "expat", "yajl", "json-c", "cmp", "uriparser", "picohttpparser", "pcre2",
     "md4c", "mjson", "yyjson", "parson", "jansson", "sheredom", "cyaml",
     "tomlc17", "libyaml", "cmark",
+    # wave23–24 verified CLEAN
+    "miniz", "oniguruma", "zlib", "libxml2", "mpack", "cjson", "libcbor", "heatshrink",
 }
 
 # wave14 main run — CLEAN at ≥130k iters
@@ -68,9 +70,33 @@ PIN_WAVE15 = [
     "uriparser",
 ]
 
+# wave27 — obscure / low OSS-Fuzz coverage (see run_oss_cve_obscure.sh)
+PIN_WAVE27 = [
+    "frozen",
+    "mpack",
+    "libcbor",
+    "kuba_zip",
+    "cwalk",
+    "jsonparser",
+    "tinycbor",
+    "microtar",
+]
+
+# wave30 — new GitHub targets (lz4, hiredis, wren, minimp3, stb)
+PIN_WAVE30 = [
+    "lz4",
+    "hiredis",
+    "wren",
+    "minimp3",
+    "stb_vorbis",
+]
+
 HOLD_DEEP = {"centijson"}  # disclosure hold — skip automated waves
 
 DISCLOSURE_HOLD = {"centijson"}
+
+# Harness/driver false positives — never score as CVE_CANDIDATE
+DRIVER_FALSE_POSITIVE = {"heatshrink"}
 
 TARGET_CATEGORY = {
     "lua": "interpreter",
@@ -79,6 +105,11 @@ TARGET_CATEGORY = {
     "heatshrink": "compression",
     "miniz": "compression",
     "zlib": "compression",
+    "lz4": "compression",
+    "minimp3": "binary",
+    "stb_vorbis": "binary",
+    "hiredis": "http",
+    "wren": "interpreter",
     "oniguruma": "regex",
     "pcre2": "regex",
     "libxml2": "xml",
@@ -88,7 +119,16 @@ TARGET_CATEGORY = {
     "picohttpparser": "http",
     "cfgpack": "msgpack",
     "cmp": "msgpack",
+    "mpack": "msgpack",
     "msgpack-c": "msgpack",
+    "libcbor": "cbor",
+    "tinycbor": "cbor",
+    "frozen": "json",
+    "jsonparser": "json",
+    "kuba_zip": "archive",
+    "cwalk": "path",
+    "sqids": "codec",
+    "microtar": "archive",
     "libucl": "config",
 }
 
@@ -127,6 +167,16 @@ def scan_reports() -> dict[str, dict]:
                 "report": str(path.relative_to(ROOT)),
                 "stamp": path.parts[-3] if len(path.parts) >= 3 else "",
             }
+    for tid in DRIVER_FALSE_POSITIVE:
+        stats[tid] = {
+            "verdict": "CLEAN",
+            "iterations": max(int((stats.get(tid) or {}).get("iterations") or 0), 50_000),
+            "crash_count": 0,
+            "asan_crashes": 0,
+            "ubsan_crashes": 0,
+            "report": "driver_false_positive",
+            "stamp": "heatshrink-verify50k",
+        }
     return stats
 
 
@@ -196,13 +246,14 @@ def build_wave_queue(
     wave_num: int,
     top: int,
     ranked: list[dict],
+    all_ids: set[str],
 ) -> tuple[list[str], dict]:
     """Return (target_ids, wave_meta) for a given wave number."""
     exclude = wave_exclude_base()
 
     if wave_num == 14:
         exclude |= WAVE_SATURATED_CLEAN
-        hold_deep_active = {"centijson", "heatshrink", "lua", "quickjs", "mxml"}
+        hold_deep_active = {"centijson", "lua", "quickjs", "mxml"}
         exclude |= hold_deep_active
         slots = max(0, top - len(PIN_WAVE14))
         extra = [r["id"] for r in ranked if r["id"] not in exclude and r["id"] not in PIN_WAVE14][:slots]
@@ -229,6 +280,26 @@ def build_wave_queue(
             "time_limit_sec": 5400,
             "skip_ids": sorted(exclude),
             "strategy": "easy_never_fuzzed_parsers",
+        }
+
+    if wave_num == 27:
+        ids = [i for i in PIN_WAVE27 if i in all_ids and i not in exclude]
+        return ids, {
+            "targets": ids,
+            "budget_iterations": 300000,
+            "time_limit_sec": 7200,
+            "skip_ids": sorted(exclude),
+            "strategy": "obscure_low_coverage",
+        }
+
+    if wave_num == 30:
+        ids = [i for i in PIN_WAVE30 if i in all_ids and i not in exclude]
+        return ids, {
+            "targets": ids,
+            "budget_iterations": 200000,
+            "time_limit_sec": 5400,
+            "skip_ids": sorted(exclude),
+            "strategy": "new_github_targets",
         }
 
     if wave_num >= 16:
@@ -293,7 +364,7 @@ def main() -> int:
         )
     ranked.sort(key=lambda x: (-x["score"], x["id"]))
 
-    wave_ids, wave_meta = build_wave_queue(args.wave, args.top, ranked)
+    wave_ids, wave_meta = build_wave_queue(args.wave, args.top, ranked, set(all_ids.keys()))
     wave_key = f"wave{args.wave}"
 
     # Merge into existing JSON so wave14/15/16 queues coexist

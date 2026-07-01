@@ -752,12 +752,19 @@ func main() {
 		var cr claimResp
 		_ = json.Unmarshal(body, &cr)
 		if res.StatusCode != 200 || !cr.OK {
-			fmt.Fprintln(os.Stderr, "claim rejected:", res.StatusCode, cr.Reason)
-			reason := strings.ToLower(strings.TrimSpace(cr.Reason))
-			if strings.Contains(reason, "banned") || strings.Contains(reason, "rate") {
+			reason := strings.TrimSpace(cr.Reason)
+			if res.StatusCode >= 500 || res.StatusCode == 520 || res.StatusCode == 522 {
+				// 520/522 are often Cloudflare/proxy origin timeouts — not coordinator JSON reject reasons.
+				fmt.Fprintf(os.Stderr, "claim transport error: http %d (coordinator/proxy timeout or overload; not a pool ban)\n", res.StatusCode)
 				sleepWorkerBackoff("claim", &netBackoff)
 			} else {
-				time.Sleep(2 * time.Second)
+				fmt.Fprintf(os.Stderr, "claim rejected: http %d reason=%q\n", res.StatusCode, reason)
+				rl := strings.ToLower(reason)
+				if strings.Contains(rl, "banned") || strings.Contains(rl, "rate") || res.StatusCode == 429 {
+					sleepWorkerBackoff("claim", &netBackoff)
+				} else {
+					time.Sleep(2 * time.Second)
+				}
 			}
 			continue
 		}

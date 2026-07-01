@@ -31,12 +31,15 @@ func TestCoordinatorStorageRoundtrip(t *testing.T) {
 	if err := coord.AssignChunk("chunk1", "w1", ct, 512, nil); err != nil {
 		t.Fatal(err)
 	}
+	data := make([]byte, 512)
+	copy(data, ct)
+	if err := coord.writeMarketChunkFile("w1", "chunk1", data); err != nil {
+		t.Fatal(err)
+	}
 	ch, err := coord.IssueChallenge("w1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	data := make([]byte, 512)
-	copy(data, ct)
 	offset := uint64FromAny(ch["sector_offset"])
 	sector := SectorProofFromCiphertext(data, offset)
 	p := StorageSubmitPayload{

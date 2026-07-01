@@ -1,6 +1,5 @@
 #!/bin/sh
-# Fallback for non-casper local boots. Live USB uses casper-premount/05-hackme-overlay-modules.
-# Fixes: (initramfs) /cow format specified as 'overlay' and no support found
+# Non-casper boots; live ISO uses casper-premount/05-hackme-overlay-modules.
 PREREQ=""
 
 prereqs() { echo "$PREREQ"; }
@@ -12,13 +11,16 @@ prereqs)
   ;;
 esac
 
-for m in zstd lz4 lzma2 xz squashfs loop overlay isofs iso9660 udf vfat ext4 sd_mod usb_storage; do
-  modprobe "$m" 2>/dev/null || true
-done
-
-if ! grep -q overlay /proc/filesystems 2>/dev/null; then
-  echo "hackme-live: FATAL overlay module not loaded" >/dev/console 2>/dev/null || true
-  echo "hackme-live: FATAL overlay module not loaded" >/dev/kmsg 2>/dev/null || true
+if [ -x /scripts/casper-premount/05-hackme-overlay-modules ]; then
+  /scripts/casper-premount/05-hackme-overlay-modules "$@"
+  exit 0
 fi
 
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+INSMOD=/usr/bin/insmod
+[ -x "$INSMOD" ] || INSMOD=/sbin/insmod
+for ko in /hackme-kmods/zstd.ko /hackme-kmods/overlay.ko; do
+  [ -f "$ko" ] && "$INSMOD" "$ko" 2>/dev/null || true
+done
+/sbin/modprobe -q -f overlay 2>/dev/null || true
 exit 0

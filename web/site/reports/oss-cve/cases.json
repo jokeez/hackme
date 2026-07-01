@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-28",
+  "updated": "2026-06-30",
   "cases": [
     {
       "id": "centijson",
@@ -33,6 +33,15 @@
       "slug": "mxml",
       "project": "michaelrsweet/mxml",
       "status": "closed_wontfix",
+      "severity": "informational",
+      "cve_id": null,
+      "published_at": null
+    },
+    {
+      "id": "heatshrink",
+      "slug": "heatshrink",
+      "project": "atomicobject/heatshrink",
+      "status": "closed_false_positive",
       "severity": "informational",
       "cve_id": null,
       "published_at": null

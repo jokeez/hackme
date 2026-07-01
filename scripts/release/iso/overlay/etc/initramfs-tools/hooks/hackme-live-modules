@@ -1,5 +1,5 @@
 #!/bin/sh
-# Force live-boot modules into initramfs (overlay/squashfs must load before casper panics).
+# Live-boot modules: uncompressed .ko fallbacks + casper overlay insmod patch.
 PREREQ=""
 prereqs() { echo "$PREREQ"; }
 
@@ -12,6 +12,27 @@ esac
 for mod in zstd lz4 lzma2 xz squashfs loop overlay isofs iso9660 udf vfat ext4 sd_mod usb_storage; do
   manual_add_modules "$mod" 2>/dev/null || true
 done
+
+kver="$(ls /lib/modules 2>/dev/null | sort -V | tail -1)"
+if [ -n "$kver" ]; then
+  mkdir -p "${DESTDIR}/hackme-kmods"
+  for rel in \
+    kernel/crypto/zstd.ko \
+    kernel/fs/overlayfs/overlay.ko \
+    kernel/fs/squashfs/squashfs.ko \
+    kernel/fs/isofs/isofs.ko \
+    kernel/fs/udf/udf.ko; do
+    src="/lib/modules/${kver}/${rel}"
+    srcz="${src}.zst"
+    dst="${DESTDIR}/hackme-kmods/$(basename "${rel}")"
+    if [ -f "$src" ]; then
+      cp "$src" "$dst" 2>/dev/null || true
+    elif [ -f "$srcz" ] && command -v zstdcat >/dev/null 2>&1; then
+      zstdcat "$srcz" >"$dst" 2>/dev/null || true
+    fi
+  done
+fi
+
 for _hm_script in \
   /etc/initramfs-tools/scripts/casper-premount/05-hackme-overlay-modules \
   /etc/initramfs-tools/scripts/local-premount/00-hackme-overlay-modules; do
@@ -20,7 +41,30 @@ for _hm_script in \
     copy_exec "$_hm_script" "$_hm_dest"
   fi
 done
-# Ensure depmod ran so modprobe in premount resolves .ko.zst chains.
-if command -v depmod >/dev/null 2>&1; then
-  depmod -a 2>/dev/null || true
+
+CASPER="${DESTDIR}/scripts/casper"
+if [ -f "$CASPER" ] && ! grep -q 'hackme-overlay-insmod' "$CASPER"; then
+  sed -i 's@^\([[:space:]]*\)modprobe "${MP_QUIET}" -b overlay || panic "/cow format specified as '\''overlay'\'' and no support found"@\1# hackme-overlay-insmod\
+\1if [ ! -d /sys/module/overlay ]; then\
+\1  [ -f /hackme-kmods/zstd.ko ] \&\& /usr/bin/insmod /hackme-kmods/zstd.ko 2>/dev/null || true\
+\1  [ -f /hackme-kmods/overlay.ko ] \&\& /usr/bin/insmod /hackme-kmods/overlay.ko 2>/dev/null || true\
+\1fi\
+\1if [ ! -d /sys/module/overlay ]; then\
+\1  modprobe "${MP_QUIET}" -b overlay || panic "/cow format specified as '\''overlay'\'' and no support found"\
+\1fi@' \
+    "$CASPER" 2>/dev/null || true
+fi
+
+# conf/modules: zstd must load before overlay (.ko.zst needs decompress).
+if [ -f "${DESTDIR}/conf/modules" ]; then
+  sed -i '/^overlay$/d; /^zstd$/d' "${DESTDIR}/conf/modules" 2>/dev/null || true
+  {
+    printf '%s\n' zstd
+    cat "${DESTDIR}/conf/modules"
+    printf '%s\n' overlay
+  } >"${DESTDIR}/conf/modules.new" 2>/dev/null && mv "${DESTDIR}/conf/modules.new" "${DESTDIR}/conf/modules"
+fi
+
+if command -v depmod >/dev/null 2>&1 && [ -n "$kver" ]; then
+  depmod -a "$kver" 2>/dev/null || depmod -a 2>/dev/null || true
 fi

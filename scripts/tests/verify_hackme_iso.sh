@@ -62,6 +62,30 @@ if command -v 7z >/dev/null 2>&1 && command -v lsinitramfs >/dev/null 2>&1; then
       echo "[verify-iso] FAIL: initrd missing overlay.ko" >&2
       exit 14
     fi
+    if grep -Fq 'hackme-kmods/overlay.ko' "$IR_TMP/initrd.ls" 2>/dev/null; then
+      echo "[verify-iso] PASS initrd hackme-kmods/overlay.ko (uncompressed fallback)"
+    else
+      echo "[verify-iso] FAIL: initrd missing hackme-kmods/overlay.ko" >&2
+      exit 15
+    fi
+    if grep -Fq 'hackme-kmods/zstd.ko' "$IR_TMP/initrd.ls" 2>/dev/null; then
+      echo "[verify-iso] PASS initrd hackme-kmods/zstd.ko"
+    else
+      echo "[verify-iso] WARN: initrd missing hackme-kmods/zstd.ko" >&2
+    fi
+    if grep -aFq 'hackme-overlay-insmod' "$IR_TMP/casper/initrd" 2>/dev/null; then
+      echo "[verify-iso] PASS initrd casper hackme-overlay-insmod patch"
+    elif command -v unmkinitramfs >/dev/null 2>&1; then
+      unmkinitramfs "$IR_TMP/casper/initrd" "$IR_TMP/unpack" 2>/dev/null || true
+      if grep -q 'hackme-overlay-insmod' "$IR_TMP/unpack/main/scripts/casper" 2>/dev/null; then
+        echo "[verify-iso] PASS initrd casper hackme-overlay-insmod patch (unmkinitramfs)"
+      else
+        echo "[verify-iso] FAIL: initrd missing casper overlay insmod patch" >&2
+        exit 16
+      fi
+    else
+      echo "[verify-iso] WARN: cannot verify casper patch (no unmkinitramfs)" >&2
+    fi
   fi
   rm -rf "$IR_TMP"
 fi

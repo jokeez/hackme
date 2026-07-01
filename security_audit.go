@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -62,7 +63,7 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ts := time.Now().UTC().Format("20060102t150405")
+	ts := time.Now().UTC().Format("20060102t150405") + fmt.Sprintf("%06d", time.Now().Nanosecond()/1000)
 	orderID := strings.TrimSpace(req.OrderID)
 	if orderID == "" {
 		orderID = "order-audit-" + ts
@@ -231,7 +232,17 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 			"wasm_check_hex":   wasmHex,
 		}
 		rawManifest, _ := json.Marshal(manifest)
-		res, err := a.chain.InsertOrderTask(r.Context(), rawManifest)
+		var res *chain.InsertOrderResult
+		var err error
+		for attempt := 0; attempt < 6; attempt++ {
+			if attempt > 0 {
+				time.Sleep(time.Duration(attempt*50) * time.Millisecond)
+			}
+			res, err = a.chain.InsertOrderTask(r.Context(), rawManifest)
+			if err == nil || !strings.Contains(strings.ToLower(err.Error()), "database is locked") {
+				break
+			}
+		}
 		if err != nil {
 			code := http.StatusBadRequest
 			if errors.Is(err, chain.ErrInsufficientBalance) {
@@ -301,7 +312,7 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	escrow, err := a.chain.OpenFuzzEscrow(r.Context(), campaignID, escrowBudgetHMC, budgetRuns)
+	escrow, err := openFuzzEscrowRetry(r.Context(), a.chain, campaignID, escrowBudgetHMC, budgetRuns)
 	if err != nil {
 		_, _ = a.db.ExecContext(r.Context(), `DELETE FROM fuzz_campaigns WHERE id=?`, campaignID)
 		writeAPIError(w, http.StatusPaymentRequired, "escrow_failed", err.Error(), nil)
@@ -334,4 +345,19 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, resp)
+}
+
+func openFuzzEscrowRetry(ctx context.Context, ch *chain.Service, campaignID string, budgetHMC float64, budgetRuns int) (*chain.FuzzEscrowRow, error) {
+	var escrow *chain.FuzzEscrowRow
+	var err error
+	for attempt := 0; attempt < 6; attempt++ {
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt*50) * time.Millisecond)
+		}
+		escrow, err = ch.OpenFuzzEscrow(ctx, campaignID, budgetHMC, budgetRuns)
+		if err == nil || !strings.Contains(strings.ToLower(err.Error()), "database is locked") {
+			return escrow, err
+		}
+	}
+	return escrow, err
 }

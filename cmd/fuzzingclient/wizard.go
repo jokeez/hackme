@@ -10,15 +10,12 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"hackme/internal/fuzzingcli"
 )
 
 func doWizard(base string, args []string) error {
-	adm := adminToken()
-	if adm == "" {
-		return fmt.Errorf("HACKME_ADMIN_TOKEN required for wizard (local node admin)")
-	}
 	fs := flag.NewFlagSet("wizard", flag.ExitOnError)
 	pkgName := fs.String("package", "audit", "B2B package: scan|audit|deep")
 	title := fs.String("title", "HackMe fuzz audit", "campaign title")
@@ -59,8 +56,7 @@ func doWizard(base string, args []string) error {
 	if pr := strings.TrimSpace(*payerRef); pr != "" {
 		payload["payer_ref"] = pr
 	}
-	body, _ := json.Marshal(payload)
-	b, code, err := apiDoAdmin(base, adm, http.MethodPost, "/api/security-audit", body)
+	b, code, err := postSecurityAuditAuth(base, payload)
 	if err != nil {
 		return err
 	}
@@ -100,7 +96,19 @@ func doWizard(base string, args []string) error {
 		"report_url":           reportURL,
 		"gate_url":             gateURL,
 		"pulse_url":            pulseURL,
-		"ci_header":            "X-Hackme-Report-Token",
+		"ci_header":             "X-Hackme-Report-Token",
+	}
+	if v, ok := resp["pool_sync"]; ok {
+		out["pool_sync"] = v
+	}
+	if v, ok := resp["pool_sync_warning"]; ok {
+		out["pool_sync_warning"] = v
+	}
+	if v, ok := resp["order"]; ok {
+		out["order"] = v
+	}
+	if v, ok := resp["escrow"]; ok {
+		out["escrow"] = v
 	}
 	printJSON(out)
 	fmt.Fprintln(os.Stderr, "")
@@ -139,8 +147,60 @@ func readWasmHex(path string) (string, error) {
 }
 
 func postSecurityAudit(base, adminTok string, payload map[string]any) ([]byte, int, error) {
+	return postSecurityAuditAuth(base, payload)
+}
+
+// postSecurityAuditAuth tries node admin, loopback desktop admin, then developer token.
+func postSecurityAuditAuth(base string, payload map[string]any) ([]byte, int, error) {
 	body, _ := json.Marshal(payload)
-	return apiDoAdmin(base, adminTok, http.MethodPost, "/api/security-audit", body)
+	path := "/api/security-audit"
+	if adm := adminToken(); adm != "" {
+		b, code, err := apiDoAdmin(base, adm, http.MethodPost, path, body)
+		if err != nil {
+			return b, code, err
+		}
+		if code != http.StatusUnauthorized {
+			return b, code, err
+		}
+	}
+	if fuzzingcli.IsLoopbackBase(base) {
+		if adm := fetchLoopbackAdminToken(base); adm != "" {
+			b, code, err := apiDoAdmin(base, adm, http.MethodPost, path, body)
+			if err != nil {
+				return b, code, err
+			}
+			if code != http.StatusUnauthorized {
+				return b, code, err
+			}
+		}
+	}
+	if dev := resolveToken(""); dev != "" {
+		return apiDo(base, dev, http.MethodPost, path, body)
+	}
+	return nil, 0, fmt.Errorf("authentication required: set HACKME_ADMIN_TOKEN, use desktop node on loopback, or run: hackme-fuzzing register --save")
+}
+
+func fetchLoopbackAdminToken(base string) string {
+	req, err := http.NewRequest(http.MethodGet, strings.TrimRight(base, "/")+"/api/desktop/local-auth", nil)
+	if err != nil {
+		return ""
+	}
+	cl := &http.Client{Timeout: 5 * time.Second}
+	resp, err := cl.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return ""
+	}
+	var j struct {
+		AdminToken string `json:"admin_token"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&j); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(j.AdminToken)
 }
 
 func fetchGatePass(base, campaignID, reportTok string) (bool, error) {

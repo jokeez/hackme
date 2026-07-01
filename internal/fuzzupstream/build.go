@@ -164,6 +164,18 @@ func injectOSSCveBuildStubs(repoRoot, targetID, clonePath string) error {
 			return nil
 		}
 		return extractDuktapeRelease(clonePath, "v2.7.0")
+	case "libcbor":
+		cfgDir := filepath.Join(repoRoot, "tasks", "sources", "fuzz", "oss", "libcbor-config")
+		if err := copyStub(filepath.Join(cfgDir, "cbor", "cbor_export.h"), filepath.Join(clonePath, "src", "cbor", "cbor_export.h")); err != nil {
+			return err
+		}
+		return copyStub(filepath.Join(cfgDir, "cbor", "configuration.h"), filepath.Join(clonePath, "src", "cbor", "configuration.h"))
+	case "tinycbor":
+		cfgDir := filepath.Join(repoRoot, "tasks", "sources", "fuzz", "oss", "tinycbor-config")
+		if err := copyStub(filepath.Join(cfgDir, "tinycbor-export.h"), filepath.Join(clonePath, "src", "tinycbor-export.h")); err != nil {
+			return err
+		}
+		return copyStub(filepath.Join(cfgDir, "tinycbor-version.h"), filepath.Join(clonePath, "src", "tinycbor-version.h"))
 	default:
 		return nil
 	}

@@ -159,6 +159,7 @@ func migrateHMS(db *sql.DB) error {
 		`ALTER TABLE hms_orders ADD COLUMN health_status TEXT NOT NULL DEFAULT 'ok'`,
 		`ALTER TABLE hms_orders ADD COLUMN health_detail TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE hms_orders ADD COLUMN alert_unix INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE hms_challenges ADD COLUMN sector_proof_expected BLOB NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS hms_replica_health (
 			order_id TEXT NOT NULL,
 			chunk_index INTEGER NOT NULL,

@@ -95,6 +95,7 @@ fi
 
 # --- Always (no live node) ---
 run_step site-b2b-content bash "$ROOT/scripts/tests/site_b2b_content_gate.sh"
+run_step b2b-tier-pool-distribution env BASE="$BASE_LOCAL" bash "$ROOT/scripts/tests/b2b_tier_pool_distribution_gate.sh"
 run_step go-fuzzingcli-packages go test ./internal/fuzzingcli/ ./cmd/fuzzingclient/ -count=1 -timeout=90s
 run_step go-fuzzengine-depth go test ./internal/fuzzengine/ -count=1 -timeout=120s
 run_step critical-security-pack bash "$ROOT/scripts/tests/critical_security_pack.sh"

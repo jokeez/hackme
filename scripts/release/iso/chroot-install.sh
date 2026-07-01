@@ -33,7 +33,7 @@ apt-get install -y --no-install-recommends \
   live-boot live-boot-initramfs-tools live-config live-config-systemd \
   live-tools casper discover \
   network-manager openssh-server \
-  ca-certificates curl jq openssl \
+  ca-certificates curl jq openssl zstd sudo \
   ocl-icd-libopencl1 clinfo \
   grub-efi-amd64-bin \
   plymouth plymouth-label \
@@ -95,6 +95,17 @@ ln -sf /opt/hackme/scripts/release/iso/hackme-zk-display.sh /usr/local/bin/hackm
 passwd -d root 2>/dev/null || true
 echo 'root:hackme' | chpasswd 2>/dev/null || true
 
+# Casper live-config expects ubuntu (25adduser also creates it — pre-seed for robustness).
+if ! id ubuntu >/dev/null 2>&1; then
+  getent group netdev >/dev/null 2>&1 || groupadd -r netdev 2>/dev/null || true
+  useradd -m -s /bin/bash -G adm,cdrom,dip,plugdev,netdev ubuntu 2>/dev/null || \
+    useradd -m -s /bin/bash -G adm,cdrom,dip,plugdev ubuntu
+  passwd -d ubuntu 2>/dev/null || echo 'ubuntu:U6aMy0wojraho' | chpasswd 2>/dev/null || true
+fi
+mkdir -p /etc/sudoers.d
+echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/99-hackme-live
+chmod 440 /etc/sudoers.d/99-hackme-live
+
 echo "hackme-os" >/etc/hostname
 systemctl enable hackme-boot-banner.service
 systemctl enable getty@tty1.service
@@ -131,9 +142,11 @@ mkdir -p /etc/initramfs-tools
 cat >/etc/initramfs-tools/modules <<'MOD'
 squashfs
 loop
-overlay
 zstd
 xz
+lzma2
+lz4
+overlay
 iso9660
 udf
 vfat

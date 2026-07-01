@@ -241,11 +241,15 @@ func (c *Coordinator) IssueChallenge(workerID string) (map[string]any, error) {
 		offset = uint64(ob[0]) % uint64(size-32)
 	}
 	binding := ProofBinding(ep.EpochID, workerID, chunkID, offset, ct)
+	var sectorExpected []byte
+	if ctBytes, readErr := c.readMarketChunkFile(workerID, chunkID); readErr == nil && len(ctBytes) > 0 {
+		sector := SectorProofFromCiphertext(ctBytes, offset)
+		sectorExpected = sector[:]
+	}
 	chID := fmt.Sprintf("%d-%s-%x", ep.EpochID, workerID, ob)
 	expires := now + int64(c.cfg.ChallengeTTL.Seconds())
-	// expected_hash filled on submit when worker returns sector proof
-	_, err = c.db.Exec(`INSERT INTO hms_challenges(challenge_id, epoch_id, worker_id, chunk_id, sector_offset, expected_hash, expires_unix)
-		VALUES(?,?,?,?,?,?,?)`, chID, ep.EpochID, workerID, chunkID, offset, binding[:], expires)
+	_, err = c.db.Exec(`INSERT INTO hms_challenges(challenge_id, epoch_id, worker_id, chunk_id, sector_offset, expected_hash, sector_proof_expected, expires_unix)
+		VALUES(?,?,?,?,?,?,?,?)`, chID, ep.EpochID, workerID, chunkID, offset, binding[:], sectorExpected, expires)
 	if err != nil {
 		return nil, err
 	}
@@ -273,8 +277,9 @@ func (c *Coordinator) SubmitStorageProof(p StorageSubmitPayload, pubHex, sigHex 
 	var chunkID string
 	var offset int64
 	var answered int
-	err := c.db.QueryRow(`SELECT expected_hash, epoch_id, chunk_id, sector_offset, answered FROM hms_challenges WHERE challenge_id=?`, p.ChallengeID).
-		Scan(&binding, &epochID, &chunkID, &offset, &answered)
+	var sectorExpected []byte
+	err := c.db.QueryRow(`SELECT expected_hash, epoch_id, chunk_id, sector_offset, answered, COALESCE(sector_proof_expected,'') FROM hms_challenges WHERE challenge_id=?`, p.ChallengeID).
+		Scan(&binding, &epochID, &chunkID, &offset, &answered, &sectorExpected)
 	if err != nil {
 		return err
 	}
@@ -309,12 +314,30 @@ func (c *Coordinator) SubmitStorageProof(p StorageSubmitPayload, pubHex, sigHex 
 	copy(bind[:], binding)
 	var sector [32]byte
 	copy(sector[:], sectorBytes)
-	_ = ExpectedProofHash(bind, sector)
-	ok := len(sectorBytes) == 32
-	if !ok {
-		c.markStorageChallengeFailed(p.WorkerID, chunkID, epochID, p.ChallengeID)
-		return errors.New("invalid proof")
+	verified := false
+	if len(sectorExpected) == 32 {
+		var expected [32]byte
+		copy(expected[:], sectorExpected)
+		if sector == expected {
+			verified = true
+		}
 	}
+	if !verified {
+		var chunkWorker string
+		if err := c.db.QueryRow(`SELECT worker_id FROM hms_chunks WHERE chunk_id=?`, chunkID).Scan(&chunkWorker); err == nil {
+			if ctBytes, readErr := c.readMarketChunkFile(chunkWorker, chunkID); readErr == nil && len(ctBytes) > 0 {
+				expected := SectorProofFromCiphertext(ctBytes, uint64(offset))
+				if sector == expected {
+					verified = true
+				}
+			}
+		}
+	}
+	if !verified {
+		c.markStorageChallengeFailed(p.WorkerID, chunkID, epochID, p.ChallengeID)
+		return errors.New("sector proof mismatch")
+	}
+	_ = ExpectedProofHash(bind, sector)
 	_, err = c.db.Exec(`UPDATE hms_challenges SET answered=1, ok=1 WHERE challenge_id=?`, p.ChallengeID)
 	if err != nil {
 		return err
@@ -431,10 +454,13 @@ func (c *Coordinator) submitSealCore(p SealSubmitPayload) error {
 		actualSec = 1
 	}
 	newTarget := RetargetSeal(ep.SealTarget, actualSec, c.cfg.DesiredSealSec, c.cfg.SealRetargetClamp)
-	_, err = c.db.Exec(`UPDATE hms_epochs SET sealed=1, seal_nonce=?, seal_worker_id=?, seal_found_unix=?, seal_target=?, payouts_enabled=1 WHERE epoch_id=? AND sealed=0`,
+	sealRes, err := c.db.Exec(`UPDATE hms_epochs SET sealed=1, seal_nonce=?, seal_worker_id=?, seal_found_unix=?, seal_target=?, payouts_enabled=1 WHERE epoch_id=? AND sealed=0`,
 		p.Nonce, p.WorkerID, now, newTarget, p.EpochID)
 	if err != nil {
 		return err
+	}
+	if n, _ := sealRes.RowsAffected(); n == 0 {
+		return errors.New("epoch already sealed")
 	}
 	_, _ = c.db.Exec(`UPDATE hms_workers SET last_seen_unix=? WHERE worker_id=?`, now, p.WorkerID)
 	return nil
