@@ -596,6 +596,10 @@ func main() {
 	if u := strings.TrimSpace(os.Getenv("HACKME_POOL_COORDINATOR_URL")); u != "" {
 		log.Printf("Pool coordinator proxy enabled: %s (token set=%v)", u, strings.TrimSpace(os.Getenv("HACKME_POOL_COORDINATOR_TOKEN")) != "")
 	}
+	if poolSyncCoordinatorConfigured() {
+		a.startPoolSyncWorker()
+		log.Printf("Pool fuzz settle pull: enabled (coordinator outbox every 15s)")
+	}
 	if a.p2p != nil && a.p2p.Enabled() {
 		if a.p2p.DiscoveryEnabled() {
 			log.Printf("P2P discovery enabled (HACKME_P2P_DISCOVERY=1), advertise=%q", strings.TrimSpace(os.Getenv("HACKME_P2P_ADVERTISE_URL")))

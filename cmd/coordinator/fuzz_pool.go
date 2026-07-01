@@ -114,6 +114,47 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "acked": n})
 	})
 
+	mux.HandleFunc("/api/fuzz/pool/settle/replay", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if adminToken == "" && allowInsecure {
+			// loopback dev
+		} else if adminToken == "" || !coordAdminOK(r, adminToken) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
+			http.Error(w, "admin authentication required", http.StatusUnauthorized)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
+		var req struct {
+			CampaignID string `json:"campaign_id"`
+			ID         string `json:"id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		cid := strings.TrimSpace(req.CampaignID)
+		if cid == "" {
+			cid = strings.TrimSpace(req.ID)
+		}
+		if cid == "" {
+			http.Error(w, "campaign_id required", http.StatusBadRequest)
+			return
+		}
+		runs, findings, fin, err := pf.ReplayCampaignSettles(r.Context(), cid)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok": true, "campaign_id": cid,
+			"runs_enqueued": runs, "findings_enqueued": findings, "finalize_enqueued": fin,
+		})
+	})
+
 	mux.HandleFunc("/api/fuzz/pool/stats", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

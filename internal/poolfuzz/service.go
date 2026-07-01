@@ -446,6 +446,9 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	if s.Settler != nil && escrowEnabled(cfg) {
 		miner := strings.TrimSpace(req.MinerAddress)
 		if miner != "" {
+			_, _ = s.DB.ExecContext(ctx,
+				`UPDATE fuzz_work_items SET miner_address=? WHERE id=? AND campaign_id=?`,
+				miner, req.ItemID, req.CampaignID)
 			if err := s.Settler.PayRun(ctx, req.CampaignID, miner); err != nil {
 				return fmt.Errorf("poolfuzz: settle run: %w", err)
 			}
@@ -595,6 +598,7 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 	detail, _ := json.Marshal(map[string]any{
 		"source":          "pool_fuzz_worker_v2",
 		"worker_id":       req.WorkerID,
+		"miner_address":   strings.TrimSpace(req.MinerAddress),
 		"input_n":         req.InputN,
 		"actual_input":    req.ActualInput,
 		"input_mode":      fuzzengine.ParseInputMode(cfg),

@@ -12,7 +12,7 @@ import (
 
 // CurrentSchemaVersion is the value written to PRAGMA user_version after migrate() completes.
 // Bump when adding a new migration step (and document in README / MASTER_PLAN).
-const CurrentSchemaVersion = 14
+const CurrentSchemaVersion = 15
 
 // Open opens SQLite at path (directories created as needed).
 func Open(dbPath string) (*sql.DB, error) {
@@ -572,6 +572,11 @@ func migrateFuzzSettleOutbox(db *sql.DB) error {
 	}
 	for _, s := range stmts {
 		if _, err := db.Exec(s); err != nil {
+			return err
+		}
+	}
+	if _, err := db.Exec(`ALTER TABLE fuzz_work_items ADD COLUMN miner_address TEXT NOT NULL DEFAULT ''`); err != nil {
+		if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
 			return err
 		}
 	}
