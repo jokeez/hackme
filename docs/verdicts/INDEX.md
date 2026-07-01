@@ -4,7 +4,8 @@ Factual pass/fail snapshots for releases and gates. **Not** social copy for Tele
 
 | Document | What it records |
 |----------|-----------------|
-| [../HACKME_RC11M.md](../HACKME_RC11M.md) | **Current channel rc11m** — wallet treasury, Win/Linux downloads |
+| [../HACKME_RC11R.md](../HACKME_RC11R.md) | **Current channel rc11r** — Linux layout, fuzz settle, Win/Linux/ISO |
+| [../HACKME_RC11M.md](../HACKME_RC11M.md) | Historical rc11m — wallet treasury |
 | [../HACKME_RC11L.md](../HACKME_RC11L.md) | ISO channel rc11l — live USB boot fix, SHA |
 | [../../reports/FINAL_VERDICT_RC11L.md](../../reports/FINAL_VERDICT_RC11L.md) | Operator GO/HOLD snapshot (2026-06-04) |
 | [../VAST_GPU_MATRIX_VERDICT_20260602.md](../VAST_GPU_MATRIX_VERDICT_20260602.md) | GPU matrix field test (historical) |
@@ -17,4 +18,4 @@ Factual pass/fail snapshots for releases and gates. **Not** social copy for Tele
 
 ## Version policy
 
-Win/Linux channel: `scripts/release/CURRENT_VERSION` → **0.1.0-rc11m**. ISO channel: `scripts/release/CURRENT_ISO_VERSION` → **0.1.0-rc11l**.
+Win/Linux channel: `scripts/release/CURRENT_VERSION` → **0.1.0-rc11r**. ISO channel: `scripts/release/CURRENT_ISO_VERSION` → **0.1.0-rc11r**.

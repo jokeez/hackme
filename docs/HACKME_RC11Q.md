@@ -1,37 +1,18 @@
-# HackMe 0.1.0-rc11q — current download channel
+# HackMe 0.1.0-rc11q — superseded by rc11r
 
-**Status:** **LIVE** on [hackme.tech/downloads.html](https://hackme.tech/downloads.html) — Win/Linux installer, tarball, fuzz CLI, and HackMe OS ISO on a single aligned channel.
+> **Current channel:** [HACKME_RC11R.md](HACKME_RC11R.md) · `0.1.0-rc11r` on [downloads](https://hackme.tech/downloads.html)
 
-## Artifacts
+## What rc11q shipped
 
-| Artifact | Channel | File |
-|----------|---------|------|
-| Windows installer | **rc11q** | `HackMe-Setup-0.1.0-rc11q.exe` |
-| Linux tarball | **rc11q** | `hackme_0.1.0-rc11q_linux.tar.gz` |
-| Fuzz CLI | **rc11q** | `hackme-fuzzing-0.1.0-rc11q-*` |
-| HackMe OS ISO | **rc11q** | `HackMe-OS-0.1.0-rc11q-amd64.iso` |
+- Settlement API fix on public hub (`/api/worker/settlement` timeout)
+- Live upgrade banner via `miner-notices.json`
+- ISO aligned with Win/Linux tag
+- `main.go` split (~800 lines into focused modules)
 
-## What changed vs rc11p
+## Why upgrade to rc11r
 
-- **Settlement API** — `/api/worker/settlement` no longer times out on the public hub; cached coordinator work stats + 8s budget
-- **Live update banner** — ecosystem tab reads `miner-notices.json` (no exe rebuild for copy/upgrade nudges)
-- **Lite status audit** — `?lite=1` exposes `sandbox_policy` + `admin_auth_enabled` for public security checks
-- **Code health** — status + settlement handlers extracted from `main.go` (~800 lines) into focused modules
-- **ISO aligned** — same `rc11q` tag as Win/Linux (was rc11o on CDN)
+- Linux miners: `worker_script_missing` on fresh tarball (layout bug) — **fixed in rc11r**
+- Fuzz pool settle outbox + escrow cleanup + nginx routes
+- Mining settlement timer ops fix on VPS
 
-## Downloads
-
-- Win/Linux: `https://hackme.tech/dist/release_0.1.0-rc11q/`
-- ISO: `https://hackme.tech/dist/release_0.1.0-rc11q/HackMe-OS-0.1.0-rc11q-amd64.iso`
-- Notices feed: `https://hackme.tech/assets/miner-notices.json`
-
-## Operator
-
-```bash
-bash scripts/tests/version_consistency_gate.sh
-bash scripts/ops/release_rc11q_publish.sh
-# or SKIP_ISO=1 for Win/Linux only
-NODE_SSH=hackme-vps bash scripts/ops/deploy_hackme_node.sh
-```
-
-Historical: [HACKME_RC11P.md](HACKME_RC11P.md) · [HACKME_RC11O.md](HACKME_RC11O.md)
+Artifacts remain at `https://hackme.tech/dist/release_0.1.0-rc11q/` for audit; new installs should use **rc11r**.

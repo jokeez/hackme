@@ -54,7 +54,7 @@ var embeddedFaviconICO []byte
 
 // Build metadata (overridden by -ldflags in release builds).
 var (
-	Version   = "0.1.0-rc11q"
+	Version   = "0.1.0-rc11r"
 	Commit    = "nogit"
 	BuildDate = "unknown"
 )
@@ -833,6 +833,32 @@ func resolveMinersignBinPath() string {
 	return ""
 }
 
+func firstExistingFile(paths ...string) string {
+	for _, p := range paths {
+		if st, err := os.Stat(p); err == nil && !st.IsDir() {
+			if abs, err := filepath.Abs(p); err == nil {
+				return abs
+			}
+			return p
+		}
+	}
+	return ""
+}
+
+func resolveWorkerAutostartScript(repoRoot string) string {
+	return firstExistingFile(
+		filepath.Join(repoRoot, "scripts", "ops", "worker_autostart.sh"),
+		filepath.Join(repoRoot, "worker_autostart.sh"),
+	)
+}
+
+func resolveWorkerPohBin(repoRoot, name string) string {
+	return firstExistingFile(
+		filepath.Join(repoRoot, "bin", name),
+		filepath.Join(repoRoot, name),
+	)
+}
+
 // resolveWorkerRepoRoot finds the checkout root that contains scripts/ops/worker_loop.sh.
 // dataDir's parent is wrong when the binary lives under logs/desktop/ and uses ./data next to it.
 func resolveWorkerRepoRoot(dataDir string) string {
@@ -857,8 +883,12 @@ func resolveWorkerRepoRoot(dataDir string) string {
 		if root == "" || root == "." {
 			continue
 		}
-		script := filepath.Join(root, "scripts", "ops", "worker_loop.sh")
-		if st, err := os.Stat(script); err == nil && !st.IsDir() {
+		script := firstExistingFile(
+			filepath.Join(root, "scripts", "ops", "worker_loop.sh"),
+			filepath.Join(root, "scripts", "ops", "worker_autostart.sh"),
+			filepath.Join(root, "worker_autostart.sh"),
+		)
+		if script != "" {
 			if abs, err := filepath.Abs(root); err == nil {
 				return abs
 			}
@@ -2105,20 +2135,17 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 		workerEnv = append(workerEnv, "HACKME_GPU_BACKEND="+gpuBackend)
 	}
 	if strings.EqualFold(gpuBackend, "cuda") {
-		cudaBin := filepath.Join(repoRoot, "bin", "workerpoh-cuda")
-		if st, err := os.Stat(cudaBin); err == nil && !st.IsDir() {
+		if cudaBin := resolveWorkerPohBin(repoRoot, "workerpoh-cuda"); cudaBin != "" {
 			workerEnv = append(workerEnv, "WORKER_BIN="+cudaBin)
 		}
 	}
 	if strings.EqualFold(gpuBackend, "opencl") {
-		oclBin := filepath.Join(repoRoot, "bin", "workerpoh-opencl")
-		if st, err := os.Stat(oclBin); err == nil && !st.IsDir() {
+		if oclBin := resolveWorkerPohBin(repoRoot, "workerpoh-opencl"); oclBin != "" {
 			workerEnv = append(workerEnv, "WORKER_BIN="+oclBin, "HACKME_FORCE_OPENCL=1")
 		}
 	}
 	if strings.EqualFold(gpuBackend, "cpu") || strings.TrimSpace(os.Getenv("HACKME_GPU_DISABLE")) == "1" {
-		cpuBin := filepath.Join(repoRoot, "bin", "workerpoh-cpu")
-		if st, err := os.Stat(cpuBin); err == nil && !st.IsDir() {
+		if cpuBin := resolveWorkerPohBin(repoRoot, "workerpoh-cpu"); cpuBin != "" {
 			workerEnv = append(workerEnv, "WORKER_BIN="+cpuBin)
 		}
 	}
@@ -2243,22 +2270,21 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 		if v := strings.TrimSpace(os.Getenv("HACKME_WORKER_ENGINE")); v != "" {
 			useGPUWorker = !strings.EqualFold(v, "loop") && !strings.EqualFold(v, "curl")
 		}
-		workerScript := filepath.Clean(filepath.Join(repoRoot, "scripts", "ops", "worker_autostart.sh"))
+		workerScript := resolveWorkerAutostartScript(repoRoot)
 		if !useGPUWorker {
-			workerScript = filepath.Clean(filepath.Join(repoRoot, "scripts", "ops", "worker_loop.sh"))
+			workerScript = firstExistingFile(
+				filepath.Join(repoRoot, "scripts", "ops", "worker_loop.sh"),
+				filepath.Join(repoRoot, "worker_loop.sh"),
+			)
 		}
-		if st, err := os.Stat(workerScript); err != nil || st.IsDir() {
+		if workerScript == "" {
 			_ = f.Close()
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			w.WriteHeader(http.StatusInternalServerError)
-			msg := "worker script not found"
-			if err != nil {
-				msg = msg + ": " + err.Error()
-			}
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"ok":    false,
 				"code":  "worker_script_missing",
-				"error": msg + " (" + workerScript + ")",
+				"error": "worker script not found under " + repoRoot + " (run fix_miner_layout.sh or reinstall linux bundle)",
 			})
 			return
 		}

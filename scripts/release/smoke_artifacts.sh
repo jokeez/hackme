@@ -93,6 +93,18 @@ if ! grep -q '^linux/start_hackme_miner\.sh$' "${REL_DIR}/SMOKE_LINUX_LIST.txt";
   echo "[smoke] linux/start_hackme_miner.sh missing in tar.gz" >&2
   exit 1
 fi
+if ! grep -q '^linux/scripts/ops/worker_autostart\.sh$' "${REL_DIR}/SMOKE_LINUX_LIST.txt"; then
+  echo "[smoke] linux/scripts/ops/worker_autostart.sh missing in tar.gz" >&2
+  exit 1
+fi
+if ! grep -q '^linux/bin/workerpoh$' "${REL_DIR}/SMOKE_LINUX_LIST.txt"; then
+  echo "[smoke] linux/bin/workerpoh missing in tar.gz" >&2
+  exit 1
+fi
+if ! grep -q '^linux/fix_miner_layout\.sh$' "${REL_DIR}/SMOKE_LINUX_LIST.txt"; then
+  echo "[smoke] linux/fix_miner_layout.sh missing in tar.gz" >&2
+  exit 1
+fi
 if ! grep -q '^windows/pool\.miner\.token$' "${REL_DIR}/SMOKE_WINDOWS_LIST.txt"; then
   echo "[smoke] windows/pool.miner.token missing in zip" >&2
   exit 1

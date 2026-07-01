@@ -50,6 +50,55 @@
       }
     },
     {
+      "id": "2026-07-02-rc11r-linux-miner-layout",
+      "date": "2026-07-02",
+      "title": "HackMe 0.1.0-rc11r — Linux miners start again + fuzz payouts path",
+      "summary": "Win/Linux/ISO rc11r live. Linux tarball ships scripts/ops/worker_autostart.sh and bin/workerpoh-opencl — fixes worker_script_missing and exit 127. Fuzz pool settle outbox, escrow cleanup, and mining settlement ops fixes included.",
+      "impact": "Fresh Linux extract no longer loops on missing worker script. Friends on rc11q with manual symlinks should reinstall or run fix_miner_layout.sh. B2B fuzz campaigns get pull-mode settle relay; ~500 HMC stale escrow refunded in ops pass.",
+      "action": "Download: https://hackme.tech/downloads.html · Linux: extract → bash start_hackme_miner.sh · Old folder: bash fix_miner_layout.sh · Pool: https://hackme.tech/pool/coordinator",
+      "tags": [
+        "release",
+        "mining",
+        "linux",
+        "fuzzing",
+        "settlement"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "rc11r — Linux miner layout + fuzz settle",
+        "lead": "Win/Linux/ISO 0.1.0-rc11r · worker_autostart in tarball · outbox settle",
+        "bullets": [
+          "Fix: Linux release layout — scripts/ops/ + bin/workerpoh-opencl in tarball",
+          "Fix: fuzz pool settle outbox + nginx + stale escrow cleanup",
+          "Fix: VPS mining settlement timer re-enabled",
+          "New: fix_miner_layout.sh for older linux/ folders"
+        ],
+        "footer": "hackme.tech/downloads.html · pool: hackme.tech/pool/coordinator"
+      },
+      "twitter": {
+        "thread": [
+          "HackMe 0.1.0-rc11r is live — Linux miners were hitting worker_script_missing; fresh tarball now ships the right scripts/ops + bin layout.",
+          "Also in rc11r: fuzz pool settle outbox (pull mode), escrow cleanup on terminal campaigns, mining settlement timer back on VPS.",
+          "If you already extracted an old linux/ folder: bash fix_miner_layout.sh then start_hackme_miner.sh — or just download rc11r.",
+          "Win installer + HackMe OS ISO rebuilt on the same tag. Verify SHA256 on downloads before USB flash.",
+          "Downloads → https://hackme.tech/downloads.html"
+        ],
+        "single": "HackMe 0.1.0-rc11r: Linux miner layout fixed, fuzz settle outbox, Win/Linux/ISO aligned. https://hackme.tech/downloads.html"
+      },
+      "discord": {
+        "title": "Release 0.1.0-rc11r — Linux mining + fuzz payouts",
+        "body": "**TL;DR** — Linux tarball layout fixed (`scripts/ops/worker_autostart.sh`, `bin/workerpoh-opencl`). Fuzz settle outbox + escrow cleanup. Same rc11r tag on Win/Linux/ISO.\n\n**Miners**\n• Fresh extract → `bash start_hackme_miner.sh`\n• Old folder → `bash fix_miner_layout.sh`\n\n**Get it:** https://hackme.tech/downloads.html",
+        "ping": "#announcements"
+      },
+      "links": {
+        "downloads": "https://hackme.tech/downloads.html",
+        "pool": "https://hackme.tech/pool/coordinator",
+        "notices": "https://hackme.tech/assets/miner-notices.json",
+        "changelog": "https://hackme.tech/news.html#2026-07-02-rc11r-linux-miner-layout",
+        "github": "https://github.com/jokeez/hackme/releases"
+      }
+    },
+    {
       "id": "2026-06-28-cfgpack-upstream-fix",
       "date": "2026-06-28",
       "title": "Upstream win: cfgpack MessagePack int64 UBSan — fixed in b5e7cff",
@@ -528,7 +577,12 @@
       "summary": "Desktop wallet now shows your real on-chain HMC and SUP from hackme.tech (not stale local SQLite). Three-column treasury: on-chain · pool accrual · orders debit. Instant UI cache + background canonical sync. VPS node recovery when /api/address was timing out.",
       "impact": "Miners with ~400 HMC on-chain were seeing ~15 HMC when the hub node hung — fixed. Refresh Wallet or reopen #wallet after update.",
       "action": "Downloads: https://hackme.tech/downloads.html · Local dashboard: http://127.0.0.1:8080/#wallet · Explorer: https://hackme.tech/pool/explorer",
-      "tags": ["release", "wallet", "mining", "infrastructure"],
+      "tags": [
+        "release",
+        "wallet",
+        "mining",
+        "infrastructure"
+      ],
       "status": "published",
       "telegram": {
         "headline": "rc11m — wallet shows real on-chain balance",

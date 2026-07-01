@@ -21,6 +21,7 @@ type RelaySettler struct {
 	AdminToken       func() string
 	HTTPClient       *http.Client
 }
+
 func (r *RelaySettler) svc() *Service {
 	if r.Service != nil {
 		return r.Service

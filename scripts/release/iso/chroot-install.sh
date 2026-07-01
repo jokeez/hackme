@@ -52,6 +52,13 @@ if [[ -d /tmp/payload ]]; then
   if [[ -f /tmp/payload/detect_gpu_backend.sh ]]; then
     install -m 0755 /tmp/payload/detect_gpu_backend.sh /opt/hackme/scripts/ops/detect_gpu_backend.sh
   fi
+  for op in worker_autostart.sh worker_loop.sh desktop_worker_reset.sh; do
+    if [[ -f "/tmp/payload/scripts/ops/${op}" ]]; then
+      install -m 0755 "/tmp/payload/scripts/ops/${op}" "/opt/hackme/scripts/ops/${op}"
+    elif [[ -f "/tmp/payload/${op}" ]]; then
+      install -m 0755 "/tmp/payload/${op}" "/opt/hackme/scripts/ops/${op}"
+    fi
+  done
 fi
 if [[ -d /tmp/iso-scripts ]]; then
   cp -a /tmp/iso-scripts/. /opt/hackme/scripts/release/iso/

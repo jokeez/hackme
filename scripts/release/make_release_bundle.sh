@@ -103,10 +103,26 @@ fi
 for doc in docs/GPU_MINING_BACKENDS.md docs/CUDA_PRODUCTION.md; do
   [[ -f "${ROOT_DIR}/${doc}" ]] && cp "${ROOT_DIR}/${doc}" "${LINUX_DIR}/"
 done
-for op in build_gpu_workers.sh build_cuda_worker.sh detect_gpu_backend.sh desktop_worker_reset.sh worker_autostart.sh purge_stale_pool_workers.sh cuda_env.sh setup_cuda_desktop.sh; do
+for op in build_gpu_workers.sh build_cuda_worker.sh detect_gpu_backend.sh desktop_worker_reset.sh worker_autostart.sh worker_loop.sh purge_stale_pool_workers.sh cuda_env.sh setup_cuda_desktop.sh; do
   [[ -f "${ROOT_DIR}/scripts/ops/${op}" ]] && cp "${ROOT_DIR}/scripts/ops/${op}" "${LINUX_DIR}/"
 done
 chmod +x "${LINUX_DIR}/worker_autostart.sh" "${LINUX_DIR}/purge_stale_pool_workers.sh" 2>/dev/null || true
+echo "[release] linux miner layout (bin/ + scripts/ops/)"
+mkdir -p "${LINUX_DIR}/bin" "${LINUX_DIR}/scripts/ops"
+for op in detect_gpu_backend.sh desktop_worker_reset.sh worker_autostart.sh worker_loop.sh purge_stale_pool_workers.sh; do
+  if [[ -f "${ROOT_DIR}/scripts/ops/${op}" ]]; then
+    install -m 0755 "${ROOT_DIR}/scripts/ops/${op}" "${LINUX_DIR}/scripts/ops/${op}"
+  fi
+done
+for wp in workerpoh workerpoh-opencl workerpoh-cuda; do
+  if [[ -f "${LINUX_DIR}/${wp}" ]]; then
+    install -m 0755 "${LINUX_DIR}/${wp}" "${LINUX_DIR}/bin/${wp}"
+  fi
+done
+[[ -f "${LINUX_DIR}/fleetplan" ]] && install -m 0755 "${LINUX_DIR}/fleetplan" "${LINUX_DIR}/bin/fleetplan"
+[[ -f "${LINUX_DIR}/minersign" ]] && install -m 0755 "${LINUX_DIR}/minersign" "${LINUX_DIR}/bin/minersign"
+cp "${ROOT_DIR}/scripts/release/linux/fix_miner_layout.sh" "${LINUX_DIR}/fix_miner_layout.sh"
+chmod +x "${LINUX_DIR}/fix_miner_layout.sh"
 echo "[release] building fleetplan (GPU fleet JSON)"
 GOOS=linux GOARCH="${LINUX_ARCH}" CGO_ENABLED=0 \
   go build -trimpath -ldflags "-s -w" -o "${LINUX_DIR}/fleetplan" ./cmd/fleetplan

@@ -1,17 +1,17 @@
 {
   "version": 1,
-  "updated_unix": 1751068800,
+  "updated_unix": 1751414400,
   "notices": [
     {
-      "id": "2026-06-27-rc11q-settlement-banner",
+      "id": "2026-07-02-rc11r-linux-miner-layout",
       "severity": "info",
-      "title": "Upgrade to HackMe 0.1.0-rc11q",
-      "body": "Settlement panel on the hub is fixed — unpaid HMC shows again without timeouts. Win, Linux, and HackMe OS ISO are all on rc11q now. Your pool accrual is safe; grab the fresh build when convenient.",
+      "title": "Upgrade to HackMe 0.1.0-rc11r",
+      "body": "Linux miners: fresh tarball now includes scripts/ops/worker_autostart.sh and bin/workerpoh-opencl — no more worker_script_missing loop. Fuzz pool settle outbox + escrow cleanup shipped. Win/Linux/ISO all on rc11r.",
       "link_url": "https://hackme.tech/downloads.html",
-      "link_label": "Download rc11q",
-      "dismiss_key": "rc11q-eco-banner",
-      "recommended_version": "0.1.0-rc11q",
-      "expires_unix": 1753660800
+      "link_label": "Download rc11r",
+      "dismiss_key": "rc11r-eco-banner",
+      "recommended_version": "0.1.0-rc11r",
+      "expires_unix": 1754006400
     }
   ]
 }

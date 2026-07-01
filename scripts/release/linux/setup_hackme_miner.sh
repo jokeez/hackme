@@ -46,6 +46,7 @@ fi
 
 mkdir -p "$INSTALL_DIR/logs" "$INSTALL_DIR/data"
 chmod 700 "$INSTALL_DIR/data" 2>/dev/null || true
+bash "$INSTALL_DIR/fix_miner_layout.sh" 2>/dev/null || true
 
 cat >"$ENV_FILE" <<EOF
 HACKME_BIND_ADDR=127.0.0.1:8080
