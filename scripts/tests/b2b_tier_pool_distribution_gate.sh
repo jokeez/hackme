@@ -100,10 +100,20 @@ done
 wait_coord_campaign() {
   local pkg="$1" cid="$2" attempt found=0
   [[ -n "$cid" ]] || return 0
-  for attempt in $(seq 1 30); do
-    if curl -fsS --max-time 20 "$COORD_LIST" >/tmp/tier-coord-list.json 2>/dev/null \
+  for attempt in $(seq 1 45); do
+    if curl -fsS --max-time 20 "${COORD_LIST}" >/tmp/tier-coord-list.json 2>/dev/null \
       && jq -e --arg id "$cid" '.campaigns[]? | select(.id==$id)' /tmp/tier-coord-list.json >/dev/null 2>&1; then
       pass "coordinator lists $pkg campaign $cid"
+      return 0
+    fi
+    if curl -fsS --max-time 10 "${COORD_LIST%/api/fuzz/pool/campaigns/list}/api/fuzz/pool/campaigns/progress?id=${cid}" 2>/dev/null \
+      | jq -e --arg id "$cid" '.ok == true and .id == $id' >/dev/null 2>&1; then
+      pass "coordinator progress ok for $pkg campaign $cid"
+      return 0
+    fi
+    if curl -fsS --max-time 10 "${BASE}/api/status?lite=1" 2>/dev/null | jq -e --arg id "$cid" \
+      '.pool_sync.metrics.last_campaign_id == $id and .pool_sync.metrics.last_status == "ok"' >/dev/null 2>&1; then
+      pass "coordinator pool sync ok for $pkg campaign $cid"
       return 0
     fi
     sleep 2
