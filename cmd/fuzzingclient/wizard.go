@@ -84,18 +84,18 @@ func doWizard(base string, args []string) error {
 	pulseURL := publicBase + "/api/fuzz/campaigns/" + campaignID + "/pulse"
 
 	out := map[string]any{
-		"ok":                   true,
-		"package":              pkg.Name,
-		"depth_tier":           string(pkg.DepthTier),
-		"budget_hmc":           pkg.BudgetHMC,
-		"budget_runs":          pkg.BudgetRuns,
-		"pool_distributed":     pool,
-		"order_id":             orderID,
-		"campaign_id":          campaignID,
+		"ok":                    true,
+		"package":               pkg.Name,
+		"depth_tier":            string(pkg.DepthTier),
+		"budget_hmc":            pkg.BudgetHMC,
+		"budget_runs":           pkg.BudgetRuns,
+		"pool_distributed":      pool,
+		"order_id":              orderID,
+		"campaign_id":           campaignID,
 		"customer_report_token": reportTok,
-		"report_url":           reportURL,
-		"gate_url":             gateURL,
-		"pulse_url":            pulseURL,
+		"report_url":            reportURL,
+		"gate_url":              gateURL,
+		"pulse_url":             pulseURL,
 		"ci_header":             "X-Hackme-Report-Token",
 	}
 	if v, ok := resp["pool_sync"]; ok {
