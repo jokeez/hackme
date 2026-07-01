@@ -83,6 +83,11 @@ func (a *app) mergeCoordinatorPoolMarketplace(ctx context.Context, items []map[s
 		if rc.BudgetRuns > 0 {
 			item["budget_runs"] = rc.BudgetRuns
 		}
+		if rd, ok := item["runs_done"].(int); ok && rc.BudgetRuns > 0 && rd >= rc.BudgetRuns {
+			item["status"] = "completed"
+		} else if rd, ok := item["runs_done"].(float64); ok && rc.BudgetRuns > 0 && int(rd) >= rc.BudgetRuns {
+			item["status"] = "completed"
+		}
 	}
 	return items
 }

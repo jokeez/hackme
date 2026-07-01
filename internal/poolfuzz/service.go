@@ -297,6 +297,9 @@ func (s *Service) Tick(ctx context.Context) error {
 		if err := s.EnsureWorkItems(ctx, id, now); err != nil {
 			return err
 		}
+		if _, err := s.recomputeProgress(ctx, id, now); err != nil {
+			return err
+		}
 	}
 	if pins, err := fuzznative.LoadPins(""); err == nil {
 		_, _ = fuzznative.ProcessPending(ctx, s.DB, pins, 5)
