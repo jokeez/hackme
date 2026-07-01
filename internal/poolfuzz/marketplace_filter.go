@@ -59,6 +59,9 @@ func IsInternalGateCampaign(id, title, ownerRef string, cfg map[string]any) bool
 	if strings.Contains(title, "penny") || strings.Contains(title, "smoke") {
 		return true
 	}
+	if strings.Contains(title, "customer smoke") {
+		return true
+	}
 	if title == "pool-sync-gate" || title == "probe" || title == "gate-audit" {
 		return true
 	}

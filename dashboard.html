@@ -11519,9 +11519,13 @@
 				}
 				box.innerHTML = visible.slice(0, 8).map((c) => {
 					const pr = c.per_run_hmc != null ? (Number(c.per_run_hmc).toFixed(4) + ' HMC/run') : '—';
+					const runs = c.runs_done != null ? Number(c.runs_done) : 0;
+					const bud = c.budget_runs != null ? Number(c.budget_runs) : 0;
+					const prog = bud > 0 ? (runs + '/' + bud + ' runs') : '';
 					return '<div class="flex flex-wrap gap-2 border-b border-white/5 pb-1">' +
 						'<span class="text-neon truncate max-w-[140px]">' + escapeHtml(String(c.title || c.id || '—')) + '</span>' +
 						'<span class="text-gray-500">' + escapeHtml(String(c.status || '—')) + '</span>' +
+						(prog ? '<span class="text-emerald-400/90">' + escapeHtml(prog) + '</span>' : '') +
 						'<span class="text-matrix">' + pr + '</span>' +
 						'<span class="text-gray-600">native ' + escapeHtml(String(c.native_status || 'n/a')) + '</span></div>';
 				}).join('');

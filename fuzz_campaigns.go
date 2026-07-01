@@ -1345,6 +1345,12 @@ func (a *app) handleFuzzCampaignPulse(w http.ResponseWriter, r *http.Request, ca
 		writeAPIError(w, http.StatusInternalServerError, "campaign_load_failed", "campaign load failed", nil)
 		return
 	}
+	if poolDistributedCampaign(c.Config) {
+		_ = a.syncPoolCampaignProgressFromCoordinator(r.Context(), campaignID)
+		if c2, err2 := a.getFuzzCampaign(r.Context(), campaignID); err2 == nil {
+			c = c2
+		}
+	}
 	findings, err := a.loadCampaignFindings(r.Context(), campaignID)
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, "findings_load_failed", "findings load failed", nil)

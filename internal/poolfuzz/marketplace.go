@@ -40,6 +40,11 @@ func (s *Service) ListPublicCampaigns(ctx context.Context, limit int) ([]map[str
 		summary := parseConfigJSON(summaryJSON)
 		var findings int
 		_ = s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_findings WHERE campaign_id=?`, id).Scan(&findings)
+		runsDone := runsDoneForCampaign(ctx, s.DB, id, summary)
+		displayStatus := status
+		if budgetRuns > 0 && runsDone >= budgetRuns && displayStatus == "running" {
+			displayStatus = "completed"
+		}
 		budgetHMC := 0.0
 		if v, ok := cfg["budget_hmc"]; ok {
 			budgetHMC = floatFromJSON(v)
@@ -47,11 +52,11 @@ func (s *Service) ListPublicCampaigns(ctx context.Context, limit int) ([]map[str
 		item := map[string]any{
 			"id":             id,
 			"campaign_type":  ctype,
-			"status":         status,
+			"status":         displayStatus,
 			"title":          title,
 			"budget_runs":    budgetRuns,
 			"budget_hmc":     budgetHMC,
-			"runs_done":      intFromJSON(summary["runs_done"]),
+			"runs_done":      runsDone,
 			"unique_crashes": intFromJSON(summary["unique_crashes"]),
 			"findings":       findings,
 			"pool":           true,

@@ -17,5 +17,6 @@ func (a *app) handleFuzzMarketplace(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusInternalServerError, "marketplace_failed", err.Error(), nil)
 		return
 	}
+	items = a.mergeCoordinatorPoolMarketplace(r.Context(), items)
 	writeJSON(w, map[string]any{"ok": true, "campaigns": items})
 }
