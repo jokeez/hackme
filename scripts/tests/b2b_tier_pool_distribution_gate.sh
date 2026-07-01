@@ -9,6 +9,7 @@ require_cmd curl
 require_cmd jq
 
 BASE="${BASE:-http://127.0.0.1:8080}"
+ADMIN="$(resolve_admin_token "$ROOT" 2>/dev/null || true)"
 WASM="${WASM:-$ROOT/tasks/artifacts/security/rust_script_push_bounds_guard.wasm}"
 VER="$(tr -d ' \n\r' <"$ROOT/scripts/release/CURRENT_VERSION" 2>/dev/null || echo dev)"
 CLI="${FUZZING_CLI:-$ROOT/dist/hackme-fuzzing-${VER}-linux-amd64}"
@@ -119,6 +120,37 @@ if curl -fsS --max-time 20 "$COORD_LIST" >/tmp/tier-coord-list.json 2>/dev/null;
   fi
 else
   pass "coordinator list skip (unreachable)"
+fi
+
+# Cancel gate campaigns so they do not pollute miner marketplace / coordinator claim queue.
+COORD_URL="${COORD_URL:-https://hackme.tech/pool/coordinator}"
+COORD_ADMIN=""
+if [[ -f "$ROOT/.secrets/hackme_coordinator_admin_token" ]]; then
+  COORD_ADMIN="$(tr -d '\r\n' <"$ROOT/.secrets/hackme_coordinator_admin_token")"
+fi
+if [[ -n "$ADMIN" ]]; then
+  for pkg in scan audit deep; do
+    cid="${CREATED[$pkg]:-}"
+    [[ -n "$cid" ]] || continue
+    curl -fsS --max-time 15 -X POST "${BASE}/api/fuzz/campaigns/${cid}/status" \
+      -H "Content-Type: application/json" \
+      -H "X-Hackme-Admin-Token: ${ADMIN}" \
+      -d '{"status":"cancelled"}' >/dev/null 2>&1 \
+      && pass "cancelled local gate campaign $cid" \
+      || warn "cancel local $cid failed (non-fatal)"
+    if [[ -n "$COORD_ADMIN" && "$pkg" != "scan" ]]; then
+      code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 -X POST \
+        "${COORD_URL%/}/api/fuzz/pool/campaigns" \
+        -H "X-Hackme-Admin-Token: ${COORD_ADMIN}" \
+        -H "Content-Type: application/json" \
+        -d "{\"id\":\"${cid}\",\"status\":\"cancelled\",\"campaign_type\":\"property\",\"title\":\"tier-gate-${pkg}\",\"budget_runs\":8,\"config\":{\"pool_distributed\":true,\"internal_gate\":true}}")"
+      if [[ "$code" == "200" ]]; then
+        pass "cancelled coordinator gate campaign $cid"
+      else
+        warn "coordinator cancel $cid HTTP $code (non-fatal)"
+      fi
+    fi
+  done
 fi
 
 if [[ "$failures" -gt 0 ]]; then

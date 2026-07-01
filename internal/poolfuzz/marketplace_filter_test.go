@@ -15,6 +15,8 @@ func TestIsInternalGateCampaign(t *testing.T) {
 		{"campaign-audit-20260604", "gate-audit", "gate:foo", nil, true},
 		{"campaign-audit-real", "Bitcoin guard audit", "HMC-abc", nil, false},
 		{"l1v4-btc-1", "L1 v4 upstream Bitcoin guard", "", map[string]any{"internal_gate": true}, true},
+		{"campaign-audit-20260701", "tier-gate-audit-1", "tier-gate:audit:1", nil, true},
+		{"campaign-audit-20260701", "tier-debug-audit", "tier:audit:debug", nil, true},
 	}
 	for _, tc := range cases {
 		got := IsInternalGateCampaign(tc.id, tc.title, tc.owner, tc.cfg)

@@ -68,7 +68,16 @@ func IsInternalGateCampaign(id, title, ownerRef string, cfg map[string]any) bool
 	if strings.HasPrefix(ownerRef, "gate:") {
 		return true
 	}
+	if strings.HasPrefix(ownerRef, "tier-gate:") || strings.HasPrefix(ownerRef, "tier:") {
+		return true
+	}
+	if strings.HasPrefix(title, "tier-gate") || strings.HasPrefix(title, "tier-debug") || strings.HasPrefix(title, "tier-audit") {
+		return true
+	}
 	if pr := strings.TrimSpace(strings.ToLower(jsonString(cfg["payer_ref"]))); strings.HasPrefix(pr, "gate:") {
+		return true
+	}
+	if pr := strings.TrimSpace(strings.ToLower(jsonString(cfg["payer_ref"]))); strings.HasPrefix(pr, "tier-gate:") || strings.HasPrefix(pr, "tier:") {
 		return true
 	}
 	return false

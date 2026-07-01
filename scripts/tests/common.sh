@@ -84,6 +84,37 @@ test_suite_record() {
 
 fail_msg() { printf '[FAIL] %s\n' "$*" >&2; }
 
+# Prefer explicit ADMIN_TOKEN, then live local node (.env.desktop), then .secrets file.
+resolve_admin_token() {
+  local root="${1:-}"
+  if [[ -n "${ADMIN_TOKEN:-}" ]]; then
+    printf '%s' "$ADMIN_TOKEN"
+    return 0
+  fi
+  if [[ -n "${HACKME_ADMIN_TOKEN:-}" ]]; then
+    printf '%s' "$HACKME_ADMIN_TOKEN"
+    return 0
+  fi
+  if [[ -z "$root" ]]; then
+    root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+  fi
+  local desktop="${DESKTOP_ENV_FILE:-$root/.env.desktop}"
+  if [[ -f "$desktop" ]]; then
+    local tok
+    tok="$(grep -m1 '^HACKME_ADMIN_TOKEN=' "$desktop" | cut -d= -f2- | tr -d '\r\n')"
+    if [[ -n "$tok" ]]; then
+      printf '%s' "$tok"
+      return 0
+    fi
+  fi
+  local secrets="${ADMIN_FILE:-$root/.secrets/hackme_admin_token}"
+  if [[ -f "$secrets" ]]; then
+    tr -d '\r\n' <"$secrets"
+    return 0
+  fi
+  return 1
+}
+
 # Remove ephemeral Go sources left under reports/ by transfer_demo (pollutes go test ./...).
 cleanup_stale_report_go_junk() {
   find reports -type f \( -name 'sign_transfer_tmp.go' -o -name '_sign_transfer.go' \) -delete 2>/dev/null || true

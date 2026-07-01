@@ -21,8 +21,8 @@ fi
 pass "wizard blocks public base"
 
 BASE="${BASE:-http://127.0.0.1:8080}"
-ADMIN="$(tr -d '\r\n' <"${ADMIN_FILE:-$ROOT/.secrets/hackme_admin_token}")"
-[[ -n "$ADMIN" ]] || fail "missing admin token"
+ADMIN="$(resolve_admin_token "$ROOT")"
+[[ -n "$ADMIN" ]] || fail "missing admin token (ADMIN_TOKEN, .env.desktop, or .secrets/hackme_admin_token)"
 curl -fsS --max-time 10 "${BASE}/api/status?lite=1" >/dev/null || fail "node down at $BASE"
 
 hdr=(-H "X-Hackme-Admin-Token: $ADMIN")

@@ -13,19 +13,21 @@ DRY_RUN="${DRY_RUN:-1}"
 ADMIN_TOKEN="${ADMIN_TOKEN:-}"
 COORD_ADMIN="${COORD_ADMIN_TOKEN:-${ADMIN_TOKEN:-}}"
 
-if [[ -z "$ADMIN_TOKEN" && -f "$ROOT/.secrets/hackme_admin_token" ]]; then
-  ADMIN_TOKEN="$(tr -d '\r\n' <"$ROOT/.secrets/hackme_admin_token")"
+if [[ -z "$ADMIN_TOKEN" ]]; then
+  # shellcheck source=scripts/tests/common.sh
+  source "$ROOT/scripts/tests/common.sh"
+  ADMIN_TOKEN="$(resolve_admin_token "$ROOT" 2>/dev/null || true)"
 fi
 if [[ -z "$COORD_ADMIN" && -f "$ROOT/.secrets/hackme_coordinator_admin_token" ]]; then
   COORD_ADMIN="$(tr -d '\r\n' <"$ROOT/.secrets/hackme_coordinator_admin_token")"
 fi
 
-log() { echo "[cancel-gates] $*"; }
+log() { echo "[cancel-gates] $*" >&2; }
 
 is_gate() {
-  python3 - <<'PY' <<<"$1"
+  python3 -c '
 import json, sys
-c = json.loads(sys.stdin.read())
+c = json.loads(sys.argv[1])
 cid = (c.get("id") or "").lower()
 title = (c.get("title") or "").lower()
 owner = (c.get("owner_ref") or "").lower()
@@ -42,8 +44,12 @@ if "pool sync" in title and "gate" in title:
     sys.exit(0)
 if owner.startswith("gate:"):
     sys.exit(0)
+if owner.startswith("tier-gate:") or owner.startswith("tier:"):
+    sys.exit(0)
+if title.startswith("tier-gate") or title.startswith("tier-debug") or title.startswith("tier-audit"):
+    sys.exit(0)
 sys.exit(1)
-PY
+' "$1"
 }
 
 cancel_local() {
