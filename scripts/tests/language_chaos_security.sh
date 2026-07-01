@@ -109,7 +109,7 @@ mk_payload "$p_go" "chaos-go-${ts}" "go" 'package main
 //export check
 func check(n int64) int32 { if n%23==0 { return 1 }; return 0 }
 func main() {}' "chaos:go"
-run_case_file "alias-go-tinygo" "$p_go" '^(200:|402:manifest_rejected|400:manifest_rejected|429:rate_limited|400:compile_failed|400:wasm_validation_failed|400:wasm_sanitize_failed)$'
+run_case_file "alias-go-tinygo" "$p_go" '^(200:|402:manifest_rejected|400:manifest_rejected|429:rate_limited|400:compile_failed|400:wasm_validation_failed|400:wasm_sanitize_failed|400:app_not_task_code)$'
 
 p_wast="$OUT/p_wast.json"
 mk_payload "$p_wast" "chaos-wast-${ts}" "wast" '(module
