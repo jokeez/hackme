@@ -711,6 +711,44 @@ func (s *Service) PoolStats(ctx context.Context) (map[string]any, error) {
 	}, nil
 }
 
+// CampaignProgress returns live pool progress for one campaign (public read).
+func (s *Service) CampaignProgress(ctx context.Context, campaignID string) (map[string]any, error) {
+	campaignID = strings.TrimSpace(campaignID)
+	if campaignID == "" {
+		return nil, fmt.Errorf("poolfuzz: campaign id required")
+	}
+	var status, title, summaryJSON string
+	var budgetRuns int
+	var completedAt int64
+	err := s.DB.QueryRowContext(ctx,
+		`SELECT status, title, budget_runs, summary_json, completed_at FROM fuzz_campaigns WHERE id=?`,
+		campaignID).Scan(&status, &title, &budgetRuns, &summaryJSON, &completedAt)
+	if err == sql.ErrNoRows {
+		return nil, err
+	}
+	if err != nil {
+		return nil, err
+	}
+	summary := parseConfigJSON(summaryJSON)
+	runsDone := runsDoneForCampaign(ctx, s.DB, campaignID, summary)
+	var findings int
+	_ = s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_findings WHERE campaign_id=?`, campaignID).Scan(&findings)
+	displayStatus := status
+	if budgetRuns > 0 && runsDone >= budgetRuns && displayStatus == "running" {
+		displayStatus = "completed"
+	}
+	return map[string]any{
+		"ok":           true,
+		"id":           campaignID,
+		"title":        title,
+		"status":       displayStatus,
+		"budget_runs":  budgetRuns,
+		"runs_done":    runsDone,
+		"findings":     findings,
+		"completed_at": completedAt,
+	}, nil
+}
+
 func derivePoolInputs(inputN uint64, cfg map[string]any) (uint64, []byte) {
 	if fuzzengine.ParseInputMode(cfg) == fuzzengine.InputModeBytes {
 		b := fuzzengine.DeriveInputBytes(inputN, cfg)

@@ -97,18 +97,26 @@ for pkg in scan audit deep; do
   sleep 8
 done
 
+wait_coord_campaign() {
+  local pkg="$1" cid="$2" attempt found=0
+  [[ -n "$cid" ]] || return 0
+  for attempt in $(seq 1 30); do
+    if curl -fsS --max-time 20 "$COORD_LIST" >/tmp/tier-coord-list.json 2>/dev/null \
+      && jq -e --arg id "$cid" '.campaigns[]? | select(.id==$id)' /tmp/tier-coord-list.json >/dev/null 2>&1; then
+      pass "coordinator lists $pkg campaign $cid"
+      return 0
+    fi
+    sleep 2
+  done
+  fail_msg "coordinator missing $pkg campaign $cid"
+  failures=$((failures + 1))
+}
+
 # Pool coordinator list should include audit/deep (not internal gate titles).
 COORD_LIST="${COORD_LIST:-https://hackme.tech/pool/coordinator/api/fuzz/pool/campaigns/list}"
 if curl -fsS --max-time 20 "$COORD_LIST" >/tmp/tier-coord-list.json 2>/dev/null; then
   for pkg in audit deep; do
-    cid="${CREATED[$pkg]:-}"
-    [[ -n "$cid" ]] || continue
-    if jq -e --arg id "$cid" '.campaigns[]? | select(.id==$id)' /tmp/tier-coord-list.json >/dev/null 2>&1; then
-      pass "coordinator lists $pkg campaign $cid"
-    else
-      fail_msg "coordinator missing $pkg campaign $cid"
-      failures=$((failures + 1))
-    fi
+    wait_coord_campaign "$pkg" "${CREATED[$pkg]:-}"
   done
   if [[ -n "${CREATED[scan]:-}" ]]; then
     if jq -e --arg id "${CREATED[scan]}" '.campaigns[]? | select(.id==$id)' /tmp/tier-coord-list.json >/dev/null 2>&1; then

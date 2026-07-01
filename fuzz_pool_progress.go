@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -56,54 +57,80 @@ func (a *app) fetchCoordinatorPoolCampaigns(ctx context.Context) (map[string]coo
 	return out, nil
 }
 
+func (a *app) fetchCoordinatorPoolCampaignProgress(ctx context.Context, campaignID string) (coordinatorPoolCampaign, bool) {
+	base := strings.TrimRight(strings.TrimSpace(a.coordinatorBaseURL()), "/")
+	if base == "" || campaignID == "" {
+		return coordinatorPoolCampaign{}, false
+	}
+	reqCtx, cancel := context.WithTimeout(ctx, 6*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, base+"/api/fuzz/pool/campaigns/progress?id="+url.QueryEscape(campaignID), nil)
+	if err != nil {
+		return coordinatorPoolCampaign{}, false
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return coordinatorPoolCampaign{}, false
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return coordinatorPoolCampaign{}, false
+	}
+	var payload coordinatorPoolCampaign
+	if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
+		return coordinatorPoolCampaign{}, false
+	}
+	payload.ID = campaignID
+	return payload, true
+}
+
 func (a *app) mergeCoordinatorPoolMarketplace(ctx context.Context, items []map[string]any) []map[string]any {
 	remote, err := a.fetchCoordinatorPoolCampaigns(ctx)
-	if err != nil || len(remote) == 0 {
-		return items
+	if err != nil {
+		remote = map[string]coordinatorPoolCampaign{}
 	}
+	out := make([]map[string]any, 0, len(items))
 	for _, item := range items {
 		id, _ := item["id"].(string)
 		id = strings.TrimSpace(id)
-		if id == "" {
-			continue
-		}
 		rc, ok := remote[id]
-		if !ok {
+		if !ok && id != "" {
+			rc, ok = a.fetchCoordinatorPoolCampaignProgress(ctx, id)
+		}
+		if ok {
+			if rc.RunsDone > 0 {
+				item["runs_done"] = rc.RunsDone
+			}
+			if rc.Findings > 0 {
+				item["findings"] = rc.Findings
+			}
+			if st := strings.TrimSpace(rc.Status); st != "" {
+				item["status"] = st
+			}
+			if rc.BudgetRuns > 0 {
+				item["budget_runs"] = rc.BudgetRuns
+			}
+			if rd := rc.RunsDone; rc.BudgetRuns > 0 && rd >= rc.BudgetRuns {
+				item["status"] = "completed"
+			}
+		}
+		st, _ := item["status"].(string)
+		if strings.EqualFold(strings.TrimSpace(st), "completed") {
 			continue
 		}
-		if rc.RunsDone > 0 {
-			item["runs_done"] = rc.RunsDone
-		}
-		if rc.Findings > 0 {
-			item["findings"] = rc.Findings
-		}
-		if st := strings.TrimSpace(rc.Status); st != "" {
-			item["status"] = st
-		}
-		if rc.BudgetRuns > 0 {
-			item["budget_runs"] = rc.BudgetRuns
-		}
-		if rd, ok := item["runs_done"].(int); ok && rc.BudgetRuns > 0 && rd >= rc.BudgetRuns {
-			item["status"] = "completed"
-		} else if rd, ok := item["runs_done"].(float64); ok && rc.BudgetRuns > 0 && int(rd) >= rc.BudgetRuns {
-			item["status"] = "completed"
-		}
+		out = append(out, item)
 	}
-	return items
+	return out
 }
 
 func (a *app) syncPoolCampaignProgressFromCoordinator(ctx context.Context, campaignID string) error {
-	remote, err := a.fetchCoordinatorPoolCampaigns(ctx)
-	if err != nil {
-		return err
-	}
-	rc, ok := remote[campaignID]
+	rc, ok := a.fetchCoordinatorPoolCampaignProgress(ctx, campaignID)
 	if !ok || rc.RunsDone <= 0 {
 		return nil
 	}
 	var summaryJSON, status string
 	var budgetRuns int
-	err = a.db.QueryRowContext(ctx,
+	err := a.db.QueryRowContext(ctx,
 		`SELECT status, budget_runs, summary_json FROM fuzz_campaigns WHERE id=?`,
 		campaignID).Scan(&status, &budgetRuns, &summaryJSON)
 	if err == sql.ErrNoRows {
