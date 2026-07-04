@@ -74,19 +74,19 @@ powershell -ExecutionPolicy Bypass -File scripts/ops/fuzzing_windows_quickstart.
       </div>
       <p class="subtle" style="margin-top:1rem"><a href="#local-node">Local node guide</a> · <a href="./developers.html">Developers</a> · <a href="./fuzzing-console.html">Public tracker</a></p>
       <details class="dev-details" style="margin-top:1rem">
-        <summary>Русский · B2B фаззинг (кратко)</summary>
-        <p class="subtle" style="margin-top:0.5rem">Скачайте <strong>оба</strong> файла в одну папку. Запустите локальный <code>hackme-node</code> → <code>127.0.0.1:8080</code>. CLI работает только с локальным узлом; на hackme.tech удалённый <code>from_code</code> заблокирован.</p>
+        <summary>B2B fuzzing quick reference</summary>
+        <p class="subtle" style="margin-top:0.5rem">Download <strong>both</strong> CLI binaries into one folder. Run local <code>hackme-node</code> at <code>127.0.0.1:8080</code>. The CLI talks to your loopback node only — remote <code>from_code</code> on hackme.tech is blocked.</p>
         <pre class="code-block"><code>.\hackme-fuzzing-*-windows-amd64.exe register --base http://127.0.0.1:8080 --save
-.\hackme-fuzzing-*-windows-amd64.exe wizard --wasm guard.wasm --package audit --title "Мой guard"
-# → report_url, gate_url, customer_report_token (сохраните один раз)
+.\hackme-fuzzing-*-windows-amd64.exe wizard --wasm guard.wasm --package audit --title "My guard"
+# → report_url, gate_url, customer_report_token (save once)
 
-# Классический путь:
+# Classic path:
 .\hackme-fuzzing-*-windows-amd64.exe build -lang rust -source check.rs -out .\fuzzing-out
 .\hackme-fuzzing-*-windows-amd64.exe create .\fuzzing-out\manifest.json</code></pre>
       </details>
     </section>
 
-    <section class="panel glass" style="border:1px solid rgba(0,255,136,0.35);margin-bottom:1.5rem">
+    <section id="start" class="panel glass" style="border:1px solid rgba(0,255,136,0.35);margin-bottom:1.5rem">
       <div class="panel-head">
         <p class="kicker" style="color:#00ff88">Golden path · ~2 min to pool row</p>
         <h2>One command — detect GPU, start mining</h2>
@@ -194,7 +194,7 @@ powershell -ExecutionPolicy Bypass -File scripts/ops/fuzzing_windows_quickstart.
     <div class="footer-nav"></div>
   </footer>
 
-  <script src="./assets/site-shell.js?v=20260601hub"></script>
-  <script src="./assets/app.js?v=20260522dl"></script>
+  <script src="./assets/site-shell.js?v=20260704hub"></script>
+  <script src="./assets/app.js?v=20260704site"></script>
 </body>
 </html>
