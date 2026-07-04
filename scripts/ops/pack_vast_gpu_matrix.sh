@@ -61,9 +61,9 @@ for f in "$ROOT"/scripts/vast/*.sh; do
 done
 chmod +x "$PACK_DIR/scripts/"*.sh
 
-cp -f "$ROOT/docs/VAST_GPU_MATRIX_RUNBOOK.md" "$PACK_DIR/docs/" 2>/dev/null || true
-cp -f "$ROOT/docs/VAST_GPU_DAY_PLAN.md" "$PACK_DIR/docs/" 2>/dev/null || true
-cp -f "$ROOT/docs/VAST_GPU_FULL_MATRIX.md" "$PACK_DIR/docs/" 2>/dev/null || true
+cp -f "$ROOT/docs/archive/vast/VAST_GPU_MATRIX_RUNBOOK.md" "$PACK_DIR/docs/" 2>/dev/null || true
+cp -f "$ROOT/docs/archive/vast/VAST_GPU_DAY_PLAN.md" "$PACK_DIR/docs/" 2>/dev/null || true
+cp -f "$ROOT/docs/archive/vast/VAST_GPU_FULL_MATRIX.md" "$PACK_DIR/docs/" 2>/dev/null || true
 cp -f "$ROOT/docs/GPU_MINING_BACKENDS.md" "$PACK_DIR/docs/" 2>/dev/null || true
 
 # Env template (no secrets in git)

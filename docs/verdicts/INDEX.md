@@ -5,11 +5,12 @@ Factual pass/fail snapshots for releases and gates. **Not** social copy for Tele
 | Document | What it records |
 |----------|-----------------|
 | [../HACKME_RC11R.md](../HACKME_RC11R.md) | **Current channel rc11r** — Linux layout, fuzz settle, Win/Linux/ISO |
-| [../HACKME_RC11M.md](../HACKME_RC11M.md) | Historical rc11m — wallet treasury |
-| [../HACKME_RC11L.md](../HACKME_RC11L.md) | ISO channel rc11l — live USB boot fix, SHA |
-| [../../reports/FINAL_VERDICT_RC11L.md](../../reports/FINAL_VERDICT_RC11L.md) | Operator GO/HOLD snapshot (2026-06-04) |
-| [../VAST_GPU_MATRIX_VERDICT_20260602.md](../VAST_GPU_MATRIX_VERDICT_20260602.md) | GPU matrix field test (historical) |
-| [../HACKME_RC11K_LAUNCH_CANDIDATE.md](../HACKME_RC11K_LAUNCH_CANDIDATE.md) | rc11k launch notes (superseded for ISO by rc11l) |
+| [../archive/rc/HACKME_RC11L.md](../archive/rc/HACKME_RC11L.md) | ISO channel rc11l — live USB boot fix (historical) |
+| [../archive/rc/HACKME_RC11M.md](../archive/rc/HACKME_RC11M.md) | Historical rc11m — wallet treasury |
+| [../archive/rc/HACKME_RC11K_LAUNCH_CANDIDATE.md](../archive/rc/HACKME_RC11K_LAUNCH_CANDIDATE.md) | rc11k launch notes (superseded) |
+| [../archive/vast/VAST_GPU_MATRIX_VERDICT_20260602.md](../archive/vast/VAST_GPU_MATRIX_VERDICT_20260602.md) | GPU matrix field test (historical) |
+
+Older RC notes: [../archive/rc/](../archive/rc/) · VAST GPU logs: [../archive/vast/](../archive/vast/)
 
 ## Do not treat as verdicts
 

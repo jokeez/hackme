@@ -4,12 +4,12 @@ Submit at:
 - **Pool:** https://www.hashrate.no/submit/pool
 - **Coin:** https://www.hashrate.no/submit/coin (if HMC not in dropdown → **Other**)
 
-Related: [MININGPOOLSTATS_LISTING.md](MININGPOOLSTATS_LISTING.md) (HMC **live** on MPS) · [MININGBOARD_LISTING.md](MININGBOARD_LISTING.md)
+Related: [MININGPOOLSTATS_LISTING.md](MININGPOOLSTATS_LISTING.md) (HMC **live** on MPS)
 
 ## Preflight
 
 ```bash
-PUBLIC_BASE=https://hackme.tech bash scripts/ops/miningboard_listing_preflight.sh
+PUBLIC_BASE=https://hackme.tech bash scripts/ops/mps_listing_readiness.sh
 curl -fsS https://hackme.tech/pool/coordinator/api/pool/stats
 curl -fsS https://hackme.tech/pool/coordinator/api/work/stats
 ```
@@ -59,7 +59,7 @@ Contact: support@hackme.tech
 | **Name** | `HackMe` |
 | **Algorithm** | **Other** → `Useful PoW / WASM PoH (GPU workerpoh)` |
 | **Website** | `https://hackme.tech` |
-| **Explorer** | `https://hackme.tech/explorer.html` |
+| **Explorer** | `https://hackme.tech/explorer-lite.html` |
 | **Block time** | `30` s |
 | **Total block reward** | `0.01` HMC (base PoH block; pool pays `reward_per_m` per attempt — see work/stats API) |
 | **% to miners** | `100` |

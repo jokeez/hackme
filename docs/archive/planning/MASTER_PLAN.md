@@ -1,6 +1,6 @@
 # HackMe — мастер-план развития
 
-> **Historical (2025).** Superseded by **[PRODUCTION_MASTER_ROADMAP.md](PRODUCTION_MASTER_ROADMAP.md)** and **[STATUS.md](STATUS.md)**. Kept for early MVP context only.
+> **Historical (2025).** Superseded by **[PRODUCTION_MASTER_ROADMAP.md](PRODUCTION_MASTER_ROADMAP.md)** and **[../STATUS.md](../STATUS.md)**. Kept for early MVP context only.
 
 Документ объединяет исходный план («скелет блокчейна → леджер → WASM»), текущее состояние кода и **пробелы**, которые нужно закрыть для зрелой системы. Файл плана в Cursor не заменяет: это живая дорожная карта **в репозитории**.
 

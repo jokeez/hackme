@@ -57,4 +57,4 @@ bash scripts/tests/site_release_consistency_gate.sh
 NODE_SSH=hackme-vps bash scripts/ops/deploy_hackme_site.sh
 ```
 
-Historical: [HACKME_RC11Q.md](HACKME_RC11Q.md) · [HACKME_RC11P.md](HACKME_RC11P.md)
+Historical: [archive/rc/HACKME_RC11Q.md](archive/rc/HACKME_RC11Q.md) · [archive/rc/HACKME_RC11P.md](archive/rc/HACKME_RC11P.md)

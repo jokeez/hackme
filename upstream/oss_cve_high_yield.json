@@ -897,12 +897,12 @@
       "picohttpparser",
       "cmp",
       "uriparser",
-      "heatshrink",
-      "cjson",
-      "yajl-210",
-      "mxml",
-      "cj5",
-      "inih"
+      "lz4",
+      "minimp3",
+      "stb_vorbis",
+      "hiredis",
+      "stb_image",
+      "yajl-210"
     ],
     "budget_iterations": 180000,
     "time_limit_sec": 5400,

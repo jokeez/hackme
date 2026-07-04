@@ -1,7 +1,7 @@
 # HackMe 0.1.0-rc11j — Final Release Verdict
 
 Date: 2026-06-02  
-Follows: [VAST_GPU_MATRIX_VERDICT_20260602.md](VAST_GPU_MATRIX_VERDICT_20260602.md)
+Follows: [../vast/VAST_GPU_MATRIX_VERDICT_20260602.md](../vast/VAST_GPU_MATRIX_VERDICT_20260602.md)
 
 ## What rc11j delivers
 
