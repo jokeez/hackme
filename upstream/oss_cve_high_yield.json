@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-30",
+  "updated": "2026-07-03",
   "note": "Auto-ranked high-yield OSS CVE targets \u2014 ASAN-class hunt queue (wave14+)",
   "method": "rank_oss_cve_targets.py",
   "wave14": {
@@ -58,12 +58,12 @@
       "priority": 1,
       "category": "interpreter",
       "last_verdict": "INFORMATIONAL",
-      "last_iterations": 10612,
-      "crash_count": 8611,
+      "last_iterations": 21201,
+      "crash_count": 16330,
       "asan_crashes": 0,
       "reasons": [
         "category=interpreter(+45)",
-        "INFORMATIONAL crashes=8611(+80)",
+        "INFORMATIONAL crashes=16330(+80)",
         "priority=1(+10)",
         "pinned_cve_chase(+75)"
       ]
@@ -76,31 +76,14 @@
       "priority": 1,
       "category": "http",
       "last_verdict": "INFORMATIONAL",
-      "last_iterations": 10988,
-      "crash_count": 8849,
+      "last_iterations": 22526,
+      "crash_count": 17288,
       "asan_crashes": 0,
       "reasons": [
         "category=http(+30)",
-        "INFORMATIONAL crashes=8849(+80)",
+        "INFORMATIONAL crashes=17288(+80)",
         "priority=1(+10)",
         "pinned_cve_chase(+75)"
-      ]
-    },
-    {
-      "id": "wren",
-      "score": 175,
-      "repo": "https://github.com/wren-lang/wren",
-      "title": "wren-lang/wren \u00b7 wrenInterpret VM",
-      "priority": 1,
-      "category": "interpreter",
-      "last_verdict": null,
-      "last_iterations": null,
-      "crash_count": null,
-      "asan_crashes": null,
-      "reasons": [
-        "category=interpreter(+45)",
-        "never fuzzed(+120)",
-        "priority=1(+10)"
       ]
     },
     {
@@ -230,12 +213,12 @@
       "priority": 2,
       "category": "config",
       "last_verdict": "INFORMATIONAL",
-      "last_iterations": 64479,
-      "crash_count": 5730,
+      "last_iterations": 132895,
+      "crash_count": 10824,
       "asan_crashes": 0,
       "reasons": [
         "category=config(+10)",
-        "INFORMATIONAL crashes=5730(+80)",
+        "INFORMATIONAL crashes=10824(+80)",
         "pinned_cve_chase(+75)"
       ]
     },
@@ -364,12 +347,12 @@
       "priority": 1,
       "category": "interpreter",
       "last_verdict": "INFORMATIONAL",
-      "last_iterations": 14830,
-      "crash_count": 11680,
+      "last_iterations": 22666,
+      "crash_count": 17349,
       "asan_crashes": 0,
       "reasons": [
         "category=interpreter(+45)",
-        "INFORMATIONAL crashes=11680(+80)",
+        "INFORMATIONAL crashes=17349(+80)",
         "priority=1(+10)"
       ]
     },
@@ -381,12 +364,12 @@
       "priority": 1,
       "category": "interpreter",
       "last_verdict": "INFORMATIONAL",
-      "last_iterations": 12950,
-      "crash_count": 10422,
+      "last_iterations": 19880,
+      "crash_count": 15503,
       "asan_crashes": 0,
       "reasons": [
         "category=interpreter(+45)",
-        "INFORMATIONAL crashes=10422(+80)",
+        "INFORMATIONAL crashes=15503(+80)",
         "priority=1(+10)"
       ]
     },
@@ -459,6 +442,22 @@
       "score": 130,
       "repo": "https://github.com/mity/md4c",
       "title": "mity/md4c \u00b7 md_parse Markdown",
+      "priority": 1,
+      "category": "json",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "never fuzzed(+120)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "stb_image",
+      "score": 130,
+      "repo": "https://github.com/nothings/stb",
+      "title": "nothings/stb \u00b7 stbi_load_from_memory",
       "priority": 1,
       "category": "json",
       "last_verdict": null,
@@ -821,6 +820,23 @@
       ]
     },
     {
+      "id": "wren",
+      "score": 107,
+      "repo": "https://github.com/wren-lang/wren",
+      "title": "wren-lang/wren \u00b7 wrenInterpret VM",
+      "priority": 1,
+      "category": "interpreter",
+      "last_verdict": "INFORMATIONAL",
+      "last_iterations": 200000,
+      "crash_count": 261,
+      "asan_crashes": 0,
+      "reasons": [
+        "category=interpreter(+45)",
+        "INFORMATIONAL crashes=261(+52)",
+        "priority=1(+10)"
+      ]
+    },
+    {
       "id": "jsonparser",
       "score": 75,
       "repo": "https://github.com/json-parser/json-parser",
@@ -837,17 +853,17 @@
     },
     {
       "id": "centijson",
-      "score": 49,
+      "score": 50,
       "repo": "https://github.com/mity/centijson",
       "title": "mity/centijson \u00b7 JSON parse",
       "priority": 1,
       "category": "json",
       "last_verdict": "INFORMATIONAL",
-      "last_iterations": 250000,
-      "crash_count": 2976,
+      "last_iterations": 500000,
+      "crash_count": 5267,
       "asan_crashes": 0,
       "reasons": [
-        "INFORMATIONAL crashes=2976(+79)",
+        "INFORMATIONAL crashes=5267(+80)",
         "priority=1(+10)",
         "disclosure_hold(-40)"
       ]
@@ -1455,5 +1471,113 @@
       "msgpack-c"
     ],
     "strategy": "new_github_targets"
+  },
+  "wave29": {
+    "targets": [
+      "lz4",
+      "minimp3",
+      "stb_vorbis",
+      "hiredis",
+      "stb_image",
+      "yajl-210",
+      "cj5",
+      "cwalk",
+      "frozen",
+      "inih",
+      "jsmn",
+      "kuba_zip"
+    ],
+    "budget_iterations": 100000,
+    "time_limit_sec": 3600,
+    "skip_ids": [
+      "centijson",
+      "cfgpack",
+      "cjson",
+      "cmark",
+      "cmp",
+      "cyaml",
+      "duktape",
+      "expat",
+      "heatshrink",
+      "jansson",
+      "json-c",
+      "libcbor",
+      "libucl",
+      "libxml2",
+      "libyaml",
+      "lua",
+      "md4c",
+      "miniz",
+      "mjson",
+      "mpack",
+      "msgpack-c",
+      "nghttp2",
+      "oniguruma",
+      "parson",
+      "pcre2",
+      "picohttpparser",
+      "quickjs",
+      "sheredom",
+      "tomlc17",
+      "uriparser",
+      "yajl",
+      "yyjson",
+      "zlib"
+    ],
+    "strategy": "sweep_remaining_easy"
+  },
+  "wave31": {
+    "targets": [
+      "lz4",
+      "minimp3",
+      "stb_vorbis",
+      "hiredis",
+      "stb_image",
+      "yajl-210",
+      "cj5",
+      "cwalk",
+      "frozen",
+      "inih",
+      "jsmn",
+      "kuba_zip"
+    ],
+    "budget_iterations": 100000,
+    "time_limit_sec": 3600,
+    "skip_ids": [
+      "centijson",
+      "cfgpack",
+      "cjson",
+      "cmark",
+      "cmp",
+      "cyaml",
+      "duktape",
+      "expat",
+      "heatshrink",
+      "jansson",
+      "json-c",
+      "libcbor",
+      "libucl",
+      "libxml2",
+      "libyaml",
+      "lua",
+      "md4c",
+      "miniz",
+      "mjson",
+      "mpack",
+      "msgpack-c",
+      "nghttp2",
+      "oniguruma",
+      "parson",
+      "pcre2",
+      "picohttpparser",
+      "quickjs",
+      "sheredom",
+      "tomlc17",
+      "uriparser",
+      "yajl",
+      "yyjson",
+      "zlib"
+    ],
+    "strategy": "sweep_remaining_easy"
   }
 }

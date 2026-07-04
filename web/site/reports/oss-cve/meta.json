@@ -1,11 +1,11 @@
 {
   "verdict": "CLEAN",
-  "summary": "CLEAN \u2014 no ASAN crash in budget. Publish as methodology case study.",
+  "summary": "INFORMATIONAL \u2014 UBSan-only findings (not CVE-class). See per-target reports.",
   "cve_candidates": [],
-  "informational_targets": [],
-  "clean_targets": [
-    "pcre2"
+  "informational_targets": [
+    "mxml"
   ],
+  "clean_targets": [],
   "hold_disclosure": [
     "centijson"
   ],
@@ -27,8 +27,8 @@
     "jsonparser",
     "wren"
   ],
-  "wave": "pcre2",
-  "started_at": "2026-07-01T09:57:38Z",
-  "finished_at": "2026-07-01T10:09:32Z",
+  "wave": "wave31-asan-mxml-20260703T195408Z",
+  "started_at": "2026-07-03T19:55:05Z",
+  "finished_at": "2026-07-03T21:25:07Z",
   "publish_allowed": true
 }

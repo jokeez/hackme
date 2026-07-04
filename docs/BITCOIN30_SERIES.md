@@ -46,7 +46,7 @@ Public week-1 ledger: [hackme.tech/reports/bitcoin30-week1.html](https://hackme.
 | 12 | EvalScript stack · deep | `upstream_bitcoin_evalscript_stack.wasm` | 256 runs · 80 guard signals · `day12-20260620T185923Z` |
 | 13 | Witness stack · deep | `upstream_bitcoin_witness_stack.wasm` | 256 runs · 80 guard signals · `day13-20260620T195022Z` |
 | 14 | EvalScript op count · deep | `upstream_bitcoin_evalscript_opcount.wasm` | 256 runs · 80 guard signals · `day14-20260620T195316Z` |
-| 15–30 | TBD | extend `run_bitcoin30_day.sh` | taproot · new guards |
+| 15–30 | Deep / extended guards | extend `run_bitcoin30_day.sh` | public day reports on site |
 
 ### Two-week verdict (days 1–14)
 
@@ -63,15 +63,16 @@ bash scripts/ops/start_bitcoin30_5days.sh
 # catch-up (no wait): WAIT_SEC=0 bash scripts/ops/start_bitcoin30_5days.sh
 ```
 
-Social drafts: `docs/BITCOIN30_SOCIAL_WEEK2.md`
+Social copy (Telegram + X, all 30 days): [SOCIAL_BTC30_POSTS.md](SOCIAL_BTC30_POSTS.md)
 
 ### Week 1 verdict
 
 512 total runs · 321 guard signals · **0 critical** · 1 clean module (Day 3). Guard signals = boundary-class triage, not CVE claims.
 
-## Social copy (English, local only)
+## Social copy
 
-Drafts live under `docs/social/` (gitignored). After each `DAY=N` run, update Telegram / X thread / Bitcointalk from `reports/bitcoin30/CURRENT/DAY_SUMMARY.json`.
+Ready-to-post Telegram + X threads for all 30 days: [SOCIAL_BTC30_POSTS.md](SOCIAL_BTC30_POSTS.md).  
+After each `DAY=N` run, cross-check stats against `reports/bitcoin30/CURRENT/DAY_SUMMARY.json` before posting.
 
 ## Disclaimer
 

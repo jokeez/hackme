@@ -11,31 +11,68 @@
 
 # HackMe Network
 
-**Useful Proof-of-Work · public HTTP pool · GPU mining (CUDA / OpenCL)**
+**Useful Proof-of-Work · public HTTP pool · GPU mining · B2B security fuzz**
 
-[![Release](https://img.shields.io/badge/release-0.1.0--rc11m-00d1ff?style=for-the-badge)](https://hackme.tech/downloads.html)
-[![License](https://img.shields.io/badge/license-AGPL--3.0-39ff14?style=for-the-badge)](LICENSE)
-[![Website](https://img.shields.io/badge/website-hackme.tech-7fe7ff?style=for-the-badge)](https://hackme.tech)
+[![Release](https://img.shields.io/badge/release-0.1.0--rc11r-00d1ff?style=for-the-badge)](https://hackme.tech/downloads.html)
+[![Security audit](https://img.shields.io/badge/security-16%2F16_PASS-39ff14?style=for-the-badge)](docs/STATUS.md)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-7fe7ff?style=for-the-badge)](LICENSE)
+[![Website](https://img.shields.io/badge/live-hackme.tech-ff6b9d?style=for-the-badge)](https://hackme.tech)
 
-[Downloads](https://hackme.tech/downloads.html) · [Coins](https://hackme.tech/coins.html) · [Pool stats](https://hackme.tech/pool/coordinator/api/pool/stats) · [Explorer](https://hackme.tech/pool/explorer) · [Setup guide](docs/SETUP.md) · [All docs](docs/INDEX.md)
+[Downloads](https://hackme.tech/downloads.html) · [Research](https://hackme.tech/research.html) · [Developers](https://hackme.tech/developers.html) · [Pool stats](https://hackme.tech/pool/coordinator/api/pool/stats) · [Explorer](https://hackme.tech/explorer-lite.html) · [Docs index](docs/INDEX.md)
 
 </div>
 
 ---
 
-## What you get
-
-HackMe is open mining infrastructure: a **desktop node** (dashboard at `:8080`) and a **pool worker** (`workerpoh`) submit work to the coordinator on [hackme.tech](https://hackme.tech). Rewards accrue as **off-chain HMC** until operator settlement.
+## At a glance
 
 | | |
 |:---|:---|
-| **Pool** | HTTP coordinator (not Stratum) · dynamic `target_mod` |
-| **GPU** | NVIDIA CUDA · AMD/Intel OpenCL · CPU fallback |
-| **Ecosystem** | **HMC** live pool · **SUP** accrual (hybrid HMC work) · **HMS** storage+seal lane (UI preview; backend on dedicated VPS #2 before go-live) |
-| **Release** | `0.1.0-rc11n` — Windows/Linux + node watchdog + payments E2E; HackMe OS ISO still `rc11l` until next ISO build |
+| **What** | Open mining + security-fuzz infrastructure — hash power runs real WASM guards, not empty lottery work |
+| **Pool** | HTTP coordinator on [hackme.tech](https://hackme.tech) · dynamic `target_mod` · hybrid Ed25519 |
+| **GPU** | NVIDIA CUDA · AMD/Intel OpenCL · CPU fallback · up to **~123 GH/s** on reference RTX rig |
+| **Coins** | **HMC** live pool · **SUP** accrual lane · **HMS** storage preview (prelaunch) |
+| **Release** | **`0.1.0-rc11r`** — Windows installer, Linux tarball, fuzz CLI, HackMe OS ISO |
+| **Security** | **16/16** full audit PASS · public red-team gates · locked WASM sandbox |
 | **License** | [AGPL-3.0](LICENSE) · [Trademark](TRADEMARK.md) |
 
-> Wallet balance on the dashboard ≠ pool payout until settlement. Map `WORKER_ID` → `HMC-…` with the operator. See [docs/NETWORK_MODEL.md](docs/NETWORK_MODEL.md).
+> Dashboard wallet balance ≠ pool payout until operator settlement. Map `WORKER_ID` → `HMC-…` with the operator. See [docs/NETWORK_MODEL.md](docs/NETWORK_MODEL.md).
+
+---
+
+## Ecosystem
+
+```mermaid
+flowchart LR
+  subgraph miners["Miners"]
+    GPU["GPU workerpoh"]
+    ISO["HackMe OS rig"]
+  end
+  subgraph hub["hackme.tech"]
+    COORD["Pool coordinator"]
+    NODE["Authority node"]
+    FUZZ["B2B fuzz marketplace"]
+  end
+  subgraph outcomes["Outcomes"]
+    HMC["HMC rewards"]
+    REPORT["fuzz_report_v2"]
+    RESEARCH["Public research ledgers"]
+  end
+  GPU --> COORD
+  ISO --> COORD
+  COORD --> NODE
+  FUZZ --> COORD
+  COORD --> HMC
+  FUZZ --> REPORT
+  NODE --> RESEARCH
+```
+
+| Lane | Status | Docs |
+|------|--------|------|
+| **HMC** mining pool | Live | [OPEN_POOL_MINERS.md](docs/OPEN_POOL_MINERS.md) |
+| **SUP** support accrual | Live | [SUPPORT_COIN_UTILITY.md](docs/SUPPORT_COIN_UTILITY.md) |
+| **B2B fuzz** (orders + pool) | Live | [FUZZ_PRODUCT_GUIDE.md](docs/FUZZ_PRODUCT_GUIDE.md) |
+| **HMS** storage + seal | Preview | [HMS_PUBLIC_ROADMAP.md](docs/HMS_PUBLIC_ROADMAP.md) |
 
 ---
 
@@ -50,31 +87,60 @@ bash scripts/ops/desktop_mode_up.sh
 ```
 
 Open **http://127.0.0.1:8080** → **Workers** → start pool worker.  
-Full steps: **[docs/SETUP.md](docs/SETUP.md)**
+Full guide: **[docs/SETUP.md](docs/SETUP.md)**
 
 ### Windows
 
-1. [Download installer](https://hackme.tech/downloads.html) and verify SHA256 on that page  
-2. Run **Start HackMe Miner**  
+1. [Download installer](https://hackme.tech/downloads.html) — verify SHA256 on that page  
+2. Run **Start HackMe Miner** from Start menu  
 
 ### HackMe OS (USB rig)
 
-Flash ISO from downloads → boot **HackMe OS** menu → wallet + mining auto-start.  
-Verify ISO: `bash scripts/tests/verify_hackme_iso.sh your.iso`
+Flash ISO from downloads → boot **HackMe OS** → wallet + mining auto-start.  
+Verify: `bash scripts/tests/verify_hackme_iso.sh your.iso`
 
 ---
 
-## Configuration files (do not commit secrets)
+## B2B security fuzz
+
+Integrators run campaigns via the local node dashboard (`#orders` → `#fuzz`) or the public developer portal.
+
+| Tier | Depth | Typical use |
+|------|-------|-------------|
+| `wasm_only` | Fast WASM guard scan | CI smoke, daily guards |
+| `wasm_native` | WASM → native bridge confirm | Bounty-grade triage |
+| `bytes_corpus` | Structured byte inputs | Deep corpus passes |
+
+- Product guide: [docs/FUZZ_PRODUCT_GUIDE.md](docs/FUZZ_PRODUCT_GUIDE.md)  
+- Deliverables: [docs/CUSTOMER_FUZZ_DELIVERABLES.md](docs/CUSTOMER_FUZZ_DELIVERABLES.md)  
+- Public landing: [hackme.tech/developers.html](https://hackme.tech/developers.html)
+
+---
+
+## Research & public ledgers
+
+| Series | Hub | Social copy |
+|--------|-----|-------------|
+| **Bitcoin Core 30-day fuzz** | [bitcoin30.html](https://hackme.tech/reports/bitcoin30.html) | [docs/SOCIAL_BTC30_POSTS.md](docs/SOCIAL_BTC30_POSTS.md) |
+| **OSS CVE hunt** | [oss-cve/](https://hackme.tech/reports/oss-cve/) | — |
+| **L1 crypto stack** | [research.html](https://hackme.tech/research.html) | — |
+
+Run a BTC30 day locally: `DAY=8 bash scripts/ops/run_bitcoin30_day.sh` — see [docs/BITCOIN30_SERIES.md](docs/BITCOIN30_SERIES.md).
+
+---
+
+## Configuration (never commit secrets)
 
 | File | Purpose |
 |------|---------|
 | `.env.desktop` | Local node + dashboard (`HACKME_ADMIN_TOKEN`, pool URL) |
-| `.secrets/hackme_coordinator_worker_token` | Pool worker token (one line) |
-| `.secrets/hackme_coordinator_admin_token` | **Operators only** — never publish |
+| `hackme.env` | Windows miner env beside `hackme.exe` (installer writes this) |
+| `.secrets/hackme_coordinator_worker_token` | Pool worker token |
+| `.secrets/hackme_coordinator_admin_token` | Operators only |
 | `HACKME_MINER_ED25519_SEED_HEX` | Per-rig signing key (`minersign -gen-seed`) |
 
 Templates: `.env.desktop.example`, `scripts/ops/worker.env.example`.  
-**Read before pushing to GitHub:** [docs/SECURITY_REPO.md](docs/SECURITY_REPO.md)
+Before pushing: [docs/SECURITY_REPO.md](docs/SECURITY_REPO.md)
 
 ---
 
@@ -84,7 +150,7 @@ Templates: `.env.desktop.example`, `scripts/ops/worker.env.example`.
 go build -trimpath -o hackme-node .
 go build -trimpath -tags opencl -o workerpoh-opencl ./cmd/workerpoh
 go build -trimpath -o hackme-coordinator ./cmd/coordinator
-VERSION=0.1.0-rc11n bash scripts/release/make_release_bundle.sh
+VERSION=0.1.0-rc11r bash scripts/release/make_release_bundle.sh
 ```
 
 ---
@@ -97,22 +163,18 @@ bash scripts/tests/public_site_smoke.sh
 bash scripts/ops/run_miner_launch_gate.sh    # operators — RC gate
 ```
 
-Current RC status: [docs/STATUS.md](docs/STATUS.md)
+Current RC snapshot: [docs/STATUS.md](docs/STATUS.md) · detail: [docs/HACKME_RC11R.md](docs/HACKME_RC11R.md)
 
 ---
 
-## Documentation map
+## Documentation
 
 | | |
 |--|--|
-| [docs/SETUP.md](docs/SETUP.md) | Install paths (Linux / Windows / ISO / CLI) |
-| [docs/INDEX.md](docs/INDEX.md) | Full doc index |
-| [docs/OPEN_POOL_MINERS.md](docs/OPEN_POOL_MINERS.md) | Pool rules for miners |
-| [docs/HMS_PUBLIC_ROADMAP.md](docs/HMS_PUBLIC_ROADMAP.md) | HackMe Storage (HMS) prelaunch roadmap |
-| [docs/HMS_BACKEND.md](docs/HMS_BACKEND.md) | HMS coordinator, storage/seal workers, Stratum pilot |
-| [docs/SUPPORT_COIN_UTILITY.md](docs/SUPPORT_COIN_UTILITY.md) | HackMe Support (SUP) accrual |
-| [docs/GPU_MINING_BACKENDS.md](docs/GPU_MINING_BACKENDS.md) | GPU matrix |
-| [docs/API.md](docs/API.md) | HTTP API |
+| [docs/INDEX.md](docs/INDEX.md) | Full documentation map |
+| [docs/SETUP.md](docs/SETUP.md) | Install paths (Linux / Windows / ISO) |
+| [docs/API.md](docs/API.md) | HTTP API reference |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design |
 | [scripts/release/README.md](scripts/release/README.md) | Release pipeline |
 
 ---
@@ -123,13 +185,14 @@ Current RC status: [docs/STATUS.md](docs/STATUS.md)
 |--|--|
 | Official site | **https://hackme.tech** only |
 | Downloads | SHA256 on [downloads.html](https://hackme.tech/downloads.html) |
-| Vulnerabilities | [contacts.html](https://hackme.tech/contacts.html) — no public 0-days |
+| Vulnerabilities | [contacts.html](https://hackme.tech/contacts.html) — responsible disclosure |
+| Bug bounty | [docs/BUG_BOUNTY.md](docs/BUG_BOUNTY.md) |
 
 ---
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Do not commit `.env`, `.secrets`, `data/`, or `logs/` ([`.gitignore`](.gitignore)).
+See [CONTRIBUTING.md](CONTRIBUTING.md). Do not commit `.env`, `.secrets`, `hackme.env`, `data/`, or `logs/` ([`.gitignore`](.gitignore)).
 
 ---
 

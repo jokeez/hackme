@@ -3,17 +3,28 @@
 #
 #   bash scripts/ops/ensure_settlement_treasury_float.sh
 #   MIN_FLOAT_HMC=50 TOPUP_HMC=30 bash scripts/ops/ensure_settlement_treasury_float.sh
+#
+# VPS hub (auto from dev treasury seed):
+#   TREASURY_FUND_SEED_HEX=/opt/hackme/.secrets/hackme_treasury_ed25519_seed.hex \
+#   CHAIN_BASE=http://127.0.0.1:18080 bash scripts/ops/ensure_settlement_treasury_float.sh
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
 TREASURY_ADDR="${TREASURY_ADDR:-HMC-381c0c5e2cfcc714}"
 CHAIN_BASE="${CHAIN_BASE:-http://127.0.0.1:18080}"
-MIN_FLOAT_HMC="${MIN_FLOAT_HMC:-40}"
-TOPUP_HMC="${TOPUP_HMC:-50}"
+MIN_FLOAT_HMC="${MIN_FLOAT_HMC:-50}"
+TOPUP_HMC="${TOPUP_HMC:-80}"
 MIN_SETTLE_HMC="${MIN_SETTLE_HMC:-0.0001}"
 DATA_DIR="${HACKME_DATA_DIR:-${DATA_DIR:-$ROOT/logs/desktop/data}}"
+TREASURY_FUND_SEED_HEX="${TREASURY_FUND_SEED_HEX:-${ROOT}/.secrets/hackme_treasury_ed25519_seed.hex}"
 CURL_MAX_TIME="${CURL_MAX_TIME:-8}"
+FUND_TMP_DIR=""
+
+cleanup() {
+  [[ -n "$FUND_TMP_DIR" && -d "$FUND_TMP_DIR" ]] && rm -rf "$FUND_TMP_DIR"
+}
+trap cleanup EXIT
 
 treasury_balance_hmc() {
   local raw=""
@@ -27,6 +38,53 @@ treasury_balance_hmc() {
   done
   echo "0"
   return 1
+}
+
+fund_data_dir() {
+  if [[ -r "$TREASURY_FUND_SEED_HEX" ]]; then
+    FUND_TMP_DIR="$(mktemp -d)"
+    tr -d '\r\n' <"$TREASURY_FUND_SEED_HEX" >"${FUND_TMP_DIR}/node_ed25519.seed"
+    chmod 600 "${FUND_TMP_DIR}/node_ed25519.seed"
+    printf '%s' "$FUND_TMP_DIR"
+    return 0
+  fi
+  if [[ -f "${DATA_DIR}/node_ed25519.seed" || -f "${DATA_DIR}/hackme.db" ]]; then
+    printf '%s' "$DATA_DIR"
+    return 0
+  fi
+  return 1
+}
+
+send_topup() {
+  local need="$1"
+  local fund_dir
+  if ! fund_dir="$(fund_data_dir)"; then
+    echo "[treasury-float] WARN no fund seed at ${DATA_DIR} or ${TREASURY_FUND_SEED_HEX}" >&2
+    return 1
+  fi
+  if ! go run ./cmd/sendtransfer \
+    -data-dir "$fund_dir" \
+    -to "$TREASURY_ADDR" \
+    -amount-hmc "$need" \
+    -base "$CHAIN_BASE" \
+    -memo settlement_treasury_topup; then
+    echo "[treasury-float] WARN topup transfer failed" >&2
+    return 1
+  fi
+  local attempt=0
+  local target
+  target="$(python3 -c "print(float('${need}')*0.85)")"
+  while (( attempt < 24 )); do
+    local bal
+    bal="$(treasury_balance_hmc || echo 0)"
+    if python3 -c "import sys; sys.exit(0 if float(sys.argv[1])>=float(sys.argv[2]) else 1)" "$bal" "$target" 2>/dev/null; then
+      return 0
+    fi
+    sleep 5
+    attempt=$((attempt + 1))
+  done
+  echo "[treasury-float] WARN topup sent but balance not confirmed yet" >&2
+  return 0
 }
 
 bal_hmc="$(treasury_balance_hmc || echo 0)"
@@ -44,18 +102,7 @@ PY
 )"
 if awk -v n="$need" 'BEGIN{exit !(n>0)}'; then
   echo "[treasury-float] treasury=${TREASURY_ADDR} balance=${bal_hmc} HMC < min=${MIN_FLOAT_HMC} — topup ${need} HMC"
-  if [[ -f "${DATA_DIR}/node_ed25519.seed" || -f "${DATA_DIR}/hackme.db" ]]; then
-    if ! go run ./cmd/sendtransfer \
-      -data-dir "$DATA_DIR" \
-      -to "$TREASURY_ADDR" \
-      -amount-hmc "$need" \
-      -base "$CHAIN_BASE" \
-      -memo settlement_treasury_topup; then
-      echo "[treasury-float] WARN topup failed (operator seed / canonical); continuing if treasury can settle" >&2
-    fi
-  else
-    echo "[treasury-float] WARN no operator seed at ${DATA_DIR} — skip topup (fund treasury manually or run from desktop)" >&2
-  fi
+  send_topup "$need" || true
   bal_hmc="$(treasury_balance_hmc || echo "$bal_hmc")"
 fi
 

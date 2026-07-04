@@ -1,0 +1,14 @@
+[Unit]
+Description=HackMe settlement autopilot (treasury float + token sync + disk guard)
+After=network-online.target hackme-node.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hackme
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/go/bin
+Environment=DEPLOY=/opt/hackme
+ExecStart=/opt/hackme/scripts/ops/vps_settlement_autopilot.sh
+
+[Install]
+WantedBy=multi-user.target

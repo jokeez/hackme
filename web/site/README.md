@@ -13,7 +13,7 @@ Static front-end for [hackme.tech](https://hackme.tech). Served separately from 
 | `downloads.html` | Release artifacts and checksums |
 | `docs.html` | Documentation hub |
 | `economics-model.html` | Chain / pool / orders economics |
-| `pool/explorer` (proxied) | Live explorer on production |
+| `explorer-lite.html` | Canonical block explorer (public) |
 
 Release label and download URLs: `assets/app.js` → `RELEASE_VER` (must match `scripts/release/CURRENT_VERSION` and `dist/release_<VERSION>/` on the server). HackMe OS ISO uses `ISO_CHANNEL` in `app.js` / `scripts/release/CURRENT_ISO_VERSION` until the ISO is rebuilt for the Win/Linux channel.
 

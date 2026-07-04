@@ -48,6 +48,15 @@ PAGES=(
   /fuzz-campaigns.html
   /fuzz-guide.html
   /explorer-lite.html
+  /fuzz-marketplace.html
+  /fuzzing-console.html
+  /phasing-console.html
+  /security-notes.html
+  /sitemap.xml
+  /robots.txt
+  /reports/bitcoin30.html
+  /reports/bitcoin30-day19.html
+  /reports/oss-cve/index.html
   /api-reference.html
   /dist/docs/HMC_Listing_Pack.pdf
   /dist/docs/SUP_Companion_Overview.pdf

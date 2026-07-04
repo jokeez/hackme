@@ -1,7 +1,10 @@
 User-agent: *
 Allow: /
-Allow: /pool/explorer
+Allow: /reports/
+Allow: /explorer-lite.html
 Disallow: /api/
 Disallow: /pool/api/
+Disallow: /developer-console.html
+Disallow: /developer-dashboard.html
 
 Sitemap: https://hackme.tech/sitemap.xml

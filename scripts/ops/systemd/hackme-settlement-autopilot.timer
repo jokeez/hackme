@@ -1,0 +1,12 @@
+[Unit]
+Description=HackMe settlement autopilot every 15 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=15min
+RandomizedDelaySec=30s
+Persistent=true
+Unit=hackme-settlement-autopilot.service
+
+[Install]
+WantedBy=timers.target
