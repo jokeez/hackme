@@ -1,6 +1,22 @@
 import { test, expect, type Page } from '@playwright/test';
+import fs from 'fs';
+import path from 'path';
 
 const SITE = process.env.SITE_BASE || 'https://hackme.tech';
+
+function resolveIsoUrl(): string {
+  if (process.env.ISO_URL) return process.env.ISO_URL;
+  const root = path.resolve(__dirname, '../../..');
+  const isoVerPath = path.join(root, 'scripts/release/CURRENT_ISO_VERSION');
+  let ver = '0.1.0-rc11r';
+  try {
+    ver = fs.readFileSync(isoVerPath, 'utf8').trim();
+  } catch {
+    /* use fallback */
+  }
+  const base = SITE.replace(/\/$/, '');
+  return `${base}/dist/release_${ver}/HackMe-OS-${ver}-amd64.iso`;
+}
 
 const PAGES = [
   '/',
@@ -49,9 +65,7 @@ test.describe('Public site hackme.tech', () => {
   }
 
   test('ISO download returns Content-Length and starts transfer', async ({ request }) => {
-    const isoUrl =
-      process.env.ISO_URL ||
-      'https://hackme.tech/dist/release_0.1.0-rc11g/HackMe-OS-0.1.0-rc11g-amd64.iso';
+    const isoUrl = resolveIsoUrl();
     const head = await request.head(isoUrl, { timeout: 120_000 });
     expect(head.status()).toBe(200);
     const len = head.headers()['content-length'];
