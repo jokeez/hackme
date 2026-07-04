@@ -25,8 +25,8 @@
     github: { href: "https://github.com/jokeez/hackme", label: "GitHub", external: true },
   };
 
-  const PRIMARY = ["mine", "coins", "fuzz", "research", "downloads", "docs"];
-  const MORE = ["news", "economics", "transparency", "roadmap", "listing", "operators", "developers", "contacts", "legal", "privacy", "explorer"];
+  const PRIMARY = ["mine", "coins", "research", "docs"];
+  const MORE = ["fuzz", "developers", "news", "economics", "transparency", "roadmap", "listing", "operators", "contacts", "legal", "privacy", "explorer", "downloads"];
 
   const FOOTER_GROUPS = [
     { title: "Network", keys: ["home", "coins", "transparency", "roadmap", "research", "github", "explorer"] },
@@ -72,21 +72,40 @@
     if (!meta) return "";
     const cur = active === p ? ' aria-current="page"' : "";
     const ext = meta.external ? ' target="_blank" rel="noreferrer"' : "";
-    return `<a href="${meta.href}"${cur}${ext}>${meta.label}</a>`;
+    let cls = "";
+    if (p === "mine") cls = ' class="nav-mine-cta"';
+    else if (p === "fuzz") cls = ' class="nav-link-fuzz"';
+    return `<a href="${meta.href}"${cls}${cur}${ext}>${meta.label}</a>`;
   }
 
   function renderNav(active) {
     const home = active !== "home" ? link("home", active) : "";
     const primary = PRIMARY.map((k) => link(k, active)).join("");
-  const moreItems = MORE.map((k) => link(k, active)).join("");
+    const moreItems = MORE.map((k) => link(k, active)).join("");
     return `
       ${home}
       ${primary}
       <details class="nav-more">
-        <summary>More</summary>
-        <div class="nav-more-menu">${moreItems}</div>
+        <summary aria-haspopup="true">More</summary>
+        <div class="nav-more-menu" role="menu">${moreItems}</div>
       </details>
     `;
+  }
+
+  function wireNavMoreDismiss() {
+    document.querySelectorAll(".nav-more").forEach((details) => {
+      if (details.dataset.navWired === "1") return;
+      details.dataset.navWired = "1";
+      document.addEventListener("click", (ev) => {
+        if (!details.open) return;
+        const t = ev.target;
+        if (t instanceof Node && details.contains(t)) return;
+        details.open = false;
+      });
+      document.addEventListener("keydown", (ev) => {
+        if (ev.key === "Escape" && details.open) details.open = false;
+      });
+    });
   }
 
   function renderFooter(active) {
@@ -125,6 +144,7 @@
     document.querySelectorAll("#explorer-link-top, #explorer-link-hero, #explorer-link-card").forEach((el) => {
       if (!el.getAttribute("href")) el.setAttribute("href", PAGES.explorer.href);
     });
+    wireNavMoreDismiss();
     ensureDisclosureTicker();
   }
 

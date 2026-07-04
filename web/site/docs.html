@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./assets/styles.css?v=20260502docs2" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20260704hub" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
   <link rel="icon" href="/assets/favicon.png" type="image/png" />
 </head>
@@ -33,6 +33,42 @@
         <span class="pill">Explorer</span>
         <span class="pill">WASM gate</span>
       </div>
+    </section>
+
+    <section id="deep-dives" class="panel glass hub-panel">
+      <div class="panel-head">
+        <h2>Deep dives</h2>
+        <p class="subtle">Moved from the home page — expand what you need, or open the dedicated guides.</p>
+      </div>
+      <details>
+        <summary>Security audits &amp; fuzz reports</summary>
+        <div class="details-body">
+          <p><strong>B2B fuzz:</strong> <code>hackme-fuzzing wizard --wasm guard.wasm --package audit</code> on your local node → report token + CI <code>gate</code> URL.</p>
+          <p><a href="./developers.html">Developers</a> · <a href="./fuzz-guide.html">Fuzz guide</a> · <a href="./reports/l1-crypto-stack-v4.html">L1 v4 live</a></p>
+        </div>
+      </details>
+      <details>
+        <summary>Proof of Analysis (useful work)</summary>
+        <div class="details-body">
+          <p>Paid jobs split into deterministic fuzz segments — rewards tie to real input ranges and findings, not lottery hashes.</p>
+          <ul>
+            <li>Traceable chunk assignment and completion</li>
+            <li>Coverage, crashes, and evidence in customer reports</li>
+          </ul>
+        </div>
+      </details>
+      <details>
+        <summary>Why operators choose HackMe</summary>
+        <div class="details-body">
+          <ul>
+            <li>Canonical follower sync for wallet, height, and tasks</li>
+            <li>WASM task gates, release checksums, and adversarial test packs</li>
+            <li>Public explorer and read-only APIs</li>
+          </ul>
+          <p><a href="./operator-checklist.html">Operator checklist →</a></p>
+        </div>
+      </details>
+      <p class="subtle" style="margin-top:1rem"><a href="./economics-model.html">Full economics model</a> · <a href="./token-transparency.html">Live supply</a></p>
     </section>
 
     <section class="panel glass">
@@ -324,7 +360,7 @@
     <div class="footer-nav"></div>
   </footer>
 
-  <script src="./assets/site-shell.js?v=20260601hub"></script>
-  <script src="./assets/app.js?v=20260511dist"></script>
+  <script src="./assets/site-shell.js?v=20260704hub"></script>
+  <script src="./assets/app.js?v=20260704site"></script>
 </body>
 </html>
