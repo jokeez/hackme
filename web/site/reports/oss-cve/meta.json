@@ -5,15 +5,7 @@
   "informational_targets": [
     "mxml"
   ],
-  "clean_targets": [
-    "yajl-210",
-    "cj5",
-    "inih",
-    "jsmn",
-    "libconfini",
-    "parsello",
-    "tomlc99"
-  ],
+  "clean_targets": [],
   "hold_disclosure": [
     "centijson"
   ],
@@ -35,8 +27,8 @@
     "jsonparser",
     "wren"
   ],
-  "wave": "wave34-20260704T140600Z-w34",
-  "started_at": "2026-07-04T14:12:07Z",
-  "finished_at": "2026-07-04T15:00:43Z",
+  "wave": "wave34-asan-20260704T140600Z-w34",
+  "started_at": "2026-07-04T15:00:56Z",
+  "finished_at": "2026-07-04T17:00:57Z",
   "publish_allowed": true
 }
