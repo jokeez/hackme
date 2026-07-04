@@ -137,6 +137,22 @@ def load_manifest() -> dict:
     return json.loads(MANIFEST.read_text())
 
 
+OSS_DRIVER_DIR = ROOT / "tasks" / "sources" / "fuzz" / "oss"
+
+
+def target_has_driver(tid: str, manifest_by_id: dict[str, dict]) -> bool:
+    """True when tasks/sources/fuzz/oss/<driver>.c exists for this manifest entry."""
+    meta = manifest_by_id.get(tid) or {}
+    driver = (meta.get("driver") or "").strip()
+    if not driver:
+        return False
+    return (OSS_DRIVER_DIR / f"{driver}.c").is_file()
+
+
+def filter_drivable(ids: list[str], manifest_by_id: dict[str, dict]) -> list[str]:
+    return [i for i in ids if target_has_driver(i, manifest_by_id)]
+
+
 def scan_reports() -> dict[str, dict]:
     """Latest stats per target_id from all hunt reports."""
     stats: dict[str, dict] = {}
@@ -246,7 +262,7 @@ def build_wave_queue(
     wave_num: int,
     top: int,
     ranked: list[dict],
-    all_ids: set[str],
+    manifest_by_id: dict[str, dict],
 ) -> tuple[list[str], dict]:
     """Return (target_ids, wave_meta) for a given wave number."""
     exclude = wave_exclude_base()
@@ -283,7 +299,7 @@ def build_wave_queue(
         }
 
     if wave_num == 27:
-        ids = [i for i in PIN_WAVE27 if i in all_ids and i not in exclude]
+        ids = filter_drivable([i for i in PIN_WAVE27 if i in manifest_by_id and i not in exclude], manifest_by_id)
         return ids, {
             "targets": ids,
             "budget_iterations": 300000,
@@ -293,7 +309,7 @@ def build_wave_queue(
         }
 
     if wave_num == 30:
-        ids = [i for i in PIN_WAVE30 if i in all_ids and i not in exclude]
+        ids = filter_drivable([i for i in PIN_WAVE30 if i in manifest_by_id and i not in exclude], manifest_by_id)
         return ids, {
             "targets": ids,
             "budget_iterations": 200000,
@@ -311,13 +327,26 @@ def build_wave_queue(
             | set(PIN_WAVE15)
         )
         # Prefer never fuzzed, then under-tested INFORMATIONAL, then low-iter CLEAN
-        never = [r["id"] for r in ranked if r.get("last_verdict") is None and r["id"] not in exclude]
-        under = [
-            r["id"]
-            for r in ranked
-            if r.get("last_verdict") == "INFORMATIONAL" and r["id"] not in exclude
-        ]
-        rest = [r["id"] for r in ranked if r["id"] not in exclude and r["id"] not in never and r["id"] not in under]
+        never = filter_drivable(
+            [r["id"] for r in ranked if r.get("last_verdict") is None and r["id"] not in exclude],
+            manifest_by_id,
+        )
+        under = filter_drivable(
+            [
+                r["id"]
+                for r in ranked
+                if r.get("last_verdict") == "INFORMATIONAL" and r["id"] not in exclude
+            ],
+            manifest_by_id,
+        )
+        rest = filter_drivable(
+            [
+                r["id"]
+                for r in ranked
+                if r["id"] not in exclude and r["id"] not in never and r["id"] not in under
+            ],
+            manifest_by_id,
+        )
         ids = (never + under + rest)[:top]
         return ids, {
             "targets": ids,
@@ -364,7 +393,7 @@ def main() -> int:
         )
     ranked.sort(key=lambda x: (-x["score"], x["id"]))
 
-    wave_ids, wave_meta = build_wave_queue(args.wave, args.top, ranked, set(all_ids.keys()))
+    wave_ids, wave_meta = build_wave_queue(args.wave, args.top, ranked, all_ids)
     wave_key = f"wave{args.wave}"
 
     # Merge into existing JSON so wave14/15/16 queues coexist
