@@ -70,34 +70,39 @@
       </div>
       <div class="research-grid">
         <a class="research-card" href="./reports/bitcoin30.html">
-          <span class="research-tag series">Series hub</span>
+          <span class="research-tag series">Series hub · complete</span>
           <h3>Bitcoin 30-Day fuzz</h3>
-          <p>Days 1–14 prefuzzed. <strong>Post Day 13 today</strong> · Week 2 verdict tomorrow.</p>
-          <div class="research-stats"><span>Total: <b>1,856</b> runs</span><span>Today: <b>Day 13</b></span><span><b>0</b> critical</span></div>
+          <p><strong>30/30 days</strong> · Fuzz Depth v3 weeks 3–4 · upstream WASM guards on useful-PoW.</p>
+          <div class="research-stats"><span><b>8,808</b> runs</span><span><b>1,953</b> signals</span><span><b>0</b> critical</span></div>
         </a>
-        <a class="research-card" href="./reports/bitcoin30-week2.html">
-          <span class="research-tag series">Week 2 ledger</span>
-          <h3>Week 2 · days 8–14</h3>
-          <p>1,344 runs · 488 guard signals · deep passes · verdict ready for Day 14 post.</p>
+        <a class="research-card" href="./reports/bitcoin30-day30.html">
+          <span class="research-tag series">Milestone</span>
+          <h3>Day 30 · series finale</h3>
+          <p>bytes_corpus deep tier · structured inputs · honest triage — not a CVE claim.</p>
+          <div class="research-stats"><span><b>0</b> critical</span><span>Week 4</span></div>
+        </a>
+        <a class="research-card" href="./reports/bitcoin30-week4.html">
+          <span class="research-tag series">Week 4 ledger</span>
+          <h3>Week 4 · days 22–30</h3>
+          <p>bytes_corpus · 10 HMC · native bridge on deep tiers.</p>
+          <div class="research-stats"><span><b>0</b> critical</span><span>9 modules</span></div>
+        </a>
+        <a class="research-card" href="./reports/bitcoin30-week3.html">
+          <span class="research-tag series">Week 3 ledger</span>
+          <h3>Week 3 · days 15–21</h3>
+          <p>wasm_native · 186 native_confirmed · Fuzz Depth v3 bridge.</p>
           <div class="research-stats"><span><b>0</b> critical</span><span>7 modules</span></div>
         </a>
         <a class="research-card" href="./reports/bitcoin30-two-weeks.html">
-          <span class="research-tag series">Two-week ledger</span>
+          <span class="research-tag series">Archive</span>
           <h3>Days 1–14 · combined</h3>
-          <p>809 guard signals · 1 clean module · full daily table + week split.</p>
+          <p>Two-week ledger · 809 guard signals · 1 clean module.</p>
           <div class="research-stats"><span><b>0</b> critical</span><span>14 modules</span></div>
         </a>
-        <a class="research-card" href="./reports/bitcoin30-week1.html">
-          <span class="research-tag series">Week 1 ledger</span>
-          <h3>Week 1 · days 1–7</h3>
-          <p>Seven modules · 321 guard signals · one clean module (MoneyRange).</p>
-          <div class="research-stats"><span><b>0</b> critical</span><span>512 runs</span></div>
-        </a>
-        <a class="research-card" href="./reports/bitcoin30-day13.html">
-          <span class="research-tag series">Today · Day 13</span>
-          <h3>Day 13 · witness stack deep</h3>
-          <p>SegWit witness push cap · 256 runs · 80 guard signals · 0 critical.</p>
-          <div class="research-stats"><span><b>0</b> critical</span><span>256 runs</span></div>
+        <a class="research-card" href="./reports/fuzz-depth-v3.html">
+          <span class="research-tag live">Fuzz Depth v3</span>
+          <h3>WASM → native → bounty</h3>
+          <p>Three depth tiers used in BTC30 weeks 3–4 · production gates on hub.</p>
         </a>
       </div>
     </section>
@@ -130,9 +135,9 @@
         </a>
         <a class="research-card" href="./reports/oss-cve/">
           <span class="research-tag case">OSS CVE · Tier D</span>
-          <h3>Upstream case studies</h3>
-          <p>Wave 11 clean (zlib/libxml2). nghttp2/duktape UBSan informational. Wave 12 hunt running.</p>
-          <div class="research-stats"><span><b>4</b> tracked</span><span>wave 11 clean</span><span>wave 12 live</span></div>
+          <h3>Upstream ASAN hunts</h3>
+          <p>Waves 29–31+ on hub · cfgpack fix merged · centijson/libucl in disclosure · waves 32–41 marathon live.</p>
+          <div class="research-stats"><span><b>5</b> cases</span><span>wave 31 CLEAN</span><span>driver-ranked queue</span></div>
         </a>
         <a class="research-card" href="./reports/oss-pr-sweep/">
           <span class="research-tag case">OSS rotation · 5 targets</span>

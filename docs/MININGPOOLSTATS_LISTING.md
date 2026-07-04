@@ -13,7 +13,7 @@ This doc is the **operator maintenance checklist** (stats API uptime, Stratum la
 | Algorithm | PoH / WASM useful-PoW (see site) |
 | Pool URL | https://hackme.tech |
 | Stats / API | `https://hackme.tech/pool/coordinator/api/work/stats` (includes `hashrate`, `workers`) or `.../api/network/stats` |
-| Explorer | https://hackme.tech/pool/explorer |
+| Explorer | https://hackme.tech/explorer-lite.html |
 | Downloads | https://hackme.tech/downloads.html |
 | ANN | https://bitcointalk.org/index.php?topic=5583373.0 |
 | Source | https://github.com/jokeez/hackme |

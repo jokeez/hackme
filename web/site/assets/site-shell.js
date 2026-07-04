@@ -21,7 +21,7 @@
     contacts: { href: "./contacts.html", label: "Contacts" },
     legal: { href: "./legal.html", label: "Legal" },
     privacy: { href: "./legal-privacy.html", label: "Privacy" },
-    explorer: { href: "/pool/explorer", label: "Explorer", external: true },
+    explorer: { href: "./explorer-lite.html", label: "Explorer" },
     github: { href: "https://github.com/jokeez/hackme", label: "GitHub", external: true },
   };
 

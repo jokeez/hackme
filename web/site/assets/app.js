@@ -29,7 +29,7 @@
   };
 
   const CONFIG = {
-    explorerUrl: "/pool/explorer",
+    explorerUrl: "/explorer-lite.html",
     newsUrl: "./news.html",
     newsFeed: "./assets/news.json",
     releaseChannel: RELEASE_VER,
