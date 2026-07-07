@@ -3451,7 +3451,8 @@
 				const align = walletSnapshot.balanceAlignment || '';
 				let sub = unpaid > 0.000001 ? ('+' + fmt(unpaid, 4) + ' accrual') : 'on-chain';
 				if (align === 'local_ahead' || align === 'canonical_ahead') {
-					sub = 'orders ' + fmt(orders, 4) + ' · ' + sub;
+					sub = (unpaid > 0.000001 ? ('+' + fmt(unpaid, 4) + ' accrual · ') : '')
+						+ 'orders escrow ' + fmt(orders, 0) + ' HMC (local SQLite)';
 				}
 				return {
 					main: fmt(onChain > 0 ? onChain : walletSnapshot.balanceHMC, 4),
