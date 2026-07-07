@@ -28,6 +28,7 @@ jobs:
         run: |
           rustup target add wasm32-unknown-unknown
           bash scripts/build_security_task_pack.sh
+          bash scripts/build_task_wasm.sh
 
       - name: Go fmt check
         run: bash scripts/ops/gofmt_check.sh
