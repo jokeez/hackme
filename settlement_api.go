@@ -118,18 +118,14 @@ func settlementCanonicalHTTPClient() *http.Client {
 	return settlementCanonicalHTTP
 }
 
-func fetchCanonicalSettlementState(ctx context.Context) (workerSettlementState, error) {
-	if p := canonicalSettlementStateFile(); p != "" {
-		if out, err := readCanonicalSettlementStateFile(p); err == nil {
-			return out, nil
-		}
-	}
+func fetchCanonicalSettlementStateHTTP(ctx context.Context) (workerSettlementState, error) {
 	var out workerSettlementState
 	url := canonicalSettlementStateURL()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return out, err
 	}
+	req.Header.Set("User-Agent", "HackMe-node-settlement/1")
 	resp, err := settlementCanonicalHTTPClient().Do(req)
 	if err != nil {
 		return out, err
@@ -149,6 +145,46 @@ func fetchCanonicalSettlementState(ctx context.Context) (workerSettlementState, 
 		out.Workers = map[string]workerSettlementStateEntry{}
 	}
 	return out, nil
+}
+
+func persistCanonicalSettlementSnapshot(st workerSettlementState) {
+	p := canonicalSettlementStateFile()
+	if p == "" {
+		return
+	}
+	b, err := json.MarshalIndent(st, "", "  ")
+	if err != nil {
+		return
+	}
+	_ = os.MkdirAll(filepath.Dir(p), 0o700)
+	_ = os.WriteFile(p, b, 0o600)
+}
+
+// fetchCanonicalSettlementState prefers live canonical HTTP, merges into any local
+// snapshot, and refreshes the on-disk cache so unpaid accrual clears after VPS payout.
+func fetchCanonicalSettlementState(ctx context.Context) (workerSettlementState, error) {
+	var local workerSettlementState
+	var haveLocal bool
+	if p := canonicalSettlementStateFile(); p != "" {
+		if out, err := readCanonicalSettlementStateFile(p); err == nil {
+			local = out
+			haveLocal = true
+		}
+	}
+	remote, remoteErr := fetchCanonicalSettlementStateHTTP(ctx)
+	if remoteErr == nil {
+		if haveLocal {
+			mergeCanonicalSettlementState(&local, remote)
+			go persistCanonicalSettlementSnapshot(local)
+			return local, nil
+		}
+		go persistCanonicalSettlementSnapshot(remote)
+		return remote, nil
+	}
+	if haveLocal {
+		return local, nil
+	}
+	return workerSettlementState{}, remoteErr
 }
 
 func mergeCanonicalSettlementState(local *workerSettlementState, remote workerSettlementState) {

@@ -1,5 +1,17 @@
 # OSS CVE Hunt — real upstream ASAN fuzz
 
+## OSS CVE Watch (14-day spotlight)
+
+Daily single-repo hunt with public ledger pages:
+
+- Hub: https://hackme.tech/reports/oss-cve-watch/
+- Run: `bash scripts/ops/run_oss_cve_watch_day.sh` (see `TARGET=nghttp2` in script)
+- Export: `scripts/ops/export_oss_cve_watch_html.py`
+
+Use this for **social cadence** (one library, one post/day). The wave hunt below is the **batch matrix** across many parsers.
+
+---
+
 Tier **oss_cve** runs mutation fuzz on **cloned upstream repos** with stdin ASAN drivers — not WASM excerpt guards.
 
 ## Targets

@@ -7,7 +7,7 @@ Historical operator verdicts, GPU recheck logs, superseded RC release notes, and
 | [rc/](rc/) | `HACKME_RC11J` … `RC11Q` release notes (superseded by [../HACKME_RC11R.md](../HACKME_RC11R.md)) |
 | [vast/](vast/) | Vast.ai GPU matrix field tests (June 2026) |
 | [planning/](planning/) | `MASTER_PLAN`, roadmaps, 30-day test plans (historical) |
-| (root) | Dated operator verdicts May 2026 |
+| (root) | Dated operator verdicts May 2026 (`OPERATOR_VERDICT_2026-05-19.md`, …) |
 
 **Do not use as current runbooks.** For live status see [../STATUS.md](../STATUS.md) and [../MINER_READINESS_CHECKLIST.md](../MINER_READINESS_CHECKLIST.md).
 

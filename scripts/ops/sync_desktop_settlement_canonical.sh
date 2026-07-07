@@ -7,7 +7,7 @@ DEST="${HACKME_WORKER_SETTLEMENT_CANONICAL_FILE:-$ROOT/logs/desktop/data/settlem
 LOCAL_STATE="${HACKME_WORKER_SETTLEMENT_STATE_FILE:-$ROOT/logs/desktop/data/worker_settlement_state.json}"
 
 mkdir -p "$(dirname "$DEST")"
-curl -fsS --max-time 25 "$CANON_URL" -o "${DEST}.tmp"
+curl -fsS --max-time 25 -A 'HackMe-check/1' "$CANON_URL" -o "${DEST}.tmp"
 mv "${DEST}.tmp" "$DEST"
 
 python3 - "$DEST" "$LOCAL_STATE" <<'PY'

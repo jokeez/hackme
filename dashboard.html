@@ -2587,9 +2587,9 @@
 								<p class="wallet-treasury-sub">mining · not settled</p>
 							</div>
 							<div class="wallet-treasury-item orders" id="wallet-treasury-orders-card">
-								<p class="wallet-treasury-label">Orders debit</p>
+								<p class="wallet-treasury-label">Orders escrow</p>
 								<p id="wallet-treasury-orders" class="wallet-treasury-value">—</p>
-								<p id="wallet-treasury-orders-note" class="wallet-treasury-sub">local ledger · POST /api/tasks</p>
+								<p id="wallet-treasury-orders-note" class="wallet-treasury-sub">local SQLite spendable · not unpaid mining</p>
 							</div>
 						</div>
 						<p id="wallet-alignment-banner" class="hidden text-[10px] text-warn/90 mb-4 max-w-xl mx-auto leading-relaxed font-mono"></p>
@@ -4059,7 +4059,7 @@
 					banner.textContent = 'Local SQLite is higher than canonical on-chain — orders may accept debits the fork ledger cannot settle on hackme.tech. Reseed or sync before large escrows.';
 				} else if (align === 'canonical_ahead') {
 					banner.classList.remove('hidden');
-					banner.textContent = 'On-chain balance exceeds local ledger — mining settlement may be ahead of SQLite. Orders use local ledger until sync catches up.';
+					banner.textContent = 'On-chain balance exceeds local orders ledger (≈' + fmt(orders, 0) + ' HMC spendable locally). Mining payouts settle on-chain; pool accrual above is the only unsettled mining balance.';
 				} else {
 					banner.classList.add('hidden');
 					banner.textContent = '';

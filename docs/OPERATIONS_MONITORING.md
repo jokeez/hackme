@@ -2,15 +2,18 @@
 
 ## Coordinator health
 
+- **One-shot pool audit (recommended daily):** `bash scripts/ops/run_pool_health_check.sh` → `reports/pool-health-<ts>/` with `pool.json`, `difficulty.tsv`, process checks.
 - Public aggregate often proxied at **`GET /api/global/metrics`** (site/dashboard).
-- Direct coordinator **`GET /api/network/stats`** (URL depends on deploy — e.g. `/pool/coordinator`).
+- Direct coordinator **`GET /api/work/stats`** or **`/api/pool/stats`** (deploy path e.g. `/pool/coordinator`).
 - Watch **`signed_submits_accepted` / `signed_submits_rejected`**, worker counts, ban counters — spikes imply abuse or client mismatch.
 
 ## Settlement automation
 
 - Bridge script: **`scripts/ops/settle_worker_payouts.sh`** (env-driven thresholds and payout maps).
+- SUP mint: **`scripts/ops/settle_worker_sup.sh`** (parallel timer on VPS).
+- Desktop canonical cache: **`scripts/ops/sync_desktop_settlement_canonical.sh`** (or rely on node HTTP merge after `settlement_api.go` refresh).
 - Health probe pattern: **`scripts/ops/settlement_healthcheck.sh`**.
-- On systemd VPS: inspect timers/services referenced in project News/runbooks (`systemctl`, `journalctl`).
+- On systemd VPS: `hackme-worker-settlement.timer`, `hackme-worker-sup-settlement.timer` — `systemctl`, `journalctl`.
 
 ## Incidents (first response)
 

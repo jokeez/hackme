@@ -45,6 +45,7 @@
 | [SOCIAL_BTC30_POSTS.md](SOCIAL_BTC30_POSTS.md) | **Telegram + X copy** — all 30 days |
 | [FUZZ_DEPTH_V3_SOCIAL.md](FUZZ_DEPTH_V3_SOCIAL.md) | Fuzz depth v3 launch posts |
 | [OSS_CVE_HUNT.md](OSS_CVE_HUNT.md) | OSS CVE wave pipeline |
+| [../web/site/reports/oss-cve-watch/](../web/site/reports/oss-cve-watch/) | **OSS CVE Watch** — 14-day single-repo daily ledger |
 | [TELEGRAM_NEWS_BOT_RUNBOOK.md](TELEGRAM_NEWS_BOT_RUNBOOK.md) | News bot + pool heartbeat |
 | [TELEGRAM_BOT.md](TELEGRAM_BOT.md) | Bot setup |
 | [../web/site/research.html](../web/site/research.html) | Public research hub |
@@ -83,7 +84,8 @@
 |-----|--------|
 | [OPERATOR_FINAL_CHECKLIST.md](OPERATOR_FINAL_CHECKLIST.md) | Production checklist |
 | [CANONICAL_RELEASE_CHECKS.md](CANONICAL_RELEASE_CHECKS.md) | Schema / fuzz gates |
-| [OPERATIONS_MONITORING.md](OPERATIONS_MONITORING.md) | Metrics, alerts, pool health |
+| [OPERATIONS_MONITORING.md](OPERATIONS_MONITORING.md) | Metrics, alerts, pool health (`run_pool_health_check.sh`) |
+| [STATUS.md](STATUS.md) | **Current** operator snapshot (start here for “is prod OK?”) |
 | [PUBLIC_LAUNCH_VERDICT.md](PUBLIC_LAUNCH_VERDICT.md) | Launch criteria |
 | [HACKME_RC11R.md](HACKME_RC11R.md) | **Current** Win/Linux + ISO channel |
 | [scripts/release/README.md](../scripts/release/README.md) | Build ISO / Windows / bundles |
