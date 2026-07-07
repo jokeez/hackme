@@ -68,7 +68,16 @@ echo "[prod-pool-fuzz] coordinator pool stats (before)"
 curl -fsS "$COORD/api/fuzz/pool/stats" | tee "$LOG_DIR/pool_stats_before.json" | jq .
 
 echo "[prod-pool-fuzz] run workerfuzz ${WORKER_SEC}s x2"
-export COORD_URL="$COORD" COORD_TOKEN="$WORKER_TOK" MINER_ADDRESS="$MINER"
+TREASURY_SEED_FILE="${TREASURY_SEED_FILE:-$ROOT/.secrets/hackme_treasury_ed25519_seed.hex}"
+TREASURY_SEED=""
+[[ -f "$TREASURY_SEED_FILE" ]] && TREASURY_SEED="$(tr -d '\r\n' <"$TREASURY_SEED_FILE")"
+export COORD_URL="$COORD" COORD_TOKEN="$WORKER_TOK"
+if [[ -n "$TREASURY_SEED" ]]; then
+  export HACKME_MINER_ED25519_SEED_HEX="$TREASURY_SEED"
+  unset MINER_ADDRESS
+else
+  export MINER_ADDRESS="$MINER"
+fi
 for w in prod-fuzz-a prod-fuzz-b; do
   WORKER_ID="$w" timeout "${WORKER_SEC}s" go run ./cmd/workerfuzz -worker "$w" -timeout-ms 800 \
     >"$LOG_DIR/worker_${w}.log" 2>&1 || true

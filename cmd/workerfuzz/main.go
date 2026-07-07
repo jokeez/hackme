@@ -76,6 +76,10 @@ func main() {
 	if hybrid {
 		if *minerAddr == "" {
 			*minerAddr = derivedAddr
+		} else if !strings.EqualFold(strings.TrimSpace(*minerAddr), derivedAddr) {
+			fmt.Fprintf(os.Stderr, "workerfuzz: MINER_ADDRESS=%s ignored; hybrid signer binds payout=%s\n",
+				strings.TrimSpace(*minerAddr), derivedAddr)
+			*minerAddr = derivedAddr
 		}
 		fmt.Fprintf(os.Stderr, "workerfuzz: hybrid signer payout=%s\n", derivedAddr)
 	}

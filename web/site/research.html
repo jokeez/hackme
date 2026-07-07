@@ -7,7 +7,7 @@
   <meta name="description" content="Public security research: L1 live prod fuzz, Bitcoin 30-Day series, OSS case studies (mkpool), upstream WASM — honest scope, fuzz_report_v2 ledgers." />
   <link rel="canonical" href="https://hackme.tech/research.html" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-  <link rel="stylesheet" href="./assets/styles.css?v=20260627banner2" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20260707cvewatch" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
@@ -37,6 +37,47 @@
         <span class="pill">Bitcoin30 series</span>
         <span class="pill">OSS parser fuzz</span>
         <span class="pill">0 critical · honest triage</span>
+      </div>
+    </section>
+
+    <section class="panel glass research-section b2b-pilots-section">
+      <div class="research-section-head">
+        <div>
+          <h2>B2B customer pilots</h2>
+          <p class="subtle">Published with consent · promo Scan slots · redacted fuzz_report_v2 · <a href="./reports/b2b-fuzz/">case hub →</a></p>
+        </div>
+        <a class="btn btn-secondary" href="./developers.html" style="font-size:0.82rem;padding:0.45rem 0.9rem">Run your Scan</a>
+      </div>
+      <article class="research-card research-card-featured">
+        <span class="research-tag live">Scan · promo #1</span>
+        <h3><a href="./reports/b2b-fuzz/shannon-packet-scan.html">C packet parser · Shannon Bautista</a></h3>
+        <p>Free promo Scan — customer <code class="notranslate">target.c</code> + seed corpus. seed1 clean · seed2 intentional crash path (test seed).</p>
+        <div class="research-stats notranslate"><span><b>64</b> runs</span><span>seed1 clean</span><span>seed2 guard hit</span></div>
+        <p class="b2b-card-links"><a href="./reports/b2b-fuzz/shannon-packet-scan.html">Case summary</a> · <a href="./reports/b2b-fuzz/shannon-packet-scan-report.html">HTML report</a></p>
+      </article>
+      <p class="subtle b2b-promo-foot">First <strong>5</strong> Scan packages free — <a href="https://t.me/hackme_network">@hackme_network</a></p>
+    </section>
+
+    <section class="panel glass research-section">
+      <div class="research-section-head">
+        <div>
+          <h2>OSS CVE Watch · nghttp2</h2>
+          <p class="subtle">One repo · 14 days · daily Tier-D ASAN ledger (after Bitcoin30)</p>
+        </div>
+      </div>
+      <div class="research-grid">
+        <a class="research-card" href="./reports/oss-cve-watch/">
+          <span class="research-tag live">Day 1/14 · live</span>
+          <h3>nghttp2 HTTP/2 parser</h3>
+          <p>Session <code class="notranslate">mem_recv</code> framing surface — CLEAN day 1, UBSan informational only.</p>
+          <div class="research-stats notranslate"><span><b>2,452</b> iter</span><span><b>0</b> ASAN</span><span>CLEAN</span></div>
+        </a>
+        <a class="research-card" href="./reports/oss-cve-watch/day01.html">
+          <span class="research-tag series">Day 1 ledger</span>
+          <h3>Day 1 · baseline hunt</h3>
+          <p>10 min budget pass · honest scope — not marathon wave hype.</p>
+          <div class="research-stats"><span>INFORMATIONAL</span><span>UBSan noise</span></div>
+        </a>
       </div>
     </section>
 

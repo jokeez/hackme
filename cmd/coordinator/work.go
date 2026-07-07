@@ -1036,7 +1036,17 @@ func coordinatorAutoPruneIdle() bool {
 	return v == "1" || strings.EqualFold(v, "true") || strings.EqualFold(v, "yes")
 }
 
-// pruneStaleWorkersLocked drops idle workers; caller must hold m.mu.
+func coordinatorIdlePruneMaxHMC() float64 {
+	if v := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_IDLE_PRUNE_MAX_HMC")); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil && f >= 0 {
+			return f
+		}
+	}
+	return 2.0
+}
+
+// pruneStaleWorkersLocked drops offline idle workers; caller must hold m.mu.
+// Settlement history lives in node worker_settlement_state.json — coordinator rows are ephemeral.
 func (m *workManager) pruneStaleWorkersLocked(prefix string, maxPayout float64, staleSec int64, dryRun bool, ignorePayout bool, now int64) (removed, kept []string) {
 	if m == nil {
 		return nil, nil
@@ -1044,19 +1054,6 @@ func (m *workManager) pruneStaleWorkersLocked(prefix string, maxPayout float64, 
 	prefix = strings.TrimSpace(prefix)
 	for id, st := range m.worker {
 		if prefix != "" && !strings.HasPrefix(id, prefix) {
-			kept = append(kept, id)
-			continue
-		}
-		// Keep rigs with pool history so miner dashboards and settlement retain per-worker rows.
-		if st.PayoutHMC > 0 || st.PayoutSUP > 0 || st.AcceptedAtt > 0 || st.AcceptedRanges > 0 {
-			kept = append(kept, id)
-			continue
-		}
-		if st.LastSeenUnix > 0 && (now-st.LastSeenUnix) <= staleSec {
-			kept = append(kept, id)
-			continue
-		}
-		if !ignorePayout && st.PayoutHMC > maxPayout {
 			kept = append(kept, id)
 			continue
 		}
@@ -1068,6 +1065,15 @@ func (m *workManager) pruneStaleWorkersLocked(prefix string, maxPayout float64, 
 			}
 		}
 		if busy {
+			kept = append(kept, id)
+			continue
+		}
+		offline := st.LastSeenUnix <= 0 || (now-st.LastSeenUnix) > staleSec
+		if !offline {
+			kept = append(kept, id)
+			continue
+		}
+		if !ignorePayout && st.PayoutHMC > maxPayout {
 			kept = append(kept, id)
 			continue
 		}
@@ -1098,7 +1104,7 @@ func (m *workManager) pruneIdleWorkersLocked(now int64) []string {
 		return nil
 	}
 	m.lastIdlePruneUnix = now
-	removed, _ := m.pruneStaleWorkersLocked("", 0.001, coordinatorIdlePruneSec(), false, false, now)
+	removed, _ := m.pruneStaleWorkersLocked("", coordinatorIdlePruneMaxHMC(), coordinatorIdlePruneSec(), false, false, now)
 	return removed
 }
 

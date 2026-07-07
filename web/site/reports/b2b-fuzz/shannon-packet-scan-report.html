@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>HackMe Fuzz Report · Shannon packet parser Scan pilot</title>
+<link rel="canonical" href="https://hackme.tech/reports/b2b-fuzz/shannon-packet-scan-report.html"/>
+<meta name="description" content="Public redacted fuzz_report_v2: Shannon Bautista C packet parser Scan — 64 runs, customer seed corpus."/>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:ui-monospace,Menlo,Consolas,monospace;background:#070b12;color:#c8d6e5;line-height:1.55}
+.wrap{max-width:960px;margin:0 auto;padding:2.5rem 1.5rem 4rem}
+h1{font-size:1.4rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#00d1ff;margin:0}
+.sub{color:#6b7c93;font-size:.78rem;margin:.5rem 0 2rem}
+.badge{display:inline-block;margin-top:1rem;padding:.45rem 1.15rem;border-radius:999px;border:2px solid #ffb020;color:#ffb020;font-size:1.05rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em}
+.card{border:1px solid rgba(0,209,255,.22);border-radius:14px;background:linear-gradient(145deg,rgba(0,0,0,.55),rgba(0,209,255,.07));padding:1.35rem;margin:1.1rem 0}
+.card.scope{border-color:rgba(255,176,32,.35);background:linear-gradient(145deg,rgba(0,0,0,.5),rgba(255,176,32,.06))}
+.title{font-size:1.15rem;color:#fff;margin:.4rem 0}
+.muted{color:#6b7c93;font-size:.78rem}
+.lbl{color:#00d1ff;font-size:.68rem;text-transform:uppercase;letter-spacing:.1em}
+code{color:#39ff14;font-size:.82rem;word-break:break-all}
+pre.repro{margin:.5rem 0 0;padding:.75rem 1rem;background:rgba(0,0,0,.45);border-radius:8px;border:1px solid rgba(57,255,20,.2);overflow-x:auto;font-size:.75rem;color:#a8e6cf}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.7rem;margin-top:1.1rem}
+.stat{border:1px solid rgba(57,255,20,.18);border-radius:10px;padding:.7rem .9rem;background:rgba(0,0,0,.38)}
+.stat b{display:block;font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:#6b7c93;margin-bottom:.25rem}
+.tag{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.65rem;text-transform:uppercase;letter-spacing:.05em}
+.tag.expected{background:rgba(0,209,255,.15);color:#00d1ff}
+.tag.guard{background:rgba(57,255,20,.12);color:#7dffb8}
+table{width:100%;border-collapse:collapse;font-size:.78rem;margin-top:.65rem}
+th,td{border-bottom:1px solid rgba(255,255,255,.08);padding:.5rem .55rem;text-align:left;vertical-align:top}
+th{color:#6b7c93;text-transform:uppercase;font-size:.62rem;letter-spacing:.06em}
+footer{margin-top:2.5rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,.08);font-size:.72rem;color:#6b7c93}
+a{color:#00d1ff}
+</style>
+</head>
+<body>
+<div class="wrap">
+<p class="muted"><a href="./shannon-packet-scan.html">← Case summary</a> · <a href="./index.html">B2B cases</a></p>
+<h1>HackMe Security Report</h1>
+<p class="sub">fuzz_report_v2 · public redacted · 2026-07-07 · <a href="https://hackme.tech">hackme.tech</a></p>
+
+<div class="card scope"><p class="lbl">Scope &amp; honesty</p>
+<p>This report covers <strong>WASM sandbox</strong> execution of a guard around the customer’s C packet parser (<code>check(i64)→i32</code> + byte corpus), not a full native audit.</p>
+<p><strong>seed2</strong> (<code>HACK\x03BUG</code>) was provided by the customer as an <em>intentional crash test</em>. Guard signals on that seed are <span class="tag expected">expected</span>, not CVE-class production findings. Validate on native builds before any external disclosure.</p>
+<p>Case page: <a href="./shannon-packet-scan.html">shannon-packet-scan.html</a></p></div>
+
+<div class="card">
+<p class="lbl">Campaign</p>
+<p class="title">Shannon packet parser Scan pilot</p>
+<p class="muted">shannon-packet-scan-20260707t095513z · property · status completed · customer: Shannon Bautista (consent to publish)</p>
+<span class="badge">guard_signals_on_test_seed</span>
+<div class="grid">
+<div class="stat"><b>Confidence</b>medium</div>
+<div class="stat"><b>Guard signals</b>32</div>
+<div class="stat"><b>Critical</b>0</div>
+<div class="stat"><b>High (detector)</b>32</div>
+<div class="stat"><b>seed1 clean</b>yes</div>
+<div class="stat"><b>Budget runs</b>64</div>
+</div>
+</div>
+
+<div class="card">
+<p class="lbl">Seed corpus (customer-provided)</p>
+<table><thead><tr><th>Seed</th><th>Bytes (hex)</th><th>Result</th></tr></thead><tbody>
+<tr><td>seed1.bin</td><td><code>4841434b00</code></td><td>clean — valid header, 0-length payload</td></tr>
+<tr><td>seed2.bin</td><td><code>4841434b03425547</code></td><td><span class="tag guard">guard hit</span> — intentional BUG payload (customer test)</td></tr>
+</tbody></table>
+</div>
+
+<div class="card">
+<p class="lbl">Top issue (representative)</p>
+<table><thead><tr><th>Severity</th><th>Triage</th><th>Title</th><th>Repro</th></tr></thead><tbody>
+<tr><td>high</td><td><span class="tag guard">guard_signal</span> · expected on test seed</td><td>detector flagged seed2 byte corpus</td><td><code>HACKME_FUZZ_INPUT_HEX=4841434b03425547</code></td></tr>
+</tbody></table>
+</div>
+
+<div class="card"><p class="lbl">Reproduction</p>
+<pre class="repro"># Customer seed2 (public — supplied in pilot)
+HACKME_FUZZ_INPUT_HEX=4841434b03425547
+
+# Local replay (after building guard.wasm from target.c):
+go run ./tools/check_repro -wasm guard.wasm -input 0x475542034b434148</pre>
+</div>
+
+<div class="card">
+<p class="lbl">Recommendations</p>
+<ul>
+<li>Treat seed2 hits as <strong>harness validation</strong> — fuzz pipeline reaches nested payload checks.</li>
+<li>For broader coverage beyond two seeds, upgrade to <strong>Audit</strong> (256 runs + pool workers) or <strong>Deep</strong> (byte mutation corpus).</li>
+<li>First 5 promo Scan slots: <a href="../../developers.html">developers.html</a></li>
+</ul>
+</div>
+
+<footer>HackMe Network · fuzz_report_v2 · public redacted · <a href="./shannon-packet-scan.html">case summary</a> · Generated 2026-07-07</footer>
+</div>
+</body>
+</html>

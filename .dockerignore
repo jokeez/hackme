@@ -5,6 +5,11 @@ reports/
 logs/
 backups/
 node_modules/
+tasks/artifacts/
+.wip/
+hackme-node
+hackme-node-desktop
+coordinator
 *.db
 .env
 .env.*

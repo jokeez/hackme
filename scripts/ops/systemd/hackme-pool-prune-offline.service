@@ -1,0 +1,18 @@
+[Unit]
+Description=HackMe pool offline worker prune + settlement nudge
+After=network-online.target hackme-coordinator.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=hackme
+WorkingDirectory=/opt/hackme
+Environment=NODE_SSH=
+Environment=COORD_URL=https://hackme.tech/pool/coordinator
+Environment=STALE_SEC=1800
+Environment=MAX_PAYOUT_HMC=2
+ExecStart=/bin/bash /opt/hackme/scripts/ops/prune_offline_pool_workers_gate.sh
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

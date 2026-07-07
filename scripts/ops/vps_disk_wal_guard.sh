@@ -14,9 +14,17 @@ used_pct="$(awk '{print $5}' <<<"$df_line" | tr -d '%')"
 avail_kb="$(awk '{print $4}' <<<"$df_line")"
 log "disk used=${used_pct}% avail_kb=${avail_kb}"
 
+NODE_STOPPED=0
 if [[ "$used_pct" -ge "$CRIT_PCT" ]]; then
   log "CRIT ${used_pct}% — vacuum journal"
   journalctl --vacuum-size=200M 2>/dev/null || sudo journalctl --vacuum-size=200M 2>/dev/null || true
+  # Stop node before WAL truncate when disk is full (checkpoint needs exclusive lock).
+  if systemctl is-active hackme-node >/dev/null 2>&1; then
+    log "stopping hackme-node for WAL checkpoint"
+    systemctl stop hackme-node 2>/dev/null || sudo systemctl stop hackme-node 2>/dev/null || true
+    sleep 2
+    NODE_STOPPED=1
+  fi
 fi
 
 if [[ -f "$DB" ]] && command -v sqlite3 >/dev/null 2>&1; then
@@ -35,4 +43,8 @@ if [[ -f "$DB" ]] && command -v sqlite3 >/dev/null 2>&1; then
 fi
 
 df -P / | tail -1
+if [[ "${NODE_STOPPED:-0}" == "1" ]]; then
+  log "restarting hackme-node after WAL checkpoint"
+  systemctl start hackme-node 2>/dev/null || sudo systemctl start hackme-node 2>/dev/null || true
+fi
 log "OK"

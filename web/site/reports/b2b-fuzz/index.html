@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe · B2B fuzz case studies</title>
+  <meta name="description" content="Public customer fuzz pilots: Scan · Audit · Deep. First promo Scan slots — published with customer consent." />
+  <link rel="canonical" href="https://hackme.tech/reports/b2b-fuzz/" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="../../assets/styles.css?v=20260707b2b" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <style>
+    .b2b-promo { margin: 1rem 0 1.5rem; padding: 1rem 1.15rem; border-radius: 1rem; border: 1px solid rgba(0, 209, 255, 0.35); background: rgba(0, 209, 255, 0.06); font-size: 0.92rem; line-height: 1.55; }
+    .case-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+    .case-card { border: 1px solid rgba(77, 228, 255, 0.22); border-radius: 14px; padding: 1.2rem; background: rgba(0, 0, 0, 0.35); }
+    .case-card h2 { font-size: 1.05rem; margin: 0.5rem 0 0.35rem; }
+    .case-card h2 a { color: #e8f4ff; text-decoration: none; }
+    .case-card h2 a:hover { color: var(--primary); }
+    .case-tag { display: inline-block; padding: 0.2rem 0.55rem; border-radius: 999px; border: 1px solid rgba(57, 255, 20, 0.4); color: #7dffb8; font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+    .case-meta { font-size: 0.78rem; color: var(--muted); margin-top: 0.75rem; }
+  </style>
+</head>
+<body>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="../../index.html"><img class="brand-logo" src="../../assets/logo-hex.png" alt="HackMe" /><span>HackMe Network</span></a>
+    <nav class="nav" data-site-page="research"></nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass hero-small">
+      <p class="kicker">B2B · customer pilots</p>
+      <h1>Fuzz case studies (public)</h1>
+      <p class="hero-copy">Published with customer consent. <strong>Scan</strong> (1 HMC · 64 runs) · <strong>Audit</strong> (5 HMC) · <strong>Deep</strong> (10 HMC).
+        Orders run on a local <code>hackme-node</code>; reports are token-gated by default — these pages are the public redacted ledger.</p>
+      <div class="b2b-promo"><strong>Promo:</strong> first <strong>5</strong> customer Scan packages free — DM <a href="https://t.me/hackme_network">@hackme_network</a> or use <a href="../../developers.html">developers guide</a>.</div>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="../../developers.html">Run your own Scan</a>
+        <a class="btn btn-secondary" href="../../fuzz-campaigns.html">Fuzz ecosystem</a>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Published cases</h2></div>
+      <div class="case-grid">
+        <article class="case-card">
+          <span class="case-tag">Scan · promo #1</span>
+          <h2><a href="./shannon-packet-scan.html">C packet parser · Shannon Bautista</a></h2>
+          <p class="subtle">Network packet parser with nested headers and buffer checks. Customer seeds: valid <code>HACK\x00</code> + intentional crash seed <code>HACK\x03BUG</code>.</p>
+          <p class="case-meta">64 runs · seed1 clean · seed2 guard hit (intentional test) · 2026-07-07</p>
+          <p style="margin-top:0.75rem"><a href="./shannon-packet-scan-report.html">Full HTML report →</a></p>
+        </article>
+      </div>
+    </section>
+
+    <p class="subtle" style="margin-top:1.5rem"><a href="../../research.html">← Research hub</a></p>
+  </main>
+
+  <footer class="footer"><p>HackMe Network</p><div class="footer-nav"></div></footer>
+  <script src="../../assets/site-shell.js?v=20260601hub"></script>
+</body>
+</html>

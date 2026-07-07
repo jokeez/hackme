@@ -388,6 +388,21 @@ h4 { font-size: 1.02rem; }
   color: #9eb8d8;
 }
 .research-stats b { color: var(--ok); font-weight: 600; }
+.research-card-featured {
+  grid-column: 1 / -1;
+  max-width: 100%;
+}
+.research-card h3 a {
+  color: #e8f4ff;
+  text-decoration: none;
+}
+.research-card h3 a:hover { color: var(--primary); }
+.b2b-card-links {
+  margin: 0.75rem 0 0;
+  font-size: 0.82rem;
+}
+.b2b-card-links a { color: var(--primary); font-weight: 600; }
+.b2b-promo-foot { margin: 0.85rem 0 0; font-size: 0.85rem; }
 
 .formula-box {
   margin-top: 0.5rem;

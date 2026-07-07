@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>HackMe · B2B Scan · C packet parser (Shannon Bautista)</title>
+<link rel="canonical" href="https://hackme.tech/reports/b2b-fuzz/shannon-packet-scan.html"/>
+<meta name="description" content="Free promo Scan #1: C network packet parser fuzz with customer seed corpus. seed1 clean, seed2 intentional crash path — published with consent."/>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:#070b12;color:#c8d6e8;line-height:1.65}
+.wrap{max-width:760px;margin:0 auto;padding:2.5rem 1.25rem 4rem}
+h1{font-size:1.45rem;color:#00d1ff;margin:0 0 .35rem}
+.sub{color:#6b8099;font-size:.88rem;margin-bottom:1.25rem}
+.badge{display:inline-block;padding:.35rem .95rem;border-radius:999px;border:2px solid #39ff14;color:#7dffb8;font-weight:600;font-size:.8rem;margin-right:.5rem}
+.badge.scan{border-color:#00d1ff;color:#00d1ff}
+.win-box{background:rgba(0,209,255,.07);border:1px solid rgba(0,209,255,.35);border-radius:12px;padding:1.15rem 1.25rem;margin:1.5rem 0}
+.honest{color:#ffc107;font-size:.88rem;margin-top:.65rem}
+.fact-grid{display:grid;gap:.75rem;margin:1.25rem 0;font-size:.9rem}
+.fact-grid div{padding:.65rem .85rem;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
+.fact-grid span{display:block;color:#6b8099;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.2rem}
+code{font-size:.85rem;background:rgba(0,0,0,.35);padding:.15rem .4rem;border-radius:4px}
+a{color:#00d1ff}footer{margin-top:2.5rem;font-size:.75rem;color:#6b8099}
+.cta{display:inline-block;margin-top:1rem;padding:.55rem 1.1rem;border-radius:8px;border:1px solid rgba(0,209,255,.45);color:#00d1ff;text-decoration:none;font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+<p><a href="./index.html">← B2B fuzz cases</a> · <a href="../../research.html">Research hub</a></p>
+<h1>C network packet parser</h1>
+<p class="sub">Customer pilot · Shannon Bautista · published with consent · 2026-07-07</p>
+<span class="badge scan">Scan package</span>
+<span class="badge">Promo #1 of 5</span>
+
+<div class="win-box">
+  <p><strong>What we did:</strong> Customer sent <code>target.c</code> (LLVMFuzzer-style entry → <code>test_fuzz_target</code>) plus two binary seeds. We wrapped the parser in a WASM guard, compiled C→WASM locally, and ran <strong>Scan</strong> (64 runs · byte corpus · customer seeds).</p>
+  <p><strong>Results:</strong></p>
+  <ul>
+    <li><code>seed1.bin</code> — <code>HACK\x00</code> (valid header, zero-length payload) → <strong>clean</strong></li>
+    <li><code>seed2.bin</code> — <code>HACK\x03BUG</code> (customer’s intentional crash test) → <strong>guard hit</strong> on every other corpus cycle (32/64 runs)</li>
+  </ul>
+  <p class="honest"><strong>Honest scope:</strong> This is a WASM sandbox Scan, not a native audit or CVE claim. seed2 was supplied by the customer as a known crash repro — we report guard signals, not “32 production vulnerabilities”.</p>
+</div>
+
+<div class="fact-grid">
+  <div><span>Package</span>Scan · 1 HMC · 64 runs · wasm_only + byte corpus</div>
+  <div><span>Campaign</span>shannon-packet-scan-20260707t095513z</div>
+  <div><span>Target</span>Nested packet headers · payload length · buffer bounds</div>
+  <div><span>Public repro hex</span><code>4841434b03425547</code> (seed2)</div>
+</div>
+
+<p><a class="cta" href="./shannon-packet-scan-report.html">Open full HTML report</a></p>
+
+<h2>Want the same?</h2>
+<p>First <strong>5</strong> Scan packages are free (promo). Send <code>.c</code> or a GitHub link — we wrap + compile WASM; you don’t need to build it yourself.</p>
+<p><a href="../../developers.html">Developers &amp; wizard</a> · <a href="../../downloads.html">Download hackme-node</a> · <a href="../../fuzz-guide.html">Fuzz guide</a></p>
+
+<footer>HackMe Network · B2B fuzz · customer consent on file for this publication</footer>
+</div>
+</body>
+</html>

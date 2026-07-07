@@ -1,0 +1,12 @@
+[Unit]
+Description=HackMe pool offline worker prune every 30 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitInactiveSec=30min
+RandomizedDelaySec=60s
+Persistent=true
+Unit=hackme-pool-prune-offline.service
+
+[Install]
+WantedBy=timers.target

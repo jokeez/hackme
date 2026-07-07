@@ -72,7 +72,16 @@ curl -fsS -X POST "$BASE/api/fuzz/campaigns" "${hdr[@]}" -d "$create_body" \
 echo "[multi-fuzz] pool stats before"
 curl -fsS "$COORD/api/fuzz/pool/stats" | tee "$LOG_DIR/stats_before.json" | jq -c '{work_done,workers,queue_depth}'
 
-export COORD_URL="$COORD" COORD_TOKEN="$WORKER_TOK" MINER_ADDRESS="$MINER"
+TREASURY_SEED_FILE="${TREASURY_SEED_FILE:-$ROOT/.secrets/hackme_treasury_ed25519_seed.hex}"
+TREASURY_SEED=""
+[[ -f "$TREASURY_SEED_FILE" ]] && TREASURY_SEED="$(tr -d '\r\n' <"$TREASURY_SEED_FILE")"
+export COORD_URL="$COORD" COORD_TOKEN="$WORKER_TOK"
+if [[ -n "$TREASURY_SEED" ]]; then
+  export HACKME_MINER_ED25519_SEED_HEX="$TREASURY_SEED"
+  unset MINER_ADDRESS
+else
+  export MINER_ADDRESS="$MINER"
+fi
 export WORKERFUZZ_HTTP_TIMEOUT_SEC="${WORKERFUZZ_HTTP_TIMEOUT_SEC:-120}"
 for w in container-a container-b container-c; do
   echo "[multi-fuzz] worker $w (${WORKER_SEC}s)"

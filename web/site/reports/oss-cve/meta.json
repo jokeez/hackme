@@ -27,8 +27,8 @@
     "jsonparser",
     "wren"
   ],
-  "wave": "wave34-asan-20260704T140600Z-w34",
-  "started_at": "2026-07-04T15:00:56Z",
-  "finished_at": "2026-07-04T17:00:57Z",
+  "wave": "wave42-asan-20260707T072207Z-w42",
+  "started_at": "2026-07-07T08:12:32Z",
+  "finished_at": "2026-07-07T10:12:35Z",
   "publish_allowed": true
 }
