@@ -24,6 +24,11 @@ jobs:
       - name: Install jq (report_summary / scripts)
         run: sudo apt-get update && sudo apt-get install -y jq
 
+      - name: Build security WASM pack (poolfuzz / coordinator tests)
+        run: |
+          rustup target add wasm32-unknown-unknown
+          bash scripts/build_security_task_pack.sh
+
       - name: Go fmt check
         run: bash scripts/ops/gofmt_check.sh
 
