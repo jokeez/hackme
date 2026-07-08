@@ -66,7 +66,7 @@ Live supply: https://hackme.tech/token-transparency.html
 | Public pool + coordinator | Live on hackme.tech |
 | HMC explorer + `GET /api/status` | Live |
 | SUP on-chain economics API | Live |
-| MiningPoolStats HMC page | Live — https://miningpoolstats.app/coins/HMC |
+| Official pool stats API | Live — https://hackme.tech/pool/coordinator/api/pool/stats |
 | Release **0.1.0-rc11r** (Win/Linux/ISO) | Published |
 | First PoW CEX listing | **Not yet** — outreach in progress |
 | Market maker / deep liquidity | **Not engaged** |

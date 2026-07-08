@@ -47,7 +47,7 @@ HackMe combines **useful Proof-of-History mining** (WASM-gated work), a **coordi
 |-----------|-------|--------|
 | Technology / transparency | Strong public APIs, docs, explorer | Maintain + per-ticker PDF packs |
 | Operational discipline | Operator checklist, settlement timers, gates | Scale soak + HA narrative |
-| Market / traction | Pool live on MiningPoolStats | Volume on first PoW CEX |
+| Market / traction | Pool live + OSS CVE Watch | Volume on first PoW CEX (post-summer) |
 | Liquidity | None listed yet | MM plan after first listing |
 | Legal | Risk disclosures on site | Entity + counsel before Tier-1 |
 

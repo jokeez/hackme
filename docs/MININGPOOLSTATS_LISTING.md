@@ -1,8 +1,10 @@
 # MiningPoolStats — HackMe (HMC)
 
-**Status: LIVE** — [miningpoolstats.app/coins/HMC](https://miningpoolstats.app/coins/HMC) (listed May 2026).
+**Status: CLOSED (Jul 2026)** — [miningpoolstats.app](https://miningpoolstats.app) shut down its hosted dashboard and open-sourced the project. The HMC coin page is no longer live. **Do not link MPS from the public site.**
 
-This doc is the **operator maintenance checklist** (stats API uptime, Stratum label notes, miner onboarding). For first-time submission history, see news `2026-05-27-hmc-miningpoolstats-coin-page`.
+This doc is kept as **archive + optional resubmit notes** (e.g. [miningpoolstats.stream](https://miningpoolstats.stream) if a community fork gains traction). Primary miner discoverability: **hackme.tech pool stats API**, Bitcointalk ANN, Telegram/Discord.
+
+For first-time submission history, see news `2026-05-27-hmc-miningpoolstats-coin-page`.
 
 ## Pool facts (public listing)
 

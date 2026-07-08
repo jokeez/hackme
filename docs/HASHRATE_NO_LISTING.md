@@ -4,7 +4,7 @@ Submit at:
 - **Pool:** https://www.hashrate.no/submit/pool
 - **Coin:** https://www.hashrate.no/submit/coin (if HMC not in dropdown → **Other**)
 
-Related: [MININGPOOLSTATS_LISTING.md](MININGPOOLSTATS_LISTING.md) (HMC **live** on MPS)
+Related: [MININGPOOLSTATS_LISTING.md](MININGPOOLSTATS_LISTING.md) (MPS **closed** Jul 2026 — archive only)
 
 ## Preflight
 
@@ -44,7 +44,7 @@ HackMe is NOT a Stratum pool. Miners run open-source hackme-node + workerpoh (CU
 Connection: HTTPS coordinator https://hackme.tech/pool/coordinator
 Stats JSON: /api/pool/stats (hashrate, miners) and /api/work/stats (per-worker hashrate_gh_s).
 Payout: off-chain accrual per accepted work → on-chain HMC transfer every ~90s.
-Already on MiningPoolStats: https://miningpoolstats.app/coins/HMC
+Public pool stats: https://hackme.tech/pool/coordinator/api/pool/stats
 Source: https://github.com/jokeez/hackme (AGPL-3.0)
 Contact: support@hackme.tech
 ```
@@ -86,5 +86,5 @@ curl -sS https://hackme.tech/pool/coordinator/api/work/stats | jq '{reward_per_m
 ## After submit
 
 - Expect **manual review** (days).
-- If rejected for “no Stratum”: reply with MPS link + GitHub + offer **custom/HTTP** category.
+- If rejected for “no Stratum”: reply with pool stats API + GitHub + offer **custom/HTTP** category.
 - Keep `api/pool/stats` returning `status: ok` 24/7.

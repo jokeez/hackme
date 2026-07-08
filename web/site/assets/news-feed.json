@@ -1,6 +1,36 @@
 {
   "items": [
     {
+      "id": "2026-07-08-miningpoolstats-closed-summer-focus",
+      "date": "2026-07-08",
+      "title": "MiningPoolStats hosted service closed · summer focus: CVE Watch + miners",
+      "summary": "miningpoolstats.app shut down its public dashboard (project open-sourced). We removed dead MPS links from hackme.tech. Summer plan: finish OSS CVE Watch cadence, bounty hunts, grow the official pool — CEX outreach moves to Q4+ when traction justifies listing fees.",
+      "impact": "No broken outbound links on contacts/roadmap. Miners should use hackme.tech pool stats API and downloads — not third-party aggregators.",
+      "action": "Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats · Research: https://hackme.tech/research.html · Downloads: https://hackme.tech/downloads.html",
+      "tags": [
+        "pool",
+        "ops",
+        "research",
+        "roadmap"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "MPS closed · summer = CVE + miners",
+        "lead": "miningpoolstats.app hosted dashboard is down. HackMe links updated.",
+        "bullets": [
+          "Official pool stats: hackme.tech/pool/coordinator/api/pool/stats",
+          "Summer: OSS CVE Watch (one day at a time) → bounty hunts → stable miner fleet",
+          "CEX listing: Q4 2026+ when traction + liquidity justify fees"
+        ],
+        "footer": "hackme.tech/research.html · hackme.tech/downloads.html"
+      },
+      "links": {
+        "pool": "https://hackme.tech/pool/coordinator/api/pool/stats",
+        "research": "https://hackme.tech/research.html",
+        "roadmap": "https://hackme.tech/roadmap.html"
+      }
+    },
+    {
       "id": "2026-07-01-b2b-fuzz-final",
       "date": "2026-07-01",
       "title": "B2B Fuzz Final — one command from WASM guard to CI gate",
@@ -408,38 +438,6 @@
         "report_week1": "https://hackme.tech/reports/bitcoin30-week1.html",
         "research": "https://hackme.tech/research.html",
         "github": "https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_evalscript_stack.c"
-      }
-    },
-    {
-      "id": "2026-06-16-rc11o-production-final",
-      "date": "2026-06-16",
-      "title": "Release 0.1.0-rc11o — analytics fix, PDF packs, full rebuild",
-      "summary": "Production channel bumped to rc11o: embedded dashboard analytics (pool ON, Command node rigs, GPU telemetry for pool workers), five branded listing/legal PDFs on hackme.tech, MiningPoolStats marked live in docs. Windows installer, Linux tarball, and HackMe OS ISO rebuilt and verified.",
-      "impact": "Miners see accurate Analytics tab (no pool off / empty rigs). CEX and partners get downloadable PDF packs. One version across installer, tarball, and USB ISO.",
-      "action": "Downloads: https://hackme.tech/downloads.html · Listing PDFs: https://hackme.tech/listing.html · Pool: https://miningpoolstats.app/coins/HMC",
-      "tags": [
-        "release",
-        "mining",
-        "infrastructure",
-        "marketing"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "rc11o production — dashboard + PDFs + full rebuild",
-        "lead": "Win/Linux/ISO 0.1.0-rc11o. Analytics tab fixed. Five DD PDFs live. MPS HMC listed.",
-        "bullets": [
-          "Analytics: pool ON, coordinator workers in Command node, GPU gauge from pool GH/s",
-          "PDFs: HMC listing, SUP companion, network pitch, legal/rights, AGPL-3.0",
-          "HackMe OS ISO rebuilt — same channel as desktop installer (verify SHA256)"
-        ],
-        "footer": "Downloads: hackme.tech/downloads · Mine pool: hackme.tech/pool/coordinator"
-      },
-      "links": {
-        "downloads": "https://hackme.tech/downloads.html",
-        "listing": "https://hackme.tech/listing.html",
-        "mps": "https://miningpoolstats.app/coins/HMC",
-        "news": "https://hackme.tech/news.html#2026-06-16-rc11o-production-final",
-        "github": "https://github.com/jokeez/hackme"
       }
     }
   ],

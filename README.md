@@ -33,7 +33,7 @@
 |:---:|:---|
 | **Coordinator** | `https://hackme.tech/pool/coordinator` |
 | **Explorer** | [explorer-lite.html](https://hackme.tech/explorer-lite.html) |
-| **MPS** | [miningpoolstats.app/coins/HMC](https://miningpoolstats.app/coins/HMC) |
+| **Pool stats** | [api/pool/stats](https://hackme.tech/pool/coordinator/api/pool/stats) |
 | **Source** | [github.com/jokeez/hackme](https://github.com/jokeez/hackme) |
 
 </div>

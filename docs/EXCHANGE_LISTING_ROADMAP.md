@@ -13,7 +13,7 @@
 | Открытый GitHub | ✅ | https://github.com/jokeez/hackme |
 | Bitcointalk ANN | ✅ | topic 5583373 |
 | Пул в работе + stats API | ✅ | `.../pool/coordinator/api/pool/stats` |
-| MiningPoolStats (HMC coin page) | ✅ | https://miningpoolstats.app/coins/HMC · [MININGPOOLSTATS_LISTING.md](MININGPOOLSTATS_LISTING.md) |
+| MiningPoolStats (HMC coin page) | ⚠️ Closed Jul 2026 | Hosted dashboard shut down — use pool stats API instead |
 | Стабильный settlement on-chain | ✅ | `hackme-worker-settlement.timer` (30s) на hub VPS |
 
 Проверка одной командой:
@@ -67,8 +67,8 @@ PUBLIC_BASE=https://hackme.tech NODE_SSH=hackme-vps bash scripts/ops/mps_listing
 
 ## Связь с MiningPoolStats
 
-**HMC live** на [miningpoolstats.app/coins/HMC](https://miningpoolstats.app/coins/HMC) (listed since May 2026).
+**miningpoolstats.app closed (Jul 2026)** — HMC page no longer live. Do not cite MPS in exchange forms until a replacement aggregator lists HMC.
 
-- В форме биржи укажите карточку MPS как доказательство live network
-- Следите, чтобы `api/pool/stats` не падал (робот MPS опрашивает каждые минуты)
-- Шаблон для новых майнеров: **[MINER_WELCOME_MPS_APPROVED.md](MINER_WELCOME_MPS_APPROVED.md)**
+- Use **pool stats API** as proof of live network: `https://hackme.tech/pool/coordinator/api/pool/stats`
+- Optional: resubmit to [miningpoolstats.stream](https://miningpoolstats.stream) if moderators accept HTTP coordinator pools
+- CEX outreach is **post-summer 2026** priority — after OSS CVE Watch + miner traction (see [roadmap.html](https://hackme.tech/roadmap.html))

@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-16",
+  "updated": "2026-07-08",
   "primary": "hmc",
   "coins": [
     {
@@ -11,7 +11,7 @@
       "algorithm": "Useful PoW / PoH (WASM sandbox)",
       "icon": "./assets/logo-hex.png",
       "iconType": "image",
-      "listing": "Live on MiningPoolStats · PoW CEX outreach next",
+      "listing": "Official pool live · OSS CVE Watch · CEX after summer traction",
       "earn": "Mine on the official coordinator · on-chain after VPS settlement",
       "trade": "On-chain transfers live on hackme.tech chain",
       "links": {
