@@ -1,6 +1,54 @@
 {
   "items": [
     {
+      "id": "2026-07-10-github-release-rc11r",
+      "date": "2026-07-10",
+      "title": "HackMe 0.1.0-rc11r on GitHub Releases — Win · Linux · ISO · fuzz CLI",
+      "summary": "First tagged GitHub release aligned with hackme.tech/downloads: Windows installer, Linux tarball, hackme-fuzzing CLI, and HackMe OS ISO (~844 MB). Same SHA256 as CDN. Linux layout fix, fuzz settle outbox, escrow cleanup.",
+      "impact": "Miners and integrators can verify binaries from GitHub or hackme.tech. ISO + tarballs in one place for mirrors, CI, and cold-storage archives.",
+      "action": "Download: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc11r · Mirror: https://hackme.tech/downloads.html · Docs: docs/HACKME_RC11R.md",
+      "tags": [
+        "release",
+        "mining",
+        "fuzzing",
+        "iso"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "🚀 HackMe 0.1.0-rc11r — GitHub Releases",
+        "lead": "Win · Linux · ISO · fuzz CLI — один канал, те же SHA256",
+        "bullets": [
+          "Первый релиз на GitHub — не только CDN",
+          "Linux: worker_autostart + workerpoh-opencl в tarball (bye worker_script_missing)",
+          "HackMe OS ISO ~844 MB · Zero-Knowledge Start · pool token внутри",
+          "Fuzz: pull-settle outbox · escrow cleanup · hackme-fuzzing wizard",
+          "SHA256SUMS в релизе — сверяй перед flash USB"
+        ],
+        "footer": "github.com/jokeez/hackme/releases/tag/0.1.0-rc11r · hackme.tech/downloads.html"
+      },
+      "twitter": {
+        "thread": [
+          "🚀 HackMe 0.1.0-rc11r is live on GitHub Releases\n\nFirst tagged drop — same channel as hackme.tech/downloads:\n• Windows Setup + portable ZIP\n• Linux tarball (layout fix)\n• hackme-fuzzing CLI\n• HackMe OS ISO (~844 MB)\n\nOne tag. One SHA256 set. Verify before you flash.",
+          "⛏ Miners — what changed in rc11r:\n\nLinux tarball now ships scripts/ops/worker_autostart.sh + bin/workerpoh-opencl.\nNo more worker_script_missing / exit 127 on fresh extract.\n\nOld folder? bash fix_miner_layout.sh → start_hackme_miner.sh",
+          "🔬 B2B fuzz path:\n\n• Pull-mode settle outbox (coordinator → desktop ack)\n• Escrow cleanup on terminal campaigns\n• hackme-fuzzing wizard — scan / audit / gate for CI\n\nUseful PoW + WASM fuzz orders. HTTP pool (not Stratum).",
+          "📦 Download + verify:\n\nGitHub → https://github.com/jokeez/hackme/releases/tag/0.1.0-rc11r\nCDN → https://hackme.tech/downloads.html\n\nSHA256SUMS.txt + SHA256SUMS-iso.txt in the release.\n\nPool → hackme.tech/pool/coordinator",
+          "Links:\n🌐 hackme.tech\n📖 github.com/jokeez/hackme\n💬 t.me/hackme_tech\n\n#HackMe #HMC #mining #GPU #WASM #fuzzing #opensource #infosec #libFuzzer #CVE"
+        ],
+        "single": "🚀 HackMe 0.1.0-rc11r — first GitHub Release\n\nWin Setup · Linux tar · fuzz CLI · HackMe OS ISO (~844 MB)\nSame SHA256 as hackme.tech/downloads\n\nLinux fix: worker_autostart + workerpoh-opencl in tarball\nFuzz: settle outbox + escrow cleanup\n\n⬇️ https://github.com/jokeez/hackme/releases/tag/0.1.0-rc11r\n\n#HackMe #HMC #mining #WASM #fuzzing #opensource #infosec"
+      },
+      "discord": {
+        "title": "Release · 0.1.0-rc11r on GitHub",
+        "body": "**First GitHub Release** — aligned with hackme.tech/downloads\n\n• **Windows** — Setup + portable ZIP\n• **Linux** — tarball layout fix (`worker_autostart`, `workerpoh-opencl`)\n• **HackMe OS** — bootable ISO ~844 MB\n• **fuzz CLI** — `hackme-fuzzing wizard`\n\n**Download:** https://github.com/jokeez/hackme/releases/tag/0.1.0-rc11r\n**SHA256:** in release assets",
+        "ping": "#releases"
+      },
+      "links": {
+        "github": "https://github.com/jokeez/hackme/releases/tag/0.1.0-rc11r",
+        "downloads": "https://hackme.tech/downloads.html",
+        "pool": "https://hackme.tech/pool/coordinator",
+        "docs": "https://github.com/jokeez/hackme/blob/main/docs/HACKME_RC11R.md"
+      }
+    },
+    {
       "id": "2026-07-10-oss-cve-watch-day03-nghttp2-libfuzzer",
       "date": "2026-07-10",
       "title": "OSS CVE Watch Day 3/14 · nghttp2 · 1.19B libFuzzer exec · CLEAN",

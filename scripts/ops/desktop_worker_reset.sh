@@ -7,6 +7,15 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
+if [[ "${FORCE_MINING:-0}" != "1" ]]; then
+  for pause in "$ROOT_DIR/logs/desktop/mining_paused" "$ROOT_DIR/logs/mining_paused"; do
+    if [[ -f "$pause" ]]; then
+      echo "[worker-reset] mining paused ($pause) — use resume_pool_mining.sh or FORCE_MINING=1" >&2
+      exit 0
+    fi
+  done
+fi
+
 DESKTOP_ENV_FILE="${DESKTOP_ENV_FILE:-$ROOT_DIR/.env.desktop}"
 BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
 SECRET_COORD="${SECRET_COORD:-$ROOT_DIR/.secrets/hackme_coordinator_admin_token}"

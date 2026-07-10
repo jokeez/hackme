@@ -40,6 +40,16 @@ NODE_BIN="$LOG_DIR/hackme-node-desktop"
 
 mkdir -p "$LOG_DIR"
 
+rm -f "${LOG_DIR}/mining_paused" "$ROOT_DIR/logs/mining_paused" 2>/dev/null || true
+for ef in "$DESKTOP_ENV_FILE" "$ROOT_DIR/.env"; do
+  [[ -f "$ef" ]] || continue
+  for key in HACKME_WORKER_WATCHDOG WORKER_AUTOSTART; do
+    if grep -q "^${key}=" "$ef" 2>/dev/null; then
+      sed -i "s/^${key}=.*/${key}=1/" "$ef"
+    fi
+  done
+done
+
 # from_code compilers (zig, asc, tinygo, wat2wasm, rustup user) — idempotent, skip with SKIP_TOOLCHAINS=1
 # Sets TOOLCHAINS_INSTALLED=1 when a full install run completed (may need node restart).
 ensure_from_code_toolchains() {

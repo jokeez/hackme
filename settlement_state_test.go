@@ -27,14 +27,31 @@ func TestMergeCanonicalSettlementState(t *testing.T) {
 		"w1": {SettledHMC: 1.0},
 	}}
 	remote := workerSettlementState{Workers: map[string]workerSettlementStateEntry{
-		"w1": {SettledHMC: 2.0, LastTxHash: "abc"},
+		"w1": {SettledHMC: 2.0, LastTxHash: "abc", LastSettleUnix: 100},
 	}}
-	mergeCanonicalSettlementState(&local, remote)
+	if !mergeCanonicalSettlementState(&local, remote) {
+		t.Fatal("expected change when remote settled advanced")
+	}
 	if local.Workers["w1"].SettledHMC != 2.0 {
 		t.Fatalf("settled=%v", local.Workers["w1"].SettledHMC)
 	}
 	if local.Workers["w1"].LastTxHash != "abc" {
 		t.Fatalf("tx=%q", local.Workers["w1"].LastTxHash)
+	}
+}
+
+func TestMergeCanonicalSettlementStateNoRegression(t *testing.T) {
+	local := workerSettlementState{Workers: map[string]workerSettlementStateEntry{
+		"w1": {SettledHMC: 5.0, LastTxHash: "old"},
+	}}
+	remote := workerSettlementState{Workers: map[string]workerSettlementStateEntry{
+		"w1": {SettledHMC: 2.0, LastTxHash: "new"},
+	}}
+	if mergeCanonicalSettlementState(&local, remote) {
+		t.Fatal("expected no change when remote settled is lower")
+	}
+	if local.Workers["w1"].SettledHMC != 5.0 {
+		t.Fatalf("settled regressed to %v", local.Workers["w1"].SettledHMC)
 	}
 }
 

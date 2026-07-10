@@ -103,6 +103,10 @@ func (a *app) startPoolWorkerWatchdog() {
 		log.Printf("pool worker watchdog: enabled (every %s)", interval)
 		var lastRestartUnix int64
 		for {
+			if miningPaused() {
+				time.Sleep(interval)
+				continue
+			}
 			if !a.workerProcessRunning() {
 				now := time.Now().Unix()
 				if now-lastRestartUnix < 30 {

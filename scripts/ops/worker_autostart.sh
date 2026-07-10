@@ -39,6 +39,22 @@ if ! flock -n 200; then
   exit 0
 fi
 
+mining_paused() {
+  local f
+  for f in "${HACKME_MINING_PAUSED_FILE:-}" \
+    "${ROOT_DIR}/logs/mining_paused" \
+    "${ROOT_DIR}/logs/desktop/mining_paused"; do
+    if [[ -n "$f" && -f "$f" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+if mining_paused && [[ "${FORCE_MINING:-0}" != "1" ]]; then
+  echo "[worker-autostart] mining paused ($(ls "${ROOT_DIR}/logs/desktop/mining_paused" "${ROOT_DIR}/logs/mining_paused" 2>/dev/null | head -1)); exiting"
+  exit 0
+fi
+
 COORD_URL="${COORD_URL:-http://127.0.0.1:18081}"
 COORD_TOKEN="${COORD_TOKEN:-${COORD_ADMIN_TOKEN:-${ADMIN_TOKEN:-}}}"
 WORKER_ID="${WORKER_ID:-worker-$(hostname -s 2>/dev/null || echo local)}"

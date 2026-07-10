@@ -174,8 +174,9 @@ func fetchCanonicalSettlementState(ctx context.Context) (workerSettlementState, 
 	remote, remoteErr := fetchCanonicalSettlementStateHTTP(ctx)
 	if remoteErr == nil {
 		if haveLocal {
-			mergeCanonicalSettlementState(&local, remote)
-			go persistCanonicalSettlementSnapshot(local)
+			if mergeCanonicalSettlementState(&local, remote) {
+				go persistCanonicalSettlementSnapshot(local)
+			}
 			return local, nil
 		}
 		go persistCanonicalSettlementSnapshot(remote)
@@ -187,35 +188,69 @@ func fetchCanonicalSettlementState(ctx context.Context) (workerSettlementState, 
 	return workerSettlementState{}, remoteErr
 }
 
-func mergeCanonicalSettlementState(local *workerSettlementState, remote workerSettlementState) {
+// mergeCanonicalSettlementState applies VPS-published settlement rows into local state.
+// Returns true when any settled/sup/meta field advanced (caller should persist).
+func mergeCanonicalSettlementState(local *workerSettlementState, remote workerSettlementState) bool {
 	if local == nil {
-		return
+		return false
 	}
 	if local.Workers == nil {
 		local.Workers = map[string]workerSettlementStateEntry{}
 	}
+	changed := false
 	for wid, ent := range remote.Workers {
 		cur := local.Workers[wid]
+		rowChanged := false
 		if ent.SettledHMC > cur.SettledHMC {
 			cur.SettledHMC = ent.SettledHMC
+			rowChanged = true
 		}
 		if ent.SettledSUP > cur.SettledSUP {
 			cur.SettledSUP = ent.SettledSUP
-		}
-		if strings.TrimSpace(ent.PayoutAddress) != "" {
-			cur.PayoutAddress = ent.PayoutAddress
-		}
-		if strings.TrimSpace(ent.LastTxHash) != "" {
-			cur.LastTxHash = ent.LastTxHash
+			rowChanged = true
 		}
 		if ent.LastSettleUnix > cur.LastSettleUnix {
+			if strings.TrimSpace(ent.PayoutAddress) != "" {
+				cur.PayoutAddress = ent.PayoutAddress
+			}
+			if strings.TrimSpace(ent.LastTxHash) != "" {
+				cur.LastTxHash = ent.LastTxHash
+			}
 			cur.LastSettleUnix = ent.LastSettleUnix
+			rowChanged = true
+		} else if rowChanged {
+			if strings.TrimSpace(ent.PayoutAddress) != "" {
+				cur.PayoutAddress = ent.PayoutAddress
+			}
+			if strings.TrimSpace(ent.LastTxHash) != "" {
+				cur.LastTxHash = ent.LastTxHash
+			}
+			if ent.LastSettleUnix > 0 {
+				cur.LastSettleUnix = ent.LastSettleUnix
+			}
 		}
-		local.Workers[wid] = cur
+		if rowChanged {
+			local.Workers[wid] = cur
+			changed = true
+		}
 	}
 	if remote.Meta.LastForceUnix > local.Meta.LastForceUnix {
 		local.Meta.LastForceUnix = remote.Meta.LastForceUnix
+		changed = true
 	}
+	return changed
+}
+
+func persistWorkerSettlementState(path string, state workerSettlementState) {
+	if strings.TrimSpace(path) == "" {
+		return
+	}
+	b, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return
+	}
+	_ = os.MkdirAll(filepath.Dir(path), 0o700)
+	_ = os.WriteFile(path, b, 0o600)
 }
 
 func parseAnyFloat(v any) float64 {
@@ -332,20 +367,21 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 			state.Workers = map[string]workerSettlementStateEntry{}
 		}
 	}
-	canonCtx, canonCancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+	canonTimeout := 3 * time.Second
+	if lite {
+		canonTimeout = 2 * time.Second
+	}
+	canonCtx, canonCancel := context.WithTimeout(context.Background(), canonTimeout)
+	canonMerged := false
 	if canon, err := fetchCanonicalSettlementState(canonCtx); err == nil {
-		mergeCanonicalSettlementState(&state, canon)
+		canonMerged = mergeCanonicalSettlementState(&state, canon)
 	}
 	canonCancel()
 	ensureCoordinatorWorkersMap(ws)
-	if repairWorkerSettlementState(&state, coordinatorWorkersMap(ws)) {
+	repaired := repairWorkerSettlementState(&state, coordinatorWorkersMap(ws))
+	if canonMerged || repaired {
 		stateCopy := state
-		go func() {
-			if b, err := json.MarshalIndent(stateCopy, "", "  "); err == nil {
-				_ = os.MkdirAll(filepath.Dir(statePath), 0o700)
-				_ = os.WriteFile(statePath, b, 0o600)
-			}
-		}()
+		go persistWorkerSettlementState(statePath, stateCopy)
 	}
 	workers := coordinatorWorkersMap(ws)
 	minSettleHMC, dailyForceIntervalSec, dailyMinSettleHMC := settlementWindowConfigNow()

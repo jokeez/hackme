@@ -1992,6 +1992,16 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 	if !requireAdminAuth(w, r) {
 		return
 	}
+	if miningPaused() {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok":    false,
+			"code":  "mining_paused",
+			"error": "mining paused — run resume_pool_mining.sh or desktop_mode_up.sh",
+		})
+		return
+	}
 	logAdminAction(r, "worker_start")
 	var req workerStartRequest
 	if r.Body != nil {

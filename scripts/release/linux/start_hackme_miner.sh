@@ -40,6 +40,12 @@ set -a
 . "$ENV_FILE"
 set +a
 
+if [[ -f "$LOG_DIR/mining_paused" ]]; then
+  echo "[miner] mining paused — run: bash stop_hackme_miner.sh (clear) or rm $LOG_DIR/mining_paused" >&2
+  echo "[miner] to resume: bash start_hackme_miner.sh after clearing pause" >&2
+  exit 0
+fi
+
 if [[ -z "${HACKME_POOL_COORDINATOR_TOKEN:-}" ]]; then
   export HACKME_POOL_COORDINATOR_TOKEN="$(tr -d '\r\n' <"$INSTALL_DIR/pool.miner.token")"
 fi

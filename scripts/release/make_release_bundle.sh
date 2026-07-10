@@ -103,13 +103,13 @@ fi
 for doc in docs/GPU_MINING_BACKENDS.md docs/CUDA_PRODUCTION.md; do
   [[ -f "${ROOT_DIR}/${doc}" ]] && cp "${ROOT_DIR}/${doc}" "${LINUX_DIR}/"
 done
-for op in build_gpu_workers.sh build_cuda_worker.sh detect_gpu_backend.sh desktop_worker_reset.sh worker_autostart.sh worker_loop.sh purge_stale_pool_workers.sh cuda_env.sh setup_cuda_desktop.sh; do
+for op in build_gpu_workers.sh build_cuda_worker.sh detect_gpu_backend.sh desktop_worker_reset.sh worker_autostart.sh worker_loop.sh purge_stale_pool_workers.sh stop_pool_workers.sh resume_pool_mining.sh cuda_env.sh setup_cuda_desktop.sh; do
   [[ -f "${ROOT_DIR}/scripts/ops/${op}" ]] && cp "${ROOT_DIR}/scripts/ops/${op}" "${LINUX_DIR}/"
 done
 chmod +x "${LINUX_DIR}/worker_autostart.sh" "${LINUX_DIR}/purge_stale_pool_workers.sh" 2>/dev/null || true
 echo "[release] linux miner layout (bin/ + scripts/ops/)"
 mkdir -p "${LINUX_DIR}/bin" "${LINUX_DIR}/scripts/ops"
-for op in detect_gpu_backend.sh desktop_worker_reset.sh worker_autostart.sh worker_loop.sh purge_stale_pool_workers.sh; do
+for op in detect_gpu_backend.sh desktop_worker_reset.sh worker_autostart.sh worker_loop.sh purge_stale_pool_workers.sh stop_pool_workers.sh resume_pool_mining.sh; do
   if [[ -f "${ROOT_DIR}/scripts/ops/${op}" ]]; then
     install -m 0755 "${ROOT_DIR}/scripts/ops/${op}" "${LINUX_DIR}/scripts/ops/${op}"
   fi
@@ -173,17 +173,20 @@ cp "${ROOT_DIR}/scripts/release/windows/HackMe-Install.cmd" "${WIN_DIR}/HackMe-I
 cp "${ROOT_DIR}/scripts/release/linux/install_hackme.sh" "${LINUX_DIR}/install_hackme.sh"
 cp "${ROOT_DIR}/scripts/release/linux/setup_hackme_miner.sh" "${LINUX_DIR}/setup_hackme_miner.sh"
 cp "${ROOT_DIR}/scripts/release/linux/start_hackme_miner.sh" "${LINUX_DIR}/start_hackme_miner.sh"
+cp "${ROOT_DIR}/scripts/release/linux/stop_hackme_miner.sh" "${LINUX_DIR}/stop_hackme_miner.sh"
 cp "${ROOT_DIR}/scripts/release/linux/hackme.desktop.template" "${LINUX_DIR}/hackme.desktop.template"
 cp "${ROOT_DIR}/scripts/release/linux/hackme-node.service.template" "${LINUX_DIR}/hackme-node.service.template"
 cp "${ROOT_DIR}/scripts/ops/desktop_mode_up.sh" "${LINUX_DIR}/desktop_mode_up.sh"
 cp "${ROOT_DIR}/scripts/ops/desktop_mode_status.sh" "${LINUX_DIR}/desktop_mode_status.sh"
 cp "${ROOT_DIR}/scripts/ops/desktop_mode_stop.sh" "${LINUX_DIR}/desktop_mode_stop.sh"
+cp "${ROOT_DIR}/scripts/release/linux/hackme-desktop.service.template" "${LINUX_DIR}/hackme-desktop.service.template" 2>/dev/null || true
 cp "${ROOT_DIR}/scripts/ops/install_linux_desktop_launcher.sh" "${LINUX_DIR}/install_linux_desktop_launcher.sh"
 cp "${ROOT_DIR}/scripts/ops/install_from_code_toolchains.sh" "${LINUX_DIR}/install_from_code_toolchains.sh"
 
 chmod +x "${LINUX_DIR}/install_hackme.sh"
 chmod +x "${LINUX_DIR}/setup_hackme_miner.sh"
 chmod +x "${LINUX_DIR}/start_hackme_miner.sh"
+chmod +x "${LINUX_DIR}/stop_hackme_miner.sh"
 chmod +x "${LINUX_DIR}/desktop_mode_up.sh"
 chmod +x "${LINUX_DIR}/desktop_mode_status.sh"
 chmod +x "${LINUX_DIR}/desktop_mode_stop.sh"

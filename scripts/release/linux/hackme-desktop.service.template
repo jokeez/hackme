@@ -1,0 +1,19 @@
+[Unit]
+Description=HackMe desktop dashboard node (127.0.0.1:8080)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=INSTALL_DIR
+Environment=HACKME_REPO_ROOT=INSTALL_DIR
+Environment=HACKME_WORKING_DIR=INSTALL_DIR
+EnvironmentFile=-INSTALL_DIR/.env.desktop
+ExecStart=INSTALL_DIR/logs/desktop/hackme-node-desktop
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=45
+KillMode=mixed
+
+[Install]
+WantedBy=default.target
