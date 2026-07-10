@@ -29,9 +29,10 @@ LOG_TAG="[settlement-autopilot $(date -u +%Y-%m-%dT%H:%M:%SZ)]"
 export CHAIN_BASE="${CHAIN_BASE:-http://127.0.0.1:18080}"
 export TREASURY_ADDR="${TREASURY_ADDR:-HMC-381c0c5e2cfcc714}"
 export TREASURY_FUND_SEED_HEX="${TREASURY_FUND_SEED_HEX:-${DEPLOY}/.secrets/hackme_treasury_ed25519_seed.hex}"
-export MIN_FLOAT_HMC="${MIN_FLOAT_HMC:-15}"
-export TOPUP_HMC="${TOPUP_HMC:-20}"
+export MIN_FLOAT_HMC="${MIN_FLOAT_HMC:-20}"
+export TOPUP_HMC="${TOPUP_HMC:-30}"
 export MAX_GENESIS_TOPUP_24H_HMC="${MAX_GENESIS_TOPUP_24H_HMC:-25}"
+export CATCHUP_TOPUP_HMC="${CATCHUP_TOPUP_HMC:-180}"
 export HACKME_ADMIN_TOKEN=""
 if [[ -f "${DEPLOY}/.env.vps" ]]; then
   # shellcheck disable=SC1090

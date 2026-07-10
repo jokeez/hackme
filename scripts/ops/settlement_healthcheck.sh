@@ -42,8 +42,8 @@ if [[ -z "$STATE_FILE" ]]; then
 fi
 
 # Desktop worker unpaid between autopilot cycles (~0.5–2 HMC); fleet cap higher for multi-worker hosts.
-MAX_WALLET_UNPAID_HMC="${MAX_WALLET_UNPAID_HMC:-3}"
-MAX_FLEET_UNPAID_HMC="${MAX_FLEET_UNPAID_HMC:-25}"
+MAX_WALLET_UNPAID_HMC="${MAX_WALLET_UNPAID_HMC:-25}"
+MAX_FLEET_UNPAID_HMC="${MAX_FLEET_UNPAID_HMC:-200}"
 # Legacy alias
 MAX_UNSETTLED_HMC="${MAX_UNSETTLED_HMC:-$MAX_FLEET_UNPAID_HMC}"
 EXPECTED_WALLET_SOURCES="${EXPECTED_WALLET_SOURCES:-canonical_peer,canonical_peer_cache,local_db}"

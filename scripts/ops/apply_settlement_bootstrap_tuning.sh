@@ -21,9 +21,12 @@ touch "\$ENV"
 grep -v '^MIN_FLOAT_HMC=' "\$ENV" | grep -v '^TOPUP_HMC=' | grep -v '^MAX_GENESIS_TOPUP_24H_HMC=' >"\$ENV.tmp" || true
 mv "\$ENV.tmp" "\$ENV"
 cat >>"\$ENV" <<'ENVEOF'
-MIN_FLOAT_HMC=15
-TOPUP_HMC=20
+MIN_FLOAT_HMC=20
+TOPUP_HMC=30
 MAX_GENESIS_TOPUP_24H_HMC=25
+CATCHUP_TOPUP_HMC=180
+CATCHUP_UNPAID_TRIGGER_HMC=20
+GENESIS_RESERVE_HMC=45000
 ENVEOF
 chmod 600 "\$ENV"
 sudo cp /tmp/hackme-settlement-autopilot.service /tmp/hackme-settlement-autopilot.timer /etc/systemd/system/ 2>/dev/null || true
