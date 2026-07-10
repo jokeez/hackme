@@ -1,17 +1,16 @@
+/* libFuzzer harness — nghttp2 client session mem_recv (same surface as nghttp2_stdin.c). */
 #define _GNU_SOURCE
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <nghttp2/nghttp2.h>
+#include <stddef.h>
+#include <stdint.h>
 
-int main(void) {
-	static unsigned char buf[65537];
-	size_t n = fread(buf, 1, 65536, stdin);
-	if (n == 0) {
-		return 0;
-	}
+int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 	nghttp2_session *session = NULL;
 	nghttp2_session_callbacks *callbacks = NULL;
+
+	if (size == 0 || size > 65536) {
+		return 0;
+	}
 	if (nghttp2_session_callbacks_new(&callbacks) != 0) {
 		return 0;
 	}
@@ -19,7 +18,7 @@ int main(void) {
 		nghttp2_session_callbacks_del(callbacks);
 		return 0;
 	}
-	(void)nghttp2_session_mem_recv(session, buf, n);
+	(void)nghttp2_session_mem_recv(session, data, size);
 	nghttp2_session_del(session);
 	nghttp2_session_callbacks_del(callbacks);
 	return 0;

@@ -40,13 +40,15 @@ run_watch_day() {
   prev="$(latest_watch_day_dir "$day")"
   if [[ -n "$prev" ]] && has_rollup "$prev"; then
     log "skip watch day $day — done $prev"
-    python3 "$ROOT/scripts/ops/export_oss_cve_watch_html.py" "$day" "$prev" >>"$REPORT_ROOT/watch-day${day}.log" 2>&1 || true
+    if [[ "${SKIP_PUBLISH:-1}" != "1" ]]; then
+      python3 "$ROOT/scripts/ops/export_oss_cve_watch_html.py" "$day" "$prev" >>"$REPORT_ROOT/watch-day${day}.log" 2>&1 || true
+    fi
     return 0
   fi
-  log "=== CVE Watch DAY=$day nghttp2 budget=$budget time=${tlim}s ==="
+  log "=== CVE Watch DAY=$day nghttp2 budget=$budget time=${tlim}s (SKIP_PUBLISH=1) ==="
   wait_gpu_safe
   set +e
-  DAY="$day" TARGET=nghttp2 BUDGET="$budget" TIME_LIMIT="$tlim" \
+  DAY="$day" TARGET=nghttp2 BUDGET="$budget" TIME_LIMIT="$tlim" SKIP_PUBLISH=1 \
     bash "$ROOT/scripts/ops/run_oss_cve_watch_day.sh" >>"$REPORT_ROOT/watch-day${day}.log" 2>&1
   local rc=$?
   set -e
@@ -97,41 +99,15 @@ run_wave() {
   [[ -f "$(ls -td "$ROOT/reports/oss-cve/wave${wave}-${STAMP}"*/ROLLUP.json 2>/dev/null | head -1)" ]] && touch "$marker" || true
 }
 
-log "=== resume start stamp=$STAMP ==="
+log "=== resume start stamp=$STAMP (watch days local-only; publish manually) ==="
 wait_idle
 
-# Watch series (day2 was interrupted — no ROLLUP)
+# Only finish interrupted day 2 locally — day 3+ waits for next calendar publish slot
 run_watch_day 2 100000 10800
-run_watch_day 3 150000 14400
-run_watch_day 4 150000 14400
 
-run_hunt "md4c,cjson" 80000 5400 "p1-md4c-cjson"
-run_hunt "jsmn,mjson,yyjson" 70000 5400 "p2-json"
-run_hunt "tomlc99,expat,inih" 70000 5400 "p3-config-xml"
+# Background matrix hunts (not watch ledger) — prep material for future days / oss-cve hub
+run_hunt "md4c,cjson" 60000 3600 "bg-md4c-cjson"
+run_hunt "jsmn,mjson" 50000 3600 "bg-json"
 
-# Fresh waves (42-44 done earlier today)
-run_wave 45 10
-run_wave 46 10
-run_wave 47 10
-
-DAY_OFFSET="$(date -u +%j)"
-NIGHTLY_TARGETS="$(python3 - "$ROOT" "$DAY_OFFSET" <<'PY'
-import json, sys
-root, day = sys.argv[1], int(sys.argv[2])
-m = json.loads(open(f"{root}/upstream/oss_cve_targets.json").read())
-q = (m.get("rotation") or {}).get("queue") or []
-skip = {"centijson", "libucl", "cfgpack"}
-if not q:
-    raise SystemExit(0)
-n = len(q)
-ids = [q[(day + i) % n] for i in range(4) if q[(day + i) % n] not in skip]
-print(",".join(ids[:3]))
-PY
-)"
-if [[ -n "$NIGHTLY_TARGETS" ]]; then
-  run_hunt "$NIGHTLY_TARGETS" 60000 3600 "nightly-rot"
-fi
-
-run_hunt "nghttp2" 200000 10800 "nghttp2-chase"
-
-log "=== resume complete — export/deploy site for new watch days ==="
+log "=== resume slice done — stop here until Day 2 is published on schedule ==="
+log "publish: python3 scripts/ops/export_oss_cve_watch_html.py 2 <report_dir> && deploy_hackme_site.sh"

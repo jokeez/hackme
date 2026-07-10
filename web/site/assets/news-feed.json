@@ -1,6 +1,98 @@
 {
   "items": [
     {
+      "id": "2026-07-10-oss-cve-watch-day03-nghttp2-libfuzzer",
+      "date": "2026-07-10",
+      "title": "OSS CVE Watch Day 3/14 · nghttp2 · 1.19B libFuzzer exec · CLEAN",
+      "summary": "Third night on nghttp2: 12h libFuzzer session after post-reboot resume, 1,185,926,547 executions at ~27k exec/s. Corpus 402 inputs (399KB), 467 coverage edges. Zero ASAN heap crashes — third honest CLEAN day.",
+      "impact": "Cumulative ~3.2B libFuzzer executions across Days 2–3 on the same persistent corpus. Coverage plateau at 467 edges suggests deeper state exploration needs new seeds or harness paths — still hunting ASAN heap bugs nightly.",
+      "action": "Day 3 report: https://hackme.tech/reports/oss-cve-watch/day03.html · Series hub: https://hackme.tech/reports/oss-cve-watch/ · Reproduce: MAX_TIME=43200 bash scripts/ops/run_oss_libfuzzer_session.sh",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "OSS CVE Watch · Day 3/14 · nghttp2",
+        "lead": "libFuzzer: 1.19B exec · 12h · CLEAN · 0 ASAN",
+        "bullets": [
+          "Target: nghttp2 HTTP/2 session mem_recv · ASAN build",
+          "1,185,926,547 executions · ~27,451 exec/s · corpus 402 (399KB)",
+          "467 coverage edges · 0 heap corruption · CVE only after maintainer triage",
+          "Day 3: 12h marathon after reboot · corpus carries over from Day 2"
+        ],
+        "footer": "hackme.tech/reports/oss-cve-watch/day03.html"
+      },
+      "twitter": {
+        "thread": [
+          "🔬 OSS CVE Watch · Day 3/14 — nghttp2 (HTTP/2 library)\n\n12-hour libFuzzer marathon after a reboot. Same persistent corpus, same honest public ledger.",
+          "📊 Numbers:\n• 1,185,926,547 executions (~1.19B)\n• 12 hours wall time · ~27,451 exec/s\n• Corpus: 402 inputs · 467 coverage edges\n• ASAN heap crashes: 0",
+          "✅ Verdict: CLEAN.\n\nNo CVE today. Days 2+3 combined: ~2.2B libFuzzer exec on nghttp2 with zero ASAN heap corruption.",
+          "📈 Coverage plateau at 467 edges — next nights may need new seeds or harness paths. We still publish clean days.",
+          "📄 Day 3 report + series hub:\nhttps://hackme.tech/reports/oss-cve-watch/day03.html\nhttps://hackme.tech/reports/oss-cve-watch/\n\n#fuzzing #libFuzzer #nghttp2 #HTTP2 #OSS #security #CVE #infosec #HackMe"
+        ],
+        "single": "🔬 OSS CVE Watch Day 3/14 — nghttp2 · 12h libFuzzer marathon\n\n1.19 billion executions (~27k exec/s). Corpus 402 · 467 coverage edges.\n\nVerdict: CLEAN · 0 ASAN heap crashes.\n\nDays 2+3: ~2.2B exec, still no heap bugs.\n\n📄 https://hackme.tech/reports/oss-cve-watch/day03.html\n\n#fuzzing #libFuzzer #nghttp2 #HTTP2 #OSS #security #CVE #infosec #HackMe #opensource"
+      },
+      "discord": {
+        "title": "Research · OSS CVE Watch Day 3",
+        "body": "**nghttp2 · libFuzzer · Day 3/14**\n\n• **1,185,926,547** executions · **12h** · **~27k exec/s**\n• Corpus **402** (399KB) · **467** coverage edges\n• **CLEAN** — 0 ASAN heap crashes\n• Post-reboot 12h marathon · corpus persists from Day 2\n\n**Report:** https://hackme.tech/reports/oss-cve-watch/day03.html",
+        "ping": "#research"
+      },
+      "links": {
+        "day03": "https://hackme.tech/reports/oss-cve-watch/day03.html",
+        "hub": "https://hackme.tech/reports/oss-cve-watch/",
+        "research": "https://hackme.tech/research.html"
+      }
+    },
+    {
+      "id": "2026-07-09-oss-cve-watch-day02-nghttp2-libfuzzer",
+      "date": "2026-07-09",
+      "title": "OSS CVE Watch Day 2/14 · nghttp2 · 1B libFuzzer exec · CLEAN",
+      "summary": "Second night on nghttp2: coverage-guided libFuzzer with ASAN, ~8h wall time, 1,013,382,502 executions at ~35k exec/s. Corpus grew to 2,905 inputs (467 coverage edges). Zero ASAN heap crashes — honest CLEAN day published.",
+      "impact": "Day 1 was stdin mutation (44k iter, UBSan noise). Day 2 switches to operator libFuzzer depth; corpus persists between nights for deeper HTTP/2 session parsing coverage.",
+      "action": "Day 2 report: https://hackme.tech/reports/oss-cve-watch/day02.html · Series hub: https://hackme.tech/reports/oss-cve-watch/ · Reproduce: bash scripts/ops/run_oss_libfuzzer_session.sh",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "OSS CVE Watch · Day 2/14 · nghttp2",
+        "lead": "libFuzzer night: 1.01B exec · 8h · CLEAN · 0 ASAN",
+        "bullets": [
+          "Target: nghttp2 HTTP/2 session mem_recv · ASAN build",
+          "1,013,382,502 executions · ~35,185 exec/s · corpus 2,905",
+          "467 coverage edges · 0 heap corruption · CVE only after maintainer triage",
+          "Day 1 → mutation baseline · Day 2+ → libFuzzer depth (corpus carries over)"
+        ],
+        "footer": "hackme.tech/reports/oss-cve-watch/day02.html"
+      },
+      "twitter": {
+        "thread": [
+          "🔬 OSS CVE Watch · Day 2/14 — nghttp2 (HTTP/2 library)\n\nWe switched from stdin mutation to coverage-guided libFuzzer + ASAN. One repo, 14 days, honest public ledger.",
+          "📊 Overnight numbers:\n• 1,013,382,502 executions (~1.01B)\n• ~8 hours wall time · ~35,185 exec/s\n• Corpus: 2,905 inputs · 467 coverage edges\n• ASAN heap crashes: 0",
+          "✅ Verdict: CLEAN.\n\nNo CVE today — and that's the point. We publish clean days too. A CVE number only after ASAN repro + maintainer triage + coordinated disclosure.",
+          "📈 Day 1 → Day 2:\n• Day 1: mutation baseline · 44k iter · UBSan noise\n• Day 2+: libFuzzer depth · corpus persists between nights",
+          "📄 Full report + series hub:\nhttps://hackme.tech/reports/oss-cve-watch/day02.html\nhttps://hackme.tech/reports/oss-cve-watch/\n\n#fuzzing #libFuzzer #nghttp2 #HTTP2 #OSS #security #CVE #infosec #HackMe"
+        ],
+        "single": "🔬 OSS CVE Watch Day 2/14 — nghttp2 · libFuzzer depth\n\n1.01 billion executions in ~8h (~35k exec/s). Corpus grew to 2,905 inputs · 467 coverage edges.\n\nVerdict: CLEAN · 0 ASAN heap crashes.\n\nWe publish honest clean days — CVE only after repro + disclosure.\n\nDay 1: mutation · Day 2+: libFuzzer (corpus carries over)\n\n📄 https://hackme.tech/reports/oss-cve-watch/day02.html\n\n#fuzzing #libFuzzer #nghttp2 #HTTP2 #OSS #security #CVE #infosec #HackMe #opensource"
+      },
+      "discord": {
+        "title": "Research · OSS CVE Watch Day 2",
+        "body": "**nghttp2 · libFuzzer · Day 2/14**\n\n• **1,013,382,502** executions · **~8h** · **~35k exec/s**\n• Corpus **2,905** · **467** coverage edges\n• **CLEAN** — 0 ASAN heap crashes\n• Day 1 = mutation · Day 2+ = libFuzzer (corpus persists)\n\n**Report:** https://hackme.tech/reports/oss-cve-watch/day02.html",
+        "ping": "#research"
+      },
+      "links": {
+        "day02": "https://hackme.tech/reports/oss-cve-watch/day02.html",
+        "hub": "https://hackme.tech/reports/oss-cve-watch/",
+        "research": "https://hackme.tech/research.html"
+      }
+    },
+    {
       "id": "2026-07-08-miningpoolstats-closed-summer-focus",
       "date": "2026-07-08",
       "title": "MiningPoolStats hosted service closed · summer focus: CVE Watch + miners",
@@ -376,68 +468,6 @@
         "report_day9": "https://hackme.tech/reports/bitcoin30-day09.html",
         "report_week1": "https://hackme.tech/reports/bitcoin30-week1.html",
         "github": "https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_coinbase_bip34.c"
-      }
-    },
-    {
-      "id": "2026-06-18-bitcoin30-day09",
-      "date": "2026-06-18",
-      "title": "Bitcoin Core 30-Day Fuzz — Day 9",
-      "summary": "Week 2 continues: MAX_BLOCK_WEIGHT (4M WU) guard from Bitcoin Core consensus policy. Live HackMe campaign: 128 runs, 80 guard signals, zero critical, 30s wall time.",
-      "impact": "First block-level guard in the series (post-script week). Honest triage: overweight candidates flagged, not CVE claims. Public HTML + reproducible DAY=9 script.",
-      "action": "Report: https://hackme.tech/reports/bitcoin30-day09.html · Reproduce: DAY=9 bash scripts/ops/run_bitcoin30_day.sh",
-      "tags": [
-        "security",
-        "research",
-        "bitcoin",
-        "fuzzing"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "Bitcoin30 Day 9/30 — block weight cap",
-        "lead": "MAX_BLOCK_WEIGHT 4M WU · SegWit weight model. 128 runs · 80 guard signals · 0 critical.",
-        "bullets": [
-          "Module: block weight budget (stripped×3 + total)",
-          "Source: bitcoin/bitcoin validation.h · HackMe bitcoin_block_weight.c",
-          "Verdict fail_high — boundary triage, not exploitable bypass"
-        ],
-        "footer": "Report: hackme.tech/reports/bitcoin30-day09.html · Day 8: bitcoin30-day08.html"
-      },
-      "links": {
-        "report_day9": "https://hackme.tech/reports/bitcoin30-day09.html",
-        "report_day8": "https://hackme.tech/reports/bitcoin30-day08.html",
-        "report_week1": "https://hackme.tech/reports/bitcoin30-week1.html",
-        "github": "https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_block_weight.c"
-      }
-    },
-    {
-      "id": "2026-06-17-bitcoin30-day08",
-      "date": "2026-06-17",
-      "title": "Bitcoin Core 30-Day Fuzz — Day 8 (Week 2)",
-      "summary": "Week 2 kickoff: EvalScript MAX_STACK_SIZE guard from bitcoin/bitcoin interpreter — combined main+alt stack must stay ≤1000 elements. Live campaign on HackMe node: 64 runs, 64 guard signals, zero critical, 15s wall time.",
-      "impact": "Daily cadence continues after Week 1 wrap. Strong B2B proof: real Core stack budget, honest guard_signal triage, public HTML ledger — not fake CVE noise.",
-      "action": "Report: https://hackme.tech/reports/bitcoin30-day08.html · Reproduce: DAY=8 bash scripts/ops/run_bitcoin30_day.sh",
-      "tags": [
-        "security",
-        "research",
-        "bitcoin",
-        "fuzzing"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "Bitcoin30 Day 8/30 — EvalScript stack depth",
-        "lead": "Week 2 live. MAX_STACK_SIZE (1000) from Core interpreter. 64 runs · 64 guard signals · 0 critical.",
-        "bullets": [
-          "Module: SCRIPT_ERR_STACK_SIZE — main + alt stack budget during EvalScript",
-          "Source: bitcoin/bitcoin interpreter.cpp + script.h MAX_STACK_SIZE",
-          "Verdict fail_high (expected) — boundary inputs, not CVE claims"
-        ],
-        "footer": "Report: hackme.tech/reports/bitcoin30-day08.html · Week 1: bitcoin30-week1.html"
-      },
-      "links": {
-        "report_day8": "https://hackme.tech/reports/bitcoin30-day08.html",
-        "report_week1": "https://hackme.tech/reports/bitcoin30-week1.html",
-        "research": "https://hackme.tech/research.html",
-        "github": "https://github.com/jokeez/hackme/blob/main/tasks/sources/security/upstream/bitcoin_evalscript_stack.c"
       }
     }
   ],

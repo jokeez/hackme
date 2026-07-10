@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-07",
+  "updated": "2026-07-08",
   "note": "Auto-ranked high-yield OSS CVE targets \u2014 ASAN-class hunt queue (wave14+)",
   "method": "rank_oss_cve_targets.py",
   "wave14": {
@@ -8,22 +8,31 @@
       "cfgpack",
       "nghttp2",
       "duktape",
-      "miniz",
-      "oniguruma",
-      "zlib",
-      "libxml2",
-      "mpack",
-      "cjson",
+      "wren",
+      "lz4",
+      "minimp3",
+      "stb_vorbis",
+      "hiredis",
+      "stb_image",
       "yajl-210",
       "cj5",
       "cwalk",
       "frozen",
-      "inih"
+      "inih",
+      "jsmn",
+      "kuba_zip",
+      "libconfini",
+      "microtar",
+      "parsello",
+      "tinycbor",
+      "tomlc99",
+      "jsonparser"
     ],
     "budget_iterations": 250000,
     "time_limit_sec": 7200,
     "skip_ids": [
       "centijson",
+      "cjson",
       "cmark",
       "cmp",
       "cyaml",
@@ -31,12 +40,17 @@
       "heatshrink",
       "jansson",
       "json-c",
+      "libcbor",
+      "libxml2",
       "libyaml",
       "lua",
       "md4c",
+      "miniz",
       "mjson",
+      "mpack",
       "msgpack-c",
       "mxml",
+      "oniguruma",
       "parson",
       "pcre2",
       "picohttpparser",
@@ -45,7 +59,8 @@
       "tomlc17",
       "uriparser",
       "yajl",
-      "yyjson"
+      "yyjson",
+      "zlib"
     ],
     "strategy": "high_yield_asan"
   },
@@ -58,49 +73,65 @@
       "priority": 1,
       "category": "interpreter",
       "last_verdict": "INFORMATIONAL",
-      "last_iterations": 21201,
-      "crash_count": 16330,
+      "last_iterations": 56570,
+      "crash_count": 39851,
       "asan_crashes": 0,
       "reasons": [
         "category=interpreter(+45)",
-        "INFORMATIONAL crashes=16330(+80)",
-        "priority=1(+10)",
-        "pinned_cve_chase(+75)"
-      ]
-    },
-    {
-      "id": "nghttp2",
-      "score": 195,
-      "repo": "https://github.com/nghttp2/nghttp2",
-      "title": "nghttp2/nghttp2 \u00b7 session mem_recv",
-      "priority": 1,
-      "category": "http",
-      "last_verdict": "INFORMATIONAL",
-      "last_iterations": 22526,
-      "crash_count": 17288,
-      "asan_crashes": 0,
-      "reasons": [
-        "category=http(+30)",
-        "INFORMATIONAL crashes=17288(+80)",
+        "INFORMATIONAL crashes=39851(+80)",
         "priority=1(+10)",
         "pinned_cve_chase(+75)"
       ]
     },
     {
       "id": "cfgpack",
-      "score": 172,
+      "score": 200,
       "repo": "https://github.com/Arsievert/cfgpack",
       "title": "Arsievert/cfgpack \u00b7 msgpack decode",
       "priority": 2,
       "category": "msgpack",
-      "last_verdict": "INFORMATIONAL",
-      "last_iterations": 400000,
-      "crash_count": 1252,
+      "last_verdict": "CVE_CANDIDATE",
+      "last_iterations": 150000,
+      "crash_count": 446,
       "asan_crashes": 0,
       "reasons": [
         "category=msgpack(+35)",
-        "INFORMATIONAL crashes=1252(+62)",
+        "CVE_CANDIDATE(+90)",
         "pinned_cve_chase(+75)"
+      ]
+    },
+    {
+      "id": "libucl",
+      "score": 175,
+      "repo": "https://github.com/vstakhov/libucl",
+      "title": "vstakhov/libucl \u00b7 ucl_parser",
+      "priority": 2,
+      "category": "config",
+      "last_verdict": "CVE_CANDIDATE",
+      "last_iterations": 20762,
+      "crash_count": 2236,
+      "asan_crashes": 0,
+      "reasons": [
+        "category=config(+10)",
+        "CVE_CANDIDATE(+90)",
+        "pinned_cve_chase(+75)"
+      ]
+    },
+    {
+      "id": "wren",
+      "score": 175,
+      "repo": "https://github.com/wren-lang/wren",
+      "title": "wren-lang/wren \u00b7 wrenInterpret VM",
+      "priority": 1,
+      "category": "interpreter",
+      "last_verdict": null,
+      "last_iterations": null,
+      "crash_count": null,
+      "asan_crashes": null,
+      "reasons": [
+        "category=interpreter(+45)",
+        "never fuzzed(+120)",
+        "priority=1(+10)"
       ]
     },
     {
@@ -206,23 +237,6 @@
       ]
     },
     {
-      "id": "libucl",
-      "score": 165,
-      "repo": "https://github.com/vstakhov/libucl",
-      "title": "vstakhov/libucl \u00b7 ucl_parser",
-      "priority": 2,
-      "category": "config",
-      "last_verdict": "INFORMATIONAL",
-      "last_iterations": 132895,
-      "crash_count": 10824,
-      "asan_crashes": 0,
-      "reasons": [
-        "category=config(+10)",
-        "INFORMATIONAL crashes=10824(+80)",
-        "pinned_cve_chase(+75)"
-      ]
-    },
-    {
       "id": "libxml2",
       "score": 165,
       "repo": "https://github.com/GNOME/libxml2",
@@ -254,6 +268,24 @@
         "category=binary(+35)",
         "never fuzzed(+120)",
         "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "nghttp2",
+      "score": 165,
+      "repo": "https://github.com/nghttp2/nghttp2",
+      "title": "nghttp2/nghttp2 \u00b7 session mem_recv",
+      "priority": 1,
+      "category": "http",
+      "last_verdict": "INFORMATIONAL",
+      "last_iterations": 6447,
+      "crash_count": 0,
+      "asan_crashes": 0,
+      "reasons": [
+        "category=http(+30)",
+        "INFORMATIONAL crashes=0(+50)",
+        "priority=1(+10)",
+        "pinned_cve_chase(+75)"
       ]
     },
     {
@@ -337,40 +369,6 @@
       "reasons": [
         "category=msgpack(+35)",
         "never fuzzed(+120)"
-      ]
-    },
-    {
-      "id": "lua",
-      "score": 135,
-      "repo": "https://github.com/lua/lua",
-      "title": "lua/lua \u00b7 luaL_loadbuffer",
-      "priority": 1,
-      "category": "interpreter",
-      "last_verdict": "INFORMATIONAL",
-      "last_iterations": 22666,
-      "crash_count": 17349,
-      "asan_crashes": 0,
-      "reasons": [
-        "category=interpreter(+45)",
-        "INFORMATIONAL crashes=17349(+80)",
-        "priority=1(+10)"
-      ]
-    },
-    {
-      "id": "quickjs",
-      "score": 135,
-      "repo": "https://github.com/bellard/quickjs",
-      "title": "bellard/quickjs \u00b7 JS_Eval",
-      "priority": 1,
-      "category": "interpreter",
-      "last_verdict": "INFORMATIONAL",
-      "last_iterations": 19880,
-      "crash_count": 15503,
-      "asan_crashes": 0,
-      "reasons": [
-        "category=interpreter(+45)",
-        "INFORMATIONAL crashes=15503(+80)",
-        "priority=1(+10)"
       ]
     },
     {
@@ -525,12 +523,12 @@
       "priority": 1,
       "category": "xml",
       "last_verdict": "INFORMATIONAL",
-      "last_iterations": 31240,
-      "crash_count": 23301,
+      "last_iterations": 30208,
+      "crash_count": 22509,
       "asan_crashes": 0,
       "reasons": [
         "category=xml(+35)",
-        "INFORMATIONAL crashes=23301(+80)",
+        "INFORMATIONAL crashes=22509(+80)",
         "priority=1(+10)"
       ]
     },
@@ -820,19 +818,36 @@
       ]
     },
     {
-      "id": "wren",
-      "score": 107,
-      "repo": "https://github.com/wren-lang/wren",
-      "title": "wren-lang/wren \u00b7 wrenInterpret VM",
+      "id": "lua",
+      "score": 105,
+      "repo": "https://github.com/lua/lua",
+      "title": "lua/lua \u00b7 luaL_loadbuffer",
       "priority": 1,
       "category": "interpreter",
       "last_verdict": "INFORMATIONAL",
-      "last_iterations": 200000,
-      "crash_count": 261,
+      "last_iterations": 14830,
+      "crash_count": 0,
       "asan_crashes": 0,
       "reasons": [
         "category=interpreter(+45)",
-        "INFORMATIONAL crashes=261(+52)",
+        "INFORMATIONAL crashes=0(+50)",
+        "priority=1(+10)"
+      ]
+    },
+    {
+      "id": "quickjs",
+      "score": 105,
+      "repo": "https://github.com/bellard/quickjs",
+      "title": "bellard/quickjs \u00b7 JS_Eval",
+      "priority": 1,
+      "category": "interpreter",
+      "last_verdict": "INFORMATIONAL",
+      "last_iterations": 12950,
+      "crash_count": 0,
+      "asan_crashes": 0,
+      "reasons": [
+        "category=interpreter(+45)",
+        "INFORMATIONAL crashes=0(+50)",
         "priority=1(+10)"
       ]
     },
@@ -853,17 +868,17 @@
     },
     {
       "id": "centijson",
-      "score": 50,
+      "score": 49,
       "repo": "https://github.com/mity/centijson",
       "title": "mity/centijson \u00b7 JSON parse",
       "priority": 1,
       "category": "json",
       "last_verdict": "INFORMATIONAL",
-      "last_iterations": 500000,
-      "crash_count": 5267,
+      "last_iterations": 250000,
+      "crash_count": 2976,
       "asan_crashes": 0,
       "reasons": [
-        "INFORMATIONAL crashes=5267(+80)",
+        "INFORMATIONAL crashes=2976(+79)",
         "priority=1(+10)",
         "disclosure_hold(-40)"
       ]
@@ -2181,6 +2196,56 @@
     "strategy": "sweep_remaining_easy"
   },
   "wave44": {
+    "targets": [
+      "yajl-210",
+      "cj5",
+      "inih",
+      "jsmn",
+      "libconfini",
+      "parsello",
+      "tomlc99",
+      "mxml"
+    ],
+    "budget_iterations": 100000,
+    "time_limit_sec": 3600,
+    "skip_ids": [
+      "centijson",
+      "cfgpack",
+      "cjson",
+      "cmark",
+      "cmp",
+      "cyaml",
+      "duktape",
+      "expat",
+      "heatshrink",
+      "jansson",
+      "json-c",
+      "libcbor",
+      "libucl",
+      "libxml2",
+      "libyaml",
+      "lua",
+      "md4c",
+      "miniz",
+      "mjson",
+      "mpack",
+      "msgpack-c",
+      "nghttp2",
+      "oniguruma",
+      "parson",
+      "pcre2",
+      "picohttpparser",
+      "quickjs",
+      "sheredom",
+      "tomlc17",
+      "uriparser",
+      "yajl",
+      "yyjson",
+      "zlib"
+    ],
+    "strategy": "sweep_remaining_easy"
+  },
+  "wave48": {
     "targets": [
       "yajl-210",
       "cj5",

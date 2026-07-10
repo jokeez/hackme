@@ -10,6 +10,48 @@ Daily single-repo hunt with public ledger pages:
 
 Use this for **social cadence** (one library, one post/day). The wave hunt below is the **batch matrix** across many parsers.
 
+### libFuzzer depth (nghttp2 focus · Days 2–14)
+
+Coverage-guided local hunt — corpus persists between sessions. Day 1 Watch stays mutation; Day 2+ uses libFuzzer.
+
+```bash
+# Build once
+TARGET=nghttp2 bash scripts/ops/build_oss_libfuzzer.sh
+
+# Night session (8h default, corpus grows)
+bash scripts/ops/run_oss_libfuzzer_session.sh
+MAX_TIME=3600 bash scripts/ops/run_oss_libfuzzer_session.sh   # 1h test
+
+# Background
+setsid bash scripts/ops/run_oss_libfuzzer_session.sh >>logs/nghttp2-libfuzzer.nohup.log 2>&1 &
+
+# OSS CVE Watch Day 2+ publish (optional)
+DAY=2 MAX_TIME=7200 bash scripts/ops/run_oss_cve_watch_libfuzzer_day.sh
+DAY=2 SKIP_PUBLISH=1 bash scripts/ops/run_oss_cve_watch_libfuzzer_day.sh
+```
+
+Corpus: `reports/oss-cve-libfuzzer/nghttp2/corpus/` · Sessions: `.../sessions/` · Latest: `LATEST_SESSION`.
+
+---
+
+| Rule | Why |
+|------|-----|
+| **One public watch day at a time** | Hub shows Day N only after you export + deploy |
+| **Background runs use `SKIP_PUBLISH=1`** | `bash scripts/ops/run_oss_cve_watch_background.sh` keeps reports in `reports/` only |
+| **Per day: go deeper OR switch repo** | Day 1–3 nghttp2 depth ramp *or* Day 2 = md4c — pick one story per publish |
+| **Manual publish** | `python3 scripts/ops/export_oss_cve_watch_html.py DAY REPORT_DIR` then `deploy_hackme_site.sh` |
+
+Do **not** chain `export_oss_cve_watch_html.py` for multiple days in one night — that defeats the 14-day ledger narrative.
+
+**Deep matrix hunts (day+night, no watch publish):**
+
+```bash
+setsid bash scripts/ops/run_oss_cve_deep_daynight.sh >>logs/oss-cve-deep-daynight.nohup.log 2>&1 &
+tail -f logs/oss-cve-deep-daynight.nohup.log
+```
+
+Queue: duktape → compression → regex → libxml2 → md4c → ranked wave — reports land in `reports/oss-cve/deep-*` only.
+
 ---
 
 Tier **oss_cve** runs mutation fuzz on **cloned upstream repos** with stdin ASAN drivers — not WASM excerpt guards.

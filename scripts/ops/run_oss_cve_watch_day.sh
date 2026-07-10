@@ -44,8 +44,12 @@ if [[ ! -f "$OUT/ROLLUP.json" ]]; then
   fail "missing ROLLUP.json — see $OUT/hunt.log"
 fi
 
-python3 "$ROOT/scripts/ops/export_oss_cve_watch_html.py" "$DAY" "$OUT"
-log "site export ok — web/site/reports/oss-cve-watch/day$(printf '%02d' "$DAY").html"
+if [[ "${SKIP_PUBLISH:-0}" == "1" ]]; then
+  log "SKIP_PUBLISH=1 — report kept local only ($OUT); publish later: python3 scripts/ops/export_oss_cve_watch_html.py $DAY $OUT"
+else
+  python3 "$ROOT/scripts/ops/export_oss_cve_watch_html.py" "$DAY" "$OUT"
+  log "site export ok — web/site/reports/oss-cve-watch/day$(printf '%02d' "$DAY").html"
+fi
 
 if [[ $RC -eq 1 ]]; then
   log "CVE_CANDIDATE — disclosure hold; HTML exported with banner"

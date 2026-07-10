@@ -1,0 +1,22 @@
+{
+  "updated": "2026-07-08",
+  "note": "libFuzzer pilot targets — per-repo harness + build recipe (local CVE depth)",
+  "defaults": {
+    "max_total_time_sec": 28800,
+    "timeout_sec": 3,
+    "rss_limit_mb": 4096,
+    "max_len": 65536
+  },
+  "targets": [
+    {
+      "id": "nghttp2",
+      "repo": "https://github.com/nghttp2/nghttp2",
+      "ref": "master",
+      "title": "nghttp2/nghttp2 · session mem_recv",
+      "fuzzer": "nghttp2_fuzzer",
+      "oss_cve_target_id": "nghttp2",
+      "seeds_dir": "tasks/seeds/oss-libfuzzer/nghttp2",
+      "cwe": ["CWE-125", "CWE-787"]
+    }
+  ]
+}
