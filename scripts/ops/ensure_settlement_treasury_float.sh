@@ -2,7 +2,7 @@
 # Keep settlement treasury (payer node wallet) funded for timely worker payouts.
 #
 #   bash scripts/ops/ensure_settlement_treasury_float.sh
-#   MIN_FLOAT_HMC=50 TOPUP_HMC=30 bash scripts/ops/ensure_settlement_treasury_float.sh
+#   MIN_FLOAT_HMC=15 TOPUP_HMC=20 bash scripts/ops/ensure_settlement_treasury_float.sh
 #
 # VPS hub (auto from dev treasury seed):
 #   TREASURY_FUND_SEED_HEX=/opt/hackme/.secrets/hackme_treasury_ed25519_seed.hex \
@@ -13,8 +13,9 @@ cd "$ROOT"
 
 TREASURY_ADDR="${TREASURY_ADDR:-HMC-381c0c5e2cfcc714}"
 CHAIN_BASE="${CHAIN_BASE:-http://127.0.0.1:18080}"
-MIN_FLOAT_HMC="${MIN_FLOAT_HMC:-50}"
-TOPUP_HMC="${TOPUP_HMC:-80}"
+MIN_FLOAT_HMC="${MIN_FLOAT_HMC:-15}"
+TOPUP_HMC="${TOPUP_HMC:-20}"
+MAX_GENESIS_TOPUP_24H_HMC="${MAX_GENESIS_TOPUP_24H_HMC:-25}"
 MIN_SETTLE_HMC="${MIN_SETTLE_HMC:-0.0001}"
 DATA_DIR="${HACKME_DATA_DIR:-${DATA_DIR:-$ROOT/logs/desktop/data}}"
 TREASURY_FUND_SEED_HEX="${TREASURY_FUND_SEED_HEX:-${ROOT}/.secrets/hackme_treasury_ed25519_seed.hex}"
@@ -97,9 +98,25 @@ bal, mn, top = map(float, sys.argv[1:])
 if bal >= mn:
     print("0")
 else:
-    print(f"{max(top, mn - bal):.8f}")
+    gap = mn - bal
+    print(f"{min(top, gap):.8f}")
 PY
 )"
+if awk -v n="$need" 'BEGIN{exit !(n>0)}'; then
+  if [[ -f "$ROOT/scripts/ops/treasury_bootstrap_guard.sh" ]]; then
+  HACKME_DB="${HACKME_DB:-${ROOT}/data/hackme.db}"
+  if [[ ! -f "$HACKME_DB" && -f /opt/hackme/data/hackme.db ]]; then
+    HACKME_DB="/opt/hackme/data/hackme.db"
+  fi
+  if ! HACKME_DB="$HACKME_DB" \
+      MAX_GENESIS_TOPUP_24H_HMC="$MAX_GENESIS_TOPUP_24H_HMC" \
+      CHAIN_BASE="$CHAIN_BASE" \
+      bash "$ROOT/scripts/ops/treasury_bootstrap_guard.sh"; then
+      echo "[treasury-float] SKIP topup — genesis daily budget exceeded" >&2
+      need="0"
+    fi
+  fi
+fi
 if awk -v n="$need" 'BEGIN{exit !(n>0)}'; then
   echo "[treasury-float] treasury=${TREASURY_ADDR} balance=${bal_hmc} HMC < min=${MIN_FLOAT_HMC} — topup ${need} HMC"
   send_topup "$need" || true
