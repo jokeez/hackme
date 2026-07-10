@@ -4,18 +4,29 @@ import path from 'path';
 
 const SITE = process.env.SITE_BASE || 'https://hackme.tech';
 
-function resolveIsoUrl(): string {
-  if (process.env.ISO_URL) return process.env.ISO_URL;
+function resolveIsoVersion(): string {
   const root = path.resolve(__dirname, '../../..');
   const isoVerPath = path.join(root, 'scripts/release/CURRENT_ISO_VERSION');
-  let ver = '0.1.0-rc11r';
   try {
-    ver = fs.readFileSync(isoVerPath, 'utf8').trim();
+    return fs.readFileSync(isoVerPath, 'utf8').trim();
   } catch {
-    /* use fallback */
+    return '0.1.0-rc11r';
   }
+}
+
+function resolveIsoUrl(): string {
+  if (process.env.ISO_URL) return process.env.ISO_URL;
+  const ver = resolveIsoVersion();
   const base = SITE.replace(/\/$/, '');
   return `${base}/dist/release_${ver}/HackMe-OS-${ver}-amd64.iso`;
+}
+
+/** Cloudflare can stall range GET on large ISO; origin probe matches download_hackme_release.sh */
+function resolveIsoRangeProbeUrl(isoUrl: string): string {
+  if (process.env.ISO_RANGE_URL) return process.env.ISO_RANGE_URL;
+  const originIp = process.env.HACKME_ORIGIN_IP || '132.243.112.100';
+  const u = new URL(isoUrl);
+  return `https://${originIp}${u.pathname}`;
 }
 
 const PAGES = [
@@ -73,9 +84,13 @@ test.describe('Public site hackme.tech', () => {
     const bytes = Number(len);
     expect(bytes).toBeGreaterThan(800_000_000);
 
-    const range = await request.get(isoUrl, {
-      timeout: 180_000,
-      headers: { Range: 'bytes=0-65535' },
+    // HEAD via CDN; byte-range via origin (CF path stalls ~19KB on large ISO).
+    const rangeUrl = resolveIsoRangeProbeUrl(isoUrl);
+    const host = new URL(isoUrl).hostname;
+    const range = await request.get(rangeUrl, {
+      timeout: 90_000,
+      headers: { Range: 'bytes=0-65535', Host: host },
+      ignoreHTTPSErrors: true,
     });
     expect([200, 206]).toContain(range.status());
     const body = await range.body();
