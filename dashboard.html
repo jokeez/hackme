@@ -8284,7 +8284,7 @@
 				});
 			}
 			if ($('btn-fuzz-market-refresh')) {
-				$('btn-fuzz-market-refresh').addEventListener('click', () => { void refreshMiningFuzzMarketplace(); });
+				$('btn-fuzz-market-refresh').addEventListener('click', () => { void refreshMiningFuzzMarketplace(true); });
 			}
 		}
 
@@ -11497,13 +11497,26 @@
 			if ($('audit-runs')) $('audit-runs').value = String(p.runs);
 		}
 
-		async function refreshMiningFuzzMarketplace() {
+		async function refreshMiningFuzzMarketplace(forceRefresh) {
 			const box = $('mining-fuzz-market-rows');
 			if (!box) return;
+			if (refreshMiningFuzzMarketplace._busy) return;
+			refreshMiningFuzzMarketplace._busy = true;
+			const btn = $('btn-fuzz-market-refresh');
+			const prevBtn = btn ? btn.textContent : '';
+			if (btn) { btn.disabled = true; btn.textContent = '…'; }
+			box.textContent = 'Refreshing…';
+			const ac = new AbortController();
+			const timer = setTimeout(() => ac.abort(), 22000);
+			const url = '/api/fuzz/marketplace' + (forceRefresh ? '?refresh=1' : '');
 			try {
-				const r = await fetch('/api/fuzz/marketplace', { cache: 'no-store' });
+				const r = await fetch(url, { cache: 'no-store', signal: ac.signal });
 				if (!r.ok) throw new Error('HTTP ' + r.status);
 				const j = await r.json();
+				if (j.warning === 'marketplace_timeout' && refreshMiningFuzzMarketplace._lastHtml) {
+					box.innerHTML = refreshMiningFuzzMarketplace._lastHtml + '<div class="text-gray-600 mt-1">(stale — node busy)</div>';
+					return;
+				}
 				const rows = Array.isArray(j.campaigns) ? j.campaigns : [];
 				const visible = rows.filter((c) => {
 					const st = String(c.status || '').toLowerCase();
@@ -11530,8 +11543,18 @@
 						'<span class="text-matrix">' + pr + '</span>' +
 						'<span class="text-gray-600">native ' + escapeHtml(String(c.native_status || 'n/a')) + '</span></div>';
 				}).join('');
+				refreshMiningFuzzMarketplace._lastHtml = box.innerHTML;
 			} catch (e) {
-				box.textContent = 'Marketplace: ' + (e && e.message ? e.message : e);
+				const msg = (e && e.name === 'AbortError') ? 'slow response — try Refresh again' : (e && e.message ? e.message : e);
+				if (refreshMiningFuzzMarketplace._lastHtml) {
+					box.innerHTML = refreshMiningFuzzMarketplace._lastHtml + '<div class="text-warn/80 mt-1">' + escapeHtml(String(msg)) + '</div>';
+				} else {
+					box.textContent = 'Marketplace: ' + msg;
+				}
+			} finally {
+				clearTimeout(timer);
+				refreshMiningFuzzMarketplace._busy = false;
+				if (btn) { btn.disabled = false; btn.textContent = prevBtn || 'Refresh'; }
 			}
 		}
 

@@ -37,7 +37,44 @@ func (a *app) startPoolSyncWorker() {
 		a.poolSyncCh = make(chan poolSyncJob, 256)
 		go a.poolSyncWorkerLoop()
 		a.startFuzzSettlePullTicker()
+		go a.retryFailedPoolSyncCampaigns()
 	})
+}
+
+// retryFailedPoolSyncCampaigns re-queues pool campaigns that failed coordinator register.
+func (a *app) retryFailedPoolSyncCampaigns() {
+	time.Sleep(3 * time.Second)
+	failed := a.poolSyncFailedIDs()
+	if len(failed) == 0 {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	rows, err := a.db.QueryContext(ctx,
+		`SELECT id, budget_runs, budget_seconds, config_json FROM fuzz_campaigns
+		 WHERE status IN ('planned','running')
+		   AND json_extract(config_json, '$.pool_distributed') IN (1, 'true', '1')`)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, cfgJSON string
+		var budgetRuns, budgetSec int
+		if err := rows.Scan(&id, &budgetRuns, &budgetSec, &cfgJSON); err != nil {
+			continue
+		}
+		if _, ok := failed[id]; !ok {
+			continue
+		}
+		a.poolSyncMu.Lock()
+		delete(a.poolSyncQueued, id)
+		a.poolSyncMu.Unlock()
+		_, _ = a.schedulePoolFuzzSync(ctx, fuzzAutoCampaign{
+			ID: id, BudgetRuns: budgetRuns, BudgetSeconds: budgetSec, ConfigJSON: cfgJSON,
+		})
+		log.Printf("pool sync: retry queued for %s", id)
+	}
 }
 
 func (a *app) poolSyncWorkerLoop() {

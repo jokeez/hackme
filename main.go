@@ -116,6 +116,9 @@ type app struct {
 	poolSyncMu      sync.Mutex
 	poolSyncFailed  map[string]string // campaign_id → last error
 	poolSyncQueued  map[string]struct{}
+	fuzzMarketMu    sync.RWMutex
+	fuzzMarketCache []map[string]any
+	fuzzMarketAt    time.Time
 	// Throttles stale rig pruning to keep network stats cheap.
 	rigPruneLastUnix      int64
 	workerMu              sync.Mutex

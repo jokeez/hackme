@@ -29,9 +29,12 @@ type RegisterRequest struct {
 func timeoutDuration() time.Duration {
 	sec := 25
 	if v := strings.TrimSpace(os.Getenv("HACKME_POOL_SYNC_TIMEOUT_SEC")); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n >= 5 && n <= 120 {
+		if n, err := strconv.Atoi(v); err == nil && n >= 5 && n <= 180 {
 			sec = n
 		}
+	} else if u := strings.ToLower(ResolveCoordinatorURL()); strings.Contains(u, "hackme.tech") || strings.Contains(u, "/pool/coordinator") {
+		// Public coordinator POST can be slow through CDN when node is under load.
+		sec = 60
 	}
 	return time.Duration(sec) * time.Second
 }

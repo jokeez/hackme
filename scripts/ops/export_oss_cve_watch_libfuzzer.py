@@ -87,10 +87,10 @@ body::before{{content:"";position:fixed;inset:0;background:radial-gradient(ellip
 .hero h1{{font-family:"Space Grotesk",sans-serif;font-size:clamp(1.1rem,4vw,1.55rem);color:var(--neon);margin:0}}
 .hero .tag{{font-size:.72rem;color:#6d8099;text-transform:uppercase;letter-spacing:.2em;margin-bottom:.5rem}}
 .badge{{display:inline-block;margin-top:1rem;padding:.45rem 1.1rem;border-radius:999px;border:2px solid var(--warn);color:var(--warn);font-weight:700;font-size:.78rem}}
-.stats{{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.75rem;margin:1.5rem 0}}
-.stat{{border:1px solid rgba(0,209,255,.2);border-radius:12px;padding:1rem;background:var(--card)}}
+.stats{{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:.75rem;margin:1.5rem 0}}
+.stat{{border:1px solid rgba(0,209,255,.2);border-radius:12px;padding:.85rem .75rem;background:var(--card);min-width:0}}
 .stat b{{display:block;font-size:.62rem;text-transform:uppercase;letter-spacing:.12em;color:#6d8099;margin-bottom:.35rem}}
-.stat .v{{font-size:1.1rem;font-weight:700;color:#fff}}
+.stat .v{{font-size:clamp(0.62rem,2.4vw,1.05rem);font-weight:700;color:#fff;word-break:break-word;overflow-wrap:anywhere;line-height:1.25}}
 .stat .v.ok{{color:var(--matrix)}}
 .mod-card{{border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:1.25rem;background:var(--card);margin:1.5rem 0}}
 .mod-card h2{{font-family:"Space Grotesk",sans-serif;font-size:1rem;margin:0 0 .5rem;color:#fff}}
@@ -179,8 +179,9 @@ body::before{{content:"";position:fixed;inset:0;background:radial-gradient(ellip
 .hero h1{{font-family:"Space Grotesk",sans-serif;font-size:clamp(1.2rem,4vw,1.65rem);color:var(--neon);margin:0}}
 .hero .tag{{font-size:.72rem;color:#6d8099;text-transform:uppercase;letter-spacing:.2em}}
 .policy{{margin:1.25rem 0;padding:1rem;border:1px solid rgba(255,176,32,.35);border-radius:12px;font-size:.8rem;color:#d4b896;background:rgba(255,176,32,.05)}}
-.days{{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.5rem;margin-top:1rem}}
-.days a,.days .pending{{font-size:.72rem;padding:.5rem .55rem;border:1px solid rgba(255,255,255,.08);border-radius:8px;color:#b8c8dc;text-decoration:none;display:flex;justify-content:space-between;align-items:center;gap:.35rem}}
+.days{{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:.5rem;margin-top:1rem}}
+.days a,.days .pending{{font-size:.72rem;padding:.5rem .55rem;border:1px solid rgba(255,255,255,.08);border-radius:8px;color:#b8c8dc;text-decoration:none;display:flex;justify-content:space-between;align-items:center;gap:.35rem;min-width:0;overflow:hidden}}
+.days a span:first-child,.days .pending{{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
 .days a:hover{{border-color:rgba(0,209,255,.35);color:#fff}}
 .days .pending{{opacity:.45}}
 .pill{{font-size:.6rem;padding:.15rem .45rem;border-radius:999px;border:1px solid rgba(255,255,255,.15)}}

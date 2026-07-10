@@ -89,13 +89,26 @@ func (a *app) mergeCoordinatorPoolMarketplace(ctx context.Context, items []map[s
 	if err != nil {
 		remote = map[string]coordinatorPoolCampaign{}
 	}
+	return a.mergeCoordinatorPoolMarketplaceWithRemote(ctx, items, remote)
+}
+
+func (a *app) mergeCoordinatorPoolMarketplaceWithRemote(ctx context.Context, items []map[string]any, remote map[string]coordinatorPoolCampaign) []map[string]any {
+	if remote == nil {
+		remote = map[string]coordinatorPoolCampaign{}
+	}
 	out := make([]map[string]any, 0, len(items))
 	for _, item := range items {
 		id, _ := item["id"].(string)
 		id = strings.TrimSpace(id)
 		rc, ok := remote[id]
-		if !ok && id != "" {
-			rc, ok = a.fetchCoordinatorPoolCampaignProgress(ctx, id)
+		if id != "" && len(items) <= 12 {
+			progCtx, progCancel := context.WithTimeout(ctx, 3*time.Second)
+			if rc2, ok2 := a.fetchCoordinatorPoolCampaignProgress(progCtx, id); ok2 {
+				if !ok || rc2.RunsDone > rc.RunsDone || (rc.RunsDone == 0 && rc2.RunsDone > 0) {
+					rc, ok = rc2, true
+				}
+			}
+			progCancel()
 		}
 		if ok {
 			if rc.RunsDone > 0 {
