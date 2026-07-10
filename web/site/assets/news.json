@@ -16,13 +16,13 @@
       "status": "published",
       "telegram": {
         "headline": "🚀 HackMe 0.1.0-rc11r — GitHub Releases",
-        "lead": "Win · Linux · ISO · fuzz CLI — один канал, те же SHA256",
+        "lead": "Win · Linux · ISO · fuzz CLI — one channel, same SHA256",
         "bullets": [
-          "Первый релиз на GitHub — не только CDN",
-          "Linux: worker_autostart + workerpoh-opencl в tarball (bye worker_script_missing)",
-          "HackMe OS ISO ~844 MB · Zero-Knowledge Start · pool token внутри",
+          "First tagged release on GitHub — not CDN-only anymore",
+          "Linux: worker_autostart + workerpoh-opencl in tarball (fixes worker_script_missing)",
+          "HackMe OS ISO ~844 MB · Zero-Knowledge Start · pool token embedded",
           "Fuzz: pull-settle outbox · escrow cleanup · hackme-fuzzing wizard",
-          "SHA256SUMS в релизе — сверяй перед flash USB"
+          "SHA256SUMS in the release — verify before USB flash"
         ],
         "footer": "github.com/jokeez/hackme/releases/tag/0.1.0-rc11r · hackme.tech/downloads.html"
       },
