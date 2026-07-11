@@ -111,9 +111,7 @@ func (a *app) mergeCoordinatorPoolMarketplaceWithRemote(ctx context.Context, ite
 			progCancel()
 		}
 		if ok {
-			if rc.RunsDone > 0 {
-				item["runs_done"] = rc.RunsDone
-			}
+			item["runs_done"] = rc.RunsDone
 			if rc.Findings > 0 {
 				item["findings"] = rc.Findings
 			}
@@ -125,6 +123,13 @@ func (a *app) mergeCoordinatorPoolMarketplaceWithRemote(ctx context.Context, ite
 			}
 			if rd := rc.RunsDone; rc.BudgetRuns > 0 && rd >= rc.BudgetRuns {
 				item["status"] = "completed"
+			}
+			if id != "" && rc.RunsDone > 0 {
+				go func(cid string) {
+					syncCtx, syncCancel := context.WithTimeout(context.Background(), 8*time.Second)
+					_ = a.syncPoolCampaignProgressFromCoordinator(syncCtx, cid)
+					syncCancel()
+				}(id)
 			}
 		}
 		st, _ := item["status"].(string)
@@ -158,6 +163,9 @@ func (a *app) syncPoolCampaignProgressFromCoordinator(ctx context.Context, campa
 		return nil
 	}
 	summary["runs_done"] = rc.RunsDone
+	if rc.Findings > 0 {
+		summary["unique_crashes"] = rc.Findings
+	}
 	summary["pool_workers"] = true
 	summary["heartbeat_at"] = time.Now().Unix()
 	nextStatus := strings.TrimSpace(strings.ToLower(status))

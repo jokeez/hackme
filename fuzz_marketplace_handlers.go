@@ -42,73 +42,15 @@ func (a *app) handleFuzzMarketplace(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 18*time.Second)
-	defer cancel()
-
-	type listResult struct {
-		items []map[string]any
-		err   error
-	}
-	type remoteResult struct {
-		remote map[string]coordinatorPoolCampaign
-		err    error
-	}
-	listCh := make(chan listResult, 1)
-	remoteCh := make(chan remoteResult, 1)
-
-	go func() {
-		svc := &poolfuzz.Service{DB: a.db}
-		items, err := svc.ListPublicCampaigns(context.Background(), 50)
-		listCh <- listResult{items, err}
-	}()
-	go func() {
-		mergeCtx, mergeCancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer mergeCancel()
-		remote, err := a.fetchCoordinatorPoolCampaigns(mergeCtx)
-		remoteCh <- remoteResult{remote, err}
-	}()
-
-	var items []map[string]any
-	var listErr error
-	select {
-	case <-ctx.Done():
-		if cached, ok := a.fuzzMarketplaceCached(); ok {
-			writeJSON(w, map[string]any{"ok": true, "campaigns": cached, "cached": true, "warning": "stale_cache"})
-			return
-		}
-		writeJSON(w, map[string]any{"ok": true, "campaigns": []any{}, "warning": "marketplace_timeout"})
-		return
-	case res := <-listCh:
-		items, listErr = res.items, res.err
-	}
+	svc := &poolfuzz.Service{DB: a.db}
+	items, listErr := svc.ListPublicCampaigns(r.Context(), 50)
 	if listErr != nil {
 		writeAPIError(w, http.StatusInternalServerError, "marketplace_failed", listErr.Error(), nil)
 		return
 	}
 
-	var remote map[string]coordinatorPoolCampaign
-	select {
-	case <-ctx.Done():
-		remote = map[string]coordinatorPoolCampaign{}
-	case res := <-remoteCh:
-		remote = res.remote
-		if remote == nil {
-			remote = map[string]coordinatorPoolCampaign{}
-		}
-	default:
-		select {
-		case res := <-remoteCh:
-			remote = res.remote
-			if remote == nil {
-				remote = map[string]coordinatorPoolCampaign{}
-			}
-		case <-time.After(6 * time.Second):
-			remote = map[string]coordinatorPoolCampaign{}
-		}
-	}
-
-	mergeCtx, mergeCancel := context.WithTimeout(context.Background(), 6*time.Second)
-	items = a.mergeCoordinatorPoolMarketplaceWithRemote(mergeCtx, items, remote)
+	mergeCtx, mergeCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	items = a.mergeCoordinatorPoolMarketplace(mergeCtx, items)
 	mergeCancel()
 
 	a.fuzzMarketplaceStore(items)
