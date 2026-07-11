@@ -29,6 +29,13 @@ func (a *app) fuzzMarketplaceStore(items []map[string]any) {
 	a.fuzzMarketAt = time.Now()
 }
 
+func (a *app) fuzzMarketplaceInvalidate() {
+	a.fuzzMarketMu.Lock()
+	defer a.fuzzMarketMu.Unlock()
+	a.fuzzMarketCache = nil
+	a.fuzzMarketAt = time.Time{}
+}
+
 func (a *app) handleFuzzMarketplace(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

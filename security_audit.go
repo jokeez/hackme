@@ -155,6 +155,14 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	if budgetSeconds < 60 {
 		budgetSeconds = 3600
 	}
+	// Pool deep audits (1000+ runs) need more wall-clock than the default 1h or they
+	// complete on budget_seconds with almost no pool worker progress.
+	if poolDist && budgetRuns >= 256 {
+		minSec := budgetRuns * 120
+		if minSec > budgetSeconds {
+			budgetSeconds = minSec
+		}
+	}
 	targetSolves := req.TargetSolves
 	if targetSolves < 1 {
 		targetSolves = 1

@@ -895,6 +895,7 @@ func (a *app) handleFuzzCampaignStatus(w http.ResponseWriter, r *http.Request, c
 		return
 	}
 	a.tryCloseFuzzEscrowForStatus(r.Context(), campaignID, status)
+	a.fuzzMarketplaceInvalidate()
 	c, err := a.getFuzzCampaign(r.Context(), campaignID)
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, "campaign_load_failed", "campaign load failed", nil)
