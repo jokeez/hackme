@@ -38,7 +38,72 @@ func (a *app) startPoolSyncWorker() {
 		go a.poolSyncWorkerLoop()
 		a.startFuzzSettlePullTicker()
 		go a.retryFailedPoolSyncCampaigns()
+		go a.reconcilePoolSyncCampaignsLoop()
 	})
+}
+
+// reconcilePoolSyncCampaignsLoop re-queues pool campaigns missing on the coordinator.
+func (a *app) reconcilePoolSyncCampaignsLoop() {
+	time.Sleep(5 * time.Second)
+	a.reconcilePoolSyncCampaigns()
+	ticker := time.NewTicker(3 * time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		a.reconcilePoolSyncCampaigns()
+	}
+}
+
+func (a *app) reconcilePoolSyncCampaigns() {
+	if a == nil || a.db == nil {
+		return
+	}
+	if strings.TrimSpace(poolsync.ResolveCoordinatorURL()) == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	rows, err := a.db.QueryContext(ctx,
+		`SELECT id, budget_runs, budget_seconds, config_json FROM fuzz_campaigns
+		 WHERE status IN ('planned','running')
+		   AND json_extract(config_json, '$.pool_distributed') IN (1, 'true', '1')
+		 ORDER BY created_at DESC LIMIT 64`)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, cfgJSON string
+		var budgetRuns, budgetSec int
+		if err := rows.Scan(&id, &budgetRuns, &budgetSec, &cfgJSON); err != nil {
+			continue
+		}
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if failed := a.poolSyncFailedIDs(); len(failed) > 0 {
+			if _, ok := failed[id]; ok {
+				continue
+			}
+		}
+		progCtx, progCancel := context.WithTimeout(ctx, 6*time.Second)
+		_, ok := a.fetchCoordinatorPoolCampaignProgress(progCtx, id)
+		progCancel()
+		if ok {
+			continue
+		}
+		a.poolSyncMu.Lock()
+		delete(a.poolSyncQueued, id)
+		a.poolSyncMu.Unlock()
+		mode, warn := a.schedulePoolFuzzSync(ctx, fuzzAutoCampaign{
+			ID: id, BudgetRuns: budgetRuns, BudgetSeconds: budgetSec, ConfigJSON: cfgJSON,
+		})
+		if warn != "" {
+			log.Printf("pool sync reconcile: %s warn=%s", id, warn)
+		} else {
+			log.Printf("pool sync reconcile: %s mode=%s", id, mode)
+		}
+	}
 }
 
 // retryFailedPoolSyncCampaigns re-queues pool campaigns that failed coordinator register.
