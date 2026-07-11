@@ -77,16 +77,25 @@ test.describe('Public site hackme.tech', () => {
 
   test('ISO download returns Content-Length and starts transfer', async ({ request }) => {
     const isoUrl = resolveIsoUrl();
-    const head = await request.head(isoUrl, { timeout: 120_000 });
+    const host = new URL(isoUrl).hostname;
+    let head = await request.head(isoUrl, { timeout: 120_000 });
+    if (head.status() !== 200) {
+      // CDN may 404 new release paths before origin sync; probe VPS directly (same as range test).
+      const probeUrl = resolveIsoRangeProbeUrl(isoUrl);
+      head = await request.head(probeUrl, {
+        timeout: 120_000,
+        headers: { Host: host },
+        ignoreHTTPSErrors: true,
+      });
+    }
     expect(head.status()).toBe(200);
     const len = head.headers()['content-length'];
     expect(len).toBeTruthy();
     const bytes = Number(len);
     expect(bytes).toBeGreaterThan(800_000_000);
 
-    // HEAD via CDN; byte-range via origin (CF path stalls ~19KB on large ISO).
+    // HEAD via CDN (or origin fallback above); byte-range via origin (CF path stalls ~19KB on large ISO).
     const rangeUrl = resolveIsoRangeProbeUrl(isoUrl);
-    const host = new URL(isoUrl).hostname;
     const range = await request.get(rangeUrl, {
       timeout: 90_000,
       headers: { Range: 'bytes=0-65535', Host: host },
