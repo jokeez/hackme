@@ -2326,13 +2326,35 @@ func canonicalFetchBudget(ctx context.Context, defaultDur time.Duration) time.Du
 	return defaultDur
 }
 
+// canonicalOverlayHTTPClient fetches canonical status/metrics without system proxy env.
+func canonicalOverlayHTTPClient(timeout time.Duration) *http.Client {
+	if timeout <= 0 {
+		timeout = 12 * time.Second
+	}
+	return &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			Proxy: nil,
+			DialContext: (&net.Dialer{
+				Timeout:   3 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			ForceAttemptHTTP2:     false,
+			TLSHandshakeTimeout:   5 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}
+}
+
 // fetchCanonicalJSON GETs JSON from canonical with a bounded timeout.
 func fetchCanonicalJSON(ctx context.Context, url string, timeout time.Duration) (map[string]any, bool) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, false
 	}
-	cl := &http.Client{Timeout: timeout}
+	req.Header.Set("User-Agent", "HackMe-Node/canonical-overlay")
+	req.Header.Set("Accept", "application/json")
+	cl := canonicalOverlayHTTPClient(timeout)
 	resp, err := cl.Do(req)
 	if err != nil || resp == nil {
 		return nil, false
@@ -2422,7 +2444,7 @@ func (a *app) overlayCanonicalMiningIntoSnapshot(ctx context.Context, s *Metrics
 		return false
 	}
 	out := false
-	if status, ok := fetchCanonicalJSON(ctx, base+"/api/status", canonicalFetchBudget(ctx, 4*time.Second)); ok {
+	if status, ok := fetchCanonicalJSON(ctx, base+"/api/status?lite=1", canonicalFetchBudget(ctx, 5*time.Second)); ok {
 		if bh := asUint64(status["tip_height"]); bh > 0 {
 			if applyCanonicalBlockEconomics(s, bh) {
 				out = true
@@ -2442,11 +2464,13 @@ func (a *app) overlayCanonicalMiningIntoSnapshot(ctx context.Context, s *Metrics
 	if err != nil {
 		return out
 	}
-	metricsTimeout := canonicalFetchBudget(ctx, 3*time.Second)
+	req.Header.Set("User-Agent", "HackMe-Node/canonical-overlay")
+	req.Header.Set("Accept", "application/json")
+	metricsTimeout := canonicalFetchBudget(ctx, 8*time.Second)
 	if out {
-		metricsTimeout = canonicalFetchBudget(ctx, 2*time.Second)
+		metricsTimeout = canonicalFetchBudget(ctx, 6*time.Second)
 	}
-	cl := &http.Client{Timeout: metricsTimeout}
+	cl := canonicalOverlayHTTPClient(metricsTimeout)
 	resp, err := cl.Do(req)
 	if err != nil || resp == nil {
 		return out
@@ -2529,6 +2553,28 @@ func (a *app) overlayCanonicalMiningIntoSnapshot(ctx context.Context, s *Metrics
 		s.EconWindowSec = 3600
 	}
 	return out
+}
+
+// handleCanonicalMetricsProxy returns canonical /api/metrics for desktop pool followers (same-origin dashboard fallback).
+func (a *app) handleCanonicalMetricsProxy(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/")
+	if base == "" || a.canonicalBaseIsSelfNode(base) {
+		http.Error(w, "canonical metrics not configured", http.StatusNotFound)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
+	defer cancel()
+	remote, ok := fetchCanonicalJSON(ctx, base+"/api/metrics", 12*time.Second)
+	if !ok || remote == nil {
+		http.Error(w, "canonical metrics unavailable", http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(remote)
 }
 
 func (a *app) handlePushWork(w http.ResponseWriter, r *http.Request) {

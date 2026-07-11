@@ -498,6 +498,7 @@ func main() {
 	mux.HandleFunc("/assets/logo-hex.png", a.handleBrandLogo)
 	mux.HandleFunc("/favicon.ico", a.handleFaviconICO)
 	mux.HandleFunc("/api/metrics", a.handleMetrics)
+	mux.HandleFunc("/api/canonical/metrics", a.handleCanonicalMetricsProxy)
 	mux.HandleFunc("/api/global/metrics", a.handleGlobalMetrics)
 	mux.HandleFunc("/api/network/stats", a.handleNetworkStats)
 	mux.HandleFunc("/api/work/stats", a.handleWorkStats)
@@ -1084,7 +1085,12 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Keep dashboard telemetry responsive: local chain DB can be huge (80k+ blocks, multi-GB WAL).
-	mctx, mcancel := context.WithTimeout(r.Context(), 4*time.Second)
+	metricsTimeout := 4 * time.Second
+	if envBool("HACKME_DESKTOP_MODE", false) && strings.TrimSpace(a.canonicalChainBaseURL()) != "" {
+		// Pool followers overlay canonical status + metrics (two HTTP round-trips).
+		metricsTimeout = 10 * time.Second
+	}
+	mctx, mcancel := context.WithTimeout(r.Context(), metricsTimeout)
 	defer mcancel()
 
 	s := collector.snapshot()
@@ -1192,8 +1198,12 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		s.MiningLoad = -1
 	}
 
-	// Keep /api/metrics fast for dashboard telemetry (canonical overlay is best-effort).
-	overlayCtx, overlayCancel := context.WithTimeout(mctx, 2*time.Second)
+	// Canonical overlay for pool followers (desktop): needs status + metrics fetch to public authority.
+	overlayBudget := 2 * time.Second
+	if envBool("HACKME_DESKTOP_MODE", false) && strings.TrimSpace(a.canonicalChainBaseURL()) != "" {
+		overlayBudget = 7 * time.Second
+	}
+	overlayCtx, overlayCancel := context.WithTimeout(mctx, overlayBudget)
 	canonMiningOverlay := a.overlayCanonicalMiningIntoSnapshot(overlayCtx, &s)
 	overlayCancel()
 

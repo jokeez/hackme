@@ -9099,6 +9099,26 @@
 					return;
 				}
 				lastMetricsPayload = await r.json();
+				const m0 = lastMetricsPayload || {};
+				const poolFollower = isPoolWorkContext();
+				const econEmpty = !(Number(m0.econ_window_total_hmc || 0) > 0 || Number(m0.econ_window_blocks || 0) > 0);
+				if (poolFollower && econEmpty && latestStatus) {
+					const canonM = await fetchCanonicalMetricsFallback(latestStatus);
+					if (canonM) {
+						lastMetricsPayload = Object.assign({}, m0, {
+							econ_window_base_hmc: canonM.econ_window_base_hmc,
+							econ_window_order_hmc: canonM.econ_window_order_hmc,
+							econ_window_total_hmc: canonM.econ_window_total_hmc,
+							econ_window_blocks: canonM.econ_window_blocks,
+							econ_window_base_blocks: canonM.econ_window_base_blocks,
+							econ_window_order_blocks: canonM.econ_window_order_blocks,
+							econ_window_order_share_pct: canonM.econ_window_order_share_pct,
+							mining_hmc_last_hour_approx: canonM.mining_hmc_last_hour_approx || canonM.econ_window_total_hmc,
+							mining_poh_blocks_last_1h: canonM.mining_poh_blocks_last_1h || canonM.econ_window_blocks,
+							mining_insight_note: 'Chain economics from canonical (client overlay). ' + String(m0.mining_insight_note || ''),
+						});
+					}
+				}
 				applyTelemetryFromMetrics(lastMetricsPayload);
 				applied = true;
 				const m = lastMetricsPayload || {};
@@ -9731,6 +9751,29 @@
 			} catch (_) {
 				return false;
 			}
+		}
+
+		async function fetchCanonicalMetricsFallback(localStatus) {
+			const st = localStatus || latestStatus || {};
+			const candidates = ['/api/canonical/metrics'];
+			const ux = st.miner_public_ux || {};
+			const canonBase = String(ux.canonical_chain_base || st.canonical_chain_base || '').trim();
+			if (canonBase) candidates.push(canonBase.replace(/\/+$/, '') + '/api/metrics');
+			const coordEff = String(st.pool_coordinator_url_effective || st.pool_coordinator_url || ux.coordinator_url_effective || '').trim();
+			const fromCoordStatus = deriveCanonicalStatusURLFromCoordinator(coordEff);
+			if (fromCoordStatus) candidates.push(fromCoordStatus.replace(/\/api\/status$/, '/api/metrics'));
+			const seen = new Set();
+			for (const u of candidates) {
+				if (!u || seen.has(u)) continue;
+				seen.add(u);
+				try {
+					const r = await fetch(u, { cache: 'no-store', mode: 'cors' });
+					if (!r.ok) continue;
+					const j = await r.json();
+					if (Number(j.econ_window_blocks || j.econ_window_total_hmc || 0) > 0) return j;
+				} catch (_) {}
+			}
+			return null;
 		}
 
 		async function fetchCanonicalStatusFallback(localStatus) {

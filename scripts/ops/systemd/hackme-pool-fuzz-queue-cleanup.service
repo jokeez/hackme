@@ -1,0 +1,16 @@
+[Unit]
+Description=HackMe pool fuzz queue cleanup (gates + stale pending)
+After=network-online.target hackme-coordinator.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=hackme
+WorkingDirectory=/opt/hackme
+Environment=NODE_SSH=
+Environment=COORD_URL=https://hackme.tech/pool/coordinator
+ExecStart=/bin/bash /opt/hackme/scripts/ops/coordinator_fuzz_queue_cleanup.sh
+Nice=10
+
+[Install]
+WantedBy=multi-user.target
