@@ -60,6 +60,8 @@ func TestCanonicalSettlementStateFileFromDataDir(t *testing.T) {
 	t.Setenv("HACKME_DATA_DIR", dir)
 	t.Setenv("HACKME_SETTLEMENT_CANONICAL_FILE", "")
 	t.Setenv("SETTLEMENT_CANONICAL_JSON", "")
+	t.Setenv("HACKME_WORKER_SETTLEMENT_STATE_FILE", filepath.Join(dir, "worker_settlement_state.json"))
+	t.Setenv("WORKER_SETTLEMENT_STATE_FILE", "")
 	path := filepath.Join(dir, "settlement_canonical_public.json")
 	if err := os.WriteFile(path, []byte(`{"workers":{}}`), 0o600); err != nil {
 		t.Fatal(err)

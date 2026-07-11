@@ -4,10 +4,10 @@ import "testing"
 
 func TestFuzzSettleOutboxAction(t *testing.T) {
 	cases := []struct {
-		status       string
-		kind         string
-		wantApply    bool
-		wantDrain    bool
+		status    string
+		kind      string
+		wantApply bool
+		wantDrain bool
 	}{
 		{"open", "run", true, false},
 		{"open", "finding", true, false},

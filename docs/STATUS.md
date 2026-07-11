@@ -1,7 +1,7 @@
 # HackMe RC status (operator snapshot)
 
-**Release:** `0.1.0-rc11r` · **Site:** https://hackme.tech · **Branch:** `main`  
-**Updated:** 2026-07-07 (pool + B2B + miner traction day)
+**Release:** `0.1.0-rc11s` · **Site:** https://hackme.tech · **Branch:** `main`  
+**Updated:** 2026-07-11 (rc11s production baseline · mining canonical overlay · settle drain)
 
 | Highlight (2026-07-07) | |
 |------------------------|--|
@@ -18,7 +18,7 @@
 | Public pool + coordinator | **Live** — `signed_submits_accepted` ≫ rejected |
 | HMC settlement | **Live** — `settle_worker_payouts.sh` + systemd timer |
 | SUP (accrual + on-chain) | **Live** — `settle_worker_sup.sh` + timer |
-| Win/Linux/ISO (rc11r) | **Published** — verify SHA256 on downloads page |
+| Win/Linux/ISO (rc11s) | **Published** — verify SHA256 on downloads page |
 | Security audit (prod) | **16/16 PASS** |
 | Miner launch gate | **GO** — `bash scripts/ops/run_miner_launch_gate.sh` |
 | Fuzzing B2B | **Live** — wizard + pool + CI gate |
@@ -50,9 +50,9 @@ Reports land in `reports/pool-health-<timestamp>/` (see `difficulty.tsv` for M d
 
 | File | Role |
 |------|------|
-| `scripts/release/CURRENT_VERSION` | Win/Linux release channel (`0.1.0-rc11r`) |
-| `scripts/release/CURRENT_ISO_VERSION` | HackMe OS ISO channel (`0.1.0-rc11r`) |
+| `scripts/release/CURRENT_VERSION` | Win/Linux release channel (`0.1.0-rc11s`) |
+| `scripts/release/CURRENT_ISO_VERSION` | HackMe OS ISO channel (`0.1.0-rc11s`) |
 | `web/site/assets/app.js` → `RELEASE_VER` / `ISO_CHANNEL` | Site + dashboard download URLs |
 | `main.go` → `Version` | Node binary embed (rebuild/deploy to match) |
 
-Detail: [HACKME_RC11R.md](HACKME_RC11R.md) · Ops: [OPERATIONS_MONITORING.md](OPERATIONS_MONITORING.md)
+Detail: [HACKME_RC11S.md](HACKME_RC11S.md) · Ops: [OPERATIONS_MONITORING.md](OPERATIONS_MONITORING.md)

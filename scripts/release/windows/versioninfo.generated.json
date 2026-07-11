@@ -22,12 +22,12 @@
     "Comments": "HackMe release binary",
     "CompanyName": "HackMe Labs",
     "FileDescription": "HackMe Node",
-    "FileVersion": "0.1.0-rc11r",
+    "FileVersion": "0.1.0-rc11s",
     "InternalName": "hackme.exe",
     "LegalCopyright": "Copyright (C) HackMe Labs",
     "OriginalFilename": "hackme.exe",
     "ProductName": "HackMe",
-    "ProductVersion": "0.1.0-rc11r"
+    "ProductVersion": "0.1.0-rc11s"
   },
   "VarFileInfo": {
     "Translation": {

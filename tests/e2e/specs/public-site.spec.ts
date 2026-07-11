@@ -10,7 +10,7 @@ function resolveIsoVersion(): string {
   try {
     return fs.readFileSync(isoVerPath, 'utf8').trim();
   } catch {
-    return '0.1.0-rc11r';
+    return '0.1.0-rc11s';
   }
 }
 

@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**HackMe Network** · release **0.1.0-rc11r** (Win/Linux/ISO)
+**HackMe Network** · release **0.1.0-rc11s** (Win/Linux/ISO)
 
 [hackme.tech](https://hackme.tech) · [Downloads](https://hackme.tech/downloads.html) · [Pool stats](https://hackme.tech/pool/coordinator/api/pool/stats) · [Telegram](https://t.me/hackme_tech) · [Bitcointalk](https://bitcointalk.org/index.php?topic=5583373.0)
 

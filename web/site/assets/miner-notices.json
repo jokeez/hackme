@@ -1,17 +1,17 @@
 {
   "version": 1,
-  "updated_unix": 1751414400,
+  "updated_unix": 1753764000,
   "notices": [
     {
-      "id": "2026-07-02-rc11r-linux-miner-layout",
+      "id": "2026-07-11-rc11s-production-baseline",
       "severity": "info",
-      "title": "Upgrade to HackMe 0.1.0-rc11r",
-      "body": "Linux miners: fresh tarball now includes scripts/ops/worker_autostart.sh and bin/workerpoh-opencl — no more worker_script_missing loop. Fuzz pool settle outbox + escrow cleanup shipped. Win/Linux/ISO all on rc11r.",
+      "title": "Upgrade to HackMe 0.1.0-rc11s",
+      "body": "Production baseline: pool fuzz + PoH mining + escrow payouts verified. Desktop mining tab shows canonical Actual base/orders/total (1h). Fuzz settle outbox drain fix. Win/Linux/ISO on rc11s.",
       "link_url": "https://hackme.tech/downloads.html",
-      "link_label": "Download rc11r",
-      "dismiss_key": "rc11r-eco-banner",
-      "recommended_version": "0.1.0-rc11r",
-      "expires_unix": 1754006400
+      "link_label": "Download rc11s",
+      "dismiss_key": "rc11s-eco-banner",
+      "recommended_version": "0.1.0-rc11s",
+      "expires_unix": 1756356000
     }
   ]
 }

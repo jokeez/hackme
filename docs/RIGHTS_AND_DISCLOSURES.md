@@ -67,7 +67,7 @@ Live supply: https://hackme.tech/token-transparency.html
 | HMC explorer + `GET /api/status` | Live |
 | SUP on-chain economics API | Live |
 | Official pool stats API | Live — https://hackme.tech/pool/coordinator/api/pool/stats |
-| Release **0.1.0-rc11r** (Win/Linux/ISO) | Published |
+| Release **0.1.0-rc11s** (Win/Linux/ISO) | Published |
 | First PoW CEX listing | **Not yet** — outreach in progress |
 | Market maker / deep liquidity | **Not engaged** |
 | Registered legal entity for Tier-1 CEX | **In progress** |

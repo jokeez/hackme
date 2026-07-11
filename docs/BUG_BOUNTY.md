@@ -1,7 +1,7 @@
 # Security rewards (bug bounty) — HackMe Network
 
 **Language:** English (public policy)  
-**Version:** `0.1.0-rc11r`  
+**Version:** `0.1.0-rc11s`  
 **Payout asset:** on-chain **HMC** (discretionary, not a token sale or investment)
 
 ---
@@ -61,7 +61,7 @@ Amounts below are **maximum guidelines** for a _single_ accepted report — the 
 1. Email / contact form: https://hackme.tech/contacts.html — subject: `Security report`
 2. Include:
    - Component (node / coordinator / worker / site)
-   - Steps to reproduce (commands, HTTP requests, version `0.1.0-rc11r` or commit hash)
+   - Steps to reproduce (commands, HTTP requests, version `0.1.0-rc11s` or commit hash)
    - Impact (who loses what)
    - Your **HMC-…** payout address (optional until accepted)
 3. Allow **90 days** coordinated disclosure after a fix is deployed (we may agree on earlier public credit).
