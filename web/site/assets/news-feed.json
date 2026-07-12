@@ -47,6 +47,52 @@
       }
     },
     {
+      "id": "2026-07-12-oss-cve-watch-day05-nghttp2-libfuzzer",
+      "date": "2026-07-12",
+      "title": "OSS CVE Watch Day 5/14 · nghttp2 · 2.04B libFuzzer exec · CLEAN",
+      "summary": "Fifth day on nghttp2: 15h libFuzzer depth session, 2,038,010,048 executions at ~37.7k exec/s. Corpus 414 inputs (405KB), 467 coverage edges. Zero ASAN heap crashes — fifth honest CLEAN day.",
+      "impact": "Cumulative ~4.96B libFuzzer executions across Days 2–5 on the same persistent corpus. Coverage still plateaued at 467 edges; corpus refinement continues. Days 6–7 deep marathon running.",
+      "action": "Day 5 report: https://hackme.tech/reports/oss-cve-watch/day05.html · Series hub: https://hackme.tech/reports/oss-cve-watch/ · Reproduce: DAY=5 MAX_TIME=72000 bash scripts/ops/run_oss_cve_watch_libfuzzer_day.sh",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "OSS CVE Watch · Day 5/14 · nghttp2",
+        "lead": "libFuzzer: 2.04B exec · 15h · CLEAN · 0 ASAN",
+        "bullets": [
+          "Target: nghttp2 HTTP/2 session mem_recv · ASAN build",
+          "2,038,010,048 executions · ~37,740 exec/s · corpus 414 (405KB)",
+          "467 coverage edges · 0 heap corruption · 1 timeout seed (not ASAN)",
+          "Days 2–5 combined: ~4.96B libFuzzer exec · still no ASAN heap bugs"
+        ],
+        "footer": "hackme.tech/reports/oss-cve-watch/day05.html"
+      },
+      "twitter": {
+        "thread": [
+          "🔬 OSS CVE Watch · Day 5/14 — nghttp2 (HTTP/2 library)\n\n15-hour libFuzzer depth session on the persistent corpus. Our longest single day so far — same honest public ledger.",
+          "📊 Numbers:\n• 2,038,010,048 executions (~2.04B)\n• 15h wall time · ~37.7k exec/s\n• Corpus: 414 inputs · 467 coverage edges\n• ASAN heap crashes: 0",
+          "✅ Verdict: CLEAN.\n\nNo CVE today. Days 2–5 combined: ~4.96B libFuzzer exec on nghttp2 with zero ASAN heap corruption.",
+          "📈 Coverage still at 467 edges — corpus shrinks via REDUCE while hunting new paths. Days 6–7 deep marathon (20h each) now running.",
+          "📄 Day 5 report + series hub:\nhttps://hackme.tech/reports/oss-cve-watch/day05.html\nhttps://hackme.tech/reports/oss-cve-watch/\n\n#fuzzing #libFuzzer #nghttp2 #HTTP2 #OSS #security #CVE #infosec #HackMe"
+        ],
+        "single": "🔬 OSS CVE Watch Day 5/14 — nghttp2 · libFuzzer\n\n2.04B executions (~37.7k exec/s) · 15h depth session.\nCorpus 414 · 467 coverage edges.\n\nVerdict: CLEAN · 0 ASAN heap crashes.\n\nDays 2–5: ~4.96B exec, still no heap bugs.\n\n📄 https://hackme.tech/reports/oss-cve-watch/day05.html\n\n#fuzzing #libFuzzer #nghttp2 #HTTP2 #OSS #security #CVE #infosec #HackMe #opensource"
+      },
+      "discord": {
+        "title": "Research · OSS CVE Watch Day 5",
+        "body": "**nghttp2 · libFuzzer · Day 5/14**\n\n• **2,038,010,048** executions · **15h** · **~37.7k exec/s**\n• Corpus **414** (405KB) · **467** coverage edges\n• **CLEAN** — 0 ASAN heap crashes\n• Days 2–5 cumulative: **~4.96B** exec\n\n**Report:** https://hackme.tech/reports/oss-cve-watch/day05.html",
+        "ping": "#research"
+      },
+      "links": {
+        "day05": "https://hackme.tech/reports/oss-cve-watch/day05.html",
+        "hub": "https://hackme.tech/reports/oss-cve-watch/",
+        "research": "https://hackme.tech/research.html"
+      }
+    },
+    {
       "id": "2026-07-11-oss-cve-watch-day04-nghttp2-libfuzzer",
       "date": "2026-07-11",
       "title": "OSS CVE Watch Day 4/14 · nghttp2 · 719M libFuzzer exec · CLEAN",
@@ -484,37 +530,6 @@
         "downloads": "https://hackme.tech/downloads.html",
         "pool": "https://hackme.tech/pool/coordinator",
         "github": "https://github.com/jokeez/hackme/releases"
-      }
-    },
-    {
-      "id": "2026-06-25-bitcoin30-week3",
-      "date": "2026-06-25",
-      "title": "Bitcoin Core 30-Day Fuzz — Week 3 Complete",
-      "summary": "Days 15–21 wasm_native tier: 1,792 runs, 504 guard signals, 186 native_confirmed, 0 critical. Fuzz Depth v3 native bridge on Bitcoin guards.",
-      "impact": "First full week on wasm_native depth tier. Dup-inputs, BIP34, and block-weight guards confirmed on native port. Series now 30/30 days complete (8,808 total runs).",
-      "action": "Ledger: https://hackme.tech/reports/bitcoin30-week3.html · Day 15: https://hackme.tech/reports/bitcoin30-day15.html · Reproduce: DAY=15 bash scripts/ops/run_bitcoin30_day.sh",
-      "tags": [
-        "security",
-        "research",
-        "bitcoin",
-        "fuzzing"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "Bitcoin30 Week 3 DONE — wasm_native + native bridge",
-        "lead": "1,792 runs · 504 signals · 186 native_confirmed · 0 critical",
-        "bullets": [
-          "Day 15: dup inputs 24→24 native confirmed",
-          "Days 16–17: BIP34 + block weight — 80 signals/day",
-          "Days 18–21: script/witness deep passes · Week 4 = bytes_corpus"
-        ],
-        "footer": "hackme.tech/reports/bitcoin30-week3.html · Series: bitcoin30.html"
-      },
-      "links": {
-        "week3": "https://hackme.tech/reports/bitcoin30-week3.html",
-        "series": "https://hackme.tech/reports/bitcoin30.html",
-        "day15": "https://hackme.tech/reports/bitcoin30-day15.html",
-        "fuzz_v3": "https://hackme.tech/reports/fuzz-depth-v3.html"
       }
     }
   ],
