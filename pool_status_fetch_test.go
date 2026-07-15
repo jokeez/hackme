@@ -1,6 +1,11 @@
 package main
 
-import "testing"
+import (
+	"context"
+	"testing"
+
+	"hackme/internal/chain"
+)
 
 func TestCanonicalPeerStatusURL(t *testing.T) {
 	if got := canonicalPeerStatusURL("https://hackme.tech"); got != "https://hackme.tech/api/status?lite=1" {
@@ -65,13 +70,17 @@ func TestShouldUseCanonicalChainAPI_commandHubUsesLocalLedger(t *testing.T) {
 	}
 }
 
-func TestShouldUseCanonicalChainAPI_desktopFollowerUsesCanonical(t *testing.T) {
+func TestOverlayCanonicalMiningSkipsSelfNode(t *testing.T) {
 	t.Setenv("HACKME_PUBLIC_AUTHORITY_BASE", "https://hackme.tech")
-	t.Setenv("HACKME_POOL_COORDINATOR_URL", "")
-	t.Setenv("HACKME_DESKTOP_MODE", "1")
-	t.Setenv("HACKME_CANONICAL_CHAIN_URL", "")
-	a := &app{}
-	if !a.shouldUseCanonicalChainAPI() {
-		t.Fatal("desktop follower should overlay canonical chain API")
+	t.Setenv("HACKME_DESKTOP_MODE", "0")
+	t.Setenv("HACKME_POOL_COORDINATOR_URL", "http://127.0.0.1:18081")
+	a := &app{miner: chain.NewMiner(0.01, nil, nil, chain.InternalTaskProvider{})}
+	if !a.canonicalBaseIsSelfNode("https://hackme.tech") {
+		t.Fatal("expected self")
+	}
+	s := &MetricsSnapshot{}
+	// Must not attempt outbound /api/metrics to self (would deadlock).
+	if a.overlayCanonicalMiningIntoSnapshot(context.Background(), s) {
+		t.Fatal("command hub must skip canonical metrics overlay")
 	}
 }

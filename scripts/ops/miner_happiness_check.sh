@@ -39,7 +39,8 @@ else
 fi
 
 # --- share fairness ---
-python3 - "$POOL_JSON" <<'PY' | tee -a "$OUT/check.log"
+# Also prefer tee without failing the script on SIGPIPE from closed stdout when piped.
+python3 - "$POOL_JSON" <<'PY' | tee -a "$OUT/check.log" || true
 import json, sys
 p = json.load(open(sys.argv[1]))
 workers = p.get("workers") or {}
@@ -72,11 +73,13 @@ elif pgrep -f 'workerpoh.*worker-kapa-rig-' >/dev/null 2>&1; then
 fi
 if [[ -n "$PC_PID" ]]; then
   ok "local pool worker running (mode=${PC_PID})"
-  LOG="$(ls -t "$ROOT"/logs/workerpoh-worker-kapa-pc-*.log "$ROOT"/logs/ideal-miner/*.log "$ROOT"/logs/pool-display-rig/*.log 2>/dev/null | head -1)"
-  if [[ -n "$LOG" ]]; then
+  LOG="$(ls -t "$ROOT"/logs/workerpoh-worker-kapa-pc-*.log "$ROOT"/logs/ideal-miner/*.log "$ROOT"/logs/pool-display-rig/*.log 2>/dev/null | head -n 1 || true)"
+  if [[ -n "${LOG:-}" ]]; then
+    set +o pipefail
     GH="$(grep 'submit ok' "$LOG" | tail -15 | sed -n 's/.*ghs=\([0-9.]*\).*/\1/p' | awk '{s+=$1;n++} END{if(n) printf "%.1f", s/n; else print "0"}')"
     TO="$(tail -200 "$LOG" | grep -cE 'claim error|submit error' || true)"
     OK="$(tail -200 "$LOG" | grep -c 'submit ok' || true)"
+    set -o pipefail
     if awk -v g="${GH:-0}" 'BEGIN{exit !(g>=5)}'; then
       ok "PC hashrate ~${GH} GH/s (last 15 submits)"
     else

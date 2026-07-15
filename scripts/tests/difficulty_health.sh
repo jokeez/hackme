@@ -26,8 +26,40 @@ ALLOW_TARGET_CAP="${ALLOW_TARGET_CAP:-0}"
 CHAIN_LIMIT="${CHAIN_LIMIT:-10}"
 METRICS_TIMEOUT="${METRICS_TIMEOUT:-45}"
 CHAIN_TIMEOUT="${CHAIN_TIMEOUT:-45}"
+COORD_FALLBACK="${COORD_FALLBACK:-https://hackme.tech/pool/coordinator}"
 
-metrics_json="$(curl_retry_fsS -fsS --max-time "${METRICS_TIMEOUT}" "$BASE/api/metrics")"
+# Public HTTPS metrics historically stalls through CF; keep retries short unless overridden.
+if [[ "${BASE}" == https://* ]] && [[ -z "${CURL_TRANSIENT_RETRIES:-}" ]]; then
+  export CURL_TRANSIENT_RETRIES=3
+fi
+
+metrics_json=""
+if metrics_json="$(curl_retry_fsS -fsS --max-time "${METRICS_TIMEOUT}" "$BASE/api/metrics" 2>"$OUT/metrics.err")"; then
+  :
+else
+  echo "[difficulty_health] metrics fetch failed; trying coordinator work/stats fallback" >&2
+  ws="$(curl -fsS --max-time 15 "${COORD_FALLBACK}/api/work/stats" 2>>"$OUT/metrics.err" || true)"
+  if [[ -n "$ws" ]]; then
+    metrics_json="$(python3 -c '
+import json,sys
+ws=json.load(sys.stdin)
+mod=int(ws.get("target_mod") or 0)
+print(json.dumps({
+  "mining_target_mod": mod,
+  "mining_target_mod_cap": int(ws.get("target_mod_max") or 0),
+  "mining_target_mod_at_cap": bool(ws.get("target_mod_load_capped")),
+  "mining_observed_block_sec": -1,
+  "mining_target_block_sec": float("'"${TARGET_SEC}"'"),
+  "mining_poh_blocks_last_1h": 0,
+  "difficulty_source": "coordinator_work_stats",
+}))
+' <<<"$ws")"
+  fi
+fi
+if [[ -z "$metrics_json" ]]; then
+  echo "difficulty_health: unable to fetch metrics or coordinator fallback" >&2
+  exit 1
+fi
 printf '%s\n' "$metrics_json" >"$OUT/metrics.json"
 
 chain_json="$(curl_retry_fsS -fsS --max-time "${CHAIN_TIMEOUT}" "$BASE/api/chain?limit=${CHAIN_LIMIT}")"

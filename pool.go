@@ -2443,6 +2443,10 @@ func (a *app) overlayCanonicalMiningIntoSnapshot(ctx context.Context, s *Metrics
 	if base == "" {
 		return false
 	}
+	// Command hub must never HTTP-fetch its own /api/metrics (deadlocks under request pile-up).
+	if a.canonicalBaseIsSelfNode(base) {
+		return false
+	}
 	out := false
 	if status, ok := fetchCanonicalJSON(ctx, base+"/api/status?lite=1", canonicalFetchBudget(ctx, 5*time.Second)); ok {
 		if bh := asUint64(status["tip_height"]); bh > 0 {

@@ -59,6 +59,9 @@ var (
 	BuildDate = "unknown"
 )
 
+// metricsHeavyMu allows only one /api/metrics call to run expensive chain window SQL at a time.
+var metricsHeavyMu sync.Mutex
+
 type pageData struct {
 	NodeID              string
 	ChainID             string
@@ -1084,6 +1087,15 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	ip := clientIP(r)
+	if !a.allowRate("metrics_get:"+ip, 20) {
+		http.Error(w, "rate limited", http.StatusTooManyRequests)
+		return
+	}
+	if !a.allowRate("metrics_get_global", 400) {
+		http.Error(w, "rate limited", http.StatusTooManyRequests)
+		return
+	}
 	// Keep dashboard telemetry responsive: local chain DB can be huge (80k+ blocks, multi-GB WAL).
 	metricsTimeout := 4 * time.Second
 	if envBool("HACKME_DESKTOP_MODE", false) && strings.TrimSpace(a.canonicalChainBaseURL()) != "" {
@@ -1207,39 +1219,62 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	canonMiningOverlay := a.overlayCanonicalMiningIntoSnapshot(overlayCtx, &s)
 	overlayCancel()
 
-	since1h := time.Now().Unix() - 3600
-	walHeavy := store.WALHeavyForMetrics(a.dbPath)
-	// Pool follower with canonical overlay: skip full-table PoH window scan on local DB.
-	if !walHeavy && (ms.Running || !canonMiningOverlay) {
-		if rw, err := a.chain.RewardWindowBreakdownSince(mctx, since1h); err == nil {
-			localHasChain := rw.Blocks > 0 || rw.TotalHMC > 1e-12
-			if localHasChain || !canonMiningOverlay {
-				s.EconWindowSec = 3600
-				s.EconWindowBlocks = rw.Blocks
-				s.EconWindowBaseBlocks = rw.BaseBlocks
-				s.EconWindowOrderBlocks = rw.OrderBlocks
-				s.EconWindowBaseHMC = rw.BaseHMC
-				s.EconWindowOrderHMC = rw.OrderHMC
-				s.EconWindowTotalHMC = rw.TotalHMC
-				if rw.TotalHMC > 1e-12 {
-					s.EconWindowOrderShare = 100 * rw.OrderHMC / rw.TotalHMC
-				}
-				s.MiningPohBlocksLast1h = rw.Blocks
-				s.MiningHmcLastHourApprox = rw.TotalHMC
-			}
-		}
-	}
 	s.MiningInsightNote = "ETA/progress: heuristic (M × eval/s). HMC/hour = PoH blocks on this chain in the window; wallet follows /api/wallet/*."
 	if canonMiningOverlay {
 		s.MiningInsightNote = "Chain economics from canonical when local tip is empty. " + s.MiningInsightNote
 	}
 	s.MiningTargetBlockSec = chain.PoHRetargetTargetSec
-	if !walHeavy && s.MiningObservedBlockSec <= 0 {
-		if avgSec, err := a.chain.RecentPoHAvgBlockSec(mctx, int(chain.PoHRetargetWindowBlocks)*4); err == nil && avgSec > 0 {
-			s.MiningObservedBlockSec = avgSec
-		} else {
+
+	// Chain command hubs are write-hot (local PoH + CF scrapers). Window SQL + busy waits can stall
+	// every /api/metrics caller; prefer fast JSON and let explorer/coordinator expose economics.
+	skipHeavy := envBool("HACKME_CHAIN_LEADER_LOCAL_POH", false) || envBool("HACKME_METRICS_SKIP_HEAVY", false)
+	if !skipHeavy {
+		heavyBudget := 750 * time.Millisecond
+		if deadline, ok := mctx.Deadline(); ok {
+			if left := time.Until(deadline); left > 0 && left < heavyBudget {
+				heavyBudget = left
+			}
+		}
+		if heavyBudget > 50*time.Millisecond && metricsHeavyMu.TryLock() {
+			func() {
+				defer metricsHeavyMu.Unlock()
+				hctx, hcancel := context.WithTimeout(mctx, heavyBudget)
+				defer hcancel()
+				since1h := time.Now().Unix() - 3600
+				walHeavy := store.WALHeavyForMetrics(a.dbPath)
+				if !walHeavy && (ms.Running || !canonMiningOverlay) {
+					if rw, err := a.chain.RewardWindowBreakdownSince(hctx, since1h); err == nil {
+						localHasChain := rw.Blocks > 0 || rw.TotalHMC > 1e-12
+						if localHasChain || !canonMiningOverlay {
+							s.EconWindowSec = 3600
+							s.EconWindowBlocks = rw.Blocks
+							s.EconWindowBaseBlocks = rw.BaseBlocks
+							s.EconWindowOrderBlocks = rw.OrderBlocks
+							s.EconWindowBaseHMC = rw.BaseHMC
+							s.EconWindowOrderHMC = rw.OrderHMC
+							s.EconWindowTotalHMC = rw.TotalHMC
+							if rw.TotalHMC > 1e-12 {
+								s.EconWindowOrderShare = 100 * rw.OrderHMC / rw.TotalHMC
+							}
+							s.MiningPohBlocksLast1h = rw.Blocks
+							s.MiningHmcLastHourApprox = rw.TotalHMC
+						}
+					}
+				}
+				if !walHeavy && s.MiningObservedBlockSec <= 0 {
+					if avgSec, err := a.chain.RecentPoHAvgBlockSec(hctx, int(chain.PoHRetargetWindowBlocks)*4); err == nil && avgSec > 0 {
+						s.MiningObservedBlockSec = avgSec
+					} else {
+						s.MiningObservedBlockSec = -1
+					}
+				}
+				a.fillMetricsFleetHashrate(hctx, &s)
+			}()
+		} else if s.MiningObservedBlockSec <= 0 {
 			s.MiningObservedBlockSec = -1
 		}
+	} else if s.MiningObservedBlockSec <= 0 {
+		s.MiningObservedBlockSec = -1
 	}
 	if ms.Running && ms.TargetMod >= 251 && ms.AttemptsPerSec >= 1e-6 {
 		eta, prog, proj := computeMiningInsight(ms.AttemptsTotal, ms.TargetMod, ms.AttemptsPerSec, ms.RewardHMC)
@@ -1251,14 +1286,15 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		s.MiningEtaProgress = 0
 		s.MiningProjectedHmcHour = 0
 	}
-	a.fillMetricsFleetHashrate(mctx, &s)
-	a.overlayPoolWorkerMetrics(&s)
-	if s.PoolWorkerHashrateGHS > 0 {
-		s.PoolWorkerTelemetry = "coordinator"
-	} else if s.MiningSessionSec > 0 {
-		run, _, _ := a.desktopWorkerLiveStatus()
-		if run || a.workerProcessRunning() {
-			s.PoolWorkerTelemetry = "local"
+	if !skipHeavy {
+		a.overlayPoolWorkerMetrics(&s)
+		if s.PoolWorkerHashrateGHS > 0 {
+			s.PoolWorkerTelemetry = "coordinator"
+		} else if s.MiningSessionSec > 0 {
+			run, _, _ := a.desktopWorkerLiveStatus()
+			if run || a.workerProcessRunning() {
+				s.PoolWorkerTelemetry = "local"
+			}
 		}
 	}
 	writeMetricsJSON(w, s)

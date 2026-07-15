@@ -158,13 +158,76 @@ type metricsCollector struct {
 
 var collector = &metricsCollector{start: time.Now()}
 
+// Host telemetry (nvidia-smi, lspci, sensors) is cached so concurrent /api/metrics
+// callers share one probe cycle instead of N× subprocess fanout.
+const metricsHostProbeTTL = 2 * time.Second
+
+var (
+	hostProbeMu      sync.Mutex
+	hostProbeExpires time.Time
+	hostProbeRefresh sync.Mutex
+	hostProbeGU      float64
+	hostProbeGM      float64
+	hostProbeGTemp   float64
+	hostProbeGName   string
+	hostProbeLinux   string
+	hostProbeCPUTemp float64
+	hostProbeLoad1   float64
+	hostProbeLoadPC  float64
+	hostProbeCPUModel string
+)
+
+func cachedHostProbes(now time.Time) (gu, gm, gtemp float64, gname, linuxGPU, cpuModel string, cpuTemp, load1, loadPerCPU float64) {
+	hostProbeMu.Lock()
+	if now.Before(hostProbeExpires) {
+		gu, gm, gtemp = hostProbeGU, hostProbeGM, hostProbeGTemp
+		gname, linuxGPU, cpuModel = hostProbeGName, hostProbeLinux, hostProbeCPUModel
+		cpuTemp, load1, loadPerCPU = hostProbeCPUTemp, hostProbeLoad1, hostProbeLoadPC
+		hostProbeMu.Unlock()
+		return
+	}
+	hostProbeMu.Unlock()
+
+	hostProbeRefresh.Lock()
+	defer hostProbeRefresh.Unlock()
+
+	hostProbeMu.Lock()
+	defer hostProbeMu.Unlock()
+	if now.Before(hostProbeExpires) {
+		return hostProbeGU, hostProbeGM, hostProbeGTemp, hostProbeGName, hostProbeLinux, hostProbeCPUModel,
+			hostProbeCPUTemp, hostProbeLoad1, hostProbeLoadPC
+	}
+
+	gu, gm, gname, gtemp = queryNVIDIA()
+	linuxGPU = detectLinuxGPUName()
+	if amd := gpuhost.ListAMDGPUTelemetry(); len(amd) > 0 {
+		a0 := amd[0]
+		if gtemp < 0 && a0.TempC > 0 {
+			gtemp = a0.TempC
+		}
+		if gu < 0 && a0.BusyPct >= 0 {
+			gu = a0.BusyPct
+		}
+		if strings.TrimSpace(gname) == "" && strings.TrimSpace(a0.Name) != "" {
+			gname = strings.TrimSpace(a0.Name)
+		}
+	}
+	cpuTemp = hostCPUTempCBounded(800 * time.Millisecond)
+	load1, loadPerCPU = hostLoadStats()
+	cpuModel = detectCPUModel()
+
+	hostProbeGU, hostProbeGM, hostProbeGTemp = gu, gm, gtemp
+	hostProbeGName, hostProbeLinux, hostProbeCPUModel = gname, linuxGPU, cpuModel
+	hostProbeCPUTemp, hostProbeLoad1, hostProbeLoadPC = cpuTemp, load1, loadPerCPU
+	hostProbeExpires = now.Add(metricsHostProbeTTL)
+	return
+}
+
 func (m *metricsCollector) snapshot() MetricsSnapshot {
 	now := time.Now()
-	// Shorter sample: less contention with PoH workers (~80% host goal for mining).
+	// Host probes run outside the collector mutex so a slow sensor/nvidia path cannot
+	// serialize every /api/metrics caller (and compound with canonical self-HTTP overlays).
 	cpuPct, _ := cpu.Percent(50*time.Millisecond, false)
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	var cpuVal float64
 	if len(cpuPct) > 0 {
 		cpuVal = cpuPct[0]
@@ -204,6 +267,11 @@ func (m *metricsCollector) snapshot() MetricsSnapshot {
 		recv = netIO[0].BytesRecv
 	}
 
+	gu, gm, gtemp, gname, linuxGPU, cpuModelProbe, cpuTempC, load1, loadPerCPU := cachedHostProbes(now)
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	dt := now.Sub(m.prev.t).Seconds()
 	var readMBps, writeMBps, sentMBps, recvMBps float64
 	if m.ready && dt > 0.05 {
@@ -227,28 +295,11 @@ func (m *metricsCollector) snapshot() MetricsSnapshot {
 	m.prev = sample{t: now, readBytes: readB, writeBytes: writeB, bytesSent: sent, bytesRecv: recv}
 	m.ready = true
 
-	gu, gm, gname, gtemp := queryNVIDIA()
 	if gname != "" {
 		m.gpuName = gname
 	}
-	// Fallback: on AMD / non-NVIDIA systems, keep a stable GPU label from lspci (Linux only).
-	if m.gpuName == "" {
-		if n := detectLinuxGPUName(); n != "" {
-			m.gpuName = n
-		}
-	}
-	// sysfs amdgpu: temperature, busy %, and product name when nvidia-smi is absent.
-	if amd := gpuhost.ListAMDGPUTelemetry(); len(amd) > 0 {
-		a0 := amd[0]
-		if gtemp < 0 && a0.TempC > 0 {
-			gtemp = a0.TempC
-		}
-		if gu < 0 && a0.BusyPct >= 0 {
-			gu = a0.BusyPct
-		}
-		if strings.TrimSpace(m.gpuName) == "" && strings.TrimSpace(a0.Name) != "" {
-			m.gpuName = strings.TrimSpace(a0.Name)
-		}
+	if m.gpuName == "" && linuxGPU != "" {
+		m.gpuName = linuxGPU
 	}
 	if gu >= 0 {
 		m.lastGPU = gu
@@ -260,11 +311,8 @@ func (m *metricsCollector) snapshot() MetricsSnapshot {
 	if gpuName == "" {
 		gpuName = "—"
 	}
-
-	cpuTempC := hostCPUTempC()
-	load1, loadPerCPU := hostLoadStats()
 	if m.cpuModel == "" {
-		m.cpuModel = detectCPUModel()
+		m.cpuModel = cpuModelProbe
 	}
 
 	return MetricsSnapshot{
@@ -300,7 +348,9 @@ func detectLinuxGPUName() string {
 	if runtime.GOOS != "linux" {
 		return ""
 	}
-	out, err := exec.Command("lspci").Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "lspci").Output()
 	if err != nil || len(out) == 0 {
 		return ""
 	}
@@ -351,6 +401,25 @@ func detectCPUModel() string {
 }
 
 func hostCPUTempC() float64 {
+	return hostCPUTempCBounded(0)
+}
+
+// hostCPUTempCBounded samples sensors with an optional wall deadline so /api/metrics cannot stall.
+func hostCPUTempCBounded(maxWait time.Duration) float64 {
+	if maxWait <= 0 {
+		return hostCPUTempCUnbounded()
+	}
+	ch := make(chan float64, 1)
+	go func() { ch <- hostCPUTempCUnbounded() }()
+	select {
+	case v := <-ch:
+		return v
+	case <-time.After(maxWait):
+		return -1
+	}
+}
+
+func hostCPUTempCUnbounded() float64 {
 	sensors, err := host.SensorsTemperatures()
 	if err != nil || len(sensors) == 0 {
 		return -1

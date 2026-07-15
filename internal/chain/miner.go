@@ -81,6 +81,7 @@ type Miner struct {
 	solved      atomic.Uint32 // 0 = hunting, 1 = winner claimed
 	throttleMu  sync.RWMutex
 	throttlePct float64 // target max CPU % for process (soft hint via sleep); see SetSoftCPUThrottlePct
+	cpuWorkers  atomic.Int32 // last Start() CPU worker count (0 => fall back to NumCPU in Stats)
 
 	// poHBackend holds "cpu", "cuda", "opencl", or "mixed" for metrics.
 	poHBackend atomic.Value
@@ -169,6 +170,9 @@ func (m *Miner) Stats() MiningStats {
 		WASMFunction:   "native n*7+13 · WASM verify on solve",
 		Workers:        runtime.NumCPU(),
 		ThrottleCPUPct: m.softThrottlePct(),
+	}
+	if n := int(m.cpuWorkers.Load()); n > 0 {
+		st.Workers = n
 	}
 	st.AttemptsTotal = m.attempts.Load()
 	st.LastNonce = m.lastNonce.Load()
@@ -532,6 +536,18 @@ func (m *Miner) Start(ctx context.Context) {
 	if workers < 1 {
 		workers = 1
 	}
+	// Authority/small hosts: leave one logical CPU for HTTP/GC unless overridden.
+	leaderPoH := strings.TrimSpace(os.Getenv("HACKME_CHAIN_LEADER_LOCAL_POH"))
+	leaderOn := leaderPoH == "1" || strings.EqualFold(leaderPoH, "true") || strings.EqualFold(leaderPoH, "yes")
+	if workers > 1 && (leaderOn || runtime.NumCPU() <= 2) {
+		workers--
+	}
+	if ev := strings.TrimSpace(os.Getenv("HACKME_MINER_CPU_WORKERS")); ev != "" {
+		if n, err := strconv.Atoi(ev); err == nil && n >= 1 {
+			workers = n
+		}
+	}
+	m.cpuWorkers.Store(int32(workers))
 
 	var nextNonce atomic.Uint64
 	var rnd [8]byte
