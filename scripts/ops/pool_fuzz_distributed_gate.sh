@@ -74,8 +74,20 @@ kill "$CPID" 2>/dev/null || true
 wait "$CPID" 2>/dev/null || true
 sleep 0.5
 
-FINDINGS="$(sqlite3 "$COORD_DB" "SELECT COUNT(*) FROM fuzz_findings WHERE campaign_id='$CID';")"
-VIOLATIONS="$(sqlite3 "$COORD_DB" "SELECT COUNT(*) FROM fuzz_work_items WHERE campaign_id='$CID' AND status='done' AND result_ok=0;")"
+FINDINGS="$(python3 - "$COORD_DB" "$CID" <<'PY'
+import sqlite3, sys
+db, cid = sys.argv[1], sys.argv[2]
+con = sqlite3.connect(db)
+print(con.execute("SELECT COUNT(*) FROM fuzz_findings WHERE campaign_id=?", (cid,)).fetchone()[0])
+PY
+)"
+VIOLATIONS="$(python3 - "$COORD_DB" "$CID" <<'PY'
+import sqlite3, sys
+db, cid = sys.argv[1], sys.argv[2]
+con = sqlite3.connect(db)
+print(con.execute("SELECT COUNT(*) FROM fuzz_work_items WHERE campaign_id=? AND status='done' AND result_ok=0", (cid,)).fetchone()[0])
+PY
+)"
 echo "[pool-fuzz-gate] findings=$FINDINGS violations_done=$VIOLATIONS"
 if [[ "${FINDINGS:-0}" -lt 1 && "${VIOLATIONS:-0}" -lt 1 ]]; then
   echo "[pool-fuzz-gate] FAIL: expected detector findings or violation work items" >&2
@@ -84,3 +96,4 @@ fi
 
 echo "[pool-fuzz-gate] PASS"
 trap - EXIT
+cleanup_gate

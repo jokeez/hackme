@@ -55,7 +55,12 @@ export COORD_URL="$BASE" COORD_TOKEN="$HACKME_COORDINATOR_WORKER_TOKEN"
 WORKER_ID=rt1 timeout 10s go run ./cmd/workerfuzz -worker rt1 2>/dev/null || true
 
 # Replay submit must not inflate work_done beyond budget
-DONE="$(sqlite3 "$COORD_DB" "SELECT COUNT(*) FROM fuzz_work_items WHERE campaign_id='$CID' AND status='done';")"
+DONE="$(python3 - "$COORD_DB" "$CID" <<'PY'
+import sqlite3, sys
+con = sqlite3.connect(sys.argv[1])
+print(con.execute("SELECT COUNT(*) FROM fuzz_work_items WHERE campaign_id=? AND status='done'", (sys.argv[2],)).fetchone()[0])
+PY
+)"
 echo "[fuzz-redteam-gate] work_done=$DONE"
 [[ "${DONE:-0}" -ge 1 ]] || { echo "FAIL: no completed work" >&2; exit 1; }
 
