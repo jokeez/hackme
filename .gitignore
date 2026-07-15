@@ -86,11 +86,19 @@ backups/
 docs/social/
 docs/TELEGRAM_POST_*
 docs/BITCOINTALK_*
+docs/SOCIAL_*.md
+docs/FUZZ_*_SOCIAL.md
 docs/SOCIAL_POSTING_CHECKLIST.md
 docs/SCREENSHOT_AND_POST_CHECKLIST.md
 docs/NEWS_POST_*.md
 docs/TELEGRAM_SECURITY_REWARDS_PIN.txt
 docs/archive/TELEGRAM_POST_*
+
+# Accidental Cursor/agent terminal dumps saved under scripts/ops (never commit)
+scripts/ops/pool_max_checks.sh
+scripts/ops/fix_desktop_marketplace.sh
+scripts/ops/fix*_marketplace.*
+scripts/ops/run_oss_cve_watch_day67_marathon.sh
 
 # Local future-architecture planning (keep local, never push)
 # HMS lane: full spec + mocks under adapters/hms/ — commit only docs/HMS_PUBLIC_ROADMAP.md + site preview

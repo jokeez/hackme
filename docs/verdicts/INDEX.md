@@ -5,6 +5,7 @@ Factual pass/fail snapshots for releases and gates. **Not** social copy for Tele
 | Document | What it records |
 |----------|-----------------|
 | [../HACKME_RC11S.md](../HACKME_RC11S.md) | **Current channel rc11s** — Linux layout, fuzz settle, Win/Linux/ISO |
+| [../archive/rc/HACKME_RC11R.md](../archive/rc/HACKME_RC11R.md) | Historical rc11r (superseded) |
 | [../archive/rc/HACKME_RC11L.md](../archive/rc/HACKME_RC11L.md) | ISO channel rc11l — live USB boot fix (historical) |
 | [../archive/rc/HACKME_RC11M.md](../archive/rc/HACKME_RC11M.md) | Historical rc11m — wallet treasury |
 | [../archive/rc/HACKME_RC11K_LAUNCH_CANDIDATE.md](../archive/rc/HACKME_RC11K_LAUNCH_CANDIDATE.md) | rc11k launch notes (superseded) |

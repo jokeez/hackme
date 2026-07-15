@@ -39,8 +39,16 @@ jobs:
       - name: Go vet
         run: go vet ./...
 
-      - name: Go test
-        run: go test ./... -count=1
+      - name: Go test + coverage
+        run: |
+          go test ./... -count=1 -covermode=atomic -coverprofile=coverage.out
+          go tool cover -func=coverage.out | tail -8
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: go-coverage
+          path: coverage.out
+          if-no-files-found: ignore
 
       - name: Language static (manifest lint + WASM ABI + rollup)
         env:

@@ -20,12 +20,14 @@
 [![Release](https://img.shields.io/badge/release-0.1.0--rc11s-00d1ff?style=for-the-badge&logo=semanticweb&logoColor=white)](https://hackme.tech/downloads.html)
 [![Pool live](https://img.shields.io/badge/pool-LIVE-39ff14?style=for-the-badge&logo=serverless&logoColor=white)](https://hackme.tech/pool/coordinator/api/pool/stats)
 [![Security](https://img.shields.io/badge/audit-16%2F16_PASS-39ff14?style=for-the-badge&logo=shield&logoColor=white)](docs/STATUS.md)
+[![CI](https://github.com/jokeez/hackme/actions/workflows/ci.yml/badge.svg)](https://github.com/jokeez/hackme/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/jokeez/hackme/actions/workflows/codeql.yml/badge.svg)](https://github.com/jokeez/hackme/actions/workflows/codeql.yml)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-7fe7ff?style=for-the-badge&logo=gnu&logoColor=white)](LICENSE)
 [![Site](https://img.shields.io/badge/hackme.tech-online-ff6b9d?style=for-the-badge&logo=firefoxbrowser&logoColor=white)](https://hackme.tech)
 
 <br/>
 
-**[⬇ Downloads](https://hackme.tech/downloads.html)** · **[⛏ Mine](docs/SETUP.md)** · **[🛡 Developers / Fuzz](https://hackme.tech/developers.html)** · **[📊 Pool stats](https://hackme.tech/pool/coordinator/api/pool/stats)** · **[🔬 Research](https://hackme.tech/research.html)** · **[📖 Docs](docs/INDEX.md)**
+**[⬇ Downloads](https://hackme.tech/downloads.html)** · **[⚡ Quick start](docs/QUICK_START.md)** · **[⛏ Mine](docs/SETUP.md)** · **[🛡 Developers / Fuzz](https://hackme.tech/developers.html)** · **[📊 Pool stats](https://hackme.tech/pool/coordinator/api/pool/stats)** · **[🔬 Research](https://hackme.tech/research.html)** · **[📖 Docs](docs/INDEX.md)**
 
 <br/>
 

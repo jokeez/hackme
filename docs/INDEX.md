@@ -5,6 +5,7 @@
 | Doc | Audience |
 |-----|----------|
 | [../README.md](../README.md) | Everyone — overview, ecosystem, quick links |
+| [QUICK_START.md](QUICK_START.md) | **1-minute** mine / desktop path |
 | [SETUP.md](SETUP.md) | **Miners & desktop** — step-by-step install |
 | [SECURITY_REPO.md](SECURITY_REPO.md) | **Contributors** — never commit secrets |
 | [STATUS.md](STATUS.md) | **Operators** — current RC verdict |
@@ -42,11 +43,9 @@
 | Doc / page | Topic |
 |------------|--------|
 | [BITCOIN30_SERIES.md](BITCOIN30_SERIES.md) | 30-day Bitcoin Core WASM fuzz runbook |
-| [SOCIAL_BTC30_POSTS.md](SOCIAL_BTC30_POSTS.md) | **Telegram + X copy** — all 30 days |
-| [FUZZ_DEPTH_V3_SOCIAL.md](FUZZ_DEPTH_V3_SOCIAL.md) | Fuzz depth v3 launch posts |
 | [OSS_CVE_HUNT.md](OSS_CVE_HUNT.md) | OSS CVE wave pipeline |
 | [../web/site/reports/oss-cve-watch/](../web/site/reports/oss-cve-watch/) | **OSS CVE Watch** — 14-day single-repo daily ledger |
-| [TELEGRAM_NEWS_BOT_RUNBOOK.md](TELEGRAM_NEWS_BOT_RUNBOOK.md) | News bot + pool heartbeat |
+| [TELEGRAM_NEWS_BOT_RUNBOOK.md](TELEGRAM_NEWS_BOT_RUNBOOK.md) | News bot + pool heartbeat (social drafts stay local under `docs/social/`) |
 | [TELEGRAM_BOT.md](TELEGRAM_BOT.md) | Bot setup |
 | [../web/site/research.html](../web/site/research.html) | Public research hub |
 | [../web/site/reports/bitcoin30.html](../web/site/reports/bitcoin30.html) | BTC30 series hub |
@@ -87,7 +86,7 @@
 | [OPERATIONS_MONITORING.md](OPERATIONS_MONITORING.md) | Metrics, alerts, pool health (`run_pool_health_check.sh`) |
 | [STATUS.md](STATUS.md) | **Current** operator snapshot (start here for “is prod OK?”) |
 | [PUBLIC_LAUNCH_VERDICT.md](PUBLIC_LAUNCH_VERDICT.md) | Launch criteria |
-| [HACKME_RC11R.md](HACKME_RC11R.md) | **Current** Win/Linux + ISO channel |
+| [HACKME_RC11S.md](HACKME_RC11S.md) | **Current** Win/Linux + ISO channel |
 | [scripts/release/README.md](../scripts/release/README.md) | Build ISO / Windows / bundles |
 | [TESTING.md](TESTING.md) | Test matrix |
 | [NGINX_DOWNLOADS_INTEREST.md](NGINX_DOWNLOADS_INTEREST.md) | Download analytics |

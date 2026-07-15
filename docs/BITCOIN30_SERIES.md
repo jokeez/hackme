@@ -63,7 +63,7 @@ bash scripts/ops/start_bitcoin30_5days.sh
 # catch-up (no wait): WAIT_SEC=0 bash scripts/ops/start_bitcoin30_5days.sh
 ```
 
-Social copy (Telegram + X, all 30 days): [SOCIAL_BTC30_POSTS.md](SOCIAL_BTC30_POSTS.md)
+Social drafts (local only, not in git): `docs/social/SOCIAL_BTC30_POSTS.md` · publish via [TELEGRAM_NEWS_BOT_RUNBOOK.md](TELEGRAM_NEWS_BOT_RUNBOOK.md).
 
 ### Week 1 verdict
 
@@ -71,7 +71,7 @@ Social copy (Telegram + X, all 30 days): [SOCIAL_BTC30_POSTS.md](SOCIAL_BTC30_PO
 
 ## Social copy
 
-Ready-to-post Telegram + X threads for all 30 days: [SOCIAL_BTC30_POSTS.md](SOCIAL_BTC30_POSTS.md).  
+Ready-to-post Telegram + X threads live under **`docs/social/`** (gitignored).  
 After each `DAY=N` run, cross-check stats against `reports/bitcoin30/CURRENT/DAY_SUMMARY.json` before posting.
 
 ## Disclaimer
