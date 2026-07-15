@@ -38,6 +38,42 @@
       }
     },
     {
+      "id": "2026-07-15-oss-cve-watch-day08-nghttp2-libfuzzer",
+      "date": "2026-07-15",
+      "title": "OSS CVE Watch Day 8/14 · nghttp2 · 1.02B libFuzzer exec · CLEAN",
+      "summary": "Eighth day on nghttp2: 8h libFuzzer depth session, 1,015,266,765 executions at ~35.3k exec/s. Corpus 418 inputs (326KB), 467 coverage edges. Zero ASAN heap crashes — eighth honest CLEAN day.",
+      "impact": "Cumulative ~7.71B libFuzzer executions across Days 2–8 on the same persistent corpus. Coverage still plateaued at 467 edges. Day 8 HTML live on the public ledger.",
+      "action": "Day 8 report: https://hackme.tech/reports/oss-cve-watch/day08.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "OSS CVE Watch · Day 8/14 · nghttp2",
+        "lead": "libFuzzer: 1.02B exec · 8h · CLEAN · 0 ASAN",
+        "bullets": [
+          "Target: nghttp2 HTTP/2 session mem_recv · ASAN build",
+          "1,015,266,765 executions · ~35,251 exec/s · corpus 418 (326KB)",
+          "467 coverage edges · 0 heap corruption · 0 CVE candidates",
+          "Days 2–8 combined: ~7.71B libFuzzer exec · still no ASAN heap bugs"
+        ],
+        "footer": "hackme.tech/reports/oss-cve-watch/day08.html"
+      },
+      "discord": {
+        "title": "Research · OSS CVE Watch Day 8",
+        "body": "**nghttp2 · libFuzzer · Day 8/14**\n\n• **1,015,266,765** executions · **8h** · **~35.3k exec/s**\n• Corpus **418** (326KB) · **467** coverage edges\n• **CLEAN** — 0 ASAN heap crashes\n• Days 2–8 cumulative: **~7.71B** exec\n\n**Report:** https://hackme.tech/reports/oss-cve-watch/day08.html",
+        "ping": "#research"
+      },
+      "links": {
+        "hub": "https://hackme.tech/reports/oss-cve-watch/",
+        "research": "https://hackme.tech/research.html",
+        "day08": "https://hackme.tech/reports/oss-cve-watch/day08.html"
+      }
+    },
+    {
       "id": "2026-07-13-oss-cve-watch-day07-nghttp2-libfuzzer",
       "date": "2026-07-14",
       "title": "OSS CVE Watch Day 7/14 · nghttp2 · 1.73B libFuzzer exec · CLEAN",
