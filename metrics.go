@@ -163,17 +163,17 @@ var collector = &metricsCollector{start: time.Now()}
 const metricsHostProbeTTL = 2 * time.Second
 
 var (
-	hostProbeMu      sync.Mutex
-	hostProbeExpires time.Time
-	hostProbeRefresh sync.Mutex
-	hostProbeGU      float64
-	hostProbeGM      float64
-	hostProbeGTemp   float64
-	hostProbeGName   string
-	hostProbeLinux   string
-	hostProbeCPUTemp float64
-	hostProbeLoad1   float64
-	hostProbeLoadPC  float64
+	hostProbeMu       sync.Mutex
+	hostProbeExpires  time.Time
+	hostProbeRefresh  sync.Mutex
+	hostProbeGU       float64
+	hostProbeGM       float64
+	hostProbeGTemp    float64
+	hostProbeGName    string
+	hostProbeLinux    string
+	hostProbeCPUTemp  float64
+	hostProbeLoad1    float64
+	hostProbeLoadPC   float64
 	hostProbeCPUModel string
 )
 

@@ -80,7 +80,7 @@ type Miner struct {
 
 	solved      atomic.Uint32 // 0 = hunting, 1 = winner claimed
 	throttleMu  sync.RWMutex
-	throttlePct float64 // target max CPU % for process (soft hint via sleep); see SetSoftCPUThrottlePct
+	throttlePct float64      // target max CPU % for process (soft hint via sleep); see SetSoftCPUThrottlePct
 	cpuWorkers  atomic.Int32 // last Start() CPU worker count (0 => fall back to NumCPU in Stats)
 
 	// poHBackend holds "cpu", "cuda", "opencl", or "mixed" for metrics.
