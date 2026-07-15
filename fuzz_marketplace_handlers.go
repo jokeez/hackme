@@ -51,9 +51,11 @@ func (a *app) handleFuzzMarketplace(w http.ResponseWriter, r *http.Request) {
 
 	svc := &poolfuzz.Service{DB: a.db}
 	items, listErr := svc.ListPublicCampaigns(r.Context(), 50)
+	localWarn := ""
 	if listErr != nil {
-		writeAPIError(w, http.StatusInternalServerError, "marketplace_failed", listErr.Error(), nil)
-		return
+		// Local SQLite can be busy/corrupt on desktop; still serve the public pool list.
+		items = nil
+		localWarn = listErr.Error()
 	}
 
 	mergeCtx, mergeCancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -61,5 +63,10 @@ func (a *app) handleFuzzMarketplace(w http.ResponseWriter, r *http.Request) {
 	mergeCancel()
 
 	a.fuzzMarketplaceStore(items)
-	writeJSON(w, map[string]any{"ok": true, "campaigns": items})
+	resp := map[string]any{"ok": true, "campaigns": items}
+	if localWarn != "" {
+		resp["local_warning"] = localWarn
+		resp["source"] = "coordinator"
+	}
+	writeJSON(w, resp)
 }

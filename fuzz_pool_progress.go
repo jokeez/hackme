@@ -57,6 +57,50 @@ func (a *app) fetchCoordinatorPoolCampaigns(ctx context.Context) (map[string]coo
 	return out, nil
 }
 
+// fetchCoordinatorMarketplaceItems loads full public campaign rows from the coordinator.
+// Used when the local SQLite marketplace query fails or returns nothing.
+func (a *app) fetchCoordinatorMarketplaceItems(ctx context.Context) ([]map[string]any, error) {
+	base := strings.TrimRight(strings.TrimSpace(a.coordinatorBaseURL()), "/")
+	if base == "" {
+		return nil, nil
+	}
+	reqCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, base+"/api/fuzz/pool/campaigns/list?limit=200", nil)
+	if err != nil {
+		return nil, err
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(io.LimitReader(res.Body, 4096))
+		return nil, fmt.Errorf("coordinator pool list HTTP %d: %s", res.StatusCode, strings.TrimSpace(string(b)))
+	}
+	var payload struct {
+		Campaigns []map[string]any `json:"campaigns"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
+		return nil, err
+	}
+	out := make([]map[string]any, 0, len(payload.Campaigns))
+	for _, c := range payload.Campaigns {
+		if c == nil {
+			continue
+		}
+		id := strings.TrimSpace(fmt.Sprint(c["id"]))
+		if id == "" || id == "<nil>" {
+			continue
+		}
+		c["id"] = id
+		c["pool"] = true
+		out = append(out, c)
+	}
+	return out, nil
+}
+
 func (a *app) fetchCoordinatorPoolCampaignProgress(ctx context.Context, campaignID string) (coordinatorPoolCampaign, bool) {
 	base := strings.TrimRight(strings.TrimSpace(a.coordinatorBaseURL()), "/")
 	if base == "" || campaignID == "" {
@@ -89,7 +133,27 @@ func (a *app) mergeCoordinatorPoolMarketplace(ctx context.Context, items []map[s
 	if err != nil {
 		remote = map[string]coordinatorPoolCampaign{}
 	}
-	return a.mergeCoordinatorPoolMarketplaceWithRemote(ctx, items, remote)
+	out := a.mergeCoordinatorPoolMarketplaceWithRemote(ctx, items, remote)
+	if len(out) > 0 {
+		return out
+	}
+	// Local DB empty/broken: show coordinator marketplace rows directly.
+	full, ferr := a.fetchCoordinatorMarketplaceItems(ctx)
+	if ferr != nil || len(full) == 0 {
+		return out
+	}
+	filtered := make([]map[string]any, 0, len(full))
+	for _, item := range full {
+		st, _ := item["status"].(string)
+		if strings.EqualFold(strings.TrimSpace(st), "completed") {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(st), "cancelled") {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	return filtered
 }
 
 func (a *app) mergeCoordinatorPoolMarketplaceWithRemote(ctx context.Context, items []map[string]any, remote map[string]coordinatorPoolCampaign) []map[string]any {

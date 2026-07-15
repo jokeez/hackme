@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -367,5 +368,252 @@ func (m *workManager) relayOrderSolve(minerAddress string, foundNonce, targetMod
 	out.OK = true
 	out.BlockHash, _ = decoded["block_hash"].(string)
 	out.Reason = ""
+	return out
+}
+
+func configTruthy(cfg map[string]any, keys ...string) bool {
+	if cfg == nil {
+		return false
+	}
+	for _, k := range keys {
+		v, ok := cfg[k]
+		if !ok || v == nil {
+			continue
+		}
+		switch t := v.(type) {
+		case bool:
+			if t {
+				return true
+			}
+		case string:
+			s := strings.TrimSpace(strings.ToLower(t))
+			if s == "1" || s == "true" || s == "yes" || s == "on" {
+				return true
+			}
+		case float64:
+			if t != 0 {
+				return true
+			}
+		case int:
+			if t != 0 {
+				return true
+			}
+		case json.Number:
+			if x, err := t.Float64(); err == nil && x != 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func configString(cfg map[string]any, keys ...string) string {
+	if cfg == nil {
+		return ""
+	}
+	for _, k := range keys {
+		v, ok := cfg[k]
+		if !ok || v == nil {
+			continue
+		}
+		switch t := v.(type) {
+		case string:
+			if s := strings.TrimSpace(t); s != "" {
+				return s
+			}
+		}
+	}
+	return ""
+}
+
+func configFloat(cfg map[string]any, keys ...string) float64 {
+	if cfg == nil {
+		return 0
+	}
+	for _, k := range keys {
+		v, ok := cfg[k]
+		if !ok || v == nil {
+			continue
+		}
+		switch t := v.(type) {
+		case float64:
+			return t
+		case int:
+			return float64(t)
+		case json.Number:
+			if x, err := t.Float64(); err == nil {
+				return x
+			}
+		case string:
+			if x, err := strconv.ParseFloat(strings.TrimSpace(t), 64); err == nil {
+				return x
+			}
+		}
+	}
+	return 0
+}
+
+func configInt(cfg map[string]any, keys ...string) int {
+	if cfg == nil {
+		return 0
+	}
+	for _, k := range keys {
+		v, ok := cfg[k]
+		if !ok || v == nil {
+			continue
+		}
+		switch t := v.(type) {
+		case float64:
+			return int(t)
+		case int:
+			return t
+		case json.Number:
+			if x, err := t.Int64(); err == nil {
+				return int(x)
+			}
+		case string:
+			if x, err := strconv.Atoi(strings.TrimSpace(t)); err == nil {
+				return x
+			}
+		}
+	}
+	return 0
+}
+
+func (m *workManager) attachPoHOrderEnabled() bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_COORDINATOR_ATTACH_POH_ORDER")))
+	if v == "0" || v == "false" || v == "no" || v == "off" {
+		return false
+	}
+	return true
+}
+
+// attachPoHOrderFromFuzzConfig creates a chain PoH order on ORDERS_URL when a
+// pool-distributed campaign asks for create_poh_order/attach_poh_order.
+// Workerpoh fleets then auto-switch into scheduler_mode=orders — no workerfuzz needed for that rail.
+func (m *workManager) attachPoHOrderFromFuzzConfig(campaignID string, cfg map[string]any) map[string]any {
+	out := map[string]any{"ok": false, "skipped": true}
+	if m == nil || !m.attachPoHOrderEnabled() {
+		out["reason"] = "attach_disabled"
+		return out
+	}
+	if !configTruthy(cfg, "attach_poh_order", "create_poh_order") {
+		out["reason"] = "flag_off"
+		return out
+	}
+	base := strings.TrimRight(strings.TrimSpace(m.ordersProbeURL), "/")
+	if base == "" {
+		out["reason"] = "orders_url_missing"
+		out["skipped"] = false
+		return out
+	}
+	tok := m.ordersAdminToken()
+	if tok == "" {
+		out["reason"] = "orders_admin_token_missing"
+		out["skipped"] = false
+		return out
+	}
+	wasmHex := strings.TrimSpace(strings.ToLower(configString(cfg, "wasm_check_hex")))
+	if wasmHex == "" {
+		out["reason"] = "wasm_missing"
+		out["skipped"] = false
+		return out
+	}
+	raw, err := hex.DecodeString(wasmHex)
+	if err != nil || len(raw) == 0 || len(raw) > maxOrderWasmClaimBytes {
+		out["reason"] = "wasm_invalid"
+		out["skipped"] = false
+		return out
+	}
+	if err := sandbox.ValidateCheckWasm(context.Background(), raw); err != nil {
+		out["reason"] = "wasm_validation_failed"
+		out["skipped"] = false
+		return out
+	}
+	orderID := configString(cfg, "poh_order_id", "order_id")
+	if orderID == "" {
+		cid := strings.TrimSpace(campaignID)
+		if cid == "" {
+			out["reason"] = "order_id_missing"
+			out["skipped"] = false
+			return out
+		}
+		orderID = "order-pool-" + cid
+	}
+	reward := configFloat(cfg, "poh_reward_hmc", "reward_hmc")
+	if reward <= 0 {
+		reward = 0.05
+	}
+	target := configInt(cfg, "poh_target_solves", "target_solves")
+	if target < 1 {
+		target = 1
+	}
+	diff := configInt(cfg, "poh_difficulty_score", "difficulty_score")
+	if diff < 1 {
+		diff = 10
+	}
+	payer := configString(cfg, "poh_payer_ref", "payer_ref")
+	if payer == "" {
+		payer = "pool-attach:" + strings.TrimSpace(campaignID)
+	}
+	manifest := map[string]any{
+		"id":               orderID,
+		"kind":             "synthetic_poh_v1",
+		"reward_hmc":       reward,
+		"difficulty_score": diff,
+		"target_solves":    target,
+		"payer_ref":        payer,
+		"wasm_check_hex":   wasmHex,
+	}
+	body, _ := json.Marshal(manifest)
+	req, err := http.NewRequest(http.MethodPost, base+"/api/tasks", bytes.NewReader(body))
+	if err != nil {
+		out["reason"] = "build_failed"
+		out["skipped"] = false
+		return out
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", tok)
+	cl := &http.Client{Timeout: 20 * time.Second}
+	resp, err := cl.Do(req)
+	if err != nil {
+		out["reason"] = "http_error"
+		out["skipped"] = false
+		out["detail"] = err.Error()
+		return out
+	}
+	defer resp.Body.Close()
+	rawBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	var decoded map[string]any
+	_ = json.Unmarshal(rawBody, &decoded)
+	errText, _ := decoded["error"].(string)
+	if resp.StatusCode == http.StatusOK {
+		out["ok"] = true
+		out["skipped"] = false
+		out["order_id"] = orderID
+		out["prepaid_hmc"] = decoded["prepaid_hmc"]
+		out["total_debit_hmc"] = decoded["total_debit_hmc"]
+		m.mu.Lock()
+		m.activeOrder = activeOrderSnap{} // force refresh on next claim
+		m.mu.Unlock()
+		return out
+	}
+	if resp.StatusCode == http.StatusBadRequest && strings.Contains(strings.ToLower(errText), "already exists") {
+		out["ok"] = true
+		out["skipped"] = false
+		out["order_id"] = orderID
+		out["reason"] = "already_exists"
+		m.mu.Lock()
+		m.activeOrder = activeOrderSnap{}
+		m.mu.Unlock()
+		return out
+	}
+	out["skipped"] = false
+	if errText != "" {
+		out["reason"] = errText
+	} else {
+		out["reason"] = fmt.Sprintf("http_%d", resp.StatusCode)
+	}
+	out["order_id"] = orderID
 	return out
 }

@@ -23,6 +23,11 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			return
 		}
 		limit := 50
+		if v := strings.TrimSpace(r.URL.Query().Get("limit")); v != "" {
+			if n, err := strconv.Atoi(v); err == nil && n > 0 {
+				limit = n
+			}
+		}
 		items, err := pf.ListPublicCampaigns(r.Context(), limit)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -309,8 +314,19 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			defer cancel()
 			_ = pf.EnsureWorkItems(ctx, campaignID, time.Now().Unix())
 		}()
+		attach := map[string]any{"ok": false, "skipped": true, "reason": "no_work_manager"}
+		if wm != nil {
+			attach = wm.attachPoHOrderFromFuzzConfig(req.ID, req.Config)
+		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "campaign_id": req.ID, "pool_distributed": true, "work_queue": "async"})
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok":               true,
+			"campaign_id":      req.ID,
+			"pool_distributed": true,
+			"work_queue":       "async",
+			"attach_poh_order": attach,
+		})
+		return
 	})
 
 	mux.HandleFunc("/api/fuzz/work/claim", func(w http.ResponseWriter, r *http.Request) {

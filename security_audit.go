@@ -229,7 +229,11 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 		resp["compile_log"] = compileLog
 	}
 
-	if createPoH {
+	// Local PoH escrow when not handing attach to the pool coordinator.
+	// Pool fleets probe ORDERS_URL (command chain), not a remote customer SQLite —
+	// so pool_distributed + create_poh_order attach via coordinator when sync is configured.
+	attachPoolPoH := createPoH && poolDist && poolSyncCoordinatorConfigured()
+	if createPoH && !attachPoolPoH {
 		manifest := map[string]any{
 			"id":               orderID,
 			"kind":             "synthetic_poh_v1",
@@ -267,6 +271,15 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 			"prepaid_hmc":   res.PrepaidHMC,
 			"balance_after": res.BalanceAfter,
 		}
+	} else if attachPoolPoH {
+		resp["order"] = map[string]any{
+			"id":               orderID,
+			"status":           "attach_pending",
+			"attach_via_pool":  true,
+			"reward_hmc":       rewardHMC,
+			"target_solves":    targetSolves,
+			"difficulty_score": difficulty,
+		}
 	} else {
 		resp["order"] = nil
 	}
@@ -284,6 +297,15 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 		"budget_hmc":       budgetHMC,
 		"escrow_split":     "20_80",
 		"depth_tier":       string(depthTier),
+	}
+	if attachPoolPoH {
+		cfgMap["attach_poh_order"] = true
+		cfgMap["create_poh_order"] = true
+		cfgMap["poh_order_id"] = orderID
+		cfgMap["poh_reward_hmc"] = rewardHMC
+		cfgMap["poh_target_solves"] = targetSolves
+		cfgMap["poh_difficulty_score"] = difficulty
+		cfgMap["poh_payer_ref"] = payerRef
 	}
 	if strings.HasPrefix(strings.ToLower(payerRef), "gate:") ||
 		strings.EqualFold(title, "pool-sync-gate") ||

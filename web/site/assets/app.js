@@ -22,6 +22,7 @@
     github: "https://github.com/jokeez/hackme",
     annMd: "https://bitcointalk.org/index.php?topic=5583373.0",
     x: "https://x.com/HackMeTech",
+    reddit: "https://www.reddit.com/user/Hackme-Official/",
     discord: "https://discord.gg/QMxSeaTSrQ",
     tgChannel: "https://t.me/hackme_tech",
     tgEn: "https://t.me/hackme_en",

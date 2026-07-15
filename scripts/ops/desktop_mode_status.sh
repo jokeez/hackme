@@ -19,7 +19,9 @@ fi
 
 health="down"
 status_json=""
-if status_json="$(curl -fsS --max-time 2 "$BASE_URL/api/status" 2>/dev/null)"; then
+# lite=1 is enough for liveness; full /api/status can exceed 2s under pool overlay load
+if status_json="$(curl -fsS --max-time 8 "$BASE_URL/api/status?lite=1" 2>/dev/null)" \
+  || status_json="$(curl -fsS --max-time 12 "$BASE_URL/api/status" 2>/dev/null)"; then
   health="up"
 fi
 

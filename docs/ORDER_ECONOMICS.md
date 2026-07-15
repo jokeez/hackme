@@ -1,5 +1,21 @@
 # Order economics — pool solves + escrow to miner
 
+## Pool-distributed security audits (`attach_poh_order`)
+
+When a customer node creates `POST /api/security-audit` with **`create_poh_order: true`** and **`pool_distributed: true`**:
+
+- Fuzz escrow stays on the **customer node** (report + settle pull).
+- PoH escrow is **not** opened on that node (pool workers never see a remote SQLite task list).
+- Campaign config carries `attach_poh_order` + WASM/reward fields; coordinator `POST /api/fuzz/pool/campaigns` creates the PoH task on **`HACKME_COORDINATOR_ORDERS_URL`**.
+- Existing **`workerpoh`** clients auto-enter `scheduler_mode=orders` — no binary update for that rail.
+- Deep fuzz **runs** still use `/api/fuzz/work/*` (`workerfuzz`) until workerpoh also claims fuzz.
+
+Disable with `HACKME_COORDINATOR_ATTACH_POH_ORDER=0`.
+
+`HACKME_COORDINATOR_ORDERS_ADMIN_TOKEN` must match the command-node **`HACKME_ADMIN_TOKEN`**
+(or another secret accepted by `requireDeveloperTasksAuth` / `requireAdminAuth`). A distinct
+coordinator-only token yields HTTP 401 on `POST /api/tasks` and attach silently fails.
+
 ## Customer pays for volume (target_solves)
 
 - **Prepaid** = `reward_hmc × target_solves` (held in `meta_order_escrow_units`). **Minimum prepaid = 0.05 HMC** (`MinOrderPrepaidHMC`) — prevents dust orders that pay miners negligible per-solve slices.

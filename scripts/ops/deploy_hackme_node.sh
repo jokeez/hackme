@@ -138,6 +138,18 @@ systemctl daemon-reload
 systemctl enable --now hackme-node-watchdog.timer 2>/dev/null || true
 systemctl enable --now hackme-oss-cve-nightly.timer 2>/dev/null || true
 systemctl enable hackme-coordinator 2>/dev/null || true
+# ORDERS attach / solve-relay must use the chain admin token (POST /api/tasks auth).
+if [[ -f "\$d/.env.vps" && -f "\$d/.env.coord" ]]; then
+  admin="\$(grep -m1 '^HACKME_ADMIN_TOKEN=' "\$d/.env.vps" | cut -d= -f2- | tr -d '\r\n')"
+  if [[ -n "\$admin" ]]; then
+    if grep -q '^HACKME_COORDINATOR_ORDERS_ADMIN_TOKEN=' "\$d/.env.coord"; then
+      sed -i "s|^HACKME_COORDINATOR_ORDERS_ADMIN_TOKEN=.*|HACKME_COORDINATOR_ORDERS_ADMIN_TOKEN=\${admin}|" "\$d/.env.coord"
+    else
+      echo "HACKME_COORDINATOR_ORDERS_ADMIN_TOKEN=\${admin}" >>"\$d/.env.coord"
+    fi
+    echo "[deploy-hackme-node] synced HACKME_COORDINATOR_ORDERS_ADMIN_TOKEN from .env.vps"
+  fi
+fi
 systemctl restart hackme-node
 systemctl restart hackme-coordinator 2>/dev/null || true
 sleep 2
