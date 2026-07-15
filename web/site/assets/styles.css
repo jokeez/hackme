@@ -32,7 +32,7 @@ a { color: inherit; text-decoration: none; }
   z-index: -1;
 }
 .bg-glow-a { background: #2dd4ff; top: -10rem; left: -8rem; }
-.bg-glow-b { background: #7c3aed; bottom: -14rem; right: -8rem; }
+.bg-glow-b { background: #0ea5a8; bottom: -14rem; right: -8rem; }
 
 .topbar {
   max-width: 1180px;
@@ -1259,8 +1259,9 @@ h4 { font-size: 1.02rem; }
 .contacts-hero-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.45rem 0.65rem;
   margin-top: 1.1rem;
+  max-width: 38rem;
 }
 .contacts-pill {
   display: inline-flex;

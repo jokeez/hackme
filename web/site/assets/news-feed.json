@@ -1,6 +1,41 @@
 {
   "items": [
     {
+      "id": "2026-07-16-pool-privacy-site-hub",
+      "date": "2026-07-16",
+      "title": "Public pool · miner IP privacy · hub polish",
+      "summary": "Unauthenticated coordinator stats and by-wallet no longer expose last_client_ip. Research hub updated to OSS CVE Watch Day 8/14. Security rewards page + footer link; home Live pool shows workers online.",
+      "impact": "Hardening for miner privacy on the public edge without changing rc11s miner downloads. Command hub metrics remain resilient under PoH load.",
+      "action": "Pool: https://hackme.tech/ · Rewards: https://hackme.tech/security-rewards.html · Research: https://hackme.tech/research.html",
+      "tags": [
+        "security",
+        "pool",
+        "privacy",
+        "site"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "🛡 Pool privacy · hub update",
+        "lead": "Public stats no longer publish miner client IPs",
+        "bullets": [
+          "last_client_ip redacted from public /api/work/stats + by-wallet",
+          "Research: OSS CVE Watch card → Day 8/14 CLEAN",
+          "Bug bounty in footer · Live pool Workers column on home"
+        ],
+        "footer": "hackme.tech · hackme.tech/security-rewards.html"
+      },
+      "discord": {
+        "title": "Pool privacy · site hub",
+        "body": "**Public pool** no longer exposes miner client IPs.\n\n• Research hub → Day 8/14 CVE Watch\n• Security rewards linked in footer\n• Home Live pool: Workers column\n\nhttps://hackme.tech/",
+        "ping": "#releases"
+      },
+      "links": {
+        "home": "https://hackme.tech/",
+        "rewards": "https://hackme.tech/security-rewards.html",
+        "research": "https://hackme.tech/research.html"
+      }
+    },
+    {
       "id": "2026-07-11-github-release-rc11s",
       "date": "2026-07-11",
       "title": "HackMe 0.1.0-rc11s — production baseline · pool fuzz · miners welcome",

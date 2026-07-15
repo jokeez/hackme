@@ -7,7 +7,7 @@
   <meta name="description" content="Public security research: L1 live prod fuzz, Bitcoin 30-Day series, OSS case studies (mkpool), upstream WASM — honest scope, fuzz_report_v2 ledgers." />
   <link rel="canonical" href="https://hackme.tech/research.html" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-  <link rel="stylesheet" href="./assets/styles.css?v=20260707cvewatch" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20260716hub" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
@@ -62,21 +62,22 @@
       <div class="research-section-head">
         <div>
           <h2>OSS CVE Watch · nghttp2</h2>
-          <p class="subtle">One repo · 14 days · daily Tier-D ASAN ledger (after Bitcoin30)</p>
+          <p class="subtle">One repo · 14 days · Day 2+ libFuzzer depth · honest CLEAN ledger</p>
         </div>
+        <a class="btn btn-secondary" href="./reports/oss-cve-watch/" style="font-size:0.82rem;padding:0.45rem 0.9rem">Series hub</a>
       </div>
       <div class="research-grid">
         <a class="research-card" href="./reports/oss-cve-watch/">
-          <span class="research-tag live">Day 1/14 · live</span>
+          <span class="research-tag live">Day 8/14 · published</span>
           <h3>nghttp2 HTTP/2 parser</h3>
-          <p>Session <code class="notranslate">mem_recv</code> framing surface — CLEAN day 1, UBSan informational only.</p>
-          <div class="research-stats notranslate"><span><b>2,452</b> iter</span><span><b>0</b> ASAN</span><span>CLEAN</span></div>
+          <p>Session <code class="notranslate">mem_recv</code> · persistent corpus · Days 2–8 cumulative ~7.71B libFuzzer exec · still CLEAN.</p>
+          <div class="research-stats notranslate"><span><b>~7.71B</b> exec</span><span><b>0</b> ASAN</span><span>CLEAN</span></div>
         </a>
-        <a class="research-card" href="./reports/oss-cve-watch/day01.html">
-          <span class="research-tag series">Day 1 ledger</span>
-          <h3>Day 1 · baseline hunt</h3>
-          <p>10 min budget pass · honest scope — not marathon wave hype.</p>
-          <div class="research-stats"><span>INFORMATIONAL</span><span>UBSan noise</span></div>
+        <a class="research-card" href="./reports/oss-cve-watch/day08.html">
+          <span class="research-tag series">Day 8 ledger</span>
+          <h3>Day 8 · 1.02B · 8h</h3>
+          <p>libFuzzer + ASAN · ~35k exec/s · corpus 418 · zero heap crashes — eighth honest CLEAN day.</p>
+          <div class="research-stats notranslate"><span><b>1.02B</b> exec</span><span><b>0</b> ASAN</span></div>
         </a>
       </div>
     </section>
@@ -246,7 +247,7 @@
     <p class="muted">Ecosystem: mine · fuzz · research · explore.</p>
     <div class="footer-nav"></div>
   </footer>
-  <script src="./assets/site-shell.js?v=20260627banner2"></script>
-  <script src="./assets/app.js?v=20260620research"></script>
+  <script src="./assets/site-shell.js?v=20260716hub"></script>
+  <script src="./assets/app.js?v=20260716hub"></script>
 </body>
 </html>

@@ -1054,9 +1054,9 @@ func TestWorkManagerStatsMarksStaleWorkersOffline(t *testing.T) {
 func TestWorkManagerWorkersByPayoutAddress(t *testing.T) {
 	wm := &workManager{
 		worker: map[string]workerPayoutStat{
-			"worker-a": {PayoutAddress: "HMC-abc123", PayoutHMC: 1.5},
+			"worker-a": {PayoutAddress: "HMC-abc123", PayoutHMC: 1.5, LastClientIP: "1.2.3.4"},
 			"worker-b": {PayoutAddress: "HMC-other", PayoutHMC: 0.1},
-			"worker-c": {PayoutAddress: "hmc-abc123", PayoutHMC: 0.2},
+			"worker-c": {PayoutAddress: "hmc-abc123", PayoutHMC: 0.2, LastClientIP: "5.6.7.8"},
 		},
 	}
 	got := wm.workersByPayoutAddress("HMC-abc123")
@@ -1068,5 +1068,30 @@ func TestWorkManagerWorkersByPayoutAddress(t *testing.T) {
 	}
 	if _, ok := got["worker-c"]; !ok {
 		t.Fatalf("case-insensitive match missing worker-c")
+	}
+	if got["worker-a"].LastClientIP != "" || got["worker-c"].LastClientIP != "" {
+		t.Fatalf("public by-wallet must redact last_client_ip: a=%q c=%q", got["worker-a"].LastClientIP, got["worker-c"].LastClientIP)
+	}
+}
+
+func TestPublicStatsRedactsClientIP(t *testing.T) {
+	now := time.Now().Unix()
+	wm := &workManager{
+		worker: map[string]workerPayoutStat{
+			"rig-1": {LastSeenUnix: now - 5, LastHashrateGHS: 10, PayoutHMC: 1, LastClientIP: "203.0.113.9", PayoutAddress: "HMC-pub"},
+		},
+	}
+	pub := wm.stats(false)
+	workers, _ := pub["workers"].(map[string]workerPayoutStat)
+	if workers["rig-1"].LastClientIP != "" {
+		t.Fatalf("public stats leaked last_client_ip: %+v", workers["rig-1"])
+	}
+	if workers["rig-1"].PayoutAddress != "HMC-pub" || workers["rig-1"].PayoutHMC != 1 {
+		t.Fatalf("public payout fields should remain: %+v", workers["rig-1"])
+	}
+	priv := wm.stats(true)
+	workers, _ = priv["workers"].(map[string]workerPayoutStat)
+	if workers["rig-1"].LastClientIP != "203.0.113.9" {
+		t.Fatalf("details=1 should keep last_client_ip for admin: %+v", workers["rig-1"])
 	}
 }

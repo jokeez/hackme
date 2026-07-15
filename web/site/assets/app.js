@@ -448,6 +448,7 @@
 
   async function loadPoolOverview() {
     const hashEl = document.getElementById("pool-live-hash");
+    const wEl = document.getElementById("pool-live-workers");
     const hEl = document.getElementById("pool-live-height");
     const rEl = document.getElementById("pool-live-reward");
     const dEl = document.getElementById("pool-live-diff");
@@ -463,6 +464,7 @@
     if (!global && !work) {
       hashEl.textContent = "—";
       hashEl.removeAttribute("title");
+      if (wEl) wEl.textContent = "—";
       hEl.textContent = "—";
       rEl.textContent = "—";
       dEl.textContent = "—";
@@ -483,6 +485,10 @@
     if ((!Number.isFinite(poolTH) || poolTH <= 0) && work) {
       const hs = Number(work.hashrate || work.hashrate_hs || 0);
       if (hs > 0) poolTH = hs / 1e12;
+      const ghDirect = Number(work.pool_hashrate_gh_s);
+      if ((!Number.isFinite(poolTH) || poolTH <= 0) && Number.isFinite(ghDirect) && ghDirect > 0) {
+        poolTH = ghDirect / 1000;
+      }
     }
 
     if (Number.isFinite(poolTH) && poolTH > 0) {
@@ -525,15 +531,26 @@
     }
     rEl.textContent = Number.isFinite(reward) && reward > 0 ? `${reward.toFixed(6)} HMC` : "—";
 
-    const miners = Number(
-      (global && global.work && global.work.workers_count) ||
-        (work && work.workers_count) ||
+    const online = Number(
+      (work && work.workers_online) ||
+        (work && work.miners) ||
+        (global && global.work && global.work.workers_online) ||
+        NaN
+    );
+    const known = Number(
+      (work && work.workers_count) ||
+        (global && global.work && global.work.workers_count) ||
         (work && work.workers && Object.keys(work.workers).length) ||
         0
     );
+    const miners = Number.isFinite(online) && online >= 0 ? online : known;
+    if (wEl) {
+      wEl.textContent = Number.isFinite(miners) && miners >= 0 ? String(Math.floor(miners)) : "—";
+      wEl.title = "Workers with recent submit activity (public coordinator).";
+    }
     const poolOk = (global && global.work && global.work.ok) || (work && work.issued_ranges != null);
     if (poolOk) {
-      sEl.textContent = miners > 0 ? `online · ${miners} worker${miners === 1 ? "" : "s"}` : "online";
+      sEl.textContent = miners > 0 ? "online" : "online · idle";
     } else {
       sEl.textContent = "degraded";
     }

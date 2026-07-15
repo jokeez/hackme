@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./assets/styles.css?v=20260519rewards" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20260716hub" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
   <link rel="icon" href="/assets/favicon.png" type="image/png" />
 </head>
@@ -18,7 +18,7 @@
   <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
   <header class="topbar">
     <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe logo" /><span>HackMe Network</span></a>
-    <nav class="nav" data-site-page="docs"></nav>
+    <nav class="nav" data-site-page="rewards"></nav>
   </header>
 
   <main class="container">
@@ -100,6 +100,14 @@
       <p class="section-lede">Production stack at <strong>hackme.tech</strong>: node, coordinator, worker, nginx, WASM PoH path, hybrid signer, settlement tooling.</p>
       <p class="muted">Full text: <a href="https://github.com/jokeez/hackme/blob/main/docs/BUG_BOUNTY.md" target="_blank" rel="noreferrer">docs/BUG_BOUNTY.md</a> · Red-team baseline: <a href="https://github.com/jokeez/hackme/blob/main/docs/SECURITY_AUDIT_REDTEAM.md" target="_blank" rel="noreferrer">SECURITY_AUDIT_REDTEAM.md</a></p>
     </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Operator notes (transparency)</h2></div>
+      <ul class="list">
+        <li><strong>Public pool stats</strong> show hashrate and accruals for transparency — <strong>miner client IPs are not published</strong> on unauthenticated edges (<code>/api/work/stats</code>, <code>/api/work/by-wallet</code>).</li>
+        <li><strong>Hall of fame</strong> — after an accepted report and your OK, we may list alias + severity here. Empty until the first accepted payout.</li>
+      </ul>
+    </section>
   </main>
 
   <footer class="footer">
@@ -108,7 +116,7 @@
     <div class="footer-nav"></div>
   </footer>
 
-  <script src="./assets/site-shell.js?v=20260601hub"></script>
-  <script src="./assets/app.js?v=20260519rewards"></script>
+  <script src="./assets/site-shell.js?v=20260716hub"></script>
+  <script src="./assets/app.js?v=20260716hub"></script>
 </body>
 </html>

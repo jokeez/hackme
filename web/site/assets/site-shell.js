@@ -19,6 +19,7 @@
     economics: { href: "./economics-model.html", label: "Economics" },
     operators: { href: "./operator-checklist.html", label: "Operators" },
     contacts: { href: "./contacts.html", label: "Contacts" },
+    rewards: { href: "./security-rewards.html", label: "Bug bounty" },
     legal: { href: "./legal.html", label: "Legal" },
     privacy: { href: "./legal-privacy.html", label: "Privacy" },
     explorer: { href: "./explorer-lite.html", label: "Explorer" },
@@ -26,13 +27,13 @@
   };
 
   const PRIMARY = ["mine", "coins", "research", "docs"];
-  const MORE = ["fuzz", "developers", "news", "economics", "transparency", "roadmap", "listing", "operators", "contacts", "legal", "privacy", "explorer", "downloads"];
+  const MORE = ["fuzz", "developers", "news", "economics", "transparency", "roadmap", "listing", "operators", "rewards", "contacts", "legal", "privacy", "explorer", "downloads"];
 
   const FOOTER_GROUPS = [
     { title: "Network", keys: ["home", "coins", "transparency", "roadmap", "research", "github", "explorer"] },
     { title: "Start", keys: ["mine", "downloads", "docs", "listing", "operators"] },
     { title: "Product", keys: ["fuzz", "developers", "economics", "news"] },
-    { title: "Legal", keys: ["contacts", "legal", "privacy"] },
+    { title: "Legal", keys: ["contacts", "rewards", "legal", "privacy"] },
   ];
 
   function pageKey() {
@@ -62,7 +63,7 @@
       "developer-console": "developers",
       "developer-dashboard": "developers",
       "security-notes": "docs",
-      "security-rewards": "docs",
+      "security-rewards": "rewards",
     };
     return map[base] || base.replace(/-/g, "_");
   }

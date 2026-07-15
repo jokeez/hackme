@@ -1964,6 +1964,7 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 		out["pool_hashrate_gh_s_smoothed"] = m.poolGHSmoothed
 	}
 	// Per-worker payout summary is public pool transparency; miner UIs need it without admin token.
+	// last_client_ip stays admin-only (details=1) — do not expose miner IPs on the public edge.
 	workers := make(map[string]workerPayoutStat, len(m.worker))
 	for k, v := range m.worker {
 		st := v
@@ -1973,6 +1974,9 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 			st.LastHashrateGHS = 0
 		} else {
 			st.LastHashrateGHS = effectiveWorkerHashrateGHS(st)
+		}
+		if !includeDetails {
+			st = redactPublicWorkerStat(st)
 		}
 		base := fleetBaseWorkerID(k)
 		workers[base] = mergeWorkerStat(workers[base], st)
@@ -1993,7 +1997,14 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 	return out
 }
 
+// redactPublicWorkerStat strips fields that must not appear on unauthenticated pool APIs.
+func redactPublicWorkerStat(st workerPayoutStat) workerPayoutStat {
+	st.LastClientIP = ""
+	return st
+}
+
 // workersByPayoutAddress returns pool workers paying out to the given HMC address (case-insensitive).
+// Client IPs are redacted — this route is public.
 func (m *workManager) workersByPayoutAddress(addr string) map[string]workerPayoutStat {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -2004,7 +2015,7 @@ func (m *workManager) workersByPayoutAddress(addr string) map[string]workerPayou
 	}
 	for id, st := range m.worker {
 		if strings.EqualFold(strings.TrimSpace(st.PayoutAddress), addr) {
-			out[id] = st
+			out[id] = redactPublicWorkerStat(st)
 		}
 	}
 	return out
