@@ -1,6 +1,42 @@
 {
   "items": [
     {
+      "id": "2026-07-16-oss-cve-watch-day09-nghttp2-libfuzzer",
+      "date": "2026-07-16",
+      "title": "OSS CVE Watch Day 9/14 · nghttp2 · 0.31B libFuzzer exec · CLEAN",
+      "summary": "Day 9 on nghttp2: 4.0h libFuzzer depth, 313,781,660 executions at ~21,788 exec/s. Corpus 413 (303KB), 467 coverage edges. ASAN heap crashes: 0 — verdict CLEAN.",
+      "impact": "Cumulative Days 2–9: ~8.02B libFuzzer executions on persistent corpus. Day 9 HTML live on the public ledger.",
+      "action": "Day 9 report: https://hackme.tech/reports/oss-cve-watch/day09.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2",
+        "day09"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "OSS CVE Watch · Day 9/14 · nghttp2",
+        "lead": "4.0h libFuzzer + ASAN · CLEAN",
+        "bullets": [
+          "313,781,660 executions · ~21,788 exec/s · 4.0h",
+          "corpus 413 (303KB) · 467 edges · ASAN=0",
+          "Days 2–9 cumulative ~8.02B exec",
+          "CLEAN = no ASAN heap crash in budget — not proven secure"
+        ],
+        "footer": "hackme.tech/reports/oss-cve-watch/day09.html"
+      },
+      "discord": {
+        "title": "Research · OSS CVE Watch Day 9",
+        "body": "**nghttp2 · libFuzzer · Day 9/14**\n\n• **313,781,660** executions · **4.0h** · **~21,788 exec/s**\n• Corpus **413** (303KB) · **467** coverage edges\n• **CLEAN** — 0 ASAN heap crashes\n• Days 2–9 cumulative: **~8.02B** exec\n\n**Report:** https://hackme.tech/reports/oss-cve-watch/day09.html",
+        "ping": "#research"
+      },
+      "links": {
+        "hub": "https://hackme.tech/reports/oss-cve-watch/",
+        "day09": "https://hackme.tech/reports/oss-cve-watch/day09.html"
+      }
+    },
+    {
       "id": "2026-07-16-pool-privacy-site-hub",
       "date": "2026-07-16",
       "title": "Public pool · miner IP privacy · hub polish",
@@ -390,44 +426,6 @@
         "pool": "https://hackme.tech/pool/coordinator/api/pool/stats",
         "research": "https://hackme.tech/research.html",
         "roadmap": "https://hackme.tech/roadmap.html"
-      }
-    },
-    {
-      "id": "2026-07-01-b2b-fuzz-final",
-      "date": "2026-07-01",
-      "title": "B2B Fuzz Final — one command from WASM guard to CI gate",
-      "summary": "Ship a security guard, pick Scan · Audit · Deep, miners fuzz it on the pool, get an HTML report plus a pass/fail gate your pipeline can enforce. hackme-fuzzing wizard — no browser admin on the public site.",
-      "impact": "Protocol teams get a productized audit path: local node escrow (20/80 HMC), distributed useful-PoW workers, customer report token, GET /gate for CI. Coordinator now re-verifies WASM on found nonces — fabricated worker gate passes cannot drain bounty. Ops: fuzz_b2b_final_gate.sh → VERDICT.md.",
-      "action": "Developers: https://hackme.tech/developers.html · CLI: https://hackme.tech/downloads.html#fuzzing-client · Tracker: https://hackme.tech/fuzzing-console.html · Command: hackme-fuzzing wizard --wasm guard.wasm --package audit",
-      "tags": [
-        "fuzzing",
-        "b2b",
-        "security",
-        "product",
-        "devtools"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "B2B Fuzz FINAL — wizard + CI gate",
-        "lead": "guard.wasm → one CLI → report + gate · Scan 1 / Audit 5 / Deep 10 HMC",
-        "bullets": [
-          "hackme-fuzzing wizard — Scan · Audit · Deep packages, escrow 20/80 unchanged",
-          "Deliverables: report.html · pulse · GET /gate?pass= for CI (report token)",
-          "Security: orders on localhost only; coordinator WASM re-verify on pool submits",
-          "Ops gate: scripts/ops/fuzz_b2b_final_gate.sh → VERDICT GREEN/YELLOW"
-        ],
-        "footer": "hackme.tech/developers.html · downloads#fuzzing-client · fuzzing-console.html"
-      },
-      "discord": {
-        "title": "Product · B2B Fuzz Final",
-        "body": "**One command. Three packages. A gate your CI can trust.**\n\n• `hackme-fuzzing wizard --wasm guard.wasm --package audit`\n• Scan 1 HMC · Audit 5 HMC · Deep 10 HMC — pool + escrow 20/80\n• HTML report + `GET …/gate` with report token\n• Coordinator server-side WASM re-verify\n\n**Links:** [developers](https://hackme.tech/developers.html) · [CLI](https://hackme.tech/downloads.html#fuzzing-client) · [console](https://hackme.tech/fuzzing-console.html)",
-        "ping": "#announcements"
-      },
-      "links": {
-        "developers": "https://hackme.tech/developers.html",
-        "downloads": "https://hackme.tech/downloads.html#fuzzing-client",
-        "console": "https://hackme.tech/fuzzing-console.html",
-        "pool": "https://hackme.tech/pool/coordinator"
       }
     }
   ],
