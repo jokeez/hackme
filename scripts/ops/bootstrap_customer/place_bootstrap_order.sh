@@ -17,11 +17,33 @@ LOG_DIR="${LOG_DIR:-$INSTALL/logs/bootstrap/orders}"
 mkdir -p "$LOG_DIR"
 
 ADMIN="$(grep -m1 '^HACKME_ADMIN_TOKEN=' "$INSTALL/.env" | cut -d= -f2- | tr -d '\r\n')"
-WASM="${WASM_FILE:-$INSTALL/tasks/artifacts/security/rust_script_push_bounds_guard.wasm}"
-[[ -f "$WASM" ]] || WASM="$ROOT/tasks/artifacts/security/rust_script_push_bounds_guard.wasm"
-[[ -f "$WASM" ]] || { echo "[bootstrap-order] missing wasm: $WASM" >&2; exit 1; }
-
-WASM_HEX="$(xxd -p "$WASM" | tr -d '\n')"
+# PoH order gate must be solvable for pool M finds. Security "bounds_guard" wasm rejects
+# almost all nonces and leaves progress stuck at 0/N while leases look healthy.
+# Prefer dedicated order gate (or HACKME_MINIMAL_POH_GATE=1 / WASM_FILE override).
+WASM="${WASM_FILE:-}"
+if [[ -z "$WASM" ]]; then
+  if [[ "${HACKME_MINIMAL_POH_GATE:-0}" == "1" ]]; then
+    WASM="" # filled as hex below
+  else
+    for cand in \
+      "$INSTALL/tasks/artifacts/security/upstream_hackme_order_gate.wasm" \
+      "$ROOT/tasks/artifacts/security/upstream_hackme_order_gate.wasm" \
+      "$INSTALL/tasks/artifacts/security/rust_script_push_bounds_guard.wasm" \
+      "$ROOT/tasks/artifacts/security/rust_script_push_bounds_guard.wasm"; do
+      if [[ -f "$cand" ]]; then WASM="$cand"; break; fi
+    done
+  fi
+fi
+if [[ "${HACKME_MINIMAL_POH_GATE:-0}" == "1" ]]; then
+  # Always-pass check(i64)->i32 (sandbox.MinimalGateWasmHex)
+  WASM_HEX="0061736d0100000001060160017e017f0302010007090105636865636b00000a0601040041010b"
+elif [[ -n "$WASM" && -f "$WASM" ]]; then
+  WASM_HEX="$(xxd -p "$WASM" | tr -d '\n')"
+else
+  echo "[bootstrap-order] missing PoH wasm (set WASM_FILE or ship upstream_hackme_order_gate.wasm)" >&2
+  exit 1
+fi
+[[ -n "$WASM_HEX" ]] || { echo "[bootstrap-order] empty wasm hex" >&2; exit 1; }
 OID="order-bootstrap-${TARGET}-${STAMP}"
 CID="campaign-bootstrap-${TARGET}-${STAMP}"
 TITLE="HackMe Bootstrap Audit · ${TARGET} · deep pool"
@@ -82,21 +104,31 @@ bash "$(dirname "$0")/bootstrap_snapshot.sh" "$STAMP" "post-create-${TARGET}" >>
 
 POLL_SEC="${POLL_SEC:-120}"
 MAX_WAIT="${MAX_WAIT:-7200}"
+ORDERS_PUBLIC="${ORDERS_PUBLIC:-https://hackme.tech}"
 deadline=$(( $(date +%s) + MAX_WAIT ))
 runs_done=0
+poh_progress=0
 while [[ $(date +%s) -lt $deadline ]]; do
   sleep "$POLL_SEC"
   prog="$(curl -fsS --max-time 30 "$COORD/api/fuzz/pool/campaigns/progress?id=${CID_OUT}" 2>/dev/null || echo '{}')"
   runs_done="$(jq -r '.runs_done // 0' <<<"$prog")"
   status="$(jq -r '.status // ""' <<<"$prog")"
   work="$(curl -fsS --max-time 15 "$COORD/api/work/stats" 2>/dev/null || echo '{}')"
-  log "progress runs_done=$runs_done status=$status scheduler=$(jq -r '.scheduler_mode // "?"' <<<"$work") orders_active=$(jq -r '.orders_active // false' <<<"$work")"
+  # PoH progress lives on the command chain /api/tasks (not fuzz runs_done).
+  poh_progress="$(curl -fsS --max-time 30 "$ORDERS_PUBLIC/api/tasks" 2>/dev/null \
+    | jq -r --arg oid "$OID" '.tasks[]? | select(.id==$oid) | .progress_count // 0' 2>/dev/null | head -1)"
+  poh_progress="${poh_progress:-0}"
+  log "progress runs_done=$runs_done poh=$poh_progress/$TARGET_SOLVES status=$status scheduler=$(jq -r '.scheduler_mode // "?"' <<<"$work") orders_active=$(jq -r '.orders_active // false' <<<"$work")"
   export CAMPAIGN_ID="$CID_OUT"
   bash "$(dirname "$0")/bootstrap_snapshot.sh" "${STAMP}-p$(date +%s)" "poll-${TARGET}" >>"$LOG_DIR/${STAMP}.log" 2>&1 || true
   if [[ "$status" == "completed" || "$status" == "cancelled" ]]; then
     break
   fi
   if [[ "${runs_done:-0}" -ge "$BUDGET_RUNS" ]]; then
+    break
+  fi
+  if [[ "${poh_progress:-0}" -ge "$TARGET_SOLVES" ]]; then
+    log "PoH order complete progress=$poh_progress/$TARGET_SOLVES"
     break
   fi
 done
@@ -112,8 +144,8 @@ export CAMPAIGN_ID="$CID_OUT"
 bash "$(dirname "$0")/bootstrap_snapshot.sh" "$STAMP" "final-${TARGET}" >>"$LOG_DIR/${STAMP}.log" 2>&1 || true
 
 verdict="$(jq -r '.verdict // "?"' "$LOG_DIR/${STAMP}-report.json" 2>/dev/null || echo '?')"
-log "DONE target=$TARGET campaign=$CID_OUT runs_done=$runs_done verdict=$verdict"
-jq -nc --arg target "$TARGET" --arg cid "$CID_OUT" --arg stamp "$STAMP" \
-  --argjson runs "$runs_done" --arg verdict "$verdict" \
-  '{target:$target,campaign_id:$cid,stamp:$stamp,runs_done:$runs,verdict:$verdict}' \
+log "DONE target=$TARGET campaign=$CID_OUT runs_done=$runs_done poh_progress=$poh_progress/$TARGET_SOLVES verdict=$verdict"
+jq -nc --arg target "$TARGET" --arg cid "$CID_OUT" --arg stamp "$STAMP" --arg oid "$OID" \
+  --argjson runs "$runs_done" --argjson poh "${poh_progress:-0}" --arg verdict "$verdict" \
+  '{target:$target,campaign_id:$cid,order_id:$oid,stamp:$stamp,runs_done:$runs,poh_progress:$poh,verdict:$verdict}' \
   >>"$INSTALL/logs/bootstrap/order_results.jsonl"

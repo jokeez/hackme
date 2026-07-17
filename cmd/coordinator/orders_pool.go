@@ -26,6 +26,51 @@ type activeOrderSnap struct {
 	FetchedAt int64
 }
 
+// orderManifestWasmReward extracts wasm_check_hex + reward_hmc from tasks.manifest_json
+// whether the API decoded it as a JSON object or left it as a JSON string.
+func orderManifestWasmReward(raw any) (wasmHex string, rewardHMC float64) {
+	var mf struct {
+		WasmCheckHex string  `json:"wasm_check_hex"`
+		RewardHMC    float64 `json:"reward_hmc"`
+	}
+	switch v := raw.(type) {
+	case nil:
+		return "", 0
+	case string:
+		s := strings.TrimSpace(v)
+		if s == "" || s == "<nil>" {
+			return "", 0
+		}
+		if err := json.Unmarshal([]byte(s), &mf); err != nil {
+			return "", 0
+		}
+	case map[string]any:
+		b, err := json.Marshal(v)
+		if err != nil {
+			return "", 0
+		}
+		if err := json.Unmarshal(b, &mf); err != nil {
+			return "", 0
+		}
+	case json.RawMessage:
+		if len(v) == 0 {
+			return "", 0
+		}
+		if err := json.Unmarshal(v, &mf); err != nil {
+			return "", 0
+		}
+	default:
+		b, err := json.Marshal(v)
+		if err != nil {
+			return "", 0
+		}
+		if err := json.Unmarshal(b, &mf); err != nil {
+			return "", 0
+		}
+	}
+	return strings.TrimSpace(mf.WasmCheckHex), mf.RewardHMC
+}
+
 func (m *workManager) ordersAdminToken() string {
 	for _, key := range []string{
 		"HACKME_COORDINATOR_ORDERS_ADMIN_TOKEN",
@@ -246,7 +291,7 @@ func (m *workManager) refreshActiveOrderLocked() activeOrderSnap {
 	var body struct {
 		Tasks []map[string]any `json:"tasks"`
 	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&body); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(&body); err != nil {
 		return activeOrderSnap{}
 	}
 	var pick map[string]any
@@ -266,17 +311,10 @@ func (m *workManager) refreshActiveOrderLocked() activeOrderSnap {
 		return activeOrderSnap{}
 	}
 	id := strings.TrimSpace(fmt.Sprintf("%v", pick["id"]))
-	manifest := strings.TrimSpace(fmt.Sprintf("%v", pick["manifest_json"]))
-	if manifest == "" || manifest == "<nil>" {
-		m.activeOrder = activeOrderSnap{}
-		return activeOrderSnap{}
-	}
-	var mf struct {
-		WasmCheckHex string  `json:"wasm_check_hex"`
-		RewardHMC    float64 `json:"reward_hmc"`
-	}
-	_ = json.Unmarshal([]byte(manifest), &mf)
-	wasmHex := strings.TrimSpace(mf.WasmCheckHex)
+	// API may return manifest_json as a JSON object (map) or as a JSON string.
+	// fmt.Sprintf("%v", map) is NOT valid JSON — that used to drop wasm and leave
+	// scheduler_mode=orders with leases but no order_task_id on claims (progress stuck at 0).
+	wasmHex, mfReward := orderManifestWasmReward(pick["manifest_json"])
 	if wasmHex == "" {
 		m.activeOrder = activeOrderSnap{}
 		return activeOrderSnap{}
@@ -292,7 +330,7 @@ func (m *workManager) refreshActiveOrderLocked() activeOrderSnap {
 	}
 	reward, _ := pick["reward"].(float64)
 	if reward <= 0 {
-		reward = mf.RewardHMC
+		reward = mfReward
 	}
 	// Order pool work uses coordinator pool M (fair for remote miners), not canonical chain solo M.
 	poolMod := m.clampTargetMod(m.targetMod)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,76 @@ import (
 
 	"hackme/internal/sandbox"
 )
+
+func TestOrderManifestWasmRewardObjectAndString(t *testing.T) {
+	hexWasm := sandbox.MinimalGateWasmHex
+	obj := map[string]any{
+		"wasm_check_hex": hexWasm,
+		"reward_hmc":     0.05,
+	}
+	wasm, reward := orderManifestWasmReward(obj)
+	if !strings.EqualFold(wasm, hexWasm) || reward != 0.05 {
+		t.Fatalf("object path wasm_len=%d reward=%v", len(wasm), reward)
+	}
+	raw, err := json.Marshal(obj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wasm2, reward2 := orderManifestWasmReward(string(raw))
+	if !strings.EqualFold(wasm2, hexWasm) || reward2 != 0.05 {
+		t.Fatalf("string path wasm_len=%d reward=%v", len(wasm2), reward2)
+	}
+	// Regression: Go map sprintf is not JSON and must not be treated as success.
+	broken := fmt.Sprintf("%v", obj)
+	wasm3, _ := orderManifestWasmReward(broken)
+	if wasm3 != "" {
+		t.Fatalf("sprintf map must not parse as wasm, got len=%d", len(wasm3))
+	}
+}
+
+func TestRefreshActiveOrderReadsManifestObject(t *testing.T) {
+	hexWasm := sandbox.MinimalGateWasmHex
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/tasks" {
+			http.Error(w, "nope", http.StatusNotFound)
+			return
+		}
+		if r.Header.Get("X-Hackme-Admin-Token") != "tok" {
+			http.Error(w, "auth", http.StatusUnauthorized)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"tasks": []map[string]any{{
+				"id":         "order-obj-manifest-1",
+				"status":     "open",
+				"created_at": 100.0,
+				"reward":     0.05,
+				"manifest_json": map[string]any{
+					"wasm_check_hex": hexWasm,
+					"reward_hmc":     0.05,
+				},
+			}},
+		})
+	}))
+	defer srv.Close()
+
+	t.Setenv("HACKME_COORDINATOR_ORDERS_ADMIN_TOKEN", "tok")
+	wm := &workManager{
+		ordersProbeURL:      srv.URL,
+		ordersProbeEverySec: 0,
+		targetMod:           1_000_000,
+	}
+	snap := wm.refreshActiveOrderLocked()
+	if snap.ID != "order-obj-manifest-1" {
+		t.Fatalf("id=%q", snap.ID)
+	}
+	if !strings.EqualFold(snap.WasmHex, hexWasm) {
+		t.Fatalf("wasm mismatch len=%d", len(snap.WasmHex))
+	}
+	if snap.RewardHMC != 0.05 {
+		t.Fatalf("reward=%v", snap.RewardHMC)
+	}
+}
 
 func TestConfigTruthyAttachFlags(t *testing.T) {
 	cfg := map[string]any{"attach_poh_order": true, "create_poh_order": "1"}

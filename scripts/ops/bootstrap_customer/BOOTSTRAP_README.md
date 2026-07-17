@@ -10,7 +10,11 @@ Bootstrap places **`POST /api/security-audit`** locally with:
 - `pool_distributed: true` — fuzz campaign → coordinator `/api/fuzz/*` (needs `workerfuzz` for deep runs/report progress)
 - `create_poh_order: true` — **does not** escrow PoH on this VPS; config carries `attach_poh_order` so the **coordinator** creates the PoH task on the command chain (`ORDERS_URL`). Existing **`workerpoh`** fleet then auto-switches `baseline → orders`.
 
-No miner binary update for the PoH rail. Deep fuzz corpus work is still a separate claim path until `workerpoh` also eats fuzz.
+**PoH progress (`/api/tasks` `progress_count`) only moves on chain order solves** (find + WASM gate pass + `solve-order` relay). Leases/`runs_done` alone do not count.
+
+**PoH WASM:** use `upstream_hackme_order_gate.wasm` (solvable). Do **not** attach security `*_bounds_guard.wasm` as the PoH gate — it rejects almost all nonces and leaves orders stuck at `0/N` while the pool still shows `scheduler=orders` and leases. Override with `WASM_FILE=...` or `HACKME_MINIMAL_POH_GATE=1`.
+
+No miner binary update for the PoH rail. Deep fuzz corpus work is still a separate claim path until `workerfuzz` eats fuzz.
 
 ## Wallet
 - Address configured on the bootstrap VPS from its node seed (see `setup_bootstrap_vps.sh`)
@@ -21,10 +25,10 @@ No miner binary update for the PoH rail. Deep fuzz corpus work is still a separa
 |---------|---------|
 | `hackme-bootstrap-node.service` | Customer node → `https://hackme.tech` canonical |
 | `hackme-workerpoh.service` | CPU miner (unchanged) |
-| `hackme-bootstrap-bot.timer` | New audit order every **36h** |
+| `hackme-bootstrap-bot.timer` | New audit order every **6h** (~**4 orders/day**) |
 
 ## Targets (rotation)
-`nghttp2` → `md4c` → `cjson` → …
+`nghttp2` → `md4c` → `cjson` → `jsmn` → `yyjson` → `expat` → …
 
 ## Logs & snapshots
 ```
