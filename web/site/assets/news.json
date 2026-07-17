@@ -1,6 +1,42 @@
 {
   "items": [
     {
+      "id": "2026-07-17-oss-cve-watch-day10-nghttp2-libfuzzer",
+      "date": "2026-07-17",
+      "title": "OSS CVE Watch Day 10/14 · nghttp2 · 0.38B libFuzzer exec · CLEAN",
+      "summary": "Day 10 on nghttp2: 5.0h libFuzzer depth, 384,015,656 executions at ~21,333 exec/s. Corpus 415 (297KB), 467 coverage edges. ASAN heap crashes: 0 — verdict CLEAN.",
+      "impact": "Cumulative Days 2–10: ~8.40B libFuzzer executions on persistent corpus. Day 10 HTML live on the public ledger.",
+      "action": "Day 10 report: https://hackme.tech/reports/oss-cve-watch/day10.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2",
+        "day10"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "OSS CVE Watch · Day 10/14 · nghttp2",
+        "lead": "5.0h libFuzzer + ASAN · CLEAN",
+        "bullets": [
+          "384,015,656 executions · ~21,333 exec/s · 5.0h",
+          "corpus 415 (297KB) · 467 edges · ASAN=0",
+          "Days 2–10 cumulative ~8.40B exec",
+          "CLEAN = no ASAN heap crash in budget — not proven secure"
+        ],
+        "footer": "hackme.tech/reports/oss-cve-watch/day10.html"
+      },
+      "discord": {
+        "title": "Research · OSS CVE Watch Day 10",
+        "body": "**nghttp2 · libFuzzer · Day 10/14**\n\n• **384,015,656** executions · **5.0h** · **~21,333 exec/s**\n• Corpus **415** (297KB) · **467** coverage edges\n• **CLEAN** — 0 ASAN heap crashes\n• Days 2–10 cumulative: **~8.40B** exec\n\n**Report:** https://hackme.tech/reports/oss-cve-watch/day10.html",
+        "ping": "#research"
+      },
+      "links": {
+        "hub": "https://hackme.tech/reports/oss-cve-watch/",
+        "day10": "https://hackme.tech/reports/oss-cve-watch/day10.html"
+      }
+    },
+    {
       "id": "2026-07-16-oss-cve-watch-day09-nghttp2-libfuzzer",
       "date": "2026-07-16",
       "title": "OSS CVE Watch Day 9/14 · nghttp2 · 0.31B libFuzzer exec · CLEAN",
