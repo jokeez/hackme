@@ -619,6 +619,55 @@ func TestWorkManagerHybridSignerRejectsReplay(t *testing.T) {
 	}
 }
 
+func TestWorkManagerSharedMinerKeyDifferentWorkers(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wm := &workManager{
+		defaultBatch:           1000,
+		targetMod:              1000000,
+		leaseSec:               30,
+		maxWorkers:             1000,
+		maxActiveLeases:        1000,
+		maxDedupEntries:        1000,
+		hybridSignerEnabled:    true,
+		active:                 make(map[workKey]leaseRecord),
+		worker:                 make(map[string]workerPayoutStat),
+		acceptedResultHashes:   make(map[string]struct{}),
+		acceptedFoundNonces:    make(map[uint64]struct{}),
+		acceptedSubmitNonces:   make(map[string]struct{}),
+		acceptedSignedPayloads: make(map[string]struct{}),
+		signedSubmitNonceMax:   make(map[string]uint64),
+	}
+	base1, size1, _, _, _, ok1, _ := wm.claim("worker-a", 1000)
+	if !ok1 {
+		t.Fatal("claim a failed")
+	}
+	reqA := submitWorkRequest{
+		WorkerID: "worker-a", BaseNonce: base1, BatchSize: size1,
+		WorkID: buildWorkID("worker-a", base1, size1), SubmitNonce: 42,
+		MinerPubKey: hex.EncodeToString(pub), MinerAddress: signerAddr(pub), MinerSigAlg: "ed25519",
+	}
+	reqA.MinerSig = hex.EncodeToString(ed25519.Sign(priv, canonicalSubmitBytes(reqA)))
+	if _, reason, _, _, _ := wm.submit(reqA); reason != "" {
+		t.Fatalf("worker-a submit: %q", reason)
+	}
+	base2, size2, _, _, _, ok2, _ := wm.claim("worker-b", 1000)
+	if !ok2 {
+		t.Fatal("claim b failed")
+	}
+	reqB := submitWorkRequest{
+		WorkerID: "worker-b", BaseNonce: base2, BatchSize: size2,
+		WorkID: buildWorkID("worker-b", base2, size2), SubmitNonce: 42, // same nonce, shared key
+		MinerPubKey: hex.EncodeToString(pub), MinerAddress: signerAddr(pub), MinerSigAlg: "ed25519",
+	}
+	reqB.MinerSig = hex.EncodeToString(ed25519.Sign(priv, canonicalSubmitBytes(reqB)))
+	if _, reason, _, _, _ := wm.submit(reqB); reason != "" {
+		t.Fatalf("shared-key different worker must accept, reason=%q", reason)
+	}
+}
+
 func TestWorkManagerHybridStrictRequiresSignature(t *testing.T) {
 	wm := &workManager{
 		defaultBatch:           1000,

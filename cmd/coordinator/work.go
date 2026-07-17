@@ -989,8 +989,8 @@ func (m *workManager) markSubmitOutcome(workerID, ipKey, reason string, now int6
 		workerStrike = true
 		ipStrike = true
 	case "replay":
-		// Replay: penalize attacking IP; do not ban worker id (legitimate after restart).
-		ipStrike = true
+		// Replay is usually a shared-key / stale submit_nonce race, not an IP flood.
+		// Do not strike worker or IP — rejection alone is enough; bans were locking out GPU home rigs.
 	case "batch_size_too_large", "impossible_found_rate":
 		workerStrike = true
 		ipStrike = true
@@ -1174,6 +1174,17 @@ func canonicalSubmitBytes(req submitWorkRequest) []byte {
 	return p.CanonicalJSON()
 }
 
+// submitNonceScope keys hybrid replay protection per (miner key, worker_id).
+// Fleet rigs often share HACKME_MINER_ED25519_SEED_HEX; scoping by worker avoids
+// cross-rig submit_nonce collisions that caused mass replay → IP temp-bans.
+func submitNonceScope(signerAddr, workerID string) string {
+	wid := strings.TrimSpace(workerID)
+	if wid == "" {
+		return signerAddr
+	}
+	return signerAddr + "|" + wid
+}
+
 func (m *workManager) validateHybridSignature(req submitWorkRequest) (ok bool, reason string, signerAddr string) {
 	if !m.hybridSignerEnabled {
 		return true, "", ""
@@ -1216,11 +1227,18 @@ func (m *workManager) validateHybridSignature(req submitWorkRequest) (ok bool, r
 	if !ed25519.Verify(ed25519.PublicKey(pub), canonicalSubmitBytes(req), sig) {
 		return false, "invalid_signature", ""
 	}
-	if maxNonce, ok := m.signedSubmitNonceMax[derivedAddr]; ok && req.SubmitNonce <= maxNonce {
+	scope := submitNonceScope(derivedAddr, req.WorkerID)
+	if maxNonce, ok := m.signedSubmitNonceMax[scope]; ok && req.SubmitNonce <= maxNonce {
 		return false, "replay", ""
 	}
-	nonceKey := derivedAddr + ":" + strconv.FormatUint(req.SubmitNonce, 10)
+	// Legacy: older coordinators keyed only by miner address. Keep rejecting those
+	// nonces for the same worker so a restart cannot replay pre-scope accepts.
+	legacyKey := derivedAddr + ":" + strconv.FormatUint(req.SubmitNonce, 10)
+	nonceKey := scope + ":" + strconv.FormatUint(req.SubmitNonce, 10)
 	if _, exists := m.acceptedSubmitNonces[nonceKey]; exists {
+		return false, "replay", ""
+	}
+	if _, exists := m.acceptedSubmitNonces[legacyKey]; exists && strings.TrimSpace(req.WorkerID) == "" {
 		return false, "replay", ""
 	}
 	canon := canonicalSubmitBytes(req)
@@ -1323,7 +1341,10 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	}
 	sigOK, sigReason, signerAddr := m.validateHybridSignature(req)
 	if !sigOK {
-		delete(m.active, k)
+		// Keep lease on replay so the worker can bump submit_nonce and retry the same range.
+		if sigReason != "replay" && sigReason != "duplicate_signed_payload" {
+			delete(m.active, k)
+		}
 		m.signedRejects++
 		m.rejectedSubmits++
 		return false, sigReason, 0, "", false
@@ -1405,7 +1426,8 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	delete(m.active, k)
 	m.submittedItems++
 	if signerAddr != "" {
-		nonceKey := signerAddr + ":" + strconv.FormatUint(req.SubmitNonce, 10)
+		scope := submitNonceScope(signerAddr, req.WorkerID)
+		nonceKey := scope + ":" + strconv.FormatUint(req.SubmitNonce, 10)
 		if len(m.acceptedSubmitNonces) >= m.maxDedupEntries {
 			for k := range m.acceptedSubmitNonces {
 				delete(m.acceptedSubmitNonces, k)
@@ -1413,7 +1435,7 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 			}
 		}
 		m.acceptedSubmitNonces[nonceKey] = struct{}{}
-		m.signedSubmitNonceMax[signerAddr] = req.SubmitNonce
+		m.signedSubmitNonceMax[scope] = req.SubmitNonce
 		sig, _ := hex.DecodeString(strings.TrimSpace(req.MinerSig))
 		canon := canonicalSubmitBytes(req)
 		sum := sha256.Sum256(append(canon, sig...))
@@ -2465,9 +2487,13 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 			} else {
 				switch v := out["workers"].(type) {
 				case int:
-					wc = v
+					if v > 0 {
+						wc = v
+					}
 				case float64:
-					wc = int(v)
+					if v > 0 && v < float64(math.MaxInt) {
+						wc = int(v)
+					}
 				}
 			}
 		}

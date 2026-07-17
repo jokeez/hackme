@@ -11,8 +11,12 @@ func (s *Service) ListPublicCampaigns(ctx context.Context, limit int) ([]map[str
 	if s == nil || s.DB == nil {
 		return nil, fmt.Errorf("poolfuzz: no database")
 	}
-	if limit <= 0 || limit > 200 {
+	const maxPublicCampaigns = 200
+	if limit <= 0 {
 		limit = 50
+	}
+	if limit > maxPublicCampaigns {
+		limit = maxPublicCampaigns
 	}
 	rows, err := s.DB.QueryContext(ctx,
 		`SELECT id, campaign_type, status, title, owner_ref, budget_runs, summary_json, config_json, created_at, completed_at

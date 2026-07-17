@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -54,6 +55,14 @@ func (c *Coordinator) PickStorageWorkers(n int) ([]string, error) {
 
 // AssignMarketChunk registers a customer backup chunk for PoSt (not blocked by seal epoch freeze).
 func (c *Coordinator) AssignMarketChunk(chunkID, workerID string, ciphertextSHA256 []byte, size uint64, erasureMeta []byte) error {
+	chunkID = strings.TrimSpace(chunkID)
+	workerID = trimWorkerID(workerID)
+	if err := ValidateChunkID(chunkID); err != nil {
+		return err
+	}
+	if err := ValidateWorkerID(workerID); err != nil {
+		return err
+	}
 	ep, err := c.CurrentEpoch()
 	if err != nil {
 		return err
@@ -137,5 +146,24 @@ func filepathJoinMarket(root, workerID, name string) string {
 	if root == "" {
 		return ""
 	}
-	return strings.TrimRight(root, string(os.PathSeparator)) + string(os.PathSeparator) + workerID + string(os.PathSeparator) + name
+	if ValidateWorkerID(workerID) != nil {
+		return ""
+	}
+	// filepath.Base is a CodeQL-recognized sanitizer for path injection.
+	workerID = filepath.Base(strings.TrimSpace(workerID))
+	base := strings.TrimSuffix(name, ".dat")
+	if ValidateChunkID(base) != nil {
+		return ""
+	}
+	name = filepath.Base(strings.TrimSpace(name))
+	if name == "" || name == "." || name == ".." {
+		return ""
+	}
+	full := filepath.Clean(filepath.Join(root, workerID, name))
+	rootClean := filepath.Clean(root)
+	sep := string(filepath.Separator)
+	if full != rootClean && !strings.HasPrefix(full, rootClean+sep) {
+		return ""
+	}
+	return full
 }

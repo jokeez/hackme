@@ -6,8 +6,34 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
+
+var safePathComponent = regexp.MustCompile(`^[a-zA-Z0-9._-]{1,128}$`)
+
+// sanitizePathComponent rejects path traversal / separators for CodeQL path-injection.
+func sanitizePathComponent(s string) string {
+	s = strings.TrimSpace(s)
+	s = filepath.Base(s)
+	if s == "" || s == "." || s == ".." {
+		return ""
+	}
+	if strings.ContainsAny(s, `/\`) || !safePathComponent.MatchString(s) {
+		return ""
+	}
+	return s
+}
+
+func underRoot(root, rel string) (string, bool) {
+	root = filepath.Clean(root)
+	full := filepath.Clean(filepath.Join(root, rel))
+	sep := string(os.PathSeparator)
+	if full != root && !strings.HasPrefix(full, root+sep) {
+		return "", false
+	}
+	return full, true
+}
 
 // Root returns the artifact directory (env HACKME_FUZZ_ARTIFACT_DIR or data/fuzz-artifacts).
 func Root() string {
@@ -20,8 +46,8 @@ func Root() string {
 
 // WriteInputBytes stores byte corpus input under campaignID/<sha>.input.
 func WriteInputBytes(campaignID, inputSHA string, input []byte) string {
-	campaignID = strings.TrimSpace(campaignID)
-	inputSHA = strings.TrimSpace(strings.ToLower(inputSHA))
+	campaignID = sanitizePathComponent(campaignID)
+	inputSHA = sanitizePathComponent(strings.ToLower(strings.TrimSpace(inputSHA)))
 	if campaignID == "" || inputSHA == "" || len(input) == 0 {
 		return ""
 	}
@@ -29,11 +55,17 @@ func WriteInputBytes(campaignID, inputSHA string, input []byte) string {
 	if err != nil {
 		return ""
 	}
-	dir := filepath.Join(root, campaignID)
+	dir, ok := underRoot(root, campaignID)
+	if !ok {
+		return ""
+	}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return ""
 	}
-	path := filepath.Join(dir, inputSHA+".input")
+	path, ok := underRoot(dir, inputSHA+".input")
+	if !ok {
+		return ""
+	}
 	payload := fmt.Sprintf("input_mode=bytes\ninput_len=%d\nsha256=%s\ninput_hex=%x\n", len(input), inputSHA, input)
 	if err := os.WriteFile(path, append([]byte(payload), input...), 0o600); err != nil {
 		return ""
@@ -43,8 +75,8 @@ func WriteInputBytes(campaignID, inputSHA string, input []byte) string {
 
 // WriteInput stores a reproducible input under campaignID/<sha>.input; returns absolute path or "".
 func WriteInput(campaignID, inputSHA string, input uint64) string {
-	campaignID = strings.TrimSpace(campaignID)
-	inputSHA = strings.TrimSpace(strings.ToLower(inputSHA))
+	campaignID = sanitizePathComponent(campaignID)
+	inputSHA = sanitizePathComponent(strings.ToLower(strings.TrimSpace(inputSHA)))
 	if campaignID == "" || inputSHA == "" {
 		return ""
 	}
@@ -52,11 +84,17 @@ func WriteInput(campaignID, inputSHA string, input uint64) string {
 	if err != nil {
 		return ""
 	}
-	dir := filepath.Join(root, campaignID)
+	dir, ok := underRoot(root, campaignID)
+	if !ok {
+		return ""
+	}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return ""
 	}
-	path := filepath.Join(dir, inputSHA+".input")
+	path, ok := underRoot(dir, inputSHA+".input")
+	if !ok {
+		return ""
+	}
 	var buf [8]byte
 	binary.LittleEndian.PutUint64(buf[:], input)
 	payload := fmt.Sprintf("input_hex=0x%x\ninput_dec=%d\nsha256=%s\n", input, input, inputSHA)
@@ -68,7 +106,7 @@ func WriteInput(campaignID, inputSHA string, input uint64) string {
 
 // WriteWasmHex stores guard.wasm for a campaign (idempotent). Returns path or "".
 func WriteWasmHex(campaignID, wasmHex string) string {
-	campaignID = strings.TrimSpace(campaignID)
+	campaignID = sanitizePathComponent(campaignID)
 	wasmHex = strings.TrimSpace(wasmHex)
 	if campaignID == "" || wasmHex == "" {
 		return ""
@@ -81,11 +119,17 @@ func WriteWasmHex(campaignID, wasmHex string) string {
 	if err != nil {
 		return ""
 	}
-	dir := filepath.Join(root, campaignID)
+	dir, ok := underRoot(root, campaignID)
+	if !ok {
+		return ""
+	}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return ""
 	}
-	path := filepath.Join(dir, "guard.wasm")
+	path, ok := underRoot(dir, "guard.wasm")
+	if !ok {
+		return ""
+	}
 	if _, err := os.Stat(path); err == nil {
 		return path
 	}

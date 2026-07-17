@@ -251,6 +251,17 @@ func sanitizeCodeID(s string) string {
 	return out
 }
 
+// pathWithinRoot returns cleaned path if it resolves under root (CodeQL path-injection guard).
+func pathWithinRoot(root, path string) (string, bool) {
+	root = filepath.Clean(root)
+	full := filepath.Clean(path)
+	sep := string(os.PathSeparator)
+	if full != root && !strings.HasPrefix(full, root+sep) {
+		return "", false
+	}
+	return full, true
+}
+
 func compileTaskWASM(ctx context.Context, lang, srcPath, outPath string) (string, error) {
 	var cmd *exec.Cmd
 	workDir := filepath.Dir(srcPath)
@@ -321,8 +332,13 @@ func compileTaskWASM(ctx context.Context, lang, srcPath, outPath string) (string
 		// Some TinyGo builds may emit wasm into cwd even with -o.
 		if lang == "tinygo" {
 			if candidates, _ := filepath.Glob(filepath.Join(workDir, "*.wasm")); len(candidates) > 0 {
-				if b, rerr := os.ReadFile(candidates[0]); rerr == nil {
-					_ = os.WriteFile(outPath, b, 0o644)
+				cand := filepath.Base(candidates[0])
+				if safe, ok := pathWithinRoot(workDir, filepath.Join(workDir, cand)); ok {
+					if b, rerr := os.ReadFile(safe); rerr == nil {
+						if outSafe, ok2 := pathWithinRoot(filepath.Dir(outPath), outPath); ok2 {
+							_ = os.WriteFile(outSafe, b, 0o644)
+						}
+					}
 				}
 			}
 		}
@@ -331,7 +347,7 @@ func compileTaskWASM(ctx context.Context, lang, srcPath, outPath string) (string
 			if logText != "" {
 				msg = logText + "\n" + msg
 			}
-			return msg, fmt.Errorf(msg)
+			return msg, fmt.Errorf("%s", msg)
 		}
 	}
 	return logText, nil
@@ -389,8 +405,13 @@ func (a *app) compileTaskFromCode(ctx context.Context, req taskFromCodeRequest) 
 		return nil, "", "", "", err
 	}
 	base := sanitizeCodeID(req.ID) + "-" + req.Language + "-" + time.Now().UTC().Format("20060102t150405")
-	outName := base + ".wasm"
+	outName := filepath.Base(base + ".wasm")
 	outPath := filepath.Join(artifactRootAbs, outName)
+	if safe, ok := pathWithinRoot(artifactRootAbs, outPath); !ok {
+		return nil, "", "", "", errors.New("invalid artifact path")
+	} else {
+		outPath = safe
+	}
 	compileTimeout := taskCompileTimeout
 	switch req.Language {
 	case "tinygo":

@@ -36,7 +36,7 @@ func httpSubmit(mux *http.ServeMux, remoteAddr string, body submitWorkRequest) *
 	return rec
 }
 
-func TestHTTPSubmitReplayForbiddenAndIPAbuse(t *testing.T) {
+func TestHTTPSubmitReplayForbiddenNoIPBan(t *testing.T) {
 	mux, wm := newChaosMux(t)
 	pub, priv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -88,26 +88,12 @@ func TestHTTPSubmitReplayForbiddenAndIPAbuse(t *testing.T) {
 	if body["reason"] != "replay" {
 		t.Fatalf("replay reason=%v", body["reason"])
 	}
-	// IP abuse map must record the attacker after crypto abuse strikes.
-	for i := 0; i < 3; i++ {
-		_, sizeN, _, _, _, okN, _ := wm.claim("w-http-replay", uint64(2000+i)*1000)
-		if !okN {
-			break
-		}
-		r := req
-		r.BaseNonce = uint64(2000 + i)
-		r.BatchSize = sizeN
-		r.WorkID = buildWorkID("w-http-replay", r.BaseNonce, sizeN)
-		r.SubmitNonce = uint64(200 + i)
-		r.MinerSig = hex.EncodeToString(ed25519.Sign(priv, canonicalSubmitBytes(r)))
-		_ = httpSubmit(mux, attackerIP, r)
-	}
+	// Shared-key / stale-nonce replay must not temp-ban the client IP (home GPU NAT).
 	wm.mu.Lock()
 	ipState, inIP := wm.ipAbuse[keyFromRemoteAddr(attackerIP)]
 	wm.mu.Unlock()
-	if !inIP || (ipState.BadStrikes == 0 && ipState.BannedUntil == 0) {
-		t.Fatalf("expected attacker IP abuse recorded (strikes or ban), got in=%v strikes=%d banned_until=%d",
-			inIP, ipState.BadStrikes, ipState.BannedUntil)
+	if inIP && (ipState.BadStrikes > 0 || ipState.BannedUntil > 0) {
+		t.Fatalf("replay must not strike IP, got strikes=%d banned_until=%d", ipState.BadStrikes, ipState.BannedUntil)
 	}
 }
 
@@ -229,11 +215,13 @@ func TestHTTPSubmitRecordsIPAbuseFromXForwardedFor(t *testing.T) {
 	}
 }
 
-func TestWorkManagerReplayStrikesIPNotWorker(t *testing.T) {
+func TestWorkManagerReplayDoesNotStrikeWorkerOrIP(t *testing.T) {
 	wm := &workManager{
 		defaultBatch:    1000,
 		targetMod:       1_000_000,
 		leaseSec:        30,
+		claimPerMin:     10_000,
+		submitPerMin:    10_000,
 		badStrikesToBan: 2,
 		banSec:          60,
 		maxWorkers:      100,
@@ -246,10 +234,15 @@ func TestWorkManagerReplayStrikesIPNotWorker(t *testing.T) {
 	now := int64(1_800_000_000)
 	const ip = "10.0.0.66"
 	wm.markSubmitOutcome("w-replay-ip", ip, "replay", now)
-	if _, in := wm.ipAbuse[ip]; !in || wm.ipAbuse[ip].BadStrikes == 0 {
-		t.Fatal("replay must increment ipAbuse strikes after first event")
+	wm.markSubmitOutcome("w-replay-ip", ip, "replay", now)
+	wm.markSubmitOutcome("w-replay-ip", ip, "replay", now)
+	if _, in := wm.ipAbuse[ip]; in && wm.ipAbuse[ip].BadStrikes > 0 {
+		t.Fatal("replay must not increment ipAbuse strikes")
 	}
 	if ok, reason := wm.allowSubmit("w-replay-ip", "", now+1); !ok {
 		t.Fatalf("worker must not be banned by replay alone, reason=%q", reason)
+	}
+	if ok, reason := wm.allowSubmit("w-replay-ip", ip, now+1); !ok {
+		t.Fatalf("IP must not be banned by replay alone, reason=%q", reason)
 	}
 }

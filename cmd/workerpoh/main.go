@@ -99,13 +99,15 @@ func loadAndBumpSubmitNonce(path string) (uint64, error) {
 		path = filepath.Join("logs", "miner_submit_nonce.seq")
 	}
 	_ = os.MkdirAll(filepath.Dir(path), 0o755)
+	// Floor to unix-ms so a cold/low seq file cannot sit behind a fleet that shared the same miner key.
+	floor := uint64(time.Now().UnixMilli())
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			if err := os.WriteFile(path, []byte("1"), 0o644); err != nil {
+			if err := os.WriteFile(path, []byte(strconv.FormatUint(floor, 10)), 0o644); err != nil {
 				return 0, err
 			}
-			return 1, nil
+			return floor, nil
 		}
 		return 0, err
 	}
@@ -113,6 +115,9 @@ func loadAndBumpSubmitNonce(path string) (uint64, error) {
 	next := cur + 1
 	if next == 0 {
 		next = 1
+	}
+	if next < floor {
+		next = floor
 	}
 	if err := os.WriteFile(path, []byte(strconv.FormatUint(next, 10)), 0o644); err != nil {
 		return 0, err
