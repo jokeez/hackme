@@ -378,7 +378,7 @@ func TestWorkManagerBanAfterBadSubmits(t *testing.T) {
 	}
 	now := int64(1_700_000_000)
 	wm.markSubmitOutcome("w-abuse", "", "work_id_mismatch", now)
-	wm.markSubmitOutcome("w-abuse", "", "unknown_or_already_closed_range", now)
+	wm.markSubmitOutcome("w-abuse", "", "range_leased_to_another_worker", now)
 	if ok, reason := wm.allowSubmit("w-abuse", "", now+1); ok || reason != "worker_temporarily_banned" {
 		t.Fatalf("expected worker_temporarily_banned, got ok=%v reason=%q", ok, reason)
 	}
@@ -387,6 +387,12 @@ func TestWorkManagerBanAfterBadSubmits(t *testing.T) {
 	wm.markSubmitOutcome("w-replay", "", "replay", now)
 	if ok, reason := wm.allowSubmit("w-replay", "", now+1); !ok {
 		t.Fatalf("replay alone must not ban worker, got reason=%q", reason)
+	}
+	wm.markSubmitOutcome("w-stale", "", "unknown_or_already_closed_range", now)
+	wm.markSubmitOutcome("w-stale", "", "unknown_or_already_closed_range", now)
+	wm.markSubmitOutcome("w-stale", "", "lease_expired", now)
+	if ok, reason := wm.allowSubmit("w-stale", "", now+1); !ok {
+		t.Fatalf("stale/closed-range alone must not ban worker, got reason=%q", reason)
 	}
 	if ok, _ := wm.allowSubmit("w-abuse", "", now+61); !ok {
 		t.Fatal("ban should expire")

@@ -982,15 +982,14 @@ func (m *workManager) markSubmitOutcome(workerID, ipKey, reason string, now int6
 	workerStrike := false
 	ipStrike := false
 	switch reason {
-	case "unknown_or_already_closed_range", "work_id_mismatch", "range_leased_to_another_worker",
+	case "work_id_mismatch", "range_leased_to_another_worker",
 		"found_nonce_out_of_range", "result_hash_required_for_found", "duplicate_found_nonce",
 		"invalid_signature", "invalid_pubkey", "pubkey_address_mismatch", "missing_signature_fields",
 		"signature_required", "found_signature_required", "duplicate_signed_payload", "unsupported_sig_alg":
 		workerStrike = true
 		ipStrike = true
-	case "replay":
-		// Replay is usually a shared-key / stale submit_nonce race, not an IP flood.
-		// Do not strike worker or IP — rejection alone is enough; bans were locking out GPU home rigs.
+	case "replay", "unknown_or_already_closed_range", "lease_expired":
+		// Benign races on fast GPU / proxy timeouts: reject only, do not temp-ban home NAT IPs.
 	case "batch_size_too_large", "impossible_found_rate":
 		workerStrike = true
 		ipStrike = true
