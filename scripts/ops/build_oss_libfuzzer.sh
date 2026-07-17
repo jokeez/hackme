@@ -7,6 +7,19 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
 TARGET="${TARGET:-nghttp2}"
+OUT_DIR="$ROOT/.cache/oss-libfuzzer-bin"
+OUT="$OUT_DIR/${TARGET}-asan-fuzzer"
+mkdir -p "$OUT_DIR" "$ROOT/logs"
+
+log() { echo "[libfuzzer-build $(date -u +%H:%M:%S)] $*" >&2; }
+
+# Reuse cached ASAN binary without requiring clang on PATH (systemd/cron autopublish).
+if [[ "${SKIP_REBUILD:-0}" == "1" && -x "$OUT" ]]; then
+  log "reuse existing $OUT ($(du -h "$OUT" | awk '{print $1}'))"
+  echo "$OUT"
+  exit 0
+fi
+
 command -v clang >/dev/null || { echo "[libfuzzer-build] need clang" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "[libfuzzer-build] need python3" >&2; exit 1; }
 
@@ -20,8 +33,6 @@ then
   echo "[libfuzzer-build] clang lacks -fsanitize=fuzzer (install clang with compiler-rt)" >&2
   exit 1
 fi
-
-log() { echo "[libfuzzer-build $(date -u +%H:%M:%S)] $*" >&2; }
 
 read -r FUZZER OSS_ID <<< "$(python3 - "$ROOT" "$TARGET" <<'PY'
 import json, sys
@@ -38,9 +49,6 @@ TARGETS="$OSS_ID" bash "$ROOT/scripts/ops/build_oss_cve_pack.sh" >>"$ROOT/logs/l
 CLONE="$ROOT/.cache/oss-cve-clones/$OSS_ID"
 CFG="$ROOT/tasks/sources/fuzz/oss/nghttp2-config"
 FUZZER_SRC="$ROOT/tasks/sources/fuzz/oss/${FUZZER}.c"
-OUT_DIR="$ROOT/.cache/oss-libfuzzer-bin"
-OUT="$OUT_DIR/${TARGET}-asan-fuzzer"
-mkdir -p "$OUT_DIR" "$ROOT/logs"
 
 [[ -f "$FUZZER_SRC" ]] || { echo "missing harness $FUZZER_SRC" >&2; exit 1; }
 [[ -d "$CLONE" ]] || { echo "missing clone $CLONE" >&2; exit 1; }

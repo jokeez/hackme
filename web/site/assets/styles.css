@@ -648,6 +648,22 @@ h4 { font-size: 1.02rem; }
   background: rgba(26, 52, 74, 0.75);
   color: #e7f7ff;
 }
+.news-filter-more {
+  border-style: dashed;
+  color: #9ec9e8;
+}
+.news-tag {
+  border: 0;
+  background: transparent;
+  color: #8eb8dc;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}
+.news-tag:hover {
+  color: #d8eeff;
+  text-decoration: underline;
+}
 .news-featured {
   border: 1px solid rgba(107, 179, 255, 0.34);
   border-radius: 0.95rem;

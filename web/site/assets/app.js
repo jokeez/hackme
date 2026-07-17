@@ -304,34 +304,59 @@
     const tipEl = document.getElementById("news-health-tip");
     const hashrateEl = document.getElementById("news-health-hashrate");
     const miningEl = document.getElementById("news-health-mining");
-    const global = await fetchJson(`${apiRoot()}/global/metrics`);
-    if (!global) {
+    const acceptEl = document.getElementById("news-health-accept");
+    const schedEl = document.getElementById("news-health-sched");
+    const [global, work] = await Promise.all([
+      fetchJson(`${apiRoot()}/global/metrics`),
+      fetchJson(coordinatorApi("/api/work/stats")),
+    ]);
+    if (!global && !work) {
       heightEl.textContent = "—";
       if (tipEl) tipEl.textContent = "—";
       if (hashrateEl) hashrateEl.textContent = "—";
       if (miningEl) miningEl.textContent = "degraded";
+      if (acceptEl) acceptEl.textContent = "—";
+      if (schedEl) schedEl.textContent = "—";
       return;
     }
-    const height = Number(global.chain && global.chain.tip_height != null ? global.chain.tip_height : 0);
-    const tip = String((global.chain && global.chain.tip_hash) || "");
-    const poolTH = Number(global.network && global.network.global_hashrate_th_s);
-    const mock = global.network && global.network.global_mock === true;
+    const height = Number(
+      (global && global.chain && global.chain.tip_height != null && global.chain.tip_height) ||
+        (work && work.chain_height) ||
+        0
+    );
+    const tip = String((global && global.chain && global.chain.tip_hash) || "");
+    let poolTH = Number(global && global.network && global.network.global_hashrate_th_s);
+    const mock = !!(global && global.network && global.network.global_mock === true);
+    if ((!Number.isFinite(poolTH) || poolTH <= 0) && work) {
+      const gh = Number(work.pool_hashrate_gh_s);
+      if (Number.isFinite(gh) && gh > 0) poolTH = gh / 1000;
+    }
     heightEl.textContent = Number.isFinite(height) && height > 0 ? Math.floor(height).toLocaleString("en-US") : "—";
     if (tipEl) {
-      tipEl.textContent = shortHash(tip, 22);
+      tipEl.textContent = tip ? shortHash(tip, 22) : "—";
       tipEl.title = tip || "";
     }
     if (hashrateEl) {
       hashrateEl.textContent = Number.isFinite(poolTH) && poolTH > 0 ? fmtPoolHashrateTHS(poolTH, mock) : "—";
     }
+    const online = Number(
+      (work && (work.workers_online != null ? work.workers_online : work.workers_count)) ||
+        (global && global.work && global.work.workers_count) ||
+        0
+    );
     if (miningEl) {
-      const miners = Number(global.work && global.work.workers_count);
-      miningEl.textContent =
-        global.work && global.work.ok
-          ? miners > 0
-            ? `online · ${miners} worker${miners === 1 ? "" : "s"}`
-            : "online"
-          : "online";
+      miningEl.textContent = online > 0 ? `${online} online` : work || global ? "0 online" : "—";
+    }
+    if (acceptEl) {
+      const acc = Number(work && work.signed_submits_accepted);
+      const rej = Number(work && work.signed_submits_rejected);
+      const tot = (Number.isFinite(acc) ? acc : 0) + (Number.isFinite(rej) ? rej : 0);
+      acceptEl.textContent = tot > 0 ? `${((acc / tot) * 100).toFixed(1)}%` : "—";
+    }
+    if (schedEl) {
+      const mode = String((work && work.scheduler_mode) || "");
+      const orders = work && work.orders_active === true;
+      schedEl.textContent = mode ? (orders ? `${mode} · orders` : mode) : "—";
     }
   }
 
@@ -342,6 +367,43 @@
     const searchEl = document.getElementById("news-search");
     const featuredEl = document.getElementById("news-featured");
     const emptyEl = document.getElementById("news-empty");
+    // Collapse noisy tag cloud: aliases + primary row + "More tags".
+    const TAG_ALIASES = {
+      fuzz: "fuzzing",
+      infra: "infrastructure",
+      oss: "oss-cve",
+      "hackme-os": "iso",
+      product: "release",
+      production: "release",
+      news: null,
+      announcement: "release",
+      opensource: "oss-cve",
+    };
+    const PRIMARY_TAGS = [
+      "release",
+      "mining",
+      "security",
+      "fuzzing",
+      "research",
+      "pool",
+      "ops",
+      "infrastructure",
+    ];
+    function normalizeTag(tag) {
+      const key = String(tag || "")
+        .trim()
+        .toLowerCase();
+      if (!key) return null;
+      if (Object.prototype.hasOwnProperty.call(TAG_ALIASES, key)) {
+        return TAG_ALIASES[key];
+      }
+      return key;
+    }
+    function itemTags(it) {
+      return Array.from(
+        new Set((Array.isArray(it.tags) ? it.tags : []).map(normalizeTag).filter(Boolean))
+      );
+    }
     let items = [];
     try {
       const resp = await fetch(CONFIG.newsFeed, { cache: "no-store" });
@@ -356,28 +418,58 @@
       return;
     }
     items.sort((a, b) => parseDateSafe(b.date) - parseDateSafe(a.date));
-    const tags = Array.from(
-      new Set(items.flatMap((it) => Array.isArray(it.tags) ? it.tags : []))
-    ).sort((a, b) => String(a).localeCompare(String(b)));
+    const tags = Array.from(new Set(items.flatMap((it) => itemTags(it)))).sort((a, b) =>
+      String(a).localeCompare(String(b))
+    );
+    const primary = PRIMARY_TAGS.filter((t) => tags.includes(t));
+    const secondary = tags.filter((t) => !PRIMARY_TAGS.includes(t));
 
     let activeTag = "all";
     let query = "";
+    let showMore = false;
+    try {
+      const q = new URLSearchParams(window.location.search).get("tag");
+      const n = normalizeTag(q);
+      if (n && tags.includes(n)) activeTag = n;
+      if (n && secondary.includes(n)) showMore = true;
+    } catch (_) {}
+
+    function setTag(tag) {
+      activeTag = tag || "all";
+      try {
+        const url = new URL(window.location.href);
+        if (activeTag === "all") url.searchParams.delete("tag");
+        else url.searchParams.set("tag", activeTag);
+        window.history.replaceState({}, "", url);
+      } catch (_) {}
+      renderList();
+      renderFilters();
+    }
 
     function renderFilters() {
       if (!filtersEl) return;
-      const all = ["all", ...tags];
-      filtersEl.innerHTML = all
+      const visible = showMore ? [...primary, ...secondary] : primary;
+      const btns = ["all", ...visible]
         .map((tag) => {
           const active = activeTag === tag ? " active" : "";
           const label = tag === "all" ? "All" : String(tag);
           return `<button type="button" class="news-filter-btn${active}" data-tag="${escapeHtml(tag)}">${escapeHtml(label)}</button>`;
         })
         .join("");
+      const moreLabel = showMore ? "Fewer tags" : `More tags (${secondary.length})`;
+      const moreBtn =
+        secondary.length > 0
+          ? `<button type="button" class="news-filter-btn news-filter-more" data-more="1">${escapeHtml(moreLabel)}</button>`
+          : "";
+      filtersEl.innerHTML = btns + moreBtn;
       filtersEl.querySelectorAll(".news-filter-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
-          activeTag = btn.getAttribute("data-tag") || "all";
-          renderList();
-          renderFilters();
+          if (btn.getAttribute("data-more")) {
+            showMore = !showMore;
+            renderFilters();
+            return;
+          }
+          setTag(btn.getAttribute("data-tag") || "all");
         });
       });
     }
@@ -390,8 +482,11 @@
       const action = escapeHtml(it.action);
       const date = escapeHtml(it.date);
       const status = escapeHtml(it.status || "update");
-      const tagsHtml = (Array.isArray(it.tags) ? it.tags : [])
-        .map((tag) => `<span class="news-tag">#${escapeHtml(tag)}</span>`)
+      const tagsHtml = itemTags(it)
+        .map(
+          (tag) =>
+            `<button type="button" class="news-tag" data-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`
+        )
         .join("");
       return `
         <article class="news-card" id="${id}">
@@ -411,28 +506,33 @@
     }
 
     function matches(it) {
-      if (activeTag !== "all") {
-        const t = Array.isArray(it.tags) ? it.tags : [];
-        if (!t.includes(activeTag)) return false;
-      }
+      const t = itemTags(it);
+      if (activeTag !== "all" && !t.includes(activeTag)) return false;
       if (!query) return true;
-      const hay = [
-        it.title,
-        it.summary,
-        it.impact,
-        it.action,
-        ...(Array.isArray(it.tags) ? it.tags : []),
-      ].join(" ").toLowerCase();
+      const hay = [it.title, it.summary, it.impact, it.action, ...t].join(" ").toLowerCase();
       return hay.includes(query);
+    }
+
+    function bindCardTags(root) {
+      if (!root) return;
+      root.querySelectorAll(".news-tag[data-tag]").forEach((el) => {
+        el.addEventListener("click", () => {
+          const tag = el.getAttribute("data-tag") || "all";
+          if (secondary.includes(tag)) showMore = true;
+          setTag(tag);
+        });
+      });
     }
 
     function renderList() {
       const filtered = items.filter(matches);
       if (featuredEl) {
         featuredEl.innerHTML = filtered.length > 0 ? renderItem(filtered[0]) : "";
+        bindCardTags(featuredEl);
       }
       const listItems = filtered.slice(1);
       listEl.innerHTML = listItems.map(renderItem).join("");
+      bindCardTags(listEl);
       if (emptyEl) emptyEl.classList.toggle("hidden", filtered.length > 0);
     }
 

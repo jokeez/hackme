@@ -35,7 +35,7 @@ log() { echo "[watch-lf-d$(printf '%02d' "$DAY")] $*" | tee -a "$OUT/run.log"; }
 
 log "libFuzzer watch day=$DAY target=$TARGET max_time=${MAX_TIME}s"
 
-export TARGET MAX_TIME STAMP
+export TARGET MAX_TIME STAMP SKIP_REBUILD
 CORPUS_ROOT="$ROOT/reports/oss-cve-libfuzzer/$TARGET"
 SESSION="$CORPUS_ROOT/sessions/$STAMP"
 mkdir -p "$SESSION"
