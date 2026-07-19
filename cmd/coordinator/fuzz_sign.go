@@ -63,12 +63,21 @@ func (m *workManager) validateFuzzHybridSignature(auth fuzzSubmitAuth, body []by
 	if !ed25519.Verify(ed25519.PublicKey(pub), body, sig) {
 		return false, "invalid_signature", ""
 	}
+	// Same mutex as PoH submit — concurrent map writes without it panic under load.
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if maxNonce, ok := m.signedSubmitNonceMax[derived]; ok && auth.SubmitNonce <= maxNonce {
 		return false, "replay", ""
 	}
 	nonceKey := derived + ":fuzz:" + strconv.FormatUint(auth.SubmitNonce, 10)
 	if _, exists := m.acceptedSubmitNonces[nonceKey]; exists {
 		return false, "replay", ""
+	}
+	if m.acceptedSubmitNonces == nil {
+		m.acceptedSubmitNonces = make(map[string]struct{})
+	}
+	if m.signedSubmitNonceMax == nil {
+		m.signedSubmitNonceMax = make(map[string]uint64)
 	}
 	m.acceptedSubmitNonces[nonceKey] = struct{}{}
 	if auth.SubmitNonce > m.signedSubmitNonceMax[derived] {

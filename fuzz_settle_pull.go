@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -37,7 +38,7 @@ func (a *app) pullFuzzSettleOutbox(ctx context.Context) {
 		if !apply {
 			continue
 		}
-		if err := a.applyLocalFuzzSettle(ctx, it); err != nil {
+		if err := a.applyLocalFuzzSettleOnce(ctx, it); err != nil {
 			if fuzzSettleOutboxDrainOnErr(err) {
 				acked = append(acked, it.ID)
 				continue
@@ -100,6 +101,32 @@ func fuzzSettleOutboxDrainOnErr(err error) bool {
 	return errors.Is(err, chain.ErrFuzzEscrowClosed) ||
 		errors.Is(err, chain.ErrFuzzEscrowDepleted) ||
 		errors.Is(err, chain.ErrFuzzEscrowAlreadyPaid)
+}
+
+// applyLocalFuzzSettleOnce credits at most once per stable outbox event ID.
+// Durable applied-events are recorded before ACK; re-pull after lost ACK does not re-credit.
+func (a *app) applyLocalFuzzSettleOnce(ctx context.Context, it poolsync.SettleOutboxItem) error {
+	if a == nil || a.chain == nil {
+		return fmt.Errorf("fuzz settle: no chain")
+	}
+	if it.ID <= 0 {
+		return fmt.Errorf("fuzz settle: missing outbox event id")
+	}
+	eventID := chain.FuzzSettleEventID(it.ID)
+	newly, err := a.chain.MarkFuzzSettleApplied(ctx, eventID, it.CampaignID, it.Kind)
+	if err != nil {
+		return err
+	}
+	if !newly {
+		return nil // already paid / recorded — safe to ACK again
+	}
+	if err := a.applyLocalFuzzSettle(ctx, it); err != nil {
+		if !fuzzSettleOutboxDrainOnErr(err) {
+			_ = a.chain.UnmarkFuzzSettleApplied(ctx, eventID)
+		}
+		return err
+	}
+	return nil
 }
 
 func (a *app) applyLocalFuzzSettle(ctx context.Context, it poolsync.SettleOutboxItem) error {

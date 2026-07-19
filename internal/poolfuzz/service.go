@@ -417,18 +417,41 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	req.Trap = trap
 
 	workerID := strings.TrimSpace(req.WorkerID)
+	miner := strings.TrimSpace(req.MinerAddress)
+	wantRunSettle := s.Settler != nil && escrowEnabled(cfg) && miner != ""
+	runSettleStatus := ""
+	if wantRunSettle {
+		runSettleStatus = "pending"
+	}
 	res, err := s.DB.ExecContext(ctx,
 		`UPDATE fuzz_work_items
-		 SET status='done', attempts=attempts+1, result_ok=?, duration_ms=?, last_error=?, lease_owner='', lease_until=0, updated_at=?
+		 SET status='done', attempts=attempts+1, result_ok=?, duration_ms=?, last_error=?, lease_owner='', lease_until=0, updated_at=?,
+		     miner_address=CASE WHEN ?!='' THEN ? ELSE miner_address END,
+		     settle_run_status=CASE WHEN ?!='' THEN ? ELSE settle_run_status END
 		 WHERE id=? AND campaign_id=?
 		   AND status IN ('pending','leased')
 		   AND (lease_owner='' OR lease_owner=?)`,
-		boolToInt(pass), req.DurationMS, strings.TrimSpace(req.Trap), now, req.ItemID, req.CampaignID, workerID)
+		boolToInt(pass), req.DurationMS, strings.TrimSpace(req.Trap), now,
+		miner, miner, runSettleStatus, runSettleStatus,
+		req.ItemID, req.CampaignID, workerID)
 	if err != nil {
 		return err
 	}
 	aff, _ := res.RowsAffected()
 	if aff == 0 {
+		// Work already done — still flush unsettled payment intents (PayRun may have failed earlier).
+		if err := s.flushPendingSettles(ctx, req.CampaignID, req.ItemID, cfg); err != nil {
+			return err
+		}
+		completed, err := s.recomputeProgress(ctx, req.CampaignID, now)
+		if err != nil {
+			return err
+		}
+		if completed && s.Settler != nil && escrowEnabled(cfg) {
+			if err := s.Settler.Finalize(ctx, req.CampaignID); err != nil {
+				return fmt.Errorf("poolfuzz: finalize escrow: %w", err)
+			}
+		}
 		return nil
 	}
 	if err := s.recordCoverage(ctx, req.CampaignID, req.ActualInput, req.InputBytes, now); err != nil {
@@ -443,20 +466,14 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 			return err
 		}
 	}
-	if s.Settler != nil && escrowEnabled(cfg) {
-		miner := strings.TrimSpace(req.MinerAddress)
-		if miner != "" {
+	if wantRunSettle {
+		if recordFinding && bountySeverity(findingSeverity) && s.bountyAllowed(ctx, cfg, findingID) {
 			_, _ = s.DB.ExecContext(ctx,
-				`UPDATE fuzz_work_items SET miner_address=? WHERE id=? AND campaign_id=?`,
-				miner, req.ItemID, req.CampaignID)
-			if err := s.Settler.PayRun(ctx, req.CampaignID, miner); err != nil {
-				return fmt.Errorf("poolfuzz: settle run: %w", err)
-			}
-			if recordFinding && bountySeverity(findingSeverity) && s.bountyAllowed(ctx, cfg, findingID) {
-				if err := s.Settler.PayFinding(ctx, req.CampaignID, miner, findingSeverity); err != nil {
-					return fmt.Errorf("poolfuzz: settle finding: %w", err)
-				}
-			}
+				`UPDATE fuzz_work_items SET settle_finding_status='pending', settle_finding_severity=? WHERE id=? AND campaign_id=?`,
+				findingSeverity, req.ItemID, req.CampaignID)
+		}
+		if err := s.flushPendingSettles(ctx, req.CampaignID, req.ItemID, cfg); err != nil {
+			return err
 		}
 	}
 	completed, err := s.recomputeProgress(ctx, req.CampaignID, now)
@@ -466,6 +483,51 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	if completed && s.Settler != nil && escrowEnabled(cfg) {
 		if err := s.Settler.Finalize(ctx, req.CampaignID); err != nil {
 			return fmt.Errorf("poolfuzz: finalize escrow: %w", err)
+		}
+	}
+	return nil
+}
+
+// flushPendingSettles pays unsettled run/finding intents exactly once (idempotent status transitions).
+func (s *Service) flushPendingSettles(ctx context.Context, campaignID string, itemID int64, cfg map[string]any) error {
+	if s == nil || s.DB == nil || s.Settler == nil || !escrowEnabled(cfg) {
+		return nil
+	}
+	var miner, runSt, findSt, findSev string
+	err := s.DB.QueryRowContext(ctx,
+		`SELECT COALESCE(miner_address,''), COALESCE(settle_run_status,''), COALESCE(settle_finding_status,''), COALESCE(settle_finding_severity,'')
+		 FROM fuzz_work_items WHERE campaign_id=? AND id=?`, campaignID, itemID).Scan(&miner, &runSt, &findSt, &findSev)
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	miner = strings.TrimSpace(miner)
+	if miner == "" {
+		return nil
+	}
+	if strings.EqualFold(strings.TrimSpace(runSt), "pending") {
+		if err := s.Settler.PayRun(ctx, campaignID, miner); err != nil {
+			return fmt.Errorf("poolfuzz: settle run: %w", err)
+		}
+		if _, err := s.DB.ExecContext(ctx,
+			`UPDATE fuzz_work_items SET settle_run_status='paid' WHERE campaign_id=? AND id=? AND settle_run_status='pending'`,
+			campaignID, itemID); err != nil {
+			return err
+		}
+	}
+	if strings.EqualFold(strings.TrimSpace(findSt), "pending") {
+		sev := strings.TrimSpace(findSev)
+		if bountySeverity(sev) {
+			if err := s.Settler.PayFinding(ctx, campaignID, miner, sev); err != nil {
+				return fmt.Errorf("poolfuzz: settle finding: %w", err)
+			}
+		}
+		if _, err := s.DB.ExecContext(ctx,
+			`UPDATE fuzz_work_items SET settle_finding_status='paid' WHERE campaign_id=? AND id=? AND settle_finding_status='pending'`,
+			campaignID, itemID); err != nil {
+			return err
 		}
 	}
 	return nil

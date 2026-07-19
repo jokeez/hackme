@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"hackme/internal/poolfuzz"
@@ -69,6 +70,42 @@ func TestFuzzSubmitReplayNonceRejected(t *testing.T) {
 	}
 	if ok, reason, _ := wm.validateFuzzHybridSignature(auth, body); ok || reason != "replay" {
 		t.Fatalf("replay want reject, ok=%v reason=%q", ok, reason)
+	}
+}
+
+func TestFuzzSubmitConcurrentNonceMapsNoPanic(t *testing.T) {
+	wm := &workManager{
+		hybridSignerEnabled:  true,
+		acceptedSubmitNonces: make(map[string]struct{}),
+		signedSubmitNonceMax: make(map[string]uint64),
+	}
+	const n = 64
+	var wg sync.WaitGroup
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func(i int) {
+			defer wg.Done()
+			pub, priv, err := ed25519.GenerateKey(nil)
+			if err != nil {
+				t.Errorf("keygen: %v", err)
+				return
+			}
+			nonce := uint64(1)
+			payload := poolfuzz.SubmitSignPayload{WorkerID: "w-conc", CampaignID: "c", ItemID: int64(i + 1), SubmitNonce: nonce}
+			body := canonFuzzSign(payload)
+			sig := hex.EncodeToString(ed25519.Sign(priv, body))
+			auth := fuzzSubmitAuth{
+				WorkerID: "w-conc", MinerPubKey: hex.EncodeToString(pub), MinerSig: sig, SubmitNonce: nonce,
+			}
+			ok, reason, _ := wm.validateFuzzHybridSignature(auth, body)
+			if !ok {
+				t.Errorf("worker %d: want accept, reason=%q", i, reason)
+			}
+		}(i)
+	}
+	wg.Wait()
+	if len(wm.acceptedSubmitNonces) != n {
+		t.Fatalf("accepted nonces=%d want %d", len(wm.acceptedSubmitNonces), n)
 	}
 }
 

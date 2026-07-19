@@ -77,18 +77,24 @@ func ensurePoolCoordinatorTokenEnv() {
 	}
 }
 
-// requestFromLoopback is true when the HTTP client is the local machine (not via reverse proxy).
+// requestFromLoopback is true when the TCP peer is the local machine.
+// Uses RemoteAddr + IP.IsLoopback only — never Host (spoofable) or forwarded headers.
 func requestFromLoopback(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	// Forwarded headers are untrusted for loopback privilege (no proxy-CIDR allowlist here).
 	if strings.TrimSpace(r.Header.Get("X-Forwarded-For")) != "" ||
 		strings.TrimSpace(r.Header.Get("X-Real-IP")) != "" {
 		return false
 	}
-	host := strings.TrimSpace(r.Host)
+	host := strings.TrimSpace(r.RemoteAddr)
 	if h, _, err := net.SplitHostPort(host); err == nil {
 		host = h
 	}
-	host = strings.Trim(strings.ToLower(host), "[]")
-	return host == "127.0.0.1" || host == "localhost" || host == "::1"
+	host = strings.Trim(host, "[]")
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // canonicalRelayAdminToken is used when desktop forwards a signed transfer to hackme.tech (remote still requires admin on older builds).

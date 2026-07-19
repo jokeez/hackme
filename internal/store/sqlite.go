@@ -12,7 +12,7 @@ import (
 
 // CurrentSchemaVersion is the value written to PRAGMA user_version after migrate() completes.
 // Bump when adding a new migration step (and document in README / MASTER_PLAN).
-const CurrentSchemaVersion = 15
+const CurrentSchemaVersion = 16
 
 // Open opens SQLite at path (directories created as needed).
 func Open(dbPath string) (*sql.DB, error) {
@@ -107,6 +107,9 @@ func migrate(db *sql.DB) error {
 		return err
 	}
 	if err := migrateFuzzSettleOutbox(db); err != nil {
+		return err
+	}
+	if err := migrateFuzzSettleApplied(db); err != nil {
 		return err
 	}
 	return bumpUserVersion(db)
@@ -575,8 +578,34 @@ func migrateFuzzSettleOutbox(db *sql.DB) error {
 			return err
 		}
 	}
-	if _, err := db.Exec(`ALTER TABLE fuzz_work_items ADD COLUMN miner_address TEXT NOT NULL DEFAULT ''`); err != nil {
-		if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+	for _, col := range []string{
+		`ALTER TABLE fuzz_work_items ADD COLUMN miner_address TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE fuzz_work_items ADD COLUMN settle_run_status TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE fuzz_work_items ADD COLUMN settle_finding_status TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE fuzz_work_items ADD COLUMN settle_finding_severity TEXT NOT NULL DEFAULT ''`,
+	} {
+		if _, err := db.Exec(col); err != nil {
+			if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// migrateFuzzSettleApplied records durable pull-settle event IDs so ACK loss cannot double-pay.
+func migrateFuzzSettleApplied(db *sql.DB) error {
+	stmts := []string{
+		`CREATE TABLE IF NOT EXISTS fuzz_settle_applied (
+			event_id TEXT PRIMARY KEY,
+			campaign_id TEXT NOT NULL,
+			kind TEXT NOT NULL,
+			applied_at INTEGER NOT NULL
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_fuzz_settle_applied_campaign ON fuzz_settle_applied(campaign_id, kind)`,
+	}
+	for _, s := range stmts {
+		if _, err := db.Exec(s); err != nil {
 			return err
 		}
 	}
