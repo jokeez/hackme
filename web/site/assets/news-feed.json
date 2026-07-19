@@ -1,6 +1,78 @@
 {
   "items": [
     {
+      "id": "2026-07-19-oss-cve-watch-day12-nghttp2-libfuzzer",
+      "date": "2026-07-19",
+      "title": "OSS CVE Watch Day 12/14 · nghttp2 · 2.39B libFuzzer exec · CLEAN",
+      "summary": "Day 12 on nghttp2: 14.2h libFuzzer depth, 2,387,073,360 executions at ~46,706 exec/s. Corpus 410 (307KB), 467 coverage edges. ASAN heap crashes: 0 — verdict CLEAN.",
+      "impact": "Cumulative Days 2–12: ~10.94B libFuzzer executions on persistent corpus. Day 12 HTML live on the public ledger.",
+      "action": "Day 12 report: https://hackme.tech/reports/oss-cve-watch/day12.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2",
+        "day12"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "OSS CVE Watch · Day 12/14 · nghttp2",
+        "lead": "14.2h libFuzzer + ASAN · CLEAN",
+        "bullets": [
+          "2,387,073,360 executions · ~46,706 exec/s · 14.2h",
+          "corpus 410 (307KB) · 467 edges · ASAN=0",
+          "Days 2–12 cumulative ~10.94B exec",
+          "CLEAN = no ASAN heap crash in budget — not proven secure"
+        ],
+        "footer": "hackme.tech/reports/oss-cve-watch/day12.html"
+      },
+      "discord": {
+        "title": "Research · OSS CVE Watch Day 12",
+        "body": "**nghttp2 · libFuzzer · Day 12/14**\n\n• **2,387,073,360** executions · **14.2h** · **~46,706 exec/s**\n• Corpus **410** (307KB) · **467** coverage edges\n• **CLEAN** — 0 ASAN heap crashes\n• Days 2–12 cumulative: **~10.94B** exec\n\n**Report:** https://hackme.tech/reports/oss-cve-watch/day12.html",
+        "ping": "#research"
+      },
+      "links": {
+        "hub": "https://hackme.tech/reports/oss-cve-watch/",
+        "day12": "https://hackme.tech/reports/oss-cve-watch/day12.html"
+      }
+    },
+    {
+      "id": "2026-07-18-oss-cve-watch-day11-nghttp2-libfuzzer",
+      "date": "2026-07-18",
+      "title": "OSS CVE Watch Day 11/14 · nghttp2 · 0.15B libFuzzer exec · CLEAN",
+      "summary": "Day 11 on nghttp2: 1.9h libFuzzer depth, 146,318,620 executions at ~21,708 exec/s. Corpus 414 (296KB), 467 coverage edges. ASAN heap crashes: 0 — verdict CLEAN.",
+      "impact": "Cumulative Days 2–11: ~8.55B libFuzzer executions on persistent corpus. Day 11 HTML live on the public ledger.",
+      "action": "Day 11 report: https://hackme.tech/reports/oss-cve-watch/day11.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2",
+        "day11"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "OSS CVE Watch · Day 11/14 · nghttp2",
+        "lead": "1.9h libFuzzer + ASAN · CLEAN",
+        "bullets": [
+          "146,318,620 executions · ~21,708 exec/s · 1.9h",
+          "corpus 414 (296KB) · 467 edges · ASAN=0",
+          "Days 2–11 cumulative ~8.55B exec",
+          "CLEAN = no ASAN heap crash in budget — not proven secure"
+        ],
+        "footer": "hackme.tech/reports/oss-cve-watch/day11.html"
+      },
+      "discord": {
+        "title": "Research · OSS CVE Watch Day 11",
+        "body": "**nghttp2 · libFuzzer · Day 11/14**\n\n• **146,318,620** executions · **1.9h** · **~21,708 exec/s**\n• Corpus **414** (296KB) · **467** coverage edges\n• **CLEAN** — 0 ASAN heap crashes\n• Days 2–11 cumulative: **~8.55B** exec\n\n**Report:** https://hackme.tech/reports/oss-cve-watch/day11.html",
+        "ping": "#research"
+      },
+      "links": {
+        "hub": "https://hackme.tech/reports/oss-cve-watch/",
+        "day11": "https://hackme.tech/reports/oss-cve-watch/day11.html"
+      }
+    },
+    {
       "id": "2026-07-17-oss-cve-watch-day10-nghttp2-libfuzzer",
       "date": "2026-07-17",
       "title": "OSS CVE Watch Day 10/14 · nghttp2 · 0.38B libFuzzer exec · CLEAN",
@@ -360,78 +432,6 @@
         "downloads": "https://hackme.tech/downloads.html",
         "pool": "https://hackme.tech/pool/coordinator",
         "docs": "https://github.com/jokeez/hackme/blob/main/docs/HACKME_RC11R.md"
-      }
-    },
-    {
-      "id": "2026-07-10-oss-cve-watch-day03-nghttp2-libfuzzer",
-      "date": "2026-07-10",
-      "title": "OSS CVE Watch Day 3/14 · nghttp2 · 1.19B libFuzzer exec · CLEAN",
-      "summary": "Third night on nghttp2: 12h libFuzzer session after post-reboot resume, 1,185,926,547 executions at ~27k exec/s. Corpus 402 inputs (399KB), 467 coverage edges. Zero ASAN heap crashes — third honest CLEAN day.",
-      "impact": "Cumulative ~3.2B libFuzzer executions across Days 2–3 on the same persistent corpus. Coverage plateau at 467 edges suggests deeper state exploration needs new seeds or harness paths — still hunting ASAN heap bugs nightly.",
-      "action": "Day 3 report: https://hackme.tech/reports/oss-cve-watch/day03.html · Series hub: https://hackme.tech/reports/oss-cve-watch/ · Reproduce: MAX_TIME=43200 bash scripts/ops/run_oss_libfuzzer_session.sh",
-      "tags": [
-        "research",
-        "oss-cve",
-        "fuzzing",
-        "nghttp2"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "OSS CVE Watch · Day 3/14 · nghttp2",
-        "lead": "libFuzzer: 1.19B exec · 12h · CLEAN · 0 ASAN",
-        "bullets": [
-          "Target: nghttp2 HTTP/2 session mem_recv · ASAN build",
-          "1,185,926,547 executions · ~27,451 exec/s · corpus 402 (399KB)",
-          "467 coverage edges · 0 heap corruption · CVE only after maintainer triage",
-          "Day 3: 12h marathon after reboot · corpus carries over from Day 2"
-        ],
-        "footer": "hackme.tech/reports/oss-cve-watch/day03.html"
-      },
-      "discord": {
-        "title": "Research · OSS CVE Watch Day 3",
-        "body": "**nghttp2 · libFuzzer · Day 3/14**\n\n• **1,185,926,547** executions · **12h** · **~27k exec/s**\n• Corpus **402** (399KB) · **467** coverage edges\n• **CLEAN** — 0 ASAN heap crashes\n• Post-reboot 12h marathon · corpus persists from Day 2\n\n**Report:** https://hackme.tech/reports/oss-cve-watch/day03.html",
-        "ping": "#research"
-      },
-      "links": {
-        "day03": "https://hackme.tech/reports/oss-cve-watch/day03.html",
-        "hub": "https://hackme.tech/reports/oss-cve-watch/",
-        "research": "https://hackme.tech/research.html"
-      }
-    },
-    {
-      "id": "2026-07-09-oss-cve-watch-day02-nghttp2-libfuzzer",
-      "date": "2026-07-09",
-      "title": "OSS CVE Watch Day 2/14 · nghttp2 · 1B libFuzzer exec · CLEAN",
-      "summary": "Second night on nghttp2: coverage-guided libFuzzer with ASAN, ~8h wall time, 1,013,382,502 executions at ~35k exec/s. Corpus grew to 2,905 inputs (467 coverage edges). Zero ASAN heap crashes — honest CLEAN day published.",
-      "impact": "Day 1 was stdin mutation (44k iter, UBSan noise). Day 2 switches to operator libFuzzer depth; corpus persists between nights for deeper HTTP/2 session parsing coverage.",
-      "action": "Day 2 report: https://hackme.tech/reports/oss-cve-watch/day02.html · Series hub: https://hackme.tech/reports/oss-cve-watch/ · Reproduce: bash scripts/ops/run_oss_libfuzzer_session.sh",
-      "tags": [
-        "research",
-        "oss-cve",
-        "fuzzing",
-        "nghttp2"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "OSS CVE Watch · Day 2/14 · nghttp2",
-        "lead": "libFuzzer night: 1.01B exec · 8h · CLEAN · 0 ASAN",
-        "bullets": [
-          "Target: nghttp2 HTTP/2 session mem_recv · ASAN build",
-          "1,013,382,502 executions · ~35,185 exec/s · corpus 2,905",
-          "467 coverage edges · 0 heap corruption · CVE only after maintainer triage",
-          "Day 1 → mutation baseline · Day 2+ → libFuzzer depth (corpus carries over)"
-        ],
-        "footer": "hackme.tech/reports/oss-cve-watch/day02.html"
-      },
-      "discord": {
-        "title": "Research · OSS CVE Watch Day 2",
-        "body": "**nghttp2 · libFuzzer · Day 2/14**\n\n• **1,013,382,502** executions · **~8h** · **~35k exec/s**\n• Corpus **2,905** · **467** coverage edges\n• **CLEAN** — 0 ASAN heap crashes\n• Day 1 = mutation · Day 2+ = libFuzzer (corpus persists)\n\n**Report:** https://hackme.tech/reports/oss-cve-watch/day02.html",
-        "ping": "#research"
-      },
-      "links": {
-        "day02": "https://hackme.tech/reports/oss-cve-watch/day02.html",
-        "hub": "https://hackme.tech/reports/oss-cve-watch/",
-        "research": "https://hackme.tech/research.html"
       }
     }
   ],

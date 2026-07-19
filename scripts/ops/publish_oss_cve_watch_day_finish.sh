@@ -29,6 +29,33 @@ fi
 }
 log "report=$OUT"
 
+# Refuse premature / stub publishes (empty corpus, seconds-long runs).
+MIN_ITERATIONS="${MIN_ITERATIONS:-50000000}"
+MIN_ELAPSED_SEC="${MIN_ELAPSED_SEC:-3600}"
+set +e
+GATE_MSG="$(python3 - "$OUT" "$MIN_ITERATIONS" "$MIN_ELAPSED_SEC" <<'PY'
+import json, sys
+from pathlib import Path
+out, min_it, min_el = Path(sys.argv[1]), int(sys.argv[2]), float(sys.argv[3])
+s = json.loads((out / "SESSION.json").read_text()) if (out / "SESSION.json").is_file() else {}
+r = json.loads((out / "ROLLUP.json").read_text())
+iters = int(s.get("iterations") or (r.get("targets") or [{}])[0].get("iterations") or 0)
+elapsed = float(s.get("elapsed_sec") or (r.get("targets") or [{}])[0].get("elapsed_sec") or 0)
+corp = int(s.get("corpus_count") or 0)
+cov = int(s.get("coverage_edges") or 0)
+print(f"gate iters={iters} elapsed={elapsed:.1f}s corp={corp} cov={cov} need>={min_it} iters & >={min_el}s")
+ok = iters >= min_it and elapsed >= min_el and corp > 0 and cov > 0
+sys.exit(0 if ok else 1)
+PY
+)"
+GATE_RC=$?
+set -e
+log "$GATE_MSG"
+if [[ "$GATE_RC" -ne 0 ]]; then
+  log "REFUSE publish: session below MIN_ITERATIONS/MIN_ELAPSED_SEC (not a real depth day)"
+  exit 4
+fi
+
 python3 "$ROOT/scripts/ops/export_oss_cve_watch_libfuzzer.py" "$DAY" "$OUT"
 log "exported web/site/reports/oss-cve-watch/day$(printf '%02d' "$DAY").html"
 

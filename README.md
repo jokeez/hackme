@@ -88,9 +88,10 @@ flowchart TB
 
 | Area | Status | Notes |
 |------|--------|-------|
-| **HMC pool** | **Live** | Auto `target_mod` · ~40–70 GH/s fleet · hybrid signer strict |
-| **Settlement** | **Live** | HMC + SUP systemd timers on canonical host |
-| **B2B fuzz** | **Live** | Dashboard `#orders` · developer portal |
+| **HMC pool** | **Live** | Auto `target_mod` · ~11–13 workers · ~100–145 GH/s (live, moves) · hybrid signer strict · external miners joining |
+| **Settlement** | **Live** | HMC + SUP systemd timers + autopilot on canonical host |
+| **B2B fuzz / PoH** | **Live** | Dashboard `#orders` · `workerfuzz` on hub · bootstrap PoH path (`pool_distributed` + `create_poh_order`) completing deep orders |
+| **OSS CVE Watch** | **Day 12/14 published** | [day12.html](https://hackme.tech/reports/oss-cve-watch/day12.html) CLEAN · Day 13 deep fuzz in progress |
 | **Win / Linux / ISO** | **rc11s** | SHA256 on [downloads](https://hackme.tech/downloads.html) |
 | **Security gate** | **16/16 PASS** | Red-team scripts in `scripts/ops/` |
 | **HMS storage** | Preview | Prelaunch — not a miner lane yet |
@@ -176,6 +177,7 @@ bash scripts/tests/verify_hackme_iso.sh your.iso
 
 - [developers.html](https://hackme.tech/developers.html) — public landing  
 - [CUSTOMER_FUZZ_DELIVERABLES.md](docs/CUSTOMER_FUZZ_DELIVERABLES.md) — reports & repro  
+- Pool-distributed path: hub `workerfuzz` pulls campaigns; bootstrap helpers under `scripts/ops/bootstrap_customer/`  
 - **20%** pool fee on escrow campaigns funds worker payouts
 
 ---
@@ -186,8 +188,10 @@ bash scripts/tests/verify_hackme_iso.sh your.iso
 |--------|------------|
 | **Bitcoin Core 30-day fuzz** | [bitcoin30.html](https://hackme.tech/reports/bitcoin30.html) |
 | **OSS CVE matrix** | [oss-cve/](https://hackme.tech/reports/oss-cve/) |
-| **OSS CVE Watch** (daily) | [oss-cve-watch/](https://hackme.tech/reports/oss-cve-watch/) |
+| **OSS CVE Watch** (daily) | [oss-cve-watch/](https://hackme.tech/reports/oss-cve-watch/) · latest: [Day 12 · nghttp2 · CLEAN](https://hackme.tech/reports/oss-cve-watch/day12.html) |
 | **L1 / B2B case studies** | [research.html](https://hackme.tech/research.html) |
+
+Day 12 ledger: **2.39B** libFuzzer exec · ~14.2h · ASAN=0 · Days 2–12 cum ≈ **10.94B**. Day 13 is in deep fuzz under the evening cadence (publish when gate clears).
 
 Run locally: `DAY=8 bash scripts/ops/run_bitcoin30_day.sh` · [BITCOIN30_SERIES.md](docs/BITCOIN30_SERIES.md)
 

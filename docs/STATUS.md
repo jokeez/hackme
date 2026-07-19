@@ -1,27 +1,26 @@
 # HackMe RC status (operator snapshot)
 
 **Release:** `0.1.0-rc11s` · **Site:** https://hackme.tech · **Branch:** `main`  
-**Updated:** 2026-07-11 (rc11s production baseline · mining canonical overlay · settle drain)
+**Updated:** 2026-07-19 (pool growth · CVE Watch Day 12 published · Day 13 fuzzing · B2B PoH path live)
 
-| Highlight (2026-07-07) | |
+| Highlight (2026-07-19) | |
 |------------------------|--|
-| **Live pool** | 5–6 workers · ~38–53 GH/s · hybrid signer strict · auto `target_mod` retarget |
-| **Settlement** | HMC + SUP timers **active** on VPS · unpaid fleet normally **&lt;2 HMC** between 2‑min scans |
-| **Desktop fix** | Node fetches canonical settlement over HTTP (no stale unpaid display) |
-| **B2B** | Customer order + pool fuzz escrow **live** same day |
-| **Miner inbound** | Organic GPU lead (7742 + RTX 5090) — honest pool economics Q&A |
-| **Research** | OSS CVE Watch day 1 (nghttp2) · Bitcoin30 hub archived on site |
-| **Tests** | `go test ./...` **PASS** · `public_site_smoke.sh` **PASS** · `version_consistency_gate` **PASS** |
+| **Live pool** | ~11 online / ~12–13 registered · ~100–145 GH/s · hybrid signer strict · auto `target_mod` · external miners joining |
+| **Settlement** | HMC + SUP timers + autopilot **active** on VPS · unpaid fleet normally **&lt;3 HMC** between scans |
+| **B2B / PoH** | Bootstrap PoH deep orders completing (`workerfuzz` on hub · `pool_distributed`) · scheduler returns to `baseline` |
+| **Research** | OSS CVE Watch **Day 12/14** published CLEAN ([day12.html](https://hackme.tech/reports/oss-cve-watch/day12.html) · 2.39B exec) · Day 13 deep fuzz in progress |
+| **Tests** | Prefer `go test ./...` · `public_site_smoke.sh` · `version_consistency_gate` before release cuts |
 
 | Area | Verdict |
 |------|---------|
 | Public pool + coordinator | **Live** — `signed_submits_accepted` ≫ rejected |
-| HMC settlement | **Live** — `settle_worker_payouts.sh` + systemd timer |
-| SUP (accrual + on-chain) | **Live** — `settle_worker_sup.sh` + timer |
+| HMC settlement | **Live** — settle scripts + systemd + autopilot |
+| SUP (accrual + on-chain) | **Live** — settle SUP + timer |
 | Win/Linux/ISO (rc11s) | **Published** — verify SHA256 on downloads page |
 | Security audit (prod) | **16/16 PASS** |
 | Miner launch gate | **GO** — `bash scripts/ops/run_miner_launch_gate.sh` |
-| Fuzzing B2B | **Live** — wizard + pool + CI gate |
+| Fuzzing B2B | **Live** — wizard + pool-distributed workers + CI gate |
+| OSS CVE Watch | **Day 12 live** · Day 13 in progress · gate refuses stubs |
 
 ## Pool health (how to measure)
 
