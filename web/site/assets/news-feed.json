@@ -1,6 +1,42 @@
 {
   "items": [
     {
+      "id": "2026-07-19-oss-cve-watch-day13-nghttp2-libfuzzer",
+      "date": "2026-07-19",
+      "title": "OSS CVE Watch Day 13/14 · nghttp2 · 0.36B libFuzzer exec · CLEAN",
+      "summary": "Day 13 on nghttp2: 4.3h libFuzzer depth, 355,230,313 executions at ~23,081 exec/s. Corpus 419 (293KB), 467 coverage edges. ASAN heap crashes: 0 — verdict CLEAN.",
+      "impact": "Cumulative Days 2–13: ~11.29B libFuzzer executions on persistent corpus. Day 13 HTML live on the public ledger.",
+      "action": "Day 13 report: https://hackme.tech/reports/oss-cve-watch/day13.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2",
+        "day13"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "OSS CVE Watch · Day 13/14 · nghttp2",
+        "lead": "4.3h libFuzzer + ASAN · CLEAN",
+        "bullets": [
+          "355,230,313 executions · ~23,081 exec/s · 4.3h",
+          "corpus 419 (293KB) · 467 edges · ASAN=0",
+          "Days 2–13 cumulative ~11.29B exec",
+          "CLEAN = no ASAN heap crash in budget — not proven secure"
+        ],
+        "footer": "hackme.tech/reports/oss-cve-watch/day13.html"
+      },
+      "discord": {
+        "title": "Research · OSS CVE Watch Day 13",
+        "body": "**nghttp2 · libFuzzer · Day 13/14**\n\n• **355,230,313** executions · **4.3h** · **~23,081 exec/s**\n• Corpus **419** (293KB) · **467** coverage edges\n• **CLEAN** — 0 ASAN heap crashes\n• Days 2–13 cumulative: **~11.29B** exec\n\n**Report:** https://hackme.tech/reports/oss-cve-watch/day13.html",
+        "ping": "#research"
+      },
+      "links": {
+        "hub": "https://hackme.tech/reports/oss-cve-watch/",
+        "day13": "https://hackme.tech/reports/oss-cve-watch/day13.html"
+      }
+    },
+    {
       "id": "2026-07-19-oss-cve-watch-day12-nghttp2-libfuzzer",
       "date": "2026-07-19",
       "title": "OSS CVE Watch Day 12/14 · nghttp2 · 2.39B libFuzzer exec · CLEAN",
@@ -394,44 +430,6 @@
         "day04": "https://hackme.tech/reports/oss-cve-watch/day04.html",
         "hub": "https://hackme.tech/reports/oss-cve-watch/",
         "research": "https://hackme.tech/research.html"
-      }
-    },
-    {
-      "id": "2026-07-10-github-release-rc11r",
-      "date": "2026-07-10",
-      "title": "HackMe 0.1.0-rc11r on GitHub Releases — Win · Linux · ISO · fuzz CLI",
-      "summary": "First tagged GitHub release aligned with hackme.tech/downloads: Windows installer, Linux tarball, hackme-fuzzing CLI, and HackMe OS ISO (~844 MB). Same SHA256 as CDN. Linux layout fix, fuzz settle outbox, escrow cleanup.",
-      "impact": "Miners and integrators can verify binaries from GitHub or hackme.tech. ISO + tarballs in one place for mirrors, CI, and cold-storage archives.",
-      "action": "Download: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc11r · Mirror: https://hackme.tech/downloads.html · Docs: docs/HACKME_RC11R.md",
-      "tags": [
-        "release",
-        "mining",
-        "fuzzing",
-        "iso"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "🚀 HackMe 0.1.0-rc11r — GitHub Releases",
-        "lead": "Win · Linux · ISO · fuzz CLI — one channel, same SHA256",
-        "bullets": [
-          "First tagged release on GitHub — not CDN-only anymore",
-          "Linux: worker_autostart + workerpoh-opencl in tarball (fixes worker_script_missing)",
-          "HackMe OS ISO ~844 MB · Zero-Knowledge Start · pool token embedded",
-          "Fuzz: pull-settle outbox · escrow cleanup · hackme-fuzzing wizard",
-          "SHA256SUMS in the release — verify before USB flash"
-        ],
-        "footer": "github.com/jokeez/hackme/releases/tag/0.1.0-rc11r · hackme.tech/downloads.html"
-      },
-      "discord": {
-        "title": "Release · 0.1.0-rc11r on GitHub",
-        "body": "**First GitHub Release** — aligned with hackme.tech/downloads\n\n• **Windows** — Setup + portable ZIP\n• **Linux** — tarball layout fix (`worker_autostart`, `workerpoh-opencl`)\n• **HackMe OS** — bootable ISO ~844 MB\n• **fuzz CLI** — `hackme-fuzzing wizard`\n\n**Download:** https://github.com/jokeez/hackme/releases/tag/0.1.0-rc11r\n**SHA256:** in release assets",
-        "ping": "#releases"
-      },
-      "links": {
-        "github": "https://github.com/jokeez/hackme/releases/tag/0.1.0-rc11r",
-        "downloads": "https://hackme.tech/downloads.html",
-        "pool": "https://hackme.tech/pool/coordinator",
-        "docs": "https://github.com/jokeez/hackme/blob/main/docs/HACKME_RC11R.md"
       }
     }
   ],

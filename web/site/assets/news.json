@@ -1,6 +1,42 @@
 {
   "items": [
     {
+      "id": "2026-07-19-oss-cve-watch-day13-nghttp2-libfuzzer",
+      "date": "2026-07-19",
+      "title": "OSS CVE Watch Day 13/14 · nghttp2 · 0.36B libFuzzer exec · CLEAN",
+      "summary": "Day 13 on nghttp2: 4.3h libFuzzer depth, 355,230,313 executions at ~23,081 exec/s. Corpus 419 (293KB), 467 coverage edges. ASAN heap crashes: 0 — verdict CLEAN.",
+      "impact": "Cumulative Days 2–13: ~11.29B libFuzzer executions on persistent corpus. Day 13 HTML live on the public ledger.",
+      "action": "Day 13 report: https://hackme.tech/reports/oss-cve-watch/day13.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2",
+        "day13"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "OSS CVE Watch · Day 13/14 · nghttp2",
+        "lead": "4.3h libFuzzer + ASAN · CLEAN",
+        "bullets": [
+          "355,230,313 executions · ~23,081 exec/s · 4.3h",
+          "corpus 419 (293KB) · 467 edges · ASAN=0",
+          "Days 2–13 cumulative ~11.29B exec",
+          "CLEAN = no ASAN heap crash in budget — not proven secure"
+        ],
+        "footer": "hackme.tech/reports/oss-cve-watch/day13.html"
+      },
+      "discord": {
+        "title": "Research · OSS CVE Watch Day 13",
+        "body": "**nghttp2 · libFuzzer · Day 13/14**\n\n• **355,230,313** executions · **4.3h** · **~23,081 exec/s**\n• Corpus **419** (293KB) · **467** coverage edges\n• **CLEAN** — 0 ASAN heap crashes\n• Days 2–13 cumulative: **~11.29B** exec\n\n**Report:** https://hackme.tech/reports/oss-cve-watch/day13.html",
+        "ping": "#research"
+      },
+      "links": {
+        "hub": "https://hackme.tech/reports/oss-cve-watch/",
+        "day13": "https://hackme.tech/reports/oss-cve-watch/day13.html"
+      }
+    },
+    {
       "id": "2026-07-19-oss-cve-watch-day12-nghttp2-libfuzzer",
       "date": "2026-07-19",
       "title": "OSS CVE Watch Day 12/14 · nghttp2 · 2.39B libFuzzer exec · CLEAN",
