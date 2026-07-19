@@ -69,6 +69,14 @@ __pycache__/
 # Local WIP / scratch trees
 .wip/
 
+# Root audit / dig drafts (keep under ~/Documents — never commit)
+/*_AUDIT.md
+/POST*_DIG.md
+/REPO_CLEANUP_REPORT.md
+
+# Site report WIP pages
+web/site/reports/**/*-wip.html
+
 # Misc local scratch
 cuda-keyring*.deb
 /workerpoh-opencl

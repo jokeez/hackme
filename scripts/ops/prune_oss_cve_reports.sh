@@ -1,32 +1,31 @@
 #!/usr/bin/env bash
 # Reclaim disk from reports/oss-cve — keeps rollups + recent runs, strips UBSan crash dumps.
 #
-#   bash scripts/ops/prune_oss_cve_reports.sh           # execute
-#   DRY_RUN=1 bash scripts/ops/prune_oss_cve_reports.sh # preview
+# Operator-only. Default is dry-run (no deletes).
+#
+#   bash scripts/ops/prune_oss_cve_reports.sh              # preview (DRY_RUN=1)
+#   APPLY=1 bash scripts/ops/prune_oss_cve_reports.sh      # execute deletes
 #
 # Env:
 #   KEEP_WAVE_MIN=43     — delete entire wave dirs with wave number < this (if CLEAN)
 #   KEEP_DAYS=2          — never strip/delete runs newer than N days
-#   DRY_RUN=1            — print actions only
+#   DRY_RUN=1            — print actions only (default)
+#   APPLY=1              — set DRY_RUN=0 and allow rm/truncate
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 REPORT_ROOT="$ROOT/reports/oss-cve"
 KEEP_WAVE_MIN="${KEEP_WAVE_MIN:-43}"
 KEEP_DAYS="${KEEP_DAYS:-2}"
-DRY_RUN="${DRY_RUN:-0}"
+if [[ "${APPLY:-0}" == "1" ]]; then
+  DRY_RUN=0
+else
+  DRY_RUN="${DRY_RUN:-1}"
+fi
 NOW_EPOCH="$(date +%s)"
 CUTOFF_EPOCH=$((NOW_EPOCH - KEEP_DAYS * 86400))
 
 log() { echo "[prune $(date -u +%H:%M:%S)] $*"; }
-run() {
-  if [[ "$DRY_RUN" == "1" ]]; then
-    log "DRY: $*"
-  else
-    log "$*"
-    eval "$@"
-  fi
-}
 
 has_cve_candidate() {
   local roll="$1"
@@ -57,13 +56,31 @@ wave_num_from_name() {
   echo 999
 }
 
+rm_rf() {
+  local target="$1"
+  if [[ "$DRY_RUN" == "1" ]]; then
+    log "DRY: rm -rf $target"
+  else
+    log "rm -rf $target"
+    rm -rf -- "$target"
+  fi
+}
+
 bytes_before="$(du -sb "$REPORT_ROOT" 2>/dev/null | awk '{print $1}')"
 stripped_crash=0
 deleted_dirs=0
 trimmed_reports=0
 
-log "start keep_wave>=$KEEP_WAVE_MIN keep_days=$KEEP_DAYS dry=$DRY_RUN"
+if [[ ! -d "$REPORT_ROOT" ]]; then
+  log "missing $REPORT_ROOT — nothing to do"
+  exit 0
+fi
+
+log "start keep_wave>=$KEEP_WAVE_MIN keep_days=$KEEP_DAYS dry=$DRY_RUN apply=${APPLY:-0}"
 log "disk before: $(du -sh "$REPORT_ROOT" | awk '{print $1}')"
+if [[ "$DRY_RUN" == "1" ]]; then
+  log "preview only — re-run with APPLY=1 to delete"
+fi
 
 # --- 1) Strip crash corpora from non-CVE runs ---
 while IFS= read -r -d '' roll; do
@@ -79,7 +96,7 @@ while IFS= read -r -d '' roll; do
   while IFS= read -r -d '' crash_dir; do
     sz="$(du -sb "$crash_dir" 2>/dev/null | awk '{print $1}')"
     stripped_crash=$((stripped_crash + sz))
-    run "rm -rf '$crash_dir'"
+    rm_rf "$crash_dir"
   done < <(find "$run_dir" -type d -name crashes -print0 2>/dev/null)
 
   while IFS= read -r -d '' hr; do
@@ -133,7 +150,7 @@ for dir in "$REPORT_ROOT"/wave* "$REPORT_ROOT"/hold-deep-* "$REPORT_ROOT"/easy-y
   fi
   sz="$(du -sb "$dir" 2>/dev/null | awk '{print $1}')"
   deleted_dirs=$((deleted_dirs + sz))
-  run "rm -rf '$dir'"
+  rm_rf "$dir"
 done
 
 bytes_after="$(du -sb "$REPORT_ROOT" 2>/dev/null | awk '{print $1}')"

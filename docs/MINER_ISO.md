@@ -1,8 +1,5 @@
-# HackMe Miner ISO — superseded
+# Redirect: Miner ISO → HackMe OS
 
-This page is **deprecated**. Use **[HACKME_OS.md](HACKME_OS.md)** for the current bootable rig image:
+**Deprecated name.** Current bootable rig image docs: **[HACKME_OS.md](HACKME_OS.md)**.
 
-- Artifact name: `HackMe-OS-<version>-amd64.iso` (not `HackMe-Miner-*`)
-- Zero-Knowledge Start, GRUB/Plymouth visuals, verify SHA256 before flash
-- Build: `VERSION=0.1.0-rc11s bash scripts/release/iso/build_hackme_miner_iso.sh` (see `scripts/release/CURRENT_ISO_VERSION`)
-- Win/Linux channel: `0.1.0-rc11s` (`scripts/release/CURRENT_VERSION`)
+Artifact: `HackMe-OS-<version>-amd64.iso` · channel: `scripts/release/CURRENT_ISO_VERSION`.

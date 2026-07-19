@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Operator-only. Prefer DRY_RUN=1 when the script supports it. Confirm remote target before run.
 # Build hackme-node locally, rsync to VPS, restart service (same layout as dual_vps_cutover node half).
 #
 #   NODE_SSH=hackme-vps NODE_DEPLOY_DIR=/opt/hackme bash scripts/ops/deploy_hackme_node.sh

@@ -101,4 +101,4 @@ curl -sS https://hackme.tech/pool/coordinator/api/work/stats | jq '{workers:(.wo
 
 ---
 
-See also: [HACKME_OS.md](HACKME_OS.md) · [MINER_ISO.md](MINER_ISO.md) · [STATUS.md](STATUS.md) · [SETUP.md](SETUP.md)
+See also: [HACKME_OS.md](HACKME_OS.md) · [STATUS.md](STATUS.md) · [SETUP.md](SETUP.md)

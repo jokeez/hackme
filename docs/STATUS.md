@@ -1,26 +1,28 @@
 # HackMe RC status (operator snapshot)
 
 **Release:** `0.1.0-rc11s` · **Site:** https://hackme.tech · **Branch:** `main`  
-**Updated:** 2026-07-19 (pool growth · CVE Watch Day 13 published · Day 14 final fuzz next · B2B PoH path live)
+**Updated:** 2026-07-20 (hygiene refresh · as-of live metrics — re-check with scripts below)  
+**Git tip (local):** `4d34cd8` (fuzz settle queued-vs-paid + HMS payment edges after `91b99b4`)
 
-| Highlight (2026-07-19) | |
-|------------------------|--|
-| **Live pool** | ~11 online / ~12–13 registered · ~100–145 GH/s · hybrid signer strict · auto `target_mod` · external miners joining |
-| **Settlement** | HMC + SUP timers + autopilot **active** on VPS · unpaid fleet normally **&lt;3 HMC** between scans |
-| **B2B / PoH** | Bootstrap PoH deep orders completing (`workerfuzz` on hub · `pool_distributed`) · scheduler returns to `baseline` |
-| **Research** | OSS CVE Watch **Day 13/14** published CLEAN ([day13.html](https://hackme.tech/reports/oss-cve-watch/day13.html) · 0.36B exec · cum ~11.29B) · **Day 14 final fuzz** next |
+| Highlight (as of 2026-07-20) | |
+|------------------------------|--|
+| **Live pool** | Hybrid signer strict · auto `target_mod` · external miners joining — verify with `run_pool_health_check.sh` |
+| **Settlement** | HMC + SUP timers + autopilot on VPS — check fleet unpaid via `/api/worker/settlement`, not a fixed “&lt;3 HMC” claim |
+| **B2B / PoH** | Bootstrap PoH deep orders completing (`workerfuzz` · `pool_distributed`) · scheduler returns to `baseline` |
+| **Research** | OSS CVE Watch **Day 13** published CLEAN ([day13.html](https://hackme.tech/reports/oss-cve-watch/day13.html)) · Day 14 next |
 | **Tests** | Prefer `go test ./...` · `public_site_smoke.sh` · `version_consistency_gate` before release cuts |
 
 | Area | Verdict |
 |------|---------|
-| Public pool + coordinator | **Live** — `signed_submits_accepted` ≫ rejected |
+| Public pool + coordinator | **Live** — confirm `signed_submits_accepted` ≫ rejected on VPS |
 | HMC settlement | **Live** — settle scripts + systemd + autopilot |
 | SUP (accrual + on-chain) | **Live** — settle SUP + timer |
 | Win/Linux/ISO (rc11s) | **Published** — verify SHA256 on downloads page |
-| Security audit (prod) | **16/16 PASS** |
+| Security audit (prod) | **16/16 PASS** (prior gate; re-run before major cuts) |
 | Miner launch gate | **GO** — `bash scripts/ops/run_miner_launch_gate.sh` |
 | Fuzzing B2B | **Live** — wizard + pool-distributed workers + CI gate |
-| OSS CVE Watch | **Day 13 live** · Day 14 final fuzz next · gate refuses stubs |
+| OSS CVE Watch | **Day 13 live** · Day 14 next · gate refuses stubs |
+| HMS | **Prelaunch** — not public; do not open to miners |
 
 ## Pool health (how to measure)
 
@@ -54,4 +56,4 @@ Reports land in `reports/pool-health-<timestamp>/` (see `difficulty.tsv` for M d
 | `web/site/assets/app.js` → `RELEASE_VER` / `ISO_CHANNEL` | Site + dashboard download URLs |
 | `main.go` → `Version` | Node binary embed (rebuild/deploy to match) |
 
-Detail: [HACKME_RC11S.md](HACKME_RC11S.md) · Ops: [OPERATIONS_MONITORING.md](OPERATIONS_MONITORING.md)
+Detail: [HACKME_RC11S.md](HACKME_RC11S.md) · Historical: [HACKME_RC11R.md](HACKME_RC11R.md) · Ops: [OPERATIONS_MONITORING.md](OPERATIONS_MONITORING.md)

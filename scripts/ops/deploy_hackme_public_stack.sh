@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Operator-only. Prefer DRY_RUN=1 when the script supports it. Confirm remote target before run.
 # One-shot public deploy: TLS nginx vhost → hackme-node (+ coordinator restart) → static site (+ optional dist).
 #
 # Requires passwordless SSH and sudo nginx on the remote (see README → hackme-vps).

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Operator-only. Prefer DRY_RUN=1 when the script supports it. Confirm remote target before run.
 # Sync public landing (web/site) + release bundles (dist/) to VPS nginx root.
 #
 # Remote layout matches scripts/ops/site_ip_up.sh:

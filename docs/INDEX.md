@@ -18,7 +18,7 @@
 | [OPEN_POOL_MINERS.md](OPEN_POOL_MINERS.md) | Public pool rules & fairness |
 | [NETWORK_MODEL.md](NETWORK_MODEL.md) | Coordinator, settlement, P2P |
 | [GPU_MINING_BACKENDS.md](GPU_MINING_BACKENDS.md) | CUDA / OpenCL / CPU |
-| [HACKME_OS.md](HACKME_OS.md) | Bootable rig OS (supersedes MINER_ISO.md) |
+| [HACKME_OS.md](HACKME_OS.md) | Bootable rig OS (`MINER_ISO.md` is a stub redirect only) |
 | [MINER_WINDOWS_ONE_CLICK.md](MINER_WINDOWS_ONE_CLICK.md) | Windows installer |
 | [COORDINATOR_MEGA_STRESS.md](COORDINATOR_MEGA_STRESS.md) | Stress test results |
 | [MEMORY_LEAK_SPEC.md](MEMORY_LEAK_SPEC.md) | Coordinator memory spec |
@@ -87,7 +87,9 @@
 | [STATUS.md](STATUS.md) | **Current** operator snapshot (start here for “is prod OK?”) |
 | [PUBLIC_LAUNCH_VERDICT.md](PUBLIC_LAUNCH_VERDICT.md) | Launch criteria |
 | [HACKME_RC11S.md](HACKME_RC11S.md) | **Current** Win/Linux + ISO channel |
+| [HACKME_RC11R.md](HACKME_RC11R.md) | **Historical** prior RC (see also `archive/rc/`) |
 | [scripts/release/README.md](../scripts/release/README.md) | Build ISO / Windows / bundles |
+| [scripts/ops/README.md](../scripts/ops/README.md) | Ops scripts — supported vs experimental |
 | [TESTING.md](TESTING.md) | Test matrix |
 | [NGINX_DOWNLOADS_INTEREST.md](NGINX_DOWNLOADS_INTEREST.md) | Download analytics |
 | [MININGPOOLSTATS_LISTING.md](MININGPOOLSTATS_LISTING.md) | MPS listing notes |

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Operator-only. Prefer DRY_RUN=1 when the script supports it. Confirm remote target before run.
 # Wait for VPS SSH, run emergency recover, deploy binary node + static site.
 # Usage (laptop):
 #   HACKME_DEPLOY_SSH_IDENTITY=~/.ssh/cursor_vps bash scripts/ops/vps_recover_and_deploy.sh
