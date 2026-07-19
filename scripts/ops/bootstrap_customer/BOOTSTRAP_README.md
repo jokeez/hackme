@@ -25,7 +25,7 @@ No miner binary update for the PoH rail. Deep fuzz corpus work is still a separa
 |---------|---------|
 | `hackme-bootstrap-node.service` | Customer node → `https://hackme.tech` canonical |
 | `hackme-workerpoh.service` | CPU miner (unchanged) |
-| `hackme-bootstrap-bot.timer` | New audit order every **6h** (~**4 orders/day**) |
+| `hackme-bootstrap-bot.timer` | New audit order every **6h** (~**4 orders/day**) · deep budgets (~6–12 HMC, ~16k–48k runs) |
 
 ## Targets (rotation)
 `nghttp2` → `md4c` → `cjson` → `jsmn` → `yyjson` → `expat` → …

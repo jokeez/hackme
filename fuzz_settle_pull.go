@@ -16,46 +16,63 @@ func (a *app) pullFuzzSettleOutbox(ctx context.Context) {
 	if a.chain == nil || !poolSyncCoordinatorConfigured() {
 		return
 	}
-	items, err := poolsync.FetchSettleOutbox(ctx, 64)
-	if err != nil {
-		log.Printf("fuzz settle pull: fetch outbox: %v", err)
-		return
-	}
-	if len(items) == 0 {
-		return
-	}
-	acked := make([]int64, 0, len(items))
-	for _, it := range items {
-		st, local := a.localFuzzEscrowStatus(ctx, it.CampaignID)
-		if !local {
-			continue
+	// Multi-pass catch-up: a few foreign/stale head rows used to pin the oldest-first
+	// outbox window so local campaigns never drained (seen with leftover b2b-* rows).
+	totalAcked := 0
+	for pass := 0; pass < 6; pass++ {
+		items, err := poolsync.FetchSettleOutbox(ctx, 256)
+		if err != nil {
+			log.Printf("fuzz settle pull: fetch outbox: %v", err)
+			return
 		}
-		apply, drain := fuzzSettleOutboxAction(st, it.Kind)
-		if drain {
-			acked = append(acked, it.ID)
-			continue
+		if len(items) == 0 {
+			break
 		}
-		if !apply {
-			continue
-		}
-		if err := a.applyLocalFuzzSettleOnce(ctx, it); err != nil {
-			if fuzzSettleOutboxDrainOnErr(err) {
+		acked := make([]int64, 0, len(items))
+		localHits := 0
+		for _, it := range items {
+			st, local := a.localFuzzEscrowStatus(ctx, it.CampaignID)
+			if !local {
+				continue
+			}
+			localHits++
+			apply, drain := fuzzSettleOutboxAction(st, it.Kind)
+			if drain {
 				acked = append(acked, it.ID)
 				continue
 			}
-			log.Printf("fuzz settle pull: campaign %s kind %s: %v", it.CampaignID, it.Kind, err)
-			continue
+			if !apply {
+				continue
+			}
+			if err := a.applyLocalFuzzSettleOnce(ctx, it); err != nil {
+				if fuzzSettleOutboxDrainOnErr(err) {
+					acked = append(acked, it.ID)
+					continue
+				}
+				log.Printf("fuzz settle pull: campaign %s kind %s: %v", it.CampaignID, it.Kind, err)
+				continue
+			}
+			acked = append(acked, it.ID)
 		}
-		acked = append(acked, it.ID)
+		if len(acked) == 0 {
+			// Head of queue is all foreign to this node — stop spinning this tick.
+			if localHits == 0 {
+				log.Printf("fuzz settle pull: %d outbox row(s) not local to this node (head blocked)", len(items))
+			}
+			break
+		}
+		if err := poolsync.AckSettleOutbox(ctx, acked); err != nil {
+			log.Printf("fuzz settle pull: ack: %v", err)
+			return
+		}
+		totalAcked += len(acked)
+		if len(acked) < 64 {
+			break
+		}
 	}
-	if len(acked) == 0 {
-		return
+	if totalAcked > 0 {
+		log.Printf("fuzz settle pull: applied %d outbox row(s)", totalAcked)
 	}
-	if err := poolsync.AckSettleOutbox(ctx, acked); err != nil {
-		log.Printf("fuzz settle pull: ack: %v", err)
-		return
-	}
-	log.Printf("fuzz settle pull: applied %d outbox row(s)", len(acked))
 }
 
 func (a *app) localFuzzEscrowStatus(ctx context.Context, campaignID string) (status string, ok bool) {
