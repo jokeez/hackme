@@ -330,8 +330,13 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 		 JOIN fuzz_work_items w ON w.campaign_id = c.id
 		 WHERE c.status IN ('planned','running')
 		   AND (w.status='pending' OR (w.status='leased' AND w.lease_until < ?))
+		   AND lower(c.id) NOT LIKE '%probe%'
+		   AND lower(c.id) NOT LIKE 'pool-sync-gate%'
+		   AND lower(c.id) NOT LIKE 'pool-sync-node-%'
+		   AND lower(c.id) NOT LIKE 'campaign-gate-%'
+		   AND lower(c.id) NOT LIKE 'campaign-diag%'
 		 ORDER BY w.updated_at ASC
-		 LIMIT 256`, now)
+		 LIMIT 512`, now)
 	if err != nil {
 		return out, false, err
 	}
