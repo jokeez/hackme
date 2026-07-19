@@ -103,6 +103,15 @@ else
   unset HASHRATE_GHS 2>/dev/null || true
 fi
 
+# Fast CUDA desktops with CLAIM_COOLDOWN_MS=0 hammer claim/submit → 429 bans + idle GPU.
+# Floor at 100ms unless operator explicitly sets HACKME_WORKER_ALLOW_ZERO_COOLDOWN=1.
+if [[ "${HACKME_WORKER_CLAIM_COOLDOWN_MS:-}" == "0" ]] && [[ "${HACKME_WORKER_ALLOW_ZERO_COOLDOWN:-0}" != "1" ]]; then
+  if [[ "${HACKME_DESKTOP_GPU_POOL:-0}" == "1" ]] || [[ "${HACKME_GPU_BACKEND:-}" == "cuda" ]]; then
+    echo "[worker-autostart] CLAIM_COOLDOWN_MS=0 → 100 (set HACKME_WORKER_ALLOW_ZERO_COOLDOWN=1 to keep 0)"
+    export HACKME_WORKER_CLAIM_COOLDOWN_MS=100
+  fi
+fi
+
 if [[ -z "${COORD_TOKEN}" ]]; then
   echo "[worker-autostart] set COORD_TOKEN (or COORD_ADMIN_TOKEN/ADMIN_TOKEN)" >&2
   exit 1
@@ -340,6 +349,24 @@ PY
   (
     if [[ -n "${slot_env_exports:-}" ]]; then
       eval "$slot_env_exports"
+    fi
+    # Fleet/rig profile may re-inject CLAIM_COOLDOWN_MS=0 / small batch after the global floor above.
+    if [[ "${HACKME_WORKER_CLAIM_COOLDOWN_MS:-}" == "0" ]] && [[ "${HACKME_WORKER_ALLOW_ZERO_COOLDOWN:-0}" != "1" ]]; then
+      if [[ "${HACKME_DESKTOP_GPU_POOL:-0}" == "1" ]] || [[ "${slot_backend}" == "cuda" ]]; then
+        echo "[worker-autostart] slot CLAIM_COOLDOWN_MS=0 → 100"
+        export HACKME_WORKER_CLAIM_COOLDOWN_MS=100
+      fi
+    fi
+    # Prefer large PoH batches on fast CUDA desktops (fewer HTTPS RTTs per attempt). Cap by env override.
+    if [[ "${slot_backend}" == "cuda" ]] || [[ "${HACKME_DESKTOP_GPU_POOL:-0}" == "1" ]]; then
+      want_batch="${HACKME_WORKER_BATCH_SIZE_FORCE:-16777216}"
+      cur_batch="${slot_batch:-${BATCH_SIZE:-0}}"
+      if [[ "$cur_batch" =~ ^[0-9]+$ ]] && (( cur_batch < want_batch )); then
+        echo "[worker-autostart] slot batch ${cur_batch} → ${want_batch} (fewer claim RTTs)"
+        slot_batch="$want_batch"
+        export BATCH_SIZE="$want_batch"
+        export HACKME_WORKER_BATCH_SIZE="$want_batch"
+      fi
     fi
     if [[ "$slot_backend" == "opencl" ]]; then
       export HACKME_FORCE_OPENCL=1
