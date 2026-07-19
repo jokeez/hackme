@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -210,9 +211,16 @@ func newWorkManagerFromEnv() *workManager {
 		}
 	}
 	mod := uint64(5_000_000)
+	modFromEnv := false
 	if v := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_TARGET_MOD")); v != "" {
 		if x, err := strconv.ParseUint(v, 10, 64); err == nil && x > 0 {
 			mod = x
+			modFromEnv = true
+		}
+	}
+	if !modFromEnv {
+		if persisted := loadPersistedPoolTargetMod(); persisted > 0 {
+			mod = persisted
 		}
 	}
 	minM := uint64(poolTargetModMin)
@@ -353,7 +361,7 @@ func newWorkManagerFromEnv() *workManager {
 			poolRetargetMinSec = x
 		}
 	}
-	return &workManager{
+	wm := &workManager{
 		defaultBatch:             batch,
 		maxClaimBatch:            maxClaim,
 		targetMod:                mod,
@@ -398,6 +406,8 @@ func newWorkManagerFromEnv() *workManager {
 		supPolicy:                supPolicyFromEnv(),
 		supMeta:                  make(map[string]workerSupMeta),
 	}
+	persistPoolTargetMod(mod)
+	return wm
 }
 
 func (m *workManager) targetModMinOrDefault() uint64 {
@@ -405,6 +415,42 @@ func (m *workManager) targetModMinOrDefault() uint64 {
 		return poolTargetModMin
 	}
 	return m.targetModMin
+}
+
+func poolTargetModPersistPath() string {
+	if v := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_TARGET_MOD_FILE")); v != "" {
+		return v
+	}
+	dbPath := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_DB"))
+	if dbPath == "" {
+		dbPath = "data/coordinator.db"
+	}
+	return filepath.Join(filepath.Dir(dbPath), "coordinator_target_mod.txt")
+}
+
+func loadPersistedPoolTargetMod() uint64 {
+	b, err := os.ReadFile(poolTargetModPersistPath())
+	if err != nil {
+		return 0
+	}
+	v := strings.TrimSpace(string(b))
+	if v == "" {
+		return 0
+	}
+	x, err := strconv.ParseUint(v, 10, 64)
+	if err != nil || x == 0 {
+		return 0
+	}
+	return x
+}
+
+func persistPoolTargetMod(mod uint64) {
+	if mod == 0 {
+		return
+	}
+	path := poolTargetModPersistPath()
+	_ = os.MkdirAll(filepath.Dir(path), 0o755)
+	_ = os.WriteFile(path, []byte(strconv.FormatUint(mod, 10)+"\n"), 0o644)
 }
 
 func (m *workManager) targetModMaxOrDefault() uint64 {
@@ -714,6 +760,7 @@ func (m *workManager) maybeRetargetPoolMod(now int64) {
 			m.targetMod = next
 			m.targetModUpdatedUnix = now
 			m.lastPoolRetargetUnix = now
+			persistPoolTargetMod(next)
 			if m.rewardAuto && m.baseRewardHMC > 0 {
 				m.rewardPerM = (m.baseRewardHMC * 1_000_000.0) / float64(m.targetMod)
 				if m.rewardPerM < 0 {
@@ -759,7 +806,14 @@ func (m *workManager) maybeRetargetPoolLoadLocked(now int64, poolGH float64, min
 	}
 	var next uint64
 	if target > prev {
-		next = uint64(float64(prev)*1.06 + 0.5)
+		// Catch up faster after coordinator restart (M resets to default while load hint is huge).
+		ratio := 1.06
+		if target > prev*4 {
+			ratio = 1.35
+		} else if target > prev*2 {
+			ratio = 1.18
+		}
+		next = uint64(float64(prev)*ratio + 0.5)
 		if next > target {
 			next = target
 		}
@@ -776,6 +830,7 @@ func (m *workManager) maybeRetargetPoolLoadLocked(now int64, poolGH float64, min
 	m.targetMod = next
 	m.targetModUpdatedUnix = now
 	m.lastPoolRetargetUnix = now
+	persistPoolTargetMod(next)
 	if m.rewardAuto && m.baseRewardHMC > 0 {
 		m.rewardPerM = (m.baseRewardHMC * 1_000_000.0) / float64(m.targetMod)
 		if m.rewardPerM < 0 {

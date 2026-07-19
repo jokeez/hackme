@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"math"
+	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
@@ -1035,6 +1036,35 @@ func newTestWorkManagerForPayout(rewardPerM float64, payoutFoundOnly bool) *work
 		dropReasonCount:      make(map[string]uint64),
 		acceptedResultHashes: make(map[string]struct{}),
 		acceptedFoundNonces:  make(map[uint64]struct{}),
+	}
+}
+
+func TestPoolLoadCatchUpAfterRestart(t *testing.T) {
+	wm := &workManager{
+		targetMod:          5_000_000, // default after restart
+		targetModMin:       poolTargetModMin,
+		targetModMax:       poolTargetModMax,
+		poolRetarget:       true,
+		poolRetargetMinSec: 1,
+		poolGHSmoothed:     100,
+	}
+	now := time.Now().Unix()
+	// With ~100 GH/s, load hint ≈ 200M; catch-up should climb much faster than +6%/tick.
+	for i := 0; i < 20; i++ {
+		wm.maybeRetargetPoolLoadLocked(now+int64(i*20), 100.0, 10)
+	}
+	if wm.targetMod < 40_000_000 {
+		t.Fatalf("expected fast catch-up toward ~200M load hint, got M=%d", wm.targetMod)
+	}
+}
+
+func TestPersistPoolTargetModRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HACKME_COORDINATOR_TARGET_MOD_FILE", filepath.Join(dir, "m.txt"))
+	persistPoolTargetMod(123456789)
+	got := loadPersistedPoolTargetMod()
+	if got != 123456789 {
+		t.Fatalf("got %d", got)
 	}
 }
 

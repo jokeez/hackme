@@ -36,6 +36,7 @@ func TestHandleWalletDesktopLoopbackShowsTreasury(t *testing.T) {
 	t.Setenv("HACKME_ADMIN_TOKEN", tok)
 	t.Setenv("HACKME_DESKTOP_MODE", "1")
 	req := httptest.NewRequest(http.MethodGet, "/api/wallet", nil)
+	req.RemoteAddr = "127.0.0.1:54321" // loopback trust is RemoteAddr-only (Host is spoofable)
 	req.Host = "127.0.0.1:8080"
 	rec := httptest.NewRecorder()
 	a.handleWallet(rec, req)
