@@ -318,6 +318,27 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		if wm != nil {
 			attach = wm.attachPoHOrderFromFuzzConfig(req.ID, req.Config)
 		}
+		wantAttach := false
+		if req.Config != nil {
+			wantAttach = configTruthy(req.Config, "attach_poh_order", "create_poh_order")
+		}
+		if wantAttach {
+			okAttach, _ := attach["ok"].(bool)
+			skipped, _ := attach["skipped"].(bool)
+			if !okAttach && !skipped {
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+				w.WriteHeader(http.StatusPaymentRequired)
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"ok":               false,
+					"campaign_id":      req.ID,
+					"pool_distributed": true,
+					"attach_poh_order": attach,
+					"error":            "poh_attach_failed",
+					"reason":           attach["reason"],
+				})
+				return
+			}
+		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"ok":               true,

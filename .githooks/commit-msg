@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+MSG_FILE="${1:-}"
+[[ -n "$MSG_FILE" && -f "$MSG_FILE" ]] || exit 0
+grep -v -E '^Co-authored-by: Cursor <cursoragent@cursor.com>$' "$MSG_FILE" >"$MSG_FILE.tmp" || true
+mv "$MSG_FILE.tmp" "$MSG_FILE"
+exit 0
