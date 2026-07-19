@@ -72,6 +72,9 @@ func main() {
 	if requireToken && token == "" && !allowInsecure {
 		log.Fatal("security: HACKME_COORDINATOR_ADMIN_TOKEN is required (or set HACKME_COORDINATOR_ALLOW_INSECURE=1 for loopback-only dev)")
 	}
+	if allowInsecure && !coordinatorBindLoopbackOnly(addr) {
+		log.Fatal("security: HACKME_COORDINATOR_ALLOW_INSECURE=1 is only allowed on loopback bind (got " + addr + ")")
+	}
 	if token == "" && !coordinatorBindLoopbackOnly(addr) && !allowInsecure {
 		log.Fatal("security: coordinator bind " + addr + " is not loopback-only — set HACKME_COORDINATOR_ADMIN_TOKEN")
 	}

@@ -584,6 +584,9 @@ func main() {
 	if requireAdmin && !adminAuthEnabled() {
 		log.Fatal("security: HACKME_ADMIN_TOKEN is required (set HACKME_ADMIN_TOKEN or explicitly disable with HACKME_REQUIRE_ADMIN_TOKEN=0)")
 	}
+	if !requireAdmin && !bindAddrAllowsBeginnerSolo(addr) {
+		log.Fatal("security: HACKME_REQUIRE_ADMIN_TOKEN=0 is only allowed on loopback bind (got " + addr + ")")
+	}
 	uiPort := "8080"
 	if _, p, err := net.SplitHostPort(addr); err == nil && p != "" {
 		uiPort = p

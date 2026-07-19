@@ -326,6 +326,8 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			okAttach, _ := attach["ok"].(bool)
 			skipped, _ := attach["skipped"].(bool)
 			if !okAttach && !skipped {
+				// Roll back campaign + work so a failed PoH escrow cannot leave claimable pool work.
+				_ = pf.SetCampaignStatus(r.Context(), req.ID, "cancelled")
 				w.Header().Set("Content-Type", "application/json; charset=utf-8")
 				w.WriteHeader(http.StatusPaymentRequired)
 				_ = json.NewEncoder(w).Encode(map[string]any{
@@ -335,6 +337,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 					"attach_poh_order": attach,
 					"error":            "poh_attach_failed",
 					"reason":           attach["reason"],
+					"rolled_back":      true,
 				})
 				return
 			}

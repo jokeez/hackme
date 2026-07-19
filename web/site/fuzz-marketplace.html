@@ -66,9 +66,9 @@
           return;
         }
         body.innerHTML = rows.map(c => `<tr>
-          <td><code>${c.id}</code></td>
+          <td><code>${escapeHtml(String(c.id || ''))}</code></td>
           <td>${escapeHtml(c.title || '')}</td>
-          <td>${c.status}</td>
+          <td>${escapeHtml(String(c.status || ''))}</td>
           <td>${c.runs_done || 0} / ${c.budget_runs || 0}</td>
           <td>${c.findings || 0}</td>
           <td>${c.budget_hmc ? c.budget_hmc.toFixed(2) : '—'}</td>

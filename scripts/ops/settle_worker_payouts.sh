@@ -126,8 +126,28 @@ tx_response_ok() {
   ok="$(jq -r '(.ok // false) | tostring' <<<"$resp" 2>/dev/null | tr -d '\r\n' || echo "false")"
   status="$(jq -r '.status // ""' <<<"$resp" 2>/dev/null | tr -d '\r\n' || echo "")"
   tx_hash="$(jq -r '.tx_hash // ""' <<<"$resp" 2>/dev/null | tr -d '\r\n' || echo "")"
+  [[ "$tx_hash" == "nonce-advanced" || "$tx_hash" == "ok" ]] && return 1
   [[ "$ok" == "true" && -n "$tx_hash" ]] && return 0
   [[ -n "$tx_hash" && "$status" =~ ^(pending|accepted|included)$ ]] && return 0
+  return 1
+}
+
+# Confirm tx exists on chain API before advancing settled_hmc bookkeeping.
+verify_settlement_tx() {
+  local tx_hash="$1"
+  local tries="${2:-8}"
+  local i=0 status=""
+  [[ -n "$tx_hash" ]] || return 1
+  [[ "$tx_hash" == "nonce-advanced" || "$tx_hash" == "ok" ]] && return 1
+  while (( i < tries )); do
+    status="$(curl -fsS "${CHAIN_BASE}/api/tx/${tx_hash}" 2>/dev/null | jq -r '.status // .tx.status // ""' 2>/dev/null | tr -d '\r\n' || echo "")"
+    case "$status" in
+      pending|accepted|included) return 0 ;;
+      rejected) return 1 ;;
+    esac
+    sleep 1
+    i=$((i + 1))
+  done
   return 1
 }
 
@@ -386,16 +406,17 @@ PY
   if ! tx_response_ok "${resp:-{}}"; then
     nonce_after="$(payer_nonce "$payer_addr" 2>/dev/null || echo "$nonce_before")"
     if [[ "$nonce_after" =~ ^[0-9]+$ && "$nonce_before" =~ ^[0-9]+$ && "$nonce_after" -gt "$nonce_before" ]]; then
-      ok="true"
-      tx_hash="$(jq -r '.tx_hash // "nonce-advanced"' <<<"${resp:-{}}")"
-      echo "[settle-workers] recovered ${worker_id} via nonce advance (${nonce_before}->${nonce_after})"
+      echo "[settle-workers] WARN ${worker_id}: ambiguous send (nonce ${nonce_before}->${nonce_after}) without verifiable tx_hash — not marking settled" >&2
     else
       echo "[settle-workers] ERROR settle ${worker_id} -> ${to_addr}: ${resp:-curl_failed}" >&2
-      continue
     fi
+    continue
   fi
   tx_hash="$(jq -r '.tx_hash // ""' <<<"${resp:-{}}" 2>/dev/null || echo "")"
-  [[ -n "$tx_hash" ]] || tx_hash="ok"
+  if [[ -z "$tx_hash" ]] || ! verify_settlement_tx "$tx_hash"; then
+    echo "[settle-workers] ERROR settle ${worker_id}: tx_hash missing or not confirmed on chain (${tx_hash:-empty})" >&2
+    continue
+  fi
   settled_any=1
   payouts_sent=$((payouts_sent + 1))
   echo "[settle-workers] settled ${worker_id} -> ${to_addr} delta=${delta_hmc} HMC tx=${tx_hash}"
