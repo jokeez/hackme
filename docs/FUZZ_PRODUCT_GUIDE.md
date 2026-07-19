@@ -66,7 +66,9 @@ Reference script: **`scripts/tests/fuzz_runtime_gate.sh`**.
 
 ## 4) CI / release gate endpoint
 
-**GET** `/api/fuzz/campaigns/{id}/gate?max_critical=0&max_high=0&max_severity_score=0&min_sample_size=1`
+**GET** `/api/fuzz/campaigns/{id}/gate?max_critical=0&max_high=0&max_severity_score=0&min_sample_size=1&min_runs_done=50`
+
+`sample_size` is the **finding count** in the report sample, not executions. Gate `pass` / CLEAN wording means thresholds were met — not “proven secure”. Use `min_runs_done` for real execution depth.
 
 Returns **`pass`** plus **`reasons[]`** when thresholds are violated. Same auth as report (**report token** or **admin**).
 

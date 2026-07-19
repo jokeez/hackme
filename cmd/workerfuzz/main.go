@@ -90,11 +90,21 @@ func main() {
 		cr, err := claim(cl, base, *token, *workerID)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "claim:", err)
-			time.Sleep(2 * time.Second)
+			// 429 / temporary ban: back off hard so idle canary does not extend bans
+			sleep := 2 * time.Second
+			msg := strings.ToLower(err.Error())
+			if strings.Contains(msg, "429") || strings.Contains(msg, "banned") || strings.Contains(msg, "no_fuzz_work") {
+				sleep = 30 * time.Second
+			}
+			time.Sleep(sleep)
 			continue
 		}
 		if !cr.OK {
-			time.Sleep(2 * time.Second)
+			sleep := 2 * time.Second
+			if strings.Contains(strings.ToLower(cr.Reason), "banned") || strings.Contains(strings.ToLower(cr.Reason), "no_fuzz_work") {
+				sleep = 30 * time.Second
+			}
+			time.Sleep(sleep)
 			continue
 		}
 		checkRet, durMS, trap := runCheck(cr, *timeoutMS)

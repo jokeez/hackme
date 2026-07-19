@@ -1925,6 +1925,11 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 	} else if sampleN >= 20 {
 		confidence = "medium"
 	}
+	runsDone := intFromAny(c.Summary["runs_done"])
+	assuranceNote := "sample_size is finding count, not executions; pass/CLEAN ≠ proven secure"
+	if vulnerabilitiesFound == 0 {
+		assuranceNote = "CLEAN/no findings in sampled report only — not a proof of security; sample_size is finding count, not executions"
+	}
 	engineMeta := fuzzEngineMetaFromConfig(c.Config)
 	return map[string]any{
 		"ok":                true,
@@ -1932,6 +1937,7 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 		"fuzz_engine":       engineMeta,
 		"generated_at_unix": time.Now().Unix(),
 		"campaign":          c,
+		"assurance_note":    assuranceNote,
 		"security_summary": map[string]any{
 			"vulnerabilities_found": vulnerabilitiesFound,
 			"exploitable_count":     exploitableCount,
@@ -1941,7 +1947,10 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 			"low_count":             low,
 			"info_count":            info,
 			"sample_size":           sampleN,
+			"sample_size_unit":      "findings",
+			"runs_done":             runsDone,
 			"confidence":            confidence,
+			"assurance_note":        assuranceNote,
 		},
 		"verdict":         verdict,
 		"top_issues":      topIssues,
@@ -1951,6 +1960,7 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 			"by_severity":    bySeverity,
 			"by_type":        byType,
 			"severity_score": critical*100 + high*40 + medium*10 + low*3 + info,
+			"runs_done":      runsDone,
 		},
 		"findings": findings,
 	}, nil
@@ -2075,6 +2085,7 @@ func (a *app) handleFuzzCampaignGate(w http.ResponseWriter, r *http.Request, cam
 	maxHigh := 0
 	maxSeverityScore := 0
 	minSampleSize := 1
+	minRunsDone := 0
 	if s := strings.TrimSpace(r.URL.Query().Get("max_critical")); s != "" {
 		if n, err := strconv.Atoi(s); err == nil && n >= 0 {
 			maxCritical = n
@@ -2095,9 +2106,18 @@ func (a *app) handleFuzzCampaignGate(w http.ResponseWriter, r *http.Request, cam
 			minSampleSize = n
 		}
 	}
+	if s := strings.TrimSpace(r.URL.Query().Get("min_runs_done")); s != "" {
+		if n, err := strconv.Atoi(s); err == nil && n >= 0 {
+			minRunsDone = n
+		}
+	}
 	critical := intFromAny(summary["critical_count"])
 	high := intFromAny(summary["high_count"])
 	sampleSize := intFromAny(summary["sample_size"])
+	runsDone := intFromAny(summary["runs_done"])
+	if runsDone <= 0 {
+		runsDone = intFromAny(totals["runs_done"])
+	}
 	severityScore := intFromAny(totals["severity_score"])
 	pass := true
 	reasons := make([]string, 0, 4)
@@ -2115,27 +2135,39 @@ func (a *app) handleFuzzCampaignGate(w http.ResponseWriter, r *http.Request, cam
 	}
 	if sampleSize < minSampleSize {
 		pass = false
-		reasons = append(reasons, "sample_size below required minimum")
+		reasons = append(reasons, "sample_size (finding count) below required minimum")
+	}
+	if runsDone < minRunsDone {
+		pass = false
+		reasons = append(reasons, "runs_done below required minimum")
 	}
 	if len(reasons) == 0 {
 		reasons = append(reasons, "all thresholds satisfied")
 	}
+	assurance, _ := report["assurance_note"].(string)
+	if assurance == "" {
+		assurance = "pass ≠ proven secure; sample_size is finding count, not executions"
+	}
 	writeJSON(w, map[string]any{
-		"ok":          true,
-		"campaign_id": campaignID,
-		"pass":        pass,
-		"reasons":     reasons,
+		"ok":             true,
+		"campaign_id":    campaignID,
+		"pass":           pass,
+		"reasons":        reasons,
+		"assurance_note": assurance,
 		"thresholds": map[string]any{
 			"max_critical":       maxCritical,
 			"max_high":           maxHigh,
 			"max_severity_score": maxSeverityScore,
 			"min_sample_size":    minSampleSize,
+			"min_runs_done":      minRunsDone,
+			"sample_size_unit":   "findings",
 		},
 		"observed": map[string]any{
 			"critical_count": critical,
 			"high_count":     high,
 			"severity_score": severityScore,
 			"sample_size":    sampleSize,
+			"runs_done":      runsDone,
 		},
 	})
 }

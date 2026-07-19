@@ -102,7 +102,14 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 		   started_at=CASE WHEN fuzz_campaigns.started_at=0 THEN excluded.started_at ELSE fuzz_campaigns.started_at END`,
 		c.ID, strings.TrimSpace(c.CampaignType), status, strings.TrimSpace(c.Title), strings.TrimSpace(c.Description),
 		c.BudgetRuns, c.BudgetSeconds, marshalConfigJSON(cfg), marshalSummaryJSON(summary), now, now)
-	return err
+	if err != nil {
+		return err
+	}
+	// Seed work items once on register so claims do not need Tick-on-claim.
+	if status == "running" || status == "planned" {
+		_ = s.EnsureWorkItems(ctx, c.ID, now)
+	}
+	return nil
 }
 
 // SetCampaignStatus updates campaign lifecycle and cancels pending work when stopping.
@@ -314,9 +321,8 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 	if workerID == "" {
 		return out, false, fmt.Errorf("poolfuzz: worker_id required")
 	}
-	if err := s.Tick(ctx); err != nil {
-		return out, false, err
-	}
+	// Tick runs on the coordinator background ticker (every ~3s). Calling it on every
+	// claim re-scans campaigns under SQLite and chokes a real worker fleet.
 	leaseSec := leaseSeconds()
 	rows, err := s.DB.QueryContext(ctx,
 		`SELECT c.id, c.title, c.owner_ref, c.config_json, w.id, w.input_n

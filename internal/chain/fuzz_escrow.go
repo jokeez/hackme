@@ -32,6 +32,7 @@ type FuzzEscrowRow struct {
 	FindingWinner     string  `json:"finding_winner,omitempty"`
 	Status            string  `json:"status"`
 	RefundedBountyHMC float64 `json:"refunded_bounty_hmc,omitempty"`
+	RefundedRunsHMC   float64 `json:"refunded_runs_hmc,omitempty"`
 }
 
 // OpenFuzzEscrow locks budget from the primary wallet into a 20/80 split.
@@ -267,10 +268,12 @@ func (s *Service) CancelFuzzEscrow(ctx context.Context, campaignID string) (*Fuz
 		return nil, err
 	}
 	out.RefundedBountyHMC = UnitsToHMC(bountyRefund)
+	out.RefundedRunsHMC = UnitsToHMC(runsRefund)
 	return out, nil
 }
 
-// FinalizeFuzzEscrow refunds unused bounty pool to the primary wallet and closes escrow.
+// FinalizeFuzzEscrow refunds unused run-pool + bounty to the primary wallet and closes escrow.
+// Previously only bounty was refunded, which stranded unpaid runs_pool funds after time/budget complete.
 func (s *Service) FinalizeFuzzEscrow(ctx context.Context, campaignID string) (*FuzzEscrowRow, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -287,7 +290,12 @@ func (s *Service) FinalizeFuzzEscrow(ctx context.Context, campaignID string) (*F
 	if row.status == "closed" {
 		return s.GetFuzzEscrow(ctx, campaignID)
 	}
-	refund := row.bountyPoolUnits - row.bountyPaidUnits
+	runsRefund := row.runsPoolUnits - row.runsPaidUnits
+	bountyRefund := row.bountyPoolUnits - row.bountyPaidUnits
+	if row.status == "bounty_paid" {
+		bountyRefund = 0
+	}
+	refund := runsRefund + bountyRefund
 	if refund > 0 {
 		var walletAddr string
 		if err := tx.QueryRowContext(ctx, `SELECT address FROM wallet WHERE id=1`).Scan(&walletAddr); err != nil {
@@ -298,8 +306,8 @@ func (s *Service) FinalizeFuzzEscrow(ctx context.Context, campaignID string) (*F
 		}
 	}
 	if _, err := tx.ExecContext(ctx,
-		`UPDATE fuzz_campaign_escrow SET status='closed', refunded_bounty_units=? WHERE campaign_id=?`,
-		refund, campaignID); err != nil {
+		`UPDATE fuzz_campaign_escrow SET status='closed', refunded_bounty_units=refunded_bounty_units+? WHERE campaign_id=?`,
+		bountyRefund, campaignID); err != nil {
 		return nil, err
 	}
 	if err := s.checkEconomicInvariants(ctx, tx); err != nil {
@@ -312,7 +320,8 @@ func (s *Service) FinalizeFuzzEscrow(ctx context.Context, campaignID string) (*F
 	if err != nil {
 		return nil, err
 	}
-	out.RefundedBountyHMC = UnitsToHMC(refund)
+	out.RefundedBountyHMC = UnitsToHMC(bountyRefund)
+	out.RefundedRunsHMC = UnitsToHMC(runsRefund)
 	return out, nil
 }
 

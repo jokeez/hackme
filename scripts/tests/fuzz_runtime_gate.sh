@@ -106,6 +106,6 @@ echo "[9/9] gate"
 gate_resp="$(curl_api -x "" -sS \
   -H "X-Hackme-Admin-Token: ${ADMIN_TOKEN}" \
   "${BASE}/api/fuzz/campaigns/${cid}/gate?max_critical=0&max_high=5&max_severity_score=500&min_sample_size=1")"
-echo "${gate_resp}" | jq -e '.ok == true and (.pass != null)' >/dev/null
+echo "${gate_resp}" | jq -e '.ok == true and (.pass != null) and ((.assurance_note // "") | length) > 0 and (.observed.sample_size != null)' >/dev/null
 
 echo "fuzz_runtime_gate: PASS (campaign_id=${cid})"
