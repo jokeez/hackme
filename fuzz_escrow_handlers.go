@@ -23,8 +23,9 @@ func (a *app) handleFuzzPoolSettle(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Kind         string `json:"kind"`
 		CampaignID   string `json:"campaign_id"`
-		MinerAddress string `json:"miner_address"`
+		MinerAddress  string `json:"miner_address"`
 		Severity     string `json:"severity"`
+		EventID      string `json:"event_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_json", "invalid json", nil)
@@ -36,19 +37,28 @@ func (a *app) handleFuzzPoolSettle(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusBadRequest, "invalid_request", "campaign_id required", nil)
 		return
 	}
-	ctx := r.Context()
-	var row *chain.FuzzEscrowRow
-	var err error
 	switch kind {
-	case "run":
-		row, err = a.chain.PayFuzzRun(ctx, campaignID, req.MinerAddress)
-	case "finding", "bounty":
-		row, err = a.chain.PayFuzzBounty(ctx, campaignID, req.MinerAddress, req.Severity)
-	case "finalize", "close":
-		row, err = a.chain.FinalizeFuzzEscrow(ctx, campaignID)
+	case "run", "finding", "bounty", "finalize", "close":
 	default:
 		writeAPIError(w, http.StatusBadRequest, "invalid_kind", "kind must be run|finding|finalize", nil)
 		return
+	}
+	ctx := r.Context()
+	var row *chain.FuzzEscrowRow
+	var err error
+	eventID := strings.TrimSpace(req.EventID)
+	if eventID != "" {
+		row, _, err = a.chain.ApplyFuzzSettleOnce(ctx, eventID, kind, campaignID, req.MinerAddress, req.Severity)
+	} else {
+		// Legacy callers without event_id (pre-idempotent relay). Prefer event_id.
+		switch kind {
+		case "run":
+			row, err = a.chain.PayFuzzRun(ctx, campaignID, req.MinerAddress)
+		case "finding", "bounty":
+			row, err = a.chain.PayFuzzBounty(ctx, campaignID, req.MinerAddress, req.Severity)
+		case "finalize", "close":
+			row, err = a.chain.FinalizeFuzzEscrow(ctx, campaignID)
+		}
 	}
 	if err != nil {
 		status := http.StatusInternalServerError
@@ -62,7 +72,7 @@ func (a *app) handleFuzzPoolSettle(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, status, code, err.Error(), nil)
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "escrow": row})
+	writeJSON(w, map[string]any{"ok": true, "escrow": row, "event_id": eventID})
 }
 
 func (a *app) handleFuzzEscrowCleanupStale(w http.ResponseWriter, r *http.Request) {

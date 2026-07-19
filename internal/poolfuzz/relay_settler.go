@@ -14,6 +14,10 @@ import (
 
 // RelaySettler relays fuzz escrow settlements to the campaign origin node, or queues
 // pull-mode outbox rows when the origin is loopback-only (desktop behind NAT).
+//
+// Always enqueues a durable outbox row first so the event_id is stable. HTTP relay
+// carries that event_id; on timeout the pending outbox is left for pull settle —
+// never a second enqueue after a maybe-paid HTTP attempt.
 type RelaySettler struct {
 	DB               *sql.DB
 	Service          *Service
@@ -58,43 +62,54 @@ func (r *RelaySettler) Finalize(ctx context.Context, campaignID string) error {
 	return r.relay(ctx, "finalize", campaignID, "", "")
 }
 
+// SettleEventID mirrors chain.FuzzSettleEventID for coordinator→origin settle keys.
+func SettleEventID(outboxID int64) string {
+	return fmt.Sprintf("outbox:%d", outboxID)
+}
+
 func (r *RelaySettler) relay(ctx context.Context, kind, campaignID, minerAddress, severity string) error {
 	s := r.svc()
 	if s == nil {
 		return nil
 	}
+	outboxID, err := s.EnqueueSettleOutbox(ctx, kind, campaignID, minerAddress, severity)
+	if err != nil {
+		return err
+	}
 	base, pull := r.resolveSettleBase(ctx, campaignID)
 	if pull || base == "" {
-		return s.EnqueueSettleOutbox(ctx, kind, campaignID, minerAddress, severity)
+		return nil
 	}
 	tok := r.token()
 	if tok == "" {
-		return fmt.Errorf("fuzz settle: orders admin token missing")
+		// Durable outbox row already exists for pull; do not error (avoids re-enqueue).
+		return nil
 	}
+	eventID := SettleEventID(outboxID)
 	body, _ := json.Marshal(map[string]any{
 		"kind":          kind,
 		"campaign_id":   campaignID,
 		"miner_address": minerAddress,
 		"severity":      severity,
+		"event_id":      eventID,
 	})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(base, "/")+"/api/fuzz/pool/settle", bytes.NewReader(body))
 	if err != nil {
-		return err
+		return nil
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Hackme-Admin-Token", tok)
 	resp, err := r.client().Do(req)
 	if err != nil {
-		return s.EnqueueSettleOutbox(ctx, kind, campaignID, minerAddress, severity)
+		// Timeout / network: leave outbox pending. Do NOT enqueue again.
+		return nil
 	}
 	defer resp.Body.Close()
-	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusConflict {
-		return s.EnqueueSettleOutbox(ctx, kind, campaignID, minerAddress, severity)
+	_, _ = io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode == http.StatusOK {
+		_, _ = s.AckSettleOutbox(ctx, []int64{outboxID})
 	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("fuzz settle HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(raw)))
-	}
+	// Non-OK: leave pending for pull drain (same event_id). Never re-enqueue.
 	return nil
 }
 
@@ -107,17 +122,20 @@ func (r *RelaySettler) resolveSettleBase(ctx context.Context, campaignID string)
 	if err != nil || cfg == nil {
 		return strings.TrimRight(strings.TrimSpace(r.DefaultOrdersURL), "/"), false
 	}
-	if truthy(cfg["orders_settle_pull"]) {
-		return "", true
-	}
 	if v, ok := cfg["orders_settle_base"].(string); ok {
 		base = strings.TrimRight(strings.TrimSpace(v), "/")
-		if base != "" {
-			return base, isLoopbackSettleURL(base)
-		}
 	}
-	def := strings.TrimRight(strings.TrimSpace(r.DefaultOrdersURL), "/")
-	return def, isLoopbackSettleURL(def)
+	if base == "" {
+		base = strings.TrimRight(strings.TrimSpace(r.DefaultOrdersURL), "/")
+	}
+	if pullVal, ok := cfg["orders_settle_pull"]; ok {
+		if truthy(pullVal) {
+			return "", true
+		}
+		// Explicit false: attempt HTTP even for loopback bases (tests / rare local origin).
+		return base, false
+	}
+	return base, isLoopbackSettleURL(base)
 }
 
 func truthy(v any) bool {

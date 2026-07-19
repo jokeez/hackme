@@ -18,22 +18,30 @@ type SettleOutboxItem struct {
 	CreatedAt    int64  `json:"created_at"`
 }
 
-// EnqueueSettleOutbox records a settlement the coordinator could not HTTP-relay.
-func (s *Service) EnqueueSettleOutbox(ctx context.Context, kind, campaignID, minerAddress, severity string) error {
+// EnqueueSettleOutbox records a settlement for durable event-id based apply/pull.
+// Returns the outbox row id used as SettleEventID / chain.FuzzSettleEventID.
+func (s *Service) EnqueueSettleOutbox(ctx context.Context, kind, campaignID, minerAddress, severity string) (int64, error) {
 	if s == nil || s.DB == nil {
-		return fmt.Errorf("poolfuzz: no database")
+		return 0, fmt.Errorf("poolfuzz: no database")
 	}
 	kind = strings.TrimSpace(strings.ToLower(kind))
 	campaignID = strings.TrimSpace(campaignID)
 	if campaignID == "" || kind == "" {
-		return fmt.Errorf("poolfuzz: settle outbox missing kind or campaign_id")
+		return 0, fmt.Errorf("poolfuzz: settle outbox missing kind or campaign_id")
 	}
 	now := time.Now().Unix()
-	_, err := s.DB.ExecContext(ctx,
+	res, err := s.DB.ExecContext(ctx,
 		`INSERT INTO fuzz_settle_outbox (campaign_id, kind, miner_address, severity, status, created_at)
 		 VALUES (?, ?, ?, ?, 'pending', ?)`,
 		campaignID, kind, strings.TrimSpace(minerAddress), strings.TrimSpace(severity), now)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
 }
 
 // ListPendingSettleOutbox returns pending outbox rows oldest-first.

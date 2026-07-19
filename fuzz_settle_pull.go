@@ -121,7 +121,7 @@ func fuzzSettleOutboxDrainOnErr(err error) bool {
 }
 
 // applyLocalFuzzSettleOnce credits at most once per stable outbox event ID.
-// Durable applied-events are recorded before ACK; re-pull after lost ACK does not re-credit.
+// Pay + applied-event share one chain transaction (no crash underpay / no double-pay).
 func (a *app) applyLocalFuzzSettleOnce(ctx context.Context, it poolsync.SettleOutboxItem) error {
 	if a == nil || a.chain == nil {
 		return fmt.Errorf("fuzz settle: no chain")
@@ -130,20 +130,8 @@ func (a *app) applyLocalFuzzSettleOnce(ctx context.Context, it poolsync.SettleOu
 		return fmt.Errorf("fuzz settle: missing outbox event id")
 	}
 	eventID := chain.FuzzSettleEventID(it.ID)
-	newly, err := a.chain.MarkFuzzSettleApplied(ctx, eventID, it.CampaignID, it.Kind)
-	if err != nil {
-		return err
-	}
-	if !newly {
-		return nil // already paid / recorded — safe to ACK again
-	}
-	if err := a.applyLocalFuzzSettle(ctx, it); err != nil {
-		if !fuzzSettleOutboxDrainOnErr(err) {
-			_ = a.chain.UnmarkFuzzSettleApplied(ctx, eventID)
-		}
-		return err
-	}
-	return nil
+	_, _, err := a.chain.ApplyFuzzSettleOnce(ctx, eventID, it.Kind, it.CampaignID, it.MinerAddress, it.Severity)
+	return err
 }
 
 func (a *app) applyLocalFuzzSettle(ctx context.Context, it poolsync.SettleOutboxItem) error {

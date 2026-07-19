@@ -129,43 +129,18 @@ func (s *Service) PayFuzzRun(ctx context.Context, campaignID, minerAddress strin
 	defer s.mu.Unlock()
 	campaignID = strings.TrimSpace(campaignID)
 	minerAddress = strings.TrimSpace(minerAddress)
-	if !strings.HasPrefix(minerAddress, "HMC-") || len(minerAddress) != 20 {
-		return nil, errors.New("chain: valid miner_address required")
-	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	row, err := s.lockFuzzEscrowTx(ctx, tx, campaignID)
-	if err != nil {
-		return nil, err
-	}
-	if row.status != "open" {
-		return nil, ErrFuzzEscrowClosed
-	}
-	if row.runsPaidUnits+row.perRunUnits > row.runsPoolUnits {
-		return nil, ErrFuzzEscrowDepleted
-	}
-	pay := row.perRunUnits
-	if row.runsPaidUnits+pay > row.runsPoolUnits {
-		pay = row.runsPoolUnits - row.runsPaidUnits
-	}
-	if pay == 0 {
-		return nil, ErrFuzzEscrowDepleted
-	}
-	if err := s.creditUnits(ctx, tx, minerAddress, pay); err != nil {
-		return nil, err
-	}
-	if _, err := tx.ExecContext(ctx,
-		`UPDATE fuzz_campaign_escrow SET runs_paid_units=runs_paid_units+?, runs_done=runs_done+1 WHERE campaign_id=?`,
-		pay, campaignID); err != nil {
+	if err := s.payFuzzRunTx(ctx, tx, campaignID, minerAddress); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	return s.GetFuzzEscrow(ctx, campaignID)
+	return s.getFuzzEscrowUnlocked(ctx, campaignID)
 }
 
 // PayFuzzBounty pays the 80% pool to the first qualifying finder (minus 5% platform fee).
@@ -175,49 +150,18 @@ func (s *Service) PayFuzzBounty(ctx context.Context, campaignID, minerAddress, s
 	campaignID = strings.TrimSpace(campaignID)
 	minerAddress = strings.TrimSpace(minerAddress)
 	severity = strings.TrimSpace(strings.ToLower(severity))
-	if !strings.HasPrefix(minerAddress, "HMC-") || len(minerAddress) != 20 {
-		return nil, errors.New("chain: valid miner_address required")
-	}
-	if severity != "high" && severity != "critical" && severity != "medium" {
-		return nil, errors.New("chain: bounty severity must be medium|high|critical")
-	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	row, err := s.lockFuzzEscrowTx(ctx, tx, campaignID)
-	if err != nil {
-		return nil, err
-	}
-	if row.status != "open" {
-		return nil, ErrFuzzEscrowClosed
-	}
-	if row.bountyPaidUnits > 0 || row.findingWinner != "" {
-		return nil, ErrFuzzEscrowAlreadyPaid
-	}
-	remaining := row.bountyPoolUnits
-	if remaining == 0 {
-		return nil, ErrFuzzEscrowDepleted
-	}
-	minerUnits, feeUnits := fuzzescrow.BountyPayoutUnits(remaining)
-	if err := s.creditUnits(ctx, tx, minerAddress, minerUnits); err != nil {
-		return nil, err
-	}
-	if feeUnits > 0 {
-		if err := s.creditUnits(ctx, tx, DevFeeAddress, feeUnits); err != nil {
-			return nil, err
-		}
-	}
-	if _, err := tx.ExecContext(ctx,
-		`UPDATE fuzz_campaign_escrow SET bounty_paid_units=?, finding_winner=?, status='bounty_paid' WHERE campaign_id=?`,
-		remaining, minerAddress, campaignID); err != nil {
+	if err := s.payFuzzBountyTx(ctx, tx, campaignID, minerAddress, severity); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	return s.GetFuzzEscrow(ctx, campaignID)
+	return s.getFuzzEscrowUnlocked(ctx, campaignID)
 }
 
 // CancelFuzzEscrow refunds all unpaid escrow slices to the operator wallet and closes.
@@ -288,35 +232,20 @@ func (s *Service) FinalizeFuzzEscrow(ctx context.Context, campaignID string) (*F
 		return nil, err
 	}
 	if row.status == "closed" {
-		return s.GetFuzzEscrow(ctx, campaignID)
+		return s.getFuzzEscrowUnlocked(ctx, campaignID)
 	}
 	runsRefund := row.runsPoolUnits - row.runsPaidUnits
 	bountyRefund := row.bountyPoolUnits - row.bountyPaidUnits
 	if row.status == "bounty_paid" {
 		bountyRefund = 0
 	}
-	refund := runsRefund + bountyRefund
-	if refund > 0 {
-		var walletAddr string
-		if err := tx.QueryRowContext(ctx, `SELECT address FROM wallet WHERE id=1`).Scan(&walletAddr); err != nil {
-			return nil, err
-		}
-		if err := s.creditUnits(ctx, tx, walletAddr, refund); err != nil {
-			return nil, err
-		}
-	}
-	if _, err := tx.ExecContext(ctx,
-		`UPDATE fuzz_campaign_escrow SET status='closed', refunded_bounty_units=refunded_bounty_units+? WHERE campaign_id=?`,
-		bountyRefund, campaignID); err != nil {
-		return nil, err
-	}
-	if err := s.checkEconomicInvariants(ctx, tx); err != nil {
+	if err := s.finalizeFuzzEscrowTx(ctx, tx, campaignID); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	out, err := s.GetFuzzEscrow(ctx, campaignID)
+	out, err := s.getFuzzEscrowUnlocked(ctx, campaignID)
 	if err != nil {
 		return nil, err
 	}

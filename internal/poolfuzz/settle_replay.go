@@ -46,7 +46,7 @@ func (s *Service) ReplayCampaignSettles(ctx context.Context, campaignID string) 
 		if miner == "" {
 			continue
 		}
-		if err := s.EnqueueSettleOutbox(ctx, "run", campaignID, miner, ""); err != nil {
+		if _, err := s.EnqueueSettleOutbox(ctx, "run", campaignID, miner, ""); err != nil {
 			return runs, findings, finalize, err
 		}
 		runs++
@@ -72,12 +72,12 @@ func (s *Service) ReplayCampaignSettles(ctx context.Context, campaignID string) 
 		if miner == "" {
 			continue
 		}
-		if err := s.EnqueueSettleOutbox(ctx, "finding", campaignID, miner, sev); err != nil {
+		if _, err := s.EnqueueSettleOutbox(ctx, "finding", campaignID, miner, sev); err != nil {
 			return runs, findings, finalize, err
 		}
 		findings++
 	}
-	if err := s.EnqueueSettleOutbox(ctx, "finalize", campaignID, "", ""); err != nil {
+	if _, err := s.EnqueueSettleOutbox(ctx, "finalize", campaignID, "", ""); err != nil {
 		return runs, findings, finalize, err
 	}
 	finalize = 1
