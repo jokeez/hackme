@@ -285,12 +285,13 @@ func registerMarketRoutes(mux *http.ServeMux, coord *Coordinator) {
 				RetentionDays int    `json:"retention_days"`
 				QuoteHash     string `json:"quote_hash"`
 				PaymentID     string `json:"payment_id"`
+				PaymentProof  string `json:"payment_proof"`
 			}
 			if !readJSON(r, &req) {
 				http.Error(w, "bad json", http.StatusBadRequest)
 				return
 			}
-			out, err := coord.CreateStorageOrder(req.Label, req.ClientRef, req.SizePlanBytes, req.RetentionDays, req.QuoteHash, req.PaymentID)
+			out, err := coord.CreateStorageOrder(req.Label, req.ClientRef, req.SizePlanBytes, req.RetentionDays, req.QuoteHash, req.PaymentID, req.PaymentProof)
 			if err != nil {
 				http.Error(w, err.Error(), marketHTTPStatus(err))
 				return
@@ -482,6 +483,14 @@ func bearerOK(r *http.Request, token string) bool {
 }
 
 func loopbackOnly(r *http.Request) bool {
-	ip := clientIP(r)
-	return ip == "127.0.0.1" || ip == "::1" || ip == ""
+	// Auth must use RemoteAddr — never trust X-Forwarded-For for loopback skips.
+	host := ""
+	if r != nil {
+		host = r.RemoteAddr
+		if i := strings.LastIndex(host, ":"); i > 0 {
+			host = host[:i]
+		}
+		host = strings.Trim(host, "[]")
+	}
+	return host == "127.0.0.1" || host == "::1" || host == ""
 }

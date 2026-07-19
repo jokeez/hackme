@@ -108,6 +108,7 @@ func (a *app) handleHMSMarketOrders(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		paymentID := strings.TrimSpace(req.PaymentID)
+		var paymentProof string
 		if !req.SkipPayment && paymentID == "" {
 			if strings.TrimSpace(req.QuoteHash) == "" {
 				http.Error(w, "quote_hash required", http.StatusBadRequest)
@@ -119,6 +120,7 @@ func (a *app) handleHMSMarketOrders(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			paymentID = pay.PaymentID
+			paymentProof = pay.PaymentProof
 		}
 		fwd, _ := json.Marshal(map[string]any{
 			"label":           req.Label,
@@ -127,6 +129,7 @@ func (a *app) handleHMSMarketOrders(w http.ResponseWriter, r *http.Request) {
 			"retention_days":  req.RetentionDays,
 			"quote_hash":      req.QuoteHash,
 			"payment_id":      paymentID,
+			"payment_proof":   paymentProof,
 		})
 		a.proxyHMSCoordinator(w, r, http.MethodPost, "/api/market/orders", fwd)
 	default:

@@ -14,8 +14,11 @@ func SealHash(epochID int64, manifestRoot [32]byte, poolID string, nonce uint64)
 	_, _ = h.Write(e[:])
 	_, _ = h.Write(manifestRoot[:])
 	_, _ = h.Write([]byte(poolID))
-	binary.Write(h, binary.BigEndian, nonce)
-	return sha256.Sum256(h.Sum(nil))
+	_ = binary.Write(h, binary.BigEndian, nonce)
+	sum := h.Sum(nil)
+	var out [32]byte
+	copy(out[:], sum)
+	return out
 }
 
 // HashBelowTarget returns true when hash < target (256-bit big-endian integers).

@@ -25,6 +25,7 @@ func TestOrderHealthDegradedWhenReplicaMissing(t *testing.T) {
 	t.Setenv("HMS_MARKET_DATA_DIR", filepath.Join(dir, "market"))
 	t.Setenv("HMS_MARKET_STORAGE_ROOT", filepath.Join(dir, "storage"))
 	t.Setenv("HMS_MARKET_SKIP_PAYMENT", "1")
+	t.Setenv("HMS_COORDINATOR_ALLOW_INSECURE", "1")
 	t.Setenv("HMS_MARKET_REPLICAS", "2")
 
 	_ = coord.RegisterStorageWorker("w-a", repeatHex(64), 100)
@@ -32,7 +33,7 @@ func TestOrderHealthDegradedWhenReplicaMissing(t *testing.T) {
 	_ = os.MkdirAll(filepath.Join(dir, "storage", "w-a"), 0o755)
 	_ = os.MkdirAll(filepath.Join(dir, "storage", "w-b"), 0o755)
 
-	created, err := coord.CreateStorageOrder("health-test", "c1", 1<<20, 30, "", "")
+	created, err := coord.CreateStorageOrder("health-test", "c1", 1<<20, 30, "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

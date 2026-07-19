@@ -15,6 +15,7 @@ const metaHMSMarketEscrowUnits = "hms_market_escrow_units"
 // HMSMarketPaymentResult is returned after debiting the node wallet for a storage order.
 type HMSMarketPaymentResult struct {
 	PaymentID      string  `json:"payment_id"`
+	PaymentProof   string  `json:"payment_proof,omitempty"`
 	TotalDebitHMC  float64 `json:"total_debit_hmc"`
 	StorageHMC     float64 `json:"storage_subtotal_hmc"`
 	PlatformFeeHMC float64 `json:"platform_fee_hmc"`
@@ -130,6 +131,7 @@ func (s *Service) PayHMSStorageMarket(ctx context.Context, label string, sizeByt
 	if len(paymentID) > 120 {
 		paymentID = paymentID[:120]
 	}
+	proof, _ := hms.SignMarketPaymentProof(paymentID, q.QuoteHash, total)
 	if err := s.checkEconomicInvariants(ctx, tx); err != nil {
 		return nil, err
 	}
@@ -141,6 +143,7 @@ func (s *Service) PayHMSStorageMarket(ctx context.Context, label string, sizeByt
 	}
 	return &HMSMarketPaymentResult{
 		PaymentID:      paymentID,
+		PaymentProof:   proof,
 		TotalDebitHMC:  total,
 		StorageHMC:     storage,
 		PlatformFeeHMC: fee,

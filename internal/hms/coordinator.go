@@ -135,6 +135,9 @@ func (c *Coordinator) CurrentEpoch() (epochRow, error) {
 }
 
 func (c *Coordinator) RegisterStorageWorker(workerID, pubHex string, quotaGB int) error {
+	if err := ValidateWorkerID(workerID); err != nil {
+		return err
+	}
 	if err := ValidateQuota(c.cfg, quotaGB); err != nil {
 		return err
 	}

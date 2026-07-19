@@ -65,7 +65,8 @@ func marketStorageRoot() string {
 }
 
 // CreateStorageOrder registers a paid backup order (quote + payment_id required unless pilot skip).
-func (c *Coordinator) CreateStorageOrder(label, clientRef string, sizePlanBytes int64, retentionDays int, quoteHash, paymentID string) (*CreateStorageOrderResult, error) {
+// When HMS_MARKET_PAYMENT_HMAC_SECRET (or fallback admin token) is set, payment_proof is required.
+func (c *Coordinator) CreateStorageOrder(label, clientRef string, sizePlanBytes int64, retentionDays int, quoteHash, paymentID, paymentProof string) (*CreateStorageOrderResult, error) {
 	label = strings.TrimSpace(label)
 	clientRef = strings.TrimSpace(clientRef)
 	if label == "" {
@@ -76,7 +77,8 @@ func (c *Coordinator) CreateStorageOrder(label, clientRef string, sizePlanBytes 
 	}
 	paymentID = strings.TrimSpace(paymentID)
 	quoteHash = strings.TrimSpace(quoteHash)
-	pilotSkip := strings.TrimSpace(os.Getenv("HMS_MARKET_SKIP_PAYMENT")) == "1"
+	paymentProof = strings.TrimSpace(paymentProof)
+	pilotSkip := PilotPaymentSkipAllowed()
 	var q *MarketQuote
 	var err error
 	if pilotSkip && paymentID == "" {
@@ -93,6 +95,11 @@ func (c *Coordinator) CreateStorageOrder(label, clientRef string, sizePlanBytes 
 		q, err = VerifyQuoteHash(sizePlanBytes, retentionDays, quoteHash)
 		if err != nil {
 			return nil, err
+		}
+		if MarketPaymentHMACSecret() != "" {
+			if err := VerifyMarketPaymentProof(paymentID, quoteHash, paymentProof, q.TotalDebitHMC); err != nil {
+				return nil, err
+			}
 		}
 		var existing string
 		err = c.db.QueryRow(`SELECT order_id FROM hms_orders WHERE payment_id=?`, paymentID).Scan(&existing)

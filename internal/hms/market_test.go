@@ -32,7 +32,8 @@ func TestMarketCreateUploadList(t *testing.T) {
 	_ = os.MkdirAll(filepath.Join(dir, "storage", "w-market"), 0o755)
 
 	t.Setenv("HMS_MARKET_SKIP_PAYMENT", "1")
-	created, err := coord.CreateStorageOrder("acme-backup", "client:acme", 1<<20, 30, "", "")
+	t.Setenv("HMS_COORDINATOR_ALLOW_INSECURE", "1")
+	created, err := coord.CreateStorageOrder("acme-backup", "client:acme", 1<<20, 30, "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,6 +85,7 @@ func TestMarketHTTPFlow(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterHTTP(mux, coord, "", "")
 	t.Setenv("HMS_MARKET_SKIP_PAYMENT", "1")
+	t.Setenv("HMS_COORDINATOR_ALLOW_INSECURE", "1")
 
 	// Create
 	body := `{"label":"test","client_ref":"u1","size_plan_bytes":4096,"retention_days":30}`
@@ -152,7 +154,8 @@ func TestMarketUploadRequiresToken(t *testing.T) {
 	t.Setenv("HMS_MARKET_STORAGE_ROOT", filepath.Join(dir, "storage"))
 	_ = os.MkdirAll(filepath.Join(dir, "storage", "w1"), 0o755)
 	t.Setenv("HMS_MARKET_SKIP_PAYMENT", "1")
-	created, err := coord.CreateStorageOrder("x", "y", 1<<30, 30, "", "")
+	t.Setenv("HMS_COORDINATOR_ALLOW_INSECURE", "1")
+	created, err := coord.CreateStorageOrder("x", "y", 1<<30, 30, "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,8 +178,9 @@ func TestMarketUploadExceedsSizePlan(t *testing.T) {
 	t.Setenv("HMS_MARKET_STORAGE_ROOT", filepath.Join(dir, "storage"))
 	_ = os.MkdirAll(filepath.Join(dir, "storage", "w1"), 0o755)
 	t.Setenv("HMS_MARKET_SKIP_PAYMENT", "1")
+	t.Setenv("HMS_COORDINATOR_ALLOW_INSECURE", "1")
 
-	created, err := coord.CreateStorageOrder("cap", "u", 100, 30, "", "")
+	created, err := coord.CreateStorageOrder("cap", "u", 100, 30, "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,8 +208,9 @@ func TestMarketDownloadRequiresToken(t *testing.T) {
 	t.Setenv("HMS_MARKET_STORAGE_ROOT", filepath.Join(dir, "storage"))
 	_ = os.MkdirAll(filepath.Join(dir, "storage", "w1"), 0o755)
 	t.Setenv("HMS_MARKET_SKIP_PAYMENT", "1")
+	t.Setenv("HMS_COORDINATOR_ALLOW_INSECURE", "1")
 
-	created, err := coord.CreateStorageOrder("dl", "u", 4096, 30, "", "")
+	created, err := coord.CreateStorageOrder("dl", "u", 4096, 30, "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,10 +249,10 @@ func TestMarketPaymentReplayBlocked(t *testing.T) {
 		t.Fatal(err)
 	}
 	payID := "pay-test-" + randomHex(4)
-	if _, err := coord.CreateStorageOrder("a", "b", 1<<20, 30, q.QuoteHash, payID); err != nil {
+	if _, err := coord.CreateStorageOrder("a", "b", 1<<20, 30, q.QuoteHash, payID, ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := coord.CreateStorageOrder("c", "d", 1<<20, 30, q.QuoteHash, payID); err == nil {
+	if _, err := coord.CreateStorageOrder("c", "d", 1<<20, 30, q.QuoteHash, payID, ""); err == nil {
 		t.Fatal("expected payment_id replay error")
 	}
 }
@@ -264,7 +269,7 @@ func TestMarketQuoteTamperRejected(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("HMS_MARKET_SKIP_PAYMENT", "0")
-	if _, err := coord.CreateStorageOrder("x", "y", 1<<20, 30, "deadbeef", "pay-1"); err == nil {
+	if _, err := coord.CreateStorageOrder("x", "y", 1<<20, 30, "deadbeef", "pay-1", ""); err == nil {
 		t.Fatal("expected quote tamper error")
 	}
 }
