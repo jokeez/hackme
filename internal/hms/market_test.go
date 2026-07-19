@@ -33,7 +33,7 @@ func TestMarketCreateUploadList(t *testing.T) {
 
 	t.Setenv("HMS_MARKET_SKIP_PAYMENT", "1")
 	t.Setenv("HMS_COORDINATOR_ALLOW_INSECURE", "1")
-	created, err := coord.CreateStorageOrder("acme-backup", "client:acme", 1<<20, 30, "", "", "")
+	created, err := coord.CreateStorageOrder("acme-backup", "client:acme", 1<<20, 30, "", "", "", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func TestMarketUploadRequiresToken(t *testing.T) {
 	_ = os.MkdirAll(filepath.Join(dir, "storage", "w1"), 0o755)
 	t.Setenv("HMS_MARKET_SKIP_PAYMENT", "1")
 	t.Setenv("HMS_COORDINATOR_ALLOW_INSECURE", "1")
-	created, err := coord.CreateStorageOrder("x", "y", 1<<30, 30, "", "", "")
+	created, err := coord.CreateStorageOrder("x", "y", 1<<30, 30, "", "", "", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +180,7 @@ func TestMarketUploadExceedsSizePlan(t *testing.T) {
 	t.Setenv("HMS_MARKET_SKIP_PAYMENT", "1")
 	t.Setenv("HMS_COORDINATOR_ALLOW_INSECURE", "1")
 
-	created, err := coord.CreateStorageOrder("cap", "u", 100, 30, "", "", "")
+	created, err := coord.CreateStorageOrder("cap", "u", 100, 30, "", "", "", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +210,7 @@ func TestMarketDownloadRequiresToken(t *testing.T) {
 	t.Setenv("HMS_MARKET_SKIP_PAYMENT", "1")
 	t.Setenv("HMS_COORDINATOR_ALLOW_INSECURE", "1")
 
-	created, err := coord.CreateStorageOrder("dl", "u", 4096, 30, "", "", "")
+	created, err := coord.CreateStorageOrder("dl", "u", 4096, 30, "", "", "", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,15 +244,32 @@ func TestMarketPaymentReplayBlocked(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("HMS_MARKET_SKIP_PAYMENT", "0")
+	t.Setenv("HMS_COORDINATOR_ALLOW_INSECURE", "")
+	t.Setenv("HMS_MARKET_PAYMENT_HMAC_SECRET", "")
+	t.Setenv("HACKME_HMS_COORDINATOR_TOKEN", "")
+	t.Setenv("HMS_COORDINATOR_ADMIN_TOKEN", "")
+	t.Setenv("HACKME_ADMIN_TOKEN", "")
 	q, err := QuoteStorageOrder(1<<20, 30)
 	if err != nil {
 		t.Fatal(err)
 	}
 	payID := "pay-test-" + randomHex(4)
-	if _, err := coord.CreateStorageOrder("a", "b", 1<<20, 30, q.QuoteHash, payID, ""); err != nil {
+	// Fail-closed: bare payment_id without HMAC secret must be rejected.
+	if _, err := coord.CreateStorageOrder("a", "b", 1<<20, 30, q.QuoteHash, payID, "", false); err == nil {
+		t.Fatal("expected reject when payment HMAC secret unset")
+	}
+	t.Setenv("HMS_MARKET_PAYMENT_HMAC_SECRET", "unit-replay-secret")
+	if _, err := coord.CreateStorageOrder("a", "b", 1<<20, 30, q.QuoteHash, payID, "", false); err == nil {
+		t.Fatal("expected reject when payment_proof missing")
+	}
+	proof, err := SignMarketPaymentProof(payID, q.QuoteHash, q.TotalDebitHMC)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := coord.CreateStorageOrder("c", "d", 1<<20, 30, q.QuoteHash, payID, ""); err == nil {
+	if _, err := coord.CreateStorageOrder("a", "b", 1<<20, 30, q.QuoteHash, payID, proof, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := coord.CreateStorageOrder("c", "d", 1<<20, 30, q.QuoteHash, payID, proof, false); err == nil {
 		t.Fatal("expected payment_id replay error")
 	}
 }
@@ -269,8 +286,32 @@ func TestMarketQuoteTamperRejected(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("HMS_MARKET_SKIP_PAYMENT", "0")
-	if _, err := coord.CreateStorageOrder("x", "y", 1<<20, 30, "deadbeef", "pay-1", ""); err == nil {
+	t.Setenv("HMS_MARKET_PAYMENT_HMAC_SECRET", "unit-tamper-secret")
+	if _, err := coord.CreateStorageOrder("x", "y", 1<<20, 30, "deadbeef", "pay-1", "", false); err == nil {
 		t.Fatal("expected quote tamper error")
+	}
+}
+
+func TestMarketPilotSkipRequiresLoopbackFlag(t *testing.T) {
+	dir := t.TempDir()
+	db, err := OpenDB(filepath.Join(dir, "hms.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	coord := NewCoordinator(db, Config{MinQuotaGB: 10, MaxQuotaGB: 100, EpochDuration: time.Hour, FreezeAfter: time.Hour, SealWindow: time.Minute, InitialSealTarget: defaultSealTarget()})
+	if err := coord.RegisterStorageWorker("w-pilot", repeatHex(64), 50); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HMS_MARKET_SKIP_PAYMENT", "1")
+	t.Setenv("HMS_COORDINATOR_ALLOW_INSECURE", "1")
+	t.Setenv("HMS_MARKET_PAYMENT_HMAC_SECRET", "")
+	t.Setenv("HACKME_HMS_COORDINATOR_TOKEN", "")
+	t.Setenv("HMS_COORDINATOR_ADMIN_TOKEN", "")
+	t.Setenv("HACKME_ADMIN_TOKEN", "")
+	// Env skip set but non-loopback caller must not invent unpaid orders.
+	if _, err := coord.CreateStorageOrder("x", "y", 1<<20, 30, "", "", "", false); err == nil {
+		t.Fatal("expected pilot skip denied without loopback allow flag")
 	}
 }
 

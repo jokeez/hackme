@@ -163,14 +163,14 @@ func TestPaymentProofRequiredWhenSecretSet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := coord.CreateStorageOrder("x", "y", 1<<20, 30, q.QuoteHash, "pay-1", ""); err == nil {
+	if _, err := coord.CreateStorageOrder("x", "y", 1<<20, 30, q.QuoteHash, "pay-1", "", false); err == nil {
 		t.Fatal("expected payment_proof required")
 	}
 	proof, err := SignMarketPaymentProof("pay-1", q.QuoteHash, q.TotalDebitHMC)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := coord.CreateStorageOrder("x", "y", 1<<20, 30, q.QuoteHash, "pay-1", proof); err != nil {
+	if _, err := coord.CreateStorageOrder("x", "y", 1<<20, 30, q.QuoteHash, "pay-1", proof, false); err != nil {
 		t.Fatal(err)
 	}
 }

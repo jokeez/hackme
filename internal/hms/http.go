@@ -291,7 +291,8 @@ func registerMarketRoutes(mux *http.ServeMux, coord *Coordinator) {
 				http.Error(w, "bad json", http.StatusBadRequest)
 				return
 			}
-			out, err := coord.CreateStorageOrder(req.Label, req.ClientRef, req.SizePlanBytes, req.RetentionDays, req.QuoteHash, req.PaymentID, req.PaymentProof)
+			// Pilot skip only on real TCP loopback — never trust X-Forwarded-For.
+			out, err := coord.CreateStorageOrder(req.Label, req.ClientRef, req.SizePlanBytes, req.RetentionDays, req.QuoteHash, req.PaymentID, req.PaymentProof, loopbackOnly(r))
 			if err != nil {
 				http.Error(w, err.Error(), marketHTTPStatus(err))
 				return

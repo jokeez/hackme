@@ -34,7 +34,7 @@ func TestMarketUploadDuringEpochFreeze(t *testing.T) {
 	t.Setenv("HMS_MARKET_REPLICAS", "1")
 	_ = os.MkdirAll(filepath.Join(dir, "storage", "w1"), 0o755)
 
-	created, err := coord.CreateStorageOrder("freeze", "u", 4096, 30, "", "", "")
+	created, err := coord.CreateStorageOrder("freeze", "u", 4096, 30, "", "", "", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func TestMarketChunkReplication(t *testing.T) {
 		_ = os.MkdirAll(filepath.Join(dir, "storage", w), 0o755)
 	}
 
-	created, err := coord.CreateStorageOrder("repl", "u", 8192, 30, "", "", "")
+	created, err := coord.CreateStorageOrder("repl", "u", 8192, 30, "", "", "", true)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -65,8 +65,10 @@ func marketStorageRoot() string {
 }
 
 // CreateStorageOrder registers a paid backup order (quote + payment_id required unless pilot skip).
-// When HMS_MARKET_PAYMENT_HMAC_SECRET (or fallback admin token) is set, payment_proof is required.
-func (c *Coordinator) CreateStorageOrder(label, clientRef string, sizePlanBytes int64, retentionDays int, quoteHash, paymentID, paymentProof string) (*CreateStorageOrderResult, error) {
+// Paid path is fail-closed: HMAC secret must be configured and payment_proof must verify
+// (payment_id alone is never proof of debit). Pilot skip requires allowInsecurePilot
+// (HTTP RemoteAddr loopback) plus explicit insecure/skip env flags.
+func (c *Coordinator) CreateStorageOrder(label, clientRef string, sizePlanBytes int64, retentionDays int, quoteHash, paymentID, paymentProof string, allowInsecurePilot bool) (*CreateStorageOrderResult, error) {
 	label = strings.TrimSpace(label)
 	clientRef = strings.TrimSpace(clientRef)
 	if label == "" {
@@ -78,7 +80,7 @@ func (c *Coordinator) CreateStorageOrder(label, clientRef string, sizePlanBytes 
 	paymentID = strings.TrimSpace(paymentID)
 	quoteHash = strings.TrimSpace(quoteHash)
 	paymentProof = strings.TrimSpace(paymentProof)
-	pilotSkip := PilotPaymentSkipAllowed()
+	pilotSkip := allowInsecurePilot && PilotPaymentSkipAllowed()
 	var q *MarketQuote
 	var err error
 	if pilotSkip && paymentID == "" {
@@ -96,10 +98,11 @@ func (c *Coordinator) CreateStorageOrder(label, clientRef string, sizePlanBytes 
 		if err != nil {
 			return nil, err
 		}
-		if MarketPaymentHMACSecret() != "" {
-			if err := VerifyMarketPaymentProof(paymentID, quoteHash, paymentProof, q.TotalDebitHMC); err != nil {
-				return nil, err
-			}
+		if MarketPaymentHMACSecret() == "" {
+			return nil, errors.New("payment HMAC secret not configured (fail-closed)")
+		}
+		if err := VerifyMarketPaymentProof(paymentID, quoteHash, paymentProof, q.TotalDebitHMC); err != nil {
+			return nil, err
 		}
 		var existing string
 		err = c.db.QueryRow(`SELECT order_id FROM hms_orders WHERE payment_id=?`, paymentID).Scan(&existing)

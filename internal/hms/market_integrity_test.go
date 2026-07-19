@@ -112,7 +112,7 @@ func assertOrderInvariants(t *testing.T, c *Coordinator, orderID string) {
 
 func TestIntegrityMultiChunkOrderTotals(t *testing.T) {
 	coord, _ := setupIntegrityCoord(t, "w-a", "w-b")
-	created, err := coord.CreateStorageOrder("multi", "u1", 1<<20, 30, "", "", "")
+	created, err := coord.CreateStorageOrder("multi", "u1", 1<<20, 30, "", "", "", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func TestIntegrityMultiChunkOrderTotals(t *testing.T) {
 
 func TestIntegrityReuploadSameIndexDoesNotDoubleCount(t *testing.T) {
 	coord, _ := setupIntegrityCoord(t, "w-a", "w-b")
-	created, err := coord.CreateStorageOrder("reup", "u1", 4096, 30, "", "", "")
+	created, err := coord.CreateStorageOrder("reup", "u1", 4096, 30, "", "", "", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +177,7 @@ func TestIntegrityCapacityDecreasesAfterUpload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	created, err := coord.CreateStorageOrder("cap", "u1", 1<<20, 30, "", "", "")
+	created, err := coord.CreateStorageOrder("cap", "u1", 1<<20, 30, "", "", "", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,7 +198,7 @@ func TestIntegrityCapacityDecreasesAfterUpload(t *testing.T) {
 
 func TestIntegrityRepairRestoresHealth(t *testing.T) {
 	coord, dir := setupIntegrityCoord(t, "w-a", "w-b", "w-c")
-	created, err := coord.CreateStorageOrder("repair", "u1", 1<<20, 30, "", "", "")
+	created, err := coord.CreateStorageOrder("repair", "u1", 1<<20, 30, "", "", "", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -236,7 +236,7 @@ func TestIntegrityRepairRestoresHealth(t *testing.T) {
 
 func TestIntegrityAllReplicasLostMarksFailed(t *testing.T) {
 	coord, dir := setupIntegrityCoord(t, "w-a", "w-b")
-	created, err := coord.CreateStorageOrder("fail", "u1", 4096, 30, "", "", "")
+	created, err := coord.CreateStorageOrder("fail", "u1", 4096, 30, "", "", "", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -281,15 +281,24 @@ func TestIntegrityHTTPQuoteCapacityPreflight(t *testing.T) {
 func TestIntegrityPaymentIDUnique(t *testing.T) {
 	coord, _ := setupIntegrityCoord(t, "w-a", "w-b")
 	t.Setenv("HMS_MARKET_SKIP_PAYMENT", "0")
+	t.Setenv("HMS_COORDINATOR_ALLOW_INSECURE", "")
+	t.Setenv("HMS_MARKET_PAYMENT_HMAC_SECRET", "integrity-pay-secret")
+	t.Setenv("HACKME_HMS_COORDINATOR_TOKEN", "")
+	t.Setenv("HMS_COORDINATOR_ADMIN_TOKEN", "")
+	t.Setenv("HACKME_ADMIN_TOKEN", "")
 	q, err := QuoteStorageOrder(1<<20, 30)
 	if err != nil {
 		t.Fatal(err)
 	}
 	pay := "pay-uniq-" + randomHex(4)
-	if _, err := coord.CreateStorageOrder("a", "b", 1<<20, 30, q.QuoteHash, pay, ""); err != nil {
+	proof, err := SignMarketPaymentProof(pay, q.QuoteHash, q.TotalDebitHMC)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := coord.CreateStorageOrder("c", "d", 1<<20, 30, q.QuoteHash, pay, ""); err == nil {
+	if _, err := coord.CreateStorageOrder("a", "b", 1<<20, 30, q.QuoteHash, pay, proof, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := coord.CreateStorageOrder("c", "d", 1<<20, 30, q.QuoteHash, pay, proof, false); err == nil {
 		t.Fatal("expected duplicate payment_id rejection")
 	}
 	var n int
@@ -301,7 +310,7 @@ func TestIntegrityPaymentIDUnique(t *testing.T) {
 
 func TestIntegrityChunkIndexBounds(t *testing.T) {
 	coord, _ := setupIntegrityCoord(t, "w-a", "w-b")
-	created, err := coord.CreateStorageOrder("bounds", "u1", 4096, 30, "", "", "")
+	created, err := coord.CreateStorageOrder("bounds", "u1", 4096, 30, "", "", "", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -317,7 +326,7 @@ func TestIntegrityChunkIndexBounds(t *testing.T) {
 
 func TestIntegrityStoredSHA256InDB(t *testing.T) {
 	coord, _ := setupIntegrityCoord(t, "w-a", "w-b")
-	created, err := coord.CreateStorageOrder("hash", "u1", 4096, 30, "", "", "")
+	created, err := coord.CreateStorageOrder("hash", "u1", 4096, 30, "", "", "", true)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -33,7 +33,7 @@ func TestOrderHealthDegradedWhenReplicaMissing(t *testing.T) {
 	_ = os.MkdirAll(filepath.Join(dir, "storage", "w-a"), 0o755)
 	_ = os.MkdirAll(filepath.Join(dir, "storage", "w-b"), 0o755)
 
-	created, err := coord.CreateStorageOrder("health-test", "c1", 1<<20, 30, "", "", "")
+	created, err := coord.CreateStorageOrder("health-test", "c1", 1<<20, 30, "", "", "", true)
 	if err != nil {
 		t.Fatal(err)
 	}

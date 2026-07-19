@@ -60,7 +60,7 @@ func VerifyMarketPaymentProof(paymentID, quoteHash, proof string, totalDebitHMC 
 }
 
 // PilotPaymentSkipAllowed is true only when explicit insecure pilot mode is enabled.
-// Callers must also enforce loopback (HTTP RemoteAddr or bind) separately.
+// Callers must ALSO pass allowInsecurePilot=true only for loopback RemoteAddr (never XFF).
 func PilotPaymentSkipAllowed() bool {
 	if strings.TrimSpace(os.Getenv("HMS_MARKET_SKIP_PAYMENT")) != "1" {
 		return false
