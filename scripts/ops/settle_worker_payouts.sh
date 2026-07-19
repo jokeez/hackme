@@ -142,8 +142,10 @@ verify_settlement_tx() {
   while (( i < tries )); do
     status="$(curl -fsS "${CHAIN_BASE}/api/tx/${tx_hash}" 2>/dev/null | jq -r '.status // .tx.status // ""' 2>/dev/null | tr -d '\r\n' || echo "")"
     case "$status" in
-      pending|accepted|included) return 0 ;;
+      included) return 0 ;;
       rejected) return 1 ;;
+      pending|accepted|"") ;;
+      *) ;;
     esac
     sleep 1
     i=$((i + 1))

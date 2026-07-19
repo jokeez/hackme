@@ -47,19 +47,11 @@ func (a *app) handleFuzzPoolSettle(w http.ResponseWriter, r *http.Request) {
 	var row *chain.FuzzEscrowRow
 	var err error
 	eventID := strings.TrimSpace(req.EventID)
-	if eventID != "" {
-		row, _, err = a.chain.ApplyFuzzSettleOnce(ctx, eventID, kind, campaignID, req.MinerAddress, req.Severity)
-	} else {
-		// Legacy callers without event_id (pre-idempotent relay). Prefer event_id.
-		switch kind {
-		case "run":
-			row, err = a.chain.PayFuzzRun(ctx, campaignID, req.MinerAddress)
-		case "finding", "bounty":
-			row, err = a.chain.PayFuzzBounty(ctx, campaignID, req.MinerAddress, req.Severity)
-		case "finalize", "close":
-			row, err = a.chain.FinalizeFuzzEscrow(ctx, campaignID)
-		}
+	if eventID == "" {
+		writeAPIError(w, http.StatusBadRequest, "event_id_required", "event_id required for idempotent settle", nil)
+		return
 	}
+	row, _, err = a.chain.ApplyFuzzSettleOnce(ctx, eventID, kind, campaignID, req.MinerAddress, req.Severity)
 	if err != nil {
 		status := http.StatusInternalServerError
 		code := "settle_failed"

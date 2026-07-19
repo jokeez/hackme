@@ -459,7 +459,7 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 			return err
 		}
 		if completed && s.Settler != nil && escrowEnabled(cfg) {
-			if err := s.Settler.Finalize(ctx, req.CampaignID); err != nil {
+			if _, err := s.Settler.Finalize(ctx, req.CampaignID, 0); err != nil {
 				return fmt.Errorf("poolfuzz: finalize escrow: %w", err)
 			}
 		}
@@ -492,7 +492,7 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 		return err
 	}
 	if completed && s.Settler != nil && escrowEnabled(cfg) {
-		if err := s.Settler.Finalize(ctx, req.CampaignID); err != nil {
+		if _, err := s.Settler.Finalize(ctx, req.CampaignID, 0); err != nil {
 			return fmt.Errorf("poolfuzz: finalize escrow: %w", err)
 		}
 	}
@@ -500,14 +500,17 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 }
 
 // flushPendingSettles pays unsettled run/finding intents exactly once (idempotent status transitions).
+// Local status stays queued until origin ACK / durable applied confirmation — never mark paid on enqueue-only.
 func (s *Service) flushPendingSettles(ctx context.Context, campaignID string, itemID int64, cfg map[string]any) error {
 	if s == nil || s.DB == nil || s.Settler == nil || !escrowEnabled(cfg) {
 		return nil
 	}
 	var miner, runSt, findSt, findSev string
+	var runOutbox, findOutbox int64
 	err := s.DB.QueryRowContext(ctx,
-		`SELECT COALESCE(miner_address,''), COALESCE(settle_run_status,''), COALESCE(settle_finding_status,''), COALESCE(settle_finding_severity,'')
-		 FROM fuzz_work_items WHERE campaign_id=? AND id=?`, campaignID, itemID).Scan(&miner, &runSt, &findSt, &findSev)
+		`SELECT COALESCE(miner_address,''), COALESCE(settle_run_status,''), COALESCE(settle_finding_status,''), COALESCE(settle_finding_severity,''),
+		        COALESCE(settle_run_outbox_id,0), COALESCE(settle_finding_outbox_id,0)
+		 FROM fuzz_work_items WHERE campaign_id=? AND id=?`, campaignID, itemID).Scan(&miner, &runSt, &findSt, &findSev, &runOutbox, &findOutbox)
 	if err == sql.ErrNoRows {
 		return nil
 	}
@@ -518,25 +521,43 @@ func (s *Service) flushPendingSettles(ctx context.Context, campaignID string, it
 	if miner == "" {
 		return nil
 	}
-	if strings.EqualFold(strings.TrimSpace(runSt), "pending") {
-		if err := s.Settler.PayRun(ctx, campaignID, miner); err != nil {
+	runSt = strings.TrimSpace(strings.ToLower(runSt))
+	findSt = strings.TrimSpace(strings.ToLower(findSt))
+	if runSt == "pending" || runSt == "queued" {
+		res, err := s.Settler.PayRun(ctx, campaignID, miner, runOutbox)
+		if err != nil {
 			return fmt.Errorf("poolfuzz: settle run: %w", err)
 		}
+		next := "queued"
+		if res.Applied {
+			next = "paid"
+		}
 		if _, err := s.DB.ExecContext(ctx,
-			`UPDATE fuzz_work_items SET settle_run_status='paid' WHERE campaign_id=? AND id=? AND settle_run_status='pending'`,
-			campaignID, itemID); err != nil {
+			`UPDATE fuzz_work_items SET settle_run_status=?, settle_run_outbox_id=?
+			 WHERE campaign_id=? AND id=? AND settle_run_status IN ('pending','queued')`,
+			next, res.OutboxID, campaignID, itemID); err != nil {
 			return err
 		}
 	}
-	if strings.EqualFold(strings.TrimSpace(findSt), "pending") {
+	if findSt == "pending" || findSt == "queued" {
 		sev := strings.TrimSpace(findSev)
 		if bountySeverity(sev) {
-			if err := s.Settler.PayFinding(ctx, campaignID, miner, sev); err != nil {
+			res, err := s.Settler.PayFinding(ctx, campaignID, miner, sev, findOutbox)
+			if err != nil {
 				return fmt.Errorf("poolfuzz: settle finding: %w", err)
 			}
-		}
-		if _, err := s.DB.ExecContext(ctx,
-			`UPDATE fuzz_work_items SET settle_finding_status='paid' WHERE campaign_id=? AND id=? AND settle_finding_status='pending'`,
+			next := "queued"
+			if res.Applied {
+				next = "paid"
+			}
+			if _, err := s.DB.ExecContext(ctx,
+				`UPDATE fuzz_work_items SET settle_finding_status=?, settle_finding_outbox_id=?
+				 WHERE campaign_id=? AND id=? AND settle_finding_status IN ('pending','queued')`,
+				next, res.OutboxID, campaignID, itemID); err != nil {
+				return err
+			}
+		} else if _, err := s.DB.ExecContext(ctx,
+			`UPDATE fuzz_work_items SET settle_finding_status='paid' WHERE campaign_id=? AND id=? AND settle_finding_status IN ('pending','queued')`,
 			campaignID, itemID); err != nil {
 			return err
 		}

@@ -95,8 +95,35 @@ func (s *Service) AckSettleOutbox(ctx context.Context, ids []int64) (int64, erro
 		}
 		aff, _ := res.RowsAffected()
 		n += aff
+		// Promote local work-item settle status from queued → paid once origin ACKed.
+		_, _ = s.DB.ExecContext(ctx,
+			`UPDATE fuzz_work_items SET settle_run_status='paid'
+			 WHERE settle_run_outbox_id=? AND settle_run_status IN ('queued','pending')`, id)
+		_, _ = s.DB.ExecContext(ctx,
+			`UPDATE fuzz_work_items SET settle_finding_status='paid'
+			 WHERE settle_finding_outbox_id=? AND settle_finding_status IN ('queued','pending')`, id)
 	}
 	return n, nil
+}
+
+// SettleOutboxStatus returns pending|applied|"" for an outbox row id.
+func (s *Service) SettleOutboxStatus(ctx context.Context, id int64) (string, error) {
+	if s == nil || s.DB == nil {
+		return "", fmt.Errorf("poolfuzz: no database")
+	}
+	if id <= 0 {
+		return "", nil
+	}
+	var st string
+	err := s.DB.QueryRowContext(ctx,
+		`SELECT status FROM fuzz_settle_outbox WHERE id=?`, id).Scan(&st)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(strings.ToLower(st)), nil
 }
 
 // CampaignConfig loads parsed config_json for a pool campaign.

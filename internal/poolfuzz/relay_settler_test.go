@@ -55,7 +55,7 @@ func TestRelaySettlerEnqueueFirstNoDoubleEnqueueOnTimeout(t *testing.T) {
 		AdminToken: func() string { return "tok" },
 		HTTPClient: &http.Client{Timeout: 50 * time.Millisecond},
 	}
-	if err := relay.PayRun(ctx, "relay-camp", "HMC-2222222222222222"); err != nil {
+	if _, err := relay.PayRun(ctx, "relay-camp", "HMC-2222222222222222", 0); err != nil {
 		t.Fatal(err)
 	}
 	// Timeout leaves exactly one pending outbox row (no second enqueue).
@@ -69,8 +69,19 @@ func TestRelaySettlerEnqueueFirstNoDoubleEnqueueOnTimeout(t *testing.T) {
 	if hits.Load() < 1 {
 		t.Fatal("expected at least one HTTP attempt")
 	}
+	// Retry same outbox id — must not enqueue a second row.
+	if _, err := relay.PayRun(ctx, "relay-camp", "HMC-2222222222222222", items[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	items2, err := svc.ListPendingSettleOutbox(ctx, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items2) != 1 || items2[0].ID != items[0].ID {
+		t.Fatalf("reuse must keep same outbox id, got %+v want id=%d", items2, items[0].ID)
+	}
 	// Second PayRun for another work item enqueues a second distinct event.
-	if err := relay.PayRun(ctx, "relay-camp", "HMC-3333333333333333"); err != nil {
+	if _, err := relay.PayRun(ctx, "relay-camp", "HMC-3333333333333333", 0); err != nil {
 		t.Fatal(err)
 	}
 	items, err = svc.ListPendingSettleOutbox(ctx, 10)
@@ -112,8 +123,12 @@ func TestRelaySettlerAckOnHTTPSuccess(t *testing.T) {
 		AdminToken: func() string { return "tok" },
 		HTTPClient: &http.Client{Timeout: 5 * time.Second},
 	}
-	if err := relay.PayRun(ctx, "ok-camp", "HMC-2222222222222222"); err != nil {
+	res, err := relay.PayRun(ctx, "ok-camp", "HMC-2222222222222222", 0)
+	if err != nil {
 		t.Fatal(err)
+	}
+	if !res.Applied {
+		t.Fatal("successful relay must report Applied")
 	}
 	items, err := svc.ListPendingSettleOutbox(ctx, 10)
 	if err != nil {
@@ -121,5 +136,36 @@ func TestRelaySettlerAckOnHTTPSuccess(t *testing.T) {
 	}
 	if len(items) != 0 {
 		t.Fatalf("successful relay must ACK outbox, pending=%d", len(items))
+	}
+}
+
+func TestRelaySettlerQueuedNotAppliedOnPull(t *testing.T) {
+	ctx := context.Background()
+	db, err := store.Open(filepath.Join(t.TempDir(), "relay-pull.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	if err := svc.RegisterCampaign(ctx, Campaign{
+		ID: "pull-camp", CampaignType: "property", Status: "running", BudgetRuns: 1,
+		Config: map[string]any{"orders_settle_pull": true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	relay := &RelaySettler{Service: svc, AdminToken: func() string { return "tok" }}
+	res, err := relay.PayRun(ctx, "pull-camp", "HMC-2222222222222222", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Applied || res.OutboxID <= 0 {
+		t.Fatalf("pull mode must queue only: %+v", res)
+	}
+	items, err := svc.ListPendingSettleOutbox(ctx, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("pending outbox=%d want 1", len(items))
 	}
 }

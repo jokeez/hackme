@@ -17,7 +17,8 @@ import (
 //
 // Always enqueues a durable outbox row first so the event_id is stable. HTTP relay
 // carries that event_id; on timeout the pending outbox is left for pull settle —
-// never a second enqueue after a maybe-paid HTTP attempt.
+// never a second enqueue after a maybe-paid HTTP attempt. Applied=true only after
+// origin ACK / durable outbox applied confirmation.
 type RelaySettler struct {
 	DB               *sql.DB
 	Service          *Service
@@ -50,16 +51,16 @@ func (r *RelaySettler) token() string {
 	return strings.TrimSpace(r.AdminToken())
 }
 
-func (r *RelaySettler) PayRun(ctx context.Context, campaignID, minerAddress string) error {
-	return r.relay(ctx, "run", campaignID, minerAddress, "")
+func (r *RelaySettler) PayRun(ctx context.Context, campaignID, minerAddress string, reuseOutboxID int64) (SettleResult, error) {
+	return r.relay(ctx, "run", campaignID, minerAddress, "", reuseOutboxID)
 }
 
-func (r *RelaySettler) PayFinding(ctx context.Context, campaignID, minerAddress, severity string) error {
-	return r.relay(ctx, "finding", campaignID, minerAddress, severity)
+func (r *RelaySettler) PayFinding(ctx context.Context, campaignID, minerAddress, severity string, reuseOutboxID int64) (SettleResult, error) {
+	return r.relay(ctx, "finding", campaignID, minerAddress, severity, reuseOutboxID)
 }
 
-func (r *RelaySettler) Finalize(ctx context.Context, campaignID string) error {
-	return r.relay(ctx, "finalize", campaignID, "", "")
+func (r *RelaySettler) Finalize(ctx context.Context, campaignID string, reuseOutboxID int64) (SettleResult, error) {
+	return r.relay(ctx, "finalize", campaignID, "", "", reuseOutboxID)
 }
 
 // SettleEventID mirrors chain.FuzzSettleEventID for coordinator→origin settle keys.
@@ -67,23 +68,42 @@ func SettleEventID(outboxID int64) string {
 	return fmt.Sprintf("outbox:%d", outboxID)
 }
 
-func (r *RelaySettler) relay(ctx context.Context, kind, campaignID, minerAddress, severity string) error {
+func (r *RelaySettler) relay(ctx context.Context, kind, campaignID, minerAddress, severity string, reuseOutboxID int64) (SettleResult, error) {
 	s := r.svc()
 	if s == nil {
-		return nil
+		return SettleResult{}, fmt.Errorf("poolfuzz: no settle service")
 	}
-	outboxID, err := s.EnqueueSettleOutbox(ctx, kind, campaignID, minerAddress, severity)
-	if err != nil {
-		return err
+	outboxID := reuseOutboxID
+	if outboxID > 0 {
+		st, err := s.SettleOutboxStatus(ctx, outboxID)
+		if err != nil {
+			return SettleResult{}, err
+		}
+		switch st {
+		case "applied":
+			return SettleResult{OutboxID: outboxID, Applied: true}, nil
+		case "pending":
+			// reuse same event_id
+		default:
+			// Missing/unknown — enqueue a fresh durable row.
+			outboxID = 0
+		}
+	}
+	if outboxID <= 0 {
+		id, err := s.EnqueueSettleOutbox(ctx, kind, campaignID, minerAddress, severity)
+		if err != nil {
+			return SettleResult{}, err
+		}
+		outboxID = id
 	}
 	base, pull := r.resolveSettleBase(ctx, campaignID)
 	if pull || base == "" {
-		return nil
+		return SettleResult{OutboxID: outboxID, Applied: false}, nil
 	}
 	tok := r.token()
 	if tok == "" {
 		// Durable outbox row already exists for pull; do not error (avoids re-enqueue).
-		return nil
+		return SettleResult{OutboxID: outboxID, Applied: false}, nil
 	}
 	eventID := SettleEventID(outboxID)
 	body, _ := json.Marshal(map[string]any{
@@ -95,22 +115,26 @@ func (r *RelaySettler) relay(ctx context.Context, kind, campaignID, minerAddress
 	})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(base, "/")+"/api/fuzz/pool/settle", bytes.NewReader(body))
 	if err != nil {
-		return nil
+		return SettleResult{OutboxID: outboxID, Applied: false}, nil
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Hackme-Admin-Token", tok)
 	resp, err := r.client().Do(req)
 	if err != nil {
 		// Timeout / network: leave outbox pending. Do NOT enqueue again.
-		return nil
+		return SettleResult{OutboxID: outboxID, Applied: false}, nil
 	}
 	defer resp.Body.Close()
 	_, _ = io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode == http.StatusOK {
-		_, _ = s.AckSettleOutbox(ctx, []int64{outboxID})
+		if _, err := s.AckSettleOutbox(ctx, []int64{outboxID}); err != nil {
+			// Origin accepted but local ACK failed — still treat as applied (idempotent event_id).
+			return SettleResult{OutboxID: outboxID, Applied: true}, nil
+		}
+		return SettleResult{OutboxID: outboxID, Applied: true}, nil
 	}
 	// Non-OK: leave pending for pull drain (same event_id). Never re-enqueue.
-	return nil
+	return SettleResult{OutboxID: outboxID, Applied: false}, nil
 }
 
 func (r *RelaySettler) resolveSettleBase(ctx context.Context, campaignID string) (base string, pull bool) {

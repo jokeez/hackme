@@ -18,23 +18,23 @@ type spySettler struct {
 	finalize int
 }
 
-func (s *spySettler) PayRun(context.Context, string, string) error {
+func (s *spySettler) PayRun(context.Context, string, string, int64) (SettleResult, error) {
 	s.mu.Lock()
 	s.runs++
 	s.mu.Unlock()
-	return nil
+	return SettleResult{Applied: true}, nil
 }
-func (s *spySettler) PayFinding(context.Context, string, string, string) error {
+func (s *spySettler) PayFinding(context.Context, string, string, string, int64) (SettleResult, error) {
 	s.mu.Lock()
 	s.findings++
 	s.mu.Unlock()
-	return nil
+	return SettleResult{Applied: true}, nil
 }
-func (s *spySettler) Finalize(context.Context, string) error {
+func (s *spySettler) Finalize(context.Context, string, int64) (SettleResult, error) {
 	s.mu.Lock()
 	s.finalize++
 	s.mu.Unlock()
-	return nil
+	return SettleResult{Applied: true}, nil
 }
 
 func TestRedteamReplaySubmitNoDoubleSettle(t *testing.T) {

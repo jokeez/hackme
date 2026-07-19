@@ -19,22 +19,24 @@ type failThenOKSettler struct {
 	failUntil int
 }
 
-func (s *failThenOKSettler) PayRun(context.Context, string, string) error {
+func (s *failThenOKSettler) PayRun(_ context.Context, _, _ string, _ int64) (SettleResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.runs++
 	if s.runs <= s.failUntil {
-		return errors.New("injected settle failure")
+		return SettleResult{}, errors.New("injected settle failure")
 	}
-	return nil
+	return SettleResult{OutboxID: int64(s.runs), Applied: true}, nil
 }
-func (s *failThenOKSettler) PayFinding(context.Context, string, string, string) error {
+func (s *failThenOKSettler) PayFinding(context.Context, string, string, string, int64) (SettleResult, error) {
 	s.mu.Lock()
 	s.findings++
 	s.mu.Unlock()
-	return nil
+	return SettleResult{Applied: true}, nil
 }
-func (s *failThenOKSettler) Finalize(context.Context, string) error { return nil }
+func (s *failThenOKSettler) Finalize(context.Context, string, int64) (SettleResult, error) {
+	return SettleResult{Applied: true}, nil
+}
 
 func TestSubmitSettleFailureThenRetryPaysOnce(t *testing.T) {
 	dir := t.TempDir()
@@ -93,4 +95,85 @@ func TestSubmitSettleFailureThenRetryPaysOnce(t *testing.T) {
 	if runs != 2 {
 		t.Fatalf("PayRun must run once fail + once success (exactly 2), got %d", runs)
 	}
+}
+
+func TestSubmitSettleQueuedNotPaidUntilApplied(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "settle-queued.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	queued := &queuedSettler{}
+	svc := &Service{DB: db, Settler: queued}
+	ctx := context.Background()
+	cfg := fuzzengine.NormalizeCampaignConfig(map[string]any{
+		"pool_distributed": true,
+		"budget_hmc":       1.0,
+		"check_semantics":  "pow_gate",
+	}, "property")
+	id := "settle-queued"
+	if err := svc.RegisterCampaign(ctx, Campaign{ID: id, CampaignType: "property", Status: "running", BudgetRuns: 2, Config: cfg}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.EnsureWorkItems(ctx, id, time.Now().Unix()); err != nil {
+		t.Fatal(err)
+	}
+	inN, actual := actualInputForWorkItem(t, ctx, svc, id, 1, cfg)
+	sub := SubmitRequest{
+		WorkerID: "w1", MinerAddress: "HMC-1234567890123456",
+		WorkID: id + ":1", CampaignID: id, ItemID: 1, InputN: inN, ActualInput: actual, CheckResult: 1, DurationMS: 1,
+	}
+	if err := svc.Submit(ctx, sub); err != nil {
+		t.Fatalf("submit: %v", err)
+	}
+	var runSt string
+	var outboxID int64
+	if err := db.QueryRowContext(ctx,
+		`SELECT settle_run_status, settle_run_outbox_id FROM fuzz_work_items WHERE campaign_id=? AND id=1`, id).Scan(&runSt, &outboxID); err != nil {
+		t.Fatal(err)
+	}
+	if runSt != "queued" || outboxID <= 0 {
+		t.Fatalf("want queued with outbox id, got status=%q outbox=%d", runSt, outboxID)
+	}
+	if err := svc.Submit(ctx, sub); err != nil {
+		t.Fatalf("retry: %v", err)
+	}
+	var outbox2 int64
+	if err := db.QueryRowContext(ctx,
+		`SELECT settle_run_outbox_id FROM fuzz_work_items WHERE campaign_id=? AND id=1`, id).Scan(&outbox2); err != nil {
+		t.Fatal(err)
+	}
+	if outbox2 != outboxID {
+		t.Fatalf("reuse outbox: first=%d second=%d", outboxID, outbox2)
+	}
+	if queued.runs != 2 {
+		t.Fatalf("PayRun calls=%d want 2", queued.runs)
+	}
+	if queued.lastReuse != outboxID {
+		t.Fatalf("second call reuseOutboxID=%d want %d", queued.lastReuse, outboxID)
+	}
+}
+
+type queuedSettler struct {
+	runs      int
+	lastReuse int64
+	outboxSeq int64
+}
+
+func (s *queuedSettler) PayRun(_ context.Context, _, _ string, reuse int64) (SettleResult, error) {
+	s.runs++
+	s.lastReuse = reuse
+	id := reuse
+	if id <= 0 {
+		s.outboxSeq++
+		id = s.outboxSeq
+	}
+	return SettleResult{OutboxID: id, Applied: false}, nil
+}
+func (s *queuedSettler) PayFinding(context.Context, string, string, string, int64) (SettleResult, error) {
+	return SettleResult{Applied: false}, nil
+}
+func (s *queuedSettler) Finalize(context.Context, string, int64) (SettleResult, error) {
+	return SettleResult{Applied: true}, nil
 }

@@ -583,6 +583,8 @@ func migrateFuzzSettleOutbox(db *sql.DB) error {
 		`ALTER TABLE fuzz_work_items ADD COLUMN settle_run_status TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE fuzz_work_items ADD COLUMN settle_finding_status TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE fuzz_work_items ADD COLUMN settle_finding_severity TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE fuzz_work_items ADD COLUMN settle_run_outbox_id INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE fuzz_work_items ADD COLUMN settle_finding_outbox_id INTEGER NOT NULL DEFAULT 0`,
 	} {
 		if _, err := db.Exec(col); err != nil {
 			if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
