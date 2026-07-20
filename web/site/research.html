@@ -62,22 +62,45 @@
       <div class="research-section-head">
         <div>
           <h2>OSS CVE Watch · nghttp2</h2>
-          <p class="subtle">One repo · 14 days · Day 2+ libFuzzer depth · honest CLEAN ledger</p>
+          <p class="subtle">Series complete · 14/14 days · Day 2+ libFuzzer · honest CLEAN ledger</p>
         </div>
         <a class="btn btn-secondary" href="./reports/oss-cve-watch/" style="font-size:0.82rem;padding:0.45rem 0.9rem">Series hub</a>
       </div>
       <div class="research-grid">
         <a class="research-card" href="./reports/oss-cve-watch/">
-          <span class="research-tag live">Day 14/14 · published</span>
+          <span class="research-tag series">14/14 · complete</span>
           <h3>nghttp2 HTTP/2 parser</h3>
           <p>Session <code class="notranslate">mem_recv</code> · persistent corpus · Days 2–14 cumulative ~14.32B libFuzzer exec · CLEAN.</p>
           <div class="research-stats notranslate"><span><b>~14.32B</b> exec</span><span><b>0</b> ASAN</span><span>CLEAN</span></div>
         </a>
         <a class="research-card" href="./reports/oss-cve-watch/day14.html">
-          <span class="research-tag series">Day 14 ledger</span>
+          <span class="research-tag series">Finale ledger</span>
           <h3>Day 14 · 3.03B · 17.0h</h3>
           <p>libFuzzer + ASAN · ~49,622 exec/s · corpus 420 · ASAN=0 — verdict CLEAN.</p>
           <div class="research-stats notranslate"><span><b>3.03B</b> exec</span><span><b>0</b> ASAN</span></div>
+        </a>
+      </div>
+    </section>
+
+    <section class="panel glass research-section">
+      <div class="research-section-head">
+        <div>
+          <h2>OSS CVE Watch · libheif</h2>
+          <p class="subtle">New series · Day 1/14 · HEIF/AVIF decode · libFuzzer + ASAN</p>
+        </div>
+      </div>
+      <div class="research-grid">
+        <a class="research-card" href="./research.html#oss-cve-libheif">
+          <span class="research-tag live">Day 1/14 · running</span>
+          <h3>libheif HEIF/AVIF</h3>
+          <p>Upstream <code class="notranslate">file_fuzzer</code> · libde265 + dav1d · fresh corpus · 2026 High CVE cluster hunt.</p>
+          <div class="research-stats notranslate"><span>new target</span><span>research-first</span><span>GHSA path</span></div>
+        </a>
+        <a class="research-card" href="./reports/oss-cve-watch/day14.html">
+          <span class="research-tag series">Prior series</span>
+          <h3>nghttp2 closed CLEAN</h3>
+          <p>14-day HTTP/2 watch complete · ~14.32B exec · separate ledger from libheif.</p>
+          <div class="research-stats notranslate"><span><b>14/14</b></span><span>CLEAN</span></div>
         </a>
       </div>
     </section>

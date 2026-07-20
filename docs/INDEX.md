@@ -44,7 +44,8 @@
 |------------|--------|
 | [BITCOIN30_SERIES.md](BITCOIN30_SERIES.md) | 30-day Bitcoin Core WASM fuzz runbook |
 | [OSS_CVE_HUNT.md](OSS_CVE_HUNT.md) | OSS CVE wave pipeline |
-| [../web/site/reports/oss-cve-watch/](../web/site/reports/oss-cve-watch/) | **OSS CVE Watch** — 14-day single-repo daily ledger |
+| [OSS_CVE_LIBHEIF_SERIES.md](OSS_CVE_LIBHEIF_SERIES.md) | **libheif** OSS CVE Watch · Day 1/14 (new series) |
+| [../web/site/reports/oss-cve-watch/](../web/site/reports/oss-cve-watch/) | **nghttp2 OSS CVE Watch** — 14-day ledger (complete) |
 | [TELEGRAM_NEWS_BOT_RUNBOOK.md](TELEGRAM_NEWS_BOT_RUNBOOK.md) | News bot + pool heartbeat (social drafts stay local under `docs/social/`) |
 | [TELEGRAM_BOT.md](TELEGRAM_BOT.md) | Bot setup |
 | [../web/site/research.html](../web/site/research.html) | Public research hub |

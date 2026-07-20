@@ -13,6 +13,12 @@ mkdir -p "$OUT_DIR" "$ROOT/logs"
 
 log() { echo "[libfuzzer-build $(date -u +%H:%M:%S)] $*" >&2; }
 
+if [[ "$TARGET" == "libheif" ]]; then
+  FUZZER="${LIBHEIF_FUZZER:-file_fuzzer}" \
+    bash "$ROOT/scripts/ops/build_oss_libfuzzer_libheif.sh"
+  exit 0
+fi
+
 # Reuse cached ASAN binary without requiring clang on PATH (systemd/cron autopublish).
 if [[ "${SKIP_REBUILD:-0}" == "1" && -x "$OUT" ]]; then
   log "reuse existing $OUT ($(du -h "$OUT" | awk '{print $1}'))"

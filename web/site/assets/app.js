@@ -406,11 +406,28 @@
       );
     }
     let items = [];
-    try {
-      const resp = await fetch(CONFIG.newsFeed, { cache: "no-store" });
-      if (!resp.ok) throw new Error("news unavailable");
+    async function fetchNewsItems(url) {
+      const resp = await fetch(url, { cache: "no-store" });
+      if (!resp.ok) throw new Error(`news unavailable (${url})`);
       const body = await resp.json();
-      items = Array.isArray(body.items) ? body.items.slice() : [];
+      return Array.isArray(body.items) ? body.items.slice() : [];
+    }
+    try {
+      // Full archive for newsroom; compact news-feed.json is Telegram/poller-only (12 recent).
+      try {
+        items = await fetchNewsItems(CONFIG.newsArchive);
+      } catch (_) {
+        items = await fetchNewsItems(CONFIG.newsFeed);
+      }
+      // Enrich / override recent ids from compact feed (telegram/discord blocks).
+      try {
+        const recent = await fetchNewsItems(CONFIG.newsFeed);
+        const byId = new Map(items.map((it) => [it.id, it]));
+        for (const it of recent) {
+          if (it.id) byId.set(it.id, { ...byId.get(it.id), ...it });
+        }
+        items = Array.from(byId.values());
+      } catch (_) {}
     } catch (_) {
       if (emptyEl) {
         emptyEl.classList.remove("hidden");

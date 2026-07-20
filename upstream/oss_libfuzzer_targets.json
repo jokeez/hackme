@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-08",
+  "updated": "2026-07-20",
   "note": "libFuzzer pilot targets — per-repo harness + build recipe (local CVE depth)",
   "defaults": {
     "max_total_time_sec": 28800,
@@ -16,7 +16,21 @@
       "fuzzer": "nghttp2_fuzzer",
       "oss_cve_target_id": "nghttp2",
       "seeds_dir": "tasks/seeds/oss-libfuzzer/nghttp2",
+      "series": "oss-cve-watch",
+      "series_days": 14,
       "cwe": ["CWE-125", "CWE-787"]
+    },
+    {
+      "id": "libheif",
+      "repo": "https://github.com/strukturag/libheif",
+      "ref": "master",
+      "title": "strukturag/libheif · HEIF/AVIF file decode",
+      "fuzzer": "file_fuzzer",
+      "oss_cve_target_id": "libheif",
+      "seeds_dir": "tasks/seeds/oss-libfuzzer/libheif",
+      "series": "oss-cve-watch-libheif",
+      "series_days": 14,
+      "cwe": ["CWE-125", "CWE-787", "CWE-122"]
     }
   ]
 }

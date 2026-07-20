@@ -45,7 +45,9 @@ All 14 days passed gate before HTML + news feed update.
 
 ## Recommended next target
 
-See `reports/oss-cve-watch/DAY15_TARGET_RECOMMENDATION.md`.
+**libheif — Day 1/14 of a new series** (not “Day 15” of nghttp2). New target, harness, corpus, and ledger.
+
+See `reports/oss-cve-watch/DAY15_TARGET_RECOMMENDATION.md` (operator notes; filename legacy).
 
 | Priority | Target | Rationale |
 |----------|--------|-----------|
@@ -54,7 +56,7 @@ See `reports/oss-cve-watch/DAY15_TARGET_RECOMMENDATION.md`.
 
 **Bug bounty note:** nghttp2 has no meaningful cash program for this campaign style. libheif/Exiv2 are **research + GHSA** paths first; cash bounty only if a finding maps to an eligible consumer program. Pure H1-style bounty hunting is a poor fit for ASAN C++ decode fuzz (curl H1 closed; Cloudflare quiche = protocol DoS, different stack).
 
-Do **not** mix nghttp2 corpus with libheif. Update `run_oss_cve_watch_*` / session scripts with `TARGET=libheif`.
+Do **not** mix nghttp2 corpus with libheif. Use `TARGET=libheif` · `scripts/ops/build_oss_libfuzzer_libheif.sh` · corpus under `reports/oss-cve-libfuzzer/libheif/`.
 
 ## Operator checklist (post-series)
 
