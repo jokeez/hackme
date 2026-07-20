@@ -34,13 +34,18 @@ if [[ -z "$ADMIN_TOKEN" || -z "$COORD_ADMIN_TOKEN" ]]; then
   exit 1
 fi
 
-# Ensure SUP genesis on chain host (idempotent).
-curl -fsS -X POST "${CHAIN_BASE}/api/sup/genesis" \
-  -H "X-Hackme-Admin-Token: ${ADMIN_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{}' >/dev/null 2>&1 || {
-  echo "[settle-sup] WARN: sup genesis call failed (chain may already be initialized)" >&2
-}
+# Ensure SUP genesis only when mint is not live yet.
+# (Genesis is now idempotent and will not wipe total_minted; still avoid
+# hammering it every settle tick.)
+sup_live="$(curl -fsS --max-time 8 "${CHAIN_BASE}/api/sup/economics" 2>/dev/null | jq -r '.economics.mint_enabled // false' 2>/dev/null || echo false)"
+if [[ "$sup_live" != "true" ]]; then
+  curl -fsS -X POST "${CHAIN_BASE}/api/sup/genesis" \
+    -H "X-Hackme-Admin-Token: ${ADMIN_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d '{}' >/dev/null 2>&1 || {
+    echo "[settle-sup] WARN: sup genesis call failed (chain may already be initialized)" >&2
+  }
+fi
 
 mkdir -p "$(dirname "$STATE_FILE")"
 [[ -f "$STATE_FILE" ]] || echo '{"workers":{},"meta":{}}' >"$STATE_FILE"

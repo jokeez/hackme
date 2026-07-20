@@ -155,7 +155,10 @@ func (s *Service) SUPEconomics(ctx context.Context) (SUPEconomics, error) {
 	}, nil
 }
 
-// InitSUPGenesis pins max supply and enables settlement mint (idempotent).
+// InitSUPGenesis pins max supply and enables settlement mint.
+// Idempotent: does not reset total_minted or genesis_unix once set.
+// Self-heal: if sum(account SUP balances) > total_minted (legacy wipe),
+// raises the minted floor so supply-cap accounting stays honest.
 func (s *Service) InitSUPGenesis(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -169,12 +172,44 @@ func (s *Service) InitSUPGenesis(ctx context.Context) error {
 	if err := s.upsertMetaUint(ctx, tx, metaSUPMaxSupplyUnits, maxU); err != nil {
 		return err
 	}
-	if err := s.upsertMetaUint(ctx, tx, metaSUPTotalMintedUnits, 0); err != nil {
+
+	var genesisStr string
+	genesisErr := tx.QueryRowContext(ctx, `SELECT value FROM meta WHERE key=?`, metaSUPGenesisUnix).Scan(&genesisStr)
+	if errors.Is(genesisErr, sql.ErrNoRows) || strings.TrimSpace(genesisStr) == "" {
+		if err := s.upsertMeta(ctx, tx, metaSUPGenesisUnix, strconv.FormatInt(now, 10)); err != nil {
+			return err
+		}
+	} else if genesisErr != nil {
+		return genesisErr
+	}
+
+	mintedU, err := s.supTotalMintedUnits(ctx, tx)
+	if err != nil {
 		return err
 	}
-	if err := s.upsertMeta(ctx, tx, metaSUPGenesisUnix, strconv.FormatInt(now, 10)); err != nil {
+	var balSum uint64
+	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(balance_sup_units), 0) FROM accounts`).Scan(&balSum); err != nil {
 		return err
 	}
+	// First-ever genesis with empty ledger: keep minted at 0.
+	// If balances already exist above minted (repeated genesis wipe), heal the floor.
+	if balSum > mintedU {
+		if err := s.upsertMetaUint(ctx, tx, metaSUPTotalMintedUnits, balSum); err != nil {
+			return err
+		}
+	} else if mintedU == 0 && balSum == 0 {
+		// Ensure key exists for fresh chains.
+		var exists string
+		err := tx.QueryRowContext(ctx, `SELECT value FROM meta WHERE key=?`, metaSUPTotalMintedUnits).Scan(&exists)
+		if errors.Is(err, sql.ErrNoRows) {
+			if err := s.upsertMetaUint(ctx, tx, metaSUPTotalMintedUnits, 0); err != nil {
+				return err
+			}
+		} else if err != nil {
+			return err
+		}
+	}
+
 	if err := s.upsertMeta(ctx, tx, metaSUPMintEnabled, "1"); err != nil {
 		return err
 	}
