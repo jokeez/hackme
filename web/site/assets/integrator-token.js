@@ -9,6 +9,7 @@
   const btnRot = document.getElementById("btn-integrator-rotate");
   const labelIn = document.getElementById("integrator-label");
   const consoleLink = document.getElementById("integrator-console-link");
+  let selfRegisterOn = false;
 
   function getTok() {
     return Dev ? Dev.getToken() : sessionStorage.getItem(SK) || "";
@@ -26,6 +27,17 @@
     const url = Dev ? Dev.developerConsoleURL() : "./downloads.html#local-node";
     consoleLink.href = url;
     consoleLink.style.display = getTok() ? "inline-flex" : "none";
+  }
+
+  function setRegisterEnabled(on) {
+    selfRegisterOn = !!on;
+    if (!btnReg) return;
+    btnReg.disabled = !on;
+    btnReg.title = on
+      ? ""
+      : "Self-register is off on hackme.tech — run hackme-node locally (127.0.0.1:8080) to issue tokens.";
+    btnReg.classList.toggle("btn-disabled", !on);
+    if (labelIn) labelIn.disabled = !on;
   }
 
   async function api(method, path, body) {
@@ -59,16 +71,29 @@
 
   async function refreshStatus() {
     const r = await api("GET", "/api/integrator/status");
-    if (status && r.ok) {
-      status.textContent =
-        "Self-register: " +
-        (r.json.self_register_enabled ? "on" : "off") +
-        " · active tokens: " +
-        (r.json.active_tokens ?? "—");
+    if (r.ok) {
+      setRegisterEnabled(!!r.json.self_register_enabled);
+      if (status) {
+        status.textContent =
+          "Self-register: " +
+          (r.json.self_register_enabled ? "on" : "off (hub — use local node)") +
+          " · active tokens: " +
+          (r.json.active_tokens ?? "—");
+      }
+    } else if (status) {
+      status.textContent = "Integrator status unavailable (" + r.status + ")";
+      setRegisterEnabled(false);
     }
   }
 
   btnReg?.addEventListener("click", async () => {
+    if (!selfRegisterOn) {
+      if (status) {
+        status.textContent =
+          "Self-register off on this host. Start hackme-node locally → http://127.0.0.1:8080/#orders";
+      }
+      return;
+    }
     if (status) status.textContent = "Registering…";
     const label = (labelIn?.value || "").trim();
     const r = await api("POST", "/api/integrator/register", { label });

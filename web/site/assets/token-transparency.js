@@ -81,15 +81,16 @@
   async function paintHMS(hms) {
     const ec = hms?.economics || hms || {};
     if (!ec.max_supply_hms && !ec.max_supply) {
-      setHtml("transparency-hms", `<p class="muted">HMS lane prelaunch — economics API not live on canonical hub yet. See <a href="./coin-hms.html">HMS overview</a>.</p>`);
+      setHtml("transparency-hms", `<p class="muted">HMS preview lane — economics API not reachable. See <a href="./coin-hms.html">HMS overview</a>.</p>`);
       return;
     }
     const max = ec.max_supply_hms ?? ec.max_supply;
     const rows = [
+      ["Lane status", "Preview — economics API live; not CEX-listed"],
       ["Max supply", fmt(max, 0) + " HMS"],
       ["Total minted", fmt(ec.total_minted_hms ?? ec.total_minted) + " HMS"],
       ["Treasury genesis float", (ec.treasury_genesis_float_pct ?? 0.5) + "%"],
-      ["Mint enabled", ec.mint_enabled ? "Yes" : "Prelaunch"],
+      ["Mint enabled", ec.mint_enabled ? "Yes (preview)" : "Prelaunch"],
     ];
     setHtml(
       "transparency-hms",

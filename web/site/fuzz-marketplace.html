@@ -27,7 +27,14 @@
       <a class="btn btn-secondary" href="./developers.html">Create a campaign (wizard)</a>
     </section>
     <section class="panel glass">
-      <div class="panel-head"><h2>Active pool campaigns</h2></div>
+      <div class="panel-head">
+        <h2>Pool campaigns</h2>
+        <div class="pill-row" role="tablist" style="margin-top:0.5rem">
+          <button type="button" class="pill active" data-fuzz-tab="active">Active</button>
+          <button type="button" class="pill" data-fuzz-tab="completed">Completed</button>
+          <button type="button" class="pill" data-fuzz-tab="all">All</button>
+        </div>
+      </div>
       <p id="pool-stats" class="subtle"></p>
       <div class="table-wrap">
         <table class="endpoint-table">
@@ -41,50 +48,91 @@
   </main>
   <script>
     const COORD = '/pool/coordinator';
-    async function load() {
-      const statsEl = document.getElementById('pool-stats');
+    let allCampaigns = [];
+    let activeTab = 'active';
+
+    function isNoise(c) {
+      const id = String(c.id || '');
+      const title = String(c.title || '').toLowerCase();
+      if (id.startsWith('pool-sync-gate') || id.includes('pool-sync-gate') || id.startsWith('pool-sync-node-')) return true;
+      if (id.endsWith('-probe') || title === 'probe' || title === 'pool-sync-gate' || title === 'gate-audit') return true;
+      return false;
+    }
+
+    function filterCampaigns(tab) {
+      return allCampaigns.filter((c) => {
+        if (isNoise(c)) return false;
+        const st = String(c.status || '').toLowerCase();
+        if (tab === 'active') return st === 'running' || st === 'planned';
+        if (tab === 'completed') return st === 'completed' || st === 'complete' || st === 'closed';
+        return true;
+      });
+    }
+
+    function renderRows(rows) {
       const body = document.getElementById('campaigns-body');
-      try {
-        const [st, list] = await Promise.all([
-          fetch(COORD + '/api/fuzz/pool/stats').then(r => r.json()),
-          fetch(COORD + '/api/fuzz/pool/campaigns/list').then(r => r.json()),
-        ]);
-        if (st.ok) {
-          statsEl.textContent = `Pool: ${st.campaigns_running || 0} running · ${st.work_done || 0} work items done · ${st.work_pending || 0} pending`;
-        }
-        const rows = (list.campaigns || []).filter((c) => {
-          const st = String(c.status || '').toLowerCase();
-          if (st !== 'running' && st !== 'planned') return false;
-          const id = String(c.id || '');
-          const title = String(c.title || '').toLowerCase();
-          if (id.startsWith('pool-sync-gate') || id.includes('pool-sync-gate') || id.startsWith('pool-sync-node-')) return false;
-          if (id.endsWith('-probe') || title === 'probe' || title === 'pool-sync-gate' || title === 'gate-audit') return false;
-          return true;
-        });
-        if (!rows.length) {
-          body.innerHTML = '<tr><td colspan="6">No pool campaigns yet.</td></tr>';
-          return;
-        }
-        body.innerHTML = rows.map(c => `<tr>
+      if (!rows.length) {
+        const hint = activeTab === 'active'
+          ? 'No active pool campaigns right now — see Completed or All tabs.'
+          : 'No campaigns in this view.';
+        body.innerHTML = '<tr><td colspan="6">' + hint + '</td></tr>';
+        return;
+      }
+      body.innerHTML = rows.slice(0, 80).map(c => `<tr>
           <td><code>${escapeHtml(String(c.id || ''))}</code></td>
           <td>${escapeHtml(c.title || '')}</td>
           <td>${escapeHtml(String(c.status || ''))}</td>
           <td>${c.runs_done || 0} / ${c.budget_runs || 0}</td>
           <td>${c.findings || 0}</td>
-          <td>${c.budget_hmc ? c.budget_hmc.toFixed(2) : '—'}</td>
+          <td>${c.budget_hmc ? Number(c.budget_hmc).toFixed(2) : '—'}</td>
         </tr>`).join('');
+    }
+
+    function paintStats(st) {
+      const statsEl = document.getElementById('pool-stats');
+      if (!st || !st.ok) return;
+      const total = allCampaigns.filter(c => !isNoise(c)).length;
+      const running = Number(st.campaigns_running || 0);
+      const completed = allCampaigns.filter(c => {
+        const s = String(c.status || '').toLowerCase();
+        return !isNoise(c) && (s === 'completed' || s === 'complete' || s === 'closed');
+      }).length;
+      statsEl.textContent =
+        `${total} total campaigns · ${running} running · ${completed} completed · ${st.work_done || 0} work items done · ${st.work_pending || 0} pending`;
+    }
+
+    async function load() {
+      const body = document.getElementById('campaigns-body');
+      const statsEl = document.getElementById('pool-stats');
+      try {
+        const [st, list] = await Promise.all([
+          fetch(COORD + '/api/fuzz/pool/stats').then(r => r.json()),
+          fetch(COORD + '/api/fuzz/pool/campaigns/list').then(r => r.json()),
+        ]);
+        allCampaigns = list.campaigns || [];
+        paintStats(st);
+        renderRows(filterCampaigns(activeTab));
       } catch (e) {
         body.innerHTML = '<tr><td colspan="6">Could not load pool data.</td></tr>';
         statsEl.textContent = String(e);
       }
     }
+
     function escapeHtml(s) {
       return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
+
+    document.querySelectorAll('[data-fuzz-tab]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        activeTab = btn.dataset.fuzzTab || 'active';
+        document.querySelectorAll('[data-fuzz-tab]').forEach(b => b.classList.toggle('active', b === btn));
+        renderRows(filterCampaigns(activeTab));
+      });
+    });
     document.getElementById('btn-refresh').addEventListener('click', load);
     load();
   </script>
-  <script src="./assets/site-shell.js?v=20260601hub"></script>
-  <script src="./assets/app.js?v=20260531mkt"></script>
+  <script src="./assets/site-shell.js?v=20260720site"></script>
+  <script src="./assets/app.js?v=20260720site"></script>
 </body>
 </html>
