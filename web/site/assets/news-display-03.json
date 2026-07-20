@@ -3,10 +3,10 @@
     {
       "id": "2026-05-22-zero-knowledge-start-downloads",
       "date": "2026-05-22",
-      "title": "Zero-Knowledge Start \u00b7 HackMe OS on downloads \u00b7 Windows worker watchdog",
-      "summary": "HackMe OS: flash USB, boot \u2014 empty hackme.ini triggers auto HMC wallet + 24-word recovery phrase on screen, then instant pool mining (no config). New downloads section for the live ISO. Windows installer ships worker watchdog (mining stays up after GPU crashes). Site + manifests updated.",
+      "title": "Zero-Knowledge Start · HackMe OS on downloads · Windows worker watchdog",
+      "summary": "HackMe OS: flash USB, boot — empty hackme.ini triggers auto HMC wallet + 24-word recovery phrase on screen, then instant pool mining (no config). New downloads section for the live ISO. Windows installer ships worker watchdog (mining stays up after GPU crashes). Site + manifests updated.",
       "impact": "Miners can start in zero seconds on ISO rigs; Windows rigs auto-restart the pool worker; official ISO and checksums appear on hackme.tech/downloads when the build is published.",
-      "action": "Downloads: https://hackme.tech/downloads.html#hackme-os \u00b7 Windows: HackMe-Setup exe \u00b7 ISO docs: https://github.com/jokeez/hackme/blob/main/docs/HACKME_OS.md \u00b7 Pool: https://hackme.tech/pool/coordinator/api/work/stats",
+      "action": "Downloads: https://hackme.tech/downloads.html#hackme-os · Windows: HackMe-Setup exe · ISO docs: https://github.com/jokeez/hackme/blob/main/docs/HACKME_OS.md · Pool: https://hackme.tech/pool/coordinator/api/work/stats",
       "tags": [
         "release",
         "mining",
@@ -19,10 +19,10 @@
     {
       "id": "2026-05-22-ecosystem-chaos-hackme-os",
       "date": "2026-05-22",
-      "title": "Ecosystem dashboard \u00b7 nightly chaos guard \u00b7 HackMe OS miner ISO",
+      "title": "Ecosystem dashboard · nightly chaos guard · HackMe OS miner ISO",
       "summary": "Desktop dashboard home is now the Ecosystem coin table (Hive-style): live HMC pool stats, clickable mining entry, roadmap slots for future chains. Nightly chaos guard tests 5000 payout ledger drift, HTTP replay/tamper (403), and HackMe OS init-worker.ini hardening. HackMe OS live USB build: CPU isolation, RT scheduler, GPU performance mode, fair pool worker autostart.",
       "impact": "Miners get a clearer pool-first UI; operators get automated security regression tests; Linux rigs can boot a dedicated HackMe OS image pointed at hackme.tech pool.",
-      "action": "Pull latest main \u00b7 Dashboard: http://127.0.0.1:8080 (Ecosystem tab) \u00b7 Pool: https://hackme.tech/pool/coordinator/api/work/stats \u00b7 Docs: docs/HACKME_OS.md \u00b7 Chaos tests: bash scripts/tests/nightly_chaos_guard.sh",
+      "action": "Pull latest main · Dashboard: http://127.0.0.1:8080 (Ecosystem tab) · Pool: https://hackme.tech/pool/coordinator/api/work/stats · Docs: docs/HACKME_OS.md · Chaos tests: bash scripts/tests/nightly_chaos_guard.sh",
       "tags": [
         "release",
         "mining",
@@ -35,10 +35,10 @@
     {
       "id": "2026-05-21-coordinator-stress-bct",
       "date": "2026-05-21",
-      "title": "Coordinator stress test passed \u00b7 Bitcointalk update \u00b7 MiningPoolStats listing",
-      "summary": "10-minute mega stress: 100 virtual workers, 0% hard errors, no coordinator crash, RAM stable (~12\u219220 MB), halving at block 2,102,401 verified (0.01\u21920.005 HMC). Malformed ingress and chaos disconnects handled cleanly. Public pool on hackme.tech \u2014 HTTP coordinator (not Stratum). Bitcointalk ANN updated; MiningPoolStats submission in progress.",
+      "title": "Coordinator stress test passed · Bitcointalk update · MiningPoolStats listing",
+      "summary": "10-minute mega stress: 100 virtual workers, 0% hard errors, no coordinator crash, RAM stable (~12→20 MB), halving at block 2,102,401 verified (0.01→0.005 HMC). Malformed ingress and chaos disconnects handled cleanly. Public pool on hackme.tech — HTTP coordinator (not Stratum). Bitcointalk ANN updated; MiningPoolStats submission in progress.",
       "impact": "Miners can trust coordinator stability under load; follow the official ANN thread for setup. OpenCL Windows builds (rc11g) and live pool stats unchanged.",
-      "action": "Read the update on Bitcointalk: https://bitcointalk.org/index.php?topic=5583373.0 \u00b7 Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats \u00b7 Downloads: https://hackme.tech/downloads.html \u00b7 Stress harness in repo: scripts/tests/coordinator_mega_stress.sh",
+      "action": "Read the update on Bitcointalk: https://bitcointalk.org/index.php?topic=5583373.0 · Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats · Downloads: https://hackme.tech/downloads.html · Stress harness in repo: scripts/tests/coordinator_mega_stress.sh",
       "tags": [
         "infrastructure",
         "pool",
@@ -53,7 +53,7 @@
       "title": "Release 0.1.0-rc11g: Windows OpenCL worker (AMD RX 580 full GPU)",
       "summary": "Windows bundle now ships workerpoh-opencl.exe (mingw cross-build). AMD Radeon rigs use native OpenCL instead of CPU-only ~0.02 GH/s. Tested on RX 580 2048SP: ~0.12+ GH/s in pool (vs ~0.021 CPU). Rig profile keeps opencl when the binary is present.",
       "impact": "Windows AMD miners get real GPU mining in one installer; pool token and amd_rx580_2048sp profile unchanged.",
-      "action": "Download HackMe-Setup-0.1.0-rc11g.exe \u00b7 Existing installs: copy workerpoh-opencl.exe next to hackme.exe and set HACKME_GPU_BACKEND=opencl, or reinstall rc11g.",
+      "action": "Download HackMe-Setup-0.1.0-rc11g.exe · Existing installs: copy workerpoh-opencl.exe next to hackme.exe and set HACKME_GPU_BACKEND=opencl, or reinstall rc11g.",
       "tags": [
         "release",
         "mining",
@@ -69,7 +69,7 @@
       "title": "Release 0.1.0-rc11f: Windows CP1251 fix + pool token repair",
       "summary": "Installer and scripts use ASCII-only PowerShell (Russian Windows no longer breaks detect_gpu / write_hackme_env). Auto-repair hackme.env from pool.miner.token on miner start. RX 580 2048SP rig profile applied when GPU is detected. Pool live ~69 GH/s, M ~143M.",
       "impact": "Windows miners on RU locales: install and Start HackMe Miner without PowerShell parse errors; pool token and amd_rx580_2048sp profile written reliably.",
-      "action": "Download HackMe-Setup-0.1.0-rc11f.exe from https://hackme.tech/downloads.html \u00b7 Existing installs: run start_hackme_miner.bat (repairs env) or reinstall rc11f.",
+      "action": "Download HackMe-Setup-0.1.0-rc11f.exe from https://hackme.tech/downloads.html · Existing installs: run start_hackme_miner.bat (repairs env) or reinstall rc11f.",
       "tags": [
         "release",
         "mining",
@@ -85,7 +85,7 @@
       "title": "Release 0.1.0-rc11e: Windows installer + GPU wizard + pool token fix",
       "summary": "Official HackMe-Setup.exe (Inno Setup) replaces zip-only onboarding: Program Files install, Start menu/desktop shortcuts, registry entries, preconfigured pool token. Wizard page detects GPU (Auto / NVIDIA CUDA / AMD OpenCL / CPU). Rig profiles for RX 580 2048SP. Fixes Program Files path quoting and hackme.env repair from pool.miner.token.",
       "impact": "Windows miners: one .exe install, no manual token hunt. Pool ~69 GH/s live; difficulty M auto-retargets. Dashboard shows per-worker GH/s and HMC accrual.",
-      "action": "Download HackMe-Setup-0.1.0-rc11e.exe from https://hackme.tech/downloads.html \u00b7 AMD RX 580: choose Auto or OpenCL in installer \u00b7 Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats",
+      "action": "Download HackMe-Setup-0.1.0-rc11e.exe from https://hackme.tech/downloads.html · AMD RX 580: choose Auto or OpenCL in installer · Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats",
       "tags": [
         "release",
         "mining",
@@ -99,9 +99,9 @@
       "id": "2026-05-19-cuda-rc10-gpu-backends",
       "date": "2026-05-19",
       "title": "Release 0.1.0-rc10: native NVIDIA CUDA + AMD/Intel OpenCL",
-      "summary": "Linux bundle adds workerpoh-cuda (NVRTC, Blackwell compute_120), honest pool hashrate calibration (~80\u2013120 GH/s on RTX 50), and GPU backend auto-detect. Windows zip: hackme.exe + workerpoh-opencl.exe. Docs: GPU_MINING_BACKENDS.md, CUDA_PRODUCTION.md.",
+      "summary": "Linux bundle adds workerpoh-cuda (NVRTC, Blackwell compute_120), honest pool hashrate calibration (~80–120 GH/s on RTX 50), and GPU backend auto-detect. Windows zip: hackme.exe + workerpoh-opencl.exe. Docs: GPU_MINING_BACKENDS.md, CUDA_PRODUCTION.md.",
       "impact": "NVIDIA miners should use CUDA on Linux for full GPU throughput; AMD/Intel use OpenCL. Pool stats and payouts reflect measured GH/s.",
-      "action": "Download 0.1.0-rc10 from https://hackme.tech/downloads.html \u00b7 Linux NVIDIA: HACKME_GPU_BACKEND=cuda \u00b7 See docs/GPU_MINING_BACKENDS.md",
+      "action": "Download 0.1.0-rc10 from https://hackme.tech/downloads.html · Linux NVIDIA: HACKME_GPU_BACKEND=cuda · See docs/GPU_MINING_BACKENDS.md",
       "tags": [
         "mining",
         "pool",
@@ -117,7 +117,7 @@
       "title": "Pool fairness: GPU-weighted limits, faster settlement, MPS prep",
       "summary": "Coordinator now caps paid attempts by measured GH/s (stops CPU submit-spam), limits claim/submit rate per worker, and settlement runs every ~30s. Dashboard calculator slider fixed; unpaid accrual display syncs from hackme.tech. MiningPoolStats listing checklist + exchange roadmap docs added. Desktop miners: use batch 4M + OpenCL/CUDA; remote VPS workers should use worker token (not full admin).",
       "impact": "Your PC GPU rig should earn proportionally to hashrate; payouts above min threshold reach on-chain faster. Public stats: https://hackme.tech/pool/coordinator/api/pool/stats",
-      "action": "Pull latest from GitHub \u00b7 Restart pool worker after update \u00b7 MPS: docs/MININGPOOLSTATS_LISTING.md \u00b7 Fair tuning: scripts/ops/apply_desktop_gpu_pool.sh",
+      "action": "Pull latest from GitHub · Restart pool worker after update · MPS: docs/MININGPOOLSTATS_LISTING.md · Fair tuning: scripts/ops/apply_desktop_gpu_pool.sh",
       "tags": [
         "mining",
         "pool",
@@ -131,9 +131,9 @@
       "id": "2026-05-19-mining-calculator-dashboard",
       "date": "2026-05-19",
       "title": "Advanced mining calculator in node dashboard",
-      "summary": "The embedded dashboard (Mining tab) now includes a live mining calculator: hashrate \u2192 HMC/hour, PoH ETA, found-bonus estimates, electricity ROI, break-even, and pool vs chain-empty comparison. Params sync from /api/work/stats and /api/metrics (reward/M, target_mod, pool GH/s). Presets: your worker, pool average, GPU/CPU rigs.",
-      "impact": "Miners can model payout and power costs before joining the pool or scaling rigs \u2014 no spreadsheet required.",
-      "action": "Open your node dashboard \u2192 Mining tab \u2192 Mining calculator. Public pool: https://hackme.tech/pool/ \u2014 downloads: https://hackme.tech/downloads.html",
+      "summary": "The embedded dashboard (Mining tab) now includes a live mining calculator: hashrate → HMC/hour, PoH ETA, found-bonus estimates, electricity ROI, break-even, and pool vs chain-empty comparison. Params sync from /api/work/stats and /api/metrics (reward/M, target_mod, pool GH/s). Presets: your worker, pool average, GPU/CPU rigs.",
+      "impact": "Miners can model payout and power costs before joining the pool or scaling rigs — no spreadsheet required.",
+      "action": "Open your node dashboard → Mining tab → Mining calculator. Public pool: https://hackme.tech/pool/ — downloads: https://hackme.tech/downloads.html",
       "tags": [
         "mining",
         "pool",
@@ -145,10 +145,10 @@
     {
       "id": "2026-05-19-security-rewards-hmc",
       "date": "2026-05-19",
-      "title": "Security rewards program \u2014 small HMC bug bounty",
-      "summary": "Private security and UI reports can earn discretionary on-chain HMC after verified fixes. Tiers are modest (roughly 1\u2013200 HMC per issue, ~200 HMC/month program cap) \u2014 not investment income. Full policy on security-rewards.html and GitHub docs/BUG_BOUNTY.md.",
+      "title": "Security rewards program — small HMC bug bounty",
+      "summary": "Private security and UI reports can earn discretionary on-chain HMC after verified fixes. Tiers are modest (roughly 1–200 HMC per issue, ~200 HMC/month program cap) — not investment income. Full policy on security-rewards.html and GitHub docs/BUG_BOUNTY.md.",
       "impact": "Researchers and miners know how to report without public 0-days; rewards stay aligned with treasury economics.",
-      "action": "Report: https://hackme.tech/contacts.html \u00b7 Tiers: https://hackme.tech/security-rewards.html \u00b7 Policy: https://github.com/jokeez/hackme/blob/main/docs/BUG_BOUNTY.md",
+      "action": "Report: https://hackme.tech/contacts.html · Tiers: https://hackme.tech/security-rewards.html · Policy: https://github.com/jokeez/hackme/blob/main/docs/BUG_BOUNTY.md",
       "tags": [
         "security",
         "community",
@@ -159,10 +159,10 @@
     {
       "id": "2026-05-19-bitcointalk-ann-live",
       "date": "2026-05-19",
-      "title": "Bitcointalk ANN is live \u2014 official pool thread",
+      "title": "Bitcointalk ANN is live — official pool thread",
       "summary": "The HackMe pool announcement is published on Bitcoin Forum (Pools / Altcoins): topic 5583373. Links to hackme.tech, downloads, GitHub source, economics, and miner quick start.",
       "impact": "Miners can discuss setup, WORKER_PAYOUT_MAP, and economics in the official thread. Site Contacts now links to the live forum URL.",
-      "action": "Thread: https://bitcointalk.org/index.php?topic=5583373.0 \u2014 join mining via https://hackme.tech/downloads.html",
+      "action": "Thread: https://bitcointalk.org/index.php?topic=5583373.0 — join mining via https://hackme.tech/downloads.html",
       "tags": [
         "community",
         "announcement",
@@ -175,9 +175,9 @@
       "id": "2026-05-18-public-pool-fair-economics",
       "date": "2026-05-18",
       "title": "Public pool economics: fair attempt-based accrual for all miners",
-      "summary": "Official pool policy updated: payout_found_only=0 with reward_auto and hybrid signer strict \u2014 miners accrue HMC for accepted work (capped per batch), not only on rare found hits. Settlement loop verified; see economics-model.html and docs/MINER_POOL_ECONOMICS.md.",
+      "summary": "Official pool policy updated: payout_found_only=0 with reward_auto and hybrid signer strict — miners accrue HMC for accepted work (capped per batch), not only on rare found hits. Settlement loop verified; see economics-model.html and docs/MINER_POOL_ECONOMICS.md.",
       "impact": "New and existing miners see Unpaid worker accrual grow with hashrate/submits. Found bonus still applies. Block subsidy remains on the producing node wallet; pool paycheck = coordinator accrual + settlement.",
-      "action": "Set WORKER_PAYOUT_MAP=your-worker-id=HMC-your-address. Read https://hackme.tech/economics-model.html \u2014 verify SHA256 on Downloads. GitHub: https://github.com/jokeez/hackme",
+      "action": "Set WORKER_PAYOUT_MAP=your-worker-id=HMC-your-address. Read https://hackme.tech/economics-model.html — verify SHA256 on Downloads. GitHub: https://github.com/jokeez/hackme",
       "tags": [
         "economics",
         "mining",
@@ -189,10 +189,10 @@
     {
       "id": "2026-05-18-open-source-github",
       "date": "2026-05-18",
-      "title": "\ud83d\ude80 Open source: HackMe stack on GitHub (Apache-2.0)",
-      "summary": "The full public pool stack is now open: node, coordinator, worker, dashboard, explorer UI, and operator scripts \u2014 licensed under Apache-2.0. Repository: github.com/jokeez/hackme. Build from source, audit security hardening, or send pull requests. Always verify release SHA256 on hackme.tech/downloads.html (official binaries only).",
+      "title": "🚀 Open source: HackMe stack on GitHub (Apache-2.0)",
+      "summary": "The full public pool stack is now open: node, coordinator, worker, dashboard, explorer UI, and operator scripts — licensed under Apache-2.0. Repository: github.com/jokeez/hackme. Build from source, audit security hardening, or send pull requests. Always verify release SHA256 on hackme.tech/downloads.html (official binaries only).",
       "impact": "Miners and auditors can review coordinator auth, hybrid signer paths, and settlement tooling. Community can spot fake pools by diffing against the official repository and checksums on hackme.tech.",
-      "action": "\u2b50 Star & clone: https://github.com/jokeez/hackme \u00b7 \ud83d\udce5 Downloads: https://hackme.tech/downloads.html \u00b7 \ud83d\udcac Telegram: @hackme_tech (channel), @hackme_en (EN group), @hackme_ru (RU group) \u00b7 \ud83d\udccb Bitcointalk: https://bitcointalk.org/index.php?topic=5583373.0",
+      "action": "⭐ Star & clone: https://github.com/jokeez/hackme · 📥 Downloads: https://hackme.tech/downloads.html · 💬 Telegram: @hackme_tech (channel), @hackme_en (EN group), @hackme_ru (RU group) · 📋 Bitcointalk: https://bitcointalk.org/index.php?topic=5583373.0",
       "tags": [
         "opensource",
         "release",
@@ -204,10 +204,10 @@
     {
       "id": "2026-05-15-pool-release-1-0-0-pool-live",
       "date": "2026-05-15",
-      "title": "Pool release 1.0.0-pool is live \u2014 public mining, faster dashboard, production deploy",
+      "title": "Pool release 1.0.0-pool is live — public mining, faster dashboard, production deploy",
       "summary": "HackMe public pool is open for workers: coordinator on hackme.tech, hybrid signer payouts, top-pool readiness gate green (2+ workers, ~26s block cadence). Desktop dashboard is faster (non-blocking poll, earnings on a separate cadence, no UI freeze on slow canonical proxy). Wallet earnings fix: no more 502 loops on the command node; followers get canonical_peer without hanging the whole UI.",
       "impact": "Miners can join with HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech, start the pool worker from the Mining tab, and accrue HMC via the coordinator path. Operators: stack deployed to production VPS with nginx TLS, settlement API, and work/stats proxy.",
-      "action": "Join: export HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech \u2014 open local dashboard \u2192 Mining \u2192 Start pool worker (once). Hard-refresh (Ctrl+Shift+R) after updating the node binary. Downloads: check / for release bundles; verify with PROFILE=canary BASE=https://hackme.tech bash scripts/ops/top_pool_readiness_gate.sh.",
+      "action": "Join: export HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech — open local dashboard → Mining → Start pool worker (once). Hard-refresh (Ctrl+Shift+R) after updating the node binary. Downloads: check / for release bundles; verify with PROFILE=canary BASE=https://hackme.tech bash scripts/ops/top_pool_readiness_gate.sh.",
       "tags": [
         "release",
         "mining",
@@ -238,7 +238,7 @@
       "title": "Miner onboarding: Windows pool worker, .env autoload, release 0.1.0-rc9",
       "summary": "Windows dashboard worker start now launches native workerpoh.exe (release zips never shipped bash/curl loops). hackme loads .env / hackme.env beside the binary without overriding existing OS env. Dashboard defaults pool worker; API mining policy covered by tests. Bundle adds start_hackme_public_pool.bat + env.public_pool.example, Linux workerpoh binary, and opens the Mining tab by default.",
       "impact": "Public pool participants on Windows can run Start pool worker without WSL; operators can distribute one zip plus a short env template for HACKME_PUBLIC_AUTHORITY_BASE and HACKME_POOL_COORDINATOR_TOKEN.",
-      "action": "Deploy web/site/assets/news.json to the site static path; upload dist/release_0.1.0-rc9/hackme_0.1.0-rc9_{windows,linux}.* + SHA256SUMS.txt + RELEASE_MANIFEST.json to Downloads; restart node/coordinator only if you also roll server binaries from the linux tarball. Telegram: operator bot unchanged \u2014 see docs/TELEGRAM_BOT.md; channel bot reposts when NEWS_FEED_URL points at the updated news.json.",
+      "action": "Deploy web/site/assets/news.json to the site static path; upload dist/release_0.1.0-rc9/hackme_0.1.0-rc9_{windows,linux}.* + SHA256SUMS.txt + RELEASE_MANIFEST.json to Downloads; restart node/coordinator only if you also roll server binaries from the linux tarball. Telegram: operator bot unchanged — see docs/TELEGRAM_BOT.md; channel bot reposts when NEWS_FEED_URL points at the updated news.json.",
       "tags": [
         "release",
         "mining",

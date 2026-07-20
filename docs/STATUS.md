@@ -1,12 +1,12 @@
 # HackMe RC status (operator snapshot)
 
 **Release:** `0.1.0-rc11s` · **Site:** https://hackme.tech · **Branch:** `main`  
-**Updated:** 2026-07-20 (hygiene refresh · as-of live metrics — re-check with scripts below)  
-**Git tip (local):** `4d34cd8` (fuzz settle queued-vs-paid + HMS payment edges after `91b99b4`)
+**Updated:** 2026-07-20 (pool ~170 GH/s · libheif Day 1/14 · README sync)  
+**Git tip (local):** `505491a` (libheif 24h cadence · news archive chunks · nghttp2 series verdict)
 
 | Highlight (as of 2026-07-20) | |
 |------------------------------|--|
-| **Live pool** | Hybrid signer strict · auto `target_mod` · external miners joining — verify with `run_pool_health_check.sh` |
+| **Live pool** | **~170 GH/s** · **11 workers** · accept ~99.7% · `baseline` · verify with `run_pool_health_check.sh` |
 | **Settlement** | HMC + SUP timers + autopilot · subsidy snapshot · catch-up guard fixed 20 Jul |
 | **B2B / PoH** | Bootstrap PoH deep orders completing (`workerfuzz` · `pool_distributed`) · scheduler returns to `baseline` |
 | **Research** | nghttp2 **14/14 CLEAN** ([finale](https://hackme.tech/reports/oss-cve-watch/day14.html)) · **libheif Day 1/14 running** (new series) |

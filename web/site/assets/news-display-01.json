@@ -3,10 +3,10 @@
     {
       "id": "2026-07-01-b2b-fuzz-final",
       "date": "2026-07-01",
-      "title": "B2B Fuzz Final \u2014 one command from WASM guard to CI gate",
-      "summary": "Ship a security guard, pick Scan \u00b7 Audit \u00b7 Deep, miners fuzz it on the pool, get an HTML report plus a pass/fail gate your pipeline can enforce. hackme-fuzzing wizard \u2014 no browser admin on the public site.",
-      "impact": "Protocol teams get a productized audit path: local node escrow (20/80 HMC), distributed useful-PoW workers, customer report token, GET /gate for CI. Coordinator now re-verifies WASM on found nonces \u2014 fabricated worker gate passes cannot drain bounty. Ops: fuzz_b2b_final_gate.sh \u2192 VERDICT.md.",
-      "action": "Developers: https://hackme.tech/developers.html \u00b7 CLI: https://hackme.tech/downloads.html#fuzzing-client \u00b7 Tracker: https://hackme.tech/fuzzing-console.html \u00b7 Command: hackme-fuzzing wizard --wasm guard.wasm --package audit",
+      "title": "B2B Fuzz Final — one command from WASM guard to CI gate",
+      "summary": "Ship a security guard, pick Scan · Audit · Deep, miners fuzz it on the pool, get an HTML report plus a pass/fail gate your pipeline can enforce. hackme-fuzzing wizard — no browser admin on the public site.",
+      "impact": "Protocol teams get a productized audit path: local node escrow (20/80 HMC), distributed useful-PoW workers, customer report token, GET /gate for CI. Coordinator now re-verifies WASM on found nonces — fabricated worker gate passes cannot drain bounty. Ops: fuzz_b2b_final_gate.sh → VERDICT.md.",
+      "action": "Developers: https://hackme.tech/developers.html · CLI: https://hackme.tech/downloads.html#fuzzing-client · Tracker: https://hackme.tech/fuzzing-console.html · Command: hackme-fuzzing wizard --wasm guard.wasm --package audit",
       "tags": [
         "fuzzing",
         "b2b",
@@ -19,10 +19,10 @@
     {
       "id": "2026-07-02-rc11r-linux-miner-layout",
       "date": "2026-07-02",
-      "title": "HackMe 0.1.0-rc11r \u2014 Linux miners start again + fuzz payouts path",
-      "summary": "Win/Linux/ISO rc11r live. Linux tarball ships scripts/ops/worker_autostart.sh and bin/workerpoh-opencl \u2014 fixes worker_script_missing and exit 127. Fuzz pool settle outbox, escrow cleanup, and mining settlement ops fixes included.",
+      "title": "HackMe 0.1.0-rc11r — Linux miners start again + fuzz payouts path",
+      "summary": "Win/Linux/ISO rc11r live. Linux tarball ships scripts/ops/worker_autostart.sh and bin/workerpoh-opencl — fixes worker_script_missing and exit 127. Fuzz pool settle outbox, escrow cleanup, and mining settlement ops fixes included.",
       "impact": "Fresh Linux extract no longer loops on missing worker script. Friends on rc11q with manual symlinks should reinstall or run fix_miner_layout.sh. B2B fuzz campaigns get pull-mode settle relay; ~500 HMC stale escrow refunded in ops pass.",
-      "action": "Download: https://hackme.tech/downloads.html \u00b7 Linux: extract \u2192 bash start_hackme_miner.sh \u00b7 Old folder: bash fix_miner_layout.sh \u00b7 Pool: https://hackme.tech/pool/coordinator",
+      "action": "Download: https://hackme.tech/downloads.html · Linux: extract → bash start_hackme_miner.sh · Old folder: bash fix_miner_layout.sh · Pool: https://hackme.tech/pool/coordinator",
       "tags": [
         "release",
         "mining",
@@ -35,10 +35,10 @@
     {
       "id": "2026-06-28-cfgpack-upstream-fix",
       "date": "2026-06-28",
-      "title": "Upstream win: cfgpack MessagePack int64 UBSan \u2014 fixed in b5e7cff",
-      "summary": "HackMe Tier-D fuzz caught signed integer overflow in cfgpack_msgpack_decode_int64(). We reported cfgpack#1; maintainer @Arsievert merged fix b5e7cff. Not a CVE \u2014 real UB hardening before memory bugs ship.",
-      "impact": "Proof that oss_cve hunts land upstream: report \u2192 fix in days, no drama, no fake CVE. ASAN saw no heap corruption; UBSan did its job. Case study live on hackme.tech/reports/oss-cve/cases/cfgpack.html",
-      "action": "Case: https://hackme.tech/reports/oss-cve/cases/cfgpack.html \u00b7 Issue: https://github.com/Arsievert/cfgpack/issues/1 \u00b7 Fix: https://github.com/Arsievert/cfgpack/commit/b5e7cff",
+      "title": "Upstream win: cfgpack MessagePack int64 UBSan — fixed in b5e7cff",
+      "summary": "HackMe Tier-D fuzz caught signed integer overflow in cfgpack_msgpack_decode_int64(). We reported cfgpack#1; maintainer @Arsievert merged fix b5e7cff. Not a CVE — real UB hardening before memory bugs ship.",
+      "impact": "Proof that oss_cve hunts land upstream: report → fix in days, no drama, no fake CVE. ASAN saw no heap corruption; UBSan did its job. Case study live on hackme.tech/reports/oss-cve/cases/cfgpack.html",
+      "action": "Case: https://hackme.tech/reports/oss-cve/cases/cfgpack.html · Issue: https://github.com/Arsievert/cfgpack/issues/1 · Fix: https://github.com/Arsievert/cfgpack/commit/b5e7cff",
       "tags": [
         "security",
         "research",
@@ -50,10 +50,10 @@
     {
       "id": "2026-06-27-rc11q-settlement-banner",
       "date": "2026-06-27",
-      "title": "HackMe 0.1.0-rc11q \u2014 payouts visible again, updates without reinstall",
-      "summary": "The hub settlement panel stopped hanging. Win/Linux/ISO ship as one rc11q channel. Desktop miners get a live upgrade banner from the website \u2014 no new .exe just to read release notes.",
+      "title": "HackMe 0.1.0-rc11q — payouts visible again, updates without reinstall",
+      "summary": "The hub settlement panel stopped hanging. Win/Linux/ISO ship as one rc11q channel. Desktop miners get a live upgrade banner from the website — no new .exe just to read release notes.",
       "impact": "If your Wallet tab showed a spinning settlement line while the pool kept accruing HMC, this build fixes that path. Public lite status now advertises sandbox lock + admin auth for auditors. Under the hood we carved ~800 lines out of main.go so security fixes ship faster.",
-      "action": "Download: https://hackme.tech/downloads.html \u00b7 Verify SHA256 on the page \u00b7 Pool: https://hackme.tech/pool/coordinator \u00b7 Still on rc11p? You'll see a dismissible banner on Ecosystem.",
+      "action": "Download: https://hackme.tech/downloads.html · Verify SHA256 on the page · Pool: https://hackme.tech/pool/coordinator · Still on rc11p? You'll see a dismissible banner on Ecosystem.",
       "tags": [
         "release",
         "mining",
@@ -66,10 +66,10 @@
     {
       "id": "2026-06-27-rc11p-pool-metrics-security",
       "date": "2026-06-27",
-      "title": "HackMe 0.1.0-rc11p \u2014 GPU pool hashrate + fast metrics",
+      "title": "HackMe 0.1.0-rc11p — GPU pool hashrate + fast metrics",
       "summary": "Win/Linux 0.1.0-rc11p published. Coordinator reports real GPU GH/s; desktop metrics no longer hang on large SQLite WAL; security regression pack green.",
-      "impact": "Home GPU rigs show 30\u201370+ GH/s on the public pool instead of stuck ~0.002 GH/s. Dashboard /api/metrics responds in seconds. Claim-rate floor restores fair slots for desktop miners.",
-      "action": "Downloads: https://hackme.tech/downloads.html \u00b7 Pool: https://hackme.tech/pool/coordinator \u00b7 Gate: bash scripts/ops/new_miner_journey_gate.sh",
+      "impact": "Home GPU rigs show 30–70+ GH/s on the public pool instead of stuck ~0.002 GH/s. Dashboard /api/metrics responds in seconds. Claim-rate floor restores fair slots for desktop miners.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Pool: https://hackme.tech/pool/coordinator · Gate: bash scripts/ops/new_miner_journey_gate.sh",
       "tags": [
         "release",
         "mining",
@@ -81,10 +81,10 @@
     {
       "id": "2026-06-25-bitcoin30-week3",
       "date": "2026-06-25",
-      "title": "Bitcoin Core 30-Day Fuzz \u2014 Week 3 Complete",
-      "summary": "Days 15\u201321 wasm_native tier: 1,792 runs, 504 guard signals, 186 native_confirmed, 0 critical. Fuzz Depth v3 native bridge on Bitcoin guards.",
+      "title": "Bitcoin Core 30-Day Fuzz — Week 3 Complete",
+      "summary": "Days 15–21 wasm_native tier: 1,792 runs, 504 guard signals, 186 native_confirmed, 0 critical. Fuzz Depth v3 native bridge on Bitcoin guards.",
       "impact": "First full week on wasm_native depth tier. Dup-inputs, BIP34, and block-weight guards confirmed on native port. Series now 30/30 days complete (8,808 total runs).",
-      "action": "Ledger: https://hackme.tech/reports/bitcoin30-week3.html \u00b7 Day 15: https://hackme.tech/reports/bitcoin30-day15.html \u00b7 Reproduce: DAY=15 bash scripts/ops/run_bitcoin30_day.sh",
+      "action": "Ledger: https://hackme.tech/reports/bitcoin30-week3.html · Day 15: https://hackme.tech/reports/bitcoin30-day15.html · Reproduce: DAY=15 bash scripts/ops/run_bitcoin30_day.sh",
       "tags": [
         "security",
         "research",
@@ -96,10 +96,10 @@
     {
       "id": "2026-06-25-fuzz-depth-v3",
       "date": "2026-06-25",
-      "title": "Fuzz Depth v3 \u2014 WASM + Native Bridge",
+      "title": "Fuzz Depth v3 — WASM + Native Bridge",
       "summary": "wasm_native tier on duplicate-inputs guard: 4 guard signals, 4 native_confirmed, 0 critical, verdict fail_high. Miner marketplace + depth presets in rc11o.",
       "impact": "Stronger bounty triage without changing tokenomics: deep tiers require native_confirmed. Miners get visibility into fuzz escrow and per-run pay.",
-      "action": "Report: https://hackme.tech/reports/fuzz-depth-v3.html \u00b7 Gate: bash scripts/ops/fuzz_depth_v3_gate.sh \u00b7 Live: POOL_DIST=0 bash scripts/ops/run_fuzz_depth_v3_live.sh",
+      "action": "Report: https://hackme.tech/reports/fuzz-depth-v3.html · Gate: bash scripts/ops/fuzz_depth_v3_gate.sh · Live: POOL_DIST=0 bash scripts/ops/run_fuzz_depth_v3_live.sh",
       "tags": [
         "security",
         "research",
@@ -112,10 +112,10 @@
     {
       "id": "2026-06-18-bitcoin30-day11",
       "date": "2026-06-18",
-      "title": "Bitcoin Core 30-Day Fuzz \u2014 Day 11",
+      "title": "Bitcoin Core 30-Day Fuzz — Day 11",
       "summary": "Week-2 deep pass: CheckTransaction duplicate inputs (CVE-2018-17144 class). 256 runs, 24 guard signals, zero critical, 106s.",
-      "impact": "4\u00d7 run budget vs Day 4 on the same WASM guard \u2014 hunts edge cases in prevout dedup. Honest triage: rejections on duplicate-prevout encodings, not a new inflation CVE.",
-      "action": "Report: https://hackme.tech/reports/bitcoin30-day11.html \u00b7 Reproduce: DAY=11 bash scripts/ops/run_bitcoin30_day.sh",
+      "impact": "4× run budget vs Day 4 on the same WASM guard — hunts edge cases in prevout dedup. Honest triage: rejections on duplicate-prevout encodings, not a new inflation CVE.",
+      "action": "Report: https://hackme.tech/reports/bitcoin30-day11.html · Reproduce: DAY=11 bash scripts/ops/run_bitcoin30_day.sh",
       "tags": [
         "security",
         "research",
@@ -127,10 +127,10 @@
     {
       "id": "2026-06-18-bitcoin30-day10",
       "date": "2026-06-18",
-      "title": "Bitcoin Core 30-Day Fuzz \u2014 Day 10",
+      "title": "Bitcoin Core 30-Day Fuzz — Day 10",
       "summary": "BIP34 coinbase height push guard. Live campaign: 128 runs, 80 guard signals, zero critical, 31s.",
-      "impact": "First validation-layer coinbase guard in the series. Malformed height encodings tripped the ported gate \u2014 honest triage, not a CVE claim.",
-      "action": "Report: https://hackme.tech/reports/bitcoin30-day10.html \u00b7 Reproduce: DAY=10 bash scripts/ops/run_bitcoin30_day.sh",
+      "impact": "First validation-layer coinbase guard in the series. Malformed height encodings tripped the ported gate — honest triage, not a CVE claim.",
+      "action": "Report: https://hackme.tech/reports/bitcoin30-day10.html · Reproduce: DAY=10 bash scripts/ops/run_bitcoin30_day.sh",
       "tags": [
         "security",
         "research",
@@ -142,10 +142,10 @@
     {
       "id": "2026-06-18-bitcoin30-day09",
       "date": "2026-06-18",
-      "title": "Bitcoin Core 30-Day Fuzz \u2014 Day 9",
+      "title": "Bitcoin Core 30-Day Fuzz — Day 9",
       "summary": "Week 2 continues: MAX_BLOCK_WEIGHT (4M WU) guard from Bitcoin Core consensus policy. Live HackMe campaign: 128 runs, 80 guard signals, zero critical, 30s wall time.",
       "impact": "First block-level guard in the series (post-script week). Honest triage: overweight candidates flagged, not CVE claims. Public HTML + reproducible DAY=9 script.",
-      "action": "Report: https://hackme.tech/reports/bitcoin30-day09.html \u00b7 Reproduce: DAY=9 bash scripts/ops/run_bitcoin30_day.sh",
+      "action": "Report: https://hackme.tech/reports/bitcoin30-day09.html · Reproduce: DAY=9 bash scripts/ops/run_bitcoin30_day.sh",
       "tags": [
         "security",
         "research",
@@ -157,10 +157,10 @@
     {
       "id": "2026-06-17-bitcoin30-day08",
       "date": "2026-06-17",
-      "title": "Bitcoin Core 30-Day Fuzz \u2014 Day 8 (Week 2)",
-      "summary": "Week 2 kickoff: EvalScript MAX_STACK_SIZE guard from bitcoin/bitcoin interpreter \u2014 combined main+alt stack must stay \u22641000 elements. Live campaign on HackMe node: 64 runs, 64 guard signals, zero critical, 15s wall time.",
-      "impact": "Daily cadence continues after Week 1 wrap. Strong B2B proof: real Core stack budget, honest guard_signal triage, public HTML ledger \u2014 not fake CVE noise.",
-      "action": "Report: https://hackme.tech/reports/bitcoin30-day08.html \u00b7 Reproduce: DAY=8 bash scripts/ops/run_bitcoin30_day.sh",
+      "title": "Bitcoin Core 30-Day Fuzz — Day 8 (Week 2)",
+      "summary": "Week 2 kickoff: EvalScript MAX_STACK_SIZE guard from bitcoin/bitcoin interpreter — combined main+alt stack must stay ≤1000 elements. Live campaign on HackMe node: 64 runs, 64 guard signals, zero critical, 15s wall time.",
+      "impact": "Daily cadence continues after Week 1 wrap. Strong B2B proof: real Core stack budget, honest guard_signal triage, public HTML ledger — not fake CVE noise.",
+      "action": "Report: https://hackme.tech/reports/bitcoin30-day08.html · Reproduce: DAY=8 bash scripts/ops/run_bitcoin30_day.sh",
       "tags": [
         "security",
         "research",
@@ -172,10 +172,10 @@
     {
       "id": "2026-06-16-rc11o-production-final",
       "date": "2026-06-16",
-      "title": "Release 0.1.0-rc11o \u2014 analytics fix, PDF packs, full rebuild",
+      "title": "Release 0.1.0-rc11o — analytics fix, PDF packs, full rebuild",
       "summary": "Production channel bumped to rc11o: embedded dashboard analytics (pool ON, Command node rigs, GPU telemetry for pool workers), five branded listing/legal PDFs on hackme.tech, MiningPoolStats marked live in docs. Windows installer, Linux tarball, and HackMe OS ISO rebuilt and verified.",
       "impact": "Miners see accurate Analytics tab (no pool off / empty rigs). CEX and partners get downloadable PDF packs. One version across installer, tarball, and USB ISO.",
-      "action": "Downloads: https://hackme.tech/downloads.html \u00b7 Listing PDFs: https://hackme.tech/listing.html \u00b7 Pool: https://miningpoolstats.app/coins/HMC",
+      "action": "Downloads: https://hackme.tech/downloads.html · Listing PDFs: https://hackme.tech/listing.html · Pool: https://miningpoolstats.app/coins/HMC",
       "tags": [
         "release",
         "mining",
@@ -187,10 +187,10 @@
     {
       "id": "2026-06-16-site-ecosystem-docs-final",
       "date": "2026-06-16",
-      "title": "Site final \u2014 ecosystem docs, legal hub, mobile polish",
-      "summary": "hackme.tech updated end-to-end: per-coin pages (HMC/SUP/HMS), token transparency, listing hub with PDF packs, legal center with AGPL-3.0, economics layout fix, and mobile-friendly tables. One ecosystem narrative \u2014 not a single-coin site.",
+      "title": "Site final — ecosystem docs, legal hub, mobile polish",
+      "summary": "hackme.tech updated end-to-end: per-coin pages (HMC/SUP/HMS), token transparency, listing hub with PDF packs, legal center with AGPL-3.0, economics layout fix, and mobile-friendly tables. One ecosystem narrative — not a single-coin site.",
       "impact": "Exchange DD and miners get consistent links: transparency, listing PDFs, roadmap, and legal policy v1.1. Economics page no longer breaks on phones.",
-      "action": "Coins: https://hackme.tech/coins.html \u00b7 Legal: https://hackme.tech/legal.html \u00b7 Listing PDFs: https://hackme.tech/listing.html",
+      "action": "Coins: https://hackme.tech/coins.html · Legal: https://hackme.tech/legal.html · Listing PDFs: https://hackme.tech/listing.html",
       "tags": [
         "infrastructure",
         "marketing",
@@ -201,10 +201,10 @@
     {
       "id": "2026-06-16-rc11n-production-final",
       "date": "2026-06-16",
-      "title": "Production final \u2014 rc11n ISO aligned, SUP on-chain public",
+      "title": "Production final — rc11n ISO aligned, SUP on-chain public",
       "summary": "HackMe production stack finalized (except HMS prelaunch): Win/Linux and HackMe OS ISO now share channel 0.1.0-rc11n. SUP on-chain mint and coordinator settlement are live on hackme.tech. Public GET /api/sup/economics for transparency. Nginx + operator docs updated.",
       "impact": "Miners can use one release version for Windows installer, Linux tarball, and USB ISO. SUP accrual while mining HMC now settles on-chain; economics visible without admin token.",
-      "action": "Downloads: https://hackme.tech/downloads.html \u00b7 SUP: https://hackme.tech/api/sup/economics \u00b7 Pool: https://hackme.tech/pool/coordinator",
+      "action": "Downloads: https://hackme.tech/downloads.html · SUP: https://hackme.tech/api/sup/economics · Pool: https://hackme.tech/pool/coordinator",
       "tags": [
         "release",
         "infrastructure",
@@ -216,10 +216,10 @@
     {
       "id": "2026-06-16-bitcoin30-week1",
       "date": "2026-06-16",
-      "title": "Bitcoin Core 30-Day Fuzz \u2014 Week 1 public report",
+      "title": "Bitcoin Core 30-Day Fuzz — Week 1 public report",
       "summary": "Seven consecutive days of live upstream Bitcoin Core WASM guards on useful-PoW fuzz: GetScriptOp, HasValidOps, MoneyRange, duplicate inputs (CVE-2018-17144 class), EvalScript push/op budgets, SegWit witness stack. 576 distributed runs, 321 guard signals, zero critical. Day 3 MoneyRange clean.",
-      "impact": "Strongest daily cadence proof for B2B/Telegram: real bitcoin/bitcoin excerpts, honest guard_signal triage, public HTML ledger \u2014 not fake CVE claims.",
-      "action": "Report: https://hackme.tech/reports/bitcoin30-week1.html \u00b7 Reproduce: DAY=N bash scripts/ops/run_bitcoin30_day.sh",
+      "impact": "Strongest daily cadence proof for B2B/Telegram: real bitcoin/bitcoin excerpts, honest guard_signal triage, public HTML ledger — not fake CVE claims.",
+      "action": "Report: https://hackme.tech/reports/bitcoin30-week1.html · Reproduce: DAY=N bash scripts/ops/run_bitcoin30_day.sh",
       "tags": [
         "security",
         "research",
@@ -232,10 +232,10 @@
     {
       "id": "2026-06-09-rc11n-stability-payments",
       "date": "2026-06-09",
-      "title": "Release 0.1.0-rc11n \u2014 hub stability, transfers & payments E2E",
+      "title": "Release 0.1.0-rc11n — hub stability, transfers & payments E2E",
       "summary": "Production download channel bumped to rc11n. VPS hub runs an HTTP health watchdog that restarts hackme-node when /api/status stops responding (fixes hung hub and stale wallet cache). Desktop transfers and payment demos now use the canonical nonce from hackme.tech. Repeatable payments E2E test pack for operators. HackMe OS ISO stays on rc11l.",
-      "impact": "Miners on Windows/Linux should update from downloads \u2014 same wallet treasury as rc11m, plus more reliable hub uptime and correct on-chain transfer nonces from local nodes.",
-      "action": "Downloads: https://hackme.tech/downloads.html \u00b7 Dashboard: http://127.0.0.1:8080/#wallet \u00b7 Pool: https://hackme.tech/pool/coordinator",
+      "impact": "Miners on Windows/Linux should update from downloads — same wallet treasury as rc11m, plus more reliable hub uptime and correct on-chain transfer nonces from local nodes.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Dashboard: http://127.0.0.1:8080/#wallet · Pool: https://hackme.tech/pool/coordinator",
       "tags": [
         "release",
         "infrastructure",
@@ -247,10 +247,10 @@
     {
       "id": "2026-06-08-rc11m-wallet-treasury",
       "date": "2026-06-08",
-      "title": "Release 0.1.0-rc11m \u2014 wallet treasury & canonical balance fix",
-      "summary": "Desktop wallet now shows your real on-chain HMC and SUP from hackme.tech (not stale local SQLite). Three-column treasury: on-chain \u00b7 pool accrual \u00b7 orders debit. Instant UI cache + background canonical sync. VPS node recovery when /api/address was timing out.",
-      "impact": "Miners with ~400 HMC on-chain were seeing ~15 HMC when the hub node hung \u2014 fixed. Refresh Wallet or reopen #wallet after update.",
-      "action": "Downloads: https://hackme.tech/downloads.html \u00b7 Local dashboard: http://127.0.0.1:8080/#wallet \u00b7 Explorer: https://hackme.tech/explorer-lite.html",
+      "title": "Release 0.1.0-rc11m — wallet treasury & canonical balance fix",
+      "summary": "Desktop wallet now shows your real on-chain HMC and SUP from hackme.tech (not stale local SQLite). Three-column treasury: on-chain · pool accrual · orders debit. Instant UI cache + background canonical sync. VPS node recovery when /api/address was timing out.",
+      "impact": "Miners with ~400 HMC on-chain were seeing ~15 HMC when the hub node hung — fixed. Refresh Wallet or reopen #wallet after update.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Local dashboard: http://127.0.0.1:8080/#wallet · Explorer: https://hackme.tech/explorer-lite.html",
       "tags": [
         "release",
         "wallet",

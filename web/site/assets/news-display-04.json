@@ -49,8 +49,8 @@
       "date": "2026-05-07",
       "title": "Site Tokenomics: Order Fees vs Transfer Burns (Copy Fix)",
       "summary": "Home and Docs pages now match chain rules: order opening debits prepaid plus a 5% platform fee to DevFeeAddress, with a separate 10% prepaid burn tally (OrderBurnRate); the 70%/30% burn split applies to transfer fee_units only.",
-      "impact": "Community explanations and audits align with internal/chain/order_tasks.go and economics constants \u2014 less confusion vs Ethereum-style fee wording.",
-      "action": "Hard-refresh hackme.tech index/docs after deploy; reference docs/ECONOMICS_DASHBOARD.md \u00a78 for formulas.",
+      "impact": "Community explanations and audits align with internal/chain/order_tasks.go and economics constants — less confusion vs Ethereum-style fee wording.",
+      "action": "Hard-refresh hackme.tech index/docs after deploy; reference docs/ECONOMICS_DASHBOARD.md §8 for formulas.",
       "tags": [
         "docs",
         "economics",
@@ -61,8 +61,8 @@
     {
       "id": "2026-05-07-economics-model-public-page",
       "date": "2026-05-07",
-      "title": "Public Economics Model (Chain \u00b7 Pool \u00b7 Orders)",
-      "summary": "A dedicated site page and docs cross-links explain how PoH block credits (primary wallet on the producing node), coordinator worker accrual/settlement, and paid audit orders fit together \u2014 explicitly not classic Ethereum-style pooled block subsidy.",
+      "title": "Public Economics Model (Chain · Pool · Orders)",
+      "summary": "A dedicated site page and docs cross-links explain how PoH block credits (primary wallet on the producing node), coordinator worker accrual/settlement, and paid audit orders fit together — explicitly not classic Ethereum-style pooled block subsidy.",
       "impact": "Miners and partners get a single reference for expectations: block header transparency vs wallet credit path, and why fleet income follows coordinator policy.",
       "action": "Share economics-model.html from the Docs hub; operators keep settlement automation and dashboards as the source of truth for accrued vs settled HMC.",
       "tags": [
