@@ -7,9 +7,9 @@
 | Highlight (as of 2026-07-20) | |
 |------------------------------|--|
 | **Live pool** | Hybrid signer strict · auto `target_mod` · external miners joining — verify with `run_pool_health_check.sh` |
-| **Settlement** | HMC + SUP timers + autopilot on VPS — check fleet unpaid via `/api/worker/settlement`, not a fixed “&lt;3 HMC” claim |
+| **Settlement** | HMC + SUP timers + autopilot · subsidy snapshot · catch-up guard fixed 20 Jul |
 | **B2B / PoH** | Bootstrap PoH deep orders completing (`workerfuzz` · `pool_distributed`) · scheduler returns to `baseline` |
-| **Research** | OSS CVE Watch **Day 13** published CLEAN ([day13.html](https://hackme.tech/reports/oss-cve-watch/day13.html)) · Day 14 next |
+| **Research** | OSS CVE Watch **14/14 complete** CLEAN ([hub](https://hackme.tech/reports/oss-cve-watch/) · [day14](https://hackme.tech/reports/oss-cve-watch/day14.html)) · Day 15+ → libheif |
 | **Tests** | Prefer `go test ./...` · `public_site_smoke.sh` · `version_consistency_gate` before release cuts |
 
 | Area | Verdict |
@@ -21,7 +21,7 @@
 | Security audit (prod) | **16/16 PASS** (prior gate; re-run before major cuts) |
 | Miner launch gate | **GO** — `bash scripts/ops/run_miner_launch_gate.sh` |
 | Fuzzing B2B | **Live** — wizard + pool-distributed workers + CI gate |
-| OSS CVE Watch | **Day 13 live** · Day 14 next · gate refuses stubs |
+| OSS CVE Watch | **Series complete 14/14 CLEAN** · ~14.32B exec · [verdict](verdicts/OSS_CVE_WATCH_NGHTTP2_SERIES_VERDICT.md) · Day 15+ libheif |
 | HMS | **Prelaunch** — not public; do not open to miners |
 
 ## Pool health (how to measure)

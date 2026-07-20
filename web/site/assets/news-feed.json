@@ -1,6 +1,42 @@
 {
   "items": [
     {
+      "id": "2026-07-20-oss-cve-watch-day14-nghttp2-libfuzzer",
+      "date": "2026-07-20",
+      "title": "OSS CVE Watch Day 14/14 · nghttp2 · 3.03B libFuzzer exec · CLEAN",
+      "summary": "Day 14 on nghttp2: 17.0h libFuzzer depth, 3,029,631,004 executions at ~49,622 exec/s. Corpus 420 (305KB), 467 coverage edges. ASAN heap crashes: 0 — verdict CLEAN.",
+      "impact": "Cumulative Days 2–14: ~14.32B libFuzzer executions on persistent corpus. Day 14 HTML live on the public ledger.",
+      "action": "Day 14 report: https://hackme.tech/reports/oss-cve-watch/day14.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2",
+        "day14"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "OSS CVE Watch · Day 14/14 · nghttp2",
+        "lead": "17.0h libFuzzer + ASAN · CLEAN",
+        "bullets": [
+          "3,029,631,004 executions · ~49,622 exec/s · 17.0h",
+          "corpus 420 (305KB) · 467 edges · ASAN=0",
+          "Days 2–14 cumulative ~14.32B exec",
+          "CLEAN = no ASAN heap crash in budget — not proven secure"
+        ],
+        "footer": "hackme.tech/reports/oss-cve-watch/day14.html"
+      },
+      "discord": {
+        "title": "Research · OSS CVE Watch Day 14",
+        "body": "**nghttp2 · libFuzzer · Day 14/14**\n\n• **3,029,631,004** executions · **17.0h** · **~49,622 exec/s**\n• Corpus **420** (305KB) · **467** coverage edges\n• **CLEAN** — 0 ASAN heap crashes\n• Days 2–14 cumulative: **~14.32B** exec\n\n**Report:** https://hackme.tech/reports/oss-cve-watch/day14.html",
+        "ping": "#research"
+      },
+      "links": {
+        "hub": "https://hackme.tech/reports/oss-cve-watch/",
+        "day14": "https://hackme.tech/reports/oss-cve-watch/day14.html"
+      }
+    },
+    {
       "id": "2026-07-19-oss-cve-watch-day13-nghttp2-libfuzzer",
       "date": "2026-07-19",
       "title": "OSS CVE Watch Day 13/14 · nghttp2 · 0.36B libFuzzer exec · CLEAN",
@@ -392,42 +428,6 @@
       },
       "links": {
         "day05": "https://hackme.tech/reports/oss-cve-watch/day05.html",
-        "hub": "https://hackme.tech/reports/oss-cve-watch/",
-        "research": "https://hackme.tech/research.html"
-      }
-    },
-    {
-      "id": "2026-07-11-oss-cve-watch-day04-nghttp2-libfuzzer",
-      "date": "2026-07-11",
-      "title": "OSS CVE Watch Day 4/14 · nghttp2 · 719M libFuzzer exec · CLEAN",
-      "summary": "Fourth day on nghttp2: ~5h libFuzzer session, 719,500,167 executions at ~40k exec/s. Corpus 408 inputs (433KB), 467 coverage edges. Zero ASAN heap crashes — fourth honest CLEAN day.",
-      "impact": "Cumulative ~2.92B libFuzzer executions across Days 2–4 on the same persistent corpus. Coverage still plateaued at 467 edges; corpus refinement continues. Day 5 deep session starting.",
-      "action": "Day 4 report: https://hackme.tech/reports/oss-cve-watch/day04.html · Series hub: https://hackme.tech/reports/oss-cve-watch/ · Reproduce: DAY=4 bash scripts/ops/run_oss_cve_watch_libfuzzer_day.sh",
-      "tags": [
-        "research",
-        "oss-cve",
-        "fuzzing",
-        "nghttp2"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "OSS CVE Watch · Day 4/14 · nghttp2",
-        "lead": "libFuzzer: 719M exec · ~5h · CLEAN · 0 ASAN",
-        "bullets": [
-          "Target: nghttp2 HTTP/2 session mem_recv · ASAN build",
-          "719,500,167 executions · ~39,698 exec/s · corpus 408 (433KB)",
-          "467 coverage edges · 0 heap corruption · CVE only after maintainer triage",
-          "Days 2–4 combined: ~2.92B libFuzzer exec · still no ASAN heap bugs"
-        ],
-        "footer": "hackme.tech/reports/oss-cve-watch/day04.html"
-      },
-      "discord": {
-        "title": "Research · OSS CVE Watch Day 4",
-        "body": "**nghttp2 · libFuzzer · Day 4/14**\n\n• **719,500,167** executions · **~5h** · **~40k exec/s**\n• Corpus **408** (433KB) · **467** coverage edges\n• **CLEAN** — 0 ASAN heap crashes\n• Days 2–4 cumulative: **~2.92B** exec\n\n**Report:** https://hackme.tech/reports/oss-cve-watch/day04.html",
-        "ping": "#research"
-      },
-      "links": {
-        "day04": "https://hackme.tech/reports/oss-cve-watch/day04.html",
         "hub": "https://hackme.tech/reports/oss-cve-watch/",
         "research": "https://hackme.tech/research.html"
       }
