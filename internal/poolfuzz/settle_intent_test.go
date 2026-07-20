@@ -177,3 +177,39 @@ func (s *queuedSettler) PayFinding(context.Context, string, string, string, int6
 func (s *queuedSettler) Finalize(context.Context, string, int64) (SettleResult, error) {
 	return SettleResult{Applied: true}, nil
 }
+
+func TestEnqueueSettleOutboxIdempotentReplay(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "settle.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	id1, err := svc.EnqueueSettleOutbox(ctx, "run", "camp-a", "HMC-abc", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id2, err := svc.EnqueueSettleOutbox(ctx, "run", "camp-a", "HMC-abc", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id1 != id2 {
+		t.Fatalf("replay should reuse id: %d vs %d", id1, id2)
+	}
+	id3, err := svc.EnqueueSettleOutbox(ctx, "finding", "camp-a", "HMC-abc", "high")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id3 == id1 {
+		t.Fatal("different kind/severity should create new row")
+	}
+	var n int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_settle_outbox`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 2 {
+		t.Fatalf("want 2 outbox rows got %d", n)
+	}
+}

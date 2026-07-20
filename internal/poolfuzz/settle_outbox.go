@@ -20,6 +20,7 @@ type SettleOutboxItem struct {
 
 // EnqueueSettleOutbox records a settlement for durable event-id based apply/pull.
 // Returns the outbox row id used as SettleEventID / chain.FuzzSettleEventID.
+// Replay-safe: same (campaign_id, kind, miner_address, severity) returns the existing row id.
 func (s *Service) EnqueueSettleOutbox(ctx context.Context, kind, campaignID, minerAddress, severity string) (int64, error) {
 	if s == nil || s.DB == nil {
 		return 0, fmt.Errorf("poolfuzz: no database")
@@ -29,11 +30,25 @@ func (s *Service) EnqueueSettleOutbox(ctx context.Context, kind, campaignID, min
 	if campaignID == "" || kind == "" {
 		return 0, fmt.Errorf("poolfuzz: settle outbox missing kind or campaign_id")
 	}
+	minerAddress = strings.TrimSpace(minerAddress)
+	severity = strings.TrimSpace(severity)
+	var existing int64
+	err := s.DB.QueryRowContext(ctx,
+		`SELECT id FROM fuzz_settle_outbox
+		 WHERE campaign_id=? AND kind=? AND miner_address=? AND severity=?
+		 ORDER BY id ASC LIMIT 1`,
+		campaignID, kind, minerAddress, severity).Scan(&existing)
+	if err == nil && existing > 0 {
+		return existing, nil
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return 0, err
+	}
 	now := time.Now().Unix()
 	res, err := s.DB.ExecContext(ctx,
 		`INSERT INTO fuzz_settle_outbox (campaign_id, kind, miner_address, severity, status, created_at)
 		 VALUES (?, ?, ?, ?, 'pending', ?)`,
-		campaignID, kind, strings.TrimSpace(minerAddress), strings.TrimSpace(severity), now)
+		campaignID, kind, minerAddress, severity, now)
 	if err != nil {
 		return 0, err
 	}

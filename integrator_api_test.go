@@ -12,6 +12,27 @@ import (
 	"hackme/internal/integrator"
 )
 
+func TestIntegratorSelfRegisterDefaultOff(t *testing.T) {
+	dir := t.TempDir()
+	st, err := integrator.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	integratorStore = st
+	t.Setenv("HACKME_INTEGRATOR_SELF_REGISTER", "")
+	t.Setenv("HACKME_ADMIN_TOKEN", "")
+
+	a := &app{rlHits: make(map[string]rateSlot), rlBan: make(map[string]int64)}
+	regBody, _ := json.Marshal(map[string]string{"label": "should-fail"})
+	req := httptest.NewRequest(http.MethodPost, "/api/integrator/register", bytes.NewReader(regBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	a.handleIntegratorRegister(rec, req)
+	if rec.Code != http.StatusForbidden && rec.Code != http.StatusUnauthorized {
+		t.Fatalf("default-off register want 403/401 got %d %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestIntegratorRegisterRotateHTTP(t *testing.T) {
 	dir := t.TempDir()
 	st, err := integrator.Open(dir)

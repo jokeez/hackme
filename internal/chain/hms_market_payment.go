@@ -2,6 +2,9 @@ package chain
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -11,22 +14,31 @@ import (
 )
 
 const metaHMSMarketEscrowUnits = "hms_market_escrow_units"
+const metaHMSMarketPayPrefix = "hms_market_pay:"
 
 // HMSMarketPaymentResult is returned after debiting the node wallet for a storage order.
 type HMSMarketPaymentResult struct {
-	PaymentID      string  `json:"payment_id"`
-	PaymentProof   string  `json:"payment_proof,omitempty"`
-	TotalDebitHMC  float64 `json:"total_debit_hmc"`
-	StorageHMC     float64 `json:"storage_subtotal_hmc"`
-	PlatformFeeHMC float64 `json:"platform_fee_hmc"`
-	BurnHMC        float64 `json:"burn_hmc"`
-	BalanceAfter   float64 `json:"balance_after"`
-	QuoteHash      string  `json:"quote_hash"`
-	PolicyHash     string  `json:"policy_hash"`
+	PaymentID         string  `json:"payment_id"`
+	PaymentProof      string  `json:"payment_proof,omitempty"`
+	TotalDebitHMC     float64 `json:"total_debit_hmc"`
+	StorageHMC        float64 `json:"storage_subtotal_hmc"`
+	PlatformFeeHMC    float64 `json:"platform_fee_hmc"`
+	BurnHMC           float64 `json:"burn_hmc"`
+	BalanceAfter      float64 `json:"balance_after"`
+	QuoteHash         string  `json:"quote_hash"`
+	PolicyHash        string  `json:"policy_hash"`
+	IdempotentReplay  bool    `json:"idempotent_replay,omitempty"`
+	IdempotencyKey    string  `json:"idempotency_key,omitempty"`
+}
+
+func hmsMarketPayMetaKey(quoteHash, idempotencyKey string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(quoteHash) + "\n" + strings.TrimSpace(idempotencyKey)))
+	return metaHMSMarketPayPrefix + hex.EncodeToString(sum[:])
 }
 
 // PayHMSStorageMarket debits HMC per kernel-locked quote (rates from internal/hms, not env).
-func (s *Service) PayHMSStorageMarket(ctx context.Context, label string, sizeBytes int64, retentionDays int, quoteHash string) (*HMSMarketPaymentResult, error) {
+// When idempotencyKey is non-empty, retries return the same payment without a second debit.
+func (s *Service) PayHMSStorageMarket(ctx context.Context, label string, sizeBytes int64, retentionDays int, quoteHash, idempotencyKey string) (*HMSMarketPaymentResult, error) {
 	q, err := hms.VerifyQuoteHash(sizeBytes, retentionDays, quoteHash)
 	if err != nil {
 		return nil, err
@@ -34,6 +46,33 @@ func (s *Service) PayHMSStorageMarket(ctx context.Context, label string, sizeByt
 	if q.PolicyHash != hms.MarketPricingPolicySnapshot().PolicyHash {
 		return nil, fmt.Errorf("chain: hms market policy hash drift — rebuild node and coordinator")
 	}
+	idempotencyKey = strings.TrimSpace(idempotencyKey)
+	quoteHash = strings.TrimSpace(q.QuoteHash)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if idempotencyKey != "" {
+		metaKey := hmsMarketPayMetaKey(quoteHash, idempotencyKey)
+		var raw string
+		err := tx.QueryRowContext(ctx, `SELECT value FROM meta WHERE key=?`, metaKey).Scan(&raw)
+		if err == nil && strings.TrimSpace(raw) != "" {
+			var prev HMSMarketPaymentResult
+			if json.Unmarshal([]byte(raw), &prev) == nil && prev.PaymentID != "" {
+				prev.IdempotentReplay = true
+				prev.IdempotencyKey = idempotencyKey
+				_ = tx.Rollback()
+				return &prev, nil
+			}
+		}
+	}
+
 	storage := q.StorageSubtotalHMC
 	fee := q.PlatformFeeHMC
 	burn := q.BurnHMC
@@ -49,15 +88,6 @@ func (s *Service) PayHMSStorageMarket(ctx context.Context, label string, sizeByt
 		return nil, errors.New("chain: debit overflow")
 	}
 	totalUnits += feeUnits
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = tx.Rollback() }()
 
 	var balUnits uint64
 	var walletAddr string
@@ -138,10 +168,7 @@ func (s *Service) PayHMSStorageMarket(ctx context.Context, label string, sizeByt
 	if err := tx.QueryRowContext(ctx, `SELECT balance_units FROM wallet WHERE id = 1`).Scan(&balUnits); err != nil {
 		return nil, err
 	}
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-	return &HMSMarketPaymentResult{
+	out := &HMSMarketPaymentResult{
 		PaymentID:      paymentID,
 		PaymentProof:   proof,
 		TotalDebitHMC:  total,
@@ -151,5 +178,16 @@ func (s *Service) PayHMSStorageMarket(ctx context.Context, label string, sizeByt
 		BalanceAfter:   UnitsToHMC(balUnits),
 		QuoteHash:      q.QuoteHash,
 		PolicyHash:     q.PolicyHash,
-	}, nil
+		IdempotencyKey: idempotencyKey,
+	}
+	if idempotencyKey != "" {
+		raw, _ := json.Marshal(out)
+		if err := s.upsertMeta(ctx, tx, hmsMarketPayMetaKey(quoteHash, idempotencyKey), string(raw)); err != nil {
+			return nil, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return out, nil
 }

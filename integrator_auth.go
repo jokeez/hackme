@@ -9,11 +9,12 @@ import (
 )
 
 func integratorSelfRegisterEnabled() bool {
-	v := strings.TrimSpace(os.Getenv("HACKME_INTEGRATOR_SELF_REGISTER"))
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_INTEGRATOR_SELF_REGISTER")))
+	// Fail-closed: empty/unset → OFF. Opt-in only via 1/true/on/yes.
 	if v == "" {
-		return true // default on for B2B automatic issuance
+		return false
 	}
-	return !strings.EqualFold(v, "0") && !strings.EqualFold(v, "false") && !strings.EqualFold(v, "off")
+	return v == "1" || v == "true" || v == "on" || v == "yes"
 }
 
 func integratorMaxActive() int {

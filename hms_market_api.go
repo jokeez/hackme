@@ -88,6 +88,9 @@ func (a *app) handleHMSMarketQuote(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleHMSMarketOrders(w http.ResponseWriter, r *http.Request) {
+	if !requireAdminAuth(w, r) {
+		return
+	}
 	switch r.Method {
 	case http.MethodGet:
 		a.proxyHMSCoordinator(w, r, http.MethodGet, "/api/market/orders", nil)
@@ -95,17 +98,22 @@ func (a *app) handleHMSMarketOrders(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
 		raw, _ := io.ReadAll(r.Body)
 		var req struct {
-			Label         string `json:"label"`
-			ClientRef     string `json:"client_ref"`
-			SizePlanBytes int64  `json:"size_plan_bytes"`
-			RetentionDays int    `json:"retention_days"`
-			QuoteHash     string `json:"quote_hash"`
-			PaymentID     string `json:"payment_id"`
-			SkipPayment   bool   `json:"skip_payment"`
+			Label          string `json:"label"`
+			ClientRef      string `json:"client_ref"`
+			SizePlanBytes  int64  `json:"size_plan_bytes"`
+			RetentionDays  int    `json:"retention_days"`
+			QuoteHash      string `json:"quote_hash"`
+			PaymentID      string `json:"payment_id"`
+			SkipPayment    bool   `json:"skip_payment"`
+			IdempotencyKey string `json:"idempotency_key"`
 		}
 		if err := json.Unmarshal(raw, &req); err != nil {
 			http.Error(w, "bad json", http.StatusBadRequest)
 			return
+		}
+		idem := strings.TrimSpace(req.IdempotencyKey)
+		if idem == "" {
+			idem = strings.TrimSpace(r.Header.Get("Idempotency-Key"))
 		}
 		paymentID := strings.TrimSpace(req.PaymentID)
 		var paymentProof string
@@ -114,7 +122,7 @@ func (a *app) handleHMSMarketOrders(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "quote_hash required", http.StatusBadRequest)
 				return
 			}
-			pay, err := a.chain.PayHMSStorageMarket(r.Context(), req.Label, req.SizePlanBytes, req.RetentionDays, req.QuoteHash)
+			pay, err := a.chain.PayHMSStorageMarket(r.Context(), req.Label, req.SizePlanBytes, req.RetentionDays, req.QuoteHash, idem)
 			if err != nil {
 				writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 				return
@@ -138,6 +146,9 @@ func (a *app) handleHMSMarketOrders(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleHMSMarketOrdersPath(w http.ResponseWriter, r *http.Request) {
+	if !requireAdminAuth(w, r) {
+		return
+	}
 	path := strings.TrimPrefix(r.URL.Path, "/api/hms/market/orders/")
 	var body []byte
 	if r.Body != nil && r.Method != http.MethodGet && r.Method != http.MethodHead {
