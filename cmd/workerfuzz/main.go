@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"hackme/internal/chain"
 	"hackme/internal/fuzzengine"
 	"hackme/internal/poolfuzz"
 	"hackme/internal/sandbox"
@@ -118,11 +119,7 @@ func main() {
 func loadHybridKey() (ed25519.PrivateKey, string, string, bool) {
 	seedHex := strings.TrimSpace(os.Getenv("HACKME_MINER_ED25519_SEED_HEX"))
 	if seedHex == "" {
-		if b, err := os.ReadFile(".secrets/hackme_treasury_ed25519_seed.hex"); err == nil {
-			seedHex = strings.TrimSpace(string(b))
-		}
-	}
-	if seedHex == "" {
+		fmt.Fprintln(os.Stderr, "workerfuzz: HACKME_MINER_ED25519_SEED_HEX required (treasury/dev-fee key is not allowed)")
 		return nil, "", "", false
 	}
 	seed, err := hex.DecodeString(seedHex)
@@ -134,6 +131,10 @@ func loadHybridKey() (ed25519.PrivateKey, string, string, bool) {
 	pub := priv.Public().(ed25519.PublicKey)
 	sum := sha256.Sum256(pub)
 	addr := "HMC-" + hex.EncodeToString(sum[:])[:16]
+	if strings.EqualFold(addr, chain.DevFeeAddress) {
+		fmt.Fprintf(os.Stderr, "workerfuzz: payout address %s is treasury/dev-fee — generate a dedicated worker key (minersign -gen-seed)\n", addr)
+		os.Exit(1)
+	}
 	return priv, hex.EncodeToString(pub), addr, true
 }
 

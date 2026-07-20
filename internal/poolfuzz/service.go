@@ -311,6 +311,7 @@ func (s *Service) Tick(ctx context.Context) error {
 	if pins, err := fuzznative.LoadPins(""); err == nil {
 		_, _ = fuzznative.ProcessPending(ctx, s.DB, pins, 5)
 	}
+	_ = s.flushDeferredBounties(ctx)
 	return rows.Err()
 }
 

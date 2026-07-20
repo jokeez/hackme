@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"hackme/internal/fuzzengine"
+	"hackme/internal/fuzznative"
 )
 
 // ReplayCampaignSettles enqueues pending run/finding/finalize rows for a completed campaign.
@@ -54,16 +57,29 @@ func (s *Service) ReplayCampaignSettles(ctx context.Context, campaignID string) 
 	if err := rows.Err(); err != nil {
 		return runs, findings, finalize, err
 	}
+	cfg, err := s.CampaignConfig(ctx, campaignID)
+	if err != nil {
+		return runs, findings, finalize, err
+	}
 	fRows, err := s.DB.QueryContext(ctx,
-		`SELECT severity, detail_json FROM fuzz_findings WHERE campaign_id=?`, campaignID)
+		`SELECT id, severity, detail_json FROM fuzz_findings WHERE campaign_id=? ORDER BY created_at ASC`, campaignID)
 	if err != nil {
 		return runs, findings, finalize, err
 	}
 	defer fRows.Close()
 	for fRows.Next() {
-		var sev, detail string
-		if err := fRows.Scan(&sev, &detail); err != nil {
+		var findingID, sev, detail string
+		if err := fRows.Scan(&findingID, &sev, &detail); err != nil {
 			return runs, findings, finalize, err
+		}
+		if !bountySeverity(sev) {
+			continue
+		}
+		if cfg != nil && fuzzengine.BountyRequiresNative(cfg) {
+			ok, err := fuzznative.IsFindingNativeEligibleForBounty(ctx, s.DB, findingID)
+			if err != nil || !ok {
+				continue
+			}
 		}
 		miner := minerFromFindingDetail(detail)
 		if miner == "" {
@@ -76,32 +92,13 @@ func (s *Service) ReplayCampaignSettles(ctx context.Context, campaignID string) 
 			return runs, findings, finalize, err
 		}
 		findings++
+		break // bounty pool pays first qualifying finder only
 	}
 	if _, err := s.EnqueueSettleOutbox(ctx, "finalize", campaignID, "", ""); err != nil {
 		return runs, findings, finalize, err
 	}
 	finalize = 1
 	return runs, findings, finalize, nil
-}
-
-func (s *Service) findingMinerAddress(ctx context.Context, campaignID string) string {
-	var detail string
-	err := s.DB.QueryRowContext(ctx,
-		`SELECT detail_json FROM fuzz_findings WHERE campaign_id=? ORDER BY created_at DESC LIMIT 1`, campaignID).
-		Scan(&detail)
-	if err != nil {
-		return ""
-	}
-	if miner := minerFromFindingDetail(detail); miner != "" {
-		return miner
-	}
-	var m map[string]any
-	if json.Unmarshal([]byte(detail), &m) == nil {
-		if workerID, ok := m["worker_id"].(string); ok {
-			return resolveWorkerPayoutAddress(workerID)
-		}
-	}
-	return ""
 }
 
 func minerFromFindingDetail(detail string) string {
