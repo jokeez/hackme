@@ -32,7 +32,8 @@
   const CONFIG = {
     explorerUrl: "/explorer-lite.html",
     newsUrl: "./news.html",
-    newsFeed: "./assets/news.json",
+    newsFeed: "./assets/news-feed.json",
+    newsArchive: "./assets/news.json",
     releaseChannel: RELEASE_VER,
     releaseChannelNote: "rc11s — production baseline: pool fuzz + mining payouts, canonical mining dashboard, settle outbox drain",
     releaseBase: `/dist/release_${RELEASE_VER}`,
