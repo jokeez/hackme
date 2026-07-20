@@ -33,6 +33,7 @@
     explorerUrl: "/explorer-lite.html",
     newsUrl: "./news.html",
     newsFeed: "./assets/news-feed.json",
+    newsDisplay: "./assets/news-display.json",
     newsArchive: "./assets/news.json",
     releaseChannel: RELEASE_VER,
     releaseChannelNote: "rc11s — production baseline: pool fuzz + mining payouts, canonical mining dashboard, settle outbox drain",
@@ -413,11 +414,12 @@
       return Array.isArray(body.items) ? body.items.slice() : [];
     }
     try {
-      // Full archive for newsroom; compact news-feed.json is Telegram/poller-only (12 recent).
-      try {
-        items = await fetchNewsItems(CONFIG.newsArchive);
-      } catch (_) {
-        items = await fetchNewsItems(CONFIG.newsFeed);
+      // Slim display archive (85 items, CDN-safe); full news.json for bots; feed = 12 recent.
+      for (const url of [CONFIG.newsDisplay, CONFIG.newsArchive, CONFIG.newsFeed]) {
+        try {
+          items = await fetchNewsItems(url);
+          if (items.length > 0) break;
+        } catch (_) {}
       }
       // Enrich / override recent ids from compact feed (telegram/discord blocks).
       try {

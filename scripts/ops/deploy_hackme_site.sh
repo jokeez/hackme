@@ -63,14 +63,17 @@ if [[ ! -d "$ROOT_DIR/web/site" ]]; then
 fi
 
 if [[ -f "$ROOT_DIR/web/site/assets/news.json" ]]; then
-  echo "[deploy-hackme-site] build news-feed.json (recent items for Telegram/pollers)"
-  python3 - <<'PY' "$ROOT_DIR/web/site/assets/news.json" "$ROOT_DIR/web/site/assets/news-feed.json"
+  echo "[deploy-hackme-site] build news-feed.json + news-display.json"
+  python3 - <<'PY' "$ROOT_DIR/web/site/assets/news.json" "$ROOT_DIR/web/site/assets/news-feed.json" "$ROOT_DIR/web/site/assets/news-display.json"
 import json, sys
-src, dst = sys.argv[1], sys.argv[2]
+src, feed_dst, display_dst = sys.argv[1], sys.argv[2], sys.argv[3]
 data = json.load(open(src, encoding="utf-8"))
-items = data.get("items", [])[:12]
-json.dump({"items": items, "feed": "recent"}, open(dst, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
-print(f"[deploy-hackme-site] news-feed items={len(items)}")
+items = data.get("items", [])
+json.dump({"items": items[:12], "feed": "recent"}, open(feed_dst, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
+keys = ("id", "date", "title", "summary", "impact", "action", "tags", "status")
+slim = [{k: it[k] for k in keys if k in it} for it in items]
+json.dump({"items": slim, "feed": "display"}, open(display_dst, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
+print(f"[deploy-hackme-site] news-feed items={len(items[:12])} news-display items={len(slim)}")
 PY
 fi
 
