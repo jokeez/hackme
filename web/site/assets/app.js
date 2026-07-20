@@ -33,6 +33,7 @@
     explorerUrl: "/explorer-lite.html",
     newsUrl: "./news.html",
     newsFeed: "./assets/news-feed.json",
+    newsDisplayIndex: "./assets/news-display-index.json",
     newsDisplay: "./assets/news-display.json",
     newsArchive: "./assets/news.json",
     releaseChannel: RELEASE_VER,
@@ -414,12 +415,26 @@
       return Array.isArray(body.items) ? body.items.slice() : [];
     }
     try {
-      // Slim display archive (85 items, CDN-safe); full news.json for bots; feed = 12 recent.
-      for (const url of [CONFIG.newsDisplay, CONFIG.newsArchive, CONFIG.newsFeed]) {
-        try {
-          items = await fetchNewsItems(url);
-          if (items.length > 0) break;
-        } catch (_) {}
+      // Chunked display archive (CDN-safe) → single display → full bot JSON → 12 recent.
+      let loaded = false;
+      try {
+        const idxResp = await fetch(CONFIG.newsDisplayIndex, { cache: "no-store" });
+        if (idxResp.ok) {
+          const idx = await idxResp.json();
+          const parts = await Promise.all(
+            (idx.chunks || []).map((url) => fetchNewsItems(url))
+          );
+          items = parts.flat();
+          if (items.length > 0) loaded = true;
+        }
+      } catch (_) {}
+      if (!loaded) {
+        for (const url of [CONFIG.newsDisplay, CONFIG.newsArchive, CONFIG.newsFeed]) {
+          try {
+            items = await fetchNewsItems(url);
+            if (items.length > 0) break;
+          } catch (_) {}
+        }
       }
       // Enrich / override recent ids from compact feed (telegram/discord blocks).
       try {

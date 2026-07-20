@@ -63,17 +63,30 @@ if [[ ! -d "$ROOT_DIR/web/site" ]]; then
 fi
 
 if [[ -f "$ROOT_DIR/web/site/assets/news.json" ]]; then
-  echo "[deploy-hackme-site] build news-feed.json + news-display.json"
-  python3 - <<'PY' "$ROOT_DIR/web/site/assets/news.json" "$ROOT_DIR/web/site/assets/news-feed.json" "$ROOT_DIR/web/site/assets/news-display.json"
+  echo "[deploy-hackme-site] build news-feed.json + news-display chunks"
+  python3 - <<'PY' "$ROOT_DIR/web/site/assets/news.json" "$ROOT_DIR/web/site/assets/news-feed.json" "$ROOT_DIR/web/site/assets"
 import json, sys
-src, feed_dst, display_dst = sys.argv[1], sys.argv[2], sys.argv[3]
+from pathlib import Path
+src, feed_dst, assets = sys.argv[1], sys.argv[2], Path(sys.argv[3])
 data = json.load(open(src, encoding="utf-8"))
 items = data.get("items", [])
 json.dump({"items": items[:12], "feed": "recent"}, open(feed_dst, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
 keys = ("id", "date", "title", "summary", "impact", "action", "tags", "status")
 slim = [{k: it[k] for k in keys if k in it} for it in items]
-json.dump({"items": slim, "feed": "display"}, open(display_dst, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
-print(f"[deploy-hackme-site] news-feed items={len(items[:12])} news-display items={len(slim)}")
+chunk_dir = assets / "news-chunks"
+chunk_dir.mkdir(parents=True, exist_ok=True)
+chunk_size = 17
+chunks = []
+for i in range(0, len(slim), chunk_size):
+    part = slim[i : i + chunk_size]
+    name = f"news-display-{i // chunk_size:02d}.json"
+    path = assets / name
+    json.dump({"items": part, "chunk": i // chunk_size}, open(path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
+    chunks.append(f"./assets/{name}")
+# Legacy single file (bots / fallback)
+json.dump({"items": slim, "feed": "display"}, open(assets / "news-display.json", "w", encoding="utf-8"), indent=2, ensure_ascii=False)
+json.dump({"chunks": chunks, "total": len(slim)}, open(assets / "news-display-index.json", "w", encoding="utf-8"), indent=2)
+print(f"[deploy-hackme-site] news-feed={len(items[:12])} display={len(slim)} chunks={len(chunks)}")
 PY
 fi
 

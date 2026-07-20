@@ -1,0 +1,250 @@
+{
+  "items": [
+    {
+      "id": "2026-05-07-status-schema-canonical-overlay",
+      "date": "2026-05-07",
+      "title": "/api/status: Schema Always + Canonical Economics Overlay",
+      "summary": "Follower/worker nodes now always report local SQLite schema_version for migration gates; remote canonical URL merges economics/crypto/consensus_policy from canon /api/status so fuzz_release_gate economics checks work on pool followers.",
+      "impact": "private_stage_gate schema-version-match passes on migrated DBs; dashboards show canon-aligned policy without implying local ledger economics.",
+      "action": "Rebuild/restart nodes; verify GET /api/status schema fields; optional ADMIN_TOKEN BASE=https://hackme.tech bash scripts/ops/run_canonical_fuzz_gate.sh when ops-approved.",
+      "tags": [
+        "core",
+        "ops",
+        "fuzz",
+        "release"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-05-07-fuzz-product-guide-site",
+      "date": "2026-05-07",
+      "title": "Fuzz Campaigns Guide (Docs + Site)",
+      "summary": "Added docs/FUZZ_PRODUCT_GUIDE.md and public fuzz-guide.html covering fuzz_release_gate.sh, HACKME_FUZZ_AUTORUN and artifact env, report tokens, CI gate endpoint, and housekeeping APIs.",
+      "impact": "Operators and auditors have a single fuzz onboarding path linked from Docs, API reference, and operator checklist.",
+      "action": "Visit /fuzz-guide.html after deploy; keep fuzz_release_gate green before tagging releases.",
+      "tags": [
+        "docs",
+        "fuzz",
+        "security",
+        "release"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-05-07-operator-final-checklist",
+      "date": "2026-05-07",
+      "title": "Operator Final Checklist (Repo + Site)",
+      "summary": "Added docs/OPERATOR_FINAL_CHECKLIST.md and public operator-checklist.html linking predeploy/fuzz gates, deploy commands, settlement scripts, and troubleshooting flow.",
+      "impact": "Operators have one path for pre-final verification without hunting scattered runbooks.",
+      "action": "Open /operator-checklist.html after deploy; keep fuzz_release_gate green on release candidates.",
+      "tags": [
+        "docs",
+        "ops",
+        "release"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-05-07-tokenomics-copy-aligned-chain",
+      "date": "2026-05-07",
+      "title": "Site Tokenomics: Order Fees vs Transfer Burns (Copy Fix)",
+      "summary": "Home and Docs pages now match chain rules: order opening debits prepaid plus a 5% platform fee to DevFeeAddress, with a separate 10% prepaid burn tally (OrderBurnRate); the 70%/30% burn split applies to transfer fee_units only.",
+      "impact": "Community explanations and audits align with internal/chain/order_tasks.go and economics constants \u2014 less confusion vs Ethereum-style fee wording.",
+      "action": "Hard-refresh hackme.tech index/docs after deploy; reference docs/ECONOMICS_DASHBOARD.md \u00a78 for formulas.",
+      "tags": [
+        "docs",
+        "economics",
+        "transparency"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-05-07-economics-model-public-page",
+      "date": "2026-05-07",
+      "title": "Public Economics Model (Chain \u00b7 Pool \u00b7 Orders)",
+      "summary": "A dedicated site page and docs cross-links explain how PoH block credits (primary wallet on the producing node), coordinator worker accrual/settlement, and paid audit orders fit together \u2014 explicitly not classic Ethereum-style pooled block subsidy.",
+      "impact": "Miners and partners get a single reference for expectations: block header transparency vs wallet credit path, and why fleet income follows coordinator policy.",
+      "action": "Share economics-model.html from the Docs hub; operators keep settlement automation and dashboards as the source of truth for accrued vs settled HMC.",
+      "tags": [
+        "docs",
+        "mining",
+        "economics",
+        "community"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-05-07-release-fast-pack-pass-and-artifacts",
+      "date": "2026-05-07",
+      "title": "Release Fast-Pack PASS + Final Linux/Windows Artifacts",
+      "summary": "Final fast-profile release validation passed end-to-end (health, ultimate quick gate, security assertions, and worker dominance), and fresh Linux/Windows binaries were rebuilt with new SHA256 checksums.",
+      "impact": "Operators can deploy updated binaries with a deterministic release checklist and shorter, timeout-safe validation flow.",
+      "action": "Deploy dist/release_final_20260507 binaries to VPS, publish SHA256SUMS.txt with the release post, and run post-deploy smoke checks on status/work/global metrics.",
+      "tags": [
+        "release",
+        "testing",
+        "security",
+        "ops"
+      ],
+      "status": "deployed"
+    },
+    {
+      "id": "2026-05-05-rc7-security-hardening-and-release-pack",
+      "date": "2026-05-05",
+      "title": "RC7 Release Pack + Hybrid Anti-Replay Hardening",
+      "summary": "Release 0.1.0-rc7 artifacts for Linux and Windows were rebuilt with fresh checksums, while coordinator Hybrid signer received stricter anti-replay and duplicate-signed-payload protections.",
+      "impact": "Operators can distribute updated binaries and run stronger pool-side submit validation without breaking current worker-mode staging flow.",
+      "action": "Use dist/release_0.1.0-rc7 artifacts, keep predeploy gate with hybrid smoke enabled, and canary-enable strict signer mode before full rollout.",
+      "tags": [
+        "release",
+        "security",
+        "ops",
+        "explorer"
+      ],
+      "status": "deployed"
+    },
+    {
+      "id": "2026-05-05-auto-settlement-timers-live",
+      "date": "2026-05-05",
+      "title": "Auto-Settlement Timers are Live",
+      "summary": "Systemd automation for worker payout settlement is now active with periodic settlement and healthcheck timers on the canonical VPS.",
+      "impact": "Worker accrual can now be settled to on-chain wallet balances automatically, reducing manual intervention and payout drift.",
+      "action": "Monitor settlement services via systemctl and journalctl; adjust MIN_SETTLE_HMC and payout mapping in /opt/hackme/.env.settlement as needed.",
+      "tags": [
+        "ops",
+        "mining",
+        "wallet",
+        "release"
+      ],
+      "status": "deployed"
+    },
+    {
+      "id": "2026-05-05-v3-worker-settlement-bridge",
+      "date": "2026-05-05",
+      "title": "V3 Worker Settlement Bridge Added",
+      "summary": "A new settlement operator script converts coordinator off-chain worker accrual into on-chain transfer payouts with nonce-safe submission and self-pay protection.",
+      "impact": "Operators can now automate payout settlement from worker accrual counters to real wallet balances, reducing confusion between accrued and settled rewards.",
+      "action": "Use scripts/ops/settle_worker_payouts.sh with payout mapping (or hybrid signed payout_address) and a minimum settlement threshold.",
+      "tags": [
+        "release",
+        "ops",
+        "mining",
+        "wallet"
+      ],
+      "status": "deployed"
+    },
+    {
+      "id": "2026-05-05-hybrid-signer-v2-dark-launch",
+      "date": "2026-05-05",
+      "title": "Hybrid Signer v2 Dark Launch (Safe Fallback Active)",
+      "summary": "Coordinator now supports optional miner-signed submit payloads with ed25519 verification, replay protection, and deterministic reject reasons. Backward-compatible unsigned worker flow remains active.",
+      "impact": "Pool operators can enable Hybrid v2 gradually without breaking existing worker clients, while gaining signer telemetry and stricter anti-abuse validation.",
+      "action": "Enable HACKME_POOL_HYBRID_SIGNER_ENABLED=1 on coordinator, run hybrid_signer_smoke.sh, and rollout workers in phases.",
+      "tags": [
+        "core",
+        "mining",
+        "ops",
+        "release"
+      ],
+      "status": "deployed"
+    },
+    {
+      "id": "2026-05-05-predeploy-gate-and-canonical-ops-pass",
+      "date": "2026-05-05",
+      "title": "Predeploy Gate Added, Canonical Ops Pass Confirmed",
+      "summary": "A new one-command predeploy gate is now live with practical checks for test suite, canonical proxy parity, wallet source consistency, and worker-mode health. Public stack deployment completed successfully after gate pass.",
+      "impact": "Operators can validate follower and worker readiness before rollout with a deterministic PASS/FAIL flow, reducing drift between local dashboards and canonical chain reality.",
+      "action": "Run scripts/ops/predeploy_gate.sh before each public deployment and monitor worker-mode health and canonical parity in regular operations.",
+      "tags": [
+        "release",
+        "ops",
+        "explorer",
+        "mining"
+      ],
+      "status": "deployed"
+    },
+    {
+      "id": "2026-05-04-telegram-channel-bot-live",
+      "date": "2026-05-04",
+      "title": "Telegram Channel Bot is Live",
+      "summary": "Official HackMe channel automation is now active: new News entries are published directly to Telegram with status, impact, action, and deep links.",
+      "impact": "Community updates now ship in real time without waiting for manual reposts, improving communication reliability for miners and operators.",
+      "action": "Follow the official channel and use the News page as the source of truth for release and operations updates.",
+      "tags": [
+        "ops",
+        "news",
+        "community"
+      ],
+      "status": "deployed"
+    },
+    {
+      "id": "2026-05-04-canonical-consistency-upgrade",
+      "date": "2026-05-04",
+      "title": "Canonical Consistency Upgrade for Follower Nodes",
+      "summary": "Follower-mode APIs now mirror canonical chain responses for transfer pool, address lookups, transaction lookups, and status economics to prevent mixed local/canonical views.",
+      "impact": "Operators now see one consistent reality between local dashboard/explorer and the public VPS chain, including nonce and pending transaction behavior.",
+      "action": "Recommended: hard-refresh browser cache and restart local follower nodes to pick up latest frontend/backend behavior.",
+      "tags": [
+        "core",
+        "explorer",
+        "infra"
+      ],
+      "status": "deployed"
+    },
+    {
+      "id": "2026-05-04-simple-send-nonce-sync",
+      "date": "2026-05-04",
+      "title": "Simple Send Nonce Auto-Sync",
+      "summary": "In network mode, simple wallet sends now auto-resolve nonce from canonical address state before submission, reducing invalid nonce conflicts after included transactions.",
+      "impact": "Transfer UX is smoother for users operating in follower mode against a canonical VPS node.",
+      "action": "No manual nonce management required in simple mode.",
+      "tags": [
+        "wallet",
+        "core"
+      ],
+      "status": "deployed"
+    },
+    {
+      "id": "2026-05-04-vps-sweep-visibility",
+      "date": "2026-05-04",
+      "title": "VPS Sweep Behavior Clarified",
+      "summary": "Automated sweep-to-primary flow on VPS remains active to keep miner wallet near reserve and consolidate balances to the primary policy wallet.",
+      "impact": "Miner wallet balance may look nearly static while rewards continue to accrue and be transferred to the primary address.",
+      "action": "Use canonical address API for both miner and primary addresses when auditing balances.",
+      "tags": [
+        "economics",
+        "infra",
+        "ops"
+      ],
+      "status": "monitoring"
+    },
+    {
+      "id": "2026-05-03-release-rc6",
+      "date": "2026-05-03",
+      "title": "Release Candidate 0.1.0-rc6 Published",
+      "summary": "RC6 release bundles, checksums, and deployment automation were refreshed with latest stability and validation updates.",
+      "impact": "Improved deployment consistency and repeatability across local and VPS environments.",
+      "action": "Operators should use only RC6 artifacts from the Downloads page.",
+      "tags": [
+        "release",
+        "ops"
+      ],
+      "status": "deployed"
+    },
+    {
+      "id": "2026-05-02-security-hardening-pack",
+      "date": "2026-05-02",
+      "title": "Security Hardening Pack Extended",
+      "summary": "WASM validation gates, signature checks, and fail-closed controls were expanded and integrated into daily/ultimate validation packs.",
+      "impact": "Lower risk of unsafe task execution and stronger deterministic verification in pipeline.",
+      "action": "Run production runbooks before major operator changes.",
+      "tags": [
+        "security",
+        "core",
+        "testing"
+      ],
+      "status": "deployed"
+    }
+  ],
+  "chunk": 4
+}

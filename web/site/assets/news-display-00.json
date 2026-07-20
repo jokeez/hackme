@@ -1,0 +1,266 @@
+{
+  "items": [
+    {
+      "id": "2026-07-20-oss-cve-watch-day14-nghttp2-libfuzzer",
+      "date": "2026-07-20",
+      "title": "OSS CVE Watch Day 14/14 \u00b7 nghttp2 \u00b7 3.03B libFuzzer exec \u00b7 CLEAN",
+      "summary": "Day 14 on nghttp2: 17.0h libFuzzer depth, 3,029,631,004 executions at ~49,622 exec/s. Corpus 420 (305KB), 467 coverage edges. ASAN heap crashes: 0 \u2014 verdict CLEAN.",
+      "impact": "Cumulative Days 2\u201314: ~14.32B libFuzzer executions on persistent corpus. Day 14 HTML live on the public ledger.",
+      "action": "Day 14 report: https://hackme.tech/reports/oss-cve-watch/day14.html \u00b7 Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2",
+        "day14"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-19-oss-cve-watch-day13-nghttp2-libfuzzer",
+      "date": "2026-07-19",
+      "title": "OSS CVE Watch Day 13/14 \u00b7 nghttp2 \u00b7 0.36B libFuzzer exec \u00b7 CLEAN",
+      "summary": "Day 13 on nghttp2: 4.3h libFuzzer depth, 355,230,313 executions at ~23,081 exec/s. Corpus 419 (293KB), 467 coverage edges. ASAN heap crashes: 0 \u2014 verdict CLEAN.",
+      "impact": "Cumulative Days 2\u201313: ~11.29B libFuzzer executions on persistent corpus. Day 13 HTML live on the public ledger.",
+      "action": "Day 13 report: https://hackme.tech/reports/oss-cve-watch/day13.html \u00b7 Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2",
+        "day13"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-19-oss-cve-watch-day12-nghttp2-libfuzzer",
+      "date": "2026-07-19",
+      "title": "OSS CVE Watch Day 12/14 \u00b7 nghttp2 \u00b7 2.39B libFuzzer exec \u00b7 CLEAN",
+      "summary": "Day 12 on nghttp2: 14.2h libFuzzer depth, 2,387,073,360 executions at ~46,706 exec/s. Corpus 410 (307KB), 467 coverage edges. ASAN heap crashes: 0 \u2014 verdict CLEAN.",
+      "impact": "Cumulative Days 2\u201312: ~10.94B libFuzzer executions on persistent corpus. Day 12 HTML live on the public ledger.",
+      "action": "Day 12 report: https://hackme.tech/reports/oss-cve-watch/day12.html \u00b7 Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2",
+        "day12"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-18-oss-cve-watch-day11-nghttp2-libfuzzer",
+      "date": "2026-07-18",
+      "title": "OSS CVE Watch Day 11/14 \u00b7 nghttp2 \u00b7 0.15B libFuzzer exec \u00b7 CLEAN",
+      "summary": "Day 11 on nghttp2: 1.9h libFuzzer depth, 146,318,620 executions at ~21,708 exec/s. Corpus 414 (296KB), 467 coverage edges. ASAN heap crashes: 0 \u2014 verdict CLEAN.",
+      "impact": "Cumulative Days 2\u201311: ~8.55B libFuzzer executions on persistent corpus. Day 11 HTML live on the public ledger.",
+      "action": "Day 11 report: https://hackme.tech/reports/oss-cve-watch/day11.html \u00b7 Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2",
+        "day11"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-17-oss-cve-watch-day10-nghttp2-libfuzzer",
+      "date": "2026-07-17",
+      "title": "OSS CVE Watch Day 10/14 \u00b7 nghttp2 \u00b7 0.38B libFuzzer exec \u00b7 CLEAN",
+      "summary": "Day 10 on nghttp2: 5.0h libFuzzer depth, 384,015,656 executions at ~21,333 exec/s. Corpus 415 (297KB), 467 coverage edges. ASAN heap crashes: 0 \u2014 verdict CLEAN.",
+      "impact": "Cumulative Days 2\u201310: ~8.40B libFuzzer executions on persistent corpus. Day 10 HTML live on the public ledger.",
+      "action": "Day 10 report: https://hackme.tech/reports/oss-cve-watch/day10.html \u00b7 Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2",
+        "day10"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-16-oss-cve-watch-day09-nghttp2-libfuzzer",
+      "date": "2026-07-16",
+      "title": "OSS CVE Watch Day 9/14 \u00b7 nghttp2 \u00b7 0.31B libFuzzer exec \u00b7 CLEAN",
+      "summary": "Day 9 on nghttp2: 4.0h libFuzzer depth, 313,781,660 executions at ~21,788 exec/s. Corpus 413 (303KB), 467 coverage edges. ASAN heap crashes: 0 \u2014 verdict CLEAN.",
+      "impact": "Cumulative Days 2\u20139: ~8.02B libFuzzer executions on persistent corpus. Day 9 HTML live on the public ledger.",
+      "action": "Day 9 report: https://hackme.tech/reports/oss-cve-watch/day09.html \u00b7 Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2",
+        "day09"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-16-pool-privacy-site-hub",
+      "date": "2026-07-16",
+      "title": "Public pool \u00b7 miner IP privacy \u00b7 hub polish",
+      "summary": "Unauthenticated coordinator stats and by-wallet no longer expose last_client_ip. Research hub updated to OSS CVE Watch Day 8/14. Security rewards page + footer link; home Live pool shows workers online.",
+      "impact": "Hardening for miner privacy on the public edge without changing rc11s miner downloads. Command hub metrics remain resilient under PoH load.",
+      "action": "Pool: https://hackme.tech/ \u00b7 Rewards: https://hackme.tech/security-rewards.html \u00b7 Research: https://hackme.tech/research.html",
+      "tags": [
+        "security",
+        "pool",
+        "privacy",
+        "site"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-11-github-release-rc11s",
+      "date": "2026-07-11",
+      "title": "HackMe 0.1.0-rc11s \u2014 production baseline \u00b7 pool fuzz \u00b7 miners welcome",
+      "summary": "Stable production channel: pool fuzz marketplace, PoH + fuzz mining payouts, escrow 20/80, customer order flow verified. Mining dashboard shows canonical chain economics (Actual base/orders 1h) on desktop followers. Fuzz settle outbox drain fix.",
+      "impact": "rc11s is the reference release for miners and B2B customers. Further changes ship as rc11t/rc12 \u2014 no silent breaking changes on this channel.",
+      "action": "Download: https://hackme.tech/downloads.html \u00b7 Pool: https://hackme.tech/pool/coordinator \u00b7 GitHub tag after publish: 0.1.0-rc11s",
+      "tags": [
+        "release",
+        "mining",
+        "fuzzing",
+        "production"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-15-oss-cve-watch-day08-nghttp2-libfuzzer",
+      "date": "2026-07-15",
+      "title": "OSS CVE Watch Day 8/14 \u00b7 nghttp2 \u00b7 1.02B libFuzzer exec \u00b7 CLEAN",
+      "summary": "Eighth day on nghttp2: 8h libFuzzer depth session, 1,015,266,765 executions at ~35.3k exec/s. Corpus 418 inputs (326KB), 467 coverage edges. Zero ASAN heap crashes \u2014 eighth honest CLEAN day.",
+      "impact": "Cumulative ~7.71B libFuzzer executions across Days 2\u20138 on the same persistent corpus. Coverage still plateaued at 467 edges. Day 8 HTML live on the public ledger.",
+      "action": "Day 8 report: https://hackme.tech/reports/oss-cve-watch/day08.html \u00b7 Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-13-oss-cve-watch-day07-nghttp2-libfuzzer",
+      "date": "2026-07-14",
+      "title": "OSS CVE Watch Day 7/14 \u00b7 nghttp2 \u00b7 1.73B libFuzzer exec \u00b7 CLEAN",
+      "summary": "Seventh day on nghttp2: 20h libFuzzer marathon, 1,729,144,709 executions at ~24k exec/s. Corpus 415 inputs (329KB), 467 coverage edges. Zero ASAN heap crashes \u2014 seventh honest CLEAN day.",
+      "impact": "Cumulative ~6.69B libFuzzer executions across Days 2\u20137 on the same persistent corpus. Coverage still plateaued at 467 edges. Day 7 HTML live on the public ledger.",
+      "action": "Day 7 report: https://hackme.tech/reports/oss-cve-watch/day07.html \u00b7 Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-13-oss-cve-watch-day06-nghttp2-libfuzzer",
+      "date": "2026-07-13",
+      "title": "OSS CVE Watch Day 6/14 \u00b7 nghttp2 \u00b7 resume slice \u00b7 CLEAN",
+      "summary": "Sixth day on nghttp2: short resume slice after PC reboot (~12 min), 4,549,884 executions. Corpus 417 inputs, 467 coverage edges. Zero ASAN heap crashes \u2014 honest CLEAN day (warmup before Day 7 marathon).",
+      "impact": "Day 6 ledger entry documents post-reboot resume before the 20h Day 7 session. No CVE candidates. Full depth budget carried by Day 7 chain slot.",
+      "action": "Day 6 report: https://hackme.tech/reports/oss-cve-watch/day06.html \u00b7 Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-12-oss-cve-watch-day05-nghttp2-libfuzzer",
+      "date": "2026-07-12",
+      "title": "OSS CVE Watch Day 5/14 \u00b7 nghttp2 \u00b7 2.04B libFuzzer exec \u00b7 CLEAN",
+      "summary": "Fifth day on nghttp2: 15h libFuzzer depth session, 2,038,010,048 executions at ~37.7k exec/s. Corpus 414 inputs (405KB), 467 coverage edges. Zero ASAN heap crashes \u2014 fifth honest CLEAN day.",
+      "impact": "Cumulative ~4.96B libFuzzer executions across Days 2\u20135 on the same persistent corpus. Coverage still plateaued at 467 edges; corpus refinement continues. Days 6\u20137 deep marathon running.",
+      "action": "Day 5 report: https://hackme.tech/reports/oss-cve-watch/day05.html \u00b7 Series hub: https://hackme.tech/reports/oss-cve-watch/ \u00b7 Reproduce: DAY=5 MAX_TIME=72000 bash scripts/ops/run_oss_cve_watch_libfuzzer_day.sh",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-11-oss-cve-watch-day04-nghttp2-libfuzzer",
+      "date": "2026-07-11",
+      "title": "OSS CVE Watch Day 4/14 \u00b7 nghttp2 \u00b7 719M libFuzzer exec \u00b7 CLEAN",
+      "summary": "Fourth day on nghttp2: ~5h libFuzzer session, 719,500,167 executions at ~40k exec/s. Corpus 408 inputs (433KB), 467 coverage edges. Zero ASAN heap crashes \u2014 fourth honest CLEAN day.",
+      "impact": "Cumulative ~2.92B libFuzzer executions across Days 2\u20134 on the same persistent corpus. Coverage still plateaued at 467 edges; corpus refinement continues. Day 5 deep session starting.",
+      "action": "Day 4 report: https://hackme.tech/reports/oss-cve-watch/day04.html \u00b7 Series hub: https://hackme.tech/reports/oss-cve-watch/ \u00b7 Reproduce: DAY=4 bash scripts/ops/run_oss_cve_watch_libfuzzer_day.sh",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-10-github-release-rc11r",
+      "date": "2026-07-10",
+      "title": "HackMe 0.1.0-rc11r on GitHub Releases \u2014 Win \u00b7 Linux \u00b7 ISO \u00b7 fuzz CLI",
+      "summary": "First tagged GitHub release aligned with hackme.tech/downloads: Windows installer, Linux tarball, hackme-fuzzing CLI, and HackMe OS ISO (~844 MB). Same SHA256 as CDN. Linux layout fix, fuzz settle outbox, escrow cleanup.",
+      "impact": "Miners and integrators can verify binaries from GitHub or hackme.tech. ISO + tarballs in one place for mirrors, CI, and cold-storage archives.",
+      "action": "Download: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc11r \u00b7 Mirror: https://hackme.tech/downloads.html \u00b7 Docs: docs/HACKME_RC11R.md",
+      "tags": [
+        "release",
+        "mining",
+        "fuzzing",
+        "iso"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-10-oss-cve-watch-day03-nghttp2-libfuzzer",
+      "date": "2026-07-10",
+      "title": "OSS CVE Watch Day 3/14 \u00b7 nghttp2 \u00b7 1.19B libFuzzer exec \u00b7 CLEAN",
+      "summary": "Third night on nghttp2: 12h libFuzzer session after post-reboot resume, 1,185,926,547 executions at ~27k exec/s. Corpus 402 inputs (399KB), 467 coverage edges. Zero ASAN heap crashes \u2014 third honest CLEAN day.",
+      "impact": "Cumulative ~3.2B libFuzzer executions across Days 2\u20133 on the same persistent corpus. Coverage plateau at 467 edges suggests deeper state exploration needs new seeds or harness paths \u2014 still hunting ASAN heap bugs nightly.",
+      "action": "Day 3 report: https://hackme.tech/reports/oss-cve-watch/day03.html \u00b7 Series hub: https://hackme.tech/reports/oss-cve-watch/ \u00b7 Reproduce: MAX_TIME=43200 bash scripts/ops/run_oss_libfuzzer_session.sh",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-09-oss-cve-watch-day02-nghttp2-libfuzzer",
+      "date": "2026-07-09",
+      "title": "OSS CVE Watch Day 2/14 \u00b7 nghttp2 \u00b7 1B libFuzzer exec \u00b7 CLEAN",
+      "summary": "Second night on nghttp2: coverage-guided libFuzzer with ASAN, ~8h wall time, 1,013,382,502 executions at ~35k exec/s. Corpus grew to 2,905 inputs (467 coverage edges). Zero ASAN heap crashes \u2014 honest CLEAN day published.",
+      "impact": "Day 1 was stdin mutation (44k iter, UBSan noise). Day 2 switches to operator libFuzzer depth; corpus persists between nights for deeper HTTP/2 session parsing coverage.",
+      "action": "Day 2 report: https://hackme.tech/reports/oss-cve-watch/day02.html \u00b7 Series hub: https://hackme.tech/reports/oss-cve-watch/ \u00b7 Reproduce: bash scripts/ops/run_oss_libfuzzer_session.sh",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-08-miningpoolstats-closed-summer-focus",
+      "date": "2026-07-08",
+      "title": "MiningPoolStats hosted service closed \u00b7 summer focus: CVE Watch + miners",
+      "summary": "miningpoolstats.app shut down its public dashboard (project open-sourced). We removed dead MPS links from hackme.tech. Summer plan: finish OSS CVE Watch cadence, bounty hunts, grow the official pool \u2014 CEX outreach moves to Q4+ when traction justifies listing fees.",
+      "impact": "No broken outbound links on contacts/roadmap. Miners should use hackme.tech pool stats API and downloads \u2014 not third-party aggregators.",
+      "action": "Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats \u00b7 Research: https://hackme.tech/research.html \u00b7 Downloads: https://hackme.tech/downloads.html",
+      "tags": [
+        "pool",
+        "ops",
+        "research",
+        "roadmap"
+      ],
+      "status": "published"
+    }
+  ],
+  "chunk": 0
+}
