@@ -9,7 +9,10 @@ UNIT_DIR="/etc/systemd/system"
 [[ -d "$ROOT/scripts/ops" ]] || { echo "missing $ROOT"; exit 1; }
 chmod +x "$ROOT/scripts/ops/oss_cve_libheif_watchdog_once.sh" \
   "$ROOT/scripts/ops/pool_away_watch_once.sh" \
+  "$ROOT/scripts/ops/away_metrics_journal_once.sh" \
+  "$ROOT/scripts/ops/away_return_briefing.sh" \
   "$ROOT/scripts/ops/run_oss_cve_watch_libheif_24h_cadence.sh" 2>/dev/null || true
+mkdir -p "$ROOT/reports/away-journal/daily"
 
 cat >"$UNIT_DIR/hackme-libheif-24h.service" <<EOF
 [Unit]
@@ -87,10 +90,35 @@ Persistent=true
 WantedBy=timers.target
 EOF
 
+cat >"$UNIT_DIR/hackme-away-journal.service" <<EOF
+[Unit]
+Description=HackMe away metrics journal (structured TSV + action items)
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=HACKME_ROOT=$ROOT
+ExecStart=/usr/bin/bash $ROOT/scripts/ops/away_metrics_journal_once.sh
+EOF
+
+cat >"$UNIT_DIR/hackme-away-journal.timer" <<'EOF'
+[Unit]
+Description=HackMe away journal every 20 min (pool/settlement/libheif flags)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=20min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
 systemctl daemon-reload
 systemctl enable hackme-libheif-24h.service \
   hackme-libheif-fuzzer-watchdog.timer \
-  hackme-pool-away-watch.timer
+  hackme-pool-away-watch.timer \
+  hackme-away-journal.timer
 
 # Hand off from ad-hoc bash cadence to systemd (keep live file_fuzzer).
 if pgrep -f 'run_oss_cve_watch_libheif_24h_cadence' >/dev/null 2>&1; then
@@ -102,7 +130,9 @@ systemctl restart hackme-libheif-24h.service
 
 systemctl start hackme-libheif-fuzzer-watchdog.timer
 systemctl start hackme-pool-away-watch.timer
+systemctl start hackme-away-journal.timer
 bash "$ROOT/scripts/ops/pool_away_watch_once.sh" || true
+bash "$ROOT/scripts/ops/away_metrics_journal_once.sh" || true
 
 echo "[away-ops] installed"
 systemctl is-active hackme-libheif-24h.service || true
