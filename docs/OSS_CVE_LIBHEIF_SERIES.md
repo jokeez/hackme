@@ -10,16 +10,28 @@ This is **Day 1/14 of a new series**, not “Day 15” of nghttp2. Different har
 
 ## Run
 
+### 24/7 · fixed 24h days (recommended)
+
+Each day = **exactly 86400s** from series anchor (Day 1 start). Fuzzer chains automatically; publish at day boundary.
+
 ```bash
-# Build (needs clang++, cmake, libde265-dev, libdav1d-dev)
+# VPS hub — install once, then start
+bash scripts/ops/install_libheif_24h_cadence_systemd.sh
+ANCHOR_EPOCH=1784543563 systemctl --user start hackme-libheif-24h.service
+
+# Or foreground (adopts live fuzzer if running)
+ANCHOR_EPOCH=1784543563 bash scripts/ops/run_oss_cve_watch_libheif_24h_cadence.sh
+```
+
+State: `reports/oss-cve-watch-libheif/cadence.json` · logs: `logs/oss-cve-watch-libheif-24h-*.log`
+
+Publish gate (libheif): ≥20M exec · ≥23h wall per day.
+
+### Manual one-off session
+
+```bash
 TARGET=libheif bash scripts/ops/build_oss_libfuzzer_libheif.sh
-
-# Session (corpus persists)
-TARGET=libheif MAX_TIME=28800 bash scripts/ops/run_oss_libfuzzer_session.sh
-
-# VPS (operator hub — libheif built under .cache/oss-cve-clones/libheif)
-TARGET=libheif MAX_TIME=28800 setsid bash scripts/ops/run_oss_libfuzzer_session.sh \
-  >>logs/libheif-libfuzzer.nohup.log 2>&1 &
+TARGET=libheif MAX_TIME=86400 bash scripts/ops/run_oss_libfuzzer_session.sh
 ```
 
 ## Paths

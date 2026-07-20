@@ -17,8 +17,15 @@ cd "$ROOT"
 
 TARGET="${TARGET:-nghttp2}"
 MAX_TIME="${MAX_TIME:-28800}"
-TIMEOUT="${TIMEOUT:-3}"
-RSS_MB="${RSS_LIMIT_MB:-4096}"
+if [[ "$TARGET" == "libheif" ]]; then
+  TIMEOUT="${TIMEOUT:-5}"
+  RSS_MB="${RSS_LIMIT_MB:-4096}"
+  MAX_LEN="${MAX_LEN:-4194304}"
+else
+  TIMEOUT="${TIMEOUT:-3}"
+  RSS_MB="${RSS_LIMIT_MB:-4096}"
+  MAX_LEN="${MAX_LEN:-65536}"
+fi
 STAMP="${STAMP:-$(date -u +%Y%m%dT%H%M%SZ)}"
 
 CORPUS_ROOT="${CORPUS_ROOT:-$ROOT/reports/oss-cve-libfuzzer/$TARGET}"
@@ -54,7 +61,7 @@ set +e
   -max_total_time="$MAX_TIME" \
   -timeout="$TIMEOUT" \
   -rss_limit_mb="$RSS_MB" \
-  -max_len=65536 \
+  -max_len="$MAX_LEN" \
   -artifact_prefix="$CRASH_DIR/crash-" \
   -print_final_stats=1 \
   2>&1 | tee "$FUZZ_LOG"
