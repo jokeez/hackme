@@ -84,6 +84,9 @@
 | [OPERATOR_FINAL_CHECKLIST.md](OPERATOR_FINAL_CHECKLIST.md) | Production checklist |
 | [CANONICAL_RELEASE_CHECKS.md](CANONICAL_RELEASE_CHECKS.md) | Schema / fuzz gates |
 | [OPERATIONS_MONITORING.md](OPERATIONS_MONITORING.md) | Metrics, alerts, pool health (`run_pool_health_check.sh`) |
+| [EXTERNAL_AUDIT_READINESS.md](EXTERNAL_AUDIT_READINESS.md) | Third-party audit & CEX due-diligence pack |
+| [VPS_MIRROR_GUIDE.md](VPS_MIRROR_GUIDE.md) | Mirror VPS buy + cutover |
+| [VPS_CAPACITY.md](VPS_CAPACITY.md) | Hub sizing & multi-coin layout |
 | [STATUS.md](STATUS.md) | **Current** operator snapshot (start here for “is prod OK?”) |
 | [PUBLIC_LAUNCH_VERDICT.md](PUBLIC_LAUNCH_VERDICT.md) | Launch criteria |
 | [HACKME_RC11S.md](HACKME_RC11S.md) | **Current** Win/Linux + ISO channel |

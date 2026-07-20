@@ -18,17 +18,17 @@ const metaHMSMarketPayPrefix = "hms_market_pay:"
 
 // HMSMarketPaymentResult is returned after debiting the node wallet for a storage order.
 type HMSMarketPaymentResult struct {
-	PaymentID         string  `json:"payment_id"`
-	PaymentProof      string  `json:"payment_proof,omitempty"`
-	TotalDebitHMC     float64 `json:"total_debit_hmc"`
-	StorageHMC        float64 `json:"storage_subtotal_hmc"`
-	PlatformFeeHMC    float64 `json:"platform_fee_hmc"`
-	BurnHMC           float64 `json:"burn_hmc"`
-	BalanceAfter      float64 `json:"balance_after"`
-	QuoteHash         string  `json:"quote_hash"`
-	PolicyHash        string  `json:"policy_hash"`
-	IdempotentReplay  bool    `json:"idempotent_replay,omitempty"`
-	IdempotencyKey    string  `json:"idempotency_key,omitempty"`
+	PaymentID        string  `json:"payment_id"`
+	PaymentProof     string  `json:"payment_proof,omitempty"`
+	TotalDebitHMC    float64 `json:"total_debit_hmc"`
+	StorageHMC       float64 `json:"storage_subtotal_hmc"`
+	PlatformFeeHMC   float64 `json:"platform_fee_hmc"`
+	BurnHMC          float64 `json:"burn_hmc"`
+	BalanceAfter     float64 `json:"balance_after"`
+	QuoteHash        string  `json:"quote_hash"`
+	PolicyHash       string  `json:"policy_hash"`
+	IdempotentReplay bool    `json:"idempotent_replay,omitempty"`
+	IdempotencyKey   string  `json:"idempotency_key,omitempty"`
 }
 
 func hmsMarketPayMetaKey(quoteHash, idempotencyKey string) string {

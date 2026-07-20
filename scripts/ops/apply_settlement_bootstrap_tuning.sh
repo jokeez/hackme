@@ -7,7 +7,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 NODE_SSH="${NODE_SSH:-hackme-vps}"
 DEPLOY="${NODE_DEPLOY_DIR:-/opt/hackme}"
 
-for f in ensure_settlement_treasury_float.sh treasury_bootstrap_guard.sh vps_settlement_autopilot.sh; do
+for f in ensure_settlement_treasury_float.sh treasury_bootstrap_guard.sh \
+  pool_subsidy_budget_snapshot.sh vps_settlement_autopilot.sh; do
   rsync -az "$ROOT/scripts/ops/$f" "$NODE_SSH:$DEPLOY/scripts/ops/"
 done
 rsync -az "$ROOT/scripts/ops/systemd/hackme-settlement-autopilot.service" \
@@ -26,7 +27,9 @@ TOPUP_HMC=30
 MAX_GENESIS_TOPUP_24H_HMC=25
 CATCHUP_TOPUP_HMC=180
 CATCHUP_UNPAID_TRIGGER_HMC=20
-GENESIS_RESERVE_HMC=45000
+GENESIS_RESERVE_HMC=30000
+GENESIS_CATCHUP_RESERVE_HMC=10000
+SETTLE_TX_WAIT_SEC=180
 ENVEOF
 chmod 600 "\$ENV"
 sudo cp /tmp/hackme-settlement-autopilot.service /tmp/hackme-settlement-autopilot.timer /etc/systemd/system/ 2>/dev/null || true

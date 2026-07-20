@@ -124,8 +124,12 @@ if awk -v n="$need" 'BEGIN{exit !(n>0)}'; then
       MAX_GENESIS_TOPUP_24H_HMC="$MAX_GENESIS_TOPUP_24H_HMC" \
       PROPOSED_TOPUP_HMC="$need" \
       SETTLEMENT_BALANCE_HMC="$bal_hmc" \
+      FLEET_UNPAID_HMC="$fleet_unpaid_hmc" \
       MIN_FLOAT_HMC="$MIN_FLOAT_HMC" \
       CHAIN_BASE="$CHAIN_BASE" \
+      GENESIS_RESERVE_HMC="${GENESIS_RESERVE_HMC:-30000}" \
+      GENESIS_CATCHUP_RESERVE_HMC="${GENESIS_CATCHUP_RESERVE_HMC:-10000}" \
+      CATCHUP_UNPAID_TRIGGER_HMC="$CATCHUP_UNPAID_TRIGGER_HMC" \
       bash "$ROOT/scripts/ops/treasury_bootstrap_guard.sh"; then
       echo "[treasury-float] SKIP topup — genesis daily budget exceeded" >&2
       need="0"

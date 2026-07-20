@@ -23,7 +23,7 @@ func (a *app) handleFuzzPoolSettle(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Kind         string `json:"kind"`
 		CampaignID   string `json:"campaign_id"`
-		MinerAddress  string `json:"miner_address"`
+		MinerAddress string `json:"miner_address"`
 		Severity     string `json:"severity"`
 		EventID      string `json:"event_id"`
 	}
