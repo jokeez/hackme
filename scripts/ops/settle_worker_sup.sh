@@ -105,6 +105,18 @@ PY
     echo "[settle-sup] skip ${worker_id}: delta ${delta_sup} SUP < min ${MIN_SETTLE_SUP}"
     continue
   fi
+  if jq -e --arg wid "$worker_id" '.workers[$wid].pending_sup != null' "$STATE_FILE" >/dev/null 2>&1; then
+    echo "[settle-sup] skip ${worker_id}: pending_sup present — not re-minting (CLEAR_PENDING_SETTLE=1 to retry)" >&2
+    if [[ "${CLEAR_PENDING_SETTLE:-0}" == "1" ]]; then
+      tmp="$(mktemp)"
+      jq --arg wid "$worker_id" 'del(.workers[$wid].pending_sup)' "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
+    fi
+    continue
+  fi
+  tmp="$(mktemp)"
+  jq --arg wid "$worker_id" --arg addr "$to_addr" --argjson amt "$delta_sup" --argjson ts "$(date +%s)" \
+    '.workers[$wid].pending_sup = {delta_sup:$amt,payout_address:$addr,started_unix:$ts}' \
+    "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
   resp=""
   ok="false"
   for attempt in 1 2 3 4 5; do
@@ -125,6 +137,8 @@ PY
   done
   if [[ "$ok" != "true" ]]; then
     echo "[settle-sup] ERROR ${worker_id}: $resp" >&2
+    tmp="$(mktemp)"
+    jq --arg wid "$worker_id" 'del(.workers[$wid].pending_sup)' "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
     continue
   fi
   new_settled="$(python3 - "$already_sup" "$delta_sup" <<'PY'
@@ -134,7 +148,7 @@ PY
 )"
   tmp="$(mktemp)"
   jq --arg wid "$worker_id" --arg addr "$to_addr" --argjson settled "$new_settled" \
-    '.workers[$wid].settled_sup = $settled | .workers[$wid].payout_address = $addr' \
+    '.workers[$wid].settled_sup = $settled | .workers[$wid].payout_address = $addr | del(.workers[$wid].pending_sup)' \
     "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
   settled_any=1
   echo "[settle-sup] minted ${worker_id} -> ${to_addr} delta=${delta_sup} SUP"

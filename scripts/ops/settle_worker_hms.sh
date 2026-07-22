@@ -160,6 +160,21 @@ PY
       continue
     fi
 
+    if jq -e --arg e "$epoch_id" --arg w "$worker_id" \
+      '.epochs[$e].workers[$w].pending_mint != null' "$STATE_FILE" >/dev/null 2>&1; then
+      echo "[settle-hms] skip ${worker_id} epoch=${epoch_id}: pending_mint present — not re-minting (CLEAR_PENDING_SETTLE=1)" >&2
+      if [[ "${CLEAR_PENDING_SETTLE:-0}" == "1" ]]; then
+        tmp="$(mktemp)"
+        jq --arg e "$epoch_id" --arg w "$worker_id" \
+          'del(.epochs[$e].workers[$w].pending_mint)' "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
+      fi
+      continue
+    fi
+    tmp="$(mktemp)"
+    jq --arg e "$epoch_id" --arg w "$worker_id" --arg addr "$to_addr" --argjson units "$delta_units" --argjson ts "$(date +%s)" \
+      '.epochs[$e].workers[$w].pending_mint = {delta_units:$units,payout_address:$addr,started_unix:$ts}' \
+      "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
+
     resp="$(curl -sS -X POST "${CHAIN_BASE}/api/hms/mint" \
       -H "X-Hackme-Admin-Token: ${ADMIN_TOKEN}" \
       -H "Content-Type: application/json" \
@@ -168,6 +183,9 @@ PY
     ok="$(jq -r '.ok // false' <<<"$resp")"
     if [[ "$ok" != "true" ]]; then
       echo "[settle-hms] ERROR ${worker_id} epoch=${epoch_id}: $resp" >&2
+      tmp="$(mktemp)"
+      jq --arg e "$epoch_id" --arg w "$worker_id" \
+        'del(.epochs[$e].workers[$w].pending_mint)' "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
       continue
     fi
     new_settled="$(python3 - "$already" "$delta_units" <<'PY'

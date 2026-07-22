@@ -1,6 +1,7 @@
 package operator
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -54,10 +55,29 @@ func CoordinatorAdminTokenPaths() []string {
 	return paths
 }
 
+// openSecretFile rejects symlinks and files with group/other permission bits (must be ≤0600).
+func openSecretFile(path string) ([]byte, error) {
+	fi, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if fi.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("secret file is a symlink: %s", path)
+	}
+	if !fi.Mode().IsRegular() {
+		return nil, fmt.Errorf("secret file is not a regular file: %s", path)
+	}
+	if perm := fi.Mode().Perm(); perm&0o077 != 0 {
+		return nil, fmt.Errorf("secret file permissions too open (%04o; need 0600): %s", perm, path)
+	}
+	return os.ReadFile(path)
+}
+
 // ReadCoordinatorAdminToken loads the first line from .secrets/hackme_coordinator_admin_token.
+// Skips world/group-readable files and symlinks (H51).
 func ReadCoordinatorAdminToken() string {
 	for _, p := range CoordinatorAdminTokenPaths() {
-		b, err := os.ReadFile(p)
+		b, err := openSecretFile(p)
 		if err != nil {
 			continue
 		}

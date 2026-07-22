@@ -342,6 +342,43 @@ PY
     continue
   fi
 
+  # Crash recovery: durable pending_settle before transfer (anti double-pay).
+  pending_tx="$(jq -r --arg wid "$worker_id" '.workers[$wid].pending_settle.tx_hash // empty' "$STATE_FILE")"
+  if [[ -n "$pending_tx" ]]; then
+    if verify_settlement_tx "$pending_tx"; then
+      pend_delta="$(jq -r --arg wid "$worker_id" '.workers[$wid].pending_settle.delta_hmc // 0' "$STATE_FILE")"
+      pend_addr="$(jq -r --arg wid "$worker_id" '.workers[$wid].pending_settle.payout_address // ""' "$STATE_FILE")"
+      new_settled_hmc="$(python3 - "$already_hmc" "$pend_delta" <<'PY'
+import sys
+print(f"{float(sys.argv[1])+float(sys.argv[2]):.12f}")
+PY
+)"
+      tmp="$(mktemp)"
+      jq --arg wid "$worker_id" --arg addr "$pend_addr" --arg settled "$new_settled_hmc" --arg tx "$pending_tx" --argjson ts "$(date +%s)" \
+        '(.workers[$wid] = ((.workers[$wid] // {}) + {settled_hmc:($settled|tonumber),payout_address:$addr,last_tx_hash:$tx,last_settle_unix:$ts}))
+         | del(.workers[$wid].pending_settle)' \
+        "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
+      echo "[settle-workers] recovered pending ${worker_id} tx=${pending_tx} settled=${new_settled_hmc}"
+      settled_any=1
+      continue
+    fi
+    echo "[settle-workers] skip ${worker_id}: pending_settle tx=${pending_tx} not confirmed — not re-sending (set CLEAR_PENDING_SETTLE=1 after manual check)" >&2
+    if [[ "${CLEAR_PENDING_SETTLE:-0}" == "1" ]]; then
+      tmp="$(mktemp)"
+      jq --arg wid "$worker_id" 'del(.workers[$wid].pending_settle)' "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
+      echo "[settle-workers] cleared pending_settle for ${worker_id}"
+    fi
+    continue
+  fi
+  if jq -e --arg wid "$worker_id" '.workers[$wid].pending_settle != null' "$STATE_FILE" >/dev/null 2>&1; then
+    echo "[settle-workers] skip ${worker_id}: pending_settle without tx_hash — not re-sending (CLEAR_PENDING_SETTLE=1 to retry)" >&2
+    if [[ "${CLEAR_PENDING_SETTLE:-0}" == "1" ]]; then
+      tmp="$(mktemp)"
+      jq --arg wid "$worker_id" 'del(.workers[$wid].pending_settle)' "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
+    fi
+    continue
+  fi
+
   pbal="$(payer_balance_hmc "$payer_addr" 2>/dev/null || echo 0)"
   max_pay_hmc="$(python3 - "$pbal" "$TREASURY_RESERVE_HMC" "$SETTLE_MAX_CHUNK_HMC" "$delta_hmc" <<'PY'
 import sys
@@ -377,6 +414,17 @@ PY
   nonce="$(payer_nonce "$payer_addr" 2>/dev/null || echo 0)"
   nonce_before="$nonce"
 
+  # Durable intent before mint/transfer (cleared on hard failure; retained on ambiguous crash).
+  tmp="$(mktemp)"
+  if ! jq --arg wid "$worker_id" --arg addr "$to_addr" --arg delta "$delta_hmc" --argjson ts "$ts" --argjson nonce "$nonce" \
+    '.workers[$wid].pending_settle = {delta_hmc:($delta|tonumber),payout_address:$addr,started_unix:$ts,nonce:$nonce}' \
+    "$STATE_FILE" >"$tmp"; then
+    rm -f "$tmp"
+    echo "[settle-workers] ERROR pending intent ${worker_id}: jq failed" >&2
+    continue
+  fi
+  mv "$tmp" "$STATE_FILE"
+
   resp=""
   if ! resp="$(send_settlement_tx "$payer_addr" "$to_addr" "$amount_units" "$ts" "$nonce")"; then
     resp=""
@@ -408,15 +456,23 @@ PY
   if ! tx_response_ok "${resp:-{}}"; then
     nonce_after="$(payer_nonce "$payer_addr" 2>/dev/null || echo "$nonce_before")"
     if [[ "$nonce_after" =~ ^[0-9]+$ && "$nonce_before" =~ ^[0-9]+$ && "$nonce_after" -gt "$nonce_before" ]]; then
-      echo "[settle-workers] WARN ${worker_id}: ambiguous send (nonce ${nonce_before}->${nonce_after}) without verifiable tx_hash — not marking settled" >&2
+      echo "[settle-workers] WARN ${worker_id}: ambiguous send (nonce ${nonce_before}->${nonce_after}) without verifiable tx_hash — keeping pending_settle, not re-sending next run" >&2
     else
       echo "[settle-workers] ERROR settle ${worker_id} -> ${to_addr}: ${resp:-curl_failed}" >&2
+      tmp="$(mktemp)"
+      jq --arg wid "$worker_id" 'del(.workers[$wid].pending_settle)' "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
     fi
     continue
   fi
   tx_hash="$(jq -r '.tx_hash // ""' <<<"${resp:-{}}" 2>/dev/null || echo "")"
+  if [[ -n "$tx_hash" ]]; then
+    tmp="$(mktemp)"
+    jq --arg wid "$worker_id" --arg tx "$tx_hash" \
+      '.workers[$wid].pending_settle.tx_hash = $tx' \
+      "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
+  fi
   if [[ -z "$tx_hash" ]] || ! verify_settlement_tx "$tx_hash"; then
-    echo "[settle-workers] ERROR settle ${worker_id}: tx_hash missing or not confirmed on chain (${tx_hash:-empty})" >&2
+    echo "[settle-workers] ERROR settle ${worker_id}: tx_hash missing or not confirmed on chain (${tx_hash:-empty}) — pending_settle retained" >&2
     continue
   fi
   settled_any=1
@@ -430,7 +486,8 @@ PY
 )"
   tmp="$(mktemp)"
   if ! jq --arg wid "$worker_id" --arg addr "$to_addr" --arg settled "$new_settled_hmc" --arg tx "$tx_hash" --argjson ts "$ts" \
-    '.workers[$wid] = ((.workers[$wid] // {}) + {settled_hmc:($settled|tonumber),payout_address:$addr,last_tx_hash:$tx,last_settle_unix:$ts})' \
+    '(.workers[$wid] = ((.workers[$wid] // {}) + {settled_hmc:($settled|tonumber),payout_address:$addr,last_tx_hash:$tx,last_settle_unix:$ts}))
+     | del(.workers[$wid].pending_settle)' \
     "$STATE_FILE" >"$tmp"; then
     rm -f "$tmp"
     echo "[settle-workers] ERROR state update ${worker_id}: jq failed" >&2

@@ -11,7 +11,7 @@
 
 1. Сгенерировать новую пару (случайный seed):  
    `go run ./tools/gen_treasury_key`  
-   В выводе: `NEW_DEV_FEE_ADDRESS`, `NEW_TREASURY_SEED_HEX`, `NEW_POLICY_HASH`.
+   В выводе: `NEW_DEV_FEE_ADDRESS`, `NEW_TREASURY_SEED_FILE` (seed пишется только в 0600-файл, не в stdout), `NEW_POLICY_HASH`.
 2. Подставить новый адрес в `DevFeeAddress` в `internal/chain/economics.go`.
 3. Обновить ожидаемый `policy_hash` в `internal/chain/economics_test.go` (`TestLockedPolicyHash`).
 4. `go test ./internal/chain ./...` и правки в README / `docs/API.md` под новый адрес.

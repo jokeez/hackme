@@ -99,31 +99,15 @@ EOF
 
 if [[ "$INCLUDE_TOKEN" == "1" && -f "$ROOT/.secrets/hackme_coordinator_worker_token" ]]; then
   tr -d '\r\n' <"$ROOT/.secrets/hackme_coordinator_worker_token" >"$PACK_DIR/.secrets/coordinator_worker_token"
-  echo "[vast-pack] included worker token in pack (do not publish tarball)"
+  chmod 600 "$PACK_DIR/.secrets/coordinator_worker_token"
+  echo "[vast-pack] included worker token under .secrets/ (do not publish tarball; not in env.vast)"
 fi
 
+# HMC-007: never bake COORD_TOKEN / miner seed into env.vast inside the pack.
+# Operators copy env.vast.example → env.vast on the instance (or scp secrets separately).
+rm -f "$PACK_DIR/env.vast"
 if [[ -f "$ROOT/.env.vast" ]]; then
-  cp -f "$ROOT/.env.vast" "$PACK_DIR/env.vast"
-  echo "[vast-pack] included local .env.vast"
-elif [[ -f "$PACK_DIR/.secrets/coordinator_worker_token" ]]; then
-  tok="$(tr -d '\r\n' <"$PACK_DIR/.secrets/coordinator_worker_token")"
-  sed "s/^COORD_TOKEN=.*/COORD_TOKEN=${tok}/" "$PACK_DIR/env.vast.example" >"$PACK_DIR/env.vast"
-  echo "[vast-pack] wrote env.vast from packed token"
-fi
-
-if [[ -f "$PACK_DIR/env.vast" ]] && ! grep -q '^HACKME_MINER_ED25519_SEED_HEX=.\{32\}' "$PACK_DIR/env.vast" 2>/dev/null; then
-  seed_json="$("$PACK_DIR/bin/minersign" -gen-seed 2>/dev/null || true)"
-  seed_hex="$(echo "$seed_json" | sed -n 's/.*"HACKME_MINER_ED25519_SEED_HEX":"\([^"]*\)".*/\1/p')"
-  addr="$(echo "$seed_json" | sed -n 's/.*"miner_address_from_pubkey":"\([^"]*\)".*/\1/p')"
-  if [[ -n "$seed_hex" ]]; then
-    if grep -q '^HACKME_MINER_ED25519_SEED_HEX=' "$PACK_DIR/env.vast"; then
-      sed -i "s|^HACKME_MINER_ED25519_SEED_HEX=.*|HACKME_MINER_ED25519_SEED_HEX=${seed_hex}|" "$PACK_DIR/env.vast"
-    else
-      echo "HACKME_MINER_ED25519_SEED_HEX=${seed_hex}" >>"$PACK_DIR/env.vast"
-    fi
-    echo "[vast-pack] generated test miner seed -> payout ${addr:-?} (add to WORKER_PAYOUT_MAP on hub if needed)"
-    echo "$addr" >"$PACK_DIR/VAST_TEST_PAYOUT_ADDRESS.txt"
-  fi
+  echo "[vast-pack] NOTE: local .env.vast present but NOT packed (secrets stay off tarball)"
 fi
 
 cp -f "$PACK_DIR/env.vast.example" "$ROOT/env.vast.example" 2>/dev/null || true

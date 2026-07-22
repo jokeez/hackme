@@ -42,6 +42,7 @@ echo ""
 echo "Append row to GPU_MATRIX_SHEET.csv on your laptop."
 
 ARCHIVE="$REPORT/vast-report-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
-tar -czf "$ARCHIVE" -C "$PACK_ROOT" reports/vast-session env.vast 2>/dev/null || \
+# Never pack env.vast (COORD_TOKEN + miner seed). Reports only.
+tar -czf "$ARCHIVE" -C "$PACK_ROOT" reports/vast-session 2>/dev/null || \
   tar -czf "$ARCHIVE" -C "$REPORT" . 2>/dev/null || true
-echo "[collect] optional bundle: $ARCHIVE (scp to desktop)"
+echo "[collect] optional bundle: $ARCHIVE (scp to desktop; excludes env.vast)"

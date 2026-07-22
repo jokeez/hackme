@@ -32,6 +32,14 @@ func addrFromSeed(seed []byte) string {
 	return "HMC-" + hex.EncodeToString(sum[:])[:16]
 }
 
+func redactSeedHex(hexStr string) string {
+	hexStr = strings.TrimSpace(hexStr)
+	if len(hexStr) < 12 {
+		return "REDACTED"
+	}
+	return hexStr[:4] + "…" + hexStr[len(hexStr)-4:] + " (redacted)"
+}
+
 func skipExt(name string) bool {
 	switch strings.ToLower(pathpkg.Ext(name)) {
 	case ".db", ".db-wal", ".db-shm", ".wasm", ".exe", ".png", ".jpg", ".jpeg", ".gif", ".ico", ".zip", ".tar", ".gz", ".parquet":
@@ -87,7 +95,7 @@ func checkLine(path string, lineNum int, line []byte, match string) {
 		if match != "" && !strings.EqualFold(addr, match) {
 			continue
 		}
-		fmt.Printf("%s:%d:%s -> %s\n", path, lineNum, strings.TrimSpace(string(m)), addr)
+		fmt.Printf("%s:%d:%s -> %s\n", path, lineNum, redactSeedHex(string(m)), addr)
 	}
 }
 

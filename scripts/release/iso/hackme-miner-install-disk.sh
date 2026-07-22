@@ -98,4 +98,4 @@ umount "$MNT"
 rmdir "$MNT"
 
 echo "[hackme-os-install] done — remove USB, boot from ${DISK}"
-echo "[hackme-os-install] login: root / hackme (change with passwd)"
+echo "[hackme-os-install] login: root (password in /etc/hackme/root-password; change with passwd; SSH keys only)"

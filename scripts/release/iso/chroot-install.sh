@@ -98,20 +98,26 @@ ln -sf /opt/hackme/scripts/release/iso/init-worker.sh /usr/local/bin/hackme-init
 ln -sf /opt/hackme/scripts/release/iso/hackme-show-wallet.sh /usr/local/bin/hackme-show-wallet
 ln -sf /opt/hackme/scripts/release/iso/hackme-zk-display.sh /usr/local/bin/hackme-zk-display
 
-# Root access for rig operators (set password: passwd)
-passwd -d root 2>/dev/null || true
-echo 'root:hackme' | chpasswd 2>/dev/null || true
+# Root console password: random per image build (no hardcoded root:hackme).
+# File is 0600; SSH is keys-only (see sshd_config.d). Change with: passwd
+ROOT_PW="$(openssl rand -base64 32 2>/dev/null | tr -dc 'A-Za-z0-9' | head -c 24 || true)"
+if [[ -z "$ROOT_PW" ]]; then
+  ROOT_PW="$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24)"
+fi
+echo "root:${ROOT_PW}" | chpasswd
+printf '%s\n' "$ROOT_PW" >/etc/hackme/root-password
+chmod 600 /etc/hackme/root-password
+unset ROOT_PW
 
 # Casper live-config expects ubuntu (25adduser also creates it — pre-seed for robustness).
+# No NOPASSWD sudoers (C14): console/root uses /etc/hackme/root-password; SSH prefers keys.
 if ! id ubuntu >/dev/null 2>&1; then
   getent group netdev >/dev/null 2>&1 || groupadd -r netdev 2>/dev/null || true
   useradd -m -s /bin/bash -G adm,cdrom,dip,plugdev,netdev ubuntu 2>/dev/null || \
     useradd -m -s /bin/bash -G adm,cdrom,dip,plugdev ubuntu
-  passwd -d ubuntu 2>/dev/null || echo 'ubuntu:U6aMy0wojraho' | chpasswd 2>/dev/null || true
 fi
-mkdir -p /etc/sudoers.d
-echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/99-hackme-live
-chmod 440 /etc/sudoers.d/99-hackme-live
+passwd -l ubuntu 2>/dev/null || true
+rm -f /etc/sudoers.d/99-hackme-live
 
 echo "hackme-os" >/etc/hostname
 systemctl enable hackme-boot-banner.service

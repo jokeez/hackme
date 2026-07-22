@@ -10,7 +10,7 @@ msg() {
     echo "╔══════════════════════════════════════════════════════════╗"
     echo "║  HackMe OS — booting (live USB)                          ║"
     echo "║  Pool: https://hackme.tech                               ║"
-    echo "║  GRUB: use «recommended» · login root / hackme           ║"
+    echo "║  GRUB: use «recommended» · root pw: /etc/hackme/root-password ║"
     echo "╚══════════════════════════════════════════════════════════╝"
     printf '\033[0m\n'
   } >"$tty" 2>/dev/null || true

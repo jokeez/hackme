@@ -42,9 +42,14 @@ resolve_pack() {
 
 ssh_opts() {
   local key="$1"
+  local kh="${VAST_SECRETS}/known_hosts"
+  if [[ ! -f "$kh" ]]; then
+    echo "[vast-ssh] missing $kh — pin host keys before connect (StrictHostKeyChecking=yes)" >&2
+    exit 2
+  fi
   printf '%s\n' \
-    -o "StrictHostKeyChecking=accept-new" \
-    -o "UserKnownHostsFile=$VAST_SECRETS/known_hosts" \
+    -o "StrictHostKeyChecking=yes" \
+    -o "UserKnownHostsFile=$kh" \
     -o "ConnectTimeout=30" \
     -i "$key"
 }

@@ -1,12 +1,17 @@
-// One-shot: prints a fresh Ed25519 seed (hex) and DevFeeAddress derived like node HMC- ids.
-// go run ./tools/gen_treasury_key
+// One-shot: generate a fresh Ed25519 treasury seed into a 0600 file (never print seed).
+//
+//	go run ./tools/gen_treasury_key
+//	go run ./tools/gen_treasury_key -out /path/to/seed.hex
 package main
 
 import (
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
+	"flag"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 )
 
@@ -48,13 +53,29 @@ func policyHash(dev string) string {
 }
 
 func main() {
+	out := flag.String("out", filepath.Join(".secrets", "hackme_treasury_ed25519_seed.hex"),
+		"path to write 64-hex seed (0600); seed is never printed")
+	flag.Parse()
+
 	_, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		panic(err)
 	}
 	seed := priv.Seed()
 	addr := hmcFromSeed(seed)
+
+	if err := os.MkdirAll(filepath.Dir(*out), 0o700); err != nil {
+		fmt.Fprintf(os.Stderr, "mkdir: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(*out, []byte(hex.EncodeToString(seed)+"\n"), 0o600); err != nil {
+		fmt.Fprintf(os.Stderr, "write seed file: %v\n", err)
+		os.Exit(1)
+	}
+	// Re-assert mode in case umask widened WriteFile perms.
+	_ = os.Chmod(*out, 0o600)
+
 	fmt.Println("NEW_DEV_FEE_ADDRESS", addr)
-	fmt.Println("NEW_TREASURY_SEED_HEX", hex.EncodeToString(seed))
+	fmt.Println("NEW_TREASURY_SEED_FILE", *out)
 	fmt.Println("NEW_POLICY_HASH", policyHash(addr))
 }

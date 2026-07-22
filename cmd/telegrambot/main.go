@@ -3,7 +3,7 @@
 //
 // Env (required): TELEGRAM_BOT_TOKEN or HACKME_TELEGRAM_BOT_TOKEN
 // Env: HACKME_TELEGRAM_NODE_URL (default http://127.0.0.1:8080)
-// Env: HACKME_TELEGRAM_ALLOWED_USER_IDS — comma-separated Telegram user IDs (recommended on public hosts)
+// Env: HACKME_TELEGRAM_ALLOWED_USER_IDS — comma-separated Telegram user IDs (required; empty allowlist denies all)
 // Env: HACKME_ADMIN_TOKEN — optional X-Hackme-Admin-Token for node (GET routes used here are public)
 // Env: HACKME_TELEGRAM_WATCH_POLL_SEC — watcher interval 20..600 (default 45)
 //
@@ -81,8 +81,8 @@ func loadConfig() (config, error) {
 		c.nodeBase = "http://127.0.0.1:8080"
 	}
 	c.adminToken = strings.TrimSpace(os.Getenv("HACKME_ADMIN_TOKEN"))
+	c.allowedUsers = make(map[int64]struct{})
 	if s := strings.TrimSpace(os.Getenv("HACKME_TELEGRAM_ALLOWED_USER_IDS")); s != "" {
-		c.allowedUsers = make(map[int64]struct{})
 		for _, p := range strings.Split(s, ",") {
 			p = strings.TrimSpace(p)
 			if p == "" {
@@ -94,6 +94,9 @@ func loadConfig() (config, error) {
 			}
 			c.allowedUsers[id] = struct{}{}
 		}
+	}
+	if len(c.allowedUsers) == 0 {
+		log.Printf("telegrambot: WARN empty HACKME_TELEGRAM_ALLOWED_USER_IDS — denying all users (fail-closed)")
 	}
 	c.watchPollSec = 45
 	if v := strings.TrimSpace(os.Getenv("HACKME_TELEGRAM_WATCH_POLL_SEC")); v != "" {
@@ -175,8 +178,9 @@ func deniedMsg() string {
 }
 
 func (b *bot) allowed(userID int64) bool {
+	// Fail-closed: empty allowlist denies everyone (L-TG1).
 	if len(b.cfg.allowedUsers) == 0 {
-		return true
+		return false
 	}
 	_, ok := b.cfg.allowedUsers[userID]
 	return ok
@@ -841,14 +845,14 @@ func printCLIHelp() {
 SETUP (each operator: own secrets, own node URL)
   1) Copy example:  cp scripts/ops/telegram_bot.env.example .env.telegram
   2) Set TELEGRAM_BOT_TOKEN (from @BotFather) and HACKME_TELEGRAM_NODE_URL (e.g. http://127.0.0.1:8080).
-  3) Recommended: HACKME_TELEGRAM_ALLOWED_USER_IDS — comma-separated Telegram user ids.
+  3) Required: HACKME_TELEGRAM_ALLOWED_USER_IDS — comma-separated Telegram user ids (empty = deny all).
   4) From repo root:  go run ./cmd/telegrambot
      or explicit file: go run ./cmd/telegrambot -config /path/to/operator.env
 
 Environment (file or export; export wins over file):
   TELEGRAM_BOT_TOKEN or HACKME_TELEGRAM_BOT_TOKEN  — required
   HACKME_TELEGRAM_NODE_URL — node base URL (no trailing slash), default http://127.0.0.1:8080
-  HACKME_TELEGRAM_ALLOWED_USER_IDS — optional allowlist of user ids
+  HACKME_TELEGRAM_ALLOWED_USER_IDS — allowlist of user ids (empty denies all)
   HACKME_TELEGRAM_CONFIG — env file path if not using -config
   HACKME_ADMIN_TOKEN — optional, for nodes with admin auth on GET (rare)
   HACKME_TELEGRAM_WATCH_POLL_SEC — /watch interval, 20..600, default 45
