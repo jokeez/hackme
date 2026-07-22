@@ -31,8 +31,8 @@ Commands: `hackme-show-wallet` · `hackme-os-status`
 
 ```bash
 export HACKME_RELEASE_POOL_MINER_TOKEN="$(cat .secrets/hackme_coordinator_worker_token)"
-VERSION=0.1.0-rc11s bash scripts/release/iso/build_hackme_miner_iso.sh
-# ISO channel: scripts/release/CURRENT_ISO_VERSION · Win/Linux: CURRENT_VERSION (rc12w)
+VERSION=0.1.0-rc12w bash scripts/release/iso/build_hackme_miner_iso.sh
+# ISO channel: scripts/release/CURRENT_ISO_VERSION (aligned with CURRENT_VERSION)
 ```
 
 → `dist/release_<VERSION>/HackMe-OS-<VERSION>-amd64.iso`
@@ -40,7 +40,7 @@ VERSION=0.1.0-rc11s bash scripts/release/iso/build_hackme_miner_iso.sh
 ## Flash & boot
 
 ```bash
-sudo dd if=dist/release_0.1.0-rc11s/HackMe-OS-0.1.0-rc11s-amd64.iso of=/dev/sdX bs=4M status=progress conv=fsync
+sudo dd if=dist/release_0.1.0-rc12w/HackMe-OS-0.1.0-rc12w-amd64.iso of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
 Choose **HackMe OS (live · max performance)** in GRUB.
@@ -55,10 +55,10 @@ Choose **HackMe OS (live · max performance)** in GRUB.
 Before flashing, verify the file:
 
 ```bash
-bash scripts/tests/verify_hackme_iso.sh /path/to/HackMe-OS-0.1.0-rc11s-amd64.iso
+bash scripts/tests/verify_hackme_iso.sh /path/to/HackMe-OS-0.1.0-rc12w-amd64.iso
 ```
 
-Published SHA256: `https://hackme.tech/dist/release_0.1.0-rc11s/SHA256SUMS-iso.txt`
+Published SHA256: `https://hackme.tech/dist/release_0.1.0-rc12w/SHA256SUMS-iso.txt`
 
 Re-flash with Balena Etcher (verify SHA256), boot **only** that USB, disable other OS entries in BIOS if needed.
 

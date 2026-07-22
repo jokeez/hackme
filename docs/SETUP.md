@@ -87,7 +87,7 @@ AMD **RX 580**: use build with `workerpoh-opencl.exe` (installer picks OpenCL wh
 ## Path C — HackMe OS (live USB)
 
 1. Download ISO + `SHA256SUMS-iso.txt` from the downloads page  
-2. Verify: `bash scripts/tests/verify_hackme_iso.sh /path/to/HackMe-OS-0.1.0-rc11s-amd64.iso` (ISO channel **0.1.0-rc11s** — see `scripts/release/CURRENT_ISO_VERSION`)  
+2. Verify: `bash scripts/tests/verify_hackme_iso.sh /path/to/HackMe-OS-0.1.0-rc12w-amd64.iso` (ISO **0.1.0-rc12w** — see `scripts/release/CURRENT_ISO_VERSION`)  
 3. Flash USB (Etcher / `dd`), boot **HackMe OS** GRUB entry — not Alpine `localhost login`  
 4. On-screen: generated `HMC-…` wallet + recovery phrase; mining starts against hackme.tech  
 

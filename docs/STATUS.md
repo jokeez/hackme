@@ -1,6 +1,6 @@
 # HackMe RC status (operator snapshot)
 
-**Release:** `0.1.0-rc12w` (Win/Linux/fuzz) · **ISO channel:** `0.1.0-rc11s` · **Site:** https://hackme.tech · **Branch:** `main`  
+**Release:** `0.1.0-rc12w` (Win/Linux/fuzz/ISO) · **Site:** https://hackme.tech · **Branch:** `main`  
 **Updated:** 2026-07-22 (rc12w shipped · wallet Activity fix · site P0 audit · pool ~145 GH/s)  
 **Git tip (local):** see `git rev-parse --short=12 HEAD`
 
@@ -17,8 +17,7 @@
 | Public pool + coordinator | **Live** — confirm `signed_submits_accepted` ≫ rejected on VPS |
 | HMC settlement | **Live** — settle scripts + systemd + autopilot |
 | SUP (accrual + on-chain) | **Live** — settle SUP + timer |
-| Win/Linux/fuzz (rc12w) | **Published** — GitHub + hackme.tech/dist |
-| HackMe OS ISO (rc11s) | **Published** — separate ISO channel |
+| Win/Linux/fuzz/ISO (rc12w) | **Published** — GitHub + hackme.tech/dist |
 | Security audit (prod) | **16/16 PASS** (prior gate; re-run before major cuts) |
 | Miner launch gate | **GO** — `bash scripts/ops/run_miner_launch_gate.sh` |
 | Fuzzing B2B | **Live** — wizard + pool-distributed workers + CI gate |
@@ -54,7 +53,7 @@ Reports land in `reports/pool-health-<timestamp>/` (see `difficulty.tsv` for M d
 | File | Role |
 |------|------|
 | `scripts/release/CURRENT_VERSION` | Win/Linux release channel (`0.1.0-rc12w`) |
-| `scripts/release/CURRENT_ISO_VERSION` | HackMe OS ISO channel (`0.1.0-rc11s`) |
+| `scripts/release/CURRENT_ISO_VERSION` | HackMe OS ISO channel (`0.1.0-rc12w`) |
 | `web/site/assets/app.js` → `RELEASE_VER` / `ISO_CHANNEL` | Site + dashboard download URLs |
 | `main.go` → `Version` | Node binary embed (rebuild/deploy to match) |
 

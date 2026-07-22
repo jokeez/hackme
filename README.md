@@ -93,8 +93,7 @@ flowchart TB
 | **B2B fuzz / PoH** | **Live** | Dashboard `#orders` · `workerfuzz` on hub · bootstrap PoH path (`pool_distributed` + `create_poh_order`) completing deep orders |
 | **OSS CVE Watch · nghttp2** | **14/14 complete** | [day14.html](https://hackme.tech/reports/oss-cve-watch/day14.html) CLEAN · ~14.32B exec · ASAN=0 |
 | **OSS CVE Watch · libheif** | **Day 1/14 running** | HEIF/AVIF `file_fuzzer` · 24h cadence · [research hub](https://hackme.tech/research.html) |
-| **Win / Linux / fuzz** | **rc12w** | SHA256 on [downloads](https://hackme.tech/downloads.html) |
-| **HackMe OS ISO** | **rc11s** | ISO channel unchanged — see `CURRENT_ISO_VERSION` |
+| **Win / Linux / fuzz / ISO** | **rc12w** | SHA256 on [downloads](https://hackme.tech/downloads.html) |
 | **Security gate** | **16/16 PASS** | Red-team scripts in `scripts/ops/` |
 | **HMS storage** | Preview | Prelaunch — not a miner lane yet |
 
