@@ -15,7 +15,7 @@
         "devtools",
         "escrow"
       ],
-      "status": "draft",
+      "status": "published",
       "telegram": {
         "headline": "B2B · crash-first audits your CI can enforce",
         "lead": "register → wizard → status → report + gate · Scan / Audit / Deep · escrow 20/80",
