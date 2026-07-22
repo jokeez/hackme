@@ -1,17 +1,17 @@
 {
   "version": 1,
-  "updated_unix": 1753764000,
+  "updated_unix": 1753171200,
   "notices": [
     {
-      "id": "2026-07-11-rc11s-production-baseline",
+      "id": "2026-07-22-rc12w-wallet-activity",
       "severity": "info",
-      "title": "Upgrade to HackMe 0.1.0-rc11s",
-      "body": "Production baseline: pool fuzz + PoH mining + escrow payouts verified. Desktop mining tab shows canonical Actual base/orders/total (1h). Fuzz settle outbox drain fix. Win/Linux/ISO on rc11s.",
+      "title": "Upgrade to HackMe 0.1.0-rc12w",
+      "body": "Wallet Activity tab: counterparty rollup, In/Out filter, CSV export, address labels. Cleaner HMC/SUP/Transfer/Earnings. Hub security hardening (audit fixes). Win/Linux + fuzz CLI on rc12w; HackMe OS ISO still rc11s.",
       "link_url": "https://hackme.tech/downloads.html",
-      "link_label": "Download rc11s",
-      "dismiss_key": "rc11s-eco-banner",
-      "recommended_version": "0.1.0-rc11s",
-      "expires_unix": 1756356000
+      "link_label": "Download rc12w",
+      "dismiss_key": "rc12w-wallet-banner",
+      "recommended_version": "0.1.0-rc12w",
+      "expires_unix": 1755763200
     }
   ]
 }

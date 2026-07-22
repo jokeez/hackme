@@ -1146,6 +1146,90 @@ h4 { font-size: 1.02rem; }
   opacity: 0.92;
 }
 
+.audience-switch {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  padding: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+.audience-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.85rem 1rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(130, 162, 211, 0.32);
+  background: rgba(10, 16, 30, 0.72);
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.audience-card:hover {
+  border-color: rgba(102, 233, 255, 0.55);
+  background: rgba(12, 22, 40, 0.85);
+}
+.audience-card strong {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+.audience-desc {
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.audience-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+.audience-card-mine { border-color: rgba(102, 233, 255, 0.42); }
+.audience-card-audit .audience-tag { color: #f0b35a; }
+.audience-card-research .audience-tag { color: #8fd4ff; }
+
+.fuzz-ia-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.55rem 0.75rem;
+  margin-bottom: 0.85rem;
+}
+.fuzz-ia-nav a {
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: #b7c8e6;
+  border: 1px solid rgba(140, 165, 204, 0.32);
+  border-radius: 999px;
+  padding: 0.32rem 0.65rem;
+  text-decoration: none;
+}
+.fuzz-ia-nav a:hover {
+  color: var(--text);
+  border-color: rgba(102, 233, 255, 0.5);
+}
+.fuzz-ia-nav a[aria-current="page"] {
+  color: var(--text);
+  border-color: rgba(102, 233, 255, 0.65);
+  background: rgba(102, 233, 255, 0.08);
+}
+
+.pool-updated { font-size: 0.82rem; }
+.pool-live-cell.pool-skeleton {
+  color: var(--muted);
+  animation: pool-pulse 1.4s ease-in-out infinite;
+}
+.pool-live-cell.pool-degraded {
+  opacity: 0.88;
+}
+@keyframes pool-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
 .hub-jump {
   display: flex;
   flex-wrap: wrap;
@@ -1577,6 +1661,9 @@ h4 { font-size: 1.02rem; }
   .hub-split { grid-template-columns: 1fr; }
   .footer-nav-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .social-hub-row--compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .audience-switch { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
   .lane-grid { grid-template-columns: 1fr; }

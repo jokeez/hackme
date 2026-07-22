@@ -409,3 +409,87 @@ func TestHandleWalletStaleCanonicalCacheIgnored(t *testing.T) {
 		t.Fatalf("balance_units=%d want %d", got, remoteUnits)
 	}
 }
+
+func TestClampWalletActivityRecentLimit(t *testing.T) {
+	if got := clampWalletActivityRecentLimit(120); got != walletActivityRecentLimitMax {
+		t.Fatalf("clamp(120)=%d want %d", got, walletActivityRecentLimitMax)
+	}
+	if got := clampWalletActivityRecentLimit(40); got != 40 {
+		t.Fatalf("clamp(40)=%d", got)
+	}
+}
+
+func TestHandleWalletActivityProxiesCanonicalPeer(t *testing.T) {
+	a, _ := newWalletTestApp(t)
+	addr, _, err := a.chain.Wallet(context.Background())
+	if err != nil {
+		t.Fatalf("wallet: %v", err)
+	}
+	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/wallet/activity" {
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok":     true,
+			"source": "local_db",
+			"data": map[string]any{
+				"address":             addr,
+				"tx_count_window":     float64(19),
+				"total_received_hmc":  1.5,
+				"counterparties":      []any{map[string]any{"peer": "HMC-abc", "tx_count": float64(3)}},
+				"recent":              []any{},
+			},
+		})
+	}))
+	defer peer.Close()
+	t.Setenv("HACKME_CANONICAL_CHAIN_URL", peer.URL)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/wallet/activity?window_hours=24&limit=40", nil)
+	rec := httptest.NewRecorder()
+	a.handleWalletActivity(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var out map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got, _ := out["source"].(string); got != "canonical_peer" {
+		t.Fatalf("source=%q want canonical_peer", got)
+	}
+	data, ok := out["data"].(map[string]any)
+	if !ok {
+		t.Fatalf("data missing")
+	}
+	if int(data["tx_count_window"].(float64)) != 19 {
+		t.Fatalf("tx_count_window=%v", data["tx_count_window"])
+	}
+}
+
+func TestHandleWalletActivityCanonicalUnavailableSetsFlag(t *testing.T) {
+	a, _ := newWalletTestApp(t)
+	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
+	}))
+	defer peer.Close()
+	t.Setenv("HACKME_CANONICAL_CHAIN_URL", peer.URL)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/wallet/activity?window_hours=24&limit=40", nil)
+	rec := httptest.NewRecorder()
+	a.handleWalletActivity(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var out map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got, _ := out["source"].(string); got != "local_db" {
+		t.Fatalf("source=%q want local_db", got)
+	}
+	cu, ok := out["canonical_activity_unavailable"].(bool)
+	if !ok || !cu {
+		t.Fatalf("canonical_activity_unavailable=%v ok=%v", out["canonical_activity_unavailable"], ok)
+	}
+}

@@ -1,6 +1,6 @@
 # HackMe 0.1.0-rc11q — superseded by rc11s
 
-> **Current channel:** [HACKME_RC11S.md](HACKME_RC11S.md) · `0.1.0-rc11s` on [downloads](https://hackme.tech/downloads.html)
+> **Current channel:** [HACKME_RC12W.md](HACKME_RC12W.md) · `0.1.0-rc12w` on [downloads](https://hackme.tech/downloads.html)
 
 ## What rc11q shipped
 

@@ -1888,8 +1888,37 @@ func (a *app) handleWalletEarnings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, out)
 }
 
+// walletActivityRecentLimitMax keeps JSON under ~19KiB when served via Cloudflare in front of hackme.tech.
+const walletActivityRecentLimitMax = 80
+
+func clampWalletActivityRecentLimit(limit int) int {
+	if limit > walletActivityRecentLimitMax {
+		return walletActivityRecentLimitMax
+	}
+	return limit
+}
+
+func walletActivityDataTxCount(remote map[string]any) int64 {
+	if remote == nil {
+		return 0
+	}
+	data, _ := remote["data"].(map[string]any)
+	if data == nil {
+		if _, ok := remote["counterparties"]; ok {
+			data = remote
+		}
+	}
+	if data == nil {
+		return 0
+	}
+	return walletEarningsInt64Field(data, "tx_count_window")
+}
+
 func walletActivityRemoteUsable(remote map[string]any, addr string) bool {
 	if remote == nil {
+		return false
+	}
+	if okb, pok := remote["ok"].(bool); pok && !okb {
 		return false
 	}
 	data, _ := remote["data"].(map[string]any)
@@ -1904,9 +1933,85 @@ func walletActivityRemoteUsable(remote map[string]any, addr string) bool {
 	if a := strings.TrimSpace(fmt.Sprint(data["address"])); a != "" && addr != "" && !strings.EqualFold(a, addr) {
 		return false
 	}
+	if walletActivityDataTxCount(remote) > 0 {
+		return true
+	}
 	_, hasPeers := data["counterparties"]
 	_, hasRecent := data["recent"]
 	return hasPeers || hasRecent
+}
+
+func finalizeWalletActivityCanonicalProxy(remote map[string]any) {
+	if remote == nil {
+		return
+	}
+	remote["source"] = "canonical_peer"
+}
+
+func (a *app) fetchCanonicalWalletActivity(ctx context.Context, actURL, actAddr string) (map[string]any, bool) {
+	peerSec := 12
+	curlSec := 16
+	curlFirst := false
+	if envBool("HACKME_DESKTOP_MODE", false) {
+		// Desktop: curl first (Go HTTPS can stall on some VPN setups).
+		peerSec = 6
+		curlSec = 14
+		curlFirst = true
+	}
+	tryHTTP := func() (map[string]any, bool) {
+		if err := ctx.Err(); err != nil {
+			return nil, false
+		}
+		peerCtx, cancelPeer := context.WithTimeout(ctx, time.Duration(peerSec)*time.Second)
+		defer cancelPeer()
+		req, err := http.NewRequestWithContext(peerCtx, http.MethodGet, actURL, nil)
+		if err != nil {
+			return nil, false
+		}
+		client := &http.Client{Timeout: time.Duration(peerSec) * time.Second}
+		resp, err := client.Do(req)
+		if err != nil || resp == nil {
+			return nil, false
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return nil, false
+		}
+		var remote map[string]any
+		if err := json.NewDecoder(resp.Body).Decode(&remote); err != nil {
+			return nil, false
+		}
+		if walletActivityRemoteUsable(remote, actAddr) {
+			return remote, true
+		}
+		return nil, false
+	}
+	tryCurl := func() (map[string]any, bool) {
+		if envBool("HACKME_DESKTOP_MODE", false) {
+			parsed, curlErr := fetchJSONViaCurlDesktop(actURL, curlSec)
+			if curlErr == nil && walletActivityRemoteUsable(parsed, actAddr) {
+				return parsed, true
+			}
+			return nil, false
+		}
+		curlCtx, cancelCurl := context.WithTimeout(ctx, time.Duration(curlSec+2)*time.Second)
+		defer cancelCurl()
+		parsed, curlErr := fetchJSONViaCurlMax(curlCtx, actURL, nil, curlSec)
+		if curlErr == nil && walletActivityRemoteUsable(parsed, actAddr) {
+			return parsed, true
+		}
+		return nil, false
+	}
+	if curlFirst {
+		if m, ok := tryCurl(); ok {
+			return m, true
+		}
+		return tryHTTP()
+	}
+	if m, ok := tryHTTP(); ok {
+		return m, true
+	}
+	return tryCurl()
 }
 
 func (a *app) handleWalletActivity(w http.ResponseWriter, r *http.Request) {
@@ -1914,7 +2019,7 @@ func (a *app) handleWalletActivity(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 32*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 40*time.Second)
 	defer cancel()
 	windowHours := 24
 	if v := strings.TrimSpace(r.URL.Query().Get("window_hours")); v != "" {
@@ -1928,6 +2033,7 @@ func (a *app) handleWalletActivity(w http.ResponseWriter, r *http.Request) {
 			recentLimit = n
 		}
 	}
+	recentLimit = clampWalletActivityRecentLimit(recentLimit)
 	addr, _, err := a.chain.Wallet(ctx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -1942,6 +2048,8 @@ func (a *app) handleWalletActivity(w http.ResponseWriter, r *http.Request) {
 	}
 
 	source := "local_db"
+	canonAttempted := false
+	canonOK := false
 	forceLocal := a.miner.Running() && !envBool("HACKME_DESKTOP_MODE", false)
 	useCanon := !forceLocal && a.shouldUseCanonicalChainAPI() && a.networkModeActive() &&
 		(!a.miner.Running() || envBool("HACKME_DESKTOP_MODE", false))
@@ -1959,43 +2067,11 @@ func (a *app) handleWalletActivity(w http.ResponseWriter, r *http.Request) {
 						qv.Set("address", actAddr)
 					}
 					actURL := strings.TrimRight(base, "/") + "/api/wallet/activity?" + qv.Encode()
-					peerSec := 12
-					curlSec := 16
-					if envBool("HACKME_DESKTOP_MODE", false) {
-						peerSec = 5
-						curlSec = 6
-					}
-					peerCtx, cancelPeer := context.WithTimeout(ctx, time.Duration(peerSec)*time.Second)
-					req, err := http.NewRequestWithContext(peerCtx, http.MethodGet, actURL, nil)
-					if err == nil {
-						client := &http.Client{Timeout: time.Duration(peerSec) * time.Second}
-						if resp, err := client.Do(req); err == nil && resp != nil {
-							if resp.StatusCode == http.StatusOK {
-								var remote map[string]any
-								if err := json.NewDecoder(resp.Body).Decode(&remote); err == nil {
-									if walletActivityRemoteUsable(remote, actAddr) {
-										_ = resp.Body.Close()
-										cancelPeer()
-										if remote["source"] == nil {
-											remote["source"] = "canonical_peer"
-										}
-										writeJSON(w, remote)
-										return
-									}
-								}
-							}
-							_ = resp.Body.Close()
-						}
-					}
-					cancelPeer()
-					curlCtx, cancelCurl := context.WithTimeout(ctx, time.Duration(curlSec+2)*time.Second)
-					parsed, curlErr := fetchJSONViaCurlMax(curlCtx, actURL, nil, curlSec)
-					cancelCurl()
-					if curlErr == nil && walletActivityRemoteUsable(parsed, actAddr) {
-						if parsed["source"] == nil {
-							parsed["source"] = "canonical_peer"
-						}
-						writeJSON(w, parsed)
+					canonAttempted = true
+					if remote, ok := a.fetchCanonicalWalletActivity(ctx, actURL, actAddr); ok {
+						canonOK = true
+						finalizeWalletActivityCanonicalProxy(remote)
+						writeJSON(w, remote)
 						return
 					}
 				}
@@ -2008,11 +2084,15 @@ func (a *app) handleWalletActivity(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, map[string]any{
+	out := map[string]any{
 		"ok":     true,
 		"source": source,
 		"data":   activity,
-	})
+	}
+	if canonAttempted && !canonOK && activity.TxCountWindow == 0 && len(activity.Counterparties) == 0 && len(activity.Recent) == 0 {
+		out["canonical_activity_unavailable"] = true
+	}
+	writeJSON(w, out)
 }
 
 func (a *app) handleChain(w http.ResponseWriter, r *http.Request) {

@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-07-09-oss-cve-watch-day02-nghttp2-libfuzzer",
+      "date": "2026-07-09",
+      "title": "OSS CVE Watch Day 2/14 · nghttp2 · 1B libFuzzer exec · CLEAN",
+      "summary": "Second night on nghttp2: coverage-guided libFuzzer with ASAN, ~8h wall time, 1,013,382,502 executions at ~35k exec/s. Corpus grew to 2,905 inputs (467 coverage edges). Zero ASAN heap crashes — honest CLEAN day published.",
+      "impact": "Day 1 was stdin mutation (44k iter, UBSan noise). Day 2 switches to operator libFuzzer depth; corpus persists between nights for deeper HTTP/2 session parsing coverage.",
+      "action": "Day 2 report: https://hackme.tech/reports/oss-cve-watch/day02.html · Series hub: https://hackme.tech/reports/oss-cve-watch/ · Reproduce: bash scripts/ops/run_oss_libfuzzer_session.sh",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-08-miningpoolstats-closed-summer-focus",
       "date": "2026-07-08",
       "title": "MiningPoolStats hosted service closed · summer focus: CVE Watch + miners",
@@ -241,21 +256,6 @@
         "marketing",
         "bitcoin",
         "fuzzing"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-06-09-rc11n-stability-payments",
-      "date": "2026-06-09",
-      "title": "Release 0.1.0-rc11n — hub stability, transfers & payments E2E",
-      "summary": "Production download channel bumped to rc11n. VPS hub runs an HTTP health watchdog that restarts hackme-node when /api/status stops responding (fixes hung hub and stale wallet cache). Desktop transfers and payment demos now use the canonical nonce from hackme.tech. Repeatable payments E2E test pack for operators. HackMe OS ISO stays on rc11l.",
-      "impact": "Miners on Windows/Linux should update from downloads — same wallet treasury as rc11m, plus more reliable hub uptime and correct on-chain transfer nonces from local nodes.",
-      "action": "Downloads: https://hackme.tech/downloads.html · Dashboard: http://127.0.0.1:8080/#wallet · Pool: https://hackme.tech/pool/coordinator",
-      "tags": [
-        "release",
-        "infrastructure",
-        "wallet",
-        "mining"
       ],
       "status": "published"
     }

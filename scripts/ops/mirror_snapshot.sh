@@ -27,10 +27,11 @@ for f in hackme.db worker_settlement_state.json pool_subsidy_budget_state.json; 
 done
 
 # Copy static site and ops scripts via tar stream.
-ssh -o BatchMode=yes "$NODE_SSH" "tar -C ${DEPLOY}/web -cf - site" \
+# Hub site can change during tar (news deploy); treat exit 1 "file changed" as success.
+ssh -o BatchMode=yes "$NODE_SSH" "tar --warning=no-file-changed -C ${DEPLOY}/web -cf - site" \
   | ssh -o BatchMode=yes "$MIRROR_SSH" "tar -C ${MIRROR_DEPLOY}/web -xf -"
 
-ssh -o BatchMode=yes "$NODE_SSH" "tar -C ${DEPLOY}/scripts -cf - ops" \
+ssh -o BatchMode=yes "$NODE_SSH" "tar --warning=no-file-changed -C ${DEPLOY}/scripts -cf - ops" \
   | ssh -o BatchMode=yes "$MIRROR_SSH" "tar -C ${MIRROR_DEPLOY}/scripts -xf -"
 
 ssh -o BatchMode=yes "$MIRROR_SSH" "printf '%s\n' '${STAMP}' >${MIRROR_DEPLOY}/data/mirror-meta/last_snapshot_utc.txt; sudo chown -R hackme:hackme ${MIRROR_DEPLOY}/data 2>/dev/null || true; sudo systemctl start hackme-node 2>/dev/null || true"

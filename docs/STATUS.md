@@ -1,28 +1,29 @@
 # HackMe RC status (operator snapshot)
 
-**Release:** `0.1.0-rc11s` · **Site:** https://hackme.tech · **Branch:** `main`  
-**Updated:** 2026-07-20 (pool ~170 GH/s · libheif Day 1/14 · README sync)  
-**Git tip (local):** `505491a` (libheif 24h cadence · news archive chunks · nghttp2 series verdict)
+**Release:** `0.1.0-rc12w` (Win/Linux/fuzz) · **ISO channel:** `0.1.0-rc11s` · **Site:** https://hackme.tech · **Branch:** `main`  
+**Updated:** 2026-07-22 (rc12w shipped · wallet Activity fix · site P0 audit · pool ~145 GH/s)  
+**Git tip (local):** see `git rev-parse --short=12 HEAD`
 
-| Highlight (as of 2026-07-20) | |
+| Highlight (as of 2026-07-22) | |
 |------------------------------|--|
-| **Live pool** | **~170 GH/s** · **11 workers** · accept ~99.7% · `baseline` · verify with `run_pool_health_check.sh` |
-| **Settlement** | HMC + SUP timers + autopilot · subsidy snapshot · catch-up guard fixed 20 Jul |
-| **B2B / PoH** | Bootstrap PoH deep orders completing (`workerfuzz` · `pool_distributed`) · scheduler returns to `baseline` |
-| **Research** | nghttp2 **14/14 CLEAN** ([finale](https://hackme.tech/reports/oss-cve-watch/day14.html)) · **libheif Day 1/14 running** (new series) |
-| **Tests** | Prefer `go test ./...` · `public_site_smoke.sh` · `version_consistency_gate` before release cuts |
+| **Live pool** | **~145 GH/s** · **11 workers** · verify with `run_pool_health_check.sh` |
+| **Settlement** | HMC + SUP timers + autopilot · subsidy snapshot |
+| **B2B / PoH** | Bootstrap PoH deep orders · scheduler `baseline` |
+| **Research** | nghttp2 **14/14 CLEAN** · **libheif Day 2/14** in progress |
+| **Tests** | `go test ./...` · `public_site_smoke.sh` · `version_consistency_gate` before cuts |
 
 | Area | Verdict |
 |------|---------|
 | Public pool + coordinator | **Live** — confirm `signed_submits_accepted` ≫ rejected on VPS |
 | HMC settlement | **Live** — settle scripts + systemd + autopilot |
 | SUP (accrual + on-chain) | **Live** — settle SUP + timer |
-| Win/Linux/ISO (rc11s) | **Published** — verify SHA256 on downloads page |
+| Win/Linux/fuzz (rc12w) | **Published** — GitHub + hackme.tech/dist |
+| HackMe OS ISO (rc11s) | **Published** — separate ISO channel |
 | Security audit (prod) | **16/16 PASS** (prior gate; re-run before major cuts) |
 | Miner launch gate | **GO** — `bash scripts/ops/run_miner_launch_gate.sh` |
 | Fuzzing B2B | **Live** — wizard + pool-distributed workers + CI gate |
-| OSS CVE Watch · nghttp2 | **Series complete 14/14 CLEAN** · ~14.32B exec · [verdict](verdicts/OSS_CVE_WATCH_NGHTTP2_SERIES_VERDICT.md) |
-| OSS CVE Watch · libheif | **Day 1/14 running** · new series · `TARGET=libheif` · separate corpus |
+| OSS CVE Watch · nghttp2 | **Series complete 14/14 CLEAN** |
+| OSS CVE Watch · libheif | **Day 2/14 running** · `TARGET=libheif` |
 | HMS | **Prelaunch** — not public; do not open to miners |
 
 ## Pool health (how to measure)
@@ -52,9 +53,9 @@ Reports land in `reports/pool-health-<timestamp>/` (see `difficulty.tsv` for M d
 
 | File | Role |
 |------|------|
-| `scripts/release/CURRENT_VERSION` | Win/Linux release channel (`0.1.0-rc11s`) |
+| `scripts/release/CURRENT_VERSION` | Win/Linux release channel (`0.1.0-rc12w`) |
 | `scripts/release/CURRENT_ISO_VERSION` | HackMe OS ISO channel (`0.1.0-rc11s`) |
 | `web/site/assets/app.js` → `RELEASE_VER` / `ISO_CHANNEL` | Site + dashboard download URLs |
 | `main.go` → `Version` | Node binary embed (rebuild/deploy to match) |
 
-Detail: [HACKME_RC11S.md](HACKME_RC11S.md) · Historical: [HACKME_RC11R.md](HACKME_RC11R.md) · Ops: [OPERATIONS_MONITORING.md](OPERATIONS_MONITORING.md)
+Detail: [HACKME_RC12W.md](HACKME_RC12W.md) · Historical: [HACKME_RC11S.md](HACKME_RC11S.md) · Ops: [OPERATIONS_MONITORING.md](OPERATIONS_MONITORING.md)

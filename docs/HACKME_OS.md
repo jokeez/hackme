@@ -32,7 +32,7 @@ Commands: `hackme-show-wallet` · `hackme-os-status`
 ```bash
 export HACKME_RELEASE_POOL_MINER_TOKEN="$(cat .secrets/hackme_coordinator_worker_token)"
 VERSION=0.1.0-rc11s bash scripts/release/iso/build_hackme_miner_iso.sh
-# Win/Linux + ISO channel: 0.1.0-rc11s — scripts/release/CURRENT_VERSION
+# ISO channel: scripts/release/CURRENT_ISO_VERSION · Win/Linux: CURRENT_VERSION (rc12w)
 ```
 
 → `dist/release_<VERSION>/HackMe-OS-<VERSION>-amd64.iso`

@@ -1,6 +1,6 @@
 # Miner readiness checklist (controlled launch)
 
-**Release:** `0.1.0-rc11s` (Win/Linux + ISO **rc11s**, single channel) · **Pool:** `https://hackme.tech/pool/coordinator`  
+**Release:** `0.1.0-rc12w` (Win/Linux/fuzz) · **ISO channel:** `0.1.0-rc11s` · **Pool:** `https://hackme.tech/pool/coordinator`  
 **Support:** report bugs in Telegram — we fix and ship updates (no SLA yet).
 
 Use this before announcing “open for miners” and when onboarding a new rig.

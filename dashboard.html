@@ -4906,14 +4906,24 @@
 			const q = walletEarningsQueryParams();
 			const periodLbl = walletEarningsPeriodLabel();
 			updateWalletActivityPeriodButtons();
+			if ($('wallet-activity-source')) $('wallet-activity-source').textContent = 'loading activity…';
 			try {
-				await ensureWalletAdminToken();
-				const actAddr = walletKnownAddress();
+				let actAddr = walletKnownAddress();
+				if (!actAddr.startsWith('HMC-')) {
+					try {
+						const wr = await fetchWithTimeout('/api/wallet', { cache: 'no-store' }, 8000);
+						if (wr.ok) {
+							const wj = await wr.json();
+							const a = String(wj.address || '').trim();
+							if (a.startsWith('HMC-')) actAddr = a;
+						}
+					} catch (_) {}
+				}
 				const actQ =
 					'window_hours=' + encodeURIComponent(String(q.window_hours)) +
-					'&limit=120' +
+					'&limit=80' +
 					(actAddr.startsWith('HMC-') ? '&address=' + encodeURIComponent(actAddr) : '');
-				const ar = await fetchWithTimeout('/api/wallet/activity?' + actQ, { headers: adminHeaders() }, 12000);
+				const ar = await fetchWithTimeout('/api/wallet/activity?' + actQ, { cache: 'no-store' }, 15000);
 				if (!ar.ok) throw new Error('wallet_activity_unavailable');
 				const payload = await ar.json();
 				let d = payload && payload.data != null ? payload.data : null;
@@ -4931,10 +4941,17 @@
 				if ($('wallet-activity-net')) $('wallet-activity-net').textContent = fmt(netV, 6) + ' HMC';
 				if ($('wallet-activity-txcount')) $('wallet-activity-txcount').textContent = fmtUInt(Number(d.tx_count_window || 0));
 				if ($('wallet-activity-source')) {
-					$('wallet-activity-source').textContent =
+					const cu = !!payload.canonical_activity_unavailable;
+					let srcLine =
 						'source: ' + String(payload.source || 'local_db') +
 						' · peers: ' + (Array.isArray(d.counterparties) ? d.counterparties.length : 0) +
 						' · filter: ' + walletActivityFilter;
+					if (cu) {
+						srcLine =
+							'Canonical /api/wallet/activity unavailable — local SQLite empty (curl + HTTP tried). Check HACKME_CANONICAL_CHAIN_URL / VPN / TLS. · ' +
+							srcLine;
+					}
+					$('wallet-activity-source').textContent = srcLine;
 				}
 				walletActivityCache = { data: d, source: payload.source || 'local_db' };
 				walletActivityPeerLabels = buildActivityPeerLabelsFromRecent(d.recent);
@@ -5361,7 +5378,7 @@
 				return false;
 			}
 			try {
-				const r = await fetch('/api/worker/status', { cache: 'no-store', headers: adminHeaders() });
+				const r = await fetchWithTimeout('/api/worker/status', { cache: 'no-store', headers: adminHeaders() }, 8000);
 				if (r.ok) return true;
 			} catch (_) {}
 			try {

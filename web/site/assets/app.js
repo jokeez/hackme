@@ -1,7 +1,7 @@
 (() => {
   /** Bump with scripts/release/CURRENT_VERSION, dist/release_<VERSION>/, main.go Version */
   const RELEASE_VER = "0.1.0-rc12w";
-  /** HackMe OS ISO — aligned with Win/Linux channel (scripts/release/CURRENT_ISO_VERSION). */
+  /** HackMe OS ISO — separate channel (scripts/release/CURRENT_ISO_VERSION); Win/Linux on RELEASE_VER. */
   const ISO_CHANNEL = "0.1.0-rc11s";
 
   /** Sub-1 TH/s → GH/s (matches dashboard / explorer pool strip). */
@@ -37,7 +37,7 @@
     newsDisplay: "./assets/news-display.json",
     newsArchive: "./assets/news.json",
     releaseChannel: RELEASE_VER,
-    releaseChannelNote: "rc11s — production baseline: pool fuzz + mining payouts, canonical mining dashboard, settle outbox drain",
+    releaseChannelNote: "rc12w — wallet Activity tab, HMC/SUP/Transfer UX cleanup, audit hardening on hub; ISO channel still rc11s",
     releaseBase: `/dist/release_${RELEASE_VER}`,
     windowsInstaller: `/dist/release_${RELEASE_VER}/HackMe-Setup-${RELEASE_VER}.exe`,
     windowsBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows_setup.zip`,
@@ -249,6 +249,90 @@
   }
 
   const API_PROBE_MS = 4500;
+  const POOL_CACHE_KEY = "hackme.pool.stats.v1";
+
+  function readPoolCache() {
+    try {
+      const raw = localStorage.getItem(POOL_CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function writePoolCache(data) {
+    try {
+      localStorage.setItem(POOL_CACHE_KEY, JSON.stringify({ ...data, ts: Date.now() }));
+    } catch (_) {}
+  }
+
+  function fmtAgo(ts) {
+    const t = Number(ts);
+    if (!Number.isFinite(t) || t <= 0) return "";
+    const sec = Math.max(0, Math.floor((Date.now() - t) / 1000));
+    if (sec < 60) return `${sec}s ago`;
+    if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+    return `${Math.floor(sec / 3600)}h ago`;
+  }
+
+  function setPoolUpdated(label, degraded) {
+    const el = document.getElementById("pool-live-updated");
+    if (!el) return;
+    el.textContent = label;
+    el.classList.toggle("pool-degraded-label", !!degraded);
+  }
+
+  function paintPoolRow(data, opts) {
+    const degraded = !!(opts && opts.degraded);
+    const skeleton = !!(opts && opts.skeleton);
+    const ids = [
+      "pool-live-hash",
+      "pool-live-workers",
+      "pool-live-height",
+      "pool-live-reward",
+      "pool-live-diff",
+      "pool-live-status",
+    ];
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.toggle("pool-skeleton", skeleton);
+      el.classList.toggle("pool-degraded", degraded);
+    });
+    if (!data) return;
+    const hashEl = document.getElementById("pool-live-hash");
+    const wEl = document.getElementById("pool-live-workers");
+    const hEl = document.getElementById("pool-live-height");
+    const rEl = document.getElementById("pool-live-reward");
+    const dEl = document.getElementById("pool-live-diff");
+    const sEl = document.getElementById("pool-live-status");
+    if (hashEl && data.hash != null) {
+      hashEl.textContent = data.hash;
+      if (data.hashTitle) hashEl.title = data.hashTitle;
+    }
+    if (wEl && data.workers != null) wEl.textContent = data.workers;
+    if (hEl && data.height != null) hEl.textContent = data.height;
+    if (rEl && data.reward != null) rEl.textContent = data.reward;
+    if (dEl && data.diff != null) dEl.textContent = data.diff;
+    if (sEl && data.status != null) sEl.textContent = data.status;
+    if (data.ts) {
+      const ago = fmtAgo(data.ts);
+      setPoolUpdated(
+        degraded ? `Last known · ${ago} · degraded` : ago ? `Updated ${ago}` : "live",
+        degraded
+      );
+    }
+  }
+
+  function hydratePoolFromCache() {
+    const cache = readPoolCache();
+    if (!cache) {
+      setPoolUpdated("fetching…", false);
+      paintPoolRow(null, { skeleton: true });
+      return;
+    }
+    paintPoolRow(cache, { degraded: true });
+  }
 
   async function fetchJson(url, timeoutMs = API_PROBE_MS) {
     const ctrl = new AbortController();
@@ -590,6 +674,11 @@
     const sEl = document.getElementById("pool-live-status");
     if (!hashEl || !hEl || !rEl || !dEl || !sEl) return;
 
+    const cached = readPoolCache();
+    if (cached && hashEl.textContent === "—") {
+      paintPoolRow(cached, { degraded: true });
+    }
+
     const root = apiRoot();
     const [global, work] = await Promise.all([
       fetchJson(`${root}/global/metrics`),
@@ -597,13 +686,22 @@
     ]);
 
     if (!global && !work) {
-      hashEl.textContent = "—";
-      hashEl.removeAttribute("title");
-      if (wEl) wEl.textContent = "—";
-      hEl.textContent = "—";
-      rEl.textContent = "—";
-      dEl.textContent = "—";
-      sEl.textContent = "degraded";
+      if (cached) {
+        paintPoolRow(cached, { degraded: true });
+        return;
+      }
+      paintPoolRow(
+        {
+          hash: "—",
+          workers: "—",
+          height: "—",
+          reward: "—",
+          diff: "—",
+          status: "degraded",
+        },
+        { degraded: true }
+      );
+      setPoolUpdated("API unreachable · no cache", true);
       return;
     }
 
@@ -626,14 +724,13 @@
       }
     }
 
+    let hashText = "—";
+    let hashTitle = "Pool aggregate unavailable.";
     if (Number.isFinite(poolTH) && poolTH > 0) {
-      hashEl.textContent = fmtPoolHashrateTHS(poolTH, poolMock);
-      hashEl.title = poolMock
+      hashText = fmtPoolHashrateTHS(poolTH, poolMock);
+      hashTitle = poolMock
         ? "Simulated totals (HACKME_NETWORK_MOCK)."
         : "Live coordinator aggregate (sub-1 TH/s shown as GH/s).";
-    } else {
-      hashEl.textContent = "—";
-      hashEl.title = "Pool aggregate unavailable.";
     }
 
     let tipHeight = NaN;
@@ -648,7 +745,7 @@
       if (Number.isFinite(wc) && wc > 0) tipHeight = wc;
       else tipHeight = Number(work && work.tip_height);
     }
-    hEl.textContent =
+    const heightText =
       Number.isFinite(tipHeight) && tipHeight >= 0
         ? Math.floor(tipHeight).toLocaleString("en-US")
         : "—";
@@ -657,14 +754,14 @@
     if (!Number.isFinite(diff) || diff <= 0) {
       diff = Number(work && work.target_mod);
     }
-    dEl.textContent =
+    const diffText =
       Number.isFinite(diff) && diff > 0 ? Math.floor(diff).toLocaleString("en-US") : "—";
 
     let reward = Number(work && work.base_reward_hmc);
     if (!Number.isFinite(reward) || reward <= 0) {
       reward = Number(work && work.found_bonus_hmc);
     }
-    rEl.textContent = Number.isFinite(reward) && reward > 0 ? `${reward.toFixed(6)} HMC` : "—";
+    const rewardText = Number.isFinite(reward) && reward > 0 ? `${reward.toFixed(6)} HMC` : "—";
 
     const online = Number(
       (work && work.workers_online) ||
@@ -679,15 +776,29 @@
         0
     );
     const miners = Number.isFinite(online) && online >= 0 ? online : known;
-    if (wEl) {
-      wEl.textContent = Number.isFinite(miners) && miners >= 0 ? String(Math.floor(miners)) : "—";
-      wEl.title = "Workers with recent submit activity (public coordinator).";
-    }
+    const workersText = Number.isFinite(miners) && miners >= 0 ? String(Math.floor(miners)) : "—";
+
     const poolOk = (global && global.work && global.work.ok) || (work && work.issued_ranges != null);
+    let statusText = "degraded";
     if (poolOk) {
-      sEl.textContent = miners > 0 ? "online" : "online · idle";
-    } else {
-      sEl.textContent = "degraded";
+      statusText = miners > 0 ? "online" : "online · idle";
+    }
+
+    const snapshot = {
+      hash: hashText,
+      hashTitle,
+      workers: workersText,
+      height: heightText,
+      reward: rewardText,
+      diff: diffText,
+      status: statusText,
+      ts: Date.now(),
+    };
+    writePoolCache(snapshot);
+    paintPoolRow(snapshot, { degraded: statusText === "degraded" });
+    if (hashEl) hashEl.title = hashTitle;
+    if (wEl) {
+      wEl.title = "Workers with recent submit activity (public coordinator).";
     }
   }
 
@@ -718,6 +829,7 @@
   });
   void renderNewsPage();
   void renderNewsHealth();
+  hydratePoolFromCache();
   void updateLiveStatus(liveEl);
   void loadPoolOverview();
   setInterval(() => updateLiveStatus(liveEl), 15000);

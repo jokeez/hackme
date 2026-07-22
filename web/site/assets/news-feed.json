@@ -1,6 +1,46 @@
 {
   "items": [
     {
+      "id": "2026-07-22-github-release-rc12w",
+      "date": "2026-07-22",
+      "title": "HackMe 0.1.0-rc12w — wallet Activity · security hardening · miners & devs",
+      "summary": "New download channel: wallet Activity tab (counterparty rollup, In/Out filter, CSV export, address labels), cleaner HMC/SUP/Transfer/Earnings UX, audit remediation on hub (dual-ledger, payout lock, admin bind, Stratum HMAC). Win/Linux + fuzz CLI + HackMe OS ISO rebuilt; SHA256 on GitHub + hackme.tech.",
+      "impact": "Miners and integrators get a sharper local wallet without economics changes. Hub runs rc12w with closed critical audit items. Activity API public on hackme.tech for desktop followers.",
+      "action": "Download: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc12w · Pool: https://hackme.tech/pool/coordinator · Docs: docs/HACKME_RC12W.md",
+      "tags": [
+        "release",
+        "wallet",
+        "security",
+        "mining",
+        "fuzzing"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "🚀 HackMe 0.1.0-rc12w — Wallet Activity + security",
+        "lead": "New release: Wallet Activity tab, audit hardening on hub, Win/Linux + fuzz CLI rebuilt.",
+        "bullets": [
+          "Activity: counterparty rollup, In/Out filter, CSV export, address labels",
+          "HMC/SUP/Transfer/Earnings — cleaner UX, no duplicate counters",
+          "Hub: dual-ledger, payout lock, admin bind, Stratum HMAC — critical items closed",
+          "Pool live: 11 workers · ~145 GH/s · tip ~198k",
+          "Win/Linux + fuzz CLI + HackMe OS ISO (834 MB) — verify SHA256"
+        ],
+        "footer": "hackme.tech/downloads.html · github.com/jokeez/hackme/releases/tag/0.1.0-rc12w"
+      },
+      "discord": {
+        "title": "Release · 0.1.0-rc12w — Wallet Activity + security hardening",
+        "body": "**Wallet upgrade** — Activity tab, cleaner HMC/SUP/Transfer/Earnings, audit fixes on hub.\n\n• **Activity:** counterparty rollup · In/Out · CSV export · labels (dev fee, pool settlement, escrow)\n• **Security:** dual-ledger, payout lock, admin bind, Stratum/payment HMAC — critical items closed\n• **Downloads:** Win ZIP · Linux tarball · hackme-fuzzing CLI (build + main)\n• **Pool:** ~145 GH/s · 11 workers · tip ~198k\n• **Verify:** SHA256SUMS.txt on GitHub + hackme.tech\n\n**Downloads:** https://hackme.tech/downloads.html\n**GitHub:** https://github.com/jokeez/hackme/releases/tag/0.1.0-rc12w\n**Pool:** https://hackme.tech/pool/coordinator",
+        "ping": "#releases"
+      },
+      "links": {
+        "downloads": "https://hackme.tech/downloads.html",
+        "github": "https://github.com/jokeez/hackme/releases/tag/0.1.0-rc12w",
+        "pool": "https://hackme.tech/pool/coordinator",
+        "sha256": "https://hackme.tech/dist/release_0.1.0-rc12w/SHA256SUMS.txt",
+        "docs": "https://github.com/jokeez/hackme/blob/main/docs/HACKME_RC12W.md"
+      }
+    },
+    {
       "id": "2026-07-22-oss-cve-watch-libheif-day01-libfuzzer",
       "date": "2026-07-22",
       "title": "OSS CVE Watch · libheif Day 1/14 · 2.11M libFuzzer exec · CLEAN",
@@ -374,42 +414,6 @@
         "hub": "https://hackme.tech/reports/oss-cve-watch/",
         "research": "https://hackme.tech/research.html",
         "day07": "https://hackme.tech/reports/oss-cve-watch/day07.html"
-      }
-    },
-    {
-      "id": "2026-07-13-oss-cve-watch-day06-nghttp2-libfuzzer",
-      "date": "2026-07-13",
-      "title": "OSS CVE Watch Day 6/14 · nghttp2 · resume slice · CLEAN",
-      "summary": "Sixth day on nghttp2: short resume slice after PC reboot (~12 min), 4,549,884 executions. Corpus 417 inputs, 467 coverage edges. Zero ASAN heap crashes — honest CLEAN day (warmup before Day 7 marathon).",
-      "impact": "Day 6 ledger entry documents post-reboot resume before the 20h Day 7 session. No CVE candidates. Full depth budget carried by Day 7 chain slot.",
-      "action": "Day 6 report: https://hackme.tech/reports/oss-cve-watch/day06.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
-      "tags": [
-        "research",
-        "oss-cve",
-        "fuzzing",
-        "nghttp2"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "OSS CVE Watch · Day 6/14 · nghttp2",
-        "lead": "libFuzzer resume slice · 4.5M exec · CLEAN · 0 ASAN",
-        "bullets": [
-          "Target: nghttp2 HTTP/2 session mem_recv · ASAN build",
-          "4,549,884 executions · ~12 min · post-reboot resume warmup",
-          "467 coverage edges · 0 heap corruption · 0 CVE candidates",
-          "Honest ledger: short Day 6 slice → Day 7 took the 20h marathon slot"
-        ],
-        "footer": "hackme.tech/reports/oss-cve-watch/day06.html"
-      },
-      "discord": {
-        "title": "Research · OSS CVE Watch Day 6",
-        "body": "**nghttp2 · libFuzzer · Day 6/14**\n\n• **4,549,884** executions · **~12 min** resume slice\n• Corpus **417** · **467** coverage edges\n• **CLEAN** — 0 ASAN heap crashes\n• Post-reboot warmup before Day 7 20h marathon\n\n**Report:** https://hackme.tech/reports/oss-cve-watch/day06.html",
-        "ping": "#research"
-      },
-      "links": {
-        "day06": "https://hackme.tech/reports/oss-cve-watch/day06.html",
-        "hub": "https://hackme.tech/reports/oss-cve-watch/",
-        "research": "https://hackme.tech/research.html"
       }
     }
   ],

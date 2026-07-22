@@ -1,6 +1,6 @@
 # External audit & CEX readiness pack
 
-**Version:** 2026-07-20 · **Release:** `0.1.0-rc11s` · **Operator contact:** https://hackme.tech/contacts.html
+**Version:** 2026-07-22 · **Release:** `0.1.0-rc12w` (ISO `0.1.0-rc11s`) · **Operator contact:** https://hackme.tech/contacts.html
 
 One-page index for **third-party security reviewers**, **listing desks**, and **due-diligence** teams. This is an **honest** snapshot — not a marketing claim of “fully audited”.
 

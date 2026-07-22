@@ -32,6 +32,24 @@
   </header>
 
   <main class="container">
+    <nav class="audience-switch glass" aria-label="Choose your path">
+      <a class="audience-card audience-card-mine" href="./downloads.html#start">
+        <span class="audience-tag">Miners</span>
+        <strong>Mine HMC</strong>
+        <span class="audience-desc">Download worker · join the public pool</span>
+      </a>
+      <a class="audience-card audience-card-audit" href="./developers.html">
+        <span class="audience-tag">Integrators</span>
+        <strong>Buy security audit</strong>
+        <span class="audience-desc">B2B fuzz wizard · local node escrow</span>
+      </a>
+      <a class="audience-card audience-card-research" href="./research.html">
+        <span class="audience-tag">Reviewers</span>
+        <strong>Verify research</strong>
+        <span class="audience-desc">Public L1 campaigns · honest scope</span>
+      </a>
+    </nav>
+
     <section class="hero glass">
       <p class="kicker">One network · four lanes</p>
       <h1>Mine useful work on HackMe</h1>
@@ -99,7 +117,7 @@
     <section id="pool" class="panel glass">
       <div class="panel-head">
         <h2>Live pool</h2>
-        <p class="subtle">Coordinator metrics refresh on load — sub-1 TH/s shown as GH/s.</p>
+        <p class="subtle">Coordinator metrics refresh on load — sub-1 TH/s shown as GH/s. <span id="pool-live-updated" class="pool-updated muted">fetching…</span></p>
       </div>
       <div class="table-wrap">
         <table class="pool-table">
@@ -117,12 +135,12 @@
           <tbody>
             <tr>
               <td><strong>HackMe PoH</strong></td>
-              <td id="pool-live-hash">loading…</td>
-              <td id="pool-live-workers">loading…</td>
-              <td id="pool-live-height">loading…</td>
-              <td id="pool-live-reward">loading…</td>
-              <td id="pool-live-diff">loading…</td>
-              <td id="pool-live-status">loading…</td>
+              <td id="pool-live-hash" class="pool-live-cell">—</td>
+              <td id="pool-live-workers" class="pool-live-cell">—</td>
+              <td id="pool-live-height" class="pool-live-cell">—</td>
+              <td id="pool-live-reward" class="pool-live-cell">—</td>
+              <td id="pool-live-diff" class="pool-live-cell">—</td>
+              <td id="pool-live-status" class="pool-live-cell">—</td>
             </tr>
           </tbody>
         </table>

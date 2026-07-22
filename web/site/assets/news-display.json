@@ -1,17 +1,18 @@
 {
   "items": [
     {
-      "id": "2026-07-22-dashboard-rc12t-wallet-marketplace",
+      "id": "2026-07-22-github-release-rc12w",
       "date": "2026-07-22",
-      "title": "Local dashboard rc12t · wallet flow + fuzz progress",
-      "summary": "Wallet hub shows accrual → settlement → on-chain rail. Mining fuzz marketplace adds progress bars and rough ETA. Admin token expose warning when EXPOSE=1.",
-      "impact": "Clearer operator UX on 127.0.0.1:8080 without economics changes.",
-      "action": "Update node binary to 0.1.0-rc12t · libheif Day 1: https://hackme.tech/reports/oss-cve-watch-libheif/day01.html",
+      "title": "HackMe 0.1.0-rc12w — wallet Activity · security hardening · miners & devs",
+      "summary": "New download channel: wallet Activity tab (counterparty rollup, In/Out filter, CSV export, address labels), cleaner HMC/SUP/Transfer/Earnings UX, audit remediation on hub (dual-ledger, payout lock, admin bind, Stratum HMAC). Win/Linux + fuzz CLI + HackMe OS ISO rebuilt; SHA256 on GitHub + hackme.tech.",
+      "impact": "Miners and integrators get a sharper local wallet without economics changes. Hub runs rc12w with closed critical audit items. Activity API public on hackme.tech for desktop followers.",
+      "action": "Download: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc12w · Pool: https://hackme.tech/pool/coordinator · Docs: docs/HACKME_RC12W.md",
       "tags": [
-        "dashboard",
+        "release",
         "wallet",
-        "fuzz",
-        "rc12t"
+        "security",
+        "mining",
+        "fuzzing"
       ],
       "status": "published"
     },

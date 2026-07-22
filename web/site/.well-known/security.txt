@@ -1,0 +1,11 @@
+Contact: mailto:support@hackme.tech
+Expires: 2027-07-22T00:00:00.000Z
+Preferred-Languages: en, ru
+Canonical: https://hackme.tech/.well-known/security.txt
+Policy: https://hackme.tech/security-rewards.html
+Acknowledgments: https://hackme.tech/security-rewards.html
+Hiring: https://hackme.tech/contacts.html
+
+# HackMe Network — coordinated disclosure
+# Report security issues privately before public discussion.
+# Bug bounty guidelines (discretionary HMC grants): security-rewards.html

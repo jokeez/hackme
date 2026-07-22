@@ -1,6 +1,9 @@
-# HackMe 0.1.0-rc11s — current download channel (production baseline)
+# HackMe 0.1.0-rc11s — superseded by rc12w (ISO channel still rc11s)
 
-**Status:** **LIVE** on [hackme.tech/downloads.html](https://hackme.tech/downloads.html) — Win/Linux installer, tarball, fuzz CLI, and HackMe OS ISO on a single aligned channel.
+> **Current Win/Linux channel:** [HACKME_RC12W.md](HACKME_RC12W.md) · `0.1.0-rc12w` on [downloads](https://hackme.tech/downloads.html)  
+> **ISO channel:** still `0.1.0-rc11s` — see `scripts/release/CURRENT_ISO_VERSION`
+
+**Status (historical):** **LIVE** on [hackme.tech/downloads.html](https://hackme.tech/downloads.html) — production baseline before rc12w wallet Activity cut.
 
 ## Artifacts
 

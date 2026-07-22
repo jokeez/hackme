@@ -17,7 +17,7 @@
 
 <br/>
 
-[![Release](https://img.shields.io/badge/release-0.1.0--rc11s-00d1ff?style=for-the-badge&logo=semanticweb&logoColor=white)](https://hackme.tech/downloads.html)
+[![Release](https://img.shields.io/badge/release-0.1.0--rc12w-00d1ff?style=for-the-badge&logo=semanticweb&logoColor=white)](https://hackme.tech/downloads.html)
 [![Pool live](https://img.shields.io/badge/pool-LIVE-39ff14?style=for-the-badge&logo=serverless&logoColor=white)](https://hackme.tech/pool/coordinator/api/pool/stats)
 [![Security](https://img.shields.io/badge/audit-16%2F16_PASS-39ff14?style=for-the-badge&logo=shield&logoColor=white)](docs/STATUS.md)
 [![CI](https://github.com/jokeez/hackme/actions/workflows/ci.yml/badge.svg)](https://github.com/jokeez/hackme/actions/workflows/ci.yml)
@@ -93,7 +93,8 @@ flowchart TB
 | **B2B fuzz / PoH** | **Live** | Dashboard `#orders` · `workerfuzz` on hub · bootstrap PoH path (`pool_distributed` + `create_poh_order`) completing deep orders |
 | **OSS CVE Watch · nghttp2** | **14/14 complete** | [day14.html](https://hackme.tech/reports/oss-cve-watch/day14.html) CLEAN · ~14.32B exec · ASAN=0 |
 | **OSS CVE Watch · libheif** | **Day 1/14 running** | HEIF/AVIF `file_fuzzer` · 24h cadence · [research hub](https://hackme.tech/research.html) |
-| **Win / Linux / ISO** | **rc11s** | SHA256 on [downloads](https://hackme.tech/downloads.html) |
+| **Win / Linux / fuzz** | **rc12w** | SHA256 on [downloads](https://hackme.tech/downloads.html) |
+| **HackMe OS ISO** | **rc11s** | ISO channel unchanged — see `CURRENT_ISO_VERSION` |
 | **Security gate** | **16/16 PASS** | Red-team scripts in `scripts/ops/` |
 | **HMS storage** | Preview | Prelaunch — not a miner lane yet |
 
@@ -211,7 +212,7 @@ bash scripts/tests/public_site_smoke.sh
 bash scripts/tests/version_consistency_gate.sh
 ```
 
-Release bundle: `VERSION=0.1.0-rc11s bash scripts/release/make_release_bundle.sh` — [scripts/release/README.md](scripts/release/README.md)
+Release bundle: `VERSION=0.1.0-rc12w bash scripts/release/make_release_bundle.sh` — [scripts/release/README.md](scripts/release/README.md)
 
 ---
 
