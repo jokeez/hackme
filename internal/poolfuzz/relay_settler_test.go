@@ -28,9 +28,10 @@ func TestRelaySettlerEnqueueFirstNoDoubleEnqueueOnTimeout(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	// Force non-loopback base so relay attempts HTTP (then fails → leave pending).
+	// Force non-loopback DefaultOrdersURL so relay attempts HTTP (then fails → leave pending).
+	// Campaign orders_settle_base is intentionally ignored (SSRF hardening).
 	_, _ = db.ExecContext(ctx, `UPDATE fuzz_campaigns SET config_json=? WHERE id=?`,
-		`{"pool_distributed":true,"orders_settle_base":"http://198.51.100.10:65535","orders_settle_pull":false}`, "relay-camp")
+		`{"pool_distributed":true,"orders_settle_pull":false}`, "relay-camp")
 
 	var hits atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -47,13 +48,12 @@ func TestRelaySettlerEnqueueFirstNoDoubleEnqueueOnTimeout(t *testing.T) {
 		_, _ = w.Write([]byte(`{"ok":true}`))
 	}))
 	defer server.Close()
-	_, _ = db.ExecContext(ctx, `UPDATE fuzz_campaigns SET config_json=? WHERE id=?`,
-		`{"pool_distributed":true,"orders_settle_base":"`+server.URL+`","orders_settle_pull":false}`, "relay-camp")
 
 	relay := &RelaySettler{
-		Service:    svc,
-		AdminToken: func() string { return "tok" },
-		HTTPClient: &http.Client{Timeout: 50 * time.Millisecond},
+		Service:          svc,
+		DefaultOrdersURL: server.URL,
+		AdminToken:       func() string { return "tok" },
+		HTTPClient:       &http.Client{Timeout: 50 * time.Millisecond},
 	}
 	if _, err := relay.PayRun(ctx, "relay-camp", "HMC-2222222222222222", 0); err != nil {
 		t.Fatal(err)
@@ -116,12 +116,13 @@ func TestRelaySettlerAckOnHTTPSuccess(t *testing.T) {
 	}))
 	defer server.Close()
 	_, _ = db.ExecContext(ctx, `UPDATE fuzz_campaigns SET config_json=? WHERE id=?`,
-		`{"pool_distributed":true,"orders_settle_base":"`+server.URL+`","orders_settle_pull":false}`, "ok-camp")
+		`{"pool_distributed":true,"orders_settle_pull":false}`, "ok-camp")
 
 	relay := &RelaySettler{
-		Service:    svc,
-		AdminToken: func() string { return "tok" },
-		HTTPClient: &http.Client{Timeout: 5 * time.Second},
+		Service:          svc,
+		DefaultOrdersURL: server.URL,
+		AdminToken:       func() string { return "tok" },
+		HTTPClient:       &http.Client{Timeout: 5 * time.Second},
 	}
 	res, err := relay.PayRun(ctx, "ok-camp", "HMC-2222222222222222", 0)
 	if err != nil {

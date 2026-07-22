@@ -86,5 +86,5 @@ func hmsBindLoopbackOnly(addr string) bool {
 		host = strings.TrimSpace(h)
 	}
 	host = strings.Trim(strings.ToLower(host), "[]")
-	return host == "" || host == "127.0.0.1" || host == "localhost" || host == "::1"
+	return host == "127.0.0.1" || host == "localhost" || host == "::1"
 }

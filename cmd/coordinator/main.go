@@ -174,7 +174,8 @@ func coordinatorBindLoopbackOnly(addr string) bool {
 		host = strings.TrimSpace(h)
 	}
 	host = strings.Trim(strings.ToLower(host), "[]")
-	return host == "" || host == "127.0.0.1" || host == "localhost" || host == "::1"
+	// Empty host (e.g. ":8081") means all interfaces — NOT loopback-only.
+	return host == "127.0.0.1" || host == "localhost" || host == "::1"
 }
 
 func coordAdminOK(r *http.Request, expected string) bool {

@@ -26,14 +26,13 @@ func (s *Service) SubmitOrderPoHSolve(ctx context.Context, minerAddress string, 
 		return nil, fmt.Errorf("chain: invalid miner_address %q", minerAddress)
 	}
 
-	if targetMod == 0 {
-		chainMod, err := s.PoHTargetMod(ctx)
-		if err != nil {
-			return nil, err
-		}
-		targetMod = chainMod
+	// Always use canonical chain target_mod — ignore caller-supplied difficulty
+	// (easy mods would drain order escrow without real PoH work).
+	chainMod, err := s.PoHTargetMod(ctx)
+	if err != nil {
+		return nil, err
 	}
-	targetMod = ClampPoHTargetMod(targetMod)
+	targetMod = ClampPoHTargetMod(chainMod)
 	eval := PohEval(nonce)
 	if targetMod == 0 || eval%targetMod != 0 {
 		return nil, errors.New("chain: invalid poh solution for submitted target_mod")

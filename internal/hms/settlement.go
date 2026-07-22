@@ -205,16 +205,10 @@ func (c *Coordinator) EpochSealSettlement(epochID int64) (map[string]any, error)
 	if sealed == 0 {
 		return out, nil
 	}
+	// Read-only: never finalize on GET/status path — finalize is POST+admin only.
 	lines, err := c.loadEpochPayouts(epochID)
 	if err != nil {
 		return nil, err
-	}
-	if finalized == 0 {
-		lines, err = c.FinalizeEpochSealPayouts(epochID)
-		if err != nil {
-			return nil, err
-		}
-		out["payouts_finalized"] = true
 	}
 	payouts := make([]map[string]any, 0, len(lines))
 	for _, line := range lines {

@@ -138,25 +138,22 @@ func (r *RelaySettler) relay(ctx context.Context, kind, campaignID, minerAddress
 }
 
 func (r *RelaySettler) resolveSettleBase(ctx context.Context, campaignID string) (base string, pull bool) {
+	// Never honor campaign config orders_settle_base — that was an SSRF / admin-token
+	// exfil vector (attacker-controlled campaign URL). Settle only to DefaultOrdersURL.
+	base = strings.TrimRight(strings.TrimSpace(r.DefaultOrdersURL), "/")
 	s := r.svc()
 	if s == nil {
-		return strings.TrimRight(strings.TrimSpace(r.DefaultOrdersURL), "/"), false
+		return base, isLoopbackSettleURL(base)
 	}
 	cfg, err := s.CampaignConfig(ctx, campaignID)
 	if err != nil || cfg == nil {
-		return strings.TrimRight(strings.TrimSpace(r.DefaultOrdersURL), "/"), false
-	}
-	if v, ok := cfg["orders_settle_base"].(string); ok {
-		base = strings.TrimRight(strings.TrimSpace(v), "/")
-	}
-	if base == "" {
-		base = strings.TrimRight(strings.TrimSpace(r.DefaultOrdersURL), "/")
+		return base, isLoopbackSettleURL(base)
 	}
 	if pullVal, ok := cfg["orders_settle_pull"]; ok {
 		if truthy(pullVal) {
 			return "", true
 		}
-		// Explicit false: attempt HTTP even for loopback bases (tests / rare local origin).
+		// Explicit false: attempt HTTP even for loopback DefaultOrdersURL (tests).
 		return base, false
 	}
 	return base, isLoopbackSettleURL(base)

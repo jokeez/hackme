@@ -69,15 +69,32 @@ func (s *Service) OpenFuzzEscrow(ctx context.Context, campaignID string, budgetH
 		return nil, err
 	}
 	var balUnits uint64
-	if err := tx.QueryRowContext(ctx, `SELECT balance_units FROM wallet WHERE id=1`).Scan(&balUnits); err != nil {
+	var walletAddr string
+	if err := tx.QueryRowContext(ctx, `SELECT address, balance_units FROM wallet WHERE id=1`).Scan(&walletAddr, &balUnits); err != nil {
 		return nil, err
 	}
 	if balUnits < split.TotalUnits {
 		return nil, ErrFuzzInsufficientBalance
 	}
+	var accountUnits uint64
+	if err := tx.QueryRowContext(ctx, `SELECT balance_units FROM accounts WHERE address = ?`, walletAddr).Scan(&accountUnits); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrFuzzInsufficientBalance
+		}
+		return nil, err
+	}
+	if accountUnits < split.TotalUnits {
+		return nil, ErrFuzzInsufficientBalance
+	}
+	// Dual-ledger: wallet + accounts must both debit (same invariant as order escrow).
 	if _, err := tx.ExecContext(ctx,
 		`UPDATE wallet SET balance_units = balance_units - ?, balance_hmc = (balance_units - ?) / ? WHERE id=1`,
 		split.TotalUnits, split.TotalUnits, float64(UnitsPerHMC)); err != nil {
+		return nil, err
+	}
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE accounts SET balance_units = balance_units - ?, updated_at = strftime('%s','now') WHERE address = ?`,
+		split.TotalUnits, walletAddr); err != nil {
 		return nil, err
 	}
 	now := time.Now().Unix()
