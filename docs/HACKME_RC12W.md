@@ -41,19 +41,21 @@
 - GitHub: `https://github.com/jokeez/hackme/releases/tag/0.1.0-rc12w`
 - SHA256: `SHA256SUMS.txt` + `SHA256SUMS-iso.txt`
 
-## SHA256 (rc12w)
+## SHA256 (rc12w — hotfix rebuild 2026-07-22, commit e525544)
 
 ```
-2063140c9c9d8d25e48dd3b1bb06e436dc493e9d52daa026a3f788a26245d87b  hackme_0.1.0-rc12w_windows.zip
-2880d7d17bdf451aff2eef363a474e353a1b3c45ade323aefaacca7648ed45c8  hackme_0.1.0-rc12w_windows_setup.zip
-3128b17d73c278f0d5fc8db9ad51ce8540dec9512ee7576e38116f7ca6ae6400  HackMe-Setup-0.1.0-rc12w.exe
-ee71c212ecbc8feea0efd95418973664774e3e483ee6025b7fb224bbd6848c4a  hackme_0.1.0-rc12w_linux.tar.gz
-33f1a43df66551ce1bbad4bde97ef51333892b5a26bda7ddd24b536ca11321bf  hackme-fuzzing-0.1.0-rc12w-linux-amd64
-4359b260c35eb4419a60336bb043379a7d3582337da24e439f3137bd7096d9ed  hackme-fuzzing-0.1.0-rc12w-windows-amd64.exe
-f3d7aad31256e63bd437d78c4cb34d04901b40d1655d2a27e9e7fe006a3d4bf0  hackme-fuzzing-build-0.1.0-rc12w-linux-amd64
-8314d69cdac66d7781e1dd5acde2286a007ec9de2ca0f19478b5920c2458eaaa  hackme-fuzzing-build-0.1.0-rc12w-windows-amd64.exe
-b4632f72008791878121124a483ef4841c3b791562740996f64671f1dc410dd4  HackMe-OS-0.1.0-rc12w-amd64.iso
+5d076aa0f83e262f4784c929b66e019122949c5cecdc3fe294e6b18722c1b4ea  hackme_0.1.0-rc12w_windows.zip
+a84a9ee5174e0e26c42ebcd3757f07ec5256b11cc1bedd63b24f956c95df402f  hackme_0.1.0-rc12w_windows_setup.zip
+323666a0fee158b725f1eac1938b9430a6a2076535a9e3de854d9f400565ffcb  HackMe-Setup-0.1.0-rc12w.exe
+0e22c3c70444da8ec04b70c2ada973dd1d875cfa674c494b994e62a92a9c9023  hackme_0.1.0-rc12w_linux.tar.gz
+d3bf1ae1930679ee2fd21c48381c2dcdc15dc49ff88199fc095fa6a24eba791a  hackme-fuzzing-0.1.0-rc12w-linux-amd64
+4649812aa2b04e321c8d3dd385663345eb3b5304b078e28ebd4fc6dfcb82cbaa  hackme-fuzzing-0.1.0-rc12w-windows-amd64.exe
+f3ab4cc1a70c5767aa8fa6e2130557fd3c6f8ba382efe23478cd863a06d7a891  hackme-fuzzing-build-0.1.0-rc12w-linux-amd64
+45fb03bede5cfd2f901eb7098a8d861036b527b2645fc3070c43a8733abc4ce5  hackme-fuzzing-build-0.1.0-rc12w-windows-amd64.exe
+3ee42352749624be2e486c63d123ada943c84d058426e222d415c4fb068ba005  HackMe-OS-0.1.0-rc12w-amd64.iso
 ```
+
+Hotfix in this rebuild: desktop pool **pending settlement** no longer stuck at 0 HMC (poisoned local canonical cache). Same version tag — **re-download** and verify SHA256.
 
 ## Linux quick start (miners)
 

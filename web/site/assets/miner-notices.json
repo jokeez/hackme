@@ -6,7 +6,7 @@
       "id": "2026-07-22-rc12w-wallet-activity",
       "severity": "info",
       "title": "Upgrade to HackMe 0.1.0-rc12w",
-      "body": "Wallet Activity tab: counterparty rollup, In/Out filter, CSV export, address labels. Cleaner HMC/SUP/Transfer/Earnings. Hub security hardening (audit fixes). Win/Linux + fuzz CLI + HackMe OS ISO on rc12w.",
+      "body": "Wallet Activity tab + settlement pending display fix (re-download same 0.1.0-rc12w — hashes changed). Counterparty rollup, In/Out, CSV, address labels. Cleaner HMC/SUP/Transfer/Earnings. Hub security hardening. Win/Linux/fuzz/ISO aligned on rc12w.",
       "link_url": "https://hackme.tech/downloads.html",
       "link_label": "Download rc12w",
       "dismiss_key": "rc12w-wallet-banner",
