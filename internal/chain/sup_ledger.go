@@ -243,12 +243,16 @@ func (s *Service) SupAddressState(ctx context.Context, address string) (SupAddre
 	}, nil
 }
 
+const metaSUPMintIdemPrefix = "mint_idem:sup:"
+
 // MintSUP credits SUP from emission cap (admin settlement / genesis migration).
+// Non-empty memo enables idempotency: retries with the same (to, amount, memo) are no-ops.
 func (s *Service) MintSUP(ctx context.Context, to string, amountUnits uint64, memo string) (string, error) {
 	if amountUnits == 0 {
 		return "invalid_amount", errors.New("amount_units must be > 0")
 	}
 	to = strings.TrimSpace(to)
+	memo = strings.TrimSpace(memo)
 	if !strings.HasPrefix(to, "HMC-") {
 		return "invalid_address", errors.New("invalid address")
 	}
@@ -263,6 +267,27 @@ func (s *Service) MintSUP(ctx context.Context, to string, amountUnits uint64, me
 		return "internal_error", err
 	}
 	defer func() { _ = tx.Rollback() }()
+	idemKey := mintIdempotencyMetaKey(metaSUPMintIdemPrefix, to, amountUnits, memo)
+	txHash := fmt.Sprintf("mint-%d-%s", time.Now().UnixNano(), to)
+	if idemKey != "" {
+		txHash = "sup-" + idemKey // UNIQUE(tx_hash) closes concurrent double-mint races
+		var existing string
+		err := tx.QueryRowContext(ctx, `SELECT tx_hash FROM sup_tx_history WHERE tx_hash=?`, txHash).Scan(&existing)
+		if err == nil {
+			return "", nil // idempotent replay
+		}
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return "internal_error", err
+		}
+		var prev string
+		err = tx.QueryRowContext(ctx, `SELECT value FROM meta WHERE key=?`, idemKey).Scan(&prev)
+		if err == nil && strings.TrimSpace(prev) != "" {
+			return "", nil // idempotent replay
+		}
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return "internal_error", err
+		}
+	}
 	maxU, err := s.supMaxSupplyUnits(ctx, tx)
 	if err != nil {
 		return "internal_error", err
@@ -284,13 +309,21 @@ func (s *Service) MintSUP(ctx context.Context, to string, amountUnits uint64, me
 	if err := s.upsertMetaUint(ctx, tx, metaSUPTotalMintedUnits, mintedU+amountUnits); err != nil {
 		return "internal_error", err
 	}
-	mintRow := map[string]any{"op": "mint_sup", "to": to, "amount_units": amountUnits, "memo": strings.TrimSpace(memo), "ts": time.Now().Unix()}
+	mintRow := map[string]any{"op": "mint_sup", "to": to, "amount_units": amountUnits, "memo": memo, "ts": time.Now().Unix()}
 	raw, _ := json.Marshal(mintRow)
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO sup_tx_history (tx_hash, tx_json, from_address, to_address, nonce, fee_units, amount_units, status, block_index, block_hash, applied_at, reject_code)
 		 VALUES (?, ?, '', ?, 0, 0, ?, 'included', 0, 'mint', ?, '')`,
-		fmt.Sprintf("mint-%d-%s", time.Now().UnixNano(), to), string(raw), to, amountUnits, time.Now().Unix()); err != nil {
+		txHash, string(raw), to, amountUnits, time.Now().Unix()); err != nil {
+		if idemKey != "" && strings.Contains(strings.ToLower(err.Error()), "unique") {
+			return "", nil // concurrent idempotent winner
+		}
 		return "internal_error", err
+	}
+	if idemKey != "" {
+		if err := s.upsertMeta(ctx, tx, idemKey, string(raw)); err != nil {
+			return "internal_error", err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return "internal_error", err
@@ -299,7 +332,41 @@ func (s *Service) MintSUP(ctx context.Context, to string, amountUnits uint64, me
 }
 
 // BurnSUPForService debits SUP for in-ecosystem utility (audit discount, etc.).
+// Unsigned burns are limited to the primary node wallet — client payer_wallet cannot burn others' SUP (C11).
 func (s *Service) BurnSUPForService(ctx context.Context, from string, amountUnits uint64, memo string) (string, error) {
+	if amountUnits == 0 {
+		return "invalid_amount", errors.New("amount_units must be > 0")
+	}
+	from = strings.TrimSpace(from)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var walletAddr string
+	if err := s.db.QueryRowContext(ctx, `SELECT address FROM wallet WHERE id=1`).Scan(&walletAddr); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "wallet_missing", errors.New("chain: primary wallet missing")
+		}
+		return "internal_error", err
+	}
+	walletAddr = strings.TrimSpace(walletAddr)
+	if from == "" {
+		from = walletAddr
+	}
+	if !strings.HasPrefix(from, "HMC-") {
+		return "invalid_address", errors.New("invalid address")
+	}
+	if from != walletAddr {
+		return "owner_required", errors.New("chain: unsigned SUP burn only allowed for primary wallet; use BurnSUPWithOwnerProof")
+	}
+	return s.burnSUPTx(ctx, from, amountUnits, memo)
+}
+
+// BurnSUPCanonicalMessage is the ed25519 payload for BurnSUPWithOwnerProof.
+func BurnSUPCanonicalMessage(from string, amountUnits uint64, memo string) []byte {
+	return []byte(fmt.Sprintf("burn_sup_v1|%s|%d|%s", strings.TrimSpace(from), amountUnits, strings.TrimSpace(memo)))
+}
+
+// BurnSUPWithOwnerProof burns SUP after verifying ed25519 ownership of `from`.
+func (s *Service) BurnSUPWithOwnerProof(ctx context.Context, from string, amountUnits uint64, memo, pubKeyHex, sigHex string) (string, error) {
 	if amountUnits == 0 {
 		return "invalid_amount", errors.New("amount_units must be > 0")
 	}
@@ -307,8 +374,27 @@ func (s *Service) BurnSUPForService(ctx context.Context, from string, amountUnit
 	if !strings.HasPrefix(from, "HMC-") {
 		return "invalid_address", errors.New("invalid address")
 	}
+	pub, err := hex.DecodeString(strings.TrimSpace(pubKeyHex))
+	if err != nil || len(pub) != ed25519.PublicKeySize {
+		return "invalid_signature", errors.New("invalid pubkey")
+	}
+	sig, err := hex.DecodeString(strings.TrimSpace(sigHex))
+	if err != nil || len(sig) != ed25519.SignatureSize {
+		return "invalid_signature", errors.New("invalid signature")
+	}
+	derived, err := addressFromPubKeyHex(pubKeyHex)
+	if err != nil || derived != from {
+		return "address_pubkey_mismatch", errors.New("from does not match pubkey")
+	}
+	if !ed25519.Verify(ed25519.PublicKey(pub), BurnSUPCanonicalMessage(from, amountUnits, memo), sig) {
+		return "invalid_signature", errors.New("signature verify failed")
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.burnSUPTx(ctx, from, amountUnits, memo)
+}
+
+func (s *Service) burnSUPTx(ctx context.Context, from string, amountUnits uint64, memo string) (string, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return "internal_error", err

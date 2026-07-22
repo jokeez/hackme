@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -675,10 +676,8 @@ func (s *Service) AppendPoHBlock(ctx context.Context, minerAddress string, nonce
 			if creditUnits > escrowUnits {
 				return nil, fmt.Errorf("chain: order escrow depleted (%d < %d)", escrowUnits, creditUnits)
 			}
-			if _, err := tx.ExecContext(ctx,
-				`INSERT INTO accounts (address, balance_units, next_nonce, updated_at) VALUES (?, ?, 0, strftime('%s','now'))
-				 ON CONFLICT(address) DO UPDATE SET balance_units=accounts.balance_units + excluded.balance_units, updated_at=excluded.updated_at`,
-				minerAddress, creditUnits); err != nil {
+			// Dual-ledger: creditUnits updates accounts and primary wallet when miner is the node wallet.
+			if err := s.creditUnits(ctx, tx, minerAddress, creditUnits); err != nil {
 				return nil, err
 			}
 			if err := s.upsertMetaUint(ctx, tx, metaOrderEscrowUnits, escrowUnits-creditUnits); err != nil {
@@ -866,7 +865,25 @@ func (s *Service) checkEconomicInvariants(ctx context.Context, q queryRowContext
 	if escrowUnits < neededUnits {
 		return fmt.Errorf("%w: order escrow underflow (%d < %d)", ErrEconomicInvariant, escrowUnits, neededUnits)
 	}
+	// Optional strict dual-ledger: primary wallet row must match accounts[wallet].
+	// Off by default so historically drifted nodes are not bricked mid-flight.
+	if strictDualLedgerFromEnv() {
+		var walletAddr string
+		var walletUnits, accountUnits uint64
+		err := q.QueryRowContext(ctx, `SELECT address, balance_units FROM wallet WHERE id = 1`).Scan(&walletAddr, &walletUnits)
+		if err == nil {
+			err2 := q.QueryRowContext(ctx, `SELECT balance_units FROM accounts WHERE address = ?`, walletAddr).Scan(&accountUnits)
+			if err2 == nil && walletUnits != accountUnits {
+				return fmt.Errorf("%w: primary wallet/accounts drift (%d != %d)", ErrEconomicInvariant, walletUnits, accountUnits)
+			}
+		}
+	}
 	return nil
+}
+
+func strictDualLedgerFromEnv() bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_ECON_STRICT_DUAL_LEDGER")))
+	return v == "1" || v == "true" || v == "yes" || v == "on"
 }
 
 func (s *Service) openOrderLiabilityUnits(ctx context.Context, q queryRowContext) (uint64, error) {

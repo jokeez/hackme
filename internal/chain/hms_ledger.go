@@ -279,12 +279,16 @@ func (s *Service) HmsAddressState(ctx context.Context, address string) (HmsAddre
 	}, nil
 }
 
+const metaHMSMintIdemPrefix = "mint_idem:hms:"
+
 // MintHMS credits HMS from emission cap (coordinator settlement / admin).
+// Non-empty memo enables idempotency: retries with the same (to, amount, memo) are no-ops.
 func (s *Service) MintHMS(ctx context.Context, to string, amountUnits uint64, memo string) (string, error) {
 	if amountUnits == 0 {
 		return "invalid_amount", errors.New("amount_units must be > 0")
 	}
 	to = strings.TrimSpace(to)
+	memo = strings.TrimSpace(memo)
 	if !strings.HasPrefix(to, "HMC-") {
 		return "invalid_address", errors.New("invalid address")
 	}
@@ -299,6 +303,27 @@ func (s *Service) MintHMS(ctx context.Context, to string, amountUnits uint64, me
 		return "internal_error", err
 	}
 	defer func() { _ = tx.Rollback() }()
+	idemKey := mintIdempotencyMetaKey(metaHMSMintIdemPrefix, to, amountUnits, memo)
+	txHash := fmt.Sprintf("mint-hms-%d-%s", time.Now().UnixNano(), to)
+	if idemKey != "" {
+		txHash = "hms-" + idemKey // UNIQUE(tx_hash) closes concurrent double-mint races
+		var existing string
+		err := tx.QueryRowContext(ctx, `SELECT tx_hash FROM hms_tx_history WHERE tx_hash=?`, txHash).Scan(&existing)
+		if err == nil {
+			return "", nil // idempotent replay
+		}
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return "internal_error", err
+		}
+		var prev string
+		err = tx.QueryRowContext(ctx, `SELECT value FROM meta WHERE key=?`, idemKey).Scan(&prev)
+		if err == nil && strings.TrimSpace(prev) != "" {
+			return "", nil // idempotent replay
+		}
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return "internal_error", err
+		}
+	}
 	maxU, err := s.hmsMaxSupplyUnits(ctx, tx)
 	if err != nil {
 		return "internal_error", err
@@ -320,13 +345,21 @@ func (s *Service) MintHMS(ctx context.Context, to string, amountUnits uint64, me
 	if err := s.upsertMetaUint(ctx, tx, metaHMSTotalMintedUnits, mintedU+amountUnits); err != nil {
 		return "internal_error", err
 	}
-	mintRow := map[string]any{"op": "mint_hms", "to": to, "amount_units": amountUnits, "memo": strings.TrimSpace(memo), "ts": time.Now().Unix()}
+	mintRow := map[string]any{"op": "mint_hms", "to": to, "amount_units": amountUnits, "memo": memo, "ts": time.Now().Unix()}
 	raw, _ := json.Marshal(mintRow)
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO hms_tx_history (tx_hash, tx_json, from_address, to_address, nonce, fee_units, amount_units, status, block_index, block_hash, applied_at, reject_code)
 		 VALUES (?, ?, '', ?, 0, 0, ?, 'included', 0, 'mint', ?, '')`,
-		fmt.Sprintf("mint-hms-%d-%s", time.Now().UnixNano(), to), string(raw), to, amountUnits, time.Now().Unix()); err != nil {
+		txHash, string(raw), to, amountUnits, time.Now().Unix()); err != nil {
+		if idemKey != "" && strings.Contains(strings.ToLower(err.Error()), "unique") {
+			return "", nil // concurrent idempotent winner
+		}
 		return "internal_error", err
+	}
+	if idemKey != "" {
+		if err := s.upsertMeta(ctx, tx, idemKey, string(raw)); err != nil {
+			return "internal_error", err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return "internal_error", err
