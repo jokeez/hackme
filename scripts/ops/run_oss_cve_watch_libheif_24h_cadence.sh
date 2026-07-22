@@ -217,11 +217,20 @@ run_day_until() {
       continue
     fi
 
-    log "start/resume day $day remaining=${remaining}s (~$((remaining/3600))h)"
+    # Skip micro-windows that only create empty session dirs.
+    if [[ "$remaining" -lt 120 ]]; then
+      log "remaining=${remaining}s too short to start fuzzer — wait deadline"
+      sleep "$remaining"
+      break
+    fi
+
+    log "start/resume day $day remaining=${remaining}s (~$((remaining/3600))h) rss=${RSS_LIMIT_MB:-2048}MB"
+    local started_at
+    started_at="$(date +%s)"
     (
       set +e
       DAY="$day" TARGET="$TARGET" MAX_TIME="$remaining" SKIP_REBUILD="$SKIP_REBUILD" \
-        SKIP_PUBLISH=1 STAMP="$stamp" \
+        SKIP_PUBLISH=1 STAMP="$stamp" RSS_LIMIT_MB="${RSS_LIMIT_MB:-2048}" \
         bash "$ROOT/scripts/ops/run_oss_cve_watch_libheif_libfuzzer_day.sh" >>"$LOG" 2>&1
     ) &
     local wrap_pid=$!
@@ -250,6 +259,12 @@ run_day_until() {
       cp "$sess/ROLLUP.json" "$out/ROLLUP.json"
       cp "$sess/SESSION.json" "$out/SESSION.json" 2>/dev/null || true
       break
+    fi
+    local lived=$(( $(date +%s) - started_at ))
+    # Fast-fail backoff: avoid empty-session retry storms (was every ~45s).
+    if [[ "$lived" -lt 90 ]]; then
+      log "WARN day $day session died in ${lived}s — backoff 300s before retry"
+      sleep 300
     fi
     stamp="$(date -u +%Y%m%dT%H%M%SZ)-d$(printf '%02d' "$day")-r$(date +%s)"
     out="$WATCH_DIR/day$(printf '%02d' "$day")-libfuzzer-$stamp"

@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-07-08-miningpoolstats-closed-summer-focus",
+      "date": "2026-07-08",
+      "title": "MiningPoolStats hosted service closed · summer focus: CVE Watch + miners",
+      "summary": "miningpoolstats.app shut down its public dashboard (project open-sourced). We removed dead MPS links from hackme.tech. Summer plan: finish OSS CVE Watch cadence, bounty hunts, grow the official pool — CEX outreach moves to Q4+ when traction justifies listing fees.",
+      "impact": "No broken outbound links on contacts/roadmap. Miners should use hackme.tech pool stats API and downloads — not third-party aggregators.",
+      "action": "Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats · Research: https://hackme.tech/research.html · Downloads: https://hackme.tech/downloads.html",
+      "tags": [
+        "pool",
+        "ops",
+        "research",
+        "roadmap"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-01-b2b-fuzz-final",
       "date": "2026-07-01",
       "title": "B2B Fuzz Final — one command from WASM guard to CI gate",
@@ -241,21 +256,6 @@
         "infrastructure",
         "wallet",
         "mining"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-06-08-rc11m-wallet-treasury",
-      "date": "2026-06-08",
-      "title": "Release 0.1.0-rc11m — wallet treasury & canonical balance fix",
-      "summary": "Desktop wallet now shows your real on-chain HMC and SUP from hackme.tech (not stale local SQLite). Three-column treasury: on-chain · pool accrual · orders debit. Instant UI cache + background canonical sync. VPS node recovery when /api/address was timing out.",
-      "impact": "Miners with ~400 HMC on-chain were seeing ~15 HMC when the hub node hung — fixed. Refresh Wallet or reopen #wallet after update.",
-      "action": "Downloads: https://hackme.tech/downloads.html · Local dashboard: http://127.0.0.1:8080/#wallet · Explorer: https://hackme.tech/explorer-lite.html",
-      "tags": [
-        "release",
-        "wallet",
-        "mining",
-        "infrastructure"
       ],
       "status": "published"
     }

@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-05-22-hackme-os-iso-published",
+      "date": "2026-05-22",
+      "title": "HackMe OS ISO published (956 MB) · SHA256 verified · pool ~2.4 GH/s",
+      "summary": "Bootable HackMe-OS-0.1.0-rc11g-amd64.iso built and verified: Zero-Knowledge Start, production pool token embedded, minersign + workerpoh in image. Full test sweep + chaos guard PASS. ISO SHA256: 1b7bd70e381bb0d5aee82135fe01963d27d2af43ebfba95e02dec22aabe17658. Deploy to hackme.tech/dist with scripts/ops/deploy_release_rc11g_iso.sh.",
+      "impact": "Miners can flash Etcher USB and join the public pool with no wallet setup; operators publish ISO via VPS rsync.",
+      "action": "Verify: sha256sum -c SHA256SUMS-iso.txt · Flash ISO · Pool stats: https://hackme.tech/pool/coordinator/api/work/stats",
+      "tags": [
+        "release",
+        "mining",
+        "hackme-os",
+        "infrastructure",
+        "security"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-22-zero-knowledge-start-downloads",
       "date": "2026-05-22",
       "title": "Zero-Knowledge Start · HackMe OS on downloads · Windows worker watchdog",
@@ -247,21 +263,6 @@
         "ops"
       ],
       "status": "published"
-    },
-    {
-      "id": "2026-05-07-desktop-mode-launchers-and-first-run-wizard",
-      "date": "2026-05-07",
-      "title": "Desktop Mode: Linux Launcher + Windows Scripts + First-Run Wizard",
-      "summary": "Shipped app-like desktop operations: Linux .desktop launcher installer, Windows start/stop/status scripts, and a built-in dashboard first-run wizard for token generation and Solo/Worker quick start.",
-      "impact": "New miners can start with fewer manual steps: local node startup, admin token bootstrap, and worker-mode onboarding are now guided in one flow.",
-      "action": "Linux: run scripts/ops/install_linux_desktop_launcher.sh then desktop_mode_up.sh. Windows: use start_hackme_desktop_mode.bat and verify /api/status via status_hackme_desktop_mode.bat.",
-      "tags": [
-        "desktop",
-        "ux",
-        "release",
-        "ops"
-      ],
-      "status": "deployed"
     }
   ],
   "chunk": 3

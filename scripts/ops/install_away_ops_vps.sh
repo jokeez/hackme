@@ -30,6 +30,7 @@ Environment=END_DAY=14
 Environment=DAY_SEC=86400
 Environment=ANCHOR_EPOCH=$ANCHOR_EPOCH
 Environment=SKIP_REBUILD=1
+Environment=RSS_LIMIT_MB=2048
 Environment=GIT_PUSH=1
 Environment=NODE_SSH=
 ExecStart=/usr/bin/bash $ROOT/scripts/ops/run_oss_cve_watch_libheif_24h_cadence.sh

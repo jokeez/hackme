@@ -10,7 +10,8 @@
 #   MAX_TIME=28800     — seconds (default 8h)
 #   CORPUS_ROOT=       — default reports/oss-cve-libfuzzer/nghttp2
 set -euo pipefail
-export PATH="/home/kapa/.local/bin:$HOME/.cargo/bin:$PATH"
+export HOME="${HOME:-/root}"
+export PATH="/home/kapa/.local/bin:${HOME}/.cargo/bin:${PATH:-/usr/bin:/bin}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
@@ -19,7 +20,8 @@ TARGET="${TARGET:-nghttp2}"
 MAX_TIME="${MAX_TIME:-28800}"
 if [[ "$TARGET" == "libheif" ]]; then
   TIMEOUT="${TIMEOUT:-5}"
-  RSS_MB="${RSS_LIMIT_MB:-4096}"
+  # Hub VPS is ~3.7GiB; 4096 rss_limit causes immediate libFuzzer abort / retry storm.
+  RSS_MB="${RSS_LIMIT_MB:-2048}"
   MAX_LEN="${MAX_LEN:-4194304}"
 else
   TIMEOUT="${TIMEOUT:-3}"

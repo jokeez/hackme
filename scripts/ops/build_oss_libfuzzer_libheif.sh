@@ -18,10 +18,20 @@ STAMP="$OUT_DIR/.libheif-${FUZZER}-build.stamp"
 
 log() { echo "[libheif-fuzz-build $(date -u +%H:%M:%S)] $*" >&2; }
 
-if [[ "${SKIP_REBUILD:-0}" == "1" && -x "$OUT" ]]; then
-  log "reuse $OUT"
-  echo "$OUT"
-  exit 0
+if [[ "${SKIP_REBUILD:-0}" == "1" ]]; then
+  for cand in "$OUT" "$BUILD/fuzzing/$FUZZER"; do
+    if [[ -x "$cand" ]]; then
+      mkdir -p "$OUT_DIR"
+      if [[ "$cand" != "$OUT" ]]; then
+        cp -f "$cand" "$OUT"
+        chmod +x "$OUT"
+      fi
+      log "reuse $OUT"
+      echo "$OUT"
+      exit 0
+    fi
+  done
+  log "SKIP_REBUILD=1 but no cached binary — will build"
 fi
 
 command -v clang >/dev/null || { log "need clang"; exit 1; }

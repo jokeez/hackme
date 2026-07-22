@@ -16,7 +16,7 @@ log() { echo "[libfuzzer-build $(date -u +%H:%M:%S)] $*" >&2; }
 if [[ "$TARGET" == "libheif" ]]; then
   FUZZER="${LIBHEIF_FUZZER:-file_fuzzer}" \
     bash "$ROOT/scripts/ops/build_oss_libfuzzer_libheif.sh"
-  exit 0
+  exit $?
 fi
 
 # Reuse cached ASAN binary without requiring clang on PATH (systemd/cron autopublish).
