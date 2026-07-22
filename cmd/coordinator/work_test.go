@@ -8,6 +8,7 @@ import (
 	"math"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -675,6 +676,63 @@ func TestWorkManagerSharedMinerKeyDifferentWorkers(t *testing.T) {
 	}
 }
 
+func TestWorkManagerPayoutAddressLocked(t *testing.T) {
+	pub1, priv1, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pub2, priv2, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wm := &workManager{
+		defaultBatch:           1000,
+		targetMod:              1000000,
+		leaseSec:               30,
+		maxWorkers:             1000,
+		maxActiveLeases:        1000,
+		maxDedupEntries:        1000,
+		hybridSignerEnabled:    true,
+		active:                 make(map[workKey]leaseRecord),
+		worker:                 make(map[string]workerPayoutStat),
+		acceptedResultHashes:   make(map[string]struct{}),
+		acceptedFoundNonces:    make(map[uint64]struct{}),
+		acceptedSubmitNonces:   make(map[string]struct{}),
+		acceptedSignedPayloads: make(map[string]struct{}),
+		signedSubmitNonceMax:   make(map[string]uint64),
+	}
+	base, size, _, _, _, ok, _ := wm.claim("rig-lock", 1000)
+	if !ok {
+		t.Fatal("claim failed")
+	}
+	req1 := submitWorkRequest{
+		WorkerID: "rig-lock", BaseNonce: base, BatchSize: size,
+		WorkID: buildWorkID("rig-lock", base, size), SubmitNonce: 1,
+		MinerPubKey: hex.EncodeToString(pub1), MinerAddress: signerAddr(pub1), MinerSigAlg: "ed25519",
+	}
+	req1.MinerSig = hex.EncodeToString(ed25519.Sign(priv1, canonicalSubmitBytes(req1)))
+	if _, reason, _, _, _ := wm.submit(req1); reason != "" {
+		t.Fatalf("first signed submit: %q", reason)
+	}
+	if got := wm.worker["rig-lock"].PayoutAddress; !strings.EqualFold(got, signerAddr(pub1)) {
+		t.Fatalf("locked payout=%q want %q", got, signerAddr(pub1))
+	}
+	base2, size2, _, _, _, ok2, _ := wm.claim("rig-lock", 1000)
+	if !ok2 {
+		t.Fatal("second claim failed")
+	}
+	req2 := submitWorkRequest{
+		WorkerID: "rig-lock", BaseNonce: base2, BatchSize: size2,
+		WorkID: buildWorkID("rig-lock", base2, size2), SubmitNonce: 2,
+		MinerPubKey: hex.EncodeToString(pub2), MinerAddress: signerAddr(pub2), MinerSigAlg: "ed25519",
+	}
+	req2.MinerSig = hex.EncodeToString(ed25519.Sign(priv2, canonicalSubmitBytes(req2)))
+	_, reason, _, _, _ := wm.submit(req2)
+	if reason != "payout_address_locked" {
+		t.Fatalf("want payout_address_locked, got %q", reason)
+	}
+}
+
 func TestWorkManagerHybridStrictRequiresSignature(t *testing.T) {
 	wm := &workManager{
 		defaultBatch:           1000,
@@ -1178,5 +1236,81 @@ func TestPublicStatsRedactsClientIP(t *testing.T) {
 	workers, _ = priv["workers"].(map[string]workerPayoutStat)
 	if workers["rig-1"].LastClientIP != "203.0.113.9" {
 		t.Fatalf("details=1 should keep last_client_ip for admin: %+v", workers["rig-1"])
+	}
+}
+
+func TestPayoutAddressLockedAfterFirstSignedSubmit(t *testing.T) {
+	pub1, priv1, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pub2, priv2, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wm := &workManager{
+		defaultBatch:           1000,
+		targetMod:              1_000_000,
+		leaseSec:               30,
+		maxWorkers:             1000,
+		maxActiveLeases:        1000,
+		maxDedupEntries:        1000,
+		hybridSignerEnabled:    true,
+		hybridSignerStrict:     true,
+		hybridRequireFoundSig:  true,
+		active:                 make(map[workKey]leaseRecord),
+		worker:                 make(map[string]workerPayoutStat),
+		acceptedResultHashes:   make(map[string]struct{}),
+		acceptedFoundNonces:    make(map[uint64]struct{}),
+		acceptedSubmitNonces:   make(map[string]struct{}),
+		acceptedSignedPayloads: make(map[string]struct{}),
+		signedSubmitNonceMax:   make(map[string]uint64),
+	}
+	base, size, _, _, _, okClaim, _ := wm.claim("w-lock", 1000)
+	if !okClaim {
+		t.Fatal("claim failed")
+	}
+	req1 := submitWorkRequest{
+		WorkerID: "w-lock", BaseNonce: base, BatchSize: size, WorkID: buildWorkID("w-lock", base, size),
+		Attempts: size, MinerPubKey: hex.EncodeToString(pub1), MinerAddress: signerAddr(pub1), SubmitNonce: 1,
+	}
+	req1.MinerSig = hex.EncodeToString(ed25519.Sign(priv1, canonicalSubmitBytes(req1)))
+	_, reason, _, _, _ := wm.submit(req1)
+	if reason != "" {
+		t.Fatalf("first signed submit: reason=%q", reason)
+	}
+	base2, size2, _, _, _, okClaim, _ := wm.claim("w-lock", 1000)
+	if !okClaim {
+		t.Fatal("second claim failed")
+	}
+	req2 := submitWorkRequest{
+		WorkerID: "w-lock", BaseNonce: base2, BatchSize: size2, WorkID: buildWorkID("w-lock", base2, size2),
+		Attempts: size2, MinerPubKey: hex.EncodeToString(pub2), MinerAddress: signerAddr(pub2), SubmitNonce: 2,
+	}
+	req2.MinerSig = hex.EncodeToString(ed25519.Sign(priv2, canonicalSubmitBytes(req2)))
+	_, reason, _, _, _ = wm.submit(req2)
+	if reason != "payout_address_locked" {
+		t.Fatalf("want payout_address_locked, got reason=%q", reason)
+	}
+}
+
+func TestClaimMinerIdentityLocked(t *testing.T) {
+	pub, _, _ := ed25519.GenerateKey(nil)
+	wm := &workManager{
+		hybridSignerEnabled: true,
+		claimRequirePubKey:  true,
+		worker: map[string]workerPayoutStat{
+			"w1": {PayoutAddress: signerAddr(pub)},
+		},
+	}
+	if ok, reason := wm.checkClaimMinerIdentity("w1", "", ""); ok || reason != "claim_pubkey_required" {
+		t.Fatalf("require pubkey: ok=%v reason=%q", ok, reason)
+	}
+	pub2, _, _ := ed25519.GenerateKey(nil)
+	if ok, reason := wm.checkClaimMinerIdentity("w1", hex.EncodeToString(pub2), ""); ok || reason != "payout_address_locked" {
+		t.Fatalf("locked mismatch: ok=%v reason=%q", ok, reason)
+	}
+	if ok, reason := wm.checkClaimMinerIdentity("w1", hex.EncodeToString(pub), ""); !ok {
+		t.Fatalf("matching pubkey should pass: %s", reason)
 	}
 }

@@ -34,22 +34,23 @@ func (s *Service) ReplayCampaignSettles(ctx context.Context, campaignID string) 
 		fallbackMiner = resolveWorkerPayoutAddress("")
 	}
 	rows, err := s.DB.QueryContext(ctx,
-		`SELECT COALESCE(NULLIF(miner_address,''), ?) FROM fuzz_work_items
+		`SELECT id, COALESCE(NULLIF(miner_address,''), ?) FROM fuzz_work_items
 		 WHERE campaign_id=? AND status='done' ORDER BY id ASC`, fallbackMiner, campaignID)
 	if err != nil {
 		return 0, 0, 0, err
 	}
 	defer rows.Close()
 	for rows.Next() {
+		var itemID int64
 		var miner string
-		if err := rows.Scan(&miner); err != nil {
+		if err := rows.Scan(&itemID, &miner); err != nil {
 			return runs, findings, finalize, err
 		}
 		miner = strings.TrimSpace(miner)
 		if miner == "" {
 			continue
 		}
-		if _, err := s.EnqueueSettleOutbox(ctx, "run", campaignID, miner, ""); err != nil {
+		if _, err := s.EnqueueSettleOutbox(ctx, "run", campaignID, miner, "", itemID); err != nil {
 			return runs, findings, finalize, err
 		}
 		runs++
@@ -88,13 +89,13 @@ func (s *Service) ReplayCampaignSettles(ctx context.Context, campaignID string) 
 		if miner == "" {
 			continue
 		}
-		if _, err := s.EnqueueSettleOutbox(ctx, "finding", campaignID, miner, sev); err != nil {
+		if _, err := s.EnqueueSettleOutbox(ctx, "finding", campaignID, miner, sev, 0); err != nil {
 			return runs, findings, finalize, err
 		}
 		findings++
 		break // bounty pool pays first qualifying finder only
 	}
-	if _, err := s.EnqueueSettleOutbox(ctx, "finalize", campaignID, "", ""); err != nil {
+	if _, err := s.EnqueueSettleOutbox(ctx, "finalize", campaignID, "", "", 0); err != nil {
 		return runs, findings, finalize, err
 	}
 	finalize = 1

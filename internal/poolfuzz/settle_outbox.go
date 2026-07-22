@@ -15,16 +15,38 @@ type SettleOutboxItem struct {
 	Kind         string `json:"kind"`
 	MinerAddress string `json:"miner_address"`
 	Severity     string `json:"severity"`
+	WorkItemID   int64  `json:"work_item_id,omitempty"`
 	CreatedAt    int64  `json:"created_at"`
+}
+
+// ensureSettleOutboxSchema adds work_item_id + UNIQUE so concurrent enqueues cannot
+// double-insert and distinct work items cannot collapse into one underpaid event_id.
+func ensureSettleOutboxSchema(db *sql.DB) {
+	if db == nil {
+		return
+	}
+	_, _ = db.Exec(`ALTER TABLE fuzz_settle_outbox ADD COLUMN work_item_id INTEGER NOT NULL DEFAULT 0`)
+	// Collapse legacy duplicates (same logical key) before UNIQUE.
+	_, _ = db.Exec(`
+		DELETE FROM fuzz_settle_outbox
+		 WHERE id NOT IN (
+		   SELECT MIN(id) FROM fuzz_settle_outbox
+		    GROUP BY campaign_id, kind, miner_address, severity, COALESCE(work_item_id,0)
+		 )`)
+	_, _ = db.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_fuzz_settle_outbox_uq
+		 ON fuzz_settle_outbox(campaign_id, kind, miner_address, severity, work_item_id)`)
 }
 
 // EnqueueSettleOutbox records a settlement for durable event-id based apply/pull.
 // Returns the outbox row id used as SettleEventID / chain.FuzzSettleEventID.
-// Replay-safe: same (campaign_id, kind, miner_address, severity) returns the existing row id.
-func (s *Service) EnqueueSettleOutbox(ctx context.Context, kind, campaignID, minerAddress, severity string) (int64, error) {
+// Replay-safe: same (campaign_id, kind, miner_address, severity, work_item_id) returns the existing row id.
+// workItemID distinguishes per-run pays (FUZZ-01); use 0 for campaign-level finding/finalize.
+func (s *Service) EnqueueSettleOutbox(ctx context.Context, kind, campaignID, minerAddress, severity string, workItemID int64) (int64, error) {
 	if s == nil || s.DB == nil {
 		return 0, fmt.Errorf("poolfuzz: no database")
 	}
+	ensureSettleOutboxSchema(s.DB)
 	kind = strings.TrimSpace(strings.ToLower(kind))
 	campaignID = strings.TrimSpace(campaignID)
 	if campaignID == "" || kind == "" {
@@ -32,30 +54,70 @@ func (s *Service) EnqueueSettleOutbox(ctx context.Context, kind, campaignID, min
 	}
 	minerAddress = strings.TrimSpace(minerAddress)
 	severity = strings.TrimSpace(severity)
+	if workItemID < 0 {
+		workItemID = 0
+	}
+
+	// Prefer an immediate write lock so check-then-insert cannot race under load.
+	conn, err := s.DB.Conn(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer conn.Close()
+	if _, err := conn.ExecContext(ctx, `BEGIN IMMEDIATE`); err != nil {
+		return 0, err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_, _ = conn.ExecContext(ctx, `ROLLBACK`)
+		}
+	}()
+
 	var existing int64
-	err := s.DB.QueryRowContext(ctx,
+	err = conn.QueryRowContext(ctx,
 		`SELECT id FROM fuzz_settle_outbox
-		 WHERE campaign_id=? AND kind=? AND miner_address=? AND severity=?
+		 WHERE campaign_id=? AND kind=? AND miner_address=? AND severity=? AND work_item_id=?
 		 ORDER BY id ASC LIMIT 1`,
-		campaignID, kind, minerAddress, severity).Scan(&existing)
+		campaignID, kind, minerAddress, severity, workItemID).Scan(&existing)
 	if err == nil && existing > 0 {
+		if _, err := conn.ExecContext(ctx, `COMMIT`); err != nil {
+			return 0, err
+		}
+		committed = true
 		return existing, nil
 	}
 	if err != nil && err != sql.ErrNoRows {
 		return 0, err
 	}
 	now := time.Now().Unix()
-	res, err := s.DB.ExecContext(ctx,
-		`INSERT INTO fuzz_settle_outbox (campaign_id, kind, miner_address, severity, status, created_at)
-		 VALUES (?, ?, ?, ?, 'pending', ?)`,
-		campaignID, kind, minerAddress, severity, now)
+	res, err := conn.ExecContext(ctx,
+		`INSERT INTO fuzz_settle_outbox (campaign_id, kind, miner_address, severity, status, created_at, work_item_id)
+		 VALUES (?, ?, ?, ?, 'pending', ?, ?)`,
+		campaignID, kind, minerAddress, severity, now, workItemID)
 	if err != nil {
+		// UNIQUE race: another writer won — return their row.
+		var raced int64
+		if qerr := conn.QueryRowContext(ctx,
+			`SELECT id FROM fuzz_settle_outbox
+			 WHERE campaign_id=? AND kind=? AND miner_address=? AND severity=? AND work_item_id=?
+			 ORDER BY id ASC LIMIT 1`,
+			campaignID, kind, minerAddress, severity, workItemID).Scan(&raced); qerr == nil && raced > 0 {
+			if _, cerr := conn.ExecContext(ctx, `COMMIT`); cerr == nil {
+				committed = true
+			}
+			return raced, nil
+		}
 		return 0, err
 	}
 	id, err := res.LastInsertId()
 	if err != nil {
 		return 0, err
 	}
+	if _, err := conn.ExecContext(ctx, `COMMIT`); err != nil {
+		return 0, err
+	}
+	committed = true
 	return id, nil
 }
 
@@ -64,11 +126,12 @@ func (s *Service) ListPendingSettleOutbox(ctx context.Context, limit int) ([]Set
 	if s == nil || s.DB == nil {
 		return nil, fmt.Errorf("poolfuzz: no database")
 	}
+	ensureSettleOutboxSchema(s.DB)
 	if limit <= 0 || limit > 500 {
 		limit = 64
 	}
 	rows, err := s.DB.QueryContext(ctx,
-		`SELECT id, campaign_id, kind, miner_address, severity, created_at
+		`SELECT id, campaign_id, kind, miner_address, severity, created_at, COALESCE(work_item_id,0)
 		 FROM fuzz_settle_outbox
 		 WHERE status='pending'
 		 ORDER BY id ASC
@@ -80,7 +143,7 @@ func (s *Service) ListPendingSettleOutbox(ctx context.Context, limit int) ([]Set
 	out := make([]SettleOutboxItem, 0, limit)
 	for rows.Next() {
 		var it SettleOutboxItem
-		if err := rows.Scan(&it.ID, &it.CampaignID, &it.Kind, &it.MinerAddress, &it.Severity, &it.CreatedAt); err != nil {
+		if err := rows.Scan(&it.ID, &it.CampaignID, &it.Kind, &it.MinerAddress, &it.Severity, &it.CreatedAt, &it.WorkItemID); err != nil {
 			return nil, err
 		}
 		out = append(out, it)

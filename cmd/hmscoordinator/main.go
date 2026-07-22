@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -34,9 +33,6 @@ func main() {
 	defer cancel()
 	go coord.RunEpochLoop(ctx)
 	go coord.RunHealthLoop(ctx)
-	if os.Getenv("HMS_STRATUM_ENABLE") == "1" {
-		go hms.RunStratumBridge(coord, os.Getenv("HMS_STRATUM_ADDR"))
-	}
 
 	addr := strings.TrimSpace(os.Getenv("HMS_COORDINATOR_ADDR"))
 	if addr == "" {
@@ -54,6 +50,11 @@ func main() {
 	}
 	if loopback && admin == "" && worker == "" && !allowInsecure {
 		log.Printf("security warning: HMS loopback with empty tokens — set HMS_COORDINATOR_ALLOW_INSECURE=1 to acknowledge, or set admin/worker tokens")
+	}
+
+	if os.Getenv("HMS_STRATUM_ENABLE") == "1" {
+		mustAllowStratumOrFatal(os.Getenv("HMS_STRATUM_ADDR"), addr)
+		go hms.RunStratumBridge(coord, os.Getenv("HMS_STRATUM_ADDR"))
 	}
 
 	mux := http.NewServeMux()
@@ -78,13 +79,4 @@ func main() {
 func envTruthy(key string) bool {
 	v := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
 	return v == "1" || v == "true" || v == "yes" || v == "on"
-}
-
-func hmsBindLoopbackOnly(addr string) bool {
-	host := strings.TrimSpace(addr)
-	if h, _, err := net.SplitHostPort(addr); err == nil {
-		host = strings.TrimSpace(h)
-	}
-	host = strings.Trim(strings.ToLower(host), "[]")
-	return host == "127.0.0.1" || host == "localhost" || host == "::1"
 }

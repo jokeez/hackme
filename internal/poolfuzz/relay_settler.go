@@ -51,16 +51,16 @@ func (r *RelaySettler) token() string {
 	return strings.TrimSpace(r.AdminToken())
 }
 
-func (r *RelaySettler) PayRun(ctx context.Context, campaignID, minerAddress string, reuseOutboxID int64) (SettleResult, error) {
-	return r.relay(ctx, "run", campaignID, minerAddress, "", reuseOutboxID)
+func (r *RelaySettler) PayRun(ctx context.Context, campaignID, minerAddress string, workItemID, reuseOutboxID int64) (SettleResult, error) {
+	return r.relay(ctx, "run", campaignID, minerAddress, "", workItemID, reuseOutboxID)
 }
 
-func (r *RelaySettler) PayFinding(ctx context.Context, campaignID, minerAddress, severity string, reuseOutboxID int64) (SettleResult, error) {
-	return r.relay(ctx, "finding", campaignID, minerAddress, severity, reuseOutboxID)
+func (r *RelaySettler) PayFinding(ctx context.Context, campaignID, minerAddress, severity string, workItemID, reuseOutboxID int64) (SettleResult, error) {
+	return r.relay(ctx, "finding", campaignID, minerAddress, severity, workItemID, reuseOutboxID)
 }
 
 func (r *RelaySettler) Finalize(ctx context.Context, campaignID string, reuseOutboxID int64) (SettleResult, error) {
-	return r.relay(ctx, "finalize", campaignID, "", "", reuseOutboxID)
+	return r.relay(ctx, "finalize", campaignID, "", "", 0, reuseOutboxID)
 }
 
 // SettleEventID mirrors chain.FuzzSettleEventID for coordinator→origin settle keys.
@@ -68,7 +68,7 @@ func SettleEventID(outboxID int64) string {
 	return fmt.Sprintf("outbox:%d", outboxID)
 }
 
-func (r *RelaySettler) relay(ctx context.Context, kind, campaignID, minerAddress, severity string, reuseOutboxID int64) (SettleResult, error) {
+func (r *RelaySettler) relay(ctx context.Context, kind, campaignID, minerAddress, severity string, workItemID, reuseOutboxID int64) (SettleResult, error) {
 	s := r.svc()
 	if s == nil {
 		return SettleResult{}, fmt.Errorf("poolfuzz: no settle service")
@@ -90,7 +90,7 @@ func (r *RelaySettler) relay(ctx context.Context, kind, campaignID, minerAddress
 		}
 	}
 	if outboxID <= 0 {
-		id, err := s.EnqueueSettleOutbox(ctx, kind, campaignID, minerAddress, severity)
+		id, err := s.EnqueueSettleOutbox(ctx, kind, campaignID, minerAddress, severity, workItemID)
 		if err != nil {
 			return SettleResult{}, err
 		}
@@ -141,6 +141,9 @@ func (r *RelaySettler) resolveSettleBase(ctx context.Context, campaignID string)
 	// Never honor campaign config orders_settle_base — that was an SSRF / admin-token
 	// exfil vector (attacker-controlled campaign URL). Settle only to DefaultOrdersURL.
 	base = strings.TrimRight(strings.TrimSpace(r.DefaultOrdersURL), "/")
+	if !safeSettleBaseURL(base) {
+		base = ""
+	}
 	s := r.svc()
 	if s == nil {
 		return base, isLoopbackSettleURL(base)
@@ -157,6 +160,17 @@ func (r *RelaySettler) resolveSettleBase(ctx context.Context, campaignID string)
 		return base, false
 	}
 	return base, isLoopbackSettleURL(base)
+}
+
+// safeSettleBaseURL rejects non-http(s) and empty schemes so DefaultOrdersURL cannot be
+// turned into file:// / gopher:// style SSRF by misconfiguration.
+func safeSettleBaseURL(u string) bool {
+	u = strings.TrimSpace(u)
+	if u == "" {
+		return false
+	}
+	low := strings.ToLower(u)
+	return strings.HasPrefix(low, "http://") || strings.HasPrefix(low, "https://")
 }
 
 func truthy(v any) bool {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -49,6 +50,8 @@ func adminRequestAuthed(r *http.Request) bool {
 }
 
 // requireAdminAuth returns false and writes HTTP 401 if HACKME_ADMIN_TOKEN is set and the request does not match.
+// When the token is unset this still fail-opens (legacy loopback/dev). Prefer requireAdminAuthStrict
+// for treasury spend, from_code, and security_audit.
 func requireAdminAuth(w http.ResponseWriter, r *http.Request) bool {
 	expected := adminTokenFromEnv()
 	if expected == "" {
@@ -61,6 +64,54 @@ func requireAdminAuth(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	return true
+}
+
+// requireAdminAuthStrict fails closed when HACKME_ADMIN_TOKEN is unset (C3).
+func requireAdminAuthStrict(w http.ResponseWriter, r *http.Request) bool {
+	expected := adminTokenFromEnv()
+	if expected == "" {
+		w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-admin"`)
+		http.Error(w, "admin authentication required (HACKME_ADMIN_TOKEN unset)", http.StatusUnauthorized)
+		return false
+	}
+	got := extractAdminSecret(r)
+	if !secretsEqualConstantTime(got, expected) {
+		w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-admin"`)
+		http.Error(w, "admin authentication required", http.StatusUnauthorized)
+		return false
+	}
+	return true
+}
+
+// desktopMutatingOriginOK rejects cross-site browser POSTs (CSRF-01).
+// Non-browser clients (no Sec-Fetch-Site / Origin) are allowed when already loopback-authed.
+func desktopMutatingOriginOK(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	site := strings.ToLower(strings.TrimSpace(r.Header.Get("Sec-Fetch-Site")))
+	if site == "cross-site" {
+		return false
+	}
+	origin := strings.TrimSpace(r.Header.Get("Origin"))
+	if origin == "" {
+		return true
+	}
+	ou, err := url.Parse(origin)
+	if err != nil || ou == nil {
+		return false
+	}
+	oh := strings.ToLower(strings.TrimSpace(ou.Hostname()))
+	rh := strings.ToLower(strings.TrimSpace(r.Host))
+	if h, _, err := net.SplitHostPort(rh); err == nil {
+		rh = h
+	}
+	rh = strings.Trim(rh, "[]")
+	if oh == "" || rh == "" {
+		return false
+	}
+	return oh == rh || (oh == "localhost" && (rh == "127.0.0.1" || rh == "::1")) ||
+		(rh == "localhost" && (oh == "127.0.0.1" || oh == "::1"))
 }
 
 // coordinatorTokenFromSecrets loads the pool coordinator admin token (not the node HACKME_ADMIN_TOKEN).
@@ -121,14 +172,15 @@ func handleDesktopLocalAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tok := adminTokenFromEnv()
+	// H2: never return the raw token unless explicitly opted in.
 	expose := envBool("HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN", false)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	out := map[string]any{
 		"ok":                     true,
 		"admin_token_configured": tok != "",
-		"hint":                   "token is embedded in dashboard HTML on loopback; /api/desktop/local-auth also returns it for Sync token",
+		"hint":                   "set HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1 to return admin_token on loopback Sync",
 	}
-	if tok != "" && (expose || envBool("HACKME_DESKTOP_MODE", false)) {
+	if tok != "" && expose {
 		out["admin_token"] = tok
 	}
 	_ = json.NewEncoder(w).Encode(out)

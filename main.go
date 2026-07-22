@@ -3043,7 +3043,7 @@ func (a *app) handleTasks(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode(map[string]any{"error": "rate limited", "code": "rate_limited"})
 			return
 		}
-		if !requireDeveloperTasksAuth(w, r) {
+		if !requireAdminAuthStrict(w, r) {
 			return
 		}
 		logAdminAction(r, "tasks_post")
@@ -3102,7 +3102,7 @@ func (a *app) allowLoopbackAdminTxSend(r *http.Request) bool {
 // allowLoopbackDesktopDashboardAuth lets same-origin desktop dashboard POST transfers without
 // repeating the admin header (wallet is already loopback-trusted). Does not skip canonical relay.
 func (a *app) allowLoopbackDesktopDashboardAuth(r *http.Request) bool {
-	return adminAuthEnabled() && envBool("HACKME_DESKTOP_MODE", false) && requestFromLoopback(r)
+	return adminAuthEnabled() && envBool("HACKME_DESKTOP_MODE", false) && requestFromLoopback(r) && desktopMutatingOriginOK(r)
 }
 
 func (a *app) handleTransferSend(w http.ResponseWriter, r *http.Request) {

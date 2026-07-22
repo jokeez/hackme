@@ -72,7 +72,7 @@ func (s *Service) flushDeferredBounties(ctx context.Context) error {
 			}
 			continue
 		}
-		if _, err := s.Settler.PayFinding(ctx, campaignID, miner, severity, 0); err != nil {
+		if _, err := s.Settler.PayFinding(ctx, campaignID, miner, severity, 0, 0); err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "already paid") {
 				continue
 			}

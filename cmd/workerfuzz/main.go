@@ -131,11 +131,15 @@ func loadHybridKey() (ed25519.PrivateKey, string, string, bool) {
 	pub := priv.Public().(ed25519.PublicKey)
 	sum := sha256.Sum256(pub)
 	addr := "HMC-" + hex.EncodeToString(sum[:])[:16]
-	if strings.EqualFold(addr, chain.DevFeeAddress) {
+	if payoutIsTreasury(addr) {
 		fmt.Fprintf(os.Stderr, "workerfuzz: payout address %s is treasury/dev-fee — generate a dedicated worker key (minersign -gen-seed)\n", addr)
 		os.Exit(1)
 	}
 	return priv, hex.EncodeToString(pub), addr, true
+}
+
+func payoutIsTreasury(addr string) bool {
+	return strings.EqualFold(strings.TrimSpace(addr), chain.DevFeeAddress)
 }
 
 func claim(cl *http.Client, base, token, workerID string) (claimResp, error) {

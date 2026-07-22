@@ -365,7 +365,9 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
 		var req struct {
-			WorkerID string `json:"worker_id"`
+			WorkerID    string `json:"worker_id"`
+			MinerPubKey  string `json:"miner_pubkey"`
+			MinerAddress string `json:"miner_address"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid json", http.StatusBadRequest)
@@ -374,6 +376,12 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		workerID := strings.TrimSpace(req.WorkerID)
 		if !validCoordinatorWorkerID(workerID) {
 			http.Error(w, "invalid worker_id", http.StatusBadRequest)
+			return
+		}
+		if okID, reasonID := wm.checkClaimMinerIdentity(workerID, req.MinerPubKey, req.MinerAddress); !okID {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusForbidden)
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": reasonID})
 			return
 		}
 		ipKey := clientIPKey(r)
@@ -464,6 +472,23 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			w.WriteHeader(http.StatusForbidden)
 			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": reason})
 			return
+		}
+		if payoutAddr != "" {
+			wm.mu.Lock()
+			if wm.worker == nil {
+				wm.worker = make(map[string]workerPayoutStat)
+			}
+			st := wm.worker[req.WorkerID]
+			if locked := strings.TrimSpace(st.PayoutAddress); locked != "" && !strings.EqualFold(locked, payoutAddr) {
+				wm.mu.Unlock()
+				w.WriteHeader(http.StatusForbidden)
+				_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": "payout_address_locked"})
+				return
+			}
+			st.PayoutAddress = payoutAddr
+			st.SignedSubmits++
+			wm.worker[req.WorkerID] = st
+			wm.mu.Unlock()
 		}
 		var inputBytes []byte
 		if h := strings.TrimSpace(req.InputBytesHex); h != "" {

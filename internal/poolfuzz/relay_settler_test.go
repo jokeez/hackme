@@ -55,7 +55,7 @@ func TestRelaySettlerEnqueueFirstNoDoubleEnqueueOnTimeout(t *testing.T) {
 		AdminToken:       func() string { return "tok" },
 		HTTPClient:       &http.Client{Timeout: 50 * time.Millisecond},
 	}
-	if _, err := relay.PayRun(ctx, "relay-camp", "HMC-2222222222222222", 0); err != nil {
+	if _, err := relay.PayRun(ctx, "relay-camp", "HMC-2222222222222222", 1, 0); err != nil {
 		t.Fatal(err)
 	}
 	// Timeout leaves exactly one pending outbox row (no second enqueue).
@@ -70,7 +70,7 @@ func TestRelaySettlerEnqueueFirstNoDoubleEnqueueOnTimeout(t *testing.T) {
 		t.Fatal("expected at least one HTTP attempt")
 	}
 	// Retry same outbox id — must not enqueue a second row.
-	if _, err := relay.PayRun(ctx, "relay-camp", "HMC-2222222222222222", items[0].ID); err != nil {
+	if _, err := relay.PayRun(ctx, "relay-camp", "HMC-2222222222222222", 1, items[0].ID); err != nil {
 		t.Fatal(err)
 	}
 	items2, err := svc.ListPendingSettleOutbox(ctx, 10)
@@ -81,7 +81,7 @@ func TestRelaySettlerEnqueueFirstNoDoubleEnqueueOnTimeout(t *testing.T) {
 		t.Fatalf("reuse must keep same outbox id, got %+v want id=%d", items2, items[0].ID)
 	}
 	// Second PayRun for another work item enqueues a second distinct event.
-	if _, err := relay.PayRun(ctx, "relay-camp", "HMC-3333333333333333", 0); err != nil {
+	if _, err := relay.PayRun(ctx, "relay-camp", "HMC-3333333333333333", 2, 0); err != nil {
 		t.Fatal(err)
 	}
 	items, err = svc.ListPendingSettleOutbox(ctx, 10)
@@ -124,7 +124,7 @@ func TestRelaySettlerAckOnHTTPSuccess(t *testing.T) {
 		AdminToken:       func() string { return "tok" },
 		HTTPClient:       &http.Client{Timeout: 5 * time.Second},
 	}
-	res, err := relay.PayRun(ctx, "ok-camp", "HMC-2222222222222222", 0)
+	res, err := relay.PayRun(ctx, "ok-camp", "HMC-2222222222222222", 1, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func TestRelaySettlerQueuedNotAppliedOnPull(t *testing.T) {
 		t.Fatal(err)
 	}
 	relay := &RelaySettler{Service: svc, AdminToken: func() string { return "tok" }}
-	res, err := relay.PayRun(ctx, "pull-camp", "HMC-2222222222222222", 0)
+	res, err := relay.PayRun(ctx, "pull-camp", "HMC-2222222222222222", 1, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,5 +168,13 @@ func TestRelaySettlerQueuedNotAppliedOnPull(t *testing.T) {
 	}
 	if len(items) != 1 {
 		t.Fatalf("pending outbox=%d want 1", len(items))
+	}
+}
+
+func TestRelaySettlerRejectsNonHTTPDefaultOrdersURL(t *testing.T) {
+	relay := &RelaySettler{DefaultOrdersURL: "file:///etc/passwd"}
+	base, _ := relay.resolveSettleBase(context.Background(), "any")
+	if base != "" {
+		t.Fatalf("file:// must be rejected, got base=%q", base)
 	}
 }

@@ -525,7 +525,7 @@ func (s *Service) flushPendingSettles(ctx context.Context, campaignID string, it
 	runSt = strings.TrimSpace(strings.ToLower(runSt))
 	findSt = strings.TrimSpace(strings.ToLower(findSt))
 	if runSt == "pending" || runSt == "queued" {
-		res, err := s.Settler.PayRun(ctx, campaignID, miner, runOutbox)
+		res, err := s.Settler.PayRun(ctx, campaignID, miner, itemID, runOutbox)
 		if err != nil {
 			return fmt.Errorf("poolfuzz: settle run: %w", err)
 		}
@@ -543,7 +543,7 @@ func (s *Service) flushPendingSettles(ctx context.Context, campaignID string, it
 	if findSt == "pending" || findSt == "queued" {
 		sev := strings.TrimSpace(findSev)
 		if bountySeverity(sev) {
-			res, err := s.Settler.PayFinding(ctx, campaignID, miner, sev, findOutbox)
+			res, err := s.Settler.PayFinding(ctx, campaignID, miner, sev, itemID, findOutbox)
 			if err != nil {
 				return fmt.Errorf("poolfuzz: settle finding: %w", err)
 			}

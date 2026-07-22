@@ -18,13 +18,13 @@ type spySettler struct {
 	finalize int
 }
 
-func (s *spySettler) PayRun(context.Context, string, string, int64) (SettleResult, error) {
+func (s *spySettler) PayRun(context.Context, string, string, int64, int64) (SettleResult, error) {
 	s.mu.Lock()
 	s.runs++
 	s.mu.Unlock()
 	return SettleResult{Applied: true}, nil
 }
-func (s *spySettler) PayFinding(context.Context, string, string, string, int64) (SettleResult, error) {
+func (s *spySettler) PayFinding(context.Context, string, string, string, int64, int64) (SettleResult, error) {
 	s.mu.Lock()
 	s.findings++
 	s.mu.Unlock()

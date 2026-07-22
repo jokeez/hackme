@@ -48,12 +48,10 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
 		return
 	}
-	if !requireFuzzCampaignCreateAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
-	if hasValidAdminAuth(r) {
-		logAdminAction(r, "security_audit_create")
-	}
+	logAdminAction(r, "security_audit_create")
 
 	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
 	defer r.Body.Close()
@@ -202,14 +200,21 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	var supDiscountUsed float64
 	escrowBudgetHMC := budgetHMC
 	if useSUP && payerWallet != "" {
-		supSt, err := a.chain.SupAddressState(r.Context(), payerWallet)
-		if err == nil && supSt.BalanceSUP > 0 {
-			cash, supUsed := chain.ApplyAuditSUPDiscount(budgetHMC, supSt.BalanceSUP)
-			if supUsed > 0 {
-				units := chain.SUPToUnits(supUsed)
-				if code, err := a.chain.BurnSUPForService(r.Context(), payerWallet, units, "security_audit:"+campaignID); err == nil && code == "" {
-					escrowBudgetHMC = cash
-					supDiscountUsed = supUsed
+		nodeAddr := ""
+		if addr, _, err := a.chain.Wallet(r.Context()); err == nil {
+			nodeAddr = strings.TrimSpace(addr)
+		}
+		// C11: refuse unsigned burn of a third-party payer_wallet. Only discount the node wallet.
+		if nodeAddr != "" && strings.EqualFold(payerWallet, nodeAddr) {
+			supSt, err := a.chain.SupAddressState(r.Context(), payerWallet)
+			if err == nil && supSt.BalanceSUP > 0 {
+				cash, supUsed := chain.ApplyAuditSUPDiscount(budgetHMC, supSt.BalanceSUP)
+				if supUsed > 0 {
+					units := chain.SUPToUnits(supUsed)
+					if code, err := a.chain.BurnSUPForService(r.Context(), payerWallet, units, "security_audit:"+campaignID); err == nil && code == "" {
+						escrowBudgetHMC = cash
+						supDiscountUsed = supUsed
+					}
 				}
 			}
 		}

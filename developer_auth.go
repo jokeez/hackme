@@ -64,7 +64,8 @@ func tasksListShowsDetails(r *http.Request) bool {
 	return adminRequestAuthed(r) || developerRequestAuthed(r)
 }
 
-// requireFuzzCampaignCreateAuth allows fuzz campaign create with admin or developer token.
+// requireFuzzCampaignCreateAuth is admin-strict: paid escrow / treasury spend must not
+// be opened with a developer/integrator token (C1).
 func requireFuzzCampaignCreateAuth(w http.ResponseWriter, r *http.Request) bool {
-	return requireDeveloperTasksAuth(w, r)
+	return requireAdminAuthStrict(w, r)
 }

@@ -121,6 +121,7 @@ type workManager struct {
 	hybridSignerEnabled   bool
 	hybridSignerStrict    bool
 	hybridRequireFoundSig bool
+	claimRequirePubKey    bool
 }
 
 type workKey struct {
@@ -170,8 +171,10 @@ type workerAbuseState struct {
 }
 
 type claimWorkRequest struct {
-	WorkerID  string `json:"worker_id"`
-	BatchSize uint64 `json:"batch_size,omitempty"`
+	WorkerID     string `json:"worker_id"`
+	BatchSize    uint64 `json:"batch_size,omitempty"`
+	MinerPubKey  string `json:"miner_pubkey_ed25519,omitempty"`
+	MinerAddress  string `json:"miner_address,omitempty"`
 }
 
 type submitWorkRequest struct {
@@ -351,6 +354,11 @@ func newWorkManagerFromEnv() *workManager {
 	if v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_POOL_HYBRID_REQUIRE_FOUND_SIG"))); v != "" {
 		hybridRequireFoundSig = v == "1" || v == "true" || v == "yes" || v == "on"
 	}
+	// Opt-in: require miner_pubkey on claim (CLAIM-01). Default off so existing workerpoh stays online.
+	claimRequirePubKey := false
+	if v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_POOL_CLAIM_REQUIRE_PUBKEY"))); v != "" {
+		claimRequirePubKey = v == "1" || v == "true" || v == "yes" || v == "on"
+	}
 	poolRetarget := true
 	if v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_COORDINATOR_POOL_RETARGET"))); v != "" {
 		poolRetarget = v == "1" || v == "true" || v == "yes" || v == "on"
@@ -398,6 +406,7 @@ func newWorkManagerFromEnv() *workManager {
 		hybridSignerEnabled:      hybridSignerEnabled,
 		hybridSignerStrict:       hybridSignerStrict,
 		hybridRequireFoundSig:    hybridRequireFoundSig,
+		claimRequirePubKey:       claimRequirePubKey,
 		poolRetarget:             poolRetarget,
 		targetModMin:             minM,
 		targetModMax:             maxM,
@@ -1211,6 +1220,46 @@ func deriveAddressFromPubHex(pubHex string) (string, bool) {
 	return "HMC-" + hex.EncodeToString(sum[:])[:16], true
 }
 
+// checkClaimMinerIdentity binds optional claim pubkey/address to a locked worker payout.
+// When claimRequirePubKey is set, miner_pubkey is mandatory under hybrid signing.
+func (m *workManager) checkClaimMinerIdentity(workerID, pubHex, addrHint string) (ok bool, reason string) {
+	if m == nil {
+		return true, ""
+	}
+	pubHex = strings.TrimSpace(pubHex)
+	addrHint = strings.TrimSpace(addrHint)
+	require := m.claimRequirePubKey && m.hybridSignerEnabled
+	if pubHex == "" && addrHint == "" {
+		if require {
+			return false, "claim_pubkey_required"
+		}
+		return true, ""
+	}
+	derived := ""
+	if pubHex != "" {
+		var okAddr bool
+		derived, okAddr = deriveAddressFromPubHex(pubHex)
+		if !okAddr {
+			return false, "invalid_pubkey"
+		}
+		if addrHint != "" && !strings.EqualFold(addrHint, derived) {
+			return false, "pubkey_address_mismatch"
+		}
+	} else {
+		derived = addrHint
+		if !strings.HasPrefix(derived, "HMC-") || len(derived) != 20 {
+			return false, "invalid_miner_address"
+		}
+	}
+	m.mu.Lock()
+	locked := strings.TrimSpace(m.worker[workerID].PayoutAddress)
+	m.mu.Unlock()
+	if locked != "" && !strings.EqualFold(locked, derived) {
+		return false, "payout_address_locked"
+	}
+	return true, ""
+}
+
 func canonicalSubmitBytes(req submitWorkRequest) []byte {
 	rh, ph := worksubmit.NormalizeHashes(req.ResultHash, req.ProofHash)
 	p := worksubmit.SignPayload{
@@ -1402,6 +1451,13 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		m.signedRejects++
 		m.rejectedSubmits++
 		return false, sigReason, 0, "", false
+	}
+	if signerAddr != "" {
+		if locked := strings.TrimSpace(m.worker[req.WorkerID].PayoutAddress); locked != "" && !strings.EqualFold(locked, signerAddr) {
+			m.signedRejects++
+			m.rejectedSubmits++
+			return false, "payout_address_locked", 0, "", false
+		}
 	}
 	if rec.ExpiresAt < now {
 		delete(m.active, k)
@@ -1608,7 +1664,9 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		st.AcceptedHits++
 	}
 	if signerAddr != "" {
-		st.PayoutAddress = signerAddr
+		if strings.TrimSpace(st.PayoutAddress) == "" {
+			st.PayoutAddress = signerAddr
+		}
 		st.SignedSubmits++
 	}
 	if gh > 0 {
@@ -2152,6 +2210,12 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 		workerID := strings.TrimSpace(req.WorkerID)
 		if !validCoordinatorWorkerID(workerID) {
 			http.Error(w, "invalid worker_id", http.StatusBadRequest)
+			return
+		}
+		if okID, reasonID := wm.checkClaimMinerIdentity(workerID, req.MinerPubKey, req.MinerAddress); !okID {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusForbidden)
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "worker_id": workerID, "reason": reasonID})
 			return
 		}
 		ipKey := clientIPKey(r)

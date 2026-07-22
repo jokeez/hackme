@@ -19,7 +19,7 @@ type failThenOKSettler struct {
 	failUntil int
 }
 
-func (s *failThenOKSettler) PayRun(_ context.Context, _, _ string, _ int64) (SettleResult, error) {
+func (s *failThenOKSettler) PayRun(_ context.Context, _, _ string, _, _ int64) (SettleResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.runs++
@@ -28,7 +28,7 @@ func (s *failThenOKSettler) PayRun(_ context.Context, _, _ string, _ int64) (Set
 	}
 	return SettleResult{OutboxID: int64(s.runs), Applied: true}, nil
 }
-func (s *failThenOKSettler) PayFinding(context.Context, string, string, string, int64) (SettleResult, error) {
+func (s *failThenOKSettler) PayFinding(context.Context, string, string, string, int64, int64) (SettleResult, error) {
 	s.mu.Lock()
 	s.findings++
 	s.mu.Unlock()
@@ -161,7 +161,7 @@ type queuedSettler struct {
 	outboxSeq int64
 }
 
-func (s *queuedSettler) PayRun(_ context.Context, _, _ string, reuse int64) (SettleResult, error) {
+func (s *queuedSettler) PayRun(_ context.Context, _, _ string, _, reuse int64) (SettleResult, error) {
 	s.runs++
 	s.lastReuse = reuse
 	id := reuse
@@ -171,7 +171,7 @@ func (s *queuedSettler) PayRun(_ context.Context, _, _ string, reuse int64) (Set
 	}
 	return SettleResult{OutboxID: id, Applied: false}, nil
 }
-func (s *queuedSettler) PayFinding(context.Context, string, string, string, int64) (SettleResult, error) {
+func (s *queuedSettler) PayFinding(context.Context, string, string, string, int64, int64) (SettleResult, error) {
 	return SettleResult{Applied: false}, nil
 }
 func (s *queuedSettler) Finalize(context.Context, string, int64) (SettleResult, error) {
@@ -187,29 +187,76 @@ func TestEnqueueSettleOutboxIdempotentReplay(t *testing.T) {
 	defer db.Close()
 	svc := &Service{DB: db}
 	ctx := context.Background()
-	id1, err := svc.EnqueueSettleOutbox(ctx, "run", "camp-a", "HMC-abc", "")
+	id1, err := svc.EnqueueSettleOutbox(ctx, "run", "camp-a", "HMC-abc", "", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	id2, err := svc.EnqueueSettleOutbox(ctx, "run", "camp-a", "HMC-abc", "")
+	id2, err := svc.EnqueueSettleOutbox(ctx, "run", "camp-a", "HMC-abc", "", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if id1 != id2 {
 		t.Fatalf("replay should reuse id: %d vs %d", id1, id2)
 	}
-	id3, err := svc.EnqueueSettleOutbox(ctx, "finding", "camp-a", "HMC-abc", "high")
+	idItem2, err := svc.EnqueueSettleOutbox(ctx, "run", "camp-a", "HMC-abc", "", 2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if id3 == id1 {
+	if idItem2 == id1 {
+		t.Fatal("distinct work_item_id must not collapse outbox rows (FUZZ-01 underpay)")
+	}
+	id3, err := svc.EnqueueSettleOutbox(ctx, "finding", "camp-a", "HMC-abc", "high", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id3 == id1 || id3 == idItem2 {
 		t.Fatal("different kind/severity should create new row")
 	}
 	var n int
 	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_settle_outbox`).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
-	if n != 2 {
-		t.Fatalf("want 2 outbox rows got %d", n)
+	if n != 3 {
+		t.Fatalf("want 3 outbox rows got %d", n)
+	}
+}
+
+func TestEnqueueSettleOutboxConcurrentUnique(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "settle-race.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	const n = 32
+	ids := make([]int64, n)
+	var wg sync.WaitGroup
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func(i int) {
+			defer wg.Done()
+			id, err := svc.EnqueueSettleOutbox(ctx, "run", "race-camp", "HMC-race0000000001", "", 7)
+			if err != nil {
+				t.Errorf("enqueue: %v", err)
+				return
+			}
+			ids[i] = id
+		}(i)
+	}
+	wg.Wait()
+	first := ids[0]
+	for _, id := range ids {
+		if id != first {
+			t.Fatalf("concurrent enqueue diverged: %v", ids)
+		}
+	}
+	var count int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_settle_outbox WHERE campaign_id='race-camp'`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("want 1 outbox row after race, got %d", count)
 	}
 }
