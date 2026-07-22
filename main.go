@@ -748,17 +748,20 @@ func minerSubmitSeedHexForDataDir(dataDir string) (string, error) {
 	}
 	unified := envBool("HACKME_UNIFIED_MINER_NODE_SEED", envBool("HACKME_DESKTOP_MODE", false))
 
-	readNodeSeed := func() (string, bool) {
+	readNodeSeed := func() (string, error) {
 		nodePath := filepath.Join(base, "node_ed25519.seed")
-		b, err := os.ReadFile(nodePath)
+		b, err := nodecrypto.ReadSeedFile(nodePath)
 		if err != nil {
-			return "", false
+			if os.IsNotExist(err) {
+				return "", nil
+			}
+			return "", err
 		}
 		h := strings.TrimSpace(strings.ToLower(string(b)))
 		if err := validateMinerSeedHex(h); err != nil {
-			return "", false
+			return "", nil
 		}
-		return h, true
+		return h, nil
 	}
 
 	envMiner := strings.TrimSpace(os.Getenv("HACKME_MINER_ED25519_SEED_HEX"))
@@ -770,7 +773,11 @@ func minerSubmitSeedHexForDataDir(dataDir string) (string, error) {
 	}
 
 	if unified {
-		if h, ok := readNodeSeed(); ok {
+		h, err := readNodeSeed()
+		if err != nil {
+			return "", err
+		}
+		if h != "" {
 			return h, nil
 		}
 		if envMiner != "" {
@@ -780,18 +787,24 @@ func minerSubmitSeedHexForDataDir(dataDir string) (string, error) {
 		if envMiner != "" {
 			return envMiner, nil
 		}
-		if h, ok := readNodeSeed(); ok {
+		h, err := readNodeSeed()
+		if err != nil {
+			return "", err
+		}
+		if h != "" {
 			return h, nil
 		}
 	}
 
 	p := filepath.Join(base, "miner_submit_ed25519_seed.hex")
-	if b, err := os.ReadFile(p); err == nil {
+	if b, err := nodecrypto.ReadSeedFile(p); err == nil {
 		h := strings.TrimSpace(string(b))
 		if err := validateMinerSeedHex(h); err != nil {
 			return "", fmt.Errorf("%s: %w", p, err)
 		}
 		return strings.ToLower(h), nil
+	} else if err != nil && !os.IsNotExist(err) {
+		return "", err
 	}
 	if err := os.MkdirAll(base, 0o750); err != nil {
 		return "", err

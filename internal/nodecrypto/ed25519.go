@@ -19,6 +19,25 @@ type Signer struct {
 	pub  ed25519.PublicKey
 }
 
+// ReadSeedFile reads a seed file after rejecting symlinks and group/other-readable modes (H52).
+// Same policy as operator openSecretFile (H51).
+func ReadSeedFile(path string) ([]byte, error) {
+	fi, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if fi.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("nodecrypto: seed file is a symlink: %s", path)
+	}
+	if !fi.Mode().IsRegular() {
+		return nil, fmt.Errorf("nodecrypto: seed file is not a regular file: %s", path)
+	}
+	if perm := fi.Mode().Perm(); perm&0o077 != 0 {
+		return nil, fmt.Errorf("nodecrypto: seed file permissions too open (%04o; need 0600): %s", perm, path)
+	}
+	return os.ReadFile(path)
+}
+
 // LoadOrCreate loads a 32-byte seed from dataDir/node_ed25519.seed or generates one.
 func LoadOrCreate(dataDir string) (*Signer, error) {
 	if dataDir == "" {
@@ -28,7 +47,7 @@ func LoadOrCreate(dataDir string) (*Signer, error) {
 		return nil, err
 	}
 	path := filepath.Join(dataDir, seedFile)
-	seed, err := os.ReadFile(path)
+	seed, err := ReadSeedFile(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return nil, err
