@@ -97,3 +97,20 @@ func IsMarketplaceCampaign(status, id, title, ownerRef string, cfg map[string]an
 	}
 	return true
 }
+
+// IsActivelyDiggable is true when a marketplace row should still accept miner work.
+// Closed escrow or run-budget exhaustion must not appear as diggable "running" zombies.
+func IsActivelyDiggable(campaignStatus, escrowStatus string, runsDone, budgetRuns int) bool {
+	st := strings.TrimSpace(strings.ToLower(campaignStatus))
+	if st != "planned" && st != "running" {
+		return false
+	}
+	esc := strings.TrimSpace(strings.ToLower(escrowStatus))
+	if esc == "closed" {
+		return false
+	}
+	if budgetRuns > 0 && runsDone >= budgetRuns {
+		return false
+	}
+	return true
+}

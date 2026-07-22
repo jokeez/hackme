@@ -332,19 +332,21 @@ func (m *workManager) refreshActiveOrderLocked() activeOrderSnap {
 	if reward <= 0 {
 		reward = mfReward
 	}
-	// Order pool work uses coordinator pool M (fair for remote miners), not canonical chain solo M.
-	poolMod := m.clampTargetMod(m.targetMod)
-	if poolMod == 0 {
-		poolMod = m.chainPoHModUnlocked()
-	}
+	// Order solves are validated on-chain against PoHTargetMod (see chain.SubmitOrderPoHSolve).
+	// Issuing pool-retarget M here made fleet finds fail with
+	// "invalid poh solution for submitted target_mod" while scheduler_mode=orders.
 	if live := m.liveChainPoHModFromNode(); live > 0 {
 		m.chainPoHMod = live
+	}
+	orderMod := m.chainPoHModUnlocked()
+	if orderMod == 0 {
+		orderMod = m.clampTargetMod(m.targetMod)
 	}
 	snap := activeOrderSnap{
 		ID:        id,
 		RewardHMC: reward,
 		WasmHex:   wasmHex,
-		ChainMod:  poolMod,
+		ChainMod:  orderMod,
 		FetchedAt: now,
 	}
 	m.activeOrder = snap

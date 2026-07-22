@@ -39,7 +39,7 @@ func TestHandleFuzzPoolSettleReplaySameEventIDNoDoublePay(t *testing.T) {
 	miner := "HMC-9876543210987654"
 	fundFuzzSettleEscrow(t, ctx, db, a.chain, "evt-replay", miner)
 
-	raw := []byte(`{"kind":"run","campaign_id":"evt-replay","miner_address":"` + miner + `","event_id":"outbox:42"}`)
+	raw := []byte(`{"kind":"run","campaign_id":"evt-replay","miner_address":"` + miner + `","event_id":"outbox:evt-replay:42"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle", bytes.NewReader(raw))
 	rec := httptest.NewRecorder()
 	a.handleFuzzPoolSettle(rec, req)

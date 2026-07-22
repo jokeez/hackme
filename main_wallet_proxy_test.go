@@ -34,9 +34,11 @@ func newWalletTestApp(t *testing.T) (*app, *sql.DB) {
 		t.Fatalf("init genesis: %v", err)
 	}
 	return &app{
-		chain: ch,
-		miner: chain.NewMiner(0.01, nil, nil, chain.InternalTaskProvider{}),
-		db:    db,
+		chain:  ch,
+		miner:  chain.NewMiner(0.01, nil, nil, chain.InternalTaskProvider{}),
+		db:     db,
+		rlHits: make(map[string]rateSlot),
+		rlBan:  make(map[string]int64),
 	}, db
 }
 

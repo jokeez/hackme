@@ -470,10 +470,11 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 		return err
 	}
 	var findingSeverity string
+	var findingType string
 	var findingID string
 	if recordFinding {
 		var err error
-		findingID, findingSeverity, err = s.insertFinding(ctx, req, cfg, sem, hasWasm, now)
+		findingID, findingSeverity, findingType, err = s.insertFinding(ctx, req, cfg, sem, hasWasm, now)
 		if err != nil {
 			return err
 		}
@@ -486,6 +487,18 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 		}
 		if err := s.flushPendingSettles(ctx, req.CampaignID, req.ItemID, cfg); err != nil {
 			return err
+		}
+		// One-shot unique-crash micro-bonus (does not close the confirmed-native bounty).
+		// Crash-class only — detector/property noise must not skim the bonus pool.
+		// workItemID=0 so outbox dedupes campaign-wide (first crash wins).
+		if recordFinding && miner != "" && fuzzengine.IsCrashClass(findingType) {
+			if _, err := s.Settler.PayCrashBonus(ctx, req.CampaignID, miner, 0, 0); err != nil {
+				// already paid / depleted / closed are non-fatal for the submit path
+				low := strings.ToLower(err.Error())
+				if !strings.Contains(low, "already paid") && !strings.Contains(low, "depleted") && !strings.Contains(low, "closed") {
+					return fmt.Errorf("poolfuzz: settle crash bonus: %w", err)
+				}
+			}
 		}
 	}
 	completed, err := s.recomputeProgress(ctx, req.CampaignID, now)
@@ -663,7 +676,7 @@ func (s *Service) recordCoverage(ctx context.Context, campaignID string, input u
 	return err
 }
 
-func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[string]any, sem fuzzengine.CheckSemantics, hasWasm bool, now int64) (string, string, error) {
+func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[string]any, sem fuzzengine.CheckSemantics, hasWasm bool, now int64) (findingID, severity, findingType string, err error) {
 	inputBytes := req.InputBytes
 	var inputSHA string
 	var artifactPath string
@@ -685,7 +698,9 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 	if strings.TrimSpace(req.Trap) != "" {
 		ft, sev, title = "crash", "high", "WASM trap: "+truncate(req.Trap, 200)
 	}
-	findingID := fmt.Sprintf("finding-pool-%s-%d-%d", req.CampaignID, req.ItemID, now)
+	findingType = ft
+	severity = sev
+	findingID = fmt.Sprintf("finding-pool-%s-%d-%d", req.CampaignID, req.ItemID, now)
 	op, itemID, qty := fuzzengine.WasmCheckInputParts(req.ActualInput)
 	wasmHex, _ := cfg["wasm_check_hex"].(string)
 	_ = fuzzartifacts.WriteWasmHex(req.CampaignID, wasmHex)
@@ -708,13 +723,13 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 		"triage_label":    triage.Label,
 		"zero_day_hint":   triage.ZeroDayHint,
 	})
-	_, err := s.DB.ExecContext(ctx,
+	_, err = s.DB.ExecContext(ctx,
 		`INSERT OR IGNORE INTO fuzz_findings
 		 (id, campaign_id, finding_type, severity, title, input_sha256, artifact_path, repro_cmd, detail_json, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		findingID, req.CampaignID, ft, sev, title, inputSHA, artifactPath, repro, string(detail), now)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	_, _ = s.DB.ExecContext(ctx,
 		`INSERT INTO fuzz_corpus (campaign_id, input_sha256, first_seen_at, last_seen_at, hits, last_finding_id, artifact_path)
@@ -739,7 +754,7 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 		}
 		_ = fuzznative.QueueJob(ctx, s.DB, findingID, req.CampaignID, inputSHA, ib, fuzzengine.UpstreamTarget(cfg), guard, now)
 	}
-	return findingID, sev, nil
+	return findingID, severity, findingType, nil
 }
 
 func (s *Service) recomputeProgress(ctx context.Context, campaignID string, now int64) (completed bool, err error) {
@@ -769,7 +784,21 @@ func (s *Service) recomputeProgress(ctx context.Context, campaignID string, now 
 	summary["runs_done"] = done
 	summary["new_edges"] = edges
 	summary["new_paths"] = paths
-	summary["unique_crashes"] = crashed
+	// failed_checks = work items with result_ok=0 (includes detector rejects).
+	// unique_crashes = crash-class findings only (honest customer metric).
+	summary["failed_checks"] = crashed
+	crashClass := 0
+	if frows, err := s.DB.QueryContext(ctx, `SELECT finding_type FROM fuzz_findings WHERE campaign_id=?`, campaignID); err == nil {
+		for frows.Next() {
+			var ft string
+			if err := frows.Scan(&ft); err == nil && fuzzengine.IsCrashClass(ft) {
+				crashClass++
+			}
+		}
+		_ = frows.Close()
+	}
+	summary["unique_crashes"] = crashClass
+	summary["crash_count"] = crashClass
 	summary["heartbeat_at"] = now
 	summary["pool_workers"] = true
 	if done > 0 {

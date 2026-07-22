@@ -6,8 +6,8 @@ cd "$ROOT"
 BASE="${BASE:-http://127.0.0.1:8080}"
 
 echo "[fuzz-report-pro] unit tests (pool repro + HTML v2)"
-go test -count=1 ./internal/fuzzengine/... ./internal/poolfuzz/... -run 'TestClassifyFinding|TestReproCmdTool|TestPoolFuzzClaimSubmitDetector'
-go test -count=1 -run 'TestRenderFuzzReportHTML' .
+go test -count=1 ./internal/fuzzengine/... ./internal/poolfuzz/... -run 'TestClassifyFinding|TestIsCoverageNoise|TestReproCmdTool|TestPoolFuzzClaimSubmitDetector'
+go test -count=1 -run 'TestRenderFuzzReportHTML|TestPartitionFindings|TestBuildTargetFingerprint|TestCrashClass' .
 
 curl -fsS --max-time 15 "$BASE/api/status" >/dev/null || {
   echo "[fuzz-report-pro] node down at $BASE (skip live HTML)" >&2
@@ -24,5 +24,7 @@ curl -fsS -X POST "$BASE/api/fuzz/campaigns" \
 HTML="$(curl -fsS "$BASE/api/fuzz/campaigns/$CID/report?format=html&limit=5" \
   -H "X-Hackme-Admin-Token: $ADMIN")"
 echo "$HTML" | grep -q 'fuzz_report_v2' || { echo "missing v2" >&2; exit 1; }
+echo "$HTML" | grep -q 'CI gate' || { echo "missing CI gate" >&2; exit 1; }
 echo "$HTML" | grep -q 'Scope &amp; honesty' || { echo "missing scope" >&2; exit 1; }
+echo "$HTML" | grep -q 'coverage noise' || { echo "missing coverage noise appendix" >&2; exit 1; }
 echo "[fuzz-report-pro] PASS"

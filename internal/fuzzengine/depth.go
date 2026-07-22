@@ -46,7 +46,7 @@ var depthPresets = map[DepthTier]DepthPreset{
 	},
 	DepthBytesCorpus: {
 		Tier: DepthBytesCorpus, InputMode: InputModeBytes,
-		BudgetHMC: 10.0, BudgetRuns: 1000,
+		BudgetHMC: 25.0, BudgetRuns: 2048,
 		BountyRequiresNative: true, NativeReproEnabled: true,
 		UpstreamTarget: "bitcoin",
 	},
@@ -192,17 +192,48 @@ func ApplyDepthTier(cfg map[string]any, tier DepthTier) map[string]any {
 			cfg["seed_byte_corpus"] = DefaultByteSeedCorpus()
 		}
 	}
-	if preset.Tier == DepthUpstreamBinary {
+	// Honest signal / config shape per tier (not just larger budgets).
+	switch preset.Tier {
+	case DepthWasmOnly:
+		if _, ok := cfg["signal_types"]; !ok {
+			cfg["signal_types"] = []string{"wasm_smoke"}
+		}
+	case DepthWasmNative:
+		if _, ok := cfg["signal_types"]; !ok {
+			cfg["signal_types"] = []string{"wasm_check", "native_repro"}
+		}
+		if _, ok := cfg["native_repro_mode"]; !ok {
+			cfg["native_repro_mode"] = "go_port"
+		}
+	case DepthBytesCorpus:
+		if _, ok := cfg["mutation_rounds"]; !ok {
+			cfg["mutation_rounds"] = 12
+		}
+		if _, ok := cfg["coverage_guided"]; !ok {
+			cfg["coverage_guided"] = true
+		}
+		if _, ok := cfg["signal_types"]; !ok {
+			cfg["signal_types"] = []string{"byte_corpus", "structured_mutation", "coverage_guided", "native_repro"}
+		}
+		if _, ok := cfg["corpus_hours_budget"]; !ok {
+			cfg["corpus_hours_budget"] = true
+		}
+	case DepthUpstreamBinary:
 		if _, ok := cfg["native_repro_mode"]; !ok {
 			cfg["native_repro_mode"] = "asan_binary"
 		}
-	}
-	if preset.Tier == DepthOSSCVE {
+		if _, ok := cfg["signal_types"]; !ok {
+			cfg["signal_types"] = []string{"asan_binary", "byte_corpus", "native_repro"}
+		}
+	case DepthOSSCVE:
 		if _, ok := cfg["native_repro_mode"]; !ok {
 			cfg["native_repro_mode"] = "oss_upstream"
 		}
 		if _, ok := cfg["oss_cve_hunt"]; !ok {
 			cfg["oss_cve_hunt"] = true
+		}
+		if _, ok := cfg["signal_types"]; !ok {
+			cfg["signal_types"] = []string{"oss_cve_hunt", "byte_corpus", "native_repro"}
 		}
 	}
 	cfg["fuzz_engine_version"] = Version

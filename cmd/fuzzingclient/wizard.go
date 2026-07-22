@@ -47,6 +47,7 @@ func doWizard(base string, args []string) error {
 		"wasm_check_hex":   wasmHex,
 		"budget_hmc":       pkg.BudgetHMC,
 		"budget_runs":      pkg.BudgetRuns,
+		"budget_seconds":   pkg.BudgetSeconds,
 		"pool_distributed": pool,
 		"create_poh_order": createPoH,
 	}
@@ -86,17 +87,22 @@ func doWizard(base string, args []string) error {
 	out := map[string]any{
 		"ok":                    true,
 		"package":               pkg.Name,
+		"package_summary":       pkg.Summary,
+		"signal_types":          pkg.SignalTypes,
 		"depth_tier":            string(pkg.DepthTier),
 		"budget_hmc":            pkg.BudgetHMC,
 		"budget_runs":           pkg.BudgetRuns,
+		"budget_seconds":        pkg.BudgetSeconds,
 		"pool_distributed":      pool,
 		"order_id":              orderID,
 		"campaign_id":           campaignID,
 		"customer_report_token": reportTok,
-		"report_url":            reportURL,
+		"primary_deliverable":   "gate",
 		"gate_url":              gateURL,
+		"report_url":            reportURL,
 		"pulse_url":             pulseURL,
 		"ci_header":             "X-Hackme-Report-Token",
+		"status_hint":           statusHint(campaignID, orderID),
 	}
 	if v, ok := resp["pool_sync"]; ok {
 		out["pool_sync"] = v
@@ -112,11 +118,28 @@ func doWizard(base string, args []string) error {
 	}
 	printJSON(out)
 	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "Package:", pkg.Name, "—", pkg.Summary)
+	fmt.Fprintln(os.Stderr, "Signals:", strings.Join(pkg.SignalTypes, ", "))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "Primary deliverable — CI gate (pass/fail):")
+	fmt.Fprintf(os.Stderr, "  curl -sS -H \"X-Hackme-Report-Token: <save-token>\" '%s'\n", gateURL)
+	fmt.Fprintln(os.Stderr, "  # jq -e '.pass == true'  → exit 0 on CLEAN gate")
+	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Next steps:")
-	fmt.Fprintf(os.Stderr, "  1. Save report token securely (shown once).\n")
-	fmt.Fprintf(os.Stderr, "  2. Watch progress: curl -H \"X-Hackme-Report-Token: …\" %s\n", pulseURL)
-	fmt.Fprintf(os.Stderr, "  3. CI gate:       curl -H \"X-Hackme-Report-Token: …\" %s\n", gateURL)
+	fmt.Fprintln(os.Stderr, "  1. Save report token securely (shown once in JSON).")
+	fmt.Fprintf(os.Stderr, "  2. Honest status:  %s\n", statusHint(campaignID, orderID))
+	fmt.Fprintf(os.Stderr, "  3. Open report:    %s\n", reportURL)
+	fmt.Fprintf(os.Stderr, "  4. Watch pulse:    curl -H \"X-Hackme-Report-Token: …\" %s\n", pulseURL)
 	return nil
+}
+
+func statusHint(campaignID, orderID string) string {
+	s := "hackme-fuzzing status --campaign " + campaignID
+	if orderID != "" {
+		s += " --order " + orderID
+	}
+	s += " --report-token <token>"
+	return s
 }
 
 // doWizardDryRun builds the security-audit payload without calling the API (for tests).
@@ -133,7 +156,13 @@ func doWizardDryRun(pkgName, wasmPath string) (map[string]any, error) {
 		"depth_tier":       string(pkg.DepthTier),
 		"budget_hmc":       pkg.BudgetHMC,
 		"budget_runs":      pkg.BudgetRuns,
+		"budget_seconds":   pkg.BudgetSeconds,
 		"pool_distributed": pkg.PoolDistributed,
+		"create_poh_order": pkg.CreatePoHOrder,
+		"signal_types":     pkg.SignalTypes,
+		"summary":          pkg.Summary,
+		"mutation_rounds":  pkg.MutationRounds,
+		"coverage_guided":  pkg.CoverageGuided,
 		"wasm_len":         len(raw),
 	}, nil
 }

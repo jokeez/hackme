@@ -3,6 +3,7 @@ package chain
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"hackme/internal/store"
@@ -142,5 +143,74 @@ func TestFuzzEscrowCancelRefundsUnpaid(t *testing.T) {
 	}
 	if post < pre {
 		t.Fatalf("cancel must refund escrow: pre=%d post=%d", pre, post)
+	}
+}
+
+func TestFuzzEscrowCrashBonusAndLiveFields(t *testing.T) {
+	ctx := context.Background()
+	db, err := store.Open(filepath.Join(t.TempDir(), "fuzz-crash-bonus.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := New(db)
+	payer := "HMC-1234567890123456"
+	miner := "HMC-9876543210987654"
+	if _, _, err := svc.InitGenesis(ctx, payer); err != nil {
+		t.Fatal(err)
+	}
+	preFundEscrow(t, ctx, db, payer, 20.0)
+	opened, err := svc.OpenFuzzEscrow(ctx, "camp-crash", 10.0, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opened.SpentRunsHMC != 0 || opened.LockedBountyHMC < 7.99 {
+		t.Fatalf("live fields on open: spent=%v locked=%v path=%s", opened.SpentRunsHMC, opened.LockedBountyHMC, opened.RefundPath)
+	}
+	if !strings.Contains(opened.RefundPath, "finalize_or_cancel") {
+		t.Fatalf("refund_path=%q", opened.RefundPath)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT OR IGNORE INTO accounts(address, balance_units, next_nonce, updated_at) VALUES(?,0,0,0)`, miner); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.PayFuzzRun(ctx, "camp-crash", miner); err != nil {
+		t.Fatal(err)
+	}
+	bonus, err := svc.PayFuzzCrashBonus(ctx, "camp-crash", miner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bonus.CrashBonusPaidHMC <= 0 || bonus.CrashBonusPaidHMC > 0.0100001 {
+		t.Fatalf("crash bonus=%v", bonus.CrashBonusPaidHMC)
+	}
+	if bonus.Status != "open" {
+		t.Fatalf("crash bonus must not close bounty, status=%s", bonus.Status)
+	}
+	if bonus.LockedBountyHMC >= opened.BountyPoolHMC {
+		t.Fatalf("locked bounty should shrink after bonus: locked=%v pool=%v", bonus.LockedBountyHMC, opened.BountyPoolHMC)
+	}
+	if _, err := svc.PayFuzzCrashBonus(ctx, "camp-crash", miner); err == nil {
+		t.Fatal("second crash bonus must fail")
+	}
+	bounty, err := svc.PayFuzzBounty(ctx, "camp-crash", miner, "critical")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bounty.Status != "bounty_paid" {
+		t.Fatalf("status=%s", bounty.Status)
+	}
+	wantBounty := opened.BountyPoolHMC - bonus.CrashBonusPaidHMC
+	if bounty.BountyPaidHMC < wantBounty-1e-6 || bounty.BountyPaidHMC > wantBounty+1e-6 {
+		t.Fatalf("bounty_paid=%v want ~%v (pool - crash bonus)", bounty.BountyPaidHMC, wantBounty)
+	}
+	if bounty.LockedBountyHMC != 0 {
+		t.Fatalf("locked after bounty=%v", bounty.LockedBountyHMC)
+	}
+	final, err := svc.FinalizeFuzzEscrow(ctx, "camp-crash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if final.Status != "closed" || final.RefundPath != "already_closed" {
+		t.Fatalf("final=%+v", final)
 	}
 }

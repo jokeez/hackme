@@ -670,6 +670,7 @@ func (a *app) handleFuzzCampaignCreate(w http.ResponseWriter, r *http.Request) {
 		completedAt = now
 	}
 	cfgMap := normalizeFuzzCampaignConfig(req.Config, ctype)
+	stampTargetFingerprint(cfgMap)
 	cfg := marshalMapJSON(cfgMap)
 	err := execContextRetryBusy(r.Context(), a.db,
 		`INSERT INTO fuzz_campaigns
@@ -856,7 +857,13 @@ func (a *app) handleFuzzCampaignGet(w http.ResponseWriter, r *http.Request, camp
 		writeAPIError(w, http.StatusInternalServerError, "campaign_load_failed", "campaign load failed", nil)
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "campaign": c})
+	resp := map[string]any{"ok": true, "campaign": c}
+	if a.chain != nil {
+		if esc, err := a.chain.GetFuzzEscrow(r.Context(), campaignID); err == nil {
+			resp["escrow"] = esc
+		}
+	}
+	writeJSON(w, resp)
 }
 
 func (a *app) handleFuzzCampaignStatus(w http.ResponseWriter, r *http.Request, campaignID string) {
@@ -912,6 +919,9 @@ func (a *app) tryCloseFuzzEscrowForStatus(ctx context.Context, campaignID, statu
 	case "cancelled":
 		_, _ = a.chain.CancelFuzzEscrow(ctx, campaignID)
 	case "completed":
+		// Drain run/finding settles first so Finalize does not refund unpaid work
+		// and the pull consumer cannot ACK those rows as "closed" no-ops.
+		a.pullFuzzSettleOutbox(ctx)
 		_, _ = a.chain.FinalizeFuzzEscrow(ctx, campaignID)
 	}
 }
@@ -1481,7 +1491,17 @@ func (a *app) handleFuzzCampaignPulse(w http.ResponseWriter, r *http.Request, ca
 		   COALESCE(SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END),0)
 		 FROM fuzz_work_items
 		 WHERE campaign_id=?`, campaignID).Scan(&queuePending, &queueLeased, &queueDone, &queueFailed)
-	writeJSON(w, map[string]any{
+	eta := estimatePulseETA(runsDone, c.BudgetRuns, elapsed, c.BudgetSeconds, c.Status)
+	crashCount := 0
+	noiseCount := 0
+	for _, f := range findings {
+		if fuzzengine.IsCrashClass(f.FindingType) {
+			crashCount++
+		} else if fuzzengine.IsCoverageNoise(f.FindingType) {
+			noiseCount++
+		}
+	}
+	resp := map[string]any{
 		"ok":           true,
 		"campaign_id":  campaignID,
 		"status":       c.Status,
@@ -1490,12 +1510,19 @@ func (a *app) handleFuzzCampaignPulse(w http.ResponseWriter, r *http.Request, ca
 		"completed_at": c.CompletedAt,
 		"elapsed_sec":  elapsed,
 		"progress": map[string]any{
-			"runs_done":      runsDone,
-			"budget_runs":    c.BudgetRuns,
-			"progress_pct":   progressPct,
-			"runs_per_sec":   ratePerSec,
-			"budget_seconds": c.BudgetSeconds,
+			"runs_done":       runsDone,
+			"budget_runs":     c.BudgetRuns,
+			"progress_pct":    progressPct,
+			"runs_per_sec":    ratePerSec,
+			"budget_seconds":  c.BudgetSeconds,
+			"eta_sec":         eta["eta_sec"],
+			"eta_sec_est":     eta["eta_sec"],
+			"eta_source":      eta["eta_source"],
+			"remaining_runs":  eta["remaining_runs"],
+			"progress_note":   eta["progress_note"],
+			"honest_progress": eta["honest_progress"],
 		},
+		"eta": eta,
 		"runner": map[string]any{
 			"heartbeat_at":    heartbeatAt,
 			"stale_after_sec": staleAfterSec,
@@ -1510,16 +1537,26 @@ func (a *app) handleFuzzCampaignPulse(w http.ResponseWriter, r *http.Request, ca
 		"coverage": map[string]any{
 			"new_edges":               newEdges,
 			"new_paths":               newPaths,
-			"unique_crashes":          uniqueCrashes,
+			// Honest: crash-class findings only (summary unique_crashes may count detector fails).
+			"unique_crashes":          crashCount,
+			"failed_checks":           uniqueCrashes,
 			"time_to_first_crash_sec": firstCrashSec,
 		},
 		"findings": map[string]any{
-			"total":           len(findings),
-			"by_severity":     bySeverity,
-			"last_finding_at": lastFindingAt,
+			"total":                len(findings),
+			"by_severity":          bySeverity,
+			"last_finding_at":      lastFindingAt,
+			"crash_count":          crashCount,
+			"coverage_noise_count": noiseCount,
 		},
 		"summary": c.Summary,
-	})
+	}
+	if a.chain != nil {
+		if esc, err := a.chain.GetFuzzEscrow(r.Context(), campaignID); err == nil {
+			resp["escrow"] = esc
+		}
+	}
+	writeJSON(w, resp)
 }
 
 func (a *app) handleFuzzCampaignDiff(w http.ResponseWriter, r *http.Request, campaignID string) {
@@ -1826,6 +1863,90 @@ func parseReportLimit(r *http.Request) int {
 	return limit
 }
 
+func (a *app) buildReportBaselineDiff(ctx context.Context, campaignID string, cfg map[string]any) map[string]any {
+	baseID := baselineCampaignID(cfg)
+	if baseID == "" {
+		return stubBaselineDiff("set config.base_campaign_id (or baseline_campaign_id) to enable baseline diff")
+	}
+	if baseID == campaignID {
+		return stubBaselineDiff("base_campaign_id must differ from current campaign")
+	}
+	if _, err := a.getFuzzCampaign(ctx, baseID); err != nil {
+		return stubBaselineDiff("base campaign not found: " + baseID)
+	}
+	headFindings, err := a.loadCampaignFindings(ctx, campaignID)
+	if err != nil {
+		return stubBaselineDiff("head findings load failed")
+	}
+	baseFindings, err := a.loadCampaignFindings(ctx, baseID)
+	if err != nil {
+		return stubBaselineDiff("base findings load failed")
+	}
+	headByKey := map[string]fuzzFinding{}
+	for _, f := range headFindings {
+		k := campaignFindingKey(f)
+		if _, ok := headByKey[k]; !ok {
+			headByKey[k] = f
+		}
+	}
+	baseByKey := map[string]fuzzFinding{}
+	for _, f := range baseFindings {
+		k := campaignFindingKey(f)
+		if _, ok := baseByKey[k]; !ok {
+			baseByKey[k] = f
+		}
+	}
+	newItems := make([]fuzzDiffItem, 0)
+	closedItems := make([]fuzzDiffItem, 0)
+	for k, hf := range headByKey {
+		if _, ok := baseByKey[k]; ok {
+			continue
+		}
+		newItems = append(newItems, fuzzDiffItem{
+			Key: k, FindingType: hf.FindingType, InputSHA256: hf.InputSHA256,
+			Title: hf.Title, HeadSeverity: hf.Severity,
+		})
+	}
+	for k, bf := range baseByKey {
+		if _, ok := headByKey[k]; ok {
+			continue
+		}
+		closedItems = append(closedItems, fuzzDiffItem{
+			Key: k, FindingType: bf.FindingType, InputSHA256: bf.InputSHA256,
+			Title: bf.Title, BaseSeverity: bf.Severity,
+		})
+	}
+	headCov, _ := a.campaignCoverageCounts(ctx, campaignID)
+	baseCov, _ := a.campaignCoverageCounts(ctx, baseID)
+	coverageDelta := map[string]any{
+		"head_edges": headCov["edges"],
+		"head_paths": headCov["paths"],
+		"base_edges": baseCov["edges"],
+		"base_paths": baseCov["paths"],
+	}
+	if he, ok := headCov["edges"].(int); ok {
+		if be, ok2 := baseCov["edges"].(int); ok2 {
+			coverageDelta["new_edges"] = he - be
+		}
+	}
+	if hp, ok := headCov["paths"].(int); ok {
+		if bp, ok2 := baseCov["paths"].(int); ok2 {
+			coverageDelta["new_paths"] = hp - bp
+		}
+	}
+	return map[string]any{
+		"available":          true,
+		"stub":               false,
+		"base_campaign_id":   baseID,
+		"coverage_delta":     coverageDelta,
+		"new_issues":         newItems,
+		"closed_issues":      closedItems,
+		"new_count":          len(newItems),
+		"closed_count":       len(closedItems),
+		"note":               "baseline diff vs config.base_campaign_id",
+	}
+}
+
 func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int) (map[string]any, error) {
 	c, err := a.getFuzzCampaign(ctx, campaignID)
 	if err != nil {
@@ -1852,85 +1973,121 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 		}
 		f.Detail = parseMapJSON(detail)
 		findings = append(findings, f)
-		bySeverity[f.Severity]++
+		bySeverity[normalizeFindingSeverity(f.Severity)]++
 		byType[f.FindingType]++
 	}
+	// Severity-desc sort; within same severity prefer crash-class, then newer.
 	for i := 1; i < len(findings); i++ {
 		cur := findings[i]
 		j := i - 1
 		for ; j >= 0; j-- {
-			if severityRank(cur.Severity) > severityRank(findings[j].Severity) {
+			curRank := severityRank(cur.Severity)
+			prevRank := severityRank(findings[j].Severity)
+			if curRank > prevRank {
 				findings[j+1] = findings[j]
 				continue
 			}
-			if severityRank(cur.Severity) == severityRank(findings[j].Severity) && cur.CreatedAt > findings[j].CreatedAt {
-				findings[j+1] = findings[j]
-				continue
+			if curRank == prevRank {
+				curCrash := fuzzengine.IsCrashClass(cur.FindingType)
+				prevCrash := fuzzengine.IsCrashClass(findings[j].FindingType)
+				if curCrash && !prevCrash {
+					findings[j+1] = findings[j]
+					continue
+				}
+				if curCrash == prevCrash && cur.CreatedAt > findings[j].CreatedAt {
+					findings[j+1] = findings[j]
+					continue
+				}
 			}
 			break
 		}
 		findings[j+1] = cur
 	}
-	topIssues := make([]fuzzTopIssue, 0, 5)
-	for _, f := range findings {
-		if len(topIssues) >= 5 {
-			break
-		}
-		triage := fuzzengine.ClassifyFinding(f.FindingType, f.Severity)
-		topIssues = append(topIssues, fuzzTopIssue{
-			ID:          f.ID,
-			Severity:    f.Severity,
-			FindingType: f.FindingType,
-			Title:       f.Title,
-			Impact:      severityImpact(f.Severity),
-			ReproCmd:    f.ReproCmd,
-			Artifact:    f.Artifact,
-			TriageClass: triage.Class,
-			TriageNote:  triage.Note,
-		})
-	}
+	topIssues, coverageNoise, crashCount, noiseCount := partitionFindingsCrashFirst(findings, fuzzTopIssueLimit, fuzzCoverageNoiseLimit)
+	crashCrit, crashHigh, crashMed, crashLow, crashInfo := crashClassSeverityCounts(findings)
+	crashScore := crashClassSeverityScore(crashCrit, crashHigh, crashMed, crashLow, crashInfo)
+
 	critical := bySeverity["critical"]
 	high := bySeverity["high"]
 	medium := bySeverity["medium"]
 	low := bySeverity["low"]
 	info := bySeverity["info"]
-	vulnerabilitiesFound := critical + high + medium
-	exploitableCount := critical + high
+	// Product verdict is crash-first (detector noise does not fail the customer card).
 	verdict := "clean"
-	if critical > 0 {
+	if crashCrit > 0 {
 		verdict = "fail_critical"
-	} else if high > 0 {
+	} else if crashHigh > 0 {
 		verdict = "fail_high"
-	} else if medium > 0 {
+	} else if crashMed > 0 {
 		verdict = "warn_medium"
+	} else if crashCount > 0 {
+		verdict = "warn_crash"
 	}
+	exploitableCount := crashCrit + crashHigh
+	vulnerabilitiesFound := crashCrit + crashHigh + crashMed
 	recommendations := []string{}
 	if exploitableCount > 0 {
-		recommendations = append(recommendations, "Patch critical/high findings before release to closed network.")
-		recommendations = append(recommendations, "Add deterministic repro tests for every critical/high finding ID.")
+		recommendations = append(recommendations, "Patch crash-class critical/high findings before release.")
+		recommendations = append(recommendations, "Add deterministic repro tests for every crash-class finding ID (input → command → same crash).")
 	}
-	if vulnerabilitiesFound == 0 {
-		recommendations = append(recommendations, "No vulnerabilities detected in current sample; continue deeper corpus expansion.")
+	if crashCount == 0 {
+		recommendations = append(recommendations, "No crash/hang/ASan/memory findings in sample; detector signals (if any) are appendix coverage noise.")
 	}
-	if byType["crash"] > 0 {
-		recommendations = append(recommendations, "Prioritize crash triage: fix panic/abort paths and add guards for malformed inputs.")
+	if noiseCount > 0 && crashCount == 0 {
+		recommendations = append(recommendations, "Review coverage-noise appendix only if hardening detector semantics; do not treat as CVE claims.")
 	}
 	if len(recommendations) == 0 {
-		recommendations = append(recommendations, "Maintain campaign cadence and keep unified reports for each release gate.")
+		recommendations = append(recommendations, "Maintain campaign cadence and keep CI gate green before each release.")
 	}
 	confidence := "low"
-	sampleN := len(findings)
-	if sampleN >= 100 {
+	runsDone := intFromAny(c.Summary["runs_done"])
+	if runsDone == 0 {
+		runsDone = intFromAny(c.Summary["executions"])
+	}
+	if runsDone >= 10_000 {
 		confidence = "high"
-	} else if sampleN >= 20 {
+	} else if runsDone >= 500 {
+		confidence = "medium"
+	} else if len(findings) >= 20 {
 		confidence = "medium"
 	}
-	runsDone := intFromAny(c.Summary["runs_done"])
-	assuranceNote := "sample_size is finding count, not executions; pass/CLEAN ≠ proven secure"
-	if vulnerabilitiesFound == 0 {
-		assuranceNote = "CLEAN/no findings in sampled report only — not a proof of security; sample_size is finding count, not executions"
+	edges := intFromAny(c.Summary["new_edges"])
+	paths := intFromAny(c.Summary["new_paths"])
+	if cov, err := a.campaignCoverageCounts(ctx, campaignID); err == nil {
+		if e, ok := cov["edges"].(int); ok && e > edges {
+			edges = e
+		}
+		if p, ok := cov["paths"].(int); ok && p > paths {
+			paths = p
+		}
 	}
+	assuranceNote := buildAssuranceNote(runsDone, crashCrit, crashHigh, "crash/hang/ASan/memory")
+	humanSummary := buildHumanSummaryLine(runsDone, edges, paths, crashCount, crashCrit)
+	moneySpent := moneySpentFromCampaign(c)
+	if a.chain != nil {
+		if esc, err := a.chain.GetFuzzEscrow(ctx, campaignID); err == nil && esc != nil {
+			// Prefer live escrow spend over config/summary guesses (never budget lock).
+			moneySpent = moneySpentFromEscrow(esc.RunsPaidHMC, esc.BountyPaidHMC, esc.CrashBonusPaidHMC)
+		}
+	}
+	// Default CI thresholds for embedded gate card (same as /gate defaults).
+	gatePass := crashCrit <= 0 && crashHigh <= 0 && crashScore <= 0
+	gateReasons := []string{"all thresholds satisfied (crash-class)"}
+	if crashCrit > 0 {
+		gatePass = false
+		gateReasons = []string{"crash critical_count exceeds threshold"}
+	} else if crashHigh > 0 {
+		gatePass = false
+		gateReasons = []string{"crash high_count exceeds threshold"}
+	} else if crashScore > 0 {
+		gatePass = false
+		gateReasons = []string{"crash severity_score exceeds threshold"}
+	}
+	verdictCard := buildVerdictCard(runsDone, crashCount, crashCrit, gatePass, moneySpent)
+	fingerprint := buildTargetFingerprint(c.Config)
+	baseline := a.buildReportBaselineDiff(ctx, campaignID, c.Config)
 	engineMeta := fuzzEngineMetaFromConfig(c.Config)
+	sampleN := len(findings)
 	return map[string]any{
 		"ok":                true,
 		"report_version":    "fuzz_report_v2",
@@ -1938,29 +2095,63 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 		"generated_at_unix": time.Now().Unix(),
 		"campaign":          c,
 		"assurance_note":    assuranceNote,
+		"human_summary":     humanSummary,
+		"verdict_card":      verdictCard,
+		"target_fingerprint": fingerprint,
+		"baseline_diff":     baseline,
+		"gate": map[string]any{
+			"pass":           gatePass,
+			"reasons":        gateReasons,
+			"assurance_note": assuranceNote,
+			"primary":        true,
+			"observed": map[string]any{
+				"critical_count":        crashCrit,
+				"high_count":            crashHigh,
+				"severity_score":        crashScore,
+				"crash_count":           crashCount,
+				"coverage_noise_count":  noiseCount,
+				"runs_done":             runsDone,
+			},
+		},
 		"security_summary": map[string]any{
-			"vulnerabilities_found": vulnerabilitiesFound,
-			"exploitable_count":     exploitableCount,
-			"critical_count":        critical,
-			"high_count":            high,
-			"medium_count":          medium,
-			"low_count":             low,
-			"info_count":            info,
-			"sample_size":           sampleN,
-			"sample_size_unit":      "findings",
-			"runs_done":             runsDone,
-			"confidence":            confidence,
-			"assurance_note":        assuranceNote,
+			"vulnerabilities_found":    vulnerabilitiesFound,
+			"exploitable_count":        exploitableCount,
+			"critical_count":           crashCrit,
+			"high_count":               crashHigh,
+			"medium_count":             crashMed,
+			"low_count":                crashLow,
+			"info_count":               crashInfo,
+			"all_critical_count":       critical,
+			"all_high_count":           high,
+			"all_medium_count":         medium,
+			"all_low_count":            low,
+			"all_info_count":           info,
+			"crash_count":              crashCount,
+			"coverage_noise_count":     noiseCount,
+			"no_critical":              crashCrit == 0,
+			"sample_size":              sampleN,
+			"sample_size_unit":         "findings",
+			"runs_done":                runsDone,
+			"coverage_edges":           edges,
+			"coverage_paths":           paths,
+			"confidence":               confidence,
+			"assurance_note":           assuranceNote,
+			"human_summary":            humanSummary,
+			"triage_policy":            "crash_first",
 		},
 		"verdict":         verdict,
 		"top_issues":      topIssues,
+		"coverage_noise":  coverageNoise,
 		"recommendations": recommendations,
 		"totals": map[string]any{
-			"findings_total": len(findings),
-			"by_severity":    bySeverity,
-			"by_type":        byType,
-			"severity_score": critical*100 + high*40 + medium*10 + low*3 + info,
-			"runs_done":      runsDone,
+			"findings_total":       len(findings),
+			"by_severity":          bySeverity,
+			"by_type":              byType,
+			"severity_score":       crashScore,
+			"all_severity_score":   critical*100 + high*40 + medium*10 + low*3 + info,
+			"crash_count":          crashCount,
+			"coverage_noise_count": noiseCount,
+			"runs_done":            runsDone,
 		},
 		"findings": findings,
 	}, nil
@@ -2035,13 +2226,13 @@ func (a *app) handleFuzzCampaignReportCSV(w http.ResponseWriter, r *http.Request
 	if verdict == "" {
 		verdict = "unknown"
 	}
-	topIssues := make([]fuzzTopIssue, 0, 5)
-	if rows, ok := report["top_issues"].([]fuzzTopIssue); ok {
+	topIssues := make([]fuzzProductTopIssue, 0, 5)
+	if rows, ok := report["top_issues"].([]fuzzProductTopIssue); ok {
 		topIssues = rows
 	}
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Content-Disposition", "attachment; filename=\""+campaign.ID+".fuzz_report_v1.csv\"")
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+campaign.ID+".fuzz_report_v2.csv\"")
 	cw := csv.NewWriter(w)
 	defer cw.Flush()
 	_ = cw.Write([]string{"section", "key", "value"})
@@ -2051,6 +2242,12 @@ func (a *app) handleFuzzCampaignReportCSV(w http.ResponseWriter, r *http.Request
 	_ = cw.Write([]string{"campaign", "title", campaign.Title})
 	_ = cw.Write([]string{"campaign", "owner_ref", campaign.OwnerRef})
 	_ = cw.Write([]string{"summary", "verdict", verdict})
+	_ = cw.Write([]string{"summary", "human_summary", toString(report["human_summary"])})
+	_ = cw.Write([]string{"summary", "assurance_note", toString(report["assurance_note"])})
+	if gate, ok := report["gate"].(map[string]any); ok {
+		_ = cw.Write([]string{"gate", "pass", toString(gate["pass"])})
+		_ = cw.Write([]string{"gate", "reasons", strings.Join(toStringSlice(gate["reasons"]), "; ")})
+	}
 	_ = cw.Write([]string{"summary", "vulnerabilities_found", toString(summary["vulnerabilities_found"])})
 	_ = cw.Write([]string{"summary", "exploitable_count", toString(summary["exploitable_count"])})
 	_ = cw.Write([]string{"summary", "critical_count", toString(summary["critical_count"])})
@@ -2058,14 +2255,43 @@ func (a *app) handleFuzzCampaignReportCSV(w http.ResponseWriter, r *http.Request
 	_ = cw.Write([]string{"summary", "medium_count", toString(summary["medium_count"])})
 	_ = cw.Write([]string{"summary", "low_count", toString(summary["low_count"])})
 	_ = cw.Write([]string{"summary", "info_count", toString(summary["info_count"])})
+	_ = cw.Write([]string{"summary", "crash_count", toString(summary["crash_count"])})
+	_ = cw.Write([]string{"summary", "coverage_noise_count", toString(summary["coverage_noise_count"])})
 	_ = cw.Write([]string{"summary", "sample_size", toString(summary["sample_size"])})
 	_ = cw.Write([]string{"summary", "confidence", toString(summary["confidence"])})
 	_ = cw.Write([]string{"totals", "findings_total", toString(totals["findings_total"])})
 	_ = cw.Write([]string{"totals", "severity_score", toString(totals["severity_score"])})
+	if fp, ok := report["target_fingerprint"].(map[string]any); ok {
+		_ = cw.Write([]string{"fingerprint", "wasm_sha256", toString(fp["wasm_sha256"])})
+		_ = cw.Write([]string{"fingerprint", "binary_sha256", toString(fp["binary_sha256"])})
+		_ = cw.Write([]string{"fingerprint", "source", toString(fp["source"])})
+	}
 	_ = cw.Write([]string{})
-	_ = cw.Write([]string{"top_issues", "id", "severity", "finding_type", "title", "impact", "repro_cmd", "artifact_path"})
+	_ = cw.Write([]string{"top_issues", "id", "severity", "finding_type", "title", "impact", "repro_cmd", "artifact_path", "input_sha256", "repro_ready"})
 	for _, it := range topIssues {
-		_ = cw.Write([]string{"top_issues", it.ID, it.Severity, it.FindingType, it.Title, it.Impact, it.ReproCmd, it.Artifact})
+		_ = cw.Write([]string{"top_issues", it.ID, it.Severity, it.FindingType, it.Title, it.Impact, it.ReproCmd, it.Artifact, it.InputSHA256, toString(it.Repro.Ready)})
+	}
+	if noise, ok := report["coverage_noise"].([]fuzzProductTopIssue); ok && len(noise) > 0 {
+		_ = cw.Write([]string{})
+		_ = cw.Write([]string{"coverage_noise", "id", "severity", "finding_type", "title"})
+		for _, it := range noise {
+			_ = cw.Write([]string{"coverage_noise", it.ID, it.Severity, it.FindingType, it.Title})
+		}
+	}
+}
+
+func toStringSlice(v any) []string {
+	switch x := v.(type) {
+	case []string:
+		return x
+	case []any:
+		out := make([]string, 0, len(x))
+		for _, it := range x {
+			out = append(out, toString(it))
+		}
+		return out
+	default:
+		return nil
 	}
 }
 
@@ -2084,7 +2310,9 @@ func (a *app) handleFuzzCampaignGate(w http.ResponseWriter, r *http.Request, cam
 	maxCritical := 0
 	maxHigh := 0
 	maxSeverityScore := 0
-	minSampleSize := 1
+	// Default 0: clean campaigns (zero findings) must be able to PASS.
+	// Callers that want a minimum finding corpus set ?min_sample_size=N explicitly.
+	minSampleSize := 0
 	minRunsDone := 0
 	if s := strings.TrimSpace(r.URL.Query().Get("max_critical")); s != "" {
 		if n, err := strconv.Atoi(s); err == nil && n >= 0 {
@@ -2111,6 +2339,7 @@ func (a *app) handleFuzzCampaignGate(w http.ResponseWriter, r *http.Request, cam
 			minRunsDone = n
 		}
 	}
+	// Gate thresholds apply to crash-class findings only (detector → coverage noise).
 	critical := intFromAny(summary["critical_count"])
 	high := intFromAny(summary["high_count"])
 	sampleSize := intFromAny(summary["sample_size"])
@@ -2119,19 +2348,21 @@ func (a *app) handleFuzzCampaignGate(w http.ResponseWriter, r *http.Request, cam
 		runsDone = intFromAny(totals["runs_done"])
 	}
 	severityScore := intFromAny(totals["severity_score"])
+	crashCount := intFromAny(summary["crash_count"])
+	noiseCount := intFromAny(summary["coverage_noise_count"])
 	pass := true
 	reasons := make([]string, 0, 4)
 	if critical > maxCritical {
 		pass = false
-		reasons = append(reasons, "critical_count exceeds threshold")
+		reasons = append(reasons, "crash critical_count exceeds threshold")
 	}
 	if high > maxHigh {
 		pass = false
-		reasons = append(reasons, "high_count exceeds threshold")
+		reasons = append(reasons, "crash high_count exceeds threshold")
 	}
 	if severityScore > maxSeverityScore {
 		pass = false
-		reasons = append(reasons, "severity_score exceeds threshold")
+		reasons = append(reasons, "crash severity_score exceeds threshold")
 	}
 	if sampleSize < minSampleSize {
 		pass = false
@@ -2146,7 +2377,7 @@ func (a *app) handleFuzzCampaignGate(w http.ResponseWriter, r *http.Request, cam
 	}
 	assurance, _ := report["assurance_note"].(string)
 	if assurance == "" {
-		assurance = "pass ≠ proven secure; sample_size is finding count, not executions"
+		assurance = "pass ≠ proven secure; gate uses crash-class counts (detector noise excluded)"
 	}
 	writeJSON(w, map[string]any{
 		"ok":             true,
@@ -2154,6 +2385,7 @@ func (a *app) handleFuzzCampaignGate(w http.ResponseWriter, r *http.Request, cam
 		"pass":           pass,
 		"reasons":        reasons,
 		"assurance_note": assurance,
+		"triage_policy":  "crash_first",
 		"thresholds": map[string]any{
 			"max_critical":       maxCritical,
 			"max_high":           maxHigh,
@@ -2161,13 +2393,16 @@ func (a *app) handleFuzzCampaignGate(w http.ResponseWriter, r *http.Request, cam
 			"min_sample_size":    minSampleSize,
 			"min_runs_done":      minRunsDone,
 			"sample_size_unit":   "findings",
+			"severity_basis":     "crash_class",
 		},
 		"observed": map[string]any{
-			"critical_count": critical,
-			"high_count":     high,
-			"severity_score": severityScore,
-			"sample_size":    sampleSize,
-			"runs_done":      runsDone,
+			"critical_count":       critical,
+			"high_count":           high,
+			"severity_score":       severityScore,
+			"sample_size":          sampleSize,
+			"runs_done":            runsDone,
+			"crash_count":          crashCount,
+			"coverage_noise_count": noiseCount,
 		},
 	})
 }

@@ -160,30 +160,19 @@ func persistCanonicalSettlementSnapshot(st workerSettlementState) {
 	_ = os.WriteFile(p, b, 0o600)
 }
 
-// fetchCanonicalSettlementState prefers live canonical HTTP, merges into any local
-// snapshot, and refreshes the on-disk cache so unpaid accrual clears after VPS payout.
+// fetchCanonicalSettlementState returns live canonical HTTP only.
+// A stale on-disk settlement_canonical_public.json must NOT be treated as live
+// canonical for merge: when /api/settlement/canonical.json is 404/unreachable,
+// merging that snapshot re-poisons settled_hmc upward, repair clamps it to
+// accrued, and the wallet UI shows permanent 0 pending while settled tracks
+// payout forever.
 func fetchCanonicalSettlementState(ctx context.Context) (workerSettlementState, error) {
-	var local workerSettlementState
-	var haveLocal bool
-	if p := canonicalSettlementStateFile(); p != "" {
-		if out, err := readCanonicalSettlementStateFile(p); err == nil {
-			local = out
-			haveLocal = true
-		}
-	}
 	remote, remoteErr := fetchCanonicalSettlementStateHTTP(ctx)
-	if remoteErr == nil {
-		// HTTP canonical is source of truth. Never merge a stale/poisoned local
-		// snapshot upward into the return value — that used to clamp desktop
-		// settled_hmc up to inflated cache values, then repairWorkerSettlementState
-		// pinned settled==accrued and the UI showed permanent 0 pending.
-		go persistCanonicalSettlementSnapshot(remote)
-		return remote, nil
+	if remoteErr != nil {
+		return workerSettlementState{}, remoteErr
 	}
-	if haveLocal {
-		return local, nil
-	}
-	return workerSettlementState{}, remoteErr
+	go persistCanonicalSettlementSnapshot(remote)
+	return remote, nil
 }
 
 // mergeCanonicalSettlementState applies VPS-published settlement rows into local state.

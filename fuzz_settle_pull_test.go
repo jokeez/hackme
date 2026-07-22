@@ -20,8 +20,10 @@ func TestFuzzSettleOutboxAction(t *testing.T) {
 	}{
 		{"open", "run", true, false},
 		{"open", "finding", true, false},
-		{"closed", "run", false, true},
-		{"bounty_paid", "run", false, true},
+		{"open", "crash_bonus", true, false},
+		{"closed", "run", false, false}, // must not ACK unpaid runs after premature finalize
+		{"closed", "finalize", false, true},
+		{"bounty_paid", "run", true, false},
 		{"bounty_paid", "finding", false, true},
 		{"bounty_paid", "finalize", true, false},
 		{"unknown", "run", false, false},
@@ -81,9 +83,13 @@ func TestApplyLocalFuzzSettleOnceNoDoublePay(t *testing.T) {
 	if row.RunsDone != 1 {
 		t.Fatalf("re-pull must not double-pay: runs_done=%d", row.RunsDone)
 	}
-	ok, err := svc.HasFuzzSettleApplied(ctx, chain.FuzzSettleEventID(7))
+	ok, err := svc.HasFuzzSettleApplied(ctx, chain.FuzzSettleEventID("pull-camp", 7))
 	if err != nil || !ok {
 		t.Fatalf("applied event missing: ok=%v err=%v", ok, err)
+	}
+	wantID := "outbox:pull-camp:7"
+	if got := chain.FuzzSettleEventID("pull-camp", 7); got != wantID {
+		t.Fatalf("event_id format=%q want %q", got, wantID)
 	}
 }
 

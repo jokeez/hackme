@@ -41,9 +41,20 @@ def run(cmd, timeout=600):
     return out
 
 run(f"mkdir -p {install}/scripts/bootstrap_customer {install}/tasks/artifacts/security {install}/.secrets")
-for name in ["setup_bootstrap_vps.sh", "bootstrap_bot.sh", "place_bootstrap_order.sh", "bootstrap_snapshot.sh"]:
+for name in ["setup_bootstrap_vps.sh", "bootstrap_bot.sh", "place_bootstrap_order.sh", "bootstrap_snapshot.sh", "bootstrap_resync_pool.sh", "workerfuzz_fleet.sh", "workerfuzz_instance.sh"]:
     put(root / "scripts/ops/bootstrap_customer" / name, f"{install}/scripts/bootstrap_customer/{name}")
 put(root / "tasks/artifacts/security/rust_script_push_bounds_guard.wasm", f"{install}/tasks/artifacts/security/rust_script_push_bounds_guard.wasm")
+# Prefer shipping a fresh workerfuzz binary when present in workspace.
+wf = root / "workerfuzz"
+if wf.exists():
+    run(f"mkdir -p {install}/bin")
+    put(wf, f"{install}/bin/workerfuzz")
+    run(f"chmod +x {install}/bin/workerfuzz")
+# Also ship node binary if workspace has a linux build named hackme (optional).
+node_bin = root / "hackme"
+if node_bin.exists() and node_bin.stat().st_size > 1_000_000:
+    put(node_bin, f"{install}/hackme")
+    run(f"chmod +x {install}/hackme")
 
 coord_admin = root / ".secrets/hackme_coordinator_admin_token"
 if coord_admin.exists():

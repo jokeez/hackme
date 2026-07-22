@@ -39,7 +39,8 @@ func ensureSettleOutboxSchema(db *sql.DB) {
 }
 
 // EnqueueSettleOutbox records a settlement for durable event-id based apply/pull.
-// Returns the outbox row id used as SettleEventID / chain.FuzzSettleEventID.
+// Returns the outbox row id; durable event_id is SettleEventID(campaignID, id)
+// / chain.FuzzSettleEventID(campaignID, id) → outbox:<campaign_id>:<id>.
 // Replay-safe: same (campaign_id, kind, miner_address, severity, work_item_id) returns the existing row id.
 // workItemID distinguishes per-run pays (FUZZ-01); use 0 for campaign-level finding/finalize.
 func (s *Service) EnqueueSettleOutbox(ctx context.Context, kind, campaignID, minerAddress, severity string, workItemID int64) (int64, error) {

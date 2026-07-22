@@ -25,7 +25,22 @@ No miner binary update for the PoH rail. Deep fuzz corpus work is still a separa
 |---------|---------|
 | `hackme-bootstrap-node.service` | Customer node → `https://hackme.tech` canonical |
 | `hackme-workerpoh.service` | CPU miner (unchanged) |
-| `hackme-bootstrap-bot.timer` | New audit order every **6h** (~**4 orders/day**) · deep budgets (~6–12 HMC, ~16k–48k runs) |
+| `hackme-bootstrap-bot.timer` | New audit order every **6h** (~**4 orders/day**) · budgets ~6–12 HMC with runs capped so per-run ≥ **0.0001 HMC** (else HTTP 402) |
+| `hackme-bootstrap-workerfuzz@*` | Optional local **workerfuzz** fleet (3–10) claiming coordinator `/api/fuzz/work` |
+
+## More dig capacity (fuzz)
+
+`pool_distributed` campaigns are executed by **workerfuzz** on the coordinator claim path (not GPU `workerpoh`). To increase dig:
+
+```bash
+# on bootstrap VPS (preferred for customer demo — unique IDs + derived seeds)
+WORKERFUZZ_COUNT=4 bash /opt/hackme-bootstrap/scripts/bootstrap_customer/workerfuzz_fleet.sh install
+bash /opt/hackme-bootstrap/scripts/bootstrap_customer/workerfuzz_fleet.sh status
+```
+
+- Each unit needs a unique `WORKER_ID` and a unique miner seed (fleet derives SHA256 children from the node seed).
+- Hub canary workerfuzz can remain at 1–2 instances; prefer scaling on the B2B VPS first so hub memory stays gentle.
+- Escrow still settles on the **customer node**; PoH attach stays on the command chain.
 
 ## Targets (rotation)
 `nghttp2` → `md4c` → `cjson` → `jsmn` → `yyjson` → `expat` → …

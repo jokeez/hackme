@@ -57,6 +57,8 @@ func (s *Service) ApplyFuzzSettleOnce(ctx context.Context, eventID, kind, campai
 		payErr = s.payFuzzRunTx(ctx, tx, campaignID, minerAddress)
 	case "finding", "bounty":
 		payErr = s.payFuzzBountyTx(ctx, tx, campaignID, minerAddress, severity)
+	case "crash_bonus", "unique_crash":
+		payErr = s.payFuzzCrashBonusTx(ctx, tx, campaignID, minerAddress)
 	case "finalize", "close":
 		payErr = s.finalizeFuzzEscrowTx(ctx, tx, campaignID)
 	default:
@@ -90,19 +92,7 @@ func (s *Service) getFuzzEscrowUnlocked(ctx context.Context, campaignID string) 
 	if err != nil {
 		return nil, err
 	}
-	return &FuzzEscrowRow{
-		CampaignID:        r.campaignID,
-		BudgetHMC:         UnitsToHMC(r.budgetUnits),
-		RunsPoolHMC:       UnitsToHMC(r.runsPoolUnits),
-		BountyPoolHMC:     UnitsToHMC(r.bountyPoolUnits),
-		RunsPaidHMC:       UnitsToHMC(r.runsPaidUnits),
-		BountyPaidHMC:     UnitsToHMC(r.bountyPaidUnits),
-		RunsDone:          r.runsDone,
-		BudgetRuns:        r.budgetRuns,
-		FindingWinner:     r.findingWinner,
-		Status:            r.status,
-		RefundedBountyHMC: UnitsToHMC(r.refundedBountyUnits),
-	}, nil
+	return fuzzEscrowPublic(r), nil
 }
 
 func (s *Service) payFuzzRunTx(ctx context.Context, tx *sql.Tx, campaignID, minerAddress string) error {
@@ -135,6 +125,38 @@ func (s *Service) payFuzzRunTx(ctx context.Context, tx *sql.Tx, campaignID, mine
 	return err
 }
 
+// payFuzzCrashBonusTx pays a one-shot unique-crash bonus from the bounty pool without closing bounty.
+func (s *Service) payFuzzCrashBonusTx(ctx context.Context, tx *sql.Tx, campaignID, minerAddress string) error {
+	if !strings.HasPrefix(minerAddress, "HMC-") || len(minerAddress) != 20 {
+		return errors.New("chain: valid miner_address required")
+	}
+	row, err := s.lockFuzzEscrowTx(ctx, tx, campaignID)
+	if err != nil {
+		return err
+	}
+	if row.status != "open" {
+		return ErrFuzzEscrowClosed
+	}
+	if row.crashBonusPaidUnits > 0 {
+		return ErrFuzzEscrowAlreadyPaid
+	}
+	remaining := row.bountyPoolUnits - row.bountyPaidUnits
+	if remaining == 0 {
+		return ErrFuzzEscrowDepleted
+	}
+	bonus := fuzzescrow.UniqueCrashBonusUnits(row.bountyPoolUnits)
+	if bonus == 0 || bonus > remaining {
+		return ErrFuzzEscrowDepleted
+	}
+	if err := s.creditUnits(ctx, tx, minerAddress, bonus); err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx,
+		`UPDATE fuzz_campaign_escrow SET crash_bonus_paid_units=? WHERE campaign_id=?`,
+		bonus, campaignID)
+	return err
+}
+
 func (s *Service) payFuzzBountyTx(ctx context.Context, tx *sql.Tx, campaignID, minerAddress, severity string) error {
 	if !strings.HasPrefix(minerAddress, "HMC-") || len(minerAddress) != 20 {
 		return errors.New("chain: valid miner_address required")
@@ -152,8 +174,8 @@ func (s *Service) payFuzzBountyTx(ctx context.Context, tx *sql.Tx, campaignID, m
 	if row.bountyPaidUnits > 0 || row.findingWinner != "" {
 		return ErrFuzzEscrowAlreadyPaid
 	}
-	remaining := row.bountyPoolUnits
-	if remaining == 0 {
+	remaining := row.bountyPoolUnits - row.crashBonusPaidUnits
+	if remaining == 0 || row.bountyPoolUnits < row.crashBonusPaidUnits {
 		return ErrFuzzEscrowDepleted
 	}
 	minerUnits, feeUnits := fuzzescrow.BountyPayoutUnits(remaining)
@@ -180,8 +202,11 @@ func (s *Service) finalizeFuzzEscrowTx(ctx context.Context, tx *sql.Tx, campaign
 		return nil
 	}
 	runsRefund := row.runsPoolUnits - row.runsPaidUnits
-	bountyRefund := row.bountyPoolUnits - row.bountyPaidUnits
+	bountyRefund := row.bountyPoolUnits - row.bountyPaidUnits - row.crashBonusPaidUnits
 	if row.status == "bounty_paid" {
+		bountyRefund = 0
+	}
+	if row.bountyPoolUnits < row.bountyPaidUnits+row.crashBonusPaidUnits {
 		bountyRefund = 0
 	}
 	refund := runsRefund + bountyRefund

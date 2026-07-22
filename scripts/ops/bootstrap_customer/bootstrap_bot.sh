@@ -36,15 +36,21 @@ else
   exit 0
 fi
 
-# Keep a fat reserve; spend up to 12 HMC/order so 20% run-pool is meaningful.
+# Keep a fat reserve; spend up to MAX_ORDER_HMC so 20% run-pool is meaningful.
+# Min per-run payout is 0.0001 HMC (fuzzescrow.MinPerRunUnits) → runs ≤ budget*0.20/0.0001.
 RESERVE="${RESERVE_HMC:-80}"
-budget="$(python3 -c "b=float('$bal'); r=float('$RESERVE'); print(round(min(12.0, max(6.0, min(12.0, b-r))), 4))")"
-# ~25k–40k runs @ ~30 runs/s ≈ 15–20 min on marketplace; override with BUDGET_RUNS=.
-runs="${BUDGET_RUNS:-32000}"
+MAX_ORDER="${MAX_ORDER_HMC:-12}"
+MIN_PER_RUN="${MIN_PER_RUN_HMC:-0.0001}"
+budget="$(python3 -c "b=float('$bal'); r=float('$RESERVE'); m=float('$MAX_ORDER'); print(round(min(m, max(6.0, min(m, b-r))), 4))")"
 solves="${TARGET_SOLVES:-8}"
-# Scale runs lightly with budget so per_run_hmc stays readable (~0.00005–0.0001).
-if [[ -z "${BUDGET_RUNS:-}" ]]; then
-  runs="$(python3 -c "b=float('$budget'); print(int(max(16000, min(48000, round((b*0.20)/0.00008)))) )")"
+# Cap runs so escrow Open always clears MinPerRunUnits (402 otherwise).
+max_runs="$(python3 -c "b=float('$budget'); p=float('$MIN_PER_RUN'); print(int((b*0.20)/p))")"
+runs="${BUDGET_RUNS:-}"
+if [[ -z "$runs" ]]; then
+  # Prefer ~15–25 min dwell when pool throughput is healthy; never exceed max_runs.
+  runs="$(python3 -c "m=int('$max_runs'); print(int(max(1000, min(m, max(8000, min(24000, m))))))")"
+else
+  runs="$(python3 -c "r=int('$runs'); m=int('$max_runs'); print(min(r, m) if m>0 else r)")"
 fi
 
 if [[ "${BOOTSTRAP_DRY_RUN:-0}" == "1" ]]; then

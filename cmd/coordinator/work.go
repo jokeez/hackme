@@ -885,6 +885,24 @@ func (m *workManager) noteWorkerClientIP(workerID, ip string) {
 	m.worker[workerID] = st
 }
 
+// touchWorkerSeen refreshes last_seen for fuzz claim/submit heartbeats (PoH submit path
+// already updates LastSeenUnix; fuzz workers otherwise go "offline" in the UI after 300s).
+func (m *workManager) touchWorkerSeen(workerID string) {
+	workerID = strings.TrimSpace(workerID)
+	if workerID == "" || m == nil {
+		return
+	}
+	now := time.Now().Unix()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.worker == nil {
+		m.worker = make(map[string]workerPayoutStat)
+	}
+	st := m.worker[workerID]
+	st.LastSeenUnix = now
+	m.worker[workerID] = st
+}
+
 func (m *workManager) allowRateSlot(state workerAbuseState, now int64, limit int, claim bool) (workerAbuseState, bool) {
 	if state.BannedUntil > now {
 		return state, false

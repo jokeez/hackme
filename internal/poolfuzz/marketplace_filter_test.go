@@ -37,3 +37,21 @@ func TestIsMarketplaceCampaign(t *testing.T) {
 		t.Fatal("gate must be hidden")
 	}
 }
+
+func TestIsActivelyDiggable(t *testing.T) {
+	if !IsActivelyDiggable("running", "open", 10, 100) {
+		t.Fatal("open escrow with remaining runs should dig")
+	}
+	if IsActivelyDiggable("running", "closed", 10, 100) {
+		t.Fatal("closed escrow must not be diggable")
+	}
+	if IsActivelyDiggable("running", "", 100, 100) {
+		t.Fatal("budget exhausted must not be diggable")
+	}
+	if IsActivelyDiggable("completed", "open", 50, 100) {
+		t.Fatal("completed campaign must not be diggable")
+	}
+	if !IsActivelyDiggable("running", "", 50, 100) {
+		t.Fatal("no escrow row + remaining runs should still dig")
+	}
+}

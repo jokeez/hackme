@@ -34,6 +34,9 @@ func (s *failThenOKSettler) PayFinding(context.Context, string, string, string, 
 	s.mu.Unlock()
 	return SettleResult{Applied: true}, nil
 }
+func (s *failThenOKSettler) PayCrashBonus(context.Context, string, string, int64, int64) (SettleResult, error) {
+	return SettleResult{Applied: true}, nil
+}
 func (s *failThenOKSettler) Finalize(context.Context, string, int64) (SettleResult, error) {
 	return SettleResult{Applied: true}, nil
 }
@@ -172,6 +175,9 @@ func (s *queuedSettler) PayRun(_ context.Context, _, _ string, _, reuse int64) (
 	return SettleResult{OutboxID: id, Applied: false}, nil
 }
 func (s *queuedSettler) PayFinding(context.Context, string, string, string, int64, int64) (SettleResult, error) {
+	return SettleResult{Applied: false}, nil
+}
+func (s *queuedSettler) PayCrashBonus(context.Context, string, string, int64, int64) (SettleResult, error) {
 	return SettleResult{Applied: false}, nil
 }
 func (s *queuedSettler) Finalize(context.Context, string, int64) (SettleResult, error) {

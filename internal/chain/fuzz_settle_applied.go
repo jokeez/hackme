@@ -7,9 +7,18 @@ import (
 	"time"
 )
 
-// FuzzSettleEventID builds a stable unique key for a coordinator settle-outbox row.
-func FuzzSettleEventID(outboxID int64) string {
-	return fmt.Sprintf("outbox:%d", outboxID)
+// FuzzSettleEventID builds a stable globally unique key for a coordinator settle-outbox row.
+// Format: outbox:<campaign_id>:<outbox_id>
+//
+// Legacy keys were outbox:<outbox_id> only. That collided across campaigns (and across
+// coordinator DB resets) when customer nodes already had bootstrap-applied outbox:1..N —
+// ApplyFuzzSettleOnce no-op'd while pull still ACKed, leaving escrow unpaid.
+func FuzzSettleEventID(campaignID string, outboxID int64) string {
+	campaignID = strings.TrimSpace(campaignID)
+	if campaignID == "" {
+		return fmt.Sprintf("outbox:%d", outboxID)
+	}
+	return fmt.Sprintf("outbox:%s:%d", campaignID, outboxID)
 }
 
 // MarkFuzzSettleApplied inserts a durable applied-event record.

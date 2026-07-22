@@ -30,7 +30,19 @@ func (a *app) pullFuzzSettleOutbox(ctx context.Context) {
 		}
 		acked := make([]int64, 0, len(items))
 		localHits := 0
+		// Prefer run/crash_bonus/finding before finalize so refund cannot race ahead of payouts.
+		ordered := make([]poolsync.SettleOutboxItem, 0, len(items))
+		var finals []poolsync.SettleOutboxItem
 		for _, it := range items {
+			k := strings.TrimSpace(strings.ToLower(it.Kind))
+			if k == "finalize" || k == "close" {
+				finals = append(finals, it)
+			} else {
+				ordered = append(ordered, it)
+			}
+		}
+		ordered = append(ordered, finals...)
+		for _, it := range ordered {
 			st, local := a.localFuzzEscrowStatus(ctx, it.CampaignID)
 			if !local {
 				continue
@@ -98,12 +110,22 @@ func fuzzSettleOutboxAction(escrowStatus, kind string) (apply bool, drain bool) 
 	kind = strings.TrimSpace(strings.ToLower(kind))
 	switch escrowStatus {
 	case "closed":
-		return false, true
+		switch kind {
+		case "finalize", "close":
+			// Already closed — safe to ACK.
+			return false, true
+		default:
+			// Do NOT ACK unpaid run/finding/crash_bonus after a premature finalize:
+			// that permanently burns miner payouts. Leave pending for ops replay.
+			return false, false
+		}
 	case "open":
 		return true, false
 	case "bounty_paid":
 		switch kind {
-		case "run", "finding", "bounty":
+		case "run", "crash_bonus", "unique_crash":
+			return true, false
+		case "finding", "bounty":
 			return false, true
 		case "finalize", "close":
 			return true, false
@@ -129,7 +151,7 @@ func (a *app) applyLocalFuzzSettleOnce(ctx context.Context, it poolsync.SettleOu
 	if it.ID <= 0 {
 		return fmt.Errorf("fuzz settle: missing outbox event id")
 	}
-	eventID := chain.FuzzSettleEventID(it.ID)
+	eventID := chain.FuzzSettleEventID(it.CampaignID, it.ID)
 	_, _, err := a.chain.ApplyFuzzSettleOnce(ctx, eventID, it.Kind, it.CampaignID, it.MinerAddress, it.Severity)
 	return err
 }
@@ -141,6 +163,9 @@ func (a *app) applyLocalFuzzSettle(ctx context.Context, it poolsync.SettleOutbox
 		return err
 	case "finding", "bounty":
 		_, err := a.chain.PayFuzzBounty(ctx, it.CampaignID, it.MinerAddress, it.Severity)
+		return err
+	case "crash_bonus", "unique_crash":
+		_, err := a.chain.PayFuzzCrashBonus(ctx, it.CampaignID, it.MinerAddress)
 		return err
 	case "finalize", "close":
 		_, err := a.chain.FinalizeFuzzEscrow(ctx, it.CampaignID)

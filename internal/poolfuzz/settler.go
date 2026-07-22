@@ -14,6 +14,8 @@ type SettleResult struct {
 type Settler interface {
 	PayRun(ctx context.Context, campaignID, minerAddress string, workItemID, reuseOutboxID int64) (SettleResult, error)
 	PayFinding(ctx context.Context, campaignID, minerAddress, severity string, workItemID, reuseOutboxID int64) (SettleResult, error)
+	// PayCrashBonus pays a one-shot unique-crash micro-bonus from the bounty pool (does not close bounty).
+	PayCrashBonus(ctx context.Context, campaignID, minerAddress string, workItemID, reuseOutboxID int64) (SettleResult, error)
 	Finalize(ctx context.Context, campaignID string, reuseOutboxID int64) (SettleResult, error)
 }
 
@@ -24,6 +26,9 @@ func (NoopSettler) PayRun(context.Context, string, string, int64, int64) (Settle
 	return SettleResult{Applied: true}, nil
 }
 func (NoopSettler) PayFinding(context.Context, string, string, string, int64, int64) (SettleResult, error) {
+	return SettleResult{Applied: true}, nil
+}
+func (NoopSettler) PayCrashBonus(context.Context, string, string, int64, int64) (SettleResult, error) {
 	return SettleResult{Applied: true}, nil
 }
 func (NoopSettler) Finalize(context.Context, string, int64) (SettleResult, error) {

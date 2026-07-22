@@ -38,9 +38,9 @@ func (a *app) handleFuzzPoolSettle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch kind {
-	case "run", "finding", "bounty", "finalize", "close":
+	case "run", "finding", "bounty", "finalize", "close", "crash_bonus", "unique_crash":
 	default:
-		writeAPIError(w, http.StatusBadRequest, "invalid_kind", "kind must be run|finding|finalize", nil)
+		writeAPIError(w, http.StatusBadRequest, "invalid_kind", "kind must be run|finding|crash_bonus|finalize", nil)
 		return
 	}
 	ctx := r.Context()
@@ -147,6 +147,10 @@ func (a *app) handleFuzzEscrowCleanupStale(w http.ResponseWriter, r *http.Reques
 func (a *app) handleFuzzEscrowGet(w http.ResponseWriter, r *http.Request, campaignID string) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	// Same boundary as report/gate/pulse: admin or customer report token (not public).
+	if !a.requireFuzzReportAccess(w, r, campaignID, "escrow") {
 		return
 	}
 	row, err := a.chain.GetFuzzEscrow(r.Context(), campaignID)

@@ -532,7 +532,19 @@ func (a *app) recomputeCampaignProgress(ctx context.Context, campaignID string, 
 	summary["runs_done"] = done
 	summary["new_edges"] = edges
 	summary["new_paths"] = paths
-	summary["unique_crashes"] = crashed
+	summary["failed_checks"] = crashed
+	crashClass := 0
+	if frows, err := a.db.QueryContext(ctx, `SELECT finding_type FROM fuzz_findings WHERE campaign_id=?`, campaignID); err == nil {
+		for frows.Next() {
+			var ft string
+			if err := frows.Scan(&ft); err == nil && fuzzengine.IsCrashClass(ft) {
+				crashClass++
+			}
+		}
+		_ = frows.Close()
+	}
+	summary["unique_crashes"] = crashClass
+	summary["crash_count"] = crashClass
 	summary["heartbeat_at"] = now
 	if crashed > 0 && firstFindingAt > 0 && startedAt > 0 && firstFindingAt >= startedAt {
 		summary["time_to_first_crash_sec"] = int(firstFindingAt - startedAt)

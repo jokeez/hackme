@@ -7,6 +7,11 @@ const (
 	RunsPoolShare         = 0.20
 	BountyPoolShare       = 0.80
 	BountyPlatformFeeRate = 0.05 // taken from bounty payout only
+	// UniqueCrashBonusRate is a small share of the bounty pool paid once for a unique crash.
+	// Main medium/high/critical bounty stays confirmed-native and receives the remainder.
+	UniqueCrashBonusRate = 0.01
+	// UniqueCrashBonusMaxUnits caps the crash bonus at 0.01 HMC (1e8 units/HMC).
+	UniqueCrashBonusMaxUnits = 1_000_000
 	// MinCampaignBudgetHMC prevents dust campaigns that pay miners negligible per-run slices.
 	MinCampaignBudgetHMC = 0.5
 	MaxCampaignBudgetHMC = 500.0
@@ -59,4 +64,26 @@ func BountyPayoutUnits(bountyPoolUnits uint64) (minerUnits, feeUnits uint64) {
 		feeUnits = bountyPoolUnits
 	}
 	return bountyPoolUnits - feeUnits, feeUnits
+}
+
+// UniqueCrashBonusUnits returns a one-shot unique-crash bonus from the bounty pool.
+// Never exceeds UniqueCrashBonusMaxUnits / 1% of pool / 10% of pool; returns 0 when dust.
+func UniqueCrashBonusUnits(bountyPoolUnits uint64) uint64 {
+	if bountyPoolUnits == 0 {
+		return 0
+	}
+	bonus := uint64(float64(bountyPoolUnits) * UniqueCrashBonusRate)
+	if bonus > UniqueCrashBonusMaxUnits {
+		bonus = UniqueCrashBonusMaxUnits
+	}
+	if maxShare := bountyPoolUnits / 10; maxShare > 0 && bonus > maxShare {
+		bonus = maxShare
+	}
+	if bonus < MinPerRunUnits {
+		return 0
+	}
+	if bonus > bountyPoolUnits {
+		return bountyPoolUnits
+	}
+	return bonus
 }

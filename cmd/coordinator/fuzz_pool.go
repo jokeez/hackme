@@ -365,7 +365,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
 		var req struct {
-			WorkerID    string `json:"worker_id"`
+			WorkerID     string `json:"worker_id"`
 			MinerPubKey  string `json:"miner_pubkey"`
 			MinerAddress string `json:"miner_address"`
 		}
@@ -392,6 +392,10 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": reason})
 			return
 		}
+		// Heartbeat on every authenticated claim attempt so fuzz workers stay online
+		// in /api/work/stats even when the queue is briefly empty.
+		wm.noteWorkerClientIP(workerID, ipKey)
+		wm.touchWorkerSeen(workerID)
 		work, ok, err := pf.Claim(r.Context(), workerID, now)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -403,7 +407,6 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": "no_fuzz_work"})
 			return
 		}
-		wm.noteWorkerClientIP(workerID, ipKey)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"ok":              true,
@@ -487,8 +490,11 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			}
 			st.PayoutAddress = payoutAddr
 			st.SignedSubmits++
+			st.LastSeenUnix = time.Now().Unix()
 			wm.worker[req.WorkerID] = st
 			wm.mu.Unlock()
+		} else {
+			wm.touchWorkerSeen(req.WorkerID)
 		}
 		var inputBytes []byte
 		if h := strings.TrimSpace(req.InputBytesHex); h != "" {

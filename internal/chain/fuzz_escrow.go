@@ -27,12 +27,20 @@ type FuzzEscrowRow struct {
 	BountyPoolHMC     float64 `json:"bounty_pool_hmc"`
 	RunsPaidHMC       float64 `json:"runs_paid_hmc"`
 	BountyPaidHMC     float64 `json:"bounty_paid_hmc"`
+	CrashBonusPaidHMC float64 `json:"crash_bonus_paid_hmc,omitempty"`
 	RunsDone          int     `json:"runs_done"`
 	BudgetRuns        int     `json:"budget_runs"`
 	FindingWinner     string  `json:"finding_winner,omitempty"`
 	Status            string  `json:"status"`
 	RefundedBountyHMC float64 `json:"refunded_bounty_hmc,omitempty"`
 	RefundedRunsHMC   float64 `json:"refunded_runs_hmc,omitempty"`
+
+	// Live transparency fields for CLI / status (computed; safe to omit when zero only where noted).
+	SpentRunsHMC     float64 `json:"spent_runs_hmc"`
+	LockedBountyHMC  float64 `json:"locked_bounty_hmc"`
+	RunsRemainingHMC float64 `json:"runs_remaining_hmc"`
+	RefundableHMC    float64 `json:"refundable_hmc"`
+	RefundPath       string  `json:"refund_path"`
 }
 
 // OpenFuzzEscrow locks budget from the primary wallet into a 20/80 split.
@@ -181,6 +189,26 @@ func (s *Service) PayFuzzBounty(ctx context.Context, campaignID, minerAddress, s
 	return s.getFuzzEscrowUnlocked(ctx, campaignID)
 }
 
+// PayFuzzCrashBonus pays a one-shot unique-crash micro-bonus from the bounty pool.
+func (s *Service) PayFuzzCrashBonus(ctx context.Context, campaignID, minerAddress string) (*FuzzEscrowRow, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	campaignID = strings.TrimSpace(campaignID)
+	minerAddress = strings.TrimSpace(minerAddress)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := s.payFuzzCrashBonusTx(ctx, tx, campaignID, minerAddress); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return s.getFuzzEscrowUnlocked(ctx, campaignID)
+}
+
 // CancelFuzzEscrow refunds all unpaid escrow slices to the operator wallet and closes.
 func (s *Service) CancelFuzzEscrow(ctx context.Context, campaignID string) (*FuzzEscrowRow, error) {
 	s.mu.Lock()
@@ -199,8 +227,11 @@ func (s *Service) CancelFuzzEscrow(ctx context.Context, campaignID string) (*Fuz
 		return s.GetFuzzEscrow(ctx, campaignID)
 	}
 	runsRefund := row.runsPoolUnits - row.runsPaidUnits
-	bountyRefund := row.bountyPoolUnits - row.bountyPaidUnits
+	bountyRefund := row.bountyPoolUnits - row.bountyPaidUnits - row.crashBonusPaidUnits
 	if row.status == "bounty_paid" {
+		bountyRefund = 0
+	}
+	if row.bountyPoolUnits < row.bountyPaidUnits+row.crashBonusPaidUnits {
 		bountyRefund = 0
 	}
 	refund := runsRefund + bountyRefund
@@ -252,8 +283,11 @@ func (s *Service) FinalizeFuzzEscrow(ctx context.Context, campaignID string) (*F
 		return s.getFuzzEscrowUnlocked(ctx, campaignID)
 	}
 	runsRefund := row.runsPoolUnits - row.runsPaidUnits
-	bountyRefund := row.bountyPoolUnits - row.bountyPaidUnits
+	bountyRefund := row.bountyPoolUnits - row.bountyPaidUnits - row.crashBonusPaidUnits
 	if row.status == "bounty_paid" {
+		bountyRefund = 0
+	}
+	if row.bountyPoolUnits < row.bountyPaidUnits+row.crashBonusPaidUnits {
 		bountyRefund = 0
 	}
 	if err := s.finalizeFuzzEscrowTx(ctx, tx, campaignID); err != nil {
@@ -278,6 +312,7 @@ type fuzzEscrowDBRow struct {
 	bountyPoolUnits     uint64
 	runsPaidUnits       uint64
 	bountyPaidUnits     uint64
+	crashBonusPaidUnits uint64
 	runsDone            int
 	budgetRuns          int
 	perRunUnits         uint64
@@ -294,10 +329,10 @@ func (s *Service) readFuzzEscrow(ctx context.Context, q queryRowContext, campaig
 	var r fuzzEscrowDBRow
 	err := q.QueryRowContext(ctx,
 		`SELECT campaign_id, budget_units, runs_pool_units, bounty_pool_units, runs_paid_units, bounty_paid_units,
-		        runs_done, budget_runs, per_run_units, finding_winner, status, refunded_bounty_units
+		        COALESCE(crash_bonus_paid_units,0), runs_done, budget_runs, per_run_units, finding_winner, status, refunded_bounty_units
 		 FROM fuzz_campaign_escrow WHERE campaign_id=?`, campaignID).
 		Scan(&r.campaignID, &r.budgetUnits, &r.runsPoolUnits, &r.bountyPoolUnits, &r.runsPaidUnits, &r.bountyPaidUnits,
-			&r.runsDone, &r.budgetRuns, &r.perRunUnits, &r.findingWinner, &r.status, &r.refundedBountyUnits)
+			&r.crashBonusPaidUnits, &r.runsDone, &r.budgetRuns, &r.perRunUnits, &r.findingWinner, &r.status, &r.refundedBountyUnits)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrFuzzEscrowNotFound
 	}
@@ -307,23 +342,66 @@ func (s *Service) readFuzzEscrow(ctx context.Context, q queryRowContext, campaig
 	return &r, nil
 }
 
-// GetFuzzEscrow returns public escrow state for a campaign.
-func (s *Service) GetFuzzEscrow(ctx context.Context, campaignID string) (*FuzzEscrowRow, error) {
-	r, err := s.readFuzzEscrow(ctx, s.db, campaignID)
-	if err != nil {
-		return nil, err
+func fuzzEscrowPublic(r *fuzzEscrowDBRow) *FuzzEscrowRow {
+	if r == nil {
+		return nil
+	}
+	runsPaid := UnitsToHMC(r.runsPaidUnits)
+	bountyPaid := UnitsToHMC(r.bountyPaidUnits)
+	crashBonus := UnitsToHMC(r.crashBonusPaidUnits)
+	runsRemainingU := uint64(0)
+	if r.runsPoolUnits > r.runsPaidUnits {
+		runsRemainingU = r.runsPoolUnits - r.runsPaidUnits
+	}
+	lockedBountyU := uint64(0)
+	spentBountyU := r.bountyPaidUnits + r.crashBonusPaidUnits
+	if r.bountyPoolUnits > spentBountyU && r.status != "closed" {
+		lockedBountyU = r.bountyPoolUnits - spentBountyU
+	}
+	if r.status == "bounty_paid" {
+		// Main bounty released; crash bonus already paid — nothing left locked.
+		lockedBountyU = 0
+	}
+	refundableU := runsRemainingU
+	if r.status == "open" {
+		refundableU += lockedBountyU
+	}
+	// bounty_paid: only unused runs refund on finalize/cancel.
+	path := "none"
+	switch r.status {
+	case "open":
+		path = "finalize_or_cancel_refunds_unused_runs_and_locked_bounty"
+	case "bounty_paid":
+		path = "finalize_or_cancel_refunds_unused_runs_only"
+	case "closed":
+		path = "already_closed"
 	}
 	return &FuzzEscrowRow{
 		CampaignID:        r.campaignID,
 		BudgetHMC:         UnitsToHMC(r.budgetUnits),
 		RunsPoolHMC:       UnitsToHMC(r.runsPoolUnits),
 		BountyPoolHMC:     UnitsToHMC(r.bountyPoolUnits),
-		RunsPaidHMC:       UnitsToHMC(r.runsPaidUnits),
-		BountyPaidHMC:     UnitsToHMC(r.bountyPaidUnits),
+		RunsPaidHMC:       runsPaid,
+		BountyPaidHMC:     bountyPaid,
+		CrashBonusPaidHMC: crashBonus,
 		RunsDone:          r.runsDone,
 		BudgetRuns:        r.budgetRuns,
 		FindingWinner:     r.findingWinner,
 		Status:            r.status,
 		RefundedBountyHMC: UnitsToHMC(r.refundedBountyUnits),
-	}, nil
+		SpentRunsHMC:      runsPaid,
+		LockedBountyHMC:   UnitsToHMC(lockedBountyU),
+		RunsRemainingHMC:  UnitsToHMC(runsRemainingU),
+		RefundableHMC:     UnitsToHMC(refundableU),
+		RefundPath:        path,
+	}
+}
+
+// GetFuzzEscrow returns public escrow state for a campaign.
+func (s *Service) GetFuzzEscrow(ctx context.Context, campaignID string) (*FuzzEscrowRow, error) {
+	r, err := s.readFuzzEscrow(ctx, s.db, campaignID)
+	if err != nil {
+		return nil, err
+	}
+	return fuzzEscrowPublic(r), nil
 }

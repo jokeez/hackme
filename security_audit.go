@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -302,6 +303,11 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 		"budget_hmc":       budgetHMC,
 		"escrow_split":     "20_80",
 		"depth_tier":       string(depthTier),
+	}
+	if raw, err := hex.DecodeString(strings.TrimSpace(wasmHex)); err == nil && len(raw) > 0 {
+		sum := sha256.Sum256(raw)
+		cfgMap["wasm_sha256"] = hex.EncodeToString(sum[:])
+		cfgMap["artifact_hash"] = hex.EncodeToString(sum[:])
 	}
 	if attachPoolPoH {
 		cfgMap["attach_poh_order"] = true

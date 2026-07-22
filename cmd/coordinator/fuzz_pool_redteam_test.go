@@ -7,10 +7,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"hackme/internal/poolfuzz"
+	"hackme/internal/store"
 )
 
 func canonFuzzSign(p poolfuzz.SubmitSignPayload) []byte { return poolfuzz.CanonicalSubmitBytes(p) }
@@ -119,5 +122,86 @@ func TestHTTPFuzzSubmitUnauth(t *testing.T) {
 	mux.ServeHTTP(rec, req)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("want 401, got %d", rec.Code)
+	}
+}
+
+func TestHTTPFuzzClaimRateLimited(t *testing.T) {
+	pf := &poolfuzz.Service{DB: nil}
+	wm := &workManager{
+		claimPerMin:     1,
+		abuse:           make(map[string]workerAbuseState),
+		ipAbuse:         make(map[string]workerAbuseState),
+		worker:          make(map[string]workerPayoutStat),
+		dropReasonCount: make(map[string]uint64),
+	}
+	mux := http.NewServeMux()
+	addFuzzPoolRoutes(mux, "admin-tok", "worker-tok", false, wm, pf)
+
+	now := time.Now().Unix()
+	if ok, _ := wm.allowClaim("w-rate", "", now); !ok {
+		t.Fatal("first allowClaim should pass")
+	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/work/claim", bytes.NewReader([]byte(`{"worker_id":"w-rate"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", "worker-tok")
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("want 429 claim_rate_limited, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var out map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &out)
+	if out["reason"] != "claim_rate_limited" {
+		t.Fatalf("body=%s", rec.Body.String())
+	}
+}
+
+func TestTouchWorkerSeenKeepsFuzzWorkerOnline(t *testing.T) {
+	wm := &workManager{worker: make(map[string]workerPayoutStat)}
+	wm.worker["fuzz-w1"] = workerPayoutStat{LastSeenUnix: 1}
+	wm.touchWorkerSeen("fuzz-w1")
+	wm.mu.Lock()
+	st := wm.worker["fuzz-w1"]
+	wm.mu.Unlock()
+	if st.LastSeenUnix <= 1 {
+		t.Fatalf("touchWorkerSeen must refresh last_seen_unix, got %d", st.LastSeenUnix)
+	}
+	now := time.Now().Unix()
+	if st.LastSeenUnix > now+1 || now-st.LastSeenUnix > 2 {
+		t.Fatalf("last_seen out of range: %d vs now %d", st.LastSeenUnix, now)
+	}
+}
+
+func TestHTTPFuzzClaimTouchesLastSeenOnEmptyQueue(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "fuzz-claim.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	pf := &poolfuzz.Service{DB: db}
+	wm := &workManager{
+		claimPerMin:     60,
+		abuse:           make(map[string]workerAbuseState),
+		ipAbuse:         make(map[string]workerAbuseState),
+		worker:          make(map[string]workerPayoutStat),
+		dropReasonCount: make(map[string]uint64),
+	}
+	mux := http.NewServeMux()
+	addFuzzPoolRoutes(mux, "admin-tok", "worker-tok", false, wm, pf)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/work/claim", bytes.NewReader([]byte(`{"worker_id":"fuzz-online"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", "worker-tok")
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("empty queue want 429 no_fuzz_work, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	wm.mu.Lock()
+	st := wm.worker["fuzz-online"]
+	wm.mu.Unlock()
+	if st.LastSeenUnix <= 0 {
+		t.Fatal("claim with empty queue must still refresh last_seen (fuzz online heartbeat)")
 	}
 }

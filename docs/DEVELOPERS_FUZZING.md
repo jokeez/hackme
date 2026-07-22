@@ -36,7 +36,14 @@ hackme-fuzzing create ./fuzzing-out/my-order.manifest.json
 
 # B2B packages (local node + HACKME_ADMIN_TOKEN):
 hackme-fuzzing wizard --wasm ./guard.wasm --package audit --title "My guard"
+# Honest progress (PoH % · fuzz runs % · escrow · ETA):
+hackme-fuzzing status --campaign "$CAMPAIGN_ID" --order "$ORDER_ID" --report-token "$TOKEN"
+# Primary deliverable — CI gate:
+curl -sS -H "X-Hackme-Report-Token: $TOKEN" \
+  "http://127.0.0.1:8080/api/fuzz/campaigns/$CAMPAIGN_ID/gate?max_critical=0&max_high=0"
 ```
+
+Packages: **scan** = WASM smoke · **audit** = WASM + native/ASAN repro · **deep** = byte corpus + hours-scale budget (not just a bigger Audit number).
 
 ## Public site limits (by design)
 

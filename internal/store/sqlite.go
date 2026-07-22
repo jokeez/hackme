@@ -548,6 +548,7 @@ func migrateFuzzEscrow(db *sql.DB) error {
 		bounty_pool_units INTEGER NOT NULL,
 		runs_paid_units INTEGER NOT NULL DEFAULT 0,
 		bounty_paid_units INTEGER NOT NULL DEFAULT 0,
+		crash_bonus_paid_units INTEGER NOT NULL DEFAULT 0,
 		runs_done INTEGER NOT NULL DEFAULT 0,
 		budget_runs INTEGER NOT NULL,
 		per_run_units INTEGER NOT NULL,
@@ -556,7 +557,15 @@ func migrateFuzzEscrow(db *sql.DB) error {
 		refunded_bounty_units INTEGER NOT NULL DEFAULT 0,
 		created_at INTEGER NOT NULL
 	)`)
-	return err
+	if err != nil {
+		return err
+	}
+	if _, err := db.Exec(`ALTER TABLE fuzz_campaign_escrow ADD COLUMN crash_bonus_paid_units INTEGER NOT NULL DEFAULT 0`); err != nil {
+		if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+			return err
+		}
+	}
+	return nil
 }
 
 func migrateFuzzSettleOutbox(db *sql.DB) error {

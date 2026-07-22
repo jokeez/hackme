@@ -79,6 +79,10 @@ func main() {
 		if err := doWizard(base, rest); err != nil {
 			fail(err)
 		}
+	case "status":
+		if err := doStatus(base, rest); err != nil {
+			fail(err)
+		}
 	default:
 		usage()
 		os.Exit(2)
@@ -98,8 +102,13 @@ func usage() {
   hackme-fuzzing campaign status CAMPAIGN_ID
   hackme-fuzzing campaign report-url CAMPAIGN_ID
   hackme-fuzzing wizard --wasm guard.wasm [--package scan|audit|deep] [-title "..."]
+  hackme-fuzzing status --campaign ID [--order ORDER_ID] [--report-token TOKEN]
 
-Env: HACKME_FUZZING_BASE, HACKME_DEVELOPER_TOKEN
+  Happy path: register --save → wizard --package audit → status → gate/report URLs
+  Packages: scan=WASM smoke · audit=WASM+native/ASAN · deep=byte corpus (hours-scale)
+  Primary deliverable: CI gate pass/fail (not finding spam)
+
+Env: HACKME_FUZZING_BASE, HACKME_DEVELOPER_TOKEN, HACKME_REPORT_TOKEN
 Campaign admin: HACKME_ADMIN_TOKEN (create/status/wizard on local node)
 Public report base: HACKME_PUBLIC_REPORT_BASE (default https://hackme.tech)
 Config: %s

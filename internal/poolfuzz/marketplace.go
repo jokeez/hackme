@@ -2,8 +2,11 @@ package poolfuzz
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
+
+	"hackme/internal/fuzzengine"
 )
 
 // ListPublicCampaigns returns redacted pool campaigns for the marketplace UI.
@@ -45,27 +48,31 @@ func (s *Service) ListPublicCampaigns(ctx context.Context, limit int) ([]map[str
 		var findings int
 		_ = s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_findings WHERE campaign_id=?`, id).Scan(&findings)
 		runsDone := runsDoneForCampaign(ctx, s.DB, id, summary)
-		displayStatus := status
-		if budgetRuns > 0 && runsDone >= budgetRuns && displayStatus == "running" {
-			displayStatus = "completed"
+		escrowStatus := escrowStatusForCampaign(ctx, s.DB, id)
+		if !IsActivelyDiggable(status, escrowStatus, runsDone, budgetRuns) {
+			continue
 		}
 		budgetHMC := 0.0
 		if v, ok := cfg["budget_hmc"]; ok {
 			budgetHMC = floatFromJSON(v)
 		}
+		crashClass := crashClassFindingsCount(ctx, s.DB, id)
 		item := map[string]any{
 			"id":             id,
 			"campaign_type":  ctype,
-			"status":         displayStatus,
+			"status":         status,
 			"title":          title,
 			"budget_runs":    budgetRuns,
 			"budget_hmc":     budgetHMC,
 			"runs_done":      runsDone,
-			"unique_crashes": intFromJSON(summary["unique_crashes"]),
+			"unique_crashes": crashClass,
 			"findings":       findings,
 			"pool":           true,
 			"created_at":     createdAt,
 			"completed_at":   completedAt,
+		}
+		if escrowStatus != "" {
+			item["escrow_status"] = escrowStatus
 		}
 		if fe, ok := summary["fuzz_engine"].(map[string]any); ok {
 			item["check_semantics"] = fe["check_semantics"]
@@ -104,4 +111,38 @@ func floatFromJSON(v any) float64 {
 	default:
 		return 0
 	}
+}
+
+func escrowStatusForCampaign(ctx context.Context, db *sql.DB, id string) string {
+	if db == nil {
+		return ""
+	}
+	var st string
+	err := db.QueryRowContext(ctx, `SELECT status FROM fuzz_campaign_escrow WHERE campaign_id=?`, id).Scan(&st)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(st)
+}
+
+func crashClassFindingsCount(ctx context.Context, db *sql.DB, id string) int {
+	if db == nil {
+		return 0
+	}
+	rows, err := db.QueryContext(ctx, `SELECT finding_type FROM fuzz_findings WHERE campaign_id=?`, id)
+	if err != nil {
+		return 0
+	}
+	defer rows.Close()
+	n := 0
+	for rows.Next() {
+		var ft string
+		if err := rows.Scan(&ft); err != nil {
+			continue
+		}
+		if fuzzengine.IsCrashClass(ft) {
+			n++
+		}
+	}
+	return n
 }

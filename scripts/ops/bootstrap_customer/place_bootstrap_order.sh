@@ -55,7 +55,7 @@ export CAMPAIGN_ID=""
 bash "$(dirname "$0")/bootstrap_snapshot.sh" "$STAMP" "pre-${TARGET}" >>"$LOG_DIR/${STAMP}.log" 2>&1 || true
 
 log "POST security-audit target=$TARGET budget_hmc=$BUDGET_HMC runs=$BUDGET_RUNS poh_reward=$REWARD_HMC solves=$TARGET_SOLVES"
-resp="$(curl -fsS --max-time 120 -X POST "$BASE/api/security-audit" \
+http_code="$(curl -sS --max-time 120 -o "$LOG_DIR/${STAMP}-audit.raw.json" -w '%{http_code}' -X POST "$BASE/api/security-audit" \
   -H "Content-Type: application/json" \
   -H "X-Hackme-Admin-Token: $ADMIN" \
   -d "$(jq -nc \
@@ -87,8 +87,12 @@ resp="$(curl -fsS --max-time 120 -X POST "$BASE/api/security-audit" \
       pool_distributed: true,
       use_sup_discount: false
     }')")"
-
-echo "$resp" | jq . >"$LOG_DIR/${STAMP}-audit.json"
+resp="$(cat "$LOG_DIR/${STAMP}-audit.raw.json")"
+echo "$resp" | jq . >"$LOG_DIR/${STAMP}-audit.json" 2>/dev/null || cp "$LOG_DIR/${STAMP}-audit.raw.json" "$LOG_DIR/${STAMP}-audit.json"
+if [[ "$http_code" != "200" ]]; then
+  log "FAIL create HTTP $http_code: $(jq -c . "$LOG_DIR/${STAMP}-audit.json" 2>/dev/null || cat "$LOG_DIR/${STAMP}-audit.raw.json")"
+  exit 1
+fi
 TOK="$(jq -r '.customer_report_token // empty' <<<"$resp")"
 CID_OUT="$(jq -r '.campaign_id // empty' <<<"$resp")"
 [[ -n "$CID_OUT" ]] || { log "FAIL create: $(cat "$LOG_DIR/${STAMP}-audit.json")"; exit 1; }
@@ -96,7 +100,14 @@ log "created campaign=$CID_OUT order=$(jq -c '.order // {}' <<<"$resp") pool_syn
 
 if [[ "$(jq -r '.pool_sync // ""' <<<"$resp")" == "queued" ]]; then
   log "pool_sync queued — pushing to coordinator"
-  CAMPAIGN_ID="$CID_OUT" bash "$(dirname "$0")/bootstrap_resync_pool.sh" >>"$LOG_DIR/${STAMP}.log" 2>&1 || true
+  for attempt in 1 2 3 4 5; do
+    if CAMPAIGN_ID="$CID_OUT" bash "$(dirname "$0")/bootstrap_resync_pool.sh" >>"$LOG_DIR/${STAMP}.log" 2>&1; then
+      log "pool_sync ok attempt=$attempt"
+      break
+    fi
+    log "pool_sync retry attempt=$attempt failed; sleep ${attempt}s"
+    sleep "$attempt"
+  done
 fi
 
 export CAMPAIGN_ID="$CID_OUT"

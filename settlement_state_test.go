@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestReadCanonicalSettlementStateFile(t *testing.T) {
@@ -70,6 +72,23 @@ func TestMergeCanonicalSettlementStateFresherRemoteMayLower(t *testing.T) {
 	}
 	if local.Workers["w1"].LastTxHash != "vps" {
 		t.Fatalf("tx=%q", local.Workers["w1"].LastTxHash)
+	}
+}
+
+func TestFetchCanonicalSettlementStateIgnoresPoisonedDiskOnHTTPFail(t *testing.T) {
+	dir := t.TempDir()
+	poison := filepath.Join(dir, "settlement_canonical_public.json")
+	raw := `{"workers":{"worker-kapa-pc":{"settled_hmc":99.0,"last_settle_unix":1,"payout_address":"HMC-91fe007e4036c602"}}}`
+	if err := os.WriteFile(poison, []byte(raw), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HACKME_SETTLEMENT_CANONICAL_FILE", poison)
+	t.Setenv("HACKME_SETTLEMENT_CANONICAL_URL", "http://127.0.0.1:1/api/settlement/canonical.json")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, err := fetchCanonicalSettlementState(ctx)
+	if err == nil {
+		t.Fatal("expected HTTP failure without disk fallback")
 	}
 }
 

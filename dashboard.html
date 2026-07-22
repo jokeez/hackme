@@ -2103,10 +2103,11 @@
 							<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
 								<h3 class="font-display text-[10px] tracking-[0.25em] text-neon uppercase">Work payout (coordinator)</h3>
 								<div class="flex flex-wrap items-center gap-2">
-									<select id="mining-workers-filter" class="text-[10px] font-mono rounded border border-white/20 bg-black/50 px-2 py-1 text-gray-300" title="Hide idle test workers (l1v4-*, qa-*) with zero payout">
+									<select id="mining-workers-filter" class="text-[10px] font-mono rounded border border-white/20 bg-black/50 px-2 py-1 text-gray-300" title="PoH miners by default — workerfuzz (bootstrap-fuzz-*, *-fuzz-*) hidden; they dig escrow campaigns, payout_hmc stays 0">
 										<option value="active" selected>active miners</option>
 										<option value="all">all workers</option>
-										<option value="live">live only</option>
+										<option value="live">live only (PoH)</option>
+										<option value="fuzz">fuzz workers only</option>
 										<option value="offline">offline only</option>
 									</select>
 									<button type="button" id="btn-work-stats-refresh" class="text-[10px] px-3 py-1 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
@@ -9084,10 +9085,22 @@
 				coordinatorSynthOnline;
 		}
 
+		function isFuzzPoolWorkerId(id) {
+			const s = String(id || '').toLowerCase();
+			if (!s) return false;
+			if (s.indexOf('workerfuzz') >= 0) return true;
+			if (/(^|-)fuzz-/.test(s) || /-fuzz$/.test(s)) return true;
+			if (s.indexOf('bootstrap-fuzz') === 0 || s.indexOf('vps-canary-fuzz') === 0) return true;
+			return false;
+		}
 		function miningWorkerRowVisible(r, rowSt, online, sampleUnix) {
 			const myId = String((latestWorkerStatus && latestWorkerStatus.worker_id) || 'worker-kapa-pc');
 			const isMine = r.id === myId || r.id === 'worker-kapa-pc';
 			const hasHistory = Number(r.payout || 0) > 0 || Number(r.attempts || 0) > 0 || Number(r.ranges || 0) > 0;
+			const isFuzz = isFuzzPoolWorkerId(r.id);
+			if (miningWorkersFilter === 'fuzz') return isFuzz;
+			// Default PoH table: hide workerfuzz (escrow diggers; payout_hmc always 0 here).
+			if (isFuzz && miningWorkersFilter !== 'all') return false;
 			if (miningWorkersFilter === 'all') return true;
 			if (miningWorkersFilter === 'live') return online;
 			if (miningWorkersFilter === 'offline') return !online;
@@ -9129,6 +9142,7 @@
 				if (gh > 0) totalHashGHS += gh;
 			});
 			const filtered = list.filter((r) => {
+				if (isFuzzPoolWorkerId(r.id)) return false; // PoH overview — not fuzz diggers
 				const online = overviewMinerOnline(r, ws, sampleUnix);
 				if (overviewMinersFilter === 'live') return online;
 				if (overviewMinersFilter === 'offline') return !online;
@@ -9483,7 +9497,7 @@
 				});
 			}
 			if (rows.length) {
-				renderHiveTopMiners(rows.map((r) => ({
+				renderHiveTopMiners(rows.filter((r) => !isFuzzPoolWorkerId(r.id)).map((r) => ({
 					id: r.id,
 					worker_id: r.id,
 					hashrate_gh_s: Number((r.live && r.live.hashrate_gh_s) || r.hashrate_gh_s || 0),

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -41,6 +42,9 @@ func TestRelaySettlerEnqueueFirstNoDoubleEnqueueOnTimeout(t *testing.T) {
 		_ = json.Unmarshal(raw, &body)
 		if body["event_id"] == nil || body["event_id"] == "" {
 			t.Errorf("missing event_id in settle body: %s", raw)
+		}
+		if eid, _ := body["event_id"].(string); eid != "" && !strings.HasPrefix(eid, "outbox:relay-camp:") {
+			t.Errorf("event_id=%q want outbox:relay-camp:<id>", eid)
 		}
 		// Simulate slow origin that already paid: hang until client times out.
 		time.Sleep(200 * time.Millisecond)

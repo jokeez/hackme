@@ -1,6 +1,9 @@
 package fuzzescrow
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestComputeSplitRejectsDustPerRun(t *testing.T) {
 	const unitsPerHMC = 100_000_000
@@ -9,6 +12,9 @@ func TestComputeSplitRejectsDustPerRun(t *testing.T) {
 	_, err := ComputeSplitUnits(total, 10_000)
 	if err == nil {
 		t.Fatal("expected per-run minimum error for huge run count")
+	}
+	if !strings.Contains(err.Error(), "per-run payout below minimum") {
+		t.Fatalf("want MinPerRun message, got %v", err)
 	}
 }
 

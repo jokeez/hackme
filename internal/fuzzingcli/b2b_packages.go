@@ -13,23 +13,43 @@ type B2BPackage struct {
 	DepthTier       fuzzengine.DepthTier
 	BudgetHMC       float64
 	BudgetRuns      int
+	BudgetSeconds   int
 	PoolDistributed bool
 	CreatePoHOrder  bool
 	RewardHMC       float64
+	// Summary is the honest one-line depth claim for CLI output.
+	Summary string
+	// SignalTypes are the capability signals that differ across packages (not just budgets).
+	SignalTypes []string
+	// MutationRounds overrides engine default when > 0 (Deep uses heavier mutation).
+	MutationRounds int
+	// CoverageGuided is explicit for Deep corpus campaigns.
+	CoverageGuided bool
 }
 
 var b2bPackages = map[string]B2BPackage{
 	"scan": {
 		Name: "scan", DepthTier: fuzzengine.DepthWasmOnly,
-		BudgetHMC: 1.0, BudgetRuns: 64, PoolDistributed: false, CreatePoHOrder: false,
+		BudgetHMC: 1.0, BudgetRuns: 64, BudgetSeconds: 900,
+		PoolDistributed: false, CreatePoHOrder: false,
+		Summary:     "WASM smoke — local quick check, no native/ASAN repro, no pool PoH",
+		SignalTypes: []string{"wasm_smoke"},
 	},
 	"audit": {
 		Name: "audit", DepthTier: fuzzengine.DepthWasmNative,
-		BudgetHMC: 5.0, BudgetRuns: 256, PoolDistributed: true, CreatePoHOrder: true, RewardHMC: 0.05,
+		BudgetHMC: 5.0, BudgetRuns: 256, BudgetSeconds: 28800, // ~8h SLA window
+		PoolDistributed: true, CreatePoHOrder: true, RewardHMC: 0.05,
+		Summary:     "WASM + native/ASAN repro path — pool fuzz with PoH attach",
+		SignalTypes: []string{"wasm_check", "native_repro"},
 	},
 	"deep": {
 		Name: "deep", DepthTier: fuzzengine.DepthBytesCorpus,
-		BudgetHMC: 10.0, BudgetRuns: 1000, PoolDistributed: true, CreatePoHOrder: true, RewardHMC: 0.05,
+		BudgetHMC: 25.0, BudgetRuns: 2048, BudgetSeconds: 86400, // 24h hours-scale
+		PoolDistributed: true, CreatePoHOrder: true, RewardHMC: 0.05,
+		Summary:          "Byte corpus + heavy mutation — hours-scale budget, signals beyond Audit",
+		SignalTypes:      []string{"byte_corpus", "structured_mutation", "coverage_guided", "native_repro"},
+		MutationRounds:   12,
+		CoverageGuided:   true,
 	},
 }
 

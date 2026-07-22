@@ -26,3 +26,23 @@ func TestBountyPayoutFee(t *testing.T) {
 		t.Fatalf("sum mismatch")
 	}
 }
+
+func TestUniqueCrashBonusUnits(t *testing.T) {
+	const unitsPerHMC = 100_000_000
+	// 8 HMC bounty pool → 1% = 0.08 HMC but capped at 0.01 HMC.
+	bonus := UniqueCrashBonusUnits(8 * unitsPerHMC)
+	if bonus != UniqueCrashBonusMaxUnits {
+		t.Fatalf("bonus=%d want max %d", bonus, UniqueCrashBonusMaxUnits)
+	}
+	if UniqueCrashBonusUnits(MinPerRunUnits/2) != 0 {
+		t.Fatal("dust pool must yield zero bonus")
+	}
+	small := UniqueCrashBonusUnits(uint64(1.0 * unitsPerHMC)) // 1% of 1 HMC = 0.01 HMC
+	if small != UniqueCrashBonusMaxUnits {
+		t.Fatalf("1 HMC pool bonus=%d want %d", small, UniqueCrashBonusMaxUnits)
+	}
+	tiny := UniqueCrashBonusUnits(uint64(0.05 * unitsPerHMC)) // 1% = 0.0005 HMC = 50_000 units
+	if tiny < MinPerRunUnits || tiny > UniqueCrashBonusMaxUnits {
+		t.Fatalf("tiny bonus=%d out of band", tiny)
+	}
+}

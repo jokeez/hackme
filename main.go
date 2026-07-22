@@ -3907,6 +3907,12 @@ func (a *app) allowRate(key string, limitPerSec int) bool {
 	now := time.Now().Unix()
 	a.rlMu.Lock()
 	defer a.rlMu.Unlock()
+	if a.rlHits == nil {
+		a.rlHits = make(map[string]rateSlot)
+	}
+	if a.rlBan == nil {
+		a.rlBan = make(map[string]int64)
+	}
 	if until, banned := a.rlBan[key]; banned {
 		if until > now {
 			return false

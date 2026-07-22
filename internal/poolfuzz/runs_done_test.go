@@ -9,6 +9,46 @@ import (
 	"hackme/internal/store"
 )
 
+func TestListPublicCampaignsHidesClosedEscrowZombie(t *testing.T) {
+	db, err := store.Open(filepath.Join(t.TempDir(), "zomb.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	cid := "campaign-zombie-closed"
+	if err := svc.RegisterCampaign(ctx, Campaign{
+		ID: cid, CampaignType: "property", Title: "audit still running label", Status: "running",
+		BudgetRuns: 100, Config: map[string]any{"pool_distributed": true, "budget_hmc": 5.0},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.ExecContext(ctx,
+		`INSERT INTO fuzz_campaign_escrow
+		 (campaign_id, budget_units, runs_pool_units, bounty_pool_units, runs_paid_units, bounty_paid_units,
+		  runs_done, budget_runs, per_run_units, finding_winner, status, created_at)
+		 VALUES (?, 500000000, 100000000, 400000000, 0, 0, 0, 100, 1000000, '', 'closed', ?)`,
+		cid, time.Now().Unix())
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := svc.ListPublicCampaigns(ctx, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, it := range items {
+		if toStringAny(it["id"]) == cid {
+			t.Fatalf("closed-escrow zombie still listed: %+v", it)
+		}
+	}
+}
+
+func toStringAny(v any) string {
+	s, _ := v.(string)
+	return s
+}
+
 func TestRunsDoneForCampaignPrefersWorkItems(t *testing.T) {
 	db, err := store.Open(filepath.Join(t.TempDir(), "runs.db"))
 	if err != nil {

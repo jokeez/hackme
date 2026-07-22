@@ -40,6 +40,16 @@ func TestApplyDepthTierBytesCorpus(t *testing.T) {
 	if len(seeds) == 0 {
 		t.Fatal("expected default byte seeds")
 	}
+	if MutationRounds(cfg) < 8 {
+		t.Fatalf("deep corpus should use heavy mutation_rounds, got %d", MutationRounds(cfg))
+	}
+	sigs, ok := cfg["signal_types"].([]string)
+	if !ok || len(sigs) < 3 {
+		t.Fatalf("bytes_corpus signal_types=%v", cfg["signal_types"])
+	}
+	if cfg["corpus_hours_budget"] != true {
+		t.Fatal("expected corpus_hours_budget marker")
+	}
 }
 
 func TestDeriveInputBytesDeterministic(t *testing.T) {

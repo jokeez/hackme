@@ -1,6 +1,48 @@
 {
   "items": [
     {
+      "id": "2026-07-22-b2b-customer-crash-first-report",
+      "date": "2026-07-22",
+      "title": "B2B audits that CI can trust — crash-first reports · honest Scan/Audit/Deep",
+      "summary": "Customer path is productized: register → wizard (Scan · Audit · Deep) → status → HTML report + CI gate. Crash-first triage means detector noise never fails the gate. Escrow 20/80 stays transparent; PoH miners auto-switch to orders while workerfuzz fleets dig pool fuzz. Example: HackMe Bootstrap Audit · cjson — runs progressing, gate crash-first, clean / no critical crash-class.",
+      "impact": "Protocol and security teams get a deliverable they can wire into pipelines — PASS/FAIL on crash-class findings only, plus an honest assurance note (not proven secure). No fake CVE theater: CLEAN means no crash/hang/ASan/memory at the budgeted runs.",
+      "action": "Developers: https://hackme.tech/developers.html · CLI: https://hackme.tech/downloads.html#fuzzing-client · Tracker: https://hackme.tech/fuzzing-console.html · Campaigns: https://hackme.tech/fuzz-campaigns.html · Command: hackme-fuzzing wizard --wasm guard.wasm --package audit",
+      "tags": [
+        "fuzzing",
+        "b2b",
+        "security",
+        "product",
+        "devtools",
+        "escrow"
+      ],
+      "status": "draft",
+      "telegram": {
+        "headline": "B2B · crash-first audits your CI can enforce",
+        "lead": "register → wizard → status → report + gate · Scan / Audit / Deep · escrow 20/80",
+        "bullets": [
+          "Crash-first triage: only crash/hang/ASan/memory fail the gate — detector noise is appendix",
+          "HTML report: verdict card · CI gate PASS/FAIL · assurance note · target fingerprint",
+          "Honest tiers: Scan (WASM smoke) · Audit (native/ASAN + pool) · Deep (byte corpus, hours-scale)",
+          "Pool: PoH miners auto-switch to orders · workerfuzz fleets dig distributed fuzz",
+          "Live example: Bootstrap Audit · cjson — progressing, clean / no critical crash-class"
+        ],
+        "footer": "hackme.tech/developers.html · downloads#fuzzing-client · fuzzing-console.html"
+      },
+      "discord": {
+        "title": "Product · B2B crash-first reports + CI gate",
+        "body": "**Audits you can wire into CI — without fake CVE theater.**\n\n• Flow: `register` → `wizard` (Scan · Audit · Deep) → `status` → HTML report + `GET …/gate`\n• **Crash-first:** detector/property noise is appendix — gate only sees crash-class\n• **Escrow 20/80** transparent; unused bounty refunds on finalize\n• **Pool:** PoH workers auto-switch to orders · **workerfuzz** fleets dig fuzz work\n• Example campaign: **HackMe Bootstrap Audit · cjson** — runs progressing · gate crash-first · clean / no critical crash-class\n\n**Links:** [developers](https://hackme.tech/developers.html) · [CLI](https://hackme.tech/downloads.html#fuzzing-client) · [console](https://hackme.tech/fuzzing-console.html) · [campaigns](https://hackme.tech/fuzz-campaigns.html)",
+        "ping": "#announcements"
+      },
+      "links": {
+        "developers": "https://hackme.tech/developers.html",
+        "downloads": "https://hackme.tech/downloads.html#fuzzing-client",
+        "console": "https://hackme.tech/fuzzing-console.html",
+        "campaigns": "https://hackme.tech/fuzz-campaigns.html",
+        "guide": "https://hackme.tech/fuzz-guide.html",
+        "pool": "https://hackme.tech/pool/coordinator"
+      }
+    },
+    {
       "id": "2026-07-22-github-release-rc12w",
       "date": "2026-07-22",
       "title": "HackMe 0.1.0-rc12w — wallet Activity · security hardening · miners & devs",

@@ -59,13 +59,22 @@ func (r *RelaySettler) PayFinding(ctx context.Context, campaignID, minerAddress,
 	return r.relay(ctx, "finding", campaignID, minerAddress, severity, workItemID, reuseOutboxID)
 }
 
+func (r *RelaySettler) PayCrashBonus(ctx context.Context, campaignID, minerAddress string, workItemID, reuseOutboxID int64) (SettleResult, error) {
+	return r.relay(ctx, "crash_bonus", campaignID, minerAddress, "", workItemID, reuseOutboxID)
+}
+
 func (r *RelaySettler) Finalize(ctx context.Context, campaignID string, reuseOutboxID int64) (SettleResult, error) {
 	return r.relay(ctx, "finalize", campaignID, "", "", 0, reuseOutboxID)
 }
 
 // SettleEventID mirrors chain.FuzzSettleEventID for coordinator→origin settle keys.
-func SettleEventID(outboxID int64) string {
-	return fmt.Sprintf("outbox:%d", outboxID)
+// Format: outbox:<campaign_id>:<outbox_id> (globally unique; see chain.FuzzSettleEventID).
+func SettleEventID(campaignID string, outboxID int64) string {
+	campaignID = strings.TrimSpace(campaignID)
+	if campaignID == "" {
+		return fmt.Sprintf("outbox:%d", outboxID)
+	}
+	return fmt.Sprintf("outbox:%s:%d", campaignID, outboxID)
 }
 
 func (r *RelaySettler) relay(ctx context.Context, kind, campaignID, minerAddress, severity string, workItemID, reuseOutboxID int64) (SettleResult, error) {
@@ -105,7 +114,7 @@ func (r *RelaySettler) relay(ctx context.Context, kind, campaignID, minerAddress
 		// Durable outbox row already exists for pull; do not error (avoids re-enqueue).
 		return SettleResult{OutboxID: outboxID, Applied: false}, nil
 	}
-	eventID := SettleEventID(outboxID)
+	eventID := SettleEventID(campaignID, outboxID)
 	body, _ := json.Marshal(map[string]any{
 		"kind":          kind,
 		"campaign_id":   campaignID,

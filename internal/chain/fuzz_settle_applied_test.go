@@ -16,7 +16,7 @@ func TestFuzzSettleAppliedIdempotent(t *testing.T) {
 	}
 	defer db.Close()
 	svc := New(db)
-	eventID := FuzzSettleEventID(42)
+	eventID := FuzzSettleEventID("camp", 42)
 	newly, err := svc.MarkFuzzSettleApplied(ctx, eventID, "camp", "run")
 	if err != nil || !newly {
 		t.Fatalf("first mark: newly=%v err=%v", newly, err)
