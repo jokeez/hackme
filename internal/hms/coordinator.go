@@ -135,32 +135,104 @@ func (c *Coordinator) CurrentEpoch() (epochRow, error) {
 }
 
 func (c *Coordinator) RegisterStorageWorker(workerID, pubHex string, quotaGB int) error {
+	return c.RegisterStorageWorkerEndpoint(workerID, pubHex, quotaGB, "")
+}
+
+// RegisterStorageWorkerEndpoint registers a storage worker and optional remote push URL.
+// Pubkey is immutable after first registration (H48 / HMC-001).
+func (c *Coordinator) RegisterStorageWorkerEndpoint(workerID, pubHex string, quotaGB int, endpointURL string) error {
+	workerID = trimWorkerID(workerID)
+	pubHex = strings.TrimSpace(strings.ToLower(pubHex))
 	if err := ValidateWorkerID(workerID); err != nil {
 		return err
 	}
 	if err := ValidateQuota(c.cfg, quotaGB); err != nil {
 		return err
 	}
+	if err := validateWorkerPubkeyHex(pubHex); err != nil {
+		return err
+	}
+	ep, err := ValidateWorkerEndpointURL(endpointURL)
+	if err != nil {
+		return err
+	}
+	var existingPub string
 	var existingLast int64
-	err := c.db.QueryRow(`SELECT last_seen_unix FROM hms_workers WHERE worker_id=?`, workerID).Scan(&existingLast)
-	if err == nil && existingLast < c.workerOnlineCutoff() {
-		return errors.New("worker offline — heartbeat required before quota update")
+	err = c.db.QueryRow(`SELECT pubkey_hex, last_seen_unix FROM hms_workers WHERE worker_id=?`, workerID).
+		Scan(&existingPub, &existingLast)
+	if err == nil {
+		if !strings.EqualFold(strings.TrimSpace(existingPub), pubHex) {
+			return errors.New("worker pubkey immutable — already registered with different key")
+		}
+		if existingLast < c.workerOnlineCutoff() {
+			return errors.New("worker offline — heartbeat required before quota update")
+		}
+		now := time.Now().Unix()
+		_, err = c.db.Exec(`UPDATE hms_workers SET role='storage', quota_gb=?, last_seen_unix=?, endpoint_url=? WHERE worker_id=?`,
+			quotaGB, now, ep, workerID)
+		return err
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return err
 	}
 	now := time.Now().Unix()
-	_, err = c.db.Exec(`INSERT INTO hms_workers(worker_id, role, pubkey_hex, quota_gb, last_seen_unix, created_unix)
-		VALUES(?, 'storage', ?, ?, ?, ?)
-		ON CONFLICT(worker_id) DO UPDATE SET pubkey_hex=excluded.pubkey_hex, quota_gb=excluded.quota_gb, last_seen_unix=excluded.last_seen_unix`,
-		workerID, pubHex, quotaGB, now, now)
+	_, err = c.db.Exec(`INSERT INTO hms_workers(worker_id, role, pubkey_hex, quota_gb, last_seen_unix, created_unix, endpoint_url)
+		VALUES(?, 'storage', ?, ?, ?, ?, ?)`,
+		workerID, pubHex, quotaGB, now, now, ep)
 	return err
 }
 
 func (c *Coordinator) RegisterSealWorker(workerID, pubHex string) error {
+	workerID = trimWorkerID(workerID)
+	pubHex = strings.TrimSpace(strings.ToLower(pubHex))
+	if err := ValidateWorkerID(workerID); err != nil {
+		return err
+	}
+	if err := validateWorkerPubkeyHex(pubHex); err != nil {
+		return err
+	}
+	var existingPub string
+	err := c.db.QueryRow(`SELECT pubkey_hex FROM hms_workers WHERE worker_id=?`, workerID).Scan(&existingPub)
+	if err == nil {
+		if !strings.EqualFold(strings.TrimSpace(existingPub), pubHex) {
+			return errors.New("worker pubkey immutable — already registered with different key")
+		}
+		now := time.Now().Unix()
+		_, err = c.db.Exec(`UPDATE hms_workers SET role='seal', last_seen_unix=? WHERE worker_id=?`, now, workerID)
+		return err
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
 	now := time.Now().Unix()
-	_, err := c.db.Exec(`INSERT INTO hms_workers(worker_id, role, pubkey_hex, quota_gb, last_seen_unix, created_unix)
-		VALUES(?, 'seal', ?, 0, ?, ?)
-		ON CONFLICT(worker_id) DO UPDATE SET pubkey_hex=excluded.pubkey_hex, role='seal', last_seen_unix=excluded.last_seen_unix`,
+	_, err = c.db.Exec(`INSERT INTO hms_workers(worker_id, role, pubkey_hex, quota_gb, last_seen_unix, created_unix)
+		VALUES(?, 'seal', ?, 0, ?, ?)`,
 		workerID, pubHex, now, now)
 	return err
+}
+
+func validateWorkerPubkeyHex(pubHex string) error {
+	raw, err := hex.DecodeString(strings.TrimSpace(pubHex))
+	if err != nil || len(raw) != 32 {
+		return errors.New("invalid worker pubkey")
+	}
+	return nil
+}
+
+func (c *Coordinator) registeredPubkey(workerID string) (string, error) {
+	var pub string
+	err := c.db.QueryRow(`SELECT pubkey_hex FROM hms_workers WHERE worker_id=?`, trimWorkerID(workerID)).Scan(&pub)
+	if err == sql.ErrNoRows {
+		return "", errors.New("worker not registered")
+	}
+	if err != nil {
+		return "", err
+	}
+	pub = strings.TrimSpace(pub)
+	if pub == "" {
+		return "", errors.New("worker pubkey missing")
+	}
+	return pub, nil
 }
 
 func (c *Coordinator) workerBanned(workerID string, epochID int64) (bool, error) {
@@ -270,9 +342,17 @@ func (c *Coordinator) epochNeedsSeal(ep epochRow) bool {
 	return len(ep.ManifestRoot) > 0 || time.Now().Unix() >= ep.FreezeUnix
 }
 
-// SubmitStorageProof verifies signed proof; strikes on failure.
+// SubmitStorageProof verifies signed proof against the registered immutable pubkey (H48).
 func (c *Coordinator) SubmitStorageProof(p StorageSubmitPayload, pubHex, sigHex string, proof []byte) error {
-	if err := VerifyStorageSubmit(p, pubHex, sigHex); err != nil {
+	reg, err := c.registeredPubkey(p.WorkerID)
+	if err != nil {
+		return err
+	}
+	pubHex = strings.TrimSpace(pubHex)
+	if pubHex != "" && !strings.EqualFold(pubHex, reg) {
+		return errors.New("pubkey does not match registered worker")
+	}
+	if err := VerifyStorageSubmit(p, reg, sigHex); err != nil {
 		return err
 	}
 	var binding []byte
@@ -281,7 +361,7 @@ func (c *Coordinator) SubmitStorageProof(p StorageSubmitPayload, pubHex, sigHex 
 	var offset int64
 	var answered int
 	var sectorExpected []byte
-	err := c.db.QueryRow(`SELECT expected_hash, epoch_id, chunk_id, sector_offset, answered, COALESCE(sector_proof_expected,'') FROM hms_challenges WHERE challenge_id=?`, p.ChallengeID).
+	err = c.db.QueryRow(`SELECT expected_hash, epoch_id, chunk_id, sector_offset, answered, COALESCE(sector_proof_expected,'') FROM hms_challenges WHERE challenge_id=?`, p.ChallengeID).
 		Scan(&binding, &epochID, &chunkID, &offset, &answered, &sectorExpected)
 	if err != nil {
 		return err
@@ -406,18 +486,43 @@ func (c *Coordinator) SealWork() (map[string]any, error) {
 	}, nil
 }
 
-// SubmitSeal validates nonce and signature; first valid wins epoch.
+// SubmitSeal validates nonce and signature against the registered immutable pubkey (H48).
 func (c *Coordinator) SubmitSeal(p SealSubmitPayload, pubHex, sigHex string) error {
-	if strings.TrimSpace(sigHex) != "" {
-		if err := VerifySealSubmit(p, pubHex, sigHex); err != nil {
+	p.WorkerID = trimWorkerID(p.WorkerID)
+	sigHex = strings.TrimSpace(sigHex)
+	pubHex = strings.TrimSpace(pubHex)
+	if sigHex != "" {
+		reg, err := c.registeredPubkey(p.WorkerID)
+		if err != nil {
 			return err
 		}
-	} else if strings.TrimSpace(pubHex) != "" {
+		if pubHex != "" && !strings.EqualFold(pubHex, reg) {
+			return errors.New("pubkey does not match registered worker")
+		}
+		if err := VerifySealSubmit(p, reg, sigHex); err != nil {
+			return err
+		}
+	} else if pubHex != "" {
 		return errors.New("signature required")
-	} else if strings.TrimSpace(os.Getenv("HMS_STRATUM_INSECURE")) != "1" {
+	} else if !stratumInsecureEnabled() {
 		return errors.New("signature required")
 	}
 	return c.submitSealCore(p)
+}
+
+// SubmitSealFromStratum accepts an unsigned seal after Stratum bind/HMAC gates (H47).
+func (c *Coordinator) SubmitSealFromStratum(p SealSubmitPayload, hmacAuthorized bool) error {
+	if hmacAuthorized {
+		return c.submitSealCore(p)
+	}
+	if stratumInsecureEnabled() {
+		return c.submitSealCore(p)
+	}
+	return errors.New("signature required")
+}
+
+func stratumInsecureEnabled() bool {
+	return strings.TrimSpace(os.Getenv("HMS_STRATUM_INSECURE")) == "1"
 }
 
 func (c *Coordinator) submitSealCore(p SealSubmitPayload) error {

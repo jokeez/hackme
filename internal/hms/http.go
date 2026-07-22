@@ -50,15 +50,16 @@ func RegisterHTTP(mux *http.ServeMux, coord *Coordinator, adminToken, workerToke
 			return
 		}
 		var req struct {
-			WorkerID  string `json:"worker_id"`
-			PubkeyHex string `json:"pubkey_hex"`
-			QuotaGB   int    `json:"quota_gb"`
+			WorkerID    string `json:"worker_id"`
+			PubkeyHex   string `json:"pubkey_hex"`
+			QuotaGB     int    `json:"quota_gb"`
+			EndpointURL string `json:"endpoint_url"`
 		}
 		if !readJSON(r, &req) {
 			http.Error(w, "bad json", http.StatusBadRequest)
 			return
 		}
-		if err := coord.RegisterStorageWorker(strings.TrimSpace(req.WorkerID), strings.TrimSpace(req.PubkeyHex), req.QuotaGB); err != nil {
+		if err := coord.RegisterStorageWorkerEndpoint(strings.TrimSpace(req.WorkerID), strings.TrimSpace(req.PubkeyHex), req.QuotaGB, strings.TrimSpace(req.EndpointURL)); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -39,6 +40,12 @@ func main() {
 	if token == "" {
 		token = strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_WORKER_TOKEN"))
 	}
+	pushToken := strings.TrimSpace(os.Getenv("HMS_WORKER_PUSH_TOKEN"))
+	if pushToken == "" {
+		pushToken = strings.TrimSpace(os.Getenv("HACKME_HMS_WORKER_PUSH_TOKEN"))
+	}
+	listen := strings.TrimSpace(os.Getenv("HACKME_STORAGE_LISTEN"))
+	advertise := strings.TrimSpace(os.Getenv("HACKME_STORAGE_ENDPOINT_URL"))
 
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -48,12 +55,25 @@ func main() {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		log.Fatal(err)
 	}
-	if err := postJSON(coord+"/api/storage/register", token, map[string]any{
+
+	reg := map[string]any{
 		"worker_id": workerID, "pubkey_hex": pubHex, "quota_gb": quotaGB,
-	}, nil); err != nil {
+	}
+	if advertise != "" {
+		reg["endpoint_url"] = advertise
+	}
+	if err := postJSON(coord+"/api/storage/register", token, reg, nil); err != nil {
 		log.Fatalf("register: %v", err)
 	}
 	log.Printf("storage worker %s registered quota=%dGB dir=%s", workerID, quotaGB, dir)
+
+	if listen != "" {
+		if pushToken == "" {
+			log.Fatal("HACKME_STORAGE_LISTEN set but HMS_WORKER_PUSH_TOKEN is empty")
+		}
+		go serveChunkPush(listen, dir, pushToken)
+		log.Printf("storage push listener on %s", listen)
+	}
 
 	// Demo chunk if empty
 	entries, _ := os.ReadDir(dir)
@@ -67,6 +87,42 @@ func main() {
 		runChallenge(coord, token, workerID, dir, priv, pubHex)
 		<-tick.C
 	}
+}
+
+func serveChunkPush(listen, dir, pushToken string) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/worker/storage/chunks/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		auth := strings.TrimSpace(r.Header.Get("Authorization"))
+		want := "Bearer " + pushToken
+		if subtle.ConstantTimeCompare([]byte(auth), []byte(want)) != 1 {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		chunkID := strings.TrimPrefix(r.URL.Path, "/api/worker/storage/chunks/")
+		chunkID = filepath.Base(strings.TrimSpace(chunkID))
+		if chunkID == "" || chunkID == "." || chunkID == ".." {
+			http.Error(w, "bad chunk id", http.StatusBadRequest)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 8<<20)
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "read body", http.StatusBadRequest)
+			return
+		}
+		path := filepath.Join(dir, chunkID+".dat")
+		if err := os.WriteFile(path, data, 0o600); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+	srv := &http.Server{Addr: listen, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	log.Fatal(srv.ListenAndServe())
 }
 
 func seedChunk(coord, token, workerID, dir, chunkID string) {

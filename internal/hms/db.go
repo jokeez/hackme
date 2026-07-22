@@ -180,6 +180,9 @@ func migrateHMS(db *sql.DB) error {
 			bytes INTEGER NOT NULL,
 			created_unix INTEGER NOT NULL
 		)`,
+		`ALTER TABLE hms_workers ADD COLUMN endpoint_url TEXT NOT NULL DEFAULT ''`,
+		// H15: payment_id unique when set (empty pilot placeholders excluded).
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_hms_orders_payment_id_unique ON hms_orders(payment_id) WHERE payment_id != ''`,
 	} {
 		_, _ = db.Exec(s)
 	}

@@ -103,7 +103,7 @@ func NewManager(nodeID string, peers []string, token string, discovery bool, adv
 		if p == "" {
 			continue
 		}
-		norm := normalizePeerURL(p)
+		norm := validateStaticPeerURL(p)
 		if norm == "" {
 			continue
 		}
@@ -113,7 +113,7 @@ func NewManager(nodeID string, peers []string, token string, discovery bool, adv
 	for _, peer := range out {
 		pm[peer] = PeerStatus{PeerURL: peer, Source: "static"}
 	}
-	advertiseURL = normalizePeerURL(advertiseURL)
+	advertiseURL = validateStaticPeerURL(advertiseURL)
 	return &Manager{
 		nodeID:      nodeID,
 		token:       strings.TrimSpace(token),
@@ -137,6 +137,22 @@ func (m *Manager) headers(h http.Header) {
 	if m.token != "" {
 		h.Set("X-Hackme-P2P-Token", m.token)
 	}
+}
+
+// headersFor attaches the P2P token only to static (operator-configured) peers by default.
+// Discovered peers do not receive the token unless HACKME_P2P_TOKEN_TO_DISCOVERED=1 (HMC-RES-05).
+func (m *Manager) headersFor(h http.Header, peerURL string) {
+	if m == nil || m.token == "" {
+		return
+	}
+	m.mu.Lock()
+	st, ok := m.peers[peerURL]
+	src := st.Source
+	m.mu.Unlock()
+	if ok && src == "discovered" && !allowTokenToDiscovered() {
+		return
+	}
+	h.Set("X-Hackme-P2P-Token", m.token)
 }
 
 func (m *Manager) Start(ctx context.Context, tipFn func(context.Context) (uint64, string, error)) {
@@ -190,7 +206,7 @@ func (m *Manager) Start(ctx context.Context, tipFn func(context.Context) (uint64
 					start := time.Now()
 					req, _ := http.NewRequestWithContext(ctx, http.MethodPost, peer+"/api/p2p/handshake", bytes.NewReader(body))
 					req.Header.Set("Content-Type", "application/json")
-					m.headers(req.Header)
+					m.headersFor(req.Header, peer)
 					resp, err := m.client.Do(req)
 					if err != nil {
 						st.LastError = strings.TrimSpace(err.Error())
@@ -292,6 +308,9 @@ func normalizePeerURL(in string) string {
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return ""
 	}
+	if u.User != nil {
+		return ""
+	}
 	if strings.TrimSpace(u.Host) == "" {
 		return ""
 	}
@@ -324,8 +343,8 @@ func (m *Manager) LearnDiscoveredPeer(rawPeer string) bool {
 	if m == nil || !m.discoveryOn {
 		return false
 	}
-	peer := normalizePeerURL(rawPeer)
-	if peer == "" {
+	peer, err := validateDiscoveredPeerURL(rawPeer)
+	if err != nil || peer == "" {
 		return false
 	}
 	if m.advertise != "" && peer == m.advertise {
@@ -492,7 +511,7 @@ func (m *Manager) BuildLinearPullPreview(ctx context.Context, localHeight uint64
 	}
 	chainPath := "/api/chain?from_height=" + strconv.FormatUint(fwd, 10) + "&limit=" + strconv.FormatUint(limit, 10)
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, hint.BestPeerURL+chainPath, nil)
-	m.headers(req.Header)
+	m.headersFor(req.Header, hint.BestPeerURL)
 	resp, err := m.client.Do(req)
 	if err != nil {
 		out.Reason = "fetch_failed: " + strings.TrimSpace(err.Error())
@@ -604,7 +623,7 @@ func (m *Manager) FetchBlocksByHashes(ctx context.Context, peerURL string, hashe
 	}
 	limit := len(hashes) + 4
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, peerURL+"/api/chain?limit="+strconv.Itoa(limit), nil)
-	m.headers(req.Header)
+	m.headersFor(req.Header, peerURL)
 	resp, err := m.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -689,7 +708,7 @@ func (m *Manager) RelayTx(ctx context.Context, raw []byte) {
 	for _, peer := range m.peerListSnapshot() {
 		req, _ := http.NewRequestWithContext(ctx, http.MethodPost, peer+"/api/p2p/tx", bytes.NewReader(raw))
 		req.Header.Set("Content-Type", "application/json")
-		m.headers(req.Header)
+		m.headersFor(req.Header, peer)
 		resp, err := m.client.Do(req)
 		if err == nil && resp != nil {
 			_ = resp.Body.Close()

@@ -78,7 +78,7 @@ func TestMarketHTTPFlow(t *testing.T) {
 	defer db.Close()
 	cfg := Config{MinQuotaGB: 10, MaxQuotaGB: 1000, EpochDuration: time.Hour, FreezeAfter: 50 * time.Minute, SealWindow: 10 * time.Minute, InitialSealTarget: defaultSealTarget()}
 	coord := NewCoordinator(db, cfg)
-	_ = coord.RegisterStorageWorker("w1", repeatHex(32), 50)
+	_ = coord.RegisterStorageWorker("w1", repeatHex(64), 50)
 	t.Setenv("HMS_MARKET_STORAGE_ROOT", filepath.Join(dir, "stor"))
 	_ = os.MkdirAll(filepath.Join(dir, "stor", "w1"), 0o755)
 
@@ -149,7 +149,7 @@ func TestMarketUploadRequiresToken(t *testing.T) {
 	}
 	defer db.Close()
 	coord := NewCoordinator(db, Config{MinQuotaGB: 10, MaxQuotaGB: 100, EpochDuration: time.Hour, FreezeAfter: time.Hour, SealWindow: time.Minute, InitialSealTarget: defaultSealTarget()})
-	_ = coord.RegisterStorageWorker("w1", repeatHex(32), 50)
+	_ = coord.RegisterStorageWorker("w1", repeatHex(64), 50)
 	t.Setenv("HMS_MARKET_DATA_DIR", filepath.Join(dir, "market"))
 	t.Setenv("HMS_MARKET_STORAGE_ROOT", filepath.Join(dir, "storage"))
 	_ = os.MkdirAll(filepath.Join(dir, "storage", "w1"), 0o755)
@@ -173,7 +173,7 @@ func TestMarketUploadExceedsSizePlan(t *testing.T) {
 	}
 	defer db.Close()
 	coord := NewCoordinator(db, Config{MinQuotaGB: 10, MaxQuotaGB: 100, EpochDuration: time.Hour, FreezeAfter: time.Hour, SealWindow: time.Minute, InitialSealTarget: defaultSealTarget()})
-	_ = coord.RegisterStorageWorker("w1", repeatHex(32), 50)
+	_ = coord.RegisterStorageWorker("w1", repeatHex(64), 50)
 	t.Setenv("HMS_MARKET_DATA_DIR", filepath.Join(dir, "market"))
 	t.Setenv("HMS_MARKET_STORAGE_ROOT", filepath.Join(dir, "storage"))
 	_ = os.MkdirAll(filepath.Join(dir, "storage", "w1"), 0o755)
@@ -203,7 +203,7 @@ func TestMarketDownloadRequiresToken(t *testing.T) {
 	}
 	defer db.Close()
 	coord := NewCoordinator(db, Config{MinQuotaGB: 10, MaxQuotaGB: 100, EpochDuration: time.Hour, FreezeAfter: time.Hour, SealWindow: time.Minute, InitialSealTarget: defaultSealTarget()})
-	_ = coord.RegisterStorageWorker("w1", repeatHex(32), 50)
+	_ = coord.RegisterStorageWorker("w1", repeatHex(64), 50)
 	t.Setenv("HMS_MARKET_DATA_DIR", filepath.Join(dir, "market"))
 	t.Setenv("HMS_MARKET_STORAGE_ROOT", filepath.Join(dir, "storage"))
 	_ = os.MkdirAll(filepath.Join(dir, "storage", "w1"), 0o755)

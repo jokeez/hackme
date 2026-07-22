@@ -57,6 +57,7 @@ func TestPeerStatusQualityAndUnstable(t *testing.T) {
 }
 
 func TestLearnDiscoveredPeer(t *testing.T) {
+	t.Setenv("HACKME_P2P_ALLOW_PRIVATE_DISCOVERY", "1")
 	m := NewManager("n1", []string{"http://10.0.0.2:8080"}, "", true, "http://10.0.0.1:8080", "ph1")
 	if !m.Enabled() || !m.DiscoveryEnabled() {
 		t.Fatalf("manager should be enabled with discovery")
@@ -86,7 +87,39 @@ func TestNormalizePeerURL(t *testing.T) {
 	if got := normalizePeerURL("not a url"); got != "" {
 		t.Fatalf("expected invalid url to be rejected, got %q", got)
 	}
+	if got := normalizePeerURL("http://user:pass@10.0.0.2:8080"); got != "" {
+		t.Fatalf("expected userinfo url to be rejected, got %q", got)
+	}
 }
+
+func TestDiscoveredPeerSSRFDefaults(t *testing.T) {
+	t.Setenv("HACKME_P2P_ALLOW_PRIVATE_DISCOVERY", "")
+	m := NewManager("n1", []string{"http://10.0.0.2:8080"}, "secret-token", true, "", "ph1")
+	if ok := m.LearnDiscoveredPeer("http://127.0.0.1:9"); ok {
+		t.Fatal("loopback discovered peer must be rejected by default")
+	}
+	if ok := m.LearnDiscoveredPeer("http://169.254.169.254/"); ok {
+		t.Fatal("metadata discovered peer must be rejected")
+	}
+	if ok := m.LearnDiscoveredPeer("http://10.0.0.9:8080"); ok {
+		t.Fatal("private discovered peer must be rejected without allow flag")
+	}
+
+	hdr := make(http.Header)
+	m.mu.Lock()
+	m.peers["http://evil.example"] = PeerStatus{PeerURL: "http://evil.example", Source: "discovered"}
+	m.mu.Unlock()
+	m.headersFor(hdr, "http://evil.example")
+	if hdr.Get("X-Hackme-P2P-Token") != "" {
+		t.Fatal("must not send P2P token to discovered peers by default")
+	}
+	hdr2 := make(http.Header)
+	m.headersFor(hdr2, "http://10.0.0.2:8080")
+	if hdr2.Get("X-Hackme-P2P-Token") != "secret-token" {
+		t.Fatal("static peers must still receive P2P token")
+	}
+}
+
 
 func TestPolicyCompatible(t *testing.T) {
 	cases := []struct {
@@ -113,6 +146,7 @@ func TestPolicyCompatible(t *testing.T) {
 }
 
 func TestLearnDiscoveredPeer_RespectsCap(t *testing.T) {
+	t.Setenv("HACKME_P2P_ALLOW_PRIVATE_DISCOVERY", "1")
 	m := NewManager("n1", []string{"http://10.0.0.2:8080"}, "", true, "", "ph1")
 	m.maxPeers = 2
 	if ok := m.LearnDiscoveredPeer("http://10.0.0.3:8080"); !ok {

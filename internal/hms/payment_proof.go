@@ -10,23 +10,29 @@ import (
 	"strings"
 )
 
-// MarketPaymentHMACSecret returns the shared secret used to attest node wallet debits
-// to the HMS coordinator. Prefer HMS_MARKET_PAYMENT_HMAC_SECRET; fall back to coordinator token.
+// MarketPaymentHMACSecret returns the dedicated secret used to attest node wallet debits
+// to the HMS coordinator. Only HMS_MARKET_PAYMENT_HMAC_SECRET is accepted (no admin/worker
+// token fallback — those would couple wallet-spend attestation to unrelated secrets).
 func MarketPaymentHMACSecret() string {
+	return strings.TrimSpace(os.Getenv("HMS_MARKET_PAYMENT_HMAC_SECRET"))
+}
+
+// MarketCoordinatorID binds payment proofs to a single HMS coordinator (HMC-RES-02).
+// Empty means "local" — still included in the HMAC so proofs are not portable blindly.
+func MarketCoordinatorID() string {
 	for _, k := range []string{
-		"HMS_MARKET_PAYMENT_HMAC_SECRET",
-		"HACKME_HMS_COORDINATOR_TOKEN",
-		"HMS_COORDINATOR_ADMIN_TOKEN",
-		"HACKME_ADMIN_TOKEN",
+		"HMS_MARKET_COORDINATOR_ID",
+		"HACKME_HMS_COORDINATOR_ID",
+		"HMS_COORDINATOR_ID",
 	} {
 		if v := strings.TrimSpace(os.Getenv(k)); v != "" {
 			return v
 		}
 	}
-	return ""
+	return "local"
 }
 
-// SignMarketPaymentProof binds payment_id + quote_hash + debit amount.
+// SignMarketPaymentProof binds coordinator_id + payment_id + quote_hash + debit amount.
 func SignMarketPaymentProof(paymentID, quoteHash string, totalDebitHMC float64) (string, error) {
 	secret := MarketPaymentHMACSecret()
 	if secret == "" {
@@ -37,7 +43,8 @@ func SignMarketPaymentProof(paymentID, quoteHash string, totalDebitHMC float64) 
 	if paymentID == "" || quoteHash == "" {
 		return "", errors.New("hms: payment_id and quote_hash required for proof")
 	}
-	msg := fmt.Sprintf("%s|%s|%.8f", paymentID, quoteHash, totalDebitHMC)
+	coord := MarketCoordinatorID()
+	msg := fmt.Sprintf("%s|%s|%s|%.8f", coord, paymentID, quoteHash, totalDebitHMC)
 	mac := hmac.New(sha256.New, []byte(secret))
 	_, _ = mac.Write([]byte(msg))
 	return hex.EncodeToString(mac.Sum(nil)), nil

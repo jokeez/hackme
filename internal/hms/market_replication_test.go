@@ -24,7 +24,7 @@ func TestMarketUploadDuringEpochFreeze(t *testing.T) {
 		InitialSealTarget: defaultSealTarget(),
 	}
 	coord := NewCoordinator(db, cfg)
-	if err := coord.RegisterStorageWorker("w1", repeatHex(32), 50); err != nil {
+	if err := coord.RegisterStorageWorker("w1", repeatHex(64), 50); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("HMS_MARKET_DATA_DIR", filepath.Join(dir, "market"))
@@ -67,8 +67,8 @@ func TestMarketChunkReplication(t *testing.T) {
 		EpochDuration: time.Hour, FreezeAfter: 50 * time.Minute, SealWindow: 10 * time.Minute,
 		InitialSealTarget: defaultSealTarget(),
 	})
-	_ = coord.RegisterStorageWorker("w-a", repeatHex(32), 100)
-	_ = coord.RegisterStorageWorker("w-b", repeatHex(32), 100)
+	_ = coord.RegisterStorageWorker("w-a", repeatHex(64), 100)
+	_ = coord.RegisterStorageWorker("w-b", repeatHex(64), 100)
 	t.Setenv("HMS_MARKET_DATA_DIR", filepath.Join(dir, "market"))
 	t.Setenv("HMS_MARKET_STORAGE_ROOT", filepath.Join(dir, "storage"))
 	t.Setenv("HMS_MARKET_SKIP_PAYMENT", "1")

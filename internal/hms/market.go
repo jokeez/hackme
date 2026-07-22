@@ -118,10 +118,11 @@ func (c *Coordinator) CreateStorageOrder(label, clientRef string, sizePlanBytes 
 	}
 	orderID := "ord-" + randomHex(8)
 	token := randomHex(16)
+	tokenAtRest := hashUploadToken(token)
 	now := time.Now().Unix()
 	_, err = c.db.Exec(`INSERT INTO hms_orders(order_id, label, client_ref, upload_token, size_plan_bytes, status, quote_hash, prepaid_hmc, retention_days, payment_id, created_unix, updated_unix)
 		VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`,
-		orderID, label, clientRef, token, sizePlanBytes, OrderStatusDraft, quoteHash, q.TotalDebitHMC, q.RetentionDays, paymentID, now, now)
+		orderID, label, clientRef, tokenAtRest, sizePlanBytes, OrderStatusDraft, quoteHash, q.TotalDebitHMC, q.RetentionDays, paymentID, now, now)
 	if err != nil {
 		return nil, err
 	}
@@ -181,10 +182,6 @@ func (c *Coordinator) GetStorageOrder(orderID string) (*StorageOrder, error) {
 }
 
 func (c *Coordinator) verifyUploadToken(orderID, token string) error {
-	token = strings.TrimSpace(token)
-	if token == "" {
-		return errors.New("upload token required")
-	}
 	var stored string
 	err := c.db.QueryRow(`SELECT upload_token FROM hms_orders WHERE order_id=?`, orderID).Scan(&stored)
 	if err == sql.ErrNoRows {
@@ -193,10 +190,7 @@ func (c *Coordinator) verifyUploadToken(orderID, token string) error {
 	if err != nil {
 		return err
 	}
-	if stored != token {
-		return errors.New("invalid upload token")
-	}
-	return nil
+	return matchUploadToken(stored, token)
 }
 
 // PickStorageWorker chooses an online storage worker with the most free quota headroom.
@@ -321,6 +315,12 @@ func (c *Coordinator) UploadOrderChunk(orderID, uploadToken string, chunkIndex i
 }
 
 func (c *Coordinator) writeMarketChunkFile(workerID, chunkID string, ciphertext []byte) error {
+	if err := c.pushChunkToWorkerEndpoint(workerID, chunkID, ciphertext); err != nil {
+		if requireRemotePush() {
+			return err
+		}
+		// Soft-fail remote push when not required; same-host path still applies.
+	}
 	// Drop into worker storage dir when configured (pilot same-host).
 	if root := marketStorageRoot(); root != "" {
 		p := filepath.Join(root, workerID, chunkID+".dat")
