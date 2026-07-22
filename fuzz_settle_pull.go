@@ -179,6 +179,12 @@ func (a *app) startFuzzSettlePullTicker() {
 	if !poolSyncCoordinatorConfigured() {
 		return
 	}
+	// Hub/canon nodes without local fuzz escrow should set HACKME_FUZZ_SETTLE_PULL=0
+	// so they do not pin the outbox head (foreign rows) and contend on coordinator SQLite.
+	if !envBool("HACKME_FUZZ_SETTLE_PULL", true) {
+		log.Printf("Pool fuzz settle pull: disabled (HACKME_FUZZ_SETTLE_PULL=0)")
+		return
+	}
 	go func() {
 		ticker := time.NewTicker(15 * time.Second)
 		defer ticker.Stop()

@@ -609,7 +609,9 @@ func main() {
 	}
 	if poolSyncCoordinatorConfigured() {
 		a.startPoolSyncWorker()
-		log.Printf("Pool fuzz settle pull: enabled (coordinator outbox every 15s)")
+		if envBool("HACKME_FUZZ_SETTLE_PULL", true) {
+			log.Printf("Pool fuzz settle pull: enabled (coordinator outbox every 15s)")
+		}
 	}
 	if a.p2p != nil && a.p2p.Enabled() {
 		if a.p2p.DiscoveryEnabled() {
