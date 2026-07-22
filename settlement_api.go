@@ -173,12 +173,10 @@ func fetchCanonicalSettlementState(ctx context.Context) (workerSettlementState, 
 	}
 	remote, remoteErr := fetchCanonicalSettlementStateHTTP(ctx)
 	if remoteErr == nil {
-		if haveLocal {
-			if mergeCanonicalSettlementState(&local, remote) {
-				go persistCanonicalSettlementSnapshot(local)
-			}
-			return local, nil
-		}
+		// HTTP canonical is source of truth. Never merge a stale/poisoned local
+		// snapshot upward into the return value — that used to clamp desktop
+		// settled_hmc up to inflated cache values, then repairWorkerSettlementState
+		// pinned settled==accrued and the UI showed permanent 0 pending.
 		go persistCanonicalSettlementSnapshot(remote)
 		return remote, nil
 	}
@@ -201,15 +199,17 @@ func mergeCanonicalSettlementState(local *workerSettlementState, remote workerSe
 	for wid, ent := range remote.Workers {
 		cur := local.Workers[wid]
 		rowChanged := false
-		if ent.SettledHMC > cur.SettledHMC {
-			cur.SettledHMC = ent.SettledHMC
-			rowChanged = true
-		}
-		if ent.SettledSUP > cur.SettledSUP {
-			cur.SettledSUP = ent.SettledSUP
-			rowChanged = true
-		}
+		// Fresher VPS settle is authoritative — may lower settled after a poisoned
+		// local snapshot previously clamped settled up to accrued.
 		if ent.LastSettleUnix > cur.LastSettleUnix {
+			if ent.SettledHMC != cur.SettledHMC {
+				cur.SettledHMC = ent.SettledHMC
+				rowChanged = true
+			}
+			if ent.SettledSUP != cur.SettledSUP {
+				cur.SettledSUP = ent.SettledSUP
+				rowChanged = true
+			}
 			if strings.TrimSpace(ent.PayoutAddress) != "" {
 				cur.PayoutAddress = ent.PayoutAddress
 			}
@@ -218,7 +218,21 @@ func mergeCanonicalSettlementState(local *workerSettlementState, remote workerSe
 			}
 			cur.LastSettleUnix = ent.LastSettleUnix
 			rowChanged = true
-		} else if rowChanged {
+		} else if ent.SettledHMC > cur.SettledHMC {
+			cur.SettledHMC = ent.SettledHMC
+			rowChanged = true
+			if strings.TrimSpace(ent.PayoutAddress) != "" {
+				cur.PayoutAddress = ent.PayoutAddress
+			}
+			if strings.TrimSpace(ent.LastTxHash) != "" {
+				cur.LastTxHash = ent.LastTxHash
+			}
+			if ent.LastSettleUnix > 0 {
+				cur.LastSettleUnix = ent.LastSettleUnix
+			}
+		} else if ent.SettledSUP > cur.SettledSUP {
+			cur.SettledSUP = ent.SettledSUP
+			rowChanged = true
 			if strings.TrimSpace(ent.PayoutAddress) != "" {
 				cur.PayoutAddress = ent.PayoutAddress
 			}

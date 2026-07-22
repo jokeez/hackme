@@ -42,16 +42,34 @@ func TestMergeCanonicalSettlementState(t *testing.T) {
 
 func TestMergeCanonicalSettlementStateNoRegression(t *testing.T) {
 	local := workerSettlementState{Workers: map[string]workerSettlementStateEntry{
-		"w1": {SettledHMC: 5.0, LastTxHash: "old"},
+		"w1": {SettledHMC: 5.0, LastTxHash: "old", LastSettleUnix: 200},
 	}}
 	remote := workerSettlementState{Workers: map[string]workerSettlementStateEntry{
-		"w1": {SettledHMC: 2.0, LastTxHash: "new"},
+		"w1": {SettledHMC: 2.0, LastTxHash: "new", LastSettleUnix: 100},
 	}}
 	if mergeCanonicalSettlementState(&local, remote) {
-		t.Fatal("expected no change when remote settled is lower")
+		t.Fatal("expected no change when remote settled is lower and older")
 	}
 	if local.Workers["w1"].SettledHMC != 5.0 {
 		t.Fatalf("settled regressed to %v", local.Workers["w1"].SettledHMC)
+	}
+}
+
+func TestMergeCanonicalSettlementStateFresherRemoteMayLower(t *testing.T) {
+	local := workerSettlementState{Workers: map[string]workerSettlementStateEntry{
+		"w1": {SettledHMC: 9.2, LastTxHash: "poison", LastSettleUnix: 100},
+	}}
+	remote := workerSettlementState{Workers: map[string]workerSettlementStateEntry{
+		"w1": {SettledHMC: 8.8, LastTxHash: "vps", LastSettleUnix: 200, PayoutAddress: "HMC-91fe007e4036c602"},
+	}}
+	if !mergeCanonicalSettlementState(&local, remote) {
+		t.Fatal("expected change when remote settle is fresher")
+	}
+	if local.Workers["w1"].SettledHMC != 8.8 {
+		t.Fatalf("settled=%v want 8.8", local.Workers["w1"].SettledHMC)
+	}
+	if local.Workers["w1"].LastTxHash != "vps" {
+		t.Fatalf("tx=%q", local.Workers["w1"].LastTxHash)
 	}
 }
 
