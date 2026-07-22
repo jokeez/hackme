@@ -4513,35 +4513,83 @@ func (a *app) applyStagedLinearTail(ctx context.Context, maxApply int) (syncAppl
 		}
 		return res, nil
 	}
-	tx, err := a.db.BeginTx(ctx, nil)
-	if err != nil {
-		return res, err
-	}
-	defer func() { _ = tx.Rollback() }()
+	// Apply via ImportPoHBlock so ledger effects + order-escrow gate (HMC-RES-01) stay live.
+	// Genesis bootstrap (index 0 on empty tip) still uses raw insert — Import requires genesis.
+	applied := 0
+	var lastHash string
 	for _, c := range applyList {
-		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO blocks (block_index, hash, prev_hash, json) VALUES (?,?,?,?)`,
-			c.Index, c.Hash, c.Prev, c.Raw); err != nil {
-			return res, err
+		var b block.Block
+		if err := json.Unmarshal([]byte(c.Raw), &b); err != nil {
+			res.OK = false
+			res.Reason = "invalid_staged_json"
+			break
 		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM p2p_sync_stage WHERE block_hash = ?`, c.Hash); err != nil {
-			return res, err
+		if c.Index == 0 && localHeight == 0 && strings.TrimSpace(localTip) == "" {
+			tx, err := a.db.BeginTx(ctx, nil)
+			if err != nil {
+				return res, err
+			}
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO blocks (block_index, hash, prev_hash, json) VALUES (?,?,?,?)`,
+				c.Index, c.Hash, c.Prev, c.Raw); err != nil {
+				_ = tx.Rollback()
+				return res, err
+			}
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO meta (key, value) VALUES ('tip_hash', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+				c.Hash); err != nil {
+				_ = tx.Rollback()
+				return res, err
+			}
+			if _, err := tx.ExecContext(ctx, `DELETE FROM p2p_sync_stage WHERE block_hash = ?`, c.Hash); err != nil {
+				_ = tx.Rollback()
+				return res, err
+			}
+			if err := tx.Commit(); err != nil {
+				return res, err
+			}
+		} else {
+			if strings.TrimSpace(b.Task.Kind) != block.PoHBlockKind {
+				res.OK = false
+				res.Reason = "unsupported_block_kind_for_import"
+				res.CandidateIdx = c.Index
+				break
+			}
+			if a.chain == nil {
+				return res, errors.New("chain service unavailable for import")
+			}
+			if err := a.chain.ImportPoHBlock(ctx, &b); err != nil {
+				res.OK = false
+				if errors.Is(err, chain.ErrImportOrderEscrowDenied) {
+					res.Reason = "order_escrow_import_denied"
+				} else {
+					res.Reason = "import_poh_failed"
+				}
+				res.CandidateIdx = c.Index
+				// Surface detail for operators without failing the HTTP envelope as a hard error.
+				if applied == 0 {
+					res.Reason = res.Reason + ": " + err.Error()
+				}
+				break
+			}
+			if _, err := a.db.ExecContext(ctx, `DELETE FROM p2p_sync_stage WHERE block_hash = ?`, c.Hash); err != nil {
+				return res, err
+			}
 		}
+		applied++
+		lastHash = c.Hash
 	}
-	lastHash := applyList[len(applyList)-1].Hash
-	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO meta (key, value) VALUES ('tip_hash', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-		lastHash); err != nil {
-		return res, err
+	res.Applied = applied
+	if applied > 0 {
+		res.FromHeight = localHeight + 1
+		res.ToHeight = applyList[applied-1].Index
+		res.NewTip = lastHash
+		if res.Reason == "" {
+			res.Reason = "ok"
+		}
+	} else if res.Reason == "" {
+		res.Reason = "no_blocks_applied"
 	}
-	if err := tx.Commit(); err != nil {
-		return res, err
-	}
-	res.Applied = len(applyList)
-	res.FromHeight = localHeight + 1
-	res.ToHeight = applyList[len(applyList)-1].Index
-	res.NewTip = lastHash
-	res.Reason = "ok"
 	return res, nil
 }
 
