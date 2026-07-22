@@ -54,7 +54,7 @@ var embeddedFaviconICO []byte
 
 // Build metadata (overridden by -ldflags in release builds).
 var (
-	Version   = "0.1.0-rc12t"
+	Version   = "0.1.0-rc12w"
 	Commit    = "nogit"
 	BuildDate = "unknown"
 )
@@ -512,6 +512,7 @@ func main() {
 	mux.HandleFunc("/api/genesis", a.handleGenesis)
 	mux.HandleFunc("/api/wallet", a.handleWallet)
 	mux.HandleFunc("/api/wallet/earnings", a.handleWalletEarnings)
+	mux.HandleFunc("/api/wallet/activity", a.handleWalletActivity)
 	mux.HandleFunc("/api/chain", a.handleChain)
 	mux.HandleFunc("/api/reports/blocks", a.handleReportsBlocks)
 	mux.HandleFunc("/api/reports/block", a.handleReportsBlockLookup)
@@ -1885,6 +1886,133 @@ func (a *app) handleWalletEarnings(w http.ResponseWriter, r *http.Request) {
 	}
 	a.attachWalletEarningsSyncMeta(ctx, out, canonAttempted, canonOK)
 	writeJSON(w, out)
+}
+
+func walletActivityRemoteUsable(remote map[string]any, addr string) bool {
+	if remote == nil {
+		return false
+	}
+	data, _ := remote["data"].(map[string]any)
+	if data == nil {
+		if _, ok := remote["counterparties"]; ok {
+			data = remote
+		}
+	}
+	if data == nil {
+		return false
+	}
+	if a := strings.TrimSpace(fmt.Sprint(data["address"])); a != "" && addr != "" && !strings.EqualFold(a, addr) {
+		return false
+	}
+	_, hasPeers := data["counterparties"]
+	_, hasRecent := data["recent"]
+	return hasPeers || hasRecent
+}
+
+func (a *app) handleWalletActivity(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 32*time.Second)
+	defer cancel()
+	windowHours := 24
+	if v := strings.TrimSpace(r.URL.Query().Get("window_hours")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			windowHours = n
+		}
+	}
+	recentLimit := 40
+	if v := strings.TrimSpace(r.URL.Query().Get("limit")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			recentLimit = n
+		}
+	}
+	addr, _, err := a.chain.Wallet(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	actAddr := strings.TrimSpace(addr)
+	if actAddr == "" {
+		actAddr = strings.TrimSpace(a.nodeID)
+	}
+	if q := parseOptionalHMCAddress(r.URL.Query().Get("address")); q != "" {
+		actAddr = q
+	}
+
+	source := "local_db"
+	forceLocal := a.miner.Running() && !envBool("HACKME_DESKTOP_MODE", false)
+	useCanon := !forceLocal && a.shouldUseCanonicalChainAPI() && a.networkModeActive() &&
+		(!a.miner.Running() || envBool("HACKME_DESKTOP_MODE", false))
+	if useCanon {
+		if base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/"); base != "" {
+			if u, err := url.Parse(base); err == nil {
+				host := strings.ToLower(strings.TrimSpace(u.Host))
+				loopback := host == "127.0.0.1:8080" || host == "localhost:8080" ||
+					host == "127.0.0.1:18080" || host == "localhost:18080"
+				if !loopback {
+					qv := url.Values{}
+					qv.Set("window_hours", strconv.Itoa(windowHours))
+					qv.Set("limit", strconv.Itoa(recentLimit))
+					if actAddr != "" {
+						qv.Set("address", actAddr)
+					}
+					actURL := strings.TrimRight(base, "/") + "/api/wallet/activity?" + qv.Encode()
+					peerSec := 12
+					curlSec := 16
+					if envBool("HACKME_DESKTOP_MODE", false) {
+						peerSec = 5
+						curlSec = 6
+					}
+					peerCtx, cancelPeer := context.WithTimeout(ctx, time.Duration(peerSec)*time.Second)
+					req, err := http.NewRequestWithContext(peerCtx, http.MethodGet, actURL, nil)
+					if err == nil {
+						client := &http.Client{Timeout: time.Duration(peerSec) * time.Second}
+						if resp, err := client.Do(req); err == nil && resp != nil {
+							if resp.StatusCode == http.StatusOK {
+								var remote map[string]any
+								if err := json.NewDecoder(resp.Body).Decode(&remote); err == nil {
+									if walletActivityRemoteUsable(remote, actAddr) {
+										_ = resp.Body.Close()
+										cancelPeer()
+										if remote["source"] == nil {
+											remote["source"] = "canonical_peer"
+										}
+										writeJSON(w, remote)
+										return
+									}
+								}
+							}
+							_ = resp.Body.Close()
+						}
+					}
+					cancelPeer()
+					curlCtx, cancelCurl := context.WithTimeout(ctx, time.Duration(curlSec+2)*time.Second)
+					parsed, curlErr := fetchJSONViaCurlMax(curlCtx, actURL, nil, curlSec)
+					cancelCurl()
+					if curlErr == nil && walletActivityRemoteUsable(parsed, actAddr) {
+						if parsed["source"] == nil {
+							parsed["source"] = "canonical_peer"
+						}
+						writeJSON(w, parsed)
+						return
+					}
+				}
+			}
+		}
+	}
+
+	activity, err := a.chain.WalletActivitySummary(ctx, actAddr, windowHours, recentLimit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{
+		"ok":     true,
+		"source": source,
+		"data":   activity,
+	})
 }
 
 func (a *app) handleChain(w http.ResponseWriter, r *http.Request) {

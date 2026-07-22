@@ -428,6 +428,187 @@ func (s *Service) WalletEarningsSummary(ctx context.Context, address string, win
 	}, nil
 }
 
+type WalletCounterpartyRow struct {
+	Peer        string  `json:"peer"`
+	ReceivedHMC float64 `json:"received_hmc"`
+	SentHMC     float64 `json:"sent_hmc"`
+	NetHMC      float64 `json:"net_hmc"`
+	TxCount     int64   `json:"tx_count"`
+	LastUnix    int64   `json:"last_unix"`
+}
+
+type WalletTransferEvent struct {
+	TxHash       string  `json:"tx_hash"`
+	Direction    string  `json:"direction"`
+	Counterparty string  `json:"counterparty"`
+	AmountHMC    float64 `json:"amount_hmc"`
+	FeeHMC       float64 `json:"fee_hmc"`
+	AppliedUnix  int64   `json:"applied_unix"`
+	Memo         string  `json:"memo,omitempty"`
+}
+
+type WalletActivitySummary struct {
+	Address          string                  `json:"address"`
+	WindowHours      int                     `json:"window_hours"`
+	NowUnix          int64                   `json:"now_unix"`
+	TotalReceivedHMC float64                 `json:"total_received_hmc"`
+	TotalSentHMC     float64                 `json:"total_sent_hmc"`
+	TotalNetHMC      float64                 `json:"total_net_hmc"`
+	TxCountWindow    int64                   `json:"tx_count_window"`
+	Counterparties   []WalletCounterpartyRow `json:"counterparties"`
+	Recent           []WalletTransferEvent   `json:"recent"`
+}
+
+func (s *Service) WalletActivitySummary(ctx context.Context, address string, windowHours, recentLimit int) (WalletActivitySummary, error) {
+	addr := strings.TrimSpace(address)
+	if windowHours <= 0 {
+		windowHours = 24
+	}
+	if windowHours > 24*90 {
+		windowHours = 24 * 90
+	}
+	if recentLimit <= 0 {
+		recentLimit = 40
+	}
+	if recentLimit > 200 {
+		recentLimit = 200
+	}
+	nowUnix := time.Now().Unix()
+	windowStart := nowUnix - int64(windowHours*3600)
+
+	type peerAgg struct {
+		recvUnits uint64
+		sentUnits uint64
+		txCount   int64
+		lastUnix  int64
+	}
+	peers := map[string]*peerAgg{}
+	var totalRecv, totalSent uint64
+	var txWindow int64
+	recent := make([]WalletTransferEvent, 0, recentLimit)
+
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT tx_hash, from_address, to_address, amount_units, fee_units, applied_at, tx_json
+		 FROM tx_history
+		 WHERE status='included'
+		   AND (from_address = ? OR to_address = ?)
+		   AND applied_at >= ?
+		 ORDER BY applied_at DESC`,
+		addr, addr, windowStart,
+	)
+	if err != nil {
+		return WalletActivitySummary{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var txHash, fromAddr, toAddr, txJSON string
+		var amountUnits, feeUnits uint64
+		var appliedAt int64
+		if err := rows.Scan(&txHash, &fromAddr, &toAddr, &amountUnits, &feeUnits, &appliedAt, &txJSON); err != nil {
+			return WalletActivitySummary{}, err
+		}
+		txWindow++
+		var memo struct {
+			Memo string `json:"memo"`
+		}
+		_ = json.Unmarshal([]byte(txJSON), &memo)
+		memoStr := strings.TrimSpace(memo.Memo)
+
+		if strings.EqualFold(strings.TrimSpace(toAddr), addr) {
+			totalRecv += amountUnits
+			peer := strings.TrimSpace(fromAddr)
+			pa := peers[peer]
+			if pa == nil {
+				pa = &peerAgg{}
+				peers[peer] = pa
+			}
+			pa.recvUnits += amountUnits
+			pa.txCount++
+			if appliedAt > pa.lastUnix {
+				pa.lastUnix = appliedAt
+			}
+			if len(recent) < recentLimit {
+				recent = append(recent, WalletTransferEvent{
+					TxHash:       txHash,
+					Direction:    "in",
+					Counterparty: peer,
+					AmountHMC:    UnitsToHMC(amountUnits),
+					FeeHMC:       UnitsToHMC(feeUnits),
+					AppliedUnix:  appliedAt,
+					Memo:         memoStr,
+				})
+			}
+		}
+		if strings.EqualFold(strings.TrimSpace(fromAddr), addr) {
+			spend := amountUnits + feeUnits
+			if spend < amountUnits {
+				spend = amountUnits
+			}
+			totalSent += spend
+			peer := strings.TrimSpace(toAddr)
+			pa := peers[peer]
+			if pa == nil {
+				pa = &peerAgg{}
+				peers[peer] = pa
+			}
+			pa.sentUnits += spend
+			pa.txCount++
+			if appliedAt > pa.lastUnix {
+				pa.lastUnix = appliedAt
+			}
+			if len(recent) < recentLimit {
+				recent = append(recent, WalletTransferEvent{
+					TxHash:       txHash,
+					Direction:    "out",
+					Counterparty: peer,
+					AmountHMC:    UnitsToHMC(amountUnits),
+					FeeHMC:       UnitsToHMC(feeUnits),
+					AppliedUnix:  appliedAt,
+					Memo:         memoStr,
+				})
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return WalletActivitySummary{}, err
+	}
+
+	counterparties := make([]WalletCounterpartyRow, 0, len(peers))
+	for peer, pa := range peers {
+		recv := UnitsToHMC(pa.recvUnits)
+		sent := UnitsToHMC(pa.sentUnits)
+		counterparties = append(counterparties, WalletCounterpartyRow{
+			Peer:        peer,
+			ReceivedHMC: recv,
+			SentHMC:     sent,
+			NetHMC:      recv - sent,
+			TxCount:     pa.txCount,
+			LastUnix:    pa.lastUnix,
+		})
+	}
+	sort.Slice(counterparties, func(i, j int) bool {
+		ai := counterparties[i].ReceivedHMC + counterparties[i].SentHMC
+		aj := counterparties[j].ReceivedHMC + counterparties[j].SentHMC
+		if ai != aj {
+			return ai > aj
+		}
+		return counterparties[i].LastUnix > counterparties[j].LastUnix
+	})
+
+	return WalletActivitySummary{
+		Address:          addr,
+		WindowHours:      windowHours,
+		NowUnix:          nowUnix,
+		TotalReceivedHMC: UnitsToHMC(totalRecv),
+		TotalSentHMC:     UnitsToHMC(totalSent),
+		TotalNetHMC:      UnitsToHMC(totalRecv) - UnitsToHMC(totalSent),
+		TxCountWindow:    txWindow,
+		Counterparties:   counterparties,
+		Recent:           recent,
+	}, nil
+}
+
 // RejectStaleLocalPending marks pending transfers from addr whose nonce does not match the
 // authoritative next_nonce (desktop followers must not show local-fork ghost txs).
 func (s *Service) RejectStaleLocalPending(ctx context.Context, from string, authoritativeNonce uint64) (int64, error) {

@@ -629,6 +629,170 @@
 			margin-top: 0.15rem;
 			font-variant-numeric: tabular-nums;
 		}
+		.wallet-balance-split {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 0.65rem;
+			margin-bottom: 0.65rem;
+		}
+		@media (max-width: 520px) {
+			.wallet-balance-split { grid-template-columns: 1fr; }
+		}
+		.wallet-bd-box {
+			border-radius: 0.65rem;
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			background: rgba(0, 0, 0, 0.35);
+			padding: 0.65rem 0.75rem;
+		}
+		.wallet-bd-box.primary { border-color: rgba(0, 255, 136, 0.28); background: rgba(0, 255, 136, 0.04); }
+		.wallet-bd-box.secondary { border-color: rgba(0, 209, 255, 0.22); }
+		.wallet-bd-box.secondary.active { border-color: rgba(0, 209, 255, 0.4); background: rgba(0, 209, 255, 0.06); }
+		.wallet-bd-label {
+			font-size: 8px;
+			text-transform: uppercase;
+			letter-spacing: 0.16em;
+			color: #6b7280;
+		}
+		.wallet-bd-value {
+			font-size: 1.05rem;
+			font-weight: 700;
+			color: #e5e7eb;
+			font-family: 'JetBrains Mono', ui-monospace, monospace;
+			font-variant-numeric: tabular-nums;
+			margin-top: 0.2rem;
+		}
+		.wallet-bd-box.primary .wallet-bd-value { color: #86efac; }
+		.wallet-bd-sub {
+			font-size: 9px;
+			color: #6b7280;
+			margin-top: 0.25rem;
+			line-height: 1.45;
+			font-family: ui-monospace, monospace;
+		}
+		.wallet-bd-orders {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: baseline;
+			gap: 0.35rem 0.65rem;
+			border-radius: 0.55rem;
+			border: 1px dashed rgba(192, 132, 252, 0.35);
+			background: rgba(192, 132, 252, 0.05);
+			padding: 0.45rem 0.65rem;
+			font-size: 10px;
+		}
+		.wallet-bd-orders .wallet-bd-value {
+			font-size: 0.85rem;
+			font-weight: 600;
+			color: #e9d5ff;
+		}
+		.wallet-chain-details {
+			max-width: 42rem;
+			margin: 0 auto 1.25rem;
+			text-align: left;
+			border-radius: 0.55rem;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			background: rgba(0, 0, 0, 0.25);
+			padding: 0.5rem 0.75rem;
+		}
+		.wallet-chain-details summary {
+			cursor: pointer;
+			font-size: 10px;
+			text-transform: uppercase;
+			letter-spacing: 0.14em;
+			color: #9ca3af;
+			list-style: none;
+		}
+		.wallet-chain-details summary::-webkit-details-marker { display: none; }
+		.wallet-chain-details[open] summary { margin-bottom: 0.65rem; color: #d1d5db; }
+		#wallet-pending-badge {
+			font-family: 'JetBrains Mono', ui-monospace, monospace;
+			font-variant-numeric: tabular-nums;
+		}
+		.wallet-bd-box.sup { border-color: rgba(192, 132, 252, 0.32); background: rgba(192, 132, 252, 0.06); }
+		.wallet-bd-box.sup .wallet-bd-value { color: #e9d5ff; }
+		.wallet-bd-policy {
+			border-radius: 0.55rem;
+			border: 1px dashed rgba(192, 132, 252, 0.3);
+			background: rgba(192, 132, 252, 0.04);
+			padding: 0.45rem 0.65rem;
+			font-size: 10px;
+		}
+		.wallet-tx-send-panel {
+			border-radius: 0.75rem;
+			border: 1px solid rgba(0, 255, 136, 0.22);
+			background: linear-gradient(145deg, rgba(0, 40, 24, 0.35), rgba(0, 0, 0, 0.45));
+			padding: 1rem;
+			margin-bottom: 0.75rem;
+		}
+		.wallet-tx-send-row {
+			display: grid;
+			grid-template-columns: 1fr minmax(7rem, 9rem);
+			gap: 0.65rem;
+			margin-bottom: 0.75rem;
+		}
+		@media (max-width: 520px) {
+			.wallet-tx-send-row { grid-template-columns: 1fr; }
+		}
+		.wallet-tx-send-row input {
+			width: 100%;
+			font-size: 0.8rem;
+			font-family: 'JetBrains Mono', ui-monospace, monospace;
+			border-radius: 0.45rem;
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			background: rgba(0, 0, 0, 0.55);
+			padding: 0.55rem 0.65rem;
+			color: #86efac;
+		}
+		.wallet-tx-send-actions {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.5rem;
+			align-items: center;
+		}
+		.wallet-tx-details {
+			border-radius: 0.55rem;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			background: rgba(0, 0, 0, 0.25);
+			padding: 0.5rem 0.75rem;
+			margin-top: 0.65rem;
+		}
+		.wallet-tx-details summary {
+			cursor: pointer;
+			font-size: 10px;
+			text-transform: uppercase;
+			letter-spacing: 0.14em;
+			color: #9ca3af;
+			list-style: none;
+		}
+		.wallet-tx-details summary::-webkit-details-marker { display: none; }
+		.wallet-tx-details[open] summary { margin-bottom: 0.65rem; color: #d1d5db; }
+		.wallet-earnings-details {
+			border-radius: 0.55rem;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			background: rgba(0, 0, 0, 0.2);
+			padding: 0.5rem 0.65rem;
+			margin-top: 0.65rem;
+		}
+		.wallet-earnings-details summary {
+			cursor: pointer;
+			font-size: 10px;
+			text-transform: uppercase;
+			letter-spacing: 0.14em;
+			color: #9ca3af;
+			list-style: none;
+		}
+		.wallet-earnings-details summary::-webkit-details-marker { display: none; }
+		.wallet-earnings-details[open] summary { margin-bottom: 0.5rem; color: #d1d5db; }
+		#wallet-earnings-timeline { white-space: pre-line; }
+		#tx-form-preview { display: none; }
+		#tx-form-preview.tx-preview-visible { display: block; }
+		.wallet-addr-label {
+			display: block;
+			font-size: 9px;
+			color: #a78bfa;
+			margin-top: 0.15rem;
+			letter-spacing: 0.04em;
+		}
 		.fuzz-camp-progress {
 			height: 0.35rem;
 			border-radius: 999px;
@@ -1054,7 +1218,7 @@
 						<span id="hdr-ui-mode" class="hidden sm:inline text-[9px] px-2 py-0.5 rounded border border-white/20 text-gray-300 uppercase tracking-widest" title="UI rendering mode">ui: full</span>
 						<span class="hidden sm:inline text-[10px] px-2 py-0.5 rounded border border-neon/25 text-neon/90 bg-neon/5">WASM</span>
 						<span id="chain-id-pill" class="tag-pill text-matrix/90 border-matrix/30">hackme-dev-mainnet</span>
-						<span id="hdr-node-version" class="text-[9px] px-2 py-0.5 rounded border border-white/10 text-neon/80 font-mono max-w-[280px] truncate hidden sm:inline-block" title="Node version · commit · build date from /api/status">0.1.0-rc12t · …</span>
+						<span id="hdr-node-version" class="text-[9px] px-2 py-0.5 rounded border border-white/10 text-neon/80 font-mono max-w-[280px] truncate hidden sm:inline-block" title="Node version · commit · build date from /api/status">0.1.0-rc12w · …</span>
 					</div>
 					<div class="flex flex-wrap items-center gap-3 text-right text-[11px]">
 						<div class="flex items-center gap-2 rounded border border-warn/25 bg-black/40 px-2 py-1">
@@ -1133,8 +1297,8 @@
 				<div id="dashboard-whats-new" class="hidden mb-4 max-w-[1600px] mx-auto rounded-lg border border-matrix/35 bg-matrix/[0.07] px-4 py-3 text-[11px] leading-relaxed" role="status">
 					<div class="flex flex-wrap items-start justify-between gap-3">
 						<div class="min-w-0 flex-1">
-							<p class="font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-matrix mb-1">What&apos;s new · <span id="dashboard-whats-new-ver">0.1.0-rc12t</span></p>
-							<p id="dashboard-whats-new-body" class="text-gray-200/95">Security hardening on local console (admin token fail-closed by default). Wallet hub shows accrual → settlement → on-chain. Mining fuzz marketplace adds live progress + ETA. Research: <a href="https://hackme.tech/reports/oss-cve-watch-libheif/day01.html" class="text-neon underline" target="_blank" rel="noopener">libheif Day 1</a>.</p>
+							<p class="font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-matrix mb-1">What&apos;s new · <span id="dashboard-whats-new-ver">0.1.0-rc12w</span></p>
+							<p id="dashboard-whats-new-body" class="text-gray-200/95">Wallet Activity: counterparty rollup, in/out filter, CSV export, address labels. Cleaner HMC / SUP / Transfer / Earnings. Research: <a href="https://hackme.tech/reports/oss-cve-watch-libheif/day01.html" class="text-neon underline" target="_blank" rel="noopener">libheif Day 1</a>.</p>
 						</div>
 						<button type="button" id="dashboard-whats-new-dismiss" class="shrink-0 text-[10px] px-2 py-1 rounded border border-white/15 text-gray-400 hover:text-gray-200 uppercase tracking-wider">Dismiss</button>
 					</div>
@@ -2631,94 +2795,86 @@
 								<div class="wallet-detail-tabs" role="tablist">
 									<button type="button" class="wallet-detail-tab active" data-wallet-section="overview">Overview</button>
 									<button type="button" class="wallet-detail-tab" data-wallet-section="earnings">Earnings</button>
+									<button type="button" class="wallet-detail-tab wallet-detail-hmc-only" data-wallet-section="activity">Activity</button>
 									<button type="button" class="wallet-detail-tab" data-wallet-section="transfer">Transfer</button>
 								</div>
 								<div id="wallet-section-overview" class="wallet-detail-section active">
 					<div class="card card-glow rounded-2xl p-6 lg:p-10 border-matrix/30 text-center">
 						<p class="text-[10px] uppercase tracking-[0.35em] text-gray-500 mb-4"><span id="wallet-selected-coin-name">HackMe Coin</span> · balance</p>
 						<p class="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-matrix drop-shadow-matrix tabular-nums mb-2"><span id="wallet-balance-big">0.00</span> <span id="wallet-symbol-big" class="text-2xl sm:text-3xl text-neon/80">HMC</span></p>
-						<p id="wallet-balance-caption" class="text-sm text-gray-500 mb-2">Node wallet (local view)</p>
-						<div id="wallet-hmc-flow" class="wallet-detail-hmc-only hidden mb-4 max-w-2xl mx-auto text-left">
-							<p class="text-[9px] uppercase tracking-[0.22em] text-gray-600 mb-2 text-center">Mining earnings path</p>
-							<div class="wallet-flow-rail">
-								<div class="wallet-flow-step" id="wallet-flow-accrual">
-									<p class="wallet-flow-label">1 · Pool accrual</p>
-									<p id="wallet-flow-accrual-val" class="wallet-flow-value">—</p>
+						<p id="wallet-balance-caption" class="text-sm text-gray-500 mb-2">On-chain spendable balance</p>
+						<p id="wallet-pending-badge" class="hidden text-sm text-neon/85 mb-3"></p>
+						<div id="wallet-hmc-breakdown" class="wallet-detail-hmc-only hidden max-w-xl mx-auto mb-4 text-left">
+							<div class="wallet-balance-split">
+								<div class="wallet-bd-box primary">
+									<p class="wallet-bd-label">On-chain · spendable</p>
+									<p id="wallet-bd-onchain" class="wallet-bd-value">—</p>
+									<p class="wallet-bd-sub">Settled mining payouts + transfers (canonical)</p>
 								</div>
-								<span class="wallet-flow-arrow" aria-hidden="true">→</span>
-								<div class="wallet-flow-step" id="wallet-flow-settle">
-									<p class="wallet-flow-label">2 · Settlement</p>
-									<p id="wallet-flow-settle-val" class="wallet-flow-value">VPS sweep</p>
-								</div>
-								<span class="wallet-flow-arrow" aria-hidden="true">→</span>
-								<div class="wallet-flow-step" id="wallet-flow-onchain">
-									<p class="wallet-flow-label">3 · On-chain</p>
-									<p id="wallet-flow-onchain-val" class="wallet-flow-value">—</p>
+								<div class="wallet-bd-box secondary" id="wallet-bd-pending-box">
+									<p class="wallet-bd-label">Pool · pending settlement</p>
+									<p id="wallet-bd-pending" class="wallet-bd-value">0 HMC</p>
+									<p id="wallet-bd-settle-sub" class="wallet-bd-sub">checking settlement…</p>
 								</div>
 							</div>
-							<p id="wallet-settlement-hint" class="mt-2 text-[10px] text-gray-500 font-mono text-center leading-relaxed">settlement: checking…</p>
-						</div>
-						<div id="wallet-treasury" class="wallet-treasury hidden wallet-detail-hmc-only">
-							<div class="wallet-treasury-item accrual">
-								<p class="wallet-treasury-label">Pool accrual</p>
-								<p id="wallet-treasury-accrual" class="wallet-treasury-value" title="Unsettled mining on coordinator — drops to ~0 after on-chain settlement (~90s). Not lost: moves to On-chain balance.">—</p>
-								<p class="wallet-treasury-sub">step 1 · coordinator unpaid</p>
-							</div>
-							<div class="wallet-treasury-item onchain">
-								<p class="wallet-treasury-label">On-chain</p>
-								<p id="wallet-treasury-onchain" class="wallet-treasury-value">—</p>
-								<p class="wallet-treasury-sub">step 3 · settled · canonical</p>
-							</div>
-							<div class="wallet-treasury-item orders" id="wallet-treasury-orders-card">
-								<p class="wallet-treasury-label">Orders escrow</p>
-								<p id="wallet-treasury-orders" class="wallet-treasury-value">—</p>
-								<p id="wallet-treasury-orders-note" class="wallet-treasury-sub">market spend · not mining accrual</p>
+							<div class="wallet-bd-orders" id="wallet-bd-orders-row">
+								<span class="wallet-bd-label">Orders escrow</span>
+								<span id="wallet-bd-orders" class="wallet-bd-value">0 HMC</span>
+								<span class="wallet-bd-sub">market audits only · not mining</span>
 							</div>
 						</div>
-						<p id="wallet-alignment-banner" class="hidden text-[10px] text-warn/90 mb-4 max-w-xl mx-auto leading-relaxed font-mono"></p>
-						<p id="wallet-miner-payout-note" class="text-[10px] text-gray-400 mb-6 max-w-2xl mx-auto leading-relaxed hidden"></p>
-						<div id="wallet-overview-stats-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 max-w-5xl mx-auto mb-5 text-left">
-							<div class="wallet-stat wallet-detail-hmc-only" title="1 HMC = 100,000,000 Kapa. Matches HMC balance above (full precision).">
-								<p class="wallet-stat-label">Units (Kapa)</p>
-								<p id="wallet-balance-units" class="wallet-stat-value">0</p>
-								<p id="wallet-balance-units-hmc-echo" class="text-[10px] text-gray-500 mt-1 font-mono">≈ 0 HMC</p>
+						<div id="wallet-sup-breakdown" class="wallet-detail-sup-only hidden max-w-xl mx-auto mb-4 text-left">
+							<div class="wallet-balance-split">
+								<div class="wallet-bd-box sup primary">
+									<p class="wallet-bd-label">On-chain · spendable</p>
+									<p id="wallet-bd-sup-onchain" class="wallet-bd-value">—</p>
+									<p class="wallet-bd-sub">Minted / settled · transfer_sup_v1</p>
+								</div>
+								<div class="wallet-bd-box secondary" id="wallet-bd-sup-pending-box">
+									<p class="wallet-bd-label">Pool · pending mint</p>
+									<p id="wallet-bd-sup-pending" class="wallet-bd-value">0 SUP</p>
+									<p id="wallet-bd-sup-settle-sub" class="wallet-bd-sub">coordinator accrual · not on-chain yet</p>
+								</div>
 							</div>
-							<div class="wallet-stat wallet-detail-hmc-only">
-								<p class="wallet-stat-label">Next nonce</p>
-								<p id="wallet-next-nonce" class="wallet-stat-value">0</p>
+							<div class="wallet-bd-policy">
+								<span class="wallet-bd-label">Mining bonus</span>
+								<span id="wallet-bd-sup-policy" class="wallet-bd-value text-sm">—</span>
+								<span class="wallet-bd-sub">hybrid HMC mining · CEX listing after HMC</span>
 							</div>
-							<div class="wallet-stat wallet-detail-hmc-only" title="Minimum fee in transfer accounting units.">
-								<p class="wallet-stat-label">Min fee</p>
-								<p id="wallet-min-fee" class="wallet-stat-value">1,000 Kapa</p>
+						</div>
+						<p id="wallet-sup-pending-badge" class="wallet-detail-sup-only hidden text-sm text-purple-300/90 mb-3"></p>
+						<p id="wallet-alignment-banner" class="wallet-detail-hmc-only hidden text-[10px] text-warn/90 mb-4 max-w-xl mx-auto leading-relaxed font-mono"></p>
+						<p id="wallet-miner-payout-note" class="text-[10px] text-gray-400 mb-4 max-w-xl mx-auto leading-relaxed hidden"></p>
+						<details id="wallet-chain-details" class="wallet-detail-hmc-only wallet-chain-details hidden">
+							<summary>Transfer details · nonce · fees · units</summary>
+							<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+								<div class="wallet-stat" title="1 HMC = 100,000,000 Kapa">
+									<p class="wallet-stat-label">Units (Kapa)</p>
+									<p id="wallet-balance-units" class="wallet-stat-value text-sm">0</p>
+									<p id="wallet-balance-units-hmc-echo" class="text-[9px] text-gray-500 mt-0.5 font-mono">≈ 0 HMC</p>
+								</div>
+								<div class="wallet-stat">
+									<p class="wallet-stat-label">Next nonce</p>
+									<p id="wallet-next-nonce" class="wallet-stat-value text-sm">0</p>
+								</div>
+								<div class="wallet-stat" title="Minimum fee in transfer accounting units">
+									<p class="wallet-stat-label">Min fee</p>
+									<p id="wallet-min-fee" class="wallet-stat-value text-sm">1,000 Kapa</p>
+								</div>
+								<div class="wallet-stat">
+									<p class="wallet-stat-label">Max send now</p>
+									<p id="wallet-sendable-hmc" class="wallet-stat-value text-sm">0 HMC</p>
+								</div>
 							</div>
-							<div class="wallet-stat wallet-detail-hmc-only">
-								<p class="wallet-stat-label">Max send now</p>
-								<p id="wallet-sendable-hmc" class="wallet-stat-value">0.000000 HMC</p>
-							</div>
-							<div class="wallet-stat wallet-detail-hmc-only">
-								<p class="wallet-stat-label">Unpaid worker accrual</p>
-								<p id="wallet-unpaid-hmc" class="wallet-stat-value">0.000000 HMC</p>
-								<p id="wallet-unpaid-note" class="text-[10px] text-gray-500 mt-1 font-mono">settlement: checking...</p>
-							</div>
-							<div class="wallet-stat wallet-detail-sup-only hidden">
-								<p class="wallet-stat-label">On-chain</p>
-								<p id="wallet-sup-onchain" class="wallet-stat-value">0 SUP</p>
-								<p class="text-[10px] text-gray-500 mt-1 font-mono">settled / minted / transfers</p>
-							</div>
-							<div class="wallet-stat wallet-detail-sup-only hidden">
-								<p class="wallet-stat-label">Pool accrued</p>
-								<p id="wallet-sup-accrued" class="wallet-stat-value">0 SUP</p>
-								<p class="text-[10px] text-gray-500 mt-1 font-mono">coordinator (pre-settle)</p>
-							</div>
-							<div class="wallet-stat wallet-detail-sup-only hidden">
-								<p class="wallet-stat-label">Unsettled</p>
-								<p id="wallet-sup-unpaid" class="wallet-stat-value">0 SUP</p>
-								<p id="wallet-sup-accrual-note" class="text-[10px] text-gray-500 mt-1 font-mono">mint via settle_worker_sup.sh</p>
-							</div>
-							<div class="wallet-stat wallet-detail-sup-only hidden sm:col-span-2">
-								<p class="wallet-stat-label">Policy</p>
-								<p id="wallet-sup-policy-note" class="wallet-stat-value text-sm leading-snug">—</p>
-							</div>
+						</details>
+						<div id="wallet-overview-stats-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-w-5xl mx-auto mb-5 text-left">
+							<span id="wallet-unpaid-hmc" class="hidden" aria-hidden="true"></span>
+							<span id="wallet-unpaid-note" class="hidden" aria-hidden="true"></span>
+							<span id="wallet-sup-onchain" class="hidden" aria-hidden="true"></span>
+							<span id="wallet-sup-accrued" class="hidden" aria-hidden="true"></span>
+							<span id="wallet-sup-unpaid" class="hidden" aria-hidden="true"></span>
+							<span id="wallet-sup-accrual-note" class="hidden" aria-hidden="true"></span>
+							<span id="wallet-sup-policy-note" class="hidden" aria-hidden="true"></span>
 						</div>
 						<div class="text-left max-w-lg mx-auto mt-4">
 							<p class="text-[10px] uppercase tracking-widest text-gray-600 mb-2">Address</p>
@@ -2769,10 +2925,15 @@
 							</div>
 							<p id="wallet-earnings-hmc-only-msg" class="hidden mt-3 text-sm text-gray-400 text-center py-6 border border-white/10 rounded">On-chain earnings chart is <strong class="text-white/90">HMC-only</strong> today. SUP accrual is shown on the Overview tab for HackMe Support.</p>
 							<div id="wallet-earnings-hmc-body">
-							<p id="wallet-earnings-accrual-hint" class="mt-1 text-[10px] text-matrix/80 font-mono break-words">Chart = on-chain transfers only. Pool mining accrual stays in Unpaid worker accrual until settlement credits your wallet.</p>
+							<p id="wallet-earnings-accrual-hint" class="mt-2 text-[10px] text-matrix/80 font-mono">On-chain transfers only — pool HMC accrual is on Overview.</p>
 							<p id="wallet-earnings-sync-hint" class="hidden mt-1 text-[10px] text-amber-500/90 font-mono break-words" aria-live="polite"></p>
-							<p id="wallet-earnings-timeline" class="mt-2 text-[10px] text-gray-500 font-mono break-all">timeline: loading...</p>
-							<div class="mt-3 overflow-x-auto rounded border border-white/10">
+							<details id="wallet-earnings-timeline-wrap" class="wallet-earnings-details">
+								<summary>Daily net timeline</summary>
+								<p id="wallet-earnings-timeline" class="text-[10px] text-gray-500 font-mono break-words leading-relaxed">loading…</p>
+							</details>
+							<details id="wallet-earnings-table-wrap" class="wallet-earnings-details" open>
+								<summary>Daily breakdown · <span id="wallet-earnings-table-count">—</span></summary>
+								<div class="overflow-x-auto rounded border border-white/10">
 								<table class="w-full text-left border-collapse">
 									<thead>
 										<tr class="text-[9px] uppercase tracking-wider text-gray-600 border-b border-white/10">
@@ -2785,53 +2946,148 @@
 									</thead>
 									<tbody id="wallet-earnings-table-body"></tbody>
 								</table>
+								</div>
+							</details>
 							</div>
 							</div>
+								</div>
+								<div id="wallet-section-activity" class="wallet-detail-section wallet-detail-hmc-only">
+						<div class="rounded-lg border border-white/10 bg-black/30 p-3 text-left">
+							<div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+								<p class="text-[10px] uppercase tracking-[0.2em] text-gray-500">Transfers · by counterparty</p>
+								<div class="flex flex-wrap gap-1 items-center">
+									<button type="button" class="wallet-activity-filter px-2 py-1 rounded border border-white/15 text-[10px] uppercase tracking-wider text-gray-400 hover:bg-white/5" data-wallet-activity-filter="all">All</button>
+									<button type="button" class="wallet-activity-filter px-2 py-1 rounded border border-white/15 text-[10px] uppercase tracking-wider text-gray-400 hover:bg-white/5" data-wallet-activity-filter="in">In</button>
+									<button type="button" class="wallet-activity-filter px-2 py-1 rounded border border-white/15 text-[10px] uppercase tracking-wider text-gray-400 hover:bg-white/5" data-wallet-activity-filter="out">Out</button>
+									<span class="text-gray-700 mx-1">|</span>
+									<button type="button" class="wallet-activity-period px-2 py-1 rounded border border-white/15 text-[10px] uppercase tracking-wider text-gray-400 hover:bg-white/5" data-wallet-activity-period="24h">24h</button>
+									<button type="button" class="wallet-activity-period px-2 py-1 rounded border border-white/15 text-[10px] uppercase tracking-wider text-gray-400 hover:bg-white/5" data-wallet-activity-period="7d">7d</button>
+									<button type="button" class="wallet-activity-period px-2 py-1 rounded border border-white/15 text-[10px] uppercase tracking-wider text-gray-400 hover:bg-white/5" data-wallet-activity-period="30d">30d</button>
+									<button type="button" id="btn-wallet-activity-csv" class="px-2 py-1 rounded border border-matrix/35 text-matrix text-[10px] uppercase tracking-wider hover:bg-matrix/10">Export CSV</button>
+								</div>
+							</div>
+							<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+								<div class="wallet-stat">
+									<p id="wallet-activity-label-in" class="wallet-stat-label">Received</p>
+									<p id="wallet-activity-in" class="wallet-stat-value text-matrix">0 HMC</p>
+								</div>
+								<div class="wallet-stat">
+									<p id="wallet-activity-label-out" class="wallet-stat-label">Sent</p>
+									<p id="wallet-activity-out" class="wallet-stat-value text-warn">0 HMC</p>
+								</div>
+								<div class="wallet-stat">
+									<p class="wallet-stat-label">Net</p>
+									<p id="wallet-activity-net" class="wallet-stat-value text-neon">0 HMC</p>
+								</div>
+								<div class="wallet-stat">
+									<p class="wallet-stat-label">Transfers</p>
+									<p id="wallet-activity-txcount" class="wallet-stat-value">0</p>
+								</div>
+							</div>
+							<p id="wallet-activity-source" class="text-[10px] text-gray-500 font-mono mb-2">loading…</p>
+							<details id="wallet-activity-peers-wrap" class="wallet-earnings-details" open>
+								<summary>Counterparties · <span id="wallet-activity-peer-count">—</span></summary>
+								<div class="overflow-x-auto rounded border border-white/10">
+									<table class="w-full text-left border-collapse">
+										<thead>
+											<tr class="text-[9px] uppercase tracking-wider text-gray-600 border-b border-white/10">
+												<th class="py-1.5 px-2 font-normal">Address</th>
+												<th class="py-1.5 px-2 font-normal">Label</th>
+												<th class="py-1.5 px-2 font-normal text-matrix">In</th>
+												<th class="py-1.5 px-2 font-normal text-warn">Out</th>
+												<th class="py-1.5 px-2 font-normal text-neon">Net</th>
+												<th class="py-1.5 px-2 font-normal">Tx</th>
+												<th class="py-1.5 px-2 font-normal">Last</th>
+											</tr>
+										</thead>
+										<tbody id="wallet-activity-peers-body"></tbody>
+									</table>
+								</div>
+							</details>
+							<details id="wallet-activity-recent-wrap" class="wallet-earnings-details mt-2" open>
+								<summary>Recent transfers · <span id="wallet-activity-recent-count">—</span></summary>
+								<div class="overflow-x-auto rounded border border-white/10">
+									<table class="w-full text-left border-collapse">
+										<thead>
+											<tr class="text-[9px] uppercase tracking-wider text-gray-600 border-b border-white/10">
+												<th class="py-1.5 px-2 font-normal">When</th>
+												<th class="py-1.5 px-2 font-normal">Dir</th>
+												<th class="py-1.5 px-2 font-normal">Counterparty</th>
+												<th class="py-1.5 px-2 font-normal">Label</th>
+												<th class="py-1.5 px-2 font-normal text-neon">Amount</th>
+												<th class="py-1.5 px-2 font-normal">Memo</th>
+											</tr>
+										</thead>
+										<tbody id="wallet-activity-recent-body"></tbody>
+									</table>
+								</div>
+							</details>
 						</div>
 								</div>
 								<div id="wallet-section-transfer" class="wallet-detail-section wallet-detail-hmc-only">
-					<div class="card card-glow rounded-xl p-5 border-neon/20">
-						<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-							<h3 class="font-display text-[10px] tracking-[0.25em] text-neon uppercase">Transfer tx (v1)</h3>
+					<div class="card card-glow rounded-xl p-5 border-neon/20 text-left">
+						<div class="flex flex-wrap items-start justify-between gap-3 mb-3">
+							<div>
+								<h3 class="font-display text-sm tracking-[0.2em] text-neon uppercase">Send HMC</h3>
+								<p id="tx-send-summary" class="text-[10px] text-gray-500 font-mono mt-1 leading-relaxed">—</p>
+							</div>
 							<div class="flex flex-wrap items-center gap-2">
 								<button type="button" id="btn-wallet-mode-toggle" class="text-[10px] px-3 py-1 rounded border border-matrix/35 text-matrix hover:bg-matrix/10 uppercase tracking-wider">Mode: Simple</button>
 								<button type="button" id="btn-tx-pool-refresh" class="text-[10px] px-3 py-1 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh pool</button>
 							</div>
 						</div>
-						<form id="wallet-transfer-form" class="rounded-lg border border-white/10 bg-black/30 p-3 mb-2" autocomplete="off" onsubmit="return false">
-							<p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">Quick transfer form</p>
-							<p id="wallet-mode-note" class="text-[10px] text-gray-500 font-mono mb-2">Simple mode: required send fields only.</p>
-							<div class="flex flex-wrap gap-2 mb-2">
-								<button type="button" class="wallet-mini-btn tx-amount-preset" data-hmc="0.001">0.001 HMC</button>
-								<button type="button" class="wallet-mini-btn tx-amount-preset" data-hmc="0.01">0.01 HMC</button>
-								<button type="button" class="wallet-mini-btn tx-amount-preset" data-hmc="0.1">0.1 HMC</button>
+						<form id="wallet-transfer-form" class="wallet-tx-send-panel" autocomplete="off" onsubmit="return false">
+							<p id="wallet-mode-note" class="text-[10px] text-gray-500 font-mono mb-3">Node signs automatically — enter recipient and amount.</p>
+							<div class="flex flex-wrap gap-2 mb-3">
+								<button type="button" class="wallet-mini-btn tx-amount-preset" data-hmc="0.001">0.001</button>
+								<button type="button" class="wallet-mini-btn tx-amount-preset" data-hmc="0.01">0.01</button>
+								<button type="button" class="wallet-mini-btn tx-amount-preset" data-hmc="0.1">0.1</button>
 								<button type="button" class="wallet-mini-btn tx-amount-preset" data-hmc="1">1 HMC</button>
 							</div>
-							<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-								<label class="text-[10px] text-gray-500 tx-pro-field">From<br><input id="tx-form-from" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="HMC-..." /></label>
-								<label class="text-[10px] text-gray-500">To<br><input id="tx-form-to" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="HMC-..." /></label>
-								<label class="text-[10px] text-gray-500">Amount (HMC)<br><input id="tx-form-amount-hmc" type="number" min="0.000001" step="0.000001" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="0.1" /></label>
-								<label class="text-[10px] text-gray-500 tx-pro-field">Fee (Kapa)<br><input id="tx-form-fee" type="number" min="1000" step="1" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="1000" /></label>
-								<label class="text-[10px] text-gray-500 tx-pro-field">Nonce<br><input id="tx-form-nonce" type="number" min="0" step="1" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="0" /></label>
-								<label class="text-[10px] text-gray-500 tx-pro-field">PubKey (hex)<br><input id="tx-form-pub" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="32-byte hex" /></label>
-								<label class="text-[10px] text-gray-500 md:col-span-2 lg:col-span-3 tx-pro-field">Signature (hex)<br><input id="tx-form-sig" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="64-byte hex" /></label>
+							<div class="wallet-tx-send-row">
+								<label class="text-[10px] text-gray-500">To address
+									<input id="tx-form-to" class="mt-1" placeholder="HMC-..." autocomplete="off" />
+								</label>
+								<label class="text-[10px] text-gray-500">Amount (HMC)
+									<input id="tx-form-amount-hmc" type="number" min="0.000001" step="0.000001" class="mt-1" value="0.1" inputmode="decimal" />
+								</label>
 							</div>
-							<div class="mt-2 flex flex-wrap gap-2 items-center">
-								<button type="button" id="btn-tx-build-json" class="px-3 py-1.5 rounded border border-neon/30 text-neon text-[10px] uppercase tracking-wider hover:bg-neon/10 tx-pro-field">Build tx JSON</button>
-								<button type="button" id="btn-tx-fill-max" class="px-3 py-1.5 rounded border border-warn/35 text-warn text-[10px] uppercase tracking-wider hover:bg-warn/10">Max (minus fee)</button>
-								<button type="button" id="btn-tx-use-wallet-nonce" class="px-3 py-1.5 rounded border border-white/20 text-gray-300 text-[10px] uppercase tracking-wider hover:bg-white/5 tx-pro-field">Use wallet nonce</button>
-								<p id="tx-form-preview" class="text-[10px] text-gray-500 font-mono"></p>
-								<p class="text-[10px] text-gray-600">`amount_units` / `fee_units` are Kapa (1 HMC = 100,000,000 Kapa).</p>
+							<div class="wallet-tx-send-actions">
+								<button type="button" id="btn-tx-send" class="px-5 py-2.5 rounded-lg border border-matrix/50 bg-matrix/15 text-matrix text-[11px] font-display font-bold uppercase tracking-wider hover:bg-matrix/25">Send transfer</button>
+								<button type="button" id="btn-tx-fill-max" class="px-3 py-2 rounded border border-warn/35 text-warn text-[10px] uppercase tracking-wider hover:bg-warn/10">Max − fee</button>
 							</div>
 							<p id="tx-estimate-msg" class="mt-2 text-[10px] text-gray-400 font-mono"></p>
 							<p id="tx-form-validation" class="mt-1 text-[10px] text-gray-500 font-mono"></p>
+							<p id="tx-send-msg" class="mt-1 text-[10px] text-gray-500 font-mono"></p>
+							<div id="tx-track-panel" class="hidden mt-3 rounded border border-matrix/25 bg-black/50 px-3 py-2">
+								<p id="tx-track-phase" class="text-[11px] text-matrix font-mono">—</p>
+								<p id="tx-track-detail" class="text-[10px] text-gray-500 font-mono mt-1 leading-relaxed">—</p>
+								<div class="mt-2 h-1.5 rounded bg-white/10 overflow-hidden">
+									<div id="tx-track-bar" class="h-full bg-matrix/70 transition-all duration-500 ease-out" style="width:0%"></div>
+								</div>
+							</div>
+							<div class="tx-pro-field hidden mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+								<label class="text-[10px] text-gray-500">From<br><input id="tx-form-from" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="HMC-..." /></label>
+								<label class="text-[10px] text-gray-500">Fee (Kapa)<br><input id="tx-form-fee" type="number" min="1000" step="1" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="1000" /></label>
+								<label class="text-[10px] text-gray-500">Nonce<br><input id="tx-form-nonce" type="number" min="0" step="1" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="0" /></label>
+								<label class="text-[10px] text-gray-500 md:col-span-2 lg:col-span-3">PubKey (hex)<br><input id="tx-form-pub" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="32-byte hex" /></label>
+								<label class="text-[10px] text-gray-500 md:col-span-2 lg:col-span-3">Signature (hex)<br><input id="tx-form-sig" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="64-byte hex" /></label>
+								<div class="md:col-span-2 lg:col-span-3 flex flex-wrap gap-2 items-center">
+									<button type="button" id="btn-tx-build-json" class="px-3 py-1.5 rounded border border-neon/30 text-neon text-[10px] uppercase tracking-wider hover:bg-neon/10">Build tx JSON</button>
+									<button type="button" id="btn-tx-use-wallet-nonce" class="px-3 py-1.5 rounded border border-white/20 text-gray-300 text-[10px] uppercase tracking-wider hover:bg-white/5">Use wallet nonce</button>
+									<button type="button" id="btn-tx-fill-from-wallet" class="px-3 py-1.5 rounded border border-neon/30 text-neon text-[10px] uppercase tracking-wider hover:bg-neon/10">Use wallet as from</button>
+									<button type="button" id="btn-tx-fill-time" class="px-3 py-1.5 rounded border border-white/20 text-gray-300 text-[10px] uppercase tracking-wider hover:bg-white/5">Set now</button>
+								</div>
+							</div>
+							<p id="tx-form-preview" class="tx-pro-field hidden mt-2 text-[10px] text-gray-500 font-mono break-all"></p>
 						</form>
-						<div class="flex flex-wrap items-center justify-between gap-2 mt-2 mb-2">
-							<p class="text-[10px] uppercase tracking-[0.2em] text-gray-500">Send mode</p>
-							<button type="button" id="btn-tx-toggle-advanced" class="px-3 py-1 rounded border border-white/20 text-gray-300 text-[10px] uppercase tracking-wider hover:bg-white/5 tx-pro-field">Advanced JSON: off</button>
-						</div>
-						<div id="tx-advanced-wrap" class="hidden">
-						<textarea id="tx-json-input" class="w-full h-32 text-[11px] font-mono rounded border border-white/10 bg-black/50 p-3 text-gray-300" spellcheck="false">{
+						<details id="wallet-tx-json-details" class="wallet-tx-details tx-pro-field hidden">
+							<summary>Advanced JSON payload</summary>
+							<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+								<button type="button" id="btn-tx-toggle-advanced" class="px-3 py-1 rounded border border-white/20 text-gray-300 text-[10px] uppercase tracking-wider hover:bg-white/5">Edit JSON: off</button>
+							</div>
+							<div id="tx-advanced-wrap">
+							<textarea id="tx-json-input" class="w-full h-32 text-[11px] font-mono rounded border border-white/10 bg-black/50 p-3 text-gray-300" spellcheck="false">{
   "tx_type": "transfer_v1",
   "from": "HMC-CHANGE_ME",
   "to": "HMC-RECEIVER",
@@ -2842,43 +3098,37 @@
   "pubkey_ed25519": "",
   "sig_ed25519": ""
 }</textarea>
-						</div>
-						<div class="mt-2 flex flex-wrap gap-2 items-center">
-							<button type="button" id="btn-tx-send" class="px-4 py-2 rounded-lg border border-matrix/40 bg-matrix/10 text-matrix text-[11px] font-display font-bold uppercase tracking-wider hover:bg-matrix/20">Send transfer</button>
-							<button type="button" id="btn-tx-fill-from-wallet" class="px-3 py-2 rounded border border-neon/30 text-neon text-[10px] uppercase tracking-wider hover:bg-neon/10 tx-pro-field">Use wallet as from</button>
-							<button type="button" id="btn-tx-fill-time" class="px-3 py-2 rounded border border-white/20 text-gray-300 text-[10px] uppercase tracking-wider hover:bg-white/5 tx-pro-field">Set now</button>
-							<p id="tx-send-msg" class="text-[10px] text-gray-500 font-mono"></p>
-						</div>
-						<div id="tx-track-panel" class="hidden mt-2 rounded border border-matrix/25 bg-black/50 px-3 py-2 max-w-2xl">
-							<p id="tx-track-phase" class="text-[11px] text-matrix font-mono">—</p>
-							<p id="tx-track-detail" class="text-[10px] text-gray-500 font-mono mt-1 leading-relaxed">—</p>
-							<div class="mt-2 h-1.5 rounded bg-white/10 overflow-hidden">
-								<div id="tx-track-bar" class="h-full bg-matrix/70 transition-all duration-500 ease-out" style="width:0%"></div>
 							</div>
-						</div>
-						<div class="mt-2 flex flex-wrap gap-2 items-end">
-							<label class="text-[10px] text-gray-500">Address lookup
-								<input id="tx-address-input" class="mt-1 w-64 text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="HMC-..." />
-							</label>
-							<button type="button" id="btn-tx-address-check" class="px-3 py-1.5 rounded border border-matrix/30 text-matrix text-[10px] uppercase tracking-wider hover:bg-matrix/10">GET /api/address</button>
-							<p id="tx-address-msg" class="text-[10px] text-gray-500 font-mono"></p>
-						</div>
-						<div class="mt-2 flex flex-wrap gap-2 items-end">
-							<label class="text-[10px] text-gray-500">Tx hash lookup
-								<input id="tx-hash-input" class="mt-1 w-64 text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="tx hash..." />
-							</label>
-							<button type="button" id="btn-tx-hash-check" class="px-3 py-1.5 rounded border border-neon/30 text-neon text-[10px] uppercase tracking-wider hover:bg-neon/10">GET /api/tx/{hash}</button>
-							<p id="tx-hash-msg" class="text-[10px] text-gray-500 font-mono"></p>
-						</div>
-						<p id="tx-pool-headline" class="mt-3 text-[10px] text-gray-500 font-mono">GET /api/tx/pool</p>
-						<div class="overflow-x-auto rounded border border-white/8 mt-2">
-							<table class="w-full text-left text-[11px] font-mono">
-								<thead class="bg-black/60 text-gray-500 uppercase tracking-wider text-[9px]">
-									<tr><th class="px-2 py-2">Hash</th><th class="px-2 py-2">From</th><th class="px-2 py-2">To</th><th class="px-2 py-2">Amt</th><th class="px-2 py-2">Fee</th><th class="px-2 py-2">Nonce</th><th class="px-2 py-2">Status</th></tr>
-								</thead>
-								<tbody id="tx-pool-rows" class="text-gray-300 divide-y divide-white/5"></tbody>
-							</table>
-						</div>
+						</details>
+						<details id="wallet-tx-explorer" class="wallet-tx-details">
+							<summary>Explorer · address &amp; tx lookup</summary>
+							<div class="flex flex-wrap gap-2 items-end mt-1">
+								<label class="text-[10px] text-gray-500">Address
+									<input id="tx-address-input" class="mt-1 w-64 text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="HMC-..." />
+								</label>
+								<button type="button" id="btn-tx-address-check" class="px-3 py-1.5 rounded border border-matrix/30 text-matrix text-[10px] uppercase tracking-wider hover:bg-matrix/10">Lookup</button>
+								<p id="tx-address-msg" class="text-[10px] text-gray-500 font-mono"></p>
+							</div>
+							<div class="flex flex-wrap gap-2 items-end mt-2">
+								<label class="text-[10px] text-gray-500">Tx hash
+									<input id="tx-hash-input" class="mt-1 w-64 text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="64-char hex" />
+								</label>
+								<button type="button" id="btn-tx-hash-check" class="px-3 py-1.5 rounded border border-neon/30 text-neon text-[10px] uppercase tracking-wider hover:bg-neon/10">Lookup</button>
+								<p id="tx-hash-msg" class="text-[10px] text-gray-500 font-mono"></p>
+							</div>
+						</details>
+						<details id="wallet-tx-pool-details" class="wallet-tx-details">
+							<summary>Tx pool · <span id="tx-pool-count">—</span></summary>
+							<p id="tx-pool-headline" class="text-[10px] text-gray-500 font-mono mb-2">Pending transfers in local mempool</p>
+							<div class="overflow-x-auto rounded border border-white/8">
+								<table class="w-full text-left text-[11px] font-mono">
+									<thead class="bg-black/60 text-gray-500 uppercase tracking-wider text-[9px]">
+										<tr><th class="px-2 py-2">Hash</th><th class="px-2 py-2">From</th><th class="px-2 py-2">To</th><th class="px-2 py-2">Amt</th><th class="px-2 py-2">Fee</th><th class="px-2 py-2">Nonce</th><th class="px-2 py-2">Status</th></tr>
+									</thead>
+									<tbody id="tx-pool-rows" class="text-gray-300 divide-y divide-white/5"></tbody>
+								</table>
+							</div>
+						</details>
 					</div>
 								</div>
 							</div>
@@ -2932,7 +3182,7 @@
 		try {
 		// Enable JS-driven tab behavior (single active panel view).
 		document.body.classList.add('js-ui');
-		const DASHBOARD_UI_VER = '0.1.0-rc12t';
+		const DASHBOARD_UI_VER = '0.1.0-rc12w';
 		function updateUIModeBadge() {
 			const el = document.getElementById('hdr-ui-mode');
 			if (!el) return;
@@ -3619,6 +3869,7 @@
 				$('wallet-sendable-hmc').textContent = fmt(maxSendHmc, 8) + ' HMC';
 				$('wallet-sendable-hmc').title = 'Estimate: full balance minus minimum fee (' + minFeeUnits + ' Kapa).';
 			}
+			updateTxSendSummary();
 		}
 		function renderWalletSelectedCoinDetail() {
 			const coin = walletSelectedCoin();
@@ -3637,10 +3888,11 @@
 				el.classList.toggle('hidden', !isSup);
 			});
 			const statsGrid = $('wallet-overview-stats-grid');
+			const chainDetails = $('wallet-chain-details');
 			if (statsGrid) {
-				statsGrid.classList.toggle('lg:grid-cols-5', isHmc);
-				statsGrid.classList.toggle('lg:grid-cols-3', isSup);
+				statsGrid.classList.toggle('hidden', isHmc || isSup);
 			}
+			if (chainDetails) chainDetails.classList.toggle('hidden', !isHmc);
 			const transferTab = document.querySelector('.wallet-detail-tab[data-wallet-section="transfer"]');
 			if (transferTab) transferTab.classList.toggle('hidden', !isHmc || isHms);
 			const earningsTab = document.querySelector('.wallet-detail-tab[data-wallet-section="earnings"]');
@@ -3654,7 +3906,7 @@
 			if (earningsHmcBody) earningsHmcBody.classList.toggle('hidden', !isHmc);
 			if (earningsSupMsg) earningsSupMsg.classList.toggle('hidden', isHmc);
 			if (!isHmc && walletDetailSection === 'transfer') setWalletDetailSection('overview');
-			if (!isHmc && walletDetailSection === 'earnings' && !isSup && !isHms) setWalletDetailSection('overview');
+			if (!isHmc && (walletDetailSection === 'earnings' || walletDetailSection === 'activity')) setWalletDetailSection('overview');
 			const st = latestWorkerSettlementSnap || {};
 			const cap = $('wallet-balance-caption');
 			const note = $('wallet-miner-payout-note');
@@ -3681,6 +3933,7 @@
 				if ($('wallet-chain-meta')) {
 					$('wallet-chain-meta').textContent = 'HMS shares your HMC address namespace on the HackMe chain.';
 				}
+				renderWalletTreasury();
 				return;
 			}
 			if (isSup) {
@@ -3689,28 +3942,17 @@
 				const unpaid = Number(st.wallet_unpaid_sup || 0);
 				if ($('wallet-balance-big')) $('wallet-balance-big').textContent = fmt(onChain, 8);
 				if (cap) {
-					const parts = [];
-					if (onChain > 0.000001) parts.push('On-chain ' + fmt(onChain, 6) + ' SUP');
-					if (unpaid > 0.000001) parts.push('Pool unsettled ' + fmt(unpaid, 6) + ' SUP');
-					cap.textContent = parts.length
-						? parts.join(' · ') + '. CEX listing only after HMC lists.'
-						: 'Pool accrual only — run settlement mint on chain host.';
+					cap.textContent = onChain > 0.000001
+						? 'On-chain spendable · same address as HMC'
+						: 'Earn via hybrid HMC mining · on-chain mint when settled';
 				}
 				if (note) {
-					const policyNote = String(st.sup_settlement_note || '').trim();
-					note.textContent = policyNote ||
-						'Earned only via hybrid-signed HMC pool mining. On-chain SUP follows HMC exchange listing.';
-					note.classList.remove('hidden');
-					note.className = 'text-[10px] text-gray-400 mb-6 max-w-2xl mx-auto leading-relaxed';
+					note.textContent = '';
+					note.classList.add('hidden');
 				}
-				if ($('wallet-sup-accrued')) {
-					$('wallet-sup-accrued').textContent = fmt(accrued, 8) + ' SUP';
-				}
-				if ($('wallet-sup-unpaid')) {
-					$('wallet-sup-unpaid').textContent = fmt(unpaid, 8) + ' SUP';
-				}
-				const supOnChainEl = $('wallet-sup-onchain');
-				if (supOnChainEl) supOnChainEl.textContent = fmt(onChain, 8) + ' SUP';
+				if ($('wallet-sup-accrued')) $('wallet-sup-accrued').textContent = fmt(accrued, 8) + ' SUP';
+				if ($('wallet-sup-unpaid')) $('wallet-sup-unpaid').textContent = fmt(unpaid, 8) + ' SUP';
+				if ($('wallet-sup-onchain')) $('wallet-sup-onchain').textContent = fmt(onChain, 8) + ' SUP';
 				const sp = st.sup_policy || {};
 				if ($('wallet-sup-policy-note')) {
 					const ratePct = Number(sp.rate_of_hmc || 0.08) * 100;
@@ -3718,20 +3960,21 @@
 					$('wallet-sup-policy-note').textContent =
 						'~' + fmt(ratePct, 1) + '% of attempt HMC · ' + hybrid + ' · daily fleet cap';
 				}
+				renderWalletTreasury();
 				if ($('wallet-sync-badge')) {
 					$('wallet-sync-badge').textContent = onChain > 0
-						? 'On-chain SUP: active (transfer_sup_v1)'
-						: 'On-chain SUP: accrual only until settlement mint';
+						? 'On-chain SUP · transfer_sup_v1 active'
+						: 'Pool accrual only · mint on chain host';
 				}
 				if ($('wallet-chain-meta')) {
 					$('wallet-chain-meta').textContent =
-						'SUP shares your HMC address. Mine HMC with hybrid signer → pool accrual → optional on-chain mint.';
+						'Bonus lane for hybrid miners. Listing follows HMC — not a separate CEX ticker yet.';
 				}
 				if ($('wallet-signer-note')) {
 					const signer = String(st.last_signed_miner_address || '').trim();
 					$('wallet-signer-note').textContent = signer
-						? 'Hybrid signer: ' + signer
-						: 'Hybrid-signed pool work required for SUP accrual.';
+						? 'Hybrid signer · ' + signer
+						: 'Hybrid-signed pool work required for SUP accrual';
 				}
 				return;
 			}
@@ -3743,6 +3986,7 @@
 					$('wallet-unpaid-hmc').textContent = fmt(unpaidHmc, 6) + ' HMC';
 				}
 				syncWalletMinerPayoutNote();
+				renderWalletTreasury();
 			}
 		}
 		function syncWalletDetailPanes() {
@@ -3778,6 +4022,11 @@
 				el.classList.toggle('active', sec === walletDetailSection);
 			});
 			if (walletDetailSection === 'earnings') scheduleWalletEarningsRefresh(true);
+			if (walletDetailSection === 'activity') scheduleWalletActivityRefresh(true);
+			if (walletDetailSection === 'transfer') {
+				updateTxSendSummary();
+				syncTxFormFromWalletSnapshot();
+			}
 		}
 		function selectWalletCoin(id) {
 			const coin = walletHubCoinById(id);
@@ -4105,64 +4354,140 @@
 				}
 			}
 		}
-		function renderWalletSettlementHint() {
-			const el = $('wallet-settlement-hint');
+		function renderWalletSettlementSub() {
+			const el = $('wallet-bd-settle-sub');
 			if (!el) return;
 			const s = latestWorkerSettlementSnap || {};
+			const thr = Number(s.min_settle_hmc || 0);
+			const ready = !!s.threshold_ready;
 			const parts = [];
-			if (s.last_force_unix > 0) parts.push('last sweep ' + fmtUnix(s.last_force_unix));
-			if (s.last_settle_unix > 0) parts.push('last credit ' + fmtUnix(s.last_settle_unix));
+			if (thr > 0) parts.push('min ' + fmt(thr, 4) + ' HMC · ' + (ready ? 'ready' : 'pending'));
+			if (s.next_daily_sweep_unix > 0) parts.push('next sweep ' + fmtUnix(s.next_daily_sweep_unix));
 			if (Number(s.wallet_settled_hmc) > 0.000001) {
-				parts.push('lifetime settled ' + fmt(Number(s.wallet_settled_hmc), 4) + ' HMC');
+				parts.push('lifetime settled ' + fmt(Number(s.wallet_settled_hmc), 4));
 			}
-			if (s.next_daily_sweep_unix > 0) {
-				parts.push('next sweep ' + fmtUnix(s.next_daily_sweep_unix));
-			}
-			el.textContent = parts.length ? parts.join(' · ') : 'settlement: awaiting coordinator accrual';
+			if (s.last_force_unix > 0) parts.push('last sweep ' + fmtUnix(s.last_force_unix));
+			el.textContent = parts.length ? parts.join(' · ') : 'No pending pool accrual';
 		}
-		function renderWalletFlowRail() {
-			const root = $('wallet-hmc-flow');
+		function renderWalletSupBreakdown() {
+			const root = $('wallet-sup-breakdown');
+			if (!root || !isWalletCoinSUP(walletSelectedCoin())) {
+				if (root) root.classList.add('hidden');
+				return;
+			}
+			root.classList.remove('hidden');
+			const st = latestWorkerSettlementSnap || {};
+			const onChain = Number(walletSnapshot.balanceSUP || 0);
+			const accrued = Number(st.wallet_accrued_sup || 0);
+			const unpaid = Number(st.wallet_unpaid_sup || 0);
+			if ($('wallet-bd-sup-onchain')) {
+				$('wallet-bd-sup-onchain').textContent = fmt(onChain, 8) + ' SUP';
+			}
+			if ($('wallet-bd-sup-pending')) {
+				const pending = unpaid > 0.000001 ? unpaid : accrued;
+				$('wallet-bd-sup-pending').textContent = pending > 0.000001
+					? ('+' + fmt(pending, 6) + ' SUP')
+					: '0 SUP';
+			}
+			const pendingBox = $('wallet-bd-sup-pending-box');
+			if (pendingBox) pendingBox.classList.toggle('active', unpaid > 0.000001 || accrued > 0.000001);
+			const sub = $('wallet-bd-sup-settle-sub');
+			if (sub) {
+				const parts = [];
+				if (unpaid > 0.000001) parts.push('awaiting on-chain mint');
+				else if (accrued > 0.000001) parts.push('coordinator accrued ' + fmt(accrued, 6) + ' SUP');
+				else parts.push('mine HMC with hybrid signer to accrue');
+				sub.textContent = parts.join(' · ');
+			}
+			const sp = st.sup_policy || {};
+			if ($('wallet-bd-sup-policy')) {
+				const ratePct = Number(sp.rate_of_hmc || 0.08) * 100;
+				const hybrid = sp.require_hybrid !== false ? 'hybrid' : 'optional hybrid';
+				$('wallet-bd-sup-policy').textContent =
+					'~' + fmt(ratePct, 1) + '% of HMC attempts · ' + hybrid + ' · daily cap';
+			}
+			const badge = $('wallet-sup-pending-badge');
+			if (badge) {
+				if (unpaid > 0.000001) {
+					badge.classList.remove('hidden');
+					badge.textContent = '+' + fmt(unpaid, 6) + ' SUP pending mint to on-chain';
+				} else if (accrued > 0.000001 && onChain < 0.000001) {
+					badge.classList.remove('hidden');
+					badge.textContent = fmt(accrued, 6) + ' SUP accrued in pool · mint via chain host';
+				} else {
+					badge.classList.add('hidden');
+					badge.textContent = '';
+				}
+			}
+		}
+		function renderWalletHmcBreakdown() {
+			const root = $('wallet-hmc-breakdown');
 			if (!root || !isWalletCoinHMC(walletSelectedCoin())) {
 				if (root) root.classList.add('hidden');
 				return;
 			}
 			root.classList.remove('hidden');
-			const unpaid = walletUnpaidHmc();
 			const onChain = Number(walletSnapshot.onChainHMC || walletSnapshot.balanceHMC || 0);
-			const s = latestWorkerSettlementSnap || {};
-			const accrualEl = $('wallet-flow-accrual');
-			const settleEl = $('wallet-flow-settle');
-			const onchainEl = $('wallet-flow-onchain');
-			if ($('wallet-flow-accrual-val')) {
-				$('wallet-flow-accrual-val').textContent = unpaid > 0.000001
+			const orders = Number(walletSnapshot.ordersSpendableHMC || 0);
+			const unpaid = walletUnpaidHmc();
+			const canonKnown = onChain > 0.000001 || String(walletSnapshot.walletSource || '').includes('canonical');
+			if ($('wallet-bd-onchain')) {
+				$('wallet-bd-onchain').textContent = canonKnown ? (fmt(onChain, 8) + ' HMC') : '…';
+			}
+			if ($('wallet-bd-pending')) {
+				$('wallet-bd-pending').textContent = unpaid > 0.000001
 					? ('+' + fmt(unpaid, 6) + ' HMC')
 					: '0 HMC';
 			}
-			if ($('wallet-flow-settle-val')) {
-				const thr = Number(s.min_settle_hmc || 0);
-				const ready = !!s.threshold_ready;
-				$('wallet-flow-settle-val').textContent = thr > 0
-					? ('threshold ' + fmt(thr, 4) + ' · ' + (ready ? 'ready' : 'pending'))
-					: 'auto VPS sweep';
+			const pendingBox = $('wallet-bd-pending-box');
+			if (pendingBox) pendingBox.classList.toggle('active', unpaid > 0.000001);
+			if ($('wallet-bd-orders')) $('wallet-bd-orders').textContent = fmt(orders, 8) + ' HMC';
+			const badge = $('wallet-pending-badge');
+			if (badge) {
+				if (unpaid > 0.000001) {
+					badge.classList.remove('hidden');
+					badge.textContent = '+' + fmt(unpaid, 6) + ' HMC from pool · settles to on-chain automatically';
+				} else {
+					badge.classList.add('hidden');
+					badge.textContent = '';
+				}
 			}
-			if ($('wallet-flow-onchain-val')) {
-				$('wallet-flow-onchain-val').textContent = onChain > 0.000001
-					? (fmt(onChain, 6) + ' HMC')
-					: 'awaiting sync';
+			renderWalletSettlementSub();
+			const align = walletSnapshot.balanceAlignment || 'local_only';
+			const banner = $('wallet-alignment-banner');
+			if (banner) {
+				if (align === 'local_ahead') {
+					banner.classList.remove('hidden');
+					banner.textContent = 'Local ledger is ahead of canonical — sync before large order escrows.';
+				} else if (align === 'canonical_ahead') {
+					banner.classList.remove('hidden');
+					banner.textContent = 'On-chain balance is higher than local orders ledger (≈' + fmt(orders, 0) + ' HMC for market). Mining payouts are on-chain; orders use a separate escrow bucket.';
+				} else {
+					banner.classList.add('hidden');
+					banner.textContent = '';
+				}
 			}
-			if (accrualEl) {
-				accrualEl.classList.toggle('active', unpaid > 0.000001);
-				accrualEl.classList.toggle('done', unpaid <= 0.000001 && onChain > 0);
-			}
-			if (settleEl) {
-				settleEl.classList.toggle('active', unpaid > 0.000001);
-				settleEl.classList.toggle('done', unpaid <= 0.000001 && onChain > 0);
-			}
-			if (onchainEl) {
-				onchainEl.classList.toggle('active', onChain > 0.000001);
-				onchainEl.classList.toggle('done', onChain > 0.000001);
-			}
-			renderWalletSettlementHint();
+		}
+		function renderWalletFlowRail() {
+			renderWalletHmcBreakdown();
+		}
+		function renderWalletTreasury() {
+			renderWalletHmcBreakdown();
+			renderWalletSupBreakdown();
+		}
+		function updateTxSendSummary() {
+			const el = $('tx-send-summary');
+			if (!el) return;
+			const addr = String(walletSnapshot.address || '').trim();
+			const bu = Math.floor(Number(walletSnapshot.balanceUnits) || 0);
+			const fee = MIN_TX_FEE_UNITS;
+			const maxH = bu > fee ? (bu - fee) / UNITS_PER_HMC : 0;
+			const nonce = Math.floor(Number(walletSnapshot.nextNonce) || 0);
+			const parts = [];
+			if (addr.startsWith('HMC-')) parts.push('from ' + addr);
+			if (maxH > 0.000001) parts.push('max ' + fmt(maxH, 8) + ' HMC');
+			parts.push('fee ' + fmtUInt(fee) + ' Kapa · nonce ' + fmtUInt(nonce));
+			el.textContent = parts.join(' · ');
 		}
 		function updateWalletBuildStrip() {
 			const el = $('wallet-build-strip');
@@ -4178,7 +4503,7 @@
 		function initDashboardWhatsNew() {
 			const wrap = $('dashboard-whats-new');
 			if (!wrap) return;
-			const dismissKey = 'hackme_notice_dismiss:dashboard-whats-new-rc12t';
+			const dismissKey = 'hackme_notice_dismiss:dashboard-whats-new-rc12w';
 			try {
 				if (localStorage.getItem(dismissKey) === '1') {
 					wrap.classList.add('hidden');
@@ -4211,44 +4536,6 @@
 				case 'canonical_pending': return { text: 'Syncing…', cls: 'text-gray-400 border-white/15' };
 				default: return { text: 'Local ledger', cls: 'text-gray-400 border-white/15' };
 			}
-		}
-		function renderWalletTreasury() {
-			const root = $('wallet-treasury');
-			if (!root || !isWalletCoinHMC(walletSelectedCoin())) return;
-			const onChain = Number(walletSnapshot.onChainHMC || 0);
-			const orders = Number(walletSnapshot.ordersSpendableHMC || 0);
-			const unpaid = walletUnpaidHmc();
-			const canonKnown = onChain > 0.000001 || String(walletSnapshot.walletSource || '').includes('canonical');
-			const showOnChain = canonKnown;
-			root.classList.toggle('hidden', false);
-			if ($('wallet-treasury-onchain')) {
-				$('wallet-treasury-onchain').textContent = showOnChain ? fmt(onChain, 8) + ' HMC' : '…';
-			}
-			if ($('wallet-treasury-accrual')) {
-				$('wallet-treasury-accrual').textContent = unpaid > 0.000001 ? ('+' + fmt(unpaid, 6) + ' HMC') : '0 HMC';
-			}
-			if ($('wallet-treasury-orders')) {
-				$('wallet-treasury-orders').textContent = fmt(orders, 8) + ' HMC';
-			}
-			const ordersCard = $('wallet-treasury-orders-card');
-			const align = walletSnapshot.balanceAlignment || 'local_only';
-			if (ordersCard) {
-				ordersCard.classList.toggle('warn', align === 'local_ahead' || align === 'canonical_ahead');
-			}
-			const banner = $('wallet-alignment-banner');
-			if (banner) {
-				if (align === 'local_ahead') {
-					banner.classList.remove('hidden');
-					banner.textContent = 'Local SQLite is higher than canonical on-chain — orders may accept debits the fork ledger cannot settle on hackme.tech. Reseed or sync before large escrows.';
-				} else if (align === 'canonical_ahead') {
-					banner.classList.remove('hidden');
-					banner.textContent = 'On-chain balance exceeds local orders ledger (≈' + fmt(orders, 0) + ' HMC spendable locally). Mining payouts settle on-chain; pool accrual above is the only unsettled mining balance.';
-				} else {
-					banner.classList.add('hidden');
-					banner.textContent = '';
-				}
-			}
-			renderWalletFlowRail();
 		}
 		function renderOrdersBalanceStrip() {
 			const strip = $('orders-balance-strip');
@@ -4305,6 +4592,14 @@
 		const GLOBAL_METRICS_FETCH_TIMEOUT_MS = 12000;
 		let lastWalletEarningsMs = 0;
 		let walletEarningsInFlight = false;
+		let lastWalletActivityMs = 0;
+		let walletActivityInFlight = false;
+		let walletActivityFilter = 'all';
+		let walletActivityCache = null;
+		let walletActivityPeerLabels = {};
+		const WALLET_KNOWN_ADDR_LABELS = {
+			'HMC-719006D93916AD52': 'Dev fee · treasury',
+		};
 		let lastGlobalMetricsMs = 0;
 		let lastMetricsSnapshotMs = 0;
 
@@ -4333,6 +4628,323 @@
 			walletEarningsInFlight = true;
 			lastWalletEarningsMs = now;
 			void refreshWalletEarnings().finally(() => { walletEarningsInFlight = false; });
+		}
+
+		function scheduleWalletActivityRefresh(force) {
+			const now = Date.now();
+			if (walletActivityInFlight) return;
+			if (currentTab !== 'wallet' || walletDetailSection !== 'activity') return;
+			const due = force || (now - lastWalletActivityMs) >= WALLET_EARNINGS_INTERVAL_MS;
+			if (!due) return;
+			walletActivityInFlight = true;
+			lastWalletActivityMs = now;
+			void refreshWalletActivity().finally(() => { walletActivityInFlight = false; });
+		}
+
+		function updateWalletActivityFilterButtons() {
+			document.querySelectorAll('[data-wallet-activity-filter]').forEach((btn) => {
+				const on = btn.getAttribute('data-wallet-activity-filter') === walletActivityFilter;
+				btn.classList.toggle('border-neon/50', on);
+				btn.classList.toggle('bg-neon/10', on);
+				btn.classList.toggle('text-neon', on);
+				btn.classList.toggle('border-white/15', !on);
+				btn.classList.toggle('text-gray-400', !on);
+			});
+		}
+
+		function walletKnownAddressLabels() {
+			const labels = Object.assign({}, WALLET_KNOWN_ADDR_LABELS);
+			const st = latestStatus || {};
+			const dev = String((st.economics && st.economics.dev_fee_address) || '').trim().toUpperCase();
+			if (dev.startsWith('HMC-')) labels[dev] = 'Dev fee · treasury';
+			const self = String(walletKnownAddress() || '').trim().toUpperCase();
+			if (self.startsWith('HMC-')) labels[self] = 'You';
+			Object.assign(labels, walletActivityPeerLabels);
+			return labels;
+		}
+
+		function walletAddressLabel(addr, memo) {
+			const a = String(addr || '').trim().toUpperCase();
+			const labels = walletKnownAddressLabels();
+			if (a && labels[a]) return labels[a];
+			const m = String(memo || '').trim().toLowerCase();
+			if (m === 'worker_settlement') return 'Pool settlement';
+			if (m.includes('order') || m.includes('fuzz') || m.includes('poh_order')) return 'Market · orders';
+			if (m.includes('escrow')) return 'Market escrow';
+			if (m.includes('fee') || m.includes('burn')) return 'Network fee';
+			return '';
+		}
+
+		function buildActivityPeerLabelsFromRecent(recent) {
+			const out = {};
+			for (const r of Array.isArray(recent) ? recent : []) {
+				const peer = String(r.counterparty || '').trim().toUpperCase();
+				const memo = String(r.memo || '');
+				const lbl = walletAddressLabel(peer, memo);
+				if (peer.startsWith('HMC-') && lbl && !out[peer]) out[peer] = lbl;
+			}
+			return out;
+		}
+
+		function filterActivityPeers(rows) {
+			const list = Array.isArray(rows) ? rows : [];
+			if (walletActivityFilter === 'in') {
+				return list.filter((r) => Number(r.received_hmc || 0) > 0.000001);
+			}
+			if (walletActivityFilter === 'out') {
+				return list.filter((r) => Number(r.sent_hmc || 0) > 0.000001);
+			}
+			return list;
+		}
+
+		function filterActivityRecent(rows) {
+			const list = Array.isArray(rows) ? rows : [];
+			if (walletActivityFilter === 'in') return list.filter((r) => String(r.direction || '').toLowerCase() !== 'out');
+			if (walletActivityFilter === 'out') return list.filter((r) => String(r.direction || '').toLowerCase() === 'out');
+			return list;
+		}
+
+		function walletActivityPeerCell(peer) {
+			const p = String(peer || '—');
+			const lbl = walletAddressLabel(p, '');
+			const wrap = document.createElement('div');
+			const code = document.createElement('span');
+			code.className = 'text-gray-300 break-all';
+			code.textContent = p;
+			wrap.appendChild(code);
+			if (lbl) {
+				const el = document.createElement('span');
+				el.className = 'wallet-addr-label';
+				el.textContent = lbl;
+				wrap.appendChild(el);
+			}
+			return wrap;
+		}
+
+		function applyWalletActivityRender() {
+			if (!walletActivityCache || !walletActivityCache.data) {
+				renderWalletActivityPeers([]);
+				renderWalletActivityRecent([]);
+				return;
+			}
+			const d = walletActivityCache.data;
+			renderWalletActivityPeers(filterActivityPeers(d.counterparties));
+			renderWalletActivityRecent(filterActivityRecent(d.recent));
+		}
+
+		function exportWalletActivityCsv() {
+			if (!walletActivityCache || !walletActivityCache.data) {
+				logLine('[wallet] activity CSV: no data — open Activity tab and wait for load');
+				return;
+			}
+			const d = walletActivityCache.data;
+			const src = String(walletActivityCache.source || 'local_db');
+			const period = walletEarningsPeriodLabel();
+			const lines = [];
+			lines.push('# HackMe wallet activity · ' + period + ' · source ' + src);
+			lines.push('address,label,direction,counterparty,counterparty_label,amount_hmc,fee_hmc,applied_unix,memo,tx_hash');
+			for (const r of filterActivityRecent(d.recent || [])) {
+				const peer = String(r.counterparty || '');
+				const dir = String(r.direction || '');
+				const memo = String(r.memo || '').replace(/"/g, '""');
+				const lbl = walletAddressLabel(peer, r.memo);
+				lines.push([
+					'"' + walletKnownAddress().replace(/"/g, '""') + '"',
+					'"You"',
+					'"' + dir + '"',
+					'"' + peer.replace(/"/g, '""') + '"',
+					'"' + lbl.replace(/"/g, '""') + '"',
+					String(Number(r.amount_hmc || 0)),
+					String(Number(r.fee_hmc || 0)),
+					String(Number(r.applied_unix || 0)),
+					'"' + memo + '"',
+					'"' + String(r.tx_hash || '').replace(/"/g, '""') + '"',
+				].join(','));
+			}
+			lines.push('');
+			lines.push('# Counterparties');
+			lines.push('peer,label,received_hmc,sent_hmc,net_hmc,tx_count,last_unix');
+			for (const r of filterActivityPeers(d.counterparties || [])) {
+				const peer = String(r.peer || '');
+				const lbl = walletAddressLabel(peer, '');
+				lines.push([
+					'"' + peer.replace(/"/g, '""') + '"',
+					'"' + lbl.replace(/"/g, '""') + '"',
+					String(Number(r.received_hmc || 0)),
+					String(Number(r.sent_hmc || 0)),
+					String(Number(r.net_hmc || 0)),
+					String(Number(r.tx_count || 0)),
+					String(Number(r.last_unix || 0)),
+				].join(','));
+			}
+			const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+			const a = document.createElement('a');
+			a.href = URL.createObjectURL(blob);
+			a.download = 'hackme-wallet-activity-' + period + '-' + (new Date().toISOString().slice(0, 10)) + '.csv';
+			a.click();
+			URL.revokeObjectURL(a.href);
+		}
+
+		function updateWalletActivityPeriodButtons() {
+			document.querySelectorAll('[data-wallet-activity-period]').forEach((btn) => {
+				const on = btn.getAttribute('data-wallet-activity-period') === walletEarningsPeriod;
+				btn.classList.toggle('border-neon/50', on);
+				btn.classList.toggle('bg-neon/10', on);
+				btn.classList.toggle('text-neon', on);
+				btn.classList.toggle('border-white/15', !on);
+				btn.classList.toggle('text-gray-400', !on);
+			});
+		}
+
+		function walletActivityFillTo(peer) {
+			const to = $('tx-form-to');
+			if (!to || !peer) return;
+			to.value = String(peer).trim();
+			setWalletDetailSection('transfer');
+			txFormUpdatePreview();
+		}
+
+		function renderWalletActivityPeers(rows) {
+			const tb = $('wallet-activity-peers-body');
+			if (!tb) return;
+			const list = Array.isArray(rows) ? rows : [];
+			if (typeof tb.replaceChildren === 'function') tb.replaceChildren();
+			else tb.innerHTML = '';
+			const cnt = $('wallet-activity-peer-count');
+			if (cnt) cnt.textContent = list.length ? String(list.length) : '0';
+			if (!list.length) {
+				const tr = document.createElement('tr');
+				const td = document.createElement('td');
+				td.colSpan = 7;
+				td.className = 'py-2 px-2 text-[10px] text-gray-500 font-mono';
+				td.textContent = walletActivityFilter === 'all'
+					? 'No peer transfers in this window'
+					: ('No ' + walletActivityFilter + ' transfers in this window');
+				tr.appendChild(td);
+				tb.appendChild(tr);
+				return;
+			}
+			for (const r of list.slice(0, 80)) {
+				const tr = document.createElement('tr');
+				tr.className = 'border-b border-white/5 text-[10px] font-mono hover:bg-white/[0.03] cursor-pointer';
+				const peer = String(r.peer || r.Peer || '—');
+				const lbl = walletAddressLabel(peer, '');
+				tr.title = lbl ? (lbl + ' · click to send') : ('Click to send to ' + peer);
+				tr.addEventListener('click', () => walletActivityFillTo(peer));
+				const tdAddr = document.createElement('td');
+				tdAddr.className = 'py-1 px-2';
+				tdAddr.appendChild(walletActivityPeerCell(peer));
+				tr.appendChild(tdAddr);
+				const tdLbl = document.createElement('td');
+				tdLbl.className = 'py-1 px-2 text-purple-300/90 whitespace-nowrap';
+				tdLbl.textContent = lbl || '—';
+				tr.appendChild(tdLbl);
+				const cells = [
+					{ t: fmt(Number(r.received_hmc || 0), 6), cls: 'text-matrix' },
+					{ t: fmt(Number(r.sent_hmc || 0), 6), cls: 'text-warn' },
+					{ t: fmt(Number(r.net_hmc || 0), 6), cls: 'text-neon' },
+					{ t: fmtUInt(Number(r.tx_count || 0)), cls: '' },
+					{ t: Number(r.last_unix || 0) > 0 ? fmtUnix(Number(r.last_unix)) : '—', cls: 'text-gray-500 whitespace-nowrap' },
+				];
+				for (const c of cells) {
+					const td = document.createElement('td');
+					td.className = 'py-1 px-2 ' + c.cls;
+					td.textContent = c.t;
+					tr.appendChild(td);
+				}
+				tb.appendChild(tr);
+			}
+		}
+
+		function renderWalletActivityRecent(rows) {
+			const tb = $('wallet-activity-recent-body');
+			if (!tb) return;
+			const list = Array.isArray(rows) ? rows : [];
+			if (typeof tb.replaceChildren === 'function') tb.replaceChildren();
+			else tb.innerHTML = '';
+			const cnt = $('wallet-activity-recent-count');
+			if (cnt) cnt.textContent = list.length ? String(list.length) : '0';
+			if (!list.length) {
+				const tr = document.createElement('tr');
+				const td = document.createElement('td');
+				td.colSpan = 6;
+				td.className = 'py-2 px-2 text-[10px] text-gray-500 font-mono';
+				td.textContent = walletActivityFilter === 'all'
+					? 'No recent transfers'
+					: ('No recent ' + walletActivityFilter + ' transfers');
+				tr.appendChild(td);
+				tb.appendChild(tr);
+				return;
+			}
+			for (const r of list) {
+				const tr = document.createElement('tr');
+				tr.className = 'border-b border-white/5 text-[10px] font-mono';
+				const dir = String(r.direction || '').toLowerCase() === 'out' ? 'out' : 'in';
+				const peer = String(r.counterparty || '—');
+				const lbl = walletAddressLabel(peer, r.memo);
+				const cells = [
+					{ t: Number(r.applied_unix || 0) > 0 ? fmtUnix(Number(r.applied_unix)) : '—', cls: 'text-gray-500 whitespace-nowrap' },
+					{ t: dir, cls: dir === 'in' ? 'text-matrix uppercase' : 'text-warn uppercase' },
+					{ el: walletActivityPeerCell(peer), cls: 'max-w-[120px] cursor-pointer hover:text-neon', click: () => walletActivityFillTo(peer) },
+					{ t: lbl || '—', cls: 'text-purple-300/90 whitespace-nowrap' },
+					{ t: fmt(Number(r.amount_hmc || 0), 6) + ' HMC', cls: 'text-neon' },
+					{ t: String(r.memo || '') || '—', cls: 'text-gray-500 truncate max-w-[100px]' },
+				];
+				for (const c of cells) {
+					const td = document.createElement('td');
+					td.className = 'py-1 px-2 ' + c.cls;
+					if (c.el) td.appendChild(c.el);
+					else td.textContent = c.t;
+					if (c.click) td.addEventListener('click', c.click);
+					tr.appendChild(td);
+				}
+				tb.appendChild(tr);
+			}
+		}
+
+		async function refreshWalletActivity() {
+			const q = walletEarningsQueryParams();
+			const periodLbl = walletEarningsPeriodLabel();
+			updateWalletActivityPeriodButtons();
+			try {
+				await ensureWalletAdminToken();
+				const actAddr = walletKnownAddress();
+				const actQ =
+					'window_hours=' + encodeURIComponent(String(q.window_hours)) +
+					'&limit=120' +
+					(actAddr.startsWith('HMC-') ? '&address=' + encodeURIComponent(actAddr) : '');
+				const ar = await fetchWithTimeout('/api/wallet/activity?' + actQ, { headers: adminHeaders() }, 12000);
+				if (!ar.ok) throw new Error('wallet_activity_unavailable');
+				const payload = await ar.json();
+				let d = payload && payload.data != null ? payload.data : null;
+				if (!d && payload && typeof payload === 'object' && Array.isArray(payload.counterparties)) {
+					d = payload;
+				}
+				if (!d) throw new Error('wallet_activity_empty');
+				const inV = Number(d.total_received_hmc || 0);
+				const outV = Number(d.total_sent_hmc || 0);
+				const netV = Number(d.total_net_hmc != null ? d.total_net_hmc : (inV - outV));
+				if ($('wallet-activity-label-in')) $('wallet-activity-label-in').textContent = 'Received (' + periodLbl + ')';
+				if ($('wallet-activity-label-out')) $('wallet-activity-label-out').textContent = 'Sent (' + periodLbl + ')';
+				if ($('wallet-activity-in')) $('wallet-activity-in').textContent = fmt(inV, 6) + ' HMC';
+				if ($('wallet-activity-out')) $('wallet-activity-out').textContent = fmt(outV, 6) + ' HMC';
+				if ($('wallet-activity-net')) $('wallet-activity-net').textContent = fmt(netV, 6) + ' HMC';
+				if ($('wallet-activity-txcount')) $('wallet-activity-txcount').textContent = fmtUInt(Number(d.tx_count_window || 0));
+				if ($('wallet-activity-source')) {
+					$('wallet-activity-source').textContent =
+						'source: ' + String(payload.source || 'local_db') +
+						' · peers: ' + (Array.isArray(d.counterparties) ? d.counterparties.length : 0) +
+						' · filter: ' + walletActivityFilter;
+				}
+				walletActivityCache = { data: d, source: payload.source || 'local_db' };
+				walletActivityPeerLabels = buildActivityPeerLabelsFromRecent(d.recent);
+				applyWalletActivityRender();
+			} catch (_) {
+				walletActivityCache = null;
+				if ($('wallet-activity-source')) $('wallet-activity-source').textContent = 'Activity unavailable — deploy /api/wallet/activity on chain host or check local sync';
+				renderWalletActivityPeers([]);
+				renderWalletActivityRecent([]);
+			}
 		}
 
 		function scheduleGlobalMetricsRefresh(force) {
@@ -5186,9 +5798,11 @@
 			const note = $('wallet-mode-note');
 			if (note) {
 				note.textContent = walletSimpleMode
-					? 'Simple mode: From / fee / nonce / keys hidden — leave pubkey+sig empty and the node signs for its wallet.'
-					: 'Pro mode: all fields visible (manual or external signing).';
+					? 'Node signs automatically — enter recipient and amount.'
+					: 'Pro mode: manual from / fee / nonce / external signing.';
 			}
+			const pv = $('tx-form-preview');
+			if (pv) pv.classList.toggle('tx-preview-visible', !walletSimpleMode);
 			saveUIPrefs();
 		}
 
@@ -5249,6 +5863,7 @@
 		function txFormUpdatePreview() {
 			const pv = $('tx-form-preview');
 			if (!pv) return;
+			pv.classList.toggle('tx-preview-visible', !walletSimpleMode);
 			try {
 				const tx = buildTransferTxFromForm();
 				if (walletSimpleMode) {
@@ -5583,10 +6198,13 @@
 					} catch (_) {}
 				}
 				tb.innerHTML = '';
+				const cnt = $('tx-pool-count');
 				if (!rows.length) {
+					if (cnt) cnt.textContent = 'empty';
 					tb.innerHTML = '<tr><td colspan="7" class="px-3 py-3 text-gray-600 text-center">No pending txs</td></tr>';
 					return;
 				}
+				if (cnt) cnt.textContent = rows.length + ' pending';
 				const expectNonce = Math.floor(Number(walletSnapshot.nextNonce) || 0);
 				if (expectNonce > 0) {
 					rows = rows.filter((t) => {
@@ -5878,10 +6496,13 @@
 			if ($('btn-tx-toggle-advanced')) {
 				$('btn-tx-toggle-advanced').addEventListener('click', () => {
 					txFormAdvanced = !txFormAdvanced;
-					const wrap = $('tx-advanced-wrap');
+					const details = $('wallet-tx-json-details');
 					const b = $('btn-tx-toggle-advanced');
-					if (wrap) wrap.classList.toggle('hidden', !txFormAdvanced);
-					if (b) b.textContent = txFormAdvanced ? 'Advanced JSON: on' : 'Advanced JSON: off';
+					if (details) {
+						details.classList.remove('hidden');
+						details.open = txFormAdvanced;
+					}
+					if (b) b.textContent = txFormAdvanced ? 'Edit JSON: on' : 'Edit JSON: off';
 					if (txFormAdvanced) syncTransferJsonFromForm();
 					else syncTransferFormFromJson();
 				});
@@ -6054,7 +6675,14 @@
 		function renderWalletEarningsTable(buckets) {
 			const tb = $('wallet-earnings-table-body');
 			if (!tb) return;
-			const rows = Array.isArray(buckets) ? buckets.slice().reverse().slice(0, 40) : [];
+			const all = Array.isArray(buckets) ? buckets.slice().reverse() : [];
+			const rows = all.slice(0, 21);
+			const cntEl = $('wallet-earnings-table-count');
+			if (cntEl) {
+				cntEl.textContent = all.length
+					? (rows.length + (all.length > rows.length ? ' of ' + all.length : '') + ' days')
+					: 'no data';
+			}
 			if (typeof tb.replaceChildren === 'function') tb.replaceChildren();
 			else tb.innerHTML = '';
 			if (!rows.length) {
@@ -6184,22 +6812,21 @@
 					const tail = rolling24 ? buckets.slice(-12) : buckets.slice(-14);
 					const unpaidSnap = latestWorkerSettlementSnap ? Number(latestWorkerSettlementSnap.wallet_unpaid_hmc || 0) : 0;
 					if (!tail.length) {
-						let tl = 'timeline: no on-chain transfers in selected window';
+						let tl = 'No on-chain transfers in selected window';
 						if (unpaidSnap > 1e-9) {
-							tl += ' · pool accrual (unsettled) ~' + fmt(unpaidSnap, 6) + ' HMC — chart shows settled chain txs only; payout after VPS settlement';
+							tl += ' · pool accrual ~' + fmt(unpaidSnap, 6) + ' HMC (unsettled)';
 						}
 						$('wallet-earnings-timeline').textContent = tl;
 					} else {
 						const isHourly = Number(d.bucket_sec || 0) < 86400;
 						$('wallet-earnings-timeline').textContent =
-							'timeline: ' +
 							tail
 								.map((b) => {
 									const ts = Number(b.bucket_unix || 0);
 									const t = ts > 0 ? (isHourly ? fmtUnix(ts).slice(11, 16) : fmtUnix(ts).slice(0, 10)) : '—';
-									return t + ' net ' + fmt(Number(b.net_hmc || 0), 4);
+									return t + '  ' + fmt(Number(b.net_hmc || 0), 4);
 								})
-								.join(' | ');
+								.join('\n');
 					}
 				}
 			} catch (_) {
@@ -8376,32 +9003,24 @@
 			const net = !!st.network_mode_active;
 			const nodeAddr = String(walletSnapshot.address || '').trim();
 			const balHi = typeof walletSnapshot.balanceHMC === 'number' && walletSnapshot.balanceHMC > 0.000001;
-			const unpaidTxt = ($('wallet-unpaid-hmc') && $('wallet-unpaid-hmc').textContent) ? $('wallet-unpaid-hmc').textContent : '';
-			const hasUnpaid = unpaidTxt && unpaidTxt !== '—' && !/^0\.0+\s*HMC$/i.test(unpaidTxt.trim());
+			const unpaid = walletUnpaidHmc();
 			if (!net) {
-				cap.textContent = 'Node wallet (local ledger)';
+				cap.textContent = 'Local node wallet (not synced to public pool)';
 				note.textContent = '';
 				note.classList.add('hidden');
 				return;
 			}
 			cap.textContent = balHi
-				? 'On-chain balance (hackme.tech canonical).'
-				: 'Loading on-chain balance…';
-			if (balHi) {
-				note.classList.add('hidden');
-				note.textContent = '';
-				if (hasUnpaid) {
-					note.classList.remove('hidden');
-					note.className = 'text-[10px] text-gray-500 mb-6 max-w-2xl mx-auto leading-relaxed';
-					note.textContent = 'Mining accrual not yet settled: see Unpaid worker accrual below. Settlement runs automatically on the pool host.';
-				}
-				return;
+				? 'On-chain spendable · hackme.tech canonical'
+				: 'Loading canonical on-chain balance…';
+			note.classList.add('hidden');
+			note.textContent = '';
+			if (!balHi) {
+				note.classList.remove('hidden');
+				note.textContent = nodeAddr.startsWith('HMC-')
+					? 'Syncing ' + nodeAddr + ' from canonical chain…'
+					: 'Waiting for wallet address…';
 			}
-			note.classList.remove('hidden');
-			note.className = 'text-[10px] text-gray-500 mb-6 max-w-2xl mx-auto leading-relaxed';
-			note.textContent = nodeAddr.startsWith('HMC-')
-				? 'Syncing balance for ' + nodeAddr + ' from canonical chain…'
-				: 'Waiting for wallet address…';
 		}
 		async function fetchCanonicalWalletFallback(addr, timeoutMs) {
 			const base = String((latestStatus && latestStatus.public_authority_base) || 'https://hackme.tech').replace(/\/$/, '');
@@ -13241,6 +13860,7 @@
 					void (typeof refreshP2PPeers === 'function' ? refreshP2PPeers() : Promise.resolve());
 				}
 				scheduleWalletEarningsRefresh(false);
+				scheduleWalletActivityRefresh(false);
 			} catch (_) {
 			} finally {
 				try { applyTelemetryFromMetrics(lastMetricsPayload); } catch (_) {}
@@ -13428,10 +14048,40 @@
 							localStorage.setItem(WALLET_EARNINGS_PERIOD_KEY, p);
 						} catch (_) {}
 						updateWalletEarningsPeriodButtons();
+						updateWalletActivityPeriodButtons();
 						void refreshWalletEarnings();
+						if (walletDetailSection === 'activity') void refreshWalletActivity();
+					});
+				});
+				document.querySelectorAll('[data-wallet-activity-period]').forEach((btn) => {
+					btn.addEventListener('click', () => {
+						const p = btn.getAttribute('data-wallet-activity-period');
+						if (p !== '24h' && p !== '7d' && p !== '30d') return;
+						walletEarningsPeriod = p;
+						try {
+							localStorage.setItem(WALLET_EARNINGS_PERIOD_KEY, p);
+						} catch (_) {}
+						updateWalletEarningsPeriodButtons();
+						updateWalletActivityPeriodButtons();
+						void refreshWalletActivity();
+						if (walletDetailSection === 'earnings') void refreshWalletEarnings();
 					});
 				});
 				updateWalletEarningsPeriodButtons();
+				updateWalletActivityPeriodButtons();
+				updateWalletActivityFilterButtons();
+				document.querySelectorAll('[data-wallet-activity-filter]').forEach((btn) => {
+					btn.addEventListener('click', () => {
+						const f = btn.getAttribute('data-wallet-activity-filter');
+						if (f !== 'all' && f !== 'in' && f !== 'out') return;
+						walletActivityFilter = f;
+						updateWalletActivityFilterButtons();
+						applyWalletActivityRender();
+					});
+				});
+				if ($('btn-wallet-activity-csv')) {
+					$('btn-wallet-activity-csv').addEventListener('click', () => exportWalletActivityCsv());
+				}
 				if ($('btn-desktop-generate-token')) $('btn-desktop-generate-token').addEventListener('click', () => {
 					const tok = randomHexToken(24);
 					if (!tok) return;
