@@ -37,7 +37,7 @@
     newsDisplay: "./assets/news-display.json",
     newsArchive: "./assets/news.json",
     releaseChannel: RELEASE_VER,
-    releaseChannelNote: "rc12w — wallet Activity tab, HMC/SUP/Transfer UX cleanup, audit hardening on hub; Win/Linux/ISO aligned",
+    releaseChannelNote: "rc12w — wallet Activity + B2B hackme-fuzzing CLI refresh (wizard/status); Win/Linux/ISO aligned",
     releaseBase: `/dist/release_${RELEASE_VER}`,
     windowsInstaller: `/dist/release_${RELEASE_VER}/HackMe-Setup-${RELEASE_VER}.exe`,
     windowsBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows_setup.zip`,
