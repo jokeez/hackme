@@ -75,7 +75,19 @@ func TestBindAddrAllowsBeginnerSolo(t *testing.T) {
 func TestVerifySyncBlockSignatureUnsignedBlockAllowed(t *testing.T) {
 	b := block.NewGenesisBlock("HMC-test-node")
 	if err := verifySyncBlockSignature(b); err != nil {
-		t.Fatalf("unsigned block should be allowed, got: %v", err)
+		t.Fatalf("unsigned genesis should be allowed, got: %v", err)
+	}
+}
+
+func TestVerifySyncBlockSignatureRejectsUnsignedNonGenesis(t *testing.T) {
+	t.Setenv("HACKME_P2P_ALLOW_UNSIGNED_SYNC", "")
+	b := block.NewPoHBlock(1, "prev", "m", 1, 20, 1, "", "formula")
+	if err := verifySyncBlockSignature(b); err == nil {
+		t.Fatal("unsigned non-genesis sync block must be rejected by default")
+	}
+	t.Setenv("HACKME_P2P_ALLOW_UNSIGNED_SYNC", "1")
+	if err := verifySyncBlockSignature(b); err != nil {
+		t.Fatalf("lab opt-in should allow unsigned: %v", err)
 	}
 }
 

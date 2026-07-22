@@ -4549,10 +4549,17 @@ func verifySyncBlockSignature(b *block.Block) error {
 	if b == nil {
 		return errors.New("nil block")
 	}
-	// Allow legacy unsigned blocks; but if signature fields are present,
-	// they must be complete and cryptographically valid.
-	if strings.TrimSpace(b.MinerPubKey) == "" && strings.TrimSpace(b.MinerSig) == "" {
-		return nil
+	unsigned := strings.TrimSpace(b.MinerPubKey) == "" && strings.TrimSpace(b.MinerSig) == ""
+	if unsigned {
+		// Genesis may be unsigned. Non-genesis unsigned requires lab opt-in.
+		// Safe default with HACKME_P2P_SYNC_STATE_REPLAY_ENABLED off.
+		if b.Index == 0 {
+			return nil
+		}
+		if envBool("HACKME_P2P_ALLOW_UNSIGNED_SYNC", false) {
+			return nil
+		}
+		return errors.New("unsigned sync block rejected (set HACKME_P2P_ALLOW_UNSIGNED_SYNC=1 for lab)")
 	}
 	alg := strings.TrimSpace(strings.ToLower(b.MinerSigAlg))
 	if alg == "" {
