@@ -46,10 +46,20 @@ BIN="$(TARGET="$TARGET" bash "$ROOT/scripts/ops/build_oss_libfuzzer.sh" 2>>"$SES
 [[ -x "$BIN" ]] || { log "build failed"; exit 2; }
 log "binary=$BIN"
 
-# Seed once if corpus empty
-if [[ -z "$(find "$WORK_CORPUS" -type f 2>/dev/null | head -1)" ]] && [[ -d "$SEEDS" ]]; then
-  log "bootstrap corpus from $SEEDS"
-  cp -n "$SEEDS"/* "$WORK_CORPUS/" 2>/dev/null || cp "$SEEDS"/* "$WORK_CORPUS/"
+# Seed once if corpus empty (nullglob-safe; fall back to upstream clone corpus)
+if [[ -z "$(find "$WORK_CORPUS" -type f 2>/dev/null | head -1)" ]]; then
+  if [[ -d "$SEEDS" ]] && compgen -G "$SEEDS"/* >/dev/null; then
+    log "bootstrap corpus from $SEEDS"
+    cp -n "$SEEDS"/* "$WORK_CORPUS/" 2>/dev/null || cp "$SEEDS"/* "$WORK_CORPUS/" || true
+  else
+    UP_SEEDS="$ROOT/.cache/oss-cve-clones/$TARGET/fuzzing/data/corpus"
+    if [[ -d "$UP_SEEDS" ]] && compgen -G "$UP_SEEDS"/* >/dev/null; then
+      log "bootstrap corpus from upstream $UP_SEEDS"
+      cp -n "$UP_SEEDS"/* "$WORK_CORPUS/" 2>/dev/null || cp "$UP_SEEDS"/* "$WORK_CORPUS/" || true
+    else
+      log "WARN empty corpus and no seeds at $SEEDS — starting with empty corpus"
+    fi
+  fi
 fi
 
 export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=0:halt_on_error=1:allocator_may_return_null=1:print_stacktrace=1}"

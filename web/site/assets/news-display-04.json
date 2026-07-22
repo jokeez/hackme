@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-05-14-pool-coordinator-secrets-and-fleet-onboarding",
+      "date": "2026-05-14",
+      "title": "Pool ops: coordinator secret file, fleet env generator, public worker smoke",
+      "summary": "Worker clients now resolve coordinator admin in a fixed order: COORD_ADMIN_TOKEN / HACKME_COORDINATOR_ADMIN_TOKEN / COORD_TOKEN env, then optional one-line .secrets/hackme_coordinator_admin_token (same value as VPS HACKME_COORDINATOR_ADMIN_TOKEN), then legacy shared ADMIN_TOKEN for same-token dev stacks. Added scripts/ops/run_public_worker_smoke.sh and optional RUN_PUBLIC_WORKER_SMOKE=1 in repo_final_selfcheck. Per-rig identity stays unique WORKER_ID plus HACKME_MINER_ED25519_SEED_HEX; operators scale with prepare_worker_fleet_envs.sh (manifest maps worker_id to payout address).",
+      "impact": "Less confusion between node admin tokens and coordinator tokens (fewer 401s on /api/work/claim). CI can run a short live coordinator smoke when the gitignored coordinator secret file exists, without baking secrets into scripts.",
+      "action": "Operators: keep coordinator admin only on the server and in operator .secrets; never commit it. Deploy site+node so news.json and binaries refresh: NODE_SSH=hackme-vps bash scripts/ops/deploy_hackme_public_stack.sh (set SKIP_NGINX=1 if the TLS vhost is frozen). After placing .secrets/hackme_coordinator_admin_token locally: PUBLIC_RO_BASE=https://hackme.tech RUN_PUBLIC_WORKER_SMOKE=1 bash scripts/ops/repo_final_selfcheck.sh. Miners: one env per machine from fleet generator or minersign -gen-seed; see README pool bullet and scripts/ops/worker.env.example.",
+      "tags": [
+        "mining",
+        "ops",
+        "security",
+        "release"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-13-miner-onboarding-pool-worker-rc9",
       "date": "2026-05-13",
       "title": "Miner onboarding: Windows pool worker, .env autoload, release 0.1.0-rc9",
@@ -234,20 +249,6 @@
         "core"
       ],
       "status": "deployed"
-    },
-    {
-      "id": "2026-05-04-vps-sweep-visibility",
-      "date": "2026-05-04",
-      "title": "VPS Sweep Behavior Clarified",
-      "summary": "Automated sweep-to-primary flow on VPS remains active to keep miner wallet near reserve and consolidate balances to the primary policy wallet.",
-      "impact": "Miner wallet balance may look nearly static while rewards continue to accrue and be transferred to the primary address.",
-      "action": "Use canonical address API for both miner and primary addresses when auditing balances.",
-      "tags": [
-        "economics",
-        "infra",
-        "ops"
-      ],
-      "status": "monitoring"
     }
   ],
   "chunk": 4

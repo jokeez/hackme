@@ -1,6 +1,20 @@
 {
   "items": [
     {
+      "id": "2026-05-04-vps-sweep-visibility",
+      "date": "2026-05-04",
+      "title": "VPS Sweep Behavior Clarified",
+      "summary": "Automated sweep-to-primary flow on VPS remains active to keep miner wallet near reserve and consolidate balances to the primary policy wallet.",
+      "impact": "Miner wallet balance may look nearly static while rewards continue to accrue and be transferred to the primary address.",
+      "action": "Use canonical address API for both miner and primary addresses when auditing balances.",
+      "tags": [
+        "economics",
+        "infra",
+        "ops"
+      ],
+      "status": "monitoring"
+    },
+    {
       "id": "2026-05-03-release-rc6",
       "date": "2026-05-03",
       "title": "Release Candidate 0.1.0-rc6 Published",

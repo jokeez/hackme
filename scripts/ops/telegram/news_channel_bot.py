@@ -58,9 +58,21 @@ def env_truthy(name: str, default: bool) -> bool:
 
 
 def load_json_url(url: str, timeout_sec: int, max_retries: int) -> Dict[str, Any]:
-    """Fetch JSON with small exponential backoff (CDN / TLS flakes)."""
+    """Fetch JSON with small exponential backoff (CDN / TLS flakes).
+
+    Cache-bust ``?_ts=`` is only for http(s). ``file://`` paths must stay
+    pristine — appending a query breaks local path resolution on Linux.
+    """
     last_err: Exception | None = None
     fetch_url = url
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme in ("", "file"):
+        # Local file: read directly (urlopen file:// can be flaky with queries).
+        path = Path(urllib.request.url2pathname(parsed.path) if parsed.scheme == "file" else url)
+        raw = path.read_bytes()
+        if len(raw) < 32:
+            raise ValueError(f"feed too short ({len(raw)} bytes)")
+        return json.loads(raw.decode("utf-8"))
     if "?" not in fetch_url:
         fetch_url = f"{fetch_url.rstrip('/')}?_ts={int(time.time())}"
     for attempt in range(1, max(1, max_retries) + 1):

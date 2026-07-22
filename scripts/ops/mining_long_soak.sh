@@ -50,10 +50,15 @@ snapshot_once() {
   local local_status local_wallet local_work canon_status canon_blocks coord_work
   local_status="$(curl -fsS --max-time 12 "$LOCAL_BASE/api/status" || echo '{}')"
   local_wallet="$(curl -fsS --max-time 12 "$LOCAL_BASE/api/wallet" || echo '{}')"
-  local_work="$(curl -fsS --max-time 12 "$LOCAL_BASE/api/work/stats?details=1" || echo '{}')"
+  # details=1 often needs admin auth (401); prefer public details=0
+  local_work="$(curl -fsS --max-time 12 "$LOCAL_BASE/api/work/stats?details=0" || curl -fsS --max-time 12 "$LOCAL_BASE/api/work/stats" || echo '{}')"
   canon_status="$(curl -fsS --max-time 12 "$CANON_BASE/api/status" || echo '{}')"
   canon_blocks="$(curl -fsS --max-time 12 "$CANON_BASE/api/reports/blocks" || echo '{}')"
-  coord_work="$(curl -fsS --max-time 12 "$COORD_BASE/api/work/stats?details=1" || echo '{}')"
+  if [[ -n "${COORD_BASE}" ]]; then
+    coord_work="$(curl -fsS --max-time 12 "$COORD_BASE/api/work/stats?details=0" || curl -fsS --max-time 12 "$COORD_BASE/api/work/stats" || echo '{}')"
+  else
+    coord_work="$local_work"
+  fi
 
   jq -nc \
     --arg ts "$ts" \

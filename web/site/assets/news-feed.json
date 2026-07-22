@@ -1,6 +1,48 @@
 {
   "items": [
     {
+      "id": "2026-07-22-b2b-customer-crash-first-report",
+      "date": "2026-07-22",
+      "title": "B2B audits that CI can trust — crash-first reports · honest Scan/Audit/Deep",
+      "summary": "Customer path is productized: register → wizard (Scan · Audit · Deep) → status → HTML report + CI gate. Crash-first triage means detector noise never fails the gate. Escrow 20/80 stays transparent; PoH miners auto-switch to orders while workerfuzz fleets dig pool fuzz. Example: HackMe Bootstrap Audit · cjson — runs progressing, gate crash-first, clean / no critical crash-class.",
+      "impact": "Protocol and security teams get a deliverable they can wire into pipelines — PASS/FAIL on crash-class findings only, plus an honest assurance note (not proven secure). No fake CVE theater: CLEAN means no crash/hang/ASan/memory at the budgeted runs.",
+      "action": "Developers: https://hackme.tech/developers.html · CLI: https://hackme.tech/downloads.html#fuzzing-client · Tracker: https://hackme.tech/fuzzing-console.html · Campaigns: https://hackme.tech/fuzz-campaigns.html · Command: hackme-fuzzing wizard --wasm guard.wasm --package audit",
+      "tags": [
+        "fuzzing",
+        "b2b",
+        "security",
+        "product",
+        "devtools",
+        "escrow"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "B2B · crash-first audits your CI can enforce",
+        "lead": "register → wizard → status → report + gate · Scan / Audit / Deep · escrow 20/80",
+        "bullets": [
+          "Crash-first triage: only crash/hang/ASan/memory fail the gate — detector noise is appendix",
+          "HTML report: verdict card · CI gate PASS/FAIL · assurance note · target fingerprint",
+          "Honest tiers: Scan (WASM smoke) · Audit (native/ASAN + pool) · Deep (byte corpus, hours-scale)",
+          "Pool: PoH miners auto-switch to orders · workerfuzz fleets dig distributed fuzz",
+          "Live example: Bootstrap Audit · cjson — progressing, clean / no critical crash-class"
+        ],
+        "footer": "hackme.tech/developers.html · downloads#fuzzing-client · fuzzing-console.html"
+      },
+      "discord": {
+        "title": "Product · B2B crash-first reports + CI gate",
+        "body": "**Audits you can wire into CI — without fake CVE theater.**\n\n• Flow: `register` → `wizard` (Scan · Audit · Deep) → `status` → HTML report + `GET …/gate`\n• **Crash-first:** detector/property noise is appendix — gate only sees crash-class\n• **Escrow 20/80** transparent; unused bounty refunds on finalize\n• **Pool:** PoH workers auto-switch to orders · **workerfuzz** fleets dig fuzz work\n• Example campaign: **HackMe Bootstrap Audit · cjson** — runs progressing · gate crash-first · clean / no critical crash-class\n\n**Links:** [developers](https://hackme.tech/developers.html) · [CLI](https://hackme.tech/downloads.html#fuzzing-client) · [console](https://hackme.tech/fuzzing-console.html) · [campaigns](https://hackme.tech/fuzz-campaigns.html)",
+        "ping": "#announcements"
+      },
+      "links": {
+        "developers": "https://hackme.tech/developers.html",
+        "downloads": "https://hackme.tech/downloads.html#fuzzing-client",
+        "console": "https://hackme.tech/fuzzing-console.html",
+        "campaigns": "https://hackme.tech/fuzz-campaigns.html",
+        "guide": "https://hackme.tech/fuzz-guide.html",
+        "pool": "https://hackme.tech/pool/coordinator"
+      }
+    },
+    {
       "id": "2026-07-22-github-release-rc12w",
       "date": "2026-07-22",
       "title": "HackMe 0.1.0-rc12w — wallet Activity · security hardening · miners & devs",
@@ -378,42 +420,6 @@
         "hub": "https://hackme.tech/reports/oss-cve-watch/",
         "research": "https://hackme.tech/research.html",
         "day08": "https://hackme.tech/reports/oss-cve-watch/day08.html"
-      }
-    },
-    {
-      "id": "2026-07-13-oss-cve-watch-day07-nghttp2-libfuzzer",
-      "date": "2026-07-14",
-      "title": "OSS CVE Watch Day 7/14 · nghttp2 · 1.73B libFuzzer exec · CLEAN",
-      "summary": "Seventh day on nghttp2: 20h libFuzzer marathon, 1,729,144,709 executions at ~24k exec/s. Corpus 415 inputs (329KB), 467 coverage edges. Zero ASAN heap crashes — seventh honest CLEAN day.",
-      "impact": "Cumulative ~6.69B libFuzzer executions across Days 2–7 on the same persistent corpus. Coverage still plateaued at 467 edges. Day 7 HTML live on the public ledger.",
-      "action": "Day 7 report: https://hackme.tech/reports/oss-cve-watch/day07.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
-      "tags": [
-        "research",
-        "oss-cve",
-        "fuzzing",
-        "nghttp2"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "OSS CVE Watch · Day 7/14 · nghttp2",
-        "lead": "libFuzzer: 1.73B exec · 20h · CLEAN · 0 ASAN",
-        "bullets": [
-          "Target: nghttp2 HTTP/2 session mem_recv · ASAN build",
-          "1,729,144,709 executions · ~24,015 exec/s · corpus 415 (329KB)",
-          "467 coverage edges · 0 heap corruption · 0 CVE candidates",
-          "Days 2–7 combined: ~6.69B libFuzzer exec · still no ASAN heap bugs"
-        ],
-        "footer": "hackme.tech/reports/oss-cve-watch/day07.html"
-      },
-      "discord": {
-        "title": "Research · OSS CVE Watch Day 7",
-        "body": "**nghttp2 · libFuzzer · Day 7/14**\n\n• **1,729,144,709** executions · **20h** · **~24k exec/s**\n• Corpus **415** (329KB) · **467** coverage edges\n• **CLEAN** — 0 ASAN heap crashes\n• Days 2–7 cumulative: **~6.69B** exec\n\n**Report:** https://hackme.tech/reports/oss-cve-watch/day07.html",
-        "ping": "#research"
-      },
-      "links": {
-        "hub": "https://hackme.tech/reports/oss-cve-watch/",
-        "research": "https://hackme.tech/research.html",
-        "day07": "https://hackme.tech/reports/oss-cve-watch/day07.html"
       }
     }
   ],
