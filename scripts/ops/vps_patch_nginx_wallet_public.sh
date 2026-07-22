@@ -7,12 +7,18 @@ if [[ ! -f "$CONF" ]]; then
   echo "[nginx-wallet] missing $CONF" >&2
   exit 1
 fi
-# Idempotent: add wallet| before wallet/earnings in public node API location blocks.
+# Idempotent: allow GET /api/wallet, /api/wallet/earnings, /api/wallet/activity on public node API paths.
+if grep -q 'wallet/activity' "$CONF"; then
+  echo "[nginx-wallet] already patched (activity)"
+else
+  sed -i 's#wallet/earnings|#wallet/earnings|wallet/activity|#g' "$CONF"
+  echo "[nginx-wallet] patched wallet/activity in $CONF"
+fi
 if grep -q 'wallet|wallet/earnings' "$CONF"; then
-  echo "[nginx-wallet] already patched"
+  echo "[nginx-wallet] wallet base path ok"
 else
   sed -i 's#network/stats|wallet/earnings)#network/stats|wallet|wallet/earnings)#g' "$CONF"
-  echo "[nginx-wallet] patched $CONF"
+  echo "[nginx-wallet] patched wallet base in $CONF"
 fi
 nginx -t
 systemctl reload nginx
