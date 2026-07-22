@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-07-22-dashboard-rc12t-wallet-marketplace",
+      "date": "2026-07-22",
+      "title": "Local dashboard rc12t · wallet flow + fuzz progress",
+      "summary": "Wallet hub shows accrual → settlement → on-chain rail. Mining fuzz marketplace adds progress bars and rough ETA. Admin token expose warning when EXPOSE=1.",
+      "impact": "Clearer operator UX on 127.0.0.1:8080 without economics changes.",
+      "action": "Update node binary to 0.1.0-rc12t · libheif Day 1: https://hackme.tech/reports/oss-cve-watch-libheif/day01.html",
+      "tags": [
+        "dashboard",
+        "wallet",
+        "fuzz",
+        "rc12t"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-22-oss-cve-watch-libheif-day01-libfuzzer",
       "date": "2026-07-22",
       "title": "OSS CVE Watch · libheif Day 1/14 · 2.11M libFuzzer exec · CLEAN",
