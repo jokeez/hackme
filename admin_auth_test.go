@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -121,6 +122,26 @@ func TestDesktopLocalAuthRequiresExposeFlag(t *testing.T) {
 	_ = json.NewDecoder(rec.Body).Decode(&body)
 	if body["admin_token"] != "desktop-secret" {
 		t.Fatalf("expose=1 should return token, got %#v", body["admin_token"])
+	}
+}
+
+func TestDesktopAdminTokenEmbedRequiresExposeFlag(t *testing.T) {
+	t.Setenv("HACKME_DESKTOP_MODE", "1")
+	t.Setenv("HACKME_ADMIN_TOKEN", "desktop-secret")
+	t.Setenv("HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN", "0")
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "127.0.0.1:9"
+	if got := desktopAdminTokenEmbedScript(req); got != "" {
+		t.Fatalf("HTML embed must be empty without EXPOSE flag, got %q", got)
+	}
+	t.Setenv("HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN", "1")
+	got := desktopAdminTokenEmbedScript(req)
+	if !strings.Contains(got, "__HACKME_EMBEDDED_ADMIN_TOKEN__") || !strings.Contains(got, "desktop-secret") {
+		t.Fatalf("expose=1 should embed token script, got %q", got)
+	}
+	req.RemoteAddr = "203.0.113.9:9"
+	if got := desktopAdminTokenEmbedScript(req); got != "" {
+		t.Fatal("non-loopback must never embed admin token")
 	}
 }
 

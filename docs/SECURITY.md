@@ -14,7 +14,7 @@
 | Пользователь ОС | Любой процесс **от вашего имени** на той же машине может вызывать `http://127.0.0.1:8080/...` так же, как браузер. |
 | «Кошелёк» | Одна строка **`wallet`** в SQLite (`balance_hmc`) — **учёт внутри ноды**, не отдельный аппаратный/HSM-кошелёк. |
 | Ключ **Ed25519** (`data/node_ed25519.seed`) | Подпись ответов API (например заказов), права доступа к файлу — у пользователя ОС. |
-| Дашборд | Статическая страница с `localhost`; секрет не встраивается в HTML. Для админ-действий токен задаётся локально на клиенте (`localStorage.hackme_admin_token`). |
+| Дашборд | Статическая страница с `localhost`. Admin token **не** встраивается в HTML и **не** отдаётся `/api/desktop/local-auth`, пока явно не задан **`HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1`** (только loopback + desktop mode). Иначе токен задаётся локально на клиенте (`sessionStorage`). |
 
 ---
 
@@ -28,7 +28,8 @@
 - Добавлены anti-drain лимиты по эскроу заказов: `HACKME_MAX_ORDER_ESCROW_PER_HOUR_HMC` (по умолчанию ограничение в час).
 - **SQLite `PRAGMA user_version`** — версия схемы после миграций; в **`GET /api/status`**: `schema_version`, `schema_expected`.
 - **WASM:** таймаут на вызовы, лимит размера check-модуля, лимит памяти рантайма wazero (см. `internal/sandbox`). Файлы заказов: только под **`tasks/artifacts/`** (или **`HACKME_TASK_ARTIFACT_DIR`**), относительный путь без `..`.
-- **WASM hardening:** строгая проверка заголовка/версии модуля, только экспорт `check(i64)->i32`, пробный вызов при валидации, quarantine невалидных модулей по hash (по умолчанию блокируется повторная загрузка quarantined хеша). Настройки: `HACKME_SANDBOX_MAX_CHECK_WASM_BYTES`, `HACKME_SANDBOX_CHECK_TIMEOUT_MS`, `HACKME_SANDBOX_BLOCK_QUARANTINED`.
+- **WASM hardening:** строгая проверка заголовка/версии модуля, только экспорт `check(i64)->i32`, пробный вызов при валидации, quarantine невалидных модулей по hash (по умолчанию блокируется повторная загрузка quarantined хеша). Отклоняются start-секция и чрезмерные **table/element** секции (H44). Настройки: `HACKME_SANDBOX_MAX_CHECK_WASM_BYTES`, `HACKME_SANDBOX_CHECK_TIMEOUT_MS`, `HACKME_SANDBOX_BLOCK_QUARANTINED`.
+- **`POST /api/tasks/from_code`:** компилятор по возможности запускается под **bwrap** / **nsjail** (`wrapCompilerCmd`). Без этих бинарей остаётся **host compile — только lab**. Для продакшена/VPS: **`HACKME_FROM_CODE_REQUIRE_SANDBOX=1`** (fail-closed, если sandbox helper нет в `PATH`).
 - **`.gitignore`:** `data/node_ed25519.seed` — не коммитить ключ.
 - **Блоки PoH / синхронизация:** при записи блока проверяется согласованность поля `hash` с заголовком (`verifyBlockIntegrityAndSignature` в `internal/chain/service.go`). Подпись майнера **Ed25519** проверяется по сообщению **`hash` блока**, если поля подписи заданы; **полностью пустые** поля подписи допускаются для совместимости с историческими цепочками без подписи. На пути P2P staging/apply при наличии подписи действует та же логика (`verifySyncBlockSignature` в `main.go`); подделка `hash` или подписи под другой ключ отсекается. Направление ужесточения: опциональный режим «все новые блоки только signed» (отдельная задача/флаг).
 - **Локальный WASM PoH по HTTP:** только если процесс запущен с **`HACKME_CHAIN_LEADER_LOCAL_POH=1`** (command-node). Обычные узлы / участники пула майнят через **`POST /api/worker/start`** и **`HACKME_POOL_COORDINATOR_URL`**. **`HACKME_BEGINNER_SOLO`** удалён (см. `docs/BEGINNER_SOLO.md`).

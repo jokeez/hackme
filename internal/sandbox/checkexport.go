@@ -241,7 +241,7 @@ func ValidateCheckWasm(ctx context.Context, wasm []byte) error {
 	if len(wasm) > maxBytes {
 		return fmt.Errorf("sandbox: wasm too large (%d > %d)", len(wasm), maxBytes)
 	}
-	if err := rejectWasmStartSection(wasm); err != nil {
+	if err := rejectWasmHostileSections(wasm); err != nil {
 		return err
 	}
 	validateCtx, cancel := context.WithTimeout(ctx, wasmCheckTimeout())

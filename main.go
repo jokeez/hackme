@@ -1015,13 +1015,7 @@ func (a *app) handleIndex(w http.ResponseWriter, r *http.Request) {
 	out := strings.ReplaceAll(embeddedDashboard, "{{ .ChainID }}", chainEsc)
 	out = strings.ReplaceAll(out, "{{ .NodeID }}", nodeEsc)
 	out = strings.ReplaceAll(out, "{{ .DashboardRev }}", dashRevEsc)
-	embedTok := ""
-	if envBool("HACKME_DESKTOP_MODE", false) && requestFromLoopback(r) && adminAuthEnabled() {
-		if t := adminTokenFromEnv(); t != "" {
-			b, _ := json.Marshal(t)
-			embedTok = `<script>window.__HACKME_EMBEDDED_ADMIN_TOKEN__=` + string(b) + `;</script>`
-		}
-	}
+	embedTok := desktopAdminTokenEmbedScript(r)
 	out = strings.ReplaceAll(out, "{{ .DesktopAdminTokenScript }}", embedTok)
 	_, _ = io.WriteString(w, out)
 }

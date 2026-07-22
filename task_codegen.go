@@ -320,6 +320,11 @@ func compileTaskWASM(ctx context.Context, lang, srcPath, outPath string) (string
 	}
 	cmd.Env = env
 	cmd.Dir = workDir
+	wrapped, werr := wrapCompilerCmd(ctx, workDir, outPath, cmd)
+	if werr != nil {
+		return werr.Error(), werr
+	}
+	cmd = wrapped
 	out, err := cmd.CombinedOutput()
 	logText := strings.TrimSpace(string(out))
 	if err != nil {

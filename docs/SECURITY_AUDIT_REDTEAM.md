@@ -12,7 +12,7 @@
 | Coordinator claim/submit without token | **Critical** on public bind | **Fail-closed** unless `HACKME_COORDINATOR_ALLOW_INSECURE=1` |
 | `GET /api/work/stats?details=1` leak | **High** | Requires coordinator token; node forwards token |
 | `POST /api/tx/send` remote auto-sign | **High** | Requires admin token (except loopback + token) |
-| Desktop `/api/desktop/local-auth` token leak | **High** | Token embedded in HTML on loopback; API no longer returns token by default |
+| Desktop `/api/desktop/local-auth` token leak | **High** | Fail-closed: HTML embed + API return token only with `HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1` |
 | Fake attempts payout | **High** (economic) | **Operator policy** — use `PAYOUT_FOUND_ONLY` + hybrid strict |
 | Settlement synthetic row | **High** (ops) | Script refuses multi-key map when `workers{}` empty |
 
@@ -66,7 +66,7 @@ Automated smoke: `scripts/tests/security_assertions.sh`, `scripts/tests/redteam_
 2. **Coordinator** — `GET /api/work/stats?details=1` requires admin token.
 3. **Node** — `fetchCoordinatorWorkStats` sends coordinator token for `details=1`.
 4. **Node** — `POST /api/tx/send` requires admin for non-loopback callers.
-5. **Desktop** — admin token embedded in dashboard HTML (loopback); `/api/desktop/local-auth` does not return token unless `HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1`.
+5. **Desktop** — admin token is **not** embedded in dashboard HTML and **not** returned by `/api/desktop/local-auth` unless `HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1` (loopback + desktop mode).
 6. **Worker ID** — `[a-zA-Z0-9._-]{1,128}` on claim/submit.
 7. **worker_loop.sh** — unsigned submit JSON built with `jq`, not string concat.
 8. **Coordinator** — optional `HACKME_COORDINATOR_WORKER_TOKEN` for claim/submit only; admin token required for `clear-abuse` and `stats?details=1`.

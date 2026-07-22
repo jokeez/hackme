@@ -53,6 +53,36 @@ func TestValidateCheckWasmRejectsStartSection(t *testing.T) {
 	}
 }
 
+func TestValidateCheckWasmRejectsHugeTable(t *testing.T) {
+	// (module (table 1000000 funcref) (func (export "check") (param i64) (result i32) i32.const 1))
+	// table section: count=1, funcref, flags=0, min=1000000 — must fail before CompileModule (H44).
+	const withHugeTable = "0061736d0100000001060160017e017f030201000406017000c0843d07090105636865636b00000a0601040041010b"
+	raw, err := hex.DecodeString(withHugeTable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := rejectWasmHostileSections(raw); err == nil {
+		t.Fatal("expected huge table rejection")
+	} else if !strings.Contains(err.Error(), "table") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := ValidateCheckWasm(context.Background(), raw); err == nil {
+		t.Fatal("expected ValidateCheckWasm to reject huge table")
+	}
+}
+
+func TestRejectWasmHostileSectionsAllowsSmallRustTable(t *testing.T) {
+	// table funcref min=1 max=1 (typical rustc wasm32 cdylib)
+	const smallTable = "0061736d0100000001060160017e017f030201000405017001010107090105636865636b00000a0601040041010b"
+	raw, err := hex.DecodeString(smallTable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := rejectWasmHostileSections(raw); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestValidateCheckWasmRejectsInvalidHeader(t *testing.T) {
 	bad := []byte{0x00, 0x61, 0x73, 0x6d, 0x02, 0x00, 0x00, 0x00}
 	if err := ValidateCheckWasm(context.Background(), bad); err == nil {

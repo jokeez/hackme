@@ -161,6 +161,24 @@ func canonicalRelayAdminToken(r *http.Request) string {
 	return adminTokenFromEnv()
 }
 
+// desktopAdminTokenEmbedScript returns an inline script that sets
+// window.__HACKME_EMBEDDED_ADMIN_TOKEN__ only when desktop mode + loopback +
+// HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1 (H2 fail-closed).
+func desktopAdminTokenEmbedScript(r *http.Request) string {
+	if !envBool("HACKME_DESKTOP_MODE", false) || !requestFromLoopback(r) || !adminAuthEnabled() {
+		return ""
+	}
+	if !envBool("HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN", false) {
+		return ""
+	}
+	t := adminTokenFromEnv()
+	if t == "" {
+		return ""
+	}
+	b, _ := json.Marshal(t)
+	return `<script>window.__HACKME_EMBEDDED_ADMIN_TOKEN__=` + string(b) + `;</script>`
+}
+
 // handleDesktopLocalAuth exposes HACKME_ADMIN_TOKEN to the dashboard on loopback only (desktop mode).
 func handleDesktopLocalAuth(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
