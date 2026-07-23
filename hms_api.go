@@ -29,7 +29,7 @@ func (a *app) handleHMSGenesisInit(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
@@ -57,7 +57,7 @@ func (a *app) handleHMSMint(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !a.allowLoopbackAdminTxSend(r) && !requireAdminAuth(w, r) {
+	if !a.allowLoopbackAdminTxSend(r) && !requireAdminAuthStrict(w, r) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)

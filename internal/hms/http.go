@@ -209,13 +209,25 @@ func RegisterHTTP(mux *http.ServeMux, coord *Coordinator, adminToken, workerToke
 	})
 
 	// Stratum bridge for ASIC (basic); port via HMS_STRATUM_ADDR env in cmd.
-	registerMarketRoutes(mux, coord)
+	registerMarketRoutes(mux, coord, adminToken, workerToken)
 	if os.Getenv("HMS_STRATUM_ENABLE") == "1" {
 		go RunStratumBridge(coord, os.Getenv("HMS_STRATUM_ADDR"))
 	}
 }
 
-func registerMarketRoutes(mux *http.ServeMux, coord *Coordinator) {
+func registerMarketRoutes(mux *http.ServeMux, coord *Coordinator, adminToken, workerToken string) {
+	auth := func(r *http.Request, needWorker bool) bool {
+		if adminToken != "" && bearerOK(r, adminToken) {
+			return true
+		}
+		if needWorker && workerToken != "" && bearerOK(r, workerToken) {
+			return true
+		}
+		if workerToken == "" && adminToken == "" && loopbackOnly(r) {
+			return true
+		}
+		return false
+	}
 	mux.HandleFunc("/api/market/capacity", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -270,6 +282,11 @@ func registerMarketRoutes(mux *http.ServeMux, coord *Coordinator) {
 		writeJSON(w, map[string]any{"status": "ok", "quote": q, "capacity": capSnap})
 	})
 	mux.HandleFunc("/api/market/orders", func(w http.ResponseWriter, r *http.Request) {
+		// M-CRIT-05: list/create must not be anonymously reachable on :18082.
+		if !auth(r, false) {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
 		switch r.Method {
 		case http.MethodGet:
 			list, err := coord.ListStorageOrders(50)

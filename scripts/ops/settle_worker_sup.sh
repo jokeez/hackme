@@ -106,10 +106,24 @@ PY
     continue
   fi
   if jq -e --arg wid "$worker_id" '.workers[$wid].pending_sup != null' "$STATE_FILE" >/dev/null 2>&1; then
-    echo "[settle-sup] skip ${worker_id}: pending_sup present — not re-minting (CLEAR_PENDING_SETTLE=1 to retry)" >&2
+    echo "[settle-sup] skip ${worker_id}: pending_sup present — not re-minting (CLEAR_PENDING_SETTLE=1 promotes pending→settled)" >&2
     if [[ "${CLEAR_PENDING_SETTLE:-0}" == "1" ]]; then
+      # Assume mint already succeeded: promote pending to settled (never clear without recording).
+      pending_amt="$(jq -r --arg wid "$worker_id" '.workers[$wid].pending_sup.delta_sup // 0' "$STATE_FILE")"
+      pending_addr="$(jq -r --arg wid "$worker_id" '.workers[$wid].pending_sup.payout_address // ""' "$STATE_FILE")"
+      already_now="$(jq -r --arg wid "$worker_id" '.workers[$wid].settled_sup // 0' "$STATE_FILE")"
+      new_settled="$(python3 - "$already_now" "$pending_amt" <<'PY'
+import sys
+print(f"{float(sys.argv[1])+float(sys.argv[2]):.12f}")
+PY
+)"
       tmp="$(mktemp)"
-      jq --arg wid "$worker_id" 'del(.workers[$wid].pending_sup)' "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
+      jq --arg wid "$worker_id" --arg addr "$pending_addr" --argjson settled "$new_settled" \
+        '.workers[$wid].settled_sup = $settled
+         | (if ($addr|length)>0 then .workers[$wid].payout_address = $addr else . end)
+         | del(.workers[$wid].pending_sup)' \
+        "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
+      echo "[settle-sup] CLEAR_PENDING promoted ${worker_id} settled_sup=${new_settled}" >&2
     fi
     continue
   fi
@@ -119,12 +133,14 @@ PY
     "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
   resp=""
   ok="false"
+  # Memo includes settled cursor so a larger retry delta cannot reuse an old idem key (M-CRIT-02).
+  memo="worker_sup_settlement:${worker_id}:settled=${already_sup}:delta=${delta_sup}"
   for attempt in 1 2 3 4 5; do
     resp="$(curl -sS -X POST "${CHAIN_BASE}/api/sup/mint" \
       -H "X-Hackme-Admin-Token: ${ADMIN_TOKEN}" \
       -H "Content-Type: application/json" \
-      -d "$(jq -nc --arg to "$to_addr" --argjson amt "$delta_sup" --arg wid "$worker_id" \
-        '{to:$to, amount_sup: ($amt|tonumber), memo: ("worker_sup_settlement:"+ $wid)}')")"
+      -d "$(jq -nc --arg to "$to_addr" --argjson amt "$delta_sup" --arg memo "$memo" \
+        '{to:$to, amount_sup: ($amt|tonumber), memo:$memo}')")"
     ok="$(jq -r '.ok // false' <<<"$resp")"
     if [[ "$ok" == "true" ]]; then
       break

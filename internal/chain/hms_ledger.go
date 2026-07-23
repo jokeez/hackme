@@ -282,13 +282,16 @@ func (s *Service) HmsAddressState(ctx context.Context, address string) (HmsAddre
 const metaHMSMintIdemPrefix = "mint_idem:hms:"
 
 // MintHMS credits HMS from emission cap (coordinator settlement / admin).
-// Non-empty memo enables idempotency: retries with the same (to, amount, memo) are no-ops.
+// Memo is required: retries with the same (to, amount, memo) are no-ops.
 func (s *Service) MintHMS(ctx context.Context, to string, amountUnits uint64, memo string) (string, error) {
 	if amountUnits == 0 {
 		return "invalid_amount", errors.New("amount_units must be > 0")
 	}
 	to = strings.TrimSpace(to)
 	memo = strings.TrimSpace(memo)
+	if memo == "" {
+		return "memo_required", errors.New("memo required for mint idempotency")
+	}
 	if !strings.HasPrefix(to, "HMC-") {
 		return "invalid_address", errors.New("invalid address")
 	}

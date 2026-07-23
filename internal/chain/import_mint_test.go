@@ -11,6 +11,40 @@ import (
 	"hackme/internal/store"
 )
 
+func TestMintSUPRejectsEmptyMemo(t *testing.T) {
+	ctx := context.Background()
+	db, err := store.Open(filepath.Join(t.TempDir(), "sup-empty-memo.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := New(db)
+	if err := svc.InitSUPGenesis(ctx); err != nil {
+		t.Fatal(err)
+	}
+	code, err := svc.MintSUP(ctx, "HMC-cccccccccccccc01", SUPToUnits(1), "")
+	if err == nil || code != "memo_required" {
+		t.Fatalf("want memo_required, got code=%q err=%v", code, err)
+	}
+}
+
+func TestMintHMSRejectsEmptyMemo(t *testing.T) {
+	ctx := context.Background()
+	db, err := store.Open(filepath.Join(t.TempDir(), "hms-empty-memo.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := New(db)
+	if err := svc.InitHMSGenesis(ctx, "HMC-aaaaaaaaaaaaaaaa"); err != nil {
+		t.Fatal(err)
+	}
+	code, err := svc.MintHMS(ctx, "HMC-bbbbbbbbbbbbbbbb", HMSToUnits(1), "  ")
+	if err == nil || code != "memo_required" {
+		t.Fatalf("want memo_required, got code=%q err=%v", code, err)
+	}
+}
+
 func TestMintSUPIdempotentByMemo(t *testing.T) {
 	ctx := context.Background()
 	db, err := store.Open(filepath.Join(t.TempDir(), "sup-mint-idem.db"))

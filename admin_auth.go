@@ -51,7 +51,7 @@ func adminRequestAuthed(r *http.Request) bool {
 
 // requireAdminAuth returns false and writes HTTP 401 if HACKME_ADMIN_TOKEN is set and the request does not match.
 // When the token is unset this still fail-opens (legacy loopback/dev). Prefer requireAdminAuthStrict
-// for treasury spend, from_code, and security_audit.
+// for mint/burn/genesis, market orders, treasury spend, from_code, and security_audit.
 func requireAdminAuth(w http.ResponseWriter, r *http.Request) bool {
 	expected := adminTokenFromEnv()
 	if expected == "" {

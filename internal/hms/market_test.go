@@ -126,6 +126,7 @@ func TestMarketHTTPFlow(t *testing.T) {
 
 	// List
 	req3 := httptest.NewRequest(http.MethodGet, "/api/market/orders", nil)
+	req3.RemoteAddr = "127.0.0.1:1234"
 	rec3 := httptest.NewRecorder()
 	mux.ServeHTTP(rec3, req3)
 	if rec3.Code != http.StatusOK {

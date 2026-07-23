@@ -153,7 +153,7 @@ PY
       continue
     fi
 
-    memo="hms_epoch_settle:${epoch_id}:${worker_id}:${role}"
+    memo="hms_epoch_settle:${epoch_id}:${worker_id}:${role}:from=${already}:delta=${delta_units}"
     if [[ "$DRY_RUN" == "1" ]]; then
       echo "[settle-hms] DRY_RUN would mint ${worker_id} -> ${to_addr} epoch=${epoch_id} delta=${delta_hms} HMS units=${delta_units} role=${role}"
       minted_any=1
@@ -162,11 +162,30 @@ PY
 
     if jq -e --arg e "$epoch_id" --arg w "$worker_id" \
       '.epochs[$e].workers[$w].pending_mint != null' "$STATE_FILE" >/dev/null 2>&1; then
-      echo "[settle-hms] skip ${worker_id} epoch=${epoch_id}: pending_mint present — not re-minting (CLEAR_PENDING_SETTLE=1)" >&2
+      echo "[settle-hms] skip ${worker_id} epoch=${epoch_id}: pending_mint present — not re-minting (CLEAR_PENDING_SETTLE=1 promotes pending→settled)" >&2
       if [[ "${CLEAR_PENDING_SETTLE:-0}" == "1" ]]; then
+        pending_units="$(jq -r --arg e "$epoch_id" --arg w "$worker_id" \
+          '.epochs[$e].workers[$w].pending_mint.delta_units // 0' "$STATE_FILE")"
+        pending_addr="$(jq -r --arg e "$epoch_id" --arg w "$worker_id" \
+          '.epochs[$e].workers[$w].pending_mint.payout_address // ""' "$STATE_FILE")"
+        already_now="$(jq -r --arg e "$epoch_id" --arg w "$worker_id" \
+          '.epochs[$e].workers[$w].settled_units // 0' "$STATE_FILE")"
+        new_settled="$(python3 - "$already_now" "$pending_units" <<'PY'
+import sys
+print(int(sys.argv[1])+int(sys.argv[2]))
+PY
+)"
+        new_hms="$(python3 - "$new_settled" <<'PY'
+import sys
+print(f"{int(sys.argv[1])/1e8:.12f}")
+PY
+)"
         tmp="$(mktemp)"
-        jq --arg e "$epoch_id" --arg w "$worker_id" \
-          'del(.epochs[$e].workers[$w].pending_mint)' "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
+        jq --arg e "$epoch_id" --arg w "$worker_id" --arg addr "$pending_addr" \
+          --argjson units "$new_settled" --argjson hms "$new_hms" \
+          '.epochs[$e].workers[$w] = {"settled_units": $units, "settled_hms": $hms, "payout_address": $addr}' \
+          "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
+        echo "[settle-hms] CLEAR_PENDING promoted ${worker_id} epoch=${epoch_id} settled_units=${new_settled}" >&2
       fi
       continue
     fi

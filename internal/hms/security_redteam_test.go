@@ -51,6 +51,35 @@ func TestSubmitSealRequiresSignatureByDefault(t *testing.T) {
 	}
 }
 
+func TestMarketOrdersRequireAuth(t *testing.T) {
+	dir := t.TempDir()
+	db, err := OpenDB(filepath.Join(dir, "h.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	coord := NewCoordinator(db, Config{PoolID: "p", MinQuotaGB: 1, MaxQuotaGB: 1000, InitialSealTarget: defaultSealTarget()})
+	mux := http.NewServeMux()
+	RegisterHTTP(mux, coord, "admin-secret", "worker-secret")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/market/orders", nil)
+	req.RemoteAddr = "198.51.100.10:5555"
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous list must 401: status=%d body=%s", rr.Code, rr.Body.String())
+	}
+
+	req2 := httptest.NewRequest(http.MethodGet, "/api/market/orders", nil)
+	req2.RemoteAddr = "198.51.100.10:5555"
+	req2.Header.Set("Authorization", "Bearer admin-secret")
+	rr2 := httptest.NewRecorder()
+	mux.ServeHTTP(rr2, req2)
+	if rr2.Code != http.StatusOK {
+		t.Fatalf("admin list must 200: status=%d body=%s", rr2.Code, rr2.Body.String())
+	}
+}
+
 func TestAuthRejectsXForwardedForSpoof(t *testing.T) {
 	dir := t.TempDir()
 	db, err := OpenDB(filepath.Join(dir, "h.db"))

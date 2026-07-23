@@ -88,7 +88,7 @@ func (a *app) handleHMSMarketQuote(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleHMSMarketOrders(w http.ResponseWriter, r *http.Request) {
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	switch r.Method {
@@ -146,7 +146,7 @@ func (a *app) handleHMSMarketOrders(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleHMSMarketOrdersPath(w http.ResponseWriter, r *http.Request) {
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/api/hms/market/orders/")
