@@ -84,6 +84,10 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 			writeAPIError(w, http.StatusBadRequest, "guard_required", "provide wasm_check_hex or language+code", nil)
 			return
 		}
+		if !fromCodeEnabled() {
+			writeAPIError(w, http.StatusForbidden, "from_code_disabled", "compile-from-code is disabled on this node; provide wasm_check_hex or set HACKME_FROM_CODE=1", nil)
+			return
+		}
 		lang := normalizeFromCodeLanguage(req.Language)
 		if lang == "" {
 			writeAPIError(w, http.StatusBadRequest, "language_required", "language required with code", nil)

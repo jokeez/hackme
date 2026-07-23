@@ -464,6 +464,10 @@ func (a *app) handleTaskFromCode(w http.ResponseWriter, r *http.Request) {
 	if !requireAdminAuthStrict(w, r) {
 		return
 	}
+	if !fromCodeEnabled() {
+		writeAPIError(w, http.StatusForbidden, "from_code_disabled", "from_code compile is disabled on this node (set HACKME_FROM_CODE=1 to enable)", nil)
+		return
+	}
 	logAdminAction(r, "tasks_from_code_post")
 
 	var req taskFromCodeRequest

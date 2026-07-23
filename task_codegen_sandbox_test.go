@@ -69,4 +69,58 @@ func TestWrapCompilerCmdUsesBwrapWhenAvailable(t *testing.T) {
 	if !strings.Contains(joined, "--unshare-net") {
 		t.Fatalf("bwrap args missing unshare-net: %v", got.Args)
 	}
+	// Must not whole-root RO bind (include_str!("/etc/...") exfil).
+	if strings.Contains(joined, "--ro-bind / /") || strings.Contains(joined, "--ro-bind-try / /") {
+		t.Fatalf("sandbox must not bind whole root: %v", got.Args)
+	}
+	if !strings.Contains(joined, "/usr") {
+		t.Fatalf("expected narrow /usr bind: %v", got.Args)
+	}
+	if !strings.Contains(joined, "--bind "+work) && !strings.Contains(joined, work) {
+		t.Fatalf("expected writable workdir bind: %v", got.Args)
+	}
+}
+
+func TestFromCodeEnabledEnvAndBindDefault(t *testing.T) {
+	t.Setenv("HACKME_FROM_CODE", "0")
+	if fromCodeEnabled() {
+		t.Fatal("HACKME_FROM_CODE=0 must disable")
+	}
+	t.Setenv("HACKME_FROM_CODE", "1")
+	if !fromCodeEnabled() {
+		t.Fatal("HACKME_FROM_CODE=1 must enable")
+	}
+	t.Setenv("HACKME_FROM_CODE", "")
+	t.Setenv("HACKME_BIND_ADDR", "127.0.0.1:8080")
+	if !fromCodeEnabled() {
+		t.Fatal("loopback bind default should enable from_code")
+	}
+	t.Setenv("HACKME_BIND_ADDR", "0.0.0.0:8080")
+	if fromCodeEnabled() {
+		t.Fatal("public bind default should disable from_code")
+	}
+}
+
+func TestCompilerSandboxROBindsExcludesEtcRoot(t *testing.T) {
+	inner := exec.Command("true")
+	inner.Env = append(os.Environ(), "RUSTUP_HOME=/tmp/fake-rustup-does-not-need-exist")
+	binds := compilerSandboxROBinds(inner, "true")
+	for _, b := range binds {
+		if b == "/etc" || b == "/" {
+			t.Fatalf("must not bind %q", b)
+		}
+	}
+	joined := strings.Join(binds, " ")
+	if !strings.Contains(joined, "/usr") && pathExists("/usr") {
+		t.Fatalf("expected /usr in binds: %v", binds)
+	}
+}
+
+func TestLooksLikeToolchainDir(t *testing.T) {
+	if !looksLikeToolchainDir("/opt/hackme/.cargo/bin") {
+		t.Fatal("expected cargo bin as toolchain")
+	}
+	if looksLikeToolchainDir("/home") || looksLikeToolchainDir("/etc") {
+		t.Fatal("broad roots must not count as toolchain")
+	}
 }
