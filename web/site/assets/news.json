@@ -1,6 +1,47 @@
 {
   "items": [
     {
+      "id": "2026-07-23-overnight-pool-customer-success",
+      "date": "2026-07-23",
+      "title": "Overnight pool win — 2000/2000 cjson + jsmn catch-up settled",
+      "summary": "Customer bootstrap path held through the night: overnight cjson Audit finished 2000/2000 with escrow closed clean; jsmn recovered from a frozen ~1421 settle tip to full catch-up (~22.6k runs paid). Distributed workerfuzz + PoH auto-switch kept the marketplace honest without fake CVE theater.",
+      "impact": "Proof that pool-distributed B2B audits can run unattended overnight — runs complete, escrow settles, CI crash-first gate stays the deliverable. Operators get a cleaner morning marketplace (zombie yyjson cancelled; live work is real progress).",
+      "action": "Developers: https://hackme.tech/developers.html · Console: https://hackme.tech/fuzzing-console.html · Campaigns: https://hackme.tech/fuzz-campaigns.html · Pool: https://hackme.tech/pool/coordinator",
+      "tags": [
+        "fuzzing",
+        "b2b",
+        "pool",
+        "escrow",
+        "product",
+        "overnight"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "Overnight · 2000/2000 cjson + jsmn catch-up",
+        "lead": "Bootstrap Audit held the night: overnight cjson finished clean; jsmn settle freeze recovered to full pay.",
+        "bullets": [
+          "Overnight cjson Audit: 2000/2000 runs · escrow closed · crash-first gate path intact",
+          "jsmn catch-up: unfroze from ~1421 → ~22.6k runs paid on escrow",
+          "Pool: workerfuzz fleets dig · PoH miners auto-switch to customer orders",
+          "Marketplace hygiene: dead yyjson zombie cancelled — live work is real progress",
+          "Deliverable stays honest: CI gate on crash-class only — not proven secure"
+        ],
+        "footer": "hackme.tech/developers.html · fuzzing-console.html · pool/coordinator"
+      },
+      "discord": {
+        "title": "Overnight · pool customer success",
+        "body": "**Unattended overnight B2B audits landed.**\n\n• **cjson overnight:** 2000/2000 · escrow closed\n• **jsmn:** settle catch-up ~1421 → ~22.6k paid\n• **Pool:** workerfuzz + PoH auto-switch\n• **Hygiene:** yyjson zombie cancelled\n\n**Links:** [developers](https://hackme.tech/developers.html) · [console](https://hackme.tech/fuzzing-console.html) · [pool](https://hackme.tech/pool/coordinator)",
+        "ping": "#announcements"
+      },
+      "links": {
+        "developers": "https://hackme.tech/developers.html",
+        "console": "https://hackme.tech/fuzzing-console.html",
+        "campaigns": "https://hackme.tech/fuzz-campaigns.html",
+        "pool": "https://hackme.tech/pool/coordinator",
+        "guide": "https://hackme.tech/fuzz-guide.html"
+      }
+    },
+    {
       "id": "2026-07-22-b2b-customer-crash-first-report",
       "date": "2026-07-22",
       "title": "B2B audits that CI can trust — crash-first reports · honest Scan/Audit/Deep",

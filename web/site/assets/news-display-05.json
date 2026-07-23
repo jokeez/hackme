@@ -1,6 +1,19 @@
 {
   "items": [
     {
+      "id": "2026-05-04-simple-send-nonce-sync",
+      "date": "2026-05-04",
+      "title": "Simple Send Nonce Auto-Sync",
+      "summary": "In network mode, simple wallet sends now auto-resolve nonce from canonical address state before submission, reducing invalid nonce conflicts after included transactions.",
+      "impact": "Transfer UX is smoother for users operating in follower mode against a canonical VPS node.",
+      "action": "No manual nonce management required in simple mode.",
+      "tags": [
+        "wallet",
+        "core"
+      ],
+      "status": "deployed"
+    },
+    {
       "id": "2026-05-04-vps-sweep-visibility",
       "date": "2026-05-04",
       "title": "VPS Sweep Behavior Clarified",

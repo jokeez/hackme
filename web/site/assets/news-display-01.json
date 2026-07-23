@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-07-10-github-release-rc11r",
+      "date": "2026-07-10",
+      "title": "HackMe 0.1.0-rc11r on GitHub Releases — Win · Linux · ISO · fuzz CLI",
+      "summary": "First tagged GitHub release aligned with hackme.tech/downloads: Windows installer, Linux tarball, hackme-fuzzing CLI, and HackMe OS ISO (~844 MB). Same SHA256 as CDN. Linux layout fix, fuzz settle outbox, escrow cleanup.",
+      "impact": "Miners and integrators can verify binaries from GitHub or hackme.tech. ISO + tarballs in one place for mirrors, CI, and cold-storage archives.",
+      "action": "Download: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc11r · Mirror: https://hackme.tech/downloads.html · Docs: docs/HACKME_RC11R.md",
+      "tags": [
+        "release",
+        "mining",
+        "fuzzing",
+        "iso"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-10-oss-cve-watch-day03-nghttp2-libfuzzer",
       "date": "2026-07-10",
       "title": "OSS CVE Watch Day 3/14 · nghttp2 · 1.19B libFuzzer exec · CLEAN",
@@ -240,21 +255,6 @@
         "infrastructure",
         "marketing",
         "legal"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-06-16-rc11n-production-final",
-      "date": "2026-06-16",
-      "title": "Production final — rc11n ISO aligned, SUP on-chain public",
-      "summary": "HackMe production stack finalized (except HMS prelaunch): Win/Linux and HackMe OS ISO now share channel 0.1.0-rc11n. SUP on-chain mint and coordinator settlement are live on hackme.tech. Public GET /api/sup/economics for transparency. Nginx + operator docs updated.",
-      "impact": "Miners can use one release version for Windows installer, Linux tarball, and USB ISO. SUP accrual while mining HMC now settles on-chain; economics visible without admin token.",
-      "action": "Downloads: https://hackme.tech/downloads.html · SUP: https://hackme.tech/api/sup/economics · Pool: https://hackme.tech/pool/coordinator",
-      "tags": [
-        "release",
-        "infrastructure",
-        "mining",
-        "sup"
       ],
       "status": "published"
     }

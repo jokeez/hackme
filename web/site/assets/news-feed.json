@@ -1,6 +1,47 @@
 {
   "items": [
     {
+      "id": "2026-07-23-overnight-pool-customer-success",
+      "date": "2026-07-23",
+      "title": "Overnight pool win — 2000/2000 cjson + jsmn catch-up settled",
+      "summary": "Customer bootstrap path held through the night: overnight cjson Audit finished 2000/2000 with escrow closed clean; jsmn recovered from a frozen ~1421 settle tip to full catch-up (~22.6k runs paid). Distributed workerfuzz + PoH auto-switch kept the marketplace honest without fake CVE theater.",
+      "impact": "Proof that pool-distributed B2B audits can run unattended overnight — runs complete, escrow settles, CI crash-first gate stays the deliverable. Operators get a cleaner morning marketplace (zombie yyjson cancelled; live work is real progress).",
+      "action": "Developers: https://hackme.tech/developers.html · Console: https://hackme.tech/fuzzing-console.html · Campaigns: https://hackme.tech/fuzz-campaigns.html · Pool: https://hackme.tech/pool/coordinator",
+      "tags": [
+        "fuzzing",
+        "b2b",
+        "pool",
+        "escrow",
+        "product",
+        "overnight"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "Overnight · 2000/2000 cjson + jsmn catch-up",
+        "lead": "Bootstrap Audit held the night: overnight cjson finished clean; jsmn settle freeze recovered to full pay.",
+        "bullets": [
+          "Overnight cjson Audit: 2000/2000 runs · escrow closed · crash-first gate path intact",
+          "jsmn catch-up: unfroze from ~1421 → ~22.6k runs paid on escrow",
+          "Pool: workerfuzz fleets dig · PoH miners auto-switch to customer orders",
+          "Marketplace hygiene: dead yyjson zombie cancelled — live work is real progress",
+          "Deliverable stays honest: CI gate on crash-class only — not proven secure"
+        ],
+        "footer": "hackme.tech/developers.html · fuzzing-console.html · pool/coordinator"
+      },
+      "discord": {
+        "title": "Overnight · pool customer success",
+        "body": "**Unattended overnight B2B audits landed.**\n\n• **cjson overnight:** 2000/2000 · escrow closed\n• **jsmn:** settle catch-up ~1421 → ~22.6k paid\n• **Pool:** workerfuzz + PoH auto-switch\n• **Hygiene:** yyjson zombie cancelled\n\n**Links:** [developers](https://hackme.tech/developers.html) · [console](https://hackme.tech/fuzzing-console.html) · [pool](https://hackme.tech/pool/coordinator)",
+        "ping": "#announcements"
+      },
+      "links": {
+        "developers": "https://hackme.tech/developers.html",
+        "console": "https://hackme.tech/fuzzing-console.html",
+        "campaigns": "https://hackme.tech/fuzz-campaigns.html",
+        "pool": "https://hackme.tech/pool/coordinator",
+        "guide": "https://hackme.tech/fuzz-guide.html"
+      }
+    },
+    {
       "id": "2026-07-22-b2b-customer-crash-first-report",
       "date": "2026-07-22",
       "title": "B2B audits that CI can trust — crash-first reports · honest Scan/Audit/Deep",
@@ -384,42 +425,6 @@
         "downloads": "https://hackme.tech/downloads.html",
         "pool": "https://hackme.tech/pool/coordinator",
         "github": "https://github.com/jokeez/hackme/releases"
-      }
-    },
-    {
-      "id": "2026-07-15-oss-cve-watch-day08-nghttp2-libfuzzer",
-      "date": "2026-07-15",
-      "title": "OSS CVE Watch Day 8/14 · nghttp2 · 1.02B libFuzzer exec · CLEAN",
-      "summary": "Eighth day on nghttp2: 8h libFuzzer depth session, 1,015,266,765 executions at ~35.3k exec/s. Corpus 418 inputs (326KB), 467 coverage edges. Zero ASAN heap crashes — eighth honest CLEAN day.",
-      "impact": "Cumulative ~7.71B libFuzzer executions across Days 2–8 on the same persistent corpus. Coverage still plateaued at 467 edges. Day 8 HTML live on the public ledger.",
-      "action": "Day 8 report: https://hackme.tech/reports/oss-cve-watch/day08.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
-      "tags": [
-        "research",
-        "oss-cve",
-        "fuzzing",
-        "nghttp2"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "OSS CVE Watch · Day 8/14 · nghttp2",
-        "lead": "libFuzzer: 1.02B exec · 8h · CLEAN · 0 ASAN",
-        "bullets": [
-          "Target: nghttp2 HTTP/2 session mem_recv · ASAN build",
-          "1,015,266,765 executions · ~35,251 exec/s · corpus 418 (326KB)",
-          "467 coverage edges · 0 heap corruption · 0 CVE candidates",
-          "Days 2–8 combined: ~7.71B libFuzzer exec · still no ASAN heap bugs"
-        ],
-        "footer": "hackme.tech/reports/oss-cve-watch/day08.html"
-      },
-      "discord": {
-        "title": "Research · OSS CVE Watch Day 8",
-        "body": "**nghttp2 · libFuzzer · Day 8/14**\n\n• **1,015,266,765** executions · **8h** · **~35.3k exec/s**\n• Corpus **418** (326KB) · **467** coverage edges\n• **CLEAN** — 0 ASAN heap crashes\n• Days 2–8 cumulative: **~7.71B** exec\n\n**Report:** https://hackme.tech/reports/oss-cve-watch/day08.html",
-        "ping": "#research"
-      },
-      "links": {
-        "hub": "https://hackme.tech/reports/oss-cve-watch/",
-        "research": "https://hackme.tech/research.html",
-        "day08": "https://hackme.tech/reports/oss-cve-watch/day08.html"
       }
     }
   ],

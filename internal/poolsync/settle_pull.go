@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // SettleOutboxItem is a coordinator-queued fuzz escrow settlement.
@@ -37,7 +38,8 @@ func FetchSettleOutbox(ctx context.Context, limit int) ([]SettleOutboxItem, erro
 		return nil, err
 	}
 	req.Header.Set("X-Hackme-Admin-Token", token)
-	res, err := http.DefaultClient.Do(req)
+	cli := &http.Client{Timeout: 120 * time.Second}
+	res, err := cli.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +72,8 @@ func AckSettleOutbox(ctx context.Context, ids []int64) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Hackme-Admin-Token", token)
-	res, err := http.DefaultClient.Do(req)
+	cli := &http.Client{Timeout: 120 * time.Second}
+	res, err := cli.Do(req)
 	if err != nil {
 		return err
 	}

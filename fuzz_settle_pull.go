@@ -189,7 +189,7 @@ func (a *app) startFuzzSettlePullTicker() {
 		ticker := time.NewTicker(15 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
-			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 			a.pullFuzzSettleOutbox(ctx)
 			cancel()
 		}

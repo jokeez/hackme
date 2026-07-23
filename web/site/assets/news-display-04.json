@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-05-15-pool-release-1-0-0-pool-live",
+      "date": "2026-05-15",
+      "title": "Pool release 1.0.0-pool is live — public mining, faster dashboard, production deploy",
+      "summary": "HackMe public pool is open for workers: coordinator on hackme.tech, hybrid signer payouts, top-pool readiness gate green (2+ workers, ~26s block cadence). Desktop dashboard is faster (non-blocking poll, earnings on a separate cadence, no UI freeze on slow canonical proxy). Wallet earnings fix: no more 502 loops on the command node; followers get canonical_peer without hanging the whole UI.",
+      "impact": "Miners can join with HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech, start the pool worker from the Mining tab, and accrue HMC via the coordinator path. Operators: stack deployed to production VPS with nginx TLS, settlement API, and work/stats proxy.",
+      "action": "Join: export HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech — open local dashboard → Mining → Start pool worker (once). Hard-refresh (Ctrl+Shift+R) after updating the node binary. Downloads: check / for release bundles; verify with PROFILE=canary BASE=https://hackme.tech bash scripts/ops/top_pool_readiness_gate.sh.",
+      "tags": [
+        "release",
+        "mining",
+        "pool",
+        "ux",
+        "production"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-14-pool-coordinator-secrets-and-fleet-onboarding",
       "date": "2026-05-14",
       "title": "Pool ops: coordinator secret file, fleet env generator, public worker smoke",
@@ -234,19 +250,6 @@
         "core",
         "explorer",
         "infra"
-      ],
-      "status": "deployed"
-    },
-    {
-      "id": "2026-05-04-simple-send-nonce-sync",
-      "date": "2026-05-04",
-      "title": "Simple Send Nonce Auto-Sync",
-      "summary": "In network mode, simple wallet sends now auto-resolve nonce from canonical address state before submission, reducing invalid nonce conflicts after included transactions.",
-      "impact": "Transfer UX is smoother for users operating in follower mode against a canonical VPS node.",
-      "action": "No manual nonce management required in simple mode.",
-      "tags": [
-        "wallet",
-        "core"
       ],
       "status": "deployed"
     }

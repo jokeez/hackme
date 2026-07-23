@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-05-26-order-pool-live-5hmc-rc11h",
+      "date": "2026-05-26",
+      "title": "Order pool live · 5 HMC test completed (rc11h)",
+      "summary": "Production useful-PoW order order-live-5hmc-202605251816: prepaid 5 HMC (5×1 HMC reward), minimal WASM gate, completed 5/5 in ~2 minutes. Escrow fee 0.25 HMC, burn 0.5 HMC. All five order blocks credited miner_address HMC-381c0c5e2cfcc714 on the canonical node. Pool workers (rc11h) receive order WASM in claim and relay solves to POST /api/poh/solve-order so escrow follows the hybrid signer, not only the operator wallet.",
+      "impact": "Miners on rc11h ISO/Windows/Linux can earn order escrow when their hybrid address wins the chain block; operators see verified prepaid/burn/fee on live mainnet.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats · Economics: https://hackme.tech/economics-model.html · BC5 report: https://hackme.tech/reports/bitcoin-core-5module.html",
+      "tags": [
+        "mining",
+        "release",
+        "economics",
+        "pool"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-25-fuzz-html-reports-security-note-01",
       "date": "2026-05-25",
       "title": "Fuzz reports ship as HTML · Security Note #1 (Script push bounds) · useful-PoW completed",
@@ -244,22 +259,6 @@
         "release",
         "security",
         "community"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-15-pool-release-1-0-0-pool-live",
-      "date": "2026-05-15",
-      "title": "Pool release 1.0.0-pool is live — public mining, faster dashboard, production deploy",
-      "summary": "HackMe public pool is open for workers: coordinator on hackme.tech, hybrid signer payouts, top-pool readiness gate green (2+ workers, ~26s block cadence). Desktop dashboard is faster (non-blocking poll, earnings on a separate cadence, no UI freeze on slow canonical proxy). Wallet earnings fix: no more 502 loops on the command node; followers get canonical_peer without hanging the whole UI.",
-      "impact": "Miners can join with HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech, start the pool worker from the Mining tab, and accrue HMC via the coordinator path. Operators: stack deployed to production VPS with nginx TLS, settlement API, and work/stats proxy.",
-      "action": "Join: export HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech — open local dashboard → Mining → Start pool worker (once). Hard-refresh (Ctrl+Shift+R) after updating the node binary. Downloads: check / for release bundles; verify with PROFILE=canary BASE=https://hackme.tech bash scripts/ops/top_pool_readiness_gate.sh.",
-      "tags": [
-        "release",
-        "mining",
-        "pool",
-        "ux",
-        "production"
       ],
       "status": "published"
     }

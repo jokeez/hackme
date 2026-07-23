@@ -3,6 +3,7 @@ set -euo pipefail
 
 # Lightweight watchdog for hackme-news-bot.service.
 # Intended for timer-based execution (every minute).
+# Quiet on healthy path — only log when restarting or failing.
 
 SERVICE_NAME="${SERVICE_NAME:-hackme-news-bot.service}"
 LOG_FILE="${LOG_FILE:-/opt/hackme/logs/news-bot-watchdog.log}"
@@ -12,7 +13,6 @@ mkdir -p "$(dirname "$LOG_FILE")"
 ts() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 
 if systemctl is-active --quiet "$SERVICE_NAME"; then
-  echo "$(ts) [watchdog] ${SERVICE_NAME} active" >>"$LOG_FILE"
   exit 0
 fi
 
