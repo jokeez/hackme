@@ -32,7 +32,7 @@ if [[ -z "$ADMIN_TOKEN" ]]; then
   echo "[stack-strict] ADMIN_TOKEN (or HACKME_ADMIN_TOKEN) is required" >&2
   exit 1
 fi
-if [[ "$ADMIN_TOKEN" == *"..."* || "$ADMIN_TOKEN" == *"CHANGE_ME"* || "$ADMIN_TOKEN" == *"ТУТ_ПОЛНЫЙ_ТОКЕН"* ]]; then
+if [[ "$ADMIN_TOKEN" == *"..."* || "$ADMIN_TOKEN" == *"CHANGE_ME"* || "$ADMIN_TOKEN" == *"PUT_FULL_TOKEN_HERE"* ]]; then
   echo "[stack-strict] ADMIN_TOKEN looks like placeholder" >&2
   exit 1
 fi

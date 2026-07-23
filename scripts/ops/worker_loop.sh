@@ -50,7 +50,7 @@ if [[ -z "$TOKEN" ]]; then
   echo "[worker] token required: set COORD_ADMIN_TOKEN, COORD_TOKEN, or HACKME_COORDINATOR_ADMIN_TOKEN, or create .secrets/hackme_coordinator_admin_token (VPS coordinator admin, one line), or ADMIN_TOKEN for same-token dev stacks" >&2
   exit 1
 fi
-if [[ "$TOKEN" == *"..."* || "$TOKEN" == *"ТУТ_ПОЛНЫЙ_ТОКЕН"* || "$TOKEN" == *"CHANGE_ME"* ]]; then
+if [[ "$TOKEN" == *"..."* || "$TOKEN" == *"PUT_FULL_TOKEN_HERE"* || "$TOKEN" == *"CHANGE_ME"* ]]; then
   echo "[worker] token looks like placeholder; set real secret token" >&2
   exit 1
 fi

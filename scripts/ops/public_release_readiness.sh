@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 #
-# Быстрый срез готовности к публичному запуску (без полного дублирования repo_final_selfcheck).
-# Полный прогон перед merge: bash scripts/ops/repo_final_selfcheck.sh
+# A quick snapshot of readiness for public launch (without completely duplicating repo_final_selfcheck).
+# Full run before merge: bash scripts/ops/repo_final_selfcheck.sh
 #
-# Опции:
-#   RUN_FULL_GO_TEST=1     — go test ./... -count=1 без -short (долго)
+# Options:
+# RUN_FULL_GO_TEST=1 — go test ./... -count=1 without -short (long)
 #   PUBLIC_RO_BASE=URL     — read-only GET /api/status, /api/global/metrics, worker/settlement
 #
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -64,6 +64,6 @@ if [[ -n "$PUBLIC_RO_BASE" ]]; then
 fi
 
 echo ""
-echo "[public-readiness] VERDICT: автоматический срез репозитория — PASS"
-echo "[public-readiness] Дальше только операторский хвост: см. docs/PUBLIC_LAUNCH_VERDICT.md и docs/OPERATOR_FINAL_CHECKLIST.md"
+echo "[public-readiness] VERDICT: automatic repository slicing - PASS"
+echo "[public-readiness] Further only the operator's tail: see docs/PUBLIC_LAUNCH_VERDICT.md and docs/OPERATOR_FINAL_CHECKLIST.md"
 exit 0

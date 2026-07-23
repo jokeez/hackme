@@ -1,60 +1,60 @@
-# Чеклист: второй ПК (Windows) и публичный пул
+# Checklist: second PC (Windows) and public pool
 
-Цель: **не отдельная цепь на каждом ПК**, а **участие в пуле** (VPS = канон + coordinator). Локальный «beginner solo» в сеть не подходит.
+Goal: **not a separate chain on each PC**, but **participation in a pool** (VPS = canon + coordinator). Local “beginner solo” does not fit into the network.
 
-## 1. Что скачать
+## 1. What to download
 
-- Тот же **релизный канал**, что на VPS (например `release_0.1.0-rc8`), чтобы протокол и поведение совпадали.
-- В папке с **`hackme.exe`** должны быть **`workerpoh.exe`** (нативный воркер для Windows; дашборд запускает его вместо bash-скрипта), **`start_hackme_dashboard.bat`**, опционально **`start_hackme_public_pool.bat`** + **`env.public_pool.example`** (шаблон `hackme.env` / `.env` с `HACKME_PUBLIC_AUTHORITY_BASE`). В репозитории скрипты: `scripts/release/windows/`.
+- The same **release channel** as on the VPS (for example `release_0.1.0-rc8`), so that the protocol and behavior are the same.
+- In the folder with **`hackme.exe`** there should be **`workerpoh.exe`** (native worker for Windows; the dashboard runs it instead of a bash script), **`start_hackme_dashboard.bat`**, optionally **`start_hackme_public_pool.bat`** + **`env.public_pool.example`** (template `hackme.env` / `.env` with `HACKME_PUBLIC_AUTHORITY_BASE`). Scripts in the repository: `scripts/release/windows/`.
 
-## 2. Запуск на втором ПК
+## 2. Launch on a second PC
 
-1. Распакуй zip **в одну папку** (рядом `hackme.exe` и bat).
-2. Запусти **`start_hackme_dashboard.bat`** (или ярлык **HackMe Miner** после установки через `HackMe-Setup.exe`).
-3. В браузере `http://127.0.0.1:8080` → **шапка**: вставь **admin token** (тот же класс секрета, что принимает твой узел при `HACKME_REQUIRE_ADMIN_TOKEN`, иначе POST не пройдут).
-4. **Mining** → **Start worker** (или мастер Desktop в worker-режиме): укажи **`COORD_URL`** публичного coordinator (как на VPS, часто HTTPS + путь `/pool/coordinator` — см. nginx-сниппеты в репо).
-5. Нужен **coordinator token**: из переменных на VPS / то, что выдал оператор пула (`HACKME_POOL_COORDINATOR_TOKEN` или admin token, если так настроено) — иначе API вернёт `412 coordinator_token_required`.
+1. Unpack the zip **into one folder** (next to `hackme.exe` and bat).
+2. Launch **`start_hackme_dashboard.bat`** (or the **HackMe Miner** shortcut after installing via `HackMe-Setup.exe`).
+3. In the browser `http://127.0.0.1:8080` → **header**: insert **admin token** (the same secret class that your node accepts at `HACKME_REQUIRE_ADMIN_TOKEN`, otherwise POST will not go through).
+4. **Mining** → **Start worker** (or Desktop master in worker mode): specify **`COORD_URL`** public coordinator (as on a VPS, often HTTPS + path `/pool/coordinator` - see nginx snippets in the repo).
+5. You need a **coordinator token**: from the variables on the VPS / what the pool operator issued (`HACKME_POOL_COORDINATOR_TOKEN` or admin token, if so configured) - otherwise the API will return `412 coordinator_token_required`.
 
-## 3. Окружение (желательно до первого запуска)
+## 3. Environment (preferably before the first launch)
 
-Рядом с **`hackme.exe`** можно положить файл **`.env`** или **`hackme.env`**: при старте нода подхватит оттуда переменные, **не перезаписывая** уже заданные в системе. Удобно для `HACKME_PUBLIC_AUTHORITY_BASE` и `HACKME_POOL_COORDINATOR_TOKEN` без ручного прописывания в «переменные среды Windows».
+Next to **`hackme.exe`** you can put the file **`.env`** or **`hackme.env`**: when starting, the node will pick up the variables from there, **without overwriting** those already set in the system. Convenient for `HACKME_PUBLIC_AUTHORITY_BASE` and `HACKME_POOL_COORDINATOR_TOKEN` without manually setting them in “Windows environment variables”.
 
-На втором ПК в **системных переменных** или `.env` рядом с процессом (как у вас принято на VPS):
+On the second PC in **system variables** or `.env` next to the process (as is customary on your VPS):
 
-- **`HACKME_PUBLIC_AUTHORITY_BASE`** = базовый URL **command node** с VPS (как в `README.md`), чтобы кошелёк/высота в UI совпадали с сетью без P2P.
-- При необходимости явно: **`HACKME_POOL_COORDINATOR_URL`**, **`HACKME_CANONICAL_CHAIN_URL`** — см. основной `README.md`, раздел Worker-mode.
+- **`HACKME_PUBLIC_AUTHORITY_BASE`** = base URL **command node** with VPS (as in `README.md`) so that the wallet/height in the UI matches the non-P2P network.
+- If necessary, explicitly: **`HACKME_POOL_COORDINATOR_URL`**, **`HACKME_CANONICAL_CHAIN_URL`** - see the main `README.md`, Worker-mode section.
 
-## 4. Ожидания
+## 4. Expectations
 
-- **Локальный `tip_height` в SQLite** на втором ПК может **отставать** от сети — это нормально без P2P; пул и «канон» в API должны быть согласованы, см. `docs/NETWORK_MODEL.md` и `scripts/ops/verify_chain_sync_snapshot.sh`.
-- Баланс на втором ПК в worker-mode **не обязан** расти как при локальном PoH-блоке — начисления идут через **coordinator / settlement**; смотри подсказки на вкладке Mining / Wallet в UI.
+- **Local `tip_height` in SQLite** on the second PC may **lag** behind the network - this is normal without P2P; pool and "canon" in the API must be consistent, see `docs/NETWORK_MODEL.md` and `scripts/ops/verify_chain_sync_snapshot.sh`.
+- The balance on the second PC in worker-mode **does not** have to grow as with a local PoH block - accruals go through **coordinator / settlement**; see tips on the Mining / Wallet tab in the UI.
 
-## 5. Проверка после включения
+## 5. Check after switching on
 
-Со второго ПК (или с VPS):
+From a second PC (or VPS):
 
 ```bash
 LOCAL_BASE=http://127.0.0.1:8080 bash scripts/ops/verify_chain_sync_snapshot.sh
 ```
 
-(на Windows — через Git Bash / WSL, либо перенеси логику вручную: сравни `pool_target_mod` и `global work.target_mod`.)
+(on Windows - via Git Bash / WSL, or transfer the logic manually: compare `pool_target_mod` and `global work.target_mod`.)
 
-## 6. VPS и сайт (делает оператор с доступом)
+## 6. VPS and website (does operator with access)
 
-- Залить **тот же** билд/zip, что тестируешь локально; перезапустить systemd-сервисы ноды и coordinator.
-- Nginx/TLS: актуальные сниппеты в репозитории (`scripts/ops/nginx/`, `tmp/hackme-site-domain.conf` и т.д.) — применить на сервере и `nginx -t && reload`.
-- На странице Downloads — ссылка и **checksum** на артефакт из CI/релиза.
+- Upload the **same** build/zip that you are testing locally; restart the systemd services of the node and coordinator.
+- Nginx/TLS: current snippets in the repository (`scripts/ops/nginx/`, `tmp/hackme-site-domain.conf`, etc.) - apply on the server and `nginx -t && reload`.
+- On the Downloads page - a link and **checksum** to the artifact from the CI/release.
 
-Итог: **да, всё может быть нормально**, если на втором ПК не ждать «отдельной цепи», а настроить **worker + токены + authority/coordinator URL** как на основном README; exe должен быть **той же версии**, что пул на VPS.
+Bottom line: **yes, everything can be fine** if you don’t wait for a “separate chain” on the second PC, but configure **worker + tokens + authority/coordinator URL** as in the main README; exe must be **the same version** as the pool on the VPS.
 
-## 7. Идеальный прогон (репо → VPS → Windows)
+## 7. Perfect run (repo → VPS → Windows)
 
-Порядок, чтобы не гонять «устаревшие exe» и не ловить рассинхрон протокола:
+The procedure to avoid running “outdated exe” and not catching protocol out of sync:
 
-1. **На машине с репозиторием (Linux/macOS/WSL):**  
+1. **On a machine with a repository (Linux/macOS/WSL):**
    `bash scripts/ops/repo_final_selfcheck.sh`  
-   Опционально глубже: `RUN_LOCAL_STACK_SMOKE=1 bash scripts/ops/repo_final_selfcheck.sh` (короткий стек coordinator+node+worker).
-2. **Собрать/взять тот же релизный zip**, что пойдёт на VPS и в Downloads; зафиксировать тег/commit в заметках релиза.
-3. **VPS:** выкатить артефакт, перезапустить сервисы, `nginx -t && reload`, проверить публичные GET (`/api/status`, при необходимости `GET /api/worker/settlement`).
-4. **Windows (второй ПК):** распаковать **тот же** zip → `start_hackme_dashboard.bat` → admin token → **Start pool worker** с URL координатора и токеном с VPS.
-5. **Сверка:** сравнить версию/билд в UI или логах с VPS; при сомнении — снова `verify_chain_sync_snapshot.sh` (см. §5).
+Optionally deeper: `RUN_LOCAL_STACK_SMOKE=1 bash scripts/ops/repo_final_selfcheck.sh` (short stack coordinator+node+worker).
+2. **Collect/take the same release zip** that will go to the VPS and Downloads; commit the /commit tag in the release notes.
+3. **VPS:** roll out the artifact, restart services, `nginx -t && reload`, check public GET (`/api/status`, if necessary `GET /api/worker/settlement`).
+4. **Windows (second PC):** unpack **same** zip → `start_hackme_dashboard.bat` → admin token → **Start pool worker** with coordinator URL and VPS token.
+5. **Reconciliation:** compare the version/build in the UI or logs with the VPS; in case of doubt - again `verify_chain_sync_snapshot.sh` (see §5).

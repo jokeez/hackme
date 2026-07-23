@@ -1,4 +1,4 @@
-# Модель сети HackMe: VPS, пул, P2P
+# HackMe network model: VPS, pool, P2P
 
 <div align="center">
 
@@ -6,70 +6,70 @@
 
 </div>
 
-Кратко для операторов и майнеров: **кто пишет блоки**, **как участвуют ПК**, **зачем P2P** и **как связаны награда за блок и выплаты пула**. Детали API — [`docs/API.md`](API.md), экономика — [`docs/ECONOMICS_DASHBOARD.md`](ECONOMICS_DASHBOARD.md).
+Briefly for operators and miners: **who writes blocks**, **how PCs participate**, **why P2P** and **how block rewards and pool payouts are related**. API details - [`docs/API.md`](API.md), economy - [`docs/ECONOMICS_DASHBOARD.md`](ECONOMICS_DASHBOARD.md).
 
 ---
 
-## Зачем так устроено
+## Why is it arranged this way?
 
-Да, для **публичного пула** такая схема обычно **удобнее и предсказуемее**:
+Yes, for a **public pool** this scheme is usually **more convenient and predictable**:
 
-- **Майнеру проще:** не нужно поднимать «полную» ноду и локальный PoH как вторую цепь — достаточно worker + URL координатора и канона (дашборд / скрипты из `README.md`). Меньше шагов и меньше шанс ошибиться в конфиге.
-- **Один источник правды по API:** при `HACKME_PUBLIC_AUTHORITY_BASE` / каноническом URL у всех, кто так настроен, **одинаковые** ответы по **высоте, tip, балансу, мемпулу** с command node — не расходятся «мой локальный блок #102» vs «сеть на #10 000». Это уменьшает путаницу и споры о состоянии сети.
-- **Безопасность проще держать в голове:** граница яснее — публичный **VPS** и его TLS/nginx, токены admin/coordinator/P2P, а домашняя машина не обязана быть открытым сервером с полной цепью. Меньше поверхность атаки у «просто майнера», если он не биндит `0.0.0.0` и не тянет лишнее.
+- **It’s easier for the miner:** there is no need to raise a “full” node and local PoH as a second chain - just a worker + URL of the coordinator and canon (dashboard / scripts from `README.md`). Fewer steps and less chance of making a mistake in the config.
+- **One source of truth for the API:** with `HACKME_PUBLIC_AUTHORITY_BASE` / canonical URL, everyone who is configured this way has **the same** answers for **height, tip, balance, mempool** with the command node - “my local block #102” vs “network on #10000” do not differ. This reduces confusion and disputes about the state of the network.
+- **Security is easier to keep in mind:** the boundary is clearer - public **VPS** and its TLS/nginx, admin/coordinator/P2P tokens, and the home machine does not have to be an open server with a full chain. The attack surface of a “just miner” is smaller if he does not bind `0.0.0.0` and does not pull too much.
 
-Важная оговорка: **«одна информация о блоках у всех»** в смысле **одинаковый JSON из канона** — да, если все смотрят канонический `GET /api/chain` / `GET /api/reports/blocks` / `GET /api/status`. **Файл `data/hackme.db` на диске** у follower без P2P может **отставать** по высоте; это не ломает пул, но Explorer/локальная таблица блоков на ПК могут показывать не тот же хвост, пока не сделан sync — см. раздел 2 ниже.
+Important disclaimer: **“same block information for everyone”** in the sense of **same JSON from the canon** - yes, if everyone is looking at the canonical `GET /api/chain` / `GET /api/reports/blocks` / `GET /api/status`. **File `data/hackme.db` on disk** for a follower without P2P may **lag** behind in height; this doesn't break the pool, but Explorer/local block table on PC may show a different tail until the sync is done - see section 2 below.
 
-Цена модели — **доверие к оператору канона** (VPS) и прозрачность политики пула (coordinator + settlement); это осознанный trade-off для управляемого публичного запуска.
+The price of the model is **trust in the canon operator** (VPS) and transparency of the pool policy (coordinator + settlement); this is a deliberate trade-off for a controlled public launch.
 
 ---
 
-## 1. Два слоя: цепь и пул
+## 1. Two layers: chain and pool
 
-| Слой | Что это | Типичный хост |
+| Layer | What is this | Typical host |
 |------|---------|----------------|
-| **Command node** (нода с цепью) | SQLite-блокчейн, `POST /api/genesis`, при разрешённом локальном PoH — **запись PoH-блоков** (`HACKME_CHAIN_LEADER_LOCAL_POH=1` только на лидере). Публичный «источник правды» для высоты/баланса/мемпула в сети. | **VPS** (staging / prod) |
-| **Coordinator** | Очередь work для воркеров: `claim` / `submit` / `stats`, учёт попыток и **accrual** выплат по политике пула. Сам по себе **не заменяет** запись блоков в цепи. | Часто тот же VPS или отдельный процесс (`go run ./cmd/coordinator`) |
+| **Command node** (chain node) | SQLite blockchain, `POST /api/genesis`, with local PoH allowed - **write PoH blocks** (`HACKME_CHAIN_LEADER_LOCAL_POH=1` only on the leader). A public “source of truth” for height/balance/mempool on the network. | **VPS** (staging / prod) |
+| **Coordinator** | Work queue for workers: `claim` / `submit` / `stats`, accounting for attempts and **accrual** payments according to the pool policy. By itself **does not replace** recording blocks in a chain. | Often the same VPS or a separate process (`go run ./cmd/coordinator`) |
 
-Майнер на домашнем ПК в **worker-mode** подключается к **coordinator** и к **каноническому API** ноды (через `HACKME_POOL_COORDINATOR_URL`, `HACKME_CANONICAL_CHAIN_URL` или вывод из `HACKME_PUBLIC_AUTHORITY_BASE`). Локальный WASM PoH на участнике **выключен** — это не «вторая цепь», а клиент пула.
-
----
-
-## 2. P2P — опционально
-
-**P2P не обязателен**, чтобы пользоваться пулом и смотреть канонический баланс/мемпул через HTTP.
-
-- Задайте **`HACKME_PUBLIC_AUTHORITY_BASE`** (или явно **`HACKME_CANONICAL_CHAIN_URL`** + **`HACKME_POOL_COORDINATOR_URL`**) — узел будет тянуть агрегаты и подсказки высоты с command node, даже без `HACKME_P2P_PEERS` (см. подсказки в `GET /api/status` в коде `main.go`).
-- **P2P** (`HACKME_P2P_PEERS`, …) нужен, если хотите, чтобы **локальный SQLite** на follower приближался к сети (sync блоков), а не только UI/API в «каноническом» режиме.
-- **`GET /api/tasks` (вкладка «Заказы» в дашборде):** список **подставляется с канона**, если задан первый peer в `HACKME_P2P_PEERS` **или** настроен базовый URL канона (`HACKME_CANONICAL_CHAIN_URL` / вывод из координатора / `HACKME_PUBLIC_AUTHORITY_BASE`), и запрос не уходит в loopback на тот же HTTP listener. Чтобы при этом смотреть **только** локальный SQLite (редкий dev-сценарий), задайте **`HACKME_TASKS_LIST_LOCAL_ONLY=1`**.
-
-Итого: **майнить через пул** можно без P2P; **копия цепи на диске** как у лидера — с P2P или one-shot скриптами (`follower_bootstrap_from_vps.sh`, `prefinal_public_sync.sh` и т.д., см. основной `README.md`).
+A miner on a home PC in **worker-mode** connects to **coordinator** and to the **canonical API** of the node (via `HACKME_POOL_COORDINATOR_URL`, `HACKME_CANONICAL_CHAIN_URL` or output from `HACKME_PUBLIC_AUTHORITY_BASE`). Local WASM PoH on the participant is **disabled** - this is not a “second chain”, but a client of the pool.
 
 ---
 
-## 3. Кто «генерирует блоки» и как делится эмиссия
+## 2. P2P - optional
 
-- **Блоки PoH** в каноне пишет **тот command node**, который реально решает задачу и добавляет блок в **свою** цепь (на публичном стеке это ожидаемо **VPS** с включённым сценарием лидера / майнингом согласно вашему деплою).
-- **Скорость эмиссии** сети ограничена целевым интервалом блоков (ретаргет `poh_target_mod` и т.д.) — тысячи воркеров **не умножают** эмиссию; они **делят вероятность/долю** в модели PoH и в учёте coordinator (см. раздел «Capacity» в [`ECONOMICS_DASHBOARD.md`](ECONOMICS_DASHBOARD.md)).
-- **Зачисление base/order награды за блок** на стороне цепи идёт в **primary wallet** ноды-продюсера (не «автоматически на каждую GPU» удалённого рига). Участники пула получают долю через **coordinator accrual → settlement/on-chain** — это **не** то же самое, что прямой split каждого блока на каждый GPU (явно на сайте `web/site/index.html` и в `ECONOMICS_DASHBOARD.md`).
+**P2P is not required** to use the pool and view the canonical balance/mempool via HTTP.
 
-Заказы (`POST /api/tasks`) — отдельный слой: эскроу и привязка награды к задаче при открытом заказе.
+- Specify **`HACKME_PUBLIC_AUTHORITY_BASE`** (or explicitly **`HACKME_CANONICAL_CHAIN_URL`** + **`HACKME_POOL_COORDINATOR_URL`**) - the node will pull aggregates and height hints from the command node, even without `HACKME_P2P_PEERS` (see hints in `GET /api/status` in the `main.go` code).
+- **P2P** (`HACKME_P2P_PEERS`, ...) is needed if you want the **local SQLite** on the follower to approach the network (sync blocks), and not just the UI/API in “canonical” mode.
+- **`GET /api/tasks` (Orders tab in the dashboard):** the list **is substituted from the canon** if the first peer is specified in `HACKME_P2P_PEERS` **or** the base URL of the canon is configured (`HACKME_CANONICAL_CHAIN_URL` / output from the coordinator / `HACKME_PUBLIC_AUTHORITY_BASE`), and the request does not go into loopback to the same HTTP listener. To view **only** local SQLite (rare dev script), set **`HACKME_TASKS_LIST_LOCAL_ONLY=1`**.
+
+Total: **you can mine through a pool** without P2P; **copy of the chain on disk** like the leader - with P2P or one-shot scripts (`follower_bootstrap_from_vps.sh`, `prefinal_public_sync.sh`, etc., see main `README.md`).
 
 ---
 
-## 4. Что прочитать по шагам
+## 3. Who “generates blocks” and how the emission is divided
 
-1. Публичный путь майнера: **`README.md`** → раздел **Worker-mode** (скрипты `worker_mode_*`, health, recover).  
-2. Экономика и ожидания от пула: **`docs/ECONOMICS_DASHBOARD.md`**.  
-3. Чеклист перед широким запуском: **`docs/PUBLIC_LAUNCH_VERDICT.md`**.  
-4. Краткий обзор функционала: **`README.md`** + **`docs/API.md`** (таблица API и вкладок).
+- **PoH blocks** in the canon are written by **the command node** that actually solves the problem and adds the block to **its** chain (on a public stack this is expected **VPS** with the leader script/mining enabled according to your deployment).
+- **The emission rate** of the network is limited by the target block interval (retarget `poh_target_mod`, etc.) - thousands of workers **do not multiply** emission; they **share the probability/share** in the PoH model and in the coordinator accounting (see the “Capacity” section in [`ECONOMICS_DASHBOARD.md`](ECONOMICS_DASHBOARD.md)).
+- **The base/order of the block reward** on the chain side goes to the **primary wallet** of the producer node (not “automatically for each GPU” of the remote rig). Pool participants receive a share through **coordinator accrual → settlement/on-chain** - this is **not** the same as directly splitting each block onto each GPU (explicitly on the `web/site/index.html` website and in `ECONOMICS_DASHBOARD.md`).
 
-### Проверка синхронизации (оператор)
+Orders (`POST /api/tasks`) - a separate layer: escrow and linking a reward to a task when an order is open.
 
-Скрипт **`scripts/ops/verify_chain_sync_snapshot.sh`** — один проход по `GET /api/status`, `GET /api/metrics`, при наличии `GET /api/global/metrics`: сравнение высот в standalone, подсказки при отставании SQLite от канона, сверка `pool_target_mod` с `work.target_mod`. Требуются `curl` и `jq`:
+---
+
+## 4. What to read step by step
+
+1. Public miner path: **`README.md`** → **Worker-mode** section (scripts `worker_mode_*`, health, recover).  
+2. Economics and expectations from the pool: **`docs/ECONOMICS_DASHBOARD.md`**.  
+3. Checklist before wide launch: **`docs/PUBLIC_LAUNCH_VERDICT.md`**.  
+4. Brief overview of functionality: **`README.md`** + **`docs/API.md`** (table of API and tabs).
+
+### Check synchronization (operator)
+
+Script **`scripts/ops/verify_chain_sync_snapshot.sh`** - one pass through `GET /api/status`, `GET /api/metrics`, if `GET /api/global/metrics` is available: comparison of heights in standalone, hints when SQLite lags behind the canon, comparison of `pool_target_mod` with `work.target_mod`. Requires `curl` and `jq`:
 
 ```bash
 LOCAL_BASE=http://127.0.0.1:8080 bash scripts/ops/verify_chain_sync_snapshot.sh
 ```
 
-Если формулировки в UI/сайте расходятся с этим файлом — **источником правды для продукта** считайте код (`pool.go`, `main.go`, `internal/chain`) и актуальный `README.md`; этот документ синхронизируйте при смене модели.
+If the wording in the UI/site differs from this file - **source of truth for the product** consider the code (`pool.go`, `main.go`, `internal/chain`) and the current `README.md`; Synchronize this document when changing the model.

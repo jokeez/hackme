@@ -1,108 +1,108 @@
-# Telegram-бот для мониторинга HackMe
+# Telegram bot for monitoring HackMe
 
-Каждый оператор запускает бота **у себя**: свой токен от [@BotFather](https://t.me/BotFather), свой URL узла HackMe, опционально — белый список Telegram user id.
+Each operator launches a bot **at home**: its own token from [@BotFather](https://t.me/BotFather), its own HackMe node URL, and optionally a whitelist of Telegram user id.
 
-## Быстрый старт
+## Quick start
 
-1. В корне репозитория (рядом с `go.mod`):
+1. At the root of the repository (next to `go.mod`):
 
    ```bash
    cp scripts/ops/telegram_bot.env.example .env.telegram
    ```
 
-2. Отредактируйте `.env.telegram`:
-   - **`TELEGRAM_BOT_TOKEN`** — токен бота (не публикуйте и не коммитьте).
-   - **`HACKME_TELEGRAM_NODE_URL`** — адрес вашего узла, например `http://127.0.0.1:8080` или `https://ваш-домен:порт`.
-   - **`HACKME_TELEGRAM_ALLOWED_USER_IDS`** — через запятую числовые id пользователей Telegram, которым разрешено пользоваться ботом. **Рекомендуется**, если бот доступен из интернета. Узнать свой id: [@userinfobot](https://t.me/userinfobot).
+2. Edit `.env.telegram`:
+   - **`TELEGRAM_BOT_TOKEN`** - bot token (do not publish or commit).
+   - **`HACKME_TELEGRAM_NODE_URL`** is the address of your node, for example `http://127.0.0.1:8080` or `https://your-domain:port`.
+   - **`HACKME_TELEGRAM_ALLOWED_USER_IDS`** — comma-separated numeric ids of Telegram users who are allowed to use the bot. **Recommended** if the bot is accessible from the Internet. Find out your id: [@userinfobot](https://t.me/userinfobot).
 
-3. Запуск:
+3. Launch:
 
    ```bash
    go run ./cmd/telegrambot
    ```
 
-   Либо скрипт из корня репозитория:
+Or a script from the root of the repository:
 
    ```bash
    bash scripts/ops/telegram_bot_up.sh
    ```
 
-## Явный файл конфигурации
+## Explicit configuration file
 
-Переменные из оболочки **имеют приоритет** над строками в файле.
+Variables from the shell **take precedence** over lines in the file.
 
 ```bash
 go run ./cmd/telegrambot -config /home/you/operator.env
 ```
 
-Или задайте путь через окружение (без `-config`):
+Or specify a path through the environment (without `-config`):
 
 ```bash
 export HACKME_TELEGRAM_CONFIG=/home/you/operator.env
 go run ./cmd/telegrambot
 ```
 
-Если ни `-config`, ни `HACKME_TELEGRAM_CONFIG` не заданы, бот подхватывает **первый существующий** из файлов в текущей директории: `.env.telegram`, затем `telegram_bot.env`.
+If neither `-config` nor `HACKME_TELEGRAM_CONFIG` are specified, the bot picks up the **first existing** file in the current directory: `.env.telegram`, then `telegram_bot.env`.
 
-## Справка по флагам и переменным
+## Help on flags and variables
 
 ```bash
 go run ./cmd/telegrambot -help
 ```
 
-## Команды в Telegram
+## Teams in Telegram
 
-| Команда | Что показывает |
+| Team | What shows |
 |---------|----------------|
-| `/digest` | Сводка: высота, pool GH/s, баланс, mining |
+| `/digest` | Summary: height, pool GH/s, balance, mining |
 | `/status` | Chain tip, genesis, mining flag |
-| `/metrics` | Локальный PoH: target_mod, attempts/s, task kind, reward |
-| `/pool` | **Пул:** hashrate, active rigs, coordinator counters |
-| `/tasks` | **Заказы/fuzzing:** open/completed, reward, progress |
-| `/blocks [n]` | Последние блоки (task kind, hash) |
-| `/wallet` | Баланс кошелька узла |
-| `/worker` | Локальный worker + unpaid accrual |
-| `/watch` | Алерт при новом `tip_height` |
-| `/unwatch` | Выключить алерты |
+| `/metrics` | Local PoH: target_mod, attempts/s, task kind, reward |
+| `/pool` | **Pool:** hashrate, active rigs, coordinator counters |
+| `/tasks` | **Orders/fuzzing:** open/completed, reward, progress |
+| `/blocks [n]` | Latest blocks (task kind, hash) |
+| `/wallet` | Node Wallet Balance |
+| `/worker` | Local worker + unpaid accrual |
+| `/watch` | Alert for new `tip_height` |
+| `/unwatch` | Turn off alerts |
 
-Кнопки под сообщениями дублируют команды (↻ = обновить).
+The buttons below the messages duplicate the commands (↻ = update).
 
-## Два разных бота — не путать
+## Two different bots - do not confuse them
 
-| Бот | Процесс | Назначение |
+| Bot | Process | Destination |
 |-----|---------|------------|
-| **Operator** (`cmd/telegrambot`) | `hackme-telegrambot.service` | **Ты** в личке: hashrate, блоки, pool, tasks |
-| **News channel** (`news_channel_bot.py`) | `hackme-news-bot.service` | Автопост новостей в канал @hackme_tech |
+| **Operator** (`cmd/telegrambot`) | `hackme-telegrambot.service` | **You** in PM: hashrate, blocks, pool, tasks |
+| **News channel** (`news_channel_bot.py`) | `hackme-news-bot.service` | Autopost news to the channel @hackme_tech |
 
-Для operator-бота нужен **отдельный** токен от [@BotFather](https://t.me/BotFather) (не тот же, что у канального news-бота, если не хотите смешивать роли).
+The operator bot needs a **separate** token from [@BotFather](https://t.me/BotFather) (not the same as the channel news bot, if you don’t want to mix roles).
 
-## Деплой на VPS (hackme.tech) — вариант A
+## Deploy to VPS (hackme.tech) - option A
 
-Один operator-бот на прод-узле (`127.0.0.1:18080`), отдельный токен от news-канала.
+One operator bot on the product node (`127.0.0.1:18080`), a separate token from the news channel.
 
-1. [@BotFather](https://t.me/BotFather) → **New bot** (не тот же, что для @hackme_tech).
-2. Локально (файл в `.gitignore`):
+1. [@BotFather](https://t.me/BotFather) → **New bot** (not the same as for @hackme_tech).
+2. Locally (file in `.gitignore`):
 
    ```bash
    echo '123456:ABC...' > .secrets/telegram_operator_bot_token
    chmod 600 .secrets/telegram_operator_bot_token
    ```
 
-3. Опционально — только ваш Telegram id ([@userinfobot](https://t.me/userinfobot)):
+3. Optional - only your Telegram id ([@userinfobot](https://t.me/userinfobot)):
 
    ```bash
    export HACKME_TELEGRAM_ALLOWED_USER_IDS=123456789
    ```
 
-4. С машины с SSH на VPS:
+4. From a machine with SSH to VPS:
 
    ```bash
    NODE_SSH=hackme-vps bash scripts/ops/setup_telegram_operator_bot.sh
    ```
 
-Скрипт собирает `hackme-telegrambot`, копирует `HACKME_ADMIN_TOKEN` из `/opt/hackme/.env.vps`, включает `hackme-telegrambot.service` (лог: `/opt/hackme/logs/telegram-operator-bot.log`).
+The script collects `hackme-telegrambot`, copies `HACKME_ADMIN_TOKEN` from `/opt/hackme/.env.vps`, includes `hackme-telegrambot.service` (log: `/opt/hackme/logs/telegram-operator-bot.log`).
 
-Без локального файла — на VPS:
+Without a local file - on VPS:
 
 ```bash
 echo 'TOKEN' | sudo tee /opt/hackme/.secrets/telegram_operator_bot_token
@@ -111,22 +111,22 @@ sudo chown hackme:hackme /opt/hackme/.secrets/telegram_operator_bot_token
 NODE_SSH=hackme-vps bash scripts/ops/setup_telegram_operator_bot.sh
 ```
 
-Узнай свой Telegram id: [@userinfobot](https://t.me/userinfobot).
+Find out your Telegram id: [@userinfobot](https://t.me/userinfobot).
 
-Старый список: `/digest`, `/status`, `/metrics`, `/wallet`, `/worker`, `/blocks`, `/watch`, `/unwatch`, `/about`, `/help` — см. ответ бота на `/start`.
+Old list: `/digest`, `/status`, `/metrics`, `/wallet`, `/worker`, `/blocks`, `/watch`, `/unwatch`, `/about`, `/help` - see answer bot on `/start`.
 
-## Сборка бинарника (VPS без исходников в PATH)
+## Build binary (VPS without sources in PATH)
 
 ```bash
 go build -o hackme-telegrambot ./cmd/telegrambot
 ./hackme-telegrambot
 ```
 
-Запускайте из каталога, где лежит `.env.telegram`, или всегда передавайте `-config`.
+Run from the directory where `.env.telegram` is, or always pass `-config`.
 
-## systemd (пример)
+## systemd (example)
 
-Подставьте пользователя и пути:
+Substitute user and paths:
 
 ```ini
 [Unit]
@@ -145,16 +145,16 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
-Узел HackMe (`go run .`) и бот — **разные процессы**; URL узла задаётся в `HACKME_TELEGRAM_NODE_URL`.
+HackMe node (`go run .`) and bot are **different processes**; The node URL is specified in `HACKME_TELEGRAM_NODE_URL`.
 
-## Безопасность
+## Safety
 
-- Токен бота = полный контроль над ботом; храните только в env / `EnvironmentFile`, не в git.
-- Файлы `.env.telegram` и `telegram_bot.env` перечислены в `.gitignore`.
-- Для публичного бота обязательно **`HACKME_TELEGRAM_ALLOWED_USER_IDS`**.
+- Bot token = full control over the bot; store only in env/`EnvironmentFile`, not in git.
+- Files `.env.telegram` and `telegram_bot.env` are listed under `.gitignore`.
+- For a public bot, **`HACKME_TELEGRAM_ALLOWED_USER_IDS`** is required.
 
-## Второй бот — канал для майнеров и сообщества
+## The second bot is a channel for miners and the community
 
-Отдельный процесс: **`scripts/ops/telegram/news_channel_bot.py`** публикует записи из **`assets/news.json`** в публичный Telegram-канал (нужны `TG_BOT_TOKEN`, `TG_CHAT_ID`). Не путать с операторским ботом выше: у канал-бота **нет** привязки к вашему узлу, только к ленте новостей и ссылкам на сайт.
+Separate process: **`scripts/ops/telegram/news_channel_bot.py`** publishes posts from **`assets/news.json`** to a public Telegram channel (needs `TG_BOT_TOKEN`, `TG_CHAT_ID`). Not to be confused with the operator bot above: the channel bot has **no** connection to your node, only to the news feed and links to the site.
 
-Полный чеклист: **`docs/TELEGRAM_NEWS_BOT_RUNBOOK.md`** (systemd `hackme-news-bot.service`, dry-run, ротация токена, watchdog).
+Full checklist: **`docs/TELEGRAM_NEWS_BOT_RUNBOOK.md`** (systemd `hackme-news-bot.service`, dry-run, token rotation, watchdog).

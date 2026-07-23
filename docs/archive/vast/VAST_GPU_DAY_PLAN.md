@@ -47,18 +47,18 @@ bash scripts/02_collect_report.sh
 
 ### On your PC (UI — mandatory)
 
-**Два экрана проверяем каждый прогон:**
+**Two screens we check each run:**
 
-1. **Локальный дашборд** (node на `:8080` должен быть запущен):  
-   - [http://127.0.0.1:8080/#mining](http://127.0.0.1:8080/#mining) — воркеры, GH/s, fleet (**если GPU >1 — все слоты / строки**)  
-   - [http://127.0.0.1:8080/#hardware](http://127.0.0.1:8080/#hardware) — GPU cards, tune hints (локальная машина; на Vast — только API probe)  
-   - [http://127.0.0.1:8080/#chain](http://127.0.0.1:8080/#chain) — высота, блоки, сложность (`pool_target_mod`, canonical tip)
+1. **Local dashboard** (node on `:8080` must be running):  
+   - [http://127.0.0.1:8080/#mining](http://127.0.0.1:8080/#mining) - workers, GH/s, fleet (**if GPU >1 - all slots / rows**)  
+   - [http://127.0.0.1:8080/#hardware](http://127.0.0.1:8080/#hardware) - GPU cards, tune hints (local machine; on Vast - only API probe)  
+   - [http://127.0.0.1:8080/#chain](http://127.0.0.1:8080/#chain) - height, blocks, difficulty (`pool_target_mod`, canonical tip)
 
-2. **Prod** (удалённые Vast-воркеры всегда здесь):  
+2. **Prod** (remote Vast workers are always here):
    - [https://hackme.tech/dashboard.html#mining](https://hackme.tech/dashboard.html#mining)  
    - [MPS HMC](https://miningpoolstats.app/coins/HMC)
 
-Авто-probe локальных API (без скриншота):
+Auto-probe local APIs (without screenshot):
 
 ```bash
 bash scripts/vast/local_dashboard_probe.sh vast-5090-01
@@ -68,13 +68,13 @@ Within **5–10 min** after worker start, confirm:
 
 | UI element | Pass if |
 |------------|---------|
-| **#mining → Active workers** | Row(s) with `WORKER_ID`; **2+ GPU fleet** → несколько строк (`-gpu0`, `-gpu1`, …) |
-| **#mining pool GH / difficulty** | `target_mod`, pool GH/s не «—» |
-| **Hive → Fleet** | Все активные worker id видны |
-| **#hardware** (local) | Карточки GPU на **твоём PC**; на Vast — см. inventory log |
-| **#chain** | tip растёт, блоки/lead miner по мере нахождений |
+| **#mining → Active workers** | Row(s) with `WORKER_ID`; **2+ GPU fleet** → several lines (`-gpu0`, `-gpu1`, …) |
+| **#mining pool GH / difficulty** | `target_mod`, pool GH/s not “—” |
+| **Hive → Fleet** | All active worker ids are visible |
+| **#hardware** (local) | GPU cards on **your PC**; on Vast - see inventory log |
+| **#chain** | tip grows, blocks/lead miner as they are found |
 | **Coordinator vs UI sync** | `03_ui_snapshot` + `local_dashboard_probe` — worker found |
-| **MPS** | workers + pool GH/s (задержка 1–5 min) |
+| **MPS** | workers + pool GH/s (delay 1–5 min) |
 
 Screenshot each model → `reports/vast-ui-screenshots/` (gitignored).
 

@@ -1,32 +1,32 @@
-# Казначейский ключ (DevFeeAddress)
+# Treasury key (DevFeeAddress)
 
-Адрес казны в консенсусе: **`HMC-719006d93916ad52`** (`internal/chain/economics.go`, поле `DevFeeAddress`). На него идёт genesis mint (50 000 HMC) и доли сетевых/платформенных комиссий по `policy_hash` в `/api/status`.
+Consensus treasury address: **`HMC-719006d93916ad52`** (`internal/chain/economics.go`, field `DevFeeAddress`). It uses genesis mint (50,000 HMC) and shares of network/platform commissions for `policy_hash` in `/api/status`.
 
-## Где лежит приватный ключ
+## Where is the private key
 
-- **Не** в git. Оператор хранит **32-байтовый Ed25519 seed** (64 hex), из которого выводится тот же `HMC-…`, что и у ноды: `sha256(pubkey_ed25519)` → первые 16 hex → префикс `HMC-`.
-- Рекомендуемый локальный файл (каталог `.secrets/` уже в `.gitignore`): **`.secrets/hackme_treasury_ed25519_seed.hex`** — одна строка, только hex, права `600`.
+- **Not** in git. The operator stores a **32-byte Ed25519 seed** (64 hex), from which the same `HMC-…` as the node is derived: `sha256(pubkey_ed25519)` → first 16 hex → prefix `HMC-`.
+- Recommended local file (directory `.secrets/` already in `.gitignore`): **`.secrets/hackme_treasury_ed25519_seed.hex`** - one line, hex only, rights `600`.
 
-## Смена казны перед запуском сети
+## Changing the treasury before launching the network
 
-1. Сгенерировать новую пару (случайный seed):  
+1. Generate a new pair (random seed):
    `go run ./tools/gen_treasury_key`  
-   В выводе: `NEW_DEV_FEE_ADDRESS`, `NEW_TREASURY_SEED_FILE` (seed пишется только в 0600-файл, не в stdout), `NEW_POLICY_HASH`.
-2. Подставить новый адрес в `DevFeeAddress` в `internal/chain/economics.go`.
-3. Обновить ожидаемый `policy_hash` в `internal/chain/economics_test.go` (`TestLockedPolicyHash`).
-4. `go test ./internal/chain ./...` и правки в README / `docs/API.md` под новый адрес.
-5. **Новая цепь:** пустая `data/`, заново `POST /api/genesis`; все узлы — **один** билд и один `policy_hash`, иначе P2P отрежет пира.
+In the output: `NEW_DEV_FEE_ADDRESS`, `NEW_TREASURY_SEED_FILE` (seed is written only to the 0600 file, not to stdout), `NEW_POLICY_HASH`.
+2. Substitute the new address in `DevFeeAddress` into `internal/chain/economics.go`.
+3. Update expected `policy_hash` to `internal/chain/economics_test.go` (`TestLockedPolicyHash`).
+4. `go test ./internal/chain ./...` and changes to README / `docs/API.md` for the new address.
+5. **New chain:** empty `data/`, new `POST /api/genesis`; all nodes are **one** build and one `policy_hash`, otherwise P2P will cut off the peer.
 
-## Траты с казны (биржа, ликвидность)
+## Expenses from the treasury (exchange, liquidity)
 
-Подписывайте обычные `transfer_v1` с казначейского ключа (тот же формат, что у ноды: seed → pubkey → подпись). Депозит биржи — поле `to` в переводе.
+Sign the usual `transfer_v1` from the treasury key (same format as the node: seed → pubkey → signature). Exchange deposit - field `to` in translation.
 
-## Деплой на VPS (оператор)
+## Deploy to VPS (operator)
 
-Я **не подключаюсь** к вашему VPS по SSH — это делаете вы. Краткий порядок:
+I **don't connect** to your VPS via SSH - you do. Brief order:
 
-1. **Собрать** тот же коммит, что и на всех узлах (локально уже можно взять `dist/hackme-node-linux-amd64` или пересобрать на сервере: `go build -trimpath -o /opt/hackme/hackme-node .`).
-2. **Остановить** сервис, **сохранить** старый `data/`, при смене `policy_hash` — **новая** директория `data/` (или осознанный reseed).
-3. **Скопировать** бинарник + `scripts/ops/systemd/hackme-node.service`, переменные из `.env.vps` (см. `scripts/ops/vps_bootstrap.sh`), **не** класть сид казны в git — только на сервер в защищённый файл (аналог `.secrets/hackme_treasury_ed25519_seed.hex`, `chmod 600`).
-4. **Запустить** ноду, **`POST /api/genesis`** с admin-токеном один раз — после этого в `GET /api/status` → `economics.dev_fee_address` будет **`HMC-719006d93916ad52`**, mint 50k уйдёт на этот адрес.
-5. Windows: для десктопа используйте `dist/hackme.exe` или полный zip из `scripts/release/make_release_bundle.sh`, если нужен инсталлятор.
+1. **Build** the same commit as on all nodes (locally you can already take `dist/hackme-node-linux-amd64` or rebuild on the server: `go build -trimpath -o /opt/hackme/hackme-node .`).
+2. **Stop** the service, **save** the old `data/`, when changing `policy_hash` - **new** directory `data/` (or conscious reseed).
+3. **Copy** the binary + `scripts/ops/systemd/hackme-node.service`, variables from `.env.vps` (see `scripts/ops/vps_bootstrap.sh`), **do not** put the treasury seed in git - only on the server in a protected file (analogous to `.secrets/hackme_treasury_ed25519_seed.hex`, `chmod 600`).
+4. **Start** the node, **`POST /api/genesis`** with the admin token once - after that in `GET /api/status` → `economics.dev_fee_address` there will be **`HMC-719006d93916ad52`**, mint 50k will go to this address.
+5. Windows: For desktop use `dist/hackme.exe` or full zip from `scripts/release/make_release_bundle.sh` if you need an installer.

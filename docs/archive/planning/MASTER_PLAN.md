@@ -1,168 +1,168 @@
-# HackMe — мастер-план развития
+# HackMe - development master plan
 
 > **Historical (2025).** Superseded by **[PRODUCTION_MASTER_ROADMAP.md](PRODUCTION_MASTER_ROADMAP.md)** and **[../STATUS.md](../STATUS.md)**. Kept for early MVP context only.
 
-Документ объединяет исходный план («скелет блокчейна → леджер → WASM»), текущее состояние кода и **пробелы**, которые нужно закрыть для зрелой системы. Файл плана в Cursor не заменяет: это живая дорожная карта **в репозитории**.
+The document brings together the initial plan (“blockchain skeleton → ledger → WASM”), the current state of the code, and the **gaps** that need to be closed for a mature system. The plan file in Cursor is not a replacement: it is a living roadmap **in the repository**.
 
 ---
 
-## 1. Видение и границы MVP
+## 1. Vision and boundaries of MVP
 
-**Цель продукта:** локальный «узел командования» с реальной цепочкой блоков на диске, наградой за генезис и демонстрацией **Proof-of-Hack** как поиска решения в **WASM**-замке (не ломать чужие системы — только синтетические задачи в песочнице).
+**Product Goal:** a local “command node” with a real blockchain on disk, a genesis reward and a demonstration of **Proof-of-Hack** as finding a solution in a **WASM** castle (do not break other people's systems - only synthetic problems in the sandbox).
 
-**Вне scope MVP:** mainnet, P2P-синхронизация, ZK-доказательства, листинги бирж, B2B-заказы аудита.
+**Outside the scope of MVP:** mainnet, P2P synchronization, ZK proofs, exchange listings, B2B audit orders.
 
 ---
 
-## 2. Карта каталогов (укомплектование)
+## 2. Catalog map (staffing)
 
 ```
 HackMe/
-├── README.md                 # входная точка
+├── README.md                 # entry point
 ├── go.mod / go.sum
-├── main.go                   # HTTP, wiring, маршруты
+├── main.go                   # HTTP, wiring, routes
 ├── dashboard.html            # UI (embed)
 ├── metrics.go                # /api/metrics (gopsutil + nvidia-smi)
 │
-├── docs/                     # человеческая документация
-│   ├── MASTER_PLAN.md        # этот файл
-│   ├── ARCHITECTURE.md       # архитектура и потоки
-│   ├── API.md                # контракт HTTP
-│   └── SECURITY.md           # модель угроз MVP, токен админа, чеклист на сеть
+├── docs/                     # human documentation
+│   ├── MASTER_PLAN.md        # this file
+│   ├── ARCHITECTURE.md       # architecture and flows
+│   ├── API.md                # HTTP contract
+│   └── SECURITY.md           # MVP threat model, admin token, network checklist
 │
-├── spec/                     # нормативные спецификации (форматы, правила)
+├── spec/                     # normative specs (formats, rules)
 │   └── CHAIN_SPEC.md
 │
-├── internal/                 # код приложения (не импортируется извне)
-│   ├── block/                # структура блока, SHA-256, генезис
-│   ├── chain/                # сервис цепи, кошелёк, майнер
-│   ├── store/                # SQLite, миграции
+├── internal/                 # application code (not imported from outside)
+│   ├── block/                # block structure, SHA-256, genesis
+│   ├── chain/                # chain service, wallet, miner
+│   ├── store/                # SQLite, migrations
 │   └── sandbox/              # WASM eval (wazero)
 │
-├── data/                     # runtime: hackme.db (не коммитить при желании)
-├── tools/                    # заготовка: скрипты сборки, codegen WASM
-├── scripts/                  # заготовка: деплой, бэкап БД
-└── testdata/                 # заготовка: бинарные .wasm для будущих тестов
+├── data/                     # runtime: hackme.db (optionally untracked)
+├── tools/                    # stub: build scripts, WASM codegen
+├── scripts/                  # stub: deploy, DB backup
+└── testdata/                 # stub: binary .wasm for future tests
 ```
 
-**Правило:** всё новое по домену класть в `internal/<домен>`; «что и зачем» — в `docs/` и `spec/`.
+**Rule:** put everything new in the domain in `internal/<domain>`; “what and why” - in `docs/` and `spec/`.
 
 ---
 
-## 3. Исходный план — статус выполнения
+## 3. Initial plan - execution status
 
-### Фаза 1 — Скелет блокчейна (данные + генезис + кнопка)
+### Phase 1 - Blockchain Skeleton (Data + Genesis + Button)
 
-| Требование | Статус | Где в коде |
+| Requirement | Status | Where in the code |
 |--------------|--------|------------|
-| `Task`, `Block`, `Index`, `Timestamp`, `Hash`, `PrevHash`, `Nonce`, `MinerAddress` | **Сделано** | `internal/block/types.go` |
-| Каноническая сериализация + SHA-256 | **Сделано** | `internal/block/hash.go` |
-| Генезис, `PrevHash` = 64 нуля, награда 0 HMC (production policy) | **Сделано** | `internal/block/genesis.go` |
-| `POST /api/genesis`, повтор → 409 | **Сделано** | `main.go`, `internal/chain/service.go` |
-| Лог сервера с хэшем + UI | **Сделано** | `main.go`, `dashboard.html` |
+| `Task`, `Block`, `Index`, `Timestamp`, `Hash`, `PrevHash`, `Nonce`, `MinerAddress` | **Done** | `internal/block/types.go` |
+| Canonical serialization + SHA-256 | **Done** | `internal/block/hash.go` |
+| Genesis, `PrevHash` = 64 zeros, reward 0 HMC (production policy) | **Done** | `internal/block/genesis.go` |
+| `POST /api/genesis`, repeat → 409 | **Done** | `main.go`, `internal/chain/service.go` |
+| Server log with hash + UI | **Done** | `main.go`, `dashboard.html` |
 
-**Дополнение к плану (рекомендуется дальше):** версия схемы блока (`schema_version`), явное поле `reward` в блоке для аудита эмиссии.
+**Addition to the plan (further recommended):** block diagram version (`schema_version`), explicit field `reward` in the block for emission audit.
 
-### Фаза 2 — Локальное хранилище
+### Phase 2 - Local Storage
 
-| Требование | Статус | Где в коде |
+| Requirement | Status | Where in the code |
 |--------------|--------|------------|
-| SQLite без CGO | **Сделано** | `modernc.org/sqlite`, `internal/store/sqlite.go` |
-| Таблицы blocks / meta / wallet | **Сделано** | миграции в `store.Open` |
-| `GET /api/wallet`, `GET /api/chain` | **Сделано** | `main.go` |
-| Загрузка состояния после рестарта | **Сделано** | UI: `refreshWallet` / `refreshStatus` |
+| SQLite without CGO | **Done** | `modernc.org/sqlite`, `internal/store/sqlite.go` |
+| Tables blocks/meta/wallet | **Done** | migration to `store.Open` |
+| `GET /api/wallet`, `GET /api/chain` | **Done** | `main.go` |
+| Loading state after restart | **Done** | UI: `refreshWallet` / `refreshStatus` |
 
-**Пробелы:** бэкап БД, экспорт цепи в файл. ~~`PRAGMA user_version`~~ — `internal/store.CurrentSchemaVersion` + bump в `migrate()`; видно в `GET /api/status` как `schema_version` / `schema_expected`.
+**Spaces:** database backup, chain export to file. ~~`PRAGMA user_version`~~ — `internal/store.CurrentSchemaVersion` + bump in `migrate()`; seen in `GET /api/status` as `schema_version` / `schema_expected`.
 
-### Фаза 3 — WASM-песочница и майнинг
+### Phase 3 - WASM sandbox and mining
 
-| Требование | Статус | Где в коде |
+| Requirement | Status | Where in the code |
 |--------------|--------|------------|
-| wazero, минимальный модуль | **Сделано** | `internal/sandbox/eval.go` (hex-модуль `eval`) |
-| Воркер перебора, лог попыток | **Сделано** | `internal/chain/miner.go` |
-| UI Mining + логи (SSE + откат на polling) | **Сделано** | `dashboard.html`, `GET /api/mining/logs/stream`, `GET /api/mining/logs` |
+| wazero, minimal module | **Done** | `internal/sandbox/eval.go` (hex module `eval`) |
+| Search worker, log of attempts | **Done** | `internal/chain/miner.go` |
+| UI Mining + logs (SSE + rollback to polling) | **Done** | `dashboard.html`, `GET /api/mining/logs/stream`, `GET /api/mining/logs` |
 
-**Пробелы относительно «идеала» плана:**
+**Gaps regarding the “ideal” plan:**
 
-- **SSE** только для **логов майнинга**; телеметрия и графики — по-прежнему **polling** `GET /api/metrics`.
-- Нет **`RunLock(input []byte)`** с таймаутом и лимитом fuel — сейчас только `Eval(nonce uint64)`; следующий шаг: обёртка `context.WithTimeout` + счётчик шагов/ fuel API wazero.
-- WASM зашит **hex** в коде, не `testdata/*.wasm` — для команды удобнее положить артефакт в `testdata/` и `//go:embed`.
-
----
-
-## 4. Chain ID и именование сети
-
-Константа: **`hackme-dev-mainnet`** (`internal/block/genesis.go`). Отображается в шапке дашборда.
-
-**Рекомендация:** для публичного тестнета позже завести `hackme-testnet-1` и вынести в конфиг (`HACKME_CHAIN_ID`).
+- **SSE** only for **mining logs**; telemetry and graphs are still **polling** `GET /api/metrics`.
+- No **`RunLock(input []byte)`** with timeout and fuel limit - now only `Eval(nonce uint64)`; next step: wrapper `context.WithTimeout` + step counter/ fuel API wazero.
+- WASM is hardcoded **hex** in the code, not `testdata/*.wasm` - it’s more convenient for the team to put the artifact in `testdata/` and `//go:embed`.
 
 ---
 
-## 5. Расширенный бэклог (чего не хватало в коротком плане)
+## 4. Chain ID and network naming
 
-Приоритет сверху вниз — настраиваемый, но логичный порядок.
+Constant: **`hackme-dev-mainnet`** (`internal/block/genesis.go`). Displayed in the dashboard header.
 
-### A. Целостность и безопасность узла
-
-- Подпись блоков / транзакций (Ed25519 или ECDSA), отдельный `internal/wallet`.
-- Проверка цепи при старте (rehash от генезиса до tip).
-- Лимиты на размер JSON блока, rate limit на API.
-
-### B. Консенсус и сеть (после стабилизации одного узла)
-
-- P2P gossip (libp2p или самописный UDP/TCP), общий `internal/net`.
-- Синхронизация: запрос блоков по высоте / по хэшу.
-
-### C. Proof-of-Hack «по-взрослому»
-
-- Задачи как **WASM + manifest** (лимиты памяти, таймаут, версия ABI).
-- Верификация решения всеми нодами одинаково (детерминизм).
-- Опционально: **ZK** только после фиксации языка утверждений (что именно доказываем).
-
-### D. Продукт и операции
-
-- Конфиг YAML/ENV (`internal/config`).
-- Логи структурированные (slog), уровни.
-- Метрики Prometheus с `/metrics`.
-
-### E. Юридика и этика (для реальных заказчиков)
-
-- Только код с **согласием** владельца; техническая модель угроз — `docs/SECURITY.md`; отдельная юридическая политика — при необходимости вне репо.
-- Не позиционировать сеть как инструмент взлома третьих лиц.
-
-### F. Качество
-
-- `go test ./...` в CI, `golangci-lint`.
-- E2E: поднять сервер, `POST /api/genesis`, проверить БД.
+**Recommendation:** for a public testnet, later create `hackme-testnet-1` and put it in the config (`HACKME_CHAIN_ID`).
 
 ---
 
-## 6. Следующие конкретные шаги (итерация 2–3)
+## 5. Extended backlog (what was missing in the short plan)
 
-1. Вынести **таймаут WASM** и **лимит** в `internal/sandbox` + тест на зависание.
-2. Добавить **`testdata/lock.wasm`** + `go:embed`, убрать дублирование hex (или codegen в `tools/`).
-3. ~~**Блок #1+ при успешном PoH**~~ — `chain.Service.AppendPoHBlock`. ~~**Динамический `poh_target_mod`**~~ — `internal/chain/retarget.go`. ~~**Манифесты `./tasks` + `TaskProvider`**~~ — `internal/chain/taskprovider.go`. ~~**Заготовка пула (mock + `push_work` + UI Hive)**~~ — `pool.go`, `dashboard.html`, `/api/network/stats`.
-4. **LAN coordinator** (или первый P2P gossip): подмена mock в `/api/network/stats`, выдача work воркерам.
-5. ~~**SSE** для логов майнинга~~ — `GET /api/mining/logs/stream`. Дальше: SSE/WebSocket для метрик или оставить polling.
-6. ~~**`PRAGMA user_version`**~~ — см. `internal/store/sqlite.go` (`CurrentSchemaVersion`); при смене схемы — новый шаг в `migrate()` и bump константы.
+Top to bottom priority - customizable but logical order.
+
+### A. Node Integrity and Security
+
+- Block/transaction signing (Ed25519 or ECDSA), separate `internal/wallet`.
+- Checking the chain at start (rehash from genesis to tip).
+- Limits on JSON block size, rate limit on API.
+
+### B. Consensus and Network (after one node has stabilized)
+
+- P2P gossip (libp2p or custom UDP/TCP), general `internal/net`.
+- Synchronization: request blocks by height / hash.
+
+### C. Proof-of-Hack “in an adult way”
+
+- Tasks like **WASM + manifest** (memory limits, timeout, ABI version).
+- Verification of the solution by all nodes equally (determinism).
+- Optional: **ZK** only after fixing the language of the statements (what exactly we are proving).
+
+### D. Product and Operations
+
+- YAML/ENV config (`internal/config`).
+- Structured logs (slog), levels.
+- Prometheus Metrics with `/metrics`.
+
+### E. Legal and ethics (for real customers)
+
+- Only code with **consent** of the owner; technical threat model - `docs/SECURITY.md`; separate legal policy - if necessary, outside the repo.
+- Do not position the network as a tool for hacking third parties.
+
+### F. Quality
+
+- `go test ./...` in CI, `golangci-lint`.
+- E2E: raise the server, `POST /api/genesis`, check the database.
 
 ---
 
-## 7. Риски (кратко)
+## 6. Next concrete steps (iteration 2–3)
 
-| Риск | Митигация |
+1. Carry out **WASM timeout** and **limit** in `internal/sandbox` + freezing test.
+2. Add **`testdata/lock.wasm`** + `go:embed`, remove duplicate hex (or codegen in `tools/`).
+3. ~~**Block #1+ with successful PoH**~~ - `chain.Service.AppendPoHBlock`. ~~**Dynamic `poh_target_mod`**~~ - `internal/chain/retarget.go`. ~~**Manifestos `./tasks` + `TaskProvider`**~~ — `internal/chain/taskprovider.go`. ~~**Pool preparation (mock + `push_work` + UI Hive)**~~ - `pool.go`, `dashboard.html`, `/api/network/stats`.
+4. **LAN coordinator** (or the first P2P gossip): replacing the mock in `/api/network/stats`, issuing work to workers.
+5. ~~**SSE** for mining logs~~ - `GET /api/mining/logs/stream`. Next: SSE/WebSocket for metrics or leave polling.
+6. ~~**`PRAGMA user_version`**~~ - see `internal/store/sqlite.go` (`CurrentSchemaVersion`); when changing the circuit - a new step in `migrate()` and find constants.
+
+---
+
+## 7. Risks (briefly)
+
+| Risk | Mitigation |
 |------|-----------|
-| Двойной генезис | UNIQUE `block_index`, 409 API |
-| WASM DoS | таймаут `context`, `RuntimeConfig.WithMemoryLimitPages` на рантаймах песочницы (см. `internal/sandbox`) |
-| Потеря `data/hackme.db` | бэкап в `scripts/`, документировать |
-| Регуляторные риски токена | не ICO, прозрачный код, utility-фокус в доках |
+| Dual Genesis | UNIQUE `block_index`, 409 API |
+| WASM DoS | timeout `context`, `RuntimeConfig.WithMemoryLimitPages` on sandbox runtimes (see `internal/sandbox`) |
+| Loss `data/hackme.db` | backup in `scripts/`, document |
+| Regulatory risks of the token | non-ICO, transparent code, utility focus in the docks |
 
 ---
 
-## 8. Связь с артефактами
+## 8. Connection with artifacts
 
-- Детали HTTP → [API.md](API.md)
-- Модули и диаграммы → [ARCHITECTURE.md](ARCHITECTURE.md)
-- Байт-уровень блока и хэш → [../spec/CHAIN_SPEC.md](../spec/CHAIN_SPEC.md)
+- HTTP details → [API.md](API.md)
+- Modules and diagrams → [ARCHITECTURE.md](ARCHITECTURE.md)
+- Block byte level and hash → [../spec/CHAIN_SPEC.md](../spec/CHAIN_SPEC.md)
 
-*Обновляйте этот файл при смене фаз или появлении новых модулей.*
+*Update this file when phases change or new modules become available.*

@@ -1,4 +1,4 @@
-# Архитектура HackMe (MVP)
+# HackMe Architecture (MVP)
 
 <div align="center">
 
@@ -6,11 +6,11 @@
 
 </div>
 
-## Обзор
+## Review
 
-Один процесс Go поднимает HTTP-сервер. Состояние цепи и кошелька хранится в **SQLite**. Тяжёлые или изолированные вещи: сбор метрик ОС, исполнение **WASM** в отдельном рантайме wazero, фоновый майнер.
+One Go process brings up the HTTP server. The state of the chain and wallet is stored in **SQLite**. Heavy or isolated things: collecting OS metrics, executing **WASM** in a separate wazero runtime, background miner.
 
-**Безопасность (MVP):** слушатель только **`127.0.0.1`**; опционально **`HACKME_ADMIN_TOKEN`** + `requireAdminAuth` в `admin_auth.go` для выбранных POST. Модель угроз и чеклист перед выходом в сеть — **`docs/SECURITY.md`**.
+**Security (MVP):** listener only **`127.0.0.1`**; optional **`HACKME_ADMIN_TOKEN`** + `requireAdminAuth` in `admin_auth.go` for selected POSTs. Threat model and checklist before going online - **`docs/SECURITY.md`**.
 
 ```mermaid
 flowchart TB
@@ -37,36 +37,36 @@ flowchart TB
   MN --> CH
 ```
 
-## Пакеты `internal/`
+## Packages `internal/`
 
-| Пакет | Ответственность |
+| Package | Responsibility |
 |-------|-----------------|
-| `block` | DTO блока и задачи, канонический JSON для хэша, SHA-256, фабрика генезиса |
-| `chain` | Транзакции с БД: генезис, **AppendPoHBlock**, кошелёк, список блоков, tip; таблица **`tasks`** + **StoreTaskProvider** (приоритет платных заказов над `File`/`Internal`); оркестрация майнера |
-| `store` | Открытие SQLite, миграции DDL |
-| `sandbox` | Компиляция/инстанс WASM, вызов `eval` |
+| `block` | Block and Task DTO, Canonical JSON for Hash, SHA-256, Genesis Factory |
+| `chain` | Database transactions: genesis, **AppendPoHBlock**, wallet, list of blocks, tip; table **`tasks`** + **StoreTaskProvider** (priority of paid orders over `File`/`Internal`); miner orchestration |
+| `store` | Opening SQLite, DDL migrations |
+| `sandbox` | Compile/instance WASM, call `eval` |
 
-## Поток: генезис
+## Flow: genesis
 
-1. Клиент `POST /api/genesis`.
-2. `chain.Service.InitGenesis` под mutex: проверка отсутствия блока 0 → `block.NewGenesisBlock` (miner = нода) → `INSERT` блок + primary `wallet` + `accounts` (mint на `DevFeeAddress` при ненулевом `GenesisRewardHMC`) + meta.
-3. Ответ JSON; сервер пишет в stdout полный JSON блока.
+1. Client `POST /api/genesis`.
+2. `chain.Service.InitGenesis` under mutex: checking for the absence of block 0 → `block.NewGenesisBlock` (miner = node) → `INSERT` block + primary `wallet` + `accounts` (mint on `DevFeeAddress` with non-zero `GenesisRewardHMC`) + meta.
+3. JSON response; the server writes the full JSON block to stdout.
 
-## Поток: майнинг
+## Stream: mining
 
-1. `POST /api/mining/start` (после генезиса).
-2. Активная задача: снимок `TaskProvider.Snapshot` (раз в ~2 с и при старте) — встроенная синтетика или последний `tasks/*.json`; награда из манифеста может подменять дефолт майнера.
-3. Пул воркеров `runtime.NumCPU()`: нативный перебор `n*7+13` батчами; лог/консоль — тикер **2 с**; `sandbox.Eval` один раз на найденный nonce (верификация).
-4. Условие победы: `eval(nonce) % M == 0` для текущего `M` из `meta.poh_target_mod` → `AppendPoHBlock` (новый блок, обновление `tip_hash`, ретаргет `M` **каждые 5 блоков** по окну ~30 с/блок, награда из майнера) → сброс счётчика попыток, **поиск продолжается** до `POST /api/mining/stop`.
-5. UI: метрики `GET /api/metrics` (~2 с); логи майнинга — **SSE** `GET /api/mining/logs/stream` при активном PoH, иначе откат на `GET /api/mining/logs`.
+1. `POST /api/mining/start` (after genesis).
+2. Active task: snapshot `TaskProvider.Snapshot` (every ~2 s and at start) - built-in synthetics or the last one `tasks/*.json`; the reward from the manifest can replace the miner's default.
+3. Pool of workers `runtime.NumCPU()`: native search `n*7+13` in batches; log/console - ticker **2 s**; `sandbox.Eval` once per found nonce (verification).
+4. Victory condition: `eval(nonce) % M == 0` for the current `M` from `meta.poh_target_mod` → `AppendPoHBlock` (new block, update `tip_hash`, retarget `M` **every 5 blocks** window ~30 s/block, reward from miner) → reset the attempt counter, **search continues** until `POST /api/mining/stop`.
+5. UI: metrics `GET /api/metrics` (~2 s); mining logs - **SSE** `GET /api/mining/logs/stream` with active PoH, otherwise rollback to `GET /api/mining/logs`.
 
-## Зависимости внешние
+## External dependencies
 
 - `github.com/shirou/gopsutil/v3` — CPU/RAM/disk/net.
-- `modernc.org/sqlite` — БД без CGO.
+- `modernc.org/sqlite` - database without CGO.
 - `github.com/tetratelabs/wazero` — WASM.
 
-## Что намеренно не сделано
+## What is intentionally not done
 
-- Нет отдельного процесса ноды и воркера: всё в одном бинарнике.
-- Нет P2P: «peers» в UI — заглушка для будущего.
+- There is no separate node and worker process: everything is in one binary.
+- No P2P: “peers” in the UI is a placeholder for the future.

@@ -1,49 +1,49 @@
-# HackMe — модель безопасности (MVP / локальный узел)
+# HackMe - security model (MVP / local node)
 
-Документ задаёт **честные ожидания**: что защищено сейчас, что сознательно не делается до выхода в сеть, и **чеклист** на момент, когда узел станет доступен не только с localhost.
+The document sets **honest expectations**: what is protected now, what is deliberately not done before going online, and **checklist** for the moment when the node becomes accessible not only from localhost.
 
-Это не аудит «как у банка» и не юридическая гарантия.
+This is not a “bank-like” audit or a legal guarantee.
 
 ---
 
-## 1. Текущая модель доверия
+## 1. Current trust model
 
-| Аспект | Поведение |
+| Aspect | Behavior |
 |--------|-----------|
-| Сеть | HTTP-сервер слушает **`127.0.0.1`** — удалённый интернет **не** достучится до API, пока вы сами не пробросите порт / reverse-proxy. |
-| Пользователь ОС | Любой процесс **от вашего имени** на той же машине может вызывать `http://127.0.0.1:8080/...` так же, как браузер. |
-| «Кошелёк» | Одна строка **`wallet`** в SQLite (`balance_hmc`) — **учёт внутри ноды**, не отдельный аппаратный/HSM-кошелёк. |
-| Ключ **Ed25519** (`data/node_ed25519.seed`) | Подпись ответов API (например заказов), права доступа к файлу — у пользователя ОС. |
-| Дашборд | Статическая страница с `localhost`. Admin token **не** встраивается в HTML и **не** отдаётся `/api/desktop/local-auth`, пока явно не задан **`HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1`** (только loopback + desktop mode). Иначе токен задаётся локально на клиенте (`sessionStorage`). |
+| Network | The HTTP server listens to **`127.0.0.1`** - the remote Internet **will not** reach the API until you forward the port / reverse-proxy yourself. |
+| OS user | Any process **on your behalf** on the same machine can call `http://127.0.0.1:8080/...` just like a browser. |
+| "Wallet" | One line **`wallet`** in SQLite (`balance_hmc`) - **accounting within a node**, not a separate hardware/HSM wallet. |
+| Key **Ed25519** (`data/node_ed25519.seed`) | Signing of API responses (for example, orders), access rights to the file are with the OS user. |
+| Dashboard | Static page with `localhost`. The Admin token is **not** embedded in HTML and **not** given to `/api/desktop/local-auth` unless explicitly set to **`HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1`** (loopback + desktop mode only). Otherwise, the token is set locally on the client (`sessionStorage`). |
 
 ---
 
-## 2. Что уже есть (мигация угроз)
+## 2. What already exists (threat migration)
 
-- **Admin token policy:** по умолчанию запуск требует **`HACKME_ADMIN_TOKEN`** (`HACKME_REQUIRE_ADMIN_TOKEN=1`). Явное ослабление только для локальной отладки: `HACKME_REQUIRE_ADMIN_TOKEN=0`.
-- Мутирующие **POST** требуют заголовок **`X-Hackme-Admin-Token: <token>`** или **`Authorization: Bearer <token>`**. При ошибке — **401 Unauthorized** с `WWW-Authenticate`.
-- Защищаются: **`POST /api/genesis`**, **`POST /api/mining/start`**, **`POST /api/mining/stop`**, **`POST /api/worker/start`**, **`POST /api/worker/stop`**, **`POST /api/tasks`**, **`POST /api/tasks/from_code`**, **`POST /api/push_work`** (тело до **1 MiB**, как и для прочих крупных JSON), **`POST /api/hardware/tune`**, а также админ-ветки **fuzz** (см. `fuzz_campaigns.go`). Чтение (GET метрики, цепь, логи, SSE логов, **`GET /api/hardware/tune`**, **`GET /api/worker/status`**) — без токена.
-- Для private testnet P2P: при заданном **`HACKME_P2P_TOKEN`** эндпоинты **`/api/p2p/*`** требуют `X-Hackme-P2P-Token`.
-- Для anti-spam введён базовый rate-limit: `POST /api/tx/send`, `POST /api/tasks`, `POST /api/p2p/tx`, `POST /api/push_work` получают **429** при всплеске.
-- Добавлены anti-drain лимиты по эскроу заказов: `HACKME_MAX_ORDER_ESCROW_PER_HOUR_HMC` (по умолчанию ограничение в час).
-- **SQLite `PRAGMA user_version`** — версия схемы после миграций; в **`GET /api/status`**: `schema_version`, `schema_expected`.
-- **WASM:** таймаут на вызовы, лимит размера check-модуля, лимит памяти рантайма wazero (см. `internal/sandbox`). Файлы заказов: только под **`tasks/artifacts/`** (или **`HACKME_TASK_ARTIFACT_DIR`**), относительный путь без `..`.
-- **WASM hardening:** строгая проверка заголовка/версии модуля, только экспорт `check(i64)->i32`, пробный вызов при валидации, quarantine невалидных модулей по hash (по умолчанию блокируется повторная загрузка quarantined хеша). Отклоняются start-секция и чрезмерные **table/element** секции (H44). Настройки: `HACKME_SANDBOX_MAX_CHECK_WASM_BYTES`, `HACKME_SANDBOX_CHECK_TIMEOUT_MS`, `HACKME_SANDBOX_BLOCK_QUARANTINED`.
-- **`POST /api/tasks/from_code`:** компилятор по возможности запускается под **bwrap** / **nsjail** (`wrapCompilerCmd`) с **узкими** RO-bind (toolchain + workdir), **без** `--ro-bind / /` (иначе `include_str!("/etc/...")` утекает в `compile_log`). Без sandbox helper — **host compile — только lab**. Гейт: **`HACKME_FROM_CODE`** (`0`/`1`; если не задан — включено только на loopback bind). Прод/VPS: **`HACKME_FROM_CODE=0`**, плюс **`HACKME_FROM_CODE_REQUIRE_SANDBOX=1`** если compile всё же нужен локально.
-- **`.gitignore`:** `data/node_ed25519.seed` — не коммитить ключ.
-- **Блоки PoH / синхронизация:** при записи блока проверяется согласованность поля `hash` с заголовком (`verifyBlockIntegrityAndSignature` в `internal/chain/service.go`). Подпись майнера **Ed25519** проверяется по сообщению **`hash` блока**, если поля подписи заданы; **полностью пустые** поля подписи допускаются для совместимости с историческими цепочками без подписи. На пути P2P staging/apply при наличии подписи действует та же логика (`verifySyncBlockSignature` в `main.go`); подделка `hash` или подписи под другой ключ отсекается. Направление ужесточения: опциональный режим «все новые блоки только signed» (отдельная задача/флаг).
-- **Локальный WASM PoH по HTTP:** только если процесс запущен с **`HACKME_CHAIN_LEADER_LOCAL_POH=1`** (command-node). Обычные узлы / участники пула майнят через **`POST /api/worker/start`** и **`HACKME_POOL_COORDINATOR_URL`**. **`HACKME_BEGINNER_SOLO`** удалён (см. `docs/BEGINNER_SOLO.md`).
+- **Admin token policy:** by default launch requires **`HACKME_ADMIN_TOKEN`** (`HACKME_REQUIRE_ADMIN_TOKEN=1`). Explicit mitigation for local debugging only: `HACKME_REQUIRE_ADMIN_TOKEN=0`.
+- Mutating **POST** require a **`X-Hackme-Admin-Token: <token>`** or **`Authorization: Bearer <token>`** header. In case of error - **401 Unauthorized** with `WWW-Authenticate`.
+- Defended by: **`POST /api/genesis`**, **`POST /api/mining/start`**, **`POST /api/mining/stop`**, **`POST /api/worker/start`**, **`POST /api/worker/stop`**, **`POST /api/tasks`**, **`POST /api/tasks/from_code`**, **`POST /api/push_work`** (body up to **1 MiB**, as for other large JSON), **`POST /api/hardware/tune`**, as well as the admin branches **fuzz** (see `fuzz_campaigns.go`). Reading (GET metrics, chain, logs, SSE logs, **`GET /api/hardware/tune`**, **`GET /api/worker/status`**) - without a token.
+- For private testnet P2P: given **`HACKME_P2P_TOKEN`** endpoints **`/api/p2p/*`** require `X-Hackme-P2P-Token`.
+- A basic rate-limit has been introduced for anti-spam: `POST /api/tx/send`, `POST /api/tasks`, `POST /api/p2p/tx`, `POST /api/push_work` get **429** when there is a surge.
+- Added anti-drain limits on escrow orders: `HACKME_MAX_ORDER_ESCROW_PER_HOUR_HMC` (default limit is per hour).
+- **SQLite `PRAGMA user_version`** — schema version after migrations; in **`GET /api/status`**: `schema_version`, `schema_expected`.
+- **WASM:** timeout for calls, check-module size limit, wazero runtime memory limit (see `internal/sandbox`). Order files: only under **`tasks/artifacts/`** (or **`HACKME_TASK_ARTIFACT_DIR`**), relative path without `..`.
+- **WASM hardening:** strict check of module header/version, `check(i64)->i32` export only, test call during validation, quarantine of invalid modules by hash (by default, re-download of quarantined hash is blocked). The start section and excessive **table/element** sections are rejected (H44). Settings: `HACKME_SANDBOX_MAX_CHECK_WASM_BYTES`, `HACKME_SANDBOX_CHECK_TIMEOUT_MS`, `HACKME_SANDBOX_BLOCK_QUARANTINED`.
+- **`POST /api/tasks/from_code`:** the compiler, if possible, runs under **bwrap** / **nsjail** (`wrapCompilerCmd`) with **narrow** RO-bind (toolchain + workdir), **without** `--ro-bind / /` (otherwise `include_str!("/etc/...")` flows into `compile_log`). Without sandbox helper - **host compile - only lab**. Gate: **`HACKME_FROM_CODE`** (`0`/`1`; if not specified, enabled only on loopback bind). Cont/VPS: **`HACKME_FROM_CODE=0`**, plus **`HACKME_FROM_CODE_REQUIRE_SANDBOX=1`** if compile is still needed locally.
+- **`.gitignore`:** `data/node_ed25519.seed` - do not commit the key.
+- **PoH blocks/sync:** When writing a block, the consistency of the `hash` field with the header (`verifyBlockIntegrityAndSignature` in `internal/chain/service.go`) is checked. The signature of the miner **Ed25519** is verified against the message **`hash` of the block** if the signature fields are specified; **completely empty** signature fields are allowed for compatibility with unsigned historical chains. On the P2P staging/apply path, if there is a signature, the same logic applies (`verifySyncBlockSignature` to `main.go`); fake `hash` or signatures for a different key are cut off. Tightening direction: optional mode “all new blocks signed only” (separate task/flag).
+- **Local WASM PoH over HTTP:** only if the process is started from **`HACKME_CHAIN_LEADER_LOCAL_POH=1`** (command-node). Regular nodes/pool members mine through **`POST /api/worker/start`** and **`HACKME_POOL_COORDINATOR_URL`**. **`HACKME_BEGINNER_SOLO`** deleted (see `docs/BEGINNER_SOLO.md`).
 
 ---
 
-## 3. Сознательно не в MVP (до сети не обещаем)
+## 3. Deliberately not in MVP (we don’t promise before the network)
 
-- P2P-аутентификация, защита от replay между нодами, консенсус по «чужим» блокам.
-- TLS на HTTP (для чистого localhost часто избыточен; при прокси — TLS на прокси).
-- Rate limiting / WAF на API.
-- Полноценная p2p аутентификация и репутация пиров (сейчас baseline handshake + token).
-- Шифрование SQLite «на диске» без пароля пользователя даёт мало против того же пользователя ОС.
-- Отмена заказов и возврат эскроу — отдельная экономическая и протокольная модель (см. `README_ROADMAP.md`).
+- P2P authentication, protection against replay between nodes, consensus on “foreign” blocks.
+- TLS on HTTP (for pure localhost it is often redundant; with a proxy - TLS on the proxy).
+- Rate limiting / WAF on API.
+- Full p2p authentication and peer reputation (currently baseline handshake + token).
+- SQLite encryption “on disk” without a user password does little against the same OS user.
+- Order cancellations and escrow returns are a separate economic and protocol model (see `README_ROADMAP.md`).
 
 Demo / current emission policy:
 
@@ -52,32 +52,32 @@ Demo / current emission policy:
 
 ---
 
-## 4. Когда вынесете узел в LAN / интернет — чеклист по факту
+## 4. When you take the node to the LAN / Internet - a checklist after the fact
 
-1. **Поверхность:** кто может достучаться до TCP (только VPN? только LAN? публичный IP?).
-2. **Транспорт:** TLS (или mTLS), доверенный reverse-proxy, отключение слабых шифров. Опционально **`HACKME_HTTP_CORS_ALLOW_ORIGIN`** только если осознанно нужен cross-origin доступ к `/api/*` из браузера; иначе не задавать.
-3. **Аутентификация:** не полагаться только на `HACKME_ADMIN_TOKEN` в HTML — для продакшена отдельные роли, короткоживущие токены, отсутствие секрета в разметке страницы.
-4. **Секреты:** отдельный пользователь ОС для процесса, ограничение прав на `data/*.db` и `*.seed`.
-5. **Лимиты:** размер тела POST, частота запросов, таймауты WASM, запрет опасных импортов в пользовательском WASM.
-6. **Наблюдаемость:** логи без утечки токенов; алерты на аномальный расход эскроу.
-7. **Угрозы сети:** при появлении P2P — подпись блоков, идентичность пиров, анти-replay, обновления безопасности зависимостей.
-8. **Transfer-защита:** проверка подписи, nonce anti-replay, баланс+fee и мониторинг аномалий `429/invalid_signature/invalid_nonce`.
+1. **Surface:** who can reach TCP (VPN only? LAN only? public IP?).
+2. **Transport:** TLS (or mTLS), trusted reverse-proxy, disabling weak ciphers. Optional **`HACKME_HTTP_CORS_ALLOW_ORIGIN`** only if you consciously need cross-origin access to `/api/*` from the browser; don't ask otherwise.
+3. **Authentication:** Don't rely solely on `HACKME_ADMIN_TOKEN` in HTML - for production, separate roles, short-lived tokens, no secret in page markup.
+4. **Secrets:** separate OS user for the process, restriction of rights to `data/*.db` and `*.seed`.
+5. **Limits:** POST body size, request frequency, WASM timeouts, prohibition of dangerous imports in custom WASM.
+6. **Observability:** logs without token leakage; alerts for abnormal escrow consumption.
+7. **Network threats:** when P2P appears - block signing, peer identity, anti-replay, dependency security updates.
+8. **Transfer protection:** signature verification, nonce anti-replay, balance+fee and anomaly monitoring `429/invalid_signature/invalid_nonce`.
 
-Практический предзапускной gate перед интернет-экспозицией:  
-`scripts/ops/internet_preflight.sh` (проверяет sandbox/economics/status, security headers, difficulty health, p2p/sync/coordinator readiness и сводит PASS/FAIL в `reports/gates/<run_id>`).
+Practical pre-launch gate before Internet exposure:  
+`scripts/ops/internet_preflight.sh` (checks sandbox/economics/status, security headers, difficulty health, p2p/sync/coordinator readiness and reduces PASS/FAIL to `reports/gates/<run_id>`).
 
 ---
 
-## 5. Связанные файлы
+## 5. Linked files
 
-| Файл | Смысл |
+| File | Meaning |
 |------|--------|
-| `admin_auth.go` | Проверка `HACKME_ADMIN_TOKEN` |
-| `main.go`, `pool.go` | Маршруты, вызов `requireAdminAuth` |
-| `internal/store/sqlite.go` | Версия схемы |
-| `internal/nodecrypto/` | Ключ подписи API |
-| `spec/CHAIN_SPEC.md`, `docs/API.md` | Протокол и HTTP |
+| `admin_auth.go` | Check `HACKME_ADMIN_TOKEN` |
+| `main.go`, `pool.go` | Routes, call `requireAdminAuth` |
+| `internal/store/sqlite.go` | Schema version |
+| `internal/nodecrypto/` | API Signing Key |
+| `spec/CHAIN_SPEC.md`, `docs/API.md` | Protocol and HTTP |
 
-**Отдельный процесс `cmd/coordinator`:** по умолчанию слушает **127.0.0.1:8081**. Если задан **`HACKME_COORDINATOR_ADMIN_TOKEN`**, мутирующие **`POST /api/push_work`**, **`POST /api/work/claim`** и **`POST /api/work/submit`** требуют **`X-Hackme-Admin-Token`** или **`Authorization: Bearer ...`** (тот же стиль, что и у command node). Без токена эти POST принимаются от любого клиента, достигшего bind-адреса — для продакшена задайте токен, держите bind на loopback/VPN или включите **`HACKME_COORDINATOR_REQUIRE_ADMIN_TOKEN=1`** (тогда процесс не стартует, пока пустой `HACKME_COORDINATOR_ADMIN_TOKEN`).
+**Separate process `cmd/coordinator`:** listens to **127.0.0.1:8081** by default. If **`HACKME_COORDINATOR_ADMIN_TOKEN`** is given, the mutating **`POST /api/push_work`**, **`POST /api/work/claim`** and **`POST /api/work/submit`** require **`X-Hackme-Admin-Token`** or **`Authorization: Bearer ...`** (same style as the command node). Without a token, these POSTs are accepted from any client that has reached the bind address - for production, set the token, keep bind on loopback/VPN or enable **`HACKME_COORDINATOR_REQUIRE_ADMIN_TOKEN=1`** (then the process does not start while `HACKME_COORDINATOR_ADMIN_TOKEN` is empty).
 
-При смене политики безопасности обновляйте этот файл и **`docs/API.md`**.
+When you change your security policy, update this file and **`docs/API.md`**.

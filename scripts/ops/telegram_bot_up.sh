@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Запуск Telegram-бота из корня репозитория HackMe.
-# Каждый оператор кладёт свой .env.telegram (см. scripts/ops/telegram_bot.env.example и docs/TELEGRAM_BOT.md).
+# Launch a Telegram bot from the root of the HackMe repository.
+# Each operator puts its own .env.telegram (see scripts/ops/telegram_bot.env.example and docs/TELEGRAM_BOT.md).
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"

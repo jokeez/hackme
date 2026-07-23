@@ -26,7 +26,7 @@ RESULTS="$OUT/results.jsonl"
 
 token_is_placeholder() {
   local t="$1"
-  [[ "$t" == *"..."* || "$t" == *"ТУТ_ПОЛНЫЙ_ТОКЕН"* || "$t" == *"CHANGE_ME"* ]]
+[[ "$t" == *"..."* || "$t" == *"PUT_FULL_TOKEN_HERE"* || "$t" == *"CHANGE_ME"* ]]
 }
 
 record() {

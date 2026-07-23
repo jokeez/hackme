@@ -15,7 +15,7 @@ if [[ -z "$ADMIN_TOKEN" ]]; then
   echo "[core-gate] ADMIN_TOKEN (or HACKME_ADMIN_TOKEN) is required" >&2
   exit 1
 fi
-if [[ "$ADMIN_TOKEN" == *"..."* || "$ADMIN_TOKEN" == *"ТУТ_ПОЛНЫЙ_ТОКЕН"* || "$ADMIN_TOKEN" == *"CHANGE_ME"* ]]; then
+if [[ "$ADMIN_TOKEN" == *"..."* || "$ADMIN_TOKEN" == *"PUT_FULL_TOKEN_HERE"* || "$ADMIN_TOKEN" == *"CHANGE_ME"* ]]; then
   echo "[core-gate] ADMIN_TOKEN looks like placeholder; set real token" >&2
   exit 1
 fi

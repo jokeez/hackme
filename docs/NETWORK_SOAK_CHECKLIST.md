@@ -1,39 +1,39 @@
-# Длительные проверки сети (soak) — как «почувствовать», держит ли стек
+# Long network checks (soak) - how to “feel” whether the stack is holding
 
-Цель: не разовый `curl`, а **линия времени** — ошибки HTTP, задержки, стагнация `tip_height`, доступность coordinator.
+Goal: not a one-time `curl`, but a **timeline** - HTTP errors, delays, stagnation `tip_height`, coordinator availability.
 
-## Инструмент
+## Tool
 
 ```bash
-# По умолчанию 30 мин, каждые 30 с, BASE=https://hackme.tech
+# Default: 30 min, every 30 s, BASE=https://hackme.tech
 bash scripts/ops/network_stability_soak.sh
 
-# Явно: 2 часа, каждые 60 с, + лёгкий опрос coordinator
+# Explicit: 2 hours, every 60 s, + light coordinator poll
 BASE=https://hackme.tech \
 COORD_URL=https://hackme.tech/pool/coordinator \
 DURATION_SEC=7200 INTERVAL_SEC=60 \
 bash scripts/ops/network_stability_soak.sh
 ```
 
-Отчёт: `reports/soak-<RUN_ID>/events.jsonl` (построчный JSON) и `summary.txt`.
+Report: `reports/soak-<RUN_ID>/events.jsonl` (line-by-line JSON) and `summary.txt`.
 
-## Фазы (рекомендуемые сроки)
+## Phases (recommended timing)
 
-| Фаза | Длительность | Что смотреть |
+| Phase | Duration | What to watch |
 |------|----------------|--------------|
-| **A. Быстрый регресс** | уже в репо | `bash scripts/ops/repo_final_selfcheck.sh` (при необходимости `RUN_LOCAL_STACK_SMOKE=1`, `PUBLIC_RO_BASE=…`) |
-| **B. Публичный soak** | 30–60 мин | `summary.txt`: `status_http_fail` ≈ 0, `latency_ms_max` не растёт бесконечно, в `events.jsonl` нет спама `tip_regressed` |
-| **C. Дневной прогон** | 4–8 ч | То же + вручную пару раз `GET /api/worker/settlement` и дашборд; нет роста «зависших» curl на VPS (`ps` / `htop`) |
-| **D. Ночной / выходные** | 24–72 ч | Для прод-релиза; сравнить первый и последний час jsonl (jq), алерты по `status_fail` |
+| **A. Fast regression** | already in repo | `bash scripts/ops/repo_final_selfcheck.sh` (if necessary `RUN_LOCAL_STACK_SMOKE=1`, `PUBLIC_RO_BASE=…`) |
+| **B. Public soak** | 30–60 min | `summary.txt`: `status_http_fail` ≈ 0, `latency_ms_max` does not grow indefinitely, there is no spam in `events.jsonl` `tip_regressed` |
+| **C. Day run** | 4–8 h | The same + manually a couple of times `GET /api/worker/settlement` and a dashboard; no growth of stuck curl on VPS (`ps` / `htop`) |
+| **D. Night/Weekend** | 24–72 h | For a product release; compare first and last hour jsonl (jq), alerts by `status_fail` |
 
-## Как интерпретировать
+## How to interpret
 
-- **`tip_height` не растёт долго** — нормально, если **выключен** локальный PoH на command node; смотрите `mining` и канонический tip в `global_metrics.chain` при follower-режиме.
-- **`tip_regressed`** в логе soak — редкий красный флаг (локальный/канон сбой или смена цепи); разбирать с `policy_hash`, P2P, бэкапами.
-- **`work_stats_fail`** — coordinator или nginx до него; проверить `systemctl`, лимиты, недавние деплои.
-- **Локальный «рой» воркеров** (нагрузка на coordinator, не публичный DNS):  
+- **`tip_height` does not grow for a long time** - normal if **local PoH on the command node is **off**; see `mining` and canonical tip in `global_metrics.chain` in follower mode.
+- **`tip_regressed`** in the soak log - rare red flag (local/canon failure or circuit change); deal with `policy_hash`, P2P, backups.
+- **`work_stats_fail`** — coordinator or nginx before it; check `systemctl`, limits, recent deployments.
+- **Local “swarm” of workers** (load on coordinator, not public DNS):
   `DEMO_SEC=120 WORKER_COUNT=8 bash scripts/ops/simulate_pool_swarm_local.sh`
 
-## Связь с «держит ли сеть»
+## Connection with “is the network holding”
 
-Держит ли сеть = **стабильный процент 200**, **предсказуемая задержка**, **отсутствие деградации** за окно B–D. Скрипт не заменяет мониторинг хоста (RAM, FD, nginx), но даёт **воспроизводимый** артефакт для сравнения до/после релиза.
+Does the network hold = **stable percentage of 200**, **predictable latency**, **no degradation** beyond window B–D. The script does not replace host monitoring (RAM, FD, nginx), but provides a **reproducible** artifact for comparison before/after release.

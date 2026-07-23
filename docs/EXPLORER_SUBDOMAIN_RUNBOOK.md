@@ -59,8 +59,8 @@ curl -iS "http://explorer.example.com/api/reports/block?index=1"
 curl -iS http://explorer.example.com/api/status   # expected: 403
 ```
 
-Если explorer уже на **HTTPS с ручным vhost** (не из шаблона `domain_https_up.sh` целиком), после обновления репозитория можно один раз прогнать whitelist API на сервере:  
-`ssh … 'sudo bash -s' < scripts/ops/vps_patch_explorer_nginx_api_routes.sh` — добавляет `chain` и `reports/block` в `location ~ ^/api/…` для `hackme-explorer-domain.conf`.
+If explorer is already on **HTTPS with a manual vhost** (not from the entire `domain_https_up.sh` template), after updating the repository, you can run the whitelist API on the server once:  
+`ssh … 'sudo bash -s' < scripts/ops/vps_patch_explorer_nginx_api_routes.sh` - Adds `chain` and `reports/block` to `location ~ ^/api/…` for `hackme-explorer-domain.conf`.
 
 ## 6) Rollback
 

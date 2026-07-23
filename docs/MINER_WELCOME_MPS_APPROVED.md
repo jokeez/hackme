@@ -1,6 +1,6 @@
-# Шаблон: первый наплыв майнеров после MiningPoolStats
+# Template: first influx of miners after MiningPoolStats
 
-Скопируйте в **Telegram (закреп)** / **Discord #mining** / ответ в Bitcointalk. Подставьте актуальные цифры из https://hackme.tech/pool/coordinator/api/pool/stats .
+Copy to **Telegram (pinned)** / **Discord #mining** / reply to Bitcointalk. Substitute the actual numbers from https://hackme.tech/pool/coordinator/api/pool/stats.
 
 ---
 

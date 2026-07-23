@@ -57,29 +57,18 @@ VersionInfoProductName={#MyAppName}
 ; Modern look (teal accent where supported by IS 6.7+)
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
-Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 
 [CustomMessages]
 english.WelcomeLabel2=Install the official HackMe pool miner for hackme.tech.%n%nPool access is preconfigured — no manual token hunt.%n%nOn the next pages you can confirm GPU settings and shortcuts.
-russian.WelcomeLabel2=Установка официального майнера HackMe для пула hackme.tech.%n%nТокен пула уже в комплекте — искать вручную не нужно.%n%nДалее — настройка GPU и ярлыков.
 english.GpuPageTitle=GPU && mining backend
 english.GpuPageSubtitle=We detected your graphics hardware. Choose how workerpoh should run (you can change later in hackme.env).
-russian.GpuPageTitle=Видеокарта и backend
-russian.GpuPageSubtitle=Определено оборудование. Выберите режим workerpoh (позже можно изменить в hackme.env).
 english.GpuDetected=Detected:
-russian.GpuDetected=Обнаружено:
 english.GpuTip=Tip:
-russian.GpuTip=Подсказка:
 english.RbAuto=Auto (recommended — detects CUDA / OpenCL / CPU)
-russian.RbAuto=Авто (рекомендуется — CUDA / OpenCL / CPU)
 english.RbCuda=NVIDIA CUDA (GeForce / RTX — auto OpenCL fallback if CUDA cannot init)
-russian.RbCuda=NVIDIA CUDA (GeForce / RTX — авто OpenCL если CUDA недоступен)
 english.CudaMissingNote=workerpoh-cuda.exe is not in this Windows installer.%n%nNVIDIA on Windows will use OpenCL (workerpoh-opencl.exe) with fair-pool batch tuning.%nLinux tarball and HackMe OS ISO include workerpoh-cuda with CUDA→OpenCL auto-fallback (rc11j).%n%nFor maximum GH/s on NVIDIA: prefer HackMe OS live USB or Linux bundle.%n%nRepair env: repair_fair_env.bat in the install folder.
-russian.CudaMissingNote=workerpoh-cuda.exe не входит в установщик Windows.%n%nNVIDIA в Windows: OpenCL (workerpoh-opencl.exe).%nВ Linux и HackMe OS — workerpoh-cuda с авто-fallback на OpenCL (rc11j).%n%nМаксимум GH/s на NVIDIA: HackMe OS или Linux.%n%nОбновить env: repair_fair_env.bat в папке установки.
 english.RbOpenCL=AMD OpenCL (Radeon — RX 580, etc.)
-russian.RbOpenCL=AMD OpenCL (Radeon — RX 580 и др.)
 english.RbCpu=CPU only (no GPU — low hashrate)
-russian.RbCpu=Только CPU (без GPU — низкий GH/s)
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: checkedonce

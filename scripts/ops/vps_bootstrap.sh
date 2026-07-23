@@ -75,7 +75,7 @@ echo "   sudo systemctl daemon-reload && sudo systemctl enable --now hackme-node
 echo "4) Firewall:"
 echo "   sudo ufw allow ${PORT}/tcp"
 echo "   sudo ufw allow 22/tcp"
-echo "5) Optional — компиляторы для POST /api/tasks/from_code (Zig + asc + базовые пакеты):"
+echo "5) Optional - compilers for POST /api/tasks/from_code (Zig + asc + base packages):"
 echo "   sudo bash /opt/hackme/scripts/ops/install_vps_from_code_toolchains.sh"
 echo "   sudo systemctl daemon-reload && sudo systemctl restart hackme-node"
 echo "6) Validate:"

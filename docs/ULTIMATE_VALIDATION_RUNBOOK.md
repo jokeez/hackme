@@ -7,7 +7,7 @@ One command path to run the most comprehensive checks without splitting by day.
 1. Health endpoints (`/api/status`, `/api/metrics`)
 2. Full daily gate (`run_daily.sh` in `MODE=full`)
 3. Unit integrity gate (`go test ./internal/chain ./internal/block`) — optional
-4. Adversarial matrices (transfers/orders/security/coordinator + summary) — частично совпадает с шагом 2; для длинных прогонов: `SKIP_ADV_MATRIX_BUNDLE=1`
+4. Adversarial matrices (transfers/orders/security/coordinator + summary) - partially coincides with step 2; for long runs: `SKIP_ADV_MATRIX_BUNDLE=1`
 5. Mega stress harness (high concurrent load + post-security assertions)
 6. Pre-release pass (includes soak)
 7. Optional multi-node rehearsal

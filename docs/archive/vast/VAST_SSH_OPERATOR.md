@@ -63,6 +63,6 @@ Logs: `reports/vast-remote/` (gitignored).
 Paste in chat only:
 
 - `name`, `host`, `port`, `user` (no private key in chat if possible)
-- Or say: «ключ лежит в `.secrets/vast/id_ed25519_vast`, instances.json обновлён»
+- Or say: “the key is in `.secrets/vast/id_ed25519_vast`, instances.json has been updated”
 
 Never paste `COORD_TOKEN` or `HACKME_MINER_ED25519_SEED_HEX` in issues/PRs.

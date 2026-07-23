@@ -1,64 +1,64 @@
-# Языки задач и «enterprise» готовность
+# Task languages ​​and “enterprise” readiness
 
-## Что уже поддерживается (from_code / toolchain)
+## What is already supported (from_code/toolchain)
 
-Один источник правды по статусу языков: **[`docs/TASK_LANGUAGES.md`](TASK_LANGUAGES.md)**  
-(Rust, C/C++, Zig, TinyGo, AssemblyScript, WAT, негативные кейсы и запрет произвольных рантаймов.)
+One source of truth on the status of languages: **[`docs/TASK_LANGUAGES.md`](TASK_LANGUAGES.md)**  
+(Rust, C/C++, Zig, TinyGo, AssemblyScript, WAT, negative cases and prohibition of arbitrary runtimes.)
 
-## Как прогнать существующие языки перед продом
+## How to run existing languages ​​before selling
 
-1. **Статика без ноды** (манифесты + ABI всех `.wasm` в `tasks/`):
+1. **Static without node** (manifests + ABI of all `.wasm` in `tasks/`):
 
    ```bash
    STATIC_ONLY=1 bash scripts/tests/run_language_production_pack.sh
    ```
 
-   Либо через общий раннер (отчёт попадает в `reports/tests/<RUN_ID>/` для `report_summary`):
+Or through a general runner (the report goes to `reports/tests/<RUN_ID>/` for `report_summary`):
 
    ```bash
    MODE=lang_static RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)" bash scripts/tests/run_daily.sh
    ```
 
-   Статический языковой шаг также выполняется в начале **`MODE=full`** и **`MODE=pre_release`**.
+A static language step is also performed at the beginning of **`MODE=full`** and **`MODE=pre_release`**.
 
-2. **Полный языковой пакет** (нужна запущенная нода с теми же компиляторами, что на проде-toolchain VPS, плюс admin token):
+2. **Full language pack** (you need a running node with the same compilers as on the prod-toolchain VPS, plus an admin token):
 
    ```bash
    ADMIN_TOKEN=... BASE=http://127.0.0.1:8080 bash scripts/tests/run_language_production_pack.sh
    ```
 
-3. **Внутри общего регресса** — уже входит в `scripts/ops/fuzz_release_gate.sh` и в `scripts/ops/run_local_full_matrix.sh` (ephemeral stack).
+3. **Inside the general regression** - already included in `scripts/ops/fuzz_release_gate.sh` and `scripts/ops/run_local_full_matrix.sh` (ephemeral stack).
 
-Порядок работ осмысленный: **сначала зелёный статический пакет → затем live-матрицы на стенде с полным PATH** → только потом добавление новых языков или ослабление gate.
+The order of work is meaningful: **first a green static package → then live matrices on the stand with full PATH** → only then adding new languages ​​or weakening the gate.
 
-## Лестница прогонов (кратко)
+## Ladder purlins (briefly)
 
-| Цель | Команда |
+| Goal | Team |
 |------|---------|
-| Только манифесты + ABI WASM | `MODE=lang_static bash scripts/tests/run_daily.sh` или `STATIC_ONLY=1 …/run_language_production_pack.sh` |
-| Полный дневной регресс на живой ноде | `MODE=full` + `ADMIN_TOKEN` + `BASE`/`COORD` → `scripts/tests/run_daily.sh` |
-| Локально «всё»: сборка, ephemeral stack, fuzz gate, затем full daily | `scripts/ops/run_local_full_matrix.sh` (Phase A — только `go vet`/`go test`; статика задач один раз в Phase C) |
-| Изолированный fuzz gate | `scripts/ops/fuzz_release_gate.sh` — без статики манифестов/WASM; перед ним при необходимости `MODE=lang_static` |
+| Only manifests + ABI WASM | `MODE=lang_static bash scripts/tests/run_daily.sh` or `STATIC_ONLY=1 …/run_language_production_pack.sh` |
+| Full day regression on a live node | `MODE=full` + `ADMIN_TOKEN` + `BASE`/`COORD` → `scripts/tests/run_daily.sh` |
+| Locally “everything”: build, ephemeral stack, fuzz gate, then full daily | `scripts/ops/run_local_full_matrix.sh` (Phase A - `go vet`/`go test` only; task statics once in Phase C) |
+| Isolated fuzz gate | `scripts/ops/fuzz_release_gate.sh` - without static manifests/WASM; in front of it if necessary `MODE=lang_static` |
 
-## Добавление / улучшение языка для продакшена
+## Adding/improving language for production
 
-1. Компиляция в WASM с ABI `check(i64)->i32`.  
+1. Compilation in WASM with ABI `check(i64)->i32`.
 2. `go run ./tools/task_abi_check <file.wasm>`  
-3. Манифест + `go run ./tools/task_manifest_lint <manifest.json>`  
-4. Строки в `language_from_code_matrix.sh` / `orders_multilang_audit.sh` / компилятор в [`docs/TASK_LANGUAGES.md`](TASK_LANGUAGES.md).  
-5. Прогон **`run_language_production_pack.sh`** на узле с включённым toolchain.
+3. Manifest + `go run ./tools/task_manifest_lint <manifest.json>`  
+4. Lines in `language_from_code_matrix.sh` / `orders_multilang_audit.sh` / compiler in [`docs/TASK_LANGUAGES.md`](TASK_LANGUAGES.md).  
+5. Run **`run_language_production_pack.sh`** on a node with toolchain enabled.
 
-## Что обычно спрашивают «топ-компании» (без претензии на сертификацию)
+## What “top companies” usually ask (without claiming certification)
 
-Это ориентиры для Due diligence, не чеклист «мы SOC2».
+These are guidelines for Due diligence, not a “we are SOC2” checklist.
 
-| Тема | Что имеет смысл показать |
+| Topic | What makes sense to show |
 |------|---------------------------|
-| Цепочка поставки | `go version`, зафиксированные зависимости (`go.sum`), откуда билдится прод-образ, кто имеет доступ к VPS. |
-| Секреты | Токены только в env/secret store, не в git; ротация после утечек. |
-| Поверхность API | Rate limits, admin/P2P auth, документ [`docs/SECURITY.md`](SECURITY.md). |
-| Sandbox задач | WASM-only путь, лимиты размера/времени/quarantine — см. пакет `internal/sandbox`. |
-| Доступность / наблюдаемость | Health/status endpoints, логи без утечки токенов, бэкапы SQLite при необходимости. |
-| Пентест | Отдельный контракт: scope (домены, API), запрет destructive без согласования, отчёт и фиксы. |
+| Supply Chain | `go version`, fixed dependencies (`go.sum`), where the product image is built from, who has access to the VPS. |
+| Secrets | Tokens are only in the env/secret store, not in git; rotation after leaks. |
+| Surface API | Rate limits, admin/P2P auth, document [`docs/SECURITY.md`](SECURITY.md). |
+| Sandbox of tasks | WASM-only path, size/time/quarantine limits - see package `internal/sandbox`. |
+| Availability/observability | Health/status endpoints, logs without token leakage, SQLite backups if necessary. |
+| Pentest | Separate contract: scope (domains, API), prohibition of destructive without approval, report and fixes. |
 
-Формально **SOC2 / ISO** — это процессы и аудитор, не один скрипт; кодовая база может их облегчать прозрачностью и тестами.
+Formally, **SOC2 / ISO** are processes and an auditor, not just one script; The codebase can facilitate them with transparency and tests.

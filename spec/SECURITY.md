@@ -1,24 +1,24 @@
-# Безопасность и границы HackMe (MVP)
+# Security and Boundaries HackMe (MVP)
 
-## Модель угроз (локальный узел)
+## Threat model (local node)
 
-- Дашборд и API по умолчанию слушают **127.0.0.1** — недоступны из сети без явного проброса портов. **`POST /api/tasks`** не имеет отдельной аутентификации: в продакшене нужны TLS, роли и лимиты до публикации в открытую сеть.
-- База **`data/hackme.db`** содержит копии блоков; доступ к файлу = полный контроль над «балансом» на этой машине (MVP без криптографической защиты файла).
+- The dashboard and API listen to **127.0.0.1** by default - they are not accessible from the network without explicit port forwarding. **`POST /api/tasks`** does not have separate authentication: in production, TLS, roles and limits are needed before publishing to the open network.
+- Base **`data/hackme.db`** contains copies of blocks; file access = full control over the "balance" on this machine (MVP without cryptographic file protection).
 
-## WASM-песочница
+## WASM sandbox
 
-- Опциональные **CUDA** (`-tags cuda`) и **OpenCL** (`-tags opencl`) пути компилируют и исполняют **доверенные** ядра из репозитория (NVRTC / OpenCL C); доверяйте только своей сборке. Несколько GPU — отдельные контексты, общий атомарный перебор `nonce`. Кандидат с GPU всё равно проходит **WASM `eval`** на CPU перед записью блока.
-- Исполняется в **wazero** с отдельным runtime; вызовы сериализованы **mutex** (нет параллельных `eval` из разных горутин на один инстанс).
-- На каждый вызов `eval` задан **таймаут** (`internal/sandbox`, `WasmEvalTimeout`). Дальше по желанию: лимит памяти/инструкций (wazero API), политика для сторонних модулей.
-- Любые будущие задачи от «заказчиков» должны поступать только как **согласованный** код/байткод (NDA, разрешение на тестирование).
+- Optional **CUDA** (`-tags cuda`) and **OpenCL** (`-tags opencl`) paths compile and execute **trusted** kernels from the repository (NVRTC / OpenCL C); trust only your assembly. Multiple GPUs - separate contexts, common atomic search `nonce`. The GPU candidate still passes **WASM `eval`** on the CPU before writing the block.
+- Performed in **wazero** with a separate runtime; calls are serialized **mutex** (no parallel `eval` from different goroutines on the same instance).
+- For each call `eval` a **timeout** is set (`internal/sandbox`, `WasmEvalTimeout`). Further optional: memory/instruction limit (wazero API), policy for third-party modules.
+- Any future tasks from “customers” should only come as **agreed** code/bytecode (NDA, testing permission).
 
-## Юридика (напоминание)
+## Legal (reminder)
 
-- Не использовать сеть для несанкционированного доступа к системам третьих лиц.
-- Токен/«монета» в MVP — **локальная симуляция**; перед публичным запуском нужен разбор под юрисдикцию (ценные бумаги, реклама доходности и т.д.).
+- Do not use the network for unauthorized access to third party systems.
+- Token/"coin" in MVP - **local simulation**; Before a public launch, an analysis of the jurisdiction (securities, advertising of profitability, etc.) is required.
 
-## Рекомендуемые настройки продакшн-ориентированного узла (будущее)
+## Recommended production node settings (future)
 
-- TLS для API, аутентификация админки, секреты вне репозитория.
-- Резервное копирование `data/hackme.db`.
-- Аудит зависимостей (`govulncheck`).
+- TLS for API, admin authentication, secrets outside the repository.
+- Backup `data/hackme.db`.
+- Dependency audit (`govulncheck`).

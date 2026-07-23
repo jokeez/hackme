@@ -1,92 +1,92 @@
-# Угрозы пулу: вердикт по коду (честно)
+# Threats to the pool: verdict on the code (honestly)
 
-Сопоставление «как бывает в классических статьях» с **тем, что реально делает HackMe** сегодня. Координатор: `cmd/coordinator/work.go`. Settlement: `scripts/ops/settle_worker_payouts.sh`. Retarget цепи: `internal/chain/retarget.go`. Hybrid signer: env координатора (`HACKME_POOL_HYBRID_*`).
+A comparison of “as it happens in classic articles” with **what HackMe actually does** today. Coordinator: `cmd/coordinator/work.go`. Settlement: `scripts/ops/settle_worker_payouts.sh`. Retarget chain: `internal/chain/retarget.go`. Hybrid signer: coordinator env (`HACKME_POOL_HYBRID_*`).
 
 ---
 
-## 1. «Пустые шары» / fake attempts (воркер врёт про attempts)
+## 1. “Empty balls” / fake attempts (the worker is lying about attempts)
 
-**Идея атаки:** взять lease, не считать, прислать submit с `found=false` и завышенными `attempts`, получить `rewardPerM * attempts / 1e6`.
+**Attack idea:** take lease, do not count, send submit with `found=false` and inflated `attempts`, receive `rewardPerM * attempts / 1e6`.
 
-**Что делает координатор сейчас**
+**What is the coordinator doing now**
 
-- Платёж за попытки при `found=false`: `paidAttempts` берётся из запроса, **но ограничивается** `batch_size` lease (`attempts > req.BatchSize` обрезается) — см. `submit()` в `work.go` (~744–750).
-- **Криптографической перепроверки всего диапазона** (пересчёт PoH по каждому nonce в батче) **нет**. Пересчитывается и жёстко проверяется **только** ветка **`found=true`**: диапазон `found_nonce`, `validFoundNonceV1` (eval % `target_mod`), дедуп `found_nonce` / `result_hash`.
-- Защита от спама: **rate limit** claim/submit per worker и per IP, **bad strikes → временный бан** на явно плохих причинах submit (`markSubmitOutcome`: неверный work_id, подпись, replay, неверный found_nonce и т.д.) — не на «медленный honest».
-- Режим **`HACKME_COORDINATOR_PAYOUT_FOUND_ONLY`**: при `found=false` **`paidAttempts=0`** — тогда оплата только за реально доказанный hit + bonus. Это **сильнейший** ответ на fake attempts **без** полной верификации каждой попытки (дорого).
+- Payment for attempts at `found=false`: `paidAttempts` is taken from the request, **but limited** by `batch_size` lease (`attempts > req.BatchSize` is cut off) - see `submit()` in `work.go` (~744–750).
+- **Cryptographic double-check of the entire range** (recalculation of PoH for each nonce in the batch) **no**. **only** branch **`found=true`** is recalculated and strictly checked: range `found_nonce`, `validFoundNonceV1` (eval % `target_mod`), dedup `found_nonce` / `result_hash`.
+- Spam protection: **rate limit** claim/submit per worker and per IP, **bad strikes → temporary ban** for obviously bad submit reasons (`markSubmitOutcome`: incorrect work_id, signature, replay, incorrect found_nonce, etc.) - not for “slow honest”.
+- Mode **`HACKME_COORDINATOR_PAYOUT_FOUND_ONLY`**: with `found=false` **`paidAttempts=0`** - then payment is only for actually proven hit + bonus. This is the **strongest** answer to fake attempts **without** full verification of each attempt (expensive).
 
-**Вердикт**
+**Verdict**
 
-| Конфигурация | Fake attempts на оплату «просто за attempts» |
+| Configuration | Fake attempts to pay “just for attempts” |
 |--------------|-----------------------------------------------|
-| Публичный пул с **hybrid strict** + подписанные payload | Сложнее подделать **payload** без ключа; но **сама работа** по-прежнему не пересчитывается nonce-за-nonce. |
-| **`payout_found_only=1`** | **Практически закрывает** сценарий «платят за воздух без hit». |
-| По умолчанию (`found` может быть false, оплата за attempts) | **Доверие к числу attempts** в пределах lease; экономический риск — **операторский** (лимиты, found-only, мониторинг `total_payout_hmc` vs канон). |
-| «Случайная 1% перепроверка батча» в коде | **Нет** — не реализовано. |
+| Public pool with **hybrid strict** + signed payload | It's harder to fake **payload** without a key; but **the work itself** is still not recalculated nonce-for-nonce. |
+| **`payout_found_only=1`** | **Almost closes** the “pay for air without a hit” scenario. |
+| Default (`found` can be false, payment for attempts) | **Trust in the number of attempts** within the lease; economic risk - **operator** (limits, found-only, monitoring `total_payout_hmc` vs canon). |
+| “Random 1% batch recheck” in code | **No** - not implemented. |
 
 ---
 
-## 2. Settlement: double spend / гонки параллельных скриптов
+## 2. Settlement: double spend / racing parallel scripts
 
-**Идея атаки:** два процесса settlement, гонка nonce, двойная выплата до обновления state.
+**Attack idea:** two settlement processes, nonce race, double payout before state update.
 
-**Что делает `settle_worker_payouts.sh`**
+**What does `settle_worker_payouts.sh` do**
 
-- State: **JSON-файл** (`STATE_FILE`), не SQLite с `SERIALIZABLE`.
-- Логика: прочитал coordinator → для воркера посчитал delta → `POST /api/tx/send` с `next_nonce` с ноды → **после успеха** обновил JSON через `jq` + `mv`.
-- **Цепь:** повторная отправка с тем же nonce должна отвергаться логикой ноды (если первая транзакция уже в пуле/цепи) — это **второй рубеж**, но не замена атомарности.
+- State: **JSON file** (`STATE_FILE`), not SQLite with `SERIALIZABLE`.
+- Logic: read coordinator → for worker, calculated delta → `POST /api/tx/send` from `next_nonce` from node → **after success** updated JSON via `jq` + `mv`.
+- **Chain:** resending with the same nonce should be rejected by the node logic (if the first transaction is already in the pool/chain) - this is a **second milestone**, but not a replacement for atomicity.
 
-**Улучшение в репозитории**
+**Repository improvements**
 
-- Скрипт **`scripts/ops/settle_worker_payouts.sh`** в начале берёт **`flock`** на файл **`${STATE_FILE}.flock`**: второй параллельный процесс на том же хосте **сразу выходит** (типичный overlap cron), не конкурируя за nonce и `jq`+`mv` state.
+- The script **`scripts/ops/settle_worker_payouts.sh`** at the beginning takes **`flock`** to the file **`${STATE_FILE}.flock`**: the second parallel process on the same host **exits immediately** (typical overlap cron), without competing for the nonce and `jq`+`mv` state.
 
-**Вердикт**
+**Verdict**
 
-| Механизм | Есть? |
+| Mechanism | Eat? |
 |----------|--------|
-| Serializable TX в БД settlement | **Нет** (файл JSON + curl) |
-| Блокировка «pending» на воркера в state до конца tx | **Нет** (обновление после успеха) |
-| Защита от двух процессов **на одном хосте** с одним `STATE_FILE` | **`flock`** — **да** (`settle_worker_payouts.sh`) |
-| Защита от двух **разных** хостов с одним payer | **Нет** — не запускайте два settlement с одним кошельком без внешней координации |
+| Serializable TX in the settlement database | **None** (JSON file + curl) |
+| Blocking “pending” on the worker in state until the end of tx | **No** (update after success) |
+| Protection against two processes **on one host** with one `STATE_FILE` | **`flock`** - **yes** (`settle_worker_payouts.sh`) |
+| Protection from two **different** hosts with one payer | **No** - do not run two settlements with one wallet without external coordination |
 
 ---
 
-## 3. Манипуляция сложностью / `rewardAuto`
+## 3. Difficulty Manipulation / `rewardAuto`
 
-**Идея:** скачок метрик command-node → координатор пересчитал `rewardPerM` невыгодно оператору.
+**Idea:** jump in command-node metrics → coordinator recalculated `rewardPerM` is unprofitable for the operator.
 
-**Что есть**
+**What is**
 
-- Координатор периодически тянет `/api/metrics` с `HACKME_COORDINATOR_TARGET_SOURCE_URL`, обновляет `target_mod`, `base_reward_hmc`, и при **`reward_auto`** пересчитывает `rewardPerM = base_reward * 1e6 / target_mod` — см. `refreshTargetMod` в `work.go` (~313–376).
-- **На цепи** retarget PoH использует **окна и лимиты шага** (`poHRetargetMaxStepUp/Down`, micro-step) — `internal/chain/retarget.go` — это **сглаживание сложности блоков**, не то же самое, что сглаживание **тарифа воркеров** в координаторе.
+- The coordinator periodically pulls `/api/metrics` from `HACKME_COORDINATOR_TARGET_SOURCE_URL`, updates `target_mod`, `base_reward_hmc`, and at **`reward_auto`** recalculates `rewardPerM = base_reward * 1e6 / target_mod` - see `refreshTargetMod` in `work.go` (~313–376).
+- **On chain** retarget PoH uses **windows and step limits** (`poHRetargetMaxStepUp/Down`, micro-step) - `internal/chain/retarget.go` is **block complexity smoothing**, not the same as **worker rate smoothing** in the coordinator.
 
-**Вердикт**
+**Verdict**
 
-- Отдельного «скользящего среднего rewardPerM на 100 блоков» в координаторе **нет**; смягчение — **частота опроса**, **лимиты retarget на цепи**, ручной **`HACKME_COORDINATOR_REWARD_PER_M_ATTEMPTS`** если auto отключить.
-- Риск «пул платит больше канона» — **операторский**: сравнивать `total_payout_hmc`, накопление, политику `payout_found_only`, лимиты.
-
----
-
-## 4. Кража / подмена state settlement
-
-**Идея:** доступ к диску → подмена `worker_settlement_state.json` → повторные или чужие выплаты.
-
-**Что есть**
-
-- Файл **не шифруется**; безопасность = **права ОС**, отдельный пользователь systemd, **бэкапы**, не хранить state на общем NFS без контроля.
-- **Независимый append-only аудит** внутри скрипта **не ведётся** (есть только stdout/journal при логировании cron).
-
-**Вердикт**
-
-- Требования «шифрование state + независимый журнал транзакций» — **частично на стороне эксплуатации** (журнал `journalctl`, внешний SIEM, immutable backup). В коде settlement — **минимальный** след (hash tx в state после успеха).
+- There is **no** separate “moving average rewardPerM for 100 blocks” in the coordinator; mitigation - **sampling frequency**, **retarget limits on the circuit**, manual **`HACKME_COORDINATOR_REWARD_PER_M_ATTEMPTS`** if auto is disabled.
+- Risk “the pool pays more than the canon” - **operator**: compare `total_payout_hmc`, accumulation, policy `payout_found_only`, limits.
 
 ---
 
-## 5. Куда смотреть оператору
+## 4. Theft/substitution of state settlement
 
-1. Публичный пул: рассмотреть **`HACKME_COORDINATOR_PAYOUT_FOUND_ONLY=1`** если приемлема оплата в основном за hits.  
-2. Hybrid: `docs` по hybrid signer + smoke `scripts/ops` (см. `OPERATOR_FINAL_CHECKLIST.md`).  
-3. Settlement: **один** cron, **flock**; мониторинг `settlement_healthcheck.sh`; бэкап state.  
-4. Сверка: накопленные выплаты координатора vs баланс/эмиссия канона — вручную или скриптами мониторинга.
+**Idea:** disk access → substitution `worker_settlement_state.json` → repeated or someone else's payments.
 
-Документ можно использовать как ответ на вопрос «мы защищены как в статье X?» — **только с таблицами выше**, без обещаний отсутствующих механизмов.
+**What is**
+
+- The file is **not encrypted**; security = **OS rights**, separate systemd user, **backups**, do not store state on shared NFS without control.
+- **Independent append-only audit** inside the script **is not carried out** (there is only stdout/journal when logging cron).
+
+**Verdict**
+
+- Requirements “state encryption + independent transaction log” - **partially on the operation side** (log `journalctl`, external SIEM, immutable backup). In the settlement code there is a **minimal** trace (hash tx in state after success).
+
+---
+
+## 5. Where to look for the operator
+
+1. Public pool: consider **`HACKME_COORDINATOR_PAYOUT_FOUND_ONLY=1`** if paying primarily for hits is acceptable.  
+2. Hybrid: `docs` by hybrid signer + smoke `scripts/ops` (see `OPERATOR_FINAL_CHECKLIST.md`).  
+3. Settlement: **one** cron, **flock**; monitoring `settlement_healthcheck.sh`; backup state.  
+4. Reconciliation: accumulated payments of the coordinator vs balance/issue of the canon - manually or using monitoring scripts.
+
+The document can be used to answer the question “Are we protected as under Article X?” — **only with the tables above**, without promises of missing mechanisms.
