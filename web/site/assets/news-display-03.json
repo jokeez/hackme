@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-05-26-fuzz-engine-v2-rc11i",
+      "date": "2026-05-26",
+      "title": "Release 0.1.0-rc11i · Fuzz Engine v2 + wallet/settlement fixes",
+      "summary": "Major fuzz upgrade: seed corpus and bit-flip mutation (not raw counters), coverage buckets v2 from real 64-bit inputs, SHA256(input) artifacts with check(0x…) repro, diff coverage_delta vs baseline campaigns, fuzz_report_v2. Desktop wallet uses canonical balance without admin header on loopback; VPS settlement timer fixed (/dev/null + admin wallet lookup). New CLI: hackme-fuzzing campaign create|status.",
+      "impact": "B2B integrators get stronger property-fuzz reports; miners get rc11i binaries with fair pool + order escrow unchanged.",
+      "action": "Downloads: https://hackme.tech/downloads.html · BC5 report: https://hackme.tech/reports/bitcoin-core-5module.html· Gate: bash scripts/ops/fuzz_engine_v2_gate.sh",
+      "tags": [
+        "release",
+        "fuzzing",
+        "security",
+        "infrastructure",
+        "mining"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-26-order-pool-live-5hmc-rc11h",
       "date": "2026-05-26",
       "title": "Order pool live · 5 HMC test completed (rc11h)",
@@ -244,21 +260,6 @@
         "mining",
         "pool",
         "transparency"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-18-open-source-github",
-      "date": "2026-05-18",
-      "title": "🚀 Open source: HackMe stack on GitHub (Apache-2.0)",
-      "summary": "The full public pool stack is now open: node, coordinator, worker, dashboard, explorer UI, and operator scripts — licensed under Apache-2.0. Repository: github.com/jokeez/hackme. Build from source, audit security hardening, or send pull requests. Always verify release SHA256 on hackme.tech/downloads.html (official binaries only).",
-      "impact": "Miners and auditors can review coordinator auth, hybrid signer paths, and settlement tooling. Community can spot fake pools by diffing against the official repository and checksums on hackme.tech.",
-      "action": "⭐ Star & clone: https://github.com/jokeez/hackme · 📥 Downloads: https://hackme.tech/downloads.html · 💬 Telegram: @hackme_tech (channel), @hackme_en (EN group), @hackme_ru (RU group) · 📋 Bitcointalk: https://bitcointalk.org/index.php?topic=5583373.0",
-      "tags": [
-        "opensource",
-        "release",
-        "security",
-        "community"
       ],
       "status": "published"
     }

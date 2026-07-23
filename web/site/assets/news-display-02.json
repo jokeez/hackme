@@ -1,6 +1,20 @@
 {
   "items": [
     {
+      "id": "2026-06-16-site-ecosystem-docs-final",
+      "date": "2026-06-16",
+      "title": "Site final — ecosystem docs, legal hub, mobile polish",
+      "summary": "hackme.tech updated end-to-end: per-coin pages (HMC/SUP/HMS), token transparency, listing hub with PDF packs, legal center with AGPL-3.0, economics layout fix, and mobile-friendly tables. One ecosystem narrative — not a single-coin site.",
+      "impact": "Exchange DD and miners get consistent links: transparency, listing PDFs, roadmap, and legal policy v1.1. Economics page no longer breaks on phones.",
+      "action": "Coins: https://hackme.tech/coins.html · Legal: https://hackme.tech/legal.html · Listing PDFs: https://hackme.tech/listing.html",
+      "tags": [
+        "infrastructure",
+        "marketing",
+        "legal"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-06-16-rc11n-production-final",
       "date": "2026-06-16",
       "title": "Production final — rc11n ISO aligned, SUP on-chain public",
@@ -240,22 +254,6 @@
         "product",
         "orders",
         "release"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-26-fuzz-engine-v2-rc11i",
-      "date": "2026-05-26",
-      "title": "Release 0.1.0-rc11i · Fuzz Engine v2 + wallet/settlement fixes",
-      "summary": "Major fuzz upgrade: seed corpus and bit-flip mutation (not raw counters), coverage buckets v2 from real 64-bit inputs, SHA256(input) artifacts with check(0x…) repro, diff coverage_delta vs baseline campaigns, fuzz_report_v2. Desktop wallet uses canonical balance without admin header on loopback; VPS settlement timer fixed (/dev/null + admin wallet lookup). New CLI: hackme-fuzzing campaign create|status.",
-      "impact": "B2B integrators get stronger property-fuzz reports; miners get rc11i binaries with fair pool + order escrow unchanged.",
-      "action": "Downloads: https://hackme.tech/downloads.html · BC5 report: https://hackme.tech/reports/bitcoin-core-5module.html· Gate: bash scripts/ops/fuzz_engine_v2_gate.sh",
-      "tags": [
-        "release",
-        "fuzzing",
-        "security",
-        "infrastructure",
-        "mining"
       ],
       "status": "published"
     }

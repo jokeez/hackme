@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-07-23-oss-cve-watch-libheif-day02-libfuzzer",
+      "date": "2026-07-23",
+      "title": "OSS CVE Watch · libheif Day 2/14 · 114.29M libFuzzer exec · CLEAN",
+      "summary": "libheif Day 2: 14.8h libFuzzer, 114,294,923 exec at ~2,148/s. Corpus 2071, 6785 coverage edges. ASAN=0 — CLEAN.",
+      "impact": "Cumulative Days 1–2: ~116.40M exec on persistent HEIF/AVIF corpus.",
+      "action": "Day 2: https://hackme.tech/reports/oss-cve-watch-libheif/day02.html",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "libheif",
+        "day02"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-23-overnight-pool-customer-success",
       "date": "2026-07-23",
       "title": "Overnight pool win — 2000/2000 cjson + jsmn catch-up settled",
@@ -388,43 +404,6 @@
         "home": "https://hackme.tech/",
         "rewards": "https://hackme.tech/security-rewards.html",
         "research": "https://hackme.tech/research.html"
-      }
-    },
-    {
-      "id": "2026-07-11-github-release-rc11s",
-      "date": "2026-07-11",
-      "title": "HackMe 0.1.0-rc11s — production baseline · pool fuzz · miners welcome",
-      "summary": "Stable production channel: pool fuzz marketplace, PoH + fuzz mining payouts, escrow 20/80, customer order flow verified. Mining dashboard shows canonical chain economics (Actual base/orders 1h) on desktop followers. Fuzz settle outbox drain fix.",
-      "impact": "rc11s is the reference release for miners and B2B customers. Further changes ship as rc11t/rc12 — no silent breaking changes on this channel.",
-      "action": "Download: https://hackme.tech/downloads.html · Pool: https://hackme.tech/pool/coordinator · GitHub tag after publish: 0.1.0-rc11s",
-      "tags": [
-        "release",
-        "mining",
-        "fuzzing",
-        "production"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "🚀 HackMe 0.1.0-rc11s — production baseline",
-        "lead": "Pool fuzz + PoH mining live · payouts · miners welcome",
-        "bullets": [
-          "Two earn paths: PoH mining + Fuzz work · earn HMC (pool coordinator)",
-          "B2B: security audit / deep pool fuzz · escrow · report",
-          "Desktop follower: Actual base/orders/total (1h) from canonical chain",
-          "Settle outbox drain — miner payouts catch up reliably",
-          "Win · Linux · ISO · hackme-fuzzing CLI — same SHA256 on GitHub + hackme.tech"
-        ],
-        "footer": "hackme.tech/downloads.html · hackme.tech/pool/coordinator · t.me/hackme_tech"
-      },
-      "discord": {
-        "title": "Release · 0.1.0-rc11s production baseline",
-        "body": "**Production-ready** — pool fuzz, mining, escrow, payouts verified.\n\n• **Miners:** PoH + Fuzz pool work · coordinator payouts\n• **Customers:** B2B wizard · deep pool fuzz · report + escrow\n• **Desktop:** canonical mining economics on #mining tab\n• **Downloads:** Win · Linux · ISO · fuzz CLI\n\n**Downloads:** https://hackme.tech/downloads.html\n**Pool:** https://hackme.tech/pool/coordinator",
-        "ping": "#releases"
-      },
-      "links": {
-        "downloads": "https://hackme.tech/downloads.html",
-        "pool": "https://hackme.tech/pool/coordinator",
-        "github": "https://github.com/jokeez/hackme/releases"
       }
     }
   ],

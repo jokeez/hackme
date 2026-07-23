@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-05-18-open-source-github",
+      "date": "2026-05-18",
+      "title": "🚀 Open source: HackMe stack on GitHub (Apache-2.0)",
+      "summary": "The full public pool stack is now open: node, coordinator, worker, dashboard, explorer UI, and operator scripts — licensed under Apache-2.0. Repository: github.com/jokeez/hackme. Build from source, audit security hardening, or send pull requests. Always verify release SHA256 on hackme.tech/downloads.html (official binaries only).",
+      "impact": "Miners and auditors can review coordinator auth, hybrid signer paths, and settlement tooling. Community can spot fake pools by diffing against the official repository and checksums on hackme.tech.",
+      "action": "⭐ Star & clone: https://github.com/jokeez/hackme · 📥 Downloads: https://hackme.tech/downloads.html · 💬 Telegram: @hackme_tech (channel), @hackme_en (EN group), @hackme_ru (RU group) · 📋 Bitcointalk: https://bitcointalk.org/index.php?topic=5583373.0",
+      "tags": [
+        "opensource",
+        "release",
+        "security",
+        "community"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-15-pool-release-1-0-0-pool-live",
       "date": "2026-05-15",
       "title": "Pool release 1.0.0-pool is live — public mining, faster dashboard, production deploy",
@@ -236,20 +251,6 @@
         "ops",
         "news",
         "community"
-      ],
-      "status": "deployed"
-    },
-    {
-      "id": "2026-05-04-canonical-consistency-upgrade",
-      "date": "2026-05-04",
-      "title": "Canonical Consistency Upgrade for Follower Nodes",
-      "summary": "Follower-mode APIs now mirror canonical chain responses for transfer pool, address lookups, transaction lookups, and status economics to prevent mixed local/canonical views.",
-      "impact": "Operators now see one consistent reality between local dashboard/explorer and the public VPS chain, including nonce and pending transaction behavior.",
-      "action": "Recommended: hard-refresh browser cache and restart local follower nodes to pick up latest frontend/backend behavior.",
-      "tags": [
-        "core",
-        "explorer",
-        "infra"
       ],
       "status": "deployed"
     }

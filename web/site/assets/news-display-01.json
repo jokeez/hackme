@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-07-11-oss-cve-watch-day04-nghttp2-libfuzzer",
+      "date": "2026-07-11",
+      "title": "OSS CVE Watch Day 4/14 · nghttp2 · 719M libFuzzer exec · CLEAN",
+      "summary": "Fourth day on nghttp2: ~5h libFuzzer session, 719,500,167 executions at ~40k exec/s. Corpus 408 inputs (433KB), 467 coverage edges. Zero ASAN heap crashes — fourth honest CLEAN day.",
+      "impact": "Cumulative ~2.92B libFuzzer executions across Days 2–4 on the same persistent corpus. Coverage still plateaued at 467 edges; corpus refinement continues. Day 5 deep session starting.",
+      "action": "Day 4 report: https://hackme.tech/reports/oss-cve-watch/day04.html · Series hub: https://hackme.tech/reports/oss-cve-watch/ · Reproduce: DAY=4 bash scripts/ops/run_oss_cve_watch_libfuzzer_day.sh",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-10-github-release-rc11r",
       "date": "2026-07-10",
       "title": "HackMe 0.1.0-rc11r on GitHub Releases — Win · Linux · ISO · fuzz CLI",
@@ -241,20 +256,6 @@
         "mining",
         "infrastructure",
         "marketing"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-06-16-site-ecosystem-docs-final",
-      "date": "2026-06-16",
-      "title": "Site final — ecosystem docs, legal hub, mobile polish",
-      "summary": "hackme.tech updated end-to-end: per-coin pages (HMC/SUP/HMS), token transparency, listing hub with PDF packs, legal center with AGPL-3.0, economics layout fix, and mobile-friendly tables. One ecosystem narrative — not a single-coin site.",
-      "impact": "Exchange DD and miners get consistent links: transparency, listing PDFs, roadmap, and legal policy v1.1. Economics page no longer breaks on phones.",
-      "action": "Coins: https://hackme.tech/coins.html · Legal: https://hackme.tech/legal.html · Listing PDFs: https://hackme.tech/listing.html",
-      "tags": [
-        "infrastructure",
-        "marketing",
-        "legal"
       ],
       "status": "published"
     }
