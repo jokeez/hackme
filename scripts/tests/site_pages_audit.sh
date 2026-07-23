@@ -43,7 +43,6 @@ PAGES=(
   /news.html
   /research.html
   /developers.html
-  /operator-checklist.html
   /security-rewards.html
   /fuzz-campaigns.html
   /fuzz-guide.html

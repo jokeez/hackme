@@ -36,7 +36,7 @@ check_get_small() {
   return 1
 }
 echo "[site-release] RELEASE_VER=$VER"
-for p in / /index.html /downloads.html /news.html /contacts.html /developers.html /docs.html /coins.html /economics-model.html /operator-checklist.html /security-rewards.html /fuzz-guide.html; do
+for p in / /index.html /downloads.html /news.html /contacts.html /developers.html /docs.html /coins.html /economics-model.html /security-rewards.html /fuzz-guide.html; do
   code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "${SITE}${p}")" || code=000
   if [[ "$code" == "200" ]]; then echo "[pass] page $p"; else echo "[fail] page $p HTTP $code" >&2; fail=$((fail+1)); fi
 done

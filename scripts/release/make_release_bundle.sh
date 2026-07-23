@@ -131,8 +131,6 @@ GOOS=windows GOARCH="${WIN_ARCH}" CGO_ENABLED=0 \
 
 cp "${ROOT_DIR}/README.md" "${WIN_DIR}/README.md"
 cp "${ROOT_DIR}/README.md" "${LINUX_DIR}/README.md"
-cp "${ROOT_DIR}/docs/EXPLORER_SUBDOMAIN_RUNBOOK.md" "${WIN_DIR}/EXPLORER_SUBDOMAIN_RUNBOOK.md"
-cp "${ROOT_DIR}/docs/EXPLORER_SUBDOMAIN_RUNBOOK.md" "${LINUX_DIR}/EXPLORER_SUBDOMAIN_RUNBOOK.md"
 cp "${ROOT_DIR}/scripts/release/windows/hackme.iss" "${WIN_DIR}/hackme.iss"
 cp "${ROOT_DIR}/scripts/release/windows/sign_windows.ps1" "${WIN_DIR}/sign_windows.ps1"
 cp "${ROOT_DIR}/scripts/release/windows/build_windows_resources.ps1" "${WIN_DIR}/build_windows_resources.ps1"

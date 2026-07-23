@@ -61,8 +61,6 @@ for f in "$ROOT"/scripts/vast/*.sh; do
 done
 chmod +x "$PACK_DIR/scripts/"*.sh
 
-cp -f "$ROOT/docs/archive/vast/VAST_GPU_MATRIX_RUNBOOK.md" "$PACK_DIR/docs/" 2>/dev/null || true
-cp -f "$ROOT/docs/archive/vast/VAST_GPU_DAY_PLAN.md" "$PACK_DIR/docs/" 2>/dev/null || true
 cp -f "$ROOT/docs/archive/vast/VAST_GPU_FULL_MATRIX.md" "$PACK_DIR/docs/" 2>/dev/null || true
 cp -f "$ROOT/docs/GPU_MINING_BACKENDS.md" "$PACK_DIR/docs/" 2>/dev/null || true
 
@@ -128,7 +126,7 @@ HackMe Vast.ai GPU matrix pack — $STAMP
 7. bash scripts/02_collect_report.sh  (copy reports/ back to your PC)
 8. Multi-GPU: bash scripts/01_run_fleet.sh
 
-Runbook: docs/VAST_GPU_MATRIX_RUNBOOK.md · Today: docs/VAST_GPU_DAY_PLAN.md
+Runbook: see pack README · GPU matrix docs under docs/archive/vast/
 EOF
 
 tar -czf "$ARCHIVE" -C "$ROOT/dist" "vast-gpu-matrix-$STAMP"

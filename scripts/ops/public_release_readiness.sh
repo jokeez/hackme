@@ -65,5 +65,5 @@ fi
 
 echo ""
 echo "[public-readiness] VERDICT: automatic repository slicing - PASS"
-echo "[public-readiness] Further only the operator's tail: see docs/PUBLIC_LAUNCH_VERDICT.md and docs/OPERATOR_FINAL_CHECKLIST.md"
+echo "[public-readiness] Further only live probes + release gates (docs homework checklists removed)."
 exit 0

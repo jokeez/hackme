@@ -17,7 +17,6 @@
     docs: { href: "./docs.html", label: "Docs" },
     news: { href: "./news.html", label: "News" },
     economics: { href: "./economics-model.html", label: "Economics" },
-    operators: { href: "./operator-checklist.html", label: "Operators" },
     contacts: { href: "./contacts.html", label: "Contacts" },
     rewards: { href: "./security-rewards.html", label: "Bug bounty" },
     legal: { href: "./legal.html", label: "Legal" },
@@ -27,11 +26,11 @@
   };
 
   const PRIMARY = ["mine", "coins", "research", "docs"];
-  const MORE = ["fuzz", "developers", "news", "economics", "transparency", "roadmap", "listing", "operators", "rewards", "contacts", "legal", "privacy", "explorer", "downloads"];
+  const MORE = ["fuzz", "developers", "news", "economics", "transparency", "roadmap", "listing", "rewards", "contacts", "legal", "privacy", "explorer", "downloads"];
 
   const FOOTER_GROUPS = [
     { title: "Network", keys: ["home", "coins", "transparency", "roadmap", "research", "github", "explorer"] },
-    { title: "Start", keys: ["mine", "downloads", "docs", "listing", "operators"] },
+    { title: "Start", keys: ["mine", "downloads", "docs", "listing"] },
     { title: "Product", keys: ["fuzz", "developers", "economics", "news"] },
     { title: "Legal", keys: ["contacts", "rewards", "legal", "privacy"] },
   ];
@@ -54,7 +53,6 @@
       "coin-hmc": "coins",
       "coin-sup": "coins",
       "coin-hms": "coins",
-      "operator-checklist": "operators",
       "legal-privacy": "privacy",
       "legal-risk": "legal",
       "legal-eula": "legal",

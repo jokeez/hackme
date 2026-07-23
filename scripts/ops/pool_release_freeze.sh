@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# Snapshot build + tests for pool release freeze (see docs/POOL_FINAL_FREEZE.md).
+# Snapshot build + tests for pool release freeze.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"

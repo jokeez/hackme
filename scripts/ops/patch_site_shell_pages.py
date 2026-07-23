@@ -20,7 +20,6 @@ PAGE_MAP = {
     "docs.html": "docs",
     "news.html": "news",
     "economics-model.html": "economics",
-    "operator-checklist.html": "operators",
     "contacts.html": "contacts",
     "legal.html": "legal",
     "legal-privacy.html": "privacy",

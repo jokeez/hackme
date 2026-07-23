@@ -109,7 +109,7 @@ fi
   if [[ "$fail" -eq 0 ]]; then
     echo "## Verdict: **GO** for controlled miner launch"
     echo ""
-    echo "Pool, security smokes, and ISO checksum URL look good. Announce with [MINER_READINESS_CHECKLIST.md](../docs/MINER_READINESS_CHECKLIST.md) and Telegram support."
+    echo "Pool, security smokes, and ISO checksum URL look good. Announce via Telegram support and [SETUP.md](../docs/SETUP.md)."
   else
     echo "## Verdict: **NO-GO** until failures fixed"
     echo ""
