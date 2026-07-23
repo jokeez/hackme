@@ -66,7 +66,14 @@ send_topup() {
     echo "[treasury-float] WARN no fund seed at ${DATA_DIR} or ${TREASURY_FUND_SEED_HEX}" >&2
     return 1
   fi
-  if ! go run ./cmd/sendtransfer \
+  # Prefer prebuilt binary on slim VPS deploys (no go.mod / full module tree).
+  SENDX=(go run ./cmd/sendtransfer)
+  if [[ -x /opt/hackme/bin/sendtransfer ]]; then
+    SENDX=(/opt/hackme/bin/sendtransfer)
+  elif [[ -x "$ROOT/bin/sendtransfer" ]]; then
+    SENDX=("$ROOT/bin/sendtransfer")
+  fi
+  if ! "${SENDX[@]}" \
     -data-dir "$fund_dir" \
     -to "$TREASURY_ADDR" \
     -amount-hmc "$need" \
