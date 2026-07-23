@@ -19,7 +19,7 @@
 
 [![Release](https://img.shields.io/badge/release-0.1.0--rc12w-00d1ff?style=for-the-badge&logo=semanticweb&logoColor=white)](https://hackme.tech/downloads.html)
 [![Pool live](https://img.shields.io/badge/pool-LIVE-39ff14?style=for-the-badge&logo=serverless&logoColor=white)](https://hackme.tech/pool/coordinator/api/pool/stats)
-[![Security](https://img.shields.io/badge/audit-16%2F16_PASS-39ff14?style=for-the-badge&logo=shield&logoColor=white)](docs/STATUS.md)
+[![Security](https://img.shields.io/badge/audit-16%2F16_PASS-39ff14?style=for-the-badge&logo=shield&logoColor=white)](docs/SECURITY.md)
 [![CI](https://github.com/jokeez/hackme/actions/workflows/ci.yml/badge.svg)](https://github.com/jokeez/hackme/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/jokeez/hackme/actions/workflows/codeql.yml/badge.svg)](https://github.com/jokeez/hackme/actions/workflows/codeql.yml)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-7fe7ff?style=for-the-badge&logo=gnu&logoColor=white)](LICENSE)
@@ -97,12 +97,7 @@ flowchart TB
 | **Security gate** | **16/16 PASS** | Red-team scripts in `scripts/ops/` |
 | **HMS storage** | Preview | Prelaunch — not a miner lane yet |
 
-Full snapshot & health commands: **[docs/STATUS.md](docs/STATUS.md)**
-
-```bash
-# One-shot pool audit (operators)
-bash scripts/ops/run_pool_health_check.sh
-```
+Pool health probe: `bash scripts/ops/run_pool_health_check.sh` → `reports/pool-health-<ts>/`. Threat model: **[docs/SECURITY.md](docs/SECURITY.md)**.
 
 ---
 
@@ -234,9 +229,9 @@ Release bundle: `VERSION=0.1.0-rc12w bash scripts/release/make_release_bundle.sh
 |-----|----------|
 | [docs/INDEX.md](docs/INDEX.md) | Full map |
 | [docs/SETUP.md](docs/SETUP.md) | Miners |
-| [docs/STATUS.md](docs/STATUS.md) | Operators — **is prod OK?** |
 | [docs/API.md](docs/API.md) | Integrators |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design |
+| [docs/SECURITY.md](docs/SECURITY.md) | Threat model |
 
 ---
 

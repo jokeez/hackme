@@ -57,11 +57,3 @@ See `reports/oss-cve-watch/DAY15_TARGET_RECOMMENDATION.md` (operator notes; file
 **Bug bounty note:** nghttp2 has no meaningful cash program for this campaign style. libheif/Exiv2 are **research + GHSA** paths first; cash bounty only if a finding maps to an eligible consumer program. Pure H1-style bounty hunting is a poor fit for ASAN C++ decode fuzz (curl H1 closed; Cloudflare quiche = protocol DoS, different stack).
 
 Do **not** mix nghttp2 corpus with libheif. Use `TARGET=libheif` · `scripts/ops/build_oss_libfuzzer_libheif.sh` · corpus under `reports/oss-cve-libfuzzer/libheif/`.
-
-## Operator checklist (post-series)
-
-- [x] Day 14 HTML live · meta.json · news-feed updated  
-- [x] Series verdict doc (this file)  
-- [ ] Social: X thread · Discord · Bitcointalk ANN · Telegram (copy in `docs/social/OSS_CVE_WATCH_DAY14_SOCIAL.md`)  
-- [ ] Day 15 harness bootstrap (libheif build + seeds)  
-- [ ] HMS / settlement economics unchanged by research pivot  

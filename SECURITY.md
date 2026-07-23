@@ -38,7 +38,7 @@ Out of scope (unless chained with the above):
 ## Hardening references
 
 - [docs/SECURITY.md](docs/SECURITY.md) — threat model
-- [docs/SECURITY_AUDIT_REDTEAM.md](docs/SECURITY_AUDIT_REDTEAM.md) — pre–open-source checklist
+- [docs/SECURITY_AUDIT_REDTEAM.md](docs/SECURITY_AUDIT_REDTEAM.md) — red-team notes
 - [docs/BUG_BOUNTY.md](docs/BUG_BOUNTY.md) — reward tiers and reporting rules
 - [scripts/ops/public_pool_hardening.env.example](scripts/ops/public_pool_hardening.env.example) — production env template
 

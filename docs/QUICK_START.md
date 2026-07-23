@@ -31,6 +31,6 @@ curl -fsS https://hackme.tech/pool/coordinator/api/work/stats \
 | Goal | Doc |
 |------|-----|
 | Full install & GPU | [SETUP.md](SETUP.md) |
-| Operator “is prod OK?” | [STATUS.md](STATUS.md) |
+| Threat model | [SECURITY.md](SECURITY.md) |
 | B2B fuzz | [FUZZ_PRODUCT_GUIDE.md](FUZZ_PRODUCT_GUIDE.md) |
 | Docs map | [INDEX.md](INDEX.md) |

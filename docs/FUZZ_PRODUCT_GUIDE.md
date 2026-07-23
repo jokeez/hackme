@@ -84,6 +84,6 @@ Returns **`pass`** plus **`reasons[]`** when thresholds are violated. Same auth 
 
 ---
 
-## 6) Operator checklist cross-links
+## 6) Related scripts
 
-See **`docs/OPERATOR_FINAL_CHECKLIST.md`** for predeploy order and **`docs/ULTIMATE_VALIDATION_RUNBOOK.md`** for exhaustive passes.
+Release / pool health helpers live under **`scripts/ops/`** (see [../scripts/ops/README.md](../scripts/ops/README.md)).

@@ -155,6 +155,4 @@ HackMe node (`go run .`) and bot are **different processes**; The node URL is sp
 
 ## The second bot is a channel for miners and the community
 
-Separate process: **`scripts/ops/telegram/news_channel_bot.py`** publishes posts from **`assets/news.json`** to a public Telegram channel (needs `TG_BOT_TOKEN`, `TG_CHAT_ID`). Not to be confused with the operator bot above: the channel bot has **no** connection to your node, only to the news feed and links to the site.
-
-Full checklist: **`docs/TELEGRAM_NEWS_BOT_RUNBOOK.md`** (systemd `hackme-news-bot.service`, dry-run, token rotation, watchdog).
+Separate process: **`scripts/ops/telegram/news_channel_bot.py`** publishes posts from **`assets/news.json`** to a public Telegram channel (needs `TG_BOT_TOKEN`, `TG_CHAT_ID`). Not to be confused with the operator bot above: the channel bot has **no** connection to your node, only to the news feed and links to the site. Optional systemd unit: `hackme-news-bot.service`.

@@ -53,5 +53,5 @@ Packages: **scan** = WASM smoke · **audit** = WASM + native/ASAN repro · **dee
 
 ## Related
 
-- [PORTALS_FINAL_VERDICT.md](PORTALS_FINAL_VERDICT.md)
 - [FUZZING_B2B_SECURITY_VERDICT.md](FUZZING_B2B_SECURITY_VERDICT.md)
+- [FUZZ_PRODUCT_GUIDE.md](FUZZ_PRODUCT_GUIDE.md)

@@ -71,7 +71,7 @@ Already in `.gitignore`:
 
 ---
 
-## Recommended release checklist
+## Release hygiene (brand)
 
 1. Push to **your** GitHub org (not a personal throwaway account).  
 2. Pin **hackme.tech** as the only official site in README and ANN.  

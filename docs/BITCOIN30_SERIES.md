@@ -63,7 +63,7 @@ bash scripts/ops/start_bitcoin30_5days.sh
 # catch-up (no wait): WAIT_SEC=0 bash scripts/ops/start_bitcoin30_5days.sh
 ```
 
-Social drafts (local only, not in git): `docs/social/SOCIAL_BTC30_POSTS.md` · publish via [TELEGRAM_NEWS_BOT_RUNBOOK.md](TELEGRAM_NEWS_BOT_RUNBOOK.md).
+Social drafts (local only, not in git): `docs/social/SOCIAL_BTC30_POSTS.md`. Channel publish path: [TELEGRAM_BOT.md](TELEGRAM_BOT.md) news bot section.
 
 ### Week 1 verdict
 

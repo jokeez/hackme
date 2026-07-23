@@ -87,6 +87,5 @@ API: `GET /api/fuzz/campaigns/{id}/report` (HTML) · `?format=json` for automati
 
 ## Related docs
 
-- [Security research campaign runbook](../SECURITY_RESEARCH_CAMPAIGN_01.md)
-- [Screenshot & post checklist](../SCREENSHOT_AND_POST_CHECKLIST.md)
-- Forum thread: https://bitcointalk.org/index.php?topic=5583373.0 (reply with link to this pack)
+- [OSS_CVE_HUNT.md](../OSS_CVE_HUNT.md)
+- Forum thread: https://bitcointalk.org/index.php?topic=5583373.0

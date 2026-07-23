@@ -57,16 +57,15 @@ Orders (`POST /api/tasks`) - a separate layer: escrow and linking a reward to a 
 
 ---
 
-## 4. What to read step by step
+## 4. Related docs
 
-1. Public miner path: **`README.md`** → **Worker-mode** section (scripts `worker_mode_*`, health, recover).  
-2. Economics and expectations from the pool: **`docs/ECONOMICS_DASHBOARD.md`**.  
-3. Checklist before wide launch: **`docs/PUBLIC_LAUNCH_VERDICT.md`**.  
-4. Brief overview of functionality: **`README.md`** + **`docs/API.md`** (table of API and tabs).
+- Public miner path: **`README.md`**, **`docs/SETUP.md`**, worker-mode scripts under `scripts/ops/`.
+- Economics: **`docs/ECONOMICS_DASHBOARD.md`**.
+- HTTP surface: **`docs/API.md`**.
 
-### Check synchronization (operator)
+### Chain sync probe
 
-Script **`scripts/ops/verify_chain_sync_snapshot.sh`** - one pass through `GET /api/status`, `GET /api/metrics`, if `GET /api/global/metrics` is available: comparison of heights in standalone, hints when SQLite lags behind the canon, comparison of `pool_target_mod` with `work.target_mod`. Requires `curl` and `jq`:
+**`scripts/ops/verify_chain_sync_snapshot.sh`** compares `GET /api/status`, `GET /api/metrics`, and optional `GET /api/global/metrics` (height, SQLite lag hints, `pool_target_mod` vs `work.target_mod`). Requires `curl` and `jq`:
 
 ```bash
 LOCAL_BASE=http://127.0.0.1:8080 bash scripts/ops/verify_chain_sync_snapshot.sh

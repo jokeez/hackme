@@ -1,6 +1,6 @@
 # HackMe - security model (MVP / local node)
 
-The document sets **honest expectations**: what is protected now, what is deliberately not done before going online, and **checklist** for the moment when the node becomes accessible not only from localhost.
+Honest expectations: what is protected now, what is deliberately out of MVP scope, and what changes when the node is reachable beyond localhost.
 
 This is not a “bank-like” audit or a legal guarantee.
 
@@ -52,19 +52,22 @@ Demo / current emission policy:
 
 ---
 
-## 4. When you take the node to the LAN / Internet - a checklist after the fact
+## 4. Exposure beyond localhost
 
-1. **Surface:** who can reach TCP (VPN only? LAN only? public IP?).
-2. **Transport:** TLS (or mTLS), trusted reverse-proxy, disabling weak ciphers. Optional **`HACKME_HTTP_CORS_ALLOW_ORIGIN`** only if you consciously need cross-origin access to `/api/*` from the browser; don't ask otherwise.
-3. **Authentication:** Don't rely solely on `HACKME_ADMIN_TOKEN` in HTML - for production, separate roles, short-lived tokens, no secret in page markup.
-4. **Secrets:** separate OS user for the process, restriction of rights to `data/*.db` and `*.seed`.
-5. **Limits:** POST body size, request frequency, WASM timeouts, prohibition of dangerous imports in custom WASM.
-6. **Observability:** logs without token leakage; alerts for abnormal escrow consumption.
-7. **Network threats:** when P2P appears - block signing, peer identity, anti-replay, dependency security updates.
-8. **Transfer protection:** signature verification, nonce anti-replay, balance+fee and anomaly monitoring `429/invalid_signature/invalid_nonce`.
+When the bind address is not loopback-only, the threat model widens:
 
-Practical pre-launch gate before Internet exposure:  
-`scripts/ops/internet_preflight.sh` (checks sandbox/economics/status, security headers, difficulty health, p2p/sync/coordinator readiness and reduces PASS/FAIL to `reports/gates/<run_id>`).
+| Area | Notes |
+|------|--------|
+| **Surface** | Who can reach TCP (VPN, LAN, or public IP). |
+| **Transport** | TLS (or mTLS) on a reverse proxy; optional **`HACKME_HTTP_CORS_ALLOW_ORIGIN`** only when cross-origin browser access to `/api/*` is intentional. |
+| **Authentication** | Do not embed `HACKME_ADMIN_TOKEN` in HTML; production needs roles / short-lived tokens. |
+| **Secrets** | Dedicated OS user; tight permissions on `data/*.db` and `*.seed`. |
+| **Limits** | POST body size, request rate, WASM timeouts, reject dangerous imports. |
+| **Observability** | Logs without token leakage; alerts on abnormal escrow burn. |
+| **P2P** | Peer identity, anti-replay, signed blocks when P2P is exposed. |
+| **Transfers** | Signature + nonce anti-replay; watch `429` / `invalid_signature` / `invalid_nonce`. |
+
+Helper: `scripts/ops/internet_preflight.sh` records sandbox/economics/status, security headers, difficulty health, and coordinator readiness under `reports/gates/<run_id>`.
 
 ---
 

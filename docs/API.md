@@ -13,7 +13,7 @@ Pass the token in one of the following ways:
 - **`X-Hackme-Admin-Token: <token>`**
 - **`Authorization: Bearer <token>`**
 
-If the **not** variable is set, mutating POST routes do not require an admin header. It is recommended to keep `HACKME_REQUIRE_ADMIN_TOKEN=1` and not open the bind address publicly without a token. Threat model and checklist for the network - **`docs/SECURITY.md`**.
+If the **not** variable is set, mutating POST routes do not require an admin header. It is recommended to keep `HACKME_REQUIRE_ADMIN_TOKEN=1` and not open the bind address publicly without a token. Threat model: **`docs/SECURITY.md`**.
 
 ## Statics and page
 
@@ -92,7 +92,7 @@ If the **not** variable is set, mutating POST routes do not require an admin hea
 
 | Method | Path | Description |
 |--------|------|----------|
-| POST | `/api/tx/send` | Sending a signed transfer transaction. Body: `{ "tx_type":"transfer_v1", "sig_alg":"ed25519"?, "from", "to", "amount_units", "fee_units", "nonce", "timestamp_unix", "memo"?, "pubkey_ed25519", "sig_ed25519" }`, where `amount_units/fee_units` are the minimum units of **Kapa**. If `sig_alg` is not specified, `ed25519` is assumed; any other algorithms are now rejected as `unsupported_sig_alg` (fail-closed wire versioning under future PQ). When the block is turned on, `fee_units` is distributed as: **30% burn**, **70% dev/service fee** on **hardcoded** `DevFeeAddress` (`HMC-719006d93916ad52`, consensus policy, without runtime override). Success: `{ "ok": true, "tx_hash", "status": "pending" }`. Errors in `{ "error", "code" }` format. Checklist for exchanges and letter template to integrator: **`docs/EXCHANGE_LISTING_WALLET_PREP.md`**. |
+| POST | `/api/tx/send` | Sending a signed transfer transaction. Body: `{ "tx_type":"transfer_v1", "sig_alg":"ed25519"?, "from", "to", "amount_units", "fee_units", "nonce", "timestamp_unix", "memo"?, "pubkey_ed25519", "sig_ed25519" }`, where `amount_units/fee_units` are the minimum units of **Kapa**. If `sig_alg` is not specified, `ed25519` is assumed; any other algorithms are now rejected as `unsupported_sig_alg` (fail-closed wire versioning under future PQ). When the block is turned on, `fee_units` is distributed as: **30% burn**, **70% dev/service fee** on **hardcoded** `DevFeeAddress` (`HMC-719006d93916ad52`, consensus policy, without runtime override). Success: `{ "ok": true, "tx_hash", "status": "pending" }`. Errors in `{ "error", "code" }` format. Exchange integration pack: **`docs/EXCHANGE_LISTING_WALLET_PREP.md`**. |
 | GET | `/api/tx/{hash}` | Transaction status: `pending` / `included` / `rejected`, plus block fields upon confirmation. |
 | GET | `/api/address/{address}` | Address status: `{ "address", "balance_units", "next_nonce" }`, where `balance_units` is in **Kapa**. |
 | GET | `/api/tx/pool` | Current mempool (debug/admin): list of pending tx with sorting fields. |

@@ -24,7 +24,7 @@ reward_per_m ≈ base_reward_hmc × 1_000_000 / target_mod   (from canonical /ap
 - **Hybrid signer** must be valid when strict mode is on.
 - **Max 3 active leases** per worker id (fair share for home rigs).
 
-## What you must configure
+## Worker configuration
 
 1. **`WORKER_PAYOUT_MAP`** — `your-worker-id=HMC-your-address` (must match operator map for settlement).
 2. **`HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech`**

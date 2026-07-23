@@ -1,6 +1,6 @@
 # Repository hygiene — what must never reach GitHub
 
-Use this checklist before `git push` and when reviewing PRs.
+Before `git push` and when reviewing PRs, keep secrets out of history.
 
 ## Never commit
 
@@ -39,4 +39,4 @@ If anything sensitive was committed: rotate tokens on VPS, rewrite history only 
 - Issue templates: no paste of `.env` or coordinator admin token.  
 - Use [contacts.html](https://hackme.tech/contacts.html) for security reports — not public exploits in issues.
 
-See also [SECURITY.md](SECURITY.md) (runtime model) and [MINER_READINESS_CHECKLIST.md](MINER_READINESS_CHECKLIST.md).
+See also [SECURITY.md](SECURITY.md) (runtime model).

@@ -110,9 +110,3 @@ HACKME_DEPLOY_SSH_IDENTITY=~/.ssh/cursor_vps NODE_SSH=hackme-vps \
 ```
 
 (`dist/` rsync includes `dist/docs/` when present.)
-
-## Operator checklist
-
-- [ ] Regenerate PDFs after any `economics.go` / SUP genesis change
-- [ ] Verify treasury address balance matches transparency page
-- [ ] Attach PDFs to exchange portals + link from listing.html

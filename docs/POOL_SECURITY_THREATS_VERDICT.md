@@ -85,7 +85,7 @@ A comparison of “as it happens in classic articles” with **what HackMe actua
 ## 5. Where to look for the operator
 
 1. Public pool: consider **`HACKME_COORDINATOR_PAYOUT_FOUND_ONLY=1`** if paying primarily for hits is acceptable.  
-2. Hybrid: `docs` by hybrid signer + smoke `scripts/ops` (see `OPERATOR_FINAL_CHECKLIST.md`).  
+2. Hybrid: docs by hybrid signer + smoke under `scripts/ops/`.  
 3. Settlement: **one** cron, **flock**; monitoring `settlement_healthcheck.sh`; backup state.  
 4. Reconciliation: accumulated payments of the coordinator vs balance/issue of the canon - manually or using monitoring scripts.
 

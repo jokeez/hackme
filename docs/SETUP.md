@@ -145,7 +145,7 @@ bash scripts/ops/mining_night_snapshot.sh
 
 ## Operators (VPS deploy)
 
-See [OPERATOR_CHECKLIST.md](OPERATOR_CHECKLIST.md) and `scripts/ops/deploy_hackme_public_stack.sh`.
+Public stack deploy helper: `scripts/ops/deploy_hackme_public_stack.sh`. Supported ops scripts: [../scripts/ops/README.md](../scripts/ops/README.md).
 
 ---
 

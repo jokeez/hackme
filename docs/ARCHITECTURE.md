@@ -10,7 +10,7 @@
 
 One Go process brings up the HTTP server. The state of the chain and wallet is stored in **SQLite**. Heavy or isolated things: collecting OS metrics, executing **WASM** in a separate wazero runtime, background miner.
 
-**Security (MVP):** listener only **`127.0.0.1`**; optional **`HACKME_ADMIN_TOKEN`** + `requireAdminAuth` in `admin_auth.go` for selected POSTs. Threat model and checklist before going online - **`docs/SECURITY.md`**.
+**Security (MVP):** listener only **`127.0.0.1`**; optional **`HACKME_ADMIN_TOKEN`** + `requireAdminAuth` in `admin_auth.go` for selected POSTs. Threat model: **`docs/SECURITY.md`**.
 
 ```mermaid
 flowchart TB

@@ -34,7 +34,6 @@
 | [EXCHANGE_LISTING_MEMO.md](EXCHANGE_LISTING_MEMO.md) | One-page CEX submission memo |
 | [LISTING_PITCH_OUTLINE.md](LISTING_PITCH_OUTLINE.md) | 10–12 slide institutional outline |
 | [DOCUMENTATION_EXPORT.md](DOCUMENTATION_EXPORT.md) | PDF/DOCX export per ticker |
-| [EXCHANGE_LISTING_ROADMAP.md](EXCHANGE_LISTING_ROADMAP.md) | PoW CEX order (Xeggex → …) |
 | [EXCHANGE_LISTING_WALLET_PREP.md](EXCHANGE_LISTING_WALLET_PREP.md) | Technical integration pack |
 
 ## Differentiation (one paragraph)
@@ -46,7 +45,7 @@ HackMe combines **useful Proof-of-History mining** (WASM-gated work), a **coordi
 | Dimension | Today | Target |
 |-----------|-------|--------|
 | Technology / transparency | Strong public APIs, docs, explorer | Maintain + per-ticker PDF packs |
-| Operational discipline | Operator checklist, settlement timers, gates | Scale soak + HA narrative |
+| Operational discipline | Settlement timers, public APIs, release channel docs | Scale soak + HA narrative |
 | Market / traction | Pool live + OSS CVE Watch | Volume on first PoW CEX (post-summer) |
 | Liquidity | None listed yet | MM plan after first listing |
 | Legal | Risk disclosures on site | Entity + counsel before Tier-1 |

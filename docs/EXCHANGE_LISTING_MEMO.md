@@ -50,7 +50,6 @@ HackMe is **useful-compute infrastructure**: a native PoH chain (HMC), coordinat
 ## Technology transparency
 
 - Open source node, coordinator, worker binaries
-- Public operator checklist + release gates (rc12w)
 - Security research program (Bitcoin30 Week 1 public report)
 - Policy regression locks in Go (`economics_test.go`)
 
@@ -64,7 +63,7 @@ HackMe is **useful-compute infrastructure**: a native PoH chain (HMC), coordinat
 ## Market / liquidity (honest)
 
 - **Current stage:** early PoW network; **official pool live** (public stats API)
-- **Near-term CEX targets:** Xeggex, NonKYC, TradeOgre (see [EXCHANGE_LISTING_ROADMAP.md](EXCHANGE_LISTING_ROADMAP.md))
+- **Near-term CEX targets:** Xeggex, NonKYC, TradeOgre (PoW-friendly first)
 - **Liquidity:** no MM engaged yet — plan after first listing
 - **No ROI promises** in official channels
 

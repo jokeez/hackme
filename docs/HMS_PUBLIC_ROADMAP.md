@@ -19,14 +19,13 @@ B2B encrypted backup (client-side keys). Pay in HMC/SUP at upload; chunks never 
 
 ## Infrastructure
 
-- **Hub VPS (now):** HMC, SUP, website — unchanged  
-- **Heavy VPS #2 (before go-live):** HMS coordinator, ingress, seal Stratum  
-- **MPS:** add **HMS** under existing **HackMe Official Pool** (same brand, new coin row)
+- **Hub VPS:** HMC, SUP, website  
+- **HMS lane (planned):** dedicated coordinator, ingress, seal Stratum on a separate host when the lane opens  
 
 ## Timeline
 
 1. Design + local mocks (current)  
-2. Buy Amsterdam heavy VPS ~1 week before launch  
+2. Dedicated HMS host for pilot  
 3. Pilot 10–50 GB · restore gate  
 4. Public lane + settlement  
 

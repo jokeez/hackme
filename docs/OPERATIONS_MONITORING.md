@@ -28,6 +28,5 @@
 
 ## Deeper validation
 
-- **`docs/ULTIMATE_VALIDATION_RUNBOOK.md`** — long soak path.
-- **`docs/CANONICAL_RELEASE_CHECKS.md`** — prod-base fuzz + private gate.
-- **`scripts/ops/redteam_hard_mode.sh`** — one-command defensive red-team suite with aggregated PASS/FAIL summary (`reports/gates/<run_id>/summary.json`).
+- **`scripts/ops/redteam_hard_mode.sh`** — defensive red-team suite with aggregated PASS/FAIL (`reports/gates/<run_id>/summary.json`).
+- **`scripts/ops/run_pool_health_check.sh`** — pool audit artifacts under `reports/pool-health-<ts>/`.

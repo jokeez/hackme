@@ -1,12 +1,11 @@
 # `scripts/ops` — operator scripts
 
-Hundreds of one-shot and recurring shell helpers live here. Prefer **supported** paths below; treat the rest as experimental unless a runbook cites them.
+Hundreds of one-shot and recurring shell helpers live here. Prefer **supported** paths below; treat the rest as experimental.
 
 ## Supported (production / miners)
 
 | Script | Purpose |
 |--------|---------|
-| `run_miner_launch_gate.sh` | Pre-launch miner readiness gate |
 | `run_pool_health_check.sh` | Pool API + difficulty snapshot |
 | `public_site_smoke.sh` | Public site smoke (if present) |
 | Settlement / SUP timers | Scripts referenced from systemd units + `docs/OPERATIONS_MONITORING.md` |

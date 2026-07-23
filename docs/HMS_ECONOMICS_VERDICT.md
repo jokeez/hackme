@@ -34,15 +34,7 @@ Prepaid example: **100 HMC** prepaid in one epoch → **+1.0 HMS** to total budg
 |------|-------|--------|
 | **Tokenomics design** | **8.5/10** | Base emission now visible to miners; market still drives upside |
 | **Local pilot** | **GO** | Coordinator + Stratum + disk worker + dashboard KPIs |
-| **Production HMS** | **CONDITIONAL** | Needs VPS #2, `HMS_EPOCH_SECONDS=3600`, HMC market volume, listing |
-
-### Go-live checklist
-
-1. Deploy coordinator with **`HMS_EPOCH_SECONDS=3600`** (not 120 s).
-2. Rebuild `hmscoordinator` after policy change; verify `lane_economics.policy_version` = `hms-lane-v2-base-0.5`.
-3. Run `go test ./internal/hms/ -short` and `scripts/tests/hms_market_gate.sh`.
-4. Mint/settle only after epoch seal + `payouts_finalized`.
-5. Communicate: **~12 HMS/day network base** at 1 h epochs; most upside from **storage prepaid HMC**.
+| **Production HMS** | **CONDITIONAL** | Needs dedicated VPS, `HMS_EPOCH_SECONDS=3600`, HMC market volume, listing |
 
 ### Risks (unchanged)
 

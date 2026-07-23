@@ -55,4 +55,4 @@ go run ./tools/task_abi_check tasks/artifacts/rust_check.wasm tasks/artifacts/cp
 go run ./tools/task_manifest_lint tasks/manifests/order-rust-001.json tasks/manifests/order-cpp-001.json
 ```
 
-Full regression on **all** manifestos/wasm and live matrices of languages ​​(with the node raised): see **`scripts/tests/run_language_production_pack.sh`** and **[`docs/LANGUAGE_AND_ENTERPRISE_READINESS.md`](LANGUAGE_AND_ENTERPRISE_READINESS.md)**.
+Full regression on **all** manifests/wasm and live language matrices (with a running node): **`scripts/tests/run_language_production_pack.sh`**.

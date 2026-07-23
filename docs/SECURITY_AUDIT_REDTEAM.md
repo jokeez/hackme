@@ -73,7 +73,7 @@ Automated smoke: `scripts/tests/security_assertions.sh`, `scripts/tests/redteam_
 
 ---
 
-## Production env checklist
+## Production environment variables
 
 See `scripts/ops/public_pool_hardening.env.example`.
 
@@ -97,16 +97,6 @@ HACKME_P2P_TOKEN=<strong-secret>   # if P2P enabled
 
 ---
 
-## Before GitHub / Bitcointalk
-
-1. Run `bash scripts/ops/verify_project_health.sh` and `bash scripts/ops/public_release_readiness.sh`.
-2. Run `bash scripts/tests/redteam_surface_smoke.sh` against staging.
-3. Scrub git history for `.env.desktop`, `.secrets/`, DB dumps (use `git filter-repo` if ever committed).
-4. Publish **operator** docs: economics, settlement, threat model (`docs/POOL_SECURITY_THREATS_VERDICT.md`).
-5. Do **not** promise “trustless pool” — document off-chain accrual + operator settlement.
-
----
-
 ## Residual accepted risks (document honestly)
 
 - No per-nonce re-verification of full batch (cost).
@@ -118,6 +108,5 @@ HACKME_P2P_TOKEN=<strong-secret>   # if P2P enabled
 
 ## Related docs
 
-- [SECURITY.md](SECURITY.md) — operator checklist  
+- [SECURITY.md](SECURITY.md) — threat model  
 - [POOL_SECURITY_THREATS_VERDICT.md](POOL_SECURITY_THREATS_VERDICT.md) — payout abuse scenarios  
-- [PUBLIC_LAUNCH_VERDICT.md](PUBLIC_LAUNCH_VERDICT.md) — launch boundaries  

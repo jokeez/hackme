@@ -8,8 +8,6 @@
 | [QUICK_START.md](QUICK_START.md) | **1-minute** mine / desktop path |
 | [SETUP.md](SETUP.md) | **Miners & desktop** — step-by-step install |
 | [SECURITY_REPO.md](SECURITY_REPO.md) | **Contributors** — never commit secrets |
-| [STATUS.md](STATUS.md) | **Operators** — current RC verdict |
-| [MINER_READINESS_CHECKLIST.md](MINER_READINESS_CHECKLIST.md) | Launch gate checklist |
 
 ## Mining & pool
 
@@ -42,12 +40,11 @@
 
 | Doc / page | Topic |
 |------------|--------|
-| [BITCOIN30_SERIES.md](BITCOIN30_SERIES.md) | 30-day Bitcoin Core WASM fuzz runbook |
+| [BITCOIN30_SERIES.md](BITCOIN30_SERIES.md) | 30-day Bitcoin Core WASM fuzz |
 | [OSS_CVE_HUNT.md](OSS_CVE_HUNT.md) | OSS CVE wave pipeline |
-| [OSS_CVE_LIBHEIF_SERIES.md](OSS_CVE_LIBHEIF_SERIES.md) | **libheif** OSS CVE Watch · Day 1/14 (new series) |
+| [OSS_CVE_LIBHEIF_SERIES.md](OSS_CVE_LIBHEIF_SERIES.md) | **libheif** OSS CVE Watch · Day 1/14 |
 | [../web/site/reports/oss-cve-watch/](../web/site/reports/oss-cve-watch/) | **nghttp2 OSS CVE Watch** — 14-day ledger (complete) |
-| [TELEGRAM_NEWS_BOT_RUNBOOK.md](TELEGRAM_NEWS_BOT_RUNBOOK.md) | News bot + pool heartbeat (social drafts stay local under `docs/social/`) |
-| [TELEGRAM_BOT.md](TELEGRAM_BOT.md) | Bot setup |
+| [TELEGRAM_BOT.md](TELEGRAM_BOT.md) | Operator bot + news channel bot |
 | [../web/site/research.html](../web/site/research.html) | Public research hub |
 | [../web/site/reports/bitcoin30.html](../web/site/reports/bitcoin30.html) | BTC30 series hub |
 | [../web/site/reports/oss-cve/](../web/site/reports/oss-cve/) | OSS CVE ledger |
@@ -63,7 +60,7 @@
 | [EXCHANGE_LISTING_MEMO.md](EXCHANGE_LISTING_MEMO.md) | One-page CEX memo |
 | [LISTING_PITCH_OUTLINE.md](LISTING_PITCH_OUTLINE.md) | Slide deck source |
 | [DOCUMENTATION_EXPORT.md](DOCUMENTATION_EXPORT.md) | PDF/DOCX per ticker |
-| [EXCHANGE_LISTING_ROADMAP.md](EXCHANGE_LISTING_ROADMAP.md) | PoW CEX order |
+| [EXCHANGE_LISTING_WALLET_PREP.md](EXCHANGE_LISTING_WALLET_PREP.md) | Wallet / wire format for integrators |
 | [../web/site/coins.html](../web/site/coins.html) | Ecosystem registry |
 | [../web/site/token-transparency.html](../web/site/token-transparency.html) | Live supply APIs |
 | [../web/site/listing.html](../web/site/listing.html) | Listing readiness hub |
@@ -77,26 +74,19 @@
 | [API.md](API.md) | HTTP API |
 | [SECURITY.md](SECURITY.md) | Threat model (local node) |
 | [SECURITY_AUDIT_REDTEAM.md](SECURITY_AUDIT_REDTEAM.md) | Red-team notes |
+| [../spec/CHAIN_SPEC.md](../spec/CHAIN_SPEC.md) | Chain wire format |
 
-## Release & ops
+## Release & ops (factual)
 
 | Doc | Topic |
 |-----|--------|
-| [OPERATOR_FINAL_CHECKLIST.md](OPERATOR_FINAL_CHECKLIST.md) | Production checklist |
-| [CANONICAL_RELEASE_CHECKS.md](CANONICAL_RELEASE_CHECKS.md) | Schema / fuzz gates |
 | [OPERATIONS_MONITORING.md](OPERATIONS_MONITORING.md) | Metrics, alerts, pool health (`run_pool_health_check.sh`) |
-| [EXTERNAL_AUDIT_READINESS.md](EXTERNAL_AUDIT_READINESS.md) | Third-party audit & CEX due-diligence pack |
-| [VPS_MIRROR_GUIDE.md](VPS_MIRROR_GUIDE.md) | Mirror VPS buy + cutover |
 | [VPS_CAPACITY.md](VPS_CAPACITY.md) | Hub sizing & multi-coin layout |
-| [STATUS.md](STATUS.md) | **Current** operator snapshot (start here for “is prod OK?”) |
-| [PUBLIC_LAUNCH_VERDICT.md](PUBLIC_LAUNCH_VERDICT.md) | Launch criteria |
-| [HACKME_RC11S.md](HACKME_RC11S.md) | **Current** Win/Linux + ISO channel |
-| [HACKME_RC11R.md](HACKME_RC11R.md) | **Historical** prior RC (see also `archive/rc/`) |
+| [HACKME_RC12W.md](HACKME_RC12W.md) | **Current** Win/Linux + ISO channel |
+| [HACKME_RC11S.md](HACKME_RC11S.md) | Historical prior RC (see also `archive/rc/`) |
 | [scripts/release/README.md](../scripts/release/README.md) | Build ISO / Windows / bundles |
 | [scripts/ops/README.md](../scripts/ops/README.md) | Ops scripts — supported vs experimental |
 | [TESTING.md](TESTING.md) | Test matrix |
-| [NGINX_DOWNLOADS_INTEREST.md](NGINX_DOWNLOADS_INTEREST.md) | Download analytics |
-| [MININGPOOLSTATS_LISTING.md](MININGPOOLSTATS_LISTING.md) | MPS listing notes |
 
 ## Community
 
@@ -107,4 +97,4 @@
 
 ## Archive
 
-Internal dated notes: [archive/README.md](archive/README.md) — not current runbooks.
+Historical RC notes and GPU field logs: [archive/README.md](archive/README.md).
