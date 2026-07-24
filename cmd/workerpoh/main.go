@@ -32,6 +32,7 @@ import (
 // - claims nonce ranges from coordinator
 // - searches for a valid nonce in the range (CPU baseline)
 // - submits found hit with hybrid signature (optional but recommended / often required)
+// - optional fuzz dig under the same worker_id when HACKME_WORKER_HYBRID_FUZZ=1
 //
 // Build:
 //   go build -o workerpoh ./cmd/workerpoh
@@ -39,6 +40,10 @@ import (
 // Run:
 //   COORD_URL=https://hackme.tech/pool/coordinator COORD_TOKEN=... WORKER_ID=rig-01 \
 //   HACKME_MINER_ED25519_SEED_HEX=... ./workerpoh
+//
+// Hybrid (PoH+fuzz, same worker_id; default off for prod binaries):
+//   HACKME_WORKER_HYBRID_FUZZ=1 ./workerpoh
+//   HACKME_WORKER_HYBRID_FUZZ_MODE=process  # optional OS-isolated workerfuzz child
 //
 // Or place coordinator admin in .secrets/hackme_coordinator_admin_token (one line) and set only COORD_URL + miner seed.
 //
@@ -738,6 +743,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "workerpoh: %s calibrated %.2f GH/s (batch=%d)\n", strings.ToUpper(backend), gpuCalibratedGHS, *batch)
 		}
 	}
+	hybridFuzz := startHybridFuzzIfEnabled(*coordURL, *token, *workerID)
+	if hybridFuzz != nil {
+		defer hybridFuzz.cancel()
+		hybridFuzz.notePoHGHS(0, gpuCalibratedGHS)
+	}
 	var okSubmits int64
 	for {
 		// claim
@@ -908,6 +918,9 @@ func main() {
 			okSubmits++
 		}
 		pushWorkSnapshot(pushCL, *coordURL, *token, *workerID, workerName, ghs, subWrap.Accepted, okSubmits)
+		if hybridFuzz != nil {
+			hybridFuzz.notePoHGHS(ghs, gpuCalibratedGHS)
+		}
 		fmt.Printf("submit ok found=%v batch=%d mod=%d ghs=%.6f inst_ghs=%.2f\n", found, cr.BatchSize, cr.TargetMod, ghs, instGHS)
 		if ms := effectiveClaimCooldownMS(mode, ghs); ms > 0 {
 			time.Sleep(time.Duration(ms) * time.Millisecond)

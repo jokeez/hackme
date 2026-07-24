@@ -15,6 +15,9 @@ set -euo pipefail
 #   HACKME_GPU_DISABLE=1
 #   HACKME_GPU_FLEET=1 (default) — one worker per GPU (up to HACKME_GPU_FLEET_MAX=20)
 #   HACKME_GPU_HYBRID=auto — NVIDIA→CUDA + AMD→OpenCL on same host
+#   HACKME_WORKER_HYBRID_FUZZ=1 — same worker_id also digs pool fuzz (default off)
+#   HACKME_WORKER_HYBRID_FUZZ_MODE=inline|process
+#   HACKME_WORKER_HYBRID_FUZZ_CONCURRENCY=1 (hard-capped at 2)
 #   WORKER_BIN=/path/to/workerpoh
 #   RESTART_MAX_BACKOFF_SEC=20
 
@@ -66,6 +69,15 @@ if [[ -f "$WORKER_ENV_FILE" ]]; then
 	# shellcheck disable=SC1090
 	source "$WORKER_ENV_FILE"
 	set +a
+fi
+# Desktop hybrid flags (gitignored .env.desktop) — do not override already-exported values.
+if [[ -f "${ROOT_DIR}/.env.desktop" ]]; then
+  while IFS='=' read -r k v; do
+    [[ "$k" == HACKME_WORKER_HYBRID_FUZZ* ]] || continue
+    if [[ -z "${!k:-}" ]]; then
+      export "${k}=${v}"
+    fi
+  done < <(grep -E '^HACKME_WORKER_HYBRID_FUZZ' "${ROOT_DIR}/.env.desktop" || true)
 fi
 
 coord_looks_remote() {
@@ -185,8 +197,15 @@ build_worker_if_needed() {
 		return 0
 	fi
 	if [[ -x "$bin" ]]; then
-		local src="${ROOT_DIR}/cmd/workerpoh/main.go"
-		if [[ -f "$src" && "$bin" -nt "$src" ]]; then
+		local newest_src=""
+		local f
+		for f in "${ROOT_DIR}/cmd/workerpoh/"*.go; do
+			[[ -f "$f" ]] || continue
+			if [[ -z "$newest_src" || "$f" -nt "$newest_src" ]]; then
+				newest_src="$f"
+			fi
+		done
+		if [[ -n "$newest_src" && "$bin" -nt "$newest_src" ]]; then
 			return 0
 		fi
 		echo "[worker-autostart] rebuilding stale worker binary: ${bin}"
@@ -280,6 +299,62 @@ worker_run_loop_slot() {
   done
 }
 
+# Supervised fuzz dig under the same WORKER_ID (process mode / pre-hybrid CUDA binaries).
+# Inline mode is handled inside workerpoh when the binary includes hybrid_fuzz.go.
+hybrid_fuzz_process_loop() {
+  local worker_id="$1"
+  local fuzz_bin="${HACKME_WORKERFUZZ_BIN:-${ROOT_DIR}/bin/workerfuzz}"
+  if [[ ! -x "$fuzz_bin" ]]; then
+    if command -v go >/dev/null 2>&1; then
+      echo "[worker-autostart] building workerfuzz for hybrid process mode"
+      (cd "$ROOT_DIR" && go build -o "$fuzz_bin" ./cmd/workerfuzz) || {
+        echo "[worker-autostart] hybrid fuzz: build workerfuzz failed" >&2
+        return 1
+      }
+    else
+      echo "[worker-autostart] hybrid fuzz: missing $fuzz_bin" >&2
+      return 1
+    fi
+  fi
+  local timeout_ms="${HACKME_WORKER_HYBRID_FUZZ_TIMEOUT_MS:-500}"
+  local backoff=2
+  local run_log="${LOG_DIR}/workerpoh-hybrid-fuzz-${worker_id}.log"
+  echo "[worker-autostart] hybrid fuzz process mode worker=${worker_id} bin=${fuzz_bin} log=${run_log}"
+  while true; do
+    set +e
+    nice -n "${HACKME_WORKER_HYBRID_FUZZ_NICE:-10}" \
+      "$fuzz_bin" \
+      -coord "${COORD_URL}" \
+      -token "${COORD_TOKEN}" \
+      -worker "${worker_id}" \
+      -timeout-ms "${timeout_ms}" \
+      >>"${run_log}" 2>&1
+    rc=$?
+    set -e
+    echo "[worker-autostart] hybrid fuzz exited rc=${rc}; restart in ${backoff}s" | tee -a "${run_log}"
+    sleep "${backoff}"
+    if (( backoff < 30 )); then
+      backoff=$((backoff * 2))
+    fi
+  done
+}
+
+start_hybrid_fuzz_if_needed() {
+  if ! truthy "${HACKME_WORKER_HYBRID_FUZZ:-0}"; then
+    return 0
+  fi
+  local mode
+  mode="$(printf '%s' "${HACKME_WORKER_HYBRID_FUZZ_MODE:-process}" | tr '[:upper:]' '[:lower:]')"
+  # Prefer process dual-loop unless operator explicitly wants in-process (needs rebuilt workerpoh).
+  if [[ "$mode" == "inline" ]]; then
+    echo "[worker-autostart] hybrid fuzz inline mode — workerpoh binary must support HACKME_WORKER_HYBRID_FUZZ"
+    return 0
+  fi
+  hybrid_fuzz_process_loop "${WORKER_ID}" &
+  HYBRID_FUZZ_PID=$!
+  echo "[worker-autostart] hybrid fuzz pid=${HYBRID_FUZZ_PID} (same worker_id=${WORKER_ID})"
+}
+
 plan_json=""
 if plan_json="$(load_fleet_plan_json)"; then
   :
@@ -304,12 +379,14 @@ fi
 if [[ -z "$plan_json" ]]; then
   backend="$(detect_gpu_backend)"
   echo "[worker-autostart] WARN: fleet plan unavailable; single worker backend=${backend}" >&2
+  start_hybrid_fuzz_if_needed
   worker_run_loop_slot "${WORKER_ID}" "$backend" "${HACKME_GPU_DEVICE:-}" &
   wait
   exit 0
 fi
 
 echo "[worker-autostart] coord=${COORD_URL} base_worker=${WORKER_ID}"
+start_hybrid_fuzz_if_needed
 echo "[worker-autostart] fleet plan: $(printf '%s' "$plan_json" | python3 -c "
 import json, sys
 raw = sys.stdin.read().strip()
@@ -422,6 +499,10 @@ if [[ ${#fleet_pids[@]} -eq 0 ]]; then
   backend="$(detect_gpu_backend)"
   worker_run_loop_slot "${WORKER_ID}" "$backend" "${HACKME_GPU_DEVICE:-}" &
   fleet_pids=("$!")
+fi
+
+if [[ -n "${HYBRID_FUZZ_PID:-}" ]]; then
+  fleet_pids+=("${HYBRID_FUZZ_PID}")
 fi
 
 echo "[worker-autostart] fleet workers=${#fleet_pids[@]} (max ${HACKME_GPU_FLEET_MAX:-20})"
