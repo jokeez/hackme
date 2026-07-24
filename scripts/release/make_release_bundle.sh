@@ -123,11 +123,18 @@ done
 [[ -f "${LINUX_DIR}/minersign" ]] && install -m 0755 "${LINUX_DIR}/minersign" "${LINUX_DIR}/bin/minersign"
 cp "${ROOT_DIR}/scripts/release/linux/fix_miner_layout.sh" "${LINUX_DIR}/fix_miner_layout.sh"
 chmod +x "${LINUX_DIR}/fix_miner_layout.sh"
+echo "[release] building workerfuzz (pool dig; hybrid process mode + dedicated diggers)"
+GOOS=linux GOARCH="${LINUX_ARCH}" CGO_ENABLED="${CGO_ENABLED}" \
+  go build -trimpath -ldflags "-s -w" -o "${LINUX_DIR}/workerfuzz" ./cmd/workerfuzz
+GOOS=windows GOARCH="${WIN_ARCH}" CGO_ENABLED="${CGO_ENABLED}" \
+  go build -trimpath -ldflags "-s -w" -o "${WIN_DIR}/workerfuzz.exe" ./cmd/workerfuzz
+install -m 0755 "${LINUX_DIR}/workerfuzz" "${LINUX_DIR}/bin/workerfuzz"
 echo "[release] building fleetplan (GPU fleet JSON)"
 GOOS=linux GOARCH="${LINUX_ARCH}" CGO_ENABLED=0 \
   go build -trimpath -ldflags "-s -w" -o "${LINUX_DIR}/fleetplan" ./cmd/fleetplan
 GOOS=windows GOARCH="${WIN_ARCH}" CGO_ENABLED=0 \
   go build -trimpath -ldflags "-s -w" -o "${WIN_DIR}/fleetplan.exe" ./cmd/fleetplan
+[[ -f "${LINUX_DIR}/fleetplan" ]] && install -m 0755 "${LINUX_DIR}/fleetplan" "${LINUX_DIR}/bin/fleetplan"
 
 cp "${ROOT_DIR}/README.md" "${WIN_DIR}/README.md"
 cp "${ROOT_DIR}/README.md" "${LINUX_DIR}/README.md"

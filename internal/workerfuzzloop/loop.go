@@ -86,9 +86,20 @@ func Truthy(v string) bool {
 	return v == "1" || v == "true" || v == "yes" || v == "on"
 }
 
-// HybridFuzzEnabled is true when HACKME_WORKER_HYBRID_FUZZ is truthy.
+// HybridFuzzEnabled is true unless HACKME_WORKER_HYBRID_FUZZ is explicitly off.
+// Fleet default is ON (inline dig under the same worker_id). Escape hatch: =0|false|no|off.
 func HybridFuzzEnabled() bool {
-	return Truthy(os.Getenv("HACKME_WORKER_HYBRID_FUZZ"))
+	v := strings.TrimSpace(os.Getenv("HACKME_WORKER_HYBRID_FUZZ"))
+	if v == "" {
+		return true
+	}
+	return !Falsy(v)
+}
+
+// Falsy is true for common off spellings (0, false, no, off).
+func Falsy(v string) bool {
+	v = strings.TrimSpace(strings.ToLower(v))
+	return v == "0" || v == "false" || v == "no" || v == "off"
 }
 
 // HybridFuzzMode returns "inline" (default) or "process".

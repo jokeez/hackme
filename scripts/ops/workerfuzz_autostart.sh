@@ -24,9 +24,11 @@ truthy() {
   [[ "$v" == "1" || "$v" == "true" || "$v" == "yes" || "$v" == "on" ]]
 }
 
-# Avoid sybil: hybrid workerpoh already digs fuzz under the PoH worker_id.
-if truthy "${HACKME_WORKER_HYBRID_FUZZ:-0}"; then
-  echo "[workerfuzz-autostart] HACKME_WORKER_HYBRID_FUZZ=1 — skip standalone workerfuzz (use hybrid under PoH worker_id)" >&2
+# Avoid sybil: hybrid workerpoh already digs fuzz under the PoH worker_id (default ON).
+# Only run this standalone launcher when hybrid is explicitly disabled.
+if [[ -z "${HACKME_WORKER_HYBRID_FUZZ:-}" ]] || truthy "${HACKME_WORKER_HYBRID_FUZZ}"; then
+  echo "[workerfuzz-autostart] hybrid fuzz ON (default) — skip standalone workerfuzz (use hybrid under PoH worker_id)" >&2
+  echo "[workerfuzz-autostart] set HACKME_WORKER_HYBRID_FUZZ=0 to force dedicated digger" >&2
   exit 0
 fi
 

@@ -42,12 +42,18 @@ if [[ ! -x "$PACK_DIR/bin/minersign" || ! -x "$PACK_DIR/bin/fleetplan" ]]; then
   chmod 755 "$PACK_DIR/bin/minersign" "$PACK_DIR/bin/fleetplan"
 fi
 
-for b in workerpoh-cuda workerpoh-opencl workerpoh; do
+for b in workerpoh-cuda workerpoh-opencl workerpoh workerfuzz; do
   if [[ -x "$ROOT/bin/$b" ]]; then
     cp -f "$ROOT/bin/$b" "$PACK_DIR/bin/"
     echo "[vast-pack] + bin/$b"
   fi
 done
+if [[ ! -x "$PACK_DIR/bin/workerfuzz" ]]; then
+  echo "[vast-pack] building workerfuzz (linux amd64)"
+  GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o "$PACK_DIR/bin/workerfuzz" ./cmd/workerfuzz
+  chmod 755 "$PACK_DIR/bin/workerfuzz"
+  echo "[vast-pack] + bin/workerfuzz (built)"
+fi
 if [[ ! -x "$PACK_DIR/bin/workerpoh-cuda" ]]; then
   echo "[vast-pack] ERROR: bin/workerpoh-cuda missing — run: bash scripts/ops/build_cuda_worker.sh" >&2
   exit 1
@@ -95,6 +101,12 @@ SEARCH_TIMEOUT_MS=12000
 HACKME_WORKER_CLAIM_TIMEOUT=90s
 HACKME_WORKER_SUBMIT_TIMEOUT=120s
 HACKME_CUDA_VERBOSE=1
+
+# Hybrid PoH+fuzz (fleet default ON, inline). Escape hatch: =0
+HACKME_WORKER_HYBRID_FUZZ=1
+HACKME_WORKER_HYBRID_FUZZ_MODE=inline
+# Process mode / dedicated dig: needs bin/workerfuzz in this pack
+# HACKME_WORKER_HYBRID_FUZZ_MODE=process
 
 # Session length for run_pool_worker.sh (seconds)
 RUN_SECONDS=1800

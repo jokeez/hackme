@@ -8,10 +8,14 @@ import (
 	"hackme/internal/workerfuzzloop"
 )
 
-func TestHybridFuzzFlagDefaultOff(t *testing.T) {
+func TestHybridFuzzFlagDefaultOn(t *testing.T) {
 	t.Setenv("HACKME_WORKER_HYBRID_FUZZ", "")
+	if !workerfuzzloop.HybridFuzzEnabled() {
+		t.Fatal("hybrid must default on")
+	}
+	t.Setenv("HACKME_WORKER_HYBRID_FUZZ", "0")
 	if workerfuzzloop.HybridFuzzEnabled() {
-		t.Fatal("hybrid must default off")
+		t.Fatal("hybrid must honor escape hatch =0")
 	}
 	if startHybridFuzzIfEnabled("http://127.0.0.1:9", "t", "w") != nil {
 		t.Fatal("expected nil when flag off")

@@ -36,9 +36,10 @@ func (h *hybridFuzzState) notePoHGHS(ghs, calib float64) {
 	}
 }
 
-// startHybridFuzzIfEnabled launches PoH+fuzz dig under the same worker_id when
-// HACKME_WORKER_HYBRID_FUZZ=1. Default mode is inline (one binary); set
-// HACKME_WORKER_HYBRID_FUZZ_MODE=process for OS-level crash isolation via workerfuzz child.
+// startHybridFuzzIfEnabled launches PoH+fuzz dig under the same worker_id.
+// Hybrid is ON by default; set HACKME_WORKER_HYBRID_FUZZ=0 to disable.
+// Default mode is inline (one binary); set HACKME_WORKER_HYBRID_FUZZ_MODE=process
+// for OS-level crash isolation via a supervised workerfuzz child.
 func startHybridFuzzIfEnabled(coordURL, token, workerID string) *hybridFuzzState {
 	if !workerfuzzloop.HybridFuzzEnabled() {
 		return nil

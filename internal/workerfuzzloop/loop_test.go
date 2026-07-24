@@ -22,13 +22,21 @@ func TestPayoutIsTreasury(t *testing.T) {
 }
 
 func TestTruthyHybridFlags(t *testing.T) {
+	t.Setenv("HACKME_WORKER_HYBRID_FUZZ", "")
+	if !HybridFuzzEnabled() {
+		t.Fatal("expected hybrid default ON when unset")
+	}
 	t.Setenv("HACKME_WORKER_HYBRID_FUZZ", "1")
 	if !HybridFuzzEnabled() {
 		t.Fatal("expected hybrid enabled")
 	}
 	t.Setenv("HACKME_WORKER_HYBRID_FUZZ", "0")
 	if HybridFuzzEnabled() {
-		t.Fatal("expected hybrid disabled")
+		t.Fatal("expected hybrid disabled via escape hatch")
+	}
+	t.Setenv("HACKME_WORKER_HYBRID_FUZZ", "off")
+	if HybridFuzzEnabled() {
+		t.Fatal("expected hybrid disabled for off")
 	}
 	t.Setenv("HACKME_WORKER_HYBRID_FUZZ_MODE", "process")
 	if HybridFuzzMode() != "process" {

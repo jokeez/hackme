@@ -15,8 +15,8 @@ set -euo pipefail
 #   HACKME_GPU_DISABLE=1
 #   HACKME_GPU_FLEET=1 (default) — one worker per GPU (up to HACKME_GPU_FLEET_MAX=20)
 #   HACKME_GPU_HYBRID=auto — NVIDIA→CUDA + AMD→OpenCL on same host
-#   HACKME_WORKER_HYBRID_FUZZ=1 — same worker_id also digs pool fuzz (default off)
-#   HACKME_WORKER_HYBRID_FUZZ_MODE=inline|process
+#   HACKME_WORKER_HYBRID_FUZZ=1 — same worker_id also digs pool fuzz (default ON; set =0 to disable)
+#   HACKME_WORKER_HYBRID_FUZZ_MODE=inline|process (default inline; process needs bin/workerfuzz)
 #   HACKME_WORKER_HYBRID_FUZZ_CONCURRENCY=1 (hard-capped at 2)
 #   WORKER_BIN=/path/to/workerpoh
 #   RESTART_MAX_BACKOFF_SEC=20
@@ -379,14 +379,16 @@ hybrid_fuzz_process_loop() {
 }
 
 start_hybrid_fuzz_if_needed() {
-  if ! truthy "${HACKME_WORKER_HYBRID_FUZZ:-0}"; then
+  # Match Go default: hybrid ON unless explicitly off.
+  if [[ -n "${HACKME_WORKER_HYBRID_FUZZ:-}" ]] && ! truthy "${HACKME_WORKER_HYBRID_FUZZ}"; then
+    echo "[worker-autostart] hybrid fuzz disabled (HACKME_WORKER_HYBRID_FUZZ=${HACKME_WORKER_HYBRID_FUZZ})"
     return 0
   fi
   local mode
-  mode="$(printf '%s' "${HACKME_WORKER_HYBRID_FUZZ_MODE:-process}" | tr '[:upper:]' '[:lower:]')"
-  # Prefer process dual-loop unless operator explicitly wants in-process (needs rebuilt workerpoh).
-  if [[ "$mode" == "inline" ]]; then
-    echo "[worker-autostart] hybrid fuzz inline mode — workerpoh binary must support HACKME_WORKER_HYBRID_FUZZ"
+  mode="$(printf '%s' "${HACKME_WORKER_HYBRID_FUZZ_MODE:-inline}" | tr '[:upper:]' '[:lower:]')"
+  # Inline is handled inside workerpoh; process mode supervises bin/workerfuzz.
+  if [[ "$mode" == "inline" || "$mode" == "" ]]; then
+    echo "[worker-autostart] hybrid fuzz inline mode (default) — workerpoh digs fuzz under same worker_id"
     return 0
   fi
   hybrid_fuzz_process_loop "${WORKER_ID}" &

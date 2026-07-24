@@ -24,7 +24,9 @@ import (
 	"hackme/internal/gputune"
 	"hackme/internal/operator"
 	"hackme/internal/sandbox"
+	"hackme/internal/workerfuzzloop"
 	"hackme/internal/workerid"
+	"hackme/internal/workerlock"
 	"hackme/internal/worksubmit"
 )
 
@@ -32,7 +34,7 @@ import (
 // - claims nonce ranges from coordinator
 // - searches for a valid nonce in the range (CPU baseline)
 // - submits found hit with hybrid signature (optional but recommended / often required)
-// - optional fuzz dig under the same worker_id when HACKME_WORKER_HYBRID_FUZZ=1
+// - digs pool fuzz under the same worker_id by default (HACKME_WORKER_HYBRID_FUZZ=0 to disable)
 //
 // Build:
 //   go build -o workerpoh ./cmd/workerpoh
@@ -41,9 +43,10 @@ import (
 //   COORD_URL=https://hackme.tech/pool/coordinator COORD_TOKEN=... WORKER_ID=rig-01 \
 //   HACKME_MINER_ED25519_SEED_HEX=... ./workerpoh
 //
-// Hybrid (PoH+fuzz, same worker_id; default off for prod binaries):
-//   HACKME_WORKER_HYBRID_FUZZ=1 ./workerpoh
-//   HACKME_WORKER_HYBRID_FUZZ_MODE=process  # optional OS-isolated workerfuzz child
+// Hybrid (PoH+fuzz, same worker_id; default ON, inline mode):
+//   ./workerpoh
+//   HACKME_WORKER_HYBRID_FUZZ=0 ./workerpoh              # escape hatch
+//   HACKME_WORKER_HYBRID_FUZZ_MODE=process ./workerpoh   # OS-isolated workerfuzz child
 //
 // Or place coordinator admin in .secrets/hackme_coordinator_admin_token (one line) and set only COORD_URL + miner seed.
 //
@@ -682,6 +685,18 @@ func main() {
 			hn = "local"
 		}
 		*workerID = "worker-" + sanitizeWorkerHostname(hn)
+	}
+	if !workerfuzzloop.Truthy(os.Getenv("HACKME_WORKER_SKIP_INSTANCE_LOCK")) {
+		g, err := workerlock.Acquire("workerpoh", *workerID, strings.TrimSpace(os.Getenv("HACKME_WORKER_LOCK_DIR")))
+		if err != nil {
+			if errors.Is(err, workerlock.ErrAlreadyRunning) {
+				fmt.Fprintf(os.Stderr, "workerpoh: %v\n", err)
+				os.Exit(0)
+			}
+			fmt.Fprintf(os.Stderr, "workerpoh: instance lock: %v\n", err)
+			os.Exit(1)
+		}
+		defer g.Release()
 	}
 
 	priv, pubHex, signHybrid, err := loadHybridSigningMaterial()

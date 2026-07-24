@@ -325,6 +325,9 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 	// Tick runs on the coordinator background ticker (every ~3s). Calling it on every
 	// claim re-scans campaigns under SQLite and chokes a real worker fleet.
 	leaseSec := leaseSeconds()
+	// Prefer: (1) expired leases, (2) near-complete campaigns, (3) oldest updated_at.
+	// Near-complete preference unsticks e.g. 23995/24000 when a huge pending backlog
+	// would otherwise starve the last few rows behind LIMIT 512.
 	rows, err := s.DB.QueryContext(ctx,
 		`SELECT c.id, c.title, c.owner_ref, c.config_json, w.id, w.input_n
 		 FROM fuzz_campaigns c
@@ -336,8 +339,13 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 		   AND lower(c.id) NOT LIKE 'pool-sync-node-%'
 		   AND lower(c.id) NOT LIKE 'campaign-gate-%'
 		   AND lower(c.id) NOT LIKE 'campaign-diag%'
-		 ORDER BY w.updated_at ASC
-		 LIMIT 512`, now)
+		 ORDER BY CASE WHEN w.status='leased' AND w.lease_until < ? THEN 0 ELSE 1 END,
+		          CASE WHEN c.budget_runs > 0 AND (
+		            SELECT COUNT(*) FROM fuzz_work_items d
+		            WHERE d.campaign_id = c.id AND d.status = 'done'
+		          ) >= (c.budget_runs - 32) THEN 0 ELSE 1 END,
+		          w.updated_at ASC
+		 LIMIT 512`, now, now)
 	if err != nil {
 		return out, false, err
 	}

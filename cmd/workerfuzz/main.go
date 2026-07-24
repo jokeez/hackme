@@ -3,11 +3,12 @@
 //	COORD_URL=https://hackme.tech/pool/coordinator COORD_TOKEN=... WORKER_ID=rig-fuzz-01 \
 //	HACKME_MINER_ED25519_SEED_HEX=... go run ./cmd/workerfuzz
 //
-// Prefer HACKME_WORKER_HYBRID_FUZZ=1 on workerpoh for one worker_id that also digs fuzz.
+// Prefer hybrid fuzz on workerpoh (default ON) for one worker_id that also digs fuzz.
 package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 	"syscall"
 
 	"hackme/internal/workerfuzzloop"
+	"hackme/internal/workerlock"
 )
 
 func main() {
@@ -36,6 +38,18 @@ func main() {
 	}
 	if *workerID == "" {
 		*workerID = "workerfuzz-1"
+	}
+	if !workerfuzzloop.Truthy(os.Getenv("HACKME_WORKER_SKIP_INSTANCE_LOCK")) {
+		g, err := workerlock.Acquire("workerfuzz", *workerID, strings.TrimSpace(os.Getenv("HACKME_WORKER_LOCK_DIR")))
+		if err != nil {
+			if errors.Is(err, workerlock.ErrAlreadyRunning) {
+				fmt.Fprintf(os.Stderr, "workerfuzz: %v\n", err)
+				os.Exit(0)
+			}
+			fmt.Fprintf(os.Stderr, "workerfuzz: instance lock: %v\n", err)
+			os.Exit(1)
+		}
+		defer g.Release()
 	}
 	priv, pubHex, derivedAddr, hybrid, err := workerfuzzloop.LoadHybridKey()
 	if err != nil {

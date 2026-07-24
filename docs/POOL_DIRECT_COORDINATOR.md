@@ -29,6 +29,8 @@ bin/workerpoh-cuda -coord http://132.243.112.100:18083 -batch 16777216 ...
 
 **Defaults (fleet templates):** `worker_autostart.sh` rewrites public CF → direct when `HACKME_DESKTOP_GPU_POOL=1` (or always when `HACKME_POOL_DIRECT=1`); CUDA/desktop GPU batch defaults to 16M; claim cooldown floors 0→100. Rig profiles bake 16M + 100ms for RTX 30/40/50, RDNA2/3, Hopper. Casual miners without those flags keep HTTPS via Cloudflare.
 
+**Hybrid fuzz (fleet default ON):** release miners dig pool fuzz under the same `WORKER_ID` (`HACKME_WORKER_HYBRID_FUZZ` defaults on, mode=`inline`). Escape hatch `=0`. Process mode / dedicated dig needs `bin/workerfuzz` (linux + windows in the release bundle). Pure fuzz diggers (`bootstrap-fuzz-*`, `vps-canary-fuzz-*`) correctly show **0 GH** in the PoH workers table — they claim `/api/fuzz/work/*`, not PoH hashrate.
+
 ## Templates / release
 
 Examples ship the bake-in values: `.env.desktop.example`, `scripts/ops/desktop_worker.env.example`, Vast pack, ISO miner firstboot / `run-miner-worker.sh`, Windows `write_hackme_env.ps1`. Reinstall or restart worker after pulling so env picks up the new defaults.

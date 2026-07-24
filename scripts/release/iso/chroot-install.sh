@@ -47,7 +47,10 @@ if [[ -d /tmp/payload ]]; then
   install -m 0755 /tmp/payload/workerpoh /opt/hackme/bin/workerpoh 2>/dev/null || true
   install -m 0755 /tmp/payload/workerpoh-opencl /opt/hackme/bin/workerpoh-opencl 2>/dev/null || true
   install -m 0755 /tmp/payload/workerpoh-cuda /opt/hackme/bin/workerpoh-cuda 2>/dev/null || true
+  install -m 0755 /tmp/payload/workerfuzz /opt/hackme/bin/workerfuzz 2>/dev/null || true
   install -m 0755 /tmp/payload/minersign /opt/hackme/bin/minersign 2>/dev/null || true
+  # Also accept flat bin/ layout from release tarball.
+  install -m 0755 /tmp/payload/bin/workerfuzz /opt/hackme/bin/workerfuzz 2>/dev/null || true
   ln -sf workerpoh /opt/hackme/bin/workerpoh-cpu 2>/dev/null || true
   if [[ -f /tmp/payload/detect_gpu_backend.sh ]]; then
     install -m 0755 /tmp/payload/detect_gpu_backend.sh /opt/hackme/scripts/ops/detect_gpu_backend.sh
