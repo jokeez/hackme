@@ -3064,7 +3064,7 @@ func extractHTMLTitle(s string) string {
 	return strings.TrimSpace(rest[:j])
 }
 
-// sanitizeWorkerLogLines collapses nginx HTML error dumps into one-line summaries.
+// sanitizeWorkerLogLines collapses nginx HTML error dumps and noisy CUDA/detector bursts.
 func sanitizeWorkerLogLines(in []string) []string {
 	if len(in) == 0 {
 		return in
@@ -3072,6 +3072,10 @@ func sanitizeWorkerLogLines(in []string) []string {
 	out := make([]string, 0, len(in))
 	htmlN := 0
 	htmlStatus := ""
+	cudaN := 0
+	cudaLast := ""
+	findN := 0
+	findLast := ""
 	flushHTML := func() {
 		if htmlN == 0 {
 			return
@@ -3087,6 +3091,43 @@ func sanitizeWorkerLogLines(in []string) []string {
 		}
 		htmlN = 0
 		htmlStatus = ""
+	}
+	flushCUDA := func() {
+		if cudaN == 0 {
+			return
+		}
+		if cudaN == 1 {
+			out = append(out, cudaLast)
+		} else {
+			out = append(out, cudaLast+"  ·  ×"+strconv.Itoa(cudaN)+" cuda samples collapsed")
+		}
+		cudaN = 0
+		cudaLast = ""
+	}
+	flushFindings := func() {
+		if findN == 0 {
+			return
+		}
+		if findN == 1 {
+			out = append(out, findLast)
+		} else {
+			pref := "workerpoh-fuzz"
+			if strings.HasPrefix(findLast, "workerfuzz:") {
+				pref = "workerfuzz"
+			}
+			camp := "campaign"
+			if i := strings.Index(findLast, "campaign="); i >= 0 {
+				rest := findLast[i+len("campaign="):]
+				if j := strings.IndexByte(rest, ' '); j > 0 {
+					camp = rest[:j]
+				} else {
+					camp = rest
+				}
+			}
+			out = append(out, pref+": FINDING campaign="+camp+" semantics=detector  ·  ×"+strconv.Itoa(findN)+" detector findings collapsed")
+		}
+		findN = 0
+		findLast = ""
 	}
 	isJunk := func(s string) bool {
 		t := strings.TrimSpace(s)
@@ -3109,11 +3150,21 @@ func sanitizeWorkerLogLines(in []string) []string {
 		}
 		return false
 	}
+	isCUDA := func(s string) bool {
+		low := strings.ToLower(s)
+		return strings.Contains(low, "cuda search") || strings.Contains(low, "gpupoh: cuda search")
+	}
+	isDetectorFinding := func(s string) bool {
+		return strings.Contains(s, "FINDING") && strings.Contains(s, "semantics=detector") &&
+			(strings.HasPrefix(s, "workerpoh-fuzz:") || strings.HasPrefix(s, "workerfuzz:"))
+	}
 	for _, ln := range in {
 		s := ln
 		low := strings.ToLower(s)
 		claimHTML := strings.Contains(low, "claim:") && strings.Contains(low, "http") && strings.Contains(low, "<html")
 		if isJunk(s) || claimHTML {
+			flushCUDA()
+			flushFindings()
 			htmlN++
 			if code := extractHTTPStatusToken(s); code != "" {
 				htmlStatus = "workerfuzz: claim: HTTP " + code
@@ -3129,10 +3180,28 @@ func sanitizeWorkerLogLines(in []string) []string {
 			}
 			continue
 		}
+		if isCUDA(s) {
+			flushHTML()
+			flushFindings()
+			cudaLast = s
+			cudaN++
+			continue
+		}
+		if isDetectorFinding(s) {
+			flushHTML()
+			flushCUDA()
+			findLast = s
+			findN++
+			continue
+		}
 		flushHTML()
+		flushCUDA()
+		flushFindings()
 		out = append(out, s)
 	}
 	flushHTML()
+	flushCUDA()
+	flushFindings()
 	return out
 }
 

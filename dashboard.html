@@ -11604,19 +11604,24 @@
 			if (/submit ok/i.test(s) || /\bok\b.*batch=/i.test(s)) return 'log-ok';
 			if (/\bWARN\b|tx_hash missing|not confirmed|cooldown|rate.?limit/i.test(s)) return 'log-warn';
 			if (/gpupoh:\s*cuda search|cuda search count=/i.test(s)) return 'log-cuda';
-			if (/×\d+\s+cuda samples collapsed/i.test(s)) return 'log-dim';
+			if (/×\d+\s+(cuda samples|detector findings) collapsed/i.test(s)) return 'log-dim';
 			if (/^\[pool\]|^worker mode:|hybrid fuzz/i.test(s)) return 'log-meta';
 			return '';
 		}
 		function isCudaSpamLogLine(msg) {
 			return /gpupoh:\s*cuda search|cuda search count=/i.test(String(msg || ''));
 		}
-		/** Collapse burst CUDA GH/s lines; drop nginx HTML fragments from 502 dumps. */
+		function isDetectorFindingSpamLine(msg) {
+			return /(?:workerpoh-fuzz|workerfuzz):\s*FINDING\b/i.test(String(msg || '')) && /semantics=detector/i.test(String(msg || ''));
+		}
+		/** Collapse CUDA / detector FINDING bursts; drop nginx HTML fragments from 502 dumps. */
 		function compressMiningLogLines(lines) {
 			const src = Array.isArray(lines) ? lines : [];
 			const out = [];
 			let cudaLast = '';
 			let cudaN = 0;
+			let findLast = '';
+			let findN = 0;
 			let htmlN = 0;
 			let htmlStatus = '';
 			const flushCuda = () => {
@@ -11625,6 +11630,17 @@
 				else out.push(String(cudaLast) + '  ·  ×' + cudaN + ' cuda samples collapsed');
 				cudaLast = '';
 				cudaN = 0;
+			};
+			const flushFindings = () => {
+				if (!findN) return;
+				if (findN === 1) out.push(findLast);
+				else {
+					const camp = (findLast.match(/campaign=([^\s]+)/i) || [])[1] || 'campaign';
+					const pref = (findLast.match(/^(?:workerpoh-fuzz|workerfuzz)/i) || ['workerpoh-fuzz'])[0];
+					out.push(pref + ': FINDING campaign=' + camp + ' semantics=detector  ·  ×' + findN + ' detector findings collapsed');
+				}
+				findLast = '';
+				findN = 0;
 			};
 			const flushHtml = () => {
 				if (!htmlN) return;
@@ -11647,13 +11663,22 @@
 			for (let i = 0; i < src.length; i++) {
 				const ln = String(src[i] == null ? '' : src[i]);
 				if (isCudaSpamLogLine(ln)) {
+					flushFindings();
 					flushHtml();
 					cudaLast = ln;
 					cudaN++;
 					continue;
 				}
+				if (isDetectorFindingSpamLine(ln)) {
+					flushCuda();
+					flushHtml();
+					findLast = ln;
+					findN++;
+					continue;
+				}
 				if (isHtmlJunk(ln) || isHtmlClaimLine(ln)) {
 					flushCuda();
+					flushFindings();
 					htmlN++;
 					const m = ln.match(/HTTP\s+(\d{3})/i) || ln.match(/\b(502|503|504)\b/);
 					const t = ln.match(/<title>([^<]+)<\/title>/i);
@@ -11663,10 +11688,12 @@
 					continue;
 				}
 				flushCuda();
+				flushFindings();
 				flushHtml();
 				out.push(ln);
 			}
 			flushCuda();
+			flushFindings();
 			flushHtml();
 			return out;
 		}
@@ -11685,17 +11712,18 @@
 				const n = miningLogCudaLive.n;
 				miningLogCudaLive.n = 0;
 				const shown = n > 1 ? (raw + '  ·  ×' + n + ' cuda samples collapsed') : raw;
-				return miningLogAppend(el, shown);
+				return miningLogAppend(el, shown, true);
 			}
 			miningLogCudaLive = { n: 0, last: '', lastFlush: Date.now() };
-			return miningLogAppend(el, raw);
+			return miningLogAppend(el, raw, true);
 		}
-		function miningLogAppend(el, raw) {
+		function miningLogAppend(el, raw, addClockStamp) {
 			const p = document.createElement('p');
 			const tone = miningLogToneClass(raw);
 			p.className = 'log-line' + (tone ? (' ' + tone) : '');
 			const hasTs = /^\[\d{2}:\d{2}:\d{2}\]/.test(raw.trim());
-			if (hasTs) {
+			if (hasTs || !addClockStamp) {
+				// Worker file tails have no clock; do not invent identical wall-clock stamps on refresh.
 				p.textContent = raw;
 			} else {
 				const t = new Date().toISOString().split('T')[1].slice(0, 8);
@@ -11726,7 +11754,7 @@
 			const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
 			el.innerHTML = '';
 			miningLogCudaLive = { n: 0, last: '', lastFlush: 0 };
-			compressed.slice(-200).forEach((ln) => miningLogAppend(el, String(ln)));
+			compressed.slice(-200).forEach((ln) => miningLogAppend(el, String(ln), false));
 			if (nearBottom) el.scrollTop = el.scrollHeight;
 		}
 

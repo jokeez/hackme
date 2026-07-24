@@ -37,16 +37,25 @@ func TestSanitizeWorkerLogLinesCollapsesHTML(t *testing.T) {
 		"</body>",
 		"</html>",
 		"workerfuzz: FINDING campaign=cjson input=0x1 semantics=detector",
+		"workerfuzz: FINDING campaign=cjson input=0x2 semantics=detector",
+		"workerfuzz: FINDING campaign=cjson input=0x3 semantics=detector",
+		"gpupoh: cuda search count=4194304 elapsed=0s ~50 GH/s",
+		"gpupoh: cuda search count=4194304 elapsed=0s ~51 GH/s",
+		"submit ok found=false batch=1",
 	}
 	out := sanitizeWorkerLogLines(in)
-	if len(out) != 2 {
-		t.Fatalf("len=%d out=%v", len(out), out)
+	joined := strings.Join(out, "\n")
+	if strings.Contains(joined, "<html") {
+		t.Fatalf("html leaked: %v", out)
 	}
-	if !strings.Contains(out[0], "502") || strings.Contains(out[0], "<html") {
-		t.Fatalf("collapsed line: %q", out[0])
+	if !strings.Contains(joined, "detector findings collapsed") {
+		t.Fatalf("findings not collapsed: %v", out)
 	}
-	if !strings.Contains(out[1], "FINDING") {
-		t.Fatalf("finding lost: %q", out[1])
+	if !strings.Contains(joined, "cuda samples collapsed") {
+		t.Fatalf("cuda not collapsed: %v", out)
+	}
+	if !strings.Contains(joined, "submit ok") {
+		t.Fatalf("submit lost: %v", out)
 	}
 }
 
