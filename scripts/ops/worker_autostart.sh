@@ -387,8 +387,18 @@ start_hybrid_fuzz_if_needed() {
   local mode
   mode="$(printf '%s' "${HACKME_WORKER_HYBRID_FUZZ_MODE:-inline}" | tr '[:upper:]' '[:lower:]')"
   # Inline is handled inside workerpoh; process mode supervises bin/workerfuzz.
-  if [[ "$mode" == "inline" || "$mode" == "" ]]; then
+  if [[ "$mode" == "inline" || "$mode" == "" || "$mode" == "default" ]]; then
     echo "[worker-autostart] hybrid fuzz inline mode (default) — workerpoh digs fuzz under same worker_id"
+    return 0
+  fi
+  if [[ "$mode" != "process" ]]; then
+    echo "[worker-autostart] WARN: unknown HACKME_WORKER_HYBRID_FUZZ_MODE=${mode}; treating as inline" >&2
+    return 0
+  fi
+  # Avoid double dig when an inline workerpoh is already running for this worker_id.
+  if pgrep -f "${ROOT_DIR}/bin/workerpoh.*-worker[ =]${WORKER_ID}( |$)" >/dev/null 2>&1 || \
+     pgrep -f "workerpoh-cuda.*-worker[ =]${WORKER_ID}( |$)" >/dev/null 2>&1; then
+    echo "[worker-autostart] hybrid process skipped — workerpoh already running for ${WORKER_ID} (use MODE=inline or stop PoH first)"
     return 0
   fi
   hybrid_fuzz_process_loop "${WORKER_ID}" &

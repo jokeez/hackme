@@ -38,6 +38,7 @@ import (
 	"hackme/internal/p2p"
 	"hackme/internal/store"
 	"hackme/internal/workerid"
+	"hackme/internal/workerlock"
 )
 
 //go:embed dashboard.html
@@ -3005,6 +3006,15 @@ func latestHybridFuzzLogPath(logDir string) string {
 	return best
 }
 
+func workerIDFromHybridFuzzLog(path string) string {
+	base := filepath.Base(path)
+	const prefix = "workerpoh-hybrid-fuzz-"
+	if !strings.HasPrefix(base, prefix) || !strings.HasSuffix(base, ".log") {
+		return ""
+	}
+	return strings.TrimSuffix(base[len(prefix):], ".log")
+}
+
 func extractHTTPStatusToken(s string) string {
 	low := strings.ToLower(s)
 	idx := strings.Index(low, "http ")
@@ -3274,12 +3284,18 @@ func (a *app) handleMiningLogs(w http.ResponseWriter, r *http.Request) {
 			lines = append(lines, sanitizeWorkerLogLines(tail)...)
 		}
 		if hy := latestHybridFuzzLogPath(filepath.Dir(tailPath)); hy != "" && hy != tailPath {
-			if hyTail, err := tailFileLastLines(hy, 40, 128*1024); err == nil && len(hyTail) > 0 {
-				lines = append(lines, "")
-				lines = append(lines, "--- hybrid fuzz ("+filepath.Base(hy)+") ---")
-				lines = append(lines, sanitizeWorkerLogLines(hyTail)...)
-				if logMode == "worker" {
-					logMode = "both"
+			// Only show process-mode digger log while its lock is live — skip stale
+			// workerpoh-hybrid-fuzz-*.log noise after switching to inline hybrid.
+			hyID := workerIDFromHybridFuzzLog(hy)
+			lockDir := filepath.Dir(tailPath)
+			if hyID != "" && workerlock.Held("workerfuzz", hyID, lockDir) {
+				if hyTail, err := tailFileLastLines(hy, 40, 128*1024); err == nil && len(hyTail) > 0 {
+					lines = append(lines, "")
+					lines = append(lines, "--- hybrid fuzz ("+filepath.Base(hy)+") ---")
+					lines = append(lines, sanitizeWorkerLogLines(hyTail)...)
+					if logMode == "worker" {
+						logMode = "both"
+					}
 				}
 			}
 		}
