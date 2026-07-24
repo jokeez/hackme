@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Reliable release download — tries hackme.tech CDN, then direct origin mirror.
+# Reliable release download — GitHub first, then origin, then site CDN.
 #
 #   bash scripts/ops/download_hackme_release.sh
-#   bash scripts/ops/download_hackme_release.sh 0.1.0-rc11r linux
+#   bash scripts/ops/download_hackme_release.sh 0.1.0-rc13 linux
 #   OUT_DIR=~/Downloads bash scripts/ops/download_hackme_release.sh
 set -euo pipefail
 
@@ -12,6 +12,7 @@ KIND="${2:-linux}"
 OUT_DIR="${OUT_DIR:-$PWD}"
 ORIGIN_IP="${HACKME_ORIGIN_IP:-132.243.112.100}"
 MIN_BYTES="${MIN_BYTES:-1000000}"
+GH_REPO="${HACKME_GH_REPO:-jokeez/hackme}"
 
 case "$KIND" in
   linux) FILE="hackme_${VER}_linux.tar.gz" ;;
@@ -25,32 +26,14 @@ PATH_ON_SITE="/dist/${REL}/${FILE}"
 OUT="${OUT_DIR}/${FILE}"
 mkdir -p "$OUT_DIR"
 
-try_url() {
-  local url="$1" label="$2"
-  local tmp="${OUT}.part"
-  rm -f "$tmp"
-  echo "[download] ${label}: ${url}"
-  if curl -fL --retry 2 --retry-delay 2 --connect-timeout 15 --max-time 600 \
-      -C - -o "$tmp" "$url"; then
-    local n
-    n="$(wc -c <"$tmp" | tr -d ' ')"
-    if [[ "$n" -ge "$MIN_BYTES" ]]; then
-      mv -f "$tmp" "$OUT"
-      echo "[download] OK ${n} bytes → ${OUT}"
-      return 0
-    fi
-    echo "[download] WARN ${label}: only ${n} bytes (too small)" >&2
-  else
-    echo "[download] WARN ${label} failed" >&2
-  fi
-  rm -f "$tmp"
-  return 1
-}
-
+# Prefer GitHub (authoritative for fix re-uploads). Site CDN may stay stale when
+# /dist/ was previously advertised as immutable.
 MIRRORS=(
+  "https://github.com/${GH_REPO}/releases/download/${VER}/${FILE}|GitHub Releases"
   "https://${ORIGIN_IP}${PATH_ON_SITE}|origin IP (direct)"
   "https://dl.hackme.tech${PATH_ON_SITE}|dl.hackme.tech (direct)"
-  "https://hackme.tech${PATH_ON_SITE}|hackme.tech (CDN)"
+  "https://hackme.tech/dist/${REL}/live/${FILE}|hackme.tech live/ (short-TTL)"
+  "https://hackme.tech${PATH_ON_SITE}|hackme.tech CDN"
 )
 
 for entry in "${MIRRORS[@]}"; do
@@ -58,12 +41,14 @@ for entry in "${MIRRORS[@]}"; do
   label="${entry##*|}"
   extra=()
   max_time=600
-  if [[ "$url" == https://hackme.tech* ]]; then
-    max_time=20
+  if [[ "$url" == https://hackme.tech/dist/*/hackme_* ]]; then
+    # Stale CF HIT can hang/truncate — fail fast and try next mirror.
+    max_time=25
   fi
   if [[ "$url" == https://${ORIGIN_IP}* ]]; then
     extra=(-H "Host: hackme.tech" -k)
   fi
+  echo "[download] try ${label}: ${url}"
   if curl -fL --retry 1 --connect-timeout 10 --max-time "$max_time" \
       "${extra[@]}" -C - -o "${OUT}.part" "$url"; then
     n="$(wc -c <"${OUT}.part" | tr -d ' ')"
