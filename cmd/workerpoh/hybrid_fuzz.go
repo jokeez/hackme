@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"hackme/internal/workerfuzzloop"
+	"hackme/internal/workerlock"
 )
 
 // hybridFuzzState shares PoH hashrate with the inline fuzz loop for backpressure.
@@ -117,11 +118,27 @@ func superviseHybridFuzzProcess(ctx context.Context, coordURL, token, workerID s
 	}
 	niceLevel := workerfuzzloop.EnvInt("HACKME_WORKER_HYBRID_FUZZ_NICE", 10)
 	timeoutMS := workerfuzzloop.EnvInt("HACKME_WORKER_HYBRID_FUZZ_TIMEOUT_MS", 500)
+	lockDir := strings.TrimSpace(os.Getenv("HACKME_WORKER_LOCK_DIR"))
 	backoff := 2 * time.Second
+	loggedBusy := false
 	for {
 		if err := ctx.Err(); err != nil {
 			return
 		}
+		// If a standalone digger already holds the lock, do not spawn/restart-spam.
+		if workerlock.Held("workerfuzz", workerID, lockDir) {
+			if !loggedBusy {
+				fmt.Fprintf(os.Stderr, "workerpoh: hybrid fuzz process: digger already running for worker_id=%s — waiting (no duplicate spawn)\n", workerID)
+				loggedBusy = true
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(10 * time.Second):
+			}
+			continue
+		}
+		loggedBusy = false
 		// Prefer `nice` wrapper so process-mode actually yields CPU to PoH/GPU
 		// (SysProcAttr has no portable Nice field on Linux).
 		args := []string{
@@ -148,6 +165,19 @@ func superviseHybridFuzzProcess(ctx context.Context, coordURL, token, workerID s
 		err := cmd.Run()
 		if ctx.Err() != nil {
 			return
+		}
+		// Child exited immediately because lock raced — treat as busy, not crash storm.
+		if workerlock.Held("workerfuzz", workerID, lockDir) {
+			if !loggedBusy {
+				fmt.Fprintf(os.Stderr, "workerpoh: hybrid fuzz process: digger already running for worker_id=%s — waiting (no duplicate spawn)\n", workerID)
+				loggedBusy = true
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(10 * time.Second):
+			}
+			continue
 		}
 		fmt.Fprintf(os.Stderr, "workerpoh: hybrid fuzz child exited (%v); restart in %s\n", err, backoff)
 		select {

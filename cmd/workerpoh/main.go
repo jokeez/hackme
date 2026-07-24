@@ -192,19 +192,18 @@ func pushWorkSnapshot(cl *http.Client, coordURL, token, workerID, workerName str
 	_ = res.Body.Close()
 }
 
-// loadHybridSigningMaterial returns (priv, pubHex, true) when HACKME_MINER_ED25519_SEED_HEX is set and valid.
+// loadHybridSigningMaterial returns (priv, pubHex, true) when a miner seed is available
+// (HACKME_MINER_ED25519_SEED_HEX, HACKME_MINER_SEED_FILE, or desktop node seed).
 func loadHybridSigningMaterial() (ed25519.PrivateKey, string, bool, error) {
-	seedHex := strings.TrimSpace(os.Getenv("HACKME_MINER_ED25519_SEED_HEX"))
-	if seedHex == "" {
-		return nil, "", false, nil
+	priv, pubHex, _, hybrid, err := workerfuzzloop.LoadHybridKey()
+	if err != nil {
+		msg := err.Error()
+		if strings.Contains(msg, "required") || strings.Contains(msg, "SEED") {
+			return nil, "", false, nil
+		}
+		return nil, "", false, err
 	}
-	seed, err := hex.DecodeString(seedHex)
-	if err != nil || len(seed) != 32 {
-		return nil, "", false, errors.New("HACKME_MINER_ED25519_SEED_HEX must be 32-byte hex (64 chars)")
-	}
-	priv := ed25519.NewKeyFromSeed(seed)
-	pub := priv.Public().(ed25519.PublicKey)
-	return priv, hex.EncodeToString(pub), true, nil
+	return priv, pubHex, hybrid, nil
 }
 
 type searcher interface {

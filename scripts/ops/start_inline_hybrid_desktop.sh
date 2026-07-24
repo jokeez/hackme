@@ -29,6 +29,8 @@ mkdir -p logs
 # Prefer desktop node seed for hybrid payout (same HMC as PoH) when env seed unset.
 if [[ -z "${HACKME_MINER_ED25519_SEED_HEX:-}" && -f logs/desktop/data/node_ed25519.seed ]]; then
   export HACKME_MINER_SEED_FILE="$ROOT/logs/desktop/data/node_ed25519.seed"
+  # Also export hex so workerpoh hybrid_sign=true even before seed-file fallback lands in older bins.
+  export HACKME_MINER_ED25519_SEED_HEX="$(tr -d ' \t\r\n' <"$ROOT/logs/desktop/data/node_ed25519.seed")"
 fi
 
 nohup "$ROOT/bin/workerpoh-cuda" \

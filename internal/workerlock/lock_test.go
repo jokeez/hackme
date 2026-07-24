@@ -33,3 +33,22 @@ func TestAcquireExclusive(t *testing.T) {
 	}
 	g3.Release()
 }
+
+func TestHeld(t *testing.T) {
+	dir := t.TempDir()
+	if Held("workerfuzz", "rig-b", dir) {
+		t.Fatal("empty lock should not be held")
+	}
+	g, err := Acquire("workerfuzz", "rig-b", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer g.Release()
+	if !Held("workerfuzz", "rig-b", dir) {
+		t.Fatal("expected held while Acquire live")
+	}
+	g.Release()
+	if Held("workerfuzz", "rig-b", dir) {
+		t.Fatal("expected free after Release")
+	}
+}

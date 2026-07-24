@@ -77,6 +77,33 @@ func (g *Guard) Path() string {
 // ErrAlreadyRunning means another process already holds this worker lock.
 var ErrAlreadyRunning = fmt.Errorf("worker already running")
 
+// Held reports whether another live process currently holds the lock for kind+workerID.
+// Used by hybrid process-mode to avoid spawn/restart storms when digger is already up.
+func Held(kind, workerID, dir string) bool {
+	kind = sanitize(kind)
+	workerID = sanitize(workerID)
+	if kind == "" {
+		kind = "worker"
+	}
+	if workerID == "" {
+		workerID = "default"
+	}
+	if dir == "" {
+		dir = "logs"
+	}
+	path := filepath.Join(dir, fmt.Sprintf("workerlock-%s-%s.pid", kind, workerID))
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		return true
+	}
+	_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	return false
+}
+
 func sanitize(s string) string {
 	s = strings.TrimSpace(s)
 	var b strings.Builder
