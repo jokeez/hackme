@@ -88,19 +88,52 @@ coord_looks_remote() {
   return 0
 }
 
-	if coord_looks_remote "$COORD_URL"; then
-  # Desktop GPU rigs: larger batches (fewer HTTPS round-trips, more attempts per range).
-  if [[ -z "${BATCH_SIZE:-}" && "${HACKME_DESKTOP_GPU_POOL:-0}" == "1" ]]; then
-    BATCH_SIZE=4194304
-    GPU_CHUNK=4194304
+coord_is_public_cf() {
+  local u
+  u="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')"
+  [[ "$u" == *hackme.tech* ]]
+}
+
+# Direct origin for GPU fleet (bypass CF). Opt-in: HACKME_POOL_DIRECT=1, or desktop GPU pool
+# still on public CF path. Never rewrite loopback or custom non-CF remotes.
+DIRECT_COORD_URL="${HACKME_POOL_DIRECT_URL:-http://132.243.112.100:18083}"
+if [[ "${HACKME_POOL_DIRECT:-0}" == "1" ]] || [[ "${HACKME_DESKTOP_GPU_POOL:-0}" == "1" ]]; then
+  cur_coord="${HACKME_POOL_COORDINATOR_URL:-${COORD_URL:-}}"
+  if coord_looks_remote "$cur_coord"; then
+    rewrite=0
+    if [[ "${HACKME_POOL_DIRECT:-0}" == "1" ]]; then
+      rewrite=1
+    elif coord_is_public_cf "$cur_coord"; then
+      # Desktop GPU + CF path → direct (no explicit non-CF override).
+      rewrite=1
+    fi
+    if [[ "$rewrite" == "1" ]] && [[ "$cur_coord" != "$DIRECT_COORD_URL" ]]; then
+      echo "[worker-autostart] coordinator → direct ${DIRECT_COORD_URL} (custom COORD_URL / unset HACKME_POOL_DIRECT to keep CF)"
+      export COORD_URL="$DIRECT_COORD_URL"
+      export HACKME_POOL_COORDINATOR_URL="$DIRECT_COORD_URL"
+    fi
   fi
-  BATCH_SIZE="${BATCH_SIZE:-1048576}"
-  GPU_CHUNK="${GPU_CHUNK:-$BATCH_SIZE}"
+fi
+
+# GPU desktop / CUDA: default 16M batch (fewer RTTs). Casual CF remote without GPU flags stays 1M.
+if [[ -z "${BATCH_SIZE:-}" ]]; then
+  if [[ "${HACKME_DESKTOP_GPU_POOL:-0}" == "1" ]] || [[ "${HACKME_GPU_BACKEND:-}" == "cuda" ]]; then
+    BATCH_SIZE=16777216
+    GPU_CHUNK="${GPU_CHUNK:-4194304}"
+  elif coord_looks_remote "$COORD_URL"; then
+    BATCH_SIZE=1048576
+    GPU_CHUNK="${GPU_CHUNK:-$BATCH_SIZE}"
+  else
+    BATCH_SIZE=4194304
+    GPU_CHUNK="${GPU_CHUNK:-4194304}"
+  fi
+fi
+BATCH_SIZE="${BATCH_SIZE}"
+GPU_CHUNK="${GPU_CHUNK:-$BATCH_SIZE}"
+if coord_looks_remote "$COORD_URL"; then
   export HACKME_WORKER_CLAIM_TIMEOUT="${HACKME_WORKER_CLAIM_TIMEOUT:-90s}"
   export HACKME_WORKER_SUBMIT_TIMEOUT="${HACKME_WORKER_SUBMIT_TIMEOUT:-120s}"
 else
-  BATCH_SIZE="${BATCH_SIZE:-4194304}"
-  GPU_CHUNK="${GPU_CHUNK:-4194304}"
   export HACKME_WORKER_CLAIM_TIMEOUT="${HACKME_WORKER_CLAIM_TIMEOUT:-35s}"
   export HACKME_WORKER_SUBMIT_TIMEOUT="${HACKME_WORKER_SUBMIT_TIMEOUT:-90s}"
 fi
@@ -120,6 +153,12 @@ fi
 if [[ "${HACKME_WORKER_CLAIM_COOLDOWN_MS:-}" == "0" ]] && [[ "${HACKME_WORKER_ALLOW_ZERO_COOLDOWN:-0}" != "1" ]]; then
   if [[ "${HACKME_DESKTOP_GPU_POOL:-0}" == "1" ]] || [[ "${HACKME_GPU_BACKEND:-}" == "cuda" ]]; then
     echo "[worker-autostart] CLAIM_COOLDOWN_MS=0 → 100 (set HACKME_WORKER_ALLOW_ZERO_COOLDOWN=1 to keep 0)"
+    export HACKME_WORKER_CLAIM_COOLDOWN_MS=100
+  fi
+fi
+# Unset cooldown on GPU desktop/CUDA → bake 100 (matches workerpoh GPU default).
+if [[ -z "${HACKME_WORKER_CLAIM_COOLDOWN_MS:-}" ]]; then
+  if [[ "${HACKME_DESKTOP_GPU_POOL:-0}" == "1" ]] || [[ "${HACKME_GPU_BACKEND:-}" == "cuda" ]]; then
     export HACKME_WORKER_CLAIM_COOLDOWN_MS=100
   fi
 fi

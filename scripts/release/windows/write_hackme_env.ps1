@@ -40,10 +40,10 @@ if (-not $admin) {
 }
 
 # Rig profile / batch defaults
-$batch = 4194304
+$batch = 16777216
 $chunk = 4194304
 $searchMs = 2500
-$claimMs = 0
+$claimMs = 100
 $tempPause = 83
 $tempResume = 76
 # Optional floor only when kernel timing fails — never pin pool GH/s (see HACKME_GPU_HASHRATE_FLOOR_GHS).
@@ -63,10 +63,12 @@ if (-not $RigProfile -and (Test-Path $gpuJson)) {
 $hasOpenCLBin = Test-Path -LiteralPath (Join-Path -Path $dir -ChildPath "workerpoh-opencl.exe")
 $hasCudaBin = Test-Path -LiteralPath (Join-Path -Path $dir -ChildPath "workerpoh-cuda.exe")
 
-# NVIDIA desktop: align with Linux fair pool (no 28s claim sleep; longer GPU search window).
+# NVIDIA desktop: align with Linux fair pool (100ms claim cooldown; longer GPU search window).
 if (-not ($RigProfile -match '^amd_rx580') -and ($gpuVendor -match 'NVIDIA' -or $GpuBackend -eq 'cuda')) {
     $searchMs = 12000
-    $claimMs = 0
+    $claimMs = 100
+    $batch = 16777216
+    $chunk = 4194304
     if ($hasCudaBin) {
         $GpuBackend = 'cuda'
         Write-Host 'NVIDIA: workerpoh-cuda.exe (CUDA with automatic OpenCL fallback if NVRTC/driver mismatch).'

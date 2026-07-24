@@ -23,7 +23,7 @@ if "!WORKER_ID!"=="" (
 )
 
 set "GPU_BACKEND=auto"
-set "WORKER_BATCH=4194304"
+set "WORKER_BATCH=16777216"
 for /f "tokens=1,* delims==" %%A in ('findstr /B /I "HACKME_GPU_BACKEND=" hackme.env 2^>nul') do set "GPU_BACKEND=%%B"
 if /I "!GPU_BACKEND!"=="auto" (
   if exist "workerpoh-cuda.exe" set "GPU_BACKEND=cuda"

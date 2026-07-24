@@ -15,6 +15,8 @@ High-GH GPU miners can hit the origin directly to avoid CF timeouts on claim/sub
 ```bash
 export COORD_URL=http://132.243.112.100:18083
 export HACKME_POOL_COORDINATOR_URL=http://132.243.112.100:18083
+export HACKME_POOL_DIRECT=1
+export HACKME_DESKTOP_GPU_POOL=1
 export HACKME_WORKER_BATCH_SIZE=16777216   # fewer RTTs per attempt
 export HACKME_WORKER_CLAIM_COOLDOWN_MS=100 # avoid 429 bans on fast GPUs
 ```
@@ -25,8 +27,8 @@ Or flags:
 bin/workerpoh-cuda -coord http://132.243.112.100:18083 -batch 16777216 ...
 ```
 
-Public HTTPS via Cloudflare remains the default for casual miners.
+**Defaults (fleet templates):** `worker_autostart.sh` rewrites public CF → direct when `HACKME_DESKTOP_GPU_POOL=1` (or always when `HACKME_POOL_DIRECT=1`); CUDA/desktop GPU batch defaults to 16M; claim cooldown floors 0→100. Rig profiles bake 16M + 100ms for RTX 30/40/50, RDNA2/3, Hopper. Casual miners without those flags keep HTTPS via Cloudflare.
 
-## Next miner binary release
+## Templates / release
 
-When shipping a new `workerpoh` / installer / ISO / vast image, bake in the defaults above (cooldown floor, 16M CUDA batch, documented direct URL). See Obsidian: `Ops/Pool GPU Direct + Next Binary`.
+Examples ship the bake-in values: `.env.desktop.example`, `scripts/ops/desktop_worker.env.example`, Vast pack, ISO miner firstboot / `run-miner-worker.sh`, Windows `write_hackme_env.ps1`. Reinstall or restart worker after pulling so env picks up the new defaults.
