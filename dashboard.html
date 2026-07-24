@@ -794,12 +794,12 @@
 			letter-spacing: 0.04em;
 		}
 		.fuzz-camp-progress {
-			height: 0.35rem;
+			height: 0.45rem;
 			border-radius: 999px;
 			background: rgba(0, 0, 0, 0.55);
 			border: 1px solid rgba(255, 255, 255, 0.08);
 			overflow: hidden;
-			margin-top: 0.25rem;
+			margin-top: 0.4rem;
 		}
 		.fuzz-camp-progress > span {
 			display: block;
@@ -807,6 +807,59 @@
 			background: linear-gradient(90deg, rgba(0, 209, 255, 0.45), rgba(57, 255, 20, 0.65));
 			transition: width 0.4s ease;
 		}
+		/* Terminal-style scrollbars (mining log + dense lists) */
+		#mining-log,
+		#mining-fuzz-market-rows,
+		#panel-mining .overflow-y-auto {
+			scrollbar-width: thin;
+			scrollbar-color: rgba(0, 209, 255, 0.35) rgba(2, 3, 4, 0.9);
+		}
+		#mining-log::-webkit-scrollbar,
+		#mining-fuzz-market-rows::-webkit-scrollbar,
+		#panel-mining .overflow-y-auto::-webkit-scrollbar {
+			width: 8px;
+			height: 8px;
+		}
+		#mining-log::-webkit-scrollbar-track,
+		#mining-fuzz-market-rows::-webkit-scrollbar-track,
+		#panel-mining .overflow-y-auto::-webkit-scrollbar-track {
+			background: rgba(2, 3, 4, 0.95);
+			border-radius: 8px;
+		}
+		#mining-log::-webkit-scrollbar-thumb,
+		#mining-fuzz-market-rows::-webkit-scrollbar-thumb,
+		#panel-mining .overflow-y-auto::-webkit-scrollbar-thumb {
+			background: linear-gradient(180deg, rgba(0, 209, 255, 0.35), rgba(57, 255, 20, 0.25));
+			border-radius: 8px;
+			border: 2px solid rgba(2, 3, 4, 0.95);
+		}
+		#mining-log::-webkit-scrollbar-thumb:hover,
+		#mining-fuzz-market-rows::-webkit-scrollbar-thumb:hover,
+		#panel-mining .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+			background: linear-gradient(180deg, rgba(0, 209, 255, 0.55), rgba(57, 255, 20, 0.4));
+		}
+		#mining-log {
+			border-color: rgba(0, 209, 255, 0.12);
+			background:
+				linear-gradient(180deg, rgba(0, 209, 255, 0.03), transparent 28%),
+				#020304;
+		}
+		#mining-log .log-line { margin: 0; white-space: pre-wrap; word-break: break-word; }
+		#mining-log .log-ok { color: #6dff7a; }
+		#mining-log .log-find { color: #5ce1ff; }
+		#mining-log .log-err { color: #ff7a7a; }
+		#mining-log .log-warn { color: #f0c14a; }
+		#mining-log .log-cuda { color: #5c6775; }
+		#mining-log .log-meta { color: #8b95a5; }
+		#mining-log .log-dim { color: #4a5563; }
+		.fuzz-market-row {
+			border-radius: 0.5rem;
+			border: 1px solid rgba(255, 255, 255, 0.06);
+			background: rgba(0, 0, 0, 0.28);
+			padding: 0.55rem 0.65rem 0.5rem;
+			margin-bottom: 0.35rem;
+		}
+		.fuzz-market-row:last-child { margin-bottom: 0; }
 		.orders-balance-strip {
 			display: flex;
 			flex-wrap: wrap;
@@ -1415,8 +1468,6 @@
 								<span id="pool-strip-source-wrap" class="px-2 py-1 rounded border border-matrix/30 text-matrix">source: <span id="pool-strip-source">—</span></span>
 								<span id="pool-strip-policy-wrap" class="px-2 py-1 rounded border border-white/15 text-gray-300">policy: <span id="pool-strip-policy">—</span></span>
 								<span class="px-2 py-1 rounded border border-neon/25 text-gray-300" title="Canonical tip height minus local SQLite (from /api/status)">canon Δ: <span id="pool-strip-canon-lag">—</span></span>
-								<span class="px-2 py-1 rounded border border-white/15 text-gray-300" title="P2P peer height lag (network_sync)">P2P lag: <span id="pool-strip-ns-p2p">—</span></span>
-								<span class="px-2 py-1 rounded border border-white/12 text-gray-400 text-[9px]" title="State replay + optional background sync">ledger: <span id="pool-strip-ledger-policy">—</span></span>
 							</div>
 						</div>
 					</div>
@@ -1434,7 +1485,6 @@
 							<span id="pm-badge-canonical" class="px-2 py-1 rounded border border-white/15 text-gray-400">canonical: …</span>
 							<span id="pm-badge-coordinator" class="px-2 py-1 rounded border border-white/15 text-gray-400">coordinator: …</span>
 							<span id="pm-badge-p2p" class="px-2 py-1 rounded border border-white/15 text-gray-400">p2p sync: …</span>
-							<span id="pm-badge-ledger" class="px-2 py-1 rounded border border-white/15 text-gray-400">ledger: …</span>
 							<span id="pm-badge-release" class="px-2 py-1 rounded border border-matrix/30 text-matrix/90">release: …</span>
 						</div>
 						<pre id="public-staging-env-snippet" class="hidden mt-4 text-[10px] font-mono text-neon/90 whitespace-pre-wrap leading-relaxed p-3 rounded border border-neon/25 bg-black/40"></pre>
@@ -1829,14 +1879,14 @@
 					<div class="card card-glow rounded-xl p-5 lg:p-6 border-matrix/25">
 						<div class="flex flex-wrap items-start justify-between gap-4 mb-4">
 							<div>
-								<h2 class="font-display text-sm font-bold tracking-[0.15em] text-white uppercase">WASM PoH · sandbox</h2>
+								<h2 class="font-display text-sm font-bold tracking-[0.15em] text-white uppercase">PoH · pool worker</h2>
 								<p id="mine-workers-hint" class="text-[10px] text-neon/70 font-mono mt-1">workers: —</p>
 								<p class="text-xs text-gray-500 mt-2 max-w-2xl leading-relaxed">
-									WASM PoH: find <span class="text-matrix">nonce</span> with <span class="text-matrix">eval(n) mod M = 0</span>; reward + block, then next index until <strong>Stop</strong>.
+									Find <span class="text-matrix">nonce</span> with <span class="text-matrix">eval(n) mod M = 0</span>; reward + claim, then next index until <strong>Stop</strong>. Local WASM sandbox only on command-node leaders.
 								</p>
 							</div>
 							<div class="flex flex-wrap gap-2">
-								<button type="button" id="btn-mining-start" class="px-5 py-2.5 rounded-lg border border-matrix/50 bg-matrix/15 text-matrix text-[11px] font-display font-bold tracking-widest uppercase hover:bg-matrix/25 shadow-[0_0_20px_rgba(57,255,20,0.15)]">Start pool worker / producer</button>
+								<button type="button" id="btn-mining-start" class="px-5 py-2.5 rounded-lg border border-matrix/50 bg-matrix/15 text-matrix text-[11px] font-display font-bold tracking-widest uppercase hover:bg-matrix/25 shadow-[0_0_20px_rgba(57,255,20,0.15)]">Start pool worker</button>
 								<button type="button" id="btn-mining-stop" class="px-5 py-2.5 rounded-lg border border-neon/35 bg-neon/10 text-neon text-[11px] font-display font-bold tracking-widest uppercase hover:bg-neon/20">Stop mining</button>
 								<button type="button" id="btn-worker-start" class="hidden px-5 py-2.5 rounded-lg border border-warn/50 bg-warn/10 text-warn text-[11px] font-display font-bold tracking-widest uppercase hover:bg-warn/20">Start worker</button>
 								<button type="button" id="btn-worker-stop" class="hidden px-5 py-2.5 rounded-lg border border-white/20 bg-black/40 text-gray-200 text-[11px] font-display font-bold tracking-widest uppercase hover:bg-black/60">Stop worker</button>
@@ -1848,8 +1898,8 @@
 								<p class="text-[10px] uppercase tracking-[0.2em] text-neon">Fuzz work · earn HMC</p>
 								<button type="button" id="btn-fuzz-market-refresh" class="text-[9px] px-2 py-1 rounded border border-neon/30 text-neon uppercase tracking-wider">Refresh</button>
 							</div>
-							<p class="text-[10px] text-gray-500 mb-2">Pool campaigns with escrow (20% runs pool). Run <code class="text-neon/80">workerfuzz</code> alongside PoH.</p>
-							<div id="mining-fuzz-market-rows" class="text-[10px] font-mono text-gray-400 space-y-1 max-h-52 overflow-y-auto">Loading…</div>
+							<p class="text-[10px] text-gray-500 mb-2">Pool campaigns with escrow. Dig with <code class="text-neon/80">workerfuzz</code> (or hybrid) alongside PoH.</p>
+							<div id="mining-fuzz-market-rows" class="text-[10px] font-mono text-gray-400 space-y-0 max-h-56 overflow-y-auto pr-1">Loading…</div>
 						</div>
 						<div id="mining-admin-hint" class="hidden mb-3 rounded border border-warn/35 bg-warn/5 px-3 py-2 text-[10px] text-warn/95 font-mono leading-relaxed"></div>
 						<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2 lg:gap-3">
@@ -2069,11 +2119,11 @@
 						</div>
 
 						<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-							<p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-display">Session log</p>
+							<p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-display">Worker log</p>
 							<span id="mining-log-transport" class="text-[9px] font-mono px-2 py-0.5 rounded border border-white/10 text-gray-500" title="Local PoH: SSE or buffer. Pool worker: log tail (poll).">—</span>
 						</div>
 						<p id="mining-payout-live" class="text-[10px] font-mono text-matrix/90 mb-2 px-1 leading-snug min-h-[2.25em] border border-matrix/20 rounded bg-black/40 py-1.5" title="Coordinator aggregate from work/stats"></p>
-						<div id="mining-log" class="rounded-lg border border-white/8 bg-[#020304] p-4 font-mono text-[11px] leading-relaxed text-gray-400 min-h-[200px] max-h-[min(50vh,420px)] overflow-y-auto space-y-1 shadow-inner"></div>
+						<div id="mining-log" class="rounded-lg border border-white/8 bg-[#020304] p-4 font-mono text-[11px] leading-relaxed text-gray-400 min-h-[200px] max-h-[min(50vh,420px)] overflow-y-auto space-y-0.5 shadow-inner"></div>
 						<div class="mt-4 card card-glow rounded-lg p-4 border-neon/20">
 							<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
 								<h3 class="font-display text-[10px] tracking-[0.25em] text-neon uppercase">Mining devices</h3>
@@ -5495,20 +5545,11 @@
 		}
 		function updateMiningAdminGate() {
 			const st = latestStatus || {};
-			const need = st.admin_auth_enabled !== false;
+			// Only gate after status is known — avoid yellow flash / false "always warn" before /api/status.
+			const statusReady = !!(st && Object.prototype.hasOwnProperty.call(st, 'admin_auth_enabled'));
+			const need = statusReady && st.admin_auth_enabled === true;
 			const tok = adminTokenCurrent().length > 0;
 			const allow = !need || tok;
-			const ban = $('mining-admin-hint');
-			if (ban) {
-				if (need && !tok) {
-					ban.classList.remove('hidden');
-					ban.innerHTML =
-						'<strong>Admin token</strong> required for Start/Stop (HACKME_ADMIN_TOKEN). Use the header field → <strong>Save</strong>, or Overview → Desktop wizard → <strong>Generate + Save</strong>. Otherwise POST returns <code class="text-gray-400">401 admin authentication required</code>.';
-				} else {
-					ban.classList.add('hidden');
-					ban.textContent = '';
-				}
-			}
 			const startB = $('btn-mining-start');
 			const stopB = $('btn-mining-stop');
 			if (startB) {
@@ -5517,6 +5558,8 @@
 				startB.classList.toggle('cursor-not-allowed', !allow);
 				if (!allow) {
 					startB.title = 'Save admin token (header or Overview → wizard).';
+				} else {
+					startB.title = '';
 				}
 			}
 			if (stopB) {
@@ -5525,6 +5568,19 @@
 				stopB.classList.toggle('cursor-not-allowed', !allow);
 				if (!allow) stopB.title = 'Admin token required to stop worker / local miner.';
 				else stopB.title = '';
+			}
+			const ban = $('mining-admin-hint');
+			if (ban) {
+				// Yellow banner only when Start/Stop are actually disabled for missing token.
+				const buttonsBlocked = need && !tok && ((startB && startB.disabled) || (stopB && stopB.disabled));
+				if (buttonsBlocked) {
+					ban.classList.remove('hidden');
+					ban.innerHTML =
+						'<strong>Admin token</strong> required for Start/Stop. Header → <strong>Save</strong>, or Overview → Desktop wizard → <strong>Generate + Save</strong>.';
+				} else {
+					ban.classList.add('hidden');
+					ban.textContent = '';
+				}
 			}
 		}
 		async function desktopStartWorkerMode() {
@@ -9725,20 +9781,6 @@
 				$('desktop-mode-badge').textContent = 'desktop mode: ' + (on ? 'ON' : 'OFF');
 				$('desktop-mode-badge').className = 'text-[10px] px-2 py-1 rounded border uppercase tracking-wider ' + (on ? 'border-matrix/35 text-matrix' : 'border-white/15 text-gray-400');
 			}
-			if ($('pm-badge-ledger')) {
-				const canonL = Number(ns.canonical_ledger_lag_blocks || 0);
-				const replay = !!ns.state_replay_enabled;
-				const bg = Number(ns.background_sync_interval_sec || 0);
-				const p2pLag = ns.p2p_enabled ? Number((ns.p2p_sync_hint || {}).lag_blocks || 0) : 0;
-				let t = 'canonΔ ' + String(canonL) + ' · replay ' + (replay ? 'on' : 'off');
-				if (bg > 0) t += ' · auto ' + String(bg) + 's';
-				$('pm-badge-ledger').textContent = 'ledger: ' + t;
-				let bc = 'border-matrix/40 text-matrix';
-				if (canonL > 0 || p2pLag > 0) bc = 'border-warn/35 text-warn';
-				else if (!replay) bc = 'border-white/15 text-gray-400';
-				$('pm-badge-ledger').className = 'px-2 py-1 rounded border ' + bc;
-				$('pm-badge-ledger').title = 'From GET /api/status network_sync — SQLite vs canonical; P2P state replay for follower apply.';
-			}
 			if ($('pm-badge-release')) {
 				const ver = String((s && s.version) || 'dev').trim();
 				$('pm-badge-release').textContent = 'release: ' + (ver.length > 24 ? ver.slice(0, 22) + '…' : ver);
@@ -9772,21 +9814,21 @@
 					p2pEl.textContent = 'n/a';
 					if (p2pEl.parentElement) {
 						p2pEl.parentElement.className = 'px-2 py-1 rounded border border-white/12 text-gray-500 text-[10px] font-mono';
+						p2pEl.parentElement.hidden = true;
 					}
 				} else {
 					const ph = ns.p2p_sync_hint || {};
 					p2pEl.textContent = String(ph.lag_blocks != null ? ph.lag_blocks : '—');
 					if (p2pEl.parentElement) {
+						p2pEl.parentElement.hidden = false;
 						p2pEl.parentElement.className = 'px-2 py-1 rounded border text-[10px] font-mono ' +
 							(Number(ph.lag_blocks || 0) > 0 ? 'border-warn/40 text-warn' : 'border-white/15 text-gray-300');
 					}
 				}
 			}
 			const lp = $('pool-strip-ledger-policy');
-			if (lp) {
-				const r = !!ns.state_replay_enabled;
-				const bg = Number(ns.background_sync_interval_sec || 0);
-				lp.textContent = (r ? 'replay on' : 'replay off') + (bg > 0 ? ' · auto ' + String(bg) + 's' : '');
+			if (lp && lp.parentElement) {
+				lp.parentElement.hidden = true;
 			}
 			const polEl = $('pool-strip-policy');
 			const polWrap = $('pool-strip-policy-wrap');
@@ -11555,17 +11597,81 @@
 			if (el) el.innerHTML = '';
 		}
 
+		function miningLogToneClass(msg) {
+			const s = String(msg || '');
+			if (/\b(ERROR|FATAL|panic|banned|401|403|blocked)\b/i.test(s) || /\bfail(ed|ure)?\b/i.test(s)) return 'log-err';
+			if (/\bFINDING\b/i.test(s) || /\bCRASH\b/i.test(s) || /found=true/i.test(s)) return 'log-find';
+			if (/submit ok/i.test(s) || /\bok\b.*batch=/i.test(s)) return 'log-ok';
+			if (/\bWARN\b|tx_hash missing|not confirmed|cooldown|rate.?limit/i.test(s)) return 'log-warn';
+			if (/gpupoh:\s*cuda search|cuda search count=/i.test(s)) return 'log-cuda';
+			if (/×\d+\s+cuda samples collapsed/i.test(s)) return 'log-dim';
+			if (/^\[pool\]|^worker mode:|hybrid fuzz/i.test(s)) return 'log-meta';
+			return '';
+		}
+		function isCudaSpamLogLine(msg) {
+			return /gpupoh:\s*cuda search|cuda search count=/i.test(String(msg || ''));
+		}
+		/** Collapse burst CUDA GH/s lines; keep last sample + count. */
+		function compressMiningLogLines(lines) {
+			const src = Array.isArray(lines) ? lines : [];
+			const out = [];
+			let cudaLast = '';
+			let cudaN = 0;
+			const flushCuda = () => {
+				if (!cudaN) return;
+				if (cudaN === 1) out.push(cudaLast);
+				else out.push(String(cudaLast) + '  ·  ×' + cudaN + ' cuda samples collapsed');
+				cudaLast = '';
+				cudaN = 0;
+			};
+			for (let i = 0; i < src.length; i++) {
+				const ln = String(src[i] == null ? '' : src[i]);
+				if (isCudaSpamLogLine(ln)) {
+					cudaLast = ln;
+					cudaN++;
+					continue;
+				}
+				flushCuda();
+				out.push(ln);
+			}
+			flushCuda();
+			return out;
+		}
+		let miningLogCudaLive = { n: 0, last: '', lastFlush: 0 };
 		function miningLog(msg) {
 			const el = $('mining-log');
 			if (!el) return;
-			const t = new Date().toISOString().split('T')[1].slice(0, 8);
+			const raw = String(msg == null ? '' : msg);
+			if (isCudaSpamLogLine(raw)) {
+				const now = Date.now();
+				miningLogCudaLive.n++;
+				miningLogCudaLive.last = raw;
+				// Live stream: show at most one CUDA line every 2s.
+				if (now - miningLogCudaLive.lastFlush < 2000 && miningLogCudaLive.n > 1) return;
+				miningLogCudaLive.lastFlush = now;
+				const n = miningLogCudaLive.n;
+				miningLogCudaLive.n = 0;
+				const shown = n > 1 ? (raw + '  ·  ×' + n + ' cuda samples collapsed') : raw;
+				return miningLogAppend(el, shown);
+			}
+			miningLogCudaLive = { n: 0, last: '', lastFlush: Date.now() };
+			return miningLogAppend(el, raw);
+		}
+		function miningLogAppend(el, raw) {
 			const p = document.createElement('p');
-			p.className = 'log-line';
-			const ts = document.createElement('span');
-			ts.className = 'text-matrix';
-			ts.textContent = '[' + t + '] ';
-			p.appendChild(ts);
-			p.appendChild(document.createTextNode(String(msg == null ? '' : msg)));
+			const tone = miningLogToneClass(raw);
+			p.className = 'log-line' + (tone ? (' ' + tone) : '');
+			const hasTs = /^\[\d{2}:\d{2}:\d{2}\]/.test(raw.trim());
+			if (hasTs) {
+				p.textContent = raw;
+			} else {
+				const t = new Date().toISOString().split('T')[1].slice(0, 8);
+				const ts = document.createElement('span');
+				ts.className = 'text-matrix';
+				ts.textContent = '[' + t + '] ';
+				p.appendChild(ts);
+				p.appendChild(document.createTextNode(raw));
+			}
 			el.appendChild(p);
 			while (el.children.length > 200) el.removeChild(el.firstChild);
 			el.scrollTop = el.scrollHeight;
@@ -11580,12 +11686,14 @@
 
 		function renderMiningLogLines(el, lines) {
 			if (!el) return;
-			const fp = lines.join('\n');
+			const compressed = compressMiningLogLines(lines);
+			const fp = compressed.join('\n');
 			if (fp === lastMiningLogFingerprint && el.children.length > 0) return;
 			lastMiningLogFingerprint = fp;
 			const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
 			el.innerHTML = '';
-			lines.slice(-200).forEach((ln) => miningLog(String(ln)));
+			miningLogCudaLive = { n: 0, last: '', lastFlush: 0 };
+			compressed.slice(-200).forEach((ln) => miningLogAppend(el, String(ln)));
 			if (nearBottom) el.scrollTop = el.scrollHeight;
 		}
 
@@ -12461,15 +12569,18 @@
 					const rateTxt = fmtFuzzRate(meta.rate);
 					const etaTxt = meta.etaLabel ? ('ETA ' + meta.etaLabel) : '';
 					const pctW = meta.pct.toFixed(1);
-					return '<div class="border-b border-white/5 pb-2 mb-1">' +
-						'<div class="flex flex-wrap gap-2 items-center">' +
-						'<span class="text-neon truncate max-w-[140px]">' + escapeHtml(String(c.title || c.id || '—')) + '</span>' +
+					const nativeRaw = String(c.native_status || '').trim().toLowerCase();
+					const nativeUseful = nativeRaw && nativeRaw !== 'n/a' && nativeRaw !== 'na' && nativeRaw !== '-' && nativeRaw !== 'none';
+					return '<div class="fuzz-market-row">' +
+						'<div class="flex flex-wrap gap-x-2 gap-y-1 items-center">' +
+						'<span class="text-neon truncate max-w-[min(100%,280px)]">' + escapeHtml(String(c.title || c.id || '—')) + '</span>' +
 						'<span class="text-gray-500">' + escapeHtml(String(c.status || '—')) + '</span>' +
 						(progTxt ? '<span class="text-emerald-400/90">' + escapeHtml(progTxt) + '</span>' : '') +
-						(rateTxt ? '<span class="text-gray-600">' + escapeHtml(rateTxt) + '</span>' : '') +
+						(rateTxt ? '<span class="text-gray-500">' + escapeHtml(rateTxt) + '</span>' : '') +
 						(etaTxt ? '<span class="text-neon/70">' + escapeHtml(etaTxt) + '</span>' : '') +
-						'<span class="text-matrix">' + pr + '</span>' +
-						'<span class="text-gray-600">native ' + escapeHtml(String(c.native_status || 'n/a')) + '</span></div>' +
+						'<span class="text-matrix ml-auto">' + pr + '</span>' +
+						(nativeUseful ? '<span class="text-gray-600">native ' + escapeHtml(String(c.native_status)) + '</span>' : '') +
+						'</div>' +
 						(bud > 0 ? '<div class="fuzz-camp-progress" title="' + escapeHtml(pctW + '%') + '"><span style="width:' + pctW + '%"></span></div>' : '') +
 						'</div>';
 				}).join('');
