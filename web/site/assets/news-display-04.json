@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-05-18-public-pool-fair-economics",
+      "date": "2026-05-18",
+      "title": "Public pool economics: fair attempt-based accrual for all miners",
+      "summary": "Official pool policy updated: payout_found_only=0 with reward_auto and hybrid signer strict — miners accrue HMC for accepted work (capped per batch), not only on rare found hits. Settlement loop verified; see economics-model.html and docs/MINER_POOL_ECONOMICS.md.",
+      "impact": "New and existing miners see Unpaid worker accrual grow with hashrate/submits. Found bonus still applies. Block subsidy remains on the producing node wallet; pool paycheck = coordinator accrual + settlement.",
+      "action": "Set WORKER_PAYOUT_MAP=your-worker-id=HMC-your-address. Read https://hackme.tech/economics-model.html — verify SHA256 on Downloads. GitHub: https://github.com/jokeez/hackme",
+      "tags": [
+        "economics",
+        "mining",
+        "pool",
+        "transparency"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-18-open-source-github",
       "date": "2026-05-18",
       "title": "🚀 Open source: HackMe stack on GitHub (Apache-2.0)",
@@ -237,20 +252,6 @@
         "ops",
         "explorer",
         "mining"
-      ],
-      "status": "deployed"
-    },
-    {
-      "id": "2026-05-04-telegram-channel-bot-live",
-      "date": "2026-05-04",
-      "title": "Telegram Channel Bot is Live",
-      "summary": "Official HackMe channel automation is now active: new News entries are published directly to Telegram with status, impact, action, and deep links.",
-      "impact": "Community updates now ship in real time without waiting for manual reposts, improving communication reliability for miners and operators.",
-      "action": "Follow the official channel and use the News page as the source of truth for release and operations updates.",
-      "tags": [
-        "ops",
-        "news",
-        "community"
       ],
       "status": "deployed"
     }

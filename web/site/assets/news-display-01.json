@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-07-12-oss-cve-watch-day05-nghttp2-libfuzzer",
+      "date": "2026-07-12",
+      "title": "OSS CVE Watch Day 5/14 · nghttp2 · 2.04B libFuzzer exec · CLEAN",
+      "summary": "Fifth day on nghttp2: 15h libFuzzer depth session, 2,038,010,048 executions at ~37.7k exec/s. Corpus 414 inputs (405KB), 467 coverage edges. Zero ASAN heap crashes — fifth honest CLEAN day.",
+      "impact": "Cumulative ~4.96B libFuzzer executions across Days 2–5 on the same persistent corpus. Coverage still plateaued at 467 edges; corpus refinement continues. Days 6–7 deep marathon running.",
+      "action": "Day 5 report: https://hackme.tech/reports/oss-cve-watch/day05.html · Series hub: https://hackme.tech/reports/oss-cve-watch/ · Reproduce: DAY=5 MAX_TIME=72000 bash scripts/ops/run_oss_cve_watch_libfuzzer_day.sh",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-11-oss-cve-watch-day04-nghttp2-libfuzzer",
       "date": "2026-07-11",
       "title": "OSS CVE Watch Day 4/14 · nghttp2 · 719M libFuzzer exec · CLEAN",
@@ -241,21 +256,6 @@
         "research",
         "bitcoin",
         "fuzzing"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-06-16-rc11o-production-final",
-      "date": "2026-06-16",
-      "title": "Release 0.1.0-rc11o — analytics fix, PDF packs, full rebuild",
-      "summary": "Production channel bumped to rc11o: embedded dashboard analytics (pool ON, Command node rigs, GPU telemetry for pool workers), five branded listing/legal PDFs on hackme.tech, MiningPoolStats marked live in docs. Windows installer, Linux tarball, and HackMe OS ISO rebuilt and verified.",
-      "impact": "Miners see accurate Analytics tab (no pool off / empty rigs). CEX and partners get downloadable PDF packs. One version across installer, tarball, and USB ISO.",
-      "action": "Downloads: https://hackme.tech/downloads.html · Listing PDFs: https://hackme.tech/listing.html · Pool: https://miningpoolstats.app/coins/HMC",
-      "tags": [
-        "release",
-        "mining",
-        "infrastructure",
-        "marketing"
       ],
       "status": "published"
     }

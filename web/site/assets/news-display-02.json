@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-06-16-rc11o-production-final",
+      "date": "2026-06-16",
+      "title": "Release 0.1.0-rc11o — analytics fix, PDF packs, full rebuild",
+      "summary": "Production channel bumped to rc11o: embedded dashboard analytics (pool ON, Command node rigs, GPU telemetry for pool workers), five branded listing/legal PDFs on hackme.tech, MiningPoolStats marked live in docs. Windows installer, Linux tarball, and HackMe OS ISO rebuilt and verified.",
+      "impact": "Miners see accurate Analytics tab (no pool off / empty rigs). CEX and partners get downloadable PDF packs. One version across installer, tarball, and USB ISO.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Listing PDFs: https://hackme.tech/listing.html · Pool: https://miningpoolstats.app/coins/HMC",
+      "tags": [
+        "release",
+        "mining",
+        "infrastructure",
+        "marketing"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-06-16-site-ecosystem-docs-final",
       "date": "2026-06-16",
       "title": "Site final — ecosystem docs, legal hub, mobile polish",
@@ -238,22 +253,6 @@
         "research",
         "marketing",
         "fuzzing"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-26-security-audit-one-click",
-      "date": "2026-05-26",
-      "title": "Security Audit — one click (order + pool fuzz + HTML report)",
-      "summary": "Customers launch a full audit from dashboard #orders: compile guard or upload WASM, POST /api/security-audit creates linked useful-PoW order + distributed fuzz campaign (20/80 escrow), report token opens HTML/JSON in #fuzz. Same pipeline as Bitcoin Core 5-module research. PoH order queue is now FIFO-fair on the coordinator.",
-      "impact": "B2B customers get one product story; miners earn on both workerpoh and workerfuzz; operators keep advanced PoH-only tools under admin.",
-      "action": "Try: local dashboard → Security audit → Run full security audit · Gate: bash scripts/ops/security_audit_gate.sh",
-      "tags": [
-        "security",
-        "fuzzing",
-        "product",
-        "orders",
-        "release"
       ],
       "status": "published"
     }

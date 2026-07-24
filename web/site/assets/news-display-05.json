@@ -1,6 +1,20 @@
 {
   "items": [
     {
+      "id": "2026-05-04-telegram-channel-bot-live",
+      "date": "2026-05-04",
+      "title": "Telegram Channel Bot is Live",
+      "summary": "Official HackMe channel automation is now active: new News entries are published directly to Telegram with status, impact, action, and deep links.",
+      "impact": "Community updates now ship in real time without waiting for manual reposts, improving communication reliability for miners and operators.",
+      "action": "Follow the official channel and use the News page as the source of truth for release and operations updates.",
+      "tags": [
+        "ops",
+        "news",
+        "community"
+      ],
+      "status": "deployed"
+    },
+    {
       "id": "2026-05-04-canonical-consistency-upgrade",
       "date": "2026-05-04",
       "title": "Canonical Consistency Upgrade for Follower Nodes",

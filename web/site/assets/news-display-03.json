@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-05-26-security-audit-one-click",
+      "date": "2026-05-26",
+      "title": "Security Audit — one click (order + pool fuzz + HTML report)",
+      "summary": "Customers launch a full audit from dashboard #orders: compile guard or upload WASM, POST /api/security-audit creates linked useful-PoW order + distributed fuzz campaign (20/80 escrow), report token opens HTML/JSON in #fuzz. Same pipeline as Bitcoin Core 5-module research. PoH order queue is now FIFO-fair on the coordinator.",
+      "impact": "B2B customers get one product story; miners earn on both workerpoh and workerfuzz; operators keep advanced PoH-only tools under admin.",
+      "action": "Try: local dashboard → Security audit → Run full security audit · Gate: bash scripts/ops/security_audit_gate.sh",
+      "tags": [
+        "security",
+        "fuzzing",
+        "product",
+        "orders",
+        "release"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-26-fuzz-engine-v2-rc11i",
       "date": "2026-05-26",
       "title": "Release 0.1.0-rc11i · Fuzz Engine v2 + wallet/settlement fixes",
@@ -245,21 +261,6 @@
         "announcement",
         "mining",
         "pool"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-18-public-pool-fair-economics",
-      "date": "2026-05-18",
-      "title": "Public pool economics: fair attempt-based accrual for all miners",
-      "summary": "Official pool policy updated: payout_found_only=0 with reward_auto and hybrid signer strict — miners accrue HMC for accepted work (capped per batch), not only on rare found hits. Settlement loop verified; see economics-model.html and docs/MINER_POOL_ECONOMICS.md.",
-      "impact": "New and existing miners see Unpaid worker accrual grow with hashrate/submits. Found bonus still applies. Block subsidy remains on the producing node wallet; pool paycheck = coordinator accrual + settlement.",
-      "action": "Set WORKER_PAYOUT_MAP=your-worker-id=HMC-your-address. Read https://hackme.tech/economics-model.html — verify SHA256 on Downloads. GitHub: https://github.com/jokeez/hackme",
-      "tags": [
-        "economics",
-        "mining",
-        "pool",
-        "transparency"
       ],
       "status": "published"
     }
