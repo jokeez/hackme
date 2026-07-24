@@ -1,6 +1,24 @@
 {
   "items": [
     {
+      "id": "2026-07-24-release-rc13-48h-pool-soak",
+      "date": "2026-07-24",
+      "title": "48 HOURS. ZERO >10m GAPS. HackMe 0.1.0-rc13 is staged.",
+      "summary": "The pool held a continuous 48-hour soak: 0 snapshot gaps over 10 minutes, ~69–197 GH/s (avg ~137), 8–20 workers online (avg ~13), and tip ~199444 → ~203990. Hub 0.1.0-rc12w mining stayed up; after coordinator restarts, the fleet recovered.",
+      "impact": "This is evidence for operator/private-pool readiness: useful-PoW mining, hybrid dig/fuzz work, and HMC/SUP ledger settlement stayed observable under a real fleet. It is not a claim of a trustless L1, exchange readiness, or CEX readiness.",
+      "action": "Release staging: https://hackme.tech/downloads.html · GitHub release (when published): https://github.com/jokeez/hackme/releases/tag/0.1.0-rc13 · Verify SHA256SUMS.txt and SHA256SUMS-iso.txt before running any artifact.",
+      "tags": [
+        "release",
+        "rc13",
+        "pool",
+        "mining",
+        "fuzzing",
+        "security",
+        "operations"
+      ],
+      "status": "staged"
+    },
+    {
       "id": "2026-07-24-oss-cve-watch-libheif-day03-libfuzzer",
       "date": "2026-07-24",
       "title": "OSS CVE Watch · libheif Day 3/14 · 139.61M libFuzzer exec · CLEAN",
@@ -135,6 +153,46 @@
         "campaigns": "https://hackme.tech/fuzz-campaigns.html",
         "guide": "https://hackme.tech/fuzz-guide.html",
         "pool": "https://hackme.tech/pool/coordinator"
+      }
+    },
+    {
+      "id": "2026-07-24-release-rc13-pool-soak",
+      "date": "2026-07-24",
+      "title": "HackMe 0.1.0-rc13 — 48-hour pool soak PASS",
+      "summary": "The 48-hour public mining soak completed with no gaps over 10 minutes: 13 workers, approximately 70–197 GH/s (about 137 GH/s average), and chain tip growth from about 199444 to 203990. Windows, Linux, HackMe OS, and B2B fuzzing artifacts were refreshed together.",
+      "impact": "Miners receive a validated release channel with aligned desktop node, worker, ISO, installer, and fuzzing CLI artifacts. Verify every download with the published SHA256 files.",
+      "action": "Download: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc13 · Pool: https://hackme.tech/pool/coordinator · Docs: docs/HACKME_RC13.md",
+      "tags": [
+        "release",
+        "mining",
+        "pool",
+        "fuzzing",
+        "hackme-os"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "🚀 HackMe 0.1.0-rc13 — 48h pool soak PASS",
+        "lead": "Validated release channel: 48 hours of continuous pool mining, refreshed desktop, installer, ISO, and fuzzing tools.",
+        "bullets": [
+          "48-hour soak PASS — no gaps over 10 minutes",
+          "13 workers · approximately 70–197 GH/s · about 137 GH/s average",
+          "Tip grew approximately 199444 → 203990 with hub mining enabled",
+          "Windows, Linux, HackMe OS, and fuzz CLI artifacts aligned",
+          "Verify SHA256SUMS.txt and SHA256SUMS-iso.txt before install"
+        ],
+        "footer": "hackme.tech/downloads.html · github.com/jokeez/hackme/releases/tag/0.1.0-rc13"
+      },
+      "discord": {
+        "title": "Release · 0.1.0-rc13 — 48-hour pool soak PASS",
+        "body": "**Validated mining channel.**\n\n• 48 hours with no gaps above 10 minutes\n• 13 workers · ~70–197 GH/s · ~137 GH/s average\n• Chain tip ~199444 → ~203990; hub mining remained enabled\n• Win/Linux installer, HackMe OS ISO, and B2B fuzz CLI refreshed\n• Verify SHA256SUMS.txt + SHA256SUMS-iso.txt before installation\n\n**Downloads:** https://hackme.tech/downloads.html\n**GitHub:** https://github.com/jokeez/hackme/releases/tag/0.1.0-rc13\n**Pool:** https://hackme.tech/pool/coordinator",
+        "ping": "#releases"
+      },
+      "links": {
+        "downloads": "https://hackme.tech/downloads.html",
+        "github": "https://github.com/jokeez/hackme/releases/tag/0.1.0-rc13",
+        "pool": "https://hackme.tech/pool/coordinator",
+        "sha256": "https://hackme.tech/dist/release_0.1.0-rc13/SHA256SUMS.txt",
+        "docs": "https://github.com/jokeez/hackme/blob/main/docs/HACKME_RC13.md"
       }
     },
     {

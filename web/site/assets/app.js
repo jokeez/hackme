@@ -1,8 +1,8 @@
 (() => {
   /** Bump with scripts/release/CURRENT_VERSION, dist/release_<VERSION>/, main.go Version */
-  const RELEASE_VER = "0.1.0-rc12w";
+  const RELEASE_VER = "0.1.0-rc13";
   /** HackMe OS ISO — aligned with Win/Linux (scripts/release/CURRENT_ISO_VERSION). */
-  const ISO_CHANNEL = "0.1.0-rc12w";
+  const ISO_CHANNEL = "0.1.0-rc13";
 
   /** Sub-1 TH/s → GH/s (matches dashboard / explorer pool strip). */
   function fmtPoolHashrateTHS(ths, mock) {
@@ -37,7 +37,7 @@
     newsDisplay: "./assets/news-display.json",
     newsArchive: "./assets/news.json",
     releaseChannel: RELEASE_VER,
-    releaseChannelNote: "rc12w — wallet Activity + B2B hackme-fuzzing CLI refresh (wizard/status); Win/Linux/ISO aligned",
+    releaseChannelNote: "rc13 — 48-hour pool soak PASS; refreshed Win/Linux/ISO and B2B fuzzing CLI artifacts",
     releaseBase: `/dist/release_${RELEASE_VER}`,
     windowsInstaller: `/dist/release_${RELEASE_VER}/HackMe-Setup-${RELEASE_VER}.exe`,
     windowsBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows_setup.zip`,
