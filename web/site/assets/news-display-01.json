@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-07-13-oss-cve-watch-day06-nghttp2-libfuzzer",
+      "date": "2026-07-13",
+      "title": "OSS CVE Watch Day 6/14 · nghttp2 · resume slice · CLEAN",
+      "summary": "Sixth day on nghttp2: short resume slice after PC reboot (~12 min), 4,549,884 executions. Corpus 417 inputs, 467 coverage edges. Zero ASAN heap crashes — honest CLEAN day (warmup before Day 7 marathon).",
+      "impact": "Day 6 ledger entry documents post-reboot resume before the 20h Day 7 session. No CVE candidates. Full depth budget carried by Day 7 chain slot.",
+      "action": "Day 6 report: https://hackme.tech/reports/oss-cve-watch/day06.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-12-oss-cve-watch-day05-nghttp2-libfuzzer",
       "date": "2026-07-12",
       "title": "OSS CVE Watch Day 5/14 · nghttp2 · 2.04B libFuzzer exec · CLEAN",
@@ -236,21 +251,6 @@
       "summary": "Week 2 continues: MAX_BLOCK_WEIGHT (4M WU) guard from Bitcoin Core consensus policy. Live HackMe campaign: 128 runs, 80 guard signals, zero critical, 30s wall time.",
       "impact": "First block-level guard in the series (post-script week). Honest triage: overweight candidates flagged, not CVE claims. Public HTML + reproducible DAY=9 script.",
       "action": "Report: https://hackme.tech/reports/bitcoin30-day09.html · Reproduce: DAY=9 bash scripts/ops/run_bitcoin30_day.sh",
-      "tags": [
-        "security",
-        "research",
-        "bitcoin",
-        "fuzzing"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-06-17-bitcoin30-day08",
-      "date": "2026-06-17",
-      "title": "Bitcoin Core 30-Day Fuzz — Day 8 (Week 2)",
-      "summary": "Week 2 kickoff: EvalScript MAX_STACK_SIZE guard from bitcoin/bitcoin interpreter — combined main+alt stack must stay ≤1000 elements. Live campaign on HackMe node: 64 runs, 64 guard signals, zero critical, 15s wall time.",
-      "impact": "Daily cadence continues after Week 1 wrap. Strong B2B proof: real Core stack budget, honest guard_signal triage, public HTML ledger — not fake CVE noise.",
-      "action": "Report: https://hackme.tech/reports/bitcoin30-day08.html · Reproduce: DAY=8 bash scripts/ops/run_bitcoin30_day.sh",
       "tags": [
         "security",
         "research",

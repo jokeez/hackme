@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-05-19-bitcointalk-ann-live",
+      "date": "2026-05-19",
+      "title": "Bitcointalk ANN is live — official pool thread",
+      "summary": "The HackMe pool announcement is published on Bitcoin Forum (Pools / Altcoins): topic 5583373. Links to hackme.tech, downloads, GitHub source, economics, and miner quick start.",
+      "impact": "Miners can discuss setup, WORKER_PAYOUT_MAP, and economics in the official thread. Site Contacts now links to the live forum URL.",
+      "action": "Thread: https://bitcointalk.org/index.php?topic=5583373.0 — join mining via https://hackme.tech/downloads.html",
+      "tags": [
+        "community",
+        "announcement",
+        "mining",
+        "pool"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-18-public-pool-fair-economics",
       "date": "2026-05-18",
       "title": "Public pool economics: fair attempt-based accrual for all miners",
@@ -237,21 +252,6 @@
         "mining",
         "ops",
         "release"
-      ],
-      "status": "deployed"
-    },
-    {
-      "id": "2026-05-05-predeploy-gate-and-canonical-ops-pass",
-      "date": "2026-05-05",
-      "title": "Predeploy Gate Added, Canonical Ops Pass Confirmed",
-      "summary": "A new one-command predeploy gate is now live with practical checks for test suite, canonical proxy parity, wallet source consistency, and worker-mode health. Public stack deployment completed successfully after gate pass.",
-      "impact": "Operators can validate follower and worker readiness before rollout with a deterministic PASS/FAIL flow, reducing drift between local dashboards and canonical chain reality.",
-      "action": "Run scripts/ops/predeploy_gate.sh before each public deployment and monitor worker-mode health and canonical parity in regular operations.",
-      "tags": [
-        "release",
-        "ops",
-        "explorer",
-        "mining"
       ],
       "status": "deployed"
     }

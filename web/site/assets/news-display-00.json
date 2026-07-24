@@ -1,6 +1,24 @@
 {
   "items": [
     {
+      "id": "2026-07-24-release-rc13-48h-pool-soak",
+      "date": "2026-07-24",
+      "title": "48 HOURS. ZERO >10m GAPS. HackMe 0.1.0-rc13 is staged.",
+      "summary": "The pool held a continuous 48-hour soak: 0 snapshot gaps over 10 minutes, ~69–197 GH/s (avg ~137), 8–20 workers online (avg ~13), and tip ~199444 → ~203990. Hub 0.1.0-rc12w mining stayed up; after coordinator restarts, the fleet recovered.",
+      "impact": "This is evidence for operator/private-pool readiness: useful-PoW mining, hybrid dig/fuzz work, and HMC/SUP ledger settlement stayed observable under a real fleet. It is not a claim of a trustless L1, exchange readiness, or CEX readiness.",
+      "action": "Release staging: https://hackme.tech/downloads.html · GitHub release (when published): https://github.com/jokeez/hackme/releases/tag/0.1.0-rc13 · Verify SHA256SUMS.txt and SHA256SUMS-iso.txt before running any artifact.",
+      "tags": [
+        "release",
+        "rc13",
+        "pool",
+        "mining",
+        "fuzzing",
+        "security",
+        "operations"
+      ],
+      "status": "staged"
+    },
+    {
       "id": "2026-07-24-oss-cve-watch-libheif-day03-libfuzzer",
       "date": "2026-07-24",
       "title": "OSS CVE Watch · libheif Day 3/14 · 139.61M libFuzzer exec · CLEAN",
@@ -246,21 +264,6 @@
       "summary": "Seventh day on nghttp2: 20h libFuzzer marathon, 1,729,144,709 executions at ~24k exec/s. Corpus 415 inputs (329KB), 467 coverage edges. Zero ASAN heap crashes — seventh honest CLEAN day.",
       "impact": "Cumulative ~6.69B libFuzzer executions across Days 2–7 on the same persistent corpus. Coverage still plateaued at 467 edges. Day 7 HTML live on the public ledger.",
       "action": "Day 7 report: https://hackme.tech/reports/oss-cve-watch/day07.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
-      "tags": [
-        "research",
-        "oss-cve",
-        "fuzzing",
-        "nghttp2"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-07-13-oss-cve-watch-day06-nghttp2-libfuzzer",
-      "date": "2026-07-13",
-      "title": "OSS CVE Watch Day 6/14 · nghttp2 · resume slice · CLEAN",
-      "summary": "Sixth day on nghttp2: short resume slice after PC reboot (~12 min), 4,549,884 executions. Corpus 417 inputs, 467 coverage edges. Zero ASAN heap crashes — honest CLEAN day (warmup before Day 7 marathon).",
-      "impact": "Day 6 ledger entry documents post-reboot resume before the 20h Day 7 session. No CVE candidates. Full depth budget carried by Day 7 chain slot.",
-      "action": "Day 6 report: https://hackme.tech/reports/oss-cve-watch/day06.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
       "tags": [
         "research",
         "oss-cve",

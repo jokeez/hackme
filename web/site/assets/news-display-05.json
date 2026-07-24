@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-05-05-predeploy-gate-and-canonical-ops-pass",
+      "date": "2026-05-05",
+      "title": "Predeploy Gate Added, Canonical Ops Pass Confirmed",
+      "summary": "A new one-command predeploy gate is now live with practical checks for test suite, canonical proxy parity, wallet source consistency, and worker-mode health. Public stack deployment completed successfully after gate pass.",
+      "impact": "Operators can validate follower and worker readiness before rollout with a deterministic PASS/FAIL flow, reducing drift between local dashboards and canonical chain reality.",
+      "action": "Run scripts/ops/predeploy_gate.sh before each public deployment and monitor worker-mode health and canonical parity in regular operations.",
+      "tags": [
+        "release",
+        "ops",
+        "explorer",
+        "mining"
+      ],
+      "status": "deployed"
+    },
+    {
       "id": "2026-05-04-telegram-channel-bot-live",
       "date": "2026-05-04",
       "title": "Telegram Channel Bot is Live",

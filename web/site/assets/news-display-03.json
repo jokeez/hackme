@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-05-26-l1-crypto-stack-5chain",
+      "date": "2026-05-26",
+      "title": "L1 Crypto Stack v2 — upstream-ported guards (BTC · ETH · DOGE · LTC · HackMe)",
+      "summary": "Public research: WASM built from ported C excerpts of Bitcoin GetScriptOp, Ethereum state_transition value overflow, Dogecoin/Litecoin script.cpp, and HackMe InsertOrderTask. 500 targeted samples per chain, zero sandbox traps. Sources in tasks/sources/security/upstream/.",
+      "impact": "Strong B2B/Telegram story next to bc5; honest scope (no fake CVE claims); links to Security Audit product.",
+      "action": "Report: https://hackme.tech/reports/l1-crypto-stack.html · Regenerate: bash scripts/ops/run_l1_crypto_stack_research.sh · Gate: bash scripts/ops/l1_crypto_stack_gate.sh",
+      "tags": [
+        "security",
+        "research",
+        "marketing",
+        "fuzzing"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-26-security-audit-one-click",
       "date": "2026-05-26",
       "title": "Security Audit — one click (order + pool fuzz + HTML report)",
@@ -246,21 +261,6 @@
         "security",
         "community",
         "opensource"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-19-bitcointalk-ann-live",
-      "date": "2026-05-19",
-      "title": "Bitcointalk ANN is live — official pool thread",
-      "summary": "The HackMe pool announcement is published on Bitcoin Forum (Pools / Altcoins): topic 5583373. Links to hackme.tech, downloads, GitHub source, economics, and miner quick start.",
-      "impact": "Miners can discuss setup, WORKER_PAYOUT_MAP, and economics in the official thread. Site Contacts now links to the live forum URL.",
-      "action": "Thread: https://bitcointalk.org/index.php?topic=5583373.0 — join mining via https://hackme.tech/downloads.html",
-      "tags": [
-        "community",
-        "announcement",
-        "mining",
-        "pool"
       ],
       "status": "published"
     }
