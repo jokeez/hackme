@@ -189,80 +189,135 @@ detect_gpu_backend() {
     return 0
   fi
   if [[ -n "${HACKME_GPU_BACKEND:-}" && "${HACKME_GPU_BACKEND}" != "auto" ]]; then
-    echo "${HACKME_GPU_BACKEND}"
-    return 0
+    local req
+    req="$(printf '%s' "${HACKME_GPU_BACKEND}" | tr '[:upper:]' '[:lower:]')"
+    if [[ "$req" == "cuda" ]]; then
+      if worker_bin_candidate workerpoh-cuda >/dev/null; then
+        echo cuda
+        return 0
+      fi
+      echo "[worker-autostart] WARN: HACKME_GPU_BACKEND=cuda but workerpoh-cuda missing — falling back to detect" >&2
+    elif [[ "$req" == "opencl" || "$req" == "cpu" ]]; then
+      echo "$req"
+      return 0
+    else
+      echo "${HACKME_GPU_BACKEND}"
+      return 0
+    fi
   fi
   echo "cpu"
 }
 
+# Prefer release-layout paths: bin/X, then ./X (linux tarball root).
+worker_bin_candidate() {
+	local name="$1"
+	local p
+	for p in "${ROOT_DIR}/bin/${name}" "${ROOT_DIR}/${name}"; do
+		if [[ -x "$p" ]]; then
+			printf '%s\n' "$p"
+			return 0
+		fi
+	done
+	return 1
+}
+
 choose_worker_bin() {
 	local backend="${1:-cpu}"
+	local p=""
 	if [[ -n "${WORKER_BIN:-}" ]]; then
 		printf '%s\n' "$WORKER_BIN"
 		return 0
 	fi
-	if [[ "$backend" == "cuda" && -x "${ROOT_DIR}/bin/workerpoh-cuda" ]]; then
-		printf '%s\n' "${ROOT_DIR}/bin/workerpoh-cuda"
-		return 0
-	fi
-	if [[ "$backend" == "opencl" && -x "${ROOT_DIR}/bin/workerpoh-opencl" ]]; then
-		printf '%s\n' "${ROOT_DIR}/bin/workerpoh-opencl"
-		return 0
-	fi
-	if [[ "$backend" == "cpu" && -x "${ROOT_DIR}/bin/workerpoh-cpu" ]]; then
-		printf '%s\n' "${ROOT_DIR}/bin/workerpoh-cpu"
-		return 0
-	fi
-	if [[ "$backend" == "cpu" && -x "${ROOT_DIR}/bin/workerpoh" ]]; then
-		printf '%s\n' "${ROOT_DIR}/bin/workerpoh"
-		return 0
-	fi
-	printf '%s\n' "${ROOT_DIR}/bin/workerpoh-cpu"
+	case "$backend" in
+	cuda)
+		if p="$(worker_bin_candidate workerpoh-cuda)"; then
+			printf '%s\n' "$p"
+			return 0
+		fi
+		# Release bundles ship static workerpoh; never invent workerpoh-cpu for cuda.
+		if p="$(worker_bin_candidate workerpoh)"; then
+			echo "[worker-autostart] WARN: backend=cuda but workerpoh-cuda missing — using ${p} (CPU/OpenCL flags only)" >&2
+			printf '%s\n' "$p"
+			return 0
+		fi
+		;;
+	opencl)
+		if p="$(worker_bin_candidate workerpoh-opencl)"; then
+			printf '%s\n' "$p"
+			return 0
+		fi
+		if p="$(worker_bin_candidate workerpoh)"; then
+			echo "[worker-autostart] WARN: backend=opencl but workerpoh-opencl missing — using ${p}" >&2
+			printf '%s\n' "$p"
+			return 0
+		fi
+		;;
+	cpu|*)
+		if p="$(worker_bin_candidate workerpoh-cpu)"; then
+			printf '%s\n' "$p"
+			return 0
+		fi
+		if p="$(worker_bin_candidate workerpoh)"; then
+			printf '%s\n' "$p"
+			return 0
+		fi
+		;;
+	esac
+	echo "[worker-autostart] ERROR: no worker binary for backend=${backend} under ${ROOT_DIR}/bin or ${ROOT_DIR}" >&2
+	return 1
+}
+
+# Release tarballs have no Go sources — never attempt go build there.
+release_layout_no_sources() {
+	[[ -x "${ROOT_DIR}/bin/workerpoh" || -x "${ROOT_DIR}/workerpoh" ]] || return 1
+	[[ ! -f "${ROOT_DIR}/cmd/workerpoh/main.go" ]]
 }
 
 build_worker_if_needed() {
 	local bin="$1"
 	local backend="$2"
-	if [[ -x "$bin" ]] && truthy "${SKIP_WORKER_BUILD:-0}"; then
+	if [[ -x "$bin" ]]; then
 		return 0
+	fi
+	if release_layout_no_sources; then
+		echo "[worker-autostart] ERROR: missing ${bin} (backend=${backend})." >&2
+		echo "[worker-autostart] Linux release ships bin/workerpoh[+cuda|+opencl]; do not require go build." >&2
+		echo "[worker-autostart] Fix: re-download bundle, or set WORKER_BIN=/path/to/workerpoh, or HACKME_GPU_BACKEND=cpu." >&2
+		return 1
+	fi
+	if truthy "${SKIP_WORKER_BUILD:-0}"; then
+		echo "[worker-autostart] ERROR: missing ${bin} and SKIP_WORKER_BUILD=1" >&2
+		return 1
 	fi
 	mkdir -p "$(dirname "$bin")"
 	export GOCACHE="${GOCACHE:-${ROOT_DIR}/.cache/go-build}"
 	mkdir -p "$GOCACHE" 2>/dev/null || true
-	if truthy "${SKIP_WORKER_BUILD:-0}" && [[ -x "$bin" ]]; then
-		return 0
+	echo "[worker-autostart] building worker binary: ${bin}"
+	if [[ "$backend" == "cuda" ]]; then
+		if [[ -x "$ROOT_DIR/scripts/ops/build_cuda_worker.sh" ]]; then
+			OUT_CUDA="${ROOT_DIR}/bin/workerpoh-cuda"
+			bash "$ROOT_DIR/scripts/ops/build_cuda_worker.sh"
+			cp -f "$OUT_CUDA" "$bin" 2>/dev/null || ln -sf "$OUT_CUDA" "$bin"
+		else
+			(cd "$ROOT_DIR" && go build -tags "cuda,opencl" -o "$bin" ./cmd/workerpoh)
+		fi
+	elif [[ "$backend" == "opencl" ]]; then
+		(cd "$ROOT_DIR" && go build -tags opencl -o "$bin" ./cmd/workerpoh)
+	else
+		(cd "$ROOT_DIR" && go build -o "$bin" ./cmd/workerpoh)
 	fi
-	if [[ -x "$bin" ]] && ! truthy "${FORCE_WORKER_REBUILD:-0}"; then
-		return 0
-	fi
-	if [[ -x "$bin" ]]; then
-		local newest_src=""
-		local f
-		for f in "${ROOT_DIR}/cmd/workerpoh/"*.go; do
-			[[ -f "$f" ]] || continue
-			if [[ -z "$newest_src" || "$f" -nt "$newest_src" ]]; then
-				newest_src="$f"
-			fi
-		done
-		if [[ -n "$newest_src" && "$bin" -nt "$newest_src" ]]; then
+}
+
+# Bundled NVRTC (linux/lib) for workerpoh-cuda without system CUDA toolkit.
+export_cuda_lib_path() {
+	local libdir=""
+	for libdir in "${ROOT_DIR}/lib" "${ROOT_DIR}/lib/cuda" "${ROOT_DIR}/.deps/cuda-lib"; do
+		if [[ -e "${libdir}/libnvrtc.so.12" || -e "${libdir}/libnvrtc.so" ]]; then
+			export LD_LIBRARY_PATH="${libdir}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 			return 0
 		fi
-		echo "[worker-autostart] rebuilding stale worker binary: ${bin}"
-	fi
-  echo "[worker-autostart] building worker binary: ${bin}"
-  if [[ "$backend" == "cuda" ]]; then
-    if [[ -x "$ROOT_DIR/scripts/ops/build_cuda_worker.sh" ]]; then
-      OUT_CUDA="${ROOT_DIR}/bin/workerpoh-cuda"
-      bash "$ROOT_DIR/scripts/ops/build_cuda_worker.sh"
-      cp -f "$OUT_CUDA" "$bin" 2>/dev/null || ln -sf "$OUT_CUDA" "$bin"
-    else
-      (cd "$ROOT_DIR" && go build -tags "cuda,opencl" -o "$bin" ./cmd/workerpoh)
-    fi
-  elif [[ "$backend" == "opencl" ]]; then
-    (cd "$ROOT_DIR" && go build -tags opencl -o "$bin" ./cmd/workerpoh)
-  else
-    (cd "$ROOT_DIR" && go build -o "$bin" ./cmd/workerpoh)
-  fi
+	done
+	return 0
 }
 
 load_fleet_plan_json() {
@@ -295,8 +350,25 @@ worker_run_loop_slot() {
   local slot_chunk="${5:-$GPU_CHUNK}"
   local slot_timeout="${6:-$SEARCH_TIMEOUT_MS}"
   local slot_bin
-  slot_bin="$(choose_worker_bin "$slot_backend")"
-  build_worker_if_needed "$slot_bin" "$slot_backend"
+  if ! slot_bin="$(choose_worker_bin "$slot_backend")"; then
+    echo "[worker-autostart] FATAL: cannot choose worker binary for backend=${slot_backend}" >&2
+    return 1
+  fi
+  export_cuda_lib_path
+  if ! build_worker_if_needed "$slot_bin" "$slot_backend"; then
+    echo "[worker-autostart] FATAL: worker binary unavailable: ${slot_bin}" >&2
+    return 1
+  fi
+  # If cuda was requested but we fell back to plain workerpoh, don't pass -gpu-backend cuda.
+  if [[ "$slot_backend" == "cuda" && "$slot_bin" != *workerpoh-cuda* ]]; then
+    slot_backend="cpu"
+  fi
+  if [[ "$slot_backend" == "opencl" && "$slot_bin" != *workerpoh-opencl* && "$slot_bin" != *workerpoh-cuda* ]]; then
+    # plain static workerpoh may still accept -gpu-backend opencl if built with tags; otherwise cpu.
+    if ! "$slot_bin" -h 2>&1 | grep -q -- '-gpu-backend'; then
+      slot_backend="cpu"
+    fi
+  fi
   local bin_help="$("$slot_bin" -h 2>&1 || true)"
   supports_flag() { [[ "$bin_help" == *"$1"* ]]; }
   local backend_flag=() dev_flag=() disable_flag=()
@@ -312,7 +384,7 @@ worker_run_loop_slot() {
   while true; do
     ts="$(date +%Y%m%dT%H%M%S)"
     run_log="${LOG_DIR}/workerpoh-${worker_id}-${ts}.log"
-    echo "[worker-autostart] launch worker=${worker_id} backend=${slot_backend} device=${gpu_dev:-auto} batch=${slot_batch} log=${run_log}"
+    echo "[worker-autostart] launch worker=${worker_id} backend=${slot_backend} bin=${slot_bin} device=${gpu_dev:-auto} batch=${slot_batch} log=${run_log}"
     set +e
     "${slot_bin}" \
       -coord "${COORD_URL}" \

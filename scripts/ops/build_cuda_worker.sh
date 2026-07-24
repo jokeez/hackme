@@ -30,13 +30,28 @@ if ! go build -trimpath -tags "$TAGS" -o "$OUT_CUDA" ./cmd/workerpoh; then
   exit 1
 fi
 chmod 755 "$OUT_CUDA"
+# Portable RPATH so bundled linux/lib NVRTC works without LD_LIBRARY_PATH.
+if command -v patchelf >/dev/null 2>&1; then
+  patchelf --set-rpath '$ORIGIN/../lib:$ORIGIN/lib:$ORIGIN/../.deps/cuda-lib' "$OUT_CUDA" 2>/dev/null || true
+elif [[ -x /tmp/hm-prefix/usr/bin/patchelf ]]; then
+  /tmp/hm-prefix/usr/bin/patchelf --set-rpath '$ORIGIN/../lib:$ORIGIN/lib:$ORIGIN/../.deps/cuda-lib' "$OUT_CUDA" 2>/dev/null || true
+fi
 ln -sf "$(basename "$OUT_CUDA")" "$OUT_DEFAULT"
 
 # OpenCL-only binary for rigs without NVRTC (MSK CPU nodes skip this)
-if pkg-config --exists OpenCL 2>/dev/null || [[ -f /usr/include/CL/cl.h ]]; then
+if pkg-config --exists OpenCL 2>/dev/null || [[ -f /usr/include/CL/cl.h ]] || [[ -f /tmp/hm-prefix/usr/include/CL/cl.h ]]; then
   echo "[build-cuda] go build -tags opencl -> $OUT_OCL"
+  if [[ -f /tmp/hm-prefix/usr/include/CL/cl.h && ! -f /usr/include/CL/cl.h ]]; then
+    export CGO_CFLAGS="${CGO_CFLAGS:-} -I/tmp/hm-prefix/usr/include"
+    export CGO_LDFLAGS="-L/tmp/hm-prefix/usr/lib/x86_64-linux-gnu -lOpenCL"
+  fi
   go build -trimpath -tags opencl -o "$OUT_OCL" ./cmd/workerpoh
   chmod 755 "$OUT_OCL"
+  if command -v patchelf >/dev/null 2>&1; then
+    patchelf --set-rpath '$ORIGIN/../lib:$ORIGIN/lib' "$OUT_OCL" 2>/dev/null || true
+  elif [[ -x /tmp/hm-prefix/usr/bin/patchelf ]]; then
+    /tmp/hm-prefix/usr/bin/patchelf --set-rpath '$ORIGIN/../lib:$ORIGIN/lib' "$OUT_OCL" 2>/dev/null || true
+  fi
 fi
 
 if [[ "$PROBE" == "1" ]]; then

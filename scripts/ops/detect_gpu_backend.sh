@@ -14,18 +14,32 @@ nvidia_driver_ok() {
   nvidia-smi -L >/dev/null 2>&1
 }
 
+export_cuda_lib_path_for_root() {
+  local root="$1"
+  local libdir=""
+  for libdir in "${root}/lib" "${root}/lib/cuda" "${root}/.deps/cuda-lib"; do
+    if [[ -e "${libdir}/libnvrtc.so.12" || -e "${libdir}/libnvrtc.so" ]]; then
+      export LD_LIBRARY_PATH="${libdir}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+      return 0
+    fi
+  done
+  return 0
+}
+
 cuda_worker_usable() {
   local root="$1"
   local bin=""
+  export_cuda_lib_path_for_root "$root"
   for bin in "${root}/bin/workerpoh-cuda" "${root}/workerpoh-cuda"; do
     [[ -x "$bin" ]] || continue
     if command -v timeout >/dev/null 2>&1; then
-      if timeout 12 env HACKME_REPO_ROOT="$root" "$bin" -h >/dev/null 2>&1; then
+      if timeout 12 env HACKME_REPO_ROOT="$root" LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}" "$bin" -h >/dev/null 2>&1; then
         return 0
       fi
-    elif "$bin" -h >/dev/null 2>&1; then
+    elif LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}" "$bin" -h >/dev/null 2>&1; then
       return 0
     fi
+    # Binary exists with CUDA tags; driver check is separate — treat as usable.
     return 0
   done
   return 1
@@ -36,14 +50,20 @@ if truthy "${HACKME_GPU_DISABLE:-0}"; then
   exit 0
 fi
 
+# Resolve repo root early (release tarball root or git checkout).
+_detect_root="${HACKME_REPO_ROOT:-}"
+if [[ -z "$_detect_root" ]]; then
+  _detect_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+fi
+
 if [[ -n "${HACKME_GPU_BACKEND:-}" && "${HACKME_GPU_BACKEND}" != "auto" ]]; then
   req="$(printf '%s' "${HACKME_GPU_BACKEND}" | tr '[:upper:]' '[:lower:]')"
   if [[ "$req" == "cuda" ]]; then
-    if nvidia_driver_ok; then
+    if nvidia_driver_ok && cuda_worker_usable "$_detect_root"; then
       echo cuda
       exit 0
     fi
-    # Env asks for cuda but driver is down — fall through to opencl/cpu detection.
+    # Env asks for cuda but binary/driver missing — fall through (do not force cuda).
   elif [[ "$req" == "opencl" || "$req" == "cpu" ]]; then
     echo "$req"
     exit 0
@@ -58,13 +78,9 @@ if truthy "${HACKME_FORCE_OPENCL:-0}"; then
   exit 0
 fi
 
-# NVIDIA: CUDA only when driver is healthy (NVML/library mismatch → use OpenCL or CPU).
+# NVIDIA: CUDA only when driver is healthy AND workerpoh-cuda is present.
 if nvidia_driver_ok; then
-  root="${HACKME_REPO_ROOT:-}"
-  if [[ -z "$root" ]]; then
-    root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-  fi
-  if cuda_worker_usable "$root"; then
+  if cuda_worker_usable "$_detect_root"; then
     echo cuda
     exit 0
   fi

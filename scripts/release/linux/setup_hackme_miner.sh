@@ -36,11 +36,20 @@ if [[ -z "$admin" ]]; then
 fi
 
 export HACKME_REPO_ROOT="$INSTALL_DIR"
+# Prefer bundled NVRTC before probing CUDA worker.
+if [[ -e "$INSTALL_DIR/lib/libnvrtc.so.12" || -e "$INSTALL_DIR/lib/libnvrtc.so" ]]; then
+  export LD_LIBRARY_PATH="${INSTALL_DIR}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+fi
 GPU_BACKEND="auto"
 if [[ -x "$INSTALL_DIR/detect_gpu_backend.sh" ]]; then
-  GPU_BACKEND="$(bash "$INSTALL_DIR/detect_gpu_backend.sh" 2>/dev/null || echo auto)"
+  GPU_BACKEND="$(HACKME_GPU_BACKEND=auto bash "$INSTALL_DIR/detect_gpu_backend.sh" 2>/dev/null || echo auto)"
 fi
-if [[ -z "$GPU_BACKEND" ]]; then
+case "${GPU_BACKEND}" in
+  cuda|opencl|cpu|auto) ;;
+  *) GPU_BACKEND="auto" ;;
+esac
+# Never persist cuda without the binary present in this bundle.
+if [[ "$GPU_BACKEND" == "cuda" && ! -x "$INSTALL_DIR/bin/workerpoh-cuda" && ! -x "$INSTALL_DIR/workerpoh-cuda" ]]; then
   GPU_BACKEND="auto"
 fi
 

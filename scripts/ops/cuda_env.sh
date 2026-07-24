@@ -32,6 +32,15 @@ cuda_find_home() {
     printf '%s' "/usr"
     return 0
   fi
+  # Unprivileged prefix (e.g. dpkg-deb -x into /tmp/hm-prefix)
+  if [[ -n "${HACKME_CUDA_PREFIX:-}" && -f "${HACKME_CUDA_PREFIX}/include/nvrtc.h" ]]; then
+    printf '%s' "${HACKME_CUDA_PREFIX}"
+    return 0
+  fi
+  if [[ -f /tmp/hm-prefix/usr/include/nvrtc.h ]]; then
+    printf '%s' "/tmp/hm-prefix/usr"
+    return 0
+  fi
   return 1
 }
 
@@ -48,6 +57,12 @@ if [[ "$CUDA_HOME" == "/usr" ]]; then
   export CGO_CFLAGS="${CGO_CFLAGS:-} -I/usr/include"
   export CGO_LDFLAGS="${CGO_LDFLAGS:-} -L/usr/lib/x86_64-linux-gnu -lcuda -lnvrtc -lcudart"
   export LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
+elif [[ "$CUDA_HOME" == */hm-prefix/usr || -d "${CUDA_HOME}/lib/x86_64-linux-gnu" ]]; then
+  export PATH="${PATH:-}"
+  export CGO_ENABLED=1
+  export CGO_CFLAGS="${CGO_CFLAGS:-} -I${CUDA_HOME}/include"
+  export CGO_LDFLAGS="${CGO_LDFLAGS:-} -L${CUDA_HOME}/lib/x86_64-linux-gnu -lcuda -lnvrtc"
+  export LD_LIBRARY_PATH="${CUDA_HOME}/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
 else
   export PATH="$CUDA_HOME/bin:${PATH:-}"
   export CGO_ENABLED=1

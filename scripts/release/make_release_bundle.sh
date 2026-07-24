@@ -74,10 +74,27 @@ if [[ -x "${ROOT_DIR}/scripts/release/windows/build_workerpoh_opencl.sh" ]] && c
       echo "[release] WARN: workerpoh-opencl.exe build failed" >&2
   fi
 fi
-if [[ "${CGO_ENABLED}" == "1" ]] && (pkg-config --exists OpenCL 2>/dev/null || [[ -f /usr/include/CL/cl.h ]]); then
+# Prefer shipping prebuilt GPU workers from bin/ (CI/release hosts may lack CUDA toolkit).
+ship_linux_gpu_worker() {
+  local name="$1"
+  if [[ -x "${ROOT_DIR}/bin/${name}" ]]; then
+    install -m 0755 "${ROOT_DIR}/bin/${name}" "${LINUX_DIR}/${name}"
+    return 0
+  fi
+  if [[ -x "${LINUX_DIR}/${name}" ]]; then
+    return 0
+  fi
+  return 1
+}
+
+if [[ "${CGO_ENABLED}" == "1" ]] && (pkg-config --exists OpenCL 2>/dev/null || [[ -f /usr/include/CL/cl.h ]] || [[ -f /tmp/hm-prefix/usr/include/CL/cl.h ]]); then
   echo "[release] building workerpoh-opencl (AMD/Intel/NVIDIA via OpenCL ICD)"
+  if [[ -f /tmp/hm-prefix/usr/include/CL/cl.h && ! -f /usr/include/CL/cl.h ]]; then
+    export CGO_CFLAGS="${CGO_CFLAGS:-} -I/tmp/hm-prefix/usr/include"
+    export CGO_LDFLAGS="${CGO_LDFLAGS:-} -L/tmp/hm-prefix/usr/lib/x86_64-linux-gnu -lOpenCL"
+  fi
   GOOS=linux GOARCH="${LINUX_ARCH}" CGO_ENABLED=1 \
-    go build -tags opencl -trimpath -ldflags "-s -w" -o "${LINUX_DIR}/workerpoh-opencl" ./cmd/workerpoh
+    go build -tags opencl -trimpath -ldflags "-s -w" -o "${LINUX_DIR}/workerpoh-opencl" ./cmd/workerpoh || true
   if command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
     echo "[release] building workerpoh-opencl.exe (mingw cross)"
     CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ \
@@ -90,16 +107,47 @@ if [[ "${CGO_ENABLED}" == "1" ]] && (pkg-config --exists OpenCL 2>/dev/null || [
     echo "[release] WARN: skip workerpoh-opencl.exe (install mingw-w64 or docker for Windows OpenCL build)" >&2
   fi
 fi
+# Always prefer repo bin/workerpoh-opencl if present (portable rebuild).
+ship_linux_gpu_worker workerpoh-opencl || true
+
 if [[ -x "${ROOT_DIR}/scripts/ops/build_cuda_worker.sh" ]]; then
   echo "[release] building workerpoh-cuda (NVIDIA native; Linux only)"
   if bash "${ROOT_DIR}/scripts/ops/build_cuda_worker.sh" 2>/dev/null; then
-    cp -f "${ROOT_DIR}/bin/workerpoh-cuda" "${LINUX_DIR}/workerpoh-cuda"
-    chmod +x "${LINUX_DIR}/workerpoh-cuda"
-    ln -sf workerpoh-cuda "${LINUX_DIR}/workerpoh-gpu" 2>/dev/null || true
+    :
   else
-    echo "[release] WARN: workerpoh-cuda build skipped (no CUDA toolkit on build host)" >&2
+    echo "[release] WARN: workerpoh-cuda build skipped (no CUDA toolkit on build host) — using bin/ if present" >&2
   fi
 fi
+if ship_linux_gpu_worker workerpoh-cuda; then
+  chmod +x "${LINUX_DIR}/workerpoh-cuda"
+  ln -sf workerpoh-cuda "${LINUX_DIR}/workerpoh-gpu" 2>/dev/null || true
+else
+  echo "[release] ERROR: workerpoh-cuda missing — Linux NVIDIA miners need it in the bundle" >&2
+fi
+
+# Bundle NVRTC runtime next to workers (no system CUDA toolkit required on miner hosts).
+echo "[release] bundling CUDA NVRTC libs into linux/lib/"
+mkdir -p "${LINUX_DIR}/lib"
+_nvrtc_src=""
+for _nvrtc_src in \
+  "${ROOT_DIR}/.deps/cuda-lib" \
+  "${ROOT_DIR}/lib" \
+  "${ROOT_DIR}/dist/linux-lib-staging" \
+  "/tmp/hm-prefix/usr/lib/x86_64-linux-gnu"
+do
+  if [[ -e "${_nvrtc_src}/libnvrtc.so.12" || -e "${_nvrtc_src}/libnvrtc.so" ]]; then
+    cp -a "${_nvrtc_src}"/libnvrtc.so* "${LINUX_DIR}/lib/" 2>/dev/null || true
+    cp -a "${_nvrtc_src}"/libnvrtc-builtins.so* "${LINUX_DIR}/lib/" 2>/dev/null || true
+    break
+  fi
+done
+if [[ -e "${LINUX_DIR}/lib/libnvrtc.so.12" || -e "${LINUX_DIR}/lib/libnvrtc.so" ]]; then
+  echo "[release] NVRTC libs: $(ls "${LINUX_DIR}/lib"/libnvrtc*.so* 2>/dev/null | wc -l) files"
+else
+  echo "[release] WARN: libnvrtc.so.12 not bundled — workerpoh-cuda may fail without system NVRTC" >&2
+fi
+unset _nvrtc_src
+
 for doc in docs/GPU_MINING_BACKENDS.md docs/CUDA_PRODUCTION.md; do
   [[ -f "${ROOT_DIR}/${doc}" ]] && cp "${ROOT_DIR}/${doc}" "${LINUX_DIR}/"
 done

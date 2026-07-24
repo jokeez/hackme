@@ -125,7 +125,10 @@ echo "  Logs:      $NODE_LOG"
 echo "  Stop:      kill \$(cat $PID_FILE)"
 echo ""
 
-if [[ "${HACKME_MINER_DAEMON:-0}" == "1" ]]; then
+# Default: daemon mode — closing the terminal must not kill mining.
+# Opt into foreground follow with: HACKME_MINER_DAEMON=0 bash start_hackme_miner.sh
+if [[ "${HACKME_MINER_DAEMON:-1}" == "1" ]]; then
+  echo "Running in background (HACKME_MINER_DAEMON=1). Follow logs: tail -f $NODE_LOG"
   exit 0
 fi
 

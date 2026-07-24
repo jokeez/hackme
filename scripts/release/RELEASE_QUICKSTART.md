@@ -23,7 +23,7 @@ Binaries: `hackme.exe` (node), `workerpoh.exe` (pool worker), `minersign.exe` (h
 
 **Advanced:** `sudo bash install_hackme.sh --archive ../hackme_*_linux.tar.gz` (systemd). Dev tree: `bash desktop_mode_up.sh` (needs Go).
 
-**GPU:** NVIDIA → `workerpoh-cuda` in bundle; AMD/Intel → `workerpoh-gpu` / OpenCL. See `GPU_MINING_BACKENDS.md`. Multi-GPU: `bash worker_autostart.sh` after `bin/fleetplan` (see docs).
+**GPU:** Linux bundle includes ready binaries `bin/workerpoh-cuda` + `bin/workerpoh-opencl` (+ `lib/libnvrtc*` for CUDA). No Go toolchain needed. NVIDIA needs a working driver (`nvidia-smi`); AMD/Intel use OpenCL ICD. Setup writes `HACKME_GPU_BACKEND=auto|cuda|opencl|cpu` only when that backend is actually usable. See `GPU_MINING_BACKENDS.md`. Multi-GPU: `bash worker_autostart.sh` after `bin/fleetplan`.
 
 ## Downloads on the site
 
