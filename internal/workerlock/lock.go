@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 )
 
 // Guard holds an exclusive flock on a per-(kind,workerID) pidfile.
@@ -38,17 +37,17 @@ func Acquire(kind, workerID, dir string) (*Guard, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+	if err := lockFile(f); err != nil {
 		_ = f.Close()
 		return nil, fmt.Errorf("%w: %s (kind=%s worker_id=%s)", ErrAlreadyRunning, path, kind, workerID)
 	}
 	if err := f.Truncate(0); err != nil {
-		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+		_ = unlockFile(f)
 		_ = f.Close()
 		return nil, err
 	}
 	if _, err := fmt.Fprintf(f, "%d\n", os.Getpid()); err != nil {
-		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+		_ = unlockFile(f)
 		_ = f.Close()
 		return nil, err
 	}
@@ -61,7 +60,7 @@ func (g *Guard) Release() {
 	if g == nil || g.f == nil {
 		return
 	}
-	_ = syscall.Flock(int(g.f.Fd()), syscall.LOCK_UN)
+	_ = unlockFile(g.f)
 	_ = g.f.Close()
 	g.f = nil
 }
@@ -97,10 +96,10 @@ func Held(kind, workerID, dir string) bool {
 		return false
 	}
 	defer f.Close()
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+	if err := lockFile(f); err != nil {
 		return true
 	}
-	_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	_ = unlockFile(f)
 	return false
 }
 

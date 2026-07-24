@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"hackme/internal/workerfuzzloop"
@@ -160,7 +159,7 @@ func superviseHybridFuzzProcess(ctx context.Context, coordURL, token, workerID s
 		cmd.Stderr = os.Stderr
 		cmd.Env = os.Environ()
 		// Same WORKER_ID as PoH — intentional (one pool row). Child inherits miner seed.
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		configureHybridChild(cmd)
 		fmt.Fprintf(os.Stderr, "workerpoh: hybrid fuzz process start bin=%s nice=%d\n", bin, niceLevel)
 		err := cmd.Run()
 		if ctx.Err() != nil {
