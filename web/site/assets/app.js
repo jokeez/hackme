@@ -39,7 +39,7 @@
     releaseChannel: RELEASE_VER,
     releaseChannelNote: "rc13 — 48-hour pool soak PASS; refreshed Win/Linux/ISO and B2B fuzzing CLI artifacts",
     releaseBase: `/dist/release_${RELEASE_VER}`,
-    windowsInstaller: `/dist/release_${RELEASE_VER}/HackMe-Setup-${RELEASE_VER}.exe`,
+    windowsInstaller: `/dist/release_${RELEASE_VER}/HackMe-Setup-${RELEASE_VER}.exe?v=20260724`,
     windowsBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows_setup.zip`,
     windowsBundleLegacy: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows.zip`,
     linuxBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_linux.tar.gz`,
