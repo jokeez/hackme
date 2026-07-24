@@ -2123,7 +2123,7 @@
 							<span id="mining-log-transport" class="text-[9px] font-mono px-2 py-0.5 rounded border border-white/10 text-gray-500" title="Local PoH: SSE or buffer. Pool worker: log tail (poll).">—</span>
 						</div>
 						<p id="mining-payout-live" class="text-[10px] font-mono text-matrix/90 mb-2 px-1 leading-snug min-h-[2.25em] border border-matrix/20 rounded bg-black/40 py-1.5" title="Coordinator aggregate from work/stats"></p>
-						<div id="mining-log" class="rounded-lg border border-white/8 bg-[#020304] p-4 font-mono text-[11px] leading-relaxed text-gray-400 min-h-[200px] max-h-[min(50vh,420px)] overflow-y-auto space-y-0.5 shadow-inner"></div>
+						<div id="mining-log" class="rounded-lg border border-white/8 bg-[#020304] p-4 font-mono text-[11px] leading-relaxed text-gray-400 min-h-[200px] max-h-[min(50vh,420px)] overflow-y-auto space-y-0.5 shadow-inner" translate="no"></div>
 						<div class="mt-4 card card-glow rounded-lg p-4 border-neon/20">
 							<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
 								<h3 class="font-display text-[10px] tracking-[0.25em] text-neon uppercase">Mining devices</h3>
@@ -11611,12 +11611,14 @@
 		function isCudaSpamLogLine(msg) {
 			return /gpupoh:\s*cuda search|cuda search count=/i.test(String(msg || ''));
 		}
-		/** Collapse burst CUDA GH/s lines; keep last sample + count. */
+		/** Collapse burst CUDA GH/s lines; drop nginx HTML fragments from 502 dumps. */
 		function compressMiningLogLines(lines) {
 			const src = Array.isArray(lines) ? lines : [];
 			const out = [];
 			let cudaLast = '';
 			let cudaN = 0;
+			let htmlN = 0;
+			let htmlStatus = '';
 			const flushCuda = () => {
 				if (!cudaN) return;
 				if (cudaN === 1) out.push(cudaLast);
@@ -11624,17 +11626,48 @@
 				cudaLast = '';
 				cudaN = 0;
 			};
+			const flushHtml = () => {
+				if (!htmlN) return;
+				out.push('workerfuzz: claim/proxy: ' + (htmlStatus || 'HTML error page') + (htmlN > 1 ? (' ×' + htmlN) : ''));
+				htmlN = 0;
+				htmlStatus = '';
+			};
+			const isHtmlJunk = (ln) => {
+				const s = String(ln || '').trim();
+				if (!s) return false;
+				if (/^<!doctype/i.test(s) || /^<\/?(html|head|body|center|title|hr|h1)\b/i.test(s)) return true;
+				if (/502 Bad Gateway|503 Service|504 Gateway/i.test(s) && /<\/?[a-z]/i.test(s)) return true;
+				return false;
+			};
+			const isHtmlClaimLine = (ln) => {
+				const s = String(ln || '');
+				return /claim:\s*HTTP\s+\d+.*<(html|head|!doctype)/i.test(s) ||
+					(/claim:\s*HTTP\s+\d+/i.test(s) && /<html/i.test(s));
+			};
 			for (let i = 0; i < src.length; i++) {
 				const ln = String(src[i] == null ? '' : src[i]);
 				if (isCudaSpamLogLine(ln)) {
+					flushHtml();
 					cudaLast = ln;
 					cudaN++;
 					continue;
 				}
+				if (isHtmlJunk(ln) || isHtmlClaimLine(ln)) {
+					flushCuda();
+					htmlN++;
+					const m = ln.match(/HTTP\s+(\d{3})/i) || ln.match(/\b(502|503|504)\b/);
+					const t = ln.match(/<title>([^<]+)<\/title>/i);
+					if (t) htmlStatus = 'HTTP ' + (m ? m[1] : '502') + ' ' + t[1].trim();
+					else if (m) htmlStatus = 'HTTP ' + m[1] + ' Bad Gateway';
+					else if (!htmlStatus) htmlStatus = 'HTTP 502 Bad Gateway';
+					continue;
+				}
 				flushCuda();
+				flushHtml();
 				out.push(ln);
 			}
 			flushCuda();
+			flushHtml();
 			return out;
 		}
 		let miningLogCudaLive = { n: 0, last: '', lastFlush: 0 };

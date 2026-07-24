@@ -326,7 +326,51 @@ func backoffForErr(err error) time.Duration {
 		strings.Contains(msg, "rate") || strings.Contains(msg, "too_many") {
 		return 30 * time.Second
 	}
+	// nginx/proxy briefly 502/503/504 while coordinator restarts (SQLite boot).
+	if strings.Contains(msg, "502") || strings.Contains(msg, "503") || strings.Contains(msg, "504") ||
+		strings.Contains(msg, "bad gateway") || strings.Contains(msg, "gateway timeout") {
+		return 5 * time.Second
+	}
 	return 2 * time.Second
+}
+
+// shortHTTPBody keeps claim/submit errors one-line and never dumps nginx HTML into worker logs.
+func shortHTTPBody(status int, raw []byte) string {
+	s := strings.TrimSpace(string(raw))
+	if s == "" {
+		return http.StatusText(status)
+	}
+	low := strings.ToLower(s)
+	if strings.Contains(low, "<html") || strings.Contains(low, "<!doctype") || strings.Contains(low, "<head>") {
+		title := ""
+		if i := strings.Index(low, "<title>"); i >= 0 {
+			j := strings.Index(low[i+7:], "</title>")
+			if j > 0 {
+				title = strings.TrimSpace(s[i+7 : i+7+j])
+			}
+		}
+		if title == "" {
+			if strings.Contains(low, "502") {
+				title = "Bad Gateway"
+			} else if strings.Contains(low, "503") {
+				title = "Service Unavailable"
+			} else if strings.Contains(low, "504") {
+				title = "Gateway Timeout"
+			} else {
+				title = "HTML error page"
+			}
+		}
+		return title
+	}
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = strings.ReplaceAll(s, "\r", " ")
+	for strings.Contains(s, "  ") {
+		s = strings.ReplaceAll(s, "  ", " ")
+	}
+	if len(s) > 160 {
+		return s[:157] + "..."
+	}
+	return s
 }
 
 func backoffForReason(reason string) time.Duration {
@@ -355,7 +399,7 @@ func Claim(ctx context.Context, cl *http.Client, base, token, workerID string) (
 	b, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
 	_ = json.Unmarshal(b, &out)
 	if res.StatusCode != 200 {
-		return out, fmt.Errorf("HTTP %d %s", res.StatusCode, strings.TrimSpace(string(b)))
+		return out, fmt.Errorf("HTTP %d %s", res.StatusCode, shortHTTPBody(res.StatusCode, b))
 	}
 	return out, nil
 }
@@ -437,7 +481,7 @@ func Submit(ctx context.Context, cl *http.Client, base, token, workerID, minerAd
 	defer res.Body.Close()
 	b, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
 	if res.StatusCode != 200 {
-		return fmt.Errorf("HTTP %d %s", res.StatusCode, string(b))
+		return fmt.Errorf("HTTP %d %s", res.StatusCode, shortHTTPBody(res.StatusCode, b))
 	}
 	return nil
 }

@@ -1,6 +1,7 @@
 package workerfuzzloop
 
 import (
+	"strings"
 	"testing"
 
 	"hackme/internal/chain"
@@ -54,6 +55,26 @@ func TestBackoffForErr(t *testing.T) {
 	}
 	if d := backoffForErr(errString("connection refused")); d > 5e9 {
 		t.Fatalf("expected soft backoff, got %v", d)
+	}
+	if d := backoffForErr(errString("HTTP 502 Bad Gateway")); d < 5e9 {
+		t.Fatalf("expected gateway backoff >=5s, got %v", d)
+	}
+}
+
+func TestShortHTTPBody(t *testing.T) {
+	html := []byte("<html>\n<head><title>502 Bad Gateway</title></head>\n<body><center><h1>502 Bad Gateway</h1></center></body></html>")
+	got := shortHTTPBody(502, html)
+	if got != "502 Bad Gateway" {
+		t.Fatalf("html title: got %q", got)
+	}
+	got = shortHTTPBody(503, []byte(`{"error":"busy"}`))
+	if got != `{"error":"busy"}` {
+		t.Fatalf("json: got %q", got)
+	}
+	long := strings.Repeat("x", 200)
+	got = shortHTTPBody(500, []byte(long))
+	if len(got) > 160 || !strings.HasSuffix(got, "...") {
+		t.Fatalf("truncate: got len=%d %q", len(got), got)
 	}
 }
 

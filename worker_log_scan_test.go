@@ -3,9 +3,52 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestScanNewestWorkerpohLogsSkipsHybridFuzz(t *testing.T) {
+	dir := t.TempDir()
+	poh := filepath.Join(dir, "workerpoh-worker-kapa-pc-20260201T120000Z.log")
+	hy := filepath.Join(dir, "workerpoh-hybrid-fuzz-worker-kapa-pc.log")
+	if err := os.WriteFile(poh, []byte("submit ok\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(hy, []byte("<html>502</html>\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.Chtimes(poh, time.Now().Add(-time.Hour), time.Now().Add(-time.Hour))
+	_ = os.Chtimes(hy, time.Now(), time.Now()) // newer mtime must not win
+	if got := scanNewestWorkerpohLogs(dir, false); got != poh {
+		t.Fatalf("got %q want poh log %q", got, poh)
+	}
+	if got := latestHybridFuzzLogPath(dir); got != hy {
+		t.Fatalf("hybrid path got %q want %q", got, hy)
+	}
+}
+
+func TestSanitizeWorkerLogLinesCollapsesHTML(t *testing.T) {
+	in := []string{
+		"workerfuzz: claim: HTTP 502 <html>",
+		"<head><title>502 Bad Gateway</title></head>",
+		"<body>",
+		"<center><h1>502 Bad Gateway</h1></center>",
+		"</body>",
+		"</html>",
+		"workerfuzz: FINDING campaign=cjson input=0x1 semantics=detector",
+	}
+	out := sanitizeWorkerLogLines(in)
+	if len(out) != 2 {
+		t.Fatalf("len=%d out=%v", len(out), out)
+	}
+	if !strings.Contains(out[0], "502") || strings.Contains(out[0], "<html") {
+		t.Fatalf("collapsed line: %q", out[0])
+	}
+	if !strings.Contains(out[1], "FINDING") {
+		t.Fatalf("finding lost: %q", out[1])
+	}
+}
 
 func TestScanNewestWorkerpohLogs(t *testing.T) {
 	dir := t.TempDir()

@@ -2961,6 +2961,10 @@ func scanNewestWorkerpohLogs(logDir string, includeParticipant bool) string {
 		if !strings.HasPrefix(name, "workerpoh-") || !strings.HasSuffix(name, ".log") || name == "workerpoh.log" {
 			continue
 		}
+		// Hybrid dig child log is separate; never replace the PoH worker tail (HTML 502 dumps used to win by mtime).
+		if strings.Contains(name, "hybrid-fuzz") {
+			continue
+		}
 		info, err := ent.Info()
 		if err != nil {
 			continue
@@ -2971,6 +2975,155 @@ func scanNewestWorkerpohLogs(logDir string, includeParticipant bool) string {
 		}
 	}
 	return best
+}
+
+// latestHybridFuzzLogPath returns newest workerpoh-hybrid-fuzz-*.log under logDir.
+func latestHybridFuzzLogPath(logDir string) string {
+	entries, err := os.ReadDir(logDir)
+	if err != nil {
+		return ""
+	}
+	var best string
+	var bestMod time.Time
+	for _, ent := range entries {
+		if ent.IsDir() {
+			continue
+		}
+		name := ent.Name()
+		if !strings.HasPrefix(name, "workerpoh-hybrid-fuzz-") || !strings.HasSuffix(name, ".log") {
+			continue
+		}
+		info, err := ent.Info()
+		if err != nil {
+			continue
+		}
+		if best == "" || info.ModTime().After(bestMod) {
+			best = filepath.Join(logDir, name)
+			bestMod = info.ModTime()
+		}
+	}
+	return best
+}
+
+func extractHTTPStatusToken(s string) string {
+	low := strings.ToLower(s)
+	idx := strings.Index(low, "http ")
+	if idx < 0 {
+		idx = strings.Index(low, "http")
+		if idx < 0 {
+			return ""
+		}
+		// "HTTP502" unlikely; prefer "HTTP 502"
+		rest := s[idx:]
+		if len(rest) >= 8 && (rest[4] == ' ' || rest[4] == '\t') {
+			code := strings.TrimSpace(rest[5:])
+			if len(code) >= 3 {
+				for i := 0; i < 3; i++ {
+					if code[i] < '0' || code[i] > '9' {
+						return ""
+					}
+				}
+				return code[:3]
+			}
+		}
+		return ""
+	}
+	rest := strings.TrimSpace(s[idx+5:])
+	if len(rest) < 3 {
+		return ""
+	}
+	for i := 0; i < 3; i++ {
+		if rest[i] < '0' || rest[i] > '9' {
+			return ""
+		}
+	}
+	return rest[:3]
+}
+
+func extractHTMLTitle(s string) string {
+	low := strings.ToLower(s)
+	i := strings.Index(low, "<title>")
+	if i < 0 {
+		return ""
+	}
+	rest := s[i+7:]
+	j := strings.Index(strings.ToLower(rest), "</title>")
+	if j < 0 {
+		return ""
+	}
+	return strings.TrimSpace(rest[:j])
+}
+
+// sanitizeWorkerLogLines collapses nginx HTML error dumps into one-line summaries.
+func sanitizeWorkerLogLines(in []string) []string {
+	if len(in) == 0 {
+		return in
+	}
+	out := make([]string, 0, len(in))
+	htmlN := 0
+	htmlStatus := ""
+	flushHTML := func() {
+		if htmlN == 0 {
+			return
+		}
+		msg := htmlStatus
+		if msg == "" {
+			msg = "workerfuzz: claim: HTTP 502 Bad Gateway"
+		}
+		if htmlN > 1 {
+			out = append(out, msg+" ×"+strconv.Itoa(htmlN)+" (html collapsed)")
+		} else {
+			out = append(out, msg)
+		}
+		htmlN = 0
+		htmlStatus = ""
+	}
+	isJunk := func(s string) bool {
+		t := strings.TrimSpace(s)
+		if t == "" {
+			return false
+		}
+		low := strings.ToLower(t)
+		if strings.HasPrefix(low, "<!doctype") || strings.HasPrefix(low, "<html") ||
+			strings.HasPrefix(low, "<head") || strings.HasPrefix(low, "</head") ||
+			strings.HasPrefix(low, "<body") || strings.HasPrefix(low, "</body") ||
+			strings.HasPrefix(low, "<center") || strings.HasPrefix(low, "</center") ||
+			strings.HasPrefix(low, "<title") || strings.HasPrefix(low, "</title") ||
+			strings.HasPrefix(low, "<hr") || strings.HasPrefix(low, "<h1") ||
+			low == "</html>" {
+			return true
+		}
+		if strings.Contains(low, "<html") && (strings.Contains(low, "502") || strings.Contains(low, "bad gateway") ||
+			strings.Contains(low, "claim:")) {
+			return true
+		}
+		return false
+	}
+	for _, ln := range in {
+		s := ln
+		low := strings.ToLower(s)
+		claimHTML := strings.Contains(low, "claim:") && strings.Contains(low, "http") && strings.Contains(low, "<html")
+		if isJunk(s) || claimHTML {
+			htmlN++
+			if code := extractHTTPStatusToken(s); code != "" {
+				htmlStatus = "workerfuzz: claim: HTTP " + code
+			}
+			if title := extractHTMLTitle(s); title != "" {
+				if htmlStatus == "" {
+					htmlStatus = "workerfuzz: claim: " + title
+				} else if !strings.Contains(htmlStatus, title) {
+					htmlStatus = htmlStatus + " " + title
+				}
+			} else if htmlStatus != "" && !strings.Contains(strings.ToLower(htmlStatus), "bad gateway") && strings.Contains(low, "502") {
+				htmlStatus += " Bad Gateway"
+			}
+			continue
+		}
+		flushHTML()
+		out = append(out, s)
+	}
+	flushHTML()
+	return out
 }
 
 // latestWorkerpohLogPath returns the newest pool worker log under logDir (workerpoh-*.log or worker_participant.log).
@@ -3118,7 +3271,17 @@ func (a *app) handleMiningLogs(w http.ResponseWriter, r *http.Request) {
 			} else {
 				logMode = "worker"
 			}
-			lines = append(lines, tail...)
+			lines = append(lines, sanitizeWorkerLogLines(tail)...)
+		}
+		if hy := latestHybridFuzzLogPath(filepath.Dir(tailPath)); hy != "" && hy != tailPath {
+			if hyTail, err := tailFileLastLines(hy, 40, 128*1024); err == nil && len(hyTail) > 0 {
+				lines = append(lines, "")
+				lines = append(lines, "--- hybrid fuzz ("+filepath.Base(hy)+") ---")
+				lines = append(lines, sanitizeWorkerLogLines(hyTail)...)
+				if logMode == "worker" {
+					logMode = "both"
+				}
+			}
 		}
 	}
 	writeJSON(w, map[string]any{
