@@ -14,6 +14,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -113,10 +114,16 @@ func HTTPTimeoutFromEnv() time.Duration {
 }
 
 // LoadHybridKey loads HACKME_MINER_ED25519_SEED_HEX; refuses treasury/dev-fee payout.
+// Fallback: HACKME_MINER_SEED_FILE, then desktop node seed (logs/desktop/data/node_ed25519.seed).
 func LoadHybridKey() (ed25519.PrivateKey, string, string, bool, error) {
 	seedHex := strings.TrimSpace(os.Getenv("HACKME_MINER_ED25519_SEED_HEX"))
 	if seedHex == "" {
-		return nil, "", "", false, errors.New("HACKME_MINER_ED25519_SEED_HEX required")
+		if raw, err := loadMinerSeedBytes(); err == nil {
+			seedHex = hex.EncodeToString(raw)
+		}
+	}
+	if seedHex == "" {
+		return nil, "", "", false, errors.New("HACKME_MINER_ED25519_SEED_HEX required (or HACKME_MINER_SEED_FILE / desktop node seed)")
 	}
 	seed, err := hex.DecodeString(seedHex)
 	if err != nil || len(seed) != ed25519.SeedSize {
@@ -130,6 +137,45 @@ func LoadHybridKey() (ed25519.PrivateKey, string, string, bool, error) {
 		return nil, "", "", false, fmt.Errorf("payout address %s is treasury/dev-fee — generate a dedicated worker key (minersign -gen-seed)", addr)
 	}
 	return priv, hex.EncodeToString(pub), addr, true, nil
+}
+
+func loadMinerSeedBytes() ([]byte, error) {
+	candidates := []string{}
+	if p := strings.TrimSpace(os.Getenv("HACKME_MINER_SEED_FILE")); p != "" {
+		candidates = append(candidates, p)
+	}
+	candidates = append(candidates,
+		filepath.Join("logs", "desktop", "data", "node_ed25519.seed"),
+		filepath.Join("data", "node_ed25519.seed"),
+	)
+	if exe, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exe)
+		candidates = append(candidates,
+			filepath.Join(dir, "..", "logs", "desktop", "data", "node_ed25519.seed"),
+			filepath.Join(dir, "..", "data", "node_ed25519.seed"),
+		)
+	}
+	var last error
+	for _, p := range candidates {
+		b, err := os.ReadFile(p)
+		if err != nil {
+			last = err
+			continue
+		}
+		b = bytes.TrimSpace(b)
+		if len(b) == ed25519.SeedSize {
+			return b, nil
+		}
+		// ASCII hex seed file
+		if raw, err := hex.DecodeString(string(b)); err == nil && len(raw) == ed25519.SeedSize {
+			return raw, nil
+		}
+		last = fmt.Errorf("seed file %s: want 32 bytes or 64 hex chars", p)
+	}
+	if last == nil {
+		last = errors.New("miner seed file not found")
+	}
+	return nil, last
 }
 
 // PayoutIsTreasury reports whether addr is the chain treasury/dev-fee sink.

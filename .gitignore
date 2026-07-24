@@ -115,3 +115,4 @@ scripts/ops/adapter_pack_smoke.sh
 docs/HUB_ADAPTER_ONBOARDING_CHECKLIST.md
 docs/HUB_ADAPTER_STATUS_TEMPLATE.md
 .cursor/
+.deps/

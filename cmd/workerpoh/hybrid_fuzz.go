@@ -114,27 +114,36 @@ func superviseHybridFuzzProcess(ctx context.Context, coordURL, token, workerID s
 		fmt.Fprintln(os.Stderr, "workerpoh: hybrid fuzz process mode: workerfuzz binary not found (build ./cmd/workerfuzz or set HACKME_WORKERFUZZ_BIN)")
 		return
 	}
-	nice := workerfuzzloop.EnvInt("HACKME_WORKER_HYBRID_FUZZ_NICE", 10)
+	niceLevel := workerfuzzloop.EnvInt("HACKME_WORKER_HYBRID_FUZZ_NICE", 10)
 	timeoutMS := workerfuzzloop.EnvInt("HACKME_WORKER_HYBRID_FUZZ_TIMEOUT_MS", 500)
 	backoff := 2 * time.Second
 	for {
 		if err := ctx.Err(); err != nil {
 			return
 		}
-		cmd := exec.CommandContext(ctx, bin,
+		// Prefer `nice` wrapper so process-mode actually yields CPU to PoH/GPU
+		// (SysProcAttr has no portable Nice field on Linux).
+		args := []string{
 			"-coord", coordURL,
 			"-token", token,
 			"-worker", workerID,
 			"-timeout-ms", strconv.Itoa(timeoutMS),
-		)
+		}
+		var cmd *exec.Cmd
+		if niceLevel > 0 {
+			if niceBin, err := exec.LookPath("nice"); err == nil {
+				cmd = exec.CommandContext(ctx, niceBin, append([]string{"-n", strconv.Itoa(niceLevel), bin}, args...)...)
+			}
+		}
+		if cmd == nil {
+			cmd = exec.CommandContext(ctx, bin, args...)
+		}
 		cmd.Stdout = os.Stderr
 		cmd.Stderr = os.Stderr
 		cmd.Env = os.Environ()
 		// Same WORKER_ID as PoH — intentional (one pool row). Child inherits miner seed.
-		if nice > 0 {
-			cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-		}
-		fmt.Fprintf(os.Stderr, "workerpoh: hybrid fuzz process start bin=%s nice~=%d\n", bin, nice)
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		fmt.Fprintf(os.Stderr, "workerpoh: hybrid fuzz process start bin=%s nice=%d\n", bin, niceLevel)
 		err := cmd.Run()
 		if ctx.Err() != nil {
 			return
