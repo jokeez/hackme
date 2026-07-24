@@ -174,7 +174,7 @@ type claimWorkRequest struct {
 	WorkerID     string `json:"worker_id"`
 	BatchSize    uint64 `json:"batch_size,omitempty"`
 	MinerPubKey  string `json:"miner_pubkey_ed25519,omitempty"`
-	MinerAddress  string `json:"miner_address,omitempty"`
+	MinerAddress string `json:"miner_address,omitempty"`
 }
 
 type submitWorkRequest struct {

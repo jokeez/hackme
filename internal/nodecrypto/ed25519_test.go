@@ -89,4 +89,3 @@ func TestReadSeedFileOK(t *testing.T) {
 		t.Fatalf("got %q want %q", got, want)
 	}
 }
-

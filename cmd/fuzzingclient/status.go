@@ -30,23 +30,23 @@ type EscrowSpendView struct {
 
 // OrderStatusView is the aggregated customer-facing status payload.
 type OrderStatusView struct {
-	OK               bool             `json:"ok"`
-	CampaignID       string           `json:"campaign_id"`
-	OrderID          string           `json:"order_id,omitempty"`
-	CampaignStatus   string           `json:"campaign_status,omitempty"`
-	FuzzRunsDone     int              `json:"fuzz_runs_done"`
-	FuzzBudgetRuns   int              `json:"fuzz_budget_runs"`
-	FuzzProgressPct  float64          `json:"fuzz_progress_pct"`
-	PoHProgressCount int              `json:"poh_progress_count,omitempty"`
-	PoHTargetSolves  int              `json:"poh_target_solves,omitempty"`
-	PoHProgressPct   *float64         `json:"poh_progress_pct,omitempty"`
-	PoHStatus        string           `json:"poh_status,omitempty"`
-	EtaSecEst        *float64         `json:"eta_sec_est,omitempty"`
-	Escrow           *EscrowSpendView `json:"escrow,omitempty"`
-	GateURL          string           `json:"gate_url"`
-	ReportURL        string           `json:"report_url"`
-	PulseURL         string           `json:"pulse_url"`
-	PrimaryDeliverable string         `json:"primary_deliverable"`
+	OK                 bool             `json:"ok"`
+	CampaignID         string           `json:"campaign_id"`
+	OrderID            string           `json:"order_id,omitempty"`
+	CampaignStatus     string           `json:"campaign_status,omitempty"`
+	FuzzRunsDone       int              `json:"fuzz_runs_done"`
+	FuzzBudgetRuns     int              `json:"fuzz_budget_runs"`
+	FuzzProgressPct    float64          `json:"fuzz_progress_pct"`
+	PoHProgressCount   int              `json:"poh_progress_count,omitempty"`
+	PoHTargetSolves    int              `json:"poh_target_solves,omitempty"`
+	PoHProgressPct     *float64         `json:"poh_progress_pct,omitempty"`
+	PoHStatus          string           `json:"poh_status,omitempty"`
+	EtaSecEst          *float64         `json:"eta_sec_est,omitempty"`
+	Escrow             *EscrowSpendView `json:"escrow,omitempty"`
+	GateURL            string           `json:"gate_url"`
+	ReportURL          string           `json:"report_url"`
+	PulseURL           string           `json:"pulse_url"`
+	PrimaryDeliverable string           `json:"primary_deliverable"`
 }
 
 func doStatus(base string, args []string) error {

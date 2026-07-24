@@ -25,6 +25,8 @@ data/
 .secrets/
 *.seed
 *.seed.hex
+*.seed.backup*
+**/node_ed25519.seed*
 **/miner_submit_ed25519_seed.hex
 .env
 .env.*

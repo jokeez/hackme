@@ -42,7 +42,9 @@
     windowsInstaller: `/dist/release_${RELEASE_VER}/HackMe-Setup-${RELEASE_VER}.exe?v=20260724`,
     windowsBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows_setup.zip`,
     windowsBundleLegacy: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows.zip`,
-    linuxBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_linux.tar.gz`,
+    // Primary: GitHub release asset (Cloudflare often stalls/truncates /dist/*.tar.gz).
+    linuxBundle: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/hackme_${RELEASE_VER}_linux.tar.gz`,
+    linuxBundleMirror: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_linux.tar.gz`,
     hackmeOSIso: `/dist/release_${ISO_CHANNEL}/HackMe-OS-${ISO_CHANNEL}-amd64.iso`,
     hackmeOSIsoLegacy: `/dist/release_${ISO_CHANNEL}/HackMe-Miner-${ISO_CHANNEL}-amd64.iso`,
     hackmeOSSha: `/dist/release_${ISO_CHANNEL}/SHA256SUMS-iso.txt`,

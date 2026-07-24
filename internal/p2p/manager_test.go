@@ -120,7 +120,6 @@ func TestDiscoveredPeerSSRFDefaults(t *testing.T) {
 	}
 }
 
-
 func TestPolicyCompatible(t *testing.T) {
 	cases := []struct {
 		name   string

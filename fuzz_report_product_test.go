@@ -160,7 +160,7 @@ func TestRenderFuzzReportHTML_crashFirstProduct(t *testing.T) {
 			"lines": []string{"Runs: 1000", "Crashes: 0", "Critical: 0", "Gate: PASS", "Money spent: 1.0000 HMC"},
 			"gate":  "PASS", "gate_pass": true,
 		},
-		"top_issues":     []fuzzProductTopIssue{},
+		"top_issues": []fuzzProductTopIssue{},
 		"coverage_noise": []fuzzProductTopIssue{{
 			Severity: "high", FindingType: "security_violation", Title: "detector flagged",
 			TriageClass: "coverage_noise",

@@ -149,52 +149,77 @@ trustless L1, CEX readiness, or future uptime.
 **ISO SHA256:** `1adf63cc8252c25ae040fc9362d78ac3209f0a5bf8babb05cd394f156ad5e60f`  
 **Mine useful work:** https://hackme.tech/pool/coordinator
 
-## Bitcointalk-style post
+## Bitcointalk — ANN update (EN, short)
 
-### [ANN] HackMe 0.1.0-rc13 — 48-hour useful-PoW pool soak PASS
+```
+[b]Re: HackMe Network — Useful PoW + Pool Fuzz · HMC[/b]
 
-HackMe `0.1.0-rc13` is live following
-`pool_48h_soak_20260722T162444Z`.
+[b]Update: 0.1.0-rc13[/b] (2026-07-24) — 48h pool soak PASS, ISO aligned, rebuilt binaries.
 
-This is not a generic “network is strong” claim. The pool was observed for
-roughly 48 hours with continuous snapshots and **zero gaps over 10 minutes**:
+[b]TL;DR[/b]
+• 48h mining soak PASS — continuous snapshots, gaps >10 min = [b]0[/b]
+• Soak: ~69–197 GH/s (avg ~137) · workers 8–20 (avg ~13) · tip ~199444 → ~204005
+• ACK ~0.13 ms · tiny signed rejects · fleet recovered after coordinator restarts
+• Win/Linux + fuzz CLI + [b]HackMe OS ISO[/b] all on rc13 (same SHA256 on GitHub + hackme.tech)
+• Live pool now: ~12 workers · ~145 GH/s · tip ~204k
 
-| Measure | Observed result |
-| --- | --- |
-| Pool hashrate | ~69–197 GH/s; ~137 GH/s average |
-| Workers online | 8–20; ~13 average |
-| Chain progress | tip ~199444 to ~203990 |
-| Pool responsiveness | ACK ~0.13 ms |
-| Reject behavior | signed rejects tiny |
-| Recovery | coordinator restarts occurred; fleet recovered |
-| Hub | `0.1.0-rc12w` mining stayed up |
-| Wallet | HMC balance increased |
+[b]What is HackMe?[/b]
+Open-source (AGPL-3.0) useful Proof-of-Work network:
+• [b]PoH mining[/b] — GPU workers on public HTTP SoloPool (not Stratum)
+• [b]Pool fuzz / orders[/b] — customers escrow HMC; miners dig WASM-gated work
+• [b]On-chain HMC[/b] — wallet + Activity on local node (127.0.0.1:8080)
 
-### What HackMe is
+Not a meme coin — we run our own pool, ship our own node, publish research ledgers.
 
-HackMe connects a useful-PoW pool with dig/fuzz jobs and an HMC/SUP ledger.
-The release also brings mining UI polish, hybrid fuzz, wallet Activity,
-security/economics hardening, and continuing OSS CVE Watch work (nghttp2
-completed; libheif ongoing).
+[b]Why rc13[/b]
+rc12w = Wallet Activity + security hardening.
+rc13 = ops proof: 48h soak held, then full rebuild including ISO (rc12w still had ISO on rc11s).
 
-### What this result means — and does not mean
+Honest note: confirms operator/private-pool readiness under this fleet. Not trustless L1. Not CEX-ready.
 
-It is evidence of **operator/private-pool readiness** under this observed
-fleet and window. It is **not** a claim that HackMe is a trustless L1, ready
-for CEX listing, or guaranteed to remain available under all conditions.
+[b]Downloads — verify SHA256[/b]
+Channel: https://hackme.tech/downloads.html
+GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc13
 
-### Release links
+| Artifact | SHA256 |
+|----------|--------|
+| hackme_0.1.0-rc13_windows_setup.zip | 846812f37b8113915388501a39be53e5ad19fb6165ca7b6f64d38be94dc97e92 |
+| hackme_0.1.0-rc13_linux.tar.gz | c7d9fe2d0f901f1f973ced43d9af8828728cd9786b293b83b52f1a36ae7c8e90 |
+| hackme-fuzzing-0.1.0-rc13-linux-amd64 | 94e4d222d280878378edd65debbc600cce945e4fed016af16e7aaf0ef7ba0ace |
+| hackme-fuzzing-0.1.0-rc13-windows-amd64.exe | 1c93f976b81d29c7e244fb977ccbbdb01338ee10e61960651235ed96cd468e89 |
+| HackMe-OS-0.1.0-rc13-amd64.iso | 1adf63cc8252c25ae040fc9362d78ac3209f0a5bf8babb05cd394f156ad5e60f |
 
-- Downloads: https://hackme.tech/downloads.html
-- GitHub release: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc13
-- Artifact directory: https://hackme.tech/dist/release_0.1.0-rc13/
-- Pool: https://hackme.tech/pool/coordinator
-- Checksums: verify `SHA256SUMS.txt` and `SHA256SUMS-iso.txt`
-- ISO: https://hackme.tech/dist/release_0.1.0-rc13/HackMe-OS-0.1.0-rc13-amd64.iso
-- ISO SHA256: `1adf63cc8252c25ae040fc9362d78ac3209f0a5bf8babb05cd394f156ad5e60f`
+Full list: https://hackme.tech/dist/release_0.1.0-rc13/SHA256SUMS.txt
 
-Do not run binaries from reposts or DMs. Download from the official links and
-verify checksums before installing.
+[b]Quick start — Linux[/b]
+[code]
+tar -xzf hackme_0.1.0-rc13_linux.tar.gz
+cd linux
+bash setup_hackme_miner.sh
+bash start_hackme_miner.sh
+[/code]
+
+[b]Quick start — Windows[/b]
+Download Setup .exe or windows_setup.zip → install → Start HackMe Miner.
+
+[b]Developers / B2B fuzz[/b]
+[code]
+hackme-fuzzing register --base http://127.0.0.1:8080 --save
+hackme-fuzzing wizard --wasm guard.wasm --package audit
+[/code]
+
+[b]Links[/b]
+• Site: https://hackme.tech/
+• Pool: https://hackme.tech/pool/coordinator
+• Explorer: https://hackme.tech/pool/explorer
+• GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc13
+• Telegram: https://t.me/hackme_tech
+• Discord: https://discord.gg/QMxSeaTSrQ
+
+Pool is live. Verify downloads. Questions/setup in-thread welcome.
+
+— HackMe team
+```
 
 ## Telegram short
 

@@ -436,11 +436,11 @@ func TestHandleWalletActivityProxiesCanonicalPeer(t *testing.T) {
 			"ok":     true,
 			"source": "local_db",
 			"data": map[string]any{
-				"address":             addr,
-				"tx_count_window":     float64(19),
-				"total_received_hmc":  1.5,
-				"counterparties":      []any{map[string]any{"peer": "HMC-abc", "tx_count": float64(3)}},
-				"recent":              []any{},
+				"address":            addr,
+				"tx_count_window":    float64(19),
+				"total_received_hmc": 1.5,
+				"counterparties":     []any{map[string]any{"peer": "HMC-abc", "tx_count": float64(3)}},
+				"recent":             []any{},
 			},
 		})
 	}))

@@ -215,13 +215,13 @@ func buildVerdictCard(runsDone, crashCount, criticalCrash int, gatePass bool, mo
 		fmt.Sprintf("Money spent: %.4f HMC", moneySpent),
 	}
 	return map[string]any{
-		"runs":          runsDone,
-		"crashes":       crashCount,
-		"critical":      criticalCrash,
-		"gate":          gate,
-		"gate_pass":     gatePass,
+		"runs":            runsDone,
+		"crashes":         crashCount,
+		"critical":        criticalCrash,
+		"gate":            gate,
+		"gate_pass":       gatePass,
 		"money_spent_hmc": moneySpent,
-		"lines":         lines,
+		"lines":           lines,
 	}
 }
 
@@ -411,9 +411,9 @@ func stubBaselineDiff(reason string) map[string]any {
 
 func estimatePulseETA(runsDone, budgetRuns int, elapsedSec int64, budgetSeconds int, status string) map[string]any {
 	out := map[string]any{
-		"eta_sec":        -1,
-		"eta_source":     "none",
-		"progress_note":  "",
+		"eta_sec":         -1,
+		"eta_source":      "none",
+		"progress_note":   "",
 		"honest_progress": true,
 	}
 	if status == "completed" || status == "cancelled" {

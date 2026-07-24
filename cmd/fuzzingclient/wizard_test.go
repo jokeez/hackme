@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"hackme/internal/fuzzingcli"
 	"hackme/internal/fuzzengine"
+	"hackme/internal/fuzzingcli"
 )
 
 func TestWizardRefusesPublicBase(t *testing.T) {

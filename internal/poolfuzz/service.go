@@ -319,9 +319,9 @@ const claimCandidateLimit = 512
 
 // Claim leases one work item for a pool worker.
 // Fast multi-phase (no correlated ORDER BY subquery — that was ~60s on large SQLite DBs):
-//  1) expired leases
-//  2) near-complete campaigns (precomputed id list)
-//  3) FIFO by updated_at
+//  1. expired leases
+//  2. near-complete campaigns (precomputed id list)
+//  3. FIFO by updated_at
 func (s *Service) Claim(ctx context.Context, workerID string, now int64) (ClaimedWork, bool, error) {
 	var out ClaimedWork
 	workerID = strings.TrimSpace(workerID)
