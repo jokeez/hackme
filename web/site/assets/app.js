@@ -39,23 +39,31 @@
     releaseChannel: RELEASE_VER,
     releaseChannelNote: "rc13 — 48-hour pool soak PASS; refreshed Win/Linux/ISO and B2B fuzzing CLI artifacts",
     releaseBase: `/dist/release_${RELEASE_VER}`,
-    windowsInstaller: `/dist/release_${RELEASE_VER}/HackMe-Setup-${RELEASE_VER}.exe?v=20260724`,
-    windowsBundle: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows_setup.zip`,
-    windowsBundleLegacy: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows.zip`,
-    // Primary: GitHub release asset (Cloudflare often stalls/truncates /dist/*.tar.gz).
+    // Primary downloads: GitHub Releases (Cloudflare /dist often stalls or truncates large files).
+    // Mirrors under /dist/ remain for origin IP / grey-cloud bypass.
+    ghRelease: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}`,
+    windowsInstaller: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/HackMe-Setup-${RELEASE_VER}.exe`,
+    windowsInstallerMirror: `/dist/release_${RELEASE_VER}/HackMe-Setup-${RELEASE_VER}.exe?v=20260724`,
+    windowsBundle: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/hackme_${RELEASE_VER}_windows_setup.zip`,
+    windowsBundleMirror: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows_setup.zip`,
+    windowsBundleLegacy: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/hackme_${RELEASE_VER}_windows.zip`,
+    windowsBundleLegacyMirror: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows.zip`,
     linuxBundle: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/hackme_${RELEASE_VER}_linux.tar.gz`,
     linuxBundleMirror: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_linux.tar.gz`,
-    hackmeOSIso: `/dist/release_${ISO_CHANNEL}/HackMe-OS-${ISO_CHANNEL}-amd64.iso`,
+    hackmeOSIso: `https://github.com/jokeez/hackme/releases/download/${ISO_CHANNEL}/HackMe-OS-${ISO_CHANNEL}-amd64.iso`,
+    hackmeOSIsoMirror: `/dist/release_${ISO_CHANNEL}/HackMe-OS-${ISO_CHANNEL}-amd64.iso`,
     hackmeOSIsoLegacy: `/dist/release_${ISO_CHANNEL}/HackMe-Miner-${ISO_CHANNEL}-amd64.iso`,
-    hackmeOSSha: `/dist/release_${ISO_CHANNEL}/SHA256SUMS-iso.txt`,
+    hackmeOSSha: `https://github.com/jokeez/hackme/releases/download/${ISO_CHANNEL}/SHA256SUMS-iso.txt`,
+    hackmeOSShaMirror: `/dist/release_${ISO_CHANNEL}/SHA256SUMS-iso.txt`,
     isoChannel: ISO_CHANNEL,
-    fuzzingLinux: `/dist/release_${RELEASE_VER}/hackme-fuzzing-${RELEASE_VER}-linux-amd64`,
-    fuzzingWindows: `/dist/release_${RELEASE_VER}/hackme-fuzzing-${RELEASE_VER}-windows-amd64.exe`,
-    fuzzingBuildLinux: `/dist/release_${RELEASE_VER}/hackme-fuzzing-build-${RELEASE_VER}-linux-amd64`,
-    fuzzingBuildWindows: `/dist/release_${RELEASE_VER}/hackme-fuzzing-build-${RELEASE_VER}-windows-amd64.exe`,
-    shaSums: `/dist/release_${RELEASE_VER}/SHA256SUMS.txt`,
-    manifest: `/dist/release_${RELEASE_VER}/RELEASE_MANIFEST.json`,
-    buildInfo: `/dist/release_${RELEASE_VER}/BUILD_INFO.txt`,
+    fuzzingLinux: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/hackme-fuzzing-${RELEASE_VER}-linux-amd64`,
+    fuzzingWindows: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/hackme-fuzzing-${RELEASE_VER}-windows-amd64.exe`,
+    fuzzingBuildLinux: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/hackme-fuzzing-build-${RELEASE_VER}-linux-amd64`,
+    fuzzingBuildWindows: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/hackme-fuzzing-build-${RELEASE_VER}-windows-amd64.exe`,
+    shaSums: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/SHA256SUMS.txt`,
+    shaSumsMirror: `/dist/release_${RELEASE_VER}/SHA256SUMS.txt`,
+    manifest: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/RELEASE_MANIFEST.json`,
+    buildInfo: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/BUILD_INFO.txt`,
   };
 
   function setHref(id, href) {
@@ -175,17 +183,27 @@
   }
 
   async function resolveWindowsDownloadHref() {
-    const inst = CONFIG.windowsInstaller;
-    if (!inst) return CONFIG.windowsBundle;
-    try {
-      const r = await fetch(inst, { method: "HEAD", cache: "no-store" });
-      if (r.ok) return inst;
-    } catch (_) {}
-    return CONFIG.windowsBundle;
+    const candidates = [
+      CONFIG.windowsInstaller,
+      CONFIG.windowsInstallerMirror,
+      CONFIG.windowsBundle,
+      CONFIG.windowsBundleMirror,
+    ].filter(Boolean);
+    for (const url of candidates) {
+      try {
+        const r = await fetch(url, { method: "HEAD", cache: "no-store" });
+        if (r.ok) return url;
+      } catch (_) {}
+    }
+    return CONFIG.windowsInstaller || CONFIG.windowsBundle;
   }
 
   async function resolveHackMeOSIsoHref() {
-    const candidates = [CONFIG.hackmeOSIso, CONFIG.hackmeOSIsoLegacy].filter(Boolean);
+    const candidates = [
+      CONFIG.hackmeOSIso,
+      CONFIG.hackmeOSIsoMirror,
+      CONFIG.hackmeOSIsoLegacy,
+    ].filter(Boolean);
     for (const url of candidates) {
       try {
         const r = await fetch(url, { method: "HEAD", cache: "no-store" });
