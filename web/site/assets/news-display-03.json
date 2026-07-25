@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-05-26-l1-crypto-stack-v3-official",
+      "date": "2026-05-26",
+      "title": "L1 Crypto Stack v3 — official Bitcoin Core fuzz corpus + upstream pins",
+      "summary": "Breakthrough research report: 1,675 official qa-assets eval_script seeds probed through WASM ports of GetScriptOp (0 sandbox traps). Pinned bitcoin/bitcoin v28.1, go-ethereum, Dogecoin, Litecoin + marker fidelity. HackMe InsertOrderTask golden: 20,000 inputs WASM == Go.",
+      "impact": "Strongest public proof story: maintainer corpora + reproducible pipeline; honest scope vs full bitcoind fuzz documented.",
+      "action": "Report: https://hackme.tech/reports/l1-crypto-stack-v3.html · Reproduce: bash scripts/ops/run_l1_crypto_stack_v3_research.sh",
+      "tags": [
+        "security",
+        "research",
+        "marketing",
+        "bitcoin",
+        "fuzzing"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-26-l1-crypto-stack-5chain",
       "date": "2026-05-26",
       "title": "L1 Crypto Stack v2 — upstream-ported guards (BTC · ETH · DOGE · LTC · HackMe)",
@@ -247,20 +263,6 @@
         "pool",
         "dashboard",
         "economics"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-19-security-rewards-hmc",
-      "date": "2026-05-19",
-      "title": "Security rewards program — small HMC bug bounty",
-      "summary": "Private security and UI reports can earn discretionary on-chain HMC after verified fixes. Tiers are modest (roughly 1–200 HMC per issue, ~200 HMC/month program cap) — not investment income. Full policy on security-rewards.html and GitHub docs/BUG_BOUNTY.md.",
-      "impact": "Researchers and miners know how to report without public 0-days; rewards stay aligned with treasury economics.",
-      "action": "Report: https://hackme.tech/contacts.html · Tiers: https://hackme.tech/security-rewards.html · Policy: https://github.com/jokeez/hackme/blob/main/docs/BUG_BOUNTY.md",
-      "tags": [
-        "security",
-        "community",
-        "opensource"
       ],
       "status": "published"
     }

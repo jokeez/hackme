@@ -1,6 +1,20 @@
 {
   "items": [
     {
+      "id": "2026-05-19-security-rewards-hmc",
+      "date": "2026-05-19",
+      "title": "Security rewards program — small HMC bug bounty",
+      "summary": "Private security and UI reports can earn discretionary on-chain HMC after verified fixes. Tiers are modest (roughly 1–200 HMC per issue, ~200 HMC/month program cap) — not investment income. Full policy on security-rewards.html and GitHub docs/BUG_BOUNTY.md.",
+      "impact": "Researchers and miners know how to report without public 0-days; rewards stay aligned with treasury economics.",
+      "action": "Report: https://hackme.tech/contacts.html · Tiers: https://hackme.tech/security-rewards.html · Policy: https://github.com/jokeez/hackme/blob/main/docs/BUG_BOUNTY.md",
+      "tags": [
+        "security",
+        "community",
+        "opensource"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-19-bitcointalk-ann-live",
       "date": "2026-05-19",
       "title": "Bitcointalk ANN is live — official pool thread",
@@ -237,21 +251,6 @@
         "ops",
         "mining",
         "wallet"
-      ],
-      "status": "deployed"
-    },
-    {
-      "id": "2026-05-05-hybrid-signer-v2-dark-launch",
-      "date": "2026-05-05",
-      "title": "Hybrid Signer v2 Dark Launch (Safe Fallback Active)",
-      "summary": "Coordinator now supports optional miner-signed submit payloads with ed25519 verification, replay protection, and deterministic reject reasons. Backward-compatible unsigned worker flow remains active.",
-      "impact": "Pool operators can enable Hybrid v2 gradually without breaking existing worker clients, while gaining signer telemetry and stricter anti-abuse validation.",
-      "action": "Enable HACKME_POOL_HYBRID_SIGNER_ENABLED=1 on coordinator, run hybrid_signer_smoke.sh, and rollout workers in phases.",
-      "tags": [
-        "core",
-        "mining",
-        "ops",
-        "release"
       ],
       "status": "deployed"
     }

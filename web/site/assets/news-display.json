@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-07-25-oss-cve-watch-libheif-day04-libfuzzer",
+      "date": "2026-07-25",
+      "title": "OSS CVE Watch · libheif Day 4/14 · 175.71M libFuzzer exec · CLEAN",
+      "summary": "libheif Day 4: ~23.4h libFuzzer across 54 sessions, 175,710,789 exec at ~2,085/s. Corpus 2589, 7073 coverage edges. ASAN=0 — CLEAN.",
+      "impact": "Cumulative Days 1–4: ~431.73M exec on persistent HEIF/AVIF corpus.",
+      "action": "Day 4: https://hackme.tech/reports/oss-cve-watch-libheif/day04.html",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "libheif",
+        "day04"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-24-release-rc13-48h-pool-soak",
       "date": "2026-07-24",
       "title": "48 HOURS. ZERO >10m GAPS. HackMe 0.1.0-rc13 is live.",

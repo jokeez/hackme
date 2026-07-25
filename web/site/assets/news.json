@@ -1,6 +1,44 @@
 {
   "items": [
     {
+      "id": "2026-07-25-oss-cve-watch-libheif-day04-libfuzzer",
+      "date": "2026-07-25",
+      "title": "OSS CVE Watch · libheif Day 4/14 · 175.71M libFuzzer exec · CLEAN",
+      "summary": "libheif Day 4: ~23.4h libFuzzer across 54 sessions, 175,710,789 exec at ~2,085/s. Corpus 2589, 7073 coverage edges. ASAN=0 — CLEAN.",
+      "impact": "Cumulative Days 1–4: ~431.73M exec on persistent HEIF/AVIF corpus.",
+      "action": "Day 4: https://hackme.tech/reports/oss-cve-watch-libheif/day04.html",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "libheif",
+        "day04"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "OSS CVE Watch · libheif Day 4/14 · CLEAN",
+        "lead": "175.7M libFuzzer exec · ~23.4h ASAN · corpus 2589 · 0 crashes",
+        "bullets": [
+          "Day 4 libheif: ~175.7M executions @ ~2.1k/s across 54 sessions",
+          "ASAN=0 · UBSan=0 · verdict CLEAN (no crash in budget)",
+          "Persistent HEIF/AVIF corpus: 2589 inputs · 7073 coverage edges",
+          "Ledger: https://hackme.tech/reports/oss-cve-watch-libheif/day04.html",
+          "Series Days 1–4 cumulative ~432M exec on the same corpus"
+        ],
+        "footer": "hackme.tech/reports/oss-cve-watch-libheif/ · research · not a CVE claim"
+      },
+      "discord": {
+        "title": "OSS CVE Watch · libheif Day 4 CLEAN",
+        "body": "**libheif Day 4/14 — CLEAN**\n\n• **~175.7M** libFuzzer exec · ~23.4h · ~2.1k/s · 54 sessions\n• Corpus **2589** · **7073** edges · **ASAN=0**\n• [Day 4 ledger](https://hackme.tech/reports/oss-cve-watch-libheif/day04.html)\n",
+        "ping": "#announcements"
+      },
+      "links": {
+        "day04": "https://hackme.tech/reports/oss-cve-watch-libheif/day04.html",
+        "hub": "https://hackme.tech/reports/oss-cve-watch-libheif/",
+        "research": "https://hackme.tech/research.html"
+      }
+    },
+    {
       "id": "2026-07-24-release-rc13-48h-pool-soak",
       "date": "2026-07-24",
       "title": "48 HOURS. ZERO >10m GAPS. HackMe 0.1.0-rc13 is live.",

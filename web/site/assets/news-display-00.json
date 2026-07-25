@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-07-25-oss-cve-watch-libheif-day04-libfuzzer",
+      "date": "2026-07-25",
+      "title": "OSS CVE Watch · libheif Day 4/14 · 175.71M libFuzzer exec · CLEAN",
+      "summary": "libheif Day 4: ~23.4h libFuzzer across 54 sessions, 175,710,789 exec at ~2,085/s. Corpus 2589, 7073 coverage edges. ASAN=0 — CLEAN.",
+      "impact": "Cumulative Days 1–4: ~431.73M exec on persistent HEIF/AVIF corpus.",
+      "action": "Day 4: https://hackme.tech/reports/oss-cve-watch-libheif/day04.html",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "libheif",
+        "day04"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-24-release-rc13-48h-pool-soak",
       "date": "2026-07-24",
       "title": "48 HOURS. ZERO >10m GAPS. HackMe 0.1.0-rc13 is live.",
@@ -249,21 +265,6 @@
       "summary": "Eighth day on nghttp2: 8h libFuzzer depth session, 1,015,266,765 executions at ~35.3k exec/s. Corpus 418 inputs (326KB), 467 coverage edges. Zero ASAN heap crashes — eighth honest CLEAN day.",
       "impact": "Cumulative ~7.71B libFuzzer executions across Days 2–8 on the same persistent corpus. Coverage still plateaued at 467 edges. Day 8 HTML live on the public ledger.",
       "action": "Day 8 report: https://hackme.tech/reports/oss-cve-watch/day08.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
-      "tags": [
-        "research",
-        "oss-cve",
-        "fuzzing",
-        "nghttp2"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-07-13-oss-cve-watch-day07-nghttp2-libfuzzer",
-      "date": "2026-07-14",
-      "title": "OSS CVE Watch Day 7/14 · nghttp2 · 1.73B libFuzzer exec · CLEAN",
-      "summary": "Seventh day on nghttp2: 20h libFuzzer marathon, 1,729,144,709 executions at ~24k exec/s. Corpus 415 inputs (329KB), 467 coverage edges. Zero ASAN heap crashes — seventh honest CLEAN day.",
-      "impact": "Cumulative ~6.69B libFuzzer executions across Days 2–7 on the same persistent corpus. Coverage still plateaued at 467 edges. Day 7 HTML live on the public ledger.",
-      "action": "Day 7 report: https://hackme.tech/reports/oss-cve-watch/day07.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
       "tags": [
         "research",
         "oss-cve",

@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-06-18-bitcoin30-day09",
+      "date": "2026-06-18",
+      "title": "Bitcoin Core 30-Day Fuzz — Day 9",
+      "summary": "Week 2 continues: MAX_BLOCK_WEIGHT (4M WU) guard from Bitcoin Core consensus policy. Live HackMe campaign: 128 runs, 80 guard signals, zero critical, 30s wall time.",
+      "impact": "First block-level guard in the series (post-script week). Honest triage: overweight candidates flagged, not CVE claims. Public HTML + reproducible DAY=9 script.",
+      "action": "Report: https://hackme.tech/reports/bitcoin30-day09.html · Reproduce: DAY=9 bash scripts/ops/run_bitcoin30_day.sh",
+      "tags": [
+        "security",
+        "research",
+        "bitcoin",
+        "fuzzing"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-06-17-bitcoin30-day08",
       "date": "2026-06-17",
       "title": "Bitcoin Core 30-Day Fuzz — Day 8 (Week 2)",
@@ -237,22 +252,6 @@
         "marketing",
         "mining",
         "listing"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-26-l1-crypto-stack-v3-official",
-      "date": "2026-05-26",
-      "title": "L1 Crypto Stack v3 — official Bitcoin Core fuzz corpus + upstream pins",
-      "summary": "Breakthrough research report: 1,675 official qa-assets eval_script seeds probed through WASM ports of GetScriptOp (0 sandbox traps). Pinned bitcoin/bitcoin v28.1, go-ethereum, Dogecoin, Litecoin + marker fidelity. HackMe InsertOrderTask golden: 20,000 inputs WASM == Go.",
-      "impact": "Strongest public proof story: maintainer corpora + reproducible pipeline; honest scope vs full bitcoind fuzz documented.",
-      "action": "Report: https://hackme.tech/reports/l1-crypto-stack-v3.html · Reproduce: bash scripts/ops/run_l1_crypto_stack_v3_research.sh",
-      "tags": [
-        "security",
-        "research",
-        "marketing",
-        "bitcoin",
-        "fuzzing"
       ],
       "status": "published"
     }

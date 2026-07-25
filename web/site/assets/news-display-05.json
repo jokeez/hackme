@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-05-05-hybrid-signer-v2-dark-launch",
+      "date": "2026-05-05",
+      "title": "Hybrid Signer v2 Dark Launch (Safe Fallback Active)",
+      "summary": "Coordinator now supports optional miner-signed submit payloads with ed25519 verification, replay protection, and deterministic reject reasons. Backward-compatible unsigned worker flow remains active.",
+      "impact": "Pool operators can enable Hybrid v2 gradually without breaking existing worker clients, while gaining signer telemetry and stricter anti-abuse validation.",
+      "action": "Enable HACKME_POOL_HYBRID_SIGNER_ENABLED=1 on coordinator, run hybrid_signer_smoke.sh, and rollout workers in phases.",
+      "tags": [
+        "core",
+        "mining",
+        "ops",
+        "release"
+      ],
+      "status": "deployed"
+    },
+    {
       "id": "2026-05-05-predeploy-gate-and-canonical-ops-pass",
       "date": "2026-05-05",
       "title": "Predeploy Gate Added, Canonical Ops Pass Confirmed",
