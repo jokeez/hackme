@@ -1,6 +1,35 @@
 {
   "items": [
     {
+      "id": "2026-05-27-hmc-miningpoolstats-coin-page",
+      "date": "2026-05-27",
+      "title": "HMC listed on MiningPoolStats (coin page live)",
+      "summary": "HackMe (HMC) is visible on MiningPoolStats. Pool operator registration submitted for HackMe Official Pool; hashrate will populate after MPS indexes our public stats API.",
+      "impact": "Discoverability for solo miners and aggregators; SUP stays off MPS (utility coin, HMC-first listing policy).",
+      "action": "Coin: https://miningpoolstats.app/coins/HMC · Pool API: https://hackme.tech/pool/coordinator/api/pool/stats ·",
+      "tags": [
+        "marketing",
+        "mining",
+        "listing"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-05-27-hackme-support-sup-prelaunch",
+      "date": "2026-05-27",
+      "title": "HackMe Support (SUP) — scarce ecosystem coin announced",
+      "summary": "Second HackMe asset for listing & trading: no faucet, quality-gated accrual while mining HMC on the official pool. Public spec, Coins page, Wallet hub roadmap.",
+      "impact": "Clear story for exchanges & miners: SUP is hard to earn, utility-first (audit discounts, pool priority, governance signal).",
+      "action": "Coins: https://hackme.tech/coins.html · Spec: docs/SUPPORT_COIN_UTILITY.md",
+      "tags": [
+        "ecosystem",
+        "marketing",
+        "mining",
+        "listing"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-26-l1-crypto-stack-v3-official",
       "date": "2026-05-26",
       "title": "L1 Crypto Stack v3 — official Bitcoin Core fuzz corpus + upstream pins",
@@ -232,37 +261,6 @@
         "release",
         "cuda",
         "gpu"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-19-pool-fairness-settlement-mps",
-      "date": "2026-05-19",
-      "title": "Pool fairness: GPU-weighted limits, faster settlement, MPS prep",
-      "summary": "Coordinator now caps paid attempts by measured GH/s (stops CPU submit-spam), limits claim/submit rate per worker, and settlement runs every ~30s. Dashboard calculator slider fixed; unpaid accrual display syncs from hackme.tech. MiningPoolStats listing checklist + exchange roadmap docs added. Desktop miners: use batch 4M + OpenCL/CUDA; remote VPS workers should use worker token (not full admin).",
-      "impact": "Your PC GPU rig should earn proportionally to hashrate; payouts above min threshold reach on-chain faster. Public stats: https://hackme.tech/pool/coordinator/api/pool/stats",
-      "action": "Pull latest from GitHub · Restart pool worker after update · MPS: docs/MININGPOOLSTATS_LISTING.md · Fair tuning: scripts/ops/apply_desktop_gpu_pool.sh",
-      "tags": [
-        "mining",
-        "pool",
-        "security",
-        "economics",
-        "release"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-19-mining-calculator-dashboard",
-      "date": "2026-05-19",
-      "title": "Advanced mining calculator in node dashboard",
-      "summary": "The embedded dashboard (Mining tab) now includes a live mining calculator: hashrate → HMC/hour, PoH ETA, found-bonus estimates, electricity ROI, break-even, and pool vs chain-empty comparison. Params sync from /api/work/stats and /api/metrics (reward/M, target_mod, pool GH/s). Presets: your worker, pool average, GPU/CPU rigs.",
-      "impact": "Miners can model payout and power costs before joining the pool or scaling rigs — no spreadsheet required.",
-      "action": "Open your node dashboard → Mining tab → Mining calculator. Public pool: https://hackme.tech/pool/ — downloads: https://hackme.tech/downloads.html",
-      "tags": [
-        "mining",
-        "pool",
-        "dashboard",
-        "economics"
       ],
       "status": "published"
     }

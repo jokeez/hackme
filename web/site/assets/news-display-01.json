@@ -1,6 +1,36 @@
 {
   "items": [
     {
+      "id": "2026-07-11-github-release-rc11s",
+      "date": "2026-07-11",
+      "title": "HackMe 0.1.0-rc11s — production baseline · pool fuzz · miners welcome",
+      "summary": "Stable production channel: pool fuzz marketplace, PoH + fuzz mining payouts, escrow 20/80, customer order flow verified. Mining dashboard shows canonical chain economics (Actual base/orders 1h) on desktop followers. Fuzz settle outbox drain fix.",
+      "impact": "rc11s is the reference release for miners and B2B customers. Further changes ship as rc11t/rc12 — no silent breaking changes on this channel.",
+      "action": "Download: https://hackme.tech/downloads.html · Pool: https://hackme.tech/pool/coordinator · GitHub tag after publish: 0.1.0-rc11s",
+      "tags": [
+        "release",
+        "mining",
+        "fuzzing",
+        "production"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-15-oss-cve-watch-day08-nghttp2-libfuzzer",
+      "date": "2026-07-15",
+      "title": "OSS CVE Watch Day 8/14 · nghttp2 · 1.02B libFuzzer exec · CLEAN",
+      "summary": "Eighth day on nghttp2: 8h libFuzzer depth session, 1,015,266,765 executions at ~35.3k exec/s. Corpus 418 inputs (326KB), 467 coverage edges. Zero ASAN heap crashes — eighth honest CLEAN day.",
+      "impact": "Cumulative ~7.71B libFuzzer executions across Days 2–8 on the same persistent corpus. Coverage still plateaued at 467 edges. Day 8 HTML live on the public ledger.",
+      "action": "Day 8 report: https://hackme.tech/reports/oss-cve-watch/day08.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-13-oss-cve-watch-day07-nghttp2-libfuzzer",
       "date": "2026-07-14",
       "title": "OSS CVE Watch Day 7/14 · nghttp2 · 1.73B libFuzzer exec · CLEAN",
@@ -226,36 +256,6 @@
         "bitcoin",
         "fuzzing",
         "mining"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-06-18-bitcoin30-day11",
-      "date": "2026-06-18",
-      "title": "Bitcoin Core 30-Day Fuzz — Day 11",
-      "summary": "Week-2 deep pass: CheckTransaction duplicate inputs (CVE-2018-17144 class). 256 runs, 24 guard signals, zero critical, 106s.",
-      "impact": "4× run budget vs Day 4 on the same WASM guard — hunts edge cases in prevout dedup. Honest triage: rejections on duplicate-prevout encodings, not a new inflation CVE.",
-      "action": "Report: https://hackme.tech/reports/bitcoin30-day11.html · Reproduce: DAY=11 bash scripts/ops/run_bitcoin30_day.sh",
-      "tags": [
-        "security",
-        "research",
-        "bitcoin",
-        "fuzzing"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-06-18-bitcoin30-day10",
-      "date": "2026-06-18",
-      "title": "Bitcoin Core 30-Day Fuzz — Day 10",
-      "summary": "BIP34 coinbase height push guard. Live campaign: 128 runs, 80 guard signals, zero critical, 31s.",
-      "impact": "First validation-layer coinbase guard in the series. Malformed height encodings tripped the ported gate — honest triage, not a CVE claim.",
-      "action": "Report: https://hackme.tech/reports/bitcoin30-day10.html · Reproduce: DAY=10 bash scripts/ops/run_bitcoin30_day.sh",
-      "tags": [
-        "security",
-        "research",
-        "bitcoin",
-        "fuzzing"
       ],
       "status": "published"
     }

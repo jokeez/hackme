@@ -1,6 +1,36 @@
 {
   "items": [
     {
+      "id": "2026-06-18-bitcoin30-day11",
+      "date": "2026-06-18",
+      "title": "Bitcoin Core 30-Day Fuzz — Day 11",
+      "summary": "Week-2 deep pass: CheckTransaction duplicate inputs (CVE-2018-17144 class). 256 runs, 24 guard signals, zero critical, 106s.",
+      "impact": "4× run budget vs Day 4 on the same WASM guard — hunts edge cases in prevout dedup. Honest triage: rejections on duplicate-prevout encodings, not a new inflation CVE.",
+      "action": "Report: https://hackme.tech/reports/bitcoin30-day11.html · Reproduce: DAY=11 bash scripts/ops/run_bitcoin30_day.sh",
+      "tags": [
+        "security",
+        "research",
+        "bitcoin",
+        "fuzzing"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-06-18-bitcoin30-day10",
+      "date": "2026-06-18",
+      "title": "Bitcoin Core 30-Day Fuzz — Day 10",
+      "summary": "BIP34 coinbase height push guard. Live campaign: 128 runs, 80 guard signals, zero critical, 31s.",
+      "impact": "First validation-layer coinbase guard in the series. Malformed height encodings tripped the ported gate — honest triage, not a CVE claim.",
+      "action": "Report: https://hackme.tech/reports/bitcoin30-day10.html · Reproduce: DAY=10 bash scripts/ops/run_bitcoin30_day.sh",
+      "tags": [
+        "security",
+        "research",
+        "bitcoin",
+        "fuzzing"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-06-18-bitcoin30-day09",
       "date": "2026-06-18",
       "title": "Bitcoin Core 30-Day Fuzz — Day 9",
@@ -223,35 +253,6 @@
         "mining",
         "pool",
         "release"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-27-hmc-miningpoolstats-coin-page",
-      "date": "2026-05-27",
-      "title": "HMC listed on MiningPoolStats (coin page live)",
-      "summary": "HackMe (HMC) is visible on MiningPoolStats. Pool operator registration submitted for HackMe Official Pool; hashrate will populate after MPS indexes our public stats API.",
-      "impact": "Discoverability for solo miners and aggregators; SUP stays off MPS (utility coin, HMC-first listing policy).",
-      "action": "Coin: https://miningpoolstats.app/coins/HMC · Pool API: https://hackme.tech/pool/coordinator/api/pool/stats ·",
-      "tags": [
-        "marketing",
-        "mining",
-        "listing"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-27-hackme-support-sup-prelaunch",
-      "date": "2026-05-27",
-      "title": "HackMe Support (SUP) — scarce ecosystem coin announced",
-      "summary": "Second HackMe asset for listing & trading: no faucet, quality-gated accrual while mining HMC on the official pool. Public spec, Coins page, Wallet hub roadmap.",
-      "impact": "Clear story for exchanges & miners: SUP is hard to earn, utility-first (audit discounts, pool priority, governance signal).",
-      "action": "Coins: https://hackme.tech/coins.html · Spec: docs/SUPPORT_COIN_UTILITY.md",
-      "tags": [
-        "ecosystem",
-        "marketing",
-        "mining",
-        "listing"
       ],
       "status": "published"
     }

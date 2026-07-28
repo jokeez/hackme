@@ -1,6 +1,36 @@
 {
   "items": [
     {
+      "id": "2026-05-05-auto-settlement-timers-live",
+      "date": "2026-05-05",
+      "title": "Auto-Settlement Timers are Live",
+      "summary": "Systemd automation for worker payout settlement is now active with periodic settlement and healthcheck timers on the canonical VPS.",
+      "impact": "Worker accrual can now be settled to on-chain wallet balances automatically, reducing manual intervention and payout drift.",
+      "action": "Monitor settlement services via systemctl and journalctl; adjust MIN_SETTLE_HMC and payout mapping in /opt/hackme/.env.settlement as needed.",
+      "tags": [
+        "ops",
+        "mining",
+        "wallet",
+        "release"
+      ],
+      "status": "deployed"
+    },
+    {
+      "id": "2026-05-05-v3-worker-settlement-bridge",
+      "date": "2026-05-05",
+      "title": "V3 Worker Settlement Bridge Added",
+      "summary": "A new settlement operator script converts coordinator off-chain worker accrual into on-chain transfer payouts with nonce-safe submission and self-pay protection.",
+      "impact": "Operators can now automate payout settlement from worker accrual counters to real wallet balances, reducing confusion between accrued and settled rewards.",
+      "action": "Use scripts/ops/settle_worker_payouts.sh with payout mapping (or hybrid signed payout_address) and a minimum settlement threshold.",
+      "tags": [
+        "release",
+        "ops",
+        "mining",
+        "wallet"
+      ],
+      "status": "deployed"
+    },
+    {
       "id": "2026-05-05-hybrid-signer-v2-dark-launch",
       "date": "2026-05-05",
       "title": "Hybrid Signer v2 Dark Launch (Safe Fallback Active)",

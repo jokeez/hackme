@@ -1,6 +1,37 @@
 {
   "items": [
     {
+      "id": "2026-05-19-pool-fairness-settlement-mps",
+      "date": "2026-05-19",
+      "title": "Pool fairness: GPU-weighted limits, faster settlement, MPS prep",
+      "summary": "Coordinator now caps paid attempts by measured GH/s (stops CPU submit-spam), limits claim/submit rate per worker, and settlement runs every ~30s. Dashboard calculator slider fixed; unpaid accrual display syncs from hackme.tech. MiningPoolStats listing checklist + exchange roadmap docs added. Desktop miners: use batch 4M + OpenCL/CUDA; remote VPS workers should use worker token (not full admin).",
+      "impact": "Your PC GPU rig should earn proportionally to hashrate; payouts above min threshold reach on-chain faster. Public stats: https://hackme.tech/pool/coordinator/api/pool/stats",
+      "action": "Pull latest from GitHub · Restart pool worker after update · MPS: docs/MININGPOOLSTATS_LISTING.md · Fair tuning: scripts/ops/apply_desktop_gpu_pool.sh",
+      "tags": [
+        "mining",
+        "pool",
+        "security",
+        "economics",
+        "release"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-05-19-mining-calculator-dashboard",
+      "date": "2026-05-19",
+      "title": "Advanced mining calculator in node dashboard",
+      "summary": "The embedded dashboard (Mining tab) now includes a live mining calculator: hashrate → HMC/hour, PoH ETA, found-bonus estimates, electricity ROI, break-even, and pool vs chain-empty comparison. Params sync from /api/work/stats and /api/metrics (reward/M, target_mod, pool GH/s). Presets: your worker, pool average, GPU/CPU rigs.",
+      "impact": "Miners can model payout and power costs before joining the pool or scaling rigs — no spreadsheet required.",
+      "action": "Open your node dashboard → Mining tab → Mining calculator. Public pool: https://hackme.tech/pool/ — downloads: https://hackme.tech/downloads.html",
+      "tags": [
+        "mining",
+        "pool",
+        "dashboard",
+        "economics"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-19-security-rewards-hmc",
       "date": "2026-05-19",
       "title": "Security rewards program — small HMC bug bounty",
@@ -221,36 +252,6 @@
         "security",
         "ops",
         "explorer"
-      ],
-      "status": "deployed"
-    },
-    {
-      "id": "2026-05-05-auto-settlement-timers-live",
-      "date": "2026-05-05",
-      "title": "Auto-Settlement Timers are Live",
-      "summary": "Systemd automation for worker payout settlement is now active with periodic settlement and healthcheck timers on the canonical VPS.",
-      "impact": "Worker accrual can now be settled to on-chain wallet balances automatically, reducing manual intervention and payout drift.",
-      "action": "Monitor settlement services via systemctl and journalctl; adjust MIN_SETTLE_HMC and payout mapping in /opt/hackme/.env.settlement as needed.",
-      "tags": [
-        "ops",
-        "mining",
-        "wallet",
-        "release"
-      ],
-      "status": "deployed"
-    },
-    {
-      "id": "2026-05-05-v3-worker-settlement-bridge",
-      "date": "2026-05-05",
-      "title": "V3 Worker Settlement Bridge Added",
-      "summary": "A new settlement operator script converts coordinator off-chain worker accrual into on-chain transfer payouts with nonce-safe submission and self-pay protection.",
-      "impact": "Operators can now automate payout settlement from worker accrual counters to real wallet balances, reducing confusion between accrued and settled rewards.",
-      "action": "Use scripts/ops/settle_worker_payouts.sh with payout mapping (or hybrid signed payout_address) and a minimum settlement threshold.",
-      "tags": [
-        "release",
-        "ops",
-        "mining",
-        "wallet"
       ],
       "status": "deployed"
     }

@@ -1,6 +1,38 @@
 {
   "items": [
     {
+      "id": "2026-07-27-oss-cve-watch-libheif-day06-libfuzzer",
+      "date": "2026-07-27",
+      "title": "OSS CVE Watch · libheif Day 6/14 · 194.43M libFuzzer exec · CLEAN",
+      "summary": "libheif Day 6: ~23.6h libFuzzer across 38 sessions, 194,431,138 exec at ~2,287/s. Corpus 2793, 7189 coverage edges. ASAN=0 — CLEAN.",
+      "impact": "Cumulative Days 1–6: ~815.70M exec on persistent HEIF/AVIF corpus.",
+      "action": "Day 6: https://hackme.tech/reports/oss-cve-watch-libheif/day06.html",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "libheif",
+        "day06"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-26-oss-cve-watch-libheif-day05-libfuzzer",
+      "date": "2026-07-26",
+      "title": "OSS CVE Watch · libheif Day 5/14 · 189.55M libFuzzer exec · CLEAN",
+      "summary": "libheif Day 5: ~23.6h libFuzzer across 40 sessions, 189,546,715 exec at ~2,233/s. Corpus 2718, 7107 coverage edges. ASAN=0 — CLEAN.",
+      "impact": "Cumulative Days 1–5: ~621.27M exec on persistent HEIF/AVIF corpus.",
+      "action": "Day 5: https://hackme.tech/reports/oss-cve-watch-libheif/day05.html",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "libheif",
+        "day05"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-25-oss-cve-watch-libheif-day04-libfuzzer",
       "date": "2026-07-25",
       "title": "OSS CVE Watch · libheif Day 4/14 · 175.71M libFuzzer exec · CLEAN",

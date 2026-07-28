@@ -1,6 +1,38 @@
 {
   "items": [
     {
+      "id": "2026-07-27-oss-cve-watch-libheif-day06-libfuzzer",
+      "date": "2026-07-27",
+      "title": "OSS CVE Watch · libheif Day 6/14 · 194.43M libFuzzer exec · CLEAN",
+      "summary": "libheif Day 6: ~23.6h libFuzzer across 38 sessions, 194,431,138 exec at ~2,287/s. Corpus 2793, 7189 coverage edges. ASAN=0 — CLEAN.",
+      "impact": "Cumulative Days 1–6: ~815.70M exec on persistent HEIF/AVIF corpus.",
+      "action": "Day 6: https://hackme.tech/reports/oss-cve-watch-libheif/day06.html",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "libheif",
+        "day06"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-26-oss-cve-watch-libheif-day05-libfuzzer",
+      "date": "2026-07-26",
+      "title": "OSS CVE Watch · libheif Day 5/14 · 189.55M libFuzzer exec · CLEAN",
+      "summary": "libheif Day 5: ~23.6h libFuzzer across 40 sessions, 189,546,715 exec at ~2,233/s. Corpus 2718, 7107 coverage edges. ASAN=0 — CLEAN.",
+      "impact": "Cumulative Days 1–5: ~621.27M exec on persistent HEIF/AVIF corpus.",
+      "action": "Day 5: https://hackme.tech/reports/oss-cve-watch-libheif/day05.html",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "libheif",
+        "day05"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-25-oss-cve-watch-libheif-day04-libfuzzer",
       "date": "2026-07-25",
       "title": "OSS CVE Watch · libheif Day 4/14 · 175.71M libFuzzer exec · CLEAN",
@@ -240,36 +272,6 @@
         "pool",
         "privacy",
         "site"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-07-11-github-release-rc11s",
-      "date": "2026-07-11",
-      "title": "HackMe 0.1.0-rc11s — production baseline · pool fuzz · miners welcome",
-      "summary": "Stable production channel: pool fuzz marketplace, PoH + fuzz mining payouts, escrow 20/80, customer order flow verified. Mining dashboard shows canonical chain economics (Actual base/orders 1h) on desktop followers. Fuzz settle outbox drain fix.",
-      "impact": "rc11s is the reference release for miners and B2B customers. Further changes ship as rc11t/rc12 — no silent breaking changes on this channel.",
-      "action": "Download: https://hackme.tech/downloads.html · Pool: https://hackme.tech/pool/coordinator · GitHub tag after publish: 0.1.0-rc11s",
-      "tags": [
-        "release",
-        "mining",
-        "fuzzing",
-        "production"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-07-15-oss-cve-watch-day08-nghttp2-libfuzzer",
-      "date": "2026-07-15",
-      "title": "OSS CVE Watch Day 8/14 · nghttp2 · 1.02B libFuzzer exec · CLEAN",
-      "summary": "Eighth day on nghttp2: 8h libFuzzer depth session, 1,015,266,765 executions at ~35.3k exec/s. Corpus 418 inputs (326KB), 467 coverage edges. Zero ASAN heap crashes — eighth honest CLEAN day.",
-      "impact": "Cumulative ~7.71B libFuzzer executions across Days 2–8 on the same persistent corpus. Coverage still plateaued at 467 edges. Day 8 HTML live on the public ledger.",
-      "action": "Day 8 report: https://hackme.tech/reports/oss-cve-watch/day08.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
-      "tags": [
-        "research",
-        "oss-cve",
-        "fuzzing",
-        "nghttp2"
       ],
       "status": "published"
     }
