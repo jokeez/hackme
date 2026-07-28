@@ -127,6 +127,14 @@ func RealNetworkStats(reg *Registry, localNodeID string, local LocalMining) Netw
 	}
 }
 
+// RedactPublicNetworkStats strips miner IPs from public fleet rows.
+func RedactPublicNetworkStats(resp NetworkStatsResponse) NetworkStatsResponse {
+	for i := range resp.ActiveRigs {
+		resp.ActiveRigs[i].IP = ""
+	}
+	return resp
+}
+
 func topMinerAddr(workerID, nodeID string) string {
 	w := workerID
 	if len(w) >= 8 {

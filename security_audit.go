@@ -100,6 +100,7 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 		})
 		compileLog = logText
 		if err != nil {
+			compileLog = enrichFromCodeCompileLog(compileLog, err)
 			writeAPIError(w, http.StatusBadRequest, "compile_failed", "compile failed", map[string]any{
 				"compile_log": compileLog,
 				"detail":      err.Error(),

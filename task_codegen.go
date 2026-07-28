@@ -509,6 +509,7 @@ func (a *app) handleTaskFromCode(w http.ResponseWriter, r *http.Request) {
 
 	_, artifactHash, outName, compileLog, compileErr := a.compileTaskFromCode(r.Context(), req)
 	if compileErr != nil {
+		compileLog = enrichFromCodeCompileLog(compileLog, compileErr)
 		writeAPIError(w, http.StatusBadRequest, "compile_failed", "compile failed", map[string]any{"compile_log": compileLog, "detail": compileErr.Error()})
 		return
 	}

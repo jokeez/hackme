@@ -62,6 +62,7 @@ func retryBackoff(attempt int) time.Duration {
 
 // ResolveCoordinatorURL picks the best coordinator base URL for pool register.
 // On the command VPS, loopback :18081 is preferred when public URL is configured but local health is OK.
+// Desktop/fleet nodes may prefer HACKME_POOL_DIRECT_URL when the env URL is the public CF proxy.
 func ResolveCoordinatorURL() string {
 	u := strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_POOL_COORDINATOR_URL")), "/")
 	if u == "" {
@@ -69,6 +70,13 @@ func ResolveCoordinatorURL() string {
 	}
 	if u == "" {
 		return ""
+	}
+	if preferPoolSyncDirect() && coordLooksPublic(u) {
+		if direct := strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_POOL_DIRECT_URL")), "/"); direct != "" {
+			if coordHealthOK(direct) {
+				return direct
+			}
+		}
 	}
 	prefer := strings.TrimSpace(os.Getenv("HACKME_POOL_SYNC_PREFER_LOOPBACK"))
 	if prefer == "0" || prefer == "false" {
@@ -83,21 +91,29 @@ func ResolveCoordinatorURL() string {
 	if !strings.Contains(low, "hackme.tech") && !strings.Contains(low, "/pool/coordinator") {
 		return u
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 800*time.Millisecond)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, loop+"/health", nil)
-	if err != nil {
-		return u
-	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return u
-	}
-	res.Body.Close()
-	if res.StatusCode == http.StatusOK {
+	if coordHealthOK(loop) {
 		return loop
 	}
 	return u
+}
+
+func coordHealthOK(base string) bool {
+	base = strings.TrimRight(strings.TrimSpace(base), "/")
+	if base == "" {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 800*time.Millisecond)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/health", nil)
+	if err != nil {
+		return false
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return false
+	}
+	res.Body.Close()
+	return res.StatusCode == http.StatusOK
 }
 
 func adminToken() string {

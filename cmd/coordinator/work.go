@@ -1238,6 +1238,15 @@ func deriveAddressFromPubHex(pubHex string) (string, bool) {
 	return "HMC-" + hex.EncodeToString(sum[:])[:16], true
 }
 
+func payoutAddressLockedReason(locked, submitted string) string {
+	locked = strings.TrimSpace(locked)
+	submitted = strings.TrimSpace(submitted)
+	if locked == "" && submitted == "" {
+		return "payout_address_locked"
+	}
+	return fmt.Sprintf("payout_address_locked:locked=%s:submitted=%s", locked, submitted)
+}
+
 // checkClaimMinerIdentity binds optional claim pubkey/address to a locked worker payout.
 // When claimRequirePubKey is set, miner_pubkey is mandatory under hybrid signing.
 func (m *workManager) checkClaimMinerIdentity(workerID, pubHex, addrHint string) (ok bool, reason string) {
@@ -1273,7 +1282,7 @@ func (m *workManager) checkClaimMinerIdentity(workerID, pubHex, addrHint string)
 	locked := strings.TrimSpace(m.worker[workerID].PayoutAddress)
 	m.mu.Unlock()
 	if locked != "" && !strings.EqualFold(locked, derived) {
-		return false, "payout_address_locked"
+		return false, payoutAddressLockedReason(locked, derived)
 	}
 	return true, ""
 }
@@ -1474,7 +1483,7 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		if locked := strings.TrimSpace(m.worker[req.WorkerID].PayoutAddress); locked != "" && !strings.EqualFold(locked, signerAddr) {
 			m.signedRejects++
 			m.rejectedSubmits++
-			return false, "payout_address_locked", 0, "", false
+			return false, payoutAddressLockedReason(locked, signerAddr), 0, "", false
 		}
 	}
 	if rec.ExpiresAt < now {
@@ -2155,6 +2164,25 @@ func redactPublicWorkerStat(st workerPayoutStat) workerPayoutStat {
 	return st
 }
 
+func parsePayoutLockedReason(reason string) (locked, submitted string) {
+	reason = strings.TrimSpace(reason)
+	if !strings.HasPrefix(reason, "payout_address_locked") {
+		return "", ""
+	}
+	rest := strings.TrimPrefix(reason, "payout_address_locked")
+	rest = strings.TrimPrefix(rest, ":")
+	for _, part := range strings.Split(rest, ":") {
+		part = strings.TrimSpace(part)
+		if strings.HasPrefix(part, "locked=") {
+			locked = strings.TrimPrefix(part, "locked=")
+		}
+		if strings.HasPrefix(part, "submitted=") {
+			submitted = strings.TrimPrefix(part, "submitted=")
+		}
+	}
+	return locked, submitted
+}
+
 // workersByPayoutAddress returns pool workers paying out to the given HMC address (case-insensitive).
 // Client IPs are redacted — this route is public.
 func (m *workManager) workersByPayoutAddress(addr string) map[string]workerPayoutStat {
@@ -2394,6 +2422,15 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 			"payout_hmc":     payout,
 			"signed_submit":  signedSubmit,
 			"signer_address": signerAddr,
+		}
+		if strings.HasPrefix(reason, "payout_address_locked") {
+			locked, submittedAddr := parsePayoutLockedReason(reason)
+			if locked != "" {
+				out["locked_payout_address"] = locked
+			}
+			if submittedAddr != "" {
+				out["submitted_payout_address"] = submittedAddr
+			}
 		}
 		if strings.HasPrefix(reason, "order_chain_solve_failed:") {
 			out["order_chain_solve"] = false

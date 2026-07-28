@@ -485,7 +485,12 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			if locked := strings.TrimSpace(st.PayoutAddress); locked != "" && !strings.EqualFold(locked, payoutAddr) {
 				wm.mu.Unlock()
 				w.WriteHeader(http.StatusForbidden)
-				_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": "payout_address_locked"})
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"ok":                       false,
+					"reason":                   payoutAddressLockedReason(locked, payoutAddr),
+					"locked_payout_address":    locked,
+					"submitted_payout_address": payoutAddr,
+				})
 				return
 			}
 			st.PayoutAddress = payoutAddr

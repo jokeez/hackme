@@ -286,3 +286,18 @@ func uniqueCleanDirs(dirs ...string) []string {
 	}
 	return out
 }
+
+func enrichFromCodeCompileLog(compileLog string, compileErr error) string {
+	combined := strings.TrimSpace(compileLog)
+	if compileErr != nil {
+		if combined != "" {
+			combined += "\n"
+		}
+		combined += compileErr.Error()
+	}
+	low := strings.ToLower(combined)
+	if strings.Contains(low, "rtm_newaddr") || strings.Contains(low, "bwrap: loopback") {
+		combined += "\n\nhint: bwrap user namespace is blocked on this host. Compile offline with wat2wasm and POST /api/tasks (wasm_check_hex + artifact_hash), or run the node where bubblewrap --unshare-user is permitted."
+	}
+	return combined
+}

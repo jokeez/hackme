@@ -23,6 +23,7 @@ import (
 	"hackme/internal/chain"
 	"hackme/internal/lanpool"
 	"hackme/internal/store"
+	"hackme/internal/workerlock"
 )
 
 // Default public command authority (canonical + inferred pool coordinator + P2P peer).
@@ -672,7 +673,7 @@ func (a *app) workerProcessRunning() bool {
 	if !running {
 		logRoot := filepath.Join(resolveWorkerRepoRoot(dataDir), "logs")
 		if envBool("HACKME_DESKTOP_MODE", false) {
-			running = workerActiveFromLog(logRoot, 120)
+			running = workerActiveFromLog(logRoot, 120) || anyExternalWorkerLockHeld(logRoot)
 		} else {
 			running = workerActiveFromParticipantLog(logRoot, 120)
 		}
@@ -682,6 +683,38 @@ func (a *app) workerProcessRunning() bool {
 	a.workerRunningCacheAt = now
 	a.workerRunningCacheMu.Unlock()
 	return running
+}
+
+// anyExternalWorkerLockHeld reports systemd/manual workerpoh or workerfuzz processes
+// that hold workerlock pidfiles under logRoot (desktop multi-worker setups).
+func anyExternalWorkerLockHeld(logRoot string) bool {
+	for _, kind := range []string{"workerpoh", "workerfuzz"} {
+		prefix := "workerlock-" + kind + "-"
+		entries, err := os.ReadDir(logRoot)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+			name := e.Name()
+			if !strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, ".pid") {
+				continue
+			}
+			wid := strings.TrimSuffix(strings.TrimPrefix(name, prefix), ".pid")
+			if workerlock.Held(kind, wid, logRoot) {
+				return true
+			}
+		}
+	}
+	wid := strings.TrimSpace(os.Getenv("WORKER_ID"))
+	if wid != "" {
+		if workerlock.Held("workerpoh", wid, logRoot) || workerlock.Held("workerfuzz", wid, logRoot) {
+			return true
+		}
+	}
+	return false
 }
 
 func canonicalMiningObservedSec(remote map[string]any) float64 {
@@ -1599,12 +1632,18 @@ func (a *app) handleNetworkStats(w http.ResponseWriter, r *http.Request) {
 	}
 	if base := a.coordinatorBaseURL(); base != "" && r.Header.Get(coordinatorForwardHeader) != "1" {
 		if s, err := fetchCoordinatorStats(r.Context(), base); err == nil {
+			if !adminRequestAuthed(r) {
+				s = lanpool.RedactPublicNetworkStats(s)
+			}
 			writeJSON(w, s)
 			return
 		}
 		log.Printf("network/stats coordinator fallback -> local aggregate")
 	}
 	resp := networkStatsForApp(a)
+	if !adminRequestAuthed(r) {
+		resp = lanpool.RedactPublicNetworkStats(resp)
+	}
 	writeJSON(w, resp)
 }
 

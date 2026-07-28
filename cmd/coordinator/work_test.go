@@ -728,7 +728,7 @@ func TestWorkManagerPayoutAddressLocked(t *testing.T) {
 	}
 	req2.MinerSig = hex.EncodeToString(ed25519.Sign(priv2, canonicalSubmitBytes(req2)))
 	_, reason, _, _, _ := wm.submit(req2)
-	if reason != "payout_address_locked" {
+	if reason != "payout_address_locked" && !strings.HasPrefix(reason, "payout_address_locked:") {
 		t.Fatalf("want payout_address_locked, got %q", reason)
 	}
 }
@@ -1289,7 +1289,7 @@ func TestPayoutAddressLockedAfterFirstSignedSubmit(t *testing.T) {
 	}
 	req2.MinerSig = hex.EncodeToString(ed25519.Sign(priv2, canonicalSubmitBytes(req2)))
 	_, reason, _, _, _ = wm.submit(req2)
-	if reason != "payout_address_locked" {
+	if !strings.HasPrefix(reason, "payout_address_locked") {
 		t.Fatalf("want payout_address_locked, got reason=%q", reason)
 	}
 }
@@ -1307,7 +1307,7 @@ func TestClaimMinerIdentityLocked(t *testing.T) {
 		t.Fatalf("require pubkey: ok=%v reason=%q", ok, reason)
 	}
 	pub2, _, _ := ed25519.GenerateKey(nil)
-	if ok, reason := wm.checkClaimMinerIdentity("w1", hex.EncodeToString(pub2), ""); ok || reason != "payout_address_locked" {
+	if ok, reason := wm.checkClaimMinerIdentity("w1", hex.EncodeToString(pub2), ""); ok || !strings.HasPrefix(reason, "payout_address_locked") {
 		t.Fatalf("locked mismatch: ok=%v reason=%q", ok, reason)
 	}
 	if ok, reason := wm.checkClaimMinerIdentity("w1", hex.EncodeToString(pub), ""); !ok {

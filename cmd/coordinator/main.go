@@ -89,6 +89,9 @@ func main() {
 			return
 		}
 		resp := lanpool.RealNetworkStats(reg, "", lanpool.LocalMining{})
+		if !coordAdminOK(r, token) || strings.TrimSpace(r.URL.Query().Get("details")) != "1" {
+			resp = lanpool.RedactPublicNetworkStats(resp)
+		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		_ = json.NewEncoder(w).Encode(resp)

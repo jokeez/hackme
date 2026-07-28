@@ -1797,7 +1797,7 @@
 							<h3 class="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2">Fleet · active workers</h3>
 							<div class="overflow-x-auto rounded border border-white/8 mx-0.5">
 								<table class="analytics-table w-full text-left text-[11px] font-mono">
-									<thead class="bg-black/60 uppercase tracking-wider text-[9px]"><tr><th></th><th>Worker</th><th>GH/s</th><th>IP</th><th>SIM</th></tr></thead>
+									<thead class="bg-black/60 uppercase tracking-wider text-[9px]"><tr><th></th><th>Worker</th><th>GH/s</th><th>Privacy</th><th>SIM</th></tr></thead>
 									<tbody id="hive-fleet-rows" class="text-gray-300 divide-y divide-white/5"></tbody>
 								</table>
 							</div>
@@ -1818,7 +1818,7 @@
 							<p class="text-[10px] text-gray-500 mb-4">LAN workers via <code class="text-neon/80">POST /api/push_work</code>. <code class="text-warn/90">HACKME_NETWORK_MOCK=1</code> — legacy mock globals.</p>
 							<div class="overflow-x-auto rounded border border-white/8 p-1 mx-0.5">
 								<table class="analytics-table w-full text-left text-[11px] font-mono">
-									<thead class="bg-black/60 uppercase tracking-wider text-[9px]"><tr><th></th><th>Name</th><th>Worker ID</th><th>GH/s</th><th>GPU °C</th><th>IP</th><th>Src</th></tr></thead>
+									<thead class="bg-black/60 uppercase tracking-wider text-[9px]"><tr><th></th><th>Name</th><th>Worker ID</th><th>GH/s</th><th>GPU °C</th><th>Privacy</th><th>Src</th></tr></thead>
 									<tbody id="metrics-rigs-rows" class="text-gray-300 divide-y divide-white/5"></tbody>
 								</table>
 							</div>
@@ -4387,6 +4387,7 @@
 				? onChainH
 				: (String(w.wallet_source || '').includes('canonical') ? authH : 0);
 			walletSnapshot.ordersSpendableHMC = Number.isFinite(ordersH) && ordersH >= 0 ? ordersH : localH;
+			walletSnapshot.ordersSpendableNote = String(w.orders_spendable_note || '');
 			walletSnapshot.balanceAlignment = String(w.balance_alignment || 'local_only');
 			walletSnapshot.walletSource = String(w.wallet_source || '');
 			walletSnapshot.balanceSUP = Number(w.balance_sup || 0);
@@ -8942,7 +8943,7 @@
 					const td0 = document.createElement('td'); td0.className = 'px-2 py-1.5'; td0.appendChild(dotOnline(!!row.online));
 					const td1 = document.createElement('td'); td1.className = 'px-2 py-1.5 truncate max-w-[140px]'; td1.textContent = row.name || row.worker_id || '—';
 					const td2 = document.createElement('td'); td2.className = 'px-2 py-1.5 text-matrix tabular-nums hive-fleet-gh'; td2.textContent = fmtRigHashrateGHS(row.hashrate_gh_s ?? 0);
-					const td3 = document.createElement('td'); td3.className = 'px-2 py-1.5 text-gray-500'; td3.textContent = row.ip || '—';
+					const td3 = document.createElement('td'); td3.className = 'px-2 py-1.5 text-gray-500'; td3.textContent = '—'; td3.title = 'Miner IP redacted on public pool stats';
 					const td4 = document.createElement('td'); td4.className = 'px-2 py-1.5 text-warn/80'; td4.textContent = row.simulated ? 'yes' : '';
 					tr.appendChild(td0); tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4);
 					fleet.appendChild(tr);
@@ -9058,7 +9059,7 @@
 				const td3 = document.createElement('td'); td3.className = 'px-2 py-1.5 text-matrix tabular-nums'; td3.textContent = fmtRigHashrateGHS(row.hashrate_gh_s ?? 0);
 				const gpuT = (row.gpu_temp_c != null && row.gpu_temp_c >= 0) ? fmt(row.gpu_temp_c, 1) : '—';
 				const td3b = document.createElement('td'); td3b.className = 'px-2 py-1.5 text-warn/85 tabular-nums'; td3b.textContent = gpuT;
-				const td4 = document.createElement('td'); td4.className = 'px-2 py-1.5 text-gray-500'; td4.textContent = row.ip || '—';
+				const td4 = document.createElement('td'); td4.className = 'px-2 py-1.5 text-gray-500'; td4.textContent = '—'; td4.title = 'Miner IP redacted on public pool stats';
 				const td5 = document.createElement('td'); td5.className = 'px-2 py-1.5 text-gray-600'; td5.textContent = row.source || '—';
 				tr.appendChild(td0); tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td3b); tr.appendChild(td4); tr.appendChild(td5);
 				tb.appendChild(tr);
@@ -9087,14 +9088,27 @@
 			cap.textContent = balHi
 				? 'On-chain spendable · hackme.tech canonical'
 				: 'Loading canonical on-chain balance…';
-			note.classList.add('hidden');
-			note.textContent = '';
+			const spendNote = String(walletSnapshot.ordersSpendableNote || '').trim();
+			const onChain = Number(walletSnapshot.onChainHMC || walletSnapshot.balanceHMC || 0);
+			const orders = Number(walletSnapshot.ordersSpendableHMC || 0);
+			if (spendNote || (onChain > orders + 0.000001)) {
+				note.classList.remove('hidden');
+				note.textContent = spendNote || ('Orders use local mirror (' + orders.toFixed(4) + ' HMC). On-chain ' + onChain.toFixed(4) + ' HMC is not auto-spendable for escrow.');
+			} else {
+				note.classList.add('hidden');
+				note.textContent = '';
+			}
+			if (balHi && !(spendNote || (onChain > orders + 0.000001))) {
+				note.classList.add('hidden');
+				note.textContent = '';
+			}
 			if (!balHi) {
 				note.classList.remove('hidden');
 				note.textContent = nodeAddr.startsWith('HMC-')
 					? 'Syncing ' + nodeAddr + ' from canonical chain…'
 					: 'Waiting for wallet address…';
 			}
+			return;
 		}
 		async function fetchCanonicalWalletFallback(addr, timeoutMs) {
 			const base = String((latestStatus && latestStatus.public_authority_base) || 'https://hackme.tech').replace(/\/$/, '');

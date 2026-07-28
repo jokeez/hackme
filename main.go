@@ -36,6 +36,7 @@ import (
 	"hackme/internal/logsetup"
 	"hackme/internal/nodecrypto"
 	"hackme/internal/p2p"
+	"hackme/internal/poolsync"
 	"hackme/internal/store"
 	"hackme/internal/workerid"
 	"hackme/internal/workerlock"
@@ -610,8 +611,10 @@ func main() {
 	}
 	if poolSyncCoordinatorConfigured() {
 		a.startPoolSyncWorker()
-		if envBool("HACKME_FUZZ_SETTLE_PULL", true) {
+		if poolsync.FuzzSettlePullEnabled() {
 			log.Printf("Pool fuzz settle pull: enabled (coordinator outbox every 15s)")
+		} else if strings.TrimSpace(os.Getenv("HACKME_FUZZ_SETTLE_PULL")) != "0" && !strings.EqualFold(strings.TrimSpace(os.Getenv("HACKME_FUZZ_SETTLE_PULL")), "false") && poolsync.AdminToken() == "" {
+			log.Printf("Pool fuzz settle pull: disabled — set HACKME_COORDINATOR_ADMIN_TOKEN (or HACKME_POOL_COORDINATOR_TOKEN) for outbox pull, or HACKME_FUZZ_SETTLE_PULL=0 on follower nodes")
 		}
 	}
 	if a.p2p != nil && a.p2p.Enabled() {
@@ -1645,6 +1648,9 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 		"balance_orders_spendable_hmc":   localMirrorHMC,
 		"balance_orders_spendable_units": localMirrorUnits,
 		"balance_alignment":              alignment,
+	}
+	if canonActive && balanceUnits > localMirrorUnits {
+		out["orders_spendable_note"] = "Order escrow debits local mirror balance only. On-chain HMC shown above is not auto-spendable for POST /api/security-audit until credited to the local wallet row (desktop follower)."
 	}
 	if canonActive {
 		out["balance_on_chain_hmc"] = bal
