@@ -1,44 +1,6 @@
 {
   "items": [
     {
-      "id": "2026-07-27-oss-cve-watch-libheif-day06-libfuzzer",
-      "date": "2026-07-27",
-      "title": "OSS CVE Watch · libheif Day 6/14 · 194.43M libFuzzer exec · CLEAN",
-      "summary": "libheif Day 6: ~23.6h libFuzzer across 38 sessions, 194,431,138 exec at ~2,287/s. Corpus 2793, 7189 coverage edges. ASAN=0 — CLEAN.",
-      "impact": "Cumulative Days 1–6: ~815.70M exec on persistent HEIF/AVIF corpus.",
-      "action": "Day 6: https://hackme.tech/reports/oss-cve-watch-libheif/day06.html",
-      "tags": [
-        "research",
-        "oss-cve",
-        "fuzzing",
-        "libheif",
-        "day06"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "OSS CVE Watch · libheif Day 6/14 · CLEAN",
-        "lead": "194.4M libFuzzer exec · ~23.6h ASAN · corpus 2793 · 0 crashes",
-        "bullets": [
-          "Day 6 libheif: ~194.4M executions @ ~2.3k/s across 38 sessions",
-          "ASAN=0 · UBSan=0 · verdict CLEAN (no crash in budget)",
-          "Persistent HEIF/AVIF corpus: 2793 inputs · 7189 coverage edges",
-          "Ledger: https://hackme.tech/reports/oss-cve-watch-libheif/day06.html",
-          "Series Days 1–6 cumulative ~816M exec on the same corpus"
-        ],
-        "footer": "hackme.tech/reports/oss-cve-watch-libheif/ · research · not a CVE claim"
-      },
-      "discord": {
-        "title": "OSS CVE Watch · libheif Day 6 CLEAN",
-        "body": "**libheif Day 6/14 — CLEAN**\n\n• **~194.4M** libFuzzer exec · ~23.6h · ~2.3k/s · 38 sessions\n• Corpus **2793** · **7189** edges · **ASAN=0**\n• [Day 6 ledger](https://hackme.tech/reports/oss-cve-watch-libheif/day06.html)\n",
-        "ping": "#announcements"
-      },
-      "links": {
-        "day06": "https://hackme.tech/reports/oss-cve-watch-libheif/day06.html",
-        "hub": "https://hackme.tech/reports/oss-cve-watch-libheif/",
-        "research": "https://hackme.tech/research.html"
-      }
-    },
-    {
       "id": "2026-07-26-oss-cve-watch-libheif-day05-libfuzzer",
       "date": "2026-07-26",
       "title": "OSS CVE Watch · libheif Day 5/14 · 189.55M libFuzzer exec · CLEAN",
@@ -402,6 +364,42 @@
       "links": {
         "hub": "https://hackme.tech/reports/oss-cve-watch/",
         "day13": "https://hackme.tech/reports/oss-cve-watch/day13.html"
+      }
+    },
+    {
+      "id": "2026-07-19-oss-cve-watch-day12-nghttp2-libfuzzer",
+      "date": "2026-07-19",
+      "title": "OSS CVE Watch Day 12/14 · nghttp2 · 2.39B libFuzzer exec · CLEAN",
+      "summary": "Day 12 on nghttp2: 14.2h libFuzzer depth, 2,387,073,360 executions at ~46,706 exec/s. Corpus 410 (307KB), 467 coverage edges. ASAN heap crashes: 0 — verdict CLEAN.",
+      "impact": "Cumulative Days 2–12: ~10.94B libFuzzer executions on persistent corpus. Day 12 HTML live on the public ledger.",
+      "action": "Day 12 report: https://hackme.tech/reports/oss-cve-watch/day12.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2",
+        "day12"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "OSS CVE Watch · Day 12/14 · nghttp2",
+        "lead": "14.2h libFuzzer + ASAN · CLEAN",
+        "bullets": [
+          "2,387,073,360 executions · ~46,706 exec/s · 14.2h",
+          "corpus 410 (307KB) · 467 edges · ASAN=0",
+          "Days 2–12 cumulative ~10.94B exec",
+          "CLEAN = no ASAN heap crash in budget — not proven secure"
+        ],
+        "footer": "hackme.tech/reports/oss-cve-watch/day12.html"
+      },
+      "discord": {
+        "title": "Research · OSS CVE Watch Day 12",
+        "body": "**nghttp2 · libFuzzer · Day 12/14**\n\n• **2,387,073,360** executions · **14.2h** · **~46,706 exec/s**\n• Corpus **410** (307KB) · **467** coverage edges\n• **CLEAN** — 0 ASAN heap crashes\n• Days 2–12 cumulative: **~10.94B** exec\n\n**Report:** https://hackme.tech/reports/oss-cve-watch/day12.html",
+        "ping": "#research"
+      },
+      "links": {
+        "hub": "https://hackme.tech/reports/oss-cve-watch/",
+        "day12": "https://hackme.tech/reports/oss-cve-watch/day12.html"
       }
     }
   ],

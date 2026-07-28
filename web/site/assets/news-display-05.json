@@ -1,21 +1,6 @@
 {
   "items": [
     {
-      "id": "2026-05-05-auto-settlement-timers-live",
-      "date": "2026-05-05",
-      "title": "Auto-Settlement Timers are Live",
-      "summary": "Systemd automation for worker payout settlement is now active with periodic settlement and healthcheck timers on the canonical VPS.",
-      "impact": "Worker accrual can now be settled to on-chain wallet balances automatically, reducing manual intervention and payout drift.",
-      "action": "Monitor settlement services via systemctl and journalctl; adjust MIN_SETTLE_HMC and payout mapping in /opt/hackme/.env.settlement as needed.",
-      "tags": [
-        "ops",
-        "mining",
-        "wallet",
-        "release"
-      ],
-      "status": "deployed"
-    },
-    {
       "id": "2026-05-05-v3-worker-settlement-bridge",
       "date": "2026-05-05",
       "title": "V3 Worker Settlement Bridge Added",
