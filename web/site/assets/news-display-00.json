@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-07-27-oss-cve-watch-libheif-day06-libfuzzer",
+      "date": "2026-07-27",
+      "title": "OSS CVE Watch · libheif Day 6/14 · 194.43M libFuzzer exec · CLEAN",
+      "summary": "libheif Day 6: 23.6h libFuzzer, 194,431,138 exec at ~2,287/s. Corpus 2793, 7189 coverage edges. ASAN=0 — CLEAN.",
+      "impact": "Cumulative Days 1–6: ~815.70M exec on persistent HEIF/AVIF corpus.",
+      "action": "Day 6: https://hackme.tech/reports/oss-cve-watch-libheif/day06.html",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "libheif",
+        "day06"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-26-oss-cve-watch-libheif-day05-libfuzzer",
       "date": "2026-07-26",
       "title": "OSS CVE Watch · libheif Day 5/14 · 189.55M libFuzzer exec · CLEAN",
@@ -256,21 +272,6 @@
         "pool",
         "privacy",
         "site"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-07-11-github-release-rc11s",
-      "date": "2026-07-11",
-      "title": "HackMe 0.1.0-rc11s — production baseline · pool fuzz · miners welcome",
-      "summary": "Stable production channel: pool fuzz marketplace, PoH + fuzz mining payouts, escrow 20/80, customer order flow verified. Mining dashboard shows canonical chain economics (Actual base/orders 1h) on desktop followers. Fuzz settle outbox drain fix.",
-      "impact": "rc11s is the reference release for miners and B2B customers. Further changes ship as rc11t/rc12 — no silent breaking changes on this channel.",
-      "action": "Download: https://hackme.tech/downloads.html · Pool: https://hackme.tech/pool/coordinator · GitHub tag after publish: 0.1.0-rc11s",
-      "tags": [
-        "release",
-        "mining",
-        "fuzzing",
-        "production"
       ],
       "status": "published"
     }

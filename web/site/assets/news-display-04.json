@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-05-19-pool-fairness-settlement-mps",
+      "date": "2026-05-19",
+      "title": "Pool fairness: GPU-weighted limits, faster settlement, MPS prep",
+      "summary": "Coordinator now caps paid attempts by measured GH/s (stops CPU submit-spam), limits claim/submit rate per worker, and settlement runs every ~30s. Dashboard calculator slider fixed; unpaid accrual display syncs from hackme.tech. MiningPoolStats listing checklist + exchange roadmap docs added. Desktop miners: use batch 4M + OpenCL/CUDA; remote VPS workers should use worker token (not full admin).",
+      "impact": "Your PC GPU rig should earn proportionally to hashrate; payouts above min threshold reach on-chain faster. Public stats: https://hackme.tech/pool/coordinator/api/pool/stats",
+      "action": "Pull latest from GitHub · Restart pool worker after update · MPS: docs/MININGPOOLSTATS_LISTING.md · Fair tuning: scripts/ops/apply_desktop_gpu_pool.sh",
+      "tags": [
+        "mining",
+        "pool",
+        "security",
+        "economics",
+        "release"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-19-mining-calculator-dashboard",
       "date": "2026-05-19",
       "title": "Advanced mining calculator in node dashboard",
@@ -236,21 +252,6 @@
         "security",
         "ops",
         "explorer"
-      ],
-      "status": "deployed"
-    },
-    {
-      "id": "2026-05-05-auto-settlement-timers-live",
-      "date": "2026-05-05",
-      "title": "Auto-Settlement Timers are Live",
-      "summary": "Systemd automation for worker payout settlement is now active with periodic settlement and healthcheck timers on the canonical VPS.",
-      "impact": "Worker accrual can now be settled to on-chain wallet balances automatically, reducing manual intervention and payout drift.",
-      "action": "Monitor settlement services via systemctl and journalctl; adjust MIN_SETTLE_HMC and payout mapping in /opt/hackme/.env.settlement as needed.",
-      "tags": [
-        "ops",
-        "mining",
-        "wallet",
-        "release"
       ],
       "status": "deployed"
     }

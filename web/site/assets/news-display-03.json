@@ -1,6 +1,20 @@
 {
   "items": [
     {
+      "id": "2026-05-27-hmc-miningpoolstats-coin-page",
+      "date": "2026-05-27",
+      "title": "HMC listed on MiningPoolStats (coin page live)",
+      "summary": "HackMe (HMC) is visible on MiningPoolStats. Pool operator registration submitted for HackMe Official Pool; hashrate will populate after MPS indexes our public stats API.",
+      "impact": "Discoverability for solo miners and aggregators; SUP stays off MPS (utility coin, HMC-first listing policy).",
+      "action": "Coin: https://miningpoolstats.app/coins/HMC · Pool API: https://hackme.tech/pool/coordinator/api/pool/stats ·",
+      "tags": [
+        "marketing",
+        "mining",
+        "listing"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-27-hackme-support-sup-prelaunch",
       "date": "2026-05-27",
       "title": "HackMe Support (SUP) — scarce ecosystem coin announced",
@@ -247,22 +261,6 @@
         "release",
         "cuda",
         "gpu"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-19-pool-fairness-settlement-mps",
-      "date": "2026-05-19",
-      "title": "Pool fairness: GPU-weighted limits, faster settlement, MPS prep",
-      "summary": "Coordinator now caps paid attempts by measured GH/s (stops CPU submit-spam), limits claim/submit rate per worker, and settlement runs every ~30s. Dashboard calculator slider fixed; unpaid accrual display syncs from hackme.tech. MiningPoolStats listing checklist + exchange roadmap docs added. Desktop miners: use batch 4M + OpenCL/CUDA; remote VPS workers should use worker token (not full admin).",
-      "impact": "Your PC GPU rig should earn proportionally to hashrate; payouts above min threshold reach on-chain faster. Public stats: https://hackme.tech/pool/coordinator/api/pool/stats",
-      "action": "Pull latest from GitHub · Restart pool worker after update · MPS: docs/MININGPOOLSTATS_LISTING.md · Fair tuning: scripts/ops/apply_desktop_gpu_pool.sh",
-      "tags": [
-        "mining",
-        "pool",
-        "security",
-        "economics",
-        "release"
       ],
       "status": "published"
     }
