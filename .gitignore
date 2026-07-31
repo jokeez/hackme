@@ -110,6 +110,26 @@ scripts/ops/fix_desktop_marketplace.sh
 scripts/ops/fix*_marketplace.*
 scripts/ops/run_oss_cve_watch_day67_marathon.sh
 
+# Local operator away / overnight / auto-publish (keep on disk; not GitHub)
+scripts/ops/away_*.sh
+scripts/ops/install_away_ops_vps.sh
+scripts/ops/pool_away_watch_once.sh
+scripts/ops/week_ops_*.sh
+scripts/ops/install_week_ops_metrics_vps.sh
+scripts/ops/overnight_pool_watch_until_8am.sh
+scripts/ops/final_confidence_overnight.sh
+scripts/ops/run_oss_cve_*marathon*.sh
+scripts/ops/run_oss_cve_watch_*autopublish*.sh
+scripts/ops/run_oss_cve_watch_day_chain_autopublish.sh
+scripts/ops/run_oss_cve_watch_overnight*.sh
+scripts/ops/build_oss_cve_watch_libheif_day_aggregate.sh
+scripts/ops/final_release_oneclick.sh
+scripts/ops/ideal_all_tests.sh
+scripts/ops/pool_finale_run.sh
+scripts/ops/pool_ideal_*.sh
+scripts/ops/start_local_ideal_miner.sh
+scripts/ops/windows_run_ideal_worker.ps1
+
 # Local future-architecture planning (keep local, never push)
 # HMS lane: full spec + mocks under adapters/hms/ — commit only docs/HMS_PUBLIC_ROADMAP.md + site preview
 adapters/

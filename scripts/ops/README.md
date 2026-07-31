@@ -34,6 +34,10 @@ DRY_RUN=1 bash scripts/ops/<script>.sh
 
 `prune_oss_cve_reports.sh` defaults to dry-run; use `APPLY=1` to delete.
 
+## Local-only (gitignored)
+
+Away-mode, week-ops journals, CVE marathon/autopublish, ideal/finale one-shots, and similar machine-local helpers stay on disk but are **not** tracked (see root `.gitignore`). They still work under local systemd; do not `git add -f` them.
+
 ## Inventory note
 
 Do not mass-delete scripts without an inventory pass. Archive or move to `experimental/` only after confirming nothing in systemd / cron / docs references them.
