@@ -9,6 +9,7 @@ cd "$ROOT"
 DAY="${DAY:?set DAY=N}"
 NODE_SSH="${NODE_SSH:-hackme-vps}"
 GIT_PUSH="${GIT_PUSH:-1}"
+POST_TELEGRAM="${POST_TELEGRAM:-0}"
 DATE_LOCAL="${DATE_LOCAL:-$(date +%Y-%m-%d)}"
 WATCH_DIR="$ROOT/reports/oss-cve-watch-libheif"
 
@@ -72,6 +73,7 @@ if meta_path.is_file():
     cum = sum(int(d.get("iterations") or 0) for d in meta.get("days") or [] if int(d.get("day") or 0) <= day)
 cum_m = cum / 1e6
 nid = f"{'$DATE_LOCAL'}-oss-cve-watch-libheif-day{day:02d}-libfuzzer"
+day_url = f"https://hackme.tech/reports/oss-cve-watch-libheif/day{day:02d}.html"
 item = {
     "id": nid,
     "date": "$DATE_LOCAL",
@@ -81,9 +83,36 @@ item = {
         f"Corpus {corp}, {cov} coverage edges. ASAN={asan} — {verdict}."
     ),
     "impact": f"Cumulative Days 1–{day}: ~{cum_m:.2f}M exec on persistent HEIF/AVIF corpus.",
-    "action": f"Day {day}: https://hackme.tech/reports/oss-cve-watch-libheif/day{day:02d}.html",
+    "action": f"Day {day}: {day_url}",
     "tags": ["research", "oss-cve", "fuzzing", "libheif", f"day{day:02d}"],
     "status": "published",
+    "telegram": {
+        "headline": f"OSS CVE Watch · libheif Day {day}/14 · {verdict}",
+        "lead": f"{iters_m:.1f}M libFuzzer exec · ~{hours:.1f}h ASAN · corpus {corp} · {asan} crashes",
+        "bullets": [
+            f"Day {day} libheif: ~{iters_m:.1f}M executions @ ~{eps:,.0f}/s · {hours:.1f}h",
+            f"ASAN={asan} · verdict {verdict}",
+            f"Persistent HEIF/AVIF corpus: {corp} inputs · {cov} coverage edges",
+            f"Ledger: {day_url}",
+            f"Series Days 1–{day} cumulative ~{cum_m:.1f}M exec on the same corpus",
+        ],
+        "footer": "hackme.tech/reports/oss-cve-watch-libheif/ · research · not a CVE claim",
+    },
+    "discord": {
+        "title": f"OSS CVE Watch · libheif Day {day} {verdict}",
+        "body": (
+            f"**libheif Day {day}/14 — {verdict}**\n\n"
+            f"• **~{iters_m:.1f}M** libFuzzer exec · ~{hours:.1f}h · ~{eps:,.0f}/s\n"
+            f"• Corpus **{corp}** · **{cov}** edges · **ASAN={asan}**\n"
+            f"• [Day {day} ledger]({day_url})\n"
+        ),
+        "ping": "#announcements",
+    },
+    "links": {
+        f"day{day:02d}": day_url,
+        "hub": "https://hackme.tech/reports/oss-cve-watch-libheif/",
+        "research": "https://hackme.tech/research.html",
+    },
 }
 for name in ("web/site/assets/news.json",):
     p = Path(name)
@@ -97,6 +126,8 @@ for name in ("web/site/assets/news.json",):
 print(f"NEWS_ID={nid}")
 PY
 
+NEWS_ID="${DATE_LOCAL}-oss-cve-watch-libheif-day$(printf '%02d' "$DAY")-libfuzzer"
+
 NODE_SSH="$NODE_SSH" NODE_DEPLOY_DIR="${NODE_DEPLOY_DIR:-/opt/hackme}" SKIP_DIST=1 \
   bash "$ROOT/scripts/ops/deploy_hackme_site.sh"
 
@@ -109,5 +140,11 @@ if [[ "$GIT_PUSH" == "1" ]]; then
       git commit -m "Publish OSS CVE Watch libheif Day $(printf '%02d' "$DAY") ledger."
     git push origin HEAD || true
   fi
+fi
+
+if [[ "$POST_TELEGRAM" == "1" ]]; then
+  log "Telegram publish FORCE_NEWS_ID=$NEWS_ID"
+  FORCE_NEWS_ID="$NEWS_ID" NODE_SSH="$NODE_SSH" \
+    bash "$ROOT/scripts/ops/publish_news_to_telegram.sh" || log "WARN: telegram publish failed (will retry via away autopilot)"
 fi
 log "DONE day $DAY libheif"

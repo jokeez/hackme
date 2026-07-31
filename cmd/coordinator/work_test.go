@@ -1314,3 +1314,24 @@ func TestClaimMinerIdentityLocked(t *testing.T) {
 		t.Fatalf("matching pubkey should pass: %s", reason)
 	}
 }
+
+func TestMergeWorkerStatAddressConflictDoesNotStealPayout(t *testing.T) {
+	victim := workerPayoutStat{PayoutAddress: "HMC-victim000000000", PayoutHMC: 10, PayoutSUP: 1, LastHashrateGHS: 100}
+	attacker := workerPayoutStat{PayoutAddress: "HMC-attacker0000000", PayoutHMC: 0.1, PayoutSUP: 0.01, LastHashrateGHS: 1}
+	// Attacker row merged first (empty dst), then victim — victim address+accrual must win, attacker payout not summed onto row.
+	merged := mergeWorkerStat(attacker, victim)
+	if !strings.EqualFold(merged.PayoutAddress, "HMC-victim000000000") {
+		t.Fatalf("address=%q want victim", merged.PayoutAddress)
+	}
+	if merged.PayoutHMC < 9.9 {
+		t.Fatalf("payout_hmc=%v want ~victim only", merged.PayoutHMC)
+	}
+	// Victim first, then attacker — keep victim, drop attacker accrual from sum.
+	merged2 := mergeWorkerStat(victim, attacker)
+	if !strings.EqualFold(merged2.PayoutAddress, "HMC-victim000000000") {
+		t.Fatalf("address2=%q", merged2.PayoutAddress)
+	}
+	if merged2.PayoutHMC != 10 {
+		t.Fatalf("payout2=%v want 10", merged2.PayoutHMC)
+	}
+}

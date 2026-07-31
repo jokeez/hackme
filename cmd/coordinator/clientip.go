@@ -30,8 +30,10 @@ func clientIP(r *http.Request) string {
 		return ""
 	}
 	if trustClientForwardedFor {
-		if cf := strings.TrimSpace(r.Header.Get("CF-Connecting-IP")); cf != "" {
-			if ip, ok := parseClientIP(cf); ok {
+		// Prefer nginx-set X-Real-IP / X-Forwarded-For. Only honor CF-Connecting-IP when the
+		// immediate peer is Cloudflare (otherwise clients can rotate forged CF headers).
+		if xri := strings.TrimSpace(r.Header.Get("X-Real-IP")); xri != "" {
+			if ip, ok := parseClientIP(xri); ok {
 				return ip
 			}
 		}
@@ -43,13 +45,76 @@ func clientIP(r *http.Request) string {
 				}
 			}
 		}
-		if xri := strings.TrimSpace(r.Header.Get("X-Real-IP")); xri != "" {
-			if ip, ok := parseClientIP(xri); ok {
-				return ip
+		if peerIsCloudflare(r.RemoteAddr) {
+			if cf := strings.TrimSpace(r.Header.Get("CF-Connecting-IP")); cf != "" {
+				if ip, ok := parseClientIP(cf); ok {
+					return ip
+				}
 			}
 		}
 	}
 	return keyFromRemoteAddr(r.RemoteAddr)
+}
+
+// peerIsCloudflare reports whether RemoteAddr is in published Cloudflare IP ranges.
+// Used only as a gate for trusting CF-Connecting-IP (B3).
+func peerIsCloudflare(remoteAddr string) bool {
+	host := strings.TrimSpace(remoteAddr)
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	host = strings.Trim(host, "[]")
+	ip, err := netip.ParseAddr(host)
+	if err != nil || !ip.IsValid() {
+		return false
+	}
+	if ip.Is4In6() {
+		ip = ip.Unmap()
+	}
+	for _, cidr := range cloudflareEdgeCIDRs {
+		if cidr.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// Cloudflare published edge ranges (IPv4 + IPv6). Keep in sync with https://www.cloudflare.com/ips/
+var cloudflareEdgeCIDRs = mustParseCIDRs(
+	"173.245.48.0/20",
+	"103.21.244.0/22",
+	"103.22.200.0/22",
+	"103.31.4.0/22",
+	"141.101.64.0/18",
+	"108.162.192.0/18",
+	"190.93.240.0/20",
+	"188.114.96.0/20",
+	"197.234.240.0/22",
+	"198.41.128.0/17",
+	"162.158.0.0/15",
+	"104.16.0.0/13",
+	"104.24.0.0/14",
+	"172.64.0.0/13",
+	"131.0.72.0/22",
+	"2400:cb00::/32",
+	"2606:4700::/32",
+	"2803:f800::/32",
+	"2405:b500::/32",
+	"2405:8100::/32",
+	"2a06:98c0::/29",
+	"2c0f:f248::/32",
+)
+
+func mustParseCIDRs(cidrs ...string) []netip.Prefix {
+	out := make([]netip.Prefix, 0, len(cidrs))
+	for _, c := range cidrs {
+		p, err := netip.ParsePrefix(c)
+		if err != nil {
+			panic("clientip: bad cloudflare cidr: " + c)
+		}
+		out = append(out, p)
+	}
+	return out
 }
 
 func clientIPKey(r *http.Request) string {

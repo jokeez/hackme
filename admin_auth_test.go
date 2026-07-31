@@ -87,6 +87,16 @@ func TestDesktopMutatingOriginOK(t *testing.T) {
 	if !desktopMutatingOriginOK(req) {
 		t.Fatal("same-origin Origin must pass")
 	}
+	// DNS rebind: Origin matches Host but Host is not a loopback literal.
+	req.Host = "evil.example"
+	req.Header.Set("Origin", "http://evil.example")
+	if desktopMutatingOriginOK(req) {
+		t.Fatal("rebind Host must be rejected even when Origin matches Host")
+	}
+	if requestHostIsLoopbackLiteral(req) {
+		t.Fatal("evil.example must not count as loopback Host")
+	}
+	req.Host = "127.0.0.1:8080"
 	req.Header.Del("Sec-Fetch-Site")
 	req.Header.Del("Origin")
 	if !desktopMutatingOriginOK(req) {
@@ -101,6 +111,7 @@ func TestDesktopLocalAuthRequiresExposeFlag(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/desktop/local-auth", nil)
 	req.RemoteAddr = "127.0.0.1:9"
+	req.Host = "127.0.0.1:8080"
 	handleDesktopLocalAuth(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d", rec.Code)
@@ -117,6 +128,7 @@ func TestDesktopLocalAuthRequiresExposeFlag(t *testing.T) {
 	rec = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodGet, "/api/desktop/local-auth", nil)
 	req.RemoteAddr = "127.0.0.1:9"
+	req.Host = "127.0.0.1:8080"
 	handleDesktopLocalAuth(rec, req)
 	body = map[string]any{}
 	_ = json.NewDecoder(rec.Body).Decode(&body)
@@ -131,6 +143,7 @@ func TestDesktopAdminTokenEmbedRequiresExposeFlag(t *testing.T) {
 	t.Setenv("HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN", "0")
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.RemoteAddr = "127.0.0.1:9"
+	req.Host = "127.0.0.1:8080"
 	if got := desktopAdminTokenEmbedScript(req); got != "" {
 		t.Fatalf("HTML embed must be empty without EXPOSE flag, got %q", got)
 	}
@@ -142,6 +155,11 @@ func TestDesktopAdminTokenEmbedRequiresExposeFlag(t *testing.T) {
 	req.RemoteAddr = "203.0.113.9:9"
 	if got := desktopAdminTokenEmbedScript(req); got != "" {
 		t.Fatal("non-loopback must never embed admin token")
+	}
+	req.RemoteAddr = "127.0.0.1:9"
+	req.Host = "evil.example"
+	if got := desktopAdminTokenEmbedScript(req); got != "" {
+		t.Fatal("non-loopback Host must never embed admin token")
 	}
 }
 

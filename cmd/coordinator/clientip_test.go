@@ -26,14 +26,26 @@ func TestClientIPFromXForwardedForWhenTrusted(t *testing.T) {
 	}
 }
 
-func TestClientIPPrefersCFConnectingIP(t *testing.T) {
+func TestClientIPPrefersXRealIPOverForgedCF(t *testing.T) {
 	trustClientForwardedFor = true
 	req := httptest.NewRequest(http.MethodPost, "/api/work/claim", nil)
 	req.RemoteAddr = "127.0.0.1:54321"
 	req.Header.Set("CF-Connecting-IP", "45.142.32.81")
+	req.Header.Set("X-Real-IP", "198.51.100.1")
 	req.Header.Set("X-Forwarded-For", "198.51.100.1")
-	if got := clientIP(req); got != "45.142.32.81" {
-		t.Fatalf("clientIP=%q want 45.142.32.81", got)
+	if got := clientIP(req); got != "198.51.100.1" {
+		t.Fatalf("clientIP=%q want 198.51.100.1 (ignore forged CF from non-CF peer)", got)
+	}
+}
+
+func TestClientIPIgnoresCFConnectingIPFromLoopbackPeer(t *testing.T) {
+	trustClientForwardedFor = true
+	req := httptest.NewRequest(http.MethodPost, "/api/work/claim", nil)
+	req.RemoteAddr = "127.0.0.1:54321"
+	req.Header.Set("CF-Connecting-IP", "45.142.32.81")
+	// No XFF/XRI — fall back to RemoteAddr, not forged CF.
+	if got := clientIP(req); got != "127.0.0.1" {
+		t.Fatalf("clientIP=%q want 127.0.0.1", got)
 	}
 }
 

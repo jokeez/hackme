@@ -17,24 +17,25 @@ type fuzzSubmitAuth struct {
 }
 
 // validateFuzzHybridSignature binds miner_address to ed25519 proof-of-possession (same model as PoH submit).
+// Any non-empty miner_address for escrow payout requires hybrid PoP (B4 fail-closed).
 func (m *workManager) validateFuzzHybridSignature(auth fuzzSubmitAuth, body []byte) (ok bool, reason string, payoutAddr string) {
+	addr := strings.TrimSpace(auth.MinerAddress)
+	if addr != "" && (!strings.HasPrefix(addr, "HMC-") || len(addr) != 20) {
+		return false, "invalid_miner_address", ""
+	}
 	if m == nil || !m.hybridSignerEnabled {
-		addr := strings.TrimSpace(auth.MinerAddress)
-		if addr != "" && (!strings.HasPrefix(addr, "HMC-") || len(addr) != 20) {
-			return false, "invalid_miner_address", ""
+		if addr != "" {
+			return false, "hybrid_required_for_payout", ""
 		}
-		return true, "", addr
+		return true, "", ""
 	}
 	pubHex := strings.TrimSpace(auth.MinerPubKey)
 	sigHex := strings.TrimSpace(auth.MinerSig)
-	addr := strings.TrimSpace(auth.MinerAddress)
 	hasSig := !(pubHex == "" && sigHex == "" && auth.SubmitNonce == 0)
 	if !hasSig {
-		if m.hybridSignerStrict {
+		// Unsigned payout address is never allowed (even when STRICT=0).
+		if addr != "" || m.hybridSignerStrict {
 			return false, "signature_required", ""
-		}
-		if addr != "" {
-			return true, "", addr
 		}
 		return true, "", ""
 	}

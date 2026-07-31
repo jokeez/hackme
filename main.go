@@ -3572,8 +3572,13 @@ func (a *app) allowLoopbackAdminTxSend(r *http.Request) bool {
 
 // allowLoopbackDesktopDashboardAuth lets same-origin desktop dashboard POST transfers without
 // repeating the admin header (wallet is already loopback-trusted). Does not skip canonical relay.
+// Requires literal loopback Host (127.0.0.1/localhost/::1) so DNS-rebinding cannot simpleSign-spend.
 func (a *app) allowLoopbackDesktopDashboardAuth(r *http.Request) bool {
-	return adminAuthEnabled() && envBool("HACKME_DESKTOP_MODE", false) && requestFromLoopback(r) && desktopMutatingOriginOK(r)
+	return adminAuthEnabled() &&
+		envBool("HACKME_DESKTOP_MODE", false) &&
+		requestFromLoopback(r) &&
+		requestHostIsLoopbackLiteral(r) &&
+		desktopMutatingOriginOK(r)
 }
 
 func (a *app) handleTransferSend(w http.ResponseWriter, r *http.Request) {

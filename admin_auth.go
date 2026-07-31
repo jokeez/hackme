@@ -83,8 +83,23 @@ func requireAdminAuthStrict(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
+// requestHostIsLoopbackLiteral is true when the HTTP Host is a literal loopback name.
+// Blocks DNS-rebinding: TCP may be 127.0.0.1 while Host is attacker-controlled.
+func requestHostIsLoopbackLiteral(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	rh := strings.ToLower(strings.TrimSpace(r.Host))
+	if h, _, err := net.SplitHostPort(rh); err == nil {
+		rh = h
+	}
+	rh = strings.Trim(rh, "[]")
+	return rh == "127.0.0.1" || rh == "localhost" || rh == "::1"
+}
+
 // desktopMutatingOriginOK rejects cross-site browser POSTs (CSRF-01).
 // Non-browser clients (no Sec-Fetch-Site / Origin) are allowed when already loopback-authed.
+// When Origin is present, Host must be a loopback literal (DNS-rebind defense for spend paths).
 func desktopMutatingOriginOK(r *http.Request) bool {
 	if r == nil {
 		return false
@@ -96,6 +111,9 @@ func desktopMutatingOriginOK(r *http.Request) bool {
 	origin := strings.TrimSpace(r.Header.Get("Origin"))
 	if origin == "" {
 		return true
+	}
+	if !requestHostIsLoopbackLiteral(r) {
+		return false
 	}
 	ou, err := url.Parse(origin)
 	if err != nil || ou == nil {
@@ -168,6 +186,9 @@ func desktopAdminTokenEmbedScript(r *http.Request) string {
 	if !envBool("HACKME_DESKTOP_MODE", false) || !requestFromLoopback(r) || !adminAuthEnabled() {
 		return ""
 	}
+	if !requestHostIsLoopbackLiteral(r) {
+		return ""
+	}
 	if !envBool("HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN", false) {
 		return ""
 	}
@@ -185,7 +206,7 @@ func handleDesktopLocalAuth(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !envBool("HACKME_DESKTOP_MODE", false) || !requestFromLoopback(r) {
+	if !envBool("HACKME_DESKTOP_MODE", false) || !requestFromLoopback(r) || !requestHostIsLoopbackLiteral(r) {
 		http.NotFound(w, r)
 		return
 	}

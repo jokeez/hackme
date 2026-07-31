@@ -1848,6 +1848,21 @@ func fleetBaseWorkerID(id string) string {
 }
 
 func mergeWorkerStat(dst, src workerPayoutStat) workerPayoutStat {
+	dstAddr := strings.TrimSpace(dst.PayoutAddress)
+	srcAddr := strings.TrimSpace(src.PayoutAddress)
+	addrConflict := dstAddr != "" && srcAddr != "" && !strings.EqualFold(dstAddr, srcAddr)
+	if addrConflict {
+		// B2: never sum conflicting sibling accrual onto one settle row.
+		// Prefer the address with higher unpaid accrual (honest miner usually wins).
+		if src.PayoutHMC > dst.PayoutHMC {
+			dst.PayoutAddress = srcAddr
+			dst.PayoutHMC = src.PayoutHMC
+			dst.PayoutSUP = src.PayoutSUP
+		}
+		// Keep hashrate/online merge for fleet display, but do not add the losing side's payout.
+		src.PayoutHMC = 0
+		src.PayoutSUP = 0
+	}
 	dst.AcceptedRanges += src.AcceptedRanges
 	dst.AcceptedHits += src.AcceptedHits
 	dst.AcceptedAtt += src.AcceptedAtt
@@ -1862,8 +1877,8 @@ func mergeWorkerStat(dst, src workerPayoutStat) workerPayoutStat {
 	if src.LastSeenUnix > dst.LastSeenUnix {
 		dst.LastSeenUnix = src.LastSeenUnix
 	}
-	if dst.PayoutAddress == "" && src.PayoutAddress != "" {
-		dst.PayoutAddress = src.PayoutAddress
+	if dst.PayoutAddress == "" && srcAddr != "" {
+		dst.PayoutAddress = srcAddr
 	}
 	if dst.LastClientIP == "" && src.LastClientIP != "" {
 		dst.LastClientIP = src.LastClientIP

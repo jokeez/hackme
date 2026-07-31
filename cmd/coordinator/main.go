@@ -142,7 +142,7 @@ func main() {
 
 	log.Printf("HackMe LAN coordinator → http://%s  (db %s)", addr, dbPath)
 	if trustClientForwardedFor {
-		log.Printf("client IP trust: CF-Connecting-IP / X-Forwarded-For / X-Real-IP enabled (bind %s)", addr)
+		log.Printf("client IP trust: X-Real-IP / X-Forwarded-For enabled; CF-Connecting-IP only from Cloudflare peers (bind %s)", addr)
 	}
 	if token != "" {
 		log.Printf("HACKME_COORDINATOR_ADMIN_TOKEN is set: admin routes + GET /api/work/stats?details=1")
