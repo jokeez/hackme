@@ -1,8 +1,22 @@
-# HackMe 0.1.0-rc13 — 48-hour pool soak PASS
+# HackMe 0.1.0-rc13 — desktop/pool channel + security hotfix
 
-**Status:** **LIVE** on [hackme.tech/downloads.html](https://hackme.tech/downloads.html) after the successful `pool_48h_soak_20260722T162444Z` mining soak.
+**Status:** **LIVE** on [hackme.tech/downloads.html](https://hackme.tech/downloads.html) — Win/Linux/fuzz/ISO on a single **rc13** channel.
 
-## Soak evidence
+## Hotfix (2026-07-31, commit `d15ec25`)
+
+Same tag **0.1.0-rc13**, new SHA256 (no version bump). Patches private bounty items B1–B5:
+
+- Desktop simpleSign requires loopback Host (DNS-rebind defense)
+- Fleet `-gpuN` merge no longer attributes conflicting sibling accrual to attacker address
+- Coordinator prefers nginx X-Real-IP/XFF; CF-Connecting-IP only from Cloudflare peers
+- Fuzz escrow `miner_address` always requires hybrid PoP
+- Bootstrap VPS template defaults `DESKTOP_MODE=0`
+
+Linux tarball SHA256:
+
+`bd3ff39ccd697729755e5ac0ed34076c04e38b1b348e46a656a3549884e36693  hackme_0.1.0-rc13_linux.tar.gz`
+
+## Soak evidence (earlier rc13 window)
 
 - Window: approximately 48 hours; no gaps longer than 10 minutes.
 - Pool hashrate: approximately 70–197 GH/s, average approximately 137 GH/s.
@@ -31,14 +45,16 @@ Verify ordinary artifacts with `SHA256SUMS.txt` and the bootable image with
 `SHA256SUMS-iso.txt`.
 
 ```text
-58c1f88957239a53c116db0c6ee980f8659940c0a25833d5473996fc7ecc3792  hackme_0.1.0-rc13_windows.zip
-846812f37b8113915388501a39be53e5ad19fb6165ca7b6f64d38be94dc97e92  hackme_0.1.0-rc13_windows_setup.zip
+ab6ff12bbc74bd34b15d3b460e2d61d5f5b0643987b3c06535c717cec8a8d457  hackme_0.1.0-rc13_windows.zip
+1d4205b7004b91d8278a5ed37a2c7140eefba21b1543a1ee6400e9687f56c135  hackme_0.1.0-rc13_windows_setup.zip
+bd3ff39ccd697729755e5ac0ed34076c04e38b1b348e46a656a3549884e36693  hackme_0.1.0-rc13_linux.tar.gz
 ba6307040053891766232a055051a46b78f5e820822b8668ab2354f024d28ae1  HackMe-Setup-0.1.0-rc13.exe
-c7d9fe2d0f901f1f973ced43d9af8828728cd9786b293b83b52f1a36ae7c8e90  hackme_0.1.0-rc13_linux.tar.gz
-94e4d222d280878378edd65debbc600cce945e4fed016af16e7aaf0ef7ba0ace  hackme-fuzzing-0.1.0-rc13-linux-amd64
-1c93f976b81d29c7e244fb977ccbbdb01338ee10e61960651235ed96cd468e89  hackme-fuzzing-0.1.0-rc13-windows-amd64.exe
-69220338e6813205720ee4541552027eb442eecf89887e93a42140bddc001fc6  hackme-fuzzing-build-0.1.0-rc13-linux-amd64
-3f73918dfe69088551d282cfecfb28c78c9aafe97bb7830bab5a7b2aa9da91e3  hackme-fuzzing-build-0.1.0-rc13-windows-amd64.exe
+99cab528dbbc1ac8e30913f60893af5c55bc999f9ad1007fa611fd0e199498a7  Install-HackMe.ps1
+0ac66574d6c2eb2bc605f3d254d912f08bb7f46befb8b66db9edc61618c8d243  HackMe-Install.cmd
+4bf7bc0c9341c0f2d6edbfe48afc062e5006539dde5d03e0fb294ddb2581e5ae  hackme-fuzzing-0.1.0-rc13-linux-amd64
+5fddd962476623fa646865bbe8df7481bd2f3fcc8bf070247666096f80961d34  hackme-fuzzing-0.1.0-rc13-windows-amd64.exe
+df0a84a4db37b7b60164afd1ccd810ebe95a2aa3022cd0e7b033ec120d7d299e  hackme-fuzzing-build-0.1.0-rc13-linux-amd64
+8bda0fab19302cf00b537982a06d64ac160eb1ae9bb881a4968e6bbc278a4716  hackme-fuzzing-build-0.1.0-rc13-windows-amd64.exe
 1adf63cc8252c25ae040fc9362d78ac3209f0a5bf8babb05cd394f156ad5e60f  HackMe-OS-0.1.0-rc13-amd64.iso
 ```
 

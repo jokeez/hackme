@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Listing Readiness — HackMe Ecosystem</title>
-  <meta name="description" content="Exchange listing hub for HackMe ecosystem: HMC primary listing, SUP companion, HMS prelaunch. Honest readiness scores and document packs. Release 0.1.0-rc12w." />
+  <meta name="description" content="Exchange listing hub for HackMe ecosystem: HMC primary listing, SUP companion, HMS prelaunch. Honest readiness scores and document packs. Release 0.1.0-rc13." />
   <link rel="canonical" href="https://hackme.tech/listing.html" />
-  <link rel="stylesheet" href="./assets/styles.css?v=20260722rc12w" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20260731rc13" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
 </head>
 <body>
@@ -18,7 +18,7 @@
 
   <main class="container">
     <section class="hero glass hero-small">
-      <p class="kicker">Listing · Ecosystem · 0.1.0-rc12w</p>
+      <p class="kicker">Listing · Ecosystem · 0.1.0-rc13</p>
       <h1>Exchange readiness — all tickers</h1>
       <p class="hero-copy">
         HackMe is a <strong>multi-asset network</strong>. Listing strategy: <strong>HMC first</strong> on PoW-friendly CEX,
@@ -28,27 +28,28 @@
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>Live evidence (2026-07-22)</h2></div>
+      <div class="panel-head"><h2>Live evidence (2026-07-31)</h2></div>
       <ul class="list">
-        <li><strong>Release</strong> — <code>0.1.0-rc12w</code> Win / Linux / fuzz / ISO · <a href="./downloads.html">downloads</a> · <a href="https://github.com/jokeez/hackme/releases/tag/0.1.0-rc12w" target="_blank" rel="noreferrer">GitHub</a></li>
-        <li><strong>Public pool</strong> — live coordinator · ~100+ GH/s · 11 workers · tip ~#199k · accept rate clean</li>
-        <li><strong>Wallet UX</strong> — Activity tab + settlement pending display (hotfix rebuild, same tag, new SHA256)</li>
-        <li><strong>Research</strong> — nghttp2 CVE Watch 14/14 CLEAN · libheif Day 2 in progress</li>
+        <li><strong>Release</strong> — <code>0.1.0-rc13</code> Win / Linux / fuzz / ISO · security hotfix <code>d15ec25</code> (same tag, new SHA256) · <a href="./downloads.html">downloads</a> · <a href="https://github.com/jokeez/hackme/releases/tag/0.1.0-rc13" target="_blank" rel="noreferrer">GitHub</a></li>
+        <li><strong>Public pool</strong> — live coordinator · hybrid Ed25519 strict · ~160 GH/s · ~17 workers · tip ~#225k · mining on</li>
+        <li><strong>Wallet UX</strong> — Activity tab + settlement pending · desktop spend hardened vs DNS-rebind (B1 hotfix)</li>
+        <li><strong>Research</strong> — nghttp2 CVE Watch 14/14 CLEAN · libheif Day 7/14 CLEAN (~228.6M day · ~1.04B series) · <a href="./reports/oss-cve-watch-libheif/day07.html">day07 ledger</a></li>
+        <li><strong>Security</strong> — private bounty B1–B5 patched on hub (desktop rebind, fleet settle, CF IP, fuzz PoP)</li>
         <li><strong>DR</strong> — DE mirror standby snapshotted (no DNS failover yet)</li>
       </ul>
       <p class="muted" style="margin-top:0.75rem">Scores below are operator self-assessment for CEX desks — not a paid audit letter.</p>
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>Readiness snapshot (22 Jul 2026)</h2></div>
+      <div class="panel-head"><h2>Readiness snapshot (31 Jul 2026)</h2></div>
       <div class="listing-score">
-        <article class="card glass"><strong>8.5/10</strong>Technology &amp; transparency</article>
-        <article class="card glass"><strong>8/10</strong>Operational discipline</article>
+        <article class="card glass"><strong>9/10</strong>Technology &amp; transparency</article>
+        <article class="card glass"><strong>8.5/10</strong>Operational discipline</article>
         <article class="card glass"><strong>3/10</strong>Market / traction</article>
         <article class="card glass"><strong>1.5/10</strong>Liquidity readiness</article>
         <article class="card glass"><strong>3/10</strong>Legal / entity</article>
       </div>
-      <p class="muted" style="margin-top:1rem">Verdict: <strong>early stage, narrative + evidence pack ready</strong> — not Binance-ready. Strong base for PoW CEX / small-desk outreach after own demo exchange soft-launch.</p>
+      <p class="muted" style="margin-top:1rem">Verdict: <strong>early stage, narrative + evidence pack ready</strong> — not Binance-ready. Stronger than mid-July on tech/ops (rc13 + bounty patches + libheif Day 7). Still weak on market, MM, and legal entity for Tier-1.</p>
     </section>
 
     <section class="panel glass">
@@ -92,7 +93,7 @@
         <li><strong>B2B demand layer</strong> — security audit escrow in HMC</li>
         <li><strong>Fair coordinator</strong> — hybrid Ed25519, published operator gates</li>
         <li><strong>Ecosystem</strong> — SUP rewards loyalty; HMS extends to storage (future)</li>
-        <li><strong>Public research ledgers</strong> — OSS CVE Watch with published day reports</li>
+        <li><strong>Public research ledgers</strong> — OSS CVE Watch (nghttp2 closed · libheif live) with published day reports</li>
       </ul>
       <p style="margin-top:1rem"><a class="btn btn-secondary" href="https://github.com/jokeez/hackme/blob/main/docs/LISTING_PITCH_OUTLINE.md" target="_blank" rel="noreferrer">Pitch deck outline (10–12 slides)</a></p>
     </section>
@@ -136,8 +137,8 @@
     </section>
   </main>
 
-  <footer class="footer"><p>HackMe Network · snapshot 2026-07-22 · release 0.1.0-rc12w</p><div class="footer-nav"></div></footer>
-  <script src="./assets/site-shell.js?v=20260722rc12w"></script>
-  <script src="./assets/app.js?v=20260722rc12w"></script>
+  <footer class="footer"><p>HackMe Network · snapshot 2026-07-31 · release 0.1.0-rc13</p><div class="footer-nav"></div></footer>
+  <script src="./assets/site-shell.js?v=20260731rc13"></script>
+  <script src="./assets/app.js?v=20260731rc13"></script>
 </body>
 </html>

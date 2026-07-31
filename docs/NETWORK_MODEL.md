@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**HackMe Network** · `0.1.0-rc12w` · [Pool](https://hackme.tech/pool/explorer) · [Telegram](https://t.me/hackme_tech)
+**HackMe Network** · `0.1.0-rc13` · [Pool](https://hackme.tech/pool/explorer) · [Telegram](https://t.me/hackme_tech)
 
 </div>
 

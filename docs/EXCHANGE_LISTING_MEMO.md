@@ -1,6 +1,6 @@
 # HackMe Network — exchange listing memo (one page)
 
-**Version:** 2026-06-16 · **Contact:** https://hackme.tech/contacts.html · **Repo:** https://github.com/jokeez/hackme (AGPL-3.0)
+**Version:** 2026-07-31 · **Contact:** https://hackme.tech/contacts.html · **Repo:** https://github.com/jokeez/hackme (AGPL-3.0)
 
 ---
 
@@ -77,8 +77,9 @@ HackMe is **useful-compute infrastructure**: a native PoH chain (HMC), coordinat
 
 - Bitcointalk ANN topic 5583373
 - Telegram: @hackme_tech
-- GitHub releases: `0.1.0-rc12w`
+- GitHub releases: `0.1.0-rc13`
 - Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats (live)
+- Research: nghttp2 CVE Watch 14/14 CLEAN · libheif Day 7/14 CLEAN (in progress through Day 14)
 
 ---
 
