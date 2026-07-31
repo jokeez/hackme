@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-07-16-pool-privacy-site-hub",
+      "date": "2026-07-16",
+      "title": "Public pool · miner IP privacy · hub polish",
+      "summary": "Unauthenticated coordinator stats and by-wallet no longer expose last_client_ip. Research hub updated to OSS CVE Watch Day 8/14. Security rewards page + footer link; home Live pool shows workers online.",
+      "impact": "Hardening for miner privacy on the public edge without changing rc11s miner downloads. Command hub metrics remain resilient under PoH load.",
+      "action": "Pool: https://hackme.tech/ · Rewards: https://hackme.tech/security-rewards.html · Research: https://hackme.tech/research.html",
+      "tags": [
+        "security",
+        "pool",
+        "privacy",
+        "site"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-11-github-release-rc11s",
       "date": "2026-07-11",
       "title": "HackMe 0.1.0-rc11s — production baseline · pool fuzz · miners welcome",
@@ -240,22 +255,6 @@
         "research",
         "bitcoin",
         "fuzzing"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-06-25-fuzz-depth-v3",
-      "date": "2026-06-25",
-      "title": "Fuzz Depth v3 — WASM + Native Bridge",
-      "summary": "wasm_native tier on duplicate-inputs guard: 4 guard signals, 4 native_confirmed, 0 critical, verdict fail_high. Miner marketplace + depth presets in rc11o.",
-      "impact": "Stronger bounty triage without changing tokenomics: deep tiers require native_confirmed. Miners get visibility into fuzz escrow and per-run pay.",
-      "action": "Report: https://hackme.tech/reports/fuzz-depth-v3.html · Gate: bash scripts/ops/fuzz_depth_v3_gate.sh · Live: POOL_DIST=0 bash scripts/ops/run_fuzz_depth_v3_live.sh",
-      "tags": [
-        "security",
-        "research",
-        "bitcoin",
-        "fuzzing",
-        "mining"
       ],
       "status": "published"
     }

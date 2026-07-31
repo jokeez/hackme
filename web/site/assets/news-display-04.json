@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-05-19-cuda-rc10-gpu-backends",
+      "date": "2026-05-19",
+      "title": "Release 0.1.0-rc10: native NVIDIA CUDA + AMD/Intel OpenCL",
+      "summary": "Linux bundle adds workerpoh-cuda (NVRTC, Blackwell compute_120), honest pool hashrate calibration (~80–120 GH/s on RTX 50), and GPU backend auto-detect. Windows zip: hackme.exe + workerpoh-opencl.exe. Docs: GPU_MINING_BACKENDS.md, CUDA_PRODUCTION.md.",
+      "impact": "NVIDIA miners should use CUDA on Linux for full GPU throughput; AMD/Intel use OpenCL. Pool stats and payouts reflect measured GH/s.",
+      "action": "Download 0.1.0-rc10 from https://hackme.tech/downloads.html · Linux NVIDIA: HACKME_GPU_BACKEND=cuda · See docs/GPU_MINING_BACKENDS.md",
+      "tags": [
+        "mining",
+        "pool",
+        "release",
+        "cuda",
+        "gpu"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-19-pool-fairness-settlement-mps",
       "date": "2026-05-19",
       "title": "Pool fairness: GPU-weighted limits, faster settlement, MPS prep",
@@ -237,21 +253,6 @@
         "testing",
         "security",
         "ops"
-      ],
-      "status": "deployed"
-    },
-    {
-      "id": "2026-05-05-rc7-security-hardening-and-release-pack",
-      "date": "2026-05-05",
-      "title": "RC7 Release Pack + Hybrid Anti-Replay Hardening",
-      "summary": "Release 0.1.0-rc7 artifacts for Linux and Windows were rebuilt with fresh checksums, while coordinator Hybrid signer received stricter anti-replay and duplicate-signed-payload protections.",
-      "impact": "Operators can distribute updated binaries and run stronger pool-side submit validation without breaking current worker-mode staging flow.",
-      "action": "Use dist/release_0.1.0-rc7 artifacts, keep predeploy gate with hybrid smoke enabled, and canary-enable strict signer mode before full rollout.",
-      "tags": [
-        "release",
-        "security",
-        "ops",
-        "explorer"
       ],
       "status": "deployed"
     }

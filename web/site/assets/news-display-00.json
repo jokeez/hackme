@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-07-28-oss-cve-watch-libheif-day07-libfuzzer",
+      "date": "2026-07-28",
+      "title": "OSS CVE Watch · libheif Day 7/14 · 228.61M libFuzzer exec · CLEAN",
+      "summary": "libheif Day 7: 27.1h libFuzzer, 228,614,810 exec at ~2,342/s. Corpus 2901, 7243 coverage edges. ASAN=0 — CLEAN.",
+      "impact": "Cumulative Days 1–7: ~1044.32M exec on persistent HEIF/AVIF corpus.",
+      "action": "Day 7: https://hackme.tech/reports/oss-cve-watch-libheif/day07.html",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "libheif",
+        "day07"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-27-oss-cve-watch-libheif-day06-libfuzzer",
       "date": "2026-07-27",
       "title": "OSS CVE Watch · libheif Day 6/14 · 194.43M libFuzzer exec · CLEAN",
@@ -257,21 +273,6 @@
         "fuzzing",
         "nghttp2",
         "day09"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-07-16-pool-privacy-site-hub",
-      "date": "2026-07-16",
-      "title": "Public pool · miner IP privacy · hub polish",
-      "summary": "Unauthenticated coordinator stats and by-wallet no longer expose last_client_ip. Research hub updated to OSS CVE Watch Day 8/14. Security rewards page + footer link; home Live pool shows workers online.",
-      "impact": "Hardening for miner privacy on the public edge without changing rc11s miner downloads. Command hub metrics remain resilient under PoH load.",
-      "action": "Pool: https://hackme.tech/ · Rewards: https://hackme.tech/security-rewards.html · Research: https://hackme.tech/research.html",
-      "tags": [
-        "security",
-        "pool",
-        "privacy",
-        "site"
       ],
       "status": "published"
     }

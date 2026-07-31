@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-05-05-rc7-security-hardening-and-release-pack",
+      "date": "2026-05-05",
+      "title": "RC7 Release Pack + Hybrid Anti-Replay Hardening",
+      "summary": "Release 0.1.0-rc7 artifacts for Linux and Windows were rebuilt with fresh checksums, while coordinator Hybrid signer received stricter anti-replay and duplicate-signed-payload protections.",
+      "impact": "Operators can distribute updated binaries and run stronger pool-side submit validation without breaking current worker-mode staging flow.",
+      "action": "Use dist/release_0.1.0-rc7 artifacts, keep predeploy gate with hybrid smoke enabled, and canary-enable strict signer mode before full rollout.",
+      "tags": [
+        "release",
+        "security",
+        "ops",
+        "explorer"
+      ],
+      "status": "deployed"
+    },
+    {
       "id": "2026-05-05-auto-settlement-timers-live",
       "date": "2026-05-05",
       "title": "Auto-Settlement Timers are Live",
