@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-05-29-hms-ui-preview",
+      "date": "2026-05-29",
+      "title": "HackMe Storage (HMS) — ecosystem UI preview",
+      "summary": "Dashboard and coins page now show HMC / SUP / HMS context with per-coin Ecosystem KPIs. HMS storage+seal lane is preview-only; production coordinator deploys on a dedicated heavy VPS before go-live.",
+      "impact": "Clearer story for miners: hub hosts UI and HMC/SUP; HMS backend is isolated on VPS #2 when ready.",
+      "action": "Coins: https://hackme.tech/coins.html#hms · Roadmap: https://hackme.tech/docs/HMS_PUBLIC_ROADMAP.md",
+      "tags": [
+        "ecosystem",
+        "hms",
+        "mining",
+        "preview"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-28-official-pool-recovered",
       "date": "2026-05-28",
       "title": "Official pool restored after VPS incident",
@@ -238,22 +253,6 @@
       "summary": "Installer and scripts use ASCII-only PowerShell (Russian Windows no longer breaks detect_gpu / write_hackme_env). Auto-repair hackme.env from pool.miner.token on miner start. RX 580 2048SP rig profile applied when GPU is detected. Pool live ~69 GH/s, M ~143M.",
       "impact": "Windows miners on RU locales: install and Start HackMe Miner without PowerShell parse errors; pool token and amd_rx580_2048sp profile written reliably.",
       "action": "Download HackMe-Setup-0.1.0-rc11f.exe from https://hackme.tech/downloads.html · Existing installs: run start_hackme_miner.bat (repairs env) or reinstall rc11f.",
-      "tags": [
-        "release",
-        "mining",
-        "pool",
-        "windows",
-        "gpu"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-20-windows-installer-rc11e",
-      "date": "2026-05-20",
-      "title": "Release 0.1.0-rc11e: Windows installer + GPU wizard + pool token fix",
-      "summary": "Official HackMe-Setup.exe (Inno Setup) replaces zip-only onboarding: Program Files install, Start menu/desktop shortcuts, registry entries, preconfigured pool token. Wizard page detects GPU (Auto / NVIDIA CUDA / AMD OpenCL / CPU). Rig profiles for RX 580 2048SP. Fixes Program Files path quoting and hackme.env repair from pool.miner.token.",
-      "impact": "Windows miners: one .exe install, no manual token hunt. Pool ~69 GH/s live; difficulty M auto-retargets. Dashboard shows per-worker GH/s and HMC accrual.",
-      "action": "Download HackMe-Setup-0.1.0-rc11e.exe from https://hackme.tech/downloads.html · AMD RX 580: choose Auto or OpenCL in installer · Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats",
       "tags": [
         "release",
         "mining",

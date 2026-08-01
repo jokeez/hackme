@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-07-16-oss-cve-watch-day09-nghttp2-libfuzzer",
+      "date": "2026-07-16",
+      "title": "OSS CVE Watch Day 9/14 · nghttp2 · 0.31B libFuzzer exec · CLEAN",
+      "summary": "Day 9 on nghttp2: 4.0h libFuzzer depth, 313,781,660 executions at ~21,788 exec/s. Corpus 413 (303KB), 467 coverage edges. ASAN heap crashes: 0 — verdict CLEAN.",
+      "impact": "Cumulative Days 2–9: ~8.02B libFuzzer executions on persistent corpus. Day 9 HTML live on the public ledger.",
+      "action": "Day 9 report: https://hackme.tech/reports/oss-cve-watch/day09.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2",
+        "day09"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-16-pool-privacy-site-hub",
       "date": "2026-07-16",
       "title": "Public pool · miner IP privacy · hub polish",
@@ -240,21 +256,6 @@
         "mining",
         "security",
         "pool"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-06-25-bitcoin30-week3",
-      "date": "2026-06-25",
-      "title": "Bitcoin Core 30-Day Fuzz — Week 3 Complete",
-      "summary": "Days 15–21 wasm_native tier: 1,792 runs, 504 guard signals, 186 native_confirmed, 0 critical. Fuzz Depth v3 native bridge on Bitcoin guards.",
-      "impact": "First full week on wasm_native depth tier. Dup-inputs, BIP34, and block-weight guards confirmed on native port. Series now 30/30 days complete (8,808 total runs).",
-      "action": "Ledger: https://hackme.tech/reports/bitcoin30-week3.html · Day 15: https://hackme.tech/reports/bitcoin30-day15.html · Reproduce: DAY=15 bash scripts/ops/run_bitcoin30_day.sh",
-      "tags": [
-        "security",
-        "research",
-        "bitcoin",
-        "fuzzing"
       ],
       "status": "published"
     }

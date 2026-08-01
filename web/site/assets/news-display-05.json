@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-05-07-release-fast-pack-pass-and-artifacts",
+      "date": "2026-05-07",
+      "title": "Release Fast-Pack PASS + Final Linux/Windows Artifacts",
+      "summary": "Final fast-profile release validation passed end-to-end (health, ultimate quick gate, security assertions, and worker dominance), and fresh Linux/Windows binaries were rebuilt with new SHA256 checksums.",
+      "impact": "Operators can deploy updated binaries with a deterministic release checklist and shorter, timeout-safe validation flow.",
+      "action": "Deploy dist/release_final_20260507 binaries to VPS, publish SHA256SUMS.txt with the release post, and run post-deploy smoke checks on status/work/global metrics.",
+      "tags": [
+        "release",
+        "testing",
+        "security",
+        "ops"
+      ],
+      "status": "deployed"
+    },
+    {
       "id": "2026-05-05-rc7-security-hardening-and-release-pack",
       "date": "2026-05-05",
       "title": "RC7 Release Pack + Hybrid Anti-Replay Hardening",

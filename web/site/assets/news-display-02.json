@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-06-25-bitcoin30-week3",
+      "date": "2026-06-25",
+      "title": "Bitcoin Core 30-Day Fuzz — Week 3 Complete",
+      "summary": "Days 15–21 wasm_native tier: 1,792 runs, 504 guard signals, 186 native_confirmed, 0 critical. Fuzz Depth v3 native bridge on Bitcoin guards.",
+      "impact": "First full week on wasm_native depth tier. Dup-inputs, BIP34, and block-weight guards confirmed on native port. Series now 30/30 days complete (8,808 total runs).",
+      "action": "Ledger: https://hackme.tech/reports/bitcoin30-week3.html · Day 15: https://hackme.tech/reports/bitcoin30-day15.html · Reproduce: DAY=15 bash scripts/ops/run_bitcoin30_day.sh",
+      "tags": [
+        "security",
+        "research",
+        "bitcoin",
+        "fuzzing"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-06-25-fuzz-depth-v3",
       "date": "2026-06-25",
       "title": "Fuzz Depth v3 — WASM + Native Bridge",
@@ -239,21 +254,6 @@
         "release",
         "gpu",
         "pool"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-29-hms-ui-preview",
-      "date": "2026-05-29",
-      "title": "HackMe Storage (HMS) — ecosystem UI preview",
-      "summary": "Dashboard and coins page now show HMC / SUP / HMS context with per-coin Ecosystem KPIs. HMS storage+seal lane is preview-only; production coordinator deploys on a dedicated heavy VPS before go-live.",
-      "impact": "Clearer story for miners: hub hosts UI and HMC/SUP; HMS backend is isolated on VPS #2 when ready.",
-      "action": "Coins: https://hackme.tech/coins.html#hms · Roadmap: https://hackme.tech/docs/HMS_PUBLIC_ROADMAP.md",
-      "tags": [
-        "ecosystem",
-        "hms",
-        "mining",
-        "preview"
       ],
       "status": "published"
     }

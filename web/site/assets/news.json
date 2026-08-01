@@ -1,6 +1,44 @@
 {
   "items": [
     {
+      "id": "2026-08-01-oss-cve-watch-libheif-day08-libfuzzer",
+      "date": "2026-08-01",
+      "title": "OSS CVE Watch · libheif Day 8/14 · 178.64M libFuzzer exec · CLEAN",
+      "summary": "libheif Day 8: 23.1h libFuzzer, 178,639,548 exec at ~2,147/s. Corpus 2996, 7274 coverage edges. ASAN=0 — CLEAN.",
+      "impact": "Cumulative Days 1–8: ~1222.96M exec on persistent HEIF/AVIF corpus.",
+      "action": "Day 8: https://hackme.tech/reports/oss-cve-watch-libheif/day08.html",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "libheif",
+        "day08"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "OSS CVE Watch · libheif Day 8/14 · CLEAN",
+        "lead": "178.6M libFuzzer exec · ~23.1h ASAN · corpus 2996 · 0 crashes",
+        "bullets": [
+          "Day 8 libheif: ~178.6M executions @ ~2,147/s · 23.1h",
+          "ASAN=0 · verdict CLEAN",
+          "Persistent HEIF/AVIF corpus: 2996 inputs · 7274 coverage edges",
+          "Ledger: https://hackme.tech/reports/oss-cve-watch-libheif/day08.html",
+          "Series Days 1–8 cumulative ~1223.0M exec on the same corpus"
+        ],
+        "footer": "hackme.tech/reports/oss-cve-watch-libheif/ · research · not a CVE claim"
+      },
+      "discord": {
+        "title": "OSS CVE Watch · libheif Day 8 CLEAN",
+        "body": "**libheif Day 8/14 — CLEAN**\n\n• **~178.6M** libFuzzer exec · ~23.1h · ~2,147/s\n• Corpus **2996** · **7274** edges · **ASAN=0**\n• [Day 8 ledger](https://hackme.tech/reports/oss-cve-watch-libheif/day08.html)\n",
+        "ping": "#announcements"
+      },
+      "links": {
+        "day08": "https://hackme.tech/reports/oss-cve-watch-libheif/day08.html",
+        "hub": "https://hackme.tech/reports/oss-cve-watch-libheif/",
+        "research": "https://hackme.tech/research.html"
+      }
+    },
+    {
       "id": "2026-07-28-oss-cve-watch-libheif-day07-libfuzzer",
       "date": "2026-07-28",
       "title": "OSS CVE Watch · libheif Day 7/14 · 228.61M libFuzzer exec · CLEAN",

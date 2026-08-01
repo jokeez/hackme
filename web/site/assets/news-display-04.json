@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-05-20-windows-installer-rc11e",
+      "date": "2026-05-20",
+      "title": "Release 0.1.0-rc11e: Windows installer + GPU wizard + pool token fix",
+      "summary": "Official HackMe-Setup.exe (Inno Setup) replaces zip-only onboarding: Program Files install, Start menu/desktop shortcuts, registry entries, preconfigured pool token. Wizard page detects GPU (Auto / NVIDIA CUDA / AMD OpenCL / CPU). Rig profiles for RX 580 2048SP. Fixes Program Files path quoting and hackme.env repair from pool.miner.token.",
+      "impact": "Windows miners: one .exe install, no manual token hunt. Pool ~69 GH/s live; difficulty M auto-retargets. Dashboard shows per-worker GH/s and HMC accrual.",
+      "action": "Download HackMe-Setup-0.1.0-rc11e.exe from https://hackme.tech/downloads.html · AMD RX 580: choose Auto or OpenCL in installer · Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats",
+      "tags": [
+        "release",
+        "mining",
+        "pool",
+        "windows",
+        "gpu"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-19-cuda-rc10-gpu-backends",
       "date": "2026-05-19",
       "title": "Release 0.1.0-rc10: native NVIDIA CUDA + AMD/Intel OpenCL",
@@ -240,21 +256,6 @@
         "community"
       ],
       "status": "published"
-    },
-    {
-      "id": "2026-05-07-release-fast-pack-pass-and-artifacts",
-      "date": "2026-05-07",
-      "title": "Release Fast-Pack PASS + Final Linux/Windows Artifacts",
-      "summary": "Final fast-profile release validation passed end-to-end (health, ultimate quick gate, security assertions, and worker dominance), and fresh Linux/Windows binaries were rebuilt with new SHA256 checksums.",
-      "impact": "Operators can deploy updated binaries with a deterministic release checklist and shorter, timeout-safe validation flow.",
-      "action": "Deploy dist/release_final_20260507 binaries to VPS, publish SHA256SUMS.txt with the release post, and run post-deploy smoke checks on status/work/global metrics.",
-      "tags": [
-        "release",
-        "testing",
-        "security",
-        "ops"
-      ],
-      "status": "deployed"
     }
   ],
   "chunk": 4
