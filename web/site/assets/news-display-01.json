@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-07-17-oss-cve-watch-day10-nghttp2-libfuzzer",
+      "date": "2026-07-17",
+      "title": "OSS CVE Watch Day 10/14 · nghttp2 · 0.38B libFuzzer exec · CLEAN",
+      "summary": "Day 10 on nghttp2: 5.0h libFuzzer depth, 384,015,656 executions at ~21,333 exec/s. Corpus 415 (297KB), 467 coverage edges. ASAN heap crashes: 0 — verdict CLEAN.",
+      "impact": "Cumulative Days 2–10: ~8.40B libFuzzer executions on persistent corpus. Day 10 HTML live on the public ledger.",
+      "action": "Day 10 report: https://hackme.tech/reports/oss-cve-watch/day10.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2",
+        "day10"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-16-oss-cve-watch-day09-nghttp2-libfuzzer",
       "date": "2026-07-16",
       "title": "OSS CVE Watch Day 9/14 · nghttp2 · 0.31B libFuzzer exec · CLEAN",
@@ -241,21 +257,6 @@
         "security",
         "settlement",
         "desktop"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-06-27-rc11p-pool-metrics-security",
-      "date": "2026-06-27",
-      "title": "HackMe 0.1.0-rc11p — GPU pool hashrate + fast metrics",
-      "summary": "Win/Linux 0.1.0-rc11p published. Coordinator reports real GPU GH/s; desktop metrics no longer hang on large SQLite WAL; security regression pack green.",
-      "impact": "Home GPU rigs show 30–70+ GH/s on the public pool instead of stuck ~0.002 GH/s. Dashboard /api/metrics responds in seconds. Claim-rate floor restores fair slots for desktop miners.",
-      "action": "Downloads: https://hackme.tech/downloads.html · Pool: https://hackme.tech/pool/coordinator · Gate: bash scripts/ops/new_miner_journey_gate.sh",
-      "tags": [
-        "release",
-        "mining",
-        "security",
-        "pool"
       ],
       "status": "published"
     }

@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-05-21-windows-installer-rc11f",
+      "date": "2026-05-21",
+      "title": "Release 0.1.0-rc11f: Windows CP1251 fix + pool token repair",
+      "summary": "Installer and scripts use ASCII-only PowerShell (Russian Windows no longer breaks detect_gpu / write_hackme_env). Auto-repair hackme.env from pool.miner.token on miner start. RX 580 2048SP rig profile applied when GPU is detected. Pool live ~69 GH/s, M ~143M.",
+      "impact": "Windows miners on RU locales: install and Start HackMe Miner without PowerShell parse errors; pool token and amd_rx580_2048sp profile written reliably.",
+      "action": "Download HackMe-Setup-0.1.0-rc11f.exe from https://hackme.tech/downloads.html · Existing installs: run start_hackme_miner.bat (repairs env) or reinstall rc11f.",
+      "tags": [
+        "release",
+        "mining",
+        "pool",
+        "windows",
+        "gpu"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-20-windows-installer-rc11e",
       "date": "2026-05-20",
       "title": "Release 0.1.0-rc11e: Windows installer + GPU wizard + pool token fix",
@@ -239,21 +255,6 @@
         "docs",
         "economics",
         "transparency"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-07-economics-model-public-page",
-      "date": "2026-05-07",
-      "title": "Public Economics Model (Chain · Pool · Orders)",
-      "summary": "A dedicated site page and docs cross-links explain how PoH block credits (primary wallet on the producing node), coordinator worker accrual/settlement, and paid audit orders fit together — explicitly not classic Ethereum-style pooled block subsidy.",
-      "impact": "Miners and partners get a single reference for expectations: block header transparency vs wallet credit path, and why fleet income follows coordinator policy.",
-      "action": "Share economics-model.html from the Docs hub; operators keep settlement automation and dashboards as the source of truth for accrued vs settled HMC.",
-      "tags": [
-        "docs",
-        "mining",
-        "economics",
-        "community"
       ],
       "status": "published"
     }

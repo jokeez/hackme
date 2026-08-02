@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-05-07-economics-model-public-page",
+      "date": "2026-05-07",
+      "title": "Public Economics Model (Chain · Pool · Orders)",
+      "summary": "A dedicated site page and docs cross-links explain how PoH block credits (primary wallet on the producing node), coordinator worker accrual/settlement, and paid audit orders fit together — explicitly not classic Ethereum-style pooled block subsidy.",
+      "impact": "Miners and partners get a single reference for expectations: block header transparency vs wallet credit path, and why fleet income follows coordinator policy.",
+      "action": "Share economics-model.html from the Docs hub; operators keep settlement automation and dashboards as the source of truth for accrued vs settled HMC.",
+      "tags": [
+        "docs",
+        "mining",
+        "economics",
+        "community"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-07-release-fast-pack-pass-and-artifacts",
       "date": "2026-05-07",
       "title": "Release Fast-Pack PASS + Final Linux/Windows Artifacts",

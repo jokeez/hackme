@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-06-02-gpu-matrix-field-test",
+      "date": "2026-06-02",
+      "title": "GPU Matrix complete — Pascal through Blackwell on live HMC pool",
+      "summary": "Field-tested NVIDIA rigs on Vast.ai (2× GTX 1080 Ti, 4× RTX 2080 Ti, 30/40/50 series including RTX 4090 & 5090) plus operator RTX 5060 Ti desktop. Every generation: signed submits, hits, payout, and target_mod retarget on https://hackme.tech/pool/coordinator. Hub fix: multi-GPU rigs show as one worker with summed GH/s.",
+      "impact": "Miners can trust multi-GPU and cloud rent hosts; OpenCL fallback keeps mining when CUDA 13/NVRTC mismatches on Vast. Coordinator aggregation deployed to production VPS.",
+      "action": "News: https://hackme.tech/news.html · Verdict: https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md · Pool: https://hackme.tech/pool/coordinator/api/pool/stats · Downloads (current rc11l): https://hackme.tech/downloads.html",
+      "tags": [
+        "mining",
+        "infrastructure",
+        "release",
+        "gpu",
+        "pool"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-29-hms-ui-preview",
       "date": "2026-05-29",
       "title": "HackMe Storage (HMS) — ecosystem UI preview",
@@ -242,22 +258,6 @@
         "mining",
         "windows",
         "opencl",
-        "gpu"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-21-windows-installer-rc11f",
-      "date": "2026-05-21",
-      "title": "Release 0.1.0-rc11f: Windows CP1251 fix + pool token repair",
-      "summary": "Installer and scripts use ASCII-only PowerShell (Russian Windows no longer breaks detect_gpu / write_hackme_env). Auto-repair hackme.env from pool.miner.token on miner start. RX 580 2048SP rig profile applied when GPU is detected. Pool live ~69 GH/s, M ~143M.",
-      "impact": "Windows miners on RU locales: install and Start HackMe Miner without PowerShell parse errors; pool token and amd_rx580_2048sp profile written reliably.",
-      "action": "Download HackMe-Setup-0.1.0-rc11f.exe from https://hackme.tech/downloads.html · Existing installs: run start_hackme_miner.bat (repairs env) or reinstall rc11f.",
-      "tags": [
-        "release",
-        "mining",
-        "pool",
-        "windows",
         "gpu"
       ],
       "status": "published"

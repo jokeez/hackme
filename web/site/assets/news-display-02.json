@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-06-27-rc11p-pool-metrics-security",
+      "date": "2026-06-27",
+      "title": "HackMe 0.1.0-rc11p — GPU pool hashrate + fast metrics",
+      "summary": "Win/Linux 0.1.0-rc11p published. Coordinator reports real GPU GH/s; desktop metrics no longer hang on large SQLite WAL; security regression pack green.",
+      "impact": "Home GPU rigs show 30–70+ GH/s on the public pool instead of stuck ~0.002 GH/s. Dashboard /api/metrics responds in seconds. Claim-rate floor restores fair slots for desktop miners.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Pool: https://hackme.tech/pool/coordinator · Gate: bash scripts/ops/new_miner_journey_gate.sh",
+      "tags": [
+        "release",
+        "mining",
+        "security",
+        "pool"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-06-25-bitcoin30-week3",
       "date": "2026-06-25",
       "title": "Bitcoin Core 30-Day Fuzz — Week 3 Complete",
@@ -238,22 +253,6 @@
         "mining",
         "gpu",
         "infrastructure"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-06-02-gpu-matrix-field-test",
-      "date": "2026-06-02",
-      "title": "GPU Matrix complete — Pascal through Blackwell on live HMC pool",
-      "summary": "Field-tested NVIDIA rigs on Vast.ai (2× GTX 1080 Ti, 4× RTX 2080 Ti, 30/40/50 series including RTX 4090 & 5090) plus operator RTX 5060 Ti desktop. Every generation: signed submits, hits, payout, and target_mod retarget on https://hackme.tech/pool/coordinator. Hub fix: multi-GPU rigs show as one worker with summed GH/s.",
-      "impact": "Miners can trust multi-GPU and cloud rent hosts; OpenCL fallback keeps mining when CUDA 13/NVRTC mismatches on Vast. Coordinator aggregation deployed to production VPS.",
-      "action": "News: https://hackme.tech/news.html · Verdict: https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md · Pool: https://hackme.tech/pool/coordinator/api/pool/stats · Downloads (current rc11l): https://hackme.tech/downloads.html",
-      "tags": [
-        "mining",
-        "infrastructure",
-        "release",
-        "gpu",
-        "pool"
       ],
       "status": "published"
     }
