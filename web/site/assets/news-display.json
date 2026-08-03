@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-08-03-oss-cve-watch-libheif-day10-libfuzzer",
+      "date": "2026-08-03",
+      "title": "OSS CVE Watch · libheif Day 10/14 · 198.55M libFuzzer exec · CLEAN",
+      "summary": "libheif Day 10: 23.6h libFuzzer, 198,550,711 exec at ~2,338/s. Corpus 2975, 7255 coverage edges. ASAN=0 — CLEAN.",
+      "impact": "Cumulative Days 1–10: ~1614.28M exec on persistent HEIF/AVIF corpus.",
+      "action": "Day 10: https://hackme.tech/reports/oss-cve-watch-libheif/day10.html",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "libheif",
+        "day10"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-08-02-oss-cve-watch-libheif-day09-libfuzzer",
       "date": "2026-08-02",
       "title": "OSS CVE Watch · libheif Day 9/14 · 192.77M libFuzzer exec · CLEAN",

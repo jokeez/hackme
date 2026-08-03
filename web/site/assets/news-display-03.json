@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-06-02-rc11j-gpu-matrix-final",
+      "date": "2026-06-02",
+      "title": "Release 0.1.0-rc11j — GPU matrix final (CUDA auto-fallback, installer, ISO)",
+      "summary": "Production miner release after Pascal→Blackwell field tests: CUDA→OpenCL auto-fallback in workerpoh-cuda, multi-GPU pool UI aggregation, refreshed Vast pack, Windows Setup wizard, Linux bundle and HackMe OS ISO with fair-pool tuning.",
+      "impact": "Miners on CUDA 13 / Vast no longer need manual OpenCL switches; Windows/Linux/ISO downloads aligned with live pool fixes.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Verdict: https://hackme.tech/docs/HACKME_RC11J_FINAL_VERDICT.md · Matrix: https://hackme.tech/docs/VAST_GPU_MATRIX_VERDICT_20260602.md",
+      "tags": [
+        "release",
+        "mining",
+        "gpu",
+        "infrastructure"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-06-02-gpu-matrix-field-test",
       "date": "2026-06-02",
       "title": "GPU Matrix complete — Pascal through Blackwell on live HMC pool",
@@ -243,22 +258,6 @@
         "pool",
         "security",
         "mining"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-21-windows-opencl-rc11g",
-      "date": "2026-05-21",
-      "title": "Release 0.1.0-rc11g: Windows OpenCL worker (AMD RX 580 full GPU)",
-      "summary": "Windows bundle now ships workerpoh-opencl.exe (mingw cross-build). AMD Radeon rigs use native OpenCL instead of CPU-only ~0.02 GH/s. Tested on RX 580 2048SP: ~0.12+ GH/s in pool (vs ~0.021 CPU). Rig profile keeps opencl when the binary is present.",
-      "impact": "Windows AMD miners get real GPU mining in one installer; pool token and amd_rx580_2048sp profile unchanged.",
-      "action": "Download HackMe-Setup-0.1.0-rc11g.exe · Existing installs: copy workerpoh-opencl.exe next to hackme.exe and set HACKME_GPU_BACKEND=opencl, or reinstall rc11g.",
-      "tags": [
-        "release",
-        "mining",
-        "windows",
-        "opencl",
-        "gpu"
       ],
       "status": "published"
     }
