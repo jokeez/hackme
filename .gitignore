@@ -130,6 +130,9 @@ scripts/ops/pool_ideal_*.sh
 scripts/ops/start_local_ideal_miner.sh
 scripts/ops/windows_run_ideal_worker.ps1
 
+# External bounty invariant suites (Foundry) — keep local, not core HackMe
+bounty-lab/
+
 # Local future-architecture planning (keep local, never push)
 # HMS lane: full spec + mocks under adapters/hms/ — commit only docs/HMS_PUBLIC_ROADMAP.md + site preview
 adapters/
