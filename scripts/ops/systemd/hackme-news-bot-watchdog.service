@@ -5,4 +5,6 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/opt/hackme/scripts/ops/news_bot_healthcheck.sh
+# Always invoke via bash — script may lack +x (status=203/EXEC otherwise).
+ExecStart=/bin/bash /opt/hackme/scripts/ops/news_bot_healthcheck.sh
+Nice=10

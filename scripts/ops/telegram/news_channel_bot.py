@@ -8,17 +8,21 @@ Reads news entries from news.json and publishes new items to a Telegram channel.
   entries skipped by status (e.g. draft) so they are not retried forever.
 - --dry-run never writes STATE_FILE (previously dry-run could incorrectly mark items posted).
 - Second inline keyboard row links to Downloads / Economics / All news for miner UX.
+- Anti-spam: exclusive flock, claim-before-send, message fingerprints, max 1 post/cycle.
 """
 
 from __future__ import annotations
 
 import argparse
 import datetime as dt
+import fcntl
+import hashlib
+import html
 import json
 import os
 import sys
+import tempfile
 import time
-import html
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -79,7 +83,7 @@ def load_json_url(url: str, timeout_sec: int, max_retries: int) -> Dict[str, Any
         req = urllib.request.Request(
             fetch_url,
             headers={
-                "User-Agent": "hackme-news-bot/2.2",
+                "User-Agent": "hackme-news-bot/2.3",
                 "Accept": "application/json",
                 "Accept-Encoding": "identity",
             },
@@ -154,27 +158,83 @@ def tg_post(
 
 
 def state_load(path: Path) -> Dict[str, Any]:
+    empty = {"posted_ids": [], "ignored_ids": [], "posted_fingerprints": []}
     if not path.exists():
-        return {"posted_ids": [], "ignored_ids": []}
+        return dict(empty)
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
-        return {"posted_ids": [], "ignored_ids": []}
+        return dict(empty)
     posted = data.get("posted_ids")
     if not isinstance(posted, list):
         posted = []
     ign = data.get("ignored_ids")
     if not isinstance(ign, list):
         ign = []
+    fps = data.get("posted_fingerprints")
+    if not isinstance(fps, list):
+        fps = []
     return {
         "posted_ids": [str(x) for x in posted],
         "ignored_ids": [str(x) for x in ign],
+        "posted_fingerprints": [str(x) for x in fps],
     }
 
 
 def state_save(path: Path, state: Dict[str, Any]) -> None:
+    """Atomic replace + fsync so a crash mid-write cannot blank posted_ids."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(state, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+    payload = json.dumps(state, ensure_ascii=True, indent=2) + "\n"
+    fd, tmp_name = tempfile.mkstemp(
+        dir=str(path.parent),
+        prefix=".news-bot-state.",
+        suffix=".tmp",
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(payload)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_name, path)
+    except Exception:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
+
+
+def message_fingerprint(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:32]
+
+
+def acquire_run_lock(lock_path: Path):
+    """Non-blocking exclusive lock so daemon + --once cannot double-post."""
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    fh = open(lock_path, "a+", encoding="utf-8")
+    try:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        fh.close()
+        return None
+    fh.seek(0)
+    fh.truncate()
+    fh.write(f"pid={os.getpid()} at={dt.datetime.now(dt.timezone.utc).isoformat()}\n")
+    fh.flush()
+    return fh
+
+
+def release_run_lock(fh) -> None:
+    if fh is None:
+        return
+    try:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+    except OSError:
+        pass
+    try:
+        fh.close()
+    except OSError:
+        pass
 
 
 def parse_blocked_statuses(raw: str) -> set[str]:
@@ -434,6 +494,22 @@ def build_reply_markup(
     return {"inline_keyboard": rows}
 
 
+def _persist_state(
+    state_path: Path,
+    posted_list: List[str],
+    ignored_list: List[str],
+    fingerprint_list: List[str],
+) -> None:
+    state_save(
+        state_path,
+        {
+            "posted_ids": posted_list,
+            "ignored_ids": ignored_list,
+            "posted_fingerprints": fingerprint_list,
+        },
+    )
+
+
 def run_once(
     *,
     bot_token: str,
@@ -452,6 +528,60 @@ def run_once(
     max_text: int,
     miner_hint: bool,
     show_github: bool,
+    max_posts_per_cycle: int = 1,
+    lock_path: Path | None = None,
+) -> int:
+    lock_fh = None
+    if not dry_run:
+        lp = lock_path or Path(str(state_path) + ".lock")
+        lock_fh = acquire_run_lock(lp)
+        if lock_fh is None:
+            print("[news-bot] another instance holds the lock — skip cycle (anti-spam)", file=sys.stderr)
+            return 0
+
+    try:
+        return _run_once_locked(
+            bot_token=bot_token,
+            chat_id=chat_id,
+            news_url=news_url,
+            news_page_base=news_page_base,
+            state_path=state_path,
+            timeout_sec=timeout_sec,
+            fetch_retries=fetch_retries,
+            max_retries=max_retries,
+            dry_run=dry_run,
+            blocked_statuses=blocked_statuses,
+            site_home=site_home,
+            miner_button_row=miner_button_row,
+            post_gap_sec=post_gap_sec,
+            max_text=max_text,
+            miner_hint=miner_hint,
+            show_github=show_github,
+            max_posts_per_cycle=max_posts_per_cycle,
+        )
+    finally:
+        release_run_lock(lock_fh)
+
+
+def _run_once_locked(
+    *,
+    bot_token: str,
+    chat_id: str,
+    news_url: str,
+    news_page_base: str,
+    state_path: Path,
+    timeout_sec: int,
+    fetch_retries: int,
+    max_retries: int,
+    dry_run: bool,
+    blocked_statuses: set[str],
+    site_home: str,
+    miner_button_row: bool,
+    post_gap_sec: float,
+    max_text: int,
+    miner_hint: bool,
+    show_github: bool,
+    max_posts_per_cycle: int,
 ) -> int:
     try:
         payload = load_json_url(news_url, timeout_sec, fetch_retries)
@@ -477,8 +607,10 @@ def run_once(
     state = state_load(state_path)
     posted_list = list(state.get("posted_ids", []))
     ignored_list = list(state.get("ignored_ids", []))
+    fingerprint_list = list(state.get("posted_fingerprints", []))
     posted_set = set(posted_list)
     ignored_set = set(ignored_list)
+    fingerprint_set = set(fingerprint_list)
 
     candidates = [
         it
@@ -500,10 +632,7 @@ def run_once(
                 ignored_set.add(it["id"])
                 if len(ignored_list) > 2000:
                     ignored_list = ignored_list[-2000:]
-                state_save(
-                    state_path,
-                    {"posted_ids": posted_list, "ignored_ids": ignored_list},
-                )
+                _persist_state(state_path, posted_list, ignored_list, fingerprint_list)
                 print(f"[news-bot] ignored (status={st}) id={it['id']}")
             continue
         work_queue.append(it)
@@ -512,9 +641,19 @@ def run_once(
         print("[news-bot] no postable items after status filter")
         return 0
 
-    print(f"[news-bot] postable new items: {len(work_queue)}")
+    cap = max(1, int(max_posts_per_cycle))
+    if len(work_queue) > cap:
+        print(
+            f"[news-bot] postable new items: {len(work_queue)} "
+            f"(posting {cap} this cycle; rest next poll)"
+        )
+        work_queue = work_queue[:cap]
+    else:
+        print(f"[news-bot] postable new items: {len(work_queue)}")
+
     for it in work_queue:
         msg = render_message(it, max_len=max_text, miner_hint=miner_hint)
+        fp = message_fingerprint(msg)
         btn_url = build_button_url(news_page_base, it["id"])
         tg_payload: Dict[str, Any] = {
             "chat_id": chat_id,
@@ -531,23 +670,43 @@ def run_once(
         }
 
         if dry_run:
-            print(f"[news-bot] DRY_RUN would post id={it['id']}")
+            print(f"[news-bot] DRY_RUN would post id={it['id']} fp={fp}")
             print(msg)
             continue
 
+        # Same body already sent (e.g. id renamed / FORCE race) — record id, do not spam.
+        if fp in fingerprint_set:
+            print(f"[news-bot] skip duplicate fingerprint id={it['id']} fp={fp}")
+            posted_list.append(it["id"])
+            posted_set.add(it["id"])
+            if len(posted_list) > 500:
+                posted_list = posted_list[-500:]
+            _persist_state(state_path, posted_list, ignored_list, fingerprint_list)
+            continue
+
+        # Claim before send: crash after Telegram OK cannot cause a retry spam loop.
+        posted_list.append(it["id"])
+        posted_set.add(it["id"])
+        fingerprint_list.append(fp)
+        fingerprint_set.add(fp)
+        if len(posted_list) > 500:
+            posted_list = posted_list[-500:]
+        if len(fingerprint_list) > 500:
+            fingerprint_list = fingerprint_list[-500:]
+            fingerprint_set = set(fingerprint_list)
+        _persist_state(state_path, posted_list, ignored_list, fingerprint_list)
+
         ok, detail = tg_post(bot_token, tg_payload, timeout_sec, max_retries)
         if not ok:
+            # Roll back claim so a real outage can retry later (still under flock).
+            posted_list = [x for x in posted_list if x != it["id"]]
+            posted_set.discard(it["id"])
+            fingerprint_list = [x for x in fingerprint_list if x != fp]
+            fingerprint_set.discard(fp)
+            _persist_state(state_path, posted_list, ignored_list, fingerprint_list)
             print(f"[news-bot] post failed for {it['id']}: {detail}", file=sys.stderr)
             return 2
         print(f"[news-bot] posted {it['id']}")
-        posted_list.append(it["id"])
-        posted_set.add(it["id"])
-        if len(posted_list) > 500:
-            posted_list = posted_list[-500:]
-        state_save(
-            state_path,
-            {"posted_ids": posted_list, "ignored_ids": ignored_list},
-        )
         time.sleep(post_gap_sec)
 
     return 0
@@ -591,6 +750,13 @@ def main() -> int:
         max_text = 800
     if max_text > 4000:
         max_text = 4000
+    max_posts_per_cycle = env_int("MAX_POSTS_PER_CYCLE", 1)
+    if max_posts_per_cycle < 1:
+        max_posts_per_cycle = 1
+    if max_posts_per_cycle > 5:
+        max_posts_per_cycle = 5
+    lock_file = env_str("STATE_LOCK_FILE", str(state_path) + ".lock")
+    lock_path = Path(lock_file)
 
     if not args.dry_run:
         if not bot_token:
@@ -615,29 +781,34 @@ def main() -> int:
             dry_run=args.dry_run,
         )
 
+    once_kwargs = dict(
+        bot_token=bot_token,
+        chat_id=chat_id,
+        news_url=news_url,
+        news_page_base=news_page_base,
+        state_path=state_path,
+        timeout_sec=timeout_sec,
+        fetch_retries=fetch_retries,
+        max_retries=max_retries,
+        dry_run=args.dry_run,
+        blocked_statuses=blocked_statuses,
+        site_home=site_home,
+        miner_button_row=miner_button_row,
+        post_gap_sec=post_gap_sec,
+        max_text=max_text,
+        miner_hint=miner_hint,
+        show_github=show_github,
+        max_posts_per_cycle=max_posts_per_cycle,
+        lock_path=lock_path,
+    )
+
     if args.once:
-        return run_once(
-            bot_token=bot_token,
-            chat_id=chat_id,
-            news_url=news_url,
-            news_page_base=news_page_base,
-            state_path=state_path,
-            timeout_sec=timeout_sec,
-            fetch_retries=fetch_retries,
-            max_retries=max_retries,
-            dry_run=args.dry_run,
-            blocked_statuses=blocked_statuses,
-            site_home=site_home,
-            miner_button_row=miner_button_row,
-            post_gap_sec=post_gap_sec,
-            max_text=max_text,
-            miner_hint=miner_hint,
-            show_github=show_github,
-        )
+        return run_once(**once_kwargs)
 
     print(
         f"[news-bot] start polling interval={interval_sec}s feed={news_url} chat={chat_id or 'dry-run'} "
-        f"heartbeat_every={heartbeat_interval_sec}s admin={admin_chat_id or 'off'}"
+        f"heartbeat_every={heartbeat_interval_sec}s admin={admin_chat_id or 'off'} "
+        f"max_posts_per_cycle={max_posts_per_cycle}"
     )
     last_heartbeat = 0.0
     while True:
@@ -656,24 +827,7 @@ def main() -> int:
             last_heartbeat = now
             if hb_code != 0:
                 print(f"[news-bot] heartbeat cycle code={hb_code}", file=sys.stderr)
-        code = run_once(
-            bot_token=bot_token,
-            chat_id=chat_id,
-            news_url=news_url,
-            news_page_base=news_page_base,
-            state_path=state_path,
-            timeout_sec=timeout_sec,
-            fetch_retries=fetch_retries,
-            max_retries=max_retries,
-            dry_run=args.dry_run,
-            blocked_statuses=blocked_statuses,
-            site_home=site_home,
-            miner_button_row=miner_button_row,
-            post_gap_sec=post_gap_sec,
-            max_text=max_text,
-            miner_hint=miner_hint,
-            show_github=show_github,
-        )
+        code = run_once(**once_kwargs)
         if code != 0:
             print(f"[news-bot] cycle ended with code={code}", file=sys.stderr)
         time.sleep(interval_sec)

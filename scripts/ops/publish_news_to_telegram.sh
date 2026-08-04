@@ -34,12 +34,16 @@ fid='${FORCE_ID}'
 if os.path.isfile(p):
     s=json.load(open(p))
     s['posted_ids']=[x for x in s.get('posted_ids',[]) if x!=fid]
-    json.dump(s, open(p,'w'), indent=2)
+    # Allow same body after explicit FORCE (fingerprints would otherwise block).
+    s['posted_fingerprints']=[]
+    with open(p,'w',encoding='utf-8') as f:
+        json.dump(s, f, indent=2)
+        f.write('\\n')
     print('updated', p)
 else:
     print('no state file yet')
 PY"
 fi
 
-echo "[news-tg] run channel bot --once"
-_deploy_ssh "$NODE_SSH" 'cd /opt/hackme && set -a && [ -f /opt/hackme/.env.newsbot ] && . /opt/hackme/.env.newsbot; set +a; export NEWS_SHOW_GITHUB_BUTTON="${NEWS_SHOW_GITHUB_BUTTON:-0}"; python3 scripts/ops/telegram/news_channel_bot.py --once' 2>&1
+echo "[news-tg] run channel bot --once (flock serializes vs daemon)"
+_deploy_ssh "$NODE_SSH" 'cd /opt/hackme && set -a && [ -f /opt/hackme/.env.newsbot ] && . /opt/hackme/.env.newsbot; set +a; export NEWS_SHOW_GITHUB_BUTTON="${NEWS_SHOW_GITHUB_BUTTON:-0}"; export MAX_POSTS_PER_CYCLE="${MAX_POSTS_PER_CYCLE:-1}"; python3 scripts/ops/telegram/news_channel_bot.py --once' 2>&1
