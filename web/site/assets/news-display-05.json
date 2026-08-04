@@ -1,6 +1,20 @@
 {
   "items": [
     {
+      "id": "2026-05-07-operator-final-checklist",
+      "date": "2026-05-07",
+      "title": "Operator Final Checklist (Repo + Site)",
+      "summary": "Added docs/OPERATOR_FINAL_CHECKLIST.md and public operator-checklist.html linking predeploy/fuzz gates, deploy commands, settlement scripts, and troubleshooting flow.",
+      "impact": "Operators have one path for pre-final verification without hunting scattered runbooks.",
+      "action": "Open /operator-checklist.html after deploy; keep fuzz_release_gate green on release candidates.",
+      "tags": [
+        "docs",
+        "ops",
+        "release"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-07-tokenomics-copy-aligned-chain",
       "date": "2026-05-07",
       "title": "Site Tokenomics: Order Fees vs Transfer Burns (Copy Fix)",

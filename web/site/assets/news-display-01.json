@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-07-19-oss-cve-watch-day12-nghttp2-libfuzzer",
+      "date": "2026-07-19",
+      "title": "OSS CVE Watch Day 12/14 · nghttp2 · 2.39B libFuzzer exec · CLEAN",
+      "summary": "Day 12 on nghttp2: 14.2h libFuzzer depth, 2,387,073,360 executions at ~46,706 exec/s. Corpus 410 (307KB), 467 coverage edges. ASAN heap crashes: 0 — verdict CLEAN.",
+      "impact": "Cumulative Days 2–12: ~10.94B libFuzzer executions on persistent corpus. Day 12 HTML live on the public ledger.",
+      "action": "Day 12 report: https://hackme.tech/reports/oss-cve-watch/day12.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2",
+        "day12"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-18-oss-cve-watch-day11-nghttp2-libfuzzer",
       "date": "2026-07-18",
       "title": "OSS CVE Watch Day 11/14 · nghttp2 · 0.15B libFuzzer exec · CLEAN",
@@ -242,21 +258,6 @@
         "linux",
         "fuzzing",
         "settlement"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-06-28-cfgpack-upstream-fix",
-      "date": "2026-06-28",
-      "title": "Upstream win: cfgpack MessagePack int64 UBSan — fixed in b5e7cff",
-      "summary": "HackMe Tier-D fuzz caught signed integer overflow in cfgpack_msgpack_decode_int64(). We reported cfgpack#1; maintainer @Arsievert merged fix b5e7cff. Not a CVE — real UB hardening before memory bugs ship.",
-      "impact": "Proof that oss_cve hunts land upstream: report → fix in days, no drama, no fake CVE. ASAN saw no heap corruption; UBSan did its job. Case study live on hackme.tech/reports/oss-cve/cases/cfgpack.html",
-      "action": "Case: https://hackme.tech/reports/oss-cve/cases/cfgpack.html · Issue: https://github.com/Arsievert/cfgpack/issues/1 · Fix: https://github.com/Arsievert/cfgpack/commit/b5e7cff",
-      "tags": [
-        "security",
-        "research",
-        "oss",
-        "disclosure"
       ],
       "status": "published"
     }

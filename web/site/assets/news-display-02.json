@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-06-28-cfgpack-upstream-fix",
+      "date": "2026-06-28",
+      "title": "Upstream win: cfgpack MessagePack int64 UBSan — fixed in b5e7cff",
+      "summary": "HackMe Tier-D fuzz caught signed integer overflow in cfgpack_msgpack_decode_int64(). We reported cfgpack#1; maintainer @Arsievert merged fix b5e7cff. Not a CVE — real UB hardening before memory bugs ship.",
+      "impact": "Proof that oss_cve hunts land upstream: report → fix in days, no drama, no fake CVE. ASAN saw no heap corruption; UBSan did its job. Case study live on hackme.tech/reports/oss-cve/cases/cfgpack.html",
+      "action": "Case: https://hackme.tech/reports/oss-cve/cases/cfgpack.html · Issue: https://github.com/Arsievert/cfgpack/issues/1 · Fix: https://github.com/Arsievert/cfgpack/commit/b5e7cff",
+      "tags": [
+        "security",
+        "research",
+        "oss",
+        "disclosure"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-06-27-rc11q-settlement-banner",
       "date": "2026-06-27",
       "title": "HackMe 0.1.0-rc11q — payouts visible again, updates without reinstall",
@@ -239,21 +254,6 @@
         "hackme-os",
         "iso",
         "mining"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-06-03-rc11k-launch-candidate",
-      "date": "2026-06-03",
-      "title": "Release 0.1.0-rc11k — launch candidate (production miner)",
-      "summary": "Production download channel after rc11j GPU matrix: fixed public /api/status canonical loop, coordinator-first dashboard telemetry, resilience and economics gates PASS, golden-path onboarding. Windows Setup, Linux bundle, and HackMe OS ISO rebuilt with hackme node fix — not a demo build.",
-      "impact": "Superseded for HackMe OS ISO by rc11l (2026-06-04). Downloads channel: rc11l.",
-      "action": "Downloads: https://hackme.tech/downloads.html · Verdict: https://hackme.tech/docs/HACKME_RC11K_LAUNCH_CANDIDATE.md · Pool: https://hackme.tech/pool/coordinator/api/work/stats",
-      "tags": [
-        "release",
-        "mining",
-        "infrastructure",
-        "pool"
       ],
       "status": "published"
     }

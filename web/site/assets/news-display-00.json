@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-08-04-oss-cve-watch-libheif-day11-libfuzzer",
+      "date": "2026-08-04",
+      "title": "OSS CVE Watch · libheif Day 11/14 · 140.36M libFuzzer exec · CLEAN",
+      "summary": "libheif Day 11: 16.1h libFuzzer, 140,357,572 exec at ~2,428/s. Corpus 3005, 7290 coverage edges. ASAN=0 — CLEAN.",
+      "impact": "Cumulative Days 1–11: ~1754.64M exec on persistent HEIF/AVIF corpus.",
+      "action": "Day 11: https://hackme.tech/reports/oss-cve-watch-libheif/day11.html",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "libheif",
+        "day11"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-08-03-oss-cve-watch-libheif-day10-libfuzzer",
       "date": "2026-08-03",
       "title": "OSS CVE Watch · libheif Day 10/14 · 198.55M libFuzzer exec · CLEAN",
@@ -257,22 +273,6 @@
         "fuzzing",
         "nghttp2",
         "day13"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-07-19-oss-cve-watch-day12-nghttp2-libfuzzer",
-      "date": "2026-07-19",
-      "title": "OSS CVE Watch Day 12/14 · nghttp2 · 2.39B libFuzzer exec · CLEAN",
-      "summary": "Day 12 on nghttp2: 14.2h libFuzzer depth, 2,387,073,360 executions at ~46,706 exec/s. Corpus 410 (307KB), 467 coverage edges. ASAN heap crashes: 0 — verdict CLEAN.",
-      "impact": "Cumulative Days 2–12: ~10.94B libFuzzer executions on persistent corpus. Day 12 HTML live on the public ledger.",
-      "action": "Day 12 report: https://hackme.tech/reports/oss-cve-watch/day12.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
-      "tags": [
-        "research",
-        "oss-cve",
-        "fuzzing",
-        "nghttp2",
-        "day12"
       ],
       "status": "published"
     }

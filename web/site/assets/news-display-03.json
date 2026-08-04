@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-06-03-rc11k-launch-candidate",
+      "date": "2026-06-03",
+      "title": "Release 0.1.0-rc11k — launch candidate (production miner)",
+      "summary": "Production download channel after rc11j GPU matrix: fixed public /api/status canonical loop, coordinator-first dashboard telemetry, resilience and economics gates PASS, golden-path onboarding. Windows Setup, Linux bundle, and HackMe OS ISO rebuilt with hackme node fix — not a demo build.",
+      "impact": "Superseded for HackMe OS ISO by rc11l (2026-06-04). Downloads channel: rc11l.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Verdict: https://hackme.tech/docs/HACKME_RC11K_LAUNCH_CANDIDATE.md · Pool: https://hackme.tech/pool/coordinator/api/work/stats",
+      "tags": [
+        "release",
+        "mining",
+        "infrastructure",
+        "pool"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-06-02-rc11j-gpu-matrix-final",
       "date": "2026-06-02",
       "title": "Release 0.1.0-rc11j — GPU matrix final (CUDA auto-fallback, installer, ISO)",
@@ -243,21 +258,6 @@
         "pool",
         "security",
         "infrastructure"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-21-coordinator-stress-bct",
-      "date": "2026-05-21",
-      "title": "Coordinator stress test passed · Bitcointalk update · MiningPoolStats listing",
-      "summary": "10-minute mega stress: 100 virtual workers, 0% hard errors, no coordinator crash, RAM stable (~12→20 MB), halving at block 2,102,401 verified (0.01→0.005 HMC). Malformed ingress and chaos disconnects handled cleanly. Public pool on hackme.tech — HTTP coordinator (not Stratum). Bitcointalk ANN updated; MiningPoolStats submission in progress.",
-      "impact": "Miners can trust coordinator stability under load; follow the official ANN thread for setup. OpenCL Windows builds (rc11g) and live pool stats unchanged.",
-      "action": "Read the update on Bitcointalk: https://bitcointalk.org/index.php?topic=5583373.0 · Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats · Downloads: https://hackme.tech/downloads.html · Stress harness in repo: scripts/tests/coordinator_mega_stress.sh",
-      "tags": [
-        "infrastructure",
-        "pool",
-        "security",
-        "mining"
       ],
       "status": "published"
     }
