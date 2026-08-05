@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-07-02-rc11r-linux-miner-layout",
+      "date": "2026-07-02",
+      "title": "HackMe 0.1.0-rc11r — Linux miners start again + fuzz payouts path",
+      "summary": "Win/Linux/ISO rc11r live. Linux tarball ships scripts/ops/worker_autostart.sh and bin/workerpoh-opencl — fixes worker_script_missing and exit 127. Fuzz pool settle outbox, escrow cleanup, and mining settlement ops fixes included.",
+      "impact": "Fresh Linux extract no longer loops on missing worker script. Friends on rc11q with manual symlinks should reinstall or run fix_miner_layout.sh. B2B fuzz campaigns get pull-mode settle relay; ~500 HMC stale escrow refunded in ops pass.",
+      "action": "Download: https://hackme.tech/downloads.html · Linux: extract → bash start_hackme_miner.sh · Old folder: bash fix_miner_layout.sh · Pool: https://hackme.tech/pool/coordinator",
+      "tags": [
+        "release",
+        "mining",
+        "linux",
+        "fuzzing",
+        "settlement"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-06-28-cfgpack-upstream-fix",
       "date": "2026-06-28",
       "title": "Upstream win: cfgpack MessagePack int64 UBSan — fixed in b5e7cff",
@@ -239,21 +255,6 @@
         "security",
         "infrastructure",
         "research"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-06-04-rc11l-iso-live-boot",
-      "date": "2026-06-04",
-      "title": "HackMe OS 0.1.0-rc11l — live USB overlay boot fix",
-      "summary": "Live USB on laptops panicked with overlay not loaded: casper live boot never runs local-premount. rc11l loads kernel modules in casper-premount before the squashfs mounts. Windows and Linux installers unchanged; download channel is rc11l.",
-      "impact": "Use HackMe-OS-0.1.0-rc11l-amd64.iso only for USB rigs until hardware sign-off.",
-      "action": "Downloads and SHA256: hackme.tech/downloads.html#hackme-os",
-      "tags": [
-        "release",
-        "hackme-os",
-        "iso",
-        "mining"
       ],
       "status": "published"
     }

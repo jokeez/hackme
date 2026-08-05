@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-05-22-ecosystem-chaos-hackme-os",
+      "date": "2026-05-22",
+      "title": "Ecosystem dashboard · nightly chaos guard · HackMe OS miner ISO",
+      "summary": "Desktop dashboard home is now the Ecosystem coin table (Hive-style): live HMC pool stats, clickable mining entry, roadmap slots for future chains. Nightly chaos guard tests 5000 payout ledger drift, HTTP replay/tamper (403), and HackMe OS init-worker.ini hardening. HackMe OS live USB build: CPU isolation, RT scheduler, GPU performance mode, fair pool worker autostart.",
+      "impact": "Miners get a clearer pool-first UI; operators get automated security regression tests; Linux rigs can boot a dedicated HackMe OS image pointed at hackme.tech pool.",
+      "action": "Pull latest main · Dashboard: http://127.0.0.1:8080 (Ecosystem tab) · Pool: https://hackme.tech/pool/coordinator/api/work/stats · Docs: docs/HACKME_OS.md · Chaos tests: bash scripts/tests/nightly_chaos_guard.sh",
+      "tags": [
+        "release",
+        "mining",
+        "pool",
+        "security",
+        "infrastructure"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-21-coordinator-stress-bct",
       "date": "2026-05-21",
       "title": "Coordinator stress test passed · Bitcointalk update · MiningPoolStats listing",
@@ -242,21 +258,6 @@
         "core",
         "ops",
         "fuzz",
-        "release"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-07-fuzz-product-guide-site",
-      "date": "2026-05-07",
-      "title": "Fuzz Campaigns Guide (Docs + Site)",
-      "summary": "Added docs/FUZZ_PRODUCT_GUIDE.md and public fuzz-guide.html covering fuzz_release_gate.sh, HACKME_FUZZ_AUTORUN and artifact env, report tokens, CI gate endpoint, and housekeeping APIs.",
-      "impact": "Operators and auditors have a single fuzz onboarding path linked from Docs, API reference, and operator checklist.",
-      "action": "Visit /fuzz-guide.html after deploy; keep fuzz_release_gate green before tagging releases.",
-      "tags": [
-        "docs",
-        "fuzz",
-        "security",
         "release"
       ],
       "status": "published"

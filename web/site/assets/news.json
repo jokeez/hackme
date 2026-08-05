@@ -1,6 +1,44 @@
 {
   "items": [
     {
+      "id": "2026-08-05-oss-cve-watch-libheif-day12-libfuzzer",
+      "date": "2026-08-05",
+      "title": "OSS CVE Watch · libheif Day 12/14 · 303.19M libFuzzer exec · CLEAN",
+      "summary": "libheif Day 12: 36.4h libFuzzer, 303,192,096 exec at ~2,316/s. Corpus 3155, 7383 coverage edges. ASAN=0 — CLEAN.",
+      "impact": "Cumulative Days 1–12: ~2057.83M exec on persistent HEIF/AVIF corpus.",
+      "action": "Day 12: https://hackme.tech/reports/oss-cve-watch-libheif/day12.html",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "libheif",
+        "day12"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "OSS CVE Watch · libheif Day 12/14 · CLEAN",
+        "lead": "303.2M libFuzzer exec · ~36.4h ASAN · corpus 3155 · 0 crashes",
+        "bullets": [
+          "Day 12 libheif: ~303.2M executions @ ~2,316/s · 36.4h",
+          "ASAN=0 · verdict CLEAN",
+          "Persistent HEIF/AVIF corpus: 3155 inputs · 7383 coverage edges",
+          "Ledger: https://hackme.tech/reports/oss-cve-watch-libheif/day12.html",
+          "Series Days 1–12 cumulative ~2057.8M exec on the same corpus"
+        ],
+        "footer": "hackme.tech/reports/oss-cve-watch-libheif/ · research · not a CVE claim"
+      },
+      "discord": {
+        "title": "OSS CVE Watch · libheif Day 12 CLEAN",
+        "body": "**libheif Day 12/14 — CLEAN**\n\n• **~303.2M** libFuzzer exec · ~36.4h · ~2,316/s\n• Corpus **3155** · **7383** edges · **ASAN=0**\n• [Day 12 ledger](https://hackme.tech/reports/oss-cve-watch-libheif/day12.html)\n",
+        "ping": "#announcements"
+      },
+      "links": {
+        "day12": "https://hackme.tech/reports/oss-cve-watch-libheif/day12.html",
+        "hub": "https://hackme.tech/reports/oss-cve-watch-libheif/",
+        "research": "https://hackme.tech/research.html"
+      }
+    },
+    {
       "id": "2026-08-04-oss-cve-watch-libheif-day11-libfuzzer",
       "date": "2026-08-04",
       "title": "OSS CVE Watch · libheif Day 11/14 · 140.36M libFuzzer exec · CLEAN",
