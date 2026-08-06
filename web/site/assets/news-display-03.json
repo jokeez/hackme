@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-06-04-live-fuzz-security-audits",
+      "date": "2026-06-04",
+      "title": "Live fuzz security audits — Solana SPL & Bitcoin Core guards (completed)",
+      "summary": "We ran two real customer-style security audits on a local HackMe node: upstream WASM guards (Solana Token owner-check, Bitcoin Core HasValidOps), local autorunner, HMC fuzz escrow, and fuzz_report_v2 HTML with executive summary, triage, and repro_cmd. Solana: 64/64 runs, warn_guard_signals (detector semantics — guard signals, not mainnet CVEs). Bitcoin: 48/48 runs in seconds, warn_medium, 0 critical/high. Operator phasing gate: 37 pass / 0 fail on the same wallet pipeline.",
+      "impact": "B2B audits are live on the node — not slides. Customers run Security audit on localhost; reports are token-gated. Choose pow_gate + upstream guards for honest executive verdicts; detector-only on strict guards can look like dozens of highs without triage context.",
+      "action": "Local node: http://127.0.0.1:8080/#orders (Security audit) · Fuzz guide: https://hackme.tech/fuzz-guide.html · Downloads: https://hackme.tech/downloads.html#local-node",
+      "tags": [
+        "fuzz",
+        "security",
+        "infrastructure",
+        "research"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-06-04-rc11l-iso-live-boot",
       "date": "2026-06-04",
       "title": "HackMe OS 0.1.0-rc11l — live USB overlay boot fix",
@@ -241,22 +256,6 @@
         "hackme-os",
         "infrastructure",
         "security"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-22-zero-knowledge-start-downloads",
-      "date": "2026-05-22",
-      "title": "Zero-Knowledge Start · HackMe OS on downloads · Windows worker watchdog",
-      "summary": "HackMe OS: flash USB, boot — empty hackme.ini triggers auto HMC wallet + 24-word recovery phrase on screen, then instant pool mining (no config). New downloads section for the live ISO. Windows installer ships worker watchdog (mining stays up after GPU crashes). Site + manifests updated.",
-      "impact": "Miners can start in zero seconds on ISO rigs; Windows rigs auto-restart the pool worker; official ISO and checksums appear on hackme.tech/downloads when the build is published.",
-      "action": "Downloads: https://hackme.tech/downloads.html#hackme-os · Windows: HackMe-Setup exe · ISO docs: https://github.com/jokeez/hackme/blob/main/docs/HACKME_OS.md · Pool: https://hackme.tech/pool/coordinator/api/work/stats",
-      "tags": [
-        "release",
-        "mining",
-        "hackme-os",
-        "windows",
-        "infrastructure"
       ],
       "status": "published"
     }

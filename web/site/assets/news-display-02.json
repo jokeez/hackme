@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-07-01-b2b-fuzz-final",
+      "date": "2026-07-01",
+      "title": "B2B Fuzz Final — one command from WASM guard to CI gate",
+      "summary": "Ship a security guard, pick Scan · Audit · Deep, miners fuzz it on the pool, get an HTML report plus a pass/fail gate your pipeline can enforce. hackme-fuzzing wizard — no browser admin on the public site.",
+      "impact": "Protocol teams get a productized audit path: local node escrow (20/80 HMC), distributed useful-PoW workers, customer report token, GET /gate for CI. Coordinator now re-verifies WASM on found nonces — fabricated worker gate passes cannot drain bounty. Ops: fuzz_b2b_final_gate.sh → VERDICT.md.",
+      "action": "Developers: https://hackme.tech/developers.html · CLI: https://hackme.tech/downloads.html#fuzzing-client · Tracker: https://hackme.tech/fuzzing-console.html · Command: hackme-fuzzing wizard --wasm guard.wasm --package audit",
+      "tags": [
+        "fuzzing",
+        "b2b",
+        "security",
+        "product",
+        "devtools"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-02-rc11r-linux-miner-layout",
       "date": "2026-07-02",
       "title": "HackMe 0.1.0-rc11r — Linux miners start again + fuzz payouts path",
@@ -240,21 +256,6 @@
         "wallet",
         "mining",
         "infrastructure"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-06-04-live-fuzz-security-audits",
-      "date": "2026-06-04",
-      "title": "Live fuzz security audits — Solana SPL & Bitcoin Core guards (completed)",
-      "summary": "We ran two real customer-style security audits on a local HackMe node: upstream WASM guards (Solana Token owner-check, Bitcoin Core HasValidOps), local autorunner, HMC fuzz escrow, and fuzz_report_v2 HTML with executive summary, triage, and repro_cmd. Solana: 64/64 runs, warn_guard_signals (detector semantics — guard signals, not mainnet CVEs). Bitcoin: 48/48 runs in seconds, warn_medium, 0 critical/high. Operator phasing gate: 37 pass / 0 fail on the same wallet pipeline.",
-      "impact": "B2B audits are live on the node — not slides. Customers run Security audit on localhost; reports are token-gated. Choose pow_gate + upstream guards for honest executive verdicts; detector-only on strict guards can look like dozens of highs without triage context.",
-      "action": "Local node: http://127.0.0.1:8080/#orders (Security audit) · Fuzz guide: https://hackme.tech/fuzz-guide.html · Downloads: https://hackme.tech/downloads.html#local-node",
-      "tags": [
-        "fuzz",
-        "security",
-        "infrastructure",
-        "research"
       ],
       "status": "published"
     }

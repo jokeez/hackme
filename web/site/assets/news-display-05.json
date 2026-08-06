@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-05-07-status-schema-canonical-overlay",
+      "date": "2026-05-07",
+      "title": "/api/status: Schema Always + Canonical Economics Overlay",
+      "summary": "Follower/worker nodes now always report local SQLite schema_version for migration gates; remote canonical URL merges economics/crypto/consensus_policy from canon /api/status so fuzz_release_gate economics checks work on pool followers.",
+      "impact": "private_stage_gate schema-version-match passes on migrated DBs; dashboards show canon-aligned policy without implying local ledger economics.",
+      "action": "Rebuild/restart nodes; verify GET /api/status schema fields; optional ADMIN_TOKEN BASE=https://hackme.tech bash scripts/ops/run_canonical_fuzz_gate.sh when ops-approved.",
+      "tags": [
+        "core",
+        "ops",
+        "fuzz",
+        "release"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-07-fuzz-product-guide-site",
       "date": "2026-05-07",
       "title": "Fuzz Campaigns Guide (Docs + Site)",

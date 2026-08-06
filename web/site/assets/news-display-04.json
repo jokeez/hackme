@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-05-22-zero-knowledge-start-downloads",
+      "date": "2026-05-22",
+      "title": "Zero-Knowledge Start · HackMe OS on downloads · Windows worker watchdog",
+      "summary": "HackMe OS: flash USB, boot — empty hackme.ini triggers auto HMC wallet + 24-word recovery phrase on screen, then instant pool mining (no config). New downloads section for the live ISO. Windows installer ships worker watchdog (mining stays up after GPU crashes). Site + manifests updated.",
+      "impact": "Miners can start in zero seconds on ISO rigs; Windows rigs auto-restart the pool worker; official ISO and checksums appear on hackme.tech/downloads when the build is published.",
+      "action": "Downloads: https://hackme.tech/downloads.html#hackme-os · Windows: HackMe-Setup exe · ISO docs: https://github.com/jokeez/hackme/blob/main/docs/HACKME_OS.md · Pool: https://hackme.tech/pool/coordinator/api/work/stats",
+      "tags": [
+        "release",
+        "mining",
+        "hackme-os",
+        "windows",
+        "infrastructure"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-22-ecosystem-chaos-hackme-os",
       "date": "2026-05-22",
       "title": "Ecosystem dashboard · nightly chaos guard · HackMe OS miner ISO",
@@ -246,21 +262,6 @@
         "ops"
       ],
       "status": "deployed"
-    },
-    {
-      "id": "2026-05-07-status-schema-canonical-overlay",
-      "date": "2026-05-07",
-      "title": "/api/status: Schema Always + Canonical Economics Overlay",
-      "summary": "Follower/worker nodes now always report local SQLite schema_version for migration gates; remote canonical URL merges economics/crypto/consensus_policy from canon /api/status so fuzz_release_gate economics checks work on pool followers.",
-      "impact": "private_stage_gate schema-version-match passes on migrated DBs; dashboards show canon-aligned policy without implying local ledger economics.",
-      "action": "Rebuild/restart nodes; verify GET /api/status schema fields; optional ADMIN_TOKEN BASE=https://hackme.tech bash scripts/ops/run_canonical_fuzz_gate.sh when ops-approved.",
-      "tags": [
-        "core",
-        "ops",
-        "fuzz",
-        "release"
-      ],
-      "status": "published"
     }
   ],
   "chunk": 4

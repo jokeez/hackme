@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-07-20-oss-cve-watch-day14-nghttp2-libfuzzer",
+      "date": "2026-07-20",
+      "title": "OSS CVE Watch Day 14/14 · nghttp2 · 3.03B libFuzzer exec · CLEAN",
+      "summary": "Day 14 on nghttp2: 17.0h libFuzzer depth, 3,029,631,004 executions at ~49,622 exec/s. Corpus 420 (305KB), 467 coverage edges. ASAN heap crashes: 0 — verdict CLEAN.",
+      "impact": "Cumulative Days 2–14: ~14.32B libFuzzer executions on persistent corpus. Day 14 HTML live on the public ledger.",
+      "action": "Day 14 report: https://hackme.tech/reports/oss-cve-watch/day14.html · Series hub: https://hackme.tech/reports/oss-cve-watch/",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "nghttp2",
+        "day14"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-19-oss-cve-watch-day13-nghttp2-libfuzzer",
       "date": "2026-07-19",
       "title": "OSS CVE Watch Day 13/14 · nghttp2 · 0.36B libFuzzer exec · CLEAN",
@@ -242,22 +258,6 @@
         "ops",
         "research",
         "roadmap"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-07-01-b2b-fuzz-final",
-      "date": "2026-07-01",
-      "title": "B2B Fuzz Final — one command from WASM guard to CI gate",
-      "summary": "Ship a security guard, pick Scan · Audit · Deep, miners fuzz it on the pool, get an HTML report plus a pass/fail gate your pipeline can enforce. hackme-fuzzing wizard — no browser admin on the public site.",
-      "impact": "Protocol teams get a productized audit path: local node escrow (20/80 HMC), distributed useful-PoW workers, customer report token, GET /gate for CI. Coordinator now re-verifies WASM on found nonces — fabricated worker gate passes cannot drain bounty. Ops: fuzz_b2b_final_gate.sh → VERDICT.md.",
-      "action": "Developers: https://hackme.tech/developers.html · CLI: https://hackme.tech/downloads.html#fuzzing-client · Tracker: https://hackme.tech/fuzzing-console.html · Command: hackme-fuzzing wizard --wasm guard.wasm --package audit",
-      "tags": [
-        "fuzzing",
-        "b2b",
-        "security",
-        "product",
-        "devtools"
       ],
       "status": "published"
     }
