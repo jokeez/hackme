@@ -1,6 +1,6 @@
 # HackMe Network — exchange listing memo (one page)
 
-**Version:** 2026-07-31 · **Contact:** https://hackme.tech/contacts.html · **Repo:** https://github.com/jokeez/hackme (AGPL-3.0)
+**Version:** 2026-08-07 · **Contact:** https://hackme.tech/contacts.html · **Repo:** https://github.com/jokeez/hackme (AGPL-3.0)
 
 ---
 
@@ -50,7 +50,7 @@ HackMe is **useful-compute infrastructure**: a native PoH chain (HMC), coordinat
 ## Technology transparency
 
 - Open source node, coordinator, worker binaries
-- Security research program (Bitcoin30 Week 1 public report)
+- Security research program: Bitcoin30 Week 1 + OSS CVE Watch (nghttp2 14/14 CLEAN · libheif 14/14 CLEAN)
 - Policy regression locks in Go (`economics_test.go`)
 
 ## Integration pack

@@ -66,9 +66,9 @@ Three layers on one stack:
 
 ## Slide 10 — Roadmap
 
-- Q2–Q3 2026: HMC PoW CEX · SUP companion · HMS pilot
-- Ongoing: Bitcoin30 series · B2B integrators
-- Later: aggregators, MM, legal entity for Tier-1
+- Q3 2026: own exchange paper soft (~15 Sep) · order clients · B2B integrators
+- Research ledgers closed (Bitcoin30 W1 · nghttp2 14/14 · libheif 14/14) — architecture + pool narrative next
+- Later: foreign PoW CEX if gates · aggregators, MM, legal entity for Tier-1
 
 ## Slide 11 — Risks
 
