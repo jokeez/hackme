@@ -35,6 +35,8 @@ a { color: inherit; text-decoration: none; }
 .bg-glow-b { background: #0ea5a8; bottom: -14rem; right: -8rem; }
 
 .topbar {
+  position: relative;
+  z-index: 50;
   max-width: 1180px;
   margin: 0 auto;
   padding: max(1.1rem, env(safe-area-inset-top)) 1.2rem 1.1rem;
@@ -1094,12 +1096,12 @@ h4 { font-size: 1.02rem; }
   position: absolute;
   top: calc(100% + 0.35rem);
   right: 0;
-  z-index: 40;
+  z-index: 60;
   min-width: 11rem;
   padding: 0.45rem;
   border-radius: 0.75rem;
   border: 1px solid var(--line);
-  background: rgba(8, 14, 27, 0.96);
+  background: rgba(8, 14, 27, 0.98);
   box-shadow: var(--shadow);
   display: grid;
   gap: 0.15rem;

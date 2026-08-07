@@ -1,7 +1,7 @@
 /* Disclosure ticker — live research + pool pulse strip */
 .disclosure-ticker {
   position: relative;
-  z-index: 40;
+  z-index: 5;
   padding: 0.2rem 0 0.65rem;
   background: transparent;
 }
