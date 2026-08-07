@@ -89,3 +89,54 @@ func TestFuzzNativeQueueMigration(t *testing.T) {
 		t.Fatalf("table %q", name)
 	}
 }
+
+func TestOpenFuzzCreatesFuzzTablesOnly(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fuzz_only.db")
+	db, err := OpenFuzz(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	want := []string{
+		"fuzz_campaigns",
+		"fuzz_work_items",
+		"fuzz_findings",
+		"fuzz_campaign_escrow",
+		"fuzz_native_queue",
+		"fuzz_settle_outbox",
+		"fuzz_settle_applied",
+	}
+	for _, table := range want {
+		var name string
+		if err := db.QueryRow(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`, table).Scan(&name); err != nil {
+			t.Fatalf("missing table %s: %v", table, err)
+		}
+	}
+	for _, chain := range []string{"blocks", "wallet", "tasks"} {
+		var n int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?`, chain).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		if n != 0 {
+			t.Fatalf("OpenFuzz must not create %s", chain)
+		}
+	}
+	var v int
+	if err := db.QueryRow("PRAGMA user_version").Scan(&v); err != nil {
+		t.Fatal(err)
+	}
+	if v != CurrentSchemaVersion {
+		t.Fatalf("user_version=%d want %d", v, CurrentSchemaVersion)
+	}
+	// Smoke: insert campaign without chain tables.
+	_, err = db.Exec(`INSERT INTO fuzz_campaigns(
+		id, campaign_type, status, title, created_at
+	) VALUES (?,?,?,?,?)`,
+		"c1", "marketplace", "queued", "t", 1)
+	if err != nil {
+		t.Fatalf("insert fuzz_campaigns: %v", err)
+	}
+}
+

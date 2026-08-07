@@ -1,0 +1,11 @@
+[Unit]
+Description=Re-apply ISPmanager panel port block (ISP may rewrite iptables)
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=5min
+AccuracySec=30s
+Unit=hackme-block-ispmgr-panel.service
+
+[Install]
+WantedBy=timers.target

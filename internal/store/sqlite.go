@@ -20,7 +20,9 @@ func Open(dbPath string) (*sql.DB, error) {
 		return nil, err
 	}
 	// 60s busy_timeout: coordinator settle outbox ACK under fuzz load previously hit SQLITE_BUSY at 5s.
-	dsn := fmt.Sprintf("file:%s?_pragma=busy_timeout(60000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)", filepath.ToSlash(dbPath))
+	// wal_autocheckpoint(500) ≈ ~2MiB: keeps -wal from ballooning under pool claim/submit writers
+	// (must be in DSN so every pooled connection inherits it).
+	dsn := fmt.Sprintf("file:%s?_pragma=busy_timeout(60000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=wal_autocheckpoint(500)", filepath.ToSlash(dbPath))
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
@@ -34,6 +36,53 @@ func Open(dbPath string) (*sql.DB, error) {
 		return nil, err
 	}
 	return db, nil
+}
+
+// OpenFuzz opens a fuzz-only SQLite database (campaigns, escrow, settle outbox).
+// Same DSN pragmas as Open, but does not create blocks/wallet/tasks/chain tables.
+func OpenFuzz(dbPath string) (*sql.DB, error) {
+	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil && filepath.Dir(dbPath) != "." {
+		return nil, err
+	}
+	dsn := fmt.Sprintf("file:%s?_pragma=busy_timeout(60000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=wal_autocheckpoint(500)", filepath.ToSlash(dbPath))
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		return nil, err
+	}
+	if err := db.Ping(); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	if err := migrateFuzzOnly(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	return db, nil
+}
+
+func migrateFuzzOnly(db *sql.DB) error {
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS meta (
+		key TEXT PRIMARY KEY,
+		value TEXT NOT NULL
+	)`); err != nil {
+		return err
+	}
+	if err := migrateFuzzCampaigns(db); err != nil {
+		return err
+	}
+	if err := migrateFuzzEscrow(db); err != nil {
+		return err
+	}
+	if err := migrateFuzzNativeQueue(db); err != nil {
+		return err
+	}
+	if err := migrateFuzzSettleOutbox(db); err != nil {
+		return err
+	}
+	if err := migrateFuzzSettleApplied(db); err != nil {
+		return err
+	}
+	return bumpUserVersion(db)
 }
 
 func migrate(db *sql.DB) error {
@@ -595,6 +644,7 @@ func migrateFuzzSettleOutbox(db *sql.DB) error {
 		`ALTER TABLE fuzz_work_items ADD COLUMN settle_finding_severity TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE fuzz_work_items ADD COLUMN settle_run_outbox_id INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE fuzz_work_items ADD COLUMN settle_finding_outbox_id INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE fuzz_settle_outbox ADD COLUMN work_item_id INTEGER NOT NULL DEFAULT 0`,
 	} {
 		if _, err := db.Exec(col); err != nil {
 			if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {

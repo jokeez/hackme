@@ -1,0 +1,12 @@
+[Unit]
+Description=Block public ISPmanager panel ports (1500/1501)
+After=network-online.target iptables.service ufw.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/hackme/scripts/ops/block_ispmgr_public_panel.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -55,6 +55,51 @@ func main() {
 		log.Fatalf("sqlite: %v", err)
 	}
 	defer db.Close()
+	absDBPath := store.AbsDBPath(dbPath)
+
+	fuzzDBPath := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_FUZZ_DB"))
+	fuzzDB := db
+	fuzzDBPathLog := dbPath
+	if fuzzDBPath != "" {
+		var ferr error
+		fuzzDB, ferr = store.OpenFuzz(fuzzDBPath)
+		if ferr != nil {
+			log.Fatalf("sqlite fuzz: %v", ferr)
+		}
+		defer fuzzDB.Close()
+		fuzzDBPathLog = fuzzDBPath
+	}
+	absFuzzDBPath := store.AbsDBPath(fuzzDBPathLog)
+
+	startCoordWALMaint := func(label, absPath string, handle *sql.DB) {
+		if err := store.SetWALAutocheckpoint(handle, 500); err != nil {
+			log.Printf("sqlite %s wal_autocheckpoint: %v", label, err)
+		}
+		store.StartWALMaintenanceWithConfig(context.Background(), absPath, handle, store.WALMaintenanceConfig{
+			Interval:       2 * time.Minute,
+			ThresholdBytes: store.CoordinatorWALCheckpointBytes,
+			PassiveFirst:   true,
+		})
+		if wal := store.WALSizeBytes(absPath); wal >= store.CoordinatorWALCheckpointBytes/2 {
+			cctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_ = store.CheckpointPassive(cctx, handle)
+			if store.WALSizeBytes(absPath) >= store.CoordinatorWALCheckpointBytes/2 {
+				if err := store.CheckpointTruncate(cctx, handle); err != nil {
+					log.Printf("sqlite %s startup wal_checkpoint: %v (wal=%d bytes)", label, err, wal)
+				} else {
+					log.Printf("sqlite %s startup wal_checkpoint: wal %d -> %d bytes", label, wal, store.WALSizeBytes(absPath))
+				}
+			} else {
+				log.Printf("sqlite %s startup wal_checkpoint(PASSIVE): wal %d -> %d bytes", label, wal, store.WALSizeBytes(absPath))
+			}
+			cancel()
+		}
+	}
+	// More frequent SQLite auto-checkpoints under pool write load (~500 pages ≈ 2MiB).
+	startCoordWALMaint("db", absDBPath, db)
+	if fuzzDB != db {
+		startCoordWALMaint("fuzz_db", absFuzzDBPath, fuzzDB)
+	}
 
 	reg := lanpool.NewRegistry()
 	if err := loadLANPeers(db, reg); err != nil {
@@ -131,7 +176,7 @@ func main() {
 		_ = json.NewEncoder(w).Encode(map[string]string{"ok": "coordinator"})
 	})
 	addWorkRoutes(mux, token, workerToken, allowInsecure, reg, wm, db)
-	pf := &poolfuzz.Service{DB: db}
+	pf := &poolfuzz.Service{DB: fuzzDB}
 	pf.Settler = &poolfuzz.RelaySettler{
 		Service:          pf,
 		DefaultOrdersURL: wm.ordersProbeURL,
@@ -140,7 +185,7 @@ func main() {
 	addFuzzPoolRoutes(mux, token, workerToken, allowInsecure, wm, pf)
 	startPoolFuzzTicker(context.Background(), pf)
 
-	log.Printf("HackMe LAN coordinator → http://%s  (db %s)", addr, dbPath)
+	log.Printf("HackMe LAN coordinator → http://%s  (db=%s fuzz_db=%s)", addr, dbPath, fuzzDBPathLog)
 	if trustClientForwardedFor {
 		log.Printf("client IP trust: X-Real-IP / X-Forwarded-For enabled; CF-Connecting-IP only from Cloudflare peers (bind %s)", addr)
 	}

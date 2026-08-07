@@ -99,6 +99,7 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 		   budget_seconds=excluded.budget_seconds,
 		   config_json=excluded.config_json,
 		   summary_json=excluded.summary_json,
+		   completed_at=CASE WHEN excluded.status IN ('planned','running') THEN 0 ELSE fuzz_campaigns.completed_at END,
 		   started_at=CASE WHEN fuzz_campaigns.started_at=0 THEN excluded.started_at ELSE fuzz_campaigns.started_at END`,
 		c.ID, strings.TrimSpace(c.CampaignType), status, strings.TrimSpace(c.Title), strings.TrimSpace(c.Description),
 		c.BudgetRuns, c.BudgetSeconds, marshalConfigJSON(cfg), marshalSummaryJSON(summary), now, now)
@@ -107,9 +108,113 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 	}
 	// Seed work items once on register so claims do not need Tick-on-claim.
 	if status == "running" || status == "planned" {
+		if err := s.reconcileActiveCampaignWork(ctx, c.ID, now); err != nil {
+			return err
+		}
 		_ = s.EnsureWorkItems(ctx, c.ID, now)
 	}
 	return nil
+}
+
+// reconcileActiveCampaignWork fixes running/planned pool campaigns that cannot claim:
+// completed_at set while still active, or all work cancelled after a re-register/resync.
+func (s *Service) reconcileActiveCampaignWork(ctx context.Context, campaignID string, now int64) error {
+	if s == nil || s.DB == nil {
+		return fmt.Errorf("poolfuzz: no database")
+	}
+	campaignID = strings.TrimSpace(campaignID)
+	if campaignID == "" {
+		return fmt.Errorf("poolfuzz: campaign id required")
+	}
+	var status string
+	var budgetRuns int
+	var completedAt int64
+	if err := s.DB.QueryRowContext(ctx,
+		`SELECT status, budget_runs, completed_at FROM fuzz_campaigns WHERE id=?`, campaignID).
+		Scan(&status, &budgetRuns, &completedAt); err != nil {
+		return err
+	}
+	st := strings.TrimSpace(strings.ToLower(status))
+	if st != "planned" && st != "running" {
+		return nil
+	}
+	var doneCnt int
+	_ = s.DB.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM fuzz_work_items WHERE campaign_id=? AND status='done'`, campaignID).Scan(&doneCnt)
+	if budgetRuns > 0 && doneCnt >= budgetRuns {
+		return nil
+	}
+	if completedAt != 0 {
+		if _, err := s.DB.ExecContext(ctx,
+			`UPDATE fuzz_campaigns SET completed_at=0 WHERE id=? AND status IN ('planned','running')`, campaignID); err != nil {
+			return err
+		}
+	}
+	var claimable int
+	_ = s.DB.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM fuzz_work_items
+		 WHERE campaign_id=?
+		   AND (status='pending' OR (status='leased' AND lease_until < ?))`,
+		campaignID, now).Scan(&claimable)
+	if claimable > 0 {
+		return nil
+	}
+	var cancelled int
+	_ = s.DB.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM fuzz_work_items WHERE campaign_id=? AND status='cancelled'`, campaignID).Scan(&cancelled)
+	if cancelled == 0 {
+		return nil
+	}
+	_, err := s.DB.ExecContext(ctx,
+		`UPDATE fuzz_work_items
+		 SET status='pending', lease_owner='', lease_until=0, attempts=0, last_error='', updated_at=?
+		 WHERE campaign_id=? AND status='cancelled'`,
+		now, campaignID)
+	return err
+}
+
+// RepairZombiePoolCampaigns scans active pool campaigns and reconciles claim queues.
+func (s *Service) RepairZombiePoolCampaigns(ctx context.Context, limit int) (int, error) {
+	if s == nil || s.DB == nil {
+		return 0, fmt.Errorf("poolfuzz: no database")
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	rows, err := s.DB.QueryContext(ctx,
+		`SELECT c.id FROM fuzz_campaigns c
+		 WHERE c.status IN ('planned','running')
+		   AND json_extract(c.config_json, '$.pool_distributed') IN (1, 'true', '1')
+		   AND (
+		     c.completed_at != 0
+		     OR (
+		       COALESCE((SELECT COUNT(*) FROM fuzz_work_items w WHERE w.campaign_id=c.id AND w.status IN ('pending','leased')),0) = 0
+		       AND COALESCE((SELECT COUNT(*) FROM fuzz_work_items w WHERE w.campaign_id=c.id AND w.status='cancelled'),0) > 0
+		       AND COALESCE((SELECT COUNT(*) FROM fuzz_work_items w WHERE w.campaign_id=c.id AND w.status='done'),0) < c.budget_runs
+		     )
+		   )
+		 ORDER BY c.created_at ASC
+		 LIMIT ?`, limit)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	now := time.Now().Unix()
+	n := 0
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return n, err
+		}
+		if err := s.reconcileActiveCampaignWork(ctx, id, now); err != nil {
+			return n, err
+		}
+		if err := s.EnsureWorkItems(ctx, id, now); err != nil {
+			return n, err
+		}
+		n++
+	}
+	return n, rows.Err()
 }
 
 // SetCampaignStatus updates campaign lifecycle and cancels pending work when stopping.
@@ -289,6 +394,9 @@ func (s *Service) Tick(ctx context.Context) error {
 	}
 	defer rows.Close()
 	now := time.Now().Unix()
+	if _, err := s.RepairZombiePoolCampaigns(ctx, 10); err != nil {
+		return err
+	}
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
@@ -300,6 +408,9 @@ func (s *Service) Tick(ctx context.Context) error {
 		cfg = parseConfigJSON(cfgJSON)
 		if !poolDistributed(cfg) {
 			continue
+		}
+		if err := s.reconcileActiveCampaignWork(ctx, id, now); err != nil {
+			return err
 		}
 		if err := s.EnsureWorkItems(ctx, id, now); err != nil {
 			return err

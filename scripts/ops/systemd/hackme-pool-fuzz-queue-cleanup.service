@@ -1,14 +1,17 @@
 [Unit]
-Description=HackMe pool fuzz queue cleanup (gates + stale pending)
+Description=HackMe pool fuzz queue cleanup (gates + stale pending + zombie repair)
 After=network-online.target hackme-coordinator.service
 Wants=network-online.target
 
 [Service]
 Type=oneshot
 User=hackme
+Group=hackme
 WorkingDirectory=/opt/hackme
-Environment=NODE_SSH=
-Environment=COORD_URL=https://hackme.tech/pool/coordinator
+# systemd reads this as root — hackme does not need filesystem access to the token.
+EnvironmentFile=-/etc/hackme/coordinator-cleanup.env
+Environment=COORD_URL=http://127.0.0.1:18081
+Environment=COORD_SQL_DB=/opt/hackme/data/coordinator_fuzz.db
 ExecStart=/bin/bash /opt/hackme/scripts/ops/coordinator_fuzz_queue_cleanup.sh
 Nice=10
 

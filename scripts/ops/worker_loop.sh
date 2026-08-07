@@ -26,6 +26,8 @@ HASHRATE_GHS="${HASHRATE_GHS:-0.9}"
 MIN_HASHRATE_GHS="${MIN_HASHRATE_GHS:-0.001}"
 MAX_HASHRATE_GHS="${MAX_HASHRATE_GHS:-200.0}"
 EMA_ALPHA="${EMA_ALPHA:-0.35}"
+# Optional: pin reported hashrate_gh_s (test/display fleets). Skips EMA drift from wall-time.
+FORCE_HASHRATE_GHS="${FORCE_HASHRATE_GHS:-}"
 WORKER_NAME="${WORKER_NAME:-${WORKER_ID}}"
 COORD_PUSH_WORK="${COORD_PUSH_WORK:-1}"
 # Coordinator claim/submit needs HACKME_COORDINATOR_ADMIN_TOKEN from the coordinator process,
@@ -95,6 +97,9 @@ accepted_hits=0
 rejected=0
 last_reason=""
 ema_hashrate_ghs="$HASHRATE_GHS"
+if [[ -n "$FORCE_HASHRATE_GHS" ]]; then
+  ema_hashrate_ghs="$FORCE_HASHRATE_GHS"
+fi
 
 api_post() {
   local path="$1"
@@ -163,6 +168,11 @@ while true; do
   ok_claims=$((ok_claims + 1))
   reset_backoff
 
+  # Pin cosmetics GH before building submit (not only after success).
+  if [[ -n "$FORCE_HASHRATE_GHS" ]]; then
+    ema_hashrate_ghs="$FORCE_HASHRATE_GHS"
+  fi
+
   if [[ "$SIGN_SUBMITS" == "1" ]]; then
 		partial="$(jq -nc \
 		  --arg wid "$WORKER_ID" \
@@ -209,21 +219,25 @@ while true; do
   payout="$(printf '%s' "$submit" | jq -r '.payout_hmc // 0' 2>/dev/null || echo "0")"
 
   if [[ "$submit_ok" == "true" || "$accepted" == "true" ]]; then
-    t_cycle_end="$(date +%s%N)"
-    elapsed_ns=$((t_cycle_end - t_cycle_start))
-    if (( elapsed_ns < 1 )); then
-      elapsed_ns=1
+    if [[ -n "$FORCE_HASHRATE_GHS" ]]; then
+      ema_hashrate_ghs="$FORCE_HASHRATE_GHS"
+    else
+      t_cycle_end="$(date +%s%N)"
+      elapsed_ns=$((t_cycle_end - t_cycle_start))
+      if (( elapsed_ns < 1 )); then
+        elapsed_ns=1
+      fi
+      inst_hashrate="$(awk -v attempts="${size}" -v ns="${elapsed_ns}" 'BEGIN{v=(attempts*1.0)/(ns*1.0); if(v<0)v=0; print v}')"
+      # Exponential moving average smooths jitter over successful claim→submit rounds only.
+      ema_hashrate_ghs="$(awk -v prev="${ema_hashrate_ghs}" -v inst="${inst_hashrate}" -v a="${EMA_ALPHA}" -v mn="${MIN_HASHRATE_GHS}" -v mx="${MAX_HASHRATE_GHS}" 'BEGIN{
+        if (a < 0.01) a = 0.01;
+        if (a > 1.0) a = 1.0;
+        v = prev*(1.0-a) + inst*a;
+        if (v < mn) v = mn;
+        if (v > mx) v = mx;
+        print v
+      }')"
     fi
-    inst_hashrate="$(awk -v attempts="${size}" -v ns="${elapsed_ns}" 'BEGIN{v=(attempts*1.0)/(ns*1.0); if(v<0)v=0; print v}')"
-    # Exponential moving average smooths jitter over successful claim→submit rounds only.
-    ema_hashrate_ghs="$(awk -v prev="${ema_hashrate_ghs}" -v inst="${inst_hashrate}" -v a="${EMA_ALPHA}" -v mn="${MIN_HASHRATE_GHS}" -v mx="${MAX_HASHRATE_GHS}" 'BEGIN{
-      if (a < 0.01) a = 0.01;
-      if (a > 1.0) a = 1.0;
-      v = prev*(1.0-a) + inst*a;
-      if (v < mn) v = mn;
-      if (v > mx) v = mx;
-      print v
-    }')"
     ok_submits=$((ok_submits + 1))
     if [[ "$accepted" == "true" ]]; then
       accepted_hits=$((accepted_hits + 1))

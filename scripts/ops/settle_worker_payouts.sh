@@ -132,15 +132,19 @@ tx_response_ok() {
   return 1
 }
 
-# Confirm tx exists on chain API before advancing settled_hmc bookkeeping.
+# Confirm tx is included on chain before advancing settled_hmc bookkeeping.
+# Poll up to SETTLE_TX_WAIT_SEC (same budget as wait_tx_pool_clear) — an 8s cap
+# left pending_settle stuck while transfers were already included under load.
 verify_settlement_tx() {
   local tx_hash="$1"
-  local tries="${2:-8}"
-  local i=0 status=""
+  local wait_sec="${2:-$SETTLE_TX_WAIT_SEC}"
+  local deadline status=""
   [[ -n "$tx_hash" ]] || return 1
   [[ "$tx_hash" == "nonce-advanced" || "$tx_hash" == "ok" ]] && return 1
-  while (( i < tries )); do
-    status="$(curl -fsS "${CHAIN_BASE}/api/tx/${tx_hash}" 2>/dev/null | jq -r '.status // .tx.status // ""' 2>/dev/null | tr -d '\r\n' || echo "")"
+  [[ "$wait_sec" =~ ^[0-9]+$ ]] || wait_sec=90
+  deadline=$((SECONDS + wait_sec))
+  while (( SECONDS < deadline )); do
+    status="$(curl -fsS --max-time 10 "${CHAIN_BASE}/api/tx/${tx_hash}" 2>/dev/null | jq -r '.status // .tx.status // ""' 2>/dev/null | tr -d '\r\n' || echo "")"
     case "$status" in
       included) return 0 ;;
       rejected) return 1 ;;
@@ -148,7 +152,6 @@ verify_settlement_tx() {
       *) ;;
     esac
     sleep 1
-    i=$((i + 1))
   done
   return 1
 }

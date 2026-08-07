@@ -1,0 +1,12 @@
+[Unit]
+Description=HackMe coordinator WAL guard every 10 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=10min
+AccuracySec=30s
+Persistent=true
+Unit=hackme-coord-wal-guard.service
+
+[Install]
+WantedBy=timers.target

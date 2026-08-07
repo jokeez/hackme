@@ -20,6 +20,22 @@ echo "$LOG_TAG source=${NODE_SSH}:${DEPLOY} dest=${MIRROR_SSH}:${MIRROR_DEPLOY}"
 ssh -o BatchMode=yes "$MIRROR_SSH" "sudo systemctl stop hackme-node hackme-coordinator 2>/dev/null || true"
 ssh -o BatchMode=yes "$MIRROR_SSH" "mkdir -p ${MIRROR_DEPLOY}/data/mirror-meta ${MIRROR_DEPLOY}/web/site ${MIRROR_DEPLOY}/scripts/ops"
 
+# Quiesce WAL on hub so the streamed DB is self-contained.
+ssh -o BatchMode=yes "$NODE_SSH" \
+  "sudo -u hackme sqlite3 ${DEPLOY}/data/hackme.db 'PRAGMA wal_checkpoint(TRUNCATE);' >/dev/null 2>&1 || true"
+
+# Drop stale sidecar files on mirror before replace.
+ssh -o BatchMode=yes "$MIRROR_SSH" \
+  "rm -f ${MIRROR_DEPLOY}/data/hackme.db-wal ${MIRROR_DEPLOY}/data/hackme.db-shm"
+
+# Optional: keep mirror binary current with hub (warm standby).
+if [[ "${MIRROR_SYNC_BINARIES:-1}" == "1" ]]; then
+  echo "$LOG_TAG sync hackme-node binary"
+  ssh -o BatchMode=yes "$NODE_SSH" "cat ${DEPLOY}/hackme-node" \
+    | ssh -o BatchMode=yes "$MIRROR_SSH" \
+      "cat > ${MIRROR_DEPLOY}/hackme-node.new && chmod +x ${MIRROR_DEPLOY}/hackme-node.new && mv -f ${MIRROR_DEPLOY}/hackme-node.new ${MIRROR_DEPLOY}/hackme-node && sudo chown hackme:hackme ${MIRROR_DEPLOY}/hackme-node"
+fi
+
 # Copy critical state files through local pipe (source remote -> destination remote).
 for f in hackme.db worker_settlement_state.json pool_subsidy_budget_state.json; do
   ssh -o BatchMode=yes "$NODE_SSH" "cat ${DEPLOY}/data/${f}" \

@@ -1,0 +1,11 @@
+[Unit]
+Description=HackMe coordinator SQLite WAL guard
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=COORDINATOR_DB=/opt/hackme/data/coordinator.db
+Environment=COORDINATOR_FUZZ_DB=/opt/hackme/data/coordinator_fuzz.db
+# Fuzz WAL may grow faster than PoH; script applies looser fuzz thresholds by default.
+ExecStart=/bin/bash /opt/hackme/scripts/ops/coord_wal_guard.sh
+Nice=10
