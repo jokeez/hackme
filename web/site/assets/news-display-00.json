@@ -3,10 +3,10 @@
     {
       "id": "2026-08-07-oss-cve-watch-libheif-day14-libfuzzer",
       "date": "2026-08-07",
-      "title": "OSS CVE Watch · libheif Day 14/14 · 316.62M libFuzzer exec · CLEAN",
-      "summary": "libheif Day 14: 39.5h libFuzzer, 316,619,059 exec at ~2,228/s. Corpus 3215, 7509 coverage edges. ASAN=0 — CLEAN.",
-      "impact": "Cumulative Days 1–14: ~2568.70M exec on persistent HEIF/AVIF corpus.",
-      "action": "Day 14: https://hackme.tech/reports/oss-cve-watch-libheif/day14.html",
+      "title": "OSS CVE Watch · libheif series FINALE · Day 14/14 · ~2.57B exec · CLEAN",
+      "summary": "libheif Day 14/14 closes the series: 316,619,059 exec in ~39.5h (~2,228/s), corpus 3215, 7509 edges, ASAN=0. Days 1–14: ~2.57B libFuzzer exec · ~325h ASAN depth · 14/14 CLEAN — not a CVE claim, a public ledger.",
+      "impact": "Series complete: 14 consecutive CLEAN days on one persistent HEIF/AVIF corpus. Cumulative ~2,568,698,936 executions · ~325.4h · ASAN total 0.",
+      "action": "Finale ledger: https://hackme.tech/reports/oss-cve-watch-libheif/day14.html · Hub: https://hackme.tech/reports/oss-cve-watch-libheif/",
       "tags": [
         "research",
         "oss-cve",

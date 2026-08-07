@@ -104,6 +104,15 @@ docs/NEWS_POST_*.md
 docs/TELEGRAM_SECURITY_REWARDS_PIN.txt
 docs/archive/TELEGRAM_POST_*
 
+# Social drafts under reports (Twitter/Discord/TG/BCT copy packs)
+reports/**/DAY*_TWITTER*.txt
+reports/**/DAY*_TELEGRAM*.txt
+reports/**/DAY*_DISCORD*.txt
+reports/**/DAY*_BITCOINTALK*.txt
+reports/**/DAY*_FINALE_CHECKLIST.md
+reports/**/*_SOCIAL.md
+reports/**/*_TWITTER_THREAD.txt
+
 # Accidental Cursor/agent terminal dumps saved under scripts/ops (never commit)
 scripts/ops/pool_max_checks.sh
 scripts/ops/fix_desktop_marketplace.sh

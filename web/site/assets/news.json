@@ -3,10 +3,10 @@
     {
       "id": "2026-08-07-oss-cve-watch-libheif-day14-libfuzzer",
       "date": "2026-08-07",
-      "title": "OSS CVE Watch · libheif Day 14/14 · 316.62M libFuzzer exec · CLEAN",
-      "summary": "libheif Day 14: 39.5h libFuzzer, 316,619,059 exec at ~2,228/s. Corpus 3215, 7509 coverage edges. ASAN=0 — CLEAN.",
-      "impact": "Cumulative Days 1–14: ~2568.70M exec on persistent HEIF/AVIF corpus.",
-      "action": "Day 14: https://hackme.tech/reports/oss-cve-watch-libheif/day14.html",
+      "title": "OSS CVE Watch · libheif series FINALE · Day 14/14 · ~2.57B exec · CLEAN",
+      "summary": "libheif Day 14/14 closes the series: 316,619,059 exec in ~39.5h (~2,228/s), corpus 3215, 7509 edges, ASAN=0. Days 1–14: ~2.57B libFuzzer exec · ~325h ASAN depth · 14/14 CLEAN — not a CVE claim, a public ledger.",
+      "impact": "Series complete: 14 consecutive CLEAN days on one persistent HEIF/AVIF corpus. Cumulative ~2,568,698,936 executions · ~325.4h · ASAN total 0.",
+      "action": "Finale ledger: https://hackme.tech/reports/oss-cve-watch-libheif/day14.html · Hub: https://hackme.tech/reports/oss-cve-watch-libheif/",
       "tags": [
         "research",
         "oss-cve",
@@ -16,20 +16,20 @@
       ],
       "status": "published",
       "telegram": {
-        "headline": "OSS CVE Watch · libheif Day 14/14 · CLEAN",
-        "lead": "316.6M libFuzzer exec · ~39.5h ASAN · corpus 3215 · 0 crashes",
+        "headline": "OSS CVE Watch · libheif FINALE · Day 14/14 · CLEAN",
+        "lead": "Series closed: ~2.57B libFuzzer exec · ~325h ASAN · 14/14 CLEAN · 0 crashes",
         "bullets": [
-          "Day 14 libheif: ~316.6M executions @ ~2,228/s · 39.5h",
-          "ASAN=0 · verdict CLEAN",
-          "Persistent HEIF/AVIF corpus: 3215 inputs · 7509 coverage edges",
-          "Ledger: https://hackme.tech/reports/oss-cve-watch-libheif/day14.html",
-          "Series Days 1–14 cumulative ~2568.7M exec on the same corpus"
+          "Day 14 alone: ~316.6M exec @ ~2,228/s · ~39.5h · corpus 3215 · 7509 edges",
+          "Days 1–14: ~2.57B executions on one persistent HEIF/AVIF corpus",
+          "14/14 CLEAN · ASAN=0 for the whole series (not “proven secure”)",
+          "Finale ledger: https://hackme.tech/reports/oss-cve-watch-libheif/day14.html",
+          "Series hub: https://hackme.tech/reports/oss-cve-watch-libheif/"
         ],
-        "footer": "hackme.tech/reports/oss-cve-watch-libheif/ · research · not a CVE claim"
+        "footer": "hackme.tech · research receipts · not a CVE claim · not financial advice"
       },
       "discord": {
-        "title": "OSS CVE Watch · libheif Day 14 CLEAN",
-        "body": "**libheif Day 14/14 — CLEAN**\n\n• **~316.6M** libFuzzer exec · ~39.5h · ~2,228/s\n• Corpus **3215** · **7509** edges · **ASAN=0**\n• [Day 14 ledger](https://hackme.tech/reports/oss-cve-watch-libheif/day14.html)\n",
+        "title": "OSS CVE Watch · libheif series FINALE (Day 14/14)",
+        "body": "**libheif series closed — Day 14/14 CLEAN**\n\n• **Day 14:** ~316.6M libFuzzer exec · ~39.5h · ~2,228/s · corpus **3215** · **7509** edges · **ASAN=0**\n• **Series 1–14:** ~**2.57B** exec · ~**325h** ASAN depth · **14/14 CLEAN** · total ASAN crashes **0**\n• Same persistent HEIF/AVIF corpus the whole way — depth compounds, no reset-theater\n\nLedger: https://hackme.tech/reports/oss-cve-watch-libheif/day14.html\nHub: https://hackme.tech/reports/oss-cve-watch-libheif/\n\n_CLEAN = no crash in budget. Not a CVE claim. Not proven secure._",
         "ping": "#announcements"
       },
       "links": {
