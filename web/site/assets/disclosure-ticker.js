@@ -4,6 +4,7 @@
 (() => {
   const CACHE = "20260807wow";
   const JSON_URL = `/assets/disclosure-ticker.json?v=${CACHE}`;
+  const CSS_URL = `/assets/disclosure-ticker.css?v=${CACHE}`;
   const POOL_URL = "/pool/coordinator/api/pool/stats";
   const FALLBACK = {
     interval_ms: 6500,
@@ -143,6 +144,15 @@
         </div>
       </div>`;
     return wrap;
+  }
+
+  function ensureStyles() {
+    if (document.querySelector('link[data-disclosure-ticker-css="1"]')) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = CSS_URL;
+    link.dataset.disclosureTickerCss = "1";
+    document.head.appendChild(link);
   }
 
   function mountAfterHeader(shell) {
@@ -349,6 +359,7 @@
   }
 
   async function init() {
+    ensureStyles();
     if (!mountAfterHeader(buildShell())) return;
 
     let data = FALLBACK;
