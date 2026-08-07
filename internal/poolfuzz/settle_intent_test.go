@@ -68,6 +68,7 @@ func TestSubmitSettleFailureThenRetryPaysOnce(t *testing.T) {
 		WorkerID: "w1", MinerAddress: "HMC-1234567890123456",
 		WorkID: id + ":1", CampaignID: id, ItemID: 1, InputN: inN, ActualInput: actual, CheckResult: 1, DurationMS: 1,
 	}
+	leaseWorkItemForTest(t, ctx, db, id, 1, "w1")
 	if err := svc.Submit(ctx, sub); err == nil {
 		t.Fatal("expected first submit to fail on PayRun")
 	}
@@ -127,6 +128,7 @@ func TestSubmitSettleQueuedNotPaidUntilApplied(t *testing.T) {
 		WorkerID: "w1", MinerAddress: "HMC-1234567890123456",
 		WorkID: id + ":1", CampaignID: id, ItemID: 1, InputN: inN, ActualInput: actual, CheckResult: 1, DurationMS: 1,
 	}
+	leaseWorkItemForTest(t, ctx, db, id, 1, "w1")
 	if err := svc.Submit(ctx, sub); err != nil {
 		t.Fatalf("submit: %v", err)
 	}

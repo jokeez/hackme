@@ -675,6 +675,20 @@ func hardenHTTPHandler(next http.Handler) http.Handler {
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+		// Baseline CSP: allow current dashboard CDNs + local exchange lab iframe.
+		// Inline scripts/styles remain (dashboard is one large HTML); self-host Tailwind later.
+		w.Header().Set("Content-Security-Policy", strings.Join([]string{
+			"default-src 'self'",
+			"script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com",
+			"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com",
+			"font-src 'self' https://fonts.gstatic.com data:",
+			"img-src 'self' data: blob:",
+			"connect-src 'self' https: http://127.0.0.1:8080 http://127.0.0.1:18080 http://127.0.0.1:18081 http://127.0.0.1:18082 http://127.0.0.1:18443 http://127.0.0.1:5199 http://localhost:5199",
+			"frame-src 'self' http://127.0.0.1:5199 http://localhost:5199",
+			"frame-ancestors 'none'",
+			"base-uri 'self'",
+			"form-action 'self'",
+		}, "; "))
 		corsOrigin := strings.TrimSpace(os.Getenv("HACKME_HTTP_CORS_ALLOW_ORIGIN"))
 		apiPath := strings.HasPrefix(r.URL.Path, "/api/")
 		if apiPath && corsOrigin != "" {
@@ -1314,7 +1328,28 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	// Public callers get hashrate/economics; strip host IPs and local paths.
+	if !metricsPrivileged(r) {
+		redactPublicMetrics(&s)
+	}
 	writeMetricsJSON(w, s)
+}
+
+func metricsPrivileged(r *http.Request) bool {
+	if requestFromLoopback(r) {
+		return true
+	}
+	return adminAuthEnabled() && adminRequestAuthed(r)
+}
+
+func redactPublicMetrics(s *MetricsSnapshot) {
+	if s == nil {
+		return
+	}
+	s.MiningTaskManifestPath = ""
+	for i := range s.MiningRigs {
+		s.MiningRigs[i].IP = ""
+	}
 }
 
 func miningGPUAliasKey(backend string, idx int) string {

@@ -3,6 +3,7 @@ package poolfuzz
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -73,6 +74,7 @@ func TestRedteamReplaySubmitNoDoubleSettle(t *testing.T) {
 		WorkerID: "w1", MinerAddress: "HMC-1234567890123456",
 		WorkID: id + ":1", CampaignID: id, ItemID: 1, InputN: inN, ActualInput: actual, CheckResult: 1, DurationMS: 1,
 	}
+	leaseWorkItemForTest(t, ctx, db, id, 1, "w1")
 	if err := svc.Submit(ctx, sub); err != nil {
 		t.Fatal(err)
 	}
@@ -112,8 +114,10 @@ func TestRedteamWrongWorkerNoSettle(t *testing.T) {
 	if err := svc.Submit(ctx, SubmitRequest{
 		WorkerID: "bob", MinerAddress: "HMC-1234567890123456",
 		CampaignID: id, ItemID: 1, InputN: inN, ActualInput: actual, CheckResult: 1, DurationMS: 1,
-	}); err != nil {
-		t.Fatal(err)
+	}); err == nil {
+		t.Fatal("expected reject for wrong worker")
+	} else if !strings.Contains(err.Error(), "another worker") && !strings.Contains(err.Error(), "not leased") {
+		t.Fatalf("unexpected err: %v", err)
 	}
 	spy.mu.Lock()
 	runs := spy.runs
@@ -148,6 +152,7 @@ func TestRedteamPowGateFakeFinding(t *testing.T) {
 	}
 	_ = svc.EnsureWorkItems(ctx, id, time.Now().Unix())
 	inN, actual := actualInputForWorkItem(t, ctx, svc, id, 1, cfg)
+	leaseWorkItemForTest(t, ctx, db, id, 1, "w")
 	// pow_gate: check_ret=1 is PASS — must not create finding
 	if err := svc.Submit(ctx, SubmitRequest{
 		WorkerID: "w", CampaignID: id, ItemID: 1, InputN: inN, ActualInput: actual, CheckResult: 1, DurationMS: 1,
@@ -191,6 +196,7 @@ func TestRedteamBountySettleOnce(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		leaseWorkItemForTest(t, ctx, db, id, item, "w")
 		if err := svc.Submit(ctx, SubmitRequest{
 			WorkerID: "w", MinerAddress: "HMC-aaaaaaaaaaaaaaaa",
 			CampaignID: id, ItemID: item, InputN: uint64(item), ActualInput: violation,
@@ -289,6 +295,7 @@ func TestRedteamBountyRequiresNativeBlocksPayFinding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	leaseWorkItemForTest(t, ctx, db, id, 1, "w")
 	if err := svc.Submit(ctx, SubmitRequest{
 		WorkerID: "w", MinerAddress: "HMC-cccccccccccccccc",
 		CampaignID: id, ItemID: 1, InputN: 1, ActualInput: violation,
@@ -338,6 +345,7 @@ func TestRedteamCrashClassPaysCrashBonusOnce(t *testing.T) {
 	}
 	_ = svc.EnsureWorkItems(ctx, id, time.Now().Unix())
 	for item := int64(1); item <= 2; item++ {
+		leaseWorkItemForTest(t, ctx, db, id, item, "w")
 		if err := svc.Submit(ctx, SubmitRequest{
 			WorkerID: "w", MinerAddress: "HMC-dddddddddddddddd",
 			CampaignID: id, ItemID: item, InputN: uint64(item), ActualInput: crashInput,

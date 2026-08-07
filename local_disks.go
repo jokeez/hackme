@@ -68,6 +68,11 @@ func (a *app) handleLocalDisks(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	// Host inventory is operator-local: loopback or admin token only (not public hub).
+	if !requestFromLoopback(r) && !(adminAuthEnabled() && adminRequestAuthed(r)) {
+		http.Error(w, "local disks require loopback or admin auth", http.StatusForbidden)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	root := resolveWorkerRepoRoot(strings.TrimSpace(a.dataDir))

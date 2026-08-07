@@ -616,14 +616,18 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	if wantRunSettle {
 		runSettleStatus = "pending"
 	}
+	if workerID == "" {
+		return fmt.Errorf("poolfuzz: worker_id required")
+	}
+	// H03: only the active lease owner may complete work (no pending/empty-owner harvest).
 	res, err := s.DB.ExecContext(ctx,
 		`UPDATE fuzz_work_items
 		 SET status='done', attempts=attempts+1, result_ok=?, duration_ms=?, last_error=?, lease_owner='', lease_until=0, updated_at=?,
 		     miner_address=CASE WHEN ?!='' THEN ? ELSE miner_address END,
 		     settle_run_status=CASE WHEN ?!='' THEN ? ELSE settle_run_status END
 		 WHERE id=? AND campaign_id=?
-		   AND status IN ('pending','leased')
-		   AND (lease_owner='' OR lease_owner=?)`,
+		   AND status='leased'
+		   AND lease_owner=?`,
 		boolToInt(pass), req.DurationMS, strings.TrimSpace(req.Trap), now,
 		miner, miner, runSettleStatus, runSettleStatus,
 		req.ItemID, req.CampaignID, workerID)
@@ -632,7 +636,25 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	}
 	aff, _ := res.RowsAffected()
 	if aff == 0 {
-		// Work already done — still flush unsettled payment intents (PayRun may have failed earlier).
+		var st, owner string
+		_ = s.DB.QueryRowContext(ctx,
+			`SELECT status, COALESCE(lease_owner,'') FROM fuzz_work_items WHERE id=? AND campaign_id=?`,
+			req.ItemID, req.CampaignID).Scan(&st, &owner)
+		switch st {
+		case "pending":
+			return fmt.Errorf("poolfuzz: work item not leased (claim first)")
+		case "leased":
+			if owner != "" && owner != workerID {
+				return fmt.Errorf("poolfuzz: work item leased by another worker")
+			}
+			return fmt.Errorf("poolfuzz: work item not leased by worker")
+		case "done", "cancelled":
+			// Already finished — still flush unsettled payment intents (PayRun may have failed earlier).
+		default:
+			if st == "" {
+				return fmt.Errorf("poolfuzz: work item not found")
+			}
+		}
 		if err := s.flushPendingSettles(ctx, req.CampaignID, req.ItemID, cfg); err != nil {
 			return err
 		}

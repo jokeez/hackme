@@ -2,6 +2,7 @@ package poolfuzz
 
 import (
 	"context"
+	"database/sql"
 	"encoding/hex"
 	"os"
 	"path/filepath"
@@ -49,6 +50,7 @@ func TestPoolFuzzClaimSubmitDetector(t *testing.T) {
 	if cr != 1 {
 		t.Fatalf("expected violation check_ret=1, got %d trap=%q", cr, trap)
 	}
+	leaseWorkItemForTest(t, ctx, db, id, 1, "worker-test")
 	if err := svc.Submit(ctx, SubmitRequest{
 		WorkerID: "worker-test", WorkID: id + ":1", CampaignID: id,
 		ItemID: 1, InputN: inN, ActualInput: actual, CheckResult: cr, DurationMS: 1, Trap: trap,
@@ -97,6 +99,42 @@ func TestPoolFuzzClaimSubmitDetector(t *testing.T) {
 	}
 }
 
+func TestSubmitRejectsPendingWithoutLease(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "h03.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	cfg := fuzzengine.NormalizeCampaignConfig(map[string]any{
+		"pool_distributed": true,
+		"check_semantics":  "pow_gate",
+		"wasm_check_hex":   "00",
+	}, "property")
+	id := "h03-pending"
+	if err := svc.RegisterCampaign(ctx, Campaign{ID: id, CampaignType: "property", Status: "running", BudgetRuns: 1, Config: cfg}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.EnsureWorkItems(ctx, id, time.Now().Unix()); err != nil {
+		t.Fatal(err)
+	}
+	inN, actual := actualInputForWorkItem(t, ctx, svc, id, 1, cfg)
+	err = svc.Submit(ctx, SubmitRequest{
+		WorkerID: "attacker", MinerAddress: "HMC-aaaaaaaaaaaaaaaa",
+		CampaignID: id, ItemID: 1, InputN: inN, ActualInput: actual, CheckResult: 1, DurationMS: 1,
+	})
+	if err == nil || !strings.Contains(err.Error(), "not leased") {
+		t.Fatalf("want not-leased error, got %v", err)
+	}
+	var st string
+	_ = db.QueryRowContext(ctx, `SELECT status FROM fuzz_work_items WHERE campaign_id=? AND id=1`, id).Scan(&st)
+	if st != "pending" {
+		t.Fatalf("pending must stay pending, got %q", st)
+	}
+}
+
 func mustReadWasmHex(t *testing.T, path string) string {
 	t.Helper()
 	b, err := os.ReadFile(path)
@@ -104,6 +142,22 @@ func mustReadWasmHex(t *testing.T, path string) string {
 		t.Fatal(err)
 	}
 	return hex.EncodeToString(b)
+}
+
+func leaseWorkItemForTest(t *testing.T, ctx context.Context, db *sql.DB, campaignID string, itemID int64, workerID string) {
+	t.Helper()
+	now := time.Now().Unix()
+	res, err := db.ExecContext(ctx,
+		`UPDATE fuzz_work_items SET status='leased', lease_owner=?, lease_until=?, updated_at=?
+		 WHERE campaign_id=? AND id=? AND status IN ('pending','leased')`,
+		workerID, now+120, now, campaignID, itemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, _ := res.RowsAffected()
+	if n != 1 {
+		t.Fatalf("leaseWorkItemForTest: rows=%d", n)
+	}
 }
 
 func actualInputForWorkItem(t *testing.T, ctx context.Context, svc *Service, campaignID string, itemID int64, cfg map[string]any) (inputN, actual uint64) {
