@@ -1,60 +1,67 @@
 {
-  "updated": "2026-08-07T18:00:00Z",
-  "interval_ms": 7000,
+  "updated": "2026-08-07T20:30:00Z",
+  "interval_ms": 6500,
+  "pool_poll_ms": 30000,
   "slides": [
     {
-      "kind": "case",
-      "badge": "Fixed upstream ✓",
-      "title": "Arsievert/cfgpack · int64 UBSan",
-      "detail": "Reported #1 · fix b5e7cff · not CVE-class · real upstream win",
+      "kind": "win",
+      "badge": "Upstream win",
+      "title": "cfgpack int64 UBSan → fixed in days",
+      "detail": "Reported #1 · merge b5e7cff · not CVE-class · real maintainer fix",
       "cta": "Case study",
       "href": "/reports/oss-cve/cases/cfgpack.html",
-      "accent": "success"
+      "accent": "success",
+      "stats": ["#1 closed", "b5e7cff", "UBSan"]
     },
     {
       "kind": "series",
-      "badge": "14/14 CLOSED",
-      "title": "libheif OSS CVE Watch · CLEAN",
-      "detail": "~2.57B exec · ASAN=0 · series finale published",
+      "badge": "Finale",
+      "title": "libheif 14/14 CLEAN · ~2.57B exec",
+      "detail": "ASAN=0 across the full series · day reports public",
       "cta": "Day 14",
       "href": "/reports/oss-cve-watch-libheif/day14.html",
-      "accent": "cyan"
+      "accent": "cyan",
+      "stats": ["14/14", "~2.57B", "ASAN=0"]
     },
     {
       "kind": "series",
-      "badge": "14/14 CLOSED",
-      "title": "nghttp2 OSS CVE Watch · CLEAN",
-      "detail": "HTTP/2 research ledger complete",
+      "badge": "Double ledger",
+      "title": "Two research series closed · nghttp2 + libheif",
+      "detail": "Honest CLEAN ledgers — not marketing fuzz theatre",
       "cta": "Research",
       "href": "/research.html",
-      "accent": "gold"
+      "accent": "gold",
+      "stats": ["nghttp2", "libheif", "14/14"]
+    },
+    {
+      "kind": "pool",
+      "badge": "Live pool",
+      "title": "Official HMC pool",
+      "detail": "Live hashrate · miners · tip height",
+      "cta": "Mine",
+      "href": "/downloads.html#start",
+      "accent": "cyan",
+      "live_pool": true
     },
     {
       "kind": "case",
-      "badge": "Awaiting maintainer",
-      "title": "mity/centijson",
-      "detail": "GitHub hold · medium · coordinated disclosure",
-      "cta": "Case page",
+      "badge": "In disclosure",
+      "title": "centijson · awaiting maintainer",
+      "detail": "Coordinated hold · PoC withheld until triage",
+      "cta": "Case",
       "href": "/reports/oss-cve/cases/centijson.html",
-      "accent": "medium"
-    },
-    {
-      "kind": "hub",
-      "badge": "Tier-D idle",
-      "title": "Last wave 48 · CLEAN (2026-07-08)",
-      "detail": "OSS CVE hub · no live wave right now",
-      "cta": "OSS CVE hub",
-      "href": "/reports/oss-cve/",
-      "accent": "violet"
+      "accent": "medium",
+      "stats": ["hold", "medium"]
     },
     {
       "kind": "b2b",
       "badge": "For teams",
-      "title": "Security audits on your local node",
-      "detail": "fuzz_report_v2 · CI gate · pool WASM fuzz",
+      "title": "Run security audits on your local node",
+      "detail": "fuzz_report_v2 · CI gate · pool WASM campaigns",
       "cta": "Developers",
       "href": "/developers.html",
-      "accent": "violet"
+      "accent": "violet",
+      "stats": ["B2B", "WASM"]
     }
   ]
 }

@@ -1,10 +1,13 @@
 /**
- * Live OSS disclosure + B2B trust banner — data from disclosure-ticker.json
+ * Live OSS disclosure + pool pulse banner — data from disclosure-ticker.json
  */
 (() => {
-  const JSON_URL = "/assets/disclosure-ticker.json?v=20260807ticker";
+  const CACHE = "20260807wow";
+  const JSON_URL = `/assets/disclosure-ticker.json?v=${CACHE}`;
+  const POOL_URL = "/pool/coordinator/api/pool/stats";
   const FALLBACK = {
-    interval_ms: 7000,
+    interval_ms: 6500,
+    pool_poll_ms: 30000,
     slides: [
       {
         kind: "hub",
@@ -19,18 +22,27 @@
   };
 
   const ACCENT = {
-    gold: { border: "rgba(255, 200, 87, 0.45)", dot: "#ffc857" },
-    cyan: { border: "rgba(77, 228, 255, 0.4)", dot: "#4de4ff" },
-    violet: { border: "rgba(167, 139, 250, 0.45)", dot: "#a78bfa" },
-    success: { border: "rgba(110, 255, 173, 0.45)", dot: "#6effad" },
-    medium: { border: "rgba(255, 200, 87, 0.45)", dot: "#ffc857" },
+    gold: { border: "rgba(255, 200, 87, 0.5)", dot: "#ffc857", glow: "rgba(255, 200, 87, 0.18)" },
+    cyan: { border: "rgba(77, 228, 255, 0.5)", dot: "#4de4ff", glow: "rgba(77, 228, 255, 0.16)" },
+    violet: { border: "rgba(167, 139, 250, 0.5)", dot: "#a78bfa", glow: "rgba(167, 139, 250, 0.16)" },
+    success: { border: "rgba(110, 255, 173, 0.5)", dot: "#6effad", glow: "rgba(110, 255, 173, 0.16)" },
+    medium: { border: "rgba(255, 200, 87, 0.5)", dot: "#ffc857", glow: "rgba(255, 200, 87, 0.14)" },
   };
 
-  let state = { slides: [], index: 0, interval: 7000, timer: null, paused: false };
+  let state = {
+    slides: [],
+    index: 0,
+    interval: 6500,
+    poolPollMs: 30000,
+    timer: null,
+    poolTimer: null,
+    paused: false,
+    pool: null,
+  };
 
   function esc(s) {
     const d = document.createElement("div");
-    d.textContent = s || "";
+    d.textContent = s == null ? "" : String(s);
     return d.innerHTML;
   }
 
@@ -38,15 +50,72 @@
     return ACCENT[slide.accent] || ACCENT.cyan;
   }
 
+  function fmtHashrate(hs) {
+    const n = Number(hs);
+    if (!Number.isFinite(n) || n <= 0) return "—";
+    if (n >= 1e12) return `${(n / 1e12).toFixed(2)} TH/s`;
+    if (n >= 1e9) return `${(n / 1e9).toFixed(1)} GH/s`;
+    if (n >= 1e6) return `${(n / 1e6).toFixed(1)} MH/s`;
+    return `${Math.round(n)} H/s`;
+  }
+
+  function poolStatsList(pool) {
+    if (!pool) {
+      return [
+        { k: "hash", v: "…" },
+        { k: "miners", v: "…" },
+        { k: "tip", v: "…" },
+      ];
+    }
+    return [
+      { k: "hash", v: fmtHashrate(pool.hashrate) },
+      { k: "miners", v: String(pool.miners ?? pool.workers ?? "—") },
+      { k: "tip", v: `#${pool.tip_height ?? pool.block_height ?? "—"}` },
+    ];
+  }
+
+  function renderStats(slide) {
+    if (slide.live_pool) {
+      return poolStatsList(state.pool)
+        .map(
+          (s) =>
+            `<span class="dt-chip" data-k="${esc(s.k)}"><em>${esc(s.k)}</em><b>${esc(s.v)}</b></span>`
+        )
+        .join("");
+    }
+    if (!Array.isArray(slide.stats) || !slide.stats.length) return "";
+    return slide.stats
+      .map((s) => `<span class="dt-chip"><b>${esc(s)}</b></span>`)
+      .join("");
+  }
+
   function renderSlide(slide, entering) {
     const a = accentOf(slide);
     const cls = entering ? "dt-slide dt-slide--enter" : "dt-slide dt-slide--active";
+    const kind = esc(slide.kind || "hub");
+    const chips = renderStats(slide);
+    const title =
+      slide.live_pool && state.pool
+        ? `Official pool · ${fmtHashrate(state.pool.hashrate)}`
+        : slide.title;
+    const detail =
+      slide.live_pool && state.pool
+        ? `${state.pool.miners ?? state.pool.workers ?? "—"} miners · tip ${
+            state.pool.tip_height ?? state.pool.block_height ?? "—"
+          }`
+        : slide.detail;
     return `
-      <div class="${cls}" style="--dt-accent:${a.dot};--dt-border:${a.border}">
+      <div class="${cls}" data-kind="${kind}" style="--dt-accent:${a.dot};--dt-border:${a.border};--dt-glow:${a.glow}">
+        <span class="dt-rail" aria-hidden="true"></span>
         <span class="dt-badge">${esc(slide.badge)}</span>
-        <strong class="dt-title">${esc(slide.title)}</strong>
-        ${slide.detail ? `<span class="dt-detail">${esc(slide.detail)}</span>` : ""}
-        <a class="dt-cta" href="${esc(slide.href || "/reports/oss-cve/")}">${esc(slide.cta || "Learn more")}<span aria-hidden="true">→</span></a>
+        <div class="dt-copy">
+          <strong class="dt-title">${esc(title)}</strong>
+          ${detail ? `<span class="dt-detail">${esc(detail)}</span>` : ""}
+        </div>
+        ${chips ? `<div class="dt-chips">${chips}</div>` : ""}
+        <a class="dt-cta" href="${esc(slide.href || "/reports/oss-cve/")}">${esc(
+          slide.cta || "Learn more"
+        )}<span aria-hidden="true">→</span></a>
       </div>`;
   }
 
@@ -54,13 +123,19 @@
     const wrap = document.createElement("div");
     wrap.className = "disclosure-ticker";
     wrap.setAttribute("role", "region");
-    wrap.setAttribute("aria-label", "Live security research and disclosure updates");
+    wrap.setAttribute("aria-label", "Live research, pool, and disclosure updates");
     wrap.innerHTML = `
       <div class="dt-shell">
         <div class="dt-bar glass">
-          <div class="dt-live" title="Research pipeline status">
+          <div class="dt-aurora" aria-hidden="true"></div>
+          <div class="dt-scan" aria-hidden="true"></div>
+          <div class="dt-live" title="Live site pulse">
             <span class="dt-pulse" aria-hidden="true"></span>
             <span class="dt-live-label">LIVE</span>
+          </div>
+          <div class="dt-poolchip" title="Official pool" hidden>
+            <span class="dt-poolchip-dot" aria-hidden="true"></span>
+            <span class="dt-poolchip-val">pool …</span>
           </div>
           <div class="dt-stage" aria-live="polite"></div>
           <div class="dt-dots" aria-hidden="true"></div>
@@ -77,13 +152,49 @@
     return true;
   }
 
+  function updatePoolChip() {
+    const chip = document.querySelector(".dt-poolchip");
+    const val = document.querySelector(".dt-poolchip-val");
+    if (!chip || !val) return;
+    if (!state.pool) {
+      chip.hidden = true;
+      return;
+    }
+    chip.hidden = false;
+    val.textContent = `${fmtHashrate(state.pool.hashrate)} · ${
+      state.pool.miners ?? state.pool.workers ?? "—"
+    }m`;
+  }
+
+  function refreshLivePoolSlide() {
+    const slide = state.slides[state.index];
+    if (!slide || !slide.live_pool) return;
+    paintClean(state.index);
+  }
+
+  async function pollPool() {
+    try {
+      const res = await fetch(POOL_URL, { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data || data.status === "error") return;
+      state.pool = data;
+      updatePoolChip();
+      refreshLivePoolSlide();
+    } catch {
+      /* keep last */
+    }
+  }
+
   function renderDots() {
     const dots = document.querySelector(".dt-dots");
     if (!dots) return;
     dots.innerHTML = state.slides
       .map(
         (_, i) =>
-          `<button type="button" class="dt-dot${i === state.index ? " dt-dot--on" : ""}" data-i="${i}" aria-label="Slide ${i + 1} of ${state.slides.length}"></button>`
+          `<button type="button" class="dt-dot${
+            i === state.index ? " dt-dot--on" : ""
+          }" data-i="${i}" aria-label="Slide ${i + 1} of ${state.slides.length}"></button>`
       )
       .join("");
     dots.querySelectorAll(".dt-dot").forEach((btn) => {
@@ -111,13 +222,23 @@
     bar.style.animationPlayState = state.paused || document.hidden ? "paused" : "running";
   }
 
-  /** Hard-reset stage to one slide — avoids stacked/ghost slides after tab throttle. */
+  function applyAccent(slide) {
+    const bar = document.querySelector(".dt-bar");
+    if (!bar || !slide) return;
+    const a = accentOf(slide);
+    bar.style.setProperty("--dt-accent", a.dot);
+    bar.style.setProperty("--dt-border", a.border);
+    bar.style.setProperty("--dt-glow", a.glow);
+  }
+
   function paintClean(i) {
     const stage = document.querySelector(".dt-stage");
     if (!stage || !state.slides.length) return;
     state.index = ((i % state.slides.length) + state.slides.length) % state.slides.length;
+    const slide = state.slides[state.index];
+    applyAccent(slide);
     stage.replaceChildren();
-    stage.insertAdjacentHTML("beforeend", renderSlide(state.slides[state.index], false));
+    stage.insertAdjacentHTML("beforeend", renderSlide(slide, false));
     document.querySelectorAll(".dt-dot").forEach((d, j) => {
       d.classList.toggle("dt-dot--on", j === state.index);
     });
@@ -128,7 +249,6 @@
     const stage = document.querySelector(".dt-stage");
     if (!stage || !state.slides.length) return;
 
-    // Hidden / background tabs throttle timers → exit/enter overlap and "blend".
     if (document.hidden || state.paused || !animate) {
       paintClean(i);
       return;
@@ -136,6 +256,7 @@
 
     state.index = ((i % state.slides.length) + state.slides.length) % state.slides.length;
     const slide = state.slides[state.index];
+    applyAccent(slide);
     const old = stage.querySelector(".dt-slide--active");
     if (old) {
       old.classList.remove("dt-slide--active");
@@ -144,7 +265,6 @@
         if (old.parentNode) old.remove();
       }, 360);
     }
-    // Drop any leftover ghosts from a prior interrupted transition.
     stage.querySelectorAll(".dt-slide:not(.dt-slide--exit)").forEach((el) => el.remove());
     stage.insertAdjacentHTML("beforeend", renderSlide(slide, true));
     requestAnimationFrame(() => {
@@ -158,7 +278,6 @@
         el.classList.add("dt-slide--active");
       }
     });
-    // Final sweep: only one visible slide after transition (prevents blend on tab sleep).
     setTimeout(() => {
       if (document.hidden) return;
       const alive = stage.querySelector(".dt-slide--active");
@@ -200,11 +319,10 @@
     if (ticker && reason === "hidden") ticker.classList.add("is-hidden");
   }
 
-  function resume(reason) {
+  function resume() {
     state.paused = false;
     const ticker = document.querySelector(".disclosure-ticker");
     if (ticker) ticker.classList.remove("is-hidden");
-    // Always repaint one clean slide after background — kills merged layers.
     paintClean(state.index);
     setProgressPaused(false);
     schedule();
@@ -226,7 +344,7 @@
     });
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) pause("hidden");
-      else resume("visible");
+      else resume();
     });
   }
 
@@ -242,11 +360,17 @@
     }
 
     state.slides = Array.isArray(data.slides) && data.slides.length ? data.slides : FALLBACK.slides;
-    state.interval = Number(data.interval_ms) > 2000 ? Number(data.interval_ms) : 7000;
+    state.interval = Number(data.interval_ms) > 2000 ? Number(data.interval_ms) : 6500;
+    state.poolPollMs = Number(data.pool_poll_ms) >= 10000 ? Number(data.pool_poll_ms) : 30000;
 
     paintClean(0);
     renderDots();
     bindPause();
+    pollPool();
+    state.poolTimer = setInterval(() => {
+      if (!document.hidden) pollPool();
+    }, state.poolPollMs);
+
     if (!document.hidden) schedule();
     else pause("hidden");
   }
