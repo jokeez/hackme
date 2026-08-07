@@ -45,7 +45,7 @@ All 14 days passed gate before HTML + news feed update.
 
 ## Recommended next target
 
-**libheif — Day 1/14 of a new series** (not “Day 15” of nghttp2). New target, harness, corpus, and ledger.
+**libheif — Days 1–14 CLEAN (series closed 2026-08-07)**. Separate target/harness/corpus from nghttp2 — [libheif ledger](https://hackme.tech/reports/oss-cve-watch-libheif/day14.html).
 
 See `reports/oss-cve-watch/DAY15_TARGET_RECOMMENDATION.md` (operator notes; filename legacy).
 
