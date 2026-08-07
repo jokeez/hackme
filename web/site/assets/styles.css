@@ -45,6 +45,12 @@ a { color: inherit; text-decoration: none; }
   justify-content: space-between;
   gap: 1rem;
 }
+/* Reserve ticker band early (filled by site-shell) to prevent F5 layout jump */
+.disclosure-ticker,
+.disclosure-ticker-slot {
+  min-height: 3.9rem;
+  box-sizing: border-box;
+}
 .brand {
   display: inline-flex;
   align-items: center;

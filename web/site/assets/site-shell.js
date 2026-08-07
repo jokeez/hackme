@@ -119,15 +119,48 @@
     ).join("");
   }
 
+  function ensureDisclosureTickerStyles() {
+    if (document.querySelector('link[data-disclosure-ticker-css="1"]')) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "/assets/disclosure-ticker.css?v=20260807wow4";
+    link.dataset.disclosureTickerCss = "1";
+    document.head.appendChild(link);
+  }
+
+  /** Sync placeholder right under topbar — same height as live ticker (kills F5 CLS). */
+  function ensureDisclosureTickerSlot() {
+    const header = document.querySelector("header.topbar");
+    if (!header) return;
+    if (document.querySelector(".disclosure-ticker")) return;
+    ensureDisclosureTickerStyles();
+    const slot = document.createElement("div");
+    slot.className = "disclosure-ticker disclosure-ticker-slot";
+    slot.setAttribute("aria-hidden", "true");
+    slot.innerHTML = `
+      <div class="dt-shell">
+        <div class="dt-bar glass dt-bar--skeleton">
+          <div class="dt-live">
+            <span class="dt-pulse" aria-hidden="true"></span>
+            <span class="dt-live-label">LIVE</span>
+          </div>
+          <div class="dt-poolchip dt-poolchip--pending">
+            <span class="dt-poolchip-dot" aria-hidden="true"></span>
+            <span class="dt-poolchip-val">pool …</span>
+          </div>
+          <div class="dt-stage"><div class="dt-slide dt-slide--active dt-slide--skeleton"><span class="dt-skel"></span></div></div>
+        </div>
+      </div>`;
+    header.insertAdjacentElement("afterend", slot);
+  }
+
   function ensureDisclosureTicker() {
-    if (!document.querySelector("header.topbar") || document.querySelector(".disclosure-ticker")) {
-      return;
-    }
+    ensureDisclosureTickerSlot();
     if (document.querySelector('script[data-disclosure-ticker="1"]')) {
       return;
     }
     const s = document.createElement("script");
-    s.src = "/assets/disclosure-ticker.js?v=20260807wow3";
+    s.src = "/assets/disclosure-ticker.js?v=20260807wow4";
     s.defer = true;
     s.dataset.disclosureTicker = "1";
     document.body.appendChild(s);
@@ -155,6 +188,9 @@
     wireNavMoreDismiss();
     ensureDisclosureTicker();
   }
+
+  // Run slot as soon as this file executes (usually end of <body>) — before deferred ticker.
+  ensureDisclosureTickerSlot();
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", mount);

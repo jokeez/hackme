@@ -2,7 +2,7 @@
  * Live OSS disclosure + pool pulse banner — data from disclosure-ticker.json
  */
 (() => {
-  const CACHE = "20260807wow3";
+  const CACHE = "20260807wow4";
   const JSON_URL = `/assets/disclosure-ticker.json?v=${CACHE}`;
   const CSS_URL = `/assets/disclosure-ticker.css?v=${CACHE}`;
   const POOL_URL = "/pool/coordinator/api/pool/stats";
@@ -134,7 +134,7 @@
             <span class="dt-pulse" aria-hidden="true"></span>
             <span class="dt-live-label">LIVE</span>
           </div>
-          <div class="dt-poolchip" title="Official pool" hidden>
+          <div class="dt-poolchip dt-poolchip--pending" title="Official pool">
             <span class="dt-poolchip-dot" aria-hidden="true"></span>
             <span class="dt-poolchip-val">pool …</span>
           </div>
@@ -157,7 +157,13 @@
 
   function mountAfterHeader(shell) {
     const header = document.querySelector("header.topbar");
-    if (!header || document.querySelector(".disclosure-ticker")) return false;
+    if (!header) return false;
+    const existing = document.querySelector(".disclosure-ticker");
+    if (existing) {
+      // Upgrade reserved slot in place — same box, no layout jump.
+      existing.replaceWith(shell);
+      return true;
+    }
     header.insertAdjacentElement("afterend", shell);
     return true;
   }
@@ -167,10 +173,11 @@
     const val = document.querySelector(".dt-poolchip-val");
     if (!chip || !val) return;
     if (!state.pool) {
-      chip.hidden = true;
+      chip.classList.add("dt-poolchip--pending");
+      val.textContent = "pool …";
       return;
     }
-    chip.hidden = false;
+    chip.classList.remove("dt-poolchip--pending");
     val.textContent = `${fmtHashrate(state.pool.hashrate)} · ${
       state.pool.miners ?? state.pool.workers ?? "—"
     }m`;

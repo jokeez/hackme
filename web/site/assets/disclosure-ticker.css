@@ -4,6 +4,30 @@
   z-index: 5;
   padding: 0.2rem 0 0.65rem;
   background: transparent;
+  min-height: 3.9rem;
+  box-sizing: border-box;
+}
+.disclosure-ticker-slot .dt-bar--skeleton {
+  box-shadow: 0 8px 24px rgba(0, 12, 36, 0.2);
+}
+.dt-slide--skeleton {
+  opacity: 1 !important;
+  transform: none !important;
+  filter: none !important;
+  width: 100%;
+}
+.dt-skel {
+  display: block;
+  height: 0.72rem;
+  width: min(42%, 18rem);
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(120,160,200,0.12), rgba(120,160,200,0.22), rgba(120,160,200,0.12));
+  background-size: 200% 100%;
+  animation: dt-skel-shine 1.2s linear infinite;
+}
+@keyframes dt-skel-shine {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
 }
 .dt-shell {
   max-width: 1180px;
@@ -109,6 +133,7 @@
   align-items: center;
   gap: 0.35rem;
   flex-shrink: 0;
+  min-width: 8.6rem;
   max-width: 9.5rem;
   padding: 0.2rem 0.55rem;
   border-radius: 999px;
@@ -121,7 +146,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.dt-poolchip[hidden] { display: none !important; }
+.dt-poolchip--pending {
+  opacity: 0.72;
+}
 .dt-poolchip-dot {
   width: 5px;
   height: 5px;
@@ -145,14 +172,12 @@
   width: 100%;
   min-width: 0;
   opacity: 0;
-  transform: translateY(6px) scale(0.985);
-  filter: blur(2px);
-  transition: opacity 0.34s ease, transform 0.34s ease, filter 0.34s ease;
+  transform: translateY(4px);
+  transition: opacity 0.28s ease, transform 0.28s ease;
 }
 .dt-slide--active {
   opacity: 1;
-  transform: translateY(0) scale(1);
-  filter: none;
+  transform: translateY(0);
 }
 .dt-slide--enter {
   position: absolute;
@@ -160,8 +185,7 @@
   display: flex;
   align-items: center;
   opacity: 0;
-  transform: translateY(8px) scale(0.98);
-  filter: blur(3px);
+  transform: translateY(5px);
 }
 .dt-slide--exit {
   position: absolute;
@@ -169,9 +193,8 @@
   display: flex;
   align-items: center;
   opacity: 0;
-  transform: translateY(-6px) scale(0.99);
-  filter: blur(2px);
-  transition: opacity 0.32s ease, transform 0.32s ease, filter 0.32s ease;
+  transform: translateY(-4px);
+  transition: opacity 0.28s ease, transform 0.28s ease;
   pointer-events: none;
 }
 .disclosure-ticker.is-hidden .dt-slide--exit,
@@ -182,7 +205,6 @@
 .disclosure-ticker.is-paused .dt-slide--active {
   opacity: 1 !important;
   transform: none !important;
-  filter: none !important;
 }
 .disclosure-ticker.is-hidden .dt-pulse,
 .disclosure-ticker.is-paused .dt-pulse,
