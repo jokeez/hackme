@@ -2,7 +2,7 @@
  * Live OSS disclosure + pool pulse banner — data from disclosure-ticker.json
  */
 (() => {
-  const CACHE = "20260807wow4";
+  const CACHE = "20260807wow5";
   const JSON_URL = `/assets/disclosure-ticker.json?v=${CACHE}`;
   const CSS_URL = `/assets/disclosure-ticker.css?v=${CACHE}`;
   const POOL_URL = "/pool/coordinator/api/pool/stats";
@@ -125,7 +125,12 @@
     wrap.className = "disclosure-ticker";
     wrap.setAttribute("role", "region");
     wrap.setAttribute("aria-label", "Live research, pool, and disclosure updates");
-    wrap.innerHTML = `
+    wrap.innerHTML = shellInnerHTML();
+    return wrap;
+  }
+
+  function shellInnerHTML() {
+    return `
       <div class="dt-shell">
         <div class="dt-bar glass">
           <div class="dt-aurora" aria-hidden="true"></div>
@@ -143,7 +148,6 @@
           <div class="dt-progress" aria-hidden="true"><span class="dt-progress-bar"></span></div>
         </div>
       </div>`;
-    return wrap;
   }
 
   function ensureStyles() {
@@ -155,17 +159,28 @@
     document.head.appendChild(link);
   }
 
-  function mountAfterHeader(shell) {
+  /**
+   * Hydrate existing slot in place (same outer box / height) — no replaceWith CLS.
+   * Only create a new node if the page has no ticker markup yet.
+   */
+  function mountAfterHeader() {
     const header = document.querySelector("header.topbar");
-    if (!header) return false;
-    const existing = document.querySelector(".disclosure-ticker");
-    if (existing) {
-      // Upgrade reserved slot in place — same box, no layout jump.
-      existing.replaceWith(shell);
-      return true;
+    let wrap = document.querySelector(".disclosure-ticker");
+    if (!wrap) {
+      if (!header) return null;
+      wrap = buildShell();
+      header.insertAdjacentElement("afterend", wrap);
+      return wrap;
     }
-    header.insertAdjacentElement("afterend", shell);
-    return true;
+    // Keep outer element; swap inner once from skeleton → live chrome.
+    wrap.classList.remove("disclosure-ticker-slot");
+    wrap.removeAttribute("aria-hidden");
+    wrap.setAttribute("role", "region");
+    wrap.setAttribute("aria-label", "Live research, pool, and disclosure updates");
+    if (!wrap.querySelector(".dt-aurora") || wrap.querySelector(".dt-bar--skeleton")) {
+      wrap.innerHTML = shellInnerHTML();
+    }
+    return wrap;
   }
 
   function updatePoolChip() {
@@ -367,7 +382,7 @@
 
   async function init() {
     ensureStyles();
-    if (!mountAfterHeader(buildShell())) return;
+    if (!mountAfterHeader()) return;
 
     let data = FALLBACK;
     try {

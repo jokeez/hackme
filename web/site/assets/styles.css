@@ -45,11 +45,107 @@ a { color: inherit; text-decoration: none; }
   justify-content: space-between;
   gap: 1rem;
 }
-/* Reserve ticker band early (filled by site-shell) to prevent F5 layout jump */
+/*
+ * Critical ticker layout — MUST live in styles.css (sync with first paint).
+ * Prevents F5 FOUC where LIVE/pool stack vertically before disclosure-ticker.css loads.
+ */
 .disclosure-ticker,
 .disclosure-ticker-slot {
+  position: relative;
+  z-index: 5;
   min-height: 3.9rem;
+  padding: 0.2rem 0 0.65rem;
   box-sizing: border-box;
+  background: transparent;
+}
+.disclosure-ticker .dt-shell,
+.disclosure-ticker-slot .dt-shell {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 1.2rem;
+  box-sizing: border-box;
+}
+.disclosure-ticker .dt-bar,
+.disclosure-ticker-slot .dt-bar {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 3.05rem;
+  height: 3.05rem;
+  padding: 0.48rem 0.9rem 0.55rem;
+  border-radius: 0.9rem;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid rgba(120, 170, 220, 0.18);
+  background: rgba(8, 14, 27, 0.55);
+}
+.disclosure-ticker .dt-live,
+.disclosure-ticker-slot .dt-live {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(110, 255, 173, 0.35);
+  background: rgba(110, 255, 173, 0.08);
+  white-space: nowrap;
+}
+.disclosure-ticker .dt-live-label,
+.disclosure-ticker-slot .dt-live-label {
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #6effad;
+}
+.disclosure-ticker .dt-pulse,
+.disclosure-ticker-slot .dt-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #6effad;
+  flex-shrink: 0;
+}
+.disclosure-ticker .dt-poolchip,
+.disclosure-ticker-slot .dt-poolchip {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  min-width: 8.6rem;
+  max-width: 9.5rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(77, 228, 255, 0.32);
+  background: rgba(77, 228, 255, 0.07);
+  font-size: 0.68rem;
+  font-weight: 650;
+  color: #bfefff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.disclosure-ticker .dt-stage,
+.disclosure-ticker-slot .dt-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 1.85rem;
+  display: flex;
+  align-items: center;
+}
+.disclosure-ticker .dt-slide--skeleton .dt-skel,
+.disclosure-ticker-slot .dt-skel {
+  display: block;
+  height: 0.72rem;
+  width: min(42%, 18rem);
+  border-radius: 999px;
+  background: rgba(120, 160, 200, 0.16);
 }
 .brand {
   display: inline-flex;

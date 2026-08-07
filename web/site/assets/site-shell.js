@@ -119,21 +119,23 @@
     ).join("");
   }
 
+  const TICKER_CACHE = "20260807wow5";
+
   function ensureDisclosureTickerStyles() {
     if (document.querySelector('link[data-disclosure-ticker-css="1"]')) return;
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = "/assets/disclosure-ticker.css?v=20260807wow4";
+    link.href = `/assets/disclosure-ticker.css?v=${TICKER_CACHE}`;
     link.dataset.disclosureTickerCss = "1";
     document.head.appendChild(link);
   }
 
-  /** Sync placeholder right under topbar — same height as live ticker (kills F5 CLS). */
+  /** Placeholder under topbar — only if page did not ship a static slot. */
   function ensureDisclosureTickerSlot() {
+    ensureDisclosureTickerStyles();
+    if (document.querySelector(".disclosure-ticker")) return;
     const header = document.querySelector("header.topbar");
     if (!header) return;
-    if (document.querySelector(".disclosure-ticker")) return;
-    ensureDisclosureTickerStyles();
     const slot = document.createElement("div");
     slot.className = "disclosure-ticker disclosure-ticker-slot";
     slot.setAttribute("aria-hidden", "true");
@@ -149,6 +151,7 @@
             <span class="dt-poolchip-val">pool …</span>
           </div>
           <div class="dt-stage"><div class="dt-slide dt-slide--active dt-slide--skeleton"><span class="dt-skel"></span></div></div>
+          <div class="dt-dots" aria-hidden="true"></div>
         </div>
       </div>`;
     header.insertAdjacentElement("afterend", slot);
@@ -160,8 +163,8 @@
       return;
     }
     const s = document.createElement("script");
-    s.src = "/assets/disclosure-ticker.js?v=20260807wow4";
-    s.defer = true;
+    s.src = `/assets/disclosure-ticker.js?v=${TICKER_CACHE}`;
+    // async false / no defer: run ASAP after parse so hydrate is quick; script at end of body is fine
     s.dataset.disclosureTicker = "1";
     document.body.appendChild(s);
   }
@@ -189,7 +192,7 @@
     ensureDisclosureTicker();
   }
 
-  // Run slot as soon as this file executes (usually end of <body>) — before deferred ticker.
+  // Slot first (no-op if static HTML already present), then full mount.
   ensureDisclosureTickerSlot();
 
   if (document.readyState === "loading") {

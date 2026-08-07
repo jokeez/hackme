@@ -40,13 +40,17 @@
   --dt-glow: rgba(77, 228, 255, 0.14);
   position: relative;
   display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.7rem;
   min-height: 3.05rem;
+  height: 3.05rem;
   padding: 0.48rem 0.9rem 0.55rem;
   border-radius: 0.9rem;
   overflow: hidden;
   isolation: isolate;
+  box-sizing: border-box;
   border: 1px solid rgba(120, 170, 220, 0.18);
   box-shadow:
     0 10px 36px rgba(0, 12, 36, 0.28),
