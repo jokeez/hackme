@@ -50,7 +50,7 @@ Most “mining” is a lottery with no output. **HackMe ties hashrate to verifia
 |--------|----------------|
 | **⛏ Mine** | Public HTTP pool · NVIDIA CUDA / OpenCL / CPU · hybrid Ed25519 submits · **HMC** rewards + **SUP** loyalty lane |
 | **🛡 Fuzz** | B2B campaigns (`wasm_only` → `wasm_native`) · escrow · `fuzz_report_v2` · pool-distributed workers |
-| **🔬 Research** | Bitcoin30 series · OSS CVE hunt · [nghttp2 Watch complete](https://hackme.tech/reports/oss-cve-watch/day14.html) · [libheif Day 1/14](https://hackme.tech/research.html) running |
+| **🔬 Research** | Bitcoin30 series · OSS CVE hunt · [nghttp2 14/14 CLEAN](https://hackme.tech/reports/oss-cve-watch/day14.html) · [libheif 14/14 CLEAN](https://hackme.tech/reports/oss-cve-watch-libheif/day14.html) |
 
 ```mermaid
 flowchart TB
@@ -92,7 +92,7 @@ flowchart TB
 | **Settlement** | **Live** | HMC + SUP systemd timers + autopilot on canonical host |
 | **B2B fuzz / PoH** | **Live** | Dashboard `#orders` · `workerfuzz` on hub · bootstrap PoH path (`pool_distributed` + `create_poh_order`) completing deep orders |
 | **OSS CVE Watch · nghttp2** | **14/14 complete** | [day14.html](https://hackme.tech/reports/oss-cve-watch/day14.html) CLEAN · ~14.32B exec · ASAN=0 |
-| **OSS CVE Watch · libheif** | **Day 1/14 running** | HEIF/AVIF `file_fuzzer` · 24h cadence · [research hub](https://hackme.tech/research.html) |
+| **OSS CVE Watch · libheif** | **14/14 complete** | [day14.html](https://hackme.tech/reports/oss-cve-watch-libheif/day14.html) CLEAN · ~2.57B exec · ASAN=0 |
 | **Win / Linux / fuzz / ISO** | **rc13** | SHA256 on [downloads](https://hackme.tech/downloads.html) |
 | **Security gate** | **16/16 PASS** | Red-team scripts in `scripts/ops/` |
 | **HMS storage** | Preview | Prelaunch — not a miner lane yet |
@@ -185,12 +185,12 @@ bash scripts/tests/verify_hackme_iso.sh your.iso
 | **Bitcoin Core 30-day fuzz** | [bitcoin30.html](https://hackme.tech/reports/bitcoin30.html) |
 | **OSS CVE matrix** | [oss-cve/](https://hackme.tech/reports/oss-cve/) |
 | **OSS CVE Watch · nghttp2** (complete) | [oss-cve-watch/](https://hackme.tech/reports/oss-cve-watch/) · [Day 14 finale · CLEAN](https://hackme.tech/reports/oss-cve-watch/day14.html) |
-| **OSS CVE Watch · libheif** (Day 1/14) | New series · HEIF/AVIF decode · 24h/day cadence · ledger at publish |
+| **OSS CVE Watch · libheif** (complete) | [oss-cve-watch-libheif/](https://hackme.tech/reports/oss-cve-watch-libheif/) · [Day 14 finale · CLEAN](https://hackme.tech/reports/oss-cve-watch-libheif/day14.html) |
 | **L1 / B2B case studies** | [research.html](https://hackme.tech/research.html) |
 
 **nghttp2 series (closed):** Day 14 finale **3.03B** exec · 17.0h · ASAN=0 · Days 2–14 cum ≈ **14.32B** — [series verdict](docs/verdicts/OSS_CVE_WATCH_NGHTTP2_SERIES_VERDICT.md).
 
-**libheif series (active):** Day **1/14** · upstream `file_fuzzer` · libde265+dav1d · 24/7 fixed 86400s windows — [runbook](docs/OSS_CVE_LIBHEIF_SERIES.md).
+**libheif series (closed):** Days **1–14 CLEAN** · ~**2.57B** exec · ~325h ASAN · ASAN=0 — [runbook](docs/OSS_CVE_LIBHEIF_SERIES.md) · [finale](https://hackme.tech/reports/oss-cve-watch-libheif/day14.html).
 
 Run locally: `DAY=8 bash scripts/ops/run_bitcoin30_day.sh` · [BITCOIN30_SERIES.md](docs/BITCOIN30_SERIES.md)
 

@@ -35,7 +35,7 @@ Three layers on one stack:
 ## Slide 5 — Technology proof
 
 - Live pool + explorer + downloads (**0.1.0-rc13**)
-- OSS CVE Watch: nghttp2 14/14 CLEAN · libheif Day 7/14 CLEAN (~1.04B series exec)
+- OSS CVE Watch: nghttp2 14/14 CLEAN · libheif 14/14 CLEAN (~2.57B series exec · ASAN=0)
 - Operator gates: miner launch, SUP verdict, site consistency
 - Private bounty B1–B5 patched (desktop rebind, fleet settle, CF IP, fuzz PoP)
 - AGPL source on GitHub

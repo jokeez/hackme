@@ -1,61 +1,37 @@
 # OSS CVE Watch · libheif series (Days 1–14)
 
 **Started:** 2026-07-20  
-**Status (2026-08-07):** Days **1–13 CLEAN** published · Day **14** next  
+**Status (2026-08-07):** Days **1–14 CLEAN** · **series CLOSED**  
 **Target:** [strukturag/libheif](https://github.com/strukturag/libheif) · upstream `file_fuzzer`  
 **Public ledger:** https://hackme.tech/reports/oss-cve-watch-libheif/  
+**Finale:** https://hackme.tech/reports/oss-cve-watch-libheif/day14.html  
 **Prior series:** nghttp2 14/14 CLEAN — [verdict](verdicts/OSS_CVE_WATCH_NGHTTP2_SERIES_VERDICT.md)
 
 ## Naming
 
-This is a **new series** (not “Day 15” of nghttp2). Different harness, corpus, and ledger.
+This is a **separate series** from nghttp2 (different harness, corpus, and ledger).
 
 ## Progress
 
 | Day | Verdict | Notes |
 |-----|---------|--------|
-| 1–13 | CLEAN | Ledgers `day01.html`…`day13.html` on hub + GitHub `main` |
-| 14 | pending | Finale window |
+| 1–14 | CLEAN | All ledgers `day01.html`…`day14.html` on hub + GitHub `main` |
 
-Publish gate (libheif): ≥20M exec · ≥23h wall per day.
+**Series totals (frozen ledger):** ~2.57B libFuzzer exec · ~325h ASAN depth · ASAN crashes **0** · corpus **3215** · edges **7509** (Day 14).
 
-## Run
+CLEAN = no ASAN heap crash in that day’s budget. **Not** “proven secure.” **Not** a CVE claim.
 
-### 24/7 · fixed 24h days (recommended)
+## After Day 14
 
-Each day = **exactly 86400s** from series anchor (Day 1 start). Fuzzer chains automatically; publish at day boundary.
+No automatic Day 15. Next research is optional short pilots or B2B-shaped campaigns — not another 14-day marathon by default.
 
-```bash
-# VPS hub — install once, then start
-bash scripts/ops/install_libheif_24h_cadence_systemd.sh
-ANCHOR_EPOCH=1784543563 systemctl --user start hackme-libheif-24h.service
+## Reproduce / ops
 
-# Or foreground (adopts live fuzzer if running)
-ANCHOR_EPOCH=1784543563 bash scripts/ops/run_oss_cve_watch_libheif_24h_cadence.sh
-```
-
-State: `reports/oss-cve-watch-libheif/cadence.json` · logs: `logs/oss-cve-watch-libheif-24h-*.log`
-
-### Manual one-off session
+Corpus persists under `reports/oss-cve-libfuzzer/libheif/corpus/`.
 
 ```bash
-TARGET=libheif bash scripts/ops/build_oss_libfuzzer_libheif.sh
-TARGET=libheif MAX_TIME=86400 bash scripts/ops/run_oss_libfuzzer_session.sh
+# One-off session (operator)
+bash scripts/ops/run_oss_libfuzzer_session.sh
 ```
 
-## Paths
-
-| Path | Role |
-|------|------|
-| `reports/oss-cve-libfuzzer/libheif/corpus/` | Persistent corpus |
-| `reports/oss-cve-libfuzzer/libheif/crashes/` | ASAN artifacts |
-| `tasks/seeds/oss-libfuzzer/libheif/` | Optional local seeds |
-| `.cache/oss-cve-clones/libheif/fuzzing/data/corpus/` | Upstream OSS-Fuzz seeds (bootstrap) |
-
-## Disclosure
-
-Research-first → GitHub Security Advisory on libheif. Cash bounty only if finding maps to an eligible consumer program.
-
-## Operator notes
-
-Full target analysis: `reports/oss-cve-watch/DAY15_TARGET_RECOMMENDATION.md` (local; legacy filename).
+Historical cadence helpers remain under `scripts/ops/run_oss_cve_watch_libheif_*` for archive/repro only.
