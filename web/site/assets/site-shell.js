@@ -127,7 +127,7 @@
       return;
     }
     const s = document.createElement("script");
-    s.src = "/assets/disclosure-ticker.js?v=20260807wow";
+    s.src = "/assets/disclosure-ticker.js?v=20260807wow2";
     s.defer = true;
     s.dataset.disclosureTicker = "1";
     document.body.appendChild(s);
