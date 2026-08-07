@@ -5,7 +5,8 @@
     "./assets/news-display-02.json",
     "./assets/news-display-03.json",
     "./assets/news-display-04.json",
-    "./assets/news-display-05.json"
+    "./assets/news-display-05.json",
+    "./assets/news-display-06.json"
   ],
-  "total": 102
+  "total": 103
 }

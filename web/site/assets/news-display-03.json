@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-06-08-rc11m-wallet-treasury",
+      "date": "2026-06-08",
+      "title": "Release 0.1.0-rc11m — wallet treasury & canonical balance fix",
+      "summary": "Desktop wallet now shows your real on-chain HMC and SUP from hackme.tech (not stale local SQLite). Three-column treasury: on-chain · pool accrual · orders debit. Instant UI cache + background canonical sync. VPS node recovery when /api/address was timing out.",
+      "impact": "Miners with ~400 HMC on-chain were seeing ~15 HMC when the hub node hung — fixed. Refresh Wallet or reopen #wallet after update.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Local dashboard: http://127.0.0.1:8080/#wallet · Explorer: https://hackme.tech/explorer-lite.html",
+      "tags": [
+        "release",
+        "wallet",
+        "mining",
+        "infrastructure"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-06-04-live-fuzz-security-audits",
       "date": "2026-06-04",
       "title": "Live fuzz security audits — Solana SPL & Bitcoin Core guards (completed)",
@@ -240,22 +255,6 @@
         "infrastructure",
         "release",
         "fuzzing"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-22-hackme-os-iso-published",
-      "date": "2026-05-22",
-      "title": "HackMe OS ISO published (956 MB) · SHA256 verified · pool ~2.4 GH/s",
-      "summary": "Bootable HackMe-OS-0.1.0-rc11g-amd64.iso built and verified: Zero-Knowledge Start, production pool token embedded, minersign + workerpoh in image. Full test sweep + chaos guard PASS. ISO SHA256: 1b7bd70e381bb0d5aee82135fe01963d27d2af43ebfba95e02dec22aabe17658. Deploy to hackme.tech/dist with scripts/ops/deploy_release_rc11g_iso.sh.",
-      "impact": "Miners can flash Etcher USB and join the public pool with no wallet setup; operators publish ISO via VPS rsync.",
-      "action": "Verify: sha256sum -c SHA256SUMS-iso.txt · Flash ISO · Pool stats: https://hackme.tech/pool/coordinator/api/work/stats",
-      "tags": [
-        "release",
-        "mining",
-        "hackme-os",
-        "infrastructure",
-        "security"
       ],
       "status": "published"
     }
