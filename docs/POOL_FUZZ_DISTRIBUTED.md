@@ -2,6 +2,15 @@
 
 Pool miners can run **fuzz work** on the coordinator alongside PoH mining.
 
+## Storage (hub)
+
+Fuzz tables live in a **separate SQLite** when set:
+
+- `HACKME_COORDINATOR_DB` — PoH / work / peers (default `data/coordinator.db`)
+- `HACKME_COORDINATOR_FUZZ_DB` — fuzz campaigns/queue/findings (hub: `/opt/hackme/data/coordinator_fuzz.db`)
+
+If `HACKME_COORDINATOR_FUZZ_DB` is unset, fuzz shares the main DB (compat). WAL-guard watches both files.
+
 ## API (coordinator)
 
 | Method | Path | Auth | Purpose |

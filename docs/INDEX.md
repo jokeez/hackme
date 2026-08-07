@@ -42,7 +42,7 @@
 |------------|--------|
 | [BITCOIN30_SERIES.md](BITCOIN30_SERIES.md) | 30-day Bitcoin Core WASM fuzz |
 | [OSS_CVE_HUNT.md](OSS_CVE_HUNT.md) | OSS CVE wave pipeline |
-| [OSS_CVE_LIBHEIF_SERIES.md](OSS_CVE_LIBHEIF_SERIES.md) | **libheif** OSS CVE Watch · Day 1/14 |
+| [OSS_CVE_LIBHEIF_SERIES.md](OSS_CVE_LIBHEIF_SERIES.md) | **libheif** OSS CVE Watch · **13/14 CLEAN** (Day 14 next) |
 | [../web/site/reports/oss-cve-watch/](../web/site/reports/oss-cve-watch/) | **nghttp2 OSS CVE Watch** — 14-day ledger (complete) |
 | [TELEGRAM_BOT.md](TELEGRAM_BOT.md) | Operator bot + news channel bot |
 | [../web/site/research.html](../web/site/research.html) | Public research hub |
@@ -57,6 +57,7 @@
 | [HMC_TOKENOMICS.md](HMC_TOKENOMICS.md) | HMC supply, halving, utility |
 | [SUP_TOKENOMICS.md](SUP_TOKENOMICS.md) | SUP emission & listing policy |
 | [TOKEN_ALLOCATION_AND_VESTING.md](TOKEN_ALLOCATION_AND_VESTING.md) | Cap table · unlock calendar |
+| [YEAR_PLAN_2026_2027.md](YEAR_PLAN_2026_2027.md) | Year plan (canonical detail in Obsidian) |
 | [EXCHANGE_LISTING_MEMO.md](EXCHANGE_LISTING_MEMO.md) | One-page CEX memo |
 | [LISTING_PITCH_OUTLINE.md](LISTING_PITCH_OUTLINE.md) | Slide deck source |
 | [DOCUMENTATION_EXPORT.md](DOCUMENTATION_EXPORT.md) | PDF/DOCX per ticker |
@@ -82,7 +83,8 @@
 |-----|--------|
 | [OPERATIONS_MONITORING.md](OPERATIONS_MONITORING.md) | Metrics, alerts, pool health (`run_pool_health_check.sh`) |
 | [VPS_CAPACITY.md](VPS_CAPACITY.md) | Hub sizing & multi-coin layout |
-| [HACKME_RC12W.md](HACKME_RC12W.md) | **Current** Win/Linux + ISO channel |
+| [HACKME_RC13.md](HACKME_RC13.md) | **Current** Win/Linux/fuzz/ISO channel |
+| [HACKME_RC12W.md](HACKME_RC12W.md) | Historical prior RC |
 | [HACKME_RC11S.md](HACKME_RC11S.md) | Historical prior RC (see also `archive/rc/`) |
 | [scripts/release/README.md](../scripts/release/README.md) | Build ISO / Windows / bundles |
 | [scripts/ops/README.md](../scripts/ops/README.md) | Ops scripts — supported vs experimental |

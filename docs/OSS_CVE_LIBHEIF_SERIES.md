@@ -1,12 +1,23 @@
 # OSS CVE Watch · libheif series (Days 1–14)
 
 **Started:** 2026-07-20  
+**Status (2026-08-07):** Days **1–13 CLEAN** published · Day **14** next  
 **Target:** [strukturag/libheif](https://github.com/strukturag/libheif) · upstream `file_fuzzer`  
+**Public ledger:** https://hackme.tech/reports/oss-cve-watch-libheif/  
 **Prior series:** nghttp2 14/14 CLEAN — [verdict](verdicts/OSS_CVE_WATCH_NGHTTP2_SERIES_VERDICT.md)
 
 ## Naming
 
-This is **Day 1/14 of a new series**, not “Day 15” of nghttp2. Different harness, corpus, and ledger.
+This is a **new series** (not “Day 15” of nghttp2). Different harness, corpus, and ledger.
+
+## Progress
+
+| Day | Verdict | Notes |
+|-----|---------|--------|
+| 1–13 | CLEAN | Ledgers `day01.html`…`day13.html` on hub + GitHub `main` |
+| 14 | pending | Finale window |
+
+Publish gate (libheif): ≥20M exec · ≥23h wall per day.
 
 ## Run
 
@@ -24,8 +35,6 @@ ANCHOR_EPOCH=1784543563 bash scripts/ops/run_oss_cve_watch_libheif_24h_cadence.s
 ```
 
 State: `reports/oss-cve-watch-libheif/cadence.json` · logs: `logs/oss-cve-watch-libheif-24h-*.log`
-
-Publish gate (libheif): ≥20M exec · ≥23h wall per day.
 
 ### Manual one-off session
 
