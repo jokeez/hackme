@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-28T12:00:00Z",
+  "updated": "2026-08-07T18:00:00Z",
   "interval_ms": 7000,
   "slides": [
     {
@@ -12,40 +12,40 @@
       "accent": "success"
     },
     {
-      "kind": "hub",
-      "badge": "Wave 12 · running",
-      "title": "pcre2 · picohttp · yajl · json-c · cmp · uriparser",
-      "detail": "Tier-D ASAN · ~50k iter/target · est. 45–60 min",
-      "cta": "OSS CVE hub",
-      "href": "/reports/oss-cve/",
+      "kind": "series",
+      "badge": "14/14 CLOSED",
+      "title": "libheif OSS CVE Watch · CLEAN",
+      "detail": "~2.57B exec · ASAN=0 · series finale published",
+      "cta": "Day 14",
+      "href": "/reports/oss-cve-watch-libheif/day14.html",
+      "accent": "cyan"
+    },
+    {
+      "kind": "series",
+      "badge": "14/14 CLOSED",
+      "title": "nghttp2 OSS CVE Watch · CLEAN",
+      "detail": "HTTP/2 research ledger complete",
+      "cta": "Research",
+      "href": "/research.html",
       "accent": "gold"
     },
     {
       "kind": "case",
       "badge": "Awaiting maintainer",
       "title": "mity/centijson",
-      "detail": "GitHub #13 · medium · coordinated disclosure",
+      "detail": "GitHub hold · medium · coordinated disclosure",
       "cta": "Case page",
       "href": "/reports/oss-cve/cases/centijson.html",
       "accent": "medium"
     },
     {
-      "kind": "case",
-      "badge": "Reported upstream",
-      "title": "vstakhov/libucl · #396 closed",
-      "detail": "UBSan teardown · not CVE-class",
-      "cta": "Case page",
-      "href": "/reports/oss-cve/cases/libucl.html",
-      "accent": "cyan"
-    },
-    {
-      "kind": "case",
-      "badge": "Reported upstream",
-      "title": "Arsievert/cfgpack · #1 fixed",
-      "detail": "msgpack int64 UBSan · b5e7cff · not CVE",
-      "cta": "Case page",
-      "href": "/reports/oss-cve/cases/cfgpack.html",
-      "accent": "success"
+      "kind": "hub",
+      "badge": "Tier-D idle",
+      "title": "Last wave 48 · CLEAN (2026-07-08)",
+      "detail": "OSS CVE hub · no live wave right now",
+      "cta": "OSS CVE hub",
+      "href": "/reports/oss-cve/",
+      "accent": "violet"
     },
     {
       "kind": "b2b",

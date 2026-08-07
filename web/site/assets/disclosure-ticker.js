@@ -2,7 +2,7 @@
  * Live OSS disclosure + B2B trust banner — data from disclosure-ticker.json
  */
 (() => {
-  const JSON_URL = "/assets/disclosure-ticker.json?v=20260627banner2";
+  const JSON_URL = "/assets/disclosure-ticker.json?v=20260807ticker";
   const FALLBACK = {
     interval_ms: 7000,
     slides: [
@@ -10,7 +10,7 @@
         kind: "hub",
         badge: "Research",
         title: "OSS coordinated disclosure pipeline",
-        detail: "Tier-D ASAN hunts on real upstream clones",
+        detail: "Tier-D ASAN hunts · public case ledgers",
         cta: "OSS CVE hub",
         href: "/reports/oss-cve/",
         accent: "gold",
@@ -26,7 +26,7 @@
     medium: { border: "rgba(255, 200, 87, 0.45)", dot: "#ffc857" },
   };
 
-  let state = { slides: [], index: 0, interval: 7000, timer: null };
+  let state = { slides: [], index: 0, interval: 7000, timer: null, paused: false };
 
   function esc(s) {
     const d = document.createElement("div");
@@ -58,7 +58,7 @@
     wrap.innerHTML = `
       <div class="dt-shell">
         <div class="dt-bar glass">
-          <div class="dt-live" title="Live research pipeline">
+          <div class="dt-live" title="Research pipeline status">
             <span class="dt-pulse" aria-hidden="true"></span>
             <span class="dt-live-label">LIVE</span>
           </div>
@@ -94,6 +94,13 @@
     });
   }
 
+  function setProgressPaused(paused) {
+    const bar = document.querySelector(".dt-progress-bar");
+    if (bar) bar.style.animationPlayState = paused ? "paused" : "running";
+    const ticker = document.querySelector(".disclosure-ticker");
+    if (ticker) ticker.classList.toggle("is-paused", !!paused);
+  }
+
   function restartProgress() {
     const bar = document.querySelector(".dt-progress-bar");
     if (!bar) return;
@@ -101,31 +108,65 @@
     void bar.offsetWidth;
     bar.style.animation = "";
     bar.style.animationDuration = `${state.interval}ms`;
+    bar.style.animationPlayState = state.paused || document.hidden ? "paused" : "running";
+  }
+
+  /** Hard-reset stage to one slide — avoids stacked/ghost slides after tab throttle. */
+  function paintClean(i) {
+    const stage = document.querySelector(".dt-stage");
+    if (!stage || !state.slides.length) return;
+    state.index = ((i % state.slides.length) + state.slides.length) % state.slides.length;
+    stage.replaceChildren();
+    stage.insertAdjacentHTML("beforeend", renderSlide(state.slides[state.index], false));
+    document.querySelectorAll(".dt-dot").forEach((d, j) => {
+      d.classList.toggle("dt-dot--on", j === state.index);
+    });
+    restartProgress();
   }
 
   function showSlide(i, animate) {
     const stage = document.querySelector(".dt-stage");
     if (!stage || !state.slides.length) return;
+
+    // Hidden / background tabs throttle timers → exit/enter overlap and "blend".
+    if (document.hidden || state.paused || !animate) {
+      paintClean(i);
+      return;
+    }
+
     state.index = ((i % state.slides.length) + state.slides.length) % state.slides.length;
     const slide = state.slides[state.index];
-    if (!animate) {
-      stage.innerHTML = renderSlide(slide, false);
-    } else {
-      const old = stage.querySelector(".dt-slide--active");
-      if (old) {
-        old.classList.remove("dt-slide--active");
-        old.classList.add("dt-slide--exit");
-        setTimeout(() => old.remove(), 360);
-      }
-      stage.insertAdjacentHTML("beforeend", renderSlide(slide, true));
-      requestAnimationFrame(() => {
-        const el = stage.querySelector(".dt-slide--enter");
-        if (el) {
-          el.classList.remove("dt-slide--enter");
-          el.classList.add("dt-slide--active");
-        }
-      });
+    const old = stage.querySelector(".dt-slide--active");
+    if (old) {
+      old.classList.remove("dt-slide--active");
+      old.classList.add("dt-slide--exit");
+      setTimeout(() => {
+        if (old.parentNode) old.remove();
+      }, 360);
     }
+    // Drop any leftover ghosts from a prior interrupted transition.
+    stage.querySelectorAll(".dt-slide:not(.dt-slide--exit)").forEach((el) => el.remove());
+    stage.insertAdjacentHTML("beforeend", renderSlide(slide, true));
+    requestAnimationFrame(() => {
+      if (document.hidden) {
+        paintClean(state.index);
+        return;
+      }
+      const el = stage.querySelector(".dt-slide--enter");
+      if (el) {
+        el.classList.remove("dt-slide--enter");
+        el.classList.add("dt-slide--active");
+      }
+    });
+    // Final sweep: only one visible slide after transition (prevents blend on tab sleep).
+    setTimeout(() => {
+      if (document.hidden) return;
+      const alive = stage.querySelector(".dt-slide--active");
+      stage.querySelectorAll(".dt-slide").forEach((el) => {
+        if (el !== alive) el.remove();
+      });
+      if (!alive) paintClean(state.index);
+    }, 400);
     document.querySelectorAll(".dt-dot").forEach((d, j) => {
       d.classList.toggle("dt-dot--on", j === state.index);
     });
@@ -133,33 +174,59 @@
   }
 
   function goTo(i) {
-    if (i === state.index) return;
-    showSlide(i, true);
+    if (i === state.index && !document.querySelector(".dt-slide--exit")) return;
+    showSlide(i, !document.hidden);
     schedule();
   }
 
   function next() {
-    showSlide(state.index + 1, true);
+    showSlide(state.index + 1, !document.hidden);
     schedule();
   }
 
   function schedule() {
     if (state.timer) clearTimeout(state.timer);
+    state.timer = null;
+    if (state.paused || document.hidden) return;
     state.timer = setTimeout(next, state.interval);
+  }
+
+  function pause(reason) {
+    state.paused = true;
+    if (state.timer) clearTimeout(state.timer);
+    state.timer = null;
+    setProgressPaused(true);
+    const ticker = document.querySelector(".disclosure-ticker");
+    if (ticker && reason === "hidden") ticker.classList.add("is-hidden");
+  }
+
+  function resume(reason) {
+    state.paused = false;
+    const ticker = document.querySelector(".disclosure-ticker");
+    if (ticker) ticker.classList.remove("is-hidden");
+    // Always repaint one clean slide after background — kills merged layers.
+    paintClean(state.index);
+    setProgressPaused(false);
+    schedule();
   }
 
   function bindPause() {
     const ticker = document.querySelector(".disclosure-ticker");
     if (!ticker) return;
     ticker.addEventListener("mouseenter", () => {
+      if (document.hidden) return;
       if (state.timer) clearTimeout(state.timer);
-      const bar = document.querySelector(".dt-progress-bar");
-      if (bar) bar.style.animationPlayState = "paused";
+      state.timer = null;
+      setProgressPaused(true);
     });
     ticker.addEventListener("mouseleave", () => {
-      const bar = document.querySelector(".dt-progress-bar");
-      if (bar) bar.style.animationPlayState = "running";
+      if (document.hidden) return;
+      setProgressPaused(false);
       schedule();
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) pause("hidden");
+      else resume("visible");
     });
   }
 
@@ -177,12 +244,11 @@
     state.slides = Array.isArray(data.slides) && data.slides.length ? data.slides : FALLBACK.slides;
     state.interval = Number(data.interval_ms) > 2000 ? Number(data.interval_ms) : 7000;
 
-    const stage = document.querySelector(".dt-stage");
-    if (stage) stage.innerHTML = renderSlide(state.slides[0], false);
+    paintClean(0);
     renderDots();
     bindPause();
-    restartProgress();
-    schedule();
+    if (!document.hidden) schedule();
+    else pause("hidden");
   }
 
   if (document.readyState === "loading") {

@@ -3,25 +3,27 @@
  * Mark pages: <nav class="nav" data-site-nav data-site-page="coins"></nav>
  */
 (() => {
+  // Root-absolute hrefs so nested pages (/reports/oss-cve/…) don't resolve to
+  // /reports/oss-cve/coins.html etc.
   const PAGES = {
-    home: { href: "./index.html", label: "Home" },
-    coins: { href: "./coins.html", label: "Coins" },
-    transparency: { href: "./token-transparency.html", label: "Transparency" },
-    roadmap: { href: "./roadmap.html", label: "Roadmap" },
-    listing: { href: "./listing.html", label: "Listing" },
-    mine: { href: "./downloads.html#start", label: "Mine" },
-    downloads: { href: "./downloads.html", label: "Download" },
-    fuzz: { href: "./fuzz-campaigns.html", label: "Fuzz" },
-    research: { href: "./research.html", label: "Research" },
-    developers: { href: "./developers.html", label: "Developers" },
-    docs: { href: "./docs.html", label: "Docs" },
-    news: { href: "./news.html", label: "News" },
-    economics: { href: "./economics-model.html", label: "Economics" },
-    contacts: { href: "./contacts.html", label: "Contacts" },
-    rewards: { href: "./security-rewards.html", label: "Bug bounty" },
-    legal: { href: "./legal.html", label: "Legal" },
-    privacy: { href: "./legal-privacy.html", label: "Privacy" },
-    explorer: { href: "./explorer-lite.html", label: "Explorer" },
+    home: { href: "/", label: "Home" },
+    coins: { href: "/coins.html", label: "Coins" },
+    transparency: { href: "/token-transparency.html", label: "Transparency" },
+    roadmap: { href: "/roadmap.html", label: "Roadmap" },
+    listing: { href: "/listing.html", label: "Listing" },
+    mine: { href: "/downloads.html#start", label: "Mine" },
+    downloads: { href: "/downloads.html", label: "Download" },
+    fuzz: { href: "/fuzz-campaigns.html", label: "Fuzz" },
+    research: { href: "/research.html", label: "Research" },
+    developers: { href: "/developers.html", label: "Developers" },
+    docs: { href: "/docs.html", label: "Docs" },
+    news: { href: "/news.html", label: "News" },
+    economics: { href: "/economics-model.html", label: "Economics" },
+    contacts: { href: "/contacts.html", label: "Contacts" },
+    rewards: { href: "/security-rewards.html", label: "Bug bounty" },
+    legal: { href: "/legal.html", label: "Legal" },
+    privacy: { href: "/legal-privacy.html", label: "Privacy" },
+    explorer: { href: "/explorer-lite.html", label: "Explorer" },
     github: { href: "https://github.com/jokeez/hackme", label: "GitHub", external: true },
   };
 
@@ -125,10 +127,16 @@
       return;
     }
     const s = document.createElement("script");
-    s.src = "/assets/disclosure-ticker.js?v=20260627banner2";
+    s.src = "/assets/disclosure-ticker.js?v=20260807ticker";
     s.defer = true;
     s.dataset.disclosureTicker = "1";
     document.body.appendChild(s);
+  }
+
+  function fixBrandLinks() {
+    document.querySelectorAll("a.brand").forEach((a) => {
+      a.setAttribute("href", "/");
+    });
   }
 
   function mount() {
@@ -143,6 +151,7 @@
     document.querySelectorAll("#explorer-link-top, #explorer-link-hero, #explorer-link-card").forEach((el) => {
       if (!el.getAttribute("href")) el.setAttribute("href", PAGES.explorer.href);
     });
+    fixBrandLinks();
     wireNavMoreDismiss();
     ensureDisclosureTicker();
   }

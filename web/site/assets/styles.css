@@ -1763,6 +1763,20 @@ h4 { font-size: 1.02rem; }
   opacity: 0;
   transform: translateY(-4px);
   transition: opacity 0.32s ease, transform 0.32s ease;
+  pointer-events: none;
+}
+.disclosure-ticker.is-hidden .dt-slide--exit,
+.disclosure-ticker.is-hidden .dt-slide--enter {
+  display: none !important;
+}
+.disclosure-ticker.is-hidden .dt-slide--active,
+.disclosure-ticker.is-paused .dt-slide--active {
+  opacity: 1 !important;
+  transform: none !important;
+}
+.disclosure-ticker.is-hidden .dt-pulse,
+.disclosure-ticker.is-paused .dt-pulse {
+  animation-play-state: paused;
 }
 .dt-badge {
   flex-shrink: 0;

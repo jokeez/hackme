@@ -31,11 +31,11 @@
 
   const CONFIG = {
     explorerUrl: "/explorer-lite.html",
-    newsUrl: "./news.html",
-    newsFeed: "./assets/news-feed.json",
-    newsDisplayIndex: "./assets/news-display-index.json",
-    newsDisplay: "./assets/news-display.json",
-    newsArchive: "./assets/news.json",
+    newsUrl: "/news.html",
+    newsFeed: "/assets/news-feed.json",
+    newsDisplayIndex: "/assets/news-display-index.json",
+    newsDisplay: "/assets/news-display.json",
+    newsArchive: "/assets/news.json",
     releaseChannel: RELEASE_VER,
     releaseChannelNote: "rc13 — 48-hour pool soak PASS; refreshed Win/Linux/ISO and B2B fuzzing CLI artifacts",
     releaseBase: `/dist/release_${RELEASE_VER}`,
@@ -107,7 +107,7 @@
     });
     if (exists) return;
     const link = document.createElement("a");
-    link.href = "./coins.html";
+    link.href = "/coins.html";
     link.textContent = "Coins";
     const news = container.querySelector('a[href*="news"]');
     if (news && news.parentNode) {
@@ -130,7 +130,7 @@
     const norm = href.toLowerCase();
     const exists = Array.from(container.querySelectorAll("a")).some((a) => {
       const h = (a.getAttribute("href") || "").trim().toLowerCase();
-      return h === norm || h.endsWith(norm.replace("./", ""));
+      return h === norm || h.endsWith(norm.replace("./", "").replace(/^\//, ""));
     });
     if (exists) return;
     const link = document.createElement("a");
@@ -150,11 +150,11 @@
 
   function wireStandardNav() {
     if (document.querySelector(".nav-more")) return;
-    ensureNavLink(".nav", "./coins.html", "Coins", "index");
-    ensureNavLink(".nav", "./developers.html", "Developers", "coins");
-    ensureNavLink(".nav", "./downloads.html", "Downloads", "developers");
-    ensureNavLink(".nav", "./fuzz-campaigns.html", "Fuzz", "downloads");
-    ensureNavLink(".footer-nav", "./research.html", "Research", "coins");
+    ensureNavLink(".nav", "/coins.html", "Coins", "index");
+    ensureNavLink(".nav", "/developers.html", "Developers", "coins");
+    ensureNavLink(".nav", "/downloads.html", "Downloads", "developers");
+    ensureNavLink(".nav", "/fuzz-campaigns.html", "Fuzz", "downloads");
+    ensureNavLink(".footer-nav", "/research.html", "Research", "coins");
   }
 
   function ensureFooterLink(nav, href, text) {
