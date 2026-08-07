@@ -139,4 +139,3 @@ func TestOpenFuzzCreatesFuzzTablesOnly(t *testing.T) {
 		t.Fatalf("insert fuzz_campaigns: %v", err)
 	}
 }
-
