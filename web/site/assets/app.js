@@ -215,7 +215,9 @@
 
   function wireDownloadLinks() {
     setHref("download-win", CONFIG.windowsInstaller || CONFIG.windowsBundle);
-    setHref("download-win-zip", CONFIG.windowsBundle);
+    // "Portable ZIP" should point to the actually published asset.
+    // For rc14 GitHub does not include `hackme_<ver>_windows_setup.zip`, only `hackme_<ver>_windows.zip`.
+    setHref("download-win-zip", CONFIG.windowsBundleLegacy || CONFIG.windowsBundle);
     setHref("download-linux", CONFIG.linuxBundle);
     setHref("download-fuzzing-linux", CONFIG.fuzzingLinux);
     setHref("download-fuzzing-win", CONFIG.fuzzingWindows);

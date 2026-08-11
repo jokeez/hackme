@@ -419,22 +419,39 @@
       }
     },
     {
-      "id": "2026-08-11-release-rc14-48h-pool-soak",
+      "id": "2026-08-11-release-rc14-pool-fuzz-customer-first",
       "date": "2026-08-11",
-      "title": "48 HOURS. ZERO >10m GAPS. HackMe 0.1.0-rc14 is live.",
-      "summary": "The pool held a continuous 48-hour soak: 0 snapshot gaps over 10 minutes, ~69–197 GH/s (avg ~137), 8–20 workers online (avg ~13), and tip ~199444 → ~203990. Hub 0.1.0-rc12w mining stayed up; after coordinator restarts, the fleet recovered.",
-      "impact": "This is evidence for operator/private-pool readiness: useful-PoW mining, hybrid dig/fuzz work, and HMC/SUP ledger settlement stayed observable under a real fleet. It is not a claim of a trustless L1, exchange readiness, or CEX readiness.",
+      "title": "HackMe 0.1.0-rc14 is live — pool fuzz customer-first priority",
+      "summary": "E2E customer order flow on Aug 11: rc14 reduced claim latency from seconds to milliseconds and improved pool throughput for real customer orders. Customer order completed 256/256 in ~26 minutes; hybrid dig is ON on customer campaigns; escrow 20/80 unchanged.",
+      "impact": "Evidence for correct pool scheduling + fuzz integration: claim path priority, customer-first ordering, and hybrid dig/fuzz runs that produce findings on customer campaigns. Not a claim of trustless L1 / exchange readiness / CEX readiness.",
       "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc14 · ISO: https://hackme.tech/dist/release_0.1.0-rc14/HackMe-OS-0.1.0-rc14-amd64.iso · ISO SHA256: 1adf63cc8252c25ae040fc9362d78ac3209f0a5bf8babb05cd394f156ad5e60f · Verify SHA256SUMS.txt before running any artifact.",
       "tags": [
         "release",
         "rc14",
         "pool",
-        "mining",
         "fuzzing",
-        "security",
+        "customer-first",
+        "hybrid-dig",
         "operations"
       ],
       "status": "published",
+      "telegram": {
+        "headline": "HackMe 0.1.0-rc14 — pool fuzz customer-first priority",
+        "lead": "E2E order flow: claim latency drops to ~1–5 ms, customer completes 256/256 in ~26 min, and hybrid dig is ON for customer campaigns.",
+        "bullets": [
+          "Claim latency p50: ~1–5 ms (fixed customer-first claim scheduling)",
+          "Pool throughput: ~25–32 done/min (same test family)",
+          "Customer order: 256/256 completed in ~26 min (~9.8/min)",
+          "Hybrid dig ON: 2/50/2000/10% (FINDINGs on customer campaigns)",
+          "Infra correctness: owner_ref preserved; bootstrap resync fixed"
+        ],
+        "footer": "Downloads and SHA256 sums — use the buttons below."
+      },
+      "discord": {
+        "title": "HackMe 0.1.0-rc14 — pool fuzz customer-first priority",
+        "body": "**rc14 ships pool scheduling fixes for real customer orders.**\n\n• Claim latency p50: ~1–5 ms\n• Pool throughput: ~25–32 done/min\n• Customer order: 256/256 in ~26 min\n• Hybrid dig ON: 2/50/2000/10%\n• `owner_ref` preserved; bootstrap resync fixed\n\nEscrow stays 20/80 unchanged.",
+        "ping": "#announcements"
+      },
       "links": {
         "downloads": "https://hackme.tech/downloads.html",
         "github": "https://github.com/jokeez/hackme/releases/tag/0.1.0-rc14",
