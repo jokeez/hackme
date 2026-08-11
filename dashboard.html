@@ -1364,7 +1364,7 @@
 						<span id="hdr-ui-mode" class="hidden sm:inline text-[9px] px-2 py-0.5 rounded border border-white/20 text-gray-300 uppercase tracking-widest" title="UI rendering mode">ui: full</span>
 						<span class="hidden sm:inline text-[10px] px-2 py-0.5 rounded border border-neon/25 text-neon/90 bg-neon/5">WASM</span>
 						<span id="chain-id-pill" class="tag-pill text-matrix/90 border-matrix/30">hackme-dev-mainnet</span>
-						<span id="hdr-node-version" class="text-[9px] px-2 py-0.5 rounded border border-white/10 text-neon/80 font-mono max-w-[280px] truncate hidden sm:inline-block" title="Node version · commit · build date from /api/status">0.1.0-rc13 · …</span>
+						<span id="hdr-node-version" class="text-[9px] px-2 py-0.5 rounded border border-white/10 text-neon/80 font-mono max-w-[280px] truncate hidden sm:inline-block" title="Node version · commit · build date from /api/status">0.1.0-rc14 · …</span>
 					</div>
 					<div class="flex flex-wrap items-center gap-3 text-right text-[11px]">
 						<div class="flex items-center gap-2 rounded border border-warn/25 bg-black/40 px-2 py-1">
@@ -1444,7 +1444,7 @@
 				<div id="dashboard-whats-new" class="hidden mb-4 max-w-[1600px] mx-auto rounded-lg border border-matrix/35 bg-matrix/[0.07] px-4 py-3 text-[11px] leading-relaxed" role="status">
 					<div class="flex flex-wrap items-start justify-between gap-3">
 						<div class="min-w-0 flex-1">
-							<p class="font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-matrix mb-1">What&apos;s new · <span id="dashboard-whats-new-ver">0.1.0-rc13</span></p>
+							<p class="font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-matrix mb-1">What&apos;s new · <span id="dashboard-whats-new-ver">0.1.0-rc14</span></p>
 							<p id="dashboard-whats-new-body" class="text-gray-200/95">Wallet Activity: counterparty rollup, in/out filter, CSV export, address labels. Cleaner HMC / SUP / Transfer / Earnings. Research: <a href="https://hackme.tech/reports/oss-cve-watch-libheif/day01.html" class="text-neon underline" target="_blank" rel="noopener">libheif Day 1</a>.</p>
 						</div>
 						<button type="button" id="dashboard-whats-new-dismiss" class="shrink-0 text-[10px] px-2 py-1 rounded border border-white/15 text-gray-400 hover:text-gray-200 uppercase tracking-wider">Dismiss</button>
@@ -3345,7 +3345,7 @@
 		try {
 		// Enable JS-driven tab behavior (single active panel view).
 		document.body.classList.add('js-ui');
-		const DASHBOARD_UI_VER = '0.1.0-rc13';
+		const DASHBOARD_UI_VER = '0.1.0-rc14';
 		function updateUIModeBadge() {
 			const el = document.getElementById('hdr-ui-mode');
 			if (!el) return;
@@ -4667,7 +4667,7 @@
 		function initDashboardWhatsNew() {
 			const wrap = $('dashboard-whats-new');
 			if (!wrap) return;
-			const dismissKey = 'hackme_notice_dismiss:dashboard-whats-new-rc13';
+			const dismissKey = 'hackme_notice_dismiss:dashboard-whats-new-rc14';
 			try {
 				if (localStorage.getItem(dismissKey) === '1') {
 					wrap.classList.add('hidden');
@@ -12682,34 +12682,75 @@
 			const id = String(c.id || '');
 			const now = Date.now();
 			if (!Number.isFinite(bud) || bud <= 0) {
-				return { pct: 0, etaLabel: '', rate: 0 };
+				return { pct: 0, etaLabel: '', rateMin: 0 };
 			}
 			const pct = Math.min(100, Math.max(0, (runs / bud) * 100));
-			if (runs >= bud) return { pct: 100, etaLabel: 'done', rate: 0 };
-			let rate = 0;
-			const prev = samples && samples[id];
-			if (prev && prev.runs < runs && prev.ts < now) {
-				rate = (runs - prev.runs) / Math.max(1, (now - prev.ts) / 1000);
-			} else if (c.created_at && runs > 0) {
-				const age = Math.max(30, (now / 1000) - Number(c.created_at));
-				rate = runs / age;
+			if (runs >= bud) return { pct: 100, etaLabel: 'done', rateMin: 0 };
+			let rateMin = 0;
+			let didAverageFallback = false;
+			const prevSeries = samples && samples[id];
+			let prevLast = null;
+			if (Array.isArray(prevSeries)) {
+				prevLast = prevSeries.length ? prevSeries[prevSeries.length - 1] : null;
+			} else if (prevSeries) {
+				prevLast = prevSeries;
+			}
+
+			// Prefer a recent delta between refresh samples (runs increasing).
+			let didDeltaBasis = false;
+			if (prevLast && prevLast.ts < now && prevLast.runs < runs) {
+				const deltaMin = (now - prevLast.ts) / 60000;
+				rateMin = (runs - prevLast.runs) / Math.max(0.1, deltaMin);
+				didDeltaBasis = true;
+			} else if (Array.isArray(prevSeries) && prevSeries.length) {
+				// Optional: also consider a 5-minute window delta if we have enough samples.
+				const windowMs = 5 * 60 * 1000;
+				const within = prevSeries.filter(
+					(s) => s && Number.isFinite(s.ts) && s.ts < now && now - s.ts <= windowMs
+				);
+				if (within.length) {
+					const oldest = within[0];
+					if (oldest && oldest.ts < now && oldest.runs < runs) {
+						const deltaMin = (now - oldest.ts) / 60000;
+						const cand = (runs - oldest.runs) / Math.max(0.1, deltaMin);
+						if (cand > 0) {
+							rateMin = cand;
+							didDeltaBasis = true;
+						}
+					}
+				}
+			}
+
+			if (!didDeltaBasis && c.created_at && runs > 0) {
+				// Fallback: average since created_at (created_at is unix seconds).
+				const ageSec = Math.max(30, (now / 1000) - Number(c.created_at));
+				rateMin = (runs / ageSec) * 60;
+				didAverageFallback = true;
 			}
 			const remain = Math.max(0, bud - runs);
 			let etaLabel = '';
-			if (rate > 0.05) {
-				const sec = remain / rate;
+			// rateMin is runs/min
+			if (rateMin > 0.05) {
+				const sec = (remain / rateMin) * 60;
 				if (sec < 120) etaLabel = '~' + Math.ceil(sec) + 's';
 				else if (sec < 7200) etaLabel = '~' + Math.ceil(sec / 60) + 'm';
 				else etaLabel = '~' + (sec / 3600).toFixed(1) + 'h';
-			} else if (String(c.status || '').toLowerCase() === 'running') {
-				etaLabel = 'warming up';
+			} else {
+				// Only show "warming up" for truly new campaigns (runs=0 or we haven't seen a delta yet).
+				if (String(c.status || '').toLowerCase() === 'running' && !didAverageFallback) {
+					const prevRuns = prevLast ? Number(prevLast.runs) : null;
+					const noDeltaYet = !prevLast || (Number.isFinite(prevRuns) && prevRuns === runs);
+					if (runs === 0 || noDeltaYet) etaLabel = 'warming up';
+				}
 			}
-			return { pct, etaLabel, rate };
+			return { pct, etaLabel, rateMin };
 		}
-		function fmtFuzzRate(rate) {
-			if (!(rate > 0.01)) return '';
-			if (rate >= 10) return fmt(rate, 0) + '/s';
-			return fmt(rate, 1) + '/s';
+		function fmtFuzzRateMin(rateMin) {
+			const r = Number(rateMin);
+			if (!(r > 0)) return '';
+			if (r >= 10) return fmt(r, 0) + '/min';
+			if (r >= 1) return fmt(r, 1) + '/min';
+			return fmt(r, 2) + '/min';
 		}
 
 		async function refreshMiningFuzzMarketplace(forceRefresh) {
@@ -12755,9 +12796,15 @@
 					const bud = c.budget_runs != null ? Number(c.budget_runs) : 0;
 					const meta = fuzzCampaignProgressMeta(c, samples);
 					const id = String(c.id || '');
-					samples[id] = { runs, ts: now };
+					// Keep a rolling sample window per campaign to compute delta-based rates.
+					const prev = samples[id];
+					const arr = Array.isArray(prev) ? prev : (prev ? [prev] : []);
+					const maxAgeMs = 8 * 60 * 1000;
+					const pruned = arr.filter((s) => s && s.ts && (now - s.ts) <= maxAgeMs);
+					pruned.push({ runs, ts: now });
+					samples[id] = pruned;
 					const progTxt = bud > 0 ? (fmtUInt(runs) + '/' + fmtUInt(bud) + ' runs') : '';
-					const rateTxt = fmtFuzzRate(meta.rate);
+					const rateTxt = fmtFuzzRateMin(meta.rateMin);
 					const etaTxt = meta.etaLabel ? ('ETA ' + meta.etaLabel) : '';
 					const pctW = meta.pct.toFixed(1);
 					const nativeRaw = String(c.native_status || '').trim().toLowerCase();

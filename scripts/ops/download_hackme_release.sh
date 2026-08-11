@@ -2,7 +2,7 @@
 # Reliable release download — GitHub first, then origin, then site CDN.
 #
 #   bash scripts/ops/download_hackme_release.sh
-#   bash scripts/ops/download_hackme_release.sh 0.1.0-rc13 linux
+#   bash scripts/ops/download_hackme_release.sh 0.1.0-rc14 linux
 #   OUT_DIR=~/Downloads bash scripts/ops/download_hackme_release.sh
 set -euo pipefail
 

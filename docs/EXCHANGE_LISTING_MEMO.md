@@ -77,7 +77,7 @@ HackMe is **useful-compute infrastructure**: a native PoH chain (HMC), coordinat
 
 - Bitcointalk ANN topic 5583373
 - Telegram: @hackme_tech
-- GitHub releases: `0.1.0-rc13`
+- GitHub releases: `0.1.0-rc14`
 - Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats (live)
 - Research: nghttp2 CVE Watch 14/14 CLEAN · libheif CVE Watch 14/14 CLEAN (~2.57B series exec · ASAN=0)
 

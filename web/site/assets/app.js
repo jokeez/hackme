@@ -1,8 +1,8 @@
 (() => {
   /** Bump with scripts/release/CURRENT_VERSION, dist/release_<VERSION>/, main.go Version */
-  const RELEASE_VER = "0.1.0-rc13";
+  const RELEASE_VER = "0.1.0-rc14";
   /** HackMe OS ISO — aligned with Win/Linux (scripts/release/CURRENT_ISO_VERSION). */
-  const ISO_CHANNEL = "0.1.0-rc13";
+  const ISO_CHANNEL = "0.1.0-rc14";
 
   /** Sub-1 TH/s → GH/s (matches dashboard / explorer pool strip). */
   function fmtPoolHashrateTHS(ths, mock) {
@@ -37,7 +37,7 @@
     newsDisplay: "/assets/news-display.json",
     newsArchive: "/assets/news.json",
     releaseChannel: RELEASE_VER,
-    releaseChannelNote: "rc13 — 48-hour pool soak PASS; refreshed Win/Linux/ISO and B2B fuzzing CLI artifacts",
+    releaseChannelNote: "rc14 — dashboard fuzz rate/ETA display fix; refreshed Win/Linux/ISO and B2B fuzzing CLI artifacts",
     releaseBase: `/dist/release_${RELEASE_VER}`,
     // Primary downloads: GitHub Releases (Cloudflare /dist often stalls or truncates large files).
     // Mirrors under /dist/ remain for origin IP / grey-cloud bypass.

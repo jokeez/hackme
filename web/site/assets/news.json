@@ -419,15 +419,15 @@
       }
     },
     {
-      "id": "2026-07-24-release-rc13-48h-pool-soak",
-      "date": "2026-07-24",
-      "title": "48 HOURS. ZERO >10m GAPS. HackMe 0.1.0-rc13 is live.",
+      "id": "2026-08-11-release-rc14-48h-pool-soak",
+      "date": "2026-08-11",
+      "title": "48 HOURS. ZERO >10m GAPS. HackMe 0.1.0-rc14 is live.",
       "summary": "The pool held a continuous 48-hour soak: 0 snapshot gaps over 10 minutes, ~69–197 GH/s (avg ~137), 8–20 workers online (avg ~13), and tip ~199444 → ~203990. Hub 0.1.0-rc12w mining stayed up; after coordinator restarts, the fleet recovered.",
       "impact": "This is evidence for operator/private-pool readiness: useful-PoW mining, hybrid dig/fuzz work, and HMC/SUP ledger settlement stayed observable under a real fleet. It is not a claim of a trustless L1, exchange readiness, or CEX readiness.",
-      "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc13 · ISO: https://github.com/jokeez/hackme/releases/download/0.1.0-rc13/HackMe-OS-0.1.0-rc13-amd64.iso · ISO SHA256: 1adf63cc8252c25ae040fc9362d78ac3209f0a5bf8babb05cd394f156ad5e60f · Verify SHA256SUMS.txt before running any artifact.",
+      "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc14 · ISO: https://hackme.tech/dist/release_0.1.0-rc14/HackMe-OS-0.1.0-rc14-amd64.iso · ISO SHA256: 1adf63cc8252c25ae040fc9362d78ac3209f0a5bf8babb05cd394f156ad5e60f · Verify SHA256SUMS.txt before running any artifact.",
       "tags": [
         "release",
-        "rc13",
+        "rc14",
         "pool",
         "mining",
         "fuzzing",
@@ -437,9 +437,9 @@
       "status": "published",
       "links": {
         "downloads": "https://hackme.tech/downloads.html",
-        "github": "https://github.com/jokeez/hackme/releases/tag/0.1.0-rc13",
-        "iso": "https://github.com/jokeez/hackme/releases/download/0.1.0-rc13/HackMe-OS-0.1.0-rc13-amd64.iso",
-        "sha256": "https://github.com/jokeez/hackme/releases/download/0.1.0-rc13/SHA256SUMS.txt",
+        "github": "https://github.com/jokeez/hackme/releases/tag/0.1.0-rc14",
+        "iso": "https://hackme.tech/dist/release_0.1.0-rc14/HackMe-OS-0.1.0-rc14-amd64.iso",
+        "sha256": "https://hackme.tech/dist/release_0.1.0-rc14/SHA256SUMS.txt",
         "iso_sha256": "1adf63cc8252c25ae040fc9362d78ac3209f0a5bf8babb05cd394f156ad5e60f"
       }
     },
