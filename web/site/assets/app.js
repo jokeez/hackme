@@ -44,8 +44,9 @@
     ghRelease: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}`,
     windowsInstaller: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/HackMe-Setup-${RELEASE_VER}.exe`,
     windowsInstallerMirror: `/dist/release_${RELEASE_VER}/HackMe-Setup-${RELEASE_VER}.exe?v=20260724`,
-    windowsBundle: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/hackme_${RELEASE_VER}_windows_setup.zip`,
-    windowsBundleMirror: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows_setup.zip`,
+    // rc14 GitHub assets publish only `*_windows.zip` bundles.
+    windowsBundle: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/hackme_${RELEASE_VER}_windows.zip`,
+    windowsBundleMirror: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows.zip`,
     windowsBundleLegacy: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/hackme_${RELEASE_VER}_windows.zip`,
     windowsBundleLegacyMirror: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows.zip`,
     linuxBundle: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/hackme_${RELEASE_VER}_linux.tar.gz`,
@@ -186,8 +187,8 @@
     const candidates = [
       CONFIG.windowsInstaller,
       CONFIG.windowsInstallerMirror,
-      CONFIG.windowsBundle,
-      CONFIG.windowsBundleMirror,
+      CONFIG.windowsBundleLegacy,
+      CONFIG.windowsBundleLegacyMirror,
     ].filter(Boolean);
     for (const url of candidates) {
       try {
@@ -195,7 +196,7 @@
         if (r.ok) return url;
       } catch (_) {}
     }
-    return CONFIG.windowsInstaller || CONFIG.windowsBundle;
+    return CONFIG.windowsInstaller || CONFIG.windowsBundleLegacy;
   }
 
   async function resolveHackMeOSIsoHref() {
@@ -216,7 +217,6 @@
   function wireDownloadLinks() {
     setHref("download-win", CONFIG.windowsInstaller || CONFIG.windowsBundle);
     // "Portable ZIP" should point to the actually published asset.
-    // For rc14 GitHub does not include `hackme_<ver>_windows_setup.zip`, only `hackme_<ver>_windows.zip`.
     setHref("download-win-zip", CONFIG.windowsBundleLegacy || CONFIG.windowsBundle);
     setHref("download-linux", CONFIG.linuxBundle);
     setHref("download-fuzzing-linux", CONFIG.fuzzingLinux);
