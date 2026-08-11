@@ -310,6 +310,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			CampaignType  string         `json:"campaign_type"`
 			Title         string         `json:"title"`
 			Description   string         `json:"description"`
+			OwnerRef      string         `json:"owner_ref"`
 			Status        string         `json:"status"`
 			BudgetRuns    int            `json:"budget_runs"`
 			BudgetSeconds int            `json:"budget_seconds"`
@@ -332,6 +333,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			CampaignType:  req.CampaignType,
 			Title:         req.Title,
 			Description:   req.Description,
+			OwnerRef:      req.OwnerRef,
 			Status:        req.Status,
 			BudgetRuns:    req.BudgetRuns,
 			BudgetSeconds: req.BudgetSeconds,

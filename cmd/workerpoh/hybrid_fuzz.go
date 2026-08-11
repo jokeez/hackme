@@ -65,21 +65,32 @@ func runHybridFuzzInline(ctx context.Context, st *hybridFuzzState, coordURL, tok
 		fmt.Fprintf(os.Stderr, "workerpoh: hybrid fuzz disabled: %v\n", err)
 		return
 	}
-	conc := workerfuzzloop.EnvInt("HACKME_WORKER_HYBRID_FUZZ_CONCURRENCY", 1)
+	// Dig profile (default): when pool has orders, fuzz must not crawl behind local WASM.
+	// Escape hatch: HACKME_WORKER_HYBRID_FUZZ_DIG=0 → old conservative PoH-first defaults.
+	dig := hybridDigProfileEnabled()
+	defConc, defGap, defTimeout, defFloor := 1, 200, 500, 35
+	if dig {
+		defConc, defGap, defTimeout, defFloor = 2, 50, 2000, 10
+	}
+	conc := workerfuzzloop.EnvInt("HACKME_WORKER_HYBRID_FUZZ_CONCURRENCY", defConc)
 	if conc > 2 {
 		// Hard cap: keep fuzz from starving GPU PoH / desktop CVE soaks on shared hosts.
 		conc = 2
 	}
-	gapMS := workerfuzzloop.EnvInt("HACKME_WORKER_HYBRID_FUZZ_CLAIM_GAP_MS", 200)
-	timeoutMS := workerfuzzloop.EnvInt("HACKME_WORKER_HYBRID_FUZZ_TIMEOUT_MS", 500)
-	floorPct := workerfuzzloop.EnvInt("HACKME_WORKER_HYBRID_FUZZ_BACKPRESSURE_PCT", 35)
+	gapMS := workerfuzzloop.EnvInt("HACKME_WORKER_HYBRID_FUZZ_CLAIM_GAP_MS", defGap)
+	timeoutMS := workerfuzzloop.EnvInt("HACKME_WORKER_HYBRID_FUZZ_TIMEOUT_MS", defTimeout)
+	floorPct := workerfuzzloop.EnvInt("HACKME_WORKER_HYBRID_FUZZ_BACKPRESSURE_PCT", defFloor)
+	if floorPct > 100 {
+		floorPct = 100
+	}
+	httpTimeout := hybridDigHTTPTimeout()
 	cfg := workerfuzzloop.Config{
 		CoordURL:             coordURL,
 		Token:                token,
 		WorkerID:             workerID,
 		MinerAddr:            addr,
 		TimeoutMS:            timeoutMS,
-		HTTPClient:           &http.Client{Timeout: workerfuzzloop.HTTPTimeoutFromEnv()},
+		HTTPClient:           &http.Client{Timeout: httpTimeout},
 		Priv:                 priv,
 		PubHex:               pubHex,
 		Hybrid:               hybrid,
@@ -90,8 +101,8 @@ func runHybridFuzzInline(ctx context.Context, st *hybridFuzzState, coordURL, tok
 		CalibGHSMilli:        &st.calibGHSMilli,
 		BackpressureFloorPct: floorPct,
 	}
-	fmt.Fprintf(os.Stderr, "workerpoh: hybrid fuzz inline concurrency=%d claim_gap_ms=%d timeout_ms=%d backpressure=%d%% payout=%s\n",
-		conc, gapMS, timeoutMS, floorPct, addr)
+	fmt.Fprintf(os.Stderr, "workerpoh: hybrid fuzz inline dig=%v concurrency=%d claim_gap_ms=%d timeout_ms=%d backpressure=%d%% payout=%s\n",
+		dig, conc, gapMS, timeoutMS, floorPct, addr)
 	for {
 		if err := ctx.Err(); err != nil {
 			return
@@ -188,6 +199,24 @@ func superviseHybridFuzzProcess(ctx context.Context, coordURL, token, workerID s
 			backoff *= 2
 		}
 	}
+}
+
+func hybridDigProfileEnabled() bool {
+	v := strings.TrimSpace(os.Getenv("HACKME_WORKER_HYBRID_FUZZ_DIG"))
+	if v == "" {
+		return true // default ON: orders must beat local fuzz
+	}
+	return !workerfuzzloop.Falsy(v)
+}
+
+// hybridDigHTTPTimeout returns claim/submit HTTP client timeout for inline fuzz.
+// Dig profile floors at 30s — coordinator SQLite lock can exceed a tight 20s env.
+func hybridDigHTTPTimeout() time.Duration {
+	httpTimeout := workerfuzzloop.HTTPTimeoutFromEnv()
+	if hybridDigProfileEnabled() && httpTimeout < 30*time.Second {
+		return 30 * time.Second
+	}
+	return httpTimeout
 }
 
 func resolveWorkerfuzzBin() string {

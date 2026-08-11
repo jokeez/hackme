@@ -2,7 +2,7 @@
 # Start N independent Cosmetics/test pool workers (CPU claim/submit, pinned GH/s).
 # Durable via systemd --user (survives shell exit). Does NOT touch worker-kapa-pc.
 #
-# Default: 15 rigs, distinct GH/s from 5.0 … 15.0 (evenly spaced).
+# Default: 15 rigs, distinct GH/s from 30 … 70 (evenly spaced; pool display ~500+ GH).
 #
 #   bash scripts/ops/start_test_named_fleet.sh
 #   bash scripts/ops/stop_test_named_fleet.sh
@@ -15,8 +15,8 @@ COORD_URL="${COORD_URL:-http://132.243.112.100:18083}"
 LOG_DIR="${LOG_DIR:-$ROOT/logs/test-named-fleet}"
 SEED_DIR="${SEED_DIR:-$ROOT/logs/test-named-fleet/seeds}"
 BATCH_SIZE="${BATCH_SIZE:-2097152}"
-GH_MIN="${GH_MIN:-5.0}"
-GH_MAX="${GH_MAX:-15.0}"
+GH_MIN="${GH_MIN:-30.0}"
+GH_MAX="${GH_MAX:-70.0}"
 UNIT_PREFIX="${UNIT_PREFIX:-hackme-test-poh}"
 
 NAMES=(

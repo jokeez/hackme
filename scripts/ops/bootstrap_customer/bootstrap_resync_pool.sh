@@ -16,7 +16,7 @@ import json, sqlite3, sys
 db, filt = sys.argv[1], sys.argv[2].strip()
 con = sqlite3.connect(db)
 cur = con.execute(
-    """SELECT id, campaign_type, title, description, status, budget_runs, budget_seconds, config_json
+    """SELECT id, campaign_type, title, description, status, budget_runs, budget_seconds, config_json, COALESCE(owner_ref,'')
        FROM fuzz_campaigns
        WHERE json_extract(config_json, '$.pool_distributed') IN (1, 'true', '1')
          AND status IN ('planned', 'running')
@@ -28,11 +28,13 @@ for row in cur:
         continue
     cfg = json.loads(row[7] or "{}")
     cfg["pool_distributed"] = True
+    owner = (row[8] or "").strip()
     body = {
         "id": row[0],
         "campaign_type": row[1] or "property",
         "title": row[2] or row[0],
         "description": row[3] or "",
+        "owner_ref": owner,
         "status": "running",
         "budget_runs": row[5],
         "budget_seconds": row[6],

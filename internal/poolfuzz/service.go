@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"hackme/internal/fuzzartifacts"
@@ -20,6 +21,7 @@ import (
 type Service struct {
 	DB      *sql.DB
 	Settler Settler
+	claimRR atomic.Uint64 // round-robin cursor across runnable campaigns
 }
 
 type Campaign struct {
@@ -28,6 +30,7 @@ type Campaign struct {
 	Status        string
 	Title         string
 	Description   string
+	OwnerRef      string
 	BudgetRuns    int
 	BudgetSeconds int
 	Config        map[string]any
@@ -89,12 +92,13 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 		`INSERT INTO fuzz_campaigns
 		 (id, campaign_type, status, title, description, owner_ref, task_id, target_ref,
 		  budget_runs, budget_seconds, config_json, summary_json, created_at, started_at, completed_at)
-		 VALUES (?, ?, ?, ?, ?, '', '', '', ?, ?, ?, ?, ?, ?, 0)
+		 VALUES (?, ?, ?, ?, ?, ?, '', '', ?, ?, ?, ?, ?, ?, 0)
 		 ON CONFLICT(id) DO UPDATE SET
 		   campaign_type=excluded.campaign_type,
 		   status=excluded.status,
 		   title=excluded.title,
 		   description=excluded.description,
+		   owner_ref=CASE WHEN excluded.owner_ref != '' THEN excluded.owner_ref ELSE fuzz_campaigns.owner_ref END,
 		   budget_runs=excluded.budget_runs,
 		   budget_seconds=excluded.budget_seconds,
 		   config_json=excluded.config_json,
@@ -102,6 +106,7 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 		   completed_at=CASE WHEN excluded.status IN ('planned','running') THEN 0 ELSE fuzz_campaigns.completed_at END,
 		   started_at=CASE WHEN fuzz_campaigns.started_at=0 THEN excluded.started_at ELSE fuzz_campaigns.started_at END`,
 		c.ID, strings.TrimSpace(c.CampaignType), status, strings.TrimSpace(c.Title), strings.TrimSpace(c.Description),
+		strings.TrimSpace(c.OwnerRef),
 		c.BudgetRuns, c.BudgetSeconds, marshalConfigJSON(cfg), marshalSummaryJSON(summary), now, now)
 	if err != nil {
 		return err
@@ -426,13 +431,14 @@ func (s *Service) Tick(ctx context.Context) error {
 	return rows.Err()
 }
 
-const claimCandidateLimit = 512
+const claimCandidateLimit = 512 // retained for tests / callers; claim path is campaign-RR now
 
 // Claim leases one work item for a pool worker.
-// Fast multi-phase (no correlated ORDER BY subquery — that was ~60s on large SQLite DBs):
-//  1. expired leases
-//  2. near-complete campaigns (precomputed id list)
-//  3. FIFO by updated_at
+// Phases (index-friendly, no global FIFO over huge pending walls):
+//  1. customer campaigns (full sweep — always before bootstrap)
+//  2. near-complete (throttled every 32nd claim)
+//  3. expired lease reclaim
+//  4. round-robin among other + bootstrap
 func (s *Service) Claim(ctx context.Context, workerID string, now int64) (ClaimedWork, bool, error) {
 	var out ClaimedWork
 	workerID = strings.TrimSpace(workerID)
@@ -443,130 +449,280 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 	// claim re-scans campaigns under SQLite and chokes a real worker fleet.
 	leaseSec := leaseSeconds()
 
-	const baseWhere = `
-		 FROM fuzz_campaigns c
-		 JOIN fuzz_work_items w ON w.campaign_id = c.id
-		 WHERE c.status IN ('planned','running')
-		   AND (w.status='pending' OR (w.status='leased' AND w.lease_until < ?))
-		   AND lower(c.id) NOT LIKE '%probe%'
-		   AND lower(c.id) NOT LIKE 'pool-sync-gate%'
-		   AND lower(c.id) NOT LIKE 'pool-sync-node-%'
-		   AND lower(c.id) NOT LIKE 'campaign-gate-%'
-		   AND lower(c.id) NOT LIKE 'campaign-diag%'`
-	const selectCols = `SELECT c.id, c.title, c.owner_ref, c.config_json, w.id, w.input_n`
+	customers, rest, err := s.runnablePoolCampaignIDsByTier(ctx, now)
+	if err != nil {
+		return out, false, err
+	}
 
-	try := func(query string, args ...any) (ClaimedWork, bool, error) {
-		rows, err := s.DB.QueryContext(ctx, query, args...)
-		if err != nil {
-			return ClaimedWork{}, false, err
+	// Phase 1: customer pending always wins over bootstrap lease reclaim / RR.
+	for _, cid := range customers {
+		if work, ok, err := s.claimOnePendingInCampaign(ctx, workerID, cid, now, leaseSec); err != nil || ok {
+			return work, ok, err
 		}
-		defer rows.Close()
-		for rows.Next() {
-			var campaignID, title, ownerRef, cfgJSON string
-			var itemID int64
-			var inputN uint64
-			if err := rows.Scan(&campaignID, &title, &ownerRef, &cfgJSON, &itemID, &inputN); err != nil {
-				return ClaimedWork{}, false, err
+	}
+
+	// Phase 2: near-complete — throttle (every 32nd claim) to avoid SQLite lock storms.
+	if s.claimRR.Load()%32 == 0 {
+		nearIDs, nerr := s.nearCompleteCampaignIDs(ctx)
+		if nerr == nil && len(nearIDs) > 0 && len(nearIDs) <= 8 {
+			for _, cid := range nearIDs {
+				if work, ok, err := s.claimOnePendingInCampaign(ctx, workerID, cid, now, leaseSec); err != nil || ok {
+					return work, ok, err
+				}
 			}
-			cfg := parseConfigJSON(cfgJSON)
-			if !poolDistributed(cfg) {
+		}
+	}
+
+	// Phase 3: reclaim expired leases (only when no customer pending above).
+	{
+		rows, err := s.DB.QueryContext(ctx, `
+			SELECT id, campaign_id, input_n FROM fuzz_work_items
+			 WHERE status='leased' AND lease_until < ?
+			 ORDER BY lease_until ASC LIMIT 8`, now)
+		if err != nil {
+			return out, false, err
+		}
+		type exp struct {
+			id, inputN uint64
+			camp       string
+		}
+		var expired []exp
+		for rows.Next() {
+			var e exp
+			var id int64
+			if err := rows.Scan(&id, &e.camp, &e.inputN); err != nil {
+				rows.Close()
+				return out, false, err
+			}
+			e.id = uint64(id)
+			expired = append(expired, e)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return out, false, err
+		}
+		for _, e := range expired {
+			var title, ownerRef, cfgJSON string
+			if err := s.DB.QueryRowContext(ctx,
+				`SELECT title, COALESCE(owner_ref,''), config_json FROM fuzz_campaigns WHERE id=? AND status IN ('planned','running')`,
+				e.camp).Scan(&title, &ownerRef, &cfgJSON); err != nil {
 				continue
 			}
-			if IsInternalGateCampaign(campaignID, title, ownerRef, cfg) {
+			cfg := parseConfigJSON(cfgJSON)
+			if !poolDistributed(cfg) || IsInternalGateCampaign(e.camp, title, ownerRef, cfg) {
 				continue
 			}
 			res, err := s.DB.ExecContext(ctx,
-				`UPDATE fuzz_work_items
-				 SET status='leased', lease_owner=?, lease_until=?, updated_at=?
-				 WHERE id=? AND campaign_id=? AND (status='pending' OR (status='leased' AND lease_until < ?))`,
-				workerID, now+leaseSec, now, itemID, campaignID, now)
+				`UPDATE fuzz_work_items SET status='leased', lease_owner=?, lease_until=?, updated_at=?
+				 WHERE id=? AND campaign_id=? AND status='leased' AND lease_until < ?`,
+				workerID, now+leaseSec, now, int64(e.id), e.camp, now)
 			if err != nil {
-				return ClaimedWork{}, false, err
+				return out, false, err
 			}
 			aff, _ := res.RowsAffected()
 			if aff == 0 {
 				continue
 			}
 			wasmHex := wasmHexFromConfig(cfg)
-			actualU, actualB := derivePoolInputs(inputN, cfg)
+			actualU, actualB := derivePoolInputs(e.inputN, cfg)
 			sem := fuzzengine.ParseCheckSemantics(cfg)
-			perRun := perRunHMCFromConfig(cfg)
 			return ClaimedWork{
-				WorkID:         fmt.Sprintf("%s:%d", campaignID, itemID),
-				CampaignID:     campaignID,
-				ItemID:         itemID,
-				InputN:         inputN,
+				WorkID:         fmt.Sprintf("%s:%d", e.camp, e.id),
+				CampaignID:     e.camp,
+				ItemID:         int64(e.id),
+				InputN:         e.inputN,
 				ActualInput:    actualU,
 				InputBytes:     actualB,
 				InputMode:      string(fuzzengine.ParseInputMode(cfg)),
 				WasmCheckHex:   wasmHex,
 				CheckSemantics: string(sem),
 				DepthTier:      string(fuzzengine.ParseDepthTier(cfg)),
-				PerRunHMC:      perRun,
+				PerRunHMC:      perRunHMCFromConfig(cfg),
 			}, true, nil
 		}
-		return ClaimedWork{}, false, rows.Err()
 	}
 
-	// Phase 1: reclaim expired leases first (cheap index-friendly filter).
-	if work, ok, err := try(
-		selectCols+baseWhere+`
-		   AND w.status='leased' AND w.lease_until < ?
-		 ORDER BY w.updated_at ASC
-		 LIMIT 64`, now, now); err != nil || ok {
-		return work, ok, err
+	// Phase 4: RR among other + bootstrap.
+	if len(rest) == 0 {
+		return out, false, nil
 	}
-
-	// Phase 2: near-complete campaigns (COUNT only over few running campaigns, not ORDER BY).
-	nearIDs, err := s.nearCompleteCampaignIDs(ctx)
-	if err != nil {
-		return out, false, err
-	}
-	if len(nearIDs) > 0 {
-		placeholders := make([]string, len(nearIDs))
-		args := make([]any, 0, len(nearIDs)+1)
-		args = append(args, now)
-		for i, id := range nearIDs {
-			placeholders[i] = "?"
-			args = append(args, id)
-		}
-		q := selectCols + baseWhere + `
-		   AND c.id IN (` + strings.Join(placeholders, ",") + `)
-		 ORDER BY w.updated_at ASC
-		 LIMIT 64`
-		if work, ok, err := try(q, args...); err != nil || ok {
+	start := int(s.claimRR.Add(1) % uint64(len(rest)))
+	for i := 0; i < len(rest); i++ {
+		cid := rest[(start+i)%len(rest)]
+		if work, ok, err := s.claimOnePendingInCampaign(ctx, workerID, cid, now, leaseSec); err != nil || ok {
 			return work, ok, err
 		}
 	}
-
-	// Phase 3: FIFO across the pool.
-	return try(
-		selectCols+baseWhere+`
-		 ORDER BY w.updated_at ASC
-		 LIMIT ?`, now, claimCandidateLimit)
+	return out, false, nil
 }
 
-// nearCompleteCampaignIDs returns running/planned campaign ids within 32 runs of budget.
+// claimOnePendingInCampaign leases the oldest pending row in one campaign (index-friendly).
+func (s *Service) claimOnePendingInCampaign(ctx context.Context, workerID, campaignID string, now, leaseSec int64) (ClaimedWork, bool, error) {
+	var out ClaimedWork
+	var itemID int64
+	var inputN uint64
+	var title, ownerRef, cfgJSON string
+	err := s.DB.QueryRowContext(ctx, `
+		SELECT w.id, w.input_n, c.title, COALESCE(c.owner_ref,''), c.config_json
+		  FROM fuzz_work_items w
+		  JOIN fuzz_campaigns c ON c.id = w.campaign_id
+		 WHERE w.campaign_id = ?
+		   AND w.status = 'pending'
+		 ORDER BY w.id ASC
+		 LIMIT 1`, campaignID).Scan(&itemID, &inputN, &title, &ownerRef, &cfgJSON)
+	if err == sql.ErrNoRows {
+		return out, false, nil
+	}
+	if err != nil {
+		return out, false, err
+	}
+	cfg := parseConfigJSON(cfgJSON)
+	if !poolDistributed(cfg) || IsInternalGateCampaign(campaignID, title, ownerRef, cfg) {
+		return out, false, nil
+	}
+	res, err := s.DB.ExecContext(ctx,
+		`UPDATE fuzz_work_items
+		 SET status='leased', lease_owner=?, lease_until=?, updated_at=?
+		 WHERE id=? AND campaign_id=? AND status='pending'`,
+		workerID, now+leaseSec, now, itemID, campaignID)
+	if err != nil {
+		return out, false, err
+	}
+	aff, _ := res.RowsAffected()
+	if aff == 0 {
+		return out, false, nil
+	}
+	wasmHex := wasmHexFromConfig(cfg)
+	actualU, actualB := derivePoolInputs(inputN, cfg)
+	sem := fuzzengine.ParseCheckSemantics(cfg)
+	return ClaimedWork{
+		WorkID:         fmt.Sprintf("%s:%d", campaignID, itemID),
+		CampaignID:     campaignID,
+		ItemID:         itemID,
+		InputN:         inputN,
+		ActualInput:    actualU,
+		InputBytes:     actualB,
+		InputMode:      string(fuzzengine.ParseInputMode(cfg)),
+		WasmCheckHex:   wasmHex,
+		CheckSemantics: string(sem),
+		DepthTier:      string(fuzzengine.ParseDepthTier(cfg)),
+		PerRunHMC:      perRunHMCFromConfig(cfg),
+	}, true, nil
+}
+
+// runnablePoolCampaignIDs lists running/planned pool campaigns (no EXISTS scan — claim probes each).
+func (s *Service) runnablePoolCampaignIDs(ctx context.Context, now int64) ([]string, error) {
+	customers, rest, err := s.runnablePoolCampaignIDsByTier(ctx, now)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(customers)+len(rest))
+	out = append(out, customers...)
+	out = append(out, rest...)
+	return out, nil
+}
+
+// runnablePoolCampaignIDsByTier splits customer vs other+bootstrap for strict order priority.
+func (s *Service) runnablePoolCampaignIDsByTier(ctx context.Context, now int64) (customers, rest []string, err error) {
+	_ = now
+	rows, err := s.DB.QueryContext(ctx, `
+		SELECT c.id, c.title, COALESCE(c.owner_ref,''), c.config_json
+		  FROM fuzz_campaigns c
+		 WHERE c.status IN ('planned','running')
+		   AND lower(c.id) NOT LIKE '%probe%'
+		   AND lower(c.id) NOT LIKE 'pool-sync-gate%'
+		   AND lower(c.id) NOT LIKE 'pool-sync-node-%'
+		   AND lower(c.id) NOT LIKE 'campaign-gate-%'
+		   AND lower(c.id) NOT LIKE 'campaign-diag%'
+		 ORDER BY c.created_at ASC`)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	type row struct {
+		id, title, owner, cfg string
+	}
+	var all []row
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.id, &r.title, &r.owner, &r.cfg); err != nil {
+			return nil, nil, err
+		}
+		cfg := parseConfigJSON(r.cfg)
+		if !poolDistributed(cfg) || IsInternalGateCampaign(r.id, r.title, r.owner, cfg) {
+			continue
+		}
+		all = append(all, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
+	var other, bootstrap []string
+	for _, r := range all {
+		switch campaignClaimTier(r.id, r.title, r.owner) {
+		case "customer":
+			customers = append(customers, r.id)
+		case "bootstrap":
+			bootstrap = append(bootstrap, r.id)
+		default:
+			other = append(other, r.id)
+		}
+	}
+	rest = append(rest, other...)
+	rest = append(rest, bootstrap...)
+	return customers, rest, nil
+}
+
+func campaignClaimTier(id, title, ownerRef string) string {
+	id = strings.ToLower(strings.TrimSpace(id))
+	title = strings.ToLower(strings.TrimSpace(title))
+	owner := strings.ToLower(strings.TrimSpace(ownerRef))
+	if strings.Contains(id, "bootstrap") || strings.Contains(title, "bootstrap") || strings.HasPrefix(owner, "bootstrap:") {
+		return "bootstrap"
+	}
+	if owner != "" &&
+		!strings.HasPrefix(owner, "qa:") &&
+		!strings.HasPrefix(owner, "e2e:") &&
+		!strings.HasPrefix(owner, "fleet:") &&
+		!strings.HasPrefix(owner, "diag:") &&
+		!strings.HasPrefix(owner, "test:") &&
+		!strings.HasPrefix(owner, "matrix:") {
+		return "customer"
+	}
+	return "other"
+}
+
+// nearCompleteCampaignIDsFast — only campaigns already near done (cheap budget compare via summary).
 func (s *Service) nearCompleteCampaignIDs(ctx context.Context) ([]string, error) {
 	rows, err := s.DB.QueryContext(ctx, `
-		SELECT c.id FROM fuzz_campaigns c
+		SELECT c.id, c.budget_runs, COALESCE(c.summary_json,'{}')
+		  FROM fuzz_campaigns c
 		 WHERE c.status IN ('planned','running')
-		   AND c.budget_runs > 0
-		   AND (
-		     SELECT COUNT(*) FROM fuzz_work_items d
-		      WHERE d.campaign_id = c.id AND d.status = 'done'
-		   ) >= (c.budget_runs - 32)`)
+		   AND c.budget_runs > 0`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var ids []string
 	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
+		var id, sum string
+		var budget int
+		if err := rows.Scan(&id, &budget, &sum); err != nil {
 			return nil, err
 		}
-		ids = append(ids, id)
+		done := 0
+		var m map[string]any
+		if json.Unmarshal([]byte(sum), &m) == nil {
+			switch v := m["runs_done"].(type) {
+			case float64:
+				done = int(v)
+			case int:
+				done = v
+			}
+		}
+		if budget > 0 && done >= budget-32 {
+			ids = append(ids, id)
+		}
 	}
 	return ids, rows.Err()
 }

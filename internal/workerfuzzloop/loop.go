@@ -208,7 +208,9 @@ func Run(ctx context.Context, cfg Config, st *Stats) error {
 	if cfg.MinClaimGap <= 0 {
 		cfg.MinClaimGap = 50 * time.Millisecond
 	}
-	if cfg.BackpressureFloorPct <= 0 {
+	// BackpressureFloorPct: 0 disables; negative/unset → default 35 in callers that omit it.
+	// Hybrid dig profile passes an explicit floor (often 10).
+	if cfg.BackpressureFloorPct < 0 {
 		cfg.BackpressureFloorPct = 35
 	}
 	if cfg.LogPrefix == "" {
@@ -262,7 +264,7 @@ func Run(ctx context.Context, cfg Config, st *Stats) error {
 }
 
 func backpressurePause(cfg Config, st *Stats) time.Duration {
-	if cfg.PohGHSMilli == nil || cfg.CalibGHSMilli == nil {
+	if cfg.BackpressureFloorPct <= 0 || cfg.PohGHSMilli == nil || cfg.CalibGHSMilli == nil {
 		return 0
 	}
 	calib := cfg.CalibGHSMilli.Load()

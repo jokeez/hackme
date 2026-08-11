@@ -70,13 +70,21 @@ if [[ -f "$WORKER_ENV_FILE" ]]; then
 	source "$WORKER_ENV_FILE"
 	set +a
 fi
-# Desktop hybrid flags (gitignored .env.desktop) — do not override already-exported values.
+# Desktop hybrid flags (gitignored .env.desktop). Dig profile keys always win from file
+# so a stale shell export (conc=1/gap=400) cannot keep hybrid crawling behind orders.
 if [[ -f "${ROOT_DIR}/.env.desktop" ]]; then
   while IFS='=' read -r k v; do
     [[ "$k" == HACKME_WORKER_HYBRID_FUZZ* ]] || continue
-    if [[ -z "${!k:-}" ]]; then
-      export "${k}=${v}"
-    fi
+    case "$k" in
+      HACKME_WORKER_HYBRID_FUZZ_DIG|HACKME_WORKER_HYBRID_FUZZ_CONCURRENCY|HACKME_WORKER_HYBRID_FUZZ_CLAIM_GAP_MS|HACKME_WORKER_HYBRID_FUZZ_TIMEOUT_MS|HACKME_WORKER_HYBRID_FUZZ_BACKPRESSURE_PCT|HACKME_WORKER_HYBRID_FUZZ_MODE|HACKME_WORKER_HYBRID_FUZZ)
+        export "${k}=${v}"
+        ;;
+      *)
+        if [[ -z "${!k:-}" ]]; then
+          export "${k}=${v}"
+        fi
+        ;;
+    esac
   done < <(grep -E '^HACKME_WORKER_HYBRID_FUZZ' "${ROOT_DIR}/.env.desktop" || true)
 fi
 
