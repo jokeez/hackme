@@ -35,7 +35,7 @@ def priority(path: pathlib.Path) -> str:
     rel = path.relative_to(root).as_posix()
     if rel == "index.html":
         return "1.0"
-    if rel in ("downloads.html", "docs.html", "developers.html", "research.html", "coins.html"):
+    if rel in ("downloads.html", "docs.html", "developers.html", "orders.html", "research.html", "coins.html"):
         return "0.9"
     if rel.startswith("reports/bitcoin30"):
         return "0.72"

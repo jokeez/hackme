@@ -4,13 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Ecosystem Roadmap — HackMe Network</title>
-  <meta name="description" content="Shipped milestones and forward plan for HMC, SUP, HMS, and future HackMe ecosystem lanes." />
+  <meta name="description" content="Current HackMe roadmap: HMC pool and orders live at 0.1.0-rc14, SUP on-chain accrual, HMS prelaunch, listing path. Updated mid-August 2026." />
   <link rel="canonical" href="https://hackme.tech/roadmap.html" />
-  <link rel="stylesheet" href="./assets/styles.css?v=20260717site" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20260815roadmap" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
 </head>
 <body>
   <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
   <header class="topbar">
     <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="" /><span>HackMe Network</span></a>
     <nav class="nav" data-site-page="roadmap"></nav>
@@ -18,55 +19,208 @@
 
   <main class="container">
     <section class="hero glass hero-small">
-      <p class="kicker">Ecosystem roadmap</p>
+      <p class="kicker">Ecosystem roadmap · mid-August 2026</p>
       <h1>What shipped · what&apos;s next</h1>
-      <p class="hero-copy">One timeline for the <strong>whole network</strong> — primary coin (HMC), support (SUP), storage (HMS), and planned lanes. Technical ops roadmaps remain on GitHub for operators.</p>
+      <p class="hero-copy">
+        One honest timeline for the network: <strong>HMC</strong> (useful-PoW + pool), <strong>SUP</strong> (loyalty accrual),
+        <strong>HMS</strong> (storage prelaunch). Release <code>0.1.0-rc14</code> is live. Feature freeze before exchange —
+        growth is traction and listing, not more protocol churn.
+      </p>
       <div class="cta-row">
-        <a class="btn btn-secondary" href="./coins.html">All coins</a>
         <a class="btn btn-primary" href="./listing.html">Listing readiness</a>
+        <a class="btn btn-secondary" href="./coins.html">All coins</a>
+        <a class="btn btn-secondary" href="./orders.html">Orders path</a>
+        <a class="btn btn-secondary" href="./downloads.html">Downloads</a>
+      </div>
+      <div class="pill-row" style="margin-top:1rem">
+        <span class="pill live">rc14 live</span>
+        <span class="pill">Pool + settlement</span>
+        <span class="pill">SUP on-chain</span>
+        <span class="pill prelaunch">HMS prelaunch</span>
       </div>
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>HMC — HackMe Coin</h2></div>
-      <div class="roadmap-milestone shipped"><strong>✓ Live</strong> — Public pool, coordinator hybrid strict, on-chain transfers, explorer, downloads rc14</div>
-      <div class="roadmap-milestone shipped"><strong>✓ Live</strong> — Settlement timers, wallet canonical sync, operator launch gate GO</div>
-      <div class="roadmap-milestone shipped"><strong>✓ Live</strong> — Bitcoin30 + OSS CVE Watch public research series</div>
-      <div class="roadmap-milestone shipped"><strong>✓ Live</strong> — Security rewards program (HMC) · <a href="./security-rewards.html">policy page</a></div>
-      <div class="roadmap-milestone shipped"><strong>✓ Jul 2026</strong> — B2B PoH orders close on the public pool (wasm gate + escrow payouts) · miner IP redacted on public stats</div>
-      <div class="roadmap-milestone shipped"><strong>✓ Jul 2026</strong> — Command-hub <code>/api/metrics</code> resilience under PoH</div>
-      <div class="roadmap-milestone planned"><strong>→ Summer 2026</strong> — Finish OSS CVE Watch cadence (Days 11–14) · customer-facing order proof · grow stable miner fleet</div>
-      <div class="roadmap-milestone planned"><strong>→ Q4 2026+</strong> — First PoW CEX when traction + liquidity justify fee (Xeggex / NonKYC tier)</div>
-      <div class="roadmap-milestone planned"><strong>→ Post-CEX</strong> — CoinGecko / CMC application · market-maker engagement</div>
+      <div class="panel-head">
+        <h2>Now · next · later</h2>
+        <p class="subtle">Operator priority order — not marketing fluff.</p>
+      </div>
+      <div class="roadmap-now-grid">
+        <article class="roadmap-now-card">
+          <p class="kicker" style="color:#34d399">Now</p>
+          <h3>Hold the live stack</h3>
+          <ul class="list">
+            <li>Public pool + hybrid settlement (HMC / SUP)</li>
+            <li>Customer orders on local node → pool dig</li>
+            <li>Quiet ops: uptime, payouts, DR mirror standby</li>
+          </ul>
+        </article>
+        <article class="roadmap-now-card">
+          <p class="kicker" style="color:#fbbf24">Next</p>
+          <h3>Traction before foreign CEX</h3>
+          <ul class="list">
+            <li>Organic miners + real order clients</li>
+            <li>Own exchange paper → soft live when ready</li>
+            <li>Listing pack / due diligence for PoW desks</li>
+          </ul>
+        </article>
+        <article class="roadmap-now-card">
+          <p class="kicker" style="color:rgba(148,163,184,0.95)">Later</p>
+          <h3>After HMC has an exit</h3>
+          <ul class="list">
+            <li>First PoW CEX · then SUP companion</li>
+            <li>Aggregators / light MM</li>
+            <li>HMS go-live when storage lane earns revenue</li>
+          </ul>
+        </article>
+      </div>
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>SUP — HackMe Support</h2></div>
-      <div class="roadmap-milestone shipped"><strong>✓ Live</strong> — Coordinator accrual + quality gates + anti-abuse</div>
-      <div class="roadmap-milestone shipped"><strong>✓ Live</strong> — On-chain mint, public <code>/api/sup/economics</code>, settlement script</div>
-      <div class="roadmap-milestone planned"><strong>→ After HMC lists</strong> — Companion CEX/DEX listing · aggregator secondary ticker</div>
-      <div class="roadmap-milestone planned"><strong>→ Phase D</strong> — 30-day emission chart on transparency page · audit discount enforcement</div>
+      <div class="panel-head">
+        <h2>HMC — HackMe Coin</h2>
+        <p class="subtle">Primary useful-PoW asset · settlement rail for pool and orders</p>
+      </div>
+      <div class="roadmap-milestone shipped">
+        <span class="roadmap-badge shipped">Live</span>
+        <div>
+          <strong>Public pool · hybrid strict · on-chain transfers</strong>
+          <p>Coordinator, explorer, Windows/Linux/ISO downloads at <code>0.1.0-rc14</code>. Settlement timers + wallet canonical sync.</p>
+        </div>
+      </div>
+      <div class="roadmap-milestone shipped">
+        <span class="roadmap-badge shipped">Live</span>
+        <div>
+          <strong>B2B security orders on the pool</strong>
+          <p>Local-node escrow → wasm gate → customer-first dig (rc14). Site path: <a href="./orders.html">orders</a> · packages on <a href="./developers.html">developers</a>.</p>
+        </div>
+      </div>
+      <div class="roadmap-milestone shipped">
+        <span class="roadmap-badge shipped">Done</span>
+        <div>
+          <strong>OSS CVE Watch · research series closed</strong>
+          <p>nghttp2 14/14 CLEAN · libheif 14/14 CLEAN. Ledger on <a href="./research.html">research</a> / <a href="./reports/oss-cve/index.html">reports</a>.</p>
+        </div>
+      </div>
+      <div class="roadmap-milestone shipped">
+        <span class="roadmap-badge shipped">Live</span>
+        <div>
+          <strong>Security rewards (HMC)</strong>
+          <p>Public policy · <a href="./security-rewards.html">bug bounty page</a>.</p>
+        </div>
+      </div>
+      <div class="roadmap-milestone planned">
+        <span class="roadmap-badge planned">Next</span>
+        <div>
+          <strong>Q3–Q4 2026 — Traction + own exchange paper</strong>
+          <p>Grow stable external miner fleet and paid order clients. Soft paper exchange target (internal) before paying foreign CEX fees.</p>
+        </div>
+      </div>
+      <div class="roadmap-milestone planned">
+        <span class="roadmap-badge planned">Later</span>
+        <div>
+          <strong>First PoW CEX when gates justify fee</strong>
+          <p>Xeggex / NonKYC-tier desks when liquidity and volume exist — not before. Then CoinGecko / CMC + light MM.</p>
+        </div>
+      </div>
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>HMS — HackMe Storage</h2></div>
-      <div class="roadmap-milestone shipped"><strong>✓ Preview</strong> — Tokenomics spec, public roadmap doc, ecosystem UI card</div>
-      <div class="roadmap-milestone planned"><strong>→ Prelaunch</strong> — Amsterdam heavy VPS coordinator · PoSt + seal pilot</div>
-      <div class="roadmap-milestone planned"><strong>→ Go-live</strong> — HMS genesis · B2B storage quotes</div>
-      <p class="muted"><a href="https://github.com/jokeez/hackme/blob/main/docs/HMS_PUBLIC_ROADMAP.md" target="_blank" rel="noreferrer">Full HMS technical roadmap (GitHub) →</a></p>
+      <div class="panel-head">
+        <h2>SUP — HackMe Support</h2>
+        <p class="subtle">Companion loyalty coin · earned from honest hybrid pool work</p>
+      </div>
+      <div class="roadmap-milestone shipped">
+        <span class="roadmap-badge shipped">Live</span>
+        <div>
+          <strong>Accrual + on-chain mint</strong>
+          <p>~8% of qualifying HMC · hybrid-required · daily cap · anti-abuse. Public <code>/api/sup/economics</code> · settlement script mints on-chain.</p>
+        </div>
+      </div>
+      <div class="roadmap-milestone planned">
+        <span class="roadmap-badge planned">After HMC lists</span>
+        <div>
+          <strong>Companion CEX / DEX ticker</strong>
+          <p>Secondary listing only after primary HMC exit. Aggregator tickers follow.</p>
+        </div>
+      </div>
+      <div class="roadmap-milestone planned">
+        <span class="roadmap-badge planned">Later</span>
+        <div>
+          <strong>Transparency polish</strong>
+          <p>30-day emission chart on <a href="./token-transparency.html">transparency</a> · audit-discount enforcement in order flow.</p>
+        </div>
+      </div>
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>Future lanes</h2></div>
-      <ul class="list">
-        <li><strong>ORD</strong> — Orders lane for paid security-audit escrow mining (planned)</li>
-        <li><strong>SHD</strong> — Horizontally scaled shard coordinators (planned)</li>
-      </ul>
+      <div class="panel-head">
+        <h2>HMS — HackMe Storage</h2>
+        <p class="subtle">Storage + seal lane · not marketed as tradable yet</p>
+      </div>
+      <div class="roadmap-milestone shipped">
+        <span class="roadmap-badge shipped">Preview</span>
+        <div>
+          <strong>Specs + genesis float on chain ledger</strong>
+          <p>Tokenomics, public roadmap doc, ecosystem UI. Cap 21M · genesis treasury float recorded. Site: <a href="./coin-hms.html">HMS brief</a>.</p>
+        </div>
+      </div>
+      <div class="roadmap-milestone planned">
+        <span class="roadmap-badge planned">Prelaunch</span>
+        <div>
+          <strong>Dedicated storage host + PoSt / seal pilot</strong>
+          <p>Lane coordinator exists in-repo; production path is a separate heavy host (not the HMC hub). Pilot PoSt + seal before marketing HMS as live.</p>
+        </div>
+      </div>
+      <div class="roadmap-milestone planned">
+        <span class="roadmap-badge planned">Go-live</span>
+        <div>
+          <strong>Public HMS lane · B2B storage quotes</strong>
+          <p>Only when proved GB×hour and seal epochs earn real demand — conditional on HMC traction.</p>
+        </div>
+      </div>
+      <p class="muted" style="margin-top:0.5rem">
+        <a href="https://github.com/jokeez/hackme/blob/main/docs/HMS_PUBLIC_ROADMAP.md" target="_blank" rel="noreferrer">Full HMS technical roadmap (GitHub) →</a>
+      </p>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head">
+        <h2>Network lanes</h2>
+        <p class="subtle">Product surfaces already live vs longer-horizon infra</p>
+      </div>
+      <div class="roadmap-milestone shipped">
+        <span class="roadmap-badge shipped">Live</span>
+        <div>
+          <strong>Orders / fuzz (product)</strong>
+          <p>Paid security-audit escrow is live as a <em>product path</em> (local node + pool), not a separate listed coin. See <a href="./orders.html">orders</a> and <a href="./fuzz-marketplace.html">campaign board</a>.</p>
+        </div>
+      </div>
+      <div class="roadmap-milestone planned">
+        <span class="roadmap-badge planned">Later</span>
+        <div>
+          <strong>SHD — shard coordinators</strong>
+          <p>Horizontal scale of pool/fuzz coordinators when single-hub limits become real. Not near-term.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Related</h2></div>
+      <div class="eco-link-grid">
+        <a class="eco-link-card" href="./listing.html"><strong>Listing hub</strong><span>Readiness scores · memo · packs</span></a>
+        <a class="eco-link-card" href="./token-transparency.html"><strong>Transparency</strong><span>Live HMC / SUP supply APIs</span></a>
+        <a class="eco-link-card" href="./downloads.html"><strong>Downloads</strong><span>rc14 node · miner · ISO</span></a>
+      </div>
     </section>
   </main>
 
-  <footer class="footer"><p>HackMe Network</p><div class="footer-nav"></div></footer>
-  <script src="./assets/site-shell.js?v=20260717site"></script>
-  <script src="./assets/app.js?v=20260717site"></script>
+  <footer class="footer">
+    <p>HackMe Network</p>
+    <p class="muted">Roadmap updated mid-August 2026 · ops detail stays on GitHub</p>
+    <div class="footer-nav"></div>
+  </footer>
+  <script src="./assets/site-shell.js?v=20260815roadmap"></script>
+  <script src="./assets/app.js?v=20260815roadmap"></script>
 </body>
 </html>

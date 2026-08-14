@@ -424,7 +424,7 @@
       "title": "HackMe 0.1.0-rc14 is live — pool fuzz customer-first priority",
       "summary": "E2E customer order flow on Aug 11: rc14 reduced claim latency from seconds to milliseconds and improved pool throughput for real customer orders. Customer order completed 256/256 in ~26 minutes; hybrid dig is ON on customer campaigns; escrow 20/80 unchanged.",
       "impact": "Evidence for correct pool scheduling + fuzz integration: claim path priority, customer-first ordering, and hybrid dig/fuzz runs that produce findings on customer campaigns. Not a claim of trustless L1 / exchange readiness / CEX readiness.",
-      "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc14 · ISO: https://hackme.tech/dist/release_0.1.0-rc14/HackMe-OS-0.1.0-rc14-amd64.iso · ISO SHA256: 1adf63cc8252c25ae040fc9362d78ac3209f0a5bf8babb05cd394f156ad5e60f · Verify SHA256SUMS.txt before running any artifact.",
+      "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc14 · ISO: https://hackme.tech/dist/release_0.1.0-rc14/HackMe-OS-0.1.0-rc14-amd64.iso · ISO SHA256: 1f7b7e15a696d898494f14292be8b031e428b430093a47bc41f7f539f1b0bf9b · Verify SHA256SUMS.txt before running any artifact.",
       "tags": [
         "release",
         "rc14",
@@ -457,7 +457,7 @@
         "github": "https://github.com/jokeez/hackme/releases/tag/0.1.0-rc14",
         "iso": "https://hackme.tech/dist/release_0.1.0-rc14/HackMe-OS-0.1.0-rc14-amd64.iso",
         "sha256": "https://hackme.tech/dist/release_0.1.0-rc14/SHA256SUMS.txt",
-        "iso_sha256": "1adf63cc8252c25ae040fc9362d78ac3209f0a5bf8babb05cd394f156ad5e60f"
+        "iso_sha256": "1f7b7e15a696d898494f14292be8b031e428b430093a47bc41f7f539f1b0bf9b"
       }
     },
     {

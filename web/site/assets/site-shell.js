@@ -16,6 +16,7 @@
     fuzz: { href: "/fuzz-campaigns.html", label: "Fuzz" },
     research: { href: "/research.html", label: "Research" },
     developers: { href: "/developers.html", label: "Developers" },
+    orders: { href: "/orders.html", label: "Orders" },
     docs: { href: "/docs.html", label: "Docs" },
     news: { href: "/news.html", label: "News" },
     economics: { href: "/economics-model.html", label: "Economics" },
@@ -28,12 +29,12 @@
   };
 
   const PRIMARY = ["mine", "coins", "research", "docs"];
-  const MORE = ["fuzz", "developers", "news", "economics", "transparency", "roadmap", "listing", "rewards", "contacts", "legal", "privacy", "explorer", "downloads"];
+  const MORE = ["orders", "fuzz", "developers", "news", "economics", "transparency", "roadmap", "listing", "rewards", "contacts", "legal", "privacy", "explorer", "downloads"];
 
   const FOOTER_GROUPS = [
     { title: "Network", keys: ["home", "coins", "transparency", "roadmap", "research", "github", "explorer"] },
     { title: "Start", keys: ["mine", "downloads", "docs", "listing"] },
-    { title: "Product", keys: ["fuzz", "developers", "economics", "news"] },
+    { title: "Product", keys: ["orders", "fuzz", "developers", "economics", "news"] },
     { title: "Legal", keys: ["contacts", "rewards", "legal", "privacy"] },
   ];
 
@@ -62,6 +63,7 @@
       "api-reference": "developers",
       "developer-console": "developers",
       "developer-dashboard": "developers",
+      "orders": "orders",
       "security-notes": "docs",
       "security-rewards": "rewards",
     };

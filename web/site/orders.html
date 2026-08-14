@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe Orders — Customer path (local node)</title>
+  <meta name="description" content="Order B2B security fuzz on HackMe: download local node, fund HMC wallet, run wizard. Escrow and reports stay on your machine — not a checkout on hackme.tech." />
+  <link rel="canonical" href="https://hackme.tech/orders.html" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./assets/styles.css" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="./assets/favicon.png" type="image/png" />
+</head>
+<body>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe" /><span>HackMe Network</span></a>
+    <nav class="nav" data-site-page="orders"></nav>
+  </header>
+
+  <main class="container">
+    <nav class="fuzz-ia-nav glass" aria-label="Fuzz product surfaces">
+      <a href="./orders.html" aria-current="page">Orders</a>
+      <a href="./developers.html">Commercial · B2B</a>
+      <a href="./fuzz-guide.html">How-to guide</a>
+      <a href="./fuzz-marketplace.html">Campaign board</a>
+      <a href="./fuzzing-console.html">Observer tracker</a>
+    </nav>
+
+    <section class="hero glass">
+      <p class="kicker">Customers · security orders</p>
+      <h1>Order fuzz work — shop stays on your node</h1>
+      <p class="hero-copy">
+        HackMe.tech explains the path. You create the order on <strong>your local node</strong>
+        (<code>127.0.0.1:8080</code>: wallet, escrow, WASM guard, report.
+        Pool miners (customer-first since rc14) run the work; you keep keys and spendable HMC.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="./downloads.html#local-node">1 · Download local node</a>
+        <a class="btn btn-secondary" href="./downloads.html#fuzzing-client">2 · Get hackme-fuzzing CLI</a>
+        <a class="btn btn-secondary" href="./developers.html">Packages &amp; API</a>
+      </div>
+      <div class="pill-row">
+        <span class="pill">No checkout on this site</span>
+        <span class="pill">Escrow on localhost</span>
+        <span class="pill">Scan · Audit · Deep</span>
+        <span class="pill">rc14 customer-first pool</span>
+      </div>
+    </section>
+
+    <section class="panel glass" style="margin-top:1rem">
+      <div class="panel-head"><h2>Three steps</h2></div>
+      <ol class="check-list">
+        <li><strong>Install</strong> — Win/Linux node from <a href="./downloads.html#local-node">Downloads</a>. Open <code>http://127.0.0.1:8080</code> → Wallet.</li>
+        <li><strong>Order</strong> — fund HMC, then
+          <code>hackme-fuzzing wizard --wasm guard.wasm --package audit</code>
+          (or dashboard <code>#orders</code>).</li>
+        <li><strong>Deliverable</strong> — wizard prints <code>report_url</code>, <code>gate_url</code>, <code>pulse_url</code>. Pool diggers pick customer work first.</li>
+      </ol>
+      <pre class="code-block" style="margin-top:1rem"><code>export HACKME_ADMIN_TOKEN=…   # local node only
+hackme-fuzzing wizard \
+  --wasm ./guard.wasm \
+  --package audit \
+  --title "Acme script bounds"</code></pre>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Packages (HMC)</h2></div>
+      <div class="table-wrap">
+        <table class="endpoint-table">
+          <thead><tr><th>Package</th><th>HMC</th><th>Runs</th><th>Best for</th></tr></thead>
+          <tbody>
+            <tr><td><code>scan</code></td><td>1</td><td>64</td><td>CI smoke</td></tr>
+            <tr><td><code>audit</code></td><td>5</td><td>256</td><td>Protocol / DeFi guards</td></tr>
+            <tr><td><code>deep</code></td><td>10</td><td>1000</td><td>Full campaign</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="subtle" style="margin-top:1rem">
+        Live status (read-only): <a href="./fuzzing-console.html">observer tracker</a> ·
+        campaign board: <a href="./fuzz-marketplace.html">marketplace</a>.
+        Deep docs: <a href="./developers.html">Developers</a>.
+      </p>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Why not a shop on hackme.tech?</h2></div>
+      <p class="subtle">
+        Orders spend <strong>your</strong> HMC from a local wallet. Putting checkout on the hub would make the site a custodian —
+        wrong for security customers and for the multi-coin roadmap.
+        Same pattern later for <a href="./coins.html#hms">HMS</a> and other lanes: site = catalog + onboarding, node = shop + settlement.
+      </p>
+    </section>
+  </main>
+  <script src="./assets/site-shell.js?v=20260811orders"></script>
+  <script src="./assets/app.js?v=20260811orders"></script>
+</body>
+</html>
