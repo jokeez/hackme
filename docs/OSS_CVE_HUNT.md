@@ -1,14 +1,22 @@
 # OSS CVE Hunt — real upstream ASAN fuzz
 
-## OSS CVE Watch (14-day spotlight)
+## OSS CVE Watch status (August 2026)
 
-Daily single-repo hunt with public ledger pages:
+**Closed public series:**
+- **nghttp2** — 14/14 CLEAN · ledger: https://hackme.tech/reports/oss-cve-watch/
+- **libheif** — 14/14 CLEAN · ledger: https://hackme.tech/reports/oss-cve-watch-libheif/
+
+Day runners below remain for **repro / archive export**, not a live social cadence. Feature freeze: do not restart a daily Watch unless there is a new research plan.
+
+## OSS CVE Watch (14-day spotlight · archive runners)
+
+Daily single-repo hunt with public ledger pages (historical workflow):
 
 - Hub: https://hackme.tech/reports/oss-cve-watch/
 - Run: `bash scripts/ops/run_oss_cve_watch_day.sh` (see `TARGET=nghttp2` in script)
 - Export: `scripts/ops/export_oss_cve_watch_html.py`
 
-Use this for **social cadence** (one library, one post/day). The wave hunt below is the **batch matrix** across many parsers.
+Use this for **repro** of a closed ledger day. The wave hunt below is the **batch matrix** across many parsers.
 
 ### libFuzzer depth (nghttp2 focus · Days 2–14)
 

@@ -40,12 +40,13 @@ b31c875f691af0ab79511ef41dbfacaf1d859c3e9abe1afe5dfc30294e679b16  hackme-fuzzing
 daa7a46c43290a4fd041de71cf6f82762c6f3521b1c99b03d84d6308ee457347  hackme-fuzzing-0.1.0-rc14-windows-amd64.exe
 1150c05901b2a2b955d4732da5fd49f7e61957287cc87112e5bc2954b66e5a46  hackme-fuzzing-build-0.1.0-rc14-linux-amd64
 f8423e3ffae684f37ebd7ae51ff5786ed6cf22039fc87b428b7cccb52456448a  hackme-fuzzing-build-0.1.0-rc14-windows-amd64.exe
-1adf63cc8252c25ae040fc9362d78ac3209f0a5bf8babb05cd394f156ad5e60f  HackMe-OS-0.1.0-rc14-amd64.iso
+1f7b7e15a696d898494f14292be8b031e428b430093a47bc41f7f539f1b0bf9b  HackMe-OS-0.1.0-rc14-amd64.iso
 ```
 
 ## Operator rebuild
 
 ```bash
+# Publisher script filename is historical (rc12w); VERSION= selects the channel.
 VERSION=0.1.0-rc14 bash scripts/ops/release_rc12w_publish.sh
 NODE_SSH=hackme-vps SYNC_DIST=1 bash scripts/ops/deploy_hackme_site.sh
 ```
@@ -74,6 +75,7 @@ VERSION=0.1.0-rc14 bash scripts/release/refresh_release_manifest.sh 2>/dev/null 
 If you also need the published ISO + site publishing:
 
 ```bash
+# Publisher script filename is historical (rc12w); VERSION= selects the channel.
 SKIP_ISO=0 SKIP_INSTALLER=0 SKIP_GATES=0 VERSION=0.1.0-rc14 bash scripts/ops/release_rc12w_publish.sh
 ```
 

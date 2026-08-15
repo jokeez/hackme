@@ -13,6 +13,13 @@ minersign
 /hackme
 /coordinator
 /workerpoh
+/workerfuzz
+/hackme-fuzzing
+/hmscoordinator
+
+# Local social drafts and crash telemetry (never commit)
+local_social_drafts/
+.sentry-native/
 
 # Local Python venv for one-off ops scripts (never commit)
 .venv-deploy/
@@ -91,6 +98,9 @@ backups/
 *.tar.gz
 *.zip
 !web/site/**
+
+# Draft assets under site (must come after !web/site/**)
+web/site/assets/*-draft.json
 
 # Social/marketing drafts (publish via site news + Telegram bot — not in repo)
 docs/social/

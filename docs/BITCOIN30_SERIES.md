@@ -1,6 +1,8 @@
 # Bitcoin Core 30-day fuzz series
 
-Live daily fuzz of upstream Bitcoin Core WASM guards on local HackMe node. One module per day; artifacts under `reports/bitcoin30/`.
+**Status:** research **ledger** (days published on hackme.tech) — not an active “live daily” social cadence. Re-run scripts below only for repro.
+
+Historical fuzz of upstream Bitcoin Core WASM guards on local HackMe node. One module per day; artifacts under `reports/bitcoin30/`.
 
 ## Run
 
@@ -28,7 +30,7 @@ Current report: `reports/bitcoin30/CURRENT/`
 
 Public week-1 ledger: [hackme.tech/reports/bitcoin30-week1.html](https://hackme.tech/reports/bitcoin30-week1.html)
 
-## Schedule (days 1–8 · week 2 started)
+## Schedule (days 1–8 · week 2 historical)
 
 | Day | Module | WASM | Live result |
 |-----|--------|------|-------------|

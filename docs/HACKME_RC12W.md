@@ -1,6 +1,8 @@
 # HackMe 0.1.0-rc12w — wallet Activity + security hardening
 
-**Status:** **LIVE** on [hackme.tech/downloads.html](https://hackme.tech/downloads.html) — Win/Linux ZIP + tarball, fuzz CLI, and HackMe OS ISO on a single **rc12w** channel.
+> **Superseded.** Current download channel is **[0.1.0-rc14](HACKME_RC14.md)** on [downloads](https://hackme.tech/downloads.html).
+
+**Status:** **historical** — rc12w was the previous Win/Linux/fuzz/ISO channel (wallet Activity + hub hardening).
 
 ## Artifacts
 
