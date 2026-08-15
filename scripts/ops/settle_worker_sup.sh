@@ -50,10 +50,11 @@ fi
 mkdir -p "$(dirname "$STATE_FILE")"
 [[ -f "$STATE_FILE" ]] || echo '{"workers":{},"meta":{}}' >"$STATE_FILE"
 
-LOCK_FILE="${STATE_FILE}.sup.flock"
+# Share the HMC settler flock: both scripts RMW the same STATE_FILE (H1).
+LOCK_FILE="${STATE_FILE}.flock"
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
-  echo "[settle-sup] skip: another instance holds lock"
+  echo "[settle-sup] skip: another instance holds ${LOCK_FILE}"
   exit 0
 fi
 

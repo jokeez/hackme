@@ -1063,12 +1063,17 @@ func (m *workManager) markSubmitOutcome(workerID, ipKey, reason string, now int6
 	}
 	workerStrike := false
 	ipStrike := false
+	sigFail := false
 	switch reason {
 	case "work_id_mismatch", "range_leased_to_another_worker",
-		"found_nonce_out_of_range", "result_hash_required_for_found", "duplicate_found_nonce",
-		"invalid_signature", "invalid_pubkey", "pubkey_address_mismatch", "missing_signature_fields",
-		"signature_required", "found_signature_required", "duplicate_signed_payload", "unsupported_sig_alg":
+		"found_nonce_out_of_range", "result_hash_required_for_found", "duplicate_found_nonce":
 		workerStrike = true
+		ipStrike = true
+	case "invalid_signature", "invalid_pubkey", "pubkey_address_mismatch", "missing_signature_fields",
+		"signature_required", "found_signature_required", "duplicate_signed_payload", "unsupported_sig_alg":
+		// M3: shared pool token — do not ban victim worker_id on forged sigs unless
+		// that worker already bound a payout address (prior good submit).
+		sigFail = true
 		ipStrike = true
 	case "replay", "unknown_or_already_closed_range", "lease_expired":
 		// Benign races on fast GPU / proxy timeouts: reject only, do not temp-ban home NAT IPs.
@@ -1080,6 +1085,11 @@ func (m *workManager) markSubmitOutcome(workerID, ipKey, reason string, now int6
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if sigFail && workerID != "" {
+		if locked := strings.TrimSpace(m.worker[workerID].PayoutAddress); locked != "" {
+			workerStrike = true
+		}
+	}
 	applyStrike := func(s workerAbuseState) workerAbuseState {
 		if !workerStrike && !ipStrike {
 			return s
@@ -1521,7 +1531,9 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	if rec.TargetMod > 0 {
 		leaseMod = rec.TargetMod
 	}
+	issuedAt := rec.IssuedAt
 	validateMod := leaseMod
+	resultHashKey := ""
 	if req.Found {
 		if _, exists := m.acceptedFoundNonces[req.FoundNonce]; exists {
 			m.dedupFoundNonce++
@@ -1544,30 +1556,97 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 			m.rejectedSubmits++
 			return false, "found_nonce_invalid_for_target_mod", 0, "", false
 		}
-		orderSnap := m.activeOrderSnapshot()
+		// M2: reject duplicate result_hash before consuming lease / recording nonces.
+		resultHashKey = strings.TrimSpace(strings.ToLower(req.ResultHash))
+		if resultHashKey != "" {
+			if _, exists := m.acceptedResultHashes[resultHashKey]; exists {
+				m.dedupSubmits++
+				return false, "duplicate_result_hash", 0, "", false
+			}
+		}
+	}
+
+	orderID := strings.TrimSpace(req.OrderTaskID)
+	needOrderPath := req.Found && (req.WasmGatePass || orderID != "")
+	var orderSnap activeOrderSnap
+	var chainSolve orderSolveRelayResult
+	if needOrderPath {
+		// H3: release work mutex around orders probe / WASM / HTTP relay.
+		m.mu.Unlock()
+		orderSnap = m.activeOrderSnapshot()
 		if orderSnap.ID != "" && strings.TrimSpace(orderSnap.WasmHex) != "" {
 			if !req.WasmGatePass {
+				m.mu.Lock()
 				m.rejectedSubmits++
 				return false, "wasm_gate_required", 0, "", false
 			}
-			if ok, reason := m.verifyOrderWasmGate(orderSnap, req.FoundNonce); !ok {
+			if okGate, gateReason := m.verifyOrderWasmGate(orderSnap, req.FoundNonce); !okGate {
+				m.mu.Lock()
 				m.rejectedSubmits++
-				return false, reason, 0, "", false
+				return false, gateReason, 0, "", false
 			}
-			if oid := strings.TrimSpace(req.OrderTaskID); oid != "" && oid != orderSnap.ID {
+			if orderID != "" && orderID != orderSnap.ID {
+				m.mu.Lock()
 				m.rejectedSubmits++
 				return false, "order_task_mismatch", 0, "", false
 			}
 		}
+		// H2: relay before consuming lease/dedup so transient chain/ops failures remain retryable.
+		if req.Found && req.WasmGatePass && orderID != "" && signerAddr != "" && orderSnap.ID == orderID {
+			mod := leaseMod
+			if orderSnap.ChainMod > 0 {
+				mod = orderSnap.ChainMod
+			}
+			chainSolve = m.relayOrderSolve(signerAddr, req.FoundNonce, mod, orderID)
+			if !chainSolve.OK {
+				m.mu.Lock()
+				m.rejectedSubmits++
+				return false, "order_chain_solve_failed:" + chainSolve.Reason, 0, signerAddr, signerAddr != ""
+			}
+		}
+		m.mu.Lock()
+		now = time.Now().Unix()
+		rec, ok = m.active[k]
+		if !ok {
+			m.unknownSubmits++
+			return false, "unknown_or_already_closed_range", 0, "", false
+		}
+		if rec.WorkerID != req.WorkerID {
+			m.rejectedSubmits++
+			return false, "range_leased_to_another_worker", 0, "", false
+		}
+		if rec.ExpiresAt < now {
+			delete(m.active, k)
+			m.staleSubmits++
+			m.noteWorkerStale(req.WorkerID, now)
+			return false, "lease_expired", 0, "", false
+		}
+		if req.Found {
+			if _, exists := m.acceptedFoundNonces[req.FoundNonce]; exists {
+				m.dedupFoundNonce++
+				return false, "duplicate_found_nonce", 0, "", false
+			}
+			if resultHashKey != "" {
+				if _, exists := m.acceptedResultHashes[resultHashKey]; exists {
+					m.dedupSubmits++
+					return false, "duplicate_result_hash", 0, "", false
+				}
+			}
+		}
+		issuedAt = rec.IssuedAt
+		if rec.TargetMod > 0 {
+			leaseMod = rec.TargetMod
+		}
 	}
+
 	delete(m.active, k)
 	m.submittedItems++
 	if signerAddr != "" {
 		scope := submitNonceScope(signerAddr, req.WorkerID)
 		nonceKey := scope + ":" + strconv.FormatUint(req.SubmitNonce, 10)
 		if len(m.acceptedSubmitNonces) >= m.maxDedupEntries {
-			for k := range m.acceptedSubmitNonces {
-				delete(m.acceptedSubmitNonces, k)
+			for nk := range m.acceptedSubmitNonces {
+				delete(m.acceptedSubmitNonces, nk)
 				break
 			}
 		}
@@ -1578,8 +1657,8 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		sum := sha256.Sum256(append(canon, sig...))
 		sigPayload := hex.EncodeToString(sum[:])
 		if len(m.acceptedSignedPayloads) >= m.maxDedupEntries {
-			for k := range m.acceptedSignedPayloads {
-				delete(m.acceptedSignedPayloads, k)
+			for pk := range m.acceptedSignedPayloads {
+				delete(m.acceptedSignedPayloads, pk)
 				break
 			}
 		}
@@ -1588,23 +1667,18 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		m.lastSignedMiner = signerAddr
 	}
 	if req.Found {
-		rh := strings.TrimSpace(strings.ToLower(req.ResultHash))
-		if rh != "" {
-			if _, ok := m.acceptedResultHashes[rh]; ok {
-				m.dedupSubmits++
-				return false, "duplicate_result_hash", 0, "", false
-			}
+		if resultHashKey != "" {
 			if len(m.acceptedResultHashes) >= m.maxDedupEntries {
-				for k := range m.acceptedResultHashes {
-					delete(m.acceptedResultHashes, k)
+				for hk := range m.acceptedResultHashes {
+					delete(m.acceptedResultHashes, hk)
 					break
 				}
 			}
-			m.acceptedResultHashes[rh] = struct{}{}
+			m.acceptedResultHashes[resultHashKey] = struct{}{}
 		}
 		if len(m.acceptedFoundNonces) >= m.maxDedupEntries {
-			for k := range m.acceptedFoundNonces {
-				delete(m.acceptedFoundNonces, k)
+			for nk := range m.acceptedFoundNonces {
+				delete(m.acceptedFoundNonces, nk)
 				break
 			}
 		}
@@ -1621,17 +1695,17 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	}
 	attempts = m.clampPaidAttempts(attempts, req.BatchSize)
 	reportedGH := clampWorkerHashrateGHS(req.HashrateGHS)
-	rawGH := workerHashrateGHSForSubmit(reportedGH, req.BatchSize, rec.IssuedAt, now, m.worker[req.WorkerID].LastHashrateGHS)
+	rawGH := workerHashrateGHSForSubmit(reportedGH, req.BatchSize, issuedAt, now, m.worker[req.WorkerID].LastHashrateGHS)
 	gh := smoothWorkerHashrateGHS(m.worker[req.WorkerID].LastHashrateGHS, rawGH)
 	if req.Found && reportedGH <= 0 {
 		gh = 0
 	}
 	if gh > 0 {
-		issuedAt := rec.IssuedAt
-		if issuedAt <= 0 {
-			issuedAt = now - m.leaseSec
+		ia := issuedAt
+		if ia <= 0 {
+			ia = now - m.leaseSec
 		}
-		elapsed := float64(now - issuedAt)
+		elapsed := float64(now - ia)
 		if elapsed < 0.25 {
 			elapsed = 0.25
 		}
@@ -1651,22 +1725,6 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	paidAttempts := attempts
 	if m.payoutFoundOnly && !req.Found {
 		paidAttempts = 0
-	}
-	var chainSolve orderSolveRelayResult
-	orderID := strings.TrimSpace(req.OrderTaskID)
-	if req.Found && req.WasmGatePass && orderID != "" && signerAddr != "" {
-		snap := m.activeOrderSnapshot()
-		if snap.ID == orderID {
-			mod := leaseMod
-			if snap.ChainMod > 0 {
-				mod = snap.ChainMod
-			}
-			chainSolve = m.relayOrderSolve(signerAddr, req.FoundNonce, mod, orderID)
-			if !chainSolve.OK {
-				m.rejectedSubmits++
-				return false, "order_chain_solve_failed:" + chainSolve.Reason, 0, signerAddr, signerAddr != ""
-			}
-		}
 	}
 	payout := (float64(paidAttempts) / 1_000_000.0) * m.rewardPerM
 	if req.Found && !chainSolve.OK {
@@ -1852,14 +1910,10 @@ func mergeWorkerStat(dst, src workerPayoutStat) workerPayoutStat {
 	srcAddr := strings.TrimSpace(src.PayoutAddress)
 	addrConflict := dstAddr != "" && srcAddr != "" && !strings.EqualFold(dstAddr, srcAddr)
 	if addrConflict {
-		// B2: never sum conflicting sibling accrual onto one settle row.
-		// Prefer the address with higher unpaid accrual (honest miner usually wins).
-		if src.PayoutHMC > dst.PayoutHMC {
-			dst.PayoutAddress = srcAddr
-			dst.PayoutHMC = src.PayoutHMC
-			dst.PayoutSUP = src.PayoutSUP
-		}
-		// Keep hashrate/online merge for fleet display, but do not add the losing side's payout.
+		// H4: refuse merged settlement on address conflict (shared-token steal).
+		// Keep hashrate/online for fleet display; zero both sides' accrual on this row.
+		dst.PayoutHMC = 0
+		dst.PayoutSUP = 0
 		src.PayoutHMC = 0
 		src.PayoutSUP = 0
 	}

@@ -912,7 +912,13 @@ func (s *Service) openOrderLiabilityUnits(ctx context.Context, q queryRowContext
 		if remaining == 0 || reward <= 0 {
 			continue
 		}
-		need := HMCToUnits(reward * float64(remaining))
+		need := HMCToUnits(reward)
+		if remaining > 1 {
+			if need > (^uint64(0))/uint64(remaining) {
+				return 0, fmt.Errorf("chain: open order liability overflow")
+			}
+			need *= uint64(remaining)
+		}
 		if ^uint64(0)-total < need {
 			return 0, fmt.Errorf("chain: open order liability overflow")
 		}

@@ -18,7 +18,7 @@ func (a *app) handlePohSolveOrder(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)

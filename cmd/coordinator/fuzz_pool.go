@@ -555,6 +555,9 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		if payoutAddr != "" {
+			wm.commitFuzzHybridNonce(payoutAddr, req.SubmitNonce)
+		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "accepted": true})
 	})

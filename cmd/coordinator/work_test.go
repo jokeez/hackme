@@ -1318,20 +1318,20 @@ func TestClaimMinerIdentityLocked(t *testing.T) {
 func TestMergeWorkerStatAddressConflictDoesNotStealPayout(t *testing.T) {
 	victim := workerPayoutStat{PayoutAddress: "HMC-victim000000000", PayoutHMC: 10, PayoutSUP: 1, LastHashrateGHS: 100}
 	attacker := workerPayoutStat{PayoutAddress: "HMC-attacker0000000", PayoutHMC: 0.1, PayoutSUP: 0.01, LastHashrateGHS: 1}
-	// Attacker row merged first (empty dst), then victim — victim address+accrual must win, attacker payout not summed onto row.
 	merged := mergeWorkerStat(attacker, victim)
-	if !strings.EqualFold(merged.PayoutAddress, "HMC-victim000000000") {
-		t.Fatalf("address=%q want victim", merged.PayoutAddress)
+	if merged.PayoutHMC != 0 || merged.PayoutSUP != 0 {
+		t.Fatalf("conflict must zero merged accrual, got hmc=%v sup=%v", merged.PayoutHMC, merged.PayoutSUP)
 	}
-	if merged.PayoutHMC < 9.9 {
-		t.Fatalf("payout_hmc=%v want ~victim only", merged.PayoutHMC)
-	}
-	// Victim first, then attacker — keep victim, drop attacker accrual from sum.
 	merged2 := mergeWorkerStat(victim, attacker)
-	if !strings.EqualFold(merged2.PayoutAddress, "HMC-victim000000000") {
-		t.Fatalf("address2=%q", merged2.PayoutAddress)
+	if merged2.PayoutHMC != 0 || merged2.PayoutSUP != 0 {
+		t.Fatalf("conflict2 must zero merged accrual, got hmc=%v sup=%v", merged2.PayoutHMC, merged2.PayoutSUP)
 	}
-	if merged2.PayoutHMC != 10 {
-		t.Fatalf("payout2=%v want 10", merged2.PayoutHMC)
+	richAttacker := workerPayoutStat{PayoutAddress: "HMC-attacker0000000", PayoutHMC: 99, PayoutSUP: 9, LastHashrateGHS: 1}
+	merged3 := mergeWorkerStat(victim, richAttacker)
+	if !strings.EqualFold(merged3.PayoutAddress, "HMC-victim000000000") {
+		t.Fatalf("display address should stay dst, got %q", merged3.PayoutAddress)
+	}
+	if merged3.PayoutHMC != 0 {
+		t.Fatalf("rich attacker must not settle via merge: %v", merged3.PayoutHMC)
 	}
 }

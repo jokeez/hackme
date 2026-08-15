@@ -71,6 +71,7 @@ func TestFuzzSubmitReplayNonceRejected(t *testing.T) {
 	if ok, _, _ := wm.validateFuzzHybridSignature(auth, body); !ok {
 		t.Fatal("first sig should pass")
 	}
+	wm.commitFuzzHybridNonce(signerAddr(pub), 7)
 	if ok, reason, _ := wm.validateFuzzHybridSignature(auth, body); ok || reason != "replay" {
 		t.Fatalf("replay want reject, ok=%v reason=%q", ok, reason)
 	}
@@ -100,10 +101,12 @@ func TestFuzzSubmitConcurrentNonceMapsNoPanic(t *testing.T) {
 			auth := fuzzSubmitAuth{
 				WorkerID: "w-conc", MinerPubKey: hex.EncodeToString(pub), MinerSig: sig, SubmitNonce: nonce,
 			}
-			ok, reason, _ := wm.validateFuzzHybridSignature(auth, body)
+			ok, reason, addr := wm.validateFuzzHybridSignature(auth, body)
 			if !ok {
 				t.Errorf("worker %d: want accept, reason=%q", i, reason)
+				return
 			}
+			wm.commitFuzzHybridNonce(addr, nonce)
 		}(i)
 	}
 	wg.Wait()

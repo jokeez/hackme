@@ -65,13 +65,8 @@ func (s *Service) ApplyFuzzSettleOnce(ctx context.Context, eventID, kind, campai
 		payErr = fmt.Errorf("chain: unknown settle kind %q", kind)
 	}
 	if payErr != nil {
-		if isFuzzSettleDrainErr(payErr) {
-			// Record the attempt so pull/relay will not retry forever; caller ACKs.
-			if err := tx.Commit(); err != nil {
-				return nil, true, err
-			}
-			return nil, true, payErr
-		}
+		// M5: do not mark applied on deplete/closed/already-paid — miner must not lose
+		// the event when finalize races settle. Rollback drops the INSERT OR IGNORE row.
 		return nil, true, payErr
 	}
 	if err := tx.Commit(); err != nil {

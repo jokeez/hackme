@@ -18,6 +18,7 @@ type fuzzSubmitAuth struct {
 
 // validateFuzzHybridSignature binds miner_address to ed25519 proof-of-possession (same model as PoH submit).
 // Any non-empty miner_address for escrow payout requires hybrid PoP (B4 fail-closed).
+// M1: signature checks only — nonce is committed via commitFuzzHybridNonce after work accept.
 func (m *workManager) validateFuzzHybridSignature(auth fuzzSubmitAuth, body []byte) (ok bool, reason string, payoutAddr string) {
 	addr := strings.TrimSpace(auth.MinerAddress)
 	if addr != "" && (!strings.HasPrefix(addr, "HMC-") || len(addr) != 20) {
@@ -74,16 +75,32 @@ func (m *workManager) validateFuzzHybridSignature(auth fuzzSubmitAuth, body []by
 	if _, exists := m.acceptedSubmitNonces[nonceKey]; exists {
 		return false, "replay", ""
 	}
+	return true, "", derived
+}
+
+// commitFuzzHybridNonce records a fuzz submit nonce after the work item was accepted.
+func (m *workManager) commitFuzzHybridNonce(derived string, submitNonce uint64) {
+	if m == nil || derived == "" || submitNonce == 0 {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.acceptedSubmitNonces == nil {
 		m.acceptedSubmitNonces = make(map[string]struct{})
 	}
 	if m.signedSubmitNonceMax == nil {
 		m.signedSubmitNonceMax = make(map[string]uint64)
 	}
+	nonceKey := derived + ":fuzz:" + strconv.FormatUint(submitNonce, 10)
+	if len(m.acceptedSubmitNonces) >= m.maxDedupEntries && m.maxDedupEntries > 0 {
+		for k := range m.acceptedSubmitNonces {
+			delete(m.acceptedSubmitNonces, k)
+			break
+		}
+	}
 	m.acceptedSubmitNonces[nonceKey] = struct{}{}
-	if auth.SubmitNonce > m.signedSubmitNonceMax[derived] {
-		m.signedSubmitNonceMax[derived] = auth.SubmitNonce
+	if submitNonce > m.signedSubmitNonceMax[derived] {
+		m.signedSubmitNonceMax[derived] = submitNonce
 	}
 	m.lastSignedMiner = derived
-	return true, "", derived
 }

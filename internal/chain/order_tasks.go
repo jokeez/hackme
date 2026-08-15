@@ -158,17 +158,18 @@ func (s *Service) InsertOrderTask(ctx context.Context, manifestJSON []byte) (*In
 	if prepaid+1e-12 < MinOrderPrepaidHMC {
 		return nil, fmt.Errorf("chain: prepaid total too low (min %.2f HMC for reward_hmc × target_solves)", MinOrderPrepaidHMC)
 	}
-	orderFee := prepaid * OrderPlatformFeeRate
+	// H5: units-only escrow — reward_units × target (not HMCToUnits(reward×target)).
+	rewardUnits := HMCToUnits(m.RewardHMC)
+	if rewardUnits == 0 {
+		return nil, errors.New("chain: invalid reward_hmc in units")
+	}
+	if uint64(target) > 0 && rewardUnits > (^uint64(0))/uint64(target) {
+		return nil, errors.New("chain: prepaid units overflow")
+	}
+	prepaidUnits := rewardUnits * uint64(target)
+	orderFee := UnitsToHMC(prepaidUnits) * OrderPlatformFeeRate
 	if orderFee < 0 || orderFee != orderFee {
 		return nil, errors.New("chain: invalid order fee total")
-	}
-	totalDebit := prepaid + orderFee
-	if totalDebit <= 0 || totalDebit != totalDebit {
-		return nil, errors.New("chain: invalid total debit")
-	}
-	prepaidUnits := HMCToUnits(prepaid)
-	if prepaidUnits == 0 {
-		return nil, errors.New("chain: invalid prepaid total in units")
 	}
 	orderFeeUnits := HMCToUnits(orderFee)
 	totalDebitUnits := prepaidUnits
@@ -176,6 +177,7 @@ func (s *Service) InsertOrderTask(ctx context.Context, manifestJSON []byte) (*In
 		return nil, errors.New("chain: total debit overflow")
 	}
 	totalDebitUnits += orderFeeUnits
+	_ = prepaid // kept for prepaid_hmc column / API compatibility below
 	hourCap := defaultMaxOrderEscrowPerHourHMC
 	if v := strings.TrimSpace(os.Getenv("HACKME_MAX_ORDER_ESCROW_PER_HOUR_HMC")); v != "" {
 		if x, err := strconv.ParseFloat(v, 64); err == nil && x > 0 {
@@ -303,7 +305,7 @@ func (s *Service) InsertOrderTask(ctx context.Context, manifestJSON []byte) (*In
 		PayerRef:      payerRef,
 		PrepaidHMC:    prepaid,
 		OrderFeeHMC:   orderFee,
-		TotalDebitHMC: totalDebit,
+		TotalDebitHMC: UnitsToHMC(totalDebitUnits),
 		BurnHMC:       burn,
 		BalanceAfter:  UnitsToHMC(balUnits),
 		ExpiresAtUnix: expiresAt,
@@ -412,7 +414,11 @@ func (s *Service) expireOpenOrderTasksTx(ctx context.Context, tx *sql.Tx, now in
 		}
 		refundUnits := uint64(0)
 		if remaining > 0 && reward > 0 {
-			refundUnits = HMCToUnits(reward * float64(remaining))
+			// H5: per-solve units × remaining (not HMCToUnits(reward×remaining)).
+			ru := HMCToUnits(reward)
+			if remaining > 0 && ru > 0 && ru <= (^uint64(0))/uint64(remaining) {
+				refundUnits = ru * uint64(remaining)
+			}
 		}
 		expired = append(expired, expiredRow{id: id, refundUnits: refundUnits})
 	}

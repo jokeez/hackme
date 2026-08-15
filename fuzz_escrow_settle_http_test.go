@@ -14,7 +14,7 @@ import (
 )
 
 func TestHandleFuzzPoolSettleEmptyEventIDRejected(t *testing.T) {
-	t.Setenv("HACKME_ADMIN_TOKEN", "")
+	t.Setenv("HACKME_ADMIN_TOKEN", "settle-test-admin")
 	a, db := newFuzzSettleTestApp(t)
 	ctx := context.Background()
 	miner := "HMC-9876543210987654"
@@ -22,6 +22,7 @@ func TestHandleFuzzPoolSettleEmptyEventIDRejected(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle",
 		bytes.NewBufferString(`{"kind":"run","campaign_id":"evt-empty","miner_address":"`+miner+`"}`))
+	req.Header.Set("X-Hackme-Admin-Token", "settle-test-admin")
 	rec := httptest.NewRecorder()
 	a.handleFuzzPoolSettle(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -33,7 +34,7 @@ func TestHandleFuzzPoolSettleEmptyEventIDRejected(t *testing.T) {
 }
 
 func TestHandleFuzzPoolSettleReplaySameEventIDNoDoublePay(t *testing.T) {
-	t.Setenv("HACKME_ADMIN_TOKEN", "")
+	t.Setenv("HACKME_ADMIN_TOKEN", "settle-test-admin")
 	a, db := newFuzzSettleTestApp(t)
 	ctx := context.Background()
 	miner := "HMC-9876543210987654"
@@ -41,6 +42,7 @@ func TestHandleFuzzPoolSettleReplaySameEventIDNoDoublePay(t *testing.T) {
 
 	raw := []byte(`{"kind":"run","campaign_id":"evt-replay","miner_address":"` + miner + `","event_id":"outbox:evt-replay:42"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle", bytes.NewReader(raw))
+	req.Header.Set("X-Hackme-Admin-Token", "settle-test-admin")
 	rec := httptest.NewRecorder()
 	a.handleFuzzPoolSettle(rec, req)
 	if rec.Code != http.StatusOK {
@@ -55,6 +57,7 @@ func TestHandleFuzzPoolSettleReplaySameEventIDNoDoublePay(t *testing.T) {
 	}
 
 	req2 := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle", bytes.NewReader(raw))
+	req2.Header.Set("X-Hackme-Admin-Token", "settle-test-admin")
 	rec2 := httptest.NewRecorder()
 	a.handleFuzzPoolSettle(rec2, req2)
 	if rec2.Code != http.StatusOK {
