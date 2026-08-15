@@ -558,7 +558,8 @@ func (s *Service) AppendPoHBlock(ctx context.Context, minerAddress string, nonce
 			return nil, fmt.Errorf("chain: poh target mod mismatch (chain %d, submitted %d)", metaMod, targetMod)
 		}
 	} else {
-		// Pool order solve: lease M from coordinator (validated in SubmitOrderPoHSolve).
+		// Pool order solve: SubmitOrderPoHSolve already forced canonical chain Mod;
+		// targetMod here is that canonical value (lease M from the pool is not trusted).
 		targetMod = ClampPoHTargetMod(targetMod)
 	}
 

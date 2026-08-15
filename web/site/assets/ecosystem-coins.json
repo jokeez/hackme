@@ -74,14 +74,14 @@
       "id": "ord",
       "symbol": "ORD",
       "name": "Orders lane",
-      "status": "planned",
+      "status": "live",
       "tagline": "Paid security-audit & fuzz escrow mining",
       "algorithm": "Useful PoW · order-bound WASM",
       "iconLetter": "◇",
       "iconType": "letter",
       "accent": "amber",
-      "listing": "Planned",
-      "earn": "Mine audit campaigns when coordinator lane goes live",
+      "listing": "Live (escrow orders)",
+      "earn": "Mine open paid orders via pool coordinator (WASM gate)",
       "trade": "—"
     },
     {

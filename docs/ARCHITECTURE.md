@@ -1,4 +1,4 @@
-# HackMe Architecture (MVP)
+# HackMe Architecture (current)
 
 <div align="center">
 
@@ -6,67 +6,54 @@
 
 </div>
 
+> **Note:** Older “one process / loopback-only / optional admin” wording was an early MVP snapshot. Production hub is multi-process with admin-required mutating routes.
+
 ## Review
 
-One Go process brings up the HTTP server. The state of the chain and wallet is stored in **SQLite**. Heavy or isolated things: collecting OS metrics, executing **WASM** in a separate wazero runtime, background miner.
+Public hub runs **two Go binaries** (same tree):
 
-**Security (MVP):** listener only **`127.0.0.1`**; optional **`HACKME_ADMIN_TOKEN`** + `requireAdminAuth` in `admin_auth.go` for selected POSTs. Threat model: **`docs/SECURITY.md`**.
+| Process | Role |
+|---------|------|
+| `hackme-node` | Chain SQLite ledger, wallet/transfers, orders (`/api/tasks`, `/api/poh/solve-order`), dashboard, P2P |
+| `coordinator` (`cmd/coordinator`) | Pool claim/submit, hybrid signer, SUP accrual, fuzz pool |
+
+Miners typically run **`workerpoh`** (or desktop worker profile) against `https://hackme.tech/pool/coordinator`. Local WASM gates use the wazero sandbox.
+
+**Security (production defaults):**
+
+- Bind via `HACKME_BIND_ADDR` (often `0.0.0.0` behind nginx; prefer loopback + reverse proxy)
+- **`HACKME_ADMIN_TOKEN` required** for mutating admin routes (`requireAdminAuthStrict` on money/sync/genesis paths)
+- Pool workers use coordinator worker token; hybrid ed25519 PoP for payouts
+- P2P state replay (followers): needs `HACKME_P2P_SYNC_STATE_REPLAY_ENABLED=1` **and** `HACKME_P2P_LEADER_PUBKEYS`
+
+Threat model: [`docs/SECURITY.md`](SECURITY.md). Network shape: [`docs/NETWORK_MODEL.md`](NETWORK_MODEL.md) if present, else site roadmap.
 
 ```mermaid
 flowchart TB
-  subgraph http [HTTP layer]
+  subgraph clients [Clients]
+    WP[workerpoh / desktop]
     UI[dashboard.html]
-    API[main.go handlers]
   end
-  subgraph domain [Domain]
-    CH[chain.Service]
-    BL[block package]
-    MN[Miner]
+  subgraph hub [Public hub]
+    NGX[nginx]
+    ND[hackme-node :18080]
+    CO[coordinator :18081]
   end
-  subgraph infra [Infrastructure]
-    ST[store SQLite]
-    SB[sandbox wazero]
-    MET[metrics gopsutil]
+  subgraph data [State]
+    DB[(SQLite chain)]
+    CDB[(coordinator.db / fuzz.db)]
   end
-  UI --> API
-  API --> CH
-  API --> MET
-  CH --> BL
-  CH --> ST
-  MN --> SB
-  MN --> CH
+  WP -->|claim/submit| NGX
+  NGX --> CO
+  UI --> NGX
+  NGX --> ND
+  CO -->|solve-order admin| ND
+  ND --> DB
+  CO --> CDB
 ```
 
-## Packages `internal/`
+## Related
 
-| Package | Responsibility |
-|-------|-----------------|
-| `block` | Block and Task DTO, Canonical JSON for Hash, SHA-256, Genesis Factory |
-| `chain` | Database transactions: genesis, **AppendPoHBlock**, wallet, list of blocks, tip; table **`tasks`** + **StoreTaskProvider** (priority of paid orders over `File`/`Internal`); miner orchestration |
-| `store` | Opening SQLite, DDL migrations |
-| `sandbox` | Compile/instance WASM, call `eval` |
-
-## Flow: genesis
-
-1. Client `POST /api/genesis`.
-2. `chain.Service.InitGenesis` under mutex: checking for the absence of block 0 → `block.NewGenesisBlock` (miner = node) → `INSERT` block + primary `wallet` + `accounts` (mint on `DevFeeAddress` with non-zero `GenesisRewardHMC`) + meta.
-3. JSON response; the server writes the full JSON block to stdout.
-
-## Stream: mining
-
-1. `POST /api/mining/start` (after genesis).
-2. Active task: snapshot `TaskProvider.Snapshot` (every ~2 s and at start) - built-in synthetics or the last one `tasks/*.json`; the reward from the manifest can replace the miner's default.
-3. Pool of workers `runtime.NumCPU()`: native search `n*7+13` in batches; log/console - ticker **2 s**; `sandbox.Eval` once per found nonce (verification).
-4. Victory condition: `eval(nonce) % M == 0` for the current `M` from `meta.poh_target_mod` → `AppendPoHBlock` (new block, update `tip_hash`, retarget `M` **every 5 blocks** window ~30 s/block, reward from miner) → reset the attempt counter, **search continues** until `POST /api/mining/stop`.
-5. UI: metrics `GET /api/metrics` (~2 s); mining logs - **SSE** `GET /api/mining/logs/stream` with active PoH, otherwise rollback to `GET /api/mining/logs`.
-
-## External dependencies
-
-- `github.com/shirou/gopsutil/v3` — CPU/RAM/disk/net.
-- `modernc.org/sqlite` - database without CGO.
-- `github.com/tetratelabs/wazero` — WASM.
-
-## What is intentionally not done
-
-- There is no separate node and worker process: everything is in one binary.
-- No P2P: “peers” in the UI is a placeholder for the future.
+- Release channel: [`HACKME_RC14.md`](HACKME_RC14.md)
+- Orders economics: [`ORDER_ECONOMICS.md`](ORDER_ECONOMICS.md)
+- Pool threats: [`POOL_SECURITY_THREATS_VERDICT.md`](POOL_SECURITY_THREATS_VERDICT.md)

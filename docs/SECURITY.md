@@ -44,7 +44,7 @@ This is not a “bank-like” audit or a legal guarantee.
 - Rate limiting / WAF on API.
 - Full p2p authentication and peer reputation (currently baseline handshake + token).
 - SQLite encryption “on disk” without a user password does little against the same OS user.
-- Order cancellations and escrow returns are a separate economic and protocol model (see `README_ROADMAP.md`).
+- Order cancellations and escrow returns are a separate economic and protocol model (see [`ORDER_ECONOMICS.md`](ORDER_ECONOMICS.md) and the public [roadmap](../web/site/roadmap.html)).
 
 Demo / current emission policy:
 

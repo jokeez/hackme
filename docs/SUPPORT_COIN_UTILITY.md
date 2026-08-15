@@ -20,7 +20,7 @@ SUP is designed for **exchange listing**: fixed policy, on-chain transfers, publ
    - Worker uses **hybrid-signed** submits on the official coordinator
    - Payout address is bound and not banned
 3. **Base rate cap** — SUP per attempt is **≤ 10%** of the HMC attempt accrual equivalent (operator-tunable, default 8%).
-4. **Quality multiplier** (0×–1.25×):
+4. **Quality multiplier** (0×–1.5× hard cap):
    - `0` if any bad strike / ban in rolling 24h
    - `0.25` if stale/unknown submit rate &gt; 5%
    - `1.0` baseline for clean signed work

@@ -22,7 +22,7 @@ SUP is **only** minted when miners do **quality hybrid-signed work** on the offi
 | Gate | Effect |
 |------|--------|
 | Base rate | <= **8%** of HMC attempt accrual equivalent (operator-tunable, max 10%) |
-| Quality multiplier | 0×–1.25× (strikes, stale rate, 72h streak bonus) |
+| Quality multiplier | 0×–1.5× (strikes, stale rate, 72h streak bonus; hard cap 1.5×) |
 | Fleet daily cap | Global SUP accrual capped vs daily HMC pool payout (~12% ratio) |
 | Hybrid required | Unsigned / banned workers earn **zero** |
 

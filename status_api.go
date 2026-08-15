@@ -283,8 +283,19 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 		ph := a.p2p.BuildSyncHint(h, tip)
 		netSync["p2p_sync_hint"] = ph
 		if ph.LagBlocks > 0 {
-			hints = append(hints, fmt.Sprintf("P2P: local height %d lags healthy peer by %d blocks (best peer %s). Enable HACKME_P2P_SYNC_STATE_REPLAY_ENABLED=1 and optional HACKME_P2P_BACKGROUND_SYNC_SEC=30 on followers, or POST /api/p2p/sync/run with admin token.",
-				ph.LocalHeight, ph.LagBlocks, strings.TrimSpace(ph.BestPeerURL)))
+			replayOn := envBool("HACKME_P2P_SYNC_STATE_REPLAY_ENABLED", false)
+			leaders := strings.TrimSpace(os.Getenv("HACKME_P2P_LEADER_PUBKEYS"))
+			switch {
+			case replayOn && leaders == "":
+				hints = append(hints, fmt.Sprintf("P2P: local height %d lags healthy peer by %d blocks (best peer %s). Replay is ON but HACKME_P2P_LEADER_PUBKEYS is empty — sync apply fails closed until leader miner pubkeys are set.",
+					ph.LocalHeight, ph.LagBlocks, strings.TrimSpace(ph.BestPeerURL)))
+			case !replayOn:
+				hints = append(hints, fmt.Sprintf("P2P: local height %d lags healthy peer by %d blocks (best peer %s). On followers set HACKME_P2P_SYNC_STATE_REPLAY_ENABLED=1 and HACKME_P2P_LEADER_PUBKEYS=<leader miner pubkey hex>, optional HACKME_P2P_BACKGROUND_SYNC_SEC=30, or POST /api/p2p/sync/run with admin token.",
+					ph.LocalHeight, ph.LagBlocks, strings.TrimSpace(ph.BestPeerURL)))
+			default:
+				hints = append(hints, fmt.Sprintf("P2P: local height %d lags healthy peer by %d blocks (best peer %s). Replay+leader allowlist configured — check sync run / peer health.",
+					ph.LocalHeight, ph.LagBlocks, strings.TrimSpace(ph.BestPeerURL)))
+			}
 		}
 	}
 	if ct := asUint64(statusBody["canonical_tip_height"]); ct > 0 && has {

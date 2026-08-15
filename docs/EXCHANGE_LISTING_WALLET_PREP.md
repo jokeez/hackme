@@ -6,7 +6,7 @@ This document is **technical** preparation: address format, translations, units,
 
 | Field | Meaning in current code | Comment |
 |------|-------------------------|-------------|
-| **Boolean chain id** | `hackme-dev-mainnet` (constant, see `spec/CHAIN_SPEC.md`, `GET /api/status` → `chain_id`) | A **product listing** typically requires a **stable** public ID and **one** consensus chain; change `chain_id` = essentially a new network for the exchange. |
+| **Wire chain id** | `hackme-dev-mainnet` (constant on `GET /api/status` → `chain_id`; **intentional pre-listing id** — do not silently rename to `mainnet` without an exchange cutover plan) | A **product listing** typically requires a **stable** public ID and **one** consensus chain; change `chain_id` = essentially a new network for the exchange. |
 | **Ticker (suggested)** | `HMC` (by address prefix and documentation) | Final approval with the exchange (collisions of tickers on the market). |
 | **Minimum Unit** | **Kapa** | `1 HMC = 100_000_000` Kapa (`uint64` in API). **No floats** in the wire protocol. |
 | **Address** | String `HMC-` + **16 hex characters** (lower case), total **20 characters** prefixed | Deterministically from Ed25519 pubkey: `SHA256(pubkey)[:8]` → 16 hex (see `cmd/minersign`, `tools/scan_ed25519_seeds`). |

@@ -28,7 +28,7 @@ const (
 	NetworkFeeDevShare = 0.70
 	// DevFeeAddress is a consensus-locked recipient for platform/service fee and genesis treasury mint.
 	// To change this address, code changes and a coordinated network upgrade are required.
-	// Pre-mainnet rotation (2026-05): genesis mint + fee shares go here; operator holds matching Ed25519 seed (see docs/POOL_FINAL_FREEZE.md).
+	// Pre-mainnet rotation (2026-05): genesis mint + fee shares go here; operator holds matching Ed25519 seed (treasury ops docs).
 	DevFeeAddress = "HMC-719006d93916ad52"
 	// RewardPerDifficultyUnit is minimal fair reward per one difficulty score unit.
 	RewardPerDifficultyUnit = 0.0005

@@ -4,16 +4,16 @@
 
 Base prefix: server root (default `http://127.0.0.1:8080`). All JSON responses with `Content-Type: application/json` where indicated.
 
-## Mutation authentication (optional)
+## Mutation authentication
 
-If the environment variable **`HACKME_ADMIN_TOKEN`** is set (a non-empty string), the **POST** listed below without a secret receive **401 Unauthorized** and the header **`WWW-Authenticate: Bearer realm="hackme-admin"`**.
+Production defaults expect **`HACKME_ADMIN_TOKEN`** set and **`HACKME_REQUIRE_ADMIN_TOKEN=1`**. Mutating **POST** routes use **`requireAdminAuthStrict`** (fail-closed if the token is unset). Without a matching header they return **401** and **`WWW-Authenticate: Bearer realm="hackme-admin"`**.
 
 Pass the token in one of the following ways:
 
 - **`X-Hackme-Admin-Token: <token>`**
 - **`Authorization: Bearer <token>`**
 
-If the **not** variable is set, mutating POST routes do not require an admin header. It is recommended to keep `HACKME_REQUIRE_ADMIN_TOKEN=1` and not open the bind address publicly without a token. Threat model: **`docs/SECURITY.md`**.
+Lab-only: `HACKME_REQUIRE_ADMIN_TOKEN=0` on a **loopback** bind. Do not open a public bind without a token. Threat model: **`docs/SECURITY.md`**.
 
 ## Statics and page
 
@@ -61,6 +61,7 @@ If the **not** variable is set, mutating POST routes do not require an admin hea
 | POST | `/api/tasks` | Upload the order manifest (JSON in the body). **401** with active `HACKME_ADMIN_TOKEN` without secret; **429** with burst/rate-limit. Fields: **`id`** (unique), **`kind`**: `synthetic_poh_v1`, **`reward_hmc`** &gt; 0, optional **`difficulty_score`** (1..100, default 1), optional **`target_solves`** (default 1, maximum 10000), optional **`ttl_sec`** (manual TTL; if not specified, calculated automatically), optional **`payer_ref`** (customer ID, up to 256 runes). Fairness-guard: **`reward_hmc >= difficulty_score × 0.0005`**. WASM-gate: either **`wasm_check_hex`** (module hex) or **`wasm_artifact_path`** (relative path to `.wasm` under **`tasks/artifacts/`** or **`HACKME_TASK_ARTIFACT_DIR`**) **and** **`artifact_hash`** (SHA-256 file, 64 hex); not both at once. The following is debited from the node's wallet: **`prepaid_hmc = reward_hmc × target_solves`** + **`order_fee_hmc = prepaid_hmc × 0.05`**; There is an hourly cap `HACKME_MAX_ORDER_ESCROW_PER_HOUR_HMC` (for the prepaid part). Success **200**: `{ "ok", "id", "payer_ref", "prepaid_hmc", "order_fee_hmc", "total_debit_hmc", "order_burn_hmc", "balance_after", "expires_at", "ttl_sec", "signature_ed25519", "signing_public_key_ed25519", "verified_by", "verification_receipt" }` - signature is calculated based on **exact bytes of the request body**. `verification_receipt` contains `pool_id`, `request_sha256`, `issued_at_unix` and the receipt-payload pool signature. **400** — validation error; **402** (`Payment Required`) - not enough HMC on the wallet. |
 | POST | `/api/tasks/from_code` | Create an order from source code (admin-only). Body: `{ "id"?, "language": "<lang>", "code", "reward_hmc", "difficulty_score", "target_solves", "payer_ref"? }`. Languages: **`rust`**, **`c`**, **`cpp`**, **`tinygo`**, **`zig`**, **`assemblyscript`**, **`wat`**. Aliases: `rs→rust`, `gcc→c`, `c++/cxx/cc→cpp`, `go/golang→tinygo`, `as→assemblyscript`, `asm/assembly/wast/wasm-text→wat`. The node must have nodes in the **`PATH`** process: `rustc` (often rustup), **`clang`** (c/cpp), **`tinygo`**, **`zig`** (zig), **`asc`** (AssemblyScript, usually `npm i -g assemblyscript`), **`wat2wasm`**. Compilation under **bwrap/nsjail** if possible; without them - **host compile (lab-only)**. Gate **`HACKME_FROM_CODE`** (`0` off; unset=loopback only). Cont: **`HACKME_FROM_CODE=0`**; with compile - **`HACKME_FROM_CODE_REQUIRE_SANDBOX=1`** and narrow bwrap/nsjail (without `--ro-bind / /`). For **tinygo**, **zig** and **assemblyscript**, after compilation, sanitize is performed (only the function export **`check`** remains, the start section is removed), then the same strict ABI-gate (`check(i64)->i32`, exactly one function-export). Errors: `compile_failed`, `wasm_validation_failed`, `wasm_sanitize_failed`, `manifest_rejected`. For VPS, see `scripts/ops/install_vps_from_code_toolchains.sh`. |
 | GET | `/api/tasks` | Order list: `{ "tasks": [ { "id", "artifact_hash", "reward", "difficulty_score", "status", "created_at", "kind", "target_solves", "progress_count", "progress_pct", "payer_ref", "prepaid_hmc", "expires_at", "cancelled_at", "cancel_reason", "refunded_hmc" } ] }`. Statuses: `open`, `completed`, `cancelled`. When the TTL auto-expires, the open order is transferred to `cancelled` with `cancel_reason="timeout"` and the unused escrow is returned to the wallet (`refunded_hmc`); solve rewards already paid to miners are not rolled back. If there is an open order with `reward_hmc > 0`, the miner takes it **before** synthetics and `./tasks/*.json` (FIFO by `created_at`). Progress increases with PoH blocks with `order_task_id` in the payload of the block task |
+| POST | `/api/poh/solve-order` | Admin-only pool→chain relay. Body: `{ "miner_address", "found_nonce", "target_mod", "order_task_id" }`. Chain **forces canonical** `poh_target_mod` (ignores caller M for payout), validates WASM gate, appends PoH block, credits order escrow. Used by coordinator after a valid found submit. **401** without admin token. |
 
 ## Fuzz Campaigns (v1)
 

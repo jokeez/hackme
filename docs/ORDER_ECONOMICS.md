@@ -64,7 +64,7 @@ For production where **only pool rigs** should earn order escrow, set on the com
 
 Empty-chain blocks still use the internal task fallback on the leader.
 
-**Pool order `target_mod`:** workers search with the coordinator pool difficulty (`target_mod` in claim), not the chain leader’s solo M. `POST /api/poh/solve-order` accepts that lease M when the PoH hit and WASM gate are valid.
+**Pool order `target_mod`:** workers search with the coordinator pool difficulty (`target_mod` in claim). On `POST /api/poh/solve-order`, the **chain always re-validates against canonical chain `poh_target_mod`** (caller-supplied lease M is ignored for escrow credit). Pool M still gates worker search; chain M gates payout correctness.
 
 ## Honest limits
 

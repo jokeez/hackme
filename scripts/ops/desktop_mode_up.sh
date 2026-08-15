@@ -7,7 +7,8 @@ set -euo pipefail
 # - Opens dashboard as an app-like desktop window when possible
 #
 # Profiles (DESKTOP_PROFILE):
-#   command — full local chain host: genesis + local PoH from UI (no pool env). Default.
+#   worker  — public pool (default): pin authority/pool to hackme.tech
+#   command — full local chain host: genesis + local PoH from UI (clears pool + public authority pin)
 #   worker  — pool participant: set HACKME_POOL_COORDINATOR_URL / TOKEN (or COORD_URL).
 #
 # Listen on all interfaces (LAN): BIND_ADDR=0.0.0.0:8080 BASE_URL=http://127.0.0.1:8080 bash scripts/ops/desktop_mode_up.sh
@@ -221,6 +222,12 @@ ensure_desktop_gpu_backend_env
 if [[ "${DESKTOP_PROFILE}" == "command" ]]; then
   export HACKME_CHAIN_LEADER_LOCAL_POH=1
   unset HACKME_POOL_COORDINATOR_URL HACKME_POOL_COORDINATOR_TOKEN 2>/dev/null || true
+  # V4-C4: command profile must not stay pinned to public tip/wallet aggregates.
+  unset HACKME_PUBLIC_AUTHORITY_BASE HACKME_CANONICAL_CHAIN_URL 2>/dev/null || true
+  if [[ -f "$DESKTOP_ENV_FILE" ]]; then
+    sed -i '/^HACKME_PUBLIC_AUTHORITY_BASE=/d;/^HACKME_CANONICAL_CHAIN_URL=/d;/^HACKME_POOL_COORDINATOR_URL=/d;/^HACKME_POOL_COORDINATOR_TOKEN=/d' "$DESKTOP_ENV_FILE" 2>/dev/null || true
+  fi
+  echo "[desktop-up] command profile: local chain only (public authority/pool env cleared)"
 elif [[ "${DESKTOP_PROFILE}" == "worker" ]]; then
   unset HACKME_CHAIN_LEADER_LOCAL_POH 2>/dev/null || true
   # Do not force localhost:18081 when public authority infers coordinator from HTTPS.

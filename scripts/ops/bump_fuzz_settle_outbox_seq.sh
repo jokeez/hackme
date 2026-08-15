@@ -9,14 +9,16 @@
 # Does NOT wipe DBs. Safe to re-run (idempotent floor).
 #
 # Usage:
-#   scripts/ops/bump_fuzz_settle_outbox_seq.sh /path/to/coordinator.db [floor]
-#   FLOOR=60000 scripts/ops/bump_fuzz_settle_outbox_seq.sh /path/to/coordinator.db
+#   scripts/ops/bump_fuzz_settle_outbox_seq.sh /path/to/coordinator_fuzz.db [floor]
+#   FLOOR=60000 scripts/ops/bump_fuzz_settle_outbox_seq.sh /path/to/coordinator_fuzz.db
+#
+# Hub default after fuzz DB split is coordinator_fuzz.db (not coordinator.db).
 #
 # Optional: derive floor from a customer node applied table:
 #   MAX=$(sqlite3 customer.db "SELECT COALESCE(MAX(CAST(substr(event_id,8) AS INTEGER)),0)
 #     FROM fuzz_settle_applied WHERE event_id GLOB 'outbox:[0-9]*'
 #     AND event_id NOT LIKE 'outbox:%:%';")
-#   scripts/ops/bump_fuzz_settle_outbox_seq.sh hub.db $((MAX+1000))
+#   scripts/ops/bump_fuzz_settle_outbox_seq.sh hub_fuzz.db $((MAX+1000))
 #
 # Replay unpaid escrow after deploy (new event ids):
 #   scripts/ops/replay_fuzz_escrow_settle.sh <campaign_id>
@@ -25,8 +27,12 @@ set -euo pipefail
 DB="${1:-}"
 FLOOR="${2:-${FLOOR:-60000}}"
 
-if [[ -z "$DB" || ! -f "$DB" ]]; then
-  echo "usage: $0 <coordinator.db> [floor]" >&2
+if [[ -z "$DB" ]]; then
+  DB="${COORD_SQL_DB:-${COORDINATOR_FUZZ_DB:-/opt/hackme/data/coordinator_fuzz.db}}"
+fi
+if [[ ! -f "$DB" ]]; then
+  echo "usage: $0 <coordinator_fuzz.db> [floor]" >&2
+  echo "missing db: $DB (fuzz outbox lives in coordinator_fuzz.db after cutover)" >&2
   exit 2
 fi
 if ! [[ "$FLOOR" =~ ^[0-9]+$ ]] || [[ "$FLOOR" -lt 1 ]]; then

@@ -18,7 +18,7 @@ Total budget per sealed epoch:
 total = 0.5 HMS (base) + 1% × Σ prepaid HMC (market orders with chunks in epoch)
 ```
 
-At production epoch length (**3600 s**), base-only network emission is **~12 HMS/day** (~4,380 HMS/year). Shorter pilot epochs scale linearly (see `network_base_hms_per_day` in `lane_economics`).
+At production epoch length (**3600 s**), base-only network emission is **~12 HMS/day** (~4,380 HMS/year). Shorter pilot epochs scale linearly (see `network_base_hms_per_day` on HMS coordinator economics / docs — **not** on `GET /api/pool/stats`).
 
 Split:
 
@@ -79,13 +79,14 @@ Prepaid HMC **increases epoch HMS budget** (1% of prepaid → bonus HMS units), 
 - `seal_reward_policy` — seal + split rate
 - `storage_reward_policy` — tier + combo kernel
 
-Both exposed in `GET /api/pool/stats` → `lane_economics`.
+Both exposed via HMS coordinator economics endpoints (prelaunch). Do **not** expect `lane_economics` on `GET /api/pool/stats` (that field is not implemented on the PoH pool coordinator).
 
 ## API
 
 | Endpoint | Notes |
 |----------|--------|
-| `GET /api/pool/stats` | Live metrics + `lane_economics` |
+| `GET /api/hms/economics` (node / HMS) | Live HMS lane metrics (prelaunch) |
+| `GET /api/pool/stats` | PoH/fuzz pool metrics (no `lane_economics` field) |
 | `GET /api/local/disks` | Disk picker + `storage_tier` |
 | `POST /api/storage/register` | `storage_tier`, `host_label`, `disk_id` |
 | `GET /api/seal/payouts?epoch_id=N` | Seal + storage units per worker |
