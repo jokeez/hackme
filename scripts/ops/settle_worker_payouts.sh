@@ -365,19 +365,21 @@ PY
       settled_any=1
       continue
     fi
-    echo "[settle-workers] skip ${worker_id}: pending_settle tx=${pending_tx} not confirmed — not re-sending (set CLEAR_PENDING_SETTLE=1 after manual check)" >&2
-    if [[ "${CLEAR_PENDING_SETTLE:-0}" == "1" ]]; then
+    echo "[settle-workers] skip ${worker_id}: pending_settle tx=${pending_tx} not confirmed — not re-sending" >&2
+    echo "[settle-workers] tip: CLEAR_PENDING_HMC=1 drops pending without advancing settled (only if tx rejected/never sent; double-pay risk if included)" >&2
+    if [[ "${CLEAR_PENDING_HMC:-${CLEAR_PENDING_SETTLE:-0}}" == "1" ]]; then
       tmp="$(mktemp)"
       jq --arg wid "$worker_id" 'del(.workers[$wid].pending_settle)' "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
-      echo "[settle-workers] cleared pending_settle for ${worker_id}"
+      echo "[settle-workers] CLEAR_PENDING_HMC cleared pending_settle for ${worker_id} (settled_hmc unchanged)"
     fi
     continue
   fi
   if jq -e --arg wid "$worker_id" '.workers[$wid].pending_settle != null' "$STATE_FILE" >/dev/null 2>&1; then
-    echo "[settle-workers] skip ${worker_id}: pending_settle without tx_hash — not re-sending (CLEAR_PENDING_SETTLE=1 to retry)" >&2
-    if [[ "${CLEAR_PENDING_SETTLE:-0}" == "1" ]]; then
+    echo "[settle-workers] skip ${worker_id}: pending_settle without tx_hash — not re-sending" >&2
+    if [[ "${CLEAR_PENDING_HMC:-${CLEAR_PENDING_SETTLE:-0}}" == "1" ]]; then
       tmp="$(mktemp)"
       jq --arg wid "$worker_id" 'del(.workers[$wid].pending_settle)' "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
+      echo "[settle-workers] CLEAR_PENDING_HMC cleared empty pending_settle for ${worker_id}"
     fi
     continue
   fi
@@ -508,9 +510,11 @@ if [[ "$settled_any" == "1" ]]; then
 else
   echo "[settle-workers] done: nothing to settle"
 fi
-if [[ "$force_settle" == "1" ]]; then
+if [[ "$force_settle" == "1" && "$settled_any" == "1" ]]; then
   tmp="$(mktemp)"
   jq --argjson ts "$now_unix" '.meta.last_force_unix = $ts' "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
+elif [[ "$force_settle" == "1" ]]; then
+  echo "[settle-workers] force window not advanced (no successful settle this run)" >&2
 fi
 
 if [[ -x "$ROOT_DIR/scripts/ops/publish_settlement_state.sh" ]]; then

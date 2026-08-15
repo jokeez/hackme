@@ -12,7 +12,7 @@ import (
 
 // CurrentSchemaVersion is the value written to PRAGMA user_version after migrate() completes.
 // Bump when adding a new migration step (and document in README / MASTER_PLAN).
-const CurrentSchemaVersion = 16
+const CurrentSchemaVersion = 17
 
 // Open opens SQLite at path (directories created as needed).
 func Open(dbPath string) (*sql.DB, error) {
@@ -160,6 +160,9 @@ func migrate(db *sql.DB) error {
 		return err
 	}
 	if err := migrateFuzzSettleApplied(db); err != nil {
+		return err
+	}
+	if err := migrateOrderFoundNonces(db); err != nil {
 		return err
 	}
 	return bumpUserVersion(db)
@@ -665,6 +668,26 @@ func migrateFuzzSettleApplied(db *sql.DB) error {
 			applied_at INTEGER NOT NULL
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_fuzz_settle_applied_campaign ON fuzz_settle_applied(campaign_id, kind)`,
+	}
+	for _, s := range stmts {
+		if _, err := db.Exec(s); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// migrateOrderFoundNonces rejects reused (order_task_id, found_nonce) so multi-solve escrow cannot re-drain one PoH hit.
+func migrateOrderFoundNonces(db *sql.DB) error {
+	stmts := []string{
+		`CREATE TABLE IF NOT EXISTS order_found_nonces (
+			order_task_id TEXT NOT NULL,
+			found_nonce INTEGER NOT NULL,
+			block_hash TEXT NOT NULL DEFAULT '',
+			recorded_at INTEGER NOT NULL,
+			PRIMARY KEY (order_task_id, found_nonce)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_order_found_nonces_order ON order_found_nonces(order_task_id)`,
 	}
 	for _, s := range stmts {
 		if _, err := db.Exec(s); err != nil {

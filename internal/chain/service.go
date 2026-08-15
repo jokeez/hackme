@@ -650,6 +650,16 @@ func (s *Service) AppendPoHBlock(ctx context.Context, minerAddress string, nonce
 		if HMCToUnits(orderReward) != HMCToUnits(rewardHMC) {
 			return nil, fmt.Errorf("chain: order reward mismatch for %q (task %.8f HMC, block %.8f HMC)", orderTaskID, orderReward, rewardHMC)
 		}
+		// V2-H1: one PoH nonce credits an order at most once (multi-solve re-drain guard).
+		res, err := tx.ExecContext(ctx,
+			`INSERT OR IGNORE INTO order_found_nonces (order_task_id, found_nonce, block_hash, recorded_at) VALUES (?, ?, ?, ?)`,
+			orderTaskID, nonce, b.Hash, now)
+		if err != nil {
+			return nil, err
+		}
+		if aff, _ := res.RowsAffected(); aff == 0 {
+			return nil, fmt.Errorf("chain: duplicate order found_nonce for %q", orderTaskID)
+		}
 	}
 	if err := s.bumpOrderTaskProgress(ctx, tx, orderTaskID); err != nil {
 		return nil, err

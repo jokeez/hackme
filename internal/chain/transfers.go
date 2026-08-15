@@ -803,6 +803,18 @@ func (s *Service) applyPendingTransfers(ctx context.Context, txq queryRowExecCon
 				return err
 			}
 		}
+		// V2-H2: keep primary wallet row live with accounts for order escrow gates.
+		if item.tx.From == walletAddr || item.tx.To == walletAddr || (devFeeUnits > 0 && devAddr == walletAddr) {
+			var au uint64
+			if err := txq.QueryRowContext(ctx, `SELECT balance_units FROM accounts WHERE address=?`, walletAddr).Scan(&au); err != nil {
+				return err
+			}
+			if _, err := txq.ExecContext(ctx,
+				`UPDATE wallet SET balance_units=?, balance_hmc=? WHERE id=1`,
+				au, UnitsToHMC(au)); err != nil {
+				return err
+			}
+		}
 		if _, err := txq.ExecContext(ctx,
 			`INSERT INTO tx_history (tx_hash, tx_json, from_address, to_address, nonce, fee_units, amount_units, status, block_index, block_hash, applied_at, reject_code)
 			 VALUES (?, ?, ?, ?, ?, ?, ?, 'included', ?, ?, ?, '')`,

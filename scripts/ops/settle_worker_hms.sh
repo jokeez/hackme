@@ -162,8 +162,9 @@ PY
 
     if jq -e --arg e "$epoch_id" --arg w "$worker_id" \
       '.epochs[$e].workers[$w].pending_mint != null' "$STATE_FILE" >/dev/null 2>&1; then
-      echo "[settle-hms] skip ${worker_id} epoch=${epoch_id}: pending_mint present — not re-minting (CLEAR_PENDING_SETTLE=1 promotes pending→settled)" >&2
-      if [[ "${CLEAR_PENDING_SETTLE:-0}" == "1" ]]; then
+      echo "[settle-hms] skip ${worker_id} epoch=${epoch_id}: pending_mint present — not re-minting" >&2
+      echo "[settle-hms] tip: PROMOTE_PENDING_HMS=1 records pending as settled if mint succeeded; CLEAR_PENDING_HMS=1 drops pending to retry" >&2
+      if [[ "${PROMOTE_PENDING_HMS:-0}" == "1" || "${CLEAR_PENDING_SETTLE:-0}" == "1" ]]; then
         pending_units="$(jq -r --arg e "$epoch_id" --arg w "$worker_id" \
           '.epochs[$e].workers[$w].pending_mint.delta_units // 0' "$STATE_FILE")"
         pending_addr="$(jq -r --arg e "$epoch_id" --arg w "$worker_id" \
@@ -185,7 +186,12 @@ PY
           --argjson units "$new_settled" --argjson hms "$new_hms" \
           '.epochs[$e].workers[$w] = {"settled_units": $units, "settled_hms": $hms, "payout_address": $addr}' \
           "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
-        echo "[settle-hms] CLEAR_PENDING promoted ${worker_id} epoch=${epoch_id} settled_units=${new_settled}" >&2
+        echo "[settle-hms] PROMOTE_PENDING_HMS promoted ${worker_id} epoch=${epoch_id} settled_units=${new_settled}" >&2
+      elif [[ "${CLEAR_PENDING_HMS:-0}" == "1" ]]; then
+        tmp="$(mktemp)"
+        jq --arg e "$epoch_id" --arg w "$worker_id" \
+          'del(.epochs[$e].workers[$w].pending_mint)' "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
+        echo "[settle-hms] CLEAR_PENDING_HMS dropped pending for ${worker_id} epoch=${epoch_id}" >&2
       fi
       continue
     fi

@@ -28,7 +28,7 @@ set -euo pipefail
 # Optional:
 #   DOMAIN                       default hackme.tech
 #   NODE_MAIN_ADDR               default 0.0.0.0:18080
-#   COORD_ADDR                   default 0.0.0.0:18081
+#   COORD_ADDR                   default 127.0.0.1:18081 (ALLOW_PUBLIC_COORD_BIND=1 for 0.0.0.0)
 #   NODE_DEPLOY_DIR              default /opt/hackme
 #   COORD_DEPLOY_DIR             default /opt/hackme
 #   SKIP_BUILD                   default 0 (set 1 to skip local go build)
@@ -59,10 +59,18 @@ COORD_ADMIN_TOKEN="${COORD_ADMIN_TOKEN:-}"
 
 DOMAIN="${DOMAIN:-hackme.tech}"
 NODE_MAIN_ADDR="${NODE_MAIN_ADDR:-0.0.0.0:18080}"
-COORD_ADDR="${COORD_ADDR:-0.0.0.0:18081}"
+COORD_ADDR="${COORD_ADDR:-127.0.0.1:18081}"
 NODE_DEPLOY_DIR="${NODE_DEPLOY_DIR:-/opt/hackme}"
 COORD_DEPLOY_DIR="${COORD_DEPLOY_DIR:-/opt/hackme}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
+
+if [[ "$COORD_ADDR" == 0.0.0.0:* || "$COORD_ADDR" == "[::]:"* ]]; then
+  if [[ "${ALLOW_PUBLIC_COORD_BIND:-0}" != "1" ]]; then
+    echo "[dual-vps] refuse public COORD_ADDR=$COORD_ADDR (set ALLOW_PUBLIC_COORD_BIND=1; prefer nginx → 127.0.0.1)" >&2
+    exit 1
+  fi
+  echo "[dual-vps] WARN: coordinator bound publicly ($COORD_ADDR)" >&2
+fi
 
 if [[ -z "$NODE_SSH" || -z "$COORD_SSH" ]]; then
   echo "[dual-vps] NODE_SSH and COORD_SSH are required" >&2

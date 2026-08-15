@@ -84,6 +84,7 @@ type workManager struct {
 	hmcAccruedDay        float64
 	dedupSubmits         uint64
 	dedupFoundNonce      uint64
+	fleetAddressConflicts uint64
 	signedAccepts        uint64
 	signedRejects        uint64
 
@@ -1570,6 +1571,7 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	needOrderPath := req.Found && (req.WasmGatePass || orderID != "")
 	var orderSnap activeOrderSnap
 	var chainSolve orderSolveRelayResult
+	leaseDeadAfterChain := false
 	if needOrderPath {
 		// H3: release work mutex around orders probe / WASM / HTTP relay.
 		m.mu.Unlock()
@@ -1605,41 +1607,56 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 			}
 		}
 		m.mu.Lock()
+		// V2-H1: after chain ACK, mark found dedup immediately so lease expiry cannot skip it.
+		if chainSolve.OK && req.Found {
+			m.recordFoundDedupLocked(req.FoundNonce, resultHashKey, now)
+		}
 		now = time.Now().Unix()
 		rec, ok = m.active[k]
-		if !ok {
-			m.unknownSubmits++
-			return false, "unknown_or_already_closed_range", 0, "", false
-		}
-		if rec.WorkerID != req.WorkerID {
-			m.rejectedSubmits++
-			return false, "range_leased_to_another_worker", 0, "", false
-		}
-		if rec.ExpiresAt < now {
-			delete(m.active, k)
-			m.staleSubmits++
-			m.noteWorkerStale(req.WorkerID, now)
-			return false, "lease_expired", 0, "", false
-		}
-		if req.Found {
-			if _, exists := m.acceptedFoundNonces[req.FoundNonce]; exists {
-				m.dedupFoundNonce++
-				return false, "duplicate_found_nonce", 0, "", false
+		if chainSolve.OK {
+			if !ok || rec.WorkerID != req.WorkerID || rec.ExpiresAt < now {
+				leaseDeadAfterChain = true
 			}
-			if resultHashKey != "" {
-				if _, exists := m.acceptedResultHashes[resultHashKey]; exists {
-					m.dedupSubmits++
-					return false, "duplicate_result_hash", 0, "", false
+		}
+		if !chainSolve.OK || !leaseDeadAfterChain {
+			if !ok {
+				m.unknownSubmits++
+				return false, "unknown_or_already_closed_range", 0, "", false
+			}
+			if rec.WorkerID != req.WorkerID {
+				m.rejectedSubmits++
+				return false, "range_leased_to_another_worker", 0, "", false
+			}
+			if rec.ExpiresAt < now {
+				delete(m.active, k)
+				m.staleSubmits++
+				m.noteWorkerStale(req.WorkerID, now)
+				return false, "lease_expired", 0, "", false
+			}
+			if req.Found && !chainSolve.OK {
+				if _, exists := m.acceptedFoundNonces[req.FoundNonce]; exists {
+					m.dedupFoundNonce++
+					return false, "duplicate_found_nonce", 0, "", false
+				}
+				if resultHashKey != "" {
+					if _, exists := m.acceptedResultHashes[resultHashKey]; exists {
+						m.dedupSubmits++
+						return false, "duplicate_result_hash", 0, "", false
+					}
 				}
 			}
 		}
-		issuedAt = rec.IssuedAt
-		if rec.TargetMod > 0 {
-			leaseMod = rec.TargetMod
+		if ok {
+			issuedAt = rec.IssuedAt
+			if rec.TargetMod > 0 {
+				leaseMod = rec.TargetMod
+			}
 		}
 	}
 
-	delete(m.active, k)
+	if ok {
+		delete(m.active, k)
+	}
 	m.submittedItems++
 	if signerAddr != "" {
 		scope := submitNonceScope(signerAddr, req.WorkerID)
@@ -1666,25 +1683,8 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		m.signedAccepts++
 		m.lastSignedMiner = signerAddr
 	}
-	if req.Found {
-		if resultHashKey != "" {
-			if len(m.acceptedResultHashes) >= m.maxDedupEntries {
-				for hk := range m.acceptedResultHashes {
-					delete(m.acceptedResultHashes, hk)
-					break
-				}
-			}
-			m.acceptedResultHashes[resultHashKey] = struct{}{}
-		}
-		if len(m.acceptedFoundNonces) >= m.maxDedupEntries {
-			for nk := range m.acceptedFoundNonces {
-				delete(m.acceptedFoundNonces, nk)
-				break
-			}
-		}
-		m.acceptedFoundNonces[req.FoundNonce] = struct{}{}
-		m.foundHits++
-		m.maybeRetargetPoolMod(now)
+	if req.Found && !chainSolve.OK {
+		m.recordFoundDedupLocked(req.FoundNonce, resultHashKey, now)
 	}
 	attempts := req.Attempts
 	if attempts == 0 {
@@ -1892,6 +1892,31 @@ func roundMemMB(v float64) float64 {
 	return math.Round(v*100) / 100
 }
 
+func (m *workManager) recordFoundDedupLocked(foundNonce uint64, resultHashKey string, now int64) {
+	if resultHashKey != "" {
+		if _, exists := m.acceptedResultHashes[resultHashKey]; !exists {
+			if len(m.acceptedResultHashes) >= m.maxDedupEntries {
+				for hk := range m.acceptedResultHashes {
+					delete(m.acceptedResultHashes, hk)
+					break
+				}
+			}
+			m.acceptedResultHashes[resultHashKey] = struct{}{}
+		}
+	}
+	if _, exists := m.acceptedFoundNonces[foundNonce]; !exists {
+		if len(m.acceptedFoundNonces) >= m.maxDedupEntries {
+			for nk := range m.acceptedFoundNonces {
+				delete(m.acceptedFoundNonces, nk)
+				break
+			}
+		}
+		m.acceptedFoundNonces[foundNonce] = struct{}{}
+		m.foundHits++
+		m.maybeRetargetPoolMod(now)
+	}
+}
+
 func fleetBaseWorkerID(id string) string {
 	i := strings.LastIndex(id, "-gpu")
 	if i <= 0 || i+4 >= len(id) {
@@ -1905,7 +1930,7 @@ func fleetBaseWorkerID(id string) string {
 	return id[:i]
 }
 
-func mergeWorkerStat(dst, src workerPayoutStat) workerPayoutStat {
+func mergeWorkerStat(dst, src workerPayoutStat) (workerPayoutStat, bool) {
 	dstAddr := strings.TrimSpace(dst.PayoutAddress)
 	srcAddr := strings.TrimSpace(src.PayoutAddress)
 	addrConflict := dstAddr != "" && srcAddr != "" && !strings.EqualFold(dstAddr, srcAddr)
@@ -1938,7 +1963,7 @@ func mergeWorkerStat(dst, src workerPayoutStat) workerPayoutStat {
 		dst.LastClientIP = src.LastClientIP
 	}
 	dst.Online = dst.Online || src.Online
-	return dst
+	return dst, addrConflict
 }
 
 func (m *workManager) pruneAbuseStateLocked(now int64) {
@@ -2152,6 +2177,7 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 		"rejected_submits":             m.rejectedSubmits,
 		"dedup_submits":                m.dedupSubmits,
 		"dedup_found_nonce":            m.dedupFoundNonce,
+		"fleet_address_conflicts":      m.fleetAddressConflicts,
 		"accepted_attempts":            m.totalAttempts,
 		"total_payout_hmc":             m.totalPayoutHMC,
 		"total_payout_sup":             m.totalPayoutSUP,
@@ -2209,7 +2235,11 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 			st = redactPublicWorkerStat(st)
 		}
 		base := fleetBaseWorkerID(k)
-		workers[base] = mergeWorkerStat(workers[base], st)
+		var conflict bool
+		workers[base], conflict = mergeWorkerStat(workers[base], st)
+		if conflict {
+			m.fleetAddressConflicts++
+		}
 	}
 	out["workers"] = workers
 	if includeDetails {
