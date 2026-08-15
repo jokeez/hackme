@@ -1859,7 +1859,7 @@ func (a *app) handleWorkAdminPruneWorkers(w http.ResponseWriter, r *http.Request
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	base := a.coordinatorBaseURL()
@@ -1904,7 +1904,7 @@ func (a *app) handleWorkAdminRevokeWorker(w http.ResponseWriter, r *http.Request
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	base := a.coordinatorBaseURL()
@@ -2625,7 +2625,7 @@ func (a *app) handlePushWork(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	if !a.allowRate("push_work:"+clientIP(r), 30) {

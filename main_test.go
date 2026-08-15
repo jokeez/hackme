@@ -131,6 +131,42 @@ func TestVerifySyncBlockSignatureRejectsUnsupportedAlg(t *testing.T) {
 	}
 }
 
+func TestVerifySyncBlockSignatureLeaderAllowlist(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, _, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := block.NewPoHBlock(1, "prev", "m", 1, 20, 1, "", "formula")
+	b.MinerPubKey = hex.EncodeToString(pub)
+	b.MinerSig = hex.EncodeToString(ed25519.Sign(priv, []byte(b.Hash)))
+
+	t.Setenv("HACKME_P2P_SYNC_STATE_REPLAY_ENABLED", "1")
+	t.Setenv("HACKME_P2P_LEADER_PUBKEYS", "")
+	if err := verifySyncBlockSignature(b); err == nil {
+		t.Fatal("replay on + empty allowlist must fail")
+	}
+
+	t.Setenv("HACKME_P2P_LEADER_PUBKEYS", hex.EncodeToString(other))
+	if err := verifySyncBlockSignature(b); err == nil {
+		t.Fatal("wrong leader pubkey must fail")
+	}
+
+	t.Setenv("HACKME_P2P_LEADER_PUBKEYS", hex.EncodeToString(pub))
+	if err := verifySyncBlockSignature(b); err != nil {
+		t.Fatalf("allowlisted leader should pass: %v", err)
+	}
+
+	t.Setenv("HACKME_P2P_SYNC_STATE_REPLAY_ENABLED", "0")
+	t.Setenv("HACKME_P2P_LEADER_PUBKEYS", "")
+	if err := verifySyncBlockSignature(b); err != nil {
+		t.Fatalf("replay off + empty allowlist should still accept valid sig: %v", err)
+	}
+}
+
 func TestClientIPFromRemoteAddr(t *testing.T) {
 	t.Setenv("HACKME_TRUST_X_FORWARDED_FOR", "0")
 	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)

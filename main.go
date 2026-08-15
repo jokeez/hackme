@@ -1495,7 +1495,7 @@ func (a *app) handleGenesis(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	logAdminAction(r, "genesis")
@@ -2203,7 +2203,7 @@ func (a *app) handleMiningStart(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	logAdminAction(r, "mining_start")
@@ -2240,7 +2240,7 @@ func (a *app) handleMiningStop(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	logAdminAction(r, "mining_stop")
@@ -2300,7 +2300,7 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	if miningPaused() {
@@ -2669,7 +2669,7 @@ func (a *app) handleWorkerStop(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	logAdminAction(r, "worker_stop")
@@ -3368,7 +3368,7 @@ func (a *app) handleMiningLogs(w http.ResponseWriter, r *http.Request) {
 	includeWorker := strings.TrimSpace(r.URL.Query().Get("include_worker")) == "1"
 	// Desktop loopback: read-only worker log tail is safe without pasting admin token in the browser.
 	allowWorkerTail := includeWorker && envBool("HACKME_DESKTOP_MODE", false) && requestFromLoopback(r)
-	if includeWorker && !allowWorkerTail && !requireAdminAuth(w, r) {
+	if includeWorker && !allowWorkerTail && !requireAdminAuthStrict(w, r) {
 		return
 	}
 	workerRunning, tailPath := a.poolWorkerLogTail()
@@ -3646,7 +3646,7 @@ func (a *app) handleTransferSend(w http.ResponseWriter, r *http.Request) {
 	}
 	simpleSign := strings.TrimSpace(tx.PubKeyEd25519) == "" && strings.TrimSpace(tx.SigEd25519) == ""
 	// Pre-signed wire txs are public mempool submit (exchange integrators). Simple/node signing needs admin.
-	if simpleSign && !a.allowLoopbackAdminTxSend(r) && !a.allowLoopbackDesktopDashboardAuth(r) && !requireAdminAuth(w, r) {
+	if simpleSign && !a.allowLoopbackAdminTxSend(r) && !a.allowLoopbackDesktopDashboardAuth(r) && !requireAdminAuthStrict(w, r) {
 		return
 	}
 	a.pruneDesktopStaleLocalTransfers(r.Context())
@@ -4529,7 +4529,7 @@ func (a *app) handleP2PSyncPull(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	if !a.tryAcquireP2PSyncHeavy() {
@@ -4672,7 +4672,7 @@ func (a *app) handleP2PSyncApply(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	if !a.tryAcquireP2PSyncHeavy() {
@@ -4804,7 +4804,7 @@ func (a *app) handleP2PSyncRun(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	if !a.tryAcquireP2PSyncHeavy() {
@@ -5147,7 +5147,44 @@ func verifySyncBlockSignature(b *block.Block) error {
 	if !ed25519.Verify(ed25519.PublicKey(pub), []byte(b.Hash), sig) {
 		return errors.New("signature verify failed")
 	}
+	// V3-H1: when state replay is on, require leader pubkey allowlist for non-genesis.
+	if b.Index > 0 {
+		allow := p2pLeaderPubkeyAllowlist()
+		replayOn := envBool("HACKME_P2P_SYNC_STATE_REPLAY_ENABLED", false)
+		if replayOn && len(allow) == 0 {
+			return errors.New("P2P replay enabled but HACKME_P2P_LEADER_PUBKEYS is empty")
+		}
+		if len(allow) > 0 {
+			key := strings.ToLower(strings.TrimSpace(b.MinerPubKey))
+			if _, ok := allow[key]; !ok {
+				return errors.New("miner pubkey not in HACKME_P2P_LEADER_PUBKEYS")
+			}
+		}
+	}
 	return nil
+}
+
+func p2pLeaderPubkeyAllowlist() map[string]struct{} {
+	raw := strings.TrimSpace(os.Getenv("HACKME_P2P_LEADER_PUBKEYS"))
+	if raw == "" {
+		return nil
+	}
+	out := make(map[string]struct{})
+	for _, part := range strings.Split(raw, ",") {
+		p := strings.ToLower(strings.TrimSpace(part))
+		if p == "" {
+			continue
+		}
+		b, err := hex.DecodeString(p)
+		if err != nil || len(b) != ed25519.PublicKeySize {
+			continue
+		}
+		out[p] = struct{}{}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func (a *app) handleMiningDevices(w http.ResponseWriter, r *http.Request) {
@@ -5333,7 +5370,7 @@ func (a *app) handleMiningDevices(w http.ResponseWriter, r *http.Request) {
 			"gpu_devices":  devs,
 		})
 	case http.MethodPost:
-		if !requireAdminAuth(w, r) {
+		if !requireAdminAuthStrict(w, r) {
 			return
 		}
 		logAdminAction(r, "mining_devices_post")

@@ -165,7 +165,7 @@ func (a *app) handleSUPTransferSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	simpleSign := strings.TrimSpace(tx.PubKeyEd25519) == "" && strings.TrimSpace(tx.SigEd25519) == ""
-	if simpleSign && !a.allowLoopbackAdminTxSend(r) && !a.allowLoopbackDesktopDashboardAuth(r) && !requireAdminAuth(w, r) {
+	if simpleSign && !a.allowLoopbackAdminTxSend(r) && !a.allowLoopbackDesktopDashboardAuth(r) && !requireAdminAuthStrict(w, r) {
 		return
 	}
 	if simpleSign {

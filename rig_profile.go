@@ -198,7 +198,7 @@ func (a *app) handleRigProfilesApply(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	logAdminAction(r, "rig_profile_apply")

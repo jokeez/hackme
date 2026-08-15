@@ -37,6 +37,8 @@ var (
 	checkRuntime     wazero.Runtime
 	checkOnce        sync.Once
 	checkInstSerial  uint64
+	checkInvokeOnce  sync.Once
+	checkInvokeSem   chan struct{}
 )
 
 type PolicySnapshot struct {
@@ -362,6 +364,13 @@ func InvokeCheckInput(ctx context.Context, wasm []byte, input []byte) (bool, err
 	if len(wasm) == 0 {
 		return true, nil
 	}
+	sem := ensureCheckInvokeSem()
+	select {
+	case sem <- struct{}{}:
+		defer func() { <-sem }()
+	case <-ctx.Done():
+		return false, ctx.Err()
+	}
 	rt := ensureCheckRuntime()
 	key := compiledKey(wasm)
 	v, ok := checkCompiled.Load(key)
@@ -410,7 +419,8 @@ func InvokeCheckInput(ctx context.Context, wasm []byte, input []byte) (bool, err
 	for i := 0; i < len(input) && i < 8; i++ {
 		n |= uint64(input[i]) << (8 * i)
 	}
-	return InvokeCheck(ctx, wasm, n)
+	// Already hold invoke slot — call module check path without nested acquire.
+	return invokeCheckHeld(ctx, wasm, n)
 }
 
 // InvokeCheck runs export check(n) once; wasm must have passed ValidateCheckWasm.
@@ -418,6 +428,17 @@ func InvokeCheck(ctx context.Context, wasm []byte, n uint64) (bool, error) {
 	if len(wasm) == 0 {
 		return true, nil
 	}
+	sem := ensureCheckInvokeSem()
+	select {
+	case sem <- struct{}{}:
+		defer func() { <-sem }()
+	case <-ctx.Done():
+		return false, ctx.Err()
+	}
+	return invokeCheckHeld(ctx, wasm, n)
+}
+
+func invokeCheckHeld(ctx context.Context, wasm []byte, n uint64) (bool, error) {
 	rt := ensureCheckRuntime()
 	key := compiledKey(wasm)
 	v, ok := checkCompiled.Load(key)
@@ -451,6 +472,19 @@ func InvokeCheck(ctx context.Context, wasm []byte, n uint64) (bool, error) {
 		return false, nil
 	}
 	return res[0] != 0, nil
+}
+
+func ensureCheckInvokeSem() chan struct{} {
+	checkInvokeOnce.Do(func() {
+		n := 4
+		if v := strings.TrimSpace(os.Getenv("HACKME_SANDBOX_MAX_CONCURRENT")); v != "" {
+			if x, err := strconv.Atoi(v); err == nil && x >= 1 && x <= 64 {
+				n = x
+			}
+		}
+		checkInvokeSem = make(chan struct{}, n)
+	})
+	return checkInvokeSem
 }
 
 func exactCheckSignature(params, results []api.ValueType) bool {

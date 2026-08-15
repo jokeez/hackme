@@ -54,6 +54,8 @@ HACKME_P2P_DISCOVERY=${P2P_DISCOVERY}
 HACKME_P2P_ADVERTISE_URL=${ADVERTISE_URL}
 HACKME_P2P_PEERS=${PEERS}
 HACKME_P2P_SYNC_STATE_REPLAY_ENABLED=$([[ "$ROLE" == "follower" ]] && echo 1 || echo 0)
+# Followers with replay=1 MUST set leader miner pubkeys (comma hex). Empty allowlist fails closed at sync apply.
+HACKME_P2P_LEADER_PUBKEYS=${HACKME_P2P_LEADER_PUBKEYS:-}
 HACKME_FUZZ_AUTORUN=${FUZZ_AUTORUN}
 HACKME_SANDBOX_PROFILE=${SANDBOX_PROFILE}
 EOF
@@ -62,6 +64,9 @@ chmod 600 "$ENV_PATH"
 
 echo "[vps-bootstrap] wrote $ENV_PATH"
 echo "[vps-bootstrap] role=$ROLE advertise=$ADVERTISE_URL peers=${PEERS:-<none>}"
+if [[ "$ROLE" == "follower" && -z "${HACKME_P2P_LEADER_PUBKEYS:-}" ]]; then
+  echo "[vps-bootstrap] WARN: follower replay is on but HACKME_P2P_LEADER_PUBKEYS is empty — sync apply will reject until set" >&2
+fi
 echo
 echo "Next (run on VPS as root/sudo where needed):"
 echo "1) Create service user:"

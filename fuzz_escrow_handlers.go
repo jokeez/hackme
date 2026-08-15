@@ -72,7 +72,7 @@ func (a *app) handleFuzzEscrowCleanupStale(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	ctx := r.Context()

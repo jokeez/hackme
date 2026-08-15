@@ -189,7 +189,7 @@ func (a *app) handleFuzzArtifactsCleanup(w http.ResponseWriter, r *http.Request)
 		writeAPIError(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed", nil)
 		return
 	}
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	logAdminAction(r, "fuzz_artifacts_cleanup_post")

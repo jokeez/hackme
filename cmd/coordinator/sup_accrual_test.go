@@ -68,13 +68,24 @@ func TestSUPAccrualIgnoresFoundBonusSlice(t *testing.T) {
 	}
 }
 
-func TestSUPStatsPolicyExported(t *testing.T) {
+func TestSUPStaleBreaksCleanStreak(t *testing.T) {
 	wm := testWorkManagerForSUP()
-	st := wm.supPolicyStats()
-	if st["enabled"] != true {
-		t.Fatalf("enabled=%v", st["enabled"])
+	now := time.Now().Unix()
+	_ = wm.computeSUPAccrual("w1", 1.0, 1_000_000, true, now)
+	if wm.supMeta["w1"].CleanSinceUnix == 0 {
+		t.Fatal("expected clean streak armed on accept")
 	}
-	if st["on_chain_settle"] != false {
-		t.Fatalf("on_chain_settle should be false pre-listing")
+	wm.noteWorkerStale("w1", now+10)
+	if wm.supMeta["w1"].CleanSinceUnix != 0 {
+		t.Fatalf("stale must reset CleanSinceUnix, got %d", wm.supMeta["w1"].CleanSinceUnix)
+	}
+}
+
+func TestSUPDailyCapUsesAttemptHMCNotFoundBonus(t *testing.T) {
+	wm := testWorkManagerForSUP()
+	now := time.Now().Unix()
+	_ = wm.computeSUPAccrual("w1", 50.0, 1_000_000, true, now) // payout 50, attempt slice = 1.0
+	if wm.hmcAccruedDay < 0.99 || wm.hmcAccruedDay > 1.01 {
+		t.Fatalf("hmc_accrued_day should be attempt HMC (~1), got %v", wm.hmcAccruedDay)
 	}
 }

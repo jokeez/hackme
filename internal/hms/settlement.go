@@ -52,10 +52,10 @@ func (c *Coordinator) FlushStratumShares(epochID int64) error {
 	return nil
 }
 
-func (c *Coordinator) epochPrepaidHMC(epochID int64) (float64, error) {
+func (c *Coordinator) epochPrepaidUnits(epochID int64) (uint64, error) {
 	var sum sql.NullFloat64
 	err := c.db.QueryRow(`
-		SELECT COALESCE(SUM(o.prepaid_hmc), 0)
+		SELECT COALESCE(SUM(ROUND(o.prepaid_hmc * 100000000)), 0)
 		FROM hms_orders o
 		WHERE o.order_id IN (
 			SELECT DISTINCT oc.order_id
@@ -66,10 +66,19 @@ func (c *Coordinator) epochPrepaidHMC(epochID int64) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	if sum.Valid {
-		return sum.Float64, nil
+	if sum.Valid && sum.Float64 > 0 {
+		return uint64(sum.Float64), nil
 	}
 	return 0, nil
+}
+
+// epochPrepaidHMC kept for dashboards; seal budget uses epochPrepaidUnits.
+func (c *Coordinator) epochPrepaidHMC(epochID int64) (float64, error) {
+	u, err := c.epochPrepaidUnits(epochID)
+	if err != nil {
+		return 0, err
+	}
+	return float64(u) / float64(HMSUnitsPerCoin), nil
 }
 
 func (c *Coordinator) loadSealShares(epochID int64) (map[string]uint64, error) {
@@ -110,11 +119,11 @@ func (c *Coordinator) FinalizeEpochSealPayouts(epochID int64) ([]SealPayoutLine,
 	if err := c.FlushStratumShares(epochID); err != nil {
 		return nil, err
 	}
-	prepaid, err := c.epochPrepaidHMC(epochID)
+	prepaidUnits, err := c.epochPrepaidUnits(epochID)
 	if err != nil {
 		return nil, err
 	}
-	budget := SealEpochBudgetUnits(prepaid)
+	budget := SealEpochBudgetFromPrepaidUnits(prepaidUnits)
 	shares, err := c.loadSealShares(epochID)
 	if err != nil {
 		return nil, err

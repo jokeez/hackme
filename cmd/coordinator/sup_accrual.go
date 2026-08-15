@@ -99,9 +99,8 @@ func (m *workManager) noteWorkerStale(workerID string, now int64) {
 	}
 	meta := m.supMeta[workerID]
 	meta.RollingStale++
-	if meta.CleanSinceUnix == 0 {
-		meta.CleanSinceUnix = now
-	}
+	// V3-M1: stale breaks the clean streak (do not arm CleanSinceUnix here).
+	meta.CleanSinceUnix = 0
 	m.supMeta[workerID] = meta
 }
 
@@ -166,7 +165,8 @@ func (m *workManager) computeSUPAccrual(workerID string, hmcPayout float64, paid
 		return 0
 	}
 	m.resetSupDayIfNeeded(now)
-	m.hmcAccruedDay += hmcPayout
+	// V3-M3: daily SUP cap basis is attempt-HMC only (not found_bonus).
+	m.hmcAccruedDay += attemptHMC
 	if m.supPolicy.DailyCapRatio > 0 && m.hmcAccruedDay > 0 {
 		cap := m.hmcAccruedDay * m.supPolicy.DailyCapRatio
 		if m.supAccruedDay >= cap {

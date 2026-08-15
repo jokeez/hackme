@@ -14,7 +14,29 @@ import (
 var fromCodeHostCompileWarned sync.Once
 
 func fromCodeRequireSandbox() bool {
-	return envBool("HACKME_FROM_CODE_REQUIRE_SANDBOX", false)
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_FROM_CODE_REQUIRE_SANDBOX")))
+	switch v {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	}
+	// V3-L1: off-loopback binds default to require sandbox.
+	bind := strings.TrimSpace(os.Getenv("HACKME_BIND_ADDR"))
+	if bind == "" {
+		return false
+	}
+	host := bind
+	if i := strings.LastIndex(bind, ":"); i >= 0 {
+		host = bind[:i]
+	}
+	host = strings.Trim(host, "[]")
+	switch host {
+	case "", "127.0.0.1", "::1", "localhost":
+		return false
+	default:
+		return true
+	}
 }
 
 // fromCodeEnabled gates host compile for POST /api/tasks/from_code and

@@ -449,7 +449,7 @@ func (a *app) handleHardwareTune(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		_ = json.NewEncoder(w).Encode(a.buildHardwareTuneResponse())
 	case http.MethodPost:
-		if !requireAdminAuth(w, r) {
+		if !requireAdminAuthStrict(w, r) {
 			return
 		}
 		var raw map[string]json.RawMessage

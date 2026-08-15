@@ -33,13 +33,22 @@ type SealPayoutLine struct {
 	SharesOK           uint64 `json:"shares_ok"`
 }
 
-// SealEpochBudgetUnits returns HMS units for a sealed epoch budget.
+// SealEpochBudgetUnits returns HMS units for a sealed epoch budget from prepaid HMC float (compat).
 func SealEpochBudgetUnits(prepaidHMCSum float64) uint64 {
+	var prepaidUnits uint64
+	if prepaidHMCSum > 0 {
+		prepaidUnits = uint64(math.Round(prepaidHMCSum * float64(HMSUnitsPerCoin)))
+	}
+	return SealEpochBudgetFromPrepaidUnits(prepaidUnits)
+}
+
+// SealEpochBudgetFromPrepaidUnits is the integer path (V3-M4): bonus = 1% of prepaid units.
+func SealEpochBudgetFromPrepaidUnits(prepaidUnits uint64) uint64 {
 	base := hmsToUnits(SealEpochBaseBudgetHMS)
-	if prepaidHMCSum <= 0 {
+	if prepaidUnits == 0 {
 		return base
 	}
-	bonus := hmsToUnits(prepaidHMCSum * SealBudgetPrepaidShareRate)
+	bonus := prepaidUnits / 100 // SealBudgetPrepaidShareRate = 0.01
 	return base + bonus
 }
 

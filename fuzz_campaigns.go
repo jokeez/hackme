@@ -557,7 +557,7 @@ func (a *app) handleFuzzHousekeeping(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed", nil)
 		return
 	}
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	logAdminAction(r, "fuzz_housekeeping_post")
@@ -753,7 +753,7 @@ func (a *app) handleFuzzCampaignCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleFuzzCampaignsList(w http.ResponseWriter, r *http.Request) {
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	limit := 50
@@ -845,7 +845,7 @@ func (a *app) getFuzzCampaign(ctx context.Context, id string) (fuzzCampaign, err
 }
 
 func (a *app) handleFuzzCampaignGet(w http.ResponseWriter, r *http.Request, campaignID string) {
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	c, err := a.getFuzzCampaign(r.Context(), campaignID)
@@ -867,7 +867,7 @@ func (a *app) handleFuzzCampaignGet(w http.ResponseWriter, r *http.Request, camp
 }
 
 func (a *app) handleFuzzCampaignStatus(w http.ResponseWriter, r *http.Request, campaignID string) {
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	logAdminAction(r, "fuzz_campaign_status_post")
@@ -956,7 +956,7 @@ func mergeRuntimeSummary(base map[string]any, req fuzzCampaignRuntimeUpdateReque
 }
 
 func (a *app) handleFuzzCampaignRuntime(w http.ResponseWriter, r *http.Request, campaignID string) {
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	logAdminAction(r, "fuzz_campaign_runtime_post")
@@ -1034,7 +1034,7 @@ func (a *app) handleFuzzCampaignRuntime(w http.ResponseWriter, r *http.Request, 
 }
 
 func (a *app) handleFuzzCampaignRotateToken(w http.ResponseWriter, r *http.Request, campaignID string) {
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	logAdminAction(r, "fuzz_campaign_token_rotate")
@@ -1065,7 +1065,7 @@ func (a *app) handleFuzzCampaignRotateToken(w http.ResponseWriter, r *http.Reque
 }
 
 func (a *app) handleFuzzCampaignAccessLog(w http.ResponseWriter, r *http.Request, campaignID string) {
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	limit := 100
@@ -1103,7 +1103,7 @@ func (a *app) handleFuzzCampaignAccessLog(w http.ResponseWriter, r *http.Request
 }
 
 func (a *app) handleFuzzCampaignAccessSummary(w http.ResponseWriter, r *http.Request, campaignID string) {
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	var exists int
@@ -1253,7 +1253,7 @@ func (a *app) handleFuzzCampaignCrashes(w http.ResponseWriter, r *http.Request, 
 }
 
 func (a *app) handleFuzzCampaignCorpusRetention(w http.ResponseWriter, r *http.Request, campaignID string) {
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	logAdminAction(r, "fuzz_campaign_corpus_retention_post")
@@ -1292,7 +1292,7 @@ func (a *app) handleFuzzCampaignCorpusRetention(w http.ResponseWriter, r *http.R
 }
 
 func (a *app) handleFuzzCampaignHousekeeping(w http.ResponseWriter, r *http.Request, campaignID string) {
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	logAdminAction(r, "fuzz_campaign_housekeeping_post")
@@ -1560,7 +1560,7 @@ func (a *app) handleFuzzCampaignPulse(w http.ResponseWriter, r *http.Request, ca
 }
 
 func (a *app) handleFuzzCampaignDiff(w http.ResponseWriter, r *http.Request, campaignID string) {
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	baseID := cleanFuzzID(strings.TrimSpace(r.URL.Query().Get("base_campaign_id")), "campaign")
@@ -1693,7 +1693,7 @@ func (a *app) campaignCoverageCounts(ctx context.Context, campaignID string) (ma
 }
 
 func (a *app) handleFuzzCampaignIngestFindings(w http.ResponseWriter, r *http.Request, campaignID string) {
-	if !requireAdminAuth(w, r) {
+	if !requireAdminAuthStrict(w, r) {
 		return
 	}
 	logAdminAction(r, "fuzz_campaign_findings_post")
