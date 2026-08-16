@@ -3,7 +3,9 @@ package sandbox
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -99,5 +101,42 @@ func TestValidateCheckWasmQuarantine(t *testing.T) {
 	err = ValidateCheckWasm(context.Background(), raw)
 	if err == nil || !strings.Contains(err.Error(), "quarantined") {
 		t.Fatalf("expected quarantined error, got %v", err)
+	}
+}
+
+func TestInvokeCheckConcurrentSameWasm(t *testing.T) {
+	raw, err := hex.DecodeString(MinimalGateWasmHex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	if err := ValidateCheckWasm(ctx, raw); err != nil {
+		t.Fatal(err)
+	}
+	const workers = 64
+	const iters = 40
+	errCh := make(chan error, workers)
+	var wg sync.WaitGroup
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func(seed uint64) {
+			defer wg.Done()
+			for i := 0; i < iters; i++ {
+				ok, err := InvokeCheck(ctx, raw, seed+uint64(i))
+				if err != nil {
+					errCh <- err
+					return
+				}
+				if !ok {
+					errCh <- fmt.Errorf("expected check pass")
+					return
+				}
+			}
+		}(uint64(w * iters))
+	}
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		t.Fatalf("concurrent InvokeCheck: %v", err)
 	}
 }

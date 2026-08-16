@@ -373,33 +373,10 @@ func (a *app) recordCoverageBuckets(ctx context.Context, campaignID string, inpu
 }
 
 func classifyWasmTrap(inputN uint64, execErr error, hasWasm bool) (findingType, severity, title string) {
-	msg := strings.ToLower(execErr.Error())
-	titleBase := strings.TrimSpace(execErr.Error())
-	if len(titleBase) > 240 {
-		titleBase = titleBase[:240]
+	if execErr == nil {
+		return "", "", ""
 	}
-	if strings.Contains(msg, "divide by zero") {
-		return "crash", "high", "WASM trap: integer divide by zero"
-	}
-	if strings.Contains(msg, "out of bounds") || strings.Contains(msg, "oob") {
-		return "crash", "critical", "WASM trap: out-of-bounds memory access"
-	}
-	if strings.Contains(msg, "quarantined") || strings.Contains(msg, "trapped during validation") {
-		return "sandbox_reject", "info", "Sandbox blocked WASM (invalid or trap-at-load module), not a target-code bug"
-	}
-	if hasWasm {
-		op, itemID, qty := wasmCheckInputParts(inputN)
-		if op == 2 && qty == 0 {
-			return "crash", "high", "WASM trap: division by zero in op_type=2"
-		}
-		if op == 1 && itemID >= 3 {
-			return "crash", "critical", fmt.Sprintf("WASM trap during OOB item lookup (item_id=%d)", itemID)
-		}
-	}
-	if strings.Contains(msg, "check returned 0") || strings.Contains(msg, "property") {
-		return "property_violation", "medium", titleBase
-	}
-	return "crash", "high", "WASM trap: " + titleBase
+	return fuzzengine.ClassifyWasmTrap(inputN, execErr.Error(), hasWasm)
 }
 
 func (a *app) insertWorkerFindingClassified(ctx context.Context, campaignID string, inputN, actualInput uint64, inputBytes []byte, now int64, findingType, severity, title, wasmPath string, cfg map[string]any) error {

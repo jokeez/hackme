@@ -304,6 +304,63 @@ func ClassifyCheckFail(input uint64, hasWasm bool, sem CheckSemantics) (findingT
 	return "property_violation", "medium", fmt.Sprintf("check returned 0 for input %d", input)
 }
 
+// IsHarnessRuntimeTrap reports WASM/runtime failures that are not target-code bugs
+// (e.g. closed compiled-module cache races under pool concurrency).
+func IsHarnessRuntimeTrap(msg string) bool {
+	low := strings.ToLower(strings.TrimSpace(msg))
+	if low == "" {
+		return false
+	}
+	for _, needle := range []string{
+		"source module must be compiled before instantiation",
+		"module has already been closed",
+		"closed module",
+		"compiled module missing",
+		"not a compiled module",
+	} {
+		if strings.Contains(low, needle) {
+			return true
+		}
+	}
+	return false
+}
+
+// ClassifyWasmTrap maps a sandbox/execution error into a finding class.
+// Harness/runtime failures are not crash-class (customer gate / top issues).
+func ClassifyWasmTrap(input uint64, execErr string, hasWasm bool) (findingType, severity, title string) {
+	msg := strings.TrimSpace(execErr)
+	titleBase := msg
+	if len(titleBase) > 240 {
+		titleBase = titleBase[:240]
+	}
+	low := strings.ToLower(msg)
+	if IsHarnessRuntimeTrap(msg) {
+		return "harness_runtime", "info", "Harness/runtime: " + titleBase
+	}
+	if strings.Contains(low, "quarantined") || strings.Contains(low, "trapped during validation") {
+		return "sandbox_reject", "info", "Sandbox blocked WASM (invalid or trap-at-load module), not a target-code bug"
+	}
+	if strings.Contains(low, "divide by zero") {
+		return "crash", "high", "WASM trap: integer divide by zero"
+	}
+	if strings.Contains(low, "out of bounds") || strings.Contains(low, "oob") {
+		return "crash", "critical", "WASM trap: out-of-bounds memory access"
+	}
+	if hasWasm {
+		op, itemID, qty := WasmCheckInputParts(input)
+		if op == 2 && qty == 0 {
+			return "crash", "high", "WASM trap: division by zero in op_type=2"
+		}
+		if op == 1 && itemID >= 3 {
+			return "crash", "critical", fmt.Sprintf("WASM trap during OOB item lookup (item_id=%d)", itemID)
+		}
+	}
+	if strings.Contains(low, "check returned 0") || strings.Contains(low, "property") {
+		return "property_violation", "medium", titleBase
+	}
+	return "crash", "high", "WASM trap: " + titleBase
+}
+
 func intFromAny(v any) int {
 	switch x := v.(type) {
 	case int:

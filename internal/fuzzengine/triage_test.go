@@ -27,6 +27,29 @@ func TestClassifyFinding_crashClasses(t *testing.T) {
 	}
 }
 
+func TestClassifyFinding_harnessRuntime(t *testing.T) {
+	tr := ClassifyFinding("harness_runtime", "info")
+	if tr.Class != "harness_noise" || tr.ZeroDayHint != "low" {
+		t.Fatalf("unexpected triage: %+v", tr)
+	}
+	if IsCrashClass("harness_runtime") {
+		t.Fatal("harness_runtime must not be crash-class")
+	}
+	if !IsCoverageNoise("harness_runtime") {
+		t.Fatal("harness_runtime should be treated as non-crash noise")
+	}
+}
+
+func TestClassifyWasmTrap_harness(t *testing.T) {
+	ft, sev, title := ClassifyWasmTrap(0, "source module must be compiled before instantiation", true)
+	if ft != "harness_runtime" || sev != "info" {
+		t.Fatalf("got %s/%s %q", ft, sev, title)
+	}
+	if !IsHarnessRuntimeTrap("module has already been closed") {
+		t.Fatal("expected closed-module detection")
+	}
+}
+
 func TestIsCoverageNoise_detector(t *testing.T) {
 	for _, ft := range []string{"property_violation", "security_violation", "consensus_script_push", "interesting_input"} {
 		if !IsCoverageNoise(ft) {

@@ -46,7 +46,7 @@ func IsCoverageNoise(findingType string) bool {
 	ft := strings.TrimSpace(strings.ToLower(findingType))
 	switch ft {
 	case "property_violation", "security_violation", "consensus_script_push",
-		"interesting_input", "sandbox_reject":
+		"interesting_input", "sandbox_reject", "harness_runtime":
 		return true
 	}
 	for _, needle := range []string{"property", "detector", "guard", "violation", "signal"} {
@@ -86,11 +86,11 @@ func ClassifyFinding(findingType, severity string) Triage {
 		}
 	}
 	switch ft {
-	case "sandbox_reject":
+	case "sandbox_reject", "harness_runtime":
 		return Triage{
-			Class:       "sandbox",
-			Label:       "Sandbox reject",
-			Note:        "Module failed validation or was quarantined. Usually not a vulnerability in your guard logic.",
+			Class:       "harness_noise",
+			Label:       "Harness / runtime",
+			Note:        "Sandbox cache, validation, or WASM runtime failure — not a bug in the fuzz target. Fix the harness/runtime before treating as a finding.",
 			ZeroDayHint: "low",
 		}
 	case "property_violation":

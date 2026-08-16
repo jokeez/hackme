@@ -336,9 +336,11 @@ func ValidateCheckWasm(ctx context.Context, wasm []byte) error {
 			return fmt.Errorf("sandbox: wasm is quarantined: %v", v)
 		}
 	}
-	if old, exists := checkCompiled.Load(key); exists {
+	if _, exists := checkCompiled.Load(key); exists {
+		// Another goroutine won the race: keep the live cache entry.
+		// Closing the cached module here caused
+		// "source module must be compiled before instantiation" under pool load.
 		_ = compiled.Close(validateCtx)
-		_ = old.(wazero.CompiledModule).Close(validateCtx)
 		return nil
 	}
 	checkQuarantine.Delete(key)
@@ -352,11 +354,50 @@ func ValidateCheckWasm(ctx context.Context, wasm []byte) error {
 			continue
 		}
 		if old, ok := checkCompiled.Load(evictKey); ok {
-			_ = old.(wazero.CompiledModule).Close(validateCtx)
 			checkCompiled.Delete(evictKey)
+			_ = old.(wazero.CompiledModule).Close(validateCtx)
 		}
 	}
 	return nil
+}
+
+func loadCompiledModule(key string) (wazero.CompiledModule, bool) {
+	v, ok := checkCompiled.Load(key)
+	if !ok || v == nil {
+		return nil, false
+	}
+	compiled, ok := v.(wazero.CompiledModule)
+	return compiled, ok
+}
+
+func dropCompiledModule(key string) {
+	if key == "" {
+		return
+	}
+	checkCompileMu.Lock()
+	defer checkCompileMu.Unlock()
+	if old, ok := checkCompiled.Load(key); ok {
+		checkCompiled.Delete(key)
+		_ = old.(wazero.CompiledModule).Close(context.Background())
+	}
+	// Drop stale LRU entries for this key (best-effort; duplicates are skipped on eviction).
+	dst := checkCompiledLRU[:0]
+	for _, k := range checkCompiledLRU {
+		if k != key {
+			dst = append(dst, k)
+		}
+	}
+	checkCompiledLRU = dst
+}
+
+func isClosedCompiledErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	low := strings.ToLower(err.Error())
+	return strings.Contains(low, "must be compiled before instantiation") ||
+		strings.Contains(low, "module has already been closed") ||
+		strings.Contains(low, "closed module")
 }
 
 // InvokeCheckInput runs check_bytes when exported, else packs bytes into check(i64).
@@ -373,18 +414,32 @@ func InvokeCheckInput(ctx context.Context, wasm []byte, input []byte) (bool, err
 	}
 	rt := ensureCheckRuntime()
 	key := compiledKey(wasm)
-	v, ok := checkCompiled.Load(key)
+	compiled, ok := loadCompiledModule(key)
 	if !ok {
 		if err := ValidateCheckWasm(ctx, wasm); err != nil {
 			return false, err
 		}
-		v, _ = checkCompiled.Load(key)
+		compiled, ok = loadCompiledModule(key)
+		if !ok {
+			return false, errors.New("sandbox: compiled module missing after validate")
+		}
 	}
-	compiled := v.(wazero.CompiledModule)
 	id := atomic.AddUint64(&checkInstSerial, 1)
 	instCtx, instCancel := context.WithTimeout(ctx, wasmCheckTimeout())
 	defer instCancel()
 	mod, err := rt.InstantiateModule(instCtx, compiled, wazero.NewModuleConfig().WithName(fmt.Sprintf("chk-%s-%d", key[:16], id)))
+	if err != nil && isClosedCompiledErr(err) {
+		dropCompiledModule(key)
+		if vErr := ValidateCheckWasm(ctx, wasm); vErr != nil {
+			return false, vErr
+		}
+		compiled, ok = loadCompiledModule(key)
+		if !ok {
+			return false, errors.New("sandbox: compiled module missing after revalidate")
+		}
+		id = atomic.AddUint64(&checkInstSerial, 1)
+		mod, err = rt.InstantiateModule(instCtx, compiled, wazero.NewModuleConfig().WithName(fmt.Sprintf("chk-%s-%d", key[:16], id)))
+	}
 	if err != nil {
 		return false, err
 	}
@@ -441,19 +496,33 @@ func InvokeCheck(ctx context.Context, wasm []byte, n uint64) (bool, error) {
 func invokeCheckHeld(ctx context.Context, wasm []byte, n uint64) (bool, error) {
 	rt := ensureCheckRuntime()
 	key := compiledKey(wasm)
-	v, ok := checkCompiled.Load(key)
+	compiled, ok := loadCompiledModule(key)
 	if !ok {
 		if err := ValidateCheckWasm(ctx, wasm); err != nil {
 			return false, err
 		}
-		v, _ = checkCompiled.Load(key)
+		compiled, ok = loadCompiledModule(key)
+		if !ok {
+			return false, errors.New("sandbox: compiled module missing after validate")
+		}
 	}
-	compiled := v.(wazero.CompiledModule)
 
 	id := atomic.AddUint64(&checkInstSerial, 1)
 	instCtx, instCancel := context.WithTimeout(ctx, wasmCheckTimeout())
 	defer instCancel()
 	mod, err := rt.InstantiateModule(instCtx, compiled, wazero.NewModuleConfig().WithName(fmt.Sprintf("chk-%s-%d", key[:16], id)))
+	if err != nil && isClosedCompiledErr(err) {
+		dropCompiledModule(key)
+		if vErr := ValidateCheckWasm(ctx, wasm); vErr != nil {
+			return false, vErr
+		}
+		compiled, ok = loadCompiledModule(key)
+		if !ok {
+			return false, errors.New("sandbox: compiled module missing after revalidate")
+		}
+		id = atomic.AddUint64(&checkInstSerial, 1)
+		mod, err = rt.InstantiateModule(instCtx, compiled, wazero.NewModuleConfig().WithName(fmt.Sprintf("chk-%s-%d", key[:16], id)))
+	}
 	if err != nil {
 		return false, err
 	}

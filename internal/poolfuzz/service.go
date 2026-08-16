@@ -1055,7 +1055,7 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 	}
 	ft, sev, title := fuzzengine.ClassifyCheckFail(req.ActualInput, hasWasm, sem)
 	if strings.TrimSpace(req.Trap) != "" {
-		ft, sev, title = "crash", "high", "WASM trap: "+truncate(req.Trap, 200)
+		ft, sev, title = fuzzengine.ClassifyWasmTrap(req.ActualInput, req.Trap, hasWasm)
 	}
 	findingType = ft
 	severity = sev
