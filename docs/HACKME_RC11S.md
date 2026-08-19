@@ -1,6 +1,6 @@
 # HackMe 0.1.0-rc11s — superseded
 
-> **Current channel:** [HACKME_RC14.md](HACKME_RC14.md) · `0.1.0-rc14` on [downloads](https://hackme.tech/downloads.html)  
+> **Current channel:** [HACKME_RC14.md](HACKME_RC14.md) · `0.1.0-rc14x` on [downloads](https://hackme.tech/downloads.html)  
 > Intermediate: [HACKME_RC12W.md](HACKME_RC12W.md) (also historical).
 
 **Status:** **historical** — production baseline before rc12w wallet Activity cut.

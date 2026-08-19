@@ -23,7 +23,7 @@
 | [HMS_PUBLIC_ROADMAP.md](HMS_PUBLIC_ROADMAP.md) | HackMe Storage (HMS) — prelaunch |
 | [HMS_BACKEND.md](HMS_BACKEND.md) | HMS coordinator + workers |
 | [SUPPORT_COIN_UTILITY.md](SUPPORT_COIN_UTILITY.md) | HackMe Support (SUP) accrual |
-| [HACKME_RC14.md](HACKME_RC14.md) | **Current** release channel (rc14) |
+| [HACKME_RC14.md](HACKME_RC14.md) | **Current** release channel (rc14x) |
 | [YEAR_PLAN_2026_2027.md](YEAR_PLAN_2026_2027.md) | Year plan stub · feature freeze before exchange |
 | [../web/site/roadmap.html](../web/site/roadmap.html) | Public ecosystem roadmap |
 

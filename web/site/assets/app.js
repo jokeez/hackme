@@ -1,8 +1,8 @@
 (() => {
   /** Bump with scripts/release/CURRENT_VERSION, dist/release_<VERSION>/, main.go Version */
-  const RELEASE_VER = "0.1.0-rc14";
+  const RELEASE_VER = "0.1.0-rc14x";
   /** HackMe OS ISO — aligned with Win/Linux (scripts/release/CURRENT_ISO_VERSION). */
-  const ISO_CHANNEL = "0.1.0-rc14";
+  const ISO_CHANNEL = "0.1.0-rc14x";
 
   /** Sub-1 TH/s → GH/s (matches dashboard / explorer pool strip). */
   function fmtPoolHashrateTHS(ths, mock) {
@@ -37,14 +37,14 @@
     newsDisplay: "/assets/news-display.json",
     newsArchive: "/assets/news.json",
     releaseChannel: RELEASE_VER,
-    releaseChannelNote: "rc14 — dashboard fuzz rate/ETA display fix; refreshed Win/Linux/ISO and B2B fuzzing CLI artifacts",
+    releaseChannelNote: "rc14x — dashboard fuzz rate/ETA display fix; refreshed Win/Linux/ISO and B2B fuzzing CLI artifacts",
     releaseBase: `/dist/release_${RELEASE_VER}`,
     // Primary downloads: GitHub Releases (Cloudflare /dist often stalls or truncates large files).
     // Mirrors under /dist/ remain for origin IP / grey-cloud bypass.
     ghRelease: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}`,
     windowsInstaller: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/HackMe-Setup-${RELEASE_VER}.exe`,
     windowsInstallerMirror: `/dist/release_${RELEASE_VER}/HackMe-Setup-${RELEASE_VER}.exe?v=20260724`,
-    // rc14 GitHub assets publish only `*_windows.zip` bundles.
+    // rc14x GitHub assets publish only `*_windows.zip` bundles.
     windowsBundle: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/hackme_${RELEASE_VER}_windows.zip`,
     windowsBundleMirror: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows.zip`,
     windowsBundleLegacy: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/hackme_${RELEASE_VER}_windows.zip`,

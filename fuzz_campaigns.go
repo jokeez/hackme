@@ -1952,6 +1952,8 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 	if err != nil {
 		return nil, err
 	}
+	fullFindingsTotal := 0
+	_ = a.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_findings WHERE campaign_id=?`, campaignID).Scan(&fullFindingsTotal)
 	rows, err := a.db.QueryContext(ctx,
 		`SELECT id, campaign_id, finding_type, severity, title, input_sha256, artifact_path, repro_cmd, detail_json, created_at
 		 FROM fuzz_findings
@@ -2088,12 +2090,24 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 	baseline := a.buildReportBaselineDiff(ctx, campaignID, c.Config)
 	engineMeta := fuzzEngineMetaFromConfig(c.Config)
 	sampleN := len(findings)
+	groupedRowsVisible := len(topIssues) + len(coverageNoise)
+	groupedRowsHidden := (crashCount - len(topIssues)) + (noiseCount - len(coverageNoise))
+	if groupedRowsHidden < 0 {
+		groupedRowsHidden = 0
+	}
+	evidenceWindow := map[string]any{
+		"query_limit":            limit,
+		"fetched_findings":       len(findings),
+		"full_campaign_findings": fullFindingsTotal,
+		"history_truncated":      fullFindingsTotal > len(findings),
+	}
 	return map[string]any{
 		"ok":                 true,
 		"report_version":     "fuzz_report_v2",
 		"fuzz_engine":        engineMeta,
 		"generated_at_unix":  time.Now().Unix(),
 		"campaign":           c,
+		"evidence_window":    evidenceWindow,
 		"assurance_note":     assuranceNote,
 		"human_summary":      humanSummary,
 		"verdict_card":       verdictCard,
@@ -2105,53 +2119,71 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 			"assurance_note": assuranceNote,
 			"primary":        true,
 			"observed": map[string]any{
-				"critical_count":       crashCrit,
-				"high_count":           crashHigh,
-				"severity_score":       crashScore,
-				"crash_count":          crashCount,
-				"coverage_noise_count": noiseCount,
-				"runs_done":            runsDone,
+				"critical_count":         crashCrit,
+				"high_count":             crashHigh,
+				"severity_score":         crashScore,
+				"crash_count":            crashCount,
+				"coverage_noise_count":   noiseCount,
+				"raw_findings_total":     len(findings),
+				"grouped_rows_visible":   groupedRowsVisible,
+				"grouped_rows_hidden":    groupedRowsHidden,
+				"fetched_findings":       len(findings),
+				"full_campaign_findings": fullFindingsTotal,
+				"history_truncated":      fullFindingsTotal > len(findings),
+				"runs_done":              runsDone,
 			},
 		},
 		"security_summary": map[string]any{
-			"vulnerabilities_found": vulnerabilitiesFound,
-			"exploitable_count":     exploitableCount,
-			"critical_count":        crashCrit,
-			"high_count":            crashHigh,
-			"medium_count":          crashMed,
-			"low_count":             crashLow,
-			"info_count":            crashInfo,
-			"all_critical_count":    critical,
-			"all_high_count":        high,
-			"all_medium_count":      medium,
-			"all_low_count":         low,
-			"all_info_count":        info,
-			"crash_count":           crashCount,
-			"coverage_noise_count":  noiseCount,
-			"no_critical":           crashCrit == 0,
-			"sample_size":           sampleN,
-			"sample_size_unit":      "findings",
-			"runs_done":             runsDone,
-			"coverage_edges":        edges,
-			"coverage_paths":        paths,
-			"confidence":            confidence,
-			"assurance_note":        assuranceNote,
-			"human_summary":         humanSummary,
-			"triage_policy":         "crash_first",
+			"vulnerabilities_found":  vulnerabilitiesFound,
+			"exploitable_count":      exploitableCount,
+			"critical_count":         crashCrit,
+			"high_count":             crashHigh,
+			"medium_count":           crashMed,
+			"low_count":              crashLow,
+			"info_count":             crashInfo,
+			"all_critical_count":     critical,
+			"all_high_count":         high,
+			"all_medium_count":       medium,
+			"all_low_count":          low,
+			"all_info_count":         info,
+			"crash_count":            crashCount,
+			"coverage_noise_count":   noiseCount,
+			"no_critical":            crashCrit == 0,
+			"sample_size":            sampleN,
+			"sample_size_unit":       "findings",
+			"sample_size_basis":      "fetched_window",
+			"raw_findings_total":     len(findings),
+			"grouped_rows_visible":   groupedRowsVisible,
+			"grouped_rows_hidden":    groupedRowsHidden,
+			"fetched_findings":       len(findings),
+			"full_campaign_findings": fullFindingsTotal,
+			"history_truncated":      fullFindingsTotal > len(findings),
+			"runs_done":              runsDone,
+			"coverage_edges":         edges,
+			"coverage_paths":         paths,
+			"confidence":             confidence,
+			"assurance_note":         assuranceNote,
+			"human_summary":          humanSummary,
+			"triage_policy":          "crash_first",
 		},
 		"verdict":         verdict,
 		"top_issues":      topIssues,
 		"coverage_noise":  coverageNoise,
 		"recommendations": recommendations,
 		"totals": map[string]any{
-			"findings_total":       len(findings),
-			"by_severity":          bySeverity,
-			"by_type":              byType,
-			"severity_score":       crashScore,
-			"all_severity_score":   critical*100 + high*40 + medium*10 + low*3 + info,
-			"crash_count":          crashCount,
-			"coverage_noise_count": noiseCount,
-			"runs_done":            runsDone,
+			"findings_total":         len(findings),
+			"by_severity":            bySeverity,
+			"by_type":                byType,
+			"severity_score":         crashScore,
+			"all_severity_score":     critical*100 + high*40 + medium*10 + low*3 + info,
+			"crash_count":            crashCount,
+			"coverage_noise_count":   noiseCount,
+			"grouped_rows_visible":   groupedRowsVisible,
+			"grouped_rows_hidden":    groupedRowsHidden,
+			"fetched_findings":       len(findings),
+			"full_campaign_findings": fullFindingsTotal,
+			"history_truncated":      fullFindingsTotal > len(findings),
+			"runs_done":              runsDone,
 		},
 		"findings": findings,
 	}, nil
@@ -2247,6 +2279,14 @@ func (a *app) handleFuzzCampaignReportCSV(w http.ResponseWriter, r *http.Request
 	if gate, ok := report["gate"].(map[string]any); ok {
 		_ = cw.Write([]string{"gate", "pass", toString(gate["pass"])})
 		_ = cw.Write([]string{"gate", "reasons", strings.Join(toStringSlice(gate["reasons"]), "; ")})
+		if observed, ok := gate["observed"].(map[string]any); ok {
+			_ = cw.Write([]string{"gate_observed", "raw_findings_total", toString(observed["raw_findings_total"])})
+			_ = cw.Write([]string{"gate_observed", "grouped_rows_visible", toString(observed["grouped_rows_visible"])})
+			_ = cw.Write([]string{"gate_observed", "grouped_rows_hidden", toString(observed["grouped_rows_hidden"])})
+			_ = cw.Write([]string{"gate_observed", "fetched_findings", toString(observed["fetched_findings"])})
+			_ = cw.Write([]string{"gate_observed", "full_campaign_findings", toString(observed["full_campaign_findings"])})
+			_ = cw.Write([]string{"gate_observed", "history_truncated", toString(observed["history_truncated"])})
+		}
 	}
 	_ = cw.Write([]string{"summary", "vulnerabilities_found", toString(summary["vulnerabilities_found"])})
 	_ = cw.Write([]string{"summary", "exploitable_count", toString(summary["exploitable_count"])})
@@ -2257,10 +2297,28 @@ func (a *app) handleFuzzCampaignReportCSV(w http.ResponseWriter, r *http.Request
 	_ = cw.Write([]string{"summary", "info_count", toString(summary["info_count"])})
 	_ = cw.Write([]string{"summary", "crash_count", toString(summary["crash_count"])})
 	_ = cw.Write([]string{"summary", "coverage_noise_count", toString(summary["coverage_noise_count"])})
+	_ = cw.Write([]string{"summary", "raw_findings_total", toString(summary["raw_findings_total"])})
+	_ = cw.Write([]string{"summary", "grouped_rows_visible", toString(summary["grouped_rows_visible"])})
+	_ = cw.Write([]string{"summary", "grouped_rows_hidden", toString(summary["grouped_rows_hidden"])})
 	_ = cw.Write([]string{"summary", "sample_size", toString(summary["sample_size"])})
+	_ = cw.Write([]string{"summary", "sample_size_basis", toString(summary["sample_size_basis"])})
+	_ = cw.Write([]string{"summary", "fetched_findings", toString(summary["fetched_findings"])})
+	_ = cw.Write([]string{"summary", "full_campaign_findings", toString(summary["full_campaign_findings"])})
+	_ = cw.Write([]string{"summary", "history_truncated", toString(summary["history_truncated"])})
 	_ = cw.Write([]string{"summary", "confidence", toString(summary["confidence"])})
 	_ = cw.Write([]string{"totals", "findings_total", toString(totals["findings_total"])})
 	_ = cw.Write([]string{"totals", "severity_score", toString(totals["severity_score"])})
+	_ = cw.Write([]string{"totals", "grouped_rows_visible", toString(totals["grouped_rows_visible"])})
+	_ = cw.Write([]string{"totals", "grouped_rows_hidden", toString(totals["grouped_rows_hidden"])})
+	_ = cw.Write([]string{"totals", "fetched_findings", toString(totals["fetched_findings"])})
+	_ = cw.Write([]string{"totals", "full_campaign_findings", toString(totals["full_campaign_findings"])})
+	_ = cw.Write([]string{"totals", "history_truncated", toString(totals["history_truncated"])})
+	if window, ok := report["evidence_window"].(map[string]any); ok {
+		_ = cw.Write([]string{"evidence_window", "query_limit", toString(window["query_limit"])})
+		_ = cw.Write([]string{"evidence_window", "fetched_findings", toString(window["fetched_findings"])})
+		_ = cw.Write([]string{"evidence_window", "full_campaign_findings", toString(window["full_campaign_findings"])})
+		_ = cw.Write([]string{"evidence_window", "history_truncated", toString(window["history_truncated"])})
+	}
 	if fp, ok := report["target_fingerprint"].(map[string]any); ok {
 		_ = cw.Write([]string{"fingerprint", "wasm_sha256", toString(fp["wasm_sha256"])})
 		_ = cw.Write([]string{"fingerprint", "binary_sha256", toString(fp["binary_sha256"])})
@@ -2350,6 +2408,15 @@ func (a *app) handleFuzzCampaignGate(w http.ResponseWriter, r *http.Request, cam
 	severityScore := intFromAny(totals["severity_score"])
 	crashCount := intFromAny(summary["crash_count"])
 	noiseCount := intFromAny(summary["coverage_noise_count"])
+	rawFindingsTotal := intFromAny(summary["raw_findings_total"])
+	groupedRowsVisible := intFromAny(summary["grouped_rows_visible"])
+	groupedRowsHidden := intFromAny(summary["grouped_rows_hidden"])
+	fetchedFindings := intFromAny(summary["fetched_findings"])
+	fullCampaignFindings := intFromAny(summary["full_campaign_findings"])
+	historyTruncated := false
+	if v, ok := summary["history_truncated"].(bool); ok {
+		historyTruncated = v
+	}
 	pass := true
 	reasons := make([]string, 0, 4)
 	if critical > maxCritical {
@@ -2396,13 +2463,19 @@ func (a *app) handleFuzzCampaignGate(w http.ResponseWriter, r *http.Request, cam
 			"severity_basis":     "crash_class",
 		},
 		"observed": map[string]any{
-			"critical_count":       critical,
-			"high_count":           high,
-			"severity_score":       severityScore,
-			"sample_size":          sampleSize,
-			"runs_done":            runsDone,
-			"crash_count":          crashCount,
-			"coverage_noise_count": noiseCount,
+			"critical_count":         critical,
+			"high_count":             high,
+			"severity_score":         severityScore,
+			"sample_size":            sampleSize,
+			"runs_done":              runsDone,
+			"crash_count":            crashCount,
+			"coverage_noise_count":   noiseCount,
+			"raw_findings_total":     rawFindingsTotal,
+			"grouped_rows_visible":   groupedRowsVisible,
+			"grouped_rows_hidden":    groupedRowsHidden,
+			"fetched_findings":       fetchedFindings,
+			"full_campaign_findings": fullCampaignFindings,
+			"history_truncated":      historyTruncated,
 		},
 	})
 }

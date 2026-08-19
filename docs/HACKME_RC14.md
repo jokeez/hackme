@@ -1,57 +1,57 @@
-# HackMe 0.1.0-rc14 — desktop/pool channel + release bundle
+# HackMe 0.1.0-rc14x — desktop/pool channel + release bundle
 
-**Status:** **LIVE** on [hackme.tech/downloads.html](https://hackme.tech/downloads.html) — Win/Linux/fuzz/ISO on a single **rc14** channel.
+**Status:** **LIVE** on [hackme.tech/downloads.html](https://hackme.tech/downloads.html) — Win/Linux/fuzz/ISO on a single **rc14x** channel.
 
-## Release (2026-08-11, commit `ac48b36`)
+## Release (2026-08-19, commit `TBD`)
 
 Linux tarball SHA256:
 
-`0cb89a2dd6cac598add2340db70f336f81f982f3638adbbd3d922eb73c41f4d0  hackme_0.1.0-rc14_linux.tar.gz`
+`16ea5bcf40c0a0449b19b807fd15690c4eaedad7f0da666539243ab53ba4f2c9`
 
 ## Published artifacts
 
 | Artifact | File |
 |----------|------|
-| Windows portable | `hackme_0.1.0-rc14_windows.zip` |
-| Windows setup ZIP | `hackme_0.1.0-rc14_windows_setup.zip` |
-| Windows installer | `HackMe-Setup-0.1.0-rc14.exe` |
-| Linux bundle | `hackme_0.1.0-rc14_linux.tar.gz` |
-| Fuzz CLI + build helper | `hackme-fuzzing*-0.1.0-rc14-*` |
-| HackMe OS ISO | `HackMe-OS-0.1.0-rc14-amd64.iso` |
+| Windows portable | `hackme_0.1.0-rc14x_windows.zip` |
+| Windows setup ZIP | `hackme_0.1.0-rc14x_windows_setup.zip` |
+| Windows installer | `HackMe-Setup-0.1.0-rc14x.exe` |
+| Linux bundle | `hackme_0.1.0-rc14x_linux.tar.gz` |
+| Fuzz CLI + build helper | `hackme-fuzzing*-0.1.0-rc14x-*` |
+| HackMe OS ISO | `HackMe-OS-0.1.0-rc14x-amd64.iso` |
 
 ## Verify
 
 Download artifacts and their checksum files from:
 
-- `https://hackme.tech/dist/release_0.1.0-rc14/`
-- `https://github.com/jokeez/hackme/releases/tag/0.1.0-rc14`
+- `https://hackme.tech/dist/release_0.1.0-rc14x/`
+- `https://github.com/jokeez/hackme/releases/tag/0.1.0-rc14x`
 
 Verify ordinary artifacts with `SHA256SUMS.txt` and the bootable image with:
 `SHA256SUMS-iso.txt`.
 
 ```text
-139de21d4aff6d77144d70bddd66e0cadc24a15c1c110a66772b9343757a1f08  hackme_0.1.0-rc14_windows.zip
-b552c7ddc80f33642320fa0695c5332452903b1fb705449380ca26bac69ad9b9  hackme_0.1.0-rc14_windows_setup.zip
-0cb89a2dd6cac598add2340db70f336f81f982f3638adbbd3d922eb73c41f4d0  hackme_0.1.0-rc14_linux.tar.gz
-013bbed4859287e051df0f32b39d978db9f60cac14eb4ff3f82a453f9db58287  HackMe-Setup-0.1.0-rc14.exe
+f374688925849d219767fedff5660066b6387cffa40103a1bfe8db546f35ead3  hackme_0.1.0-rc14x_windows.zip
+20da968ef7b5679e4b40e4f5e05a6156017e0c4beedad4757a63e9548d115ad3  hackme_0.1.0-rc14x_windows_setup.zip
+16ea5bcf40c0a0449b19b807fd15690c4eaedad7f0da666539243ab53ba4f2c9  hackme_0.1.0-rc14x_linux.tar.gz
+f0ac96be3c4f9c3da28cb7f4ea9476df92c1d4789ec1c67655e3a0a045c19dbf  HackMe-Setup-0.1.0-rc14x.exe
 99cab528dbbc1ac8e30913f60893af5c55bc999f9ad1007fa611fd0e199498a7  Install-HackMe.ps1
 0ac66574d6c2eb2bc605f3d254d912f08bb7f46befb8b66db9edc61618c8d243  HackMe-Install.cmd
-b31c875f691af0ab79511ef41dbfacaf1d859c3e9abe1afe5dfc30294e679b16  hackme-fuzzing-0.1.0-rc14-linux-amd64
-daa7a46c43290a4fd041de71cf6f82762c6f3521b1c99b03d84d6308ee457347  hackme-fuzzing-0.1.0-rc14-windows-amd64.exe
-1150c05901b2a2b955d4732da5fd49f7e61957287cc87112e5bc2954b66e5a46  hackme-fuzzing-build-0.1.0-rc14-linux-amd64
-f8423e3ffae684f37ebd7ae51ff5786ed6cf22039fc87b428b7cccb52456448a  hackme-fuzzing-build-0.1.0-rc14-windows-amd64.exe
-1f7b7e15a696d898494f14292be8b031e428b430093a47bc41f7f539f1b0bf9b  HackMe-OS-0.1.0-rc14-amd64.iso
+087c44f3a4b44754459cd5bce92b6d41ffd188b38a0a73a273c48f04c1dabceb  hackme-fuzzing-0.1.0-rc14x-linux-amd64
+654aeebc5d6ed45474c787fe50620d209f16d3c4e3493155e0dadced197adaac  hackme-fuzzing-0.1.0-rc14x-windows-amd64.exe
+fd8e39969959d1f2a6e92b2e624fb287ba187ad27849d443dea1795c5b3c5c47  hackme-fuzzing-build-0.1.0-rc14x-linux-amd64
+869b2e619a3be2f0893cfe548095ea0e469b640be9388a1d8f2989bf59b942ad  hackme-fuzzing-build-0.1.0-rc14x-windows-amd64.exe
+TBD  HackMe-OS-0.1.0-rc14x-amd64.iso
 ```
 
 ## Operator rebuild
 
 ```bash
 # Publisher script filename is historical (rc12w); VERSION= selects the channel.
-VERSION=0.1.0-rc14 bash scripts/ops/release_rc12w_publish.sh
+VERSION=0.1.0-rc14x bash scripts/ops/release_rc12w_publish.sh
 NODE_SSH=hackme-vps SYNC_DIST=1 bash scripts/ops/deploy_hackme_site.sh
 ```
 
-# HackMe 0.1.0-rc14 — dashboard/pool UX + faster mining control
+# HackMe 0.1.0-rc14x — dashboard/pool UX + faster mining control
 
 ## Changelog
 
@@ -68,14 +68,14 @@ NODE_SSH=hackme-vps SYNC_DIST=1 bash scripts/ops/deploy_hackme_site.sh
 ## Operator rebuild
 
 ```bash
-VERSION=0.1.0-rc14 bash scripts/release/make_release_bundle.sh
-VERSION=0.1.0-rc14 bash scripts/release/refresh_release_manifest.sh 2>/dev/null || true
+VERSION=0.1.0-rc14x bash scripts/release/make_release_bundle.sh
+VERSION=0.1.0-rc14x bash scripts/release/refresh_release_manifest.sh 2>/dev/null || true
 ```
 
 If you also need the published ISO + site publishing:
 
 ```bash
 # Publisher script filename is historical (rc12w); VERSION= selects the channel.
-SKIP_ISO=0 SKIP_INSTALLER=0 SKIP_GATES=0 VERSION=0.1.0-rc14 bash scripts/ops/release_rc12w_publish.sh
+SKIP_ISO=0 SKIP_INSTALLER=0 SKIP_GATES=0 VERSION=0.1.0-rc14x bash scripts/ops/release_rc12w_publish.sh
 ```
 

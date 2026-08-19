@@ -73,6 +73,10 @@ func renderFuzzReportHTML(report map[string]any) string {
 	if m, ok := report["baseline_diff"].(map[string]any); ok {
 		baseline = m
 	}
+	window := map[string]any{}
+	if m, ok := report["evidence_window"].(map[string]any); ok {
+		window = m
+	}
 
 	ver := strings.ToLower(strings.TrimSpace(toString(report["verdict"])))
 	if ver == "" {
@@ -255,6 +259,8 @@ a{color:#00d1ff}
 <span class="badge">%s</span>
 <div class="grid">
 <div class="stat"><b>Runs</b>%s</div>
+<div class="stat"><b>Fetched window</b>%s fetched / %s history / truncated %s</div>
+<div class="stat"><b>Shown rows</b>%s raw / %s shown / %s hidden</div>
 <div class="stat"><b>Crash-class</b>%s</div>
 <div class="stat"><b>Critical</b>%s</div>
 <div class="stat"><b>Coverage noise</b>%s</div>
@@ -262,6 +268,7 @@ a{color:#00d1ff}
 <div class="stat"><b>Budget runs</b>%s</div>
 </div>
 </div>
+<div class="card"><p class="lbl">Evidence window</p><p class="muted">This report request fetched %s findings (limit %s) versus %s total findings in campaign history. Grouped rows, shown rows, and gate/sample counters reflect the fetched evidence window, not necessarily the full history.</p></div>
 <div class="card">
 <p class="lbl">Top issues (crash / hang / ASan / memory only)</p>
 <table><thead><tr><th>Severity</th><th>Type</th><th>Triage</th><th>Title</th><th>Repro</th></tr></thead><tbody>%s</tbody></table>
@@ -305,12 +312,21 @@ a{color:#00d1ff}
 		taskBlock,
 		html.EscapeString(ver),
 		html.EscapeString(toString(sum["runs_done"])),
+		html.EscapeString(toString(window["fetched_findings"])),
+		html.EscapeString(toString(window["full_campaign_findings"])),
+		html.EscapeString(toString(window["history_truncated"])),
+		html.EscapeString(toString(sum["raw_findings_total"])),
+		html.EscapeString(toString(sum["grouped_rows_visible"])),
+		html.EscapeString(toString(sum["grouped_rows_hidden"])),
 		html.EscapeString(toString(sum["crash_count"])),
 		html.EscapeString(toString(sum["critical_count"])),
 		html.EscapeString(toString(sum["coverage_noise_count"])),
 		html.EscapeString(toString(sum["coverage_edges"])),
 		html.EscapeString(toString(sum["coverage_paths"])),
 		html.EscapeString(toString(c["budget_runs"])),
+		html.EscapeString(toString(window["fetched_findings"])),
+		html.EscapeString(toString(window["query_limit"])),
+		html.EscapeString(toString(window["full_campaign_findings"])),
 		issueRows,
 		reproSection,
 		noiseRows,
@@ -437,6 +453,7 @@ func renderFuzzEngineNote(report map[string]any) string {
 	scopeBlock := `<div class="card scope"><p class="lbl">Scope &amp; honesty</p>
 <p>This report covers <strong>WASM sandbox</strong> execution of your linked guard module (<code>check(i64)→i32</code>), not a full upstream node audit.
 <strong>Top issues are crash-first</strong> (crash / hang / ASan / memory). Detector and property signals live in the coverage-noise appendix and are not CVE claims.
+This report is derived from the fetched evidence window for this request (<code>?limit=...</code>), so shown rows may represent only part of the full campaign history.
 Use <code>repro</code> (input → command) locally, then validate crash-class issues against native builds before claiming 0-day.
 Public L1 research (qa-assets corpus) lives at <a href="https://hackme.tech/reports/l1-crypto-stack-v3.html">l1-crypto-stack-v3</a> and is separate from this token-gated campaign.</p></div>`
 	meta := ""

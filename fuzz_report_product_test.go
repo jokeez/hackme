@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
+	"encoding/csv"
 	"encoding/hex"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestMoneySpentFromCampaignIgnoresBudget(t *testing.T) {
@@ -149,12 +154,26 @@ func TestRenderFuzzReportHTML_crashFirstProduct(t *testing.T) {
 		"security_summary": map[string]any{
 			"confidence": "medium", "vulnerabilities_found": 0,
 			"critical_count": 0, "high_count": 0, "medium_count": 0,
-			"crash_count": 0, "coverage_noise_count": 1,
-			"runs_done": 1000, "coverage_edges": 3, "coverage_paths": 1,
-			"sample_size": 1,
+			"crash_count": 0, "crash_unique_count": 0, "coverage_noise_count": 1, "coverage_noise_groups": 1,
+			"grouped_rows_total": 1, "grouped_rows_visible": 1, "grouped_rows_hidden": 0,
+			"hidden_crash_groups": 0, "hidden_noise_groups": 0,
+			"fetched_findings": 1, "full_campaign_findings": 1, "history_truncated": false,
+			"runs_done": 1000, "coverage_edges": 3, "coverage_paths": 1, "sample_size": 1,
 		},
 		"gate": map[string]any{
 			"pass": true, "reasons": []string{"all thresholds satisfied"},
+			"thresholds": map[string]any{
+				"max_critical": 0, "max_high": 0, "max_severity_score": 0, "min_runs_done": 0, "min_sample_size": 0,
+			},
+			"observed": map[string]any{
+				"raw_findings_total": 1, "grouped_rows_total": 1, "grouped_rows_visible": 1, "grouped_rows_hidden": 0,
+				"crash_count": 0, "crash_unique_count": 0, "hidden_crash_groups": 0,
+				"coverage_noise_count": 1, "coverage_noise_groups": 1, "hidden_noise_groups": 0,
+				"interesting_count": 0, "interesting_groups": 0, "crash_repro_ready": 0, "crash_repro_gap": 0,
+				"fetched_findings": 1, "full_campaign_findings": 1, "history_truncated": false,
+				"crash_family_raw":     map[string]int{"crash": 0, "hang": 0, "trap": 0},
+				"crash_family_grouped": map[string]int{"crash": 0, "hang": 0, "trap": 0},
+			},
 		},
 		"verdict_card": map[string]any{
 			"lines": []string{"Runs: 1000", "Crashes: 0", "Critical: 0", "Gate: PASS", "Money spent: 1.0000 HMC"},
@@ -167,6 +186,9 @@ func TestRenderFuzzReportHTML_crashFirstProduct(t *testing.T) {
 		}},
 		"target_fingerprint": map[string]any{
 			"available": true, "wasm_sha256": hex.EncodeToString(sum[:]), "source": "sha256(wasm_check_hex)",
+		},
+		"evidence_window": map[string]any{
+			"query_limit": 500, "fetched_findings": 1, "full_campaign_findings": 1, "history_truncated": false,
 		},
 		"baseline_diff":   stubBaselineDiff("set config.base_campaign_id to enable baseline diff"),
 		"recommendations": []string{"No crash findings."},
@@ -185,6 +207,9 @@ func TestRenderFuzzReportHTML_crashFirstProduct(t *testing.T) {
 		"Not proven secure",
 		"crash / hang / ASan / memory only",
 		"Scope &amp; honesty",
+		"Fetched window",
+		"Shown rows",
+		"report request fetched 1 findings (limit 500) versus 1 total findings in campaign history",
 	} {
 		if !strings.Contains(htmlOut, want) {
 			t.Fatalf("missing %q in html", want)
@@ -192,5 +217,72 @@ func TestRenderFuzzReportHTML_crashFirstProduct(t *testing.T) {
 	}
 	if strings.Contains(htmlOut, "detector flagged") && !strings.Contains(htmlOut, "Appendix") {
 		t.Fatal("detector should only appear under appendix")
+	}
+}
+
+func TestBuildFuzzReportEvidenceWindowAndCSV(t *testing.T) {
+	a, db := newWalletTestApp(t)
+	const camp = "report-window-api"
+	const token = "report-window-api-token"
+	seedFuzzCampaignWithReportToken(t, a, camp, token)
+	now := time.Now().Unix()
+	rows := []fuzzFinding{
+		{ID: "rw-1", CampaignID: camp, FindingType: "crash", Severity: "critical", Title: "latest trap", InputSHA256: "aa", ReproCmd: "go run repro latest", CreatedAt: now + 3},
+		{ID: "rw-2", CampaignID: camp, FindingType: "property_violation", Severity: "medium", Title: "latest noise", InputSHA256: "bb", CreatedAt: now + 2},
+		{ID: "rw-3", CampaignID: camp, FindingType: "crash", Severity: "high", Title: "older trap", InputSHA256: "cc", ReproCmd: "go run repro older", CreatedAt: now + 1},
+		{ID: "rw-4", CampaignID: camp, FindingType: "property_violation", Severity: "medium", Title: "older noise", InputSHA256: "dd", CreatedAt: now},
+	}
+	for _, f := range rows {
+		_, err := db.ExecContext(context.Background(),
+			`INSERT INTO fuzz_findings
+			 (id, campaign_id, finding_type, severity, title, input_sha256, artifact_path, repro_cmd, detail_json, created_at)
+			 VALUES (?, ?, ?, ?, ?, ?, '', ?, '{}', ?)`,
+			f.ID, f.CampaignID, f.FindingType, f.Severity, f.Title, f.InputSHA256, f.ReproCmd, f.CreatedAt)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	report, err := a.buildFuzzReport(context.Background(), camp, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	window, _ := report["evidence_window"].(map[string]any)
+	if intFromAny(window["query_limit"]) != 2 || intFromAny(window["fetched_findings"]) != 2 || intFromAny(window["full_campaign_findings"]) != 4 {
+		t.Fatalf("window mismatch: %+v", window)
+	}
+	if truncated, _ := window["history_truncated"].(bool); !truncated {
+		t.Fatalf("expected truncated evidence window: %+v", window)
+	}
+	summary, _ := report["security_summary"].(map[string]any)
+	if intFromAny(summary["raw_findings_total"]) != 2 || intFromAny(summary["fetched_findings"]) != 2 || intFromAny(summary["full_campaign_findings"]) != 4 {
+		t.Fatalf("summary evidence window mismatch: %+v", summary)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/fuzz/campaigns/"+camp+"/report.csv?limit=2", nil)
+	req.Header.Set("X-Hackme-Report-Token", token)
+	rec := httptest.NewRecorder()
+	a.handleFuzzCampaigns(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	reader := csv.NewReader(strings.NewReader(rec.Body.String()))
+	reader.FieldsPerRecord = -1
+	if _, err := reader.ReadAll(); err != nil {
+		t.Fatal(err)
+	}
+	joined := rec.Body.String()
+	for _, want := range []string{
+		"summary,raw_findings_total,2",
+		"summary,grouped_rows_visible,2",
+		"summary,fetched_findings,2",
+		"summary,full_campaign_findings,4",
+		"summary,history_truncated,true",
+		"gate_observed,fetched_findings,2",
+		"gate_observed,full_campaign_findings,4",
+		"evidence_window,query_limit,2",
+		"evidence_window,history_truncated,true",
+	} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("csv missing %q\n%s", want, joined)
+		}
 	}
 }
