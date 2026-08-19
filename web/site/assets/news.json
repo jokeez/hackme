@@ -1,6 +1,43 @@
 {
   "items": [
     {
+      "id": "2026-08-19-release-rc14x-fuzz-report-honesty",
+      "date": "2026-08-19",
+      "title": "rc14x hotfix shipped — honest fuzz report/gate + depth evidence visible",
+      "summary": "rc14x makes the fuzz customer reporting plane more truthful: reports now carry explicit `evidence_window` scope (fetched-window vs full-history) and disclose raw vs grouped counters (raw_findings_total, grouped_rows_visible/hidden) without changing gate/coordinator behavior.",
+      "impact": "Customer-facing truth improvements for B2B fuzz reports: JSON/HTML/CSV now clearly separate what was fetched for this request from the full campaign history, with raw vs grouped semantics disclosed to prevent overstated totals.",
+      "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc14x · Verify SHA256SUMS.txt from the rc14x bundle.",
+      "tags": [
+        "release",
+        "rc14x",
+        "fuzzing",
+        "honesty",
+        "report-plane",
+        "pre-exchange"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "rc14x hotfix shipped — honest fuzz report/gate",
+        "lead": "Fetch-window truth + raw vs grouped counters are now explicit in JSON/HTML/CSV (`evidence_window`).",
+        "bullets": [
+          "`evidence_window` is explicit: query_limit + fetched_findings vs full_campaign_findings + history_truncated",
+          "Honesty counters are disclosed: raw_findings_total + grouped_rows_visible/grouped_rows_hidden",
+          "Gate remains crash-first; it observes raw crash counters (no grouped/display clipping for PASS/FAIL)",
+          "Depth evidence posture is now visible, scoped to the fetched window for this request"
+        ],
+        "footer": "For rc14x: use the site buttons + verify SHA256SUMS.txt before flashing/running."
+      },
+      "discord": {
+        "title": "rc14x hotfix: honest fuzz report/gate",
+        "body": "**rc14x hotfix shipped**\n\n• Reports now include explicit `evidence_window` scope (what was fetched vs full history)\n• Raw vs grouped counters are disclosed (so totals aren’t overstated)\n• Gate stays crash-first and observes raw crash counters\n\nDownloads: https://hackme.tech/downloads.html",
+        "ping": "#announcements"
+      },
+      "links": {
+        "downloads": "https://hackme.tech/downloads.html",
+        "github": "https://github.com/jokeez/hackme/releases/tag/0.1.0-rc14x"
+      }
+    },
+    {
       "id": "2026-08-07-oss-cve-watch-libheif-day14-libfuzzer",
       "date": "2026-08-07",
       "title": "OSS CVE Watch · libheif series FINALE · Day 14/14 · ~2.57B exec · CLEAN",

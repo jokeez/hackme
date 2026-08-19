@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-05-13-miner-onboarding-pool-worker-rc9",
+      "date": "2026-05-13",
+      "title": "Miner onboarding: Windows pool worker, .env autoload, release 0.1.0-rc9",
+      "summary": "Windows dashboard worker start now launches native workerpoh.exe (release zips never shipped bash/curl loops). hackme loads .env / hackme.env beside the binary without overriding existing OS env. Dashboard defaults pool worker; API mining policy covered by tests. Bundle adds start_hackme_public_pool.bat + env.public_pool.example, Linux workerpoh binary, and opens the Mining tab by default.",
+      "impact": "Public pool participants on Windows can run Start pool worker without WSL; operators can distribute one zip plus a short env template for HACKME_PUBLIC_AUTHORITY_BASE and HACKME_POOL_COORDINATOR_TOKEN.",
+      "action": "Deploy web/site/assets/news.json to the site static path; upload dist/release_0.1.0-rc9/hackme_0.1.0-rc9_{windows,linux}.* + SHA256SUMS.txt + RELEASE_MANIFEST.json to Downloads; restart node/coordinator only if you also roll server binaries from the linux tarball. Telegram: operator bot unchanged — see docs/TELEGRAM_BOT.md; channel bot reposts when NEWS_FEED_URL points at the updated news.json.",
+      "tags": [
+        "release",
+        "mining",
+        "ux",
+        "windows",
+        "ops"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-07-desktop-mode-launchers-and-first-run-wizard",
       "date": "2026-05-07",
       "title": "Desktop Mode: Linux Launcher + Windows Scripts + First-Run Wizard",
@@ -232,19 +248,6 @@
         "ops"
       ],
       "status": "monitoring"
-    },
-    {
-      "id": "2026-05-03-release-rc6",
-      "date": "2026-05-03",
-      "title": "Release Candidate 0.1.0-rc6 Published",
-      "summary": "RC6 release bundles, checksums, and deployment automation were refreshed with latest stability and validation updates.",
-      "impact": "Improved deployment consistency and repeatability across local and VPS environments.",
-      "action": "Operators should use only RC6 artifacts from the Downloads page.",
-      "tags": [
-        "release",
-        "ops"
-      ],
-      "status": "deployed"
     }
   ],
   "chunk": 5

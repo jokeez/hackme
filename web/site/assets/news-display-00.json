@@ -1,6 +1,23 @@
 {
   "items": [
     {
+      "id": "2026-08-19-release-rc14x-fuzz-report-honesty",
+      "date": "2026-08-19",
+      "title": "rc14x hotfix shipped — honest fuzz report/gate + depth evidence visible",
+      "summary": "rc14x makes the fuzz customer reporting plane more truthful: reports now carry explicit `evidence_window` scope (fetched-window vs full-history) and disclose raw vs grouped counters (raw_findings_total, grouped_rows_visible/hidden) without changing gate/coordinator behavior.",
+      "impact": "Customer-facing truth improvements for B2B fuzz reports: JSON/HTML/CSV now clearly separate what was fetched for this request from the full campaign history, with raw vs grouped semantics disclosed to prevent overstated totals.",
+      "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc14x · Verify SHA256SUMS.txt from the rc14x bundle.",
+      "tags": [
+        "release",
+        "rc14x",
+        "fuzzing",
+        "honesty",
+        "report-plane",
+        "pre-exchange"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-08-07-oss-cve-watch-libheif-day14-libfuzzer",
       "date": "2026-08-07",
       "title": "OSS CVE Watch · libheif series FINALE · Day 14/14 · ~2.57B exec · CLEAN",
@@ -257,22 +274,6 @@
         "product",
         "devtools",
         "escrow"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-07-22-github-release-rc12w",
-      "date": "2026-07-22",
-      "title": "HackMe 0.1.0-rc12w — wallet Activity · security hardening · miners & devs",
-      "summary": "New download channel: wallet Activity tab (counterparty rollup, In/Out filter, CSV export, address labels), cleaner HMC/SUP/Transfer/Earnings UX, audit remediation on hub (dual-ledger, payout lock, admin bind, Stratum HMAC). Win/Linux + fuzz CLI + HackMe OS ISO rebuilt; SHA256 on GitHub + hackme.tech.",
-      "impact": "Miners and integrators get a sharper local wallet without economics changes. Hub runs rc12w with closed critical audit items. Activity API public on hackme.tech for desktop followers.",
-      "action": "Download: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc12w · Pool: https://hackme.tech/pool/coordinator · Docs: docs/HACKME_RC12W.md",
-      "tags": [
-        "release",
-        "wallet",
-        "security",
-        "mining",
-        "fuzzing"
       ],
       "status": "published"
     }
