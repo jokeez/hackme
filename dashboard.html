@@ -1364,7 +1364,7 @@
 						<span id="hdr-ui-mode" class="hidden sm:inline text-[9px] px-2 py-0.5 rounded border border-white/20 text-gray-300 uppercase tracking-widest" title="UI rendering mode">ui: full</span>
 						<span class="hidden sm:inline text-[10px] px-2 py-0.5 rounded border border-neon/25 text-neon/90 bg-neon/5">WASM</span>
 						<span id="chain-id-pill" class="tag-pill text-matrix/90 border-matrix/30">hackme-dev-mainnet</span>
-						<span id="hdr-node-version" class="text-[9px] px-2 py-0.5 rounded border border-white/10 text-neon/80 font-mono max-w-[280px] truncate hidden sm:inline-block" title="Node version · commit · build date from /api/status">0.1.0-rc14x · …</span>
+						<span id="hdr-node-version" class="text-[9px] px-2 py-0.5 rounded border border-white/10 text-neon/80 font-mono max-w-[280px] truncate hidden sm:inline-block" title="Node version · commit · build date from /api/status">0.1.0-rc15 · …</span>
 					</div>
 					<div class="flex flex-wrap items-center gap-3 text-right text-[11px]">
 						<div class="flex items-center gap-2 rounded border border-warn/25 bg-black/40 px-2 py-1">
@@ -1444,8 +1444,8 @@
 				<div id="dashboard-whats-new" class="hidden mb-4 max-w-[1600px] mx-auto rounded-lg border border-matrix/35 bg-matrix/[0.07] px-4 py-3 text-[11px] leading-relaxed" role="status">
 					<div class="flex flex-wrap items-start justify-between gap-3">
 						<div class="min-w-0 flex-1">
-							<p class="font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-matrix mb-1">What&apos;s new · <span id="dashboard-whats-new-ver">0.1.0-rc14x</span></p>
-							<p id="dashboard-whats-new-body" class="text-gray-200/95">Wallet Activity: counterparty rollup, in/out filter, CSV export, address labels. Cleaner HMC / SUP / Transfer / Earnings. Research: <a href="https://hackme.tech/reports/oss-cve-watch-libheif/day01.html" class="text-neon underline" target="_blank" rel="noopener">libheif Day 1</a>.</p>
+							<p class="font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-matrix mb-1">What&apos;s new · <span id="dashboard-whats-new-ver">0.1.0-rc15</span></p>
+							<p id="dashboard-whats-new-body" class="text-gray-200/95">B2B fuzz rc15: wizard packs (<code class="text-neon/80">filter_utf8</code>, <code class="text-neon/80">secrets</code>, <code class="text-neon/80">script_bounds</code>), pool anticheat (lease scaling, exec cap 64). OSS <a href="https://hackme.tech/reports/oss-cve-watch-libheif/" class="text-neon underline" target="_blank" rel="noopener">libheif</a> research series closed CLEAN — fleet pivots to customer campaigns on <a href="#mining" class="text-neon underline" data-goto-tab="mining">#mining</a>.</p>
 						</div>
 						<button type="button" id="dashboard-whats-new-dismiss" class="shrink-0 text-[10px] px-2 py-1 rounded border border-white/15 text-gray-400 hover:text-gray-200 uppercase tracking-wider">Dismiss</button>
 					</div>
@@ -1962,6 +1962,21 @@
 						<p id="hms-preview-toast" class="mt-2 text-[10px] font-mono text-gray-500">Docs: <a class="text-neon/90 underline" href="https://hackme.tech/coins.html#hms" target="_blank" rel="noreferrer">coins.html#hms</a> · <a class="text-neon/90 underline" href="/docs/HMS_MARKET_PRICING.md" target="_blank" rel="noreferrer">market spec</a></p>
 					</div>
 					<div id="mining-hmc-stack" data-coin-scope="hmc-only" class="space-y-4">
+					<div id="mining-fuzz-rc15-banner" class="card card-glow rounded-lg p-4 md:p-5 border-neon/35 bg-gradient-to-r from-neon/10 via-black/40 to-transparent">
+						<div class="flex flex-wrap items-start justify-between gap-3 mb-2">
+							<div class="max-w-3xl">
+								<p class="font-display text-[10px] tracking-[0.35em] text-neon uppercase mb-1">B2B fuzz · 0.1.0-rc15</p>
+								<h3 class="font-display text-sm font-semibold text-white tracking-wide">Hybrid PoH + pool fuzz — customer campaigns first</h3>
+								<p class="text-[11px] text-gray-400 leading-relaxed mt-1">OSS <strong class="text-white/90">libheif</strong> research is <strong class="text-matrix">closed CLEAN</strong> (~2.57B exec). Hub fleet now prioritizes <strong class="text-neon/90">customer B2B</strong> work — packs <code class="text-neon/80">secrets</code> · <code class="text-neon/80">filter_utf8</code> · <code class="text-neon/80">script_bounds</code> · <code class="text-neon/80">parser_expat</code>. Safe pool tiers: Scan (1 exec/run) · Audit (64). Deep capped at 64 exec/unit; coordinator segment replay anticheat.</p>
+							</div>
+							<span class="tag-pill border-neon/40 text-neon shrink-0">rc15</span>
+						</div>
+						<div class="flex flex-wrap gap-2 mt-2">
+							<button type="button" class="text-[10px] px-3 py-1.5 rounded border border-neon/40 text-neon uppercase tracking-wider hover:bg-neon/10" data-goto-tab="orders">Run B2B audit (#orders)</button>
+							<a class="text-[10px] px-3 py-1.5 rounded border border-white/20 text-gray-300 uppercase tracking-wider hover:bg-white/5" href="https://hackme.tech/fuzz-guide.html" target="_blank" rel="noopener noreferrer">Fuzz guide</a>
+							<a class="text-[10px] px-3 py-1.5 rounded border border-white/15 text-gray-400 uppercase tracking-wider hover:text-gray-200 hover:bg-white/5" href="https://hackme.tech/reports/oss-cve-watch-libheif/" target="_blank" rel="noopener noreferrer">libheif series (archived)</a>
+						</div>
+					</div>
 					<div class="card card-glow rounded-lg p-3 border-neon/20">
 						<div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px] font-mono">
 							<div class="rounded border border-neon/20 bg-black/40 px-3 py-2">Pool miners<br><span id="mining-strip-miners" class="text-neon text-sm">—</span></div>
@@ -1992,7 +2007,7 @@
 								<p class="text-[10px] uppercase tracking-[0.2em] text-neon">Fuzz work · earn HMC</p>
 								<button type="button" id="btn-fuzz-market-refresh" class="text-[9px] px-2 py-1 rounded border border-neon/30 text-neon uppercase tracking-wider">Refresh</button>
 							</div>
-							<p class="text-[10px] text-gray-500 mb-2">Pool campaigns with escrow. Dig with <code class="text-neon/80">workerfuzz</code> (or hybrid) alongside PoH.</p>
+							<p class="text-[10px] text-gray-500 mb-2">Live pool campaigns with escrow — customer B2B first. Dig with <code class="text-neon/80">workerfuzz</code> or hybrid alongside PoH. Local wizard: <code class="text-neon/70">hackme-fuzzing wizard --pack filter_utf8 --package audit</code>.</p>
 							<div id="mining-fuzz-market-rows" class="text-[10px] font-mono text-gray-400 space-y-0 max-h-56 overflow-y-auto pr-1">Loading…</div>
 						</div>
 						<div id="mining-admin-hint" class="hidden mb-3 rounded border border-warn/35 bg-warn/5 px-3 py-2 text-[10px] text-warn/95 font-mono leading-relaxed"></div>
@@ -3345,7 +3360,8 @@
 		try {
 		// Enable JS-driven tab behavior (single active panel view).
 		document.body.classList.add('js-ui');
-		const DASHBOARD_UI_VER = '0.1.0-rc14x';
+		const DASHBOARD_UI_VER = '0.1.0-rc15';
+		const DASHBOARD_WHATS_NEW_HTML = 'B2B fuzz rc15: wizard packs (<code class="text-neon/80">filter_utf8</code>, <code class="text-neon/80">secrets</code>, <code class="text-neon/80">script_bounds</code>), pool anticheat (lease scaling, exec cap 64). OSS <a href="https://hackme.tech/reports/oss-cve-watch-libheif/" class="text-neon underline" target="_blank" rel="noopener">libheif</a> research series closed CLEAN — fleet pivots to customer campaigns on <a href="#mining" class="text-neon underline" data-goto-tab="mining">#mining</a>.';
 		function updateUIModeBadge() {
 			const el = document.getElementById('hdr-ui-mode');
 			if (!el) return;
@@ -4667,7 +4683,7 @@
 		function initDashboardWhatsNew() {
 			const wrap = $('dashboard-whats-new');
 			if (!wrap) return;
-			const dismissKey = 'hackme_notice_dismiss:dashboard-whats-new-rc14x';
+			const dismissKey = 'hackme_notice_dismiss:dashboard-whats-new-rc15';
 			try {
 				if (localStorage.getItem(dismissKey) === '1') {
 					wrap.classList.add('hidden');
@@ -4676,6 +4692,8 @@
 			} catch (_) {}
 			const verEl = $('dashboard-whats-new-ver');
 			if (verEl) verEl.textContent = DASHBOARD_UI_VER;
+			const bodyEl = $('dashboard-whats-new-body');
+			if (bodyEl && DASHBOARD_WHATS_NEW_HTML) bodyEl.innerHTML = DASHBOARD_WHATS_NEW_HTML;
 			wrap.classList.remove('hidden');
 			const btn = $('dashboard-whats-new-dismiss');
 			if (btn && !btn._bound) {
@@ -9851,9 +9869,15 @@
 				$('desktop-mode-badge').className = 'text-[10px] px-2 py-1 rounded border uppercase tracking-wider ' + (on ? 'border-matrix/35 text-matrix' : 'border-white/15 text-gray-400');
 			}
 			if ($('pm-badge-release')) {
-				const ver = String((s && s.version) || 'dev').trim();
-				$('pm-badge-release').textContent = 'release: ' + (ver.length > 24 ? ver.slice(0, 22) + '…' : ver);
-				$('pm-badge-release').title = 'Node build version (API status)';
+				const nodeVer = String((s && s.version) || '').trim();
+				const ver = nodeVer || DASHBOARD_UI_VER;
+				const label = (nodeVer && nodeVer !== DASHBOARD_UI_VER)
+					? ('ui ' + DASHBOARD_UI_VER + ' · node ' + (nodeVer.length > 16 ? nodeVer.slice(0, 14) + '…' : nodeVer))
+					: ver;
+				$('pm-badge-release').textContent = 'release: ' + (label.length > 40 ? label.slice(0, 38) + '…' : label);
+				$('pm-badge-release').title = nodeVer
+					? ('Dashboard UI ' + DASHBOARD_UI_VER + ' · node build ' + nodeVer + ' (GET /api/status)')
+					: ('Dashboard UI ' + DASHBOARD_UI_VER);
 			}
 			if ($('hdr-node-version') && s) {
 				const ver = String(s.version || 'dev').trim();
@@ -12727,7 +12751,7 @@
 					return true;
 				});
 				if (!visible.length) {
-					box.innerHTML = '<span class="text-gray-600">No pool fuzz campaigns — create audit in #orders.</span>';
+					box.innerHTML = '<span class="text-gray-600">No pool fuzz campaigns — create B2B audit in #orders or run local wizard (<code class="text-neon/70">hackme-fuzzing wizard --pack filter_utf8 --package audit</code>).</span>';
 					return;
 				}
 				if (!refreshMiningFuzzMarketplace._rateSamples) refreshMiningFuzzMarketplace._rateSamples = {};

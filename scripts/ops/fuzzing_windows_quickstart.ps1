@@ -1,9 +1,9 @@
 # HackMe fuzzing CLI — Windows quick start (run in PowerShell after hackme-node is up on :8080).
 # Usage: powershell -ExecutionPolicy Bypass -File fuzzing_windows_quickstart.ps1
-# Optional: -InstallDir C:\HackMe -ReleaseVer 0.1.0-rc14x
+# Optional: -InstallDir C:\HackMe -ReleaseVer 0.1.0-rc15
 param(
     [string]$InstallDir = "$env:USERPROFILE\HackMe",
-    [string]$ReleaseVer = "0.1.0-rc14x",
+    [string]$ReleaseVer = "0.1.0-rc15",
     [string]$Base = "http://127.0.0.1:8080"
 )
 

@@ -15,7 +15,7 @@ function resolveIsoVersion(): string {
 }
 
 /** CDN may lag CURRENT_ISO_VERSION; probe known hosted ISOs (newest first). */
-const ISO_PROBE_VERSIONS = ['0.1.0-rc14x', '0.1.0-rc13', '0.1.0-rc11s'];
+const ISO_PROBE_VERSIONS = ['0.1.0-rc15', '0.1.0-rc14x', '0.1.0-rc13', '0.1.0-rc11s'];
 
 async function resolveWorkingIsoUrl(request: import('@playwright/test').APIRequestContext): Promise<string | null> {
   if (process.env.ISO_URL) return process.env.ISO_URL;
