@@ -1,8 +1,18 @@
 {
-  "updated": "2026-08-07T20:30:00Z",
+  "updated": "2026-08-22T11:05:00Z",
   "interval_ms": 6500,
   "pool_poll_ms": 30000,
   "slides": [
+    {
+      "kind": "release",
+      "badge": "Shipped",
+      "title": "0.1.0-rc15 LIVE — B2B fuzz Phase 2",
+      "detail": "Pool anticheat · wizard packs · libheif archived · customer campaigns first",
+      "cta": "Downloads",
+      "href": "/downloads.html",
+      "accent": "success",
+      "stats": ["rc15", "B2B", "LIVE"]
+    },
     {
       "kind": "win",
       "badge": "Upstream win",

@@ -1,6 +1,24 @@
 {
   "items": [
     {
+      "id": "2026-08-22-release-rc15-b2b-fuzz-phase2",
+      "date": "2026-08-22",
+      "title": "0.1.0-rc15 LIVE — B2B fuzz Phase 2, pool anticheat, mining dashboard refresh",
+      "summary": "rc15 is the production cut for customer fuzz on the public pool: wizard packs (secrets, script_bounds, filter_utf8, parser_expat), Scan/Audit/Deep tiers with honest byte ceilings (256 / 1K / 4K), dynamic worker leases, exec cap 64 per unit, and coverage bitmap @ WASM offset 8192. The libheif OSS research series is archived CLEAN (~2.57B exec); the #mining dashboard now prioritizes live B2B bootstrap campaigns.",
+      "impact": "Operators and miners: hub node 0.1.0-rc15 is live on hackme.tech. Pool fuzz anticheat is tighter (segment replay fail-closed). Customer marketplace orders from bootstrap B2B node rotate light parser targets onto the pool with PoH attach — visible on #mining. Downloads, SHA256SUMS, and GitHub release are aligned.",
+      "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc15 · Verify SHA256SUMS.txt · News: https://hackme.tech/news.html",
+      "tags": [
+        "release",
+        "rc15",
+        "fuzzing",
+        "B2B",
+        "pool",
+        "mining",
+        "pre-exchange"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-08-19-release-rc14x-fuzz-report-honesty",
       "date": "2026-08-19",
       "title": "rc14x hotfix shipped — honest fuzz report/gate + depth evidence visible",
@@ -257,23 +275,6 @@
         "escrow",
         "product",
         "overnight"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-07-22-b2b-customer-crash-first-report",
-      "date": "2026-07-22",
-      "title": "B2B audits that CI can trust — crash-first reports · honest Scan/Audit/Deep",
-      "summary": "Customer path is productized: register → wizard (Scan · Audit · Deep) → status → HTML report + CI gate. Crash-first triage means detector noise never fails the gate. Escrow 20/80 stays transparent; PoH miners auto-switch to orders while workerfuzz fleets dig pool fuzz. Example: HackMe Bootstrap Audit · cjson — runs progressing, gate crash-first, clean / no critical crash-class.",
-      "impact": "Protocol and security teams get a deliverable they can wire into pipelines — PASS/FAIL on crash-class findings only, plus an honest assurance note (not proven secure). No fake CVE theater: CLEAN means no crash/hang/ASan/memory at the budgeted runs.",
-      "action": "Developers: https://hackme.tech/developers.html · CLI: https://hackme.tech/downloads.html#fuzzing-client · Tracker: https://hackme.tech/fuzzing-console.html · Campaigns: https://hackme.tech/fuzz-campaigns.html · Command: hackme-fuzzing wizard --wasm guard.wasm --package audit",
-      "tags": [
-        "fuzzing",
-        "b2b",
-        "security",
-        "product",
-        "devtools",
-        "escrow"
       ],
       "status": "published"
     }

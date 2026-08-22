@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-06-16-bitcoin30-week1",
+      "date": "2026-06-16",
+      "title": "Bitcoin Core 30-Day Fuzz — Week 1 public report",
+      "summary": "Seven consecutive days of live upstream Bitcoin Core WASM guards on useful-PoW fuzz: GetScriptOp, HasValidOps, MoneyRange, duplicate inputs (CVE-2018-17144 class), EvalScript push/op budgets, SegWit witness stack. 576 distributed runs, 321 guard signals, zero critical. Day 3 MoneyRange clean.",
+      "impact": "Strongest daily cadence proof for B2B/Telegram: real bitcoin/bitcoin excerpts, honest guard_signal triage, public HTML ledger — not fake CVE claims.",
+      "action": "Report: https://hackme.tech/reports/bitcoin30-week1.html · Reproduce: DAY=N bash scripts/ops/run_bitcoin30_day.sh",
+      "tags": [
+        "security",
+        "research",
+        "marketing",
+        "bitcoin",
+        "fuzzing"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-06-09-rc11n-stability-payments",
       "date": "2026-06-09",
       "title": "Release 0.1.0-rc11n — hub stability, transfers & payments E2E",
@@ -240,21 +256,6 @@
         "release",
         "economics",
         "pool"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-25-fuzz-html-reports-security-note-01",
-      "date": "2026-05-25",
-      "title": "Fuzz reports ship as HTML · Security Note #1 (Script push bounds) · useful-PoW completed",
-      "summary": "Customer fuzz reports now default to a styled HTML page (verdict badge, metrics, top issues) instead of raw JSON blobs. Security research campaign #1: Bitcoin Script–inspired WASM guard (OP_PUSHDATA1 push > 520 bytes) ran as a paid useful-PoW order on the live coordinator; demo fuzz campaign verdict clean. Open source checker in repo.",
-      "impact": "Operators and B2B integrators get publication-ready security reports; miners see the same pool infra used for research-class WASM gates.",
-      "action": "Local dashboard: Fuzz → Open report · API: GET /api/fuzz/campaigns/{id}/report (HTML) or ?format=json · Guard source: tasks/sources/security/rust_script_push_bounds_guard.rs",
-      "tags": [
-        "security",
-        "fuzzing",
-        "release",
-        "infrastructure"
       ],
       "status": "published"
     }

@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-05-25-fuzz-html-reports-security-note-01",
+      "date": "2026-05-25",
+      "title": "Fuzz reports ship as HTML · Security Note #1 (Script push bounds) · useful-PoW completed",
+      "summary": "Customer fuzz reports now default to a styled HTML page (verdict badge, metrics, top issues) instead of raw JSON blobs. Security research campaign #1: Bitcoin Script–inspired WASM guard (OP_PUSHDATA1 push > 520 bytes) ran as a paid useful-PoW order on the live coordinator; demo fuzz campaign verdict clean. Open source checker in repo.",
+      "impact": "Operators and B2B integrators get publication-ready security reports; miners see the same pool infra used for research-class WASM gates.",
+      "action": "Local dashboard: Fuzz → Open report · API: GET /api/fuzz/campaigns/{id}/report (HTML) or ?format=json · Guard source: tasks/sources/security/rust_script_push_bounds_guard.rs",
+      "tags": [
+        "security",
+        "fuzzing",
+        "release",
+        "infrastructure"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-25-fuzzing-b2b-cli-hardening",
       "date": "2026-05-25",
       "title": "B2B fuzzing hardened · hackme-fuzzing CLI · no browser admin on hackme.tech",
@@ -245,21 +260,6 @@
         "pool",
         "ux",
         "production"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-14-pool-coordinator-secrets-and-fleet-onboarding",
-      "date": "2026-05-14",
-      "title": "Pool ops: coordinator secret file, fleet env generator, public worker smoke",
-      "summary": "Worker clients now resolve coordinator admin in a fixed order: COORD_ADMIN_TOKEN / HACKME_COORDINATOR_ADMIN_TOKEN / COORD_TOKEN env, then optional one-line .secrets/hackme_coordinator_admin_token (same value as VPS HACKME_COORDINATOR_ADMIN_TOKEN), then legacy shared ADMIN_TOKEN for same-token dev stacks. Added scripts/ops/run_public_worker_smoke.sh and optional RUN_PUBLIC_WORKER_SMOKE=1 in repo_final_selfcheck. Per-rig identity stays unique WORKER_ID plus HACKME_MINER_ED25519_SEED_HEX; operators scale with prepare_worker_fleet_envs.sh (manifest maps worker_id to payout address).",
-      "impact": "Less confusion between node admin tokens and coordinator tokens (fewer 401s on /api/work/claim). CI can run a short live coordinator smoke when the gitignored coordinator secret file exists, without baking secrets into scripts.",
-      "action": "Operators: keep coordinator admin only on the server and in operator .secrets; never commit it. Deploy site+node so news.json and binaries refresh: NODE_SSH=hackme-vps bash scripts/ops/deploy_hackme_public_stack.sh (set SKIP_NGINX=1 if the TLS vhost is frozen). After placing .secrets/hackme_coordinator_admin_token locally: PUBLIC_RO_BASE=https://hackme.tech RUN_PUBLIC_WORKER_SMOKE=1 bash scripts/ops/repo_final_selfcheck.sh. Miners: one env per machine from fleet generator or minersign -gen-seed; see README pool bullet and scripts/ops/worker.env.example.",
-      "tags": [
-        "mining",
-        "ops",
-        "security",
-        "release"
       ],
       "status": "published"
     }

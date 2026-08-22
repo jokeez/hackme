@@ -1,6 +1,47 @@
 {
   "items": [
     {
+      "id": "2026-08-22-release-rc15-b2b-fuzz-phase2",
+      "date": "2026-08-22",
+      "title": "0.1.0-rc15 LIVE — B2B fuzz Phase 2, pool anticheat, mining dashboard refresh",
+      "summary": "rc15 is the production cut for customer fuzz on the public pool: wizard packs (secrets, script_bounds, filter_utf8, parser_expat), Scan/Audit/Deep tiers with honest byte ceilings (256 / 1K / 4K), dynamic worker leases, exec cap 64 per unit, and coverage bitmap @ WASM offset 8192. The libheif OSS research series is archived CLEAN (~2.57B exec); the #mining dashboard now prioritizes live B2B bootstrap campaigns.",
+      "impact": "Operators and miners: hub node 0.1.0-rc15 is live on hackme.tech. Pool fuzz anticheat is tighter (segment replay fail-closed). Customer marketplace orders from bootstrap B2B node rotate light parser targets onto the pool with PoH attach — visible on #mining. Downloads, SHA256SUMS, and GitHub release are aligned.",
+      "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc15 · Verify SHA256SUMS.txt · News: https://hackme.tech/news.html",
+      "tags": [
+        "release",
+        "rc15",
+        "fuzzing",
+        "B2B",
+        "pool",
+        "mining",
+        "pre-exchange"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "0.1.0-rc15 LIVE — B2B fuzz Phase 2",
+        "lead": "Production cut for customer fuzz on the public pool: wizard packs, honest byte tiers, pool anticheat, libheif archived → B2B campaigns first.",
+        "bullets": [
+          "Wizard packs: secrets · script_bounds · filter_utf8 · parser_expat — Scan/Audit/Deep tiers",
+          "Byte ceilings honest: 256 / 1K / 4K · input @ WASM+8 · coverage bitmap @ 8192",
+          "Pool anticheat: dynamic leases · exec cap 64/unit · segment replay fail-closed",
+          "#mining dashboard: libheif OSS series archived CLEAN (~2.57B exec) · live bootstrap orders prioritized",
+          "Hub live 0.1.0-rc15 · verify SHA256SUMS before run/flash"
+        ],
+        "footer": "hackme.tech/downloads.html · GitHub 0.1.0-rc15 · not financial advice"
+      },
+      "discord": {
+        "title": "0.1.0-rc15 LIVE — B2B fuzz Phase 2",
+        "body": "**HackMe 0.1.0-rc15 is LIVE on hackme.tech**\n\n• **B2B fuzz Phase 2** — wizard packs (`secrets`, `script_bounds`, `filter_utf8`, `parser_expat`)\n• **Honest tiers** — Scan/Audit/Deep with byte ceilings 256 / 1K / **4K max**\n• **Pool anticheat** — dynamic worker leases, exec cap 64/unit, segment replay fail-closed\n• **#mining** — libheif OSS series archived **CLEAN** (~2.57B exec); live bootstrap B2B campaigns on marketplace\n• **Verify** SHA256SUMS before run/flash\n\nDownloads: https://hackme.tech/downloads.html\nGitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc15\nNews: https://hackme.tech/news.html",
+        "ping": "#announcements"
+      },
+      "links": {
+        "downloads": "https://hackme.tech/downloads.html",
+        "github": "https://github.com/jokeez/hackme/releases/tag/0.1.0-rc15",
+        "news": "https://hackme.tech/news.html",
+        "research": "https://hackme.tech/research.html"
+      }
+    },
+    {
       "id": "2026-08-19-release-rc14x-fuzz-report-honesty",
       "date": "2026-08-19",
       "title": "rc14x hotfix shipped — honest fuzz report/gate + depth evidence visible",
