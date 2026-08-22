@@ -67,18 +67,24 @@ fi
 build_docker() {
   echo "[iso] Docker build (VERSION=${VERSION})"
   docker build -t hackme-miner-iso-build "${ISO_DIR}"
-  docker run --rm --privileged \
+  docker run --rm --privileged --network host \
     -v "${PAYLOAD_DIR}:/payload:ro" \
     -v "${ISO_DIR}:/iso-scripts:ro" \
     -v "${ISO_DIR}/overlay:/iso-overlay:ro" \
     -v "${OUT_DIR}:/out" \
     -e VERSION="$VERSION" \
     -e POOL_TOKEN="$POOL_TOKEN" \
+    -e UBUNTU_MIRROR="${UBUNTU_MIRROR:-http://us.archive.ubuntu.com/ubuntu/}" \
     -e PAYLOAD_DIR=/payload \
     -e ISO_SCRIPTS=/iso-scripts \
     -e ISO_OVERLAY=/iso-overlay \
     -e OUT_DIR=/out \
     hackme-miner-iso-build
+  local rc=$?
+  if [[ $rc -ne 0 ]]; then
+    echo "[iso] FAIL: docker build exited $rc" >&2
+    exit "$rc"
+  fi
 }
 
 build_host() {

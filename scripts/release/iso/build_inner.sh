@@ -10,6 +10,7 @@ ISO_OVERLAY="${ISO_OVERLAY:-/iso-overlay}"
 POOL_TOKEN="${POOL_TOKEN:-REPLACE_WITH_POOL_TOKEN}"
 UBUNTU_SUITE="${UBUNTU_SUITE:-noble}"
 ARCH="${ARCH:-amd64}"
+UBUNTU_MIRROR="${UBUNTU_MIRROR:-http://us.archive.ubuntu.com/ubuntu/}"
 WORK="${WORK:-/work}"
 CHROOT="${WORK}/chroot"
 ISO_TREE="${WORK}/iso"
@@ -30,8 +31,23 @@ mkdir -p "$OUT_DIR" "$WORK"
 rm -rf "$CHROOT" "$ISO_TREE"
 mkdir -p "$CHROOT" "$ISO_TREE"
 
-echo "[iso-inner] debootstrap ${UBUNTU_SUITE} ${ARCH}"
-debootstrap --arch="$ARCH" --variant=minbase "$UBUNTU_SUITE" "$CHROOT" "http://archive.ubuntu.com/ubuntu/"
+echo "[iso-inner] debootstrap ${UBUNTU_SUITE} ${ARCH} mirror=${UBUNTU_MIRROR}"
+debootstrap_ok=0
+for mirror in "${UBUNTU_MIRROR}" "http://us.archive.ubuntu.com/ubuntu/" "http://archive.ubuntu.com/ubuntu/"; do
+  rm -rf "$CHROOT"
+  mkdir -p "$CHROOT"
+  echo "[iso-inner] debootstrap attempt mirror=${mirror}"
+  if debootstrap --arch="$ARCH" --variant=minbase "$UBUNTU_SUITE" "$CHROOT" "$mirror"; then
+    debootstrap_ok=1
+    UBUNTU_MIRROR="$mirror"
+    break
+  fi
+  echo "[iso-inner] WARN: debootstrap failed on ${mirror}" >&2
+done
+if [[ "$debootstrap_ok" != "1" ]]; then
+  echo "[iso-inner] FAIL: debootstrap exhausted mirrors" >&2
+  exit 1
+fi
 
 mount --bind /dev "$CHROOT/dev"
 mount --bind /dev/pts "$CHROOT/dev/pts"
