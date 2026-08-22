@@ -61,11 +61,18 @@ EOF
 }
 
 tasks=(bounds_guard overflow_guard state_transition_guard script_push_bounds_guard)
+# Phase 2 B2B bytes guards — required by go test (fluxtap_wasm_compare, sandbox, wizard packs).
+fuzz_guard_tasks=(fluxtap_filter_bytes_guard tracefuse_detector_bytes_guard parser_expat_bytes_guard)
 
 echo "Building security task pack..."
 for t in "${tasks[@]}"; do
   build_rust "$t"
   build_cpp "$t"
+done
+
+echo "Building Phase 2 B2B fuzz guard wasm..."
+for t in "${fuzz_guard_tasks[@]}"; do
+  build_rust "$t"
 done
 
 echo "Generating manifests..."
