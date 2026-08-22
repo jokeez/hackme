@@ -40,6 +40,13 @@ func TestClassifyFinding_harnessRuntime(t *testing.T) {
 	}
 }
 
+func TestClassifyWasmTrap_timeout(t *testing.T) {
+	ft, sev, _ := ClassifyWasmTrap(0, "context deadline exceeded", true)
+	if ft != "harness_runtime" || sev != "info" {
+		t.Fatalf("timeout: got %s/%s", ft, sev)
+	}
+}
+
 func TestClassifyWasmTrap_harness(t *testing.T) {
 	ft, sev, title := ClassifyWasmTrap(0, "source module must be compiled before instantiation", true)
 	if ft != "harness_runtime" || sev != "info" {

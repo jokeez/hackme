@@ -71,7 +71,6 @@ func TestFuzzSubmitReplayNonceRejected(t *testing.T) {
 	if ok, _, _ := wm.validateFuzzHybridSignature(auth, body); !ok {
 		t.Fatal("first sig should pass")
 	}
-	wm.commitFuzzHybridNonce(signerAddr(pub), 7)
 	if ok, reason, _ := wm.validateFuzzHybridSignature(auth, body); ok || reason != "replay" {
 		t.Fatalf("replay want reject, ok=%v reason=%q", ok, reason)
 	}

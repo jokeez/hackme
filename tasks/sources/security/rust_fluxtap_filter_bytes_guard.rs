@@ -1,12 +1,12 @@
 //! FluxTap-style display filter guard — byte mode (CVE-class malformed expr detector).
 //! Models the panic class from FluxTap filter.go: invalid UTF-8 + ToLower index skew
 //! (e.g. "\xc7=" → slice bounds panic in evalAtom).
-//! Phase 2 P2a: wasm edge bitmap at linear memory offset 4096 for guided scheduling.
+//! Phase 2 P2a: wasm edge bitmap at linear memory offset 8192 for guided scheduling.
 #![no_std]
 
 use core::panic::PanicInfo;
 
-const COV_MEM_OFF: usize = 4096;
+const COV_MEM_OFF: usize = 8192;
 const COV_MEM_LEN: usize = 256;
 
 #[panic_handler]

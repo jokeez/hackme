@@ -75,6 +75,16 @@ func (m *workManager) validateFuzzHybridSignature(auth fuzzSubmitAuth, body []by
 	if _, exists := m.acceptedSubmitNonces[nonceKey]; exists {
 		return false, "replay", ""
 	}
+	if len(m.acceptedSubmitNonces) >= m.maxDedupEntries && m.maxDedupEntries > 0 {
+		for k := range m.acceptedSubmitNonces {
+			delete(m.acceptedSubmitNonces, k)
+			break
+		}
+	}
+	m.acceptedSubmitNonces[nonceKey] = struct{}{}
+	if auth.SubmitNonce > m.signedSubmitNonceMax[derived] {
+		m.signedSubmitNonceMax[derived] = auth.SubmitNonce
+	}
 	return true, "", derived
 }
 

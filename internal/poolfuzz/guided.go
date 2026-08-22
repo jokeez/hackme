@@ -92,7 +92,9 @@ func (s *Service) buildClaimedWork(ctx context.Context, campaignID string, itemI
 		CheckSemantics:       string(sem),
 		DepthTier:            string(fuzzengine.ParseDepthTier(cfg)),
 		PerRunHMC:            perRunHMCFromConfig(cfg),
-		ExecPerUnit:          fuzzengine.ExecPerUnit(cfg),
+		ExecPerUnit:          PoolExecPerUnit(cfg),
+		MaxInputBytes:        fuzzengine.ParseMaxInputBytes(cfg),
+		CoverageKind:         fuzzengine.CoverageKind(cfg),
 		CorpusSeeds:          corpusSeeds,
 		CorpusSnapshotSHA256: corpusSHA,
 	}, nil

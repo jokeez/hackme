@@ -3,7 +3,7 @@
 
 use core::panic::PanicInfo;
 
-const COV_MEM_OFF: usize = 4096;
+const COV_MEM_OFF: usize = 8192;
 const COV_MEM_LEN: usize = 256;
 
 #[panic_handler]

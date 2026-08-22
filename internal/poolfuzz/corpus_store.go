@@ -245,15 +245,19 @@ func (s *Service) EnsureGuidedCorpusSeeded(ctx context.Context, campaignID strin
 	return s.seedPoolCorpusFromConfig(ctx, campaignID, cfg, now)
 }
 
-// SeedsForWorkItem returns frozen corpus seeds for submit verify (snapshot at claim) or live fallback.
+// SeedsForWorkItem returns frozen corpus seeds for submit verify (snapshot at claim; no live fallback).
 func (s *Service) SeedsForWorkItem(ctx context.Context, campaignID string, itemID int64, cfg map[string]any) ([]fuzzengine.PoolCorpusSeed, error) {
-	if !fuzzengine.GuidedSchedulingEnabled(cfg) {
+	if !fuzzengine.GuidedSchedulingEnabled(cfg) && PoolExecPerUnit(cfg) <= 1 {
 		return nil, nil
 	}
-	if seeds, err := s.loadCorpusSnapshot(ctx, campaignID, itemID); err == nil && len(seeds) > 0 {
-		return seeds, nil
+	seeds, err := s.loadCorpusSnapshot(ctx, campaignID, itemID)
+	if err != nil {
+		return nil, err
 	}
-	return s.loadPoolCorpusSeeds(ctx, campaignID, fuzzengine.PoolCorpusMax(cfg))
+	if fuzzengine.GuidedSchedulingEnabled(cfg) && len(seeds) == 0 {
+		return nil, fmt.Errorf("poolfuzz: missing guided corpus snapshot for work item %d", itemID)
+	}
+	return seeds, nil
 }
 
 // poolCorpusU64Arg binds uint64 pool inputs for SQLite INTEGER (signed int64 wire format).

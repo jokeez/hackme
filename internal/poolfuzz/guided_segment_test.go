@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"hackme/internal/fuzzengine"
+	"hackme/internal/sandbox"
 	"hackme/internal/store"
 )
 
@@ -28,7 +29,7 @@ func TestGuidedSegmentUsesClaimSnapshotAfterCorpusDrift(t *testing.T) {
 		"max_input_bytes":  256,
 		"seed_byte_corpus": []any{"41414141", "42424242"},
 		"check_semantics":  "detector",
-		"wasm_check_hex":   "00",
+		"wasm_check_hex":   sandbox.MinimalGateWasmHex,
 	}, "property")
 	id := "guided-seg-snap"
 	if err := svc.RegisterCampaign(ctx, Campaign{ID: id, CampaignType: "property", Status: "running", BudgetRuns: 1, Config: cfg}); err != nil {

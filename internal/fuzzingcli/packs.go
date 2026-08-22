@@ -25,7 +25,7 @@ type GuardPack struct {
 	SeedCorpusU64   []any
 	ExplainHints        []ExplainHint
 	DefaultPackage      string // scan|audit|deep suggestion
-	WasmEdgeCoverage    bool   // instrumented guard writes edge counters at mem offset 4096
+	WasmEdgeCoverage    bool   // instrumented guard writes edge counters at mem offset 8192
 	// Per-package budget overrides when > 0 (pack-aware presets).
 	ScanRuns    int
 	AuditRuns   int

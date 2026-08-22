@@ -40,6 +40,8 @@ type ClaimResp struct {
 	DepthTier      string  `json:"depth_tier,omitempty"`
 	PerRunHMC      float64 `json:"per_run_hmc,omitempty"`
 	ExecPerUnit            int              `json:"exec_per_unit,omitempty"`
+	MaxInputBytes          int              `json:"max_input_bytes,omitempty"`
+	CoverageKind           string           `json:"coverage_kind,omitempty"`
 	WasmCheckHex           string           `json:"wasm_check_hex,omitempty"`
 	CheckSemantics         string           `json:"check_semantics,omitempty"`
 	CorpusSeeds            []map[string]any `json:"corpus_seeds,omitempty"`
@@ -401,7 +403,7 @@ func Claim(ctx context.Context, cl *http.Client, base, token, workerID string) (
 		return out, err
 	}
 	defer res.Body.Close()
-	b, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+	b, _ := io.ReadAll(io.LimitReader(res.Body, 2<<20))
 	_ = json.Unmarshal(b, &out)
 	if res.StatusCode != 200 {
 		return out, fmt.Errorf("HTTP %d %s", res.StatusCode, shortHTTPBody(res.StatusCode, b))
@@ -431,6 +433,12 @@ func RunSegmentCheck(ctx context.Context, cr ClaimResp, timeoutMS int) (checkRes
 		"depth_tier":      strings.TrimSpace(cr.DepthTier),
 		"check_semantics": strings.TrimSpace(cr.CheckSemantics),
 		"exec_per_unit":   execPer,
+	}
+	if cr.MaxInputBytes > 0 {
+		cfg["max_input_bytes"] = cr.MaxInputBytes
+	}
+	if ck := strings.TrimSpace(cr.CoverageKind); ck != "" {
+		cfg["coverage_kind"] = ck
 	}
 	if strings.EqualFold(cr.InputMode, "bytes") {
 		cfg["input_mode"] = "bytes"
@@ -559,7 +567,7 @@ func Submit(ctx context.Context, cl *http.Client, base, token, workerID, minerAd
 		return err
 	}
 	defer res.Body.Close()
-	b, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+	b, _ := io.ReadAll(io.LimitReader(res.Body, 2<<20))
 	if res.StatusCode != 200 {
 		return fmt.Errorf("HTTP %d %s", res.StatusCode, shortHTTPBody(res.StatusCode, b))
 	}

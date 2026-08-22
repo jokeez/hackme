@@ -51,6 +51,8 @@ type ClaimedWork struct {
 	DepthTier            string
 	PerRunHMC            float64
 	ExecPerUnit          int
+	MaxInputBytes        int
+	CoverageKind         string
 	CorpusSeeds          []fuzzengine.PoolCorpusSeed
 	CorpusSnapshotSHA256 string
 }
@@ -454,9 +456,7 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 		return out, false, fmt.Errorf("poolfuzz: worker_id required")
 	}
 	// Tick runs on the coordinator background ticker (every ~3s). Calling it on every
-	// claim re-scans campaigns under SQLite and chokes a real worker fleet.
-	leaseSec := leaseSeconds()
-
+	// claim path is campaign-RR now; lease duration is computed per campaign in claimOnePendingInCampaign.
 	customers, rest, err := s.runnablePoolCampaignIDsByTier(ctx, now)
 	if err != nil {
 		return out, false, err
@@ -464,7 +464,7 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 
 	// Phase 1: customer pending always wins over bootstrap lease reclaim / RR.
 	for _, cid := range customers {
-		if work, ok, err := s.claimOnePendingInCampaign(ctx, workerID, cid, now, leaseSec); err != nil || ok {
+		if work, ok, err := s.claimOnePendingInCampaign(ctx, workerID, cid, now); err != nil || ok {
 			return work, ok, err
 		}
 	}
@@ -474,7 +474,7 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 		nearIDs, nerr := s.nearCompleteCampaignIDs(ctx)
 		if nerr == nil && len(nearIDs) > 0 && len(nearIDs) <= 8 {
 			for _, cid := range nearIDs {
-				if work, ok, err := s.claimOnePendingInCampaign(ctx, workerID, cid, now, leaseSec); err != nil || ok {
+				if work, ok, err := s.claimOnePendingInCampaign(ctx, workerID, cid, now); err != nil || ok {
 					return work, ok, err
 				}
 			}
@@ -520,6 +520,7 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 			if !poolDistributed(cfg) || IsInternalGateCampaign(e.camp, title, ownerRef, cfg) {
 				continue
 			}
+			leaseSec := leaseSecondsForConfig(cfg)
 			res, err := s.DB.ExecContext(ctx,
 				`UPDATE fuzz_work_items SET status='leased', lease_owner=?, lease_until=?, updated_at=?
 				 WHERE id=? AND campaign_id=? AND status='leased' AND lease_until < ?`,
@@ -546,7 +547,7 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 	start := int(s.claimRR.Add(1) % uint64(len(rest)))
 	for i := 0; i < len(rest); i++ {
 		cid := rest[(start+i)%len(rest)]
-		if work, ok, err := s.claimOnePendingInCampaign(ctx, workerID, cid, now, leaseSec); err != nil || ok {
+		if work, ok, err := s.claimOnePendingInCampaign(ctx, workerID, cid, now); err != nil || ok {
 			return work, ok, err
 		}
 	}
@@ -554,7 +555,7 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 }
 
 // claimOnePendingInCampaign leases the oldest pending row in one campaign (index-friendly).
-func (s *Service) claimOnePendingInCampaign(ctx context.Context, workerID, campaignID string, now, leaseSec int64) (ClaimedWork, bool, error) {
+func (s *Service) claimOnePendingInCampaign(ctx context.Context, workerID, campaignID string, now int64) (ClaimedWork, bool, error) {
 	var out ClaimedWork
 	var itemID int64
 	var inputN uint64
@@ -577,6 +578,7 @@ func (s *Service) claimOnePendingInCampaign(ctx context.Context, workerID, campa
 	if !poolDistributed(cfg) || IsInternalGateCampaign(campaignID, title, ownerRef, cfg) {
 		return out, false, nil
 	}
+	leaseSec := leaseSecondsForConfig(cfg)
 	res, err := s.DB.ExecContext(ctx,
 		`UPDATE fuzz_work_items
 		 SET status='leased', lease_owner=?, lease_until=?, updated_at=?
@@ -748,7 +750,7 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	if len(expectedB) > maxB {
 		return fmt.Errorf("poolfuzz: input_bytes exceed max_input_bytes")
 	}
-	execPer := fuzzengine.ExecPerUnit(cfg)
+	execPer := PoolExecPerUnit(cfg)
 	if execPer > 1 {
 		if req.SegmentExecDone != execPer {
 			return fmt.Errorf("poolfuzz: segment_exec_done mismatch want %d got %d", execPer, req.SegmentExecDone)
@@ -757,7 +759,7 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 		return fmt.Errorf("poolfuzz: unexpected segment_exec_done for single-exec unit")
 	}
 	var seeds []fuzzengine.PoolCorpusSeed
-	if fuzzengine.GuidedSchedulingEnabled(cfg) || fuzzengine.ExecPerUnit(cfg) > 1 {
+	if fuzzengine.GuidedSchedulingEnabled(cfg) || execPer > 1 {
 		var err error
 		seeds, err = s.SeedsForWorkItem(ctx, req.CampaignID, req.ItemID, cfg)
 		if err != nil {
@@ -767,6 +769,9 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	checkResult, trap, pass, recordFinding, findingU, findingB, seg, err := s.evalSubmitCheck(ctx, cfg, sem, inputN, expectedU, expectedB, seeds)
 	if err != nil {
 		return err
+	}
+	if hasWasm && execPer > 1 && seg.ExecDone != seg.ExecExpected {
+		return fmt.Errorf("poolfuzz: incomplete segment replay %d/%d", seg.ExecDone, seg.ExecExpected)
 	}
 	req.InputN = inputN
 	req.ActualInput = expectedU
@@ -980,7 +985,7 @@ func (s *Service) evalSubmitCheck(ctx context.Context, cfg map[string]any, sem f
 		return 0, "", false, false, 0, nil, seg, fmt.Errorf("poolfuzz: invalid campaign wasm")
 	}
 	if vErr := sandbox.ValidateCheckWasm(ctx, wasm); vErr != nil {
-		return 0, "", false, false, 0, nil, seg, nil
+		return 0, "", false, false, 0, nil, seg, fmt.Errorf("poolfuzz: invalid campaign wasm: %w", vErr)
 	}
 	timeoutMS := sandbox.Policy().CheckTimeoutMS
 	if timeoutMS <= 0 {
@@ -1007,7 +1012,8 @@ func (s *Service) evalSubmitCheck(ctx context.Context, cfg map[string]any, sem f
 		}
 		return 0, "", nil, out.EdgeBitmap
 	}
-	execPer := fuzzengine.ExecPerUnit(cfg)
+	replayCfg := poolReplayConfig(cfg)
+	execPer := PoolExecPerUnit(cfg)
 	if execPer <= 1 {
 		runCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMS)*time.Millisecond)
 		defer cancel()
@@ -1026,7 +1032,7 @@ func (s *Service) evalSubmitCheck(ctx context.Context, cfg map[string]any, sem f
 	}
 	segCtx, cancel := context.WithTimeout(ctx, time.Duration(int(timeoutMS)*execPer)*time.Millisecond)
 	defer cancel()
-	seg = fuzzengine.EvalSegment(segCtx, inputN, cfg, seeds, sem, runOne)
+	seg = fuzzengine.EvalSegment(segCtx, inputN, replayCfg, seeds, sem, runOne)
 	findingU = inputU
 	findingB = inputB
 	if seg.RecordFinding {
@@ -1373,10 +1379,6 @@ func perRunHMCFromConfig(cfg map[string]any) float64 {
 
 func wasmHexFromConfig(cfg map[string]any) string {
 	return strings.TrimSpace(jsonString(cfg["wasm_check_hex"]))
-}
-
-func leaseSeconds() int64 {
-	return 30
 }
 
 func boolToInt(v bool) int {

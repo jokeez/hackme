@@ -63,6 +63,22 @@ func TestEvalSegmentFindsDetectorHit(t *testing.T) {
 	}
 }
 
+func TestEvalSegmentIncompleteNotPass(t *testing.T) {
+	cfg := map[string]any{"exec_per_unit": 8}
+	sem := ParseCheckSemantics(cfg)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	res := EvalSegment(ctx, 1, cfg, nil, sem, func(context.Context, uint64, []byte) (int32, string, error, []byte) {
+		return 1, "", nil, nil
+	})
+	if res.ExecDone >= res.ExecExpected {
+		t.Fatalf("expected incomplete segment, done=%d expected=%d", res.ExecDone, res.ExecExpected)
+	}
+	if res.Pass {
+		t.Fatal("incomplete segment must not pass")
+	}
+}
+
 func TestCoverageKindHonestDefault(t *testing.T) {
 	if CoverageKind(nil) != "input_fingerprint" {
 		t.Fatal(CoverageKind(nil))

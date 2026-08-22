@@ -25,7 +25,7 @@ import (
 	"hackme/internal/worksubmit"
 )
 
-const maxCoordinatorJSONBodyBytes = 1 << 20 // 1 MiB
+const maxCoordinatorJSONBodyBytes = 2 << 20 // 2 MiB (large wasm hex + corpus seeds on claim)
 
 type workManager struct {
 	nextNonce atomic.Uint64

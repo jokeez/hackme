@@ -410,6 +410,10 @@ func InvokeCheckOutcomeInput(ctx context.Context, wasm []byte, input []byte) (Ch
 	case <-ctx.Done():
 		return CheckOutcome{}, ctx.Err()
 	}
+	return invokeCheckOutcomeInputHeld(ctx, wasm, input)
+}
+
+func invokeCheckOutcomeInputHeld(ctx context.Context, wasm []byte, input []byte) (CheckOutcome, error) {
 	rt := ensureCheckRuntime()
 	key := compiledKey(wasm)
 	compiled, ok := loadCompiledModule(key)
@@ -468,7 +472,7 @@ func InvokeCheckOutcomeInput(ctx context.Context, wasm []byte, input []byte) (Ch
 	for i := 0; i < len(input) && i < 8; i++ {
 		n |= uint64(input[i]) << (8 * i)
 	}
-	return InvokeCheckOutcome(ctx, wasm, n)
+	return invokeCheckOutcomeHeld(ctx, wasm, n)
 }
 
 // InvokeCheck runs export check(n) once; wasm must have passed ValidateCheckWasm.

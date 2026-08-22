@@ -14,12 +14,12 @@
 //!   seed_byte_corpus: ["hex-encoded seeds..."]
 //!
 //! Coverage contract: call cov_hit(id) on each detector branch; sandbox reads bytes
-//! [4096..4352) from exported linear memory after every check_bytes invocation.
+//! [8192..8448) from exported linear memory after every check_bytes invocation.
 #![no_std]
 
 use core::panic::PanicInfo;
 
-const COV_MEM_OFF: usize = 4096;
+const COV_MEM_OFF: usize = 8192;
 const COV_MEM_LEN: usize = 256;
 
 #[panic_handler]

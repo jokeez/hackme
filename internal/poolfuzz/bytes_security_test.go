@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"hackme/internal/fuzzengine"
+	"hackme/internal/sandbox"
 	"hackme/internal/store"
 )
 
@@ -53,7 +54,7 @@ func TestSubmitRejectsInputBytesMismatch(t *testing.T) {
 		"max_input_bytes":  128,
 		"seed_byte_corpus": []any{"41414141"},
 		"check_semantics":  "detector",
-		"wasm_check_hex":   "00",
+		"wasm_check_hex":   sandbox.MinimalGateWasmHex,
 	}, "property")
 	id := "bytes-mismatch"
 	if err := svc.RegisterCampaign(ctx, Campaign{ID: id, CampaignType: "property", Status: "running", BudgetRuns: 1, Config: cfg}); err != nil {

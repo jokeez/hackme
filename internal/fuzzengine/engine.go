@@ -332,6 +332,10 @@ func IsHarnessRuntimeTrap(msg string) bool {
 		"closed module",
 		"compiled module missing",
 		"not a compiled module",
+		"deadline exceeded",
+		"context deadline exceeded",
+		"timed out",
+		"timeout",
 	} {
 		if strings.Contains(low, needle) {
 			return true

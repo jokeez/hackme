@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"hackme/internal/fuzzengine"
+	"hackme/internal/sandbox"
 	"hackme/internal/store"
 )
 
@@ -111,7 +112,7 @@ func TestSubmitRejectsPendingWithoutLease(t *testing.T) {
 	cfg := fuzzengine.NormalizeCampaignConfig(map[string]any{
 		"pool_distributed": true,
 		"check_semantics":  "pow_gate",
-		"wasm_check_hex":   "00",
+		"wasm_check_hex":   sandbox.MinimalGateWasmHex,
 	}, "property")
 	id := "h03-pending"
 	if err := svc.RegisterCampaign(ctx, Campaign{ID: id, CampaignType: "property", Status: "running", BudgetRuns: 1, Config: cfg}); err != nil {

@@ -6,7 +6,7 @@ import (
 
 // Linear-memory coverage contract for instrumented check_bytes guards (Phase 2 P1).
 const (
-	CovBitmapMemOff = 4096
+	CovBitmapMemOff = 8192
 	CovBitmapLen    = 256
 )
 

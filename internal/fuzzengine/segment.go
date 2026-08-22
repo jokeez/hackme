@@ -204,9 +204,8 @@ func EvalSegment(ctx context.Context, inputN uint64, cfg map[string]any, seeds [
 	}
 	out.UniqueEdgeSeen = len(edgeSeen)
 	if !findingSet {
-		out.Pass = true
-		out.RecordFinding = false
-		if out.CheckResult == 0 {
+		out.Pass = out.ExecDone >= out.ExecExpected
+		if out.Pass && out.CheckResult == 0 {
 			out.CheckResult = 1
 		}
 	}

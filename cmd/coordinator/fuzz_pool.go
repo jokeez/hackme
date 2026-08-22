@@ -456,6 +456,8 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			"depth_tier":      work.DepthTier,
 			"per_run_hmc":     work.PerRunHMC,
 			"exec_per_unit":   work.ExecPerUnit,
+			"max_input_bytes": work.MaxInputBytes,
+			"coverage_kind":   work.CoverageKind,
 			"wasm_check_hex":  work.WasmCheckHex,
 			"check_semantics": work.CheckSemantics,
 			"task_class":      "fuzz",

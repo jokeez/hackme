@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"hackme/internal/fuzzengine"
+	"hackme/internal/sandbox"
 	"hackme/internal/store"
 )
 
@@ -59,7 +60,7 @@ func TestRedteamReplaySubmitNoDoubleSettle(t *testing.T) {
 		"pool_distributed": true,
 		"budget_hmc":       1.0,
 		"check_semantics":  "pow_gate",
-		"wasm_check_hex":   "00",
+		"wasm_check_hex":   sandbox.MinimalGateWasmHex,
 	}, "property")
 	id := "rt-replay"
 	if err := svc.RegisterCampaign(ctx, Campaign{ID: id, CampaignType: "property", Status: "running", BudgetRuns: 2, Config: cfg}); err != nil {
@@ -144,7 +145,7 @@ func TestRedteamPowGateFakeFinding(t *testing.T) {
 	cfg := fuzzengine.NormalizeCampaignConfig(map[string]any{
 		"pool_distributed": true,
 		"check_semantics":  "pow_gate",
-		"wasm_check_hex":   "00",
+		"wasm_check_hex":   sandbox.MinimalGateWasmHex,
 	}, "property")
 	id := "rt-pow"
 	if err := svc.RegisterCampaign(ctx, Campaign{ID: id, CampaignType: "property", Status: "running", BudgetRuns: 1, Config: cfg}); err != nil {
