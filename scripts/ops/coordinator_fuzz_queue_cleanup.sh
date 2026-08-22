@@ -51,11 +51,10 @@ log() { echo "[fuzz-queue-cleanup] $*"; }
 
 run_remote_sql() {
   local sql="$1"
-  local wrapped="PRAGMA busy_timeout=60000; ${sql}"
   if [[ -n "${NODE_SSH:-}" ]]; then
-    ssh -o BatchMode=yes "$NODE_SSH" "sqlite3 \"${COORD_DB}\" \"${wrapped}\""
+    ssh -o BatchMode=yes "$NODE_SSH" "sqlite3 -cmd '.timeout 60000' \"${COORD_DB}\" \"${sql}\""
   elif [[ -n "$COORD_DB" && -f "$COORD_DB" && -r "$COORD_DB" ]]; then
-    sqlite3 "$COORD_DB" "$wrapped"
+    sqlite3 -cmd '.timeout 60000' "$COORD_DB" "$sql"
   else
     return 1
   fi

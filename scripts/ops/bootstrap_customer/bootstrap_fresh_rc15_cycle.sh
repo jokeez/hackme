@@ -52,9 +52,9 @@ log() { echo "[bootstrap-fresh-rc15] $*"; }
 run_sql() {
   local sql="$1"
   if [[ -n "${NODE_SSH:-}" ]]; then
-    ssh -o BatchMode=yes "$NODE_SSH" "sqlite3 -cmd 'PRAGMA busy_timeout=60000;' \"${COORD_DB}\" \"${sql}\""
+    ssh -o BatchMode=yes "$NODE_SSH" "sqlite3 -cmd '.timeout 60000' \"${COORD_DB}\" \"${sql}\""
   elif [[ -f "$COORD_DB" ]]; then
-    sqlite3 -cmd 'PRAGMA busy_timeout=60000;' "$COORD_DB" "$sql"
+    sqlite3 -cmd '.timeout 60000' "$COORD_DB" "$sql"
   else
     return 1
   fi
