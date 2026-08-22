@@ -67,10 +67,10 @@ func main() {
 	_ = os.MkdirAll(outDir, 0o755)
 	outPath := filepath.Join(outDir, "bytes_calibration_report.json")
 	payload, _ := json.MarshalIndent(map[string]any{
-		"generated_at": time.Now().UTC().Format(time.RFC3339),
+		"generated_at":            time.Now().UTC().Format(time.RFC3339),
 		"sandbox_max_input_bytes": sandbox.MaxCheckInputBytes(),
-		"wasm": wasmPath,
-		"results": report,
+		"wasm":                    wasmPath,
+		"results":                 report,
 	}, "", "  ")
 	_ = os.WriteFile(outPath, payload, 0o644)
 	fmt.Printf("\nreport: %s\n", outPath)

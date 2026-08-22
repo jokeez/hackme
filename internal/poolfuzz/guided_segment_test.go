@@ -21,15 +21,15 @@ func TestGuidedSegmentUsesClaimSnapshotAfterCorpusDrift(t *testing.T) {
 	svc := &Service{DB: db}
 	ctx := context.Background()
 	cfg := fuzzengine.NormalizeCampaignConfig(map[string]any{
-		"pool_distributed": true,
-		"input_mode":       "bytes",
-		"depth_tier":       "bytes_corpus",
+		"pool_distributed":  true,
+		"input_mode":        "bytes",
+		"depth_tier":        "bytes_corpus",
 		"guided_scheduling": true,
-		"exec_per_unit":    8,
-		"max_input_bytes":  256,
-		"seed_byte_corpus": []any{"41414141", "42424242"},
-		"check_semantics":  "detector",
-		"wasm_check_hex":   sandbox.MinimalGateWasmHex,
+		"exec_per_unit":     8,
+		"max_input_bytes":   256,
+		"seed_byte_corpus":  []any{"41414141", "42424242"},
+		"check_semantics":   "detector",
+		"wasm_check_hex":    sandbox.MinimalGateWasmHex,
 	}, "property")
 	id := "guided-seg-snap"
 	if err := svc.RegisterCampaign(ctx, Campaign{ID: id, CampaignType: "property", Status: "running", BudgetRuns: 1, Config: cfg}); err != nil {

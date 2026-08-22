@@ -42,11 +42,11 @@ func TestSegmentExecInputDeterministic(t *testing.T) {
 
 func TestEvalSegmentFindsDetectorHit(t *testing.T) {
 	cfg := map[string]any{
-		"input_mode":      "bytes",
-		"check_semantics":   "detector",
-		"exec_per_unit":     4,
-		"seed_byte_corpus":  []any{"00"},
-		"max_input_bytes":   64,
+		"input_mode":       "bytes",
+		"check_semantics":  "detector",
+		"exec_per_unit":    4,
+		"seed_byte_corpus": []any{"00"},
+		"max_input_bytes":  64,
 	}
 	sem := ParseCheckSemantics(cfg)
 	res := EvalSegment(context.Background(), 1, cfg, nil, sem, func(_ context.Context, _ uint64, inputB []byte) (int32, string, error, []byte) {

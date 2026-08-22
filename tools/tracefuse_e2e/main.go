@@ -30,11 +30,11 @@ func main() {
 	ctx := context.Background()
 
 	type lineHit struct {
-		Source string `json:"source"`
-		Line   string `json:"line"`
-		Len    int    `json:"len"`
-		U64Hit bool   `json:"u64_hit"`
-		BytesHit bool `json:"bytes_hit"`
+		Source   string `json:"source"`
+		Line     string `json:"line"`
+		Len      int    `json:"len"`
+		U64Hit   bool   `json:"u64_hit"`
+		BytesHit bool   `json:"bytes_hit"`
 	}
 	var direct []lineHit
 
@@ -97,18 +97,18 @@ func main() {
 	tracefuseSummary := runTracefuseScan(traceRoot, demo)
 
 	report := map[string]any{
-		"generated_at":      time.Now().UTC().Format(time.RFC3339),
-		"upstream":          "https://github.com/FounderB/Tracefuse",
-		"demo_path":         demo,
-		"engine":            "HackMe poolfuzz local (P4 bytes + guided)",
-		"direct_line_scan":  direct,
+		"generated_at":     time.Now().UTC().Format(time.RFC3339),
+		"upstream":         "https://github.com/FounderB/Tracefuse",
+		"demo_path":        demo,
+		"engine":           "HackMe poolfuzz local (P4 bytes + guided)",
+		"direct_line_scan": direct,
 		"direct_summary": map[string]any{
 			"lines": len(direct), "u64_hits": u64Hit, "u64_miss": u64Miss,
 			"bytes_hits": bytesHit, "bytes_miss": bytesMiss,
 		},
 		"pool_bytes_4096_linear": poolLin,
 		"pool_bytes_4096_guided": poolGui,
-		"tracefuse_cli_scan": tracefuseSummary,
+		"tracefuse_cli_scan":     tracefuseSummary,
 	}
 	out := filepath.Join(root, "tasks/artifacts/security/tracefuse_e2e_report.json")
 	b, _ := json.MarshalIndent(report, "", "  ")

@@ -84,10 +84,10 @@ func main() {
 
 	// --- Pool pilot on key guards ---
 	guards := []struct {
-		file string
+		file  string
 		bytes bool
-		poc  []byte
-		u64  uint64
+		poc   []byte
+		u64   uint64
 	}{
 		{"rust_script_push_bounds_guard.wasm", false, nil, 0x4c | (521 << 8)},
 		{"rust_fluxtap_filter_bytes_guard.wasm", true, []byte("\xc7="), 0},

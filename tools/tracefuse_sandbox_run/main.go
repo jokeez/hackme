@@ -84,12 +84,12 @@ func tracefusePilotConfig(wasmHex string, linear bool) map[string]any {
 		"seed_corpus": []any{
 			0,
 			1,
-			0x4149414b,             // AKIA (LE)
-			0x5f706867,             // ghp_
-			0x6574616c3a,           // :late
-			0x76696c5f6b73,         // sk_liv
-			0x74736e6974736f70,     // postinst
-			0x7165725f6c6c7570,     // pull_req (LE)
+			0x4149414b,         // AKIA (LE)
+			0x5f706867,         // ghp_
+			0x6574616c3a,       // :late
+			0x76696c5f6b73,     // sk_liv
+			0x74736e6974736f70, // postinst
+			0x7165725f6c6c7570, // pull_req (LE)
 		},
 	}, "property")
 	return cfg
@@ -116,7 +116,7 @@ func runArm(wasmHex, dbPath string, runs, workers int, linear bool) (armResult, 
 	start := time.Now()
 	if err := svc.RegisterCampaign(ctx, poolfuzz.Campaign{
 		ID: out.CampaignID, CampaignType: "property",
-		Title: "Tracefuse detector guard (FounderB/Tracefuse patterns)",
+		Title:  "Tracefuse detector guard (FounderB/Tracefuse patterns)",
 		Status: "running", BudgetRuns: runs, BudgetSeconds: 7200, Config: cfg,
 	}); err != nil {
 		return out, err
@@ -217,13 +217,13 @@ func buildReport(dbPath string, linear, guided armResult, wasmPath string) (map[
 		"wasm_guard":     wasmPath,
 		"fuzzer_path":    "poolfuzz claim/submit + sandbox.InvokeCheck + guided_scheduling",
 		"compare": map[string]any{
-			"linear":  linear,
-			"guided":  guided,
+			"linear":         linear,
+			"guided":         guided,
 			"runs_requested": 128,
-			"workers": 3,
+			"workers":        3,
 		},
-		"findings_linear":  lf,
-		"findings_guided":  gf,
+		"findings_linear": lf,
+		"findings_guided": gf,
 		"notes": []string{
 			"Guard ports Tracefuse secret/dockerfile/npm/ci heuristics into check(i64) 8-byte window.",
 			"Seeded with patterns from Tracefuse examples/demo-vulnerable.",

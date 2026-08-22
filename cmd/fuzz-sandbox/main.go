@@ -22,13 +22,13 @@ import (
 )
 
 type sandboxResult struct {
-	Mode        string `json:"mode"`
-	InputMode   string `json:"input_mode"`
-	Runs        int    `json:"runs_done"`
-	Findings    int    `json:"findings"`
-	PoolCorpus  int    `json:"pool_corpus"`
-	CampaignID  string `json:"campaign_id"`
-	ElapsedMS   int64  `json:"elapsed_ms"`
+	Mode       string `json:"mode"`
+	InputMode  string `json:"input_mode"`
+	Runs       int    `json:"runs_done"`
+	Findings   int    `json:"findings"`
+	PoolCorpus int    `json:"pool_corpus"`
+	CampaignID string `json:"campaign_id"`
+	ElapsedMS  int64  `json:"elapsed_ms"`
 }
 
 func main() {

@@ -2485,7 +2485,7 @@ func (a *app) handleFuzzCampaignGate(w http.ResponseWriter, r *http.Request, cam
 				"title":      it.Title,
 				"guard_pack": it.GuardPack,
 				"explain":    it.Explain,
-				"severity":  it.Severity,
+				"severity":   it.Severity,
 			})
 		}
 	}

@@ -65,28 +65,28 @@ type workManager struct {
 	poolGHSmoothed   float64 // EMA of fleet GH/s for load retarget (avoids 0.15 GH/s pin → M runaway)
 	poolRetarget     bool
 	// Pool M bounds (defaults poolTargetModMin/Max; override via HACKME_COORDINATOR_POOL_TARGET_MOD_{MIN,MAX}).
-	targetModMin         uint64
-	targetModMax         uint64
-	targetModUpdatedUnix int64
-	poolRetargetMinSec   int64
-	lastPoolRetargetUnix int64
-	expiredLeases        uint64
-	unknownSubmits       uint64
-	staleSubmits         uint64
-	rejectedSubmits      uint64
-	totalAttempts        uint64
-	totalPayoutHMC       float64
-	totalPayoutSUP       float64
-	supPolicy            supPolicy
-	supMeta              map[string]workerSupMeta
-	supDayID             int64
-	supAccruedDay        float64
-	hmcAccruedDay        float64
-	dedupSubmits         uint64
-	dedupFoundNonce      uint64
+	targetModMin          uint64
+	targetModMax          uint64
+	targetModUpdatedUnix  int64
+	poolRetargetMinSec    int64
+	lastPoolRetargetUnix  int64
+	expiredLeases         uint64
+	unknownSubmits        uint64
+	staleSubmits          uint64
+	rejectedSubmits       uint64
+	totalAttempts         uint64
+	totalPayoutHMC        float64
+	totalPayoutSUP        float64
+	supPolicy             supPolicy
+	supMeta               map[string]workerSupMeta
+	supDayID              int64
+	supAccruedDay         float64
+	hmcAccruedDay         float64
+	dedupSubmits          uint64
+	dedupFoundNonce       uint64
 	fleetAddressConflicts uint64
-	signedAccepts        uint64
-	signedRejects        uint64
+	signedAccepts         uint64
+	signedRejects         uint64
 
 	claimPerMin     int
 	submitPerMin    int

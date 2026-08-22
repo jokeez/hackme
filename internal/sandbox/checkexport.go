@@ -17,15 +17,15 @@ import (
 )
 
 const (
-	defaultMaxWasmCheckBytes = 65536
-	maxWasmCheckBytesFloor   = 1024
-	maxWasmCheckBytesCeil    = 2 * 1024 * 1024
+	defaultMaxWasmCheckBytes  = 65536
+	maxWasmCheckBytesFloor    = 1024
+	maxWasmCheckBytesCeil     = 2 * 1024 * 1024
 	defaultMaxCheckInputBytes = 4096
 	minCheckInputBytes        = 1
 	maxCheckInputBytesCeil    = 4096
-	defaultWasmCheckTimeout  = 350 * time.Millisecond
-	defaultCompiledCacheMax  = 256
-	defaultMemoryLimitPages  = 128
+	defaultWasmCheckTimeout   = 350 * time.Millisecond
+	defaultCompiledCacheMax   = 256
+	defaultMemoryLimitPages   = 128
 )
 
 // MinimalGateWasmHex is a tiny valid module exporting check(i64)->i32 that always returns 1.
@@ -45,14 +45,14 @@ var (
 )
 
 type PolicySnapshot struct {
-	Locked            bool   `json:"locked"`
-	Profile           string `json:"profile"`
-	MaxCheckWasmBytes int    `json:"max_check_wasm_bytes"`
-	MaxCheckInputBytes int   `json:"max_check_input_bytes"`
-	CheckTimeoutMS    int64  `json:"check_timeout_ms"`
-	CompiledCacheMax  int    `json:"compiled_cache_max"`
-	MemoryLimitPages  uint32 `json:"memory_limit_pages"`
-	BlockQuarantined  bool   `json:"block_quarantined"`
+	Locked             bool   `json:"locked"`
+	Profile            string `json:"profile"`
+	MaxCheckWasmBytes  int    `json:"max_check_wasm_bytes"`
+	MaxCheckInputBytes int    `json:"max_check_input_bytes"`
+	CheckTimeoutMS     int64  `json:"check_timeout_ms"`
+	CompiledCacheMax   int    `json:"compiled_cache_max"`
+	MemoryLimitPages   uint32 `json:"memory_limit_pages"`
+	BlockQuarantined   bool   `json:"block_quarantined"`
 }
 
 func sandboxProfile() string {

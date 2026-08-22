@@ -28,24 +28,24 @@ import (
 
 // ClaimResp is one leased fuzz work item from the coordinator.
 type ClaimResp struct {
-	OK             bool    `json:"ok"`
-	Reason         string  `json:"reason,omitempty"`
-	WorkID         string  `json:"work_id,omitempty"`
-	CampaignID     string  `json:"campaign_id,omitempty"`
-	ItemID         int64   `json:"item_id,omitempty"`
-	InputN         uint64  `json:"input_n,omitempty"`
-	ActualInput    uint64  `json:"actual_input,omitempty"`
-	InputMode      string  `json:"input_mode,omitempty"`
-	InputBytesHex  string  `json:"input_bytes_hex,omitempty"`
-	DepthTier      string  `json:"depth_tier,omitempty"`
-	PerRunHMC      float64 `json:"per_run_hmc,omitempty"`
-	ExecPerUnit            int              `json:"exec_per_unit,omitempty"`
-	MaxInputBytes          int              `json:"max_input_bytes,omitempty"`
-	CoverageKind           string           `json:"coverage_kind,omitempty"`
-	WasmCheckHex           string           `json:"wasm_check_hex,omitempty"`
-	CheckSemantics         string           `json:"check_semantics,omitempty"`
-	CorpusSeeds            []map[string]any `json:"corpus_seeds,omitempty"`
-	CorpusSnapshotSHA256   string           `json:"corpus_snapshot_sha256,omitempty"`
+	OK                   bool             `json:"ok"`
+	Reason               string           `json:"reason,omitempty"`
+	WorkID               string           `json:"work_id,omitempty"`
+	CampaignID           string           `json:"campaign_id,omitempty"`
+	ItemID               int64            `json:"item_id,omitempty"`
+	InputN               uint64           `json:"input_n,omitempty"`
+	ActualInput          uint64           `json:"actual_input,omitempty"`
+	InputMode            string           `json:"input_mode,omitempty"`
+	InputBytesHex        string           `json:"input_bytes_hex,omitempty"`
+	DepthTier            string           `json:"depth_tier,omitempty"`
+	PerRunHMC            float64          `json:"per_run_hmc,omitempty"`
+	ExecPerUnit          int              `json:"exec_per_unit,omitempty"`
+	MaxInputBytes        int              `json:"max_input_bytes,omitempty"`
+	CoverageKind         string           `json:"coverage_kind,omitempty"`
+	WasmCheckHex         string           `json:"wasm_check_hex,omitempty"`
+	CheckSemantics       string           `json:"check_semantics,omitempty"`
+	CorpusSeeds          []map[string]any `json:"corpus_seeds,omitempty"`
+	CorpusSnapshotSHA256 string           `json:"corpus_snapshot_sha256,omitempty"`
 }
 
 // Config drives a supervised fuzz dig loop.

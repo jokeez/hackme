@@ -12,27 +12,27 @@ import (
 
 // GuardPack is a ready-made detector pack (customer does not write a rule).
 type GuardPack struct {
-	ID              string
-	Title           string
-	Summary         string
-	WasmRelPath     string // under repo root (artifacts)
-	SourceRelPath   string // rust source to rebuild if wasm missing
-	InputMode       string // bytes|u64
-	MaxInputBytes   int
-	Guided          bool
-	MutationRounds  int
-	SeedByteCorpus  []any
-	SeedCorpusU64   []any
-	ExplainHints        []ExplainHint
-	DefaultPackage      string // scan|audit|deep suggestion
-	WasmEdgeCoverage    bool   // instrumented guard writes edge counters at mem offset 8192
+	ID               string
+	Title            string
+	Summary          string
+	WasmRelPath      string // under repo root (artifacts)
+	SourceRelPath    string // rust source to rebuild if wasm missing
+	InputMode        string // bytes|u64
+	MaxInputBytes    int
+	Guided           bool
+	MutationRounds   int
+	SeedByteCorpus   []any
+	SeedCorpusU64    []any
+	ExplainHints     []ExplainHint
+	DefaultPackage   string // scan|audit|deep suggestion
+	WasmEdgeCoverage bool   // instrumented guard writes edge counters at mem offset 8192
 	// Per-package budget overrides when > 0 (pack-aware presets).
-	ScanRuns    int
-	AuditRuns   int
-	DeepRuns    int
-	ScanSeconds int
+	ScanRuns     int
+	AuditRuns    int
+	DeepRuns     int
+	ScanSeconds  int
 	AuditSeconds int
-	DeepSeconds int
+	DeepSeconds  int
 }
 
 // ExplainHint maps finding patterns to customer-facing guidance.
@@ -43,16 +43,16 @@ type ExplainHint struct {
 
 var guardPacks = map[string]GuardPack{
 	"secrets": {
-		ID:            "secrets",
-		Title:         "Secrets & supply-chain patterns",
-		Summary:       "Detects AWS/GitHub/Slack-style secrets, :latest tags, ENV+SECRET, curl|sh — byte mode",
-		WasmRelPath:   "tasks/artifacts/security/rust_tracefuse_detector_bytes_guard.wasm",
-		SourceRelPath: "tasks/sources/security/rust_tracefuse_detector_bytes_guard.rs",
-		InputMode:     "bytes",
-		MaxInputBytes: fuzzengine.DefaultMaxInputBytesStd,
-		Guided:             true,
-		WasmEdgeCoverage:   true,
-		MutationRounds:     6,
+		ID:               "secrets",
+		Title:            "Secrets & supply-chain patterns",
+		Summary:          "Detects AWS/GitHub/Slack-style secrets, :latest tags, ENV+SECRET, curl|sh — byte mode",
+		WasmRelPath:      "tasks/artifacts/security/rust_tracefuse_detector_bytes_guard.wasm",
+		SourceRelPath:    "tasks/sources/security/rust_tracefuse_detector_bytes_guard.rs",
+		InputMode:        "bytes",
+		MaxInputBytes:    fuzzengine.DefaultMaxInputBytesStd,
+		Guided:           true,
+		WasmEdgeCoverage: true,
+		MutationRounds:   6,
 		SeedByteCorpus: []any{
 			"AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE",
 			"GITHUB_PAT=ghp_FAKEEXAMPLETOKENX1234567890123456789",
@@ -80,23 +80,23 @@ var guardPacks = map[string]GuardPack{
 		},
 	},
 	"script_bounds": {
-		ID:            "script_bounds",
-		Title:         "Script push bounds (consensus-class)",
-		Summary:       "OP_PUSHDATA1 with claimed length > 520 — packed u64 layout (Bitcoin-style property)",
-		WasmRelPath:   "tasks/artifacts/security/rust_script_push_bounds_guard.wasm",
-		SourceRelPath: "tasks/sources/security/rust_script_push_bounds_guard.rs",
-		InputMode:     "u64",
-		Guided:             true,
-		WasmEdgeCoverage:   true,
-		MutationRounds:     4,
-		SeedCorpusU64:        []any{uint64(0), uint64(1), uint64(0x4c | (521 << 8))},
-		DefaultPackage: "audit",
-		ScanRuns:       64,
-		ScanSeconds:    900,
-		AuditRuns:      256,
-		AuditSeconds:   28800,
-		DeepRuns:       2048,
-		DeepSeconds:    86400,
+		ID:               "script_bounds",
+		Title:            "Script push bounds (consensus-class)",
+		Summary:          "OP_PUSHDATA1 with claimed length > 520 — packed u64 layout (Bitcoin-style property)",
+		WasmRelPath:      "tasks/artifacts/security/rust_script_push_bounds_guard.wasm",
+		SourceRelPath:    "tasks/sources/security/rust_script_push_bounds_guard.rs",
+		InputMode:        "u64",
+		Guided:           true,
+		WasmEdgeCoverage: true,
+		MutationRounds:   4,
+		SeedCorpusU64:    []any{uint64(0), uint64(1), uint64(0x4c | (521 << 8))},
+		DefaultPackage:   "audit",
+		ScanRuns:         64,
+		ScanSeconds:      900,
+		AuditRuns:        256,
+		AuditSeconds:     28800,
+		DeepRuns:         2048,
+		DeepSeconds:      86400,
 		ExplainHints: []ExplainHint{
 			{Contains: "0x4c", Message: "Script push bound violation class — oversized push claim; validate against your script/consensus path."},
 			{Contains: "script", Message: "Consensus-style push bound hit — reproduce with repro_cmd before claiming a protocol bug."},
@@ -104,16 +104,16 @@ var guardPacks = map[string]GuardPack{
 		},
 	},
 	"filter_utf8": {
-		ID:            "filter_utf8",
-		Title:         "Malformed filter / UTF-8 skew",
-		Summary:       "Catches invalid-UTF-8 + operator index skew (FluxTap-class display filter panic)",
-		WasmRelPath:   "tasks/artifacts/security/rust_fluxtap_filter_bytes_guard.wasm",
-		SourceRelPath: "tasks/sources/security/rust_fluxtap_filter_bytes_guard.rs",
-		InputMode:     "bytes",
-		MaxInputBytes: fuzzengine.DefaultMaxInputBytesStd,
-		Guided:             true,
-		WasmEdgeCoverage:   true,
-		MutationRounds:     2,
+		ID:               "filter_utf8",
+		Title:            "Malformed filter / UTF-8 skew",
+		Summary:          "Catches invalid-UTF-8 + operator index skew (FluxTap-class display filter panic)",
+		WasmRelPath:      "tasks/artifacts/security/rust_fluxtap_filter_bytes_guard.wasm",
+		SourceRelPath:    "tasks/sources/security/rust_fluxtap_filter_bytes_guard.rs",
+		InputMode:        "bytes",
+		MaxInputBytes:    fuzzengine.DefaultMaxInputBytesStd,
+		Guided:           true,
+		WasmEdgeCoverage: true,
+		MutationRounds:   2,
 		SeedByteCorpus: []any{
 			"c73d", // \xc7=
 			"3d",   // =
@@ -165,6 +165,7 @@ var ParserPackTargets = map[string]string{
 	"parser_md4c":  "md4c",
 	"parser_cjson": "cjson",
 }
+
 func GuardPackFor(name string) (GuardPack, error) {
 	key := strings.TrimSpace(strings.ToLower(name))
 	switch key {

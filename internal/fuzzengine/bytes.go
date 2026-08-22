@@ -152,4 +152,3 @@ func BytesDetectorTitle(input []byte) string {
 	}
 	return "detector hit (bytes): 0x" + hx
 }
-

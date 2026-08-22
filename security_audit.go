@@ -19,34 +19,34 @@ import (
 )
 
 type securityAuditRequest struct {
-	Title           string   `json:"title"`
-	PayerRef        string   `json:"payer_ref"`
-	OrderID         string   `json:"order_id"`
-	CampaignID      string   `json:"campaign_id"`
-	Language        string   `json:"language"`
-	Code            string   `json:"code"`
-	WasmCheckHex    string   `json:"wasm_check_hex"`
-	BudgetHMC       float64  `json:"budget_hmc"`
-	UseSUPDiscount  *bool    `json:"use_sup_discount"`
-	PayerWallet     string   `json:"payer_wallet"`
-	BudgetRuns      int      `json:"budget_runs"`
-	BudgetSeconds   int      `json:"budget_seconds"`
-	SeedCorpus      []uint64 `json:"seed_corpus"`
-	SeedByteCorpus  []string `json:"seed_byte_corpus"`
-	DepthTier       string   `json:"depth_tier"`
-	GuardName       string   `json:"guard_name"`
-	GuardPack       string   `json:"guard_pack"`
-	InputMode       string   `json:"input_mode"`
-	MaxInputBytes   int      `json:"max_input_bytes"`
-	GuidedScheduling *bool   `json:"guided_scheduling"`
-	MutationRounds  int      `json:"mutation_rounds"`
-	ExecPerUnit     int      `json:"exec_per_unit"`
-	PublicProof     *bool    `json:"public_proof"`
-	CreatePoHOrder  *bool    `json:"create_poh_order"`
-	RewardHMC       float64  `json:"reward_hmc"`
-	DifficultyScore int      `json:"difficulty_score"`
-	TargetSolves    int      `json:"target_solves"`
-	PoolDistributed *bool    `json:"pool_distributed"`
+	Title            string   `json:"title"`
+	PayerRef         string   `json:"payer_ref"`
+	OrderID          string   `json:"order_id"`
+	CampaignID       string   `json:"campaign_id"`
+	Language         string   `json:"language"`
+	Code             string   `json:"code"`
+	WasmCheckHex     string   `json:"wasm_check_hex"`
+	BudgetHMC        float64  `json:"budget_hmc"`
+	UseSUPDiscount   *bool    `json:"use_sup_discount"`
+	PayerWallet      string   `json:"payer_wallet"`
+	BudgetRuns       int      `json:"budget_runs"`
+	BudgetSeconds    int      `json:"budget_seconds"`
+	SeedCorpus       []uint64 `json:"seed_corpus"`
+	SeedByteCorpus   []string `json:"seed_byte_corpus"`
+	DepthTier        string   `json:"depth_tier"`
+	GuardName        string   `json:"guard_name"`
+	GuardPack        string   `json:"guard_pack"`
+	InputMode        string   `json:"input_mode"`
+	MaxInputBytes    int      `json:"max_input_bytes"`
+	GuidedScheduling *bool    `json:"guided_scheduling"`
+	MutationRounds   int      `json:"mutation_rounds"`
+	ExecPerUnit      int      `json:"exec_per_unit"`
+	PublicProof      *bool    `json:"public_proof"`
+	CreatePoHOrder   *bool    `json:"create_poh_order"`
+	RewardHMC        float64  `json:"reward_hmc"`
+	DifficultyScore  int      `json:"difficulty_score"`
+	TargetSolves     int      `json:"target_solves"`
+	PoolDistributed  *bool    `json:"pool_distributed"`
 }
 
 func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
