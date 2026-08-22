@@ -14,6 +14,7 @@ import (
 	"hackme/internal/chain"
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzescrow"
+	"hackme/internal/fuzzingcli"
 	"hackme/internal/sandbox"
 )
 
@@ -31,8 +32,16 @@ type securityAuditRequest struct {
 	BudgetRuns      int      `json:"budget_runs"`
 	BudgetSeconds   int      `json:"budget_seconds"`
 	SeedCorpus      []uint64 `json:"seed_corpus"`
+	SeedByteCorpus  []string `json:"seed_byte_corpus"`
 	DepthTier       string   `json:"depth_tier"`
 	GuardName       string   `json:"guard_name"`
+	GuardPack       string   `json:"guard_pack"`
+	InputMode       string   `json:"input_mode"`
+	MaxInputBytes   int      `json:"max_input_bytes"`
+	GuidedScheduling *bool   `json:"guided_scheduling"`
+	MutationRounds  int      `json:"mutation_rounds"`
+	ExecPerUnit     int      `json:"exec_per_unit"`
+	PublicProof     *bool    `json:"public_proof"`
 	CreatePoHOrder  *bool    `json:"create_poh_order"`
 	RewardHMC       float64  `json:"reward_hmc"`
 	DifficultyScore int      `json:"difficulty_score"`
@@ -334,6 +343,40 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 		cfgMap["guard_name"] = gn
 		cfgMap["upstream_guard"] = gn
 	}
+	if gp := strings.TrimSpace(req.GuardPack); gp != "" {
+		if pack, err := fuzzingcli.GuardPackFor(gp); err == nil {
+			cfgMap = fuzzingcli.ApplyPackConfig(cfgMap, pack)
+		}
+		cfgMap["guard_pack"] = gp
+		if strings.TrimSpace(toString(cfgMap["guard_name"])) == "" {
+			cfgMap["guard_name"] = gp
+		}
+	}
+	if im := strings.TrimSpace(strings.ToLower(req.InputMode)); im != "" {
+		cfgMap["input_mode"] = im
+	}
+	if req.MaxInputBytes > 0 {
+		cfgMap["max_input_bytes"] = req.MaxInputBytes
+	}
+	if len(req.SeedByteCorpus) > 0 {
+		asAny := make([]any, len(req.SeedByteCorpus))
+		for i, s := range req.SeedByteCorpus {
+			asAny[i] = s
+		}
+		cfgMap["seed_byte_corpus"] = asAny
+	}
+	if req.GuidedScheduling != nil {
+		cfgMap["guided_scheduling"] = *req.GuidedScheduling
+	}
+	if req.MutationRounds > 0 {
+		cfgMap["mutation_rounds"] = req.MutationRounds
+	}
+	if req.ExecPerUnit > 0 {
+		cfgMap["exec_per_unit"] = req.ExecPerUnit
+	}
+	if req.PublicProof != nil && *req.PublicProof {
+		cfgMap["public_proof"] = true
+	}
 	cfgMap = normalizeFuzzCampaignConfig(cfgMap, "property")
 	cfg := marshalMapJSON(cfgMap)
 
@@ -383,6 +426,11 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	resp["fuzz_engine"] = fuzzEngineMetaFromConfig(cfgMap)
 	resp["depth_tier"] = string(depthTier)
 	resp["report_url"] = "/api/fuzz/campaigns/" + campaignID + "/report.html"
+	if publicProofEnabled(cfgMap) {
+		resp["public_proof"] = true
+		resp["proof_url"] = "/proof/" + campaignID
+		resp["badge_url"] = "/proof/" + campaignID + "/badge.svg"
+	}
 
 	if poolDistributedCampaign(cfgMap) {
 		resp["pool_distributed"] = true

@@ -176,6 +176,9 @@ func injectOSSCveBuildStubs(repoRoot, targetID, clonePath string) error {
 			return err
 		}
 		return copyStub(filepath.Join(cfgDir, "tinycbor-version.h"), filepath.Join(clonePath, "src", "tinycbor-version.h"))
+	case "expat":
+		src := filepath.Join(repoRoot, "tasks", "sources", "fuzz", "oss", "expat_config.h")
+		return copyStub(src, filepath.Join(clonePath, "expat", "lib", "expat_config.h"))
 	default:
 		return nil
 	}

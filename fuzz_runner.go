@@ -13,6 +13,8 @@ import (
 
 	"hackme/internal/fuzzartifacts"
 	"hackme/internal/fuzzengine"
+	"hackme/internal/fuzzingcli"
+	"hackme/internal/poolfuzz"
 	"hackme/internal/sandbox"
 )
 
@@ -134,6 +136,13 @@ func (a *app) fuzzAutoRunnerTick(ctx context.Context) error {
 			}
 			if !ok {
 				break
+			}
+			if fuzzengine.GuidedSchedulingEnabled(cfg) {
+				pf := &poolfuzz.Service{DB: a.db}
+				if _, _, _, err := pf.LockGuidedWorkItem(ctx, c.ID, it.ID, it.InputN, cfg, leaseOwner, now); err != nil {
+					log.Printf("fuzz guided lock error campaign=%s item=%d: %v", c.ID, it.ID, err)
+					continue
+				}
 			}
 			if err := a.executeWorkItem(ctx, c, cfg, it, now); err != nil {
 				log.Printf("fuzz worker execute error campaign=%s item=%d: %v", c.ID, it.ID, err)
@@ -273,42 +282,143 @@ func (a *app) executeWorkItem(ctx context.Context, c fuzzAutoCampaign, cfg map[s
 			timeoutMS = n
 		}
 	}
-	runCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMS)*time.Millisecond)
-	defer cancel()
-	wasm := a.loadCampaignWasm(runCtx, c, cfg)
+	cfg = fuzzengine.NormalizeCampaignConfig(cfg, strings.TrimSpace(toString(cfg["campaign_type"])))
+	execPer := fuzzengine.ExecPerUnit(cfg)
+	sem := fuzzengine.ParseCheckSemantics(cfg)
+	pf := &poolfuzz.Service{DB: a.db}
+
+	var actualInput uint64
+	var inputBytes []byte
+	var seeds []fuzzengine.PoolCorpusSeed
+	var err error
+	if fuzzengine.GuidedSchedulingEnabled(cfg) {
+		actualInput, inputBytes, err = pf.ExpectedInputsForWork(ctx, c.ID, it.ID, it.InputN, cfg)
+		if err != nil {
+			return err
+		}
+		seeds, err = pf.SeedsForWorkItem(ctx, c.ID, it.ID, cfg)
+		if err != nil {
+			return err
+		}
+	} else {
+		actualInput = deriveFuzzInput(it.InputN, cfg)
+		if fuzzengine.ParseInputMode(cfg) == fuzzengine.InputModeBytes {
+			inputBytes = fuzzengine.DeriveInputBytes(it.InputN, cfg)
+			actualInput = fuzzengine.PackInputBytesToU64(inputBytes)
+		}
+	}
+
+	wasm := a.loadCampaignWasm(ctx, c, cfg)
 	wasmPath := ""
 	if len(wasm) > 0 {
 		wasmPath = fuzzartifacts.WriteWasmHex(c.ID, hex.EncodeToString(wasm))
 	}
-	actualInput := deriveFuzzInput(it.InputN, cfg)
-	var inputBytes []byte
-	if fuzzengine.ParseInputMode(cfg) == fuzzengine.InputModeBytes {
-		inputBytes = fuzzengine.DeriveInputBytes(it.InputN, cfg)
-		actualInput = fuzzengine.PackInputBytesToU64(inputBytes)
-	}
-	sem := fuzzengine.ParseCheckSemantics(cfg)
+
 	pass := true
 	var execErr error
 	checkRet := int32(0)
-	if len(wasm) > 0 {
-		var invokeOK bool
-		if len(inputBytes) > 0 {
-			invokeOK, execErr = sandbox.InvokeCheckInput(runCtx, wasm, inputBytes)
-		} else {
-			invokeOK, execErr = sandbox.InvokeCheck(runCtx, wasm, actualInput)
-		}
-		if invokeOK {
-			checkRet = 1
-		}
-		pass, _ = fuzzengine.EvalCheck(sem, checkRet, execErr)
-	} else {
+	recordFinding := false
+	findingU := actualInput
+	findingB := inputBytes
+
+	if len(wasm) == 0 {
 		pass = (actualInput%17 != 0)
+		if !pass {
+			recordFinding = true
+		}
+	} else if execPer > 1 {
+		runOne := func(runCtx context.Context, inU uint64, inB []byte) (int32, string, error, []byte) {
+			cctx, cancel := context.WithTimeout(runCtx, time.Duration(timeoutMS)*time.Millisecond)
+			defer cancel()
+			if len(inB) > 0 {
+				out, invokeErr := sandbox.InvokeCheckOutcomeInput(cctx, wasm, inB)
+				if invokeErr != nil {
+					return 0, invokeErr.Error(), invokeErr, nil
+				}
+				if out.OK {
+					return 1, "", nil, out.EdgeBitmap
+				}
+				return 0, "", nil, out.EdgeBitmap
+			}
+			if inU != 0 {
+				out, invokeErr := sandbox.InvokeCheckOutcome(cctx, wasm, inU)
+				if invokeErr != nil {
+					return 0, invokeErr.Error(), invokeErr, nil
+				}
+				if out.OK {
+					return 1, "", nil, out.EdgeBitmap
+				}
+				return 0, "", nil, out.EdgeBitmap
+			}
+			if len(inputBytes) > 0 {
+				out, invokeErr := sandbox.InvokeCheckOutcomeInput(cctx, wasm, inputBytes)
+				if invokeErr != nil {
+					return 0, invokeErr.Error(), invokeErr, nil
+				}
+				if out.OK {
+					return 1, "", nil, out.EdgeBitmap
+				}
+				return 0, "", nil, out.EdgeBitmap
+			}
+			out, invokeErr := sandbox.InvokeCheckOutcome(cctx, wasm, actualInput)
+			if invokeErr != nil {
+				return 0, invokeErr.Error(), invokeErr, nil
+			}
+			if out.OK {
+				return 1, "", nil, out.EdgeBitmap
+			}
+			return 0, "", nil, out.EdgeBitmap
+		}
+		segCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMS*execPer)*time.Millisecond)
+		seg := fuzzengine.EvalSegment(segCtx, it.InputN, cfg, seeds, sem, runOne)
+		cancel()
+		pass = seg.Pass
+		recordFinding = seg.RecordFinding
+		checkRet = seg.CheckResult
+		if seg.Trap != "" {
+			execErr = fmt.Errorf("%s", seg.Trap)
+		}
+		findingU = actualInput
+		findingB = inputBytes
+		if recordFinding {
+			findingU = seg.FindingInputU
+			findingB = seg.FindingInputB
+		}
+		for _, cov := range seg.ExecCoverage {
+			if err := a.recordCoverageSample(ctx, c.ID, cov.Edge, cov.Path, now); err != nil {
+				return err
+			}
+		}
+	} else {
+		runCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMS)*time.Millisecond)
+		defer cancel()
+		var edgeBitmap []byte
+		if len(inputBytes) > 0 {
+			out, invokeErr := sandbox.InvokeCheckOutcomeInput(runCtx, wasm, inputBytes)
+			execErr = invokeErr
+			if invokeErr == nil && out.OK {
+				checkRet = 1
+			}
+			edgeBitmap = out.EdgeBitmap
+		} else {
+			out, invokeErr := sandbox.InvokeCheckOutcome(runCtx, wasm, actualInput)
+			execErr = invokeErr
+			if invokeErr == nil && out.OK {
+				checkRet = 1
+			}
+			edgeBitmap = out.EdgeBitmap
+		}
+		pass, recordFinding = fuzzengine.EvalCheck(sem, checkRet, execErr)
+		if err := a.recordCoverageBuckets(ctx, c.ID, cfg, actualInput, inputBytes, edgeBitmap, now); err != nil {
+			return err
+		}
 	}
+
 	durationMS := int(time.Since(start).Milliseconds())
 	if durationMS < 0 {
 		durationMS = 0
 	}
-	if execErr != nil {
+	if execErr != nil && execPer <= 1 {
 		_ = a.insertWorkerWasmAnomaly(ctx, c.ID, it.InputN, actualInput, now, execErr, len(wasm) > 0, wasmPath)
 		maxAttempts := retentionLimitFromEnv("HACKME_FUZZ_WORK_MAX_ATTEMPTS", 4, 20)
 		nextStatus := "pending"
@@ -324,25 +434,29 @@ func (a *app) executeWorkItem(ctx context.Context, c fuzzAutoCampaign, cfg map[s
 	}
 	if _, err := a.db.ExecContext(ctx,
 		`UPDATE fuzz_work_items
-		 SET status='done', attempts=attempts+1, result_ok=?, duration_ms=?, last_error='', lease_owner='', lease_until=0, updated_at=?
+		 SET status='done', attempts=attempts+1, result_ok=?, duration_ms=?, last_error=?, lease_owner='', lease_until=0, updated_at=?
 		 WHERE id=?`,
-		boolToInt(pass), durationMS, now, it.ID); err != nil {
+		boolToInt(pass), durationMS, strings.TrimSpace(func() string {
+			if execErr != nil {
+				return execErr.Error()
+			}
+			return ""
+		}()), now, it.ID); err != nil {
 		return err
 	}
-	if err := a.recordCoverageBuckets(ctx, c.ID, actualInput, inputBytes, now); err != nil {
-		return err
-	}
-	recordFinding := false
-	if len(wasm) > 0 {
-		_, recordFinding = fuzzengine.EvalCheck(sem, checkRet, execErr)
-	} else if !pass {
-		recordFinding = true
+	if fuzzengine.GuidedSchedulingEnabled(cfg) {
+		obsU, obsB := actualInput, inputBytes
+		if recordFinding {
+			obsU, obsB = findingU, findingB
+		}
+		_ = pf.ObserveCorpusHit(ctx, c.ID, obsU, obsB, recordFinding, now)
 	}
 	if recordFinding {
-		if err := a.insertWorkerWasmCheckFail(ctx, c.ID, it.InputN, actualInput, inputBytes, now, len(wasm) > 0, sem, wasmPath, cfg); err != nil {
+		if err := a.insertWorkerWasmCheckFail(ctx, c.ID, it.InputN, findingU, findingB, now, len(wasm) > 0, sem, wasmPath, cfg); err != nil {
 			return err
 		}
 	}
+	_ = checkRet
 	return nil
 }
 
@@ -353,23 +467,22 @@ func boolToInt(v bool) int {
 	return 0
 }
 
-func (a *app) recordCoverageBuckets(ctx context.Context, campaignID string, input uint64, inputBytes []byte, now int64) error {
-	var edgeBucket, pathBucket int
-	if len(inputBytes) > 0 {
-		edgeBucket, pathBucket = fuzzengine.CoverageBucketsFromBytes(inputBytes)
-	} else {
-		edgeBucket, pathBucket = fuzzCoverageBuckets(input)
-	}
+func (a *app) recordCoverageSample(ctx context.Context, campaignID string, edge, path int, now int64) error {
 	_, err := a.db.ExecContext(ctx,
 		`INSERT OR IGNORE INTO fuzz_coverage_seen (campaign_id, kind, bucket, first_seen_at) VALUES (?, 'edge', ?, ?)`,
-		campaignID, edgeBucket, now)
+		campaignID, edge, now)
 	if err != nil {
 		return err
 	}
 	_, err = a.db.ExecContext(ctx,
 		`INSERT OR IGNORE INTO fuzz_coverage_seen (campaign_id, kind, bucket, first_seen_at) VALUES (?, 'path', ?, ?)`,
-		campaignID, pathBucket, now)
+		campaignID, path, now)
 	return err
+}
+
+func (a *app) recordCoverageBuckets(ctx context.Context, campaignID string, cfg map[string]any, input uint64, inputBytes []byte, edgeBitmap []byte, now int64) error {
+	edge, path := fuzzengine.CoverageBucketsForExec(cfg, input, inputBytes, edgeBitmap)
+	return a.recordCoverageSample(ctx, campaignID, edge, path, now)
 }
 
 func classifyWasmTrap(inputN uint64, execErr error, hasWasm bool) (findingType, severity, title string) {
@@ -396,6 +509,7 @@ func (a *app) insertWorkerFindingClassified(ctx context.Context, campaignID stri
 		"source":        "fuzz_worker_pipeline_v3",
 		"input_n":       inputN,
 		"actual_input":  actualInput,
+		"input_mode":    string(fuzzengine.ParseInputMode(cfg)),
 		"input_len":     len(inputBytes),
 		"timestamp":     now,
 		"triage_class":  triage.Class,
@@ -406,6 +520,19 @@ func (a *app) insertWorkerFindingClassified(ctx context.Context, campaignID stri
 	detail["op_type"] = op
 	detail["item_id"] = itemID
 	detail["quantity"] = qty
+	if len(inputBytes) > 0 {
+		detail["input_hex"] = fuzzengine.RedactInputForReport(hex.EncodeToString(inputBytes))
+	}
+	if cfg != nil {
+		if gp := strings.TrimSpace(toString(cfg["guard_pack"])); gp != "" {
+			detail["guard_pack"] = gp
+			preview := title
+			if len(inputBytes) > 0 {
+				preview = string(inputBytes)
+			}
+			detail["explain"] = fuzzingcli.ExplainPackFinding(gp, preview, title)
+		}
+	}
 	if _, err := a.db.ExecContext(ctx,
 		`INSERT OR IGNORE INTO fuzz_findings
 		 (id, campaign_id, finding_type, severity, title, input_sha256, artifact_path, repro_cmd, detail_json, created_at)
@@ -437,6 +564,9 @@ func (a *app) insertWorkerFindingClassified(ctx context.Context, campaignID stri
 
 func (a *app) insertWorkerWasmCheckFail(ctx context.Context, campaignID string, inputN, actualInput uint64, inputBytes []byte, now int64, hasWasm bool, sem fuzzengine.CheckSemantics, wasmPath string, cfg map[string]any) error {
 	ft, sev, title := fuzzengine.ClassifyCheckFail(actualInput, hasWasm, sem)
+	if len(inputBytes) > 0 && sem == fuzzengine.SemanticsDetector {
+		title = fuzzengine.BytesDetectorTitle(inputBytes)
+	}
 	return a.insertWorkerFindingClassified(ctx, campaignID, inputN, actualInput, inputBytes, now, ft, sev, title, wasmPath, cfg)
 }
 

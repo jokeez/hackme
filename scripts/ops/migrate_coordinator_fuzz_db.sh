@@ -29,6 +29,7 @@ FUZZ_TABLES=(
   fuzz_work_items
   fuzz_findings
   fuzz_corpus
+  fuzz_pool_corpus
   fuzz_runtime_samples
   fuzz_coverage_seen
   fuzz_report_access_log

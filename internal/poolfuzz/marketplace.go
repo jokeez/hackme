@@ -78,6 +78,9 @@ func (s *Service) ListPublicCampaigns(ctx context.Context, limit int) ([]map[str
 			item["check_semantics"] = fe["check_semantics"]
 			item["depth_tier"] = fe["depth_tier"]
 			item["input_mode"] = fe["input_mode"]
+			if v, ok := fe["max_input_bytes"]; ok {
+				item["max_input_bytes"] = v
+			}
 		} else if cs := strings.TrimSpace(jsonString(cfg["check_semantics"])); cs != "" {
 			item["check_semantics"] = cs
 		}

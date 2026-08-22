@@ -31,9 +31,34 @@ func TestNormalizeCampaignConfigDefaults(t *testing.T) {
 	if cfg["fuzz_engine_version"] != Version {
 		t.Fatalf("version missing")
 	}
+	if cfg["check_semantics"] != "detector" {
+		t.Fatalf("property campaigns should default to detector semantics, got %#v", cfg["check_semantics"])
+	}
 	seeds, ok := cfg["seed_corpus"].([]any)
 	if !ok || len(seeds) < 5 {
 		t.Fatalf("expected default seeds, got %#v", cfg["seed_corpus"])
+	}
+}
+
+func TestMetaFromConfigStableBuckets(t *testing.T) {
+	meta := MetaFromConfig(map[string]any{"check_semantics": "detector"})
+	found := false
+	for _, f := range meta["features"].([]string) {
+		if f == "stable_crash_buckets" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("expected stable_crash_buckets feature")
+	}
+}
+
+func TestGuidedSchedulingFlag(t *testing.T) {
+	if GuidedSchedulingEnabled(map[string]any{"guided_scheduling": true}) != true {
+		t.Fatal("expected enabled")
+	}
+	if GuidedSchedulingEnabled(map[string]any{}) {
+		t.Fatal("expected disabled by default")
 	}
 }
 

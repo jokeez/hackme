@@ -79,6 +79,10 @@ func main() {
 		if err := doWizard(base, rest); err != nil {
 			fail(err)
 		}
+	case "packs":
+		if err := doPacks(rest); err != nil {
+			fail(err)
+		}
 	case "status":
 		if err := doStatus(base, rest); err != nil {
 			fail(err)
@@ -101,11 +105,15 @@ func usage() {
   hackme-fuzzing campaign create -title "..." -runs 200 [-task-id ORDER]
   hackme-fuzzing campaign status CAMPAIGN_ID
   hackme-fuzzing campaign report-url CAMPAIGN_ID
+  hackme-fuzzing wizard --pack secrets [--package audit] [--public-proof]
   hackme-fuzzing wizard --wasm guard.wasm [--package scan|audit|deep] [-title "..."]
+  hackme-fuzzing packs                 # list ready detector packs
   hackme-fuzzing status --campaign ID [--order ORDER_ID] [--report-token TOKEN]
 
-  Happy path: register --save → wizard --package audit → status → gate/report URLs
+  Happy path: register --save → wizard --pack secrets [--public-proof] → status → gate/report/proof
   Packages: scan=WASM smoke · audit=WASM+native/ASAN · deep=byte corpus (hours-scale)
+  Packs: secrets · script_bounds · filter_utf8 (no custom rule — we ship the detector WASM)
+  Proof of Fuzz: opt-in public facts + badge (crash-gate CLEAN/FAIL; not a full audit)
   Primary deliverable: CI gate pass/fail (not finding spam)
 
 Env: HACKME_FUZZING_BASE, HACKME_DEVELOPER_TOKEN, HACKME_REPORT_TOKEN

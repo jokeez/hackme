@@ -150,6 +150,14 @@ func NativeReproMode(cfg map[string]any) string {
 	return "go_port"
 }
 
+// GuidedSchedulingEnabled is true when campaign config opts into lab-style corpus scheduling (post-exchange pilot).
+func GuidedSchedulingEnabled(cfg map[string]any) bool {
+	if cfg == nil {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(toString(cfg["guided_scheduling"])), "true") || toString(cfg["guided_scheduling"]) == "1"
+}
+
 // UpstreamTarget returns pinned upstream key from pins.json (e.g. bitcoin).
 func UpstreamTarget(cfg map[string]any) string {
 	if cfg == nil {
@@ -191,6 +199,9 @@ func ApplyDepthTier(cfg map[string]any, tier DepthTier) map[string]any {
 		if _, ok := cfg["seed_byte_corpus"]; !ok {
 			cfg["seed_byte_corpus"] = DefaultByteSeedCorpus()
 		}
+		if _, ok := cfg["max_input_bytes"]; !ok {
+			cfg["max_input_bytes"] = DefaultMaxInputBytesStd
+		}
 	}
 	// Honest signal / config shape per tier (not just larger budgets).
 	switch preset.Tier {
@@ -198,12 +209,21 @@ func ApplyDepthTier(cfg map[string]any, tier DepthTier) map[string]any {
 		if _, ok := cfg["signal_types"]; !ok {
 			cfg["signal_types"] = []string{"wasm_smoke"}
 		}
+		if _, ok := cfg["exec_per_unit"]; !ok {
+			cfg["exec_per_unit"] = defaultExecPerUnitScan
+		}
 	case DepthWasmNative:
 		if _, ok := cfg["signal_types"]; !ok {
-			cfg["signal_types"] = []string{"wasm_check", "native_repro"}
+			cfg["signal_types"] = []string{"wasm_check", "native_repro", "segment_exec"}
 		}
 		if _, ok := cfg["native_repro_mode"]; !ok {
 			cfg["native_repro_mode"] = "go_port"
+		}
+		if _, ok := cfg["exec_per_unit"]; !ok {
+			cfg["exec_per_unit"] = defaultExecPerUnitAudit
+		}
+		if _, ok := cfg["coverage_kind"]; !ok {
+			cfg["coverage_kind"] = "input_fingerprint"
 		}
 	case DepthBytesCorpus:
 		if _, ok := cfg["mutation_rounds"]; !ok {
@@ -212,8 +232,14 @@ func ApplyDepthTier(cfg map[string]any, tier DepthTier) map[string]any {
 		if _, ok := cfg["coverage_guided"]; !ok {
 			cfg["coverage_guided"] = true
 		}
+		if _, ok := cfg["coverage_kind"]; !ok {
+			cfg["coverage_kind"] = "input_fingerprint"
+		}
+		if _, ok := cfg["exec_per_unit"]; !ok {
+			cfg["exec_per_unit"] = defaultExecPerUnitDeep
+		}
 		if _, ok := cfg["signal_types"]; !ok {
-			cfg["signal_types"] = []string{"byte_corpus", "structured_mutation", "coverage_guided", "native_repro"}
+			cfg["signal_types"] = []string{"byte_corpus", "structured_mutation", "corpus_scheduling", "segment_exec", "native_repro"}
 		}
 		if _, ok := cfg["corpus_hours_budget"]; !ok {
 			cfg["corpus_hours_budget"] = true

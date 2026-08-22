@@ -104,6 +104,31 @@ func TestValidateCheckWasmQuarantine(t *testing.T) {
 	}
 }
 
+func TestInvokeCheckRejectsEmptyWasm(t *testing.T) {
+	ok, err := InvokeCheck(context.Background(), nil, 1)
+	if err == nil || ok {
+		t.Fatalf("empty wasm should fail closed, got ok=%v err=%v", ok, err)
+	}
+	ok, err = InvokeCheckInput(context.Background(), []byte{}, []byte{1})
+	if err == nil || ok {
+		t.Fatalf("empty wasm input path should fail closed, got ok=%v err=%v", ok, err)
+	}
+}
+
+func TestValidateCheckWasmRejectsImportSection(t *testing.T) {
+	// (module (import "env" "noop" (func)) (func (export "check") (param i64) (result i32) i32.const 1))
+	const withImport = "0061736d0100000001060160017e017f020a0105656e76046e6f6f7000000302010007090105636865636b00000a0601040041010b"
+	raw, err := hex.DecodeString(withImport)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := rejectWasmHostileSections(raw); err == nil {
+		t.Fatal("expected import section rejection")
+	} else if !strings.Contains(err.Error(), "import") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestInvokeCheckConcurrentSameWasm(t *testing.T) {
 	raw, err := hex.DecodeString(MinimalGateWasmHex)
 	if err != nil {

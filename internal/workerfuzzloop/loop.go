@@ -39,8 +39,11 @@ type ClaimResp struct {
 	InputBytesHex  string  `json:"input_bytes_hex,omitempty"`
 	DepthTier      string  `json:"depth_tier,omitempty"`
 	PerRunHMC      float64 `json:"per_run_hmc,omitempty"`
-	WasmCheckHex   string  `json:"wasm_check_hex,omitempty"`
-	CheckSemantics string  `json:"check_semantics,omitempty"`
+	ExecPerUnit            int              `json:"exec_per_unit,omitempty"`
+	WasmCheckHex           string           `json:"wasm_check_hex,omitempty"`
+	CheckSemantics         string           `json:"check_semantics,omitempty"`
+	CorpusSeeds            []map[string]any `json:"corpus_seeds,omitempty"`
+	CorpusSnapshotSHA256   string           `json:"corpus_snapshot_sha256,omitempty"`
 }
 
 // Config drives a supervised fuzz dig loop.
@@ -305,9 +308,9 @@ func runOne(ctx context.Context, cfg Config, base string, st *Stats) {
 		return
 	}
 	st.ClaimsOK.Add(1)
-	checkRet, durMS, trap := RunCheck(ctx, cr, cfg.TimeoutMS)
+	checkRet, durMS, trap, execDone := RunSegmentCheck(ctx, cr, cfg.TimeoutMS)
 	nonce := uint64(time.Now().UnixNano())
-	if err := Submit(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cfg.MinerAddr, cfg.Priv, cfg.PubHex, cfg.Hybrid, nonce, cr, checkRet, durMS, trap); err != nil {
+	if err := Submit(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cfg.MinerAddr, cfg.Priv, cfg.PubHex, cfg.Hybrid, nonce, cr, checkRet, durMS, trap, execDone); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: submit: %v\n", cfg.LogPrefix, err)
 		return
 	}
@@ -406,24 +409,94 @@ func Claim(ctx context.Context, cl *http.Client, base, token, workerID string) (
 	return out, nil
 }
 
-// RunCheck executes the leased WASM check in-process (wazero).
+// RunCheck executes the leased WASM check in-process (wazero) — single exec fallback.
 func RunCheck(ctx context.Context, cr ClaimResp, timeoutMS int) (checkResult int32, durationMS int, trap string) {
+	checkResult, durationMS, trap, _ = RunSegmentCheck(ctx, cr, timeoutMS)
+	return checkResult, durationMS, trap
+}
+
+// RunSegmentCheck runs exec_per_unit deterministic execs for one work unit.
+func RunSegmentCheck(ctx context.Context, cr ClaimResp, timeoutMS int) (checkResult int32, durationMS int, trap string, execDone int) {
 	start := time.Now()
 	wasm, err := hex.DecodeString(strings.TrimSpace(cr.WasmCheckHex))
 	if err != nil || len(wasm) == 0 {
-		return 0, 0, "missing wasm"
+		return 0, 0, "missing wasm", 0
 	}
-	cctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMS)*time.Millisecond)
+	execPer := cr.ExecPerUnit
+	if execPer < 1 {
+		execPer = 1
+	}
+	cfg := map[string]any{
+		"input_mode":      strings.TrimSpace(cr.InputMode),
+		"depth_tier":      strings.TrimSpace(cr.DepthTier),
+		"check_semantics": strings.TrimSpace(cr.CheckSemantics),
+		"exec_per_unit":   execPer,
+	}
+	if strings.EqualFold(cr.InputMode, "bytes") {
+		cfg["input_mode"] = "bytes"
+	}
+	seeds, _ := fuzzengine.CorpusSeedsFromClaimMaps(cr.CorpusSeeds)
+	if len(seeds) > 0 {
+		cfg["guided_scheduling"] = true
+	}
+	sem := fuzzengine.ParseCheckSemantics(cfg)
+	if fuzzengine.GuidedSchedulingEnabled(cfg) && len(seeds) == 0 {
+		// Legacy claim without snapshot — segment verify may diverge; single-exec only.
+		if execPer > 1 {
+			execPer = 1
+		}
+		cfg["exec_per_unit"] = execPer
+	}
+	runOne := func(runCtx context.Context, inU uint64, inputB []byte) (int32, string, error, []byte) {
+		cctx, cancel := context.WithTimeout(runCtx, time.Duration(timeoutMS)*time.Millisecond)
+		defer cancel()
+		if len(inputB) > 0 {
+			out, execErr := sandbox.InvokeCheckOutcomeInput(cctx, wasm, inputB)
+			if execErr != nil {
+				return 0, execErr.Error(), execErr, nil
+			}
+			if out.OK {
+				return 1, "", nil, out.EdgeBitmap
+			}
+			return 0, "", nil, out.EdgeBitmap
+		}
+		if inU != 0 {
+			out, execErr := sandbox.InvokeCheckOutcome(cctx, wasm, inU)
+			if execErr != nil {
+				return 0, execErr.Error(), execErr, nil
+			}
+			if out.OK {
+				return 1, "", nil, out.EdgeBitmap
+			}
+			return 0, "", nil, out.EdgeBitmap
+		}
+		out, execErr := sandbox.InvokeCheckOutcomeInput(cctx, wasm, InputForCheck(cr))
+		if execErr != nil {
+			return 0, execErr.Error(), execErr, nil
+		}
+		if out.OK {
+			return 1, "", nil, out.EdgeBitmap
+		}
+		return 0, "", nil, out.EdgeBitmap
+	}
+	if execPer <= 1 {
+		cctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMS)*time.Millisecond)
+		defer cancel()
+		out, execErr := sandbox.InvokeCheckOutcomeInput(cctx, wasm, InputForCheck(cr))
+		durationMS = int(time.Since(start).Milliseconds())
+		if execErr != nil {
+			return 0, durationMS, execErr.Error(), 1
+		}
+		if out.OK {
+			return 1, durationMS, "", 1
+		}
+		return 0, durationMS, "", 1
+	}
+	segCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMS*execPer)*time.Millisecond)
 	defer cancel()
-	ok, execErr := sandbox.InvokeCheckInput(cctx, wasm, InputForCheck(cr))
+	seg := fuzzengine.EvalSegment(segCtx, cr.InputN, cfg, seeds, sem, runOne)
 	durationMS = int(time.Since(start).Milliseconds())
-	if execErr != nil {
-		return 0, durationMS, execErr.Error()
-	}
-	if ok {
-		return 1, durationMS, ""
-	}
-	return 0, durationMS, ""
+	return seg.CheckResult, durationMS, seg.Trap, seg.ExecDone
 }
 
 // InputForCheck returns bytes for check_bytes / packed check(i64).
@@ -437,18 +510,19 @@ func InputForCheck(cr ClaimResp) []byte {
 }
 
 // Submit posts a fuzz work result (optional hybrid signature).
-func Submit(ctx context.Context, cl *http.Client, base, token, workerID, minerAddress string, priv ed25519.PrivateKey, pubHex string, hybrid bool, nonce uint64, cr ClaimResp, checkResult int32, durationMS int, trap string) error {
+func Submit(ctx context.Context, cl *http.Client, base, token, workerID, minerAddress string, priv ed25519.PrivateKey, pubHex string, hybrid bool, nonce uint64, cr ClaimResp, checkResult int32, durationMS int, trap string, segmentExecDone int) error {
 	payload := map[string]any{
-		"worker_id":    workerID,
-		"work_id":      cr.WorkID,
-		"campaign_id":  cr.CampaignID,
-		"item_id":      cr.ItemID,
-		"input_n":      cr.InputN,
-		"actual_input": cr.ActualInput,
-		"check_result": checkResult,
-		"duration_ms":  durationMS,
-		"trap":         trap,
-		"submit_nonce": nonce,
+		"worker_id":         workerID,
+		"work_id":           cr.WorkID,
+		"campaign_id":       cr.CampaignID,
+		"item_id":           cr.ItemID,
+		"input_n":           cr.InputN,
+		"actual_input":      cr.ActualInput,
+		"check_result":      checkResult,
+		"duration_ms":       durationMS,
+		"trap":              trap,
+		"submit_nonce":      nonce,
+		"segment_exec_done": segmentExecDone,
 	}
 	if hybrid {
 		if priv == nil {
@@ -457,6 +531,10 @@ func Submit(ctx context.Context, cl *http.Client, base, token, workerID, minerAd
 		signPayload := poolfuzz.SubmitSignPayload{
 			WorkerID: workerID, CampaignID: cr.CampaignID, ItemID: cr.ItemID,
 			InputN: cr.InputN, ActualInput: cr.ActualInput, CheckResult: checkResult, SubmitNonce: nonce,
+			SegmentExecDone: segmentExecDone,
+		}
+		if h := strings.TrimSpace(cr.InputBytesHex); h != "" {
+			signPayload.InputBytesHex = h
 		}
 		sig := ed25519.Sign(priv, poolfuzz.CanonicalSubmitBytes(signPayload))
 		payload["miner_pubkey"] = pubHex

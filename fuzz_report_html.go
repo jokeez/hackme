@@ -262,6 +262,8 @@ a{color:#00d1ff}
 <div class="stat"><b>Fetched window</b>%s fetched / %s history / truncated %s</div>
 <div class="stat"><b>Shown rows</b>%s raw / %s shown / %s hidden</div>
 <div class="stat"><b>Crash-class</b>%s</div>
+<div class="stat"><b>Crash unique</b>%s</div>
+<div class="stat"><b>Crash dup</b>%s</div>
 <div class="stat"><b>Critical</b>%s</div>
 <div class="stat"><b>Coverage noise</b>%s</div>
 <div class="stat"><b>Edges / paths</b>%s / %s</div>
@@ -276,7 +278,7 @@ a{color:#00d1ff}
 %s
 <div class="card noise">
 <p class="lbl">Appendix · coverage noise (detector / property)</p>
-<table><thead><tr><th>Severity</th><th>Type</th><th>Title</th></tr></thead><tbody>%s</tbody></table>
+<table><thead><tr><th>Severity</th><th>Type</th><th>Title</th><th>Explain</th></tr></thead><tbody>%s</tbody></table>
 </div>
 <div class="card">
 <p class="lbl">Target fingerprint</p>
@@ -319,6 +321,8 @@ a{color:#00d1ff}
 		html.EscapeString(toString(sum["grouped_rows_visible"])),
 		html.EscapeString(toString(sum["grouped_rows_hidden"])),
 		html.EscapeString(toString(sum["crash_count"])),
+		html.EscapeString(toString(sum["crash_unique_count"])),
+		html.EscapeString(toString(sum["crash_duplicate_count"])),
 		html.EscapeString(toString(sum["critical_count"])),
 		html.EscapeString(toString(sum["coverage_noise_count"])),
 		html.EscapeString(toString(sum["coverage_edges"])),
@@ -392,15 +396,20 @@ func renderFuzzIssueRows(report map[string]any) string {
 func renderFuzzNoiseRows(report map[string]any) string {
 	arr, ok := report["coverage_noise"].([]fuzzProductTopIssue)
 	if !ok || len(arr) == 0 {
-		return `<tr><td colspan="3" class="muted">No detector/property coverage noise in this sample.</td></tr>`
+		return `<tr><td colspan="4" class="muted">No detector/property coverage noise in this sample.</td></tr>`
 	}
 	var b strings.Builder
 	for _, i := range arr {
+		explain := strings.TrimSpace(i.Explain)
+		if explain == "" {
+			explain = "—"
+		}
 		b.WriteString(fmt.Sprintf(
-			`<tr><td>%s</td><td>%s</td><td>%s</td></tr>`,
+			`<tr><td>%s</td><td>%s</td><td>%s</td><td class="muted">%s</td></tr>`,
 			html.EscapeString(i.Severity),
 			html.EscapeString(i.FindingType),
 			html.EscapeString(i.Title),
+			html.EscapeString(explain),
 		))
 	}
 	return b.String()
@@ -451,7 +460,8 @@ func renderFuzzReproSection(report map[string]any) string {
 
 func renderFuzzEngineNote(report map[string]any) string {
 	scopeBlock := `<div class="card scope"><p class="lbl">Scope &amp; honesty</p>
-<p>This report covers <strong>WASM sandbox</strong> execution of your linked guard module (<code>check(i64)→i32</code>), not a full upstream node audit.
+<p>This report covers <strong>WASM sandbox</strong> execution of your linked guard module
+(<code>check(i64)→i32</code> or <code>check_bytes(ptr,len)→i32</code> when <code>input_mode=bytes</code>), not a full upstream node audit.
 <strong>Top issues are crash-first</strong> (crash / hang / ASan / memory). Detector and property signals live in the coverage-noise appendix and are not CVE claims.
 This report is derived from the fetched evidence window for this request (<code>?limit=...</code>), so shown rows may represent only part of the full campaign history.
 Use <code>repro</code> (input → command) locally, then validate crash-class issues against native builds before claiming 0-day.
@@ -459,7 +469,7 @@ Public L1 research (qa-assets corpus) lives at <a href="https://hackme.tech/repo
 	meta := ""
 	if m, ok := report["fuzz_engine"].(map[string]any); ok {
 		parts := []string{}
-		for _, k := range []string{"semantics", "sandbox", "worker", "check_semantics", "depth_tier"} {
+		for _, k := range []string{"semantics", "sandbox", "worker", "check_semantics", "depth_tier", "input_mode", "max_input_bytes", "guard_pack", "version"} {
 			if v := strings.TrimSpace(toString(m[k])); v != "" {
 				parts = append(parts, k+"="+v)
 			}

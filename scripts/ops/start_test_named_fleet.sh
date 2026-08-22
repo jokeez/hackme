@@ -2,7 +2,7 @@
 # Start N independent Cosmetics/test pool workers (CPU claim/submit, pinned GH/s).
 # Durable via systemd --user (survives shell exit). Does NOT touch worker-kapa-pc.
 #
-# Default: 15 rigs, distinct GH/s from 30 … 70 (evenly spaced; pool display ~500+ GH).
+# Default: 15 rigs, distinct GH/s from 30 … 60 (evenly spaced; pool display ~500+ GH).
 #
 #   bash scripts/ops/start_test_named_fleet.sh
 #   bash scripts/ops/stop_test_named_fleet.sh
@@ -16,14 +16,13 @@ LOG_DIR="${LOG_DIR:-$ROOT/logs/test-named-fleet}"
 SEED_DIR="${SEED_DIR:-$ROOT/logs/test-named-fleet/seeds}"
 BATCH_SIZE="${BATCH_SIZE:-2097152}"
 GH_MIN="${GH_MIN:-30.0}"
-GH_MAX="${GH_MAX:-70.0}"
+GH_MAX="${GH_MAX:-60.0}"
 UNIT_PREFIX="${UNIT_PREFIX:-hackme-test-poh}"
 
 NAMES=(
-  ashwood blackout coldline digsite eastwind
-  faraday graphite harbour ironclad jackknife
-  keystone lantern mercury northstar overdrive
-  redline skyhook timber vault waypoint
+  desktop-a4m2rx desktop-k7v1pd desktop-q9n4ls desktop-t2c8we desktop-z5h6mf
+  shannon turing hopper knuth mccarthy
+  lovelace tesla euclid noether faraday
 )
 
 TOKEN="${POOL_TOKEN:-}"
@@ -31,7 +30,7 @@ if [[ -z "$TOKEN" && -f "$ROOT/.secrets/hackme_coordinator_worker_token" ]]; the
   TOKEN="$(tr -d '\r\n' <"$ROOT/.secrets/hackme_coordinator_worker_token")"
 fi
 if [[ -z "$TOKEN" ]]; then
-  echo "[test-fleet] need POOL_TOKEN or .secrets/hackme_coordinator_worker_token" >&2
+  echo "[test-fleet] need POOL_TOKEN or .secrets/hackme_coordinator_worker_token (never admin token)" >&2
   exit 1
 fi
 

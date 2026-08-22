@@ -33,7 +33,9 @@
       <p class="kicker">Commercial · B2B security audit</p>
       <h1>B2B fuzz final — one command to report + CI gate</h1>
       <p class="hero-copy">
-        Ship a WASM security guard, pick <strong>Scan · Audit · Deep</strong>, miners on the HackMe pool fuzz it — you get
+        Ship a WASM security guard <em>or</em> pick a ready <strong>pack</strong> (<code>secrets</code> · <code>script_bounds</code> · <code>filter_utf8</code>),
+        choose <strong>Scan · Audit · Deep</strong>, miners on the HackMe pool fuzz it — you get
+        an HTML report, CI <strong>gate</strong>, optional <strong>Proof of Fuzz</strong> badge, and escrow economics.
         <code>report.html</code>, live <code>pulse</code>, and <code>GET /gate</code> for CI.
         Escrow stays on <strong>your local node</strong> (<code>127.0.0.1:8080</code>); hackme.tech delivers read-only tracker + token-gated reports.
       </p>
@@ -45,7 +47,9 @@
       </div>
       <div class="pill-row">
         <span class="pill">hackme-fuzzing wizard</span>
+        <span class="pill">Packs · secrets</span>
         <span class="pill">Scan · Audit · Deep</span>
+        <span class="pill">Proof of Fuzz</span>
         <span class="pill">CI gate endpoint</span>
         <span class="pill">No browser admin on prod</span>
       </div>
@@ -90,7 +94,7 @@
             <tbody>
               <tr><td>1 · Setup</td><td>Read 5 docs, guess budget</td><td><code>hackme-node</code> + fund wallet on <code>127.0.0.1:8080</code></td></tr>
               <tr><td>2 · Build guard</td><td><code>hackme-fuzzing build</code> + manual manifest</td><td>Same, or existing <code>.wasm</code></td></tr>
-              <tr><td>3 · Order</td><td><code>create manifest.json</code> or long <code>curl security-audit</code></td><td><strong>One command:</strong> <code>wizard --wasm guard.wasm --package audit</code></td></tr>
+              <tr><td>3 · Order</td><td><code>create manifest.json</code> or long <code>curl security-audit</code></td><td><strong>One command:</strong> <code>wizard --pack secrets --package audit</code> or <code>wizard --wasm guard.wasm --package audit</code></td></tr>
               <tr><td>4 · Package</td><td>Pick depth_tier + budget by hand</td><td><strong>Scan / Audit / Deep</strong> presets (1 / 5 / 10 HMC)</td></tr>
               <tr><td>5 · Deliverable</td><td>Hunt for report token in JSON</td><td>Wizard prints <code>report_url</code>, <code>gate_url</code>, <code>pulse_url</code></td></tr>
               <tr><td>6 · CI</td><td>Wire gate yourself</td><td>GitHub Action example in repo + gate URL in wizard output</td></tr>
@@ -165,7 +169,7 @@ hackme-fuzzing wizard \
         <li>Download <strong>both</strong> <code>hackme-fuzzing</code> and <code>hackme-fuzzing-build</code> into the same folder.</li>
         <li>Run <code>powershell -ExecutionPolicy Bypass -File scripts/ops/fuzzing_windows_quickstart.ps1</code> (from git clone) or register manually.</li>
         <li>Build WASM locally (or use an existing <code>.wasm</code> guard).</li>
-        <li><strong>Recommended:</strong> <code>hackme-fuzzing wizard --wasm guard.wasm --package audit</code> — escrow + pool + report token.</li>
+        <li><strong>Recommended:</strong> <code>hackme-fuzzing wizard --pack secrets --package audit</code> — or <code>--wasm guard.wasm</code>. Add <code>--public-proof</code> for a public facts page + README badge.</li>
         <li>Classic path: <code>hackme-fuzzing create manifest.json</code> or local dashboard <code>#orders</code>.</li>
         <li>Open report with <code>X-Hackme-Report-Token</code> · wire <code>gate_url</code> into CI.</li>
       </ol>
@@ -178,7 +182,8 @@ hackme-fuzzing wizard \
         <summary>Copy/paste command examples</summary>
         <pre class="code-block"><code># Recommended — B2B final (local node + admin token)
 export HACKME_ADMIN_TOKEN=…
-hackme-fuzzing wizard --wasm ./guard.wasm --package audit --title "My guard"
+hackme-fuzzing wizard --pack secrets --package audit --public-proof --title "My pack"
+# or: hackme-fuzzing wizard --wasm ./guard.wasm --package audit --title "My guard"
 # → campaign_id, customer_report_token, report_url, gate_url
 
 # Integrator token (orders via manifest — developer scope)

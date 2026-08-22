@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"hackme/internal/fuzzengine"
 )
 
 const (
@@ -51,16 +53,33 @@ func ParseReproMode(cfg map[string]any) ReproMode {
 	switch s {
 	case string(ReproModeAsanBinary), "asan", "binary", "tier_c":
 		return ReproModeAsanBinary
+	case string(ReproModeOssStdin), "oss_stdin", "stdin_asan":
+		return ReproModeOssStdin
 	}
 	tier := strings.TrimSpace(strings.ToLower(fmt.Sprint(cfg["depth_tier"])))
 	if tier == "upstream_binary" || tier == "tier_c" {
 		return ReproModeAsanBinary
+	}
+	if tier == "oss_cve" {
+		return ReproModeOssStdin
 	}
 	return ReproModeGoPort
 }
 
 // EvalReproEx runs native repro with the selected backend.
 func EvalReproEx(mode ReproMode, upstreamTarget, guardName string, input []byte, pins *PinManifest, repoRoot string) ReproResult {
+	if mode == ReproModeOssStdin {
+		if res, ok := evalReproOssStdin(upstreamTarget, guardName, input, repoRoot); ok {
+			return res
+		}
+		res := ReproResult{
+			Status:         StatusSkipped,
+			UpstreamTarget: resolveOssTargetID(upstreamTarget, guardName),
+			InputHex:       hex.EncodeToString(input),
+			Note:           "oss_upstream unavailable",
+		}
+		return res
+	}
 	if mode == ReproModeAsanBinary {
 		if res, ok := evalReproAsanBinary(upstreamTarget, guardName, input, pins, repoRoot); ok {
 			return res
@@ -118,6 +137,8 @@ func evalReproAsanBinary(upstreamTarget, guardName string, input []byte, pins *P
 		res.Status = StatusNativeCrash
 		res.NativeSignal = true
 		res.GuardSignal = false
+		res.SanitizerTail = tail
+		res.StableCrashKey = fuzzengine.StableCrashBucket("asan", tail)
 		res.Note = "ASAN/UBSAN crash on pinned harness — triage before CVE/disclosure"
 		if tail != "" {
 			res.Note += " | " + tail
@@ -237,7 +258,7 @@ func runAsanBinary(ctx context.Context, binPath, u64Arg string) (crash, guardHit
 	cmd := exec.CommandContext(ctx, binPath, u64Arg)
 	cmd.Env = []string{
 		"PATH=/usr/bin:/bin",
-		"ASAN_OPTIONS=detect_leaks=0:halt_on_error=1:allocator_may_return_null=1:print_stacktrace=0",
+		"ASAN_OPTIONS=detect_leaks=0:halt_on_error=1:abort_on_error=1:allocator_may_return_null=1:print_summary=1:print_stacktrace=0",
 		"UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=0",
 		"HOME=/tmp",
 	}
@@ -246,8 +267,9 @@ func runAsanBinary(ctx context.Context, binPath, u64Arg string) (crash, guardHit
 	cmd.Stderr = &stderr
 	runErr := cmd.Run()
 	blob := stdout.String() + stderr.String()
-	if len(blob) > 600 {
-		tail = strings.TrimSpace(blob[len(blob)-600:])
+	const tailMax = 8192
+	if len(blob) > tailMax {
+		tail = strings.TrimSpace(blob[len(blob)-tailMax:])
 	} else {
 		tail = strings.TrimSpace(blob)
 	}

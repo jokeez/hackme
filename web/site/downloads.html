@@ -79,6 +79,8 @@ powershell -ExecutionPolicy Bypass -File scripts/ops/fuzzing_windows_quickstart.
         <pre class="code-block"><code>.\hackme-fuzzing-*-windows-amd64.exe register --base http://127.0.0.1:8080 --save
 .\hackme-fuzzing-*-windows-amd64.exe wizard --wasm guard.wasm --package audit --title "My guard"
 # → report_url, gate_url, customer_report_token (save once)
+# Packs + Proof of Fuzz:
+# .\hackme-fuzzing-*-windows-amd64.exe wizard --pack secrets --package audit --public-proof
 
 # Classic path:
 .\hackme-fuzzing-*-windows-amd64.exe build -lang rust -source check.rs -out .\fuzzing-out

@@ -86,6 +86,16 @@
               <td>CI/release gate: pass/fail + reasons against severity thresholds.</td>
             </tr>
             <tr>
+              <td><span class="method-pill method-get">GET</span></td>
+              <td><span class="code-inline">/proof/{id}</span> · <span class="code-inline">…/badge.svg</span></td>
+              <td>Proof of Fuzz public facts + README badge when <span class="code-inline">public_proof</span> is set (else token/admin). No finding payloads.</td>
+            </tr>
+            <tr>
+              <td><span class="method-pill method-post">POST</span></td>
+              <td><span class="code-inline">/api/security-audit</span></td>
+              <td>B2B wizard path: WASM/pack campaign + escrow. Config may include <span class="code-inline">input_mode</span>, <span class="code-inline">guard_pack</span>, <span class="code-inline">public_proof</span>.</td>
+            </tr>
+            <tr>
               <td><span class="method-pill method-post">POST</span></td>
               <td><span class="code-inline">/api/tx/send</span></td>
               <td>Submit signed transfer transaction (v1).</td>

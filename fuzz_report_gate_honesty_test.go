@@ -55,12 +55,28 @@ func insertFuzzFinding(
 	reproCmd string,
 	createdAt time.Time,
 ) {
+	insertFuzzFindingDetail(t, db, campaignID, findingID, findingType, severity, title, inputSHA256, reproCmd, "{}", createdAt)
+}
+
+func insertFuzzFindingDetail(
+	t *testing.T,
+	db *sql.DB,
+	campaignID string,
+	findingID string,
+	findingType string,
+	severity string,
+	title string,
+	inputSHA256 string,
+	reproCmd string,
+	detailJSON string,
+	createdAt time.Time,
+) {
 	t.Helper()
 	_, err := db.ExecContext(context.Background(),
 		`INSERT INTO fuzz_findings
 		 (id, campaign_id, finding_type, severity, title, input_sha256, artifact_path, repro_cmd, detail_json, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, '', ?, '{}', ?)`,
-		findingID, campaignID, findingType, severity, title, inputSHA256, reproCmd, createdAt.Unix())
+		 VALUES (?, ?, ?, ?, ?, ?, '', ?, ?, ?)`,
+		findingID, campaignID, findingType, severity, title, inputSHA256, reproCmd, detailJSON, createdAt.Unix())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,11 +260,12 @@ func TestFuzzGateHonesty_RawCrashCountersNotGroupedDisplay(t *testing.T) {
 		map[string]any{"depth_tier": "wasm_native"}, 42, "completed")
 
 	now := time.Now()
-	// Insert 7 crash-class findings, which would overflow the display topLimit=5.
+	// Insert 7 distinct crash buckets (different trap text) so dedup keeps 7 rows; display topLimit=5 hides 2.
 	for i := 1; i <= 7; i++ {
-		insertFuzzFinding(t, db, camp,
+		detail := `{"trap":"ERROR: AddressSanitizer: heap-buffer-overflow on variant ` + toString(i) + `\nSUMMARY: … in crash` + toString(i) + `"}`
+		insertFuzzFindingDetail(t, db, camp,
 			"crash-"+toString(i), "crash", "critical", "dup-crash-title", "in"+toString(i),
-			"go run repro crash-"+toString(i), now.Add(time.Duration(i)*time.Minute))
+			"go run repro crash-"+toString(i), detail, now.Add(time.Duration(i)*time.Minute))
 	}
 
 	// Ask for evidence window size 7; gate should fail based on raw critical_count=7.

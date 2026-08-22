@@ -51,6 +51,8 @@ func TestRenderFuzzReportHTML_v2ReproAndTriage(t *testing.T) {
 			Artifact:    "/tmp/x.input",
 			TriageClass: "coverage_noise",
 			TriageNote:  "Coverage noise",
+			GuardPack:   "script_bounds",
+			Explain:     "Script push bound violation class — oversized push claim; validate against your script/consensus path.",
 		}},
 		"target_fingerprint": map[string]any{"available": false, "note": "stub"},
 		"evidence_window": map[string]any{
@@ -71,6 +73,8 @@ func TestRenderFuzzReportHTML_v2ReproAndTriage(t *testing.T) {
 		"Shown rows",
 		"report request fetched 3 findings (limit 500) versus 3 total findings in campaign history",
 		"property_violation",
+		"<th>Explain</th>",
+		"Script push bound violation class",
 	} {
 		if !strings.Contains(htmlOut, want) {
 			t.Fatalf("missing %q in html", want)

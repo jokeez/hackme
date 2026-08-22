@@ -9222,7 +9222,6 @@
 		function miningWorkerRowVisible(r, rowSt, online, sampleUnix) {
 			const myId = String((latestWorkerStatus && latestWorkerStatus.worker_id) || 'worker-kapa-pc');
 			const isMine = r.id === myId || r.id === 'worker-kapa-pc';
-			const hasHistory = Number(r.payout || 0) > 0 || Number(r.attempts || 0) > 0 || Number(r.ranges || 0) > 0;
 			const isFuzz = isFuzzPoolWorkerId(r.id);
 			if (miningWorkersFilter === 'fuzz') return isFuzz;
 			// Default PoH table: hide workerfuzz (escrow diggers; payout_hmc always 0 here).
@@ -9230,7 +9229,7 @@
 			if (miningWorkersFilter === 'all') return true;
 			if (miningWorkersFilter === 'live') return online;
 			if (miningWorkersFilter === 'offline') return !online;
-			return online || isMine || hasHistory;
+			return online || isMine;
 		}
 
 		function bindMiningWorkersControls() {

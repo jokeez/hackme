@@ -85,7 +85,10 @@ func TestMaliciousWasm_WASIImportRejectedBeforeHostAccess(t *testing.T) {
 		t.Fatal("expected rejection for WASI import module")
 	}
 	low := strings.ToLower(err.Error())
-	if !strings.Contains(low, "export") && !strings.Contains(low, "compile") && !strings.Contains(low, "instantiate") {
+	if !strings.Contains(low, "export") &&
+		!strings.Contains(low, "import") &&
+		!strings.Contains(low, "compile") &&
+		!strings.Contains(low, "instantiate") {
 		t.Fatalf("unexpected error type: %v", err)
 	}
 }

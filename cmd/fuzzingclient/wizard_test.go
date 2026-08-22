@@ -35,6 +35,28 @@ func TestWizardDryRunScanPackage(t *testing.T) {
 	}
 }
 
+func TestWizardDryRunPackSecrets(t *testing.T) {
+	m, err := doWizardDryRunPack("audit", "secrets", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m["pack"] != "secrets" {
+		t.Fatalf("pack=%v", m["pack"])
+	}
+	if m["input_mode"] != "bytes" {
+		t.Fatalf("input_mode=%v", m["input_mode"])
+	}
+	if m["guided_scheduling"] != true {
+		t.Fatal("expected guided")
+	}
+	if m["depth_tier"] != string(fuzzengine.DepthBytesCorpus) {
+		t.Fatalf("depth_tier=%v", m["depth_tier"])
+	}
+	if m["wasm_len"].(int) < 100 {
+		t.Fatalf("wasm too small: %v", m["wasm_len"])
+	}
+}
+
 func TestWizardDryRunPackagesDiffer(t *testing.T) {
 	wasm := filepath.Join("..", "..", "tasks", "artifacts", "security", "rust_script_push_bounds_guard.wasm")
 	scan, err := doWizardDryRun("scan", wasm)

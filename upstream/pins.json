@@ -48,6 +48,15 @@
         "internal/chain/economics.go"
       ]
     },
+    "expat": {
+      "remote": "https://github.com/libexpat/libexpat",
+      "ref": "master",
+      "fuzz_harness": "expat_stdin",
+      "source_files": [
+        "expat/lib/xmlparse.c",
+        "expat/lib/xmltok.c"
+      ]
+    },
     "qa_assets": {
       "remote": "https://github.com/bitcoin-core/qa-assets.git",
       "branch": "main",

@@ -75,38 +75,10 @@ func parseByteSeedAny(v any) ([]byte, bool) {
 	}
 }
 
-// DeriveInputBytes maps work id to mutated byte input (deterministic).
+// DeriveInputBytes maps work id to mutated byte input (deterministic anchor exec).
 func DeriveInputBytes(inputN uint64, cfg map[string]any) []byte {
-	seeds := ParseByteCorpus(cfg)
-	var base []byte
-	if len(seeds) > 0 {
-		base = append([]byte(nil), seeds[inputN%uint64(len(seeds))]...)
-	} else {
-		var buf [8]byte
-		u := DeriveInput(inputN, cfg)
-		for i := 0; i < 8; i++ {
-			buf[i] = byte(u >> (8 * i))
-		}
-		base = buf[:]
-	}
-	rounds := MutationRounds(cfg)
-	out := append([]byte(nil), base...)
-	for i := 0; i < rounds; i++ {
-		mix := splitmix64(inputN + uint64(i)*0x9E3779B185EBCA87)
-		if len(out) == 0 {
-			out = []byte{byte(mix)}
-		}
-		idx := int(mix % uint64(len(out)))
-		bit := byte(1 << (mix % 8))
-		out[idx] ^= bit
-		if mix%5 == 0 && len(out) < 64 {
-			out = append(out, byte(mix>>8))
-		}
-	}
-	if len(out) > 256 {
-		out = out[:256]
-	}
-	return out
+	_, b := SegmentExecInput(inputN, 0, cfg, nil)
+	return b
 }
 
 // InputBytesSHA256 hashes arbitrary fuzz input bytes.
@@ -133,7 +105,7 @@ func ReproCmdBytes(wasmPath string, input []byte) string {
 	return fmt.Sprintf("HACKME_FUZZ_INPUT_HEX=%s wasm=%s", hexIn, wasmPath)
 }
 
-// CoverageBucketsFromBytes returns synthetic edge/path buckets from byte input.
+// CoverageBucketsFromBytes returns input fingerprint buckets for corpus scheduling (not WASM edge coverage).
 func CoverageBucketsFromBytes(input []byte) (edgeBucket, pathBucket int) {
 	h := fnv.New64a()
 	_, _ = h.Write(input)
@@ -153,3 +125,31 @@ func CoverageBucketsFromBytes(input []byte) (edgeBucket, pathBucket int) {
 	}
 	return edgeBucket, pathBucket
 }
+
+// BytesDetectorTitle builds a short customer-facing title for byte-mode detector hits.
+func BytesDetectorTitle(input []byte) string {
+	const maxShow = 48
+	printable := true
+	for _, c := range input {
+		if c == '\n' || c == '\t' || c == '\r' {
+			continue
+		}
+		if c < 32 || c >= 127 {
+			printable = false
+			break
+		}
+	}
+	if printable && len(input) > 0 {
+		s := string(input)
+		if len(s) > maxShow {
+			s = s[:maxShow] + "…"
+		}
+		return "detector hit: " + s
+	}
+	hx := hex.EncodeToString(input)
+	if len(hx) > maxShow*2 {
+		hx = hx[:maxShow*2] + "…"
+	}
+	return "detector hit (bytes): 0x" + hx
+}
+

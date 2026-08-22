@@ -547,6 +547,18 @@ func (a *app) handleFuzzCampaigns(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		a.handleFuzzCampaignProofBundle(w, r, campaignID)
+	case "proof":
+		if r.Method != http.MethodGet {
+			writeAPIError(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed", nil)
+			return
+		}
+		a.handleFuzzCampaignProof(w, r, campaignID)
+	case "badge.svg":
+		if r.Method != http.MethodGet {
+			writeAPIError(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed", nil)
+			return
+		}
+		a.handleFuzzCampaignBadgeSVG(w, r, campaignID)
 	default:
 		writeAPIError(w, http.StatusNotFound, "not_found", "not found", nil)
 	}
@@ -2005,7 +2017,8 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 		}
 		findings[j+1] = cur
 	}
-	topIssues, coverageNoise, crashCount, noiseCount := partitionFindingsCrashFirst(findings, fuzzTopIssueLimit, fuzzCoverageNoiseLimit)
+	displayFindings, crashUnique, crashDup := collapseCrashFindingsForReport(findings)
+	topIssues, coverageNoise, crashCount, noiseCount := partitionFindingsCrashFirst(displayFindings, fuzzTopIssueLimit, fuzzCoverageNoiseLimit)
 	crashCrit, crashHigh, crashMed, crashLow, crashInfo := crashClassSeverityCounts(findings)
 	crashScore := crashClassSeverityScore(crashCrit, crashHigh, crashMed, crashLow, crashInfo)
 
@@ -2123,6 +2136,8 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 				"high_count":             crashHigh,
 				"severity_score":         crashScore,
 				"crash_count":            crashCount,
+				"crash_unique_count":     crashUnique,
+				"crash_duplicate_count":  crashDup,
 				"coverage_noise_count":   noiseCount,
 				"raw_findings_total":     len(findings),
 				"grouped_rows_visible":   groupedRowsVisible,
@@ -2147,6 +2162,8 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 			"all_low_count":          low,
 			"all_info_count":         info,
 			"crash_count":            crashCount,
+			"crash_unique_count":     crashUnique,
+			"crash_duplicate_count":  crashDup,
 			"coverage_noise_count":   noiseCount,
 			"no_critical":            crashCrit == 0,
 			"sample_size":            sampleN,
@@ -2177,6 +2194,8 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 			"severity_score":         crashScore,
 			"all_severity_score":     critical*100 + high*40 + medium*10 + low*3 + info,
 			"crash_count":            crashCount,
+			"crash_unique_count":     crashUnique,
+			"crash_duplicate_count":  crashDup,
 			"coverage_noise_count":   noiseCount,
 			"grouped_rows_visible":   groupedRowsVisible,
 			"grouped_rows_hidden":    groupedRowsHidden,
@@ -2446,7 +2465,31 @@ func (a *app) handleFuzzCampaignGate(w http.ResponseWriter, r *http.Request, cam
 	if assurance == "" {
 		assurance = "pass ≠ proven secure; gate uses crash-class counts (detector noise excluded)"
 	}
-	writeJSON(w, map[string]any{
+	packMeta := map[string]any{}
+	if camp, ok := report["campaign"].(fuzzCampaign); ok && camp.Config != nil {
+		if gp := strings.TrimSpace(toString(camp.Config["guard_pack"])); gp != "" {
+			packMeta["id"] = gp
+			packMeta["input_mode"] = toString(camp.Config["input_mode"])
+		}
+	}
+	samples := make([]map[string]any, 0, 5)
+	if noise, ok := report["coverage_noise"].([]fuzzProductTopIssue); ok {
+		for i, it := range noise {
+			if i >= 5 {
+				break
+			}
+			if strings.TrimSpace(it.Explain) == "" && strings.TrimSpace(it.GuardPack) == "" {
+				continue
+			}
+			samples = append(samples, map[string]any{
+				"title":      it.Title,
+				"guard_pack": it.GuardPack,
+				"explain":    it.Explain,
+				"severity":  it.Severity,
+			})
+		}
+	}
+	out := map[string]any{
 		"ok":             true,
 		"campaign_id":    campaignID,
 		"pass":           pass,
@@ -2477,5 +2520,12 @@ func (a *app) handleFuzzCampaignGate(w http.ResponseWriter, r *http.Request, cam
 			"full_campaign_findings": fullCampaignFindings,
 			"history_truncated":      historyTruncated,
 		},
-	})
+	}
+	if len(packMeta) > 0 {
+		out["guard_pack"] = packMeta
+	}
+	if len(samples) > 0 {
+		out["pack_explain_samples"] = samples
+	}
+	writeJSON(w, out)
 }

@@ -13,6 +13,7 @@ import (
 
 	"hackme/internal/fuzzartifacts"
 	"hackme/internal/fuzzengine"
+	"hackme/internal/fuzzingcli"
 	"hackme/internal/fuzznative"
 	"hackme/internal/sandbox"
 )
@@ -38,31 +39,35 @@ type Campaign struct {
 }
 
 type ClaimedWork struct {
-	WorkID         string
-	CampaignID     string
-	ItemID         int64
-	InputN         uint64
-	ActualInput    uint64
-	InputBytes     []byte
-	InputMode      string
-	WasmCheckHex   string
-	CheckSemantics string
-	DepthTier      string
-	PerRunHMC      float64
+	WorkID               string
+	CampaignID           string
+	ItemID               int64
+	InputN               uint64
+	ActualInput          uint64
+	InputBytes           []byte
+	InputMode            string
+	WasmCheckHex         string
+	CheckSemantics       string
+	DepthTier            string
+	PerRunHMC            float64
+	ExecPerUnit          int
+	CorpusSeeds          []fuzzengine.PoolCorpusSeed
+	CorpusSnapshotSHA256 string
 }
 
 type SubmitRequest struct {
-	WorkerID     string
-	MinerAddress string
-	WorkID       string
-	CampaignID   string
-	ItemID       int64
-	InputN       uint64
-	ActualInput  uint64
-	InputBytes   []byte
-	CheckResult  int32
-	DurationMS   int
-	Trap         string
+	WorkerID        string
+	MinerAddress    string
+	WorkID          string
+	CampaignID      string
+	ItemID          int64
+	InputN          uint64
+	ActualInput     uint64
+	InputBytes      []byte
+	CheckResult     int32
+	DurationMS      int
+	Trap            string
+	SegmentExecDone int
 }
 
 // RegisterCampaign upserts a pool-distributed fuzz campaign and marks it running.
@@ -117,6 +122,9 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 			return err
 		}
 		_ = s.EnsureWorkItems(ctx, c.ID, now)
+		if err := s.seedPoolCorpusFromConfig(ctx, c.ID, cfg, now); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -523,22 +531,11 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 			if aff == 0 {
 				continue
 			}
-			wasmHex := wasmHexFromConfig(cfg)
-			actualU, actualB := derivePoolInputs(e.inputN, cfg)
-			sem := fuzzengine.ParseCheckSemantics(cfg)
-			return ClaimedWork{
-				WorkID:         fmt.Sprintf("%s:%d", e.camp, e.id),
-				CampaignID:     e.camp,
-				ItemID:         int64(e.id),
-				InputN:         e.inputN,
-				ActualInput:    actualU,
-				InputBytes:     actualB,
-				InputMode:      string(fuzzengine.ParseInputMode(cfg)),
-				WasmCheckHex:   wasmHex,
-				CheckSemantics: string(sem),
-				DepthTier:      string(fuzzengine.ParseDepthTier(cfg)),
-				PerRunHMC:      perRunHMCFromConfig(cfg),
-			}, true, nil
+			work, err := s.buildClaimedWork(ctx, e.camp, int64(e.id), e.inputN, cfg, workerID)
+			if err != nil {
+				return out, false, err
+			}
+			return work, true, nil
 		}
 	}
 
@@ -592,22 +589,11 @@ func (s *Service) claimOnePendingInCampaign(ctx context.Context, workerID, campa
 	if aff == 0 {
 		return out, false, nil
 	}
-	wasmHex := wasmHexFromConfig(cfg)
-	actualU, actualB := derivePoolInputs(inputN, cfg)
-	sem := fuzzengine.ParseCheckSemantics(cfg)
-	return ClaimedWork{
-		WorkID:         fmt.Sprintf("%s:%d", campaignID, itemID),
-		CampaignID:     campaignID,
-		ItemID:         itemID,
-		InputN:         inputN,
-		ActualInput:    actualU,
-		InputBytes:     actualB,
-		InputMode:      string(fuzzengine.ParseInputMode(cfg)),
-		WasmCheckHex:   wasmHex,
-		CheckSemantics: string(sem),
-		DepthTier:      string(fuzzengine.ParseDepthTier(cfg)),
-		PerRunHMC:      perRunHMCFromConfig(cfg),
-	}, true, nil
+	work, err := s.buildClaimedWork(ctx, campaignID, itemID, inputN, cfg, workerID)
+	if err != nil {
+		return out, false, err
+	}
+	return work, true, nil
 }
 
 // runnablePoolCampaignIDs lists running/planned pool campaigns (no EXISTS scan — claim probes each).
@@ -741,7 +727,10 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 		`SELECT input_n FROM fuzz_work_items WHERE id=? AND campaign_id=?`, req.ItemID, req.CampaignID).Scan(&inputN); err != nil {
 		return err
 	}
-	expectedU, expectedB := derivePoolInputs(inputN, cfg)
+	expectedU, expectedB, err := s.expectedInputsForSubmit(ctx, req.CampaignID, req.ItemID, inputN, cfg)
+	if err != nil {
+		return err
+	}
 	if req.InputN != 0 && req.InputN != inputN {
 		return fmt.Errorf("poolfuzz: input_n mismatch")
 	}
@@ -755,7 +744,27 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	} else if len(req.InputBytes) > 0 {
 		return fmt.Errorf("poolfuzz: unexpected input_bytes")
 	}
-	checkResult, trap, pass, recordFinding, err := s.evalSubmitCheck(ctx, cfg, sem, expectedU, expectedB)
+	maxB := fuzzengine.ParseMaxInputBytes(cfg)
+	if len(expectedB) > maxB {
+		return fmt.Errorf("poolfuzz: input_bytes exceed max_input_bytes")
+	}
+	execPer := fuzzengine.ExecPerUnit(cfg)
+	if execPer > 1 {
+		if req.SegmentExecDone != execPer {
+			return fmt.Errorf("poolfuzz: segment_exec_done mismatch want %d got %d", execPer, req.SegmentExecDone)
+		}
+	} else if req.SegmentExecDone > 0 && req.SegmentExecDone != 1 {
+		return fmt.Errorf("poolfuzz: unexpected segment_exec_done for single-exec unit")
+	}
+	var seeds []fuzzengine.PoolCorpusSeed
+	if fuzzengine.GuidedSchedulingEnabled(cfg) || fuzzengine.ExecPerUnit(cfg) > 1 {
+		var err error
+		seeds, err = s.SeedsForWorkItem(ctx, req.CampaignID, req.ItemID, cfg)
+		if err != nil {
+			return err
+		}
+	}
+	checkResult, trap, pass, recordFinding, findingU, findingB, seg, err := s.evalSubmitCheck(ctx, cfg, sem, inputN, expectedU, expectedB, seeds)
 	if err != nil {
 		return err
 	}
@@ -825,15 +834,29 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 		}
 		return nil
 	}
-	if err := s.recordCoverage(ctx, req.CampaignID, req.ActualInput, req.InputBytes, now); err != nil {
+	if len(seg.ExecCoverage) > 0 {
+		if err := s.recordSegmentCoverage(ctx, req.CampaignID, inputN, cfg, seeds, seg, now); err != nil {
+			return err
+		}
+	} else if err := s.recordCoverage(ctx, req.CampaignID, cfg, req.ActualInput, req.InputBytes, nil, now); err != nil {
+		return err
+	}
+	if err := s.observePoolCorpus(ctx, req.CampaignID, req.ActualInput, req.InputBytes, recordFinding, now); err != nil {
 		return err
 	}
 	var findingSeverity string
 	var findingType string
 	var findingID string
 	if recordFinding {
+		submitReq := req
+		submitReq.ActualInput = findingU
+		if len(findingB) > 0 {
+			submitReq.InputBytes = findingB
+		} else {
+			submitReq.InputBytes = expectedB
+		}
 		var err error
-		findingID, findingSeverity, findingType, err = s.insertFinding(ctx, req, cfg, sem, hasWasm, now)
+		findingID, findingSeverity, findingType, err = s.insertFinding(ctx, submitReq, cfg, sem, hasWasm, now)
 		if err != nil {
 			return err
 		}
@@ -947,42 +970,107 @@ func bountySeverity(sev string) bool {
 	}
 }
 
-func (s *Service) evalSubmitCheck(ctx context.Context, cfg map[string]any, sem fuzzengine.CheckSemantics, inputU uint64, inputB []byte) (checkResult int32, trap string, pass bool, recordFinding bool, err error) {
+func (s *Service) evalSubmitCheck(ctx context.Context, cfg map[string]any, sem fuzzengine.CheckSemantics, inputN, inputU uint64, inputB []byte, seeds []fuzzengine.PoolCorpusSeed) (checkResult int32, trap string, pass bool, recordFinding bool, findingU uint64, findingB []byte, seg fuzzengine.SegmentResult, err error) {
 	wasmHex := wasmHexFromConfig(cfg)
 	if wasmHex == "" {
-		// Without WASM the coordinator cannot verify detector semantics; never pay bounty on worker claims.
-		return 0, "", true, false, nil
+		return 0, "", true, false, inputU, inputB, seg, nil
 	}
 	wasm, err := hex.DecodeString(wasmHex)
 	if err != nil || len(wasm) == 0 {
-		return 0, "", false, false, fmt.Errorf("poolfuzz: invalid campaign wasm")
+		return 0, "", false, false, 0, nil, seg, fmt.Errorf("poolfuzz: invalid campaign wasm")
 	}
 	if vErr := sandbox.ValidateCheckWasm(ctx, wasm); vErr != nil {
-		return 0, "", false, false, nil
+		return 0, "", false, false, 0, nil, seg, nil
 	}
 	timeoutMS := sandbox.Policy().CheckTimeoutMS
 	if timeoutMS <= 0 {
 		timeoutMS = 5000
 	}
-	runCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMS)*time.Millisecond)
+	runOne := func(runCtx context.Context, inU uint64, inB []byte) (int32, string, error, []byte) {
+		inB = fuzzengine.ClampInputBytes(inB, cfg)
+		if len(inB) > 0 {
+			out, execErr := sandbox.InvokeCheckOutcomeInput(runCtx, wasm, inB)
+			if execErr != nil {
+				return 0, execErr.Error(), execErr, nil
+			}
+			if out.OK {
+				return 1, "", nil, out.EdgeBitmap
+			}
+			return 0, "", nil, out.EdgeBitmap
+		}
+		out, execErr := sandbox.InvokeCheckOutcome(runCtx, wasm, inU)
+		if execErr != nil {
+			return 0, execErr.Error(), execErr, nil
+		}
+		if out.OK {
+			return 1, "", nil, out.EdgeBitmap
+		}
+		return 0, "", nil, out.EdgeBitmap
+	}
+	execPer := fuzzengine.ExecPerUnit(cfg)
+	if execPer <= 1 {
+		runCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMS)*time.Millisecond)
+		defer cancel()
+		checkResult, trap, execErr, edgeBitmap := runOne(runCtx, inputU, inputB)
+		if execErr != nil {
+			pass, recordFinding = fuzzengine.EvalCheck(sem, 0, execErr)
+			return 0, trap, pass, recordFinding, inputU, inputB, seg, nil
+		}
+		pass, recordFinding = fuzzengine.EvalCheck(sem, checkResult, nil)
+		edge, path := fuzzengine.CoverageBucketsForExec(cfg, inputU, inputB, edgeBitmap)
+		seg.ExecCoverage = []fuzzengine.CoverageSample{{Edge: edge, Path: path}}
+		if recordFinding {
+			return checkResult, trap, pass, true, inputU, inputB, seg, nil
+		}
+		return checkResult, trap, pass, false, inputU, inputB, seg, nil
+	}
+	segCtx, cancel := context.WithTimeout(ctx, time.Duration(int(timeoutMS)*execPer)*time.Millisecond)
 	defer cancel()
-	var execErr error
-	var ok bool
-	if len(inputB) > 0 {
-		ok, execErr = sandbox.InvokeCheckInput(runCtx, wasm, inputB)
-	} else {
-		ok, execErr = sandbox.InvokeCheck(runCtx, wasm, inputU)
+	seg = fuzzengine.EvalSegment(segCtx, inputN, cfg, seeds, sem, runOne)
+	findingU = inputU
+	findingB = inputB
+	if seg.RecordFinding {
+		findingU = seg.FindingInputU
+		findingB = seg.FindingInputB
 	}
-	if execErr != nil {
-		trap = execErr.Error()
-		pass, recordFinding = fuzzengine.EvalCheck(sem, 0, execErr)
-		return 0, trap, pass, recordFinding, nil
+	return seg.CheckResult, seg.Trap, seg.Pass, seg.RecordFinding, findingU, findingB, seg, nil
+}
+
+func (s *Service) recordSegmentCoverage(ctx context.Context, campaignID string, inputN uint64, cfg map[string]any, seeds []fuzzengine.PoolCorpusSeed, seg fuzzengine.SegmentResult, now int64) error {
+	if len(seg.ExecCoverage) > 0 {
+		for _, c := range seg.ExecCoverage {
+			if err := s.recordCoverageBuckets(ctx, campaignID, c.Edge, c.Path, now); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
-	if ok {
-		checkResult = 1
+	execPer := fuzzengine.ExecPerUnit(cfg)
+	for execIdx := uint64(0); execIdx < uint64(execPer); execIdx++ {
+		inU, inB := fuzzengine.SegmentExecInput(inputN, execIdx, cfg, seeds)
+		if err := s.recordCoverage(ctx, campaignID, cfg, inU, inB, nil, now); err != nil {
+			return err
+		}
 	}
-	pass, recordFinding = fuzzengine.EvalCheck(sem, checkResult, nil)
-	return checkResult, trap, pass, recordFinding, nil
+	return nil
+}
+
+func (s *Service) recordCoverageBuckets(ctx context.Context, campaignID string, edge, path int, now int64) error {
+	_, err := s.DB.ExecContext(ctx,
+		`INSERT OR IGNORE INTO fuzz_coverage_seen (campaign_id, kind, bucket, first_seen_at) VALUES (?, 'edge', ?, ?)`,
+		campaignID, edge, now)
+	if err != nil {
+		return err
+	}
+	_, err = s.DB.ExecContext(ctx,
+		`INSERT OR IGNORE INTO fuzz_coverage_seen (campaign_id, kind, bucket, first_seen_at) VALUES (?, 'path', ?, ?)`,
+		campaignID, path, now)
+	return err
+}
+
+func (s *Service) recordCoverage(ctx context.Context, campaignID string, cfg map[string]any, input uint64, inputBytes []byte, edgeBitmap []byte, now int64) error {
+	edge, path := fuzzengine.CoverageBucketsForExec(cfg, input, inputBytes, edgeBitmap)
+	return s.recordCoverageBuckets(ctx, campaignID, edge, path, now)
 }
 
 // ExecuteLocally runs sandbox check on coordinator (used by tests); workers normally submit results.
@@ -1005,6 +1093,26 @@ func ExecuteLocally(ctx context.Context, wasmHex string, input uint64, timeoutMS
 	return 0, durationMS, "", nil
 }
 
+// ExecuteLocallyBytes runs sandbox check with byte input (P4 pool tests).
+func ExecuteLocallyBytes(ctx context.Context, wasmHex string, input []byte, timeoutMS int) (checkResult int32, durationMS int, trap string, err error) {
+	start := time.Now()
+	wasm, err := hex.DecodeString(strings.TrimSpace(wasmHex))
+	if err != nil || len(wasm) == 0 {
+		return 0, 0, "", fmt.Errorf("invalid wasm")
+	}
+	runCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMS)*time.Millisecond)
+	defer cancel()
+	ok, execErr := sandbox.InvokeCheckInput(runCtx, wasm, input)
+	durationMS = int(time.Since(start).Milliseconds())
+	if execErr != nil {
+		return 0, durationMS, execErr.Error(), nil
+	}
+	if ok {
+		return 1, durationMS, "", nil
+	}
+	return 0, durationMS, "", nil
+}
+
 func (s *Service) bountyAllowed(ctx context.Context, cfg map[string]any, findingID string) bool {
 	if !fuzzengine.BountyRequiresNative(cfg) {
 		return true
@@ -1014,25 +1122,6 @@ func (s *Service) bountyAllowed(ctx context.Context, cfg map[string]any, finding
 	}
 	ok, err := fuzznative.IsFindingNativeEligibleForBounty(ctx, s.DB, findingID)
 	return err == nil && ok
-}
-
-func (s *Service) recordCoverage(ctx context.Context, campaignID string, input uint64, inputBytes []byte, now int64) error {
-	var edge, path int
-	if len(inputBytes) > 0 {
-		edge, path = fuzzengine.CoverageBucketsFromBytes(inputBytes)
-	} else {
-		edge, path = fuzzengine.CoverageBuckets(input)
-	}
-	_, err := s.DB.ExecContext(ctx,
-		`INSERT OR IGNORE INTO fuzz_coverage_seen (campaign_id, kind, bucket, first_seen_at) VALUES (?, 'edge', ?, ?)`,
-		campaignID, edge, now)
-	if err != nil {
-		return err
-	}
-	_, err = s.DB.ExecContext(ctx,
-		`INSERT OR IGNORE INTO fuzz_coverage_seen (campaign_id, kind, bucket, first_seen_at) VALUES (?, 'path', ?, ?)`,
-		campaignID, path, now)
-	return err
 }
 
 func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[string]any, sem fuzzengine.CheckSemantics, hasWasm bool, now int64) (findingID, severity, findingType string, err error) {
@@ -1057,6 +1146,9 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 	if strings.TrimSpace(req.Trap) != "" {
 		ft, sev, title = fuzzengine.ClassifyWasmTrap(req.ActualInput, req.Trap, hasWasm)
 	}
+	if len(inputBytes) > 0 && sem == fuzzengine.SemanticsDetector && strings.TrimSpace(req.Trap) == "" {
+		title = fuzzengine.BytesDetectorTitle(inputBytes)
+	}
 	findingType = ft
 	severity = sev
 	findingID = fmt.Sprintf("finding-pool-%s-%d-%d", req.CampaignID, req.ItemID, now)
@@ -1064,7 +1156,7 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 	wasmHex, _ := cfg["wasm_check_hex"].(string)
 	_ = fuzzartifacts.WriteWasmHex(req.CampaignID, wasmHex)
 	triage := fuzzengine.ClassifyFinding(ft, sev)
-	detail, _ := json.Marshal(map[string]any{
+	detailMap := map[string]any{
 		"source":          "pool_fuzz_worker_v2",
 		"worker_id":       req.WorkerID,
 		"miner_address":   strings.TrimSpace(req.MinerAddress),
@@ -1081,7 +1173,19 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 		"triage_class":    triage.Class,
 		"triage_label":    triage.Label,
 		"zero_day_hint":   triage.ZeroDayHint,
-	})
+	}
+	if len(inputBytes) > 0 {
+		detailMap["input_hex"] = hex.EncodeToString(inputBytes)
+		if gp := strings.TrimSpace(jsonString(cfg["guard_pack"])); gp != "" {
+			detailMap["guard_pack"] = gp
+			preview := string(inputBytes)
+			detailMap["explain"] = fuzzingcli.ExplainPackFinding(gp, preview, title)
+		}
+	} else if gp := strings.TrimSpace(jsonString(cfg["guard_pack"])); gp != "" {
+		detailMap["guard_pack"] = gp
+		detailMap["explain"] = fuzzingcli.ExplainPackFinding(gp, title, title)
+	}
+	detail, _ := json.Marshal(detailMap)
 	_, err = s.DB.ExecContext(ctx,
 		`INSERT OR IGNORE INTO fuzz_findings
 		 (id, campaign_id, finding_type, severity, title, input_sha256, artifact_path, repro_cmd, detail_json, created_at)

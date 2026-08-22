@@ -23,11 +23,13 @@ func rejectWasmHostileSections(wasm []byte) error {
 		if err != nil {
 			return err
 		}
-		if int(size) < 0 || pos+int(size) > len(wasm) {
+		if pos+int(size) > len(wasm) {
 			return errors.New("sandbox: malformed wasm section size")
 		}
 		body := wasm[pos : pos+int(size)]
 		switch sectionID {
+		case 2:
+			return errors.New("sandbox: wasm import section not allowed")
 		case 8:
 			return errors.New("sandbox: wasm start section not allowed")
 		case 4:

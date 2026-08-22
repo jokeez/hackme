@@ -47,7 +47,7 @@ var b2bPackages = map[string]B2BPackage{
 		BudgetHMC: 25.0, BudgetRuns: 2048, BudgetSeconds: 86400, // 24h hours-scale
 		PoolDistributed: true, CreatePoHOrder: true, RewardHMC: 0.05,
 		Summary:        "Byte corpus + heavy mutation — hours-scale budget, signals beyond Audit",
-		SignalTypes:    []string{"byte_corpus", "structured_mutation", "coverage_guided", "native_repro"},
+		SignalTypes:    []string{"byte_corpus", "structured_mutation", "corpus_scheduling", "segment_exec", "native_repro"},
 		MutationRounds: 12,
 		CoverageGuided: true,
 	},

@@ -97,10 +97,16 @@ func NormalizeCampaignConfig(cfg map[string]any, campaignType string) map[string
 		cfg["input_mode"] = string(ParseInputMode(cfg))
 	}
 	if _, ok := cfg["check_semantics"]; !ok {
-		if strings.EqualFold(strings.TrimSpace(toString(cfg["detector_mode"])), "1") ||
+		ctype := strings.TrimSpace(strings.ToLower(campaignType))
+		if ctype == "property" || ctype == "fuzz" {
+			cfg["check_semantics"] = "detector"
+		} else if strings.EqualFold(strings.TrimSpace(toString(cfg["detector_mode"])), "1") ||
 			strings.EqualFold(strings.TrimSpace(toString(cfg["detector_mode"])), "true") {
 			cfg["check_semantics"] = "detector"
 		}
+	}
+	if _, ok := cfg["coverage_kind"]; !ok {
+		cfg["coverage_kind"] = CoverageKind(cfg)
 	}
 	return cfg
 }
@@ -245,6 +251,7 @@ func MetaFromConfig(cfg map[string]any) map[string]any {
 		"coverage_buckets_v2",
 		"input_sha256_artifacts",
 		"finding_diff_coverage",
+		"segment_exec",
 	}
 	if ParseCheckSemantics(cfg) == SemanticsDetector {
 		features = append(features, "detector_semantics")
@@ -258,6 +265,10 @@ func MetaFromConfig(cfg map[string]any) map[string]any {
 	if NativeReproMode(cfg) == "asan_binary" {
 		features = append(features, "asan_binary_repro", "tier_c")
 	}
+	features = append(features, "stable_crash_buckets")
+	if GuidedSchedulingEnabled(cfg) {
+		features = append(features, "guided_scheduling")
+	}
 	if BountyRequiresNative(cfg) {
 		features = append(features, "bounty_requires_native")
 	}
@@ -266,9 +277,13 @@ func MetaFromConfig(cfg map[string]any) map[string]any {
 		"seed_count":        len(seeds),
 		"mutation_rounds":   MutationRounds(cfg),
 		"coverage_guided":   cfg != nil && strings.EqualFold(strings.TrimSpace(toString(cfg["coverage_guided"])), "true"),
+		"coverage_kind":     CoverageKind(cfg),
+		"exec_per_unit":     ExecPerUnit(cfg),
 		"check_semantics":   string(ParseCheckSemantics(cfg)),
 		"depth_tier":        string(ParseDepthTier(cfg)),
 		"input_mode":        string(ParseInputMode(cfg)),
+		"max_input_bytes":   ParseMaxInputBytes(cfg),
+		"guard_pack":        strings.TrimSpace(toString(cfg["guard_pack"])),
 		"upstream_target":   UpstreamTarget(cfg),
 		"native_repro_mode": NativeReproMode(cfg),
 		"features":          features,

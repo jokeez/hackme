@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"hackme/internal/fuzzengine"
 	"hackme/internal/poolfuzz"
 )
 
@@ -442,7 +443,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			return
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		payload := map[string]any{
 			"ok":              true,
 			"worker_id":       workerID,
 			"work_id":         work.WorkID,
@@ -454,11 +455,19 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			"input_bytes_hex": hex.EncodeToString(work.InputBytes),
 			"depth_tier":      work.DepthTier,
 			"per_run_hmc":     work.PerRunHMC,
+			"exec_per_unit":   work.ExecPerUnit,
 			"wasm_check_hex":  work.WasmCheckHex,
 			"check_semantics": work.CheckSemantics,
 			"task_class":      "fuzz",
 			"scheduler_mode":  "fuzz",
-		})
+		}
+		if seeds := fuzzengine.CorpusSeedsClaimMaps(work.CorpusSeeds); len(seeds) > 0 {
+			payload["corpus_seeds"] = seeds
+		}
+		if sha := strings.TrimSpace(work.CorpusSnapshotSHA256); sha != "" {
+			payload["corpus_snapshot_sha256"] = sha
+		}
+		_ = json.NewEncoder(w).Encode(payload)
 	})
 
 	mux.HandleFunc("/api/fuzz/work/submit", func(w http.ResponseWriter, r *http.Request) {
@@ -473,21 +482,22 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
 		var req struct {
-			WorkerID      string `json:"worker_id"`
-			MinerAddress  string `json:"miner_address"`
-			MinerPubKey   string `json:"miner_pubkey"`
-			MinerSig      string `json:"miner_sig"`
-			MinerSigAlg   string `json:"miner_sig_alg"`
-			SubmitNonce   uint64 `json:"submit_nonce"`
-			WorkID        string `json:"work_id"`
-			CampaignID    string `json:"campaign_id"`
-			ItemID        int64  `json:"item_id"`
-			InputN        uint64 `json:"input_n"`
-			ActualInput   uint64 `json:"actual_input"`
-			InputBytesHex string `json:"input_bytes_hex"`
-			CheckResult   int32  `json:"check_result"`
-			DurationMS    int    `json:"duration_ms"`
-			Trap          string `json:"trap"`
+			WorkerID        string `json:"worker_id"`
+			MinerAddress    string `json:"miner_address"`
+			MinerPubKey     string `json:"miner_pubkey"`
+			MinerSig        string `json:"miner_sig"`
+			MinerSigAlg     string `json:"miner_sig_alg"`
+			SubmitNonce     uint64 `json:"submit_nonce"`
+			WorkID          string `json:"work_id"`
+			CampaignID      string `json:"campaign_id"`
+			ItemID          int64  `json:"item_id"`
+			InputN          uint64 `json:"input_n"`
+			ActualInput     uint64 `json:"actual_input"`
+			InputBytesHex   string `json:"input_bytes_hex"`
+			CheckResult     int32  `json:"check_result"`
+			DurationMS      int    `json:"duration_ms"`
+			Trap            string `json:"trap"`
+			SegmentExecDone int    `json:"segment_exec_done"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid json", http.StatusBadRequest)
@@ -499,7 +509,8 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		}
 		signBody := poolfuzz.CanonicalSubmitBytes(poolfuzz.SubmitSignPayload{
 			WorkerID: req.WorkerID, CampaignID: req.CampaignID, ItemID: req.ItemID,
-			InputN: req.InputN, ActualInput: req.ActualInput, CheckResult: req.CheckResult, SubmitNonce: req.SubmitNonce,
+			InputN: req.InputN, ActualInput: req.ActualInput, InputBytesHex: strings.TrimSpace(req.InputBytesHex),
+			CheckResult: req.CheckResult, SubmitNonce: req.SubmitNonce, SegmentExecDone: req.SegmentExecDone,
 		})
 		okSig, reason, payoutAddr := wm.validateFuzzHybridSignature(fuzzSubmitAuth{
 			WorkerID: req.WorkerID, MinerAddress: req.MinerAddress, MinerPubKey: req.MinerPubKey,
@@ -540,17 +551,18 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			inputBytes, _ = hex.DecodeString(h)
 		}
 		if err := pf.Submit(r.Context(), poolfuzz.SubmitRequest{
-			WorkerID:     req.WorkerID,
-			MinerAddress: payoutAddr,
-			WorkID:       req.WorkID,
-			CampaignID:   req.CampaignID,
-			ItemID:       req.ItemID,
-			InputN:       req.InputN,
-			ActualInput:  req.ActualInput,
-			InputBytes:   inputBytes,
-			CheckResult:  req.CheckResult,
-			DurationMS:   req.DurationMS,
-			Trap:         strings.TrimSpace(req.Trap),
+			WorkerID:        req.WorkerID,
+			MinerAddress:    payoutAddr,
+			WorkID:          req.WorkID,
+			CampaignID:      req.CampaignID,
+			ItemID:          req.ItemID,
+			InputN:          req.InputN,
+			ActualInput:     req.ActualInput,
+			InputBytes:      inputBytes,
+			CheckResult:     req.CheckResult,
+			DurationMS:      req.DurationMS,
+			Trap:            strings.TrimSpace(req.Trap),
+			SegmentExecDone: req.SegmentExecDone,
 		}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

@@ -52,7 +52,7 @@ func LoadPins(repoRoot string) (*PinManifest, error) {
 // ResolveTarget returns pin repo key for campaign upstream_target / guard name.
 func ResolveTarget(upstreamTarget, guardName string) string {
 	t := strings.TrimSpace(strings.ToLower(upstreamTarget))
-	if t != "" {
+	if t != "" && t != "oss" {
 		return t
 	}
 	g := strings.TrimSpace(strings.ToLower(guardName))
@@ -65,7 +65,16 @@ func ResolveTarget(upstreamTarget, guardName string) string {
 		return "dogecoin"
 	case strings.Contains(g, "litecoin"):
 		return "litecoin"
+	case strings.Contains(g, "expat"), strings.Contains(g, "parser_expat"):
+		return "expat"
+	case strings.Contains(g, "md4c"):
+		return "md4c"
+	case strings.Contains(g, "cjson"):
+		return "cjson"
 	default:
-		return ""
+		if t == "oss" {
+			return ossTargetFromGuard(guardName)
+		}
+		return t
 	}
 }

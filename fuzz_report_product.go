@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"hackme/internal/fuzzengine"
+	"hackme/internal/fuzzingcli"
 )
 
 const fuzzTopIssueLimit = 5
@@ -33,6 +34,8 @@ type fuzzProductTopIssue struct {
 	InputSHA256 string         `json:"input_sha256,omitempty"`
 	TriageClass string         `json:"triage_class"`
 	TriageNote  string         `json:"triage_note"`
+	GuardPack   string         `json:"guard_pack,omitempty"`
+	Explain     string         `json:"explain,omitempty"`
 	Repro       fuzzReproBlock `json:"repro"`
 }
 
@@ -83,8 +86,8 @@ func findingInputN(f fuzzFinding) string {
 func buildFindingRepro(f fuzzFinding) fuzzReproBlock {
 	cmd := strings.TrimSpace(f.ReproCmd)
 	inSHA := strings.TrimSpace(strings.ToLower(f.InputSHA256))
-	inHex := findingInputHex(f)
-	inN := findingInputN(f)
+	inHex := fuzzengine.RedactInputForReport(findingInputHex(f))
+	inN := fuzzengine.RedactInputNForReport(findingInputN(f))
 	art := strings.TrimSpace(f.Artifact)
 	ready := cmd != "" && (inSHA != "" || inHex != "" || inN != "")
 	gap := ""
@@ -112,19 +115,55 @@ func buildFindingRepro(f fuzzFinding) fuzzReproBlock {
 func toProductTopIssue(f fuzzFinding) fuzzProductTopIssue {
 	triage := fuzzengine.ClassifyFinding(f.FindingType, f.Severity)
 	repro := buildFindingRepro(f)
+	packID := findingGuardPack(f)
+	preview := findingExplainPreview(f, repro)
+	explain := ""
+	if packID != "" {
+		explain = fuzzingcli.ExplainPackFinding(packID, preview, f.Title)
+	} else if f.Detail != nil {
+		if e := strings.TrimSpace(toString(f.Detail["explain"])); e != "" {
+			explain = e
+		}
+	}
 	return fuzzProductTopIssue{
 		ID:          f.ID,
 		Severity:    f.Severity,
 		FindingType: f.FindingType,
-		Title:       f.Title,
+		Title:       fuzzengine.RedactSensitiveString(f.Title),
 		Impact:      severityImpact(f.Severity),
 		ReproCmd:    f.ReproCmd,
 		Artifact:    f.Artifact,
 		InputSHA256: f.InputSHA256,
 		TriageClass: triage.Class,
 		TriageNote:  triage.Note,
+		GuardPack:   packID,
+		Explain:     explain,
 		Repro:       repro,
 	}
+}
+
+func findingGuardPack(f fuzzFinding) string {
+	if f.Detail == nil {
+		return ""
+	}
+	for _, k := range []string{"guard_pack", "GuardPack"} {
+		if v := strings.TrimSpace(toString(f.Detail[k])); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func findingExplainPreview(f fuzzFinding, repro fuzzReproBlock) string {
+	if hx := strings.TrimSpace(repro.InputHex); hx != "" {
+		// InputHex is already customer-safe (RedactInputForReport). Prefer it as-is;
+		// do not re-decode into raw secret bytes for explain matching.
+		return hx
+	}
+	if n := strings.TrimSpace(repro.InputN); n != "" {
+		return n
+	}
+	return fuzzengine.RedactSensitiveString(f.Title)
 }
 
 // partitionFindingsCrashFirst splits findings into crash-class top issues and coverage-noise appendix.
@@ -163,6 +202,27 @@ func partitionFindingsCrashFirst(findings []fuzzFinding, topLimit, noiseLimit in
 		}
 	}
 	return top, noise, crashCount, noiseCount
+}
+
+// collapseCrashFindingsForReport keeps one representative row per stable crash bucket for display.
+func collapseCrashFindingsForReport(findings []fuzzFinding) (display []fuzzFinding, crashUnique, crashDup int) {
+	seen := map[string]struct{}{}
+	display = make([]fuzzFinding, 0, len(findings))
+	for _, f := range findings {
+		if !fuzzengine.IsCrashClass(f.FindingType) {
+			display = append(display, f)
+			continue
+		}
+		key := fuzzengine.StableFindingKeyFromDetail(f.FindingType, f.Detail)
+		if _, dup := seen[key]; dup {
+			crashDup++
+			continue
+		}
+		seen[key] = struct{}{}
+		display = append(display, f)
+	}
+	crashUnique = len(seen)
+	return display, crashUnique, crashDup
 }
 
 func crashClassSeverityCounts(findings []fuzzFinding) (critical, high, medium, low, info int) {

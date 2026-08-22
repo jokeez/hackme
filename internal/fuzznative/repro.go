@@ -28,6 +28,8 @@ type ReproResult struct {
 	NativeSignal   bool        `json:"native_signal"`
 	Note           string      `json:"note"`
 	InputHex       string      `json:"input_hex"`
+	StableCrashKey string      `json:"stable_crash_key,omitempty"`
+	SanitizerTail  string      `json:"sanitizer_tail,omitempty"`
 }
 
 // EvalRepro runs pinned upstream guard logic in-process (Go port) to confirm WASM signals.

@@ -31,7 +31,8 @@ func TestMoneySpentFromCampaignIgnoresBudget(t *testing.T) {
 
 func TestPartitionFindingsCrashFirst(t *testing.T) {
 	findings := []fuzzFinding{
-		{ID: "1", FindingType: "security_violation", Severity: "high", Title: "detector", ReproCmd: "x", InputSHA256: "aa"},
+		{ID: "1", FindingType: "security_violation", Severity: "high", Title: "detector", ReproCmd: "x", InputSHA256: "aa",
+			Detail: map[string]any{"guard_pack": "secrets", "input_hex": hex.EncodeToString([]byte("AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE"))}},
 		{ID: "2", FindingType: "crash", Severity: "critical", Title: "trap", ReproCmd: "go run repro", InputSHA256: "bb", Detail: map[string]any{"actual_input": float64(66)}},
 		{ID: "3", FindingType: "property_violation", Severity: "medium", Title: "prop"},
 		{ID: "4", FindingType: "hang", Severity: "high", Title: "hung", ReproCmd: "cmd", InputSHA256: "cc"},
@@ -50,6 +51,19 @@ func TestPartitionFindingsCrashFirst(t *testing.T) {
 	}
 	if len(noise) != 2 {
 		t.Fatalf("noise len=%d", len(noise))
+	}
+	var packNoise *fuzzProductTopIssue
+	for i := range noise {
+		if noise[i].ID == "1" {
+			packNoise = &noise[i]
+			break
+		}
+	}
+	if packNoise == nil || packNoise.GuardPack != "secrets" {
+		t.Fatalf("pack noise missing: %+v", packNoise)
+	}
+	if !strings.Contains(packNoise.Explain, "AWS") {
+		t.Fatalf("explain missing AWS guidance: %q", packNoise.Explain)
 	}
 	if !top[0].Repro.Ready && top[0].ID == "2" {
 		// finding 2 has cmd+input — should be ready

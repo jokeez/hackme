@@ -543,6 +543,7 @@ func main() {
 	mux.HandleFunc("/api/integrator", a.handleIntegratorAPI)
 	mux.HandleFunc("/api/fuzz/campaigns", a.handleFuzzCampaigns)
 	mux.HandleFunc("/api/fuzz/campaigns/", a.handleFuzzCampaigns)
+	mux.HandleFunc("/proof/", a.handleProofPretty)
 	mux.HandleFunc("/api/fuzz/pool/settle", a.handleFuzzPoolSettle)
 	mux.HandleFunc("/api/fuzz/escrow/cleanup-stale", a.handleFuzzEscrowCleanupStale)
 	mux.HandleFunc("/api/fuzz/marketplace", a.handleFuzzMarketplace)

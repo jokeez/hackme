@@ -34,7 +34,9 @@
       <h1>Fuzz campaigns &amp; B2B final</h1>
       <p class="hero-copy">
         Campaigns live under <span class="code-inline">/api/fuzz/campaigns</span> with findings, corpus, runtime telemetry, customer reports, and a machine-readable <strong>gate</strong> for CI.
-        <strong>Customers:</strong> <span class="code-inline">hackme-fuzzing wizard --wasm guard.wasm --package audit</span> on a local node.
+        <strong>Customers:</strong> <span class="code-inline">hackme-fuzzing wizard --pack secrets --package audit</span>
+        or classic <span class="code-inline">--wasm guard.wasm</span> on a local node.
+        Optional <span class="code-inline">--public-proof</span> publishes a <strong>Proof of Fuzz</strong> facts page + README badge (crash-gate only — not a full audit).
         Canonical Markdown: <span class="code-inline">docs/FUZZ_PRODUCT_GUIDE.md</span> · <span class="code-inline">docs/DEVELOPERS_FUZZING.md</span>.
       </p>
       <div class="cta-row">
@@ -48,15 +50,35 @@
       <div class="panel-head"><h2>0. B2B customer wizard (final)</h2></div>
       <p class="section-lede">On your <strong>local node</strong> with <span class="code-inline">HACKME_ADMIN_TOKEN</span>:</p>
       <div class="formula-box">
+        hackme-fuzzing wizard --pack secrets|script_bounds|filter_utf8 [--package scan|audit|deep] [--public-proof]
         hackme-fuzzing wizard --wasm ./guard.wasm --package scan|audit|deep [--title "..."]
       </div>
       <ul class="list">
-        <li><strong>scan</strong> — 1 HMC · 64 runs · wasm_only</li>
-        <li><strong>audit</strong> — 5 HMC · 256 runs · pool + wasm_native</li>
-        <li><strong>deep</strong> — 10 HMC · 1000 runs · bytes_corpus + pool</li>
+        <li><strong>packs</strong> — ready detectors: <code>secrets</code> · <code>script_bounds</code> · <code>filter_utf8</code> · parser <code>parser_expat</code> — list with <span class="code-inline">hackme-fuzzing packs</span></li>
+        <li><strong>scan</strong> — ~1 HMC · 64 units · 1 exec/unit (wasm smoke)</li>
+        <li><strong>audit</strong> — ~5 HMC · 256 units · 64 exec/unit · pool + native repro path</li>
+        <li><strong>deep</strong> — ~25 HMC · 2048 units · 512 exec/unit · havoc/splice byte corpus (coordinator freezes <code>corpus_seeds</code> at claim and re-verifies the full segment)</li>
+        <li><strong>coverage_kind</strong> — <code>wasm_edge_bitmap</code> on instrumented detector guards (<code>secrets</code>, <code>filter_utf8</code>, <code>script_bounds</code>); <code>input_fingerprint</code> on parser packs (<code>parser_expat</code> uses <code>native_repro_mode: oss_upstream</code> — ASAN stdin on pinned libexpat)</li>
+        <li><strong>ABI</strong> — <code>check(i64)→i32</code> <em>or</em> <code>check_bytes(ptr,len)→i32</code> when <code>input_mode=bytes</code></li>
       </ul>
-      <p class="muted">Returns one-time <span class="code-inline">customer_report_token</span>, <span class="code-inline">report_url</span>, <span class="code-inline">gate_url</span>. Wizard blocks non-loopback bases (no orders on hackme.tech).</p>
+      <p class="muted">Returns one-time <span class="code-inline">customer_report_token</span>, <span class="code-inline">report_url</span>, <span class="code-inline">gate_url</span>. With <span class="code-inline">--public-proof</span>: <span class="code-inline">proof_url</span> + <span class="code-inline">badge_url</span> (<span class="code-inline">/proof/{id}</span>). Wizard blocks non-loopback bases (no orders on hackme.tech).</p>
       <p class="muted">Ops release check: <span class="code-inline">bash scripts/ops/fuzz_b2b_final_gate.sh</span> → <span class="code-inline">reports/fuzz-b2b-final-*/VERDICT.md</span></p>
+    </section>
+
+    <section class="panel glass" style="border:1px solid rgba(57,255,20,0.22)">
+      <div class="panel-head"><h2>0b. Proof of Fuzz (public badge)</h2></div>
+      <p class="section-lede">Opt-in transparency for a finished campaign — README badge + facts page. <strong>Crash-gate only</strong>; detector noise and secret-like payloads stay off the public page.</p>
+      <div class="formula-box">
+        GET /proof/{campaign_id}              → HTML facts (or ?format=json)
+        GET /proof/{campaign_id}/badge.svg    → CLEAN / FAIL badge
+        GET /api/fuzz/campaigns/{id}/proof    → same (API path)
+      </div>
+      <ul class="list">
+        <li>Enable with <span class="code-inline">public_proof: true</span> on security-audit / <span class="code-inline">wizard --public-proof</span>.</li>
+        <li>Without opt-in, proof/badge require report token or admin (same as gate).</li>
+        <li>Disclaimer on every page: <em>pass ≠ proven secure</em> · not a CVE warranty.</li>
+      </ul>
+      <p class="muted">Private full report remains <span class="code-inline">/api/fuzz/campaigns/{id}/report.html</span> + <span class="code-inline">X-Hackme-Report-Token</span>.</p>
     </section>
 
     <section class="panel glass">

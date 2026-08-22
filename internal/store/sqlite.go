@@ -82,6 +82,9 @@ func migrateFuzzOnly(db *sql.DB) error {
 	if err := migrateFuzzSettleApplied(db); err != nil {
 		return err
 	}
+	if err := migrateFuzzPoolCorpus(db); err != nil {
+		return err
+	}
 	return bumpUserVersion(db)
 }
 
@@ -160,6 +163,9 @@ func migrate(db *sql.DB) error {
 		return err
 	}
 	if err := migrateFuzzSettleApplied(db); err != nil {
+		return err
+	}
+	if err := migrateFuzzPoolCorpus(db); err != nil {
 		return err
 	}
 	if err := migrateOrderFoundNonces(db); err != nil {
@@ -672,6 +678,47 @@ func migrateFuzzSettleApplied(db *sql.DB) error {
 	for _, s := range stmts {
 		if _, err := db.Exec(s); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// migrateFuzzPoolCorpus adds shared scheduling corpus + claim-time expected inputs (P3 guided pilot).
+func migrateFuzzPoolCorpus(db *sql.DB) error {
+	stmts := []string{
+		`CREATE TABLE IF NOT EXISTS fuzz_pool_corpus (
+			campaign_id TEXT NOT NULL,
+			input_u64 INTEGER NOT NULL,
+			input_bytes BLOB NOT NULL DEFAULT X'',
+			energy INTEGER NOT NULL DEFAULT 1,
+			edge_bucket INTEGER NOT NULL DEFAULT 0,
+			path_bucket INTEGER NOT NULL DEFAULT 0,
+			is_crash INTEGER NOT NULL DEFAULT 0,
+			first_seen_at INTEGER NOT NULL,
+			last_seen_at INTEGER NOT NULL,
+			exec_count INTEGER NOT NULL DEFAULT 1,
+			PRIMARY KEY (campaign_id, input_u64),
+			FOREIGN KEY(campaign_id) REFERENCES fuzz_campaigns(id) ON DELETE CASCADE
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_fuzz_pool_corpus_campaign_energy ON fuzz_pool_corpus(campaign_id, energy DESC, last_seen_at DESC)`,
+	}
+	for _, s := range stmts {
+		if _, err := db.Exec(s); err != nil {
+			return err
+		}
+	}
+	for _, col := range []string{
+		`ALTER TABLE fuzz_work_items ADD COLUMN expected_input_u64 INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE fuzz_work_items ADD COLUMN expected_input_bytes BLOB NOT NULL DEFAULT X''`,
+		`ALTER TABLE fuzz_work_items ADD COLUMN expected_input_locked INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE fuzz_work_items ADD COLUMN corpus_snapshot_json BLOB NOT NULL DEFAULT X''`,
+		`ALTER TABLE fuzz_work_items ADD COLUMN corpus_snapshot_sha256 TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE fuzz_pool_corpus ADD COLUMN input_bytes BLOB NOT NULL DEFAULT X''`,
+	} {
+		if _, err := db.Exec(col); err != nil {
+			if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+				return err
+			}
 		}
 	}
 	return nil
