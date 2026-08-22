@@ -17,7 +17,7 @@
 
 <br/>
 
-[![Release](https://img.shields.io/badge/release-0.1.0--rc14xx-00d1ff?style=for-the-badge&logo=semanticweb&logoColor=white)](https://hackme.tech/downloads.html)
+[![Release](https://img.shields.io/badge/release-0.1.0--rc14x-00d1ff?style=for-the-badge&logo=semanticweb&logoColor=white)](https://hackme.tech/downloads.html)
 [![Pool live](https://img.shields.io/badge/pool-LIVE-39ff14?style=for-the-badge&logo=serverless&logoColor=white)](https://hackme.tech/pool/coordinator/api/pool/stats)
 [![Security](https://img.shields.io/badge/audit-16%2F16_PASS-39ff14?style=for-the-badge&logo=shield&logoColor=white)](docs/SECURITY.md)
 [![CI](https://github.com/jokeez/hackme/actions/workflows/ci.yml/badge.svg)](https://github.com/jokeez/hackme/actions/workflows/ci.yml)
@@ -165,16 +165,25 @@ bash scripts/tests/verify_hackme_iso.sh your.iso
 
 ## B2B security fuzz
 
-| Tier | Depth | Use case |
-|------|-------|----------|
-| `wasm_only` | Fast WASM guard | CI smoke, daily gates |
-| `wasm_native` | WASM → native confirm | Bounty-grade triage |
-| `bytes_corpus` | Structured mutations | Deep corpus passes |
+| Package | HMC | Runs | exec/unit | Pool |
+|---------|-----|------|-----------|------|
+| **scan** | ~1 | 64 | 1 | local |
+| **audit** | ~5 | 256 | 64 | yes |
+| **deep** | ~25 | 2048 | 512 local · **64 cap on hub** | yes |
 
-- [developers.html](https://hackme.tech/developers.html) — public landing  
+**Packs:** `secrets` · `script_bounds` · `filter_utf8` (FluxTap-class filter POC) · `parser_expat`
+
+```bash
+hackme-fuzzing wizard --pack filter_utf8 --package audit   # local node only
+```
+
+- [developers.html](https://hackme.tech/developers.html) · [fuzz-guide.html](https://hackme.tech/fuzz-guide.html) — public landing  
+- [FUZZ_PRODUCT_GUIDE.md](docs/FUZZ_PRODUCT_GUIDE.md) — packages, coverage, pool anticheat  
 - [CUSTOMER_FUZZ_DELIVERABLES.md](docs/CUSTOMER_FUZZ_DELIVERABLES.md) — reports & repro  
-- Pool-distributed path: hub `workerfuzz` pulls campaigns; bootstrap helpers under `scripts/ops/bootstrap_customer/`  
+- Hybrid pool: `workerpoh` + fuzz claim/submit; coordinator **replays** segments (not miner attestation)  
 - **20%** pool fee on escrow campaigns funds worker payouts
+
+**Coverage honesty:** `wasm_edge_bitmap` @ WASM mem offset **8192** is guided scheduling — **not** AFL/libFuzzer edges (OSS research uses libFuzzer separately).
 
 ---
 

@@ -57,11 +57,12 @@
         <li><strong>packs</strong> — ready detectors: <code>secrets</code> · <code>script_bounds</code> · <code>filter_utf8</code> · parser <code>parser_expat</code> — list with <span class="code-inline">hackme-fuzzing packs</span></li>
         <li><strong>scan</strong> — ~1 HMC · 64 units · 1 exec/unit (wasm smoke)</li>
         <li><strong>audit</strong> — ~5 HMC · 256 units · 64 exec/unit · pool + native repro path</li>
-        <li><strong>deep</strong> — ~25 HMC · 2048 units · 512 exec/unit · havoc/splice byte corpus (coordinator freezes <code>corpus_seeds</code> at claim and re-verifies the full segment)</li>
-        <li><strong>coverage_kind</strong> — <code>wasm_edge_bitmap</code> on instrumented detector guards (<code>secrets</code>, <code>filter_utf8</code>, <code>script_bounds</code>); <code>input_fingerprint</code> on parser packs (<code>parser_expat</code> uses <code>native_repro_mode: oss_upstream</code> — ASAN stdin on pinned libexpat)</li>
+        <li><strong>deep</strong> — ~25 HMC · 2048 units · 512 exec/unit local · <strong>64 exec/unit cap</strong> on distributed pool (coordinator replays segment on submit)</li>
+        <li><strong>coverage_kind</strong> — <code>wasm_edge_bitmap</code> on instrumented detector guards (<code>secrets</code>, <code>filter_utf8</code>, <code>script_bounds</code>) — 256-byte bitmap at linear memory offset <strong>8192</strong> (guided scheduling, <em>not</em> AFL coverage); <code>input_fingerprint</code> on parser packs (<code>parser_expat</code> uses <code>native_repro_mode: oss_upstream</code> — ASAN stdin on pinned libexpat)</li>
         <li><strong>ABI</strong> — <code>check(i64)→i32</code> <em>or</em> <code>check_bytes(ptr,len)→i32</code> when <code>input_mode=bytes</code></li>
       </ul>
       <p class="muted">Returns one-time <span class="code-inline">customer_report_token</span>, <span class="code-inline">report_url</span>, <span class="code-inline">gate_url</span>. With <span class="code-inline">--public-proof</span>: <span class="code-inline">proof_url</span> + <span class="code-inline">badge_url</span> (<span class="code-inline">/proof/{id}</span>). Wizard blocks non-loopback bases (no orders on hackme.tech).</p>
+      <p class="muted"><strong>Pool fleet:</strong> hybrid miners (PoH + fuzz) claim customer work first. Safe tiers: Scan (1 exec) and Audit (64 exec). Deep on hub is cap-64 until worker attestation ships — see <span class="code-inline">docs/POOL_FUZZ_DISTRIBUTED.md</span>.</p>
       <p class="muted">Ops release check: <span class="code-inline">bash scripts/ops/fuzz_b2b_final_gate.sh</span> → <span class="code-inline">reports/fuzz-b2b-final-*/VERDICT.md</span></p>
     </section>
 

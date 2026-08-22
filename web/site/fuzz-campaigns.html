@@ -28,9 +28,9 @@
       <p class="kicker">Fuzz · Ecosystem</p>
       <h1>Security audits &amp; distributed fuzz</h1>
       <p class="hero-copy">
-        <strong>Customers</strong> run <code>hackme-fuzzing wizard</code> on a <strong>local hackme-node</strong> (<code>127.0.0.1:8080</code>) — Scan · Audit · Deep packages, wallet escrow, WASM guards.
-        The <strong>public pool</strong> on hackme.tech fills work. Detailed reports need your private
-        <code>X-Hackme-Report-Token</code>. Public multi-chain research is separate — see <a href="./research.html">Research hub</a>.
+        <strong>Customers</strong> run <code>hackme-fuzzing wizard --pack …</code> on a <strong>local hackme-node</strong> (<code>127.0.0.1:8080</code>) — Scan (~1 HMC) · Audit (~5) · Deep (~25) packages, ready packs, wallet escrow.
+        The <strong>public pool</strong> (hybrid PoH + fuzz) fills distributed work — Deep capped at <strong>64 exec/unit</strong> on hub; coordinator replays segments on submit.
+        Detailed reports need your private <code>X-Hackme-Report-Token</code>. Public multi-chain research is separate — see <a href="./research.html">Research hub</a>.
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="./developers.html">Developers &amp; local setup</a>
@@ -42,11 +42,11 @@
     <section class="grid grid-3">
       <article class="card glass">
         <h3>B2B customer path</h3>
-        <p>Download node → <code>hackme-fuzzing wizard --wasm guard.wasm --package audit</code> (or <code>#orders</code> / classic CLI). Report + gate via <code>X-Hackme-Report-Token</code> only.</p>
+        <p>Download node → <code>hackme-fuzzing wizard --pack filter_utf8 --package audit</code> (or <code>--wasm guard.wasm</code> · <code>#orders</code>). Report + gate via <code>X-Hackme-Report-Token</code> only.</p>
       </article>
       <article class="card glass">
         <h3>Miners &amp; pool</h3>
-        <p>Useful-PoW + distributed fuzz workers earn HMC/SUP on the coordinator. No access to private customer reports.</p>
+        <p>Hybrid PoH + distributed fuzz workers earn HMC on completed pool units. Customer campaigns claim first. No access to private customer reports.</p>
       </article>
       <article class="card glass">
         <h3>Public L1 research</h3>

@@ -56,8 +56,8 @@
       <ol class="check-list">
         <li><strong>Install</strong> — Win/Linux node from <a href="./downloads.html#local-node">Downloads</a>. Open <code>http://127.0.0.1:8080</code> → Wallet.</li>
         <li><strong>Order</strong> — fund HMC, then
-          <code>hackme-fuzzing wizard --wasm guard.wasm --package audit</code>
-          (or dashboard <code>#orders</code>).</li>
+          <code>hackme-fuzzing wizard --pack filter_utf8 --package audit</code>
+          (or <code>--wasm guard.wasm</code> · dashboard <code>#orders</code>).</li>
         <li><strong>Deliverable</strong> — wizard prints <code>report_url</code>, <code>gate_url</code>, <code>pulse_url</code>. Pool diggers pick customer work first.</li>
       </ol>
       <pre class="code-block" style="margin-top:1rem"><code>export HACKME_ADMIN_TOKEN=…   # local node only
@@ -71,11 +71,11 @@ hackme-fuzzing wizard \
       <div class="panel-head"><h2>Packages (HMC)</h2></div>
       <div class="table-wrap">
         <table class="endpoint-table">
-          <thead><tr><th>Package</th><th>HMC</th><th>Runs</th><th>Best for</th></tr></thead>
+          <thead><tr><th>Package</th><th>HMC</th><th>Runs</th><th>exec/unit</th><th>Best for</th></tr></thead>
           <tbody>
-            <tr><td><code>scan</code></td><td>1</td><td>64</td><td>CI smoke</td></tr>
-            <tr><td><code>audit</code></td><td>5</td><td>256</td><td>Protocol / DeFi guards</td></tr>
-            <tr><td><code>deep</code></td><td>10</td><td>1000</td><td>Full campaign</td></tr>
+            <tr><td><code>scan</code></td><td>~1</td><td>64</td><td>1</td><td>CI smoke</td></tr>
+            <tr><td><code>audit</code></td><td>~5</td><td>256</td><td>64</td><td>Protocol / filter guards</td></tr>
+            <tr><td><code>deep</code></td><td>~25</td><td>2048</td><td>512 local · 64 pool cap</td><td>Full byte corpus campaign</td></tr>
           </tbody>
         </table>
       </div>

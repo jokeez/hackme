@@ -43,7 +43,8 @@
       <details>
         <summary>Security audits &amp; fuzz reports</summary>
         <div class="details-body">
-          <p><strong>B2B fuzz:</strong> <code>hackme-fuzzing wizard --wasm guard.wasm --package audit</code> on your local node → report token + CI <code>gate</code> URL.</p>
+          <p><strong>B2B fuzz:</strong> <code>hackme-fuzzing wizard --pack secrets --package audit</code> (or <code>--wasm guard.wasm</code>) on your local node → report token + CI <code>gate</code> URL. Packs: <code>secrets</code> · <code>script_bounds</code> · <code>filter_utf8</code> · <code>parser_expat</code>.</p>
+          <p>Packages: scan ~1 HMC · audit ~5/256 · deep ~25/2048 (512 exec/unit local; <strong>64 cap</strong> on hub pool). <code>wasm_edge_bitmap</code> @ offset 8192 is scheduling — not AFL.</p>
           <p><a href="./developers.html">Developers</a> · <a href="./fuzz-guide.html">Fuzz guide</a> · <a href="./reports/l1-crypto-stack-v4.html">L1 v4 live</a></p>
         </div>
       </details>

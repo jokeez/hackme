@@ -2409,7 +2409,7 @@
 								<select id="audit-depth-tier" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon">
 									<option value="wasm_only" selected>WASM scan (1 HMC / 64 runs)</option>
 									<option value="wasm_native">WASM + native (5 HMC / 256)</option>
-									<option value="bytes_corpus">Byte corpus deep (10 HMC / 1000)</option>
+									<option value="bytes_corpus">Byte corpus deep (~25 HMC / 2048)</option>
 								</select>
 							</label>
 							<label class="text-[10px] text-gray-500">Title<br><input id="audit-title" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="My protocol audit" /></label>
@@ -12612,7 +12612,7 @@
 			const presets = {
 				wasm_only: { hmc: 1, runs: 64 },
 				wasm_native: { hmc: 5, runs: 256 },
-				bytes_corpus: { hmc: 10, runs: 1000 },
+				bytes_corpus: { hmc: 25, runs: 2048 },
 			};
 			const p = presets[tier] || presets.wasm_only;
 			if ($('audit-budget-hmc')) $('audit-budget-hmc').value = String(p.hmc);

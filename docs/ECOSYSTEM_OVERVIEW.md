@@ -38,7 +38,7 @@
 
 ## Differentiation (one paragraph)
 
-HackMe combines **useful Proof-of-History mining** (WASM-gated work), a **coordinator-backed fair pool** (hybrid Ed25519, not blind Stratum shares), and a **B2B security-audit order layer** (escrow + fuzz campaigns). HMC is the settlement rail; SUP rewards long-horizon honest miners; HMS extends the same stack to storage economics. This is infrastructure + verifiable compute — not another empty SHA256 fork.
+HackMe combines **useful Proof-of-History mining** (WASM-gated work), a **coordinator-backed fair pool** (hybrid PoH + fuzz, Ed25519 submit — not blind Stratum shares), and a **B2B security-audit layer** (`hackme-fuzzing wizard` + packs on local node, escrow + `fuzz_report_v2`). HMC is the settlement rail; SUP rewards long-horizon honest miners; HMS extends the same stack to storage economics.
 
 ## Listing readiness (honest)
 

@@ -93,7 +93,7 @@
             <tr>
               <td><span class="method-pill method-post">POST</span></td>
               <td><span class="code-inline">/api/security-audit</span></td>
-              <td>B2B wizard path: WASM/pack campaign + escrow. Config may include <span class="code-inline">input_mode</span>, <span class="code-inline">guard_pack</span>, <span class="code-inline">public_proof</span>.</td>
+              <td>B2B wizard: <span class="code-inline">guard_pack</span> (<code>secrets</code> · <code>filter_utf8</code> · …), <span class="code-inline">package</span> (scan/audit/deep), <span class="code-inline">coverage_kind</span>, <span class="code-inline">exec_per_unit</span>, <span class="code-inline">public_proof</span>. Pool claim returns frozen <span class="code-inline">corpus_seeds</span>.</td>
             </tr>
             <tr>
               <td><span class="method-pill method-post">POST</span></td>
@@ -126,7 +126,7 @@
       </article>
       <article class="doc-card glass">
         <h3>Fuzzing / B2B</h3>
-        <p>B2B: <code>hackme-fuzzing wizard</code> on <a href="./downloads.html#local-node">127.0.0.1:8080</a> · <a href="./developers.html">packages</a> · <a href="./fuzzing-console.html">public tracker</a>.</p>
+        <p>B2B: <code>hackme-fuzzing wizard --pack filter_utf8 --package audit</code> on <a href="./downloads.html#local-node">127.0.0.1:8080</a> · <a href="./developers.html">packages</a> · Deep pool cap 64 exec/unit · <a href="./fuzzing-console.html">tracker</a>.</p>
       </article>
       <article class="doc-card glass">
         <h3>Full specification</h3>

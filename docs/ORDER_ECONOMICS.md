@@ -8,7 +8,9 @@ When a customer node creates `POST /api/security-audit` with **`create_poh_order
 - PoH escrow is **not** opened on that node (pool workers never see a remote SQLite task list).
 - Campaign config carries `attach_poh_order` + WASM/reward fields; coordinator `POST /api/fuzz/pool/campaigns` creates the PoH task on **`HACKME_COORDINATOR_ORDERS_URL`**.
 - Existing **`workerpoh`** clients auto-enter `scheduler_mode=orders` — no binary update for that rail.
-- Deep fuzz **runs** still use `/api/fuzz/work/*` (`workerfuzz`) until workerpoh also claims fuzz.
+- Deep fuzz **runs** use `/api/fuzz/work/*` (hybrid `workerpoh` or standalone `workerfuzz`). Hub **exec_per_unit** capped at **64** on distributed pool; coordinator replays segment on submit (see [POOL_FUZZ_DISTRIBUTED.md](POOL_FUZZ_DISTRIBUTED.md)).
+
+**B2B packages (wizard):** scan ~1 HMC/64 · audit ~5/256 · deep ~25/2048. Packs: `secrets`, `script_bounds`, `filter_utf8`, `parser_expat`.
 
 Disable with `HACKME_COORDINATOR_ATTACH_POH_ORDER=0`.
 

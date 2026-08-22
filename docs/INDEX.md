@@ -31,7 +31,7 @@
 
 | Doc / page | Topic |
 |------------|--------|
-| [FUZZ_PRODUCT_GUIDE.md](FUZZ_PRODUCT_GUIDE.md) | Campaigns, autorunner, CI gate, `fuzz_report_v2` |
+| [FUZZ_PRODUCT_GUIDE.md](FUZZ_PRODUCT_GUIDE.md) | B2B packages, packs, coverage, pool anticheat, CI gate |
 | [CUSTOMER_FUZZ_DELIVERABLES.md](CUSTOMER_FUZZ_DELIVERABLES.md) | Report token, repro, artifacts |
 | [DEVELOPERS_FUZZING.md](DEVELOPERS_FUZZING.md) | Orders API, limits, escrow |
 | [FUZZING_B2B_SECURITY_VERDICT.md](FUZZING_B2B_SECURITY_VERDICT.md) | B2B threat model & verdict |

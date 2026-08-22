@@ -88,8 +88,15 @@ Lab-only: `HACKME_REQUIRE_ADMIN_TOKEN=0` on a **loopback** bind. Do not open a p
 | GET | `/api/fuzz/campaigns/{id}/gate?max_critical=0&max_high=0&max_severity_score=0&min_sample_size=0&min_runs_done=0` | CI/release gate (**primary deliverable**). `{ pass, reasons[], assurance_note, triage_policy:"crash_first", thresholds{severity_basis:"crash_class"}, observed{critical_count,high_count,severity_score,crash_count,coverage_noise_count,runs_done} }`. Thresholds apply to **crash-class** findings only; detector/property signals do not fail the gate. Default `min_sample_size=0` so clean (zero-finding) campaigns can PASS; prefer `min_runs_done` for assurance. `pass` ≠ proven secure. Auth: report token or admin. |
 | GET | `/api/fuzz/campaigns/{id}/pulse?stale_after_sec=90` | Live progress: `{ ok, status, elapsed_sec, progress{runs_done,budget_runs,progress_pct,runs_per_sec,eta_sec,eta_sec_est,eta_source,progress_note,honest_progress}, eta{…}, runner, coverage, findings{total,by_severity,crash_count,coverage_noise_count}, summary, escrow? }`. Auth: report token or admin. |
 | GET | `/api/fuzz/campaigns/{id}/diff?base_campaign_id=<id>` | Regression diff of two campaigns (admin-only): `{ ok, campaign_id, base_campaign_id, summary{new_count,fixed_count,regressed_count}, new_findings[], fixed_findings[], regressed_findings[] }`. |
+| POST | `/api/security-audit` | **B2B wizard** (admin/local node): `{ title?, package:"scan|audit|deep", guard_pack?, wasm_check_hex?, wasm_path?, public_proof?, payer_ref?, … }` → `{ campaign_id, customer_report_token, report_url, gate_url, pulse_url, proof_url? }`. Same as `hackme-fuzzing wizard`. |
+| GET | `/api/fuzz/campaigns/{id}/proof` | Proof of Fuzz facts JSON/HTML (opt-in `public_proof`; else token/admin). Badge: `…/proof/{id}/badge.svg`. |
 
-## HMC transfers (transfer v1)
+### Campaign `config` (B2B / pool)
+
+Common keys: `input_mode` (`bytes`), `depth_tier`, `exec_per_unit`, `coverage_kind` (`wasm_edge_bitmap` \| `input_fingerprint`), `guided_scheduling`, `guard_pack`, `pool_distributed`, `native_repro_mode`, `max_input_bytes`, `public_proof`, `wasm_check_hex`.
+
+**Pool claim** (coordinator): `POST /api/fuzz/work/claim` → `{ exec_per_unit, max_input_bytes, coverage_kind, corpus_seeds?, corpus_snapshot_sha256?, wasm_check_hex, … }`. Submit: `segment_exec_done` must match capped `exec_per_unit` (Deep **64** on hub). See [POOL_FUZZ_DISTRIBUTED.md](POOL_FUZZ_DISTRIBUTED.md).
+
 
 | Method | Path | Description |
 |--------|------|----------|

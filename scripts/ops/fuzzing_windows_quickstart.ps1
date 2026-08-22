@@ -1,9 +1,9 @@
 # HackMe fuzzing CLI — Windows quick start (run in PowerShell after hackme-node is up on :8080).
 # Usage: powershell -ExecutionPolicy Bypass -File fuzzing_windows_quickstart.ps1
-# Optional: -InstallDir C:\HackMe -ReleaseVer 0.1.0-rc11n
+# Optional: -InstallDir C:\HackMe -ReleaseVer 0.1.0-rc14x
 param(
     [string]$InstallDir = "$env:USERPROFILE\HackMe",
-    [string]$ReleaseVer = "0.1.0-rc11n",
+    [string]$ReleaseVer = "0.1.0-rc14x",
     [string]$Base = "http://127.0.0.1:8080"
 )
 
@@ -46,4 +46,6 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "`nWallet:"
 & $Cli wallet --base $Base
-Write-Host "`nOK. Next: hackme-fuzzing tasks --base $Base" -ForegroundColor Green
+Write-Host "`nOK. B2B wizard (needs HACKME_ADMIN_TOKEN on node):" -ForegroundColor Green
+Write-Host "  `$env:HACKME_ADMIN_TOKEN='…'; & '$Cli' wizard --pack filter_utf8 --package audit --base $Base"
+Write-Host "Classic: hackme-fuzzing tasks --base $Base"

@@ -16,6 +16,16 @@ What an audit customer should receive after a campaign completes.
 | **Baseline diff** | `baseline_diff` when `config.base_campaign_id` is set; otherwise clear stub. |
 | **Progress pulse** | `GET …/pulse` — ETA + crash vs coverage-noise counts. |
 | **Executive CSV** | `GET …/report.csv` with same token. |
+| **Proof of Fuzz** (opt-in) | `wizard --public-proof` → `/proof/{id}` + badge (crash-gate only; secrets redacted). |
+
+## Wizard / packs (B2B final)
+
+| Item | Detail |
+|------|--------|
+| **CLI** | `hackme-fuzzing wizard --pack secrets\|script_bounds\|filter_utf8\|… --package scan\|audit\|deep` |
+| **Packages** | scan ~1 HMC/64 · audit ~5/256 · deep ~25/2048 |
+| **Pool Deep** | 512 exec/unit local; **64 cap** on distributed pool — coordinator replay anticheat |
+| **coverage_kind** | `wasm_edge_bitmap` @ mem **8192** on instrumented guards (scheduling, not AFL) |
 
 Auth: **`X-Hackme-Report-Token`** (issued once at create / `POST …/token`) or admin token.
 
