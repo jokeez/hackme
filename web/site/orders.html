@@ -35,8 +35,8 @@
       <h1>Order fuzz work — shop stays on your node</h1>
       <p class="hero-copy">
         HackMe.tech explains the path. You create the order on <strong>your local node</strong>
-        (<code>127.0.0.1:8080</code>: wallet, escrow, WASM guard, report.
-        Pool miners (customer-first since rc14) run the work; you keep keys and spendable HMC.
+        (<code>127.0.0.1:8080</code>): wallet, escrow, WASM guard, report.
+        Pool miners on <strong>0.1.0-rc15</strong> pick <strong>customer work first</strong>; you keep keys and spendable HMC.
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="./downloads.html#local-node">1 · Download local node</a>
@@ -47,7 +47,7 @@
         <span class="pill">No checkout on this site</span>
         <span class="pill">Escrow on localhost</span>
         <span class="pill">Scan · Audit · Deep</span>
-        <span class="pill">rc14 customer-first pool</span>
+        <span class="pill">rc15 customer-first pool</span>
       </div>
     </section>
 
@@ -57,7 +57,8 @@
         <li><strong>Install</strong> — Win/Linux node from <a href="./downloads.html#local-node">Downloads</a>. Open <code>http://127.0.0.1:8080</code> → Wallet.</li>
         <li><strong>Order</strong> — fund HMC, then
           <code>hackme-fuzzing wizard --pack filter_utf8 --package audit</code>
-          (or <code>--wasm guard.wasm</code> · dashboard <code>#orders</code>).</li>
+          (packs: <code>secrets</code> · <code>script_bounds</code> · <code>filter_utf8</code> · <code>parser_expat</code>
+          · or <code>--wasm guard.wasm</code> · dashboard <code>#orders</code>).</li>
         <li><strong>Deliverable</strong> — wizard prints <code>report_url</code>, <code>gate_url</code>, <code>pulse_url</code>. Pool diggers pick customer work first.</li>
       </ol>
       <pre class="code-block" style="margin-top:1rem"><code>export HACKME_ADMIN_TOKEN=…   # local node only
@@ -95,7 +96,7 @@ hackme-fuzzing wizard \
       </p>
     </section>
   </main>
-  <script src="./assets/site-shell.js?v=20260811orders"></script>
-  <script src="./assets/app.js?v=20260811orders"></script>
+  <script src="./assets/site-shell.js?v=20260824rc15"></script>
+  <script src="./assets/app.js?v=20260824rc15"></script>
 </body>
 </html>

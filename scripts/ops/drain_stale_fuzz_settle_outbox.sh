@@ -70,4 +70,19 @@ log "marked applied: ${n}"
 
 pending_after="$(run_sql "SELECT COUNT(*) FROM fuzz_settle_outbox o WHERE o.status='pending'${where_extra};" 2>/dev/null || echo 0)"
 log "pending after: ${pending_after}"
+
+# Expired leases never auto-flip to pending; reclaim so workers can claim them again.
+if [[ -z "$PREFIX" ]]; then
+  expired="$(run_sql "SELECT COUNT(*) FROM fuzz_work_items WHERE status='leased' AND lease_until < CAST(strftime('%s','now') AS INTEGER);" 2>/dev/null || echo 0)"
+  log "expired leases before: ${expired}"
+  if [[ "$DRY_RUN" != "1" ]]; then
+    recl="$(run_sql "
+UPDATE fuzz_work_items
+SET status='pending', lease_owner='', lease_until=0, updated_at=CAST(strftime('%s','now') AS INTEGER)
+WHERE status='leased' AND lease_until < CAST(strftime('%s','now') AS INTEGER);
+SELECT changes();" 2>/dev/null || echo 0)"
+    log "reclaimed expired leases: ${recl}"
+  fi
+fi
+
 log "done"
