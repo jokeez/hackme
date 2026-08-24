@@ -88,7 +88,7 @@ flowchart TB
 
 | Area | Status | Notes |
 |------|--------|-------|
-| **HMC pool** | **Live** | Auto `target_mod` · **11 workers** · **~170 GH/s** (live) · hybrid signer strict · accept rate ~99.7% |
+| **HMC pool** | **Live** | Auto `target_mod` · **~33 workers** · **~700–800 GH/s** (operator snapshot 2026-08-24; includes display fleet) · hybrid signer strict · accept rate ~99.7% |
 | **Settlement** | **Live** | HMC + SUP systemd timers + autopilot on canonical host |
 | **B2B fuzz / PoH** | **Live** | Dashboard `#orders` · `workerfuzz` on hub · bootstrap PoH path (`pool_distributed` + `create_poh_order`) completing deep orders |
 | **OSS CVE Watch · nghttp2** | **14/14 complete** | [day14.html](https://hackme.tech/reports/oss-cve-watch/day14.html) CLEAN · ~14.32B exec · ASAN=0 |

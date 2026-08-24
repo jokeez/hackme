@@ -1,6 +1,6 @@
 # HackMe 0.1.0-rc11p — superseded by rc11s
 
-> **Current channel:** [HACKME_RC12W.md](HACKME_RC12W.md) · `0.1.0-rc12w` on [downloads](https://hackme.tech/downloads.html)
+> **Historical.** Current download channel: [HACKME_RC15.md](../../HACKME_RC15.md) (`0.1.0-rc15`). Intermediate: [HACKME_RC12W.md](../../HACKME_RC12W.md).
 
 **Status:** Superseded — kept for changelog reference.
 

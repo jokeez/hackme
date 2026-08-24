@@ -87,7 +87,8 @@
 |-----|--------|
 | [OPERATIONS_MONITORING.md](OPERATIONS_MONITORING.md) | Metrics, alerts, pool health (`run_pool_health_check.sh`) |
 | [VPS_CAPACITY.md](VPS_CAPACITY.md) | Hub sizing & multi-coin layout |
-  | [HACKME_RC14.md](HACKME_RC14.md) | **Current** Win/Linux/fuzz/ISO channel |
+| [HACKME_RC15.md](HACKME_RC15.md) | **Current** Win/Linux/fuzz/ISO channel |
+| [HACKME_RC14.md](HACKME_RC14.md) | Previous rc14x channel |
 | [HACKME_RC12W.md](HACKME_RC12W.md) | Historical prior RC |
 | [HACKME_RC11S.md](HACKME_RC11S.md) | Historical prior RC (see also `archive/rc/`) |
 | [scripts/release/README.md](../scripts/release/README.md) | Build ISO / Windows / bundles |

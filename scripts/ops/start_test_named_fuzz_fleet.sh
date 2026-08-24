@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Start N named workerfuzz diggers (pool order distribution). Durable via systemd --user.
-# Same callsigns as PoH fleet. Does NOT touch worker-kapa-pc.
+# DEPRECATED for display fleets: prefer start_test_named_fleet.sh (PoH+fuzz same worker_id).
+# This script starts separate *-fuzz diggers (sybil rows). Use only for load tests.
+# Does NOT touch worker-kapa-pc.
 #
 #   bash scripts/ops/start_test_named_fuzz_fleet.sh
 #   bash scripts/ops/stop_test_named_fuzz_fleet.sh
+echo "[fuzz-fleet] WARN: prefer hybrid named fleet (scripts/ops/start_test_named_fleet.sh)" >&2
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
@@ -13,6 +15,7 @@ COORD_URL="${COORD_URL:-https://hackme.tech/pool/coordinator}"
 LOG_DIR="${LOG_DIR:-$ROOT/logs/test-named-fuzz-fleet}"
 SEED_DIR="${SEED_DIR:-$ROOT/logs/test-named-fuzz-fleet/seeds}"
 TIMEOUT_MS="${WORKERFUZZ_TIMEOUT_MS:-2000}"
+HTTP_TIMEOUT_SEC="${WORKERFUZZ_HTTP_TIMEOUT_SEC:-90}"
 UNIT_PREFIX="${UNIT_PREFIX:-hackme-test-fuzz}"
 BIN="${WORKERFUZZ_BIN:-}"
 if [[ -z "$BIN" ]]; then
@@ -77,6 +80,7 @@ for i in $(seq 0 $((N - 1))); do
     --setenv=HACKME_WORKER_SIGN_SUBMITS=1 \
     --setenv=HACKME_MINER_ED25519_SEED_HEX="$seed" \
     --setenv=HACKME_WORKER_LOCK_DIR="$LOG_DIR/locks" \
+    --setenv=WORKERFUZZ_HTTP_TIMEOUT_SEC="$HTTP_TIMEOUT_SEC" \
     /bin/bash -c "exec >>\"$logf\" 2>&1; exec \"$BIN\" -coord \"$COORD_URL\" -token \"$TOKEN\" -worker \"$wid\" -timeout-ms \"$TIMEOUT_MS\""
   echo "$unit" >"$LOG_DIR/${wid}.unit"
   echo "[fuzz-fleet]  $wid  unit=${unit}  log=$logf"

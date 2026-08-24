@@ -1,6 +1,9 @@
-# HackMe 0.1.0-rc11n — current download channel (production final)
+# HackMe 0.1.0-rc11n — archived download channel
 
-**Status:** **LIVE** on [hackme.tech/downloads.html](https://hackme.tech/downloads.html) — Win/Linux + ISO on one channel; SUP on-chain; public economics API.
+> **Historical archive.** Current channel: [HACKME_RC15.md](../../HACKME_RC15.md) (`0.1.0-rc15`).
+
+
+**Status (historical):** was **LIVE** on [hackme.tech/downloads.html](https://hackme.tech/downloads.html) — Win/Linux + ISO on one channel; SUP on-chain; public economics API.
 
 ## Artifacts
 

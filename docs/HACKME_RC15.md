@@ -45,4 +45,5 @@ gh release create 0.1.0-rc15 dist/release_0.1.0-rc15/*.{zip,tar.gz,exe,txt,json,
   --notes-file dist/release_0.1.0-rc15/RELEASE_NOTES.md
 ```
 
-ISO: add `HackMe-OS-0.1.0-rc15-amd64.iso` + `SHA256SUMS-iso.txt` when ISO build completes.
+ISO shipped: `HackMe-OS-0.1.0-rc15-amd64.iso` + `SHA256SUMS-iso.txt`  
+(`9158109d446c143a753fd7abd26ff416e0911f56f2a42f538d8e2b81323cc251  HackMe-OS-0.1.0-rc15-amd64.iso`)

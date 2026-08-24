@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**HackMe Network** · `0.1.0-rc14x` · [hackme.tech](https://hackme.tech) · [Telegram](https://t.me/hackme_tech)
+**HackMe Network** · `0.1.0-rc15` · [hackme.tech](https://hackme.tech) · [Telegram](https://t.me/hackme_tech)
 
 </div>
 
@@ -54,6 +54,6 @@ flowchart TB
 
 ## Related
 
-- Release channel: [`HACKME_RC14.md`](HACKME_RC14.md)
+- Release channel: [`HACKME_RC15.md`](HACKME_RC15.md)
 - Orders economics: [`ORDER_ECONOMICS.md`](ORDER_ECONOMICS.md)
 - Pool threats: [`POOL_SECURITY_THREATS_VERDICT.md`](POOL_SECURITY_THREATS_VERDICT.md)

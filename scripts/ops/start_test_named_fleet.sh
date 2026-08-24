@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Start N independent Cosmetics/test pool workers (CPU claim/submit, pinned GH/s).
-# Durable via systemd --user (survives shell exit). Does NOT touch worker-kapa-pc.
-#
-# Default: 15 rigs, distinct GH/s from 30 … 60 (evenly spaced; pool display ~500+ GH).
+# Start N named hybrid pool workers: cosmetic PoH GH + fuzz dig under the SAME worker_id.
+# Durable via systemd --user. Does NOT touch worker-kapa-pc.
+# Prefer this over start_test_named_fuzz_fleet.sh (no separate *-fuzz sybil rows).
 #
 #   bash scripts/ops/start_test_named_fleet.sh
+#   HACKME_NAMED_HYBRID_FUZZ=0 bash scripts/ops/start_test_named_fleet.sh   # PoH-only cosmetics
 #   bash scripts/ops/stop_test_named_fleet.sh
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -18,6 +18,12 @@ BATCH_SIZE="${BATCH_SIZE:-2097152}"
 GH_MIN="${GH_MIN:-30.0}"
 GH_MAX="${GH_MAX:-60.0}"
 UNIT_PREFIX="${UNIT_PREFIX:-hackme-test-poh}"
+# Hybrid fuzz under same worker_id (default ON). Soft defaults to limit SQLITE_BUSY on hub.
+HYBRID_FUZZ="${HACKME_NAMED_HYBRID_FUZZ:-1}"
+HTTP_TIMEOUT_SEC="${WORKERFUZZ_HTTP_TIMEOUT_SEC:-90}"
+FUZZ_GAP_MS="${HACKME_WORKER_HYBRID_FUZZ_CLAIM_GAP_MS:-400}"
+FUZZ_TIMEOUT_MS="${NAMED_FUZZ_TIMEOUT_MS:-1500}"
+FUZZ_CONC="${HACKME_WORKER_HYBRID_FUZZ_CONCURRENCY:-1}"
 
 NAMES=(
   desktop-a4m2rx desktop-k7v1pd desktop-q9n4ls desktop-t2c8we desktop-z5h6mf
@@ -42,11 +48,22 @@ if [[ -z "$MINERSIGN_BIN" ]]; then
   fi
 fi
 
-mkdir -p "$LOG_DIR" "$SEED_DIR"
+if [[ ! -x "$ROOT/bin/workerfuzz" && ! -x "$ROOT/workerfuzz" ]]; then
+  echo "[test-fleet] WARN: workerfuzz missing — building ./bin/workerfuzz" >&2
+  (cd "$ROOT" && go build -o bin/workerfuzz ./cmd/workerfuzz) || true
+fi
+
+mkdir -p "$LOG_DIR" "$SEED_DIR" "$LOG_DIR/locks"
+# Drop separate fuzz-only fleet if present (same host should not double-dig).
+if [[ -x "$ROOT/scripts/ops/stop_test_named_fuzz_fleet.sh" ]]; then
+  bash "$ROOT/scripts/ops/stop_test_named_fuzz_fleet.sh" >/dev/null 2>&1 || true
+fi
 bash "$ROOT/scripts/ops/stop_test_named_fleet.sh" >/dev/null 2>&1 || true
 sleep 1
 
-echo "[test-fleet] starting $N workers GH ${GH_MIN}…${GH_MAX} → $COORD_URL (systemd --user)"
+chmod +x "$ROOT/scripts/ops/named_hybrid_unit.sh"
+
+echo "[test-fleet] starting $N hybrid units (PoH+fuzz=${HYBRID_FUZZ}) GH ${GH_MIN}…${GH_MAX} → $COORD_URL"
 for i in $(seq 0 $((N - 1))); do
   name="${NAMES[$i]:-rig$i}"
   wid="worker-${name}"
@@ -66,32 +83,37 @@ for i in $(seq 0 $((N - 1))); do
   else
     gh="$(python3 -c "print(round(${GH_MIN} + (${GH_MAX}-${GH_MIN})*${i}/(${N}-1), 2))")"
   fi
-  logf="$LOG_DIR/${wid}.log"
-  : >"$logf"
-  # shellcheck disable=SC2086
+  : >"$LOG_DIR/${wid}.log"
+  : >"$LOG_DIR/${wid}.fuzz.log"
+  # Stagger fuzz claims so hub SQLite is less likely to lock.
+  stagger_ms=$((i * 150))
   systemd-run --user \
     --unit="$unit" \
     --property=Restart=on-failure \
-    --property=RestartSec=3 \
+    --property=RestartSec=5 \
     --working-directory="$ROOT" \
     --setenv=COORD_URL="$COORD_URL" \
     --setenv=COORD_ADMIN_TOKEN="$TOKEN" \
+    --setenv=COORD_TOKEN="$TOKEN" \
     --setenv=WORKER_ID="$wid" \
     --setenv=WORKER_NAME="$name" \
     --setenv=BATCH_SIZE="$BATCH_SIZE" \
-    --setenv=HASHRATE_GHS="$gh" \
     --setenv=FORCE_HASHRATE_GHS="$gh" \
-    --setenv=HACKME_WORKER_SIGN_SUBMITS=1 \
+    --setenv=HASHRATE_GHS="$gh" \
     --setenv=HACKME_MINER_ED25519_SEED_HEX="$seed" \
-    --setenv=HACKME_MINER_NONCE_FILE="$LOG_DIR/${wid}.nonce" \
     --setenv=MINERSIGN_BIN="$MINERSIGN_BIN" \
-    --setenv=COORD_PUSH_WORK=1 \
-    /bin/bash -c "exec >>\"$logf\" 2>&1; exec bash \"$ROOT/scripts/ops/worker_loop.sh\""
+    --setenv=LOG_DIR="$LOG_DIR" \
+    --setenv=HACKME_NAMED_HYBRID_FUZZ="$HYBRID_FUZZ" \
+    --setenv=WORKERFUZZ_HTTP_TIMEOUT_SEC="$HTTP_TIMEOUT_SEC" \
+    --setenv=WORKERFUZZ_TIMEOUT_MS="$FUZZ_TIMEOUT_MS" \
+    --setenv=HACKME_WORKER_HYBRID_FUZZ_CLAIM_GAP_MS="$FUZZ_GAP_MS" \
+    --setenv=HACKME_WORKER_HYBRID_FUZZ_CONCURRENCY="$FUZZ_CONC" \
+    /bin/bash -c "sleep $(python3 -c "print(${stagger_ms}/1000)"); exec \"$ROOT/scripts/ops/named_hybrid_unit.sh\""
   echo "$unit" >"$LOG_DIR/${wid}.unit"
-  echo "[test-fleet]  $wid  gh=${gh}  unit=${unit}  log=$logf"
+  echo "[test-fleet]  $wid  gh=${gh}  hybrid_fuzz=${HYBRID_FUZZ}  unit=${unit}"
 done
 
-sleep 3
+sleep 4
 alive=0
 for i in $(seq 0 $((N - 1))); do
   name="${NAMES[$i]:-rig$i}"
@@ -100,5 +122,6 @@ for i in $(seq 0 $((N - 1))); do
     alive=$((alive + 1))
   fi
 done
-echo "[test-fleet] active $alive / $N"
+echo "[test-fleet] active $alive / $N (PoH board + fuzz under same ids)"
 echo "[test-fleet] stop: bash scripts/ops/stop_test_named_fleet.sh"
+echo "[test-fleet] fuzz logs: $LOG_DIR/worker-*.fuzz.log"
