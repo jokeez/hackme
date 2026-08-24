@@ -169,3 +169,6 @@ docs/HUB_ADAPTER_ONBOARDING_CHECKLIST.md
 docs/HUB_ADAPTER_STATUS_TEMPLATE.md
 .cursor/
 .deps/
+
+# Brand upload assets for FB/Reddit/CG (local only — do not commit binaries)
+web/site/assets/social/
