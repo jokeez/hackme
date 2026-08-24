@@ -1605,6 +1605,12 @@ h4 { font-size: 1.02rem; }
   --social-icon-bg: rgba(255, 255, 255, 0.1);
 }
 .social-card--x .social-card__icon { color: #fff; }
+.social-card--facebook {
+  --social-accent: #1877f2;
+  --social-glow: rgba(24, 119, 242, 0.28);
+  --social-icon-bg: rgba(24, 119, 242, 0.18);
+}
+.social-card--facebook .social-card__icon { color: #1877f2; }
 .social-card--youtube {
   --social-accent: #ff0033;
   --social-glow: rgba(255, 0, 51, 0.28);

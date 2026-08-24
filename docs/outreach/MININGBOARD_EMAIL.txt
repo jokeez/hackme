@@ -1,0 +1,40 @@
+To: hello@miningboard.com
+Subject: Pool listing request — HackMe Official Pool (HMC) — HTTP coordinator, live stats API
+
+Hello MiningBoard team,
+
+We would like to add our public mining pool to the MiningBoard directory.
+
+Pool name:     HackMe Official Pool
+Coin:          HackMe (HMC)
+Website:       https://hackme.tech
+Stats API:     https://hackme.tech/pool/coordinator/api/pool/stats
+Work stats:    https://hackme.tech/pool/coordinator/api/work/stats
+Explorer:      https://hackme.tech/pool/explorer
+Downloads:     https://hackme.tech/downloads.html
+
+Algorithm:     Useful PoW / Proof-of-History with WASM sandbox gates (GPU via workerpoh;
+               CUDA on NVIDIA, OpenCL fallback). This is NOT SHA256/Scrypt Stratum mining.
+
+Connection:    HTTP coordinator at https://hackme.tech/pool/coordinator — NOT Stratum TCP.
+               Miners use the open-source hackme-node desktop/worker (see downloads page).
+
+Economics:     0% pool fee. Coordinator accrues HMC off-chain per accepted work; operator
+               settles to miner HMC-addresses on-chain (public chain explorer on same domain).
+
+Proof / trust: • Open source: https://github.com/jokeez/hackme (AGPL-3.0)
+               • Bitcointalk ANN: https://bitcointalk.org/index.php?topic=5583373.0
+               • Live pool stats return JSON with status, hashrate, miners/workers count.
+
+Sample pool/stats JSON (live):
+  {"status":"ok","pool":"HackMe Official Pool","hashrate":<n>,"miners":<n>,"workers":<n>}
+
+Contact: support@hackme.tech
+Community: https://hackme.tech/contacts.html (Telegram, Discord, X)
+
+Please list us as a custom / non-Stratum HTTP pool, or associate our entry with coin HMC.
+Happy to provide any extra fields your template needs.
+
+Thank you,
+HackMe Network
+support@hackme.tech

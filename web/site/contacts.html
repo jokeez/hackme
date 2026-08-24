@@ -4,14 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>HackMe Contacts and Community</title>
-  <meta name="description" content="Official HackMe channels: X, YouTube, Reddit, GitHub (AGPL-3.0), Telegram, Discord, Bitcointalk ANN, and partner support." />
+  <meta name="description" content="Official HackMe channels: Telegram, Facebook, Discord, X, YouTube, Reddit, GitHub (AGPL-3.0), Bitcointalk ANN, and partner support." />
   <link rel="canonical" href="https://hackme.tech/contacts.html" />
   <meta property="og:title" content="HackMe — Community &amp; contacts" />
   <meta property="og:url" content="https://hackme.tech/contacts.html" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./assets/styles.css?v=20260717site" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20260824contacts" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
   <link rel="icon" href="/assets/favicon.png" type="image/png" />
 </head>
@@ -29,13 +29,15 @@
       <h1>Contact hub for miners &amp; partners</h1>
       <p class="hero-copy">
         One place for source code, release announcements, and real-time chat.
-        Follow on <strong>X</strong> for short updates; use <strong>Telegram</strong> for release auto-sync.
+        <strong>Telegram</strong> is the canonical release feed; use <strong>Facebook</strong> for public page updates.
+        <strong>X</strong> may be unavailable in some regions.
       </p>
       <div class="contacts-hero-meta" aria-label="Official channels">
+        <span class="contacts-pill" style="--pill-color:#2aabee"><span class="contacts-pill-dot"></span> Telegram</span>
+        <span class="contacts-pill" style="--pill-color:#1877f2"><span class="contacts-pill-dot"></span> Facebook</span>
+        <span class="contacts-pill" style="--pill-color:#5865f2"><span class="contacts-pill-dot"></span> Discord</span>
         <span class="contacts-pill" style="--pill-color:#e7e9ea"><span class="contacts-pill-dot"></span> X @HackMeTech</span>
         <span class="contacts-pill" style="--pill-color:#ff0033"><span class="contacts-pill-dot"></span> YouTube @HackmeTech</span>
-        <span class="contacts-pill" style="--pill-color:#2aabee"><span class="contacts-pill-dot"></span> Telegram</span>
-        <span class="contacts-pill" style="--pill-color:#5865f2"><span class="contacts-pill-dot"></span> Discord</span>
         <span class="contacts-pill" style="--pill-color:#ff4500"><span class="contacts-pill-dot"></span> Reddit u/Hackme-Official</span>
         <span class="contacts-pill" style="--pill-color:#6effad"><span class="contacts-pill-dot"></span> AGPL-3.0 source</span>
       </div>
@@ -44,11 +46,24 @@
     <section class="panel glass">
       <div class="panel-head">
         <h2>Social &amp; announcements</h2>
-        <p class="subtle">Visual markers — pick your platform. <strong>Telegram is the canonical release feed</strong>; Reddit is for community discussion when the operator account is active.</p>
+        <p class="subtle">Visual markers — pick your platform. <strong>Telegram is the canonical release feed</strong>; Facebook mirrors public announcements. Reddit is for community discussion when the operator account is active.</p>
       </div>
       <div class="social-hub">
         <p class="social-hub-label">Public updates</p>
         <div class="social-hub-row">
+          <a class="social-card social-card--facebook" href="https://www.facebook.com/profile.php?id=61593651155616" target="_blank" rel="noreferrer">
+            <div class="social-card__top">
+              <span class="social-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/></svg>
+              </span>
+              <div>
+                <h3 class="social-card__title">Facebook</h3>
+                <p class="social-card__handle">HackMe Network</p>
+              </div>
+            </div>
+            <p class="social-card__text">Official Page for public updates, pool notes, and research links — use when X is blocked in your region.</p>
+            <span class="social-card__badge">Page</span>
+          </a>
           <a class="social-card social-card--x" href="https://x.com/HackMeTech" target="_blank" rel="noreferrer">
             <div class="social-card__top">
               <span class="social-card__icon" aria-hidden="true">
@@ -59,8 +74,8 @@
                 <p class="social-card__handle">@HackMeTech</p>
               </div>
             </div>
-            <p class="social-card__text">Short updates, clips, and launch notes — follow for release updates and pool status.</p>
-            <span class="social-card__badge">Live</span>
+            <p class="social-card__text">Official handle for short updates when reachable. May be unavailable in some regions — prefer Telegram or Facebook.</p>
+            <span class="social-card__badge">Limited / geo</span>
           </a>
           <a class="social-card social-card--youtube" href="https://www.youtube.com/@HackmeTech" target="_blank" rel="noreferrer">
             <div class="social-card__top">
@@ -267,7 +282,8 @@
         <li>Never share admin tokens, private keys, or raw wallet seeds in public chats.</li>
         <li>Download binaries only from <strong>hackme.tech/downloads.html</strong> and verify SHA256.</li>
         <li>Trust <strong>github.com/jokeez/hackme</strong> for source — forks may impersonate; check the official org.</li>
-        <li>Official X account: <strong><a href="https://x.com/HackMeTech" target="_blank" rel="noreferrer">@HackMeTech</a></strong> only.</li>
+        <li>Official X account: <strong><a href="https://x.com/HackMeTech" target="_blank" rel="noreferrer">@HackMeTech</a></strong> only — may be unavailable in some regions; primary feed remains Telegram.</li>
+        <li>Official Facebook Page: <strong><a href="https://www.facebook.com/profile.php?id=61593651155616" target="_blank" rel="noreferrer">HackMe Network</a></strong> (Page only — not personal profiles or unofficial groups).</li>
         <li>Official Reddit: <strong><a href="https://www.reddit.com/user/Hackme-Official/" target="_blank" rel="noreferrer">u/Hackme-Official</a></strong> — brand account for pool communities (Telegram is the live release feed).</li>
         <li>Security disclosures: email <strong>support@hackme.tech</strong> before public discussion.</li>
       </ul>
@@ -280,7 +296,7 @@
     <div class="footer-nav"></div>
   </footer>
 
-  <script src="./assets/site-shell.js?v=20260824iso"></script>
-  <script src="./assets/app.js?v=20260824iso"></script>
+  <script src="./assets/site-shell.js?v=20260824contacts"></script>
+  <script src="./assets/app.js?v=20260824contacts"></script>
 </body>
 </html>
