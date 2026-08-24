@@ -113,12 +113,15 @@
       const body = document.getElementById('campaigns-body');
       const statsEl = document.getElementById('pool-stats');
       try {
-        const [st, list] = await Promise.all([
+        const [stRes, listRes] = await Promise.allSettled([
           fetch(COORD + '/api/fuzz/pool/stats').then(r => r.json()),
           fetch(COORD + '/api/fuzz/pool/campaigns/list').then(r => r.json()),
         ]);
-        allCampaigns = list.campaigns || [];
-        paintStats(st);
+        const st = stRes.status === 'fulfilled' ? stRes.value : null;
+        const list = listRes.status === 'fulfilled' ? listRes.value : null;
+        allCampaigns = (list && list.campaigns) || [];
+        if (st) paintStats(st);
+        else statsEl.textContent = allCampaigns.length ? (allCampaigns.length + ' campaigns') : 'Pool stats unavailable';
         renderRows(filterCampaigns(activeTab));
       } catch (e) {
         body.innerHTML = '<tr><td colspan="6">Could not load pool data.</td></tr>';
@@ -140,7 +143,7 @@
     document.getElementById('btn-refresh').addEventListener('click', load);
     load();
   </script>
-  <script src="./assets/site-shell.js?v=20260720site"></script>
-  <script src="./assets/app.js?v=20260720site"></script>
+  <script src="./assets/site-shell.js?v=20260824iso"></script>
+  <script src="./assets/app.js?v=20260824iso"></script>
 </body>
 </html>

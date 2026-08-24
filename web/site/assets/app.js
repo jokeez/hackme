@@ -183,35 +183,15 @@
     });
   }
 
-  async function resolveWindowsDownloadHref() {
-    const candidates = [
-      CONFIG.windowsInstaller,
-      CONFIG.windowsInstallerMirror,
-      CONFIG.windowsBundleLegacy,
-      CONFIG.windowsBundleLegacyMirror,
-    ].filter(Boolean);
-    for (const url of candidates) {
-      try {
-        const r = await fetch(url, { method: "HEAD", cache: "no-store" });
-        if (r.ok) return url;
-      } catch (_) {}
-    }
-    return CONFIG.windowsInstaller || CONFIG.windowsBundleLegacy;
+  // GitHub Releases (and large /dist ISOs) must not be probed with fetch/HEAD from
+  // hackme.tech: GitHub has no CORS ACAO, and HEAD of an 850MB ISO can stall the tab.
+  // <a href> navigation is not CORS — set GitHub URLs directly.
+  function resolveWindowsDownloadHref() {
+    return CONFIG.windowsInstaller || CONFIG.windowsBundleLegacy || CONFIG.windowsBundle || "";
   }
 
-  async function resolveHackMeOSIsoHref() {
-    const candidates = [
-      CONFIG.hackmeOSIso,
-      CONFIG.hackmeOSIsoMirror,
-      CONFIG.hackmeOSIsoLegacy,
-    ].filter(Boolean);
-    for (const url of candidates) {
-      try {
-        const r = await fetch(url, { method: "HEAD", cache: "no-store" });
-        if (r.ok) return url;
-      } catch (_) {}
-    }
-    return "";
+  function resolveHackMeOSIsoHref() {
+    return CONFIG.hackmeOSIso || CONFIG.hackmeOSIsoMirror || CONFIG.hackmeOSIsoLegacy || "";
   }
 
   function wireDownloadLinks() {
@@ -235,13 +215,17 @@
     if (verMeta) verMeta.textContent = verLabel;
     const contactsVer = document.getElementById("contacts-release-ver");
     if (contactsVer) contactsVer.textContent = `release ${verLabel}`;
-    void resolveHackMeOSIsoHref().then((isoHref) => {
-      const isoBtn = document.getElementById("download-iso");
-      const isoStat = document.getElementById("download-iso-status");
-      if (!isoBtn) return;
+    const isoHref = resolveHackMeOSIsoHref();
+    const isoBtn = document.getElementById("download-iso");
+    const isoStat = document.getElementById("download-iso-status");
+    if (isoBtn) {
       if (isoHref) {
         isoBtn.href = isoHref;
         isoBtn.classList.remove("btn-disabled");
+        if (isoHref.startsWith("http")) {
+          isoBtn.target = "_blank";
+          isoBtn.rel = "noreferrer";
+        }
         if (isoStat) isoStat.textContent = "ISO available — verify SHA256SUMS-iso.txt before flashing.";
       } else {
         isoBtn.href = "#hackme-os";
@@ -250,7 +234,7 @@
             "ISO build publishing soon — watch News or build from source: scripts/release/iso/build_hackme_miner_iso.sh";
         }
       }
-    });
+    }
   }
 
   /** Public hackme.tech nginx exposes read APIs under /pool/api; dev localhost uses /api. */
@@ -842,13 +826,14 @@
   wireStandardNav();
   wireCommunityFooter();
   wireDownloadLinks();
-  void resolveWindowsDownloadHref().then((href) => {
+  {
+    const href = resolveWindowsDownloadHref();
     setHref("download-win", href);
     const primary = document.getElementById("download-win");
     if (primary && href && href.endsWith(".exe")) {
       primary.textContent = "Download HackMe Setup (.exe)";
     }
-  });
+  }
   void renderNewsPage();
   void renderNewsHealth();
   hydratePoolFromCache();
