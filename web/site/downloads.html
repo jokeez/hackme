@@ -3,14 +3,82 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HackMe Downloads</title>
-  <meta name="description" content="Download HackMe OS live ISO, Windows installer, and Linux bundles. Zero-Knowledge Start — flash USB and mine with no wallet setup." />
+  <title>HackMe Downloads · 0.1.0-rc16</title>
+  <meta name="description" content="Download HackMe 0.1.0-rc16: Windows Setup, Linux tarball, HackMe OS ISO, signed apt. Verify SHA256 before install." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./assets/styles.css" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
   <link rel="icon" href="/assets/favicon.png" type="image/png" />
+  <style>
+    .dl-pick {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+      margin-top: 1.25rem;
+    }
+    @media (max-width: 900px) {
+      .dl-pick { grid-template-columns: 1fr; }
+    }
+    .dl-pick .card {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      min-height: 100%;
+      border: 1px solid rgba(77, 228, 255, 0.18);
+      transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+    .dl-pick .card:hover {
+      border-color: rgba(77, 228, 255, 0.45);
+      transform: translateY(-2px);
+    }
+    .dl-pick .card h3 {
+      font-family: "Space Grotesk", Inter, sans-serif;
+      letter-spacing: 0.02em;
+      margin: 0;
+    }
+    .dl-pick .card p { margin: 0; flex: 1; }
+    .dl-pick .btn { margin-top: auto; }
+    .dl-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem 1rem;
+      align-items: center;
+      margin-top: 1rem;
+      padding: 0.85rem 1rem;
+      border-radius: 0.85rem;
+      border: 1px solid rgba(110, 255, 173, 0.28);
+      background: rgba(110, 255, 173, 0.05);
+    }
+    .dl-strip code {
+      font-size: 0.82rem;
+      color: #6effad;
+    }
+    .dl-meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.85rem;
+    }
+    .dl-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.28rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid rgba(120, 170, 220, 0.28);
+      background: rgba(8, 14, 27, 0.55);
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .dl-chip strong { color: var(--ok); font-weight: 700; letter-spacing: 0.04em; text-transform: none; }
+    .dl-section-tight .panel-head h2 { margin-bottom: 0.35rem; }
+    .dl-muted-links { margin-top: 0.85rem; font-size: 0.88rem; }
+    details.dev-details summary { cursor: pointer; color: var(--primary); }
+  </style>
 </head>
 <body>
   <header class="topbar">
@@ -19,205 +87,142 @@
   </header>
 
   <main class="container">
-    <section class="hero glass hero-small">
+    <section class="hero glass hero-small" id="start">
       <p class="kicker">Downloads</p>
-      <h1>Official HackMe release artifacts</h1>
-      <p class="hero-copy">Verify SHA256 before install. Version <strong id="dl-release-ver">—</strong> · open source on <a href="https://github.com/jokeez/hackme" target="_blank" rel="noreferrer">GitHub</a>.</p>
-    </section>
-
-    <section id="local-node" class="panel glass" style="border:1px solid rgba(0,209,255,0.35)">
-      <div class="panel-head">
-        <p class="kicker" style="color:#00d1ff">B2B · Local node (recommended)</p>
-        <h2>Orders &amp; wallet on your PC — not on hackme.tech</h2>
-        <p class="subtle">Run <strong>hackme-node</strong> (same stack as mining rigs). Open <code>http://127.0.0.1:8080/</code> → <strong>Wallet</strong> (your HMC in local DB) → <strong>Market</strong> (create order, upload WASM). Pool on VPS picks up work; you see hash rate like a miner. No web portal, no operator treasury on the site.</p>
+      <h1>Get HackMe · mine in minutes</h1>
+      <p class="hero-copy">
+        Channel <strong id="dl-release-ver">0.1.0-rc16</strong>
+        · verify SHA256 ·
+        <a href="https://github.com/jokeez/hackme/releases/tag/0.1.0-rc16" target="_blank" rel="noreferrer">GitHub release</a>
+      </p>
+      <div class="dl-meta-row" aria-label="Release facts">
+        <span class="dl-chip">Status <strong>LIVE</strong></span>
+        <span class="dl-chip">Self-update <strong>L1</strong></span>
+        <span class="dl-chip">Apt <strong>hackme-node</strong></span>
+        <span class="dl-chip">ISO <strong>rc16</strong></span>
       </div>
-      <ol class="check-list" style="margin-top:1rem">
-        <li>Download node binary or HackMe OS below (or build from GitHub).</li>
-        <li>Start node — dashboard at <code>127.0.0.1:8080</code>.</li>
-        <li>Header → <strong>Developer token</strong> → <em>Issue</em> (or <code>hackme-fuzzing register --base http://127.0.0.1:8080 --save</code>).</li>
-        <li><strong>#orders</strong> — <strong>Security audit</strong> tab, or faster: <code>hackme-fuzzing wizard --pack secrets --package audit</code> from CLI.</li>
-        <li>Watch pool stats / Workers tab while miners complete the job.</li>
-      </ol>
-      <p class="subtle" style="margin-top:1rem"><a href="./orders.html">Customer orders path</a> · <a href="./developers.html#integrator-token">Token docs</a> · <a href="./fuzzing-console.html">Public order tracker</a> (read-only)</p>
-    </section>
 
-    <section id="fuzzing-client" class="panel glass" style="border:1px solid rgba(0,209,255,0.25)">
-      <div class="panel-head">
-        <p class="kicker" style="color:#00d1ff">B2B · Fuzzing</p>
-        <h2>hackme-fuzzing CLI (integrators)</h2>
-        <p class="subtle">Automation CLI for local node: <code>hackme-fuzzing wizard</code> (Scan · Audit · Deep) or classic <code>create manifest.json</code>. Talks to <code>127.0.0.1:8080</code> only — wizard refuses hackme.tech as base.</p>
-      </div>
-      <div class="grid grid-2" style="margin-top:1rem">
+      <div class="dl-pick">
         <article class="card glass">
           <h3>Windows</h3>
-          <a id="download-fuzzing-win" class="btn btn-primary btn-block" href="#">hackme-fuzzing (.exe)</a>
-          <a id="download-fuzzing-build-win" class="btn btn-secondary btn-block" href="#" style="margin-top:0.5rem">hackme-fuzzing-build (.exe)</a>
-          <p class="subtle" style="margin-top:0.75rem">Keep <strong>both</strong> .exe in one folder (e.g. <code>%USERPROFILE%\HackMe</code>). Main CLI ~5&nbsp;MB; build helper compiles WASM locally.</p>
-          <details class="dev-details" style="margin-top:0.75rem">
-            <summary>Windows quick start (PowerShell)</summary>
-            <pre class="code-block" style="margin-top:0.5rem;font-size:0.85rem"><code># 1) Start HackMe Miner / hackme.exe — dashboard on http://127.0.0.1:8080
-# 2) From repo or after git clone:
-powershell -ExecutionPolicy Bypass -File scripts/ops/fuzzing_windows_quickstart.ps1
-
-# Manual:
-# cd %USERPROFILE%\HackMe
-# .\hackme-fuzzing-*-windows-amd64.exe register --base http://127.0.0.1:8080 --save
-# .\hackme-fuzzing-*-windows-amd64.exe wizard --wasm guard.wasm --package audit</code></pre>
-          </details>
+          <p class="subtle">Setup (no admin) + pool token. Watchdog keeps the worker alive.</p>
+          <a id="download-win" class="btn btn-primary btn-block" href="#">Download Setup (.exe)</a>
+          <a id="download-win-zip" class="btn btn-secondary btn-block" href="#">Portable ZIP</a>
         </article>
         <article class="card glass">
-          <h3>Linux amd64</h3>
-          <a id="download-fuzzing-linux" class="btn btn-primary btn-block" href="#">hackme-fuzzing (binary)</a>
-          <a id="download-fuzzing-build-linux" class="btn btn-secondary btn-block" href="#" style="margin-top:0.5rem">hackme-fuzzing-build (binary)</a>
-          <p class="subtle" style="margin-top:0.75rem"><code>chmod +x hackme-fuzzing-*</code> · <code>export HACKME_DEVELOPER_TOKEN=…</code> · <code>./hackme-fuzzing wallet</code></p>
+          <h3>Linux</h3>
+          <p class="subtle">Tarball with <code>hackme</code> + GPU workers. One script to start.</p>
+          <a id="download-linux" class="btn btn-primary btn-block" href="#">Download Linux Bundle</a>
+          <p class="subtle" style="font-size:0.82rem">Then: <code>cd linux &amp;&amp; bash start_hackme_miner.sh</code></p>
+        </article>
+        <article class="card glass" id="hackme-os">
+          <h3>HackMe OS</h3>
+          <p class="subtle">Live USB — wallet + mining auto. Flash whole disk, verify ISO SHA.</p>
+          <a id="download-iso" class="btn btn-primary btn-block" href="#">Download ISO</a>
+          <a id="download-iso-sha" class="btn btn-secondary btn-block" href="#">SHA256SUMS (ISO)</a>
+          <p id="download-iso-status" class="subtle" style="font-size:0.82rem">Checking availability…</p>
         </article>
       </div>
-      <p class="subtle" style="margin-top:1rem"><a href="#local-node">Local node guide</a> · <a href="./orders.html">Orders</a> · <a href="./developers.html">Developers</a> · <a href="./fuzzing-console.html">Public tracker</a></p>
-      <details class="dev-details" style="margin-top:1rem">
-        <summary>B2B fuzzing quick reference</summary>
-        <p class="subtle" style="margin-top:0.5rem">Download <strong>both</strong> CLI binaries into one folder. Run local <code>hackme-node</code> at <code>127.0.0.1:8080</code>. The CLI talks to your loopback node only — remote <code>from_code</code> on hackme.tech is blocked.</p>
-        <pre class="code-block"><code>.\hackme-fuzzing-*-windows-amd64.exe register --base http://127.0.0.1:8080 --save
-.\hackme-fuzzing-*-windows-amd64.exe wizard --pack secrets --package audit --title "My pack"
-# → report_url, gate_url, customer_report_token (save once)
-# Packs + Proof of Fuzz:
-# .\hackme-fuzzing-*-windows-amd64.exe wizard --pack filter_utf8 --package audit --public-proof
 
-# Classic path:
-.\hackme-fuzzing-*-windows-amd64.exe build -lang rust -source check.rs -out .\fuzzing-out
-.\hackme-fuzzing-*-windows-amd64.exe create .\fuzzing-out\manifest.json</code></pre>
-      </details>
+      <div class="dl-strip">
+        <strong style="color:#6effad;letter-spacing:0.06em;font-size:0.72rem;text-transform:uppercase">After install</strong>
+        <span class="subtle">Windows: Start → <em>HackMe Miner</em></span>
+        <span class="subtle">Linux: <code>bash start_hackme_miner.sh</code></span>
+        <span class="subtle">Update later: <code>update_hackme_miner.bat</code> / <code>bash update_hackme_miner.sh</code></span>
+      </div>
     </section>
 
-    <section id="start" class="panel glass" style="border:1px solid rgba(0,255,136,0.35);margin-bottom:1.5rem">
+    <section class="panel glass dl-section-tight" id="apt">
       <div class="panel-head">
-        <p class="kicker" style="color:#00ff88">Golden path · ~2 min to pool row</p>
-        <h2>One command — detect GPU, start mining</h2>
-        <p class="subtle">No script maze. Dashboard <strong>hashrate &amp; session</strong> match the public coordinator (<code>hackme.tech/pool/coordinator</code>).</p>
+        <p class="kicker" style="color:#00d1ff">Ubuntu / Debian</p>
+        <h2>Signed apt · <code>hackme-node</code></h2>
+        <p class="subtle">Install under <code>/opt/hackme</code>. Keeps your <code>.env</code>. Branded app menu included.</p>
       </div>
-      <ul class="check-list" style="margin-top:0.75rem">
-        <li><strong>Windows:</strong> Start menu → <em>HackMe Miner</em></li>
-        <li><strong>Linux tarball:</strong> <code>bash start_hackme_miner.sh</code></li>
-        <li><strong>Dev checkout:</strong> <code>bash scripts/ops/start_pool_miner.sh</code></li>
-        <li><strong>HackMe OS:</strong> boot USB — auto wallet + mining</li>
-      </ul>
-    </section>
-
-    <section id="hackme-os" class="panel glass" style="border:1px solid rgba(0,255,136,0.25)">
-      <div class="panel-head">
-        <p class="kicker" style="color:#00ff88">HackMe OS · Zero-Knowledge Start</p>
-        <h2>Bootable mining rig ISO (live USB)</h2>
-        <p class="subtle">Flash with Balena Etcher or <code>dd</code>, boot the rig — <strong>no wallet, pool URL, or worker setup</strong>. The OS generates a fresh <code>HMC-…</code> address and 24-word recovery phrase on screen, saves <code>hackme.ini</code>, and starts mining on <strong>hackme.tech</strong> automatically.</p>
-      </div>
-      <div class="grid grid-2" style="margin-top:1rem">
-        <article class="card glass">
-          <h3>Live ISO (amd64)</h3>
-          <p>HiveOS-style rig OS: CPU isolation, RT scheduler, GPU performance mode, AMD RX 580 rig profiles, public pool worker.</p>
-          <a id="download-iso" class="btn btn-primary btn-block" href="#">Download HackMe OS (.iso)</a>
-          <p id="download-iso-status" class="subtle" style="margin-top:0.75rem;font-size:0.85rem">Checking availability…</p>
-          <a id="download-iso-sha" class="btn btn-block mt-2" href="#" style="margin-top:0.5rem">SHA256SUMS (ISO)</a>
-          <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem">ISO button uses <strong>GitHub Releases</strong> (same bytes as CDN). Verify <code>SHA256SUMS-iso.txt</code> before flash.</p>
-        </article>
-        <article class="card glass">
-          <h3>3 steps</h3>
-          <ol class="steps">
-            <li>Download ISO + verify <code>SHA256SUMS-iso.txt</code>.</li>
-            <li>Flash to USB 8&nbsp;GB+ — <strong>whole disk</strong>, not a partition (see below).</li>
-            <li>Boot → read recovery phrase on TTY1 → mining starts.</li>
-          </ol>
-          <p class="subtle" style="margin-top:0.75rem"><strong>Flash correctly:</strong> Balena Etcher or <code>sudo dd if=HackMe-OS-….iso of=/dev/sdX bs=4M conv=fsync status=progress</code> (replace <code>sdX</code> with the USB disk, not <code>sdX1</code>). In Rufus choose <strong>DD image</strong> mode. Avoid Ventoy/multi-partition USB unless you know casper — wrong flash causes <code>overlay … no support found</code> and GPT warnings.</p>
-          <p class="subtle" style="margin-top:0.75rem">Commands on rig: <code>hackme-os-status</code> · <code>hackme-show-wallet</code> · <code>hackme-os-install /dev/sda</code> (persist to disk).</p>
-          <p class="subtle" style="margin-top:0.75rem"><strong>Boot:</strong> <em>HackMe OS (live · recommended)</em> or <em>USB fix · load to RAM</em> if overlay/GPT errors. Login: <code>ubuntu</code> (empty password) or <code>sudo -i</code>. If <code>overlay … no support found</code>: use newest ISO from this page (SHA256 in <code>SHA256SUMS-iso.txt</code>), re-flash <strong>whole USB disk</strong> with Etcher/<code>dd</code> (not Rufus ISO mode).</p>
-          <p class="subtle"><a href="https://github.com/jokeez/hackme/blob/main/docs/HACKME_OS.md" target="_blank" rel="noreferrer">Full HackMe OS docs →</a> · <a href="https://github.com/jokeez/hackme/blob/main/docs/SETUP.md" target="_blank" rel="noreferrer">Setup guide</a></p>
-          <p class="subtle" style="margin-top:0.5rem">Bugs &amp; setup help: <a href="https://t.me/hackme_ru" target="_blank" rel="noreferrer">Telegram RU</a> · <a href="https://t.me/hackme_en" target="_blank" rel="noreferrer">EN</a> — early RC; we fix from your reports.</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="grid grid-2">
-      <article class="card glass">
-        <h3>Windows</h3>
-        <p>Installer: per-user setup (no admin UAC), pool token included, <strong>worker watchdog</strong> keeps mining alive.</p>
-        <a id="download-win" class="btn btn-primary btn-block" href="#">Download HackMe Setup (.exe)</a>
-        <a id="download-win-zip" class="btn btn-block mt-2" href="#" style="margin-top:0.75rem">Portable ZIP (if Setup does not open)</a>
-        <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem">Buttons use <strong>GitHub Releases</strong> (same SHA256 as site CDN). If a browser download looks short, re-fetch and verify <code>SHA256SUMS.txt</code>.</p>
-        <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem"><strong>NVIDIA on Windows:</strong> OpenCL worker (~9 GH/s). <strong>HackMe OS / Linux:</strong> native CUDA (~60+ GH/s). Upgrading? Run <code>update_hackme_miner.bat</code> (keeps <code>hackme.env</code>) or <code>repair_fair_env.bat</code> to refresh pool settings.</p>
-        <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem">Setup does nothing? Use <strong>Portable ZIP</strong> → extract → <code>setup_hackme_miner.bat</code> → <code>start_hackme_miner.bat</code>. Or right-click Setup → <em>Run as administrator</em>. Windows may block downloads — click <em>Unblock</em> in file Properties.</p>
-      </article>
-      <article class="card glass">
-        <h3>Linux</h3>
-        <p>Tarball with <code>hackme</code>, <code>workerpoh</code>, pool token, and one-click <code>start_hackme_miner.sh</code>.</p>
-        <a id="download-linux" class="btn btn-primary btn-block" href="#">Download Linux Bundle</a>
-        <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem">Button uses <strong>GitHub Releases</strong> (reliable; includes CUDA/OpenCL workers). If site CDN <code>/dist/…</code> looks truncated, use GitHub, <code>/dist/release_0.1.0-rc16/live/</code>, origin <code>curl -fL -k -H 'Host: hackme.tech' -O 'https://132.243.112.100/dist/release_0.1.0-rc16/hackme_0.1.0-rc16_linux.tar.gz'</code>, or <code>bash scripts/ops/download_hackme_release.sh</code> — then verify SHA256.</p>
-        <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem">Extract → <code>cd linux</code> → <code>bash start_hackme_miner.sh</code>. Later: <code>bash update_hackme_miner.sh</code> (L1 — keeps <code>.env</code> / <code>data</code> / <code>logs</code>). System install adds a branded <strong>HackMe</strong> app-menu icon. Not required if you use HackMe OS ISO.</p>
-      </article>
-    </section>
-
-    <section class="panel glass">
-      <div class="panel-head"><h2>Update channel (L1)</h2></div>
-      <p class="subtle">Miners self-update from a signed-by-hash feed. Prefer apt on Ubuntu/Debian when available.</p>
-      <div class="quick-links">
-        <a id="download-latest-json" class="quick-item" href="/dist/latest.json">
-          <h4>latest.json</h4>
-          <p>Version + SHA256 + download URLs for Linux / Windows / ISO.</p>
-        </a>
-        <a class="quick-item" href="https://hackme.tech/downloads.html">
-          <h4>How to update</h4>
-          <p>Linux: <code>bash update_hackme_miner.sh</code> · Windows: <code>update_hackme_miner.bat</code> · OS: <code>update_hackme_os_binaries.sh</code></p>
-        </a>
-      </div>
-    </section>
-
-    <section class="panel glass" id="apt">
-      <div class="panel-head"><h2>Ubuntu / Debian — apt</h2></div>
-      <p class="subtle">Signed package <code>hackme-node</code> (binaries under <code>/opt/hackme</code>, branded app menu).</p>
-      <pre class="subtle" style="white-space:pre-wrap;font-size:0.85rem;padding:0.75rem;border:1px solid rgba(255,255,255,0.08);border-radius:6px">curl -fsSL https://hackme.tech/apt/hackme-archive-keyring.gpg \
+      <pre class="code-block" style="margin-top:0.85rem;font-size:0.84rem"><code>curl -fsSL https://hackme.tech/apt/hackme-archive-keyring.gpg \
   | sudo tee /usr/share/keyrings/hackme-archive-keyring.gpg >/dev/null
 echo 'deb [signed-by=/usr/share/keyrings/hackme-archive-keyring.gpg] https://hackme.tech/apt stable main' \
   | sudo tee /etc/apt/sources.list.d/hackme.list
 sudo apt update &amp;&amp; sudo apt install hackme-node
-# later:
-sudo apt upgrade hackme-node</pre>
-      <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem">Keyring: <a href="/apt/hackme-archive-keyring.gpg">/apt/hackme-archive-keyring.gpg</a> · list: <a href="/apt/hackme.list">/apt/hackme.list</a>. Keep <code>.env</code> under <code>/opt/hackme</code> — packages never overwrite it.</p>
+# later: sudo apt upgrade hackme-node</code></pre>
+      <p class="dl-muted-links subtle">
+        <a href="/apt/hackme-archive-keyring.gpg">keyring</a> ·
+        <a href="/apt/hackme.list">apt list</a> ·
+        <a id="download-latest-json" href="/dist/latest.json">latest.json</a>
+      </p>
     </section>
 
-    <section class="panel glass">
-      <div class="panel-head"><h2>Integrity files</h2></div>
-      <div class="quick-links">
-        <a id="download-sha" class="quick-item" href="#">
-          <h4>SHA256SUMS</h4>
-          <p>Windows + Linux release hashes.</p>
-        </a>
-        <a id="download-iso-sha-card" class="quick-item" href="#">
-          <h4>SHA256SUMS (ISO)</h4>
-          <p>Bootable HackMe OS image hash.</p>
-        </a>
-        <a id="download-manifest" class="quick-item" href="#">
-          <h4>RELEASE_MANIFEST.json</h4>
-          <p>Version, commit, artifact sizes (incl. ISO when published).</p>
-        </a>
-        <a id="download-buildinfo" class="quick-item" href="#">
-          <h4>BUILD_INFO.txt</h4>
-          <p>Build timestamp and git commit.</p>
-        </a>
-      </div>
-    </section>
-
-    <section class="panel glass">
+    <section class="panel glass dl-section-tight" id="local-node">
       <div class="panel-head">
-        <h2>Download verification</h2>
-        <p class="subtle">Operator checklist before production.</p>
+        <p class="kicker" style="color:#00d1ff">B2B · Local node</p>
+        <h2>Orders stay on your PC</h2>
+        <p class="subtle">Run the same node as miners. Dashboard <code>http://127.0.0.1:8080</code> → Wallet → Market. Pool only executes work.</p>
       </div>
-      <ol class="steps">
-        <li>Match version with the news announcement on <a href="./news.html">News</a>.</li>
-        <li>Validate SHA256 locally (<code>sha256sum -c SHA256SUMS*.txt</code>).</li>
-        <li>Compare sizes with <code>RELEASE_MANIFEST.json</code>.</li>
-        <li>Never run binaries from unofficial mirrors or Telegram DMs.</li>
+      <ol class="check-list" style="margin-top:0.85rem">
+        <li>Install Windows / Linux / apt / ISO above.</li>
+        <li>Open dashboard → <strong>Developer token</strong> → Issue.</li>
+        <li>Create order in <strong>#orders</strong>, or CLI: <code>hackme-fuzzing wizard --pack secrets --package audit</code>.</li>
       </ol>
+      <p class="dl-muted-links subtle">
+        <a href="./orders.html">Orders path</a> ·
+        <a href="./developers.html#integrator-token">Token docs</a> ·
+        <a href="./fuzzing-console.html">Public tracker</a>
+      </p>
     </section>
 
-    <section class="panel glass">
-      <div class="panel-head"><h2>Open source</h2></div>
-      <p class="subtle">Audit and build the same stack: <a href="https://github.com/jokeez/hackme" target="_blank" rel="noreferrer">github.com/jokeez/hackme</a> (<a href="https://github.com/jokeez/hackme/blob/main/LICENSE" target="_blank" rel="noreferrer">AGPL-3.0</a>). Production artifacts on this page must match published checksums.</p>
+    <section class="panel glass dl-section-tight" id="fuzzing-client">
+      <div class="panel-head">
+        <p class="kicker" style="color:#00d1ff">B2B · Fuzzing CLI</p>
+        <h2>hackme-fuzzing</h2>
+        <p class="subtle">Talks only to <code>127.0.0.1:8080</code>. Keep both binaries in one folder.</p>
+      </div>
+      <div class="grid grid-2" style="margin-top:0.85rem">
+        <article class="card glass">
+          <h3>Windows</h3>
+          <a id="download-fuzzing-win" class="btn btn-primary btn-block" href="#">hackme-fuzzing (.exe)</a>
+          <a id="download-fuzzing-build-win" class="btn btn-secondary btn-block" href="#" style="margin-top:0.5rem">hackme-fuzzing-build (.exe)</a>
+        </article>
+        <article class="card glass">
+          <h3>Linux amd64</h3>
+          <a id="download-fuzzing-linux" class="btn btn-primary btn-block" href="#">hackme-fuzzing</a>
+          <a id="download-fuzzing-build-linux" class="btn btn-secondary btn-block" href="#" style="margin-top:0.5rem">hackme-fuzzing-build</a>
+        </article>
+      </div>
+      <details class="dev-details" style="margin-top:0.85rem">
+        <summary>Quick start</summary>
+        <pre class="code-block" style="margin-top:0.5rem;font-size:0.84rem"><code># Windows (PowerShell) — after miner is up on :8080
+.\hackme-fuzzing-*-windows-amd64.exe register --base http://127.0.0.1:8080 --save
+.\hackme-fuzzing-*-windows-amd64.exe wizard --pack secrets --package audit --title "My pack"
+
+# Linux
+chmod +x hackme-fuzzing-*
+./hackme-fuzzing-*-linux-amd64 register --base http://127.0.0.1:8080 --save
+./hackme-fuzzing-*-linux-amd64 wizard --pack secrets --package audit</code></pre>
+      </details>
+    </section>
+
+    <section class="panel glass dl-section-tight">
+      <div class="panel-head">
+        <h2>Verify before you run</h2>
+        <p class="subtle">Same bytes on GitHub Releases and CDN. Never trust Telegram DMs.</p>
+      </div>
+      <div class="quick-links" style="margin-top:0.85rem">
+        <a id="download-sha" class="quick-item" href="#"><h4>SHA256SUMS</h4><p>Windows + Linux + deb</p></a>
+        <a id="download-iso-sha-card" class="quick-item" href="#"><h4>SHA256SUMS (ISO)</h4><p>Bootable image hash</p></a>
+        <a id="download-manifest" class="quick-item" href="#"><h4>RELEASE_MANIFEST</h4><p>Sizes + commit</p></a>
+        <a id="download-buildinfo" class="quick-item" href="#"><h4>BUILD_INFO</h4><p>Build stamp</p></a>
+      </div>
+      <ol class="steps" style="margin-top:1rem">
+        <li><code>sha256sum -c SHA256SUMS.txt</code> (and <code>SHA256SUMS-iso.txt</code> for ISO).</li>
+        <li>Match version on <a href="./news.html">News</a> with this page.</li>
+        <li>Flash ISO to the <strong>whole USB disk</strong> (Etcher / <code>dd</code> / Rufus DD mode).</li>
+      </ol>
+      <p class="dl-muted-links subtle">
+        Docs: <a href="https://github.com/jokeez/hackme/blob/main/docs/HACKME_OS.md" target="_blank" rel="noreferrer">HackMe OS</a> ·
+        <a href="https://github.com/jokeez/hackme/blob/main/docs/SETUP.md" target="_blank" rel="noreferrer">Setup</a> ·
+        Help: <a href="https://t.me/hackme_ru" target="_blank" rel="noreferrer">TG RU</a> /
+        <a href="https://t.me/hackme_en" target="_blank" rel="noreferrer">EN</a> ·
+        Source: <a href="https://github.com/jokeez/hackme" target="_blank" rel="noreferrer">github.com/jokeez/hackme</a>
+      </p>
     </section>
   </main>
 
@@ -227,7 +232,7 @@ sudo apt upgrade hackme-node</pre>
     <div class="footer-nav"></div>
   </footer>
 
-  <script src="./assets/site-shell.js?v=20260824iso"></script>
-  <script src="./assets/app.js?v=20260824iso"></script>
+  <script src="./assets/site-shell.js?v=20260827rc16"></script>
+  <script src="./assets/app.js?v=20260827rc16"></script>
 </body>
 </html>

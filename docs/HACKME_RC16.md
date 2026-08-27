@@ -7,7 +7,7 @@
 - **L1 self-update** — `latest.json` + `update_hackme_miner.sh` / `.ps1` / `.bat` (keeps `.env` / `data` / `logs`)
 - **Signed apt** — `hackme-node` at `https://hackme.tech/apt` (`stable`)
 - **Linux app menu** — branded **HackMe** + **HackMe Dashboard** icons
-- **Dashboard** — **Updates** button → `GET /api/updates/check`; Windows shows an **update available** banner (`update_hackme_miner.bat` / Setup)
+- **Dashboard** — **Updates** button + Windows update banner → `GET /api/updates/check`; Windows shows an **update available** banner (`update_hackme_miner.bat` / Setup)
 - **HackMe OS ISO** — rebuilt for rc16 (verify `SHA256SUMS-iso.txt`)
 
 ## How to upgrade

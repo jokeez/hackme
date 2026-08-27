@@ -1,17 +1,17 @@
 {
-  "updated": "2026-08-22T11:05:00Z",
+  "updated": "2026-08-27T11:00:00Z",
   "interval_ms": 6500,
   "pool_poll_ms": 30000,
   "slides": [
     {
       "kind": "release",
       "badge": "Shipped",
-      "title": "0.1.0-rc15 LIVE — B2B fuzz Phase 2",
-      "detail": "Pool anticheat · wizard packs · libheif archived · customer campaigns first",
+      "title": "0.1.0-rc16 — self-update + signed apt",
+      "detail": "latest.json · update_hackme_miner · apt hackme-node · Windows banner",
       "cta": "Downloads",
-      "href": "/downloads.html",
+      "href": "/downloads.html#start",
       "accent": "success",
-      "stats": ["rc15", "B2B", "LIVE"]
+      "stats": ["rc16", "apt", "LIVE"]
     },
     {
       "kind": "win",

@@ -121,7 +121,7 @@
     ).join("");
   }
 
-  const TICKER_CACHE = "20260807wow5";
+  const TICKER_CACHE = "20260827rc16";
 
   function ensureDisclosureTickerStyles() {
     if (document.querySelector('link[data-disclosure-ticker-css="1"]')) return;
