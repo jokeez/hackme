@@ -52,6 +52,8 @@
     windowsBundleLegacyMirror: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_windows.zip`,
     linuxBundle: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/hackme_${RELEASE_VER}_linux.tar.gz`,
     linuxBundleMirror: `/dist/release_${RELEASE_VER}/hackme_${RELEASE_VER}_linux.tar.gz`,
+    linuxDeb: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/hackme-node_${RELEASE_VER}_amd64.deb`,
+    linuxDebMirror: `/dist/release_${RELEASE_VER}/hackme-node_${RELEASE_VER}_amd64.deb`,
     hackmeOSIso: `https://github.com/jokeez/hackme/releases/download/${ISO_CHANNEL}/HackMe-OS-${ISO_CHANNEL}-amd64.iso`,
     hackmeOSIsoMirror: `/dist/release_${ISO_CHANNEL}/HackMe-OS-${ISO_CHANNEL}-amd64.iso`,
     hackmeOSIsoLegacy: `/dist/release_${ISO_CHANNEL}/HackMe-Miner-${ISO_CHANNEL}-amd64.iso`,
@@ -202,6 +204,7 @@
     // "Portable ZIP" should point to the actually published asset.
     setHref("download-win-zip", CONFIG.windowsBundleLegacy || CONFIG.windowsBundle);
     setHref("download-linux", CONFIG.linuxBundle);
+    setHref("download-linux-deb", CONFIG.linuxDeb);
     setHref("download-fuzzing-linux", CONFIG.fuzzingLinux);
     setHref("download-fuzzing-win", CONFIG.fuzzingWindows);
     setHref("download-fuzzing-build-linux", CONFIG.fuzzingBuildLinux);
