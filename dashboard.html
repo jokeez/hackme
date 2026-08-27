@@ -5559,13 +5559,41 @@
 			const body = $('win-update-banner-body');
 			const cmd = $('win-update-banner-cmd');
 			if (body) {
-				body.innerHTML = 'Channel has <strong class="text-warn">' + (remoteV || 'newer') + '</strong>'
-					+ (localV ? ' (this node: <code class="text-neon/80">' + localV + '</code>)' : '')
-					+ '. Prefer <code class="text-neon/80">HackMe-Setup-*.exe</code> or run the bat updater — <code class="text-neon/80">hackme.env</code> / data are kept.';
+				// textContent / DOM nodes only — never innerHTML with channel strings
+				while (body.firstChild) body.removeChild(body.firstChild);
+				body.appendChild(document.createTextNode('Channel has '));
+				const strong = document.createElement('strong');
+				strong.className = 'text-warn';
+				strong.textContent = remoteV || 'newer';
+				body.appendChild(strong);
+				if (localV) {
+					body.appendChild(document.createTextNode(' (this node: '));
+					const codeLocal = document.createElement('code');
+					codeLocal.className = 'text-neon/80';
+					codeLocal.textContent = localV;
+					body.appendChild(codeLocal);
+					body.appendChild(document.createTextNode(')'));
+				}
+				body.appendChild(document.createTextNode('. Prefer '));
+				const codeSetup = document.createElement('code');
+				codeSetup.className = 'text-neon/80';
+				codeSetup.textContent = 'HackMe-Setup-*.exe';
+				body.appendChild(codeSetup);
+				body.appendChild(document.createTextNode(' or run the bat updater — '));
+				const codeEnv = document.createElement('code');
+				codeEnv.className = 'text-neon/80';
+				codeEnv.textContent = 'hackme.env';
+				body.appendChild(codeEnv);
+				body.appendChild(document.createTextNode(' / data are kept.'));
 			}
 			if (cmd) cmd.textContent = winCmd + '\r\n# or re-run Setup from Downloads (SHA256SUMS.txt)';
 			const dl = $('win-update-downloads');
-			if (dl && doc.downloads_url) dl.href = String(doc.downloads_url).replace(/\/?$/, '') + '#windows';
+			if (dl && doc.downloads_url) {
+				const base = String(doc.downloads_url || '').trim();
+				if (/^https:\/\//i.test(base)) {
+					dl.href = base.replace(/\/?$/, '') + '#windows';
+				}
+			}
 			ban.classList.remove('hidden');
 		}
 		async function checkForUpdates(opts) {

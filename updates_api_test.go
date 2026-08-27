@@ -16,6 +16,10 @@ func TestNormalizeReleaseVersion(t *testing.T) {
 		"HackMe 0.1.0-rc15": "0.1.0-rc15",
 		"version=0.1.0":     "0.1.0",
 		"  1.2.3  ":         "1.2.3",
+		`"><img src=x>`:     "",
+		"<script>":          "",
+		"not-a-version":     "",
+		"":                  "",
 	}
 	for in, want := range cases {
 		if got := normalizeReleaseVersion(in); got != want {

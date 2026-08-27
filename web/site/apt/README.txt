@@ -15,3 +15,6 @@ Manual:
   sudo apt update && sudo apt install hackme-node
 
 Fingerprint: C2779678AA76099672C3ACED5D8F54B6E2FC3742
+
+install.sh refuses a different keyring fingerprint unless HACKME_APT_ALLOW_UNKNOWN_KEY=1.
+apt-get update must succeed (signed InRelease) before any package metadata is trusted.

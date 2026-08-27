@@ -2,15 +2,15 @@
 # One-shot: trust HackMe apt + install hackme-node.
 #   curl -fsSL https://hackme.tech/apt/install.sh | sudo bash
 #
-# Fetches Packages from apt (signed index), downloads .deb from the first working
-# mirror (GitHub → hackme.tech/dist → apt pool → origin IP), verifies SHA256,
-# then apt-installs locally. Apt repo stays configured for later upgrades.
+# Trust path: pin GPG fingerprint → apt-get update (signed InRelease) →
+# apt-cache show (verified lists) → download .deb from mirrors → SHA256 match → dpkg -i.
 #
 # Env:
 #   HACKME_APT_BASE            default https://hackme.tech/apt
 #   HACKME_APT_SKIP_INSTALL=1  only keyring + sources.list
 #   HACKME_APT_DEB_URL         force a single .deb URL
 #   HACKME_ORIGIN_IP           default 132.243.112.100 (grey-cloud bypass)
+#   HACKME_APT_ALLOW_UNKNOWN_KEY=1  operator override if fingerprint differs
 set -euo pipefail
 
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
@@ -40,41 +40,50 @@ curl -fsSL "${APT_BASE}/hackme-archive-keyring.gpg" -o "${WORKDIR}/keyring.gpg"
 install -d -m 0755 /usr/share/keyrings
 install -m 0644 "${WORKDIR}/keyring.gpg" "$KEYRING_DST"
 
-if command -v gpg >/dev/null; then
-  got="$(gpg --no-default-keyring --keyring "$KEYRING_DST" --with-colons --list-keys 2>/dev/null \
-    | awk -F: '/^fpr:/ {print $10; exit}')"
-  if [[ -n "$got" && "$got" != "$EXPECTED_FPR" ]]; then
-    echo "[hackme-apt] WARN: key fingerprint $got (expected $EXPECTED_FPR)" >&2
+got="$(gpg --no-default-keyring --keyring "$KEYRING_DST" --with-colons --list-keys 2>/dev/null \
+  | awk -F: '/^fpr:/ {print $10; exit}')"
+if [[ -z "$got" ]]; then
+  echo "[hackme-apt] FAIL: could not read key fingerprint from keyring" >&2
+  exit 7
+fi
+if [[ "$got" != "$EXPECTED_FPR" ]]; then
+  echo "[hackme-apt] FAIL: key fingerprint $got (expected $EXPECTED_FPR)" >&2
+  if [[ "${HACKME_APT_ALLOW_UNKNOWN_KEY:-0}" == "1" ]]; then
+    echo "[hackme-apt] continuing due to HACKME_APT_ALLOW_UNKNOWN_KEY=1" >&2
   else
-    echo "[hackme-apt] key OK ${EXPECTED_FPR:0:16}…"
+    echo "[hackme-apt] refuse unknown key (set HACKME_APT_ALLOW_UNKNOWN_KEY=1 to override)" >&2
+    exit 7
   fi
+else
+  echo "[hackme-apt] key OK ${EXPECTED_FPR:0:16}…"
 fi
 
 echo "deb [signed-by=${KEYRING_DST}] ${APT_BASE} stable main" >"$LIST_DST"
 chmod 0644 "$LIST_DST"
 echo "[hackme-apt] wrote $LIST_DST"
 
-apt-get update -qq -o Dir::Etc::sourcelist="$LIST_DST" -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0 \
-  || apt-get update -qq
+echo "[hackme-apt] apt-get update (signed InRelease required)"
+if ! apt-get update -qq -o Dir::Etc::sourcelist="$LIST_DST" -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0; then
+  echo "[hackme-apt] FAIL: apt-get update failed — cannot trust package metadata" >&2
+  exit 6
+fi
 
 if [[ "${HACKME_APT_SKIP_INSTALL:-0}" == "1" ]]; then
   echo "[hackme-apt] skip install (HACKME_APT_SKIP_INSTALL=1). Next: sudo apt install hackme-node"
   exit 0
 fi
 
-echo "[hackme-apt] read Packages index"
-curl -fsSL "${APT_BASE}/dists/stable/main/binary-amd64/Packages" -o "${WORKDIR}/Packages"
-awk '
-  BEGIN{p=0}
-  /^Package: hackme-node$/{p=1; next}
-  p && /^Package:/{exit}
-  p {print}
-' "${WORKDIR}/Packages" >"${WORKDIR}/pkg.stanza"
-FILENAME="$(awk '/^Filename:/{print $2; exit}' "${WORKDIR}/pkg.stanza")"
-SIZE="$(awk '/^Size:/{print $2; exit}' "${WORKDIR}/pkg.stanza")"
-SHA="$(awk '/^SHA256:/{print $2; exit}' "${WORKDIR}/pkg.stanza")"
+echo "[hackme-apt] read hackme-node from apt-verified cache"
+SHOW="$(apt-cache show hackme-node 2>/dev/null || true)"
+[[ -n "$SHOW" ]] || {
+  echo "[hackme-apt] FAIL: apt-cache show hackme-node empty (update/signed lists incomplete?)" >&2
+  exit 3
+}
+FILENAME="$(printf '%s\n' "$SHOW" | awk '/^Filename:/{print $2; exit}')"
+SIZE="$(printf '%s\n' "$SHOW" | awk '/^Size:/{print $2; exit}')"
+SHA="$(printf '%s\n' "$SHOW" | awk '/^SHA256:/{print $2; exit}')"
 [[ -n "$FILENAME" && -n "$SHA" && -n "$SIZE" ]] || {
-  echo "[hackme-apt] FAIL: could not parse hackme-node from Packages" >&2
+  echo "[hackme-apt] FAIL: could not parse Filename/Size/SHA256 from apt-cache show" >&2
   exit 3
 }
 BASENAME="$(basename "$FILENAME")"
@@ -128,7 +137,7 @@ fi
 got_size="$(wc -c <"$DEB_PATH" | tr -d ' ')"
 got_sha="$(sha256sum "$DEB_PATH" | awk '{print $1}')"
 if [[ "$got_size" != "$SIZE" ]]; then
-  echo "[hackme-apt] FAIL: size ${got_size} != ${SIZE} (Packages)" >&2
+  echo "[hackme-apt] FAIL: size ${got_size} != ${SIZE} (apt-cache)" >&2
   exit 4
 fi
 if [[ "$got_sha" != "$SHA" ]]; then
@@ -140,7 +149,6 @@ fi
 echo "[hackme-apt] sha256 OK ${SHA:0:16}…"
 
 # CRITICAL: `apt-get install /abs/path.deb` often re-fetches from the repo (slow CF).
-# Install the local file via dpkg, then fix deps from apt metadata only.
 echo "[hackme-apt] dpkg -i ./${BASENAME} (local file, no re-download)"
 if ! dpkg -i "$DEB_PATH"; then
   echo "[hackme-apt] fixing dependencies…"

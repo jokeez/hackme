@@ -140,7 +140,8 @@ func normalizeReleaseVersion(s string) string {
 	if looksLikeReleaseVersion(s) {
 		return s
 	}
-	return s
+	// Fail closed: never echo attacker-controlled HTML into dashboard clients.
+	return ""
 }
 
 func looksLikeReleaseVersion(s string) bool {
