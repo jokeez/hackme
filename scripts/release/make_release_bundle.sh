@@ -223,11 +223,21 @@ cp "${ROOT_DIR}/scripts/release/windows/hackme.ico" "${WIN_DIR}/hackme.ico"
 cp "${ROOT_DIR}/scripts/release/windows/hackme.png" "${WIN_DIR}/hackme.png"
 cp "${ROOT_DIR}/scripts/release/windows/Install-HackMe.ps1" "${WIN_DIR}/Install-HackMe.ps1"
 cp "${ROOT_DIR}/scripts/release/windows/HackMe-Install.cmd" "${WIN_DIR}/HackMe-Install.cmd"
+cp "${ROOT_DIR}/scripts/ops/update_hackme_miner.ps1" "${WIN_DIR}/update_hackme_miner.ps1"
+cp "${ROOT_DIR}/scripts/ops/update_hackme_miner.bat" "${WIN_DIR}/update_hackme_miner.bat"
 cp "${ROOT_DIR}/scripts/release/linux/install_hackme.sh" "${LINUX_DIR}/install_hackme.sh"
 cp "${ROOT_DIR}/scripts/release/linux/setup_hackme_miner.sh" "${LINUX_DIR}/setup_hackme_miner.sh"
 cp "${ROOT_DIR}/scripts/release/linux/start_hackme_miner.sh" "${LINUX_DIR}/start_hackme_miner.sh"
 cp "${ROOT_DIR}/scripts/release/linux/stop_hackme_miner.sh" "${LINUX_DIR}/stop_hackme_miner.sh"
 cp "${ROOT_DIR}/scripts/release/linux/hackme.desktop.template" "${LINUX_DIR}/hackme.desktop.template"
+cp "${ROOT_DIR}/scripts/release/linux/hackme-dashboard.desktop.template" "${LINUX_DIR}/hackme-dashboard.desktop.template"
+cp "${ROOT_DIR}/scripts/release/linux/install_menu_entry.sh" "${LINUX_DIR}/install_menu_entry.sh"
+mkdir -p "${LINUX_DIR}/icons"
+cp -a "${ROOT_DIR}/scripts/release/linux/icons/." "${LINUX_DIR}/icons/" 2>/dev/null || {
+  # Fallback: windows brand assets
+  [[ -f "${ROOT_DIR}/scripts/release/windows/hackme.png" ]] && \
+    cp "${ROOT_DIR}/scripts/release/windows/hackme.png" "${LINUX_DIR}/icons/hackme.png"
+}
 cp "${ROOT_DIR}/scripts/release/linux/hackme-node.service.template" "${LINUX_DIR}/hackme-node.service.template"
 cp "${ROOT_DIR}/scripts/ops/desktop_mode_up.sh" "${LINUX_DIR}/desktop_mode_up.sh"
 cp "${ROOT_DIR}/scripts/ops/desktop_mode_status.sh" "${LINUX_DIR}/desktop_mode_status.sh"
@@ -235,16 +245,21 @@ cp "${ROOT_DIR}/scripts/ops/desktop_mode_stop.sh" "${LINUX_DIR}/desktop_mode_sto
 cp "${ROOT_DIR}/scripts/release/linux/hackme-desktop.service.template" "${LINUX_DIR}/hackme-desktop.service.template" 2>/dev/null || true
 cp "${ROOT_DIR}/scripts/ops/install_linux_desktop_launcher.sh" "${LINUX_DIR}/install_linux_desktop_launcher.sh"
 cp "${ROOT_DIR}/scripts/ops/install_from_code_toolchains.sh" "${LINUX_DIR}/install_from_code_toolchains.sh"
+cp "${ROOT_DIR}/scripts/ops/update_hackme_miner.sh" "${LINUX_DIR}/update_hackme_miner.sh"
+cp "${ROOT_DIR}/scripts/ops/update_hackme_os_binaries.sh" "${LINUX_DIR}/update_hackme_os_binaries.sh"
 
 chmod +x "${LINUX_DIR}/install_hackme.sh"
 chmod +x "${LINUX_DIR}/setup_hackme_miner.sh"
 chmod +x "${LINUX_DIR}/start_hackme_miner.sh"
 chmod +x "${LINUX_DIR}/stop_hackme_miner.sh"
+chmod +x "${LINUX_DIR}/install_menu_entry.sh"
 chmod +x "${LINUX_DIR}/desktop_mode_up.sh"
 chmod +x "${LINUX_DIR}/desktop_mode_status.sh"
 chmod +x "${LINUX_DIR}/desktop_mode_stop.sh"
 chmod +x "${LINUX_DIR}/install_linux_desktop_launcher.sh"
 chmod +x "${LINUX_DIR}/install_from_code_toolchains.sh"
+chmod +x "${LINUX_DIR}/update_hackme_miner.sh"
+chmod +x "${LINUX_DIR}/update_hackme_os_binaries.sh"
 chmod +x "${LINUX_DIR}/workerpoh"
 
 POOL_MINER_TOKEN="${HACKME_RELEASE_POOL_MINER_TOKEN:-}"
@@ -389,6 +404,14 @@ if [[ -x "${ROOT_DIR}/scripts/release/build_fuzzing_cli.sh" ]]; then
     echo "[release] WARN: hackme-fuzzing CLI build failed" >&2
 fi
 
+# L1 update channel: latest.json (site CDN + GitHub release asset)
+VERSION="${VERSION}" bash "${ROOT_DIR}/scripts/release/generate_latest_json.sh" "${DIST_DIR}" || \
+  echo "[release] WARN: latest.json generation failed" >&2
+if [[ "${BUILD_DEB:-0}" == "1" ]]; then
+  VERSION="${VERSION}" bash "${ROOT_DIR}/scripts/release/linux/build_deb_from_dist.sh" "${DIST_DIR}" || \
+    echo "[release] WARN: deb build failed" >&2
+fi
+
 echo "[release] done"
 echo "[release] artifacts:"
 echo "  ${DIST_DIR}/hackme_${VERSION}_windows.zip"
@@ -399,4 +422,5 @@ fi
 echo "  ${DIST_DIR}/hackme_${VERSION}_linux.tar.gz"
 echo "  ${DIST_DIR}/SHA256SUMS.txt"
 echo "  ${DIST_DIR}/RELEASE_MANIFEST.json"
+echo "  ${DIST_DIR}/latest.json"
 echo "  ${DIST_DIR}/SMOKE_REPORT.txt"

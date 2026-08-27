@@ -1,0 +1,27 @@
+# Optional L2 — nfpm package stub (not required for L1).
+# Build when nfpm is installed:
+#   VERSION=0.1.0-rc15 bash scripts/release/linux/build_deb.sh
+#
+# name: hackme-node
+# arch: amd64
+# platform: linux
+# version: ${VERSION}
+# section: utils
+# priority: optional
+# maintainer: HackMe <ops@hackme.tech>
+# description: HackMe node + miner binaries (pool worker). Data/env live under /opt/hackme.
+# contents:
+#   - src: ./hackme
+#     dst: /opt/hackme/hackme
+#     file_info: { mode: 0755 }
+#   - src: ./update_hackme_miner.sh
+#     dst: /opt/hackme/update_hackme_miner.sh
+#     file_info: { mode: 0755 }
+# scripts:
+#   postinstall: ./postinstall.sh
+#
+# Prefer generating this YAML via:
+#   bash scripts/release/linux/build_deb_from_dist.sh
+# which writes a real nfpm config + .deb (or staging tarball if nfpm is missing).
+#
+# L1 (update_hackme_miner.sh + latest.json) ships first; L2 is optional until apt (L3).

@@ -9,6 +9,7 @@ Local-only solo mining was removed. Use the **public pool** at `https://hackme.t
 3. Run **`start_hackme_miner.bat`** (or desktop shortcut **Start HackMe Miner**).
 4. Browser opens → **Mining** tab; worker autostarts when the node is up.
 5. Legacy: **`start_hackme_public_pool.bat`** forwards to `start_hackme_miner.bat`.
+6. **Update:** run **`update_hackme_miner.bat`** (or `.ps1`) — prefers Setup.exe from `latest.json`, keeps `hackme.env`.
 
 See `docs/MINER_WINDOWS_ONE_CLICK.md` in the repo.
 
@@ -23,8 +24,12 @@ Binaries: `hackme.exe` (node), `workerpoh.exe` (pool worker), `minersign.exe` (h
 
 **Advanced:** `sudo bash install_hackme.sh --archive ../hackme_*_linux.tar.gz` (systemd). Dev tree: `bash desktop_mode_up.sh` (needs Go).
 
+**Update (L1):** `bash update_hackme_miner.sh` — fetches `latest.json`, verifies SHA256, replaces binaries, keeps `.env` / `data` / `logs`. HackMe OS: `bash update_hackme_os_binaries.sh`.
+
+**Menu icon:** system install (`install_hackme.sh` / `.deb`) adds **HackMe** + **HackMe Dashboard** entries with the branded logo.
+
 **GPU:** Linux bundle includes ready binaries `bin/workerpoh-cuda` + `bin/workerpoh-opencl` (+ `lib/libnvrtc*` for CUDA). No Go toolchain needed. NVIDIA needs a working driver (`nvidia-smi`); AMD/Intel use OpenCL ICD. Setup writes `HACKME_GPU_BACKEND=auto|cuda|opencl|cpu` only when that backend is actually usable. See `GPU_MINING_BACKENDS.md`. Multi-GPU: `bash worker_autostart.sh` after `bin/fleetplan`.
 
 ## Downloads on the site
 
-Checksums: `SHA256SUMS.txt` next to the archives on https://hackme.tech
+Checksums: `SHA256SUMS.txt` next to the archives on https://hackme.tech. Update feed: `https://hackme.tech/dist/latest.json` (after publish).

@@ -95,8 +95,21 @@ deploy_ssh_retry_run _deploy_rsync -az --delete --mkpath \
   "${ROOT_DIR}/web/site/" "${NODE_SSH}:${NODE_DEPLOY_DIR}/web/site/"
 
 if [[ "$SKIP_DIST" != "1" && -d "${ROOT_DIR}/dist" ]]; then
+  if [[ ! -f "${ROOT_DIR}/dist/latest.json" ]]; then
+    echo "[deploy-hackme-site] generating missing dist/latest.json"
+    bash "${ROOT_DIR}/scripts/ops/publish_latest_json.sh" || \
+      echo "[deploy-hackme-site] WARN: could not generate latest.json" >&2
+  fi
   echo "[deploy-hackme-site] rsync dist/ -> ${NODE_SSH}:${NODE_DEPLOY_DIR}/dist/"
   deploy_ssh_retry_run _deploy_rsync -az --mkpath "${ROOT_DIR}/dist/" "${NODE_SSH}:${NODE_DEPLOY_DIR}/dist/"
+fi
+
+# Signed apt repo (pool + dists) — separate from dist/ release blobs
+if [[ "${SKIP_APT:-0}" != "1" && -d "${ROOT_DIR}/dist/apt/repo" ]]; then
+  echo "[deploy-hackme-site] rsync apt repo -> ${NODE_SSH}:${NODE_DEPLOY_DIR}/apt/"
+  deploy_ssh_retry_run _deploy_rsync -az --mkpath \
+    "${ROOT_DIR}/dist/apt/repo/" "${NODE_SSH}:${NODE_DEPLOY_DIR}/apt/"
+  # Public keyring + list also live under web/site/apt/ (rsynced with site)
 fi
 
 if [[ "$SYNC_NGINX_SITE_CONF" == "1" ]]; then
@@ -131,5 +144,18 @@ if command -v jq >/dev/null 2>&1; then
     echo "[deploy-hackme-site] GET /api/wallet HTTP 200"
   else
     echo "[deploy-hackme-site] WARN: GET /api/wallet HTTP ${wcode:-error} (run with SYNC_NGINX_SITE_CONF=1 if 403)" >&2
+  fi
+  lcode="$(curl -fsS --max-time 15 -o /tmp/hackme-latest-smoke.json -w "%{http_code}" "https://hackme.tech/dist/latest.json" || true)"
+  if [[ "$lcode" == "200" ]] && jq -e '.schema=="hackme.release.latest.v1"' /tmp/hackme-latest-smoke.json >/dev/null 2>&1; then
+    echo "[deploy-hackme-site] GET /dist/latest.json OK → $(jq -r .version /tmp/hackme-latest-smoke.json)"
+  else
+    echo "[deploy-hackme-site] WARN: /dist/latest.json HTTP ${lcode:-error} (publish via scripts/ops/publish_latest_json.sh + dist rsync)" >&2
+  fi
+  rm -f /tmp/hackme-latest-smoke.json
+  acode="$(curl -fsS --max-time 15 -o /dev/null -w "%{http_code}" "https://hackme.tech/apt/dists/stable/InRelease" || true)"
+  if [[ "$acode" == "200" ]]; then
+    echo "[deploy-hackme-site] GET /apt/dists/stable/InRelease HTTP 200"
+  else
+    echo "[deploy-hackme-site] WARN: /apt InRelease HTTP ${acode:-error} (rsync dist/apt/repo + nginx /apt/)" >&2
   fi
 fi

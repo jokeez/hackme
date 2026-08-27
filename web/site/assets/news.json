@@ -1,6 +1,46 @@
 {
   "items": [
     {
+      "id": "2026-08-27-release-rc16-update-channel",
+      "date": "2026-08-27",
+      "title": "0.1.0-rc16 — self-update channel + signed apt + branded Linux menu",
+      "summary": "rc16 ships miner self-update (latest.json + update_hackme_miner for Linux/Windows/HackMe OS), signed apt package hackme-node on hackme.tech/apt, and a branded HackMe app-menu icon on Linux. Dashboard Updates button checks the channel. ISO rebuilt with the same node bits — verify SHA256SUMS-iso.txt before flash.",
+      "impact": "Miners can upgrade without re-download roulette: apt upgrade hackme-node on Ubuntu/Debian, or update_hackme_miner.sh / .bat elsewhere. .env / data / logs are preserved. Operators: publish feed is https://hackme.tech/dist/latest.json",
+      "action": "Downloads: https://hackme.tech/downloads.html · apt: https://hackme.tech/downloads.html#apt · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc16 · Verify SHA256SUMS.txt / SHA256SUMS-iso.txt",
+      "tags": [
+        "release",
+        "rc16",
+        "apt",
+        "update",
+        "iso",
+        "pre-exchange"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "0.1.0-rc16 — update channel + apt",
+        "lead": "Self-update + signed apt (hackme-node) + Linux menu icon. Verify SHA256 before run/flash.",
+        "bullets": [
+          "latest.json + update_hackme_miner.sh / .bat / OS wrapper",
+          "apt: curl keyring → apt install/upgrade hackme-node",
+          "Preserves .env data logs · dashboard Updates check",
+          "ISO rebuilt for rc16 — verify SHA256SUMS-iso.txt"
+        ],
+        "footer": "hackme.tech/downloads.html · GitHub 0.1.0-rc16 · not financial advice"
+      },
+      "discord": {
+        "title": "0.1.0-rc16 — update channel + apt",
+        "body": "**HackMe 0.1.0-rc16**\n\n• Self-update via `latest.json`\n• Signed apt: `hackme-node` @ https://hackme.tech/apt\n• Branded Linux app menu\n• Verify SHA256SUMS before run/flash\n\nhttps://hackme.tech/downloads.html\nhttps://github.com/jokeez/hackme/releases/tag/0.1.0-rc16",
+        "ping": "#announcements"
+      },
+      "links": {
+        "downloads": "https://hackme.tech/downloads.html",
+        "apt": "https://hackme.tech/downloads.html#apt",
+        "github": "https://github.com/jokeez/hackme/releases/tag/0.1.0-rc16",
+        "news": "https://hackme.tech/news.html",
+        "latest": "https://hackme.tech/dist/latest.json"
+      }
+    },
+    {
       "id": "2026-08-27-iso-zk-phrase-log-fix",
       "date": "2026-08-27",
       "title": "HackMe OS ISO rebuilt — ZK recovery phrase no longer in /var/log",
@@ -86,7 +126,6 @@
       "summary": "rc14x makes the fuzz customer reporting plane more truthful: reports now carry explicit `evidence_window` scope (fetched-window vs full-history) and disclose raw vs grouped counters (raw_findings_total, grouped_rows_visible/hidden) without changing gate/coordinator behavior.",
       "impact": "Customer-facing truth improvements for B2B fuzz reports: JSON/HTML/CSV now clearly separate what was fetched for this request from the full campaign history, with raw vs grouped semantics disclosed to prevent overstated totals.",
       "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc14x · Verify SHA256SUMS.txt from the rc14x bundle.",
-
       "tags": [
         "release",
         "rc14x",

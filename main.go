@@ -56,7 +56,7 @@ var embeddedFaviconICO []byte
 
 // Build metadata (overridden by -ldflags in release builds).
 var (
-	Version   = "0.1.0-rc15"
+	Version   = "0.1.0-rc16"
 	Commit    = "nogit"
 	BuildDate = "unknown"
 )
@@ -520,6 +520,7 @@ func main() {
 	mux.HandleFunc("/api/reports/block", a.handleReportsBlockLookup)
 	mux.HandleFunc("/api/reports/hardware", a.handleReportsHardware)
 	mux.HandleFunc("/api/status", a.handleStatus)
+	mux.HandleFunc("/api/updates/check", a.handleUpdatesCheck)
 	mux.HandleFunc("/api/mining/start", a.handleMiningStart)
 	mux.HandleFunc("/api/mining/stop", a.handleMiningStop)
 	mux.HandleFunc("/api/worker/start", a.handleWorkerStart)

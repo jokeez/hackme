@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=HackMe Dashboard
+Comment=Open local HackMe dashboard in the browser
+Exec=xdg-open http://127.0.0.1:8080/
+Icon=hackme
+Terminal=false
+Categories=Network;Development;
+Keywords=hackme;dashboard;
+StartupNotify=false

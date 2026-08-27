@@ -140,16 +140,44 @@ powershell -ExecutionPolicy Bypass -File scripts/ops/fuzzing_windows_quickstart.
         <a id="download-win" class="btn btn-primary btn-block" href="#">Download HackMe Setup (.exe)</a>
         <a id="download-win-zip" class="btn btn-block mt-2" href="#" style="margin-top:0.75rem">Portable ZIP (if Setup does not open)</a>
         <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem">Buttons use <strong>GitHub Releases</strong> (same SHA256 as site CDN). If a browser download looks short, re-fetch and verify <code>SHA256SUMS.txt</code>.</p>
-        <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem"><strong>NVIDIA on Windows:</strong> OpenCL worker (~9 GH/s). <strong>HackMe OS / Linux:</strong> native CUDA (~60+ GH/s). Upgrading? Run <code>repair_fair_env.bat</code> in the install folder to refresh <code>hackme.env</code>.</p>
+        <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem"><strong>NVIDIA on Windows:</strong> OpenCL worker (~9 GH/s). <strong>HackMe OS / Linux:</strong> native CUDA (~60+ GH/s). Upgrading? Run <code>update_hackme_miner.bat</code> (keeps <code>hackme.env</code>) or <code>repair_fair_env.bat</code> to refresh pool settings.</p>
         <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem">Setup does nothing? Use <strong>Portable ZIP</strong> → extract → <code>setup_hackme_miner.bat</code> → <code>start_hackme_miner.bat</code>. Or right-click Setup → <em>Run as administrator</em>. Windows may block downloads — click <em>Unblock</em> in file Properties.</p>
       </article>
       <article class="card glass">
         <h3>Linux</h3>
         <p>Tarball with <code>hackme</code>, <code>workerpoh</code>, pool token, and one-click <code>start_hackme_miner.sh</code>.</p>
         <a id="download-linux" class="btn btn-primary btn-block" href="#">Download Linux Bundle</a>
-        <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem">Button uses <strong>GitHub Releases</strong> (reliable; includes CUDA/OpenCL workers). If site CDN <code>/dist/…</code> looks truncated, use GitHub, <code>/dist/release_0.1.0-rc15/live/</code>, origin <code>curl -fL -k -H 'Host: hackme.tech' -O 'https://132.243.112.100/dist/release_0.1.0-rc15/hackme_0.1.0-rc15_linux.tar.gz'</code>, or <code>bash scripts/ops/download_hackme_release.sh</code> — then verify SHA256.</p>
-        <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem">Extract → <code>cd linux</code> → <code>bash start_hackme_miner.sh</code>. Not required if you use HackMe OS ISO.</p>
+        <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem">Button uses <strong>GitHub Releases</strong> (reliable; includes CUDA/OpenCL workers). If site CDN <code>/dist/…</code> looks truncated, use GitHub, <code>/dist/release_0.1.0-rc16/live/</code>, origin <code>curl -fL -k -H 'Host: hackme.tech' -O 'https://132.243.112.100/dist/release_0.1.0-rc16/hackme_0.1.0-rc16_linux.tar.gz'</code>, or <code>bash scripts/ops/download_hackme_release.sh</code> — then verify SHA256.</p>
+        <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem">Extract → <code>cd linux</code> → <code>bash start_hackme_miner.sh</code>. Later: <code>bash update_hackme_miner.sh</code> (L1 — keeps <code>.env</code> / <code>data</code> / <code>logs</code>). System install adds a branded <strong>HackMe</strong> app-menu icon. Not required if you use HackMe OS ISO.</p>
       </article>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Update channel (L1)</h2></div>
+      <p class="subtle">Miners self-update from a signed-by-hash feed. Prefer apt on Ubuntu/Debian when available.</p>
+      <div class="quick-links">
+        <a id="download-latest-json" class="quick-item" href="/dist/latest.json">
+          <h4>latest.json</h4>
+          <p>Version + SHA256 + download URLs for Linux / Windows / ISO.</p>
+        </a>
+        <a class="quick-item" href="https://hackme.tech/downloads.html">
+          <h4>How to update</h4>
+          <p>Linux: <code>bash update_hackme_miner.sh</code> · Windows: <code>update_hackme_miner.bat</code> · OS: <code>update_hackme_os_binaries.sh</code></p>
+        </a>
+      </div>
+    </section>
+
+    <section class="panel glass" id="apt">
+      <div class="panel-head"><h2>Ubuntu / Debian — apt</h2></div>
+      <p class="subtle">Signed package <code>hackme-node</code> (binaries under <code>/opt/hackme</code>, branded app menu).</p>
+      <pre class="subtle" style="white-space:pre-wrap;font-size:0.85rem;padding:0.75rem;border:1px solid rgba(255,255,255,0.08);border-radius:6px">curl -fsSL https://hackme.tech/apt/hackme-archive-keyring.gpg \
+  | sudo tee /usr/share/keyrings/hackme-archive-keyring.gpg >/dev/null
+echo 'deb [signed-by=/usr/share/keyrings/hackme-archive-keyring.gpg] https://hackme.tech/apt stable main' \
+  | sudo tee /etc/apt/sources.list.d/hackme.list
+sudo apt update &amp;&amp; sudo apt install hackme-node
+# later:
+sudo apt upgrade hackme-node</pre>
+      <p class="subtle" style="margin-top:0.5rem;font-size:0.85rem">Keyring: <a href="/apt/hackme-archive-keyring.gpg">/apt/hackme-archive-keyring.gpg</a> · list: <a href="/apt/hackme.list">/apt/hackme.list</a>. Keep <code>.env</code> under <code>/opt/hackme</code> — packages never overwrite it.</p>
     </section>
 
     <section class="panel glass">

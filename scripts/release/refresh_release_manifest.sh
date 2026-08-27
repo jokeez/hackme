@@ -78,3 +78,6 @@ jq -nc \
   }' > RELEASE_MANIFEST.json
 
 echo "[manifest] OK $(pwd)/RELEASE_MANIFEST.json (iso_sha=${ISO_SHA:-none})"
+
+VERSION="${VERSION}" bash "${ROOT}/scripts/release/generate_latest_json.sh" "${DIST_DIR}" || \
+  echo "[manifest] WARN: latest.json refresh failed" >&2

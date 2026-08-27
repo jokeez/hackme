@@ -1,9 +1,14 @@
 [Desktop Entry]
+Version=1.0
 Type=Application
 Name=HackMe
-Comment=HackMe node dashboard and explorer
-Exec=__INSTALL_DIR__/hackme
-Icon=utilities-terminal
+GenericName=HackMe Node
+Comment=HackMe node · local dashboard (127.0.0.1:8080)
+Exec=__INSTALL_DIR__/start_hackme_miner.sh
+TryExec=__INSTALL_DIR__/hackme
+Icon=hackme
 Terminal=false
-Categories=Development;Network;
+Categories=Network;Development;Utility;
+Keywords=hackme;mining;pow;fuzz;
 StartupNotify=true
+StartupWMClass=hackme

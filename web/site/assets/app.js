@@ -1,8 +1,8 @@
 (() => {
   /** Bump with scripts/release/CURRENT_VERSION, dist/release_<VERSION>/, main.go Version */
-  const RELEASE_VER = "0.1.0-rc15";
+  const RELEASE_VER = "0.1.0-rc16";
   /** HackMe OS ISO — aligned with Win/Linux (scripts/release/CURRENT_ISO_VERSION). */
-  const ISO_CHANNEL = "0.1.0-rc15";
+  const ISO_CHANNEL = "0.1.0-rc16";
 
   /** Sub-1 TH/s → GH/s (matches dashboard / explorer pool strip). */
   function fmtPoolHashrateTHS(ths, mock) {
@@ -38,7 +38,7 @@
     newsDisplay: "/assets/news-display.json",
     newsArchive: "/assets/news.json",
     releaseChannel: RELEASE_VER,
-    releaseChannelNote: "rc15 — B2B fuzz Phase 2 on #mining, pool anticheat hardening, libheif OSS series archived CLEAN",
+    releaseChannelNote: "rc16 — self-update channel (latest.json + apt) · branded Linux menu · L1 updaters in release",
     releaseBase: `/dist/release_${RELEASE_VER}`,
     // Primary downloads: GitHub Releases (Cloudflare /dist often stalls or truncates large files).
     // Mirrors under /dist/ remain for origin IP / grey-cloud bypass.
@@ -64,6 +64,8 @@
     fuzzingBuildWindows: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/hackme-fuzzing-build-${RELEASE_VER}-windows-amd64.exe`,
     shaSums: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/SHA256SUMS.txt`,
     shaSumsMirror: `/dist/release_${RELEASE_VER}/SHA256SUMS.txt`,
+    latestJson: `/dist/latest.json`,
+    latestJsonGh: `https://github.com/jokeez/hackme/releases/latest/download/latest.json`,
     manifest: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/RELEASE_MANIFEST.json`,
     buildInfo: `https://github.com/jokeez/hackme/releases/download/${RELEASE_VER}/BUILD_INFO.txt`,
   };
@@ -209,6 +211,7 @@
     setHref("download-iso-sha-card", CONFIG.hackmeOSSha);
     setHref("download-manifest", CONFIG.manifest);
     setHref("download-buildinfo", CONFIG.buildInfo);
+    setHref("download-latest-json", CONFIG.latestJson || CONFIG.latestJsonGh);
     const verEl = document.getElementById("dl-release-ver");
     const verMeta = document.getElementById("dl-release-meta");
     const verLabel = CONFIG.releaseChannel || RELEASE_VER;

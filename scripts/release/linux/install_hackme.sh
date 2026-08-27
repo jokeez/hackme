@@ -72,6 +72,19 @@ echo "[install] installing to ${INSTALL_DIR}"
 mkdir -p "${INSTALL_DIR}"
 install -m 0755 "${PAYLOAD_DIR}/hackme" "${INSTALL_DIR}/hackme"
 install -m 0644 "${PAYLOAD_DIR}/README.md" "${INSTALL_DIR}/README.md" || true
+for helper in update_hackme_miner.sh update_hackme_os_binaries.sh start_hackme_miner.sh stop_hackme_miner.sh \
+              install_menu_entry.sh setup_hackme_miner.sh; do
+  if [[ -f "${PAYLOAD_DIR}/${helper}" ]]; then
+    install -m 0755 "${PAYLOAD_DIR}/${helper}" "${INSTALL_DIR}/${helper}"
+  fi
+done
+if [[ -d "${PAYLOAD_DIR}/icons" ]]; then
+  mkdir -p "${INSTALL_DIR}/icons"
+  cp -a "${PAYLOAD_DIR}/icons/." "${INSTALL_DIR}/icons/"
+fi
+for f in hackme.png hackme.desktop.template hackme-dashboard.desktop.template; do
+  [[ -f "${PAYLOAD_DIR}/${f}" ]] && install -m 0644 "${PAYLOAD_DIR}/${f}" "${INSTALL_DIR}/${f}"
+done
 
 if [[ ! -f "${INSTALL_DIR}/.env" ]]; then
   cat > "${INSTALL_DIR}/.env" <<EOF
@@ -82,11 +95,14 @@ EOF
   chmod 0600 "${INSTALL_DIR}/.env"
 fi
 
-mkdir -p /usr/local/share/applications
-if [[ -f "${PAYLOAD_DIR}/hackme.desktop.template" ]]; then
+# Branded application menu entry (HackMe logo)
+if [[ -x "${INSTALL_DIR}/install_menu_entry.sh" ]]; then
+  INSTALL_DIR="${INSTALL_DIR}" PAYLOAD_DIR="${PAYLOAD_DIR}" \
+    bash "${INSTALL_DIR}/install_menu_entry.sh" --install-dir "${INSTALL_DIR}" --payload-dir "${PAYLOAD_DIR}" || true
+elif [[ -f "${PAYLOAD_DIR}/hackme.desktop.template" ]]; then
+  mkdir -p /usr/local/share/applications
   sed "s#__INSTALL_DIR__#${INSTALL_DIR}#g" "${PAYLOAD_DIR}/hackme.desktop.template" > /usr/local/share/applications/hackme.desktop
 fi
-
 if [[ "${ENABLE_SERVICE}" == "1" ]]; then
   if [[ ! -f "${PAYLOAD_DIR}/hackme-node.service.template" ]]; then
     echo "[install] service template missing in payload" >&2
@@ -112,3 +128,11 @@ fi
 echo "[install] done"
 echo "[install] dashboard:  http://127.0.0.1:8080/"
 echo "[install] explorer:   http://127.0.0.1:8080/explorer"
+echo "[install] menu:       HackMe / HackMe Dashboard (app launcher)"
+echo "[install] updates:    bash ${INSTALL_DIR}/update_hackme_miner.sh  (keeps .env/data/logs)"
+if [[ -x "${INSTALL_DIR}/update_hackme_miner.sh" ]]; then
+  :
+elif [[ -f "${PAYLOAD_DIR}/update_hackme_miner.sh" ]]; then
+  install -m 0755 "${PAYLOAD_DIR}/update_hackme_miner.sh" "${INSTALL_DIR}/update_hackme_miner.sh"
+  chown "${SERVICE_USER}:${SERVICE_USER}" "${INSTALL_DIR}/update_hackme_miner.sh" 2>/dev/null || true
+fi

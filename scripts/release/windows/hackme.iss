@@ -88,6 +88,8 @@ Source: "..\..\..\dist\release_{#MyAppVersion}\windows\pool.miner.token"; DestDi
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\hackme.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\detect_gpu.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\write_hackme_env.ps1"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\..\dist\release_{#MyAppVersion}\windows\update_hackme_miner.ps1"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\..\..\dist\release_{#MyAppVersion}\windows\update_hackme_miner.bat"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\setup_hackme_miner.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\start_hackme_miner.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\autostart_pool_worker.bat"; DestDir: "{app}"; Flags: ignoreversion
@@ -114,6 +116,7 @@ Name: "{app}\data"; Permissions: users-modify
 Name: "{group}\{#MyAppName} Miner"; Filename: "{app}\start_hackme_miner.bat"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Comment: "Public pool miner — hackme.tech"
 Name: "{group}\{#MyAppName} Dashboard"; Filename: "http://127.0.0.1:8080/#mining"; IconFilename: "{app}\{#MyAppExeName}"
 Name: "{group}\Configure miner"; Filename: "{app}\setup_hackme_miner.bat"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"
+Name: "{group}\Check for updates"; Filename: "{app}\update_hackme_miner.bat"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Comment: "Fetch latest.json and update HackMe (keeps hackme.env)"
 Name: "{group}\Repair miner env"; Filename: "{app}\repair_fair_env.bat"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Comment: "Refresh hackme.env (fair pool settings)"
 Name: "{group}\Repair miner env"; Filename: "{app}\repair_fair_env.bat"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Comment: "Refresh hackme.env (fair pool settings)"
 Name: "{group}\Readme — first steps"; Filename: "{app}\MINER_WINDOWS_ONE_CLICK.md"; IconFilename: "{app}\{#MyAppExeName}"
