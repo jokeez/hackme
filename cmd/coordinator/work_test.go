@@ -1319,22 +1319,28 @@ func TestMergeWorkerStatAddressConflictDoesNotStealPayout(t *testing.T) {
 	victim := workerPayoutStat{PayoutAddress: "HMC-victim000000000", PayoutHMC: 10, PayoutSUP: 1, LastHashrateGHS: 100}
 	attacker := workerPayoutStat{PayoutAddress: "HMC-attacker0000000", PayoutHMC: 0.1, PayoutSUP: 0.01, LastHashrateGHS: 1}
 	merged, conflict := mergeWorkerStat(attacker, victim)
-	if !conflict || merged.PayoutHMC != 0 || merged.PayoutSUP != 0 {
-		t.Fatalf("conflict must zero merged accrual, got hmc=%v sup=%v conflict=%v", merged.PayoutHMC, merged.PayoutSUP, conflict)
+	if !conflict || !merged.AddressConflict {
+		t.Fatalf("expected conflict flag, conflict=%v addrConflict=%v", conflict, merged.AddressConflict)
+	}
+	if merged.PayoutAddress != "" {
+		t.Fatalf("conflict must clear payout address, got %q", merged.PayoutAddress)
+	}
+	if merged.PayoutHMC < 10.0 {
+		t.Fatalf("accrual must remain visible for ops (not zeroed), got hmc=%v", merged.PayoutHMC)
 	}
 	merged2, conflict2 := mergeWorkerStat(victim, attacker)
-	if !conflict2 || merged2.PayoutHMC != 0 || merged2.PayoutSUP != 0 {
-		t.Fatalf("conflict2 must zero merged accrual, got hmc=%v sup=%v conflict=%v", merged2.PayoutHMC, merged2.PayoutSUP, conflict2)
+	if !conflict2 || merged2.PayoutAddress != "" {
+		t.Fatalf("conflict2 must clear address, got addr=%q conflict=%v", merged2.PayoutAddress, conflict2)
 	}
 	richAttacker := workerPayoutStat{PayoutAddress: "HMC-attacker0000000", PayoutHMC: 99, PayoutSUP: 9, LastHashrateGHS: 1}
 	merged3, conflict3 := mergeWorkerStat(victim, richAttacker)
 	if !conflict3 {
 		t.Fatal("expected address conflict")
 	}
-	if !strings.EqualFold(merged3.PayoutAddress, "HMC-victim000000000") {
-		t.Fatalf("display address should stay dst, got %q", merged3.PayoutAddress)
+	if merged3.PayoutAddress != "" {
+		t.Fatalf("conflict must blank address so settle cannot pay wrong target, got %q", merged3.PayoutAddress)
 	}
-	if merged3.PayoutHMC != 0 {
-		t.Fatalf("rich attacker must not settle via merge: %v", merged3.PayoutHMC)
+	if merged3.PayoutHMC < 10 {
+		t.Fatalf("victim accrual must remain visible: %v", merged3.PayoutHMC)
 	}
 }

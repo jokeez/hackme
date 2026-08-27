@@ -68,11 +68,13 @@ func TestFuzzSubmitReplayNonceRejected(t *testing.T) {
 	auth := fuzzSubmitAuth{
 		WorkerID: "w", MinerPubKey: hex.EncodeToString(pub), MinerSig: sig, SubmitNonce: 7,
 	}
-	if ok, _, _ := wm.validateFuzzHybridSignature(auth, body); !ok {
+	if ok, _, addr := wm.validateFuzzHybridSignature(auth, body); !ok {
 		t.Fatal("first sig should pass")
+	} else {
+		wm.commitFuzzHybridNonce(addr, 7)
 	}
 	if ok, reason, _ := wm.validateFuzzHybridSignature(auth, body); ok || reason != "replay" {
-		t.Fatalf("replay want reject, ok=%v reason=%q", ok, reason)
+		t.Fatalf("replay want reject after commit, ok=%v reason=%q", ok, reason)
 	}
 }
 

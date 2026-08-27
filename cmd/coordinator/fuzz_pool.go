@@ -427,10 +427,14 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": reason})
 			return
 		}
-		// Heartbeat on every authenticated claim attempt so fuzz workers stay online
-		// in /api/work/stats even when the queue is briefly empty.
+		// Heartbeat only for existing workers or when under maxWorkers (PoH parity).
+		if okSeen, reasonSeen := wm.touchWorkerSeenLimited(workerID); !okSeen {
+			wm.recordDrop(reasonSeen)
+			w.WriteHeader(http.StatusTooManyRequests)
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": reasonSeen})
+			return
+		}
 		wm.noteWorkerClientIP(workerID, ipKey)
-		wm.touchWorkerSeen(workerID)
 		work, ok, err := pf.Claim(r.Context(), workerID, now)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -509,6 +513,18 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			http.Error(w, "invalid submit payload", http.StatusBadRequest)
 			return
 		}
+		if !validCoordinatorWorkerID(strings.TrimSpace(req.WorkerID)) {
+			http.Error(w, "invalid worker_id", http.StatusBadRequest)
+			return
+		}
+		ipKey := clientIPKey(r)
+		now := time.Now().Unix()
+		if okSub, reasonSub := wm.allowSubmit(req.WorkerID, ipKey, now); !okSub {
+			wm.recordDrop(reasonSub)
+			w.WriteHeader(http.StatusTooManyRequests)
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": reasonSub})
+			return
+		}
 		signBody := poolfuzz.CanonicalSubmitBytes(poolfuzz.SubmitSignPayload{
 			WorkerID: req.WorkerID, CampaignID: req.CampaignID, ItemID: req.ItemID,
 			InputN: req.InputN, ActualInput: req.ActualInput, InputBytesHex: strings.TrimSpace(req.InputBytesHex),
@@ -519,18 +535,21 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			MinerSig: req.MinerSig, MinerSigAlg: req.MinerSigAlg, SubmitNonce: req.SubmitNonce,
 		}, signBody)
 		if !okSig {
-			w.WriteHeader(http.StatusForbidden)
+			wm.markSubmitOutcome(req.WorkerID, ipKey, reason, now)
+			w.WriteHeader(submitRejectHTTPStatus(reason))
 			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": reason})
 			return
 		}
+		// Check payout lock without committing address until Submit succeeds (M14).
 		if payoutAddr != "" {
 			wm.mu.Lock()
-			if wm.worker == nil {
-				wm.worker = make(map[string]workerPayoutStat)
+			locked := ""
+			if wm.worker != nil {
+				locked = strings.TrimSpace(wm.worker[req.WorkerID].PayoutAddress)
 			}
-			st := wm.worker[req.WorkerID]
-			if locked := strings.TrimSpace(st.PayoutAddress); locked != "" && !strings.EqualFold(locked, payoutAddr) {
-				wm.mu.Unlock()
+			wm.mu.Unlock()
+			if locked != "" && !strings.EqualFold(locked, payoutAddr) {
+				wm.markSubmitOutcome(req.WorkerID, ipKey, "payout_address_locked", now)
 				w.WriteHeader(http.StatusForbidden)
 				_ = json.NewEncoder(w).Encode(map[string]any{
 					"ok":                       false,
@@ -540,13 +559,6 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 				})
 				return
 			}
-			st.PayoutAddress = payoutAddr
-			st.SignedSubmits++
-			st.LastSeenUnix = time.Now().Unix()
-			wm.worker[req.WorkerID] = st
-			wm.mu.Unlock()
-		} else {
-			wm.touchWorkerSeen(req.WorkerID)
 		}
 		var inputBytes []byte
 		if h := strings.TrimSpace(req.InputBytesHex); h != "" {
@@ -554,7 +566,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		}
 		if err := pf.Submit(r.Context(), poolfuzz.SubmitRequest{
 			WorkerID:        req.WorkerID,
-			MinerAddress:    payoutAddr,
+			MinerAddress:     payoutAddr,
 			WorkID:          req.WorkID,
 			CampaignID:      req.CampaignID,
 			ItemID:          req.ItemID,
@@ -566,11 +578,27 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			Trap:            strings.TrimSpace(req.Trap),
 			SegmentExecDone: req.SegmentExecDone,
 		}); err != nil {
+			wm.markSubmitOutcome(req.WorkerID, ipKey, "fuzz_submit_failed", now)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		// Commit hybrid nonce + payout bind only after accepted work.
 		if payoutAddr != "" {
+			wm.mu.Lock()
+			if wm.worker == nil {
+				wm.worker = make(map[string]workerPayoutStat)
+			}
+			st := wm.worker[req.WorkerID]
+			if locked := strings.TrimSpace(st.PayoutAddress); locked == "" {
+				st.PayoutAddress = payoutAddr
+			}
+			st.SignedSubmits++
+			st.LastSeenUnix = time.Now().Unix()
+			wm.worker[req.WorkerID] = st
+			wm.mu.Unlock()
 			wm.commitFuzzHybridNonce(payoutAddr, req.SubmitNonce)
+		} else {
+			wm.touchWorkerSeen(req.WorkerID)
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "accepted": true})

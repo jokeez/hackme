@@ -148,15 +148,6 @@ func resolveWorkerPayoutAddress(workerID string) string {
 	if legacy := strings.TrimSpace(os.Getenv("FUZZ_LEGACY_MINER_ADDRESS")); strings.HasPrefix(legacy, "HMC-") && len(legacy) == 20 {
 		return legacy
 	}
-	for _, part := range strings.Split(raw, ",") {
-		part = strings.TrimSpace(part)
-		kv := strings.SplitN(part, "=", 2)
-		if len(kv) == 2 {
-			addr := strings.TrimSpace(kv[1])
-			if strings.HasPrefix(addr, "HMC-") && len(addr) == 20 {
-				return addr
-			}
-		}
-	}
+	// Fail closed: never fall back to "first address in WORKER_PAYOUT_MAP" (wrong-pay risk).
 	return ""
 }

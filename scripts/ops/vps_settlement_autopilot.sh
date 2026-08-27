@@ -95,6 +95,10 @@ if python3 -c "import sys; sys.exit(0 if float(sys.argv[1])>=float(sys.argv[2]) 
   set +e
   sudo -u hackme env ADMIN_TOKEN="$ADMIN_TOKEN" \
     COORD_ADMIN_TOKEN="$(tr -d '\r\n' <"${DEPLOY}/.secrets/hackme_coordinator_admin_token" 2>/dev/null || true)" \
+    WORKER_PAYOUT_MAP="${WORKER_PAYOUT_MAP:-}" \
+    MIN_SETTLE_HMC="${MIN_SETTLE_HMC:-}" \
+    MAX_SETTLE_HMC="${MAX_SETTLE_HMC:-}" \
+    CLEAR_PENDING_HMC="${CLEAR_PENDING_HMC:-0}" \
     bash "${DEPLOY}/scripts/ops/settle_worker_payouts.sh" 2>&1 | tail -8
   set -e
   fi

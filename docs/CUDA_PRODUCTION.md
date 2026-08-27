@@ -10,7 +10,7 @@ HackMe pool workers can use **native NVIDIA CUDA** (NVRTC JIT) instead of OpenCL
 |-----------|-----------------|
 | NVIDIA driver | Recent (RTX 50 / Blackwell: latest production driver) |
 | CUDA toolkit | 12.x with **nvrtc** (`nvrtc.h`, `libnvrtc`) |
-| Go | 1.22+ |
+| Go | 1.25+ |
 | C compiler | `gcc` / `build-essential` for CGO |
 | GPU | Any CUDA-capable GPU; arch auto-detected (e.g. RTX 5060 Ti → `compute_120`) |
 

@@ -29,7 +29,8 @@ func clientIP(r *http.Request) string {
 	if r == nil {
 		return ""
 	}
-	if trustClientForwardedFor {
+	// Only honor forwarded headers from a trusted proxy peer (loopback or allowlisted CIDR).
+	if trustClientForwardedFor && peerTrustedProxy(r.RemoteAddr) {
 		// Prefer nginx-set X-Real-IP / X-Forwarded-For. Only honor CF-Connecting-IP when the
 		// immediate peer is Cloudflare (otherwise clients can rotate forged CF headers).
 		if xri := strings.TrimSpace(r.Header.Get("X-Real-IP")); xri != "" {
@@ -54,6 +55,55 @@ func clientIP(r *http.Request) string {
 		}
 	}
 	return keyFromRemoteAddr(r.RemoteAddr)
+}
+
+// peerTrustedProxy reports whether RemoteAddr is loopback or in HACKME_PROXY_TRUST_CIDRS
+// (comma-separated, e.g. "10.0.0.0/8,192.168.0.0/16").
+func peerTrustedProxy(remoteAddr string) bool {
+	host := strings.TrimSpace(remoteAddr)
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	host = strings.Trim(host, "[]")
+	ip, err := netip.ParseAddr(host)
+	if err != nil || !ip.IsValid() {
+		return false
+	}
+	if ip.Is4In6() {
+		ip = ip.Unmap()
+	}
+	if ip.IsLoopback() {
+		return true
+	}
+	for _, cidr := range proxyTrustCIDRs() {
+		if cidr.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+func proxyTrustCIDRs() []netip.Prefix {
+	raw := strings.TrimSpace(os.Getenv("HACKME_PROXY_TRUST_CIDRS"))
+	if raw == "" {
+		raw = strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_PROXY_TRUST_CIDRS"))
+	}
+	if raw == "" {
+		return nil
+	}
+	var out []netip.Prefix
+	for _, part := range strings.Split(raw, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		p, err := netip.ParsePrefix(part)
+		if err != nil {
+			continue
+		}
+		out = append(out, p)
+	}
+	return out
 }
 
 // peerIsCloudflare reports whether RemoteAddr is in published Cloudflare IP ranges.

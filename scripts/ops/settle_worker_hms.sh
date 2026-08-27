@@ -164,7 +164,8 @@ PY
       '.epochs[$e].workers[$w].pending_mint != null' "$STATE_FILE" >/dev/null 2>&1; then
       echo "[settle-hms] skip ${worker_id} epoch=${epoch_id}: pending_mint present — not re-minting" >&2
       echo "[settle-hms] tip: PROMOTE_PENDING_HMS=1 records pending as settled if mint succeeded; CLEAR_PENDING_HMS=1 drops pending to retry" >&2
-      if [[ "${PROMOTE_PENDING_HMS:-0}" == "1" || "${CLEAR_PENDING_SETTLE:-0}" == "1" ]]; then
+      if [[ "${PROMOTE_PENDING_HMS:-0}" == "1" ]]; then
+        # Prefer PROMOTE_PENDING_HMS. CLEAR_PENDING_SETTLE no longer aliases to promote.
         pending_units="$(jq -r --arg e "$epoch_id" --arg w "$worker_id" \
           '.epochs[$e].workers[$w].pending_mint.delta_units // 0' "$STATE_FILE")"
         pending_addr="$(jq -r --arg e "$epoch_id" --arg w "$worker_id" \

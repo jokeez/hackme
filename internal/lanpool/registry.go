@@ -40,10 +40,8 @@ func (reg *Registry) Upsert(remoteAddr string, b PushWorkBody) error {
 	if name == "" {
 		name = id
 	}
-	ip := strings.TrimSpace(b.IP)
-	if ip == "" {
-		ip = hostFromRemoteAddr(remoteAddr)
-	}
+	// Always derive IP from the HTTP peer — never trust client-supplied body.ip (lan_peer poison).
+	ip := hostFromRemoteAddr(remoteAddr)
 	reg.mu.Lock()
 	defer reg.mu.Unlock()
 	e, ok := reg.rigs[id]

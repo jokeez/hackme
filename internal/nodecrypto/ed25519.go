@@ -62,8 +62,12 @@ func LoadOrCreate(dataDir string) (*Signer, error) {
 		seed = []byte(hex.EncodeToString(s))
 	}
 	raw := make([]byte, ed25519.SeedSize)
-	if _, err := hex.Decode(raw, seed); err != nil {
+	n, err := hex.Decode(raw, seed)
+	if err != nil {
 		return nil, fmt.Errorf("nodecrypto: corrupt seed file %s: %w", path, err)
+	}
+	if n != ed25519.SeedSize {
+		return nil, fmt.Errorf("nodecrypto: seed file %s must be %d hex bytes (got %d decoded)", path, ed25519.SeedSize, n)
 	}
 	priv := ed25519.NewKeyFromSeed(raw)
 	return &Signer{priv: priv, pub: priv.Public().(ed25519.PublicKey)}, nil

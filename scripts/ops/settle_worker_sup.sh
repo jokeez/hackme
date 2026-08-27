@@ -109,8 +109,8 @@ PY
   if jq -e --arg wid "$worker_id" '.workers[$wid].pending_sup != null' "$STATE_FILE" >/dev/null 2>&1; then
     echo "[settle-sup] skip ${worker_id}: pending_sup present — not re-minting" >&2
     echo "[settle-sup] tip: PROMOTE_PENDING_SUP=1 records pending as settled only if mint already succeeded; CLEAR_PENDING_SUP=1 drops pending to retry mint" >&2
-    if [[ "${PROMOTE_PENDING_SUP:-0}" == "1" || "${CLEAR_PENDING_SETTLE:-0}" == "1" ]]; then
-      # Legacy CLEAR_PENDING_SETTLE=1 kept as promote (old behavior); prefer PROMOTE_PENDING_SUP.
+    if [[ "${PROMOTE_PENDING_SUP:-0}" == "1" ]]; then
+      # Prefer PROMOTE_PENDING_SUP. CLEAR_PENDING_SETTLE no longer aliases to promote (HMC drop semantics).
       pending_amt="$(jq -r --arg wid "$worker_id" '.workers[$wid].pending_sup.delta_sup // 0' "$STATE_FILE")"
       pending_addr="$(jq -r --arg wid "$worker_id" '.workers[$wid].pending_sup.payout_address // ""' "$STATE_FILE")"
       already_now="$(jq -r --arg wid "$worker_id" '.workers[$wid].settled_sup // 0' "$STATE_FILE")"

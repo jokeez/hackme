@@ -149,18 +149,19 @@ type leaseRecord struct {
 }
 
 type workerPayoutStat struct {
-	AcceptedRanges  uint64  `json:"accepted_ranges"`
-	AcceptedHits    uint64  `json:"accepted_hits"`
-	AcceptedAtt     uint64  `json:"accepted_attempts"`
-	PayoutHMC       float64 `json:"payout_hmc"`
-	PayoutSUP       float64 `json:"payout_sup"`
-	PayoutAddress   string  `json:"payout_address,omitempty"`
-	SignedSubmits   uint64  `json:"signed_submits,omitempty"`
-	LastHashrateGHS float64 `json:"hashrate_gh_s,omitempty"`
-	PeakHashrateGHS float64 `json:"peak_hashrate_gh_s,omitempty"`
-	LastSeenUnix    int64   `json:"last_seen_unix,omitempty"`
-	LastClientIP    string  `json:"last_client_ip,omitempty"`
-	Online          bool    `json:"online,omitempty"`
+	AcceptedRanges   uint64  `json:"accepted_ranges"`
+	AcceptedHits     uint64  `json:"accepted_hits"`
+	AcceptedAtt      uint64  `json:"accepted_attempts"`
+	PayoutHMC        float64 `json:"payout_hmc"`
+	PayoutSUP        float64 `json:"payout_sup"`
+	PayoutAddress    string  `json:"payout_address,omitempty"`
+	AddressConflict  bool    `json:"address_conflict,omitempty"`
+	SignedSubmits    uint64  `json:"signed_submits,omitempty"`
+	LastHashrateGHS  float64 `json:"hashrate_gh_s,omitempty"`
+	PeakHashrateGHS  float64 `json:"peak_hashrate_gh_s,omitempty"`
+	LastSeenUnix     int64   `json:"last_seen_unix,omitempty"`
+	LastClientIP     string  `json:"last_client_ip,omitempty"`
+	Online           bool    `json:"online,omitempty"`
 }
 
 type workerAbuseState struct {
@@ -888,10 +889,16 @@ func (m *workManager) noteWorkerClientIP(workerID, ip string) {
 
 // touchWorkerSeen refreshes last_seen for fuzz claim/submit heartbeats (PoH submit path
 // already updates LastSeenUnix; fuzz workers otherwise go "offline" in the UI after 300s).
+// touchWorkerSeen updates LastSeenUnix. Creates a new worker row only when under maxWorkers.
+// Returns false with reason "too_many_workers" when a new id would exceed the cap (PoH parity).
 func (m *workManager) touchWorkerSeen(workerID string) {
+	_, _ = m.touchWorkerSeenLimited(workerID)
+}
+
+func (m *workManager) touchWorkerSeenLimited(workerID string) (ok bool, reason string) {
 	workerID = strings.TrimSpace(workerID)
 	if workerID == "" || m == nil {
-		return
+		return false, "invalid_worker_id"
 	}
 	now := time.Now().Unix()
 	m.mu.Lock()
@@ -899,9 +906,13 @@ func (m *workManager) touchWorkerSeen(workerID string) {
 	if m.worker == nil {
 		m.worker = make(map[string]workerPayoutStat)
 	}
+	if _, exists := m.worker[workerID]; !exists && m.maxWorkers > 0 && len(m.worker) >= m.maxWorkers {
+		return false, "too_many_workers"
+	}
 	st := m.worker[workerID]
 	st.LastSeenUnix = now
 	m.worker[workerID] = st
+	return true, ""
 }
 
 func (m *workManager) allowRateSlot(state workerAbuseState, now int64, limit int, claim bool) (workerAbuseState, bool) {
@@ -1171,6 +1182,14 @@ func (m *workManager) pruneStaleWorkersLocked(prefix string, maxPayout float64, 
 		}
 		removed = append(removed, id)
 		if !dryRun {
+			m.totalPayoutHMC -= st.PayoutHMC
+			if m.totalPayoutHMC < 0 {
+				m.totalPayoutHMC = 0
+			}
+			m.totalPayoutSUP -= st.PayoutSUP
+			if m.totalPayoutSUP < 0 {
+				m.totalPayoutSUP = 0
+			}
 			delete(m.worker, id)
 			delete(m.abuse, id)
 		}
@@ -1935,12 +1954,10 @@ func mergeWorkerStat(dst, src workerPayoutStat) (workerPayoutStat, bool) {
 	srcAddr := strings.TrimSpace(src.PayoutAddress)
 	addrConflict := dstAddr != "" && srcAddr != "" && !strings.EqualFold(dstAddr, srcAddr)
 	if addrConflict {
-		// H4: refuse merged settlement on address conflict (shared-token steal).
-		// Keep hashrate/online for fleet display; zero both sides' accrual on this row.
-		dst.PayoutHMC = 0
-		dst.PayoutSUP = 0
-		src.PayoutHMC = 0
-		src.PayoutSUP = 0
+		// Keep accruals visible for ops/settle drift detection; clear address so
+		// autopilot cannot pay the wrong HMC target after a fleet merge.
+		dst.PayoutAddress = ""
+		dst.AddressConflict = true
 	}
 	dst.AcceptedRanges += src.AcceptedRanges
 	dst.AcceptedHits += src.AcceptedHits
@@ -1956,13 +1973,16 @@ func mergeWorkerStat(dst, src workerPayoutStat) (workerPayoutStat, bool) {
 	if src.LastSeenUnix > dst.LastSeenUnix {
 		dst.LastSeenUnix = src.LastSeenUnix
 	}
-	if dst.PayoutAddress == "" && srcAddr != "" {
+	if !addrConflict && dst.PayoutAddress == "" && srcAddr != "" {
 		dst.PayoutAddress = srcAddr
 	}
 	if dst.LastClientIP == "" && src.LastClientIP != "" {
 		dst.LastClientIP = src.LastClientIP
 	}
 	dst.Online = dst.Online || src.Online
+	if src.AddressConflict {
+		dst.AddressConflict = true
+	}
 	return dst, addrConflict
 }
 

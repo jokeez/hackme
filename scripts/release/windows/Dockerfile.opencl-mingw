@@ -1,5 +1,5 @@
 # Cross-build workerpoh-opencl.exe for Windows (AMD/Intel/NVIDIA via OpenCL ICD).
-FROM golang:1.24-bookworm
+FROM golang:1.25-bookworm
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 \
     opencl-headers ocl-icd-opencl-dev ca-certificates git \

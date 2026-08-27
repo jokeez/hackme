@@ -85,8 +85,23 @@
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const j = await r.json();
         const v = (j && j.verdict) || {};
-        el.innerHTML = 'L1 v3 repro: <strong>' + (v.status || 'unknown') + '</strong> — ' + (v.summary || '') +
-          ' · <a href="./reports/l1-crypto-stack-v4.html">v4 live</a> · <a href="./research.html">all reports</a>';
+        const status = String(v.status || 'unknown').replace(/[<>&]/g, '');
+        const summary = String(v.summary || '').replace(/[<>&]/g, '');
+        el.textContent = '';
+        el.appendChild(document.createTextNode('L1 v3 repro: '));
+        const strong = document.createElement('strong');
+        strong.textContent = status;
+        el.appendChild(strong);
+        el.appendChild(document.createTextNode(' — ' + summary + ' · '));
+        const a1 = document.createElement('a');
+        a1.href = './reports/l1-crypto-stack-v4.html';
+        a1.textContent = 'v4 live';
+        el.appendChild(a1);
+        el.appendChild(document.createTextNode(' · '));
+        const a2 = document.createElement('a');
+        a2.href = './research.html';
+        a2.textContent = 'all reports';
+        el.appendChild(a2);
         el.className = 'subtle ok';
       } catch (e) {
         el.textContent = 'See multi-chain reports on the Research hub.';

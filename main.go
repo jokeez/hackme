@@ -692,8 +692,8 @@ func hardenHTTPHandler(next http.Handler) http.Handler {
 		}, "; "))
 		corsOrigin := strings.TrimSpace(os.Getenv("HACKME_HTTP_CORS_ALLOW_ORIGIN"))
 		apiPath := strings.HasPrefix(r.URL.Path, "/api/")
-		if apiPath && corsOrigin != "" {
-			// Allow browser dashboards on another origin to read public JSON API (set explicitly for open networks).
+		if apiPath && corsOrigin != "" && corsOrigin != "*" {
+			// Reject wildcard: Allow-Headers includes admin token — never pair with *.
 			w.Header().Set("Access-Control-Allow-Origin", corsOrigin)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Hackme-Admin-Token, X-Hackme-P2P-Token")
@@ -707,7 +707,7 @@ func hardenHTTPHandler(next http.Handler) http.Handler {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if apiPath && r.Method == http.MethodOptions && corsOrigin != "" {
+		if apiPath && r.Method == http.MethodOptions && corsOrigin != "" && corsOrigin != "*" {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
@@ -2384,7 +2384,7 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"ok":    false,
 			"code":  "coordinator_token_required",
-			"error": "coordinator token required: set HACKME_POOL_COORDINATOR_TOKEN or HACKME_ADMIN_TOKEN on the node, or paste the coordinator admin token in the dashboard admin field / send X-Hackme-Admin-Token, or pass coord_token in JSON",
+			"error": "coordinator token required: set HACKME_POOL_COORDINATOR_TOKEN (or .secrets/hackme_coordinator_worker_token), paste the pool coordinator token in the dashboard, send X-Hackme-Admin-Token with the coordinator token, or pass coord_token in JSON. Node HACKME_ADMIN_TOKEN is not accepted here.",
 		})
 		return
 	}
@@ -3550,7 +3550,9 @@ func (a *app) handleTasks(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode(map[string]any{"error": "rate limited", "code": "rate_limited"})
 			return
 		}
-		if !requireAdminAuthStrict(w, r) {
+		// B2B/integrator: developer token OR admin (docs + fuzzingclient).
+		// Keep admin-strict on from_code / security-audit / fuzz create.
+		if !requireDeveloperTasksAuth(w, r) {
 			return
 		}
 		logAdminAction(r, "tasks_post")
@@ -4100,13 +4102,42 @@ func (a *app) handleP2PTx(w http.ResponseWriter, r *http.Request) {
 
 func clientIP(r *http.Request) string {
 	if envBool("HACKME_TRUST_X_FORWARDED_FOR", false) {
-		xff := strings.TrimSpace(r.Header.Get("X-Forwarded-For"))
-		if xff != "" {
-			parts := strings.Split(xff, ",")
-			if len(parts) > 0 {
-				p := strings.TrimSpace(parts[0])
-				if p != "" {
-					return p
+		// Only honor XFF from loopback / allowlisted proxy peers (HACKME_PROXY_TRUST_CIDRS).
+		ra := strings.TrimSpace(r.RemoteAddr)
+		host := ra
+		if h, _, err := net.SplitHostPort(ra); err == nil {
+			host = strings.TrimSpace(h)
+		}
+		host = strings.Trim(host, "[]")
+		trusted := false
+		if ip, ok := parseIP(host); ok && ip.IsLoopback() {
+			trusted = true
+		}
+		if !trusted {
+			for _, part := range strings.Split(strings.TrimSpace(os.Getenv("HACKME_PROXY_TRUST_CIDRS")), ",") {
+				part = strings.TrimSpace(part)
+				if part == "" {
+					continue
+				}
+				p, err := netip.ParsePrefix(part)
+				if err != nil {
+					continue
+				}
+				if ip, ok := parseIP(host); ok && p.Contains(ip) {
+					trusted = true
+					break
+				}
+			}
+		}
+		if trusted {
+			xff := strings.TrimSpace(r.Header.Get("X-Forwarded-For"))
+			if xff != "" {
+				parts := strings.Split(xff, ",")
+				if len(parts) > 0 {
+					p := strings.TrimSpace(parts[0])
+					if p != "" {
+						return p
+					}
 				}
 			}
 		}

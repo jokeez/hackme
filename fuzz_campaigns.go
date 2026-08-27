@@ -300,8 +300,8 @@ func parseMapJSON(raw string) map[string]any {
 func newReportToken() string {
 	var b [24]byte
 	if _, err := rand.Read(b[:]); err != nil {
-		// Fallback keeps endpoint alive even if CSPRNG unexpectedly fails.
-		return cleanFuzzID(time.Now().UTC().Format("20060102t150405.000000000"), "rpt")
+		// Fail closed — never fall back to time-based guessable IDs.
+		panic("fuzz: CSPRNG failed generating report token: " + err.Error())
 	}
 	return hex.EncodeToString(b[:])
 }
