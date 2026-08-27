@@ -86,5 +86,14 @@ cp -f "$LIST_OUT" "${ROOT}/web/site/apt/hackme.list"
 [[ -f "${ROOT}/web/site/apt/hackme-archive-keyring.gpg" ]] || \
   bash "${ROOT}/scripts/release/apt/ensure_apt_signing_key.sh"
 
+# Nginx serves /apt/ from this repo root — bootstrap files must live here too.
+for f in hackme-archive-keyring.gpg hackme-archive-keyring.asc hackme.list install.sh README.txt; do
+  src="${ROOT}/web/site/apt/${f}"
+  [[ -f "$src" ]] && cp -f "$src" "${REPO_ROOT}/${f}"
+done
+# Prefer generated list over site copy
+cp -f "$LIST_OUT" "${REPO_ROOT}/hackme.list"
+
 echo "[apt-sign] OK repo=${REPO_ROOT} suite=${CODENAME} fpr=${FPR:0:16}…"
 echo "[apt-sign] list=${LIST_OUT}"
+echo "[apt-sign] bootstrap: ${REPO_ROOT}/install.sh + keyring"

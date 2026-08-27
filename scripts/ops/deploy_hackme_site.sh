@@ -109,6 +109,14 @@ if [[ "${SKIP_APT:-0}" != "1" && -d "${ROOT_DIR}/dist/apt/repo" ]]; then
   echo "[deploy-hackme-site] rsync apt repo -> ${NODE_SSH}:${NODE_DEPLOY_DIR}/apt/"
   deploy_ssh_retry_run _deploy_rsync -az --mkpath \
     "${ROOT_DIR}/dist/apt/repo/" "${NODE_SSH}:${NODE_DEPLOY_DIR}/apt/"
+  # Ensure one-shot bootstrap files exist even if an older publish omitted them
+  if [[ -d "${ROOT_DIR}/web/site/apt" ]]; then
+    for f in hackme-archive-keyring.gpg hackme-archive-keyring.asc hackme.list install.sh README.txt; do
+      [[ -f "${ROOT_DIR}/web/site/apt/${f}" ]] || continue
+      deploy_ssh_retry_run _deploy_rsync -az \
+        "${ROOT_DIR}/web/site/apt/${f}" "${NODE_SSH}:${NODE_DEPLOY_DIR}/apt/${f}"
+    done
+  fi
   # Public keyring + list also live under web/site/apt/ (rsynced with site)
 fi
 

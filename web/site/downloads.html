@@ -140,13 +140,18 @@
         <h2>Signed apt · <code>hackme-node</code></h2>
         <p class="subtle">Install under <code>/opt/hackme</code>. Keeps your <code>.env</code>. Branded app menu included.</p>
       </div>
-      <pre class="code-block" style="margin-top:0.85rem;font-size:0.84rem"><code>curl -fsSL https://hackme.tech/apt/hackme-archive-keyring.gpg \
+      <pre class="code-block" style="margin-top:0.85rem;font-size:0.84rem"><code>curl -fsSL https://hackme.tech/apt/install.sh | sudo bash
+# later: sudo apt upgrade hackme-node</code></pre>
+      <details class="dev-details" style="margin-top:0.75rem">
+        <summary>Manual (keyring + sources)</summary>
+        <pre class="code-block" style="margin-top:0.5rem;font-size:0.84rem"><code>curl -fsSL https://hackme.tech/apt/hackme-archive-keyring.gpg \
   | sudo tee /usr/share/keyrings/hackme-archive-keyring.gpg >/dev/null
 echo 'deb [signed-by=/usr/share/keyrings/hackme-archive-keyring.gpg] https://hackme.tech/apt stable main' \
   | sudo tee /etc/apt/sources.list.d/hackme.list
-sudo apt update &amp;&amp; sudo apt install hackme-node
-# later: sudo apt upgrade hackme-node</code></pre>
+sudo apt update &amp;&amp; sudo apt install hackme-node</code></pre>
+      </details>
       <p class="dl-muted-links subtle">
+        <a href="/apt/install.sh">install.sh</a> ·
         <a href="/apt/hackme-archive-keyring.gpg">keyring</a> ·
         <a href="/apt/hackme.list">apt list</a> ·
         <a id="download-latest-json" href="/dist/latest.json">latest.json</a>
