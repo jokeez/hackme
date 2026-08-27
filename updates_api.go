@@ -222,7 +222,7 @@ func buildUpdateCheckPayload(doc *latestDoc, sourceURL string) map[string]any {
 // handleUpdatesCheck compares local Version to published latest.json (L1 update channel).
 // Does not download or apply updates — dashboard shows commands / downloads link.
 func (a *app) handleUpdatesCheck(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}

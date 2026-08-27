@@ -100,6 +100,22 @@ check_html "/downloads.html" "download"
 check_html "/contacts.html" "Contact"
 check_html "/security-rewards.html" "security"
 
+# Public update-channel probe (nginx allowlist → hub :18080).
+sleep 0.4
+upd_tmp="$(mktemp)"
+if upd_code="$(_curl_code "$SITE/api/updates/check" "$upd_tmp")"; then
+  if python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d.get("ok") is True and d.get("remote_version")' "$upd_tmp" 2>/dev/null; then
+    echo "[site-smoke] PASS /api/updates/check"
+  else
+    echo "[site-smoke] FAIL /api/updates/check bad JSON payload" >&2
+    fail=$((fail + 1))
+  fi
+else
+  echo "[site-smoke] FAIL /api/updates/check HTTP ${upd_code}" >&2
+  fail=$((fail + 1))
+fi
+rm -f "$upd_tmp"
+
 if [[ "${SKIP_ISO:-0}" == "1" ]]; then
   echo "[site-smoke] SKIP ISO check (SKIP_ISO=1)"
 else
