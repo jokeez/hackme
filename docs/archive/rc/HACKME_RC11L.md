@@ -1,6 +1,6 @@
 # HackMe 0.1.0-rc11l — HackMe OS ISO channel
 
-> **Historical archive.** Current channel: [HACKME_RC15.md](../../HACKME_RC15.md) (`0.1.0-rc15`).
+> **Historical archive.** Current channel: [HACKME_RC16.md](../../HACKME_RC16.md) (`0.1.0-rc16`).
 
 
 **Status:** ISO live-boot fix shipped; **current ISO on downloads** until rc11m ISO is built. Win/Linux channel: [HACKME_RC11M.md](HACKME_RC11M.md).

@@ -1,6 +1,20 @@
 {
   "items": [
     {
+      "id": "2026-05-04-canonical-consistency-upgrade",
+      "date": "2026-05-04",
+      "title": "Canonical Consistency Upgrade for Follower Nodes",
+      "summary": "Follower-mode APIs now mirror canonical chain responses for transfer pool, address lookups, transaction lookups, and status economics to prevent mixed local/canonical views.",
+      "impact": "Operators now see one consistent reality between local dashboard/explorer and the public VPS chain, including nonce and pending transaction behavior.",
+      "action": "Recommended: hard-refresh browser cache and restart local follower nodes to pick up latest frontend/backend behavior.",
+      "tags": [
+        "core",
+        "explorer",
+        "infra"
+      ],
+      "status": "deployed"
+    },
+    {
       "id": "2026-05-04-simple-send-nonce-sync",
       "date": "2026-05-04",
       "title": "Simple Send Nonce Auto-Sync",

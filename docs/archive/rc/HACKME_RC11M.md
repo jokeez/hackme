@@ -1,6 +1,6 @@
 # HackMe 0.1.0-rc11m — archived download channel
 
-> **Historical archive.** Current channel: [HACKME_RC15.md](../../HACKME_RC15.md) (`0.1.0-rc15`).
+> **Historical archive.** Current channel: [HACKME_RC16.md](../../HACKME_RC16.md) (`0.1.0-rc16`).
 
 
 **Status:** **LIVE** on [hackme.tech/downloads.html](https://hackme.tech/downloads.html) — wallet treasury fix, canonical on-chain HMC + SUP display.

@@ -1365,7 +1365,7 @@
 						<span class="hidden sm:inline text-[10px] px-2 py-0.5 rounded border border-neon/25 text-neon/90 bg-neon/5">WASM</span>
 						<span id="chain-id-pill" class="tag-pill text-matrix/90 border-matrix/30">hackme-dev-mainnet</span>
 						<span id="hdr-node-version" class="text-[9px] px-2 py-0.5 rounded border border-white/10 text-neon/80 font-mono max-w-[280px] truncate hidden sm:inline-block" title="Node version · commit · build date from /api/status">0.1.0-rc16 · …</span>
-						<button type="button" id="btn-check-updates" class="hidden sm:inline text-[9px] px-2 py-0.5 rounded border border-neon/30 text-neon/90 hover:bg-neon/10 uppercase tracking-wider" title="Compare to hackme.tech/dist/latest.json">Updates</button>
+						<button type="button" id="btn-check-updates" class="inline text-[9px] px-2 py-0.5 rounded border border-neon/30 text-neon/90 hover:bg-neon/10 uppercase tracking-wider" title="Compare to hackme.tech/dist/latest.json">Updates</button>
 						<span id="hdr-update-pill" class="hidden text-[9px] px-2 py-0.5 rounded border border-warn/40 text-warn uppercase tracking-widest" title="Newer release published">update</span>
 					</div>
 					<div class="flex flex-wrap items-center gap-3 text-right text-[11px]">
@@ -1583,6 +1583,19 @@
 							<span id="pm-badge-p2p" class="px-2 py-1 rounded border border-white/15 text-gray-400">p2p sync: …</span>
 							<span id="pm-badge-release" class="px-2 py-1 rounded border border-matrix/30 text-matrix/90">release: …</span>
 							<span id="pm-badge-update" class="hidden px-2 py-1 rounded border border-warn/40 text-warn/90">update: …</span>
+						</div>
+						<div id="win-update-banner" class="hidden mt-3 rounded border border-warn/40 bg-warn/[0.07] px-3 py-2.5">
+							<div class="flex flex-wrap items-start justify-between gap-3">
+								<div class="min-w-0">
+									<p class="font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-warn mb-1">Windows update available</p>
+									<p id="win-update-banner-body" class="text-[11px] text-gray-200/95 leading-relaxed">A newer HackMe build is on the channel. Keep <code class="text-neon/80">hackme.env</code> — run the updater or Setup.</p>
+									<pre id="win-update-banner-cmd" class="mt-2 text-[10px] font-mono text-neon/85 whitespace-pre-wrap">update_hackme_miner.bat</pre>
+								</div>
+								<div class="flex flex-wrap gap-2 shrink-0">
+									<button type="button" id="btn-win-update-check" class="text-[10px] px-2.5 py-1.5 rounded border border-warn/45 text-warn hover:bg-warn/10 uppercase tracking-wider">Check again</button>
+									<a id="win-update-downloads" href="https://hackme.tech/downloads.html#windows" target="_blank" rel="noreferrer" class="text-[10px] px-2.5 py-1.5 rounded border border-matrix/35 text-matrix hover:bg-matrix/10 uppercase tracking-wider">Get Setup</a>
+								</div>
+							</div>
 						</div>
 						<div id="update-check-panel" class="hidden mt-3 rounded border border-neon/25 bg-black/40 px-3 py-2 text-[11px] text-gray-300 leading-relaxed">
 							<p id="update-check-status" class="font-mono text-neon/90">—</p>
@@ -5521,6 +5534,40 @@
 			updateMiningAdminGate();
 			updateOrdersMarketUIMode();
 		}
+		function isWindowsClient() {
+			try {
+				const ua = String(navigator.userAgent || '');
+				const plat = String(navigator.platform || '');
+				return /Win/i.test(plat) || /Windows/i.test(ua);
+			} catch (_) {
+				return false;
+			}
+		}
+		function syncWindowsUpdateBanner(doc) {
+			const ban = $('win-update-banner');
+			if (!ban) return;
+			const onWin = isWindowsClient();
+			const avail = !!(doc && doc.ok && doc.update_available);
+			if (!onWin || !avail) {
+				ban.classList.add('hidden');
+				return;
+			}
+			const localV = String((doc && doc.local_version) || '').trim();
+			const remoteV = String((doc && doc.remote_version) || '').trim();
+			const hints = (doc && doc.update_hints) || {};
+			const winCmd = String(hints.windows || 'update_hackme_miner.bat').trim();
+			const body = $('win-update-banner-body');
+			const cmd = $('win-update-banner-cmd');
+			if (body) {
+				body.innerHTML = 'Channel has <strong class="text-warn">' + (remoteV || 'newer') + '</strong>'
+					+ (localV ? ' (this node: <code class="text-neon/80">' + localV + '</code>)' : '')
+					+ '. Prefer <code class="text-neon/80">HackMe-Setup-*.exe</code> or run the bat updater — <code class="text-neon/80">hackme.env</code> / data are kept.';
+			}
+			if (cmd) cmd.textContent = winCmd + '\r\n# or re-run Setup from Downloads (SHA256SUMS.txt)';
+			const dl = $('win-update-downloads');
+			if (dl && doc.downloads_url) dl.href = String(doc.downloads_url).replace(/\/?$/, '') + '#windows';
+			ban.classList.remove('hidden');
+		}
 		async function checkForUpdates(opts) {
 			const force = !!(opts && opts.force);
 			const panel = $('update-check-panel');
@@ -5529,6 +5576,7 @@
 			const hdrPill = $('hdr-update-pill');
 			const pmBadge = $('pm-badge-update');
 			const btn = $('btn-check-updates');
+			const onWin = isWindowsClient();
 			if (btn && force) {
 				btn.disabled = true;
 				btn.textContent = '…';
@@ -5544,37 +5592,54 @@
 				if (panel) panel.classList.remove('hidden');
 				if (!ok) {
 					if (statusEl) statusEl.textContent = 'Update check failed: ' + String((doc && doc.error) || 'unknown');
-					if (hintEl) hintEl.textContent = 'Open downloads and verify SHA256, or set HACKME_LATEST_URL.';
+					if (hintEl) hintEl.textContent = onWin
+						? 'Open Downloads → Windows Setup, verify SHA256, or run update_hackme_miner.bat after fixing network.'
+						: 'Open downloads and verify SHA256, or set HACKME_LATEST_URL.';
 					if (hdrPill) hdrPill.classList.add('hidden');
 					if (pmBadge) pmBadge.classList.add('hidden');
+					syncWindowsUpdateBanner(null);
 					return doc;
 				}
 				if (avail) {
 					if (statusEl) statusEl.textContent = 'Update available: ' + localV + ' → ' + remoteV;
 					const hints = (doc && doc.update_hints) || {};
-					const lines = [
-						'Linux: ' + (hints.linux || 'bash update_hackme_miner.sh'),
-						'Windows: ' + (hints.windows || 'update_hackme_miner.bat'),
-						'HackMe OS: ' + (hints.hackme_os || 'bash update_hackme_os_binaries.sh'),
-					];
+					const lines = onWin
+						? [
+							'Windows: ' + (hints.windows || 'update_hackme_miner.bat'),
+							'Setup: prefer HackMe-Setup-*.exe from Downloads (keeps hackme.env)',
+							'Linux: ' + (hints.linux || 'bash update_hackme_miner.sh'),
+							'HackMe OS: ' + (hints.hackme_os || 'bash update_hackme_os_binaries.sh'),
+						]
+						: [
+							'Linux: ' + (hints.linux || 'bash update_hackme_miner.sh'),
+							'Windows: ' + (hints.windows || 'update_hackme_miner.bat'),
+							'HackMe OS: ' + (hints.hackme_os || 'bash update_hackme_os_binaries.sh'),
+						];
 					if (doc.updater_protocol_ok === false) {
-						lines.unshift('Updater script too old — re-download update_hackme_miner.sh from Downloads.');
+						lines.unshift(onWin
+							? 'Updater too old — re-download update_hackme_miner.bat / Setup from Downloads.'
+							: 'Updater script too old — re-download update_hackme_miner.sh from Downloads.');
 					}
 					if (doc.notes) lines.push('', String(doc.notes));
 					if (hintEl) hintEl.textContent = lines.join('\n');
 					if (hdrPill) {
-						hdrPill.textContent = 'update';
+						hdrPill.textContent = onWin ? 'win update' : 'update';
 						hdrPill.title = 'Remote ' + remoteV + ' (local ' + localV + ')';
 						hdrPill.classList.remove('hidden');
 					}
 					if (pmBadge) {
 						pmBadge.textContent = 'update: ' + remoteV;
 						pmBadge.title = 'Published channel ahead of this node';
+						pmBadge.className = 'px-2 py-1 rounded border border-warn/40 text-warn/90';
 						pmBadge.classList.remove('hidden');
 					}
 				} else {
 					if (statusEl) statusEl.textContent = 'Up to date (' + (localV || remoteV || 'unknown') + ')';
-					if (hintEl) hintEl.textContent = String((doc && doc.notes) || 'Channel: latest.json');
+					if (hintEl) {
+						hintEl.textContent = onWin
+							? 'Windows channel OK. Later: update_hackme_miner.bat or Setup from Downloads.'
+							: String((doc && doc.notes) || 'Channel: latest.json');
+					}
 					if (hdrPill) hdrPill.classList.add('hidden');
 					if (pmBadge) {
 						pmBadge.textContent = 'update: current';
@@ -5582,6 +5647,7 @@
 						pmBadge.className = 'px-2 py-1 rounded border border-matrix/30 text-matrix/90';
 					}
 				}
+				syncWindowsUpdateBanner(doc);
 				if ($('update-check-downloads') && doc.downloads_url) $('update-check-downloads').href = doc.downloads_url;
 				if ($('update-check-latest') && doc.latest_json_url) $('update-check-latest').href = doc.latest_json_url;
 				return doc;
@@ -5589,6 +5655,7 @@
 				if (panel) panel.classList.remove('hidden');
 				if (statusEl) statusEl.textContent = 'Update check error: ' + (e && e.message ? e.message : String(e));
 				if (hintEl) hintEl.textContent = '';
+				syncWindowsUpdateBanner(null);
 				return null;
 			} finally {
 				if (btn) {
@@ -14594,6 +14661,7 @@
 				if ($('btn-admin-token-save')) $('btn-admin-token-save').addEventListener('click', saveAdminTokenFromInput);
 				if ($('btn-admin-token-clear')) $('btn-admin-token-clear').addEventListener('click', clearAdminToken);
 				if ($('btn-check-updates')) $('btn-check-updates').addEventListener('click', () => { void checkForUpdates({ force: true }); });
+				if ($('btn-win-update-check')) $('btn-win-update-check').addEventListener('click', () => { void checkForUpdates({ force: true }); });
 				if ($('btn-mining-start')) $('btn-mining-start').addEventListener('click', () => { void postMiningControl('start'); });
 				if ($('btn-mining-stop')) $('btn-mining-stop').addEventListener('click', () => { void postMiningControl('stop'); });
 				try { bindMineCalcEvents(); } catch (_) {}

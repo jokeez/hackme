@@ -1,6 +1,6 @@
 # HackMe 0.1.0-rc12w — wallet Activity + security hardening
 
-> **Superseded.** Current download channel is **[0.1.0-rc15](HACKME_RC15.md)** on [downloads](https://hackme.tech/downloads.html).
+> **Superseded.** Current download channel is **[0.1.0-rc16](HACKME_RC16.md)** on [downloads](https://hackme.tech/downloads.html).
 
 **Status:** **historical** — rc12w was the previous Win/Linux/fuzz/ISO channel (wallet Activity + hub hardening).
 

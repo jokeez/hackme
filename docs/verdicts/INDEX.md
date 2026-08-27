@@ -5,7 +5,8 @@ Factual pass/fail snapshots for releases and research series.
 | Document | What it records |
 |----------|-----------------|
 | [OSS_CVE_WATCH_NGHTTP2_SERIES_VERDICT.md](OSS_CVE_WATCH_NGHTTP2_SERIES_VERDICT.md) | **OSS CVE Watch Days 1–14** — nghttp2 series CLEAN · ~14.32B exec |
-| [../HACKME_RC15.md](../HACKME_RC15.md) | **Current channel rc15** — B2B fuzz Phase 2 + pool anticheat |
+| [../HACKME_RC16.md](../HACKME_RC16.md) | **Current channel rc16** — self-update + signed apt + ISO |
+| [../HACKME_RC15.md](../HACKME_RC15.md) | Previous rc15 — B2B fuzz Phase 2 + pool anticheat |
 | [../HACKME_RC14.md](../HACKME_RC14.md) | Previous rc14x channel |
 | [../HACKME_RC12W.md](../HACKME_RC12W.md) | Historical rc12w — wallet Activity, UX cleanup (superseded) |
 | [../HACKME_RC11S.md](../HACKME_RC11S.md) | Historical rc11s (superseded) |
@@ -20,4 +21,4 @@ Public news feed: https://hackme.tech/news.html · `web/site/assets/news.json`
 
 ## Version policy
 
-Win/Linux channel: `scripts/release/CURRENT_VERSION` → **0.1.0-rc15**. ISO channel: `scripts/release/CURRENT_ISO_VERSION` → **0.1.0-rc15**.
+Win/Linux channel: `scripts/release/CURRENT_VERSION` → **0.1.0-rc16**. ISO channel: `scripts/release/CURRENT_ISO_VERSION` → **0.1.0-rc16**.

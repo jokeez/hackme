@@ -4,7 +4,7 @@
 
 | Version | Supported |
 |---------|-----------|
-| `0.1.0-rc15` | Yes (current release candidate) |
+| `0.1.0-rc16` | Yes (current release candidate) |
 | `0.1.0-rc14x` | Yes |
 | `0.1.0-rc12w`–`rc11i` | Best effort only |
 | Older rc / dev builds | Best effort only |

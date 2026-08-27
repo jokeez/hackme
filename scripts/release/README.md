@@ -3,8 +3,8 @@
 ## Build release bundle
 
 ```bash
-# Prefer: VERSION="$(cat scripts/release/CURRENT_VERSION)"  # → 0.1.0-rc15
-VERSION=0.1.0-rc15 bash scripts/release/make_release_bundle.sh
+# Prefer: VERSION="$(cat scripts/release/CURRENT_VERSION)"  # → 0.1.0-rc16
+VERSION=0.1.0-rc16 bash scripts/release/make_release_bundle.sh
 ```
 
 Output:
@@ -47,7 +47,7 @@ powershell -ExecutionPolicy Bypass -File update_hackme_miner.ps1
 L2 (`.deb` / nfpm) and L3 (apt repo) — local tooling ready; do not publish until D0:
 
 ```bash
-VERSION=0.1.0-rc15 bash scripts/release/linux/build_deb_from_dist.sh
+VERSION=0.1.0-rc16 bash scripts/release/linux/build_deb_from_dist.sh
 bash scripts/release/apt/build_local_apt_repo.sh   # unsigned local file:// repo
 # see scripts/release/apt/README.md
 ```
@@ -93,15 +93,15 @@ VERSION=nightly_$(date -u +%Y%m%dT%H%M%SZ) bash scripts/release/release_nightly.
 Linux (Docker):
 
 ```bash
-VERSION=0.1.0-rc15 bash scripts/release/make_release_bundle.sh
+VERSION=0.1.0-rc16 bash scripts/release/make_release_bundle.sh
 # or after bundle:
-bash scripts/release/windows/build_installer.sh 0.1.0-rc15
+bash scripts/release/windows/build_installer.sh 0.1.0-rc16
 ```
 
 Windows:
 
 ```powershell
-pwsh -File scripts/release/windows/build_installer.ps1 -Version 0.1.0-rc15
+pwsh -File scripts/release/windows/build_installer.ps1 -Version 0.1.0-rc16
 ```
 
 The wizard installs to `Program Files\HackMe`, creates Start menu + desktop shortcuts, writes registry keys, runs `setup_hackme_miner.bat` (pool token + `hackme.env`). ZIP remains as an advanced fallback.
@@ -112,7 +112,7 @@ Bootable live ISO — CPU isolation, RT scheduler, GPU performance mode, auto ri
 
 ```bash
 export HACKME_RELEASE_POOL_MINER_TOKEN="$(cat .secrets/hackme_coordinator_worker_token)"
-VERSION=0.1.0-rc15 bash scripts/release/iso/build_hackme_miner_iso.sh
+VERSION=0.1.0-rc16 bash scripts/release/iso/build_hackme_miner_iso.sh
 ```
 
 → `dist/release_<VERSION>/HackMe-OS-<VERSION>-amd64.iso`

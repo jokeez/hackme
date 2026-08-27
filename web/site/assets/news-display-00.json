@@ -1,6 +1,23 @@
 {
   "items": [
     {
+      "id": "2026-08-27-release-rc16-update-channel",
+      "date": "2026-08-27",
+      "title": "0.1.0-rc16 — self-update channel + signed apt + branded Linux menu",
+      "summary": "rc16 ships miner self-update (latest.json + update_hackme_miner for Linux/Windows/HackMe OS), signed apt package hackme-node on hackme.tech/apt, and a branded HackMe app-menu icon on Linux. Dashboard Updates button checks the channel. ISO rebuilt with the same node bits — verify SHA256SUMS-iso.txt before flash.",
+      "impact": "Miners can upgrade without re-download roulette: apt upgrade hackme-node on Ubuntu/Debian, or update_hackme_miner.sh / .bat elsewhere. .env / data / logs are preserved. Operators: publish feed is https://hackme.tech/dist/latest.json",
+      "action": "Downloads: https://hackme.tech/downloads.html · apt: https://hackme.tech/downloads.html#apt · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc16 · Verify SHA256SUMS.txt / SHA256SUMS-iso.txt",
+      "tags": [
+        "release",
+        "rc16",
+        "apt",
+        "update",
+        "iso",
+        "pre-exchange"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-08-27-iso-zk-phrase-log-fix",
       "date": "2026-08-27",
       "title": "HackMe OS ISO rebuilt — ZK recovery phrase no longer in /var/log",
@@ -258,22 +275,6 @@
         "fuzzing",
         "libheif",
         "day03"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-07-23-oss-cve-watch-libheif-day02-libfuzzer",
-      "date": "2026-07-23",
-      "title": "OSS CVE Watch · libheif Day 2/14 · 114.29M libFuzzer exec · CLEAN",
-      "summary": "libheif Day 2: 14.8h libFuzzer, 114,294,923 exec at ~2,148/s. Corpus 2071, 6785 coverage edges. ASAN=0 — CLEAN.",
-      "impact": "Cumulative Days 1–2: ~116.40M exec on persistent HEIF/AVIF corpus.",
-      "action": "Day 2: https://hackme.tech/reports/oss-cve-watch-libheif/day02.html",
-      "tags": [
-        "research",
-        "oss-cve",
-        "fuzzing",
-        "libheif",
-        "day02"
       ],
       "status": "published"
     }

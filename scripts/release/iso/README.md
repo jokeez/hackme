@@ -5,7 +5,7 @@ See [docs/HACKME_OS.md](../../../docs/HACKME_OS.md) for operator/miner usage.
 ```bash
 # Prefer: VERSION="$(cat ../../scripts/release/CURRENT_VERSION)"
 export HACKME_RELEASE_POOL_MINER_TOKEN="$(cat ../../.secrets/hackme_coordinator_worker_token)"
-VERSION=0.1.0-rc15 bash build_hackme_miner_iso.sh
+VERSION=0.1.0-rc16 bash build_hackme_miner_iso.sh
 ```
 
 ## Visual overhaul (before final ISO)

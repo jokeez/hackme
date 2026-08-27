@@ -1,6 +1,6 @@
 # HackMe 0.1.0-rc15 — B2B fuzz Phase 2 + pool anticheat
 
-**Status:** **LIVE** on [hackme.tech/downloads.html](https://hackme.tech/downloads.html) — Win/Linux/fuzz **rc15** · hub node **0.1.0-rc15** (deploy 2026-08-22) · **HackMe OS ISO security rebuild 2026-08-27** (SHA `94590a5b…`).
+**Status:** **Superseded** by **[0.1.0-rc16](HACKME_RC16.md)** (self-update + signed apt). Historical notes below for Win/Linux/fuzz **rc15** · hub deploy 2026-08-22 · ISO security rebuild SHA `94590a5b…`.
 
 ## Highlights
 

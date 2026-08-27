@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-07-23-oss-cve-watch-libheif-day02-libfuzzer",
+      "date": "2026-07-23",
+      "title": "OSS CVE Watch · libheif Day 2/14 · 114.29M libFuzzer exec · CLEAN",
+      "summary": "libheif Day 2: 14.8h libFuzzer, 114,294,923 exec at ~2,148/s. Corpus 2071, 6785 coverage edges. ASAN=0 — CLEAN.",
+      "impact": "Cumulative Days 1–2: ~116.40M exec on persistent HEIF/AVIF corpus.",
+      "action": "Day 2: https://hackme.tech/reports/oss-cve-watch-libheif/day02.html",
+      "tags": [
+        "research",
+        "oss-cve",
+        "fuzzing",
+        "libheif",
+        "day02"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-23-overnight-pool-customer-success",
       "date": "2026-07-23",
       "title": "Overnight pool win — 2000/2000 cjson + jsmn catch-up settled",
@@ -244,21 +260,6 @@
       "summary": "Fifth day on nghttp2: 15h libFuzzer depth session, 2,038,010,048 executions at ~37.7k exec/s. Corpus 414 inputs (405KB), 467 coverage edges. Zero ASAN heap crashes — fifth honest CLEAN day.",
       "impact": "Cumulative ~4.96B libFuzzer executions across Days 2–5 on the same persistent corpus. Coverage still plateaued at 467 edges; corpus refinement continues. Days 6–7 deep marathon running.",
       "action": "Day 5 report: https://hackme.tech/reports/oss-cve-watch/day05.html · Series hub: https://hackme.tech/reports/oss-cve-watch/ · Reproduce: DAY=5 MAX_TIME=72000 bash scripts/ops/run_oss_cve_watch_libfuzzer_day.sh",
-      "tags": [
-        "research",
-        "oss-cve",
-        "fuzzing",
-        "nghttp2"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-07-11-oss-cve-watch-day04-nghttp2-libfuzzer",
-      "date": "2026-07-11",
-      "title": "OSS CVE Watch Day 4/14 · nghttp2 · 719M libFuzzer exec · CLEAN",
-      "summary": "Fourth day on nghttp2: ~5h libFuzzer session, 719,500,167 executions at ~40k exec/s. Corpus 408 inputs (433KB), 467 coverage edges. Zero ASAN heap crashes — fourth honest CLEAN day.",
-      "impact": "Cumulative ~2.92B libFuzzer executions across Days 2–4 on the same persistent corpus. Coverage still plateaued at 467 edges; corpus refinement continues. Day 5 deep session starting.",
-      "action": "Day 4 report: https://hackme.tech/reports/oss-cve-watch/day04.html · Series hub: https://hackme.tech/reports/oss-cve-watch/ · Reproduce: DAY=4 bash scripts/ops/run_oss_cve_watch_libfuzzer_day.sh",
       "tags": [
         "research",
         "oss-cve",
