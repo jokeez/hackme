@@ -141,7 +141,8 @@
         <p class="subtle">Install under <code>/opt/hackme</code>. Keeps your <code>.env</code>. Branded app menu included.</p>
       </div>
       <pre class="code-block" style="margin-top:0.85rem;font-size:0.84rem"><code>curl -fsSL https://hackme.tech/apt/install.sh | sudo bash
-# later: sudo apt upgrade hackme-node</code></pre>
+# later (fast mirrors, not slow CDN apt fetch):
+curl -fsSL https://hackme.tech/apt/upgrade.sh | sudo bash</code></pre>
       <details class="dev-details" style="margin-top:0.75rem">
         <summary>Manual (keyring + sources)</summary>
         <pre class="code-block" style="margin-top:0.5rem;font-size:0.84rem"><code>curl -fsSL https://hackme.tech/apt/hackme-archive-keyring.gpg \

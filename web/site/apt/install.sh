@@ -102,24 +102,23 @@ fi
 if [[ "$ok" -eq 0 ]]; then
   download_try "GitHub Releases" "${GH_BASE}/${VER_TAG}/${BASENAME}" && ok=1 || true
 fi
+if [[ "$ok" -eq 0 && -n "$ORIGIN_IP" ]]; then
+  download_try "origin ${ORIGIN_IP} /dist" \
+    "https://${ORIGIN_IP}/dist/release_${VER_TAG}/${BASENAME}" \
+    -k -H "Host: hackme.tech" && ok=1 || true
+fi
+if [[ "$ok" -eq 0 && -n "$ORIGIN_IP" ]]; then
+  download_try "origin ${ORIGIN_IP} /apt/pool" \
+    "https://${ORIGIN_IP}/apt/${FILENAME}" \
+    -k -H "Host: hackme.tech" && ok=1 || true
+fi
 if [[ "$ok" -eq 0 ]]; then
-  download_try "hackme.tech/dist" \
+  download_try "hackme.tech/dist (Cloudflare)" \
     "${SITE}/dist/release_${VER_TAG}/${BASENAME}" && ok=1 || true
 fi
 if [[ "$ok" -eq 0 ]]; then
   download_try "apt pool (Cloudflare)" \
     "${APT_BASE}/${FILENAME}" && ok=1 || true
-fi
-if [[ "$ok" -eq 0 && -n "$ORIGIN_IP" ]]; then
-  # Bypass Cloudflare when GH/CF are blocked or crawling.
-  download_try "origin ${ORIGIN_IP} (Host hackme.tech)" \
-    "https://${ORIGIN_IP}/dist/release_${VER_TAG}/${BASENAME}" \
-    -k -H "Host: hackme.tech" && ok=1 || true
-fi
-if [[ "$ok" -eq 0 && -n "$ORIGIN_IP" ]]; then
-  download_try "origin apt pool" \
-    "https://${ORIGIN_IP}/apt/${FILENAME}" \
-    -k -H "Host: hackme.tech" && ok=1 || true
 fi
 if [[ "$ok" -eq 0 ]]; then
   echo "[hackme-apt] FAIL: all download mirrors failed" >&2
@@ -140,8 +139,15 @@ if [[ "$got_sha" != "$SHA" ]]; then
 fi
 echo "[hackme-apt] sha256 OK ${SHA:0:16}…"
 
-echo "[hackme-apt] apt install ./${BASENAME}"
-apt-get install -y "$DEB_PATH"
+# CRITICAL: `apt-get install /abs/path.deb` often re-fetches from the repo (slow CF).
+# Install the local file via dpkg, then fix deps from apt metadata only.
+echo "[hackme-apt] dpkg -i ./${BASENAME} (local file, no re-download)"
+if ! dpkg -i "$DEB_PATH"; then
+  echo "[hackme-apt] fixing dependencies…"
+  apt-get install -f -y
+fi
+dpkg -l hackme-node | tail -1
 echo "[hackme-apt] OK — binaries in /opt/hackme"
 echo "[hackme-apt] start:  bash /opt/hackme/start_hackme_miner.sh"
-echo "[hackme-apt] later:  sudo apt upgrade hackme-node"
+echo "[hackme-apt] later:  curl -fsSL ${APT_BASE}/upgrade.sh | sudo bash"
+echo "[hackme-apt]    or:  sudo apt upgrade hackme-node  (may be slow via CDN)"
