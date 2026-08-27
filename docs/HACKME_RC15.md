@@ -1,6 +1,6 @@
 # HackMe 0.1.0-rc15 — B2B fuzz Phase 2 + pool anticheat
 
-**Status:** **LIVE** on [hackme.tech/downloads.html](https://hackme.tech/downloads.html) — Win/Linux/fuzz **rc15** · hub node **0.1.0-rc15** (deploy 2026-08-22).
+**Status:** **LIVE** on [hackme.tech/downloads.html](https://hackme.tech/downloads.html) — Win/Linux/fuzz **rc15** · hub node **0.1.0-rc15** (deploy 2026-08-22) · **HackMe OS ISO security rebuild 2026-08-27** (SHA `94590a5b…`).
 
 ## Highlights
 
@@ -46,4 +46,4 @@ gh release create 0.1.0-rc15 dist/release_0.1.0-rc15/*.{zip,tar.gz,exe,txt,json,
 ```
 
 ISO shipped: `HackMe-OS-0.1.0-rc15-amd64.iso` + `SHA256SUMS-iso.txt`  
-(`9158109d446c143a753fd7abd26ff416e0911f56f2a42f538d8e2b81323cc251  HackMe-OS-0.1.0-rc15-amd64.iso`)
+(`94590a5b07933379d1db954692411b79223b778f5d21c8fc8a9259905613545e  HackMe-OS-0.1.0-rc15-amd64.iso` — rebuild with ZK phrase not written to world-readable `/var/log`)

@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-06-16-rc11n-production-final",
+      "date": "2026-06-16",
+      "title": "Production final — rc11n ISO aligned, SUP on-chain public",
+      "summary": "HackMe production stack finalized (except HMS prelaunch): Win/Linux and HackMe OS ISO now share channel 0.1.0-rc11n. SUP on-chain mint and coordinator settlement are live on hackme.tech. Public GET /api/sup/economics for transparency. Nginx + operator docs updated.",
+      "impact": "Miners can use one release version for Windows installer, Linux tarball, and USB ISO. SUP accrual while mining HMC now settles on-chain; economics visible without admin token.",
+      "action": "Downloads: https://hackme.tech/downloads.html · SUP: https://hackme.tech/api/sup/economics · Pool: https://hackme.tech/pool/coordinator",
+      "tags": [
+        "release",
+        "infrastructure",
+        "mining",
+        "sup"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-06-16-bitcoin30-week1",
       "date": "2026-06-16",
       "title": "Bitcoin Core 30-Day Fuzz — Week 1 public report",
@@ -241,21 +256,6 @@
         "security",
         "infrastructure",
         "mining"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-26-order-pool-live-5hmc-rc11h",
-      "date": "2026-05-26",
-      "title": "Order pool live · 5 HMC test completed (rc11h)",
-      "summary": "Production useful-PoW order order-live-5hmc-202605251816: prepaid 5 HMC (5×1 HMC reward), minimal WASM gate, completed 5/5 in ~2 minutes. Escrow fee 0.25 HMC, burn 0.5 HMC. All five order blocks credited miner_address HMC-381c0c5e2cfcc714 on the canonical node. Pool workers (rc11h) receive order WASM in claim and relay solves to POST /api/poh/solve-order so escrow follows the hybrid signer, not only the operator wallet.",
-      "impact": "Miners on rc11h ISO/Windows/Linux can earn order escrow when their hybrid address wins the chain block; operators see verified prepaid/burn/fee on live mainnet.",
-      "action": "Downloads: https://hackme.tech/downloads.html · Pool stats: https://hackme.tech/pool/coordinator/api/pool/stats · Economics: https://hackme.tech/economics-model.html · BC5 report: https://hackme.tech/reports/bitcoin-core-5module.html",
-      "tags": [
-        "mining",
-        "release",
-        "economics",
-        "pool"
       ],
       "status": "published"
     }

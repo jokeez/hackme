@@ -33,7 +33,15 @@ mkdir -p "$CHROOT" "$ISO_TREE"
 
 echo "[iso-inner] debootstrap ${UBUNTU_SUITE} ${ARCH} mirror=${UBUNTU_MIRROR}"
 debootstrap_ok=0
-for mirror in "${UBUNTU_MIRROR}" "http://us.archive.ubuntu.com/ubuntu/" "http://archive.ubuntu.com/ubuntu/"; do
+for mirror in \
+  "${UBUNTU_MIRROR}" \
+  "http://azure.archive.ubuntu.com/ubuntu/" \
+  "http://archive.ubuntu.com/ubuntu/" \
+  "http://mirrors.edge.kernel.org/ubuntu/" \
+  "http://us.archive.ubuntu.com/ubuntu/" \
+  "http://mirror.math.princeton.edu/pub/ubuntu/"
+do
+  [[ -n "$mirror" ]] || continue
   rm -rf "$CHROOT"
   mkdir -p "$CHROOT"
   echo "[iso-inner] debootstrap attempt mirror=${mirror}"

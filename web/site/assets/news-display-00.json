@@ -1,11 +1,27 @@
 {
   "items": [
     {
+      "id": "2026-08-27-iso-zk-phrase-log-fix",
+      "date": "2026-08-27",
+      "title": "HackMe OS ISO rebuilt — ZK recovery phrase no longer in /var/log",
+      "summary": "Security rebuild of HackMe-OS-0.1.0-rc15-amd64.iso: the Zero-Knowledge Start recovery phrase is no longer appended to world-readable /var/log. Display logging uses /var/lib/hackme/zk-wallet-display.log (0600); the phrase is shown on local TTYs for photography only. SHA256 94590a5b… supersedes the 2026-08-22 ISO (9158109d…). Win/Linux/fuzz binaries are unchanged; hub audit hardenings (task auth, fuzz rate limits, settle fail-closed, trusted XFF, CORS) are live on hackme.tech.",
+      "impact": "Anyone flashing from GitHub or hackme.tech downloads must re-verify SHA256SUMS-iso.txt. Old USB sticks with the Aug 22 image still leak the phrase into logs until re-flashed.",
+      "action": "Downloads: https://hackme.tech/downloads.html#hackme-os · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc15 · Verify: sha256sum -c SHA256SUMS-iso.txt · Expected ISO SHA256: 94590a5b07933379d1db954692411b79223b778f5d21c8fc8a9259905613545e",
+      "tags": [
+        "security",
+        "iso",
+        "rc15",
+        "zk",
+        "release"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-08-22-release-rc15-b2b-fuzz-phase2",
       "date": "2026-08-22",
       "title": "0.1.0-rc15 LIVE — B2B fuzz Phase 2, pool anticheat, mining dashboard refresh",
       "summary": "rc15 is the production cut for customer fuzz on the public pool: wizard packs (secrets, script_bounds, filter_utf8, parser_expat), Scan/Audit/Deep tiers with honest byte ceilings (256 / 1K / 4K), dynamic worker leases, exec cap 64 per unit, and coverage bitmap @ WASM offset 8192. The libheif OSS research series is archived CLEAN (~2.57B exec); the #mining dashboard now prioritizes live B2B bootstrap campaigns.",
-      "impact": "Operators and miners: hub node 0.1.0-rc15 is live on hackme.tech. Pool fuzz anticheat is tighter (segment replay fail-closed). Customer marketplace orders from bootstrap B2B node rotate light parser targets onto the pool with PoH attach — visible on #mining. Downloads, SHA256SUMS, and GitHub release are aligned.",
+      "impact": "Operators and miners: hub node 0.1.0-rc15 is live on hackme.tech. Pool fuzz anticheat is tighter (segment replay fail-closed). Customer marketplace orders from bootstrap B2B node rotate light parser targets onto the pool with PoH attach — visible on #mining. Win/Linux/fuzz SHA256SUMS match GitHub; HackMe OS ISO was security-rebuilt 2026-08-27 (see newer news item).",
       "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc15 · Verify SHA256SUMS.txt · News: https://hackme.tech/news.html",
       "tags": [
         "release",
@@ -258,23 +274,6 @@
         "fuzzing",
         "libheif",
         "day02"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-07-23-overnight-pool-customer-success",
-      "date": "2026-07-23",
-      "title": "Overnight pool win — 2000/2000 cjson + jsmn catch-up settled",
-      "summary": "Customer bootstrap path held through the night: overnight cjson Audit finished 2000/2000 with escrow closed clean; jsmn recovered from a frozen ~1421 settle tip to full catch-up (~22.6k runs paid). Distributed workerfuzz + PoH auto-switch kept the marketplace honest without fake CVE theater.",
-      "impact": "Proof that pool-distributed B2B audits can run unattended overnight — runs complete, escrow settles, CI crash-first gate stays the deliverable. Operators get a cleaner morning marketplace (zombie yyjson cancelled; live work is real progress).",
-      "action": "Developers: https://hackme.tech/developers.html · Console: https://hackme.tech/fuzzing-console.html · Campaigns: https://hackme.tech/fuzz-campaigns.html · Pool: https://hackme.tech/pool/coordinator",
-      "tags": [
-        "fuzzing",
-        "b2b",
-        "pool",
-        "escrow",
-        "product",
-        "overnight"
       ],
       "status": "published"
     }

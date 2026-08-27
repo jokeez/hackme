@@ -1,11 +1,49 @@
 {
   "items": [
     {
+      "id": "2026-08-27-iso-zk-phrase-log-fix",
+      "date": "2026-08-27",
+      "title": "HackMe OS ISO rebuilt — ZK recovery phrase no longer in /var/log",
+      "summary": "Security rebuild of HackMe-OS-0.1.0-rc15-amd64.iso: the Zero-Knowledge Start recovery phrase is no longer appended to world-readable /var/log. Display logging uses /var/lib/hackme/zk-wallet-display.log (0600); the phrase is shown on local TTYs for photography only. SHA256 94590a5b… supersedes the 2026-08-22 ISO (9158109d…). Win/Linux/fuzz binaries are unchanged; hub audit hardenings (task auth, fuzz rate limits, settle fail-closed, trusted XFF, CORS) are live on hackme.tech.",
+      "impact": "Anyone flashing from GitHub or hackme.tech downloads must re-verify SHA256SUMS-iso.txt. Old USB sticks with the Aug 22 image still leak the phrase into logs until re-flashed.",
+      "action": "Downloads: https://hackme.tech/downloads.html#hackme-os · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc15 · Verify: sha256sum -c SHA256SUMS-iso.txt · Expected ISO SHA256: 94590a5b07933379d1db954692411b79223b778f5d21c8fc8a9259905613545e",
+      "tags": [
+        "security",
+        "iso",
+        "rc15",
+        "zk",
+        "release"
+      ],
+      "status": "published",
+      "telegram": {
+        "headline": "HackMe OS ISO security rebuild",
+        "lead": "ZK recovery phrase no longer written to world-readable /var/log. Re-flash USB and verify SHA256SUMS-iso.txt.",
+        "bullets": [
+          "ISO SHA256 now 94590a5b… (replaces 9158109d… from Aug 22)",
+          "Phrase on local TTYs only · display log 0600 under /var/lib/hackme",
+          "Win/Linux/fuzz binaries unchanged · hub audit hardenings already live",
+          "Verify before flash: sha256sum -c SHA256SUMS-iso.txt"
+        ],
+        "footer": "hackme.tech/downloads.html#hackme-os · GitHub 0.1.0-rc15 · not financial advice"
+      },
+      "discord": {
+        "title": "HackMe OS ISO rebuilt (ZK log fix)",
+        "body": "**HackMe OS ISO security rebuild (2026-08-27)**\n\n• Recovery phrase **not** written to `/var/log`\n• Log: `/var/lib/hackme/zk-wallet-display.log` (`0600`)\n• **SHA256:** `94590a5b07933379d1db954692411b79223b778f5d21c8fc8a9259905613545e`\n• Re-flash USB; verify `SHA256SUMS-iso.txt`\n\nhttps://hackme.tech/downloads.html#hackme-os\nhttps://github.com/jokeez/hackme/releases/tag/0.1.0-rc15",
+        "ping": "#announcements"
+      },
+      "links": {
+        "downloads": "https://hackme.tech/downloads.html#hackme-os",
+        "github": "https://github.com/jokeez/hackme/releases/tag/0.1.0-rc15",
+        "news": "https://hackme.tech/news.html",
+        "sha": "https://hackme.tech/dist/release_0.1.0-rc15/SHA256SUMS-iso.txt"
+      }
+    },
+    {
       "id": "2026-08-22-release-rc15-b2b-fuzz-phase2",
       "date": "2026-08-22",
       "title": "0.1.0-rc15 LIVE — B2B fuzz Phase 2, pool anticheat, mining dashboard refresh",
       "summary": "rc15 is the production cut for customer fuzz on the public pool: wizard packs (secrets, script_bounds, filter_utf8, parser_expat), Scan/Audit/Deep tiers with honest byte ceilings (256 / 1K / 4K), dynamic worker leases, exec cap 64 per unit, and coverage bitmap @ WASM offset 8192. The libheif OSS research series is archived CLEAN (~2.57B exec); the #mining dashboard now prioritizes live B2B bootstrap campaigns.",
-      "impact": "Operators and miners: hub node 0.1.0-rc15 is live on hackme.tech. Pool fuzz anticheat is tighter (segment replay fail-closed). Customer marketplace orders from bootstrap B2B node rotate light parser targets onto the pool with PoH attach — visible on #mining. Downloads, SHA256SUMS, and GitHub release are aligned.",
+      "impact": "Operators and miners: hub node 0.1.0-rc15 is live on hackme.tech. Pool fuzz anticheat is tighter (segment replay fail-closed). Customer marketplace orders from bootstrap B2B node rotate light parser targets onto the pool with PoH attach — visible on #mining. Win/Linux/fuzz SHA256SUMS match GitHub; HackMe OS ISO was security-rebuilt 2026-08-27 (see newer news item).",
       "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc15 · Verify SHA256SUMS.txt · News: https://hackme.tech/news.html",
       "tags": [
         "release",
@@ -416,44 +454,6 @@
       },
       "links": {
         "day06": "https://hackme.tech/reports/oss-cve-watch-libheif/day06.html",
-        "hub": "https://hackme.tech/reports/oss-cve-watch-libheif/",
-        "research": "https://hackme.tech/research.html"
-      }
-    },
-    {
-      "id": "2026-07-26-oss-cve-watch-libheif-day05-libfuzzer",
-      "date": "2026-07-26",
-      "title": "OSS CVE Watch · libheif Day 5/14 · 189.55M libFuzzer exec · CLEAN",
-      "summary": "libheif Day 5: ~23.6h libFuzzer across 40 sessions, 189,546,715 exec at ~2,233/s. Corpus 2718, 7107 coverage edges. ASAN=0 — CLEAN.",
-      "impact": "Cumulative Days 1–5: ~621.27M exec on persistent HEIF/AVIF corpus.",
-      "action": "Day 5: https://hackme.tech/reports/oss-cve-watch-libheif/day05.html",
-      "tags": [
-        "research",
-        "oss-cve",
-        "fuzzing",
-        "libheif",
-        "day05"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "OSS CVE Watch · libheif Day 5/14 · CLEAN",
-        "lead": "189.6M libFuzzer exec · ~23.6h ASAN · corpus 2718 · 0 crashes",
-        "bullets": [
-          "Day 5 libheif: ~189.6M executions @ ~2.2k/s across 40 sessions",
-          "ASAN=0 · UBSan=0 · verdict CLEAN (no crash in budget)",
-          "Persistent HEIF/AVIF corpus: 2718 inputs · 7107 coverage edges",
-          "Ledger: https://hackme.tech/reports/oss-cve-watch-libheif/day05.html",
-          "Series Days 1–5 cumulative ~621M exec on the same corpus"
-        ],
-        "footer": "hackme.tech/reports/oss-cve-watch-libheif/ · research · not a CVE claim"
-      },
-      "discord": {
-        "title": "OSS CVE Watch · libheif Day 5 CLEAN",
-        "body": "**libheif Day 5/14 — CLEAN**\n\n• **~189.6M** libFuzzer exec · ~23.6h · ~2.2k/s · 40 sessions\n• Corpus **2718** · **7107** edges · **ASAN=0**\n• [Day 5 ledger](https://hackme.tech/reports/oss-cve-watch-libheif/day05.html)\n",
-        "ping": "#announcements"
-      },
-      "links": {
-        "day05": "https://hackme.tech/reports/oss-cve-watch-libheif/day05.html",
         "hub": "https://hackme.tech/reports/oss-cve-watch-libheif/",
         "research": "https://hackme.tech/research.html"
       }
