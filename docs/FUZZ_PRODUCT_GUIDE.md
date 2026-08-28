@@ -74,7 +74,7 @@ See [CUSTOMER_FUZZ_DELIVERABLES.md](CUSTOMER_FUZZ_DELIVERABLES.md).
 
 When `pool_distributed: true`, hub `workerfuzz` / hybrid `workerpoh` claims work via `/api/fuzz/work/claim`.
 
-**Anticheat (rc15 / Phase 2):**
+**Anticheat (rc16 / Phase 2):**
 
 - Guided campaigns freeze `corpus_seeds` + anchor input at **claim**
 - Submit requires matching `segment_exec_done` and coordinator full-segment replay

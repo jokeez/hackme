@@ -1,6 +1,6 @@
 # HackMe 0.1.0-rc14x — desktop/pool channel + release bundle
 
-**Status:** **Superseded** by [HACKME_RC15.md](HACKME_RC15.md) — historical rc14x channel archive.
+**Status:** **Superseded** by [HACKME_RC16.md](HACKME_RC16.md) — historical rc14x channel archive.
 
 ## Release (2026-08-19, commit `b4a8c0b06c0d`)
 
