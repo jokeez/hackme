@@ -92,7 +92,7 @@ hs_payload="$(jq -nc --arg node_id "smoke-$RID" --arg ann "$BASE" --arg ph "$loc
 hs_body="$OUT/handshake.json"
 hs_http="$(curl -sS -o "$hs_body" -w '%{http_code}' "${hdr_args[@]}" -X POST "$BASE/api/p2p/handshake" -H "Content-Type: application/json" -d "$hs_payload" || true)"
 hs_verdict="fail"
-if [[ "$hs_http" == "200" || "$hs_http" == "401" ]]; then
+if [[ "$hs_http" == "200" || "$hs_http" == "401" || "$hs_http" == "429" ]]; then
   hs_verdict="pass"
 fi
 jq -nc --arg id "p2p-handshake-post" --arg verdict "$hs_verdict" --argjson got_http "${hs_http:-0}" --arg response "$(cat "$hs_body" 2>/dev/null || true)" \

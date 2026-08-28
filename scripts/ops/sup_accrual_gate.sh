@@ -11,7 +11,7 @@ COORD_URL="${COORD_URL:-${HACKME_COORD_URL:-}}"
 if [[ -n "$COORD_URL" ]]; then
   COORD_URL="${COORD_URL%/}"
   echo "[sup-gate] live policy check: ${COORD_URL}/api/work/stats"
-  body="$(curl -fsS "${COORD_URL}/api/work/stats?details=0" 2>/dev/null || true)"
+  body="$(curl -fsS --max-time 20 "${COORD_URL}/api/work/stats?details=0" 2>/dev/null || true)"
   if [[ -z "$body" ]]; then
     echo "[sup-gate] WARN: coordinator stats unreachable (skip live check)" >&2
     exit 0

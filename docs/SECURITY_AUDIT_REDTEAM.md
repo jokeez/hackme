@@ -1,7 +1,19 @@
 # Red-team security audit (pre–open source)
 
-**Date:** 2026-05-18 · **Scope:** node, coordinator, settlement, dashboard, public nginx  
+**Date:** 2026-05-18 (initial) · **Re-audit:** 2026-08-28 (pre-listing)  
+**Scope:** node, coordinator, settlement, dashboard, public nginx  
 **Verdict:** Safe to publish source **only with production hardening below**. Default dev configs are **not** safe on a public bind.
+
+### Re-audit 2026-08-28 (pre-listing)
+
+| Suite | Result | Notes |
+|-------|--------|-------|
+| `security_full_audit.sh` | **16/16 PASS** | Ephemeral node + public `hackme.tech/pool` probes |
+| `redteam_hard_mode.sh` | **12/12 PASS** | Local node + ephemeral coordinator; RUN_ID `redteam_prelisting_20260828v4` |
+| `pool_fuzz_escrow_redteam_gate.sh` | **PASS** | Hybrid signer enabled on ephemeral coordinator |
+| Public `redteam_surface_smoke.sh` | **PASS** | All mutating routes reject unauth (403) |
+
+Reports: `reports/tests/security_full_20260828T190633Z/` · `reports/gates/redteam_prelisting_20260828v4/`
 
 ---
 

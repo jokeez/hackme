@@ -55,8 +55,16 @@ else
 fi
 
 # 2) Tasks POST must reject unauthenticated call.
-tasks_unauth_http="$(curl --max-time "$CURL_MAX_TIME" -sS -o "$tmp" -w '%{http_code}' -X POST "$BASE/api/tasks" -H "Content-Type: application/json" -d '{}' || true)"
-if is_any "$tasks_unauth_http" "401" "429"; then
+# Accept 503 when integrator tokens are not configured (fail-closed, no task created).
+tasks_unauth_http="000"
+for _ in 1 2 3 4; do
+  tasks_unauth_http="$(curl --max-time "$CURL_MAX_TIME" -sS -o "$tmp" -w '%{http_code}' -X POST "$BASE/api/tasks" -H "Content-Type: application/json" -d '{}' || true)"
+  if is_any "$tasks_unauth_http" "401" "403" "429" "503"; then
+    break
+  fi
+  sleep 1
+done
+if is_any "$tasks_unauth_http" "401" "403" "429" "503"; then
   record_result "tasks-unauth-rejected" "pass" "http=$tasks_unauth_http"
 else
   record_result "tasks-unauth-rejected" "fail" "unexpected http=$tasks_unauth_http"

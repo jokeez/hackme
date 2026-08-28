@@ -20,7 +20,9 @@ BASE="${BASE:-http://127.0.0.1:18080}"
 COORD="${COORD:-http://127.0.0.1:18081}"
 ADMIN_TOKEN="${ADMIN_TOKEN:-${HACKME_ADMIN_TOKEN:-}}"
 COORD_ADMIN_TOKEN="${COORD_ADMIN_TOKEN:-${ADMIN_TOKEN}}"
+COORD_WORKER_TOKEN="${COORD_WORKER_TOKEN:-$(tr -d '\r\n' <"$ROOT_DIR/.secrets/hackme_coordinator_worker_token" 2>/dev/null || true)}"
 P2P_TOKEN="${P2P_TOKEN:-${ADMIN_TOKEN}}"
+CANONICAL_BASE="${CANONICAL_BASE:-https://hackme.tech}"
 RUN_ID="${RUN_ID:-redteam_hard_$(date -u +%Y%m%dT%H%M%SZ)}"
 OUT_DIR="${OUT_DIR:-$ROOT_DIR/reports/gates/$RUN_ID}"
 mkdir -p "$OUT_DIR"
@@ -52,17 +54,47 @@ gate_run_case "redteam-hard" "$RESULTS" "$OUT_DIR" "language-chaos-security" "la
 gate_run_case "redteam-hard" "$RESULTS" "$OUT_DIR" "language-break-attempts" "language break attempts are rejected safely" "" \
   env RUN_ID="$RUN_ID" BASE="$BASE" ADMIN_TOKEN="$ADMIN_TOKEN" bash scripts/tests/language_break_attempts.sh
 
-gate_run_case "redteam-hard" "$RESULTS" "$OUT_DIR" "p2p-storm-harness" "p2p storm keeps node alive under load" "" \
-  env RUN_ID="$RUN_ID" BASE="$BASE" P2P_TOKEN="$P2P_TOKEN" CONCURRENCY=120 REQUESTS=2400 MODE=mixed bash scripts/tests/p2p_storm_harness.sh
-
 gate_run_case "redteam-hard" "$RESULTS" "$OUT_DIR" "p2p-smoke" "p2p contract smoke passes" "" \
   env RUN_ID="$RUN_ID" BASE="$BASE" P2P_TOKEN="$P2P_TOKEN" bash scripts/tests/p2p_smoke.sh
 
-gate_run_case "redteam-hard" "$RESULTS" "$OUT_DIR" "coordinator-matrix" "coordinator abuse + dedup matrix passes" "" \
-  env RUN_ID="$RUN_ID" COORD="$COORD" BASE="$BASE" COORD_ADMIN_TOKEN="$COORD_ADMIN_TOKEN" bash scripts/tests/coordinator_matrix.sh
+gate_run_case "redteam-hard" "$RESULTS" "$OUT_DIR" "p2p-storm-harness" "p2p storm keeps node alive under load" "" \
+  env RUN_ID="$RUN_ID" BASE="$BASE" P2P_TOKEN="$P2P_TOKEN" CONCURRENCY=120 REQUESTS=2400 MODE=mixed bash scripts/tests/p2p_storm_harness.sh
 
+HYBRID_COORD="$COORD"
+HYBRID_COORD_PID=""
+EPHEMERAL_COORD=0
+if [[ "$COORD" != http://127.0.0.1:* && "$COORD" != http://localhost:* ]]; then
+  EPHEMERAL_COORD=1
+  HYBRID_COORD_PORT="$(python3 -c "import socket;s=socket.socket();s.bind(('127.0.0.1',0));print(s.getsockname()[1]);s.close()")"
+  HYBRID_COORD="http://127.0.0.1:${HYBRID_COORD_PORT}"
+  HYBRID_COORD_DB="$OUT_DIR/hybrid_coord.db"
+  rm -f "$HYBRID_COORD_DB"
+  echo "[redteam-hard] ephemeral coordinator (hybrid + matrix) → ${HYBRID_COORD}"
+  HACKME_COORDINATOR_ADDR="127.0.0.1:${HYBRID_COORD_PORT}" \
+  HACKME_COORDINATOR_DB="$HYBRID_COORD_DB" \
+  HACKME_COORDINATOR_ALLOW_INSECURE=1 \
+  HACKME_COORDINATOR_ADMIN_TOKEN="${COORD_ADMIN_TOKEN}" \
+  HACKME_COORDINATOR_WORKER_TOKEN="${COORD_WORKER_TOKEN:-redteam-hybrid-worker}" \
+  HACKME_POOL_HYBRID_SIGNER_ENABLED=1 \
+  HACKME_POOL_HYBRID_SIGNER_STRICT=1 \
+    go run ./cmd/coordinator >>"$OUT_DIR/hybrid-coord.log" 2>&1 &
+  HYBRID_COORD_PID=$!
+  for _ in $(seq 1 40); do
+    curl -fsS --max-time 2 "${HYBRID_COORD}/health" >/dev/null 2>&1 && break
+    sleep 0.25
+  done
+fi
+HYBRID_COORD_TOKEN="${COORD_WORKER_TOKEN:-$COORD_ADMIN_TOKEN}"
 gate_run_case "redteam-hard" "$RESULTS" "$OUT_DIR" "hybrid-signer-smoke" "strict hybrid signer rejects unsigned submits" "" \
-  env COORD_URL="$COORD" COORD_TOKEN="$ADMIN_TOKEN" REQUIRE_HYBRID=1 bash scripts/tests/hybrid_signer_smoke.sh
+  env COORD_URL="$HYBRID_COORD" COORD_TOKEN="$HYBRID_COORD_TOKEN" REQUIRE_HYBRID=1 REQUIRE_STRICT=1 bash scripts/tests/hybrid_signer_smoke.sh
+
+COORD_FOR_MATRIX="$COORD"
+[[ "$EPHEMERAL_COORD" == "1" ]] && COORD_FOR_MATRIX="$HYBRID_COORD"
+gate_run_case "redteam-hard" "$RESULTS" "$OUT_DIR" "coordinator-matrix" "coordinator abuse + dedup matrix passes" "" \
+  env RUN_ID="$RUN_ID" COORD="$COORD_FOR_MATRIX" BASE="$BASE" COORD_ADMIN_TOKEN="$COORD_ADMIN_TOKEN" bash scripts/tests/coordinator_matrix.sh
+
+[[ -n "$HYBRID_COORD_PID" ]] && kill "$HYBRID_COORD_PID" 2>/dev/null || true
+wait "$HYBRID_COORD_PID" 2>/dev/null || true
 
 gate_run_case "redteam-hard" "$RESULTS" "$OUT_DIR" "sup-accrual-gate" "SUP honest accrual policy unit tests pass" "" \
   env COORD_URL="$COORD" bash scripts/ops/sup_accrual_gate.sh
@@ -70,8 +102,13 @@ gate_run_case "redteam-hard" "$RESULTS" "$OUT_DIR" "sup-accrual-gate" "SUP hones
 gate_run_case "redteam-hard" "$RESULTS" "$OUT_DIR" "difficulty-health" "difficulty retarget health within policy bounds" "" \
   env RUN_ID="$RUN_ID" BASE="$BASE" bash scripts/tests/difficulty_health.sh
 
+INVARIANT_BASE="$BASE"
+if ! curl -fsS --max-time 15 "${BASE}/api/status" 2>/dev/null | jq -e '.has_genesis == true' >/dev/null 2>&1; then
+  INVARIANT_BASE="$CANONICAL_BASE"
+  echo "[redteam-hard] chain-invariants: local follower node → ${INVARIANT_BASE}"
+fi
 gate_run_case "redteam-hard" "$RESULTS" "$OUT_DIR" "chain-invariants" "chain economics invariants hold" "" \
-  env BASE="$BASE" bash scripts/check_invariants.sh
+  env BASE="$INVARIANT_BASE" bash scripts/check_invariants.sh
 
 dup_log="$OUT_DIR/dup-chain-check.log"
 if chain_json="$(curl -fsS --max-time 20 "${BASE}/api/chain?limit=400")"; then

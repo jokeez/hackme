@@ -12,6 +12,16 @@ go test -count=1 -timeout=180s ./internal/fuzzescrow/... ./internal/fuzzengine/.
 go test -count=1 -timeout=120s ./cmd/coordinator/ -run 'Fuzz|Tamper|Replay|HTTPFuzz' 2>&1
 
 echo "[fuzz-redteam-gate] distributed pool smoke"
+WASM_PATH="$ROOT/tasks/artifacts/security/rust_script_push_bounds_guard.wasm"
+if [[ ! -f "$WASM_PATH" ]]; then
+  echo "FAIL: missing $WASM_PATH (run: bash scripts/build_security_task_pack.sh or rustc target wasm)" >&2
+  exit 1
+fi
+WORKERFUZZ_BIN="${WORKERFUZZ_BIN:-$ROOT/bin/workerfuzz}"
+if [[ ! -x "$WORKERFUZZ_BIN" ]]; then
+  echo "[fuzz-redteam-gate] building workerfuzz..."
+  go build -trimpath -o "$WORKERFUZZ_BIN" ./cmd/workerfuzz
+fi
 COORD_DB="${COORD_DB:-$ROOT/logs/pool_fuzz_redteam_$(date +%s).db}"
 rm -f "$COORD_DB"
 export HACKME_COORDINATOR_DB="$COORD_DB"
@@ -21,6 +31,8 @@ BASE="http://${HACKME_COORDINATOR_ADDR}"
 export HACKME_COORDINATOR_ALLOW_INSECURE=1
 export HACKME_COORDINATOR_ADMIN_TOKEN=""
 export HACKME_COORDINATOR_WORKER_TOKEN="fuzz-redteam-worker"
+export HACKME_POOL_HYBRID_SIGNER_ENABLED=1
+export HACKME_POOL_HYBRID_SIGNER_STRICT=1
 
 go run ./cmd/coordinator &
 CPID=$!
@@ -30,7 +42,7 @@ for _ in $(seq 1 40); do
   sleep 0.25
 done
 
-WASM_HEX="$(xxd -p tasks/artifacts/security/rust_script_push_bounds_guard.wasm | tr -d '\n')"
+WASM_HEX="$(xxd -p "$WASM_PATH" | tr -d '\n')"
 CID="fuzz-redteam-$(date +%s)"
 curl -fsS -X POST "${BASE}/api/fuzz/pool/campaigns" -H "Content-Type: application/json" -d "$(python3 - <<PY
 import json, os
@@ -52,7 +64,7 @@ PY
 )"
 
 export COORD_URL="$BASE" COORD_TOKEN="$HACKME_COORDINATOR_WORKER_TOKEN"
-WORKER_ID=rt1 timeout 10s go run ./cmd/workerfuzz -worker rt1 2>/dev/null || true
+WORKER_ID=rt1 timeout 25s "$WORKERFUZZ_BIN" -coord "$BASE" -token "$HACKME_COORDINATOR_WORKER_TOKEN" -worker rt1 2>/dev/null || true
 
 # Replay submit must not inflate work_done beyond budget
 DONE="$(python3 - "$COORD_DB" "$CID" <<'PY'

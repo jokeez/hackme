@@ -30,6 +30,7 @@ COORD_TOKEN="${COORD_TOKEN:-${ADMIN_TOKEN:-${HACKME_COORDINATOR_ADMIN_TOKEN:-${H
 WORKER_ID="${WORKER_ID:-worker-hybrid-smoke}"
 REQUIRE_HYBRID="${REQUIRE_HYBRID:-0}"
 REQUIRE_STRICT="${REQUIRE_STRICT:-0}"
+CURL_MAX_TIME="${CURL_MAX_TIME:-20}"
 
 if [[ -z "$COORD_TOKEN" ]]; then
   echo "[hybrid-smoke] coordinator token is required" >&2
@@ -39,14 +40,14 @@ fi
 post_json() {
   local path="$1"
   local body="$2"
-  curl -sS -X POST "${COORD_URL}${path}" \
+  curl -sS --max-time "$CURL_MAX_TIME" -X POST "${COORD_URL}${path}" \
     -H "Content-Type: application/json" \
     -H "X-Hackme-Admin-Token: ${COORD_TOKEN}" \
     -d "$body"
 }
 
 echo "[hybrid-smoke] fetch work stats"
-ws="$(curl -fsS "${COORD_URL}/api/work/stats?details=0")"
+ws="$(curl -fsS --max-time "$CURL_MAX_TIME" "${COORD_URL}/api/work/stats?details=0")"
 hybrid_enabled="$(printf '%s' "$ws" | jq -r '.hybrid_signer_enabled // false')"
 hybrid_strict="$(printf '%s' "$ws" | jq -r '.hybrid_signer_strict // false')"
 echo "[hybrid-smoke] hybrid_signer_enabled=${hybrid_enabled}"
@@ -92,7 +93,7 @@ if [[ -z "$base2" ]]; then
 fi
 batch2="$(printf '%s' "$c2" | jq -r '.batch_size')"
 work2="$(printf '%s' "$c2" | jq -r '.work_id')"
-s2="$(curl -sS -X POST "${COORD_URL}/api/work/submit" \
+s2="$(curl -sS --max-time "$CURL_MAX_TIME" -X POST "${COORD_URL}/api/work/submit" \
   -H "Content-Type: application/json" \
   -H "X-Hackme-Admin-Token: ${COORD_TOKEN}" \
   -d "{\"worker_id\":\"${WORKER_ID}-partial\",\"base_nonce\":${base2},\"batch_size\":${batch2},\"work_id\":\"${work2}\",\"attempts\":1000,\"miner_address\":\"HMC-deadbeefdeadbeef\",\"submit_nonce\":1}")"

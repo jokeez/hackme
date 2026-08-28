@@ -16,6 +16,8 @@ BASE="http://${HACKME_COORDINATOR_ADDR}"
 export HACKME_COORDINATOR_ALLOW_INSECURE=1
 export HACKME_COORDINATOR_ADMIN_TOKEN=""
 export HACKME_COORDINATOR_WORKER_TOKEN="pool-fuzz-gate-worker"
+export HACKME_POOL_HYBRID_SIGNER_ENABLED=1
+export HACKME_POOL_HYBRID_SIGNER_STRICT=1
 
 echo "[pool-fuzz-gate] start coordinator"
 go run ./cmd/coordinator &
@@ -63,8 +65,12 @@ PY
 echo "[pool-fuzz-gate] run workerfuzz workers"
 export COORD_URL="$BASE"
 export COORD_TOKEN="$HACKME_COORDINATOR_WORKER_TOKEN"
+WORKERFUZZ_BIN="${WORKERFUZZ_BIN:-$ROOT/bin/workerfuzz}"
+if [[ ! -x "$WORKERFUZZ_BIN" ]]; then
+  go build -trimpath -o "$WORKERFUZZ_BIN" ./cmd/workerfuzz
+fi
 for w in wf1 wf2; do
-  WORKER_ID="$w" timeout 12s go run ./cmd/workerfuzz -worker "$w" 2>/dev/null || true
+  WORKER_ID="$w" timeout 25s "$WORKERFUZZ_BIN" -coord "$BASE" -token "$HACKME_COORDINATOR_WORKER_TOKEN" -worker "$w" 2>/dev/null || true
 done
 
 ST="$(curl -fsS "${BASE}/api/fuzz/pool/stats")"
