@@ -27,6 +27,8 @@ for pat in report_globs:
 
 skip = {
     "healthz.html",  # probe only
+    "developer-console.html",
+    "developer-dashboard.html",
 }
 # Redirect shells — not canonical index targets
 skip_names = skip
