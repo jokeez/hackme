@@ -82,7 +82,7 @@ run_coord_post "/api/fuzz/pool/campaigns/repair-zombies?limit=50" | jq -c . || l
 if n="$(run_remote_sql "UPDATE fuzz_work_items SET status='cancelled', updated_at=strftime('%s','now') WHERE status IN ('pending','leased') AND campaign_id IN (SELECT id FROM fuzz_campaigns WHERE status='cancelled'); SELECT changes();" 2>/dev/null)"; then
   log "SQL cancelled pending items on cancelled campaigns: ${n:-0}"
 else
-  log "skip SQL purge (set NODE_SSH or readable COORD_SQL_DB=${COORD_DB})"
+  log "skip SQL purge (set NODE_SSH=${NODE_SSH:-} or readable COORD_SQL_DB=${COORD_DB})"
 fi
 
 stats_url="${COORD_URL}/api/fuzz/pool/stats"

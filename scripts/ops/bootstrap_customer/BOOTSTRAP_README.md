@@ -25,7 +25,7 @@ No miner binary update for the PoH rail. Deep fuzz corpus work is still a separa
 |---------|---------|
 | `hackme-bootstrap-node.service` | Customer node → `https://hackme.tech` canonical |
 | `hackme-workerpoh.service` | CPU miner (unchanged) |
-| `hackme-bootstrap-bot.timer` | New audit order every **6h** (~**4 orders/day**) · budgets ~6–12 HMC with runs capped so per-run ≥ **0.0001 HMC** (else HTTP 402) |
+| `hackme-bootstrap-bot.timer` | New audit order every **6h** (~**4 orders/day**) · budgets ~6 HMC · **max 5000 runs** (default **1000**; hard cap `MAX_BUDGET_RUNS`) · per-run ≥ **0.0001 HMC** · wall **8h** (`budget_seconds=28800`) |
 | `hackme-bootstrap-workerfuzz@*` | Optional local **workerfuzz** fleet (3–10) claiming coordinator `/api/fuzz/work` |
 
 ## More dig capacity (fuzz)

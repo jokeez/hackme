@@ -21,7 +21,7 @@ UNIT_PREFIX="${UNIT_PREFIX:-hackme-test-poh}"
 # Hybrid fuzz under same worker_id (default ON). Soft defaults to limit SQLITE_BUSY on hub.
 HYBRID_FUZZ="${HACKME_NAMED_HYBRID_FUZZ:-1}"
 HTTP_TIMEOUT_SEC="${WORKERFUZZ_HTTP_TIMEOUT_SEC:-90}"
-FUZZ_GAP_MS="${HACKME_WORKER_HYBRID_FUZZ_CLAIM_GAP_MS:-400}"
+FUZZ_GAP_MS="${HACKME_WORKER_HYBRID_FUZZ_CLAIM_GAP_MS:-600}"
 FUZZ_TIMEOUT_MS="${NAMED_FUZZ_TIMEOUT_MS:-1500}"
 FUZZ_CONC="${HACKME_WORKER_HYBRID_FUZZ_CONCURRENCY:-1}"
 
@@ -29,6 +29,7 @@ NAMES=(
   desktop-a4m2rx desktop-k7v1pd desktop-q9n4ls desktop-t2c8we desktop-z5h6mf
   shannon turing hopper knuth mccarthy
   lovelace tesla euclid noether faraday
+  ui-west digga fuzzlane rack-neon byte-hop
 )
 
 TOKEN="${POOL_TOKEN:-}"

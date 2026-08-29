@@ -27,6 +27,12 @@
 | [HACKME_RC15.md](HACKME_RC15.md) | Previous rc15 — B2B fuzz Phase 2 + pool anticheat |
 | [HACKME_RC14.md](HACKME_RC14.md) | Previous rc14x channel |
 | [YEAR_PLAN_2026_2027.md](YEAR_PLAN_2026_2027.md) | Year plan stub · feature freeze before exchange |
+| [MINER_POOL_ECONOMICS.md](MINER_POOL_ECONOMICS.md) | Pool payout economics |
+| [ECONOMICS_DASHBOARD.md](ECONOMICS_DASHBOARD.md) | Dashboard metrics |
+| [CUDA_PRODUCTION.md](CUDA_PRODUCTION.md) | CUDA production notes |
+| [RIG_PROFILES.md](RIG_PROFILES.md) | GPU rig profiles |
+| [MININGBOARD_LISTING.md](MININGBOARD_LISTING.md) | MiningBoard listing ops |
+| [BEGINNER_SOLO.md](BEGINNER_SOLO.md) | Removed solo mode (historical) |
 | [../web/site/roadmap.html](../web/site/roadmap.html) | Public ecosystem roadmap |
 
 ## Fuzzing / B2B integrators
@@ -39,7 +45,13 @@
 | [FUZZING_B2B_SECURITY_VERDICT.md](FUZZING_B2B_SECURITY_VERDICT.md) | B2B threat model & verdict |
 | [../web/site/developers.html](../web/site/developers.html) | Public landing |
 | [../web/site/fuzzing-console.html](../web/site/fuzzing-console.html) | Read-only order tracker |
-| Local node dashboard `#orders` | Create campaigns + HTML report |
+| [POOL_FUZZ_DISTRIBUTED.md](POOL_FUZZ_DISTRIBUTED.md) | Pool-distributed deep campaigns |
+| [POOL_DIRECT_COORDINATOR.md](POOL_DIRECT_COORDINATOR.md) | Direct coordinator wiring |
+| [ORDER_ECONOMICS.md](ORDER_ECONOMICS.md) | Escrow, cancellation, pricing |
+| [FUZZ_ESCROW_20_80.md](FUZZ_ESCROW_20_80.md) | Escrow settlement split |
+| [FUZZ_TIER_C.md](FUZZ_TIER_C.md) | Tier C native fuzz |
+| [FUZZ_NATIVE_V2.md](FUZZ_NATIVE_V2.md) | Native v2 pipeline |
+| [../web/site/fuzz-guide.html](../web/site/fuzz-guide.html) | Public fuzz guide |
 
 ## Research & social
 
@@ -52,7 +64,16 @@
 | [TELEGRAM_BOT.md](TELEGRAM_BOT.md) | Operator bot + news channel bot |
 | [../web/site/research.html](../web/site/research.html) | Public research hub |
 | [../web/site/reports/bitcoin30.html](../web/site/reports/bitcoin30.html) | BTC30 series hub |
-| [../web/site/reports/oss-cve/](../web/site/reports/oss-cve/) | OSS CVE ledger |
+| [OSS_CVE_DISCLOSURE_centijson.md](OSS_CVE_DISCLOSURE_centijson.md) | centijson upstream draft |
+| [OSS_CVE_DISCLOSURE_libucl.md](OSS_CVE_DISCLOSURE_libucl.md) | libucl upstream draft |
+| [OSS_CVE_DISCLOSURE_cfgpack.md](OSS_CVE_DISCLOSURE_cfgpack.md) | cfgpack upstream draft |
+| [OSS_DISCLOSURE_ACTIONS.md](OSS_DISCLOSURE_ACTIONS.md) | Disclosure status table |
+| [L1_CRYPTO_STACK_RESEARCH.md](L1_CRYPTO_STACK_RESEARCH.md) | L1 crypto stack research |
+| [L1_CRYPTO_STACK_V3_RESEARCH.md](L1_CRYPTO_STACK_V3_RESEARCH.md) | L1 stack v3 |
+| [L1_CRYPTO_STACK_V4_RESEARCH.md](L1_CRYPTO_STACK_V4_RESEARCH.md) | L1 stack v4 |
+| [BITCOIN_CORE_5MODULE_RESEARCH.md](BITCOIN_CORE_5MODULE_RESEARCH.md) | Bitcoin Core 5-module study |
+| [MKPOOL_CASE_STUDY.md](MKPOOL_CASE_STUDY.md) | mkpool case study |
+| [verdicts/INDEX.md](verdicts/INDEX.md) | Verdict ledger hub |
 
 ## Ecosystem & listing (public)
 
@@ -70,6 +91,11 @@
 | [../web/site/coins.html](../web/site/coins.html) | Ecosystem registry |
 | [../web/site/token-transparency.html](../web/site/token-transparency.html) | Live supply APIs |
 | [../web/site/listing.html](../web/site/listing.html) | Listing readiness hub |
+| [HMS_TOKENOMICS.md](HMS_TOKENOMICS.md) | HMS token model |
+| [HMS_MARKET_PRICING.md](HMS_MARKET_PRICING.md) | HMS market pricing |
+| [HMS_ASIC_PILOT.md](HMS_ASIC_PILOT.md) | HMS ASIC pilot |
+| [HMS_ECONOMICS_VERDICT.md](HMS_ECONOMICS_VERDICT.md) | HMS economics verdict |
+| [RIGHTS_AND_DISCLOSURES.md](RIGHTS_AND_DISCLOSURES.md) | Legal / export disclosures |
 | [../web/site/roadmap.html](../web/site/roadmap.html) | Shipped milestones |
 
 ## Architecture & API
@@ -95,6 +121,13 @@
 | [HACKME_RC11S.md](HACKME_RC11S.md) | Historical prior RC (see also `archive/rc/`) |
 | [scripts/release/README.md](../scripts/release/README.md) | Build ISO / Windows / bundles |
 | [scripts/ops/README.md](../scripts/ops/README.md) | Ops scripts — supported vs experimental |
+| [RELEASE_PACKAGING.md](RELEASE_PACKAGING.md) | Release / ISO packaging |
+| [TASK_LANGUAGES.md](TASK_LANGUAGES.md) | WASM task languages |
+| [RUST_CPP_TASKS_QUICKSTART.md](RUST_CPP_TASKS_QUICKSTART.md) | Rust/C++ task quickstart |
+| [POOL_SECURITY_THREATS_VERDICT.md](POOL_SECURITY_THREATS_VERDICT.md) | Pool threat verdict |
+| [TREASURY_KEY.md](TREASURY_KEY.md) | Operator treasury *(restricted)* |
+| [BOUNTY_AUTOPILOT.md](BOUNTY_AUTOPILOT.md) | Autonomous bounty fuzz pipeline |
+| [scripts/ops/archive/README.md](../scripts/ops/archive/README.md) | Archived one-shot ops scripts |
 | [TESTING.md](TESTING.md) | Test matrix |
 
 ## Community
@@ -106,4 +139,4 @@
 
 ## Archive
 
-Historical RC notes and GPU field logs: [archive/README.md](archive/README.md).
+Historical RC notes, GPU field logs, and bounty session notes: [archive/README.md](archive/README.md) · [archive/bounty/](archive/bounty/).

@@ -48,14 +48,16 @@ if ! python3 -c "import sys; sys.exit(0 if float('$bal') >= float('$MIN_BAL') el
 fi
 
 # Light budgets: visible on marketplace, finish in tens of minutes on healthy dig.
+# Hard cap: never place > MAX_BUDGET_RUNS (old formula could hit 24k via (budget*0.20)/0.0001).
 RESERVE="${RESERVE_HMC:-100}"
 MAX_ORDER="${MAX_ORDER_HMC:-6}"
 MIN_PER_RUN="${MIN_PER_RUN_HMC:-0.0001}"
+MAX_BUDGET_RUNS="${MAX_BUDGET_RUNS:-5000}"
 budget="$(python3 -c "b=float('$bal'); r=float('$RESERVE'); m=float('$MAX_ORDER'); print(round(min(m, max(5.0, min(m, b-r))), 4))")"
 solves="${TARGET_SOLVES:-4}"
 max_runs="$(python3 -c "b=float('$budget'); p=float('$MIN_PER_RUN'); print(int((b*0.20)/p))")"
-runs="${BUDGET_RUNS:-384}"
-runs="$(python3 -c "r=int('$runs'); m=int('$max_runs'); print(min(max(128,r), m) if m>0 else max(128,r))")"
+runs="${BUDGET_RUNS:-1000}"
+runs="$(python3 -c "r=int('$runs'); m=int('$max_runs'); cap=int('$MAX_BUDGET_RUNS'); print(min(cap, min(max(128,r), m) if m>0 else max(128,r)))")"
 
 if [[ "${BOOTSTRAP_DRY_RUN:-0}" == "1" ]]; then
   log "DRY_RUN would place target=$TARGET budget=$budget runs=$runs solves=$solves"

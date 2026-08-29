@@ -1,0 +1,17 @@
+[Unit]
+Description=HackMe bounty autopilot (OSS CVE + Foundry + Immunefi WASM)
+After=network-online.target hackme-hms-coordinator.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hackme
+Environment=HOME=/root
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:/root/.foundry/bin:/root/.cargo/bin
+Environment=FAST=0
+ExecStart=/opt/hackme/scripts/ops/run_bounty_autopilot.sh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

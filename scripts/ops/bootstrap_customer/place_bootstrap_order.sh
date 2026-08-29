@@ -9,12 +9,18 @@ BASE="${BASE:-http://127.0.0.1:8080}"
 COORD="${COORD:-https://hackme.tech/pool/coordinator}"
 TARGET="${1:-nghttp2}"
 BUDGET_HMC="${BUDGET_HMC:-10}"
-BUDGET_RUNS="${BUDGET_RUNS:-384}"
+BUDGET_RUNS="${BUDGET_RUNS:-1000}"
+MAX_BUDGET_RUNS="${MAX_BUDGET_RUNS:-5000}"
 REWARD_HMC="${REWARD_HMC:-0.05}"
 TARGET_SOLVES="${TARGET_SOLVES:-8}"
 STAMP="${STAMP:-$(date -u +%Y%m%dT%H%M%SZ)}"
 LOG_DIR="${LOG_DIR:-$INSTALL/logs/bootstrap/orders}"
 mkdir -p "$LOG_DIR"
+# Hard ceiling so escrow/bot never enqueue 24k-run walls again.
+if [[ "$BUDGET_RUNS" -gt "$MAX_BUDGET_RUNS" ]]; then
+  echo "[bootstrap-order] clamp BUDGET_RUNS $BUDGET_RUNS -> $MAX_BUDGET_RUNS" >&2
+  BUDGET_RUNS="$MAX_BUDGET_RUNS"
+fi
 
 ADMIN="$(grep -m1 '^HACKME_ADMIN_TOKEN=' "$INSTALL/.env" | cut -d= -f2- | tr -d '\r\n')"
 # PoH order gate must be solvable for pool M finds. Security "bounds_guard" wasm rejects
@@ -77,7 +83,7 @@ http_code="$(curl -sS --max-time 120 -o "$LOG_DIR/${STAMP}-audit.raw.json" -w '%
       wasm_check_hex: $hex,
       budget_hmc: $budget,
       budget_runs: $runs,
-      budget_seconds: 14400,
+      budget_seconds: 28800,
       depth_tier: "bytes_corpus",
       guard_name: ("upstream_" + $target),
       create_poh_order: true,

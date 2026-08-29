@@ -14,14 +14,15 @@ DB="${DB:-/opt/hackme/data/coordinator_fuzz.db}"
 BUDGET_SECONDS="${BUDGET_SECONDS:-604800}"
 NOW="$(date +%s)"
 
+# Do NOT revive legacy 24k-run deep-pool walls (cancel those instead).
+# Keep this list empty unless intentionally re-arming small-budget campaigns.
 IDS=(
-  campaign-bootstrap-expat-20260727t134700z
-  campaign-bootstrap-yyjson-20260727t074601z
-  campaign-bootstrap-jsmn-20260727t014256z
-  campaign-bootstrap-cjson-20260726t194016z
-  campaign-bootstrap-md4c-20260726t133951z
-  campaign-bootstrap-nghttp2-20260726t073805z
 )
+
+if [[ ${#IDS[@]} -eq 0 ]]; then
+  echo "[revive] IDS empty — nothing to revive (legacy 24k walls stay cancelled)"
+  exit 0
+fi
 
 if [[ ! -f "$DB" ]]; then
   echo "[revive] missing DB $DB" >&2

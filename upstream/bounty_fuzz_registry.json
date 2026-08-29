@@ -1,0 +1,150 @@
+{
+  "updated": "2026-06-26",
+  "note": "Unified bounty fuzz registry — autopilot reads this for rotation and max coverage",
+  "autopilot_script": "scripts/ops/run_bounty_autopilot.sh",
+  "skip_disclosure_hold": ["centijson", "libucl", "cfgpack"],
+  "phases": [
+    {"id": "oss_cve", "script": "scripts/ops/run_oss_cve_nightly.sh", "weight": 2, "enabled": true},
+    {"id": "tokenize_ultra", "script": "scripts/ops/run_tokenize_ultra_hunt.sh", "weight": 3, "enabled": true},
+    {"id": "foundry_open", "script": "scripts/ops/run_bounty_open_max.sh", "weight": 3, "enabled": true},
+    {"id": "hackenproof_lowtier", "script": "scripts/ops/run_hackenproof_lowtier_push.sh", "weight": 2, "enabled": true},
+    {"id": "immunefi_wasm", "script": "scripts/ops/run_bounty_hunt_fast.sh", "weight": 2, "enabled": true},
+    {"id": "native_wormhole", "script": "scripts/ops/immunefi_native_wormhole.sh", "weight": 1, "enabled": true},
+    {"id": "discovery_fuzz", "script": "scripts/ops/run_bounty_discovery_fuzz.sh", "weight": 2, "enabled": true}
+  ],
+  "foundry_open": [
+    {
+      "id": "tokenize_it",
+      "platform": "hackenproof",
+      "repo": "https://github.com/corpus-io/tokenize.it-smart-contracts.git",
+      "pin": "52b0322fb566c7143d09c23b7bd30f2e092e0691",
+      "max_usd": 5000,
+      "ends": "2026-06-27",
+      "custom_lab": "bounty-lab/tokenize-it",
+      "priority": 1
+    },
+    {
+      "id": "kleidi",
+      "platform": "immunefi",
+      "repo": "https://github.com/solidity-labs-io/kleidi.git",
+      "url": "https://immunefi.com/bug-bounty/kleidi/",
+      "max_usd": 50000,
+      "test_match": "test/unit/*.t.sol",
+      "solc": "0.8.25",
+      "priority": 1
+    },
+    {
+      "id": "arcadia_lending",
+      "platform": "hackenproof",
+      "repo": "https://github.com/arcadia-finance/lending-v2.git",
+      "max_usd": 25000,
+      "test_match": "test/fuzz/**/*.fuzz.t.sol",
+      "custom_lab": "bounty-lab/arcadia-lending",
+      "priority": 1
+    },
+    {
+      "id": "arcadia_accounts",
+      "platform": "hackenproof",
+      "repo": "https://github.com/arcadia-finance/accounts-v2.git",
+      "max_usd": 25000,
+      "test_match": "test/fuzz/**/*.fuzz.t.sol",
+      "priority": 2
+    },
+    {
+      "id": "arcadia_asset_managers",
+      "platform": "hackenproof",
+      "repo": "https://github.com/arcadia-finance/asset-managers.git",
+      "max_usd": 25000,
+      "test_match": "test/fuzz/**/*.fuzz.t.sol",
+      "priority": 2
+    },
+    {
+      "id": "silo_v2",
+      "platform": "immunefi",
+      "repo": "https://github.com/silo-finance/silo-contracts-v2.git",
+      "clone_flags": "--recurse-submodules",
+      "max_usd": 100000,
+      "test_match": "test/**/*.t.sol",
+      "foundry_profile": "core_with_test",
+      "priority": 2
+    },
+    {
+      "id": "0xmarkets",
+      "platform": "hackenproof",
+      "repo": "https://github.com/taoshidev/0xmarkets_contract.git",
+      "max_usd": 30000,
+      "ends": "2026-07-08",
+      "priority": 3,
+      "note": "often compile-blocked without private deps"
+    },
+    {
+      "id": "moonwell_v2",
+      "platform": "immunefi",
+      "repo": "https://github.com/moonwell-fi/moonwell-contracts-v2.git",
+      "max_usd": 250000,
+      "test_match": "test/**/*.t.sol",
+      "priority": 2
+    },
+    {
+      "id": "euler_vault_kit",
+      "platform": "immunefi",
+      "repo": "https://github.com/euler-xyz/euler-vault-kit.git",
+      "max_usd": 100000,
+      "test_match": "test/**/*.t.sol",
+      "priority": 2
+    },
+    {
+      "id": "morpho_blue",
+      "platform": "immunefi",
+      "repo": "https://github.com/morpho-org/morpho-blue.git",
+      "max_usd": 500000,
+      "test_match": "test/**/*.t.sol",
+      "priority": 3
+    },
+    {
+      "id": "reserve_protocol",
+      "platform": "immunefi",
+      "repo": "https://github.com/reserve-protocol/protocol.git",
+      "max_usd": 100000,
+      "test_match": "test/**/*.t.sol",
+      "priority": 3
+    },
+    {
+      "id": "ignite_market",
+      "platform": "hackenproof",
+      "repo": "https://github.com/hackenproof-public/ignite-market-smart-contracts.git",
+      "max_usd": 10000,
+      "priority": 2
+    },
+    {
+      "id": "commonwealth",
+      "platform": "hackenproof",
+      "repo": "https://github.com/hackenproof-public/commonwealth-contracts.git",
+      "max_usd": 10000,
+      "priority": 3
+    }
+  ],
+  "oss_cve": {
+    "manifest": "upstream/oss_cve_targets.json",
+    "nightly_targets_per_run": 2,
+    "max_budget": 30000,
+    "time_limit_sec": 300
+  },
+  "immunefi_wasm": {
+    "manifest": "upstream/immunefi_targets.json",
+    "fast_subset": [
+      "hedera_tx", "hedera_pubkey", "hedera_memo",
+      "wormhole_vaa_min", "wormhole_quorum",
+      "berachain_denominator", "berachain_pol"
+    ]
+  },
+  "closed_need_access": [
+    {"id": "darts_rwa", "platform": "hackenproof", "max_usd": 3000, "subs": 18, "reason": "private repo"},
+    {"id": "tiprun", "platform": "hackenproof", "reason": "no critical payout, 300+ subs"}
+  ],
+  "discovery": {
+    "web_scan": "scripts/ops/run_bounty_web_scan.sh",
+    "recon_sui": "scripts/ops/recon_sui_vm_targets.sh",
+    "note": "Run web_scan weekly; add new public repos to foundry_open"
+  }
+}

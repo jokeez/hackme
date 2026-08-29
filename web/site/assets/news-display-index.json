@@ -1,12 +1,6 @@
 {
   "chunks": [
-    "./assets/news-display-00.json",
-    "./assets/news-display-01.json",
-    "./assets/news-display-02.json",
-    "./assets/news-display-03.json",
-    "./assets/news-display-04.json",
-    "./assets/news-display-05.json",
-    "./assets/news-display-06.json"
+    "./assets/news-display-00.json"
   ],
-  "total": 107
+  "total": 12
 }
