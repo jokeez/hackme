@@ -4,9 +4,9 @@
       "id": "2026-08-27-release-rc16-update-channel",
       "date": "2026-08-27",
       "title": "0.1.0-rc16 — self-update channel + signed apt + branded Linux menu",
-      "summary": "rc16 ships miner self-update (latest.json + update_hackme_miner for Linux/Windows/HackMe OS), signed apt package hackme-node on hackme.tech/apt, and a branded HackMe app-menu icon on Linux. Dashboard Updates button checks the channel. ISO rebuilt with the same node bits — verify SHA256SUMS-iso.txt before flash.",
+      "summary": "rc16 ships miner self-update (latest.json + update_hackme_miner for Linux/Windows/HackMe OS), signed apt package hackme-node on hackme.tech/apt, branded Linux app menu, and a Windows update banner in the dashboard. ISO: HackMe-OS-0.1.0-rc16-amd64.iso SHA256 9e1c0850… — verify SHA256SUMS-iso.txt before flash.",
       "impact": "Miners can upgrade without re-download roulette: apt upgrade hackme-node on Ubuntu/Debian, or update_hackme_miner.sh / .bat elsewhere. .env / data / logs are preserved. Operators: publish feed is https://hackme.tech/dist/latest.json",
-      "action": "Downloads: https://hackme.tech/downloads.html · apt: https://hackme.tech/downloads.html#apt · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc16 · Verify SHA256SUMS.txt / SHA256SUMS-iso.txt",
+      "action": "Downloads: https://hackme.tech/downloads.html · apt: https://hackme.tech/downloads.html#apt · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc16 · ISO SHA256: 9e1c0850285f6fa0733aa6459fb2864dad659bf6b8e12c33d17e61f146d65f67 · Verify SHA256SUMS.txt / SHA256SUMS-iso.txt",
       "tags": [
         "release",
         "rc16",
@@ -65,6 +65,24 @@
         "honesty",
         "report-plane",
         "pre-exchange"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-08-11-release-rc14-pool-fuzz-customer-first",
+      "date": "2026-08-11",
+      "title": "HackMe 0.1.0-rc14 is live — pool fuzz customer-first priority",
+      "summary": "E2E customer order flow on Aug 11: rc14 reduced claim latency from seconds to milliseconds and improved pool throughput for real customer orders. Customer order completed 256/256 in ~26 minutes; hybrid dig is ON on customer campaigns; escrow 20/80 unchanged.",
+      "impact": "Evidence for correct pool scheduling + fuzz integration: claim path priority, customer-first ordering, and hybrid dig/fuzz runs that produce findings on customer campaigns. Not a claim of trustless L1 / exchange readiness / CEX readiness.",
+      "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc14 · ISO: https://hackme.tech/dist/release_0.1.0-rc14/HackMe-OS-0.1.0-rc14-amd64.iso · ISO SHA256: 1f7b7e15a696d898494f14292be8b031e428b430093a47bc41f7f539f1b0bf9b · Verify SHA256SUMS.txt before running any artifact.",
+      "tags": [
+        "release",
+        "rc14",
+        "pool",
+        "fuzzing",
+        "customer-first",
+        "hybrid-dig",
+        "operations"
       ],
       "status": "published"
     },
@@ -241,24 +259,6 @@
         "fuzzing",
         "libheif",
         "day04"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-08-11-release-rc14-pool-fuzz-customer-first",
-      "date": "2026-08-11",
-      "title": "HackMe 0.1.0-rc14 is live — pool fuzz customer-first priority",
-      "summary": "E2E customer order flow on Aug 11: rc14 reduced claim latency from seconds to milliseconds and improved pool throughput for real customer orders. Customer order completed 256/256 in ~26 minutes; hybrid dig is ON on customer campaigns; escrow 20/80 unchanged.",
-      "impact": "Evidence for correct pool scheduling + fuzz integration: claim path priority, customer-first ordering, and hybrid dig/fuzz runs that produce findings on customer campaigns. Not a claim of trustless L1 / exchange readiness / CEX readiness.",
-      "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc14 · ISO: https://hackme.tech/dist/release_0.1.0-rc14/HackMe-OS-0.1.0-rc14-amd64.iso · ISO SHA256: 1f7b7e15a696d898494f14292be8b031e428b430093a47bc41f7f539f1b0bf9b · Verify SHA256SUMS.txt before running any artifact.",
-      "tags": [
-        "release",
-        "rc14",
-        "pool",
-        "fuzzing",
-        "customer-first",
-        "hybrid-dig",
-        "operations"
       ],
       "status": "published"
     },

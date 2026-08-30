@@ -194,21 +194,6 @@
       "status": "published"
     },
     {
-      "id": "2026-07-11-github-release-rc11s",
-      "date": "2026-07-11",
-      "title": "HackMe 0.1.0-rc11s — production baseline · pool fuzz · miners welcome",
-      "summary": "Stable production channel: pool fuzz marketplace, PoH + fuzz mining payouts, escrow 20/80, customer order flow verified. Mining dashboard shows canonical chain economics (Actual base/orders 1h) on desktop followers. Fuzz settle outbox drain fix.",
-      "impact": "rc11s is the reference release for miners and B2B customers. Further changes ship as rc11t/rc12 — no silent breaking changes on this channel.",
-      "action": "Download: https://hackme.tech/downloads.html · Pool: https://hackme.tech/pool/coordinator · GitHub tag after publish: 0.1.0-rc11s",
-      "tags": [
-        "release",
-        "mining",
-        "fuzzing",
-        "production"
-      ],
-      "status": "published"
-    },
-    {
       "id": "2026-07-15-oss-cve-watch-day08-nghttp2-libfuzzer",
       "date": "2026-07-15",
       "title": "OSS CVE Watch Day 8/14 · nghttp2 · 1.02B libFuzzer exec · CLEAN",
@@ -265,6 +250,21 @@
         "oss-cve",
         "fuzzing",
         "nghttp2"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "2026-07-11-github-release-rc11s",
+      "date": "2026-07-11",
+      "title": "HackMe 0.1.0-rc11s — production baseline · pool fuzz · miners welcome",
+      "summary": "Stable production channel: pool fuzz marketplace, PoH + fuzz mining payouts, escrow 20/80, customer order flow verified. Mining dashboard shows canonical chain economics (Actual base/orders 1h) on desktop followers. Fuzz settle outbox drain fix.",
+      "impact": "rc11s is the reference release for miners and B2B customers. Further changes ship as rc11t/rc12 — no silent breaking changes on this channel.",
+      "action": "Download: https://hackme.tech/downloads.html · Pool: https://hackme.tech/pool/coordinator · GitHub tag after publish: 0.1.0-rc11s",
+      "tags": [
+        "release",
+        "mining",
+        "fuzzing",
+        "production"
       ],
       "status": "published"
     }
