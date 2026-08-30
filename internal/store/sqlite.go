@@ -624,6 +624,11 @@ func migrateFuzzEscrow(db *sql.DB) error {
 			return err
 		}
 	}
+	if _, err := db.Exec(`ALTER TABLE fuzz_campaign_escrow ADD COLUMN escrow_split TEXT NOT NULL DEFAULT '20_80'`); err != nil {
+		if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+			return err
+		}
+	}
 	return nil
 }
 

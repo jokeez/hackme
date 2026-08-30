@@ -139,7 +139,7 @@ func (s *Service) payFuzzCrashBonusTx(ctx context.Context, tx *sql.Tx, campaignI
 	if remaining == 0 {
 		return ErrFuzzEscrowDepleted
 	}
-	bonus := fuzzescrow.UniqueCrashBonusUnits(row.bountyPoolUnits)
+	bonus := fuzzescrow.UniqueCrashBonusUnitsForSplit(row.bountyPoolUnits, row.escrowSplit)
 	if bonus == 0 || bonus > remaining {
 		return ErrFuzzEscrowDepleted
 	}

@@ -45,14 +45,28 @@ type FuzzEscrowRow struct {
 
 // OpenFuzzEscrow locks budget from the primary wallet into a 20/80 split.
 func (s *Service) OpenFuzzEscrow(ctx context.Context, campaignID string, budgetHMC float64, budgetRuns int) (*FuzzEscrowRow, error) {
+	return s.OpenFuzzEscrowSplit(ctx, campaignID, budgetHMC, budgetRuns, fuzzescrow.EscrowSplit2080)
+}
+
+// OpenHuntEscrow locks budget using Hunt 50/50 split (budgetRuns = shard count).
+func (s *Service) OpenHuntEscrow(ctx context.Context, campaignID string, budgetHMC float64, budgetShards int) (*FuzzEscrowRow, error) {
+	return s.OpenFuzzEscrowSplit(ctx, campaignID, budgetHMC, budgetShards, fuzzescrow.EscrowSplit5050)
+}
+
+// OpenFuzzEscrowSplit locks budget with the selected escrow split.
+func (s *Service) OpenFuzzEscrowSplit(ctx context.Context, campaignID string, budgetHMC float64, budgetRuns int, escrowSplit string) (*FuzzEscrowRow, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	campaignID = strings.TrimSpace(campaignID)
 	if campaignID == "" {
 		return nil, errors.New("chain: campaign_id required")
 	}
-	if budgetHMC < fuzzescrow.MinCampaignBudgetHMC {
-		return nil, fmt.Errorf("fuzz escrow: budget below minimum %.2f HMC", fuzzescrow.MinCampaignBudgetHMC)
+	minBudget := fuzzescrow.MinCampaignBudgetHMC
+	if escrowSplit == fuzzescrow.EscrowSplit5050 {
+		minBudget = fuzzescrow.HuntMinLiteBudgetHMC
+	}
+	if budgetHMC < minBudget {
+		return nil, fmt.Errorf("fuzz escrow: budget below minimum %.2f HMC", minBudget)
 	}
 	if budgetHMC > fuzzescrow.MaxCampaignBudgetHMC {
 		return nil, fmt.Errorf("fuzz escrow: budget above maximum %.0f HMC", fuzzescrow.MaxCampaignBudgetHMC)
@@ -61,7 +75,15 @@ func (s *Service) OpenFuzzEscrow(ctx context.Context, campaignID string, budgetH
 	if total == 0 {
 		return nil, errors.New("fuzz escrow: budget rounds to zero units")
 	}
-	split, err := fuzzescrow.ComputeSplitUnits(total, budgetRuns)
+	var split fuzzescrow.SplitUnits
+	var err error
+	switch escrowSplit {
+	case fuzzescrow.EscrowSplit5050:
+		split, err = fuzzescrow.ComputeHuntSplitUnits(total, budgetRuns)
+	default:
+		escrowSplit = fuzzescrow.EscrowSplit2080
+		split, err = fuzzescrow.ComputeSplitUnits(total, budgetRuns)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -109,10 +131,10 @@ func (s *Service) OpenFuzzEscrow(ctx context.Context, campaignID string, budgetH
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO fuzz_campaign_escrow
 		 (campaign_id, budget_units, runs_pool_units, bounty_pool_units, runs_paid_units, bounty_paid_units,
-		  runs_done, budget_runs, per_run_units, finding_winner, status, created_at)
-		 VALUES (?, ?, ?, ?, 0, 0, 0, ?, ?, '', 'open', ?)`,
+		  runs_done, budget_runs, per_run_units, finding_winner, status, created_at, escrow_split)
+		 VALUES (?, ?, ?, ?, 0, 0, 0, ?, ?, '', 'open', ?, ?)`,
 		campaignID, split.TotalUnits, split.RunsPoolUnits, split.BountyPoolUnits,
-		budgetRuns, split.PerRunUnits, now); err != nil {
+		budgetRuns, split.PerRunUnits, now, escrowSplit); err != nil {
 		return nil, err
 	}
 	if err := s.checkEconomicInvariants(ctx, tx); err != nil {
@@ -319,6 +341,7 @@ type fuzzEscrowDBRow struct {
 	findingWinner       string
 	status              string
 	refundedBountyUnits uint64
+	escrowSplit         string
 }
 
 func (s *Service) lockFuzzEscrowTx(ctx context.Context, tx *sql.Tx, campaignID string) (*fuzzEscrowDBRow, error) {
@@ -329,10 +352,11 @@ func (s *Service) readFuzzEscrow(ctx context.Context, q queryRowContext, campaig
 	var r fuzzEscrowDBRow
 	err := q.QueryRowContext(ctx,
 		`SELECT campaign_id, budget_units, runs_pool_units, bounty_pool_units, runs_paid_units, bounty_paid_units,
-		        COALESCE(crash_bonus_paid_units,0), runs_done, budget_runs, per_run_units, finding_winner, status, refunded_bounty_units
+		        COALESCE(crash_bonus_paid_units,0), runs_done, budget_runs, per_run_units, finding_winner, status,
+		        COALESCE(refunded_bounty_units,0), COALESCE(escrow_split,'20_80')
 		 FROM fuzz_campaign_escrow WHERE campaign_id=?`, campaignID).
 		Scan(&r.campaignID, &r.budgetUnits, &r.runsPoolUnits, &r.bountyPoolUnits, &r.runsPaidUnits, &r.bountyPaidUnits,
-			&r.crashBonusPaidUnits, &r.runsDone, &r.budgetRuns, &r.perRunUnits, &r.findingWinner, &r.status, &r.refundedBountyUnits)
+			&r.crashBonusPaidUnits, &r.runsDone, &r.budgetRuns, &r.perRunUnits, &r.findingWinner, &r.status, &r.refundedBountyUnits, &r.escrowSplit)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrFuzzEscrowNotFound
 	}

@@ -133,12 +133,13 @@ Hunt Lite · 20 HMC · 50/50 split
 
 ## Implementation checklist (code — later)
 
-- [ ] `fuzzescrow.ComputeHuntSplitUnits` — 50/50 + Hunt min shard units  
-- [ ] `campaign_type: hunt` or package `hunt_lite` / `hunt_standard` in create API  
-- [ ] `UniqueCrashBonusMaxUnits` override for Hunt: **5_000_000** (0.05 HMC)  
+- [x] `fuzzescrow.ComputeHuntSplitUnits` — 50/50 + Hunt min shard units  
+- [x] `campaign_type: hunt` in create API (`POST /api/hunt/campaigns`)  
+- [x] `UniqueCrashBonusMaxUnits` override for Hunt: **5_000_000** (0.05 HMC) via `escrow_split`  
+- [x] Node: `GET /api/hunt/targets`, `POST /api/hunt/inventory`  
 - [ ] Coordinator: CPU shard work kind + repro challenge  
-- [ ] UI: pre-pay block + escrow fields (`runs_remaining_hmc`, `locked_bounty_hmc`)  
-- [ ] Docs cross-link from [FUZZ_ESCROW_20_80.md](FUZZ_ESCROW_20_80.md)
+- [ ] UI: pre-pay block + escrow fields on dashboard Hunt tab  
+- [x] Docs cross-link from [FUZZ_ESCROW_20_80.md](FUZZ_ESCROW_20_80.md)
 
 ---
 

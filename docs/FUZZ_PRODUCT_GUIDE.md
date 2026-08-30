@@ -16,7 +16,17 @@ CLI/API keys stay `scan` | `audit` | `deep`. Customer-facing names:
 | **Dig · Audit** | `audit` | ~5 | 256 | yes | Protocol guards, DeFi invariants |
 | **Dig · Deep** | `deep` | ~25 | 2048 | yes* | Byte corpus, hours-scale campaign |
 
-**Hunt** (repo + ASAN on pool, 50/50 escrow) — Phase 1; spec: [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md).
+**Hunt** (repo + ASAN on pool, 50/50 escrow) — Phase 1 MVP on local node:
+
+| API | Purpose |
+|-----|---------|
+| `GET /api/hunt/packages` | Hunt Lite / Standard presets |
+| `GET /api/hunt/targets` | Curated OSS catalog (`upstream/oss_cve_targets.json`) |
+| `POST /api/hunt/inventory` | Admin: scan local path for `LLVMFuzzerTestOneInput` |
+| `POST /api/hunt/campaigns` | Create Hunt campaign + 50/50 escrow |
+| `POST /api/hunt/campaigns/{id}/run-local` | Admin: node-local ASAN smoke (catalog targets) |
+
+Spec: [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md). Pool CPU shards — Phase 1b.
 
 \* **Distributed pool cap:** on hub workers, `exec_per_unit` is capped at **64** per work item (Deep 512 runs locally on autorunner). Coordinator **replays** the segment on submit — miners do not cryptographically attest every exec.
 

@@ -147,7 +147,7 @@ type fuzzRuntimeSample struct {
 
 func allowedCampaignType(v string) bool {
 	switch strings.TrimSpace(strings.ToLower(v)) {
-	case "fuzz", "property", "symbolic":
+	case "fuzz", "property", "symbolic", "hunt":
 		return true
 	default:
 		return false
@@ -658,7 +658,7 @@ func (a *app) handleFuzzCampaignCreate(w http.ResponseWriter, r *http.Request) {
 		ctype = strings.TrimSpace(strings.ToLower(req.Type))
 	}
 	if !allowedCampaignType(ctype) {
-		writeAPIError(w, http.StatusBadRequest, "invalid_campaign_type", "campaign_type must be fuzz|property|symbolic", nil)
+		writeAPIError(w, http.StatusBadRequest, "invalid_campaign_type", "campaign_type must be fuzz|property|symbolic|hunt", nil)
 		return
 	}
 	status := strings.TrimSpace(strings.ToLower(req.Status))
