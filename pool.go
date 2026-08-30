@@ -1091,28 +1091,36 @@ func (a *app) fetchCanonicalAddressState(ctx context.Context, addr string) (bala
 	return fetchCurl()
 }
 
-// fetchCanonicalSupAddressState loads balance_sup_units from the public command node address API.
-func (a *app) fetchCanonicalSupAddressState(ctx context.Context, addr string) (supUnits uint64, ok bool) {
+func parseCanonicalSupAddressFields(parsed map[string]any) (supUnits, supNonce uint64, ok bool) {
+	if parsed == nil {
+		return 0, 0, false
+	}
+	supUnits = asUint64(parsed["balance_sup_units"])
+	if supUnits == 0 {
+		if f := parseAnyFloat(parsed["balance_sup"]); f > 0 {
+			supUnits = chain.SUPToUnits(f)
+		}
+	}
+	supNonce = asUint64(parsed["sup_next_nonce"])
+	if supUnits > 0 || supNonce > 0 {
+		return supUnits, supNonce, true
+	}
+	return 0, 0, false
+}
+
+// fetchCanonicalSupTransferState loads balance_sup_units and sup_next_nonce from the public command node address API.
+func (a *app) fetchCanonicalSupTransferState(ctx context.Context, addr string) (supUnits, supNonce uint64, ok bool) {
 	addr = strings.TrimSpace(addr)
 	if addr == "" || a == nil {
-		return 0, false
+		return 0, 0, false
 	}
 	base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/")
 	if !walletCanonicalBaseUsable(base) {
-		return 0, false
+		return 0, 0, false
 	}
 	u := base + "/api/address/" + neturl.PathEscape(addr)
-	parseSup := func(parsed map[string]any) (uint64, bool) {
-		if parsed == nil {
-			return 0, false
-		}
-		if v := asUint64(parsed["balance_sup_units"]); v > 0 {
-			return v, true
-		}
-		if f := parseAnyFloat(parsed["balance_sup"]); f > 0 {
-			return chain.SUPToUnits(f), true
-		}
-		return 0, false
+	parseBody := func(parsed map[string]any) (uint64, uint64, bool) {
+		return parseCanonicalSupAddressFields(parsed)
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err == nil {
@@ -1123,13 +1131,15 @@ func (a *app) fetchCanonicalSupAddressState(ctx context.Context, addr string) (s
 				var st struct {
 					BalanceSUPUnits uint64  `json:"balance_sup_units"`
 					BalanceSUP      float64 `json:"balance_sup"`
+					SUPNextNonce    uint64  `json:"sup_next_nonce"`
 				}
 				if err := json.NewDecoder(resp.Body).Decode(&st); err == nil {
-					if st.BalanceSUPUnits > 0 {
-						return st.BalanceSUPUnits, true
+					units := st.BalanceSUPUnits
+					if units == 0 && st.BalanceSUP > 0 {
+						units = chain.SUPToUnits(st.BalanceSUP)
 					}
-					if st.BalanceSUP > 0 {
-						return chain.SUPToUnits(st.BalanceSUP), true
+					if units > 0 || st.SUPNextNonce > 0 {
+						return units, st.SUPNextNonce, true
 					}
 				}
 			}
@@ -1138,11 +1148,17 @@ func (a *app) fetchCanonicalSupAddressState(ctx context.Context, addr string) (s
 	curlCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	if parsed, err := fetchJSONViaCurl(curlCtx, u, nil); err == nil {
-		if units, ok := parseSup(parsed); ok {
-			return units, true
+		if units, nonce, ok := parseBody(parsed); ok {
+			return units, nonce, true
 		}
 	}
-	return 0, false
+	return 0, 0, false
+}
+
+// fetchCanonicalSupAddressState loads balance_sup_units from the public command node address API.
+func (a *app) fetchCanonicalSupAddressState(ctx context.Context, addr string) (supUnits uint64, ok bool) {
+	units, _, ok := a.fetchCanonicalSupTransferState(ctx, addr)
+	return units, ok
 }
 
 func (a *app) addressSupFieldsForResponse(ctx context.Context, addr string) map[string]any {

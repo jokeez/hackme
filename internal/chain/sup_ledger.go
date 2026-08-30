@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -65,6 +66,10 @@ func supMintEnabledFromEnv() bool {
 }
 
 func (tx SupTransferTx) canonicalBytes() ([]byte, error) {
+	return tx.CanonicalBytes()
+}
+
+func (tx SupTransferTx) CanonicalBytes() ([]byte, error) {
 	wire := struct {
 		TxType        string `json:"tx_type"`
 		SigAlg        string `json:"sig_alg,omitempty"`
@@ -547,7 +552,30 @@ func (s *Service) SubmitSupTransferTx(ctx context.Context, tx SupTransferTx) (st
 		}
 		return "", "internal_error", err
 	}
-	return txHash, "pending", nil
+		return txHash, "pending", nil
+}
+
+func (s *Service) SupTransferPool(ctx context.Context, limit int) ([]TransferStatusRow, error) {
+	if limit <= 0 {
+		limit = 200
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT tx_hash, status, from_address, to_address, amount_units, fee_units, nonce, reject_code
+		 FROM sup_tx_pool WHERE status = 'pending'
+		 ORDER BY fee_units DESC, received_at ASC LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []TransferStatusRow
+	for rows.Next() {
+		var r TransferStatusRow
+		if err := rows.Scan(&r.TxHash, &r.Status, &r.From, &r.To, &r.AmountUnits, &r.FeeUnits, &r.Nonce, &r.RejectCode); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
 }
 
 func (s *Service) applyPendingSupTransfers(ctx context.Context, txq queryRowExecContext, blockIndex uint64, blockHash string) error {
@@ -750,5 +778,159 @@ func (s *Service) SupActivitySummary(ctx context.Context, address string, window
 		TotalNetHMC:      UnitsToSUP(totalRecv) - UnitsToSUP(totalSent),
 		TxCountWindow:    txWindow,
 		Recent:           recent,
+	}, nil
+}
+
+func supMintMemoFromHistoryJSON(txJSON string) string {
+	var row struct {
+		Op   string `json:"op"`
+		Memo string `json:"memo"`
+	}
+	if err := json.Unmarshal([]byte(txJSON), &row); err != nil {
+		return ""
+	}
+	if strings.EqualFold(strings.TrimSpace(row.Op), "mint_sup") {
+		return strings.TrimSpace(row.Memo)
+	}
+	var legacy struct {
+		Memo string `json:"memo"`
+	}
+	_ = json.Unmarshal([]byte(txJSON), &legacy)
+	return strings.TrimSpace(legacy.Memo)
+}
+
+func supPoolMintSettlementMemo(memo string) bool {
+	m := strings.ToLower(strings.TrimSpace(memo))
+	return strings.HasPrefix(m, "worker_sup_settlement") || strings.HasPrefix(m, "worker_settlement")
+}
+
+// SupWalletEarningsSummary buckets on-chain SUP history (transfers + mint credits).
+func (s *Service) SupWalletEarningsSummary(ctx context.Context, address string, windowHours, bucketSec int) (WalletEarningsSummary, error) {
+	addr := strings.TrimSpace(address)
+	if windowHours <= 0 {
+		windowHours = 24
+	}
+	if windowHours > 24*90 {
+		windowHours = 24 * 90
+	}
+	if bucketSec <= 0 {
+		bucketSec = 3600
+	}
+	if bucketSec < 300 {
+		bucketSec = 300
+	}
+	if bucketSec > 86400 {
+		bucketSec = 86400
+	}
+	nowUnix := time.Now().Unix()
+	windowStart := nowUnix - int64(windowHours*3600)
+	dailyStart := nowUnix - 86400
+	type agg struct {
+		ReceivedUnits   uint64
+		SentUnits       uint64
+		SettledOutUnits uint64
+		TxCount         int64
+	}
+	rollup := map[int64]*agg{}
+	var totalRecv, totalSent, recv24, sent24, settled24, settledWindow uint64
+	var tx24, txWindow int64
+
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT from_address, to_address, amount_units, fee_units, applied_at, tx_json
+		 FROM sup_tx_history
+		 WHERE status='included'
+		   AND (from_address = ? OR to_address = ?)
+		   AND applied_at >= ?
+		 ORDER BY applied_at ASC`,
+		addr, addr, windowStart,
+	)
+	if err != nil {
+		return WalletEarningsSummary{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var fromAddr, toAddr, txJSON string
+		var amountUnits, feeUnits uint64
+		var appliedAt int64
+		if err := rows.Scan(&fromAddr, &toAddr, &amountUnits, &feeUnits, &appliedAt, &txJSON); err != nil {
+			return WalletEarningsSummary{}, err
+		}
+		txWindow++
+		key := (appliedAt / int64(bucketSec)) * int64(bucketSec)
+		a := rollup[key]
+		if a == nil {
+			a = &agg{}
+			rollup[key] = a
+		}
+		a.TxCount++
+		if strings.EqualFold(strings.TrimSpace(toAddr), addr) {
+			a.ReceivedUnits += amountUnits
+			totalRecv += amountUnits
+			if appliedAt >= dailyStart {
+				recv24 += amountUnits
+				tx24++
+			}
+			memo := supMintMemoFromHistoryJSON(txJSON)
+			if supPoolMintSettlementMemo(memo) {
+				a.SettledOutUnits += amountUnits
+				settledWindow += amountUnits
+				if appliedAt >= dailyStart {
+					settled24 += amountUnits
+				}
+			}
+		}
+		if strings.EqualFold(strings.TrimSpace(fromAddr), addr) {
+			spend := amountUnits + feeUnits
+			if spend < amountUnits {
+				spend = amountUnits
+			}
+			a.SentUnits += spend
+			totalSent += spend
+			if appliedAt >= dailyStart {
+				sent24 += spend
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return WalletEarningsSummary{}, err
+	}
+
+	keys := make([]int64, 0, len(rollup))
+	for k := range rollup {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+	buckets := make([]WalletEarningsBucket, 0, len(keys))
+	for _, k := range keys {
+		a := rollup[k]
+		recv := UnitsToSUP(a.ReceivedUnits)
+		sent := UnitsToSUP(a.SentUnits)
+		buckets = append(buckets, WalletEarningsBucket{
+			BucketUnix:    k,
+			ReceivedHMC:   recv,
+			SentHMC:       sent,
+			NetHMC:        recv - sent,
+			SettledOutHMC: UnitsToSUP(a.SettledOutUnits),
+			TxCount:       a.TxCount,
+		})
+	}
+
+	return WalletEarningsSummary{
+		Address:             addr,
+		WindowHours:         windowHours,
+		BucketSec:           bucketSec,
+		NowUnix:             nowUnix,
+		TotalReceivedHMC:    UnitsToSUP(totalRecv),
+		TotalSentHMC:        UnitsToSUP(totalSent),
+		TotalNetHMC:         UnitsToSUP(totalRecv) - UnitsToSUP(totalSent),
+		Received24hHMC:      UnitsToSUP(recv24),
+		Sent24hHMC:          UnitsToSUP(sent24),
+		Net24hHMC:           UnitsToSUP(recv24) - UnitsToSUP(sent24),
+		SettledOut24hHMC:    UnitsToSUP(settled24),
+		TxCount24h:          tx24,
+		SettledOutWindowHMC: UnitsToSUP(settledWindow),
+		TxCountWindow:       txWindow,
+		Buckets:             buckets,
 	}, nil
 }

@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -146,22 +149,30 @@ func (a *app) handleSUPBurn(w http.ResponseWriter, r *http.Request) {
 
 func (a *app) handleSUPTransferSend(w http.ResponseWriter, r *http.Request) {
 	if !a.allowRate("sup_tx_send:"+clientIP(r), 20) {
-		writeJSON(w, map[string]any{"ok": false, "code": "rate_limited"})
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusTooManyRequests)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "rate limited", "code": "rate_limited"})
 		return
 	}
 	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "method not allowed", "code": "method_not_allowed"})
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
 	raw, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "invalid body", "code": "invalid_body"})
 		return
 	}
 	var tx chain.SupTransferTx
 	if err := json.Unmarshal(raw, &tx); err != nil {
-		http.Error(w, "invalid json", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "invalid json", "code": "invalid_json"})
 		return
 	}
 	simpleSign := strings.TrimSpace(tx.PubKeyEd25519) == "" && strings.TrimSpace(tx.SigEd25519) == ""
@@ -176,14 +187,288 @@ func (a *app) handleSUPTransferSend(w http.ResponseWriter, r *http.Request) {
 			tx.TimestampUnix = time.Now().Unix()
 		}
 		if code, msg := chain.ValidateSupTransferShape(tx); code != "" {
-			writeJSON(w, map[string]any{"ok": false, "code": code, "error": msg})
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusBadRequest)
+			writeJSON(w, map[string]any{"error": msg, "code": code})
 			return
 		}
 	}
-	txHash, status, err := a.chain.SubmitSupTransferTx(r.Context(), tx)
+	canonicalBase := ""
+	loopbackAdminSettle := a.allowLoopbackAdminTxSend(r) && !a.desktopCanonicalTransfersRequired()
+	if a.shouldUseCanonicalChainAPI() && !loopbackAdminSettle {
+		if base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/"); base != "" && !canonicalBaseWouldLoopbackProxy(r, base) {
+			canonicalBase = base
+		}
+	}
+	if canonicalBase != "" && strings.TrimSpace(tx.PubKeyEd25519) == "" && strings.TrimSpace(tx.SigEd25519) == "" {
+		from := strings.TrimSpace(tx.From)
+		if from == "" && a.signer != nil {
+			from = strings.TrimSpace(a.signer.Address())
+			tx.From = from
+		}
+		if from != "" {
+			nonceOK := false
+			if _, _, _, _, cachedSupNonce, ok := a.readCanonicalWalletCache(from); ok {
+				tx.Nonce = cachedSupNonce
+				nonceOK = true
+			} else {
+				nonceCtx, nonceCancel := context.WithTimeout(context.Background(), 8*time.Second)
+				_, canonSupNonce, nonceOK := a.fetchCanonicalSupTransferState(nonceCtx, from)
+				nonceCancel()
+				if nonceOK {
+					tx.Nonce = canonSupNonce
+				}
+			}
+			if !nonceOK {
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+				w.WriteHeader(http.StatusBadGateway)
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"error":  "could not read canonical sup_next_nonce; refresh wallet and retry",
+					"code":   "canonical_sup_nonce_unavailable",
+					"source": canonicalBase,
+				})
+				return
+			}
+		}
+	}
+	if strings.TrimSpace(tx.PubKeyEd25519) == "" && strings.TrimSpace(tx.SigEd25519) == "" {
+		if a.signer == nil {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusBadRequest)
+			writeJSON(w, map[string]any{
+				"error": "node signer unavailable",
+				"code":  "signer_unavailable",
+			})
+			return
+		}
+		from := strings.TrimSpace(tx.From)
+		signerAddr := strings.TrimSpace(a.signer.Address())
+		if from == "" {
+			tx.From = signerAddr
+		} else if !strings.EqualFold(from, signerAddr) {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusBadRequest)
+			writeJSON(w, map[string]any{
+				"error": "simple signing allowed only for node wallet address",
+				"code":  "address_pubkey_mismatch",
+			})
+			return
+		}
+		tx.PubKeyEd25519 = strings.TrimSpace(a.signer.PublicKeyHex())
+		canon, err := tx.CanonicalBytes()
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusBadRequest)
+			writeJSON(w, map[string]any{
+				"error": "invalid tx canonical payload",
+				"code":  "invalid_tx_encoding",
+			})
+			return
+		}
+		tx.SigEd25519 = strings.TrimSpace(a.signer.SignHex(canon))
+	}
+	submitRaw, err := json.Marshal(tx)
 	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "code": status, "error": err.Error()})
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(w, map[string]any{
+			"error": "invalid tx canonical payload",
+			"code":  "invalid_tx_encoding",
+		})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "tx_hash": txHash, "status": status})
+	if canonicalBase != "" {
+		var canonStatus int
+		var canonBody []byte
+		txTimeout := 8 * time.Second
+		curlSec := 12
+		if envBool("HACKME_DESKTOP_MODE", false) {
+			txTimeout = 12 * time.Second
+			curlSec = 14
+		}
+		forwardCtx, forwardCancel := context.WithTimeout(context.Background(), txTimeout+time.Duration(curlSec+2)*time.Second)
+		defer forwardCancel()
+		req, err := http.NewRequestWithContext(forwardCtx, http.MethodPost, canonicalBase+"/api/sup/tx/send", bytes.NewReader(submitRaw))
+		if err == nil {
+			req.Header.Set("Content-Type", "application/json")
+			if relayTok := canonicalRelayAdminToken(r); relayTok != "" {
+				req.Header.Set("X-Hackme-Admin-Token", relayTok)
+			}
+			client := &http.Client{Timeout: txTimeout}
+			if resp, err := client.Do(req); err == nil && resp != nil {
+				defer resp.Body.Close()
+				canonBody, _ = io.ReadAll(resp.Body)
+				canonStatus = resp.StatusCode
+			} else if !coordinatorURLIsLoopback(canonicalBase) {
+				curlCtx, cancelCurl := context.WithTimeout(context.Background(), time.Duration(curlSec+2)*time.Second)
+				curlHdr := map[string]string{"Content-Type": "application/json"}
+				if relayTok := canonicalRelayAdminToken(r); relayTok != "" {
+					curlHdr["X-Hackme-Admin-Token"] = relayTok
+				}
+				st, bod, cerr := postJSONViaCurl(curlCtx, canonicalBase+"/api/sup/tx/send", submitRaw, curlHdr)
+				cancelCurl()
+				if cerr == nil && st > 0 {
+					canonStatus = st
+					canonBody = bod
+				}
+			}
+		}
+		if canonStatus > 0 {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(canonStatus)
+			_, _ = w.Write(canonBody)
+			return
+		}
+		if a.networkModeActive() || a.desktopCanonicalTransfersRequired() {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusBadGateway)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"error":  "canonical chain unreachable; SUP transfer not submitted to local fork",
+				"code":   "canonical_unreachable",
+				"source": canonicalBase,
+			})
+			return
+		}
+	}
+	if a.desktopCanonicalTransfersRequired() {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusBadGateway)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"error": "desktop mode requires canonical chain for SUP transfers",
+			"code":  "canonical_required",
+		})
+		return
+	}
+	txHash, status, err := a.chain.SubmitSupTransferTx(r.Context(), tx)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(w, map[string]any{
+			"error": err.Error(),
+			"code":  status,
+		})
+		return
+	}
+	writeJSON(w, map[string]any{
+		"ok":      true,
+		"tx_hash": txHash,
+		"status":  status,
+	})
+}
+
+func (a *app) handleSUPEarnings(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 32*time.Second)
+	defer cancel()
+	windowHours := 24
+	if v := strings.TrimSpace(r.URL.Query().Get("window_hours")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			windowHours = n
+		}
+	}
+	bucketSec := 3600
+	if v := strings.TrimSpace(r.URL.Query().Get("bucket_sec")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			bucketSec = n
+		}
+	}
+	earnAddr := strings.TrimSpace(a.nodeID)
+	if q := parseOptionalHMCAddress(r.URL.Query().Get("address")); q != "" {
+		earnAddr = q
+	}
+	if earnAddr == "" {
+		http.Error(w, "address required", http.StatusBadRequest)
+		return
+	}
+	source := "local_db"
+	canonAttempted := false
+	canonOK := false
+	forceLocalEarnings := a.miner.Running() && !envBool("HACKME_DESKTOP_MODE", false)
+	useCanonEarnings := !forceLocalEarnings && a.shouldUseCanonicalChainAPI() && a.networkModeActive() &&
+		(!a.miner.Running() || envBool("HACKME_DESKTOP_MODE", false))
+	if useCanonEarnings {
+		if base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/"); base != "" {
+			if u, err := url.Parse(base); err == nil {
+				host := strings.ToLower(strings.TrimSpace(u.Host))
+				loopback := host == "127.0.0.1:8080" || host == "localhost:8080" ||
+					host == "127.0.0.1:18080" || host == "localhost:18080"
+				if !loopback {
+					canonAttempted = true
+					qv := url.Values{}
+					qv.Set("window_hours", strconv.Itoa(windowHours))
+					qv.Set("bucket_sec", strconv.Itoa(bucketSec))
+					qv.Set("address", earnAddr)
+					earnURL := strings.TrimRight(base, "/") + "/api/sup/earnings?" + qv.Encode()
+					peerSec := 12
+					curlSec := 16
+					if envBool("HACKME_DESKTOP_MODE", false) {
+						peerSec = 5
+						curlSec = 6
+					}
+					peerCtx, cancelPeer := context.WithTimeout(ctx, time.Duration(peerSec)*time.Second)
+					req, err := http.NewRequestWithContext(peerCtx, http.MethodGet, earnURL, nil)
+					if err == nil {
+						client := &http.Client{Timeout: time.Duration(peerSec) * time.Second}
+						if resp, err := client.Do(req); err == nil && resp != nil {
+							if resp.StatusCode == http.StatusOK {
+								var remote map[string]any
+								if err := json.NewDecoder(resp.Body).Decode(&remote); err == nil {
+									if walletEarningsRemoteUsable(remote, earnAddr) {
+										_ = resp.Body.Close()
+										cancelPeer()
+										canonOK = true
+										finalizeWalletEarningsCanonicalProxy(remote)
+										writeJSON(w, remote)
+										return
+									}
+								}
+							}
+							_ = resp.Body.Close()
+						}
+					}
+					cancelPeer()
+					curlCtx, cancelCurl := context.WithTimeout(ctx, time.Duration(curlSec+2)*time.Second)
+					parsed, curlErr := fetchJSONViaCurlMax(curlCtx, earnURL, nil, curlSec)
+					cancelCurl()
+					if curlErr == nil && walletEarningsRemoteUsable(parsed, earnAddr) {
+						canonOK = true
+						finalizeWalletEarningsCanonicalProxy(parsed)
+						writeJSON(w, parsed)
+						return
+					}
+				}
+			}
+		}
+	}
+	earnings, err := a.chain.SupWalletEarningsSummary(ctx, earnAddr, windowHours, bucketSec)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	out := map[string]any{
+		"ok":     true,
+		"source": source,
+		"asset":  "SUP",
+		"data":   earnings,
+	}
+	if canonAttempted && !canonOK && earnings.TxCountWindow == 0 && len(earnings.Buckets) == 0 {
+		out["canonical_earnings_unavailable"] = true
+	}
+	writeJSON(w, out)
+}
+
+func (a *app) handleSUPTransferPool(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	rows, err := a.chain.SupTransferPool(r.Context(), 500)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "asset": "SUP", "txs": rows})
 }

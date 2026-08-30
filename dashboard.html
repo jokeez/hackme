@@ -2979,7 +2979,7 @@
 								<div class="wallet-detail-tabs" role="tablist">
 									<button type="button" class="wallet-detail-tab active" data-wallet-section="overview">Overview</button>
 									<button type="button" class="wallet-detail-tab" data-wallet-section="earnings">Earnings</button>
-									<button type="button" class="wallet-detail-tab wallet-detail-hmc-only" data-wallet-section="activity">Activity</button>
+									<button type="button" class="wallet-detail-tab wallet-detail-hmc-sup" data-wallet-section="activity">Activity</button>
 									<button type="button" class="wallet-detail-tab" data-wallet-section="transfer">Transfer</button>
 								</div>
 								<div id="wallet-section-overview" class="wallet-detail-section active">
@@ -3135,7 +3135,7 @@
 							</div>
 							</div>
 								</div>
-								<div id="wallet-section-activity" class="wallet-detail-section wallet-detail-hmc-only">
+								<div id="wallet-section-activity" class="wallet-detail-section wallet-detail-hmc-sup">
 						<div class="rounded-lg border border-white/10 bg-black/30 p-3 text-left">
 							<div class="flex flex-wrap items-center justify-between gap-2 mb-3">
 								<p class="text-[10px] uppercase tracking-[0.2em] text-gray-500">Transfers · by counterparty</p>
@@ -3208,11 +3208,11 @@
 							</details>
 						</div>
 								</div>
-								<div id="wallet-section-transfer" class="wallet-detail-section wallet-detail-hmc-only">
+								<div id="wallet-section-transfer" class="wallet-detail-section wallet-detail-hmc-sup">
 					<div class="card card-glow rounded-xl p-5 border-neon/20 text-left">
 						<div class="flex flex-wrap items-start justify-between gap-3 mb-3">
 							<div>
-								<h3 class="font-display text-sm tracking-[0.2em] text-neon uppercase">Send HMC</h3>
+								<h3 id="wallet-send-title" class="font-display text-sm tracking-[0.2em] text-neon uppercase">Send HMC</h3>
 								<p id="tx-send-summary" class="text-[10px] text-gray-500 font-mono mt-1 leading-relaxed">—</p>
 							</div>
 							<div class="flex flex-wrap items-center gap-2">
@@ -4073,6 +4073,19 @@
 				$('wallet-sendable-hmc').title = 'Estimate: full balance minus minimum fee (' + minFeeUnits + ' Kapa).';
 			}
 			updateTxSendSummary();
+			applyWalletTransferPresetLabels();
+		}
+		function applyWalletSupOnChainFields() {
+			const minFeeUnits = 1000;
+			const bu = Math.floor(Number(walletSnapshot.balanceSUPUnits) || 0);
+			const maxAmtUnits = bu > minFeeUnits ? (bu - minFeeUnits) : 0;
+			const maxSendSup = maxAmtUnits / UNITS_PER_HMC;
+			if ($('wallet-sendable-hmc')) {
+				$('wallet-sendable-hmc').textContent = fmt(maxSendSup, 8) + ' SUP';
+				$('wallet-sendable-hmc').title = 'Estimate: full SUP balance minus minimum fee (' + minFeeUnits + ' Kapa).';
+			}
+			updateTxSendSummary();
+			applyWalletTransferPresetLabels();
 		}
 		function renderWalletSelectedCoinDetail() {
 			const coin = walletSelectedCoin();
@@ -4087,6 +4100,9 @@
 			document.querySelectorAll('.wallet-detail-hmc-only').forEach((el) => {
 				el.classList.toggle('hidden', !isHmc);
 			});
+			document.querySelectorAll('.wallet-detail-hmc-sup').forEach((el) => {
+				el.classList.toggle('hidden', isHms || (!isHmc && !isSup));
+			});
 			document.querySelectorAll('.wallet-detail-sup-only').forEach((el) => {
 				el.classList.toggle('hidden', !isSup);
 			});
@@ -4096,20 +4112,24 @@
 				statsGrid.classList.toggle('hidden', isHmc || isSup);
 			}
 			if (chainDetails) chainDetails.classList.toggle('hidden', !isHmc);
-			const transferTab = document.querySelector('.wallet-detail-tab[data-wallet-section="transfer"]');
-			if (transferTab) transferTab.classList.toggle('hidden', !isHmc || isHms);
 			const earningsTab = document.querySelector('.wallet-detail-tab[data-wallet-section="earnings"]');
 			if (earningsTab) {
-				earningsTab.classList.toggle('opacity-40', !isHmc);
-				earningsTab.classList.toggle('pointer-events-none', !isHmc);
-				earningsTab.title = isHmc ? '' : 'Earnings chart is HMC on-chain only';
+				earningsTab.classList.toggle('opacity-40', isHms);
+				earningsTab.classList.toggle('pointer-events-none', isHms);
+				earningsTab.title = isHms ? 'Earnings not available for HMS yet' : '';
 			}
 			const earningsHmcBody = $('wallet-earnings-hmc-body');
 			const earningsSupMsg = $('wallet-earnings-hmc-only-msg');
-			if (earningsHmcBody) earningsHmcBody.classList.toggle('hidden', !isHmc);
-			if (earningsSupMsg) earningsSupMsg.classList.toggle('hidden', isHmc);
-			if (!isHmc && walletDetailSection === 'transfer') setWalletDetailSection('overview');
-			if (!isHmc && (walletDetailSection === 'earnings' || walletDetailSection === 'activity')) setWalletDetailSection('overview');
+			if (earningsHmcBody) earningsHmcBody.classList.toggle('hidden', isHms);
+			if (earningsSupMsg) earningsSupMsg.classList.add('hidden');
+			if ($('wallet-earnings-accrual-hint')) {
+				$('wallet-earnings-accrual-hint').textContent = isSup
+					? 'On-chain SUP transfers + pool mints — unpaid accrual on Overview.'
+					: 'On-chain transfers only — pool HMC accrual is on Overview.';
+			}
+			if ((isHms || (!isHmc && !isSup)) && walletDetailSection === 'transfer') setWalletDetailSection('overview');
+			if (isHms && walletDetailSection === 'earnings') setWalletDetailSection('overview');
+			if (isHms && walletDetailSection === 'activity') setWalletDetailSection('overview');
 			const st = latestWorkerSettlementSnap || {};
 			const cap = $('wallet-balance-caption');
 			const note = $('wallet-miner-payout-note');
@@ -4179,11 +4199,22 @@
 						? 'Hybrid signer · ' + signer
 						: 'Hybrid-signed pool work required for SUP accrual';
 				}
+				applyWalletSupOnChainFields();
+				if ($('wallet-send-title')) $('wallet-send-title').textContent = 'Send SUP';
+				document.querySelectorAll('.wallet-tx-send-row label').forEach((lbl) => {
+					if (lbl.querySelector('#tx-form-amount-hmc')) lbl.firstChild.textContent = 'Amount (SUP) ';
+				});
+				applyWalletTransferPresetLabels();
 				return;
 			}
 			if (isHmc) {
 				if ($('wallet-balance-big')) $('wallet-balance-big').textContent = fmt(Number(walletSnapshot.balanceHMC || 0), 8);
 				applyWalletHmcOnChainFields();
+				if ($('wallet-send-title')) $('wallet-send-title').textContent = 'Send HMC';
+				document.querySelectorAll('.wallet-tx-send-row label').forEach((lbl) => {
+					if (lbl.querySelector('#tx-form-amount-hmc')) lbl.firstChild.textContent = 'Amount (HMC) ';
+				});
+				applyWalletTransferPresetLabels();
 				const unpaidHmc = Number(st.wallet_unpaid_hmc || 0);
 				if ($('wallet-unpaid-hmc') && Number.isFinite(unpaidHmc)) {
 					$('wallet-unpaid-hmc').textContent = fmt(unpaidHmc, 6) + ' HMC';
@@ -4239,6 +4270,8 @@
 			renderWalletCoinSidebar();
 			syncWalletDetailPanes();
 			renderWalletPortfolioSummary();
+			if (walletDetailSection === 'earnings') scheduleWalletEarningsRefresh(true);
+			if (walletDetailSection === 'activity') scheduleWalletActivityRefresh(true);
 		}
 		function renderWalletCoinSidebar() {
 			const list = $('wallet-coin-list');
@@ -4679,18 +4712,58 @@
 			renderWalletHmcBreakdown();
 			renderWalletSupBreakdown();
 		}
+		function walletTransferAsset() {
+			return isWalletCoinSUP(walletSelectedCoin()) ? 'sup' : 'hmc';
+		}
+		function walletActivityAssetSym() {
+			return walletTransferAsset() === 'sup' ? 'SUP' : 'HMC';
+		}
+		function applyWalletTransferPresetLabels() {
+			const sym = walletActivityAssetSym();
+			document.querySelectorAll('.tx-amount-preset').forEach((btn) => {
+				const v = btn.getAttribute('data-hmc');
+				if (v === '1') btn.textContent = '1 ' + sym;
+				else if (v) btn.textContent = String(v);
+			});
+			const maxBtn = $('btn-tx-fill-max');
+			if (maxBtn) {
+				const fee = MIN_TX_FEE_UNITS;
+				const bu = walletTransferAsset() === 'sup'
+					? Math.floor(Number(walletSnapshot.balanceSUPUnits) || 0)
+					: Math.floor(Number(walletSnapshot.balanceUnits) || 0);
+				const maxAmt = bu > fee ? (bu - fee) / UNITS_PER_HMC : 0;
+				maxBtn.textContent = maxAmt > 0
+					? ('Max · ' + fmt(maxAmt, maxAmt >= 1 ? 2 : 6) + ' ' + sym)
+					: ('Max − fee · ' + sym);
+			}
+			const poolHead = $('tx-pool-headline');
+			if (poolHead) {
+				poolHead.textContent = walletTransferAsset() === 'sup'
+					? 'Pending SUP transfers (local mempool; canonical hub after deploy)'
+					: 'Pending HMC transfers in local mempool';
+			}
+		}
 		function updateTxSendSummary() {
 			const el = $('tx-send-summary');
 			if (!el) return;
 			const addr = String(walletSnapshot.address || '').trim();
-			const bu = Math.floor(Number(walletSnapshot.balanceUnits) || 0);
+			const asset = walletTransferAsset();
 			const fee = MIN_TX_FEE_UNITS;
-			const maxH = bu > fee ? (bu - fee) / UNITS_PER_HMC : 0;
-			const nonce = Math.floor(Number(walletSnapshot.nextNonce) || 0);
 			const parts = [];
 			if (addr.startsWith('HMC-')) parts.push('from ' + addr);
-			if (maxH > 0.000001) parts.push('max ' + fmt(maxH, 8) + ' HMC');
-			parts.push('fee ' + fmtUInt(fee) + ' Kapa · nonce ' + fmtUInt(nonce));
+			if (asset === 'sup') {
+				const bu = Math.floor(Number(walletSnapshot.balanceSUPUnits) || 0);
+				const maxH = bu > fee ? (bu - fee) / UNITS_PER_HMC : 0;
+				const nonce = Math.floor(Number(walletSnapshot.supNextNonce) || 0);
+				if (maxH > 0.000001) parts.push('max ' + fmt(maxH, 8) + ' SUP');
+				parts.push('fee ' + fmtUInt(fee) + ' Kapa · sup nonce ' + fmtUInt(nonce));
+			} else {
+				const bu = Math.floor(Number(walletSnapshot.balanceUnits) || 0);
+				const maxH = bu > fee ? (bu - fee) / UNITS_PER_HMC : 0;
+				const nonce = Math.floor(Number(walletSnapshot.nextNonce) || 0);
+				if (maxH > 0.000001) parts.push('max ' + fmt(maxH, 8) + ' HMC');
+				parts.push('fee ' + fmtUInt(fee) + ' Kapa · nonce ' + fmtUInt(nonce));
+			}
 			el.textContent = parts.join(' · ');
 		}
 		function updateWalletBuildStrip() {
@@ -5093,7 +5166,7 @@
 					{ t: dir, cls: dir === 'in' ? 'text-matrix uppercase' : 'text-warn uppercase' },
 					{ el: walletActivityPeerCell(peer), cls: 'max-w-[120px] cursor-pointer hover:text-neon', click: () => walletActivityFillTo(peer) },
 					{ t: lbl || '—', cls: 'text-purple-300/90 whitespace-nowrap' },
-					{ t: fmt(Number(r.amount_hmc || 0), 6) + ' HMC', cls: 'text-neon' },
+					{ t: fmt(Number(r.amount_hmc || 0), 6) + ' ' + walletActivityAssetSym(), cls: 'text-neon' },
 					{ t: String(r.memo || '') || '—', cls: 'text-gray-500 truncate max-w-[100px]' },
 				];
 				for (const c of cells) {
@@ -5111,6 +5184,8 @@
 		async function refreshWalletActivity() {
 			const q = walletEarningsQueryParams();
 			const periodLbl = walletEarningsPeriodLabel();
+			const assetSym = walletActivityAssetSym();
+			const isSup = walletTransferAsset() === 'sup';
 			updateWalletActivityPeriodButtons();
 			if ($('wallet-activity-source')) $('wallet-activity-source').textContent = 'loading activity…';
 			try {
@@ -5129,7 +5204,8 @@
 					'window_hours=' + encodeURIComponent(String(q.window_hours)) +
 					'&limit=80' +
 					(actAddr.startsWith('HMC-') ? '&address=' + encodeURIComponent(actAddr) : '');
-				const ar = await fetchWithTimeout('/api/wallet/activity?' + actQ, { cache: 'no-store' }, 15000);
+				const actPath = isSup ? '/api/sup/activity?' : '/api/wallet/activity?';
+				const ar = await fetchWithTimeout(actPath + actQ, { cache: 'no-store' }, 15000);
 				if (!ar.ok) throw new Error('wallet_activity_unavailable');
 				const payload = await ar.json();
 				let d = payload && payload.data != null ? payload.data : null;
@@ -5142,14 +5218,15 @@
 				const netV = Number(d.total_net_hmc != null ? d.total_net_hmc : (inV - outV));
 				if ($('wallet-activity-label-in')) $('wallet-activity-label-in').textContent = 'Received (' + periodLbl + ')';
 				if ($('wallet-activity-label-out')) $('wallet-activity-label-out').textContent = 'Sent (' + periodLbl + ')';
-				if ($('wallet-activity-in')) $('wallet-activity-in').textContent = fmt(inV, 6) + ' HMC';
-				if ($('wallet-activity-out')) $('wallet-activity-out').textContent = fmt(outV, 6) + ' HMC';
-				if ($('wallet-activity-net')) $('wallet-activity-net').textContent = fmt(netV, 6) + ' HMC';
+				if ($('wallet-activity-in')) $('wallet-activity-in').textContent = fmt(inV, 6) + ' ' + assetSym;
+				if ($('wallet-activity-out')) $('wallet-activity-out').textContent = fmt(outV, 6) + ' ' + assetSym;
+				if ($('wallet-activity-net')) $('wallet-activity-net').textContent = fmt(netV, 6) + ' ' + assetSym;
 				if ($('wallet-activity-txcount')) $('wallet-activity-txcount').textContent = fmtUInt(Number(d.tx_count_window || 0));
 				if ($('wallet-activity-source')) {
 					const cu = !!payload.canonical_activity_unavailable;
 					let srcLine =
 						'source: ' + String(payload.source || 'local_db') +
+						' · asset: ' + assetSym +
 						' · peers: ' + (Array.isArray(d.counterparties) ? d.counterparties.length : 0) +
 						' · filter: ' + walletActivityFilter;
 					if (cu) {
@@ -6208,9 +6285,12 @@
 				if (!String(from.value || '').trim()) from.value = walletSnapshot.address;
 			}
 			const nonceEl = $('tx-form-nonce');
-			if (nonceEl) nonceEl.value = String(walletSnapshot.nextNonce || 0);
+			const nonceVal = walletTransferAsset() === 'sup'
+				? Number(walletSnapshot.supNextNonce || 0)
+				: Number(walletSnapshot.nextNonce || 0);
+			if (nonceEl) nonceEl.value = String(nonceVal);
 			if ($('tx-from')) $('tx-from').value = walletSnapshot.address || '';
-			if ($('tx-nonce')) $('tx-nonce').value = String(walletSnapshot.nextNonce || 0);
+			if ($('tx-nonce')) $('tx-nonce').value = String(nonceVal);
 		}
 
 		function hmcFloatToUnits(v) {
@@ -6229,8 +6309,9 @@
 			const pub = String($('tx-form-pub') && $('tx-form-pub').value || '').trim();
 			const sig = String($('tx-form-sig') && $('tx-form-sig').value || '').trim();
 			const amount_units = hmcFloatToUnits(amountH);
+			const asset = walletTransferAsset();
 			const tx = {
-				tx_type: 'transfer_v1',
+				tx_type: asset === 'sup' ? 'transfer_sup_v1' : 'transfer_v1',
 				from,
 				to,
 				amount_units,
@@ -6238,7 +6319,8 @@
 				timestamp_unix: Math.floor(Date.now() / 1000),
 			};
 			if (!walletSimpleMode) {
-				tx.nonce = Math.max(0, Math.floor(Number($('tx-form-nonce') && $('tx-form-nonce').value) || 0));
+				const nonceRaw = Math.max(0, Math.floor(Number($('tx-form-nonce') && $('tx-form-nonce').value) || 0));
+				tx.nonce = nonceRaw;
 			}
 			if (pub) tx.pubkey_ed25519 = pub;
 			if (sig) tx.sig_ed25519 = sig;
@@ -6302,7 +6384,9 @@
 
 		function txFormFillMaxMinusFee() {
 			const fee = Math.max(MIN_TX_FEE_UNITS, Math.floor(Number($('tx-form-fee') && $('tx-form-fee').value) || MIN_TX_FEE_UNITS));
-			const bu = Math.floor(Number(walletSnapshot.balanceUnits) || 0);
+			const bu = walletTransferAsset() === 'sup'
+				? Math.floor(Number(walletSnapshot.balanceSUPUnits) || 0)
+				: Math.floor(Number(walletSnapshot.balanceUnits) || 0);
 			const maxAmt = bu > fee ? (bu - fee) : 0;
 			const am = $('tx-form-amount-hmc');
 			if (am) am.value = String(maxAmt / UNITS_PER_HMC);
@@ -6474,6 +6558,8 @@
 			txFormSetValidation('');
 			await ensureWalletAdminToken();
 			const btn = $('btn-tx-send');
+			const asset = walletTransferAsset();
+			const sendPath = asset === 'sup' ? '/api/sup/tx/send' : '/api/tx/send';
 			let bodyObj;
 			if (txFormAdvanced && $('tx-json-input')) {
 				try {
@@ -6484,7 +6570,10 @@
 				}
 			} else {
 				const addrOk = walletKnownAddress().startsWith('HMC-');
-				if (!addrOk || !(Number(walletSnapshot.nextNonce) >= 0)) {
+				const nonceReady = asset === 'sup'
+					? Number(walletSnapshot.supNextNonce) >= 0
+					: Number(walletSnapshot.nextNonce) >= 0;
+				if (!addrOk || !nonceReady) {
 					try {
 						const wr = await fetchWithTimeout('/api/wallet', { cache: 'no-store', headers: adminHeaders() }, 12000);
 						if (wr.ok) {
@@ -6492,7 +6581,9 @@
 							if (!wj.public_redacted) {
 								walletSnapshot.address = String(wj.address || walletSnapshot.address || '').trim();
 								walletSnapshot.nextNonce = Number(wj.next_nonce || walletSnapshot.nextNonce || 0);
+								walletSnapshot.supNextNonce = Number(wj.sup_next_nonce || walletSnapshot.supNextNonce || 0);
 								walletSnapshot.balanceUnits = Number(wj.balance_units || walletSnapshot.balanceUnits || 0);
+								walletSnapshot.balanceSUPUnits = Number(wj.balance_sup_units || walletSnapshot.balanceSUPUnits || 0);
 								syncTxFormFromWalletSnapshot();
 							}
 						}
@@ -6516,8 +6607,11 @@
 				}
 				bodyObj = tx;
 			}
-			const amountHmc = Number(bodyObj.amount_units || 0) / UNITS_PER_HMC;
-			const startNonce = Math.floor(Number(walletSnapshot.nextNonce) || 0);
+			const amountCoin = Number(bodyObj.amount_units || 0) / UNITS_PER_HMC;
+			const startNonce = asset === 'sup'
+				? Math.floor(Number(walletSnapshot.supNextNonce) || 0)
+				: Math.floor(Number(walletSnapshot.nextNonce) || 0);
+			const assetSym = asset === 'sup' ? 'SUP' : 'HMC';
 			txTrackPanel(true);
 			txTrackSetProgress(8);
 			txTrackSetPhase('Broadcasting', 'Signing locally and submitting to hackme.tech canonical…');
@@ -6525,7 +6619,7 @@
 			if (btn) btn.disabled = true;
 			txSendInFlight = true;
 			try {
-				const r = await fetchWithTimeout('/api/tx/send', {
+				const r = await fetchWithTimeout(sendPath, {
 					method: 'POST',
 					headers: Object.assign({ 'Content-Type': 'application/json' }, adminHeaders()),
 					body: JSON.stringify(bodyObj),
@@ -6539,7 +6633,7 @@
 				if (j && j.code === 'invalid_nonce') {
 					hint = ' — refresh wallet (pending tx may have consumed this nonce); retry Send';
 				}
-				if (j && j.code === 'canonical_nonce_unavailable') {
+				if (j && (j.code === 'canonical_nonce_unavailable' || j.code === 'canonical_sup_nonce_unavailable')) {
 					hint = ' — check network/VPN to hackme.tech; retry in a few seconds';
 				}
 				if (j && (j.code === 'canonical_unreachable' || r.status === 401)) {
@@ -6555,9 +6649,10 @@
 					const track = {
 						tx_hash: txHash,
 						started_ms: Date.now(),
-						amount_hmc: amountHmc,
+						amount_hmc: amountCoin,
 						start_nonce: startNonce,
 						to: String(bodyObj.to || ''),
+						asset: assetSym,
 					};
 					txTrackSave(track);
 					startTransferConfirmationTrack(track);
@@ -6583,8 +6678,11 @@
 		async function refreshTxPoolTable() {
 			const tb = $('tx-pool-rows');
 			if (!tb) return;
+			const asset = walletTransferAsset();
+			const assetSym = walletActivityAssetSym();
+			const poolPath = asset === 'sup' ? '/api/sup/tx/pool' : '/api/tx/pool';
 			try {
-				const r = await fetch('/api/tx/pool', { cache: 'no-store', headers: adminHeaders() });
+				const r = await fetch(poolPath, { cache: 'no-store', headers: adminHeaders() });
 				const txt = await r.text();
 				let rows = [];
 				if (r.ok) {
@@ -6597,11 +6695,13 @@
 				const cnt = $('tx-pool-count');
 				if (!rows.length) {
 					if (cnt) cnt.textContent = 'empty';
-					tb.innerHTML = '<tr><td colspan="7" class="px-3 py-3 text-gray-600 text-center">No pending txs</td></tr>';
+					tb.innerHTML = '<tr><td colspan="7" class="px-3 py-3 text-gray-600 text-center">No pending ' + assetSym + ' txs</td></tr>';
 					return;
 				}
-				if (cnt) cnt.textContent = rows.length + ' pending';
-				const expectNonce = Math.floor(Number(walletSnapshot.nextNonce) || 0);
+				if (cnt) cnt.textContent = rows.length + ' pending · ' + assetSym;
+				const expectNonce = asset === 'sup'
+					? Math.floor(Number(walletSnapshot.supNextNonce) || 0)
+					: Math.floor(Number(walletSnapshot.nextNonce) || 0);
 				if (expectNonce > 0) {
 					rows = rows.filter((t) => {
 						const n = t.nonce != null ? Math.floor(Number(t.nonce)) : -1;
@@ -6625,7 +6725,7 @@
 						'<td class="px-2 py-1.5 truncate max-w-[140px]" title="' + escapeHtml(h) + '">' + escapeHtml(h.length > 20 ? h.slice(0, 18) + '…' : h) + '</td>' +
 						'<td class="px-2 py-1.5 truncate max-w-[100px]" title="' + escapeHtml(from) + '">' + escapeHtml(from) + '</td>' +
 						'<td class="px-2 py-1.5 truncate max-w-[100px]" title="' + escapeHtml(to) + '">' + escapeHtml(to) + '</td>' +
-						'<td class="px-2 py-1.5">' + escapeHtml(fmt(amt, 6)) + '</td>' +
+						'<td class="px-2 py-1.5">' + escapeHtml(fmt(amt, 6) + ' ' + assetSym) + '</td>' +
 						'<td class="px-2 py-1.5">' + escapeHtml(String(fee)) + '</td>' +
 						'<td class="px-2 py-1.5">' + escapeHtml(nonce) + '</td>' +
 						'<td class="px-2 py-1.5">' + escapeHtml(stShow) + '</td>';
@@ -6868,7 +6968,10 @@
 			if ($('btn-tx-fill-max')) $('btn-tx-fill-max').addEventListener('click', () => { txFormFillMaxMinusFee(); if (txFormAdvanced) syncTransferJsonFromForm(); });
 			if ($('btn-tx-use-wallet-nonce')) $('btn-tx-use-wallet-nonce').addEventListener('click', () => {
 				const n = $('tx-form-nonce');
-				if (n) n.value = String(walletSnapshot.nextNonce || 0);
+				const nonceVal = walletTransferAsset() === 'sup'
+					? Number(walletSnapshot.supNextNonce || 0)
+					: Number(walletSnapshot.nextNonce || 0);
+				if (n) n.value = String(nonceVal);
 				txFormUpdatePreview();
 				if (txFormAdvanced) syncTransferJsonFromForm();
 			});
@@ -7122,6 +7225,10 @@
 		async function refreshWalletEarnings() {
 			const q = walletEarningsQueryParams();
 			const periodLbl = walletEarningsPeriodLabel();
+			const asset = walletTransferAsset();
+			const assetSym = asset === 'sup' ? 'SUP' : 'HMC';
+			const settledLbl = asset === 'sup' ? 'Pool minted' : 'Worker settled';
+			const earnPath = asset === 'sup' ? '/api/sup/earnings?' : '/api/wallet/earnings?';
 			try {
 				await ensureWalletAdminToken();
 				const earnAddr = walletKnownAddress();
@@ -7129,7 +7236,7 @@
 					'window_hours=' + encodeURIComponent(String(q.window_hours)) +
 					'&bucket_sec=' + encodeURIComponent(String(q.bucket_sec)) +
 					(earnAddr.startsWith('HMC-') ? '&address=' + encodeURIComponent(earnAddr) : '');
-				const er = await fetchWithTimeout('/api/wallet/earnings?' + earnQ, { headers: adminHeaders() }, 12000);
+				const er = await fetchWithTimeout(earnPath + earnQ, { headers: adminHeaders() }, 12000);
 				if (!er.ok) throw new Error('wallet_earnings_unavailable');
 				const payload = await er.json();
 				let d = payload && payload.data != null ? payload.data : null;
@@ -7153,18 +7260,20 @@
 				if ($('wallet-earnings-label-net')) $('wallet-earnings-label-net').textContent = rolling24 ? 'Net (rolling 24h)' : 'Net (' + periodLbl + ')';
 				if ($('wallet-earnings-label-in')) $('wallet-earnings-label-in').textContent = rolling24 ? 'Received (rolling 24h)' : 'Received (' + periodLbl + ')';
 				if ($('wallet-earnings-label-out')) $('wallet-earnings-label-out').textContent = rolling24 ? 'Spent (rolling 24h)' : 'Spent (' + periodLbl + ')';
-				if ($('wallet-earnings-label-settled')) $('wallet-earnings-label-settled').textContent = rolling24 ? 'Worker settled (rolling 24h)' : 'Worker settled (' + periodLbl + ')';
+				if ($('wallet-earnings-label-settled')) {
+					$('wallet-earnings-label-settled').textContent = rolling24 ? settledLbl + ' (rolling 24h)' : settledLbl + ' (' + periodLbl + ')';
+				}
 
-				if ($('wallet-earnings-day-net')) $('wallet-earnings-day-net').textContent = fmt(netV, 6) + ' HMC';
-				if ($('wallet-earnings-day-in')) $('wallet-earnings-day-in').textContent = fmt(inV, 6) + ' HMC';
-				if ($('wallet-earnings-day-out')) $('wallet-earnings-day-out').textContent = fmt(outV, 6) + ' HMC';
-				if ($('wallet-earnings-day-settled')) $('wallet-earnings-day-settled').textContent = fmt(settledV, 6) + ' HMC';
+				if ($('wallet-earnings-day-net')) $('wallet-earnings-day-net').textContent = fmt(netV, 6) + ' ' + assetSym;
+				if ($('wallet-earnings-day-in')) $('wallet-earnings-day-in').textContent = fmt(inV, 6) + ' ' + assetSym;
+				if ($('wallet-earnings-day-out')) $('wallet-earnings-day-out').textContent = fmt(outV, 6) + ' ' + assetSym;
+				if ($('wallet-earnings-day-settled')) $('wallet-earnings-day-settled').textContent = fmt(settledV, 6) + ' ' + assetSym;
 
 				if ($('wallet-earnings-total-note')) {
 					const bsec = Number(d.bucket_sec || q.bucket_sec);
 					const bucketHuman = bsec >= 86400 ? '1d' : String(Math.round(bsec / 3600)) + 'h';
 					$('wallet-earnings-total-note').textContent =
-						'window Σ net: ' + fmt(Number(d.total_net_hmc || 0), 6) + ' HMC' +
+						'window Σ net: ' + fmt(Number(d.total_net_hmc || 0), 6) + ' ' + assetSym +
 						' | txs: ' + fmtUInt(txLbl) +
 						' | bucket ' + bucketHuman +
 						' | src ' + String(payload.source || 'local_db');
@@ -7172,12 +7281,12 @@
 
 				if ($('wallet-earnings-sync-hint')) {
 					const fh = payload.fork_hint;
-					const cu = !!payload.canonical_earnings_unavailable;
+					const cu = !!(payload.canonical_earnings_unavailable);
 					const el = $('wallet-earnings-sync-hint');
 					const parts = [];
 					if (cu) {
 						parts.push(
-							'Canonical /api/wallet/earnings unavailable — chart from local SQLite. Curl fallback tried; check HACKME_CANONICAL_CHAIN_URL / TLS / peer returns 200 for same query.'
+							'Canonical ' + earnPath.split('?')[0] + ' unavailable — chart from local SQLite. Check canonical URL / TLS / peer returns 200 for same query.'
 						);
 					}
 					if (fh && fh.sync_blocked) {
@@ -7206,11 +7315,13 @@
 
 				if ($('wallet-earnings-timeline')) {
 					const tail = rolling24 ? buckets.slice(-12) : buckets.slice(-14);
-					const unpaidSnap = latestWorkerSettlementSnap ? Number(latestWorkerSettlementSnap.wallet_unpaid_hmc || 0) : 0;
+					const unpaidSnap = asset === 'sup'
+						? (latestWorkerSettlementSnap ? Number(latestWorkerSettlementSnap.wallet_unpaid_sup || 0) : 0)
+						: (latestWorkerSettlementSnap ? Number(latestWorkerSettlementSnap.wallet_unpaid_hmc || 0) : 0);
 					if (!tail.length) {
-						let tl = 'No on-chain transfers in selected window';
+						let tl = 'No on-chain ' + assetSym + ' movement in selected window';
 						if (unpaidSnap > 1e-9) {
-							tl += ' · pool accrual ~' + fmt(unpaidSnap, 6) + ' HMC (unsettled)';
+							tl += ' · pool accrual ~' + fmt(unpaidSnap, 6) + ' ' + assetSym + ' (unsettled)';
 						}
 						$('wallet-earnings-timeline').textContent = tl;
 					} else {
