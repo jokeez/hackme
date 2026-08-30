@@ -35,7 +35,8 @@
       <p class="hero-copy">
         Campaigns live under <span class="code-inline">/api/fuzz/campaigns</span> with findings, corpus, runtime telemetry, customer reports, and a machine-readable <strong>gate</strong> for CI.
         <strong>Customers:</strong> <span class="code-inline">hackme-fuzzing wizard --pack secrets --package audit</span>
-        or classic <span class="code-inline">--wasm guard.wasm</span> on a local node.
+        (product SKU <strong>Dig · Audit</strong>; CLI key <code>audit</code>) or <span class="code-inline">--wasm guard.wasm</span> on a local node dashboard <span class="code-inline">#orders</span>.
+        <strong>Hunt</strong> (repo + ASAN on pool) — Phase 1, not in wizard yet.
         Optional <span class="code-inline">--public-proof</span> publishes a <strong>Proof of Fuzz</strong> facts page + README badge (crash-gate only — not a full audit).
         Canonical Markdown: <span class="code-inline">docs/FUZZ_PRODUCT_GUIDE.md</span> · <span class="code-inline">docs/DEVELOPERS_FUZZING.md</span>.
       </p>
@@ -55,9 +56,9 @@
       </div>
       <ul class="list">
         <li><strong>packs</strong> — ready detectors: <code>secrets</code> · <code>script_bounds</code> · <code>filter_utf8</code> · parser <code>parser_expat</code> — list with <span class="code-inline">hackme-fuzzing packs</span></li>
-        <li><strong>scan</strong> — ~1 HMC · 64 units · 1 exec/unit (wasm smoke)</li>
-        <li><strong>audit</strong> — ~5 HMC · 256 units · 64 exec/unit · pool + native repro path</li>
-        <li><strong>deep</strong> — ~25 HMC · 2048 units · 512 exec/unit local · <strong>64 exec/unit cap</strong> on distributed pool (coordinator replays segment on submit)</li>
+        <li><strong>Scan</strong> (<code>--package scan</code>) — ~1 HMC · 64 runs · wasm smoke · local only</li>
+        <li><strong>Dig · Audit</strong> (<code>--package audit</code>) — ~5 HMC · 256 runs · pool + native repro</li>
+        <li><strong>Dig · Deep</strong> (<code>--package deep</code>) — ~25 HMC · 2048 runs · byte corpus · <strong>64 exec/unit cap</strong> on distributed pool</li>
         <li><strong>coverage_kind</strong> — <code>wasm_edge_bitmap</code> on instrumented detector guards (<code>secrets</code>, <code>filter_utf8</code>, <code>script_bounds</code>) — 256-byte bitmap at linear memory offset <strong>8192</strong> (guided scheduling, <em>not</em> AFL coverage); <code>input_fingerprint</code> on parser packs (<code>parser_expat</code> uses <code>native_repro_mode: oss_upstream</code> — ASAN stdin on pinned libexpat)</li>
         <li><strong>ABI</strong> — <code>check(i64)→i32</code> <em>or</em> <code>check_bytes(ptr,len)→i32</code> when <code>input_mode=bytes</code></li>
       </ul>

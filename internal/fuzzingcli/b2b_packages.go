@@ -32,28 +32,40 @@ var b2bPackages = map[string]B2BPackage{
 		Name: "scan", DepthTier: fuzzengine.DepthWasmOnly,
 		BudgetHMC: 1.0, BudgetRuns: 64, BudgetSeconds: 900,
 		PoolDistributed: false, CreatePoHOrder: false,
-		Summary:     "WASM smoke — local quick check, no native/ASAN repro, no pool PoH",
+		Summary:     "Scan · WASM smoke — local quick check, no native/ASAN repro, no pool PoH",
 		SignalTypes: []string{"wasm_smoke"},
 	},
 	"audit": {
 		Name: "audit", DepthTier: fuzzengine.DepthWasmNative,
 		BudgetHMC: 5.0, BudgetRuns: 256, BudgetSeconds: 28800, // ~8h SLA window
 		PoolDistributed: true, CreatePoHOrder: true, RewardHMC: 0.05,
-		Summary:     "WASM + native/ASAN repro path — pool fuzz with PoH attach",
+		Summary:     "Dig · Audit — WASM + native/ASAN repro path, pool fuzz with PoH attach",
 		SignalTypes: []string{"wasm_check", "native_repro"},
 	},
 	"deep": {
 		Name: "deep", DepthTier: fuzzengine.DepthBytesCorpus,
 		BudgetHMC: 25.0, BudgetRuns: 2048, BudgetSeconds: 86400, // 24h hours-scale
 		PoolDistributed: true, CreatePoHOrder: true, RewardHMC: 0.05,
-		Summary:        "Byte corpus + heavy mutation — hours-scale budget, signals beyond Audit",
+		Summary:        "Dig · Deep — byte corpus + heavy mutation, hours-scale budget, signals beyond Audit",
 		SignalTypes:    []string{"byte_corpus", "structured_mutation", "corpus_scheduling", "segment_exec", "native_repro"},
 		MutationRounds: 12,
 		CoverageGuided: true,
 	},
 }
 
-// B2BPackageFor resolves scan|audit|deep (aliases: starter, pro, enterprise).
+// B2BPackageDisplayName maps internal package key to customer SKU label.
+func B2BPackageDisplayName(name string) string {
+	switch strings.TrimSpace(strings.ToLower(name)) {
+	case "scan", "starter":
+		return "Scan"
+	case "audit", "pro":
+		return "Dig · Audit"
+	case "deep", "enterprise":
+		return "Dig · Deep"
+	default:
+		return name
+	}
+}
 func B2BPackageFor(name string) (B2BPackage, error) {
 	key := strings.TrimSpace(strings.ToLower(name))
 	switch key {

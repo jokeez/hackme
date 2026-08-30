@@ -6,13 +6,17 @@ HackMe **B2B security fuzz** runs on your **local node** (`127.0.0.1:8080`). The
 
 ---
 
-## 1) Packages (Scan · Audit · Deep)
+## 1) Product SKUs (Scan · Dig)
 
-| Package | HMC | Runs | exec/unit (local) | Pool | Best for |
-|---------|-----|------|-------------------|------|----------|
-| **scan** | ~1 | 64 | 1 | local only | CI smoke, nightly guard |
-| **audit** | ~5 | 256 | 64 | yes | Protocol guards, DeFi invariants |
-| **deep** | ~25 | 2048 | 512 | yes* | Byte corpus, hours-scale campaign |
+CLI/API keys stay `scan` | `audit` | `deep`. Customer-facing names:
+
+| SKU | CLI `--package` | HMC | Runs | Pool | Best for |
+|-----|-----------------|-----|------|------|----------|
+| **Scan** | `scan` | ~1 | 64 | local only | CI smoke, nightly guard |
+| **Dig · Audit** | `audit` | ~5 | 256 | yes | Protocol guards, DeFi invariants |
+| **Dig · Deep** | `deep` | ~25 | 2048 | yes* | Byte corpus, hours-scale campaign |
+
+**Hunt** (repo + ASAN on pool, 50/50 escrow) — Phase 1; spec: [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md).
 
 \* **Distributed pool cap:** on hub workers, `exec_per_unit` is capped at **64** per work item (Deep 512 runs locally on autorunner). Coordinator **replays** the segment on submit — miners do not cryptographically attest every exec.
 
@@ -118,5 +122,6 @@ MODE=lang_static bash scripts/tests/run_daily.sh
 ## 10) Related docs
 
 - [DEVELOPERS_FUZZING.md](DEVELOPERS_FUZZING.md) — localhost model, auth, CLI
-- [FUZZ_ESCROW_20_80.md](FUZZ_ESCROW_20_80.md) — 20/80 split
+- [FUZZ_ESCROW_20_80.md](FUZZ_ESCROW_20_80.md) — Dig/Scan 20/80 split
+- [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md) — Hunt 50/50 (Phase 1)
 - [FUZZING_B2B_SECURITY_VERDICT.md](FUZZING_B2B_SECURITY_VERDICT.md) — threat model

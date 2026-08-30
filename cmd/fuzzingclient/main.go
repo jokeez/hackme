@@ -111,7 +111,8 @@ func usage() {
   hackme-fuzzing status --campaign ID [--order ORDER_ID] [--report-token TOKEN]
 
   Happy path: register --save → wizard --pack secrets [--public-proof] → status → gate/report/proof
-  Packages: scan=WASM smoke · audit=WASM+native/ASAN · deep=byte corpus (hours-scale)
+  Product SKUs (--package): scan=Scan · audit=Dig Audit · deep=Dig Deep  (CLI keys unchanged)
+  Hunt (repo + ASAN on pool) — Phase 1; not in wizard yet
   Packs: secrets · script_bounds · filter_utf8 (no custom rule — we ship the detector WASM)
   Proof of Fuzz: opt-in public facts + badge (crash-gate CLEAN/FAIL; not a full audit)
   Primary deliverable: CI gate pass/fail (not finding spam)

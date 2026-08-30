@@ -1360,7 +1360,9 @@
 							<span class="text-neon tracking-widest">SECURE</span>
 						</div>
 						<span id="hdr-link" class="hidden sm:inline text-[9px] px-2 py-0.5 rounded border border-matrix/30 text-matrix/90 bg-matrix/5 font-mono" title="Last metrics poll">link —</span>
-						<span id="hdr-admin-pill" class="hidden text-[9px] px-2 py-0.5 rounded border border-warn/40 text-warn uppercase tracking-widest" title="HACKME_ADMIN_TOKEN active">auth</span>
+						<span id="hdr-admin-pill" class="hidden text-[9px] px-2 py-0.5 rounded border border-warn/40 text-warn uppercase tracking-widest" title="Admin token in session">admin</span>
+						<span id="hdr-dev-pill" class="hidden text-[9px] px-2 py-0.5 rounded border border-matrix/40 text-matrix uppercase tracking-widest" title="Developer token in session">dev</span>
+						<span id="hdr-auth-hint" class="hidden text-[9px] px-2 py-0.5 rounded border border-white/15 text-gray-500 uppercase tracking-widest" title="Save admin or developer token in header">no auth</span>
 						<span id="hdr-ui-mode" class="hidden sm:inline text-[9px] px-2 py-0.5 rounded border border-white/20 text-gray-300 uppercase tracking-widest" title="UI rendering mode">ui: full</span>
 						<span class="hidden sm:inline text-[10px] px-2 py-0.5 rounded border border-neon/25 text-neon/90 bg-neon/5">WASM</span>
 						<span id="chain-id-pill" class="tag-pill text-matrix/90 border-matrix/30">hackme-dev-mainnet</span>
@@ -2441,14 +2443,14 @@
 						<a href="#" class="text-neon/90 underline text-[10px] ml-auto" data-goto-tab="wallet">Wallet breakdown →</a>
 					</div>
 					<div id="orders-security-audit" class="hidden card card-glow rounded-xl p-5 border-neon/30">
-						<h3 class="text-[10px] uppercase tracking-[0.2em] text-neon mb-2">Security audit (recommended)</h3>
-						<p class="text-[11px] text-gray-500 mb-3 leading-relaxed">One click: compile guard → <strong>PoH order</strong> + <strong>distributed fuzz</strong> (20/80 escrow) → <strong>fuzz_report_v2</strong>. Choose depth tier: WASM scan, WASM+native repro, or byte corpus (tx/script class).</p>
+						<h3 class="text-[10px] uppercase tracking-[0.2em] text-neon mb-2">Dig · Security audit (recommended)</h3>
+						<p class="text-[11px] text-gray-500 mb-3 leading-relaxed">One click: compile guard → <strong>PoH order</strong> + <strong>distributed fuzz</strong> (20/80 escrow) → <strong>fuzz_report_v2</strong>. Pick SKU: <strong>Scan</strong> smoke, <strong>Dig Audit</strong>, or <strong>Dig Deep</strong>. <span class="text-gray-600">Hunt (repo + ASAN) — Phase 1.</span></p>
 						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
-							<label class="text-[10px] text-gray-500">Depth tier<br>
+							<label class="text-[10px] text-gray-500">Product SKU<br>
 								<select id="audit-depth-tier" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon">
-									<option value="wasm_only" selected>WASM scan (1 HMC / 64 runs)</option>
-									<option value="wasm_native">WASM + native (5 HMC / 256)</option>
-									<option value="bytes_corpus">Byte corpus deep (~25 HMC / 2048)</option>
+									<option value="wasm_only" selected>Scan · WASM smoke (1 HMC / 64)</option>
+									<option value="wasm_native">Dig · Audit (5 HMC / 256)</option>
+									<option value="bytes_corpus">Dig · Deep (25 HMC / 2048)</option>
 								</select>
 							</label>
 							<label class="text-[10px] text-gray-500">Title<br><input id="audit-title" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" placeholder="My protocol audit" /></label>
@@ -2473,8 +2475,14 @@
     i64.eqz
     if (result i32) i32.const 1 else i32.const 0 end))</textarea>
 						<label class="mt-2 text-[10px] text-gray-500 flex items-center gap-2"><input type="checkbox" id="audit-include-poh" checked class="rounded" /> Include useful-PoW order (miners on pool + fuzz workers)</label>
+						<div id="audit-scope-contract" class="mt-3 rounded-lg border border-white/10 bg-black/35 p-3 text-[10px] text-gray-400 leading-relaxed space-y-1">
+							<p class="text-[9px] uppercase tracking-[0.2em] text-gray-500">Before you pay · scope contract</p>
+							<p id="audit-scope-seeks" class="text-gray-300"><strong class="text-neon/90">We search:</strong> —</p>
+							<p id="audit-scope-skips" class="text-gray-500"><strong class="text-warn/80">We do not promise:</strong> —</p>
+							<p id="audit-scope-clean" class="text-gray-600 font-mono text-[9px]">CLEAN = budget exhausted · not a security guarantee.</p>
+						</div>
 						<div class="mt-3 flex flex-wrap gap-2 items-center">
-							<button type="button" id="btn-audit-run" class="px-5 py-2.5 rounded-lg border border-neon/50 bg-neon/15 text-neon text-[11px] font-display font-bold uppercase tracking-wider hover:bg-neon/25">Run full security audit</button>
+							<button type="button" id="btn-audit-run" class="px-5 py-2.5 rounded-lg border border-neon/50 bg-neon/15 text-neon text-[11px] font-display font-bold uppercase tracking-wider hover:bg-neon/25">Run Dig security audit</button>
 							<button type="button" id="btn-audit-goto-report" class="px-3 py-2 rounded border border-white/20 text-gray-300 text-[10px] uppercase tracking-wider hover:bg-white/5">Open reports</button>
 						</div>
 						<p id="audit-run-msg" class="mt-2 text-[10px] font-mono text-gray-500"></p>
@@ -2482,7 +2490,7 @@
 						<pre id="audit-compile-log" class="hidden mt-2 text-[10px] font-mono text-gray-400 overflow-x-auto whitespace-pre-wrap max-h-28 overflow-y-auto p-2 rounded bg-black/50 border border-white/10"></pre>
 					</div>
 					<div id="orders-poh-advanced-wrap" class="hidden mt-4">
-					<button type="button" id="btn-orders-toggle-poh-advanced" class="mb-2 px-3 py-1.5 rounded border border-white/20 text-gray-400 text-[10px] uppercase tracking-wider hover:bg-white/5">Show PoH-only tools (advanced)</button>
+					<button type="button" id="btn-orders-toggle-poh-advanced" class="mb-2 px-4 py-2 rounded-lg border border-matrix/35 bg-matrix/5 text-matrix text-[10px] uppercase tracking-wider hover:bg-matrix/15 font-display font-bold">Pro tools · New order &amp; from_code</button>
 					<div id="orders-admin-create" class="hidden card card-glow rounded-xl p-5 border-matrix/25">
 						<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
 							<h3 class="text-[10px] uppercase tracking-[0.2em] text-gray-500">New order</h3>
@@ -5448,6 +5456,33 @@
 		const securityAuditStoreKey = 'hackme_security_audits';
 		let auditWasmHex = '';
 		let ordersPohAdvancedOpen = false;
+		const proToolsOpenStorageKey = 'hackme_pro_tools_open';
+		function loadProToolsOpenPref() {
+			try {
+				return sessionStorage.getItem(proToolsOpenStorageKey) === '1'
+					|| localStorage.getItem(proToolsOpenStorageKey) === '1';
+			} catch (_) {
+				return false;
+			}
+		}
+		function saveProToolsOpenPref(open) {
+			try {
+				const v = open ? '1' : '0';
+				sessionStorage.setItem(proToolsOpenStorageKey, v);
+				localStorage.setItem(proToolsOpenStorageKey, v);
+			} catch (_) {}
+		}
+		function syncProToolsPanelVisibility() {
+			const ac = $('orders-admin-create');
+			const btn = $('btn-orders-toggle-poh-advanced');
+			if (ac) ac.classList.toggle('hidden', !ordersPohAdvancedOpen);
+			if (btn) {
+				btn.textContent = ordersPohAdvancedOpen
+					? 'Hide Pro tools (New order · from_code)'
+					: 'Pro tools · New order & from_code';
+				btn.setAttribute('aria-expanded', ordersPohAdvancedOpen ? 'true' : 'false');
+			}
+		}
 		function loadSecurityAudits() {
 			try {
 				const raw = localStorage.getItem(securityAuditStoreKey);
@@ -5562,7 +5597,7 @@
 			}
 		}
 		function updateDeveloperTokenUI() {
-			updateOrdersMarketUIMode();
+			updateAdminTokenUI();
 		}
 		let ordersWasmBytes = null;
 		let ordersWasmHash = '';
@@ -5596,15 +5631,39 @@
 			const input = $('admin-token-input');
 			const token = adminTokenCurrent();
 			if (input) input.value = '';
-			const pill = $('hdr-admin-pill') || $('pill-admin');
-			if (pill) {
+			const adminPill = $('hdr-admin-pill');
+			const devPill = $('hdr-dev-pill');
+			const authHint = $('hdr-auth-hint');
+			const devTok = developerTokenCurrent();
+			if (adminPill) {
 				if (token) {
-					pill.textContent = 'auth';
-					pill.title = 'Admin token loaded in session';
-					pill.classList.remove('hidden');
+					adminPill.textContent = 'admin ✓';
+					adminPill.title = 'Admin token loaded — full fuzz ops + Pro tools';
+					adminPill.className = 'text-[9px] px-2 py-0.5 rounded border border-neon/50 text-neon bg-neon/10 uppercase tracking-widest';
+					adminPill.classList.remove('hidden');
 				} else {
-					pill.classList.add('hidden');
-					pill.title = 'HACKME_ADMIN_TOKEN / session admin token';
+					adminPill.classList.add('hidden');
+					adminPill.title = 'HACKME_ADMIN_TOKEN / Save in header';
+				}
+			}
+			if (devPill) {
+				if (devTok) {
+					devPill.textContent = 'dev ✓';
+					devPill.title = 'Developer token — Security audit + orders (no full fuzz admin)';
+					devPill.className = 'text-[9px] px-2 py-0.5 rounded border border-matrix/50 text-matrix bg-matrix/10 uppercase tracking-widest';
+					devPill.classList.remove('hidden');
+				} else {
+					devPill.classList.add('hidden');
+				}
+			}
+			if (authHint) {
+				const onLoopback = /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/i.test(String(location.origin || ''));
+				if (!token && !devTok && onLoopback) {
+					authHint.textContent = 'no auth';
+					authHint.title = 'Save admin or developer token (header) to create audits';
+					authHint.classList.remove('hidden');
+				} else {
+					authHint.classList.add('hidden');
 				}
 			}
 			refreshFuzzAdminActionState();
@@ -5922,8 +5981,7 @@
 			if (auditBlock) auditBlock.classList.toggle('hidden', !canCreate);
 			const pohWrap = $('orders-poh-advanced-wrap');
 			if (pohWrap) pohWrap.classList.toggle('hidden', !admin);
-			const adminCreate = $('orders-admin-create');
-			if (adminCreate && !ordersPohAdvancedOpen) adminCreate.classList.add('hidden');
+			syncProToolsPanelVisibility();
 			const fuzzBanner = $('fuzz-market-banner');
 			const fuzzAdmin = $('fuzz-admin-only');
 			const fuzzCustomer = $('fuzz-customer-only');
@@ -12947,6 +13005,43 @@
 			const p = presets[tier] || presets.wasm_only;
 			if ($('audit-budget-hmc')) $('audit-budget-hmc').value = String(p.hmc);
 			if ($('audit-runs')) $('audit-runs').value = String(p.runs);
+			updateAuditScopeContract();
+		}
+		function updateAuditScopeContract() {
+			const tier = String(($('audit-depth-tier') && $('audit-depth-tier').value) || 'wasm_only');
+			const seeks = $('audit-scope-seeks');
+			const skips = $('audit-scope-skips');
+			const contracts = {
+				wasm_only: {
+					seek: 'WASM guard traps, script/utf8/secrets-style detector signals, quick smoke invariants.',
+					skip: 'Native ASAN/UBSAN, full repo crawl, CVE ID, «fully secure» proof.',
+				},
+				wasm_native: {
+					seek: 'WASM + native repro path, guard signals with Go-port/ASAN confirmation where configured.',
+					skip: 'Whole-repository Hunt, guaranteed new CVE, logic bugs without oracle.',
+				},
+				bytes_corpus: {
+					seek: 'Byte corpus + heavy mutation, segment exec, native repro on pinned harness logic.',
+					skip: 'Arbitrary closed-source repo without guard, CVE guarantee, infinite runtime.',
+				},
+			};
+			const c = contracts[tier] || contracts.wasm_only;
+			if (seeks) {
+				while (seeks.firstChild) seeks.removeChild(seeks.firstChild);
+				const strong = document.createElement('strong');
+				strong.className = 'text-neon/90';
+				strong.textContent = 'We search:';
+				seeks.appendChild(strong);
+				seeks.appendChild(document.createTextNode(' ' + c.seek));
+			}
+			if (skips) {
+				while (skips.firstChild) skips.removeChild(skips.firstChild);
+				const strong = document.createElement('strong');
+				strong.className = 'text-warn/80';
+				strong.textContent = 'We do not promise:';
+				skips.appendChild(strong);
+				skips.appendChild(document.createTextNode(' ' + c.skip));
+			}
 		}
 
 		function fuzzCampaignProgressMeta(c, samples) {
@@ -13318,14 +13413,13 @@
 			}
 			if ($('audit-depth-tier')) {
 				$('audit-depth-tier').addEventListener('change', applyAuditDepthTierPreset);
+				applyAuditDepthTierPreset();
 			}
 			if ($('btn-orders-toggle-poh-advanced')) {
 				$('btn-orders-toggle-poh-advanced').addEventListener('click', () => {
 					ordersPohAdvancedOpen = !ordersPohAdvancedOpen;
-					const ac = $('orders-admin-create');
-					const btn = $('btn-orders-toggle-poh-advanced');
-					if (ac) ac.classList.toggle('hidden', !ordersPohAdvancedOpen);
-					if (btn) btn.textContent = ordersPohAdvancedOpen ? 'Hide PoH-only tools' : 'Show PoH-only tools (advanced)';
+					saveProToolsOpenPref(ordersPohAdvancedOpen);
+					syncProToolsPanelVisibility();
 				});
 			}
 		}
@@ -14667,7 +14761,8 @@
 			try {
 				initDashboardWhatsNew();
 				await syncDesktopAdminTokenFromNode();
-				applyUIPrefs();
+				ordersPohAdvancedOpen = loadProToolsOpenPref();
+				syncProToolsPanelVisibility();
 				markTechnicalNotranslate(document);
 				updateQuickButtons();
 				setWalletSimpleMode(walletSimpleMode);

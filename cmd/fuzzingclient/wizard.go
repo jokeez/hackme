@@ -87,9 +87,9 @@ func doWizard(base string, args []string) error {
 	campTitle := strings.TrimSpace(*title)
 	if campTitle == "" {
 		if havePack {
-			campTitle = "HackMe pack · " + pack.Title
+			campTitle = "HackMe Dig · " + pack.Title
 		} else {
-			campTitle = "HackMe fuzz audit"
+			campTitle = "HackMe Dig audit"
 		}
 	}
 
@@ -171,6 +171,7 @@ func doWizard(base string, args []string) error {
 	out := map[string]any{
 		"ok":                    true,
 		"package":               pkg.Name,
+		"product_sku":           fuzzingcli.B2BPackageDisplayName(pkg.Name),
 		"package_summary":       pkg.Summary,
 		"signal_types":          pkg.SignalTypes,
 		"depth_tier":            payload["depth_tier"],

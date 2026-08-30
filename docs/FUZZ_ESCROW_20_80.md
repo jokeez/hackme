@@ -1,5 +1,7 @@
 # Fuzz campaign escrow (20/80 hybrid)
 
+> **Hunt campaigns** use a separate **50/50** split — see [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md). Below applies to **Dig / Scan** (and legacy campaigns).
+
 ## Split
 
 | Pool | Share | Pays when |
