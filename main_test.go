@@ -179,7 +179,7 @@ func TestClientIPFromRemoteAddr(t *testing.T) {
 func TestClientIPFromXForwardedForWhenTrusted(t *testing.T) {
 	t.Setenv("HACKME_TRUST_X_FORWARDED_FOR", "1")
 	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
-	req.RemoteAddr = "10.10.10.10:9999"
+	req.RemoteAddr = "127.0.0.1:9999"
 	req.Header.Set("X-Forwarded-For", "203.0.113.9, 10.0.0.1")
 	if got := clientIP(req); got != "203.0.113.9" {
 		t.Fatalf("clientIP=%q", got)
