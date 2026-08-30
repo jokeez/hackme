@@ -637,3 +637,118 @@ func (s *Service) applyPendingSupTransfers(ctx context.Context, txq queryRowExec
 	}
 	return nil
 }
+
+// SupTransferEvent is one inbound/outbound SUP transfer for activity feeds.
+type SupTransferEvent struct {
+	TxHash       string  `json:"tx_hash"`
+	Direction    string  `json:"direction"`
+	Counterparty string  `json:"counterparty"`
+	AmountSUP    float64 `json:"amount_sup"`
+	AmountUnits  uint64  `json:"amount_units"`
+	FeeSUP       float64 `json:"fee_sup"`
+	AppliedUnix  int64   `json:"applied_unix"`
+	Memo         string  `json:"memo,omitempty"`
+}
+
+// SupActivitySummary lists recent SUP ledger transfers for an HMC-format address.
+func (s *Service) SupActivitySummary(ctx context.Context, address string, windowHours, recentLimit int) (WalletActivitySummary, error) {
+	addr := strings.TrimSpace(address)
+	if windowHours <= 0 {
+		windowHours = 24
+	}
+	if windowHours > 24*90 {
+		windowHours = 24 * 90
+	}
+	if recentLimit <= 0 {
+		recentLimit = 40
+	}
+	if recentLimit > 200 {
+		recentLimit = 200
+	}
+	nowUnix := time.Now().Unix()
+	windowStart := nowUnix - int64(windowHours*3600)
+
+	recent := make([]WalletTransferEvent, 0, recentLimit)
+	var totalRecv, totalSent uint64
+	var txWindow int64
+
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT tx_hash, from_address, to_address, amount_units, fee_units, applied_at, tx_json
+		 FROM sup_tx_history
+		 WHERE status='included'
+		   AND (from_address = ? OR to_address = ?)
+		   AND applied_at >= ?
+		 ORDER BY applied_at DESC`,
+		addr, addr, windowStart,
+	)
+	if err != nil {
+		return WalletActivitySummary{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var txHash, fromAddr, toAddr, txJSON string
+		var amountUnits, feeUnits uint64
+		var appliedAt int64
+		if err := rows.Scan(&txHash, &fromAddr, &toAddr, &amountUnits, &feeUnits, &appliedAt, &txJSON); err != nil {
+			return WalletActivitySummary{}, err
+		}
+		txWindow++
+		var memo struct {
+			Memo string `json:"memo"`
+		}
+		_ = json.Unmarshal([]byte(txJSON), &memo)
+		memoStr := strings.TrimSpace(memo.Memo)
+		peer := strings.TrimSpace(fromAddr)
+
+		if strings.EqualFold(strings.TrimSpace(toAddr), addr) {
+			totalRecv += amountUnits
+			if len(recent) < recentLimit {
+				recent = append(recent, WalletTransferEvent{
+					TxHash:       txHash,
+					Direction:    "in",
+					Counterparty: peer,
+					AmountHMC:    UnitsToSUP(amountUnits),
+					AmountUnits:  amountUnits,
+					FeeHMC:       UnitsToSUP(feeUnits),
+					AppliedUnix:  appliedAt,
+					Memo:         memoStr,
+				})
+			}
+		}
+		if strings.EqualFold(strings.TrimSpace(fromAddr), addr) {
+			spend := amountUnits + feeUnits
+			if spend < amountUnits {
+				spend = amountUnits
+			}
+			totalSent += spend
+			peer = strings.TrimSpace(toAddr)
+			if len(recent) < recentLimit {
+				recent = append(recent, WalletTransferEvent{
+					TxHash:       txHash,
+					Direction:    "out",
+					Counterparty: peer,
+					AmountHMC:    UnitsToSUP(amountUnits),
+					AmountUnits:  amountUnits,
+					FeeHMC:       UnitsToSUP(feeUnits),
+					AppliedUnix:  appliedAt,
+					Memo:         memoStr,
+				})
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return WalletActivitySummary{}, err
+	}
+
+	return WalletActivitySummary{
+		Address:          addr,
+		WindowHours:      windowHours,
+		NowUnix:          nowUnix,
+		TotalReceivedHMC: UnitsToSUP(totalRecv),
+		TotalSentHMC:     UnitsToSUP(totalSent),
+		TotalNetHMC:      UnitsToSUP(totalRecv) - UnitsToSUP(totalSent),
+		TxCountWindow:    txWindow,
+		Recent:           recent,
+	}, nil
+}

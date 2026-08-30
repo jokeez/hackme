@@ -65,6 +65,9 @@ func TestWalletActivitySummaryCounterparties(t *testing.T) {
 	if len(sum.Recent) != 3 {
 		t.Fatalf("recent: %d", len(sum.Recent))
 	}
+	if sum.Recent[0].AmountUnits == 0 {
+		t.Fatalf("missing amount_units on recent event: %+v", sum.Recent[0])
+	}
 	foundIn := false
 	for _, cp := range sum.Counterparties {
 		if cp.Peer == addrIn && cp.TxCount == 2 && cp.ReceivedHMC > 1.4 {

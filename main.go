@@ -556,6 +556,7 @@ func main() {
 	mux.HandleFunc("/api/sup/mint", a.handleSUPMint)
 	mux.HandleFunc("/api/sup/burn", a.handleSUPBurn)
 	mux.HandleFunc("/api/sup/tx/send", a.handleSUPTransferSend)
+	mux.HandleFunc("/api/sup/activity", a.handleSUPActivity)
 	mux.HandleFunc("/api/hms/economics", a.handleHMSEconomics)
 	mux.HandleFunc("/api/hms/genesis", a.handleHMSGenesisInit)
 	mux.HandleFunc("/api/hms/mint", a.handleHMSMint)
@@ -2139,6 +2140,47 @@ func (a *app) handleWalletActivity(w http.ResponseWriter, r *http.Request) {
 		out["canonical_activity_unavailable"] = true
 	}
 	writeJSON(w, out)
+}
+
+func (a *app) handleSUPActivity(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 40*time.Second)
+	defer cancel()
+	windowHours := 24
+	if v := strings.TrimSpace(r.URL.Query().Get("window_hours")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			windowHours = n
+		}
+	}
+	recentLimit := 40
+	if v := strings.TrimSpace(r.URL.Query().Get("limit")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			recentLimit = n
+		}
+	}
+	recentLimit = clampWalletActivityRecentLimit(recentLimit)
+	actAddr := strings.TrimSpace(a.nodeID)
+	if q := parseOptionalHMCAddress(r.URL.Query().Get("address")); q != "" {
+		actAddr = q
+	}
+	if actAddr == "" {
+		http.Error(w, "address required", http.StatusBadRequest)
+		return
+	}
+	activity, err := a.chain.SupActivitySummary(ctx, actAddr, windowHours, recentLimit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{
+		"ok":     true,
+		"source": "local_db",
+		"asset":  "SUP",
+		"data":   activity,
+	})
 }
 
 func (a *app) handleChain(w http.ResponseWriter, r *http.Request) {

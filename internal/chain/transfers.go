@@ -442,6 +442,7 @@ type WalletTransferEvent struct {
 	Direction    string  `json:"direction"`
 	Counterparty string  `json:"counterparty"`
 	AmountHMC    float64 `json:"amount_hmc"`
+	AmountUnits  uint64  `json:"amount_units"`
 	FeeHMC       float64 `json:"fee_hmc"`
 	AppliedUnix  int64   `json:"applied_unix"`
 	Memo         string  `json:"memo,omitempty"`
@@ -534,6 +535,7 @@ func (s *Service) WalletActivitySummary(ctx context.Context, address string, win
 					Direction:    "in",
 					Counterparty: peer,
 					AmountHMC:    UnitsToHMC(amountUnits),
+					AmountUnits:  amountUnits,
 					FeeHMC:       UnitsToHMC(feeUnits),
 					AppliedUnix:  appliedAt,
 					Memo:         memoStr,
@@ -563,6 +565,7 @@ func (s *Service) WalletActivitySummary(ctx context.Context, address string, win
 					Direction:    "out",
 					Counterparty: peer,
 					AmountHMC:    UnitsToHMC(amountUnits),
+					AmountUnits:  amountUnits,
 					FeeHMC:       UnitsToHMC(feeUnits),
 					AppliedUnix:  appliedAt,
 					Memo:         memoStr,
