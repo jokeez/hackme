@@ -683,7 +683,7 @@ func hardenHTTPHandler(next http.Handler) http.Handler {
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
-		// Baseline CSP: allow current dashboard CDNs + local exchange lab iframe.
+		// Baseline CSP: dashboard CDNs + exchange.hackme.tech paper iframe (+ loopback lab override).
 		// Inline scripts/styles remain (dashboard is one large HTML); self-host Tailwind later.
 		w.Header().Set("Content-Security-Policy", strings.Join([]string{
 			"default-src 'self'",
@@ -692,7 +692,7 @@ func hardenHTTPHandler(next http.Handler) http.Handler {
 			"font-src 'self' https://fonts.gstatic.com data:",
 			"img-src 'self' data: blob:",
 			"connect-src 'self' https: http://127.0.0.1:8080 http://127.0.0.1:18080 http://127.0.0.1:18081 http://127.0.0.1:18082 http://127.0.0.1:18443 http://127.0.0.1:5199 http://localhost:5199",
-			"frame-src 'self' http://127.0.0.1:5199 http://localhost:5199",
+			"frame-src 'self' https://exchange.hackme.tech http://127.0.0.1:5199 http://localhost:5199",
 			"frame-ancestors 'none'",
 			"base-uri 'self'",
 			"form-action 'self'",

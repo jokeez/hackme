@@ -183,7 +183,7 @@
 		.tab-panel { display: block; animation: panelIn 0.2s ease; }
 		body.js-ui .tab-panel { display: none; }
 		body.js-ui .tab-panel.active { display: block; }
-		/* Exchange lab — full-bleed iframe; SPA on :5199. */
+		/* Exchange — full-bleed iframe; default D0 paper SPA on exchange.hackme.tech. */
 		body.dash-tab-exchange .flex-1.flex.flex-col.min-w-0 {
 			min-height: 0;
 			height: 100dvh;
@@ -1307,7 +1307,7 @@
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
 					Wallet
 				</button>
-				<button type="button" data-tab="exchange" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-sm text-gray-500" title="Private lab spot exchange (sidecar :5199)">
+				<button type="button" data-tab="exchange" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-sm text-gray-500" title="Paper spot desk (exchange.hackme.tech)">
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7.5 14.25L3 12m0 0l4.5-2.25M3 12h18m-4.5 2.25L21 12m0 0l-4.5-2.25M21 12H3"/></svg>
 					Exchange
 				</button>
@@ -1421,7 +1421,7 @@
 					<button type="button" class="tab-btn" data-tab="hardware">Hardware tune</button>
 					<button type="button" class="tab-btn" data-tab="chain">Chain</button>
 					<button type="button" class="tab-btn" data-tab="wallet">Wallet</button>
-					<button type="button" class="tab-btn" data-tab="exchange" title="Private lab spot · sidecar :5199">Exchange</button>
+					<button type="button" class="tab-btn" data-tab="exchange" title="Paper spot desk · exchange.hackme.tech">Exchange</button>
 					<button type="button" class="tab-btn" data-tab="reports">Reports</button>
 					<button type="button" class="tab-btn" data-tab="orders">Market</button>
 					<button type="button" class="tab-btn" data-tab="fuzz">Fuzz</button>
@@ -3328,21 +3328,21 @@
 					</div>
 				</div>
 
-				<!-- EXCHANGE (private lab sidecar — SPA outside this repo on :5199) -->
+				<!-- EXCHANGE (D0 paper SPA on exchange.hackme.tech; loopback override via localStorage) -->
 				<div id="panel-exchange" class="tab-panel">
 					<div id="exchange-chrome">
 						<span class="ex-title">Exchange</span>
 						<span class="ex-sep">·</span>
-						<span class="ex-meta" title="Private lab matching · not Market (orders) · not real custody">LAB · paper</span>
+						<span class="ex-meta" title="Paper desk — operator reference mid, not a live CEX">PAPER · REF MID</span>
 						<span id="exchange-lab-status" class="ex-meta">checking…</span>
-						<span class="ex-meta hidden sm:inline" id="exchange-origin-label">http://127.0.0.1:5199</span>
+						<span class="ex-meta hidden sm:inline" id="exchange-origin-label">https://exchange.hackme.tech</span>
 						<span class="ml-auto flex flex-wrap gap-2 items-center">
 							<button type="button" data-goto-tab="wallet" class="text-[10px] px-2.5 py-1 rounded border border-white/15 text-gray-400 hover:text-neon hover:border-neon/35 uppercase tracking-wider">Wallet</button>
 							<button type="button" id="btn-exchange-reload" class="text-[10px] px-2.5 py-1 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Reload</button>
-							<a id="btn-exchange-popout" href="http://127.0.0.1:5199/" target="_blank" rel="noopener noreferrer" class="text-[10px] px-2.5 py-1 rounded border border-matrix/35 text-matrix hover:bg-matrix/10 uppercase tracking-wider no-underline">Pop out</a>
+							<a id="btn-exchange-popout" href="https://exchange.hackme.tech/" target="_blank" rel="noopener noreferrer" class="text-[10px] px-2.5 py-1 rounded border border-matrix/35 text-matrix hover:bg-matrix/10 uppercase tracking-wider no-underline">Pop out</a>
 						</span>
 					</div>
-					<iframe id="exchange-spa-frame" title="HackMe Exchange lab" width="100%" height="100%" referrerpolicy="no-referrer" allow="clipboard-read; clipboard-write" style="width:100%;height:100%;min-width:0;border:1px solid rgba(0,209,255,0.22);border-radius:0.35rem;background:#05070d;"></iframe>
+					<iframe id="exchange-spa-frame" title="HackMe Exchange paper desk" width="100%" height="100%" referrerpolicy="no-referrer" allow="clipboard-read; clipboard-write" style="width:100%;height:100%;min-width:0;border:1px solid rgba(0,209,255,0.22);border-radius:0.35rem;background:#05070d;"></iframe>
 				</div>
 			</main>
 		</div>
@@ -14157,10 +14157,11 @@
 			}
 		}
 
-		/** Private lab exchange SPA (sidecar). Override only loopback origins. */
-		const EXCHANGE_SPA_ORIGIN_DEFAULT = 'http://127.0.0.1:5199';
+		/** Exchange SPA embed — D0 paper host; loopback override for private lab dev. */
+		const EXCHANGE_SPA_ORIGIN_DEFAULT = 'https://exchange.hackme.tech';
 		const EXCHANGE_API_HEALTH_DEFAULT = 'http://127.0.0.1:18443/health';
 		const EXCHANGE_SPA_ORIGIN_ALLOW = [
+			'https://exchange.hackme.tech',
 			'http://127.0.0.1:5199',
 			'http://localhost:5199',
 			'http://[::1]:5199',
@@ -14210,7 +14211,10 @@
 				apiOk = false;
 			}
 			if (spaOk && apiOk) setExchangeLabStatus('SPA + API up', 'ok');
-			else if (spaOk) setExchangeLabStatus('SPA up · API unreachable', 'warn');
+			else if (spaOk) {
+				const paper = !/^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:|$)/i.test(origin);
+				setExchangeLabStatus(paper ? 'paper desk up' : 'SPA up · API unreachable', paper ? 'ok' : 'warn');
+			}
 			else if (apiOk) setExchangeLabStatus('API up · SPA unreachable', 'warn');
 			else setExchangeLabStatus('offline — start demo + api', 'err');
 		}
