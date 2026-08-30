@@ -24,6 +24,7 @@
 | [HMS_BACKEND.md](HMS_BACKEND.md) | HMS coordinator + workers |
 | [SUPPORT_COIN_UTILITY.md](SUPPORT_COIN_UTILITY.md) | HackMe Support (SUP) accrual |
 | [HACKME_RC16.md](HACKME_RC16.md) | **Current** release channel (rc16 — self-update + signed apt) |
+| [RC17_CUTOVER.md](RC17_CUTOVER.md) | **Next** cutover plan — hub exchange embed + SUP (deploy at rc17 only) |
 | [HACKME_RC15.md](HACKME_RC15.md) | Previous rc15 — B2B fuzz Phase 2 + pool anticheat |
 | [HACKME_RC14.md](HACKME_RC14.md) | Previous rc14x channel |
 | [YEAR_PLAN_2026_2027.md](YEAR_PLAN_2026_2027.md) | Year plan stub · feature freeze before exchange |
