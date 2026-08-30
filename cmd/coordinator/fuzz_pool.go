@@ -566,7 +566,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		}
 		if err := pf.Submit(r.Context(), poolfuzz.SubmitRequest{
 			WorkerID:        req.WorkerID,
-			MinerAddress:     payoutAddr,
+			MinerAddress:    payoutAddr,
 			WorkID:          req.WorkID,
 			CampaignID:      req.CampaignID,
 			ItemID:          req.ItemID,

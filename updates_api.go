@@ -38,7 +38,6 @@ type latestDoc struct {
 // Local updater protocol version (bump when latest.json shape breaks old scripts).
 const localUpdaterProtocol = 1
 
-
 type updateCheckCache struct {
 	mu      sync.Mutex
 	at      time.Time
@@ -194,22 +193,22 @@ func buildUpdateCheckPayload(doc *latestDoc, sourceURL string) map[string]any {
 		minUp = 1
 	}
 	return map[string]any{
-		"ok":                    true,
-		"schema":                doc.Schema,
-		"local_version":         local,
-		"remote_version":        remote,
-		"remote_commit":         doc.Commit,
-		"remote_build_date":     doc.BuildDateUTC,
-		"channel":               doc.Channel,
-		"min_updater":           minUp,
-		"local_updater":         localUpdaterProtocol,
-		"updater_protocol_ok":   localUpdaterProtocol >= minUp,
-		"update_available":      updateAvailable(local, remote),
-		"source_url":            sourceURL,
-		"notes":                 doc.Notes,
-		"platforms":             plats,
-		"downloads_url":         "https://hackme.tech/downloads.html",
-		"latest_json_url":       "https://hackme.tech/dist/latest.json",
+		"ok":                  true,
+		"schema":              doc.Schema,
+		"local_version":       local,
+		"remote_version":      remote,
+		"remote_commit":       doc.Commit,
+		"remote_build_date":   doc.BuildDateUTC,
+		"channel":             doc.Channel,
+		"min_updater":         minUp,
+		"local_updater":       localUpdaterProtocol,
+		"updater_protocol_ok": localUpdaterProtocol >= minUp,
+		"update_available":    updateAvailable(local, remote),
+		"source_url":          sourceURL,
+		"notes":               doc.Notes,
+		"platforms":           plats,
+		"downloads_url":       "https://hackme.tech/downloads.html",
+		"latest_json_url":     "https://hackme.tech/dist/latest.json",
 		"update_hints": map[string]string{
 			"linux":     hintLinux,
 			"windows":   hintWin,

@@ -149,19 +149,19 @@ type leaseRecord struct {
 }
 
 type workerPayoutStat struct {
-	AcceptedRanges   uint64  `json:"accepted_ranges"`
-	AcceptedHits     uint64  `json:"accepted_hits"`
-	AcceptedAtt      uint64  `json:"accepted_attempts"`
-	PayoutHMC        float64 `json:"payout_hmc"`
-	PayoutSUP        float64 `json:"payout_sup"`
-	PayoutAddress    string  `json:"payout_address,omitempty"`
-	AddressConflict  bool    `json:"address_conflict,omitempty"`
-	SignedSubmits    uint64  `json:"signed_submits,omitempty"`
-	LastHashrateGHS  float64 `json:"hashrate_gh_s,omitempty"`
-	PeakHashrateGHS  float64 `json:"peak_hashrate_gh_s,omitempty"`
-	LastSeenUnix     int64   `json:"last_seen_unix,omitempty"`
-	LastClientIP     string  `json:"last_client_ip,omitempty"`
-	Online           bool    `json:"online,omitempty"`
+	AcceptedRanges  uint64  `json:"accepted_ranges"`
+	AcceptedHits    uint64  `json:"accepted_hits"`
+	AcceptedAtt     uint64  `json:"accepted_attempts"`
+	PayoutHMC       float64 `json:"payout_hmc"`
+	PayoutSUP       float64 `json:"payout_sup"`
+	PayoutAddress   string  `json:"payout_address,omitempty"`
+	AddressConflict bool    `json:"address_conflict,omitempty"`
+	SignedSubmits   uint64  `json:"signed_submits,omitempty"`
+	LastHashrateGHS float64 `json:"hashrate_gh_s,omitempty"`
+	PeakHashrateGHS float64 `json:"peak_hashrate_gh_s,omitempty"`
+	LastSeenUnix    int64   `json:"last_seen_unix,omitempty"`
+	LastClientIP    string  `json:"last_client_ip,omitempty"`
+	Online          bool    `json:"online,omitempty"`
 }
 
 type workerAbuseState struct {
