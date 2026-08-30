@@ -506,7 +506,8 @@
     }
     let items = [];
     async function fetchNewsItems(url) {
-      const resp = await fetch(url, { cache: "no-store" });
+      const resolved = url.startsWith("/") ? url : new URL(url, `${window.location.origin}/`).pathname;
+      const resp = await fetch(resolved, { cache: "no-store" });
       if (!resp.ok) throw new Error(`news unavailable (${url})`);
       const body = await resp.json();
       return Array.isArray(body.items) ? body.items.slice() : [];

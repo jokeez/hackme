@@ -72,7 +72,29 @@ data = json.load(open(src, encoding="utf-8"))
 items = data.get("items", [])
 json.dump({"items": items[:12], "feed": "recent"}, open(feed_dst, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
 keys = ("id", "date", "title", "summary", "impact", "action", "tags", "status")
-slim = [{k: it[k] for k in keys if k in it} for it in items]
+
+def slim_item(it):
+    return {k: it[k] for k in keys if k in it}
+
+# Preserve full newsroom archive: merge news.json into existing display (by id).
+archive_path = assets / "news-display.json"
+existing = []
+if archive_path.exists():
+    try:
+        existing = json.load(open(archive_path, encoding="utf-8")).get("items", [])
+    except Exception:
+        existing = []
+by_id = {it.get("id"): slim_item(it) for it in existing if it.get("id")}
+for it in items:
+    sid = it.get("id")
+    if not sid:
+        continue
+    by_id[sid] = {**by_id.get(sid, {}), **slim_item(it)}
+
+def sort_key(it):
+    return str(it.get("date") or "")
+
+slim = sorted(by_id.values(), key=sort_key, reverse=True)
 chunk_dir = assets / "news-chunks"
 chunk_dir.mkdir(parents=True, exist_ok=True)
 chunk_size = 17
@@ -82,9 +104,8 @@ for i in range(0, len(slim), chunk_size):
     name = f"news-display-{i // chunk_size:02d}.json"
     path = assets / name
     json.dump({"items": part, "chunk": i // chunk_size}, open(path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
-    chunks.append(f"./assets/{name}")
-# Legacy single file (bots / fallback)
-json.dump({"items": slim, "feed": "display"}, open(assets / "news-display.json", "w", encoding="utf-8"), indent=2, ensure_ascii=False)
+    chunks.append(f"/assets/{name}")
+json.dump({"items": slim, "feed": "display"}, open(archive_path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
 json.dump({"chunks": chunks, "total": len(slim)}, open(assets / "news-display-index.json", "w", encoding="utf-8"), indent=2)
 print(f"[deploy-hackme-site] news-feed={len(items[:12])} display={len(slim)} chunks={len(chunks)}")
 PY
