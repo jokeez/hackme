@@ -16,17 +16,22 @@ CLI/API keys stay `scan` | `audit` | `deep`. Customer-facing names:
 | **Dig · Audit** | `audit` | ~5 | 256 | yes | Protocol guards, DeFi invariants |
 | **Dig · Deep** | `deep` | ~25 | 2048 | yes* | Byte corpus, hours-scale campaign |
 
-**Hunt** (repo + ASAN on pool, 50/50 escrow) — Phase 1 MVP on local node:
+**Hunt** (repo + ASAN on pool, 50/50 escrow) — Phase 2 on `feature/hunt-mvp`:
 
 | API | Purpose |
 |-----|---------|
 | `GET /api/hunt/packages` | Hunt Lite / Standard presets |
 | `GET /api/hunt/targets` | Curated OSS catalog (`upstream/oss_cve_targets.json`) |
 | `POST /api/hunt/inventory` | Admin: scan local path for `LLVMFuzzerTestOneInput` |
-| `POST /api/hunt/campaigns` | Create Hunt campaign + 50/50 escrow |
-| `POST /api/hunt/campaigns/{id}/run-local` | Admin: node-local ASAN smoke (catalog targets) |
+| `POST /api/hunt/repo/pin` | Admin: pin local path or shallow git clone |
+| `POST /api/hunt/template/preview` | Admin: check if template Accept is required |
+| `POST /api/hunt/harness/build` | Admin: ASAN build inventory harness → `.cache/hunt-harness/{hash}.bin` |
+| `POST /api/hunt/campaigns` | Create Hunt campaign + 50/50 escrow (catalog or inventory) |
+| `POST /api/hunt/campaigns/{id}/run-local` | Admin: node-local ASAN smoke |
 
-Spec: [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md). Pool CPU shards — Phase 1b.
+CLI: `hackme-fuzzing hunt pin|inventory|template|build|create|packages|targets`
+
+Spec: [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md). Pool CPU shards + coordinator ASAN replay — Phase 1c. **Inventory pool** needs shared harness cache on workers (`HACKME_REPO_ROOT`).
 
 \* **Distributed pool cap:** on hub workers, `exec_per_unit` is capped at **64** per work item (Deep 512 runs locally on autorunner). Coordinator **replays** the segment on submit — miners do not cryptographically attest every exec.
 
@@ -133,5 +138,5 @@ MODE=lang_static bash scripts/tests/run_daily.sh
 
 - [DEVELOPERS_FUZZING.md](DEVELOPERS_FUZZING.md) — localhost model, auth, CLI
 - [FUZZ_ESCROW_20_80.md](FUZZ_ESCROW_20_80.md) — Dig/Scan 20/80 split
-- [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md) — Hunt 50/50 (Phase 1)
+- [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md) — Hunt 50/50 (Phase 1–2)
 - [FUZZING_B2B_SECURITY_VERDICT.md](FUZZING_B2B_SECURITY_VERDICT.md) — threat model

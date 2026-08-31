@@ -338,10 +338,10 @@ func runOne(ctx context.Context, cfg Config, base string, st *Stats) {
 	st.SubmitsOK.Add(1)
 	checkSem := fuzzengine.ParseCheckSemantics(map[string]any{"check_semantics": cr.CheckSemantics})
 	pass, finding := fuzzengine.EvalCheck(checkSem, checkRet, nil)
-	if finding && trap == "" {
+	if finding && trap == "" && !IsHuntClaim(cr) {
 		st.Findings.Add(1)
 		fmt.Fprintf(os.Stderr, "%s: FINDING campaign=%s input=0x%x semantics=%s\n", cfg.LogPrefix, cr.CampaignID, cr.ActualInput, checkSem)
-	} else if pass {
+	} else if pass || IsHuntClaim(cr) {
 		fmt.Fprintf(os.Stderr, "%s: ok campaign=%s input=0x%x\n", cfg.LogPrefix, cr.CampaignID, cr.ActualInput)
 	}
 }

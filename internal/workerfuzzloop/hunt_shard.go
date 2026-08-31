@@ -66,7 +66,7 @@ func RunHuntShard(ctx context.Context, cr ClaimResp, timeoutMS int) (checkResult
 	if rep.Crash {
 		return 1, int(time.Since(start).Milliseconds()), rep.Trap, execPer
 	}
-	return 1, int(time.Since(start).Milliseconds()), "", execPer
+	return 0, int(time.Since(start).Milliseconds()), "", execPer
 }
 
 // IsHuntClaim reports Hunt shard work from coordinator claim JSON.
