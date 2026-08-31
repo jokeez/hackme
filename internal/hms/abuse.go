@@ -63,24 +63,6 @@ func (g *AbuseGuard) AllowHTTP(r *http.Request, workerID string) bool {
 	return true
 }
 
-func clientIP(r *http.Request) string {
-	if r == nil {
-		return ""
-	}
-	x := strings.TrimSpace(r.Header.Get("X-Forwarded-For"))
-	if x != "" {
-		if i := strings.Index(x, ","); i > 0 {
-			x = strings.TrimSpace(x[:i])
-		}
-		return x
-	}
-	host := r.RemoteAddr
-	if i := strings.LastIndex(host, ":"); i > 0 {
-		return host[:i]
-	}
-	return host
-}
-
 func ValidateQuota(cfg Config, quotaGB int) error {
 	if quotaGB < cfg.MinQuotaGB {
 		return errf("quota below minimum %d GB", cfg.MinQuotaGB)

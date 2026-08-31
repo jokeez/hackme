@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"hackme/internal/workerid"
 )
 
 type workerSettlementStateEntry struct {
@@ -248,12 +250,14 @@ func persistWorkerSettlementState(path string, state workerSettlementState) {
 	if strings.TrimSpace(path) == "" {
 		return
 	}
-	b, err := json.MarshalIndent(state, "", "  ")
-	if err != nil {
-		return
-	}
-	_ = os.MkdirAll(filepath.Dir(path), 0o700)
-	_ = os.WriteFile(path, b, 0o600)
+	_ = withSettlementStateLock(path, func() error {
+		b, err := json.MarshalIndent(state, "", "  ")
+		if err != nil {
+			return nil
+		}
+		_ = os.MkdirAll(filepath.Dir(path), 0o700)
+		return os.WriteFile(path, b, 0o600)
+	})
 }
 
 func parseAnyFloat(v any) float64 {
@@ -414,7 +418,7 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 	walletAccruedSUP, walletSettledSUP, walletUnpaidSUP := walletAccrualSUPFromCoordinator(ws, state.Workers, a.nodeID, a.workerID, payoutMap)
 	desktopWorkerID := strings.TrimSpace(a.workerID)
 	if desktopWorkerID == "" {
-		desktopWorkerID = "worker-kapa-pc"
+		desktopWorkerID = workerid.DefaultDesktop()
 	}
 	var desktopWorkerAccrued float64
 	if row := mapFromAny(workers[desktopWorkerID]); len(row) > 0 {

@@ -15,6 +15,17 @@
 
 Reports: `reports/tests/security_full_20260828T190633Z/` · `reports/gates/redteam_prelisting_20260828v4/`
 
+### Hardening 2026-08-31 (external audit follow-up, pre-D0)
+
+| Fix | Area |
+|-----|------|
+| HMS `GET …/health`, `…/chunks`, order detail, `GET /api/seal/payouts` require admin/worker token | `internal/hms/http.go` |
+| HMS abuse `clientIP` ignores spoofed `X-Forwarded-For` unless trusted proxy peer | `internal/hms/clientip.go` |
+| `GET /api/mining/logs/stream` requires admin token (or desktop loopback) | `main.go` |
+| Public node bind requires `HACKME_P2P_TOKEN` | `main.go` startup |
+| Settlement state writes take `flock` on `*.flock` | `settlement_flock_*.go` |
+| `govulncheck` in CI; `go 1.25.13` toolchain pin | `.github/workflows/ci.yml`, `go.mod` |
+
 ---
 
 ## Executive summary

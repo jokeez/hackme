@@ -594,6 +594,9 @@ func main() {
 	if v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_REQUIRE_ADMIN_TOKEN"))); v != "" {
 		requireAdmin = v == "1" || v == "true" || v == "yes" || v == "on"
 	}
+	if !bindAddrAllowsBeginnerSolo(addr) && strings.TrimSpace(os.Getenv("HACKME_P2P_TOKEN")) == "" {
+		log.Fatal("security: public bind " + addr + " requires HACKME_P2P_TOKEN for /api/p2p/* routes")
+	}
 	if requireAdmin && !adminAuthEnabled() {
 		log.Fatal("security: HACKME_ADMIN_TOKEN is required (set HACKME_ADMIN_TOKEN or explicitly disable with HACKME_REQUIRE_ADMIN_TOKEN=0)")
 	}
@@ -3494,6 +3497,10 @@ func (a *app) handleMiningLogs(w http.ResponseWriter, r *http.Request) {
 func (a *app) handleMiningLogsStream(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	allowStream := envBool("HACKME_DESKTOP_MODE", false) && requestFromLoopback(r)
+	if !allowStream && !requireAdminAuthStrict(w, r) {
 		return
 	}
 	if !a.miner.Running() {

@@ -80,6 +80,66 @@ func TestMarketOrdersRequireAuth(t *testing.T) {
 	}
 }
 
+func TestMarketOrderDetailRequiresAuth(t *testing.T) {
+	dir := t.TempDir()
+	db, err := OpenDB(filepath.Join(dir, "h.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	coord := NewCoordinator(db, Config{PoolID: "p", MinQuotaGB: 1, MaxQuotaGB: 1000, InitialSealTarget: defaultSealTarget()})
+	mux := http.NewServeMux()
+	RegisterHTTP(mux, coord, "admin-secret", "worker-secret")
+
+	for _, path := range []string{
+		"/api/market/orders/ord-1/health",
+		"/api/market/orders/ord-1/chunks",
+		"/api/market/orders/ord-1",
+	} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.RemoteAddr = "198.51.100.10:5555"
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+		if rr.Code != http.StatusUnauthorized {
+			t.Fatalf("%s anonymous must 401: status=%d", path, rr.Code)
+		}
+	}
+}
+
+func TestSealPayoutsRequireAuth(t *testing.T) {
+	dir := t.TempDir()
+	db, err := OpenDB(filepath.Join(dir, "h.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	coord := NewCoordinator(db, Config{PoolID: "p", MinQuotaGB: 1, MaxQuotaGB: 1000, InitialSealTarget: defaultSealTarget()})
+	mux := http.NewServeMux()
+	RegisterHTTP(mux, coord, "admin-secret", "worker-secret")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/seal/payouts?epoch_id=1", nil)
+	req.RemoteAddr = "198.51.100.10:5555"
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous seal payouts must 401: status=%d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestAbuseGuardIgnoresSpoofedXFF(t *testing.T) {
+	InitClientIPTrust("0.0.0.0:18082")
+	g := NewAbuseGuard(1, time.Minute)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Forwarded-For", "127.0.0.1")
+	req.RemoteAddr = "198.51.100.10:5555"
+	if !g.AllowHTTP(req, "w1") {
+		t.Fatal("first request from real IP should pass")
+	}
+	if g.AllowHTTP(req, "w1") {
+		t.Fatal("second request from same real IP should hit rate limit, not spoofed XFF")
+	}
+}
+
 func TestAuthRejectsXForwardedForSpoof(t *testing.T) {
 	dir := t.TempDir()
 	db, err := OpenDB(filepath.Join(dir, "h.db"))

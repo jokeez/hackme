@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"hackme/internal/workerid"
 )
 
 const coordinatorWorkerFreshSec int64 = 300
@@ -91,7 +93,7 @@ func (a *app) desktopWorkerID() string {
 		wid = strings.TrimSpace(os.Getenv("WORKER_ID"))
 	}
 	if wid == "" {
-		wid = "worker-kapa-pc"
+		wid = workerid.DefaultDesktop()
 	}
 	return wid
 }

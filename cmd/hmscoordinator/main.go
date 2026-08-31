@@ -58,6 +58,7 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
+	hms.InitClientIPTrust(addr)
 	hms.RegisterHTTP(mux, coord, admin, worker)
 
 	srv := &http.Server{Addr: addr, Handler: mux}

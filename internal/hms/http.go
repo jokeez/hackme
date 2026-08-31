@@ -321,8 +321,12 @@ func registerMarketRoutes(mux *http.ServeMux, coord *Coordinator, adminToken, wo
 		}
 	})
 	mux.HandleFunc("/api/seal/payouts", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		if r.Method != http.MethodGet || !auth(r, false) {
+			if r.Method != http.MethodGet {
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
 		epochID := int64(atoiDefault(r.URL.Query().Get("epoch_id"), 0))
@@ -373,6 +377,10 @@ func registerMarketRoutes(mux *http.ServeMux, coord *Coordinator, adminToken, wo
 			return
 		}
 		if len(parts) == 2 && parts[1] == "health" && r.Method == http.MethodGet {
+			if !auth(r, false) {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
 			out, err := coord.OrderHealth(orderID)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusNotFound)
@@ -382,6 +390,10 @@ func registerMarketRoutes(mux *http.ServeMux, coord *Coordinator, adminToken, wo
 			return
 		}
 		if len(parts) == 2 && parts[1] == "chunks" && r.Method == http.MethodGet {
+			if !auth(r, false) {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
 			list, err := coord.ListOrderChunks(orderID)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -442,6 +454,10 @@ func registerMarketRoutes(mux *http.ServeMux, coord *Coordinator, adminToken, wo
 			return
 		}
 		if len(parts) == 1 && r.Method == http.MethodGet {
+			if !auth(r, false) {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
 			o, err := coord.GetStorageOrder(orderID)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusNotFound)

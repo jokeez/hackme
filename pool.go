@@ -23,6 +23,7 @@ import (
 	"hackme/internal/chain"
 	"hackme/internal/lanpool"
 	"hackme/internal/store"
+	"hackme/internal/workerid"
 	"hackme/internal/workerlock"
 )
 
@@ -2275,7 +2276,7 @@ func walletAccrualSUPFromCoordinator(ws map[string]any, stateWorkers map[string]
 	nodeAddr := settlementDisplayWalletAddress(nodeAddress, payoutMap)
 	wid := strings.TrimSpace(desktopWorkerID)
 	if wid == "" {
-		wid = "worker-kapa-pc"
+		wid = workerid.DefaultDesktop()
 	}
 	var sumAccrued, sumSettled float64
 	for workerID, v := range workers {
@@ -2320,7 +2321,7 @@ func walletAccrualFromCoordinator(ws map[string]any, stateWorkers map[string]wor
 	nodeAddr := settlementDisplayWalletAddress(nodeAddress, payoutMap)
 	wid := strings.TrimSpace(desktopWorkerID)
 	if wid == "" {
-		wid = "worker-kapa-pc"
+		wid = workerid.DefaultDesktop()
 	}
 	var sumAccrued, sumSettled float64
 	for workerID, v := range workers {
