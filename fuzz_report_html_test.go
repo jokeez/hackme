@@ -143,3 +143,45 @@ func TestRenderFuzzReportHTML_windowTruncationDisclosure(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderFuzzReportHTML_HuntScope(t *testing.T) {
+	report := map[string]any{
+		"report_version":    "fuzz_report_v2",
+		"generated_at_unix": int64(1_700_000_000),
+		"verdict":           "clean",
+		"human_summary":     "8 shards verified · no ASAN crash-class · 50/50 Hunt escrow",
+		"assurance_note":    "Hunt report: pool-verified ASAN shards on native harness.",
+		"campaign": fuzzCampaign{
+			ID: "hunt-1", Title: "Hunt jsmn", CampaignType: "hunt", Status: "running", BudgetRuns: 8,
+		},
+		"security_summary": map[string]any{
+			"runs_done": 8, "crash_count": 0, "critical_count": 0, "high_count": 0,
+			"fetched_findings": 0, "full_campaign_findings": 0,
+		},
+		"gate": map[string]any{"pass": true, "reasons": []string{"all thresholds satisfied"}},
+		"verdict_card": map[string]any{"lines": []string{"Runs: 8", "Crashes: 0"}},
+		"top_issues":     []fuzzProductTopIssue{},
+		"coverage_noise": []fuzzProductTopIssue{},
+		"evidence_window": map[string]any{
+			"query_limit": 500, "fetched_findings": 0, "full_campaign_findings": 0,
+		},
+		"target_fingerprint": map[string]any{"available": false},
+		"baseline_diff":      stubBaselineDiff("no base"),
+		"fuzz_engine":        map[string]any{"check_semantics": "native_crash", "depth_tier": "oss_cve"},
+	}
+	htmlOut := renderFuzzReportHTML(report)
+	for _, want := range []string{
+		"Scope &amp; honesty · Hunt",
+		"native ASAN Hunt shards",
+		"50/50 escrow",
+		"Severity-tier bounty",
+		" · hunt · ",
+	} {
+		if !strings.Contains(htmlOut, want) {
+			t.Fatalf("missing %q in hunt html", want)
+		}
+	}
+	if strings.Contains(htmlOut, "WASM sandbox") {
+		t.Fatal("hunt report should not use WASM scope block")
+	}
+}

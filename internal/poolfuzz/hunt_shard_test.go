@@ -2,7 +2,10 @@ package poolfuzz
 
 import (
 	"context"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"hackme/internal/fuzzescrow"
@@ -121,5 +124,58 @@ func TestHuntCrashSeverity(t *testing.T) {
 	}
 	if huntCrashSeverity("stack-buffer-overflow") != "high" {
 		t.Fatal("stack OOB high")
+	}
+}
+
+func TestEvalHuntSubmitConfirmsIntentionalCrash(t *testing.T) {
+	if _, err := exec.LookPath("clang"); err != nil {
+		t.Skip("clang required")
+	}
+	t.Setenv("HACKME_POOL_HUNT_REPLAY", "1")
+	dir := t.TempDir()
+	src := filepath.Join(dir, "fuzz_target.c")
+	body := `int LLVMFuzzerTestOneInput(const unsigned char *d, unsigned long n) {
+		if (n > 4 && d[0]=='c' && d[1]=='r' && d[2]=='a' && d[3]=='s' && d[4]=='h') {
+			*(volatile int*)0 = 1;
+		}
+		return 0;
+	}`
+	if err := os.WriteFile(src, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	root := hunt.RepoRoot()
+	pin := &hunt.RepoPinResult{Path: dir, CommitSHA: "testsha"}
+	build, err := hunt.BuildInventoryHarness(context.Background(), root, hunt.HarnessBuildRequest{
+		Pin: pin, SourceRel: "fuzz_target.c",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := map[string]any{
+		"work_kind":            "hunt_shard",
+		"campaign_type":        "hunt",
+		"hunt_source":          "inventory",
+		"upstream_target_id":   "intentional-vuln",
+		"harness_hash":         build.HarnessHash,
+		"hunt_pin_path":        dir,
+		"hunt_source_rel":      "fuzz_target.c",
+		"iterations_per_shard": 2,
+		"max_input_bytes":      256,
+	}
+	s := &Service{}
+	req := SubmitRequest{SegmentExecDone: 2, CheckResult: 1, Trap: "hunt_crash:asan"}
+	_, trap, pass, finding, err := s.evalHuntSubmitCheck(context.Background(), cfg, req, []byte("crash"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !pass || !finding || !strings.HasPrefix(trap, "hunt_crash:") {
+		t.Fatalf("expected confirmed crash pass=%v finding=%v trap=%q", pass, finding, trap)
+	}
+	ft, sev, title := classifyHuntFinding(cfg, req)
+	if ft != "native_crash" || title == "" {
+		t.Fatalf("classify ft=%s sev=%s title=%q", ft, sev, title)
+	}
+	if sev != "high" && sev != "critical" {
+		t.Fatalf("unexpected severity %q", sev)
 	}
 }

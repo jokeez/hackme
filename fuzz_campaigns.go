@@ -8,6 +8,7 @@ import (
 	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -151,6 +152,22 @@ func allowedCampaignType(v string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// fuzzCampaignDeliverableURLs returns relative API paths for customer report/gate/pulse.
+func fuzzCampaignDeliverableURLs(campaignID string) map[string]string {
+	campaignID = strings.TrimSpace(campaignID)
+	return map[string]string{
+		"report_url": "/api/fuzz/campaigns/" + campaignID + "/report.html",
+		"gate_url":   "/api/fuzz/campaigns/" + campaignID + "/gate?max_critical=0&max_high=0",
+		"pulse_url":  "/api/fuzz/campaigns/" + campaignID + "/pulse",
+	}
+}
+
+func mergeDeliverableURLs(resp map[string]any, campaignID string) {
+	for k, v := range fuzzCampaignDeliverableURLs(campaignID) {
+		resp[k] = v
 	}
 }
 
@@ -2078,6 +2095,16 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 	}
 	assuranceNote := buildAssuranceNote(runsDone, crashCrit, crashHigh, "crash/hang/ASan/memory")
 	humanSummary := buildHumanSummaryLine(runsDone, edges, paths, crashCount, crashCrit)
+	if strings.EqualFold(strings.TrimSpace(c.CampaignType), "hunt") {
+		critNote := "no ASAN crash-class"
+		if crashCrit > 0 {
+			critNote = fmt.Sprintf("%d critical ASAN", crashCrit)
+		} else if crashCount > 0 {
+			critNote = fmt.Sprintf("%d ASAN crash-class", crashCount)
+		}
+		humanSummary = fmt.Sprintf("%d shards verified · %s · 50/50 Hunt escrow", runsDone, critNote)
+		assuranceNote = "Hunt report: pool-verified ASAN shards on native harness. CLEAN means no qualifying native_crash in sample — not a CVE guarantee."
+	}
 	moneySpent := moneySpentFromCampaign(c)
 	if a.chain != nil {
 		if esc, err := a.chain.GetFuzzEscrow(ctx, campaignID); err == nil && esc != nil {

@@ -425,7 +425,7 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	resp["customer_report_header"] = "X-Hackme-Report-Token"
 	resp["fuzz_engine"] = fuzzEngineMetaFromConfig(cfgMap)
 	resp["depth_tier"] = string(depthTier)
-	resp["report_url"] = "/api/fuzz/campaigns/" + campaignID + "/report.html"
+	mergeDeliverableURLs(resp, campaignID)
 	if publicProofEnabled(cfgMap) {
 		resp["public_proof"] = true
 		resp["proof_url"] = "/proof/" + campaignID

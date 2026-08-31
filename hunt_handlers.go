@@ -197,6 +197,7 @@ func (a *app) handleHuntCampaignCreate(w http.ResponseWriter, r *http.Request) {
 		"escrow":                 escrow,
 		"prepay_disclaimer":      "No CVE guarantee · CLEAN = budget statement · pool shards verify ASAN on miners",
 	}
+	mergeDeliverableURLs(resp, id)
 	if poolDistributedCampaign(cfgMap) {
 		if pubErr := a.publishHuntHarnessForConfig(r.Context(), cfgMap); pubErr != nil {
 			writeAPIError(w, http.StatusBadRequest, "harness_publish_failed", pubErr.Error(), nil)

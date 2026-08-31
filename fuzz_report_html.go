@@ -459,6 +459,12 @@ func renderFuzzReproSection(report map[string]any) string {
 }
 
 func renderFuzzEngineNote(report map[string]any) string {
+	campaignType := ""
+	if raw, ok := report["campaign"].(fuzzCampaign); ok {
+		campaignType = raw.CampaignType
+	} else if m, ok := report["campaign"].(map[string]any); ok {
+		campaignType = toString(m["campaign_type"])
+	}
 	scopeBlock := `<div class="card scope"><p class="lbl">Scope &amp; honesty</p>
 <p>This report covers <strong>WASM sandbox</strong> execution of your linked guard module
 (<code>check(i64)→i32</code> or <code>check_bytes(ptr,len)→i32</code> when <code>input_mode=bytes</code>), not a full upstream node audit.
@@ -466,6 +472,15 @@ func renderFuzzEngineNote(report map[string]any) string {
 This report is derived from the fetched evidence window for this request (<code>?limit=...</code>), so shown rows may represent only part of the full campaign history.
 Use <code>repro</code> (input → command) locally, then validate crash-class issues against native builds before claiming 0-day.
 Public L1 research (qa-assets corpus) lives at <a href="https://hackme.tech/reports/l1-crypto-stack-v3.html">l1-crypto-stack-v3</a> and is separate from this token-gated campaign.</p></div>`
+	if strings.EqualFold(strings.TrimSpace(campaignType), "hunt") {
+		scopeBlock = `<div class="card scope"><p class="lbl">Scope &amp; honesty · Hunt</p>
+<p>This report covers <strong>native ASAN Hunt shards</strong> on your catalog or inventory harness
+(<code>LLVMFuzzerTestOneInput</code>), verified by coordinator replay on pool workers — not WASM guards.
+<strong>Top issues are crash-first</strong> (<code>native_crash</code> / ASAN memory safety). UBSan-only signals are informational and do not unlock bounty.
+<strong>CLEAN</strong> means no qualifying crash-class finding in the fetched evidence window — not a CVE guarantee.
+Hunt uses <strong>50/50 escrow</strong> (runs pool + bounty pool). Severity-tier bounty: critical 100% · high 60% of remaining bounty slice.
+Use repro blocks to replay inputs locally before external disclosure.</p></div>`
+	}
 	meta := ""
 	if m, ok := report["fuzz_engine"].(map[string]any); ok {
 		parts := []string{}

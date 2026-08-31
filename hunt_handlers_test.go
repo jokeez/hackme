@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"hackme/internal/chain"
@@ -86,6 +87,12 @@ func TestHuntCampaignCreate5050Escrow(t *testing.T) {
 	bountyPool, _ := esc["bounty_pool_hmc"].(float64)
 	if runsPool < 9.9 || runsPool > 10.1 || bountyPool < 9.9 || bountyPool > 10.1 {
 		t.Fatalf("not 50/50: runs=%v bounty=%v", runsPool, bountyPool)
+	}
+	if resp["report_url"] == nil || resp["gate_url"] == nil || resp["pulse_url"] == nil {
+		t.Fatalf("missing deliverable urls: %v", resp)
+	}
+	if !strings.Contains(toString(resp["report_url"]), "/report.html") {
+		t.Fatalf("report_url=%v", resp["report_url"])
 	}
 }
 
