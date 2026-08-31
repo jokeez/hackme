@@ -128,7 +128,8 @@
 | [POOL_SECURITY_THREATS_VERDICT.md](POOL_SECURITY_THREATS_VERDICT.md) | Pool threat verdict |
 | [TREASURY_KEY.md](TREASURY_KEY.md) | Operator treasury *(restricted)* |
 | [BOUNTY_AUTOPILOT.md](BOUNTY_AUTOPILOT.md) | Autonomous bounty fuzz pipeline |
-| [scripts/ops/archive/README.md](../scripts/ops/archive/README.md) | Archived one-shot ops scripts |
+| [scripts/ops/README.md](../scripts/ops/README.md) | Ops scripts — production vs local-only lab |
+| [../scripts/README.md](../scripts/README.md) | Scripts tree layout (public vs gitignored lab) |
 | [TESTING.md](TESTING.md) | Test matrix |
 
 ## Community

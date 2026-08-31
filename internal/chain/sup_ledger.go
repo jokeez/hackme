@@ -552,7 +552,7 @@ func (s *Service) SubmitSupTransferTx(ctx context.Context, tx SupTransferTx) (st
 		}
 		return "", "internal_error", err
 	}
-		return txHash, "pending", nil
+	return txHash, "pending", nil
 }
 
 func (s *Service) SupTransferPool(ctx context.Context, limit int) ([]TransferStatusRow, error) {
