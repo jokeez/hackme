@@ -1,9 +1,12 @@
 package poolfuzz
 
 import (
+	"context"
+	"os/exec"
 	"testing"
 
 	"hackme/internal/fuzzescrow"
+	"hackme/internal/hunt"
 )
 
 func TestIsHuntCampaign(t *testing.T) {
@@ -57,13 +60,40 @@ func TestEvalHuntSubmitCrash(t *testing.T) {
 	s := &Service{}
 	cfg := map[string]any{"iterations_per_shard": 32}
 	req := SubmitRequest{SegmentExecDone: 32, CheckResult: 1, Trap: "hunt_crash:asan"}
-	_, trap, pass, finding := s.evalHuntSubmit(cfg, req, []byte{1, 2, 3})
+	_, trap, pass, finding := s.evalHuntSubmitTrusted(cfg, req, []byte{1, 2, 3})
 	if !pass || !finding || trap != "hunt_crash:asan" {
 		t.Fatalf("crash submit pass=%v finding=%v trap=%q", pass, finding, trap)
 	}
 	req2 := SubmitRequest{SegmentExecDone: 31, Trap: "hunt_crash:asan", CheckResult: 1}
-	_, _, pass2, finding2 := s.evalHuntSubmit(cfg, req2, nil)
+	_, _, pass2, finding2 := s.evalHuntSubmitTrusted(cfg, req2, nil)
 	if pass2 || finding2 {
 		t.Fatal("wrong exec count should fail")
+	}
+}
+
+func TestEvalHuntSubmitRejectsFakeCrash(t *testing.T) {
+	if _, err := exec.LookPath("clang"); err != nil {
+		t.Skip("clang required")
+	}
+	t.Setenv("HACKME_REPO_ROOT", hunt.RepoRoot())
+	hash, err := hunt.CatalogHarnessHash(hunt.RepoRoot(), "jsmn")
+	if err != nil {
+		t.Skip(err)
+	}
+	cfg := map[string]any{
+		"iterations_per_shard": 2,
+		"upstream_target_id":   "jsmn",
+		"harness_hash":         hash,
+		"max_input_bytes":      256,
+	}
+	input := []byte(`{"ok":true}`)
+	s := &Service{}
+	req := SubmitRequest{SegmentExecDone: 2, CheckResult: 1, Trap: "hunt_crash:asan"}
+	_, trap, pass, finding, err := s.evalHuntSubmitCheck(context.Background(), cfg, req, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pass || finding || trap != "hunt_replay_reject:fake_crash" {
+		t.Fatalf("fake crash should fail pass=%v finding=%v trap=%q", pass, finding, trap)
 	}
 }

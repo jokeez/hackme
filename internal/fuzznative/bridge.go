@@ -32,6 +32,33 @@ func QueueJob(ctx context.Context, db *sql.DB, findingID, campaignID, inputSHA s
 	return err
 }
 
+// QueueJobVerified enqueues a finding already confirmed by coordinator replay (Hunt path).
+func QueueJobVerified(ctx context.Context, db *sql.DB, findingID, campaignID, inputSHA string, input []byte, upstreamTarget, guardName string, status ReproStatus, now int64) error {
+	if db == nil || strings.TrimSpace(findingID) == "" {
+		return fmt.Errorf("fuzznative: invalid queue args")
+	}
+	st := strings.TrimSpace(string(status))
+	if st == "" {
+		st = string(StatusNativeCrash)
+	}
+	var exists int
+	err := db.QueryRowContext(ctx, `SELECT 1 FROM fuzz_native_queue WHERE finding_id=? LIMIT 1`, findingID).Scan(&exists)
+	if err == nil {
+		return nil
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+	detail, _ := json.Marshal(ReproResult{Status: ReproStatus(st), UpstreamTarget: upstreamTarget, Note: "coordinator hunt replay verified"})
+	_, err = db.ExecContext(ctx,
+		`INSERT INTO fuzz_native_queue
+		 (finding_id, campaign_id, input_sha256, input_bytes, status, upstream_target, guard_name, detail_json, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		findingID, campaignID, strings.TrimSpace(strings.ToLower(inputSHA)), input,
+		st, strings.TrimSpace(upstreamTarget), strings.TrimSpace(guardName), string(detail), now, now)
+	return err
+}
+
 // ProcessPending runs up to limit native repro jobs and updates campaign summary native_status.
 func ProcessPending(ctx context.Context, db *sql.DB, pins *PinManifest, limit int) (processed int, err error) {
 	if db == nil {

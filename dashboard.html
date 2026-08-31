@@ -2508,6 +2508,13 @@
 							<label class="text-[10px] text-gray-500">Budget HMC (override)<br><input id="hunt-budget-hmc" type="number" min="15" step="1" class="mt-1 w-full text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-warn" placeholder="package default" /></label>
 						</div>
 						<label class="mt-2 text-[10px] text-gray-500 flex items-center gap-2"><input type="checkbox" id="hunt-pool-distributed" checked class="rounded" /> Pool distributed (miners run ASAN shards)</label>
+						<div id="hunt-scope-contract" class="mt-3 rounded-lg border border-white/10 bg-black/35 p-3 text-[10px] text-gray-400 leading-relaxed space-y-1">
+							<p class="text-[9px] uppercase tracking-[0.2em] text-gray-500">Before you pay · Hunt scope</p>
+							<p id="hunt-scope-seeks" class="text-gray-300"><strong class="text-warn/90">We search:</strong> pinned OSS catalog harness · frozen shard inputs · ASAN/UBSAN crash-class on miners.</p>
+							<p id="hunt-scope-skips" class="text-gray-500"><strong class="text-warn/80">We do not promise:</strong> new CVE, whole-repo crawl, logic bugs without oracle, «fully secure» proof.</p>
+							<p id="hunt-scope-escrow" class="text-gray-600 font-mono text-[9px]">50/50 escrow · ~half to miners per verified shard · bounty only on coordinator-replayed ASAN crash + repro.</p>
+							<p id="hunt-scope-clean" class="text-gray-600 font-mono text-[9px]">CLEAN = budget exhausted · not a security guarantee.</p>
+						</div>
 						<div class="mt-3 flex flex-wrap gap-2 items-center">
 							<button type="button" id="btn-hunt-run" class="px-5 py-2.5 rounded-lg border border-warn/50 bg-warn/15 text-warn text-[11px] font-display font-bold uppercase tracking-wider hover:bg-warn/25">Start Hunt campaign</button>
 							<button type="button" id="btn-hunt-goto-fuzz" class="px-3 py-2 rounded border border-white/20 text-gray-300 text-[10px] uppercase tracking-wider hover:bg-white/5">Open fuzz tab</button>
@@ -13445,7 +13452,11 @@
 			if ($('btn-hunt-goto-fuzz')) {
 				$('btn-hunt-goto-fuzz').addEventListener('click', () => switchTab('fuzz'));
 			}
+			if ($('hunt-package')) {
+				$('hunt-package').addEventListener('change', updateHuntScopeContract);
+			}
 			void loadHuntTargets();
+			updateHuntScopeContract();
 			if ($('audit-depth-tier')) {
 				$('audit-depth-tier').addEventListener('change', applyAuditDepthTierPreset);
 				applyAuditDepthTierPreset();
@@ -13457,6 +13468,17 @@
 					syncProToolsPanelVisibility();
 				});
 			}
+		}
+
+		function updateHuntScopeContract() {
+			const pkg = String(($('hunt-package') && $('hunt-package').value) || 'hunt_lite');
+			const escrow = $('hunt-scope-escrow');
+			if (!escrow) return;
+			const copy = {
+				hunt_lite: '50/50 escrow · 20 HMC · 8 shards · min ~0.002 HMC/shard to miners.',
+				hunt_standard: '50/50 escrow · 60 HMC · 24 shards · template-ready catalog targets.',
+			};
+			escrow.textContent = (copy[pkg] || copy.hunt_lite) + ' Bounty only on coordinator-replayed ASAN crash.';
 		}
 
 		async function loadHuntTargets() {

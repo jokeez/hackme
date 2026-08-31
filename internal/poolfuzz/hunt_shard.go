@@ -4,10 +4,13 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"os"
 	"strings"
 
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzescrow"
+	"hackme/internal/fuzzupstream"
+	"hackme/internal/hunt"
 )
 
 const defaultHuntIterationsPerShard = 32
@@ -101,7 +104,56 @@ func perShardHMCFromConfig(cfg map[string]any) float64 {
 	return (budget * share) / float64(shards)
 }
 
-func (s *Service) evalHuntSubmit(cfg map[string]any, req SubmitRequest, expectedB []byte) (checkResult int32, trap string, pass bool, recordFinding bool) {
+func huntReplayEnabled() bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_POOL_HUNT_REPLAY")))
+	return v == "" || v == "1" || v == "true" || v == "yes" || v == "on"
+}
+
+func (s *Service) evalHuntSubmitCheck(ctx context.Context, cfg map[string]any, req SubmitRequest, expectedB []byte) (checkResult int32, trap string, pass bool, recordFinding bool, err error) {
+	iter := huntIterationsPerShard(cfg)
+	if req.SegmentExecDone != iter {
+		return 0, "", false, false, nil
+	}
+	if !huntReplayEnabled() {
+		cr, tr, p, rf := s.evalHuntSubmitTrusted(cfg, req, expectedB)
+		return cr, tr, p, rf, nil
+	}
+	targetID := strings.TrimSpace(jsonString(cfg["upstream_target_id"]))
+	if targetID == "" {
+		return 0, "", false, false, fmt.Errorf("poolfuzz: hunt missing upstream_target_id")
+	}
+	maxB := fuzzengine.ParseMaxInputBytes(cfg)
+	if maxB <= 0 {
+		maxB = 4096
+	}
+	rep, err := hunt.ReplayShard(ctx, hunt.ReplayShardOpts{
+		RepoRoot:    hunt.RepoRoot(),
+		TargetID:    targetID,
+		HarnessHash: strings.TrimSpace(jsonString(cfg["harness_hash"])),
+		Input:       expectedB,
+		MaxInput:    maxB,
+		ExecPer:     iter,
+	})
+	if err != nil {
+		return 0, "", false, false, fmt.Errorf("poolfuzz: hunt replay: %w", err)
+	}
+	workerClaimsCrash := strings.HasPrefix(strings.TrimSpace(req.Trap), "hunt_crash:") && req.CheckResult != 0
+	if rep.Crash {
+		if !fuzzupstream.IsSecuritySanitizer(rep.Sanitizer) {
+			return 0, rep.Trap, false, false, nil
+		}
+		if !workerClaimsCrash {
+			return 0, rep.Trap, false, false, nil
+		}
+		return 1, rep.Trap, true, true, nil
+	}
+	if workerClaimsCrash {
+		return 0, "hunt_replay_reject:fake_crash", false, false, nil
+	}
+	return 0, "", true, false, nil
+}
+
+func (s *Service) evalHuntSubmitTrusted(cfg map[string]any, req SubmitRequest, expectedB []byte) (checkResult int32, trap string, pass bool, recordFinding bool) {
 	iter := huntIterationsPerShard(cfg)
 	if req.SegmentExecDone != iter {
 		return 0, "", false, false
@@ -114,4 +166,21 @@ func (s *Service) evalHuntSubmit(cfg map[string]any, req SubmitRequest, expected
 		return req.CheckResult, trap, false, false
 	}
 	return 0, "", true, false
+}
+
+func classifyHuntFinding(cfg map[string]any, req SubmitRequest) (ft, sev, title string) {
+	trap := strings.TrimSpace(req.Trap)
+	target := strings.TrimSpace(jsonString(cfg["upstream_target_id"]))
+	if strings.HasPrefix(trap, "hunt_crash:") {
+		san := strings.TrimPrefix(trap, "hunt_crash:")
+		ft = "native_crash"
+		sev = "high"
+		title = fmt.Sprintf("Hunt ASAN %s on %s", san, target)
+		return ft, sev, title
+	}
+	ft, sev, title = fuzzengine.ClassifyCheckFail(req.ActualInput, false, fuzzengine.SemanticsDetector)
+	if title == "" {
+		title = "Hunt shard on " + target
+	}
+	return ft, sev, title
 }

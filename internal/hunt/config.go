@@ -44,7 +44,7 @@ func CampaignConfig(repoRoot string, req CreateRequest) (map[string]any, string,
 	cfg := map[string]any{
 		"depth_tier":       string(fuzzengine.DepthOSSCVE),
 		"input_mode":       "bytes",
-		"native_repro_mode": "asan_binary",
+		"native_repro_mode": "oss_upstream",
 		"escrow_split":     fuzzescrow.EscrowSplit5050,
 		"hunt_package":     preset.Key,
 		"upstream_target":  "oss",

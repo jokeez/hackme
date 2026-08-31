@@ -137,11 +137,10 @@ Hunt Lite · 20 HMC · 50/50 split
 - [x] `campaign_type: hunt` in create API (`POST /api/hunt/campaigns`)  
 - [x] `UniqueCrashBonusMaxUnits` override for Hunt: **5_000_000** (0.05 HMC) via `escrow_split`  
 - [x] Node: `GET /api/hunt/targets`, `POST /api/hunt/inventory`, `POST /api/hunt/campaigns`  
-- [x] Coordinator: CPU shard work kind `hunt_shard` — claim/submit (`internal/poolfuzz/hunt_shard.go`)  
-- [x] Worker: `RunHuntShard` ASAN on catalog harness (`internal/workerfuzzloop/hunt_shard.go`)  
-- [x] UI: Hunt card on dashboard `#orders-hunt-campaign` (catalog + pool distributed)  
-- [ ] Coordinator repro challenge (WASM replay analogue for native crash)  
-- [ ] Hunt pre-pay scope block on dashboard (Dig-style `#audit-scope-contract`)  
+- [x] Coordinator: CPU shard work kind `hunt_shard` — claim/submit + **coordinator ASAN replay** (`evalHuntSubmitCheck`)  
+- [x] Worker: `RunHuntShard` ASAN on catalog harness (`hunt.ReplayShard` + `.cache/hunt-harness/`)  
+- [x] UI: Hunt card + **pre-pay scope block** `#hunt-scope-contract`  
+- [x] Gate: `scripts/tests/hunt_pool_smoke_gate.sh` (fake crash reject + worker smoke)  
 - [ ] Customer repo pin → harness build (catalog-only MVP today)  
 - [x] Docs cross-link from [FUZZ_ESCROW_20_80.md](FUZZ_ESCROW_20_80.md)
 

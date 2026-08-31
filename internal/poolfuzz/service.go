@@ -783,7 +783,11 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	var findingB []byte
 	var seg fuzzengine.SegmentResult
 	if isHunt {
-		checkResult, trap, pass, recordFinding = s.evalHuntSubmit(cfg, req, expectedB)
+		var err error
+		checkResult, trap, pass, recordFinding, err = s.evalHuntSubmitCheck(ctx, cfg, req, expectedB)
+		if err != nil {
+			return err
+		}
 		findingU = expectedU
 		findingB = expectedB
 	} else {
@@ -1176,7 +1180,9 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 		repro = fuzzengine.ReproCmdTool(wasmPath, req.ActualInput)
 	}
 	ft, sev, title := fuzzengine.ClassifyCheckFail(req.ActualInput, hasWasm, sem)
-	if strings.TrimSpace(req.Trap) != "" {
+	if IsHuntCampaign(cfg) {
+		ft, sev, title = classifyHuntFinding(cfg, req)
+	} else if strings.TrimSpace(req.Trap) != "" {
 		ft, sev, title = fuzzengine.ClassifyWasmTrap(req.ActualInput, req.Trap, hasWasm)
 	}
 	if len(inputBytes) > 0 && sem == fuzzengine.SemanticsDetector && strings.TrimSpace(req.Trap) == "" {
@@ -1241,6 +1247,13 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 		if guard == "" {
 			guard = strings.TrimSpace(jsonString(cfg["upstream_guard"]))
 		}
+		upstream := fuzzengine.UpstreamTarget(cfg)
+		if IsHuntCampaign(cfg) {
+			upstream = strings.TrimSpace(jsonString(cfg["upstream_target_id"]))
+			if guard == "" {
+				guard = upstream
+			}
+		}
 		ib := inputBytes
 		if len(ib) == 0 {
 			ib = make([]byte, 8)
@@ -1248,7 +1261,11 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 				ib[i] = byte(req.ActualInput >> (8 * i))
 			}
 		}
-		_ = fuzznative.QueueJob(ctx, s.DB, findingID, req.CampaignID, inputSHA, ib, fuzzengine.UpstreamTarget(cfg), guard, now)
+		if IsHuntCampaign(cfg) && ft == "native_crash" {
+			_ = fuzznative.QueueJobVerified(ctx, s.DB, findingID, req.CampaignID, inputSHA, ib, upstream, guard, fuzznative.StatusNativeCrash, now)
+		} else {
+			_ = fuzznative.QueueJob(ctx, s.DB, findingID, req.CampaignID, inputSHA, ib, upstream, guard, now)
+		}
 	}
 	return findingID, severity, findingType, nil
 }
