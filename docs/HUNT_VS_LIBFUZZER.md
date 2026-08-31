@@ -94,6 +94,9 @@ Report metric to cite: `sanitizer_summary.by_subtype`, not raw `crashes` count.
 ## Operator commands
 
 ```bash
+# C/C++ inventory compile gate
+bash scripts/tests/hunt_inventory_cpp_gate.sh
+
 # Full Hunt vs libFuzzer + pool Standard 128 benchmark
 bash scripts/tests/hunt_standard128_live_benchmark.sh
 

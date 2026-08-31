@@ -73,6 +73,15 @@ var packRules = []packRule{
 		match: func(p, c string) bool {
 			return strings.Contains(c, inventoryMarker)
 		}},
+	{id: "hunt_cpp", product: "hunt", score: 88, reason: "C++ inventory target — clang++ ASAN harness",
+		match: func(p, c string) bool {
+			ext := strings.ToLower(filepath.Ext(p))
+			return ext == ".cpp" || ext == ".cc" || ext == ".cxx" || ext == ".c++"
+		}},
+	{id: "hunt_cmake", product: "hunt", score: 70, reason: "CMakeLists present — may need manual include/link flags beyond auto companion compile",
+		match: func(p, c string) bool {
+			return strings.Contains(strings.ToLower(p), "cmakelists") || strings.Contains(strings.ToLower(c), "cmake_minimum_required")
+		}},
 }
 
 // SuggestPacksForPath scores Dig/Hunt suggestions for one relative file path and optional content sample.
@@ -100,7 +109,14 @@ func SuggestPacksForPath(sourceRel, contentSample string) []PackSuggestion {
 			Product: rule.product,
 		}
 		if rule.product == "hunt" {
-			sug.Title = "Hunt reuse (inventory target)"
+			switch rule.id {
+			case "hunt_cpp":
+				sug.Title = "Hunt C++ inventory (clang++ ASAN)"
+			case "hunt_cmake":
+				sug.Title = "Hunt + CMake repo (review includes)"
+			default:
+				sug.Title = "Hunt reuse (inventory target)"
+			}
 			sug.WizardHint = "hunt create --source " + sourceRel
 		} else if p, err := fuzzingcli.GuardPackFor(rule.id); err == nil {
 			sug.Title = p.Title

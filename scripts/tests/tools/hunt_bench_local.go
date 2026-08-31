@@ -1,4 +1,6 @@
 // Hunt local benchmark helper (Standard package defaults).
+//go:build ignore
+
 package main
 
 import (

@@ -18,6 +18,8 @@ CLI/API keys stay `scan` | `audit` | `deep`. Customer-facing names:
 
 **Hunt** (repo + ASAN on pool, 50/50 escrow) — Phase 2 on `feature/hunt-mvp`:
 
+**Inventory languages (Phase 2.5):** **C and C++** — scan `LLVMFuzzerTestOneInput` in `.c/.cpp`, auto-compile sibling helpers in the same directory, `clang`/`clang++` + ASAN. CMake repos get `build_hints` (manual link flags may still be needed). **Rust/C#:** not in Hunt MVP — see [HUNT_VS_LIBFUZZER.md](HUNT_VS_LIBFUZZER.md).
+
 | API | Purpose |
 |-----|---------|
 | `GET /api/hunt/packages` | Hunt Lite / Standard presets |

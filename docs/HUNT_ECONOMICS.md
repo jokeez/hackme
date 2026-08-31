@@ -147,6 +147,7 @@ Hunt Lite · 20 HMC · 50/50 split
 - [x] UI: Hunt card + **pre-pay scope block** `#hunt-scope-contract`  
 - [x] Gate: `scripts/tests/hunt_pool_smoke_gate.sh` (fake crash reject + worker smoke)  
 - [x] Benchmark: `scripts/tests/hunt_standard128_live_benchmark.sh` + [HUNT_VS_LIBFUZZER.md](HUNT_VS_LIBFUZZER.md)  
+- [x] Inventory C/C++: multi-file `clang++` harness, companion sources, CMake `build_hints` — `scripts/tests/hunt_inventory_cpp_gate.sh`  
 - [x] Customer repo pin → harness build (`POST /api/hunt/repo/pin`, `/harness/build`, `/template/preview`)  
 - [x] Harness publish API + coordinator worker fetch (`/harness/publish`, `/api/fuzz/pool/hunt/harness/{hash}`)  
 - [x] CLI: `hackme-fuzzing hunt pin|inventory|build|create`  

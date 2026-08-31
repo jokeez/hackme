@@ -80,6 +80,7 @@ func ScanInventory(repoRoot, rawPath string, maxFiles, maxDepth int) (*Inventory
 			Title:      filepath.Base(path),
 			Path:       rel,
 			Source:     "inventory",
+			Language:   SourceLanguage(rel),
 			Driver:     rel,
 			ReuseReady: true,
 			Disclosure: "Local inventory hit — verify harness builds with ASAN before Hunt escrow.",
@@ -96,6 +97,7 @@ func ScanInventory(repoRoot, rawPath string, maxFiles, maxDepth int) (*Inventory
 		Path:         root,
 		ScannedFiles: scanned,
 		Targets:      targets,
+		BuildHints:   detectInventoryBuildHints(root),
 		Disclaimer:   "Inventory lists files mentioning LLVMFuzzerTestOneInput — not a CVE guarantee.",
 	}, nil
 }
