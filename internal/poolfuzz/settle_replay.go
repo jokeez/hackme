@@ -73,7 +73,7 @@ func (s *Service) ReplayCampaignSettles(ctx context.Context, campaignID string) 
 		if err := fRows.Scan(&findingID, &sev, &detail); err != nil {
 			return runs, findings, finalize, err
 		}
-		if !bountySeverity(sev) {
+		if !huntBountyEligible(cfg, sev) {
 			continue
 		}
 		if cfg != nil && fuzzengine.BountyRequiresNative(cfg) {

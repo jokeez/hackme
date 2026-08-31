@@ -1,6 +1,9 @@
 package fuzzescrow
 
-import "errors"
+import (
+	"errors"
+	"strings"
+)
 
 const (
 	HuntRunsPoolShare   = 0.50
@@ -11,6 +14,7 @@ const (
 	HuntMinPerShardUnits     = 200_000
 	HuntMinLiteBudgetHMC     = 15.0
 	HuntMinStandardBudgetHMC = 50.0
+	HuntMinHeavyBudgetHMC    = 150.0
 	HuntMinShards            = 8
 	EscrowSplit2080          = "20_80"
 	EscrowSplit5050          = "50_50"
@@ -74,9 +78,11 @@ func uniqueCrashBonusUnitsCapped(bountyPoolUnits, maxUnits uint64) uint64 {
 	return bonus
 }
 
-// MinBudgetHMCForHuntPackage returns floor budget for lite|standard packages.
+// MinBudgetHMCForHuntPackage returns floor budget for lite|standard|heavy packages.
 func MinBudgetHMCForHuntPackage(pkg string) float64 {
 	switch pkg {
+	case "hunt_heavy", "heavy":
+		return HuntMinHeavyBudgetHMC
 	case "hunt_standard", "standard":
 		return HuntMinStandardBudgetHMC
 	case "hunt_lite", "lite", "":
@@ -84,4 +90,30 @@ func MinBudgetHMCForHuntPackage(pkg string) float64 {
 	default:
 		return HuntMinLiteBudgetHMC
 	}
+}
+
+// HuntBountyShare returns the fraction of the remaining bounty pool paid for severity (Hunt 50/50 only).
+func HuntBountyShare(severity string) float64 {
+	switch strings.TrimSpace(strings.ToLower(severity)) {
+	case "critical":
+		return 1.0
+	case "high":
+		return 0.6
+	default:
+		return 0
+	}
+}
+
+// HuntBountyPayoutUnits pays a severity-weighted slice of the remaining bounty pool (before platform fee).
+func HuntBountyPayoutUnits(remaining uint64, severity string) (minerUnits, feeUnits uint64, ok bool) {
+	share := HuntBountyShare(severity)
+	if share <= 0 || remaining == 0 {
+		return 0, 0, false
+	}
+	slice := uint64(float64(remaining) * share)
+	if slice < MinPerRunUnits {
+		return 0, 0, false
+	}
+	minerUnits, feeUnits = BountyPayoutUnits(slice)
+	return minerUnits, feeUnits, true
 }

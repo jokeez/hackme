@@ -183,6 +183,7 @@ func main() {
 		AdminToken:       wm.ordersAdminToken,
 	}
 	addFuzzPoolRoutes(mux, token, workerToken, allowInsecure, wm, pf)
+	addCorpusNamespaceRoute(mux, token, allowInsecure, pf)
 	startPoolFuzzTicker(context.Background(), pf)
 
 	log.Printf("HackMe LAN coordinator → http://%s  (db=%s fuzz_db=%s)", addr, dbPath, fuzzDBPathLog)

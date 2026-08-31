@@ -22,7 +22,17 @@ func Packages() []PackageInfo {
 			BudgetShards: 4000,
 			MinPerShard:  0.003,
 			WallHours:    "1–3d",
-			Summary:      "Larger shard budget · template Accept in Phase 2",
+			Summary:      "Larger shard budget · template Accept · inventory pool",
+			EscrowSplit:  fuzzescrow.EscrowSplit5050,
+		},
+		{
+			Key:          "hunt_heavy",
+			Title:        "Hunt Heavy",
+			BudgetHMC:    150,
+			BudgetShards: 12000,
+			MinPerShard:  0.003,
+			WallHours:    "3d+",
+			Summary:      "Pool-scale ASAN hunt · severity-tier bounty · harness publish",
 			EscrowSplit:  fuzzescrow.EscrowSplit5050,
 		},
 	}

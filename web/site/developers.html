@@ -116,7 +116,9 @@
             <tr><td><code>scan</code></td><td>~1</td><td>64</td><td>1</td><td>local</td><td>CI smoke — <code>bounds_smoke</code> · <code>overflow_smoke</code> · <code>state_smoke</code></td></tr>
             <tr><td><code>audit</code></td><td>~5</td><td>256</td><td>64</td><td>yes</td><td>Protocol guards, DeFi invariants, <code>filter_utf8</code> preflight</td></tr>
             <tr><td><code>deep</code></td><td>~25</td><td>2048</td><td>512 local · <strong>64 cap</strong> on hub</td><td>yes</td><td>Byte corpus, cross-campaign persist, hours-scale campaign</td></tr>
-            <tr><td><code>hunt_lite</code></td><td>~20</td><td>8 shards</td><td>ASAN</td><td>yes</td><td>Customer repo inventory · 50/50 escrow · pack-map suggest</td></tr>
+            <tr><td><code>hunt_lite</code></td><td>~20</td><td>1200 shards</td><td>ASAN</td><td>yes</td><td>Customer repo inventory · 50/50 escrow · pack-map suggest</td></tr>
+            <tr><td><code>hunt_standard</code></td><td>~60</td><td>4000 shards</td><td>ASAN</td><td>yes</td><td>Larger shard budget · template Accept · inventory pool</td></tr>
+            <tr><td><code>hunt_heavy</code></td><td>~150</td><td>12000 shards</td><td>ASAN</td><td>yes</td><td>Pool-scale hunt · severity-tier bounty (critical 100% · high 60%)</td></tr>
           </tbody>
         </table>
       </div>

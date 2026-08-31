@@ -339,6 +339,49 @@ func (s *Service) exportNamespaceCorpus(ctx context.Context, cfg map[string]any,
 	return err
 }
 
+// UpsertNamespaceCorpusSeeds merges coordinator/node namespace corpus rows.
+func (s *Service) UpsertNamespaceCorpusSeeds(ctx context.Context, namespace string, seeds []fuzzengine.PoolCorpusSeed, now int64) error {
+	if s == nil || s.DB == nil || namespace == "" {
+		return nil
+	}
+	for _, seed := range seeds {
+		if seed.Crash {
+			continue
+		}
+		energy := seed.Energy
+		if energy < 1 {
+			energy = 1
+		}
+		inputBytes := seed.InputBytes
+		if inputBytes == nil {
+			inputBytes = []byte{}
+		}
+		_, err := s.DB.ExecContext(ctx,
+			`INSERT INTO fuzz_corpus_namespace
+			 (namespace, input_u64, input_bytes, energy, edge_bucket, path_bucket, is_crash, first_seen_at, last_seen_at, exec_count)
+			 VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, 1)
+			 ON CONFLICT(namespace, input_u64) DO UPDATE SET
+			   energy=MAX(fuzz_corpus_namespace.energy, excluded.energy),
+			   edge_bucket=excluded.edge_bucket,
+			   path_bucket=excluded.path_bucket,
+			   input_bytes=CASE
+			     WHEN length(excluded.input_bytes) > length(fuzz_corpus_namespace.input_bytes) THEN excluded.input_bytes
+			     ELSE fuzz_corpus_namespace.input_bytes END,
+			   last_seen_at=excluded.last_seen_at,
+			   exec_count=fuzz_corpus_namespace.exec_count+1`,
+			namespace, poolCorpusU64Arg(seed.Input), inputBytes, energy, seed.Edge, seed.Path, now, now)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ListNamespaceCorpus returns persisted cross-campaign seeds for a namespace.
+func (s *Service) ListNamespaceCorpus(ctx context.Context, namespace string, max int) ([]fuzzengine.PoolCorpusSeed, error) {
+	return s.loadNamespaceCorpusSeeds(ctx, namespace, max)
+}
+
 // SeedsForWorkItem returns frozen corpus seeds for submit verify (snapshot at claim; no live fallback).
 func (s *Service) SeedsForWorkItem(ctx context.Context, campaignID string, itemID int64, cfg map[string]any) ([]fuzzengine.PoolCorpusSeed, error) {
 	if !fuzzengine.GuidedSchedulingEnabled(cfg) && PoolExecPerUnit(cfg) <= 1 {

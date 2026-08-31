@@ -173,7 +173,19 @@ func (s *Service) payFuzzBountyTx(ctx context.Context, tx *sql.Tx, campaignID, m
 	if remaining == 0 || row.bountyPoolUnits < row.crashBonusPaidUnits {
 		return ErrFuzzEscrowDepleted
 	}
-	minerUnits, feeUnits := fuzzescrow.BountyPayoutUnits(remaining)
+	var minerUnits, feeUnits uint64
+	var paidSlice uint64
+	if row.escrowSplit == fuzzescrow.EscrowSplit5050 {
+		var ok bool
+		minerUnits, feeUnits, ok = fuzzescrow.HuntBountyPayoutUnits(remaining, severity)
+		if !ok {
+			return fmt.Errorf("chain: hunt bounty not payable for severity %q", severity)
+		}
+		paidSlice = minerUnits + feeUnits
+	} else {
+		minerUnits, feeUnits = fuzzescrow.BountyPayoutUnits(remaining)
+		paidSlice = remaining
+	}
 	if err := s.creditUnits(ctx, tx, minerAddress, minerUnits); err != nil {
 		return err
 	}
@@ -184,7 +196,7 @@ func (s *Service) payFuzzBountyTx(ctx context.Context, tx *sql.Tx, campaignID, m
 	}
 	_, err = tx.ExecContext(ctx,
 		`UPDATE fuzz_campaign_escrow SET bounty_paid_units=?, finding_winner=?, status='bounty_paid' WHERE campaign_id=?`,
-		remaining, minerAddress, campaignID)
+		paidSlice, minerAddress, campaignID)
 	return err
 }
 
@@ -198,9 +210,6 @@ func (s *Service) finalizeFuzzEscrowTx(ctx context.Context, tx *sql.Tx, campaign
 	}
 	runsRefund := row.runsPoolUnits - row.runsPaidUnits
 	bountyRefund := row.bountyPoolUnits - row.bountyPaidUnits - row.crashBonusPaidUnits
-	if row.status == "bounty_paid" {
-		bountyRefund = 0
-	}
 	if row.bountyPoolUnits < row.bountyPaidUnits+row.crashBonusPaidUnits {
 		bountyRefund = 0
 	}

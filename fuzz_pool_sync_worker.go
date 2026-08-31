@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"hackme/internal/fuzzengine"
 	"hackme/internal/poolsync"
 	"hackme/internal/poolfuzz"
 )
@@ -175,6 +176,9 @@ func (a *app) runPoolSyncJob(job poolSyncJob) {
 	}
 	if poolfuzz.IsHuntCampaign(cfg) {
 		a.syncHuntHarnessToCoordinator(ctx, cfg)
+	}
+	if fuzzengine.CorpusPersistEnabled(cfg) {
+		a.syncCorpusNamespaceToCoordinator(ctx, cfg)
 	}
 	log.Printf("pool sync: campaign %s registered on coordinator", job.campaign.ID)
 	a.poolSyncMarkOK(job.campaign.ID)

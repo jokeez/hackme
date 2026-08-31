@@ -97,3 +97,29 @@ func TestEvalHuntSubmitRejectsFakeCrash(t *testing.T) {
 		t.Fatalf("fake crash should fail pass=%v finding=%v trap=%q", pass, finding, trap)
 	}
 }
+
+func TestHuntBountyEligibleHuntOnlyCriticalHigh(t *testing.T) {
+	cfg := map[string]any{"work_kind": "hunt_shard"}
+	if !huntBountyEligible(cfg, "critical") || !huntBountyEligible(cfg, "high") {
+		t.Fatal("hunt critical/high eligible")
+	}
+	if huntBountyEligible(cfg, "medium") {
+		t.Fatal("hunt medium not eligible")
+	}
+	dig := map[string]any{"work_kind": "wasm_segment"}
+	if !huntBountyEligible(dig, "medium") {
+		t.Fatal("dig medium eligible via bountySeverity")
+	}
+}
+
+func TestHuntCrashSeverity(t *testing.T) {
+	if huntCrashSeverity("heap-buffer-overflow") != "critical" {
+		t.Fatal("heap OOB critical")
+	}
+	if huntCrashSeverity("use-after-free") != "critical" {
+		t.Fatal("UAF critical")
+	}
+	if huntCrashSeverity("stack-buffer-overflow") != "high" {
+		t.Fatal("stack OOB high")
+	}
+}

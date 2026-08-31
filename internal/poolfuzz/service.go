@@ -905,7 +905,7 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 		}
 	}
 	if wantRunSettle {
-		if recordFinding && bountySeverity(findingSeverity) && s.bountyAllowed(ctx, cfg, findingID) {
+		if recordFinding && huntBountyEligible(cfg, findingSeverity) && s.bountyAllowed(ctx, cfg, findingID) {
 			_, _ = s.DB.ExecContext(ctx,
 				`UPDATE fuzz_work_items SET settle_finding_status='pending', settle_finding_severity=? WHERE id=? AND campaign_id=?`,
 				findingSeverity, req.ItemID, req.CampaignID)
@@ -980,7 +980,7 @@ func (s *Service) flushPendingSettles(ctx context.Context, campaignID string, it
 	}
 	if findSt == "pending" || findSt == "queued" {
 		sev := strings.TrimSpace(findSev)
-		if bountySeverity(sev) {
+		if huntBountyEligible(cfg, sev) {
 			res, err := s.Settler.PayFinding(ctx, campaignID, miner, sev, itemID, findOutbox)
 			if err != nil {
 				return fmt.Errorf("poolfuzz: settle finding: %w", err)

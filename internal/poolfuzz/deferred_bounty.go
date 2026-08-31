@@ -47,7 +47,7 @@ func (s *Service) flushDeferredBounties(ctx context.Context) error {
 				continue
 			}
 		}
-		if !bountySeverity(severity) {
+		if !huntBountyEligible(cfg, severity) {
 			continue
 		}
 		miner, itemID := minerAndItemFromFindingDetail(detailJSON)

@@ -29,6 +29,8 @@ var fuzzTables = []string{
 	"fuzz_campaign_escrow",
 	"fuzz_settle_outbox",
 	"fuzz_settle_applied",
+	"fuzz_corpus_namespace",
+	"hunt_harness_artifacts",
 }
 
 func main() {

@@ -18,6 +18,15 @@ bash "$ROOT/scripts/tests/corpus_persist_gate.sh"
 echo "[product-final-gate] hunt pool smoke"
 bash "$ROOT/scripts/tests/hunt_pool_smoke_gate.sh"
 
+echo "[product-final-gate] site b2b content"
+bash "$ROOT/scripts/tests/site_b2b_content_gate.sh"
+
+echo "[product-final-gate] coordinator corpus sync"
+bash "$ROOT/scripts/tests/coordinator_corpus_sync_gate.sh"
+
+echo "[product-final-gate] hunt escrow + severity tiers"
+go test -count=1 ./internal/fuzzescrow/... ./internal/chain/... -run 'Hunt|Bounty' -timeout=60s
+
 echo "[product-final-gate] hunt harness publish"
 bash "$ROOT/scripts/tests/hunt_harness_publish_gate.sh"
 

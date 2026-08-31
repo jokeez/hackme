@@ -99,6 +99,30 @@ func huntHarnessFetchURL(cfg map[string]any) string {
 	return hunt.HarnessFetchURL(strings.TrimSpace(jsonString(cfg["harness_hash"])))
 }
 
+func huntCrashSeverity(san string) string {
+	switch {
+	case strings.Contains(san, "heap-buffer-overflow"),
+		strings.Contains(san, "use-after-free"),
+		strings.Contains(san, "double-free"),
+		strings.Contains(san, "heap-use-after-free"):
+		return "critical"
+	default:
+		return "high"
+	}
+}
+
+func huntBountyEligible(cfg map[string]any, sev string) bool {
+	if !IsHuntCampaign(cfg) {
+		return bountySeverity(sev)
+	}
+	switch strings.TrimSpace(strings.ToLower(sev)) {
+	case "critical", "high":
+		return true
+	default:
+		return false
+	}
+}
+
 func perShardHMCFromConfig(cfg map[string]any) float64 {
 	if cfg == nil {
 		return 0
@@ -188,9 +212,9 @@ func classifyHuntFinding(cfg map[string]any, req SubmitRequest) (ft, sev, title 
 	trap := strings.TrimSpace(req.Trap)
 	target := strings.TrimSpace(jsonString(cfg["upstream_target_id"]))
 	if strings.HasPrefix(trap, "hunt_crash:") {
-		san := strings.TrimPrefix(trap, "hunt_crash:")
+		san := strings.ToLower(strings.TrimPrefix(trap, "hunt_crash:"))
 		ft = "native_crash"
-		sev = "high"
+		sev = huntCrashSeverity(san)
 		title = fmt.Sprintf("Hunt ASAN %s on %s", san, target)
 		return ft, sev, title
 	}
