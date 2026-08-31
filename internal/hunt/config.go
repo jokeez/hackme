@@ -10,6 +10,8 @@ import (
 	"hackme/internal/fuzzupstream"
 )
 
+const defaultHuntIterationsPerShard = 32
+
 // CampaignConfig builds normalized fuzz campaign config for Hunt.
 func CampaignConfig(repoRoot string, req CreateRequest) (map[string]any, string, error) {
 	pkgKey := strings.TrimSpace(strings.ToLower(req.Package))
@@ -38,6 +40,7 @@ func CampaignConfig(repoRoot string, req CreateRequest) (map[string]any, string,
 		return nil, "", err
 	}
 
+	pool := req.PoolDistributed
 	cfg := map[string]any{
 		"depth_tier":       string(fuzzengine.DepthOSSCVE),
 		"input_mode":       "bytes",
@@ -46,10 +49,21 @@ func CampaignConfig(repoRoot string, req CreateRequest) (map[string]any, string,
 		"hunt_package":     preset.Key,
 		"upstream_target":  "oss",
 		"upstream_target_id": targetID,
-		"pool_distributed": false,
+		"pool_distributed": pool,
 		"auto_runner":      "1",
 		"bounty_requires_native": true,
-		"hunt_local_runner": true,
+		"hunt_local_runner": !pool,
+	}
+	if pool {
+		cfg["auto_runner"] = "0"
+		cfg["work_kind"] = "hunt_shard"
+		cfg["check_semantics"] = "native_crash"
+		cfg["iterations_per_shard"] = defaultHuntIterationsPerShard
+		hash, hErr := CatalogHarnessHash(repoRoot, targetID)
+		if hErr != nil {
+			return nil, "", hErr
+		}
+		cfg["harness_hash"] = hash
 	}
 	if req.Inventory != nil && strings.TrimSpace(req.Inventory.Path) != "" {
 		cfg["hunt_inventory_path"] = strings.TrimSpace(req.Inventory.Path)

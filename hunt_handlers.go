@@ -138,7 +138,7 @@ func (a *app) handleHuntCampaignCreate(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusInternalServerError, "load_failed", "campaign created but readback failed", nil)
 		return
 	}
-	writeJSON(w, map[string]any{
+	resp := map[string]any{
 		"ok":                     true,
 		"campaign":               c,
 		"product":                "hunt",
@@ -146,8 +146,14 @@ func (a *app) handleHuntCampaignCreate(w http.ResponseWriter, r *http.Request) {
 		"customer_report_token":  reportToken,
 		"customer_report_header": "X-Hackme-Report-Token",
 		"escrow":                 escrow,
-		"prepay_disclaimer":      "No CVE guarantee · CLEAN = budget statement · pool shards Phase 1b",
-	})
+		"prepay_disclaimer":      "No CVE guarantee · CLEAN = budget statement · pool shards verify ASAN on miners",
+	}
+	if poolDistributedCampaign(cfgMap) {
+		resp["pool_distributed"] = true
+		fc := fuzzAutoCampaign{ID: id, BudgetRuns: shards, BudgetSeconds: 86400, ConfigJSON: cfg}
+		a.applyPoolSyncResponse(resp, r.Context(), fc)
+	}
+	writeJSON(w, resp)
 }
 
 func (a *app) handleHuntCampaignRunLocal(w http.ResponseWriter, r *http.Request, campaignID string) {

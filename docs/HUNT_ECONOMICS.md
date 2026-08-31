@@ -1,7 +1,7 @@
 # Hunt economics — 50/50 split (spec)
 
-**Status:** product spec · **not yet wired in code** (Dig/Scan still use 20/80 via `internal/fuzzescrow`)  
-**Updated:** 2026-08-30  
+**Status:** wired in code on `feature/hunt-mvp` (Dig/Scan still 20/80)  
+**Updated:** 2026-08-31  
 **Related:** [FUZZ_ESCROW_20_80.md](FUZZ_ESCROW_20_80.md) · [ORDER_ECONOMICS.md](ORDER_ECONOMICS.md) · [FUZZ_PRODUCT_GUIDE.md](FUZZ_PRODUCT_GUIDE.md)
 
 ---
@@ -131,14 +131,18 @@ Hunt Lite · 20 HMC · 50/50 split
 
 ---
 
-## Implementation checklist (code — later)
+## Implementation checklist (code)
 
 - [x] `fuzzescrow.ComputeHuntSplitUnits` — 50/50 + Hunt min shard units  
 - [x] `campaign_type: hunt` in create API (`POST /api/hunt/campaigns`)  
 - [x] `UniqueCrashBonusMaxUnits` override for Hunt: **5_000_000** (0.05 HMC) via `escrow_split`  
-- [x] Node: `GET /api/hunt/targets`, `POST /api/hunt/inventory`  
-- [ ] Coordinator: CPU shard work kind + repro challenge  
-- [ ] UI: pre-pay block + escrow fields on dashboard Hunt tab  
+- [x] Node: `GET /api/hunt/targets`, `POST /api/hunt/inventory`, `POST /api/hunt/campaigns`  
+- [x] Coordinator: CPU shard work kind `hunt_shard` — claim/submit (`internal/poolfuzz/hunt_shard.go`)  
+- [x] Worker: `RunHuntShard` ASAN on catalog harness (`internal/workerfuzzloop/hunt_shard.go`)  
+- [x] UI: Hunt card on dashboard `#orders-hunt-campaign` (catalog + pool distributed)  
+- [ ] Coordinator repro challenge (WASM replay analogue for native crash)  
+- [ ] Hunt pre-pay scope block on dashboard (Dig-style `#audit-scope-contract`)  
+- [ ] Customer repo pin → harness build (catalog-only MVP today)  
 - [x] Docs cross-link from [FUZZ_ESCROW_20_80.md](FUZZ_ESCROW_20_80.md)
 
 ---

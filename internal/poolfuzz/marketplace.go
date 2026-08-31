@@ -87,8 +87,22 @@ func (s *Service) ListPublicCampaigns(ctx context.Context, limit int) ([]map[str
 		if dt := strings.TrimSpace(jsonString(cfg["depth_tier"])); dt != "" {
 			item["depth_tier"] = dt
 		}
-		if budgetHMC > 0 && budgetRuns >= 8 {
-			item["per_run_hmc"] = (budgetHMC * 0.20) / float64(budgetRuns)
+		if budgetHMC > 0 {
+			shards := budgetRuns
+			share := 0.20
+			if strings.TrimSpace(jsonString(cfg["escrow_split"])) == "50_50" || strings.EqualFold(ctype, "hunt") {
+				share = 0.50
+				if v := intFromJSON(cfg["budget_shards"]); v >= 8 {
+					shards = v
+				}
+			}
+			if shards >= 8 {
+				per := (budgetHMC * share) / float64(shards)
+				item["per_run_hmc"] = per
+				if IsHuntCampaign(cfg) {
+					item["per_shard_hmc"] = per
+				}
+			}
 		}
 		if native, ok := summary["native"].(map[string]any); ok {
 			item["native_status"] = native["status"]

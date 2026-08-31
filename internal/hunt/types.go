@@ -55,4 +55,5 @@ type CreateRequest struct {
 	BudgetHMC    float64        `json:"budget_hmc,omitempty"`
 	BudgetShards int            `json:"budget_shards,omitempty"`
 	Status       string         `json:"status,omitempty"`
+	PoolDistributed bool        `json:"pool_distributed,omitempty"`
 }

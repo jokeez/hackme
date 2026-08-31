@@ -55,6 +55,11 @@ type ClaimedWork struct {
 	CoverageKind         string
 	CorpusSeeds          []fuzzengine.PoolCorpusSeed
 	CorpusSnapshotSHA256 string
+	TaskClass            string
+	WorkKind             string
+	HarnessHash          string
+	UpstreamTargetID     string
+	IterationsPerShard   int
 }
 
 type SubmitRequest struct {
@@ -721,8 +726,9 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	cfgJSON := ""
 	_ = s.DB.QueryRowContext(ctx, `SELECT config_json FROM fuzz_campaigns WHERE id=?`, req.CampaignID).Scan(&cfgJSON)
 	cfg := parseConfigJSON(cfgJSON)
+	isHunt := IsHuntCampaign(cfg)
 	sem := fuzzengine.ParseCheckSemantics(cfg)
-	hasWasm := wasmHexFromConfig(cfg) != ""
+	hasWasm := !isHunt && wasmHexFromConfig(cfg) != ""
 
 	var inputN uint64
 	if err := s.DB.QueryRowContext(ctx,
@@ -751,6 +757,9 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 		return fmt.Errorf("poolfuzz: input_bytes exceed max_input_bytes")
 	}
 	execPer := PoolExecPerUnit(cfg)
+	if isHunt {
+		execPer = huntIterationsPerShard(cfg)
+	}
 	if execPer > 1 {
 		if req.SegmentExecDone != execPer {
 			return fmt.Errorf("poolfuzz: segment_exec_done mismatch want %d got %d", execPer, req.SegmentExecDone)
@@ -759,19 +768,33 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 		return fmt.Errorf("poolfuzz: unexpected segment_exec_done for single-exec unit")
 	}
 	var seeds []fuzzengine.PoolCorpusSeed
-	if fuzzengine.GuidedSchedulingEnabled(cfg) || execPer > 1 {
+	if !isHunt && (fuzzengine.GuidedSchedulingEnabled(cfg) || execPer > 1) {
 		var err error
 		seeds, err = s.SeedsForWorkItem(ctx, req.CampaignID, req.ItemID, cfg)
 		if err != nil {
 			return err
 		}
 	}
-	checkResult, trap, pass, recordFinding, findingU, findingB, seg, err := s.evalSubmitCheck(ctx, cfg, sem, inputN, expectedU, expectedB, seeds)
-	if err != nil {
-		return err
-	}
-	if hasWasm && execPer > 1 && seg.ExecDone != seg.ExecExpected {
-		return fmt.Errorf("poolfuzz: incomplete segment replay %d/%d", seg.ExecDone, seg.ExecExpected)
+	var checkResult int32
+	var trap string
+	var pass bool
+	var recordFinding bool
+	var findingU uint64
+	var findingB []byte
+	var seg fuzzengine.SegmentResult
+	if isHunt {
+		checkResult, trap, pass, recordFinding = s.evalHuntSubmit(cfg, req, expectedB)
+		findingU = expectedU
+		findingB = expectedB
+	} else {
+		var err error
+		checkResult, trap, pass, recordFinding, findingU, findingB, seg, err = s.evalSubmitCheck(ctx, cfg, sem, inputN, expectedU, expectedB, seeds)
+		if err != nil {
+			return err
+		}
+		if hasWasm && execPer > 1 && seg.ExecDone != seg.ExecExpected {
+			return fmt.Errorf("poolfuzz: incomplete segment replay %d/%d", seg.ExecDone, seg.ExecExpected)
+		}
 	}
 	req.InputN = inputN
 	req.ActualInput = expectedU
@@ -839,14 +862,18 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 		}
 		return nil
 	}
-	if len(seg.ExecCoverage) > 0 {
-		if err := s.recordSegmentCoverage(ctx, req.CampaignID, inputN, cfg, seeds, seg, now); err != nil {
+	if !isHunt {
+		if len(seg.ExecCoverage) > 0 {
+			if err := s.recordSegmentCoverage(ctx, req.CampaignID, inputN, cfg, seeds, seg, now); err != nil {
+				return err
+			}
+		} else if err := s.recordCoverage(ctx, req.CampaignID, cfg, req.ActualInput, req.InputBytes, nil, now); err != nil {
+			return err
+		}
+		if err := s.observePoolCorpus(ctx, req.CampaignID, req.ActualInput, req.InputBytes, recordFinding, now); err != nil {
 			return err
 		}
 	} else if err := s.recordCoverage(ctx, req.CampaignID, cfg, req.ActualInput, req.InputBytes, nil, now); err != nil {
-		return err
-	}
-	if err := s.observePoolCorpus(ctx, req.CampaignID, req.ActualInput, req.InputBytes, recordFinding, now); err != nil {
 		return err
 	}
 	var findingSeverity string
@@ -1366,6 +1393,9 @@ func derivePoolInput(inputN uint64, cfg map[string]any) uint64 {
 }
 
 func perRunHMCFromConfig(cfg map[string]any) float64 {
+	if IsHuntCampaign(cfg) {
+		return perShardHMCFromConfig(cfg)
+	}
 	if cfg == nil {
 		return 0
 	}
@@ -1374,7 +1404,11 @@ func perRunHMCFromConfig(cfg map[string]any) float64 {
 	if budget <= 0 || runs < 8 {
 		return 0
 	}
-	return (budget * 0.20) / float64(runs)
+	share := 0.20
+	if strings.TrimSpace(jsonString(cfg["escrow_split"])) == "50_50" {
+		share = 0.50
+	}
+	return (budget * share) / float64(runs)
 }
 
 func wasmHexFromConfig(cfg map[string]any) string {

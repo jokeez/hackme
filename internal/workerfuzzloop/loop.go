@@ -46,6 +46,10 @@ type ClaimResp struct {
 	CheckSemantics       string           `json:"check_semantics,omitempty"`
 	CorpusSeeds          []map[string]any `json:"corpus_seeds,omitempty"`
 	CorpusSnapshotSHA256 string           `json:"corpus_snapshot_sha256,omitempty"`
+	TaskClass            string           `json:"task_class,omitempty"`
+	WorkKind             string           `json:"work_kind,omitempty"`
+	HarnessHash          string           `json:"harness_hash,omitempty"`
+	UpstreamTargetID     string           `json:"upstream_target_id,omitempty"`
 }
 
 // Config drives a supervised fuzz dig loop.
@@ -310,7 +314,19 @@ func runOne(ctx context.Context, cfg Config, base string, st *Stats) {
 		return
 	}
 	st.ClaimsOK.Add(1)
-	checkRet, durMS, trap, execDone := RunSegmentCheck(ctx, cr, cfg.TimeoutMS)
+	var checkRet int32
+	var durMS int
+	var trap string
+	var execDone int
+	if IsHuntClaim(cr) {
+		if err := HuntClaimMissingFields(cr); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", cfg.LogPrefix, err)
+			return
+		}
+		checkRet, durMS, trap, execDone = RunHuntShard(ctx, cr, cfg.TimeoutMS)
+	} else {
+		checkRet, durMS, trap, execDone = RunSegmentCheck(ctx, cr, cfg.TimeoutMS)
+	}
 	nonce := uint64(time.Now().UnixNano())
 	if err := Submit(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cfg.MinerAddr, cfg.Priv, cfg.PubHex, cfg.Hybrid, nonce, cr, checkRet, durMS, trap, execDone); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: submit: %v\n", cfg.LogPrefix, err)

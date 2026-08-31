@@ -473,6 +473,17 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		if sha := strings.TrimSpace(work.CorpusSnapshotSHA256); sha != "" {
 			payload["corpus_snapshot_sha256"] = sha
 		}
+		if work.TaskClass == "hunt" || work.WorkKind == "hunt_shard" {
+			payload["task_class"] = "hunt"
+			payload["work_kind"] = "hunt_shard"
+			payload["harness_hash"] = work.HarnessHash
+			payload["upstream_target_id"] = work.UpstreamTargetID
+			payload["per_shard_hmc"] = work.PerRunHMC
+			payload["shard_spec"] = map[string]any{
+				"iterations_per_shard": work.IterationsPerShard,
+				"check_semantics":      work.CheckSemantics,
+			}
+		}
 		_ = json.NewEncoder(w).Encode(payload)
 	})
 
