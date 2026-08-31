@@ -7,6 +7,6 @@ cd "$ROOT"
 source "$ROOT/scripts/tests/common.sh"
 
 echo "[hunt-report-gate] unit tests"
-go test -count=1 . ./internal/hunt/... ./internal/poolfuzz/... -run 'TestHuntReportE2E|TestRenderFuzzReportHTML_HuntScope|TestHuntCampaignCreate5050|TestReplayShardDetectsIntentionalCrash|TestEvalHuntSubmitConfirmsIntentionalCrash' -timeout=5m
+go test -count=1 . ./internal/hunt/... ./internal/poolfuzz/... ./internal/workerfuzzloop/... -run 'TestHuntReportE2E|TestRenderFuzzReportHTML_HuntScope|TestHuntCampaignCreate5050|TestReplayShard|TestShardSegment|TestEvalHuntSubmit|TestHuntShard' -timeout=5m
 
 pass "hunt_report_gate PASS"

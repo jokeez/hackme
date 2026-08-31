@@ -2,6 +2,7 @@ package poolfuzz
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -92,7 +93,7 @@ func TestEvalHuntSubmitRejectsFakeCrash(t *testing.T) {
 	input := []byte(`{"ok":true}`)
 	s := &Service{}
 	req := SubmitRequest{SegmentExecDone: 2, CheckResult: 1, Trap: "hunt_crash:asan"}
-	_, trap, pass, finding, err := s.evalHuntSubmitCheck(context.Background(), cfg, req, input)
+	_, trap, pass, finding, _, err := s.evalHuntSubmitCheck(context.Background(), "", 0, cfg, req, input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,17 +134,28 @@ func TestEvalHuntSubmitConfirmsIntentionalCrash(t *testing.T) {
 	}
 	t.Setenv("HACKME_POOL_HUNT_REPLAY", "1")
 	dir := t.TempDir()
+	root := hunt.RepoRoot()
+	campaignID := "confirm-camp"
+	inputN := uint64(7)
+	cfg := map[string]any{
+		"work_kind":            "hunt_shard",
+		"campaign_type":        "hunt",
+		"upstream_target_id":   "intentional-vuln",
+		"iterations_per_shard": 2,
+		"max_input_bytes":      256,
+		"depth_tier":           "oss_cve",
+	}
+	anchor := hunt.ShardAnchorBytes(campaignID, inputN, cfg)
 	src := filepath.Join(dir, "fuzz_target.c")
-	body := `int LLVMFuzzerTestOneInput(const unsigned char *d, unsigned long n) {
-		if (n > 4 && d[0]=='c' && d[1]=='r' && d[2]=='a' && d[3]=='s' && d[4]=='h') {
+	body := fmt.Sprintf(`int LLVMFuzzerTestOneInput(const unsigned char *d, unsigned long n) {
+		if (n >= 4 && d[0]==0x%02x && d[1]==0x%02x && d[2]==0x%02x && d[3]==0x%02x) {
 			*(volatile int*)0 = 1;
 		}
 		return 0;
-	}`
+	}`, anchor[0], anchor[1], anchor[2], anchor[3])
 	if err := os.WriteFile(src, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	root := hunt.RepoRoot()
 	pin := &hunt.RepoPinResult{Path: dir, CommitSHA: "testsha"}
 	build, err := hunt.BuildInventoryHarness(context.Background(), root, hunt.HarnessBuildRequest{
 		Pin: pin, SourceRel: "fuzz_target.c",
@@ -151,25 +163,21 @@ func TestEvalHuntSubmitConfirmsIntentionalCrash(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := map[string]any{
-		"work_kind":            "hunt_shard",
-		"campaign_type":        "hunt",
-		"hunt_source":          "inventory",
-		"upstream_target_id":   "intentional-vuln",
-		"harness_hash":         build.HarnessHash,
-		"hunt_pin_path":        dir,
-		"hunt_source_rel":      "fuzz_target.c",
-		"iterations_per_shard": 2,
-		"max_input_bytes":      256,
-	}
+	cfg["hunt_source"] = "inventory"
+	cfg["harness_hash"] = build.HarnessHash
+	cfg["hunt_pin_path"] = dir
+	cfg["hunt_source_rel"] = "fuzz_target.c"
 	s := &Service{}
 	req := SubmitRequest{SegmentExecDone: 2, CheckResult: 1, Trap: "hunt_crash:asan"}
-	_, trap, pass, finding, err := s.evalHuntSubmitCheck(context.Background(), cfg, req, []byte("crash"))
+	_, trap, pass, finding, crashB, err := s.evalHuntSubmitCheck(context.Background(), campaignID, inputN, cfg, req, anchor)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !pass || !finding || !strings.HasPrefix(trap, "hunt_crash:") {
 		t.Fatalf("expected confirmed crash pass=%v finding=%v trap=%q", pass, finding, trap)
+	}
+	if len(crashB) == 0 || crashB[0] != anchor[0] {
+		t.Fatalf("expected crash on anchor exec, crashB len=%d", len(crashB))
 	}
 	ft, sev, title := classifyHuntFinding(cfg, req)
 	if ft != "native_crash" || title == "" {

@@ -16,7 +16,7 @@ func HuntShardsEnabled() bool {
 	return !Falsy(os.Getenv("HACKME_WORKER_HUNT_SHARDS"))
 }
 
-// RunHuntShard executes one Hunt pool shard (ASAN catalog harness, frozen input).
+// RunHuntShard executes one Hunt pool shard (ASAN harness, anchor + L1 segment mutations).
 func RunHuntShard(ctx context.Context, cr ClaimResp, timeoutMS int) (checkResult int32, durationMS int, trap string, execDone int) {
 	if !HuntShardsEnabled() {
 		return 0, 0, "hunt disabled", 0
@@ -57,6 +57,9 @@ func RunHuntShard(ctx context.Context, cr ClaimResp, timeoutMS int) (checkResult
 		TargetID:        targetID,
 		HarnessHash:     strings.TrimSpace(cr.HarnessHash),
 		HarnessFetchURL: huntFetchURL(cr),
+		CampaignID:      strings.TrimSpace(cr.CampaignID),
+		InputN:          cr.InputN,
+		Config:          huntShardConfigFromClaim(cr),
 		Input:           inputB,
 		MaxInput:        maxB,
 		ExecPer:         execPer,
@@ -105,4 +108,19 @@ func huntFetchURL(cr ClaimResp) string {
 		return u
 	}
 	return base + "/" + strings.TrimPrefix(u, "/")
+}
+
+func huntShardConfigFromClaim(cr ClaimResp) map[string]any {
+	cfg := map[string]any{
+		"upstream_target_id":   strings.TrimSpace(cr.UpstreamTargetID),
+		"max_input_bytes":      cr.MaxInputBytes,
+		"input_mode":           "bytes",
+		"iterations_per_shard": cr.ExecPerUnit,
+	}
+	if tier := strings.TrimSpace(cr.DepthTier); tier != "" {
+		cfg["depth_tier"] = tier
+	} else {
+		cfg["depth_tier"] = "oss_cve"
+	}
+	return cfg
 }

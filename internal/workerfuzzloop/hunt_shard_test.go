@@ -22,3 +22,15 @@ func TestHuntClaimMissingFields(t *testing.T) {
 		t.Fatal("missing target")
 	}
 }
+
+func TestHuntShardConfigFromClaim(t *testing.T) {
+	cfg := huntShardConfigFromClaim(ClaimResp{
+		UpstreamTargetID: "jsmn",
+		MaxInputBytes:    128,
+		ExecPerUnit:      8,
+		DepthTier:        "oss_cve",
+	})
+	if cfg["upstream_target_id"] != "jsmn" || cfg["iterations_per_shard"] != 8 {
+		t.Fatalf("cfg=%v", cfg)
+	}
+}

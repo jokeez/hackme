@@ -36,13 +36,16 @@ func RepoRoot() string {
 	return wd
 }
 
-// ReplayShardOpts runs one frozen Hunt shard input on the catalog harness.
+// ReplayShardOpts runs one Hunt pool shard input chain on the catalog harness.
 type ReplayShardOpts struct {
 	RepoRoot        string
 	Spec            HarnessSpec
 	TargetID        string
 	HarnessHash     string
 	HarnessFetchURL string
+	CampaignID      string
+	InputN          uint64
+	Config          map[string]any
 	Input           []byte
 	MaxInput        int
 	ExecPer         int
@@ -50,10 +53,11 @@ type ReplayShardOpts struct {
 
 // ReplayShardResult is coordinator/worker replay output for one shard.
 type ReplayShardResult struct {
-	Crash     bool
-	Sanitizer string
-	Trap      string
-	ExecDone  int
+	Crash      bool
+	Sanitizer  string
+	Trap       string
+	ExecDone   int
+	CrashInput []byte
 }
 
 // EnsureHarnessBinary returns a pinned ASAN harness binary for targetID/harnessHash.
@@ -121,12 +125,9 @@ func EnsureHarnessBinary(ctx context.Context, repoRoot, targetID, harnessHash st
 	return cachePath, nil
 }
 
-// ReplayShard executes execPer ASAN runs on frozen input (coordinator challenge).
+// ReplayShard executes execPer ASAN runs on a Hunt shard (anchor + deterministic mutations).
 func ReplayShard(ctx context.Context, opts ReplayShardOpts) (ReplayShardResult, error) {
 	out := ReplayShardResult{}
-	if len(opts.Input) == 0 {
-		return out, fmt.Errorf("hunt replay: empty input")
-	}
 	execPer := opts.ExecPer
 	if execPer < 1 {
 		execPer = 1
@@ -135,13 +136,21 @@ func ReplayShard(ctx context.Context, opts ReplayShardOpts) (ReplayShardResult, 
 	if maxB <= 0 {
 		maxB = 4096
 	}
+	cfg := opts.Config
+	if cfg == nil {
+		cfg = map[string]any{}
+	}
 	binPath, err := resolveHarnessBinary(ctx, opts)
 	if err != nil {
 		return out, err
 	}
-	for i := 0; i < execPer; i++ {
-		crash, san, _, runErr := fuzzupstream.RunInput(ctx, binPath, opts.Input, maxB)
-		out.ExecDone = i + 1
+	for execIdx := 0; execIdx < execPer; execIdx++ {
+		inputB := replayInputForExec(opts, uint64(execIdx), cfg)
+		if len(inputB) == 0 {
+			return out, fmt.Errorf("hunt replay: empty input exec=%d", execIdx)
+		}
+		crash, san, _, runErr := fuzzupstream.RunInput(ctx, binPath, inputB, maxB)
+		out.ExecDone = execIdx + 1
 		if runErr != nil && !crash {
 			return out, fmt.Errorf("hunt replay run: %w", runErr)
 		}
@@ -152,10 +161,24 @@ func ReplayShard(ctx context.Context, opts ReplayShardOpts) (ReplayShardResult, 
 				out.Sanitizer = "asan"
 			}
 			out.Trap = "hunt_crash:" + out.Sanitizer
+			out.CrashInput = append([]byte(nil), inputB...)
 			return out, nil
 		}
 	}
 	return out, nil
+}
+
+func replayInputForExec(opts ReplayShardOpts, execIdx uint64, cfg map[string]any) []byte {
+	if opts.CampaignID != "" && ShardSegmentMutating(cfg) {
+		return ShardSegmentExecInput(opts.CampaignID, opts.InputN, execIdx, cfg)
+	}
+	if len(opts.Input) > 0 {
+		return opts.Input
+	}
+	if opts.CampaignID != "" {
+		return ShardSegmentExecInput(opts.CampaignID, opts.InputN, execIdx, cfg)
+	}
+	return nil
 }
 
 func resolveHarnessBinary(ctx context.Context, opts ReplayShardOpts) (string, error) {

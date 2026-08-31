@@ -791,12 +791,17 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	var seg fuzzengine.SegmentResult
 	if isHunt {
 		var err error
-		checkResult, trap, pass, recordFinding, err = s.evalHuntSubmitCheck(ctx, cfg, req, expectedB)
+		var huntFindingB []byte
+		checkResult, trap, pass, recordFinding, huntFindingB, err = s.evalHuntSubmitCheck(ctx, req.CampaignID, inputN, cfg, req, expectedB)
 		if err != nil {
 			return err
 		}
 		findingU = expectedU
 		findingB = expectedB
+		if recordFinding && len(huntFindingB) > 0 {
+			findingB = huntFindingB
+			findingU = fuzzengine.PackInputBytesToU64(findingB)
+		}
 	} else {
 		var err error
 		checkResult, trap, pass, recordFinding, findingU, findingB, seg, err = s.evalSubmitCheck(ctx, cfg, sem, inputN, expectedU, expectedB, seeds)

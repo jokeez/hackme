@@ -2,7 +2,6 @@ package poolfuzz
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"os"
 	"strings"
@@ -12,8 +11,6 @@ import (
 	"hackme/internal/fuzzupstream"
 	"hackme/internal/hunt"
 )
-
-const defaultHuntIterationsPerShard = 32
 
 // IsHuntCampaign reports pool Hunt shard work (not Dig WASM).
 func IsHuntCampaign(cfg map[string]any) bool {
@@ -27,34 +24,12 @@ func IsHuntCampaign(cfg map[string]any) bool {
 }
 
 func huntIterationsPerShard(cfg map[string]any) int {
-	n := intFromJSON(cfg["iterations_per_shard"])
-	if n < 1 {
-		n = defaultHuntIterationsPerShard
-	}
-	if n > 64 {
-		n = 64
-	}
-	return n
+	return hunt.ShardIterationsPer(cfg)
 }
 
-// HuntShardInputBytes derives deterministic frozen input for one shard.
+// HuntShardInputBytes derives deterministic anchor input for one Hunt shard (exec 0).
 func HuntShardInputBytes(campaignID string, inputN uint64, cfg map[string]any) []byte {
-	seed := sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%s", campaignID, inputN, jsonString(cfg["upstream_target_id"]))))
-	maxB := fuzzengine.ParseMaxInputBytes(cfg)
-	if maxB < 16 {
-		maxB = 256
-	}
-	if maxB > 4096 {
-		maxB = 4096
-	}
-	out := make([]byte, maxB)
-	copy(out, seed[:])
-	if maxB > 32 {
-		for i := 32; i < maxB; i++ {
-			out[i] = seed[i%32] ^ byte(i)
-		}
-	}
-	return out
+	return hunt.ShardAnchorBytes(campaignID, inputN, cfg)
 }
 
 func (s *Service) buildHuntClaimedWork(ctx context.Context, campaignID string, itemID int64, inputN uint64, cfg map[string]any, workerID string) (ClaimedWork, error) {
@@ -76,7 +51,7 @@ func (s *Service) buildHuntClaimedWork(ctx context.Context, campaignID string, i
 		PerRunHMC:          perShardHMCFromConfig(cfg),
 		ExecPerUnit:        iter,
 		MaxInputBytes:      fuzzengine.ParseMaxInputBytes(cfg),
-		CoverageKind:       "input_fingerprint",
+		CoverageKind:       huntCoverageKind(cfg, iter),
 		TaskClass:          "hunt",
 		WorkKind:           "hunt_shard",
 		HarnessHash:        strings.TrimSpace(jsonString(cfg["harness_hash"])),
@@ -87,6 +62,13 @@ func (s *Service) buildHuntClaimedWork(ctx context.Context, campaignID string, i
 		HarnessFetchURL:    huntHarnessFetchURL(cfg),
 		IterationsPerShard: iter,
 	}, nil
+}
+
+func huntCoverageKind(cfg map[string]any, iter int) string {
+	if hunt.ShardSegmentMutating(cfg) && iter > 1 {
+		return "hunt_segment_mutating"
+	}
+	return "input_fingerprint"
 }
 
 func huntHarnessFetchURL(cfg map[string]any) string {
@@ -147,18 +129,18 @@ func huntReplayEnabled() bool {
 	return v == "" || v == "1" || v == "true" || v == "yes" || v == "on"
 }
 
-func (s *Service) evalHuntSubmitCheck(ctx context.Context, cfg map[string]any, req SubmitRequest, expectedB []byte) (checkResult int32, trap string, pass bool, recordFinding bool, err error) {
+func (s *Service) evalHuntSubmitCheck(ctx context.Context, campaignID string, inputN uint64, cfg map[string]any, req SubmitRequest, expectedB []byte) (checkResult int32, trap string, pass bool, recordFinding bool, findingB []byte, err error) {
 	iter := huntIterationsPerShard(cfg)
 	if req.SegmentExecDone != iter {
-		return 0, "", false, false, nil
+		return 0, "", false, false, nil, nil
 	}
 	if !huntReplayEnabled() {
 		cr, tr, p, rf := s.evalHuntSubmitTrusted(cfg, req, expectedB)
-		return cr, tr, p, rf, nil
+		return cr, tr, p, rf, expectedB, nil
 	}
 	targetID := strings.TrimSpace(jsonString(cfg["upstream_target_id"]))
 	if targetID == "" {
-		return 0, "", false, false, fmt.Errorf("poolfuzz: hunt missing upstream_target_id")
+		return 0, "", false, false, nil, fmt.Errorf("poolfuzz: hunt missing upstream_target_id")
 	}
 	maxB := fuzzengine.ParseMaxInputBytes(cfg)
 	if maxB <= 0 {
@@ -170,27 +152,34 @@ func (s *Service) evalHuntSubmitCheck(ctx context.Context, cfg map[string]any, r
 		TargetID:        targetID,
 		HarnessHash:     strings.TrimSpace(jsonString(cfg["harness_hash"])),
 		HarnessFetchURL: huntHarnessFetchURL(cfg),
+		CampaignID:      campaignID,
+		InputN:          inputN,
+		Config:          cfg,
 		Input:           expectedB,
 		MaxInput:        maxB,
 		ExecPer:         iter,
 	})
 	if err != nil {
-		return 0, "", false, false, fmt.Errorf("poolfuzz: hunt replay: %w", err)
+		return 0, "", false, false, nil, fmt.Errorf("poolfuzz: hunt replay: %w", err)
 	}
 	workerClaimsCrash := strings.HasPrefix(strings.TrimSpace(req.Trap), "hunt_crash:") && req.CheckResult != 0
 	if rep.Crash {
 		if !fuzzupstream.IsSecuritySanitizer(rep.Sanitizer) {
-			return 0, rep.Trap, false, false, nil
+			return 0, rep.Trap, false, false, nil, nil
 		}
 		if !workerClaimsCrash {
-			return 0, rep.Trap, false, false, nil
+			return 0, rep.Trap, false, false, nil, nil
 		}
-		return 1, rep.Trap, true, true, nil
+		fb := expectedB
+		if len(rep.CrashInput) > 0 {
+			fb = rep.CrashInput
+		}
+		return 1, rep.Trap, true, true, fb, nil
 	}
 	if workerClaimsCrash {
-		return 0, "hunt_replay_reject:fake_crash", false, false, nil
+		return 0, "hunt_replay_reject:fake_crash", false, false, nil, nil
 	}
-	return 0, "", true, false, nil
+	return 0, "", true, false, nil, nil
 }
 
 func (s *Service) evalHuntSubmitTrusted(cfg map[string]any, req SubmitRequest, expectedB []byte) (checkResult int32, trap string, pass bool, recordFinding bool) {
