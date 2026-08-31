@@ -486,7 +486,18 @@ func renderFuzzReproSection(report map[string]any) string {
 			inputLine += fmt.Sprintf(`<p class="muted">input_sha256: <code>%s</code></p>`, html.EscapeString(i.Repro.InputSHA256))
 		}
 		if i.Repro.InputHex != "" {
-			inputLine += fmt.Sprintf(`<p class="muted">input_hex: <code>%s</code></p>`, html.EscapeString(i.Repro.InputHex))
+			trimNote := ""
+			if i.Repro.Trimmed || i.Repro.OriginalInputLen > len(i.Repro.InputHex)/2 {
+				was := i.Repro.OriginalInputLen
+				if was <= 0 {
+					was = len(i.Repro.InputHex) / 2
+				}
+				trimNote = fmt.Sprintf(` · trimmed to %d bytes`, len(i.Repro.InputHex)/2)
+				if was > len(i.Repro.InputHex)/2 {
+					trimNote = fmt.Sprintf(` · trimmed %d→%d bytes (same ASAN)`, was, len(i.Repro.InputHex)/2)
+				}
+			}
+			inputLine += fmt.Sprintf(`<p class="muted">input_hex%s: <code>%s</code></p>`, trimNote, html.EscapeString(i.Repro.InputHex))
 		} else if i.Repro.InputN != "" {
 			inputLine += fmt.Sprintf(`<p class="muted">input: <code>%s</code></p>`, html.EscapeString(i.Repro.InputN))
 		}

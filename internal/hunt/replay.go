@@ -173,6 +173,12 @@ func ReplayShard(ctx context.Context, opts ReplayShardOpts) (ReplayShardResult, 
 			}
 			out.Trap = fuzzupstream.FormatHuntTrap(info)
 			out.CrashInput = append([]byte(nil), inputB...)
+			if HuntTrimEnabled(cfg) && len(out.CrashInput) > 1 {
+				tr := fuzzupstream.TrimCrashInput(ctx, binPath, out.CrashInput, runOpts, info)
+				if len(tr.Input) > 0 {
+					out.CrashInput = tr.Input
+				}
+			}
 			return out, nil
 		}
 	}

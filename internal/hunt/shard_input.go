@@ -115,7 +115,8 @@ func ShardSegmentExecInput(campaignID string, inputN, execIdx uint64, cfg map[st
 	} else {
 		base = huntByteAnchorBase(campaignID, inputN, cfg, seeds)
 	}
-	return fuzzengine.MutateBytesForConfig(base, stage, salt, maxLen, cfg)
+	corpus := fuzzengine.CorpusBytesFromSeeds(seeds)
+	return fuzzengine.MutateBytesForHunt(base, stage, salt, maxLen, cfg, corpus)
 }
 
 func huntByteAnchorBase(campaignID string, inputN uint64, cfg map[string]any, seeds []fuzzengine.PoolCorpusSeed) []byte {

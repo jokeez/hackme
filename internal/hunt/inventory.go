@@ -152,6 +152,24 @@ func fileHasFuzzEntry(path string) (bool, error) {
 	return strings.Contains(string(b), inventoryMarker), nil
 }
 
+// fileHasMain reports standalone programs that must not be linked as companions.
+func fileHasMain(path string) (bool, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return false, err
+	}
+	if len(b) > maxInventoryFileLen {
+		b = b[:maxInventoryFileLen]
+	}
+	s := string(b)
+	for _, marker := range []string{"int main(", "void main(", "int MAIN(", "CJSON_CDECL main("} {
+		if strings.Contains(s, marker) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func inventoryTargetID(rel string) string {
 	s := strings.ToLower(strings.TrimSpace(rel))
 	s = strings.ReplaceAll(s, string(os.PathSeparator), "_")

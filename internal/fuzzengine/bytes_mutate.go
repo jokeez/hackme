@@ -13,6 +13,15 @@ func U64LayoutToBytes(n uint64) []byte {
 func MutateBytes(base []byte, stage MutationStage, salt uint64, maxLen int) []byte {
 	return MutateBytesForConfig(base, stage, salt, maxLen, nil)
 }
+func MutateBytesWithDict(base []byte, stage MutationStage, salt uint64, maxLen int, dict []byte) []byte {
+	return mutateBytesWithDict(base, stage, salt, maxLen, dict)
+}
+
+// MutateBytesForHunt applies mutations with static dict + optional corpus autodict.
+func MutateBytesForHunt(base []byte, stage MutationStage, salt uint64, maxLen int, cfg map[string]any, corpus [][]byte) []byte {
+	dict := EffectiveMutatorDict(cfg, corpus)
+	return mutateBytesWithDict(base, stage, salt, maxLen, dict)
+}
 
 // MutateBytesForConfig applies byte mutations with optional pack mutator_dict.
 func MutateBytesForConfig(base []byte, stage MutationStage, salt uint64, maxLen int, cfg map[string]any) []byte {
@@ -50,7 +59,7 @@ func mutateBytesWithDict(base []byte, stage MutationStage, salt uint64, maxLen i
 	rounds := 1 + int((salt+uint64(s))%4)
 	for i := 0; i < rounds; i++ {
 		mix := splitmix64(salt ^ uint64(s) ^ uint64(i)*0x517cc1b727220a95)
-		switch mix % 8 {
+		switch mix % 16 {
 		case 0:
 			idx := int(mix % uint64(len(out)))
 			out[idx] ^= byte(1 << (mix % 8))
@@ -88,9 +97,66 @@ func mutateBytesWithDict(base []byte, stage MutationStage, salt uint64, maxLen i
 			} else if len(out) > 4 {
 				out = out[:len(out)/2]
 			}
-		default:
+		case 6:
 			idx := int(mix % uint64(len(out)))
 			out[idx] += byte(mix >> 24)
+		case 7:
+			if len(out) > 0 {
+				idx := int(mix % uint64(len(out)))
+				vals := Interesting8()
+				out[idx] = vals[int(mix>>8)%len(vals)]
+			}
+		case 8:
+			if len(out) >= 2 {
+				idx := int(mix % uint64(len(out)-1))
+				vals := Interesting16LE()
+				writeU16LE(out, idx, vals[int(mix>>16)%len(vals)])
+			}
+		case 9:
+			if len(out) >= 4 {
+				idx := int(mix % uint64(len(out)-3))
+				vals := Interesting32LE()
+				writeU32LE(out, idx, vals[int(mix>>16)%len(vals)])
+			}
+		case 10:
+			if len(out) >= 1 {
+				idx := int(mix % uint64(len(out)))
+				arithAdd8(out, idx, int8((mix>>8)&0xff) - 64)
+			}
+		case 11:
+			if len(out) >= 2 {
+				idx := int(mix % uint64(len(out)-1))
+				arithAdd16LE(out, idx, int16((mix>>8)&0xffff)-128)
+			}
+		case 12:
+			if tok := dictTokenAt(dict, mix); len(tok) > 0 {
+				idx := int(mix>>16) % (len(out) + 1)
+				out = insertToken(out, idx, tok, maxLen)
+			}
+		case 13:
+			if tok := dictTokenAt(dict, mix); len(tok) > 0 {
+				idx := int(mix>>16) % len(out)
+				out = overwriteWithToken(out, idx, tok)
+			}
+		case 14:
+			if len(out) >= 4 && len(out)*2 <= maxLen {
+				start := int(mix % uint64(len(out)/2))
+				n := 1 + int(mix>>8)%8
+				if start+n <= len(out) {
+					out = append(out, out[start:start+n]...)
+				}
+			}
+		default:
+			if len(out) > 8 {
+				start := int(mix % uint64(len(out)-4))
+				end := start + 2 + int(mix>>8)%6
+				if end > len(out) {
+					end = len(out)
+				}
+				if end > start {
+					out = append(out[:start], out[end:]...)
+				}
+			}
 		}
 	}
 	if len(out) > maxLen {

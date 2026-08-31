@@ -21,6 +21,9 @@ func ApplySanitizerDefaults(cfg map[string]any, pkgKey string) {
 		}
 		cfg["hunt_sanitizer_profile"] = profile
 	}
+	if _, ok := cfg["hunt_trim"]; !ok {
+		cfg["hunt_trim"] = true
+	}
 	_ = pkgKey
 }
 
@@ -61,4 +64,15 @@ func stringFromAny(v any) string {
 		return s
 	}
 	return ""
+}
+
+// HuntTrimEnabled reports whether crash inputs are minimized before findings/reports.
+func HuntTrimEnabled(cfg map[string]any) bool {
+	if cfg == nil {
+		return true
+	}
+	if v, ok := cfg["hunt_trim"]; ok {
+		return cfgTruthy(v)
+	}
+	return true
 }

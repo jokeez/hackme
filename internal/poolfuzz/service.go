@@ -1196,9 +1196,13 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 	if len(inputBytes) > 0 {
 		inputSHA = fuzzengine.InputBytesSHA256(inputBytes)
 		artifactPath = fuzzartifacts.WriteInputBytes(req.CampaignID, inputSHA, inputBytes)
-		wasmHex, _ := cfg["wasm_check_hex"].(string)
-		wasmPath := fuzzartifacts.WriteWasmHex(req.CampaignID, wasmHex)
-		repro = fuzzengine.ReproCmdBytes(wasmPath, inputBytes)
+		if IsHuntCampaign(cfg) {
+			repro = fuzzupstream.ReproCmdHuntNative(inputBytes)
+		} else {
+			wasmHex, _ := cfg["wasm_check_hex"].(string)
+			wasmPath := fuzzartifacts.WriteWasmHex(req.CampaignID, wasmHex)
+			repro = fuzzengine.ReproCmdBytes(wasmPath, inputBytes)
+		}
 	} else {
 		inputSHA = fuzzengine.InputSHA256(req.ActualInput)
 		wasmHex, _ := cfg["wasm_check_hex"].(string)
@@ -1249,6 +1253,11 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 	}
 	if len(inputBytes) > 0 {
 		detailMap["input_hex"] = hex.EncodeToString(inputBytes)
+		detailMap["input_len"] = len(inputBytes)
+		if IsHuntCampaign(cfg) {
+			detailMap["hunt_trimmed"] = true
+			detailMap["repro_kind"] = "hunt_native"
+		}
 		if gp := strings.TrimSpace(jsonString(cfg["guard_pack"])); gp != "" {
 			detailMap["guard_pack"] = gp
 			preview := string(inputBytes)

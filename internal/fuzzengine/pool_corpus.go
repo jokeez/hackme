@@ -98,7 +98,7 @@ func GuidedInputForWork(inputN uint64, cfg map[string]any, seeds []PoolCorpusSee
 		if len(base) == 0 {
 			base = U64LayoutToBytes(seed.Input)
 		}
-		b := MutateBytesForConfig(base, stage, salt, ParseMaxInputBytes(cfg), cfg)
+		b := MutateBytesForHunt(base, stage, salt, ParseMaxInputBytes(cfg), cfg, CorpusBytesFromSeeds(seeds))
 		return PackInputBytesToU64(b), b
 	}
 	if len(seeds) == 0 {

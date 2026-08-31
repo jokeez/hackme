@@ -17,6 +17,26 @@ func TestSourceLanguage(t *testing.T) {
 	}
 }
 
+func TestCollectCompanionSourcesSkipsMain(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fuzz.c"), []byte("int LLVMFuzzerTestOneInput(const unsigned char*,unsigned long){return 0;}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "helper.c"), []byte("int helper(int x){return x+1;}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "test.c"), []byte("int main(void){return 0;}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := collectCompanionSources(dir, "fuzz.c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0] != "helper.c" {
+		t.Fatalf("companions=%v", got)
+	}
+}
+
 func TestCollectCompanionSources(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "fuzz_target.cpp"), []byte("int LLVMFuzzerTestOneInput(const unsigned char*,unsigned long){return 0;}"), 0o644); err != nil {
@@ -100,6 +120,67 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *d, size_t n) {
 		t.Fatalf("lang=%s", res.Language)
 	}
 	if len(res.CompanionSources) != 1 || res.CompanionSources[0] != "helper.cpp" {
+		t.Fatalf("companions=%v", res.CompanionSources)
+	}
+	if _, err := os.Stat(res.BinaryPath); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCollectParentCompanionsCjson(t *testing.T) {
+	root, err := repoRootForTest()
+	if err != nil {
+		t.Skip(err)
+	}
+	clone := filepath.Join(root, ".cache", "oss-cve-clones", "cjson")
+	if _, err := os.Stat(filepath.Join(clone, "fuzzing", "cjson_read_fuzzer.c")); err != nil {
+		t.Skip("cjson clone missing; run build_oss_cve_pack")
+	}
+	got, err := collectCompanionSources(clone, "fuzzing/cjson_read_fuzzer.c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hasCJSON := false
+	for _, rel := range got {
+		if filepath.Base(rel) == "cJSON.c" {
+			hasCJSON = true
+		}
+	}
+	if !hasCJSON {
+		t.Fatalf("expected cJSON.c companion, got %v", got)
+	}
+}
+
+func TestBuildInventoryHarnessCjsonCustomerRepo(t *testing.T) {
+	if _, err := exec.LookPath("clang"); err != nil {
+		t.Skip("clang required")
+	}
+	root, err := repoRootForTest()
+	if err != nil {
+		t.Skip(err)
+	}
+	clone := filepath.Join(root, ".cache", "oss-cve-clones", "cjson")
+	if _, err := os.Stat(filepath.Join(clone, "fuzzing", "cjson_read_fuzzer.c")); err != nil {
+		t.Skip("cjson clone missing")
+	}
+	pin := &RepoPinResult{Path: clone, CommitSHA: "customer-cjson-demo", GitURL: "https://github.com/DaveGamble/cJSON", Ref: "master"}
+	res, err := BuildInventoryHarness(context.Background(), root, HarnessBuildRequest{
+		Pin:       pin,
+		SourceRel: "fuzzing/cjson_read_fuzzer.c",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Language != "c" {
+		t.Fatalf("lang=%s", res.Language)
+	}
+	found := false
+	for _, c := range res.CompanionSources {
+		if filepath.Base(c) == "cJSON.c" {
+			found = true
+		}
+	}
+	if !found {
 		t.Fatalf("companions=%v", res.CompanionSources)
 	}
 	if _, err := os.Stat(res.BinaryPath); err != nil {

@@ -78,20 +78,36 @@ func planInventoryCompile(pinRoot, sourceRel string) (*inventoryCompilePlan, err
 }
 
 func collectCompanionSources(pinRoot, mainRel string) ([]string, error) {
-	mainRel = filepath.Clean(strings.TrimSpace(mainRel))
-	dir := filepath.Dir(mainRel)
-	if dir == "." {
-		dir = ""
+	sameDir, err := collectCompanionSourcesInDir(pinRoot, filepath.Dir(mainRel), filepath.Base(mainRel))
+	if err != nil {
+		return nil, err
 	}
+	parent, err := collectParentCompanions(pinRoot, mainRel)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(sameDir)+len(parent))
+	for _, rel := range append(sameDir, parent...) {
+		if _, ok := seen[rel]; ok {
+			continue
+		}
+		seen[rel] = struct{}{}
+		out = append(out, rel)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+func collectCompanionSourcesInDir(pinRoot, dirRel, skipBase string) ([]string, error) {
 	searchDir := pinRoot
-	if dir != "" {
-		searchDir = filepath.Join(pinRoot, dir)
+	if dirRel != "" && dirRel != "." {
+		searchDir = filepath.Join(pinRoot, dirRel)
 	}
 	entries, err := os.ReadDir(searchDir)
 	if err != nil {
 		return nil, err
 	}
-	mainBase := filepath.Base(mainRel)
 	out := make([]string, 0, 4)
 	var total int64
 	for _, e := range entries {
@@ -99,7 +115,7 @@ func collectCompanionSources(pinRoot, mainRel string) ([]string, error) {
 			continue
 		}
 		name := e.Name()
-		if name == mainBase {
+		if name == skipBase {
 			continue
 		}
 		if !isCompanionSourceFile(name) {
@@ -117,9 +133,12 @@ func collectCompanionSources(pinRoot, mainRel string) ([]string, error) {
 		if err != nil || hit {
 			continue
 		}
+		if mainHit, err := fileHasMain(abs); err != nil || mainHit {
+			continue
+		}
 		rel := name
-		if dir != "" {
-			rel = filepath.Join(dir, name)
+		if dirRel != "" && dirRel != "." {
+			rel = filepath.Join(dirRel, name)
 		}
 		out = append(out, rel)
 		total += st.Size()
@@ -127,7 +146,50 @@ func collectCompanionSources(pinRoot, mainRel string) ([]string, error) {
 			break
 		}
 	}
-	sort.Strings(out)
+	return out, nil
+}
+
+// collectParentCompanions links common library sources one level up (e.g. cJSON.c for fuzzing/cjson_read_fuzzer.c).
+func collectParentCompanions(pinRoot, mainRel string) ([]string, error) {
+	mainDir := filepath.Dir(mainRel)
+	if mainDir == "" || mainDir == "." {
+		return nil, nil
+	}
+	parentRel := filepath.Dir(mainDir)
+	parentRoot := pinRoot
+	if parentRel != "." {
+		parentRoot = filepath.Join(pinRoot, parentRel)
+	}
+	entries, err := os.ReadDir(parentRoot)
+	if err != nil {
+		return nil, nil
+	}
+	out := make([]string, 0, 4)
+	for _, e := range entries {
+		if e.IsDir() || len(out) >= maxCompanionSources {
+			continue
+		}
+		name := e.Name()
+		if !isCompanionSourceFile(name) {
+			continue
+		}
+		abs := filepath.Join(parentRoot, name)
+		st, err := e.Info()
+		if err != nil || st.Size() > 1024*1024 {
+			continue
+		}
+		if hit, err := fileHasFuzzEntry(abs); err != nil || hit {
+			continue
+		}
+		if mainHit, err := fileHasMain(abs); err != nil || mainHit {
+			continue
+		}
+		rel := name
+		if parentRel != "." {
+			rel = filepath.Join(parentRel, name)
+		}
+		out = append(out, rel)
+	}
 	return out, nil
 }
 

@@ -15,13 +15,15 @@ const fuzzCoverageNoiseLimit = 25
 const fuzzSanitizerHygieneLimit = 25
 
 type fuzzReproBlock struct {
-	InputSHA256 string `json:"input_sha256"`
-	InputHex    string `json:"input_hex,omitempty"`
-	InputN      string `json:"input_n,omitempty"`
-	Command     string `json:"command"`
-	Artifact    string `json:"artifact_path,omitempty"`
-	Ready       bool   `json:"ready"`
-	Gap         string `json:"gap,omitempty"`
+	InputSHA256      string `json:"input_sha256"`
+	InputHex         string `json:"input_hex,omitempty"`
+	InputN           string `json:"input_n,omitempty"`
+	OriginalInputLen int    `json:"original_input_len,omitempty"`
+	Trimmed          bool   `json:"trimmed,omitempty"`
+	Command          string `json:"command"`
+	Artifact         string `json:"artifact_path,omitempty"`
+	Ready            bool   `json:"ready"`
+	Gap              string `json:"gap,omitempty"`
 }
 
 type fuzzProductTopIssue struct {
@@ -106,14 +108,52 @@ func buildFindingRepro(f fuzzFinding) fuzzReproBlock {
 		gap = "crash-class finding missing required repro fields: " + strings.Join(missing, "+")
 	}
 	return fuzzReproBlock{
-		InputSHA256: inSHA,
-		InputHex:    inHex,
-		InputN:      inN,
-		Command:     cmd,
-		Artifact:    art,
-		Ready:       ready,
-		Gap:         gap,
+		InputSHA256:      inSHA,
+		InputHex:         inHex,
+		InputN:           inN,
+		OriginalInputLen: findingOriginalInputLen(f),
+		Trimmed:          findingTrimmed(f),
+		Command:          cmd,
+		Artifact:         art,
+		Ready:            ready,
+		Gap:              gap,
 	}
+}
+
+func findingOriginalInputLen(f fuzzFinding) int {
+	if f.Detail == nil {
+		return 0
+	}
+	if v := f.Detail["input_hex_original_len"]; v != nil {
+		switch t := v.(type) {
+		case float64:
+			return int(t)
+		case int:
+			return t
+		case int64:
+			return int(t)
+		}
+	}
+	return 0
+}
+
+func findingTrimmed(f fuzzFinding) bool {
+	if f.Detail == nil {
+		return false
+	}
+	if v, ok := f.Detail["hunt_trimmed"].(bool); ok {
+		return v
+	}
+	if s := strings.TrimSpace(toString(f.Detail["hunt_trimmed"])); s == "true" || s == "1" {
+		return true
+	}
+	orig := findingOriginalInputLen(f)
+	if orig > 0 {
+		if hx := strings.TrimSpace(findingInputHex(f)); hx != "" {
+			return len(hx)/2 < orig
+		}
+	}
+	return false
 }
 
 func toProductTopIssue(f fuzzFinding) fuzzProductTopIssue {

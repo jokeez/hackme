@@ -53,8 +53,10 @@ type CrashFinding struct {
 	TargetID     string   `json:"target_id"`
 	Title        string   `json:"title"`
 	Repo         string   `json:"repo"`
-	InputHex     string   `json:"input_hex"`
-	InputLen     int      `json:"input_len"`
+	InputHex         string   `json:"input_hex"`
+	InputLen         int      `json:"input_len"`
+	OriginalInputLen int      `json:"original_input_len,omitempty"`
+	Trimmed          bool     `json:"trimmed,omitempty"`
 	Sanitizer        string   `json:"sanitizer"`
 	SanitizerClass   string   `json:"sanitizer_class,omitempty"`
 	SanitizerSubtype string   `json:"sanitizer_subtype,omitempty"`

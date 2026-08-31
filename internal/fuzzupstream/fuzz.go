@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"hackme/internal/fuzzengine"
 )
 
 // RunInput executes bin with stdin data; returns crash info.
@@ -85,85 +87,30 @@ func detectSanitizer(blob string) string {
 	return info.Subtype
 }
 
-// Mutate applies 1–4 random mutations to a copy of input.
+// Mutate applies staged mutations via fuzzengine havoc (interesting, dict-ops).
 func Mutate(input []byte, maxLen int, rnd []byte) []byte {
 	return MutateWithDict(input, maxLen, rnd, nil)
 }
 
-// MutateWithDict applies mutations with optional domain dictionary splice bytes.
+// MutateWithDict applies mutations with optional domain dictionary and corpus autodict.
 func MutateWithDict(input []byte, maxLen int, rnd []byte, dict []byte) []byte {
-	if maxLen <= 0 {
-		maxLen = 65536
+	return huntMutateInput(input, maxLen, rnd, dict, nil)
+}
+
+func huntMutateInput(seed []byte, maxInput int, rnd []byte, dict []byte, corpus [][]byte) []byte {
+	if maxInput <= 0 {
+		maxInput = 65536
 	}
-	out := make([]byte, len(input))
-	copy(out, input)
-	if len(out) == 0 {
-		out = []byte{0}
+	if len(rnd) < 8 {
+		rnd = append(rnd, randomBytes(8-len(rnd))...)
 	}
-	ops := 1 + int(rnd[0]%4)
-	for i := 0; i < ops; i++ {
-		if len(rnd) < i+2 {
-			break
-		}
-		switch rnd[i+1] % 7 {
-		case 0: // bitflip
-			if len(out) > 0 {
-				p := int(rnd[i+1]) % len(out)
-				out[p] ^= 1 << (rnd[i+1] % 8)
-			}
-		case 1: // insert byte
-			if len(out) < maxLen {
-				p := int(rnd[i+1]) % (len(out) + 1)
-				out = append(out, 0)
-				copy(out[p+1:], out[p:])
-				out[p] = rnd[i+1]
-			}
-		case 2: // delete byte
-			if len(out) > 1 {
-				p := int(rnd[i+1]) % len(out)
-				out = append(out[:p], out[p+1:]...)
-			}
-		case 3: // append interesting / dict splice
-			if len(dict) > 0 {
-				start := int(rnd[i+1]) % len(dict)
-				n := 1 + int(rnd[i+1]%4)
-				if start+n > len(dict) {
-					n = len(dict) - start
-				}
-				if n > 0 && len(out)+n <= maxLen {
-					out = append(out, dict[start:start+n]...)
-				}
-			} else {
-				interesting := [][]byte{{'{'}, {'['}, {'"'}, {'`'}, {'\n'}, {0xff}, {0x00}}
-				ch := interesting[int(rnd[i+1])%len(interesting)]
-				if len(out)+len(ch) <= maxLen {
-					out = append(out, ch...)
-				}
-			}
-		case 4: // resize
-			n := int(rnd[i+1]%32) + 1
-			if n > maxLen {
-				n = maxLen
-			}
-			out = make([]byte, n)
-			for j := range out {
-				out[j] = rnd[(i+j)%len(rnd)]
-			}
-		case 5: // duplicate slice
-			if len(out) > 0 && len(out)*2 <= maxLen {
-				out = append(out, out...)
-			}
-		default: // random byte replace
-			if len(out) > 0 {
-				p := int(rnd[i+1]) % len(out)
-				out[p] = rnd[i+1]
-			}
-		}
+	stage := fuzzengine.MutationStage(int(rnd[0]) % (fuzzengine.StageDeterministicMax + 12))
+	salt := uint64(rnd[1]) | uint64(rnd[2])<<8 | uint64(rnd[3])<<16 | uint64(rnd[4])<<24
+	cfg := map[string]any{}
+	if len(dict) > 0 {
+		cfg["mutator_dict"] = dict
 	}
-	if len(out) > maxLen {
-		out = out[:maxLen]
-	}
-	return out
+	return fuzzengine.MutateBytesForHunt(seed, stage, salt, maxInput, cfg, corpus)
 }
 
 func randomBytes(n int) []byte {
@@ -216,7 +163,13 @@ func HuntWithOptions(ctx context.Context, repoRoot string, t Target, binPath str
 		}
 		seed := seeds[i%len(seeds)]
 		rnd := randomBytes(16)
-		input := MutateWithDict(seed, maxInput, rnd, opts.MutatorDict)
+		corpus := make([][]byte, 0, len(seeds))
+		for _, s := range seeds {
+			if len(s) > 0 {
+				corpus = append(corpus, s)
+			}
+		}
+		input := huntMutateInput(seed, maxInput, rnd, opts.MutatorDict, corpus)
 		runOpts := DefaultRunInputOpts()
 		if maxInput > 0 {
 			runOpts.MaxInput = maxInput
@@ -229,6 +182,13 @@ func HuntWithOptions(ctx context.Context, repoRoot string, t Target, binPath str
 		rep.Iterations++
 		if !crash {
 			continue
+		}
+		origLen := len(input)
+		if len(input) > 1 {
+			tr := TrimCrashInput(ctx, binPath, input, runOpts, info)
+			if len(tr.Input) > 0 {
+				input = tr.Input
+			}
 		}
 		key := hex.EncodeToString(input)
 		if len(key) > 64 {
@@ -244,6 +204,8 @@ func HuntWithOptions(ctx context.Context, repoRoot string, t Target, binPath str
 			Repo:             t.Repo,
 			InputHex:         hex.EncodeToString(input),
 			InputLen:         len(input),
+			OriginalInputLen: origLen,
+			Trimmed:          len(input) < origLen,
 			Sanitizer:        info.Raw,
 			SanitizerClass:   info.Class,
 			SanitizerSubtype: info.Subtype,
