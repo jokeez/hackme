@@ -43,6 +43,14 @@ func TestApplyPackageDepthDefaultsLocal(t *testing.T) {
 	}
 }
 
+func TestDepthSummaryForConfig(t *testing.T) {
+	cfg := map[string]any{"hunt_package": "hunt_standard", "pool_distributed": true, "iterations_per_shard": 128}
+	s := DepthSummaryForConfig(cfg)
+	if s["iterations_per_shard"] != 128 || s["hunt_package"] != "hunt_standard" {
+		t.Fatalf("summary=%v", s)
+	}
+}
+
 func TestLocalRunBudgetFromConfig(t *testing.T) {
 	cfg := map[string]any{"hunt_local_budget_iterations": 99_000}
 	if got := LocalRunBudgetFromConfig(cfg, "hunt_lite"); got != 99_000 {

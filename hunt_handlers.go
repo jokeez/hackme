@@ -170,11 +170,12 @@ func (a *app) handleHuntCampaignCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	cfg := marshalMapJSON(cfgMap)
+	initialSummary := map[string]any{"hunt_depth": hunt.DepthSummaryForConfig(cfgMap)}
 	err = execContextRetryBusy(r.Context(), a.db,
 		`INSERT INTO fuzz_campaigns
 		 (id, campaign_type, status, title, description, owner_ref, task_id, target_ref, budget_runs, budget_seconds, config_json, summary_json, report_token_hash, report_token_issued_at, created_at, started_at, completed_at)
-		 VALUES (?, 'hunt', ?, ?, '', '', '', ?, ?, ?, ?, '{}', ?, ?, ?, ?, 0)`,
-		id, status, title, cfgMap["upstream_target_id"], shards, budgetSeconds, cfg, reportTokenHashHex, now, now, startedAt)
+		 VALUES (?, 'hunt', ?, ?, '', '', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+		id, status, title, cfgMap["upstream_target_id"], shards, budgetSeconds, cfg, marshalMapJSON(initialSummary), reportTokenHashHex, now, now, startedAt)
 	if err != nil {
 		writeAPIError(w, http.StatusConflict, "create_failed", "campaign create failed", map[string]any{"detail": err.Error()})
 		return

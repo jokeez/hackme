@@ -90,7 +90,26 @@ func PackageKeyFromConfig(cfg map[string]any) string {
 	return "hunt_lite"
 }
 
-// LocalRunBudgetFromConfig resolves iteration budget for a local/overnight Hunt run.
+// DepthSummaryForConfig returns sales-visible Hunt depth fields for campaign summary/report.
+func DepthSummaryForConfig(cfg map[string]any) map[string]any {
+	pkgKey := PackageKeyFromConfig(cfg)
+	pool := cfgTruthy(cfg["pool_distributed"])
+	out := map[string]any{
+		"hunt_package":         pkgKey,
+		"iterations_per_shard": ShardIterationsPer(cfg),
+		"mutator_profile":      cfgString(cfg, "hunt_mutator_profile"),
+	}
+	if n := cfgInt(cfg, "budget_shards"); n > 0 {
+		out["budget_shards"] = n
+	}
+	if !pool {
+		out["hunt_overnight_local"] = cfgTruthy(cfg["hunt_overnight_local"])
+		out["hunt_local_budget_iterations"] = LocalRunBudgetFromConfig(cfg, pkgKey)
+		out["hunt_local_time_limit_sec"] = LocalRunTimeLimitFromConfig(cfg, pkgKey)
+	}
+	return out
+}
+
 func LocalRunBudgetFromConfig(cfg map[string]any, pkgKey string) int {
 	if cfg != nil {
 		if n := cfgInt(cfg, "hunt_local_budget_iterations"); n > 0 {

@@ -146,6 +146,7 @@ Hunt Lite · 20 HMC · 50/50 split
 	- [x] **Sanitizer profile:** default `asan+ubsan+lsan` (`hunt_detect_leaks: true`); UBSan/LSan → `sanitizer_informational` hygiene appendix (not bounty)  
 - [x] UI: Hunt card + **pre-pay scope block** `#hunt-scope-contract`  
 - [x] Gate: `scripts/tests/hunt_pool_smoke_gate.sh` (fake crash reject + worker smoke)  
+- [x] Benchmark: `scripts/tests/hunt_standard128_live_benchmark.sh` + [HUNT_VS_LIBFUZZER.md](HUNT_VS_LIBFUZZER.md)  
 - [x] Customer repo pin → harness build (`POST /api/hunt/repo/pin`, `/harness/build`, `/template/preview`)  
 - [x] Harness publish API + coordinator worker fetch (`/harness/publish`, `/api/fuzz/pool/hunt/harness/{hash}`)  
 - [x] CLI: `hackme-fuzzing hunt pin|inventory|build|create`  
@@ -158,4 +159,5 @@ Hunt Lite · 20 HMC · 50/50 split
 
 - 50/50 does **not** guarantee miners profit if pool is tiny or ETA is weeks — cap budgets + live ETA.  
 - 50/50 does **not** promise CVE — only fair pay for compute + crash jackpot lane.  
+- Hunt is **not** positioned as a libFuzzer replacement — see [HUNT_VS_LIBFUZZER.md](HUNT_VS_LIBFUZZER.md) (libFuzzer wins exec/s; Hunt wins fleet + deliverable).  
 - Foreign CEX price of HMC does not change these **in-ecosystem** unit rules.
