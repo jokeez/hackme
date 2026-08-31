@@ -27,5 +27,9 @@ func ApplyDigEngineToPayload(payload map[string]any, pkg B2BPackage) map[string]
 			payload[k] = v
 		}
 	}
+	if pkg.DepthTier == fuzzengine.DepthWasmOnly {
+		return payload
+	}
+	payload["corpus_persist"] = true
 	return payload
 }

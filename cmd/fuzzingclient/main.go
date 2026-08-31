@@ -113,12 +113,12 @@ func usage() {
   hackme-fuzzing wizard --wasm guard.wasm [--package scan|audit|deep] [-title "..."]
   hackme-fuzzing packs                 # list ready detector packs
   hackme-fuzzing status --campaign ID [--order ORDER_ID] [--report-token TOKEN]
-  hackme-fuzzing hunt pin|inventory|template|build|create|packages|targets
+  hackme-fuzzing hunt pin|inventory|template|build|create|pack-suggest|packages|targets
 
   Happy path: register --save → wizard --pack secrets [--public-proof] → status → gate/report/proof
   Hunt path: hunt pin --repo-path ./myrepo → hunt inventory --path … → hunt build --source … [--template-accept]
              → hunt create --source … --repo-path … [--pool]
-  Packs: secrets · script_bounds · filter_utf8 (no custom rule — we ship the detector WASM)
+  Packs: secrets · script_bounds · filter_utf8 · parser_expat · bounds_smoke · overflow_smoke · state_smoke
   Proof of Fuzz: opt-in public facts + badge (crash-gate CLEAN/FAIL; not a full audit)
   Primary deliverable: CI gate pass/fail (not finding spam)
 

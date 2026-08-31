@@ -85,6 +85,9 @@ func migrateFuzzOnly(db *sql.DB) error {
 	if err := migrateFuzzPoolCorpus(db); err != nil {
 		return err
 	}
+	if err := migrateFuzzCorpusNamespace(db); err != nil {
+		return err
+	}
 	return bumpUserVersion(db)
 }
 
@@ -166,6 +169,9 @@ func migrate(db *sql.DB) error {
 		return err
 	}
 	if err := migrateFuzzPoolCorpus(db); err != nil {
+		return err
+	}
+	if err := migrateFuzzCorpusNamespace(db); err != nil {
 		return err
 	}
 	if err := migrateOrderFoundNonces(db); err != nil {
@@ -724,6 +730,32 @@ func migrateFuzzPoolCorpus(db *sql.DB) error {
 			if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+// migrateFuzzCorpusNamespace adds cross-campaign corpus reuse keyed by pack/owner namespace.
+func migrateFuzzCorpusNamespace(db *sql.DB) error {
+	stmts := []string{
+		`CREATE TABLE IF NOT EXISTS fuzz_corpus_namespace (
+			namespace TEXT NOT NULL,
+			input_u64 INTEGER NOT NULL,
+			input_bytes BLOB NOT NULL DEFAULT X'',
+			energy INTEGER NOT NULL DEFAULT 1,
+			edge_bucket INTEGER NOT NULL DEFAULT 0,
+			path_bucket INTEGER NOT NULL DEFAULT 0,
+			is_crash INTEGER NOT NULL DEFAULT 0,
+			first_seen_at INTEGER NOT NULL,
+			last_seen_at INTEGER NOT NULL,
+			exec_count INTEGER NOT NULL DEFAULT 1,
+			PRIMARY KEY (namespace, input_u64)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_fuzz_corpus_namespace_energy ON fuzz_corpus_namespace(namespace, energy DESC, last_seen_at DESC)`,
+	}
+	for _, s := range stmts {
+		if _, err := db.Exec(s); err != nil {
+			return err
 		}
 	}
 	return nil

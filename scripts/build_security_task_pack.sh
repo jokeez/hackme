@@ -75,6 +75,9 @@ for t in "${fuzz_guard_tasks[@]}"; do
   build_rust "$t"
 done
 
+echo "Building Scan smoke guard aliases..."
+bash "$ROOT_DIR/scripts/ops/build_scan_smoke_guards.sh"
+
 echo "Generating manifests..."
 for t in "${tasks[@]}"; do
   rust_path="$OUT_DIR/rust_${t}.wasm"

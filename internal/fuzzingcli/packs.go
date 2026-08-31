@@ -103,6 +103,59 @@ var guardPacks = map[string]GuardPack{
 			{Contains: "push", Message: "Push-size property flagged — check OP_PUSHDATA handling and MAX_SCRIPT_ELEMENT_SIZE."},
 		},
 	},
+	"bounds_smoke": {
+		ID:             "bounds_smoke",
+		Title:          "Scan · numeric bounds smoke",
+		Summary:        "Fast WASM range/stride guard — CI smoke for protocol numeric gates",
+		WasmRelPath:    "tasks/artifacts/security/rust_bounds_smoke_guard.wasm",
+		SourceRelPath:  "tasks/sources/security/rust_bounds_guard.rs",
+		InputMode:      "u64",
+		Guided:         true,
+		MutationRounds: 2,
+		SeedCorpusU64:  []any{uint64(10_000_000), uint64(20_000_582), uint64(40_000_000)},
+		DefaultPackage: "scan",
+		ScanRuns:       48,
+		ScanSeconds:    600,
+		AuditRuns:      128,
+		AuditSeconds:   7200,
+		ExplainHints: []ExplainHint{
+			{Contains: "range", Message: "Numeric bounds smoke — widen safe window tests in your guard."},
+		},
+	},
+	"overflow_smoke": {
+		ID:             "overflow_smoke",
+		Title:          "Scan · overflow wrap smoke",
+		Summary:        "Wrapping-multiply guard — quick CI for overflow-class property checks",
+		WasmRelPath:    "tasks/artifacts/security/rust_overflow_smoke_guard.wasm",
+		SourceRelPath:  "tasks/sources/security/rust_overflow_guard.rs",
+		InputMode:      "u64",
+		Guided:         true,
+		MutationRounds: 2,
+		SeedCorpusU64:  []any{uint64(0), uint64(0x155), uint64(0x9E3779B9)},
+		DefaultPackage: "scan",
+		ScanRuns:       48,
+		ScanSeconds:    600,
+		ExplainHints: []ExplainHint{
+			{Contains: "overflow", Message: "Overflow-style transform flagged — verify wrapping arithmetic invariants."},
+		},
+	},
+	"state_smoke": {
+		ID:             "state_smoke",
+		Title:          "Scan · state transition smoke",
+		Summary:        "FSM-style transition guard — cheap Scan for state-machine protocols",
+		WasmRelPath:    "tasks/artifacts/security/rust_state_smoke_guard.wasm",
+		SourceRelPath:  "tasks/sources/security/rust_state_transition_guard.rs",
+		InputMode:      "u64",
+		Guided:         true,
+		MutationRounds: 2,
+		SeedCorpusU64:  []any{uint64(0xA5), uint64(0x208), uint64(0x820A5)},
+		DefaultPackage: "scan",
+		ScanRuns:       40,
+		ScanSeconds:    480,
+		ExplainHints: []ExplainHint{
+			{Contains: "state", Message: "State transition guard hit — validate allowed from→to families."},
+		},
+	},
 	"filter_utf8": {
 		ID:               "filter_utf8",
 		Title:            "Malformed filter / UTF-8 skew",
@@ -171,23 +224,29 @@ func GuardPackFor(name string) (GuardPack, error) {
 	switch key {
 	case "secret", "tracefuse", "supply-chain", "supply_chain":
 		key = "secrets"
-	case "script", "script_push", "bitcoin_script", "bounds":
+	case "script", "script_push", "bitcoin_script", "push_bounds":
 		key = "script_bounds"
 	case "filter", "fluxtap", "utf8", "display_filter":
 		key = "filter_utf8"
 	case "parser", "expat", "xml_parser":
 		key = "parser_expat"
+	case "bounds", "bounds_smoke", "numeric":
+		key = "bounds_smoke"
+	case "overflow", "overflow_smoke", "wrap":
+		key = "overflow_smoke"
+	case "state", "state_smoke", "fsm":
+		key = "state_smoke"
 	}
 	p, ok := guardPacks[key]
 	if !ok {
-		return GuardPack{}, fmt.Errorf("unknown pack %q (use: secrets, script_bounds, filter_utf8, parser_expat)", name)
+		return GuardPack{}, fmt.Errorf("unknown pack %q (use: secrets, script_bounds, filter_utf8, parser_expat, bounds_smoke, overflow_smoke, state_smoke)", name)
 	}
 	return p, nil
 }
 
 // ListGuardPacks returns packs in stable order.
 func ListGuardPacks() []GuardPack {
-	order := []string{"secrets", "script_bounds", "filter_utf8", "parser_expat"}
+	order := []string{"secrets", "script_bounds", "filter_utf8", "parser_expat", "bounds_smoke", "overflow_smoke", "state_smoke"}
 	out := make([]GuardPack, 0, len(order))
 	for _, id := range order {
 		out = append(out, guardPacks[id])
@@ -315,6 +374,7 @@ func ApplyPackConfig(cfg map[string]any, p GuardPack) map[string]any {
 		cfg["mutator_dict"] = []byte("\xc7=\x80\xff!=<>")
 	}
 	cfg["stable_crash_buckets"] = true
+	cfg["corpus_persist"] = true
 	if strings.HasPrefix(p.ID, "parser_") {
 		cfg["pack_role"] = "parser"
 		cfg["native_repro_enabled"] = true

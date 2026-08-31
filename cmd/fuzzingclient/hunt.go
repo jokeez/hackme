@@ -15,7 +15,7 @@ func doHunt(base string, args []string) error {
 		return fmt.Errorf("HACKME_ADMIN_TOKEN required for hunt commands")
 	}
 	if len(args) < 1 {
-		return fmt.Errorf("usage: hackme-fuzzing hunt pin|inventory|template|build|create|packages|targets ...")
+		return fmt.Errorf("usage: hackme-fuzzing hunt pin|inventory|template|build|create|pack-suggest|packages|targets ...")
 	}
 	switch args[0] {
 	case "packages":
@@ -76,6 +76,27 @@ func doHunt(base string, args []string) error {
 		}
 		if code != http.StatusOK {
 			return fmt.Errorf("POST /api/hunt/inventory HTTP %d: %s", code, strings.TrimSpace(string(b)))
+		}
+		fmt.Println(string(prettyJSON(b)))
+		return nil
+	case "pack-suggest", "suggest":
+		fs := flag.NewFlagSet("hunt-pack-suggest", flag.ExitOnError)
+		sourceRel := fs.String("source", "", "relative source path for heuristics")
+		path := fs.String("path", "", "absolute file path to read sample from")
+		_ = fs.Parse(args[1:])
+		if strings.TrimSpace(*sourceRel) == "" && strings.TrimSpace(*path) == "" {
+			return fmt.Errorf("hunt pack-suggest requires --source or --path")
+		}
+		body, _ := json.Marshal(map[string]string{
+			"source_rel": strings.TrimSpace(*sourceRel),
+			"path":       strings.TrimSpace(*path),
+		})
+		b, code, err := apiDoAdmin(base, adm, http.MethodPost, "/api/hunt/pack-suggest", body)
+		if err != nil {
+			return err
+		}
+		if code != http.StatusOK {
+			return fmt.Errorf("POST /api/hunt/pack-suggest HTTP %d: %s", code, strings.TrimSpace(string(b)))
 		}
 		fmt.Println(string(prettyJSON(b)))
 		return nil

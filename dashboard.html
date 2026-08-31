@@ -2532,6 +2532,10 @@
 							</label>
 							<label class="text-[10px] text-gray-500 flex items-center gap-2"><input type="checkbox" id="hunt-template-accept" class="rounded" /> Template Accept — wrap stdin driver when LLVMFuzzerTestOneInput is missing (Hunt Standard)</label>
 							<p id="hunt-template-preview" class="text-[10px] font-mono text-gray-500 hidden"></p>
+							<div id="hunt-pack-suggestions" class="hidden mt-2 rounded border border-cyan-500/20 bg-black/35 p-3">
+								<p class="text-[10px] text-cyan-400/90 uppercase tracking-wider mb-1">Pack-map suggest (Dig · Hunt)</p>
+								<ul id="hunt-pack-suggestions-list" class="text-[10px] font-mono text-gray-400 space-y-1"></ul>
+							</div>
 						</div>
 						<label class="mt-2 text-[10px] text-gray-500 flex items-center gap-2"><input type="checkbox" id="hunt-pool-distributed" checked class="rounded" /> Pool distributed (miners run ASAN shards)</label>
 						<div id="hunt-scope-contract" class="mt-3 rounded-lg border border-white/10 bg-black/35 p-3 text-[10px] text-gray-400 leading-relaxed space-y-1">
@@ -13587,10 +13591,35 @@
 				}
 				if ($('hunt-repo-path') && pinPath) $('hunt-repo-path').value = pinPath;
 				if (msg) msg.textContent = 'Scanned ' + (inv.scanned_files || 0) + ' files · ' + targets.length + ' harness hits';
+				renderHuntPackSuggestions(j.pack_suggestions || []);
 				void previewHuntTemplate();
 			} catch (e) {
 				if (msg) msg.textContent = 'Scan error: ' + (e && e.message ? e.message : String(e));
 			}
+		}
+
+		function renderHuntPackSuggestions(suggestions) {
+			const box = $('hunt-pack-suggestions');
+			const list = $('hunt-pack-suggestions-list');
+			if (!box || !list) return;
+			list.innerHTML = '';
+			if (!suggestions || !suggestions.length) {
+				box.classList.add('hidden');
+				return;
+			}
+			for (const s of suggestions) {
+				const li = document.createElement('li');
+				const prod = (s.product || 'dig').toUpperCase();
+				li.innerHTML = '<span class="text-cyan-300">' + prod + '</span> · <strong class="text-warn/80">' + (s.pack_id || '') + '</strong> — ' + (s.title || '') + ' <span class="text-gray-600">(' + (s.score || 0) + ')</span><br/><span class="text-gray-600">' + (s.reason || '') + '</span>';
+				if (s.wizard_hint) {
+					const hint = document.createElement('span');
+					hint.className = 'block text-gray-500 mt-0.5';
+					hint.textContent = s.wizard_hint;
+					li.appendChild(hint);
+				}
+				list.appendChild(li);
+			}
+			box.classList.remove('hidden');
 		}
 
 		async function previewHuntTemplate() {

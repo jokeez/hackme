@@ -135,6 +135,9 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 		if err := s.seedPoolCorpusFromConfig(ctx, c.ID, cfg, now); err != nil {
 			return err
 		}
+		if err := s.importNamespaceCorpus(ctx, c.ID, cfg, now); err != nil {
+			return err
+		}
 	}
 	return nil
 }

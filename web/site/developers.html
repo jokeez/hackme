@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>HackMe for Developers — Fuzzing & API</title>
-  <meta name="description" content="B2B fuzz final: hackme-fuzzing wizard (Scan · Audit · Deep), local node escrow, distributed pool, HTML report + CI gate. No browser admin on hackme.tech." />
+  <meta name="description" content="B2B fuzz final: hackme-fuzzing wizard (Scan · Dig · Audit · Deep), Hunt reuse, local node escrow, distributed pool, HTML report + CI gate. No browser admin on hackme.tech." />
   <link rel="canonical" href="https://hackme.tech/developers.html" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -33,8 +33,8 @@
       <p class="kicker">Commercial · B2B security audit</p>
       <h1>B2B fuzz final — one command to report + CI gate</h1>
       <p class="hero-copy">
-        Ship a WASM security guard <em>or</em> pick a ready <strong>pack</strong> (<code>secrets</code> · <code>script_bounds</code> · <code>filter_utf8</code>),
-        choose <strong>Scan · Audit · Deep</strong>, hybrid pool miners fuzz distributed work — you get
+        Ship a WASM security guard <em>or</em> pick a ready <strong>pack</strong> (<code>secrets</code> · <code>script_bounds</code> · <code>filter_utf8</code> · <code>parser_expat</code> · Scan smokes),
+        choose <strong>Scan · Dig · Audit · Deep</strong>, hybrid pool miners fuzz distributed work — you get
         an HTML report, CI <strong>gate</strong>, optional <strong>Proof of Fuzz</strong> badge, and escrow economics.
         <code>report.html</code>, live <code>pulse</code>, and <code>GET /gate</code> for CI.
         Escrow stays on <strong>your local node</strong> (<code>127.0.0.1:8080</code>); hackme.tech delivers read-only tracker + token-gated reports.
@@ -47,8 +47,9 @@
       </div>
       <div class="pill-row">
         <span class="pill">hackme-fuzzing wizard</span>
-        <span class="pill">Packs · secrets</span>
-        <span class="pill">Scan · Audit · Deep</span>
+        <span class="pill">Packs · 7 guards</span>
+        <span class="pill">Scan · Dig · Audit · Deep</span>
+        <span class="pill">Hunt reuse</span>
         <span class="pill">Proof of Fuzz</span>
         <span class="pill">CI gate endpoint</span>
         <span class="pill">rc16 live</span>
@@ -96,7 +97,7 @@
               <tr><td>1 · Setup</td><td>Read 5 docs, guess budget</td><td><code>hackme-node</code> + fund wallet on <code>127.0.0.1:8080</code></td></tr>
               <tr><td>2 · Build guard</td><td><code>hackme-fuzzing build</code> + manual manifest</td><td>Same, or existing <code>.wasm</code></td></tr>
               <tr><td>3 · Order</td><td><code>create manifest.json</code> or long <code>curl security-audit</code></td><td><strong>One command:</strong> <code>wizard --pack secrets --package audit</code> or <code>wizard --wasm guard.wasm --package audit</code></td></tr>
-              <tr><td>4 · Package</td><td>Pick depth_tier + budget by hand</td><td><strong>Scan / Audit / Deep</strong> presets (1 / 5 / 25 HMC)</td></tr>
+              <tr><td>4 · Package</td><td>Pick depth_tier + budget by hand</td><td><strong>Scan / Dig Audit / Deep</strong> presets (1 / 5 / 25 HMC) + Hunt inventory</td></tr>
               <tr><td>5 · Deliverable</td><td>Hunt for report token in JSON</td><td>Wizard prints <code>report_url</code>, <code>gate_url</code>, <code>pulse_url</code></td></tr>
               <tr><td>6 · CI</td><td>Wire gate yourself</td><td>GitHub Action example in repo + gate URL in wizard output</td></tr>
               <tr><td>Where</td><td>Same localhost model</td><td>Same — <strong>no</strong> public upload on hackme.tech</td></tr>
@@ -112,9 +113,10 @@
         <table class="endpoint-table">
           <thead><tr><th>Package</th><th>HMC</th><th>Runs</th><th>exec/unit</th><th>Pool</th><th>Best for</th></tr></thead>
           <tbody>
-            <tr><td><code>scan</code></td><td>~1</td><td>64</td><td>1</td><td>local</td><td>CI smoke, nightly guard check</td></tr>
+            <tr><td><code>scan</code></td><td>~1</td><td>64</td><td>1</td><td>local</td><td>CI smoke — <code>bounds_smoke</code> · <code>overflow_smoke</code> · <code>state_smoke</code></td></tr>
             <tr><td><code>audit</code></td><td>~5</td><td>256</td><td>64</td><td>yes</td><td>Protocol guards, DeFi invariants, <code>filter_utf8</code> preflight</td></tr>
-            <tr><td><code>deep</code></td><td>~25</td><td>2048</td><td>512 local · <strong>64 cap</strong> on hub</td><td>yes</td><td>Byte corpus, hours-scale campaign (local autorunner)</td></tr>
+            <tr><td><code>deep</code></td><td>~25</td><td>2048</td><td>512 local · <strong>64 cap</strong> on hub</td><td>yes</td><td>Byte corpus, cross-campaign persist, hours-scale campaign</td></tr>
+            <tr><td><code>hunt_lite</code></td><td>~20</td><td>8 shards</td><td>ASAN</td><td>yes</td><td>Customer repo inventory · 50/50 escrow · pack-map suggest</td></tr>
           </tbody>
         </table>
       </div>
@@ -138,7 +140,7 @@ hackme-fuzzing wizard \
       <article class="panel glass">
         <div class="panel-head"><h2>What you get</h2></div>
         <ul class="check-list">
-          <li><strong>hackme-fuzzing wizard</strong> — Scan / Audit / Deep in one POST (<code>security-audit</code>)</li>
+          <li><strong>hackme-fuzzing wizard</strong> — Scan / Dig Audit / Deep in one POST (<code>security-audit</code>)</li>
           <li><strong>CI gate</strong> — <code>GET …/gate</code> with report token</li>
           <li><strong>Public tracker</strong> — redacted orders + pool stats (no manifest)</li>
           <li>Full spec in <a href="https://github.com/jokeez/hackme/blob/main/docs/DEVELOPERS_FUZZING.md" target="_blank" rel="noreferrer">DEVELOPERS_FUZZING.md</a></li>

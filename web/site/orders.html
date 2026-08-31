@@ -46,7 +46,8 @@
       <div class="pill-row">
         <span class="pill">No checkout on this site</span>
         <span class="pill">Escrow on localhost</span>
-        <span class="pill">Scan · Audit · Deep</span>
+        <span class="pill">Scan · Dig · Audit · Deep</span>
+        <span class="pill">Hunt · 50/50 escrow</span>
         <span class="pill">rc16 customer-first pool</span>
       </div>
     </section>
@@ -58,7 +59,8 @@
         <li><strong>Order</strong> — fund HMC, then
           <code>hackme-fuzzing wizard --pack filter_utf8 --package audit</code>
           (packs: <code>secrets</code> · <code>script_bounds</code> · <code>filter_utf8</code> · <code>parser_expat</code>
-          · or <code>--wasm guard.wasm</code> · dashboard <code>#orders</code>).</li>
+          · <code>bounds_smoke</code> · <code>overflow_smoke</code> · <code>state_smoke</code>
+          · or <code>--wasm guard.wasm</code> · dashboard <code>#orders</code> · <strong>Hunt</strong> inventory).</li>
         <li><strong>Deliverable</strong> — wizard prints <code>report_url</code>, <code>gate_url</code>, <code>pulse_url</code>. Pool diggers pick customer work first.</li>
       </ol>
       <pre class="code-block" style="margin-top:1rem"><code>export HACKME_ADMIN_TOKEN=…   # local node only
@@ -74,9 +76,10 @@ hackme-fuzzing wizard \
         <table class="endpoint-table">
           <thead><tr><th>Package</th><th>HMC</th><th>Runs</th><th>exec/unit</th><th>Best for</th></tr></thead>
           <tbody>
-            <tr><td><code>scan</code></td><td>~1</td><td>64</td><td>1</td><td>CI smoke</td></tr>
-            <tr><td><code>audit</code></td><td>~5</td><td>256</td><td>64</td><td>Protocol / filter guards</td></tr>
+            <tr><td><code>scan</code></td><td>~1</td><td>64</td><td>1</td><td>CI smoke · numeric/state guards</td></tr>
+            <tr><td><code>audit</code></td><td>~5</td><td>256</td><td>64</td><td>Protocol / filter guards · corpus persist</td></tr>
             <tr><td><code>deep</code></td><td>~25</td><td>2048</td><td>512 local · 64 pool cap</td><td>Full byte corpus campaign</td></tr>
+            <tr><td><code>hunt_*</code></td><td>20–60</td><td>8–24 shards</td><td>ASAN pool</td><td>Customer repo · inventory + pack-map</td></tr>
           </tbody>
         </table>
       </div>

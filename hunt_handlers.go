@@ -29,6 +29,8 @@ func (a *app) handleHuntAPI(w http.ResponseWriter, r *http.Request) {
 		a.handleHuntHarnessBuild(w, r)
 	case path == "template/preview" && r.Method == http.MethodPost:
 		a.handleHuntTemplatePreview(w, r)
+	case path == "pack-suggest" && r.Method == http.MethodPost:
+		a.handleHuntPackSuggest(w, r)
 	case path == "campaigns" && r.Method == http.MethodPost:
 		a.handleHuntCampaignCreate(w, r)
 	case strings.HasSuffix(path, "/run-local") && r.Method == http.MethodPost:
@@ -74,7 +76,44 @@ func (a *app) handleHuntInventory(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusBadRequest, "inventory_failed", err.Error(), nil)
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "inventory": res})
+	suggestions := hunt.SuggestPacksForInventory(res)
+	writeJSON(w, map[string]any{"ok": true, "inventory": res, "pack_suggestions": suggestions})
+}
+
+func (a *app) handleHuntPackSuggest(w http.ResponseWriter, r *http.Request) {
+	if !requireAdminAuthStrict(w, r) {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
+	defer r.Body.Close()
+	var req struct {
+		Path          string `json:"path"`
+		SourceRel     string `json:"source_rel"`
+		ContentSample string `json:"content_sample"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid_json", "invalid json", nil)
+		return
+	}
+	sourceRel := strings.TrimSpace(req.SourceRel)
+	if sourceRel == "" {
+		sourceRel = strings.TrimSpace(req.Path)
+	}
+	if sourceRel == "" {
+		writeAPIError(w, http.StatusBadRequest, "path_required", "source_rel or path required", nil)
+		return
+	}
+	sample := strings.TrimSpace(req.ContentSample)
+	if sample == "" && strings.TrimSpace(req.Path) != "" {
+		if b, err := os.ReadFile(req.Path); err == nil {
+			if len(b) > 4096 {
+				b = b[:4096]
+			}
+			sample = string(b)
+		}
+	}
+	suggestions := hunt.SuggestPacksForPath(sourceRel, sample)
+	writeJSON(w, map[string]any{"ok": true, "pack_suggestions": suggestions, "source_rel": sourceRel})
 }
 
 func (a *app) handleHuntCampaignCreate(w http.ResponseWriter, r *http.Request) {

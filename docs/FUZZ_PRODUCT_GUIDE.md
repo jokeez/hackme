@@ -22,14 +22,15 @@ CLI/API keys stay `scan` | `audit` | `deep`. Customer-facing names:
 |-----|---------|
 | `GET /api/hunt/packages` | Hunt Lite / Standard presets |
 | `GET /api/hunt/targets` | Curated OSS catalog (`upstream/oss_cve_targets.json`) |
-| `POST /api/hunt/inventory` | Admin: scan local path for `LLVMFuzzerTestOneInput` |
+| `POST /api/hunt/inventory` | Admin: scan local path for `LLVMFuzzerTestOneInput` + **pack-map suggest** |
+| `POST /api/hunt/pack-suggest` | Admin: Dig/Hunt pack hints for one path |
 | `POST /api/hunt/repo/pin` | Admin: pin local path or shallow git clone |
 | `POST /api/hunt/template/preview` | Admin: check if template Accept is required |
 | `POST /api/hunt/harness/build` | Admin: ASAN build inventory harness → `.cache/hunt-harness/{hash}.bin` |
 | `POST /api/hunt/campaigns` | Create Hunt campaign + 50/50 escrow (catalog or inventory) |
 | `POST /api/hunt/campaigns/{id}/run-local` | Admin: node-local ASAN smoke |
 
-CLI: `hackme-fuzzing hunt pin|inventory|template|build|create|packages|targets`
+CLI: `hackme-fuzzing hunt pin|inventory|template|build|create|pack-suggest|packages|targets`
 
 Spec: [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md). Pool CPU shards + coordinator ASAN replay — Phase 1c. **Inventory pool** needs shared harness cache on workers (`HACKME_REPO_ROOT`).
 
@@ -54,6 +55,9 @@ Wizard prints: `campaign_id`, `customer_report_token`, `report_url`, `gate_url`,
 | **script_bounds** | Bitcoin-class script push bound violations |
 | **filter_utf8** | Invalid UTF-8 + operator index skew (FluxTap-class display filter panic on `\xc7=`) |
 | **parser_expat** | XML byte corpus; native ASAN on pinned libexpat (`native_repro_mode: oss_upstream`) |
+| **bounds_smoke** | Scan-tier numeric range/stride guard smoke |
+| **overflow_smoke** | Scan-tier wrapping-multiply overflow smoke |
+| **state_smoke** | Scan-tier FSM transition guard smoke |
 
 Pack-aware budgets override generic package defaults (see `hackme-fuzzing packs --json`).
 
@@ -97,8 +101,9 @@ When `pool_distributed: true`, hub `workerfuzz` / hybrid `workerpoh` claims work
 
 - Guided campaigns freeze `corpus_seeds` + anchor input at **claim**
 - Tier defaults: `power_mut_cap` scan **2** · audit **6** · deep **12** (pool segment mutation depth)
-- Wizard sends `mutation_rounds`, `coverage_guided`, `guided_scheduling`, `power_mut_cap` for Dig tiers
+- Wizard sends `mutation_rounds`, `coverage_guided`, `guided_scheduling`, `power_mut_cap`, `corpus_persist` for Dig tiers
 - Pack `mutator_dict` splices domain tokens (secrets, XML, UTF-8 skew)
+- **Cross-campaign corpus persist** (`fuzz_corpus_namespace`): audit/deep guided campaigns import prior seeds for the same `guard_pack` namespace on new campaigns
 - Submit requires matching `segment_exec_done` and coordinator full-segment replay
 - Invalid WASM → reject; incomplete segment → reject
 - Worker lease scales with segment wall time (not fixed 30s)

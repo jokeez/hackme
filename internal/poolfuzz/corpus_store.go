@@ -151,6 +151,9 @@ func (s *Service) observePoolCorpus(ctx context.Context, campaignID string, inpu
 	if err := s.upsertPoolCorpusSeed(ctx, campaignID, input, inputBytes, boost, edge, path, crash, now); err != nil {
 		return err
 	}
+	if err := s.exportNamespaceCorpus(ctx, cfg, input, inputBytes, boost, edge, path, crash, now); err != nil {
+		return err
+	}
 	return s.cullPoolCorpus(ctx, campaignID, fuzzengine.PoolCorpusMax(cfg))
 }
 
@@ -242,7 +245,98 @@ func (s *Service) EnsureGuidedCorpusSeeded(ctx context.Context, campaignID strin
 	if n > 0 {
 		return nil
 	}
-	return s.seedPoolCorpusFromConfig(ctx, campaignID, cfg, now)
+	if err := s.seedPoolCorpusFromConfig(ctx, campaignID, cfg, now); err != nil {
+		return err
+	}
+	return s.importNamespaceCorpus(ctx, campaignID, cfg, now)
+}
+
+func (s *Service) loadNamespaceCorpusSeeds(ctx context.Context, namespace string, max int) ([]fuzzengine.PoolCorpusSeed, error) {
+	if s == nil || s.DB == nil || namespace == "" {
+		return nil, nil
+	}
+	if max <= 0 {
+		max = 64
+	}
+	rows, err := s.DB.QueryContext(ctx,
+		`SELECT input_u64, input_bytes, energy, edge_bucket, path_bucket, is_crash
+		   FROM fuzz_corpus_namespace
+		  WHERE namespace=? AND is_crash=0
+		  ORDER BY energy DESC, last_seen_at DESC
+		  LIMIT ?`, namespace, max)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []fuzzengine.PoolCorpusSeed
+	for rows.Next() {
+		var r poolCorpusRow
+		var crash int
+		var inputSigned int64
+		if err := rows.Scan(&inputSigned, &r.InputBytes, &r.Energy, &r.Edge, &r.Path, &crash); err != nil {
+			return nil, err
+		}
+		r.Input = uint64(inputSigned)
+		r.Crash = crash != 0
+		out = append(out, fuzzengine.PoolCorpusSeed{
+			Input: r.Input, InputBytes: append([]byte(nil), r.InputBytes...), Energy: r.Energy, Edge: r.Edge, Path: r.Path, Crash: r.Crash,
+		})
+	}
+	return out, rows.Err()
+}
+
+func (s *Service) importNamespaceCorpus(ctx context.Context, campaignID string, cfg map[string]any, now int64) error {
+	if !fuzzengine.CorpusPersistEnabled(cfg) {
+		return nil
+	}
+	ns := fuzzengine.CorpusPersistNamespace(cfg)
+	if ns == "" {
+		return nil
+	}
+	seeds, err := s.loadNamespaceCorpusSeeds(ctx, ns, fuzzengine.CorpusPersistMax(cfg))
+	if err != nil {
+		return err
+	}
+	for _, seed := range seeds {
+		if err := s.upsertPoolCorpusSeed(ctx, campaignID, seed.Input, seed.InputBytes, seed.Energy, seed.Edge, seed.Path, seed.Crash, now); err != nil {
+			return err
+		}
+	}
+	if len(seeds) > 0 {
+		return s.cullPoolCorpus(ctx, campaignID, fuzzengine.PoolCorpusMax(cfg))
+	}
+	return nil
+}
+
+func (s *Service) exportNamespaceCorpus(ctx context.Context, cfg map[string]any, input uint64, inputBytes []byte, energy, edge, path int, crash bool, now int64) error {
+	if s == nil || s.DB == nil || crash || !fuzzengine.CorpusPersistEnabled(cfg) {
+		return nil
+	}
+	ns := fuzzengine.CorpusPersistNamespace(cfg)
+	if ns == "" {
+		return nil
+	}
+	if energy < 1 {
+		energy = 1
+	}
+	if inputBytes == nil {
+		inputBytes = []byte{}
+	}
+	_, err := s.DB.ExecContext(ctx,
+		`INSERT INTO fuzz_corpus_namespace
+		 (namespace, input_u64, input_bytes, energy, edge_bucket, path_bucket, is_crash, first_seen_at, last_seen_at, exec_count)
+		 VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, 1)
+		 ON CONFLICT(namespace, input_u64) DO UPDATE SET
+		   energy=MAX(fuzz_corpus_namespace.energy, excluded.energy),
+		   edge_bucket=excluded.edge_bucket,
+		   path_bucket=excluded.path_bucket,
+		   input_bytes=CASE
+		     WHEN length(excluded.input_bytes) > length(fuzz_corpus_namespace.input_bytes) THEN excluded.input_bytes
+		     ELSE fuzz_corpus_namespace.input_bytes END,
+		   last_seen_at=excluded.last_seen_at,
+		   exec_count=fuzz_corpus_namespace.exec_count+1`,
+		ns, poolCorpusU64Arg(input), inputBytes, energy, edge, path, now, now)
+	return err
 }
 
 // SeedsForWorkItem returns frozen corpus seeds for submit verify (snapshot at claim; no live fallback).

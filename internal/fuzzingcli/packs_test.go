@@ -106,6 +106,19 @@ func TestGuardPackForParserAlias(t *testing.T) {
 	}
 }
 
+func TestListGuardPacksIncludesScanSmokes(t *testing.T) {
+	packs := ListGuardPacks()
+	ids := map[string]bool{}
+	for _, p := range packs {
+		ids[p.ID] = true
+	}
+	for _, id := range []string{"bounds_smoke", "overflow_smoke", "state_smoke"} {
+		if !ids[id] {
+			t.Fatalf("missing scan pack %q in %d packs", id, len(packs))
+		}
+	}
+}
+
 func TestExplainPackFindingHex(t *testing.T) {
 	msg := ExplainPackFinding("filter_utf8", "c73d", "")
 	if !strings.Contains(msg, "UTF-8") && !strings.Contains(msg, "ToLower") {
