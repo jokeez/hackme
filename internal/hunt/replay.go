@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzupstream"
 )
 
@@ -46,6 +47,7 @@ type ReplayShardOpts struct {
 	CampaignID      string
 	InputN          uint64
 	Config          map[string]any
+	CorpusSeeds     []fuzzengine.PoolCorpusSeed
 	Input           []byte
 	MaxInput        int
 	ExecPer         int
@@ -169,14 +171,14 @@ func ReplayShard(ctx context.Context, opts ReplayShardOpts) (ReplayShardResult, 
 }
 
 func replayInputForExec(opts ReplayShardOpts, execIdx uint64, cfg map[string]any) []byte {
-	if opts.CampaignID != "" && ShardSegmentMutating(cfg) {
-		return ShardSegmentExecInput(opts.CampaignID, opts.InputN, execIdx, cfg)
+	if opts.CampaignID != "" && (ShardSegmentMutating(cfg) || HuntCorpusGuided(cfg)) {
+		return ShardSegmentExecInput(opts.CampaignID, opts.InputN, execIdx, cfg, opts.CorpusSeeds)
 	}
 	if len(opts.Input) > 0 {
 		return opts.Input
 	}
 	if opts.CampaignID != "" {
-		return ShardSegmentExecInput(opts.CampaignID, opts.InputN, execIdx, cfg)
+		return ShardSegmentExecInput(opts.CampaignID, opts.InputN, execIdx, cfg, opts.CorpusSeeds)
 	}
 	return nil
 }

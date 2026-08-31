@@ -140,6 +140,7 @@ Hunt Lite · 20 HMC · 50/50 split
 - [x] Coordinator: CPU shard work kind `hunt_shard` — claim/submit + **coordinator ASAN replay** (`evalHuntSubmitCheck`)  
 - [x] Worker: `RunHuntShard` ASAN on catalog harness (`hunt.ReplayShard` + `.cache/hunt-harness/`)  
 - [x] **L1 mutating shards:** anchor at claim + deterministic `iterations_per_shard` mutations (`hunt.ShardSegmentExecInput`); coordinator replays full chain; fake-crash reject unchanged  
+- [x] **L2 corpus-guided:** `hunt_corpus_guided` + frozen `corpus_seeds` at claim; pool corpus bootstrap/observe; namespace persist `hunt:{target_id}`  
 - [x] UI: Hunt card + **pre-pay scope block** `#hunt-scope-contract`  
 - [x] Gate: `scripts/tests/hunt_pool_smoke_gate.sh` (fake crash reject + worker smoke)  
 - [x] Customer repo pin → harness build (`POST /api/hunt/repo/pin`, `/harness/build`, `/template/preview`)  

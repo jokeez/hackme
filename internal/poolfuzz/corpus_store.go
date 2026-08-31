@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"hackme/internal/fuzzengine"
+	"hackme/internal/hunt"
 )
 
 // poolCorpusRow mirrors fuzz_pool_corpus scheduling state.
@@ -384,14 +385,21 @@ func (s *Service) ListNamespaceCorpus(ctx context.Context, namespace string, max
 
 // SeedsForWorkItem returns frozen corpus seeds for submit verify (snapshot at claim; no live fallback).
 func (s *Service) SeedsForWorkItem(ctx context.Context, campaignID string, itemID int64, cfg map[string]any) ([]fuzzengine.PoolCorpusSeed, error) {
-	if !fuzzengine.GuidedSchedulingEnabled(cfg) && PoolExecPerUnit(cfg) <= 1 {
+	guided := fuzzengine.GuidedSchedulingEnabled(cfg)
+	if IsHuntCampaign(cfg) {
+		if !hunt.HuntCorpusGuided(cfg) {
+			return nil, nil
+		}
+		guided = true
+	}
+	if !guided && PoolExecPerUnit(cfg) <= 1 && !IsHuntCampaign(cfg) {
 		return nil, nil
 	}
 	seeds, err := s.loadCorpusSnapshot(ctx, campaignID, itemID)
 	if err != nil {
 		return nil, err
 	}
-	if fuzzengine.GuidedSchedulingEnabled(cfg) && len(seeds) == 0 {
+	if guided && len(seeds) == 0 {
 		return nil, fmt.Errorf("poolfuzz: missing guided corpus snapshot for work item %d", itemID)
 	}
 	return seeds, nil

@@ -29,7 +29,7 @@ func TestHuntShardConfigFromClaim(t *testing.T) {
 		MaxInputBytes:    128,
 		ExecPerUnit:      8,
 		DepthTier:        "oss_cve",
-	})
+	}, true)
 	if cfg["upstream_target_id"] != "jsmn" || cfg["iterations_per_shard"] != 8 {
 		t.Fatalf("cfg=%v", cfg)
 	}

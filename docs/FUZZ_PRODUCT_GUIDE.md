@@ -34,7 +34,7 @@ CLI/API keys stay `scan` | `audit` | `deep`. Customer-facing names:
 
 CLI: `hackme-fuzzing hunt pin|inventory|template|build|create|pack-suggest|packages|targets`
 
-Spec: [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md). Pool CPU shards + coordinator ASAN replay — Phase 1c. **L1 mutating shards:** each shard runs `iterations_per_shard` (default 32) deterministic byte mutations from the claim anchor; coordinator replays the full chain on submit (fake-crash reject unchanged). **Inventory pool** uses harness publish (`harness_fetch_path`) — workers download ASAN binary from coordinator.
+Spec: [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md). Pool CPU shards + coordinator ASAN replay — Phase 1c. **L1 mutating shards:** each shard runs `iterations_per_shard` (default 32) deterministic byte mutations from the claim anchor; coordinator replays the full chain on submit (fake-crash reject unchanged). **L2 corpus-guided:** claim freezes `corpus_seeds` + guided anchor; campaign corpus grows across shards (`hunt:{target_id}` namespace persist). **Inventory pool** uses harness publish (`harness_fetch_path`) — workers download ASAN binary from coordinator.
 
 \* **Distributed pool cap:** on hub workers, `exec_per_unit` is capped at **64** per work item (Deep 512 runs locally on autorunner). Coordinator **replays** the segment on submit — miners do not cryptographically attest every exec.
 

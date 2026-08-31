@@ -93,7 +93,7 @@ func TestEvalHuntSubmitRejectsFakeCrash(t *testing.T) {
 	input := []byte(`{"ok":true}`)
 	s := &Service{}
 	req := SubmitRequest{SegmentExecDone: 2, CheckResult: 1, Trap: "hunt_crash:asan"}
-	_, trap, pass, finding, _, err := s.evalHuntSubmitCheck(context.Background(), "", 0, cfg, req, input)
+	_, trap, pass, finding, _, err := s.evalHuntSubmitCheck(context.Background(), "", 0, cfg, req, input, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +169,7 @@ func TestEvalHuntSubmitConfirmsIntentionalCrash(t *testing.T) {
 	cfg["hunt_source_rel"] = "fuzz_target.c"
 	s := &Service{}
 	req := SubmitRequest{SegmentExecDone: 2, CheckResult: 1, Trap: "hunt_crash:asan"}
-	_, trap, pass, finding, crashB, err := s.evalHuntSubmitCheck(context.Background(), campaignID, inputN, cfg, req, anchor)
+	_, trap, pass, finding, crashB, err := s.evalHuntSubmitCheck(context.Background(), campaignID, inputN, cfg, req, anchor, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

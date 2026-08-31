@@ -15,6 +15,7 @@ import (
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzingcli"
 	"hackme/internal/fuzznative"
+	"hackme/internal/hunt"
 	"hackme/internal/sandbox"
 )
 
@@ -775,7 +776,7 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 		return fmt.Errorf("poolfuzz: unexpected segment_exec_done for single-exec unit")
 	}
 	var seeds []fuzzengine.PoolCorpusSeed
-	if !isHunt && (fuzzengine.GuidedSchedulingEnabled(cfg) || execPer > 1) {
+	if (!isHunt && (fuzzengine.GuidedSchedulingEnabled(cfg) || execPer > 1)) || (isHunt && hunt.HuntCorpusGuided(cfg)) {
 		var err error
 		seeds, err = s.SeedsForWorkItem(ctx, req.CampaignID, req.ItemID, cfg)
 		if err != nil {
@@ -792,7 +793,7 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	if isHunt {
 		var err error
 		var huntFindingB []byte
-		checkResult, trap, pass, recordFinding, huntFindingB, err = s.evalHuntSubmitCheck(ctx, req.CampaignID, inputN, cfg, req, expectedB)
+		checkResult, trap, pass, recordFinding, huntFindingB, err = s.evalHuntSubmitCheck(ctx, req.CampaignID, inputN, cfg, req, expectedB, seeds)
 		if err != nil {
 			return err
 		}
@@ -889,8 +890,20 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 		if err := s.observePoolCorpus(ctx, req.CampaignID, req.ActualInput, req.InputBytes, recordFinding, now); err != nil {
 			return err
 		}
-	} else if err := s.recordCoverage(ctx, req.CampaignID, cfg, req.ActualInput, req.InputBytes, nil, now); err != nil {
-		return err
+	} else {
+		if err := s.recordCoverage(ctx, req.CampaignID, cfg, req.ActualInput, req.InputBytes, nil, now); err != nil {
+			return err
+		}
+		if hunt.HuntCorpusGuided(cfg) {
+			obsU, obsB := req.ActualInput, req.InputBytes
+			if recordFinding && len(findingB) > 0 {
+				obsU = findingU
+				obsB = findingB
+			}
+			if err := s.observePoolCorpus(ctx, req.CampaignID, obsU, obsB, recordFinding, now); err != nil {
+				return err
+			}
+		}
 	}
 	var findingSeverity string
 	var findingType string

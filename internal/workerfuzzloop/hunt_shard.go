@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"hackme/internal/fuzzengine"
 	"hackme/internal/hunt"
 )
 
@@ -45,6 +46,8 @@ func RunHuntShard(ctx context.Context, cr ClaimResp, timeoutMS int) (checkResult
 	if execPer < 1 {
 		execPer = 1
 	}
+	seeds, _ := fuzzengine.CorpusSeedsFromClaimMaps(cr.CorpusSeeds)
+	cfg := huntShardConfigFromClaim(cr, len(seeds) > 0)
 	rep, err := hunt.ReplayShard(runCtx, hunt.ReplayShardOpts{
 		RepoRoot: repoRoot,
 		Spec: hunt.HarnessSpec{
@@ -59,7 +62,8 @@ func RunHuntShard(ctx context.Context, cr ClaimResp, timeoutMS int) (checkResult
 		HarnessFetchURL: huntFetchURL(cr),
 		CampaignID:      strings.TrimSpace(cr.CampaignID),
 		InputN:          cr.InputN,
-		Config:          huntShardConfigFromClaim(cr),
+		Config:          cfg,
+		CorpusSeeds:     seeds,
 		Input:           inputB,
 		MaxInput:        maxB,
 		ExecPer:         execPer,
@@ -110,7 +114,7 @@ func huntFetchURL(cr ClaimResp) string {
 	return base + "/" + strings.TrimPrefix(u, "/")
 }
 
-func huntShardConfigFromClaim(cr ClaimResp) map[string]any {
+func huntShardConfigFromClaim(cr ClaimResp, corpusGuided bool) map[string]any {
 	cfg := map[string]any{
 		"upstream_target_id":   strings.TrimSpace(cr.UpstreamTargetID),
 		"max_input_bytes":      cr.MaxInputBytes,
@@ -121,6 +125,10 @@ func huntShardConfigFromClaim(cr ClaimResp) map[string]any {
 		cfg["depth_tier"] = tier
 	} else {
 		cfg["depth_tier"] = "oss_cve"
+	}
+	if corpusGuided || strings.TrimSpace(cr.CoverageKind) == "hunt_corpus_guided" {
+		cfg["hunt_corpus_guided"] = true
+		cfg["guided_scheduling"] = true
 	}
 	return cfg
 }

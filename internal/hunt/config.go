@@ -130,6 +130,7 @@ func CampaignConfig(ctx context.Context, repoRoot string, req CreateRequest) (ma
 		cfg["iterations_per_shard"] = defaultHuntIterationsPerShard
 		cfg["hunt_segment_mutating"] = true
 		cfg["power_mut_cap"] = fuzzengine.DefaultPowerMutCap(fuzzengine.DepthOSSCVE)
+		ApplyPoolGuidedDefaults(cfg, targetID)
 		if _, ok := cfg["harness_hash"]; !ok {
 			hash, hErr := CatalogHarnessHash(repoRoot, targetID)
 			if hErr != nil {

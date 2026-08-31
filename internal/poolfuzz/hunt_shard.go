@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzescrow"
@@ -33,38 +34,61 @@ func HuntShardInputBytes(campaignID string, inputN uint64, cfg map[string]any) [
 }
 
 func (s *Service) buildHuntClaimedWork(ctx context.Context, campaignID string, itemID int64, inputN uint64, cfg map[string]any, workerID string) (ClaimedWork, error) {
+	_ = workerID
 	iter := huntIterationsPerShard(cfg)
-	inputB := HuntShardInputBytes(campaignID, inputN, cfg)
-	if err := s.storeExpectedInputs(ctx, campaignID, itemID, fuzzengine.PackInputBytesToU64(inputB), inputB); err != nil {
-		return ClaimedWork{}, err
+	now := time.Now().Unix()
+	var inputB []byte
+	var inputU uint64
+	var corpusSeeds []fuzzengine.PoolCorpusSeed
+	var corpusSHA string
+	if hunt.HuntCorpusGuided(cfg) {
+		var err error
+		inputU, inputB, corpusSeeds, err = s.lockHuntGuidedWorkItem(ctx, campaignID, itemID, inputN, cfg, now)
+		if err != nil {
+			return ClaimedWork{}, err
+		}
+		if _, corpusSHA, err = fuzzengine.EncodeCorpusSnapshot(corpusSeeds); err != nil {
+			return ClaimedWork{}, err
+		}
+	} else {
+		inputB = HuntShardInputBytes(campaignID, inputN, cfg)
+		inputU = fuzzengine.PackInputBytesToU64(inputB)
+		if err := s.storeExpectedInputs(ctx, campaignID, itemID, inputU, inputB); err != nil {
+			return ClaimedWork{}, err
+		}
 	}
 	return ClaimedWork{
-		WorkID:             fmt.Sprintf("%s:%d", campaignID, itemID),
-		CampaignID:         campaignID,
-		ItemID:             itemID,
-		InputN:             inputN,
-		ActualInput:        fuzzengine.PackInputBytesToU64(inputB),
-		InputBytes:         inputB,
-		InputMode:          string(fuzzengine.InputModeBytes),
-		CheckSemantics:     "native_crash",
-		DepthTier:          string(fuzzengine.DepthOSSCVE),
-		PerRunHMC:          perShardHMCFromConfig(cfg),
-		ExecPerUnit:        iter,
-		MaxInputBytes:      fuzzengine.ParseMaxInputBytes(cfg),
-		CoverageKind:       huntCoverageKind(cfg, iter),
-		TaskClass:          "hunt",
-		WorkKind:           "hunt_shard",
-		HarnessHash:        strings.TrimSpace(jsonString(cfg["harness_hash"])),
-		UpstreamTargetID:   strings.TrimSpace(jsonString(cfg["upstream_target_id"])),
-		HuntSource:         strings.TrimSpace(jsonString(cfg["hunt_source"])),
-		HuntPinPath:        strings.TrimSpace(jsonString(cfg["hunt_pin_path"])),
-		HuntSourceRel:      strings.TrimSpace(jsonString(cfg["hunt_source_rel"])),
-		HarnessFetchURL:    huntHarnessFetchURL(cfg),
-		IterationsPerShard: iter,
+		WorkID:               fmt.Sprintf("%s:%d", campaignID, itemID),
+		CampaignID:           campaignID,
+		ItemID:               itemID,
+		InputN:               inputN,
+		ActualInput:          inputU,
+		InputBytes:           inputB,
+		InputMode:            string(fuzzengine.InputModeBytes),
+		CheckSemantics:       "native_crash",
+		DepthTier:            string(fuzzengine.DepthOSSCVE),
+		PerRunHMC:            perShardHMCFromConfig(cfg),
+		ExecPerUnit:          iter,
+		MaxInputBytes:        fuzzengine.ParseMaxInputBytes(cfg),
+		CoverageKind:         huntCoverageKind(cfg, iter),
+		CorpusSeeds:          corpusSeeds,
+		CorpusSnapshotSHA256: corpusSHA,
+		TaskClass:            "hunt",
+		WorkKind:             "hunt_shard",
+		HarnessHash:          strings.TrimSpace(jsonString(cfg["harness_hash"])),
+		UpstreamTargetID:     strings.TrimSpace(jsonString(cfg["upstream_target_id"])),
+		HuntSource:           strings.TrimSpace(jsonString(cfg["hunt_source"])),
+		HuntPinPath:          strings.TrimSpace(jsonString(cfg["hunt_pin_path"])),
+		HuntSourceRel:        strings.TrimSpace(jsonString(cfg["hunt_source_rel"])),
+		HarnessFetchURL:      huntHarnessFetchURL(cfg),
+		IterationsPerShard:   iter,
 	}, nil
 }
 
 func huntCoverageKind(cfg map[string]any, iter int) string {
+	if hunt.HuntCorpusGuided(cfg) {
+		return "hunt_corpus_guided"
+	}
 	if hunt.ShardSegmentMutating(cfg) && iter > 1 {
 		return "hunt_segment_mutating"
 	}
@@ -129,7 +153,7 @@ func huntReplayEnabled() bool {
 	return v == "" || v == "1" || v == "true" || v == "yes" || v == "on"
 }
 
-func (s *Service) evalHuntSubmitCheck(ctx context.Context, campaignID string, inputN uint64, cfg map[string]any, req SubmitRequest, expectedB []byte) (checkResult int32, trap string, pass bool, recordFinding bool, findingB []byte, err error) {
+func (s *Service) evalHuntSubmitCheck(ctx context.Context, campaignID string, inputN uint64, cfg map[string]any, req SubmitRequest, expectedB []byte, seeds []fuzzengine.PoolCorpusSeed) (checkResult int32, trap string, pass bool, recordFinding bool, findingB []byte, err error) {
 	iter := huntIterationsPerShard(cfg)
 	if req.SegmentExecDone != iter {
 		return 0, "", false, false, nil, nil
@@ -155,6 +179,7 @@ func (s *Service) evalHuntSubmitCheck(ctx context.Context, campaignID string, in
 		CampaignID:      campaignID,
 		InputN:          inputN,
 		Config:          cfg,
+		CorpusSeeds:     seeds,
 		Input:           expectedB,
 		MaxInput:        maxB,
 		ExecPer:         iter,
