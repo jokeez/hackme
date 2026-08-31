@@ -73,10 +73,10 @@ func ShardSegmentMutating(cfg map[string]any) bool {
 func ShardIterationsPer(cfg map[string]any) int {
 	n := int(cfgInt(cfg, "iterations_per_shard"))
 	if n < 1 {
-		n = defaultHuntIterationsPerShard
+		n = huntIterPerShardLite
 	}
-	if n > 64 {
-		n = 64
+	if n > maxShardIterationsPer {
+		n = maxShardIterationsPer
 	}
 	return n
 }

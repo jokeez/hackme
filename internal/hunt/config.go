@@ -12,7 +12,7 @@ import (
 	"hackme/internal/fuzzupstream"
 )
 
-const defaultHuntIterationsPerShard = 32
+const defaultHuntIterationsPerShard = huntIterPerShardLite
 
 // CampaignConfig builds normalized fuzz campaign config for Hunt.
 func CampaignConfig(ctx context.Context, repoRoot string, req CreateRequest) (map[string]any, string, error) {
@@ -127,7 +127,6 @@ func CampaignConfig(ctx context.Context, repoRoot string, req CreateRequest) (ma
 		cfg["auto_runner"] = "0"
 		cfg["work_kind"] = "hunt_shard"
 		cfg["check_semantics"] = "native_crash"
-		cfg["iterations_per_shard"] = defaultHuntIterationsPerShard
 		cfg["hunt_segment_mutating"] = true
 		cfg["power_mut_cap"] = fuzzengine.DefaultPowerMutCap(fuzzengine.DepthOSSCVE)
 		ApplyPoolGuidedDefaults(cfg, targetID)
@@ -140,6 +139,8 @@ func CampaignConfig(ctx context.Context, repoRoot string, req CreateRequest) (ma
 		}
 	}
 	ApplySanitizerDefaults(cfg, pkgKey)
+	ApplyPackageDepthDefaults(cfg, pkgKey, pool)
+	ApplyHuntMutatorDict(cfg, targetID)
 
 	if req.Inventory != nil && strings.TrimSpace(req.Inventory.Path) != "" {
 		cfg["hunt_inventory_path"] = strings.TrimSpace(req.Inventory.Path)

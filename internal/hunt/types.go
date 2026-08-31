@@ -3,14 +3,17 @@ package hunt
 
 // PackageInfo is a customer-facing Hunt SKU preset.
 type PackageInfo struct {
-	Key          string  `json:"key"`
-	Title        string  `json:"title"`
-	BudgetHMC    float64 `json:"budget_hmc"`
-	BudgetShards int     `json:"budget_shards"`
-	MinPerShard  float64 `json:"min_per_shard_hmc"`
-	WallHours    string  `json:"wall_hours"`
-	Summary      string  `json:"summary"`
-	EscrowSplit  string  `json:"escrow_split"`
+	Key                string  `json:"key"`
+	Title              string  `json:"title"`
+	BudgetHMC          float64 `json:"budget_hmc"`
+	BudgetShards       int     `json:"budget_shards"`
+	IterationsPerShard int     `json:"iterations_per_shard"`
+	LocalBudgetIters   int     `json:"local_budget_iterations"`
+	LocalTimeLimitSec  int     `json:"local_time_limit_sec"`
+	MinPerShard        float64 `json:"min_per_shard_hmc"`
+	WallHours          string  `json:"wall_hours"`
+	Summary            string  `json:"summary"`
+	EscrowSplit        string  `json:"escrow_split"`
 }
 
 // TargetSummary is a catalog or inventory fuzz target entry.
