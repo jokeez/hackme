@@ -15,6 +15,7 @@ import (
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzingcli"
 	"hackme/internal/fuzznative"
+	"hackme/internal/fuzzupstream"
 	"hackme/internal/hunt"
 	"hackme/internal/sandbox"
 )
@@ -65,6 +66,7 @@ type ClaimedWork struct {
 	HuntSourceRel        string
 	HarnessFetchURL      string
 	IterationsPerShard   int
+	HuntDetectLeaks      bool
 }
 
 type SubmitRequest struct {
@@ -1237,6 +1239,13 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 		"triage_class":    triage.Class,
 		"triage_label":    triage.Label,
 		"zero_day_hint":   triage.ZeroDayHint,
+	}
+	if IsHuntCampaign(cfg) {
+		if info, ok := fuzzupstream.ParseHuntTrap(strings.TrimSpace(req.Trap)); ok {
+			detailMap["sanitizer_class"] = info.Class
+			detailMap["sanitizer_subtype"] = info.Subtype
+			detailMap["sanitizer_label"] = info.Label
+		}
 	}
 	if len(inputBytes) > 0 {
 		detailMap["input_hex"] = hex.EncodeToString(inputBytes)

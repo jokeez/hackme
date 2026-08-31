@@ -131,6 +131,7 @@ func renderFuzzReportHTML(report map[string]any) string {
 		}
 	}
 	issueRows := renderFuzzIssueRows(report)
+	sanitizerSection := renderFuzzSanitizerHygieneSection(report)
 	noiseRows := renderFuzzNoiseRows(report)
 	reproSection := renderFuzzReproSection(report)
 	engineNote := renderFuzzEngineNote(report)
@@ -266,6 +267,7 @@ a{color:#00d1ff}
 <div class="stat"><b>Crash dup</b>%s</div>
 <div class="stat"><b>Critical</b>%s</div>
 <div class="stat"><b>Coverage noise</b>%s</div>
+<div class="stat"><b>Sanitizer hygiene</b>%s</div>
 <div class="stat"><b>Edges / paths</b>%s / %s</div>
 <div class="stat"><b>Budget runs</b>%s</div>
 </div>
@@ -275,6 +277,7 @@ a{color:#00d1ff}
 <p class="lbl">Top issues (crash / hang / ASan / memory only)</p>
 <table><thead><tr><th>Severity</th><th>Type</th><th>Triage</th><th>Title</th><th>Repro</th></tr></thead><tbody>%s</tbody></table>
 </div>
+%s
 %s
 <div class="card noise">
 <p class="lbl">Appendix · coverage noise (detector / property)</p>
@@ -325,6 +328,7 @@ a{color:#00d1ff}
 		html.EscapeString(toString(sum["crash_duplicate_count"])),
 		html.EscapeString(toString(sum["critical_count"])),
 		html.EscapeString(toString(sum["coverage_noise_count"])),
+		html.EscapeString(toString(sum["sanitizer_hygiene_count"])),
 		html.EscapeString(toString(sum["coverage_edges"])),
 		html.EscapeString(toString(sum["coverage_paths"])),
 		html.EscapeString(toString(c["budget_runs"])),
@@ -333,6 +337,7 @@ a{color:#00d1ff}
 		html.EscapeString(toString(window["full_campaign_findings"])),
 		issueRows,
 		reproSection,
+		sanitizerSection,
 		noiseRows,
 		fpBlock,
 		baseBlock,
@@ -389,6 +394,56 @@ func renderFuzzIssueRows(report map[string]any) string {
 			html.EscapeString(i.Title),
 			reproCell,
 		))
+	}
+	return b.String()
+}
+
+func renderFuzzSanitizerHygieneSection(report map[string]any) string {
+	rows := renderFuzzSanitizerHygieneRows(report)
+	summaryNote := ""
+	if sm, ok := report["sanitizer_summary"].(map[string]any); ok {
+		parts := []string{}
+		if bySub, ok := sm["by_subtype"].(map[string]int); ok {
+			for k, n := range bySub {
+				parts = append(parts, fmt.Sprintf("%s×%d", k, n))
+			}
+		}
+		if len(parts) > 0 {
+			summaryNote = `<p class="muted">Subtype rollup: ` + html.EscapeString(strings.Join(parts, " · ")) + `</p>`
+		}
+	}
+	if rows == "" {
+		return `<div class="card"><p class="lbl">Sanitizer hygiene (UBSan / LSan · informational)</p><p class="muted">No UBSan/LSan informational signals in this sample.</p></div>`
+	}
+	return `<div class="card"><p class="lbl">Sanitizer hygiene (UBSan / LSan · informational)</p>` + summaryNote +
+		`<table><thead><tr><th>Severity</th><th>Class</th><th>Subtype</th><th>Title</th><th>Note</th></tr></thead><tbody>` +
+		rows + `</tbody></table></div>`
+}
+
+func renderFuzzSanitizerHygieneRows(report map[string]any) string {
+	arr, ok := report["sanitizer_hygiene"].([]fuzzProductTopIssue)
+	if !ok || len(arr) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	for _, i := range arr {
+		label := strings.TrimSpace(i.SanitizerLabel)
+		if label == "" && i.SanitizerSubtype != "" {
+			label = strings.ToUpper(i.SanitizerClass) + " · " + i.SanitizerSubtype
+		}
+		note := strings.TrimSpace(i.TriageNote)
+		if note == "" {
+			note = "Informational sanitizer signal — not bounty-eligible"
+		}
+		b.WriteString(fmt.Sprintf(
+			`<tr><td>%s</td><td><code>%s</code></td><td><code>%s</code></td><td>%s</td><td class="muted">%s</td></tr>`,
+			html.EscapeString(i.Severity),
+			html.EscapeString(i.SanitizerClass),
+			html.EscapeString(i.SanitizerSubtype),
+			html.EscapeString(i.Title),
+			html.EscapeString(note),
+		))
+		_ = label
 	}
 	return b.String()
 }
@@ -474,9 +529,10 @@ Use <code>repro</code> (input → command) locally, then validate crash-class is
 Public L1 research (qa-assets corpus) lives at <a href="https://hackme.tech/reports/l1-crypto-stack-v3.html">l1-crypto-stack-v3</a> and is separate from this token-gated campaign.</p></div>`
 	if strings.EqualFold(strings.TrimSpace(campaignType), "hunt") {
 		scopeBlock = `<div class="card scope"><p class="lbl">Scope &amp; honesty · Hunt</p>
-<p>This report covers <strong>native ASAN Hunt shards</strong> on your catalog or inventory harness
-(<code>LLVMFuzzerTestOneInput</code>), verified by coordinator replay on pool workers — not WASM guards.
-<strong>Top issues are crash-first</strong> (<code>native_crash</code> / ASAN memory safety). UBSan-only signals are informational and do not unlock bounty.
+<p>This report covers <strong>native Hunt shards</strong> on your catalog or inventory harness
+(<code>LLVMFuzzerTestOneInput</code>) with profile <strong>ASAN+UBSan+LSan</strong>, verified by coordinator replay on pool workers — not WASM guards.
+<strong>Top issues are crash-first</strong> (<code>native_crash</code> / ASAN memory safety). The <strong>Sanitizer hygiene</strong> appendix lists UBSan/LSan subtypes
+(<code>shift-overflow</code>, <code>null-deref</code>, <code>direct-leak</code>, …) — informational, not bounty-eligible.
 <strong>CLEAN</strong> means no qualifying crash-class finding in the fetched evidence window — not a CVE guarantee.
 Hunt uses <strong>50/50 escrow</strong> (runs pool + bounty pool). Severity-tier bounty: critical 100% · high 60% of remaining bounty slice.
 Use repro blocks to replay inputs locally before external disclosure.</p></div>`

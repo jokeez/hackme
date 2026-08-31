@@ -139,6 +139,7 @@ func CampaignConfig(ctx context.Context, repoRoot string, req CreateRequest) (ma
 			cfg["harness_hash"] = hash
 		}
 	}
+	ApplySanitizerDefaults(cfg, pkgKey)
 
 	if req.Inventory != nil && strings.TrimSpace(req.Inventory.Path) != "" {
 		cfg["hunt_inventory_path"] = strings.TrimSpace(req.Inventory.Path)

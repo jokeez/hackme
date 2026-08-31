@@ -128,6 +128,76 @@ func TestHuntCrashSeverity(t *testing.T) {
 	}
 }
 
+func TestEvalHuntSubmitInformationalUBSan(t *testing.T) {
+	if _, err := exec.LookPath("clang"); err != nil {
+		t.Skip("clang required")
+	}
+	t.Setenv("HACKME_POOL_HUNT_REPLAY", "1")
+	dir := t.TempDir()
+	root := hunt.RepoRoot()
+	campaignID := "ubsan-camp"
+	inputN := uint64(2)
+	cfg := map[string]any{
+		"work_kind":            "hunt_shard",
+		"campaign_type":        "hunt",
+		"upstream_target_id":   "ubsan-vuln",
+		"iterations_per_shard": 1,
+		"max_input_bytes":      64,
+		"hunt_detect_leaks":    true,
+	}
+	anchor := hunt.ShardAnchorBytes(campaignID, inputN, cfg)
+	src := filepath.Join(dir, "fuzz_target.c")
+	body := `#include <stdint.h>
+int LLVMFuzzerTestOneInput(const unsigned char *d, unsigned long n) {
+  if (n >= 1 && d[0]==0x55) {
+    int32_t x = 0x7fffffff;
+    x = x + 1;
+    (void)x;
+  }
+  return 0;
+}`
+	if err := os.WriteFile(src, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pin := &hunt.RepoPinResult{Path: dir, CommitSHA: "testsha"}
+	build, err := hunt.BuildInventoryHarness(context.Background(), root, hunt.HarnessBuildRequest{
+		Pin: pin, SourceRel: "fuzz_target.c",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg["hunt_source"] = "inventory"
+	cfg["harness_hash"] = build.HarnessHash
+	cfg["hunt_pin_path"] = dir
+	cfg["hunt_source_rel"] = "fuzz_target.c"
+	// Force anchor byte to trigger UBSan
+	anchor[0] = 0x55
+	s := &Service{}
+	req := SubmitRequest{SegmentExecDone: 1, CheckResult: 1, Trap: "hunt_sanitizer:ubsan/signed-overflow"}
+	_, trap, pass, finding, _, err := s.evalHuntSubmitCheck(context.Background(), campaignID, inputN, cfg, req, anchor, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !pass || !finding || !strings.HasPrefix(trap, "hunt_sanitizer:") {
+		t.Fatalf("expected informational pass=%v finding=%v trap=%q", pass, finding, trap)
+	}
+	ft, sev, title := classifyHuntFinding(cfg, req)
+	if ft != "sanitizer_informational" || sev != "info" || !strings.Contains(title, "UBSan") {
+		t.Fatalf("classify ft=%s sev=%s title=%q", ft, sev, title)
+	}
+}
+
+func TestApplySanitizerDefaults(t *testing.T) {
+	cfg := map[string]any{}
+	hunt.ApplySanitizerDefaults(cfg, "hunt_standard")
+	if cfg["hunt_detect_leaks"] != true {
+		t.Fatalf("cfg=%v", cfg)
+	}
+	if cfg["hunt_sanitizer_profile"] != "asan+ubsan+lsan" {
+		t.Fatalf("profile=%v", cfg["hunt_sanitizer_profile"])
+	}
+}
+
 func TestEvalHuntSubmitConfirmsIntentionalCrash(t *testing.T) {
 	if _, err := exec.LookPath("clang"); err != nil {
 		t.Skip("clang required")

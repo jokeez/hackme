@@ -15,11 +15,24 @@ import (
 
 // RunInput executes bin with stdin data; returns crash info.
 func RunInput(ctx context.Context, binPath string, input []byte, maxInput int) (crash bool, sanitizer, tail string, err error) {
-	if maxInput <= 0 {
-		maxInput = 65536
+	opts := DefaultRunInputOpts()
+	if maxInput > 0 {
+		opts.MaxInput = maxInput
 	}
-	if len(input) > maxInput {
-		input = input[:maxInput]
+	crash, info, tail, err := RunInputDetailed(ctx, binPath, input, opts)
+	if info.Raw != "" {
+		sanitizer = info.Raw
+	}
+	return crash, sanitizer, tail, err
+}
+
+// RunInputDetailed executes bin with stdin data and returns normalized sanitizer info.
+func RunInputDetailed(ctx context.Context, binPath string, input []byte, opts RunInputOpts) (crash bool, info SanitizerInfo, tail string, err error) {
+	if opts.MaxInput <= 0 {
+		opts.MaxInput = 65536
+	}
+	if len(input) > opts.MaxInput {
+		input = input[:opts.MaxInput]
 	}
 	runCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
@@ -27,7 +40,7 @@ func RunInput(ctx context.Context, binPath string, input []byte, maxInput int) (
 	cmd.Stdin = bytes.NewReader(input)
 	cmd.Env = []string{
 		"PATH=/usr/bin:/bin",
-		"ASAN_OPTIONS=detect_leaks=0:halt_on_error=1:allocator_may_return_null=1:print_stacktrace=1",
+		"ASAN_OPTIONS=" + asanOptions(opts.DetectLeaks),
 		"UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1",
 		"HOME=/tmp",
 	}
@@ -41,50 +54,35 @@ func RunInput(ctx context.Context, binPath string, input []byte, maxInput int) (
 	} else {
 		tail = strings.TrimSpace(blob)
 	}
-	sanitizer = detectSanitizer(blob)
-	crash = sanitizer != ""
+	info = ClassifySanitizer(blob)
+	crash = info.Raw != "" || info.Class != ""
+	if crash && info.Raw == "" {
+		info = ClassifySanitizer(blob + "\nSUMMARY: AddressSanitizer: signal")
+	}
 	if crash {
-		return true, sanitizer, tail, nil
+		return true, info, tail, nil
 	}
 	if runErr != nil {
 		if _, ok := runErr.(*exec.ExitError); ok && strings.Contains(blob, "Sanitizer") {
-			return true, "signal", tail, nil
+			info = ClassifySanitizer(blob)
+			if info.Raw == "" {
+				info.Raw = "signal"
+			}
+			return true, info, tail, nil
 		}
 	}
-	return false, "", tail, nil
+	return false, SanitizerInfo{}, tail, nil
 }
 
 func detectSanitizer(blob string) string {
-	for _, sig := range []string{
-		"heap-buffer-overflow",
-		"stack-buffer-overflow",
-		"use-after-free",
-		"double-free",
-		"SEGV on unknown address",
-		"SUMMARY: AddressSanitizer",
-		"SUMMARY: UndefinedBehaviorSanitizer",
-		"runtime error:",
-	} {
-		if strings.Contains(blob, sig) {
-			return sig
-		}
+	info, ok := ClassifySanitizerOutput(blob)
+	if !ok {
+		return ""
 	}
-	return ""
-}
-
-func IsSecuritySanitizer(san string) bool {
-	if san == "" {
-		return false
+	if info.Raw != "" {
+		return info.Raw
 	}
-	if strings.Contains(san, "UndefinedBehaviorSanitizer") || strings.Contains(san, "runtime error:") {
-		return false
-	}
-	return strings.Contains(san, "AddressSanitizer") ||
-		strings.Contains(san, "heap-buffer-overflow") ||
-		strings.Contains(san, "stack-buffer-overflow") ||
-		strings.Contains(san, "use-after-free") ||
-		strings.Contains(san, "double-free") ||
-		strings.Contains(san, "SEGV on unknown address")
+	return info.Subtype
 }
 
 // Mutate applies 1–4 random mutations to a copy of input.
@@ -190,7 +188,13 @@ func Hunt(ctx context.Context, repoRoot string, t Target, binPath string, seeds 
 		seed := seeds[i%len(seeds)]
 		rnd := randomBytes(16)
 		input := Mutate(seed, maxInput, rnd)
-		crash, san, tail, err := RunInput(ctx, binPath, input, maxInput)
+		crash, info, tail, err := RunInputDetailed(ctx, binPath, input, func() RunInputOpts {
+			o := DefaultRunInputOpts()
+			if maxInput > 0 {
+				o.MaxInput = maxInput
+			}
+			return o
+		}())
 		if err != nil {
 			continue
 		}
@@ -207,23 +211,26 @@ func Hunt(ctx context.Context, repoRoot string, t Target, binPath string, seeds 
 		}
 		seenCrash[key] = true
 		cf := CrashFinding{
-			TargetID:   t.ID,
-			Title:      t.Title,
-			Repo:       t.Repo,
-			InputHex:   hex.EncodeToString(input),
-			InputLen:   len(input),
-			Sanitizer:  san,
-			Tail:       tail,
-			Iteration:  i,
-			CWE:        t.CWE,
-			Disclosure: "HOLD — responsible disclosure to upstream maintainer before publish",
+			TargetID:         t.ID,
+			Title:            t.Title,
+			Repo:             t.Repo,
+			InputHex:         hex.EncodeToString(input),
+			InputLen:         len(input),
+			Sanitizer:        info.Raw,
+			SanitizerClass:   info.Class,
+			SanitizerSubtype: info.Subtype,
+			SanitizerLabel:   info.Label,
+			Tail:             tail,
+			Iteration:        i,
+			CWE:              t.CWE,
+			Disclosure:       "HOLD — responsible disclosure to upstream maintainer before publish",
 		}
 		rep.Crashes = append(rep.Crashes, cf)
 	}
 	rep.ElapsedSec = time.Since(start).Seconds()
 	sec := 0
 	for _, c := range rep.Crashes {
-		if IsSecuritySanitizer(c.Sanitizer) {
+		if c.SanitizerClass == "asan" || IsSecuritySanitizer(c.Sanitizer) {
 			sec++
 		}
 	}

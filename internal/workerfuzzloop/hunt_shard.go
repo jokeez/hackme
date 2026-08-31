@@ -130,5 +130,8 @@ func huntShardConfigFromClaim(cr ClaimResp, corpusGuided bool) map[string]any {
 		cfg["hunt_corpus_guided"] = true
 		cfg["guided_scheduling"] = true
 	}
+	if cr.HuntDetectLeaks {
+		cfg["hunt_detect_leaks"] = true
+	}
 	return cfg
 }

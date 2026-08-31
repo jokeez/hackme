@@ -55,11 +55,12 @@ type ReplayShardOpts struct {
 
 // ReplayShardResult is coordinator/worker replay output for one shard.
 type ReplayShardResult struct {
-	Crash      bool
-	Sanitizer  string
-	Trap       string
-	ExecDone   int
-	CrashInput []byte
+	Crash            bool
+	Sanitizer        string
+	SanitizerInfo    fuzzupstream.SanitizerInfo
+	Trap             string
+	ExecDone         int
+	CrashInput       []byte
 }
 
 // EnsureHarnessBinary returns a pinned ASAN harness binary for targetID/harnessHash.
@@ -146,23 +147,31 @@ func ReplayShard(ctx context.Context, opts ReplayShardOpts) (ReplayShardResult, 
 	if err != nil {
 		return out, err
 	}
+	runOpts := RunInputOptsFromConfig(cfg)
+	if opts.MaxInput > 0 {
+		runOpts.MaxInput = opts.MaxInput
+	}
 	for execIdx := 0; execIdx < execPer; execIdx++ {
 		inputB := replayInputForExec(opts, uint64(execIdx), cfg)
 		if len(inputB) == 0 {
 			return out, fmt.Errorf("hunt replay: empty input exec=%d", execIdx)
 		}
-		crash, san, _, runErr := fuzzupstream.RunInput(ctx, binPath, inputB, maxB)
+		crash, info, _, runErr := fuzzupstream.RunInputDetailed(ctx, binPath, inputB, runOpts)
 		out.ExecDone = execIdx + 1
 		if runErr != nil && !crash {
 			return out, fmt.Errorf("hunt replay run: %w", runErr)
 		}
 		if crash {
 			out.Crash = true
-			out.Sanitizer = strings.TrimSpace(san)
+			out.SanitizerInfo = info
+			out.Sanitizer = strings.TrimSpace(info.Raw)
+			if out.Sanitizer == "" {
+				out.Sanitizer = info.Subtype
+			}
 			if out.Sanitizer == "" {
 				out.Sanitizer = "asan"
 			}
-			out.Trap = "hunt_crash:" + out.Sanitizer
+			out.Trap = fuzzupstream.FormatHuntTrap(info)
 			out.CrashInput = append([]byte(nil), inputB...)
 			return out, nil
 		}

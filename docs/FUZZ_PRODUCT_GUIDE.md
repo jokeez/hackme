@@ -38,6 +38,10 @@ Spec: [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md). Pool CPU shards + coordinator ASAN
 
 \* **Distributed pool cap:** on hub workers, `exec_per_unit` is capped at **64** per work item (Deep 512 runs locally on autorunner). Coordinator **replays** the segment on submit — miners do not cryptographically attest every exec.
 
+**Hunt sanitizer profile (default):** `asan+ubsan+lsan` — LSan via `ASAN_OPTIONS=detect_leaks=1` (disable with `hunt_detect_leaks: false` or env `HACKME_HUNT_DETECT_LEAKS=0`). UBSan/LSan findings use `sanitizer_informational` with explicit subtypes (`shift-overflow`, `null-deref`, `direct-leak`, …) in report hygiene section — not bounty-eligible.
+
+**Hunt sanitizer profile (default):** `asan+ubsan+lsan` — ASAN+UBSan in harness build; LSan via `detect_leaks=1`. Informational UBSan/LSan hits appear in the report **Sanitizer hygiene** appendix with explicit subtypes (`shift-overflow`, `null-deref`, `direct-leak`, …); they do **not** unlock bounty or fail the CI gate.
+
 ```bash
 export HACKME_ADMIN_TOKEN=…   # local node
 hackme-fuzzing wizard --pack filter_utf8 --package audit --title "FluxTap preflight"

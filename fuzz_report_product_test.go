@@ -37,12 +37,15 @@ func TestPartitionFindingsCrashFirst(t *testing.T) {
 		{ID: "3", FindingType: "property_violation", Severity: "medium", Title: "prop"},
 		{ID: "4", FindingType: "hang", Severity: "high", Title: "hung", ReproCmd: "cmd", InputSHA256: "cc"},
 	}
-	top, noise, crashN, noiseN := partitionFindingsCrashFirst(findings, 5, 25)
-	if crashN != 2 || noiseN != 2 {
-		t.Fatalf("counts crash=%d noise=%d", crashN, noiseN)
+	top, hygiene, noise, crashN, hygieneN, noiseN := partitionFindingsCrashFirst(findings, 5, 25)
+	if crashN != 2 || noiseN != 2 || hygieneN != 0 {
+		t.Fatalf("counts crash=%d hygiene=%d noise=%d", crashN, hygieneN, noiseN)
 	}
 	if len(top) != 2 {
 		t.Fatalf("top len=%d want 2", len(top))
+	}
+	if len(hygiene) != 0 {
+		t.Fatalf("hygiene len=%d want 0", len(hygiene))
 	}
 	for _, it := range top {
 		if it.FindingType == "security_violation" || it.FindingType == "property_violation" {
@@ -51,6 +54,15 @@ func TestPartitionFindingsCrashFirst(t *testing.T) {
 	}
 	if len(noise) != 2 {
 		t.Fatalf("noise len=%d", len(noise))
+	}
+
+	findingsHygiene := []fuzzFinding{
+		{ID: "s1", FindingType: "sanitizer_informational", Severity: "info", Title: "ubsan",
+			Detail: map[string]any{"sanitizer_class": "ubsan", "sanitizer_subtype": "shift-overflow", "sanitizer_label": "UBSan · shift-overflow"}},
+	}
+	_, hygiene2, _, _, hygieneN2, _ := partitionFindingsCrashFirst(findingsHygiene, 5, 25)
+	if hygieneN2 != 1 || len(hygiene2) != 1 || hygiene2[0].SanitizerSubtype != "shift-overflow" {
+		t.Fatalf("hygiene=%+v count=%d", hygiene2, hygieneN2)
 	}
 	var packNoise *fuzzProductTopIssue
 	for i := range noise {

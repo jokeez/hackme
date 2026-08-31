@@ -45,7 +45,7 @@ crash_bonus = min(0.01 × bounty_pool_hmc, 0.05 HMC)
 
 - Paid **once** per campaign to the miner who submitted the first **unique crash-class** finding.  
 - Deducted from the **bounty pool**; main bounty (50% slice) remains unlockable on full qualifying finding.  
-- **0** for detector noise, harness_runtime, UBSan-only informational.  
+- **0** for detector noise, harness_runtime, UBSan/LSan informational (`sanitizer_informational` finding type — see report hygiene appendix with subtypes).  
 - **Dig/Scan** keep existing cap **0.01 HMC** until explicitly migrated.
 
 **Examples (50/50):**
@@ -139,8 +139,9 @@ Hunt Lite · 20 HMC · 50/50 split
 - [x] Node: `GET /api/hunt/targets`, `POST /api/hunt/inventory`, `POST /api/hunt/campaigns`  
 - [x] Coordinator: CPU shard work kind `hunt_shard` — claim/submit + **coordinator ASAN replay** (`evalHuntSubmitCheck`)  
 - [x] Worker: `RunHuntShard` ASAN on catalog harness (`hunt.ReplayShard` + `.cache/hunt-harness/`)  
-- [x] **L1 mutating shards:** anchor at claim + deterministic `iterations_per_shard` mutations (`hunt.ShardSegmentExecInput`); coordinator replays full chain; fake-crash reject unchanged  
-- [x] **L2 corpus-guided:** `hunt_corpus_guided` + frozen `corpus_seeds` at claim; pool corpus bootstrap/observe; namespace persist `hunt:{target_id}`  
+- **L1 mutating shards:** anchor at claim + deterministic `iterations_per_shard` mutations (`hunt.ShardSegmentExecInput`); coordinator replays full chain; fake-crash reject unchanged  
+- **L2 corpus-guided:** `hunt_corpus_guided` + frozen `corpus_seeds` at claim; pool corpus bootstrap/observe; namespace persist `hunt:{target_id}`  
+	- [x] **Sanitizer profile:** default `asan+ubsan+lsan` (`hunt_detect_leaks: true`); UBSan/LSan → `sanitizer_informational` hygiene appendix (not bounty)  
 - [x] UI: Hunt card + **pre-pay scope block** `#hunt-scope-contract`  
 - [x] Gate: `scripts/tests/hunt_pool_smoke_gate.sh` (fake crash reject + worker smoke)  
 - [x] Customer repo pin → harness build (`POST /api/hunt/repo/pin`, `/harness/build`, `/template/preview`)  

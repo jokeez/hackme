@@ -156,11 +156,22 @@ func TestRenderFuzzReportHTML_HuntScope(t *testing.T) {
 		},
 		"security_summary": map[string]any{
 			"runs_done": 8, "crash_count": 0, "critical_count": 0, "high_count": 0,
+			"sanitizer_hygiene_count": 1, "coverage_noise_count": 0,
 			"fetched_findings": 0, "full_campaign_findings": 0,
 		},
 		"gate": map[string]any{"pass": true, "reasons": []string{"all thresholds satisfied"}},
 		"verdict_card": map[string]any{"lines": []string{"Runs: 8", "Crashes: 0"}},
 		"top_issues":     []fuzzProductTopIssue{},
+		"sanitizer_hygiene": []fuzzProductTopIssue{{
+			Severity: "info", FindingType: "sanitizer_informational",
+			Title: "Hunt UBSan · shift-overflow on jsmn",
+			SanitizerClass: "ubsan", SanitizerSubtype: "shift-overflow",
+			TriageClass: "sanitizer_hygiene",
+		}},
+		"sanitizer_summary": map[string]any{
+			"total": 1, "by_class": map[string]int{"ubsan": 1},
+			"by_subtype": map[string]int{"ubsan/shift-overflow": 1},
+		},
 		"coverage_noise": []fuzzProductTopIssue{},
 		"evidence_window": map[string]any{
 			"query_limit": 500, "fetched_findings": 0, "full_campaign_findings": 0,
@@ -172,7 +183,9 @@ func TestRenderFuzzReportHTML_HuntScope(t *testing.T) {
 	htmlOut := renderFuzzReportHTML(report)
 	for _, want := range []string{
 		"Scope &amp; honesty · Hunt",
-		"native ASAN Hunt shards",
+		"ASAN+UBSan+LSan",
+		"Sanitizer hygiene",
+		"shift-overflow",
 		"50/50 escrow",
 		"Severity-tier bounty",
 		" · hunt · ",

@@ -12,6 +12,7 @@ import (
 
 const fuzzTopIssueLimit = 5
 const fuzzCoverageNoiseLimit = 25
+const fuzzSanitizerHygieneLimit = 25
 
 type fuzzReproBlock struct {
 	InputSHA256 string `json:"input_sha256"`
@@ -32,9 +33,12 @@ type fuzzProductTopIssue struct {
 	ReproCmd    string         `json:"repro_cmd"`
 	Artifact    string         `json:"artifact_path"`
 	InputSHA256 string         `json:"input_sha256,omitempty"`
-	TriageClass string         `json:"triage_class"`
-	TriageNote  string         `json:"triage_note"`
-	GuardPack   string         `json:"guard_pack,omitempty"`
+	TriageClass        string         `json:"triage_class"`
+	TriageNote         string         `json:"triage_note"`
+	SanitizerClass     string         `json:"sanitizer_class,omitempty"`
+	SanitizerSubtype   string         `json:"sanitizer_subtype,omitempty"`
+	SanitizerLabel     string         `json:"sanitizer_label,omitempty"`
+	GuardPack          string         `json:"guard_pack,omitempty"`
 	Explain     string         `json:"explain,omitempty"`
 	Repro       fuzzReproBlock `json:"repro"`
 }
@@ -126,20 +130,30 @@ func toProductTopIssue(f fuzzFinding) fuzzProductTopIssue {
 		}
 	}
 	return fuzzProductTopIssue{
-		ID:          f.ID,
-		Severity:    f.Severity,
-		FindingType: f.FindingType,
-		Title:       fuzzengine.RedactSensitiveString(f.Title),
-		Impact:      severityImpact(f.Severity),
-		ReproCmd:    f.ReproCmd,
-		Artifact:    f.Artifact,
-		InputSHA256: f.InputSHA256,
-		TriageClass: triage.Class,
-		TriageNote:  triage.Note,
-		GuardPack:   packID,
-		Explain:     explain,
-		Repro:       repro,
+		ID:               f.ID,
+		Severity:         f.Severity,
+		FindingType:      f.FindingType,
+		Title:            fuzzengine.RedactSensitiveString(f.Title),
+		Impact:           severityImpact(f.Severity),
+		ReproCmd:         f.ReproCmd,
+		Artifact:         f.Artifact,
+		InputSHA256:      f.InputSHA256,
+		TriageClass:      triage.Class,
+		TriageNote:       triage.Note,
+		SanitizerClass:   findingSanitizerField(f, "sanitizer_class"),
+		SanitizerSubtype: findingSanitizerField(f, "sanitizer_subtype"),
+		SanitizerLabel:   findingSanitizerField(f, "sanitizer_label"),
+		GuardPack:        packID,
+		Explain:          explain,
+		Repro:            repro,
 	}
+}
+
+func findingSanitizerField(f fuzzFinding, key string) string {
+	if f.Detail == nil {
+		return ""
+	}
+	return strings.TrimSpace(toString(f.Detail[key]))
 }
 
 func findingGuardPack(f fuzzFinding) string {
@@ -166,8 +180,8 @@ func findingExplainPreview(f fuzzFinding, repro fuzzReproBlock) string {
 	return fuzzengine.RedactSensitiveString(f.Title)
 }
 
-// partitionFindingsCrashFirst splits findings into crash-class top issues and coverage-noise appendix.
-func partitionFindingsCrashFirst(findings []fuzzFinding, topLimit, noiseLimit int) (top []fuzzProductTopIssue, noise []fuzzProductTopIssue, crashCount, noiseCount int) {
+// partitionFindingsCrashFirst splits findings into crash top issues, sanitizer hygiene, and coverage noise.
+func partitionFindingsCrashFirst(findings []fuzzFinding, topLimit, noiseLimit int) (top []fuzzProductTopIssue, sanitizerHygiene []fuzzProductTopIssue, noise []fuzzProductTopIssue, crashCount, hygieneCount, noiseCount int) {
 	if topLimit <= 0 {
 		topLimit = fuzzTopIssueLimit
 	}
@@ -175,6 +189,7 @@ func partitionFindingsCrashFirst(findings []fuzzFinding, topLimit, noiseLimit in
 		noiseLimit = fuzzCoverageNoiseLimit
 	}
 	top = make([]fuzzProductTopIssue, 0, topLimit)
+	sanitizerHygiene = make([]fuzzProductTopIssue, 0, fuzzSanitizerHygieneLimit)
 	noise = make([]fuzzProductTopIssue, 0, noiseLimit)
 	for _, f := range findings {
 		switch {
@@ -182,6 +197,15 @@ func partitionFindingsCrashFirst(findings []fuzzFinding, topLimit, noiseLimit in
 			crashCount++
 			if len(top) < topLimit {
 				top = append(top, toProductTopIssue(f))
+			}
+		case f.FindingType == "sanitizer_informational":
+			hygieneCount++
+			if len(sanitizerHygiene) < fuzzSanitizerHygieneLimit {
+				n := toProductTopIssue(f)
+				if n.SanitizerLabel == "" && n.SanitizerSubtype != "" {
+					n.SanitizerLabel = strings.ToUpper(n.SanitizerClass) + " · " + n.SanitizerSubtype
+				}
+				sanitizerHygiene = append(sanitizerHygiene, n)
 			}
 		case fuzzengine.IsCoverageNoise(f.FindingType):
 			noiseCount++
@@ -194,14 +218,41 @@ func partitionFindingsCrashFirst(findings []fuzzFinding, topLimit, noiseLimit in
 				noise = append(noise, n)
 			}
 		default:
-			// Non-crash, non-noise: still keep out of top; park in appendix if room.
 			noiseCount++
 			if len(noise) < noiseLimit {
 				noise = append(noise, toProductTopIssue(f))
 			}
 		}
 	}
-	return top, noise, crashCount, noiseCount
+	return top, sanitizerHygiene, noise, crashCount, hygieneCount, noiseCount
+}
+
+// buildSanitizerHygieneSummary aggregates informational sanitizer subtypes for Hunt reports.
+func buildSanitizerHygieneSummary(findings []fuzzFinding) map[string]any {
+	bySubtype := map[string]int{}
+	byClass := map[string]int{}
+	total := 0
+	for _, f := range findings {
+		if f.FindingType != "sanitizer_informational" {
+			continue
+		}
+		total++
+		class := findingSanitizerField(f, "sanitizer_class")
+		sub := findingSanitizerField(f, "sanitizer_subtype")
+		if class == "" {
+			class = "unknown"
+		}
+		if sub == "" {
+			sub = "unknown"
+		}
+		byClass[class]++
+		bySubtype[class+"/"+sub]++
+	}
+	return map[string]any{
+		"total":      total,
+		"by_class":   byClass,
+		"by_subtype": bySubtype,
+	}
 }
 
 // collapseCrashFindingsForReport keeps one representative row per stable crash bucket for display.

@@ -2035,7 +2035,8 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 		findings[j+1] = cur
 	}
 	displayFindings, crashUnique, crashDup := collapseCrashFindingsForReport(findings)
-	topIssues, coverageNoise, crashCount, noiseCount := partitionFindingsCrashFirst(displayFindings, fuzzTopIssueLimit, fuzzCoverageNoiseLimit)
+	topIssues, sanitizerHygiene, coverageNoise, crashCount, hygieneCount, noiseCount := partitionFindingsCrashFirst(displayFindings, fuzzTopIssueLimit, fuzzCoverageNoiseLimit)
+	sanitizerSummary := buildSanitizerHygieneSummary(displayFindings)
 	crashCrit, crashHigh, crashMed, crashLow, crashInfo := crashClassSeverityCounts(findings)
 	crashScore := crashClassSeverityScore(crashCrit, crashHigh, crashMed, crashLow, crashInfo)
 
@@ -2065,8 +2066,11 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 	if crashCount == 0 {
 		recommendations = append(recommendations, "No crash/hang/ASan/memory findings in sample; detector signals (if any) are appendix coverage noise.")
 	}
-	if noiseCount > 0 && crashCount == 0 {
+	if noiseCount > 0 && crashCount == 0 && hygieneCount == 0 {
 		recommendations = append(recommendations, "Review coverage-noise appendix only if hardening detector semantics; do not treat as CVE claims.")
+	}
+	if hygieneCount > 0 {
+		recommendations = append(recommendations, "Review sanitizer hygiene appendix (UBSan/LSan subtypes) — quality signals, not bounty-eligible.")
 	}
 	if len(recommendations) == 0 {
 		recommendations = append(recommendations, "Maintain campaign cadence and keep CI gate green before each release.")
@@ -2103,7 +2107,10 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 			critNote = fmt.Sprintf("%d ASAN crash-class", crashCount)
 		}
 		humanSummary = fmt.Sprintf("%d shards verified · %s · 50/50 Hunt escrow", runsDone, critNote)
-		assuranceNote = "Hunt report: pool-verified ASAN shards on native harness. CLEAN means no qualifying native_crash in sample — not a CVE guarantee."
+		if hygieneCount > 0 {
+			humanSummary += fmt.Sprintf(" · %d sanitizer hygiene", hygieneCount)
+		}
+		assuranceNote = "Hunt report: pool-verified ASAN+UBSan+LSan shards on native harness. CLEAN means no qualifying native_crash in sample — not a CVE guarantee. UBSan/LSan rows are informational hygiene."
 	}
 	moneySpent := moneySpentFromCampaign(c)
 	if a.chain != nil {
@@ -2130,8 +2137,8 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 	baseline := a.buildReportBaselineDiff(ctx, campaignID, c.Config)
 	engineMeta := fuzzEngineMetaFromConfig(c.Config)
 	sampleN := len(findings)
-	groupedRowsVisible := len(topIssues) + len(coverageNoise)
-	groupedRowsHidden := (crashCount - len(topIssues)) + (noiseCount - len(coverageNoise))
+	groupedRowsVisible := len(topIssues) + len(sanitizerHygiene) + len(coverageNoise)
+	groupedRowsHidden := (crashCount - len(topIssues)) + (hygieneCount - len(sanitizerHygiene)) + (noiseCount - len(coverageNoise))
 	if groupedRowsHidden < 0 {
 		groupedRowsHidden = 0
 	}
@@ -2166,6 +2173,7 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 				"crash_unique_count":     crashUnique,
 				"crash_duplicate_count":  crashDup,
 				"coverage_noise_count":   noiseCount,
+				"sanitizer_hygiene_count": hygieneCount,
 				"raw_findings_total":     len(findings),
 				"grouped_rows_visible":   groupedRowsVisible,
 				"grouped_rows_hidden":    groupedRowsHidden,
@@ -2192,6 +2200,7 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 			"crash_unique_count":     crashUnique,
 			"crash_duplicate_count":  crashDup,
 			"coverage_noise_count":   noiseCount,
+			"sanitizer_hygiene_count": hygieneCount,
 			"no_critical":            crashCrit == 0,
 			"sample_size":            sampleN,
 			"sample_size_unit":       "findings",
@@ -2211,8 +2220,10 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 			"triage_policy":          "crash_first",
 		},
 		"verdict":         verdict,
-		"top_issues":      topIssues,
-		"coverage_noise":  coverageNoise,
+		"top_issues":          topIssues,
+		"sanitizer_hygiene":   sanitizerHygiene,
+		"sanitizer_summary":   sanitizerSummary,
+		"coverage_noise":      coverageNoise,
 		"recommendations": recommendations,
 		"totals": map[string]any{
 			"findings_total":         len(findings),
@@ -2224,6 +2235,7 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 			"crash_unique_count":     crashUnique,
 			"crash_duplicate_count":  crashDup,
 			"coverage_noise_count":   noiseCount,
+			"sanitizer_hygiene_count": hygieneCount,
 			"grouped_rows_visible":   groupedRowsVisible,
 			"grouped_rows_hidden":    groupedRowsHidden,
 			"fetched_findings":       len(findings),

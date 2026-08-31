@@ -55,8 +55,11 @@ type CrashFinding struct {
 	Repo         string   `json:"repo"`
 	InputHex     string   `json:"input_hex"`
 	InputLen     int      `json:"input_len"`
-	Sanitizer    string   `json:"sanitizer"`
-	Tail         string   `json:"tail"`
+	Sanitizer        string   `json:"sanitizer"`
+	SanitizerClass   string   `json:"sanitizer_class,omitempty"`
+	SanitizerSubtype string   `json:"sanitizer_subtype,omitempty"`
+	SanitizerLabel   string   `json:"sanitizer_label,omitempty"`
+	Tail             string   `json:"tail"`
 	Iteration    int      `json:"iteration"`
 	CWE          []string `json:"cwe,omitempty"`
 	Disclosure   string   `json:"disclosure"`

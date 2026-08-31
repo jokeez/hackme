@@ -82,6 +82,7 @@ func (s *Service) buildHuntClaimedWork(ctx context.Context, campaignID string, i
 		HuntSourceRel:        strings.TrimSpace(jsonString(cfg["hunt_source_rel"])),
 		HarnessFetchURL:      huntHarnessFetchURL(cfg),
 		IterationsPerShard:   iter,
+		HuntDetectLeaks:      hunt.DetectLeaksFromConfig(cfg),
 	}, nil
 }
 
@@ -187,22 +188,29 @@ func (s *Service) evalHuntSubmitCheck(ctx context.Context, campaignID string, in
 	if err != nil {
 		return 0, "", false, false, nil, fmt.Errorf("poolfuzz: hunt replay: %w", err)
 	}
-	workerClaimsCrash := strings.HasPrefix(strings.TrimSpace(req.Trap), "hunt_crash:") && req.CheckResult != 0
-	if rep.Crash {
-		if !fuzzupstream.IsSecuritySanitizer(rep.Sanitizer) {
-			return 0, rep.Trap, false, false, nil, nil
-		}
-		if !workerClaimsCrash {
-			return 0, rep.Trap, false, false, nil, nil
-		}
-		fb := expectedB
-		if len(rep.CrashInput) > 0 {
-			fb = rep.CrashInput
-		}
-		return 1, rep.Trap, true, true, fb, nil
+	workerTrap := strings.TrimSpace(req.Trap)
+	workerClaims := req.CheckResult != 0 && (strings.HasPrefix(workerTrap, "hunt_crash:") || strings.HasPrefix(workerTrap, "hunt_sanitizer:"))
+	fb := expectedB
+	if len(rep.CrashInput) > 0 {
+		fb = rep.CrashInput
 	}
-	if workerClaimsCrash {
+	if rep.Crash {
+		if rep.SanitizerInfo.Security {
+			if !workerClaims || !strings.HasPrefix(workerTrap, "hunt_crash:") {
+				return 0, rep.Trap, false, false, nil, nil
+			}
+			return 1, rep.Trap, true, true, fb, nil
+		}
+		if !workerClaims || !strings.HasPrefix(workerTrap, "hunt_sanitizer:") {
+			return 0, rep.Trap, true, false, nil, nil
+		}
+		return 0, rep.Trap, true, true, fb, nil
+	}
+	if workerClaims && strings.HasPrefix(workerTrap, "hunt_crash:") {
 		return 0, "hunt_replay_reject:fake_crash", false, false, nil, nil
+	}
+	if workerClaims && strings.HasPrefix(workerTrap, "hunt_sanitizer:") {
+		return 0, "hunt_replay_reject:fake_sanitizer", false, false, nil, nil
 	}
 	return 0, "", true, false, nil, nil
 }
@@ -216,6 +224,9 @@ func (s *Service) evalHuntSubmitTrusted(cfg map[string]any, req SubmitRequest, e
 	if strings.HasPrefix(trap, "hunt_crash:") && req.CheckResult != 0 {
 		return req.CheckResult, trap, true, true
 	}
+	if strings.HasPrefix(trap, "hunt_sanitizer:") && req.CheckResult != 0 {
+		return req.CheckResult, trap, true, true
+	}
 	if req.CheckResult != 0 {
 		return req.CheckResult, trap, false, false
 	}
@@ -225,11 +236,19 @@ func (s *Service) evalHuntSubmitTrusted(cfg map[string]any, req SubmitRequest, e
 func classifyHuntFinding(cfg map[string]any, req SubmitRequest) (ft, sev, title string) {
 	trap := strings.TrimSpace(req.Trap)
 	target := strings.TrimSpace(jsonString(cfg["upstream_target_id"]))
-	if strings.HasPrefix(trap, "hunt_crash:") {
-		san := strings.ToLower(strings.TrimPrefix(trap, "hunt_crash:"))
-		ft = "native_crash"
-		sev = huntCrashSeverity(san)
-		title = fmt.Sprintf("Hunt ASAN %s on %s", san, target)
+	if info, ok := fuzzupstream.ParseHuntTrap(trap); ok {
+		if info.Security {
+			ft = "native_crash"
+			sev = huntCrashSeverity(info.Subtype)
+			title = fmt.Sprintf("Hunt %s on %s", info.Label, target)
+			return ft, sev, title
+		}
+		ft = "sanitizer_informational"
+		sev = fuzzupstream.InformationalSeverity(info)
+		if sev == "" {
+			sev = "info"
+		}
+		title = fmt.Sprintf("Hunt %s on %s", info.Label, target)
 		return ft, sev, title
 	}
 	ft, sev, title = fuzzengine.ClassifyCheckFail(req.ActualInput, false, fuzzengine.SemanticsDetector)

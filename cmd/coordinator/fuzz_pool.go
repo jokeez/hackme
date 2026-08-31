@@ -492,6 +492,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			if u := strings.TrimSpace(work.HarnessFetchURL); u != "" {
 				payload["harness_fetch_url"] = u
 			}
+			payload["hunt_detect_leaks"] = work.HuntDetectLeaks
 			payload["shard_spec"] = map[string]any{
 				"iterations_per_shard": work.IterationsPerShard,
 				"check_semantics":      work.CheckSemantics,

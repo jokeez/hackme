@@ -107,6 +107,13 @@ func ClassifyFinding(findingType, severity string) Triage {
 			Note:        "Detector/guard signal. Listed under coverage noise — not a crash/hang/ASan finding.",
 			ZeroDayHint: "low",
 		}
+	case "sanitizer_informational":
+		return Triage{
+			Class:       "sanitizer_hygiene",
+			Label:       "Sanitizer hygiene",
+			Note:        "UBSan/LSan informational signal — quality/triage lane, not bounty-eligible. Fix before release on hardened builds.",
+			ZeroDayHint: "low",
+		}
 	default:
 		if IsCoverageNoise(ft) {
 			return Triage{

@@ -54,6 +54,7 @@ type ClaimResp struct {
 	HuntPinPath          string           `json:"hunt_pin_path,omitempty"`
 	HuntSourceRel        string           `json:"hunt_source_rel,omitempty"`
 	HarnessFetchURL      string           `json:"harness_fetch_url,omitempty"`
+	HuntDetectLeaks      bool             `json:"hunt_detect_leaks,omitempty"`
 }
 
 // Config drives a supervised fuzz dig loop.
