@@ -121,21 +121,9 @@ func CampaignConfig(ctx context.Context, repoRoot string, req CreateRequest) (ma
 		if pool {
 			cfg["hunt_pool_note"] = "inventory pool requires workers with shared hunt-harness cache"
 		}
-	} else if pool {
-		cfg["auto_runner"] = "0"
-		cfg["work_kind"] = "hunt_shard"
-		cfg["check_semantics"] = "native_crash"
-		cfg["iterations_per_shard"] = defaultHuntIterationsPerShard
-		hash, hErr := CatalogHarnessHash(repoRoot, targetID)
-		if hErr != nil {
-			return nil, "", hErr
-		}
-		cfg["harness_hash"] = hash
-	} else if pool {
-		// covered above for catalog
 	}
 
-	if pool && huntSource == "catalog" {
+	if pool {
 		cfg["auto_runner"] = "0"
 		cfg["work_kind"] = "hunt_shard"
 		cfg["check_semantics"] = "native_crash"

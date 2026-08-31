@@ -59,6 +59,9 @@ type ClaimedWork struct {
 	WorkKind             string
 	HarnessHash          string
 	UpstreamTargetID     string
+	HuntSource           string
+	HuntPinPath          string
+	HuntSourceRel        string
 	IterationsPerShard   int
 }
 

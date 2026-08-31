@@ -23,6 +23,12 @@ func (a *app) handleHuntAPI(w http.ResponseWriter, r *http.Request) {
 		a.handleHuntTargets(w, r)
 	case path == "inventory" && r.Method == http.MethodPost:
 		a.handleHuntInventory(w, r)
+	case path == "repo/pin" && r.Method == http.MethodPost:
+		a.handleHuntRepoPin(w, r)
+	case path == "harness/build" && r.Method == http.MethodPost:
+		a.handleHuntHarnessBuild(w, r)
+	case path == "template/preview" && r.Method == http.MethodPost:
+		a.handleHuntTemplatePreview(w, r)
 	case path == "campaigns" && r.Method == http.MethodPost:
 		a.handleHuntCampaignCreate(w, r)
 	case strings.HasSuffix(path, "/run-local") && r.Method == http.MethodPost:
@@ -86,7 +92,7 @@ func (a *app) handleHuntCampaignCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	root := a.repoRoot()
-	cfgMap, title, err := hunt.CampaignConfig(root, req)
+	cfgMap, title, err := hunt.CampaignConfig(r.Context(), root, req)
 	if err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_hunt_config", err.Error(), nil)
 		return
@@ -200,6 +206,105 @@ func (a *app) handleHuntCampaignRunLocal(w http.ResponseWriter, r *http.Request,
 			"crashes":        len(rep.Crashes),
 		}), campaignID)
 	writeJSON(w, map[string]any{"ok": true, "report": rep})
+}
+
+func (a *app) handleHuntRepoPin(w http.ResponseWriter, r *http.Request) {
+	if !requireAdminAuthStrict(w, r) {
+		return
+	}
+	logAdminAction(r, "hunt_repo_pin")
+	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
+	defer r.Body.Close()
+	var req hunt.RepoPinRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid_json", "invalid json", nil)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Minute)
+	defer cancel()
+	pin, err := hunt.PinRepo(ctx, a.repoRoot(), req)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "pin_failed", err.Error(), nil)
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "pin": pin})
+}
+
+func (a *app) handleHuntHarnessBuild(w http.ResponseWriter, r *http.Request) {
+	if !requireAdminAuthStrict(w, r) {
+		return
+	}
+	logAdminAction(r, "hunt_harness_build")
+	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
+	defer r.Body.Close()
+	var req hunt.HarnessBuildAPIRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid_json", "invalid json", nil)
+		return
+	}
+	root := a.repoRoot()
+	var pin *hunt.RepoPinResult
+	if req.Repo != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Minute)
+		defer cancel()
+		p, err := hunt.PinRepo(ctx, root, *req.Repo)
+		cancel()
+		if err != nil {
+			writeAPIError(w, http.StatusBadRequest, "pin_failed", err.Error(), nil)
+			return
+		}
+		pin = p
+	} else if strings.TrimSpace(req.SourceRel) != "" {
+		// allow build against already-pinned path in source_rel parent — require repo.path
+		writeAPIError(w, http.StatusBadRequest, "pin_required", "repo pin required", nil)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Minute)
+	defer cancel()
+	build, err := hunt.BuildInventoryHarness(ctx, root, hunt.HarnessBuildRequest{
+		Pin:            pin,
+		SourceRel:      req.SourceRel,
+		TemplateAccept: req.TemplateAccept,
+	})
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "build_failed", err.Error(), nil)
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "build": build, "pin": pin})
+}
+
+func (a *app) handleHuntTemplatePreview(w http.ResponseWriter, r *http.Request) {
+	if !requireAdminAuthStrict(w, r) {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
+	defer r.Body.Close()
+	var req struct {
+		PinPath   string `json:"pin_path"`
+		SourceRel string `json:"source_rel"`
+		Repo      *hunt.RepoPinRequest `json:"repo,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid_json", "invalid json", nil)
+		return
+	}
+	pinPath := strings.TrimSpace(req.PinPath)
+	if req.Repo != nil && pinPath == "" {
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Minute)
+		defer cancel()
+		pin, err := hunt.PinRepo(ctx, a.repoRoot(), *req.Repo)
+		if err != nil {
+			writeAPIError(w, http.StatusBadRequest, "pin_failed", err.Error(), nil)
+			return
+		}
+		pinPath = pin.Path
+	}
+	prev, err := hunt.PreviewTemplate(a.repoRoot(), pinPath, req.SourceRel)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "preview_failed", err.Error(), nil)
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "preview": prev, "pin_path": pinPath})
 }
 
 func (a *app) repoRoot() string {

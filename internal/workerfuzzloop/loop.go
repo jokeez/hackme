@@ -50,6 +50,9 @@ type ClaimResp struct {
 	WorkKind             string           `json:"work_kind,omitempty"`
 	HarnessHash          string           `json:"harness_hash,omitempty"`
 	UpstreamTargetID     string           `json:"upstream_target_id,omitempty"`
+	HuntSource           string           `json:"hunt_source,omitempty"`
+	HuntPinPath          string           `json:"hunt_pin_path,omitempty"`
+	HuntSourceRel        string           `json:"hunt_source_rel,omitempty"`
 }
 
 // Config drives a supervised fuzz dig loop.

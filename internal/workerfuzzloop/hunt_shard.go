@@ -46,7 +46,14 @@ func RunHuntShard(ctx context.Context, cr ClaimResp, timeoutMS int) (checkResult
 		execPer = 1
 	}
 	rep, err := hunt.ReplayShard(runCtx, hunt.ReplayShardOpts{
-		RepoRoot:    repoRoot,
+		RepoRoot: repoRoot,
+		Spec: hunt.HarnessSpec{
+			Source:      strings.TrimSpace(cr.HuntSource),
+			TargetID:    targetID,
+			HarnessHash: strings.TrimSpace(cr.HarnessHash),
+			PinPath:     strings.TrimSpace(cr.HuntPinPath),
+			SourceRel:   strings.TrimSpace(cr.HuntSourceRel),
+		},
 		TargetID:    targetID,
 		HarnessHash: strings.TrimSpace(cr.HarnessHash),
 		Input:       inputB,

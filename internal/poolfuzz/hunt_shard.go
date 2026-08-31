@@ -81,6 +81,9 @@ func (s *Service) buildHuntClaimedWork(ctx context.Context, campaignID string, i
 		WorkKind:           "hunt_shard",
 		HarnessHash:        strings.TrimSpace(jsonString(cfg["harness_hash"])),
 		UpstreamTargetID:   strings.TrimSpace(jsonString(cfg["upstream_target_id"])),
+		HuntSource:         strings.TrimSpace(jsonString(cfg["hunt_source"])),
+		HuntPinPath:        strings.TrimSpace(jsonString(cfg["hunt_pin_path"])),
+		HuntSourceRel:      strings.TrimSpace(jsonString(cfg["hunt_source_rel"])),
 		IterationsPerShard: iter,
 	}, nil
 }
@@ -127,12 +130,13 @@ func (s *Service) evalHuntSubmitCheck(ctx context.Context, cfg map[string]any, r
 		maxB = 4096
 	}
 	rep, err := hunt.ReplayShard(ctx, hunt.ReplayShardOpts{
-		RepoRoot:    hunt.RepoRoot(),
-		TargetID:    targetID,
+		RepoRoot: hunt.RepoRoot(),
+		Spec:     hunt.HarnessSpecFromConfig(cfg),
+		TargetID: targetID,
 		HarnessHash: strings.TrimSpace(jsonString(cfg["harness_hash"])),
-		Input:       expectedB,
-		MaxInput:    maxB,
-		ExecPer:     iter,
+		Input:    expectedB,
+		MaxInput: maxB,
+		ExecPer:  iter,
 	})
 	if err != nil {
 		return 0, "", false, false, fmt.Errorf("poolfuzz: hunt replay: %w", err)

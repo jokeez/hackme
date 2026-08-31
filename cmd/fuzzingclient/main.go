@@ -87,6 +87,10 @@ func main() {
 		if err := doStatus(base, rest); err != nil {
 			fail(err)
 		}
+	case "hunt":
+		if err := doHunt(base, rest); err != nil {
+			fail(err)
+		}
 	default:
 		usage()
 		os.Exit(2)
@@ -109,10 +113,11 @@ func usage() {
   hackme-fuzzing wizard --wasm guard.wasm [--package scan|audit|deep] [-title "..."]
   hackme-fuzzing packs                 # list ready detector packs
   hackme-fuzzing status --campaign ID [--order ORDER_ID] [--report-token TOKEN]
+  hackme-fuzzing hunt pin|inventory|template|build|create|packages|targets
 
   Happy path: register --save → wizard --pack secrets [--public-proof] → status → gate/report/proof
-  Product SKUs (--package): scan=Scan · audit=Dig Audit · deep=Dig Deep  (CLI keys unchanged)
-  Hunt (repo + ASAN on pool) — Phase 1; not in wizard yet
+  Hunt path: hunt pin --repo-path ./myrepo → hunt inventory --path … → hunt build --source … [--template-accept]
+             → hunt create --source … --repo-path … [--pool]
   Packs: secrets · script_bounds · filter_utf8 (no custom rule — we ship the detector WASM)
   Proof of Fuzz: opt-in public facts + badge (crash-gate CLEAN/FAIL; not a full audit)
   Primary deliverable: CI gate pass/fail (not finding spam)
