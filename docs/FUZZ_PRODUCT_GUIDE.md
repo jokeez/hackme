@@ -34,13 +34,13 @@ CLI/API keys stay `scan` | `audit` | `deep`. Customer-facing names:
 
 CLI: `hackme-fuzzing hunt pin|inventory|template|build|create|pack-suggest|packages|targets`
 
-Spec: [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md). Pool CPU shards + coordinator ASAN replay — Phase 1c. **L1 mutating shards:** each shard runs `iterations_per_shard` (default 32) deterministic byte mutations from the claim anchor; coordinator replays the full chain on submit (fake-crash reject unchanged). **L2 corpus-guided:** claim freezes `corpus_seeds` + guided anchor; campaign corpus grows across shards (`hunt:{target_id}` namespace persist). **Inventory pool** uses harness publish (`harness_fetch_path`) — workers download ASAN binary from coordinator.
+Spec: [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md). Pool CPU shards + coordinator ASAN replay — Phase 1c. **L1 mutating shards:** each shard runs `iterations_per_shard` (Lite **32** · Standard **128** · Heavy **256**) deterministic byte mutations from the claim anchor; coordinator replays the full chain on submit (fake-crash reject unchanged). **L2 corpus-guided:** claim freezes `corpus_seeds` + guided anchor; campaign corpus grows across shards (`hunt:{target_id}` namespace persist). **Overnight local:** `hunt_local_runner` autorunner (no pool) — ticks until `hunt_local_budget_iterations` / wall limit. **Domain dict:** `mutator_dict` per target class (JSON/XML/INI/TOML/msgpack). **Inventory pool** uses harness publish (`harness_fetch_path`) — workers download ASAN binary from coordinator.
 
-\* **Distributed pool cap:** on hub workers, `exec_per_unit` is capped at **64** per work item (Deep 512 runs locally on autorunner). Coordinator **replays** the segment on submit — miners do not cryptographically attest every exec.
+**Hunt pool depth (per shard):** Lite **32** · Standard **128** · Heavy **256** exec/shard (`iterations_per_shard`). **Overnight local** (non-pool campaigns): autorunner ticks `hunt_local_tick_iterations` (default 2000) until package budget — Lite **20k/1h** · Standard **200k/8h** · Heavy **500k/12h**. **Domain mutator dict** auto-applied per catalog target (JSON/XML/INI/TOML/msgpack splice tokens).
+
+\* **Distributed pool cap:** on hub workers, `exec_per_unit` is capped at **64** per work item for generic fuzz; Hunt pool shards use package `iterations_per_shard` up to **256** on coordinator replay path. Coordinator **replays** the segment on submit — miners do not cryptographically attest every exec.
 
 **Hunt sanitizer profile (default):** `asan+ubsan+lsan` — LSan via `ASAN_OPTIONS=detect_leaks=1` (disable with `hunt_detect_leaks: false` or env `HACKME_HUNT_DETECT_LEAKS=0`). UBSan/LSan findings use `sanitizer_informational` with explicit subtypes (`shift-overflow`, `null-deref`, `direct-leak`, …) in report hygiene section — not bounty-eligible.
-
-**Hunt sanitizer profile (default):** `asan+ubsan+lsan` — ASAN+UBSan in harness build; LSan via `detect_leaks=1`. Informational UBSan/LSan hits appear in the report **Sanitizer hygiene** appendix with explicit subtypes (`shift-overflow`, `null-deref`, `direct-leak`, …); they do **not** unlock bounty or fail the CI gate.
 
 ```bash
 export HACKME_ADMIN_TOKEN=…   # local node

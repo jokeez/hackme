@@ -102,6 +102,18 @@ func (a *app) fuzzAutoRunnerTick(ctx context.Context) error {
 			_ = a.syncPoolFuzzCampaign(ctx, c)
 			continue
 		}
+		if huntLocalAutorunCampaign(cfg) {
+			status := strings.TrimSpace(strings.ToLower(c.Status))
+			if status == "planned" {
+				status = "running"
+			}
+			if status == "running" {
+				if err := a.huntLocalAutorunTick(ctx, c, cfg, now); err != nil {
+					log.Printf("hunt local autorun error campaign=%s: %v", c.ID, err)
+				}
+			}
+			continue
+		}
 		status := strings.TrimSpace(strings.ToLower(c.Status))
 		if status == "planned" {
 			status = "running"

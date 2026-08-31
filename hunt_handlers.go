@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -161,12 +162,19 @@ func (a *app) handleHuntCampaignCreate(w http.ResponseWriter, r *http.Request) {
 	if status == "running" {
 		startedAt = now
 	}
+	budgetSeconds := 86400
+	if !poolDistributedCampaign(cfgMap) {
+		budgetSeconds = hunt.LocalRunTimeLimitFromConfig(cfgMap, hunt.PackageKeyFromConfig(cfgMap))
+		if budgetSeconds < 3600 {
+			budgetSeconds = 3600
+		}
+	}
 	cfg := marshalMapJSON(cfgMap)
 	err = execContextRetryBusy(r.Context(), a.db,
 		`INSERT INTO fuzz_campaigns
 		 (id, campaign_type, status, title, description, owner_ref, task_id, target_ref, budget_runs, budget_seconds, config_json, summary_json, report_token_hash, report_token_issued_at, created_at, started_at, completed_at)
-		 VALUES (?, 'hunt', ?, ?, '', '', '', ?, ?, 86400, ?, '{}', ?, ?, ?, ?, 0)`,
-		id, status, title, cfgMap["upstream_target_id"], shards, cfg, reportTokenHashHex, now, now, startedAt)
+		 VALUES (?, 'hunt', ?, ?, '', '', '', ?, ?, ?, ?, '{}', ?, ?, ?, ?, 0)`,
+		id, status, title, cfgMap["upstream_target_id"], shards, budgetSeconds, cfg, reportTokenHashHex, now, now, startedAt)
 	if err != nil {
 		writeAPIError(w, http.StatusConflict, "create_failed", "campaign create failed", map[string]any{"detail": err.Error()})
 		return
@@ -233,18 +241,32 @@ func (a *app) handleHuntCampaignRunLocal(w http.ResponseWriter, r *http.Request,
 	if cfg == nil {
 		cfg = map[string]any{}
 	}
+	pkgKey := hunt.PackageKeyFromConfig(cfg)
+	hunt.ApplyPackageDepthDefaults(cfg, pkgKey, false)
 	targetID := strings.TrimSpace(toString(cfg["upstream_target_id"]))
 	if targetID == "" {
 		writeAPIError(w, http.StatusBadRequest, "no_target", "upstream_target_id missing", nil)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Minute)
+	tickIter := hunt.LocalRunBudgetFromConfig(cfg, pkgKey)
+	if v := strings.TrimSpace(r.URL.Query().Get("tick_iterations")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			tickIter = n
+		}
+	} else if n := intFromAny(cfg["hunt_local_tick_iterations"]); n > 0 {
+		tickIter = n
+	}
+	if tickIter > 10_000 {
+		tickIter = 10_000
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
 	defer cancel()
-	rep, err := hunt.LocalRun(ctx, hunt.LocalRunOptions{
+	rep, err := hunt.LocalRunWithConfig(ctx, hunt.LocalRunOptions{
 		RepoRoot:         a.repoRoot(),
 		TargetID:         targetID,
-		BudgetIterations: 1500,
-		TimeLimitSec:     90,
+		BudgetIterations: tickIter,
+		TimeLimitSec:     180,
+		Config:           cfg,
 	})
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, "hunt_run_failed", err.Error(), nil)

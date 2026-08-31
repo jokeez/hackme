@@ -17,15 +17,32 @@ type LocalRunOptions struct {
 	OutDir           string
 	BudgetIterations int
 	TimeLimitSec     int
+	Config           map[string]any
 }
 
-// LocalRun executes one catalog OSS target hunt (node-local, no pool shards yet).
+// LocalRun executes one catalog OSS target hunt (node-local, no pool shards).
 func LocalRun(ctx context.Context, opts LocalRunOptions) (*fuzzupstream.HuntReport, error) {
+	return LocalRunWithConfig(ctx, opts)
+}
+
+// LocalRunWithConfig executes Hunt with optional campaign config (dict, leaks, package budgets).
+func LocalRunWithConfig(ctx context.Context, opts LocalRunOptions) (*fuzzupstream.HuntReport, error) {
 	if opts.RepoRoot == "" {
-		opts.RepoRoot = "."
+		opts.RepoRoot = RepoRoot()
 	}
 	if strings.TrimSpace(opts.TargetID) == "" {
 		return nil, fmt.Errorf("hunt run: target_id required")
+	}
+	cfg := opts.Config
+	if cfg == nil {
+		cfg = map[string]any{"upstream_target_id": opts.TargetID}
+	}
+	pkgKey := PackageKeyFromConfig(cfg)
+	if opts.BudgetIterations <= 0 {
+		opts.BudgetIterations = LocalRunBudgetFromConfig(cfg, pkgKey)
+	}
+	if opts.TimeLimitSec <= 0 {
+		opts.TimeLimitSec = LocalRunTimeLimitFromConfig(cfg, pkgKey)
 	}
 	if opts.BudgetIterations <= 0 {
 		opts.BudgetIterations = 2000
@@ -36,6 +53,9 @@ func LocalRun(ctx context.Context, opts LocalRunOptions) (*fuzzupstream.HuntRepo
 	if opts.OutDir == "" {
 		opts.OutDir = filepath.Join(opts.RepoRoot, "reports", "hunt-local", time.Now().UTC().Format("20060102T150405Z"))
 	}
+	ApplyHuntMutatorDict(cfg, opts.TargetID)
+	ApplySanitizerDefaults(cfg, pkgKey)
+
 	manifest, err := fuzzupstream.LoadManifest(opts.RepoRoot)
 	if err != nil {
 		return nil, err
@@ -52,5 +72,5 @@ func LocalRun(ctx context.Context, opts LocalRunOptions) (*fuzzupstream.HuntRepo
 	if maxInput <= 0 {
 		maxInput = 65536
 	}
-	return fuzzupstream.Hunt(ctx, opts.RepoRoot, t, binPath, nil, opts.BudgetIterations, maxInput, opts.TimeLimitSec)
+	return fuzzupstream.HuntWithOptions(ctx, opts.RepoRoot, t, binPath, nil, opts.BudgetIterations, maxInput, opts.TimeLimitSec, HuntRunOptionsFromConfig(cfg))
 }

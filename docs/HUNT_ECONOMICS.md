@@ -60,11 +60,11 @@ crash_bonus = min(0.01 × bounty_pool_hmc, 0.05 HMC)
 
 ## Packages (initial)
 
-| Tier | Budget HMC | Shards (target) | Wall | Min / shard | Notes |
-|------|------------|-----------------|------|-------------|-------|
-| **Hunt Lite** | **20** | 800–1500 | 6–24h | **≥ 0.002** | MVP — reuse existing fuzz target only |
-| **Hunt Standard** | **60** | 3000–5000 | 1–3d | **≥ 0.003** | + template harness after Accept |
-| **Hunt Heavy** | **150+** | pool-scale | 3d+ | dynamic | Phase 3 — only when median Dig &lt;6h |
+| Tier | Budget HMC | Shards (target) | Exec/shard | Overnight local | Wall | Min / shard | Notes |
+|------|------------|-----------------|------------|-----------------|------|-------------|-------|
+| **Hunt Lite** | **20** | **1200** | **32** | **20k iter · 1h** | 6–24h | **≥ 0.002** | MVP — catalog + inventory |
+| **Hunt Standard** | **60** | **4000** | **128** | **200k iter · 8h** | 1–3d | **≥ 0.003** | + template harness after Accept |
+| **Hunt Heavy** | **150+** | **12000** | **256** | **500k iter · 12h** | 3d+ | dynamic | Pool-scale depth |
 
 **Minimum campaign budget (Hunt):** **15 HMC** (Lite floor in UI), **50 HMC** (Standard).
 
@@ -139,8 +139,10 @@ Hunt Lite · 20 HMC · 50/50 split
 - [x] Node: `GET /api/hunt/targets`, `POST /api/hunt/inventory`, `POST /api/hunt/campaigns`  
 - [x] Coordinator: CPU shard work kind `hunt_shard` — claim/submit + **coordinator ASAN replay** (`evalHuntSubmitCheck`)  
 - [x] Worker: `RunHuntShard` ASAN on catalog harness (`hunt.ReplayShard` + `.cache/hunt-harness/`)  
-- **L1 mutating shards:** anchor at claim + deterministic `iterations_per_shard` mutations (`hunt.ShardSegmentExecInput`); coordinator replays full chain; fake-crash reject unchanged  
+- **L1 mutating shards:** anchor at claim + `iterations_per_shard` (Lite 32 · Standard 128 · Heavy 256) (`hunt.ShardSegmentExecInput`); coordinator replays full chain; fake-crash reject unchanged  
 - **L2 corpus-guided:** `hunt_corpus_guided` + frozen `corpus_seeds` at claim; pool corpus bootstrap/observe; namespace persist `hunt:{target_id}`  
+- **Overnight local:** `hunt_local_runner` + autorunner ticks (`hunt.LocalAutorunTick`) — hours-scale without pool rewrite  
+- **Domain mutator dict:** `ApplyHuntMutatorDict` per catalog target (JSON/XML/INI/TOML/msgpack)  
 	- [x] **Sanitizer profile:** default `asan+ubsan+lsan` (`hunt_detect_leaks: true`); UBSan/LSan → `sanitizer_informational` hygiene appendix (not bounty)  
 - [x] UI: Hunt card + **pre-pay scope block** `#hunt-scope-contract`  
 - [x] Gate: `scripts/tests/hunt_pool_smoke_gate.sh` (fake crash reject + worker smoke)  
