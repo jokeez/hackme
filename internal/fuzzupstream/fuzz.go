@@ -87,6 +87,11 @@ func detectSanitizer(blob string) string {
 
 // Mutate applies 1–4 random mutations to a copy of input.
 func Mutate(input []byte, maxLen int, rnd []byte) []byte {
+	return MutateWithDict(input, maxLen, rnd, nil)
+}
+
+// MutateWithDict applies mutations with optional domain dictionary splice bytes.
+func MutateWithDict(input []byte, maxLen int, rnd []byte, dict []byte) []byte {
 	if maxLen <= 0 {
 		maxLen = 65536
 	}
@@ -118,11 +123,22 @@ func Mutate(input []byte, maxLen int, rnd []byte) []byte {
 				p := int(rnd[i+1]) % len(out)
 				out = append(out[:p], out[p+1:]...)
 			}
-		case 3: // append interesting
-			interesting := [][]byte{{'{'}, {'['}, {'"'}, {'`'}, {'\n'}, {0xff}, {0x00}}
-			ch := interesting[int(rnd[i+1])%len(interesting)]
-			if len(out)+len(ch) <= maxLen {
-				out = append(out, ch...)
+		case 3: // append interesting / dict splice
+			if len(dict) > 0 {
+				start := int(rnd[i+1]) % len(dict)
+				n := 1 + int(rnd[i+1]%4)
+				if start+n > len(dict) {
+					n = len(dict) - start
+				}
+				if n > 0 && len(out)+n <= maxLen {
+					out = append(out, dict[start:start+n]...)
+				}
+			} else {
+				interesting := [][]byte{{'{'}, {'['}, {'"'}, {'`'}, {'\n'}, {0xff}, {0x00}}
+				ch := interesting[int(rnd[i+1])%len(interesting)]
+				if len(out)+len(ch) <= maxLen {
+					out = append(out, ch...)
+				}
 			}
 		case 4: // resize
 			n := int(rnd[i+1]%32) + 1
@@ -156,8 +172,21 @@ func randomBytes(n int) []byte {
 	return b
 }
 
+// HuntRunOptions configures one upstream Hunt mutational session.
+type HuntRunOptions struct {
+	DetectLeaks bool
+	MutatorDict []byte
+}
+
 // Hunt runs mutational fuzz on a built upstream binary.
 func Hunt(ctx context.Context, repoRoot string, t Target, binPath string, seeds [][]byte, budget int, maxInput int, timeLimitSec int) (*HuntReport, error) {
+	return HuntWithOptions(ctx, repoRoot, t, binPath, seeds, budget, maxInput, timeLimitSec, HuntRunOptions{
+		DetectLeaks: DetectLeaksEnabled(),
+	})
+}
+
+// HuntWithOptions runs mutational fuzz with sanitizer and mutator dictionary options.
+func HuntWithOptions(ctx context.Context, repoRoot string, t Target, binPath string, seeds [][]byte, budget int, maxInput int, timeLimitSec int, opts HuntRunOptions) (*HuntReport, error) {
 	if budget <= 0 {
 		budget = 60000
 	}
@@ -187,14 +216,13 @@ func Hunt(ctx context.Context, repoRoot string, t Target, binPath string, seeds 
 		}
 		seed := seeds[i%len(seeds)]
 		rnd := randomBytes(16)
-		input := Mutate(seed, maxInput, rnd)
-		crash, info, tail, err := RunInputDetailed(ctx, binPath, input, func() RunInputOpts {
-			o := DefaultRunInputOpts()
-			if maxInput > 0 {
-				o.MaxInput = maxInput
-			}
-			return o
-		}())
+		input := MutateWithDict(seed, maxInput, rnd, opts.MutatorDict)
+		runOpts := DefaultRunInputOpts()
+		if maxInput > 0 {
+			runOpts.MaxInput = maxInput
+		}
+		runOpts.DetectLeaks = opts.DetectLeaks
+		crash, info, tail, err := RunInputDetailed(ctx, binPath, input, runOpts)
 		if err != nil {
 			continue
 		}
