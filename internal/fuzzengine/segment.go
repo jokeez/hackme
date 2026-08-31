@@ -124,7 +124,7 @@ func SegmentExecInput(inputN, execIdx uint64, cfg map[string]any, seeds []PoolCo
 		} else {
 			base = byteAnchorBase(inputN, cfg)
 		}
-		b := MutateBytes(base, stage, salt, maxLen)
+		b := MutateBytesForConfig(base, stage, salt, maxLen, cfg)
 		if execIdx == 0 {
 			b = ClampInputBytes(b, cfg)
 		}

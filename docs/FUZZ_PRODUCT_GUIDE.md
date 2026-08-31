@@ -96,6 +96,9 @@ When `pool_distributed: true`, hub `workerfuzz` / hybrid `workerpoh` claims work
 **Anticheat (rc16 / Phase 2):**
 
 - Guided campaigns freeze `corpus_seeds` + anchor input at **claim**
+- Tier defaults: `power_mut_cap` scan **2** · audit **6** · deep **12** (pool segment mutation depth)
+- Wizard sends `mutation_rounds`, `coverage_guided`, `guided_scheduling`, `power_mut_cap` for Dig tiers
+- Pack `mutator_dict` splices domain tokens (secrets, XML, UTF-8 skew)
 - Submit requires matching `segment_exec_done` and coordinator full-segment replay
 - Invalid WASM → reject; incomplete segment → reject
 - Worker lease scales with segment wall time (not fixed 30s)

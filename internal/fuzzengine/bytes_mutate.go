@@ -11,6 +11,15 @@ func U64LayoutToBytes(n uint64) []byte {
 
 // MutateBytes applies staged byte mutations: bitflip, insert, splice, opcode dict.
 func MutateBytes(base []byte, stage MutationStage, salt uint64, maxLen int) []byte {
+	return MutateBytesForConfig(base, stage, salt, maxLen, nil)
+}
+
+// MutateBytesForConfig applies byte mutations with optional pack mutator_dict.
+func MutateBytesForConfig(base []byte, stage MutationStage, salt uint64, maxLen int, cfg map[string]any) []byte {
+	return mutateBytesWithDict(base, stage, salt, maxLen, ParseMutatorDict(cfg))
+}
+
+func mutateBytesWithDict(base []byte, stage MutationStage, salt uint64, maxLen int, dict []byte) []byte {
 	if maxLen <= 0 {
 		maxLen = DefaultMaxInputBytesStd
 	}
@@ -54,7 +63,7 @@ func MutateBytes(base []byte, stage MutationStage, salt uint64, maxLen int) []by
 				out = out[:len(out)-1]
 			}
 		case 3:
-			op := dictPick(mix)
+			op := dictPickFrom(mix, dict)
 			idx := int(mix>>8) % (len(out) + 1)
 			if idx >= len(out) {
 				out = append(out, op)
@@ -66,7 +75,7 @@ func MutateBytes(base []byte, stage MutationStage, salt uint64, maxLen int) []by
 				start := int(mix % uint64(len(out)-1))
 				n := 1 + int(mix>>16)%4
 				for j := 0; j < n && start+j < len(out); j++ {
-					out[start+j] = dictPick(mix >> (uint(8*j) % 56))
+					out[start+j] = dictPickFrom(mix>>(uint(8*j)%56), dict)
 				}
 			}
 		case 5:

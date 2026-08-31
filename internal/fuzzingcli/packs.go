@@ -140,7 +140,7 @@ var guardPacks = map[string]GuardPack{
 		SourceRelPath:  "tasks/sources/security/rust_parser_expat_bytes_guard.rs",
 		InputMode:      "bytes",
 		MaxInputBytes:  fuzzengine.DefaultMaxInputBytesStd,
-		Guided:         false,
+		Guided:         true,
 		MutationRounds: 8,
 		SeedByteCorpus: []any{
 			"<?xml version=\"1.0\"?><root/>",
@@ -305,6 +305,14 @@ func ApplyPackConfig(cfg map[string]any, p GuardPack) map[string]any {
 	}
 	if p.MutationRounds > 0 {
 		cfg["mutation_rounds"] = p.MutationRounds
+	}
+	switch p.ID {
+	case "secrets":
+		cfg["mutator_dict"] = []byte("AKIAghp_sk_live_xoxb-:latest|sh")
+	case "parser_expat":
+		cfg["mutator_dict"] = []byte("<>/!&CDATA<?xml\"'=")
+	case "filter_utf8":
+		cfg["mutator_dict"] = []byte("\xc7=\x80\xff!=<>")
 	}
 	cfg["stable_crash_buckets"] = true
 	if strings.HasPrefix(p.ID, "parser_") {

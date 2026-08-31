@@ -24,6 +24,20 @@ func PoolCorpusMax(cfg map[string]any) int {
 	return 256
 }
 
+// DefaultPowerMutCap returns tier-default mutation depth for pool segments.
+func DefaultPowerMutCap(tier DepthTier) int {
+	switch tier {
+	case DepthWasmOnly:
+		return 2
+	case DepthWasmNative:
+		return 6
+	case DepthBytesCorpus, DepthUpstreamBinary, DepthOSSCVE:
+		return 12
+	default:
+		return 4
+	}
+}
+
 // PowerMutCap caps mutations per lab-style run; pool uses one mutation per work item.
 func PowerMutCap(cfg map[string]any) int {
 	if cfg == nil {
@@ -35,7 +49,7 @@ func PowerMutCap(cfg map[string]any) int {
 			return n
 		}
 	}
-	return 4
+	return DefaultPowerMutCap(ParseDepthTier(cfg))
 }
 
 // PickWeightedSeed selects a corpus seed deterministically from inputN (anti-cheat stable at claim).
@@ -84,7 +98,7 @@ func GuidedInputForWork(inputN uint64, cfg map[string]any, seeds []PoolCorpusSee
 		if len(base) == 0 {
 			base = U64LayoutToBytes(seed.Input)
 		}
-		b := MutateBytes(base, stage, salt, ParseMaxInputBytes(cfg))
+		b := MutateBytesForConfig(base, stage, salt, ParseMaxInputBytes(cfg), cfg)
 		return PackInputBytesToU64(b), b
 	}
 	if len(seeds) == 0 {

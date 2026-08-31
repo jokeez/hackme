@@ -50,6 +50,12 @@ func TestApplyDepthTierBytesCorpus(t *testing.T) {
 	if cfg["corpus_hours_budget"] != true {
 		t.Fatal("expected corpus_hours_budget marker")
 	}
+	if PowerMutCap(cfg) < 10 {
+		t.Fatalf("deep power_mut_cap=%d", PowerMutCap(cfg))
+	}
+	if !GuidedSchedulingEnabled(cfg) {
+		t.Fatal("deep should enable guided_scheduling")
+	}
 }
 
 func TestDeriveInputBytesDeterministic(t *testing.T) {

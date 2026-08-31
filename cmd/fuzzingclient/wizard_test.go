@@ -89,6 +89,9 @@ func TestWizardDryRunPackagesDiffer(t *testing.T) {
 	if deep["coverage_guided"] != true {
 		t.Fatal("deep should be coverage_guided")
 	}
+	if cap, ok := deep["power_mut_cap"].(int); !ok || cap < 10 {
+		t.Fatalf("deep power_mut_cap=%v", deep["power_mut_cap"])
+	}
 	deepSigs, _ := deep["signal_types"].([]string)
 	auditSigs, _ := audit["signal_types"].([]string)
 	if len(deepSigs) <= len(auditSigs) {

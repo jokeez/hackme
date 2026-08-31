@@ -103,6 +103,7 @@ func doWizard(base string, args []string) error {
 		"pool_distributed": pool,
 		"create_poh_order": createPoH,
 	}
+	payload = fuzzingcli.ApplyDigEngineToPayload(payload, pkg)
 	if havePack {
 		cfg := fuzzingcli.ApplyPackConfig(map[string]any{}, pack)
 		if v, ok := cfg["input_mode"]; ok {
@@ -350,10 +351,9 @@ func doWizardDryRunPack(pkgName, packName, wasmPath string) (map[string]any, err
 		"create_poh_order": pkg.CreatePoHOrder,
 		"signal_types":     pkg.SignalTypes,
 		"summary":          pkg.Summary,
-		"mutation_rounds":  pkg.MutationRounds,
-		"coverage_guided":  pkg.CoverageGuided,
 		"wasm_len":         len(raw),
 	}
+	out = fuzzingcli.ApplyDigEngineToPayload(out, pkg)
 	if havePack {
 		cfg := fuzzingcli.ApplyPackConfig(nil, pack)
 		out["pack"] = pack.ID

@@ -212,6 +212,9 @@ func ApplyDepthTier(cfg map[string]any, tier DepthTier) map[string]any {
 		if _, ok := cfg["exec_per_unit"]; !ok {
 			cfg["exec_per_unit"] = defaultExecPerUnitScan
 		}
+		if _, ok := cfg["power_mut_cap"]; !ok {
+			cfg["power_mut_cap"] = DefaultPowerMutCap(DepthWasmOnly)
+		}
 	case DepthWasmNative:
 		if _, ok := cfg["signal_types"]; !ok {
 			cfg["signal_types"] = []string{"wasm_check", "native_repro", "segment_exec"}
@@ -224,6 +227,15 @@ func ApplyDepthTier(cfg map[string]any, tier DepthTier) map[string]any {
 		}
 		if _, ok := cfg["coverage_kind"]; !ok {
 			cfg["coverage_kind"] = "input_fingerprint"
+		}
+		if _, ok := cfg["guided_scheduling"]; !ok {
+			cfg["guided_scheduling"] = true
+		}
+		if _, ok := cfg["power_mut_cap"]; !ok {
+			cfg["power_mut_cap"] = DefaultPowerMutCap(DepthWasmNative)
+		}
+		if _, ok := cfg["mutation_rounds"]; !ok {
+			cfg["mutation_rounds"] = 6
 		}
 	case DepthBytesCorpus:
 		if _, ok := cfg["mutation_rounds"]; !ok {
@@ -243,6 +255,12 @@ func ApplyDepthTier(cfg map[string]any, tier DepthTier) map[string]any {
 		}
 		if _, ok := cfg["corpus_hours_budget"]; !ok {
 			cfg["corpus_hours_budget"] = true
+		}
+		if _, ok := cfg["guided_scheduling"]; !ok {
+			cfg["guided_scheduling"] = true
+		}
+		if _, ok := cfg["power_mut_cap"]; !ok {
+			cfg["power_mut_cap"] = DefaultPowerMutCap(DepthBytesCorpus)
 		}
 	case DepthUpstreamBinary:
 		if _, ok := cfg["native_repro_mode"]; !ok {
