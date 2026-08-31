@@ -27,12 +27,14 @@ CLI/API keys stay `scan` | `audit` | `deep`. Customer-facing names:
 | `POST /api/hunt/repo/pin` | Admin: pin local path or shallow git clone |
 | `POST /api/hunt/template/preview` | Admin: check if template Accept is required |
 | `POST /api/hunt/harness/build` | Admin: ASAN build inventory harness → `.cache/hunt-harness/{hash}.bin` |
+| `POST /api/hunt/harness/publish` | Admin: publish harness blob to node + coordinator pool |
+| `GET /api/fuzz/pool/hunt/harness/{hash}` | Workers: fetch published ASAN harness (coordinator) |
 | `POST /api/hunt/campaigns` | Create Hunt campaign + 50/50 escrow (catalog or inventory) |
 | `POST /api/hunt/campaigns/{id}/run-local` | Admin: node-local ASAN smoke |
 
 CLI: `hackme-fuzzing hunt pin|inventory|template|build|create|pack-suggest|packages|targets`
 
-Spec: [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md). Pool CPU shards + coordinator ASAN replay — Phase 1c. **Inventory pool** needs shared harness cache on workers (`HACKME_REPO_ROOT`).
+Spec: [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md). Pool CPU shards + coordinator ASAN replay — Phase 1c. **Inventory pool** uses harness publish (`harness_fetch_path`) — workers download ASAN binary from coordinator.
 
 \* **Distributed pool cap:** on hub workers, `exec_per_unit` is capped at **64** per work item (Deep 512 runs locally on autorunner). Coordinator **replays** the segment on submit — miners do not cryptographically attest every exec.
 

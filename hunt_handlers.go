@@ -27,6 +27,10 @@ func (a *app) handleHuntAPI(w http.ResponseWriter, r *http.Request) {
 		a.handleHuntRepoPin(w, r)
 	case path == "harness/build" && r.Method == http.MethodPost:
 		a.handleHuntHarnessBuild(w, r)
+	case path == "harness/publish" && r.Method == http.MethodPost:
+		a.handleHuntHarnessPublish(w, r)
+	case strings.HasPrefix(path, "harness/") && r.Method == http.MethodGet:
+		a.handleHuntHarnessGet(w, r, strings.TrimPrefix(path, "harness/"))
 	case path == "template/preview" && r.Method == http.MethodPost:
 		a.handleHuntTemplatePreview(w, r)
 	case path == "pack-suggest" && r.Method == http.MethodPost:
@@ -194,7 +198,15 @@ func (a *app) handleHuntCampaignCreate(w http.ResponseWriter, r *http.Request) {
 		"prepay_disclaimer":      "No CVE guarantee · CLEAN = budget statement · pool shards verify ASAN on miners",
 	}
 	if poolDistributedCampaign(cfgMap) {
+		if pubErr := a.publishHuntHarnessForConfig(r.Context(), cfgMap); pubErr != nil {
+			writeAPIError(w, http.StatusBadRequest, "harness_publish_failed", pubErr.Error(), nil)
+			return
+		}
+		cfg = marshalMapJSON(cfgMap)
+		_, _ = a.db.ExecContext(r.Context(), `UPDATE fuzz_campaigns SET config_json=? WHERE id=?`, cfg, id)
+		a.syncHuntHarnessToCoordinator(r.Context(), cfgMap)
 		resp["pool_distributed"] = true
+		resp["harness_fetch_path"] = cfgMap["harness_fetch_path"]
 		fc := fuzzAutoCampaign{ID: id, BudgetRuns: shards, BudgetSeconds: 86400, ConfigJSON: cfg}
 		a.applyPoolSyncResponse(resp, r.Context(), fc)
 	}
@@ -309,7 +321,11 @@ func (a *app) handleHuntHarnessBuild(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusBadRequest, "build_failed", err.Error(), nil)
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "build": build, "pin": pin})
+	if err := hunt.PublishHarnessFile(r.Context(), a.db, build.HarnessHash, build.BinaryPath, build.SourceRel); err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "publish_failed", err.Error(), nil)
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "build": build, "pin": pin, "harness_published": true, "harness_fetch_path": hunt.HarnessFetchURL(build.HarnessHash)})
 }
 
 func (a *app) handleHuntTemplatePreview(w http.ResponseWriter, r *http.Request) {
@@ -319,8 +335,8 @@ func (a *app) handleHuntTemplatePreview(w http.ResponseWriter, r *http.Request) 
 	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
 	defer r.Body.Close()
 	var req struct {
-		PinPath   string `json:"pin_path"`
-		SourceRel string `json:"source_rel"`
+		PinPath   string               `json:"pin_path"`
+		SourceRel string               `json:"source_rel"`
 		Repo      *hunt.RepoPinRequest `json:"repo,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -366,4 +382,53 @@ func (a *app) repoRoot() string {
 		dir = parent
 	}
 	return wd
+}
+
+func (a *app) handleHuntHarnessPublish(w http.ResponseWriter, r *http.Request) {
+	if !requireAdminAuthStrict(w, r) {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 36<<20)
+	defer r.Body.Close()
+	var req struct {
+		HarnessHash string `json:"harness_hash"`
+		BinaryPath  string `json:"binary_path"`
+		SourceRel   string `json:"source_rel"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid_json", "invalid json", nil)
+		return
+	}
+	hash := strings.TrimSpace(req.HarnessHash)
+	path := strings.TrimSpace(req.BinaryPath)
+	if hash == "" || path == "" {
+		writeAPIError(w, http.StatusBadRequest, "invalid_request", "harness_hash and binary_path required", nil)
+		return
+	}
+	if err := hunt.PublishHarnessFile(r.Context(), a.db, hash, path, req.SourceRel); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "publish_failed", err.Error(), nil)
+		return
+	}
+	a.syncHuntHarnessToCoordinator(r.Context(), map[string]any{
+		"harness_hash": hash, "hunt_source_rel": req.SourceRel,
+	})
+	writeJSON(w, map[string]any{
+		"ok": true, "harness_hash": hash,
+		"harness_fetch_path": hunt.HarnessFetchURL(hash),
+	})
+}
+
+func (a *app) handleHuntHarnessGet(w http.ResponseWriter, r *http.Request, hash string) {
+	if !requireAdminAuthStrict(w, r) {
+		return
+	}
+	hash = strings.TrimSpace(hash)
+	data, err := hunt.GetHarnessArtifact(r.Context(), a.db, hash)
+	if err != nil {
+		writeAPIError(w, http.StatusNotFound, "not_found", err.Error(), nil)
+		return
+	}
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Cache-Control", "private, max-age=3600")
+	_, _ = w.Write(data)
 }

@@ -38,13 +38,14 @@ func RepoRoot() string {
 
 // ReplayShardOpts runs one frozen Hunt shard input on the catalog harness.
 type ReplayShardOpts struct {
-	RepoRoot    string
-	Spec        HarnessSpec
-	TargetID    string
-	HarnessHash string
-	Input       []byte
-	MaxInput    int
-	ExecPer     int
+	RepoRoot        string
+	Spec            HarnessSpec
+	TargetID        string
+	HarnessHash     string
+	HarnessFetchURL string
+	Input           []byte
+	MaxInput        int
+	ExecPer         int
 }
 
 // ReplayShardResult is coordinator/worker replay output for one shard.
@@ -159,6 +160,15 @@ func ReplayShard(ctx context.Context, opts ReplayShardOpts) (ReplayShardResult, 
 
 func resolveHarnessBinary(ctx context.Context, opts ReplayShardOpts) (string, error) {
 	spec := opts.Spec
+	hash := strings.TrimSpace(spec.HarnessHash)
+	if hash == "" {
+		hash = strings.TrimSpace(opts.HarnessHash)
+	}
+	if hash != "" {
+		if p, err := MaterializeHarness(ctx, opts.RepoRoot, hash, opts.HarnessFetchURL, nil); err == nil && p != "" {
+			return p, nil
+		}
+	}
 	if spec.Source == "" {
 		spec = HarnessSpec{
 			Source:      "catalog",

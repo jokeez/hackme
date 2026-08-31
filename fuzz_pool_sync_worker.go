@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"hackme/internal/poolsync"
+	"hackme/internal/poolfuzz"
 )
 
 type poolSyncJob struct {
@@ -171,6 +172,9 @@ func (a *app) runPoolSyncJob(job poolSyncJob) {
 		log.Printf("pool sync: campaign %s failed after retries: %v", job.campaign.ID, err)
 		a.poolSyncMarkFailed(job.campaign.ID, err)
 		return
+	}
+	if poolfuzz.IsHuntCampaign(cfg) {
+		a.syncHuntHarnessToCoordinator(ctx, cfg)
 	}
 	log.Printf("pool sync: campaign %s registered on coordinator", job.campaign.ID)
 	a.poolSyncMarkOK(job.campaign.ID)

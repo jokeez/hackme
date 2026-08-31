@@ -54,11 +54,12 @@ func RunHuntShard(ctx context.Context, cr ClaimResp, timeoutMS int) (checkResult
 			PinPath:     strings.TrimSpace(cr.HuntPinPath),
 			SourceRel:   strings.TrimSpace(cr.HuntSourceRel),
 		},
-		TargetID:    targetID,
-		HarnessHash: strings.TrimSpace(cr.HarnessHash),
-		Input:       inputB,
-		MaxInput:    maxB,
-		ExecPer:     execPer,
+		TargetID:        targetID,
+		HarnessHash:     strings.TrimSpace(cr.HarnessHash),
+		HarnessFetchURL: huntFetchURL(cr),
+		Input:           inputB,
+		MaxInput:        maxB,
+		ExecPer:         execPer,
 	})
 	if err != nil {
 		return 0, int(time.Since(start).Milliseconds()), "build: " + err.Error(), 0
@@ -86,4 +87,22 @@ func HuntClaimMissingFields(cr ClaimResp) error {
 		return fmt.Errorf("hunt claim missing input_bytes_hex")
 	}
 	return nil
+}
+
+func huntFetchURL(cr ClaimResp) string {
+	u := strings.TrimSpace(cr.HarnessFetchURL)
+	if u == "" {
+		return ""
+	}
+	if strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") {
+		return u
+	}
+	base := strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_URL")), "/")
+	if base == "" {
+		base = strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_POOL_COORDINATOR_URL")), "/")
+	}
+	if base == "" {
+		return u
+	}
+	return base + "/" + strings.TrimPrefix(u, "/")
 }

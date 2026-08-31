@@ -62,6 +62,7 @@ type ClaimedWork struct {
 	HuntSource           string
 	HuntPinPath          string
 	HuntSourceRel        string
+	HarnessFetchURL      string
 	IterationsPerShard   int
 }
 

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
@@ -488,6 +489,9 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			if rel := strings.TrimSpace(work.HuntSourceRel); rel != "" {
 				payload["hunt_source_rel"] = rel
 			}
+			if u := strings.TrimSpace(work.HarnessFetchURL); u != "" {
+				payload["harness_fetch_url"] = u
+			}
 			payload["shard_spec"] = map[string]any{
 				"iterations_per_shard": work.IterationsPerShard,
 				"check_semantics":      work.CheckSemantics,
@@ -622,6 +626,67 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "accepted": true})
+	})
+
+	mux.HandleFunc("/api/fuzz/pool/hunt/harness", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			if adminToken == "" && allowInsecure {
+				// loopback dev
+			} else if adminToken == "" || !coordAdminOK(r, adminToken) {
+				w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
+				http.Error(w, "admin authentication required", http.StatusUnauthorized)
+				return
+			}
+			r.Body = http.MaxBytesReader(w, r.Body, 36<<20)
+			var req struct {
+				HarnessHash string `json:"harness_hash"`
+				SourceRel   string `json:"source_rel"`
+				BinaryB64   string `json:"binary_b64"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, "invalid json", http.StatusBadRequest)
+				return
+			}
+			data, err := base64.StdEncoding.DecodeString(strings.TrimSpace(req.BinaryB64))
+			if err != nil {
+				http.Error(w, "invalid binary_b64", http.StatusBadRequest)
+				return
+			}
+			if err := huntPutHarnessArtifact(r.Context(), pf.DB, req.HarnessHash, data, req.SourceRel); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "harness_hash": strings.TrimSpace(req.HarnessHash), "byte_size": len(data)})
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc("/api/fuzz/pool/hunt/harness/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !coordinatorWorkPOSTAuthed(r, adminToken, workerToken, allowInsecure) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
+			http.Error(w, "coordinator authentication required", http.StatusUnauthorized)
+			return
+		}
+		hash := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/fuzz/pool/hunt/harness/"), "/")
+		if hash == "" {
+			http.Error(w, "harness hash required", http.StatusBadRequest)
+			return
+		}
+		data, err := huntGetHarnessArtifact(r.Context(), pf.DB, hash)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Cache-Control", "private, max-age=3600")
+		_, _ = w.Write(data)
 	})
 }
 

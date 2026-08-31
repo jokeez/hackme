@@ -84,8 +84,19 @@ func (s *Service) buildHuntClaimedWork(ctx context.Context, campaignID string, i
 		HuntSource:         strings.TrimSpace(jsonString(cfg["hunt_source"])),
 		HuntPinPath:        strings.TrimSpace(jsonString(cfg["hunt_pin_path"])),
 		HuntSourceRel:      strings.TrimSpace(jsonString(cfg["hunt_source_rel"])),
+		HarnessFetchURL:    huntHarnessFetchURL(cfg),
 		IterationsPerShard: iter,
 	}, nil
+}
+
+func huntHarnessFetchURL(cfg map[string]any) string {
+	if v := strings.TrimSpace(jsonString(cfg["harness_fetch_url"])); v != "" {
+		return v
+	}
+	if v := strings.TrimSpace(jsonString(cfg["harness_fetch_path"])); v != "" {
+		return v
+	}
+	return hunt.HarnessFetchURL(strings.TrimSpace(jsonString(cfg["harness_hash"])))
 }
 
 func perShardHMCFromConfig(cfg map[string]any) float64 {
@@ -130,13 +141,14 @@ func (s *Service) evalHuntSubmitCheck(ctx context.Context, cfg map[string]any, r
 		maxB = 4096
 	}
 	rep, err := hunt.ReplayShard(ctx, hunt.ReplayShardOpts{
-		RepoRoot: hunt.RepoRoot(),
-		Spec:     hunt.HarnessSpecFromConfig(cfg),
-		TargetID: targetID,
-		HarnessHash: strings.TrimSpace(jsonString(cfg["harness_hash"])),
-		Input:    expectedB,
-		MaxInput: maxB,
-		ExecPer:  iter,
+		RepoRoot:        hunt.RepoRoot(),
+		Spec:            hunt.HarnessSpecFromConfig(cfg),
+		TargetID:        targetID,
+		HarnessHash:     strings.TrimSpace(jsonString(cfg["harness_hash"])),
+		HarnessFetchURL: huntHarnessFetchURL(cfg),
+		Input:           expectedB,
+		MaxInput:        maxB,
+		ExecPer:         iter,
 	})
 	if err != nil {
 		return 0, "", false, false, fmt.Errorf("poolfuzz: hunt replay: %w", err)

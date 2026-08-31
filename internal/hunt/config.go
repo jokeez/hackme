@@ -119,7 +119,7 @@ func CampaignConfig(ctx context.Context, repoRoot string, req CreateRequest) (ma
 		}
 		cfg["harness_hash"] = build.HarnessHash
 		if pool {
-			cfg["hunt_pool_note"] = "inventory pool requires workers with shared hunt-harness cache"
+			cfg["harness_fetch_path"] = HarnessFetchURL(build.HarnessHash)
 		}
 	}
 
