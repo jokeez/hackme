@@ -1,6 +1,6 @@
-# `scripts/ops` — operator scripts
+# `scripts/ops` — operator scripts (public repo)
 
-Hundreds of one-shot and recurring shell helpers live here. Prefer **supported** paths below; treat the rest as experimental.
+Production and CI-supported helpers only. **Lab / one-shot / marathon scripts stay on your disk** under the same paths but are listed in [`../.gitignore`](../.gitignore) and are **not** pushed to GitHub.
 
 ## Supported (production / miners)
 
@@ -8,12 +8,15 @@ Hundreds of one-shot and recurring shell helpers live here. Prefer **supported**
 |--------|---------|
 | `run_pool_health_check.sh` | Pool API + difficulty snapshot |
 | `deploy_hackme_site.sh` | Rsync `web/site` to hub + nginx reload |
+| `deploy_hackme_node.sh` | Hub node/coordinator deploy |
 | `generate_sitemap.sh` | Regenerate `web/site/sitemap.xml` |
-| Settlement / SUP timers | Scripts referenced from systemd units + `docs/OPERATIONS_MONITORING.md` |
+| `update_hackme_miner.sh` | Self-update miner (Linux/Win/OS) |
+| `download_hackme_release.sh` | Fetch release tarball from hackme.tech |
+| Settlement / SUP timers | Scripts in `systemd/` + `docs/OPERATIONS_MONITORING.md` |
 
 Always read the script header before running. Prefer dry-run / gate scripts over destructive ones.
 
-## Canonical lab entry points
+## Canonical lab entry points (tracked)
 
 | Script | Purpose |
 |--------|---------|
@@ -23,6 +26,7 @@ Always read the script header before running. Prefer dry-run / gate scripts over
 | `run_oss_cve_nightly.sh` | Nightly rotation (systemd) |
 | `run_oss_cve_wave.sh` | Generic wave runner (`WAVE=` + JSON registry) |
 | `start_test_named_fleet.sh` | Hybrid PoH+fuzz display fleet (preferred) |
+| `pool_fuzz_health_fix.sh` | Hub outbox drain + fuzz queue cleanup |
 
 Docs: [../../docs/BOUNTY_AUTOPILOT.md](../../docs/BOUNTY_AUTOPILOT.md) · [../../docs/OSS_CVE_HUNT.md](../../docs/OSS_CVE_HUNT.md)
 
@@ -33,22 +37,11 @@ Docs: [../../docs/BOUNTY_AUTOPILOT.md](../../docs/BOUNTY_AUTOPILOT.md) · [../..
 | `start_test_named_fuzz_fleet.sh` | `start_test_named_fleet.sh` |
 | `start_local_fair_workers.sh` | `start_local_pool_display_rig.sh` |
 
-## Experimental / lab
+## Local-only lab (not on GitHub)
 
-Prefixes often mean **lab-only** (not miner-facing defaults):
+Historical marathons, OSS CVE Watch day scripts, Vast.ai matrix, mega-gates, VPS one-shots, and duplicate bounty hunts remain in your checkout but are **gitignored**. To run them locally: keep your tree, never `git add -f` those paths.
 
-| Prefix / pattern | Notes |
-|------------------|-------|
-| `run_*` | Many are fine; still check for VPS/`rsync --delete` |
-| `run_bounty_*` (except autopilot/overnight) | One-shot hunts — overlap with autopilot phases |
-| `run_oss_cve_wave[0-9]*.sh` | Frozen target lists — prefer `run_oss_cve_wave.sh` |
-| `run_oss_cve_watch*` / `away_libheif_*` | Closed OSS CVE Watch series — archive/repro only |
-| `vps_*` | Operator VPS recovery / sync — **operator only** |
-| `deploy_*` | Deploy helpers — confirm target; prefer dry-run |
-| `mega_*` / `wow_*` | Stress / demo — not production defaults |
-| `*_hms_*` / `hms_*` | HMS **prelaunch** — do not open publicly |
-
-See [archive/README.md](archive/README.md) for consolidated one-shot scripts.
+See [archive/README.md](archive/README.md) for naming patterns of retired one-shots.
 
 ## Dangerous defaults
 
@@ -59,11 +52,3 @@ DRY_RUN=1 bash scripts/ops/<script>.sh
 ```
 
 `prune_oss_cve_reports.sh` defaults to dry-run; use `APPLY=1` to delete.
-
-## Local-only (gitignored)
-
-Away-mode, week-ops journals, CVE marathon/autopublish, ideal/finale one-shots, and similar machine-local helpers stay on disk but are **not** tracked (see root `.gitignore`). They still work under local systemd; do not `git add -f` them.
-
-## Inventory note
-
-Do not mass-delete scripts without an inventory pass. Archive or move to `archive/` only after confirming nothing in systemd / cron / docs references them.

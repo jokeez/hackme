@@ -8,12 +8,12 @@ const (
 	// HuntUniqueCrashBonusMaxUnits caps Hunt crash bonus at 0.05 HMC.
 	HuntUniqueCrashBonusMaxUnits = 5_000_000
 	// HuntMinPerShardUnits is minimum HMC per verified Hunt shard (0.002 HMC).
-	HuntMinPerShardUnits = 200_000
-	HuntMinLiteBudgetHMC = 15.0
+	HuntMinPerShardUnits     = 200_000
+	HuntMinLiteBudgetHMC     = 15.0
 	HuntMinStandardBudgetHMC = 50.0
-	HuntMinShards          = 8
-	EscrowSplit2080        = "20_80"
-	EscrowSplit5050        = "50_50"
+	HuntMinShards            = 8
+	EscrowSplit2080          = "20_80"
+	EscrowSplit5050          = "50_50"
 )
 
 // ComputeHuntSplitUnits validates Hunt inputs and returns the 50/50 split.

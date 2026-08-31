@@ -1,9 +1,11 @@
 package hunt
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzescrow"
@@ -13,7 +15,10 @@ import (
 const defaultHuntIterationsPerShard = 32
 
 // CampaignConfig builds normalized fuzz campaign config for Hunt.
-func CampaignConfig(repoRoot string, req CreateRequest) (map[string]any, string, error) {
+func CampaignConfig(ctx context.Context, repoRoot string, req CreateRequest) (map[string]any, string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	pkgKey := strings.TrimSpace(strings.ToLower(req.Package))
 	if pkgKey == "" {
 		pkgKey = "hunt_lite"
@@ -35,26 +40,88 @@ func CampaignConfig(repoRoot string, req CreateRequest) (map[string]any, string,
 		shards = preset.BudgetShards
 	}
 
-	targetID, targetTitle, err := resolveTarget(repoRoot, req)
+	var pin *RepoPinResult
+	var invRoot string
+	if req.Repo != nil && (strings.TrimSpace(req.Repo.Path) != "" || strings.TrimSpace(req.Repo.GitURL) != "") {
+		p, err := PinRepo(ctx, repoRoot, *req.Repo)
+		if err != nil {
+			return nil, "", err
+		}
+		pin = p
+		invRoot = p.Path
+	} else if req.Inventory != nil && strings.TrimSpace(req.Inventory.Path) != "" {
+		abs, err := resolveInventoryRoot(repoRoot, invRootFromInventory(req.Inventory))
+		if err != nil {
+			return nil, "", err
+		}
+		invRoot = abs
+	}
+
+	targetID, targetTitle, sourceRel, err := resolveTarget(repoRoot, req, invRoot)
 	if err != nil {
 		return nil, "", err
 	}
 
 	pool := req.PoolDistributed
+	huntSource := "catalog"
 	cfg := map[string]any{
-		"depth_tier":       string(fuzzengine.DepthOSSCVE),
-		"input_mode":       "bytes",
-		"native_repro_mode": "oss_upstream",
-		"escrow_split":     fuzzescrow.EscrowSplit5050,
-		"hunt_package":     preset.Key,
-		"upstream_target":  "oss",
-		"upstream_target_id": targetID,
-		"pool_distributed": pool,
-		"auto_runner":      "1",
+		"depth_tier":             string(fuzzengine.DepthOSSCVE),
+		"input_mode":             "bytes",
+		"native_repro_mode":      "oss_upstream",
+		"escrow_split":           fuzzescrow.EscrowSplit5050,
+		"hunt_package":           preset.Key,
+		"upstream_target":        "oss",
+		"upstream_target_id":     targetID,
+		"hunt_source":            huntSource,
+		"pool_distributed":       pool,
+		"auto_runner":            "1",
 		"bounty_requires_native": true,
-		"hunt_local_runner": !pool,
+		"hunt_local_runner":      !pool,
 	}
-	if pool {
+
+	if pin != nil {
+		cfg["hunt_pin_path"] = pin.Path
+		cfg["hunt_pin_sha"] = pin.CommitSHA
+		if pin.GitURL != "" {
+			cfg["hunt_git_url"] = pin.GitURL
+			cfg["hunt_git_ref"] = pin.Ref
+		}
+	}
+	if invRoot != "" {
+		cfg["hunt_inventory_root"] = invRoot
+	}
+
+	if strings.HasPrefix(targetID, "inv_") || (req.Inventory != nil && !req.Catalog) {
+		huntSource = "inventory"
+		cfg["hunt_source"] = huntSource
+		cfg["upstream_target"] = "inventory"
+		if sourceRel == "" && req.Inventory != nil {
+			sourceRel = strings.TrimSpace(req.Inventory.Path)
+		}
+		if sourceRel == "" {
+			return nil, "", errors.New("hunt: inventory source_rel required")
+		}
+		cfg["hunt_source_rel"] = sourceRel
+		if pin == nil && invRoot != "" {
+			cfg["hunt_pin_path"] = invRoot
+		}
+		buildPin := pin
+		if buildPin == nil && invRoot != "" {
+			buildPin = &RepoPinResult{Path: invRoot, PinnedAt: time.Now().Unix()}
+		}
+		build, bErr := BuildInventoryHarness(ctx, repoRoot, HarnessBuildRequest{
+			Pin:            buildPin,
+			SourceRel:      sourceRel,
+			TemplateAccept: req.TemplateAccept,
+		})
+		if bErr != nil {
+			return nil, "", bErr
+		}
+		cfg["harness_hash"] = build.HarnessHash
+		if pool {
+			cfg["hunt_pool_note"] = "inventory pool requires workers with shared hunt-harness cache"
+		}
+	} else if pool {
 		cfg["auto_runner"] = "0"
 		cfg["work_kind"] = "hunt_shard"
 		cfg["check_semantics"] = "native_crash"
@@ -64,7 +131,24 @@ func CampaignConfig(repoRoot string, req CreateRequest) (map[string]any, string,
 			return nil, "", hErr
 		}
 		cfg["harness_hash"] = hash
+	} else if pool {
+		// covered above for catalog
 	}
+
+	if pool && huntSource == "catalog" {
+		cfg["auto_runner"] = "0"
+		cfg["work_kind"] = "hunt_shard"
+		cfg["check_semantics"] = "native_crash"
+		cfg["iterations_per_shard"] = defaultHuntIterationsPerShard
+		if _, ok := cfg["harness_hash"]; !ok {
+			hash, hErr := CatalogHarnessHash(repoRoot, targetID)
+			if hErr != nil {
+				return nil, "", hErr
+			}
+			cfg["harness_hash"] = hash
+		}
+	}
+
 	if req.Inventory != nil && strings.TrimSpace(req.Inventory.Path) != "" {
 		cfg["hunt_inventory_path"] = strings.TrimSpace(req.Inventory.Path)
 	}
@@ -75,30 +159,48 @@ func CampaignConfig(repoRoot string, req CreateRequest) (map[string]any, string,
 	return cfg, title, nil
 }
 
-func resolveTarget(repoRoot string, req CreateRequest) (id, title string, err error) {
+func invRootFromInventory(inv *TargetSummary) string {
+	if inv == nil {
+		return ""
+	}
+	return strings.TrimSpace(inv.Path)
+}
+
+func resolveTarget(repoRoot string, req CreateRequest, invRoot string) (id, title, sourceRel string, err error) {
 	if req.Inventory != nil && strings.TrimSpace(req.Inventory.Path) != "" {
 		inv := req.Inventory
-		return inventoryTargetID(inv.Path), inv.Title, nil
+		return inventoryTargetID(inv.Path), inv.Title, strings.TrimSpace(inv.Path), nil
 	}
 	targetID := strings.TrimSpace(req.TargetID)
 	if targetID == "" {
-		return "", "", errors.New("hunt: target_id or inventory_target required")
+		return "", "", "", errors.New("hunt: target_id or inventory_target required")
 	}
-	if req.Catalog || strings.HasPrefix(targetID, "inv_") == false {
+	if req.Catalog || !strings.HasPrefix(targetID, "inv_") {
 		manifest, mErr := fuzzupstream.LoadManifest(repoRoot)
 		if mErr != nil {
-			return "", "", mErr
+			return "", "", "", mErr
 		}
 		t, err := manifest.TargetByID(targetID)
 		if err != nil {
-			return "", "", err
+			return "", "", "", err
 		}
 		if strings.TrimSpace(t.Driver) == "" {
-			return "", "", fmt.Errorf("hunt: target %q has no fuzz driver (reuse not ready)", targetID)
+			return "", "", "", fmt.Errorf("hunt: target %q has no fuzz driver (reuse not ready)", targetID)
 		}
-		return t.ID, t.Title, nil
+		return t.ID, t.Title, "", nil
 	}
-	return targetID, targetID, nil
+	if invRoot != "" && strings.HasPrefix(targetID, "inv_") {
+		// resolve relative path from scan
+		res, sErr := ScanInventory(repoRoot, invRoot, 0, 0)
+		if sErr == nil {
+			for _, t := range res.Targets {
+				if t.ID == targetID {
+					return t.ID, t.Title, t.Path, nil
+				}
+			}
+		}
+	}
+	return targetID, targetID, "", nil
 }
 
 // BudgetForCreate returns escrow budget and shard count after package defaults.

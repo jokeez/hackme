@@ -41,10 +41,10 @@ func TestHuntShardInputBytesDeterministic(t *testing.T) {
 
 func TestPerShardHMCFromConfig5050(t *testing.T) {
 	cfg := map[string]any{
-		"budget_hmc":   20.0,
+		"budget_hmc":    20.0,
 		"budget_shards": 8,
-		"escrow_split": fuzzescrow.EscrowSplit5050,
-		"work_kind":    "hunt_shard",
+		"escrow_split":  fuzzescrow.EscrowSplit5050,
+		"work_kind":     "hunt_shard",
 	}
 	got := perShardHMCFromConfig(cfg)
 	want := (20.0 * 0.50) / 8.0

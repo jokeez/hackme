@@ -39,6 +39,7 @@ func RepoRoot() string {
 // ReplayShardOpts runs one frozen Hunt shard input on the catalog harness.
 type ReplayShardOpts struct {
 	RepoRoot    string
+	Spec        HarnessSpec
 	TargetID    string
 	HarnessHash string
 	Input       []byte
@@ -133,7 +134,7 @@ func ReplayShard(ctx context.Context, opts ReplayShardOpts) (ReplayShardResult, 
 	if maxB <= 0 {
 		maxB = 4096
 	}
-	binPath, err := EnsureHarnessBinary(ctx, opts.RepoRoot, opts.TargetID, opts.HarnessHash)
+	binPath, err := resolveHarnessBinary(ctx, opts)
 	if err != nil {
 		return out, err
 	}
@@ -154,4 +155,22 @@ func ReplayShard(ctx context.Context, opts ReplayShardOpts) (ReplayShardResult, 
 		}
 	}
 	return out, nil
+}
+
+func resolveHarnessBinary(ctx context.Context, opts ReplayShardOpts) (string, error) {
+	spec := opts.Spec
+	if spec.Source == "" {
+		spec = HarnessSpec{
+			Source:      "catalog",
+			TargetID:    opts.TargetID,
+			HarnessHash: opts.HarnessHash,
+		}
+	}
+	if spec.TargetID == "" {
+		spec.TargetID = opts.TargetID
+	}
+	if spec.HarnessHash == "" {
+		spec.HarnessHash = opts.HarnessHash
+	}
+	return EnsureHarness(ctx, opts.RepoRoot, spec)
 }
