@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 export HACKME_REPO_ROOT="$ROOT"
 
-go test -count=1 ./internal/hunt -run 'TestMergeLibFuzzerSeedCorpus|TestApplyHuntPowerScheduling' -timeout 2m
+go test -count=1 ./internal/hunt -run 'TestMergeLibFuzzerSeedCorpus|TestApplyHuntPowerScheduling|TestExportLibFuzzerSeeds|TestLoadLibFuzzerSeedFilesFiltersCrash|TestDedicatedLibFuzzerHarness|TestRunLibFuzzerImportSessionSynthetic' -timeout 3m
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT

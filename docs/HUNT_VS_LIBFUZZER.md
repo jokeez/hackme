@@ -109,9 +109,49 @@ echo -n '{"a":1}{"a":1}' | .cache/oss-cve-bin/libucl-*.bin
 
 ---
 
+## L2 bootstrap from libFuzzer (optional research lane)
+
+**Honest pitch:** libFuzzer seeds give Hunt pool shards a **better starting corpus** (`hunt:{target_id}` namespace). They do **not** promise faster first CVE hit — soak #2 on libucl showed first-hit iter **1286 → 12586** with seeds (same root cause).
+
+**Pipeline (after each libFuzzer session):**
+
+```bash
+# One catalog target (cjson, spl, parsello, jsmn, …)
+TARGET=spl WALL_SEC=120 bash scripts/ops/hunt_import_libfuzzer_corpus.sh
+
+# Obscure overnight batch
+TARGETS="spl,parsello,centijson" bash scripts/ops/hunt_l2_bootstrap.sh
+
+# Gate (unit + merge + optional 20s live import)
+bash scripts/tests/hunt_l2_ab_gate.sh
+```
+
+Seeds land in `.cache/hunt-lf-seeds/{target}/` and merge automatically on Hunt campaign create / pool corpus bootstrap (`MergeLibFuzzerSeedCorpus`).
+
+Targets **without** a dedicated libFuzzer harness use `stdin_subprocess_libfuzzer.c` (pipes into the same ASAN stdin driver Hunt replays).
+
+---
+
 ## Roadmap idea (depth without pool rewrite)
 
-**libFuzzer seeds → Hunt L2 corpus** (`hunt:{target_id}` namespace): export interesting inputs from OSS libFuzzer sessions into Hunt pool corpus — Hunt gets coverage-quality seeds without competing on in-process exec/s.
+### L2 bootstrap from libFuzzer research lane (implemented)
+
+Optional bridge: after each libFuzzer session, import interesting inputs into Hunt L2 seed cache (`.cache/hunt-lf-seeds/{target_id}`). On Hunt campaign create / pool corpus bootstrap, seeds merge into `seed_byte_corpus` and `hunt:{target_id}` namespace persist.
+
+**Honest caveat (soak #2, libucl):** seeds did **not** improve first-hit iteration (1286 → 12586). Do not promise “seeds = faster CVE.” Promise **better starting corpus for pool shards** — especially on obscure targets (spl, parsello).
+
+```bash
+# Single target (any catalog entry — dedicated or stdin subprocess harness)
+TARGET=spl WALL_SEC=60 bash scripts/ops/hunt_import_libfuzzer_corpus.sh
+
+# Batch obscure overnight targets
+bash scripts/ops/hunt_l2_bootstrap.sh
+
+# Gate: seeds ON vs OFF merge + pool bootstrap
+bash scripts/tests/hunt_l2_seeds_ab_gate.sh
+```
+
+Pipeline: `cmd/hunt-lf-import` → `MergeLibFuzzerSeedCorpus` (campaign create, local run, `EnsureGuidedCorpusSeeded`). **Implemented** — see section above.
 
 ---
 

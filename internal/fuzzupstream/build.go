@@ -305,3 +305,18 @@ func buildTimeout(t Target) time.Duration {
 		return 120 * time.Second
 	}
 }
+
+// InjectOSSCveBuildStubs applies target-specific clone stubs before OSS builds.
+func InjectOSSCveBuildStubs(repoRoot, targetID, clonePath string) error {
+	return injectOSSCveBuildStubs(repoRoot, targetID, clonePath)
+}
+
+// IncludeDir resolves manifest include_dirs relative to clone or repo tasks/.
+func IncludeDir(repoRoot, clonePath, inc string) string {
+	return includeDir(repoRoot, clonePath, inc)
+}
+
+// ExpandUpstreamSrc expands manifest upstream_src globs under a clone directory.
+func ExpandUpstreamSrc(clonePath string, patterns []string) []string {
+	return expandUpstreamSrc(clonePath, patterns)
+}

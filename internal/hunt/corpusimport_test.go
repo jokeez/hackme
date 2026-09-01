@@ -43,3 +43,80 @@ func TestApplyHuntPowerScheduling(t *testing.T) {
 		t.Fatalf("cap=%v", cfg["power_mut_cap"])
 	}
 }
+
+func TestExportLibFuzzerSeedsSkipsInvalid(t *testing.T) {
+	dir := t.TempDir()
+	target := "export-test"
+	n, err := ExportLibFuzzerSeeds(dir, target, [][]byte{nil, make([]byte, libFuzzerSeedMaxBytes+1), []byte("ok")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("written=%d want 1", n)
+	}
+	loaded, err := LoadLibFuzzerSeedFiles(LibFuzzerSeedDir(dir, target), 0)
+	if err != nil || len(loaded) != 1 || string(loaded[0]) != "ok" {
+		t.Fatalf("loaded=%v err=%v", loaded, err)
+	}
+}
+
+func TestLoadLibFuzzerSeedFilesFiltersCrash(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "good.bin"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "crash-1.bin"), []byte("bad"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadLibFuzzerSeedFiles(dir, 0)
+	if err != nil || len(got) != 1 || string(got[0]) != "x" {
+		t.Fatalf("got=%v err=%v", got, err)
+	}
+}
+
+func TestLoadLibFuzzerSeedFiles(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "good.bin"), []byte("ok"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "crash-1.bin"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".hidden"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	seeds, err := LoadLibFuzzerSeedFiles(dir, 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(seeds) != 1 || string(seeds[0]) != "ok" {
+		t.Fatalf("seeds=%v", seeds)
+	}
+}
+
+func TestExportLibFuzzerSeeds(t *testing.T) {
+	dir := t.TempDir()
+	target := "export-target"
+	n, err := ExportLibFuzzerSeeds(dir, target, [][]byte{[]byte(`{"a":1}`), []byte("dup"), nil})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 2 {
+		t.Fatalf("written=%d", n)
+	}
+	loaded, err := LoadLibFuzzerSeedFiles(LibFuzzerSeedDir(dir, target), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(loaded) != 2 {
+		t.Fatalf("loaded=%d", len(loaded))
+	}
+}
+
+func TestLibFuzzerSeedDir(t *testing.T) {
+	got := LibFuzzerSeedDir("/repo", "jsmn")
+	want := filepath.Join("/repo", ".cache", "hunt-lf-seeds", "jsmn")
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
