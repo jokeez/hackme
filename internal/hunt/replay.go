@@ -55,12 +55,13 @@ type ReplayShardOpts struct {
 
 // ReplayShardResult is coordinator/worker replay output for one shard.
 type ReplayShardResult struct {
-	Crash            bool
-	Sanitizer        string
-	SanitizerInfo    fuzzupstream.SanitizerInfo
-	Trap             string
-	ExecDone         int
-	CrashInput       []byte
+	Crash                 bool
+	Sanitizer             string
+	SanitizerInfo         fuzzupstream.SanitizerInfo
+	Trap                  string
+	ExecDone              int
+	CrashInput            []byte
+	CrashInputOriginalLen int
 }
 
 // EnsureHarnessBinary returns a pinned ASAN harness binary for targetID/harnessHash.
@@ -172,6 +173,7 @@ func ReplayShard(ctx context.Context, opts ReplayShardOpts) (ReplayShardResult, 
 				out.Sanitizer = "asan"
 			}
 			out.Trap = fuzzupstream.FormatHuntTrap(info)
+			out.CrashInputOriginalLen = len(inputB)
 			out.CrashInput = append([]byte(nil), inputB...)
 			if HuntTrimEnabled(cfg) && len(out.CrashInput) > 1 {
 				tr := fuzzupstream.TrimCrashInput(ctx, binPath, out.CrashInput, runOpts, info)

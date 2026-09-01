@@ -55,6 +55,9 @@ func LocalRunWithConfig(ctx context.Context, opts LocalRunOptions) (*fuzzupstrea
 	}
 	ApplyHuntMutatorDict(cfg, opts.TargetID)
 	ApplySanitizerDefaults(cfg, pkgKey)
+	if _, err := MergeLibFuzzerSeedCorpus(cfg, opts.RepoRoot, opts.TargetID); err != nil {
+		return nil, err
+	}
 
 	manifest, err := fuzzupstream.LoadManifest(opts.RepoRoot)
 	if err != nil {

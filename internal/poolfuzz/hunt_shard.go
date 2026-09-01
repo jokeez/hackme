@@ -154,18 +154,22 @@ func huntReplayEnabled() bool {
 	return v == "" || v == "1" || v == "true" || v == "yes" || v == "on"
 }
 
-func (s *Service) evalHuntSubmitCheck(ctx context.Context, campaignID string, inputN uint64, cfg map[string]any, req SubmitRequest, expectedB []byte, seeds []fuzzengine.PoolCorpusSeed) (checkResult int32, trap string, pass bool, recordFinding bool, findingB []byte, err error) {
+func (s *Service) evalHuntSubmitCheck(ctx context.Context, campaignID string, inputN uint64, cfg map[string]any, req SubmitRequest, expectedB []byte, seeds []fuzzengine.PoolCorpusSeed) (checkResult int32, trap string, pass bool, recordFinding bool, findingB []byte, findingOrigLen int, err error) {
 	iter := huntIterationsPerShard(cfg)
 	if req.SegmentExecDone != iter {
-		return 0, "", false, false, nil, nil
+		return 0, "", false, false, nil, 0, nil
 	}
 	if !huntReplayEnabled() {
 		cr, tr, p, rf := s.evalHuntSubmitTrusted(cfg, req, expectedB)
-		return cr, tr, p, rf, expectedB, nil
+		orig := len(expectedB)
+		if rf && orig > 0 {
+			return cr, tr, p, rf, expectedB, orig, nil
+		}
+		return cr, tr, p, rf, nil, 0, nil
 	}
 	targetID := strings.TrimSpace(jsonString(cfg["upstream_target_id"]))
 	if targetID == "" {
-		return 0, "", false, false, nil, fmt.Errorf("poolfuzz: hunt missing upstream_target_id")
+		return 0, "", false, false, nil, 0, fmt.Errorf("poolfuzz: hunt missing upstream_target_id")
 	}
 	maxB := fuzzengine.ParseMaxInputBytes(cfg)
 	if maxB <= 0 {
@@ -186,33 +190,37 @@ func (s *Service) evalHuntSubmitCheck(ctx context.Context, campaignID string, in
 		ExecPer:         iter,
 	})
 	if err != nil {
-		return 0, "", false, false, nil, fmt.Errorf("poolfuzz: hunt replay: %w", err)
+		return 0, "", false, false, nil, 0, fmt.Errorf("poolfuzz: hunt replay: %w", err)
 	}
 	workerTrap := strings.TrimSpace(req.Trap)
 	workerClaims := req.CheckResult != 0 && (strings.HasPrefix(workerTrap, "hunt_crash:") || strings.HasPrefix(workerTrap, "hunt_sanitizer:"))
 	fb := expectedB
+	origLen := rep.CrashInputOriginalLen
 	if len(rep.CrashInput) > 0 {
 		fb = rep.CrashInput
+	}
+	if origLen <= 0 && len(fb) > 0 {
+		origLen = len(fb)
 	}
 	if rep.Crash {
 		if rep.SanitizerInfo.Security {
 			if !workerClaims || !strings.HasPrefix(workerTrap, "hunt_crash:") {
-				return 0, rep.Trap, false, false, nil, nil
+				return 0, rep.Trap, false, false, nil, 0, nil
 			}
-			return 1, rep.Trap, true, true, fb, nil
+			return 1, rep.Trap, true, true, fb, origLen, nil
 		}
 		if !workerClaims || !strings.HasPrefix(workerTrap, "hunt_sanitizer:") {
-			return 0, rep.Trap, true, false, nil, nil
+			return 0, rep.Trap, true, false, nil, 0, nil
 		}
-		return 0, rep.Trap, true, true, fb, nil
+		return 0, rep.Trap, true, true, fb, origLen, nil
 	}
 	if workerClaims && strings.HasPrefix(workerTrap, "hunt_crash:") {
-		return 0, "hunt_replay_reject:fake_crash", false, false, nil, nil
+		return 0, "hunt_replay_reject:fake_crash", false, false, nil, 0, nil
 	}
 	if workerClaims && strings.HasPrefix(workerTrap, "hunt_sanitizer:") {
-		return 0, "hunt_replay_reject:fake_sanitizer", false, false, nil, nil
+		return 0, "hunt_replay_reject:fake_sanitizer", false, false, nil, 0, nil
 	}
-	return 0, "", true, false, nil, nil
+	return 0, "", true, false, nil, 0, nil
 }
 
 func (s *Service) evalHuntSubmitTrusted(cfg map[string]any, req SubmitRequest, expectedB []byte) (checkResult int32, trap string, pass bool, recordFinding bool) {

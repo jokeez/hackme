@@ -12,6 +12,27 @@ import (
 	"time"
 )
 
+func TestBuildFindingReproHuntTrimmed(t *testing.T) {
+	f := fuzzFinding{
+		FindingType: "native_crash",
+		Severity:    "critical",
+		ReproCmd:    "./harness.bin < crash.bin",
+		InputSHA256: "abc",
+		Detail: map[string]any{
+			"input_hex":              "63726173",
+			"input_hex_original_len": 847,
+			"hunt_trimmed":           true,
+		},
+	}
+	repro := buildFindingRepro(f)
+	if !repro.Trimmed || repro.OriginalInputLen != 847 {
+		t.Fatalf("repro=%+v", repro)
+	}
+	if repro.InputHex == "" {
+		t.Fatalf("missing input_hex")
+	}
+}
+
 func TestMoneySpentFromCampaignIgnoresBudget(t *testing.T) {
 	c := fuzzCampaign{
 		Config:  map[string]any{"budget_hmc": 5.0, "escrow_budget_hmc": 5.0},

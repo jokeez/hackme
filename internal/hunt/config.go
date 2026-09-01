@@ -130,6 +130,7 @@ func CampaignConfig(ctx context.Context, repoRoot string, req CreateRequest) (ma
 		cfg["hunt_segment_mutating"] = true
 		cfg["power_mut_cap"] = fuzzengine.DefaultPowerMutCap(fuzzengine.DepthOSSCVE)
 		ApplyPoolGuidedDefaults(cfg, targetID)
+		ApplyHuntPowerScheduling(cfg, preset.Key)
 		if _, ok := cfg["harness_hash"]; !ok {
 			hash, hErr := CatalogHarnessHash(repoRoot, targetID)
 			if hErr != nil {
@@ -141,6 +142,9 @@ func CampaignConfig(ctx context.Context, repoRoot string, req CreateRequest) (ma
 	ApplySanitizerDefaults(cfg, pkgKey)
 	ApplyPackageDepthDefaults(cfg, pkgKey, pool)
 	ApplyHuntMutatorDict(cfg, targetID)
+	if _, err := MergeLibFuzzerSeedCorpus(cfg, repoRoot, targetID); err != nil {
+		return nil, "", fmt.Errorf("hunt: libfuzzer seed import: %w", err)
+	}
 
 	if req.Inventory != nil && strings.TrimSpace(req.Inventory.Path) != "" {
 		cfg["hunt_inventory_path"] = strings.TrimSpace(req.Inventory.Path)

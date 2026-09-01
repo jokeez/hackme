@@ -78,6 +78,7 @@ type SubmitRequest struct {
 	InputN          uint64
 	ActualInput     uint64
 	InputBytes      []byte
+	InputOriginalLen int
 	CheckResult     int32
 	DurationMS      int
 	Trap            string
@@ -791,11 +792,12 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	var recordFinding bool
 	var findingU uint64
 	var findingB []byte
+	var huntOrigLen int
 	var seg fuzzengine.SegmentResult
 	if isHunt {
 		var err error
 		var huntFindingB []byte
-		checkResult, trap, pass, recordFinding, huntFindingB, err = s.evalHuntSubmitCheck(ctx, req.CampaignID, inputN, cfg, req, expectedB, seeds)
+		checkResult, trap, pass, recordFinding, huntFindingB, huntOrigLen, err = s.evalHuntSubmitCheck(ctx, req.CampaignID, inputN, cfg, req, expectedB, seeds)
 		if err != nil {
 			return err
 		}
@@ -913,6 +915,9 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	if recordFinding {
 		submitReq := req
 		submitReq.ActualInput = findingU
+		if isHunt {
+			submitReq.InputOriginalLen = huntOrigLen
+		}
 		if len(findingB) > 0 {
 			submitReq.InputBytes = findingB
 		} else {
@@ -1255,8 +1260,15 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 		detailMap["input_hex"] = hex.EncodeToString(inputBytes)
 		detailMap["input_len"] = len(inputBytes)
 		if IsHuntCampaign(cfg) {
-			detailMap["hunt_trimmed"] = true
 			detailMap["repro_kind"] = "hunt_native"
+			origLen := req.InputOriginalLen
+			if origLen <= 0 {
+				origLen = len(inputBytes)
+			}
+			if origLen > len(inputBytes) {
+				detailMap["input_hex_original_len"] = origLen
+				detailMap["hunt_trimmed"] = true
+			}
 		}
 		if gp := strings.TrimSpace(jsonString(cfg["guard_pack"])); gp != "" {
 			detailMap["guard_pack"] = gp

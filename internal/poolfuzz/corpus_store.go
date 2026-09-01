@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"hackme/internal/fuzzengine"
@@ -238,6 +239,14 @@ func (s *Service) loadCorpusSnapshot(ctx context.Context, campaignID string, ite
 func (s *Service) EnsureGuidedCorpusSeeded(ctx context.Context, campaignID string, cfg map[string]any, now int64) error {
 	if s == nil || s.DB == nil || !fuzzengine.GuidedSchedulingEnabled(cfg) {
 		return nil
+	}
+	if IsHuntCampaign(cfg) {
+		targetID := strings.TrimSpace(jsonString(cfg["upstream_target_id"]))
+		if targetID != "" {
+			if _, err := hunt.MergeLibFuzzerSeedCorpus(cfg, hunt.RepoRoot(), targetID); err != nil {
+				return err
+			}
+		}
 	}
 	n, err := s.poolCorpusSize(ctx, campaignID)
 	if err != nil {
