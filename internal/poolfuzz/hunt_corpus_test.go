@@ -12,6 +12,7 @@ import (
 
 func TestHuntGuidedClaimFreezesCorpusSnapshot(t *testing.T) {
 	t.Setenv("HACKME_POOL_HUNT_REPLAY", "0")
+	t.Setenv("HACKME_POOL_HUNT_REPLAY_ASYNC", "0")
 	dir := t.TempDir()
 	db, err := store.Open(filepath.Join(dir, "hunt-corpus.db"))
 	if err != nil {

@@ -589,7 +589,7 @@ func Submit(ctx context.Context, cl *http.Client, base, token, workerID, minerAd
 	}
 	defer res.Body.Close()
 	b, _ := io.ReadAll(io.LimitReader(res.Body, 2<<20))
-	if res.StatusCode != 200 {
+	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("HTTP %d %s", res.StatusCode, shortHTTPBody(res.StatusCode, b))
 	}
 	return nil

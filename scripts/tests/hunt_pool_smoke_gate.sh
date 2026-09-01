@@ -39,6 +39,8 @@ export HACKME_POOL_HYBRID_SIGNER_ENABLED=1
 export HACKME_POOL_HYBRID_SIGNER_STRICT=1
 export HACKME_COORDINATOR_WRITE_TIMEOUT_SEC="${HACKME_COORDINATOR_WRITE_TIMEOUT_SEC:-120}"
 export HACKME_POOL_HUNT_REPLAY_MAX_PARALLEL="${HACKME_POOL_HUNT_REPLAY_MAX_PARALLEL:-2}"
+export HACKME_POOL_HUNT_REPLAY_ASYNC="${HACKME_POOL_HUNT_REPLAY_ASYNC:-1}"
+export HACKME_POOL_HUNT_REPLAY_WORKERS="${HACKME_POOL_HUNT_REPLAY_WORKERS:-2}"
 
 COORD_BIN="${COORD_BIN:-$ROOT/bin/hackme-coordinator-gate}"
 echo "[hunt-pool-gate] build coordinator → $COORD_BIN"
@@ -124,6 +126,23 @@ export WORKERFUZZ_TIMEOUT_MS="${WORKERFUZZ_TIMEOUT_MS:-120000}"
 echo "[hunt-pool-gate] run workerfuzz (timeout_ms=$WORKERFUZZ_TIMEOUT_MS)"
 GATE_WALL_SEC="${GATE_WALL_SEC:-120}"
 WORKER_ID=hunt-w1 timeout "$GATE_WALL_SEC"s "$WORKERFUZZ_BIN" -coord "$BASE" -token "$HACKME_COORDINATOR_WORKER_TOKEN" -worker hunt-w1 -timeout-ms "$WORKERFUZZ_TIMEOUT_MS" || true
+
+echo "[hunt-pool-gate] wait for async replay drain"
+for _ in $(seq 1 120); do
+  PENDING="$(python3 - "$FUZZ_DB" <<'PY'
+import sqlite3, sys
+db = sys.argv[1]
+con = sqlite3.connect(db)
+n = con.execute("SELECT COUNT(*) FROM fuzz_work_items WHERE status='replay_pending'").fetchone()[0]
+q = con.execute("SELECT COUNT(*) FROM fuzz_hunt_replay_queue WHERE status IN ('pending','processing')").fetchone()[0]
+print(n + q)
+PY
+)"
+  if [[ "${PENDING:-1}" == "0" ]]; then
+    break
+  fi
+  sleep 0.5
+done
 
 DONE="$(python3 - "$FUZZ_DB" "$MAIN_CID" <<'PY'
 import sqlite3, sys

@@ -733,6 +733,12 @@ func (s *Service) nearCompleteCampaignIDs(ctx context.Context) ([]string, error)
 
 // Submit records a completed fuzz work item from a pool worker.
 func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
+	_, err := s.SubmitWithOutcome(ctx, req)
+	return err
+}
+
+// SubmitWithOutcome records pool work and returns async replay metadata when Hunt verify is queued.
+func (s *Service) SubmitWithOutcome(ctx context.Context, req SubmitRequest) (SubmitOutcome, error) {
 	now := time.Now().Unix()
 	cfgJSON := ""
 	_ = s.DB.QueryRowContext(ctx, `SELECT config_json FROM fuzz_campaigns WHERE id=?`, req.CampaignID).Scan(&cfgJSON)
@@ -744,28 +750,28 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	var inputN uint64
 	if err := s.DB.QueryRowContext(ctx,
 		`SELECT input_n FROM fuzz_work_items WHERE id=? AND campaign_id=?`, req.ItemID, req.CampaignID).Scan(&inputN); err != nil {
-		return err
+		return SubmitOutcome{}, err
 	}
 	expectedU, expectedB, err := s.expectedInputsForSubmit(ctx, req.CampaignID, req.ItemID, inputN, cfg)
 	if err != nil {
-		return err
+		return SubmitOutcome{}, err
 	}
 	if req.InputN != 0 && req.InputN != inputN {
-		return fmt.Errorf("poolfuzz: input_n mismatch")
+		return SubmitOutcome{}, fmt.Errorf("poolfuzz: input_n mismatch")
 	}
 	if req.ActualInput != expectedU {
-		return fmt.Errorf("poolfuzz: actual_input mismatch")
+		return SubmitOutcome{}, fmt.Errorf("poolfuzz: actual_input mismatch")
 	}
 	if len(expectedB) > 0 {
 		if len(req.InputBytes) != len(expectedB) || !bytes.Equal(req.InputBytes, expectedB) {
-			return fmt.Errorf("poolfuzz: input_bytes mismatch")
+			return SubmitOutcome{}, fmt.Errorf("poolfuzz: input_bytes mismatch")
 		}
 	} else if len(req.InputBytes) > 0 {
-		return fmt.Errorf("poolfuzz: unexpected input_bytes")
+		return SubmitOutcome{}, fmt.Errorf("poolfuzz: unexpected input_bytes")
 	}
 	maxB := fuzzengine.ParseMaxInputBytes(cfg)
 	if len(expectedB) > maxB {
-		return fmt.Errorf("poolfuzz: input_bytes exceed max_input_bytes")
+		return SubmitOutcome{}, fmt.Errorf("poolfuzz: input_bytes exceed max_input_bytes")
 	}
 	execPer := PoolExecPerUnit(cfg)
 	if isHunt {
@@ -773,17 +779,17 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	}
 	if execPer > 1 {
 		if req.SegmentExecDone != execPer {
-			return fmt.Errorf("poolfuzz: segment_exec_done mismatch want %d got %d", execPer, req.SegmentExecDone)
+			return SubmitOutcome{}, fmt.Errorf("poolfuzz: segment_exec_done mismatch want %d got %d", execPer, req.SegmentExecDone)
 		}
 	} else if req.SegmentExecDone > 0 && req.SegmentExecDone != 1 {
-		return fmt.Errorf("poolfuzz: unexpected segment_exec_done for single-exec unit")
+		return SubmitOutcome{}, fmt.Errorf("poolfuzz: unexpected segment_exec_done for single-exec unit")
 	}
 	var seeds []fuzzengine.PoolCorpusSeed
 	if (!isHunt && (fuzzengine.GuidedSchedulingEnabled(cfg) || execPer > 1)) || (isHunt && hunt.HuntCorpusGuided(cfg)) {
 		var err error
 		seeds, err = s.SeedsForWorkItem(ctx, req.CampaignID, req.ItemID, cfg)
 		if err != nil {
-			return err
+			return SubmitOutcome{}, err
 		}
 	}
 	var checkResult int32
@@ -795,11 +801,15 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	var huntOrigLen int
 	var seg fuzzengine.SegmentResult
 	if isHunt {
+		if huntReplayAsyncEnabled() && poolDistributed(cfg) {
+			out, err := s.enqueueHuntReplay(ctx, req, inputN, now)
+			return out, err
+		}
 		var err error
 		var huntFindingB []byte
 		checkResult, trap, pass, recordFinding, huntFindingB, huntOrigLen, err = s.evalHuntSubmitCheck(ctx, req.CampaignID, inputN, cfg, req, expectedB, seeds)
 		if err != nil {
-			return err
+			return SubmitOutcome{}, err
 		}
 		findingU = expectedU
 		findingB = expectedB
@@ -807,14 +817,27 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 			findingB = huntFindingB
 			findingU = fuzzengine.PackInputBytesToU64(findingB)
 		}
+		req.InputN = inputN
+		req.ActualInput = expectedU
+		req.InputBytes = expectedB
+		req.CheckResult = checkResult
+		req.Trap = trap
+		if err := s.finalizeHuntSubmit(ctx, finalizeHuntSubmitParams{
+			req: req, cfg: cfg, inputN: inputN, expectedU: expectedU, expectedB: expectedB,
+			pass: pass, recordFinding: recordFinding, findingU: findingU, findingB: findingB,
+			huntOrigLen: huntOrigLen, fromReplayPending: false, now: now,
+		}); err != nil {
+			return SubmitOutcome{}, err
+		}
+		return SubmitOutcome{ReplayStatus: huntReplayStatusDone}, nil
 	} else {
 		var err error
 		checkResult, trap, pass, recordFinding, findingU, findingB, seg, err = s.evalSubmitCheck(ctx, cfg, sem, inputN, expectedU, expectedB, seeds)
 		if err != nil {
-			return err
+			return SubmitOutcome{}, err
 		}
 		if hasWasm && execPer > 1 && seg.ExecDone != seg.ExecExpected {
-			return fmt.Errorf("poolfuzz: incomplete segment replay %d/%d", seg.ExecDone, seg.ExecExpected)
+			return SubmitOutcome{}, fmt.Errorf("poolfuzz: incomplete segment replay %d/%d", seg.ExecDone, seg.ExecExpected)
 		}
 	}
 	req.InputN = inputN
@@ -831,7 +854,7 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 		runSettleStatus = "pending"
 	}
 	if workerID == "" {
-		return fmt.Errorf("poolfuzz: worker_id required")
+		return SubmitOutcome{}, fmt.Errorf("poolfuzz: worker_id required")
 	}
 	// H03: only the active lease owner may complete work (no pending/empty-owner harvest).
 	res, err := s.DB.ExecContext(ctx,
@@ -846,7 +869,7 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 		miner, miner, runSettleStatus, runSettleStatus,
 		req.ItemID, req.CampaignID, workerID)
 	if err != nil {
-		return err
+		return SubmitOutcome{}, err
 	}
 	aff, _ := res.RowsAffected()
 	if aff == 0 {
@@ -856,58 +879,42 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 			req.ItemID, req.CampaignID).Scan(&st, &owner)
 		switch st {
 		case "pending":
-			return fmt.Errorf("poolfuzz: work item not leased (claim first)")
+			return SubmitOutcome{}, fmt.Errorf("poolfuzz: work item not leased (claim first)")
 		case "leased":
 			if owner != "" && owner != workerID {
-				return fmt.Errorf("poolfuzz: work item leased by another worker")
+				return SubmitOutcome{}, fmt.Errorf("poolfuzz: work item leased by another worker")
 			}
-			return fmt.Errorf("poolfuzz: work item not leased by worker")
+			return SubmitOutcome{}, fmt.Errorf("poolfuzz: work item not leased by worker")
 		case "done", "cancelled":
 			// Already finished — still flush unsettled payment intents (PayRun may have failed earlier).
 		default:
 			if st == "" {
-				return fmt.Errorf("poolfuzz: work item not found")
+				return SubmitOutcome{}, fmt.Errorf("poolfuzz: work item not found")
 			}
 		}
 		if err := s.flushPendingSettles(ctx, req.CampaignID, req.ItemID, cfg); err != nil {
-			return err
+			return SubmitOutcome{}, err
 		}
 		completed, err := s.recomputeProgress(ctx, req.CampaignID, now)
 		if err != nil {
-			return err
+			return SubmitOutcome{}, err
 		}
 		if completed && s.Settler != nil && escrowEnabled(cfg) {
 			if _, err := s.Settler.Finalize(ctx, req.CampaignID, 0); err != nil {
-				return fmt.Errorf("poolfuzz: finalize escrow: %w", err)
+				return SubmitOutcome{}, fmt.Errorf("poolfuzz: finalize escrow: %w", err)
 			}
 		}
-		return nil
+		return SubmitOutcome{}, nil
 	}
-	if !isHunt {
-		if len(seg.ExecCoverage) > 0 {
-			if err := s.recordSegmentCoverage(ctx, req.CampaignID, inputN, cfg, seeds, seg, now); err != nil {
-				return err
-			}
-		} else if err := s.recordCoverage(ctx, req.CampaignID, cfg, req.ActualInput, req.InputBytes, nil, now); err != nil {
-			return err
+	if len(seg.ExecCoverage) > 0 {
+		if err := s.recordSegmentCoverage(ctx, req.CampaignID, inputN, cfg, seeds, seg, now); err != nil {
+			return SubmitOutcome{}, err
 		}
-		if err := s.observePoolCorpus(ctx, req.CampaignID, req.ActualInput, req.InputBytes, recordFinding, now); err != nil {
-			return err
-		}
-	} else {
-		if err := s.recordCoverage(ctx, req.CampaignID, cfg, req.ActualInput, req.InputBytes, nil, now); err != nil {
-			return err
-		}
-		if hunt.HuntCorpusGuided(cfg) {
-			obsU, obsB := req.ActualInput, req.InputBytes
-			if recordFinding && len(findingB) > 0 {
-				obsU = findingU
-				obsB = findingB
-			}
-			if err := s.observePoolCorpus(ctx, req.CampaignID, obsU, obsB, recordFinding, now); err != nil {
-				return err
-			}
-		}
+	} else if err := s.recordCoverage(ctx, req.CampaignID, cfg, req.ActualInput, req.InputBytes, nil, now); err != nil {
+		return SubmitOutcome{}, err
+	}
+	if err := s.observePoolCorpus(ctx, req.CampaignID, req.ActualInput, req.InputBytes, recordFinding, now); err != nil {
+		return SubmitOutcome{}, err
 	}
 	var findingSeverity string
 	var findingType string
@@ -915,9 +922,6 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 	if recordFinding {
 		submitReq := req
 		submitReq.ActualInput = findingU
-		if isHunt {
-			submitReq.InputOriginalLen = huntOrigLen
-		}
 		if len(findingB) > 0 {
 			submitReq.InputBytes = findingB
 		} else {
@@ -926,7 +930,7 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 		var err error
 		findingID, findingSeverity, findingType, err = s.insertFinding(ctx, submitReq, cfg, sem, hasWasm, now)
 		if err != nil {
-			return err
+			return SubmitOutcome{}, err
 		}
 	}
 	if wantRunSettle {
@@ -936,7 +940,7 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 				findingSeverity, req.ItemID, req.CampaignID)
 		}
 		if err := s.flushPendingSettles(ctx, req.CampaignID, req.ItemID, cfg); err != nil {
-			return err
+			return SubmitOutcome{}, err
 		}
 		// One-shot unique-crash micro-bonus (does not close the confirmed-native bounty).
 		// Crash-class only — detector/property noise must not skim the bonus pool.
@@ -946,21 +950,21 @@ func (s *Service) Submit(ctx context.Context, req SubmitRequest) error {
 				// already paid / depleted / closed are non-fatal for the submit path
 				low := strings.ToLower(err.Error())
 				if !strings.Contains(low, "already paid") && !strings.Contains(low, "depleted") && !strings.Contains(low, "closed") {
-					return fmt.Errorf("poolfuzz: settle crash bonus: %w", err)
+					return SubmitOutcome{}, fmt.Errorf("poolfuzz: settle crash bonus: %w", err)
 				}
 			}
 		}
 	}
 	completed, err := s.recomputeProgress(ctx, req.CampaignID, now)
 	if err != nil {
-		return err
+		return SubmitOutcome{}, err
 	}
 	if completed && s.Settler != nil && escrowEnabled(cfg) {
 		if _, err := s.Settler.Finalize(ctx, req.CampaignID, 0); err != nil {
-			return fmt.Errorf("poolfuzz: finalize escrow: %w", err)
+			return SubmitOutcome{}, fmt.Errorf("poolfuzz: finalize escrow: %w", err)
 		}
 	}
-	return nil
+	return SubmitOutcome{}, nil
 }
 
 // flushPendingSettles pays unsettled run/finding intents exactly once (idempotent status transitions).
@@ -1397,13 +1401,22 @@ func (s *Service) PoolStats(ctx context.Context) (map[string]any, error) {
 	_ = s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_campaigns WHERE status='running'`).Scan(&running)
 	_ = s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_work_items WHERE status='pending'`).Scan(&workPending)
 	_ = s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_work_items WHERE status='done'`).Scan(&workDone)
+	var replayPending int
+	_ = s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_work_items WHERE status=?`, workStatusReplayPending).Scan(&replayPending)
+	qPending, qProcessing, qFailed, _ := s.HuntReplayQueueStats(ctx)
 	return map[string]any{
-		"ok":                true,
-		"pool_fuzz":         true,
-		"campaigns_total":   campaigns,
-		"campaigns_running": running,
-		"work_pending":      workPending,
-		"work_done":         workDone,
+		"ok":                  true,
+		"pool_fuzz":           true,
+		"campaigns_total":     campaigns,
+		"campaigns_running":   running,
+		"work_pending":        workPending,
+		"work_done":           workDone,
+		"hunt_replay_pending": replayPending,
+		"hunt_replay_queue": map[string]any{
+			"pending":    qPending,
+			"processing": qProcessing,
+			"failed":     qFailed,
+		},
 	}, nil
 }
 

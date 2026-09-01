@@ -91,6 +91,9 @@ func migrateFuzzOnly(db *sql.DB) error {
 	if err := migrateHuntHarnessArtifacts(db); err != nil {
 		return err
 	}
+	if err := migrateFuzzHuntReplayQueue(db); err != nil {
+		return err
+	}
 	return bumpUserVersion(db)
 }
 
@@ -178,6 +181,9 @@ func migrate(db *sql.DB) error {
 		return err
 	}
 	if err := migrateHuntHarnessArtifacts(db); err != nil {
+		return err
+	}
+	if err := migrateFuzzHuntReplayQueue(db); err != nil {
 		return err
 	}
 	if err := migrateOrderFoundNonces(db); err != nil {

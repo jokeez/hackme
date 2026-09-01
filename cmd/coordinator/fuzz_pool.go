@@ -589,7 +589,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		if h := strings.TrimSpace(req.InputBytesHex); h != "" {
 			inputBytes, _ = hex.DecodeString(h)
 		}
-		if err := pf.Submit(r.Context(), poolfuzz.SubmitRequest{
+		out, err := pf.SubmitWithOutcome(r.Context(), poolfuzz.SubmitRequest{
 			WorkerID:        req.WorkerID,
 			MinerAddress:    payoutAddr,
 			WorkID:          req.WorkID,
@@ -602,7 +602,8 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			DurationMS:      req.DurationMS,
 			Trap:            strings.TrimSpace(req.Trap),
 			SegmentExecDone: req.SegmentExecDone,
-		}); err != nil {
+		})
+		if err != nil {
 			wm.markSubmitOutcome(req.WorkerID, ipKey, "fuzz_submit_failed", now)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -626,7 +627,42 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			wm.touchWorkerSeen(req.WorkerID)
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "accepted": true})
+		resp := map[string]any{"ok": true, "accepted": true}
+		if out.Async {
+			w.WriteHeader(http.StatusAccepted)
+			resp["async"] = true
+			resp["replay_status"] = out.ReplayStatus
+			if out.QueueID > 0 {
+				resp["queue_id"] = out.QueueID
+			}
+		}
+		_ = json.NewEncoder(w).Encode(resp)
+	})
+
+	mux.HandleFunc("/api/fuzz/work/replay-status", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		cid := strings.TrimSpace(r.URL.Query().Get("campaign_id"))
+		itemStr := strings.TrimSpace(r.URL.Query().Get("item_id"))
+		if cid == "" || itemStr == "" {
+			http.Error(w, "campaign_id and item_id required", http.StatusBadRequest)
+			return
+		}
+		itemID, err := strconv.ParseInt(itemStr, 10, 64)
+		if err != nil || itemID <= 0 {
+			http.Error(w, "invalid item_id", http.StatusBadRequest)
+			return
+		}
+		st, err := pf.HuntReplayStatus(r.Context(), cid, itemID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = json.NewEncoder(w).Encode(st)
 	})
 
 	mux.HandleFunc("/api/fuzz/pool/hunt/harness", func(w http.ResponseWriter, r *http.Request) {
@@ -695,6 +731,7 @@ func startPoolFuzzTicker(ctx context.Context, pf *poolfuzz.Service) {
 	if pf == nil {
 		return
 	}
+	poolfuzz.StartHuntReplayWorkers(ctx, pf)
 	go func() {
 		t := time.NewTicker(3 * time.Second)
 		defer t.Stop()
