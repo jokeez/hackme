@@ -60,12 +60,24 @@ if [[ "${IMPORT_ONLY:-0}" != "1" ]]; then
   export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=1:halt_on_error=1:allocator_may_return_null=1}"
   export UBSAN_OPTIONS="${UBSAN_OPTIONS:-halt_on_error=1}"
   log "run libFuzzer $TARGET wall=${WALL_SEC}s"
+  set +e
   "$BIN" "$CORPUS" \
     -max_total_time="$WALL_SEC" \
     -timeout=3 \
     -rss_limit_mb=2048 \
     -max_len=65536 \
     -print_final_stats=1
+  lf_rc=$?
+  set -e
+  shopt -s nullglob
+  corpus_n=("$CORPUS"/*)
+  if [[ "$lf_rc" -ne 0 ]]; then
+    if [[ "${#corpus_n[@]}" -eq 0 ]]; then
+      log "libFuzzer exit $lf_rc and no corpus files in $CORPUS"
+      exit "$lf_rc"
+    fi
+    log "libFuzzer exit $lf_rc (sanitizer stop ok) — corpus files=${#corpus_n[@]}"
+  fi
 fi
 
 shopt -s nullglob

@@ -5,6 +5,13 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 export HACKME_REPO_ROOT="$ROOT"
 
+GATE_LOCK="${GATE_LOCK:-/tmp/hackme-hunt-pool-gate.lock}"
+exec 9>"$GATE_LOCK"
+if ! flock -n 9; then
+  echo "[hunt-pool-gate] FAIL: another hunt_pool_smoke_gate is running (lock $GATE_LOCK)" >&2
+  exit 1
+fi
+
 if ! command -v clang >/dev/null 2>&1; then
   echo "[hunt-pool-gate] SKIP: clang not installed" >&2
   exit 0
@@ -17,8 +24,11 @@ echo "[hunt-pool-gate] prebuild harness"
 go test -count=1 ./internal/hunt -run TestEnsureHarnessBinaryCached -timeout 5m >/dev/null
 
 COORD_DB="${COORD_DB:-$(mktemp "${TMPDIR:-/tmp}/hackme-hunt-pool-gate.XXXXXX.db")}"
+FUZZ_DB="${FUZZ_DB:-$(mktemp "${TMPDIR:-/tmp}/hackme-hunt-pool-fuzz.XXXXXX.db")}"
 rm -f "$COORD_DB" "${COORD_DB}-wal" "${COORD_DB}-shm" 2>/dev/null || true
+rm -f "$FUZZ_DB" "${FUZZ_DB}-wal" "${FUZZ_DB}-shm" 2>/dev/null || true
 export HACKME_COORDINATOR_DB="$COORD_DB"
+export HACKME_COORDINATOR_FUZZ_DB="$FUZZ_DB"
 COORD_PORT="${COORD_PORT:-$((18200 + RANDOM % 800))}"
 export HACKME_COORDINATOR_ADDR="127.0.0.1:${COORD_PORT}"
 BASE="http://${HACKME_COORDINATOR_ADDR}"
@@ -27,21 +37,33 @@ export HACKME_COORDINATOR_ADMIN_TOKEN=""
 export HACKME_COORDINATOR_WORKER_TOKEN="hunt-pool-gate-worker"
 export HACKME_POOL_HYBRID_SIGNER_ENABLED=1
 export HACKME_POOL_HYBRID_SIGNER_STRICT=1
+export HACKME_COORDINATOR_WRITE_TIMEOUT_SEC="${HACKME_COORDINATOR_WRITE_TIMEOUT_SEC:-120}"
+export HACKME_POOL_HUNT_REPLAY_MAX_PARALLEL="${HACKME_POOL_HUNT_REPLAY_MAX_PARALLEL:-2}"
 
-echo "[hunt-pool-gate] start coordinator"
-go run ./cmd/coordinator &
+COORD_BIN="${COORD_BIN:-$ROOT/bin/hackme-coordinator-gate}"
+echo "[hunt-pool-gate] build coordinator → $COORD_BIN"
+go build -trimpath -o "$COORD_BIN" ./cmd/coordinator
+
+echo "[hunt-pool-gate] start coordinator on $HACKME_COORDINATOR_ADDR"
+"$COORD_BIN" &
 CPID=$!
 cleanup_gate() {
   kill "$CPID" 2>/dev/null || true
+  wait "$CPID" 2>/dev/null || true
   rm -f "$COORD_DB" "${COORD_DB}-wal" "${COORD_DB}-shm" 2>/dev/null || true
+  rm -f "$FUZZ_DB" "${FUZZ_DB}-wal" "${FUZZ_DB}-shm" 2>/dev/null || true
 }
 trap cleanup_gate EXIT
-for _ in $(seq 1 40); do
+for _ in $(seq 1 60); do
   if curl -fsS --max-time 2 "${BASE}/health" >/dev/null 2>&1; then
     break
   fi
   sleep 0.3
 done
+if ! curl -fsS --max-time 2 "${BASE}/health" >/dev/null 2>&1; then
+  echo "[hunt-pool-gate] FAIL: coordinator did not become healthy on $BASE" >&2
+  exit 1
+fi
 
 TARGET_ID="${HUNT_GATE_TARGET:-jsmn}"
 export TARGET_ID
@@ -100,9 +122,10 @@ export COORD_URL="$BASE"
 export COORD_TOKEN="$HACKME_COORDINATOR_WORKER_TOKEN"
 export WORKERFUZZ_TIMEOUT_MS="${WORKERFUZZ_TIMEOUT_MS:-120000}"
 echo "[hunt-pool-gate] run workerfuzz (timeout_ms=$WORKERFUZZ_TIMEOUT_MS)"
-WORKER_ID=hunt-w1 timeout 90s "$WORKERFUZZ_BIN" -coord "$BASE" -token "$HACKME_COORDINATOR_WORKER_TOKEN" -worker hunt-w1 -timeout-ms "$WORKERFUZZ_TIMEOUT_MS" || true
+GATE_WALL_SEC="${GATE_WALL_SEC:-120}"
+WORKER_ID=hunt-w1 timeout "$GATE_WALL_SEC"s "$WORKERFUZZ_BIN" -coord "$BASE" -token "$HACKME_COORDINATOR_WORKER_TOKEN" -worker hunt-w1 -timeout-ms "$WORKERFUZZ_TIMEOUT_MS" || true
 
-DONE="$(python3 - "$COORD_DB" "$MAIN_CID" <<'PY'
+DONE="$(python3 - "$FUZZ_DB" "$MAIN_CID" <<'PY'
 import sqlite3, sys
 db, cid = sys.argv[1], sys.argv[2]
 con = sqlite3.connect(db)

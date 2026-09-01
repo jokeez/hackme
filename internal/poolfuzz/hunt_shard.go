@@ -171,6 +171,11 @@ func (s *Service) evalHuntSubmitCheck(ctx context.Context, campaignID string, in
 	if targetID == "" {
 		return 0, "", false, false, nil, 0, fmt.Errorf("poolfuzz: hunt missing upstream_target_id")
 	}
+	release, err := acquireHuntReplaySlot(ctx)
+	if err != nil {
+		return 0, "", false, false, nil, 0, fmt.Errorf("poolfuzz: hunt replay slot: %w", err)
+	}
+	defer release()
 	maxB := fuzzengine.ParseMaxInputBytes(cfg)
 	if maxB <= 0 {
 		maxB = 4096

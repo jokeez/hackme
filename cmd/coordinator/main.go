@@ -205,7 +205,8 @@ func main() {
 	log.Printf("Work anti-abuse: claim_per_min=%d submit_per_min=%d bad_strikes_to_ban=%d ban_sec=%d",
 		wm.claimPerMin, wm.submitPerMin, wm.badStrikesToBan, wm.banSec)
 	readTO := envDurationSec("HACKME_COORDINATOR_READ_TIMEOUT_SEC", 60)
-	writeTO := envDurationSec("HACKME_COORDINATOR_WRITE_TIMEOUT_SEC", 120)
+	// Hunt submit replay can run 128×3s ASAN exec; keep above worst-case shard wall time.
+	writeTO := envDurationSec("HACKME_COORDINATOR_WRITE_TIMEOUT_SEC", 480)
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           mux,
