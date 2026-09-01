@@ -55,11 +55,11 @@ func huntReplayAsyncEnabled() bool {
 func huntReplayWorkerCount() int {
 	v := strings.TrimSpace(os.Getenv("HACKME_POOL_HUNT_REPLAY_WORKERS"))
 	if v == "" {
-		return 4
+		return 6
 	}
 	n, err := strconv.Atoi(v)
 	if err != nil || n < 1 {
-		return 4
+		return 6
 	}
 	if n > 32 {
 		return 32
