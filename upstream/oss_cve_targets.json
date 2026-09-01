@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-25",
+  "updated": "2026-09-01",
   "note": "Real upstream OSS CVE hunt — ASAN stdin drivers on cloned repos, not WASM excerpt guards",
   "defaults": {
     "budget_iterations": 60000,
@@ -870,6 +870,20 @@
       "priority": 1,
       "build_flags": ["-w"],
       "note": "wave32 — image decode from stb single-file"
+    },
+    {
+      "id": "spl",
+      "repo": "https://github.com/iacobucci/spl",
+      "ref": "master",
+      "title": "iacobucci/spl · JSON combinator parser (2026)",
+      "driver": "spl_stdin",
+      "upstream_src": ["ast.c", "json.c", "parser.c", "rule.c", "utils.c"],
+      "include_dirs": ["."],
+      "wasm_guard": "cjson_nest_guard",
+      "cwe": ["CWE-125", "CWE-787"],
+      "priority": 2,
+      "build_flags": ["-w"],
+      "note": "Hunt pilot — tiny new C parser combinator lib (~12★, Feb 2026)"
     }
   ],
   "rotation": {

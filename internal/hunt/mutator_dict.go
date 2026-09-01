@@ -14,7 +14,7 @@ var huntJSONTargets = map[string]struct{}{
 	"jsmn": {}, "cjson": {}, "parson": {}, "yyjson": {}, "jansson": {},
 	"centijson": {}, "cj5": {}, "mjson": {}, "sheredom": {}, "cfgpack": {},
 	"frozen": {}, "mpack": {}, "libcbor": {}, "tinycbor": {}, "jsonparser": {},
-	"json-c": {},
+	"json-c": {}, "spl": {},
 }
 
 var huntXMLTargets = map[string]struct{}{

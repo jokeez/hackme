@@ -98,6 +98,9 @@ web/site/reports/**/*-wip.html
 # Misc local scratch
 cuda-keyring*.deb
 /workerpoh-opencl
+# libFuzzer / sanitizer crash artifacts (never commit)
+/crash-*
+crash-*
 .cache/
 text123.txt
 tmp/
@@ -158,6 +161,30 @@ scripts/ops/pool_finale_run.sh
 scripts/ops/pool_ideal_*.sh
 scripts/ops/start_local_ideal_miner.sh
 scripts/ops/windows_run_ideal_worker.ps1
+
+# Desktop-local ops drafts (promote to tracked scripts/ops/ when ready for GitHub)
+scripts/ops/_*.sh
+scripts/ops/_*.py
+scripts/ops/tools/
+scripts/vast/
+scripts/build_immunefi_pack.sh
+scripts/build_warppool_fuzz_pack.sh
+scripts/check_hms_market_invariants.sh
+
+# Local desktop test packs (not CI; tracked gates live under scripts/tests/hunt_* etc.)
+scripts/tests/coordinator_mega_stress.sh
+scripts/tests/coordinator_memory_leak_spec.sh
+scripts/tests/coordinator_stress.env
+scripts/tests/mega_stress.sh
+scripts/tests/load_mega_suite.sh
+scripts/tests/maximum_resilience_gate.sh
+scripts/tests/mock_miners_load.sh
+scripts/tests/public_release_mega_pack.sh
+scripts/tests/run_ultimate_validation.sh
+scripts/tests/tools/coordinator_mega_stress.py
+scripts/tests/tools/coordinator_memory_leak_spec.py
+scripts/tests/tools/mega_stress_runner.py
+scripts/tests/tools/mock_miners_pool.py
 
 # External bounty invariant suites (Foundry) — keep local, not core HackMe
 bounty-lab/
