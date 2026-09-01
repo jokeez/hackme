@@ -140,6 +140,7 @@ func renderFuzzReportHTML(report map[string]any) string {
 		humanSummary = html.EscapeString(toString(sum["human_summary"]))
 	}
 	assurance := html.EscapeString(toString(report["assurance_note"]))
+	digDepthBlock := renderDigDepthBlock(report)
 	gateReasons := toStringSlice(gate["reasons"])
 	gateReasonHTML := ""
 	for _, r := range gateReasons {
@@ -253,6 +254,7 @@ a{color:#00d1ff}
 <p class="lbl">Human summary</p>
 <p class="human">%s</p>
 <p class="muted">%s</p>
+%s
 <p class="lbl" style="margin-top:1rem">Campaign</p>
 <p class="title">%s</p>
 <p class="muted">%s · %s · status %s</p>
@@ -310,6 +312,7 @@ a{color:#00d1ff}
 		verdictHTML,
 		humanSummary,
 		assurance,
+		digDepthBlock,
 		html.EscapeString(title),
 		html.EscapeString(toString(c["id"])),
 		html.EscapeString(toString(c["campaign_type"])),
@@ -551,7 +554,7 @@ Use repro blocks to replay inputs locally before external disclosure.</p></div>`
 	meta := ""
 	if m, ok := report["fuzz_engine"].(map[string]any); ok {
 		parts := []string{}
-		for _, k := range []string{"semantics", "sandbox", "worker", "check_semantics", "depth_tier", "input_mode", "max_input_bytes", "guard_pack", "version"} {
+		for _, k := range []string{"semantics", "sandbox", "worker", "check_semantics", "depth_tier", "input_mode", "max_input_bytes", "guard_pack", "version", "power_mut_cap", "dig_mutator_profile", "dig_depth_profile", "corpus_persist_namespace"} {
 			if v := strings.TrimSpace(toString(m[k])); v != "" {
 				parts = append(parts, k+"="+v)
 			}
@@ -561,4 +564,26 @@ Use repro blocks to replay inputs locally before external disclosure.</p></div>`
 		}
 	}
 	return scopeBlock + meta
+}
+
+func renderDigDepthBlock(report map[string]any) string {
+	m, ok := report["dig_depth"].(map[string]any)
+	if !ok || len(m) == 0 {
+		return ""
+	}
+	profile := html.EscapeString(toString(m["depth_profile"]))
+	pack := html.EscapeString(toString(m["guard_pack"]))
+	pkg := html.EscapeString(toString(m["package"]))
+	mut := html.EscapeString(toString(m["mutator_profile"]))
+	ns := html.EscapeString(toString(m["corpus_persist_ns"]))
+	return fmt.Sprintf(`<div class="card"><p class="lbl">Dig depth profile</p>
+<p><strong>%s</strong> · pack <code>%s</code></p>
+<p class="muted">%s</p>
+<p class="muted">mutator=%s · guided=%s · corpus_ns=%s · ext_seeds=%s · coverage=%s</p></div>`,
+		pkg, pack, profile, mut,
+		html.EscapeString(toString(m["guided_scheduling"])),
+		ns,
+		html.EscapeString(toString(m["external_seeds_merged"])),
+		html.EscapeString(toString(m["coverage_kind"])),
+	)
 }

@@ -2099,6 +2099,7 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 	}
 	assuranceNote := buildAssuranceNote(runsDone, crashCrit, crashHigh, "crash/hang/ASan/memory")
 	humanSummary := buildHumanSummaryLine(runsDone, edges, paths, crashCount, crashCrit)
+	digDepthCard := map[string]any(nil)
 	if strings.EqualFold(strings.TrimSpace(c.CampaignType), "hunt") {
 		critNote := "no ASAN crash-class"
 		if crashCrit > 0 {
@@ -2111,6 +2112,9 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 			humanSummary += fmt.Sprintf(" · %d sanitizer hygiene", hygieneCount)
 		}
 		assuranceNote = "Hunt report: pool-verified ASAN+UBSan+LSan shards on native harness. CLEAN means no qualifying native_crash in sample — not a CVE guarantee. UBSan/LSan rows are informational hygiene."
+	} else {
+		humanSummary = buildDigHumanSummary(c.Config, runsDone, edges, paths, crashCount, crashCrit)
+		digDepthCard = buildDigDepthCard(c.Config)
 	}
 	moneySpent := moneySpentFromCampaign(c)
 	if a.chain != nil {
@@ -2158,6 +2162,7 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 		"assurance_note":     assuranceNote,
 		"human_summary":      humanSummary,
 		"verdict_card":       verdictCard,
+		"dig_depth":          digDepthCard,
 		"target_fingerprint": fingerprint,
 		"baseline_diff":      baseline,
 		"gate": map[string]any{

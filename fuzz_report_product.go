@@ -353,6 +353,69 @@ func buildHumanSummaryLine(runsDone, edges, paths, crashCount, criticalCrash int
 	return fmt.Sprintf("%d runs · coverage %s · bugs/crashes %s · %s", runsDone, cov, bugs, critNote)
 }
 
+func buildDigHumanSummary(cfg map[string]any, runsDone, edges, paths, crashCount, criticalCrash int) string {
+	base := buildHumanSummaryLine(runsDone, edges, paths, crashCount, criticalCrash)
+	profile := strings.TrimSpace(cfgString(cfg, "dig_depth_profile"))
+	if profile == "" {
+		profile = fuzzingcli.DigDepthProfile(cfg, fuzzingcli.DigPackageFromDepthTier(fuzzengine.ParseDepthTier(cfg)), cfgString(cfg, "guard_pack"))
+	}
+	if profile != "" {
+		return base + " · " + profile
+	}
+	return base
+}
+
+func cfgString(cfg map[string]any, key string) string {
+	if cfg == nil {
+		return ""
+	}
+	v, ok := cfg[key]
+	if !ok || v == nil {
+		return ""
+	}
+	return strings.TrimSpace(fmt.Sprint(v))
+}
+
+func buildDigDepthCard(cfg map[string]any) map[string]any {
+	if cfg == nil {
+		return nil
+	}
+	pack := cfgString(cfg, "guard_pack")
+	pkg := fuzzingcli.DigPackageFromDepthTier(fuzzengine.ParseDepthTier(cfg))
+	return map[string]any{
+		"package":              fuzzingcli.B2BPackageDisplayName(pkg),
+		"guard_pack":           pack,
+		"depth_profile":        cfgString(cfg, "dig_depth_profile"),
+		"mutator_profile":      cfgString(cfg, "dig_mutator_profile"),
+		"power_mut_cap":        fuzzengine.PowerMutCap(cfg),
+		"mutation_rounds":      fuzzengine.MutationRounds(cfg),
+		"guided_scheduling":    fuzzengine.GuidedSchedulingEnabled(cfg),
+		"corpus_persist_ns":    fuzzengine.CorpusPersistNamespace(cfg),
+		"external_seeds_merged": intFromCfg(cfg, "dig_external_seeds_merged"),
+		"coverage_kind":        fuzzengine.CoverageKind(cfg),
+	}
+}
+
+func intFromCfg(cfg map[string]any, key string) int {
+	if cfg == nil {
+		return 0
+	}
+	v, ok := cfg[key]
+	if !ok || v == nil {
+		return 0
+	}
+	switch x := v.(type) {
+	case int:
+		return x
+	case int64:
+		return int(x)
+	case float64:
+		return int(x)
+	default:
+		return 0
+	}
+}
+
 func buildVerdictCard(runsDone, crashCount, criticalCrash int, gatePass bool, moneySpent float64) map[string]any {
 	gate := "FAIL"
 	if gatePass {

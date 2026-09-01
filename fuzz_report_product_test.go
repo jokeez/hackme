@@ -118,6 +118,17 @@ func TestBuildHumanSummaryAndVerdict(t *testing.T) {
 	if !strings.Contains(line, "1000 runs") || !strings.Contains(line, "no critical") {
 		t.Fatalf("bad summary: %s", line)
 	}
+	dig := buildDigHumanSummary(map[string]any{
+		"depth_tier":        "wasm_native",
+		"guard_pack":        "secrets",
+		"guided_scheduling": true,
+		"power_mut_cap":     8,
+		"mutation_rounds":     6,
+		"exec_per_unit":       64,
+	}, 256, 8, 3, 0, 0)
+	if !strings.Contains(dig, "Dig · Audit") || !strings.Contains(dig, "pack=secrets") {
+		t.Fatalf("dig summary=%s", dig)
+	}
 	card := buildVerdictCard(1000, 0, 0, true, 1.5)
 	if card["gate"] != "PASS" {
 		t.Fatalf("gate=%v", card["gate"])

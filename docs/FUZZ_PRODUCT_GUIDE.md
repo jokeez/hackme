@@ -16,6 +16,8 @@ CLI/API keys stay `scan` | `audit` | `deep`. Customer-facing names:
 | **Dig · Audit** | `audit` | ~5 | 256 | yes | Protocol guards, DeFi invariants |
 | **Dig · Deep** | `deep` | ~25 | 2048 | yes* | Byte corpus, hours-scale campaign |
 
+**Dig depth v2 (2026-09):** richer pack `mutator_dict` profiles, tier power scheduling (Audit **mut_cap≥8** · Deep **≥14**), optional external seeds in `.cache/dig-seeds/{pack}/`, cross-campaign corpus persist `pack:{id}`, and customer report `dig_depth` card + expanded `human_summary`.
+
 **Hunt** (repo + ASAN on pool, 50/50 escrow) — Phase 2 on `feature/hunt-mvp`:
 
 **Inventory languages (Phase 2.5):** **C and C++** — scan `LLVMFuzzerTestOneInput` in `.c/.cpp`, auto-compile sibling helpers in the same directory, `clang`/`clang++` + ASAN. CMake repos get `build_hints` (manual link flags may still be needed). **Rust/C#:** not in Hunt MVP — see [HUNT_VS_LIBFUZZER.md](HUNT_VS_LIBFUZZER.md).

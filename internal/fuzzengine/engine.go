@@ -272,7 +272,7 @@ func MetaFromConfig(cfg map[string]any) map[string]any {
 	if BountyRequiresNative(cfg) {
 		features = append(features, "bounty_requires_native")
 	}
-	return map[string]any{
+	meta := map[string]any{
 		"version":           Version,
 		"seed_count":        len(seeds),
 		"mutation_rounds":   MutationRounds(cfg),
@@ -286,8 +286,19 @@ func MetaFromConfig(cfg map[string]any) map[string]any {
 		"guard_pack":        strings.TrimSpace(toString(cfg["guard_pack"])),
 		"upstream_target":   UpstreamTarget(cfg),
 		"native_repro_mode": NativeReproMode(cfg),
+		"power_mut_cap":     PowerMutCap(cfg),
 		"features":          features,
 	}
+	if p := strings.TrimSpace(toString(cfg["dig_mutator_profile"])); p != "" {
+		meta["dig_mutator_profile"] = p
+	}
+	if p := strings.TrimSpace(toString(cfg["dig_depth_profile"])); p != "" {
+		meta["dig_depth_profile"] = p
+	}
+	if ns := CorpusPersistNamespace(cfg); ns != "" {
+		meta["corpus_persist_namespace"] = ns
+	}
+	return meta
 }
 
 func ClassifyCheckFail(input uint64, hasWasm bool, sem CheckSemantics) (findingType, severity, title string) {

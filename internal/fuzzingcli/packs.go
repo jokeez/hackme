@@ -365,14 +365,6 @@ func ApplyPackConfig(cfg map[string]any, p GuardPack) map[string]any {
 	if p.MutationRounds > 0 {
 		cfg["mutation_rounds"] = p.MutationRounds
 	}
-	switch p.ID {
-	case "secrets":
-		cfg["mutator_dict"] = []byte("AKIAghp_sk_live_xoxb-:latest|sh")
-	case "parser_expat":
-		cfg["mutator_dict"] = []byte("<>/!&CDATA<?xml\"'=")
-	case "filter_utf8":
-		cfg["mutator_dict"] = []byte("\xc7=\x80\xff!=<>")
-	}
 	cfg["stable_crash_buckets"] = true
 	cfg["corpus_persist"] = true
 	if strings.HasPrefix(p.ID, "parser_") {
@@ -387,6 +379,7 @@ func ApplyPackConfig(cfg map[string]any, p GuardPack) map[string]any {
 		}
 		cfg["coverage_kind"] = "input_fingerprint"
 	}
+	ApplyDigMutatorDict(cfg, p.ID)
 	return cfg
 }
 
