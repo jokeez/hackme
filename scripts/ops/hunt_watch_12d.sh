@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Hunt 12-day watch — sequential 24/7 batches (Hunt Standard, not libFuzzer).
 #
-#   DAY=1 bash scripts/ops/hunt_watch_12d.sh          # foreground
-#   DAY=1 bash scripts/ops/hunt_watch_12d.sh launch   # setsid background
+#   DAY=3 bash scripts/ops/hunt_watch_12d.sh launch   # start day 3, auto-chain 4…12
+#   CHAIN=0 DAY=3 bash scripts/ops/hunt_watch_12d.sh launch  # one day only
 #   bash scripts/ops/hunt_watch_12d.sh status
-#   bash scripts/ops/hunt_watch_12d.sh preflight      # driver + build gate
+#   bash scripts/ops/hunt_watch_12d.sh preflight
 #
+# After each day finishes, CHAIN=1 (default) launches DAY+1 until day 12.
 # Schedule: reports/hunt-watch/SCHEDULE.md
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -21,10 +22,12 @@ PIDFILE="$OUT/watch.pid"
 LOG="$OUT/launcher.log"
 
 # 3 targets × 8h wall = 24h per day (sequential ASAN).
+# ~150 exec/s × 8h ≈ 4.3M iter — use 5M so wall (not iter cap) stops the run.
 WALL_SEC="${WALL_SEC:-86400}"
-HUNT_ITER="${HUNT_ITER:-1000000}"
+HUNT_ITER="${HUNT_ITER:-5000000}"
 PKG="${PKG:-hunt_standard}"
 RUN_LIBFUZZER="${RUN_LIBFUZZER:-0}"
+CHAIN="${CHAIN:-1}"
 
 day_targets() {
   case "$DAY" in
@@ -61,13 +64,14 @@ preflight() {
 }
 
 run_batch() {
-  local targets
+  local targets rc=0
   targets="$(day_targets)"
   mkdir -p "$OUT"
   echo $$ >"$PIDFILE"
   {
-    echo "[hunt-watch $(date -u +%H:%M:%S)] DAY=$DAY stamp=$STAMP"
+    echo "[hunt-watch $(date -u +%H:%M:%S)] DAY=$DAY stamp=$STAMP chain=$CHAIN"
     echo "[hunt-watch] targets=$targets wall_total=${WALL_SEC}s iter=$HUNT_ITER pkg=$PKG"
+    set +e
     TARGETS="$targets" \
       PKG="$PKG" \
       HUNT_ITER="$HUNT_ITER" \
@@ -76,8 +80,33 @@ run_batch() {
       OUT="$OUT" \
       STAMP="$STAMP" \
       bash "$ROOT/scripts/ops/hunt_overnight_soak.sh"
-    echo "[hunt-watch $(date -u +%H:%M:%S)] DAY=$DAY DONE → $OUT/REPORT.md"
+    rc=$?
+    set -e
+    echo "[hunt-watch $(date -u +%H:%M:%S)] DAY=$DAY DONE rc=$rc → $OUT/REPORT.md"
   } >>"$LOG" 2>&1
+  return 0
+}
+
+chain_next() {
+  local next state
+  if [[ "$CHAIN" != "1" ]]; then
+    echo "[hunt-watch] CHAIN=0 — stop after DAY=$DAY"
+    return 0
+  fi
+  if [[ "$DAY" -ge 12 ]]; then
+    state="$ROOT/reports/hunt-watch/${SERIES}/SERIES_DONE"
+    mkdir -p "$(dirname "$state")"
+    echo "done $(date -u +%Y-%m-%dT%H:%M:%SZ) last_day=$DAY" >"$state"
+    echo "[hunt-watch] series complete (DAY=12) → $state"
+    return 0
+  fi
+  next=$((DAY + 1))
+  echo "[hunt-watch] chaining DAY=$next (CHAIN=1)"
+  unset STAMP OUT
+  DAY="$next" CHAIN=1 \
+    WALL_SEC="$WALL_SEC" HUNT_ITER="$HUNT_ITER" PKG="$PKG" \
+    RUN_LIBFUZZER="$RUN_LIBFUZZER" SERIES="$SERIES" \
+    bash "$0" launch
 }
 
 status() {
@@ -100,16 +129,20 @@ status() {
 
 case "$CMD" in
   preflight) preflight ;;
-  run)       preflight && run_batch ;;
+  run)
+    preflight
+    run_batch
+    chain_next
+    ;;
   launch)
     preflight
     mkdir -p "$OUT"
     setsid env \
-      DAY="$DAY" STAMP="$STAMP" OUT="$OUT" SERIES="$SERIES" \
+      DAY="$DAY" STAMP="$STAMP" OUT="$OUT" SERIES="$SERIES" CHAIN="$CHAIN" \
       WALL_SEC="$WALL_SEC" HUNT_ITER="$HUNT_ITER" PKG="$PKG" RUN_LIBFUZZER="$RUN_LIBFUZZER" \
       HACKME_REPO_ROOT="$ROOT" \
       bash "$0" run >>"$LOG" 2>&1 < /dev/null &
-    echo "[hunt-watch] launched DAY=$DAY pid=$! out=$OUT"
+    echo "[hunt-watch] launched DAY=$DAY pid=$! chain=$CHAIN out=$OUT"
     echo "[hunt-watch] tail -f $LOG"
     ;;
   status) status ;;
