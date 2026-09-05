@@ -1,0 +1,28 @@
+#ifndef CBOR_EXPORT_H
+#define CBOR_EXPORT_H
+
+#ifdef CBOR_STATIC_DEFINE
+#define CBOR_EXPORT
+#define CBOR_NO_EXPORT
+#else
+#ifndef CBOR_EXPORT
+#define CBOR_EXPORT
+#endif
+#ifndef CBOR_NO_EXPORT
+#define CBOR_NO_EXPORT
+#endif
+#endif
+
+#ifndef CBOR_DEPRECATED
+#define CBOR_DEPRECATED __attribute__((__deprecated__))
+#endif
+
+#ifndef CBOR_DEPRECATED_EXPORT
+#define CBOR_DEPRECATED_EXPORT CBOR_EXPORT CBOR_DEPRECATED
+#endif
+
+#ifndef CBOR_DEPRECATED_NO_EXPORT
+#define CBOR_DEPRECATED_NO_EXPORT CBOR_NO_EXPORT CBOR_DEPRECATED
+#endif
+
+#endif /* CBOR_EXPORT_H */

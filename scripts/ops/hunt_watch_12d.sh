@@ -87,8 +87,16 @@ run_batch() {
   return 0
 }
 
+export_rollup() {
+  if [[ -f "$ROOT/scripts/ops/export_hunt_watch_rollup.py" ]]; then
+    echo "[hunt-watch] export rollup SERIES=$SERIES"
+    SERIES="$SERIES" python3 "$ROOT/scripts/ops/export_hunt_watch_rollup.py" || true
+  fi
+}
+
 chain_next() {
   local next state
+  export_rollup
   if [[ "$CHAIN" != "1" ]]; then
     echo "[hunt-watch] CHAIN=0 — stop after DAY=$DAY"
     return 0
@@ -98,6 +106,7 @@ chain_next() {
     mkdir -p "$(dirname "$state")"
     echo "done $(date -u +%Y-%m-%dT%H:%M:%SZ) last_day=$DAY" >"$state"
     echo "[hunt-watch] series complete (DAY=12) → $state"
+    export_rollup
     return 0
   fi
   next=$((DAY + 1))

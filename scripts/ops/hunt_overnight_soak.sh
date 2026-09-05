@@ -83,6 +83,21 @@ log "=== Hunt overnight soak stamp=$STAMP ==="
 log "targets=$TARGETS package=$PKG hunt_iter=$HUNT_ITER wall_total=${WALL_SEC}s per_target=${PER_TARGET_WALL}s parallel=$PARALLEL libfuzzer=$RUN_LIBFUZZER"
 write_status "prebuild"
 
+# Fail closed if catalog targets lack stdin drivers (jsonparser soak lesson).
+log "preflight stdin drivers"
+missing=0
+for tid in "${TARGET_ARR[@]}"; do
+  driver="$ROOT/tasks/sources/fuzz/oss/${tid}_stdin.c"
+  if [[ ! -f "$driver" ]]; then
+    log "FAIL missing driver $driver"
+    missing=1
+  fi
+done
+if [[ "$missing" != "0" ]]; then
+  write_status "failed_preflight"
+  exit 1
+fi
+
 log "prebuild Hunt ASAN drivers"
 TARGETS="$TARGETS" bash "$ROOT/scripts/ops/build_oss_cve_pack.sh" >>"$OUT/build-hunt.log" 2>&1
 
