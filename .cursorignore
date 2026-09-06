@@ -1,0 +1,40 @@
+# Cursor: do not watch / search / index local junk.
+# The repo is ~41GB and ~800k files; without this the window hangs on open.
+
+.cache/
+dist/
+logs/
+tmp/
+data/
+reports/
+backups/
+bin/
+.deps/
+.venv-deploy/
+.sentry-native/
+.idea/
+.wip/
+.secrets/
+local_social_drafts/
+bounty-lab/
+adapters/
+upstream/
+tasks/artifacts/
+.git/cursor/
+
+# Built binaries at repo root
+/hackme
+/hackme-node
+/hackme-node-local-treasury
+/coordinator
+/workerpoh
+/workerfuzz
+/hackme-fuzzing
+/hmscoordinator
+/telegrambot
+/workerpoh-opencl
+*.exe
+*.log
+*.tar.gz
+*.zip
+*.iso
