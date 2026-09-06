@@ -53,11 +53,13 @@ preflight() {
   IFS=',' read -r -a arr <<< "$targets"
   echo "[hunt-watch] preflight DAY=$DAY targets=$targets"
   for tid in "${arr[@]}"; do
-    driver="$ROOT/tasks/sources/fuzz/oss/${tid}_stdin.c"
-    if [[ ! -f "$driver" ]]; then
-      echo "[hunt-watch] FAIL missing driver $driver" >&2
-      return 1
+    driver_c="$ROOT/tasks/sources/fuzz/oss/${tid}_stdin.c"
+    driver_rs="$ROOT/tasks/sources/fuzz/oss/${tid}_stdin.rs"
+    if [[ -f "$driver_c" || -f "$driver_rs" ]]; then
+      continue
     fi
+    echo "[hunt-watch] FAIL missing driver (expected ${tid}_stdin.c or ${tid}_stdin.rs)" >&2
+    return 1
   done
   TARGETS="$targets" bash "$ROOT/scripts/ops/build_oss_cve_pack.sh"
   echo "[hunt-watch] preflight PASS"

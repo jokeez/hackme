@@ -19,12 +19,14 @@ func ListCatalogTargets(repoRoot string, priorityMax int) ([]TargetSummary, erro
 		if priorityMax > 0 && t.Priority > priorityMax {
 			continue
 		}
+		lang := fuzzupstream.TargetLanguage(t)
 		out = append(out, TargetSummary{
 			ID:         t.ID,
 			Title:      t.Title,
 			Repo:       t.Repo,
 			Ref:        t.Ref,
 			Source:     "catalog",
+			Language:   lang,
 			Driver:     t.Driver,
 			WasmGuard:  t.WasmGuard,
 			CWE:        append([]string(nil), t.CWE...),

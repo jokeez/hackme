@@ -87,11 +87,13 @@ write_status "prebuild"
 log "preflight stdin drivers"
 missing=0
 for tid in "${TARGET_ARR[@]}"; do
-  driver="$ROOT/tasks/sources/fuzz/oss/${tid}_stdin.c"
-  if [[ ! -f "$driver" ]]; then
-    log "FAIL missing driver $driver"
-    missing=1
+  driver_c="$ROOT/tasks/sources/fuzz/oss/${tid}_stdin.c"
+  driver_rs="$ROOT/tasks/sources/fuzz/oss/${tid}_stdin.rs"
+  if [[ -f "$driver_c" || -f "$driver_rs" ]]; then
+    continue
   fi
+  log "FAIL missing driver (expected ${tid}_stdin.c or ${tid}_stdin.rs)"
+  missing=1
 done
 if [[ "$missing" != "0" ]]; then
   write_status "failed_preflight"
@@ -100,6 +102,13 @@ fi
 
 log "prebuild Hunt ASAN drivers"
 TARGETS="$TARGETS" bash "$ROOT/scripts/ops/build_oss_cve_pack.sh" >>"$OUT/build-hunt.log" 2>&1
+
+# Always rebuild bench so language/driver path changes (e.g. Rust .rs) are not shadowed by a stale bin/.
+HUNT_BENCH_BIN="${HUNT_BENCH_BIN:-$ROOT/bin/hunt-bench-local}"
+log "build hunt-bench-local → $HUNT_BENCH_BIN"
+mkdir -p "$(dirname "$HUNT_BENCH_BIN")"
+go build -trimpath -o "$HUNT_BENCH_BIN" ./scripts/tests/tools/hunt_bench_local.go
+export HUNT_BENCH_BIN
 
 build_libfuzzer_harness() {
   local tid="$1"
@@ -142,7 +151,8 @@ run_hunt_target() {
   local report="$OUT/hunt-report-${tid}.json"
   local bench="${HUNT_BENCH_BIN:-$ROOT/bin/hunt-bench-local}"
   if [[ ! -x "$bench" ]]; then
-    log "build hunt-bench-local"
+    log "build hunt-bench-local (fallback)"
+    mkdir -p "$(dirname "$bench")"
     go build -trimpath -o "$bench" ./scripts/tests/tools/hunt_bench_local.go
   fi
   log "Hunt local START $tid iter=$HUNT_ITER wall=${PER_TARGET_WALL}s"

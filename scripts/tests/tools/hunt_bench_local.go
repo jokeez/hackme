@@ -68,7 +68,7 @@ func main() {
 		stackKey := ""
 		for _, line := range strings.Split(c.Sanitizer, "\n") {
 			line = strings.TrimSpace(line)
-			if strings.Contains(line, ".c:") || strings.Contains(line, ".cpp:") {
+			if strings.Contains(line, ".c:") || strings.Contains(line, ".cpp:") || strings.Contains(line, ".rs:") {
 				stackKey = line
 				break
 			}
@@ -82,6 +82,7 @@ func main() {
 	result := map[string]any{
 		"engine":               "hunt_local",
 		"target":               *target,
+		"language":             rep.Language,
 		"hunt_package":         *pkg,
 		"iterations_per_shard": hunt.IterationsPerShardForPackage(*pkg),
 		"mutator_profile":      cfg["hunt_mutator_profile"],

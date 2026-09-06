@@ -35,17 +35,43 @@ type Defaults struct {
 
 // Target is one real upstream OSS fuzz profile.
 type Target struct {
-	ID          string   `json:"id"`
-	Repo        string   `json:"repo"`
-	Ref         string   `json:"ref"`
-	Title       string   `json:"title"`
-	Driver      string   `json:"driver"`
-	UpstreamSrc []string `json:"upstream_src"`
-	IncludeDirs []string `json:"include_dirs"`
-	WasmGuard   string   `json:"wasm_guard"`
-	CWE         []string `json:"cwe"`
-	Priority    int      `json:"priority"`
-	BuildFlags  []string `json:"build_flags,omitempty"`
+	ID           string   `json:"id"`
+	Repo         string   `json:"repo"`
+	Ref          string   `json:"ref"`
+	Title        string   `json:"title"`
+	Driver       string   `json:"driver"`
+	Language     string   `json:"language,omitempty"` // c (default) | rust
+	CargoPackage string   `json:"cargo_package,omitempty"` // Rust crate name for path dep (default: id)
+	UpstreamSrc  []string `json:"upstream_src"`
+	IncludeDirs  []string `json:"include_dirs"`
+	WasmGuard    string   `json:"wasm_guard"`
+	CWE          []string `json:"cwe"`
+	Priority     int      `json:"priority"`
+	BuildFlags   []string `json:"build_flags,omitempty"`
+	Note         string   `json:"note,omitempty"`
+}
+
+// TargetLanguage returns normalized language (c|rust). Empty defaults to c.
+func TargetLanguage(t Target) string {
+	lang := strings.ToLower(strings.TrimSpace(t.Language))
+	switch lang {
+	case "rust", "rs":
+		return "rust"
+	default:
+		return "c"
+	}
+}
+
+// DriverSourcePath resolves tasks/sources/fuzz/oss/<driver>.{c,rs}.
+func DriverSourcePath(repoRoot string, t Target) string {
+	if repoRoot == "" {
+		repoRoot = "."
+	}
+	ext := ".c"
+	if TargetLanguage(t) == "rust" {
+		ext = ".rs"
+	}
+	return filepath.Join(repoRoot, "tasks", "sources", "fuzz", "oss", t.Driver+ext)
 }
 
 // CrashFinding is a sanitizer crash on real upstream code.
@@ -73,6 +99,7 @@ type HuntReport struct {
 	TargetID   string         `json:"target_id"`
 	Title      string         `json:"title"`
 	Repo       string         `json:"repo"`
+	Language   string         `json:"language,omitempty"` // c | rust
 	Iterations int            `json:"iterations"`
 	ElapsedSec float64        `json:"elapsed_sec"`
 	Crashes    []CrashFinding `json:"crashes"`

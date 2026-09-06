@@ -12,6 +12,7 @@ import (
 
 const (
 	inventoryMarker     = "LLVMFuzzerTestOneInput"
+	inventoryMarkerRust = "fuzz_target!"
 	defaultMaxFiles     = 400
 	defaultMaxDepth     = 10
 	maxInventoryFileLen = 512 * 1024
@@ -57,7 +58,7 @@ func ScanInventory(repoRoot, rawPath string, maxFiles, maxDepth int) (*Inventory
 				}
 			}
 			name := d.Name()
-			if name == ".git" || name == "node_modules" || name == "vendor" || name == ".cache" {
+			if name == ".git" || name == "node_modules" || name == "vendor" || name == ".cache" || name == "target" {
 				return filepath.SkipDir
 			}
 			return nil
@@ -98,7 +99,7 @@ func ScanInventory(repoRoot, rawPath string, maxFiles, maxDepth int) (*Inventory
 		ScannedFiles: scanned,
 		Targets:      targets,
 		BuildHints:   detectInventoryBuildHints(root),
-		Disclaimer:   "Inventory lists files mentioning LLVMFuzzerTestOneInput — not a CVE guarantee.",
+		Disclaimer:   "Inventory lists files mentioning LLVMFuzzerTestOneInput / fuzz_target! — not a CVE guarantee.",
 	}, nil
 }
 
@@ -134,7 +135,7 @@ func resolveInventoryRoot(repoRoot, rawPath string) (string, error) {
 func isSourceFile(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
-	case ".c", ".cc", ".cpp", ".cxx", ".c++":
+	case ".c", ".cc", ".cpp", ".cxx", ".c++", ".rs":
 		return true
 	default:
 		return false
@@ -149,7 +150,13 @@ func fileHasFuzzEntry(path string) (bool, error) {
 	if len(b) > maxInventoryFileLen {
 		b = b[:maxInventoryFileLen]
 	}
-	return strings.Contains(string(b), inventoryMarker), nil
+	s := string(b)
+	for _, marker := range []string{inventoryMarker, inventoryMarkerRust, "libfuzzer_sys::fuzz_target", "libfuzzer_sys"} {
+		if strings.Contains(s, marker) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // fileHasMain reports standalone programs that must not be linked as companions.

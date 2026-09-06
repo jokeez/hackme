@@ -63,6 +63,9 @@ func BuildInventoryHarness(ctx context.Context, repoRoot string, req HarnessBuil
 	if err != nil {
 		return nil, err
 	}
+	if SourceLanguage(sourceRel) == "rust" {
+		return nil, fmt.Errorf("hunt build: Rust inventory auto-compile is catalog-only in Phase A — use OSS target language=rust (cargo +nightly ASAN) or build with cargo fuzz manually")
+	}
 	hasEntry := strings.Contains(string(content), inventoryMarker)
 	if !hasEntry && !req.TemplateAccept {
 		return nil, fmt.Errorf("hunt build: LLVMFuzzerTestOneInput missing — set template_accept=true (Hunt Standard)")

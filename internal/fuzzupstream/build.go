@@ -21,11 +21,18 @@ var buildMu sync.Mutex
 
 // BuildTarget clones upstream (if needed) and compiles ASAN stdin fuzz driver.
 func BuildTarget(ctx context.Context, repoRoot string, t Target) (binPath, clonePath string, err error) {
-	if _, err := exec.LookPath("clang"); err != nil {
-		return "", "", fmt.Errorf("fuzzupstream: clang required")
-	}
 	if repoRoot == "" {
 		repoRoot = "."
+	}
+	if TargetLanguage(t) == "rust" {
+		return buildTargetRust(ctx, repoRoot, t)
+	}
+	return buildTargetC(ctx, repoRoot, t)
+}
+
+func buildTargetC(ctx context.Context, repoRoot string, t Target) (binPath, clonePath string, err error) {
+	if _, err := exec.LookPath("clang"); err != nil {
+		return "", "", fmt.Errorf("fuzzupstream: clang required")
 	}
 	cacheDir := filepath.Join(repoRoot, ".cache", "oss-cve-clones")
 	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
@@ -38,7 +45,7 @@ func BuildTarget(ctx context.Context, repoRoot string, t Target) (binPath, clone
 	if err := injectOSSCveBuildStubs(repoRoot, t.ID, clonePath); err != nil {
 		return "", "", err
 	}
-	driverSrc := filepath.Join(repoRoot, "tasks", "sources", "fuzz", "oss", t.Driver+".c")
+	driverSrc := DriverSourcePath(repoRoot, t)
 	if _, err := os.Stat(driverSrc); err != nil {
 		return "", "", fmt.Errorf("fuzzupstream: driver %s: %w", driverSrc, err)
 	}
@@ -301,7 +308,12 @@ func buildTimeout(t Target) time.Duration {
 	switch t.ID {
 	case "libxml2", "duktape", "nghttp2":
 		return 300 * time.Second
+	case "serde_json", "memchr", "quick_xml":
+		return 600 * time.Second
 	default:
+		if TargetLanguage(t) == "rust" {
+			return 600 * time.Second
+		}
 		return 120 * time.Second
 	}
 }

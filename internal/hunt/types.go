@@ -25,7 +25,7 @@ type TargetSummary struct {
 	Source     string   `json:"source"` // catalog | inventory
 	Driver     string   `json:"driver,omitempty"`
 	Path       string   `json:"path,omitempty"`
-	Language   string   `json:"language,omitempty"` // c | cpp (inventory)
+	Language   string   `json:"language,omitempty"` // c | cpp | rust
 	WasmGuard  string   `json:"wasm_guard,omitempty"`
 	CWE        []string `json:"cwe,omitempty"`
 	Priority   int      `json:"priority,omitempty"`

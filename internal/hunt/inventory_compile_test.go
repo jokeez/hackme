@@ -15,6 +15,9 @@ func TestSourceLanguage(t *testing.T) {
 	if SourceLanguage("bar.cpp") != "cpp" {
 		t.Fatal("cpp")
 	}
+	if SourceLanguage("baz.rs") != "rust" {
+		t.Fatal("rust")
+	}
 }
 
 func TestCollectCompanionSourcesSkipsMain(t *testing.T) {

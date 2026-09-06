@@ -17,12 +17,14 @@ const (
 	maxCompanionBytes   = 2 * 1024 * 1024
 )
 
-// SourceLanguage returns "cpp" or "c" for inventory compile driver selection.
+// SourceLanguage returns "cpp", "rust", or "c" for inventory compile driver selection.
 func SourceLanguage(sourceRel string) string {
 	ext := strings.ToLower(filepath.Ext(strings.TrimSpace(sourceRel)))
 	switch ext {
 	case ".cc", ".cpp", ".cxx", ".c++":
 		return "cpp"
+	case ".rs":
+		return "rust"
 	default:
 		return "c"
 	}
@@ -242,8 +244,12 @@ func detectInventoryBuildHints(root string) []string {
 	if fileExists(filepath.Join(root, "Makefile")) || fileExists(filepath.Join(root, "GNUmakefile")) {
 		hints = append(hints, "makefile_present")
 	}
+	if fileExists(filepath.Join(root, "Cargo.toml")) {
+		hints = append(hints, "cargo_present")
+	}
 	cpp := 0
 	c := 0
+	rust := 0
 	depthLimit := 5
 	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -257,7 +263,7 @@ func detectInventoryBuildHints(root string) []string {
 				}
 			}
 			name := d.Name()
-			if name == ".git" || name == "node_modules" || name == "vendor" || name == ".cache" {
+			if name == ".git" || name == "node_modules" || name == "vendor" || name == ".cache" || name == "target" {
 				return filepath.SkipDir
 			}
 			return nil
@@ -265,9 +271,12 @@ func detectInventoryBuildHints(root string) []string {
 		if !isSourceFile(path) {
 			return nil
 		}
-		if SourceLanguage(path) == "cpp" {
+		switch SourceLanguage(path) {
+		case "cpp":
 			cpp++
-		} else {
+		case "rust":
+			rust++
+		default:
 			c++
 		}
 		return nil
@@ -277,6 +286,9 @@ func detectInventoryBuildHints(root string) []string {
 	}
 	if c > 0 {
 		hints = append(hints, "c_sources")
+	}
+	if rust > 0 {
+		hints = append(hints, "rust_sources")
 	}
 	if cpp > 0 && c > 0 {
 		hints = append(hints, "mixed_c_cpp")

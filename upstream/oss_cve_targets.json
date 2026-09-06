@@ -1,6 +1,6 @@
 {
-  "updated": "2026-09-01",
-  "note": "Real upstream OSS CVE hunt — ASAN stdin drivers on cloned repos, not WASM excerpt guards",
+  "updated": "2026-09-06",
+  "note": "Real upstream OSS CVE hunt \u2014 ASAN stdin drivers on cloned repos, not WASM excerpt guards",
   "defaults": {
     "budget_iterations": 60000,
     "time_limit_sec": 600,
@@ -33,245 +33,404 @@
     "<?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY x \"a\">]><foo>&x;</foo>",
     "(a+)+$",
     "GET / HTTP/1.1\r\nHost: example.com\r\n\r\n",
-    "\u001f\u008b\u0008\u0000"
+    "\u001f\u008b\b\u0000"
   ],
   "targets": [
     {
       "id": "md4c",
       "repo": "https://github.com/mity/md4c",
       "ref": "master",
-      "title": "mity/md4c · md_parse Markdown",
+      "title": "mity/md4c \u00b7 md_parse Markdown",
       "driver": "md4c_stdin",
-      "upstream_src": ["src/md4c.c"],
-      "include_dirs": ["src"],
+      "upstream_src": [
+        "src/md4c.c"
+      ],
+      "include_dirs": [
+        "src"
+      ],
       "wasm_guard": "md4c_fence_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1
     },
     {
       "id": "cjson",
       "repo": "https://github.com/DaveGamble/cJSON",
       "ref": "master",
-      "title": "DaveGamble/cJSON · cJSON_Parse",
+      "title": "DaveGamble/cJSON \u00b7 cJSON_Parse",
       "driver": "cjson_stdin",
-      "upstream_src": ["cJSON.c"],
-      "include_dirs": ["."],
+      "upstream_src": [
+        "cJSON.c"
+      ],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "cjson_nest_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1
     },
     {
       "id": "centijson",
       "repo": "https://github.com/mity/centijson",
       "ref": "master",
-      "title": "mity/centijson · JSON parse",
+      "title": "mity/centijson \u00b7 JSON parse",
       "driver": "centijson_stdin",
-      "upstream_src": ["src/json.c", "src/json-dom.c", "src/value.c"],
-      "include_dirs": ["src", "include"],
+      "upstream_src": [
+        "src/json.c",
+        "src/json-dom.c",
+        "src/value.c"
+      ],
+      "include_dirs": [
+        "src",
+        "include"
+      ],
       "wasm_guard": "centijson_nest_depth",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1
     },
     {
       "id": "jsmn",
       "repo": "https://github.com/zserge/jsmn",
       "ref": "master",
-      "title": "zserge/jsmn · jsmn_parse",
+      "title": "zserge/jsmn \u00b7 jsmn_parse",
       "driver": "jsmn_stdin",
       "upstream_src": [],
-      "include_dirs": ["."],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "jsmn_nest_depth",
-      "cwe": ["CWE-125"],
+      "cwe": [
+        "CWE-125"
+      ],
       "priority": 2
     },
     {
       "id": "mjson",
       "repo": "https://github.com/cesanta/mjson",
       "ref": "master",
-      "title": "cesanta/mjson · mjson_parse",
+      "title": "cesanta/mjson \u00b7 mjson_parse",
       "driver": "mjson_stdin",
-      "upstream_src": ["src/mjson.c"],
-      "include_dirs": ["src"],
+      "upstream_src": [
+        "src/mjson.c"
+      ],
+      "include_dirs": [
+        "src"
+      ],
       "wasm_guard": "mjson_token_guard",
-      "cwe": ["CWE-125"],
+      "cwe": [
+        "CWE-125"
+      ],
       "priority": 2
     },
     {
       "id": "yyjson",
       "repo": "https://github.com/ibireme/yyjson",
       "ref": "master",
-      "title": "ibireme/yyjson · yyjson_read",
+      "title": "ibireme/yyjson \u00b7 yyjson_read",
       "driver": "yyjson_stdin",
-      "upstream_src": ["src/yyjson.c"],
-      "include_dirs": ["src"],
+      "upstream_src": [
+        "src/yyjson.c"
+      ],
+      "include_dirs": [
+        "src"
+      ],
       "wasm_guard": "yyjson_nest_depth",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 2
     },
     {
       "id": "parson",
       "repo": "https://github.com/kgabis/parson",
       "ref": "master",
-      "title": "kgabis/parson · json_parse_string",
+      "title": "kgabis/parson \u00b7 json_parse_string",
       "driver": "parson_stdin",
-      "upstream_src": ["parson.c"],
-      "include_dirs": ["."],
+      "upstream_src": [
+        "parson.c"
+      ],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "parson_nest_guard",
-      "cwe": ["CWE-125"],
+      "cwe": [
+        "CWE-125"
+      ],
       "priority": 2
     },
     {
       "id": "inih",
       "repo": "https://github.com/benhoyt/inih",
       "ref": "master",
-      "title": "benhoyt/inih · ini_parse_string",
+      "title": "benhoyt/inih \u00b7 ini_parse_string",
       "driver": "inih_stdin",
-      "upstream_src": ["ini.c"],
-      "include_dirs": ["."],
+      "upstream_src": [
+        "ini.c"
+      ],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "inih_line_guard",
-      "cwe": ["CWE-125"],
+      "cwe": [
+        "CWE-125"
+      ],
       "priority": 3
     },
     {
       "id": "jansson",
       "repo": "https://github.com/akheron/jansson",
       "ref": "master",
-      "title": "akheron/jansson · json_loadb",
+      "title": "akheron/jansson \u00b7 json_loadb",
       "driver": "jansson_stdin",
-      "upstream_src": ["src/hashtable.c", "src/hashtable_seed.c", "src/load.c", "src/memory.c", "src/pack_unpack.c", "src/strbuffer.c", "src/strconv.c", "src/utf.c", "src/value.c", "src/dump.c", "src/error.c", "src/dtoa.c", "src/version.c"],
-      "include_dirs": ["src"],
+      "upstream_src": [
+        "src/hashtable.c",
+        "src/hashtable_seed.c",
+        "src/load.c",
+        "src/memory.c",
+        "src/pack_unpack.c",
+        "src/strbuffer.c",
+        "src/strconv.c",
+        "src/utf.c",
+        "src/value.c",
+        "src/dump.c",
+        "src/error.c",
+        "src/dtoa.c",
+        "src/version.c"
+      ],
+      "include_dirs": [
+        "src"
+      ],
       "wasm_guard": "jansson_nest_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 2,
-      "build_flags": ["-DHAVE_CONFIG_H"]
+      "build_flags": [
+        "-DHAVE_CONFIG_H"
+      ]
     },
     {
       "id": "tomlc99",
       "repo": "https://github.com/cktan/tomlc99",
       "ref": "master",
-      "title": "cktan/tomlc99 · toml_parse",
+      "title": "cktan/tomlc99 \u00b7 toml_parse",
       "driver": "tomlc99_stdin",
-      "upstream_src": ["toml.c"],
-      "include_dirs": ["."],
+      "upstream_src": [
+        "toml.c"
+      ],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "tomlc99_escape_guard",
-      "cwe": ["CWE-125"],
+      "cwe": [
+        "CWE-125"
+      ],
       "priority": 2
     },
     {
       "id": "sheredom",
       "repo": "https://github.com/sheredom/json.h",
       "ref": "main",
-      "title": "sheredom/json.h · json_parse",
+      "title": "sheredom/json.h \u00b7 json_parse",
       "driver": "sheredom_stdin",
       "upstream_src": [],
-      "include_dirs": ["."],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "sheredom_json_guard",
-      "cwe": ["CWE-125"],
+      "cwe": [
+        "CWE-125"
+      ],
       "priority": 3
     },
     {
       "id": "expat",
       "repo": "https://github.com/libexpat/libexpat",
       "ref": "master",
-      "title": "libexpat/libexpat · XML_Parse",
+      "title": "libexpat/libexpat \u00b7 XML_Parse",
       "driver": "expat_stdin",
-      "upstream_src": ["expat/lib/xmlparse.c", "expat/lib/xmltok.c", "expat/lib/xmlrole.c", "expat/lib/xmltok_impl.c", "expat/lib/xmltok_ns.c", "expat/lib/random_getrandom.c"],
-      "include_dirs": ["expat/lib"],
+      "upstream_src": [
+        "expat/lib/xmlparse.c",
+        "expat/lib/xmltok.c",
+        "expat/lib/xmlrole.c",
+        "expat/lib/xmltok_impl.c",
+        "expat/lib/xmltok_ns.c",
+        "expat/lib/random_getrandom.c"
+      ],
+      "include_dirs": [
+        "expat/lib"
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 2
     },
     {
       "id": "libucl",
       "repo": "https://github.com/vstakhov/libucl",
       "ref": "master",
-      "title": "vstakhov/libucl · ucl_parser",
+      "title": "vstakhov/libucl \u00b7 ucl_parser",
       "driver": "libucl_stdin",
-      "upstream_src": ["src/ucl_parser.c", "src/ucl_util.c", "src/ucl_hash.c", "src/ucl_schema.c", "src/ucl_emitter.c", "src/ucl_emitter_utils.c", "src/ucl_msgpack.c", "src/ucl_sexp.c"],
-      "include_dirs": ["include", "uthash", "klib", "src"],
+      "upstream_src": [
+        "src/ucl_parser.c",
+        "src/ucl_util.c",
+        "src/ucl_hash.c",
+        "src/ucl_schema.c",
+        "src/ucl_emitter.c",
+        "src/ucl_emitter_utils.c",
+        "src/ucl_msgpack.c",
+        "src/ucl_sexp.c"
+      ],
+      "include_dirs": [
+        "include",
+        "uthash",
+        "klib",
+        "src"
+      ],
       "wasm_guard": "libucl_brace_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 2,
-      "build_flags": ["-w"]
+      "build_flags": [
+        "-w"
+      ]
     },
     {
       "id": "cyaml",
       "repo": "https://github.com/andrewmd5/cyaml",
       "ref": "main",
-      "title": "andrewmd5/cyaml · cyaml_parse",
+      "title": "andrewmd5/cyaml \u00b7 cyaml_parse",
       "driver": "cyaml_stdin",
-      "upstream_src": ["src/cyaml.c", "src/cyaml_parser.c", "src/cyaml_emitter.c", "src/cyaml_events.c", "src/cyaml_json.c", "src/cyaml_modify.c", "src/cyaml_path.c", "src/cyaml_utf8.c"],
-      "include_dirs": ["src"],
+      "upstream_src": [
+        "src/cyaml.c",
+        "src/cyaml_parser.c",
+        "src/cyaml_emitter.c",
+        "src/cyaml_events.c",
+        "src/cyaml_json.c",
+        "src/cyaml_modify.c",
+        "src/cyaml_path.c",
+        "src/cyaml_utf8.c"
+      ],
+      "include_dirs": [
+        "src"
+      ],
       "wasm_guard": "cyaml_anchor_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 2
     },
     {
       "id": "tomlc17",
       "repo": "https://github.com/cktan/tomlc17",
       "ref": "main",
-      "title": "cktan/tomlc17 · toml_parse",
+      "title": "cktan/tomlc17 \u00b7 toml_parse",
       "driver": "tomlc17_stdin",
-      "upstream_src": ["src/tomlc17.c"],
-      "include_dirs": ["src"],
+      "upstream_src": [
+        "src/tomlc17.c"
+      ],
+      "include_dirs": [
+        "src"
+      ],
       "wasm_guard": "tomlc17_mlstring_guard",
-      "cwe": ["CWE-125"],
+      "cwe": [
+        "CWE-125"
+      ],
       "priority": 2
     },
     {
       "id": "parsello",
       "repo": "https://github.com/icebreaker/parsello",
       "ref": "master",
-      "title": "icebreaker/parsello · prs_parse",
+      "title": "icebreaker/parsello \u00b7 prs_parse",
       "driver": "parsello_stdin",
       "upstream_src": [],
-      "include_dirs": ["src"],
+      "include_dirs": [
+        "src"
+      ],
       "wasm_guard": "parsello_quote_guard",
-      "cwe": ["CWE-125"],
+      "cwe": [
+        "CWE-125"
+      ],
       "priority": 3
     },
     {
       "id": "cfgpack",
       "repo": "https://github.com/Arsievert/cfgpack",
       "ref": "main",
-      "title": "Arsievert/cfgpack · msgpack decode",
+      "title": "Arsievert/cfgpack \u00b7 msgpack decode",
       "driver": "cfgpack_stdin",
-      "upstream_src": ["src/msgpack.c", "src/wbuf.c"],
-      "include_dirs": ["include"],
+      "upstream_src": [
+        "src/msgpack.c",
+        "src/wbuf.c"
+      ],
+      "include_dirs": [
+        "include"
+      ],
       "wasm_guard": "cfgpack_msgpack_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 2,
-      "build_flags": ["-w"]
+      "build_flags": [
+        "-w"
+      ]
     },
     {
       "id": "cj5",
       "repo": "https://github.com/septag/cj5",
       "ref": "master",
-      "title": "septag/cj5 · cj5_parse JSON5",
+      "title": "septag/cj5 \u00b7 cj5_parse JSON5",
       "driver": "cj5_stdin",
       "upstream_src": [],
-      "include_dirs": ["."],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "cj5_json5_guard",
-      "cwe": ["CWE-125"],
+      "cwe": [
+        "CWE-125"
+      ],
       "priority": 2
     },
     {
       "id": "libconfini",
       "repo": "https://github.com/madmurphy/libconfini",
       "ref": "master",
-      "title": "madmurphy/libconfini · strip_ini_cache",
+      "title": "madmurphy/libconfini \u00b7 strip_ini_cache",
       "driver": "libconfini_stdin",
-      "upstream_src": ["src/confini.c"],
-      "include_dirs": ["src"],
+      "upstream_src": [
+        "src/confini.c"
+      ],
+      "include_dirs": [
+        "src"
+      ],
       "wasm_guard": "libconfini_section_guard",
-      "cwe": ["CWE-125"],
+      "cwe": [
+        "CWE-125"
+      ],
       "priority": 3
     },
     {
       "id": "yajl",
       "repo": "https://github.com/lloyd/yajl",
       "ref": "master",
-      "title": "lloyd/yajl · yajl_parse",
+      "title": "lloyd/yajl \u00b7 yajl_parse",
       "driver": "yajl_stdin",
       "upstream_src": [
         "src/yajl.c",
@@ -283,17 +442,25 @@
         "src/yajl_gen.c",
         "src/yajl_tree.c"
       ],
-      "include_dirs": ["tasks/sources/fuzz/oss/yajl-include", "src"],
+      "include_dirs": [
+        "tasks/sources/fuzz/oss/yajl-include",
+        "src"
+      ],
       "wasm_guard": "yajl_parse_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-w"]
+      "build_flags": [
+        "-w"
+      ]
     },
     {
       "id": "json-c",
       "repo": "https://github.com/json-c/json-c",
       "ref": "master",
-      "title": "json-c/json-c · json_tokener_parse",
+      "title": "json-c/json-c \u00b7 json_tokener_parse",
       "driver": "json_c_stdin",
       "upstream_src": [
         "arraylist.c",
@@ -312,17 +479,25 @@
         "random_seed.c",
         "strerror_override.c"
       ],
-      "include_dirs": ["tasks/sources/fuzz/oss/json-c-config", "."],
+      "include_dirs": [
+        "tasks/sources/fuzz/oss/json-c-config",
+        "."
+      ],
       "wasm_guard": "cjson_nest_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-w"]
+      "build_flags": [
+        "-w"
+      ]
     },
     {
       "id": "libyaml",
       "repo": "https://github.com/yaml/libyaml",
       "ref": "master",
-      "title": "yaml/libyaml · yaml_parser_parse",
+      "title": "yaml/libyaml \u00b7 yaml_parser_parse",
       "driver": "libyaml_stdin",
       "upstream_src": [
         "src/api.c",
@@ -334,17 +509,26 @@
         "src/scanner.c",
         "src/writer.c"
       ],
-      "include_dirs": ["include", "src"],
+      "include_dirs": [
+        "include",
+        "src"
+      ],
       "wasm_guard": "cyaml_anchor_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-DHAVE_CONFIG_H", "-w"]
+      "build_flags": [
+        "-DHAVE_CONFIG_H",
+        "-w"
+      ]
     },
     {
       "id": "cmark",
       "repo": "https://github.com/commonmark/cmark",
       "ref": "master",
-      "title": "commonmark/cmark · cmark_parse_document",
+      "title": "commonmark/cmark \u00b7 cmark_parse_document",
       "driver": "cmark_stdin",
       "upstream_src": [
         "src/blocks.c",
@@ -367,17 +551,25 @@
         "src/utf8.c",
         "src/xml.c"
       ],
-      "include_dirs": ["tasks/sources/fuzz/oss/cmark-config", "src"],
+      "include_dirs": [
+        "tasks/sources/fuzz/oss/cmark-config",
+        "src"
+      ],
       "wasm_guard": "md4c_fence_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-w"]
+      "build_flags": [
+        "-w"
+      ]
     },
     {
       "id": "yajl-210",
       "repo": "https://github.com/lloyd/yajl",
       "ref": "2.1.0",
-      "title": "lloyd/yajl@2.1.0 · yajl_parse+tree (pre-patch)",
+      "title": "lloyd/yajl@2.1.0 \u00b7 yajl_parse+tree (pre-patch)",
       "driver": "yajl_stdin",
       "upstream_src": [
         "src/yajl.c",
@@ -390,17 +582,25 @@
         "src/yajl_tree.c",
         "src/yajl_version.c"
       ],
-      "include_dirs": ["tasks/sources/fuzz/oss/yajl-include", "src"],
+      "include_dirs": [
+        "tasks/sources/fuzz/oss/yajl-include",
+        "src"
+      ],
       "wasm_guard": "yajl_parse_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-w"]
+      "build_flags": [
+        "-w"
+      ]
     },
     {
       "id": "mxml",
       "repo": "https://github.com/michaelrsweet/mxml",
       "ref": "master",
-      "title": "michaelrsweet/mxml · mxmlLoadString",
+      "title": "michaelrsweet/mxml \u00b7 mxmlLoadString",
       "driver": "mxml_stdin",
       "upstream_src": [
         "mxml-attr.c",
@@ -413,42 +613,69 @@
         "mxml-search.c",
         "mxml-set.c"
       ],
-      "include_dirs": ["tasks/sources/fuzz/oss/mxml-config", "."],
+      "include_dirs": [
+        "tasks/sources/fuzz/oss/mxml-config",
+        "."
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-w"]
+      "build_flags": [
+        "-w"
+      ]
     },
     {
       "id": "picohttpparser",
       "repo": "https://github.com/h2o/picohttpparser",
       "ref": "master",
-      "title": "h2o/picohttpparser · phr_parse_request",
+      "title": "h2o/picohttpparser \u00b7 phr_parse_request",
       "driver": "picohttpparser_stdin",
-      "upstream_src": ["picohttpparser.c"],
-      "include_dirs": ["."],
+      "upstream_src": [
+        "picohttpparser.c"
+      ],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1
     },
     {
       "id": "miniz",
       "repo": "https://github.com/richgel999/miniz",
       "ref": "master",
-      "title": "richgel999/miniz · mz_uncompress/tinfl",
+      "title": "richgel999/miniz \u00b7 mz_uncompress/tinfl",
       "driver": "miniz_stdin",
-      "upstream_src": ["miniz.c", "miniz_tinfl.c", "miniz_tdef.c"],
-      "include_dirs": ["tasks/sources/fuzz/oss/miniz-config", "."],
+      "upstream_src": [
+        "miniz.c",
+        "miniz_tinfl.c",
+        "miniz_tdef.c"
+      ],
+      "include_dirs": [
+        "tasks/sources/fuzz/oss/miniz-config",
+        "."
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-w"]
+      "build_flags": [
+        "-w"
+      ]
     },
     {
       "id": "oniguruma",
       "repo": "https://github.com/kkos/oniguruma",
       "ref": "master",
-      "title": "kkos/oniguruma · onig_match",
+      "title": "kkos/oniguruma \u00b7 onig_match",
       "driver": "oniguruma_stdin",
       "upstream_src": [
         "src/regparse.c",
@@ -500,264 +727,523 @@
         "src/cp1251.c",
         "src/onig_init.c"
       ],
-      "include_dirs": ["src"],
+      "include_dirs": [
+        "src"
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-w"]
+      "build_flags": [
+        "-w"
+      ]
     },
     {
       "id": "zlib",
       "repo": "https://github.com/madler/zlib",
       "ref": "master",
-      "title": "madler/zlib · inflate/uncompress",
+      "title": "madler/zlib \u00b7 inflate/uncompress",
       "driver": "zlib_stdin",
-      "upstream_src": ["adler32.c", "crc32.c", "inflate.c", "inftrees.c", "inffast.c", "zutil.c", "uncompr.c"],
-      "include_dirs": ["."],
+      "upstream_src": [
+        "adler32.c",
+        "crc32.c",
+        "inflate.c",
+        "inftrees.c",
+        "inffast.c",
+        "zutil.c",
+        "uncompr.c"
+      ],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1
     },
     {
       "id": "lua",
       "repo": "https://github.com/lua/lua",
       "ref": "master",
-      "title": "lua/lua · luaL_loadbuffer",
+      "title": "lua/lua \u00b7 luaL_loadbuffer",
       "driver": "lua_stdin",
       "upstream_src": [
-        "lapi.c", "lcode.c", "lctype.c", "ldebug.c", "ldo.c", "ldump.c", "lfunc.c", "lgc.c",
-        "llex.c", "lmem.c", "lobject.c", "lopcodes.c", "lparser.c", "lstate.c", "lstring.c",
-        "ltable.c", "ltm.c", "lundump.c", "lvm.c", "lzio.c",
-        "lauxlib.c", "lbaselib.c", "ldblib.c", "liolib.c", "lmathlib.c", "loslib.c",
-        "ltablib.c", "lstrlib.c", "lutf8lib.c", "loadlib.c", "lcorolib.c", "linit.c"
+        "lapi.c",
+        "lcode.c",
+        "lctype.c",
+        "ldebug.c",
+        "ldo.c",
+        "ldump.c",
+        "lfunc.c",
+        "lgc.c",
+        "llex.c",
+        "lmem.c",
+        "lobject.c",
+        "lopcodes.c",
+        "lparser.c",
+        "lstate.c",
+        "lstring.c",
+        "ltable.c",
+        "ltm.c",
+        "lundump.c",
+        "lvm.c",
+        "lzio.c",
+        "lauxlib.c",
+        "lbaselib.c",
+        "ldblib.c",
+        "liolib.c",
+        "lmathlib.c",
+        "loslib.c",
+        "ltablib.c",
+        "lstrlib.c",
+        "lutf8lib.c",
+        "loadlib.c",
+        "lcorolib.c",
+        "linit.c"
       ],
-      "include_dirs": ["."],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-w"]
+      "build_flags": [
+        "-w"
+      ]
     },
     {
       "id": "quickjs",
       "repo": "https://github.com/bellard/quickjs",
       "ref": "master",
-      "title": "bellard/quickjs · JS_Eval",
+      "title": "bellard/quickjs \u00b7 JS_Eval",
       "driver": "quickjs_stdin",
-      "upstream_src": ["quickjs.c", "cutils.c", "dtoa.c", "libregexp.c", "libunicode.c"],
-      "include_dirs": ["."],
+      "upstream_src": [
+        "quickjs.c",
+        "cutils.c",
+        "dtoa.c",
+        "libregexp.c",
+        "libunicode.c"
+      ],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-DCONFIG_VERSION=\"fuzz\"", "-w"]
+      "build_flags": [
+        "-DCONFIG_VERSION=\"fuzz\"",
+        "-w"
+      ]
     },
     {
       "id": "pcre2",
       "repo": "https://github.com/PCRE2Project/pcre2",
       "ref": "main",
-      "title": "PCRE2Project/pcre2 · pcre2_compile/match",
+      "title": "PCRE2Project/pcre2 \u00b7 pcre2_compile/match",
       "driver": "pcre2_stdin",
       "upstream_src": [
         "src/pcre2_chartables.c",
-        "src/pcre2_auto_possess.c", "src/pcre2_chkdint.c", "src/pcre2_compile.c",
-        "src/pcre2_compile_cgroup.c", "src/pcre2_compile_class.c", "src/pcre2_config.c",
-        "src/pcre2_context.c", "src/pcre2_convert.c", "src/pcre2_dfa_match.c", "src/pcre2_error.c",
-        "src/pcre2_extuni.c", "src/pcre2_find_bracket.c", "src/pcre2_jit_compile.c",
-        "src/pcre2_maketables.c", "src/pcre2_match.c", "src/pcre2_match_data.c",
-        "src/pcre2_match_next.c", "src/pcre2_newline.c", "src/pcre2_ord2utf.c",
-        "src/pcre2_pattern_info.c", "src/pcre2_script_run.c", "src/pcre2_serialize.c",
-        "src/pcre2_string_utils.c", "src/pcre2_study.c", "src/pcre2_substitute.c",
-        "src/pcre2_substring.c", "src/pcre2_tables.c", "src/pcre2_ucd.c",
-        "src/pcre2_valid_utf.c", "src/pcre2_xclass.c"
+        "src/pcre2_auto_possess.c",
+        "src/pcre2_chkdint.c",
+        "src/pcre2_compile.c",
+        "src/pcre2_compile_cgroup.c",
+        "src/pcre2_compile_class.c",
+        "src/pcre2_config.c",
+        "src/pcre2_context.c",
+        "src/pcre2_convert.c",
+        "src/pcre2_dfa_match.c",
+        "src/pcre2_error.c",
+        "src/pcre2_extuni.c",
+        "src/pcre2_find_bracket.c",
+        "src/pcre2_jit_compile.c",
+        "src/pcre2_maketables.c",
+        "src/pcre2_match.c",
+        "src/pcre2_match_data.c",
+        "src/pcre2_match_next.c",
+        "src/pcre2_newline.c",
+        "src/pcre2_ord2utf.c",
+        "src/pcre2_pattern_info.c",
+        "src/pcre2_script_run.c",
+        "src/pcre2_serialize.c",
+        "src/pcre2_string_utils.c",
+        "src/pcre2_study.c",
+        "src/pcre2_substitute.c",
+        "src/pcre2_substring.c",
+        "src/pcre2_tables.c",
+        "src/pcre2_ucd.c",
+        "src/pcre2_valid_utf.c",
+        "src/pcre2_xclass.c"
       ],
-      "include_dirs": ["tasks/sources/fuzz/oss/pcre2-config", "src"],
+      "include_dirs": [
+        "tasks/sources/fuzz/oss/pcre2-config",
+        "src"
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-DPCRE2_CODE_UNIT_WIDTH=8", "-DHAVE_CONFIG_H", "-w"]
+      "build_flags": [
+        "-DPCRE2_CODE_UNIT_WIDTH=8",
+        "-DHAVE_CONFIG_H",
+        "-w"
+      ]
     },
     {
       "id": "nghttp2",
       "repo": "https://github.com/nghttp2/nghttp2",
       "ref": "master",
-      "title": "nghttp2/nghttp2 · session mem_recv",
+      "title": "nghttp2/nghttp2 \u00b7 session mem_recv",
       "driver": "nghttp2_stdin",
       "upstream_src": [
-        "lib/nghttp2_buf.c", "lib/nghttp2_callbacks.c", "lib/nghttp2_debug.c", "lib/nghttp2_extpri.c",
-        "lib/nghttp2_frame.c", "lib/nghttp2_hd.c", "lib/nghttp2_hd_huffman.c", "lib/nghttp2_hd_huffman_data.c",
-        "lib/nghttp2_helper.c", "lib/nghttp2_http.c", "lib/nghttp2_map.c", "lib/nghttp2_mem.c",
-        "lib/nghttp2_alpn.c", "lib/nghttp2_option.c", "lib/nghttp2_outbound_item.c", "lib/nghttp2_pq.c",
-        "lib/nghttp2_priority_spec.c", "lib/nghttp2_queue.c", "lib/nghttp2_ratelim.c", "lib/nghttp2_rcbuf.c",
-        "lib/nghttp2_session.c", "lib/nghttp2_stream.c", "lib/nghttp2_submit.c", "lib/nghttp2_version.c",
-        "lib/sfparse.c", "lib/nghttp2_time.c"
+        "lib/nghttp2_buf.c",
+        "lib/nghttp2_callbacks.c",
+        "lib/nghttp2_debug.c",
+        "lib/nghttp2_extpri.c",
+        "lib/nghttp2_frame.c",
+        "lib/nghttp2_hd.c",
+        "lib/nghttp2_hd_huffman.c",
+        "lib/nghttp2_hd_huffman_data.c",
+        "lib/nghttp2_helper.c",
+        "lib/nghttp2_http.c",
+        "lib/nghttp2_map.c",
+        "lib/nghttp2_mem.c",
+        "lib/nghttp2_alpn.c",
+        "lib/nghttp2_option.c",
+        "lib/nghttp2_outbound_item.c",
+        "lib/nghttp2_pq.c",
+        "lib/nghttp2_priority_spec.c",
+        "lib/nghttp2_queue.c",
+        "lib/nghttp2_ratelim.c",
+        "lib/nghttp2_rcbuf.c",
+        "lib/nghttp2_session.c",
+        "lib/nghttp2_stream.c",
+        "lib/nghttp2_submit.c",
+        "lib/nghttp2_version.c",
+        "lib/sfparse.c",
+        "lib/nghttp2_time.c"
       ],
-      "include_dirs": ["lib/includes", "lib", "tasks/sources/fuzz/oss/nghttp2-config"],
+      "include_dirs": [
+        "lib/includes",
+        "lib",
+        "tasks/sources/fuzz/oss/nghttp2-config"
+      ],
       "wasm_guard": "picohttp_header_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-D_GNU_SOURCE", "-DHAVE_CONFIG_H", "-DNGHTTP2_STATICLIB", "-w"]
+      "build_flags": [
+        "-D_GNU_SOURCE",
+        "-DHAVE_CONFIG_H",
+        "-DNGHTTP2_STATICLIB",
+        "-w"
+      ]
     },
     {
       "id": "libxml2",
       "repo": "https://github.com/GNOME/libxml2",
       "ref": "master",
-      "title": "GNOME/libxml2 · xmlReadMemory",
+      "title": "GNOME/libxml2 \u00b7 xmlReadMemory",
       "driver": "libxml2_stdin",
       "upstream_src": [
-        "buf.c", "chvalid.c", "dict.c", "entities.c", "encoding.c", "error.c", "globals.c", "hash.c", "list.c",
-        "parser.c", "parserInternals.c", "SAX2.c", "threads.c", "tree.c", "uri.c", "valid.c", "xmlIO.c",
-        "xmlmemory.c", "xmlstring.c"
+        "buf.c",
+        "chvalid.c",
+        "dict.c",
+        "entities.c",
+        "encoding.c",
+        "error.c",
+        "globals.c",
+        "hash.c",
+        "list.c",
+        "parser.c",
+        "parserInternals.c",
+        "SAX2.c",
+        "threads.c",
+        "tree.c",
+        "uri.c",
+        "valid.c",
+        "xmlIO.c",
+        "xmlmemory.c",
+        "xmlstring.c"
       ],
-      "include_dirs": ["include", "."],
+      "include_dirs": [
+        "include",
+        "."
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-DLIBXML_STATIC", "-w"]
+      "build_flags": [
+        "-DLIBXML_STATIC",
+        "-w"
+      ]
     },
     {
       "id": "duktape",
       "repo": "https://github.com/svaarala/duktape",
       "ref": "v2.7.0",
-      "title": "svaarala/duktape · duk_pcompile",
+      "title": "svaarala/duktape \u00b7 duk_pcompile",
       "driver": "duktape_stdin",
-      "upstream_src": ["src/duktape.c"],
-      "include_dirs": ["src"],
+      "upstream_src": [
+        "src/duktape.c"
+      ],
+      "include_dirs": [
+        "src"
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-w"]
+      "build_flags": [
+        "-w"
+      ]
     },
     {
       "id": "cmp",
       "repo": "https://github.com/camgunz/cmp",
       "ref": "master",
-      "title": "camgunz/cmp · msgpack read_object",
+      "title": "camgunz/cmp \u00b7 msgpack read_object",
       "driver": "cmp_stdin",
-      "upstream_src": ["cmp.c"],
-      "include_dirs": ["."],
+      "upstream_src": [
+        "cmp.c"
+      ],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "cfgpack_msgpack_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-w"]
+      "build_flags": [
+        "-w"
+      ]
     },
     {
       "id": "uriparser",
       "repo": "https://github.com/uriparser/uriparser",
       "ref": "master",
-      "title": "uriparser/uriparser · uriParseSingleUriA",
+      "title": "uriparser/uriparser \u00b7 uriParseSingleUriA",
       "driver": "uriparser_stdin",
       "upstream_src": [
-        "src/UriCommon.c", "src/UriMemory.c", "src/UriParse.c", "src/UriParseBase.c",
-        "src/UriNormalize.c", "src/UriNormalizeBase.c", "src/UriEscape.c",
-        "src/UriIp4.c", "src/UriIp4Base.c"
+        "src/UriCommon.c",
+        "src/UriMemory.c",
+        "src/UriParse.c",
+        "src/UriParseBase.c",
+        "src/UriNormalize.c",
+        "src/UriNormalizeBase.c",
+        "src/UriEscape.c",
+        "src/UriIp4.c",
+        "src/UriIp4Base.c"
       ],
-      "include_dirs": ["include", "src"],
+      "include_dirs": [
+        "include",
+        "src"
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-DURI_STATIC_BUILD", "-w"]
+      "build_flags": [
+        "-DURI_STATIC_BUILD",
+        "-w"
+      ]
     },
     {
       "id": "heatshrink",
       "repo": "https://github.com/atomicobject/heatshrink",
       "ref": "master",
-      "title": "atomicobject/heatshrink · heatshrink_decoder",
+      "title": "atomicobject/heatshrink \u00b7 heatshrink_decoder",
       "driver": "heatshrink_stdin",
-      "upstream_src": ["heatshrink_decoder.c"],
-      "include_dirs": ["."],
+      "upstream_src": [
+        "heatshrink_decoder.c"
+      ],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-w"]
+      "build_flags": [
+        "-w"
+      ]
     },
     {
       "id": "frozen",
       "repo": "https://github.com/cesanta/frozen",
       "ref": "master",
-      "title": "cesanta/frozen · json_walk SAX JSON",
+      "title": "cesanta/frozen \u00b7 json_walk SAX JSON",
       "driver": "frozen_stdin",
-      "upstream_src": ["frozen.c"],
-      "include_dirs": ["."],
+      "upstream_src": [
+        "frozen.c"
+      ],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "cjson_nest_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 2,
-      "build_flags": ["-w"],
-      "note": "obscure_tier — small embedded JSON, low OSS-Fuzz coverage"
+      "build_flags": [
+        "-w"
+      ],
+      "note": "obscure_tier \u2014 small embedded JSON, low OSS-Fuzz coverage"
     },
     {
       "id": "mpack",
       "repo": "https://github.com/ludocode/mpack",
       "ref": "master",
-      "title": "ludocode/mpack · MessagePack reader",
+      "title": "ludocode/mpack \u00b7 MessagePack reader",
       "driver": "mpack_stdin",
-      "upstream_src": ["src/mpack/*.c"],
-      "include_dirs": ["src"],
+      "upstream_src": [
+        "src/mpack/*.c"
+      ],
+      "include_dirs": [
+        "src"
+      ],
       "wasm_guard": "cfgpack_msgpack_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 2,
-      "build_flags": ["-w"],
-      "note": "obscure_tier — msgpack; cfgpack-adjacent decode surface"
+      "build_flags": [
+        "-w"
+      ],
+      "note": "obscure_tier \u2014 msgpack; cfgpack-adjacent decode surface"
     },
     {
       "id": "libcbor",
       "repo": "https://github.com/PJK/libcbor",
       "ref": "master",
-      "title": "PJK/libcbor · cbor_load",
+      "title": "PJK/libcbor \u00b7 cbor_load",
       "driver": "libcbor_stdin",
-      "upstream_src": ["src/*.c", "src/cbor/*.c", "src/cbor/internal/*.c"],
-      "include_dirs": ["src"],
+      "upstream_src": [
+        "src/*.c",
+        "src/cbor/*.c",
+        "src/cbor/internal/*.c"
+      ],
+      "include_dirs": [
+        "src"
+      ],
       "wasm_guard": "cfgpack_msgpack_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 2,
-      "build_flags": ["-DCBOR_STATIC_DEFINE", "-w"],
-      "note": "obscure_tier — CBOR; less mainstream than json-c"
+      "build_flags": [
+        "-DCBOR_STATIC_DEFINE",
+        "-w"
+      ],
+      "note": "obscure_tier \u2014 CBOR; less mainstream than json-c"
     },
     {
       "id": "kuba_zip",
       "repo": "https://github.com/kuba--/zip",
       "ref": "master",
-      "title": "kuba--/zip · zip_stream_open",
+      "title": "kuba--/zip \u00b7 zip_stream_open",
       "driver": "kuba_zip_stdin",
-      "upstream_src": ["src/zip.c"],
-      "include_dirs": ["src"],
+      "upstream_src": [
+        "src/zip.c"
+      ],
+      "include_dirs": [
+        "src"
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787", "CWE-400"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787",
+        "CWE-400"
+      ],
       "priority": 2,
-      "build_flags": ["-DZIP_HAVE_SYMLINK=0", "-D_DEFAULT_SOURCE", "-include", "unistd.h", "-w"],
-      "note": "obscure_tier — single-file zip parser, archive attack surface"
+      "build_flags": [
+        "-DZIP_HAVE_SYMLINK=0",
+        "-D_DEFAULT_SOURCE",
+        "-include",
+        "unistd.h",
+        "-w"
+      ],
+      "note": "obscure_tier \u2014 single-file zip parser, archive attack surface"
     },
     {
       "id": "cwalk",
       "repo": "https://github.com/likle/cwalk",
       "ref": "master",
-      "title": "likle/cwalk · path normalize/segment",
+      "title": "likle/cwalk \u00b7 path normalize/segment",
       "driver": "cwalk_stdin",
-      "upstream_src": ["src/cwalk.c"],
-      "include_dirs": ["include", "src"],
+      "upstream_src": [
+        "src/cwalk.c"
+      ],
+      "include_dirs": [
+        "include",
+        "src"
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 2,
-      "build_flags": ["-w"],
-      "note": "obscure_tier — path traversal/normalize logic"
+      "build_flags": [
+        "-w"
+      ],
+      "note": "obscure_tier \u2014 path traversal/normalize logic"
     },
     {
       "id": "jsonparser",
       "repo": "https://github.com/json-parser/json-parser",
       "ref": "master",
-      "title": "json-parser/json-parser · json_parse",
+      "title": "json-parser/json-parser \u00b7 json_parse",
       "driver": "jsonparser_stdin",
-      "upstream_src": ["json.c"],
-      "include_dirs": ["."],
+      "upstream_src": [
+        "json.c"
+      ],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "cjson_nest_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 2,
-      "build_flags": ["-w"],
-      "note": "obscure_tier — legacy JSON DOM; still in embedded stacks"
+      "build_flags": [
+        "-w"
+      ],
+      "note": "obscure_tier \u2014 legacy JSON DOM; still in embedded stacks"
     },
     {
       "id": "tinycbor",
       "repo": "https://github.com/intel/tinycbor",
       "ref": "main",
-      "title": "intel/tinycbor · cbor_parser_init",
+      "title": "intel/tinycbor \u00b7 cbor_parser_init",
       "driver": "tinycbor_stdin",
       "upstream_src": [
         "src/cborparser.c",
@@ -766,128 +1252,288 @@
         "src/cborvalidation.c",
         "src/cborerrorstrings.c"
       ],
-      "include_dirs": ["src"],
+      "include_dirs": [
+        "src"
+      ],
       "wasm_guard": "cfgpack_msgpack_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 2,
-      "build_flags": ["-w"],
-      "note": "obscure_tier — IoT CBOR; Intel-maintained but niche vs JSON"
+      "build_flags": [
+        "-w"
+      ],
+      "note": "obscure_tier \u2014 IoT CBOR; Intel-maintained but niche vs JSON"
     },
     {
       "id": "microtar",
       "repo": "https://github.com/rxi/microtar",
       "ref": "master",
-      "title": "rxi/microtar · tar header walk",
+      "title": "rxi/microtar \u00b7 tar header walk",
       "driver": "microtar_stdin",
-      "upstream_src": ["src/microtar.c"],
-      "include_dirs": ["src"],
+      "upstream_src": [
+        "src/microtar.c"
+      ],
+      "include_dirs": [
+        "src"
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 2,
-      "build_flags": ["-w"],
-      "note": "obscure_tier — tiny tar parser, mem-stream fuzz"
+      "build_flags": [
+        "-w"
+      ],
+      "note": "obscure_tier \u2014 tiny tar parser, mem-stream fuzz"
     },
     {
       "id": "lz4",
       "repo": "https://github.com/lz4/lz4",
       "ref": "dev",
-      "title": "lz4/lz4 · LZ4_decompress_safe",
+      "title": "lz4/lz4 \u00b7 LZ4_decompress_safe",
       "driver": "lz4_stdin",
-      "upstream_src": ["lib/lz4.c"],
-      "include_dirs": ["lib"],
+      "upstream_src": [
+        "lib/lz4.c"
+      ],
+      "include_dirs": [
+        "lib"
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-w"],
-      "note": "wave30 — compression decode, high CVE surface"
+      "build_flags": [
+        "-w"
+      ],
+      "note": "wave30 \u2014 compression decode, high CVE surface"
     },
     {
       "id": "hiredis",
       "repo": "https://github.com/redis/hiredis",
       "ref": "master",
-      "title": "redis/hiredis · redisReader RESP parser",
+      "title": "redis/hiredis \u00b7 redisReader RESP parser",
       "driver": "hiredis_stdin",
-      "upstream_src": ["alloc.c", "sds.c", "read.c"],
-      "include_dirs": ["."],
+      "upstream_src": [
+        "alloc.c",
+        "sds.c",
+        "read.c"
+      ],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-w"],
-      "note": "wave30 — protocol parser, read path only"
+      "build_flags": [
+        "-w"
+      ],
+      "note": "wave30 \u2014 protocol parser, read path only"
     },
     {
       "id": "wren",
       "repo": "https://github.com/wren-lang/wren",
       "ref": "main",
-      "title": "wren-lang/wren · wrenInterpret VM",
+      "title": "wren-lang/wren \u00b7 wrenInterpret VM",
       "driver": "wren_stdin",
-      "upstream_src": ["src/vm/*.c", "src/optional/*.c"],
-      "include_dirs": ["src/include", "src/vm", "src/optional"],
+      "upstream_src": [
+        "src/vm/*.c",
+        "src/optional/*.c"
+      ],
+      "include_dirs": [
+        "src/include",
+        "src/vm",
+        "src/optional"
+      ],
       "wasm_guard": "lua_load_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-w"],
-      "note": "wave30 — embedded interpreter"
+      "build_flags": [
+        "-w"
+      ],
+      "note": "wave30 \u2014 embedded interpreter"
     },
     {
       "id": "minimp3",
       "repo": "https://github.com/lieff/minimp3",
       "ref": "master",
-      "title": "lieff/minimp3 · mp3dec_decode_frame",
+      "title": "lieff/minimp3 \u00b7 mp3dec_decode_frame",
       "driver": "minimp3_stdin",
       "upstream_src": [],
-      "include_dirs": ["."],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-w"],
-      "note": "wave30 — audio decode, header-only impl in driver"
+      "build_flags": [
+        "-w"
+      ],
+      "note": "wave30 \u2014 audio decode, header-only impl in driver"
     },
     {
       "id": "stb_vorbis",
       "repo": "https://github.com/nothings/stb",
       "ref": "master",
-      "title": "nothings/stb · stb_vorbis_open_memory",
+      "title": "nothings/stb \u00b7 stb_vorbis_open_memory",
       "driver": "stb_vorbis_stdin",
       "upstream_src": [],
-      "include_dirs": ["."],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-w"],
-      "note": "wave30 — audio codec from stb single-file"
+      "build_flags": [
+        "-w"
+      ],
+      "note": "wave30 \u2014 audio codec from stb single-file"
     },
     {
       "id": "stb_image",
       "repo": "https://github.com/nothings/stb",
       "ref": "master",
-      "title": "nothings/stb · stbi_load_from_memory",
+      "title": "nothings/stb \u00b7 stbi_load_from_memory",
       "driver": "stb_image_stdin",
       "upstream_src": [],
-      "include_dirs": ["."],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "expat_xml_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 1,
-      "build_flags": ["-w"],
-      "note": "wave32 — image decode from stb single-file"
+      "build_flags": [
+        "-w"
+      ],
+      "note": "wave32 \u2014 image decode from stb single-file"
     },
     {
       "id": "spl",
       "repo": "https://github.com/iacobucci/spl",
       "ref": "master",
-      "title": "iacobucci/spl · JSON combinator parser (2026)",
+      "title": "iacobucci/spl \u00b7 JSON combinator parser (2026)",
       "driver": "spl_stdin",
-      "upstream_src": ["ast.c", "json.c", "parser.c", "rule.c", "utils.c"],
-      "include_dirs": ["."],
+      "upstream_src": [
+        "ast.c",
+        "json.c",
+        "parser.c",
+        "rule.c",
+        "utils.c"
+      ],
+      "include_dirs": [
+        "."
+      ],
       "wasm_guard": "cjson_nest_guard",
-      "cwe": ["CWE-125", "CWE-787"],
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
       "priority": 2,
-      "build_flags": ["-w"],
-      "note": "Hunt pilot — tiny new C parser combinator lib (~12★, Feb 2026)"
+      "build_flags": [
+        "-w"
+      ],
+      "note": "Hunt pilot \u2014 tiny new C parser combinator lib (~12\u2605, Feb 2026)"
+    },
+    {
+      "id": "serde_json",
+      "repo": "https://github.com/serde-rs/json",
+      "ref": "v1.0.140",
+      "title": "serde_json \u2014 Rust ASAN stdin pilot (Hunt Phase A)",
+      "language": "rust",
+      "cargo_package": "serde_json",
+      "driver": "serde_json_stdin",
+      "upstream_src": [],
+      "include_dirs": [],
+      "wasm_guard": "",
+      "cwe": [
+        "CWE-20"
+      ],
+      "priority": 2,
+      "note": "Hunt Rust Phase A \u2014 cargo +nightly RUSTFLAGS=-Zsanitizer=address; safe-Rust pilot for pipeline"
+    },
+    {
+      "id": "memchr",
+      "repo": "https://github.com/BurntSushi/memchr",
+      "ref": "2.7.6",
+      "title": "memchr \u2014 Rust unsafe SIMD byte search (Hunt Phase A)",
+      "language": "rust",
+      "cargo_package": "memchr",
+      "driver": "memchr_stdin",
+      "upstream_src": [],
+      "include_dirs": [],
+      "wasm_guard": "",
+      "cwe": [
+        "CWE-125",
+        "CWE-787"
+      ],
+      "priority": 2,
+      "note": "Unsafe SIMD/memmem surface \u2014 stronger ASAN signal than safe serde_json pilot"
+    },
+    {
+      "id": "quick_xml",
+      "repo": "https://github.com/tafia/quick-xml",
+      "ref": "v0.37.5",
+      "title": "quick-xml \u2014 Rust XML parser with unsafe internals (Hunt Phase A)",
+      "language": "rust",
+      "cargo_package": "quick-xml",
+      "driver": "quick_xml_stdin",
+      "upstream_src": [],
+      "include_dirs": [],
+      "wasm_guard": "",
+      "cwe": [
+        "CWE-20",
+        "CWE-611"
+      ],
+      "priority": 2,
+      "note": "Unsafe-heavy XML event parser \u2014 Hunt Rust bounty-shaped surface"
     }
   ],
   "rotation": {
     "note": "nightly picks 2 targets by day-of-year mod queue length",
-    "queue": ["jsmn", "inih", "cjson", "tomlc99", "parsello", "cj5", "cmp", "uriparser", "centijson", "cfgpack", "libucl", "frozen", "mpack", "libcbor", "kuba_zip", "cwalk", "jsonparser", "tinycbor", "microtar", "lz4", "hiredis", "wren", "minimp3", "stb_vorbis"]
+    "queue": [
+      "jsmn",
+      "inih",
+      "cjson",
+      "tomlc99",
+      "parsello",
+      "cj5",
+      "cmp",
+      "uriparser",
+      "centijson",
+      "cfgpack",
+      "libucl",
+      "frozen",
+      "mpack",
+      "libcbor",
+      "kuba_zip",
+      "cwalk",
+      "jsonparser",
+      "tinycbor",
+      "microtar",
+      "lz4",
+      "hiredis",
+      "wren",
+      "minimp3",
+      "stb_vorbis"
+    ]
   }
 }

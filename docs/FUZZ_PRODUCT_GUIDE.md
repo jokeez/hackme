@@ -20,7 +20,7 @@ CLI/API keys stay `scan` | `audit` | `deep`. Customer-facing names:
 
 **Hunt** (repo + ASAN on pool, 50/50 escrow) — Phase 2 on `feature/hunt-mvp`:
 
-**Inventory languages (Phase 2.5):** **C and C++** — scan `LLVMFuzzerTestOneInput` in `.c/.cpp`, auto-compile sibling helpers in the same directory, `clang`/`clang++` + ASAN. CMake repos get `build_hints` (manual link flags may still be needed). **Rust/C#:** not in Hunt MVP — see [HUNT_VS_LIBFUZZER.md](HUNT_VS_LIBFUZZER.md).
+**Inventory languages (Phase 2.5):** **C, C++, and Rust (Phase A)** — scan `LLVMFuzzerTestOneInput` in `.c/.cpp` and `fuzz_target!` / `libfuzzer_sys` in `.rs`. C/C++ auto-compile sibling helpers with `clang`/`clang++` + ASAN. Rust catalog targets build with `cargo +nightly` AddressSanitizer stdin drivers (pilot: `serde_json`). Customer Rust inventory **detect** works; auto-harness compile for arbitrary crates is catalog-only — see [HUNT_RUST_PHASE_A.md](HUNT_RUST_PHASE_A.md). **C#:** not in Hunt MVP.
 
 | API | Purpose |
 |-----|---------|

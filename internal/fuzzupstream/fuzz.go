@@ -145,6 +145,7 @@ func HuntWithOptions(ctx context.Context, repoRoot string, t Target, binPath str
 		TargetID:   t.ID,
 		Title:      t.Title,
 		Repo:       t.Repo,
+		Language:   TargetLanguage(t),
 		BinaryPath: binPath,
 		Crashes:    []CrashFinding{},
 	}
