@@ -173,17 +173,19 @@ bash scripts/tests/verify_hackme_iso.sh your.iso
 
 **Packs:** `secrets` · `script_bounds` · `filter_utf8` (FluxTap-class filter POC) · `parser_expat`
 
+**Hunt** (Phase 2 on `feature/hunt-mvp`): repo + ASAN, **50/50** escrow, inventory **C/C++/Rust Phase A** — [HUNT_ECONOMICS.md](docs/HUNT_ECONOMICS.md) · [HUNT_RUST_PHASE_A.md](docs/HUNT_RUST_PHASE_A.md) (`serde_json`, `memchr`, `quick_xml`).
+
 ```bash
 hackme-fuzzing wizard --pack filter_utf8 --package audit   # local node only
 ```
 
 - [developers.html](https://hackme.tech/developers.html) · [fuzz-guide.html](https://hackme.tech/fuzz-guide.html) — public landing  
-- [FUZZ_PRODUCT_GUIDE.md](docs/FUZZ_PRODUCT_GUIDE.md) — packages, coverage, pool anticheat  
-- [CUSTOMER_FUZZ_DELIVERABLES.md](docs/CUSTOMER_FUZZ_DELIVERABLES.md) — reports & repro  
+- [FUZZ_PRODUCT_GUIDE.md](docs/FUZZ_PRODUCT_GUIDE.md) — Dig + Hunt packages, coverage, pool anticheat  
+- [CUSTOMER_FUZZ_DELIVERABLES.md](docs/CUSTOMER_FUZZ_DELIVERABLES.md) — Dig reports & repro  
 - Hybrid pool: `workerpoh` + fuzz claim/submit; coordinator **replays** segments (not miner attestation)  
-- **20%** pool fee on escrow campaigns funds worker payouts
+- Dig escrow fee **20%** on pool campaigns; Hunt uses **50/50** — see economics docs
 
-**Coverage honesty:** `wasm_edge_bitmap` @ WASM mem offset **8192** is guided scheduling — **not** AFL/libFuzzer edges (OSS research uses libFuzzer separately).
+**Coverage honesty:** `wasm_edge_bitmap` @ WASM mem offset **8192** is guided scheduling — **not** AFL/libFuzzer edges (OSS research + Hunt catalog ASAN use native sanitizers separately).
 
 ---
 

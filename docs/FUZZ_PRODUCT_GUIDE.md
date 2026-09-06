@@ -20,13 +20,13 @@ CLI/API keys stay `scan` | `audit` | `deep`. Customer-facing names:
 
 **Hunt** (repo + ASAN on pool, 50/50 escrow) — Phase 2 on `feature/hunt-mvp`:
 
-**Inventory languages (Phase 2.5):** **C, C++, and Rust (Phase A)** — scan `LLVMFuzzerTestOneInput` in `.c/.cpp` and `fuzz_target!` / `libfuzzer_sys` in `.rs`. C/C++ auto-compile sibling helpers with `clang`/`clang++` + ASAN. Rust catalog targets build with `cargo +nightly` AddressSanitizer stdin drivers (pilot: `serde_json`). Customer Rust inventory **detect** works; auto-harness compile for arbitrary crates is catalog-only — see [HUNT_RUST_PHASE_A.md](HUNT_RUST_PHASE_A.md). **C#:** not in Hunt MVP.
+**Inventory languages (Phase 2.5):** **C, C++, and Rust (Phase A)** — scan `LLVMFuzzerTestOneInput` in `.c/.cpp` and `fuzz_target!` / `libfuzzer_sys` in `.rs`. C/C++ auto-compile sibling helpers with `clang`/`clang++` + ASAN. Rust **catalog** targets build with `cargo +nightly` AddressSanitizer stdin drivers (`serde_json` pipeline pilot; **`memchr`** / **`quick_xml`** unsafe-shaped). Customer Rust inventory **detect** works; auto-harness compile for arbitrary crates is catalog-only — see [HUNT_RUST_PHASE_A.md](HUNT_RUST_PHASE_A.md). **C#:** not in Hunt MVP.
 
 | API | Purpose |
 |-----|---------|
 | `GET /api/hunt/packages` | Hunt Lite / Standard presets |
 | `GET /api/hunt/targets` | Curated OSS catalog (`upstream/oss_cve_targets.json`) |
-| `POST /api/hunt/inventory` | Admin: scan local path for `LLVMFuzzerTestOneInput` + **pack-map suggest** |
+| `POST /api/hunt/inventory` | Admin: scan local path for `LLVMFuzzerTestOneInput` / Rust `fuzz_target!` + **pack-map suggest** |
 | `POST /api/hunt/pack-suggest` | Admin: Dig/Hunt pack hints for one path |
 | `POST /api/hunt/repo/pin` | Admin: pin local path or shallow git clone |
 | `POST /api/hunt/template/preview` | Admin: check if template Accept is required |
@@ -40,7 +40,7 @@ CLI: `hackme-fuzzing hunt pin|inventory|template|build|create|pack-suggest|packa
 
 Spec: [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md) · **vs libFuzzer:** [HUNT_VS_LIBFUZZER.md](HUNT_VS_LIBFUZZER.md) (live benchmark, honest depth). Pool CPU shards + coordinator ASAN replay — Phase 1c. **L1 mutating shards:** each shard runs `iterations_per_shard` (Lite **32** · Standard **128** · Heavy **256**) deterministic byte mutations from the claim anchor; coordinator replays the full chain on submit (fake-crash reject unchanged). **L2 corpus-guided:** claim freezes `corpus_seeds` + guided anchor; campaign corpus grows across shards (`hunt:{target_id}` namespace persist). **Optional L2 bootstrap:** import libFuzzer research corpus into `.cache/hunt-lf-seeds/{target}` (`scripts/ops/hunt_import_libfuzzer_corpus.sh`) — better starting pool corpus, not guaranteed faster first hit. **Overnight local:** `hunt_local_runner` autorunner (no pool) — ticks until `hunt_local_budget_iterations` / wall limit. **Domain dict:** `mutator_dict` per target class (JSON/XML/INI/TOML/msgpack). **Inventory pool** uses harness publish (`harness_fetch_path`) — workers download ASAN binary from coordinator.
 
-**Hunt pool depth (per shard):** Lite **32** · Standard **128** · Heavy **256** exec/shard (`iterations_per_shard`). **Pilot catalog:** `spl` (iacobucci/spl, Feb 2026 JSON combinator) — `bash scripts/ops/hunt_pilot_external_1h.sh`. **Overnight local** (non-pool campaigns): autorunner ticks `hunt_local_tick_iterations` (default 2000) until package budget — Lite **20k/1h** · Standard **200k/8h** · Heavy **500k/12h**. **Domain mutator dict** auto-applied per catalog target (JSON/XML/INI/TOML/msgpack splice tokens).
+**Hunt pool depth (per shard):** Lite **32** · Standard **128** · Heavy **256** exec/shard (`iterations_per_shard`). **C pilot catalog:** `spl` (iacobucci/spl) — `bash scripts/ops/hunt_pilot_external_1h.sh`. **Rust catalog (Phase A):** `serde_json`, `memchr`, `quick_xml` — [HUNT_RUST_PHASE_A.md](HUNT_RUST_PHASE_A.md). **Overnight local** (non-pool): autorunner ticks `hunt_local_tick_iterations` (default 2000) until package budget — Lite **20k/1h** · Standard **200k/8h** · Heavy **500k/12h**. Catalog size: **56** targets in `upstream/oss_cve_targets.json` (2026-09-06; mostly C/C++ stdin ASAN + 3 Rust). **Domain mutator dict** auto-applied per catalog target (JSON/XML/INI/TOML/msgpack splice tokens).
 
 \* **Distributed pool cap:** on hub workers, `exec_per_unit` is capped at **64** per work item for generic fuzz; Hunt pool shards use package `iterations_per_shard` up to **256** on coordinator replay path. Coordinator **replays** the segment on submit — miners do not cryptographically attest every exec.
 

@@ -9,6 +9,7 @@
 | Automation | **hackme-fuzzing CLI** → `--base http://127.0.0.1:8080` only (wizard **blocks** hackme.tech) |
 | Watch network | [fuzzing-console.html](https://hackme.tech/fuzzing-console.html) (read-only) |
 | Product guide | [fuzz-guide.html](https://hackme.tech/fuzz-guide.html) · [FUZZ_PRODUCT_GUIDE.md](FUZZ_PRODUCT_GUIDE.md) |
+| Hunt (ASAN repo) | [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md) · [HUNT_RUST_PHASE_A.md](HUNT_RUST_PHASE_A.md) · [API.md](API.md)#hunt-campaigns-phase-2 |
 | Downloads | [downloads.html#local-node](https://hackme.tech/downloads.html#local-node) |
 
 There is **no** order-creation UI on hackme.tech (removed `/pool/developer`).

@@ -148,12 +148,13 @@ Hunt Lite · 20 HMC · 50/50 split
 - [x] Gate: `scripts/tests/hunt_pool_smoke_gate.sh` (fake crash reject + worker smoke)  
 - [x] Benchmark: `scripts/tests/hunt_standard128_live_benchmark.sh` + [HUNT_VS_LIBFUZZER.md](HUNT_VS_LIBFUZZER.md)  
 - [x] Inventory C/C++: multi-file `clang++` harness, companion sources, CMake `build_hints` — `scripts/tests/hunt_inventory_cpp_gate.sh`
-- [x] Inventory Rust Phase A: `.rs` detect + catalog `language=rust` ASAN via cargo nightly — `scripts/tests/hunt_inventory_rust_gate.sh` · [HUNT_RUST_PHASE_A.md](HUNT_RUST_PHASE_A.md)  
+- [x] Inventory Rust Phase A: `.rs` detect + catalog `language=rust` ASAN (`serde_json`, **`memchr`**, **`quick_xml`**) via cargo nightly — `scripts/tests/hunt_inventory_rust_gate.sh` · [HUNT_RUST_PHASE_A.md](HUNT_RUST_PHASE_A.md)
+- [x] Hunt gates (also): `hunt_report_gate.sh`, `hunt_harness_publish_gate.sh`, `hunt_mutator_trim_gate.sh`, `hunt_l2_seeds_ab_gate.sh`, `hunt_corpus_import_gate.sh`, `hunt_async_swarm_gate.sh`, `hunt_replay_async_gate.sh`
 - [x] Customer repo pin → harness build (`POST /api/hunt/repo/pin`, `/harness/build`, `/template/preview`)  
 - [x] Harness publish API + coordinator worker fetch (`/harness/publish`, `/api/fuzz/pool/hunt/harness/{hash}`)  
 - [x] CLI: `hackme-fuzzing hunt pin|inventory|build|create`  
 - [x] Dashboard: inventory mode + template Accept  
-- [x] Docs cross-link from [FUZZ_ESCROW_20_80.md](FUZZ_ESCROW_20_80.md)
+- [x] Docs cross-link from [FUZZ_ESCROW_20_80.md](FUZZ_ESCROW_20_80.md) · HTTP tables in [API.md](API.md)#hunt-campaigns-phase-2
 
 ---
 

@@ -66,13 +66,17 @@ Tier **oss_cve** runs mutation fuzz on **cloned upstream repos** with stdin ASAN
 
 ## Targets
 
-See `upstream/oss_cve_targets.json` (12 targets):
+Canonical catalog: `upstream/oss_cve_targets.json` (**56** targets as of **2026-09-06**).
 
-| Priority | Targets |
-|----------|---------|
-| 1 | md4c, cJSON, centijson |
-| 2 | jsmn, mjson, yyjson, parson, jansson, tomlc99, expat |
-| 3 | inih, sheredom |
+| Class | Examples |
+|-------|----------|
+| **Priority 1 (C)** | md4c, cJSON, centijson, … (~28 prio-1 total) |
+| **Priority 2–3 (C)** | jsmn, expat, libucl, nghttp2, sheredom, spl, … |
+| **Rust Phase A** | `serde_json` (pipeline), **`memchr`** (unsafe SIMD), **`quick_xml`** (unsafe parser) — see [HUNT_RUST_PHASE_A.md](HUNT_RUST_PHASE_A.md) |
+
+Hunt product (escrow / pool / inventory) uses the same catalog via `GET /api/hunt/targets` — [FUZZ_PRODUCT_GUIDE.md](FUZZ_PRODUCT_GUIDE.md) · [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md).
+
+Drivers: `tasks/sources/fuzz/oss/<id>_stdin.c` or `*_stdin.rs` for `language=rust`.
 
 ## Run
 
@@ -80,8 +84,11 @@ See `upstream/oss_cve_targets.json` (12 targets):
 # Full hunt (priority 1 parsers, ~60k iter each)
 bash scripts/ops/run_oss_cve_hunt.sh
 
-# Fast subset
+# Fast subset (C)
 TARGETS=md4c,cjson BUDGET=10000 TIME_LIMIT=120 bash scripts/ops/run_oss_cve_hunt.sh
+
+# Rust unsafe-shaped (needs rustc +nightly)
+TARGETS=memchr,quick_xml BUDGET=5000 TIME_LIMIT=120 bash scripts/ops/run_oss_cve_hunt.sh
 
 # CI gate
 bash scripts/ops/oss_cve_gate.sh

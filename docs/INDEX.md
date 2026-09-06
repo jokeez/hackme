@@ -40,7 +40,10 @@
 
 | Doc / page | Topic |
 |------------|--------|
-| [FUZZ_PRODUCT_GUIDE.md](FUZZ_PRODUCT_GUIDE.md) | B2B packages, packs, coverage, pool anticheat, CI gate |
+| [FUZZ_PRODUCT_GUIDE.md](FUZZ_PRODUCT_GUIDE.md) | B2B Dig packages, Hunt Phase 2, packs, coverage, pool anticheat, CI gate |
+| [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md) | Hunt 50/50 escrow, packages, pool shards |
+| [HUNT_VS_LIBFUZZER.md](HUNT_VS_LIBFUZZER.md) | Honest Hunt vs libFuzzer depth |
+| [HUNT_RUST_PHASE_A.md](HUNT_RUST_PHASE_A.md) | Rust inventory + catalog ASAN (`serde_json`, `memchr`, `quick_xml`) |
 | [CUSTOMER_FUZZ_DELIVERABLES.md](CUSTOMER_FUZZ_DELIVERABLES.md) | Report token, repro, artifacts |
 | [DEVELOPERS_FUZZING.md](DEVELOPERS_FUZZING.md) | Orders API, limits, escrow |
 | [FUZZING_B2B_SECURITY_VERDICT.md](FUZZING_B2B_SECURITY_VERDICT.md) | B2B threat model & verdict |
@@ -49,9 +52,11 @@
 | [POOL_FUZZ_DISTRIBUTED.md](POOL_FUZZ_DISTRIBUTED.md) | Pool-distributed deep campaigns |
 | [POOL_DIRECT_COORDINATOR.md](POOL_DIRECT_COORDINATOR.md) | Direct coordinator wiring |
 | [ORDER_ECONOMICS.md](ORDER_ECONOMICS.md) | Escrow, cancellation, pricing |
-| [FUZZ_ESCROW_20_80.md](FUZZ_ESCROW_20_80.md) | Escrow settlement split |
+| [FUZZ_ESCROW_20_80.md](FUZZ_ESCROW_20_80.md) | Dig escrow settlement split (Hunt is 50/50) |
 | [FUZZ_TIER_C.md](FUZZ_TIER_C.md) | Tier C native fuzz |
 | [FUZZ_NATIVE_V2.md](FUZZ_NATIVE_V2.md) | Native v2 pipeline |
+| [API.md](API.md)#fuzz-campaigns-v1 | Dig `/api/fuzz/*` |
+| [API.md](API.md)#hunt-campaigns-phase-2 | Hunt `/api/hunt/*` |
 | [../web/site/fuzz-guide.html](../web/site/fuzz-guide.html) | Public fuzz guide |
 
 ## Research & social
@@ -59,7 +64,7 @@
 | Doc / page | Topic |
 |------------|--------|
 | [BITCOIN30_SERIES.md](BITCOIN30_SERIES.md) | 30-day Bitcoin Core WASM fuzz |
-| [OSS_CVE_HUNT.md](OSS_CVE_HUNT.md) | OSS CVE wave pipeline |
+| [OSS_CVE_HUNT.md](OSS_CVE_HUNT.md) | OSS CVE wave pipeline (56-target catalog; C + Rust Phase A) |
 | [OSS_CVE_LIBHEIF_SERIES.md](OSS_CVE_LIBHEIF_SERIES.md) | **libheif** OSS CVE Watch · **14/14 CLEAN** (series closed) |
 | [../web/site/reports/oss-cve-watch/](../web/site/reports/oss-cve-watch/) | **nghttp2 OSS CVE Watch** — 14-day ledger (complete) |
 | [TELEGRAM_BOT.md](TELEGRAM_BOT.md) | Operator bot + news channel bot |

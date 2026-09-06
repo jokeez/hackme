@@ -29,6 +29,8 @@ What an audit customer should receive after a campaign completes.
 
 Auth: **`X-Hackme-Report-Token`** (issued once at create / `POST …/token`) or admin token.
 
+**Hunt** (separate product): catalog/inventory ASAN campaigns use **50/50** escrow and Hunt reports — not this Dig gate URL shape. See [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md) · [FUZZ_PRODUCT_GUIDE.md](FUZZ_PRODUCT_GUIDE.md).
+
 ## SLA-style norms (operator-facing)
 
 - Deliver **`customer_report_token`** through a secure channel; treat like a password.

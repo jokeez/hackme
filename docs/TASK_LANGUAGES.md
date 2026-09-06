@@ -1,6 +1,8 @@
 # Task Languages Policy (WASM ABI v1)
 
-This document specifies which languages ​​should be enabled for Orders tasks and in what order.
+This document specifies which languages should be enabled for **Orders** tasks (`POST /api/tasks/from_code`) and in what order.
+
+> **Not Hunt inventory.** Hunt ASAN languages (C/C++/Rust Phase A catalog) are documented in [HUNT_RUST_PHASE_A.md](HUNT_RUST_PHASE_A.md) and [FUZZ_PRODUCT_GUIDE.md](FUZZ_PRODUCT_GUIDE.md) — different product surface from WASM `check(i64)->i32` orders.
 
 ## Basic principle
 

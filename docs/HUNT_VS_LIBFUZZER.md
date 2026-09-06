@@ -97,7 +97,7 @@ Report metric to cite: `sanitizer_summary.by_subtype`, not raw `crashes` count.
 # C/C++ inventory compile gate
 bash scripts/tests/hunt_inventory_cpp_gate.sh
 
-# Rust inventory + serde_json ASAN pilot gate
+# Rust inventory + catalog ASAN gate (serde_json, memchr, quick_xml)
 bash scripts/tests/hunt_inventory_rust_gate.sh
 
 # Full Hunt vs libFuzzer + pool Standard 128 benchmark
@@ -126,7 +126,7 @@ TARGET=spl WALL_SEC=120 bash scripts/ops/hunt_import_libfuzzer_corpus.sh
 TARGETS="spl,parsello,centijson" bash scripts/ops/hunt_l2_bootstrap.sh
 
 # Gate (unit + merge + optional 20s live import)
-bash scripts/tests/hunt_l2_ab_gate.sh
+bash scripts/tests/hunt_l2_seeds_ab_gate.sh
 ```
 
 Seeds land in `.cache/hunt-lf-seeds/{target}/` and merge automatically on Hunt campaign create / pool corpus bootstrap (`MergeLibFuzzerSeedCorpus`).

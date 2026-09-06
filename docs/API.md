@@ -97,6 +97,26 @@ Common keys: `input_mode` (`bytes`), `depth_tier`, `exec_per_unit`, `coverage_ki
 
 **Pool claim** (coordinator): `POST /api/fuzz/work/claim` → `{ exec_per_unit, max_input_bytes, coverage_kind, corpus_seeds?, corpus_snapshot_sha256?, wasm_check_hex, … }`. Submit: `segment_exec_done` must match capped `exec_per_unit` (Deep **64** on hub). See [POOL_FUZZ_DISTRIBUTED.md](POOL_FUZZ_DISTRIBUTED.md).
 
+## Hunt Campaigns (Phase 2)
+
+Repo + ASAN Hunt on the **local node** (admin). Escrow is **50/50** (not Dig 20/80). Spec: [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md) · languages: [HUNT_RUST_PHASE_A.md](HUNT_RUST_PHASE_A.md) · product: [FUZZ_PRODUCT_GUIDE.md](FUZZ_PRODUCT_GUIDE.md).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/hunt/packages` | Hunt Lite / Standard / Heavy presets (`budget_hmc`, `iterations_per_shard`, local budgets). |
+| GET | `/api/hunt/targets` | Curated OSS catalog from `upstream/oss_cve_targets.json` (C/C++ + `language=rust`). |
+| POST | `/api/hunt/inventory` | Admin: scan local path for `LLVMFuzzerTestOneInput` / Rust `fuzz_target!`; returns targets + `build_hints`. |
+| POST | `/api/hunt/pack-suggest` | Admin: Dig/Hunt pack hints for one path. |
+| POST | `/api/hunt/repo/pin` | Admin: pin local path or shallow git clone. |
+| POST | `/api/hunt/template/preview` | Admin: whether template Accept is required (no libFuzzer entry). |
+| POST | `/api/hunt/harness/build` | Admin: ASAN build inventory harness → `.cache/hunt-harness/{hash}.bin` (**C/C++ only**; Rust inventory auto-build fails closed — use catalog Rust targets). |
+| POST | `/api/hunt/harness/publish` | Admin: publish harness blob to node + coordinator pool. |
+| GET | `/api/fuzz/pool/hunt/harness/{hash}` | Workers: fetch published ASAN harness (coordinator). |
+| POST | `/api/hunt/campaigns` | Create Hunt campaign + 50/50 escrow (catalog or inventory). |
+| POST | `/api/hunt/campaigns/{id}/run-local` | Admin: node-local ASAN smoke. |
+
+CLI: `hackme-fuzzing hunt pin|inventory|template|build|create|pack-suggest|packages|targets`.
+
 
 | Method | Path | Description |
 |--------|------|----------|

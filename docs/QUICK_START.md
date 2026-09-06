@@ -32,5 +32,5 @@ curl -fsS https://hackme.tech/pool/coordinator/api/work/stats \
 |------|-----|
 | Full install & GPU | [SETUP.md](SETUP.md) |
 | Threat model | [SECURITY.md](SECURITY.md) |
-| B2B fuzz | [FUZZ_PRODUCT_GUIDE.md](FUZZ_PRODUCT_GUIDE.md) · [developers.html](https://hackme.tech/developers.html) · `hackme-fuzzing wizard --pack …` |
+| B2B fuzz | [FUZZ_PRODUCT_GUIDE.md](FUZZ_PRODUCT_GUIDE.md) · [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md) · [developers.html](https://hackme.tech/developers.html) · `hackme-fuzzing wizard --pack …` |
 | Docs map | [INDEX.md](INDEX.md) |
