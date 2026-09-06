@@ -11,6 +11,8 @@ int main(void) {
 		return 0;
 	}
 	struct json_value_s *j = json_parse(buf, n);
-	(void)j;
+	if (j != NULL) {
+		free(j); /* single allocation; required by sheredom/json.h */
+	}
 	return 0;
 }
