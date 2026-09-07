@@ -19,12 +19,16 @@ import (
 // carries that event_id; on timeout the pending outbox is left for pull settle —
 // never a second enqueue after a maybe-paid HTTP attempt. Applied=true only after
 // origin ACK / durable outbox applied confirmation.
+//
+// When SkipInlineHTTP is true, relay only enqueues; background DrainPendingSettleHTTP
+// (coordinator ticker) performs origin HTTP so Hunt/Dig finalize stays off the hot path.
 type RelaySettler struct {
 	DB               *sql.DB
 	Service          *Service
 	DefaultOrdersURL string
 	AdminToken       func() string
 	HTTPClient       *http.Client
+	SkipInlineHTTP   bool
 }
 
 func (r *RelaySettler) svc() *Service {
@@ -105,6 +109,10 @@ func (r *RelaySettler) relay(ctx context.Context, kind, campaignID, minerAddress
 		}
 		outboxID = id
 	}
+	// Fast finalize path: durable outbox only; HTTP relay runs on ticker drain.
+	if r.SkipInlineHTTP {
+		return SettleResult{OutboxID: outboxID, Applied: false}, nil
+	}
 	base, pull := r.resolveSettleBase(ctx, campaignID)
 	if pull || base == "" {
 		return SettleResult{OutboxID: outboxID, Applied: false}, nil
@@ -114,6 +122,10 @@ func (r *RelaySettler) relay(ctx context.Context, kind, campaignID, minerAddress
 		// Durable outbox row already exists for pull; do not error (avoids re-enqueue).
 		return SettleResult{OutboxID: outboxID, Applied: false}, nil
 	}
+	return r.httpRelayOnce(ctx, s, kind, campaignID, minerAddress, severity, outboxID, base, tok)
+}
+
+func (r *RelaySettler) httpRelayOnce(ctx context.Context, s *Service, kind, campaignID, minerAddress, severity string, outboxID int64, base, tok string) (SettleResult, error) {
 	eventID := SettleEventID(campaignID, outboxID)
 	body, _ := json.Marshal(map[string]any{
 		"kind":          kind,
@@ -144,6 +156,38 @@ func (r *RelaySettler) relay(ctx context.Context, kind, campaignID, minerAddress
 	}
 	// Non-OK: leave pending for pull drain (same event_id). Never re-enqueue.
 	return SettleResult{OutboxID: outboxID, Applied: false}, nil
+}
+
+// DrainPendingSettleHTTP attempts inline HTTP relay for pending outbox rows (background ticker).
+// Safe with SkipInlineHTTP: finalize enqueues only; this drains without blocking submit.
+func (r *RelaySettler) DrainPendingSettleHTTP(ctx context.Context, limit int) (attempted, applied int, err error) {
+	if r == nil {
+		return 0, 0, nil
+	}
+	s := r.svc()
+	if s == nil {
+		return 0, 0, nil
+	}
+	if limit <= 0 {
+		limit = 32
+	}
+	items, err := s.ListPendingSettleOutbox(ctx, limit)
+	if err != nil {
+		return 0, 0, err
+	}
+	tok := r.token()
+	for _, it := range items {
+		base, pull := r.resolveSettleBase(ctx, it.CampaignID)
+		if pull || base == "" || tok == "" {
+			continue
+		}
+		attempted++
+		res, relErr := r.httpRelayOnce(ctx, s, it.Kind, it.CampaignID, it.MinerAddress, it.Severity, it.ID, base, tok)
+		if relErr == nil && res.Applied {
+			applied++
+		}
+	}
+	return attempted, applied, nil
 }
 
 func (r *RelaySettler) resolveSettleBase(ctx context.Context, campaignID string) (base string, pull bool) {

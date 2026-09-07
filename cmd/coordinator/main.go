@@ -44,6 +44,9 @@ func envDurationSec(key string, defSec int) time.Duration {
 
 const maxCoordinatorPushWorkBodyBytes = 1 << 20
 
+// peerFlusher coalesces lan_peer_rigs persistence across submit/push_work.
+var peerFlusher *peerPersistFlusher
+
 func main() {
 	logsetup.ConfigureFromEnv("HACKME_COORDINATOR")
 	dbPath := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_DB"))
@@ -105,6 +108,9 @@ func main() {
 	if err := loadLANPeers(db, reg); err != nil {
 		log.Printf("lan_peer_rigs load: %v", err)
 	}
+	peerFlushEvery := envDurationSec("HACKME_COORDINATOR_PEER_FLUSH_SEC", 2)
+	peerFlusher = newPeerPersistFlusher(db, reg, peerFlushEvery)
+	peerFlusher.start(context.Background())
 
 	addr := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_ADDR"))
 	if addr == "" {
@@ -167,7 +173,11 @@ func main() {
 			return
 		}
 		id := strings.TrimSpace(body.WorkerID)
-		persistPeer(r.Context(), db, id, reg)
+		if peerFlusher != nil {
+			peerFlusher.mark(id)
+		} else {
+			persistPeer(r.Context(), db, id, reg)
+		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "worker_id": id})
 	})
@@ -177,16 +187,19 @@ func main() {
 	})
 	addWorkRoutes(mux, token, workerToken, allowInsecure, reg, wm, db)
 	pf := &poolfuzz.Service{DB: fuzzDB}
+	settleEnqueueOnly := envBool("HACKME_POOL_SETTLE_ENQUEUE_ONLY", true)
 	pf.Settler = &poolfuzz.RelaySettler{
 		Service:          pf,
 		DefaultOrdersURL: wm.ordersProbeURL,
 		AdminToken:       wm.ordersAdminToken,
+		SkipInlineHTTP:   settleEnqueueOnly,
 	}
 	addFuzzPoolRoutes(mux, token, workerToken, allowInsecure, wm, pf)
 	addCorpusNamespaceRoute(mux, token, allowInsecure, pf)
 	startPoolFuzzTicker(context.Background(), pf)
 
 	log.Printf("HackMe LAN coordinator → http://%s  (db=%s fuzz_db=%s)", addr, dbPath, fuzzDBPathLog)
+	log.Printf("perf: peer_flush=%s settle_enqueue_only=%v (HACKME_POOL_SETTLE_ENQUEUE_ONLY / HACKME_COORDINATOR_PEER_FLUSH_SEC)", peerFlushEvery, settleEnqueueOnly)
 	if trustClientForwardedFor {
 		log.Printf("client IP trust: X-Real-IP / X-Forwarded-For enabled; CF-Connecting-IP only from Cloudflare peers (bind %s)", addr)
 	}

@@ -2525,7 +2525,11 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 		})
 		wm.noteWorkerClientIP(workerID, ipKey)
 		if db != nil {
-			persistPeer(r.Context(), db, workerID, reg)
+			if peerFlusher != nil {
+				peerFlusher.mark(workerID)
+			} else {
+				persistPeer(r.Context(), db, workerID, reg)
+			}
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		okResp := true

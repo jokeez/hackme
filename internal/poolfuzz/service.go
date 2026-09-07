@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -25,6 +26,11 @@ type Service struct {
 	DB      *sql.DB
 	Settler Settler
 	claimRR atomic.Uint64 // round-robin cursor across runnable campaigns
+
+	schedMu        sync.Mutex
+	schedCachedAt  time.Time
+	schedCustomers []string
+	schedRest      []string
 }
 
 type Campaign struct {
@@ -627,7 +633,18 @@ func (s *Service) runnablePoolCampaignIDs(ctx context.Context, now int64) ([]str
 }
 
 // runnablePoolCampaignIDsByTier splits customer vs other+bootstrap for strict order priority.
+// Results are cached briefly to avoid re-parsing every campaign config_json on each claim.
 func (s *Service) runnablePoolCampaignIDsByTier(ctx context.Context, now int64) (customers, rest []string, err error) {
+	const ttl = 750 * time.Millisecond
+	s.schedMu.Lock()
+	if time.Since(s.schedCachedAt) < ttl && s.schedCachedAt.Unix() > 0 {
+		customers = append([]string(nil), s.schedCustomers...)
+		rest = append([]string(nil), s.schedRest...)
+		s.schedMu.Unlock()
+		return customers, rest, nil
+	}
+	s.schedMu.Unlock()
+
 	_ = now
 	rows, err := s.DB.QueryContext(ctx, `
 		SELECT c.id, c.title, COALESCE(c.owner_ref,''), c.config_json
@@ -674,6 +691,12 @@ func (s *Service) runnablePoolCampaignIDsByTier(ctx context.Context, now int64) 
 	}
 	rest = append(rest, other...)
 	rest = append(rest, bootstrap...)
+
+	s.schedMu.Lock()
+	s.schedCustomers = append([]string(nil), customers...)
+	s.schedRest = append([]string(nil), rest...)
+	s.schedCachedAt = time.Now()
+	s.schedMu.Unlock()
 	return customers, rest, nil
 }
 
@@ -1359,16 +1382,7 @@ func (s *Service) recomputeProgress(ctx context.Context, campaignID string, now 
 	// failed_checks = work items with result_ok=0 (includes detector rejects).
 	// unique_crashes = crash-class findings only (honest customer metric).
 	summary["failed_checks"] = crashed
-	crashClass := 0
-	if frows, err := s.DB.QueryContext(ctx, `SELECT finding_type FROM fuzz_findings WHERE campaign_id=?`, campaignID); err == nil {
-		for frows.Next() {
-			var ft string
-			if err := frows.Scan(&ft); err == nil && fuzzengine.IsCrashClass(ft) {
-				crashClass++
-			}
-		}
-		_ = frows.Close()
-	}
+	crashClass, _ := s.countCrashClassFindings(ctx, campaignID)
 	summary["unique_crashes"] = crashClass
 	summary["crash_count"] = crashClass
 	summary["heartbeat_at"] = now
@@ -1392,6 +1406,33 @@ func (s *Service) recomputeProgress(ctx context.Context, campaignID string, now 
 		 WHERE id=?`,
 		nextStatus, marshalSummaryJSON(summary), nextStatus, completedAt, campaignID)
 	return nextStatus == "completed", err
+}
+
+// countCrashClassFindings mirrors fuzzengine.IsCrashClass without scanning every row in Go.
+func (s *Service) countCrashClassFindings(ctx context.Context, campaignID string) (int, error) {
+	var n int
+	err := s.DB.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM fuzz_findings WHERE campaign_id=? AND (
+		  lower(finding_type) IN (
+		    'crash','hang','timeout','timeout_hang','asan','ubsan','msan','tsan',
+		    'memory','memory_error','leak','oom','segfault','sigsegv','abort',
+		    'native_crash','heap_overflow','stack_overflow','use_after_free'
+		  )
+		  OR lower(finding_type) LIKE '%crash%'
+		  OR lower(finding_type) LIKE '%hang%'
+		  OR lower(finding_type) LIKE '%asan%'
+		  OR lower(finding_type) LIKE '%ubsan%'
+		  OR lower(finding_type) LIKE '%msan%'
+		  OR lower(finding_type) LIKE '%tsan%'
+		  OR lower(finding_type) LIKE '%segfault%'
+		  OR lower(finding_type) LIKE '%sigsegv%'
+		  OR lower(finding_type) LIKE '%oom%'
+		  OR lower(finding_type) LIKE '%leak%'
+		  OR lower(finding_type) LIKE '%memory%'
+		  OR lower(finding_type) LIKE '%timeout%'
+		  OR lower(finding_type) LIKE '%abort%'
+		)`, campaignID).Scan(&n)
+	return n, err
 }
 
 // PoolStats returns aggregate stats for public/coordinator metrics.

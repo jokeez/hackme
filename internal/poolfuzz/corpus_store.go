@@ -157,7 +157,19 @@ func (s *Service) observePoolCorpus(ctx context.Context, campaignID string, inpu
 	if err := s.exportNamespaceCorpus(ctx, cfg, input, inputBytes, boost, edge, path, crash, now); err != nil {
 		return err
 	}
-	return s.cullPoolCorpus(ctx, campaignID, fuzzengine.PoolCorpusMax(cfg))
+	max := fuzzengine.PoolCorpusMax(cfg)
+	if max <= 0 {
+		return nil
+	}
+	n, err := s.poolCorpusSize(ctx, campaignID)
+	if err != nil {
+		return err
+	}
+	// Cull only when over capacity (avoid ranked DELETE on every observe).
+	if n <= max {
+		return nil
+	}
+	return s.cullPoolCorpus(ctx, campaignID, max)
 }
 
 func (s *Service) coverageBucketNew(ctx context.Context, campaignID, kind string, bucket int, now int64) (bool, error) {

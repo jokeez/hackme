@@ -743,6 +743,10 @@ func startPoolFuzzTicker(ctx context.Context, pf *poolfuzz.Service) {
 				if err := pf.Tick(ctx); err != nil {
 					// best-effort
 				}
+				// Drain settle HTTP off the submit/finalize hot path when enqueue-only.
+				if rs, ok := pf.Settler.(*poolfuzz.RelaySettler); ok && rs != nil && rs.SkipInlineHTTP {
+					_, _, _ = rs.DrainPendingSettleHTTP(ctx, 64)
+				}
 			}
 		}
 	}()
