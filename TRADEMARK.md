@@ -2,7 +2,7 @@
 
 The **HackMe** name, logo, and domain **hackme.tech** are trademarks of the HackMe project operators.
 
-You may fork and modify the **source code** under [AGPL-3.0](../LICENSE). You may **not**:
+You may fork and modify the **source code** under [AGPL-3.0](LICENSE). You may **not**:
 
 - Use the HackMe name or logo for a competing pool, installer, or token without permission
 - Publish downloads that impersonate the official site (mirror only with clear “unofficial” labeling and matching SHA256 from our releases)

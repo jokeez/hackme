@@ -7,7 +7,7 @@ resource_windows_amd64.syso
 hackme-node
 hackme-node-local-treasury
 hackme-coordinator
-minersign
+/minersign
 /bin/
 # Root-level `go build -o …` artifacts (never commit; use GitHub Releases / dist/)
 /hackme
@@ -165,6 +165,8 @@ scripts/ops/windows_run_ideal_worker.ps1
 # Desktop-local ops drafts (promote to tracked scripts/ops/ when ready for GitHub)
 scripts/ops/_*.sh
 scripts/ops/_*.py
+!scripts/ops/_deploy_ssh_retry.sh
+!scripts/ops/_json_curl_helpers.sh
 scripts/ops/tools/
 scripts/vast/
 scripts/build_immunefi_pack.sh
