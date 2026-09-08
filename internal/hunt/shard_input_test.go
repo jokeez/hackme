@@ -23,6 +23,14 @@ func TestShardAnchorBytesDeterministic(t *testing.T) {
 	}
 }
 
+func TestShardAnchorBytesRespectsSmallMax(t *testing.T) {
+	cfg := map[string]any{"upstream_target_id": "tiny", "max_input_bytes": 8, "input_mode": "bytes"}
+	a := ShardAnchorBytes("camp-tiny", 1, cfg)
+	if len(a) != 8 {
+		t.Fatalf("len=%d want 8 (must not inflate past campaign max)", len(a))
+	}
+}
+
 func TestShardSegmentExecInputMutatesAfterAnchor(t *testing.T) {
 	cfg := map[string]any{
 		"upstream_target_id":   "yyjson",

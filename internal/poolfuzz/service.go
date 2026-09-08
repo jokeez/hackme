@@ -76,19 +76,19 @@ type ClaimedWork struct {
 }
 
 type SubmitRequest struct {
-	WorkerID        string
-	MinerAddress    string
-	WorkID          string
-	CampaignID      string
-	ItemID          int64
-	InputN          uint64
-	ActualInput     uint64
-	InputBytes      []byte
+	WorkerID         string
+	MinerAddress     string
+	WorkID           string
+	CampaignID       string
+	ItemID           int64
+	InputN           uint64
+	ActualInput      uint64
+	InputBytes       []byte
 	InputOriginalLen int
-	CheckResult     int32
-	DurationMS      int
-	Trap            string
-	SegmentExecDone int
+	CheckResult      int32
+	DurationMS       int
+	Trap             string
+	SegmentExecDone  int
 }
 
 // RegisterCampaign upserts a pool-distributed fuzz campaign and marks it running.
@@ -290,8 +290,13 @@ func (s *Service) SetCampaignStatus(ctx context.Context, id, status string) erro
 		_, _ = s.DB.ExecContext(ctx,
 			`UPDATE fuzz_work_items
 			 SET status='cancelled', updated_at=?
-			 WHERE campaign_id=? AND status IN ('pending','leased')`,
+			 WHERE campaign_id=? AND status IN ('pending','leased','replay_pending')`,
 			now, id)
+		_, _ = s.DB.ExecContext(ctx,
+			`UPDATE fuzz_hunt_replay_queue
+			 SET status='failed', last_error=?, verifier_id='', updated_at=?
+			 WHERE campaign_id=? AND status IN ('pending','processing')`,
+			"campaign "+status, now, id)
 	}
 	return nil
 }

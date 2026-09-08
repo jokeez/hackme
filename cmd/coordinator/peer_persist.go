@@ -80,12 +80,24 @@ func (f *peerPersistFlusher) flush(ctx context.Context) {
 	for id := range f.dirty {
 		ids = append(ids, id)
 	}
+	// Clear before write; failed IDs are re-marked below so concurrent mark() is not lost.
 	f.dirty = make(map[string]struct{}, 64)
 	f.mu.Unlock()
 
+	var failed []string
 	for _, id := range ids {
-		persistPeer(ctx, f.db, id, f.reg)
+		if err := persistPeer(ctx, f.db, id, f.reg); err != nil {
+			failed = append(failed, id)
+		}
 	}
+	if len(failed) == 0 {
+		return
+	}
+	f.mu.Lock()
+	for _, id := range failed {
+		f.dirty[id] = struct{}{}
+	}
+	f.mu.Unlock()
 }
 
 func (f *peerPersistFlusher) dirtyCount() int {

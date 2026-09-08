@@ -135,7 +135,7 @@ func (s *Service) ListPendingSettleOutbox(ctx context.Context, limit int) ([]Set
 		`SELECT id, campaign_id, kind, miner_address, severity, created_at, COALESCE(work_item_id,0)
 		 FROM fuzz_settle_outbox
 		 WHERE status='pending'
-		 ORDER BY id ASC
+		 ORDER BY CASE kind WHEN 'finalize' THEN 1 ELSE 0 END ASC, id ASC
 		 LIMIT ?`, limit)
 	if err != nil {
 		return nil, err

@@ -182,7 +182,13 @@ func (s *Service) HuntReplayStatus(ctx context.Context, campaignID string, itemI
 
 func (s *Service) enqueueHuntReplay(ctx context.Context, req SubmitRequest, inputN uint64, now int64) (SubmitOutcome, error) {
 	miner := strings.TrimSpace(req.MinerAddress)
-	res, err := s.DB.ExecContext(ctx,
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return SubmitOutcome{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	res, err := tx.ExecContext(ctx,
 		`UPDATE fuzz_work_items
 		 SET status=?, miner_address=CASE WHEN ?!='' THEN ? ELSE miner_address END,
 		     duration_ms=?, updated_at=?, lease_owner='', lease_until=0
@@ -195,23 +201,38 @@ func (s *Service) enqueueHuntReplay(ctx context.Context, req SubmitRequest, inpu
 	aff, _ := res.RowsAffected()
 	if aff == 0 {
 		var st string
-		_ = s.DB.QueryRowContext(ctx,
+		_ = tx.QueryRowContext(ctx,
 			`SELECT status FROM fuzz_work_items WHERE id=? AND campaign_id=?`,
 			req.ItemID, req.CampaignID).Scan(&st)
 		switch st {
 		case workStatusReplayPending:
-			var qid int64
-			_ = s.DB.QueryRowContext(ctx,
-				`SELECT id FROM fuzz_hunt_replay_queue WHERE campaign_id=? AND item_id=?`,
-				req.CampaignID, req.ItemID).Scan(&qid)
+			qid, err := s.ensureHuntReplayQueueRowTx(ctx, tx, req, inputN, miner, now)
+			if err != nil {
+				return SubmitOutcome{}, err
+			}
+			if err := tx.Commit(); err != nil {
+				return SubmitOutcome{}, err
+			}
 			return SubmitOutcome{Async: true, ReplayStatus: huntReplayStatusPending, QueueID: qid}, nil
 		case "done", "cancelled":
+			_ = tx.Rollback()
 			return SubmitOutcome{ReplayStatus: huntReplayStatusDone}, nil
 		default:
 			return SubmitOutcome{}, fmt.Errorf("poolfuzz: work item not leased by worker")
 		}
 	}
-	res2, err := s.DB.ExecContext(ctx,
+	qid, err := s.ensureHuntReplayQueueRowTx(ctx, tx, req, inputN, miner, now)
+	if err != nil {
+		return SubmitOutcome{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return SubmitOutcome{}, err
+	}
+	return SubmitOutcome{Async: true, ReplayStatus: huntReplayStatusPending, QueueID: qid}, nil
+}
+
+func (s *Service) ensureHuntReplayQueueRowTx(ctx context.Context, tx *sql.Tx, req SubmitRequest, inputN uint64, miner string, now int64) (int64, error) {
+	res, err := tx.ExecContext(ctx,
 		`INSERT INTO fuzz_hunt_replay_queue
 		 (campaign_id, item_id, worker_id, miner_address, input_n, worker_check_result, worker_trap, segment_exec_done, duration_ms, status, created_at, updated_at)
 		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
@@ -222,21 +243,66 @@ func (s *Service) enqueueHuntReplay(ctx context.Context, req SubmitRequest, inpu
 		   worker_trap=excluded.worker_trap,
 		   segment_exec_done=excluded.segment_exec_done,
 		   duration_ms=excluded.duration_ms,
-		   status='pending',
-		   last_error='',
+		   status=CASE
+		     WHEN fuzz_hunt_replay_queue.status IN ('done','failed') THEN fuzz_hunt_replay_queue.status
+		     ELSE 'pending'
+		   END,
+		   last_error=CASE
+		     WHEN fuzz_hunt_replay_queue.status IN ('done','failed') THEN fuzz_hunt_replay_queue.last_error
+		     ELSE ''
+		   END,
 		   updated_at=excluded.updated_at`,
 		req.CampaignID, req.ItemID, req.WorkerID, miner, inputN,
 		req.CheckResult, strings.TrimSpace(req.Trap), req.SegmentExecDone, req.DurationMS,
 		huntReplayStatusPending, now, now)
 	if err != nil {
-		return SubmitOutcome{}, err
+		return 0, err
 	}
-	qid, _ := res2.LastInsertId()
-	return SubmitOutcome{Async: true, ReplayStatus: huntReplayStatusPending, QueueID: qid}, nil
+	qid, _ := res.LastInsertId()
+	if qid == 0 {
+		_ = tx.QueryRowContext(ctx,
+			`SELECT id FROM fuzz_hunt_replay_queue WHERE campaign_id=? AND item_id=?`,
+			req.CampaignID, req.ItemID).Scan(&qid)
+	}
+	return qid, nil
+}
+
+const huntReplayStaleProcessingSec int64 = 15 * 60
+
+func (s *Service) reclaimStaleHuntReplayJobs(ctx context.Context, now int64) {
+	if s == nil || s.DB == nil || now <= 0 {
+		return
+	}
+	cutoff := now - huntReplayStaleProcessingSec
+	_, _ = s.DB.ExecContext(ctx,
+		`UPDATE fuzz_hunt_replay_queue
+		 SET status=?, verifier_id='', last_error=CASE WHEN last_error='' THEN 'reclaimed stale processing' ELSE last_error END, updated_at=?
+		 WHERE status=? AND updated_at < ?`,
+		huntReplayStatusPending, now, huntReplayStatusProcessing, cutoff)
+}
+
+func huntReplayRetryable(err error) bool {
+	if err == nil {
+		return false
+	}
+	low := strings.ToLower(err.Error())
+	for _, needle := range []string{
+		"sqlite_busy", "database is locked", "context deadline", "context canceled",
+		"exec timeout", "no such file", "permission denied", "executable file not found",
+		"fork/exec", "signal: killed", "text file busy", "resource temporarily",
+		"harness build", "clang", "cargo",
+	} {
+		if strings.Contains(low, needle) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Service) processNextHuntReplayJob(ctx context.Context, verifierID string) (bool, error) {
 	now := time.Now().Unix()
+	s.reclaimStaleHuntReplayJobs(ctx, now)
+
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return false, err
@@ -274,6 +340,12 @@ func (s *Service) processNextHuntReplayJob(ctx context.Context, verifierID strin
 
 	procErr := s.runHuntReplayJob(ctx, job, now)
 	if procErr != nil {
+		if huntReplayRetryable(procErr) {
+			_, _ = s.DB.ExecContext(ctx,
+				`UPDATE fuzz_hunt_replay_queue SET status=?, last_error=?, verifier_id='', updated_at=? WHERE id=? AND status=?`,
+				huntReplayStatusPending, procErr.Error(), time.Now().Unix(), job.ID, huntReplayStatusProcessing)
+			return true, nil
+		}
 		_, _ = s.DB.ExecContext(ctx,
 			`UPDATE fuzz_hunt_replay_queue SET status=?, last_error=?, updated_at=? WHERE id=?`,
 			huntReplayStatusFailed, procErr.Error(), time.Now().Unix(), job.ID)
@@ -289,9 +361,16 @@ func (s *Service) processNextHuntReplayJob(ctx context.Context, verifierID strin
 }
 
 func (s *Service) runHuntReplayJob(ctx context.Context, job huntReplayJob, now int64) error {
-	cfgJSON := ""
-	if err := s.DB.QueryRowContext(ctx, `SELECT config_json FROM fuzz_campaigns WHERE id=?`, job.CampaignID).Scan(&cfgJSON); err != nil {
+	var campStatus, cfgJSON string
+	if err := s.DB.QueryRowContext(ctx, `SELECT status, config_json FROM fuzz_campaigns WHERE id=?`, job.CampaignID).Scan(&campStatus, &cfgJSON); err != nil {
 		return err
+	}
+	switch strings.ToLower(strings.TrimSpace(campStatus)) {
+	case "cancelled", "paused", "completed":
+		_, _ = s.DB.ExecContext(ctx,
+			`UPDATE fuzz_work_items SET status='cancelled', updated_at=? WHERE campaign_id=? AND id=? AND status=?`,
+			now, job.CampaignID, job.ItemID, workStatusReplayPending)
+		return fmt.Errorf("poolfuzz: campaign %s", campStatus)
 	}
 	cfg := parseConfigJSON(cfgJSON)
 	if !IsHuntCampaign(cfg) {
@@ -334,18 +413,18 @@ func (s *Service) runHuntReplayJob(ctx context.Context, job huntReplayJob, now i
 	req.CheckResult = checkResult
 	req.Trap = trap
 	return s.finalizeHuntSubmit(ctx, finalizeHuntSubmitParams{
-		req:            req,
-		cfg:            cfg,
-		inputN:         job.InputN,
-		expectedU:      expectedU,
-		expectedB:      expectedB,
-		pass:           pass,
-		recordFinding:  recordFinding,
-		findingU:       findingU,
-		findingB:       findingB,
-		huntOrigLen:    huntOrigLen,
+		req:               req,
+		cfg:               cfg,
+		inputN:            job.InputN,
+		expectedU:         expectedU,
+		expectedB:         expectedB,
+		pass:              pass,
+		recordFinding:     recordFinding,
+		findingU:          findingU,
+		findingB:          findingB,
+		huntOrigLen:       huntOrigLen,
 		fromReplayPending: true,
-		now:            now,
+		now:               now,
 	})
 }
 

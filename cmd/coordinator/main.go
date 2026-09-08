@@ -276,12 +276,12 @@ func loadLANPeers(db *sql.DB, reg *lanpool.Registry) error {
 	return nil
 }
 
-func persistPeer(ctx context.Context, db *sql.DB, workerID string, reg *lanpool.Registry) {
+func persistPeer(ctx context.Context, db *sql.DB, workerID string, reg *lanpool.Registry) error {
 	name, gh, unix, ip, shares, ok := reg.RowForPersist(workerID)
 	if !ok {
-		return
+		return nil
 	}
-	_ = store.UpsertLANPeerRig(ctx, db, store.LANPeerRigRow{
+	return store.UpsertLANPeerRig(ctx, db, store.LANPeerRigRow{
 		WorkerID:       strings.TrimSpace(workerID),
 		Name:           name,
 		HashrateGHS:    gh,

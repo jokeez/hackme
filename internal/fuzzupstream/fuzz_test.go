@@ -167,6 +167,16 @@ func TestHuntJsmnSmoke(t *testing.T) {
 	t.Logf("jsmn smoke: iterations=%d crashes=%d verdict=%s", rep.Iterations, len(rep.Crashes), rep.Verdict)
 }
 
+func TestRunInputDetailedMissingBinaryDoesNotFailOpen(t *testing.T) {
+	crash, _, _, err := RunInputDetailed(context.Background(), filepath.Join(t.TempDir(), "no-such-bin"), []byte("{}"), DefaultRunInputOpts())
+	if crash {
+		t.Fatal("missing binary must not report crash")
+	}
+	if err == nil {
+		t.Fatal("missing binary must return error (not CLEAN fail-open)")
+	}
+}
+
 func repoRoot(t *testing.T) string {
 	t.Helper()
 	wd, err := os.Getwd()

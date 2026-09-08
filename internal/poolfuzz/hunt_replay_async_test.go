@@ -2,6 +2,7 @@ package poolfuzz
 
 import (
 	"context"
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -136,5 +137,114 @@ func TestHuntReplayAsyncDisabledSyncPath(t *testing.T) {
 	}
 	if out.Async {
 		t.Fatalf("sync path should not async: %+v", out)
+	}
+}
+
+func TestHuntReplayCancelClearsQueue(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "hunt-cancel.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	now := time.Now().Unix()
+	id := "hunt-cancel-camp"
+	cfg := map[string]any{
+		"pool_distributed": true, "work_kind": "hunt_shard", "campaign_type": "hunt",
+		"upstream_target_id": "jsmn", "harness_hash": "x", "iterations_per_shard": 2,
+	}
+	if err := svc.RegisterCampaign(ctx, Campaign{ID: id, CampaignType: "hunt", Status: "running", BudgetRuns: 2, Config: cfg}); err != nil {
+		t.Fatal(err)
+	}
+	_ = svc.EnsureWorkItems(ctx, id, now)
+	_, _ = db.ExecContext(ctx,
+		`UPDATE fuzz_work_items SET status='replay_pending', updated_at=? WHERE campaign_id=?`, now, id)
+	_, _ = db.ExecContext(ctx,
+		`INSERT INTO fuzz_hunt_replay_queue
+		 (campaign_id, item_id, worker_id, miner_address, input_n, worker_check_result, worker_trap, segment_exec_done, duration_ms, status, created_at, updated_at)
+		 SELECT ?, id, 'w', '', input_n, 0, '', 0, 0, 'pending', ?, ? FROM fuzz_work_items WHERE campaign_id=? LIMIT 1`,
+		id, now, now, id)
+	if err := svc.SetCampaignStatus(ctx, id, "cancelled"); err != nil {
+		t.Fatal(err)
+	}
+	var rp, qPending int
+	_ = db.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_work_items WHERE campaign_id=? AND status='replay_pending'`, id).Scan(&rp)
+	_ = db.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_hunt_replay_queue WHERE campaign_id=? AND status IN ('pending','processing')`, id).Scan(&qPending)
+	if rp != 0 || qPending != 0 {
+		t.Fatalf("cancel left replay_pending=%d queue_active=%d", rp, qPending)
+	}
+}
+
+func TestReclaimStaleHuntReplayJobs(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "hunt-stale.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	now := time.Now().Unix()
+	_, err = db.ExecContext(ctx,
+		`INSERT INTO fuzz_hunt_replay_queue
+		 (campaign_id, item_id, worker_id, miner_address, input_n, worker_check_result, worker_trap, segment_exec_done, duration_ms, status, created_at, updated_at)
+		 VALUES ('c', 1, 'w', '', 1, 0, '', 0, 0, 'processing', ?, ?)`,
+		now-3600, now-huntReplayStaleProcessingSec-10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc.reclaimStaleHuntReplayJobs(ctx, now)
+	var st string
+	if err := db.QueryRowContext(ctx, `SELECT status FROM fuzz_hunt_replay_queue WHERE campaign_id='c' AND item_id=1`).Scan(&st); err != nil {
+		t.Fatal(err)
+	}
+	if st != huntReplayStatusPending {
+		t.Fatalf("status=%q want pending", st)
+	}
+}
+
+func TestHuntReplayRetryableClassifies(t *testing.T) {
+	if !huntReplayRetryable(fmt.Errorf("database is locked")) {
+		t.Fatal("busy should retry")
+	}
+	if !huntReplayRetryable(fmt.Errorf("fuzzupstream: exec timeout: x")) {
+		t.Fatal("timeout should retry")
+	}
+	if huntReplayRetryable(fmt.Errorf("poolfuzz: campaign cancelled")) {
+		t.Fatal("cancel must not retry forever")
+	}
+}
+
+func TestListPendingSettleOutboxFinalizeLast(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "settle-order.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	fin, err := svc.EnqueueSettleOutbox(ctx, "finalize", "camp-ord", "", "", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	run, err := svc.EnqueueSettleOutbox(ctx, "run", "camp-ord", "HMC-a", "", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fin >= run {
+		t.Fatalf("expected finalize id %d < run id %d for race setup", fin, run)
+	}
+	items, err := svc.ListPendingSettleOutbox(ctx, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) < 2 {
+		t.Fatalf("items=%d", len(items))
+	}
+	if items[0].Kind != "run" || items[1].Kind != "finalize" {
+		t.Fatalf("want run then finalize, got %+v %+v", items[0], items[1])
 	}
 }

@@ -12,8 +12,8 @@ import (
 func ShardAnchorBytes(campaignID string, inputN uint64, cfg map[string]any) []byte {
 	seed := sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%s", campaignID, inputN, cfgString(cfg, "upstream_target_id"))))
 	maxB := fuzzengine.ParseMaxInputBytes(cfg)
-	if maxB < 16 {
-		maxB = 256
+	if maxB < fuzzengine.MinMaxInputBytes {
+		maxB = fuzzengine.MinMaxInputBytes
 	}
 	if maxB > 4096 {
 		maxB = 4096

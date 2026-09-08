@@ -65,6 +65,9 @@ func RunInputDetailed(ctx context.Context, binPath string, input []byte, opts Ru
 		return true, info, tail, nil
 	}
 	if runErr != nil {
+		if runCtx.Err() == context.DeadlineExceeded {
+			return false, SanitizerInfo{}, tail, fmt.Errorf("fuzzupstream: exec timeout: %w", runErr)
+		}
 		if _, ok := runErr.(*exec.ExitError); ok && strings.Contains(blob, "Sanitizer") {
 			info = ClassifySanitizer(blob)
 			if info.Raw == "" {
@@ -72,6 +75,12 @@ func RunInputDetailed(ctx context.Context, binPath string, input []byte, opts Ru
 			}
 			return true, info, tail, nil
 		}
+		if _, ok := runErr.(*exec.ExitError); ok {
+			// Non-sanitizer exit: treat as clean (no crash), not as verifier failure.
+			return false, SanitizerInfo{}, tail, nil
+		}
+		// Start/permission/not-found and other infra errors must not fail-open as CLEAN.
+		return false, SanitizerInfo{}, tail, runErr
 	}
 	return false, SanitizerInfo{}, tail, nil
 }
