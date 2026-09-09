@@ -136,7 +136,40 @@ func TestAttachPoHOrderFromFuzzConfig(t *testing.T) {
 		t.Fatalf("kind=%v", gotBody["kind"])
 	}
 	wasm, _ := gotBody["wasm_check_hex"].(string)
-	if !strings.EqualFold(wasm, sandbox.MinimalGateWasmHex) {
+	want := sandbox.DefaultPoHOrderGateWasmHex()
+	if !strings.EqualFold(wasm, want) {
+		t.Fatalf("want default order gate, got len=%d source=%v", len(wasm), out["poh_wasm_source"])
+	}
+	if out["poh_wasm_source"] != "default_order_gate" {
+		t.Fatalf("source=%v", out["poh_wasm_source"])
+	}
+}
+
+func TestAttachPoHOrderUsesExplicitPoHWasm(t *testing.T) {
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(raw, &gotBody)
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "prepaid_hmc": 0.05})
+	}))
+	defer srv.Close()
+	t.Setenv("HACKME_COORDINATOR_ORDERS_ADMIN_TOKEN", "tok")
+	wm := &workManager{ordersProbeURL: srv.URL}
+	out := wm.attachPoHOrderFromFuzzConfig("c-explicit", map[string]any{
+		"attach_poh_order":   true,
+		"wasm_check_hex":     sandbox.MinimalGateWasmHex, // Dig/minimal must be ignored
+		"poh_wasm_check_hex": sandbox.DefaultPoHOrderGateWasmHex(),
+		"poh_order_id":       "order-explicit-1",
+		"poh_reward_hmc":     0.05,
+	})
+	if out["ok"] != true {
+		t.Fatalf("attach failed: %v", out)
+	}
+	if out["poh_wasm_source"] != "poh_wasm_check_hex" {
+		t.Fatalf("source=%v", out["poh_wasm_source"])
+	}
+	wasm, _ := gotBody["wasm_check_hex"].(string)
+	if !strings.EqualFold(wasm, sandbox.DefaultPoHOrderGateWasmHex()) {
 		t.Fatalf("wasm mismatch")
 	}
 }

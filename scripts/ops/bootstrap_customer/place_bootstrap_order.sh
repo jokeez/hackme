@@ -23,31 +23,35 @@ if [[ "$BUDGET_RUNS" -gt "$MAX_BUDGET_RUNS" ]]; then
 fi
 
 ADMIN="$(grep -m1 '^HACKME_ADMIN_TOKEN=' "$INSTALL/.env" | cut -d= -f2- | tr -d '\r\n')"
-# PoH order gate must be solvable for pool M finds. Security "bounds_guard" wasm rejects
-# almost all nonces and leaves progress stuck at 0/N while leases look healthy.
-# Prefer dedicated order gate (or HACKME_MINIMAL_POH_GATE=1 / WASM_FILE override).
+# PoH order gate must be solvable for pool M finds. Dig "bounds_guard" / detector wasm
+# rejects almost all nonces and leaves progress stuck at 0/N while leases look healthy.
+# Prefer dedicated order gate (embedded in coordinator; or WASM_FILE / tracked artifact).
+# Escape hatch only: HACKME_ALLOW_MINIMAL_POH_GATE=1 (always-pass demo — not for prod fleet).
 WASM="${WASM_FILE:-}"
 if [[ -z "$WASM" ]]; then
-  if [[ "${HACKME_MINIMAL_POH_GATE:-0}" == "1" ]]; then
-    WASM="" # filled as hex below
-  else
-    for cand in \
-      "$INSTALL/tasks/artifacts/security/upstream_hackme_order_gate.wasm" \
-      "$ROOT/tasks/artifacts/security/upstream_hackme_order_gate.wasm" \
-      "$INSTALL/tasks/artifacts/security/rust_script_push_bounds_guard.wasm" \
-      "$ROOT/tasks/artifacts/security/rust_script_push_bounds_guard.wasm"; do
-      if [[ -f "$cand" ]]; then WASM="$cand"; break; fi
-    done
-  fi
+  for cand in \
+    "$INSTALL/tasks/artifacts/security/upstream_hackme_order_gate.wasm" \
+    "$ROOT/tasks/artifacts/security/upstream_hackme_order_gate.wasm" \
+    "$ROOT/internal/sandbox/embed/upstream_hackme_order_gate.wasm"; do
+    if [[ -f "$cand" ]]; then WASM="$cand"; break; fi
+  done
 fi
-if [[ "${HACKME_MINIMAL_POH_GATE:-0}" == "1" ]]; then
-  # Always-pass check(i64)->i32 (sandbox.MinimalGateWasmHex)
+if [[ "${HACKME_ALLOW_MINIMAL_POH_GATE:-0}" == "1" ]]; then
+  echo "[bootstrap-order] WARN HACKME_ALLOW_MINIMAL_POH_GATE=1 — using always-pass MinimalGate" >&2
   WASM_HEX="0061736d0100000001060160017e017f0302010007090105636865636b00000a0601040041010b"
 elif [[ -n "$WASM" && -f "$WASM" ]]; then
   WASM_HEX="$(xxd -p "$WASM" | tr -d '\n')"
 else
-  echo "[bootstrap-order] missing PoH wasm (set WASM_FILE or ship upstream_hackme_order_gate.wasm)" >&2
+  echo "[bootstrap-order] missing PoH order gate wasm (set WASM_FILE or ship upstream_hackme_order_gate.wasm)" >&2
   exit 1
+fi
+# Reject accidental Dig detector modules as PoH gate (too large / wrong semantics).
+if [[ "${HACKME_ALLOW_MINIMAL_POH_GATE:-0}" != "1" ]]; then
+  wasm_bytes=$(( ${#WASM_HEX} / 2 ))
+  if [[ "$wasm_bytes" -gt 4096 ]]; then
+    echo "[bootstrap-order] wasm looks like Dig detector (${wasm_bytes}B) — refusing as PoH gate. Use order gate." >&2
+    exit 1
+  fi
 fi
 [[ -n "$WASM_HEX" ]] || { echo "[bootstrap-order] empty wasm hex" >&2; exit 1; }
 OID="order-bootstrap-${TARGET}-${STAMP}"

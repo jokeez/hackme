@@ -6,7 +6,8 @@ When a customer node creates `POST /api/security-audit` with **`create_poh_order
 
 - Fuzz escrow stays on the **customer node** (report + settle pull).
 - PoH escrow is **not** opened on that node (pool workers never see a remote SQLite task list).
-- Campaign config carries `attach_poh_order` + WASM/reward fields; coordinator `POST /api/fuzz/pool/campaigns` creates the PoH task on **`HACKME_COORDINATOR_ORDERS_URL`**.
+- Campaign config carries `attach_poh_order` + Dig `wasm_check_hex`; coordinator `POST /api/fuzz/pool/campaigns` creates the PoH task on **`HACKME_COORDINATOR_ORDERS_URL`**.
+- **PoH gate WASM** defaults to embedded `upstream_hackme_order_gate` (solvable economics check on nonce bits). Dig detector modules are **not** reused as the PoH gate (they stuck orders at `0/N`). Override with config `poh_wasm_check_hex`, or lab opt-in `poh_use_campaign_wasm=true`.
 - Existing **`workerpoh`** clients auto-enter `scheduler_mode=orders` — no binary update for that rail.
 - Deep fuzz **runs** use `/api/fuzz/work/*` (hybrid `workerpoh` or standalone `workerfuzz`). Hub **exec_per_unit** capped at **64** on distributed pool; coordinator replays segment on submit (see [POOL_FUZZ_DISTRIBUTED.md](POOL_FUZZ_DISTRIBUTED.md)).
 

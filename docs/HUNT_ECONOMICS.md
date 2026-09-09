@@ -106,7 +106,8 @@ First **qualifying** finding wins the bounty slice (same idempotency model as Di
 
 Default Hunt: **fuzz escrow only** (`create_poh_order: false`).
 
-Optional hybrid: `create_poh_order: true`, `reward_hmc: 0.02–0.05` — for rigs running PoH + Hunt shards. Not required for MVP.
+Optional hybrid: `create_poh_order: true`, `reward_hmc: 0.02–0.05` — for rigs running PoH + Hunt shards.  
+Coordinator attach uses the dedicated **order gate** WASM (not Hunt ASAN / Dig detectors). Override with `poh_wasm_check_hex` if needed.
 
 ---
 

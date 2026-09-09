@@ -12,7 +12,10 @@ Bootstrap places **`POST /api/security-audit`** locally with:
 
 **PoH progress (`/api/tasks` `progress_count`) only moves on chain order solves** (find + WASM gate pass + `solve-order` relay). Leases/`runs_done` alone do not count.
 
-**PoH WASM:** use `upstream_hackme_order_gate.wasm` (solvable). Do **not** attach security `*_bounds_guard.wasm` as the PoH gate — it rejects almost all nonces and leaves orders stuck at `0/N` while the pool still shows `scheduler=orders` and leases. Override with `WASM_FILE=...` or `HACKME_MINIMAL_POH_GATE=1`.
+**PoH WASM:** use `upstream_hackme_order_gate.wasm` (also embedded at `internal/sandbox/embed/`).  
+Coordinator attach **ignores Dig `wasm_check_hex`** and uses the order gate unless `poh_wasm_check_hex` is set.  
+Do **not** attach Dig `*_bounds_guard.wasm` / detector modules as the PoH gate — they reject almost all nonces (`0/N` stuck).  
+Lab-only always-pass: `HACKME_ALLOW_MINIMAL_POH_GATE=1` (was `HACKME_MINIMAL_POH_GATE`).
 
 No miner binary update for the PoH rail. Deep fuzz corpus work is still a separate claim path until `workerfuzz` eats fuzz.
 

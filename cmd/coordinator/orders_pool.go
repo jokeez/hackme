@@ -553,7 +553,7 @@ func (m *workManager) attachPoHOrderFromFuzzConfig(campaignID string, cfg map[st
 		out["skipped"] = false
 		return out
 	}
-	wasmHex := strings.TrimSpace(strings.ToLower(configString(cfg, "wasm_check_hex")))
+	wasmHex, wasmSource := sandbox.ResolvePoHOrderGateWasmHex(cfg)
 	if wasmHex == "" {
 		out["reason"] = "wasm_missing"
 		out["skipped"] = false
@@ -633,6 +633,7 @@ func (m *workManager) attachPoHOrderFromFuzzConfig(campaignID string, cfg map[st
 		out["order_id"] = orderID
 		out["prepaid_hmc"] = decoded["prepaid_hmc"]
 		out["total_debit_hmc"] = decoded["total_debit_hmc"]
+		out["poh_wasm_source"] = wasmSource
 		m.mu.Lock()
 		m.activeOrder = activeOrderSnap{} // force refresh on next claim
 		m.mu.Unlock()
