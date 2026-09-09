@@ -50,6 +50,9 @@ func RunHunt(ctx context.Context, opts HuntOptions) (rollup *RollupReport, err e
 	defer cancel()
 
 	targets := selectTargets(manifest, opts)
+	if len(targets) == 0 {
+		return nil, fmt.Errorf("fuzzupstream: no hunt targets selected")
+	}
 	seeds := seedsFromManifest(manifest)
 
 	rollup = &RollupReport{
@@ -101,6 +104,13 @@ func RunHunt(ctx context.Context, opts HuntOptions) (rollup *RollupReport, err e
 		}
 	}
 	rollup.FinishedAt = time.Now().UTC().Format(time.RFC3339)
+	if len(rollup.Targets) == 0 {
+		rollup.Verdict = "ERROR"
+		rollup.Summary = "ERROR — no target completed successfully (build/exec failures)."
+		rb, _ := json.MarshalIndent(rollup, "", "  ")
+		_ = os.WriteFile(filepath.Join(opts.OutDir, "ROLLUP.json"), append(rb, '\n'), 0o644)
+		return rollup, fmt.Errorf("fuzzupstream: no hunt targets completed: %v", rollup.BuildErrors)
+	}
 	if rollup.Verdict == "CVE_CANDIDATE" {
 		rollup.Summary = "HOLD — native CVE candidate(s). Responsible disclosure required before publish."
 	} else if len(rollup.InformationalTargets) > 0 {

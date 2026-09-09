@@ -163,6 +163,7 @@ func HuntWithOptions(ctx context.Context, repoRoot string, t Target, binPath str
 	}
 	seenCrash := map[string]bool{}
 	deadline := time.Now().Add(time.Duration(timeLimitSec) * time.Second)
+	execErrors := 0
 
 	for i := 0; i < budget; i++ {
 		if ctx.Err() != nil {
@@ -187,6 +188,7 @@ func HuntWithOptions(ctx context.Context, repoRoot string, t Target, binPath str
 		runOpts.DetectLeaks = opts.DetectLeaks
 		crash, info, tail, err := RunInputDetailed(ctx, binPath, input, runOpts)
 		if err != nil {
+			execErrors++
 			continue
 		}
 		rep.Iterations++
@@ -228,6 +230,9 @@ func HuntWithOptions(ctx context.Context, repoRoot string, t Target, binPath str
 		rep.Crashes = append(rep.Crashes, cf)
 	}
 	rep.ElapsedSec = time.Since(start).Seconds()
+	if rep.Iterations == 0 && execErrors > 0 {
+		return rep, fmt.Errorf("fuzzupstream: hunt produced 0 successful execs (%d infra errors)", execErrors)
+	}
 	sec := 0
 	for _, c := range rep.Crashes {
 		if c.SanitizerClass == "asan" || IsSecuritySanitizer(c.Sanitizer) {

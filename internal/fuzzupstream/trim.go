@@ -8,11 +8,11 @@ const defaultMaxTrimSteps = 384
 
 // TrimResult holds minimized crash input metadata.
 type TrimResult struct {
-	Input        []byte
-	OriginalLen  int
-	TrimmedLen   int
-	Steps        int
-	Trimmed      bool
+	Input       []byte
+	OriginalLen int
+	TrimmedLen  int
+	Steps       int
+	Trimmed     bool
 }
 
 // SanitizerSame reports whether two sanitizer classifications are equivalent for trim.

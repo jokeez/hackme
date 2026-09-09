@@ -620,6 +620,11 @@ func (s *Service) claimOnePendingInCampaign(ctx context.Context, workerID, campa
 	}
 	work, err := s.buildClaimedWork(ctx, campaignID, itemID, inputN, cfg, workerID)
 	if err != nil {
+		_, _ = s.DB.ExecContext(ctx,
+			`UPDATE fuzz_work_items
+			 SET status='pending', lease_owner='', lease_until=0, updated_at=?
+			 WHERE id=? AND campaign_id=? AND status='leased' AND lease_owner=?`,
+			now, itemID, campaignID, workerID)
 		return out, false, err
 	}
 	return work, true, nil

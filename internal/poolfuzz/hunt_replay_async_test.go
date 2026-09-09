@@ -212,8 +212,17 @@ func TestHuntReplayRetryableClassifies(t *testing.T) {
 	if !huntReplayRetryable(fmt.Errorf("fuzzupstream: exec timeout: x")) {
 		t.Fatal("timeout should retry")
 	}
+	if !huntReplayRetryable(fmt.Errorf("poolfuzz: settle flush: boom")) {
+		t.Fatal("settle should retry")
+	}
 	if huntReplayRetryable(fmt.Errorf("poolfuzz: campaign cancelled")) {
 		t.Fatal("cancel must not retry forever")
+	}
+	if huntReplayRetryable(fmt.Errorf("executable file not found")) {
+		t.Fatal("missing binary must be definitive")
+	}
+	if huntReplayRetryCount("retry:3:database is locked") != 3 {
+		t.Fatal("retry count parse")
 	}
 }
 

@@ -23,14 +23,14 @@ func TestHuntGuidedClaimFreezesCorpusSnapshot(t *testing.T) {
 	svc := &Service{DB: db}
 	ctx := context.Background()
 	cfg := map[string]any{
-		"pool_distributed":     true,
-		"work_kind":            "hunt_shard",
-		"campaign_type":        "hunt",
-		"upstream_target_id":   "jsmn",
-		"harness_hash":         "abc123",
-		"iterations_per_shard": 4,
-		"max_input_bytes":      256,
-		"depth_tier":           "oss_cve",
+		"pool_distributed":      true,
+		"work_kind":             "hunt_shard",
+		"campaign_type":         "hunt",
+		"upstream_target_id":    "jsmn",
+		"harness_hash":          "abc123",
+		"iterations_per_shard":  4,
+		"max_input_bytes":       256,
+		"depth_tier":            "oss_cve",
 		"hunt_segment_mutating": true,
 	}
 	hunt.ApplyPoolGuidedDefaults(cfg, "jsmn")

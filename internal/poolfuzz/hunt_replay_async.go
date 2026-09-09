@@ -286,11 +286,11 @@ func huntReplayRetryable(err error) bool {
 		return false
 	}
 	low := strings.ToLower(err.Error())
+	// Only transient verifier/DB stalls — missing toolchain / missing binary are definitive.
 	for _, needle := range []string{
 		"sqlite_busy", "database is locked", "context deadline", "context canceled",
-		"exec timeout", "no such file", "permission denied", "executable file not found",
-		"fork/exec", "signal: killed", "text file busy", "resource temporarily",
-		"harness build", "clang", "cargo",
+		"exec timeout", "signal: killed", "text file busy", "resource temporarily",
+		"poolfuzz: settle", "finalize escrow",
 	} {
 		if strings.Contains(low, needle) {
 			return true
@@ -298,6 +298,25 @@ func huntReplayRetryable(err error) bool {
 	}
 	return false
 }
+
+func huntReplayRetryCount(lastError string) int {
+	// Format: "retry:N:<msg>"
+	if !strings.HasPrefix(lastError, "retry:") {
+		return 0
+	}
+	rest := strings.TrimPrefix(lastError, "retry:")
+	i := strings.IndexByte(rest, ':')
+	if i <= 0 {
+		return 0
+	}
+	n, err := strconv.Atoi(rest[:i])
+	if err != nil || n < 0 {
+		return 0
+	}
+	return n
+}
+
+const huntReplayMaxRetries = 8
 
 func (s *Service) processNextHuntReplayJob(ctx context.Context, verifierID string) (bool, error) {
 	now := time.Now().Unix()
@@ -310,14 +329,15 @@ func (s *Service) processNextHuntReplayJob(ctx context.Context, verifierID strin
 	defer func() { _ = tx.Rollback() }()
 
 	var job huntReplayJob
+	var prevErr string
 	err = tx.QueryRowContext(ctx,
-		`SELECT id, campaign_id, item_id, worker_id, miner_address, input_n, worker_check_result, worker_trap, segment_exec_done, duration_ms
+		`SELECT id, campaign_id, item_id, worker_id, miner_address, input_n, worker_check_result, worker_trap, segment_exec_done, duration_ms, COALESCE(last_error,'')
 		 FROM fuzz_hunt_replay_queue
 		 WHERE status=?
 		 ORDER BY created_at ASC, id ASC
 		 LIMIT 1`, huntReplayStatusPending).Scan(
 		&job.ID, &job.CampaignID, &job.ItemID, &job.WorkerID, &job.MinerAddress, &job.InputN,
-		&job.WorkerCheckResult, &job.WorkerTrap, &job.SegmentExecDone, &job.DurationMS)
+		&job.WorkerCheckResult, &job.WorkerTrap, &job.SegmentExecDone, &job.DurationMS, &prevErr)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
@@ -340,11 +360,37 @@ func (s *Service) processNextHuntReplayJob(ctx context.Context, verifierID strin
 
 	procErr := s.runHuntReplayJob(ctx, job, now)
 	if procErr != nil {
-		if huntReplayRetryable(procErr) {
+		var workSt string
+		_ = s.DB.QueryRowContext(ctx,
+			`SELECT status FROM fuzz_work_items WHERE campaign_id=? AND id=?`,
+			job.CampaignID, job.ItemID).Scan(&workSt)
+		if workSt == "done" {
+			// Terminal work already committed; do not flip result_ok. Retry settle-only or close queue.
+			if huntReplayRetryable(procErr) {
+				n := huntReplayRetryCount(prevErr) + 1
+				if n <= huntReplayMaxRetries {
+					msg := fmt.Sprintf("retry:%d:%s", n, procErr.Error())
+					_, _ = s.DB.ExecContext(ctx,
+						`UPDATE fuzz_hunt_replay_queue SET status=?, last_error=?, verifier_id='', updated_at=? WHERE id=? AND status=?`,
+						huntReplayStatusPending, msg, time.Now().Unix(), job.ID, huntReplayStatusProcessing)
+					// Yield ticker — avoid tight retry storm on same row.
+					return false, nil
+				}
+			}
 			_, _ = s.DB.ExecContext(ctx,
-				`UPDATE fuzz_hunt_replay_queue SET status=?, last_error=?, verifier_id='', updated_at=? WHERE id=? AND status=?`,
-				huntReplayStatusPending, procErr.Error(), time.Now().Unix(), job.ID, huntReplayStatusProcessing)
+				`UPDATE fuzz_hunt_replay_queue SET status=?, last_error=?, updated_at=? WHERE id=?`,
+				huntReplayStatusDone, procErr.Error(), time.Now().Unix(), job.ID)
 			return true, nil
+		}
+		if huntReplayRetryable(procErr) {
+			n := huntReplayRetryCount(prevErr) + 1
+			if n <= huntReplayMaxRetries {
+				msg := fmt.Sprintf("retry:%d:%s", n, procErr.Error())
+				_, _ = s.DB.ExecContext(ctx,
+					`UPDATE fuzz_hunt_replay_queue SET status=?, last_error=?, verifier_id='', updated_at=? WHERE id=? AND status=?`,
+					huntReplayStatusPending, msg, time.Now().Unix(), job.ID, huntReplayStatusProcessing)
+				return false, nil
+			}
 		}
 		_, _ = s.DB.ExecContext(ctx,
 			`UPDATE fuzz_hunt_replay_queue SET status=?, last_error=?, updated_at=? WHERE id=?`,
@@ -355,7 +401,7 @@ func (s *Service) processNextHuntReplayJob(ctx context.Context, verifierID strin
 		return true, nil
 	}
 	_, _ = s.DB.ExecContext(ctx,
-		`UPDATE fuzz_hunt_replay_queue SET status=?, updated_at=? WHERE id=?`,
+		`UPDATE fuzz_hunt_replay_queue SET status=?, last_error='', updated_at=? WHERE id=?`,
 		huntReplayStatusDone, time.Now().Unix(), job.ID)
 	return true, nil
 }
@@ -456,6 +502,37 @@ func (s *Service) finalizeHuntSubmit(ctx context.Context, p finalizeHuntSubmitPa
 	if p.fromReplayPending {
 		statusWhere = workStatusReplayPending
 	}
+	// Durable local effects first while work is still replay_pending/leased so transient
+	// failures can retry without a done/failed split brain.
+	if err := s.recordCoverage(ctx, p.req.CampaignID, p.cfg, p.req.ActualInput, p.req.InputBytes, nil, p.now); err != nil {
+		return err
+	}
+	if hunt.HuntCorpusGuided(p.cfg) {
+		obsU, obsB := p.req.ActualInput, p.req.InputBytes
+		if p.recordFinding && len(p.findingB) > 0 {
+			obsU = p.findingU
+			obsB = p.findingB
+		}
+		if err := s.observePoolCorpus(ctx, p.req.CampaignID, obsU, obsB, p.recordFinding, p.now); err != nil {
+			return err
+		}
+	}
+	var findingSeverity, findingType, findingID string
+	var err error
+	if p.recordFinding {
+		submitReq := p.req
+		submitReq.ActualInput = p.findingU
+		submitReq.InputOriginalLen = p.huntOrigLen
+		if len(p.findingB) > 0 {
+			submitReq.InputBytes = p.findingB
+		} else {
+			submitReq.InputBytes = p.expectedB
+		}
+		findingID, findingSeverity, findingType, err = s.insertFinding(ctx, submitReq, p.cfg, sem, hasWasm, p.now)
+		if err != nil {
+			return err
+		}
+	}
 	res, err := s.DB.ExecContext(ctx,
 		`UPDATE fuzz_work_items
 		 SET status='done', attempts=attempts+1, result_ok=?, duration_ms=?, last_error=?, lease_owner='', lease_until=0, updated_at=?,
@@ -474,34 +551,6 @@ func (s *Service) finalizeHuntSubmit(ctx context.Context, p finalizeHuntSubmitPa
 	if aff == 0 {
 		return fmt.Errorf("poolfuzz: hunt finalize: work item state changed")
 	}
-	if err := s.recordCoverage(ctx, p.req.CampaignID, p.cfg, p.req.ActualInput, p.req.InputBytes, nil, p.now); err != nil {
-		return err
-	}
-	if hunt.HuntCorpusGuided(p.cfg) {
-		obsU, obsB := p.req.ActualInput, p.req.InputBytes
-		if p.recordFinding && len(p.findingB) > 0 {
-			obsU = p.findingU
-			obsB = p.findingB
-		}
-		if err := s.observePoolCorpus(ctx, p.req.CampaignID, obsU, obsB, p.recordFinding, p.now); err != nil {
-			return err
-		}
-	}
-	var findingSeverity, findingType, findingID string
-	if p.recordFinding {
-		submitReq := p.req
-		submitReq.ActualInput = p.findingU
-		submitReq.InputOriginalLen = p.huntOrigLen
-		if len(p.findingB) > 0 {
-			submitReq.InputBytes = p.findingB
-		} else {
-			submitReq.InputBytes = p.expectedB
-		}
-		findingID, findingSeverity, findingType, err = s.insertFinding(ctx, submitReq, p.cfg, sem, hasWasm, p.now)
-		if err != nil {
-			return err
-		}
-	}
 	if wantRunSettle {
 		if p.recordFinding && huntBountyEligible(p.cfg, findingSeverity) && s.bountyAllowed(ctx, p.cfg, findingID) {
 			_, _ = s.DB.ExecContext(ctx,
@@ -509,7 +558,7 @@ func (s *Service) finalizeHuntSubmit(ctx context.Context, p finalizeHuntSubmitPa
 				findingSeverity, p.req.ItemID, p.req.CampaignID)
 		}
 		if err := s.flushPendingSettles(ctx, p.req.CampaignID, p.req.ItemID, p.cfg); err != nil {
-			return err
+			return fmt.Errorf("poolfuzz: settle flush: %w", err)
 		}
 		if p.recordFinding && miner != "" && fuzzengine.IsCrashClass(findingType) {
 			if _, err := s.Settler.PayCrashBonus(ctx, p.req.CampaignID, miner, 0, 0); err != nil {

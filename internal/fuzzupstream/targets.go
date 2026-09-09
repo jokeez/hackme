@@ -40,7 +40,7 @@ type Target struct {
 	Ref          string   `json:"ref"`
 	Title        string   `json:"title"`
 	Driver       string   `json:"driver"`
-	Language     string   `json:"language,omitempty"` // c (default) | rust
+	Language     string   `json:"language,omitempty"`      // c (default) | rust
 	CargoPackage string   `json:"cargo_package,omitempty"` // Rust crate name for path dep (default: id)
 	UpstreamSrc  []string `json:"upstream_src"`
 	IncludeDirs  []string `json:"include_dirs"`
@@ -76,9 +76,9 @@ func DriverSourcePath(repoRoot string, t Target) string {
 
 // CrashFinding is a sanitizer crash on real upstream code.
 type CrashFinding struct {
-	TargetID     string   `json:"target_id"`
-	Title        string   `json:"title"`
-	Repo         string   `json:"repo"`
+	TargetID         string   `json:"target_id"`
+	Title            string   `json:"title"`
+	Repo             string   `json:"repo"`
 	InputHex         string   `json:"input_hex"`
 	InputLen         int      `json:"input_len"`
 	OriginalInputLen int      `json:"original_input_len,omitempty"`
@@ -88,10 +88,10 @@ type CrashFinding struct {
 	SanitizerSubtype string   `json:"sanitizer_subtype,omitempty"`
 	SanitizerLabel   string   `json:"sanitizer_label,omitempty"`
 	Tail             string   `json:"tail"`
-	Iteration    int      `json:"iteration"`
-	CWE          []string `json:"cwe,omitempty"`
-	Disclosure   string   `json:"disclosure"`
-	ArtifactPath string   `json:"artifact_path,omitempty"`
+	Iteration        int      `json:"iteration"`
+	CWE              []string `json:"cwe,omitempty"`
+	Disclosure       string   `json:"disclosure"`
+	ArtifactPath     string   `json:"artifact_path,omitempty"`
 }
 
 // HuntReport is written per target or rollup.
