@@ -138,6 +138,24 @@ status() {
   done
 }
 
+# One Hunt ASAN soak already stresses ~15Gi RAM; two parallel days die mid-batch.
+assert_no_live_watch() {
+  local base="$ROOT/reports/hunt-watch/${SERIES}"
+  local d pid
+  [[ -d "$base" ]] || return 0
+  for d in "$base"/day*; do
+    [[ -d "$d" && -f "$d/watch.pid" ]] || continue
+    pid="$(cat "$d/watch.pid" 2>/dev/null || true)"
+    [[ -n "$pid" ]] || continue
+    if kill -0 "$pid" 2>/dev/null; then
+      echo "[hunt-watch] FAIL another watch still alive: $(basename "$d") pid=$pid" >&2
+      echo "[hunt-watch] refuse parallel DAY launch (OOM risk). Stop it or wait." >&2
+      return 1
+    fi
+  done
+  return 0
+}
+
 case "$CMD" in
   preflight) preflight ;;
   run)
@@ -146,6 +164,7 @@ case "$CMD" in
     chain_next
     ;;
   launch)
+    assert_no_live_watch
     preflight
     mkdir -p "$OUT"
     setsid env \
