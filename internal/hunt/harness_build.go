@@ -32,14 +32,15 @@ type HarnessBuildResult struct {
 	Note              string   `json:"note,omitempty"`
 }
 
-// InventoryHarnessHash fingerprints a pinned inventory harness.
+// InventoryHarnessHash fingerprints a pinned inventory harness (full source bytes).
 func InventoryHarnessHash(pinSHA, sourceRel string, content []byte) string {
-	limit := len(content)
-	if limit > 4096 {
-		limit = 4096
-	}
-	sumInput := strings.TrimSpace(pinSHA) + "\x00" + strings.TrimSpace(sourceRel) + "\x00" + string(content[:limit])
-	sum := sha256.Sum256([]byte(sumInput))
+	h := sha256.New()
+	_, _ = h.Write([]byte(strings.TrimSpace(pinSHA)))
+	_, _ = h.Write([]byte{0})
+	_, _ = h.Write([]byte(strings.TrimSpace(sourceRel)))
+	_, _ = h.Write([]byte{0})
+	_, _ = h.Write(content)
+	sum := h.Sum(nil)
 	return hex.EncodeToString(sum[:16])
 }
 

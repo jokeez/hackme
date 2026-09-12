@@ -77,8 +77,8 @@ func (s *Service) ApplyFuzzSettleOnce(ctx context.Context, eventID, kind, campai
 }
 
 func isFuzzSettleDrainErr(err error) bool {
-	return errors.Is(err, ErrFuzzEscrowClosed) ||
-		errors.Is(err, ErrFuzzEscrowDepleted) ||
+	// Closed must not drain/ACK unpaid events (see fuzzSettleOutboxDrainOnErr).
+	return errors.Is(err, ErrFuzzEscrowDepleted) ||
 		errors.Is(err, ErrFuzzEscrowAlreadyPaid)
 }
 
@@ -98,7 +98,7 @@ func (s *Service) payFuzzRunTx(ctx context.Context, tx *sql.Tx, campaignID, mine
 	if err != nil {
 		return err
 	}
-	if row.status != "open" {
+	if row.status != "open" && row.status != "bounty_paid" {
 		return ErrFuzzEscrowClosed
 	}
 	if row.runsPaidUnits+row.perRunUnits > row.runsPoolUnits {
@@ -129,7 +129,9 @@ func (s *Service) payFuzzCrashBonusTx(ctx context.Context, tx *sql.Tx, campaignI
 	if err != nil {
 		return err
 	}
-	if row.status != "open" {
+	// Runs and crash-bonus may still settle after a Hunt/Dig bounty slice (status bounty_paid).
+	// Only fully closed escrow rejects further credits.
+	if row.status != "open" && row.status != "bounty_paid" {
 		return ErrFuzzEscrowClosed
 	}
 	if row.crashBonusPaidUnits > 0 {

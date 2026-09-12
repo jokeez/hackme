@@ -131,3 +131,45 @@ func TestCancelHuntEscrowRefundsLeftoverAfterHigh(t *testing.T) {
 		t.Fatalf("cancel must credit leftover: pre=%d post=%d", walletPre, walletPost)
 	}
 }
+
+func TestPayRunAndCrashBonusAfterHuntBountyPaid(t *testing.T) {
+	ctx := context.Background()
+	db, err := store.Open(filepath.Join(t.TempDir(), "hunt-run-after-bounty.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := New(db)
+	payer := "HMC-1234567890123456"
+	miner := "HMC-9876543210987654"
+	if _, _, err := svc.InitGenesis(ctx, payer); err != nil {
+		t.Fatal(err)
+	}
+	preFundEscrow(t, ctx, db, payer, 40.0)
+	if _, err := db.ExecContext(ctx, `INSERT OR IGNORE INTO accounts(address, balance_units, next_nonce, updated_at) VALUES(?,0,0,0)`, miner); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.OpenHuntEscrow(ctx, "hunt-after-bounty", 20.0, 1000); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.PayFuzzBounty(ctx, "hunt-after-bounty", miner, "high"); err != nil {
+		t.Fatal(err)
+	}
+	row, err := svc.GetFuzzEscrow(ctx, "hunt-after-bounty")
+	if err != nil || row.Status != "bounty_paid" {
+		t.Fatalf("status=%v err=%v", row, err)
+	}
+	if _, err := svc.PayFuzzRun(ctx, "hunt-after-bounty", miner); err != nil {
+		t.Fatalf("run after bounty_paid must pay: %v", err)
+	}
+	if _, err := svc.PayFuzzCrashBonus(ctx, "hunt-after-bounty", miner); err != nil {
+		t.Fatalf("crash bonus after bounty_paid must pay from leftover: %v", err)
+	}
+	row, err = svc.GetFuzzEscrow(ctx, "hunt-after-bounty")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if row.RunsPaidHMC <= 0 || row.CrashBonusPaidHMC <= 0 {
+		t.Fatalf("want run+crash paid, got runs=%v crash=%v", row.RunsPaidHMC, row.CrashBonusPaidHMC)
+	}
+}

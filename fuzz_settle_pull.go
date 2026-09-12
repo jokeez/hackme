@@ -137,8 +137,9 @@ func fuzzSettleOutboxAction(escrowStatus, kind string) (apply bool, drain bool) 
 }
 
 func fuzzSettleOutboxDrainOnErr(err error) bool {
-	return errors.Is(err, chain.ErrFuzzEscrowClosed) ||
-		errors.Is(err, chain.ErrFuzzEscrowDepleted) ||
+	// Do NOT drain ErrFuzzEscrowClosed: that permanently ACKs unpaid run/crash rows
+	// (C-01). Depleted / already-paid are terminal no-ops safe to ACK.
+	return errors.Is(err, chain.ErrFuzzEscrowDepleted) ||
 		errors.Is(err, chain.ErrFuzzEscrowAlreadyPaid)
 }
 

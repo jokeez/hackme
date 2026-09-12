@@ -98,10 +98,14 @@ func huntCoverageKind(cfg map[string]any, iter int) string {
 
 func huntHarnessFetchURL(cfg map[string]any) string {
 	if v := strings.TrimSpace(jsonString(cfg["harness_fetch_url"])); v != "" {
-		return v
+		if hunt.SafeHarnessFetchURL(v) {
+			return v
+		}
 	}
 	if v := strings.TrimSpace(jsonString(cfg["harness_fetch_path"])); v != "" {
-		return v
+		if hunt.SafeHarnessFetchURL(v) {
+			return v
+		}
 	}
 	return hunt.HarnessFetchURL(strings.TrimSpace(jsonString(cfg["harness_hash"])))
 }

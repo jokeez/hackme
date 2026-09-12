@@ -37,6 +37,18 @@ func TestFuzzSettleOutboxAction(t *testing.T) {
 	}
 }
 
+func TestFuzzSettleOutboxDrainOnErr(t *testing.T) {
+	if fuzzSettleOutboxDrainOnErr(chain.ErrFuzzEscrowClosed) {
+		t.Fatal("closed must not drain/ACK unpaid settles")
+	}
+	if !fuzzSettleOutboxDrainOnErr(chain.ErrFuzzEscrowDepleted) {
+		t.Fatal("depleted should drain")
+	}
+	if !fuzzSettleOutboxDrainOnErr(chain.ErrFuzzEscrowAlreadyPaid) {
+		t.Fatal("already paid should drain")
+	}
+}
+
 func TestApplyLocalFuzzSettleOnceNoDoublePay(t *testing.T) {
 	ctx := context.Background()
 	db, err := store.Open(filepath.Join(t.TempDir(), "pull.db"))

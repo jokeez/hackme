@@ -35,6 +35,40 @@ func TestHarnessArtifactRoundTrip(t *testing.T) {
 	}
 }
 
+func TestSafeHarnessFetchURL(t *testing.T) {
+	if !SafeHarnessFetchURL("/api/fuzz/pool/hunt/harness/abc12345") {
+		t.Fatal("relative harness path")
+	}
+	if SafeHarnessFetchURL("http://127.0.0.1/api/fuzz/pool/hunt/harness/abc12345") {
+		t.Fatal("loopback must be rejected without matching coordinator env")
+	}
+	if SafeHarnessFetchURL("https://evil.example/ssrf") {
+		t.Fatal("non-harness path")
+	}
+	if SafeHarnessFetchURL("http://169.254.169.254/api/fuzz/pool/hunt/harness/abc12345") {
+		t.Fatal("link-local SSRF")
+	}
+}
+
+func TestPutHarnessArtifactRejectsOverwrite(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "hunt-ow.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	ctx := context.Background()
+	if err := PutHarnessArtifact(ctx, db, "abc12345", []byte("AAAA"), "a.c"); err != nil {
+		t.Fatal(err)
+	}
+	if err := PutHarnessArtifact(ctx, db, "abc12345", []byte("BBBB"), "a.c"); err == nil {
+		t.Fatal("different blob overwrite must fail")
+	}
+	if err := PutHarnessArtifact(ctx, db, "abc12345", []byte("AAAA"), "a.c"); err != nil {
+		t.Fatal("identical re-publish must be ok")
+	}
+}
+
 func TestHarnessFetchURL(t *testing.T) {
 	u := HarnessFetchURL("deadbeef")
 	if u != "/api/fuzz/pool/hunt/harness/deadbeef" {

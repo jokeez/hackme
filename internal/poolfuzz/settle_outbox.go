@@ -153,6 +153,9 @@ func (s *Service) ListPendingSettleOutbox(ctx context.Context, limit int) ([]Set
 }
 
 // AckSettleOutbox marks outbox rows applied by the origin node.
+// Work-item settle_*_status is promoted to paid only when the outbox row was still
+// pending — callers must Apply on-chain before ACK (stolen admin ACK without Apply
+// still risks false paid; keep admin token offline / TLS-only for settle routes).
 func (s *Service) AckSettleOutbox(ctx context.Context, ids []int64) (int64, error) {
 	if s == nil || s.DB == nil {
 		return 0, fmt.Errorf("poolfuzz: no database")

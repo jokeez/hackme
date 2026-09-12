@@ -206,6 +206,17 @@ func (s *Service) enqueueHuntReplay(ctx context.Context, req SubmitRequest, inpu
 			req.ItemID, req.CampaignID).Scan(&st)
 		switch st {
 		case workStatusReplayPending:
+			// Reject payout/trap hijack from a different worker while replay is pending.
+			var qWorker, qMiner string
+			_ = tx.QueryRowContext(ctx,
+				`SELECT COALESCE(worker_id,''), COALESCE(miner_address,'') FROM fuzz_hunt_replay_queue
+				 WHERE campaign_id=? AND item_id=?`, req.CampaignID, req.ItemID).Scan(&qWorker, &qMiner)
+			if qWorker != "" && qWorker != strings.TrimSpace(req.WorkerID) {
+				return SubmitOutcome{}, fmt.Errorf("poolfuzz: hunt replay already claimed by another worker")
+			}
+			if qMiner != "" && miner != "" && qMiner != miner {
+				return SubmitOutcome{}, fmt.Errorf("poolfuzz: hunt replay miner_address mismatch")
+			}
 			qid, err := s.ensureHuntReplayQueueRowTx(ctx, tx, req, inputN, miner, now)
 			if err != nil {
 				return SubmitOutcome{}, err
@@ -232,17 +243,40 @@ func (s *Service) enqueueHuntReplay(ctx context.Context, req SubmitRequest, inpu
 }
 
 func (s *Service) ensureHuntReplayQueueRowTx(ctx context.Context, tx *sql.Tx, req SubmitRequest, inputN uint64, miner string, now int64) (int64, error) {
+	// First writer wins for miner/worker identity — never let a later submit hijack payout (H-01).
 	res, err := tx.ExecContext(ctx,
 		`INSERT INTO fuzz_hunt_replay_queue
 		 (campaign_id, item_id, worker_id, miner_address, input_n, worker_check_result, worker_trap, segment_exec_done, duration_ms, status, created_at, updated_at)
 		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
 		 ON CONFLICT(campaign_id, item_id) DO UPDATE SET
-		   worker_id=excluded.worker_id,
-		   miner_address=excluded.miner_address,
-		   worker_check_result=excluded.worker_check_result,
-		   worker_trap=excluded.worker_trap,
-		   segment_exec_done=excluded.segment_exec_done,
-		   duration_ms=excluded.duration_ms,
+		   worker_id=CASE
+		     WHEN fuzz_hunt_replay_queue.worker_id != '' THEN fuzz_hunt_replay_queue.worker_id
+		     ELSE excluded.worker_id
+		   END,
+		   miner_address=CASE
+		     WHEN fuzz_hunt_replay_queue.miner_address != '' THEN fuzz_hunt_replay_queue.miner_address
+		     ELSE excluded.miner_address
+		   END,
+		   worker_check_result=CASE
+		     WHEN fuzz_hunt_replay_queue.worker_id != '' AND fuzz_hunt_replay_queue.worker_id != excluded.worker_id
+		       THEN fuzz_hunt_replay_queue.worker_check_result
+		     ELSE excluded.worker_check_result
+		   END,
+		   worker_trap=CASE
+		     WHEN fuzz_hunt_replay_queue.worker_id != '' AND fuzz_hunt_replay_queue.worker_id != excluded.worker_id
+		       THEN fuzz_hunt_replay_queue.worker_trap
+		     ELSE excluded.worker_trap
+		   END,
+		   segment_exec_done=CASE
+		     WHEN fuzz_hunt_replay_queue.worker_id != '' AND fuzz_hunt_replay_queue.worker_id != excluded.worker_id
+		       THEN fuzz_hunt_replay_queue.segment_exec_done
+		     ELSE excluded.segment_exec_done
+		   END,
+		   duration_ms=CASE
+		     WHEN fuzz_hunt_replay_queue.worker_id != '' AND fuzz_hunt_replay_queue.worker_id != excluded.worker_id
+		       THEN fuzz_hunt_replay_queue.duration_ms
+		     ELSE excluded.duration_ms
+		   END,
 		   status=CASE
 		     WHEN fuzz_hunt_replay_queue.status IN ('done','failed') THEN fuzz_hunt_replay_queue.status
 		     ELSE 'pending'

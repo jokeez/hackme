@@ -30,12 +30,9 @@ func (s *Service) ReplayCampaignSettles(ctx context.Context, campaignID string) 
 		return 0, 0, 0, fmt.Errorf("poolfuzz: no completed work for %s", campaignID)
 	}
 	fallbackMiner := s.findingMinerAddress(ctx, campaignID)
-	if fallbackMiner == "" {
-		fallbackMiner = resolveWorkerPayoutAddress("")
-	}
 	rows, err := s.DB.QueryContext(ctx,
-		`SELECT id, COALESCE(NULLIF(miner_address,''), ?) FROM fuzz_work_items
-		 WHERE campaign_id=? AND status='done' ORDER BY id ASC`, fallbackMiner, campaignID)
+		`SELECT id, COALESCE(miner_address,'') FROM fuzz_work_items
+		 WHERE campaign_id=? AND status='done' ORDER BY id ASC`, campaignID)
 	if err != nil {
 		return 0, 0, 0, err
 	}
@@ -47,7 +44,8 @@ func (s *Service) ReplayCampaignSettles(ctx context.Context, campaignID string) 
 			return runs, findings, finalize, err
 		}
 		miner = strings.TrimSpace(miner)
-		if miner == "" {
+		// Never attribute empty work-item miners to the finding winner (H-04).
+		if miner == "" || !strings.HasPrefix(miner, "HMC-") || len(miner) != 20 {
 			continue
 		}
 		if _, err := s.EnqueueSettleOutbox(ctx, "run", campaignID, miner, "", itemID); err != nil {

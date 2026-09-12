@@ -2,11 +2,16 @@ package hunt
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -39,7 +44,19 @@ func PutHarnessArtifact(ctx context.Context, db *sql.DB, hash string, data []byt
 		return fmt.Errorf("hunt artifact: exceeds %d bytes", maxHarnessArtifactBytes)
 	}
 	now := time.Now().Unix()
-	_, err := db.ExecContext(ctx,
+	var existing []byte
+	err := db.QueryRowContext(ctx,
+		`SELECT binary_blob FROM hunt_harness_artifacts WHERE harness_hash=?`, hash).Scan(&existing)
+	if err == nil {
+		if !bytesEqual(existing, data) {
+			return fmt.Errorf("hunt artifact: harness_hash %s already bound to different binary", hash)
+		}
+		return nil
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+	_, err = db.ExecContext(ctx,
 		`INSERT INTO hunt_harness_artifacts (harness_hash, binary_blob, byte_size, source_rel, created_at)
 		 VALUES (?, ?, ?, ?, ?)
 		 ON CONFLICT(harness_hash) DO UPDATE SET
@@ -49,6 +66,17 @@ func PutHarnessArtifact(ctx context.Context, db *sql.DB, hash string, data []byt
 		   created_at=excluded.created_at`,
 		hash, data, len(data), strings.TrimSpace(sourceRel), now)
 	return err
+}
+
+func bytesEqual(a, b []byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	var v byte
+	for i := range a {
+		v |= a[i] ^ b[i]
+	}
+	return v == 0
 }
 
 // GetHarnessArtifact loads a published harness binary.
@@ -128,21 +156,42 @@ func MaterializeHarness(ctx context.Context, repoRoot, hash, fetchURL string, db
 	return cachePath, nil
 }
 
-func fetchHarnessHTTP(ctx context.Context, url string) ([]byte, error) {
-	url = strings.TrimSpace(url)
-	if url == "" {
-		return nil, fmt.Errorf("hunt artifact: fetch url required")
+func fetchHarnessHTTP(ctx context.Context, rawURL string) ([]byte, error) {
+	rawURL = strings.TrimSpace(rawURL)
+	if strings.HasPrefix(rawURL, "/api/fuzz/pool/hunt/harness/") {
+		base := strings.TrimSpace(os.Getenv("HACKME_POOL_COORDINATOR_URL"))
+		if base == "" {
+			base = strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_URL"))
+		}
+		if base == "" {
+			return nil, fmt.Errorf("hunt artifact: relative fetch needs HACKME_POOL_COORDINATOR_URL")
+		}
+		rawURL = strings.TrimRight(base, "/") + rawURL
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if !SafeHarnessFetchURL(rawURL) {
+		return nil, fmt.Errorf("hunt artifact: fetch url not allowed")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, err
 	}
-	token := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_WORKER_TOKEN"))
-	if token == "" {
-		token = strings.TrimSpace(os.Getenv("HACKME_POOL_COORDINATOR_WORKER_TOKEN"))
+	u, _ := url.Parse(rawURL)
+	attachBearer := u != nil && strings.HasPrefix(path.Clean(u.Path), "/api/fuzz/pool/hunt/harness/")
+	if attachBearer {
+		if coord := strings.TrimSpace(os.Getenv("HACKME_POOL_COORDINATOR_URL")); coord != "" {
+			if cu, err := url.Parse(coord); err == nil && cu.Host != "" && u != nil && !strings.EqualFold(cu.Host, u.Host) {
+				attachBearer = false
+			}
+		}
 	}
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
+	if attachBearer {
+		token := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_WORKER_TOKEN"))
+		if token == "" {
+			token = strings.TrimSpace(os.Getenv("HACKME_POOL_COORDINATOR_WORKER_TOKEN"))
+		}
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
 	}
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -163,11 +212,62 @@ func fetchHarnessHTTP(ctx context.Context, url string) ([]byte, error) {
 	return data, nil
 }
 
+// SafeHarnessFetchURL allows relative coordinator harness paths, same-host coordinator
+// absolute URLs, or https public hosts with the harness path (blocks SSRF/private IPs).
+func SafeHarnessFetchURL(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return false
+	}
+	if strings.HasPrefix(raw, "/api/fuzz/pool/hunt/harness/") {
+		h := strings.TrimPrefix(raw, "/api/fuzz/pool/hunt/harness/")
+		h = strings.Trim(h, "/")
+		return ValidHarnessHash(h) && !strings.Contains(h, "/") && !strings.Contains(h, "..")
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") {
+		return false
+	}
+	p := path.Clean(u.Path)
+	const prefix = "/api/fuzz/pool/hunt/harness/"
+	if !strings.HasPrefix(p, prefix) {
+		return false
+	}
+	h := strings.Trim(strings.TrimPrefix(p, prefix), "/")
+	if !ValidHarnessHash(h) || strings.Contains(h, "/") {
+		return false
+	}
+	if coord := strings.TrimSpace(os.Getenv("HACKME_POOL_COORDINATOR_URL")); coord != "" {
+		if cu, err := url.Parse(coord); err == nil && cu.Host != "" && strings.EqualFold(cu.Host, u.Hostname()) {
+			return true
+		}
+	}
+	if u.Scheme != "https" {
+		return false
+	}
+	host := u.Hostname()
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" || strings.HasSuffix(host, ".local") {
+		return false
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
+			return false
+		}
+	}
+	return true
+}
+
 // HarnessFetchURL builds coordinator-relative fetch path for workers.
 func HarnessFetchURL(hash string) string {
 	hash = strings.TrimSpace(hash)
-	if hash == "" {
+	if !ValidHarnessHash(hash) {
 		return ""
 	}
 	return "/api/fuzz/pool/hunt/harness/" + hash
+}
+
+// ContentFingerprint returns sha256 hex of harness bytes (ops / integrity checks).
+func ContentFingerprint(data []byte) string {
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
 }
