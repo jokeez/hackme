@@ -248,11 +248,9 @@ func (s *Service) CancelFuzzEscrow(ctx context.Context, campaignID string) (*Fuz
 	if row.status == "closed" {
 		return s.GetFuzzEscrow(ctx, campaignID)
 	}
+	// Align with finalizeFuzzEscrowTx: Hunt high pays a slice; unused bounty must refund on cancel too.
 	runsRefund := row.runsPoolUnits - row.runsPaidUnits
 	bountyRefund := row.bountyPoolUnits - row.bountyPaidUnits - row.crashBonusPaidUnits
-	if row.status == "bounty_paid" {
-		bountyRefund = 0
-	}
 	if row.bountyPoolUnits < row.bountyPaidUnits+row.crashBonusPaidUnits {
 		bountyRefund = 0
 	}
@@ -306,9 +304,6 @@ func (s *Service) FinalizeFuzzEscrow(ctx context.Context, campaignID string) (*F
 	}
 	runsRefund := row.runsPoolUnits - row.runsPaidUnits
 	bountyRefund := row.bountyPoolUnits - row.bountyPaidUnits - row.crashBonusPaidUnits
-	if row.status == "bounty_paid" {
-		bountyRefund = 0
-	}
 	if row.bountyPoolUnits < row.bountyPaidUnits+row.crashBonusPaidUnits {
 		bountyRefund = 0
 	}
@@ -380,23 +375,16 @@ func fuzzEscrowPublic(r *fuzzEscrowDBRow) *FuzzEscrowRow {
 	lockedBountyU := uint64(0)
 	spentBountyU := r.bountyPaidUnits + r.crashBonusPaidUnits
 	if r.bountyPoolUnits > spentBountyU && r.status != "closed" {
+		// Includes Hunt leftover after a partial high/medium bounty slice.
 		lockedBountyU = r.bountyPoolUnits - spentBountyU
 	}
-	if r.status == "bounty_paid" {
-		// Main bounty released; crash bonus already paid — nothing left locked.
-		lockedBountyU = 0
-	}
-	refundableU := runsRemainingU
-	if r.status == "open" {
-		refundableU += lockedBountyU
-	}
-	// bounty_paid: only unused runs refund on finalize/cancel.
+	refundableU := runsRemainingU + lockedBountyU
 	path := "none"
 	switch r.status {
 	case "open":
 		path = "finalize_or_cancel_refunds_unused_runs_and_locked_bounty"
 	case "bounty_paid":
-		path = "finalize_or_cancel_refunds_unused_runs_only"
+		path = "finalize_or_cancel_refunds_unused_runs_and_leftover_bounty"
 	case "closed":
 		path = "already_closed"
 	}

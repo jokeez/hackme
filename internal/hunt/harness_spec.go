@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -85,7 +86,11 @@ func ensureInventoryHarness(ctx context.Context, repoRoot string, spec HarnessSp
 }
 
 func huntHarnessCachePath(repoRoot, hash string) string {
-	return strings.TrimRight(repoRoot, "/") + "/.cache/hunt-harness/" + hash + ".bin"
+	hash = strings.TrimSpace(hash)
+	if !ValidHarnessHash(hash) {
+		hash = "invalid"
+	}
+	return filepath.Join(strings.TrimRight(repoRoot, "/"), ".cache", "hunt-harness", hash+".bin")
 }
 
 func osStat(path string) (bool, error) {

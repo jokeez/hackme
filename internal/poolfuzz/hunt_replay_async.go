@@ -406,7 +406,17 @@ func (s *Service) processNextHuntReplayJob(ctx context.Context, verifierID strin
 	return true, nil
 }
 
+func (s *Service) touchHuntReplayJob(ctx context.Context, jobID int64) {
+	if s == nil || s.DB == nil || jobID <= 0 {
+		return
+	}
+	_, _ = s.DB.ExecContext(ctx,
+		`UPDATE fuzz_hunt_replay_queue SET updated_at=? WHERE id=? AND status=?`,
+		time.Now().Unix(), jobID, huntReplayStatusProcessing)
+}
+
 func (s *Service) runHuntReplayJob(ctx context.Context, job huntReplayJob, now int64) error {
+	s.touchHuntReplayJob(ctx, job.ID)
 	var campStatus, cfgJSON string
 	if err := s.DB.QueryRowContext(ctx, `SELECT status, config_json FROM fuzz_campaigns WHERE id=?`, job.CampaignID).Scan(&campStatus, &cfgJSON); err != nil {
 		return err
@@ -446,6 +456,7 @@ func (s *Service) runHuntReplayJob(ctx context.Context, job huntReplayJob, now i
 		SegmentExecDone: job.SegmentExecDone,
 		DurationMS:      job.DurationMS,
 	}
+	s.touchHuntReplayJob(ctx, job.ID)
 	checkResult, trap, pass, recordFinding, huntFindingB, huntOrigLen, err := s.evalHuntSubmitCheck(ctx, job.CampaignID, job.InputN, cfg, req, expectedB, seeds)
 	if err != nil {
 		return err
@@ -549,6 +560,27 @@ func (s *Service) finalizeHuntSubmit(ctx context.Context, p finalizeHuntSubmitPa
 	}
 	aff, _ := res.RowsAffected()
 	if aff == 0 {
+		// Work already marked done (prior attempt crashed mid-settle). Drain settles only —
+		// never leave pending payouts stranded behind a non-retryable "state changed".
+		var st string
+		_ = s.DB.QueryRowContext(ctx,
+			`SELECT status FROM fuzz_work_items WHERE campaign_id=? AND id=?`,
+			p.req.CampaignID, p.req.ItemID).Scan(&st)
+		if strings.TrimSpace(st) == "done" && s.Settler != nil && escrowEnabled(p.cfg) {
+			if err := s.flushPendingSettles(ctx, p.req.CampaignID, p.req.ItemID, p.cfg); err != nil {
+				return fmt.Errorf("poolfuzz: settle flush: %w", err)
+			}
+			completed, err := s.recomputeProgress(ctx, p.req.CampaignID, p.now)
+			if err != nil {
+				return err
+			}
+			if completed {
+				if _, err := s.Settler.Finalize(ctx, p.req.CampaignID, 0); err != nil {
+					return fmt.Errorf("poolfuzz: finalize escrow: %w", err)
+				}
+			}
+			return nil
+		}
 		return fmt.Errorf("poolfuzz: hunt finalize: work item state changed")
 	}
 	if wantRunSettle {

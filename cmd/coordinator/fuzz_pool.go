@@ -644,6 +644,11 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		if !coordinatorWorkPOSTAuthed(r, adminToken, workerToken, allowInsecure) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
+			http.Error(w, "coordinator authentication required", http.StatusUnauthorized)
+			return
+		}
 		cid := strings.TrimSpace(r.URL.Query().Get("campaign_id"))
 		itemStr := strings.TrimSpace(r.URL.Query().Get("item_id"))
 		if cid == "" || itemStr == "" {

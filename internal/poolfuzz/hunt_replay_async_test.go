@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -255,5 +256,74 @@ func TestListPendingSettleOutboxFinalizeLast(t *testing.T) {
 	}
 	if items[0].Kind != "run" || items[1].Kind != "finalize" {
 		t.Fatalf("want run then finalize, got %+v %+v", items[0], items[1])
+	}
+}
+
+func TestFinalizeHuntSubmitDrainsSettleWhenAlreadyDone(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "settle-done.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	spy := &failThenOKSettler{failUntil: 0}
+	svc := &Service{DB: db, Settler: spy}
+	ctx := context.Background()
+	cfg := map[string]any{
+		"pool_distributed": true,
+		"work_kind":        "hunt_shard",
+		"campaign_type":    "hunt",
+		"budget_hmc":       1.0,
+		"check_semantics":  "native_crash",
+	}
+	id := "hunt-settle-done"
+	if err := svc.RegisterCampaign(ctx, Campaign{ID: id, CampaignType: "hunt", Status: "running", BudgetRuns: 1, Config: cfg}); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().Unix()
+	if err := svc.EnsureWorkItems(ctx, id, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx,
+		`UPDATE fuzz_work_items SET status='done', attempts=1, result_ok=1, miner_address=?, settle_run_status='pending', lease_owner='', lease_until=0, updated_at=?
+		 WHERE campaign_id=? AND id=1`,
+		"HMC-1234567890123456", now, id); err != nil {
+		t.Fatal(err)
+	}
+	err = svc.finalizeHuntSubmit(ctx, finalizeHuntSubmitParams{
+		req: SubmitRequest{
+			WorkerID: "w1", MinerAddress: "HMC-1234567890123456",
+			CampaignID: id, ItemID: 1, DurationMS: 1,
+		},
+		cfg:               cfg,
+		pass:              true,
+		fromReplayPending: true,
+		now:               now,
+	})
+	if err != nil {
+		t.Fatalf("settle-only finalize: %v", err)
+	}
+	var runSt string
+	if err := db.QueryRowContext(ctx,
+		`SELECT settle_run_status FROM fuzz_work_items WHERE campaign_id=? AND id=1`, id).Scan(&runSt); err != nil {
+		t.Fatal(err)
+	}
+	if runSt != "paid" && runSt != "queued" {
+		t.Fatalf("settle_run_status=%q want paid|queued", runSt)
+	}
+	if spy.runs < 1 {
+		t.Fatal("expected PayRun on settle-only path")
+	}
+}
+
+func TestHuntReplayRequiredWhenEscrowEnabled(t *testing.T) {
+	t.Setenv("HACKME_POOL_HUNT_REPLAY", "0")
+	svc := &Service{}
+	_, _, _, _, _, _, err := svc.evalHuntSubmitCheck(context.Background(), "c", 1, map[string]any{
+		"budget_hmc":           1.0,
+		"iterations_per_shard": 1,
+	}, SubmitRequest{SegmentExecDone: 1}, nil, nil)
+	if err == nil || !strings.Contains(err.Error(), "replay required") {
+		t.Fatalf("want fail-closed escrow without replay, got %v", err)
 	}
 }

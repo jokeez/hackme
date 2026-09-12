@@ -8,11 +8,20 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
 
 const maxHarnessArtifactBytes = 32 << 20 // 32 MiB
+
+var harnessHashRe = regexp.MustCompile(`(?i)^[a-f0-9]{8,128}$`)
+
+// ValidHarnessHash rejects path traversal / non-hex ids used in cache filenames.
+func ValidHarnessHash(hash string) bool {
+	hash = strings.TrimSpace(hash)
+	return harnessHashRe.MatchString(hash)
+}
 
 // PutHarnessArtifact stores a published Hunt harness binary keyed by hash.
 func PutHarnessArtifact(ctx context.Context, db *sql.DB, hash string, data []byte, sourceRel string) error {
@@ -20,8 +29,8 @@ func PutHarnessArtifact(ctx context.Context, db *sql.DB, hash string, data []byt
 		return fmt.Errorf("hunt artifact: no database")
 	}
 	hash = strings.TrimSpace(hash)
-	if hash == "" {
-		return fmt.Errorf("hunt artifact: hash required")
+	if !ValidHarnessHash(hash) {
+		return fmt.Errorf("hunt artifact: invalid harness hash")
 	}
 	if len(data) == 0 {
 		return fmt.Errorf("hunt artifact: empty binary")
@@ -48,6 +57,9 @@ func GetHarnessArtifact(ctx context.Context, db *sql.DB, hash string) ([]byte, e
 		return nil, fmt.Errorf("hunt artifact: no database")
 	}
 	hash = strings.TrimSpace(hash)
+	if !ValidHarnessHash(hash) {
+		return nil, fmt.Errorf("hunt artifact: invalid harness hash")
+	}
 	var blob []byte
 	err := db.QueryRowContext(ctx,
 		`SELECT binary_blob FROM hunt_harness_artifacts WHERE harness_hash=?`, hash).
@@ -73,8 +85,8 @@ func PublishHarnessFile(ctx context.Context, db *sql.DB, hash, path, sourceRel s
 // MaterializeHarness writes a harness to repo cache, loading from DB or HTTP fetch URL when needed.
 func MaterializeHarness(ctx context.Context, repoRoot, hash, fetchURL string, db *sql.DB) (string, error) {
 	hash = strings.TrimSpace(hash)
-	if hash == "" {
-		return "", fmt.Errorf("hunt artifact: hash required")
+	if !ValidHarnessHash(hash) {
+		return "", fmt.Errorf("hunt artifact: invalid harness hash")
 	}
 	if repoRoot == "" {
 		repoRoot = RepoRoot()

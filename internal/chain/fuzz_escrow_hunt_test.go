@@ -82,3 +82,52 @@ func TestPayHuntBountyHighPays60Percent(t *testing.T) {
 		t.Fatalf("miner balance=%d", minerBal)
 	}
 }
+
+func TestCancelHuntEscrowRefundsLeftoverAfterHigh(t *testing.T) {
+	ctx := context.Background()
+	db, err := store.Open(filepath.Join(t.TempDir(), "hunt-cancel-leftover.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := New(db)
+	payer := "HMC-1234567890123456"
+	miner := "HMC-9876543210987654"
+	if _, _, err := svc.InitGenesis(ctx, payer); err != nil {
+		t.Fatal(err)
+	}
+	preFundEscrow(t, ctx, db, payer, 30.0)
+	if _, err := db.ExecContext(ctx, `INSERT OR IGNORE INTO accounts(address, balance_units, next_nonce, updated_at) VALUES(?,0,0,0)`, miner); err != nil {
+		t.Fatal(err)
+	}
+	opened, err := svc.OpenHuntEscrow(ctx, "hunt-cancel-left", 20.0, 1000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.PayFuzzBounty(ctx, "hunt-cancel-left", miner, "high"); err != nil {
+		t.Fatal(err)
+	}
+	var walletPre uint64
+	if err := db.QueryRowContext(ctx, `SELECT balance_units FROM wallet WHERE id=1`).Scan(&walletPre); err != nil {
+		t.Fatal(err)
+	}
+	row, err := svc.CancelFuzzEscrow(ctx, "hunt-cancel-left")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if row.Status != "closed" {
+		t.Fatalf("status=%s", row.Status)
+	}
+	// Hunt high pays ~60% of bounty; cancel must refund leftover (~40%) + unused runs.
+	wantLeftover := opened.BountyPoolHMC * 0.4
+	if row.RefundedBountyHMC < wantLeftover-0.05 || row.RefundedBountyHMC > wantLeftover+0.05 {
+		t.Fatalf("refunded_bounty=%v want ~%v leftover", row.RefundedBountyHMC, wantLeftover)
+	}
+	var walletPost uint64
+	if err := db.QueryRowContext(ctx, `SELECT balance_units FROM wallet WHERE id=1`).Scan(&walletPost); err != nil {
+		t.Fatal(err)
+	}
+	if walletPost <= walletPre {
+		t.Fatalf("cancel must credit leftover: pre=%d post=%d", walletPre, walletPost)
+	}
+}

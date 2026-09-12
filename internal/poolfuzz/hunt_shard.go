@@ -160,6 +160,10 @@ func (s *Service) evalHuntSubmitCheck(ctx context.Context, campaignID string, in
 		return 0, "", false, false, nil, 0, nil
 	}
 	if !huntReplayEnabled() {
+		// Fail closed when escrow/bounty is on — never trust worker crash claims for payouts.
+		if escrowEnabled(cfg) {
+			return 0, "", false, false, nil, 0, fmt.Errorf("poolfuzz: hunt replay required when escrow enabled (HACKME_POOL_HUNT_REPLAY=0)")
+		}
 		cr, tr, p, rf := s.evalHuntSubmitTrusted(cfg, req, expectedB)
 		orig := len(expectedB)
 		if rf && orig > 0 {
