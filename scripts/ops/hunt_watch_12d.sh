@@ -92,7 +92,8 @@ run_batch() {
 export_rollup() {
   if [[ -f "$ROOT/scripts/ops/export_hunt_watch_rollup.py" ]]; then
     echo "[hunt-watch] export rollup SERIES=$SERIES"
-    SERIES="$SERIES" python3 "$ROOT/scripts/ops/export_hunt_watch_rollup.py" || true
+    # Soak exports OUT=day dir; rollup must not inherit that path.
+    SERIES="$SERIES" env -u OUT python3 "$ROOT/scripts/ops/export_hunt_watch_rollup.py" || true
   fi
 }
 
@@ -139,6 +140,7 @@ status() {
 }
 
 # One Hunt ASAN soak already stresses ~15Gi RAM; two parallel days die mid-batch.
+# Skip $$ / $PPID: chain_next → launch still sees the finishing day's watch.pid.
 assert_no_live_watch() {
   local base="$ROOT/reports/hunt-watch/${SERIES}"
   local d pid
@@ -147,6 +149,9 @@ assert_no_live_watch() {
     [[ -d "$d" && -f "$d/watch.pid" ]] || continue
     pid="$(cat "$d/watch.pid" 2>/dev/null || true)"
     [[ -n "$pid" ]] || continue
+    if [[ "$pid" == "$$" || "$pid" == "$PPID" ]]; then
+      continue
+    fi
     if kill -0 "$pid" 2>/dev/null; then
       echo "[hunt-watch] FAIL another watch still alive: $(basename "$d") pid=$pid" >&2
       echo "[hunt-watch] refuse parallel DAY launch (OOM risk). Stop it or wait." >&2

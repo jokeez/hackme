@@ -20,7 +20,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SERIES = os.environ.get("SERIES", "2026sep")
 BASE = Path(os.environ.get("WATCH_BASE", ROOT / "reports" / "hunt-watch" / SERIES))
-OUT_HTML = Path(os.environ.get("OUT", BASE / "ROLLUP.html"))
+# Do not inherit soak OUT=.../dayNN-... (a directory); only accept an explicit .html path.
+_out = os.environ.get("ROLLUP_HTML") or os.environ.get("OUT")
+if _out and str(_out).endswith(".html") and not Path(_out).is_dir():
+    OUT_HTML = Path(_out)
+else:
+    OUT_HTML = BASE / "ROLLUP.html"
 OUT_MD = Path(os.environ.get("OUT_MD", BASE / "ROLLUP.md"))
 OUT_JSON = Path(os.environ.get("OUT_JSON", BASE / "ROLLUP.json"))
 
