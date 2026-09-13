@@ -549,7 +549,8 @@ func (s *Service) finalizeHuntSubmit(ctx context.Context, p finalizeHuntSubmitPa
 	}
 	// Durable local effects first while work is still replay_pending/leased so transient
 	// failures can retry without a done/failed split brain.
-	if err := s.recordCoverage(ctx, p.req.CampaignID, p.cfg, p.req.ActualInput, p.req.InputBytes, nil, p.now); err != nil {
+	newEdge, newPath, err := s.recordCoverage(ctx, p.req.CampaignID, p.cfg, p.req.ActualInput, p.req.InputBytes, nil, p.now)
+	if err != nil {
 		return err
 	}
 	if hunt.HuntCorpusGuided(p.cfg) {
@@ -558,12 +559,11 @@ func (s *Service) finalizeHuntSubmit(ctx context.Context, p finalizeHuntSubmitPa
 			obsU = p.findingU
 			obsB = p.findingB
 		}
-		if err := s.observePoolCorpus(ctx, p.req.CampaignID, obsU, obsB, p.recordFinding, p.now); err != nil {
+		if err := s.observePoolCorpusNovelty(ctx, p.req.CampaignID, obsU, obsB, p.recordFinding, p.now, true, newEdge, newPath); err != nil {
 			return err
 		}
 	}
 	var findingSeverity, findingType, findingID string
-	var err error
 	if p.recordFinding {
 		submitReq := p.req
 		submitReq.ActualInput = p.findingU

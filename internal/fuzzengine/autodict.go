@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-const maxAutodictTokens = 48
+const maxAutodictTokens = 64
 const maxAutodictTokenLen = 32
 const minAutodictTokenLen = 3
 const maxAutodictDictBytes = 2048
@@ -55,6 +55,35 @@ func ExtractAutodictTokens(inputs ...[]byte) [][]byte {
 				if isAutodictToken(part) {
 					add([]byte(part))
 				}
+			}
+		}
+		// Numeric literals (common in JSON/config parsers).
+		for _, part := range strings.FieldsFunc(s, func(r rune) bool {
+			return r == ',' || r == ':' || r == '{' || r == '}' || r == '[' || r == ']' || r == ' '
+		}) {
+			part = strings.TrimSpace(part)
+			if len(part) >= minAutodictTokenLen && len(part) <= maxAutodictTokenLen {
+				allNum := true
+				for _, c := range part {
+					if c < '0' || c > '9' {
+						allNum = false
+						break
+					}
+				}
+				if allNum {
+					add([]byte(part))
+				}
+			}
+		}
+		// Escape sequences (\n, \t, \uXXXX).
+		for i := 0; i+1 < len(input); i++ {
+			if input[i] != '\\' {
+				continue
+			}
+			if i+5 < len(input) && input[i+1] == 'u' {
+				add(input[i : i+6])
+			} else if i+1 < len(input) {
+				add(input[i : i+2])
 			}
 		}
 		// XML-ish tags.

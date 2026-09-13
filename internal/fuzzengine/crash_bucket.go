@@ -94,14 +94,26 @@ func sanitizerKindFromLine(low string) string {
 		return "stack_oob"
 	case strings.Contains(low, "heap-buffer-overflow"):
 		return "heap_oob"
+	case strings.Contains(low, "global-buffer-overflow"):
+		return "global_oob"
 	case strings.Contains(low, "use-after-free"):
 		return "uaf"
+	case strings.Contains(low, "use-after-scope"):
+		return "uas"
+	case strings.Contains(low, "double-free"):
+		return "double_free"
+	case strings.Contains(low, "heap-use-after-free"):
+		return "uaf"
+	case strings.Contains(low, "segmentation fault") || strings.Contains(low, "sigsegv"):
+		return "sigsegv"
 	case strings.Contains(low, "undefined-behavior") || strings.Contains(low, "runtime error"):
 		return ubsanKind(low)
-	case strings.Contains(low, "divide by zero"):
+	case strings.Contains(low, "divide by zero") || strings.Contains(low, "div-by-zero"):
 		return "div0"
 	case strings.Contains(low, "out of bounds"):
 		return "wasm_oob"
+	case strings.Contains(low, "leak"):
+		return "leak"
 	default:
 		return ""
 	}
@@ -196,13 +208,45 @@ func inferSiteFromMsg(msg string) string {
 
 func ubsanKind(norm string) string {
 	switch {
+	case strings.Contains(norm, "function-type-mismatch") ||
+		strings.Contains(norm, "function-pointer-cast") ||
+		strings.Contains(norm, "call to function"):
+		return "fn_ptr_cast"
+	case strings.Contains(norm, "misaligned") || strings.Contains(norm, "unaligned"):
+		return "misaligned"
+	case strings.Contains(norm, "null pointer") || strings.Contains(norm, "null-pointer"):
+		return "null_deref"
+	case strings.Contains(norm, "signed integer overflow") || strings.Contains(norm, "integer overflow"):
+		return "int_overflow"
 	case strings.Contains(norm, "overflow"):
 		return "overflow"
 	case strings.Contains(norm, "shift"):
 		return "shift"
+	case strings.Contains(norm, "bool") && strings.Contains(norm, "invalid"):
+		return "invalid_bool"
+	case strings.Contains(norm, "load of value") || strings.Contains(norm, "invalid value"):
+		return "invalid_value"
+	case strings.Contains(norm, "vptr") || strings.Contains(norm, "dynamic type"):
+		return "vptr"
 	default:
 		return hashStable(norm)
 	}
+}
+
+// FindingFamily is the stable root-cause key for customer reports
+// (many unique inputs → one family). Alias of StableCrashBucket.
+func FindingFamily(findingType, execErr string) string {
+	return StableCrashBucket(findingType, execErr)
+}
+
+// CountFindingFamilies returns unique root-cause buckets for a set of sanitizer messages.
+func CountFindingFamilies(findingType string, msgs []string) int {
+	seen := map[string]struct{}{}
+	for _, m := range msgs {
+		k := FindingFamily(findingType, m)
+		seen[k] = struct{}{}
+	}
+	return len(seen)
 }
 
 func hashStable(s string) string {

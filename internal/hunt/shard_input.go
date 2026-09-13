@@ -50,12 +50,18 @@ func ApplyPoolGuidedDefaults(cfg map[string]any, targetID string) {
 	cfg["hunt_corpus_guided"] = true
 	cfg["guided_scheduling"] = true
 	cfg["coverage_guided"] = true
+	cfg["coverage_feedback_v1"] = true
+	cfg["coverage_kind"] = fuzzengine.CoverageKindHuntStructural
 	cfg["corpus_persist"] = true
 	if strings.TrimSpace(targetID) != "" {
 		cfg["corpus_persist_key"] = "hunt:" + strings.TrimSpace(targetID)
 	}
 	if _, ok := cfg["pool_corpus_max"]; !ok {
 		cfg["pool_corpus_max"] = 256
+	}
+	// Opt-in fleet diversity: low-energy seeds keep a floor share (replay-stable with this flag).
+	if _, ok := cfg["corpus_explore_v2"]; !ok {
+		cfg["corpus_explore_v2"] = true
 	}
 }
 
@@ -85,7 +91,8 @@ func ShardIterationsPer(cfg map[string]any) int {
 // execIdx 0 is the claim anchor; later execs are deterministic mutations (L1) or corpus-guided (L2).
 func ShardSegmentExecInput(campaignID string, inputN, execIdx uint64, cfg map[string]any, seeds []fuzzengine.PoolCorpusSeed) []byte {
 	if execIdx == 0 && HuntCorpusGuided(cfg) && len(seeds) > 0 {
-		_, b := fuzzengine.GuidedInputForWork(inputN, cfg, seeds)
+		rarity := fuzzengine.BuildEdgeHitCounts(seeds)
+		_, b := fuzzengine.GuidedInputForWorkWithRarity(inputN, cfg, seeds, rarity)
 		return append([]byte(nil), b...)
 	}
 	if execIdx == 0 || !ShardSegmentMutating(cfg) {
@@ -96,14 +103,19 @@ func ShardSegmentExecInput(campaignID string, inputN, execIdx uint64, cfg map[st
 	if ShardIterationsPer(cfg) > 1 && cap < 8 {
 		cap = 8
 	}
-	stageCount := fuzzengine.StageDeterministicMax + cap
-	stage := fuzzengine.MutationStage(int((inputN + execIdx*131) % uint64(stageCount)))
+	rarity := fuzzengine.BuildEdgeHitCounts(seeds)
+	seed := fuzzengine.PickWeightedSeedWithRarity(seeds, inputN+execIdx, cfg, rarity)
+	edgeHits := 0
+	if rarity != nil {
+		edgeHits = rarity[seed.Edge]
+	}
+	stage := fuzzengine.PowerScheduleStage(inputN^execIdx, seed.Energy+int(execIdx%7), edgeHits, cap)
 	salt := huntSegmentSalt(inputN, execIdx)
 
 	var base []byte
 	if execIdx > 0 && len(seeds) >= 2 && execIdx%19 == 0 {
-		a := fuzzengine.PickWeightedSeed(seeds, inputN)
-		b := fuzzengine.PickWeightedSeed(seeds, inputN+execIdx)
+		a := fuzzengine.PickWeightedSeedWithRarity(seeds, inputN, cfg, rarity)
+		b := fuzzengine.PickWeightedSeedWithRarity(seeds, inputN+execIdx, cfg, rarity)
 		ab, bb := a.InputBytes, b.InputBytes
 		if len(ab) == 0 {
 			ab = fuzzengine.U64LayoutToBytes(a.Input)
@@ -115,6 +127,7 @@ func ShardSegmentExecInput(campaignID string, inputN, execIdx uint64, cfg map[st
 	} else {
 		base = huntByteAnchorBase(campaignID, inputN, cfg, seeds)
 	}
+	base = fuzzengine.CompactCorpusSeed(base, maxLen)
 	corpus := fuzzengine.CorpusBytesFromSeeds(seeds)
 	return fuzzengine.MutateBytesForHunt(base, stage, salt, maxLen, cfg, corpus)
 }
@@ -124,7 +137,7 @@ func huntByteAnchorBase(campaignID string, inputN uint64, cfg map[string]any, se
 		return append([]byte(nil), corpus[inputN%uint64(len(corpus))]...)
 	}
 	if HuntCorpusGuided(cfg) && len(seeds) > 0 {
-		seed := fuzzengine.PickWeightedSeed(seeds, inputN)
+		seed := fuzzengine.PickWeightedSeedForConfig(seeds, inputN, cfg)
 		if len(seed.InputBytes) > 0 {
 			return append([]byte(nil), seed.InputBytes...)
 		}

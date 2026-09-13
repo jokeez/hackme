@@ -131,6 +131,7 @@ func renderFuzzReportHTML(report map[string]any) string {
 		}
 	}
 	issueRows := renderFuzzIssueRows(report)
+	familySection := renderFuzzFamilySection(report)
 	sanitizerSection := renderFuzzSanitizerHygieneSection(report)
 	noiseRows := renderFuzzNoiseRows(report)
 	reproSection := renderFuzzReproSection(report)
@@ -281,6 +282,7 @@ a{color:#00d1ff}
 </div>
 %s
 %s
+%s
 <div class="card noise">
 <p class="lbl">Appendix · coverage noise (detector / property)</p>
 <table><thead><tr><th>Severity</th><th>Type</th><th>Title</th><th>Explain</th></tr></thead><tbody>%s</tbody></table>
@@ -339,6 +341,7 @@ a{color:#00d1ff}
 		html.EscapeString(toString(window["query_limit"])),
 		html.EscapeString(toString(window["full_campaign_findings"])),
 		issueRows,
+		familySection,
 		reproSection,
 		sanitizerSection,
 		noiseRows,
@@ -399,6 +402,48 @@ func renderFuzzIssueRows(report map[string]any) string {
 		))
 	}
 	return b.String()
+}
+
+func renderFuzzFamilySection(report map[string]any) string {
+	fam, ok := report["finding_families"].(map[string]any)
+	if !ok || fam == nil {
+		return ""
+	}
+	count := intFromAny(fam["family_count"])
+	raw := intFromAny(fam["raw_input_count"])
+	if count == 0 && raw == 0 {
+		return `<div class="card"><p class="lbl">Finding families (root cause)</p><p class="muted">No crash/sanitizer families in this sample.</p></div>`
+	}
+	collapse := toString(fam["collapse_ratio"])
+	note := html.EscapeString(toString(fam["honesty_note"]))
+	rows := ""
+	if top, ok := fam["top_families"].([]map[string]any); ok {
+		for _, t := range top {
+			rows += fmt.Sprintf(`<tr><td><code>%s</code></td><td>%s</td></tr>`,
+				html.EscapeString(toString(t["family"])),
+				html.EscapeString(toString(t["inputs"])))
+		}
+	} else if top, ok := fam["top_families"].([]any); ok {
+		for _, it := range top {
+			m, _ := it.(map[string]any)
+			if m == nil {
+				continue
+			}
+			rows += fmt.Sprintf(`<tr><td><code>%s</code></td><td>%s</td></tr>`,
+				html.EscapeString(toString(m["family"])),
+				html.EscapeString(toString(m["inputs"])))
+		}
+	}
+	if rows == "" {
+		rows = `<tr><td colspan="2" class="muted">—</td></tr>`
+	}
+	return fmt.Sprintf(
+		`<div class="card"><p class="lbl">Finding families (root cause)</p>`+
+			`<p><b>%d</b> families from <b>%d</b> inputs · collapse %s</p>`+
+			`<p class="muted">%s</p>`+
+			`<table><thead><tr><th>Family key</th><th>Inputs</th></tr></thead><tbody>%s</tbody></table></div>`,
+		count, raw, html.EscapeString(collapse), note, rows,
+	)
 }
 
 func renderFuzzSanitizerHygieneSection(report map[string]any) string {

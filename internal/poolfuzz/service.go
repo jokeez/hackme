@@ -939,14 +939,17 @@ func (s *Service) SubmitWithOutcome(ctx context.Context, req SubmitRequest) (Sub
 		}
 		return SubmitOutcome{}, nil
 	}
+	var newEdge, newPath bool
+	var covErr error
 	if len(seg.ExecCoverage) > 0 {
-		if err := s.recordSegmentCoverage(ctx, req.CampaignID, inputN, cfg, seeds, seg, now); err != nil {
-			return SubmitOutcome{}, err
-		}
-	} else if err := s.recordCoverage(ctx, req.CampaignID, cfg, req.ActualInput, req.InputBytes, nil, now); err != nil {
-		return SubmitOutcome{}, err
+		newEdge, newPath, covErr = s.recordSegmentCoverage(ctx, req.CampaignID, inputN, cfg, seeds, seg, now)
+	} else {
+		newEdge, newPath, covErr = s.recordCoverage(ctx, req.CampaignID, cfg, req.ActualInput, req.InputBytes, nil, now)
 	}
-	if err := s.observePoolCorpus(ctx, req.CampaignID, req.ActualInput, req.InputBytes, recordFinding, now); err != nil {
+	if covErr != nil {
+		return SubmitOutcome{}, covErr
+	}
+	if err := s.observePoolCorpusNovelty(ctx, req.CampaignID, req.ActualInput, req.InputBytes, recordFinding, now, true, newEdge, newPath); err != nil {
 		return SubmitOutcome{}, err
 	}
 	var findingSeverity string
@@ -1142,39 +1145,44 @@ func (s *Service) evalSubmitCheck(ctx context.Context, cfg map[string]any, sem f
 	return seg.CheckResult, seg.Trap, seg.Pass, seg.RecordFinding, findingU, findingB, seg, nil
 }
 
-func (s *Service) recordSegmentCoverage(ctx context.Context, campaignID string, inputN uint64, cfg map[string]any, seeds []fuzzengine.PoolCorpusSeed, seg fuzzengine.SegmentResult, now int64) error {
+func (s *Service) recordSegmentCoverage(ctx context.Context, campaignID string, inputN uint64, cfg map[string]any, seeds []fuzzengine.PoolCorpusSeed, seg fuzzengine.SegmentResult, now int64) (newEdge, newPath bool, err error) {
 	if len(seg.ExecCoverage) > 0 {
 		for _, c := range seg.ExecCoverage {
-			if err := s.recordCoverageBuckets(ctx, campaignID, c.Edge, c.Path, now); err != nil {
-				return err
+			e, p, err := s.recordCoverageBuckets(ctx, campaignID, c.Edge, c.Path, now)
+			if err != nil {
+				return false, false, err
 			}
+			newEdge = newEdge || e
+			newPath = newPath || p
 		}
-		return nil
+		return newEdge, newPath, nil
 	}
 	execPer := fuzzengine.ExecPerUnit(cfg)
 	for execIdx := uint64(0); execIdx < uint64(execPer); execIdx++ {
 		inU, inB := fuzzengine.SegmentExecInput(inputN, execIdx, cfg, seeds)
-		if err := s.recordCoverage(ctx, campaignID, cfg, inU, inB, nil, now); err != nil {
-			return err
+		e, p, err := s.recordCoverage(ctx, campaignID, cfg, inU, inB, nil, now)
+		if err != nil {
+			return false, false, err
 		}
+		newEdge = newEdge || e
+		newPath = newPath || p
 	}
-	return nil
+	return newEdge, newPath, nil
 }
 
-func (s *Service) recordCoverageBuckets(ctx context.Context, campaignID string, edge, path int, now int64) error {
-	_, err := s.DB.ExecContext(ctx,
-		`INSERT OR IGNORE INTO fuzz_coverage_seen (campaign_id, kind, bucket, first_seen_at) VALUES (?, 'edge', ?, ?)`,
-		campaignID, edge, now)
+func (s *Service) recordCoverageBuckets(ctx context.Context, campaignID string, edge, path int, now int64) (newEdge, newPath bool, err error) {
+	newEdge, err = s.coverageBucketNew(ctx, campaignID, "edge", edge, now)
 	if err != nil {
-		return err
+		return false, false, err
 	}
-	_, err = s.DB.ExecContext(ctx,
-		`INSERT OR IGNORE INTO fuzz_coverage_seen (campaign_id, kind, bucket, first_seen_at) VALUES (?, 'path', ?, ?)`,
-		campaignID, path, now)
-	return err
+	newPath, err = s.coverageBucketNew(ctx, campaignID, "path", path, now)
+	if err != nil {
+		return false, false, err
+	}
+	return newEdge, newPath, nil
 }
 
-func (s *Service) recordCoverage(ctx context.Context, campaignID string, cfg map[string]any, input uint64, inputBytes []byte, edgeBitmap []byte, now int64) error {
+func (s *Service) recordCoverage(ctx context.Context, campaignID string, cfg map[string]any, input uint64, inputBytes []byte, edgeBitmap []byte, now int64) (newEdge, newPath bool, err error) {
 	edge, path := fuzzengine.CoverageBucketsForExec(cfg, input, inputBytes, edgeBitmap)
 	return s.recordCoverageBuckets(ctx, campaignID, edge, path, now)
 }

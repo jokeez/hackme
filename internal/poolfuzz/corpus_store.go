@@ -49,9 +49,34 @@ func (s *Service) loadPoolCorpusSeeds(ctx context.Context, campaignID string, ma
 		}
 		r.Input = uint64(inputSigned)
 		r.Crash = crash != 0
+		if len(r.InputBytes) > 0 {
+			r.InputBytes = fuzzengine.CompactCorpusSeed(r.InputBytes, 0)
+		}
 		out = append(out, fuzzengine.PoolCorpusSeed{
 			Input: r.Input, InputBytes: append([]byte(nil), r.InputBytes...), Energy: r.Energy, Edge: r.Edge, Path: r.Path, Crash: r.Crash,
 		})
+	}
+	return out, rows.Err()
+}
+
+// loadEdgeHitCounts builds rarity map from campaign coverage tables (edge bucket hits).
+func (s *Service) loadEdgeHitCounts(ctx context.Context, campaignID string) (fuzzengine.EdgeHitCounts, error) {
+	if s == nil || s.DB == nil {
+		return nil, nil
+	}
+	rows, err := s.DB.QueryContext(ctx,
+		`SELECT edge_bucket, COUNT(*) FROM fuzz_pool_corpus WHERE campaign_id=? GROUP BY edge_bucket`, campaignID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := fuzzengine.EdgeHitCounts{}
+	for rows.Next() {
+		var edge, n int
+		if err := rows.Scan(&edge, &n); err != nil {
+			return nil, err
+		}
+		out[edge] = n
 	}
 	return out, rows.Err()
 }
@@ -63,7 +88,7 @@ func (s *Service) seedPoolCorpusFromConfig(ctx context.Context, campaignID strin
 	if fuzzengine.ParseInputMode(cfg) == fuzzengine.InputModeBytes {
 		for _, b := range fuzzengine.ParseByteCorpus(cfg) {
 			u := fuzzengine.PackInputBytesToU64(b)
-			edge, path := fuzzengine.CoverageBucketsFromBytes(b)
+			edge, path := fuzzengine.CoverageBucketsForExec(cfg, u, b, nil)
 			if err := s.upsertPoolCorpusSeed(ctx, campaignID, u, b, 2, edge, path, false, now); err != nil {
 				return err
 			}
@@ -95,11 +120,15 @@ func (s *Service) upsertPoolCorpusSeed(ctx context.Context, campaignID string, i
 		 (campaign_id, input_u64, input_bytes, energy, edge_bucket, path_bucket, is_crash, first_seen_at, last_seen_at, exec_count)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
 		 ON CONFLICT(campaign_id, input_u64) DO UPDATE SET
-		   energy=MAX(fuzz_pool_corpus.energy, excluded.energy),
+		   energy=excluded.energy,
 		   edge_bucket=excluded.edge_bucket,
 		   path_bucket=excluded.path_bucket,
 		   is_crash=MAX(fuzz_pool_corpus.is_crash, excluded.is_crash),
 		   input_bytes=CASE
+		     WHEN length(excluded.input_bytes) > 0 AND (
+		       length(fuzz_pool_corpus.input_bytes)=0 OR
+		       length(excluded.input_bytes) < length(fuzz_pool_corpus.input_bytes)
+		     ) THEN excluded.input_bytes
 		     WHEN length(excluded.input_bytes) > length(fuzz_pool_corpus.input_bytes) THEN excluded.input_bytes
 		     ELSE fuzz_pool_corpus.input_bytes END,
 		   last_seen_at=excluded.last_seen_at,
@@ -112,18 +141,130 @@ func (s *Service) cullPoolCorpus(ctx context.Context, campaignID string, max int
 	if max <= 0 {
 		return nil
 	}
-	_, err := s.DB.ExecContext(ctx,
-		`DELETE FROM fuzz_pool_corpus
-		  WHERE campaign_id=? AND rowid NOT IN (
-		    SELECT rowid FROM fuzz_pool_corpus
-		     WHERE campaign_id=?
-		     ORDER BY is_crash DESC, energy DESC, last_seen_at DESC
-		     LIMIT ?
-		  )`, campaignID, campaignID, max)
-	return err
+	// Prefer rarity-aware keep set when corpus is large enough to matter.
+	seeds, err := s.loadPoolCorpusSeeds(ctx, campaignID, max*4)
+	if err != nil || len(seeds) <= max {
+		_, err2 := s.DB.ExecContext(ctx,
+			`DELETE FROM fuzz_pool_corpus
+			  WHERE campaign_id=? AND rowid NOT IN (
+			    SELECT rowid FROM fuzz_pool_corpus
+			     WHERE campaign_id=?
+			     ORDER BY is_crash DESC, energy DESC, last_seen_at DESC
+			     LIMIT ?
+			  )`, campaignID, campaignID, max)
+		return err2
+	}
+	// Include crash seeds for ranking (loadPoolCorpusSeeds filters is_crash=0).
+	all, err := s.loadAllPoolCorpusSeeds(ctx, campaignID)
+	if err != nil {
+		return err
+	}
+	if len(all) <= max {
+		return nil
+	}
+	rarity := fuzzengine.BuildEdgeHitCounts(all)
+	rank := fuzzengine.RankCorpusForCull(all, rarity)
+	keep := map[uint64]struct{}{}
+	for i := 0; i < len(rank) && i < max; i++ {
+		keep[all[rank[i]].Input] = struct{}{}
+	}
+	rows, err := s.DB.QueryContext(ctx,
+		`SELECT input_u64 FROM fuzz_pool_corpus WHERE campaign_id=?`, campaignID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	var drop []int64
+	for rows.Next() {
+		var u int64
+		if err := rows.Scan(&u); err != nil {
+			return err
+		}
+		if _, ok := keep[uint64(u)]; !ok {
+			drop = append(drop, u)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, u := range drop {
+		if _, err := s.DB.ExecContext(ctx,
+			`DELETE FROM fuzz_pool_corpus WHERE campaign_id=? AND input_u64=?`, campaignID, u); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Service) loadAllPoolCorpusSeeds(ctx context.Context, campaignID string) ([]fuzzengine.PoolCorpusSeed, error) {
+	rows, err := s.DB.QueryContext(ctx,
+		`SELECT input_u64, input_bytes, energy, edge_bucket, path_bucket, is_crash
+		   FROM fuzz_pool_corpus WHERE campaign_id=?`, campaignID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []fuzzengine.PoolCorpusSeed
+	for rows.Next() {
+		var r poolCorpusRow
+		var crash int
+		var inputSigned int64
+		if err := rows.Scan(&inputSigned, &r.InputBytes, &r.Energy, &r.Edge, &r.Path, &crash); err != nil {
+			return nil, err
+		}
+		out = append(out, fuzzengine.PoolCorpusSeed{
+			Input: uint64(inputSigned), InputBytes: append([]byte(nil), r.InputBytes...),
+			Energy: r.Energy, Edge: r.Edge, Path: r.Path, Crash: crash != 0,
+		})
+	}
+	return out, rows.Err()
+}
+
+// CorpusHealthSnapshot returns fleet waste / rarity stats for Hunt dashboards.
+func (s *Service) CorpusHealthSnapshot(ctx context.Context, campaignID string, cfg map[string]any) map[string]any {
+	seeds, err := s.loadAllPoolCorpusSeeds(ctx, campaignID)
+	if err != nil || len(seeds) == 0 {
+		return map[string]any{"ok": false, "seed_count": 0}
+	}
+	rarity := fuzzengine.BuildEdgeHitCounts(seeds)
+	rare := 0
+	hot := 0
+	for _, s := range seeds {
+		hits := rarity[s.Edge]
+		if s.Edge > 0 && hits <= 2 {
+			rare++
+		}
+		if s.Energy >= 8 {
+			hot++
+		}
+	}
+	div := fuzzengine.MeasureGuidedDiversity(cfg, seeds, minInt(500, 50+len(seeds)*3))
+	return map[string]any{
+		"ok":            true,
+		"seed_count":    len(seeds),
+		"rare_edge_seeds": rare,
+		"hot_seeds":     hot,
+		"unique_edges":  len(rarity),
+		"diversity":     div,
+		"engine":        fuzzengine.Version,
+	}
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func (s *Service) observePoolCorpus(ctx context.Context, campaignID string, input uint64, inputBytes []byte, recordFinding bool, now int64) error {
+	return s.observePoolCorpusNovelty(ctx, campaignID, input, inputBytes, recordFinding, now, false, false, false)
+}
+
+// observePoolCorpusNovelty updates corpus energy.
+// When noveltyKnown is true, newEdge/newPath come from a prior recordCoverage call in the
+// same submit (INSERT OR IGNORE would otherwise always look "flat" and wrongly decay energy).
+func (s *Service) observePoolCorpusNovelty(ctx context.Context, campaignID string, input uint64, inputBytes []byte, recordFinding bool, now int64, noveltyKnown, newEdge, newPath bool) error {
 	if s == nil || s.DB == nil {
 		return nil
 	}
@@ -135,26 +276,36 @@ func (s *Service) observePoolCorpus(ctx context.Context, campaignID string, inpu
 	if !fuzzengine.GuidedSchedulingEnabled(cfg) {
 		return nil
 	}
-	var edge, path int
-	if len(inputBytes) > 0 {
-		edge, path = fuzzengine.CoverageBucketsFromBytes(inputBytes)
-	} else {
-		edge, path = fuzzengine.CoverageBuckets(input)
+	edge, path := fuzzengine.CoverageBucketsForExec(cfg, input, inputBytes, nil)
+	if !noveltyKnown {
+		var err error
+		newEdge, err = s.coverageBucketNew(ctx, campaignID, "edge", edge, now)
+		if err != nil {
+			return err
+		}
+		newPath, err = s.coverageBucketNew(ctx, campaignID, "path", path, now)
+		if err != nil {
+			return err
+		}
 	}
-	newEdge, err := s.coverageBucketNew(ctx, campaignID, "edge", edge, now)
-	if err != nil {
-		return err
-	}
-	newPath, err := s.coverageBucketNew(ctx, campaignID, "path", path, now)
-	if err != nil {
-		return err
-	}
-	boost := fuzzengine.CorpusObserveBoost(recordFinding, newEdge, newPath)
+	boost := fuzzengine.CorpusObserveBoostWithCoverage(cfg, recordFinding, newEdge, newPath, nil)
 	crash := recordFinding
-	if err := s.upsertPoolCorpusSeed(ctx, campaignID, input, inputBytes, boost, edge, path, crash, now); err != nil {
+	current := 1
+	var curEnergy sql.NullInt64
+	_ = s.DB.QueryRowContext(ctx,
+		`SELECT energy FROM fuzz_pool_corpus WHERE campaign_id=? AND input_u64=?`,
+		campaignID, poolCorpusU64Arg(input)).Scan(&curEnergy)
+	if curEnergy.Valid {
+		current = int(curEnergy.Int64)
+	}
+	energy := fuzzengine.ApplyObserveEnergy(current, boost, crash, newEdge, newPath, recordFinding)
+	if len(inputBytes) > 0 {
+		inputBytes = fuzzengine.CompactCorpusSeed(inputBytes, fuzzengine.ParseMaxInputBytes(cfg))
+	}
+	if err := s.upsertPoolCorpusSeed(ctx, campaignID, input, inputBytes, energy, edge, path, crash, now); err != nil {
 		return err
 	}
-	if err := s.exportNamespaceCorpus(ctx, cfg, input, inputBytes, boost, edge, path, crash, now); err != nil {
+	if err := s.exportNamespaceCorpus(ctx, cfg, input, inputBytes, energy, edge, path, crash, now); err != nil {
 		return err
 	}
 	max := fuzzengine.PoolCorpusMax(cfg)
@@ -165,7 +316,6 @@ func (s *Service) observePoolCorpus(ctx context.Context, campaignID string, inpu
 	if err != nil {
 		return err
 	}
-	// Cull only when over capacity (avoid ranked DELETE on every observe).
 	if n <= max {
 		return nil
 	}

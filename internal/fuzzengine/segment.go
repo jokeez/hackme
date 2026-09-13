@@ -105,14 +105,14 @@ func SegmentExecInput(inputN, execIdx uint64, cfg map[string]any, seeds []PoolCo
 	if ParseInputMode(cfg) == InputModeBytes {
 		var base []byte
 		if execIdx == 0 && len(seeds) > 0 && GuidedSchedulingEnabled(cfg) {
-			seed := PickWeightedSeed(seeds, inputN)
+			seed := PickWeightedSeedForConfig(seeds, inputN, cfg)
 			base = seed.InputBytes
 			if len(base) == 0 {
 				base = U64LayoutToBytes(seed.Input)
 			}
 		} else if execIdx > 0 && len(seeds) >= 2 && execIdx%19 == 0 {
-			a := PickWeightedSeed(seeds, inputN)
-			b := PickWeightedSeed(seeds, inputN+execIdx)
+			a := PickWeightedSeedForConfig(seeds, inputN, cfg)
+			b := PickWeightedSeedForConfig(seeds, inputN+execIdx, cfg)
 			ab, bb := a.InputBytes, b.InputBytes
 			if len(ab) == 0 {
 				ab = U64LayoutToBytes(a.Input)
@@ -124,7 +124,17 @@ func SegmentExecInput(inputN, execIdx uint64, cfg map[string]any, seeds []PoolCo
 		} else {
 			base = byteAnchorBase(inputN, cfg)
 		}
-		b := MutateBytesForConfig(base, stage, salt, maxLen, cfg)
+		corpus := CorpusBytesFromSeeds(seeds)
+		var b []byte
+		// Hunt / explore_v2 paths use corpus-aware havoc; Dig classic keeps MutateBytesForConfig for replay.
+		huntAware := CorpusExploreV2Enabled(cfg) ||
+			strings.EqualFold(strings.TrimSpace(toString(cfg["hunt_corpus_guided"])), "true") ||
+			toString(cfg["hunt_corpus_guided"]) == "1"
+		if len(corpus) > 0 && huntAware {
+			b = MutateBytesForHunt(base, stage, salt, maxLen, cfg, corpus)
+		} else {
+			b = MutateBytesForConfig(base, stage, salt, maxLen, cfg)
+		}
 		if execIdx == 0 {
 			b = ClampInputBytes(b, cfg)
 		}
@@ -133,7 +143,7 @@ func SegmentExecInput(inputN, execIdx uint64, cfg map[string]any, seeds []PoolCo
 
 	var base uint64
 	if len(seeds) > 0 && GuidedSchedulingEnabled(cfg) {
-		seed := PickWeightedSeed(seeds, inputN)
+		seed := PickWeightedSeedForConfig(seeds, inputN, cfg)
 		base = seed.Input
 	} else {
 		base = DeriveInput(inputN, cfg)

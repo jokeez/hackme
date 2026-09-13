@@ -14,7 +14,11 @@ func (s *Service) deriveGuidedPoolInputs(ctx context.Context, campaignID string,
 	if err != nil {
 		return 0, nil, nil, err
 	}
-	u, b := fuzzengine.GuidedInputForWork(inputN, cfg, seeds)
+	rarity, _ := s.loadEdgeHitCounts(ctx, campaignID)
+	if rarity == nil {
+		rarity = fuzzengine.BuildEdgeHitCounts(seeds)
+	}
+	u, b := fuzzengine.GuidedInputForWorkWithRarity(inputN, cfg, seeds, rarity)
 	return u, b, seeds, nil
 }
 

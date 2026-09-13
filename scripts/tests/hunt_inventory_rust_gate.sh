@@ -6,8 +6,8 @@ cd "$ROOT"
 # shellcheck source=scripts/tests/common.sh
 source "$ROOT/scripts/tests/common.sh"
 
-echo "[hunt-inventory-rust-gate] unit tests (inventory + language)"
-go test -count=1 ./internal/hunt/... -run 'SourceLanguage|ScanInventoryFindsRust|ListCatalogTargetsIncludesRust|Inventory' -timeout=3m
+echo "[hunt-inventory-rust-gate] unit tests (inventory + language + Phase B)"
+go test -count=1 ./internal/hunt/... -run 'SourceLanguage|ScanInventoryFindsRust|ListCatalogTargetsIncludesRust|Inventory|Rust|FuzzTarget|PlanRust|ExtractFuzz' -timeout=5m
 
 echo "[hunt-inventory-rust-gate] fuzzupstream rust targets + smoke"
 if rustc +nightly --version >/dev/null 2>&1; then
