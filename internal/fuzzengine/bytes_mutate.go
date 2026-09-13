@@ -14,21 +14,46 @@ func MutateBytes(base []byte, stage MutationStage, salt uint64, maxLen int) []by
 	return MutateBytesForConfig(base, stage, salt, maxLen, nil)
 }
 func MutateBytesWithDict(base []byte, stage MutationStage, salt uint64, maxLen int, dict []byte) []byte {
-	return mutateBytesWithDict(base, stage, salt, maxLen, dict)
+	return mutateBytesWithDict(base, stage, salt, maxLen, dict, nil)
 }
 
-// MutateBytesForHunt applies mutations with static dict + optional corpus autodict.
+// MutateBytesForHunt applies mutations with static dict + optional corpus autodict + crossover.
 func MutateBytesForHunt(base []byte, stage MutationStage, salt uint64, maxLen int, cfg map[string]any, corpus [][]byte) []byte {
 	dict := EffectiveMutatorDict(cfg, corpus)
-	return mutateBytesWithDict(base, stage, salt, maxLen, dict)
+	return mutateBytesWithDict(base, stage, salt, maxLen, dict, corpus)
 }
 
 // MutateBytesForConfig applies byte mutations with optional pack mutator_dict.
 func MutateBytesForConfig(base []byte, stage MutationStage, salt uint64, maxLen int, cfg map[string]any) []byte {
-	return mutateBytesWithDict(base, stage, salt, maxLen, ParseMutatorDict(cfg))
+	return mutateBytesWithDict(base, stage, salt, maxLen, ParseMutatorDict(cfg), nil)
 }
 
-func mutateBytesWithDict(base []byte, stage MutationStage, salt uint64, maxLen int, dict []byte) []byte {
+// havocStackDepth returns how many stacked havoc ops to apply (AFL-like energy).
+// Deterministic from stage+salt so coordinator replay stays stable.
+func havocStackDepth(stage MutationStage, salt uint64) int {
+	s := int(stage)
+	rounds := 1 + int((salt+uint64(s))%4)
+	if s >= StageHavocBase {
+		extra := (s - StageHavocBase) / 2
+		if extra > 6 {
+			extra = 6
+		}
+		rounds += extra
+		// Occasional deep stack for rare stages (still bounded).
+		if (salt^uint64(s))%11 == 0 {
+			rounds += 2
+		}
+	}
+	if rounds < 1 {
+		rounds = 1
+	}
+	if rounds > 12 {
+		rounds = 12
+	}
+	return rounds
+}
+
+func mutateBytesWithDict(base []byte, stage MutationStage, salt uint64, maxLen int, dict []byte, corpus [][]byte) []byte {
 	if maxLen <= 0 {
 		maxLen = DefaultMaxInputBytesStd
 	}
@@ -56,10 +81,17 @@ func mutateBytesWithDict(base []byte, stage MutationStage, salt uint64, maxLen i
 		return out
 	}
 	out := append([]byte(nil), base...)
-	rounds := 1 + int((salt+uint64(s))%4)
+	// Rare corpus crossover before havoc — increases fleet diversity without losing determinism.
+	if len(corpus) >= 2 && (salt%17) == 0 {
+		other := corpus[int((salt>>8)%uint64(len(corpus)))]
+		if len(other) > 0 && string(other) != string(out) {
+			out = crossoverBytes(out, other, salt^0xC0FFEE, maxLen)
+		}
+	}
+	rounds := havocStackDepth(stage, salt)
 	for i := 0; i < rounds; i++ {
 		mix := splitmix64(salt ^ uint64(s) ^ uint64(i)*0x517cc1b727220a95)
-		switch mix % 16 {
+		switch mix % 24 {
 		case 0:
 			idx := int(mix % uint64(len(out)))
 			out[idx] ^= byte(1 << (mix % 8))
@@ -121,7 +153,7 @@ func mutateBytesWithDict(base []byte, stage MutationStage, salt uint64, maxLen i
 		case 10:
 			if len(out) >= 1 {
 				idx := int(mix % uint64(len(out)))
-				arithAdd8(out, idx, int8((mix>>8)&0xff) - 64)
+				arithAdd8(out, idx, int8((mix>>8)&0xff)-64)
 			}
 		case 11:
 			if len(out) >= 2 {
@@ -146,7 +178,7 @@ func mutateBytesWithDict(base []byte, stage MutationStage, salt uint64, maxLen i
 					out = append(out, out[start:start+n]...)
 				}
 			}
-		default:
+		case 15:
 			if len(out) > 8 {
 				start := int(mix % uint64(len(out)-4))
 				end := start + 2 + int(mix>>8)%6
@@ -157,6 +189,64 @@ func mutateBytesWithDict(base []byte, stage MutationStage, salt uint64, maxLen i
 					out = append(out[:start], out[end:]...)
 				}
 			}
+		case 16: // big-endian interesting 16
+			if len(out) >= 2 {
+				idx := int(mix % uint64(len(out)-1))
+				vals := Interesting16BE()
+				writeU16BE(out, idx, vals[int(mix>>16)%len(vals)])
+			}
+		case 17: // big-endian interesting 32
+			if len(out) >= 4 {
+				idx := int(mix % uint64(len(out)-3))
+				vals := Interesting32BE()
+				writeU32BE(out, idx, vals[int(mix>>16)%len(vals)])
+			}
+		case 18: // arith32 LE
+			if len(out) >= 4 {
+				idx := int(mix % uint64(len(out)-3))
+				arithAdd32LE(out, idx, int32((mix>>8)&0xffff)-256)
+			}
+		case 19: // structure smash (JSON/XML-ish)
+			out = structureSmash(out, mix, maxLen)
+		case 20: // corpus crossover mid-havoc
+			if len(corpus) > 0 {
+				other := corpus[int(mix%uint64(len(corpus)))]
+				if len(other) > 0 {
+					out = crossoverBytes(out, other, mix, maxLen)
+				}
+			}
+		case 21: // random byte insert burst
+			if len(out) < growCap {
+				n := 1 + int(mix%4)
+				for j := 0; j < n && len(out) < growCap && len(out) < maxLen; j++ {
+					idx := int((mix>>uint(8*(j+1))) % uint64(len(out)+1))
+					b := byte(mix >> uint(8*j))
+					out = insertToken(out, idx, []byte{b}, maxLen)
+				}
+			}
+		case 22: // shuffle small window
+			if len(out) >= 4 {
+				start := int(mix % uint64(len(out)-3))
+				a, b := start, start+1+int(mix>>8)%3
+				if b < len(out) {
+					out[a], out[b] = out[b], out[a]
+				}
+			}
+		default: // set length-ish prefix (common parser footgun)
+			if len(out) >= 4 {
+				claimed := uint32(mix & 0xffff)
+				if mix&1 == 0 {
+					writeU32LE(out, 0, claimed)
+				} else {
+					writeU32BE(out, 0, claimed)
+				}
+			}
+		}
+		if len(out) == 0 {
+			out = []byte{byte(mix)}
+		}
+		if len(out) > maxLen {
+			out = out[:maxLen]
 		}
 	}
 	if len(out) > maxLen {
