@@ -2037,6 +2037,9 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 	displayFindings, crashUnique, crashDup := collapseCrashFindingsForReport(findings)
 	topIssues, sanitizerHygiene, coverageNoise, crashCount, hygieneCount, noiseCount := partitionFindingsCrashFirst(displayFindings, fuzzTopIssueLimit, fuzzCoverageNoiseLimit)
 	sanitizerSummary := buildSanitizerHygieneSummary(displayFindings)
+	familySummary := buildFindingFamilySummary(findings)
+	annotateTopIssuesWithFamilyCounts(topIssues, familySummary)
+	annotateTopIssuesWithFamilyCounts(sanitizerHygiene, familySummary)
 	crashCrit, crashHigh, crashMed, crashLow, crashInfo := crashClassSeverityCounts(findings)
 	crashScore := crashClassSeverityScore(crashCrit, crashHigh, crashMed, crashLow, crashInfo)
 
@@ -2177,6 +2180,7 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 				"crash_count":            crashCount,
 				"crash_unique_count":     crashUnique,
 				"crash_duplicate_count":  crashDup,
+				"finding_family_count":   intFromAny(familySummary["family_count"]),
 				"coverage_noise_count":   noiseCount,
 				"sanitizer_hygiene_count": hygieneCount,
 				"raw_findings_total":     len(findings),
@@ -2204,6 +2208,8 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 			"crash_count":            crashCount,
 			"crash_unique_count":     crashUnique,
 			"crash_duplicate_count":  crashDup,
+			"finding_family_count":   intFromAny(familySummary["family_count"]),
+			"finding_family_collapse": familySummary["collapse_ratio"],
 			"coverage_noise_count":   noiseCount,
 			"sanitizer_hygiene_count": hygieneCount,
 			"no_critical":            crashCrit == 0,
@@ -2228,6 +2234,7 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 		"top_issues":          topIssues,
 		"sanitizer_hygiene":   sanitizerHygiene,
 		"sanitizer_summary":   sanitizerSummary,
+		"finding_families":    familySummary,
 		"coverage_noise":      coverageNoise,
 		"recommendations": recommendations,
 		"totals": map[string]any{
@@ -2239,6 +2246,8 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 			"crash_count":            crashCount,
 			"crash_unique_count":     crashUnique,
 			"crash_duplicate_count":  crashDup,
+			"finding_family_count":   intFromAny(familySummary["family_count"]),
+			"finding_family_collapse": familySummary["collapse_ratio"],
 			"coverage_noise_count":   noiseCount,
 			"sanitizer_hygiene_count": hygieneCount,
 			"grouped_rows_visible":   groupedRowsVisible,

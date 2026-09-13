@@ -33,6 +33,10 @@ func CoverageBucketsForExec(cfg map[string]any, inputU uint64, inputB []byte, ed
 		return primaryEdgeFromBitmap(edgeBitmap), pathBucketFromBitmap(edgeBitmap)
 	}
 	if len(inputB) > 0 {
+		if CoverageFeedbackEnabled(cfg) ||
+			strings.EqualFold(strings.TrimSpace(CoverageKind(cfg)), CoverageKindHuntStructural) {
+			return CoverageBucketsStructural(inputB)
+		}
 		return CoverageBucketsFromBytes(inputB)
 	}
 	return CoverageBuckets(inputU)

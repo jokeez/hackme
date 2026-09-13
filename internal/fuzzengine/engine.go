@@ -1,4 +1,4 @@
-// Package fuzzengine implements fuzz_engine_v2 input derivation, coverage buckets,
+// Package fuzzengine implements fuzz_engine_v2.4 input derivation, coverage buckets,
 // and WASM check semantics shared by the node autorunner and pool coordinator workers.
 package fuzzengine
 
@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-const Version = "fuzz_engine_v2"
+const Version = "fuzz_engine_v2.5"
 
 // CheckSemantics controls how WASM check(i64)->i32 results map to pass/finding.
 //   - pow_gate: pass when check != 0 (mining gate / accepts nonce)
@@ -265,9 +265,15 @@ func MetaFromConfig(cfg map[string]any) map[string]any {
 	if NativeReproMode(cfg) == "asan_binary" {
 		features = append(features, "asan_binary_repro", "tier_c")
 	}
-	features = append(features, "stable_crash_buckets")
+	features = append(features, "stable_crash_buckets", "finding_families", "havoc_stack_v22", "interesting_be", "format_patch")
 	if GuidedSchedulingEnabled(cfg) {
 		features = append(features, "guided_scheduling")
+	}
+	if CorpusExploreV2Enabled(cfg) {
+		features = append(features, "corpus_explore_v2")
+	}
+	if CoverageFeedbackEnabled(cfg) {
+		features = append(features, "coverage_feedback_v1", "hunt_structural", "power_schedule_v24", "corpus_decay", "finding_family_report", "rarity_cull")
 	}
 	if BountyRequiresNative(cfg) {
 		features = append(features, "bounty_requires_native")

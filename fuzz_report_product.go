@@ -37,6 +37,8 @@ type fuzzProductTopIssue struct {
 	InputSHA256 string         `json:"input_sha256,omitempty"`
 	TriageClass        string         `json:"triage_class"`
 	TriageNote         string         `json:"triage_note"`
+	FindingFamily      string         `json:"finding_family,omitempty"`
+	FamilyCount        int            `json:"family_member_count,omitempty"`
 	SanitizerClass     string         `json:"sanitizer_class,omitempty"`
 	SanitizerSubtype   string         `json:"sanitizer_subtype,omitempty"`
 	SanitizerLabel     string         `json:"sanitizer_label,omitempty"`
@@ -180,12 +182,89 @@ func toProductTopIssue(f fuzzFinding) fuzzProductTopIssue {
 		InputSHA256:      f.InputSHA256,
 		TriageClass:      triage.Class,
 		TriageNote:       triage.Note,
+		FindingFamily:    findingFamilyKey(f),
 		SanitizerClass:   findingSanitizerField(f, "sanitizer_class"),
 		SanitizerSubtype: findingSanitizerField(f, "sanitizer_subtype"),
 		SanitizerLabel:   findingSanitizerField(f, "sanitizer_label"),
 		GuardPack:        packID,
 		Explain:          explain,
 		Repro:            repro,
+	}
+}
+
+func findingFamilyKey(f fuzzFinding) string {
+	if fuzzengine.IsCrashClass(f.FindingType) || f.FindingType == "sanitizer_informational" {
+		return fuzzengine.StableFindingKeyFromDetail(f.FindingType, f.Detail)
+	}
+	return ""
+}
+
+// buildFindingFamilySummary rolls unique inputs into root-cause families (Hunt honesty).
+func buildFindingFamilySummary(findings []fuzzFinding) map[string]any {
+	byFamily := map[string]int{}
+	crashInputs := 0
+	hygieneInputs := 0
+	for _, f := range findings {
+		key := findingFamilyKey(f)
+		if key == "" {
+			continue
+		}
+		byFamily[key]++
+		if fuzzengine.IsCrashClass(f.FindingType) {
+			crashInputs++
+		} else if f.FindingType == "sanitizer_informational" {
+			hygieneInputs++
+		}
+	}
+	familyCount := len(byFamily)
+	// Top families by member count (stable sort by key for determinism).
+	type pair struct {
+		K string
+		N int
+	}
+	pairs := make([]pair, 0, len(byFamily))
+	for k, n := range byFamily {
+		pairs = append(pairs, pair{K: k, N: n})
+	}
+	for i := 1; i < len(pairs); i++ {
+		j := i
+		for j > 0 && (pairs[j].N > pairs[j-1].N || (pairs[j].N == pairs[j-1].N && pairs[j].K < pairs[j-1].K)) {
+			pairs[j], pairs[j-1] = pairs[j-1], pairs[j]
+			j--
+		}
+	}
+	top := make([]map[string]any, 0, 8)
+	for i := 0; i < len(pairs) && i < 8; i++ {
+		top = append(top, map[string]any{"family": pairs[i].K, "inputs": pairs[i].N})
+	}
+	collapseRatio := 0.0
+	raw := crashInputs + hygieneInputs
+	if raw > 0 {
+		collapseRatio = 1.0 - float64(familyCount)/float64(raw)
+	}
+	return map[string]any{
+		"family_count":     familyCount,
+		"raw_input_count":  raw,
+		"crash_inputs":     crashInputs,
+		"hygiene_inputs":   hygieneInputs,
+		"collapse_ratio":   collapseRatio,
+		"by_family":        byFamily,
+		"top_families":     top,
+		"honesty_note":     "Cite family_count, not raw_input_count — many inputs often share one root cause.",
+	}
+}
+
+// annotateTopIssuesWithFamilyCounts stamps FamilyCount on display issues.
+func annotateTopIssuesWithFamilyCounts(issues []fuzzProductTopIssue, familySummary map[string]any) {
+	byFamily, _ := familySummary["by_family"].(map[string]int)
+	if byFamily == nil {
+		return
+	}
+	for i := range issues {
+		if issues[i].FindingFamily == "" {
+			continue
+		}
+		issues[i].FamilyCount = byFamily[issues[i].FindingFamily]
 	}
 }
 

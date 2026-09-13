@@ -129,6 +129,8 @@ func huntShardConfigFromClaim(cr ClaimResp, corpusGuided bool) map[string]any {
 	if corpusGuided || strings.TrimSpace(cr.CoverageKind) == "hunt_corpus_guided" {
 		cfg["hunt_corpus_guided"] = true
 		cfg["guided_scheduling"] = true
+		cfg["coverage_feedback_v1"] = true
+		cfg["coverage_kind"] = fuzzengine.CoverageKindHuntStructural
 	}
 	if cr.HuntDetectLeaks {
 		cfg["hunt_detect_leaks"] = true

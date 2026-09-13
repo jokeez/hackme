@@ -474,7 +474,7 @@ func doCampaign(base string, args []string) error {
 		depthTier := fs.String("depth-tier", "", "depth tier: wasm_only|wasm_native|bytes_corpus")
 		_ = fs.Parse(args[1:])
 		cfg := map[string]any{
-			"fuzz_engine_version": "fuzz_engine_v2",
+			"fuzz_engine_version": "fuzz_engine_v2.5",
 			"mutation_rounds":     4,
 			"coverage_guided":     true,
 		}
