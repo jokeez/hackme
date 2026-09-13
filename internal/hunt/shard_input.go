@@ -57,6 +57,10 @@ func ApplyPoolGuidedDefaults(cfg map[string]any, targetID string) {
 	if _, ok := cfg["pool_corpus_max"]; !ok {
 		cfg["pool_corpus_max"] = 256
 	}
+	// Opt-in fleet diversity: low-energy seeds keep a floor share (replay-stable with this flag).
+	if _, ok := cfg["corpus_explore_v2"]; !ok {
+		cfg["corpus_explore_v2"] = true
+	}
 }
 
 // ShardSegmentMutating reports whether Hunt pool shards run L1 mutating exec chains.
@@ -102,8 +106,8 @@ func ShardSegmentExecInput(campaignID string, inputN, execIdx uint64, cfg map[st
 
 	var base []byte
 	if execIdx > 0 && len(seeds) >= 2 && execIdx%19 == 0 {
-		a := fuzzengine.PickWeightedSeed(seeds, inputN)
-		b := fuzzengine.PickWeightedSeed(seeds, inputN+execIdx)
+		a := fuzzengine.PickWeightedSeedForConfig(seeds, inputN, cfg)
+		b := fuzzengine.PickWeightedSeedForConfig(seeds, inputN+execIdx, cfg)
 		ab, bb := a.InputBytes, b.InputBytes
 		if len(ab) == 0 {
 			ab = fuzzengine.U64LayoutToBytes(a.Input)
@@ -124,7 +128,7 @@ func huntByteAnchorBase(campaignID string, inputN uint64, cfg map[string]any, se
 		return append([]byte(nil), corpus[inputN%uint64(len(corpus))]...)
 	}
 	if HuntCorpusGuided(cfg) && len(seeds) > 0 {
-		seed := fuzzengine.PickWeightedSeed(seeds, inputN)
+		seed := fuzzengine.PickWeightedSeedForConfig(seeds, inputN, cfg)
 		if len(seed.InputBytes) > 0 {
 			return append([]byte(nil), seed.InputBytes...)
 		}
