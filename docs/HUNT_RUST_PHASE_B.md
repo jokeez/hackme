@@ -15,9 +15,9 @@ Status: **shipped on fork** (`feat/hunt-engine-depth`).
 
 ## Build modes
 
-1. **cargo_fuzz** — pinned repo has `fuzz/Cargo.toml` → `cargo +nightly fuzz build <target> --sanitizer=address`
-2. **stdin_fuzz_target** — `.rs` with `fuzz_target!(|data: &[u8]| { ... })` → stdin ASAN binary
-3. **stdin_package** — `template_accept=true` + `Cargo.toml` → package-linked stdin driver
+1. **cargo_fuzz** — source under `fuzz/fuzz_targets/` **and** pinned repo has `fuzz/Cargo.toml` → `cargo +nightly fuzz build <target> --sanitizer=address`
+2. **stdin_fuzz_target** — `.rs` with `fuzz_target!(|data: &[u8]| { ... })` → stdin ASAN binary (preserves param name + non-libfuzzer `use` imports)
+3. **stdin_package** — **fail closed** (no stub driver). Provide a real `fuzz_target!` or cargo-fuzz target.
 
 ## Requirements
 

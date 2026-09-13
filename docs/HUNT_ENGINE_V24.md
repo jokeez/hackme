@@ -16,7 +16,7 @@
 |---------|--------|
 | **Power schedule** | Rare + hot seeds get deeper havoc stages |
 | **Corpus decay** | Flat observes cool energy → fleet rotates |
-| **CompactCorpusSeed** | Strip trailing NUL padding |
+| **CompactCorpusSeed** | Clamp maxLen only (preserve trailing NULs for binary seeds) |
 | **Diversity metrics** | `MeasureGuidedDiversity` → unique/waste ratio |
 | **RankCorpusForCull** | Crash > rare+energy > compact |
 

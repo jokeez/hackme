@@ -42,8 +42,12 @@ func TestDecayEnergyCoolsStale(t *testing.T) {
 func TestCompactCorpusSeed(t *testing.T) {
 	in := []byte{'a', 'b', 0, 0, 0}
 	out := CompactCorpusSeed(in, 0)
-	if len(out) != 2 || out[0] != 'a' || out[1] != 'b' {
-		t.Fatalf("%q", out)
+	if len(out) != 5 || out[4] != 0 {
+		t.Fatalf("must preserve trailing NULs: %q", out)
+	}
+	trimmed := CompactCorpusSeed(in, 3)
+	if len(trimmed) != 3 {
+		t.Fatalf("maxLen clamp: %q", trimmed)
 	}
 }
 

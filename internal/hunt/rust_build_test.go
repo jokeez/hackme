@@ -11,18 +11,23 @@ import (
 func TestExtractFuzzTargetBody(t *testing.T) {
 	src := `#![no_main]
 use libfuzzer_sys::fuzz_target;
-fuzz_target!(|data: &[u8]| {
-    if data.len() > 3 && data[0] == b'x' {
+use mycrate::parse;
+fuzz_target!(|input: &[u8]| {
+    if input.len() > 3 && input[0] == b'x' {
         panic!("boom");
     }
 });
 `
-	body, ok := extractFuzzTargetBody(src)
-	if !ok || body == "" {
-		t.Fatal("expected body")
+	param, body, ok := extractFuzzTargetBody(src)
+	if !ok || body == "" || param != "input" {
+		t.Fatalf("param=%q body=%q ok=%v", param, body, ok)
 	}
-	if !containsSub(body, "data.len()") {
+	if !containsSub(body, "input.len()") {
 		t.Fatalf("body=%q", body)
+	}
+	uses := extractRustUseImports(src)
+	if !containsSub(uses, "use mycrate::parse;") || containsSub(uses, "libfuzzer_sys") {
+		t.Fatalf("uses=%q", uses)
 	}
 }
 
@@ -39,6 +44,11 @@ func TestPlanRustHarnessModes(t *testing.T) {
 	}
 	if err := os.WriteFile(filepath.Join(fuzzDir, "Cargo.toml"), []byte("[package]\nname=\"f\"\n"), 0o644); err != nil {
 		t.Fatal(err)
+	}
+	// Sibling fuzz/Cargo.toml must not force cargo_fuzz for root fuzz_parse.rs.
+	planRoot, err := planRustHarness(dir, "fuzz_parse.rs", []byte(body))
+	if err != nil || planRoot.Mode != "stdin_fuzz_target" {
+		t.Fatalf("planRoot=%+v err=%v", planRoot, err)
 	}
 	plan2, err := planRustHarness(dir, "fuzz/fuzz_targets/example.rs", []byte(body))
 	if err != nil || plan2.Mode != "cargo_fuzz" {

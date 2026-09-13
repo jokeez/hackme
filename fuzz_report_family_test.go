@@ -4,26 +4,30 @@ import "testing"
 
 func TestBuildFindingFamilySummaryCollapse(t *testing.T) {
 	findings := []fuzzFinding{
-		{FindingType: "asan", Severity: "critical", Title: "a", Detail: map[string]any{
+		{ID: "1", FindingType: "asan", Severity: "critical", Title: "a", InputSHA256: "sha-a", Detail: map[string]any{
 			"trap": "ERROR: AddressSanitizer: stack-buffer-overflow\nSUMMARY: … in memset",
 		}},
-		{FindingType: "native_crash", Severity: "critical", Title: "b", Detail: map[string]any{
+		{ID: "2", FindingType: "native_crash", Severity: "critical", Title: "b", InputSHA256: "sha-b", Detail: map[string]any{
 			"trap": "*** buffer overflow detected ***\n#0 in memset",
 		}},
-		{FindingType: "asan", Severity: "critical", Title: "c", Detail: map[string]any{
+		{ID: "3", FindingType: "asan", Severity: "critical", Title: "c", InputSHA256: "sha-c", Detail: map[string]any{
 			"trap": "ERROR: AddressSanitizer: stack-buffer-overflow\nSUMMARY: … in memset",
 		}},
-		{FindingType: "ubsan", Severity: "medium", Title: "u", Detail: map[string]any{
+		// Duplicate input SHA for same family must not inflate counts.
+		{ID: "3b", FindingType: "asan", Severity: "critical", Title: "c-dup", InputSHA256: "sha-c", Detail: map[string]any{
+			"trap": "ERROR: AddressSanitizer: stack-buffer-overflow\nSUMMARY: … in memset",
+		}},
+		{ID: "4", FindingType: "ubsan", Severity: "medium", Title: "u", InputSHA256: "sha-u", Detail: map[string]any{
 			"trap": "runtime error: call to function through pointer to incorrect function type\nSUMMARY: function-pointer-cast ucl_hash.c:275",
 		}},
-		{FindingType: "property_violation", Severity: "low", Title: "noise"},
+		{ID: "5", FindingType: "property_violation", Severity: "low", Title: "noise"},
 	}
 	sum := buildFindingFamilySummary(findings)
 	if intFromAny(sum["family_count"]) != 2 {
 		t.Fatalf("family_count=%v want 2 (memset + fn_ptr)", sum["family_count"])
 	}
 	if intFromAny(sum["raw_input_count"]) != 4 {
-		t.Fatalf("raw=%v want 4", sum["raw_input_count"])
+		t.Fatalf("raw=%v want 4 unique inputs", sum["raw_input_count"])
 	}
 	cr := sum["collapse_ratio"].(float64)
 	if cr < 0.4 {

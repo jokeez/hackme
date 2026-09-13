@@ -200,15 +200,31 @@ func findingFamilyKey(f fuzzFinding) string {
 }
 
 // buildFindingFamilySummary rolls unique inputs into root-cause families (Hunt honesty).
+// Counts are deduped by (family_key, input_sha256) so duplicate rows for the same input
+// do not inflate raw_input_count / by_family member counts.
 func buildFindingFamilySummary(findings []fuzzFinding) map[string]any {
 	byFamily := map[string]int{}
+	seen := map[string]struct{}{}
 	crashInputs := 0
 	hygieneInputs := 0
-	for _, f := range findings {
+	for i, f := range findings {
 		key := findingFamilyKey(f)
 		if key == "" {
 			continue
 		}
+		sha := strings.TrimSpace(strings.ToLower(f.InputSHA256))
+		uniq := sha
+		if uniq == "" {
+			uniq = strings.TrimSpace(f.ID)
+			if uniq == "" {
+				uniq = fmt.Sprintf("row-%d", i)
+			}
+		}
+		dedupe := key + "|" + uniq
+		if _, ok := seen[dedupe]; ok {
+			continue
+		}
+		seen[dedupe] = struct{}{}
 		byFamily[key]++
 		if fuzzengine.IsCrashClass(f.FindingType) {
 			crashInputs++

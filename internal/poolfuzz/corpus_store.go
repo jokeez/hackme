@@ -258,6 +258,13 @@ func minInt(a, b int) int {
 }
 
 func (s *Service) observePoolCorpus(ctx context.Context, campaignID string, input uint64, inputBytes []byte, recordFinding bool, now int64) error {
+	return s.observePoolCorpusNovelty(ctx, campaignID, input, inputBytes, recordFinding, now, false, false, false)
+}
+
+// observePoolCorpusNovelty updates corpus energy.
+// When noveltyKnown is true, newEdge/newPath come from a prior recordCoverage call in the
+// same submit (INSERT OR IGNORE would otherwise always look "flat" and wrongly decay energy).
+func (s *Service) observePoolCorpusNovelty(ctx context.Context, campaignID string, input uint64, inputBytes []byte, recordFinding bool, now int64, noveltyKnown, newEdge, newPath bool) error {
 	if s == nil || s.DB == nil {
 		return nil
 	}
@@ -269,15 +276,17 @@ func (s *Service) observePoolCorpus(ctx context.Context, campaignID string, inpu
 	if !fuzzengine.GuidedSchedulingEnabled(cfg) {
 		return nil
 	}
-	var edge, path int
-	edge, path = fuzzengine.CoverageBucketsForExec(cfg, input, inputBytes, nil)
-	newEdge, err := s.coverageBucketNew(ctx, campaignID, "edge", edge, now)
-	if err != nil {
-		return err
-	}
-	newPath, err := s.coverageBucketNew(ctx, campaignID, "path", path, now)
-	if err != nil {
-		return err
+	edge, path := fuzzengine.CoverageBucketsForExec(cfg, input, inputBytes, nil)
+	if !noveltyKnown {
+		var err error
+		newEdge, err = s.coverageBucketNew(ctx, campaignID, "edge", edge, now)
+		if err != nil {
+			return err
+		}
+		newPath, err = s.coverageBucketNew(ctx, campaignID, "path", path, now)
+		if err != nil {
+			return err
+		}
 	}
 	boost := fuzzengine.CorpusObserveBoostWithCoverage(cfg, recordFinding, newEdge, newPath, nil)
 	crash := recordFinding
@@ -307,7 +316,6 @@ func (s *Service) observePoolCorpus(ctx context.Context, campaignID string, inpu
 	if err != nil {
 		return err
 	}
-	// Cull only when over capacity (avoid ranked DELETE on every observe).
 	if n <= max {
 		return nil
 	}

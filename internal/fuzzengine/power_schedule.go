@@ -185,18 +185,16 @@ func MeasureGuidedDiversity(cfg map[string]any, seeds []PoolCorpusSeed, samples 
 	return st
 }
 
-// CompactCorpusSeed removes trailing NUL padding and trims oversized seeds for storage.
-// Deterministic; does not change crash semantics for ASAN (padding rarely matters).
+// CompactCorpusSeed clamps to maxLen only.
+// It deliberately does NOT strip trailing 0x00 — those bytes are often meaningful
+// for binary parsers and Hunt ASAN stdin replay must stay bit-identical.
 func CompactCorpusSeed(b []byte, maxLen int) []byte {
 	if len(b) == 0 {
 		return b
 	}
-	if maxLen > 0 && len(b) > maxLen {
-		b = b[:maxLen]
-	}
 	out := append([]byte(nil), b...)
-	for len(out) > 1 && out[len(out)-1] == 0 {
-		out = out[:len(out)-1]
+	if maxLen > 0 && len(out) > maxLen {
+		out = out[:maxLen]
 	}
 	return out
 }

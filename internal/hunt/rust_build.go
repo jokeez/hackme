@@ -43,9 +43,6 @@ func BuildInventoryRustHarness(ctx context.Context, repoRoot string, req Harness
 	if err != nil {
 		return nil, err
 	}
-	if err := requireRustNightlyASAN(); err != nil {
-		return nil, err
-	}
 	plan, err := planRustHarness(req.Pin.Path, sourceRel, content)
 	if err != nil {
 		return nil, err
@@ -64,6 +61,9 @@ func BuildInventoryRustHarness(ctx context.Context, repoRoot string, req Harness
 			Note:        "cached rust harness",
 		}, nil
 	}
+	if err := requireRustNightlyASAN(); err != nil {
+		return nil, err
+	}
 	var binPath string
 	var note string
 	switch plan.Mode {
@@ -72,10 +72,8 @@ func BuildInventoryRustHarness(ctx context.Context, repoRoot string, req Harness
 	case "stdin_fuzz_target":
 		binPath, note, err = buildRustStdinFromFuzzTarget(ctx, req.Pin.Path, sourceRel, content, plan)
 	default:
-		if !req.TemplateAccept {
-			return nil, fmt.Errorf("hunt rust build: no fuzz_target!/cargo-fuzz — set template_accept=true for stdin package driver")
-		}
-		binPath, note, err = buildRustStdinPackageDriver(ctx, req.Pin.Path, sourceRel, plan)
+		// Fail closed: a package-linked stub that never calls target code is not a Hunt harness.
+		return nil, fmt.Errorf("hunt rust build: no fuzz_target!/cargo-fuzz for %s — refuse package driver stub (would not exercise target code)", sourceRel)
 	}
 	if err != nil {
 		return nil, err
@@ -116,13 +114,17 @@ func planRustHarness(pinPath, sourceRel string, content []byte) (*rustHarnessPla
 		CargoRoot:   cargoRoot,
 		PackageName: readCargoPackageName(cargoRoot),
 	}
-	fuzzDir := filepath.Join(pinPath, "fuzz")
-	if st, err := os.Stat(filepath.Join(fuzzDir, "Cargo.toml")); err == nil && !st.IsDir() {
-		plan.Mode = "cargo_fuzz"
-		if target := cargoFuzzTargetName(sourceRel); target != "" {
-			plan.FuzzTarget = target
+	slash := filepath.ToSlash(sourceRel)
+	// Only treat as cargo-fuzz when the source itself lives under fuzz/fuzz_targets/.
+	// A sibling fuzz/Cargo.toml must not force cargo_fuzz for unrelated .rs files.
+	if strings.HasPrefix(slash, "fuzz/fuzz_targets/") {
+		if st, err := os.Stat(filepath.Join(pinPath, "fuzz", "Cargo.toml")); err == nil && !st.IsDir() {
+			plan.Mode = "cargo_fuzz"
+			if target := cargoFuzzTargetName(sourceRel); target != "" {
+				plan.FuzzTarget = target
+			}
+			return plan, nil
 		}
-		return plan, nil
 	}
 	if strings.Contains(src, inventoryMarkerRust) || strings.Contains(src, "libfuzzer_sys::fuzz_target") {
 		plan.Mode = "stdin_fuzz_target"
@@ -201,10 +203,11 @@ func buildCargoFuzzHarness(ctx context.Context, plan *rustHarnessPlan) (binPath,
 }
 
 func buildRustStdinFromFuzzTarget(ctx context.Context, pinPath, sourceRel string, content []byte, plan *rustHarnessPlan) (binPath, note string, err error) {
-	body, ok := extractFuzzTargetBody(string(content))
+	param, body, ok := extractFuzzTargetBody(string(content))
 	if !ok {
 		return "", "", fmt.Errorf("hunt rust: could not parse fuzz_target! body in %s", sourceRel)
 	}
+	uses := extractRustUseImports(string(content))
 	tmpDir, err := os.MkdirTemp("", "hunt-rust-fuzz-*")
 	if err != nil {
 		return "", "", err
@@ -215,7 +218,7 @@ func buildRustStdinFromFuzzTarget(ctx context.Context, pinPath, sourceRel string
 		return "", "", err
 	}
 	mainRS := fmt.Sprintf(`use std::io::Read;
-
+%s
 fn main() {
 	let mut data = Vec::new();
 	let _ = std::io::stdin().take(65536).read_to_end(&mut data);
@@ -225,10 +228,10 @@ fn main() {
 	fuzz_body(&data);
 }
 
-fn fuzz_body(data: &[u8]) {
+fn fuzz_body(%s: &[u8]) {
 %s
 }
-`, body)
+`, uses, param, body)
 	manifest := fmt.Sprintf(`[package]
 name = "hunt_inv_rust"
 version = "0.0.0"
@@ -250,54 +253,6 @@ path = "main.rs"
 		return "", "", err
 	}
 	return compileAndStageRustBin(ctx, crateDir, "stdin fuzz_target ASAN harness")
-}
-
-func buildRustStdinPackageDriver(ctx context.Context, pinPath, sourceRel string, plan *rustHarnessPlan) (binPath, note string, err error) {
-	tmpDir, err := os.MkdirTemp("", "hunt-rust-pkg-*")
-	if err != nil {
-		return "", "", err
-	}
-	defer os.RemoveAll(tmpDir)
-	crateDir := filepath.Join(tmpDir, "crate")
-	if err := os.MkdirAll(crateDir, 0o755); err != nil {
-		return "", "", err
-	}
-	absPin, _ := filepath.Abs(plan.CargoRoot)
-	mainRS := fmt.Sprintf(`use std::io::Read;
-
-fn main() {
-	let mut buf = Vec::new();
-	let _ = std::io::stdin().take(65536).read_to_end(&mut buf);
-	if buf.is_empty() {
-		return;
-	}
-	// Phase B package driver — link pinned crate; extend with target-specific hooks as needed.
-	let _ = %s;
-	let _ = buf.len();
-}
-`, plan.PackageName)
-	manifest := fmt.Sprintf(`[package]
-name = "hunt_inv_pkg"
-version = "0.0.0"
-edition = "2021"
-publish = false
-
-[[bin]]
-name = "%s"
-path = "main.rs"
-
-[dependencies]
-%s = { path = %q }
-`, rustStdinBin, plan.PackageName, absPin)
-	if err := os.WriteFile(filepath.Join(crateDir, "Cargo.toml"), []byte(manifest), 0o644); err != nil {
-		return "", "", err
-	}
-	if err := os.WriteFile(filepath.Join(crateDir, "main.rs"), []byte(mainRS), 0o644); err != nil {
-		return "", "", err
-	}
-	_ = sourceRel
-	_ = pinPath
-	return compileAndStageRustBin(ctx, crateDir, "stdin package ASAN driver (Phase B)")
 }
 
 func compileAndStageRustBin(ctx context.Context, crateDir, note string) (binPath, noteOut string, err error) {
@@ -362,16 +317,35 @@ func compileRustStdinCrate(ctx context.Context, crateDir, note string) (binPath,
 	return bin, note, nil
 }
 
-func extractFuzzTargetBody(src string) (string, bool) {
+// extractFuzzTargetBody returns the closure parameter name and body from fuzz_target!.
+func extractFuzzTargetBody(src string) (param, body string, ok bool) {
 	m := reFuzzTargetBody.FindStringSubmatch(src)
 	if len(m) < 3 {
-		return "", false
+		return "", "", false
 	}
-	body := strings.TrimSpace(m[2])
-	if body == "" {
-		return "", false
+	param = strings.TrimSpace(m[1])
+	body = strings.TrimSpace(m[2])
+	if param == "" || body == "" {
+		return "", "", false
 	}
-	return body, true
+	return param, body, true
+}
+
+// extractRustUseImports keeps non-libfuzzer use lines so harness bodies that depend on them still compile.
+func extractRustUseImports(src string) string {
+	var b strings.Builder
+	for _, line := range strings.Split(src, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, "use ") {
+			continue
+		}
+		if strings.Contains(trimmed, "libfuzzer_sys") {
+			continue
+		}
+		b.WriteString(trimmed)
+		b.WriteByte('\n')
+	}
+	return b.String()
 }
 
 func requireRustNightlyASAN() error {
