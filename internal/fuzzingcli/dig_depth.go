@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"hackme/internal/fuzzengine"
+	"hackme/internal/gpudig"
 )
 
 // ApplyDigMutatorDict sets a rich domain mutator dictionary for a guard pack.
@@ -202,4 +203,17 @@ func itoa(n int) string {
 		n /= 10
 	}
 	return string(buf)
+}
+
+// ApplyDigGPUMutators enables issue #13 E accelerator mutant generation (CPU eval only).
+// Off by default; set dig_gpu_mutators=true on Dig campaigns that opt in.
+func ApplyDigGPUMutators(cfg map[string]any, enable bool) {
+	if cfg == nil || !enable {
+		return
+	}
+	cfg["dig_gpu_mutators"] = true
+	if _, ok := cfg["dig_gpu_mutator_backend"]; !ok {
+		cfg["dig_gpu_mutator_backend"] = gpudig.BackendCPU
+	}
+	fuzzengine.EnableDeepHavocV28(cfg)
 }

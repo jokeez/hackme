@@ -37,6 +37,47 @@ func IsCrashClass(findingType string) bool {
 	return false
 }
 
+// IsHangOnly reports hang/timeout findings that should not get full crash energy.
+// Memory/sanitizer crashes that also mention timeout stay crash-class (not hang-only).
+func IsHangOnly(findingType string) bool {
+	ft := strings.TrimSpace(strings.ToLower(findingType))
+	if ft == "" {
+		return false
+	}
+	switch ft {
+	case "hang", "timeout", "timeout_hang":
+		return true
+	}
+	hasHang := strings.Contains(ft, "hang") || strings.Contains(ft, "timeout")
+	if !hasHang {
+		return false
+	}
+	// Exclude sanitizer / memory crash classes.
+	for _, needle := range []string{
+		"asan", "ubsan", "msan", "tsan", "segfault", "sigsegv",
+		"oom", "leak", "memory", "overflow", "use_after", "abort", "crash",
+	} {
+		if strings.Contains(ft, needle) {
+			return false
+		}
+	}
+	return true
+}
+
+// IsHangTrap reports whether an exec trap string looks like hang/timeout (pre-classify).
+func IsHangTrap(trap string) bool {
+	t := strings.TrimSpace(strings.ToLower(trap))
+	if t == "" {
+		return false
+	}
+	if strings.Contains(t, "deadline exceeded") || strings.Contains(t, "context canceled") {
+		// Wasm harness timeouts are often harness_runtime, not schedule hang energy.
+		return false
+	}
+	return strings.Contains(t, "hang") || strings.Contains(t, "timed out") ||
+		(strings.Contains(t, "timeout") && !strings.Contains(t, "harness"))
+}
+
 // IsCoverageNoise reports detector / property / guard signals that should stay
 // in the report appendix, not the crash-first top issues list.
 func IsCoverageNoise(findingType string) bool {

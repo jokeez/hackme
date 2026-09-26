@@ -22,6 +22,86 @@ func TestPowerScheduleDepthRareDeeper(t *testing.T) {
 	}
 }
 
+func TestSeedScheduleWeightPathRarity(t *testing.T) {
+	rare := PoolCorpusSeed{InputBytes: []byte("abcdefghijklmnop"), Energy: 3, Edge: 1, Path: 7}
+	common := PoolCorpusSeed{InputBytes: []byte("abcdefghijklmnop"), Energy: 3, Edge: 1, Path: 9}
+	edge := EdgeHitCounts{1: 5}
+	path := PathHitCounts{7: 1, 9: 40}
+	wr := SeedScheduleWeightEx(rare, true, edge, path, nil)
+	wc := SeedScheduleWeightEx(common, true, edge, path, nil)
+	if wr <= wc {
+		t.Fatalf("rare path should outweigh common: rare=%d common=%d", wr, wc)
+	}
+}
+
+func TestSeedScheduleWeightLengthClassMidRare(t *testing.T) {
+	mid := PoolCorpusSeed{InputBytes: make([]byte, 32), Energy: 3, Edge: 1}
+	tiny := PoolCorpusSeed{InputBytes: []byte("x"), Energy: 3, Edge: 1}
+	edge := EdgeHitCounts{1: 5}
+	lens := LengthClassHits{1: 20, 2: 1, 3: 10}
+	wm := SeedScheduleWeightEx(mid, true, edge, nil, lens)
+	wt := SeedScheduleWeightEx(tiny, true, edge, nil, lens)
+	if wm <= wt {
+		t.Fatalf("rare mid-len should outweigh common tiny: mid=%d tiny=%d", wm, wt)
+	}
+}
+
+func TestPowerScheduleDepthExPathAdds(t *testing.T) {
+	base := PowerScheduleDepthEx(4, 10, 0, 0, 16)
+	withPath := PowerScheduleDepthEx(4, 10, 1, 0, 16)
+	if withPath <= base {
+		t.Fatalf("path rarity should deepen: base=%d with=%d", base, withPath)
+	}
+}
+
+func TestHangObserveBoostSeparateFromCrash(t *testing.T) {
+	if !IsHangOnly("timeout_hang") || !IsHangOnly("hang") {
+		t.Fatal("expected hang-only types")
+	}
+	if IsHangOnly("asan_timeout") {
+		t.Fatal("sanitizer+timeout must not be hang-only")
+	}
+	crashBoost := CorpusObserveBoostEx(true, false, false, false)
+	hangBoost := CorpusObserveBoostEx(true, true, false, false)
+	if hangBoost >= crashBoost {
+		t.Fatalf("hang boost must be softer than crash: hang=%d crash=%d", hangBoost, crashBoost)
+	}
+	// Hang must not get crash floor on flat observe.
+	flatHang := ApplyObserveEnergyEx(3, 1, false, true, false, false, false)
+	if flatHang < 2 {
+		t.Fatalf("hang floor should be >=2, got %d", flatHang)
+	}
+	flatCrash := ApplyObserveEnergyEx(3, 1, true, false, false, false, false)
+	if flatCrash < 3 {
+		t.Fatalf("crash floor should hold, got %d", flatCrash)
+	}
+}
+
+func TestHavocOpPickDeterministic(t *testing.T) {
+	a := havocOpPick(0xDEADBEEF)
+	b := havocOpPick(0xDEADBEEF)
+	if a != b || a < 0 || a >= HavocOpModulo {
+		t.Fatalf("havocOpPick unstable: %d %d", a, b)
+	}
+	seen := map[int]bool{}
+	for i := 0; i < 2000; i++ {
+		seen[havocOpPick(uint64(i)*0x9E3779B97F4A7C15)] = true
+	}
+	if len(seen) < 40 {
+		t.Fatalf("weight table should still reach most ops, got %d unique", len(seen))
+	}
+}
+
+func TestCrossoverBytesTwoPointDeterministic(t *testing.T) {
+	a := []byte("abcdefghijklmnopqrstuvwxyz")
+	b := []byte("0123456789ABCDEFGHIJKLMNOP")
+	x := crossoverBytesTwoPoint(a, b, 0xC0FFEE, 64)
+	y := crossoverBytesTwoPoint(a, b, 0xC0FFEE, 64)
+	if string(x) != string(y) || len(x) == 0 {
+		t.Fatalf("two-point splice unstable: %q vs %q", x, y)
+	}
+}
+
 func TestDecayEnergyCoolsStale(t *testing.T) {
 	if DecayEnergy(10, false, false, false, false) >= 10 {
 		t.Fatal("expected decay")
@@ -74,15 +154,53 @@ func TestMeasureGuidedDiversity(t *testing.T) {
 	}
 }
 
-func TestRankCorpusForCullPrefersCrashAndRare(t *testing.T) {
+func TestCullCorpusKeepRareAndCrash(t *testing.T) {
 	seeds := []PoolCorpusSeed{
-		{InputBytes: []byte("a"), Energy: 2, Edge: 1},
-		{InputBytes: []byte("crash"), Energy: 2, Edge: 2, Crash: true},
-		{InputBytes: []byte("rare"), Energy: 2, Edge: 3},
+		{InputBytes: []byte("common-a"), Energy: 8, Edge: 1},
+		{InputBytes: []byte("common-b"), Energy: 8, Edge: 1},
+		{InputBytes: []byte("common-c"), Energy: 8, Edge: 1},
+		{InputBytes: []byte("rare"), Energy: 1, Edge: 99},
+		{InputBytes: []byte("crash"), Energy: 1, Edge: 2, Crash: true},
+		{InputBytes: []byte("filler"), Energy: 9, Edge: 3},
 	}
-	rarity := EdgeHitCounts{1: 50, 2: 1, 3: 1}
-	rank := RankCorpusForCull(seeds, rarity)
-	if !seeds[rank[0]].Crash {
-		t.Fatalf("crash should rank first: %+v", rank)
+	rarity := BuildEdgeHitCounts(seeds)
+	kept := CullCorpusKeep(seeds, rarity, 3)
+	if len(kept) != 3 {
+		t.Fatalf("want 3 kept, got %d", len(kept))
 	}
+	hasCrash, hasRare := false, false
+	for _, s := range kept {
+		if s.Crash {
+			hasCrash = true
+		}
+		if string(s.InputBytes) == "rare" {
+			hasRare = true
+		}
+	}
+	if !hasCrash || !hasRare {
+		t.Fatalf("must keep crash+rare under cull: %+v", kept)
+	}
+}
+
+func TestAutodictFrequencyPrefersRepeated(t *testing.T) {
+	toks := ExtractAutodictTokens(
+		[]byte(`{"userId":1}`),
+		[]byte(`{"userId":2}`),
+		[]byte(`{"userId":3,"other":9}`),
+	)
+	if len(toks) == 0 {
+		t.Fatal("expected tokens")
+	}
+	if string(toks[0]) != "userId" && !containsTok(toks, "userId") {
+		t.Fatalf("expected userId in autodict, got %v", toks)
+	}
+}
+
+func containsTok(toks [][]byte, want string) bool {
+	for _, t := range toks {
+		if string(t) == want {
+			return true
+		}
+	}
+	return false
 }

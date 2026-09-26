@@ -1,0 +1,10 @@
+[Unit]
+Description=Hourly HackMe Hunt local library rotation (24h coverage)
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=90
+
+[Install]
+WantedBy=timers.target

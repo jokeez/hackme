@@ -592,7 +592,19 @@ func (s *Service) finalizeHuntSubmit(ctx context.Context, p finalizeHuntSubmitPa
 			obsU = p.findingU
 			obsB = p.findingB
 		}
-		if err := s.observePoolCorpusNovelty(ctx, p.req.CampaignID, obsU, obsB, p.recordFinding, p.now, true, newEdge, newPath); err != nil {
+		ftHint := ""
+		if p.recordFinding {
+			if IsHuntCampaign(p.cfg) {
+				ft, _, _ := classifyHuntFinding(p.cfg, p.req)
+				ftHint = ft
+			} else if fuzzengine.IsHangTrap(p.req.Trap) {
+				ftHint = "timeout_hang"
+			} else if strings.TrimSpace(p.req.Trap) != "" {
+				ft, _, _ := fuzzengine.ClassifyWasmTrap(p.req.ActualInput, p.req.Trap, true)
+				ftHint = ft
+			}
+		}
+		if err := s.observePoolCorpusNovelty(ctx, p.req.CampaignID, obsU, obsB, p.recordFinding, p.now, true, newEdge, newPath, ftHint); err != nil {
 			return err
 		}
 	}

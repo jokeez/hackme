@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"hackme/internal/fuzzengine"
 	"hackme/internal/hunt"
 )
 
@@ -56,31 +57,48 @@ func main() {
 		eps = float64(rep.Iterations) / elapsed
 	}
 	bySub := map[string]int{}
+	bySig := map[string]int{}
+	byStack := map[string]int{}
+	byFamily := map[string]int{}
 	for _, c := range rep.Crashes {
 		key := c.SanitizerClass + "/" + c.SanitizerSubtype
 		bySub[key]++
-	}
-	bySig := map[string]int{}
-	byStack := map[string]int{}
-	for _, c := range rep.Crashes {
-		sig := c.SanitizerClass + "/" + c.SanitizerSubtype
-		bySig[sig]++
+		bySig[key]++
+		fam := strings.TrimSpace(c.SanitizerClass) + "/" + strings.TrimSpace(c.SanitizerSubtype)
+		if c.SanitizerClass == "" || c.SanitizerSubtype == "" {
+			fam = fuzzengine.FindingFamily(c.SanitizerClass, c.Sanitizer)
+		}
+		byFamily[fam]++
 		stackKey := ""
 		for _, line := range strings.Split(c.Sanitizer, "\n") {
 			line = strings.TrimSpace(line)
-			if strings.Contains(line, ".c:") || strings.Contains(line, ".cpp:") || strings.Contains(line, ".rs:") {
+			if line == "" {
+				continue
+			}
+			// Prefer source frames; UBSan often only prints "runtime error: …".
+			if strings.Contains(line, ".c:") || strings.Contains(line, ".cpp:") ||
+				strings.Contains(line, ".cc:") || strings.Contains(line, ".h:") ||
+				strings.Contains(line, ".hpp:") || strings.Contains(line, ".rs:") {
 				stackKey = line
 				break
 			}
+			if stackKey == "" && (strings.Contains(line, "runtime error:") ||
+				strings.Contains(line, "SUMMARY:") || strings.HasPrefix(line, "#0 ")) {
+				stackKey = line
+			}
 		}
 		if stackKey == "" {
-			stackKey = "(no source frame)"
+			// Fall back to stable finding family (class+message) — never bucket everything as one.
+			stackKey = fam
 		}
 		byStack[stackKey]++
 	}
 
 	rawInputs := len(rep.Crashes)
-	familyCount := len(bySig)
+	familyCount := len(byFamily)
+	if familyCount == 0 {
+		familyCount = len(bySig)
+	}
 	collapse := 0.0
 	if rawInputs > 0 && familyCount > 0 {
 		collapse = 1.0 - float64(familyCount)/float64(rawInputs)
@@ -90,8 +108,8 @@ func main() {
 		k string
 		n int
 	}
-	pairs := make([]pair, 0, len(bySig))
-	for k, n := range bySig {
+	pairs := make([]pair, 0, len(byFamily))
+	for k, n := range byFamily {
 		pairs = append(pairs, pair{k: k, n: n})
 	}
 	for i := 1; i < len(pairs); i++ {
@@ -110,7 +128,7 @@ func main() {
 		"crash_inputs":    rawInputs,
 		"hygiene_inputs":  0,
 		"collapse_ratio":  collapse,
-		"by_family":       bySig,
+		"by_family":       byFamily,
 		"top_families":    topFamilies,
 		"honesty_note":    "Cite family_count, not raw_input_count — many inputs often share one root cause.",
 	}
@@ -119,7 +137,7 @@ func main() {
 		diversity = float64(familyCount) / float64(rawInputs)
 	}
 	rare, hot := 0, 0
-	for _, n := range bySig {
+	for _, n := range byFamily {
 		if n <= 2 {
 			rare++
 		}
@@ -133,7 +151,7 @@ func main() {
 		"seed_count":          rawInputs,
 		"rare_family_seeds":   rare,
 		"hot_family_seeds":    hot,
-		"unique_signatures":   familyCount,
+		"unique_signatures":   len(bySig),
 		"unique_stack_frames": len(byStack),
 		"diversity":           diversity,
 		"iterations":          rep.Iterations,

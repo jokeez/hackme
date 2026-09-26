@@ -3,11 +3,11 @@ package hunt
 import "strings"
 
 var (
-	huntDictJSON = []byte(`{}[]":,nulltruefalsenumber\x00\xff\u`)
-	huntDictXML  = []byte(`<>&lt;&gt;&amp;CDATA<?xml"'=/>`)
-	huntDictINI  = []byte("#=\n\r\t[section]key=value;")
-	huntDictTOML = []byte("#=\n[]key=value\"\"''")
-	huntDictMsg  = []byte("\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\xde\xdf")
+	huntDictJSON = []byte(`{}[]":,nulltruefalseNaNInfinitynumber\x00\xff\u0000\u`)
+	huntDictXML  = []byte(`<>&lt;&gt;&amp;&quot;&apos;CDATA<?xml"'=/><!--`)
+	huntDictINI  = []byte("#=\n\r\t[section]key=value;truefalseyesno")
+	huntDictTOML = []byte("#=\n[]key=value\"\"''truefalse1970-01-01T00:00:00Z")
+	huntDictMsg  = []byte("\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x90\x91\xdc\xdd\xde\xdf\xc0\xc2\xc3")
 )
 
 var huntJSONTargets = map[string]struct{}{

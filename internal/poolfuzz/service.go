@@ -1233,7 +1233,19 @@ func (s *Service) SubmitWithOutcome(ctx context.Context, req SubmitRequest) (Sub
 	if covErr != nil {
 		return SubmitOutcome{}, covErr
 	}
-	if err := s.observePoolCorpusNovelty(ctx, req.CampaignID, req.ActualInput, req.InputBytes, recordFinding, now, true, newEdge, newPath); err != nil {
+	ftHint := ""
+	if recordFinding {
+		if IsHuntCampaign(cfg) {
+			ft, _, _ := classifyHuntFinding(cfg, req)
+			ftHint = ft
+		} else if fuzzengine.IsHangTrap(req.Trap) {
+			ftHint = "timeout_hang"
+		} else if strings.TrimSpace(req.Trap) != "" {
+			ft, _, _ := fuzzengine.ClassifyWasmTrap(req.ActualInput, req.Trap, true)
+			ftHint = ft
+		}
+	}
+	if err := s.observePoolCorpusNovelty(ctx, req.CampaignID, req.ActualInput, req.InputBytes, recordFinding, now, true, newEdge, newPath, ftHint); err != nil {
 		return SubmitOutcome{}, err
 	}
 	var findingSeverity string

@@ -112,20 +112,51 @@ func BitmapEdgeCount(bitmap []byte) int {
 
 // CorpusObserveBoostWithCoverage extends observe boost using structural edge novelty.
 func CorpusObserveBoostWithCoverage(cfg map[string]any, recordFinding bool, newEdge, newPath bool, edgeBitmap []byte) int {
-	boost := CorpusObserveBoost(recordFinding, newEdge, newPath)
+	return CorpusObserveBoostWithCoverageEx(cfg, recordFinding, false, newEdge, newPath, edgeBitmap)
+}
+
+// CorpusObserveBoostWithCoverageEx applies hang-aware observe boost (v2.9).
+func CorpusObserveBoostWithCoverageEx(cfg map[string]any, recordFinding, hangOnly, newEdge, newPath bool, edgeBitmap []byte) int {
+	boost := CorpusObserveBoostEx(recordFinding, hangOnly, newEdge, newPath)
 	if !CoverageFeedbackEnabled(cfg) {
 		return boost
 	}
 	if BitmapHasCoverageSignal(edgeBitmap) {
 		n := BitmapEdgeCount(edgeBitmap)
 		if n > 0 {
-			boost += 1 + minInt(n/8, 4)
+			boost += 1 + minInt(n/6, 6) // v2.8: denser bitmap → more energy
 		}
 	}
+	if newEdge {
+		boost += 1
+	}
 	if newEdge && newPath {
+		boost += 3 // dual novelty is high-value AFL-style find
+	}
+	if recordFinding && hangOnly {
+		boost += 1 // hang: smaller extras than crash
+	} else if recordFinding {
 		boost += 2
 	}
 	return boost
+}
+
+// StructuralRarityHint returns 0..3 from input shape entropy (cheap path novelty proxy).
+func StructuralRarityHint(input []byte) int {
+	if len(input) == 0 {
+		return 0
+	}
+	score := StructuralFeatureScore(input)
+	switch {
+	case score >= 180:
+		return 3
+	case score >= 100:
+		return 2
+	case score >= 40:
+		return 1
+	default:
+		return 0
+	}
 }
 
 func minInt(a, b int) int {

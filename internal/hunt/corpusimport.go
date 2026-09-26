@@ -180,7 +180,21 @@ func ApplyHuntPowerScheduling(cfg map[string]any, pkgKey string) {
 	case "hunt_standard", "standard":
 		minCap = 14 // was 10 — deeper power stages with v2.8
 	case "hunt_heavy", "heavy":
-		minCap = 16 // was 12
+		// Heavy opts into higher power_mut_cap/stack (16) unless explicitly disabled.
+		minCap = 16
+		if v, ok := cfg["hunt_heavy_power_boost"]; ok {
+			switch t := v.(type) {
+			case bool:
+				if !t {
+					minCap = 12
+				}
+			case string:
+				s := strings.TrimSpace(strings.ToLower(t))
+				if s == "0" || s == "false" || s == "off" || s == "no" {
+					minCap = 12
+				}
+			}
+		}
 	case "hunt_lite", "lite":
 		minCap = 8 // was 6
 	}

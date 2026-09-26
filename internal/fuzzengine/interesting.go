@@ -252,6 +252,7 @@ func structureSmash(out []byte, mix uint64, maxLen int) []byte {
 }
 
 // crossoverBytes splices two corpus parents (AFL-style) for fleet diversity.
+// v2.9: ~3/8 draws use ordered two-point splice; rest keep classic single-cut.
 func crossoverBytes(a, b []byte, mix uint64, maxLen int) []byte {
 	if len(a) == 0 {
 		return append([]byte(nil), b...)
@@ -262,11 +263,58 @@ func crossoverBytes(a, b []byte, mix uint64, maxLen int) []byte {
 	if maxLen <= 0 {
 		maxLen = DefaultMaxInputBytesStd
 	}
+	if (mix & 7) < 3 {
+		return crossoverBytesTwoPoint(a, b, mix, maxLen)
+	}
 	cutA := int(mix % uint64(len(a)))
 	cutB := int((mix >> 16) % uint64(len(b)))
 	out := make([]byte, 0, len(a)+len(b))
 	out = append(out, a[:cutA]...)
 	out = append(out, b[cutB:]...)
+	if len(out) > maxLen {
+		out = out[:maxLen]
+	}
+	if len(out) == 0 {
+		return append([]byte(nil), a...)
+	}
+	return out
+}
+
+// crossoverBytesTwoPoint inserts an ordered mid-slice from b into a (i≤l on a, j≤k on b).
+func crossoverBytesTwoPoint(a, b []byte, mix uint64, maxLen int) []byte {
+	if len(a) == 0 {
+		return append([]byte(nil), b...)
+	}
+	if len(b) == 0 {
+		return append([]byte(nil), a...)
+	}
+	if maxLen <= 0 {
+		maxLen = DefaultMaxInputBytesStd
+	}
+	i := int(mix % uint64(len(a)))
+	l := int((mix >> 8) % uint64(len(a)))
+	if i > l {
+		i, l = l, i
+	}
+	j := int((mix >> 16) % uint64(len(b)))
+	k := int((mix >> 24) % uint64(len(b)))
+	if j > k {
+		j, k = k, j
+	}
+	// Cap inserted segment so mid-len stays preferred.
+	if k-j > 64 {
+		k = j + 1 + int((mix>>32)%64)
+		if k > len(b) {
+			k = len(b)
+		}
+		if j > k {
+			j = k
+		}
+	}
+	out := make([]byte, 0, len(a)+(k-j))
+	out = append(out, a[:i]...)
+	out = append(out, b[j:k]...)
+	out = append(out, a[l:]...)
 	if len(out) > maxLen {
 		out = out[:maxLen]
 	}

@@ -253,7 +253,16 @@ func TestPoolWorkerWatchdogTickMissing(t *testing.T) {
 func TestPoolWorkerWatchdogTickDesktopRecentSubmit(t *testing.T) {
 	dir := t.TempDir()
 	logDir := filepath.Join(dir, "logs")
-	_ = os.MkdirAll(logDir, 0o755)
+	if err := os.MkdirAll(filepath.Join(dir, "scripts", "ops"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(logDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// resolveWorkerRepoRoot only accepts HACKME_REPO_ROOT when the tree looks like a worker checkout.
+	if err := os.WriteFile(filepath.Join(dir, "scripts", "ops", "worker_loop.sh"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("HACKME_REPO_ROOT", dir)
 	t.Setenv("HACKME_MINING_PAUSED", "0")
 	t.Setenv("HACKME_DESKTOP_MODE", "1")

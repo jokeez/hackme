@@ -1,4 +1,4 @@
-// Package fuzzengine implements fuzz_engine_v2.7 input derivation, coverage buckets,
+// Package fuzzengine implements fuzz_engine_v2.9 input derivation, coverage buckets,
 // and WASM check semantics shared by the node autorunner and pool coordinator workers.
 package fuzzengine
 
@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-const Version = "fuzz_engine_v2.7"
+const Version = "fuzz_engine_v2.10"
 
 // CheckSemantics controls how WASM check(i64)->i32 results map to pass/finding.
 //   - pow_gate: pass when check != 0 (mining gate / accepts nonce)
@@ -265,7 +265,7 @@ func MetaFromConfig(cfg map[string]any) map[string]any {
 	if NativeReproMode(cfg) == "asan_binary" {
 		features = append(features, "asan_binary_repro", "tier_c")
 	}
-	features = append(features, "stable_crash_buckets", "finding_families", "havoc_stack_v22", "interesting_be", "format_patch", "havoc_ops_v26", "havoc_stack_v26", "havoc_ops_v27", "havoc_stack_v27", "deterministic_afl_stages")
+	features = append(features, "stable_crash_buckets", "finding_families", "havoc_stack_v22", "interesting_be", "format_patch", "havoc_ops_v26", "havoc_stack_v26", "havoc_ops_v27", "havoc_stack_v27", "havoc_ops_v28", "deterministic_afl_stages", "havoc_deep_v28", "havoc_weights_v29", "path_rarity_v29", "length_class_v29", "deep_v210_burst", "ubsan_frame_keys")
 	if GuidedSchedulingEnabled(cfg) {
 		features = append(features, "guided_scheduling")
 	}

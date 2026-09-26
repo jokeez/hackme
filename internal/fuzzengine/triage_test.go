@@ -25,6 +25,12 @@ func TestClassifyFinding_crashClasses(t *testing.T) {
 			t.Fatalf("%s should be crash-class", ft)
 		}
 	}
+	if !IsHangOnly("hang") || !IsHangOnly("timeout") || !IsHangOnly("timeout_hang") {
+		t.Fatal("expected hang-only types")
+	}
+	if IsHangOnly("crash") || IsHangOnly("asan") {
+		t.Fatal("crash/asan must not be hang-only")
+	}
 }
 
 func TestClassifyFinding_harnessRuntime(t *testing.T) {

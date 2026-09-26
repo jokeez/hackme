@@ -106,12 +106,25 @@ func ShardSegmentExecInput(campaignID string, inputN, execIdx uint64, cfg map[st
 		cap = 8
 	}
 	rarity := fuzzengine.BuildEdgeHitCounts(seeds)
+	path := fuzzengine.BuildPathHitCounts(seeds)
+	lens := fuzzengine.BuildLengthClassHitCounts(seeds)
 	seed := fuzzengine.PickWeightedSeedWithRarity(seeds, inputN+execIdx, cfg, rarity)
 	edgeHits := 0
 	if rarity != nil {
 		edgeHits = rarity[seed.Edge]
 	}
-	stage := fuzzengine.PowerScheduleStage(inputN^execIdx, seed.Energy+int(execIdx%7), edgeHits, cap)
+	pathHits := 0
+	if path != nil && seed.Path > 0 {
+		pathHits = path[seed.Path]
+	}
+	lenHits := 0
+	if lens != nil {
+		lc := fuzzengine.LengthClass(len(seed.InputBytes))
+		if lc > 0 && fuzzengine.LengthClassMid(lc) {
+			lenHits = lens[lc]
+		}
+	}
+	stage := fuzzengine.PowerScheduleStageEx(inputN^execIdx, seed.Energy+int(execIdx%7), edgeHits, pathHits, lenHits, cap)
 	salt := huntSegmentSalt(inputN, execIdx)
 
 	var base []byte

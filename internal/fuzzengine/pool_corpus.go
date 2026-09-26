@@ -50,7 +50,7 @@ func PowerMutCap(cfg map[string]any) int {
 	}
 	if v, ok := cfg["power_mut_cap"]; ok {
 		n := intFromAny(v)
-		if n >= 1 && n <= 32 {
+		if n >= 1 && n <= 36 {
 			return n
 		}
 	}
@@ -101,10 +101,16 @@ func pickWeightedSeedMode(seeds []PoolCorpusSeed, inputN uint64, exploreV2 bool,
 	if len(seeds) == 0 {
 		return PoolCorpusSeed{}
 	}
+	var path PathHitCounts
+	var lens LengthClassHits
+	if exploreV2 {
+		path = BuildPathHitCounts(seeds)
+		lens = BuildLengthClassHitCounts(seeds)
+	}
 	weights := make([]int, len(seeds))
 	total := 0
 	for i, s := range seeds {
-		w := SeedScheduleWeight(s, exploreV2, rarity)
+		w := SeedScheduleWeightEx(s, exploreV2, rarity, path, lens)
 		weights[i] = w
 		total += w
 	}
@@ -132,6 +138,8 @@ func GuidedInputForWorkWithRarity(inputN uint64, cfg map[string]any, seeds []Poo
 	if rarity == nil && len(seeds) > 0 {
 		rarity = BuildEdgeHitCounts(seeds)
 	}
+	path := BuildPathHitCounts(seeds)
+	lens := BuildLengthClassHitCounts(seeds)
 	if ParseInputMode(cfg) == InputModeBytes {
 		if len(seeds) == 0 {
 			b := DeriveInputBytes(inputN, cfg)
@@ -142,11 +150,8 @@ func GuidedInputForWorkWithRarity(inputN uint64, cfg map[string]any, seeds []Poo
 		if (CorpusExploreV2Enabled(cfg) || CoverageFeedbackEnabled(cfg)) && cap < 12 {
 			cap = 12
 		}
-		edgeHits := 0
-		if rarity != nil {
-			edgeHits = rarity[seed.Edge]
-		}
-		stage := PowerScheduleStage(inputN, seed.Energy, edgeHits, cap)
+		edgeHits, pathHits, lenHits := scheduleHitsForSeed(seed, rarity, path, lens)
+		stage := PowerScheduleStageEx(inputN, seed.Energy, edgeHits, pathHits, lenHits, cap)
 		salt := inputN * 0x9E3779B97F4A7C15
 		if len(seed.InputBytes) > 0 {
 			sum := sha256.Sum256(seed.InputBytes)
@@ -168,17 +173,49 @@ func GuidedInputForWorkWithRarity(inputN uint64, cfg map[string]any, seeds []Poo
 	if (CorpusExploreV2Enabled(cfg) || CoverageFeedbackEnabled(cfg)) && cap < 12 {
 		cap = 12
 	}
-	edgeHits := 0
-	if rarity != nil {
-		edgeHits = rarity[seed.Edge]
-	}
-	stage := PowerScheduleStage(inputN, seed.Energy, edgeHits, cap)
+	edgeHits, pathHits, lenHits := scheduleHitsForSeed(seed, rarity, path, lens)
+	stage := PowerScheduleStageEx(inputN, seed.Energy, edgeHits, pathHits, lenHits, cap)
 	salt := inputN * 0x9E3779B97F4A7C15
 	return MutateInput(seed.Input, stage, salt), nil
 }
 
+func scheduleHitsForSeed(seed PoolCorpusSeed, edge EdgeHitCounts, path PathHitCounts, lens LengthClassHits) (edgeHits, pathHits, lenHits int) {
+	if edge != nil && seed.Edge > 0 {
+		edgeHits = edge[seed.Edge]
+	}
+	if path != nil && seed.Path > 0 {
+		pathHits = path[seed.Path]
+	}
+	if lens != nil {
+		lc := LengthClass(len(seed.InputBytes))
+		if lc > 0 {
+			lenHits = lens[lc]
+			// Prefer mid-len: only feed length depth when mid-band (or rare non-mid singleton via weight).
+			if !LengthClassMid(lc) && lenHits > 1 {
+				lenHits = 0
+			}
+		}
+	}
+	return edgeHits, pathHits, lenHits
+}
+
 // CorpusObserveBoost returns energy increment after observing a run outcome.
 func CorpusObserveBoost(recordFinding bool, newEdge, newPath bool) int {
+	return CorpusObserveBoostEx(recordFinding, false, newEdge, newPath)
+}
+
+// CorpusObserveBoostEx separates hang/timeout boost from full crash energy (v2.9).
+func CorpusObserveBoostEx(recordFinding, hangOnly, newEdge, newPath bool) int {
+	if recordFinding && hangOnly {
+		boost := 3 // hang/timeout: moderate pull, not crash +6
+		if newEdge {
+			boost++
+		}
+		if newPath {
+			boost++
+		}
+		return boost
+	}
 	if recordFinding {
 		return 6
 	}

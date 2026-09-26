@@ -302,13 +302,14 @@ func minInt(a, b int) int {
 }
 
 func (s *Service) observePoolCorpus(ctx context.Context, campaignID string, input uint64, inputBytes []byte, recordFinding bool, now int64) error {
-	return s.observePoolCorpusNovelty(ctx, campaignID, input, inputBytes, recordFinding, now, false, false, false)
+	return s.observePoolCorpusNovelty(ctx, campaignID, input, inputBytes, recordFinding, now, false, false, false, "")
 }
 
 // observePoolCorpusNovelty updates corpus energy.
 // When noveltyKnown is true, newEdge/newPath come from a prior recordCoverage call in the
 // same submit (INSERT OR IGNORE would otherwise always look "flat" and wrongly decay energy).
-func (s *Service) observePoolCorpusNovelty(ctx context.Context, campaignID string, input uint64, inputBytes []byte, recordFinding bool, now int64, noveltyKnown, newEdge, newPath bool) error {
+// findingTypeHint (optional) enables hang/timeout schedule boost separate from crash (v2.9).
+func (s *Service) observePoolCorpusNovelty(ctx context.Context, campaignID string, input uint64, inputBytes []byte, recordFinding bool, now int64, noveltyKnown, newEdge, newPath bool, findingTypeHint string) error {
 	if s == nil || s.DB == nil {
 		return nil
 	}
@@ -332,8 +333,9 @@ func (s *Service) observePoolCorpusNovelty(ctx context.Context, campaignID strin
 			return err
 		}
 	}
-	boost := fuzzengine.CorpusObserveBoostWithCoverage(cfg, recordFinding, newEdge, newPath, nil)
-	crash := recordFinding
+	hangOnly := recordFinding && fuzzengine.IsHangOnly(findingTypeHint)
+	boost := fuzzengine.CorpusObserveBoostWithCoverageEx(cfg, recordFinding, hangOnly, newEdge, newPath, nil)
+	crash := recordFinding && !hangOnly
 	current := 1
 	var curEnergy sql.NullInt64
 	_ = s.DB.QueryRowContext(ctx,
@@ -342,7 +344,7 @@ func (s *Service) observePoolCorpusNovelty(ctx context.Context, campaignID strin
 	if curEnergy.Valid {
 		current = int(curEnergy.Int64)
 	}
-	energy := fuzzengine.ApplyObserveEnergy(current, boost, crash, newEdge, newPath, recordFinding)
+	energy := fuzzengine.ApplyObserveEnergyEx(current, boost, crash, hangOnly, newEdge, newPath, recordFinding)
 	if len(inputBytes) > 0 {
 		inputBytes = fuzzengine.CompactCorpusSeed(inputBytes, fuzzengine.ParseMaxInputBytes(cfg))
 	}

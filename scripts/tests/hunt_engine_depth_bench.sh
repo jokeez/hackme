@@ -15,6 +15,6 @@ go test ./internal/fuzzengine/ -run 'TestFindingFamily|TestCorpusExplore|TestHav
 echo
 echo "== A/B vs upstream baseline (5000 samples) =="
 go test ./internal/fuzzengine/ -run TestEngineABComparison -v -count=1
-echo "== Coverage feedback + power schedule v2.7 =="
-go test ./internal/fuzzengine/ -run 'TestCoverageFeedback|TestCoverageBucketsStructural|TestSeedSchedule|TestPowerSchedule|TestDecay|TestMeasureGuided|TestCompact|TestRank' -v -count=1
-echo "OK — engine v2.7 depth + coverage + power schedule gates passed"
+echo "== Coverage feedback + power schedule v2.8 =="
+go test ./internal/fuzzengine/ -run 'TestCoverageFeedback|TestCoverageBucketsStructural|TestSeedSchedule|TestPowerSchedule|TestDecay|TestMeasureGuided|TestCompact|TestRank|TestCull|TestAutodict|TestCmp' -v -count=1
+echo "OK — engine v2.8 depth + coverage + power schedule gates passed"

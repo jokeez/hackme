@@ -92,21 +92,21 @@ func TestEngineABComparison(t *testing.T) {
 		t.Fatalf("current should beat baseline unique ratio: baseline=%.3f current=%.3f",
 			rep.Baseline.UniqueRatio, rep.Current.UniqueRatio)
 	}
-	// Frozen T0 v2.6 (48-stage grid): unique≈4955 lens=234, +4.1%/+341% vs baseline.
-	// v2.7 uses 64-stage grid: require stronger lens, no unique collapse.
-	const t0Unique = 4955
-	const t0Lens = 234
+	// Frozen T0 v2.7/v2.8 @5k: unique≈4987 lens≈249–250.
+	// v2.9 soft weights + two-point splice: must not regress (unique jitter ≤40; lens hold/improve).
+	const t0Unique = 4987
+	const t0Lens = 250
 	if rep.Current.UniqueSHA256+40 < t0Unique {
-		t.Fatalf("v2.7 unique regression vs v2.6 T0: got %d want >= ~%d", rep.Current.UniqueSHA256, t0Unique)
+		t.Fatalf("v2.9 unique regression vs v2.8 T0: got %d want >= ~%d", rep.Current.UniqueSHA256, t0Unique)
 	}
 	if rep.Current.UniqueLens < t0Lens {
-		t.Fatalf("v2.7 lens must beat/hold v2.6 T0: got %d want >= %d", rep.Current.UniqueLens, t0Lens)
+		t.Fatalf("v2.9 lens must beat/hold v2.8 T0: got %d want >= %d", rep.Current.UniqueLens, t0Lens)
 	}
 	if rep.UniqueGainPct < 3.5 {
-		t.Fatalf("v2.7 unique gain vs upstream baseline too low: %.1f%%", rep.UniqueGainPct)
+		t.Fatalf("v2.9 unique gain vs upstream baseline too low: %.1f%%", rep.UniqueGainPct)
 	}
 	if rep.LensGainPct < 300 {
-		t.Fatalf("v2.7 lens gain vs upstream baseline too low: %.1f%%", rep.LensGainPct)
+		t.Fatalf("v2.9 lens gain vs upstream baseline too low: %.1f%%", rep.LensGainPct)
 	}
 }
 
@@ -135,7 +135,7 @@ func TestHavocExtraDeterministic(t *testing.T) {
 func TestHavocStackDepthBounds(t *testing.T) {
 	for salt := uint64(0); salt < 200; salt++ {
 		d := havocStackDepth(StageHavocBase+20, salt)
-		if d < 1 || d > 32 {
+		if d < 1 || d > 36 {
 			t.Fatalf("stack depth out of bounds: %d", d)
 		}
 	}

@@ -1,0 +1,19 @@
+[Unit]
+Description=HackMe local Hunt daily rotate (one OSS target per hour)
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/Desktop/hackme
+Environment=HACKME_REPO_ROOT=%h/Desktop/hackme
+Environment=SLOT_WALL_SEC=3600
+Environment=HUNT_PKG=hunt_standard
+Environment=NICE_LEVEL=10
+# Soften laptop heat/noise
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=6
+ExecStart=%h/Desktop/hackme/scripts/ops/hunt_daily_rotate.sh
+
+[Install]
+WantedBy=default.target

@@ -5,25 +5,20 @@ import (
 	"strings"
 )
 
-const maxAutodictTokens = 64
+const maxAutodictTokens = 96
 const maxAutodictTokenLen = 32
-const minAutodictTokenLen = 3
-const maxAutodictDictBytes = 2048
+const minAutodictTokenLen = 2
+const maxAutodictDictBytes = 3072
 
 // ExtractAutodictTokens scans corpus inputs for reusable splice tokens (JSON keys, XML tags, etc.).
+// v2.8: frequency-ranked, includes magic bytes, path segments, and CmpLog ASCII constants.
 func ExtractAutodictTokens(inputs ...[]byte) [][]byte {
-	seen := map[string]struct{}{}
-	out := make([][]byte, 0, maxAutodictTokens)
+	freq := map[string]int{}
 	add := func(tok []byte) {
 		if len(tok) < minAutodictTokenLen || len(tok) > maxAutodictTokenLen {
 			return
 		}
-		key := string(tok)
-		if _, ok := seen[key]; ok {
-			return
-		}
-		seen[key] = struct{}{}
-		out = append(out, append([]byte(nil), tok...))
+		freq[string(tok)]++
 	}
 	for _, input := range inputs {
 		if len(input) == 0 {
@@ -57,22 +52,24 @@ func ExtractAutodictTokens(inputs ...[]byte) [][]byte {
 				}
 			}
 		}
-		// Numeric literals (common in JSON/config parsers).
+		// Numeric / path-ish fields.
 		for _, part := range strings.FieldsFunc(s, func(r rune) bool {
-			return r == ',' || r == ':' || r == '{' || r == '}' || r == '[' || r == ']' || r == ' '
+			return r == ',' || r == ':' || r == '{' || r == '}' || r == '[' || r == ']' ||
+				r == ' ' || r == '\n' || r == '\r' || r == '\t' || r == '=' || r == '?' || r == '&' || r == '/'
 		}) {
 			part = strings.TrimSpace(part)
-			if len(part) >= minAutodictTokenLen && len(part) <= maxAutodictTokenLen {
-				allNum := true
-				for _, c := range part {
-					if c < '0' || c > '9' {
-						allNum = false
-						break
-					}
+			if len(part) < minAutodictTokenLen || len(part) > maxAutodictTokenLen {
+				continue
+			}
+			allNum := true
+			for _, c := range part {
+				if c < '0' || c > '9' {
+					allNum = false
+					break
 				}
-				if allNum {
-					add([]byte(part))
-				}
+			}
+			if allNum || isAutodictToken(part) {
+				add([]byte(part))
 			}
 		}
 		// Escape sequences (\n, \t, \uXXXX).
@@ -99,20 +96,84 @@ func ExtractAutodictTokens(inputs ...[]byte) [][]byte {
 				add([]byte(seg))
 			}
 		}
+		// File / protocol magic prefixes (4–8 bytes).
+		if len(input) >= 4 {
+			add(input[:4])
+		}
+		if len(input) >= 8 {
+			add(input[:8])
+		}
+		// Binary n-grams at stride (rare non-ASCII density).
+		stride := 1
+		if len(input) > 64 {
+			stride = 4
+		}
+		if len(input) > 256 {
+			stride = 8
+		}
+		for i := 0; i+3 < len(input); i += stride {
+			nonzero := 0
+			for j := 0; j < 4; j++ {
+				if input[i+j] != 0 {
+					nonzero++
+				}
+			}
+			if nonzero >= 2 {
+				add(input[i : i+4])
+			}
+		}
+	}
+	// Merge CmpLog ASCII/hex constants harvested from the same corpus.
+	for _, tok := range ExtractCmpConstants(inputs...) {
+		if len(tok) >= minAutodictTokenLen && len(tok) <= maxAutodictTokenLen {
+			freq[string(tok)]++
+		}
+	}
+
+	type scored struct {
+		tok   string
+		count int
+	}
+	list := make([]scored, 0, len(freq))
+	for tok, c := range freq {
+		list = append(list, scored{tok: tok, count: c})
+	}
+	// Prefer frequent + mid-length tokens (AFL autodict bias).
+	sort.Slice(list, func(i, j int) bool {
+		if list[i].count != list[j].count {
+			return list[i].count > list[j].count
+		}
+		li, lj := len(list[i].tok), len(list[j].tok)
+		if li != lj {
+			// Prefer 3–12 byte tokens over tiny/huge.
+			si := autodictLenScore(li)
+			sj := autodictLenScore(lj)
+			if si != sj {
+				return si > sj
+			}
+			return li < lj
+		}
+		return list[i].tok < list[j].tok
+	})
+	out := make([][]byte, 0, maxAutodictTokens)
+	for _, sc := range list {
 		if len(out) >= maxAutodictTokens {
 			break
 		}
-	}
-	sort.Slice(out, func(i, j int) bool {
-		if len(out[i]) == len(out[j]) {
-			return string(out[i]) < string(out[j])
-		}
-		return len(out[i]) < len(out[j])
-	})
-	if len(out) > maxAutodictTokens {
-		out = out[:maxAutodictTokens]
+		out = append(out, []byte(sc.tok))
 	}
 	return out
+}
+
+func autodictLenScore(n int) int {
+	switch {
+	case n >= 3 && n <= 12:
+		return 3
+	case n == 2 || (n > 12 && n <= 20):
+		return 2
+	default:
+		return 1
+	}
 }
 
 func isAutodictToken(s string) bool {
@@ -121,7 +182,7 @@ func isAutodictToken(s string) bool {
 	}
 	for i := 0; i < len(s); i++ {
 		c := s[i]
-		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-' {
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.' {
 			continue
 		}
 		return false

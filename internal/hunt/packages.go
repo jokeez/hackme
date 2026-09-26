@@ -41,7 +41,7 @@ func Packages() []PackageInfo {
 			LocalTimeLimitSec:  huntLocalSecHeavy,
 			MinPerShard:        0.003,
 			WallHours:          "3d+",
-			Summary:            "Pool-scale · 256 exec/shard · overnight local up to 500k iter",
+			Summary:            "Pool-scale · 256 exec/shard · power_mut_cap≥16 · overnight local up to 500k iter",
 			EscrowSplit:        fuzzescrow.EscrowSplit5050,
 		},
 	}
