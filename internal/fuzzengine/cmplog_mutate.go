@@ -114,20 +114,21 @@ func capCmpConstants(raw [][]byte, capN int) [][]byte {
 
 func scanASCIIRuns(inp []byte, add func([]byte)) {
 	for i := 0; i < len(inp); {
-		if isDecimal(inp[i]) {
-			j := i + 1
-			for j < len(inp) && isDecimal(inp[j]) {
+		// Prefixed hex before decimal: otherwise "0x7fffffff" is eaten as decimal "0".
+		if i+3 <= len(inp) && inp[i] == '0' && (inp[i+1] == 'x' || inp[i+1] == 'X') && isHex(inp[i+2]) {
+			j := i + 3
+			for j < len(inp) && isHex(inp[j]) {
 				j++
 			}
-			if n := j - i; n >= 2 && n <= 16 {
+			if n := j - i; n >= 3 && n <= 18 {
 				add(inp[i:j])
 			}
 			i = j
 			continue
 		}
-		if i+2 <= len(inp) && inp[i] == '0' && (inp[i+1] == 'x' || inp[i+1] == 'X') {
-			j := i + 2
-			for j < len(inp) && isHex(inp[j]) {
+		if isDecimal(inp[i]) {
+			j := i + 1
+			for j < len(inp) && isDecimal(inp[j]) {
 				j++
 			}
 			if n := j - i; n >= 2 && n <= 16 {

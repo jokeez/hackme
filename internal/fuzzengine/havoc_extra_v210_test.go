@@ -38,3 +38,32 @@ func TestDeepHavocV210LensGain(t *testing.T) {
 	}
 	t.Logf("v210 depth: %+v", st)
 }
+
+func TestDeepHavocV210ImpliesV28Stack(t *testing.T) {
+	base := []byte(`hello-world-input`)
+	stage := MutationStage(StageHavocBase + 9)
+	salt := uint64(777)
+	only210 := map[string]any{"havoc_deep_v210": true}
+	explicit := map[string]any{"havoc_deep_v28": true, "havoc_deep_v210": true}
+	a := MutateBytesForHunt(base, stage, salt, 256, only210, nil)
+	b := MutateBytesForHunt(base, stage, salt, 256, explicit, nil)
+	if string(a) != string(b) {
+		t.Fatal("havoc_deep_v210 alone must apply the same v2.8+burst pipeline as explicit flags")
+	}
+	core := MutateBytesForHunt(base, stage, salt, 256, nil, nil)
+	if string(a) == string(core) {
+		t.Fatal("v2.10 opt-in must not collapse to core mutations")
+	}
+}
+
+func TestDeepHavocV210ZeroMaxLen(t *testing.T) {
+	base := []byte(`abc`)
+	cfg := map[string]any{"havoc_deep_v210": true}
+	out := MutateBytesForHunt(base, StageHavocBase, 1, 0, cfg, nil)
+	if len(out) == 0 {
+		t.Fatal("maxLen=0 must normalize; burst must not empty/panic")
+	}
+	if len(out) > DefaultMaxInputBytesStd {
+		t.Fatalf("capped length exceeded: %d", len(out))
+	}
+}

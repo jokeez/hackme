@@ -265,7 +265,10 @@ func MetaFromConfig(cfg map[string]any) map[string]any {
 	if NativeReproMode(cfg) == "asan_binary" {
 		features = append(features, "asan_binary_repro", "tier_c")
 	}
-	features = append(features, "stable_crash_buckets", "finding_families", "havoc_stack_v22", "interesting_be", "format_patch", "havoc_ops_v26", "havoc_stack_v26", "havoc_ops_v27", "havoc_stack_v27", "havoc_ops_v28", "deterministic_afl_stages", "havoc_deep_v28", "havoc_weights_v29", "path_rarity_v29", "length_class_v29", "deep_v210_burst", "ubsan_frame_keys")
+	features = append(features, "stable_crash_buckets", "finding_families", "havoc_stack_v22", "interesting_be", "format_patch", "havoc_ops_v26", "havoc_stack_v26", "havoc_ops_v27", "havoc_stack_v27", "havoc_ops_v28", "deterministic_afl_stages", "havoc_deep_v28", "havoc_weights_v29", "path_rarity_v29", "length_class_v29", "ubsan_frame_keys")
+	if DeepHavocV210(cfg) {
+		features = append(features, "deep_v210_burst")
+	}
 	if GuidedSchedulingEnabled(cfg) {
 		features = append(features, "guided_scheduling")
 	}

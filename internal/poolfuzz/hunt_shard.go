@@ -52,6 +52,7 @@ func (s *Service) buildHuntClaimedWork(ctx context.Context, campaignID string, i
 	// the verification replay will use, so both sides derive identical inputs.
 	mutCap := fuzzengine.PowerMutCap(cfg)
 	deepV28 := fuzzengine.DeepHavocV28(cfg)
+	deepV210 := fuzzengine.DeepHavocV210(cfg)
 	now := time.Now().Unix()
 	var inputB []byte
 	var inputU uint64
@@ -102,6 +103,7 @@ func (s *Service) buildHuntClaimedWork(ctx context.Context, campaignID string, i
 		HuntDetectLeaks:      hunt.DetectLeaksFromConfig(cfg),
 		PowerMutCap:          mutCap,
 		HavocDeepV28:         deepV28,
+		HavocDeepV210:        deepV210,
 	}, nil
 }
 

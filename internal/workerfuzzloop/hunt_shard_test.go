@@ -49,12 +49,16 @@ func TestHuntShardConfigCarriesMutationScheduling(t *testing.T) {
 		DepthTier:        "oss_cve",
 		PowerMutCap:      14,
 		HavocDeepV28:     true,
+		HavocDeepV210:    true,
 	}, true)
 	if got := fuzzengine.PowerMutCap(cfg); got != 14 {
 		t.Fatalf("power_mut_cap: want 14 got %d", got)
 	}
 	if !fuzzengine.DeepHavocV28(cfg) {
 		t.Fatal("claim with havoc_deep_v28 must enable the deep stack")
+	}
+	if !fuzzengine.DeepHavocV210(cfg) {
+		t.Fatal("claim with havoc_deep_v210 must enable the v2.10 burst")
 	}
 
 	legacy := huntShardConfigFromClaim(ClaimResp{
@@ -66,8 +70,39 @@ func TestHuntShardConfigCarriesMutationScheduling(t *testing.T) {
 	if fuzzengine.DeepHavocV28(legacy) {
 		t.Fatal("claims without havoc_deep_v28 must keep legacy replay identity")
 	}
+	if fuzzengine.DeepHavocV210(legacy) {
+		t.Fatal("claims without havoc_deep_v210 must not enable burst")
+	}
 	if got := fuzzengine.PowerMutCap(legacy); got != 12 {
 		t.Fatalf("legacy power_mut_cap default: want 12 got %d", got)
+	}
+}
+
+func TestHuntClaimConfigMatchesCampaignExecInputsV210(t *testing.T) {
+	seeds := []fuzzengine.PoolCorpusSeed{
+		{InputBytes: []byte(`{"a":1}`), Energy: 2},
+		{InputBytes: []byte(`{"b":[1,2,3]}`), Energy: 3},
+	}
+	campaign := campaignCfgFixture()
+	campaign["havoc_deep_v210"] = true
+	claim := huntShardConfigFromClaim(ClaimResp{
+		UpstreamTargetID: "jsmn",
+		MaxInputBytes:    128,
+		ExecPerUnit:      8,
+		DepthTier:        "oss_cve",
+		CoverageKind:     "hunt_corpus_guided",
+		PowerMutCap:      14,
+		HavocDeepV28:     true,
+		HavocDeepV210:    true,
+	}, true)
+	for inputN := uint64(0); inputN < 4; inputN++ {
+		for exec := uint64(0); exec < 4; exec++ {
+			want := hunt.ShardSegmentExecInput("camp-v210", inputN, exec, campaign, seeds)
+			got := hunt.ShardSegmentExecInput("camp-v210", inputN, exec, claim, seeds)
+			if string(want) != string(got) {
+				t.Fatalf("v210 inputN=%d exec=%d: worker/replay diverged", inputN, exec)
+			}
+		}
 	}
 }
 

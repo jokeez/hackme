@@ -63,3 +63,27 @@ func TestDigDepthProfile(t *testing.T) {
 		}
 	}
 }
+
+func TestApplyDigGPUMutatorsWiresSegmentPath(t *testing.T) {
+	off := map[string]any{
+		"input_mode":     "bytes",
+		"max_input_bytes": 128,
+		"exec_per_unit":  8,
+		"power_mut_cap":  8,
+	}
+	on := map[string]any{
+		"input_mode":     "bytes",
+		"max_input_bytes": 128,
+		"exec_per_unit":  8,
+		"power_mut_cap":  8,
+	}
+	ApplyDigGPUMutators(on, true)
+	if !fuzzengine.DigGPUMutatorsEnabled(on) {
+		t.Fatal("ApplyDigGPUMutators must set dig_gpu_mutators")
+	}
+	_, a := fuzzengine.SegmentExecInput(7, 3, off, nil)
+	_, b := fuzzengine.SegmentExecInput(7, 3, on, nil)
+	if string(a) == string(b) {
+		t.Fatal("dig_gpu_mutators must change Dig segment inputs vs classic MutateBytesForConfig")
+	}
+}

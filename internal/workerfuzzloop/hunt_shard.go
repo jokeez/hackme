@@ -157,6 +157,9 @@ func huntShardConfigFromClaim(cr ClaimResp, corpusGuided bool) map[string]any {
 	if cr.HavocDeepV28 {
 		cfg["havoc_deep_v28"] = true
 	}
+	if cr.HavocDeepV210 {
+		cfg["havoc_deep_v210"] = true
+	}
 	// The campaign's mutator dict is a pure function of the target id, so it can
 	// be rebuilt locally instead of shipped on every claim.
 	hunt.ApplyHuntMutatorDict(cfg, strings.TrimSpace(cr.UpstreamTargetID))

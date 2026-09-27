@@ -33,6 +33,21 @@ func TestExtractCmpConstantsBinaryAndJSON(t *testing.T) {
 	}
 }
 
+func TestScanASCIIRunsPrefixedHex(t *testing.T) {
+	var got [][]byte
+	scanASCIIRuns([]byte("=0x7fffffff;"), func(b []byte) { got = append(got, append([]byte(nil), b...)) })
+	found := false
+	for _, tok := range got {
+		if bytes.Equal(tok, []byte("0x7fffffff")) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected 0x7fffffff token, got %q", got)
+	}
+}
+
 func TestCmpMutatorsDeterministic(t *testing.T) {
 	buf := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
 	corpus := ExtractCmpConstants([]byte(`{"x":255}`), []byte{0xff, 0x00})

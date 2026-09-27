@@ -17,7 +17,7 @@ var havocOpWeights = [HavocOpModulo]uint8{
 	// 48–63: v2.7 shape
 	2, 2, 2, 3, 2, 2, 2, 2, 2, 2, 3, 2, 3, 3, 2, 3, // 37
 	// 64–79: CmpLog-inspired (biased up)
-	6, 6, 6, 5, 5, 7, 4, 4, 4, 6, 6, 6, 5, 5, 5, 7, // 88
+	6, 6, 6, 5, 5, 7, 4, 4, 4, 6, 6, 6, 5, 5, 5, 7, // 87 → total 256
 }
 
 func init() {

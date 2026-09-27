@@ -48,3 +48,18 @@ func TestEnabled(t *testing.T) {
 		t.Fatal("want on")
 	}
 }
+
+func TestGenerateMutantsMatchesHuntStack(t *testing.T) {
+	base := []byte(`seed-payload`)
+	cfg := map[string]any{"dig_gpu_mutators": true, "havoc_deep_v28": true, "input_mode": "bytes", "max_input_bytes": 128}
+	mutants := GenerateMutants(base, 1, 99, 128, cfg, nil)
+	if len(mutants) != 1 {
+		t.Fatalf("len=%d", len(mutants))
+	}
+	// Production Dig segment path uses the same MutateBytesForHunt stack GenerateMutants wraps.
+	stage := fuzzengine.MutationStage(fuzzengine.StageHavocBase)
+	want := fuzzengine.MutateBytesForHunt(base, stage, 99, 128, cfg, nil)
+	if string(mutants[0]) != string(want) {
+		t.Fatal("GenerateMutants[0] must match MutateBytesForHunt for i=0")
+	}
+}

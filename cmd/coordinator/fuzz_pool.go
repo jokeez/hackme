@@ -651,6 +651,9 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			if work.HavocDeepV28 {
 				payload["havoc_deep_v28"] = true
 			}
+			if work.HavocDeepV210 {
+				payload["havoc_deep_v210"] = true
+			}
 			payload["shard_spec"] = map[string]any{
 				"iterations_per_shard": work.IterationsPerShard,
 				"check_semantics":      work.CheckSemantics,
