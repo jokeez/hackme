@@ -120,6 +120,12 @@ func ValidateHmsTransferShape(tx HmsTransferTx) (code, msg string) {
 	if from == "" || to == "" || !strings.HasPrefix(from, "HMC-") || !strings.HasPrefix(to, "HMC-") {
 		return "invalid_address", "from/to must be HMC- addresses"
 	}
+	// The signing payload and the checks above trim addresses, but settlement
+	// credits the raw tx strings: a padded recipient would settle into an account
+	// row no address lookup can find, stranding the funds. Reject instead.
+	if tx.From != from || tx.To != to {
+		return "invalid_address", "from/to must not contain surrounding whitespace"
+	}
 	// Parity with the HMC lane and the report #30 SUP fix: self-sends are rejected.
 	// Without this, the recipient UPSERT in applyPendingHmsTransfers would clobber
 	// the sender debit and mint HMS.
