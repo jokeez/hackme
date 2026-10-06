@@ -698,7 +698,7 @@ func hardenHTTPHandler(next http.Handler) http.Handler {
 		w.Header().Set("Content-Security-Policy", strings.Join([]string{
 			"default-src 'self'",
 			"script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com",
-			"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com",
+			"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.tailwindcss.com",
 			"font-src 'self' https://fonts.gstatic.com data:",
 			"img-src 'self' data: blob:",
 			"connect-src 'self' https: http://127.0.0.1:8080 http://127.0.0.1:18080 http://127.0.0.1:18081 http://127.0.0.1:18082 http://127.0.0.1:18443 http://127.0.0.1:5199 http://localhost:5199 http://[::1]:5199",

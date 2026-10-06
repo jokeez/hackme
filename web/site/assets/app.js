@@ -40,7 +40,7 @@
     newsDisplay: "/assets/news-display.json",
     newsArchive: "/assets/news.json",
     releaseChannel: RELEASE_VER,
-    releaseChannelNote: "rc17.1 — worker lifecycle + claim identity hotpatch; installers still " + PUBLISHED_ARTIFACT_VER + " until bundle cut",
+    releaseChannelNote: "rc17.2 LIVE — Dig/Hunt pool, paper Exchange, SUP wallet; installers " + PUBLISHED_ARTIFACT_VER,
     publishedArtifactVer: PUBLISHED_ARTIFACT_VER,
     releaseBase: `/dist/release_${PUBLISHED_ARTIFACT_VER}`,
     // Primary downloads: GitHub Releases (Cloudflare /dist often stalls or truncates large files).

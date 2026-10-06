@@ -11260,6 +11260,24 @@
 			}
 		}
 
+		function isBrowserSafeMetricsURL(rawURL) {
+			const raw = String(rawURL || '').trim();
+			if (!raw) return false;
+			if (raw.startsWith('/')) return true;
+			try {
+				const u = new URL(raw, window.location.origin);
+				if (u.origin === window.location.origin) return true;
+				// CSP connect-src allows https: broadly; bare http://LAN:port is blocked and noisy.
+				if (u.protocol === 'https:') return true;
+				if (u.protocol === 'http:' && (u.hostname === '127.0.0.1' || u.hostname === 'localhost' || u.hostname === '[::1]')) {
+					return true;
+				}
+				return false;
+			} catch (_) {
+				return false;
+			}
+		}
+
 		async function fetchCanonicalMetricsFallback(localStatus) {
 			const st = localStatus || latestStatus || {};
 			const candidates = ['/api/canonical/metrics'];
@@ -11271,7 +11289,7 @@
 			if (fromCoordStatus) candidates.push(fromCoordStatus.replace(/\/api\/status$/, '/api/metrics'));
 			const seen = new Set();
 			for (const u of candidates) {
-				if (!u || seen.has(u)) continue;
+				if (!u || seen.has(u) || !isBrowserSafeMetricsURL(u)) continue;
 				seen.add(u);
 				try {
 					const r = await fetch(u, { cache: 'no-store', mode: 'cors' });
@@ -11318,8 +11336,7 @@
 			if (fromCoordStatus) candidates.push(fromCoordStatus.replace(/\/api\/status$/, '/api/metrics'));
 			const seen = new Set();
 			for (const u of candidates) {
-				if (!u || seen.has(u)) continue;
-				if (!isSameOriginURL(u)) continue;
+				if (!u || seen.has(u) || !isBrowserSafeMetricsURL(u)) continue;
 				seen.add(u);
 				try {
 					const r = await fetch(u, { cache: 'no-store' });

@@ -41,6 +41,21 @@ func (a *app) proxyHMSCoordinator(w http.ResponseWriter, r *http.Request, method
 	client := &http.Client{Timeout: 120 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
+		// Desktop / prelaunch: HMS coordinator is optional. GET stats must not
+		// spam the browser console with 502 when :18082 is simply not running.
+		if method == http.MethodGet || method == http.MethodHead {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status":    "unavailable",
+				"ok":        false,
+				"available": false,
+				"reason":    "hms_coordinator_unreachable",
+				"prelaunch": true,
+				"hint":      "start hmscoordinator on HACKME_HMS_COORDINATOR_URL (default http://127.0.0.1:18082)",
+			})
+			return
+		}
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
