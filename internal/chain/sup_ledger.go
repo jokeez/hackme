@@ -117,6 +117,11 @@ func ValidateSupTransferShape(tx SupTransferTx) (code, msg string) {
 	if from == "" || to == "" || from == to || !strings.HasPrefix(from, "HMC-") || !strings.HasPrefix(to, "HMC-") {
 		return "invalid_address", "from/to invalid"
 	}
+	// Parity with HMS (#28): signing payload trims From/To, but settlement credits
+	// the raw strings — reject surrounding whitespace so funds cannot strand.
+	if tx.From != from || tx.To != to {
+		return "invalid_address", "from/to must not contain surrounding whitespace"
+	}
 	if tx.AmountUnits == 0 {
 		return "invalid_amount", "amount_units must be > 0"
 	}

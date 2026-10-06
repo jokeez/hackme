@@ -147,8 +147,15 @@ func ValidateTransferShape(tx TransferTx) (code, msg string) {
 	if tx.TxType != "transfer_v1" {
 		return "invalid_tx_type", "tx_type must be transfer_v1"
 	}
-	if strings.TrimSpace(tx.From) == "" || strings.TrimSpace(tx.To) == "" || tx.From == tx.To {
+	from := strings.TrimSpace(tx.From)
+	to := strings.TrimSpace(tx.To)
+	if from == "" || to == "" || from == to {
 		return "invalid_address", "from/to invalid"
+	}
+	// Parity with HMS (#28): signing payload trims From/To, but settlement credits
+	// the raw strings — reject surrounding whitespace so funds cannot strand.
+	if tx.From != from || tx.To != to {
+		return "invalid_address", "from/to must not contain surrounding whitespace"
 	}
 	if tx.AmountUnits == 0 {
 		return "invalid_amount", "amount_units must be > 0"
@@ -176,8 +183,14 @@ func (s *Service) validateTransferTx(ctx context.Context, tx TransferTx, q query
 	if tx.TxType != "transfer_v1" {
 		return "invalid_tx_type", "tx_type must be transfer_v1"
 	}
-	if strings.TrimSpace(tx.From) == "" || strings.TrimSpace(tx.To) == "" || tx.From == tx.To {
+	from := strings.TrimSpace(tx.From)
+	to := strings.TrimSpace(tx.To)
+	if from == "" || to == "" || from == to {
 		return "invalid_address", "from/to invalid"
+	}
+	// Same whitespace guard as ValidateTransferShape / HMS (#28).
+	if tx.From != from || tx.To != to {
+		return "invalid_address", "from/to must not contain surrounding whitespace"
 	}
 	if tx.AmountUnits == 0 {
 		return "invalid_amount", "amount_units must be > 0"
