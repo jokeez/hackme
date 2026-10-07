@@ -14,15 +14,17 @@ Required HTTP response headers (browsers ignore `frame-ancestors` in `<meta>`):
 
 - `Content-Security-Policy` with
   `frame-ancestors 'self' https://hackme.tech http://127.0.0.1:8080 http://localhost:8080`
-  (full paper policy: fonts / Binance / CF insights — see Caddyfile)
+  and **tight** `connect-src 'self' https://hackme.tech` only
+  (desk API is same-origin `/desk-api`; BTC mark is `/mark-proxy/btc` — **no**
+  `exchange-api.hackme.tech` / `api.binance.com` / Cloudflare Insights in CSP)
 - `Cross-Origin-Resource-Policy: cross-origin`
 - **No** `X-Frame-Options: SAMEORIGIN` (use `-X-Frame-Options` in Caddy)
 
-## Status (2026-09-30)
+## Status (2026-10-06)
 
-Origin Caddy fixed + paper SPA redeployed. Public edge
-(`curl -sI https://exchange.hackme.tech/`) now passes CSP + CORP and does **not**
-send `X-Frame-Options`. Hub `#exchange` iframe framing is **GO**.
+Origin Caddy CSP hardened: removed cross-origin API + Binance + CF Insights from
+`connect-src` / `script-src`. Browser desk traffic stays on `/desk-api` +
+`/hub-proxy` + `/pool-proxy` + `/mark-proxy/btc`.
 
 `npm run smoke:live` (paper SPA) asserts HTTP CSP + no `XFO: SAMEORIGIN`.
 
@@ -34,7 +36,11 @@ send `X-Frame-Options`. Hub `#exchange` iframe framing is **GO**.
    curl -skI --resolve exchange.hackme.tech:443:89.150.41.40 https://exchange.hackme.tech/ \
      | grep -iE 'content-security|x-frame|cross-origin-resource'
    ```
-3. If origin is good but CF edge still injects `X-Frame-Options: SAMEORIGIN`, use
+3. Confirm CSP does **not** list `exchange-api` / `binance` / `cloudflareinsights`:
+   ```bash
+   curl -sI https://exchange.hackme.tech/ | tr ',' '\n' | grep connect-src
+   ```
+4. If origin is good but CF edge still injects `X-Frame-Options: SAMEORIGIN`, use
    Cloudflare → Rules → Transform Rules → Modify Response Header for
    `exchange.hackme.tech`: remove `X-Frame-Options`, set CSP / CORP as above, purge cache.
 
