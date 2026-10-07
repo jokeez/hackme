@@ -208,3 +208,16 @@ tasks/sources/fuzz/oss/diffstorm_stdin.c
 tasks/sources/fuzz/oss/csonh_stdin.c
 tasks/sources/fuzz/oss/supernovas_stdin.c
 tasks/sources/fuzz/oss/redisx_stdin.c
+
+# Local test named hybrid fleet / desktop-extra cosmetics (ops-only — keep off GitHub)
+scripts/ops/start_test_named_fleet.sh
+scripts/ops/stop_test_named_fleet.sh
+scripts/ops/start_test_named_fuzz_fleet.sh
+scripts/ops/stop_test_named_fuzz_fleet.sh
+scripts/ops/named_hybrid_unit.sh
+scripts/ops/stop_test_named_fleet_desktop_extra.sh
+scripts/ops/desktop_extra_live_activity.sh
+scripts/ops/systemd/hackme-test-named-fleet*.service
+scripts/ops/systemd/hackme-desktop-extra-live-activity.*
+scripts/ops/*test*named*fleet*
+scripts/ops/*desktop_extra*
