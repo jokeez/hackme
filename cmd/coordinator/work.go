@@ -3222,43 +3222,7 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 		}
 		out := wm.statsCached(false)
 		enrichPoolStatsForPublic(out, reg, wm)
-		hr := float64(0)
-		if v, ok := out["hashrate_hs"].(float64); ok {
-			hr = v
-		}
-		if hr <= 0 {
-			if gh, ok := out["pool_hashrate_gh_s"].(float64); ok {
-				hr = gh * 1e9
-			}
-		}
-		wc := 0
-		if rigs, ok := out["active_rigs"].([]any); ok && len(rigs) > 0 {
-			wc = len(rigs)
-		}
-		if wc == 0 {
-			if n, ok := out["workers_online"].(int); ok && n > 0 {
-				wc = n
-			} else if n, ok := out["miners"].(int); ok && n > 0 {
-				wc = n
-			} else if m, ok := out["workers"].(map[string]any); ok {
-				wc = len(m)
-			} else {
-				switch v := out["workers"].(type) {
-				case int:
-					if v > 0 {
-						wc = v
-					}
-				case float64:
-					// JSON numbers decode as float64. Avoid int(float64) (CodeQL
-					// go/incorrect-integer-conversion); round-trip via ParseInt bitSize 0 (= int).
-					if v >= 1 && v == math.Trunc(v) {
-						if n, err := strconv.ParseInt(strconv.FormatFloat(v, 'f', 0, 64), 10, 0); err == nil && n >= 1 {
-							wc = int(n)
-						}
-					}
-				}
-			}
-		}
+		hr, wc := poolListingHashrateAndMiners(out)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "public, max-age=1")
 		pub := map[string]any{
@@ -3277,4 +3241,80 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 		}
 		_ = json.NewEncoder(w).Encode(pub)
 	})
+
+	// MiningBoard pool-v1 feed: https://miningboard.com/en/pools/submit
+	// Required: coin, pool.hashrate (raw H/s), pool.miners.
+	mux.HandleFunc("/api/miningboard/hmc", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		out := wm.statsCached(false)
+		enrichPoolStatsForPublic(out, reg, wm)
+		hr, wc := poolListingHashrateAndMiners(out)
+		pub := map[string]any{
+			"spec":       "miningboard-pool-v1",
+			"coin":       "HMC",
+			"algorithm":  "Useful PoW / PoH (workerpoh)",
+			"updated_at": time.Now().UTC().Format(time.RFC3339),
+			"pool": map[string]any{
+				"hashrate":      hr,
+				"miners":        wc,
+				"workers":       wc,
+				"fee_percent":   0,
+				"payout_scheme": "CUSTOM",
+				"min_payout":    0.0001,
+			},
+		}
+		if tip, ok := wm.liveCanonicalTipHeightFromNode(); ok {
+			pub["network"] = map[string]any{
+				"hashrate": hr, // single public pool for this chain
+				"height":   tip,
+			}
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Cache-Control", "public, max-age=30")
+		_ = json.NewEncoder(w).Encode(pub)
+	})
+}
+
+// poolListingHashrateAndMiners extracts pool-global raw H/s and connected miner/worker count
+// for public listing pollers (MiningPoolStats, MiningBoard, …).
+func poolListingHashrateAndMiners(out map[string]any) (hr float64, wc int) {
+	if v, ok := out["hashrate_hs"].(float64); ok {
+		hr = v
+	}
+	if hr <= 0 {
+		if gh, ok := out["pool_hashrate_gh_s"].(float64); ok {
+			hr = gh * 1e9
+		}
+	}
+	if rigs, ok := out["active_rigs"].([]any); ok && len(rigs) > 0 {
+		wc = len(rigs)
+	}
+	if wc == 0 {
+		if n, ok := out["workers_online"].(int); ok && n > 0 {
+			wc = n
+		} else if n, ok := out["miners"].(int); ok && n > 0 {
+			wc = n
+		} else if m, ok := out["workers"].(map[string]any); ok {
+			wc = len(m)
+		} else {
+			switch v := out["workers"].(type) {
+			case int:
+				if v > 0 {
+					wc = v
+				}
+			case float64:
+				// JSON numbers decode as float64. Avoid int(float64) (CodeQL
+				// go/incorrect-integer-conversion); round-trip via ParseInt bitSize 0 (= int).
+				if v >= 1 && v == math.Trunc(v) {
+					if n, err := strconv.ParseInt(strconv.FormatFloat(v, 'f', 0, 64), 10, 0); err == nil && n >= 1 {
+						wc = int(n)
+					}
+				}
+			}
+		}
+	}
+	return hr, wc
 }

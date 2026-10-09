@@ -1,16 +1,26 @@
 # MiningBoard — HackMe Official Pool listing
 
-Submit HackMe (HMC) to [MiningBoard](https://miningboard.com/pools) pool directory.  
-**Status:** not listed yet (search `hackme` → no match, 2026-06-27).
+Submit HackMe (HMC) to [MiningBoard](https://miningboard.com/en/pools) pool directory.  
+**Status:** first submit stalled (legacy `/api/pool/stats` shape ≠ MiningBoard `pool-v1`) — use **`/api/miningboard/hmc`** + follow-up email.
 
 Related: [MININGPOOLSTATS_LISTING.md](MININGPOOLSTATS_LISTING.md) (historical — MiningPoolStats is **defunct**; do not cite as live proof).
+
+## Why the first attempt likely failed
+
+MiningBoard’s validator expects [pool-v1 JSON](https://miningboard.com/en/pools/submit):
+
+```json
+{ "coin": "HMC", "pool": { "hashrate": <raw H/s>, "miners": <n> } }
+```
+
+Our public `/pool/coordinator/api/pool/stats` is a different shape (`pool` is a **string** name, not an object). Use the dedicated feed instead.
 
 ## Where to submit (2 paths — do both)
 
 | Path | URL / address | When |
 |------|----------------|------|
-| **A. Web form** | https://miningboard.com/pools → scroll **“Pool not found?”** → **Submit a pool** | Primary |
-| **B. Email** | **hello@miningboard.com** | Follow-up if no reply in 3–5 days; attach same text |
+| **A. Web form** | https://miningboard.com/en/pools/submit | Primary — **Validate** feed first |
+| **B. Email** | **hello@miningboard.com** | Same day after form (or if silent 3–5 days) |
 
 Contact page: https://miningboard.com/contact — data corrections & partnerships, response ~2–3 business days.
 
@@ -18,14 +28,21 @@ Contact page: https://miningboard.com/contact — data corrections & partnership
 
 ```bash
 PUBLIC_BASE=https://hackme.tech bash scripts/ops/miningboard_listing_preflight.sh
+curl -fsS https://hackme.tech/pool/coordinator/api/miningboard/hmc | python3 -m json.tool
 ```
+
+On https://miningboard.com/en/pools/submit paste **Per-coin stats URL**:
+
+`https://hackme.tech/pool/coordinator/api/miningboard/hmc`
+
+→ click **Validate** → only then Submit.
 
 Checklist:
 
-- [ ] `GET …/pool/coordinator/api/pool/stats` → `"status":"ok"`
-- [ ] `GET …/pool/coordinator/api/work/stats` → workers online, `hashrate_gh_s` > 0
-- [ ] https://hackme.tech/pool/coordinator/api/pool/stats → live hashrate / miners (MPS defunct — do not require)
+- [ ] `GET …/api/miningboard/hmc` → has `coin`, `pool.hashrate`, `pool.miners`
+- [ ] Validator on MiningBoard submit page passes
 - [ ] https://hackme.tech/downloads.html — SHA256SUMS for current release
+- [ ] Follow-up email to hello@miningboard.com (template below)
 
 ## Pool facts (canonical)
 
@@ -36,7 +53,8 @@ Checklist:
 | Ticker | **HMC** |
 | Pool website | https://hackme.tech |
 | Coordinator base | https://hackme.tech/pool/coordinator |
-| **Stats API (JSON)** | https://hackme.tech/pool/coordinator/api/pool/stats |
+| **MiningBoard feed (pool-v1)** | https://hackme.tech/pool/coordinator/api/miningboard/hmc |
+| **Legacy pool stats** | https://hackme.tech/pool/coordinator/api/pool/stats |
 | **Detailed work API** | https://hackme.tech/pool/coordinator/api/work/stats |
 | Explorer | https://hackme.tech/pool/explorer |
 | Downloads | https://hackme.tech/downloads.html |
@@ -73,56 +91,55 @@ Use whatever the form exposes; map our values:
 | Fee % | 0 |
 | Payout | Other / Custom (HTTP accrual + on-chain settlement) |
 | Min payout | 0.0001 HMC |
-| Stats API URL | `https://hackme.tech/pool/coordinator/api/pool/stats` |
-| Stratum host:port | **Leave empty** or write in notes: *N/A — no Stratum* |
-| Region | EU |
-| Proof links | GitHub + Bitcointalk ANN + live pool stats API |
+| Per-coin stats URL | `https://hackme.tech/pool/coordinator/api/miningboard/hmc` |
+| Index URL | *(leave blank)* |
+| Pool software | Custom / Other |
+| Stratum endpoints | **Leave empty** — *N/A — no Stratum* |
+| Logo URL | `https://hackme.tech/assets/logo-hex.png` |
+| Proof links | GitHub + Bitcointalk ANN + MiningBoard feed |
 
-## Email — copy & send
+## Email — follow-up / resubmit (copy & send)
 
 **To:** hello@miningboard.com  
-**Subject:** Pool listing request — HackMe Official Pool (HMC) — HTTP coordinator, live stats API
+**Subject:** Follow-up — HackMe Official Pool (HMC) — MiningBoard pool-v1 feed ready
 
 **Body (English):**
 
 ```
 Hello MiningBoard team,
 
-We would like to add our public mining pool to the MiningBoard directory.
+Following up on our earlier listing request for HackMe Official Pool (HMC).
 
-Pool name:     HackMe Official Pool
-Coin:          HackMe (HMC)
-Website:       https://hackme.tech
-Stats API:     https://hackme.tech/pool/coordinator/api/pool/stats
-Work stats:    https://hackme.tech/pool/coordinator/api/work/stats
-Explorer:      https://hackme.tech/pool/explorer
-Downloads:     https://hackme.tech/downloads.html
+We now publish a MiningBoard pool-v1 compatible feed (please Validate on your submit page):
 
-Algorithm:     Useful PoW / Proof-of-History with WASM sandbox gates (GPU via workerpoh;
-               CUDA on NVIDIA, OpenCL fallback). This is NOT SHA256/Scrypt Stratum mining.
+  https://hackme.tech/pool/coordinator/api/miningboard/hmc
 
-Connection:    HTTP coordinator at https://hackme.tech/pool/coordinator — NOT Stratum TCP.
-               Miners use the open-source hackme-node desktop/worker (see downloads page).
+Example shape:
+  {
+    "spec": "miningboard-pool-v1",
+    "coin": "HMC",
+    "pool": { "hashrate": <raw H/s>, "miners": <n>, "fee_percent": 0, "payout_scheme": "CUSTOM", "min_payout": 0.0001 },
+    "network": { "hashrate": <raw H/s>, "height": <tip> }
+  }
 
-Economics:     0% pool fee. Coordinator accrues HMC off-chain per accepted work; operator
-               settles to miner HMC-addresses on-chain (public chain explorer on same domain).
+Pool name:  HackMe Official Pool
+Website:    https://hackme.tech
+Explorer:   https://hackme.tech/pool/explorer
+Downloads:  https://hackme.tech/downloads.html
+GitHub:     https://github.com/jokeez/hackme
+ANN:        https://bitcointalk.org/index.php?topic=5583373.0
 
-Proof / trust: • Open source: https://github.com/jokeez/hackme (AGPL-3.0)
-               • Bitcointalk ANN: https://bitcointalk.org/index.php?topic=5583373.0
-               • Live pool stats return JSON with status, hashrate, miners/workers count.
+Important:
+- NOT a Stratum pool (HTTP coordinator + open-source workerpoh).
+- HMC may be a new coin on your directory — happy with a directory listing
+  and/or adding coin HMC as Custom / useful PoW (PoH + WASM).
+- Fee 0%. No Stratum endpoints to publish.
 
-Sample pool/stats JSON (live):
-  {"status":"ok","pool":"HackMe Official Pool","hashrate":<n>,"miners":<n>,"workers":<n>}
-
+If the first submission was rejected for schema reasons, please re-check the new feed.
 Contact: support@hackme.tech
-Community: https://hackme.tech/contacts.html (Telegram, Discord, X)
-
-Please list us as a custom / non-Stratum HTTP pool, or associate our entry with coin HMC.
-Happy to provide any extra fields your template needs.
 
 Thank you,
 HackMe Network
-support@hackme.tech
 ```
 
 ## After approval

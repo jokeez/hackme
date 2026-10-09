@@ -105,13 +105,19 @@ run_sql_changes "cancelled open items on closed campaigns" \
   "UPDATE fuzz_work_items SET status='cancelled', updated_at=strftime('%s','now') WHERE status IN ('pending','leased','replay_pending') AND campaign_id IN (SELECT id FROM fuzz_campaigns WHERE status IN ('cancelled','completed','paused')); SELECT changes();"
 
 run_sql_changes "failed replay jobs on closed campaigns" \
-  "UPDATE fuzz_hunt_replay_queue SET status='failed', last_error='campaign closed', verifier_id='', updated_at=strftime('%s','now') WHERE status IN ('pending','processing') AND campaign_id IN (SELECT id FROM fuzz_campaigns WHERE status IN ('cancelled','completed','paused')); SELECT changes();"stats_url="${COORD_URL}/api/fuzz/pool/stats"
+  "UPDATE fuzz_hunt_replay_queue SET status='failed', last_error='campaign closed', verifier_id='', updated_at=strftime('%s','now') WHERE status IN ('pending','processing') AND campaign_id IN (SELECT id FROM fuzz_campaigns WHERE status IN ('cancelled','completed','paused')); SELECT changes();"
+
+# Optional post-cleanup snapshot (COORD_URL may be unset on oneshot units — default loopback).
+COORD_URL="${COORD_URL:-http://127.0.0.1:18081}"
+stats_url="${COORD_URL}/api/fuzz/pool/stats"
+pending=0
+running=0
 if [[ -n "${NODE_SSH:-}" ]]; then
   read -r pending running < <(ssh -o BatchMode=yes "$NODE_SSH" \
-    "curl -fsS http://127.0.0.1:18081/api/fuzz/pool/stats | jq -r '[.work_pending,.campaigns_running]|@tsv'")
+    "curl -fsS http://127.0.0.1:18081/api/fuzz/pool/stats | jq -r '[.work_pending,.campaigns_running]|@tsv'" 2>/dev/null) || true
 else
-  pending="$(curl -fsS "${stats_url}" 2>/dev/null | jq -r '.work_pending // 0')"
-  running="$(curl -fsS "${stats_url}" 2>/dev/null | jq -r '.campaigns_running // 0')"
+  pending="$(curl -fsS "${stats_url}" 2>/dev/null | jq -r '.work_pending // 0' 2>/dev/null || echo 0)"
+  running="$(curl -fsS "${stats_url}" 2>/dev/null | jq -r '.campaigns_running // 0' 2>/dev/null || echo 0)"
 fi
-log "pool stats: campaigns_running=${running} work_pending=${pending}"
+log "pool stats: campaigns_running=${running:-0} work_pending=${pending:-0}"
 log "done"

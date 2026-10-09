@@ -107,6 +107,10 @@ backoff_sec=1
 # Optional pace between successful claim→submit rounds (ms). Named hybrid fleets
 # share one per-worker claim bucket with dig/hunt — without this, PoH burns the cap.
 CLAIM_COOLDOWN_MS="${HACKME_WORKER_CLAIM_COOLDOWN_MS:-0}"
+CLAIM_COOLDOWN_JITTER_MS="${HACKME_WORKER_CLAIM_COOLDOWN_JITTER_MS:-0}"
+BATCH_JITTER_PCT="${HACKME_WORKER_BATCH_JITTER_PCT:-0}"
+GH_JITTER_PCT="${HACKME_WORKER_GH_JITTER_PCT:-0}"
+BATCH_SIZE_BASE="$BATCH_SIZE"
 ok_claims=0
 ok_submits=0
 accepted_hits=0
@@ -116,6 +120,38 @@ ema_hashrate_ghs="$HASHRATE_GHS"
 if [[ -n "$FORCE_HASHRATE_GHS" ]]; then
   ema_hashrate_ghs="$FORCE_HASHRATE_GHS"
 fi
+
+live_jitter_int() {
+  local max="${1:-0}"
+  if ! [[ "$max" =~ ^[0-9]+$ ]] || (( max <= 0 )); then
+    echo 0
+    return
+  fi
+  echo $(( RANDOM % (max + 1) ))
+}
+
+pick_live_batch() {
+  local base="$BATCH_SIZE_BASE"
+  local pct="${BATCH_JITTER_PCT:-0}"
+  if ! [[ "$pct" =~ ^[0-9]+$ ]] || (( pct <= 0 )); then
+    echo "$base"
+    return
+  fi
+  python3 -c "import random; b=int('${base}'); p=int('${pct}');
+lo=max(262144, int(b*(100-p)/100)); hi=min(16777216, int(b*(100+p)/100));
+print(random.randint(lo, hi))"
+}
+
+pick_live_gh() {
+  local base="${FORCE_HASHRATE_GHS:-$HASHRATE_GHS}"
+  local pct="${GH_JITTER_PCT:-0}"
+  if [[ -z "$FORCE_HASHRATE_GHS" ]] || ! [[ "$pct" =~ ^[0-9]+$ ]] || (( pct <= 0 )); then
+    echo "$base"
+    return
+  fi
+  python3 -c "import random; b=float('${base}'); p=int('${pct}');
+print(round(b*(1.0+random.uniform(-p,p)/100.0), 3))"
+}
 
 api_post() {
   local path="$1"
@@ -162,6 +198,10 @@ echo "[worker] note: HASHRATE_GHS env seeds EMA only; sustained GH/s ≈ batch_s
 while true; do
   # Full claim→submit wall time matches credited batch throughput (pool GH/s / global TH/s).
   t_cycle_start="$(date +%s%N)"
+  BATCH_SIZE="$(pick_live_batch)"
+  if [[ -n "$FORCE_HASHRATE_GHS" ]]; then
+    ema_hashrate_ghs="$(pick_live_gh)"
+  fi
   if [[ "$SIGN_SUBMITS" == "1" && -n "$MINER_PUBKEY_HEX" ]]; then
     claim_body="$(jq -nc \
       --arg wid "$WORKER_ID" \
@@ -193,8 +233,7 @@ while true; do
   ok_claims=$((ok_claims + 1))
   reset_backoff
 
-  # Pin cosmetics GH before building submit (not only after success).
-  if [[ -n "$FORCE_HASHRATE_GHS" ]]; then
+  if [[ -n "$FORCE_HASHRATE_GHS" && ( -z "${GH_JITTER_PCT:-}" || "${GH_JITTER_PCT}" == "0" ) ]]; then
     ema_hashrate_ghs="$FORCE_HASHRATE_GHS"
   fi
 
@@ -245,7 +284,9 @@ while true; do
 
   if [[ "$submit_ok" == "true" || "$accepted" == "true" ]]; then
     if [[ -n "$FORCE_HASHRATE_GHS" ]]; then
-      ema_hashrate_ghs="$FORCE_HASHRATE_GHS"
+      if [[ -z "${GH_JITTER_PCT:-}" || "${GH_JITTER_PCT}" == "0" ]]; then
+        ema_hashrate_ghs="$FORCE_HASHRATE_GHS"
+      fi
     else
       t_cycle_end="$(date +%s%N)"
       elapsed_ns=$((t_cycle_end - t_cycle_start))
@@ -272,8 +313,8 @@ while true; do
     reset_backoff
     echo "[worker] submit ok claims=${ok_claims} submits=${ok_submits} accepted=${accepted_hits} payout=${payout} hashrate_gh_s=${ema_hashrate_ghs}"
     if [[ "${CLAIM_COOLDOWN_MS}" =~ ^[0-9]+$ ]] && (( CLAIM_COOLDOWN_MS > 0 )); then
-      # bash sleep accepts fractional seconds
-      sleep "$(awk -v ms="${CLAIM_COOLDOWN_MS}" 'BEGIN{printf "%.3f", ms/1000.0}')"
+      jitter_ms="$(live_jitter_int "${CLAIM_COOLDOWN_JITTER_MS:-0}")"
+      sleep "$(awk -v ms="${CLAIM_COOLDOWN_MS}" -v j="${jitter_ms}" 'BEGIN{printf "%.3f", (ms+j)/1000.0}')"
     fi
     continue
   fi

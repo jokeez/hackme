@@ -25,13 +25,31 @@ TARGET="${TARGETS[$((IDX % ${#TARGETS[@]}))]}"
 
 log() { echo "[bootstrap-bot $(date -u +%H:%M:%S)] $*" | tee -a "$LOG"; }
 
-# Bound window: if plan_until_utc set and expired → stop placing.
+# Bound window: if plan_until_utc set and expired → stop, unless autorenew is enabled.
+# BOOTSTRAP_PLAN_AUTORENEW_DAYS=14 (default) extends the window so timers do not silently stall.
+AUTORENEW_DAYS="${BOOTSTRAP_PLAN_AUTORENEW_DAYS:-14}"
 if [[ -n "$PLAN_UNTIL" ]]; then
   if python3 -c "import datetime as d; import sys; now=d.datetime.now(d.timezone.utc); end=d.datetime.fromisoformat('$PLAN_UNTIL'.replace('Z','+00:00')); sys.exit(0 if now<=end else 1)"; then
     :
   else
-    log "STOP — plan window ended at $PLAN_UNTIL (no new orders)"
-    exit 0
+    if [[ "$AUTORENEW_DAYS" =~ ^[0-9]+$ ]] && (( AUTORENEW_DAYS > 0 )); then
+      NEW_UNTIL="$(python3 -c "import datetime as d; print((d.datetime.now(d.timezone.utc)+d.timedelta(days=int('$AUTORENEW_DAYS'))).strftime('%Y-%m-%dT%H:%M:%SZ'))")"
+      python3 -c "
+import json, pathlib, time
+p = pathlib.Path('$STATE')
+st = json.loads(p.read_text()) if p.exists() else {}
+st['plan_until_utc'] = '$NEW_UNTIL'
+st['plan_extended_utc'] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+st['plan_extended_days'] = int('$AUTORENEW_DAYS')
+st['plan_autorenewed_from'] = '$PLAN_UNTIL'
+p.write_text(json.dumps(st, indent=2) + '\n')
+"
+      PLAN_UNTIL="$NEW_UNTIL"
+      log "AUTORENEW plan_until $PLAN_UNTIL (was expired; +${AUTORENEW_DAYS}d)"
+    else
+      log "STOP — plan window ended at $PLAN_UNTIL (no new orders; set BOOTSTRAP_PLAN_AUTORENEW_DAYS>0 to extend)"
+      exit 0
+    fi
   fi
 fi
 
