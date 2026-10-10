@@ -242,9 +242,14 @@ func randomBytes(n int) []byte {
 
 // HuntRunOptions configures one upstream Hunt mutational session.
 type HuntRunOptions struct {
-	DetectLeaks bool
-	MutatorDict []byte
+	DetectLeaks   bool
+	MutatorDict   []byte
+	CorpusDir     string   // persist growing corpus here (optional)
+	ExtraSeedDirs []string // additional dirs to load seeds from (libFuzzer cache, etc.)
+	MaxCorpus     int      // live corpus cap (default 512)
 }
+
+const defaultMaxCorpus = 512
 
 // Hunt runs mutational fuzz on a built upstream binary.
 func Hunt(ctx context.Context, repoRoot string, t Target, binPath string, seeds [][]byte, budget int, maxInput int, timeLimitSec int) (*HuntReport, error) {
@@ -261,6 +266,9 @@ func HuntWithOptions(ctx context.Context, repoRoot string, t Target, binPath str
 	if timeLimitSec <= 0 {
 		timeLimitSec = 600
 	}
+	if opts.MaxCorpus <= 0 {
+		opts.MaxCorpus = defaultMaxCorpus
+	}
 	start := time.Now()
 	rep := &HuntReport{
 		TargetID:   t.ID,
@@ -269,13 +277,49 @@ func HuntWithOptions(ctx context.Context, repoRoot string, t Target, binPath str
 		Language:   TargetLanguage(t),
 		BinaryPath: binPath,
 		Crashes:    []CrashFinding{},
+		DictBytes:  len(opts.MutatorDict),
+		CorpusDir:  opts.CorpusDir,
 	}
 	if len(seeds) == 0 {
 		seeds = [][]byte{{}, []byte("{}"), []byte("[]")}
 	}
+	// Merge persisted + extra seed dirs into the live seed pool.
+	live := make([][]byte, 0, len(seeds)+64)
+	seenHash := map[string]struct{}{}
+	addSeed := func(b []byte) {
+		if len(b) == 0 {
+			return
+		}
+		h := corpusKey(b)
+		if _, ok := seenHash[h]; ok {
+			return
+		}
+		seenHash[h] = struct{}{}
+		cp := append([]byte(nil), b...)
+		live = append(live, cp)
+	}
+	for _, s := range seeds {
+		addSeed(s)
+	}
+	if opts.CorpusDir != "" {
+		for _, b := range loadCorpusDir(opts.CorpusDir, opts.MaxCorpus) {
+			addSeed(b)
+		}
+	}
+	for _, dir := range opts.ExtraSeedDirs {
+		for _, b := range loadCorpusDir(dir, opts.MaxCorpus/2) {
+			addSeed(b)
+		}
+	}
+	if len(live) == 0 {
+		live = [][]byte{{}, []byte("{}"), []byte("[]")}
+	}
+
 	seenCrash := map[string]bool{}
 	deadline := time.Now().Add(time.Duration(timeLimitSec) * time.Second)
 	execErrors := 0
+	saved := 0
+	lengthSeen := map[int]int{}
 
 	for i := 0; i < budget; i++ {
 		if ctx.Err() != nil {
@@ -284,13 +328,12 @@ func HuntWithOptions(ctx context.Context, repoRoot string, t Target, binPath str
 		if time.Now().After(deadline) {
 			break
 		}
-		seed := seeds[i%len(seeds)]
+		seed := live[i%len(live)]
 		rnd := randomBytes(16)
-		corpus := make([][]byte, 0, len(seeds))
-		for _, s := range seeds {
-			if len(s) > 0 {
-				corpus = append(corpus, s)
-			}
+		corpus := live
+		if len(corpus) > 64 {
+			// Bound mutator corpus view for CPU; still rotate via live seeds.
+			corpus = live[:64]
 		}
 		input := huntMutateInput(seed, maxInput, rnd, opts.MutatorDict, corpus)
 		runOpts := DefaultRunInputOpts()
@@ -305,6 +348,12 @@ func HuntWithOptions(ctx context.Context, repoRoot string, t Target, binPath str
 		}
 		rep.Iterations++
 		if !crash {
+			// Novelty heuristic without coverage: rare lengths + unique prefix hash.
+			if shouldKeepNovel(input, lengthSeen, seenHash, i) {
+				if addCorpusFile(opts.CorpusDir, input, &saved, opts.MaxCorpus) {
+					addSeed(input)
+				}
+			}
 			continue
 		}
 		origLen := len(input)
@@ -322,6 +371,9 @@ func HuntWithOptions(ctx context.Context, repoRoot string, t Target, binPath str
 			continue
 		}
 		seenCrash[key] = true
+		if addCorpusFile(opts.CorpusDir, input, &saved, opts.MaxCorpus) {
+			addSeed(input)
+		}
 		cf := CrashFinding{
 			TargetID:         t.ID,
 			Title:            t.Title,
@@ -342,6 +394,8 @@ func HuntWithOptions(ctx context.Context, repoRoot string, t Target, binPath str
 		rep.Crashes = append(rep.Crashes, cf)
 	}
 	rep.ElapsedSec = time.Since(start).Seconds()
+	rep.CorpusSize = len(live)
+	rep.CorpusSaved = saved
 	if rep.Iterations == 0 && execErrors > 0 {
 		return rep, fmt.Errorf("fuzzupstream: hunt produced 0 successful execs (%d infra errors)", execErrors)
 	}

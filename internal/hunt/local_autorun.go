@@ -112,3 +112,13 @@ func HuntRunOptionsFromConfig(cfg map[string]any) fuzzupstream.HuntRunOptions {
 	}
 	return opts
 }
+
+// HuntRunOptionsForTarget builds hunt options with domain dict + optional corpus dir.
+func HuntRunOptionsForTarget(cfg map[string]any, targetID, corpusDir string) fuzzupstream.HuntRunOptions {
+	opts := HuntRunOptionsFromConfig(cfg)
+	if len(opts.MutatorDict) == 0 {
+		opts.MutatorDict = MutatorDictForTarget(targetID)
+	}
+	opts.CorpusDir = corpusDir
+	return opts
+}

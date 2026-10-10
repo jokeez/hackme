@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"hackme/internal/fuzzupstream"
+	"hackme/internal/hunt"
 )
 
 func main() {
@@ -15,8 +16,9 @@ func main() {
 	out := flag.String("out", "", "output directory")
 	targets := flag.String("targets", "all", "comma-separated target ids or all")
 	budget := flag.Int("budget", 0, "iterations per target")
-	timeLimit := flag.Int("time-limit", 0, "total time limit seconds")
+	timeLimit := flag.Int("time-limit", 0, "time limit seconds (per target unless HACKME_OSS_SHARE_WALL=1)")
 	priority := flag.Int("priority-max", 0, "only targets with priority <= N (0=all)")
+	shareWall := flag.Bool("share-wall", false, "divide time-limit across targets (or set HACKME_OSS_SHARE_WALL=1)")
 	flag.Parse()
 
 	if *repo == "" {
@@ -30,6 +32,8 @@ func main() {
 		BudgetIterations: *budget,
 		TimeLimitSec:     *timeLimit,
 		PriorityMax:      *priority,
+		ShareWall:        *shareWall || fuzzupstream.ShareWallFromEnv(),
+		MutatorDictFn:    hunt.MutatorDictForTarget,
 	}
 	rollup, err := fuzzupstream.RunHunt(context.Background(), opts)
 	if err != nil {

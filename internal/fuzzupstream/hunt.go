@@ -19,6 +19,25 @@ type HuntOptions struct {
 	TimeLimitSec     int
 	MaxInputBytes    int
 	PriorityMax      int
+	// ShareWall divides TimeLimitSec across targets (legacy). Default false:
+	// each target gets the full TimeLimitSec wall clock.
+	ShareWall bool
+	// MutatorDictFn supplies a domain dictionary per target id (optional).
+	// Wired from hunt.MutatorDictForTarget by oss_cve_hunt to avoid import cycles.
+	MutatorDictFn func(targetID string) []byte
+	// CorpusRoot overrides per-target corpus dir parent (default OutDir).
+	CorpusRoot string
+}
+
+// ShareWallFromEnv returns true when HACKME_OSS_SHARE_WALL is a truthy value.
+func ShareWallFromEnv() bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_OSS_SHARE_WALL")))
+	switch v {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 // RunHunt builds and fuzzes OSS targets; writes per-target + rollup JSON.
@@ -45,15 +64,30 @@ func RunHunt(ctx context.Context, opts HuntOptions) (rollup *RollupReport, err e
 	if err := os.MkdirAll(opts.OutDir, 0o755); err != nil {
 		return nil, err
 	}
-
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(opts.TimeLimitSec)*time.Second)
-	defer cancel()
+	if opts.CorpusRoot == "" {
+		opts.CorpusRoot = opts.OutDir
+	}
 
 	targets := selectTargets(manifest, opts)
 	if len(targets) == 0 {
 		return nil, fmt.Errorf("fuzzupstream: no hunt targets selected")
 	}
 	seeds := seedsFromManifest(manifest)
+
+	shareWall := opts.ShareWall || ShareWallFromEnv()
+	parentSec := opts.TimeLimitSec
+	if parentSec <= 0 {
+		parentSec = 600
+	}
+	if !shareWall && len(targets) > 1 {
+		// Each target gets a full wall; parent must cover the sum (+slack).
+		parentSec = opts.TimeLimitSec * len(targets)
+		if parentSec < opts.TimeLimitSec {
+			parentSec = opts.TimeLimitSec
+		}
+	}
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(parentSec)*time.Second)
+	defer cancel()
 
 	rollup = &RollupReport{
 		StartedAt: time.Now().UTC().Format(time.RFC3339),
@@ -72,13 +106,24 @@ func RunHunt(ctx context.Context, opts HuntOptions) (rollup *RollupReport, err e
 		if perTarget <= 0 {
 			perTarget = 600
 		}
-		if len(targets) > 1 {
+		if shareWall && len(targets) > 1 {
 			perTarget = opts.TimeLimitSec / len(targets)
 			if perTarget < 30 {
 				perTarget = 30
 			}
 		}
-		rep, herr := Hunt(ctx, opts.RepoRoot, t, bin, seeds, opts.BudgetIterations, opts.MaxInputBytes, perTarget)
+		runOpts := HuntRunOptions{
+			DetectLeaks: DetectLeaksEnabled(),
+			CorpusDir:   filepath.Join(opts.CorpusRoot, t.ID, "corpus"),
+		}
+		if opts.MutatorDictFn != nil {
+			runOpts.MutatorDict = opts.MutatorDictFn(t.ID)
+		}
+		// Also pull persistent research corpus (libFuzzer / prior nights) when present.
+		if extra := loadExtraSeedDirs(opts.RepoRoot, t.ID); len(extra) > 0 {
+			runOpts.ExtraSeedDirs = extra
+		}
+		rep, herr := HuntWithOptions(ctx, opts.RepoRoot, t, bin, seeds, opts.BudgetIterations, opts.MaxInputBytes, perTarget, runOpts)
 		if herr != nil {
 			rollup.BuildErrors = append(rollup.BuildErrors, fmt.Sprintf("%s hunt: %v", t.ID, herr))
 			continue
