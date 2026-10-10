@@ -43,7 +43,7 @@ Hashrate settles on-chain. Security work is escrowed, distributed, and reported 
 | **Mine** | Public HTTP pool · CUDA / OpenCL / CPU · hybrid Ed25519 submits · **HMC** rewards · **SUP** loyalty |
 | **Dig** | Customer WASM packs (Scan / Audit / Deep) · **20/80** escrow · pool workers · deliverable report |
 | **Hunt** | ASAN/UBSan catalog & customer repos · Lite / Standard / Heavy · **50/50** escrow · coordinator replay |
-| **Exchange** | **Paper** trading desk at [exchange.hackme.tech](https://exchange.hackme.tech/) — no custody, no live matching |
+| **Exchange** | Soft-launch desk at [exchange.hackme.tech](https://exchange.hackme.tech/) — live matching + HMC/SUP custody; USDT BSC watch + manual KYT; no Didit/hot-send |
 | **Research** | Public ledgers (Hunt Watch, OSS CVE Watch, Bitcoin30) — evidence, not hype |
 
 ```mermaid
@@ -181,7 +181,7 @@ Bootstrap smoke orders (tens of shards) prove the rail — they are **not** a pa
 |-------|------|--------|
 | **HMC** | PoW + pool settlement | Live |
 | **SUP** | Support accrual while mining | Live |
-| **Paper Exchange** | Practice desk | Live (paper only) |
+| **Exchange** | Soft-launch desk (matching + HMC/SUP custody) | Live (USDT watch/manual KYT; no Didit/hot-send) |
 | **HMS** | Storage / seal epochs | Preview |
 
 ---
