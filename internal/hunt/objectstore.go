@@ -38,6 +38,12 @@ func HarnessObjectDir() string {
 }
 
 // DefaultHarnessObjectDirBesideDB places harness files next to the fuzz sqlite file.
+// Always returns a DB-scoped directory ({db}.harness) so multiple DBs under the same
+// parent (e.g. /tmp/*.db in swarm/repro gates) do not share one /tmp/harness and
+// reject publishes with "already bound to different binary".
+// Outside temp parents, a legacy sibling "harness/" is renamed once into the scoped
+// path so existing VPS blobs keep serving. Temp parents never adopt a shared legacy
+// dir — that poisons fresh DBs with stale recipe-keyed binaries.
 func DefaultHarnessObjectDirBesideDB(fuzzDBPath string) string {
 	fuzzDBPath = strings.TrimSpace(fuzzDBPath)
 	if fuzzDBPath == "" {
@@ -45,9 +51,38 @@ func DefaultHarnessObjectDirBesideDB(fuzzDBPath string) string {
 	}
 	abs, err := filepath.Abs(fuzzDBPath)
 	if err != nil {
-		return filepath.Join(filepath.Dir(fuzzDBPath), "harness")
+		abs = fuzzDBPath
 	}
-	return filepath.Join(filepath.Dir(abs), "harness")
+	scoped := abs + ".harness"
+	parent := filepath.Dir(abs)
+	legacy := filepath.Join(parent, "harness")
+	if !dirExists(scoped) && dirExists(legacy) && !isTempParent(parent) {
+		if err := os.Rename(legacy, scoped); err != nil {
+			return legacy
+		}
+	}
+	return scoped
+}
+
+func dirExists(path string) bool {
+	st, err := os.Stat(path)
+	return err == nil && st.IsDir()
+}
+
+func isTempParent(parent string) bool {
+	parent = filepath.Clean(parent)
+	tmp := filepath.Clean(os.TempDir())
+	if parent == tmp {
+		return true
+	}
+	// Also treat /var/tmp and explicit TMPDIR children as non-migrating.
+	for _, p := range []string{"/tmp", "/var/tmp", tmp} {
+		p = filepath.Clean(p)
+		if parent == p || strings.HasPrefix(parent+string(filepath.Separator), p+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
 }
 
 // HarnessObjectPath returns <dir>/<hash[:2]>/<hash> (0600 files).

@@ -48,6 +48,9 @@ echo "[hunt-async-swarm] build binaries"
 go build -trimpath -o "$COORD_BIN" ./cmd/coordinator
 go build -trimpath -o "$WORKERFUZZ_BIN" ./cmd/workerfuzz
 
+echo "[hunt-async-swarm] prebuild Hunt ASAN harness (catalog cache)"
+go test -count=1 ./internal/hunt -run TestEnsureHarnessBinaryCached -timeout 5m >/dev/null
+
 HARNESS_HASH="$(python3 - "$ROOT" "$TARGET_ID" <<'PY'
 import hashlib, json, os, sys
 root, tid = sys.argv[1], sys.argv[2]
@@ -59,6 +62,13 @@ parts += ",".join(t.get("upstream_src", [])) + ",".join(t.get("build_flags", [])
 print(hashlib.sha256(parts.encode()).hexdigest()[:32])
 PY
 )"
+export HARNESS_HASH
+HARNESS_BIN="$ROOT/.cache/hunt-harness/${HARNESS_HASH}.bin"
+if [[ ! -f "$HARNESS_BIN" ]]; then
+  echo "[hunt-async-swarm] FAIL: harness missing at $HARNESS_BIN after prebuild" >&2
+  exit 1
+fi
+echo "[hunt-async-swarm] harness ready hash=$HARNESS_HASH bytes=$(stat -c%s "$HARNESS_BIN")"
 
 run_profile() {
   local rw="$1"
@@ -98,6 +108,7 @@ run_profile() {
     kill "$cpid" 2>/dev/null || true
     wait "$cpid" 2>/dev/null || true
     rm -f "$coord_db" "${coord_db}-wal" "${coord_db}-shm" "$fuzz_db" "${fuzz_db}-wal" "${fuzz_db}-shm" 2>/dev/null || true
+    rm -rf "${fuzz_db}.harness" "${fuzz_db}.corpus-objects" 2>/dev/null || true
   }
   trap cleanup_profile RETURN
 
@@ -127,7 +138,7 @@ print(json.dumps({
     "work_kind": "hunt_shard",
     "campaign_type": "hunt",
     "upstream_target_id": os.environ["TARGET_ID"],
-    "harness_hash": "$HARNESS_HASH",
+    "harness_hash": os.environ["HARNESS_HASH"],
     "check_semantics": "native_crash",
     "depth_tier": "oss_cve",
     "input_mode": "bytes",
@@ -140,6 +151,14 @@ print(json.dumps({
 }))
 PY
 )" >/dev/null
+
+  # Workers refuse claims without published harness_content_sha256 — publish blob (octet-stream).
+  echo "[hunt-async-swarm] publish harness $HARNESS_HASH to coordinator"
+  curl -fsS -X POST "${base}/api/fuzz/pool/hunt/harness" \
+    -H "Content-Type: application/octet-stream" \
+    -H "X-Hackme-Harness-Hash: ${HARNESS_HASH}" \
+    -H "X-Hackme-Source-Rel: swarm:${TARGET_ID}" \
+    --data-binary @"$HARNESS_BIN" | jq -e '.ok == true' >/dev/null
 
   local pids=()
   local w

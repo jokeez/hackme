@@ -40,6 +40,8 @@ func CorpusObjectDir() string {
 }
 
 // DefaultCorpusObjectDirBesideDB places corpus objects next to the fuzz sqlite file.
+// Always returns a DB-scoped directory ("<dbpath>.corpus-objects"). Legacy sibling
+// "corpus-objects/" is renamed once into the scoped path when present.
 func DefaultCorpusObjectDirBesideDB(fuzzDBPath string) string {
 	fuzzDBPath = strings.TrimSpace(fuzzDBPath)
 	if fuzzDBPath == "" {
@@ -47,9 +49,31 @@ func DefaultCorpusObjectDirBesideDB(fuzzDBPath string) string {
 	}
 	abs, err := filepath.Abs(fuzzDBPath)
 	if err != nil {
-		return filepath.Join(filepath.Dir(fuzzDBPath), "corpus-objects")
+		abs = fuzzDBPath
 	}
-	return filepath.Join(filepath.Dir(abs), "corpus-objects")
+	scoped := abs + ".corpus-objects"
+	parent := filepath.Dir(abs)
+	legacy := filepath.Join(parent, "corpus-objects")
+	if _, err := os.Stat(scoped); err != nil && os.IsNotExist(err) {
+		if st, err2 := os.Stat(legacy); err2 == nil && st.IsDir() && !corpusTempParent(parent) {
+			if err := os.Rename(legacy, scoped); err != nil {
+				return legacy
+			}
+		}
+	}
+	return scoped
+}
+
+func corpusTempParent(parent string) bool {
+	parent = filepath.Clean(parent)
+	tmp := filepath.Clean(os.TempDir())
+	for _, p := range []string{"/tmp", "/var/tmp", tmp} {
+		p = filepath.Clean(p)
+		if parent == p || strings.HasPrefix(parent+string(filepath.Separator), p+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
 }
 
 func sha256Hex(data []byte) string {
