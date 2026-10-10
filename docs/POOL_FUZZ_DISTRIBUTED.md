@@ -21,8 +21,12 @@ If `HACKME_COORDINATOR_FUZZ_DB` is unset, fuzz shares the main DB (compat).
 |--------|------|------|---------|
 | POST | `/api/fuzz/pool/campaigns` | admin | Register pool-distributed campaign |
 | POST | `/api/fuzz/work/claim` | worker | Lease one work item (+ frozen corpus on guided campaigns) |
+| POST | `/api/fuzz/work/claim_batch` | worker | Lease up to **16** items (`limit`); same auth/lease rules per item |
 | POST | `/api/fuzz/work/submit` | worker | Submit segment result (+ hybrid Ed25519 when escrow payout) |
+| POST | `/api/fuzz/work/submit_batch` | worker | Submit up to **16** items; each row auth’d; foreign leases fail that row only |
 | GET | `/api/fuzz/pool/stats` | public | Queue depth / runs done |
+
+Worker opt-in: `HACKME_WORKER_BATCH_CLAIM=N` (2–16). Dig WASM stays warm across shards via sandbox compile cache (`HACKME_WORKER_WARM_HARNESS=0` to disable pre-validate).
 
 Claim JSON includes: `exec_per_unit`, `max_input_bytes`, `coverage_kind`, `corpus_seeds`, `corpus_snapshot_sha256` (when guided).
 

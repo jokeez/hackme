@@ -621,83 +621,118 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		}
 		wm.noteWorkerClientIP(workerID, ipKey)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		payload := map[string]any{
-			"ok":              true,
-			"worker_id":       workerID,
-			"work_id":         work.WorkID,
-			"campaign_id":     work.CampaignID,
-			"item_id":         work.ItemID,
-			"input_n":         work.InputN,
-			"actual_input":    work.ActualInput,
-			"input_mode":      work.InputMode,
-			"input_bytes_hex": hex.EncodeToString(work.InputBytes),
-			"depth_tier":      work.DepthTier,
-			"per_run_hmc":     work.PerRunHMC,
-			"exec_per_unit":   work.ExecPerUnit,
-			"max_input_bytes": work.MaxInputBytes,
-			"coverage_kind":   work.CoverageKind,
-			"wasm_check_hex":  work.WasmCheckHex,
-			"check_semantics": work.CheckSemantics,
-			"task_class":      "fuzz",
-			"scheduler_mode":  "fuzz",
+		_ = json.NewEncoder(w).Encode(fuzzClaimPayload(workerID, work))
+	})
+
+	mux.HandleFunc("/api/fuzz/work/claim_batch", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
 		}
-		if seeds := fuzzengine.CorpusSeedsClaimMaps(work.CorpusSeeds); len(seeds) > 0 {
-			payload["corpus_seeds"] = seeds
+		if !coordinatorWorkPOSTAuthed(r, adminToken, workerToken, allowInsecure) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
+			http.Error(w, "coordinator authentication required", http.StatusUnauthorized)
+			return
 		}
-		if sha := strings.TrimSpace(work.CorpusSnapshotSHA256); sha != "" {
-			payload["corpus_snapshot_sha256"] = sha
+		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
+		var req struct {
+			WorkerID        string `json:"worker_id"`
+			MinerPubKey     string `json:"miner_pubkey"`
+			MinerPubKeyEd   string `json:"miner_pubkey_ed25519"`
+			MinerAddress    string `json:"miner_address"`
+			WorkerVersion   string `json:"worker_version"`
+			HuntHarnessExec string `json:"hunt_harness_exec"`
+			Limit           int    `json:"limit"`
 		}
-		// Dig + Hunt: SegmentExecInput gates must ride on every claim, not only hunt_shard.
-		if work.PowerMutCap > 0 {
-			payload["power_mut_cap"] = work.PowerMutCap
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
 		}
-		if work.HavocDeepV28 {
-			payload["havoc_deep_v28"] = true
+		workerID := strings.TrimSpace(req.WorkerID)
+		if !validCoordinatorWorkerID(workerID) {
+			http.Error(w, "invalid worker_id", http.StatusBadRequest)
+			return
 		}
-		if work.HavocDeepV210 {
-			payload["havoc_deep_v210"] = true
+		minVer := poolfuzz.MinWorkerVersion()
+		if !poolfuzz.WorkerVersionAllowed(req.WorkerVersion, minVer) {
+			wm.recordDrop("worker_outdated")
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusForbidden)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"ok": false, "reason": "worker_outdated", "min_worker_version": minVer,
+			})
+			return
 		}
-		if work.DigGPUMutators {
-			payload["dig_gpu_mutators"] = true
+		pub := strings.TrimSpace(req.MinerPubKey)
+		if pub == "" {
+			pub = strings.TrimSpace(req.MinerPubKeyEd)
 		}
-		if work.CorpusExploreV2 {
-			payload["corpus_explore_v2"] = true
+		if okID, reasonID := wm.checkClaimMinerIdentity(workerID, pub, req.MinerAddress); !okID {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusForbidden)
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": reasonID})
+			return
 		}
-		if len(work.SeedByteCorpus) > 0 {
-			// Dig + Hunt: mutating exec bases use seed_byte_corpus round-robin.
-			payload["seed_byte_corpus"] = work.SeedByteCorpus
+		ipKey := clientIPKey(r)
+		now := time.Now().Unix()
+		if ok, reason := wm.allowClaimPeer(workerID, ipKey, now); !ok {
+			wm.recordDrop(reason)
+			w.WriteHeader(http.StatusTooManyRequests)
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": reason})
+			return
 		}
-		if len(work.MutatorDict) > 0 {
-			payload["mutator_dict_hex"] = hex.EncodeToString(work.MutatorDict)
+		if ok, reason := wm.allowFuzzClaimByGHS(workerID, now); !ok {
+			wm.recordDrop(reason)
+			w.WriteHeader(http.StatusTooManyRequests)
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": reason})
+			return
 		}
-		if work.TaskClass == "hunt" || work.WorkKind == "hunt_shard" {
-			payload["task_class"] = "hunt"
-			payload["work_kind"] = "hunt_shard"
-			payload["harness_hash"] = work.HarnessHash
-			payload["upstream_target_id"] = work.UpstreamTargetID
-			payload["per_shard_hmc"] = work.PerRunHMC
-			if src := strings.TrimSpace(work.HuntSource); src != "" {
-				payload["hunt_source"] = src
+		if okSeen, reasonSeen := wm.touchWorkerSeenLimited(workerID); !okSeen {
+			wm.recordDrop(reasonSeen)
+			w.WriteHeader(http.StatusTooManyRequests)
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": reasonSeen})
+			return
+		}
+		limit := req.Limit
+		if limit < 1 {
+			limit = 1
+		}
+		if limit > poolfuzz.MaxBatchClaimSubmit {
+			limit = poolfuzz.MaxBatchClaimSubmit
+		}
+		items := make([]map[string]any, 0, limit)
+		for i := 0; i < limit; i++ {
+			work, ok, err := pf.Claim(r.Context(), workerID, now)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
 			}
-			if p := strings.TrimSpace(work.HuntPinPath); p != "" {
-				payload["hunt_pin_path"] = p
+			if !ok {
+				break
 			}
-			if rel := strings.TrimSpace(work.HuntSourceRel); rel != "" {
-				payload["hunt_source_rel"] = rel
+			isHunt := work.TaskClass == "hunt" || work.WorkKind == "hunt_shard"
+			if isHunt && !poolfuzz.HuntHarnessCapable(req.HuntHarnessExec) {
+				_, _ = pf.ReleaseWorkLease(r.Context(), work.CampaignID, work.ItemID, workerID)
+				wm.recordDrop("worker_outdated_for_hunt")
+				continue
 			}
-			if u := strings.TrimSpace(work.HarnessFetchURL); u != "" {
-				payload["harness_fetch_url"] = u
+			wm.bindClaimPayoutFromPub(workerID, pub)
+			if okCharge, reasonCharge := wm.chargeClaimWorker(workerID, now); !okCharge {
+				_, _ = pf.ReleaseWorkLease(r.Context(), work.CampaignID, work.ItemID, workerID)
+				wm.recordDrop(reasonCharge)
+				break
 			}
-			if sha := strings.TrimSpace(work.HarnessContentSHA256); sha != "" {
-				payload["harness_content_sha256"] = sha
-			}
-			payload["hunt_detect_leaks"] = work.HuntDetectLeaks
-			payload["shard_spec"] = map[string]any{
-				"iterations_per_shard": work.IterationsPerShard,
-				"check_semantics":      work.CheckSemantics,
-			}
+			wm.noteWorkerClientIP(workerID, ipKey)
+			items = append(items, fuzzClaimPayload(workerID, work))
 		}
-		_ = json.NewEncoder(w).Encode(payload)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if len(items) == 0 {
+			wm.recordDrop("no_fuzz_work")
+			w.WriteHeader(http.StatusTooManyRequests)
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": "no_fuzz_work", "items": []any{}})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "count": len(items), "items": items})
 	})
 
 	mux.HandleFunc("/api/fuzz/work/submit", func(w http.ResponseWriter, r *http.Request) {
@@ -878,6 +913,140 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			resp["replay_status"] = out.ReplayStatus
 		}
 		_ = json.NewEncoder(w).Encode(resp)
+	})
+
+	mux.HandleFunc("/api/fuzz/work/submit_batch", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !coordinatorWorkPOSTAuthed(r, adminToken, workerToken, allowInsecure) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
+			http.Error(w, "coordinator authentication required", http.StatusUnauthorized)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
+		var req struct {
+			WorkerID string `json:"worker_id"`
+			Items    []struct {
+				MinerAddress    string `json:"miner_address"`
+				MinerPubKey     string `json:"miner_pubkey"`
+				MinerPubKeyEd   string `json:"miner_pubkey_ed25519"`
+				MinerSig        string `json:"miner_sig"`
+				MinerSigEd      string `json:"miner_sig_ed25519"`
+				MinerSigAlg     string `json:"miner_sig_alg"`
+				SubmitNonce     uint64 `json:"submit_nonce"`
+				WorkID          string `json:"work_id"`
+				CampaignID      string `json:"campaign_id"`
+				ItemID          int64  `json:"item_id"`
+				InputN          uint64 `json:"input_n"`
+				ActualInput     uint64 `json:"actual_input"`
+				InputBytesHex   string `json:"input_bytes_hex"`
+				CheckResult     int32  `json:"check_result"`
+				DurationMS      int    `json:"duration_ms"`
+				Trap            string `json:"trap"`
+				SegmentExecDone int    `json:"segment_exec_done"`
+			} `json:"items"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		workerID := strings.TrimSpace(req.WorkerID)
+		if !validCoordinatorWorkerID(workerID) {
+			http.Error(w, "invalid worker_id", http.StatusBadRequest)
+			return
+		}
+		if len(req.Items) == 0 {
+			http.Error(w, "items required", http.StatusBadRequest)
+			return
+		}
+		if len(req.Items) > poolfuzz.MaxBatchClaimSubmit {
+			req.Items = req.Items[:poolfuzz.MaxBatchClaimSubmit]
+		}
+		ipKey := clientIPKey(r)
+		now := time.Now().Unix()
+		results := make([]map[string]any, 0, len(req.Items))
+		okN := 0
+		for _, it := range req.Items {
+			row := map[string]any{"item_id": it.ItemID, "campaign_id": it.CampaignID, "ok": false}
+			if strings.TrimSpace(it.MinerPubKey) == "" {
+				it.MinerPubKey = strings.TrimSpace(it.MinerPubKeyEd)
+			}
+			if strings.TrimSpace(it.MinerSig) == "" {
+				it.MinerSig = strings.TrimSpace(it.MinerSigEd)
+			}
+			if okSub, reasonSub := wm.allowSubmitPeer(workerID, ipKey, now); !okSub {
+				row["error"] = reasonSub
+				results = append(results, row)
+				continue
+			}
+			signBody := poolfuzz.CanonicalSubmitBytes(poolfuzz.SubmitSignPayload{
+				WorkerID: workerID, CampaignID: it.CampaignID, ItemID: it.ItemID,
+				InputN: it.InputN, ActualInput: it.ActualInput, InputBytesHex: strings.TrimSpace(it.InputBytesHex),
+				CheckResult: it.CheckResult, SubmitNonce: it.SubmitNonce, SegmentExecDone: it.SegmentExecDone,
+			})
+			okSig, reason, payoutAddr := wm.validateFuzzHybridSignature(fuzzSubmitAuth{
+				WorkerID: workerID, MinerAddress: it.MinerAddress, MinerPubKey: it.MinerPubKey,
+				MinerSig: it.MinerSig, MinerSigAlg: it.MinerSigAlg, SubmitNonce: it.SubmitNonce,
+			}, signBody)
+			if !okSig {
+				wm.markSubmitOutcome(workerID, ipKey, reason, now)
+				row["error"] = reason
+				results = append(results, row)
+				continue
+			}
+			locked := wm.lockedPayoutAddress(workerID)
+			if locked != "" && (payoutAddr == "" || !strings.EqualFold(locked, payoutAddr)) {
+				wm.markSubmitOutcome(workerID, ipKey, "payout_address_locked", now)
+				row["error"] = "payout_address_locked"
+				results = append(results, row)
+				continue
+			}
+			if okSub, reasonSub := wm.chargeSubmitWorker(workerID, now); !okSub {
+				row["error"] = reasonSub
+				results = append(results, row)
+				continue
+			}
+			var inputBytes []byte
+			if h := strings.TrimSpace(it.InputBytesHex); h != "" {
+				inputBytes, _ = hex.DecodeString(h)
+			}
+			out, err := pf.SubmitWithOutcome(r.Context(), poolfuzz.SubmitRequest{
+				WorkerID: workerID, MinerAddress: payoutAddr, WorkID: it.WorkID,
+				CampaignID: it.CampaignID, ItemID: it.ItemID, InputN: it.InputN,
+				ActualInput: it.ActualInput, InputBytes: inputBytes, CheckResult: it.CheckResult,
+				DurationMS: it.DurationMS, Trap: strings.TrimSpace(it.Trap), SegmentExecDone: it.SegmentExecDone,
+			})
+			if err != nil {
+				row["error"] = err.Error()
+				results = append(results, row)
+				continue
+			}
+			if payoutAddr != "" {
+				wm.commitFuzzHybridNonce(payoutAddr, it.SubmitNonce)
+				wm.touchWorkerSeen(workerID)
+			} else {
+				wm.touchWorkerSeen(workerID)
+			}
+			row["ok"] = true
+			row["accepted"] = true
+			if out.ReplayStatus != "" {
+				row["replay_status"] = out.ReplayStatus
+			}
+			if out.Async {
+				row["async"] = true
+				if out.QueueID > 0 {
+					row["queue_id"] = out.QueueID
+				}
+			}
+			okN++
+			results = append(results, row)
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok": okN > 0, "accepted": okN, "failed": len(results) - okN, "results": results,
+		})
 	})
 
 	mux.HandleFunc("/api/fuzz/work/release", func(w http.ResponseWriter, r *http.Request) {
@@ -1086,6 +1255,84 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		}
 		_, _ = w.Write(data)
 	})
+}
+
+func fuzzClaimPayload(workerID string, work poolfuzz.ClaimedWork) map[string]any {
+	payload := map[string]any{
+		"ok":              true,
+		"worker_id":       workerID,
+		"work_id":         work.WorkID,
+		"campaign_id":     work.CampaignID,
+		"item_id":         work.ItemID,
+		"input_n":         work.InputN,
+		"actual_input":    work.ActualInput,
+		"input_mode":      work.InputMode,
+		"input_bytes_hex": hex.EncodeToString(work.InputBytes),
+		"depth_tier":      work.DepthTier,
+		"per_run_hmc":     work.PerRunHMC,
+		"exec_per_unit":   work.ExecPerUnit,
+		"max_input_bytes": work.MaxInputBytes,
+		"coverage_kind":   work.CoverageKind,
+		"wasm_check_hex":  work.WasmCheckHex,
+		"check_semantics": work.CheckSemantics,
+		"task_class":      "fuzz",
+		"scheduler_mode":  "fuzz",
+	}
+	if seeds := fuzzengine.CorpusSeedsClaimMaps(work.CorpusSeeds); len(seeds) > 0 {
+		payload["corpus_seeds"] = seeds
+	}
+	if sha := strings.TrimSpace(work.CorpusSnapshotSHA256); sha != "" {
+		payload["corpus_snapshot_sha256"] = sha
+	}
+	if work.PowerMutCap > 0 {
+		payload["power_mut_cap"] = work.PowerMutCap
+	}
+	if work.HavocDeepV28 {
+		payload["havoc_deep_v28"] = true
+	}
+	if work.HavocDeepV210 {
+		payload["havoc_deep_v210"] = true
+	}
+	if work.DigGPUMutators {
+		payload["dig_gpu_mutators"] = true
+	}
+	if work.CorpusExploreV2 {
+		payload["corpus_explore_v2"] = true
+	}
+	if len(work.SeedByteCorpus) > 0 {
+		payload["seed_byte_corpus"] = work.SeedByteCorpus
+	}
+	if len(work.MutatorDict) > 0 {
+		payload["mutator_dict_hex"] = hex.EncodeToString(work.MutatorDict)
+	}
+	if work.TaskClass == "hunt" || work.WorkKind == "hunt_shard" {
+		payload["task_class"] = "hunt"
+		payload["work_kind"] = "hunt_shard"
+		payload["harness_hash"] = work.HarnessHash
+		payload["upstream_target_id"] = work.UpstreamTargetID
+		payload["per_shard_hmc"] = work.PerRunHMC
+		if src := strings.TrimSpace(work.HuntSource); src != "" {
+			payload["hunt_source"] = src
+		}
+		if p := strings.TrimSpace(work.HuntPinPath); p != "" {
+			payload["hunt_pin_path"] = p
+		}
+		if rel := strings.TrimSpace(work.HuntSourceRel); rel != "" {
+			payload["hunt_source_rel"] = rel
+		}
+		if u := strings.TrimSpace(work.HarnessFetchURL); u != "" {
+			payload["harness_fetch_url"] = u
+		}
+		if sha := strings.TrimSpace(work.HarnessContentSHA256); sha != "" {
+			payload["harness_content_sha256"] = sha
+		}
+		payload["hunt_detect_leaks"] = work.HuntDetectLeaks
+		payload["shard_spec"] = map[string]any{
+			"iterations_per_shard": work.IterationsPerShard,
+			"check_semantics":      work.CheckSemantics,
+		}
+	}
+	return payload
 }
 
 func startPoolFuzzTicker(ctx context.Context, pf *poolfuzz.Service) {

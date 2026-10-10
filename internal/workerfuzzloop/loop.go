@@ -114,6 +114,9 @@ type Config struct {
 	// DigBoostFloorPct tightens MinClaimGap when PoH GH/s >= this % of calib (default DigBoostFloorPct).
 	// Set 0 to use DigBoostFloorPct; set >100 to disable boost while keeping backpressure.
 	DigBoostFloorPct int
+
+	// BatchClaim is optional claim_batch size (1–16). 0/1 = single claim API.
+	BatchClaim int
 }
 
 // Stats are best-effort counters for diagnostics.
@@ -325,42 +328,78 @@ func Run(ctx context.Context, cfg Config, st *Stats) error {
 }
 
 func runOne(ctx context.Context, cfg Config, base string, st *Stats) {
-	cr, err := Claim(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cfg.PubHex, cfg.MinerAddr, claimCaps(cfg))
-	if err != nil {
-		sleep := backoffForErr(err)
-		fmt.Fprintf(os.Stderr, "%s: claim: %v (sleep %s)\n", cfg.LogPrefix, err, sleep)
+	batchN := cfg.BatchClaim
+	if batchN <= 0 {
+		batchN = EnvInt("HACKME_WORKER_BATCH_CLAIM", 1)
+	}
+	if batchN > poolfuzz.MaxBatchClaimSubmit {
+		batchN = poolfuzz.MaxBatchClaimSubmit
+	}
+	var claims []ClaimResp
+	if batchN > 1 {
+		items, err := ClaimBatch(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cfg.PubHex, cfg.MinerAddr, claimCaps(cfg), batchN)
+		if err != nil {
+			sleep := backoffForErr(err)
+			fmt.Fprintf(os.Stderr, "%s: claim_batch: %v (sleep %s)\n", cfg.LogPrefix, err, sleep)
+			select {
+			case <-ctx.Done():
+			case <-time.After(sleep):
+			}
+			return
+		}
+		claims = items
+	} else {
+		cr, err := Claim(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cfg.PubHex, cfg.MinerAddr, claimCaps(cfg))
+		if err != nil {
+			sleep := backoffForErr(err)
+			fmt.Fprintf(os.Stderr, "%s: claim: %v (sleep %s)\n", cfg.LogPrefix, err, sleep)
+			select {
+			case <-ctx.Done():
+			case <-time.After(sleep):
+			}
+			return
+		}
+		if !cr.OK {
+			sleep := backoffForReason(cr.Reason)
+			select {
+			case <-ctx.Done():
+			case <-time.After(sleep):
+			}
+			return
+		}
+		claims = []ClaimResp{cr}
+	}
+	if len(claims) == 0 {
 		select {
 		case <-ctx.Done():
-		case <-time.After(sleep):
+		case <-time.After(2 * time.Second):
 		}
 		return
 	}
-	if !cr.OK {
-		sleep := backoffForReason(cr.Reason)
-		select {
-		case <-ctx.Done():
-		case <-time.After(sleep):
-		}
-		return
+	for i := range claims {
+		processClaim(ctx, cfg, base, st, &claims[i])
 	}
+}
+
+func processClaim(ctx context.Context, cfg Config, base string, st *Stats, cr *ClaimResp) {
 	st.ClaimsOK.Add(1)
 	release := func(why string) {
 		if rerr := ReleaseLease(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cr.CampaignID, cr.ItemID, cfg.PubHex, cfg.MinerAddr); rerr != nil {
 			fmt.Fprintf(os.Stderr, "%s: release lease after %s: %v\n", cfg.LogPrefix, why, rerr)
 		}
 	}
+	warmDigHarness(ctx, cr.WasmCheckHex)
 	var checkRet int32
 	var durMS int
 	var trap string
 	var execDone int
-	if IsHuntClaim(cr) {
-		if err := HuntClaimMissingFields(cr); err != nil {
+	if IsHuntClaim(*cr) {
+		if err := HuntClaimMissingFields(*cr); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", cfg.LogPrefix, err)
 			release("hunt_missing_fields")
 			return
 		}
-		checkRet, durMS, trap, execDone = RunHuntShard(ctx, cr, cfg.TimeoutMS)
-		// Incomplete mid-shard — do not submit cheated progress; free lease for reclaim.
+		checkRet, durMS, trap, execDone = RunHuntShard(ctx, *cr, cfg.TimeoutMS)
 		want := cr.ExecPerUnit
 		if want < 1 {
 			want = 1
@@ -372,10 +411,10 @@ func runOne(ctx context.Context, cfg Config, base string, st *Stats) {
 			return
 		}
 	} else {
-		checkRet, durMS, trap, execDone = RunSegmentCheck(ctx, cr, cfg.TimeoutMS)
+		checkRet, durMS, trap, execDone = RunSegmentCheck(ctx, *cr, cfg.TimeoutMS)
 	}
 	nonce := uint64(time.Now().UnixNano())
-	if err := Submit(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cfg.MinerAddr, cfg.Priv, cfg.PubHex, cfg.Hybrid, nonce, cr, checkRet, durMS, trap, execDone); err != nil {
+	if err := Submit(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cfg.MinerAddr, cfg.Priv, cfg.PubHex, cfg.Hybrid, nonce, *cr, checkRet, durMS, trap, execDone); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: submit: %v\n", cfg.LogPrefix, err)
 		release("submit_reject")
 		return
@@ -383,12 +422,29 @@ func runOne(ctx context.Context, cfg Config, base string, st *Stats) {
 	st.SubmitsOK.Add(1)
 	checkSem := fuzzengine.ParseCheckSemantics(map[string]any{"check_semantics": cr.CheckSemantics})
 	pass, finding := fuzzengine.EvalCheck(checkSem, checkRet, nil)
-	if finding && trap == "" && !IsHuntClaim(cr) {
+	if finding && trap == "" && !IsHuntClaim(*cr) {
 		st.Findings.Add(1)
 		fmt.Fprintf(os.Stderr, "%s: FINDING campaign=%s input=0x%x semantics=%s\n", cfg.LogPrefix, cr.CampaignID, cr.ActualInput, checkSem)
-	} else if pass || IsHuntClaim(cr) {
+	} else if pass || IsHuntClaim(*cr) {
 		fmt.Fprintf(os.Stderr, "%s: ok campaign=%s input=0x%x\n", cfg.LogPrefix, cr.CampaignID, cr.ActualInput)
 	}
+}
+
+// warmDigHarness pre-compiles Dig WASM into the process sandbox cache so successive
+// shards with the same guard stay warm (default ON; HACKME_WORKER_WARM_HARNESS=0 to disable).
+func warmDigHarness(ctx context.Context, wasmHex string) {
+	if Falsy(os.Getenv("HACKME_WORKER_WARM_HARNESS")) && strings.TrimSpace(os.Getenv("HACKME_WORKER_WARM_HARNESS")) != "" {
+		return
+	}
+	wasmHex = strings.TrimSpace(wasmHex)
+	if wasmHex == "" {
+		return
+	}
+	wasm, err := hex.DecodeString(wasmHex)
+	if err != nil || len(wasm) == 0 {
+		return
+	}
+	_ = sandbox.ValidateCheckWasm(ctx, wasm)
 }
 
 func backoffForErr(err error) time.Duration {
@@ -471,6 +527,56 @@ func claimCaps(cfg Config) ClaimCaps {
 		exec = strings.TrimSpace(os.Getenv("HACKME_HUNT_HARNESS_EXEC"))
 	}
 	return ClaimCaps{WorkerVersion: ver, HuntHarnessExec: exec}
+}
+
+// ClaimBatch leases up to limit items via /api/fuzz/work/claim_batch (1–16).
+func ClaimBatch(ctx context.Context, cl *http.Client, base, token, workerID, pubHex, minerAddr string, caps ClaimCaps, limit int) ([]ClaimResp, error) {
+	if limit < 1 {
+		limit = 1
+	}
+	if limit > poolfuzz.MaxBatchClaimSubmit {
+		limit = poolfuzz.MaxBatchClaimSubmit
+	}
+	bodyMap := map[string]any{"worker_id": workerID, "limit": limit}
+	if pub := strings.TrimSpace(pubHex); pub != "" {
+		bodyMap["miner_pubkey"] = pub
+		bodyMap["miner_pubkey_ed25519"] = pub
+	}
+	if addr := strings.TrimSpace(minerAddr); addr != "" {
+		bodyMap["miner_address"] = addr
+	}
+	if v := strings.TrimSpace(caps.WorkerVersion); v != "" {
+		bodyMap["worker_version"] = v
+	}
+	if h := strings.TrimSpace(caps.HuntHarnessExec); h != "" {
+		bodyMap["hunt_harness_exec"] = h
+	}
+	body, _ := json.Marshal(bodyMap)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/fuzz/work/claim_batch", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", token)
+	res, err := cl.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	b, _ := io.ReadAll(io.LimitReader(res.Body, 4<<20))
+	var wrap struct {
+		OK     bool        `json:"ok"`
+		Reason string      `json:"reason,omitempty"`
+		Items  []ClaimResp `json:"items"`
+	}
+	_ = json.Unmarshal(b, &wrap)
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("HTTP %d %s", res.StatusCode, shortHTTPBody(res.StatusCode, b))
+	}
+	if !wrap.OK {
+		return nil, fmt.Errorf("%s", strings.TrimSpace(wrap.Reason))
+	}
+	return wrap.Items, nil
 }
 
 // Claim leases one fuzz work item.
