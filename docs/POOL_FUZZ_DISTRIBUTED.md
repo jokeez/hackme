@@ -150,4 +150,6 @@ bash scripts/ops/pool_fuzz_distributed_gate.sh
 bash scripts/ops/run_customer_pool_smoke.sh   # Scan/Audit smoke
 ```
 
+Worker-local research slot (stretch, **default OFF**): [POOL_WORKER_RESEARCH_SLOT.md](POOL_WORKER_RESEARCH_SLOT.md).
+
 See also [FUZZ_PRODUCT_GUIDE.md](FUZZ_PRODUCT_GUIDE.md).

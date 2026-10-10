@@ -443,6 +443,10 @@ func processClaim(ctx context.Context, cfg Config, base string, st *Stats, cr *C
 	} else if pass || IsHuntClaim(*cr) {
 		fmt.Fprintf(os.Stderr, "%s: ok campaign=%s input=0x%x\n", cfg.LogPrefix, cr.CampaignID, cr.ActualInput)
 	}
+	// Stage D stub: optional local research slot (default OFF; no LF / no seed feed).
+	if !IsHuntClaim(*cr) {
+		_ = MaybeRunResearchSlot(ctx, ResearchSlotFromEnv())
+	}
 }
 
 // warmDigHarness pre-compiles Dig WASM into the process sandbox cache so successive
