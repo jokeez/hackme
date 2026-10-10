@@ -3,25 +3,32 @@
 #include <string.h>
 #include "mpack/mpack.h"
 
-/* Deep v1: unpack → walk common shapes → re-encode a compact mirror. */
+/* Deep v1: unpack → walk → re-encode. Process-local buffers are zeroed each run
+ * so leftover pack state cannot bleed into the next Hunt exec (fresh process). */
 int main(void) {
-	static char buf[65537];
-	static char out[65537];
+	char buf[65537];
+	char out[65537];
+	memset(buf, 0, sizeof(buf));
+	memset(out, 0, sizeof(out));
+
 	size_t n = fread(buf, 1, 65536, stdin);
 	if (n == 0) {
 		return 0;
 	}
 
 	mpack_tree_t tree;
+	memset(&tree, 0, sizeof(tree));
 	mpack_tree_init_data(&tree, buf, n);
 	mpack_tree_parse(&tree);
 	mpack_node_t root = mpack_tree_root(&tree);
 	if (mpack_tree_error(&tree) != mpack_ok) {
 		(void)mpack_tree_destroy(&tree);
+		memset(buf, 0, sizeof(buf));
 		return 0;
 	}
 
 	mpack_writer_t writer;
+	memset(&writer, 0, sizeof(writer));
 	mpack_writer_init(&writer, out, sizeof(out));
 
 	switch (mpack_node_type(root)) {
@@ -88,5 +95,7 @@ int main(void) {
 
 	(void)mpack_writer_destroy(&writer);
 	(void)mpack_tree_destroy(&tree);
+	memset(buf, 0, sizeof(buf));
+	memset(out, 0, sizeof(out));
 	return 0;
 }

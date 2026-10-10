@@ -1,6 +1,10 @@
-/* Generic libFuzzer harness: pipe inputs into a Hunt stdin ASAN binary.
+/* LAST-RESORT libFuzzer harness: fork+exec a Hunt stdin ASAN binary per input.
  * Set HACKME_LF_STDIN_BIN to the fuzzupstream stdin driver path.
- * Used for L2 seed bootstrap on catalog targets without dedicated libFuzzer harnesses.
+ *
+ * WARNING: fork/exec drops throughput to ~0–tens exec/s and often dies on the
+ * first ASAN signal. Prefer dedicated in-process LLVMFuzzerTestOneInput harnesses
+ * (tasks/sources/fuzz/benchmark/<id>_libfuzzer.c) — mpack/tinycbor/cwalk already
+ * ship those (~50k–90k exec/s). Do not use this wrapper for overnight corpora.
  */
 #include <fcntl.h>
 #include <signal.h>

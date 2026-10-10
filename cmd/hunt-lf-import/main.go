@@ -18,6 +18,7 @@ func main() {
 	importOnly := flag.Bool("import-only", false, "import existing session corpus without running libFuzzer")
 	persist := flag.Bool("persist", false, "use durable reports/oss-cve-libfuzzer/<target>/corpus (no wipe)")
 	buildOnly := flag.Bool("build-only", false, "compile/reuse libFuzzer binary and exit")
+	mergeOnly := flag.Bool("merge-only", false, "libFuzzer -merge=1 dedupe/minimize persistent corpus, then import")
 	repo := flag.String("repo", "", "repo root (default: HACKME_REPO_ROOT or cwd)")
 	flag.Parse()
 
@@ -45,6 +46,29 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println(bin)
+		return
+	}
+
+	if *mergeOnly {
+		before, after, err := hunt.MergeMinimizePersistentCorpus(ctx, repoRoot, targetID)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		// Point scratch import dir at persistent corpus for ImportLibFuzzerCorpusFromSession.
+		persistDir := hunt.PersistentLibFuzzerCorpusDir(repoRoot, targetID)
+		scratch := hunt.LibFuzzerImportCorpusDir(repoRoot, targetID)
+		_ = os.RemoveAll(scratch)
+		_ = os.MkdirAll(filepath.Dir(scratch), 0o755)
+		_ = os.Symlink(persistDir, scratch)
+		n, ierr := hunt.ImportLibFuzzerCorpusFromSession(repoRoot, targetID)
+		if ierr != nil {
+			fmt.Fprintf(os.Stderr, "merge ok before=%d after=%d; import: %v\n", before, after, ierr)
+			fmt.Println(after)
+			return
+		}
+		fmt.Fprintf(os.Stderr, "merge before=%d after=%d imported=%d\n", before, after, n)
+		fmt.Println(n)
 		return
 	}
 

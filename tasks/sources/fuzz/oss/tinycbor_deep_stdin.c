@@ -4,10 +4,13 @@
 #include <stdint.h>
 #include "cbor.h"
 
-/* Deep v1: parse + validate + re-encode selected scalars/containers. */
+/* Deep v1: parse + validate + re-encode. Stack buffers + zeroing isolate runs. */
 int main(void) {
-	static uint8_t buf[65537];
-	static uint8_t out[65537];
+	uint8_t buf[65537];
+	uint8_t out[65537];
+	memset(buf, 0, sizeof(buf));
+	memset(out, 0, sizeof(out));
+
 	size_t n = fread(buf, 1, 65536, stdin);
 	if (n == 0) {
 		return 0;
@@ -15,12 +18,16 @@ int main(void) {
 
 	CborParser parser;
 	CborValue it;
+	memset(&parser, 0, sizeof(parser));
+	memset(&it, 0, sizeof(it));
 	if (cbor_parser_init(buf, n, 0, &parser, &it) != CborNoError) {
+		memset(buf, 0, sizeof(buf));
 		return 0;
 	}
 	(void)cbor_value_validate_basic(&it);
 
 	CborEncoder encoder;
+	memset(&encoder, 0, sizeof(encoder));
 	cbor_encoder_init(&encoder, out, sizeof(out), 0);
 
 	for (unsigned steps = 0; steps < 4096 && !cbor_value_at_end(&it); steps++) {
@@ -36,9 +43,7 @@ int main(void) {
 		case CborByteStringType:
 		case CborTextStringType: {
 			size_t len = 0;
-			if (cbor_value_calculate_string_length(&it, &len) == CborNoError && len < sizeof(out)) {
-				/* length probe only — avoid large allocs in harness */
-			}
+			(void)cbor_value_calculate_string_length(&it, &len);
 			break;
 		}
 		case CborArrayType:
@@ -52,5 +57,7 @@ int main(void) {
 			break;
 		}
 	}
+	memset(buf, 0, sizeof(buf));
+	memset(out, 0, sizeof(out));
 	return 0;
 }

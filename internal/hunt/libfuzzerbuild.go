@@ -181,6 +181,18 @@ func runLibFuzzerSession(ctx context.Context, repoRoot, targetID string, wallSec
 	_ = os.WriteFile(filepath.Join(filepath.Dir(corpusDir), "session.stderr"), []byte(sessionLog), 0o644)
 
 	after, _ := countCorpusFiles(corpusDir)
+	// Aggressive dedupe/minimize before L2 import — prevents overnight corpus bloat.
+	if after > 8 {
+		mergeCtx, mergeCancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		mb, ma, merr := MergeMinimizeCorpus(mergeCtx, binPath, corpusDir)
+		mergeCancel()
+		if merr == nil {
+			after = ma
+			sessionLog += fmt.Sprintf("\n[merge] before=%d after=%d\n", mb, ma)
+		} else {
+			sessionLog += fmt.Sprintf("\n[merge] err=%v before=%d after=%d\n", merr, mb, ma)
+		}
+	}
 	statsPath := filepath.Join(filepath.Dir(corpusDir), "session_stats.json")
 	_ = writeLibFuzzerSessionStats(statsPath, targetID, wallSec, before, after, sessionLog)
 

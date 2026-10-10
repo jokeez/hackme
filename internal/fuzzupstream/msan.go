@@ -45,7 +45,7 @@ func RunMSANCorpusSession(ctx context.Context, repoRoot string, t Target, outDir
 	}
 
 	start := time.Now()
-	bin, _, err := BuildTargetMSAN(ctx, repoRoot, t)
+	bin, clonePath, err := BuildTargetMSAN(ctx, repoRoot, t)
 	if err != nil {
 		return nil, err
 	}
@@ -81,11 +81,14 @@ func RunMSANCorpusSession(ctx context.Context, repoRoot string, t Target, outDir
 		HarnessVariant: t.HarnessVariant,
 		BinaryPath:     bin,
 		Verdict:        "CLEAN",
-		Note:           "MSAN hits require triage; do not auto-claim CVE",
+		Note: "MSAN hits require triage; do not auto-claim CVE. " +
+			"System libc/libstdc++ without MSAN instrumentation often yields false positives — " +
+			"lane is C-only, hits without frames in the clone/driver are marked MSAN_FP_SUSPECT.",
 	}
 	crashDir := filepath.Join(outDir, "hits")
 	_ = os.MkdirAll(crashDir, 0o755)
 	const maxMSANHits = 32
+	fpSuspect := 0
 
 	for i, seed := range seeds {
 		if runCtx.Err() != nil {
@@ -103,11 +106,15 @@ func RunMSANCorpusSession(ctx context.Context, repoRoot string, t Target, outDir
 			info = ClassifySanitizer(tail)
 		}
 		if info.Class != "msan" && !strings.Contains(strings.ToLower(tail), "memorysanitizer") {
-			// Non-MSAN crashes under MSAN build still go to triage bucket.
 			if info.Class == "" {
 				info.Class = "msan"
 				info.Subtype = "signal"
 			}
+		}
+		disclosure := "MSAN_TRIAGE"
+		if msanLikelyFalsePositive(tail, clonePath, t.Driver) {
+			disclosure = "MSAN_FP_SUSPECT"
+			fpSuspect++
 		}
 		cf := CrashFinding{
 			TargetID:         t.ID,
@@ -122,22 +129,60 @@ func RunMSANCorpusSession(ctx context.Context, repoRoot string, t Target, outDir
 			Tail:             truncateTail(tail, 2000),
 			Iteration:        i,
 			CWE:              t.CWE,
-			Disclosure:       "MSAN_TRIAGE",
+			Disclosure:       disclosure,
 		}
 		p, _ := SaveCrashArtifact(crashDir, cf)
 		cf.ArtifactPath = p
 		rep.Hits = append(rep.Hits, cf)
-		// Wire interesting inputs into durable research corpus / L2 seeds.
-		_ = persistResearchSeed(repoRoot, t.ID, seed, "msan")
+		if disclosure == "MSAN_TRIAGE" {
+			_ = persistResearchSeed(repoRoot, t.ID, seed, "msan")
+		}
 	}
 
 	if len(rep.Hits) > 0 {
 		rep.Verdict = "MSAN_TRIAGE"
+		if fpSuspect == len(rep.Hits) {
+			rep.Verdict = "MSAN_FP_SUSPECT"
+			rep.Note += fmt.Sprintf(" All %d hits look like uninstrumented-dep FPs.", fpSuspect)
+		} else if fpSuspect > 0 {
+			rep.Note += fmt.Sprintf(" %d/%d hits marked MSAN_FP_SUSPECT.", fpSuspect, len(rep.Hits))
+		}
 	}
 	rep.ElapsedSec = time.Since(start).Seconds()
 	b, _ := json.MarshalIndent(rep, "", "  ")
 	_ = os.WriteFile(filepath.Join(outDir, "MSAN_REPORT.json"), append(b, '\n'), 0o644)
 	return rep, nil
+}
+
+// msanLikelyFalsePositive is true when the stack has no frames in our clone/driver
+// (typical when linking uninstrumented system libc / helpers).
+func msanLikelyFalsePositive(tail, clonePath, driver string) bool {
+	low := strings.ToLower(tail)
+	if !strings.Contains(low, "memorysanitizer") && !strings.Contains(low, "use-of-uninitialized") {
+		return false
+	}
+	if clonePath != "" {
+		base := filepath.Base(clonePath)
+		if base != "" && strings.Contains(tail, base) {
+			return false
+		}
+		// Match absolute clone path fragments.
+		if strings.Contains(tail, clonePath) {
+			return false
+		}
+	}
+	if driver != "" && strings.Contains(low, strings.ToLower(driver)) {
+		return false
+	}
+	if strings.Contains(low, "tasks/sources/fuzz") || strings.Contains(low, "_stdin.c") {
+		return false
+	}
+	// Interceptor / libc-only stacks without our code → suspect FP.
+	if strings.Contains(low, "__interceptor") || strings.Contains(low, "libc.so") ||
+		strings.Contains(low, "libmsan") {
+		return true
+	}
+	return false
 }
 
 func truncateTail(s string, n int) string {

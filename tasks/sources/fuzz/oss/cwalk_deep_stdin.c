@@ -3,19 +3,23 @@
 #include <string.h>
 #include "cwalk.h"
 
-/* Deep v1: normalize / join / get_absolute sequences from split input. */
+/* Deep v1: join/normalize sequences. Stack buffers zeroed each process run. */
 int main(void) {
-	static char buf[65537];
-	static char a[32768];
-	static char b[32768];
-	static char out[65537];
+	char buf[65537];
+	char a[32768];
+	char b[32768];
+	char out[65537];
+	memset(buf, 0, sizeof(buf));
+	memset(a, 0, sizeof(a));
+	memset(b, 0, sizeof(b));
+	memset(out, 0, sizeof(out));
+
 	size_t n = fread(buf, 1, 65536, stdin);
 	if (n == 0) {
 		return 0;
 	}
 	buf[n] = '\0';
 
-	/* Split on first NUL or 0x1f unit separator into two path halves. */
 	size_t split = n;
 	for (size_t i = 0; i < n; i++) {
 		if (buf[i] == '\0' || (unsigned char)buf[i] == 0x1f) {
@@ -41,5 +45,10 @@ int main(void) {
 		(void)cwk_path_normalize(out, out, sizeof(out));
 		(void)cwk_path_get_absolute(a, b, out, sizeof(out));
 	}
+
+	memset(buf, 0, sizeof(buf));
+	memset(a, 0, sizeof(a));
+	memset(b, 0, sizeof(b));
+	memset(out, 0, sizeof(out));
 	return 0;
 }
