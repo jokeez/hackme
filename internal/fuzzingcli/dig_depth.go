@@ -99,6 +99,12 @@ func FinalizeDigCampaignConfig(cfg map[string]any, pkgName, packID, repoRoot str
 		if n, err := MergeDigSeedCorpus(cfg, repoRoot, packID); err == nil && n > 0 {
 			cfg["dig_external_seeds_merged"] = n
 		}
+		// Research → Dig handoff stays opt-in (HACKME_POOL_SEED_FROM_RESEARCH=1).
+		if researchTID := strings.TrimSpace(cfgString(cfg, "oss_research_target_id")); researchTID != "" {
+			if n, err := MaybeFeedResearchSeedsToDig(repoRoot, packID, researchTID); err == nil && n > 0 {
+				cfg["dig_research_seeds_fed"] = n
+			}
+		}
 	}
 	if fuzzengine.CorpusPersistEnabled(cfg) {
 		if _, ok := cfg["corpus_persist_max"]; !ok {

@@ -193,8 +193,14 @@ reports/oss-cve/obscure-loop-*/
 reports/oss-cve-libfuzzer/*/corpus/
 reports/oss-cve-libfuzzer/*/session.stderr
 reports/oss-cve/**/corpus/
+reports/oss-cve-msan/**
+!reports/oss-cve-msan/**/MSAN_REPORT.json
+!reports/oss-cve-msan/**/SKIP.txt
+reports/oss-cve-afl/**
+!reports/oss-cve-afl/SKIP.txt
 !reports/oss-cve-libfuzzer/**/session_stats.json
 !reports/oss-cve-libfuzzer/**/README*
+.cache/hunt-afl/
 **/01_EMAIL.txt
 **/02_GITHUB_ISSUE.md
 **/03_PUBLIC_AFTER_FIX.md

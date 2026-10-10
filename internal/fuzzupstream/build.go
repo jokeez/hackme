@@ -33,6 +33,19 @@ func BuildTarget(ctx context.Context, repoRoot string, t Target) (binPath, clone
 }
 
 func buildTargetC(ctx context.Context, repoRoot string, t Target) (binPath, clonePath string, err error) {
+	return buildTargetCSanitize(ctx, repoRoot, t, "address,undefined", "")
+}
+
+// BuildTargetMSAN clones upstream and compiles a MemorySanitizer stdin driver.
+// MSAN hits are triage-only — not CVE claims without confirmation.
+func BuildTargetMSAN(ctx context.Context, repoRoot string, t Target) (binPath, clonePath string, err error) {
+	if TargetLanguage(t) == "rust" {
+		return "", "", fmt.Errorf("fuzzupstream: MSAN lane is C/C++ only")
+	}
+	return buildTargetCSanitize(ctx, repoRoot, t, "memory", "msan")
+}
+
+func buildTargetCSanitize(ctx context.Context, repoRoot string, t Target, sanitize, suffix string) (binPath, clonePath string, err error) {
 	if _, err := exec.LookPath("clang"); err != nil {
 		return "", "", fmt.Errorf("fuzzupstream: clang required")
 	}
@@ -55,9 +68,13 @@ func buildTargetC(ctx context.Context, repoRoot string, t Target) (binPath, clon
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return "", "", err
 	}
-	sumInput := t.ID + t.Repo + t.Ref + t.Driver + strings.Join(t.UpstreamSrc, ",") + strings.Join(t.BuildFlags, ",")
+	sumInput := t.ID + t.Repo + t.Ref + t.Driver + sanitize + strings.Join(t.UpstreamSrc, ",") + strings.Join(t.BuildFlags, ",")
 	sum := sha256.Sum256([]byte(sumInput))
-	binPath = filepath.Join(outDir, t.ID+"-"+hex.EncodeToString(sum[:6])+".bin")
+	name := t.ID + "-" + hex.EncodeToString(sum[:6])
+	if suffix != "" {
+		name += "-" + suffix
+	}
+	binPath = filepath.Join(outDir, name+".bin")
 
 	buildMu.Lock()
 	defer buildMu.Unlock()
@@ -74,7 +91,7 @@ func buildTargetC(ctx context.Context, repoRoot string, t Target) (binPath, clon
 
 	driverDir := filepath.Dir(driverSrc)
 	args := []string{
-		"-fsanitize=address,undefined",
+		"-fsanitize=" + sanitize,
 		"-fno-omit-frame-pointer",
 		"-g", "-O1",
 		"-I", driverDir,

@@ -1,69 +1,104 @@
 #!/usr/bin/env bash
-# Local AFL++ soak → Hunt L2 seed cache (.cache/hunt-lf-seeds/{target}).
-# Internal calibration lane — not a pool SKU.
+# AFL++ (preferred) or honggfuzz persistent session → research corpus + Hunt L2 seeds.
+# Stdin ASAN drivers (Hunt) are fed via stdin (no @@). Missing tools → skip-with-reason (exit 0).
 #
-#   TARGET=cjson WALL_SEC=300 bash scripts/ops/run_oss_afl_session.sh
-#   TARGET=libucl WALL_SEC=600 HARNESS=/path/to/asan_harness bash scripts/ops/run_oss_afl_session.sh
-#
-# Requires: afl-fuzz (afl++), clang (to build harness if HARNESS unset).
-# Seeds land in the same cache as libFuzzer imports for RankLibFuzzerSeeds merge.
+#   TARGET=mpack WALL_SEC=120 bash scripts/ops/run_oss_afl_session.sh
+#   TARGETS=mpack,cwalk WALL_SEC=60 bash scripts/ops/run_oss_afl_session.sh
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 export HACKME_REPO_ROOT="$ROOT"
+export HACKME_POOL_SEED_FROM_RESEARCH="${HACKME_POOL_SEED_FROM_RESEARCH:-0}"
+export HACKME_OSS_HARNESS_VARIANT="${HACKME_OSS_HARNESS_VARIANT:-deep_v1}"
 
-TARGET="${TARGET:-cjson}"
-WALL_SEC="${WALL_SEC:-300}"
-OUT="${OUT:-$ROOT/.cache/hunt-afl/$TARGET}"
-SEED_CACHE="${SEED_CACHE:-$ROOT/.cache/hunt-lf-seeds/$TARGET}"
-HARNESS="${HARNESS:-}"
+TARGETS="${TARGETS:-${TARGET:-mpack}}"
+WALL_SEC="${WALL_SEC:-120}"
 
-log() { echo "[hunt-afl $(date -u +%H:%M:%S)] $*" >&2; }
+log() { echo "[oss-afl $(date -u +%H:%M:%S)] $*"; }
 
-command -v afl-fuzz >/dev/null 2>&1 || {
-  echo "[hunt-afl] need afl-fuzz (afl++)" >&2
-  exit 2
-}
-
-mkdir -p "$OUT/in" "$OUT/out" "$SEED_CACHE"
-if [[ -z "$(ls -A "$OUT/in" 2>/dev/null || true)" ]]; then
-  printf '{"a":1}\n' >"$OUT/in/seed1.json"
-  printf '[]\n' >"$OUT/in/seed2.json"
-  printf 'x\n' >"$OUT/in/seed3.bin"
+ENGINE=""
+if command -v afl-fuzz >/dev/null 2>&1; then
+  ENGINE=afl
+elif command -v honggfuzz >/dev/null 2>&1; then
+  ENGINE=honggfuzz
+else
+  REASON="afl-fuzz (AFL++) and honggfuzz not installed"
+  log "SKIP: $REASON"
+  mkdir -p "$ROOT/reports/oss-cve-afl"
+  echo "$REASON" >"$ROOT/reports/oss-cve-afl/SKIP.txt"
+  exit 0
 fi
+log "engine=$ENGINE"
 
-if [[ -z "$HARNESS" ]]; then
-  log "ensure upstream clone TARGET=$TARGET"
-  TARGETS="$TARGET" bash "$ROOT/scripts/ops/build_oss_cve_pack.sh" >/dev/null
-  # Prefer an already-built Hunt ASAN harness if present in cache.
-  HARNESS="$(find "$ROOT/.cache/hunt-harness" -type f -name '*.bin' 2>/dev/null | head -1 || true)"
-  if [[ -z "$HARNESS" || ! -x "$HARNESS" ]]; then
-    echo "[hunt-afl] set HARNESS=/path/to/asan_stdin_harness (built Hunt harness)" >&2
-    exit 2
-  fi
-fi
-[[ -x "$HARNESS" ]] || {
-  echo "[hunt-afl] HARNESS not executable: $HARNESS" >&2
-  exit 2
-}
-
-log "afl-fuzz TARGET=$TARGET wall=${WALL_SEC}s harness=$HARNESS"
-export AFL_SKIP_CPUFREQ="${AFL_SKIP_CPUFREQ:-1}"
-export AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES="${AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES:-1}"
-export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=0:abort_on_error=1:allocator_may_return_null=1}"
-timeout --signal=INT "${WALL_SEC}s" afl-fuzz -i "$OUT/in" -o "$OUT/out" -V "$WALL_SEC" -- "$HARNESS" @@ \
-  >"$OUT/afl.log" 2>&1 || true
-
-# Prefer queue / crashes as L2 seeds (same dir as LF import).
-copied=0
-for d in "$OUT/out/default/queue" "$OUT/out/queue" "$OUT/out/default/crashes" "$OUT/out/crashes"; do
-  [[ -d "$d" ]] || continue
+import_crashes() {
+  local TID="$1" SRC="$2"
+  local SEED_CACHE="$ROOT/.cache/hunt-lf-seeds/$TID"
+  local PERSIST="$ROOT/reports/oss-cve-libfuzzer/$TID/corpus"
+  mkdir -p "$SEED_CACHE" "$PERSIST"
+  local copied=0
+  [[ -d "$SRC" ]] || { echo 0; return 0; }
   while IFS= read -r -d '' f; do
     base="$(basename "$f")"
     [[ "$base" == README.txt ]] && continue
-    cp -n "$f" "$SEED_CACHE/afl-${base}" 2>/dev/null || cp "$f" "$SEED_CACHE/afl-${base}.$$"
+    [[ -f "$f" ]] || continue
+    # Skip empty / huge
+    sz=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f" 2>/dev/null || echo 0)
+    (( sz > 0 && sz < 1048576 )) || continue
+    cp -n "$f" "$SEED_CACHE/afl-${base}" 2>/dev/null || cp "$f" "$SEED_CACHE/afl-${base}.$$" 2>/dev/null || true
+    cp -n "$f" "$PERSIST/afl-${base}" 2>/dev/null || cp "$f" "$PERSIST/afl-${base}.$$" 2>/dev/null || true
     copied=$((copied + 1))
-  done < <(find "$d" -type f -print0 2>/dev/null)
+  done < <(find "$SRC" -type f -print0 2>/dev/null)
+  echo "$copied"
+}
+
+IFS=',' read -r -a IDS <<< "$TARGETS"
+for TID in "${IDS[@]}"; do
+  TID="$(echo "$TID" | tr -d '[:space:]')"
+  [[ -z "$TID" ]] && continue
+  OUT="$ROOT/.cache/hunt-afl/$TID"
+  mkdir -p "$OUT/in" "$OUT/out"
+  if [[ -z "$(ls -A "$OUT/in" 2>/dev/null || true)" ]]; then
+    # Seed from persistent LF corpus when present.
+    if [[ -d "$ROOT/reports/oss-cve-libfuzzer/$TID/corpus" ]]; then
+      find "$ROOT/reports/oss-cve-libfuzzer/$TID/corpus" -type f ! -name '.*' 2>/dev/null | head -32 | while read -r f; do
+        cp -n "$f" "$OUT/in/" 2>/dev/null || true
+      done
+    fi
+  fi
+  if [[ -z "$(ls -A "$OUT/in" 2>/dev/null || true)" ]]; then
+    printf '{"a":1}\n' >"$OUT/in/seed1.json"
+    printf '[]\n' >"$OUT/in/seed2.json"
+    printf '\x80' >"$OUT/in/seed3.bin"
+  fi
+
+  log "ensure ASAN stdin harness TARGET=$TID"
+  TARGETS="$TID" bash "$ROOT/scripts/ops/build_oss_cve_pack.sh" >/dev/null || true
+  HARNESS="$(ls -1t "$ROOT/.cache/oss-cve-bin/${TID}-"*.bin 2>/dev/null | grep -v msan | head -1 || true)"
+  if [[ -z "$HARNESS" || ! -x "$HARNESS" ]]; then
+    log "SKIP TARGET=$TID: no ASAN stdin harness in .cache/oss-cve-bin"
+    continue
+  fi
+
+  log "run TARGET=$TID wall=${WALL_SEC}s harness=$HARNESS"
+  if [[ "$ENGINE" == "afl" ]]; then
+    export AFL_SKIP_CPUFREQ="${AFL_SKIP_CPUFREQ:-1}"
+    export AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES="${AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES:-1}"
+    export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=0:abort_on_error=1:allocator_may_return_null=1}"
+    # Stdin mode (no @@) — Hunt drivers read stdin.
+    timeout --signal=INT "${WALL_SEC}s" afl-fuzz -i "$OUT/in" -o "$OUT/out" -V "$WALL_SEC" -- "$HARNESS" \
+      >"$OUT/afl.log" 2>&1 || true
+    for d in "$OUT/out/default/queue" "$OUT/out/queue" "$OUT/out/default/crashes" "$OUT/out/crashes"; do
+      n=$(import_crashes "$TID" "$d")
+      [[ "${n:-0}" != "0" ]] && log "imported $n from $d"
+    done
+  else
+    # honggfuzz stdin fuzzing
+    timeout --signal=INT "${WALL_SEC}s" honggfuzz -f "$OUT/in" -w "$OUT/out" -t 3 -- "$HARNESS" \
+      >"$OUT/hfuzz.log" 2>&1 || true
+    n=$(import_crashes "$TID" "$OUT/out")
+    log "imported $n honggfuzz artifacts"
+  fi
 done
-log "copied $copied AFL artifacts → $SEED_CACHE"
-echo "$copied"
+
+log "done engine=$ENGINE"
+exit 0

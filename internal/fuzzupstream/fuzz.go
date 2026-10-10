@@ -94,6 +94,7 @@ func harnessExecEnv(opts RunInputOpts) []string {
 	return []string{
 		"PATH=/usr/bin:/bin",
 		"ASAN_OPTIONS=" + asanOptions(opts.DetectLeaks),
+		"MSAN_OPTIONS=halt_on_error=1:print_stats=0",
 		"UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1",
 		"HOME=/tmp",
 	}

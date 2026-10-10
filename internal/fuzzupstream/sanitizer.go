@@ -14,7 +14,7 @@ type RunInputOpts struct {
 
 // SanitizerInfo is a classified sanitizer signal from harness stderr.
 type SanitizerInfo struct {
-	Class    string `json:"sanitizer_class"`   // asan, ubsan, lsan
+	Class    string `json:"sanitizer_class"`   // asan, ubsan, lsan, msan
 	Subtype  string `json:"sanitizer_subtype"` // heap-buffer-overflow, shift-overflow, ...
 	Raw      string `json:"sanitizer_raw,omitempty"`
 	Label    string `json:"sanitizer_label,omitempty"`
@@ -78,6 +78,8 @@ func sanitizerClassDisplay(class string) string {
 		return "UBSan"
 	case "lsan":
 		return "LSan"
+	case "msan":
+		return "MSAN"
 	default:
 		return strings.ToUpper(class)
 	}
@@ -196,6 +198,15 @@ func ClassifySanitizerOutput(blob string) (info SanitizerInfo, ok bool) {
 			sub = "indirect-leak"
 		}
 		return SanitizerInfo{Class: "lsan", Subtype: sub, Raw: "SUMMARY: LeakSanitizer", Security: false}, true
+	}
+
+	// MemorySanitizer — triage only (uninitialized use); do not auto-claim CVE.
+	if strings.Contains(low, "memorysanitizer") || strings.Contains(low, "use-of-uninitialized-value") {
+		sub := "uninitialized-value"
+		if strings.Contains(low, "use-of-uninitialized-value") {
+			sub = "use-of-uninitialized-value"
+		}
+		return SanitizerInfo{Class: "msan", Subtype: sub, Raw: "MemorySanitizer", Security: false}, true
 	}
 
 	// UBSan / runtime UB (informational).
