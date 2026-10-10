@@ -102,7 +102,9 @@ func HarnessObjectPath(dir, hash string) (string, error) {
 	return SafeJoinUnder(dir, prefix, hash)
 }
 
-// WriteHarnessObject atomically writes harness bytes to the object store.
+// WriteHarnessObject writes harness bytes to the object store.
+// Report #32: never rename-overwrite an existing object — O_EXCL create, and if the
+// path already exists require byte-identical content (concurrent publish race).
 func WriteHarnessObject(dir, hash string, data []byte) (string, error) {
 	path, err := HarnessObjectPath(dir, hash)
 	if err != nil {
@@ -111,16 +113,37 @@ func WriteHarnessObject(dir, hash string, data []byte) (string, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return "", err
 	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+	if HarnessObjectExists(dir, hash) {
+		existing, err := ReadHarnessObject(dir, hash)
+		if err != nil {
+			return "", err
+		}
+		if !bytesEqual(existing, data) {
+			return "", fmt.Errorf("hunt objectstore: harness_hash %s already bound to different binary", hash)
+		}
+		return path, nil
+	}
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		if os.IsExist(err) {
+			existing, rerr := ReadHarnessObject(dir, hash)
+			if rerr != nil {
+				return "", rerr
+			}
+			if !bytesEqual(existing, data) {
+				return "", fmt.Errorf("hunt objectstore: harness_hash %s already bound to different binary", hash)
+			}
+			return path, nil
+		}
 		return "", err
 	}
-	if err := os.Chmod(tmp, 0o600); err != nil {
-		_ = os.Remove(tmp)
+	if _, err := f.Write(data); err != nil {
+		_ = f.Close()
+		_ = os.Remove(path)
 		return "", err
 	}
-	if err := os.Rename(tmp, path); err != nil {
-		_ = os.Remove(tmp)
+	if err := f.Close(); err != nil {
+		_ = os.Remove(path)
 		return "", err
 	}
 	return path, nil

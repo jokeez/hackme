@@ -898,9 +898,14 @@ func (s *Service) claimOnePendingInCampaign(ctx context.Context, workerID, campa
 		return out, false, nil
 	}
 	// Hunt: never lease shards when the ASAN harness is missing — workers would only spin leases.
+	// Report #34: also require a bindable content attestation (config must not disagree with
+	// published bytes) before leasing, so a poisoned campaign cannot error-starve the fleet.
 	if IsHuntCampaign(cfg) {
 		hash := strings.TrimSpace(jsonString(cfg["harness_hash"]))
 		if hash == "" || hunt.HarnessArtifactReady(ctx, s.DB, hash) != nil {
+			return out, false, nil
+		}
+		if !hunt.ValidContentSHA256(huntHarnessContentSHA256(ctx, s, hash, cfg)) {
 			return out, false, nil
 		}
 	}

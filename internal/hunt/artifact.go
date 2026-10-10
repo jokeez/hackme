@@ -30,6 +30,8 @@ func ValidHarnessHash(hash string) bool {
 // PutHarnessArtifact stores a published Hunt harness binary keyed by hash.
 // When HarnessObjectDir is set, bytes go to disk and SQLite keeps metadata only
 // (empty binary_blob + content_sha256) — issue #8 Phase 1.
+// Report #32: BEGIN IMMEDIATE + no ON CONFLICT overwrite — concurrent publishes
+// with different binaries for the same harness_hash cannot race-replace content.
 func PutHarnessArtifact(ctx context.Context, db *sql.DB, hash string, data []byte, sourceRel string) error {
 	if db == nil {
 		return fmt.Errorf("hunt artifact: no database")
@@ -46,73 +48,102 @@ func PutHarnessArtifact(ctx context.Context, db *sql.DB, hash string, data []byt
 	}
 	fp := contentSHA256Hex(data)
 	now := time.Now().Unix()
+	sourceRel = strings.TrimSpace(sourceRel)
 
-	// Overwrite guard: existing disk object or blob/fingerprint must match.
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	if _, err := conn.ExecContext(ctx, `BEGIN IMMEDIATE`); err != nil {
+		return err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_, _ = conn.ExecContext(ctx, `ROLLBACK`)
+		}
+	}()
+
+	bindErr := fmt.Errorf("hunt artifact: harness_hash %s already bound to different binary", hash)
+
 	if dir := HarnessObjectDir(); dir != "" && HarnessObjectExists(dir, hash) {
-		existing, err := ReadHarnessObject(dir, hash)
-		if err != nil {
-			return err
+		existing, rerr := ReadHarnessObject(dir, hash)
+		if rerr != nil {
+			return rerr
 		}
 		if !bytesEqual(existing, data) {
-			return fmt.Errorf("hunt artifact: harness_hash %s already bound to different binary", hash)
+			return bindErr
 		}
-		_, err = db.ExecContext(ctx,
-			`INSERT INTO hunt_harness_artifacts (harness_hash, binary_blob, byte_size, source_rel, created_at, content_sha256)
-			 VALUES (?, X'', ?, ?, ?, ?)
-			 ON CONFLICT(harness_hash) DO UPDATE SET
-			   byte_size=excluded.byte_size,
-			   source_rel=CASE WHEN excluded.source_rel != '' THEN excluded.source_rel ELSE hunt_harness_artifacts.source_rel END,
-			   content_sha256=excluded.content_sha256`,
-			hash, len(data), strings.TrimSpace(sourceRel), now, fp)
-		return err
 	}
 
 	var existingBlob []byte
 	var existingFP string
-	err := db.QueryRowContext(ctx,
+	err = conn.QueryRowContext(ctx,
 		`SELECT binary_blob, COALESCE(content_sha256,'') FROM hunt_harness_artifacts WHERE harness_hash=?`, hash).
 		Scan(&existingBlob, &existingFP)
-	if err == nil {
+	switch {
+	case err == nil:
+		existingFP = strings.TrimSpace(strings.ToLower(existingFP))
 		if existingFP != "" && existingFP != fp {
-			return fmt.Errorf("hunt artifact: harness_hash %s already bound to different binary", hash)
+			return bindErr
 		}
 		if len(existingBlob) > 0 && !bytesEqual(existingBlob, data) {
-			return fmt.Errorf("hunt artifact: harness_hash %s already bound to different binary", hash)
+			return bindErr
 		}
-		if existingFP == fp || bytesEqual(existingBlob, data) {
-			// Ensure disk copy exists when object store is enabled.
-			if dir := HarnessObjectDir(); dir != "" {
-				if _, werr := WriteHarnessObject(dir, hash, data); werr != nil {
-					return werr
-				}
-				_, _ = db.ExecContext(ctx,
-					`UPDATE hunt_harness_artifacts SET binary_blob=X'', content_sha256=?, byte_size=? WHERE harness_hash=?`,
-					fp, len(data), hash)
+		if dir := HarnessObjectDir(); dir != "" {
+			if _, werr := WriteHarnessObject(dir, hash, data); werr != nil {
+				return werr
 			}
-			return nil
+			_, err = conn.ExecContext(ctx,
+				`UPDATE hunt_harness_artifacts SET binary_blob=X'', content_sha256=?, byte_size=?,
+				 source_rel=CASE WHEN ?!='' THEN ? ELSE source_rel END WHERE harness_hash=?`,
+				fp, len(data), sourceRel, sourceRel, hash)
+		} else if existingFP == "" {
+			_, err = conn.ExecContext(ctx,
+				`UPDATE hunt_harness_artifacts SET content_sha256=?, byte_size=?,
+				 source_rel=CASE WHEN ?!='' THEN ? ELSE source_rel END WHERE harness_hash=?`,
+				fp, len(data), sourceRel, sourceRel, hash)
 		}
-	} else if err != sql.ErrNoRows {
+		if err != nil {
+			return err
+		}
+	case err == sql.ErrNoRows:
+		storeBlob := data
+		if dir := HarnessObjectDir(); dir != "" {
+			if _, werr := WriteHarnessObject(dir, hash, data); werr != nil {
+				return werr
+			}
+			storeBlob = []byte{}
+		}
+		_, err = conn.ExecContext(ctx,
+			`INSERT INTO hunt_harness_artifacts (harness_hash, binary_blob, byte_size, source_rel, created_at, content_sha256)
+			 VALUES (?, ?, ?, ?, ?, ?)`,
+			hash, storeBlob, len(data), sourceRel, now, fp)
+		if err != nil {
+			// UNIQUE race under a different connection: verify winner matches.
+			var racedBlob []byte
+			var racedFP string
+			if qerr := conn.QueryRowContext(ctx,
+				`SELECT binary_blob, COALESCE(content_sha256,'') FROM hunt_harness_artifacts WHERE harness_hash=?`, hash).
+				Scan(&racedBlob, &racedFP); qerr == nil {
+				racedFP = strings.TrimSpace(strings.ToLower(racedFP))
+				if (racedFP != "" && racedFP == fp) || bytesEqual(racedBlob, data) {
+					break
+				}
+				return bindErr
+			}
+			return err
+		}
+	default:
 		return err
 	}
 
-	storeBlob := data
-	if dir := HarnessObjectDir(); dir != "" {
-		if _, err := WriteHarnessObject(dir, hash, data); err != nil {
-			return err
-		}
-		storeBlob = []byte{} // empty blob in SQLite (NOT NULL)
+	if _, err := conn.ExecContext(ctx, `COMMIT`); err != nil {
+		return err
 	}
-	_, err = db.ExecContext(ctx,
-		`INSERT INTO hunt_harness_artifacts (harness_hash, binary_blob, byte_size, source_rel, created_at, content_sha256)
-		 VALUES (?, ?, ?, ?, ?, ?)
-		 ON CONFLICT(harness_hash) DO UPDATE SET
-		   binary_blob=excluded.binary_blob,
-		   byte_size=excluded.byte_size,
-		   source_rel=CASE WHEN excluded.source_rel != '' THEN excluded.source_rel ELSE hunt_harness_artifacts.source_rel END,
-		   content_sha256=excluded.content_sha256,
-		   created_at=excluded.created_at`,
-		hash, storeBlob, len(data), strings.TrimSpace(sourceRel), now, fp)
-	return err
+	committed = true
+	return nil
 }
 
 // GetHarnessArtifact loads a published harness binary (disk first, then SQLite BLOB).

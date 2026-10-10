@@ -3,6 +3,7 @@ package poolfuzz
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -14,6 +15,10 @@ import (
 	"hackme/internal/fuzzengine"
 	"hackme/internal/hunt"
 )
+
+// errHuntReplayLostOwnership means stale reclaim reassigned this queue row while ASAN
+// was still running — abandon quietly; the peer verifier owns finalize.
+var errHuntReplayLostOwnership = errors.New("poolfuzz: hunt replay lost ownership")
 
 const (
 	huntReplayStatusPending    = "pending"
@@ -261,8 +266,14 @@ func (s *Service) enqueueHuntReplay(ctx context.Context, req SubmitRequest, inpu
 			if qWorker != "" && qWorker != strings.TrimSpace(req.WorkerID) {
 				return SubmitOutcome{}, fmt.Errorf("poolfuzz: hunt replay already claimed by another worker")
 			}
-			if qMiner != "" && miner != "" && qMiner != miner {
-				return SubmitOutcome{}, fmt.Errorf("poolfuzz: hunt replay miner_address mismatch")
+			// Report #33: miner_address is sticky including empty→non-empty. A first
+			// unsigned/empty-miner claim must not be late-bound to an attacker's payout.
+			if qMiner != "" {
+				if miner != "" && qMiner != miner {
+					return SubmitOutcome{}, fmt.Errorf("poolfuzz: hunt replay miner_address mismatch")
+				}
+			} else if miner != "" {
+				return SubmitOutcome{}, fmt.Errorf("poolfuzz: hunt replay refuse miner_address bind after claim")
 			}
 			// Report #25/#26: pending claim is sticky. Refuse any check_result/trap change
 			// (downgrade burial AND upgrade injection). Processing rows already require equality.
@@ -309,10 +320,8 @@ func (s *Service) ensureHuntReplayQueueRowTx(ctx context.Context, tx *sql.Tx, re
 		     WHEN fuzz_hunt_replay_queue.worker_id != '' THEN fuzz_hunt_replay_queue.worker_id
 		     ELSE excluded.worker_id
 		   END,
-		   miner_address=CASE
-		     WHEN fuzz_hunt_replay_queue.miner_address != '' THEN fuzz_hunt_replay_queue.miner_address
-		     ELSE excluded.miner_address
-		   END,
+		   -- Report #33: miner sticky even when first write was empty (no late bind).
+		   miner_address=fuzz_hunt_replay_queue.miner_address,
 		   -- Report #26: claim fields are sticky after first write (same worker_id
 		   -- upgrade/downgrade must not rewrite via ON CONFLICT either).
 		   worker_check_result=fuzz_hunt_replay_queue.worker_check_result,
@@ -450,7 +459,7 @@ func (s *Service) processNextHuntReplayJob(ctx context.Context, verifierID strin
 		return false, err
 	}
 
-	procErr := s.runHuntReplayJob(ctx, job, now)
+	procErr := s.runHuntReplayJob(ctx, job, now, verifierID)
 	if procErr != nil {
 		var workSt string
 		_ = s.DB.QueryRowContext(ctx,
@@ -507,7 +516,21 @@ func (s *Service) touchHuntReplayJob(ctx context.Context, jobID int64) {
 		time.Now().Unix(), jobID, huntReplayStatusProcessing)
 }
 
-func (s *Service) runHuntReplayJob(ctx context.Context, job huntReplayJob, now int64) error {
+func (s *Service) huntReplayStillOwned(ctx context.Context, jobID int64, verifierID string) bool {
+	if s == nil || s.DB == nil || jobID <= 0 {
+		return false
+	}
+	var st, vid string
+	err := s.DB.QueryRowContext(ctx,
+		`SELECT status, COALESCE(verifier_id,'') FROM fuzz_hunt_replay_queue WHERE id=?`, jobID).
+		Scan(&st, &vid)
+	if err != nil {
+		return false
+	}
+	return st == huntReplayStatusProcessing && vid == verifierID
+}
+
+func (s *Service) runHuntReplayJob(ctx context.Context, job huntReplayJob, now int64, verifierID string) error {
 	s.touchHuntReplayJob(ctx, job.ID)
 	var campStatus, cfgJSON string
 	if err := s.DB.QueryRowContext(ctx, `SELECT status, config_json FROM fuzz_campaigns WHERE id=?`, job.CampaignID).Scan(&campStatus, &cfgJSON); err != nil {
@@ -523,6 +546,15 @@ func (s *Service) runHuntReplayJob(ctx context.Context, job huntReplayJob, now i
 	cfg := parseConfigJSON(cfgJSON)
 	if !IsHuntCampaign(cfg) {
 		return fmt.Errorf("poolfuzz: replay job not hunt campaign")
+	}
+	// Match claim-time L2 merge so mutating execs that prefer seed_byte_corpus stay
+	// byte-identical to workers that received the post-merge corpus on the claim.
+	if hunt.HuntCorpusGuided(cfg) {
+		if targetID := strings.TrimSpace(jsonString(cfg["upstream_target_id"])); targetID != "" {
+			if _, err := hunt.MergeLibFuzzerSeedCorpus(cfg, hunt.RepoRoot(), targetID); err != nil {
+				return err
+			}
+		}
 	}
 	expectedU, expectedB, err := s.expectedInputsForSubmit(ctx, job.CampaignID, job.ItemID, job.InputN, cfg)
 	if err != nil {
@@ -549,9 +581,15 @@ func (s *Service) runHuntReplayJob(ctx context.Context, job huntReplayJob, now i
 		DurationMS:      job.DurationMS,
 	}
 	s.touchHuntReplayJob(ctx, job.ID)
-	checkResult, trap, pass, recordFinding, huntFindingB, huntOrigLen, err := s.evalHuntSubmitCheck(ctx, job.CampaignID, job.InputN, cfg, req, expectedB, seeds)
+	onProgress := func(int) {
+		s.touchHuntReplayJob(ctx, job.ID)
+	}
+	checkResult, trap, pass, recordFinding, huntFindingB, huntOrigLen, err := s.evalHuntSubmitCheckProgress(ctx, job.CampaignID, job.InputN, cfg, req, expectedB, seeds, onProgress)
 	if err != nil {
 		return err
+	}
+	if !s.huntReplayStillOwned(ctx, job.ID, verifierID) {
+		return errHuntReplayLostOwnership
 	}
 	findingU := expectedU
 	findingB := expectedB

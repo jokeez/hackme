@@ -47,6 +47,10 @@ func addCorpusNamespaceRoute(mux *http.ServeMux, adminToken string, allowInsecur
 			http.Error(w, "namespace required", http.StatusBadRequest)
 			return
 		}
+		if !poolfuzz.ValidCorpusNamespace(ns) {
+			http.Error(w, "invalid namespace", http.StatusBadRequest)
+			return
+		}
 		now := time.Now().Unix()
 		seeds := make([]fuzzengine.PoolCorpusSeed, 0, len(req.Seeds))
 		for _, s := range req.Seeds {

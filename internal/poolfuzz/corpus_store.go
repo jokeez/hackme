@@ -579,10 +579,36 @@ func (s *Service) exportNamespaceCorpus(ctx context.Context, cfg map[string]any,
 	return err
 }
 
+// ValidCorpusNamespace rejects path-like / oversized namespace ids (corpus injection).
+func ValidCorpusNamespace(ns string) bool {
+	ns = strings.TrimSpace(ns)
+	if ns == "" || len(ns) > 128 {
+		return false
+	}
+	if strings.Contains(ns, "..") || strings.ContainsAny(ns, `/\`) {
+		return false
+	}
+	for i, r := range ns {
+		ok := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') ||
+			r == '.' || r == '_' || r == '-' || r == ':'
+		if !ok {
+			return false
+		}
+		if i == 0 && !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9')) {
+			return false
+		}
+	}
+	return true
+}
+
 // UpsertNamespaceCorpusSeeds merges coordinator/node namespace corpus rows.
 func (s *Service) UpsertNamespaceCorpusSeeds(ctx context.Context, namespace string, seeds []fuzzengine.PoolCorpusSeed, now int64) error {
 	if s == nil || s.DB == nil || namespace == "" {
 		return nil
+	}
+	namespace = strings.TrimSpace(namespace)
+	if !ValidCorpusNamespace(namespace) {
+		return fmt.Errorf("poolfuzz: invalid corpus namespace")
 	}
 	for _, seed := range seeds {
 		if seed.Crash {

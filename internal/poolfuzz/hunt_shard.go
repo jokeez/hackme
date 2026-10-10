@@ -60,12 +60,6 @@ func (s *Service) buildHuntClaimedWork(ctx context.Context, campaignID string, i
 	var inputU uint64
 	var corpusSeeds []fuzzengine.PoolCorpusSeed
 	var corpusSHA string
-	var seedCorpus []any
-	if raw, ok := cfg["seed_byte_corpus"]; ok && raw != nil {
-		if list, ok := raw.([]any); ok && len(list) > 0 {
-			seedCorpus = list
-		}
-	}
 	if hunt.HuntCorpusGuided(cfg) {
 		var err error
 		inputU, inputB, corpusSeeds, err = s.lockHuntGuidedWorkItem(ctx, campaignID, itemID, inputN, cfg, now)
@@ -80,6 +74,14 @@ func (s *Service) buildHuntClaimedWork(ctx context.Context, campaignID string, i
 		inputU = fuzzengine.PackInputBytesToU64(inputB)
 		if err := s.storeExpectedInputs(ctx, campaignID, itemID, inputU, inputB); err != nil {
 			return ClaimedWork{}, err
+		}
+	}
+	// Capture seed_byte_corpus after guided L2 merge so the worker cfg matches
+	// async replay (which also merges from the same on-disk L2 cache).
+	var seedCorpus []any
+	if raw, ok := cfg["seed_byte_corpus"]; ok && raw != nil {
+		if list, ok := raw.([]any); ok && len(list) > 0 {
+			seedCorpus = list
 		}
 	}
 	return ClaimedWork{
@@ -145,18 +147,26 @@ func huntHarnessFetchURL(cfg map[string]any) string {
 }
 
 func huntHarnessContentSHA256(ctx context.Context, s *Service, hash string, cfg map[string]any) string {
-	if v := strings.TrimSpace(strings.ToLower(jsonString(cfg["harness_content_sha256"]))); hunt.ValidContentSHA256(v) {
-		return v
+	// Report #34: published artifact fingerprint wins. Config attestation may only
+	// agree or fill a gap — never override DB bytes (harness_hash bind attack).
+	cfgFP := strings.TrimSpace(strings.ToLower(jsonString(cfg["harness_content_sha256"])))
+	if cfgFP != "" && !hunt.ValidContentSHA256(cfgFP) {
+		cfgFP = ""
 	}
 	hash = strings.TrimSpace(strings.ToLower(hash))
-	if hash == "" || s == nil || s.DB == nil {
+	dbFP := ""
+	if hash != "" && s != nil && s.DB != nil {
+		if fp, err := hunt.GetHarnessContentSHA256(ctx, s.DB, hash); err == nil {
+			dbFP = strings.TrimSpace(strings.ToLower(fp))
+		}
+	}
+	if dbFP != "" && cfgFP != "" && dbFP != cfgFP {
 		return ""
 	}
-	fp, err := hunt.GetHarnessContentSHA256(ctx, s.DB, hash)
-	if err != nil {
-		return ""
+	if dbFP != "" {
+		return dbFP
 	}
-	return fp
+	return cfgFP
 }
 
 func huntCrashSeverity(san string) string {
@@ -208,6 +218,10 @@ func huntReplayEnabled() bool {
 }
 
 func (s *Service) evalHuntSubmitCheck(ctx context.Context, campaignID string, inputN uint64, cfg map[string]any, req SubmitRequest, expectedB []byte, seeds []fuzzengine.PoolCorpusSeed) (checkResult int32, trap string, pass bool, recordFinding bool, findingB []byte, findingOrigLen int, err error) {
+	return s.evalHuntSubmitCheckProgress(ctx, campaignID, inputN, cfg, req, expectedB, seeds, nil)
+}
+
+func (s *Service) evalHuntSubmitCheckProgress(ctx context.Context, campaignID string, inputN uint64, cfg map[string]any, req SubmitRequest, expectedB []byte, seeds []fuzzengine.PoolCorpusSeed, onProgress func(int)) (checkResult int32, trap string, pass bool, recordFinding bool, findingB []byte, findingOrigLen int, err error) {
 	iter := huntIterationsPerShard(cfg)
 	if req.SegmentExecDone != iter {
 		return 0, "", false, false, nil, 0, nil
@@ -252,6 +266,7 @@ func (s *Service) evalHuntSubmitCheck(ctx context.Context, campaignID string, in
 		Input:                expectedB,
 		MaxInput:             maxB,
 		ExecPer:              iter,
+		OnExecProgress:       onProgress,
 	})
 	if err != nil {
 		return 0, "", false, false, nil, 0, fmt.Errorf("poolfuzz: hunt replay: %w", err)
