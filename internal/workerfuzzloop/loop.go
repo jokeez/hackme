@@ -50,6 +50,7 @@ type ClaimResp struct {
 	CheckSemantics       string           `json:"check_semantics,omitempty"`
 	CorpusSeeds          []map[string]any `json:"corpus_seeds,omitempty"`
 	CorpusSnapshotSHA256 string           `json:"corpus_snapshot_sha256,omitempty"`
+	CorpusLight          bool             `json:"corpus_light,omitempty"`
 	TaskClass            string           `json:"task_class,omitempty"`
 	WorkKind             string           `json:"work_kind,omitempty"`
 	HarnessHash          string           `json:"harness_hash,omitempty"`
@@ -117,6 +118,8 @@ type Config struct {
 
 	// BatchClaim is optional claim_batch size (1–16). 0/1 = single claim API.
 	BatchClaim int
+	// Prefetch enables double-buffer claim (next lease while current runs). Default from env.
+	Prefetch *bool
 }
 
 // Stats are best-effort counters for diagnostics.
@@ -283,6 +286,7 @@ func Run(ctx context.Context, cfg Config, st *Stats) error {
 	_ = os.Setenv("COORD_TOKEN", cfg.Token)
 
 	sem := make(chan struct{}, cfg.Concurrency)
+	var pbuf prefetchBuf
 	for {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -309,7 +313,7 @@ func Run(ctx context.Context, cfg Config, st *Stats) error {
 					fmt.Fprintf(os.Stderr, "%s: recovered panic in fuzz cycle: %v\n", cfg.LogPrefix, r)
 				}
 			}()
-			runOne(ctx, cfg, base, st)
+			runOne(ctx, cfg, base, st, &pbuf)
 		}()
 		gap := cfg.MinClaimGap
 		if sched.GapScale > 0 && sched.GapScale < 1 && gap > 0 {
@@ -327,7 +331,7 @@ func Run(ctx context.Context, cfg Config, st *Stats) error {
 	}
 }
 
-func runOne(ctx context.Context, cfg Config, base string, st *Stats) {
+func runOne(ctx context.Context, cfg Config, base string, st *Stats, pbuf *prefetchBuf) {
 	batchN := cfg.BatchClaim
 	if batchN <= 0 {
 		batchN = EnvInt("HACKME_WORKER_BATCH_CLAIM", 1)
@@ -348,6 +352,8 @@ func runOne(ctx context.Context, cfg Config, base string, st *Stats) {
 			return
 		}
 		claims = items
+	} else if next := pbuf.take(); next != nil {
+		claims = []ClaimResp{*next}
 	} else {
 		cr, err := Claim(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cfg.PubHex, cfg.MinerAddr, claimCaps(cfg))
 		if err != nil {
@@ -376,6 +382,10 @@ func runOne(ctx context.Context, cfg Config, base string, st *Stats) {
 		}
 		return
 	}
+	// Prefetch only for single-claim Dig path (batch already amortizes RTT).
+	if batchN <= 1 && !IsHuntClaim(claims[0]) {
+		startPrefetch(ctx, cfg, base, pbuf)
+	}
 	for i := range claims {
 		processClaim(ctx, cfg, base, st, &claims[i])
 	}
@@ -387,6 +397,11 @@ func processClaim(ctx context.Context, cfg Config, base string, st *Stats, cr *C
 		if rerr := ReleaseLease(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cr.CampaignID, cr.ItemID, cfg.PubHex, cfg.MinerAddr); rerr != nil {
 			fmt.Fprintf(os.Stderr, "%s: release lease after %s: %v\n", cfg.LogPrefix, why, rerr)
 		}
+	}
+	if err := ensureCorpusSeeds(ctx, cfg, base, cr); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: corpus snapshot: %v\n", cfg.LogPrefix, err)
+		release("corpus_snapshot")
+		return
 	}
 	warmDigHarness(ctx, cr.WasmCheckHex)
 	var checkRet int32

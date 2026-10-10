@@ -735,6 +735,46 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "count": len(items), "items": items})
 	})
 
+	mux.HandleFunc("/api/fuzz/work/corpus_snapshot", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !coordinatorWorkPOSTAuthed(r, adminToken, workerToken, allowInsecure) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
+			http.Error(w, "coordinator authentication required", http.StatusUnauthorized)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
+		var req struct {
+			WorkerID   string `json:"worker_id"`
+			CampaignID string `json:"campaign_id"`
+			ItemID     int64  `json:"item_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		workerID := strings.TrimSpace(req.WorkerID)
+		if !validCoordinatorWorkerID(workerID) {
+			http.Error(w, "invalid worker_id", http.StatusBadRequest)
+			return
+		}
+		seeds, sha, err := pf.CorpusSnapshotForLease(r.Context(), workerID, req.CampaignID, req.ItemID)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusForbidden)
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": err.Error()})
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok":                     true,
+			"corpus_snapshot_sha256": sha,
+			"corpus_seeds":           fuzzengine.CorpusSeedsClaimMaps(seeds),
+		})
+	})
+
 	mux.HandleFunc("/api/fuzz/work/submit", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -1278,11 +1318,16 @@ func fuzzClaimPayload(workerID string, work poolfuzz.ClaimedWork) map[string]any
 		"task_class":      "fuzz",
 		"scheduler_mode":  "fuzz",
 	}
-	if seeds := fuzzengine.CorpusSeedsClaimMaps(work.CorpusSeeds); len(seeds) > 0 {
-		payload["corpus_seeds"] = seeds
-	}
-	if sha := strings.TrimSpace(work.CorpusSnapshotSHA256); sha != "" {
+	sha := strings.TrimSpace(work.CorpusSnapshotSHA256)
+	if sha != "" {
 		payload["corpus_snapshot_sha256"] = sha
+	}
+	if seeds := fuzzengine.CorpusSeedsClaimMaps(work.CorpusSeeds); len(seeds) > 0 {
+		if !poolfuzz.ShouldOmitFatCorpusSeeds(sha, work.CorpusSeeds) {
+			payload["corpus_seeds"] = seeds
+		} else {
+			payload["corpus_light"] = true
+		}
 	}
 	if work.PowerMutCap > 0 {
 		payload["power_mut_cap"] = work.PowerMutCap

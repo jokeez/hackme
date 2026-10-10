@@ -26,9 +26,9 @@ If `HACKME_COORDINATOR_FUZZ_DB` is unset, fuzz shares the main DB (compat).
 | POST | `/api/fuzz/work/submit_batch` | worker | Submit up to **16** items; each row auth’d; foreign leases fail that row only |
 | GET | `/api/fuzz/pool/stats` | public | Queue depth / runs done |
 
-Worker opt-in: `HACKME_WORKER_BATCH_CLAIM=N` (2–16). Dig WASM stays warm across shards via sandbox compile cache (`HACKME_WORKER_WARM_HARNESS=0` to disable pre-validate).
+Worker opt-in: `HACKME_WORKER_BATCH_CLAIM=N` (2–16). Dig WASM stays warm across shards via sandbox compile cache (`HACKME_WORKER_WARM_HARNESS=0` to disable pre-validate). Prefetch next Dig claim while current runs: `HACKME_WORKER_PREFETCH` default ON (`=0` to disable). Claim-light: `HACKME_POOL_CLAIM_LIGHT` default ON when `HACKME_POOL_CORPUS_DIR` is set.
 
-Claim JSON includes: `exec_per_unit`, `max_input_bytes`, `coverage_kind`, `corpus_seeds`, `corpus_snapshot_sha256` (when guided).
+Claim JSON includes: `exec_per_unit`, `max_input_bytes`, `coverage_kind`, `corpus_snapshot_sha256` (when guided). Fat `corpus_seeds[]` may be omitted when claim-light is on (`corpus_light: true` + sha) — worker fetches via `POST /api/fuzz/work/corpus_snapshot` under its lease. Hunt claims already prefer `harness_hash` / `harness_content_sha256`.
 
 ---
 
@@ -59,10 +59,10 @@ Claim JSON includes: `exec_per_unit`, `max_input_bytes`, `coverage_kind`, `corpu
 | Tier | Local autorunner | Pool worker (distributed) |
 |------|------------------|---------------------------|
 | Scan | 1 | 1 |
-| Audit | 64 | 64 |
-| Deep | 512 | **hub cap** (`HACKME_POOL_EXEC_PER_UNIT_CAP`, default **64**; ops may set **256**) |
+| Audit | 64 | min(64, hub cap) |
+| Deep | 512 | **min(512, hub cap)** — code default cap **64**; production hub currently **`HACKME_POOL_EXEC_PER_UNIT_CAP=256`** |
 
-Cap lives in `internal/poolfuzz/pool_exec.go`. **Do not** advertise pool Deep 512 as fully miner-proved on hub — segment depth is capped; crash/found paths still **full-replay**.
+Cap lives in `internal/poolfuzz/pool_exec.go`. **Do not** advertise pool Deep **512** as miner-proved on hub — effective depth is the env cap (256 on hackme.tech today); crash/found paths still **full-replay**.
 
 ---
 
