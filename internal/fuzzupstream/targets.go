@@ -136,16 +136,16 @@ type CrashFinding struct {
 
 // HuntReport is written per target or rollup.
 type HuntReport struct {
-	TargetID     string         `json:"target_id"`
-	Title        string         `json:"title"`
-	Repo         string         `json:"repo"`
-	Language     string         `json:"language,omitempty"` // c | rust
-	Iterations   int            `json:"iterations"`
-	ElapsedSec   float64        `json:"elapsed_sec"`
-	Crashes      []CrashFinding `json:"crashes"`
-	Verdict      string         `json:"verdict"`
-	BinaryPath   string         `json:"binary_path,omitempty"`
-	ClonePath    string         `json:"clone_path,omitempty"`
+	TargetID       string         `json:"target_id"`
+	Title          string         `json:"title"`
+	Repo           string         `json:"repo"`
+	Language       string         `json:"language,omitempty"` // c | rust
+	Iterations     int            `json:"iterations"`
+	ElapsedSec     float64        `json:"elapsed_sec"`
+	Crashes        []CrashFinding `json:"crashes"`
+	Verdict        string         `json:"verdict"`
+	BinaryPath     string         `json:"binary_path,omitempty"`
+	ClonePath      string         `json:"clone_path,omitempty"`
 	CorpusSize     int            `json:"corpus_size,omitempty"`
 	CorpusSaved    int            `json:"corpus_saved,omitempty"`
 	DictBytes      int            `json:"dict_bytes,omitempty"`

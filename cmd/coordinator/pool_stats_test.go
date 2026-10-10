@@ -7,9 +7,9 @@ import (
 
 func TestPoolListingHashrateAndMiners(t *testing.T) {
 	hr, wc := poolListingHashrateAndMiners(map[string]any{
-		"hashrate_hs":       1.5e12,
+		"hashrate_hs":        1.5e12,
 		"pool_hashrate_gh_s": 0.1,
-		"active_rigs":       []any{map[string]any{"name": "a"}, map[string]any{"name": "b"}},
+		"active_rigs":        []any{map[string]any{"name": "a"}, map[string]any{"name": "b"}},
 	})
 	if hr != 1.5e12 {
 		t.Fatalf("hashrate=%v want 1.5e12", hr)
