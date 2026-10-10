@@ -23,12 +23,7 @@ func LibFuzzerSeedDir(repoRoot, targetID string) string {
 	if repoRoot == "" {
 		repoRoot = RepoRoot()
 	}
-	id := strings.TrimSpace(targetID)
-	id = filepath.Base(id)
-	if id == "" || id == "." || id == ".." {
-		id = "_"
-	}
-	return filepath.Join(repoRoot, ".cache", "hunt-lf-seeds", id)
+	return filepath.Join(repoRoot, ".cache", "hunt-lf-seeds", catalogTargetSegment(targetID))
 }
 
 // LoadLibFuzzerSeedFiles reads seed inputs from a libFuzzer corpus directory.
@@ -120,7 +115,12 @@ func MergeLibFuzzerSeedCorpus(cfg map[string]any, repoRoot, targetID string) (in
 	seeds = RankLibFuzzerSeeds(seeds, rankedLibFuzzerSeedCap)
 	merged := mergeSeedByteCorpus(cfg, seeds)
 	if merged > 0 {
-		ApplyLocalCorpusGuidedDefaults(cfg)
+		// Local/node imports opt into guided defaults. Pool campaigns that are
+		// already guided must not flip mutator flags here — claim snapshots
+		// power/havoc for worker parity with async replay.
+		if !HuntCorpusGuided(cfg) && !fuzzengine.GuidedSchedulingEnabled(cfg) {
+			ApplyLocalCorpusGuidedDefaults(cfg)
+		}
 	}
 	return merged, nil
 }

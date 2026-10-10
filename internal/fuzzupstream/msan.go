@@ -174,12 +174,20 @@ func msanLikelyFalsePositive(tail, clonePath, driver string) bool {
 	if driver != "" && strings.Contains(low, strings.ToLower(driver)) {
 		return false
 	}
-	if strings.Contains(low, "tasks/sources/fuzz") || strings.Contains(low, "_stdin.c") {
+	if strings.Contains(low, "tasks/sources/fuzz") || strings.Contains(low, "_stdin.c") ||
+		strings.Contains(low, "llvmfuzzertestoneinput") {
 		return false
 	}
-	// Interceptor / libc-only stacks without our code → suspect FP.
+	// Interceptor / libc / STL-only stacks without our code → suspect FP.
 	if strings.Contains(low, "__interceptor") || strings.Contains(low, "libc.so") ||
-		strings.Contains(low, "libmsan") {
+		strings.Contains(low, "libmsan") || strings.Contains(low, "libstdc++") ||
+		strings.Contains(low, "libc++") {
+		return true
+	}
+	// Stack frames present but none in clone/driver/harness → still suspect when
+	// the only recognizable origins are system paths.
+	if strings.Contains(low, "/usr/lib") || strings.Contains(low, "/lib/x86_64") ||
+		strings.Contains(low, "/lib64/") {
 		return true
 	}
 	return false

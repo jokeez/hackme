@@ -17,12 +17,22 @@ const (
 	stdinSubprocessHarness = "tasks/sources/fuzz/benchmark/stdin_subprocess_libfuzzer.c"
 )
 
+// catalogTargetSegment returns a single safe path segment for a catalog target id.
+// Invalid ids collapse to "_" so helpers never interpolate "../" or separators.
+func catalogTargetSegment(targetID string) string {
+	if id, ok := fuzzupstream.SanitizeCatalogID(targetID); ok {
+		return id
+	}
+	return "_"
+}
+
 // LibFuzzerImportBinPath is the cached libFuzzer binary used for L2 seed sessions.
 func LibFuzzerImportBinPath(repoRoot, targetID string) string {
 	if repoRoot == "" {
 		repoRoot = RepoRoot()
 	}
-	return filepath.Join(repoRoot, ".cache", "hunt-lf-import", strings.TrimSpace(targetID)+"-libfuzzer-asan")
+	id := catalogTargetSegment(targetID)
+	return filepath.Join(repoRoot, ".cache", "hunt-lf-import", id+"-libfuzzer-asan")
 }
 
 // LibFuzzerImportCorpusDir is the scratch corpus directory for one import session.
@@ -30,7 +40,8 @@ func LibFuzzerImportCorpusDir(repoRoot, targetID string) string {
 	if repoRoot == "" {
 		repoRoot = RepoRoot()
 	}
-	return filepath.Join(repoRoot, ".cache", "hunt-lf-import", strings.TrimSpace(targetID)+"-corpus")
+	id := catalogTargetSegment(targetID)
+	return filepath.Join(repoRoot, ".cache", "hunt-lf-import", id+"-corpus")
 }
 
 // DedicatedLibFuzzerHarness returns a target-specific libFuzzer harness if present.
@@ -38,10 +49,13 @@ func DedicatedLibFuzzerHarness(repoRoot, targetID string) string {
 	if repoRoot == "" {
 		repoRoot = RepoRoot()
 	}
-	targetID = strings.TrimSpace(targetID)
+	id, ok := fuzzupstream.SanitizeCatalogID(targetID)
+	if !ok {
+		return ""
+	}
 	candidates := []string{
-		filepath.Join(repoRoot, "tasks", "sources", "fuzz", "benchmark", targetID+"_libfuzzer.c"),
-		filepath.Join(repoRoot, "tasks", "sources", "fuzz", "oss", targetID+"_fuzzer.c"),
+		filepath.Join(repoRoot, "tasks", "sources", "fuzz", "benchmark", id+"_libfuzzer.c"),
+		filepath.Join(repoRoot, "tasks", "sources", "fuzz", "oss", id+"_fuzzer.c"),
 	}
 	for _, p := range candidates {
 		if st, err := os.Stat(p); err == nil && st.Mode().IsRegular() {
@@ -57,10 +71,11 @@ func BuildLibFuzzerImport(ctx context.Context, repoRoot, targetID string) (binPa
 	if repoRoot == "" {
 		repoRoot = RepoRoot()
 	}
-	targetID = strings.TrimSpace(targetID)
-	if targetID == "" {
-		return "", "", fmt.Errorf("hunt: libfuzzer import: empty target")
+	id, ok := fuzzupstream.SanitizeCatalogID(targetID)
+	if !ok {
+		return "", "", fmt.Errorf("hunt: libfuzzer import: invalid target id %q", targetID)
 	}
+	targetID = id
 	if _, err := exec.LookPath("clang"); err != nil {
 		return "", "", fmt.Errorf("hunt: libfuzzer import: clang required")
 	}
@@ -104,11 +119,7 @@ func PersistentLibFuzzerCorpusDir(repoRoot, targetID string) string {
 	if repoRoot == "" {
 		repoRoot = RepoRoot()
 	}
-	id := filepath.Base(strings.TrimSpace(targetID))
-	if id == "" || id == "." || id == ".." {
-		id = "_"
-	}
-	return filepath.Join(repoRoot, "reports", "oss-cve-libfuzzer", id, "corpus")
+	return filepath.Join(repoRoot, "reports", "oss-cve-libfuzzer", catalogTargetSegment(targetID), "corpus")
 }
 
 // RunLibFuzzerImportSession runs libFuzzer for wallSec and imports corpus files into L2 seed cache.

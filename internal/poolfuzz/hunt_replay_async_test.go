@@ -192,8 +192,8 @@ func TestReclaimStaleHuntReplayJobs(t *testing.T) {
 	now := time.Now().Unix()
 	_, err = db.ExecContext(ctx,
 		`INSERT INTO fuzz_hunt_replay_queue
-		 (campaign_id, item_id, worker_id, miner_address, input_n, worker_check_result, worker_trap, segment_exec_done, duration_ms, status, created_at, updated_at)
-		 VALUES ('c', 1, 'w', '', 1, 0, '', 0, 0, 'processing', ?, ?)`,
+		 (campaign_id, item_id, worker_id, miner_address, input_n, worker_check_result, worker_trap, segment_exec_done, duration_ms, status, verifier_id, created_at, updated_at)
+		 VALUES ('c', 1, 'w', '', 1, 0, '', 0, 0, 'processing', 'v-old', ?, ?)`,
 		now-3600, now-huntReplayStaleProcessingSec-10)
 	if err != nil {
 		t.Fatal(err)
@@ -205,6 +205,48 @@ func TestReclaimStaleHuntReplayJobs(t *testing.T) {
 	}
 	if st != huntReplayStatusPending {
 		t.Fatalf("status=%q want pending", st)
+	}
+}
+
+func TestHuntReplayStillOwnedAndHeartbeat(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "hunt-own.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	now := time.Now().Unix()
+	res, err := db.ExecContext(ctx,
+		`INSERT INTO fuzz_hunt_replay_queue
+		 (campaign_id, item_id, worker_id, miner_address, input_n, worker_check_result, worker_trap, segment_exec_done, duration_ms, status, verifier_id, created_at, updated_at)
+		 VALUES ('c', 1, 'w', '', 1, 0, '', 0, 0, 'processing', 'v1', ?, ?)`,
+		now-100, now-100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	qid, _ := res.LastInsertId()
+	if !svc.huntReplayStillOwned(ctx, qid, "v1") {
+		t.Fatal("expected owned by v1")
+	}
+	if svc.huntReplayStillOwned(ctx, qid, "v2") {
+		t.Fatal("v2 must not own")
+	}
+	svc.touchHuntReplayJob(ctx, qid)
+	var updated int64
+	if err := db.QueryRowContext(ctx, `SELECT updated_at FROM fuzz_hunt_replay_queue WHERE id=?`, qid).Scan(&updated); err != nil {
+		t.Fatal(err)
+	}
+	if updated < now {
+		t.Fatalf("heartbeat did not advance updated_at: %d < %d", updated, now)
+	}
+	// Simulate stale reclaim clearing verifier — original owner must abandon.
+	_, _ = db.ExecContext(ctx,
+		`UPDATE fuzz_hunt_replay_queue SET status=?, verifier_id='', updated_at=? WHERE id=?`,
+		huntReplayStatusPending, now, qid)
+	if svc.huntReplayStillOwned(ctx, qid, "v1") {
+		t.Fatal("reclaimed row must not remain owned")
 	}
 }
 

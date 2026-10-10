@@ -26,8 +26,8 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 		return before, before, fmt.Errorf("hunt: merge: fuzzer bin missing: %s", fuzzerBin)
 	}
 	parent := filepath.Dir(corpusDir)
-	rawDir := filepath.Join(parent, "corpus.raw-merge")
-	_ = os.RemoveAll(rawDir)
+	// Unique raw dir so concurrent merges on the same parent cannot clobber each other.
+	rawDir := filepath.Join(parent, fmt.Sprintf("corpus.raw-merge.%d.%d", os.Getpid(), time.Now().UnixNano()))
 	if err := os.Rename(corpusDir, rawDir); err != nil {
 		return before, before, err
 	}

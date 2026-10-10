@@ -43,9 +43,11 @@ func TestReplayShardCleanInput(t *testing.T) {
 		t.Skip(err)
 	}
 	input := []byte(`{"a":1}`)
+	progress := 0
 	rep, err := ReplayShard(context.Background(), ReplayShardOpts{
 		RepoRoot: root, TargetID: "jsmn", HarnessHash: hash,
 		Input: input, MaxInput: 256, ExecPer: 2,
+		OnExecProgress: func(done int) { progress = done },
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -55,6 +57,9 @@ func TestReplayShardCleanInput(t *testing.T) {
 	}
 	if rep.ExecDone != 2 {
 		t.Fatalf("execDone=%d", rep.ExecDone)
+	}
+	if progress != 2 {
+		t.Fatalf("OnExecProgress last=%d want 2", progress)
 	}
 }
 

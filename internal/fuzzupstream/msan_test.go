@@ -24,8 +24,16 @@ func TestMSANLikelyFalsePositive(t *testing.T) {
 	if !msanLikelyFalsePositive(fp, "/cache/oss-cve-clones/mpack", "mpack_deep_stdin") {
 		t.Fatal("expected FP for libc-only stack")
 	}
+	stl := "==ERROR: MemorySanitizer: use-of-uninitialized-value\n    #0 in std::string\n    #1 /usr/lib/x86_64-linux-gnu/libstdc++.so.6"
+	if !msanLikelyFalsePositive(stl, "/cache/oss-cve-clones/mpack", "mpack_deep_stdin") {
+		t.Fatal("expected FP for libstdc++-only stack")
+	}
 	real := "==ERROR: MemorySanitizer: use-of-uninitialized-value\n    #0 in mpack_tree_parse\n    #1 /cache/oss-cve-clones/mpack/src/mpack/mpack-node.c"
 	if msanLikelyFalsePositive(real, "/cache/oss-cve-clones/mpack", "mpack_deep_stdin") {
 		t.Fatal("clone-framed hit must not be FP")
+	}
+	inproc := "==ERROR: MemorySanitizer: use-of-uninitialized-value\n    #0 in LLVMFuzzerTestOneInput\n    #1 tasks/sources/fuzz/benchmark/mpack_libfuzzer.c"
+	if msanLikelyFalsePositive(inproc, "", "mpack_libfuzzer") {
+		t.Fatal("in-process harness frame must not be FP")
 	}
 }

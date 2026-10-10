@@ -54,6 +54,10 @@ type ReplayShardOpts struct {
 	Input                []byte
 	MaxInput             int
 	ExecPer              int
+	// OnExecProgress is invoked after each ASAN exec (and before/after crash trim).
+	// Coordinators use this to heartbeat async replay jobs so stale reclaim cannot
+	// steal a still-running verifier under load.
+	OnExecProgress func(execDone int)
 }
 
 // ReplayShardResult is coordinator/worker replay output for one shard.
@@ -182,12 +186,18 @@ func ReplayShard(ctx context.Context, opts ReplayShardOpts) (ReplayShardResult, 
 		runOpts.MaxInput = opts.MaxInput
 	}
 	for execIdx := 0; execIdx < execPer; execIdx++ {
+		if err := ctx.Err(); err != nil {
+			return out, err
+		}
 		inputB := replayInputForExec(opts, uint64(execIdx), cfg)
 		if len(inputB) == 0 {
 			return out, fmt.Errorf("hunt replay: empty input exec=%d", execIdx)
 		}
 		crash, info, _, runErr := fuzzupstream.RunInputDetailed(ctx, binPath, inputB, runOpts)
 		out.ExecDone = execIdx + 1
+		if opts.OnExecProgress != nil {
+			opts.OnExecProgress(out.ExecDone)
+		}
 		if runErr != nil && !crash {
 			return out, fmt.Errorf("hunt replay run: %w", runErr)
 		}
@@ -205,9 +215,15 @@ func ReplayShard(ctx context.Context, opts ReplayShardOpts) (ReplayShardResult, 
 			out.CrashInputOriginalLen = len(inputB)
 			out.CrashInput = append([]byte(nil), inputB...)
 			if HuntTrimEnabled(cfg) && len(out.CrashInput) > 1 {
+				if opts.OnExecProgress != nil {
+					opts.OnExecProgress(out.ExecDone)
+				}
 				tr := fuzzupstream.TrimCrashInput(ctx, binPath, out.CrashInput, runOpts, info)
 				if len(tr.Input) > 0 {
 					out.CrashInput = tr.Input
+				}
+				if opts.OnExecProgress != nil {
+					opts.OnExecProgress(out.ExecDone)
 				}
 			}
 			return out, nil

@@ -33,6 +33,21 @@ func TestLibFuzzerSeedDirPaths(t *testing.T) {
 	}
 }
 
+func TestCatalogTargetSegmentRejectsTraversal(t *testing.T) {
+	if catalogTargetSegment("../evil") != "_" {
+		t.Fatalf("traversal must collapse to _")
+	}
+	if catalogTargetSegment("jsmn/../x") != "_" {
+		t.Fatalf("embedded sep must collapse to _")
+	}
+	if DedicatedLibFuzzerHarness(RepoRoot(), "../evil") != "" {
+		t.Fatal("dedicated harness must reject traversal ids")
+	}
+	if _, _, err := BuildLibFuzzerImport(context.Background(), RepoRoot(), "../../etc"); err == nil {
+		t.Fatal("BuildLibFuzzerImport must reject invalid target id")
+	}
+}
+
 func TestBuildSubprocessLibFuzzer(t *testing.T) {
 	if _, err := exec.LookPath("clang"); err != nil {
 		t.Skip("clang not available")
