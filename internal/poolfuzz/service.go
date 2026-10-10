@@ -99,6 +99,9 @@ type ClaimedWork struct {
 	// it (corpus round-robin), so the worker must rebuild its cfg with the same corpus
 	// or the two exec input streams diverge.
 	SeedByteCorpus []any
+	// MutatorDict is the Dig/Hunt pack dictionary the worker must apply for SegmentExecInput
+	// parity with coordinator replay (hex-decoded bytes).
+	MutatorDict []byte
 }
 
 type SubmitRequest struct {
@@ -128,6 +131,17 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 	}
 	cfg := fuzzengine.NormalizeCampaignConfig(c.Config, c.CampaignType)
 	cfg["pool_distributed"] = true
+	// When dig_package is explicit, finalize Dig depth even if the caller skipped HTTP create.
+	// Tests that pin exec_per_unit omit dig_package and are left untouched.
+	if !IsHuntCampaign(cfg) {
+		if pkg := strings.TrimSpace(jsonString(cfg["dig_package"])); pkg != "" {
+			pack := strings.TrimSpace(jsonString(cfg["guard_pack"]))
+			if pack == "" {
+				pack = strings.TrimSpace(jsonString(cfg["guard_name"]))
+			}
+			cfg = fuzzingcli.FinalizeDigCampaignConfig(cfg, pkg, pack, hunt.RepoRoot())
+		}
+	}
 	if _, ok := cfg["auto_runner"]; !ok {
 		cfg["auto_runner"] = "0"
 	}
@@ -163,6 +177,7 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 	if err != nil {
 		return err
 	}
+	s.invalidateSchedCache()
 	// Seed work items once on register so claims do not need Tick-on-claim.
 	if status == "running" || status == "planned" {
 		if err := s.reconcileActiveCampaignWork(ctx, c.ID, now); err != nil {
@@ -177,6 +192,18 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 		}
 	}
 	return nil
+}
+
+func (s *Service) invalidateSchedCache() {
+	if s == nil {
+		return
+	}
+	s.schedMu.Lock()
+	s.schedCachedAt = time.Time{}
+	s.schedCustomers = nil
+	s.schedRest = nil
+	s.schedMu.Unlock()
+	s.clearEmptyClaimCache()
 }
 
 // reconcileActiveCampaignWork fixes running/planned pool campaigns that cannot claim:
@@ -343,6 +370,7 @@ func (s *Service) SetCampaignStatus(ctx context.Context, id, status string) erro
 			 WHERE campaign_id=? AND status IN ('pending','processing')`,
 			"campaign "+status, now, id)
 	}
+	s.invalidateSchedCache()
 	return nil
 }
 

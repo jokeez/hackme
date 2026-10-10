@@ -71,6 +71,8 @@ type ClaimResp struct {
 	// SeedByteCorpus mirrors the campaign seed_byte_corpus so worker-side exec input
 	// derivation stays identical to the coordinator's verification replay.
 	SeedByteCorpus []any `json:"seed_byte_corpus,omitempty"`
+	// MutatorDictHex is Dig pack dictionary (hex) for SegmentExecInput parity.
+	MutatorDictHex string `json:"mutator_dict_hex,omitempty"`
 }
 
 // Config drives a supervised fuzz dig loop.
@@ -592,6 +594,12 @@ func RunSegmentCheck(ctx context.Context, cr ClaimResp, timeoutMS int) (checkRes
 	}
 	if cr.CorpusExploreV2 {
 		cfg["corpus_explore_v2"] = true
+	}
+	if len(cr.SeedByteCorpus) > 0 {
+		cfg["seed_byte_corpus"] = cr.SeedByteCorpus
+	}
+	if h := strings.TrimSpace(cr.MutatorDictHex); h != "" {
+		cfg["mutator_dict"] = h
 	}
 	seeds, _ := fuzzengine.CorpusSeedsFromClaimMaps(cr.CorpusSeeds)
 	if len(seeds) > 0 {

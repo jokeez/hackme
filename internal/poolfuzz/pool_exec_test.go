@@ -42,7 +42,10 @@ func TestLeaseSecondsForConfigScalesWithExec(t *testing.T) {
 	if timeoutMS <= 0 {
 		timeoutMS = 300
 	}
-	wantMin := int64((64*int(timeoutMS))/1000 + 60)
+	wantMin := int64((64*int(timeoutMS))/1000 + 90)
+	if wantMin < 90 {
+		wantMin = 90
+	}
 	if sec < wantMin {
 		t.Fatalf("lease %d too short for 64 exec (want >= %d)", sec, wantMin)
 	}

@@ -1,11 +1,13 @@
 package fuzzengine
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"strings"
 )
 
 // ParseMutatorDict reads optional pack-specific splice dictionary from config.
+// JSON round-trips encode []byte as standard base64; accept hex, base64, or raw text.
 func ParseMutatorDict(cfg map[string]any) []byte {
 	if cfg == nil {
 		return nil
@@ -27,7 +29,12 @@ func ParseMutatorDict(cfg map[string]any) []byte {
 		if s == "" {
 			return nil
 		}
-		if b, err := hex.DecodeString(s); err == nil && len(b) > 0 {
+		// Prefer hex (Dig Finalize stores hex for stable config_json).
+		if b, err := hex.DecodeString(s); err == nil && len(b) > 0 && len(s)%2 == 0 {
+			return b
+		}
+		// encoding/json marshals []byte as std base64 — recover those dicts.
+		if b, err := base64.StdEncoding.DecodeString(s); err == nil && len(b) > 0 {
 			return b
 		}
 		return []byte(s)

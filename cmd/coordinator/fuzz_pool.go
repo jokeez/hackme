@@ -663,6 +663,13 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		if work.CorpusExploreV2 {
 			payload["corpus_explore_v2"] = true
 		}
+		if len(work.SeedByteCorpus) > 0 {
+			// Dig + Hunt: mutating exec bases use seed_byte_corpus round-robin.
+			payload["seed_byte_corpus"] = work.SeedByteCorpus
+		}
+		if len(work.MutatorDict) > 0 {
+			payload["mutator_dict_hex"] = hex.EncodeToString(work.MutatorDict)
+		}
 		if work.TaskClass == "hunt" || work.WorkKind == "hunt_shard" {
 			payload["task_class"] = "hunt"
 			payload["work_kind"] = "hunt_shard"
@@ -685,11 +692,6 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 				payload["harness_content_sha256"] = sha
 			}
 			payload["hunt_detect_leaks"] = work.HuntDetectLeaks
-			if len(work.SeedByteCorpus) > 0 {
-				// Same contract as the mutation-scheduling keys above: the worker must
-				// derive the same exec inputs as the verification replay.
-				payload["seed_byte_corpus"] = work.SeedByteCorpus
-			}
 			payload["shard_spec"] = map[string]any{
 				"iterations_per_shard": work.IterationsPerShard,
 				"check_semantics":      work.CheckSemantics,

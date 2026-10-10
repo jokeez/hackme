@@ -129,14 +129,16 @@ func SegmentExecInput(inputN, execIdx uint64, cfg map[string]any, seeds []PoolCo
 		}
 		corpus := CorpusBytesFromSeeds(seeds)
 		var b []byte
-		// Hunt / explore_v2 paths use corpus-aware havoc; Dig classic keeps MutateBytesForConfig for replay.
+		// Hunt / explore_v2 / deep Dig guided paths use corpus-aware havoc; shallow Dig keeps MutateBytesForConfig.
 		// dig_gpu_mutators (issue #13 E): accelerator-proposed mutants → same MutateBytesForHunt path
 		// that gpudig.GenerateMutants uses (CPU WASM/ASAN eval only; backends fall back to CPU today).
 		huntAware := CorpusExploreV2Enabled(cfg) ||
 			strings.EqualFold(strings.TrimSpace(toString(cfg["hunt_corpus_guided"])), "true") ||
 			toString(cfg["hunt_corpus_guided"]) == "1"
+		digDeep := GuidedSchedulingEnabled(cfg) &&
+			(ParseDepthTier(cfg) == DepthBytesCorpus || ParseDepthTier(cfg) == DepthUpstreamBinary)
 		digGPU := DigGPUMutatorsEnabled(cfg)
-		if digGPU || (len(corpus) > 0 && huntAware) {
+		if digGPU || (len(corpus) > 0 && (huntAware || digDeep)) {
 			b = MutateBytesForHunt(base, stage, salt, maxLen, cfg, corpus)
 		} else {
 			b = MutateBytesForConfig(base, stage, salt, maxLen, cfg)

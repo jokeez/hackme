@@ -83,6 +83,19 @@ func (s *Service) buildClaimedWork(ctx context.Context, campaignID string, itemI
 	if IsHuntCampaign(cfg) {
 		return s.buildHuntClaimedWork(ctx, campaignID, itemID, inputN, cfg, workerID)
 	}
+	// Snapshot mutation scheduling before guided seeding mutates in-memory cfg.
+	mutCap := fuzzengine.PowerMutCap(cfg)
+	deepV28 := fuzzengine.DeepHavocV28(cfg)
+	deepV210 := fuzzengine.DeepHavocV210(cfg)
+	digGPU := fuzzengine.DigGPUMutatorsEnabled(cfg)
+	exploreV2 := fuzzengine.CorpusExploreV2Enabled(cfg)
+	mutDict := fuzzengine.ParseMutatorDict(cfg)
+	var seedCorpus []any
+	if raw, ok := cfg["seed_byte_corpus"]; ok && raw != nil {
+		if list, ok := raw.([]any); ok && len(list) > 0 {
+			seedCorpus = list
+		}
+	}
 	wasmHex := wasmHexFromConfig(cfg)
 	sem := fuzzengine.ParseCheckSemantics(cfg)
 	var actualU uint64
@@ -119,10 +132,12 @@ func (s *Service) buildClaimedWork(ctx context.Context, campaignID string, itemI
 		CorpusSeeds:          corpusSeeds,
 		CorpusSnapshotSHA256: corpusSHA,
 		// Dig segment execs rebuild cfg from the claim; mirror SegmentExecInput gates.
-		PowerMutCap:     fuzzengine.PowerMutCap(cfg),
-		HavocDeepV28:    fuzzengine.DeepHavocV28(cfg),
-		HavocDeepV210:   fuzzengine.DeepHavocV210(cfg),
-		DigGPUMutators:  fuzzengine.DigGPUMutatorsEnabled(cfg),
-		CorpusExploreV2: fuzzengine.CorpusExploreV2Enabled(cfg),
+		PowerMutCap:     mutCap,
+		HavocDeepV28:    deepV28,
+		HavocDeepV210:   deepV210,
+		DigGPUMutators:  digGPU,
+		CorpusExploreV2: exploreV2,
+		SeedByteCorpus:  seedCorpus,
+		MutatorDict:     mutDict,
 	}, nil
 }

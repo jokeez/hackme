@@ -21,6 +21,47 @@ func TestApplyDigPowerSchedulingDeep(t *testing.T) {
 	if cfg["guided_scheduling"] != true {
 		t.Fatalf("guided=%v", cfg["guided_scheduling"])
 	}
+	if cfg["corpus_explore_v2"] != true {
+		t.Fatalf("explore=%v", cfg["corpus_explore_v2"])
+	}
+	if _, ok := cfg["exec_per_unit"]; !ok || fuzzengine.ExecPerUnit(cfg) < 64 {
+		t.Fatalf("exec_per_unit=%v", cfg["exec_per_unit"])
+	}
+}
+
+func TestFinalizeDigCampaignConfigDeepPoolDepth(t *testing.T) {
+	cfg := FinalizeDigCampaignConfig(map[string]any{
+		"dig_package": "deep",
+		"guard_pack":  "secrets",
+	}, "deep", "secrets", t.TempDir())
+	if !fuzzengine.GuidedSchedulingEnabled(cfg) {
+		t.Fatal("deep Dig must enable guided_scheduling")
+	}
+	if !fuzzengine.CorpusPersistEnabled(cfg) {
+		t.Fatal("deep Dig must enable corpus_persist for cross-miner reuse")
+	}
+	if fuzzengine.ExecPerUnit(cfg) < 64 {
+		t.Fatalf("exec_per_unit=%d", fuzzengine.ExecPerUnit(cfg))
+	}
+	dict := fuzzengine.ParseMutatorDict(cfg)
+	if len(dict) < 8 || string(dict[:4]) != "AKIA" {
+		t.Fatalf("mutator_dict=%q", dict)
+	}
+	// Hex storage survives config_json round-trip.
+	if _, ok := cfg["mutator_dict"].(string); !ok {
+		t.Fatalf("mutator_dict should be hex string, got %T", cfg["mutator_dict"])
+	}
+	if cfg["corpus_explore_v2"] != true {
+		t.Fatal("deep Dig should enable corpus_explore_v2")
+	}
+}
+
+func TestApplyDigPowerSchedulingPreservesExplicitExec(t *testing.T) {
+	cfg := map[string]any{"depth_tier": "bytes_corpus", "exec_per_unit": 8}
+	ApplyDigPowerScheduling(cfg, "deep")
+	if fuzzengine.ExecPerUnit(cfg) != 8 {
+		t.Fatalf("explicit exec overwritten: %v", cfg["exec_per_unit"])
+	}
 }
 
 func TestFinalizeDigCampaignConfigMergesSeeds(t *testing.T) {

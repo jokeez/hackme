@@ -84,3 +84,33 @@ func TestCoverageKindHonestDefault(t *testing.T) {
 		t.Fatal(CoverageKind(nil))
 	}
 }
+
+func TestDigDeepSegmentUsesCorpusAwareHavoc(t *testing.T) {
+	seeds := []PoolCorpusSeed{
+		{Input: 1, InputBytes: []byte("seed-aaaa"), Energy: 3},
+		{Input: 2, InputBytes: []byte("seed-bbbb"), Energy: 3},
+	}
+	shallow := map[string]any{
+		"input_mode":        "bytes",
+		"depth_tier":        "wasm_native",
+		"guided_scheduling": true,
+		"exec_per_unit":     8,
+		"max_input_bytes":   64,
+		"power_mut_cap":     8,
+		"mutator_dict":      "414b4941", // AKIA
+	}
+	deep := map[string]any{
+		"input_mode":        "bytes",
+		"depth_tier":        "bytes_corpus",
+		"guided_scheduling": true,
+		"exec_per_unit":     8,
+		"max_input_bytes":   64,
+		"power_mut_cap":     14,
+		"mutator_dict":      "414b4941",
+	}
+	_, a := SegmentExecInput(9, 3, shallow, seeds)
+	_, b := SegmentExecInput(9, 3, deep, seeds)
+	if string(a) == string(b) {
+		t.Fatal("deep Dig guided segment should use corpus-aware havoc vs shallow Dig")
+	}
+}

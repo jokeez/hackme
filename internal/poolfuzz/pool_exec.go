@@ -66,11 +66,19 @@ func leaseSecondsForConfig(cfg map[string]any) int64 {
 			timeoutMS = 300
 		}
 	}
-	// Wall ≈ exec × timeout; add 60s slack for queue/HTTP jitter.
+	// Wall ≈ exec × timeout; add slack for queue/HTTP jitter (Dig segments need more headroom).
 	sec := int64((execPer * int(timeoutMS)) / 1000)
-	sec += 60
-	if sec < 30 {
-		return 30
+	slack := int64(60)
+	if !IsHuntCampaign(cfg) && execPer >= 32 {
+		slack = 90
+	}
+	sec += slack
+	minSec := int64(30)
+	if !IsHuntCampaign(cfg) && execPer >= 32 {
+		minSec = 90
+	}
+	if sec < minSec {
+		return minSec
 	}
 	// Hunt ASAN shards: keep leases ≤6m so dead/misconfigured workers free shards
 	// for reclaim (was 10m; fleet lease pile-up starved bootstrap progress).

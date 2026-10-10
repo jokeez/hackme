@@ -1,11 +1,30 @@
 package fuzzengine
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 func TestParseMutatorDictHex(t *testing.T) {
 	d := ParseMutatorDict(map[string]any{"mutator_dict": "414243"})
 	if string(d) != "ABC" {
 		t.Fatalf("got %q", d)
+	}
+}
+
+func TestParseMutatorDictJSONByteRoundTrip(t *testing.T) {
+	orig := []byte("AKIAASIAghp_github_pat")
+	raw, err := json.Marshal(map[string]any{"mutator_dict": orig})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	got := ParseMutatorDict(cfg)
+	if string(got) != string(orig) {
+		t.Fatalf("json []byte round-trip corrupted dict: got %q want %q (wire=%s)", got, orig, raw)
 	}
 }
 

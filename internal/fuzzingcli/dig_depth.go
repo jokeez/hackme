@@ -1,6 +1,7 @@
 package fuzzingcli
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -9,6 +10,7 @@ import (
 )
 
 // ApplyDigMutatorDict sets a rich domain mutator dictionary for a guard pack.
+// Stores mutator_dict as hex so config_json round-trips without base64 corruption.
 func ApplyDigMutatorDict(cfg map[string]any, packID string) {
 	if cfg == nil {
 		return
@@ -21,7 +23,7 @@ func ApplyDigMutatorDict(cfg map[string]any, packID string) {
 	if len(dict) == 0 {
 		return
 	}
-	cfg["mutator_dict"] = dict
+	cfg["mutator_dict"] = hex.EncodeToString(dict)
 	cfg["dig_mutator_profile"] = profile
 }
 
@@ -48,7 +50,8 @@ func ApplyDigPowerScheduling(cfg map[string]any, pkgName string) {
 	}
 	switch pkgName {
 	case "deep", "enterprise":
-		if fuzzengine.ParseDepthTier(cfg) == fuzzengine.DepthBytesCorpus {
+		if fuzzengine.ParseDepthTier(cfg) == fuzzengine.DepthBytesCorpus ||
+			fuzzengine.ParseDepthTier(cfg) == fuzzengine.DepthUpstreamBinary {
 			if fuzzengine.MutationRounds(cfg) < 12 {
 				cfg["mutation_rounds"] = 12
 			}
@@ -56,10 +59,26 @@ func ApplyDigPowerScheduling(cfg map[string]any, pkgName string) {
 				cfg["guided_scheduling"] = true
 				cfg["coverage_guided"] = true
 			}
+			// Deep Dig: corpus-aware havoc on the miner (claim mirrors corpus_explore_v2).
+			if _, ok := cfg["corpus_explore_v2"]; !ok {
+				cfg["corpus_explore_v2"] = true
+			}
+		}
+		// Prefer deep segment size when unset; pool still applies PoolExecPerUnit cap (default 64).
+		// Do not raise an explicit customer/test exec_per_unit.
+		if _, ok := cfg["exec_per_unit"]; !ok {
+			cfg["exec_per_unit"] = 512
 		}
 	case "audit", "pro":
-		if fuzzengine.GuidedSchedulingEnabled(cfg) && fuzzengine.MutationRounds(cfg) < 6 {
+		if !fuzzengine.GuidedSchedulingEnabled(cfg) {
+			cfg["guided_scheduling"] = true
+			cfg["coverage_guided"] = true
+		}
+		if fuzzengine.MutationRounds(cfg) < 6 {
 			cfg["mutation_rounds"] = 6
+		}
+		if _, ok := cfg["exec_per_unit"]; !ok {
+			cfg["exec_per_unit"] = 64
 		}
 	}
 }
@@ -88,13 +107,28 @@ func FinalizeDigCampaignConfig(cfg map[string]any, pkgName, packID, repoRoot str
 	if packID == "" {
 		packID = strings.TrimSpace(cfgString(cfg, "guard_name"))
 	}
-	if packID != "" {
-		ApplyDigMutatorDict(cfg, packID)
-	}
 	if strings.TrimSpace(pkgName) == "" {
 		pkgName = DigPackageFromDepthTier(fuzzengine.ParseDepthTier(cfg))
 	}
+	// Ensure depth_tier from dig_package so Normalize/ApplyDepthTier can fill defaults.
+	if _, ok := cfg["depth_tier"]; !ok {
+		if pkg, err := B2BPackageFor(pkgName); err == nil {
+			cfg["depth_tier"] = string(pkg.DepthTier)
+		}
+	}
+	if _, ok := cfg["depth_tier"]; ok {
+		cfg = fuzzengine.ApplyDepthTier(cfg, fuzzengine.ParseDepthTier(cfg))
+	}
+	if packID != "" {
+		ApplyDigMutatorDict(cfg, packID)
+	}
 	ApplyDigPowerScheduling(cfg, pkgName)
+	// Cross-miner corpus for Dig packs (scan/wasm_only stays local unless explicitly set).
+	if fuzzengine.CorpusPersistNamespace(cfg) != "" && fuzzengine.ParseDepthTier(cfg) != fuzzengine.DepthWasmOnly {
+		if _, ok := cfg["corpus_persist"]; !ok {
+			cfg["corpus_persist"] = true
+		}
+	}
 	if packID != "" && strings.TrimSpace(repoRoot) != "" {
 		if n, err := MergeDigSeedCorpus(cfg, repoRoot, packID); err == nil && n > 0 {
 			cfg["dig_external_seeds_merged"] = n
@@ -159,10 +193,16 @@ func digMutatorDictForPack(packID string) ([]byte, string) {
 		return []byte("\xc0\xc1\xc2\xc3\xc7=\x80\xff\xfe\xfd!=<>\"'\\n\\r\\t%00"), "utf8_display_filter"
 	case "parser_expat":
 		return []byte("<>&lt;&gt;&amp;CDATA<?xml\"'=/!--[]%"), "xml_parser"
+	case "parser_cjson", "parser_jsmn":
+		return []byte(`{}[]:,"nulltruefalse\u0000`), "json_parser"
+	case "parser_yaml", "parser_libyaml":
+		return []byte("%YAML---...&*!|>\"'`\t\n"), "yaml_parser"
 	case "script_bounds":
 		return []byte("\x4c\x4d\x4e\x4fOP_PUSHDATA520\xff\x00"), "script_push"
 	case "bounds_smoke", "overflow_smoke", "state_smoke":
 		return []byte("\xff\x00\x7f\x80\x9e3779b9deadbeef"), "numeric_smoke"
+	case "cfgpack_msgpack_guard", "msgpack":
+		return []byte("\xc0\xc1\xc2\xde\xdf\xdc\xdd\xca\xcb"), "msgpack_tokens"
 	default:
 		return nil, ""
 	}
