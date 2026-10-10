@@ -428,6 +428,22 @@ func processClaim(ctx context.Context, cfg Config, base string, st *Stats, cr *C
 	} else {
 		checkRet, durMS, trap, execDone = RunSegmentCheck(ctx, *cr, cfg.TimeoutMS)
 	}
+	// Stage D: optional LF research slot while lease is still held (default OFF).
+	// Uploads new corpus units + crash artifacts only; coordinator ASAN-replays crashes.
+	// Does not enable HACKME_POOL_SEED_FROM_RESEARCH (customer Dig isolation).
+	rsCfg := ResearchSlotFromEnv()
+	if rsCfg.Enabled && (IsHuntClaim(*cr) || rsCfg.AllowDig) {
+		rs := MaybeRunResearchSlot(ctx, ResearchSlotRun{
+			Config: rsCfg, CoordURL: base, Token: cfg.Token, WorkerID: cfg.WorkerID,
+			MinerAddr: cfg.MinerAddr, HTTPClient: cfg.HTTPClient, Claim: *cr,
+		})
+		if rs.Ran && (rs.CorpusDeltas > 0 || rs.Crashes > 0) {
+			fmt.Fprintf(os.Stderr, "%s: research_slot corpus=%d crashes=%d findings=%d\n",
+				cfg.LogPrefix, rs.CorpusDeltas, rs.Crashes, rs.Findings)
+		} else if rs.SkippedReason != "" && rs.SkippedReason != "disabled" && rs.SkippedReason != "hunt_only" {
+			fmt.Fprintf(os.Stderr, "%s: research_slot skip=%s %s\n", cfg.LogPrefix, rs.SkippedReason, rs.Err)
+		}
+	}
 	nonce := uint64(time.Now().UnixNano())
 	if err := Submit(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cfg.MinerAddr, cfg.Priv, cfg.PubHex, cfg.Hybrid, nonce, *cr, checkRet, durMS, trap, execDone); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: submit: %v\n", cfg.LogPrefix, err)
@@ -442,10 +458,6 @@ func processClaim(ctx context.Context, cfg Config, base string, st *Stats, cr *C
 		fmt.Fprintf(os.Stderr, "%s: FINDING campaign=%s input=0x%x semantics=%s\n", cfg.LogPrefix, cr.CampaignID, cr.ActualInput, checkSem)
 	} else if pass || IsHuntClaim(*cr) {
 		fmt.Fprintf(os.Stderr, "%s: ok campaign=%s input=0x%x\n", cfg.LogPrefix, cr.CampaignID, cr.ActualInput)
-	}
-	// Stage D stub: optional local research slot (default OFF; no LF / no seed feed).
-	if !IsHuntClaim(*cr) {
-		_ = MaybeRunResearchSlot(ctx, ResearchSlotFromEnv())
 	}
 }
 

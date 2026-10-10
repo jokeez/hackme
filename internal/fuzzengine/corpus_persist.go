@@ -59,6 +59,11 @@ func CorpusPersistMax(cfg map[string]any) int {
 	return max
 }
 
+// SanitizeCorpusNamespacePublic exposes namespace sanitization for research slot IDs.
+func SanitizeCorpusNamespacePublic(s string) string {
+	return sanitizeCorpusNamespace(s)
+}
+
 func sanitizeCorpusNamespace(s string) string {
 	s = strings.TrimSpace(strings.ToLower(s))
 	if s == "" {
