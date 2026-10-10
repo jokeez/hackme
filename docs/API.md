@@ -96,7 +96,7 @@ Lab-only: `HACKME_REQUIRE_ADMIN_TOKEN=0` on a **loopback** bind. Do not open a p
 
 Common keys: `input_mode` (`bytes`), `depth_tier`, `exec_per_unit`, `coverage_kind` (`wasm_edge_bitmap` \| `input_fingerprint`), `guided_scheduling`, `guard_pack`, `pool_distributed`, `native_repro_mode`, `max_input_bytes`, `public_proof`, `wasm_check_hex`.
 
-**Pool claim** (coordinator): `POST /api/fuzz/work/claim` → `{ exec_per_unit, max_input_bytes, coverage_kind, corpus_seeds?, corpus_snapshot_sha256?, wasm_check_hex, … }`. Submit: `segment_exec_done` must match capped `exec_per_unit` (Deep **64** on hub). See [POOL_FUZZ_DISTRIBUTED.md](POOL_FUZZ_DISTRIBUTED.md).
+**Pool claim** (coordinator): `POST /api/fuzz/work/claim` → `{ exec_per_unit, max_input_bytes, coverage_kind, corpus_seeds?, corpus_snapshot_sha256?, corpus_light?, wasm_check_hex, … }`. Batch: `claim_batch` / `submit_batch` (≤16). Light corpus: `POST /api/fuzz/work/corpus_snapshot` (lease-gated). Submit: `segment_exec_done` must match capped `exec_per_unit` (Deep hub **256** today; code default cap 64). `replay_status` may be `hygiene_skip` · `sample` · `crash_claim` · …. See [POOL_FUZZ_DISTRIBUTED.md](POOL_FUZZ_DISTRIBUTED.md).
 
 ## Hunt Campaigns (Phase 2)
 

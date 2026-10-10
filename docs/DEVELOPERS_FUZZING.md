@@ -60,7 +60,7 @@ Hunt uses **50/50** escrow (not Dig 20/80). Packages: Lite ~20 HMC · Standard ~
 |---------|-----|------|-----------|------|
 | **scan** | ~1 | 64 | 1 | local |
 | **audit** | ~5 | 256 | 64 | yes |
-| **deep** | ~25 | 2048 | 512 local · **64 cap on hub pool** | yes |
+| **deep** | ~25 | 2048 | 512 local · **hub cap 256** (`HACKME_POOL_EXEC_PER_UNIT_CAP`) | yes |
 
 **Packs:** `secrets` · `script_bounds` · `filter_utf8` · `parser_expat` — `hackme-fuzzing packs`
 

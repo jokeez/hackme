@@ -50,7 +50,7 @@ Spec: [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md) · **vs libFuzzer:** [HUNT_VS_LIBFU
 
 **Hunt pool depth (per shard):** Lite **32** · Standard **128** · Heavy **256** exec/shard (`iterations_per_shard`). **C pilot catalog:** `spl` (iacobucci/spl) — `bash scripts/ops/hunt_pilot_external_1h.sh`. **Rust catalog (Phase A):** `serde_json`, `memchr`, `quick_xml` — [HUNT_RUST_PHASE_A.md](HUNT_RUST_PHASE_A.md). **Overnight local** (non-pool): autorunner ticks `hunt_local_tick_iterations` (default 2000) until package budget — Lite **20k/1h** · Standard **200k/8h** · Heavy **500k/12h**. Catalog size: **56** targets in `upstream/oss_cve_targets.json` (2026-09-06; mostly C/C++ stdin ASAN + 3 Rust). **Domain mutator dict** auto-applied per catalog target (JSON/XML/INI/TOML/msgpack splice tokens).
 
-\* **Distributed pool cap:** on hub workers, `exec_per_unit` is capped at **64** per work item for generic fuzz; Hunt pool shards use package `iterations_per_shard` up to **256** on coordinator replay path. Coordinator **replays** the segment on submit — miners do not cryptographically attest every exec.
+\* **Distributed pool cap:** code default `HACKME_POOL_EXEC_PER_UNIT_CAP=64`; **production hub uses 256**. Local Deep still **512**. Hunt pool shards use package `iterations_per_shard` up to **256**. Dig submit uses **sampled + crash-first replay** — clean multi-exec hygiene may skip full segment replay; crash/found/sanitizer claims always full-replay (cannot forge bounty).
 
 **Hunt sanitizer profile (default):** `asan+ubsan+lsan` — LSan via `ASAN_OPTIONS=detect_leaks=1` (disable with `hunt_detect_leaks: false` or env `HACKME_HUNT_DETECT_LEAKS=0`). UBSan/LSan findings use `sanitizer_informational` with explicit subtypes (`shift-overflow`, `null-deref`, `direct-leak`, …) in report hygiene section — not bounty-eligible.
 
@@ -122,12 +122,14 @@ When `pool_distributed: true`, hub `workerfuzz` / hybrid `workerpoh` claims work
 - Wizard sends `mutation_rounds`, `coverage_guided`, `guided_scheduling`, `power_mut_cap`, `corpus_persist` for Dig tiers
 - Pack `mutator_dict` splices domain tokens (secrets, XML, UTF-8 skew)
 - **Cross-campaign corpus persist** (`fuzz_corpus_namespace`): audit/deep guided campaigns import prior seeds for the same `guard_pack` namespace on new campaigns
-- Submit requires matching `segment_exec_done` and coordinator full-segment replay
+- Submit requires matching `segment_exec_done`
+- **Crash/found/sample:** coordinator full-segment replay; **clean Dig hygiene:** hybrid auth accept without full replay (no findings minted)
 - Invalid WASM → reject; incomplete segment → reject
 - Worker lease scales with segment wall time (not fixed 30s)
 - Submit nonce reserved at signature validate (anti-replay)
+- Optional: `claim_batch` / `submit_batch` (≤16), claim-light corpus sha, worker prefetch
 
-**Safe fleet tiers:** Scan (1 exec) and Audit (64 exec). Treat pool Deep as **cap-64** until attestation ships.
+**Safe fleet tiers:** Scan (1) · Audit (64) · Deep hub **cap 256** (local 512). Fleet ~25–35 dig/hybrid workers typical.
 
 Details: [POOL_FUZZ_DISTRIBUTED.md](POOL_FUZZ_DISTRIBUTED.md).
 

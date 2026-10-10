@@ -158,6 +158,16 @@ Pipeline: `cmd/hunt-lf-import` → `MergeLibFuzzerSeedCorpus` (campaign create, 
 
 ---
 
+## Dig pool throughput (2026-10 stages) vs Hunt / libFuzzer
+
+| Lane | Verify model | Hub depth honesty | Throughput lever |
+|------|--------------|-------------------|------------------|
+| **Dig (pool)** | Sampled + crash-first segment replay; clean hygiene may skip | Deep **cap 256** on hub (local 512) | Batch claim, warm WASM, prefetch, claim-light corpus |
+| **Hunt (pool)** | Full/async ASAN replay (sample default 100%) | Lite 32 · Standard 128 · Heavy 256 / shard | Fleet shards + harness cache |
+| **libFuzzer** | Local in-process (research lane) | N/A (not pool-verified) | Raw exec/s + corpus |
+
+**Do not** equate Dig hygiene-skip with Hunt verify — Hunt stays crash-prove on every finding claim.
+
 ## Verdict
 
 Document and show this comparison **yes** — it builds trust. Frame Hunt as **B2B depth tiers + verified fleet + hygiene reporting**, not as a libFuzzer replacement. The benchmark supports honest Standard 128 sales and a strong **libucl sanitizer demo**, while admitting libFuzzer wins raw throughput.
