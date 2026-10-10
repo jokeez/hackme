@@ -12,6 +12,9 @@ const (
 	maxExecPerUnitHardCeil  = 20000
 )
 
+// MaxExecPerUnitHardCeil is the absolute upper bound for exec_per_unit (pool override clamp).
+func MaxExecPerUnitHardCeil() int { return maxExecPerUnitHardCeil }
+
 // CoverageKind describes how corpus scheduling buckets inputs (honest product copy).
 func CoverageKind(cfg map[string]any) string {
 	if cfg != nil {

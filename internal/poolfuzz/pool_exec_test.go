@@ -7,6 +7,7 @@ import (
 )
 
 func TestPoolExecPerUnitCap(t *testing.T) {
+	t.Setenv("HACKME_POOL_EXEC_PER_UNIT_CAP", "")
 	cfg := map[string]any{
 		"pool_distributed": true,
 		"exec_per_unit":    512,
@@ -17,6 +18,17 @@ func TestPoolExecPerUnitCap(t *testing.T) {
 	cfg["pool_distributed"] = false
 	if got := PoolExecPerUnit(cfg); got != 512 {
 		t.Fatalf("local uncapped: got %d want 512", got)
+	}
+}
+
+func TestPoolExecPerUnitCapEnvOverride(t *testing.T) {
+	t.Setenv("HACKME_POOL_EXEC_PER_UNIT_CAP", "256")
+	cfg := map[string]any{
+		"pool_distributed": true,
+		"exec_per_unit":    512,
+	}
+	if got := PoolExecPerUnit(cfg); got != 256 {
+		t.Fatalf("env cap: got %d want 256", got)
 	}
 }
 

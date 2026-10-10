@@ -1,16 +1,37 @@
 package poolfuzz
 
 import (
+	"os"
+	"strconv"
+	"strings"
+
 	"hackme/internal/fuzzengine"
 	"hackme/internal/sandbox"
 )
 
 // poolExecPerUnitCap limits coordinator full-segment replay on distributed pool until
 // sampled worker attestation exists (Phase 2 safety valve).
+// Override with HACKME_POOL_EXEC_PER_UNIT_CAP (e.g. 256/512) when async replay + fleet
+// can absorb deeper Dig segments.
 const poolExecPerUnitCap = 64
 
 // huntExecTimeoutMS matches fuzzupstream.RunInputDetailed per-exec wall budget.
 const huntExecTimeoutMS = 3000
+
+func effectivePoolExecPerUnitCap() int {
+	v := strings.TrimSpace(os.Getenv("HACKME_POOL_EXEC_PER_UNIT_CAP"))
+	if v == "" {
+		return poolExecPerUnitCap
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 1 {
+		return poolExecPerUnitCap
+	}
+	if n > fuzzengine.MaxExecPerUnitHardCeil() {
+		return fuzzengine.MaxExecPerUnitHardCeil()
+	}
+	return n
+}
 
 // PoolExecPerUnit returns exec_per_unit for pool claim/submit/replay (capped on distributed pool).
 func PoolExecPerUnit(cfg map[string]any) int {
@@ -18,8 +39,9 @@ func PoolExecPerUnit(cfg map[string]any) int {
 	if !poolDistributed(cfg) {
 		return n
 	}
-	if n > poolExecPerUnitCap {
-		return poolExecPerUnitCap
+	capN := effectivePoolExecPerUnitCap()
+	if n > capN {
+		return capN
 	}
 	return n
 }

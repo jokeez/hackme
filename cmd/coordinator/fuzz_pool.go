@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"hackme/internal/fuzzengine"
+	"hackme/internal/fuzzingcli"
 	"hackme/internal/hunt"
 	"hackme/internal/poolfuzz"
 )
@@ -437,6 +438,18 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			req.Config = map[string]any{}
 		}
 		req.Config["pool_distributed"] = true
+		// Dig (non-Hunt) campaigns get the same depth pack/mutator/seed finalize as local B2B.
+		if !poolfuzz.IsHuntCampaign(req.Config) {
+			repoRoot := strings.TrimSpace(os.Getenv("HACKME_REPO_ROOT"))
+			if repoRoot == "" {
+				if wd, err := os.Getwd(); err == nil {
+					repoRoot = wd
+				}
+			}
+			pack := configString(req.Config, "guard_pack", "guard_name")
+			pkg := configString(req.Config, "dig_package")
+			req.Config = fuzzingcli.FinalizeDigCampaignConfig(req.Config, pkg, pack, repoRoot)
+		}
 		if err := pf.RegisterCampaign(r.Context(), poolfuzz.Campaign{
 			ID:            req.ID,
 			CampaignType:  req.CampaignType,
