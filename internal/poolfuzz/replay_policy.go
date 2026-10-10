@@ -14,14 +14,14 @@ import (
 
 // Replay decision reasons (observability / SubmitOutcome.ReplayStatus).
 const (
-	replayReasonFull          = "full"
-	replayReasonCrashClaim    = "crash_claim"
-	replayReasonFindingClaim  = "finding_claim"
-	replayReasonSample        = "sample"
-	replayReasonHygieneSkip   = "hygiene_skip"
-	replayReasonAlwaysEnv     = "always_env"
-	replayReasonSingleExec    = "single_exec"
-	replayReasonHuntDefault   = "hunt_full"
+	replayReasonFull         = "full"
+	replayReasonCrashClaim   = "crash_claim"
+	replayReasonFindingClaim = "finding_claim"
+	replayReasonSample       = "sample"
+	replayReasonHygieneSkip  = "hygiene_skip"
+	replayReasonAlwaysEnv    = "always_env"
+	replayReasonSingleExec   = "single_exec"
+	replayReasonHuntDefault  = "hunt_full"
 )
 
 // poolReplayDecision says whether Dig/Hunt submit must run coordinator segment replay.
