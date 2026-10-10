@@ -28,6 +28,9 @@ func TestLibFuzzerSeedDirPaths(t *testing.T) {
 	if got := LibFuzzerImportBinPath(dir, target); got != filepath.Join(dir, ".cache", "hunt-lf-import", target+"-libfuzzer-asan") {
 		t.Fatalf("bin path=%q", got)
 	}
+	if got := PersistentLibFuzzerCorpusDir(dir, target); got != filepath.Join(dir, "reports", "oss-cve-libfuzzer", target, "corpus") {
+		t.Fatalf("persist corpus=%q", got)
+	}
 }
 
 func TestBuildSubprocessLibFuzzer(t *testing.T) {

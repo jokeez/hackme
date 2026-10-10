@@ -34,6 +34,7 @@ ops/windows_run_ideal_worker.ps1
 # --- OSS CVE watch / obscure / numbered waves (canonical runners stay tracked) ---
 ops/run_oss_cve_watch_*.sh
 ops/run_oss_cve_obscure*.sh
+!ops/run_oss_cve_obscure.sh
 ops/run_oss_cve_*marathon*.sh
 ops/run_oss_cve_wave[0-9]*.sh
 ops/run_oss_cve_deep_*.sh
@@ -76,7 +77,10 @@ ops/run_ephemeral_*.sh
 ops/run_max_*.sh
 ops/run_miner_*.sh
 ops/run_oss_afl_*.sh
+!ops/run_oss_afl_session.sh
 ops/run_oss_lib*.sh
+!ops/run_oss_libfuzzer_session.sh
+!ops/run_oss_msan_session.sh
 ops/run_oss_pr_*.sh
 ops/run_oss_reputation_*.sh
 ops/run_pool_incident_*.sh
@@ -229,6 +233,7 @@ ops/build_fuzzing_*.sh
 ops/build_gpu_*.sh
 ops/build_native_*.sh
 ops/build_oss_libfuzzer*.sh
+!ops/build_oss_libfuzzer.sh
 ops/fetch_bounty_*.sh
 ops/fetch_upstream_*.sh
 ops/release_rc*.sh

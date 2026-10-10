@@ -16,6 +16,8 @@ func main() {
 	target := flag.String("target", "", "catalog target id (required)")
 	wall := flag.Int("wall", 120, "libFuzzer wall seconds")
 	importOnly := flag.Bool("import-only", false, "import existing session corpus without running libFuzzer")
+	persist := flag.Bool("persist", false, "use durable reports/oss-cve-libfuzzer/<target>/corpus (no wipe)")
+	buildOnly := flag.Bool("build-only", false, "compile/reuse libFuzzer binary and exit")
 	repo := flag.String("repo", "", "repo root (default: HACKME_REPO_ROOT or cwd)")
 	flag.Parse()
 
@@ -36,6 +38,16 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*wall+180)*time.Second)
 	defer cancel()
 
+	if *buildOnly {
+		bin, _, err := hunt.BuildLibFuzzerImport(ctx, repoRoot, targetID)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		fmt.Println(bin)
+		return
+	}
+
 	if *importOnly {
 		n, err := hunt.ImportLibFuzzerCorpusFromSession(repoRoot, targetID)
 		if err != nil {
@@ -46,7 +58,15 @@ func main() {
 		return
 	}
 
-	n, err := hunt.RunLibFuzzerImportSession(ctx, repoRoot, targetID, *wall)
+	var (
+		n   int
+		err error
+	)
+	if *persist {
+		n, err = hunt.RunPersistentLibFuzzerSession(ctx, repoRoot, targetID, *wall)
+	} else {
+		n, err = hunt.RunLibFuzzerImportSession(ctx, repoRoot, targetID, *wall)
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

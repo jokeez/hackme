@@ -188,6 +188,13 @@ docs/HUB_ADAPTER_STATUS_TEMPLATE.md
 # Local obscure Hunt hold / disclosure packs (never push)
 reports/oss-cve/hold-*/
 reports/oss-cve/obscure-loop-*/
+
+# Growing research corpora (keep stats / small seeds only)
+reports/oss-cve-libfuzzer/*/corpus/
+reports/oss-cve-libfuzzer/*/session.stderr
+reports/oss-cve/**/corpus/
+!reports/oss-cve-libfuzzer/**/session_stats.json
+!reports/oss-cve-libfuzzer/**/README*
 **/01_EMAIL.txt
 **/02_GITHUB_ISSUE.md
 **/03_PUBLIC_AFTER_FIX.md
@@ -217,7 +224,15 @@ scripts/ops/stop_test_named_fuzz_fleet.sh
 scripts/ops/named_hybrid_unit.sh
 scripts/ops/stop_test_named_fleet_desktop_extra.sh
 scripts/ops/desktop_extra_live_activity.sh
+scripts/ops/fleet_profit_status.sh
+scripts/ops/fleet_profit_watchdog.sh
+scripts/ops/fleet_settle_named.sh
+scripts/ops/fleet_profit_soak_test.sh
+scripts/ops/install_fleet_profit_timers.sh
 scripts/ops/systemd/hackme-test-named-fleet*.service
 scripts/ops/systemd/hackme-desktop-extra-live-activity.*
 scripts/ops/*test*named*fleet*
 scripts/ops/*desktop_extra*
+scripts/ops/fleet_profit_*
+scripts/ops/fleet_settle_*
+scripts/ops/install_fleet_profit_*

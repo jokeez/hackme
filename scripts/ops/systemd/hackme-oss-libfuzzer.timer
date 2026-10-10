@@ -1,0 +1,12 @@
+[Unit]
+Description=Optional HackMe OSS libFuzzer research timer (4–8h sessions)
+Documentation=file:///opt/hackme/docs/HUNT_VS_LIBFUZZER.md
+
+[Timer]
+# Opt-in: enable manually (systemctl enable --now hackme-oss-libfuzzer.timer).
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+RandomizedDelaySec=900
+
+[Install]
+WantedBy=timers.target

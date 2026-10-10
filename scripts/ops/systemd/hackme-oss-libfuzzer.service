@@ -1,0 +1,22 @@
+[Unit]
+Description=HackMe OSS libFuzzer research session (persistent corpus)
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=hackme
+Group=hackme
+WorkingDirectory=/opt/hackme
+Environment=HACKME_REPO_ROOT=/opt/hackme
+Environment=HACKME_POOL_SEED_FROM_RESEARCH=0
+Environment=TARGETS=mpack,tinycbor,cwalk
+Environment=WALL_SEC=14400
+Nice=10
+CPUQuota=400%
+# Keep research below miner/pool priority.
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+ExecStart=/opt/hackme/scripts/ops/run_oss_libfuzzer_session.sh
+
+[Install]
+WantedBy=multi-user.target
