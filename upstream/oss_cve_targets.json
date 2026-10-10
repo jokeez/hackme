@@ -848,7 +848,7 @@
     {
       "id": "pcre2",
       "repo": "https://github.com/PCRE2Project/pcre2",
-      "ref": "main",
+      "ref": "ead0e18635bd70e321354531d0c2fb38b928853d",
       "title": "PCRE2Project/pcre2 · pcre2_compile/match",
       "driver": "pcre2_stdin",
       "upstream_src": [

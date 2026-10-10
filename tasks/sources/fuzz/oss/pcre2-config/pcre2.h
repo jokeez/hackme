@@ -439,6 +439,7 @@ released, the numbers must not be changed. */
 #define PCRE2_ERROR_DIFFSUBSOPTIONS   (-74)
 #define PCRE2_ERROR_BAD_BACKSLASH_K   (-75)
 #define PCRE2_ERROR_PARTIALSUBS       (-76)
+#define PCRE2_ERROR_BADOFFSETLIMITVALUE (-77)
 
 
 /* Request types for pcre2_pattern_info() */
