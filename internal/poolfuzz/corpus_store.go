@@ -473,7 +473,8 @@ func (s *Service) EnsureGuidedCorpusSeeded(ctx context.Context, campaignID strin
 				return err
 			}
 		}
-	} else if packID := strings.TrimSpace(jsonString(cfg["guard_pack"])); packID != "" {
+	} else if packID := strings.TrimSpace(jsonString(cfg["guard_pack"])); packID != "" && digPackageKey(cfg) == "deep" {
+		// Deep SKU only — smoke/audit Dig must not pull research/external seed caches.
 		if _, err := fuzzingcli.MergeDigSeedCorpus(cfg, hunt.RepoRoot(), packID); err != nil {
 			return err
 		}

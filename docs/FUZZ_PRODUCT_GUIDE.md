@@ -10,13 +10,15 @@ HackMe **B2B security fuzz** runs on your **local node** (`127.0.0.1:8080`). The
 
 CLI/API keys stay `scan` | `audit` | `deep`. Customer-facing names:
 
-| SKU | CLI `--package` | HMC | Runs | Pool | Best for |
-|-----|-----------------|-----|------|------|----------|
-| **Scan** | `scan` | ~1 | 64 | local only | CI smoke, nightly guard |
-| **Dig · Audit** | `audit` | ~5 | 256 | yes | Protocol guards, DeFi invariants |
-| **Dig · Deep** | `deep` | ~25 | 2048 | yes* | Byte corpus, hours-scale campaign |
+| SKU | CLI `--package` | Mode | HMC | Runs | Pool | Best for |
+|-----|-----------------|------|-----|------|------|----------|
+| **Scan** | `scan` | smoke | ~1 | 64 | local only | CI smoke, nightly guard |
+| **Dig · Audit** | `audit` | smoke | ~5 | 256 | yes | Distributed smoke + attested report |
+| **Dig · Deep** | `deep` | deep | ~25 | 2048 | yes* | Paid depth, seed merge, stricter verify |
 
-**Dig depth v2 (2026-09):** richer pack `mutator_dict` profiles, tier power scheduling (Audit **mut_cap≥8** · Deep **≥14**), optional external seeds in `.cache/dig-seeds/{pack}/`, cross-campaign corpus persist `pack:{id}`, and customer report `dig_depth` card + expanded `human_summary`.
+**Honest promise:** smoke = distributed smoke + attested report; deep = paid depth with seed merge + higher replay sample. **Not** an OSS-Fuzz/CVE replacement. Reports expose `product_mode`, `replay_policy`, `seeds_merged`, hub exec cap.
+
+**Dig depth v2:** richer pack `mutator_dict` profiles, tier power scheduling (Audit **mut_cap≥8** · Deep **≥14**), **Deep-only** external seeds in `.cache/dig-seeds/{pack}/`, cross-campaign corpus persist `pack:{id}`, CLEAN floor + canary anticheat, and customer report `dig_depth` / SKU honesty card.
 
 **Hunt** (repo + ASAN on pool, 50/50 escrow) — on **0.1.0-rc17** channel:
 

@@ -805,6 +805,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			DurationMS      int    `json:"duration_ms"`
 			Trap            string `json:"trap"`
 			SegmentExecDone int    `json:"segment_exec_done"`
+			EdgesTouched    *int   `json:"edges_touched"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid json", http.StatusBadRequest)
@@ -894,7 +895,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		if h := strings.TrimSpace(req.InputBytesHex); h != "" {
 			inputBytes, _ = hex.DecodeString(h)
 		}
-		out, err := pf.SubmitWithOutcome(r.Context(), poolfuzz.SubmitRequest{
+		sub := poolfuzz.SubmitRequest{
 			WorkerID:        req.WorkerID,
 			MinerAddress:    payoutAddr,
 			WorkID:          req.WorkID,
@@ -907,7 +908,12 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			DurationMS:      req.DurationMS,
 			Trap:            strings.TrimSpace(req.Trap),
 			SegmentExecDone: req.SegmentExecDone,
-		})
+		}
+		if req.EdgesTouched != nil {
+			sub.EdgesTouched = *req.EdgesTouched
+			sub.EdgesTouchedOK = true
+		}
+		out, err := pf.SubmitWithOutcome(r.Context(), sub)
 		if err != nil {
 			// Free lease only when identity is proven via payout lock match.
 			// Unlocked forgeable ids must not snipe a victim shard on submit error
@@ -986,6 +992,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 				DurationMS      int    `json:"duration_ms"`
 				Trap            string `json:"trap"`
 				SegmentExecDone int    `json:"segment_exec_done"`
+				EdgesTouched    *int   `json:"edges_touched"`
 			} `json:"items"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1052,12 +1059,17 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 			if h := strings.TrimSpace(it.InputBytesHex); h != "" {
 				inputBytes, _ = hex.DecodeString(h)
 			}
-			out, err := pf.SubmitWithOutcome(r.Context(), poolfuzz.SubmitRequest{
+			sub := poolfuzz.SubmitRequest{
 				WorkerID: workerID, MinerAddress: payoutAddr, WorkID: it.WorkID,
 				CampaignID: it.CampaignID, ItemID: it.ItemID, InputN: it.InputN,
 				ActualInput: it.ActualInput, InputBytes: inputBytes, CheckResult: it.CheckResult,
 				DurationMS: it.DurationMS, Trap: strings.TrimSpace(it.Trap), SegmentExecDone: it.SegmentExecDone,
-			})
+			}
+			if it.EdgesTouched != nil {
+				sub.EdgesTouched = *it.EdgesTouched
+				sub.EdgesTouchedOK = true
+			}
+			out, err := pf.SubmitWithOutcome(r.Context(), sub)
 			if err != nil {
 				row["error"] = err.Error()
 				results = append(results, row)

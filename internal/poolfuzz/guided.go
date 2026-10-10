@@ -35,6 +35,10 @@ func (s *Service) expectedInputsForSubmit(ctx context.Context, campaignID string
 		return u, b, nil
 	}
 	if !fuzzengine.GuidedSchedulingEnabled(cfg) {
+		// Honor locked canary/challenge inputs when present; else derive.
+		if u, b, locked, err := s.loadExpectedInputs(ctx, campaignID, itemID); err == nil && locked {
+			return u, b, nil
+		}
 		u, b := derivePoolInputs(inputN, cfg)
 		return u, b, nil
 	}
@@ -114,7 +118,7 @@ func (s *Service) buildClaimedWork(ctx context.Context, campaignID string, itemI
 	} else {
 		actualU, actualB = derivePoolInputs(inputN, cfg)
 	}
-	return ClaimedWork{
+	work := ClaimedWork{
 		WorkID:               fmt.Sprintf("%s:%d", campaignID, itemID),
 		CampaignID:           campaignID,
 		ItemID:               itemID,
@@ -139,5 +143,12 @@ func (s *Service) buildClaimedWork(ctx context.Context, campaignID string, itemI
 		CorpusExploreV2: exploreV2,
 		SeedByteCorpus:  seedCorpus,
 		MutatorDict:     mutDict,
-	}, nil
+	}
+	if shouldInjectDigCanary(campaignID, itemID, cfg) {
+		if err := s.applyDigCanary(ctx, &work, cfg); err != nil {
+			// Soft-fail: keep normal claim rather than starving the fleet.
+			_ = err
+		}
+	}
+	return work, nil
 }

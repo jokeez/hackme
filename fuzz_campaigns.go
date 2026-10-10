@@ -2242,10 +2242,14 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 		if hygieneCount > 0 {
 			humanSummary += fmt.Sprintf(" · %d sanitizer hygiene", hygieneCount)
 		}
-		assuranceNote = "Hunt report: pool-verified ASAN+UBSan+LSan shards on native harness. CLEAN means no qualifying native_crash in sample — not a CVE guarantee. UBSan/LSan rows are informational hygiene."
+		assuranceNote = "Hunt report: pool-verified ASAN+UBSan+LSan shards on native harness. CLEAN means no qualifying native_crash in sample — not a CVE guarantee, not an OSS-Fuzz replacement. UBSan/LSan rows are informational hygiene."
+		digDepthCard = buildHuntSKUCard(c.Config)
 	} else {
 		humanSummary = buildDigHumanSummary(c.Config, runsDone, edges, paths, crashCount, crashCrit)
 		digDepthCard = buildDigDepthCard(c.Config)
+		if note, ok := digDepthCard["promise_note"].(string); ok && strings.TrimSpace(note) != "" {
+			assuranceNote = note + " " + assuranceNote
+		}
 	}
 	moneySpent := moneySpentFromCampaign(c)
 	if a.chain != nil {

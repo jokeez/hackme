@@ -132,6 +132,9 @@ func migrateFuzzOnly(db *sql.DB) error {
 	if err := migrateFuzzHuntReplayQueue(db); err != nil {
 		return err
 	}
+	if err := migrateFuzzWorkCanary(db); err != nil {
+		return err
+	}
 	return bumpUserVersion(db)
 }
 
@@ -222,6 +225,9 @@ func migrate(db *sql.DB) error {
 		return err
 	}
 	if err := migrateFuzzHuntReplayQueue(db); err != nil {
+		return err
+	}
+	if err := migrateFuzzWorkCanary(db); err != nil {
 		return err
 	}
 	if err := migrateOrderFoundNonces(db); err != nil {
@@ -844,6 +850,15 @@ func migrateHuntHarnessArtifacts(db *sql.DB) error {
 			}
 			return err
 		}
+	}
+	return nil
+}
+
+// migrateFuzzWorkCanary marks Dig challenge shards for CLEAN canary_miss rejection.
+func migrateFuzzWorkCanary(db *sql.DB) error {
+	_, err := db.Exec(`ALTER TABLE fuzz_work_items ADD COLUMN is_canary INTEGER NOT NULL DEFAULT 0`)
+	if err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+		return err
 	}
 	return nil
 }

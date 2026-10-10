@@ -15,7 +15,7 @@ func Packages() []PackageInfo {
 			LocalTimeLimitSec:  huntLocalSecLite,
 			MinPerShard:        0.002,
 			WallHours:          "6–24h",
-			Summary:            "Pool sweep · 32 exec/shard · overnight local up to 20k iter",
+			Summary:            "Smoke Hunt · pool ASAN shards · attested CLEAN ≠ CVE · not OSS-Fuzz replacement",
 			EscrowSplit:        fuzzescrow.EscrowSplit5050,
 		},
 		{
@@ -28,7 +28,7 @@ func Packages() []PackageInfo {
 			LocalTimeLimitSec:  huntLocalSecStandard,
 			MinPerShard:        0.003,
 			WallHours:          "1–3d",
-			Summary:            "Pool sweep · 128 exec/shard · overnight local up to 200k iter",
+			Summary:            "Smoke Hunt · deeper pool sweep · attested CLEAN ≠ CVE · not OSS-Fuzz replacement",
 			EscrowSplit:        fuzzescrow.EscrowSplit5050,
 		},
 		{
@@ -41,7 +41,7 @@ func Packages() []PackageInfo {
 			LocalTimeLimitSec:  huntLocalSecHeavy,
 			MinPerShard:        0.003,
 			WallHours:          "3d+",
-			Summary:            "Pool-scale · 256 exec/shard · power_mut_cap≥16 · overnight local up to 500k iter",
+			Summary:            "Deep Hunt · pool-scale depth · stricter budgets · CLEAN ≠ CVE · not OSS-Fuzz replacement",
 			EscrowSplit:        fuzzescrow.EscrowSplit5050,
 		},
 	}

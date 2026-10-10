@@ -102,6 +102,8 @@ type ClaimedWork struct {
 	// MutatorDict is the Dig/Hunt pack dictionary the worker must apply for SegmentExecInput
 	// parity with coordinator replay (hex-decoded bytes).
 	MutatorDict []byte
+	// IsCanary is coordinator-internal (challenge shard); not advertised on claim JSON.
+	IsCanary bool
 }
 
 type SubmitRequest struct {
@@ -118,6 +120,9 @@ type SubmitRequest struct {
 	DurationMS       int
 	Trap             string
 	SegmentExecDone  int
+	// EdgesTouched is unique edge count from the worker segment when EdgesTouchedOK.
+	EdgesTouched   int
+	EdgesTouchedOK bool
 }
 
 // RegisterCampaign upserts a pool-distributed fuzz campaign and marks it running.
@@ -1196,6 +1201,13 @@ func (s *Service) SubmitWithOutcome(ctx context.Context, req SubmitRequest) (Sub
 	if !dec.Full {
 		// Clean Dig hygiene: accept via existing submit auth without full segment
 		// replay. Findings are never minted on this path (forge attempts force Full).
+		// Floor + canary catch empty/fake CLEAN without making every shard full-replay.
+		if err := checkCleanHygieneFloor(req, execPer, cfg); err != nil {
+			return SubmitOutcome{}, err
+		}
+		if err := s.rejectCanaryMissIfNeeded(ctx, cfg, req, expectedU, expectedB); err != nil {
+			return SubmitOutcome{}, err
+		}
 		pass, _ = fuzzengine.EvalCheck(sem, req.CheckResult, nil)
 		checkResult = req.CheckResult
 		trap = ""

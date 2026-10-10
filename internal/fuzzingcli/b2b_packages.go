@@ -33,21 +33,21 @@ var b2bPackages = map[string]B2BPackage{
 		Name: "scan", DepthTier: fuzzengine.DepthWasmOnly,
 		BudgetHMC: 1.0, BudgetRuns: 64, BudgetSeconds: 900,
 		PoolDistributed: false, CreatePoHOrder: false,
-		Summary:     "Scan · WASM smoke — local quick check, no native/ASAN repro, no pool PoH",
+		Summary:     "Smoke · local WASM quick check + attested report — not OSS-Fuzz/CVE replacement",
 		SignalTypes: []string{"wasm_smoke"},
 	},
 	"audit": {
 		Name: "audit", DepthTier: fuzzengine.DepthWasmNative,
 		BudgetHMC: 5.0, BudgetRuns: 256, BudgetSeconds: 28800, // ~8h SLA window
 		PoolDistributed: true, CreatePoHOrder: true, RewardHMC: 0.05,
-		Summary:     "Dig · Audit — WASM + native/ASAN repro path, pool fuzz with PoH attach",
+		Summary:     "Smoke · distributed Dig + native/ASAN repro + attested report — not OSS-Fuzz/CVE replacement",
 		SignalTypes: []string{"wasm_check", "native_repro"},
 	},
 	"deep": {
 		Name: "deep", DepthTier: fuzzengine.DepthBytesCorpus,
 		BudgetHMC: 25.0, BudgetRuns: 2048, BudgetSeconds: 86400, // 24h hours-scale
 		PoolDistributed: true, CreatePoHOrder: true, RewardHMC: 0.05,
-		Summary:        "Dig · Deep — byte corpus + heavy mutation, hours-scale budget, signals beyond Audit",
+		Summary:        "Deep · paid depth with seed merge + stricter verify — not OSS-Fuzz/CVE replacement",
 		SignalTypes:    []string{"byte_corpus", "structured_mutation", "corpus_scheduling", "segment_exec", "native_repro"},
 		MutationRounds: 12,
 		CoverageGuided: true,

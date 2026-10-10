@@ -8,6 +8,7 @@ import (
 
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzingcli"
+	"hackme/internal/poolfuzz"
 )
 
 const fuzzTopIssueLimit = 5
@@ -477,8 +478,15 @@ func buildDigDepthCard(cfg map[string]any) map[string]any {
 	}
 	pack := cfgString(cfg, "guard_pack")
 	pkg := fuzzingcli.DigPackageFromDepthTier(fuzzengine.ParseDepthTier(cfg))
+	if p := strings.TrimSpace(strings.ToLower(cfgString(cfg, "dig_package"))); p != "" {
+		pkg = p
+	}
+	truth := poolfuzz.DigPoolExecTruth(cfg)
+	honesty := fuzzingcli.BuildDigSKUHonesty(cfg, truth.Configured, truth.Effective, truth.HubCap, truth.CappedOnPool)
 	return map[string]any{
 		"package":               fuzzingcli.B2BPackageDisplayName(pkg),
+		"package_key":           pkg,
+		"product_mode":          honesty.ProductMode,
 		"guard_pack":            pack,
 		"depth_profile":         cfgString(cfg, "dig_depth_profile"),
 		"mutator_profile":       cfgString(cfg, "dig_mutator_profile"),
@@ -487,7 +495,38 @@ func buildDigDepthCard(cfg map[string]any) map[string]any {
 		"guided_scheduling":     fuzzengine.GuidedSchedulingEnabled(cfg),
 		"corpus_persist_ns":     fuzzengine.CorpusPersistNamespace(cfg),
 		"external_seeds_merged": intFromCfg(cfg, "dig_external_seeds_merged"),
+		"seeds_merged":          honesty.SeedsMerged,
+		"seed_from_research":    honesty.SeedFromResearch,
 		"coverage_kind":         fuzzengine.CoverageKind(cfg),
+		"replay_policy":         honesty.ReplayPolicy,
+		"replay_sample_pct":     honesty.ReplaySamplePct,
+		"lf_budget_sec":         honesty.LFBudgetSec,
+		"exec_configured":       honesty.ExecConfigured,
+		"exec_effective":        honesty.ExecEffective,
+		"exec_hub_cap":          honesty.ExecHubCap,
+		"capped_on_pool":        honesty.CappedOnPool,
+		"promise_note":          honesty.PromiseNote,
+		"honesty_note":          honesty.HonestyNote,
+		"sku_honesty":           honesty,
+	}
+}
+
+func buildHuntSKUCard(cfg map[string]any) map[string]any {
+	if cfg == nil {
+		return nil
+	}
+	h := fuzzingcli.BuildHuntSKUHonesty(cfg)
+	return map[string]any{
+		"package":            h.Package,
+		"product_mode":       h.ProductMode,
+		"replay_policy":      h.ReplayPolicy,
+		"replay_sample_pct":  h.ReplaySamplePct,
+		"lf_budget_sec":      h.LFBudgetSec,
+		"seeds_merged":       h.SeedsMerged,
+		"seeds_merged_count": h.SeedsMergedN,
+		"promise_note":       h.PromiseNote,
+		"honesty_note":       h.HonestyNote,
+		"sku_honesty":        h,
 	}
 }
 

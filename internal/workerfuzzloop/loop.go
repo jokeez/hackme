@@ -408,6 +408,8 @@ func processClaim(ctx context.Context, cfg Config, base string, st *Stats, cr *C
 	var durMS int
 	var trap string
 	var execDone int
+	var edgesTouched int
+	var edgesOK bool
 	if IsHuntClaim(*cr) {
 		if err := HuntClaimMissingFields(*cr); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", cfg.LogPrefix, err)
@@ -426,7 +428,8 @@ func processClaim(ctx context.Context, cfg Config, base string, st *Stats, cr *C
 			return
 		}
 	} else {
-		checkRet, durMS, trap, execDone = RunSegmentCheck(ctx, *cr, cfg.TimeoutMS)
+		checkRet, durMS, trap, execDone, edgesTouched = RunSegmentCheck(ctx, *cr, cfg.TimeoutMS)
+		edgesOK = true
 	}
 	// Stage D: optional LF research slot while lease is still held (default OFF).
 	// Uploads new corpus units + crash artifacts only; coordinator ASAN-replays crashes.
@@ -445,7 +448,7 @@ func processClaim(ctx context.Context, cfg Config, base string, st *Stats, cr *C
 		}
 	}
 	nonce := uint64(time.Now().UnixNano())
-	if err := Submit(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cfg.MinerAddr, cfg.Priv, cfg.PubHex, cfg.Hybrid, nonce, *cr, checkRet, durMS, trap, execDone); err != nil {
+	if err := Submit(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cfg.MinerAddr, cfg.Priv, cfg.PubHex, cfg.Hybrid, nonce, *cr, checkRet, durMS, trap, execDone, edgesTouched, edgesOK); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: submit: %v\n", cfg.LogPrefix, err)
 		release("submit_reject")
 		return
@@ -687,16 +690,16 @@ func ReleaseLease(ctx context.Context, cl *http.Client, base, token, workerID, c
 
 // RunCheck executes the leased WASM check in-process (wazero) — single exec fallback.
 func RunCheck(ctx context.Context, cr ClaimResp, timeoutMS int) (checkResult int32, durationMS int, trap string) {
-	checkResult, durationMS, trap, _ = RunSegmentCheck(ctx, cr, timeoutMS)
+	checkResult, durationMS, trap, _, _ = RunSegmentCheck(ctx, cr, timeoutMS)
 	return checkResult, durationMS, trap
 }
 
 // RunSegmentCheck runs exec_per_unit deterministic execs for one work unit.
-func RunSegmentCheck(ctx context.Context, cr ClaimResp, timeoutMS int) (checkResult int32, durationMS int, trap string, execDone int) {
+func RunSegmentCheck(ctx context.Context, cr ClaimResp, timeoutMS int) (checkResult int32, durationMS int, trap string, execDone int, edgesTouched int) {
 	start := time.Now()
 	wasm, err := hex.DecodeString(strings.TrimSpace(cr.WasmCheckHex))
 	if err != nil || len(wasm) == 0 {
-		return 0, 0, "missing wasm", 0
+		return 0, 0, "missing wasm", 0, 0
 	}
 	execPer := cr.ExecPerUnit
 	if execPer < 1 {
@@ -788,18 +791,22 @@ func RunSegmentCheck(ctx context.Context, cr ClaimResp, timeoutMS int) (checkRes
 		out, execErr := sandbox.InvokeCheckOutcomeInput(cctx, wasm, InputForCheck(cr))
 		durationMS = int(time.Since(start).Milliseconds())
 		if execErr != nil {
-			return 0, durationMS, execErr.Error(), 1
+			return 0, durationMS, execErr.Error(), 1, 0
+		}
+		edges := 0
+		if sandbox.BitmapHasSignal(out.EdgeBitmap) {
+			edges = 1
 		}
 		if out.OK {
-			return 1, durationMS, "", 1
+			return 1, durationMS, "", 1, edges
 		}
-		return 0, durationMS, "", 1
+		return 0, durationMS, "", 1, edges
 	}
 	segCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMS*execPer)*time.Millisecond)
 	defer cancel()
 	seg := fuzzengine.EvalSegment(segCtx, cr.InputN, cfg, seeds, sem, runOne)
 	durationMS = int(time.Since(start).Milliseconds())
-	return seg.CheckResult, durationMS, seg.Trap, seg.ExecDone
+	return seg.CheckResult, durationMS, seg.Trap, seg.ExecDone, seg.UniqueEdgeSeen
 }
 
 // InputForCheck returns bytes for check_bytes / packed check(i64).
@@ -813,7 +820,7 @@ func InputForCheck(cr ClaimResp) []byte {
 }
 
 // Submit posts a fuzz work result (optional hybrid signature).
-func Submit(ctx context.Context, cl *http.Client, base, token, workerID, minerAddress string, priv ed25519.PrivateKey, pubHex string, hybrid bool, nonce uint64, cr ClaimResp, checkResult int32, durationMS int, trap string, segmentExecDone int) error {
+func Submit(ctx context.Context, cl *http.Client, base, token, workerID, minerAddress string, priv ed25519.PrivateKey, pubHex string, hybrid bool, nonce uint64, cr ClaimResp, checkResult int32, durationMS int, trap string, segmentExecDone int, edgesTouched int, edgesOK bool) error {
 	payload := map[string]any{
 		"worker_id":         workerID,
 		"work_id":           cr.WorkID,
@@ -826,6 +833,9 @@ func Submit(ctx context.Context, cl *http.Client, base, token, workerID, minerAd
 		"trap":              trap,
 		"submit_nonce":      nonce,
 		"segment_exec_done": segmentExecDone,
+	}
+	if edgesOK {
+		payload["edges_touched"] = edgesTouched
 	}
 	if hybrid {
 		if priv == nil {

@@ -129,17 +129,20 @@ func FinalizeDigCampaignConfig(cfg map[string]any, pkgName, packID, repoRoot str
 			cfg["corpus_persist"] = true
 		}
 	}
-	if packID != "" && strings.TrimSpace(repoRoot) != "" {
+	// External seed merge + research feed: Deep SKU only (smoke/audit stay isolated).
+	if IsDeepDigPackage(pkgName) && packID != "" && strings.TrimSpace(repoRoot) != "" {
 		if n, err := MergeDigSeedCorpus(cfg, repoRoot, packID); err == nil && n > 0 {
 			cfg["dig_external_seeds_merged"] = n
 		}
-		// Research → Dig handoff stays opt-in (HACKME_POOL_SEED_FROM_RESEARCH=1).
+		// Research → Dig handoff stays opt-in (HACKME_POOL_SEED_FROM_RESEARCH=1) and Deep-only.
 		if researchTID := strings.TrimSpace(cfgString(cfg, "oss_research_target_id")); researchTID != "" {
 			if n, err := MaybeFeedResearchSeedsToDig(repoRoot, packID, researchTID); err == nil && n > 0 {
 				cfg["dig_research_seeds_fed"] = n
 			}
 		}
 	}
+	cfg["dig_package"] = strings.TrimSpace(strings.ToLower(pkgName))
+	cfg["product_mode"] = DigProductMode(pkgName)
 	if fuzzengine.CorpusPersistEnabled(cfg) {
 		if _, ok := cfg["corpus_persist_max"]; !ok {
 			max := 64

@@ -75,7 +75,7 @@ func TestFinalizeDigCampaignConfigMergesSeeds(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := ApplyPackConfig(map[string]any{}, guardPacks[pack])
-	cfg = FinalizeDigCampaignConfig(cfg, "audit", pack, dir)
+	cfg = FinalizeDigCampaignConfig(cfg, "deep", pack, dir)
 	if intFromCfg(cfg, "dig_external_seeds_merged") != 1 {
 		t.Fatalf("merged=%v corpus=%v", cfg["dig_external_seeds_merged"], cfg["seed_byte_corpus"])
 	}

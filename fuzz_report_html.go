@@ -619,16 +619,25 @@ func renderDigDepthBlock(report map[string]any) string {
 	profile := html.EscapeString(toString(m["depth_profile"]))
 	pack := html.EscapeString(toString(m["guard_pack"]))
 	pkg := html.EscapeString(toString(m["package"]))
-	mut := html.EscapeString(toString(m["mutator_profile"]))
-	ns := html.EscapeString(toString(m["corpus_persist_ns"]))
-	return fmt.Sprintf(`<div class="card"><p class="lbl">Dig depth profile</p>
-<p><strong>%s</strong> · pack <code>%s</code></p>
+	mode := html.EscapeString(toString(m["product_mode"]))
+	replay := html.EscapeString(toString(m["replay_policy"]))
+	promise := html.EscapeString(toString(m["promise_note"]))
+	if promise == "" {
+		promise = html.EscapeString(toString(m["honesty_note"]))
+	}
+	return fmt.Sprintf(`<div class="card"><p class="lbl">SKU · depth honesty</p>
+<p><strong>%s</strong> · mode <code>%s</code> · pack <code>%s</code></p>
 <p class="muted">%s</p>
-<p class="muted">mutator=%s · guided=%s · corpus_ns=%s · ext_seeds=%s · coverage=%s</p></div>`,
-		pkg, pack, profile, mut,
-		html.EscapeString(toString(m["guided_scheduling"])),
-		ns,
-		html.EscapeString(toString(m["external_seeds_merged"])),
+<p class="muted">replay=%s · sample=%s%% · lf_budget=%ss · seeds_merged=%s · exec=%s/%s (cap %s) · coverage=%s</p>
+<p class="muted">%s</p></div>`,
+		pkg, mode, pack, profile, replay,
+		html.EscapeString(toString(m["replay_sample_pct"])),
+		html.EscapeString(toString(m["lf_budget_sec"])),
+		html.EscapeString(toString(m["seeds_merged"])),
+		html.EscapeString(toString(m["exec_effective"])),
+		html.EscapeString(toString(m["exec_configured"])),
+		html.EscapeString(toString(m["exec_hub_cap"])),
 		html.EscapeString(toString(m["coverage_kind"])),
+		promise,
 	)
 }

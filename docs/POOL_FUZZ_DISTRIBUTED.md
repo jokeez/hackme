@@ -66,14 +66,37 @@ Cap lives in `internal/poolfuzz/pool_exec.go`. **Do not** advertise pool Deep **
 
 ---
 
-## Anticheat (submit path) — sampled + crash-first replay
+## Anticheat (submit path) — sampled + crash-first + CLEAN floor/canary
 
 1. **Claim** freezes guided anchor input + `corpus_seeds[]` snapshot.
-2. Worker returns `segment_exec_done` matching `exec_per_unit`.
+2. Worker returns `segment_exec_done` matching `exec_per_unit` (and should send `edges_touched` for bitmap campaigns).
 3. **Full coordinator segment replay** when the worker claims crash/found/sanitizer fail, or when a clean submit is randomly sampled.
-4. **Clean Dig hygiene** (multi-exec): accept via hybrid Ed25519 submit auth **without** full segment replay — **never** mints findings/bounty on this path.
+4. **Clean Dig hygiene** (multi-exec): accept via hybrid Ed25519 submit auth **without** full segment replay — **never** mints findings/bounty on this path — but only after **CLEAN floor** + optional **canary** checks.
 5. Worker lease scales: `exec × check_timeout + slack` (max 600s).
 6. Hybrid submit: Ed25519 PoP + nonce reserved at validate (replay blocked).
+
+### CLEAN floor (Dig hygiene_skip)
+
+Rejects empty/fake CLEAN without paying. Defaults stay conservative so honest miners keep earning.
+
+| Env | Default | Meaning |
+|-----|---------|---------|
+| `HACKME_POOL_CLEAN_FLOOR` | ON | Master switch |
+| `HACKME_POOL_CLEAN_MIN_DURATION_MS` | 1 | Absolute duration floor for multi-exec CLEAN |
+| `HACKME_POOL_CLEAN_MIN_MS_PER_EXEC` | 0 | Extra per-exec ms (0=off; raise after soak) |
+| `HACKME_POOL_CLEAN_MIN_EDGES` | 1 | Min `edges_touched` when worker reports it on `wasm_edge_bitmap` |
+| `HACKME_POOL_CLEAN_EDGES_REQUIRE` | off | If ON, omit `edges_touched` → reject (tighten after fleet upgrade) |
+
+### Canary / challenge shards (Dig guided)
+
+With small probability the claim locks a pack-known detector-hit input. Honest workers report the finding (full replay). CLEAN without hitting it → `canary_miss` reject.
+
+| Env | Default | Meaning |
+|-----|---------|---------|
+| `HACKME_POOL_CANARY` | ON | Master switch |
+| `HACKME_POOL_CANARY_PCT` | 2 | % of guided Dig claims marked canary (start low) |
+
+### Replay sample env
 
 | Env | Default | Meaning |
 |-----|---------|---------|
@@ -85,7 +108,11 @@ Cap lives in `internal/poolfuzz/pool_exec.go`. **Do not** advertise pool Deep **
 | `HACKME_POOL_FULL_REPLAY` | off | Ops rollback: always full Dig replay |
 | `HACKME_POOL_REPLAY_SAMPLE_SEED` | empty | Deterministic sample bit (tests) |
 
-Submit JSON may include `replay_status`: `hygiene_skip` · `sample` · `crash_claim` · `finding_claim` · …
+Submit JSON may include `replay_status`: `hygiene_skip` · `sample` · `crash_claim` · `finding_claim` · … and optional `edges_touched`.
+
+### SKU honesty (reports)
+
+Customer reports expose `product_mode` (`smoke`|`deep`), `replay_policy`, `replay_sample_pct`, `lf_budget_sec`, `seeds_merged`, hub exec cap truth, and a promise note (**not** OSS-Fuzz/CVE replacement). **Smoke** Dig keeps seed-from-research OFF; **Deep** enables external seed merge + stricter sample %.
 
 ---
 
