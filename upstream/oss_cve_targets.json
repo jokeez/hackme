@@ -1121,6 +1121,8 @@
       "ref": "master",
       "title": "ludocode/mpack · MessagePack reader",
       "driver": "mpack_stdin",
+      "deep_driver": "mpack_deep_stdin",
+      "harness_variant": "shallow",
       "upstream_src": [
         "src/mpack/*.c"
       ],
@@ -1136,7 +1138,7 @@
       "build_flags": [
         "-w"
       ],
-      "note": "obscure_tier — msgpack; cfgpack-adjacent decode surface"
+      "note": "obscure_tier — msgpack; cfgpack-adjacent decode surface; deep_v1 = pack/unpack roundtrip"
     },
     {
       "id": "libcbor",
@@ -1144,6 +1146,8 @@
       "ref": "master",
       "title": "PJK/libcbor · cbor_load",
       "driver": "libcbor_stdin",
+      "deep_driver": "libcbor_deep_stdin",
+      "harness_variant": "shallow",
       "upstream_src": [
         "src/*.c",
         "src/cbor/*.c",
@@ -1162,7 +1166,7 @@
         "-DCBOR_STATIC_DEFINE",
         "-w"
       ],
-      "note": "obscure_tier — CBOR; less mainstream than json-c"
+      "note": "obscure_tier — CBOR; deep_v1 = load/serialize/reload roundtrip"
     },
     {
       "id": "kuba_zip",
@@ -1198,6 +1202,8 @@
       "ref": "master",
       "title": "likle/cwalk · path normalize/segment",
       "driver": "cwalk_stdin",
+      "deep_driver": "cwalk_deep_stdin",
+      "harness_variant": "shallow",
       "upstream_src": [
         "src/cwalk.c"
       ],
@@ -1214,7 +1220,7 @@
       "build_flags": [
         "-w"
       ],
-      "note": "obscure_tier — path traversal/normalize logic"
+      "note": "obscure_tier — path traversal/normalize; deep_v1 = join/normalize sequences"
     },
     {
       "id": "jsonparser",
@@ -1245,12 +1251,16 @@
       "ref": "main",
       "title": "intel/tinycbor · cbor_parser_init",
       "driver": "tinycbor_stdin",
+      "deep_driver": "tinycbor_deep_stdin",
+      "harness_variant": "shallow",
       "upstream_src": [
         "src/cborparser.c",
         "src/cborparser_dup_string.c",
         "src/cborparser_float.c",
         "src/cborvalidation.c",
-        "src/cborerrorstrings.c"
+        "src/cborerrorstrings.c",
+        "src/cborencoder.c",
+        "src/cborencoder_close_container_checked.c"
       ],
       "include_dirs": [
         "src"
@@ -1264,7 +1274,7 @@
       "build_flags": [
         "-w"
       ],
-      "note": "obscure_tier — IoT CBOR; Intel-maintained but niche vs JSON"
+      "note": "obscure_tier — IoT CBOR; deep_v1 = parse/validate/re-encode"
     },
     {
       "id": "microtar",

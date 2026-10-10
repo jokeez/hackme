@@ -27,6 +27,8 @@ type HuntOptions struct {
 	MutatorDictFn func(targetID string) []byte
 	// CorpusRoot overrides per-target corpus dir parent (default OutDir).
 	CorpusRoot string
+	// HarnessVariant selects shallow vs deep_v1 drivers (env HACKME_OSS_HARNESS_VARIANT).
+	HarnessVariant string
 }
 
 // ShareWallFromEnv returns true when HACKME_OSS_SHARE_WALL is a truthy value.
@@ -97,6 +99,7 @@ func RunHunt(ctx context.Context, opts HuntOptions) (rollup *RollupReport, err e
 	}
 
 	for _, t := range targets {
+		t = ApplyHarnessVariant(t, opts.HarnessVariant)
 		bin, clone, berr := BuildTarget(ctx, opts.RepoRoot, t)
 		if berr != nil {
 			rollup.BuildErrors = append(rollup.BuildErrors, fmt.Sprintf("%s: %v", t.ID, berr))
@@ -130,6 +133,8 @@ func RunHunt(ctx context.Context, opts HuntOptions) (rollup *RollupReport, err e
 		}
 		rep.ClonePath = clone
 		rep.BinaryPath = bin
+		rep.HarnessVariant = t.HarnessVariant
+		rep.Driver = t.Driver
 		crashDir := filepath.Join(opts.OutDir, t.ID, "crashes")
 		for i := range rep.Crashes {
 			p, _ := SaveCrashArtifact(crashDir, rep.Crashes[i])

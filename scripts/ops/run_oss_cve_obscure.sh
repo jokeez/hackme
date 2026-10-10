@@ -17,6 +17,8 @@ TIME_LIMIT="${TIME_LIMIT:-7200}"
 OBSCURE_PARALLEL="${OBSCURE_PARALLEL:-2}"
 L2_PREFLIGHT="${L2_PREFLIGHT:-1}"
 L2_WALL_SEC="${L2_WALL_SEC:-45}"
+# Prefer deep_v1 when shallow CLEAN-saturated (mpack/libcbor/… have deep_driver).
+export HACKME_OSS_HARNESS_VARIANT="${HACKME_OSS_HARNESS_VARIANT:-deep_v1}"
 STAMP="${STAMP:-$(date -u +%Y%m%dT%H%M%SZ)}"
 OUT="${OUT:-$ROOT/reports/oss-cve/obscure-${STAMP}}"
 # Customer pool dig seed feed stays off unless explicitly enabled.

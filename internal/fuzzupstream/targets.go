@@ -49,6 +49,46 @@ type Target struct {
 	Priority     int      `json:"priority"`
 	BuildFlags   []string `json:"build_flags,omitempty"`
 	Note         string   `json:"note,omitempty"`
+	// HarnessVariant is shallow (default) or deep_v1 when a DeepDriver is selected.
+	HarnessVariant string `json:"harness_variant,omitempty"`
+	// DeepDriver is an optional wider stdin driver (pack/unpack, join sequences, …).
+	DeepDriver string `json:"deep_driver,omitempty"`
+}
+
+const (
+	HarnessVariantShallow = "shallow"
+	HarnessVariantDeepV1  = "deep_v1"
+)
+
+// HarnessVariantFromEnv reads HACKME_OSS_HARNESS_VARIANT (default shallow).
+func HarnessVariantFromEnv() string {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_OSS_HARNESS_VARIANT")))
+	switch v {
+	case HarnessVariantDeepV1, "deep", "deepv1":
+		return HarnessVariantDeepV1
+	default:
+		return HarnessVariantShallow
+	}
+}
+
+// ApplyHarnessVariant selects DeepDriver when variant is deep_v1 and DeepDriver is set.
+func ApplyHarnessVariant(t Target, variant string) Target {
+	variant = strings.TrimSpace(strings.ToLower(variant))
+	if variant == "" {
+		variant = HarnessVariantFromEnv()
+	}
+	switch variant {
+	case HarnessVariantDeepV1, "deep", "deepv1":
+		if d := strings.TrimSpace(t.DeepDriver); d != "" {
+			t.Driver = d
+			t.HarnessVariant = HarnessVariantDeepV1
+			return t
+		}
+	}
+	if strings.TrimSpace(t.HarnessVariant) == "" {
+		t.HarnessVariant = HarnessVariantShallow
+	}
+	return t
 }
 
 // TargetLanguage returns normalized language (c|rust). Empty defaults to c.
@@ -106,10 +146,12 @@ type HuntReport struct {
 	Verdict      string         `json:"verdict"`
 	BinaryPath   string         `json:"binary_path,omitempty"`
 	ClonePath    string         `json:"clone_path,omitempty"`
-	CorpusSize   int            `json:"corpus_size,omitempty"`
-	CorpusSaved  int            `json:"corpus_saved,omitempty"`
-	DictBytes    int            `json:"dict_bytes,omitempty"`
-	CorpusDir    string         `json:"corpus_dir,omitempty"`
+	CorpusSize     int            `json:"corpus_size,omitempty"`
+	CorpusSaved    int            `json:"corpus_saved,omitempty"`
+	DictBytes      int            `json:"dict_bytes,omitempty"`
+	CorpusDir      string         `json:"corpus_dir,omitempty"`
+	HarnessVariant string         `json:"harness_variant,omitempty"`
+	Driver         string         `json:"driver,omitempty"`
 }
 
 // LoadManifest reads upstream/oss_cve_targets.json from repo root.

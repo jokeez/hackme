@@ -238,9 +238,17 @@ def score_target(tid: str, meta: dict, rep: dict | None) -> tuple[int, list[str]
         score += 10
         reasons.append("priority=1(+10)")
 
+    prefer_deep = bool((meta.get("deep_driver") or "").strip())
     if tid in WAVE_SATURATED_CLEAN and (rep or {}).get("verdict") == "CLEAN":
-        score -= 200
-        reasons.append("wave12-13_clean_saturated(-200)")
+        if prefer_deep:
+            score += 60
+            reasons.append("shallow_clean_prefer_deep(+60)")
+        else:
+            score -= 200
+            reasons.append("wave12-13_clean_saturated(-200)")
+    elif (rep or {}).get("verdict") == "CLEAN" and int((rep or {}).get("iterations") or 0) >= 150_000 and prefer_deep:
+        score += 40
+        reasons.append("clean_saturated_prefer_deep(+40)")
 
     if tid in PIN_WAVE14:
         score += 75
@@ -263,9 +271,11 @@ def build_wave_queue(
     top: int,
     ranked: list[dict],
     manifest_by_id: dict[str, dict],
+    report_stats: dict[str, dict] | None = None,
 ) -> tuple[list[str], dict]:
     """Return (target_ids, wave_meta) for a given wave number."""
     exclude = wave_exclude_base()
+    report_stats = report_stats or {}
 
     if wave_num == 14:
         exclude |= WAVE_SATURATED_CLEAN
@@ -300,12 +310,23 @@ def build_wave_queue(
 
     if wave_num == 27:
         ids = filter_drivable([i for i in PIN_WAVE27 if i in manifest_by_id and i not in exclude], manifest_by_id)
+        prefer_deep = [
+            i
+            for i in ids
+            if (manifest_by_id.get(i) or {}).get("deep_driver")
+            and (
+                i in WAVE_SATURATED_CLEAN
+                or int((report_stats.get(i) or {}).get("iterations") or 0) >= 150_000
+            )
+        ]
         return ids, {
             "targets": ids,
             "budget_iterations": 300000,
             "time_limit_sec": 7200,
             "skip_ids": sorted(exclude),
             "strategy": "obscure_low_coverage",
+            "prefer_harness_variant": "deep_v1" if prefer_deep else "shallow",
+            "prefer_deep_ids": prefer_deep,
         }
 
     if wave_num == 30:
@@ -384,6 +405,12 @@ def main() -> int:
                 "title": meta.get("title"),
                 "priority": meta.get("priority"),
                 "category": TARGET_CATEGORY.get(tid, "json"),
+                "deep_driver": meta.get("deep_driver") or "",
+                "prefer_harness_variant": (
+                    "deep_v1"
+                    if (meta.get("deep_driver") and "prefer_deep" in " ".join(reasons))
+                    else meta.get("harness_variant") or "shallow"
+                ),
                 "last_verdict": (rep or {}).get("verdict"),
                 "last_iterations": (rep or {}).get("iterations"),
                 "crash_count": (rep or {}).get("crash_count"),
@@ -393,7 +420,7 @@ def main() -> int:
         )
     ranked.sort(key=lambda x: (-x["score"], x["id"]))
 
-    wave_ids, wave_meta = build_wave_queue(args.wave, args.top, ranked, all_ids)
+    wave_ids, wave_meta = build_wave_queue(args.wave, args.top, ranked, all_ids, report_stats)
     wave_key = f"wave{args.wave}"
 
     # Merge into existing JSON so wave14/15/16 queues coexist

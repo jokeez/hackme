@@ -34,6 +34,7 @@ func main() {
 		PriorityMax:      *priority,
 		ShareWall:        *shareWall || fuzzupstream.ShareWallFromEnv(),
 		MutatorDictFn:    hunt.MutatorDictForTarget,
+		HarnessVariant:   fuzzupstream.HarnessVariantFromEnv(),
 	}
 	rollup, err := fuzzupstream.RunHunt(context.Background(), opts)
 	if err != nil {
