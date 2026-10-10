@@ -870,10 +870,12 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken string, allow
 		if out.Async {
 			w.WriteHeader(http.StatusAccepted)
 			resp["async"] = true
-			resp["replay_status"] = out.ReplayStatus
 			if out.QueueID > 0 {
 				resp["queue_id"] = out.QueueID
 			}
+		}
+		if out.ReplayStatus != "" {
+			resp["replay_status"] = out.ReplayStatus
 		}
 		_ = json.NewEncoder(w).Encode(resp)
 	})

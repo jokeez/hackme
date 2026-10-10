@@ -56,21 +56,32 @@ Claim JSON includes: `exec_per_unit`, `max_input_bytes`, `coverage_kind`, `corpu
 |------|------------------|---------------------------|
 | Scan | 1 | 1 |
 | Audit | 64 | 64 |
-| Deep | 512 | **64 (cap)** |
+| Deep | 512 | **hub cap** (`HACKME_POOL_EXEC_PER_UNIT_CAP`, default **64**; ops may set **256**) |
 
-Cap lives in `internal/poolfuzz/pool_exec.go` until sampled worker attestation exists. **Do not** advertise pool Deep 512 as fully miner-proved — coordinator **replays** the segment on submit.
+Cap lives in `internal/poolfuzz/pool_exec.go`. **Do not** advertise pool Deep 512 as fully miner-proved on hub — segment depth is capped; crash/found paths still **full-replay**.
 
 ---
 
-## Anticheat (submit path)
+## Anticheat (submit path) — sampled + crash-first replay
 
 1. **Claim** freezes guided anchor input + `corpus_seeds[]` snapshot.
 2. Worker returns `segment_exec_done` matching `exec_per_unit`.
-3. Coordinator replays all execs; rejects invalid WASM, incomplete segments, input/corpus drift.
-4. Worker lease scales: `exec × check_timeout + slack` (max 600s).
-5. Hybrid submit: Ed25519 PoP + nonce reserved at validate (replay blocked).
+3. **Full coordinator segment replay** when the worker claims crash/found/sanitizer fail, or when a clean submit is randomly sampled.
+4. **Clean Dig hygiene** (multi-exec): accept via hybrid Ed25519 submit auth **without** full segment replay — **never** mints findings/bounty on this path.
+5. Worker lease scales: `exec × check_timeout + slack` (max 600s).
+6. Hybrid submit: Ed25519 PoP + nonce reserved at validate (replay blocked).
 
-This is **coordinator replay anticheat**, not per-exec miner attestation.
+| Env | Default | Meaning |
+|-----|---------|---------|
+| `HACKME_POOL_REPLAY_SAMPLE_PCT` | 5 | Audit clean-submit sample % |
+| `HACKME_POOL_REPLAY_SAMPLE_PCT_SCAN` | 1 | Scan package sample % |
+| `HACKME_POOL_REPLAY_SAMPLE_PCT_DEEP` | 10 | Deep package sample % |
+| `HACKME_POOL_REPLAY_SAMPLE_PCT_HUNT` | 100 | Hunt clean path (full verify by default) |
+| `HACKME_POOL_REPLAY_CRASH_ALWAYS` | 1 | Document crash-first (claims always replay) |
+| `HACKME_POOL_FULL_REPLAY` | off | Ops rollback: always full Dig replay |
+| `HACKME_POOL_REPLAY_SAMPLE_SEED` | empty | Deterministic sample bit (tests) |
+
+Submit JSON may include `replay_status`: `hygiene_skip` · `sample` · `crash_claim` · `finding_claim` · …
 
 ---
 

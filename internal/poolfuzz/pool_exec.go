@@ -9,10 +9,9 @@ import (
 	"hackme/internal/sandbox"
 )
 
-// poolExecPerUnitCap limits coordinator full-segment replay on distributed pool until
-// sampled worker attestation exists (Phase 2 safety valve).
-// Override with HACKME_POOL_EXEC_PER_UNIT_CAP (e.g. 256/512) when async replay + fleet
-// can absorb deeper Dig segments.
+// poolExecPerUnitCap limits Dig exec/unit on distributed pool (hub default 64).
+// Sampled hygiene skip (HACKME_POOL_REPLAY_SAMPLE_PCT*) reduces coordinator replay load;
+// override with HACKME_POOL_EXEC_PER_UNIT_CAP (e.g. 256) when fleet + sampled replay can absorb deeper segments.
 const poolExecPerUnitCap = 64
 
 // huntExecTimeoutMS matches fuzzupstream.RunInputDetailed per-exec wall budget.

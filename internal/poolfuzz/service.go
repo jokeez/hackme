@@ -1190,6 +1190,18 @@ func (s *Service) SubmitWithOutcome(ctx context.Context, req SubmitRequest) (Sub
 			return SubmitOutcome{}, err
 		}
 		return SubmitOutcome{ReplayStatus: huntReplayStatusDone}, nil
+	}
+	dec := decidePoolReplay(cfg, sem, req, execPer)
+	digReplayStatus := dec.Reason
+	if !dec.Full {
+		// Clean Dig hygiene: accept via existing submit auth without full segment
+		// replay. Findings are never minted on this path (forge attempts force Full).
+		pass, _ = fuzzengine.EvalCheck(sem, req.CheckResult, nil)
+		checkResult = req.CheckResult
+		trap = ""
+		recordFinding = false
+		findingU = expectedU
+		findingB = expectedB
 	} else {
 		var err error
 		checkResult, trap, pass, recordFinding, findingU, findingB, seg, err = s.evalSubmitCheck(ctx, cfg, sem, inputN, expectedU, expectedB, seeds)
@@ -1347,7 +1359,7 @@ func (s *Service) SubmitWithOutcome(ctx context.Context, req SubmitRequest) (Sub
 			return SubmitOutcome{}, fmt.Errorf("poolfuzz: finalize escrow: %w", err)
 		}
 	}
-	return SubmitOutcome{}, nil
+	return SubmitOutcome{ReplayStatus: digReplayStatus}, nil
 }
 
 // flushPendingSettles pays unsettled run/finding intents exactly once (idempotent status transitions).
