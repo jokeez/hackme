@@ -108,8 +108,8 @@ func shouldKeepNovel(input []byte, lengthSeen map[int]int, seenHash map[string]s
 
 // loadExtraSeedDirs returns optional persistent seed locations for a target.
 func loadExtraSeedDirs(repoRoot, targetID string) []string {
-	id := strings.TrimSpace(targetID)
-	if id == "" || repoRoot == "" {
+	id, ok := SanitizeCatalogID(targetID)
+	if !ok || repoRoot == "" {
 		return nil
 	}
 	candidates := []string{

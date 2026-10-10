@@ -40,4 +40,9 @@ func TestMaybeFeedResearchSeedsToDigGated(t *testing.T) {
 	if err != nil || n != 1 {
 		t.Fatalf("enabled feed n=%d err=%v", n, err)
 	}
+	// Path traversal in research target id must be rejected.
+	n, err = MaybeFeedResearchSeedsToDig(dir, "cfgpack_msgpack_guard", "../etc")
+	if err != nil || n != 0 {
+		t.Fatalf("traversal feed n=%d err=%v", n, err)
+	}
 }

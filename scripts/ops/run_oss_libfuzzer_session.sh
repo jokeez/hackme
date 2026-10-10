@@ -26,12 +26,18 @@ FAIL=0
 for TID in "${IDS[@]}"; do
   TID="$(echo "$TID" | tr -d '[:space:]')"
   [[ -z "$TID" ]] && continue
+  if [[ ! "$TID" =~ ^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$ ]]; then
+    log "SKIP invalid TARGET id=$TID"
+    FAIL=1
+    continue
+  fi
   CORPUS="$ROOT/reports/oss-cve-libfuzzer/$TID/corpus"
   mkdir -p "$CORPUS"
   BEFORE=$(find "$CORPUS" -type f ! -name '.*' 2>/dev/null | wc -l | tr -d ' ')
   log "=== TARGET=$TID wall=${WALL_SEC}s corpus_before=$BEFORE ==="
   set +e
-  OUT=$(go run ./cmd/hunt-lf-import -target "$TID" -wall "$WALL_SEC" -persist -repo "$ROOT" 2>"$ROOT/reports/oss-cve-libfuzzer/$TID/session.stderr")
+  # Go writes session.stderr itself; keep compile noise separate.
+  OUT=$(go run ./cmd/hunt-lf-import -target "$TID" -wall "$WALL_SEC" -persist -repo "$ROOT" 2>"$ROOT/reports/oss-cve-libfuzzer/$TID/go-run.stderr")
   RC=$?
   set -e
   AFTER=$(find "$CORPUS" -type f ! -name '.*' 2>/dev/null | wc -l | tr -d ' ')

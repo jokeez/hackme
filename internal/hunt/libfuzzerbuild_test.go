@@ -85,9 +85,20 @@ func TestRunLibFuzzerImportSessionSynthetic(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(corpus2, "a.bin"), []byte("one"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// Pre-seed AFL artifact that must survive LF import merge (no wipe).
+	aflDir := LibFuzzerSeedDir(dir2, target2)
+	if err := os.MkdirAll(aflDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(aflDir, "afl-keep.bin"), []byte("afl-keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	n2, err := ImportLibFuzzerCorpusFromSession(dir2, target2)
 	if err != nil || n2 != 1 {
 		t.Fatalf("session import=%d err=%v", n2, err)
+	}
+	if _, err := os.Stat(filepath.Join(aflDir, "afl-keep.bin")); err != nil {
+		t.Fatalf("AFL seed wiped by LF import: %v", err)
 	}
 }
 

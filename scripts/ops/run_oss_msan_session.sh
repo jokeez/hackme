@@ -31,6 +31,11 @@ IFS=',' read -r -a IDS <<< "$TARGETS"
 for TID in "${IDS[@]}"; do
   TID="$(echo "$TID" | tr -d '[:space:]')"
   [[ -z "$TID" ]] && continue
+  if [[ ! "$TID" =~ ^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$ ]]; then
+    log "SKIP invalid TARGET id=$TID"
+    FAIL=1
+    continue
+  fi
   TOUT="$OUT_ROOT/$TID"
   mkdir -p "$TOUT"
   log "=== TARGET=$TID wall=${WALL_SEC}s ==="

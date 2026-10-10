@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"hackme/internal/pathsafe"
 )
 
 // PoolSeedFromResearchEnabled reports whether research corpora may feed customer Dig.
@@ -29,33 +31,66 @@ func MaybeFeedResearchSeedsToDig(repoRoot, packID, researchTargetID string) (int
 	if packID == "" || researchTargetID == "" || repoRoot == "" {
 		return 0, nil
 	}
-	dst := DigSeedDir(repoRoot, packID)
+	tid, ok := pathsafe.Base(researchTargetID)
+	if !ok {
+		return 0, nil
+	}
+	absRoot, ok := pathsafe.Allow(repoRoot)
+	if !ok {
+		// Relative test roots: Abs via Allow after Abs.
+		if abs, err := filepath.Abs(repoRoot); err == nil {
+			absRoot, ok = pathsafe.Allow(abs)
+		}
+		if !ok {
+			return 0, nil
+		}
+	}
+	dst := DigSeedDir(absRoot, packID)
 	if dst == "" {
 		return 0, nil
 	}
 	if err := os.MkdirAll(dst, 0o755); err != nil {
 		return 0, err
 	}
-	srcs := []string{
-		filepath.Join(repoRoot, ".cache", "hunt-lf-seeds", researchTargetID),
-		filepath.Join(repoRoot, "reports", "oss-cve-libfuzzer", researchTargetID, "corpus"),
+	srcCandidates := [][]string{
+		{".cache", "hunt-lf-seeds", tid},
+		{"reports", "oss-cve-libfuzzer", tid, "corpus"},
 	}
 	n := 0
-	for _, src := range srcs {
+	for _, parts := range srcCandidates {
+		src, ok := pathsafe.JoinUnder(absRoot, parts...)
+		if !ok {
+			continue
+		}
 		ents, err := os.ReadDir(src)
 		if err != nil {
 			continue
 		}
 		for _, e := range ents {
-			if e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+			if e.IsDir() {
 				continue
 			}
-			b, err := os.ReadFile(filepath.Join(src, e.Name()))
+			base, ok := pathsafe.Base(e.Name())
+			if !ok || strings.HasPrefix(base, ".") {
+				continue
+			}
+			srcPath, ok := pathsafe.JoinUnder(src, base)
+			if !ok {
+				continue
+			}
+			b, err := os.ReadFile(srcPath)
 			if err != nil || len(b) == 0 || len(b) > digSeedMaxBytes {
 				continue
 			}
-			name := "research-" + e.Name()
-			if err := os.WriteFile(filepath.Join(dst, name), b, 0o600); err == nil {
+			outName, ok := pathsafe.Base("research-" + base)
+			if !ok {
+				continue
+			}
+			dstPath, ok := pathsafe.JoinUnder(dst, outName)
+			if !ok {
+				continue
+			}
+			if err := os.WriteFile(dstPath, b, 0o600); err == nil {
 				n++
 			}
 		}

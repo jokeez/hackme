@@ -1,6 +1,7 @@
 package hunt
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -22,7 +23,12 @@ func LibFuzzerSeedDir(repoRoot, targetID string) string {
 	if repoRoot == "" {
 		repoRoot = RepoRoot()
 	}
-	return filepath.Join(repoRoot, ".cache", "hunt-lf-seeds", strings.TrimSpace(targetID))
+	id := strings.TrimSpace(targetID)
+	id = filepath.Base(id)
+	if id == "" || id == "." || id == ".." {
+		id = "_"
+	}
+	return filepath.Join(repoRoot, ".cache", "hunt-lf-seeds", id)
 }
 
 // LoadLibFuzzerSeedFiles reads seed inputs from a libFuzzer corpus directory.
@@ -243,19 +249,24 @@ func min(a, b int) int {
 }
 
 // ExportLibFuzzerSeeds writes seed files into the libFuzzer import cache for a target.
+// Content-addressed names — merges without wiping AFL/MSAN artifacts already in the cache.
 func ExportLibFuzzerSeeds(repoRoot, targetID string, seeds [][]byte) (int, error) {
 	dir := LibFuzzerSeedDir(repoRoot, targetID)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return 0, err
 	}
 	written := 0
-	for i, b := range seeds {
+	for _, b := range seeds {
 		if len(b) == 0 || len(b) > libFuzzerSeedMaxBytes {
 			continue
 		}
-		name := fmt.Sprintf("seed-%04d-%s.bin", i+1, hex.EncodeToString(b[:min(4, len(b))]))
+		h := sha256.Sum256(b)
+		name := fmt.Sprintf("lf-%s.bin", hex.EncodeToString(h[:16]))
 		path := filepath.Join(dir, name)
-		if err := os.WriteFile(path, b, 0o644); err != nil {
+		if _, err := os.Stat(path); err == nil {
+			continue
+		}
+		if err := os.WriteFile(path, b, 0o600); err != nil {
 			return written, err
 		}
 		written++

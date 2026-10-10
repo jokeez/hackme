@@ -333,8 +333,8 @@ func HuntWithOptions(ctx context.Context, repoRoot string, t Target, binPath str
 		rnd := randomBytes(16)
 		corpus := live
 		if len(corpus) > 64 {
-			// Bound mutator corpus view for CPU; still rotate via live seeds.
-			corpus = live[:64]
+			// Prefer recent seeds (appended as novelty grows) over a frozen head window.
+			corpus = live[len(live)-64:]
 		}
 		input := huntMutateInput(seed, maxInput, rnd, opts.MutatorDict, corpus)
 		runOpts := DefaultRunInputOpts()
@@ -355,6 +355,10 @@ func HuntWithOptions(ctx context.Context, repoRoot string, t Target, binPath str
 					addSeed(input)
 				}
 			}
+			continue
+		}
+		const maxCrashes = 64
+		if len(rep.Crashes) >= maxCrashes {
 			continue
 		}
 		origLen := len(input)

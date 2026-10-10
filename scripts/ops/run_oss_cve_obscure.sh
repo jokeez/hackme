@@ -56,6 +56,10 @@ set -e
 
 run_one() {
   local TID="$1"
+  if [[ ! "$TID" =~ ^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$ ]]; then
+    log "SKIP invalid TARGET id=$TID"
+    return 0
+  fi
   local TOUT="$OUT/$TID"
   mkdir -p "$TOUT"
   log "--- $TID start ---"

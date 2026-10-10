@@ -85,9 +85,13 @@ func RunMSANCorpusSession(ctx context.Context, repoRoot string, t Target, outDir
 	}
 	crashDir := filepath.Join(outDir, "hits")
 	_ = os.MkdirAll(crashDir, 0o755)
+	const maxMSANHits = 32
 
 	for i, seed := range seeds {
 		if runCtx.Err() != nil {
+			break
+		}
+		if len(rep.Hits) >= maxMSANHits {
 			break
 		}
 		rep.SeedsTried++
@@ -148,9 +152,17 @@ func persistResearchSeed(repoRoot, targetID string, seed []byte, prefix string) 
 	if len(seed) == 0 {
 		return nil
 	}
+	id, ok := SanitizeCatalogID(targetID)
+	if !ok {
+		return nil
+	}
+	prefix, ok = SanitizeCatalogID(prefix)
+	if !ok {
+		prefix = "seed"
+	}
 	dirs := []string{
-		filepath.Join(repoRoot, "reports", "oss-cve-libfuzzer", targetID, "corpus"),
-		filepath.Join(repoRoot, ".cache", "hunt-lf-seeds", targetID),
+		filepath.Join(repoRoot, "reports", "oss-cve-libfuzzer", id, "corpus"),
+		filepath.Join(repoRoot, ".cache", "hunt-lf-seeds", id),
 	}
 	name := fmt.Sprintf("%s-%s.bin", prefix, corpusKey(seed))
 	for _, dir := range dirs {

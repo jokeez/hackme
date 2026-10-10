@@ -104,7 +104,11 @@ func PersistentLibFuzzerCorpusDir(repoRoot, targetID string) string {
 	if repoRoot == "" {
 		repoRoot = RepoRoot()
 	}
-	return filepath.Join(repoRoot, "reports", "oss-cve-libfuzzer", strings.TrimSpace(targetID), "corpus")
+	id := filepath.Base(strings.TrimSpace(targetID))
+	if id == "" || id == "." || id == ".." {
+		id = "_"
+	}
+	return filepath.Join(repoRoot, "reports", "oss-cve-libfuzzer", id, "corpus")
 }
 
 // RunLibFuzzerImportSession runs libFuzzer for wallSec and imports corpus files into L2 seed cache.
@@ -248,10 +252,11 @@ func seedPersistentCorpus(repoRoot, targetID, corpusDir string) error {
 func writeLibFuzzerSessionStats(path, targetID string, wall, before, after int, stderr string) error {
 	_ = os.MkdirAll(filepath.Dir(path), 0o755)
 	feat := 0
+	newUnits := 0
+	execs := 0
 	for _, line := range strings.Split(stderr, "\n") {
 		line = strings.TrimSpace(line)
 		if strings.Contains(line, "#") && strings.Contains(line, "cov:") {
-			// BEST EFFORT parse "... cov: N ..."
 			for _, part := range strings.Fields(line) {
 				if strings.HasPrefix(part, "cov:") {
 					fmt.Sscanf(strings.TrimPrefix(part, "cov:"), "%d", &feat)
@@ -265,13 +270,23 @@ func writeLibFuzzerSessionStats(path, targetID string, wall, before, after int, 
 				}
 			}
 		}
+		if strings.HasPrefix(line, "stat::new_units_added:") {
+			fmt.Sscanf(strings.TrimSpace(strings.TrimPrefix(line, "stat::new_units_added:")), "%d", &newUnits)
+		}
+		if strings.HasPrefix(line, "stat::number_of_executed_units:") {
+			fmt.Sscanf(strings.TrimSpace(strings.TrimPrefix(line, "stat::number_of_executed_units:")), "%d", &execs)
+		}
 	}
-	body := fmt.Sprintf("{\n  \"target\": %q,\n  \"wall_sec\": %d,\n  \"corpus_before\": %d,\n  \"corpus_after\": %d,\n  \"features_hint\": %d,\n  \"updated_at\": %q\n}\n",
-		targetID, wall, before, after, feat, time.Now().UTC().Format(time.RFC3339))
+	if feat == 0 && newUnits > 0 {
+		feat = newUnits
+	}
+	body := fmt.Sprintf("{\n  \"target\": %q,\n  \"wall_sec\": %d,\n  \"corpus_before\": %d,\n  \"corpus_after\": %d,\n  \"features_hint\": %d,\n  \"new_units_added\": %d,\n  \"execs\": %d,\n  \"updated_at\": %q\n}\n",
+		targetID, wall, before, after, feat, newUnits, execs, time.Now().UTC().Format(time.RFC3339))
 	return os.WriteFile(path, []byte(body), 0o644)
 }
 
-// ImportLibFuzzerCorpusFromSession copies an existing libFuzzer session corpus into L2 seed cache.
+// ImportLibFuzzerCorpusFromSession merges an existing libFuzzer session corpus into L2 seed cache.
+// Does not wipe the cache — preserves afl-* / msan-* research seeds from other lanes.
 func ImportLibFuzzerCorpusFromSession(repoRoot, targetID string) (int, error) {
 	corpusDir := LibFuzzerImportCorpusDir(repoRoot, targetID)
 	seeds, err := LoadLibFuzzerSeedFiles(corpusDir, 0)
@@ -280,10 +295,6 @@ func ImportLibFuzzerCorpusFromSession(repoRoot, targetID string) (int, error) {
 	}
 	if len(seeds) == 0 {
 		return 0, fmt.Errorf("hunt: libfuzzer import: no corpus files in %s", corpusDir)
-	}
-	seedDir := LibFuzzerSeedDir(repoRoot, targetID)
-	if err := os.RemoveAll(seedDir); err != nil && !os.IsNotExist(err) {
-		return 0, err
 	}
 	return ExportLibFuzzerSeeds(repoRoot, targetID, seeds)
 }

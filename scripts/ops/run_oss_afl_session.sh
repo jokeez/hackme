@@ -55,6 +55,10 @@ IFS=',' read -r -a IDS <<< "$TARGETS"
 for TID in "${IDS[@]}"; do
   TID="$(echo "$TID" | tr -d '[:space:]')"
   [[ -z "$TID" ]] && continue
+  if [[ ! "$TID" =~ ^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$ ]]; then
+    log "SKIP invalid TARGET id=$TID"
+    continue
+  fi
   OUT="$ROOT/.cache/hunt-afl/$TID"
   mkdir -p "$OUT/in" "$OUT/out"
   if [[ -z "$(ls -A "$OUT/in" 2>/dev/null || true)" ]]; then
