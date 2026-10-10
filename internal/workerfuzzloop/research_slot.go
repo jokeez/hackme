@@ -20,9 +20,10 @@ import (
 	"hackme/internal/poolfuzz"
 )
 
-// ResearchSlotConfig is the opt-in worker-local libFuzzer persist window (Stage D).
-// Default OFF. Does not enable HACKME_POOL_SEED_FROM_RESEARCH (that stays a separate
-// Dig seed-feed gate, also default OFF).
+// ResearchSlotConfig is the hybrid worker-local libFuzzer persist window (Stage D).
+// Default ON for Hunt claims (same escape-hatch pattern as HybridFuzzEnabled).
+// Missing clang/LF soft-skips without failing Dig/Hunt submit.
+// Does not enable HACKME_POOL_SEED_FROM_RESEARCH (customer Dig seed feed stays OFF).
 type ResearchSlotConfig struct {
 	Enabled       bool
 	AllowDig      bool // HACKME_WORKER_RESEARCH_SLOT_DIG (default off)
@@ -31,7 +32,8 @@ type ResearchSlotConfig struct {
 	TargetID      string // HACKME_WORKER_RESEARCH_TARGET override; Hunt uses claim target
 }
 
-// ResearchSlotFromEnv reads HACKME_WORKER_RESEARCH_SLOT (default off).
+// ResearchSlotFromEnv reads HACKME_WORKER_RESEARCH_SLOT.
+// Empty / unset → enabled (hybrid fleet default). Explicit 0|false|no|off → disabled.
 func ResearchSlotFromEnv() ResearchSlotConfig {
 	cfg := ResearchSlotConfig{
 		WindowSec:     EnvInt("HACKME_WORKER_RESEARCH_WINDOW_SEC", 30),
@@ -39,7 +41,11 @@ func ResearchSlotFromEnv() ResearchSlotConfig {
 		TargetID:      strings.TrimSpace(os.Getenv("HACKME_WORKER_RESEARCH_TARGET")),
 	}
 	v := strings.TrimSpace(os.Getenv("HACKME_WORKER_RESEARCH_SLOT"))
-	cfg.Enabled = Truthy(v) // empty → false
+	if v == "" {
+		cfg.Enabled = true
+	} else {
+		cfg.Enabled = !Falsy(v)
+	}
 	cfg.AllowDig = Truthy(os.Getenv("HACKME_WORKER_RESEARCH_SLOT_DIG"))
 	if cfg.WindowSec < 5 {
 		cfg.WindowSec = 5
@@ -86,7 +92,7 @@ func defaultResearchLFRunner(ctx context.Context, repoRoot, targetID string, wal
 }
 
 // MaybeRunResearchSlot runs a bounded LF persist window and submits corpus deltas +
-// crash artifacts to the coordinator (lease-bound). Default OFF.
+// crash artifacts to the coordinator (lease-bound). Hunt hybrid default ON.
 func MaybeRunResearchSlot(ctx context.Context, run ResearchSlotRun) ResearchSlotResult {
 	cfg := run.Config
 	if !cfg.Enabled {

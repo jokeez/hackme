@@ -39,6 +39,9 @@ func TestSmoothWorkerHashrateGHSRecoversFromStuckLow(t *testing.T) {
 }
 
 func TestSubmitPrefersReportedHashrateOverWallGH(t *testing.T) {
+	// Parent shells / desktop env must not force hybrid-strict on unit tests.
+	t.Setenv("HACKME_POOL_HYBRID_SIGNER_ENABLED", "")
+	t.Setenv("HACKME_POOL_HYBRID_SIGNER_STRICT", "")
 	wm := newWorkManagerFromEnv()
 	now := int64(1_800_000_000)
 	base, batch, _, _, _, ok, _ := wm.claim("w-gh", 0)

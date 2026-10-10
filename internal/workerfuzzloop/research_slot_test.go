@@ -11,12 +11,20 @@ import (
 	"testing"
 )
 
-func TestResearchSlotDefaultOff(t *testing.T) {
+func TestResearchSlotDefaultOn(t *testing.T) {
 	t.Setenv("HACKME_WORKER_RESEARCH_SLOT", "")
 	t.Setenv("HACKME_POOL_SEED_FROM_RESEARCH", "")
 	cfg := ResearchSlotFromEnv()
+	if !cfg.Enabled {
+		t.Fatal("research slot must default ON for hybrid Hunt (empty env)")
+	}
+}
+
+func TestResearchSlotExplicitOff(t *testing.T) {
+	t.Setenv("HACKME_WORKER_RESEARCH_SLOT", "0")
+	cfg := ResearchSlotFromEnv()
 	if cfg.Enabled {
-		t.Fatal("research slot must default OFF")
+		t.Fatal("explicit 0 must disable research slot")
 	}
 	res := MaybeRunResearchSlot(context.Background(), ResearchSlotRun{Config: cfg})
 	if res.Ran || res.SkippedReason != "disabled" {

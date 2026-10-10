@@ -20,6 +20,17 @@ Public coordinator: `https://hackme.tech/pool/coordinator`
 | Canary monitor throttle | **1.5s** cooldown | Home miners get fair share |
 | Settlement | timer ~2 min, min **0.0005 HMC** | Small accruals still pay out |
 
+## Hybrid work (Dig + Hunt + mining)
+
+Installer / desktop hybrid is **ON by default** (`HACKME_WORKER_HYBRID_FUZZ=1`): one `worker_id` mines PoH and also claims pool Dig/Hunt when orders exist.
+
+| Order type | What the miner runs |
+|------------|---------------------|
+| **Dig** | WASM `check_bytes` segments (scan/audit/deep) |
+| **Hunt** | ASAN harness from coordinator + optional short libFuzzer research slot (**default ON**, soft-skip without clang/LF; escape `HACKME_WORKER_RESEARCH_SLOT=0`) |
+
+No manual harness install for catalog Hunt — binaries are fetched from the pool. PoH mining continues alongside fuzz work.
+
 ## New miner (Windows)
 
 1. Download: https://hackme.tech/downloads.html → **HackMe-Setup.exe** (recommended) or portable zip.
