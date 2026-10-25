@@ -1061,7 +1061,9 @@ func walletCanonicalBaseUsable(base string) bool {
 	// Same SSRF floor as git/p2p: scheme+host+no userinfo, and no metadata/private
 	// unless HACKME_ALLOW_PRIVATE_EGRESS (lab). Still reject the local node bind as
 	// "canonical" so wallet does not treat itself as the public chain.
-	if !netutil.SafeHTTPURLForEgress(base) {
+	// AllowLab: wallet tests + local canonical peers use loopback httptest;
+	// metadata/link-local stay blocked. Public https://hackme.tech unchanged.
+	if !netutil.SafeHTTPURLForEgressAllowLab(base) {
 		return false
 	}
 	u, err := neturl.Parse(base)
