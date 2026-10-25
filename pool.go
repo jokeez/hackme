@@ -404,8 +404,9 @@ func statusOverlayHTTPClient() *http.Client {
 			ExpectContinueTimeout: 1 * time.Second,
 		}
 		statusOverlayHTTP = &http.Client{
-			Timeout:   2 * time.Second,
-			Transport: tr,
+			Timeout:       2 * time.Second,
+			Transport:     tr,
+			CheckRedirect: netutil.DenyAdminTokenRedirect,
 		}
 	})
 	return statusOverlayHTTP
@@ -453,6 +454,9 @@ func fetchJSONViaCurlMax(ctx context.Context, u string, headers map[string]strin
 	if maxTimeSec <= 0 {
 		maxTimeSec = 8
 	}
+	if !netutil.SafeHTTPURLForEgressAllowLab(u) {
+		return nil, fmt.Errorf("curl fallback: url not safe for egress")
+	}
 	select {
 	case coordCurlFallbackSem <- struct{}{}:
 		defer func() { <-coordCurlFallbackSem }()
@@ -485,6 +489,9 @@ func fetchJSONViaCurlMax(ctx context.Context, u string, headers map[string]strin
 func fetchJSONViaCurlDesktop(u string, maxTimeSec int) (map[string]any, error) {
 	if maxTimeSec <= 0 {
 		maxTimeSec = 12
+	}
+	if !netutil.SafeHTTPURLForEgressAllowLab(u) {
+		return nil, fmt.Errorf("curl desktop: url not safe for egress")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(maxTimeSec+2)*time.Second)
 	defer cancel()
@@ -1051,8 +1058,10 @@ func walletCanonicalBaseUsable(base string) bool {
 	if base == "" {
 		return false
 	}
-	// Same SSRF floor as coordinator/settle bases (scheme + host, no userinfo).
-	if !netutil.SafeHTTPBaseURL(base) {
+	// Same SSRF floor as git/p2p: scheme+host+no userinfo, and no metadata/private
+	// unless HACKME_ALLOW_PRIVATE_EGRESS (lab). Still reject the local node bind as
+	// "canonical" so wallet does not treat itself as the public chain.
+	if !netutil.SafeHTTPURLForEgress(base) {
 		return false
 	}
 	u, err := neturl.Parse(base)
@@ -1100,7 +1109,7 @@ func (a *app) fetchCanonicalAddressState(ctx context.Context, addr string) (bala
 		if err != nil {
 			return 0, 0, false
 		}
-		client := &http.Client{Timeout: time.Duration(httpSec) * time.Second}
+		client := netutil.HTTPClientNoRedirect(time.Duration(httpSec) * time.Second)
 		resp, err := client.Do(req)
 		if err != nil || resp == nil {
 			return 0, 0, false
@@ -1253,6 +1262,9 @@ func (a *app) fetchCanonicalStatusTip(ctx context.Context) (hasGenesis bool, tip
 		if strings.TrimSpace(tip) != "" {
 			return has, h, tip, true
 		}
+		return false, 0, "", false
+	}
+	if !walletCanonicalBaseUsable(base) {
 		return false, 0, "", false
 	}
 	statusURL := canonicalPeerStatusURL(base)

@@ -118,3 +118,33 @@ func TestSafeHTTPBaseURL(t *testing.T) {
 		}
 	}
 }
+
+func TestSafeHTTPURLForEgress(t *testing.T) {
+	t.Setenv("HACKME_ALLOW_PRIVATE_EGRESS", "0")
+	if !SafeHTTPURLForEgress("https://hackme.tech/pool/coordinator") {
+		t.Fatal("public https must pass")
+	}
+	if SafeHTTPURLForEgress("http://169.254.169.254/latest/meta-data") {
+		t.Fatal("metadata must fail")
+	}
+	if SafeHTTPURLForEgress("http://127.0.0.1:18081") {
+		t.Fatal("loopback must fail without ALLOW_PRIVATE_EGRESS")
+	}
+	t.Setenv("HACKME_ALLOW_PRIVATE_EGRESS", "1")
+	if !SafeHTTPURLForEgress("http://127.0.0.1:18081") {
+		t.Fatal("loopback must pass with ALLOW_PRIVATE_EGRESS")
+	}
+	if SafeHTTPURLForEgress("http://169.254.169.254/") {
+		t.Fatal("metadata must still fail with ALLOW_PRIVATE_EGRESS")
+	}
+}
+
+func TestSafeHTTPURLForEgressAllowLab(t *testing.T) {
+	t.Setenv("HACKME_ALLOW_PRIVATE_EGRESS", "0")
+	if !SafeHTTPURLForEgressAllowLab("http://127.0.0.1:18081") {
+		t.Fatal("lab helper must allow loopback coordinator")
+	}
+	if SafeHTTPURLForEgressAllowLab("http://169.254.169.254/latest/meta-data") {
+		t.Fatal("lab helper must still block metadata")
+	}
+}

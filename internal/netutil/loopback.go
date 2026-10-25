@@ -74,6 +74,7 @@ func LooksRemoteCoordinatorURL(raw string) bool {
 
 // SafeHTTPBaseURL reports whether raw is an http(s) URL with a host and no userinfo.
 // Used for coordinator / settle bases so credentials are never dialed to userinfo hosts.
+// Prefer SafeHTTPURLForEgress for outbound money/status dials (also blocks metadata/private).
 func SafeHTTPBaseURL(raw string) bool {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -92,6 +93,30 @@ func SafeHTTPBaseURL(raw string) bool {
 	default:
 		return false
 	}
+}
+
+// SafeHTTPURLForEgress is SafeHTTPBaseURL plus AssertHostSafeForEgress (metadata /
+// link-local always; loopback/private unless HACKME_ALLOW_PRIVATE_EGRESS).
+// Use for wallet/canonical public-chain dials.
+func SafeHTTPURLForEgress(raw string) bool {
+	return safeHTTPURLForEgress(raw, false)
+}
+
+// SafeHTTPURLForEgressAllowLab allows loopback/private (local coordinator, LAN lab)
+// but still blocks metadata/link-local. Use for worker coord_url and curl fallbacks.
+func SafeHTTPURLForEgressAllowLab(raw string) bool {
+	return safeHTTPURLForEgress(raw, true)
+}
+
+func safeHTTPURLForEgress(raw string, allowPrivate bool) bool {
+	if !SafeHTTPBaseURL(raw) {
+		return false
+	}
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || u == nil {
+		return false
+	}
+	return AssertHostSafeForEgress(u.Hostname(), allowPrivate) == nil
 }
 
 // AllowPrivateEgress is true when HACKME_ALLOW_PRIVATE_EGRESS=1 (lab / LAN git pins).

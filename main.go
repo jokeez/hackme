@@ -2460,13 +2460,14 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	if !netutil.SafeHTTPBaseURL(coordURL) {
+	// Allow loopback/LAN lab coordinators; still reject metadata/link-local + userinfo.
+	if !netutil.SafeHTTPURLForEgressAllowLab(coordURL) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"ok":    false,
 			"code":  "coordinator_url_invalid",
-			"error": "coordinator url must be http(s) without userinfo",
+			"error": "coordinator url must be http(s) without userinfo or metadata/link-local hosts",
 		})
 		return
 	}
