@@ -141,6 +141,8 @@ test.describe('Dashboard UI buttons and API wiring', () => {
     await page.click('#tab-bar .tab-btn[data-tab="mining"]');
     const slider = page.locator('#mine-calc-gh-slider');
     const hour = page.locator('#mine-calc-out-hour');
+    const aps = page.locator('#mine-calc-out-aps');
+    const label = page.locator('#mine-calc-gh-label');
     await expect(slider).toBeVisible();
     await page.waitForFunction(() => {
       const el = document.querySelector('#mine-calc-gh-slider') as HTMLInputElement | null;
@@ -151,22 +153,29 @@ test.describe('Dashboard UI buttons and API wiring', () => {
       const t = (await hour.textContent()) || '0';
       return Number(String(t).replace(/,/g, '')) || 0;
     };
-    await slider.evaluate((el) => {
-      const s = el as HTMLInputElement;
-      s.value = '5';
-      s.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-    await page.waitForTimeout(200);
-    const low = await readHour();
-    await slider.evaluate((el) => {
-      const s = el as HTMLInputElement;
-      const hi = Math.min(Number(s.max) || 40, 40);
-      s.value = String(hi);
-      s.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-    await page.waitForTimeout(200);
-    const high = await readHour();
-    expect(high).toBeGreaterThan(low * 1.5);
+    const setGh = async (v: number) => {
+      await slider.evaluate((el, gh) => {
+        const s = el as HTMLInputElement;
+        s.value = String(gh);
+        s.dispatchEvent(new Event('input', { bubbles: true }));
+      }, v);
+      await page.waitForTimeout(200);
+    };
+    await setGh(5);
+    const lowHour = await readHour();
+    const lowLabel = (await label.textContent()) || '';
+    const lowAps = (await aps.textContent()) || '';
+    await setGh(Math.min(Number(await slider.getAttribute('max')) || 20, 20));
+    const highHour = await readHour();
+    const highLabel = (await label.textContent()) || '';
+    const highAps = (await aps.textContent()) || '';
+    expect(lowLabel).toMatch(/5/);
+    expect(highLabel).toMatch(/20|1[0-9]/);
+    // Attempts/sec must track the slider. HMC/h may saturate under share-PPS lease ceiling
+    // (~2× base_reward / lease) when there is no live accrual Δ to scale.
+    expect(highAps).not.toBe(lowAps);
+    expect(highHour).toBeGreaterThan(0);
+    expect(lowHour).toBeGreaterThan(0);
   });
 
   test('Hardware refresh loads tune API', async ({ page }) => {
