@@ -1434,7 +1434,20 @@ func redactPublicMetrics(s *MetricsSnapshot) {
 	s.MiningLoad = -1
 	s.CPUModel = ""
 	s.Goroutines = 0
+	s.UptimeSec = 0
 	s.MiningGPUDevices = nil
+	s.MiningGPUTotalGHS = 0
+	s.MiningGPUCount = 0
+	// Mining internals (nonce/eval/task/throttle) — admin/loopback only.
+	s.MiningLastNonce = 0
+	s.MiningLastEval = 0
+	s.MiningLastMod997 = 0
+	s.MiningThrottleTarget = 0
+	s.MiningTaskID = ""
+	s.MiningTaskKind = ""
+	s.MiningTaskSource = ""
+	s.MiningTaskArtifactHash = ""
+	s.MiningRigs = nil
 }
 
 func miningGPUAliasKey(backend string, idx int) string {

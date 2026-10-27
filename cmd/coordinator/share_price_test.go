@@ -6,23 +6,29 @@ import (
 	"hackme/internal/chain"
 )
 
-func TestObserveSharePriceEMA(t *testing.T) {
+func TestObserveSharePriceEMAPerHash(t *testing.T) {
 	t.Setenv("HACKME_COORDINATOR_SHARE_PRICE_EMA", "1")
 	t.Setenv("HACKME_COORDINATOR_SHARE_PRICE_EMA_ALPHA", "0.5")
 	m := &workManager{}
-	u1 := uint64(1000)
-	pay1 := m.observeSharePrice(u1, 1, 1<<20, 1<<10)
-	if pay1 != 1000 || m.sharePrice.emaUnits != 1000 {
-		t.Fatalf("seed pay=%d ema=%d", pay1, m.sharePrice.emaUnits)
+	base := 0.01
+	smSmall, smLarge := uint64(1_000), uint64(100_000)
+	tm := uint64(10_000_000)
+	pay1 := m.observeSharePrice(base, 1, tm, smSmall)
+	want1 := rewardPerShareUnits(base, smSmall, tm)
+	if pay1 != want1 {
+		t.Fatalf("seed pay=%d want %d", pay1, want1)
 	}
-	pay2 := m.observeSharePrice(2000, 1, 1<<20, 1<<10)
-	// alpha=0.5 → 0.5*2000 + 0.5*1000 = 1500
-	if pay2 != 1500 {
-		t.Fatalf("ema pay=%d want 1500", pay2)
+	if m.sharePrice == nil || m.sharePrice.emaPerHashHMC <= 0 {
+		t.Fatal("ema per-hash not set")
+	}
+	pay2 := m.observeSharePrice(base, 1, tm, smLarge)
+	want2 := chain.HMCToUnits(m.sharePrice.emaPerHashHMC * float64(smLarge))
+	if pay2 != want2 {
+		t.Fatalf("large-lease pay=%d want %d", pay2, want2)
 	}
 	t.Setenv("HACKME_COORDINATOR_SHARE_PRICE_EMA", "0")
-	pay3 := m.observeSharePrice(2000, 1, 1<<20, 1<<10)
-	if pay3 != 2000 {
+	pay3 := m.observeSharePrice(base, 1, tm, smLarge)
+	if pay3 != rewardPerShareUnits(base, smLarge, tm) {
 		t.Fatalf("instant-only pay=%d", pay3)
 	}
 }

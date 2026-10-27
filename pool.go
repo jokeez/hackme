@@ -2063,15 +2063,17 @@ func (a *app) handleWorkStats(w http.ResponseWriter, r *http.Request) {
 			out[k] = v
 		}
 		ensureCoordinatorWorkersMap(out)
-		a.enrichWorkStatsDesktopWorker(out)
+		if adminDetails {
+			a.enrichWorkStatsDesktopWorker(out)
+			out["details"] = true
+		} else {
+			redactPublicWorkStats(out)
+		}
 		out["ok"] = true
 		out["source"] = base
 		out["stale"] = age > int64(workStatsCacheFreshSec)
 		out["stale_sec"] = age
 		out["cache_hit"] = true
-		if adminDetails {
-			out["details"] = true
-		}
 		writeJSON(w, out)
 		if age >= int64(workStatsCacheFreshSec) {
 			a.warmWorkStatsCacheAsync(base, adminDetails)
@@ -2084,15 +2086,17 @@ func (a *app) handleWorkStats(w http.ResponseWriter, r *http.Request) {
 			out[k] = v
 		}
 		ensureCoordinatorWorkersMap(out)
-		a.enrichWorkStatsDesktopWorker(out)
+		if adminDetails {
+			a.enrichWorkStatsDesktopWorker(out)
+			out["details"] = true
+		} else {
+			redactPublicWorkStats(out)
+		}
 		out["ok"] = true
 		out["source"] = base
 		out["stale"] = true
 		out["stale_sec"] = age
 		out["cache_hit"] = true
-		if adminDetails {
-			out["details"] = true
-		}
 		writeJSON(w, out)
 		a.warmWorkStatsCacheAsync(base, adminDetails)
 		return
@@ -2135,8 +2139,10 @@ func (a *app) handleWorkStats(w http.ResponseWriter, r *http.Request) {
 	ws["stale_sec"] = int64(0)
 	if adminDetails {
 		ws["details"] = true
+		a.enrichWorkStatsDesktopWorker(ws)
+	} else {
+		redactPublicWorkStats(ws)
 	}
-	a.enrichWorkStatsDesktopWorker(ws)
 	storeWorkStatsCacheLane(ws, adminDetails)
 	writeJSON(w, ws)
 }

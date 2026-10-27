@@ -1123,8 +1123,7 @@ func TestPayoutSharesNoSystematicLoss(t *testing.T) {
 
 func TestPoolDifficultyStableAtSteadyHashrate(t *testing.T) {
 	t.Setenv("HACKME_COORDINATOR_POOL_BLOCK_SEC", "30")
-	t.Setenv("HACKME_COORDINATOR_SHARE_STRICT", "1")
-	t.Setenv("HACKME_COORDINATOR_POOL_LOAD_SOLVENCY", "0")
+	t.Setenv("HACKME_COORDINATOR_POOL_LOAD_SOLVENCY", "1")
 	wm := &workManager{
 		targetMod:          4_000_000,
 		targetModMin:       poolTargetModMin,
@@ -1138,45 +1137,36 @@ func TestPoolDifficultyStableAtSteadyHashrate(t *testing.T) {
 	const miners = 4
 	want := poolLoadTargetM(poolGH, miners, poolTargetModMin, true)
 	converged := false
-	for i := 0; i < 80; i++ {
+	// Solvency-scale M (~3.75e11) needs many 1.35× ramp ticks from 4e6.
+	for i := 0; i < 120; i++ {
 		prev := wm.targetMod
 		wm.maybeRetargetPoolLoadLocked(now+int64(i*30), poolGH, miners)
-		if i > 8 && wm.targetMod == prev {
+		if i > 16 && wm.targetMod == prev {
 			converged = true
 			break
 		}
 	}
 	if !converged {
-		t.Fatalf("steady GH/s did not converge within 80 steps, target_mod=%d", wm.targetMod)
+		t.Fatalf("steady GH/s did not converge within 120 steps, target_mod=%d", wm.targetMod)
 	}
-	// SHARE_STRICT: ~12.5×2e6 ≈ 25M class, not Hs×30s hundreds of billions.
 	if wm.targetMod < want/2 || wm.targetMod > want*2 {
-		t.Fatalf("converged M=%d want ~%d (share-PPS load)", wm.targetMod, want)
+		t.Fatalf("converged M=%d want ~%d (solvency Hs×block_sec)", wm.targetMod, want)
 	}
-	if wm.targetMod > 200_000_000 {
-		t.Fatalf("share-PPS M must not runaway to solvency scale: %d", wm.targetMod)
+	if wm.targetMod < 1_000_000_000 {
+		t.Fatalf("solvency M too small for 12.5 GH/s: %d", wm.targetMod)
 	}
 }
 
-func TestPoolDifficultyCatchDownFromSolvencyScale(t *testing.T) {
-	t.Setenv("HACKME_COORDINATOR_SHARE_STRICT", "1")
+func TestPoolLoadLabScaleWhenSolvencyOff(t *testing.T) {
 	t.Setenv("HACKME_COORDINATOR_POOL_LOAD_SOLVENCY", "0")
-	wm := &workManager{
-		targetMod:          450_000_000_000, // live runaway class
-		targetModMin:       poolTargetModMin,
-		targetModMax:       poolTargetModMax,
-		poolRetarget:       true,
-		poolRetargetMinSec: 1,
-		shareStrict:        true,
-		poolGHSmoothed:     15,
+	want := poolLoadTargetM(15, 4, poolTargetModMin, true)
+	if want > 100_000_000 {
+		t.Fatalf("lab scale should be GH×floor class, got %d", want)
 	}
-	now := time.Now().Unix()
-	want := poolLoadTargetM(15, 10, poolTargetModMin, true)
-	for i := 0; i < 40; i++ {
-		wm.maybeRetargetPoolLoadLocked(now+int64(i*20), 15.0, 10)
-	}
-	if wm.targetMod > want*3 {
-		t.Fatalf("catch-down too slow: M=%d want~%d", wm.targetMod, want)
+	t.Setenv("HACKME_COORDINATOR_POOL_LOAD_SOLVENCY", "1")
+	solv := poolLoadTargetM(15, 4, poolTargetModMin, true)
+	if solv < 100_000_000_000 {
+		t.Fatalf("default solvency should be Hs×30s class, got %d", solv)
 	}
 }
 
@@ -1222,7 +1212,7 @@ func newTestWorkManagerForPayout(rewardPerM float64, payoutFoundOnly bool) *work
 }
 
 func TestPoolLoadCatchUpAfterRestart(t *testing.T) {
-	t.Setenv("HACKME_COORDINATOR_SHARE_STRICT", "1")
+	t.Setenv("HACKME_COORDINATOR_POOL_LOAD_SOLVENCY", "0") // lab scale for this catch-up shape
 	wm := &workManager{
 		targetMod:          5_000_000, // default after restart
 		targetModMin:       poolTargetModMin,
@@ -1233,7 +1223,7 @@ func TestPoolLoadCatchUpAfterRestart(t *testing.T) {
 		shareStrict:        true,
 	}
 	now := time.Now().Unix()
-	// With ~100 GH/s, share-PPS load hint ≈ 200M; catch-up should climb much faster than +6%/tick.
+	// With ~100 GH/s lab scale, load hint ≈ 200M; catch-up should climb much faster than +6%/tick.
 	for i := 0; i < 20; i++ {
 		wm.maybeRetargetPoolLoadLocked(now+int64(i*20), 100.0, 10)
 	}
@@ -1307,21 +1297,20 @@ func TestPoolDifficultyLowGHNoHitRunaway(t *testing.T) {
 }
 
 func TestPoolLoadHintUnclampedLargeFleet(t *testing.T) {
-	// 30 GH/s fleet at min 2M/GH/s → ~60M hint (below 1B default max).
+	t.Setenv("HACKME_COORDINATOR_POOL_LOAD_SOLVENCY", "0")
+	// Lab scale: 30 GH/s × 2M → ~60M hint.
 	hint := poolLoadHintUnclamped(30.0, 3, poolTargetModMin)
 	if hint < 50_000_000 || hint > 100_000_000 {
-		t.Fatalf("30 GH/s hint want ~60M, got %d", hint)
+		t.Fatalf("30 GH/s lab hint want ~60M, got %d", hint)
 	}
 	hint100k := poolLoadHintUnclamped(30.0, 100_000, poolTargetModMin)
 	if hint100k <= hint {
 		t.Fatalf("100k miners should raise hint above small fleet: %d vs %d", hint100k, hint)
 	}
-	wm := &workManager{
-		targetModMin: poolTargetModMin,
-		targetModMax: poolTargetModMax,
-	}
-	if wm.clampTargetMod(hint) >= poolTargetModMax {
-		t.Fatalf("30 GH/s should not hit new default max")
+	t.Setenv("HACKME_COORDINATOR_POOL_LOAD_SOLVENCY", "1")
+	solv := poolLoadHintUnclamped(30.0, 3, poolTargetModMin)
+	if solv < 100_000_000_000 {
+		t.Fatalf("solvency hint for 30 GH/s should be Hs×30s class, got %d", solv)
 	}
 }
 
@@ -1342,11 +1331,13 @@ func TestWorkManagerStatsMarksStaleWorkersOffline(t *testing.T) {
 	}
 	st := wm.stats(false)
 	workers, _ := st["workers"].(map[string]workerPayoutStat)
-	if !workers["live"].Online || workers["live"].LastHashrateGHS != 25.5 {
-		t.Fatalf("live: %+v", workers["live"])
+	live := workers[publicWorkerKey("live")]
+	stale := workers[publicWorkerKey("stale")]
+	if !live.Online || live.LastHashrateGHS != 25.5 {
+		t.Fatalf("live: %+v", live)
 	}
-	if workers["stale"].Online || workers["stale"].LastHashrateGHS != 0 {
-		t.Fatalf("stale: %+v", workers["stale"])
+	if stale.Online || stale.LastHashrateGHS != 0 {
+		t.Fatalf("stale: %+v", stale)
 	}
 }
 
@@ -1382,11 +1373,22 @@ func TestPublicStatsRedactsClientIP(t *testing.T) {
 	}
 	pub := wm.stats(false)
 	workers, _ := pub["workers"].(map[string]workerPayoutStat)
-	if workers["rig-1"].LastClientIP != "" {
-		t.Fatalf("public stats leaked last_client_ip: %+v", workers["rig-1"])
+	pseudo := publicWorkerKey("rig-1")
+	if _, ok := workers["rig-1"]; ok {
+		t.Fatal("public stats must not expose raw worker id keys")
 	}
-	if workers["rig-1"].PayoutAddress != "HMC-pub" || workers["rig-1"].PayoutHMC != 1 {
-		t.Fatalf("public payout fields should remain: %+v", workers["rig-1"])
+	st, ok := workers[pseudo]
+	if !ok {
+		t.Fatalf("missing pseudonym key %s in %#v", pseudo, workers)
+	}
+	if st.LastClientIP != "" {
+		t.Fatalf("public stats leaked last_client_ip: %+v", st)
+	}
+	if st.PayoutAddress != "HMC-pub" || st.PayoutHMC != 1 {
+		t.Fatalf("public payout fields should remain: %+v", st)
+	}
+	if pub["workers_keys"] != "pseudonym_v1" {
+		t.Fatalf("workers_keys=%v", pub["workers_keys"])
 	}
 	priv := wm.stats(true)
 	workers, _ = priv["workers"].(map[string]workerPayoutStat)

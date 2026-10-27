@@ -364,7 +364,9 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 		if !txResponseOK(resp) {
 			nonceAfter, _ := fetchNonce(ctx, client, cfg.ChainBase, payer)
 			if nonceAfter > nonceBefore {
-				lg.Printf("WARN %s: ambiguous send (nonce %d->%d) without verifiable tx_hash — keeping pending", wid, nonceBefore, nonceAfter)
+				lg.Printf("ALERT ambiguous_pending %s: nonce %d->%d without verifiable tx_hash — keeping pending (manual CLEAR_PENDING_HMC if rejected)", wid, nonceBefore, nonceAfter)
+				_ = store.AppendLedger(ctx, "ambiguous_pending", wid, payUnits, 0, 0, 0, 0, 0,
+					fmt.Sprintf("nonce %d->%d", nonceBefore, nonceAfter))
 			} else {
 				lg.Printf("ERROR settle %s -> %s: %v %s", wid, toAddr, sendErr, string(mustJSON(resp)))
 				_ = store.ClearPending(ctx, wid)
@@ -385,7 +387,9 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 
 		newSettled := row.SettledUnits + payUnits
 		clear := !deltaInfo.Rebase
-		anchorU := accrued
+		// Partial chunk under rebase: advance anchor by paid amount only so unpaid
+		// remainder stays payable next run (never jump anchor to full accrued).
+		anchorU := deltaInfo.BaselineUnits + payUnits
 		if clear {
 			anchorU = 0
 		}
@@ -393,7 +397,7 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 			lg.Printf("ERROR state update %s: %v", wid, err)
 			continue
 		}
-		_ = store.AppendLedger(ctx, "payout_sent", wid, payUnits, 0, 0, 0, 0, 0, txHash)
+		// Ledger row is written inside ApplySettleUnits (kind=payout_applied); do not duplicate.
 		if err := store.ExportJSONToFile(ctx, cfg.StateJSON); err != nil {
 			return out, fmt.Errorf("export-json after settle: %w", err)
 		}

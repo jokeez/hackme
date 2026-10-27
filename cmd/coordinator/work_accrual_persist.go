@@ -56,6 +56,7 @@ func migrateWorkerAccrualTable(db *sql.DB) error {
 	_, _ = db.Exec(`UPDATE worker_accrual SET payout_units = CAST(ROUND(payout_hmc * 100000000) AS INTEGER) WHERE payout_units = 0 AND payout_hmc > 0`)
 	_, _ = db.Exec(workerAccrualJournalTable)
 	ensureSharePriceJournal(db)
+	ensurePoolPayDayTable(db)
 	return nil
 }
 
@@ -301,10 +302,20 @@ func (m *workManager) persistWorkerAccrual(workerID string, force bool) {
 	}
 	hmcMirror := chain.UnitsToHMC(pu)
 
+	tx, err := m.dedupDB.Begin()
+	if err != nil {
+		log.Printf("worker accrual begin id=%s err=%v", sanitizeLogToken(workerID), err)
+		return
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
 	var prevUnits uint64
-	_ = m.dedupDB.QueryRow(`SELECT COALESCE(payout_units,0) FROM worker_accrual WHERE worker_id=?`, workerID).Scan(&prevUnits)
-
-	_, err := m.dedupDB.Exec(`
+	_ = tx.QueryRow(`SELECT COALESCE(payout_units,0) FROM worker_accrual WHERE worker_id=?`, workerID).Scan(&prevUnits)
+	res, err := tx.Exec(`
 INSERT INTO worker_accrual (
   worker_id, accepted_ranges, accepted_hits, accepted_attempts,
   payout_hmc, payout_units, payout_sup, payout_address, signed_submits,
@@ -331,14 +342,23 @@ WHERE excluded.accepted_attempts >= worker_accrual.accepted_attempts
 		snap.LastHashrateGHS, snap.PeakHashrateGHS, snap.LastSeenUnix, snap.LastPoHSeenUnix, snap.LastFuzzSeenUnix, now)
 	if err != nil {
 		log.Printf("worker accrual persist id=%s err=%v", sanitizeLogToken(workerID), err)
-	} else if pu > prevUnits {
+		return
+	}
+	n, _ := res.RowsAffected()
+	if n > 0 && pu > prevUnits {
 		delta := pu - prevUnits
-		if _, jerr := m.dedupDB.Exec(`
+		if _, jerr := tx.Exec(`
 INSERT INTO accrual_journal (worker_id, delta_units, payout_units, created_at)
 VALUES (?, ?, ?, ?)`, workerID, delta, pu, now); jerr != nil {
 			log.Printf("accrual journal id=%s err=%v", sanitizeLogToken(workerID), jerr)
+			return
 		}
 	}
+	if err := tx.Commit(); err != nil {
+		log.Printf("worker accrual commit id=%s err=%v", sanitizeLogToken(workerID), err)
+		return
+	}
+	committed = true
 
 	// Revoke may have DELETE'd while we held the snapshot; purge any resurrection.
 	m.mu.Lock()

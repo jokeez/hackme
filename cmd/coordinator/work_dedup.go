@@ -100,6 +100,7 @@ func (m *workManager) attachDedupDB(db *sql.DB) {
 	m.loadDurableDedup()
 	m.loadPayoutLocks()
 	m.loadWorkerAccruals()
+	m.loadPoolPayDay()
 }
 
 func workDedupTTLSec() int64 {

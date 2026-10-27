@@ -689,13 +689,12 @@ func poolLoadHintUnclamped(poolGH float64, miners int, modMin uint64) uint64 {
 
 // poolLoadTargetM is the load-retarget setpoint for pool M.
 //
-// SHARE_STRICT (live default): M ≈ poolGH × modMin × minerBoost (tens of millions at
-// home-fleet GH/s). Emission solvency is enforced by applyPoolDailyBudget — not by
-// inflating M to Hs×block_sec (~4e11), which starved small leases of shares and made
-// the dashboard look broken.
+// Default (POOL_LOAD_SOLVENCY on): M ≈ pool_Hs × block_sec so pay-per-hash = base/M
+// stays solvent (~one base reward per block_sec of fleet work). Daily budget is a
+// backstop, not the primary throttle — otherwise small M + 2×base lease caps recreate
+// "pay per lease" and a midnight race on the 28.8 HMC day budget.
 //
-// Soft/attempt mode (or HACKME_COORDINATOR_POOL_LOAD_SOLVENCY=1): M ≈ Hs × block_sec
-// so expected found cadence matches block time (legacy solvency-via-M path).
+// Lab-only: HACKME_COORDINATOR_POOL_LOAD_SOLVENCY=0 uses poolGH×modMin (UI-scale M).
 func poolLoadTargetM(poolGH float64, miners int, modMin uint64, shareStrict bool) uint64 {
 	if poolGH < 0.01 {
 		return 0
@@ -703,12 +702,12 @@ func poolLoadTargetM(poolGH float64, miners int, modMin uint64, shareStrict bool
 	if modMin == 0 {
 		modMin = poolTargetModMin
 	}
-	solvency := envPoolLoadSolvency()
 	var loadM float64
-	if shareStrict && !solvency {
-		loadM = poolGH * float64(modMin)
-	} else {
+	if envPoolLoadSolvency() {
 		loadM = poolGH * 1e9 * poolBlockSec()
+	} else {
+		_ = shareStrict
+		loadM = poolGH * float64(modMin)
 	}
 	loadM *= poolMinerCountBoost(miners)
 	if loadM < float64(modMin) {
@@ -720,9 +719,13 @@ func poolLoadTargetM(poolGH float64, miners int, modMin uint64, shareStrict bool
 	return uint64(loadM + 0.5)
 }
 
+// envPoolLoadSolvency defaults ON. Set =0/false/no to use GH×floor lab scale.
 func envPoolLoadSolvency() bool {
 	v := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_POOL_LOAD_SOLVENCY"))
-	return v == "1" || strings.EqualFold(v, "true") || strings.EqualFold(v, "yes")
+	if v == "" {
+		return true
+	}
+	return !(v == "0" || strings.EqualFold(v, "false") || strings.EqualFold(v, "no") || strings.EqualFold(v, "off"))
 }
 
 func (m *workManager) clampTargetMod(u uint64) uint64 {
@@ -2747,8 +2750,7 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	if useShares {
 		m.sharePaidSubmits++
 		nShares := uint64(len(validShares))
-		instantU := rewardPerShareUnits(m.baseRewardHMC, sm, rec.TargetMod)
-		payPerShareU := m.observeSharePrice(instantU, nShares, rec.TargetMod, sm)
+		payPerShareU := m.observeSharePrice(m.baseRewardHMC, nShares, rec.TargetMod, sm)
 		payoutUnits = nShares * payPerShareU
 		payout = chain.UnitsToHMC(payoutUnits)
 		if req.Found && !chainSolve.OK {
@@ -2760,15 +2762,12 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 				}
 			}
 			if !foundIsShare {
-				bonusU := chain.HMCToUnits(m.foundBonus)
-				payoutUnits += bonusU
-				payout = chain.UnitsToHMC(payoutUnits)
+				payout += m.foundBonus
 			}
 		}
 	} else if m.shareStrict {
 		if req.Found && !chainSolve.OK {
 			payout = m.foundBonus
-			payoutUnits = chain.HMCToUnits(payout)
 		}
 	} else {
 		payout = (float64(paidAttempts) / 1_000_000.0) * m.rewardPerM
@@ -2779,17 +2778,14 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		if chainSolve.OK {
 			payout = (float64(paidAttempts) / 1_000_000.0) * m.rewardPerM
 		}
-		payoutUnits = chain.HMCToUnits(payout)
 	}
 	if payout < 0 {
 		payout = 0
-		payoutUnits = 0
 	}
 	// Hard per-submit HMC ceiling (attempt accrual + found bonus) — keyed to this lease.
 	maxSubmitHMC := m.maxSubmitHMCForBatch(req.BatchSize)
 	if payout > maxSubmitHMC {
 		payout = maxSubmitHMC
-		payoutUnits = chain.HMCToUnits(payout)
 	}
 	// Solvency: never accrue more than the UTC-day emission budget.
 	payout = m.applyPoolDailyBudget(payout, now)
@@ -3317,15 +3313,15 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 		"share_divisor":           m.shareDivisor,
 		"share_strict":            m.shareStrict,
 		"share_price_ema":         envSharePriceEMA(),
-		"share_price_ema_units": func() uint64 {
+		"share_price_ema_per_hash_hmc": func() float64 {
 			if m.sharePrice != nil {
-				return m.sharePrice.emaUnits
+				return m.sharePrice.emaPerHashHMC
 			}
 			return 0
 		}(),
 		"share_price_instant_units": func() uint64 {
 			if m.sharePrice != nil {
-				return m.sharePrice.lastInstantUnits
+				return m.sharePrice.lastInstantShare
 			}
 			return 0
 		}(),
@@ -3335,9 +3331,7 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 			}
 			return 0
 		}(),
-		"total_payout_units": func() uint64 {
-			return chain.HMCToUnits(m.totalPayoutHMC)
-		}(),
+		"total_payout_units":           chain.HMCToUnits(m.totalPayoutHMC),
 		"share_rate_min":               m.shareRateMin,
 		"share_rate_min_expected":      m.shareRateMinExpected,
 		"share_rate_reject":            m.shareRateReject,
@@ -3407,10 +3401,10 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 		out["target_mod_load_hint"] = hintStat
 	}
 	out["target_mod_load_capped"] = hintStat > maxStat && maxStat > 0
-	if m.shareStrict && !envPoolLoadSolvency() {
-		out["target_mod_load_mode"] = "share_pps"
-	} else {
+	if envPoolLoadSolvency() {
 		out["target_mod_load_mode"] = "solvency_found"
+	} else {
+		out["target_mod_load_mode"] = "share_pps_lab"
 	}
 	out["pool_hashrate_gh_s"] = poolGHStat
 	out["hashrate"] = poolGHStat * 1e9
@@ -3448,6 +3442,10 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 		if conflict {
 			m.fleetAddressConflicts++
 		}
+	}
+	if !includeDetails {
+		workers = publicWorkersMap(workers)
+		out["workers_keys"] = "pseudonym_v1"
 	}
 	out["workers"] = workers
 	// Public miner count must match the merged workers{} map (fleet -gpuN collapse),

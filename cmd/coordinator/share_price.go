@@ -11,9 +11,9 @@ import (
 	"hackme/internal/chain"
 )
 
-// Windowed EMA of share price (HMC units per verified share).
-// Instantaneous price = base_reward * share_mod / target_mod (same as rewardPerShareAt).
-// Pay uses EMA when HACKME_COORDINATOR_SHARE_PRICE_EMA=1 (default on with SHARE_STRICT).
+// Windowed EMA of per-hash price (HMC/hash), not per-share.
+// Pay for one share = HMCToUnits(ema_per_hash_hmc × share_mod).
+// Mixing raw share prices across leases with different share_mod starved large GPU leases.
 
 const (
 	defaultSharePriceEMAAlpha  = 0.25
@@ -21,8 +21,8 @@ const (
 )
 
 type sharePriceState struct {
-	emaUnits         uint64
-	lastInstantUnits uint64
+	emaPerHashHMC    float64
+	lastInstantShare uint64
 	samples          uint64
 	sharesPaid       uint64
 	lastJournalUnix  int64
@@ -33,7 +33,6 @@ type sharePriceState struct {
 func envSharePriceEMA() bool {
 	v := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_SHARE_PRICE_EMA"))
 	if v == "" {
-		// Default ON with share-PPS; set =0 to pay raw instant price only.
 		return true
 	}
 	return v == "1" || strings.EqualFold(v, "true") || strings.EqualFold(v, "yes")
@@ -55,37 +54,49 @@ func rewardPerShareUnits(baseRewardHMC float64, shareMod, targetMod uint64) uint
 	return chain.HMCToUnits(rewardPerShareAt(baseRewardHMC, shareMod, targetMod))
 }
 
-// observeSharePrice updates EMA and optionally journals a sample into coordinator SQLite.
-func (m *workManager) observeSharePrice(instantUnits, nShares, targetMod, shareMod uint64) uint64 {
-	if m == nil || instantUnits == 0 {
-		return instantUnits
+func rewardPerHashHMC(baseRewardHMC float64, targetMod uint64) float64 {
+	if baseRewardHMC <= 0 || targetMod == 0 {
+		return 0
+	}
+	return baseRewardHMC / float64(targetMod)
+}
+
+// observeSharePrice EMAs per-hash HMC and returns pay units for one share.
+func (m *workManager) observeSharePrice(baseRewardHMC float64, nShares, targetMod, shareMod uint64) uint64 {
+	instantShare := rewardPerShareUnits(baseRewardHMC, shareMod, targetMod)
+	if m == nil || instantShare == 0 || shareMod == 0 || targetMod == 0 {
+		return instantShare
+	}
+	perHash := rewardPerHashHMC(baseRewardHMC, targetMod)
+	if perHash <= 0 {
+		return instantShare
 	}
 	if m.sharePrice == nil {
 		m.sharePrice = &sharePriceState{}
 	}
 	st := m.sharePrice
-	st.lastInstantUnits = instantUnits
+	st.lastInstantShare = instantShare
 	st.windowTargetMod = targetMod
 	st.windowShareMod = shareMod
 	st.sharesPaid += nShares
 	st.samples++
-	if st.emaUnits == 0 {
-		st.emaUnits = instantUnits
+	if st.emaPerHashHMC <= 0 {
+		st.emaPerHashHMC = perHash
 	} else {
 		alpha := envSharePriceEMAAlpha()
-		// EMA in float space then back to units (avoid uint truncation bias).
-		prev := float64(st.emaUnits)
-		inst := float64(instantUnits)
-		st.emaUnits = uint64(alpha*inst + (1-alpha)*prev + 0.5)
-		if st.emaUnits == 0 {
-			st.emaUnits = instantUnits
+		st.emaPerHashHMC = alpha*perHash + (1-alpha)*st.emaPerHashHMC
+		if st.emaPerHashHMC <= 0 {
+			st.emaPerHashHMC = perHash
 		}
 	}
-	pay := instantUnits
-	if envSharePriceEMA() && st.emaUnits > 0 {
-		pay = st.emaUnits
+	pay := instantShare
+	if envSharePriceEMA() && st.emaPerHashHMC > 0 {
+		pay = chain.HMCToUnits(st.emaPerHashHMC * float64(shareMod))
+		if pay == 0 {
+			pay = instantShare
+		}
 	}
-	m.maybeJournalSharePrice(nShares, instantUnits, pay, targetMod, shareMod)
+	m.maybeJournalSharePrice(nShares, instantShare, pay, targetMod, shareMod)
 	return pay
 }
 
