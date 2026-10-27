@@ -4,8 +4,8 @@ import "testing"
 
 func TestRedactPublicWorkStats(t *testing.T) {
 	ws := map[string]any{
-		"desktop_worker_id":            "worker-email-host",
-		"desktop_worker_injected":      true,
+		"desktop_worker_id":             "worker-email-host",
+		"desktop_worker_injected":       true,
 		"desktop_worker_on_coordinator": false,
 		"workers": map[string]any{
 			"worker-kapa-pc": map[string]any{

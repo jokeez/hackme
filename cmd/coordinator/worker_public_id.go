@@ -35,4 +35,3 @@ func publicWorkersMap(workers map[string]workerPayoutStat) map[string]workerPayo
 	}
 	return out
 }
-

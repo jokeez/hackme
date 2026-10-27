@@ -2751,8 +2751,8 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		m.sharePaidSubmits++
 		nShares := uint64(len(validShares))
 		payPerShareU := m.observeSharePrice(m.baseRewardHMC, nShares, rec.TargetMod, sm)
-		payoutUnits = nShares * payPerShareU
-		payout = chain.UnitsToHMC(payoutUnits)
+		shareUnits := nShares * payPerShareU
+		payout = chain.UnitsToHMC(shareUnits)
 		if req.Found && !chainSolve.OK {
 			foundIsShare := false
 			for _, n := range validShares {
