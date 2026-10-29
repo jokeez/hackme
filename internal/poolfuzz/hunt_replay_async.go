@@ -751,8 +751,8 @@ func (s *Service) finalizeHuntSubmit(ctx context.Context, p finalizeHuntSubmitPa
 				return err
 			}
 			if completed {
-				if _, err := s.Settler.Finalize(ctx, p.req.CampaignID, 0); err != nil {
-					return fmt.Errorf("poolfuzz: finalize escrow: %w", err)
+				if err := s.tryFinalizeEscrow(ctx, p.req.CampaignID); err != nil {
+					return err
 				}
 			}
 			return nil
@@ -782,8 +782,8 @@ func (s *Service) finalizeHuntSubmit(ctx context.Context, p finalizeHuntSubmitPa
 		return err
 	}
 	if completed && s.Settler != nil && escrowEnabled(p.cfg) {
-		if _, err := s.Settler.Finalize(ctx, p.req.CampaignID, 0); err != nil {
-			return fmt.Errorf("poolfuzz: finalize escrow: %w", err)
+		if err := s.tryFinalizeEscrow(ctx, p.req.CampaignID); err != nil {
+			return err
 		}
 	}
 	return nil

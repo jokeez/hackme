@@ -234,7 +234,7 @@ func (s *Service) forceCompleteWorkItem(ctx context.Context, campaignID string, 
 		return err
 	}
 	if completed && s.Settler != nil && escrowEnabled(cfg) {
-		if _, err := s.Settler.Finalize(ctx, campaignID, 0); err != nil {
+		if err := s.tryFinalizeEscrow(ctx, campaignID); err != nil {
 			return fmt.Errorf("poolfuzz: finalize after %s: %w", reason, err)
 		}
 	}

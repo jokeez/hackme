@@ -351,6 +351,41 @@ func (s *Service) RepairZombiePoolCampaigns(ctx context.Context, limit int) (int
 	return n, rows.Err()
 }
 
+// tryFinalizeEscrow enqueues Finalize only when no unpaid settle intents remain.
+// Prevents closed-escrow + pending run/run_floor undrainable heads (econ audit).
+func (s *Service) tryFinalizeEscrow(ctx context.Context, campaignID string) error {
+	if s == nil || s.Settler == nil {
+		return nil
+	}
+	campaignID = strings.TrimSpace(campaignID)
+	if campaignID == "" {
+		return nil
+	}
+	pending, err := s.CountPendingSettleOutbox(ctx, campaignID)
+	if err != nil {
+		return err
+	}
+	if pending > 0 {
+		return nil
+	}
+	var unpaid int64
+	if err := s.DB.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM fuzz_work_items
+		 WHERE campaign_id=? AND (
+		   settle_run_status IN ('pending','queued','pending_floor','queued_floor')
+		   OR settle_finding_status IN ('pending','queued')
+		 )`, campaignID).Scan(&unpaid); err != nil {
+		return err
+	}
+	if unpaid > 0 {
+		return nil
+	}
+	if _, err := s.Settler.Finalize(ctx, campaignID, 0); err != nil {
+		return fmt.Errorf("poolfuzz: finalize escrow: %w", err)
+	}
+	return nil
+}
+
 // campaignAcceptsSettle is true while the campaign is still running (or planned).
 // Paused/completed/cancelled must not enqueue new settle-outbox PayRun rows —
 // origin escrow is usually closed and those rows clog the undrainable head.
@@ -1438,8 +1473,8 @@ func (s *Service) SubmitWithOutcome(ctx context.Context, req SubmitRequest) (Sub
 			return SubmitOutcome{}, err
 		}
 		if completed && s.Settler != nil && escrowEnabled(cfg) {
-			if _, err := s.Settler.Finalize(ctx, req.CampaignID, 0); err != nil {
-				return SubmitOutcome{}, fmt.Errorf("poolfuzz: finalize escrow: %w", err)
+			if err := s.tryFinalizeEscrow(ctx, req.CampaignID); err != nil {
+				return SubmitOutcome{}, err
 			}
 		}
 		return SubmitOutcome{}, nil
@@ -1513,8 +1548,8 @@ func (s *Service) SubmitWithOutcome(ctx context.Context, req SubmitRequest) (Sub
 		return SubmitOutcome{}, err
 	}
 	if completed && s.Settler != nil && escrowEnabled(cfg) {
-		if _, err := s.Settler.Finalize(ctx, req.CampaignID, 0); err != nil {
-			return SubmitOutcome{}, fmt.Errorf("poolfuzz: finalize escrow: %w", err)
+		if err := s.tryFinalizeEscrow(ctx, req.CampaignID); err != nil {
+			return SubmitOutcome{}, err
 		}
 	}
 	return SubmitOutcome{ReplayStatus: digReplayStatus}, nil
