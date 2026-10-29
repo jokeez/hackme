@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"hackme/internal/poolauth"
-	"hackme/internal/workerid"
 )
 
 type workerSettlementStateEntry struct {
@@ -67,6 +66,27 @@ func settlementUnpaidSUP(accrued float64, ent workerSettlementStateEntry) float6
 		return 0
 	}
 	return unpaid
+}
+
+// settlementEntryForWorker resolves ledger rows when coordinator work/stats uses
+// public blake3 worker keys while canonical settlement is keyed by raw WORKER_ID.
+func settlementEntryForWorker(stateWorkers map[string]workerSettlementStateEntry, workerID string) workerSettlementStateEntry {
+	if len(stateWorkers) == 0 {
+		return workerSettlementStateEntry{}
+	}
+	workerID = strings.TrimSpace(workerID)
+	if workerID == "" {
+		return workerSettlementStateEntry{}
+	}
+	if ent, ok := stateWorkers[workerID]; ok {
+		return ent
+	}
+	for rawID, ent := range stateWorkers {
+		if publicWorkerPseudoKey(rawID) == workerID {
+			return ent
+		}
+	}
+	return workerSettlementStateEntry{}
 }
 
 type workerSettlementMeta struct {
@@ -514,16 +534,19 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 	coordOmittedBreakdown := len(workers) == 0 && asUint64(ws["workers_count"]) > 0
 	payoutMap := workerPayoutMapFromEnv()
 	displayWallet := settlementDisplayWalletAddress(a.nodeID, payoutMap)
-	walletAccrued, _, walletUnpaid, accrualSource := walletAccrualFromCoordinator(ws, state.Workers, a.nodeID, a.workerID, payoutMap, a.workerProcessRunning())
-	walletAccruedSUP, _, walletUnpaidSUP := walletAccrualSUPFromCoordinator(ws, state.Workers, a.nodeID, a.workerID, payoutMap)
+	desktopWorkerID := a.desktopWorkerID()
+	walletAccrued, _, walletUnpaid, accrualSource := walletAccrualFromCoordinator(ws, state.Workers, a.nodeID, desktopWorkerID, payoutMap, a.workerProcessRunning())
+	walletAccruedSUP, _, walletUnpaidSUP := walletAccrualSUPFromCoordinator(ws, state.Workers, a.nodeID, desktopWorkerID, payoutMap)
 	var walletSettled, walletSettledSUP float64
-	desktopWorkerID := strings.TrimSpace(a.workerID)
-	if desktopWorkerID == "" {
-		desktopWorkerID = workerid.DefaultDesktop()
-	}
 	var desktopWorkerAccrued float64
-	if row := mapFromAny(workers[desktopWorkerID]); len(row) > 0 {
-		desktopWorkerAccrued = parseAnyFloat(row["payout_hmc"])
+	rowDesktop := mapFromAny(workers[desktopWorkerID])
+	if len(rowDesktop) == 0 {
+		if pseudo := publicWorkerPseudoKey(desktopWorkerID); pseudo != "" {
+			rowDesktop = mapFromAny(workers[pseudo])
+		}
+	}
+	if len(rowDesktop) > 0 {
+		desktopWorkerAccrued = parseAnyFloat(rowDesktop["payout_hmc"])
 		if desktopWorkerAccrued < 0 {
 			desktopWorkerAccrued = 0
 		}
@@ -539,7 +562,7 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		row := mapFromAny(v)
-		ent := state.Workers[workerID]
+		ent := settlementEntryForWorker(state.Workers, workerID)
 		accrued := parseAnyFloat(row["payout_hmc"])
 		if accrued < 0 {
 			accrued = 0
@@ -606,7 +629,7 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		if accrued < 0 {
 			accrued = 0
 		}
-		ent := state.Workers[workerID]
+		ent := settlementEntryForWorker(state.Workers, workerID)
 		settled := ent.SettledHMC
 		if settled < 0 {
 			settled = 0
@@ -631,7 +654,15 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 	desktopWorkerUnpaidHMC := 0.0
 	desktopWorkerAccruedHMC := 0.0
 	desktopWorkerSettledHMC := 0.0
-	if bd, ok := workerBreakdown[desktopWorkerID].(map[string]any); ok {
+	desktopBreakdownKey := desktopWorkerID
+	if _, ok := workerBreakdown[desktopBreakdownKey]; !ok {
+		if pseudo := publicWorkerPseudoKey(desktopWorkerID); pseudo != "" {
+			if _, ok := workerBreakdown[pseudo]; ok {
+				desktopBreakdownKey = pseudo
+			}
+		}
+	}
+	if bd, ok := workerBreakdown[desktopBreakdownKey].(map[string]any); ok {
 		desktopWorkerAccruedHMC = parseAnyFloat(bd["accrued_hmc"])
 		desktopWorkerSettledHMC = parseAnyFloat(bd["settled_hmc"])
 		desktopWorkerUnpaidHMC = parseAnyFloat(bd["unpaid_hmc"])
@@ -640,7 +671,7 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 	walletAccrued = desktopWorkerAccruedHMC
 	walletSettled = desktopWorkerSettledHMC
 	walletUnpaid = desktopWorkerUnpaidHMC
-	if bd, ok := workerBreakdown[desktopWorkerID].(map[string]any); ok {
+	if bd, ok := workerBreakdown[desktopBreakdownKey].(map[string]any); ok {
 		walletAccruedSUP = parseAnyFloat(bd["accrued_sup"])
 		walletSettledSUP = parseAnyFloat(bd["settled_sup"])
 		walletUnpaidSUP = parseAnyFloat(bd["unpaid_sup"])

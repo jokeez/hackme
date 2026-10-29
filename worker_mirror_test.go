@@ -66,3 +66,47 @@ func TestEnrichWorkStatsDesktopWorkerFromMirror(t *testing.T) {
 		t.Fatalf("payout %v", row["payout_hmc"])
 	}
 }
+
+func TestEnrichWorkStatsDesktopWorkerAliasesPublicPseudonym(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HACKME_DATA_DIR", filepath.Join(dir, "data"))
+	t.Setenv("WORKER_ID", "worker-kapa-pc")
+	_ = os.MkdirAll(filepath.Join(dir, "data"), 0o755)
+	a := &app{dataDir: filepath.Join(dir, "data"), workerID: "worker-kapa-pc"}
+	pseudo := publicWorkerPseudoKey("worker-kapa-pc")
+	if pseudo == "" {
+		t.Fatal("expected publicWorkerPseudoKey")
+	}
+	ws := map[string]any{
+		"workers": map[string]any{
+			pseudo: map[string]any{
+				"online":            true,
+				"accepted_attempts": uint64(108835977176711),
+				"payout_hmc":        441.07,
+				"hashrate_gh_s":     6.5,
+			},
+			"other-rig": map[string]any{"payout_hmc": 1.0},
+		},
+		"workers_count":   uint64(2),
+		"workers_keys":    "pseudonym_v1",
+	}
+	a.enrichWorkStatsDesktopWorker(ws)
+	workers := coordinatorWorkersMap(ws)
+	if _, ok := workers[pseudo]; ok {
+		t.Fatal("expected public hash twin removed after alias")
+	}
+	row, ok := workers["worker-kapa-pc"]
+	if !ok {
+		t.Fatal("expected friendly desktop id aliased from public key")
+	}
+	m := mapFromAny(row)
+	if m["local_pool_worker"] == true {
+		t.Fatal("aliased row must not be local_pool_worker (registering)")
+	}
+	if ws["desktop_worker_on_coordinator"] != true {
+		t.Fatalf("on_coordinator=%v", ws["desktop_worker_on_coordinator"])
+	}
+	if parseAnyFloat(m["payout_hmc"]) != 441.07 {
+		t.Fatalf("payout %v", m["payout_hmc"])
+	}
+}

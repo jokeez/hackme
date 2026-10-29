@@ -109,7 +109,18 @@ func reapOrphanPoolWorkers(logDir, workerID, repoRoot string) {
 }
 
 // reapOrphanPoolWorkersAtBoot clears any workerlock holders left from a previous node process.
+// Skip when the GPU worker is owned by a separate supervisor (systemd hackme-kapa-worker,
+// WORKER_AUTOSTART=0): boot reap was killing live mining on every desktop-node restart.
 func reapOrphanPoolWorkersAtBoot(repoRoot string) {
+	if strings.TrimSpace(os.Getenv("HACKME_SKIP_ORPHAN_REAP")) == "1" {
+		log.Printf("pool worker: skip boot orphan reap (HACKME_SKIP_ORPHAN_REAP=1)")
+		return
+	}
+	if strings.TrimSpace(os.Getenv("WORKER_AUTOSTART")) == "0" ||
+		strings.TrimSpace(os.Getenv("HACKME_WORKER_WATCHDOG")) == "0" {
+		log.Printf("pool worker: skip boot orphan reap (external worker supervisor)")
+		return
+	}
 	logDir := filepath.Join(".", "logs")
 	reapOrphanPoolWorkers(logDir, strings.TrimSpace(os.Getenv("WORKER_ID")), repoRoot)
 }

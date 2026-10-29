@@ -132,7 +132,35 @@ func (a *app) enrichWorkStatsDesktopWorker(ws map[string]any) {
 	wid := a.desktopWorkerID()
 	if row, ok := workers[wid]; ok {
 		persistWorkerCoordinatorMirrorFromStats(map[string]any{"workers": map[string]any{wid: row}})
+		ws["desktop_worker_id"] = wid
+		ws["desktop_worker_on_coordinator"] = true
 		return
+	}
+	// Public work/stats re-keys workers to blake3 pseudonyms. If our desktop id is
+	// already present under that key, alias it — do NOT inject a second "registering" row.
+	if pseudo := publicWorkerPseudoKey(wid); pseudo != "" {
+		if row, ok := workers[pseudo]; ok {
+			cp := map[string]any{}
+			for k, v := range mapFromAny(row) {
+				cp[k] = v
+			}
+			delete(cp, "local_pool_worker")
+			cp["coordinator_pruned"] = false
+			if _, has := cp["online"]; !has {
+				cp["online"] = coordinatorRowOnline(cp)
+			}
+			workers[wid] = cp
+			delete(workers, pseudo) // one row in local UI (friendly id, not hash twin)
+			ws["workers"] = workers
+			if asUint64(ws["workers_count"]) != uint64(len(workers)) {
+				ws["workers_count"] = uint64(len(workers))
+			}
+			ws["desktop_worker_id"] = wid
+			ws["desktop_worker_on_coordinator"] = true
+			ws["desktop_worker_public_key"] = pseudo
+			persistWorkerCoordinatorMirrorFromStats(map[string]any{"workers": map[string]any{wid: cp}})
+			return
+		}
 	}
 	running, gh, liveWid := a.desktopWorkerLiveStatus()
 	// Do not replace configured WORKER_ID with log-inferred id (e.g. mirror tests, multi-rig env).

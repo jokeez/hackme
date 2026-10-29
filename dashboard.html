@@ -10850,6 +10850,9 @@
 			const myId = String((latestWorkerStatus && latestWorkerStatus.worker_id) || '');
 			const isMine = myId !== '' && r.id === myId;
 			const isFuzz = isFuzzPoolWorkerId(r.id);
+			// Hide blake3 public twin when enrich aliased it to the friendly desktop id.
+			const pubTwin = String((latestWorkStats && latestWorkStats.desktop_worker_public_key) || '').trim();
+			if (pubTwin && r.id === pubTwin) return false;
 			if (miningWorkersFilter === 'fuzz') return isFuzz;
 			// Default PoH table: hide workerfuzz (escrow diggers; payout_hmc always 0 here).
 			if (isFuzz && miningWorkersFilter !== 'all') return false;
@@ -12454,10 +12457,16 @@
 			async function applyApiFallback() {
 				let st = null;
 				try {
+					const wsHdr = adminHeaders()['X-Hackme-Admin-Token']
+						? { cache: 'no-store', headers: adminHeaders() }
+						: { cache: 'no-store' };
+					const wsURL = adminHeaders()['X-Hackme-Admin-Token']
+						? '/api/work/stats?details=1'
+						: '/api/work/stats';
 					const [stRes, wlRes, wkRes] = await Promise.all([
 						fetch('/api/status?lite=1', { cache: 'no-store' }),
 						fetch('/api/wallet', { cache: 'no-store', headers: adminHeaders() }),
-						fetch('/api/work/stats', { cache: 'no-store' }),
+						fetch(wsURL, wsHdr),
 					]);
 					st = stRes.ok ? await stRes.json() : null;
 					const wl = wlRes.ok ? await wlRes.json() : null;
@@ -12940,10 +12949,16 @@
 		}
 		async function refreshWorkStats(forceDetails) {
 			workStatsPollSeq += 1;
-			const wantDetails = !!forceDetails || (workStatsPollSeq % WORK_STATS_DETAIL_EVERY === 0);
+			// Desktop local-auth: always request admin details so the table shows
+			// friendly WORKER_ID (worker-kapa-pc ★) instead of blake3 public keys.
+			const haveAdmin = !!(adminHeaders()['X-Hackme-Admin-Token']);
+			const wantDetails = haveAdmin || !!forceDetails || (workStatsPollSeq % WORK_STATS_DETAIL_EVERY === 0);
 			const url = wantDetails ? '/api/work/stats?details=1' : '/api/work/stats?details=0';
 			try {
-				const r = await fetchWithTimeout(url, { cache: 'no-store' }, WORK_STATS_FETCH_MS);
+				const r = await fetchWithTimeout(url, {
+					cache: 'no-store',
+					headers: haveAdmin ? adminHeaders() : undefined
+				}, WORK_STATS_FETCH_MS);
 				if (!r.ok) throw new Error('HTTP ' + r.status);
 				const j = await r.json();
 				renderWorkStats(j);

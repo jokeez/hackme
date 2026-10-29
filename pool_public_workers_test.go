@@ -38,6 +38,40 @@ func TestRedactPublicWorkStats(t *testing.T) {
 	}
 }
 
+func TestRedactPublicWorkStatsSkipsAlreadyPseudonymized(t *testing.T) {
+	once := publicWorkerPseudoKey("worker-kapa-pc")
+	twice := publicWorkerPseudoKey(once)
+	ws := map[string]any{
+		"workers_keys": "pseudonym_v1",
+		"desktop_worker_id": "worker-kapa-pc",
+		"workers": map[string]any{
+			once: map[string]any{
+				"payout_hmc":     441.5,
+				"last_client_ip": "1.2.3.4",
+				"online":         true,
+			},
+		},
+	}
+	redactPublicWorkStats(ws)
+	if _, ok := ws["desktop_worker_id"]; ok {
+		t.Fatal("desktop_worker_id must be stripped")
+	}
+	workers := ws["workers"].(map[string]any)
+	if _, ok := workers[once]; !ok {
+		t.Fatalf("expected key %s preserved, got %v", once, workers)
+	}
+	if _, ok := workers[twice]; ok {
+		t.Fatal("must not double-hash already-pseudonym keys")
+	}
+	row := workers[once].(map[string]any)
+	if _, ok := row["last_client_ip"]; ok {
+		t.Fatal("ip must still be stripped")
+	}
+	if ws["workers_keys"] != "pseudonym_v1" {
+		t.Fatalf("workers_keys=%v", ws["workers_keys"])
+	}
+}
+
 func TestPublicWorkerPseudoKeyStable(t *testing.T) {
 	a := publicWorkerPseudoKey("worker-kapa-pc")
 	b := publicWorkerPseudoKey("worker-kapa-pc")

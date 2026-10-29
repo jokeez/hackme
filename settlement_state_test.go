@@ -102,6 +102,28 @@ func TestMergeCanonicalSettlementStateFresherRemoteMayLower(t *testing.T) {
 	}
 }
 
+func TestSettlementEntryForWorkerResolvesPublicPseudonym(t *testing.T) {
+	rawID := "worker-kapa-pc"
+	pseudo := publicWorkerPseudoKey(rawID)
+	if pseudo == "" {
+		t.Fatal("expected publicWorkerPseudoKey")
+	}
+	state := map[string]workerSettlementStateEntry{
+		rawID: {SettledSUP: 1576.02, SettledHMC: 1250.87, LastSettleUnix: 100},
+	}
+	ent := settlementEntryForWorker(state, pseudo)
+	if ent.SettledSUP != 1576.02 {
+		t.Fatalf("settled_sup=%v via pseudo", ent.SettledSUP)
+	}
+	ent2 := settlementEntryForWorker(state, rawID)
+	if ent2.SettledHMC != 1250.87 {
+		t.Fatalf("settled_hmc=%v via raw", ent2.SettledHMC)
+	}
+	if settlementEntryForWorker(state, "missing").SettledSUP != 0 {
+		t.Fatal("expected empty for unknown id")
+	}
+}
+
 func TestFetchCanonicalSettlementStateIgnoresPoisonedDiskOnHTTPFail(t *testing.T) {
 	dir := t.TempDir()
 	poison := filepath.Join(dir, "settlement_canonical_public.json")

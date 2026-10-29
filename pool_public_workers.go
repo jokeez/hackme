@@ -58,12 +58,44 @@ func redactPublicActiveRigRows(ws map[string]any) {
 	ws["active_rigs"] = red
 }
 
+func stripWorkerRowClientIPs(ws map[string]any) {
+	raw, ok := ws["workers"].(map[string]any)
+	if !ok || len(raw) == 0 {
+		return
+	}
+	for id, row := range raw {
+		m, ok := row.(map[string]any)
+		if !ok {
+			continue
+		}
+		cp := make(map[string]any, len(m))
+		for k, v := range m {
+			switch k {
+			case "last_client_ip", "client_ip", "ip":
+				continue
+			default:
+				cp[k] = v
+			}
+		}
+		raw[id] = cp
+	}
+	ws["workers"] = raw
+}
+
 // redactPublicWorkStats strips desktop id leakage and re-keys workers for unauthenticated callers.
 func redactPublicWorkStats(ws map[string]any) {
 	if ws == nil {
 		return
 	}
 	stripDesktopWorkerFields(ws)
+	// Coordinator public lane already sets workers_keys=pseudonym_v1. Re-hashing
+	// those keys produces a second blake3 layer (e.g. 6a97… → c696…) and hides
+	// the operator's real public twin from the desktop table.
+	if keys, _ := ws["workers_keys"].(string); keys == "pseudonym_v1" {
+		stripWorkerRowClientIPs(ws)
+		redactPublicActiveRigRows(ws)
+		return
+	}
 	redactPublicActiveRigRows(ws)
 	raw, ok := ws["workers"].(map[string]any)
 	if !ok || len(raw) == 0 {

@@ -2394,7 +2394,7 @@ func walletAccrualSUPFromCoordinator(ws map[string]any, stateWorkers map[string]
 		if rowAccrued < 0 {
 			rowAccrued = 0
 		}
-		ent := stateWorkers[workerID]
+		ent := settlementEntryForWorker(stateWorkers, workerID)
 		rowSettled := ent.SettledSUP
 		if rowSettled < 0 {
 			rowSettled = 0
@@ -2430,7 +2430,7 @@ func walletAccrualFromCoordinator(ws map[string]any, stateWorkers map[string]wor
 		if rowAccrued < 0 {
 			rowAccrued = 0
 		}
-		ent := stateWorkers[workerID]
+		ent := settlementEntryForWorker(stateWorkers, workerID)
 		rowSettled := ent.SettledHMC
 		if rowSettled < 0 {
 			rowSettled = 0
