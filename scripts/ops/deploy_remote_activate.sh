@@ -64,10 +64,15 @@ health_gate() {
       log "GATE FAIL: hackme-coordinator not active"
       return 1
     fi
-    if ! curl -fsS --max-time 5 "$COORD_HEALTH_URL" >/dev/null 2>&1; then
-      log "GATE FAIL: coordinator health $COORD_HEALTH_URL"
-      return 1
-    fi
+    # Coordinator loads work-dedup before /health listens (can take >5s on large DBs).
+    deadline=$(( $(date +%s) + GATE_READY_SEC ))
+    until curl -fsS --max-time 5 "$COORD_HEALTH_URL" >/dev/null 2>&1; do
+      if (( $(date +%s) >= deadline )); then
+        log "GATE FAIL: coordinator health $COORD_HEALTH_URL"
+        return 1
+      fi
+      sleep 2
+    done
   fi
   local want=$(( tip0 + GATE_MIN_BLOCKS ))
   deadline=$(( $(date +%s) + GATE_BLOCK_SEC ))
