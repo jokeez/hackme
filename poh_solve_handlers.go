@@ -13,6 +13,12 @@ type pohSolveOrderRequest struct {
 	OrderTaskID  string `json:"order_task_id"`
 }
 
+type pohSolveBaselineRequest struct {
+	MinerAddress string `json:"miner_address"`
+	FoundNonce   uint64 `json:"found_nonce"`
+	TargetMod    uint64 `json:"target_mod"`
+}
+
 func (a *app) handlePohSolveOrder(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -45,5 +51,41 @@ func (a *app) handlePohSolveOrder(w http.ResponseWriter, r *http.Request) {
 		"block_index":   b.Index,
 		"miner":         b.MinerAddress,
 		"order_task_id": strings.TrimSpace(req.OrderTaskID),
+	})
+}
+
+// handlePohSolveBaseline is the pool→chain relay for empty (non-order) PoH finds (RFC D1).
+// Admin-only. Credits primary wallet / settlement payer, not the miner_address header.
+func (a *app) handlePohSolveBaseline(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !requireAdminAuthStrict(w, r) {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	var req pohSolveBaselineRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	b, err := a.chain.SubmitBaselinePoHSolve(r.Context(),
+		strings.TrimSpace(req.MinerAddress),
+		req.FoundNonce,
+		req.TargetMod,
+	)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, map[string]any{
+		"ok":          true,
+		"block_hash":  b.Hash,
+		"block_index": b.Index,
+		"miner":       b.MinerAddress,
+		"baseline":    true,
 	})
 }

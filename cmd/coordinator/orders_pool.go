@@ -217,6 +217,64 @@ func (m *workManager) ordersSolveEnabled() bool {
 	return v == "1" || v == "true" || v == "yes" || v == "on"
 }
 
+// baselineRelayEnabled gates RFC D1 pool→chain empty-block mint (HACKME_POOL_BASELINE_RELAY).
+// Default off until hub local PoH is retired and ops flip the flag.
+func (m *workManager) baselineRelayEnabled() bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_POOL_BASELINE_RELAY")))
+	return v == "1" || v == "true" || v == "yes" || v == "on"
+}
+
+func (m *workManager) relayBaselineSolve(minerAddress string, foundNonce, targetMod uint64) orderSolveRelayResult {
+	out := orderSolveRelayResult{Reason: "baseline_relay_disabled"}
+	if !m.baselineRelayEnabled() {
+		return out
+	}
+	base := strings.TrimRight(strings.TrimSpace(m.ordersProbeURL), "/")
+	if base == "" || strings.TrimSpace(minerAddress) == "" {
+		out.Reason = "baseline_url_or_fields_missing"
+		return out
+	}
+	tok := m.ordersAdminToken()
+	if tok == "" {
+		out.Reason = "baseline_admin_token_missing"
+		return out
+	}
+	body, _ := json.Marshal(map[string]any{
+		"miner_address": minerAddress,
+		"found_nonce":   foundNonce,
+		"target_mod":    targetMod,
+	})
+	req, err := http.NewRequest(http.MethodPost, base+"/api/poh/solve-baseline", bytes.NewReader(body))
+	if err != nil {
+		out.Reason = "relay_build_failed"
+		return out
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", tok)
+	cl := netutil.HTTPClientNoRedirect(15 * time.Second)
+	resp, err := cl.Do(req)
+	if err != nil {
+		out.Reason = "relay_http_error"
+		return out
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	var decoded map[string]any
+	_ = json.Unmarshal(raw, &decoded)
+	if resp.StatusCode != http.StatusOK {
+		if r, _ := decoded["error"].(string); r != "" {
+			out.Reason = r
+		} else {
+			out.Reason = fmt.Sprintf("relay_http_%d", resp.StatusCode)
+		}
+		return out
+	}
+	out.OK = true
+	out.BlockHash, _ = decoded["block_hash"].(string)
+	out.Reason = ""
+	return out
+}
+
 func (m *workManager) storeChainPoHMod(mod uint64) {
 	if mod == 0 {
 		return

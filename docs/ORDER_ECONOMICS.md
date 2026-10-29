@@ -71,6 +71,10 @@ Empty-chain blocks still use the internal task fallback on the leader.
 
 **Pool order `target_mod`:** workers search with the coordinator pool difficulty (`target_mod` in claim). On `POST /api/poh/solve-order`, the **chain always re-validates against canonical chain `poh_target_mod`** (caller-supplied lease M is ignored for escrow credit). Pool M still gates worker search; chain M gates payout correctness.
 
+### Baseline (empty) finds → settlement (RFC D1)
+
+When `HACKME_POOL_BASELINE_RELAY=1` and the coordinator has chain admin + `HACKME_COORDINATOR_ORDERS_URL`, a verified **non-order** `found=true` relays `POST /api/poh/solve-baseline`. The empty-block subsidy credits the **primary wallet** (settlement payer), not the worker `miner_address`. Default **off** until hub `HACKME_CHAIN_LEADER_LOCAL_POH=0` is confirmed in staging. Orders still use `solve-order` → escrow to miner.
+
 ## Honest limits
 
 - WASM gate is a **simplified check**, not full `bitcoind` fuzzing.

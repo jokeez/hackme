@@ -168,6 +168,8 @@ type workManager struct {
 	probeInFlight        bool
 	chainPoHMod          uint64
 	activeOrder          activeOrderSnap
+	baselineRelayOK      uint64
+	baselineRelayReject  uint64
 
 	lastAbusePruneUnix    int64
 	lastIdlePruneUnix     int64
@@ -2477,6 +2479,25 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	var orderSnap activeOrderSnap
 	var chainSolve orderSolveRelayResult
 	leaseDeadAfterChain := false
+	// RFC D1: baseline (non-order) found → optional chain empty-block relay to settlement payer.
+	if req.Found && orderID == "" && !req.WasmGatePass && signerAddr != "" && m.baselineRelayEnabled() {
+		mod := leaseMod
+		m.mu.Unlock()
+		chainSolve = m.relayBaselineSolve(signerAddr, req.FoundNonce, mod)
+		m.mu.Lock()
+		now = time.Now().Unix()
+		if !chainSolve.OK {
+			m.baselineRelayReject++
+			m.rejectedSubmits++
+			return false, "baseline_chain_solve_failed:" + chainSolve.Reason, 0, signerAddr, signerAddr != ""
+		}
+		m.baselineRelayOK++
+		m.recordFoundDedupLocked(req.FoundNonce, resultHashKey, now)
+		rec, ok = m.active[k]
+		if !ok || rec.WorkerID != req.WorkerID || rec.ExpiresAt < now {
+			leaseDeadAfterChain = true
+		}
+	}
 	if needOrderPath {
 		// H3: release work mutex around orders probe / WASM / HTTP relay.
 		m.mu.Unlock()
@@ -3412,6 +3433,9 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 		"reissued_ranges":              m.reissuedRanges,
 		"submitted_items":              m.submittedItems,
 		"found_hits":                   m.foundHits,
+		"baseline_relay_enabled":       m.baselineRelayEnabled(),
+		"baseline_relay_ok":            m.baselineRelayOK,
+		"baseline_relay_reject":        m.baselineRelayReject,
 		"expired_leases":               m.expiredLeases,
 		"unknown_submits":              m.unknownSubmits,
 		"stale_submits":                m.staleSubmits,
