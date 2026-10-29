@@ -12,6 +12,7 @@ jq --argjson ts "$now" \
   '{workers: (.workers // {}), meta: (.meta // {}), updated_unix: $ts, source: "canonical"}' \
   "$STATE_FILE" >"${OUT}.tmp"
 mv "${OUT}.tmp" "$OUT"
+# nginx used to alias this file; keep world-readable even if that path returns.
 chmod 644 "$OUT" 2>/dev/null || true
 chmod 755 "$(dirname "$OUT")" 2>/dev/null || true
 echo "[publish-settle] wrote $OUT"
