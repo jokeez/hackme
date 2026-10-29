@@ -142,7 +142,7 @@ func fuzzSettleOutboxAction(escrowStatus, kind string) (apply bool, drain bool) 
 			// Already closed — safe to ACK.
 			return false, true
 		default:
-			// Do NOT ACK unpaid run/finding/crash_bonus after a premature finalize:
+			// Do NOT ACK unpaid run/run_floor/finding/crash_bonus after a premature finalize:
 			// that permanently burns miner payouts. Leave pending for ops replay.
 			return false, false
 		}
@@ -150,7 +150,7 @@ func fuzzSettleOutboxAction(escrowStatus, kind string) (apply bool, drain bool) 
 		return true, false
 	case "bounty_paid":
 		switch kind {
-		case "run", "crash_bonus", "unique_crash":
+		case "run", "run_floor", "crash_bonus", "unique_crash":
 			return true, false
 		case "finding", "bounty":
 			return false, true

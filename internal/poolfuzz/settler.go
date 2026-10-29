@@ -13,6 +13,8 @@ type SettleResult struct {
 // workItemID scopes run/finding outbox rows so multiple work items cannot collapse underpay.
 type Settler interface {
 	PayRun(ctx context.Context, campaignID, minerAddress string, workItemID, reuseOutboxID int64) (SettleResult, error)
+	// PayRunFloor pays Hunt CLEAN floor (fractional per_run; kind run_floor).
+	PayRunFloor(ctx context.Context, campaignID, minerAddress string, workItemID, reuseOutboxID int64) (SettleResult, error)
 	PayFinding(ctx context.Context, campaignID, minerAddress, severity string, workItemID, reuseOutboxID int64) (SettleResult, error)
 	// PayCrashBonus pays a one-shot unique-crash micro-bonus from the bounty pool (does not close bounty).
 	PayCrashBonus(ctx context.Context, campaignID, minerAddress string, workItemID, reuseOutboxID int64) (SettleResult, error)
@@ -23,6 +25,9 @@ type Settler interface {
 type NoopSettler struct{}
 
 func (NoopSettler) PayRun(context.Context, string, string, int64, int64) (SettleResult, error) {
+	return SettleResult{Applied: true}, nil
+}
+func (NoopSettler) PayRunFloor(context.Context, string, string, int64, int64) (SettleResult, error) {
 	return SettleResult{Applied: true}, nil
 }
 func (NoopSettler) PayFinding(context.Context, string, string, string, int64, int64) (SettleResult, error) {

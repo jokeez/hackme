@@ -16,7 +16,7 @@ import (
 // Hunt engine pay kinds (coordinator-proven only — miner edges_touched ignored).
 const (
 	HuntEnginePayNone  = "none"  // reject / no settle
-	HuntEnginePayFloor = "floor" // CLEAN without proven delta — pennies / no full PayRun
+	HuntEnginePayFloor = "floor" // CLEAN without proven delta — fractional run_floor (default 10% BPS)
 	HuntEnginePayEdges = "edges" // proven new coverage edges
 	HuntEnginePayCrash = "crash" // ASAN-verified crash
 )

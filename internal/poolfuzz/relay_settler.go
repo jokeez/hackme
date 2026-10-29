@@ -63,6 +63,10 @@ func (r *RelaySettler) PayRun(ctx context.Context, campaignID, minerAddress stri
 	return r.relay(ctx, "run", campaignID, minerAddress, "", workItemID, reuseOutboxID)
 }
 
+func (r *RelaySettler) PayRunFloor(ctx context.Context, campaignID, minerAddress string, workItemID, reuseOutboxID int64) (SettleResult, error) {
+	return r.relay(ctx, "run_floor", campaignID, minerAddress, "", workItemID, reuseOutboxID)
+}
+
 func (r *RelaySettler) PayFinding(ctx context.Context, campaignID, minerAddress, severity string, workItemID, reuseOutboxID int64) (SettleResult, error) {
 	return r.relay(ctx, "finding", campaignID, minerAddress, severity, workItemID, reuseOutboxID)
 }

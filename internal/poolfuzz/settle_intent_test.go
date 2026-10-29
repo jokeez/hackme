@@ -20,6 +20,9 @@ type failThenOKSettler struct {
 	failUntil int
 }
 
+func (s *failThenOKSettler) PayRunFloor(ctx context.Context, a, b string, c, d int64) (SettleResult, error) {
+	return s.PayRun(ctx, a, b, c, d)
+}
 func (s *failThenOKSettler) PayRun(_ context.Context, _, _ string, _, _ int64) (SettleResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -169,6 +172,9 @@ type queuedSettler struct {
 	outboxSeq int64
 }
 
+func (s *queuedSettler) PayRunFloor(ctx context.Context, a, b string, c, reuse int64) (SettleResult, error) {
+	return s.PayRun(ctx, a, b, c, reuse)
+}
 func (s *queuedSettler) PayRun(_ context.Context, _, _ string, _, reuse int64) (SettleResult, error) {
 	s.runs++
 	s.lastReuse = reuse

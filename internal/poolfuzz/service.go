@@ -1544,18 +1544,28 @@ func (s *Service) flushPendingSettles(ctx context.Context, campaignID string, it
 	}
 	runSt = strings.TrimSpace(strings.ToLower(runSt))
 	findSt = strings.TrimSpace(strings.ToLower(findSt))
-	if runSt == "pending" || runSt == "queued" {
-		res, err := s.Settler.PayRun(ctx, campaignID, miner, itemID, runOutbox)
+	if runSt == "pending" || runSt == "queued" || runSt == "pending_floor" || runSt == "queued_floor" {
+		var res SettleResult
+		var err error
+		floor := runSt == "pending_floor" || runSt == "queued_floor"
+		if floor {
+			res, err = s.Settler.PayRunFloor(ctx, campaignID, miner, itemID, runOutbox)
+		} else {
+			res, err = s.Settler.PayRun(ctx, campaignID, miner, itemID, runOutbox)
+		}
 		if err != nil {
 			return fmt.Errorf("poolfuzz: settle run: %w", err)
 		}
 		next := "queued"
+		if floor {
+			next = "queued_floor"
+		}
 		if res.Applied {
 			next = "paid"
 		}
 		if _, err := s.DB.ExecContext(ctx,
 			`UPDATE fuzz_work_items SET settle_run_status=?, settle_run_outbox_id=?
-			 WHERE campaign_id=? AND id=? AND settle_run_status IN ('pending','queued')`,
+			 WHERE campaign_id=? AND id=? AND settle_run_status IN ('pending','queued','pending_floor','queued_floor')`,
 			next, res.OutboxID, campaignID, itemID); err != nil {
 			return err
 		}

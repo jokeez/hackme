@@ -55,6 +55,9 @@ func (s *Service) ApplyFuzzSettleOnce(ctx context.Context, eventID, kind, campai
 	switch kind {
 	case "run":
 		payErr = s.payFuzzRunTx(ctx, tx, campaignID, minerAddress)
+	case "run_floor":
+		// Hunt CLEAN without proven edges — fractional shard (not full PayRun).
+		payErr = s.payFuzzRunFloorTx(ctx, tx, campaignID, minerAddress)
 	case "finding", "bounty":
 		payErr = s.payFuzzBountyTx(ctx, tx, campaignID, minerAddress, severity)
 	case "crash_bonus", "unique_crash":
@@ -91,6 +94,16 @@ func (s *Service) getFuzzEscrowUnlocked(ctx context.Context, campaignID string) 
 }
 
 func (s *Service) payFuzzRunTx(ctx context.Context, tx *sql.Tx, campaignID, minerAddress string) error {
+	return s.payFuzzRunAmountTx(ctx, tx, campaignID, minerAddress, 0)
+}
+
+// payFuzzRunFloorTx pays a fractional Hunt CLEAN floor slice (default 10% of per_run_units).
+func (s *Service) payFuzzRunFloorTx(ctx context.Context, tx *sql.Tx, campaignID, minerAddress string) error {
+	return s.payFuzzRunAmountTx(ctx, tx, campaignID, minerAddress, HuntEngineFloorPayBPS())
+}
+
+// payFuzzRunAmountTx credits one run. floorBPS==0 → full perRunUnits; else pay = perRun * bps / 10000 (min 1).
+func (s *Service) payFuzzRunAmountTx(ctx context.Context, tx *sql.Tx, campaignID, minerAddress string, floorBPS int) error {
 	if !strings.HasPrefix(minerAddress, "HMC-") || len(minerAddress) != 20 {
 		return errors.New("chain: valid miner_address required")
 	}
@@ -101,10 +114,13 @@ func (s *Service) payFuzzRunTx(ctx context.Context, tx *sql.Tx, campaignID, mine
 	if row.status != "open" && row.status != "bounty_paid" {
 		return ErrFuzzEscrowClosed
 	}
-	if row.runsPaidUnits+row.perRunUnits > row.runsPoolUnits {
-		return ErrFuzzEscrowDepleted
-	}
 	pay := row.perRunUnits
+	if floorBPS > 0 {
+		pay = row.perRunUnits * uint64(floorBPS) / 10000
+		if pay == 0 && row.perRunUnits > 0 {
+			pay = 1
+		}
+	}
 	if row.runsPaidUnits+pay > row.runsPoolUnits {
 		pay = row.runsPoolUnits - row.runsPaidUnits
 	}

@@ -374,7 +374,7 @@ func (s *Service) AckSettleOutbox(ctx context.Context, ids []int64) (int64, erro
 		// Promote local work-item settle status from queued → paid once origin ACKed.
 		_, _ = s.DB.ExecContext(ctx,
 			`UPDATE fuzz_work_items SET settle_run_status='paid'
-			 WHERE settle_run_outbox_id=? AND settle_run_status IN ('queued','pending')`, id)
+			 WHERE settle_run_outbox_id=? AND settle_run_status IN ('queued','pending','queued_floor','pending_floor')`, id)
 		_, _ = s.DB.ExecContext(ctx,
 			`UPDATE fuzz_work_items SET settle_finding_status='paid'
 			 WHERE settle_finding_outbox_id=? AND settle_finding_status IN ('queued','pending')`, id)

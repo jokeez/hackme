@@ -13,7 +13,7 @@
 | Typical outcome | guard signals common | **CLEAN often** — new ASAN crash not guaranteed |
 | Work unit | WASM segment / run | **Coverage-engine lease** (libFuzzer fleet · AFL++ Deep) |
 | Customer buys | WASM smoke/depth + finding lane | **Distributed coverage-guided Hunt** + crash-if-lucky — **not** better than OSS-Fuzz |
-| Miner income if CLEAN | 20% runs pool (hygiene prove) | **Floor** when CLEAN without showmap delta; **full PayRun** on proven edges and/or ASAN crash |
+| Miner income if CLEAN | 20% runs pool (hygiene prove) | **Floor** (`run_floor`, default **10%** of per-shard via `HACKME_HUNT_ENGINE_FLOOR_PAY_BPS`) when CLEAN without showmap delta; **full PayRun** on proven edges and/or ASAN crash |
 | Refund on CLEAN | up to 80% bounty | up to **50%** bounty (runs/floor pool still settles for verified work) |
 
 **Dig prices unchanged.** Hunt uses its own split when `campaign_type=hunt` (or `depth_tier` hunt-native). Engine + prove contract: [HUNT_COVERAGE_ENGINES.md](HUNT_COVERAGE_ENGINES.md).
