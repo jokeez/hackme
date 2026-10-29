@@ -170,6 +170,7 @@ type workManager struct {
 	activeOrder          activeOrderSnap
 	baselineRelayOK      uint64
 	baselineRelayReject  uint64
+	baselineRelayWould   uint64 // dry-mode would-mint (no chain POST)
 
 	lastAbusePruneUnix    int64
 	lastIdlePruneUnix     int64
@@ -2491,7 +2492,11 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 			m.rejectedSubmits++
 			return false, "baseline_chain_solve_failed:" + chainSolve.Reason, 0, signerAddr, signerAddr != ""
 		}
-		m.baselineRelayOK++
+		if chainSolve.Reason == "baseline_relay_dry" {
+			m.baselineRelayWould++
+		} else {
+			m.baselineRelayOK++
+		}
 		m.recordFoundDedupLocked(req.FoundNonce, resultHashKey, now)
 		rec, ok = m.active[k]
 		if !ok || rec.WorkerID != req.WorkerID || rec.ExpiresAt < now {
@@ -3434,8 +3439,10 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 		"submitted_items":              m.submittedItems,
 		"found_hits":                   m.foundHits,
 		"baseline_relay_enabled":       m.baselineRelayEnabled(),
+		"baseline_relay_mode":          m.baselineRelayMode(),
 		"baseline_relay_ok":            m.baselineRelayOK,
 		"baseline_relay_reject":        m.baselineRelayReject,
+		"baseline_relay_would":         m.baselineRelayWould,
 		"expired_leases":               m.expiredLeases,
 		"unknown_submits":              m.unknownSubmits,
 		"stale_submits":                m.staleSubmits,

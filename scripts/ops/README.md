@@ -26,6 +26,7 @@ Always read the script header before running. Prefer dry-run / gate scripts over
 | `run_oss_cve_nightly.sh` | Nightly rotation (systemd) |
 | `run_oss_cve_wave.sh` | Generic wave runner (`WAVE=` + JSON registry) |
 | `pool_fuzz_health_fix.sh` | Hub outbox drain + fuzz queue cleanup |
+| `d1_baseline_staging_gate.sh` | RFC D1 readiness / dry-soak observer (no live mint) |
 
 Docs: [../../docs/internal/BOUNTY_AUTOPILOT.md](../../docs/internal/BOUNTY_AUTOPILOT.md) · [../../docs/OSS_CVE_HUNT.md](../../docs/OSS_CVE_HUNT.md)
 

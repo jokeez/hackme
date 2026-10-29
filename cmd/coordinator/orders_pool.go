@@ -217,16 +217,36 @@ func (m *workManager) ordersSolveEnabled() bool {
 	return v == "1" || v == "true" || v == "yes" || v == "on"
 }
 
-// baselineRelayEnabled gates RFC D1 pool→chain empty-block mint (HACKME_POOL_BASELINE_RELAY).
-// Default off until hub local PoH is retired and ops flip the flag.
-func (m *workManager) baselineRelayEnabled() bool {
+// baselineRelayMode returns off | dry | on for HACKME_POOL_BASELINE_RELAY.
+// dry: count would-mint without POST (safe soak while hub local PoH still on).
+// on/1/true: live POST /api/poh/solve-baseline. Default off.
+func (m *workManager) baselineRelayMode() string {
 	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_POOL_BASELINE_RELAY")))
-	return v == "1" || v == "true" || v == "yes" || v == "on"
+	switch v {
+	case "1", "true", "yes", "on":
+		return "on"
+	case "dry", "shadow", "observe":
+		return "dry"
+	default:
+		return "off"
+	}
+}
+
+// baselineRelayEnabled is true for dry or on (enter found→baseline path).
+func (m *workManager) baselineRelayEnabled() bool {
+	return m.baselineRelayMode() != "off"
 }
 
 func (m *workManager) relayBaselineSolve(minerAddress string, foundNonce, targetMod uint64) orderSolveRelayResult {
 	out := orderSolveRelayResult{Reason: "baseline_relay_disabled"}
-	if !m.baselineRelayEnabled() {
+	mode := m.baselineRelayMode()
+	if mode == "off" {
+		return out
+	}
+	if mode == "dry" {
+		// Accept the submit path without minting — ops watch baseline_relay_would.
+		out.OK = true
+		out.Reason = "baseline_relay_dry"
 		return out
 	}
 	base := strings.TrimRight(strings.TrimSpace(m.ordersProbeURL), "/")

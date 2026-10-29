@@ -89,13 +89,40 @@ func TestBaselineRelayFlagTruthy(t *testing.T) {
 	wm := &workManager{}
 	for _, v := range []string{"1", "true", "YES", "on"} {
 		t.Setenv("HACKME_POOL_BASELINE_RELAY", v)
-		if !wm.baselineRelayEnabled() {
-			t.Fatalf("%q should enable", v)
+		if !wm.baselineRelayEnabled() || wm.baselineRelayMode() != "on" {
+			t.Fatalf("%q should enable live mode", v)
 		}
 	}
 	t.Setenv("HACKME_POOL_BASELINE_RELAY", "0")
-	if wm.baselineRelayEnabled() {
+	if wm.baselineRelayEnabled() || wm.baselineRelayMode() != "off" {
 		t.Fatal("0 should disable")
+	}
+}
+
+func TestBaselineRelayDryModeNoHTTP(t *testing.T) {
+	t.Setenv("HACKME_POOL_BASELINE_RELAY", "dry")
+	hit := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hit++
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+	wm := &workManager{ordersProbeURL: srv.URL}
+	if wm.baselineRelayMode() != "dry" || !wm.baselineRelayEnabled() {
+		t.Fatalf("mode=%q enabled=%v", wm.baselineRelayMode(), wm.baselineRelayEnabled())
+	}
+	res := wm.relayBaselineSolve("HMC-mineraddr0001", 7, 1000)
+	if !res.OK || res.Reason != "baseline_relay_dry" {
+		t.Fatalf("got %+v", res)
+	}
+	if hit != 0 {
+		t.Fatalf("dry mode must not POST, hit=%d", hit)
+	}
+	for _, v := range []string{"shadow", "observe"} {
+		t.Setenv("HACKME_POOL_BASELINE_RELAY", v)
+		if wm.baselineRelayMode() != "dry" {
+			t.Fatalf("%q want dry mode", v)
+		}
 	}
 }
 
@@ -103,7 +130,8 @@ func TestBaselineRelayCounters(t *testing.T) {
 	wm := &workManager{}
 	wm.baselineRelayOK++
 	wm.baselineRelayReject += 2
-	if wm.baselineRelayOK != 1 || wm.baselineRelayReject != 2 {
-		t.Fatalf("ok=%d rej=%d", wm.baselineRelayOK, wm.baselineRelayReject)
+	wm.baselineRelayWould++
+	if wm.baselineRelayOK != 1 || wm.baselineRelayReject != 2 || wm.baselineRelayWould != 1 {
+		t.Fatalf("ok=%d rej=%d would=%d", wm.baselineRelayOK, wm.baselineRelayReject, wm.baselineRelayWould)
 	}
 }
