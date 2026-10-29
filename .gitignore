@@ -120,3 +120,7 @@ Thumbs.db
 
 # Operator session dumps (not for GitHub)
 scripts/reports/
+
+# Economics v2 RFC — keep local until decisions are locked
+docs/RFC_ECONOMICS_V2.md
+docs/RFC_ECONOMICS_V2*.md

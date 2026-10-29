@@ -2945,7 +2945,7 @@
 											<th class="px-2 py-2">Ranges</th>
 											<th class="px-2 py-2">GH/s</th>
 											<th class="px-2 py-2">Attempts</th>
-											<th class="px-2 py-2">Payout HMC</th>
+											<th class="px-2 py-2" title="Lifetime coordinator accrual (not unpaid). Settled on-chain separately.">Accrued HMC</th>
 											<th class="px-2 py-2">Stale</th>
 											<th class="px-2 py-2">Last reason</th>
 										</tr>
@@ -5444,13 +5444,12 @@
 			const st = latestWorkerSettlementSnap || {};
 			const onChain = Number(walletSnapshot.balanceSUP || 0);
 			const accrued = Number(st.wallet_accrued_sup || 0);
-			const unpaid = Number(st.wallet_unpaid_sup || 0);
+			const rawUnpaid = Number(st.wallet_unpaid_sup || 0);
+			const unpaid = effectivePendingSup(rawUnpaid, accrued, onChain);
 			if ($('wallet-bd-sup-onchain')) {
 				$('wallet-bd-sup-onchain').textContent = fmt(onChain, 8) + ' SUP';
 			}
 			if ($('wallet-bd-sup-pending')) {
-				// Only unsettled SUP is "pending mint". Do not fall back to lifetime
-				// accrued — that double-counts already-minted / already-settled SUP.
 				$('wallet-bd-sup-pending').textContent = unpaid > 0.000001
 					? ('+' + fmt(unpaid, 6) + ' SUP')
 					: '0 SUP';
@@ -5461,7 +5460,7 @@
 			if (sub) {
 				const parts = [];
 				if (unpaid > 0.000001) parts.push('awaiting on-chain mint');
-				else if (onChain > 0.000001) parts.push('minted / settled · transfer_sup_v1');
+				else if (onChain > 0.000001) parts.push('already on-chain · nothing pending');
 				else if (accrued > 0.000001) parts.push('coordinator accrued ' + fmt(accrued, 6) + ' SUP');
 				else parts.push('mine HMC with hybrid signer to accrue');
 				sub.textContent = parts.join(' · ');
@@ -5471,16 +5470,13 @@
 				const ratePct = Number(sp.rate_of_hmc || 0.08) * 100;
 				const hybrid = sp.require_hybrid !== false ? 'hybrid' : 'optional hybrid';
 				$('wallet-bd-sup-policy').textContent =
-					'~' + fmt(ratePct, 1) + '% of HMC attempts · ' + hybrid + ' · daily cap';
+					'~' + fmt(ratePct, 1) + '% of credited HMC · ' + hybrid + ' · daily cap';
 			}
 			const badge = $('wallet-sup-pending-badge');
 			if (badge) {
 				if (unpaid > 0.000001) {
 					badge.classList.remove('hidden');
 					badge.textContent = '+' + fmt(unpaid, 6) + ' SUP pending mint to on-chain';
-				} else if (accrued > 0.000001 && onChain < 0.000001) {
-					badge.classList.remove('hidden');
-					badge.textContent = fmt(accrued, 6) + ' SUP accrued in pool · mint via chain host';
 				} else {
 					badge.classList.add('hidden');
 					badge.textContent = '';
@@ -5496,7 +5492,9 @@
 			root.classList.remove('hidden');
 			const onChain = Number(walletSnapshot.onChainHMC || walletSnapshot.balanceHMC || 0);
 			const orders = Number(walletSnapshot.ordersSpendableHMC || 0);
-			const unpaid = walletUnpaidHmc();
+			const st = latestWorkerSettlementSnap || {};
+			const accrued = Number(st.wallet_accrued_hmc || st.desktop_worker_accrued_hmc || 0);
+			const unpaid = effectivePendingHmc(walletUnpaidHmc(), accrued, onChain);
 			const canonKnown = onChain > 0.000001 || String(walletSnapshot.walletSource || '').includes('canonical');
 			if ($('wallet-bd-onchain')) {
 				$('wallet-bd-onchain').textContent = canonKnown ? (fmt(onChain, 8) + ' HMC') : '…';
@@ -7161,6 +7159,35 @@
 			await postStatus('completed');
 		}
 		const fmt = (n, d = 2) => (n == null || Number.isNaN(n)) ? '—' : Number(n).toFixed(d);
+		/** Pool table payout: lifetime accrual — readable, mute zeros. */
+		function fmtPayoutHmc(n) {
+			const v = Number(n);
+			if (!Number.isFinite(v) || v <= 0.0000005) return { text: '—', cls: 'text-gray-600' };
+			if (v >= 100) return { text: fmt(v, 2), cls: 'text-warn tabular-nums', title: v.toFixed(8) + ' HMC lifetime accrual' };
+			if (v >= 1) return { text: fmt(v, 4), cls: 'text-warn tabular-nums', title: v.toFixed(8) + ' HMC lifetime accrual' };
+			return { text: fmt(v, 6), cls: 'text-warn/90 tabular-nums', title: v.toFixed(8) + ' HMC lifetime accrual' };
+		}
+		/** Pending mint must never show lifetime accrued as if unpaid (legacy API / settled-key mismatch). */
+		function effectivePendingSup(unpaid, accrued, onChain) {
+			let u = Number(unpaid) || 0;
+			const a = Number(accrued) || 0;
+			const c = Number(onChain) || 0;
+			if (u < 0) u = 0;
+			// Desktop without canonical settlement merge reports unpaid ≈ full lifetime
+			// accrued while SUP is already on-chain — never show that as "pending mint".
+			if (c > 0.01 && a > 0.01 && u > 0.01 && Math.abs(u - a) / a < 0.05) return 0;
+			if (c > 1 && u > 1 && u <= c * 1.05 && a > 0 && u >= a * 0.5) return 0;
+			return u;
+		}
+		function effectivePendingHmc(unpaid, accrued, onChain) {
+			let u = Number(unpaid) || 0;
+			const a = Number(accrued) || 0;
+			const c = Number(onChain) || 0;
+			if (u < 0) u = 0;
+			if (c > 1 && a > 1 && u > 1 && Math.abs(u - a) / a < 0.05) return 0;
+			if (c > 1 && u > 1 && u <= c * 1.05 && a > 0 && u >= a * 0.5) return 0;
+			return u;
+		}
 		const fmtMB = (n) => (n == null || Number.isNaN(n)) ? '—' : n < 0.01 ? n.toFixed(4) : n.toFixed(2);
 		const fmtUInt = (n) => (n == null || n === undefined) ? '—' : Number(n).toLocaleString('en-US');
 		/** Pool aggregate: show GH/s below 1 TH/s (GPU pools) so 0.116 TH/s reads as ~116 GH/s. */
@@ -10914,7 +10941,7 @@
 					'<td class="tabular-nums text-gray-400" title="instantaneous pool hashrate share">' + hashPct + '</td>' +
 					'<td class="tabular-nums text-warn/90" title="cumulative payout share (attempts × reward/M + found bonus)">' + payoutPct + '</td>' +
 					'<td class="tabular-nums">' + fmtUInt(r.attempts) + '</td>' +
-					'<td class="text-warn tabular-nums">' + fmt(r.payout, 6) + ' HMC</td>';
+					(() => { const p = fmtPayoutHmc(r.payout); return '<td class="' + p.cls + '" title="' + escapeHtml(p.title || '') + '">' + p.text + (p.text === '—' ? '' : ' HMC') + '</td>'; })();
 				overviewTB.appendChild(tr);
 			});
 		}
@@ -11344,7 +11371,7 @@
 					'<td class="px-2 py-1.5 tabular-nums">' + fmtUInt(r.ranges) + '</td>' +
 					'<td class="px-2 py-1.5 text-matrix tabular-nums">' + (hrGHS > 0 ? fmtRigHashrateGHS(hrGHS) : '—') + '</td>' +
 					'<td class="px-2 py-1.5 tabular-nums">' + fmtUInt(r.attempts) + '</td>' +
-					'<td class="px-2 py-1.5 text-warn tabular-nums">' + fmt(r.payout, 6) + '</td>' +
+					(() => { const p = fmtPayoutHmc(r.payout); return '<td class="px-2 py-1.5 ' + p.cls + '" title="' + escapeHtml(p.title || '') + '">' + p.text + '</td>'; })() +
 					'<td class="px-2 py-1.5 text-gray-400 tabular-nums">' + escapeHtml(staleSec >= 0 ? fmtDur(staleSec) : '—') + '</td>' +
 					'<td class="px-2 py-1.5 text-gray-500 truncate max-w-[220px]" title="' + escapeHtml(lastReason) + '">' + escapeHtml(lastReason) + '</td>';
 				workerFrag.appendChild(tr);

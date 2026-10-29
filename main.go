@@ -552,6 +552,7 @@ func main() {
 	mux.HandleFunc("/api/worker/status", a.handleWorkerStatus)
 	mux.HandleFunc("/api/desktop/local-auth", handleDesktopLocalAuth)
 	mux.HandleFunc("/api/worker/settlement", a.handleWorkerSettlement)
+	mux.HandleFunc("/api/settlement/canonical.json", a.handleSettlementCanonicalJSON)
 	mux.HandleFunc("/api/miner/notices", a.handleMinerNotices)
 	mux.HandleFunc("/api/mining/logs", a.handleMiningLogs)
 	mux.HandleFunc("/api/mining/logs/stream", a.handleMiningLogsStream)

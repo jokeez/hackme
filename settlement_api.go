@@ -230,6 +230,14 @@ func mergeCanonicalSettlementState(local *workerSettlementState, remote workerSe
 				cur.SettledSUP = ent.SettledSUP
 				rowChanged = true
 			}
+			if ent.SessionAnchorHMC > 0 && ent.SessionAnchorHMC != cur.SessionAnchorHMC {
+				cur.SessionAnchorHMC = ent.SessionAnchorHMC
+				rowChanged = true
+			}
+			if ent.SessionAnchorSUP > 0 && ent.SessionAnchorSUP != cur.SessionAnchorSUP {
+				cur.SessionAnchorSUP = ent.SessionAnchorSUP
+				rowChanged = true
+			}
 			if strings.TrimSpace(ent.PayoutAddress) != "" {
 				cur.PayoutAddress = ent.PayoutAddress
 			}
@@ -698,4 +706,54 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		out["last_signed_miner_address"] = strings.TrimSpace(asString(ws["last_signed_miner_address"]))
 	}
 	writeJSON(w, out)
+}
+
+// handleSettlementCanonicalJSON serves the hub settlement watermark file for desktop
+// nodes to merge (settled_hmc / settled_sup / session anchors). Without this route,
+// desktops treat full coordinator accrual as unpaid and the wallet shows fake
+// "+N SUP pending mint" while coins are already on-chain.
+func (a *app) handleSettlementCanonicalJSON(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	statePath := workerSettlementStatePath()
+	state := workerSettlementState{Workers: map[string]workerSettlementStateEntry{}}
+	if raw, err := os.ReadFile(statePath); err == nil {
+		_ = json.Unmarshal(raw, &state)
+		if state.Workers == nil {
+			state.Workers = map[string]workerSettlementStateEntry{}
+		}
+	} else if p := canonicalSettlementStateFile(); p != "" {
+		if st, err := readCanonicalSettlementStateFile(p); err == nil {
+			state = st
+		}
+	}
+	pubWorkers := make(map[string]any, len(state.Workers))
+	for wid, ent := range state.Workers {
+		row := map[string]any{
+			"settled_hmc":      ent.SettledHMC,
+			"settled_sup":      ent.SettledSUP,
+			"last_settle_unix": ent.LastSettleUnix,
+			"payout_address":   ent.PayoutAddress,
+			"last_tx_hash":     ent.LastTxHash,
+		}
+		if ent.SessionAnchorHMC > 0 {
+			row["session_anchor_hmc"] = ent.SessionAnchorHMC
+		}
+		if ent.SessionAnchorSUP > 0 {
+			row["session_anchor_sup"] = ent.SessionAnchorSUP
+		}
+		// Never publish in-flight pending intents (nonce / partial amounts).
+		pubWorkers[wid] = row
+	}
+	w.Header().Set("Cache-Control", "public, max-age=15")
+	writeJSON(w, map[string]any{
+		"ok":            true,
+		"source":        "canonical",
+		"updated_unix":  time.Now().Unix(),
+		"workers":       pubWorkers,
+		"meta":          state.Meta,
+		"workers_count": len(pubWorkers),
+	})
 }

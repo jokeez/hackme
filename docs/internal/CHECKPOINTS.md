@@ -43,3 +43,13 @@ systemctl start hackme-checkpoint.service   # first checkpoint now
 - `existing checkpoints do not verify` — someone edited the repo; never force-push over it, find out why.
 - `node key … differs from checkpoint signer` — node identity changed; that is a chain-level event, not a checkpoint bug.
 - `has not advanced … (chain stalled?)` — check block production first (watchdog `chain_stall`).
+
+## Quick verify (operator)
+
+```bash
+systemctl list-timers hackme-checkpoint.timer --no-pager
+journalctl -u hackme-checkpoint -n 30 --no-pager
+ls -lt /opt/hackme-checkpoints/checkpoints | head
+```
+
+Public repo: https://github.com/jokeez/hackme-checkpoints

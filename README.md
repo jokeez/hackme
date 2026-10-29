@@ -17,7 +17,7 @@ HackMe is a mining network where rigs run fuzzing jobs ordered by developers —
 
 <br/>
 
-[![Release](https://img.shields.io/badge/release-0.1.0--rc17.4_LIVE-00d1ff?style=for-the-badge)](https://hackme.tech/downloads.html)
+[![Release](https://img.shields.io/badge/release-0.1.0--rc18_LIVE-00d1ff?style=for-the-badge)](https://hackme.tech/downloads.html)
 [![Pool](https://img.shields.io/badge/pool-LIVE-39ff14?style=for-the-badge)](https://hackme.tech/pool/coordinator/api/pool/stats)
 [![CI](https://github.com/jokeez/hackme/actions/workflows/ci.yml/badge.svg)](https://github.com/jokeez/hackme/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-7fe7ff?style=for-the-badge)](LICENSE)
@@ -60,12 +60,14 @@ Payout follows **accepted work**, not lottery blocks. Model: [NETWORK_MODEL.md](
 
 ---
 
-## Status · 0.1.0-rc17.4 LIVE
+## Status · 0.1.0-rc18 LIVE
 
 | Area | State |
 |------|--------|
 | **Installers** | Win · Linux · `.deb` · Dig/Hunt CLI · HackMe OS ISO + **SHA256SUMS** |
-| **Pool** | Live public coordinator · hybrid signer · **Blake3 PoH LIVE** (tip ≥ #485000) · GH/s = wall-rate (~few GH/s fleet class, not pre-cliff hybrid calib) |
+| **Pool** | Live coordinator · hybrid signer · **Blake3 + ASERT** · **SHARE_STRICT** solvency M · wall-rate GH/s (not pre-cliff calib) |
+| **Settlement** | Go settler + SQLite units · day budget persisted · `/api/settlement/canonical.json` for desktop merge |
+| **Checkpoints** | Daily signed tip+ledger · OpenTimestamps · [hackme-checkpoints](https://github.com/jokeez/hackme-checkpoints) · [ops note](docs/internal/CHECKPOINTS.md) |
 | **Dig / Hunt** | Live product rails · coverage-guided Hunt fleet · report + CI gate |
 | **Exchange desk** | Early access live · **not** a CEX, **not** financial advice |
 | **Hunt Watch 2026sep** | **12/12 closed** · [ledger](https://hackme.tech/reports/hunt-watch-2026sep/) |
