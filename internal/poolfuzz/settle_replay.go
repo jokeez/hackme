@@ -32,7 +32,8 @@ func (s *Service) ReplayCampaignSettles(ctx context.Context, campaignID string) 
 	}
 	fallbackMiner := s.findingMinerAddress(ctx, campaignID)
 	rows, err := s.DB.QueryContext(ctx,
-		`SELECT id, COALESCE(miner_address,'') FROM fuzz_work_items
+		`SELECT id, COALESCE(miner_address,''), COALESCE(settle_run_status,'')
+		 FROM fuzz_work_items
 		 WHERE campaign_id=? AND status='done' ORDER BY id ASC`, campaignID)
 	if err != nil {
 		return 0, 0, 0, err
@@ -40,16 +41,25 @@ func (s *Service) ReplayCampaignSettles(ctx context.Context, campaignID string) 
 	defer rows.Close()
 	for rows.Next() {
 		var itemID int64
-		var miner string
-		if err := rows.Scan(&itemID, &miner); err != nil {
+		var miner, runSt string
+		if err := rows.Scan(&itemID, &miner, &runSt); err != nil {
 			return runs, findings, finalize, err
 		}
 		miner = strings.TrimSpace(miner)
+		runSt = strings.TrimSpace(strings.ToLower(runSt))
 		// Never attribute empty work-item miners to the finding winner (H-04).
 		if miner == "" || !strings.HasPrefix(miner, "HMC-") || len(miner) != 20 {
 			continue
 		}
-		if _, err := s.EnqueueSettleOutbox(ctx, "run", campaignID, miner, "", itemID); err != nil {
+		// Already credited — do not enqueue a second full-run beside an existing floor.
+		if runSt == "paid" {
+			continue
+		}
+		kind := "run"
+		if runSt == "pending_floor" || runSt == "queued_floor" {
+			kind = "run_floor"
+		}
+		if _, err := s.EnqueueSettleOutbox(ctx, kind, campaignID, miner, "", itemID); err != nil {
 			return runs, findings, finalize, err
 		}
 		runs++
