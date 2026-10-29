@@ -75,8 +75,11 @@ func TestLeaseSecondsForHuntShardUsesIterations(t *testing.T) {
 }
 
 func TestLeaseSecondsHuntHeavyCappedAt360(t *testing.T) {
+	// Byte/L1 path (coverage engines use engine-wall leases, not iter×timeout).
+	t.Setenv("HACKME_HUNT_COVERAGE_ENGINE", "0")
 	cfg := map[string]any{
 		"work_kind":            "hunt_shard",
+		"hunt_engine":          "byte",
 		"iterations_per_shard": 256,
 		"pool_distributed":     true,
 	}

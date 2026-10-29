@@ -39,9 +39,9 @@ func (a *app) handleFuzzPoolSettle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch kind {
-	case "run", "finding", "bounty", "finalize", "close", "crash_bonus", "unique_crash":
+	case "run", "run_floor", "finding", "bounty", "finalize", "close", "crash_bonus", "unique_crash":
 	default:
-		writeAPIError(w, http.StatusBadRequest, "invalid_kind", "kind must be run|finding|crash_bonus|finalize", nil)
+		writeAPIError(w, http.StatusBadRequest, "invalid_kind", "kind must be run|run_floor|finding|crash_bonus|finalize", nil)
 		return
 	}
 	ctx := r.Context()

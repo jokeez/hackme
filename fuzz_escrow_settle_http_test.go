@@ -105,6 +105,46 @@ func fundFuzzSettleEscrow(t *testing.T, ctx context.Context, db *sql.DB, svc *ch
 	}
 }
 
+func TestHandleFuzzPoolSettleRunFloorAccepted(t *testing.T) {
+	t.Setenv("HACKME_ADMIN_TOKEN", "settle-test-admin")
+	t.Setenv("HACKME_HUNT_ENGINE_FLOOR_PAY_BPS", "1000")
+	a, db := newFuzzSettleTestApp(t)
+	ctx := context.Background()
+	miner := "HMC-9876543210987654"
+	payer := "HMC-1234567890123456"
+	if _, _, err := a.chain.InitGenesis(ctx, payer); err != nil {
+		t.Fatal(err)
+	}
+	units := chain.HMCToUnits(50)
+	if _, err := db.ExecContext(ctx, `UPDATE wallet SET balance_hmc=?, balance_units=? WHERE id=1`, 50.0, units); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE accounts SET balance_units=? WHERE address=?`, units, payer); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT OR IGNORE INTO accounts(address, balance_units, next_nonce, updated_at) VALUES(?,0,0,0)`, miner); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.chain.OpenFuzzEscrowSplit(ctx, "evt-floor", 20, 8, "50_50"); err != nil {
+		t.Fatal(err)
+	}
+	raw := []byte(`{"kind":"run_floor","campaign_id":"evt-floor","miner_address":"` + miner + `","event_id":"admin:floor-1"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle", bytes.NewReader(raw))
+	req.Header.Set("X-Hackme-Admin-Token", "settle-test-admin")
+	rec := httptest.NewRecorder()
+	a.handleFuzzPoolSettle(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("run_floor settle: status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var paid, per uint64
+	if err := db.QueryRowContext(ctx, `SELECT runs_paid_units, per_run_units FROM fuzz_campaign_escrow WHERE campaign_id=?`, "evt-floor").Scan(&paid, &per); err != nil {
+		t.Fatal(err)
+	}
+	if paid == 0 || paid >= per {
+		t.Fatalf("floor paid=%d per_run=%d want fractional", paid, per)
+	}
+}
+
 func TestHandleFuzzPoolSettleNumericEventIDRejected(t *testing.T) {
 	t.Setenv("HACKME_ADMIN_TOKEN", "settle-test-admin")
 	a, db := newFuzzSettleTestApp(t)
