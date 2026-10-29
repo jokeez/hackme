@@ -121,6 +121,7 @@ Thumbs.db
 # Operator session dumps (not for GitHub)
 scripts/reports/
 
-# Economics v2 RFC — keep local until decisions are locked
-docs/RFC_ECONOMICS_V2.md
-docs/RFC_ECONOMICS_V2*.md
+# Economics v2 — keep abuse / internal memos local; public RFC is tracked
+docs/RFC_ECONOMICS_V2_ABUSE.md
+docs/RFC_ECONOMICS_V2_INTERNAL*.md
+docs/RFC_ECONOMICS_V2*.bak.md
