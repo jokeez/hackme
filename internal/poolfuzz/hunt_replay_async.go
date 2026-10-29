@@ -645,6 +645,11 @@ func (s *Service) finalizeHuntSubmit(ctx context.Context, p finalizeHuntSubmitPa
 		minerBind = miner
 	}
 	wantRunSettle := s.Settler != nil && escrowEnabled(p.cfg) && minerBind != "" && p.pass
+	// Do not enqueue PayRun after pause/complete/cancel — origin escrow is often
+	// already closed and those rows become undrainable settle-outbox head.
+	if wantRunSettle && !s.campaignAcceptsSettle(ctx, p.req.CampaignID) {
+		wantRunSettle = false
+	}
 	// Coverage engines: full PayRun only for proven edges/crashes (engineFullPay).
 	// CLEAN floor must NOT equal a full shard PayRun (cheat: instant submit after claim).
 	// Floor PayRun default ON (verified CLEAN after lease wall). Opt out: HACKME_HUNT_ENGINE_FLOOR_PAY_RUN=0.

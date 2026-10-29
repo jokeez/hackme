@@ -351,6 +351,25 @@ func (s *Service) RepairZombiePoolCampaigns(ctx context.Context, limit int) (int
 	return n, rows.Err()
 }
 
+// campaignAcceptsSettle is true while the campaign is still running (or planned).
+// Paused/completed/cancelled must not enqueue new settle-outbox PayRun rows —
+// origin escrow is usually closed and those rows clog the undrainable head.
+func (s *Service) campaignAcceptsSettle(ctx context.Context, id string) bool {
+	if s == nil || s.DB == nil {
+		return false
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return false
+	}
+	var st string
+	if err := s.DB.QueryRowContext(ctx, `SELECT status FROM fuzz_campaigns WHERE id=?`, id).Scan(&st); err != nil {
+		return false
+	}
+	st = strings.TrimSpace(strings.ToLower(st))
+	return st == "running" || st == "planned"
+}
+
 // SetCampaignStatus updates campaign lifecycle and cancels pending work when stopping.
 func (s *Service) SetCampaignStatus(ctx context.Context, id, status string) error {
 	if s == nil || s.DB == nil {
@@ -1364,6 +1383,9 @@ func (s *Service) SubmitWithOutcome(ctx context.Context, req SubmitRequest) (Sub
 	// fake_crash keeps recordFinding=false → no PayRun. Hunt stays pass-only (coverage CLEAN).
 	wantRunSettle := s.Settler != nil && escrowEnabled(cfg) && minerBind != "" &&
 		(pass || (!IsHuntCampaign(cfg) && recordFinding))
+	if wantRunSettle && !s.campaignAcceptsSettle(ctx, req.CampaignID) {
+		wantRunSettle = false
+	}
 	runSettleStatus := ""
 	if wantRunSettle {
 		runSettleStatus = "pending"

@@ -742,6 +742,18 @@ func (a *app) handleFuzzCampaignCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	cfgMap := normalizeFuzzCampaignConfig(req.Config, ctype)
 	stampTargetFingerprint(cfgMap)
+	// Hoist budget_hmc from config when top-level omitted (API clients often nest it).
+	// Without this, pool Dig registers unpaid work with escrow=null (audit 2026-10-29).
+	if req.BudgetHMC <= 0 {
+		if v := asFloat64(cfgMap["budget_hmc"]); v > 0 {
+			req.BudgetHMC = v
+		}
+	}
+	if poolDistributedCampaign(cfgMap) && (ctype == "property" || ctype == "fuzz") && req.BudgetHMC <= 0 {
+		writeAPIError(w, http.StatusBadRequest, "budget_hmc_required",
+			"pool_distributed Dig requires budget_hmc (top-level or config) to open escrow", nil)
+		return
+	}
 	cfg := marshalMapJSON(cfgMap)
 	err := execContextRetryBusy(r.Context(), a.db,
 		`INSERT INTO fuzz_campaigns
