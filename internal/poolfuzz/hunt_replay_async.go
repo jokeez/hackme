@@ -647,14 +647,12 @@ func (s *Service) finalizeHuntSubmit(ctx context.Context, p finalizeHuntSubmitPa
 	wantRunSettle := s.Settler != nil && escrowEnabled(p.cfg) && minerBind != "" && p.pass
 	// Coverage engines: full PayRun only for proven edges/crashes (engineFullPay).
 	// CLEAN floor must NOT equal a full shard PayRun (cheat: instant submit after claim).
-	// Lab opt-in: HACKME_HUNT_ENGINE_FLOOR_PAY_RUN=1 restores tiny/legacy floor PayRun.
-	// Deprecated alias: HACKME_HUNT_ENGINE_FLOOR_SKIP_PAY_RUN=1 (no-op; floor already skips).
+	// Floor PayRun default ON (verified CLEAN after lease wall). Opt out: HACKME_HUNT_ENGINE_FLOOR_PAY_RUN=0.
 	if p.engineMode && wantRunSettle && !p.engineFullPay && !p.recordFinding {
 		if p.enginePayKind == "" {
 			p.enginePayKind = HuntEnginePayFloor
 		}
-		allowFloorPay := os.Getenv("HACKME_HUNT_ENGINE_FLOOR_PAY_RUN") == "1"
-		if !allowFloorPay {
+		if !huntEngineFloorPayRunEnabled() {
 			wantRunSettle = false
 		}
 	}

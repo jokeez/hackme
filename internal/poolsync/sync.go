@@ -101,7 +101,27 @@ func ResolveCoordinatorURL() string {
 	if coordHealthOK(loop) {
 		return loop
 	}
+	// Cleartext :18083 nginx denies settle/outbox (loopback-only). When the admin
+	// SSH tunnel is down, fall back to the public HTTPS front — never return :18083
+	// for a URL that was only the miner allowlist port (desktop was getting HTTP 403).
+	if strings.Contains(low, ":18083") {
+		if pub := publicCoordinatorFallbackURL(); pub != "" && pub != u && coordHealthOK(pub) {
+			return pub
+		}
+	}
 	return u
+}
+
+// publicCoordinatorFallbackURL is the TLS reverse-proxy coordinator path used when
+// miner-direct :18083 cannot serve admin settle routes.
+func publicCoordinatorFallbackURL() string {
+	if v := strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_POOL_ADMIN_COORDINATOR_URL")), "/"); v != "" {
+		return v
+	}
+	if base := strings.TrimRight(strings.TrimSpace(os.Getenv("HACKME_PUBLIC_AUTHORITY_BASE")), "/"); base != "" {
+		return base + "/pool/coordinator"
+	}
+	return "https://hackme.tech/pool/coordinator"
 }
 
 func coordHealthOK(base string) bool {

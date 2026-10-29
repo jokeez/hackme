@@ -61,6 +61,27 @@ func TestResolveCoordinatorURLPrefersLoopbackFor18083(t *testing.T) {
 	}
 }
 
+func TestResolveCoordinatorURLFallsBackPublicWhen18083AdminDenied(t *testing.T) {
+	pub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer pub.Close()
+
+	t.Setenv("HACKME_POOL_COORDINATOR_URL", "http://132.243.112.100:18083")
+	t.Setenv("HACKME_POOL_SYNC_PREFER_LOOPBACK", "1")
+	t.Setenv("HACKME_POOL_SYNC_LOOPBACK_URL", "http://127.0.0.1:9") // closed port → health fail
+	t.Setenv("HACKME_POOL_ADMIN_COORDINATOR_URL", pub.URL)
+	t.Setenv("HACKME_PUBLIC_AUTHORITY_BASE", "")
+	got := ResolveCoordinatorURL()
+	if got != pub.URL {
+		t.Fatalf("want public admin fallback %q, got %q", pub.URL, got)
+	}
+}
+
 func TestRegisterOnceRejectsNonOK(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "busy", http.StatusServiceUnavailable)

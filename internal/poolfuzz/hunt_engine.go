@@ -451,6 +451,21 @@ func noteHuntEnginePay(kind string, full bool) {
 	}
 }
 
+// huntEngineFloorPayRunEnabled reports whether CLEAN coverage-engine shards (floor pay)
+// enqueue PayRun. Default ON: submit already passed hunt_engine_wall_too_short.
+// Opt out: HACKME_HUNT_ENGINE_FLOOR_PAY_RUN=0 (lab / soak without run-pool debit).
+func huntEngineFloorPayRunEnabled() bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_HUNT_ENGINE_FLOOR_PAY_RUN")))
+	switch v {
+	case "0", "false", "no", "off":
+		return false
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return true
+	}
+}
+
 // HuntEnginePayStats returns counters for ops.
 func HuntEnginePayStats() map[string]any {
 	return map[string]any{

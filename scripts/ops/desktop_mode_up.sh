@@ -267,6 +267,17 @@ build_desktop_minersign() {
 }
 build_desktop_minersign
 
+# CUDA Dig self-reexec needs no-cgo sibling next to the node binary (RLIMIT_AS child).
+build_desktop_wasm_check() {
+  echo "[desktop-up] go build hackme-wasm-check -> $LOG_DIR/hackme-wasm-check (+ $ROOT_DIR/bin)"
+  go build -trimpath -o "$LOG_DIR/hackme-wasm-check" ./cmd/hackme-wasm-check
+  chmod 755 "$LOG_DIR/hackme-wasm-check"
+  mkdir -p "$ROOT_DIR/bin"
+  cp -f "$LOG_DIR/hackme-wasm-check" "$ROOT_DIR/bin/hackme-wasm-check"
+  chmod 755 "$ROOT_DIR/bin/hackme-wasm-check"
+}
+build_desktop_wasm_check
+
 ensure_from_code_toolchains
 ensure_hunt_engines
 sync_toolchain_env_to_log_dir
