@@ -2394,19 +2394,14 @@ func walletAccrualSUPFromCoordinator(ws map[string]any, stateWorkers map[string]
 		if rowAccrued < 0 {
 			rowAccrued = 0
 		}
-		rowSettled := stateWorkers[workerID].SettledSUP
+		ent := stateWorkers[workerID]
+		rowSettled := ent.SettledSUP
 		if rowSettled < 0 {
 			rowSettled = 0
 		}
-		if rowSettled > rowAccrued {
-			rowSettled = rowAccrued
-		}
 		sumAccrued += rowAccrued
 		sumSettled += rowSettled
-	}
-	unpaid = sumAccrued - sumSettled
-	if unpaid < 0 {
-		unpaid = 0
+		unpaid += settlementUnpaidSUP(rowAccrued, ent)
 	}
 	return sumAccrued, sumSettled, unpaid
 }
@@ -2435,15 +2430,14 @@ func walletAccrualFromCoordinator(ws map[string]any, stateWorkers map[string]wor
 		if rowAccrued < 0 {
 			rowAccrued = 0
 		}
-		rowSettled := stateWorkers[workerID].SettledHMC
+		ent := stateWorkers[workerID]
+		rowSettled := ent.SettledHMC
 		if rowSettled < 0 {
 			rowSettled = 0
 		}
-		if rowSettled > rowAccrued {
-			rowSettled = rowAccrued
-		}
 		sumAccrued += rowAccrued
 		sumSettled += rowSettled
+		unpaid += settlementUnpaidHMC(rowAccrued, ent)
 	}
 	if sumAccrued > 0 {
 		if coordHasPerWorker {
@@ -2459,7 +2453,6 @@ func walletAccrualFromCoordinator(ws map[string]any, stateWorkers map[string]wor
 			accrualSource = "workers_omitted"
 		}
 	}
-	unpaid = sumAccrued - sumSettled
 	if unpaid < 0 {
 		unpaid = 0
 	}

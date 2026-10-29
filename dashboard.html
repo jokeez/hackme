@@ -5449,17 +5449,19 @@
 				$('wallet-bd-sup-onchain').textContent = fmt(onChain, 8) + ' SUP';
 			}
 			if ($('wallet-bd-sup-pending')) {
-				const pending = unpaid > 0.000001 ? unpaid : accrued;
-				$('wallet-bd-sup-pending').textContent = pending > 0.000001
-					? ('+' + fmt(pending, 6) + ' SUP')
+				// Only unsettled SUP is "pending mint". Do not fall back to lifetime
+				// accrued — that double-counts already-minted / already-settled SUP.
+				$('wallet-bd-sup-pending').textContent = unpaid > 0.000001
+					? ('+' + fmt(unpaid, 6) + ' SUP')
 					: '0 SUP';
 			}
 			const pendingBox = $('wallet-bd-sup-pending-box');
-			if (pendingBox) pendingBox.classList.toggle('active', unpaid > 0.000001 || accrued > 0.000001);
+			if (pendingBox) pendingBox.classList.toggle('active', unpaid > 0.000001);
 			const sub = $('wallet-bd-sup-settle-sub');
 			if (sub) {
 				const parts = [];
 				if (unpaid > 0.000001) parts.push('awaiting on-chain mint');
+				else if (onChain > 0.000001) parts.push('minted / settled · transfer_sup_v1');
 				else if (accrued > 0.000001) parts.push('coordinator accrued ' + fmt(accrued, 6) + ' SUP');
 				else parts.push('mine HMC with hybrid signer to accrue');
 				sub.textContent = parts.join(' · ');

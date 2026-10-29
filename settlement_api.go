@@ -19,14 +19,54 @@ import (
 )
 
 type workerSettlementStateEntry struct {
-	SettledHMC     float64 `json:"settled_hmc"`
-	SettledSUP     float64 `json:"settled_sup,omitempty"`
-	PayoutAddress  string  `json:"payout_address,omitempty"`
-	LastTxHash     string  `json:"last_tx_hash,omitempty"`
-	LastSettleUnix int64   `json:"last_settle_unix,omitempty"`
+	SettledHMC float64 `json:"settled_hmc"`
+	SettledSUP float64 `json:"settled_sup,omitempty"`
+	// SessionAnchor* floors unpaid after a coordinator accrual reset (settler rebase).
+	SessionAnchorHMC float64 `json:"session_anchor_hmc,omitempty"`
+	SessionAnchorSUP float64 `json:"session_anchor_sup,omitempty"`
+	PayoutAddress    string  `json:"payout_address,omitempty"`
+	LastTxHash       string  `json:"last_tx_hash,omitempty"`
+	LastSettleUnix   int64   `json:"last_settle_unix,omitempty"`
 	// PendingSettle is the payout script's anti-double-pay marker. It must
 	// survive any Go round-trip of this file (report #13).
 	PendingSettle json.RawMessage `json:"pending_settle,omitempty"`
+}
+
+// settlementUnpaidHMC matches the settler baseline (session_anchor after reset, else settled).
+func settlementUnpaidHMC(accrued float64, ent workerSettlementStateEntry) float64 {
+	if accrued < 0 {
+		accrued = 0
+	}
+	baseline := ent.SettledHMC
+	if baseline < 0 {
+		baseline = 0
+	}
+	if ent.SessionAnchorHMC > 0 {
+		baseline = ent.SessionAnchorHMC
+	}
+	unpaid := accrued - baseline
+	if unpaid < 0 {
+		return 0
+	}
+	return unpaid
+}
+
+func settlementUnpaidSUP(accrued float64, ent workerSettlementStateEntry) float64 {
+	if accrued < 0 {
+		accrued = 0
+	}
+	baseline := ent.SettledSUP
+	if baseline < 0 {
+		baseline = 0
+	}
+	if ent.SessionAnchorSUP > 0 {
+		baseline = ent.SessionAnchorSUP
+	}
+	unpaid := accrued - baseline
+	if unpaid < 0 {
+		return 0
+	}
+	return unpaid
 }
 
 type workerSettlementMeta struct {
@@ -389,8 +429,16 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), fetchTimeout)
 	defer cancel()
-	details := !lite
-	ws, statsStale, err := a.resolveCoordinatorWorkStats(ctx, base, details)
+	// Settlement unpaid must use raw worker ids (details=1). Public work/stats
+	// re-keys workers to blake3 pseudonyms, which cannot match settlement state.
+	var ws map[string]any
+	var statsStale bool
+	var err error
+	if lite {
+		ws, statsStale, err = a.resolveCoordinatorWorkStats(ctx, base, false)
+	} else {
+		ws, statsStale, err = a.resolveCoordinatorWorkStatsAdmin(ctx, base)
+	}
 	if err != nil || ws == nil {
 		if lite {
 			if cached, _, ok := copyCachedWorkStats(workStatsCacheStaleMaxSec); ok && cached != nil {
@@ -483,18 +531,16 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		row := mapFromAny(v)
+		ent := state.Workers[workerID]
 		accrued := parseAnyFloat(row["payout_hmc"])
 		if accrued < 0 {
 			accrued = 0
 		}
-		settled := state.Workers[workerID].SettledHMC
+		settled := ent.SettledHMC
 		if settled < 0 {
 			settled = 0
 		}
-		if settled > accrued {
-			settled = accrued
-		}
-		unpaid := accrued - settled
+		unpaid := settlementUnpaidHMC(accrued, ent)
 		totalAccrued += accrued
 		totalSettled += settled
 		totalUnpaid += unpaid
@@ -502,16 +548,13 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		if accruedSUP < 0 {
 			accruedSUP = 0
 		}
-		settledSUP := state.Workers[workerID].SettledSUP
+		settledSUP := ent.SettledSUP
 		if settledSUP < 0 {
 			settledSUP = 0
 		}
-		if settledSUP > accruedSUP {
-			settledSUP = accruedSUP
-		}
 		totalAccruedSUP += accruedSUP
 		totalSettledSUP += settledSUP
-		totalUnpaidSUP += accruedSUP - settledSUP
+		totalUnpaidSUP += settlementUnpaidSUP(accruedSUP, ent)
 	}
 	if strings.TrimSpace(a.nodeID) == "" {
 		accrualSource = "fleet_aggregate"
@@ -555,31 +598,26 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		if accrued < 0 {
 			accrued = 0
 		}
-		settled := state.Workers[workerID].SettledHMC
+		ent := state.Workers[workerID]
+		settled := ent.SettledHMC
 		if settled < 0 {
 			settled = 0
-		}
-		if settled > accrued {
-			settled = accrued
 		}
 		accruedSUP := parseAnyFloat(row["payout_sup"])
 		if accruedSUP < 0 {
 			accruedSUP = 0
 		}
-		settledSUP := state.Workers[workerID].SettledSUP
+		settledSUP := ent.SettledSUP
 		if settledSUP < 0 {
 			settledSUP = 0
-		}
-		if settledSUP > accruedSUP {
-			settledSUP = accruedSUP
 		}
 		workerBreakdown[workerID] = map[string]any{
 			"accrued_hmc": accrued,
 			"settled_hmc": settled,
-			"unpaid_hmc":  accrued - settled,
+			"unpaid_hmc":  settlementUnpaidHMC(accrued, ent),
 			"accrued_sup": accruedSUP,
 			"settled_sup": settledSUP,
-			"unpaid_sup":  accruedSUP - settledSUP,
+			"unpaid_sup":  settlementUnpaidSUP(accruedSUP, ent),
 		}
 	}
 	desktopWorkerUnpaidHMC := 0.0
