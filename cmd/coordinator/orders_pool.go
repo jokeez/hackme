@@ -217,13 +217,18 @@ func (m *workManager) ordersSolveEnabled() bool {
 	return v == "1" || v == "true" || v == "yes" || v == "on"
 }
 
-// baselineRelayMode returns off | dry | on for HACKME_POOL_BASELINE_RELAY.
+// baselineRelayMode returns off | dry | on | blocked for HACKME_POOL_BASELINE_RELAY.
 // dry: count would-mint without POST (safe soak while hub local PoH still on).
-// on/1/true: live POST /api/poh/solve-baseline. Default off.
+// on/1/true: live POST /api/poh/solve-baseline — refused (→ blocked) if hub still
+// has HACKME_CHAIN_LEADER_LOCAL_POH=1 unless HACKME_POOL_BASELINE_RELAY_ALLOW_LOCAL_POH=1.
+// Default off.
 func (m *workManager) baselineRelayMode() string {
 	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_POOL_BASELINE_RELAY")))
 	switch v {
 	case "1", "true", "yes", "on":
+		if chainLeaderLocalPoHEnabled() && !baselineRelayAllowLocalPoH() {
+			return "blocked"
+		}
 		return "on"
 	case "dry", "shadow", "observe":
 		return "dry"
@@ -232,15 +237,29 @@ func (m *workManager) baselineRelayMode() string {
 	}
 }
 
+func chainLeaderLocalPoHEnabled() bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_CHAIN_LEADER_LOCAL_POH")))
+	return v == "1" || v == "true" || v == "yes" || v == "on"
+}
+
+func baselineRelayAllowLocalPoH() bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_POOL_BASELINE_RELAY_ALLOW_LOCAL_POH")))
+	return v == "1" || v == "true" || v == "yes" || v == "on"
+}
+
 // baselineRelayEnabled is true for dry or on (enter found→baseline path).
 func (m *workManager) baselineRelayEnabled() bool {
-	return m.baselineRelayMode() != "off"
+	mode := m.baselineRelayMode()
+	return mode == "dry" || mode == "on"
 }
 
 func (m *workManager) relayBaselineSolve(minerAddress string, foundNonce, targetMod uint64) orderSolveRelayResult {
 	out := orderSolveRelayResult{Reason: "baseline_relay_disabled"}
 	mode := m.baselineRelayMode()
-	if mode == "off" {
+	if mode == "off" || mode == "blocked" {
+		if mode == "blocked" {
+			out.Reason = "baseline_relay_blocked_local_poh"
+		}
 		return out
 	}
 	if mode == "dry" {
@@ -319,9 +338,18 @@ func (m *workManager) chainPoHModUnlocked() uint64 {
 }
 
 func (m *workManager) activeOrderSnapshot() activeOrderSnap {
+	snap, _ := m.activeOrderSnapshotStatus()
+	return snap
+}
+
+// activeOrderSnapshotStatus returns the active open WASM order and whether the
+// orders probe succeeded (or was skipped / served from TTL cache). probeOK=false
+// means the live GET failed — callers that must not fall open to baseline mint
+// should reject rather than treat the empty snap as "no order".
+func (m *workManager) activeOrderSnapshotStatus() (activeOrderSnap, bool) {
 	m.schedulerMu.Lock()
 	defer m.schedulerMu.Unlock()
-	return m.refreshActiveOrderLocked()
+	return m.refreshActiveOrderLockedStatus()
 }
 
 // verifyOrderWasmGate re-runs the order WASM check on the coordinator; worker wasm_gate_pass is not trusted alone.
@@ -344,34 +372,39 @@ func (m *workManager) verifyOrderWasmGate(snap activeOrderSnap, nonce uint64) (b
 }
 
 func (m *workManager) refreshActiveOrderLocked() activeOrderSnap {
+	snap, _ := m.refreshActiveOrderLockedStatus()
+	return snap
+}
+
+func (m *workManager) refreshActiveOrderLockedStatus() (activeOrderSnap, bool) {
 	if strings.TrimSpace(m.ordersProbeURL) == "" {
-		return m.activeOrder
+		return m.activeOrder, true
 	}
 	now := time.Now().Unix()
 	if m.activeOrder.ID != "" && now-m.activeOrder.FetchedAt < m.ordersProbeEverySec {
-		return m.activeOrder
+		return m.activeOrder, true
 	}
 	cl := netutil.HTTPClientNoRedirect(3 * time.Second)
 	req, err := http.NewRequest(http.MethodGet, m.ordersProbeURL+"/api/tasks", nil)
 	if err != nil {
-		return activeOrderSnap{}
+		return activeOrderSnap{}, false
 	}
 	if tok := m.ordersAdminToken(); tok != "" {
 		req.Header.Set("X-Hackme-Admin-Token", tok)
 	}
 	resp, err := cl.Do(req)
 	if err != nil {
-		return activeOrderSnap{}
+		return activeOrderSnap{}, false
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return activeOrderSnap{}
+		return activeOrderSnap{}, false
 	}
 	var body struct {
 		Tasks []map[string]any `json:"tasks"`
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(&body); err != nil {
-		return activeOrderSnap{}
+		return activeOrderSnap{}, false
 	}
 	var pick map[string]any
 	var pickCreated float64
@@ -387,7 +420,7 @@ func (m *workManager) refreshActiveOrderLocked() activeOrderSnap {
 	}
 	if pick == nil {
 		m.activeOrder = activeOrderSnap{}
-		return activeOrderSnap{}
+		return activeOrderSnap{}, true
 	}
 	id := strings.TrimSpace(fmt.Sprintf("%v", pick["id"]))
 	// API may return manifest_json as a JSON object (map) or as a JSON string.
@@ -396,16 +429,16 @@ func (m *workManager) refreshActiveOrderLocked() activeOrderSnap {
 	wasmHex, mfReward := orderManifestWasmReward(pick["manifest_json"])
 	if wasmHex == "" {
 		m.activeOrder = activeOrderSnap{}
-		return activeOrderSnap{}
+		return activeOrderSnap{}, true
 	}
 	raw, err := hex.DecodeString(wasmHex)
 	if err != nil || len(raw) == 0 || len(raw) > maxOrderWasmClaimBytes {
 		m.activeOrder = activeOrderSnap{}
-		return activeOrderSnap{}
+		return activeOrderSnap{}, true
 	}
 	if err := sandbox.ValidateCheckWasm(context.Background(), raw); err != nil {
 		m.activeOrder = activeOrderSnap{}
-		return activeOrderSnap{}
+		return activeOrderSnap{}, true
 	}
 	reward, _ := pick["reward"].(float64)
 	if reward <= 0 {
@@ -429,7 +462,7 @@ func (m *workManager) refreshActiveOrderLocked() activeOrderSnap {
 		FetchedAt: now,
 	}
 	m.activeOrder = snap
-	return snap
+	return snap, true
 }
 
 type orderSolveRelayResult struct {

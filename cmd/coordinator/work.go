@@ -2481,9 +2481,23 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	var chainSolve orderSolveRelayResult
 	leaseDeadAfterChain := false
 	// RFC D1: baseline (non-order) found → optional chain empty-block relay to settlement payer.
+	// Never steal an active WASM order find into empty-block mint (omit order_task_id / wasm_gate_pass).
 	if req.Found && orderID == "" && !req.WasmGatePass && signerAddr != "" && m.baselineRelayEnabled() {
 		mod := leaseMod
 		m.mu.Unlock()
+		var probeOK bool
+		orderSnap, probeOK = m.activeOrderSnapshotStatus()
+		// Fail closed: probe outage must not mint baseline while a WASM order may be open.
+		if !probeOK && strings.TrimSpace(m.ordersProbeURL) != "" {
+			m.mu.Lock()
+			m.rejectedSubmits++
+			return false, "orders_probe_unavailable", 0, signerAddr, signerAddr != ""
+		}
+		if orderSnap.ID != "" && strings.TrimSpace(orderSnap.WasmHex) != "" {
+			m.mu.Lock()
+			m.rejectedSubmits++
+			return false, "active_order_requires_wasm_found", 0, signerAddr, signerAddr != ""
+		}
 		chainSolve = m.relayBaselineSolve(signerAddr, req.FoundNonce, mod)
 		m.mu.Lock()
 		now = time.Now().Unix()

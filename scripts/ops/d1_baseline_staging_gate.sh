@@ -49,7 +49,27 @@ PY
 
 if [[ -n "$NODE_SSH" ]]; then
   echo "[d1-gate] remote env probe ($NODE_SSH)"
-  _ssh "$NODE_SSH" "grep -E '^HACKME_POOL_BASELINE_RELAY=|^HACKME_CHAIN_LEADER_LOCAL_POH=' '$ENV_COORD_REMOTE' '$ENV_VPS_REMOTE' 2>/dev/null || true"
+  _ssh "$NODE_SSH" "grep -E '^HACKME_POOL_BASELINE_RELAY=|^HACKME_CHAIN_LEADER_LOCAL_POH=|^HACKME_POOL_BASELINE_RELAY_ALLOW_LOCAL_POH=' '$ENV_COORD_REMOTE' '$ENV_VPS_REMOTE' 2>/dev/null || true"
+  # Mirror hub LOCAL_POH into coordinator env so RELAY=on can self-block dual emission.
+  _ssh "$NODE_SSH" "bash -s" <<EOF
+set -euo pipefail
+vps='$ENV_VPS_REMOTE'
+coord='$ENV_COORD_REMOTE'
+lp=\$(grep -E '^HACKME_CHAIN_LEADER_LOCAL_POH=' "\$vps" 2>/dev/null | tail -1 | cut -d= -f2- || true)
+[[ -n "\$lp" ]] || exit 0
+if grep -q '^HACKME_CHAIN_LEADER_LOCAL_POH=' "\$coord" 2>/dev/null; then
+  sed -i "s/^HACKME_CHAIN_LEADER_LOCAL_POH=.*/HACKME_CHAIN_LEADER_LOCAL_POH=\$lp/" "\$coord"
+else
+  printf '\\nHACKME_CHAIN_LEADER_LOCAL_POH=%s\\n' "\$lp" >>"\$coord"
+fi
+echo "[d1-gate] mirrored LOCAL_POH=\$lp into coordinator env"
+EOF
+  relay="$(_ssh "$NODE_SSH" "grep -E '^HACKME_POOL_BASELINE_RELAY=' '$ENV_COORD_REMOTE' 2>/dev/null | cut -d= -f2- || true")"
+  lpoh="$(_ssh "$NODE_SSH" "grep -E '^HACKME_CHAIN_LEADER_LOCAL_POH=' '$ENV_VPS_REMOTE' 2>/dev/null | cut -d= -f2- || true")"
+  if [[ "$relay" == "1" || "$relay" == "on" || "$relay" == "true" ]] && [[ "$lpoh" == "1" || "$lpoh" == "true" || "$lpoh" == "yes" ]]; then
+    echo "[d1-gate] FAIL: RELAY=on with LOCAL_POH=1 (dual emission) — set LOCAL_POH=0 first" >&2
+    exit 2
+  fi
 fi
 
 if [[ "$ENABLE_DRY" == "1" ]]; then

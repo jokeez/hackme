@@ -8,7 +8,7 @@ import (
 	"hackme/internal/store"
 )
 
-func TestCampaignAcceptsSettleOnlyRunningOrPlanned(t *testing.T) {
+func TestCampaignAcceptsSettleAllowsDrainExceptCancelled(t *testing.T) {
 	dir := t.TempDir()
 	db, err := store.Open(filepath.Join(dir, "gate.db"))
 	if err != nil {
@@ -27,16 +27,21 @@ func TestCampaignAcceptsSettleOnlyRunningOrPlanned(t *testing.T) {
 	if !svc.campaignAcceptsSettle(ctx, id) {
 		t.Fatal("running must accept settle")
 	}
-	for _, st := range []string{"paused", "completed", "cancelled"} {
+	for _, st := range []string{"paused", "completed"} {
 		if err := svc.SetCampaignStatus(ctx, id, st); err != nil {
 			t.Fatalf("status %s: %v", st, err)
 		}
-		if svc.campaignAcceptsSettle(ctx, id) {
-			t.Fatalf("%s must NOT accept settle", st)
+		if !svc.campaignAcceptsSettle(ctx, id) {
+			t.Fatalf("%s must still accept settle (drain in-flight floors)", st)
 		}
-		// reopen for next status (cancelled/completed set completed_at; still overwritable)
 		if err := svc.SetCampaignStatus(ctx, id, "running"); err != nil {
 			t.Fatal(err)
 		}
+	}
+	if err := svc.SetCampaignStatus(ctx, id, "cancelled"); err != nil {
+		t.Fatal(err)
+	}
+	if svc.campaignAcceptsSettle(ctx, id) {
+		t.Fatal("cancelled must NOT accept settle")
 	}
 }

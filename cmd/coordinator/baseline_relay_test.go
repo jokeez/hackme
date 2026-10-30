@@ -87,6 +87,8 @@ func TestBaselineRelayHTTPError(t *testing.T) {
 
 func TestBaselineRelayFlagTruthy(t *testing.T) {
 	wm := &workManager{}
+	t.Setenv("HACKME_CHAIN_LEADER_LOCAL_POH", "0")
+	t.Setenv("HACKME_POOL_BASELINE_RELAY_ALLOW_LOCAL_POH", "")
 	for _, v := range []string{"1", "true", "YES", "on"} {
 		t.Setenv("HACKME_POOL_BASELINE_RELAY", v)
 		if !wm.baselineRelayEnabled() || wm.baselineRelayMode() != "on" {
@@ -96,6 +98,55 @@ func TestBaselineRelayFlagTruthy(t *testing.T) {
 	t.Setenv("HACKME_POOL_BASELINE_RELAY", "0")
 	if wm.baselineRelayEnabled() || wm.baselineRelayMode() != "off" {
 		t.Fatal("0 should disable")
+	}
+}
+
+func TestBaselineRelayOnBlockedWhenLocalPoH(t *testing.T) {
+	wm := &workManager{}
+	t.Setenv("HACKME_POOL_BASELINE_RELAY", "1")
+	t.Setenv("HACKME_CHAIN_LEADER_LOCAL_POH", "1")
+	t.Setenv("HACKME_POOL_BASELINE_RELAY_ALLOW_LOCAL_POH", "")
+	if wm.baselineRelayMode() != "blocked" || wm.baselineRelayEnabled() {
+		t.Fatalf("mode=%q enabled=%v want blocked/disabled", wm.baselineRelayMode(), wm.baselineRelayEnabled())
+	}
+	res := wm.relayBaselineSolve("HMC-mineraddr0001", 1, 100)
+	if res.OK || res.Reason != "baseline_relay_blocked_local_poh" {
+		t.Fatalf("got %+v", res)
+	}
+	// Escape hatch for lab.
+	t.Setenv("HACKME_POOL_BASELINE_RELAY_ALLOW_LOCAL_POH", "1")
+	if wm.baselineRelayMode() != "on" || !wm.baselineRelayEnabled() {
+		t.Fatalf("allow escape: mode=%q", wm.baselineRelayMode())
+	}
+	// Dry still works with local PoH (observe-only).
+	t.Setenv("HACKME_POOL_BASELINE_RELAY", "dry")
+	t.Setenv("HACKME_POOL_BASELINE_RELAY_ALLOW_LOCAL_POH", "")
+	if wm.baselineRelayMode() != "dry" || !wm.baselineRelayEnabled() {
+		t.Fatalf("dry should stay enabled under local PoH, mode=%q", wm.baselineRelayMode())
+	}
+}
+
+func TestActiveOrderProbeStatusFailClosed(t *testing.T) {
+	wm := &workManager{
+		ordersProbeURL:      "http://127.0.0.1:9",
+		ordersProbeEverySec: 0,
+	}
+	snap, ok := wm.activeOrderSnapshotStatus()
+	if ok {
+		t.Fatal("dead probe URL must report probeOK=false")
+	}
+	if snap.ID != "" {
+		t.Fatalf("unexpected snap id=%q", snap.ID)
+	}
+	// Successful empty catalog is probeOK=true (baseline allowed).
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"tasks": []any{}})
+	}))
+	defer srv.Close()
+	wm2 := &workManager{ordersProbeURL: srv.URL, ordersProbeEverySec: 0}
+	snap, ok = wm2.activeOrderSnapshotStatus()
+	if !ok || snap.ID != "" {
+		t.Fatalf("empty catalog: ok=%v snap=%+v", ok, snap)
 	}
 }
 

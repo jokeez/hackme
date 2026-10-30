@@ -386,9 +386,10 @@ func (s *Service) tryFinalizeEscrow(ctx context.Context, campaignID string) erro
 	return nil
 }
 
-// campaignAcceptsSettle is true while the campaign is still running (or planned).
-// Paused/completed/cancelled must not enqueue new settle-outbox PayRun rows —
-// origin escrow is usually closed and those rows clog the undrainable head.
+// campaignAcceptsSettle gates new settle-outbox PayRun / run_floor rows.
+// running|planned: always. completed|paused: allowed so in-flight CLEAN floors
+// still enqueue (tryFinalizeEscrow waits for unpaid intents). cancelled: never
+// (admin kill — do not create undrainable heads after origin close).
 func (s *Service) campaignAcceptsSettle(ctx context.Context, id string) bool {
 	if s == nil || s.DB == nil {
 		return false
@@ -402,7 +403,12 @@ func (s *Service) campaignAcceptsSettle(ctx context.Context, id string) bool {
 		return false
 	}
 	st = strings.TrimSpace(strings.ToLower(st))
-	return st == "running" || st == "planned"
+	switch st {
+	case "running", "planned", "completed", "paused":
+		return true
+	default:
+		return false
+	}
 }
 
 // SetCampaignStatus updates campaign lifecycle and cancels pending work when stopping.
