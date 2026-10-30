@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -636,6 +637,113 @@ func (s *Service) WalletActivitySummary(ctx context.Context, address string, win
 		TotalNetHMC:      UnitsToHMC(totalRecv) - UnitsToHMC(totalSent),
 		TxCountWindow:    txWindow,
 		Counterparties:   counterparties,
+		Recent:           recent,
+	}, nil
+}
+
+// skipInboundCursor reports whether a DESC (applied_at, tx_hash) row is already
+// covered by an exclusive cursor. beforeUnix==0 means the first page.
+func skipInboundCursor(appliedAt int64, txHash string, beforeUnix int64, beforeHash string) bool {
+	if beforeUnix <= 0 {
+		return false
+	}
+	if appliedAt > beforeUnix {
+		return true
+	}
+	if appliedAt < beforeUnix {
+		return false
+	}
+	beforeHash = strings.TrimSpace(beforeHash)
+	if beforeHash == "" {
+		return true
+	}
+	return strings.Compare(txHash, beforeHash) >= 0
+}
+
+// WalletInboundPage returns included inbound transfers only, newest first, for
+// exchange deposit sync. beforeUnix/beforeHash page older rows without the
+// public activity feed's mixed in/out cap hiding a deposit.
+func (s *Service) WalletInboundPage(ctx context.Context, address string, windowHours, limit int, beforeUnix int64, beforeHash string) (WalletActivitySummary, error) {
+	return s.inboundHistoryPage(ctx, "tx_history", address, windowHours, limit, beforeUnix, beforeHash, false)
+}
+
+func (s *Service) inboundHistoryPage(ctx context.Context, table, address string, windowHours, limit int, beforeUnix int64, beforeHash string, sup bool) (WalletActivitySummary, error) {
+	addr := strings.TrimSpace(address)
+	if windowHours <= 0 {
+		windowHours = 24
+	}
+	if windowHours > 24*90 {
+		windowHours = 24 * 90
+	}
+	if limit <= 0 {
+		limit = 80
+	}
+	if limit > 80 {
+		limit = 80
+	}
+	if table != "tx_history" && table != "sup_tx_history" {
+		return WalletActivitySummary{}, fmt.Errorf("unsupported history table")
+	}
+	nowUnix := time.Now().Unix()
+	windowStart := nowUnix - int64(windowHours*3600)
+	q := `SELECT tx_hash, from_address, to_address, amount_units, fee_units, applied_at, tx_json
+		FROM ` + table + `
+		WHERE status='included' AND to_address = ? AND applied_at >= ?
+		ORDER BY applied_at DESC, tx_hash DESC`
+	rows, err := s.db.QueryContext(ctx, q, addr, windowStart)
+	if err != nil {
+		return WalletActivitySummary{}, err
+	}
+	defer rows.Close()
+	recent := make([]WalletTransferEvent, 0, limit)
+	var totalRecv uint64
+	for rows.Next() {
+		var txHash, fromAddr, toAddr, txJSON string
+		var amountUnits, feeUnits uint64
+		var appliedAt int64
+		if err := rows.Scan(&txHash, &fromAddr, &toAddr, &amountUnits, &feeUnits, &appliedAt, &txJSON); err != nil {
+			return WalletActivitySummary{}, err
+		}
+		if skipInboundCursor(appliedAt, txHash, beforeUnix, beforeHash) {
+			continue
+		}
+		if !strings.EqualFold(strings.TrimSpace(toAddr), addr) {
+			continue
+		}
+		if len(recent) >= limit {
+			break
+		}
+		totalRecv += amountUnits
+		var memo struct {
+			Memo string `json:"memo"`
+		}
+		_ = json.Unmarshal([]byte(txJSON), &memo)
+		amt := UnitsToHMC(amountUnits)
+		fee := UnitsToHMC(feeUnits)
+		if sup {
+			amt = UnitsToSUP(amountUnits)
+			fee = UnitsToSUP(feeUnits)
+		}
+		recent = append(recent, WalletTransferEvent{
+			TxHash:       txHash,
+			Direction:    "in",
+			Counterparty: strings.TrimSpace(fromAddr),
+			AmountHMC:    amt,
+			AmountUnits:  amountUnits,
+			FeeHMC:       fee,
+			AppliedUnix:  appliedAt,
+			Memo:         strings.TrimSpace(memo.Memo),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return WalletActivitySummary{}, err
+	}
+	return WalletActivitySummary{
+		Address:          addr,
+		WindowHours:      windowHours,
+		NowUnix:          nowUnix,
+		TotalReceivedHMC: UnitsToHMC(totalRecv),
+		TxCountWindow:    int64(len(recent)),
 		Recent:           recent,
 	}, nil
 }

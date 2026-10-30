@@ -78,3 +78,63 @@ func TestWalletActivitySummaryCounterparties(t *testing.T) {
 		t.Fatalf("missing inbound peer: %#v", sum.Counterparties)
 	}
 }
+
+func TestWalletInboundPageCursor(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "chain.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	svc := New(db)
+	ctx := context.Background()
+	addr := "HMC-dddddddddddddddd"
+	from := "HMC-eeeeeeeeeeeeeeee"
+	now := time.Now().Unix()
+	for _, a := range []string{addr, from} {
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO accounts (address, balance_units, next_nonce, updated_at) VALUES (?, 0, 0, ?)`,
+			a, now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < 5; i++ {
+		hash := "hash-page-" + string(rune('a'+i))
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO tx_history (tx_hash, tx_json, from_address, to_address, nonce, fee_units, amount_units, status, applied_at)
+			 VALUES (?, '{}', ?, ?, 0, 1000, ?, 'included', ?)`,
+			hash, from, addr, uint64(1_000_000*(i+1)), now-int64(i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Outbound must not appear on the inbound page.
+	if _, err := db.ExecContext(ctx,
+		`INSERT INTO tx_history (tx_hash, tx_json, from_address, to_address, nonce, fee_units, amount_units, status, applied_at)
+		 VALUES ('hash-out', '{}', ?, ?, 0, 1000, 9, 'included', ?)`,
+		addr, from, now); err != nil {
+		t.Fatal(err)
+	}
+	page, err := svc.WalletInboundPage(ctx, addr, 24, 2, 0, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Recent) != 2 {
+		t.Fatalf("page1 %d", len(page.Recent))
+	}
+	if page.Recent[0].TxHash != "hash-page-a" || page.Recent[1].TxHash != "hash-page-b" {
+		t.Fatalf("order %+v", page.Recent)
+	}
+	last := page.Recent[len(page.Recent)-1]
+	page2, err := svc.WalletInboundPage(ctx, addr, 24, 2, last.AppliedUnix, last.TxHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page2.Recent) != 2 || page2.Recent[0].TxHash != "hash-page-c" {
+		t.Fatalf("page2 %+v", page2.Recent)
+	}
+	for _, ev := range append(page.Recent, page2.Recent...) {
+		if ev.Direction != "in" || ev.AmountUnits == 0 {
+			t.Fatalf("bad event %+v", ev)
+		}
+	}
+}

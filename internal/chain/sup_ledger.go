@@ -797,6 +797,11 @@ func (s *Service) SupActivitySummary(ctx context.Context, address string, window
 	}, nil
 }
 
+// SupInboundPage is the SUP-ledger counterpart of WalletInboundPage.
+func (s *Service) SupInboundPage(ctx context.Context, address string, windowHours, limit int, beforeUnix int64, beforeHash string) (WalletActivitySummary, error) {
+	return s.inboundHistoryPage(ctx, "sup_tx_history", address, windowHours, limit, beforeUnix, beforeHash, true)
+}
+
 func supMintMemoFromHistoryJSON(txJSON string) string {
 	var row struct {
 		Op   string `json:"op"`

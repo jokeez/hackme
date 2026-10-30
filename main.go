@@ -2120,6 +2120,29 @@ func (a *app) handleWalletEarnings(w http.ResponseWriter, r *http.Request) {
 // walletActivityRecentLimitMax keeps JSON under ~19KiB when served via Cloudflare in front of hackme.tech.
 const walletActivityRecentLimitMax = 80
 
+func activityInboundCursor(r *http.Request) (inbound bool, beforeUnix int64, beforeHash string) {
+	inbound = strings.TrimSpace(r.URL.Query().Get("inbound_only")) == "1"
+	beforeHash = strings.TrimSpace(r.URL.Query().Get("before_hash"))
+	if v := strings.TrimSpace(r.URL.Query().Get("before_unix")); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
+			beforeUnix = n
+		}
+	}
+	return inbound, beforeUnix, beforeHash
+}
+
+func appendActivityCursor(qv url.Values, inbound bool, beforeUnix int64, beforeHash string) {
+	if inbound {
+		qv.Set("inbound_only", "1")
+	}
+	if beforeUnix > 0 {
+		qv.Set("before_unix", strconv.FormatInt(beforeUnix, 10))
+	}
+	if beforeHash != "" {
+		qv.Set("before_hash", beforeHash)
+	}
+}
+
 func clampWalletActivityRecentLimit(limit int) int {
 	if limit > walletActivityRecentLimitMax {
 		return walletActivityRecentLimitMax
@@ -2263,6 +2286,7 @@ func (a *app) handleWalletActivity(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	recentLimit = clampWalletActivityRecentLimit(recentLimit)
+	inboundOnly, beforeUnix, beforeHash := activityInboundCursor(r)
 	addr, _, err := a.chain.Wallet(ctx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -2295,6 +2319,7 @@ func (a *app) handleWalletActivity(w http.ResponseWriter, r *http.Request) {
 					if actAddr != "" {
 						qv.Set("address", actAddr)
 					}
+					appendActivityCursor(qv, inboundOnly, beforeUnix, beforeHash)
 					actURL := strings.TrimRight(base, "/") + "/api/wallet/activity?" + qv.Encode()
 					canonAttempted = true
 					if remote, ok := a.fetchCanonicalWalletActivity(ctx, actURL, actAddr); ok {
@@ -2308,7 +2333,12 @@ func (a *app) handleWalletActivity(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	activity, err := a.chain.WalletActivitySummary(ctx, actAddr, windowHours, recentLimit)
+	var activity chain.WalletActivitySummary
+	if inboundOnly {
+		activity, err = a.chain.WalletInboundPage(ctx, actAddr, windowHours, recentLimit, beforeUnix, beforeHash)
+	} else {
+		activity, err = a.chain.WalletActivitySummary(ctx, actAddr, windowHours, recentLimit)
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -2344,6 +2374,7 @@ func (a *app) handleSUPActivity(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	recentLimit = clampWalletActivityRecentLimit(recentLimit)
+	inboundOnly, beforeUnix, beforeHash := activityInboundCursor(r)
 	actAddr := strings.TrimSpace(a.nodeID)
 	if q := parseOptionalHMCAddress(r.URL.Query().Get("address")); q != "" {
 		actAddr = q
@@ -2352,7 +2383,13 @@ func (a *app) handleSUPActivity(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "address required", http.StatusBadRequest)
 		return
 	}
-	activity, err := a.chain.SupActivitySummary(ctx, actAddr, windowHours, recentLimit)
+	var activity chain.WalletActivitySummary
+	var err error
+	if inboundOnly {
+		activity, err = a.chain.SupInboundPage(ctx, actAddr, windowHours, recentLimit, beforeUnix, beforeHash)
+	} else {
+		activity, err = a.chain.SupActivitySummary(ctx, actAddr, windowHours, recentLimit)
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
