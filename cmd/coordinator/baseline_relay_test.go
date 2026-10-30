@@ -126,6 +126,47 @@ func TestBaselineRelayOnBlockedWhenLocalPoH(t *testing.T) {
 	}
 }
 
+func TestOpenOrderUnclaimableWasmFailClosedForBaseline(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"tasks": []map[string]any{{
+				"id":            "order-no-wasm",
+				"status":        "open",
+				"created_at":    100.0,
+				"reward":        0.05,
+				"manifest_json": map[string]any{"reward_hmc": 0.05},
+			}},
+		})
+	}))
+	defer srv.Close()
+	wm := &workManager{ordersProbeURL: srv.URL, ordersProbeEverySec: 0}
+	snap, ok := wm.activeOrderSnapshotStatus()
+	if ok {
+		t.Fatal("open order without claimable wasm must report probeOK=false")
+	}
+	if snap.ID != "" {
+		t.Fatalf("unexpected snap id=%q", snap.ID)
+	}
+}
+
+func TestLoadRetargetSkippedWhenBaselineRelayOn(t *testing.T) {
+	t.Setenv("HACKME_POOL_BASELINE_RELAY", "on")
+	t.Setenv("HACKME_CHAIN_LEADER_LOCAL_POH", "0")
+	wm := &workManager{
+		targetMod:         27_428_398,
+		targetModMin:      2_000_000,
+		targetModMax:      1_000_000_000_000,
+		poolRetarget:      true,
+		poolRetargetMinSec: 0,
+		pohFormulaVersion: 3,
+	}
+	before := wm.targetMod
+	wm.maybeRetargetPoolLoadLocked(1_700_000_100, 50.0, 20)
+	if wm.targetMod != before {
+		t.Fatalf("RELAY=on must not load-retarget pool M: %d -> %d", before, wm.targetMod)
+	}
+}
+
 func TestApplyChainTargetModPinsWhenBaselineRelayOn(t *testing.T) {
 	t.Setenv("HACKME_POOL_BASELINE_RELAY", "on")
 	t.Setenv("HACKME_CHAIN_LEADER_LOCAL_POH", "0")

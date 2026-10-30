@@ -1314,6 +1314,10 @@ func (m *workManager) maybeEasePoolModOnStallLocked(now int64) {
 	if !m.poolRetarget {
 		return
 	}
+	// D1 live mint: pool M must track chain PoHTargetMod only (applyChainTargetMod).
+	if m.baselineRelayMode() == "on" {
+		return
+	}
 	// Stall easing stays active under Blake3 v3 (load-owned pool M).
 	// A recent accepted found means the gate is solvable — not stalled.
 	if m.lastFoundHitUnix > 0 && now-m.lastFoundHitUnix < poolStallEaseFoundGapSec {
@@ -1363,6 +1367,10 @@ func (m *workManager) maybeRetargetPoolLoad(now int64, poolGH float64, miners in
 // maybeRetargetPoolLoadLocked is maybeRetargetPoolLoad; caller must hold m.mu.
 func (m *workManager) maybeRetargetPoolLoadLocked(now int64, poolGH float64, miners int) {
 	if !m.poolRetarget || poolGH < 0.01 {
+		return
+	}
+	// D1 live mint: do not let load-retarget drift pool M above chain PoHTargetMod.
+	if m.baselineRelayMode() == "on" {
 		return
 	}
 	// Load retarget runs under Blake3 v3 too (share-PPS difficulty). Chain tip M
@@ -2502,19 +2510,50 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	// Never steal an active WASM order find into empty-block mint (omit order_task_id / wasm_gate_pass).
 	if req.Found && orderID == "" && !req.WasmGatePass && signerAddr != "" && m.baselineRelayEnabled() {
 		mod := leaseMod
+		prevForRelay := strings.TrimSpace(rec.PrevHash)
+		addrForRelay := strings.TrimSpace(rec.MinerAddress)
+		if addrForRelay == "" {
+			addrForRelay = strings.TrimSpace(signerAddr)
+		}
+		fvRelay := rec.FormulaVersion
+		if fvRelay <= 0 {
+			fvRelay = m.resolvedPoHFormulaVersionLocked()
+		}
 		m.mu.Unlock()
 		var probeOK bool
 		orderSnap, probeOK = m.activeOrderSnapshotStatus()
-		// Fail closed: probe outage must not mint baseline while a WASM order may be open.
+		// Fail closed: probe outage OR open-but-unclaimable order must not mint baseline.
 		if !probeOK && strings.TrimSpace(m.ordersProbeURL) != "" {
 			m.mu.Lock()
 			m.rejectedSubmits++
 			return false, "orders_probe_unavailable", 0, signerAddr, signerAddr != ""
 		}
-		if orderSnap.ID != "" && strings.TrimSpace(orderSnap.WasmHex) != "" {
+		if orderSnap.ID != "" {
 			m.mu.Lock()
 			m.rejectedSubmits++
 			return false, "active_order_requires_wasm_found", 0, signerAddr, signerAddr != ""
+		}
+		// Live tip+M gate matching SubmitBaselinePoHSolve predicates (shrink lease/retarget races).
+		if m.baselineRelayMode() == "on" {
+			live := m.liveChainMetricsFromNode()
+			if live.TipHash != "" && prevForRelay != "" && !strings.EqualFold(prevForRelay, live.TipHash) {
+				m.mu.Lock()
+				m.rejectedSubmits++
+				return false, "stale_tip_before_baseline_relay", 0, signerAddr, signerAddr != ""
+			}
+			if live.HasMod && live.Mod > 0 {
+				liveMod := m.clampTargetMod(live.Mod)
+				tipForPoH := live.TipHash
+				if tipForPoH == "" {
+					tipForPoH = prevForRelay
+				}
+				if addrForRelay == "" || !validFoundNoncePoH(req.FoundNonce, liveMod, fvRelay, tipForPoH, addrForRelay) {
+					m.mu.Lock()
+					m.rejectedSubmits++
+					return false, "found_invalid_for_live_chain_mod", 0, signerAddr, signerAddr != ""
+				}
+				mod = liveMod
+			}
 		}
 		chainSolve = m.relayBaselineSolve(signerAddr, req.FoundNonce, mod)
 		m.mu.Lock()

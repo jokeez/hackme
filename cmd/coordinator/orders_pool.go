@@ -85,48 +85,26 @@ func (m *workManager) ordersAdminToken() string {
 	return ""
 }
 
-// liveChainPoHModFromNode returns canonical mining_target_mod from the chain node metrics API.
-func (m *workManager) liveChainPoHModFromNode() uint64 {
+// liveChainMetricsFromNode returns mining_target_mod + tip from one metrics fetch
+// (status merge for older nodes). Used before D1 baseline relay to avoid stale M/tip.
+func (m *workManager) liveChainMetricsFromNode() chainMetricsSnap {
 	base := strings.TrimRight(strings.TrimSpace(m.ordersProbeURL), "/")
 	if base == "" {
 		base = strings.TrimRight(strings.TrimSpace(m.targetURL), "/")
 	}
 	if base == "" {
-		return 0
+		return chainMetricsSnap{}
 	}
-	cl := netutil.HTTPClientNoRedirect(2 * time.Second)
-	req, err := http.NewRequest(http.MethodGet, base+"/api/metrics", nil)
-	if err != nil {
-		return 0
-	}
-	if tok := m.ordersAdminToken(); tok != "" {
-		req.Header.Set("X-Hackme-Admin-Token", tok)
-	}
-	resp, err := cl.Do(req)
-	if err != nil {
-		return 0
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return 0
-	}
-	var body map[string]any
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&body); err != nil {
-		return 0
-	}
-	v, ok := body["mining_target_mod"]
-	if !ok {
-		return 0
-	}
-	switch t := v.(type) {
-	case float64:
-		if t > 0 {
-			return uint64(t)
-		}
-	case json.Number:
-		if x, err := t.Int64(); err == nil && x > 0 {
-			return uint64(x)
-		}
+	snap := fetchChainMetricsFromNode(base)
+	mergeTipFromStatus(base, &snap)
+	return snap
+}
+
+// liveChainPoHModFromNode returns canonical mining_target_mod from the chain node metrics API.
+func (m *workManager) liveChainPoHModFromNode() uint64 {
+	snap := m.liveChainMetricsFromNode()
+	if snap.HasMod && snap.Mod > 0 {
+		return snap.Mod
 	}
 	return 0
 }
@@ -427,18 +405,20 @@ func (m *workManager) refreshActiveOrderLockedStatus() (activeOrderSnap, bool) {
 	// fmt.Sprintf("%v", map) is NOT valid JSON — that used to drop wasm and leave
 	// scheduler_mode=orders with leases but no order_task_id on claims (progress stuck at 0).
 	wasmHex, mfReward := orderManifestWasmReward(pick["manifest_json"])
+	// Open paid order on hub but unclaimable WASM: fail closed for baseline mint
+	// (probeOK=false) so D1 cannot divert subsidy while customers still have open tasks.
 	if wasmHex == "" {
 		m.activeOrder = activeOrderSnap{}
-		return activeOrderSnap{}, true
+		return activeOrderSnap{}, false
 	}
 	raw, err := hex.DecodeString(wasmHex)
 	if err != nil || len(raw) == 0 || len(raw) > maxOrderWasmClaimBytes {
 		m.activeOrder = activeOrderSnap{}
-		return activeOrderSnap{}, true
+		return activeOrderSnap{}, false
 	}
 	if err := sandbox.ValidateCheckWasm(context.Background(), raw); err != nil {
 		m.activeOrder = activeOrderSnap{}
-		return activeOrderSnap{}, true
+		return activeOrderSnap{}, false
 	}
 	reward, _ := pick["reward"].(float64)
 	if reward <= 0 {
