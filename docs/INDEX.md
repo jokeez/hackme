@@ -7,7 +7,7 @@
 | **Miner** | [QUICK_START.md](QUICK_START.md) → [SETUP.md](SETUP.md) → [OPEN_POOL_MINERS.md](OPEN_POOL_MINERS.md) → [GPU_MINING_BACKENDS.md](GPU_MINING_BACKENDS.md) |
 | **Customer** (Dig / Hunt orders) | [FUZZ_PRODUCT_GUIDE.md](FUZZ_PRODUCT_GUIDE.md) → [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md) → [CUSTOMER_FUZZ_DELIVERABLES.md](CUSTOMER_FUZZ_DELIVERABLES.md) → [ORDER_ECONOMICS.md](ORDER_ECONOMICS.md) |
 | **Exchange / listing** | [HMC_TOKENOMICS.md](HMC_TOKENOMICS.md) · [SUP_TOKENOMICS.md](SUP_TOKENOMICS.md) · [TOKEN_ALLOCATION_AND_VESTING.md](TOKEN_ALLOCATION_AND_VESTING.md) · [../web/site/token-transparency.html](../web/site/token-transparency.html) · [../web/site/listing.html](../web/site/listing.html) |
-| **Economics v2 (upcoming)** | [RFC_ECONOMICS_V2.md](RFC_ECONOMICS_V2.md) — emission, pool funding, fees, SUP, activation process |
+| **Economics v2 (soft announce)** | [RFC_ECONOMICS_V2.md](RFC_ECONOMICS_V2.md) — design lock; tip+≥14d activation later · [news](https://hackme.tech/news.html#2026-10-30-economics-v2-soft-announce) |
 | **Developer** | [API.md](API.md) → [ARCHITECTURE.md](ARCHITECTURE.md) → [DEVELOPERS_FUZZING.md](DEVELOPERS_FUZZING.md) → [SECURITY.md](SECURITY.md) · [SECURITY_REPO.md](SECURITY_REPO.md) |
 
 Layout: **`docs/`** = public guides · **[`internal/`](internal/README.md)** = operator / listing prep · **[`archive/`](archive/README.md)** = old RC / engine / session notes.
@@ -42,7 +42,7 @@ Layout: **`docs/`** = public guides · **[`internal/`](internal/README.md)** = o
 | [POOL_DIRECT_COORDINATOR.md](POOL_DIRECT_COORDINATOR.md) | Direct coordinator wiring |
 | [POOL_FUZZ_DISTRIBUTED.md](POOL_FUZZ_DISTRIBUTED.md) | Pool-distributed deep campaigns |
 | [GHS_DIG_COUPLING.md](GHS_DIG_COUPLING.md) | GHS ↔ Dig coupling |
-| Current channel | **0.1.0-rc18.x** — Blake3 · share-PPS · CUDA/OpenCL · ISO — [releases/](releases/) · https://hackme.tech/news.html |
+| Current channel | **0.1.0-rc18.x** — Blake3 · share-PPS · D1 baseline relay staging · CUDA/OpenCL · ISO — [releases/](releases/) · https://hackme.tech/news.html |
 | [../web/site/roadmap.html](../web/site/roadmap.html) | Public ecosystem roadmap |
 
 ## Fuzzing / B2B

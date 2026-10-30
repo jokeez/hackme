@@ -73,6 +73,8 @@ Payout follows **accepted work**, not lottery blocks. Model: [NETWORK_MODEL.md](
 | **Hunt Watch 2026sep** | **12/12 closed** · [ledger](https://hackme.tech/reports/hunt-watch-2026sep/) |
 | **OSS CVE Watch** | nghttp2 **14/14** · libheif **14/14** CLEAN ledgers |
 | **HMS storage** | Preview only — not a miner lane |
+| **Economics v2** | **Soft announce** (design lock) — [RFC](docs/RFC_ECONOMICS_V2.md) · [news](https://hackme.tech/news.html#2026-10-30-economics-v2-soft-announce) · **not** height-activated yet |
+| **D1 pool mint** | Live staging: empty PoH finds relay into settlement float (`LOCAL_POH` off on hub) — soak before v2 height switch |
 
 Channel: **0.1.0-rc18.x** — [docs/releases/](docs/releases/) · [docs/INDEX.md](docs/INDEX.md) · news: https://hackme.tech/news.html · prior rc17: [docs/archive/rc/HACKME_RC17.md](docs/archive/rc/HACKME_RC17.md)
 
@@ -117,7 +119,7 @@ Dashboard → **http://127.0.0.1:8080** · [SETUP.md](docs/SETUP.md)
 
 ### HackMe OS
 
-Flash the **rc17** ISO → boot → wallet + mining.
+Flash the **rc18** ISO → boot → wallet + mining.
 
 ```bash
 bash scripts/tests/verify_hackme_iso.sh your.iso
@@ -144,7 +146,7 @@ GPU backends: [GPU_MINING_BACKENDS.md](docs/GPU_MINING_BACKENDS.md).
 ```bash
 hackme-fuzzing wizard --pack filter_utf8 --package audit
 hackme-fuzzing hunt … --package hunt_lite   # see docs
-bash scripts/ops/install_hunt_engines.sh --desktop   # clang + AFL++ + bwrap (auto-install on published rc17.4 installers)
+bash scripts/ops/install_hunt_engines.sh --desktop   # clang + AFL++ + bwrap (auto-install on published rc18 installers)
 ```
 
 | Dig package | ~HMC | Runs (guide) |
@@ -201,7 +203,7 @@ bash scripts/tests/public_site_smoke.sh
 bash scripts/tests/version_consistency_gate.sh
 ```
 
-Release: `VERSION=0.1.0-rc17.4 bash scripts/release/make_release_bundle.sh` — [scripts/release/README.md](scripts/release/README.md)
+Release: `VERSION=0.1.0-rc18 bash scripts/release/make_release_bundle.sh` — [scripts/release/README.md](scripts/release/README.md)
 
 ---
 

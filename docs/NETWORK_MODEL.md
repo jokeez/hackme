@@ -28,8 +28,8 @@ The price of the model is **trust in the canon operator** (VPS) and transparency
 
 | Layer | What is this | Typical host |
 |------|---------|----------------|
-| **Command node** (chain node) | SQLite blockchain, `POST /api/genesis`, with local PoH allowed - **write PoH blocks** (`HACKME_CHAIN_LEADER_LOCAL_POH=1` only on the leader). A public “source of truth” for height/balance/mempool on the network. | **VPS** (staging / prod) |
-| **Coordinator** | Work queue for workers: `claim` / `submit` / `stats`, accounting for attempts and **accrual** payments according to the pool policy. By itself **does not replace** recording blocks in a chain. | Often the same VPS or a separate process (`go run ./cmd/coordinator`) |
+| **Command node** (chain node) | SQLite blockchain, `POST /api/genesis`, public tip/balance/mempool. **Staging/prod D1:** hub runs with `HACKME_CHAIN_LEADER_LOCAL_POH=0` and accepts pool empty finds via admin `POST /api/poh/solve-baseline` (subsidy → settlement primary wallet). `LOCAL_POH=1` is lab / emergency leader mining only. | **VPS** (staging / prod) |
+| **Coordinator** | Work queue: `claim` / `submit` / `stats`, share-PPS accrual, optional **baseline relay** (`HACKME_POOL_BASELINE_RELAY=on`) that posts valid empty finds to the command node. Does **not** replace the chain ledger. | Often the same VPS (`go run ./cmd/coordinator`) |
 
 A miner on a home PC in **worker-mode** connects to **coordinator** and to the **canonical API** of the node (via `HACKME_POOL_COORDINATOR_URL`, `HACKME_CANONICAL_CHAIN_URL` or output from `HACKME_PUBLIC_AUTHORITY_BASE`). Local WASM PoH on the participant is **disabled** - this is not a “second chain”, but a client of the pool.
 
@@ -49,11 +49,11 @@ Total: **you can mine through a pool** without P2P; **copy of the chain on disk*
 
 ## 3. Who “generates blocks” and how the emission is divided
 
-- **PoH blocks** in the canon are written by **the command node** that actually solves the problem and adds the block to **its** chain (on a public stack this is expected **VPS** with the leader script/mining enabled according to your deployment).
-- **The emission rate** of the network is limited by the target block interval (retarget `poh_target_mod`, etc.) - thousands of workers **do not multiply** emission; they **share the probability/share** in the PoH model and in the coordinator accounting (see the “Capacity” section in [`ECONOMICS_DASHBOARD.md`](ECONOMICS_DASHBOARD.md)).
-- **The base/order of the block reward** on the chain side goes to the **primary wallet** of the producer node (not “automatically for each GPU” of the remote rig). Pool participants receive a share through **coordinator accrual → settlement/on-chain** - this is **not** the same as directly splitting each block onto each GPU (explicitly on the `web/site/index.html` website and in `ECONOMICS_DASHBOARD.md`).
+- **PoH blocks** are appended on the **command node**. Under **D1**, pool workers find empty Blake3 solutions; the coordinator relays them with `solve-baseline`; the node mints the next empty block. Header `miner_address` is the finding worker; **subsidy credits the node primary / settlement wallet**.
+- **Emission rate** is limited by ASERT / `poh_target_mod` (~30s target). More workers do **not** multiply inflation; they compete for finds and earn via **share-PPS accrual → settlement**.
+- Pool participants are **not** paid by auto-splitting each block onto each GPU — see [`MINER_POOL_ECONOMICS.md`](MINER_POOL_ECONOMICS.md) and [`ECONOMICS_DASHBOARD.md`](ECONOMICS_DASHBOARD.md).
 
-Orders (`POST /api/tasks`) - a separate layer: escrow and linking a reward to a task when an order is open.
+Orders (`POST /api/tasks`) / Dig / Hunt — separate escrow rails (`solve-order`, PayRun / `run_floor`), not empty-block subsidy.
 
 ### Block difficulty (ASERT, from block 495 400)
 

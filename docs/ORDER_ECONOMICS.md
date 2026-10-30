@@ -26,6 +26,7 @@ coordinator-only token yields HTTP 401 on `POST /api/tasks` and attach silently 
 - **Prepaid** = `reward_hmc × target_solves` (held in `meta_order_escrow_units`). **Minimum prepaid = 0.05 HMC** (`MinOrderPrepaidHMC`) — prevents dust orders that pay miners negligible per-solve slices.
 - **Platform fee** = 5% of prepaid at order open (to dev fee address).
 - **Burn tally** = 10% of prepaid recorded in supply metadata at open.
+- **Economics v2 RFC** (not live): target **10% upfront = 5% burn / 5% platform** at activation — [RFC_ECONOMICS_V2.md](RFC_ECONOMICS_V2.md).
 
 This is **not** a single “100 HMC to whoever finds a critical bug” jackpot unless you design the manifest that way (e.g. `target_solves: 1` with a high `reward_hmc`).
 

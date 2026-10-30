@@ -4,11 +4,13 @@
 
 Public site: [coin-hmc.html](https://hackme.tech/coin-hmc.html) · Live API: `GET https://hackme.tech/api/status` → `economics`
 
-## Supply
+> **Economics v2 soft announce (2026-10-30):** live chain still uses the schedule below until a published activation height. Planned v2 changes (0.1 HMC/block, ~4y halvings, no hard max-supply fiction, pool from emission) are in [RFC_ECONOMICS_V2.md](RFC_ECONOMICS_V2.md) — **not activated yet**.
+
+## Supply (live / v1 until activation)
 
 | Parameter | Value | Source |
 |-----------|-------|--------|
-| **Max supply** | **100,000,000 HMC** | `internal/chain/economics.go` · locked tests |
+| **Max supply (live narrative)** | **100,000,000 HMC** | `internal/chain/economics.go` · locked tests · **v2 RFC removes hard-cap marketing at activation** |
 | **Genesis mint** | **50,000 HMC** | One-time treasury credit at block #0 |
 | **Genesis recipient** | `HMC-719006d93916ad52` (DevFee / ops treasury) | On-chain; explorer-verifiable |
 | **Circulating** | `total_minted - burned` | `GET /api/status` -> `economics.circulating_hmc` |
@@ -16,14 +18,15 @@ Public site: [coin-hmc.html](https://hackme.tech/coin-hmc.html) · Live API: `GE
 
 There is **no** separate pre-mine bucket beyond the disclosed genesis treasury. Remaining supply enters via **PoH block rewards** and **order escrow** (prepaid by customers, not inflation).
 
-## Emission schedule (base PoH blocks)
+## Emission schedule (base PoH blocks) — live
 
-| Parameter | Value |
-|-----------|-------|
-| Initial base reward | **0.01 HMC** per empty PoH block |
-| Halving interval | **2,102,400 blocks** (~2 years at 30s target) |
-| Tail floor | **0.002 HMC** per block (after halvings reach floor) |
-| Target block time | ~30 seconds |
+| Parameter | Live (v1) | v2 (RFC, not live) |
+|-----------|-----------|---------------------|
+| Initial base reward | **0.01 HMC** / empty PoH block | **0.1 HMC** |
+| Halving interval | **2,102,400** (~2y @ 30s) | **4,204,800** (~4y) |
+| Tail floor | **0.002 HMC** | **0.002 HMC** forever |
+| Target block time | ~30 seconds | unchanged |
+| Activation | — | announced height ≥ tip + 14d |
 
 Formula: `reward_base(height) = max(tail_floor, initial_base / 2^epoch)` where `epoch = floor((height-1) / halving_interval)`.
 

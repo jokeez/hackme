@@ -8,9 +8,11 @@ English guide for anyone joining **https://hackme.tech** as a pool worker.
 |--------|----------------|-----------------|
 | **Coordinator** | Off-chain accrual for **verified Blake3 shares** (share-PPS) | Dashboard **Unpaid worker accrual** / coordinator stats |
 | **Settlement** | On-chain HMC to your `HMC-…` address | After operator Go settler `workersettle` / `settle_worker_payouts` (timer ~2 min); ledger is SQLite **uint64 units** (1 HMC = 10⁸) |
-| **Chain block subsidy** | PoH block reward | **Primary wallet of the block-producing node** — not auto-split to every GPU |
+| **Chain block subsidy** | PoH block reward | Credits the **settlement / primary wallet** on the command node (not auto-split per GPU). With **D1 baseline relay** live, pool empty finds mint via `solve-baseline` into that float so share-PPS can settle without perpetual treasury top-ups. |
 
-Dig/Hunt escrow (customer orders) is a **separate** rail: PayRun / bounty from campaign escrow, not the Blake3 share-PPS formula below.
+Dig/Hunt escrow (customer orders) is a **separate** rail: PayRun / bounty / Hunt `run_floor` from campaign escrow, not the Blake3 share-PPS formula below.
+
+**Economics v2** (higher base reward, long halvings) is soft-announced only — see [RFC_ECONOMICS_V2.md](RFC_ECONOMICS_V2.md). Live pay still uses current 0.01 HMC empty-block schedule until activation.
 
 ## Public pool payout (live — share-PPS)
 
