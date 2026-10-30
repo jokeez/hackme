@@ -4,9 +4,16 @@
 <title>HackMe Network News</title>
 <link>https://hackme.tech/news.html</link>
 <description>Official HackMe pool, release, and research notices.</description>
-<lastBuildDate>Tue, 27 Oct 2026 08:11:02 +0000</lastBuildDate>
+<lastBuildDate>Fri, 30 Oct 2026 09:20:29 +0000</lastBuildDate>
 <atom:link href="https://hackme.tech/news.xml" rel="self" type="application/rss+xml"/>
 <language>en-us</language>
+<item>
+<title>Economics v2 — soft announce (design lock; not activated)</title>
+<link>https://hackme.tech/news.html#2026-10-30-economics-v2-soft-announce</link>
+<guid isPermaLink="false">2026-10-30-economics-v2-soft-announce</guid>
+<pubDate>Fri, 30 Oct 2026 00:00:00 +0000</pubDate>
+<description>Public RFC locks Economics v2 before any height switch: target 0.1 HMC/empty block, ~4-year halvings from genesis, permanent 0.002 HMC tail, no hard max-supply fiction, pool funded from emission (not perpetual treasury top-ups), clearer order fee/burn, SUP as utility. No airdrops. Activation only after D1 soak + published height with ≥14 days notice from tip — not a vanity block.</description>
+</item>
 <item>
 <title>0.1.0-rc18 — Blake3 share-PPS LIVE · CUDA/OpenCL · ISO channel</title>
 <link>https://hackme.tech/news.html#2026-10-26-rc18-live</link>
@@ -279,13 +286,6 @@
 <guid isPermaLink="false">2026-07-16-pool-privacy-site-hub</guid>
 <pubDate>Thu, 16 Jul 2026 00:00:00 +0000</pubDate>
 <description>Unauthenticated coordinator stats and by-wallet no longer expose last_client_ip. Research hub updated to OSS CVE Watch Day 8/14. Security rewards page + footer link; home Live pool shows workers online.</description>
-</item>
-<item>
-<title>OSS CVE Watch Day 8/14 · nghttp2 · 1.02B libFuzzer exec · CLEAN</title>
-<link>https://hackme.tech/news.html#2026-07-15-oss-cve-watch-day08-nghttp2-libfuzzer</link>
-<guid isPermaLink="false">2026-07-15-oss-cve-watch-day08-nghttp2-libfuzzer</guid>
-<pubDate>Wed, 15 Jul 2026 00:00:00 +0000</pubDate>
-<description>Eighth day on nghttp2: 8h libFuzzer depth session, 1,015,266,765 executions at ~35.3k exec/s. Corpus 418 inputs (326KB), 467 coverage edges. Zero ASAN heap crashes — eighth honest CLEAN day.</description>
 </item>
 </channel>
 </rss>

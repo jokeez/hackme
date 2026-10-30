@@ -1,6 +1,56 @@
 {
   "items": [
     {
+      "id": "2026-10-30-economics-v2-soft-announce",
+      "date": "2026-10-30",
+      "title": "Economics v2 — soft announce (design lock; not activated)",
+      "summary": "Public RFC locks Economics v2 before any height switch: target 0.1 HMC/empty block, ~4-year halvings from genesis, permanent 0.002 HMC tail, no hard max-supply fiction, pool funded from emission (not perpetual treasury top-ups), clearer order fee/burn, SUP as utility. No airdrops. Activation only after D1 soak + published height with ≥14 days notice from tip — not a vanity block.",
+      "impact": "Operators and miners: read the RFC. Live network stays on current rc18 economics until a later announced activation height. Dig/Hunt package prices unchanged by this RFC. Do not treat 0.1 HMC/block as live yet.",
+      "action": "RFC: https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md · Economics overview: https://hackme.tech/economics-model.html · News: https://hackme.tech/news.html#2026-10-30-economics-v2-soft-announce",
+      "tags": [
+        "economics",
+        "rfc",
+        "emission",
+        "pool",
+        "announcement"
+      ],
+      "status": "published",
+      "featured": true,
+      "social": {
+        "lead": "Economics v2 soft announce — design lock, not live yet.",
+        "bullets": [
+          "0.1 HMC/block target (later height)",
+          "~4y halvings + 0.002 tail",
+          "Pool from emission; no airdrops",
+          "≥14d notice before activation"
+        ],
+        "body": "**HackMe Economics v2 — soft announce**\n\nDesign lock before any height switch.\n\n• Target: **0.1 HMC**/empty block · ~4y halvings · **0.002** tail\n• No hard max-supply fiction · no airdrops\n• Pool funded from **emission**\n• Activation = soak + published height (≥14d notice)\n\n**Not activated yet.**\n\nhttps://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md",
+        "headline": "Economics v2 soft announce (not activated)"
+      },
+      "telegram": {
+        "headline": "Economics v2 — soft announce",
+        "lead": "Design lock before height switch. Not live yet.",
+        "bullets": [
+          "0.1 HMC/block target at later activation height",
+          "~4-year halvings + permanent 0.002 tail",
+          "No hard max supply · no airdrops",
+          "Pool from emission, not endless treasury top-ups",
+          "Activation after soak + ≥14 days notice from tip"
+        ],
+        "footer": "RFC: github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md · not financial advice"
+      },
+      "discord": {
+        "title": "Economics v2 — soft announce",
+        "body": "**Economics v2 soft announce** (process lock — **not activated**)\n\n• Target: **0.1 HMC**/empty block · ~4y halvings · **0.002** tail forever\n• No advertised hard max supply · **no airdrops**\n• Pool funded from **emission**\n• Activation height published later (≥ tip + 14 days)\n\nRFC: https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md",
+        "ping": "#announcements"
+      },
+      "links": {
+        "rfc": "https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md",
+        "economics": "https://hackme.tech/economics-model.html",
+        "news": "https://hackme.tech/news.html#2026-10-30-economics-v2-soft-announce"
+      }
+    },
+    {
       "id": "2026-10-26-rc18-live",
       "date": "2026-10-26",
       "title": "0.1.0-rc18 — Blake3 share-PPS LIVE · CUDA/OpenCL · ISO channel",
@@ -17,7 +67,7 @@
         "opencl"
       ],
       "status": "published",
-      "featured": true,
+      "featured": false,
       "social": {
         "lead": "0.1.0-rc18 channel · share-PPS · blake3_pow_ghs.",
         "bullets": [
@@ -385,44 +435,6 @@
         "news": "https://hackme.tech/news.html",
         "latest": "https://hackme.tech/dist/latest.json",
         "iso_sha": "https://hackme.tech/dist/release_0.1.0-rc16/SHA256SUMS-iso.txt"
-      }
-    },
-    {
-      "id": "2026-08-27-iso-zk-phrase-log-fix",
-      "date": "2026-08-27",
-      "title": "HackMe OS ISO rebuilt — ZK recovery phrase no longer in /var/log",
-      "summary": "Security rebuild of HackMe-OS-0.1.0-rc15-amd64.iso: the Zero-Knowledge Start recovery phrase is no longer appended to world-readable /var/log. Display logging uses /var/lib/hackme/zk-wallet-display.log (0600); the phrase is shown on local TTYs for photography only. SHA256 94590a5b… supersedes the 2026-08-22 ISO (9158109d…). Win/Linux/fuzz binaries are unchanged; hub audit hardenings (task auth, fuzz rate limits, settle fail-closed, trusted XFF, CORS) are live on hackme.tech.",
-      "impact": "Anyone flashing from GitHub or hackme.tech downloads must re-verify SHA256SUMS-iso.txt. Old USB sticks with the Aug 22 image still leak the phrase into logs until re-flashed.",
-      "action": "Downloads: https://hackme.tech/downloads.html#hackme-os · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc15 · Verify: sha256sum -c SHA256SUMS-iso.txt · Expected ISO SHA256: 94590a5b07933379d1db954692411b79223b778f5d21c8fc8a9259905613545e",
-      "tags": [
-        "security",
-        "iso",
-        "rc15",
-        "zk",
-        "release"
-      ],
-      "status": "published",
-      "telegram": {
-        "headline": "HackMe OS ISO security rebuild",
-        "lead": "ZK recovery phrase no longer written to world-readable /var/log. Re-flash USB and verify SHA256SUMS-iso.txt.",
-        "bullets": [
-          "ISO SHA256 now 94590a5b… (replaces 9158109d… from Aug 22)",
-          "Phrase on local TTYs only · display log 0600 under /var/lib/hackme",
-          "Win/Linux/fuzz binaries unchanged · hub audit hardenings already live",
-          "Verify before flash: sha256sum -c SHA256SUMS-iso.txt"
-        ],
-        "footer": "hackme.tech/downloads.html#hackme-os · GitHub 0.1.0-rc15 · not financial advice"
-      },
-      "discord": {
-        "title": "HackMe OS ISO rebuilt (ZK log fix)",
-        "body": "**HackMe OS ISO security rebuild (2026-08-27)**\n\n• Recovery phrase **not** written to `/var/log`\n• Log: `/var/lib/hackme/zk-wallet-display.log` (`0600`)\n• **SHA256:** `94590a5b07933379d1db954692411b79223b778f5d21c8fc8a9259905613545e`\n• Re-flash USB; verify `SHA256SUMS-iso.txt`\n\nhttps://hackme.tech/downloads.html#hackme-os\nhttps://github.com/jokeez/hackme/releases/tag/0.1.0-rc15",
-        "ping": "#announcements"
-      },
-      "links": {
-        "downloads": "https://hackme.tech/downloads.html#hackme-os",
-        "github": "https://github.com/jokeez/hackme/releases/tag/0.1.0-rc15",
-        "news": "https://hackme.tech/news.html",
-        "sha": "https://hackme.tech/dist/release_0.1.0-rc15/SHA256SUMS-iso.txt"
       }
     }
   ],

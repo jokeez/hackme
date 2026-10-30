@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-06-04-rc11l-iso-live-boot",
+      "date": "2026-06-04",
+      "title": "HackMe OS 0.1.0-rc11l — live USB overlay boot fix",
+      "summary": "Live USB on laptops panicked with overlay not loaded: casper live boot never runs local-premount. rc11l loads kernel modules in casper-premount before the squashfs mounts. Windows and Linux installers unchanged; download channel is rc11l.",
+      "impact": "Use HackMe-OS-0.1.0-rc11l-amd64.iso only for USB rigs until hardware sign-off.",
+      "action": "Downloads and SHA256: hackme.tech/downloads.html#hackme-os",
+      "tags": [
+        "release",
+        "hackme-os",
+        "iso",
+        "mining"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-06-03-rc11k-launch-candidate",
       "date": "2026-06-03",
       "title": "Release 0.1.0-rc11k — launch candidate (production miner)",
@@ -241,22 +256,6 @@
         "mining",
         "hackme-os",
         "windows",
-        "infrastructure"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-22-ecosystem-chaos-hackme-os",
-      "date": "2026-05-22",
-      "title": "Ecosystem dashboard · nightly chaos guard · HackMe OS miner ISO",
-      "summary": "Desktop dashboard home is now the Ecosystem coin table (Hive-style): live HMC pool stats, clickable mining entry, roadmap slots for future chains. Nightly chaos guard tests 5000 payout ledger drift, HTTP replay/tamper (403), and HackMe OS init-worker.ini hardening. HackMe OS live USB build: CPU isolation, RT scheduler, GPU performance mode, fair pool worker autostart.",
-      "impact": "Miners get a clearer pool-first UI; operators get automated security regression tests; Linux rigs can boot a dedicated HackMe OS image pointed at hackme.tech pool.",
-      "action": "Pull latest main · Dashboard: http://127.0.0.1:8080 (Ecosystem tab) · Pool: https://hackme.tech/pool/coordinator/api/work/stats · Docs: docs/HACKME_OS.md · Chaos tests: bash scripts/tests/nightly_chaos_guard.sh",
-      "tags": [
-        "release",
-        "mining",
-        "pool",
-        "security",
         "infrastructure"
       ],
       "status": "published"

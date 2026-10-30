@@ -1,7 +1,15 @@
 {
   "version": 1,
-  "updated_unix": 1793022000,
+  "updated_unix": 1793362800,
   "notices": [
+    {
+      "id": "economics-v2-soft-announce",
+      "severity": "info",
+      "title": "Economics v2 — soft announce (not activated)",
+      "body": "Public RFC locks Economics v2 design: target 0.1 HMC/block, ~4y halvings, 0.002 tail, pool from emission, no airdrops. Not live yet — activation only after soak + \u226514 days notice. Live payouts remain current rc18 rules.",
+      "cta_label": "Read RFC",
+      "cta_href": "https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md"
+    },
     {
       "id": "rc18-share-pps",
       "severity": "info",

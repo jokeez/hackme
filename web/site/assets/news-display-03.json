@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-07-01-b2b-fuzz-final",
+      "date": "2026-07-01",
+      "title": "B2B Fuzz Final — one command from WASM guard to CI gate",
+      "summary": "Ship a security guard, pick Scan · Audit · Deep, miners fuzz it on the pool, get an HTML report plus a pass/fail gate your pipeline can enforce. hackme-fuzzing wizard — no browser admin on the public site.",
+      "impact": "Protocol teams get a productized audit path: local node escrow (20/80 HMC), distributed useful-PoW workers, customer report token, GET /gate for CI. Coordinator now re-verifies WASM on found nonces — fabricated worker gate passes cannot drain bounty. Ops: fuzz_b2b_final_gate.sh → VERDICT.md.",
+      "action": "Developers: https://hackme.tech/developers.html · CLI: https://hackme.tech/downloads.html#fuzzing-client · Tracker: https://hackme.tech/fuzzing-console.html · Command: hackme-fuzzing wizard --wasm guard.wasm --package audit",
+      "tags": [
+        "fuzzing",
+        "b2b",
+        "security",
+        "product",
+        "devtools"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-06-28-cfgpack-upstream-fix",
       "date": "2026-06-28",
       "title": "Upstream win: cfgpack MessagePack int64 UBSan — fixed in b5e7cff",
@@ -239,21 +255,6 @@
         "security",
         "infrastructure",
         "research"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-06-04-rc11l-iso-live-boot",
-      "date": "2026-06-04",
-      "title": "HackMe OS 0.1.0-rc11l — live USB overlay boot fix",
-      "summary": "Live USB on laptops panicked with overlay not loaded: casper live boot never runs local-premount. rc11l loads kernel modules in casper-premount before the squashfs mounts. Windows and Linux installers unchanged; download channel is rc11l.",
-      "impact": "Use HackMe-OS-0.1.0-rc11l-amd64.iso only for USB rigs until hardware sign-off.",
-      "action": "Downloads and SHA256: hackme.tech/downloads.html#hackme-os",
-      "tags": [
-        "release",
-        "hackme-os",
-        "iso",
-        "mining"
       ],
       "status": "published"
     }

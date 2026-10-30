@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-10-30-economics-v2-soft-announce",
+      "date": "2026-10-30",
+      "title": "Economics v2 — soft announce (design lock; not activated)",
+      "summary": "Public RFC locks Economics v2 before any height switch: target 0.1 HMC/empty block, ~4-year halvings from genesis, permanent 0.002 HMC tail, no hard max-supply fiction, pool funded from emission (not perpetual treasury top-ups), clearer order fee/burn, SUP as utility. No airdrops. Activation only after D1 soak + published height with ≥14 days notice from tip — not a vanity block.",
+      "impact": "Operators and miners: read the RFC. Live network stays on current rc18 economics until a later announced activation height. Dig/Hunt package prices unchanged by this RFC. Do not treat 0.1 HMC/block as live yet.",
+      "action": "RFC: https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md · Economics overview: https://hackme.tech/economics-model.html · News: https://hackme.tech/news.html#2026-10-30-economics-v2-soft-announce",
+      "tags": [
+        "economics",
+        "rfc",
+        "emission",
+        "pool",
+        "announcement"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-10-26-rc18-live",
       "date": "2026-10-26",
       "title": "0.1.0-rc18 — Blake3 share-PPS LIVE · CUDA/OpenCL · ISO channel",

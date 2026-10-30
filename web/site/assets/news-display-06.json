@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-05-07-fuzz-product-guide-site",
+      "date": "2026-05-07",
+      "title": "Fuzz Campaigns Guide (Docs + Site)",
+      "summary": "Added docs/FUZZ_PRODUCT_GUIDE.md and public fuzz-guide.html covering fuzz_release_gate.sh, HACKME_FUZZ_AUTORUN and artifact env, report tokens, CI gate endpoint, and housekeeping APIs.",
+      "impact": "Operators and auditors have a single fuzz onboarding path linked from Docs, API reference, and operator checklist.",
+      "action": "Visit /fuzz-guide.html after deploy; keep fuzz_release_gate green before tagging releases.",
+      "tags": [
+        "docs",
+        "fuzz",
+        "security",
+        "release"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-07-operator-final-checklist",
       "date": "2026-05-07",
       "title": "Operator Final Checklist (Repo + Site)",
