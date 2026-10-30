@@ -361,6 +361,10 @@ func (s *Service) tryFinalizeEscrow(ctx context.Context, campaignID string) erro
 	if campaignID == "" {
 		return nil
 	}
+	// Heal applied-outbox / still-queued drift before the unpaid gate.
+	if _, err := s.PromoteAppliedSettleIntents(ctx, campaignID); err != nil {
+		return err
+	}
 	pending, err := s.CountPendingSettleOutbox(ctx, campaignID)
 	if err != nil {
 		return err
