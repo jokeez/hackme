@@ -1058,6 +1058,24 @@ func (m *workManager) applyChainTargetMod(parsed uint64, now int64) {
 	if parsed == 0 {
 		return
 	}
+	// D1 live baseline mint validates finds against chain PoHTargetMod. If pool M
+	// drifted above chain M via load-retarget, accepts then fail on solve-baseline
+	// ("invalid poh solution for submitted target_mod") and tip stalls while LOCAL_POH is off.
+	if m.baselineRelayMode() == "on" {
+		next := m.clampTargetMod(parsed)
+		if next != m.targetMod {
+			m.targetMod = next
+			m.targetModUpdatedUnix = now
+			persistPoolTargetMod(next)
+			if m.rewardAuto && m.baseRewardHMC > 0 {
+				m.rewardPerM = (m.baseRewardHMC * 1_000_000.0) / float64(m.targetMod)
+				if m.rewardPerM < 0 {
+					m.rewardPerM = 0
+				}
+			}
+		}
+		return
+	}
 	// Blake3 v3 + share-PPS: load retarget owns pool M (fleet GH → difficulty).
 	// Chain mining_target_mod is a solvability floor only — never smash pool M
 	// back to a stale/low chain tip (UI showed load_hint≈70M while M stuck at min).

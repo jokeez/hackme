@@ -126,6 +126,23 @@ func TestBaselineRelayOnBlockedWhenLocalPoH(t *testing.T) {
 	}
 }
 
+func TestApplyChainTargetModPinsWhenBaselineRelayOn(t *testing.T) {
+	t.Setenv("HACKME_POOL_BASELINE_RELAY", "on")
+	t.Setenv("HACKME_CHAIN_LEADER_LOCAL_POH", "0")
+	t.Setenv("HACKME_POOL_BASELINE_RELAY_ALLOW_LOCAL_POH", "")
+	wm := &workManager{
+		targetMod:         90_000_000_000,
+		targetModMin:      2_000_000,
+		targetModMax:      1_000_000_000_000,
+		poolRetarget:      true,
+		pohFormulaVersion: 3,
+	}
+	wm.applyChainTargetMod(27_428_398, 1_700_000_000)
+	if wm.targetMod != 27_428_398 {
+		t.Fatalf("RELAY=on must pin pool M to chain M, got %d", wm.targetMod)
+	}
+}
+
 func TestActiveOrderProbeStatusFailClosed(t *testing.T) {
 	wm := &workManager{
 		ordersProbeURL:      "http://127.0.0.1:9",
