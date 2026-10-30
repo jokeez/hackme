@@ -192,7 +192,7 @@
 		.tab-panel { display: block; animation: panelIn 0.2s ease; }
 		body.js-ui .tab-panel { display: none; }
 		body.js-ui .tab-panel.active { display: block; }
-		/* Exchange — full-bleed iframe; default D0 paper SPA on exchange.hackme.tech. */
+		/* Exchange — full-bleed iframe; public early-access desk on exchange.hackme.tech. */
 		body.dash-tab-exchange .flex-1.flex.flex-col.min-w-0 {
 			min-height: 0;
 			height: 100dvh;
@@ -1890,7 +1890,7 @@
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
 					Wallet
 				</button>
-				<button type="button" data-tab="exchange" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-sm text-gray-500" title="Paper spot desk (exchange.hackme.tech)">
+				<button type="button" data-tab="exchange" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-sm text-gray-500" title="Early-access desk (exchange.hackme.tech)">
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7.5 14.25L3 12m0 0l4.5-2.25M3 12h18m-4.5 2.25L21 12m0 0l-4.5-2.25M21 12H3"/></svg>
 					Exchange
 				</button>
@@ -2004,7 +2004,7 @@
 					<button type="button" class="tab-btn" data-tab="hardware">Hardware tune</button>
 					<button type="button" class="tab-btn" data-tab="chain">Chain</button>
 					<button type="button" class="tab-btn" data-tab="wallet">Wallet</button>
-					<button type="button" class="tab-btn" data-tab="exchange" title="Paper spot desk · exchange.hackme.tech">Exchange</button>
+					<button type="button" class="tab-btn" data-tab="exchange" title="Early-access desk · exchange.hackme.tech">Exchange</button>
 					<button type="button" class="tab-btn" data-tab="reports">Reports</button>
 					<button type="button" class="tab-btn" data-tab="orders">Market</button>
 					<button type="button" class="tab-btn" data-tab="fuzz">Fuzz</button>
@@ -2022,6 +2022,15 @@
 				<div id="sync-fork-banner" class="hidden mb-4 max-w-[1600px] mx-auto rounded-lg border border-danger/55 bg-danger/[0.12] px-4 py-3 text-[11px] leading-relaxed text-danger/95 shadow-[0_0_24px_rgba(255,51,85,0.12)]" role="status">
 					<p class="font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-danger mb-1">Chain sync blocked</p>
 					<p id="sync-fork-banner-body" class="text-gray-200/95"></p>
+				</div>
+				<div id="host-disk-banner" class="hidden mb-4 max-w-[1600px] mx-auto rounded-lg border border-warn/55 bg-warn/[0.1] px-4 py-3 text-[11px] leading-relaxed text-warn/95 shadow-[0_0_24px_rgba(255,176,32,0.1)]" role="status">
+					<div class="flex flex-wrap items-start justify-between gap-3">
+						<div class="min-w-0 flex-1">
+							<p class="font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-warn mb-1">Disk almost full</p>
+							<p id="host-disk-banner-body" class="text-gray-200/95">Host disk usage is high — free space before logs/DB/Hunt caches fill the volume.</p>
+						</div>
+						<button type="button" id="host-disk-banner-dismiss" class="shrink-0 text-[10px] px-2 py-1 rounded border border-white/15 text-gray-400 hover:text-gray-200 uppercase tracking-wider">Dismiss</button>
+					</div>
 				</div>
 				<div id="desktop-status-banner" class="notranslate hidden mb-4 max-w-[1600px] mx-auto rounded-lg border px-4 py-3 text-[11px] leading-relaxed" translate="no" role="status">
 					<p class="font-display text-[10px] font-semibold uppercase tracking-[0.18em] mb-1" id="desktop-status-banner-title">Status</p>
@@ -4114,12 +4123,12 @@
 					</div>
 				</div>
 
-				<!-- EXCHANGE (D0 paper SPA — always public exchange.hackme.tech) -->
+				<!-- EXCHANGE (early-access desk — always public exchange.hackme.tech) -->
 				<div id="panel-exchange" class="tab-panel">
 					<div id="exchange-chrome">
 						<span class="ex-title">Exchange</span>
 						<span class="ex-sep">·</span>
-						<span class="ex-meta" title="Paper desk — operator reference mid, not a live CEX">PAPER · REF MID</span>
+						<span class="ex-meta" title="Early-access matching desk — not a CEX listing">LIVE DESK · MATCHING</span>
 						<span id="exchange-lab-status" class="ex-meta">checking…</span>
 						<span class="ex-meta hidden sm:inline" id="exchange-origin-label">https://exchange.hackme.tech</span>
 						<span class="ml-auto flex flex-wrap gap-2 items-center">
@@ -4129,7 +4138,7 @@
 							<a id="btn-exchange-popout" href="https://exchange.hackme.tech/" target="_blank" rel="noopener noreferrer" class="text-[10px] px-2.5 py-1 rounded border border-matrix/35 text-matrix hover:bg-matrix/10 uppercase tracking-wider no-underline">Pop out</a>
 						</span>
 					</div>
-					<iframe id="exchange-spa-frame" title="HackMe Exchange paper desk" width="100%" height="100%" referrerpolicy="strict-origin-when-cross-origin" allow="clipboard-read; clipboard-write" style="width:100%;height:100%;min-width:0;border:1px solid rgba(0,209,255,0.22);border-radius:0.35rem;background:#05070d;"></iframe>
+					<iframe id="exchange-spa-frame" title="HackMe Exchange desk" width="100%" height="100%" referrerpolicy="strict-origin-when-cross-origin" allow="clipboard-read; clipboard-write" style="width:100%;height:100%;min-width:0;border:1px solid rgba(0,209,255,0.22);border-radius:0.35rem;background:#05070d;"></iframe>
 				</div>
 			</main>
 		</div>
@@ -5634,6 +5643,39 @@
 			const warn = $('admin-token-expose-warn');
 			if (warn) warn.classList.add('hidden');
 		}
+		const HOST_DISK_BANNER_DISMISS_KEY = 'hackme.dashboard.host_disk_banner_dismiss.v1';
+		function updateHostDiskBanner(diskPct) {
+			const wrap = $('host-disk-banner');
+			if (!wrap) return;
+			const pct = Number(diskPct);
+			const dismissBtn = $('host-disk-banner-dismiss');
+			if (dismissBtn && !dismissBtn._bound) {
+				dismissBtn._bound = true;
+				dismissBtn.addEventListener('click', () => {
+					try {
+						localStorage.setItem(HOST_DISK_BANNER_DISMISS_KEY, String(Math.round(pct || 0)));
+					} catch (_) {}
+					wrap.classList.add('hidden');
+				});
+			}
+			if (!(pct >= 90)) {
+				wrap.classList.add('hidden');
+				return;
+			}
+			let dismissedAt = -1;
+			try { dismissedAt = Number(localStorage.getItem(HOST_DISK_BANNER_DISMISS_KEY) || -1); } catch (_) {}
+			// Re-show if usage climbed ≥2pp since last dismiss, or never dismissed.
+			if (dismissedAt >= 0 && pct < dismissedAt + 2) {
+				wrap.classList.add('hidden');
+				return;
+			}
+			const body = $('host-disk-banner-body');
+			if (body) {
+				body.textContent = 'Host disk is at ' + fmt(pct, 1)
+					+ '% — free space soon (logs, SQLite, Hunt/AFL caches). High fill slows /api/metrics and can stall mining.';
+			}
+			wrap.classList.remove('hidden');
+		}
 		async function syncDesktopAdminTokenFromNode() {
 			showAdminTokenExposeWarn();
 			let got = false;
@@ -5799,8 +5841,9 @@
 		const GLOBAL_METRICS_INTERVAL_MS = 120000;
 		const METRICS_SNAPSHOT_INTERVAL_MS = 45000;
 		const METRICS_ANALYTICS_INTERVAL_MS = 20000;
-		const METRICS_FETCH_TIMEOUT_MS = 6000;
-		const GLOBAL_METRICS_FETCH_TIMEOUT_MS = 12000;
+		// Host /api/metrics can take 8–12s under disk pressure (nvidia-smi + sensors + chain window).
+		const METRICS_FETCH_TIMEOUT_MS = 20000;
+		const GLOBAL_METRICS_FETCH_TIMEOUT_MS = 20000;
 		let lastWalletEarningsMs = 0;
 		let walletEarningsInFlight = false;
 		let lastWalletActivityMs = 0;
@@ -7990,7 +8033,17 @@
 		}
 
 		function canonicalApiBase() {
-			return String((latestStatus && latestStatus.public_authority_base) || 'https://hackme.tech').replace(/\/$/, '');
+			const st = latestStatus || {};
+			const ns = st.network_sync || {};
+			const ux = st.miner_public_ux || {};
+			const raw = String(
+				st.public_authority_base
+				|| ns.public_authority_base
+				|| st.canonical_chain_base_url
+				|| ux.canonical_chain_base
+				|| 'https://hackme.tech'
+			).trim();
+			return raw.replace(/\/$/, '') || 'https://hackme.tech';
 		}
 		function formatAddressLookupLine(j) {
 			if (!j || typeof j !== 'object') return '—';
@@ -8040,24 +8093,24 @@
 			const out = $('tx-address-msg');
 			if (out) out.textContent = 'Loading…';
 			const canonLine = (fb) => 'canonical · balance ' + fmt(fb.balance_hmc, 8) + ' HMC · nonce ' + fb.next_nonce;
-			const attempts = [
-				fetchCanonicalWalletFallback(addr, 10000).then((fb) => {
-					if (!fb) throw new Error('canonical miss');
-					return { line: canonLine(fb) };
-				}),
-				fetchWithTimeout('/api/address/' + encodeURIComponent(addr), { cache: 'no-store', headers: adminHeaders() }, 12000).then(async (r) => {
-					const txt = await r.text();
-					if (!r.ok) throw new Error('local ' + r.status);
-					const j = JSON.parse(txt);
-					return { line: formatAddressLookupLine(j) };
-				}),
-			];
+			// Prefer same-origin first (avoids CORS to hackme.tech from localhost).
 			try {
-				const hit = await Promise.any(attempts);
-				if (out) out.textContent = hit.line;
-				return;
+				const r = await fetchWithTimeout('/api/address/' + encodeURIComponent(addr), { cache: 'no-store', headers: adminHeaders() }, 12000);
+				const txt = await r.text();
+				if (r.ok) {
+					const j = JSON.parse(txt);
+					if (out) out.textContent = formatAddressLookupLine(j);
+					return;
+				}
 			} catch (_) {}
-			if (out) out.textContent = 'Lookup failed — check VPN / hackme.tech';
+			try {
+				const fb = await fetchCanonicalWalletFallback(addr, 10000);
+				if (fb) {
+					if (out) out.textContent = canonLine(fb);
+					return;
+				}
+			} catch (_) {}
+			if (out) out.textContent = 'Lookup failed — check VPN / local node / hackme.tech';
 		}
 		async function lookupTxHashInput(raw) {
 			const out = $('tx-hash-msg');
@@ -10794,21 +10847,39 @@
 			return;
 		}
 		async function fetchCanonicalWalletFallback(addr, timeoutMs) {
-			const base = String((latestStatus && latestStatus.public_authority_base) || 'https://hackme.tech').replace(/\/$/, '');
 			if (!addr || !addr.startsWith('HMC-')) return null;
-			try {
-				const r = await fetchWithTimeout(base + '/api/address/' + encodeURIComponent(addr), { cache: 'no-store' }, timeoutMs || 3500);
-				if (!r.ok) return null;
-				const j = await r.json();
+			const budget = timeoutMs || 3500;
+			const parseAddr = (j) => {
+				if (!j || typeof j !== 'object') return null;
 				const u = Number(j.balance_units);
 				if (!Number.isFinite(u)) return null;
 				return {
 					balance_units: u,
 					next_nonce: Number(j.next_nonce || 0),
-					balance_hmc: u / 100000000,
+					balance_hmc: Number.isFinite(Number(j.balance_hmc)) ? Number(j.balance_hmc) : (u / 100000000),
 					balance_sup: Number(j.balance_sup || 0),
 					balance_sup_units: Number(j.balance_sup_units || 0),
+					source: String(j.source || ''),
 				};
+			};
+			// Same-origin first — desktop node already overlays canonical_peer_cache.
+			try {
+				const r = await fetchWithTimeout('/api/address/' + encodeURIComponent(addr), {
+					cache: 'no-store',
+					headers: adminHeaders(),
+				}, budget);
+				if (r.ok) {
+					const hit = parseAddr(await r.json());
+					if (hit) return hit;
+				}
+			} catch (_) {}
+			// Cross-origin hub only when same-origin missed (may fail CORS in browser — swallow).
+			const base = canonicalApiBase();
+			if (!base || base.indexOf(location.origin) === 0) return null;
+			try {
+				const r = await fetchWithTimeout(base + '/api/address/' + encodeURIComponent(addr), { cache: 'no-store' }, Math.min(budget, 3500));
+				if (!r.ok) return null;
+				return parseAddr(await r.json());
 			} catch (_) {
 				return null;
 			}
@@ -11746,6 +11817,7 @@
 				const diskW = Math.max(0, Math.min(100, disk || 0)) + '%';
 				if ($('bar-disk').style.width !== diskW) $('bar-disk').style.width = diskW;
 			}
+			try { updateHostDiskBanner(disk); } catch (_) {}
 			if ($('io-read')) setTextSilent($('io-read'), fmtMB(Number(x.disk_read_mbps || 0)) + ' MB/s');
 			if ($('io-write')) setTextSilent($('io-write'), fmtMB(wr) + ' MB/s');
 			if ($('net-up')) setTextSilent($('net-up'), fmtMB(netUp) + ' MB/s');
@@ -15883,7 +15955,7 @@
 			}
 		}
 
-		/** Exchange SPA embed — always public paper desk (exchange.hackme.tech). */
+		/** Exchange SPA embed — always public early-access desk (exchange.hackme.tech). */
 		const EXCHANGE_SPA_ORIGIN_DEFAULT = 'https://exchange.hackme.tech';
 		const EXCHANGE_API_HEALTH_DEFAULT = 'http://127.0.0.1:18443/health';
 		const EXCHANGE_SPA_ORIGIN_ALLOW = [

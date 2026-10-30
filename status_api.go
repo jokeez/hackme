@@ -312,6 +312,12 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 		netSync["canonical_ledger_lag_blocks"] = 0
 	}
 	statusBody["network_sync"] = netSync
+	if pub := strings.TrimSpace(os.Getenv("HACKME_PUBLIC_AUTHORITY_BASE")); pub != "" {
+		statusBody["public_authority_base"] = pub
+	}
+	if canonConfigured && canonBase != "" {
+		statusBody["canonical_chain_base_url"] = canonBase
+	}
 
 	// tip_height / tip_hash are always local SQLite; explorer badges use this + canonical_tip_*.
 	statusBody["tip_sync_source"] = "local_ledger"
