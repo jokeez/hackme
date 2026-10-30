@@ -546,10 +546,20 @@
         if (!meta || !wr || !wr.ok) return;
         try {
           const j = await wr.json();
+          // Public /api/wallet is redacted (no filesystem paths). Do not show a fake
+          // "Wallet DB: (see /api/wallet)" line — that looked like a broken field.
+          if (j.public_redacted) {
+            meta.textContent = j.note
+              ? String(j.note)
+              : 'Public wallet API is redacted · use Address State with an HMC-… address';
+            return;
+          }
           const db = j.database_file ? String(j.database_file) : '';
           const fee = j.transfer_fee_platform_address ? String(j.transfer_fee_platform_address) : '';
-          meta.textContent = (db ? ('Wallet DB: ' + db) : 'Wallet DB: (see /api/wallet)') +
-            (fee ? (' · transfer fee platform addr: ' + fee) : '');
+          const bits = [];
+          if (db) bits.push('Wallet DB: ' + db);
+          if (fee) bits.push('transfer fee platform addr: ' + fee);
+          meta.textContent = bits.length ? bits.join(' · ') : '—';
         } catch (_) {}
       }).catch(() => {});
     }
@@ -852,7 +862,7 @@
                 }
               } catch (_) {}
             }
-            out.innerHTML = renderLookupCard('Block / task match', [
+            const rows = [
               { key: 'Lookup type', value: 'block_task_or_hash' },
               { key: 'Query', value: query },
               { key: 'Block index', value: String(hit.index || 0), highlight: true },
@@ -861,8 +871,17 @@
               { key: 'Block hash', value: String(hit.hash || hit.hash_prefix || '—'), highlight: true },
               { key: 'Timestamp', value: fmtTs(hit.timestamp_unix) },
               { key: 'Miner / reward address', value: displayMinerFromBlock(minerWallet) },
-              { key: 'Note', value: 'On-chain mint credits this miner address + node wallet row; another HMC- label with balance 0 simply never received mints/transfers.' },
-            ]);
+            ];
+            if (hit.poh_formula) {
+              rows.push({ key: 'PoH formula', value: String(hit.poh_formula) });
+            }
+            rows.push({
+              key: 'Note',
+              value: minerWallet
+                ? 'PoH mint credits this signing-node address. Pool worker wallets stay separate until settle; LOCAL_POH blocks always show the hub producer here.'
+                : 'Miner address unavailable for this row.',
+            });
+            out.innerHTML = renderLookupCard('Block / task match', rows);
             return;
           }
         }
