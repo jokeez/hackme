@@ -74,7 +74,7 @@ Payout follows **accepted work**, not lottery blocks. Model: [NETWORK_MODEL.md](
 | **OSS CVE Watch** | nghttp2 **14/14** · libheif **14/14** CLEAN ledgers |
 | **HMS storage** | Preview only — not a miner lane |
 | **Economics v2** | **Soft announce** (design lock) — [RFC](docs/RFC_ECONOMICS_V2.md) · [news](https://hackme.tech/news.html#2026-10-30-economics-v2-soft-announce) · **not** height-activated yet |
-| **D1 pool mint** | Live staging: empty PoH finds relay into settlement float (`LOCAL_POH` off on hub) — soak before v2 height switch |
+| **D1 pool mint** | **Live on hub:** empty PoH finds → `solve-baseline` → settlement float (`LOCAL_POH=0`, `BASELINE_RELAY=on`) — soak before v2 height switch |
 
 Channel: **0.1.0-rc18.x** — [docs/releases/](docs/releases/) · [docs/INDEX.md](docs/INDEX.md) · news: https://hackme.tech/news.html · prior rc17: [docs/archive/rc/HACKME_RC17.md](docs/archive/rc/HACKME_RC17.md)
 

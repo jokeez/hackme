@@ -60,21 +60,19 @@ When `order_chain_solve` succeeds:
 
 ## Fair pool vs chain command node
 
-Pool workers compete on equal terms (hybrid `miner_address` on `solve-order`). The **chain command node** (`HACKME_CHAIN_LEADER_LOCAL_POH=1`) can still run local GPU PoH and, by default, picks open orders from SQLite **before** pool relay — it usually wins order blocks to `nodeID` (operator wallet).
+Pool workers compete on equal terms (hybrid `miner_address` on `solve-order`). Lab / emergency command nodes with `HACKME_CHAIN_LEADER_LOCAL_POH=1` can still run local GPU PoH and, by default, pick open orders from SQLite **before** pool relay (operator wallet wins). **Public hub D1 staging** runs `LOCAL_POH=0`, so empty blocks and order finds come from the pool path.
 
-For production where **only pool rigs** should earn order escrow, set on the command node:
+For production where **only pool rigs** should earn order escrow (even if local PoH is briefly re-enabled), set on the command node:
 
 | Variable | Purpose |
 |----------|---------|
 | `HACKME_CHAIN_LEADER_ORDERS_VIA_POOL_ONLY=1` | Local miner skips open orders; coordinator `orders` mode + `POST /api/poh/solve-order` only |
 
-Empty-chain blocks still use the internal task fallback on the leader.
-
 **Pool order `target_mod`:** workers search with the coordinator pool difficulty (`target_mod` in claim). On `POST /api/poh/solve-order`, the **chain always re-validates against canonical chain `poh_target_mod`** (caller-supplied lease M is ignored for escrow credit). Pool M still gates worker search; chain M gates payout correctness.
 
 ### Baseline (empty) finds → settlement (RFC D1)
 
-When `HACKME_POOL_BASELINE_RELAY=1` and the coordinator has chain admin + `HACKME_COORDINATOR_ORDERS_URL`, a verified **non-order** `found=true` relays `POST /api/poh/solve-baseline`. The empty-block subsidy credits the **primary wallet** (settlement payer), not the worker `miner_address`. Default **off** until hub `HACKME_CHAIN_LEADER_LOCAL_POH=0` is confirmed in staging. Orders still use `solve-order` → escrow to miner.
+When `HACKME_POOL_BASELINE_RELAY=on` (also accepts `1` / `true`) and the coordinator has chain admin + `HACKME_COORDINATOR_ORDERS_URL`, a verified **non-order** `found=true` relays `POST /api/poh/solve-baseline`. The empty-block subsidy credits the **primary wallet** (settlement payer), not the worker `miner_address`. Modes: `off` (default in code) · `dry` (count would-mint) · `on` (**live on public hub** with `LOCAL_POH=0`). Coordinator refuses `on` while hub local PoH is still enabled. Orders still use `solve-order` → escrow to miner.
 
 ## Honest limits
 

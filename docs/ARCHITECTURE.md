@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**HackMe Network** · `0.1.0-rc17.4` (full bundle) · [hackme.tech](https://hackme.tech) · [Telegram](https://t.me/hackme_tech)
+**HackMe Network** · `0.1.0-rc18` (full bundle) · [hackme.tech](https://hackme.tech) · [Telegram](https://t.me/hackme_tech)
 
 </div>
 

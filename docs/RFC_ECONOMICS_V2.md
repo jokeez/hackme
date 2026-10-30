@@ -44,7 +44,7 @@ SUP stays a **support** coin: earned from honest HMC pool work, capped supply, u
 Picking a round height months in advance ignores live tip velocity, soak results, and operator readiness. v2 activation is:
 
 1. **Publish this RFC + soft announce** (what you are reading).
-2. Finish D1 live soak (pool empty finds → settlement; authority local PoH retired or equivalent).
+2. Finish D1 soak with live relay (pool empty finds → settlement; hub `LOCAL_POH=0` — **already on staging hub**).
 3. Ship the **height-switch package** (D9) on the release branch.
 4. **Publish the concrete activation height** computed as:
 
@@ -225,7 +225,7 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 [ Soft announce: this RFC ]
         │
         ▼
-[ D1 dry → staging → live relay ]
+[ D1 dry → staging → live relay ]  ← hub is on live relay (soak)
         │
         ▼
 [ Merge/ship D9 height package on release branch ]
@@ -257,8 +257,9 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 | Checkpoints | ✅ live |
 | Canonical settlement JSON | ✅ live |
 | Dig/Hunt settle hardening (floor, finalize gate, replay) | ✅ on `econ-v2` |
-| D1 baseline relay code + **dry** soak | ✅ on hub (`dry`); live `on` + local PoH off ⏳ |
+| D1 baseline relay | ✅ hub live: `HACKME_POOL_BASELINE_RELAY=on` + `LOCAL_POH=0` (soak before v2 height) |
 | Lock + public RFC (this doc) | ✅ |
+| Soft announce (news + public docs) | ✅ 2026-10-30 |
 | D9 height package implementation | ⏳ |
 | Activation announce + ≥14d | ⏳ |
 | Height switch | ⏳ |
@@ -316,6 +317,7 @@ Miners, desktop nodes, explorers, and customers need a predictable upgrade windo
 | 2026-10-23 | Internal draft economics v2 |
 | 2026-10-29 | Reconciliation with live hub (shares, solvency, checkpoints) |
 | 2026-10-29 | Public RFC: process lock, D10 marked live, D1 dry soak, **no airdrop scope**, activation height deferred to announce |
+| 2026-10-30 | Soft announce on news + public docs; D1 flipped to live `on` + hub `LOCAL_POH=0` (soak continues; v2 height still deferred) |
 
 ---
 

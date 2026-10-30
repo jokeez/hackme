@@ -35,7 +35,7 @@ Three layers on one stack:
 
 ## Slide 5 — Technology proof
 
-- Live pool + explorer + downloads (**0.1.0-rc17.4** LIVE · installers published)
+- Live pool + explorer + downloads (**0.1.0-rc18** LIVE · installers published)
 - Hunt Watch 2026sep: **12/12 CLOSED** (~192.5M Hunt Standard · ASAN+UBSan) · [ledger](https://hackme.tech/reports/hunt-watch-2026sep/)
 - OSS CVE Watch: nghttp2 14/14 CLEAN · libheif 14/14 CLEAN (~2.57B series exec · ASAN=0)
 - Operator gates: miner launch, SUP verdict, site consistency

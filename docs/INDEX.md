@@ -42,7 +42,7 @@ Layout: **`docs/`** = public guides · **[`internal/`](internal/README.md)** = o
 | [POOL_DIRECT_COORDINATOR.md](POOL_DIRECT_COORDINATOR.md) | Direct coordinator wiring |
 | [POOL_FUZZ_DISTRIBUTED.md](POOL_FUZZ_DISTRIBUTED.md) | Pool-distributed deep campaigns |
 | [GHS_DIG_COUPLING.md](GHS_DIG_COUPLING.md) | GHS ↔ Dig coupling |
-| Current channel | **0.1.0-rc18.x** — Blake3 · share-PPS · D1 baseline relay staging · CUDA/OpenCL · ISO — [releases/](releases/) · https://hackme.tech/news.html |
+| Current channel | **0.1.0-rc18.x** — Blake3 · share-PPS · D1 baseline relay **live** (hub) · CUDA/OpenCL · ISO — [releases/](releases/) · https://hackme.tech/news.html |
 | [../web/site/roadmap.html](../web/site/roadmap.html) | Public ecosystem roadmap |
 
 ## Fuzzing / B2B

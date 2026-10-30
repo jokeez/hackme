@@ -16,7 +16,7 @@ Historical (pre-Blake3) matrix: [`archive/vast/VAST_GPU_MATRIX_VERDICT_20260602.
 | **Util %** | nvidia-smi during mining (often low even when burn is healthy) |
 | **Backend** | `cuda` device / `opencl` device / `opencl→host` (host only if device build fails or `HACKME_OPENCL_BLAKE3_HOST=1`) |
 
-Method: tip ≥#485000, `pool_hashrate_kind=blake3_pow_ghs`, SHARE_STRICT PPS, adaptive leases. Official `0.1.0-rc17.4` still lags kernel.
+Method: tip ≥#485000, `pool_hashrate_kind=blake3_pow_ghs`, SHARE_STRICT PPS, adaptive leases. Official `0.1.0-rc18` channel; device kernels still beat host fallback.
 
 **Economics (2026-10-25+):** Blake3 **share-PPS** (`SHARE_STRICT=1`): pay verified shares; pool GH/M from shares/wall — not client `hashrate_gh_s`. Live `REWARD_AUTO=0` + `REWARD_PER_M=5e-5`, `found_bonus=0.0001`, `max_claim_batch` up to 64G. Useful customer work lives on **Dig/Hunt fuzz lanes**, not Blake3 PoH itself.
 

@@ -31,7 +31,7 @@ No miner binary update for the PoH rail. Deep fuzz corpus work is still a separa
 | Item | Value |
 |------|--------|
 | VPS | `root@89.150.41.40` · `/opt/hackme-bootstrap` |
-| Node | `hackme-bootstrap-node` **active** · `0.1.0-rc17.4` |
+| Node | `hackme-bootstrap-node` **active** · `0.1.0-rc18` |
 | Dig bot | `hackme-bootstrap-bot.timer` · ~every 6h (next ~22:01 UTC) |
 | Hunt bot | `hackme-bootstrap-hunt.timer` · ~every 6h (next ~22:10 UTC) |
 | workerfuzz | `bootstrap-fuzz-01..04` **active** |

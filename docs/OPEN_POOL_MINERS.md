@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**HackMe Network** · release **0.1.0-rc17.4** LIVE (Win/Linux/fuzz/ISO channel + installers)
+**HackMe Network** · release **0.1.0-rc18** LIVE (Win/Linux/fuzz/ISO channel + installers)
 
 [hackme.tech](https://hackme.tech) · [Downloads](https://hackme.tech/downloads.html) · [Pool stats](https://hackme.tech/pool/coordinator/api/pool/stats) · [Telegram](https://t.me/hackme_tech) · [Bitcointalk](https://bitcointalk.org/index.php?topic=5583373.0)
 

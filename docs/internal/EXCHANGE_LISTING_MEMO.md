@@ -61,7 +61,7 @@ Cold mid-tier CEX pitches are **deferred** while the desk and product deepen.
 
 ## Technology transparency
 
-- Open source node, coordinator, worker binaries (`0.1.0-rc17.4`)
+- Open source node, coordinator, worker binaries (`0.1.0-rc18`)
 - Security research: Hunt Watch 12/12 · OSS CVE Watch (nghttp2 14/14 CLEAN · libheif 14/14 CLEAN)
 - Marketplace fleet ETA / capacity: https://hackme.tech/fuzz-marketplace.html
 - Policy regression locks in Go (`economics_test.go`)
@@ -91,7 +91,7 @@ Cold mid-tier CEX pitches are **deferred** while the desk and product deepen.
 
 - Bitcointalk ANN topic 5583373
 - Telegram: @hackme_tech
-- GitHub releases: `0.1.0-rc17.4`
+- GitHub releases: `0.1.0-rc18`
 - Pool / research: live APIs + https://hackme.tech/listing.html
 
 ---

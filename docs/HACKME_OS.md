@@ -40,7 +40,7 @@ VERSION=0.1.0-rc18 bash scripts/release/iso/build_hackme_miner_iso.sh
 ## Flash & boot
 
 ```bash
-sudo dd if=dist/release_0.1.0-rc17/HackMe-OS-0.1.0-rc17-amd64.iso of=/dev/sdX bs=4M status=progress conv=fsync
+sudo dd if=dist/release_0.1.0-rc18/HackMe-OS-0.1.0-rc18-amd64.iso of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
 Choose **HackMe OS (live · max performance)** in GRUB.
@@ -55,10 +55,10 @@ Choose **HackMe OS (live · max performance)** in GRUB.
 Before flashing, verify the file:
 
 ```bash
-bash scripts/tests/verify_hackme_iso.sh /path/to/HackMe-OS-0.1.0-rc17-amd64.iso
+bash scripts/tests/verify_hackme_iso.sh /path/to/HackMe-OS-0.1.0-rc18-amd64.iso
 ```
 
-Published SHA256: `https://hackme.tech/dist/release_0.1.0-rc17/SHA256SUMS-iso.txt`
+Published SHA256: `https://hackme.tech/dist/release_0.1.0-rc18/SHA256SUMS-iso.txt`
 
 Re-flash with Balena Etcher (verify SHA256), boot **only** that USB, disable other OS entries in BIOS if needed.
 

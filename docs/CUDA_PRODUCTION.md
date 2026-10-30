@@ -96,7 +96,7 @@ nvidia-smi
 
 Both kernels live in `internal/gpupoh/poh_search.cu` (mirrored under `kernels/`). Device Blake3 uses the same message layout as `chain.PohWorkBlake3` / `gpupoh.Blake3Search` (ASCII-lower tip hex ‖ miner UTF-8 ‖ nonce u64 LE → LE uint64 of digest[0:8]). Host path is the correctness lock; set `HACKME_CUDA_BLAKE3_HOST=1` to force it for A/B checks.
 
-Mainnet Blake3 activation: height **485000** as of rc17.4 (`PoHFormulaV3ActivationHeight`). **LIVE** — tip has crossed the gate; workers search Blake3 on device (or host fallback).
+Mainnet Blake3 activation: height **485000** (`PoHFormulaV3ActivationHeight`, since rc17.4). **LIVE** on rc18 — tip has crossed the gate; workers search Blake3 on device (or host fallback).
 
 ### Measured on RTX 5060 Ti (desktop, 2026-10-22; still valid post-activation)
 
