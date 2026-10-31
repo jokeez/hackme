@@ -3,6 +3,7 @@ package chain
 import (
 	"context"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"hackme/internal/store"
@@ -97,6 +98,89 @@ func TestEconomicsV2HalvingInterval(t *testing.T) {
 	if nh != V2RewardHalvingIntervalBlocks+1 {
 		t.Fatalf("next halving %d", nh)
 	}
+}
+
+func TestEconomicsV2ActivationLocksToMeta(t *testing.T) {
+	ResetEconomicsV2ActivationHeightForTest()
+	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
+	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "50")
+	ResetEconomicsV2ActivationHeightForTest()
+
+	ctx := context.Background()
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "chain.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	svc := New(db)
+	if _, _, err := svc.InitGenesis(ctx, "HMC-testnode"); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.lockEconomicsV2ActivationTx(ctx, tx); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.metaUint(ctx, db, metaEconomicsV2ActivationHeight, 0)
+	if err != nil || got != 50 {
+		t.Fatalf("meta height=%d err=%v", got, err)
+	}
+	// Disagreement after lock must fail.
+	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "99")
+	tx2, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = svc.lockEconomicsV2ActivationTx(ctx, tx2)
+	_ = tx2.Rollback()
+	if err == nil {
+		t.Fatal("expected env/meta disagreement error")
+	}
+}
+
+func TestEconomicsV2InvariantAllowsMintPastV1Cap(t *testing.T) {
+	ResetEconomicsV2ActivationHeightForTest()
+	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
+	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "1")
+	ResetEconomicsV2ActivationHeightForTest()
+
+	ctx := context.Background()
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "chain.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	svc := New(db)
+	addr := "HMC-testnode"
+	if _, _, err := svc.InitGenesis(ctx, addr); err != nil {
+		t.Fatal(err)
+	}
+	// Pretend minted already above v1 100M cap; v2 must not trip invariant.
+	over := HMCToUnits(MaxSupplyHMC) + HMCToUnits(1)
+	if _, err := db.ExecContext(ctx, `UPDATE meta SET value = ? WHERE key = ?`, strconv.FormatUint(over, 10), metaTotalMintedUnits); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE meta SET value = ? WHERE key = ?`, strconv.FormatFloat(UnitsToHMC(over), 'f', -1, 64), metaTotalMintedHMC); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.lockEconomicsV2ActivationTx(ctx, tx); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.checkEconomicInvariants(ctx, tx); err != nil {
+		t.Fatalf("v2 should skip max-supply invariant: %v", err)
+	}
+	_ = tx.Rollback()
 }
 
 func TestEconomicsV2EmptyBlockMintsSUP(t *testing.T) {

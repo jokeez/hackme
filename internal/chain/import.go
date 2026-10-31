@@ -136,6 +136,9 @@ func (s *Service) ImportPoHBlock(ctx context.Context, b *block.Block) error {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if err := s.lockEconomicsV2ActivationTx(ctx, tx); err != nil {
+		return err
+	}
 
 	now := b.Timestamp
 	if now <= 0 {

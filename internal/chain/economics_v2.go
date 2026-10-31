@@ -3,6 +3,7 @@ package chain
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"os"
 	"strconv"
@@ -29,15 +30,26 @@ const (
 	V2DigBurnSoftStartCalendarDays = 30
 )
 
+const metaEconomicsV2ActivationHeight = "economics_v2_activation_height"
+
 var (
-	econV2HeightOnce sync.Once
-	econV2Height     uint64 // 0 = disabled
+	econV2HeightOnce   sync.Once
+	econV2Height       uint64 // 0 = disabled (from env)
+	econV2MetaMu       sync.RWMutex
+	econV2MetaOverride uint64 // locked chain meta wins over env when ≥ 1
 )
 
 // EconomicsV2ActivationHeight is the first block index that uses the v2 schedule.
-// Lab/ops: HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT=<uint64> (must be ≥ 1).
+// Consensus preference: locked chain meta (see lockEconomicsV2ActivationTx).
+// Bootstrap / lab: HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT=<uint64> (must be ≥ 1).
 // Unset or 0 ⇒ v1 forever (soft-announce / soak; no vanity default height).
 func EconomicsV2ActivationHeight() uint64 {
+	econV2MetaMu.RLock()
+	meta := econV2MetaOverride
+	econV2MetaMu.RUnlock()
+	if meta >= 1 {
+		return meta
+	}
 	econV2HeightOnce.Do(func() {
 		econV2Height = 0
 		if v := strings.TrimSpace(os.Getenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT")); v != "" {
@@ -49,16 +61,67 @@ func EconomicsV2ActivationHeight() uint64 {
 	return econV2Height
 }
 
-// ResetEconomicsV2ActivationHeightForTest clears the cached env height (tests only).
+// ResetEconomicsV2ActivationHeightForTest clears the cached env/meta height (tests only).
 func ResetEconomicsV2ActivationHeightForTest() {
 	econV2HeightOnce = sync.Once{}
 	econV2Height = 0
+	econV2MetaMu.Lock()
+	econV2MetaOverride = 0
+	econV2MetaMu.Unlock()
 }
 
 // EconomicsV2ActiveForIndex reports whether block index uses the v2 schedule.
 func EconomicsV2ActiveForIndex(index uint64) bool {
 	act := EconomicsV2ActivationHeight()
 	return act >= 1 && index >= 1 && index >= act
+}
+
+// economicsV2ActivationHeightQ prefers immutable chain meta, then env bootstrap.
+func (s *Service) economicsV2ActivationHeightQ(ctx context.Context, q queryRowContext) (uint64, error) {
+	metaH, err := s.metaUint(ctx, q, metaEconomicsV2ActivationHeight, 0)
+	if err != nil {
+		return 0, err
+	}
+	if metaH >= 1 {
+		econV2MetaMu.Lock()
+		econV2MetaOverride = metaH
+		econV2MetaMu.Unlock()
+		return metaH, nil
+	}
+	return EconomicsV2ActivationHeight(), nil
+}
+
+// lockEconomicsV2ActivationTx persists the env bootstrap height into meta once and
+// refuses a mismatched env after lock (followers must share the same activation).
+func (s *Service) lockEconomicsV2ActivationTx(ctx context.Context, tx queryRowExecContext) error {
+	metaH, err := s.metaUint(ctx, tx, metaEconomicsV2ActivationHeight, 0)
+	if err != nil {
+		return err
+	}
+	rawEnv := uint64(0)
+	if v := strings.TrimSpace(os.Getenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT")); v != "" {
+		if n, err := strconv.ParseUint(v, 10, 64); err == nil && n >= 1 {
+			rawEnv = n
+		}
+	}
+	if metaH >= 1 {
+		if rawEnv >= 1 && rawEnv != metaH {
+			return fmt.Errorf("chain: HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT=%d disagrees with locked meta %d", rawEnv, metaH)
+		}
+		econV2MetaMu.Lock()
+		econV2MetaOverride = metaH
+		econV2MetaMu.Unlock()
+		return nil
+	}
+	if rawEnv >= 1 {
+		if err := s.upsertMetaUint(ctx, tx, metaEconomicsV2ActivationHeight, rawEnv); err != nil {
+			return err
+		}
+		econV2MetaMu.Lock()
+		econV2MetaOverride = rawEnv
+		econV2MetaMu.Unlock()
+	}
+	return nil
 }
 
 // OrderBurnRateAt returns the order burn fraction for orders opened at tipHeight
