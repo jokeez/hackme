@@ -1,0 +1,11 @@
+[Unit]
+Description=Run D1 soak watch every 30 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=30min
+AccuracySec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

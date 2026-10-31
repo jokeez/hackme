@@ -1,0 +1,10 @@
+[Unit]
+Description=HackMe D1 soak watch (tip/reject/settlement float)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/Desktop/HackMe
+ExecStart=/bin/bash %h/Desktop/HackMe/scripts/ops/d1_soak_watch.sh
+Nice=10

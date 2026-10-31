@@ -21,8 +21,12 @@ const (
 	V2OrderPlatformFeeRate = 0.05
 	// V2SUPInitialReward is SUP per empty PoH block after activation (no tail).
 	V2SUPInitialReward = 0.002
-	// V2SUPMaxSupply caps lifetime SUP mint under the v2 schedule.
+	// V2SUPMaxSupply is the published hard cap for v2 SUP emission (RFC D4 locked).
 	V2SUPMaxSupply = 21_000.0
+	// V2ActivationBufferHMC is the public start-buffer size for the activation announce (D3 locked).
+	V2ActivationBufferHMC = 2000.0
+	// V2DigBurnSoftStartCalendarDays is Dig-only burn soft-start after activation wall-clock (D6 locked).
+	V2DigBurnSoftStartCalendarDays = 30
 )
 
 var (

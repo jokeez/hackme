@@ -26,7 +26,9 @@ HACKME_DB="${HACKME_DB:-${DEPLOY}/data/hackme.db}"
 STATE_FILE="${POOL_SUBSIDY_STATE_FILE:-${DEPLOY}/data/pool_subsidy_budget_state.json}"
 SUBSIDY_WARN_RATIO="${SUBSIDY_WARN_RATIO:-2.5}"
 DEV_ADDR="${DEV_TREASURY_ADDR:-HMC-719006d93916ad52}"
-SETTLEMENT_ADDR="${TREASURY_ADDR:-HMC-381c0c5e2cfcc714}"
+# D1 empty-block coinbase → hub primary (checkpoint signer). Legacy 381c remains order/treasury float.
+SETTLEMENT_ADDR="${TREASURY_ADDR:-HMC-dfc143732a1fc3bc}"
+SETTLEMENT_LEGACY_ADDR="${SETTLEMENT_LEGACY_ADDR:-HMC-381c0c5e2cfcc714}"
 LOG_TAG="[pool-subsidy $(date -u +%Y-%m-%dT%H:%M:%SZ)]"
 
 COORD_TOKEN=""

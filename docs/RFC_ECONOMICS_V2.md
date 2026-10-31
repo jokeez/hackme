@@ -127,7 +127,7 @@ If the hub produces most empty blocks via `HACKME_CHAIN_LEADER_LOCAL_POH=1`, coi
    - `dry` — count would-mint (`baseline_relay_would`) without POST (soak),
    - `on` — live mint path.
 4. Auto treasury float scripts are **not** the long-term funding model; alert if settlement float covers fewer than N days of honest accrual.
-5. **One** public start buffer transfer (about **1–2k HMC**, exact size finalized before activation) with tx hash in the activation announce — bridge only.
+5. **One** public start buffer transfer of **2000 HMC** (D3 locked) with tx hash in the activation announce — bridge only.
 
 Orders continue to use `solve-order` → escrow to the **miner**.
 
@@ -136,8 +136,8 @@ Orders continue to use `solve-order` → escrow to the **miner**.
 - [x] Dry soak: `baseline_relay_would` tracks empty `found_hits` without reject storms  
 - [x] Staging → live: local PoH off + relay `on`; tip keeps growing (`chain_leader_local_poh=false`)  
 - [x] `baseline_relay_ok` vs `baseline_relay_reject` healthy (~3% reject; tip ~505k as of 2026-10-31)  
-- [ ] Settlement float + unpaid dashboards green (ongoing ops watch)  
-- [x] Public note: treasury subsidy is not the policy (soft announce 2026-10-30)
+- [x] Settlement float + unpaid watched (`scripts/ops/d1_soak_watch.sh` + user timer); unpaid ≪ 200 HMC; **WARN** when primary float \< unpaid (thin between mint and sweep — expected under D1; activation buffer 2000 HMC closes the gap)  
+- [x] Public note: treasury subsidy is not the policy (soft announce 2026-10-30)  
 
 ---
 
@@ -208,10 +208,10 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 |----|-------|----------|
 | **D1** | Who mines empty blocks | Retire hub local PoH (or equivalent); baseline relay funds settlement |
 | **D2** | Pool funding | Coinbase → settlement + orders; no perpetual auto treasury topup |
-| **D3** | Start buffer | One public **1–2k HMC** transfer; hash in activation announce |
-| **D4** | SUP emission | 0.002 SUP/block, shared halving heights, no tail, cap 21 000 |
+| **D3** | Start buffer | One public **2000 HMC** transfer; hash in activation announce |
+| **D4** | SUP emission | 0.002 SUP/block, shared halving heights, no tail, **hard cap 21 000** |
 | **D5** | SUP utility | Non-refundable fee only; escrow always HMC |
-| **D6** | Order fee/burn | 10% (5/5); Dig soft-start ~30d, then Hunt |
+| **D6** | Order fee/burn | 10% (5/5); Dig soft-start **30 calendar days** from activation announce, then Hunt |
 | **D7** | Airdrops | **Out of scope** for this RFC / height switch |
 | **D8** | Activation | tip-at-announce + **≥14 days**; height published before release — **not** a vanity block like 650 000 |
 | **D9** | Minimal package | HMC schedule + fee/burn + SUP + `chain_id` + authority sig |
@@ -267,12 +267,14 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 
 ---
 
-## 11. Open questions (narrow — do not block the soft announce)
+## 11. Locked answers (were open questions)
 
-1. Buffer size: **1000 vs 2000 HMC** (D3).  
-2. Dig-only burn soft-start: exact **30 calendar days** vs block-count equivalent.  
-3. SUP: publish **21k hard cap** vs “estimated lifetime ~16k, monitor.” Prefer **21k** unless listing counsel objects.  
-4. Whether OP_RETURN beyond OpenTimestamps is required for the first switch (lean **no**).
+| # | Topic | Decision (2026-10-31) | Why |
+|---|-------|------------------------|-----|
+| 1 | Start buffer (D3) | **2000 HMC** | Covers ≥14d notice + soft-start while primary float stays thin under live D1 mint→sweep |
+| 2 | Dig burn soft-start (D6) | **30 calendar days** from activation announce wall-clock | Clearer for customers/operators than a block-count; code constant `V2DigBurnSoftStartCalendarDays` |
+| 3 | SUP cap (D4) | **21 000 hard cap** | Matches `V2SUPMaxSupply`; no “monitor ~16k” ambiguity for explorers/listings |
+| 4 | Extra OP_RETURN | **No** for first switch | Checkpoints + OTS already; do not block activation |
 
 ---
 
@@ -318,6 +320,7 @@ Miners, desktop nodes, explorers, and customers need a predictable upgrade windo
 | 2026-10-29 | Reconciliation with live hub (shares, solvency, checkpoints) |
 | 2026-10-29 | Public RFC: process lock, D10 marked live, D1 dry soak, **no airdrop scope**, activation height deferred to announce |
 | 2026-10-30 | Soft announce on news + public docs; D1 flipped to live `on` + hub `LOCAL_POH=0` (soak continues; v2 height still deferred) |
+| 2026-10-31 | Locked D3=2000 HMC, D6=30 calendar days, SUP cap=21k; D1 soak watch script+timer; D9 height package on `econ-v2` |
 
 ---
 
