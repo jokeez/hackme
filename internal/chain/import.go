@@ -211,14 +211,19 @@ func (s *Service) ImportPoHBlock(ctx context.Context, b *block.Block) error {
 			if rewardCreditAddr == "" {
 				return errors.New("chain: primary wallet address missing (cannot credit PoH reward)")
 			}
-			maxSupplyUnits := HMCToUnits(MaxSupplyHMC)
+			// Economics v2: no hard max-supply clamp on empty-block mint (RFC §3.1).
 			var allowedUnits uint64
-			if mintedUnits < maxSupplyUnits {
-				remainingUnits := maxSupplyUnits - mintedUnits
-				if credit > remainingUnits {
-					allowedUnits = remainingUnits
-				} else {
-					allowedUnits = credit
+			if EconomicsV2ActiveForIndex(b.Index) {
+				allowedUnits = credit
+			} else {
+				maxSupplyUnits := HMCToUnits(MaxSupplyHMC)
+				if mintedUnits < maxSupplyUnits {
+					remainingUnits := maxSupplyUnits - mintedUnits
+					if credit > remainingUnits {
+						allowedUnits = remainingUnits
+					} else {
+						allowedUnits = credit
+					}
 				}
 			}
 			if allowedUnits > 0 {
@@ -235,6 +240,15 @@ func (s *Service) ImportPoHBlock(ctx context.Context, b *block.Block) error {
 					return err
 				}
 			}
+		}
+	}
+	if orderTaskID == "" {
+		var supCreditAddr string
+		if err := tx.QueryRowContext(ctx, `SELECT address FROM wallet WHERE id = 1`).Scan(&supCreditAddr); err != nil {
+			return err
+		}
+		if err := s.mintEmptyBlockSUPTx(ctx, tx, b.Index, orderTaskID, supCreditAddr); err != nil {
+			return err
 		}
 	}
 

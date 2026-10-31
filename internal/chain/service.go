@@ -143,14 +143,26 @@ func (s *Service) Economics(ctx context.Context) (EconomicsSnapshot, error) {
 	if remain < 0 {
 		remain = 0
 	}
+	tipH := uint64(0)
+	var maxIdx sql.NullInt64
+	if err := s.db.QueryRowContext(ctx, `SELECT MAX(block_index) FROM blocks`).Scan(&maxIdx); err == nil && maxIdx.Valid && maxIdx.Int64 >= 0 {
+		tipH = uint64(maxIdx.Int64)
+	}
+	maxSupply := MaxSupplyHMC
+	mintRemain := remain
+	// Economics v2: no hard-cap fiction in the live snapshot (RFC §3.1).
+	if EconomicsV2ActiveForIndex(tipH + 1) {
+		maxSupply = 0
+		mintRemain = 0
+	}
 	return EconomicsSnapshot{
-		MaxSupplyHMC:  MaxSupplyHMC,
+		MaxSupplyHMC:  maxSupply,
 		TotalMinted:   minted,
 		TotalBurned:   burned,
 		Circulating:   circ,
-		MintRemaining: remain,
-		BurnRateOrder: OrderBurnRate,
-		OrderFeeRate:  OrderPlatformFeeRate,
+		MintRemaining: mintRemain,
+		BurnRateOrder: OrderBurnRateAt(tipH),
+		OrderFeeRate:  OrderPlatformFeeRateAt(tipH),
 		NetFeeBurn:    NetworkFeeBurnShare,
 		NetFeeDev:     NetworkFeeDevShare,
 		DevFeeAddress: DevFeeAddress,
@@ -744,16 +756,21 @@ func (s *Service) AppendPoHBlock(ctx context.Context, minerAddress string, nonce
 			if rewardCreditAddr == "" {
 				return nil, errors.New("chain: primary wallet address missing (cannot credit PoH reward)")
 			}
-			maxSupplyUnits := HMCToUnits(MaxSupplyHMC)
+			// Economics v2: no hard max-supply clamp on empty-block mint (RFC §3.1).
 			var allowedUnits uint64
-			if mintedUnits >= maxSupplyUnits {
-				allowedUnits = 0
+			if EconomicsV2ActiveForIndex(nextIdx) {
+				allowedUnits = creditUnits
 			} else {
-				remainingUnits := maxSupplyUnits - mintedUnits
-				if creditUnits > remainingUnits {
-					allowedUnits = remainingUnits
+				maxSupplyUnits := HMCToUnits(MaxSupplyHMC)
+				if mintedUnits >= maxSupplyUnits {
+					allowedUnits = 0
 				} else {
-					allowedUnits = creditUnits
+					remainingUnits := maxSupplyUnits - mintedUnits
+					if creditUnits > remainingUnits {
+						allowedUnits = remainingUnits
+					} else {
+						allowedUnits = creditUnits
+					}
 				}
 			}
 			if allowedUnits > 0 {
@@ -776,6 +793,15 @@ func (s *Service) AppendPoHBlock(ctx context.Context, minerAddress string, nonce
 					return nil, err
 				}
 			}
+		}
+	}
+	if orderTaskID == "" {
+		var supCreditAddr string
+		if err := tx.QueryRowContext(ctx, `SELECT address FROM wallet WHERE id = 1`).Scan(&supCreditAddr); err != nil {
+			return nil, err
+		}
+		if err := s.mintEmptyBlockSUPTx(ctx, tx, nextIdx, orderTaskID, supCreditAddr); err != nil {
+			return nil, err
 		}
 	}
 	if err := s.applyPendingTransfers(ctx, tx, nextIdx, b.Hash); err != nil {

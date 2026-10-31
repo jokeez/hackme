@@ -260,7 +260,7 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 | D1 baseline relay | ✅ hub live: `HACKME_POOL_BASELINE_RELAY=on` + `LOCAL_POH=0` (soak before v2 height) |
 | Lock + public RFC (this doc) | ✅ |
 | Soft announce (news + public docs) | ✅ 2026-10-30 |
-| D9 height package implementation | ⏳ |
+| D9 height package implementation | ✅ on `econ-v2` (`HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT`, unset=off) |
 | Activation announce + ≥14d | ⏳ |
 | Height switch | ⏳ |
 | Post-switch dumps / verify / 1.0.0 | after stability |

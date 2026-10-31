@@ -161,35 +161,34 @@ func runCreate(args []string) error {
 type blockLookup struct {
 	Found  bool `json:"found"`
 	Blocks []struct {
-		Index        uint64 `json:"index"`
-		Hash         string `json:"hash"`
-		MinerAddress string `json:"miner_address"`
+		Index uint64 `json:"index"`
+		Hash  string `json:"hash"`
 	} `json:"blocks"`
 }
 
-func fetchBlock(ctx context.Context, client *http.Client, api string, height uint64) (hash, miner string, err error) {
+func fetchBlock(ctx context.Context, client *http.Client, api string, height uint64) (hash string, err error) {
 	u := strings.TrimRight(api, "/") + "/reports/blocks?q=" + url.QueryEscape(fmt.Sprint(height))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 	res, err := client.Do(req)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 	defer res.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
 	if res.StatusCode != http.StatusOK {
-		return "", "", fmt.Errorf("GET %s: HTTP %d", u, res.StatusCode)
+		return "", fmt.Errorf("GET %s: HTTP %d", u, res.StatusCode)
 	}
 	var lk blockLookup
 	if err := json.Unmarshal(body, &lk); err != nil {
-		return "", "", fmt.Errorf("GET %s: %w", u, err)
+		return "", fmt.Errorf("GET %s: %w", u, err)
 	}
 	if !lk.Found || len(lk.Blocks) == 0 || lk.Blocks[0].Index != height {
-		return "", "", fmt.Errorf("block %d not served by %s", height, api)
+		return "", fmt.Errorf("block %d not served by %s", height, api)
 	}
-	return lk.Blocks[0].Hash, lk.Blocks[0].MinerAddress, nil
+	return lk.Blocks[0].Hash, nil
 }
 
 func runVerify(args []string) error {
@@ -225,15 +224,15 @@ func runVerify(args []string) error {
 	client := &http.Client{Timeout: 20 * time.Second}
 	ctx := context.Background()
 	for _, c := range cps[start:] {
-		hash, miner, err := fetchBlock(ctx, client, *api, c.Height)
+		// Compare block hash only. Under D1 baseline relay the header miner_address is
+		// the pool worker that found the empty block; the authority (checkpoint signer)
+		// attests tip+ledger state and need not equal miner_address.
+		hash, err := fetchBlock(ctx, client, *api, c.Height)
 		if err != nil {
 			return err
 		}
 		if !strings.EqualFold(hash, c.BlockHash) {
 			return fmt.Errorf("HISTORY CHANGED at height %d: checkpoint %s, API now serves %s", c.Height, c.BlockHash, hash)
-		}
-		if miner != "" && miner != c.SignerAddress {
-			return fmt.Errorf("height %d: block miner %s is not the checkpoint signer %s", c.Height, miner, c.SignerAddress)
 		}
 	}
 	fmt.Printf("ok: %d block hash(es) match %s\n", len(cps)-start, *api)

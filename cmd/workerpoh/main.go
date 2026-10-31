@@ -1214,10 +1214,17 @@ func main() {
 			// Re-verify on host before submit so GPU false positives never inflate share_rejects.
 			if len(collectedShares) > 0 {
 				out.ShareNonces = filterVerifiedShares(collectedShares, cr.BaseNonce, cr.BatchSize, cr.ShareMod, fv, cr.PrevHash, minerForPoH, 128)
-			} else if cr.ShareScanMax > 0 {
-				out.ShareNonces = collectShareNonces(cr.BaseNonce, cr.BatchSize, cr.ShareMod, fv, cr.PrevHash, minerForPoH, 128, foundNonce, found, cr.ShareScanMax)
-			} else if found {
-				out.ShareNonces = filterVerifiedShares([]uint64{foundNonce}, cr.BaseNonce, cr.BatchSize, cr.ShareMod, fv, cr.PrevHash, minerForPoH, 1)
+			}
+			// SHARE_STRICT rejects non-found submits with zero valid shares. CPU/OpenCL
+			// paths (and early-found leases) can finish with an empty collectedShares
+			// slice when share_scan_max was omitted from the claim — always harvest a
+			// capped stride proof so standalone workerpoh matches worker_loop+shareharvest.
+			if len(out.ShareNonces) == 0 {
+				scanMax := cr.ShareScanMax
+				if scanMax == 0 {
+					scanMax = uint64(256 * 1024)
+				}
+				out.ShareNonces = collectShareNonces(cr.BaseNonce, cr.BatchSize, cr.ShareMod, fv, cr.PrevHash, minerForPoH, 128, foundNonce, found, scanMax)
 			}
 		}
 		if strings.TrimSpace(cr.OrderTaskID) != "" {

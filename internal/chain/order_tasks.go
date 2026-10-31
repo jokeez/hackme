@@ -167,7 +167,12 @@ func (s *Service) InsertOrderTask(ctx context.Context, manifestJSON []byte) (*In
 		return nil, errors.New("chain: prepaid units overflow")
 	}
 	prepaidUnits := rewardUnits * uint64(target)
-	orderFee := UnitsToHMC(prepaidUnits) * OrderPlatformFeeRate
+	var tipH uint64
+	var maxIdx sql.NullInt64
+	if err := s.db.QueryRowContext(ctx, `SELECT MAX(block_index) FROM blocks`).Scan(&maxIdx); err == nil && maxIdx.Valid && maxIdx.Int64 >= 0 {
+		tipH = uint64(maxIdx.Int64)
+	}
+	orderFee := UnitsToHMC(prepaidUnits) * OrderPlatformFeeRateAt(tipH)
 	if orderFee < 0 || orderFee != orderFee {
 		return nil, errors.New("chain: invalid order fee total")
 	}
@@ -248,7 +253,7 @@ func (s *Service) InsertOrderTask(ctx context.Context, manifestJSON []byte) (*In
 			}
 		}
 	}
-	burn := prepaid * OrderBurnRate
+	burn := prepaid * OrderBurnRateAt(tipH)
 	burnUnits := HMCToUnits(burn)
 	escrowUnits := prepaidUnits
 	if burn > 0 {

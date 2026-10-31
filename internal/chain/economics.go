@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 )
@@ -105,28 +104,28 @@ func validateLockedPolicy() error {
 
 // BaseRewardForBlockIndex returns scheduled base PoH reward for given block index.
 // Index 0 (genesis) is not a PoH block and returns 0.
+// When Economics v2 is activated for index, uses 0.1 HMC / ~4y halvings (RFC D9).
 func BaseRewardForBlockIndex(index uint64) float64 {
 	if index == 0 {
 		return 0
 	}
-	if RewardHalvingIntervalBlocks == 0 {
-		return InitialBaseRewardHMC
+	if EconomicsV2ActiveForIndex(index) {
+		return baseRewardV2(index)
 	}
-	epoch := float64((index - 1) / RewardHalvingIntervalBlocks)
-	reward := InitialBaseRewardHMC / math.Pow(2, epoch)
-	if reward < RewardTailFloorHMC {
-		reward = RewardTailFloorHMC
-	}
-	return reward
+	return baseRewardV1(index)
 }
 
 // NextHalvingBlock returns the first block index of the next halving epoch.
 func NextHalvingBlock(currentTipHeight uint64) uint64 {
-	if RewardHalvingIntervalBlocks == 0 {
+	interval := RewardHalvingIntervalBlocks
+	if EconomicsV2ActiveForIndex(currentTipHeight + 1) {
+		interval = V2RewardHalvingIntervalBlocks
+	}
+	if interval == 0 {
 		return 0
 	}
-	curEpoch := currentTipHeight / RewardHalvingIntervalBlocks
-	return (curEpoch+1)*RewardHalvingIntervalBlocks + 1
+	curEpoch := currentTipHeight / interval
+	return (curEpoch+1)*interval + 1
 }
 
 // ExpectedEmptyMiningHMCPerHour estimates base-reward-only earnings at target block time.
