@@ -2555,7 +2555,14 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 				mod = liveMod
 			}
 		}
-		chainSolve = m.relayBaselineSolve(signerAddr, req.FoundNonce, mod)
+		// PoH binds miner_address; POST the same address used for live validation (not a
+		// divergent signer fallback) so solve-baseline header matches the verified nonce.
+		if addrForRelay == "" {
+			m.mu.Lock()
+			m.rejectedSubmits++
+			return false, "baseline_relay_miner_missing", 0, signerAddr, signerAddr != ""
+		}
+		chainSolve = m.relayBaselineSolve(addrForRelay, req.FoundNonce, mod)
 		m.mu.Lock()
 		now = time.Now().Unix()
 		if !chainSolve.OK {

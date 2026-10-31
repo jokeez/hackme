@@ -260,7 +260,7 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 | D1 baseline relay | ✅ hub live soak: `RELAY=on` + `LOCAL_POH=0`; ~2708 ok / 83 reject (~3%) · SHARE_STRICT on |
 | Lock + public RFC (this doc) | ✅ |
 | Soft announce (news + public docs) | ✅ 2026-10-30 |
-| D9 height package implementation | ✅ on `econ-v2` (`HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT`, unset=off) |
+| D9 height package implementation | ✅ on `econ-v2` (env bootstrap → locked `meta economics_v2_activation_height`; unset=off) |
 | Activation announce + ≥14d | ⏳ |
 | Height switch | ⏳ |
 | Post-switch dumps / verify / 1.0.0 | after stability |

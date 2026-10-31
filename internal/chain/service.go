@@ -676,6 +676,9 @@ func (s *Service) AppendPoHBlock(ctx context.Context, minerAddress string, nonce
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if err := s.lockEconomicsV2ActivationTx(ctx, tx); err != nil {
+		return nil, err
+	}
 	if _, err := s.expireOpenOrderTasksTx(ctx, tx, now); err != nil {
 		return nil, err
 	}
@@ -921,7 +924,18 @@ func (s *Service) checkEconomicInvariants(ctx context.Context, q queryRowContext
 	if burned < -1e-12 {
 		return fmt.Errorf("%w: burned < 0 (%f)", ErrEconomicInvariant, burned)
 	}
-	if minted > MaxSupplyHMC+1e-9 {
+	// Economics v2: no hard max-supply fiction (RFC §3.1) — skip 100M clamp when active.
+	tipH := uint64(0)
+	var maxIdx sql.NullInt64
+	if err := q.QueryRowContext(ctx, `SELECT MAX(block_index) FROM blocks`).Scan(&maxIdx); err == nil && maxIdx.Valid && maxIdx.Int64 >= 0 {
+		tipH = uint64(maxIdx.Int64)
+	}
+	v2, err := s.economicsV2ActivationHeightQ(ctx, q)
+	if err != nil {
+		return err
+	}
+	v2Active := v2 >= 1 && tipH+1 >= v2
+	if !v2Active && minted > MaxSupplyHMC+1e-9 {
 		return fmt.Errorf("%w: minted > max supply (%f > %f)", ErrEconomicInvariant, minted, MaxSupplyHMC)
 	}
 	if burnedUnits > mintedUnits {

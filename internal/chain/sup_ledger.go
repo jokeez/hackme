@@ -310,6 +310,14 @@ func (s *Service) MintSUP(ctx context.Context, to string, amountUnits uint64, me
 	if err != nil {
 		return "internal_error", err
 	}
+	// After Economics v2 activation, admin mint must respect the published 21k hard cap
+	// (ledger default MaxSupplySUP may still be the larger pre-v2 meta value).
+	if EconomicsV2ActivationHeight() >= 1 {
+		v2Cap := SUPToUnits(V2SUPMaxSupply)
+		if v2Cap < maxU {
+			maxU = v2Cap
+		}
+	}
 	mintedU, err := s.supTotalMintedUnits(ctx, tx)
 	if err != nil {
 		return "internal_error", err
