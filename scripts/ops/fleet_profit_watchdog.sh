@@ -43,9 +43,11 @@ fi
 curl -fsS --max-time 12 -A 'Mozilla/5.0' \
   'https://hackme.tech/pool/coordinator/api/work/stats' -o /tmp/wd-stats.json
 
-mapfile -t TOP < <(python3 - "$TOP_N" "${NAMES[@]}" <<'PY'
-import json,sys
-top_n=int(sys.argv[1]); names=sys.argv[2:]
+# Public /api/work/stats often keys workers by pubkey hash (no worker-* names).
+# Prefer matching named ids when present; else fall back to locally active units.
+mapfile -t TOP < <(python3 - "$TOP_N" "$UNIT_PREFIX" "${NAMES[@]}" <<'PY'
+import json, os, subprocess, sys
+top_n=int(sys.argv[1]); prefix=sys.argv[2]; names=sys.argv[3:]
 w=json.load(open("/tmp/wd-stats.json")).get("workers") or {}
 rows=[]
 for n in names:
@@ -53,15 +55,32 @@ for n in names:
   x=w.get(wid) or {}
   if not x.get("online"):
     continue
-  rows.append((float(x.get("hashrate_gh_s") or 0), n, wid))
+  rows.append((float(x.get("hashrate_gh_s") or 0), n))
 rows.sort(reverse=True)
-for _,n,wid in rows[:top_n]:
+if rows:
+  for _,n in rows[:top_n]:
+    print(n)
+  raise SystemExit(0)
+# Local fallback: systemd user units for this fleet are the source of truth.
+active=set()
+try:
+  out=subprocess.check_output(
+    ["systemctl","--user","list-units",f"{prefix}-*","--state=running","--no-legend","--plain"],
+    text=True, stderr=subprocess.DEVNULL)
+except Exception:
+  out=""
+for line in out.splitlines():
+  unit=(line.split() or [""])[0]
+  if unit.startswith(prefix+"-") and unit.endswith(".service"):
+    active.add(unit[len(prefix)+1:-len(".service")])
+local=[n for n in names if n in active]
+for n in local[:top_n]:
   print(n)
 PY
 )
 
 if (( ${#TOP[@]} == 0 )); then
-  echo "[watchdog] no online workers" >&2
+  echo "[watchdog] no online workers (hub map empty + no local ${UNIT_PREFIX}-* running)" >&2
   exit 1
 fi
 

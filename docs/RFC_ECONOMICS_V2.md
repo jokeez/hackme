@@ -133,11 +133,11 @@ Orders continue to use `solve-order` → escrow to the **miner**.
 
 ### 4.3 Operator checklist before live `on`
 
-- [ ] Dry soak: `baseline_relay_would` tracks empty `found_hits` without reject storms  
-- [ ] Staging: local PoH off + relay `on`; tip keeps growing  
-- [ ] `baseline_relay_ok` vs `baseline_relay_reject` healthy  
-- [ ] Settlement float + unpaid dashboards green  
-- [ ] Public note: treasury subsidy is not the policy  
+- [x] Dry soak: `baseline_relay_would` tracks empty `found_hits` without reject storms  
+- [x] Staging → live: local PoH off + relay `on`; tip keeps growing (`chain_leader_local_poh=false`)  
+- [x] `baseline_relay_ok` vs `baseline_relay_reject` healthy (~3% reject; tip ~505k as of 2026-10-31)  
+- [ ] Settlement float + unpaid dashboards green (ongoing ops watch)  
+- [x] Public note: treasury subsidy is not the policy (soft announce 2026-10-30)
 
 ---
 
@@ -257,7 +257,7 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 | Checkpoints | ✅ live |
 | Canonical settlement JSON | ✅ live |
 | Dig/Hunt settle hardening (floor, finalize gate, replay) | ✅ on `econ-v2` |
-| D1 baseline relay | ✅ hub live: `HACKME_POOL_BASELINE_RELAY=on` + `LOCAL_POH=0` (soak before v2 height) |
+| D1 baseline relay | ✅ hub live soak: `RELAY=on` + `LOCAL_POH=0`; ~2708 ok / 83 reject (~3%) · SHARE_STRICT on |
 | Lock + public RFC (this doc) | ✅ |
 | Soft announce (news + public docs) | ✅ 2026-10-30 |
 | D9 height package implementation | ✅ on `econ-v2` (`HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT`, unset=off) |
