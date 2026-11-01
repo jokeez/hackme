@@ -118,6 +118,44 @@ func TestPersistWorkerAccrualMonotonic(t *testing.T) {
 	}
 }
 
+// SHARE_STRICT found-bonus can credit payout_units while accepted_attempts stays flat.
+// A delayed persist with the same attempts and lower units must not clobber.
+func TestAccrualPersistRejectsStaleFoundBonusUnits(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "accrual-found-bonus.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	wm := &workManager{worker: map[string]workerPayoutStat{}}
+	wm.attachDedupDB(db)
+	wm.mu.Lock()
+	wm.worker["fb"] = workerPayoutStat{AcceptedAtt: 0, PayoutUnits: 5_000_00000, PayoutHMC: 5}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual("fb", true)
+
+	wm.mu.Lock()
+	wm.worker["fb"] = workerPayoutStat{AcceptedAtt: 0, PayoutUnits: 1_000_00000, PayoutHMC: 1}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual("fb", true)
+
+	st, ok := wm.fetchDurableAccrual("fb")
+	if !ok || st.PayoutUnits != 5_000_00000 {
+		t.Fatalf("stale found-bonus clobber: ok=%v st=%+v", ok, st)
+	}
+
+	// Same attempts + higher units must still advance (second found credit).
+	wm.mu.Lock()
+	wm.worker["fb"] = workerPayoutStat{AcceptedAtt: 0, PayoutUnits: 7_000_00000, PayoutHMC: 7}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual("fb", true)
+	st, ok = wm.fetchDurableAccrual("fb")
+	if !ok || st.PayoutUnits != 7_000_00000 {
+		t.Fatalf("units advance: ok=%v st=%+v", ok, st)
+	}
+}
+
 func TestAccrualJournalDeltaUnits(t *testing.T) {
 	dir := t.TempDir()
 	db, err := store.Open(filepath.Join(dir, "accrual-journal.db"))

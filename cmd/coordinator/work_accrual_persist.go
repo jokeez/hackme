@@ -352,7 +352,9 @@ func (m *workManager) persistWorkerAccrual(workerID string, force bool) {
 		return
 	}
 
-	// Monotonic upsert: a delayed goroutine must not overwrite a newer accepted_attempts row.
+	// Monotonic upsert: a delayed goroutine must not overwrite a newer row.
+	// SHARE_STRICT found-bonus can raise payout_units while accepted_attempts stays
+	// flat (0) — gate on units too, or stale persist clobbers unpaid found credit.
 	pu := snap.PayoutUnits
 	if pu == 0 && snap.PayoutHMC > 0 {
 		pu = chain.HMCToUnits(snap.PayoutHMC)
@@ -401,7 +403,9 @@ ON CONFLICT(worker_id) DO UPDATE SET
   last_poh_seen_unix=excluded.last_poh_seen_unix,
   last_fuzz_seen_unix=excluded.last_fuzz_seen_unix,
   updated_at=excluded.updated_at
-WHERE excluded.accepted_attempts >= worker_accrual.accepted_attempts
+WHERE excluded.accepted_attempts > worker_accrual.accepted_attempts
+   OR (excluded.accepted_attempts = worker_accrual.accepted_attempts
+       AND excluded.payout_units >= worker_accrual.payout_units)
 `, workerID, snap.AcceptedRanges, snap.AcceptedHits, snap.AcceptedAtt,
 		hmcMirror, pu, snap.PayoutSUP, strings.TrimSpace(snap.PayoutAddress), snap.SignedSubmits,
 		snap.LastHashrateGHS, snap.PeakHashrateGHS, snap.LastSeenUnix, snap.LastPoHSeenUnix, snap.LastFuzzSeenUnix, now)
