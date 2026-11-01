@@ -261,7 +261,8 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 | Lock + public RFC (this doc) | ✅ |
 | Soft announce (news + public docs) | ✅ 2026-10-30 |
 | D9 height package + consensus harden | ✅ on `main` (env bootstrap → locked `meta economics_v2_activation_height`; **unset on hub**) |
-| Activation announce + ≥14d | ⏳ tip-relative; do not set env until announce |
+| D6 Dig soft-start + burn-halve wiring | ✅ on `main` (`HACKME_ECONOMICS_V2_ANNOUNCE_UNIX` / meta; Hunt 50/50 gated; burn halves with HMC eras then freezes; **unset on hub** ⇒ gate off) |
+| Activation announce + ≥14d | ⏳ tip-relative; do not set height/announce env until announce |
 | Height switch | ⏳ |
 | Post-switch dumps / verify / 1.0.0 | after stability |
 
@@ -321,6 +322,7 @@ Miners, desktop nodes, explorers, and customers need a predictable upgrade windo
 | 2026-10-29 | Public RFC: process lock, D10 marked live, D1 dry soak, **no airdrop scope**, activation height deferred to announce |
 | 2026-10-30 | Soft announce on news + public docs; D1 flipped to live `on` + hub `LOCAL_POH=0` (soak continues; v2 height still deferred) |
 | 2026-10-31 | Locked D3=2000 HMC, D6=30 calendar days, SUP cap=21k; D1 soak watch script+timer; D9 height package on `econ-v2` |
+| 2026-11-01 | D6 soft-start + burn-halve wired on `main` (announce unix / meta; Hunt gated; height+announce still unset on hub) |
 
 ---
 

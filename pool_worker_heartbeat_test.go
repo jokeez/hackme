@@ -238,8 +238,16 @@ func TestPoolWorkerWatchdogTickExternalNoStartedAt(t *testing.T) {
 }
 
 func TestPoolWorkerWatchdogTickMissing(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(dir, "scripts", "ops"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, "scripts", "ops", "worker_loop.sh"), []byte("#!/bin/sh\n"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "logs"), 0o755)
+	t.Setenv("HACKME_REPO_ROOT", dir)
 	t.Setenv("HACKME_MINING_PAUSED", "0")
-	a := &app{}
+	// Operator shells often export DESKTOP_MODE=1 + live logs/; keep this tick hermetic.
+	t.Setenv("HACKME_DESKTOP_MODE", "0")
+	t.Setenv("WORKER_ID", "")
+	a := &app{dataDir: filepath.Join(dir, "data")}
 	a.workerRunningCacheMu.Lock()
 	a.workerRunningCached = false
 	a.workerRunningCacheAt = time.Now().Unix()
@@ -289,6 +297,11 @@ func TestPoolWorkerWatchdogTickDesktopRecentSubmit(t *testing.T) {
 func TestWorkerStopStartViaAPILoopback(t *testing.T) {
 	t.Setenv("HACKME_ADMIN_TOKEN", "test-admin-token-heartbeat")
 	t.Setenv("HACKME_DESKTOP_MODE", "1")
+	// Hermetic: operator shells often export a live coordinator URL.
+	t.Setenv("HACKME_POOL_COORDINATOR_URL", "")
+	t.Setenv("HACKME_PUBLIC_AUTHORITY_BASE", "")
+	t.Setenv("HACKME_CANONICAL_CHAIN_URL", "")
+	t.Setenv("HACKME_P2P_PEERS", "")
 	a := &app{}
 	// stop with no worker should succeed
 	if err := a.stopPoolWorkerViaAPI(); err != nil {

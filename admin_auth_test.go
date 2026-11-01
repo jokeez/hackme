@@ -193,6 +193,7 @@ func TestDesktopLocalAuthAlwaysReturnsTokenOnLoopback(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/desktop/local-auth", nil)
 	req.RemoteAddr = "127.0.0.1:9"
 	req.Host = "127.0.0.1:8080"
+	// Bare local client (no Sec-Fetch-Site): no raw token when EXPOSE=0.
 	handleDesktopLocalAuth(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d", rec.Code)
@@ -201,8 +202,24 @@ func TestDesktopLocalAuthAlwaysReturnsTokenOnLoopback(t *testing.T) {
 	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
+	if body["admin_token"] != nil {
+		t.Fatalf("bare loopback without EXPOSE must omit admin_token, got %#v", body["admin_token"])
+	}
+	if body["admin_token_configured"] != true {
+		t.Fatalf("want admin_token_configured=true, got %#v", body["admin_token_configured"])
+	}
+
+	// Dashboard same-origin fetch still gets the token (Start Worker re-sync).
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/desktop/local-auth", nil)
+	req.RemoteAddr = "127.0.0.1:9"
+	req.Host = "127.0.0.1:8080"
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	handleDesktopLocalAuth(rec, req)
+	body = map[string]any{}
+	_ = json.NewDecoder(rec.Body).Decode(&body)
 	if body["admin_token"] != "desktop-secret" {
-		t.Fatalf("desktop loopback must return admin_token even without EXPOSE, got %#v", body["admin_token"])
+		t.Fatalf("same-origin dashboard fetch must return admin_token, got %#v", body["admin_token"])
 	}
 
 	t.Setenv("HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN", "1")

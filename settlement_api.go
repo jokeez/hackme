@@ -421,6 +421,11 @@ func settlementWindowConfigNow() (minSettleHMC float64, dailyForceIntervalSec in
 	return minSettleHMC, dailyForceIntervalSec, dailyMinSettleHMC
 }
 
+// workerSettlementExposeSensitive gates real worker ids / breakdown / local paths.
+func workerSettlementExposeSensitive(r *http.Request) bool {
+	return hasValidAdminAuth(r) || (requestFromLoopback(r) && requestHostIsLoopbackLiteral(r))
+}
+
 func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -695,7 +700,6 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		"next_settlement_scan_unix":    nextScanUnix,
 		"settlement_scan_eta_sec":      scanEtaSec,
 		"settlement_scan_interval_sec": settlementScanSec,
-		"workers_breakdown":            workerBreakdown,
 		// Fleet ready = ops view. Wallet ready = this PC worker only (UI must not show fleet total).
 		"threshold_ready":                       walletUnpaid >= minSettleHMC,
 		"fleet_threshold_ready":                 totalUnpaid >= minSettleHMC,
@@ -703,11 +707,15 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		"on_chain_payout_note":                  "UI threshold is not a bank transfer. On-chain payout runs on the VPS/chain host via settle_worker_payouts.sh (ADMIN_TOKEN + CHAIN_BASE + COORD_URL + WORKER_PAYOUT_MAP). Coordinators that omit workers{} require the updated script (synthetic single-map row) or coordinator upgrade.",
 		"updated_unix":                          nowUnix,
 	}
-	// M4: filesystem paths + local identity are admin/loopback-only (public UI uses wallet totals).
-	if hasValidAdminAuth(r) || (requestFromLoopback(r) && requestHostIsLoopbackLiteral(r)) {
+	// M4: filesystem paths, real worker ids, and local identity are admin/loopback-only.
+	// Public fleet hosts get aggregate totals only (no workers_breakdown key leakage).
+	if workerSettlementExposeSensitive(r) {
+		out["workers_breakdown"] = workerBreakdown
 		out["state_file"] = statePath
 		out["desktop_worker_id"] = desktopWorkerID
 		out["last_signed_miner_address"] = strings.TrimSpace(asString(ws["last_signed_miner_address"]))
+	} else {
+		out["workers_breakdown_omitted"] = true
 	}
 	writeJSON(w, out)
 }

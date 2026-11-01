@@ -332,8 +332,8 @@ func desktopAdminTokenEmbedScript(r *http.Request) string {
 }
 
 // handleDesktopLocalAuth exposes HACKME_ADMIN_TOKEN to the dashboard on loopback
-// only (desktop mode). The JSON always includes admin_token when configured;
-// HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN only gates HTML embed + the exposed flag.
+// only (desktop mode). Token is returned for same-origin fetches or when
+// HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1 (also gates HTML embed).
 func handleDesktopLocalAuth(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -354,20 +354,22 @@ func handleDesktopLocalAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tok := adminTokenFromEnv()
-	// Desktop miners: always return the token on loopback so the dashboard can
-	// re-sync after restart (stale sessionStorage was breaking Start Worker).
-	// EXPOSE=1 still controls HTML embed + the optional UI note.
+	// Prefer same-origin browser fetches (dashboard re-sync). Bare curl/local
+	// processes only get the raw token when EXPOSE=1 (shared-machine hardening).
+	// EXPOSE also still controls HTML embed + the optional UI note.
 	expose := envBool("HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN", false)
+	site := strings.ToLower(strings.TrimSpace(r.Header.Get("Sec-Fetch-Site")))
+	allowToken := expose || site == "same-origin"
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	out := map[string]any{
 		"ok":                     true,
 		"admin_token_configured": tok != "",
 		"desktop_mode":           true,
-		"hint":                   "loopback desktop always receives admin_token; rotate HACKME_ADMIN_TOKEN if this machine is shared",
+		"exposed":                expose,
+		"hint":                   "admin_token returned for same-origin dashboard fetches, or when HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1; rotate token on shared machines",
 	}
-	if tok != "" {
+	if tok != "" && allowToken {
 		out["admin_token"] = tok
-		out["exposed"] = expose
 	}
 	_ = json.NewEncoder(w).Encode(out)
 }

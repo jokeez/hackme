@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Economics v2 (RFC_ECONOMICS_V2.md D9) — height-gated; unset/0 = never activate.
@@ -17,7 +18,7 @@ const (
 	V2InitialBaseRewardHMC = 0.1
 	// V2RewardHalvingIntervalBlocks is ~4 years at 30s/block.
 	V2RewardHalvingIntervalBlocks uint64 = 4_204_800
-	// V2OrderBurnRate / V2OrderPlatformFeeRate: 10% upfront as 5%/5%.
+	// V2OrderBurnRate / V2OrderPlatformFeeRate: 10% upfront as 5%/5% (era 0).
 	V2OrderBurnRate        = 0.05
 	V2OrderPlatformFeeRate = 0.05
 	// V2SUPInitialReward is SUP per empty PoH block after activation (no tail).
@@ -26,17 +27,28 @@ const (
 	V2SUPMaxSupply = 21_000.0
 	// V2ActivationBufferHMC is the public start-buffer size for the activation announce (D3 locked).
 	V2ActivationBufferHMC = 2000.0
-	// V2DigBurnSoftStartCalendarDays is Dig-only burn soft-start after activation wall-clock (D6 locked).
+	// V2DigBurnSoftStartCalendarDays is Dig-only product soft-start after announce wall-clock (D6 locked).
 	V2DigBurnSoftStartCalendarDays = 30
 )
 
-const metaEconomicsV2ActivationHeight = "economics_v2_activation_height"
+const (
+	metaEconomicsV2ActivationHeight = "economics_v2_activation_height"
+	metaEconomicsV2AnnounceUnix     = "economics_v2_announce_unix"
+)
+
+// ErrHuntSoftStart is returned while Economics v2 Dig-only soft-start is active.
+var ErrHuntSoftStart = errors.New("chain: Hunt escrow blocked during Economics v2 Dig soft-start")
 
 var (
 	econV2HeightOnce   sync.Once
 	econV2Height       uint64 // 0 = disabled (from env)
 	econV2MetaMu       sync.RWMutex
 	econV2MetaOverride uint64 // locked chain meta wins over env when ≥ 1
+
+	econV2AnnounceOnce     sync.Once
+	econV2AnnounceUnix     int64 // 0 = unset
+	econV2AnnounceMetaMu   sync.RWMutex
+	econV2AnnounceOverride int64 // locked meta wins when ≥ 1
 )
 
 // EconomicsV2ActivationHeight is the first block index that uses the v2 schedule.
@@ -68,12 +80,53 @@ func ResetEconomicsV2ActivationHeightForTest() {
 	econV2MetaMu.Lock()
 	econV2MetaOverride = 0
 	econV2MetaMu.Unlock()
+	econV2AnnounceOnce = sync.Once{}
+	econV2AnnounceUnix = 0
+	econV2AnnounceMetaMu.Lock()
+	econV2AnnounceOverride = 0
+	econV2AnnounceMetaMu.Unlock()
 }
 
 // EconomicsV2ActiveForIndex reports whether block index uses the v2 schedule.
 func EconomicsV2ActiveForIndex(index uint64) bool {
 	act := EconomicsV2ActivationHeight()
 	return act >= 1 && index >= 1 && index >= act
+}
+
+// EconomicsV2AnnounceUnix is the activation-announce wall-clock (RFC D6 soft-start origin).
+// Preference: locked chain meta, else HACKME_ECONOMICS_V2_ANNOUNCE_UNIX. Unset/0 ⇒ no soft-start gate.
+func EconomicsV2AnnounceUnix() int64 {
+	econV2AnnounceMetaMu.RLock()
+	meta := econV2AnnounceOverride
+	econV2AnnounceMetaMu.RUnlock()
+	if meta >= 1 {
+		return meta
+	}
+	econV2AnnounceOnce.Do(func() {
+		econV2AnnounceUnix = 0
+		if v := strings.TrimSpace(os.Getenv("HACKME_ECONOMICS_V2_ANNOUNCE_UNIX")); v != "" {
+			if n, err := strconv.ParseInt(v, 10, 64); err == nil && n >= 1 {
+				econV2AnnounceUnix = n
+			}
+		}
+	})
+	return econV2AnnounceUnix
+}
+
+// DigSoftStartActiveAt reports whether Dig-only soft-start applies at wallClockUnix.
+// Requires a published announce unix; inactive when unset (pre-announce / soak).
+func DigSoftStartActiveAt(wallClockUnix int64) bool {
+	ann := EconomicsV2AnnounceUnix()
+	if ann < 1 || wallClockUnix < 1 {
+		return false
+	}
+	end := ann + int64(V2DigBurnSoftStartCalendarDays)*24*3600
+	return wallClockUnix >= ann && wallClockUnix < end
+}
+
+// DigSoftStartActiveNow is DigSoftStartActiveAt(time.Now().Unix()).
+func DigSoftStartActiveNow() bool {
+	return DigSoftStartActiveAt(time.Now().Unix())
 }
 
 // economicsV2ActivationHeightQ prefers immutable chain meta, then env bootstrap.
@@ -111,9 +164,7 @@ func (s *Service) lockEconomicsV2ActivationTx(ctx context.Context, tx queryRowEx
 		econV2MetaMu.Lock()
 		econV2MetaOverride = metaH
 		econV2MetaMu.Unlock()
-		return nil
-	}
-	if rawEnv >= 1 {
+	} else if rawEnv >= 1 {
 		if err := s.upsertMetaUint(ctx, tx, metaEconomicsV2ActivationHeight, rawEnv); err != nil {
 			return err
 		}
@@ -121,16 +172,84 @@ func (s *Service) lockEconomicsV2ActivationTx(ctx context.Context, tx queryRowEx
 		econV2MetaOverride = rawEnv
 		econV2MetaMu.Unlock()
 	}
+	return s.lockEconomicsV2AnnounceTx(ctx, tx)
+}
+
+// lockEconomicsV2AnnounceTx persists announce wall-clock once (D6 soft-start origin).
+func (s *Service) lockEconomicsV2AnnounceTx(ctx context.Context, tx queryRowExecContext) error {
+	metaA, err := s.metaUint(ctx, tx, metaEconomicsV2AnnounceUnix, 0)
+	if err != nil {
+		return err
+	}
+	rawEnv := int64(0)
+	if v := strings.TrimSpace(os.Getenv("HACKME_ECONOMICS_V2_ANNOUNCE_UNIX")); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n >= 1 {
+			rawEnv = n
+		}
+	}
+	if metaA >= 1 {
+		if rawEnv >= 1 && uint64(rawEnv) != metaA {
+			return fmt.Errorf("chain: HACKME_ECONOMICS_V2_ANNOUNCE_UNIX=%d disagrees with locked meta %d", rawEnv, metaA)
+		}
+		econV2AnnounceMetaMu.Lock()
+		econV2AnnounceOverride = int64(metaA)
+		econV2AnnounceMetaMu.Unlock()
+		return nil
+	}
+	if rawEnv >= 1 {
+		if err := s.upsertMetaUint(ctx, tx, metaEconomicsV2AnnounceUnix, uint64(rawEnv)); err != nil {
+			return err
+		}
+		econV2AnnounceMetaMu.Lock()
+		econV2AnnounceOverride = rawEnv
+		econV2AnnounceMetaMu.Unlock()
+	}
 	return nil
+}
+
+// v2RewardEpoch returns the HMC v2 halving epoch for block index (≥1).
+func v2RewardEpoch(index uint64) uint64 {
+	if index == 0 || V2RewardHalvingIntervalBlocks == 0 {
+		return 0
+	}
+	return (index - 1) / V2RewardHalvingIntervalBlocks
+}
+
+// v2BurnFreezeEpoch is the first epoch where base reward is clamped at the tail floor.
+func v2BurnFreezeEpoch() uint64 {
+	if V2InitialBaseRewardHMC <= RewardTailFloorHMC || RewardTailFloorHMC <= 0 {
+		return 0
+	}
+	// Find smallest e with initial/2^e <= floor (same clamp as baseRewardV2).
+	e := uint64(0)
+	r := V2InitialBaseRewardHMC
+	for r > RewardTailFloorHMC+1e-15 {
+		e++
+		r = V2InitialBaseRewardHMC / math.Pow(2, float64(e))
+		if e > 64 {
+			break
+		}
+	}
+	return e
 }
 
 // OrderBurnRateAt returns the order burn fraction for orders opened at tipHeight
 // (uses tip+1 so the next block's schedule gates the open).
+// After v2: starts at 5% and halves with HMC eras, then freezes in the reward-tail era (RFC §5.2).
 func OrderBurnRateAt(tipHeight uint64) float64 {
-	if EconomicsV2ActiveForIndex(tipHeight + 1) {
-		return V2OrderBurnRate
+	idx := tipHeight + 1
+	if !EconomicsV2ActiveForIndex(idx) {
+		return OrderBurnRate
 	}
-	return OrderBurnRate
+	epoch := v2RewardEpoch(idx)
+	if freeze := v2BurnFreezeEpoch(); epoch > freeze {
+		epoch = freeze
+	}
+	rate := V2OrderBurnRate / math.Pow(2, float64(epoch))
+	if rate < 1e-12 {
+		rate = 0
+	}
+	return rate
 }
 
 // OrderPlatformFeeRateAt returns the platform fee fraction for orders at tipHeight.

@@ -431,6 +431,9 @@ func (m *Miner) SetRunningForTest(on bool) {
 
 // Stop cancels background search.
 func (m *Miner) Stop() {
+	if m == nil {
+		return
+	}
 	if !m.running.Load() {
 		return
 	}
