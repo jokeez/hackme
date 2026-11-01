@@ -116,6 +116,31 @@
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
     .worker-online { color: var(--matrix); }
     .worker-off { color: #5a6a82; }
+    .addr-balance {
+      display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px;
+      margin: 0 0 12px; padding: 12px 14px;
+      border: 1px solid rgba(127, 231, 255, 0.18);
+      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(127, 231, 255, 0.08), rgba(147, 255, 177, 0.04));
+    }
+    .addr-balance .amt {
+      font-family: Orbitron, sans-serif; font-size: 26px; font-weight: 700;
+      color: var(--neon); letter-spacing: 0.04em; font-variant-numeric: tabular-nums;
+    }
+    .addr-balance .unit { color: var(--matrix); font-size: 13px; font-weight: 600; letter-spacing: 0.08em; }
+    .addr-balance .sub { color: var(--muted); font-size: 11px; width: 100%; }
+    .addr-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 9px; border-radius: 999px; font-size: 10px;
+      border: 1px solid #2b3b54; color: #8ea3c2; margin-bottom: 10px;
+    }
+    .addr-raw details { margin-top: 10px; }
+    .addr-raw summary { cursor: pointer; color: var(--muted); font-size: 11px; user-select: none; }
+    .addr-raw pre {
+      margin: 8px 0 0; padding: 10px; border-radius: 8px; border: 1px solid #21314a;
+      background: #070d16; color: #9eb6d8; font-size: 11px; white-space: pre-wrap; word-break: break-word;
+      max-height: 220px; overflow: auto;
+    }
     @media (max-width: 1200px) { .row { grid-template-columns: 1fr 1fr; } .grid3 { grid-template-columns: 1fr; } }
     @media (max-width: 980px) { .grid2 { grid-template-columns: 1fr; } }
     /* Dark thin scrollbars — kill default white pipe + arrow buttons */
@@ -177,7 +202,7 @@
           <input id="in-addr" placeholder="HMC-..." class="mono" style="flex:1;min-width:220px;" />
           <button id="btn-find-addr">Find</button>
         </div>
-        <pre id="addr-result" class="mono muted" style="white-space:pre-wrap;margin:0;">—</pre>
+        <div id="addr-result" class="muted" style="margin:0;">—</div>
       </section>
     </div>
 
@@ -572,18 +597,18 @@
         ids.forEach((id) => {
           const w = workers[id] || {};
           const live = w.live || {};
-          const seen = Number(w.last_seen_unix || live.last_seen_unix || 0);
-          const gh = Number(w.hashrate_gh_s || live.hashrate_gh_s || 0);
           const pruned = w.coordinator_pruned === true;
           const localOnly = w.local_pool_worker === true;
-          const online = !pruned && (!!(live.online) || localOnly || gh > 0.001 || (seen > 0 && (Math.floor(Date.now() / 1000) - seen) < 120));
+          // Trust coordinator Online (PoH activity). Fuzz-only heartbeats refresh
+          // last_seen but must not paint as live pool miners.
+          const online = !pruned && (localOnly || !!w.online || !!(live.online));
           const ranges = Number(w.accepted_ranges ?? w.ranges ?? 0);
           const attempts = Number(w.accepted_attempts ?? w.attempts ?? 0);
           const payout = Number(w.payout_hmc ?? w.payout ?? 0);
           const tr = document.createElement('tr');
           const nameSuffix = pruned ? ' <span class="muted">(mirror)</span>' : (localOnly ? ' <span class="muted">(local)</span>' : '');
           tr.innerHTML =
-            '<td class="' + (online ? 'worker-online' : 'worker-off') + '">' + (online ? '●' : '○') + '</td>' +
+            '<td class="' + (online ? 'worker-online' : 'worker-off') + '" title="' + (online ? 'live' : 'offline') + '">' + (online ? '●' : '○') + '</td>' +
             '<td class="mono">' + esc(id) + nameSuffix + '</td>' +
             '<td class="mono">' + String(ranges) + '</td>' +
             '<td class="mono">' + String(attempts) + '</td>' +
@@ -871,23 +896,56 @@
       out.innerHTML = '<span class="muted">Not found: no tx hash, block index, block hash/prefix (≥8 hex) or task id matches.</span>';
     }
 
+    function fmtHmcUnits(units) {
+      const n = Number(units || 0);
+      if (!Number.isFinite(n)) return '0.00000000';
+      return (n / 1e8).toLocaleString(undefined, { minimumFractionDigits: 8, maximumFractionDigits: 8 });
+    }
+    function fmtUnitsInt(units) {
+      const n = Math.trunc(Number(units || 0));
+      if (!Number.isFinite(n)) return '0';
+      return n.toLocaleString(undefined);
+    }
+    function renderAddrState(j) {
+      const addr = String(j.address || $('in-addr').value || '—');
+      const units = Number(j.balance_units || 0);
+      const hmc = Number.isFinite(Number(j.balance_hmc)) ? Number(j.balance_hmc) : (units / 1e8);
+      const hmcTxt = Number.isFinite(hmc)
+        ? hmc.toLocaleString(undefined, { minimumFractionDigits: 8, maximumFractionDigits: 8 })
+        : fmtHmcUnits(units);
+      const nonce = Number(j.next_nonce || 0);
+      const source = String(j.source || '—');
+      const raw = Object.assign({}, j, { balance_hmc_estimate: (units / 1e8).toFixed(8) });
+      return '' +
+        '<div class="addr-pill"><span class="live-dot" style="animation:none;opacity:0.85"></span><span class="mono">' + esc(addr) + '</span></div>' +
+        '<div class="addr-balance">' +
+          '<span class="amt">' + esc(hmcTxt) + '</span>' +
+          '<span class="unit">HMC</span>' +
+          '<span class="sub mono">units ' + esc(fmtUnitsInt(units)) + ' · next nonce ' + esc(String(nonce)) + '</span>' +
+        '</div>' +
+        '<div class="result-card">' +
+          '<div class="result-title">Account</div>' +
+          '<div class="result-grid">' +
+            '<div class="result-key">Balance</div><div class="result-val result-highlight mono">' + esc(hmcTxt) + ' HMC</div>' +
+            '<div class="result-key">Balance units</div><div class="result-val mono">' + esc(fmtUnitsInt(units)) + '</div>' +
+            '<div class="result-key">Next nonce</div><div class="result-val mono">' + esc(String(nonce)) + '</div>' +
+            '<div class="result-key">Source</div><div class="result-val mono">' + esc(source) + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="addr-raw"><details><summary>Raw JSON</summary><pre class="mono">' + esc(JSON.stringify(raw, null, 2)) + '</pre></details></div>';
+    }
     async function findAddr() {
       const addr = String($('in-addr').value || '').trim();
       if (!addr) return;
       const out = $('addr-result');
-      out.textContent = 'loading...';
+      out.textContent = 'loading…';
       const r = await fetch(apiUrl('/address/' + encodeURIComponent(addr)), { cache: 'no-store' });
       if (!r.ok) {
         out.textContent = 'not found';
         return;
       }
       const j = await r.json();
-      const units = Number(j.balance_units || 0);
-      const hmcBal = (units / 1e8).toFixed(8);
-      out.textContent = JSON.stringify({
-        ...j,
-        balance_hmc_estimate: hmcBal,
-      }, null, 2);
+      out.innerHTML = renderAddrState(j);
     }
 
     $('btn-refresh-blocks').addEventListener('click', () => { blocksBrowsing = false; void refreshBlocks(); });

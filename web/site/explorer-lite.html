@@ -46,6 +46,24 @@
       color: var(--primary);
     }
     .ex-lite-links a:hover { border-color: rgba(77, 228, 255, 0.55); }
+    .addr-balance {
+      display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0.75rem;
+      margin: 0 0 0.75rem; padding: 0.9rem 1rem;
+      border-radius: 0.75rem; border: 1px solid rgba(77, 228, 255, 0.2);
+      background: linear-gradient(135deg, rgba(77, 228, 255, 0.1), rgba(120, 255, 180, 0.04));
+    }
+    .addr-balance .amt {
+      font-family: "Space Grotesk", sans-serif; font-size: 1.65rem; font-weight: 700;
+      color: var(--primary); letter-spacing: 0.03em; font-variant-numeric: tabular-nums;
+    }
+    .addr-balance .unit { color: #8dffb2; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.08em; }
+    .addr-balance .sub { width: 100%; font-size: 0.72rem; opacity: 0.75; }
+    .addr-meta {
+      display: grid; grid-template-columns: 7.5rem 1fr; gap: 0.35rem 0.75rem;
+      font-size: 0.82rem; margin-bottom: 0.65rem;
+    }
+    .addr-meta .k { opacity: 0.65; }
+    .addr-meta .v { font-family: ui-monospace, Menlo, monospace; word-break: break-word; }
   </style>
 </head>
 <body>
@@ -85,6 +103,15 @@
     </div>
 
     <section class="panel glass" style="margin-top:1rem">
+      <div class="panel-head"><h2>Address State</h2></div>
+      <div style="display:flex;gap:0.55rem;flex-wrap:wrap;align-items:center;margin-bottom:0.75rem">
+        <input id="addrInput" class="mono" placeholder="HMC-…" style="flex:1;min-width:220px;padding:0.55rem 0.75rem;border-radius:0.65rem;border:1px solid rgba(120,170,220,0.28);background:rgba(4,8,16,0.72);color:inherit" />
+        <button id="addrFind" type="button" style="padding:0.5rem 0.9rem;border-radius:0.65rem;border:1px solid rgba(77,228,255,0.35);background:rgba(77,228,255,0.08);color:var(--primary);cursor:pointer">Find</button>
+      </div>
+      <div id="addrResult" class="subtle">Enter an HMC address to load on-chain balance + nonce.</div>
+    </section>
+
+    <section class="panel glass" style="margin-top:1rem">
       <div class="panel-head"><h2>API</h2></div>
       <div class="ex-lite-links">
         <a href="/pool/coordinator/api/pool/stats">pool/stats</a>
@@ -113,6 +140,46 @@
         el.textContent = String(e && e.message ? e.message : e);
       }
     }
+    function esc(s) {
+      return String(s || '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+    }
+    function fmtHmc(units) {
+      const n = Number(units || 0) / 1e8;
+      if (!Number.isFinite(n)) return '0.00000000';
+      return n.toLocaleString(undefined, { minimumFractionDigits: 8, maximumFractionDigits: 8 });
+    }
+    async function findAddr() {
+      const input = document.getElementById('addrInput');
+      const out = document.getElementById('addrResult');
+      const addr = String((input && input.value) || '').trim();
+      if (!addr) return;
+      out.textContent = 'loading…';
+      try {
+        const r = await fetch('/pool/api/address/' + encodeURIComponent(addr), { cache: 'no-store' });
+        if (!r.ok) {
+          out.textContent = 'not found (HTTP ' + r.status + ')';
+          return;
+        }
+        const j = await r.json();
+        const units = Number(j.balance_units || 0);
+        const hmc = fmtHmc(units);
+        out.innerHTML =
+          '<div class="addr-balance">' +
+            '<span class="amt">' + esc(hmc) + '</span><span class="unit">HMC</span>' +
+            '<span class="sub mono">' + esc(String(j.address || addr)) + '</span>' +
+          '</div>' +
+          '<div class="addr-meta">' +
+            '<div class="k">Units</div><div class="v">' + esc(Math.trunc(units).toLocaleString()) + '</div>' +
+            '<div class="k">Next nonce</div><div class="v">' + esc(String(j.next_nonce || 0)) + '</div>' +
+            '<div class="k">Source</div><div class="v">' + esc(String(j.source || '—')) + '</div>' +
+          '</div>' +
+          '<details><summary class="subtle" style="cursor:pointer">Raw JSON</summary><pre class="ex-lite-pre" style="margin-top:0.55rem">' +
+            esc(JSON.stringify(Object.assign({}, j, { balance_hmc_estimate: (units / 1e8).toFixed(8) }), null, 2)) +
+          '</pre></details>';
+      } catch (e) {
+        out.textContent = String(e && e.message ? e.message : e);
+      }
+    }
     async function boot() {
       const st = document.getElementById('status');
       try {
@@ -123,6 +190,12 @@
       } catch (e) {
         st.textContent = 'status unavailable';
       }
+      const btn = document.getElementById('addrFind');
+      const inp = document.getElementById('addrInput');
+      if (btn) btn.addEventListener('click', () => { void findAddr(); });
+      if (inp) inp.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); void findAddr(); }
+      });
       await Promise.all([
         loadJSON('/pool/coordinator/api/pool/stats', 'poolStats'),
         loadJSON('/pool/coordinator/api/work/stats', 'workStats'),

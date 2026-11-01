@@ -2257,8 +2257,8 @@
 						</div>
 						<div class="flex flex-wrap items-center gap-2 mb-2">
 							<select id="overview-miners-filter" class="text-[10px] font-mono rounded border border-white/20 bg-black/50 px-2 py-1 text-gray-300">
+								<option value="live" selected>live only</option>
 								<option value="all">all miners</option>
-								<option value="live">live only</option>
 								<option value="offline">offline only</option>
 							</select>
 							<select id="overview-miners-limit" class="text-[10px] font-mono rounded border border-white/20 bg-black/50 px-2 py-1 text-gray-300">
@@ -6277,7 +6277,7 @@
 		let latestP2PPeers = null;
 		let latestP2PSync = null;
 		let latestWorkerRows = [];
-		let overviewMinersFilter = 'all';
+		let overviewMinersFilter = 'live';
 		let overviewMinersLimit = 8;
 		let miningWorkersFilter = 'active';
 		let miningWorkersControlsBound = false;
@@ -10813,29 +10813,45 @@
 				return null;
 			}
 		}
+		// Pool online = coordinator Online / last_seen ≤ 300s (same as poolHashrateStaleSec).
+		// Do NOT treat cumulative attempts / abuse minute / pool aggregate as "live".
+		const POOL_WORKER_ONLINE_STALE_SEC = 300;
 		function overviewMinerOnline(r, ws, sampleUnix) {
-			const abuse = r.abuse || {};
-			const minuteUnix = Number(abuse.minute_unix || 0);
-			const staleSec = minuteUnix > 0 ? Math.max(0, sampleUnix - (minuteUnix * 60)) : -1;
 			const runningWorkerID = String((latestWorkerStatus && latestWorkerStatus.worker_id) || '');
-			const hiThr = Number(r.hashrate_gh_s || 0) > 0.01 || Number(r.attempts || 0) >= 1e7;
-			const totA = Number((ws && ws.accepted_attempts) || 0);
-			const rowShare = totA > 0 ? (Number(r.attempts || 0) / totA) : 0;
-			const dominantRow = (latestWorkerRows && latestWorkerRows.length <= 1) || rowShare >= 0.05 || Number(r.attempts || 0) >= 1e7;
-			const poolAggPulse = !!(ws && ws.ok !== false) &&
-				totA >= 1e7 &&
-				Number(ws.submitted_items || 0) >= 50 &&
-				dominantRow;
-			const workerPulse = (!!ws && ws.ok !== false) && (hiThr || poolAggPulse);
-			const coordinatorSynthOnline = ws && ws.ok !== false &&
+			if (!!(latestWorkerStatus && latestWorkerStatus.running) &&
+				(r.id === runningWorkerID || r.id === 'worker-active')) {
+				return true;
+			}
+			if (ws && ws.ok !== false &&
 				(r.id === 'worker-active' || r.id === 'worker-unknown') &&
-				Number(r.attempts || 0) >= 1e6;
-			return !!(r.live && r.live.online) ||
-				(staleSec >= 0 && staleSec <= 90) ||
-				(!!(latestWorkerStatus && latestWorkerStatus.running) &&
-					(r.id === runningWorkerID || r.id === 'worker-active')) ||
-				workerPulse ||
-				coordinatorSynthOnline;
+				Number(r.attempts || 0) >= 1e6) {
+				return true;
+			}
+			if (typeof r.online === 'boolean') return !!r.online;
+			if (r.live && typeof r.live.online === 'boolean') return !!r.live.online;
+			const seen = Number(r.last_seen_unix || (r.live && r.live.last_seen_unix) || 0);
+			if (seen > 0 && Number.isFinite(sampleUnix)) {
+				return (sampleUnix - seen) <= POOL_WORKER_ONLINE_STALE_SEC;
+			}
+			return false;
+		}
+		function miningWorkerIsOnline(r, rowSt, sampleUnix) {
+			const st = rowSt || {};
+			if (st.coordinator_pruned) return false;
+			const runningWorkerID = String((latestWorkerStatus && latestWorkerStatus.worker_id) || '');
+			if (!!(latestWorkerStatus && latestWorkerStatus.running) &&
+				(r.id === runningWorkerID || r.id === 'worker-active')) {
+				return true;
+			}
+			if (st.local_pool_worker) return true;
+			if (typeof st.online === 'boolean') return !!st.online;
+			if (typeof r.online === 'boolean') return !!r.online;
+			if (r.live && typeof r.live.online === 'boolean') return !!r.live.online;
+			const seen = Number(r.last_seen_unix || st.last_seen_unix || (r.live && r.live.last_seen_unix) || 0);
+			if (seen > 0 && Number.isFinite(sampleUnix)) {
+				return (sampleUnix - seen) <= POOL_WORKER_ONLINE_STALE_SEC;
+			}
+			return false;
 		}
 
 		function isFuzzPoolWorkerId(id) {
@@ -10933,10 +10949,13 @@
 					void runMinerLookup();
 				});
 				const wallet = String(r.payout_address || '—');
+				const walletCell = wallet.startsWith('HMC-')
+					? ('<span class="text-neon/70">' + escapeHtml(wallet.slice(0, 4)) + '</span><span class="text-gray-300">' + escapeHtml(wallet.slice(4)) + '</span>')
+					: escapeHtml(wallet);
 				tr.innerHTML = '<td class="text-gray-500">' + String(idx + 1) + '</td>' +
 					'<td class="text-neon/90 truncate max-w-[220px]" title="' + escapeHtml(r.id) + '">' + escapeHtml(r.id) + '</td>' +
-					'<td class="text-gray-400 truncate max-w-[180px]" title="' + escapeHtml(wallet) + '">' + escapeHtml(wallet) + '</td>' +
-					'<td class="' + (online ? 'text-matrix' : 'text-gray-500') + '">' + (online ? 'live' : 'offline') + '</td>' +
+					'<td class="truncate max-w-[200px] font-mono tracking-tight" title="' + escapeHtml(wallet) + '">' + walletCell + '</td>' +
+					'<td class="' + (online ? 'text-matrix' : 'text-gray-500') + '">' + (online ? '● live' : '○ offline') + '</td>' +
 					'<td class="text-neon/80 tabular-nums">' + hr + '</td>' +
 					'<td class="tabular-nums text-gray-400" title="instantaneous pool hashrate share">' + hashPct + '</td>' +
 					'<td class="tabular-nums text-warn/90" title="cumulative payout share (attempts × reward/M + found bonus)">' + payoutPct + '</td>' +
@@ -11241,6 +11260,7 @@
 				payout_address: String(st.payout_address || ''),
 				hashrate_gh_s: Number(st.hashrate_gh_s || 0),
 				last_seen_unix: Number(st.last_seen_unix || 0),
+				online: !!st.online,
 				abuse: abuse[id] || {},
 				live: live.get(id) || null,
 			})).sort((a, b) => b.payout - a.payout);
@@ -11280,20 +11300,7 @@
 			}
 			const visibleRows = rows.filter((r) => {
 				const rowSt = workers[r.id] || {};
-				const coordPruned = !!(rowSt.coordinator_pruned);
-				const runningWorkerID = String((latestWorkerStatus && latestWorkerStatus.worker_id) || '');
-				const minuteUnix = Number((abuse[r.id] || {}).minute_unix || 0);
-				const seenUnix = Number(rowSt.last_seen_unix || r.last_seen_unix || (r.live && r.live.last_seen_unix) || 0);
-				let staleSec = minuteUnix > 0 ? Math.max(0, sampleUnix - (minuteUnix * 60)) : -1;
-				if (staleSec < 0 && seenUnix > 0) staleSec = Math.max(0, sampleUnix - seenUnix);
-				const online = !coordPruned && (
-					!!(r.live && r.live.online) ||
-					!!rowSt.online ||
-					(staleSec >= 0 && staleSec <= 180) ||
-					(!!(latestWorkerStatus && latestWorkerStatus.running) &&
-						(r.id === runningWorkerID || r.id === 'worker-active')) ||
-					!!(rowSt.local_pool_worker)
-				);
+				const online = miningWorkerIsOnline(r, rowSt, sampleUnix);
 				return miningWorkerRowVisible(r, rowSt, online, sampleUnix);
 			});
 			const metaEl = $('mining-workers-meta');
@@ -11325,36 +11332,12 @@
 				patchHiveFleetRowFromWorker(r, attemptsPerMin);
 				workAttemptsRate.set(r.id, { attempts: r.attempts, ts: sampleUnix, monoMs: monoNow });
 				const rowStEarly = workers[r.id] || {};
-				const minuteUnix = Number(r.abuse.minute_unix || 0);
 				const seenUnix = Number(r.last_seen_unix || rowStEarly.last_seen_unix || (r.live && r.live.last_seen_unix) || 0);
-				let staleSec = minuteUnix > 0 ? Math.max(0, sampleUnix - (minuteUnix * 60)) : -1;
-				if (staleSec < 0 && seenUnix > 0) staleSec = Math.max(0, sampleUnix - seenUnix);
-				const runningWorkerID = String((latestWorkerStatus && latestWorkerStatus.worker_id) || '');
-				const hiThr = (hrGHS > 0.01) || attemptsPerMin >= 5e9 || Number(r.attempts || 0) >= 1e8;
-				const totA = Number(ws.accepted_attempts || 0);
-				const rowShare = totA > 0 ? (Number(r.attempts || 0) / totA) : 0;
-				const dominantRow = rows.length <= 1 || rowShare >= 0.05 || Number(r.attempts || 0) >= 1e7;
-				const poolAggPulse = !!(latestWorkStats && latestWorkStats.ok !== false) &&
-					totA >= 1e7 &&
-					Number(ws.submitted_items || 0) >= 50 &&
-					dominantRow;
-				const workerPulse = (!!latestWorkStats && latestWorkStats.ok !== false) && (hiThr || poolAggPulse);
-				const coordinatorSynthOnline = ws.ok !== false &&
-					(r.id === 'worker-active' || r.id === 'worker-unknown') &&
-					Number(r.attempts || 0) >= 1e6;
+				const staleSec = seenUnix > 0 ? Math.max(0, sampleUnix - seenUnix) : -1;
 				const rowSt = workers[r.id] || {};
 				const coordPruned = !!(rowSt.coordinator_pruned);
 				const localPoolOnly = !!(rowSt.local_pool_worker);
-				const online = !coordPruned && (
-					!!(r.live && r.live.online) ||
-					!!rowSt.online ||
-					(staleSec >= 0 && staleSec <= 180) ||
-					(!!(latestWorkerStatus && latestWorkerStatus.running) &&
-						(r.id === runningWorkerID || r.id === 'worker-active')) ||
-					workerPulse ||
-					coordinatorSynthOnline ||
-					localPoolOnly
-				);
+				const online = miningWorkerIsOnline(r, rowSt, sampleUnix);
 				const hasActiveBan = !!(r.abuse.banned_until && Number(r.abuse.banned_until) > sampleUnix);
 				// Do not alarm miners with historical strikes while worker is currently live.
 				const lastReason = hasActiveBan
