@@ -233,8 +233,8 @@
         <button id="btn-refresh-workers" type="button">Refresh</button>
       </div>
       <table>
-        <thead><tr><th></th><th>Worker</th><th>Ranges</th><th>Attempts</th><th>Payout (accrued)</th></tr></thead>
-        <tbody id="workers-body"><tr><td colspan="5" class="muted">loading…</td></tr></tbody>
+        <thead><tr><th></th><th>Worker</th><th>Status</th><th>GH/s</th><th>Last seen</th><th>Ranges</th><th>Attempts</th><th>Payout (accrued)</th></tr></thead>
+        <tbody id="workers-body"><tr><td colspan="8" class="muted">loading…</td></tr></tbody>
       </table>
       <p id="workers-note" class="muted" style="margin:8px 0 0;font-size:11px;">Pool miners = payout addresses; coord workers = registered rigs on coordinator.</p>
     </section>
@@ -275,6 +275,21 @@
   <script>
     const $ = (id) => document.getElementById(id);
     const fmtTs = (u) => !u ? "—" : new Date(Number(u) * 1000).toISOString().replace("T"," ").replace(".000Z","Z");
+    const fmtDurShort = (sec) => {
+      const s = Math.max(0, Math.floor(Number(sec) || 0));
+      if (s < 60) return s + 's';
+      if (s < 3600) return Math.floor(s / 60) + 'm';
+      if (s < 86400) return Math.floor(s / 3600) + 'h';
+      return Math.floor(s / 86400) + 'd';
+    };
+    const fmtGh = (gh) => {
+      const n = Number(gh) || 0;
+      if (!(n > 0)) return '—';
+      if (n >= 100) return n.toFixed(0);
+      if (n >= 10) return n.toFixed(1);
+      if (n >= 1) return n.toFixed(2);
+      return n.toFixed(3);
+    };
     const short = (s, n=16) => { s = String(s || ""); return s.length > n ? s.slice(0,n) + "…" : s; };
     const hmc = (u) => (Number(u || 0) / 1e8).toFixed(8);
     const esc = (s) => String(s || '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
@@ -591,9 +606,11 @@
         const ids = Object.keys(workers).sort();
         tb.innerHTML = '';
         if (!ids.length) {
-          tb.innerHTML = '<tr><td colspan="5" class="muted">no workers on coordinator</td></tr>';
+          tb.innerHTML = '<tr><td colspan="8" class="muted">no workers on coordinator</td></tr>';
           return;
         }
+        const sampleUnix = Number(j.now_unix || Math.floor(Date.now() / 1000));
+        let onlineN = 0;
         ids.forEach((id) => {
           const w = workers[id] || {};
           const live = w.live || {};
@@ -602,14 +619,21 @@
           // Trust coordinator Online (PoH activity). Fuzz-only heartbeats refresh
           // last_seen but must not paint as live pool miners.
           const online = !pruned && (localOnly || !!w.online || !!(live.online));
+          if (online) onlineN++;
           const ranges = Number(w.accepted_ranges ?? w.ranges ?? 0);
           const attempts = Number(w.accepted_attempts ?? w.attempts ?? 0);
           const payout = Number(w.payout_hmc ?? w.payout ?? 0);
+          const gh = Number(w.hashrate_gh_s || live.hashrate_gh_s || 0);
+          const seen = Number(w.last_seen_unix || live.last_seen_unix || 0);
+          const age = seen > 0 ? Math.max(0, sampleUnix - seen) : -1;
           const tr = document.createElement('tr');
           const nameSuffix = pruned ? ' <span class="muted">(mirror)</span>' : (localOnly ? ' <span class="muted">(local)</span>' : '');
           tr.innerHTML =
             '<td class="' + (online ? 'worker-online' : 'worker-off') + '" title="' + (online ? 'live' : 'offline') + '">' + (online ? '●' : '○') + '</td>' +
             '<td class="mono">' + esc(id) + nameSuffix + '</td>' +
+            '<td class="' + (online ? 'worker-online' : 'worker-off') + '">' + (online ? 'live' : 'offline') + '</td>' +
+            '<td class="mono">' + esc(online && gh > 0 ? fmtGh(gh) : '—') + '</td>' +
+            '<td class="mono muted">' + esc(age >= 0 ? (fmtDurShort(age) + ' ago') : '—') + '</td>' +
             '<td class="mono">' + String(ranges) + '</td>' +
             '<td class="mono">' + String(attempts) + '</td>' +
             '<td class="mono">' + payout.toFixed(6) + '</td>';
@@ -622,10 +646,10 @@
           const injected = j.desktop_worker_injected === true;
           let extra = '';
           if (injected && desk) extra = ' · ' + desk + ' shown from local mirror (re-start pool worker to re-register on coordinator)';
-          note.textContent = 'Registered coordinator workers: ' + wc + ' · pool attempts ' + String(j.accepted_attempts || 0) + stale + extra;
+          note.textContent = 'Registered coordinator workers: ' + wc + ' · live ' + onlineN + ' · pool attempts ' + String(j.accepted_attempts || 0) + stale + extra;
         }
       } catch (e) {
-        tb.innerHTML = '<tr><td colspan="5" class="muted">' + esc(String(e.message || 'unavailable')) + '</td></tr>';
+        tb.innerHTML = '<tr><td colspan="8" class="muted">' + esc(String(e.message || 'unavailable')) + '</td></tr>';
         if (note) note.textContent = 'Coordinator workers unavailable — check pool API path (/pool/api on hackme.tech).';
       }
     }
@@ -982,6 +1006,17 @@
 
     setInterval(() => { void refreshAll(); }, 5000);
     void refreshAll();
+
+    (function bootAddrQuery() {
+      try {
+        const sp = new URLSearchParams(location.search || '');
+        const addr = String(sp.get('addr') || sp.get('address') || '').trim();
+        if (!addr) return;
+        const inp = $('in-addr');
+        if (inp) inp.value = addr;
+        void findAddr();
+      } catch (_) {}
+    })();
 
     (function wireExplorerNav() {
       const host = String(location.hostname || '').toLowerCase();

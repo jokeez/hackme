@@ -94,11 +94,19 @@
     <div class="ex-lite-grid">
       <section class="panel glass">
         <div class="panel-head"><h2>Pool stats</h2></div>
-        <pre id="poolStats" class="ex-lite-pre">Loading…</pre>
+        <p id="poolStatsSummary" class="subtle" style="margin:0 0 0.55rem">Loading…</p>
+        <details>
+          <summary class="subtle" style="cursor:pointer;font-size:0.78rem">Raw JSON</summary>
+          <pre id="poolStats" class="ex-lite-pre" style="margin-top:0.55rem">Loading…</pre>
+        </details>
       </section>
       <section class="panel glass">
         <div class="panel-head"><h2>Coordinator work</h2></div>
-        <pre id="workStats" class="ex-lite-pre">Loading…</pre>
+        <p id="workStatsSummary" class="subtle" style="margin:0 0 0.55rem">Loading…</p>
+        <details>
+          <summary class="subtle" style="cursor:pointer;font-size:0.78rem">Raw JSON</summary>
+          <pre id="workStats" class="ex-lite-pre" style="margin-top:0.55rem">Loading…</pre>
+        </details>
       </section>
     </div>
 
@@ -125,19 +133,47 @@
   <script src="./assets/site-shell.js?v=20261024eco1"></script>
 
   <script>
-    async function loadJSON(url, id) {
+    function summarizePool(j) {
+      if (!j || typeof j !== 'object') return '—';
+      const gh = j.pool_hashrate_gh_s ?? j.hashrate_gh_s ?? j.hashrate;
+      const miners = j.miners ?? j.workers_online ?? j.online;
+      const tip = j.tip_height ?? j.height ?? j.canonical_tip_height;
+      const parts = [];
+      if (gh != null) parts.push('hash ' + Number(gh).toFixed(3) + ' GH/s');
+      if (miners != null) parts.push('miners ' + miners);
+      if (tip != null) parts.push('tip ' + tip);
+      return parts.length ? parts.join(' · ') : 'pool stats loaded';
+    }
+    function summarizeWork(j) {
+      if (!j || typeof j !== 'object') return '—';
+      const online = j.workers_online;
+      const count = j.workers_count;
+      const payout = j.total_payout_hmc;
+      const parts = [];
+      if (online != null) parts.push('live ' + online);
+      if (count != null) parts.push('workers ' + count);
+      if (payout != null) parts.push('payout ' + Number(payout).toFixed(2) + ' HMC');
+      return parts.length ? parts.join(' · ') : 'work stats loaded';
+    }
+    async function loadJSON(url, id, summaryId, summarize) {
       const el = document.getElementById(id);
+      const sum = summaryId ? document.getElementById(summaryId) : null;
       try {
         const r = await fetch(url, { cache: 'no-store' });
         const t = await r.text();
         if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + t.slice(0, 120));
         try {
-          el.textContent = JSON.stringify(JSON.parse(t), null, 2);
+          const j = JSON.parse(t);
+          el.textContent = JSON.stringify(j, null, 2);
+          if (sum && summarize) sum.textContent = summarize(j);
         } catch {
           el.textContent = t;
+          if (sum) sum.textContent = 'raw response';
         }
       } catch (e) {
-        el.textContent = String(e && e.message ? e.message : e);
+        const msg = String(e && e.message ? e.message : e);
+        el.textContent = msg;
+        if (sum) sum.textContent = msg;
       }
     }
     function esc(s) {
@@ -196,9 +232,17 @@
       if (inp) inp.addEventListener('keydown', (ev) => {
         if (ev.key === 'Enter') { ev.preventDefault(); void findAddr(); }
       });
+      try {
+        const sp = new URLSearchParams(location.search || '');
+        const addr = String(sp.get('addr') || sp.get('address') || '').trim();
+        if (addr && inp) {
+          inp.value = addr;
+          void findAddr();
+        }
+      } catch (_) {}
       await Promise.all([
-        loadJSON('/pool/coordinator/api/pool/stats', 'poolStats'),
-        loadJSON('/pool/coordinator/api/work/stats', 'workStats'),
+        loadJSON('/pool/coordinator/api/pool/stats', 'poolStats', 'poolStatsSummary', summarizePool),
+        loadJSON('/pool/coordinator/api/work/stats', 'workStats', 'workStatsSummary', summarizeWork),
       ]);
     }
     boot();

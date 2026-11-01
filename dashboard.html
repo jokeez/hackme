@@ -1841,6 +1841,35 @@
 			border-color: rgba(251,191,36,0.4) !important;
 			color: #fcd34d;
 		}
+		#overview-miner-result {
+			min-height: 2.5rem;
+		}
+		#overview-miner-result .miner-card-grid {
+			display: grid;
+			grid-template-columns: 7.5rem 1fr;
+			gap: 0.35rem 0.75rem;
+			font-size: 11px;
+		}
+		#overview-miner-result .miner-card-k { color: #6b7280; }
+		#overview-miner-result .miner-card-v { color: #d1d5db; word-break: break-word; }
+		#overview-miner-result .miner-card-v.hi { color: #39ff14; font-weight: 600; }
+		#overview-miner-result .miner-card-v.off { color: #6b7280; }
+		#overview-miner-result .miner-card-head {
+			display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem;
+			margin-bottom: 0.65rem;
+		}
+		#overview-miner-result .miner-card-amt {
+			font-family: Orbitron, ui-monospace, monospace;
+			font-size: 1.35rem; font-weight: 700; color: #00d1ff;
+			letter-spacing: 0.03em; font-variant-numeric: tabular-nums;
+		}
+		#overview-miner-result .miner-card-links { margin-top: 0.65rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+		#overview-miner-result .miner-card-links a {
+			font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+			color: #00d1ff; border: 1px solid rgba(0,209,255,0.35);
+			padding: 0.3rem 0.65rem; border-radius: 6px; text-decoration: none;
+		}
+		#overview-miner-result .miner-card-links a:hover { background: rgba(0,209,255,0.1); }
 	</style>
 </head>
 	<body class="min-h-screen bg-grid overflow-x-hidden">
@@ -2285,7 +2314,7 @@
 								<input id="overview-miner-search" class="flex-1 min-w-[240px] text-xs font-mono rounded border border-white/15 bg-black/60 px-3 py-2 text-neon" placeholder="HMC-... or worker-kapa-pc" />
 								<button type="button" id="btn-overview-miner-search" class="px-3 py-2 rounded border border-neon/30 text-neon text-[10px] uppercase tracking-wider hover:bg-neon/10">Find miner</button>
 							</div>
-							<pre id="overview-miner-result" class="mt-2 text-[10px] font-mono text-gray-400 whitespace-pre-wrap p-2 rounded border border-white/10 bg-black/50">—</pre>
+							<div id="overview-miner-result" class="mt-2 text-[11px] font-mono text-gray-400 p-3 rounded border border-white/10 bg-black/50">—</div>
 						</div>
 					</div>
 					<div id="overview-kpi-stack" class="grid grid-cols-2 xl:grid-cols-5 gap-3 lg:gap-4">
@@ -9787,13 +9816,42 @@
 			}
 			return { ok: true, kind: 'wallet' };
 		}
+		function setMinerLookupTone(tone) {
+			const out = $('overview-miner-result');
+			if (!out) return;
+			out.classList.remove('miner-lookup-err', 'miner-lookup-warn');
+			if (tone === 'err') out.classList.add('miner-lookup-err');
+			else if (tone === 'warn') out.classList.add('miner-lookup-warn');
+		}
 		function setMinerLookupTerminal(text, tone) {
 			const out = $('overview-miner-result');
 			if (!out) return;
 			out.textContent = text;
-			out.classList.remove('miner-lookup-err', 'miner-lookup-warn');
-			if (tone === 'err') out.classList.add('miner-lookup-err');
-			else if (tone === 'warn') out.classList.add('miner-lookup-warn');
+			setMinerLookupTone(tone);
+		}
+		function explorerAddrHref(addr) {
+			const a = String(addr || '').trim();
+			if (!a.startsWith('HMC-')) return '';
+			return '/explorer?addr=' + encodeURIComponent(a);
+		}
+		function minerLookupExplorerLink(addr) {
+			const href = explorerAddrHref(addr);
+			if (!href) return '';
+			return '<div class="miner-card-links"><a href="' + escapeHtml(href) + '">Open in explorer</a></div>';
+		}
+		function renderMinerLookupCard(rows, opts) {
+			const out = $('overview-miner-result');
+			if (!out) return;
+			opts = opts || {};
+			setMinerLookupTone(opts.tone || '');
+			const head = opts.headHtml || '';
+			const grid = (rows || []).map((r) =>
+				'<div class="miner-card-k">' + escapeHtml(r.k) + '</div>' +
+				'<div class="miner-card-v ' + (r.cls || '') + '">' + (r.html != null ? r.html : escapeHtml(String(r.v == null ? '—' : r.v))) + '</div>'
+			).join('');
+			out.innerHTML = head +
+				'<div class="miner-card-grid">' + grid + '</div>' +
+				(opts.explorerAddr ? minerLookupExplorerLink(opts.explorerAddr) : '');
 		}
 		function applySolopoolVector(id) {
 			const v = SOLOPOOL_VECTORS[id] || SOLOPOOL_VECTORS.hmc;
@@ -9842,14 +9900,15 @@
 			const queryRaw = String(input.value || '').trim();
 			if (!queryRaw) {
 				setMinerLookupTerminal('—', '');
-				return;
+				return false;
 			}
 			const vcheck = validateWalletQuery(queryRaw);
 			if (!vcheck.ok) {
 				setMinerLookupTerminal(vcheck.message, 'err');
-				return;
+				return false;
 			}
 			const q = normMinerKey(queryRaw);
+			const sampleUnix = Number((latestWorkStats && latestWorkStats.now_unix) || Math.floor(Date.now() / 1000));
 			const workerRows = Array.isArray(latestWorkerRows) ? latestWorkerRows : [];
 			const rigs = (latestNetworkStats && Array.isArray(latestNetworkStats.active_rigs)) ? latestNetworkStats.active_rigs : [];
 			const topWallets = (latestNetworkStats && Array.isArray(latestNetworkStats.top_miners)) ? latestNetworkStats.top_miners : [];
@@ -9861,32 +9920,48 @@
 			const byWallet = topWallets.find((w) => normMinerKey(w) === q) || topWallets.find((w) => normMinerKey(w).includes(q));
 			if (!byWorker && !byPayout && !byRig && !byWallet) {
 				setMinerLookupTerminal(
-					'[lookup] WARN: miner not found in current sample.\nTry worker id, payout wallet (HMC-...), or IP.\nHint: click a row in Public pool miners table.\nPress Find miner for pool/chain lookup.',
+					'Miner not found in current sample. Try worker id, HMC wallet, or IP — or press Find miner for pool/chain lookup.',
 					'warn'
 				);
-				return;
+				return false;
 			}
-			const lines = ['query: ' + queryRaw];
 			const showWorker = byWorker || byPayout;
+			const rows = [{ k: 'Query', v: queryRaw }];
+			let explorerAddr = '';
 			if (showWorker) {
-				lines.push('worker_id: ' + String(showWorker.id || '—'));
-				lines.push('payout_address: ' + String(showWorker.payout_address || '—'));
-				lines.push('attempts: ' + fmtUInt(showWorker.attempts || 0));
-				lines.push('ranges: ' + fmtUInt(showWorker.ranges || 0));
-				lines.push('payout_hmc: ' + fmt(showWorker.payout || 0, 6));
-				lines.push('status: ' + ((showWorker.live && showWorker.live.online) ? 'live' : 'offline/sample'));
+				const online = overviewMinerOnline(showWorker, latestWorkStats, sampleUnix);
+				const seen = Number(showWorker.last_seen_unix || (showWorker.live && showWorker.live.last_seen_unix) || 0);
+				const age = seen > 0 ? Math.max(0, sampleUnix - seen) : -1;
+				const gh = Number((showWorker.live && showWorker.live.hashrate_gh_s) || showWorker.hashrate_gh_s || 0);
+				explorerAddr = String(showWorker.payout_address || '');
+				rows.push(
+					{ k: 'Worker', v: String(showWorker.id || '—'), cls: 'text-neon/90' },
+					{ k: 'Wallet', v: explorerAddr || '—', cls: 'mono' },
+					{ k: 'Status', v: online ? '● live' : '○ offline', cls: online ? 'hi' : 'off' },
+					{ k: 'Hashrate', v: gh > 0 ? (fmtRigHashrateGHS(gh) + ' GH/s') : '—' },
+					{ k: 'Attempts', v: fmtUInt(showWorker.attempts || 0) },
+					{ k: 'Ranges', v: fmtUInt(showWorker.ranges || 0) },
+					{ k: 'Payout', v: fmt(showWorker.payout || 0, 6) + ' HMC', cls: 'hi' },
+					{ k: 'Last seen', v: age >= 0 ? (fmtDur(age) + ' ago') : '—' }
+				);
 			}
 			if (byRig) {
-				lines.push('rig_name: ' + String(byRig.name || '—'));
-				lines.push('rig_worker_id: ' + String(byRig.worker_id || '—'));
-				lines.push('rig_hashrate_gh_s: ' + fmt(byRig.hashrate_gh_s || 0, 2));
-				lines.push('rig_ip: ' + String(byRig.ip || '—'));
+				rows.push(
+					{ k: 'Rig name', v: String(byRig.name || '—') },
+					{ k: 'Rig worker', v: String(byRig.worker_id || '—') },
+					{ k: 'Rig GH/s', v: fmt(byRig.hashrate_gh_s || 0, 2) },
+					{ k: 'Rig IP', v: String(byRig.ip || '—') }
+				);
 			}
-			if (byWallet) lines.push('wallet_top_miner: ' + String(byWallet || '—'));
-			setMinerLookupTerminal(lines.join('\n'), '');
+			if (byWallet && !explorerAddr) {
+				explorerAddr = String(byWallet || '');
+				rows.push({ k: 'Top miner wallet', v: explorerAddr });
+			}
+			renderMinerLookupCard(rows, { explorerAddr: explorerAddr.startsWith('HMC-') ? explorerAddr : '' });
+			return true;
 		}
 		async function runMinerLookup() {
-			renderMinerLookupResult();
+			const foundLocal = renderMinerLookupResult();
 			const out = $('overview-miner-result');
 			const input = $('overview-miner-search');
 			if (!out || !input) return;
@@ -9894,17 +9969,7 @@
 			if (!queryRaw) return;
 			const vcheck = validateWalletQuery(queryRaw);
 			if (!vcheck.ok) return;
-			const q = normMinerKey(queryRaw);
-			const workerRows = Array.isArray(latestWorkerRows) ? latestWorkerRows : [];
-			const rigs = (latestNetworkStats && Array.isArray(latestNetworkStats.active_rigs)) ? latestNetworkStats.active_rigs : [];
-			const topWallets = (latestNetworkStats && Array.isArray(latestNetworkStats.top_miners)) ? latestNetworkStats.top_miners : [];
-			const byWorker = workerRows.find((r) => normMinerKey(r.id) === q) || workerRows.find((r) => normMinerKey(r.id).includes(q));
-			const byPayout = workerRows.find((r) => normMinerKey(r.payout_address) === q) ||
-				workerRows.find((r) => normMinerKey(r.payout_address).includes(q));
-			const byRig = rigs.find((r) => normMinerKey(r.worker_id) === q || normMinerKey(r.name) === q || normMinerKey(r.ip) === q) ||
-				rigs.find((r) => normMinerKey(r.worker_id).includes(q) || normMinerKey(r.name).includes(q) || normMinerKey(r.ip).includes(q));
-			const byWallet = topWallets.find((w) => normMinerKey(w) === q) || topWallets.find((w) => normMinerKey(w).includes(q));
-			if (byWorker || byPayout || byRig || byWallet) return;
+			if (foundLocal) return;
 			if (!queryRaw.startsWith('HMC-')) return;
 			try {
 				const poolR = await fetch('/api/work/by-wallet?address=' + encodeURIComponent(queryRaw), { cache: 'no-store' });
@@ -9913,29 +9978,42 @@
 					const pw = (pj && pj.workers) ? pj.workers : {};
 					const ids = Object.keys(pw);
 					if (ids.length > 0) {
-						const lines = ['query: ' + queryRaw, 'source: pool coordinator (by-wallet)', 'workers_count: ' + fmtUInt(ids.length)];
-						ids.forEach((wid) => {
+						const rows = [
+							{ k: 'Query', v: queryRaw },
+							{ k: 'Source', v: 'pool coordinator (by-wallet)' },
+							{ k: 'Workers', v: fmtUInt(ids.length) },
+						];
+						ids.slice(0, 8).forEach((wid) => {
 							const st = pw[wid] || {};
-							lines.push('— ' + wid);
-							lines.push('  payout_hmc: ' + fmt(Number(st.payout_hmc || 0), 6));
-							lines.push('  hashrate_gh_s: ' + fmt(Number(st.hashrate_gh_s || 0), 3));
-							lines.push('  attempts: ' + fmtUInt(st.accepted_attempts || 0));
+							const on = !!st.online;
+							rows.push(
+								{ k: 'Worker', v: wid, cls: 'text-neon/90' },
+								{ k: 'Status', v: on ? '● live' : '○ offline', cls: on ? 'hi' : 'off' },
+								{ k: 'Payout', v: fmt(Number(st.payout_hmc || 0), 6) + ' HMC' },
+								{ k: 'Hashrate', v: Number(st.hashrate_gh_s || 0) > 0 ? (fmt(Number(st.hashrate_gh_s || 0), 3) + ' GH/s') : '—' },
+								{ k: 'Attempts', v: fmtUInt(st.accepted_attempts || 0) }
+							);
 						});
-						out.textContent = lines.join('\n');
+						renderMinerLookupCard(rows, { explorerAddr: queryRaw });
 						return;
 					}
 				}
 				const r = await fetch('/api/address/' + encodeURIComponent(queryRaw), { cache: 'no-store' });
 				if (!r.ok) return;
 				const j = await r.json();
-				const lines = [];
-				lines.push('query: ' + queryRaw);
-				lines.push('source: chain address state');
-				lines.push('address: ' + String(j.address || queryRaw));
-				lines.push('balance_hmc: ' + fmt(Number(j.balance_units || 0) / UNITS_PER_HMC, 8));
-				lines.push('next_nonce: ' + fmtUInt(j.next_nonce || 0));
-				lines.push('note: no pool workers mapped to this wallet right now');
-				out.textContent = lines.join('\n');
+				const units = Number(j.balance_units || 0);
+				const hmc = fmt(units / UNITS_PER_HMC, 8);
+				renderMinerLookupCard([
+					{ k: 'Address', v: String(j.address || queryRaw), cls: 'mono' },
+					{ k: 'Balance', v: hmc + ' HMC', cls: 'hi' },
+					{ k: 'Units', v: fmtUInt(units) },
+					{ k: 'Next nonce', v: fmtUInt(j.next_nonce || 0) },
+					{ k: 'Source', v: String(j.source || 'chain address state') },
+					{ k: 'Note', v: 'no pool workers mapped to this wallet right now' },
+				], {
+					headHtml: '<div class="miner-card-head"><span class="miner-card-amt">' + escapeHtml(hmc) + '</span><span class="text-matrix text-[10px] tracking-wider">HMC</span></div>',
+					explorerAddr: queryRaw,
+				});
 			} catch (_) {
 				// keep sample output
 			}
@@ -10954,13 +11032,21 @@
 					: escapeHtml(wallet);
 				tr.innerHTML = '<td class="text-gray-500">' + String(idx + 1) + '</td>' +
 					'<td class="text-neon/90 truncate max-w-[220px]" title="' + escapeHtml(r.id) + '">' + escapeHtml(r.id) + '</td>' +
-					'<td class="truncate max-w-[200px] font-mono tracking-tight" title="' + escapeHtml(wallet) + '">' + walletCell + '</td>' +
+					'<td class="overview-wallet-cell truncate max-w-[200px] font-mono tracking-tight hover:text-neon" title="' + escapeHtml(wallet) + ' · click wallet">' + walletCell + '</td>' +
 					'<td class="' + (online ? 'text-matrix' : 'text-gray-500') + '">' + (online ? '● live' : '○ offline') + '</td>' +
 					'<td class="text-neon/80 tabular-nums">' + hr + '</td>' +
 					'<td class="tabular-nums text-gray-400" title="instantaneous pool hashrate share">' + hashPct + '</td>' +
 					'<td class="tabular-nums text-warn/90" title="cumulative payout share (attempts × reward/M + found bonus)">' + payoutPct + '</td>' +
 					'<td class="tabular-nums">' + fmtUInt(r.attempts) + '</td>' +
 					(() => { const p = fmtPayoutHmc(r.payout); return '<td class="' + p.cls + '" title="' + escapeHtml(p.title || '') + '">' + p.text + (p.text === '—' ? '' : ' HMC') + '</td>'; })();
+				const walletTd = tr.querySelector('.overview-wallet-cell');
+				if (walletTd && wallet.startsWith('HMC-')) {
+					walletTd.addEventListener('click', (ev) => {
+						ev.stopPropagation();
+						if ($('overview-miner-search')) $('overview-miner-search').value = wallet;
+						void runMinerLookup();
+					});
+				}
 				overviewTB.appendChild(tr);
 			});
 		}
