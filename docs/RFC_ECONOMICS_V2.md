@@ -256,12 +256,12 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 | Accrual / settler / day budget | ✅ live |
 | Checkpoints | ✅ live |
 | Canonical settlement JSON | ✅ live |
-| Dig/Hunt settle hardening (floor, finalize gate, replay) | ✅ on `econ-v2` |
-| D1 baseline relay | ✅ hub live: `HACKME_POOL_BASELINE_RELAY=on` + `LOCAL_POH=0` (soak before v2 height) |
+| Dig/Hunt settle hardening (floor, finalize gate, replay) | ✅ on `main` |
+| D1 baseline relay | ✅ hub live: `HACKME_POOL_BASELINE_RELAY=on` + `LOCAL_POH=0` (soak continues) |
 | Lock + public RFC (this doc) | ✅ |
 | Soft announce (news + public docs) | ✅ 2026-10-30 |
-| D9 height package implementation | ✅ on `econ-v2` (env bootstrap → locked `meta economics_v2_activation_height`; unset=off) |
-| Activation announce + ≥14d | ⏳ |
+| D9 height package + consensus harden | ✅ on `main` (env bootstrap → locked `meta economics_v2_activation_height`; **unset on hub**) |
+| Activation announce + ≥14d | ⏳ tip-relative; do not set env until announce |
 | Height switch | ⏳ |
 | Post-switch dumps / verify / 1.0.0 | after stability |
 
