@@ -45,9 +45,9 @@ type Config struct {
 	// whose nonce may have been consumed — default ClearPending refuses those.
 	ClearPendingForce bool
 	ExpectedHostname  string
-	FeeUnits              uint64
-	PublishScript         string // optional absolute path; empty skips
-	Log                   *log.Logger
+	FeeUnits          uint64
+	PublishScript     string // optional absolute path; empty skips
+	Log               *log.Logger
 }
 
 // Result summarizes one Run.

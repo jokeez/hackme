@@ -1457,12 +1457,17 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 	mux.HandleFunc("/api/fuzz/pool/hunt/harness", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
-			if adminToken == "" && allowInsecure {
-				// loopback dev
-			} else if adminToken == "" || !coordAdminOK(r, adminToken) {
-				w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
-				http.Error(w, "admin authentication required", http.StatusUnauthorized)
+			// Admin or scoped Orders publish (customer Hunt custom-harness sync).
+			isAdmin, isPublish, authed := campaignRegisterAuthed(r, adminToken, publishToken, allowInsecure)
+			if !authed {
+				writePublishAuthError(w)
 				return
+			}
+			if isPublish && !isAdmin {
+				if !publishRateAllow(r) {
+					http.Error(w, "orders publish rate limit exceeded", http.StatusTooManyRequests)
+					return
+				}
 			}
 			r.Body = http.MaxBytesReader(w, r.Body, 36<<20)
 			ct := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]))

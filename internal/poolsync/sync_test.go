@@ -42,6 +42,10 @@ func TestRegisterWithRetryOK(t *testing.T) {
 	t.Setenv("HACKME_POOL_COORDINATOR_URL", srv.URL)
 	t.Setenv("HACKME_POOL_SYNC_PREFER_LOOPBACK", "0")
 	t.Setenv("HACKME_COORDINATOR_ADMIN_TOKEN", "tok")
+	// Clear publish envs so ambient shell secrets cannot override adminToken().
+	t.Setenv("HACKME_COORDINATOR_ORDERS_PUBLISH_TOKEN", "")
+	t.Setenv("HACKME_POOL_ORDERS_PUBLISH_TOKEN", "")
+	t.Setenv("HACKME_ORDERS_PUBLISH_TOKEN", "")
 	t.Setenv("HACKME_POOL_SYNC_MAX_ATTEMPTS", "2")
 
 	err := RegisterWithRetry(context.Background(), RegisterRequest{

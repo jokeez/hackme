@@ -131,7 +131,8 @@ func adminToken() string {
 	return CoordinatorAdminToken()
 }
 
-// OrdersPublishToken is the scoped credential for campaign register + settle-pull.
+// OrdersPublishToken is the scoped credential for campaign register, settle-pull,
+// and Hunt harness upload to the pool coordinator.
 // Set via Orders installer pool.orders.token → HACKME_POOL_ORDERS_PUBLISH_TOKEN / …
 func OrdersPublishToken() string {
 	for _, k := range []string{

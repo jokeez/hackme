@@ -20,9 +20,10 @@ export HACKME_COORDINATOR_DB="$COORD_DB"
 COORD_PORT="${COORD_PORT:-$((18300 + RANDOM % 800))}"
 export HACKME_COORDINATOR_ADDR="127.0.0.1:${COORD_PORT}"
 BASE="http://${HACKME_COORDINATOR_ADDR}"
-export HACKME_COORDINATOR_ALLOW_INSECURE=1
+export HACKME_COORDINATOR_ALLOW_INSECURE=0
 export HACKME_COORDINATOR_ADMIN_TOKEN="hunt-harness-gate-admin"
 export HACKME_COORDINATOR_WORKER_TOKEN="hunt-harness-gate-worker"
+export HACKME_COORDINATOR_ORDERS_PUBLISH_TOKEN="hunt-harness-gate-publish"
 
 echo "[hunt-harness-gate] start coordinator"
 go run ./cmd/coordinator &
@@ -45,7 +46,7 @@ WASM="$ROOT/tasks/artifacts/security/rust_bounds_smoke_guard.wasm"
 HASH="$(sha256sum "$WASM" | awk '{print $1}')"
 B64="$(base64 -w0 "$WASM")"
 
-echo "[hunt-harness-gate] POST harness publish"
+echo "[hunt-harness-gate] POST harness publish (admin JSON)"
 curl -fsS -X POST "${BASE}/api/fuzz/pool/hunt/harness" \
   -H "Content-Type: application/json" \
   -H "X-Hackme-Admin-Token: $HACKME_COORDINATOR_ADMIN_TOKEN" \
@@ -59,5 +60,37 @@ if ! cmp -s "$WASM" "$TMP"; then
   fail "coordinator harness fetch mismatch"
 fi
 rm -f "$TMP"
+
+# Customer Orders path: scoped publish token + octet-stream (Bobby pilot gap).
+PUB_HASH="$(printf 'publish-octet-%s' "$HASH" | sha256sum | awk '{print $1}')"
+echo "[hunt-harness-gate] POST harness publish (orders publish token / octet-stream)"
+code="$(curl -sS -o /tmp/hunt-harness-pub.json -w '%{http_code}' -X POST "${BASE}/api/fuzz/pool/hunt/harness" \
+  -H "Content-Type: application/octet-stream" \
+  -H "X-Hackme-Harness-Hash: $PUB_HASH" \
+  -H "X-Hackme-Source-Rel: customer/pilot" \
+  -H "X-Hackme-Admin-Token: $HACKME_COORDINATOR_ORDERS_PUBLISH_TOKEN" \
+  --data-binary @"$WASM")"
+if [[ "$code" != "200" ]]; then
+  fail "orders publish harness upload want 200 got $code body=$(head -c 200 /tmp/hunt-harness-pub.json)"
+fi
+jq -e '.ok == true' /tmp/hunt-harness-pub.json >/dev/null
+
+TMP2="$(mktemp)"
+curl -fsS -H "Authorization: Bearer $HACKME_COORDINATOR_WORKER_TOKEN" \
+  "${BASE}/api/fuzz/pool/hunt/harness/${PUB_HASH}" -o "$TMP2"
+if ! cmp -s "$WASM" "$TMP2"; then
+  fail "worker fetch after publish-token upload mismatch"
+fi
+rm -f "$TMP2" /tmp/hunt-harness-pub.json
+
+# Negative: bare worker token must not upload.
+neg="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${BASE}/api/fuzz/pool/hunt/harness" \
+  -H "Content-Type: application/octet-stream" \
+  -H "X-Hackme-Harness-Hash: $(printf neg | sha256sum | awk '{print $1}')" \
+  -H "X-Hackme-Admin-Token: $HACKME_COORDINATOR_WORKER_TOKEN" \
+  --data-binary @"$WASM")"
+if [[ "$neg" != "401" ]]; then
+  fail "worker harness upload want 401 got $neg"
+fi
 
 pass "hunt_harness_publish_gate PASS"
