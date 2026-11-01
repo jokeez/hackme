@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -99,7 +100,6 @@ func TestOrdersPublishTokenDeniedOnAdminRoutes(t *testing.T) {
 		{http.MethodPost, "/api/fuzz/pool/campaigns/cleanup-stale", map[string]any{}},
 		{http.MethodPost, "/api/fuzz/pool/campaigns/cleanup-gates", map[string]any{}},
 		{http.MethodPost, "/api/fuzz/pool/campaigns/repair-zombies", map[string]any{}},
-		{http.MethodPost, "/api/fuzz/pool/hunt/harness", map[string]any{"harness_hash": "aabb", "binary_b64": "YQ=="}},
 	}
 	for _, tc := range cases {
 		raw, _ := json.Marshal(tc.body)
@@ -111,6 +111,49 @@ func TestOrdersPublishTokenDeniedOnAdminRoutes(t *testing.T) {
 		if rec.Code != http.StatusUnauthorized {
 			t.Fatalf("%s %s: publish must be 401, got %d", tc.method, tc.path, rec.Code)
 		}
+	}
+}
+
+func TestOrdersPublishTokenMayUploadHarness(t *testing.T) {
+	mux := ordersPublishMux(t)
+	payload := []byte("hunt-customer-harness-v1")
+	hash := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	b64Body, _ := json.Marshal(map[string]any{
+		"harness_hash": hash,
+		"source_rel":   "customer/harness",
+		"binary_b64":   base64.StdEncoding.EncodeToString(payload),
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/hunt/harness", bytes.NewReader(b64Body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	req.RemoteAddr = "203.0.113.50:9"
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("publish harness JSON want 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	hash2 := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	bin := []byte("octet-harness-blob")
+	req2 := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/hunt/harness", bytes.NewReader(bin))
+	req2.Header.Set("Content-Type", "application/octet-stream")
+	req2.Header.Set("X-Hackme-Harness-Hash", hash2)
+	req2.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	req2.RemoteAddr = "203.0.113.51:9"
+	rec2 := httptest.NewRecorder()
+	mux.ServeHTTP(rec2, req2)
+	if rec2.Code != http.StatusOK {
+		t.Fatalf("publish harness octet want 200, got %d body=%s", rec2.Code, rec2.Body.String())
+	}
+
+	req3 := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/hunt/harness", bytes.NewReader(bin))
+	req3.Header.Set("Content-Type", "application/octet-stream")
+	req3.Header.Set("X-Hackme-Harness-Hash", hash2)
+	req3.Header.Set("X-Hackme-Admin-Token", "worker-tok")
+	rec3 := httptest.NewRecorder()
+	mux.ServeHTTP(rec3, req3)
+	if rec3.Code != http.StatusUnauthorized {
+		t.Fatalf("worker harness upload want 401, got %d", rec3.Code)
 	}
 }
 

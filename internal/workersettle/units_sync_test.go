@@ -102,19 +102,18 @@ func TestApplySettleLedgerDeltaAndOutboxByTx(t *testing.T) {
 	}
 	defer s.Close()
 	ctx := context.Background()
-	id1, err := s.SetPendingUnits(ctx, "w", "HMC-a", 100_00000, 1)
+	id1, err := s.SetPendingUnits(ctx, "w", "HMC-a", 150_00000, 1)
 	if err != nil || id1 <= 0 {
 		t.Fatalf("pending1: %d %v", id1, err)
 	}
-	id2, err := s.SetPendingUnits(ctx, "w", "HMC-a", 50_00000, 2)
-	if err != nil || id2 <= 0 {
-		t.Fatalf("pending2: %d %v", id2, err)
+	// Second intent while pending exists must be refused (orphan/double-pay guard).
+	if _, err := s.SetPendingUnits(ctx, "w", "HMC-a", 50_00000, 2); err == nil {
+		t.Fatal("expected second SetPendingUnits to fail while pending set")
 	}
-	if err := s.AttachTxHash(ctx, "w", "tx-second"); err != nil {
+	if err := s.AttachTxHash(ctx, "w", "tx-one"); err != nil {
 		t.Fatal(err)
 	}
-	// Apply with watermark 1.5 HMC (delta from 0).
-	if err := s.ApplySettleUnits(ctx, "w", "HMC-a", "tx-second", 150_00000, 0, true); err != nil {
+	if err := s.ApplySettleUnits(ctx, "w", "HMC-a", "tx-one", 150_00000, 0, true); err != nil {
 		t.Fatal(err)
 	}
 	var kind string
@@ -127,15 +126,36 @@ func TestApplySettleLedgerDeltaAndOutboxByTx(t *testing.T) {
 	if kind != "payout_applied" || units != 150_00000 {
 		t.Fatalf("ledger want delta 150e5 got kind=%s units=%d note=%q", kind, units, note)
 	}
-	if note == "" || note == "tx-second" {
-		// note should carry watermark + tx
+	if note == "" || note == "tx-one" {
 		t.Fatalf("note should include watermark: %q", note)
 	}
 	var applied, pending int
 	_ = s.db.QueryRow(`SELECT COUNT(*) FROM settle_outbox WHERE status='applied'`).Scan(&applied)
 	_ = s.db.QueryRow(`SELECT COUNT(*) FROM settle_outbox WHERE status='pending'`).Scan(&pending)
-	// Only the latest pending (or matching tx) should be applied — one row, not both.
-	if applied != 1 || pending != 1 {
-		t.Fatalf("outbox applied=%d pending=%d want 1/1", applied, pending)
+	if applied != 1 || pending != 0 {
+		t.Fatalf("outbox applied=%d pending=%d want 1/0", applied, pending)
+	}
+}
+
+func TestSetPendingUnitsRejectsWhenPendingExists(t *testing.T) {
+	dir := t.TempDir()
+	s, err := Open(filepath.Join(dir, "pend.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.SetPendingUnits(ctx, "w", "HMC-a", 1_00000, 3); err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.SetPendingUnits(ctx, "w", "HMC-a", 2_00000, 4)
+	if err == nil {
+		t.Fatal("want error on second pending")
+	}
+	if err := s.ClearPending(ctx, "w"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SetPendingUnits(ctx, "w", "HMC-a", 2_00000, 4); err != nil {
+		t.Fatalf("after clear: %v", err)
 	}
 }

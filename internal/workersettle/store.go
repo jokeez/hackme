@@ -349,6 +349,11 @@ func (s *Store) SetPendingUnits(ctx context.Context, workerID, payoutAddr string
 			_, _ = conn.ExecContext(ctx, `ROLLBACK`)
 		}
 	}()
+	var existingPend string
+	_ = conn.QueryRowContext(ctx, `SELECT COALESCE(pending_json,'') FROM settle_workers WHERE worker_id=?`, workerID).Scan(&existingPend)
+	if strings.TrimSpace(existingPend) != "" {
+		return 0, fmt.Errorf("workersettle: pending already set for %s — refuse second intent (clear or apply first)", workerID)
+	}
 	_, err = conn.ExecContext(ctx, `
 INSERT INTO settle_workers (worker_id, settled_hmc, payout_address, pending_json, updated_at)
 VALUES (?, 0, ?, ?, ?)
@@ -376,34 +381,57 @@ VALUES (?, ?, ?, ?, 'pending', ?, ?)`, workerID, payoutAddr, deltaHMC, deltaUnit
 	return id, nil
 }
 
-// AttachTxHash stamps pending + latest outbox row with tx_hash.
+// AttachTxHash stamps pending + latest outbox row with tx_hash atomically.
 func (s *Store) AttachTxHash(ctx context.Context, workerID, txHash string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	workerID = strings.TrimSpace(workerID)
 	txHash = strings.TrimSpace(txHash)
 	if workerID == "" || txHash == "" {
 		return fmt.Errorf("workersettle: empty worker or tx")
 	}
-	row, err := s.GetWorker(ctx, workerID)
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	if _, err := conn.ExecContext(ctx, `BEGIN IMMEDIATE`); err != nil {
+		return err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_, _ = conn.ExecContext(ctx, `ROLLBACK`)
+		}
+	}()
+	var pendJSON string
+	err = conn.QueryRowContext(ctx, `SELECT COALESCE(pending_json,'') FROM settle_workers WHERE worker_id=?`, workerID).Scan(&pendJSON)
 	if err != nil {
 		return err
 	}
 	pend := map[string]any{}
-	if row.PendingJSON != "" {
-		_ = json.Unmarshal([]byte(row.PendingJSON), &pend)
+	if pendJSON != "" {
+		_ = json.Unmarshal([]byte(pendJSON), &pend)
 	}
 	pend["tx_hash"] = txHash
 	raw, _ := json.Marshal(pend)
-	_, err = s.db.ExecContext(ctx, `
+	now := time.Now().Unix()
+	if _, err := conn.ExecContext(ctx, `
 UPDATE settle_workers SET pending_json=?, updated_at=? WHERE worker_id=?`,
-		string(raw), time.Now().Unix(), workerID)
-	if err != nil {
+		string(raw), now, workerID); err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, `
+	if _, err := conn.ExecContext(ctx, `
 UPDATE settle_outbox SET tx_hash=?
  WHERE id=(SELECT id FROM settle_outbox WHERE worker_id=? AND status='pending' ORDER BY id DESC LIMIT 1)`,
-		txHash, workerID)
-	return err
+		txHash, workerID); err != nil {
+		return err
+	}
+	if _, err := conn.ExecContext(ctx, `COMMIT`); err != nil {
+		return err
+	}
+	committed = true
+	return nil
 }
 
 // ClearPending drops pending intent without advancing settled (failed send)

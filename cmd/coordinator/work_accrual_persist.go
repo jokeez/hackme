@@ -403,9 +403,8 @@ ON CONFLICT(worker_id) DO UPDATE SET
   last_poh_seen_unix=excluded.last_poh_seen_unix,
   last_fuzz_seen_unix=excluded.last_fuzz_seen_unix,
   updated_at=excluded.updated_at
-WHERE excluded.accepted_attempts > worker_accrual.accepted_attempts
-   OR (excluded.accepted_attempts = worker_accrual.accepted_attempts
-       AND excluded.payout_units >= worker_accrual.payout_units)
+WHERE excluded.accepted_attempts >= worker_accrual.accepted_attempts
+  AND excluded.payout_units >= worker_accrual.payout_units
 `, workerID, snap.AcceptedRanges, snap.AcceptedHits, snap.AcceptedAtt,
 		hmcMirror, pu, snap.PayoutSUP, strings.TrimSpace(snap.PayoutAddress), snap.SignedSubmits,
 		snap.LastHashrateGHS, snap.PeakHashrateGHS, snap.LastSeenUnix, snap.LastPoHSeenUnix, snap.LastFuzzSeenUnix, now)

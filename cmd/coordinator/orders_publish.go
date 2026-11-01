@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-// Orders publish token: can POST /api/fuzz/pool/campaigns only (with caps).
-// Never elevates to settle/cleanup/harness admin. Env:
+// Orders publish token: campaign register + settle-pull + Hunt harness upload (with caps).
+// Never elevates to cleanup/replay/cancel/admin. Env:
 //
 //	HACKME_COORDINATOR_ORDERS_PUBLISH_TOKEN
 //
@@ -21,6 +21,10 @@ import (
 //	HACKME_ORDERS_PUBLISH_MAX_BUDGET_SECONDS  default 86400
 //	HACKME_ORDERS_PUBLISH_MAX_PER_HOUR        default 10
 //	HACKME_ORDERS_PUBLISH_MAX_PER_DAY         default 40
+//
+// Harness upload (POST /api/fuzz/pool/hunt/harness) shares the same hourly/daily
+// publish rate limiter so customer nodes can sync custom ASAN binaries without
+// the full coordinator admin token.
 
 type publishCampaignReq struct {
 	ID            string
