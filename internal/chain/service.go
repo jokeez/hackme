@@ -921,7 +921,14 @@ func (s *Service) checkEconomicInvariants(ctx context.Context, q queryRowContext
 	if burned < -1e-12 {
 		return fmt.Errorf("%w: burned < 0 (%f)", ErrEconomicInvariant, burned)
 	}
-	if minted > MaxSupplyHMC+1e-9 {
+	// Economics v2 drops the hard max-supply clamp on empty mint (RFC §3.1).
+	// Keep the 100M check only while still on the v1 schedule.
+	tipH := uint64(0)
+	var maxIdx sql.NullInt64
+	if err := q.QueryRowContext(ctx, `SELECT MAX(block_index) FROM blocks`).Scan(&maxIdx); err == nil && maxIdx.Valid && maxIdx.Int64 >= 0 {
+		tipH = uint64(maxIdx.Int64)
+	}
+	if !EconomicsV2ActiveForIndex(tipH+1) && minted > MaxSupplyHMC+1e-9 {
 		return fmt.Errorf("%w: minted > max supply (%f > %f)", ErrEconomicInvariant, minted, MaxSupplyHMC)
 	}
 	if burnedUnits > mintedUnits {

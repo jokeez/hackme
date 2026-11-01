@@ -145,3 +145,42 @@ func TestEconomicsV2EmptyBlockMintsSUP(t *testing.T) {
 		t.Fatalf("wallet SUP %d want >= %d", st.BalanceSUPUnits, want)
 	}
 }
+
+// After v2 activation, empty mint no longer clamps at 100M — invariants must not
+// brick the node if meta minted is above the legacy cap (long-run / import soak).
+func TestEconomicsV2InvariantAllowsMintedAboveLegacyMax(t *testing.T) {
+	ResetEconomicsV2ActivationHeightForTest()
+	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
+	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "1")
+	ResetEconomicsV2ActivationHeightForTest()
+
+	ctx := context.Background()
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "chain-overcap.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	svc := New(db)
+	addr := "HMC-testnode"
+	if _, _, err := svc.InitGenesis(ctx, addr); err != nil {
+		t.Fatal(err)
+	}
+	over := HMCToUnits(MaxSupplyHMC) + HMCToUnits(1)
+	if err := svc.upsertMetaUint(ctx, db, metaTotalMintedUnits, over); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.upsertMetaFloat(ctx, db, metaTotalMintedHMC, UnitsToHMC(over)); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.checkEconomicInvariants(ctx, db); err != nil {
+		t.Fatalf("v2 active must allow minted>legacy max: %v", err)
+	}
+
+	ResetEconomicsV2ActivationHeightForTest()
+	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "")
+	ResetEconomicsV2ActivationHeightForTest()
+	if err := svc.checkEconomicInvariants(ctx, db); err == nil {
+		t.Fatal("v1 schedule must still reject minted>max supply")
+	}
+}
