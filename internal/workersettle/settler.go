@@ -375,13 +375,35 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 			continue
 		}
 		txHash := strings.TrimSpace(asString(resp["tx_hash"]))
-		if txHash != "" {
-			_ = store.AttachTxHash(ctx, wid, txHash)
-			_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
+		if txHash == "" {
+			lg.Printf("ALERT settle %s: OK response without tx_hash — pending retained (no clear)", wid)
+			_ = store.AppendLedger(ctx, "missing_tx_hash", wid, payUnits, 0, 0, 0, 0, 0, "ok response empty tx_hash")
+			continue
 		}
+		// Must durable-stamp before apply/crash window. Ignoring AttachTxHash left
+		// pending without hash → skip forever; CLEAR_PENDING_HMC then resend = double-pay.
+		var attachErr error
+		for try := 0; try < 8; try++ {
+			attachErr = store.AttachTxHash(ctx, wid, txHash)
+			if attachErr == nil {
+				break
+			}
+			lg.Printf("settle %s: AttachTxHash try %d/8: %v", wid, try+1, attachErr)
+			select {
+			case <-ctx.Done():
+				return out, ctx.Err()
+			case <-time.After(time.Duration(50*(try+1)) * time.Millisecond):
+			}
+		}
+		if attachErr != nil {
+			lg.Printf("ALERT settle %s: cannot stamp tx_hash=%s (%v) — pending retained, NOT clearing", wid, txHash, attachErr)
+			_ = store.AppendLedger(ctx, "attach_tx_hash_failed", wid, payUnits, 0, 0, 0, 0, 0, txHash)
+			continue
+		}
+		_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
 		ok, _ := verifyTxIncluded(ctx, client, cfg.ChainBase, txHash, cfg.TxWaitSec)
-		if txHash == "" || !ok {
-			lg.Printf("ERROR settle %s: tx_hash missing or not confirmed (%s) — pending retained", wid, txHash)
+		if !ok {
+			lg.Printf("ERROR settle %s: tx_hash not confirmed (%s) — pending retained", wid, txHash)
 			continue
 		}
 
