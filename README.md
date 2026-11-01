@@ -60,7 +60,7 @@ Payout follows **accepted work**, not lottery blocks. Model: [NETWORK_MODEL.md](
 
 ---
 
-## Status · 0.1.0-rc18 LIVE
+## Status · 0.1.0-rc18.1 LIVE
 
 | Area | State |
 |------|--------|

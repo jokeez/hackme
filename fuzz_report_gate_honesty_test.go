@@ -410,8 +410,12 @@ func TestFuzzReportHonesty_DigDetectorNoiseNotWarnPoolFindings(t *testing.T) {
 	a, db := newWalletTestApp(t)
 	const token = "dig-noise-token"
 	camp := "camp-dig-detector-noise"
+	// Local Dig deep package (not pool_distributed): ambient HACKME_POOL_COORDINATOR_URL
+	// must not flip this into sync_failed — we are testing detector-noise honesty only.
+	t.Setenv("HACKME_POOL_COORDINATOR_URL", "")
+	t.Setenv("HACKME_COORDINATOR_ADMIN_TOKEN", "")
 	seedCustomerFuzzCampaignWithConfig(t, a, db, camp, token,
-		map[string]any{"pool_distributed": true, "depth_tier": "bytes_corpus", "dig_package": "deep"}, 200, "completed")
+		map[string]any{"pool_distributed": false, "depth_tier": "bytes_corpus", "dig_package": "deep"}, 200, "completed")
 	_, err := db.ExecContext(context.Background(),
 		`UPDATE fuzz_campaigns SET summary_json=? WHERE id=?`,
 		`{"runs_done":200,"unique_crashes":0,"crash_count":0,"failed_checks":200,"findings_total":200}`, camp)
@@ -424,7 +428,7 @@ func TestFuzzReportHonesty_DigDetectorNoiseNotWarnPoolFindings(t *testing.T) {
 		t.Fatal(err)
 	}
 	if r["verdict"] != "clean" {
-		t.Fatalf("verdict=%v want clean (detector noise ≠ crash-class pool hint)", r["verdict"])
+		t.Fatalf("verdict=%v want clean (detector noise ≠ crash-class pool hint; pool_sync=%v)", r["verdict"], r["pool_sync"])
 	}
 	gate, _ := r["gate"].(map[string]any)
 	if gate["pass"] != true {
