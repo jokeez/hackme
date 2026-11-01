@@ -41,7 +41,10 @@ type Config struct {
 	NonceRetries          int
 	HTTPTimeoutSec        int
 	ClearPending          bool
-	ExpectedHostname      string
+	// ClearPendingForce allows dropping pending that already has a tx_hash or
+	// whose nonce may have been consumed — default ClearPending refuses those.
+	ClearPendingForce bool
+	ExpectedHostname  string
 	FeeUnits              uint64
 	PublishScript         string // optional absolute path; empty skips
 	Log                   *log.Logger
@@ -75,6 +78,7 @@ func DefaultConfig() Config {
 		NonceRetries:          envInt("SETTLE_NONCE_RETRIES", 6),
 		HTTPTimeoutSec:        envInt("CURL_MAX_TIME", 60),
 		ClearPending:          envBool("CLEAR_PENDING_HMC") || envBool("CLEAR_PENDING_SETTLE"),
+		ClearPendingForce:     envBool("CLEAR_PENDING_HMC_FORCE") || envBool("CLEAR_PENDING_SETTLE_FORCE"),
 		ExpectedHostname:      strings.TrimSpace(os.Getenv("SETTLE_EXPECTED_HOSTNAME")),
 		FeeUnits:              chain.DefaultTransferMinFee,
 		WorkerPayoutMap:       parsePayoutMap(os.Getenv("WORKER_PAYOUT_MAP")),
@@ -285,15 +289,27 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 			}
 			lg.Printf("skip %s: pending_settle tx=%s not confirmed — not re-sending", wid, pend.TxHash)
 			if cfg.ClearPending {
-				_ = store.ClearPending(ctx, wid)
-				_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
-				lg.Printf("CLEAR_PENDING_HMC cleared pending for %s", wid)
+				if !cfg.ClearPendingForce {
+					lg.Printf("CLEAR_PENDING_HMC refused for %s: tx_hash=%s set (use CLEAR_PENDING_HMC_FORCE=1 only if chain rejected)", wid, pend.TxHash)
+				} else {
+					_ = store.ClearPending(ctx, wid)
+					_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
+					lg.Printf("CLEAR_PENDING_HMC_FORCE cleared pending for %s tx=%s", wid, pend.TxHash)
+				}
 			}
 			continue
 		}
 		if row.PendingJSON != "" && pend.TxHash == "" {
 			lg.Printf("skip %s: pending_settle without tx_hash — not re-sending", wid)
 			if cfg.ClearPending {
+				// If the recorded nonce may already have been consumed, clearing
+				// and re-sending the same delta is a double-pay class bug.
+				if !cfg.ClearPendingForce && pend.Nonce > 0 {
+					if nNow, nerr := fetchNonce(ctx, client, cfg.ChainBase, payer); nerr == nil && int64(nNow) > pend.Nonce {
+						lg.Printf("CLEAR_PENDING_HMC refused for %s: nonce advanced %d->%d without tx_hash (ambiguous; use CLEAR_PENDING_HMC_FORCE=1 only if rejected)", wid, pend.Nonce, nNow)
+						continue
+					}
+				}
 				_ = store.ClearPending(ctx, wid)
 				_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
 				lg.Printf("CLEAR_PENDING_HMC cleared empty pending for %s", wid)
@@ -343,6 +359,7 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 		ts := time.Now().Unix()
 		resp, code, sendErr := sendTransfer(ctx, client, cfg, payer, toAddr, payUnits, nonce, ts)
 		attempt := 1
+		ambiguousNonce := false
 		for !txResponseOK(resp) && attempt < cfg.NonceRetries {
 			if code != "pending_nonce_conflict" && code != "invalid_nonce" {
 				if code == "insufficient_balance" {
@@ -357,14 +374,32 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 				return out, ctx.Err()
 			case <-time.After(time.Duration(sleepSec) * time.Second):
 			}
-			nonce, _ = fetchNonce(ctx, client, cfg.ChainBase, payer)
+			nextNonce, nerr := fetchNonce(ctx, client, cfg.ChainBase, payer)
+			if nerr != nil {
+				lg.Printf("ERROR settle %s: nonce after conflict: %v", wid, nerr)
+				break
+			}
+			// Critical: if nonce advanced, the first send may already be in
+			// mempool/chain. Re-sending the same payUnits with a fresh nonce
+			// double-pays the intent. Keep pending; do not retry.
+			if nextNonce > nonceBefore {
+				lg.Printf("ALERT ambiguous_pending %s: nonce %d->%d during conflict retry — NOT re-sending", wid, nonceBefore, nextNonce)
+				_ = store.AppendLedger(ctx, "ambiguous_pending", wid, payUnits, 0, 0, 0, 0, 0,
+					fmt.Sprintf("nonce %d->%d conflict-retry", nonceBefore, nextNonce))
+				ambiguousNonce = true
+				break
+			}
+			nonce = nextNonce
 			resp, code, sendErr = sendTransfer(ctx, client, cfg, payer, toAddr, payUnits, nonce, ts)
 			attempt++
+		}
+		if ambiguousNonce {
+			continue
 		}
 		if !txResponseOK(resp) {
 			nonceAfter, _ := fetchNonce(ctx, client, cfg.ChainBase, payer)
 			if nonceAfter > nonceBefore {
-				lg.Printf("ALERT ambiguous_pending %s: nonce %d->%d without verifiable tx_hash — keeping pending (manual CLEAR_PENDING_HMC if rejected)", wid, nonceBefore, nonceAfter)
+				lg.Printf("ALERT ambiguous_pending %s: nonce %d->%d without verifiable tx_hash — keeping pending (CLEAR_PENDING_HMC_FORCE only if rejected)", wid, nonceBefore, nonceAfter)
 				_ = store.AppendLedger(ctx, "ambiguous_pending", wid, payUnits, 0, 0, 0, 0, 0,
 					fmt.Sprintf("nonce %d->%d", nonceBefore, nonceAfter))
 			} else {

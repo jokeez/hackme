@@ -118,6 +118,44 @@ func TestPersistWorkerAccrualMonotonic(t *testing.T) {
 	}
 }
 
+// Higher accepted_attempts with lower payout_units must not clobber a found-bonus watermark.
+func TestAccrualPersistRejectsHigherAttemptsLowerUnits(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "accrual-hi-att-lo-units.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	wm := &workManager{worker: map[string]workerPayoutStat{}}
+	wm.attachDedupDB(db)
+	wm.mu.Lock()
+	wm.worker["hi"] = workerPayoutStat{AcceptedAtt: 10, PayoutUnits: 5_000_00000, PayoutHMC: 5}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual("hi", true)
+
+	// Stale snapshot: more attempts observed later, but units lag behind found-bonus.
+	wm.mu.Lock()
+	wm.worker["hi"] = workerPayoutStat{AcceptedAtt: 20, PayoutUnits: 2_000_00000, PayoutHMC: 2}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual("hi", true)
+
+	st, ok := wm.fetchDurableAccrual("hi")
+	if !ok || st.PayoutUnits != 5_000_00000 || st.AcceptedAtt != 10 {
+		t.Fatalf("higher-attempts/lower-units clobber: ok=%v st=%+v", ok, st)
+	}
+
+	// Lexicographic advance still allowed.
+	wm.mu.Lock()
+	wm.worker["hi"] = workerPayoutStat{AcceptedAtt: 20, PayoutUnits: 6_000_00000, PayoutHMC: 6}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual("hi", true)
+	st, ok = wm.fetchDurableAccrual("hi")
+	if !ok || st.PayoutUnits != 6_000_00000 || st.AcceptedAtt != 20 {
+		t.Fatalf("lexicographic advance: ok=%v st=%+v", ok, st)
+	}
+}
+
 // SHARE_STRICT found-bonus can credit payout_units while accepted_attempts stays flat.
 // A delayed persist with the same attempts and lower units must not clobber.
 func TestAccrualPersistRejectsStaleFoundBonusUnits(t *testing.T) {

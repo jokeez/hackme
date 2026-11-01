@@ -104,6 +104,8 @@ if python3 -c "import sys; sys.exit(0 if float(sys.argv[1])>=float(sys.argv[2]) 
     printf 'MIN_SETTLE_HMC=%s\n' "${MIN_SETTLE_HMC:-}"
     printf 'MAX_SETTLE_HMC=%s\n' "${MAX_SETTLE_HMC:-}"
     printf 'CLEAR_PENDING_HMC=%s\n' "${CLEAR_PENDING_HMC:-0}"
+    # FORCE only when a stamped/ambiguous pending is known-rejected on chain.
+    printf 'CLEAR_PENDING_HMC_FORCE=%s\n' "${CLEAR_PENDING_HMC_FORCE:-0}"
   } >"${_settle_env}"
   chmod 600 "${_settle_env}"
   chown hackme:hackme "${_settle_env}" 2>/dev/null || true
