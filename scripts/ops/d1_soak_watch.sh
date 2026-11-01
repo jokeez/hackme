@@ -54,6 +54,9 @@ reject_pct = (100.0 * rej / tot) if tot else None
 unpaid = float(settle.get("fleet_unpaid_hmc") or settle.get("total_unpaid_hmc") or 0)
 prim_bal = float((prim or {}).get("balance_hmc") or 0)
 leg_bal = float((leg or {}).get("balance_hmc") or 0)
+# D1 coinbase lands on primary; legacy float is still a live settlement buffer.
+# Cover = primary + legacy (not primary alone — sweep keeps primary thin by design).
+combined = prim_bal + leg_bal
 local_poh = status.get("chain_leader_local_poh")
 tip = status.get("canonical_tip_height") or stats.get("tip_height")
 row = {
@@ -72,7 +75,9 @@ row = {
     "settlement_primary_hmc": round(prim_bal, 8),
     "settlement_legacy_float": leg_addr,
     "settlement_legacy_hmc": round(leg_bal, 8),
-    "float_covers_unpaid": prim_bal + 1e-12 >= unpaid,
+    "settlement_combined_hmc": round(combined, 8),
+    "float_covers_unpaid": combined + 1e-12 >= unpaid,
+    "primary_covers_unpaid": prim_bal + 1e-12 >= unpaid,
 }
 hard, soft = [], []
 if local_poh is True:
@@ -86,18 +91,20 @@ if unpaid > max_unpaid:
 if stats.get("share_strict") is not True and str(stats.get("share_strict")).lower() not in ("1", "true"):
     soft.append("share_strict_off")
 if need_cover and not row["float_covers_unpaid"]:
-    soft.append("primary_float_below_unpaid")
+    soft.append("combined_float_below_unpaid")
 row["hard_alerts"] = hard
 row["soft_alerts"] = soft
 row["ok"] = not hard and (not strict or not soft)
 with open(out_path, "a", encoding="utf-8") as f:
     f.write(json.dumps(row, separators=(",", ":")) + "\n")
-print("[d1-soak] tip=%s local_poh=%s reject_pct=%s unpaid=%.4f primary=%.4f legacy=%.4f" % (
-    tip, local_poh, row["reject_pct"], unpaid, prim_bal, leg_bal))
+print("[d1-soak] tip=%s local_poh=%s reject_pct=%s unpaid=%.4f primary=%.4f legacy=%.4f combined=%.4f" % (
+    tip, local_poh, row["reject_pct"], unpaid, prim_bal, leg_bal, combined))
 if hard:
     print("[d1-soak] HARD:", ", ".join(hard), file=sys.stderr)
 if soft:
     print("[d1-soak] WARN:", ", ".join(soft), file=sys.stderr)
+elif need_cover and not row["primary_covers_unpaid"]:
+    print("[d1-soak] NOTE: primary thin (%.4f) but legacy+primary cover unpaid" % prim_bal, file=sys.stderr)
 if hard:
     raise SystemExit(1)
 if strict and soft:
