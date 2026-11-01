@@ -44,6 +44,7 @@ Install engines (no miner AFL git clone): `bash scripts/ops/install_hunt_engines
 | `POST /api/hunt/template/preview` | Admin: check if template Accept is required |
 | `POST /api/hunt/harness/build` | Admin: ASAN build inventory harness → `.cache/hunt-harness/{hash}.bin` |
 | `POST /api/hunt/harness/publish` | Admin: publish harness blob to node + coordinator pool |
+| `POST /api/hunt/campaigns` + `harness_hash` | Attach inventory Hunt to an already-published pool harness (Windows Orders OOTB — no local bwrap/ASAN build) |
 | `GET /api/fuzz/pool/hunt/harness/{hash}` | Workers: fetch published ASAN harness (coordinator) |
 | `POST /api/hunt/campaigns` | Create Hunt campaign + 50/50 escrow (catalog or inventory) |
 | `POST /api/hunt/campaigns/{id}/run-local` | Admin: node-local ASAN smoke |

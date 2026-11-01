@@ -12,6 +12,7 @@ func TestSettleOutboxTransient(t *testing.T) {
 		{"settle outbox HTTP 504: gateway", true},
 		{"Get ...: read: connection reset by peer", true},
 		{"settle outbox HTTP 401: admin authentication required", false},
+		{"settle outbox HTTP 403: forbidden", false},
 		{"settle outbox HTTP 500: boom", false},
 	}
 	for _, tc := range cases {
@@ -22,6 +23,12 @@ func TestSettleOutboxTransient(t *testing.T) {
 	}
 	if settleOutboxTransient(nil) {
 		t.Fatal("nil must not be transient")
+	}
+	if !SettleOutboxErrAuth(errString("settle outbox HTTP 403: forbidden")) {
+		t.Fatal("403 must be auth")
+	}
+	if SettleOutboxErrAuth(errString("settle outbox HTTP 502: bad gateway")) {
+		t.Fatal("502 must not be auth")
 	}
 }
 

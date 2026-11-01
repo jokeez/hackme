@@ -1519,7 +1519,8 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if !coordinatorWorkPOSTAuthed(r, adminToken, workerToken, allowInsecure) {
+		// Workers + admin + Orders publish (customer verify/attach after upload).
+		if !coordinatorWorkPOSTAuthed(r, adminToken, workerToken, allowInsecure) && !coordPublishOK(r, publishToken) {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
 			http.Error(w, "coordinator authentication required", http.StatusUnauthorized)
 			return

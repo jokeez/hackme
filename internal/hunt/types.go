@@ -64,6 +64,10 @@ type CreateRequest struct {
 	Status          string          `json:"status,omitempty"`
 	PoolDistributed bool            `json:"pool_distributed,omitempty"`
 	OwnerRef        string          `json:"owner_ref,omitempty"`
+	// HarnessHash attaches a pool inventory campaign to an already-published
+	// coordinator harness (Windows/Orders OOTB — skip local bwrap/clang build).
+	// Must equal InventoryHarnessHash(pin, source_rel, source bytes); pool must serve it.
+	HarnessHash string `json:"harness_hash,omitempty"`
 	// HuntEngine optional override (libfuzzer|aflpp|byte). Empty → package defaults.
 	HuntEngine string `json:"hunt_engine,omitempty"`
 	// EngineLeaseSec optional coverage-engine wall seconds (fleet ~60, deep ~90–180).

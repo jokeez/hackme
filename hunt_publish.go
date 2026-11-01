@@ -41,6 +41,15 @@ func (a *app) publishHuntHarnessForConfig(ctx context.Context, cfg map[string]an
 	if hash == "" {
 		return nil
 	}
+	// Already attached to a pool-published inventory harness (Windows OOTB) — no local blob.
+	if attached, _ := cfg["harness_pool_attached"].(bool); attached {
+		cfg["harness_published"] = true
+		cfg["harness_fetch_path"] = hunt.HarnessFetchURL(hash)
+		if strings.TrimSpace(toString(cfg["harness_publish_note"])) == "" {
+			cfg["harness_publish_note"] = "attached published pool harness — local ASAN/bwrap build skipped"
+		}
+		return nil
+	}
 	root := a.repoRoot()
 	cachePath, err := hunt.SafeCacheFile(root, "hunt-harness", hash, "bin")
 	if err != nil {
@@ -108,8 +117,21 @@ func (a *app) syncHuntHarnessToCoordinator(ctx context.Context, cfg map[string]a
 	if coord == "" || token == "" {
 		return fmt.Errorf("hunt harness sync: coordinator url/token not configured")
 	}
+	// Pool-attached: blob already on coordinator — skip local read/upload.
+	if attached, _ := cfg["harness_pool_attached"].(bool); attached {
+		if poolsync.CoordinatorHarnessAvailable(ctx, coord, token, hash) {
+			return nil
+		}
+		return fmt.Errorf("hunt harness sync: attached hash %s missing on coordinator", hash)
+	}
 	data, err := hunt.GetHarnessArtifact(ctx, a.db, hash)
 	if err != nil {
+		// Local missing but pool already has bytes (customer published first).
+		if poolsync.CoordinatorHarnessAvailable(ctx, coord, token, hash) {
+			cfg["harness_pool_attached"] = true
+			cfg["harness_publish_note"] = "coordinator already has harness — skipped local upload"
+			return nil
+		}
 		return fmt.Errorf("hunt harness sync: local artifact: %w", err)
 	}
 	srcRel := strings.TrimSpace(toString(cfg["hunt_source_rel"]))

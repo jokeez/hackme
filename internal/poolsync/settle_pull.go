@@ -186,8 +186,23 @@ func SettleOutboxErrTransient(err error) bool {
 	return settleOutboxTransient(err)
 }
 
+// SettleOutboxErrAuth reports permanent auth failures (do not retry-storm).
+func SettleOutboxErrAuth(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "http 401") ||
+		strings.Contains(msg, "http 403") ||
+		strings.Contains(msg, "unauthorized") ||
+		strings.Contains(msg, "forbidden")
+}
+
 func settleOutboxTransient(err error) bool {
 	if err == nil {
+		return false
+	}
+	if SettleOutboxErrAuth(err) {
 		return false
 	}
 	msg := strings.ToLower(err.Error())

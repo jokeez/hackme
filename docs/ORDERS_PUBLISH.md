@@ -19,7 +19,8 @@ Scoped credential **`pool.orders.token`** /
 | PoH claim/submit | ✅ | ❌ | ✅ |
 | `POST /api/fuzz/pool/campaigns` | ❌ | ✅ (capped) | ✅ |
 | Settle outbox GET + ACK (Orders pull) | ❌ | ✅ | ✅ |
-| Settle replay / cleanup / harness upload | ❌ | ❌ | ✅ |
+| Hunt harness upload (`POST /api/fuzz/pool/hunt/harness`) + GET verify | ❌ | ✅ | ✅ |
+| Settle replay / cleanup | ❌ | ❌ | ✅ |
 
 ### Publish caps (defaults)
 
@@ -42,7 +43,8 @@ Requires Dig `dig_package` (`scan`/`starter`/`audit`/`pro`/`deep`/`enterprise`) 
   settle-pull. Treat as a fleet API key; rotate via new gen + hub env + rebuild if leaked.
   Settle-pull only **applies** rows for local escrow; do not ACK foreign campaigns.
 - Publish cannot: cancel/complete via status API **or** register upsert; settle replay;
-  cleanup-stale/gates/repair-zombies; harness upload; PoH attach (`attach_poh_order` stripped).
+  cleanup-stale/gates/repair-zombies; PoH attach (`attach_poh_order` stripped).
+  Harness upload + GET verify are allowed (Windows attach flow uses publish then `harness_hash` on create).
 - Publish cannot hijack existing non-`orders_publish` campaign IDs (HTTP 409).
 - Settle outbox GET/ACK with publish **requires `campaign_id`** and only works for
   `orders_publish` campaigns (no global list / cross-tenant ACK of admin campaigns).

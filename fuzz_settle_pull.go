@@ -261,12 +261,33 @@ func (a *app) startFuzzSettlePullTicker() {
 		return
 	}
 	go func() {
-		ticker := time.NewTicker(15 * time.Second)
-		defer ticker.Stop()
-		for range ticker.C {
+		interval := 15 * time.Second
+		authBackoff := time.Duration(0)
+		timer := time.NewTimer(interval)
+		defer timer.Stop()
+		for {
+			<-timer.C
 			ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
-			_ = a.pullFuzzSettleOutbox(ctx)
+			err := a.pullFuzzSettleOutbox(ctx)
 			cancel()
+			next := interval
+			if poolsync.SettleOutboxErrAuth(err) {
+				// 401/403 are permanent for a given token/URL — exponential cooldown
+				// so desktop Orders nodes do not look like abuse to rate limiters.
+				if authBackoff == 0 {
+					authBackoff = time.Minute
+				} else if authBackoff < 15*time.Minute {
+					authBackoff *= 2
+				}
+				if authBackoff > 15*time.Minute {
+					authBackoff = 15 * time.Minute
+				}
+				next = authBackoff
+				log.Printf("fuzz settle pull: auth error — backing off %s (%v)", next, err)
+			} else {
+				authBackoff = 0
+			}
+			timer.Reset(next)
 		}
 	}()
 }

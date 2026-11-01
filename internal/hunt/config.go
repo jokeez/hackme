@@ -105,40 +105,66 @@ func CampaignConfig(ctx context.Context, repoRoot string, req CreateRequest) (ma
 		if buildPin == nil && invRoot != "" {
 			buildPin = &RepoPinResult{Path: invRoot, PinnedAt: time.Now().Unix()}
 		}
-		build, bErr := BuildInventoryHarness(ctx, repoRoot, HarnessBuildRequest{
-			Pin:            buildPin,
-			SourceRel:      sourceRel,
-			TemplateAccept: req.TemplateAccept,
-		})
-		if bErr != nil {
-			return nil, "", bErr
-		}
-		cfg["harness_hash"] = build.HarnessHash
-		if pool {
-			cfg["harness_fetch_path"] = HarnessFetchURL(build.HarnessHash)
-		}
-		// Best-effort afl-cc showmap binary for coordinator prove (no pin on hub).
-		if aflBin, aflErr := BuildInventoryAFLHarness(ctx, repoRoot, HarnessBuildRequest{
-			Pin:            buildPin,
-			SourceRel:      sourceRel,
-			TemplateAccept: req.TemplateAccept,
-		}); aflErr == nil && aflBin != "" {
-			covHash := CoverageHarnessHash(build.HarnessHash)
-			cfg["coverage_harness_hash"] = covHash
-			cfg["coverage_harness_path"] = aflBin
-			cfg["showmap_instrumented"] = true
-			cfg["hunt_edge_pay"] = "showmap"
-			if pool {
-				cfg["coverage_harness_fetch_path"] = HarnessFetchURL(covHash)
+		wantHash := strings.TrimSpace(strings.ToLower(req.HarnessHash))
+		if pool && wantHash != "" {
+			// Windows / no-bwrap Orders: attach campaign to already-published pool harness.
+			hash, _, aErr := AttachPublishedInventoryHarness(repoRoot, buildPin, invRoot, sourceRel, wantHash)
+			if aErr != nil {
+				return nil, "", aErr
 			}
-		} else {
-			// Honest customer signal: ASAN pay still works; edge PayRun needs afl-cc.
+			ok, contentSHA := ProbeCoordinatorHarness(ctx, hash)
+			if !ok {
+				return nil, "", fmt.Errorf("hunt: harness_hash %s not fetchable from coordinator — publish via POST /api/fuzz/pool/hunt/harness (or /api/hunt/harness/publish) first", hash)
+			}
+			cfg["harness_hash"] = hash
+			cfg["harness_fetch_path"] = HarnessFetchURL(hash)
+			cfg["harness_pool_attached"] = true
+			cfg["harness_published"] = true
+			cfg["harness_build_deferred"] = false
+			cfg["harness_publish_note"] = "attached published pool harness — local ASAN/bwrap build skipped"
+			if contentSHA != "" {
+				cfg["harness_content_sha256"] = contentSHA
+			}
+			// No local afl-cc on Windows attach path — honest floor until coverage harness published.
 			cfg["showmap_instrumented"] = false
 			cfg["hunt_edge_pay"] = "floor_only"
-			if aflErr != nil {
-				cfg["showmap_instrument_note"] = "afl-cc inventory harness unavailable — CLEAN edge pay is floor until coverage harness is published (ASAN crashes still pay)"
+			cfg["showmap_instrument_note"] = "pool-attached harness — edge PayRun floor_only until afl-cc coverage harness is published (ASAN crashes still pay)"
+		} else {
+			build, bErr := BuildInventoryHarness(ctx, repoRoot, HarnessBuildRequest{
+				Pin:            buildPin,
+				SourceRel:      sourceRel,
+				TemplateAccept: req.TemplateAccept,
+			})
+			if bErr != nil {
+				return nil, "", bErr
+			}
+			cfg["harness_hash"] = build.HarnessHash
+			if pool {
+				cfg["harness_fetch_path"] = HarnessFetchURL(build.HarnessHash)
+			}
+			// Best-effort afl-cc showmap binary for coordinator prove (no pin on hub).
+			if aflBin, aflErr := BuildInventoryAFLHarness(ctx, repoRoot, HarnessBuildRequest{
+				Pin:            buildPin,
+				SourceRel:      sourceRel,
+				TemplateAccept: req.TemplateAccept,
+			}); aflErr == nil && aflBin != "" {
+				covHash := CoverageHarnessHash(build.HarnessHash)
+				cfg["coverage_harness_hash"] = covHash
+				cfg["coverage_harness_path"] = aflBin
+				cfg["showmap_instrumented"] = true
+				cfg["hunt_edge_pay"] = "showmap"
+				if pool {
+					cfg["coverage_harness_fetch_path"] = HarnessFetchURL(covHash)
+				}
 			} else {
-				cfg["showmap_instrument_note"] = "no afl-cc coverage harness — edge PayRun floor_only (ASAN crashes still pay)"
+				// Honest customer signal: ASAN pay still works; edge PayRun needs afl-cc.
+				cfg["showmap_instrumented"] = false
+				cfg["hunt_edge_pay"] = "floor_only"
+				if aflErr != nil {
+					cfg["showmap_instrument_note"] = "afl-cc inventory harness unavailable — CLEAN edge pay is floor until coverage harness is published (ASAN crashes still pay)"
+				} else {
+					cfg["showmap_instrument_note"] = "no afl-cc coverage harness — edge PayRun floor_only (ASAN crashes still pay)"
+				}
 			}
 		}
 	}

@@ -31,6 +31,7 @@ import (
 
 	"hackme/internal/block"
 	"hackme/internal/chain"
+	"hackme/internal/hunt"
 	"hackme/internal/integrator"
 	"hackme/internal/lanpool"
 	"hackme/internal/logsafe"
@@ -379,6 +380,10 @@ func main() {
 	applyFromCodeToolchainEnv()
 	logsetup.ConfigureFromEnv("HACKME_NODE")
 	applyPublicAuthorityBaseEnv()
+	// Windows/Orders: CampaignConfig can attach harness_hash without local bwrap build.
+	hunt.ProbeCoordinatorHarness = func(ctx context.Context, hash string) (bool, string) {
+		return poolsync.CoordinatorHarnessProbe(ctx, poolsync.ResolveCoordinatorURL(), poolsync.AdminToken(), hash)
+	}
 	if os.Geteuid() == 0 {
 		log.Printf("security warning: running as root may create root-owned data files (e.g. node_ed25519.seed) and break non-root transfer/signing scripts")
 	}

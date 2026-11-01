@@ -102,30 +102,63 @@ func IsHarnessAlreadyBound(err error) bool {
 	return strings.Contains(msg, "already bound") || strings.Contains(msg, "already exists")
 }
 
-// CoordinatorHarnessAvailable GETs the published harness (admin token).
+// CoordinatorHarnessAvailable GETs the published harness (admin/worker/publish token).
 func CoordinatorHarnessAvailable(ctx context.Context, coordURL, token, hash string) bool {
+	ok, _ := CoordinatorHarnessProbe(ctx, coordURL, token, hash)
+	return ok
+}
+
+// CoordinatorHarnessProbe GETs (or HEADs) a published harness and returns content SHA when present.
+func CoordinatorHarnessProbe(ctx context.Context, coordURL, token, hash string) (ok bool, contentSHA256 string) {
 	coordURL = strings.TrimRight(strings.TrimSpace(coordURL), "/")
 	hash = strings.TrimSpace(hash)
 	if coordURL == "" || hash == "" {
-		return false
+		return false, ""
 	}
-	reqCtx, cancel := context.WithTimeout(ctx, timeoutDuration())
-	defer cancel()
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, coordURL+"/api/fuzz/pool/hunt/harness/"+hash, nil)
-	if err != nil {
-		return false
+	tokens := []string{}
+	add := func(t string) {
+		t = strings.TrimSpace(t)
+		if t == "" {
+			return
+		}
+		for _, e := range tokens {
+			if e == t {
+				return
+			}
+		}
+		tokens = append(tokens, t)
 	}
-	if token != "" {
-		req.Header.Set("X-Hackme-Admin-Token", token)
+	add(token)
+	add(CoordinatorAdminToken())
+	add(OrdersPublishToken())
+	add(strings.TrimSpace(os.Getenv("HACKME_POOL_COORDINATOR_TOKEN")))
+	add(strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_WORKER_TOKEN")))
+	if len(tokens) == 0 {
+		tokens = []string{""}
 	}
-	res, err := netutil.HTTPClientNoRedirect(timeoutDuration()).Do(req)
-	if err != nil {
-		return false
+	for _, tok := range tokens {
+		reqCtx, cancel := context.WithTimeout(ctx, timeoutDuration())
+		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, coordURL+"/api/fuzz/pool/hunt/harness/"+hash, nil)
+		if err != nil {
+			cancel()
+			continue
+		}
+		if tok != "" {
+			req.Header.Set("X-Hackme-Admin-Token", tok)
+			req.Header.Set("X-Hackme-Worker-Token", tok)
+		}
+		res, err := netutil.HTTPClientNoRedirect(timeoutDuration()).Do(req)
+		if err != nil {
+			cancel()
+			continue
+		}
+		sha := strings.TrimSpace(res.Header.Get("X-Hackme-Content-SHA256"))
+		n, _ := io.Copy(io.Discard, io.LimitReader(res.Body, 64<<20))
+		_ = res.Body.Close()
+		cancel()
+		if res.StatusCode == http.StatusOK && n > 0 {
+			return true, sha
+		}
 	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return false
-	}
-	n, _ := io.Copy(io.Discard, io.LimitReader(res.Body, 64<<20))
-	return n > 0
+	return false, ""
 }

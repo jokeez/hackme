@@ -117,7 +117,7 @@ Repo + **coverage-guided** ASAN Hunt on the **local node** (admin). Escrow is **
 | POST | `/api/hunt/harness/build` | Admin: ASAN build inventory harness → `.cache/hunt-harness/{hash}.bin` (**C/C++ only**; Rust inventory auto-build fails closed — use catalog Rust targets). |
 | POST | `/api/hunt/harness/publish` | Admin: publish harness blob to node + coordinator pool. |
 | GET | `/api/fuzz/pool/hunt/harness/{hash}` | Workers: fetch published ASAN harness (coordinator). |
-| POST | `/api/hunt/campaigns` | Create Hunt campaign + 50/50 escrow (catalog or inventory). |
+| POST | `/api/hunt/campaigns` | Create Hunt campaign + 50/50 escrow (catalog or inventory). **Windows / no-bwrap:** after publishing the ASAN harness to the pool, pass `harness_hash` (same id returned at publish) with `pool_distributed:true` + inventory/repo — skips local clang/bwrap build and attaches the campaign to the published blob (`harness_pool_attached`). Hash must match `InventoryHarnessHash(pin, source_rel, source)`; coordinator must already serve `GET /api/fuzz/pool/hunt/harness/{hash}`. |
 | POST | `/api/hunt/campaigns/{id}/run-local` | Admin: node-local ASAN smoke. |
 
 CLI: `hackme-fuzzing hunt pin|inventory|template|build|create|pack-suggest|packages|targets`.

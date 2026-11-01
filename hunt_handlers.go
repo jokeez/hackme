@@ -261,8 +261,15 @@ func (a *app) handleHuntCampaignCreate(w http.ResponseWriter, r *http.Request) {
 				resp["harness_publish_note"] = note
 			}
 		}
+		if attached, _ := cfgMap["harness_pool_attached"].(bool); attached {
+			resp["harness_pool_attached"] = true
+			if note := strings.TrimSpace(toString(cfgMap["harness_publish_note"])); note != "" {
+				resp["harness_publish_note"] = note
+			}
+		}
 		resp["pool_distributed"] = true
 		resp["harness_fetch_path"] = cfgMap["harness_fetch_path"]
+		resp["harness_hash"] = cfgMap["harness_hash"]
 		fc := fuzzAutoCampaign{ID: id, BudgetRuns: shards, BudgetSeconds: 86400, ConfigJSON: cfg, OwnerRef: ownerRef}
 		a.applyPoolSyncResponse(resp, r.Context(), fc)
 	}

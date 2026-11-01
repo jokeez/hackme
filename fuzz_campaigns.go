@@ -1105,6 +1105,10 @@ func (a *app) drainFuzzSettleBeforeClose(ctx context.Context, campaignID, closeK
 		if err != nil && !errors.Is(err, errSettleOutboxUndrainableHead) {
 			log.Printf("fuzz escrow: refuse %s %s: settle pull failed: %s",
 				logsafe.ID(closeKind), logsafe.ID(campaignID), logsafe.Err(err))
+			// Auth failures (403/401) must not retry-storm close drains.
+			if poolsync.SettleOutboxErrAuth(err) {
+				return false
+			}
 			// Transient edge noise — keep trying within the window.
 			if poolsync.SettleOutboxErrTransient(err) && attempt+1 < maxAttempts {
 				continue
