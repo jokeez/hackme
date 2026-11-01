@@ -3,7 +3,9 @@ package poolsync
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -48,6 +50,8 @@ func uploadHuntHarnessOctet(ctx context.Context, coordURL, token, hash string, d
 	}
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Header.Set("X-Hackme-Harness-Hash", hash)
+	sum := sha256.Sum256(data)
+	req.Header.Set("X-Hackme-Harness-Content-SHA256", hex.EncodeToString(sum[:]))
 	if strings.TrimSpace(sourceRel) != "" {
 		req.Header.Set("X-Hackme-Source-Rel", sourceRel)
 	}
@@ -65,10 +69,12 @@ func uploadHuntHarnessOctet(ctx context.Context, coordURL, token, hash string, d
 }
 
 func uploadHuntHarnessJSON(ctx context.Context, coordURL, token, hash string, data []byte, sourceRel string) error {
+	sum := sha256.Sum256(data)
 	body, err := json.Marshal(map[string]any{
-		"harness_hash": hash,
-		"source_rel":   strings.TrimSpace(sourceRel),
-		"binary_b64":   base64.StdEncoding.EncodeToString(data),
+		"harness_hash":           hash,
+		"source_rel":             strings.TrimSpace(sourceRel),
+		"binary_b64":             base64.StdEncoding.EncodeToString(data),
+		"harness_content_sha256": hex.EncodeToString(sum[:]),
 	})
 	if err != nil {
 		return err

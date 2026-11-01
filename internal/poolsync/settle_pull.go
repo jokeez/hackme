@@ -244,7 +244,11 @@ func AckSettleOutboxForCampaign(ctx context.Context, campaignID string, ids []in
 			return fmt.Errorf("settle outbox ack: campaign_id required with orders publish token")
 		}
 	}
-	bodyMap := map[string]any{"ids": ids}
+	bodyMap := map[string]any{
+		"ids":              ids,
+		"confirm_applied":  true,
+		"origin_applied":   true,
+	}
 	if campaignID != "" {
 		bodyMap["campaign_id"] = campaignID
 	}

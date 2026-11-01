@@ -68,6 +68,10 @@ type CreateRequest struct {
 	// coordinator harness (Windows/Orders OOTB — skip local bwrap/clang build).
 	// Must equal InventoryHarnessHash(pin, source_rel, source bytes); pool must serve it.
 	HarnessHash string `json:"harness_hash,omitempty"`
+	// HarnessContentSHA256 is the builder-attested sha256 of the published binary
+	// (from POST /api/fuzz/pool/hunt/harness). Required for pool attach so a
+	// first-writer squat under the inventory hash cannot bind workers to malware.
+	HarnessContentSHA256 string `json:"harness_content_sha256,omitempty"`
 	// HuntEngine optional override (libfuzzer|aflpp|byte). Empty → package defaults.
 	HuntEngine string `json:"hunt_engine,omitempty"`
 	// EngineLeaseSec optional coverage-engine wall seconds (fleet ~60, deep ~90–180).

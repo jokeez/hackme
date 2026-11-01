@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -137,9 +139,19 @@ func (a *app) syncHuntHarnessToCoordinator(ctx context.Context, cfg map[string]a
 	srcRel := strings.TrimSpace(toString(cfg["hunt_source_rel"]))
 	if err := poolsync.UploadHuntHarness(ctx, coord, token, hash, data, srcRel); err != nil {
 		// Catalog hash is metadata-stable; clang rebuilds can differ byte-for-byte across hosts.
-		// "already bound" from the coordinator means that hash is already published and fetchable.
+		// "already bound" must still match our local bytes — otherwise refuse inventory-hash squat.
 		if poolsync.IsHarnessAlreadyBound(err) {
-			// continue to coverage harness upload
+			ok, remoteSHA := poolsync.CoordinatorHarnessProbe(ctx, coord, token, hash)
+			if !ok {
+				return fmt.Errorf("hunt harness sync: hash %s already bound but not fetchable", hash)
+			}
+			if remoteSHA != "" {
+				sum := sha256.Sum256(data)
+				localSHA := hex.EncodeToString(sum[:])
+				if !strings.EqualFold(remoteSHA, localSHA) {
+					return fmt.Errorf("hunt harness sync: harness_hash %s already bound to different binary (coordinator %s != local %s)", hash, remoteSHA, localSHA)
+				}
+			}
 		} else {
 			return err
 		}

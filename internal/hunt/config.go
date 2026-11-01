@@ -116,15 +116,27 @@ func CampaignConfig(ctx context.Context, repoRoot string, req CreateRequest) (ma
 			if !ok {
 				return nil, "", fmt.Errorf("hunt: harness_hash %s not fetchable from coordinator — publish via POST /api/fuzz/pool/hunt/harness (or /api/hunt/harness/publish) first", hash)
 			}
+			wantContent := strings.ToLower(strings.TrimSpace(req.HarnessContentSHA256))
+			gotContent := strings.ToLower(strings.TrimSpace(contentSHA))
+			if wantContent == "" {
+				return nil, "", fmt.Errorf("hunt: harness_content_sha256 required for pool attach (use content_sha256 from harness publish response — blocks inventory-hash squat)")
+			}
+			if !ValidContentSHA256(wantContent) {
+				return nil, "", fmt.Errorf("hunt: invalid harness_content_sha256")
+			}
+			if gotContent == "" {
+				return nil, "", fmt.Errorf("hunt: coordinator harness probe missing content sha256 for %s", hash)
+			}
+			if wantContent != gotContent {
+				return nil, "", fmt.Errorf("hunt: harness_content_sha256 mismatch (want %s from builder, got %s from coordinator — refuse squat/wrong binary)", wantContent, gotContent)
+			}
 			cfg["harness_hash"] = hash
 			cfg["harness_fetch_path"] = HarnessFetchURL(hash)
 			cfg["harness_pool_attached"] = true
 			cfg["harness_published"] = true
 			cfg["harness_build_deferred"] = false
 			cfg["harness_publish_note"] = "attached published pool harness — local ASAN/bwrap build skipped"
-			if contentSHA != "" {
-				cfg["harness_content_sha256"] = contentSHA
-			}
+			cfg["harness_content_sha256"] = gotContent
 			// No local afl-cc on Windows attach path — honest floor until coverage harness published.
 			cfg["showmap_instrumented"] = false
 			cfg["hunt_edge_pay"] = "floor_only"

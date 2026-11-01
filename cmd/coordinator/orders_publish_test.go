@@ -182,7 +182,7 @@ func TestOrdersPublishTokenMaySettleOutbox(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("publish scoped outbox GET want 200, got %d %s", rec.Code, rec.Body.String())
 	}
-	raw, _ := json.Marshal(map[string]any{"ids": []int64{}, "campaign_id": "camp-settle-1"})
+	raw, _ := json.Marshal(map[string]any{"ids": []int64{}, "campaign_id": "camp-settle-1", "confirm_applied": true})
 	req = httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle/outbox/ack", bytes.NewReader(raw))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
@@ -191,8 +191,18 @@ func TestOrdersPublishTokenMaySettleOutbox(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("publish scoped ACK want 200, got %d %s", rec.Code, rec.Body.String())
 	}
+	// ACK without confirm_applied rejected.
+	raw, _ = json.Marshal(map[string]any{"ids": []int64{}, "campaign_id": "camp-settle-1"})
+	req = httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle/outbox/ack", bytes.NewReader(raw))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("ACK without confirm_applied want 400, got %d", rec.Code)
+	}
 	// ACK without campaign_id rejected.
-	raw, _ = json.Marshal(map[string]any{"ids": []int64{1}})
+	raw, _ = json.Marshal(map[string]any{"ids": []int64{1}, "confirm_applied": true})
 	req = httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle/outbox/ack", bytes.NewReader(raw))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")

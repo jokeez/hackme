@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
@@ -302,11 +303,19 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
 		var req struct {
-			IDs        []int64 `json:"ids"`
-			CampaignID string  `json:"campaign_id"`
+			IDs             []int64 `json:"ids"`
+			CampaignID      string  `json:"campaign_id"`
+			ConfirmApplied  bool    `json:"confirm_applied"`
+			AppliedReceipts bool    `json:"origin_applied"` // alias accepted
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		// Stolen-token ACK without a local Apply still risks false "paid".
+		// Callers that applied on-chain/escrow must set confirm_applied/origin_applied.
+		if !req.ConfirmApplied && !req.AppliedReceipts {
+			http.Error(w, "confirm_applied=true required (ACK only after origin Apply)", http.StatusBadRequest)
 			return
 		}
 		var (
@@ -1471,12 +1480,13 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			}
 			r.Body = http.MaxBytesReader(w, r.Body, 36<<20)
 			ct := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]))
-			var hash, sourceRel string
+			var hash, sourceRel, wantContent string
 			var data []byte
 			var err error
 			if ct == "application/octet-stream" || ct == "application/x-hunt-harness" {
 				hash = strings.TrimSpace(r.Header.Get("X-Hackme-Harness-Hash"))
 				sourceRel = strings.TrimSpace(r.Header.Get("X-Hackme-Source-Rel"))
+				wantContent = strings.TrimSpace(r.Header.Get("X-Hackme-Harness-Content-SHA256"))
 				data, err = io.ReadAll(r.Body)
 				if err != nil {
 					http.Error(w, "read body failed", http.StatusBadRequest)
@@ -1484,9 +1494,10 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				}
 			} else {
 				var req struct {
-					HarnessHash string `json:"harness_hash"`
-					SourceRel   string `json:"source_rel"`
-					BinaryB64   string `json:"binary_b64"`
+					HarnessHash          string `json:"harness_hash"`
+					SourceRel            string `json:"source_rel"`
+					BinaryB64            string `json:"binary_b64"`
+					HarnessContentSHA256 string `json:"harness_content_sha256"`
 				}
 				if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 					http.Error(w, "invalid json", http.StatusBadRequest)
@@ -1494,9 +1505,19 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				}
 				hash = strings.TrimSpace(req.HarnessHash)
 				sourceRel = strings.TrimSpace(req.SourceRel)
+				wantContent = strings.TrimSpace(req.HarnessContentSHA256)
 				data, err = base64.StdEncoding.DecodeString(strings.TrimSpace(req.BinaryB64))
 				if err != nil {
 					http.Error(w, "invalid binary_b64", http.StatusBadRequest)
+					return
+				}
+			}
+			sum := sha256.Sum256(data)
+			fp := hex.EncodeToString(sum[:])
+			if wantContent != "" {
+				wantContent = strings.ToLower(wantContent)
+				if !hunt.ValidContentSHA256(wantContent) || wantContent != fp {
+					http.Error(w, "harness_content_sha256 mismatch with body", http.StatusBadRequest)
 					return
 				}
 			}
@@ -1507,7 +1528,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"ok": true, "harness_hash": strings.TrimSpace(hash), "byte_size": len(data),
-				"storage": huntHarnessStorageMode(),
+				"content_sha256": fp, "storage": huntHarnessStorageMode(),
 			})
 		default:
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
