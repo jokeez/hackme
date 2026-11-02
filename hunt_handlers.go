@@ -153,6 +153,11 @@ func (a *app) handleHuntCampaignCreate(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusBadRequest, "invalid_hunt_budget", err.Error(), nil)
 		return
 	}
+	// Fail closed before escrow: publish-token coordinator rejects budget_runs above cap
+	// (field report: hunt_heavy 12000 / default cap 2048 → silent running + never on pool).
+	if poolDistributedCampaign(cfgMap) && rejectIfExceedsOrdersPublishCaps(w, shards, 86400) {
+		return
+	}
 	id := cleanFuzzID(req.ID, "hunt")
 	ownerRef := strings.TrimSpace(req.OwnerRef)
 	if ownerRef == "" && strings.HasPrefix(id, "hunt-customer-") {

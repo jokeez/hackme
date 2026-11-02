@@ -3,14 +3,73 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
 	"hackme/internal/poolfuzz"
+	"hackme/internal/poolsync"
 )
+
+// rejectIfExceedsOrdersPublishCaps fails the HTTP create before escrow when the
+// Orders publish token on the hub would reject this budget (silent running bug).
+func rejectIfExceedsOrdersPublishCaps(w http.ResponseWriter, budgetRuns, budgetSeconds int) bool {
+	maxRuns := poolsync.OrdersPublishMaxBudgetRuns()
+	if budgetRuns > maxRuns {
+		writeAPIError(w, http.StatusBadRequest, "budget_runs_exceeds_publish_cap",
+			"pool_distributed budget_runs exceeds Orders publish token cap — raise HACKME_ORDERS_PUBLISH_MAX_BUDGET_RUNS on the hub (and match locally) or use a smaller package",
+			map[string]any{"budget_runs": budgetRuns, "publish_max_budget_runs": maxRuns})
+		return true
+	}
+	if budgetSeconds < 0 {
+		budgetSeconds = 0
+	}
+	maxSec := poolsync.OrdersPublishMaxBudgetSeconds()
+	if budgetSeconds > maxSec {
+		writeAPIError(w, http.StatusBadRequest, "budget_seconds_exceeds_publish_cap",
+			"pool_distributed budget_seconds exceeds Orders publish token cap",
+			map[string]any{"budget_seconds": budgetSeconds, "publish_max_budget_seconds": maxSec})
+		return true
+	}
+	return false
+}
 
 func poolDistributedCampaign(cfg map[string]any) bool {
 	return poolfuzz.PoolDistributed(cfg)
+}
+
+// attachPoolRegisterFields exposes pool_register_failed (and live sync errors) on campaign GETs.
+func (a *app) attachPoolRegisterFields(resp map[string]any, c fuzzCampaign) {
+	if resp == nil {
+		return
+	}
+	sum := c.Summary
+	if sum == nil {
+		sum = map[string]any{}
+	}
+	status := strings.TrimSpace(toString(sum["pool_register_status"]))
+	errMsg := strings.TrimSpace(toString(sum["pool_register_error"]))
+	if failed := a.poolSyncFailedIDs(); failed != nil {
+		if live, ok := failed[c.ID]; ok && strings.TrimSpace(live) != "" {
+			status = "pool_register_failed"
+			errMsg = live
+		}
+	}
+	if status == "" && poolDistributedCampaign(c.Config) {
+		status = "pending"
+	}
+	if status != "" {
+		resp["pool_register_status"] = status
+	}
+	if errMsg != "" {
+		resp["pool_register_error"] = errMsg
+	}
+	if status == "pool_register_failed" {
+		resp["pool_sync"] = "fail"
+		if errMsg != "" {
+			resp["pool_sync_warning"] = errMsg
+		}
+	}
 }
 
 func poolSyncCoordinatorConfigured() bool {

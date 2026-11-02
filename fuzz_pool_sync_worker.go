@@ -84,15 +84,12 @@ func (a *app) reconcilePoolSyncCampaigns() {
 		if id == "" {
 			continue
 		}
-		if failed := a.poolSyncFailedIDs(); len(failed) > 0 {
-			if _, ok := failed[id]; ok {
-				continue
-			}
-		}
 		progCtx, progCancel := context.WithTimeout(ctx, 6*time.Second)
 		_, ok := a.fetchCoordinatorPoolCampaignProgress(progCtx, id)
 		progCancel()
 		if ok {
+			a.poolSyncMarkOK(id)
+			a.persistPoolRegisterStatus(ctx, id, "ok", "")
 			syncCtx, syncCancel := context.WithTimeout(ctx, 20*time.Second)
 			if err := a.syncPoolCampaignProgressFromCoordinator(syncCtx, id); err != nil {
 				log.Printf("pool sync reconcile: %s progress: %v", logsafe.ID(id), err)
@@ -100,6 +97,7 @@ func (a *app) reconcilePoolSyncCampaigns() {
 			syncCancel()
 			continue
 		}
+		// Retry missing campaigns every tick — including previously failed (hub cap may rise).
 		a.poolSyncMu.Lock()
 		delete(a.poolSyncQueued, id)
 		a.poolSyncMu.Unlock()
@@ -109,7 +107,7 @@ func (a *app) reconcilePoolSyncCampaigns() {
 		if warn != "" {
 			log.Printf("pool sync reconcile: %s warn=%s", logsafe.ID(id), logsafe.ID(warn))
 		} else {
-			log.Printf("pool sync reconcile: %s mode=%s", logsafe.ID(id), logsafe.ID(mode))
+			log.Printf("pool sync reconcile: %s mode=%s (retry_missing)", logsafe.ID(id), logsafe.ID(mode))
 		}
 	}
 }
@@ -201,15 +199,54 @@ func (a *app) poolSyncMarkOK(id string) {
 	a.poolSyncMu.Lock()
 	delete(a.poolSyncFailed, id)
 	a.poolSyncMu.Unlock()
+	if a.db != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		a.persistPoolRegisterStatus(ctx, id, "ok", "")
+	}
 }
 
 func (a *app) poolSyncMarkFailed(id string, err error) {
+	msg := ""
+	if err != nil {
+		msg = err.Error()
+	}
 	a.poolSyncMu.Lock()
 	if a.poolSyncFailed == nil {
 		a.poolSyncFailed = make(map[string]string)
 	}
-	a.poolSyncFailed[id] = err.Error()
+	a.poolSyncFailed[id] = msg
 	a.poolSyncMu.Unlock()
+	if a.db != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		a.persistPoolRegisterStatus(ctx, id, "pool_register_failed", msg)
+	}
+}
+
+// persistPoolRegisterStatus stamps summary_json so the dashboard shows more than "running".
+func (a *app) persistPoolRegisterStatus(ctx context.Context, id, status, errMsg string) {
+	id = strings.TrimSpace(id)
+	if id == "" || a == nil || a.db == nil {
+		return
+	}
+	var raw string
+	if err := a.db.QueryRowContext(ctx, `SELECT COALESCE(summary_json,'{}') FROM fuzz_campaigns WHERE id=?`, id).Scan(&raw); err != nil {
+		return
+	}
+	sum := parseMapJSON(raw)
+	if sum == nil {
+		sum = map[string]any{}
+	}
+	sum["pool_register_status"] = status
+	if errMsg != "" {
+		sum["pool_register_error"] = errMsg
+		sum["pool_register_failed_at"] = time.Now().Unix()
+	} else {
+		delete(sum, "pool_register_error")
+		delete(sum, "pool_register_failed_at")
+	}
+	_, _ = a.db.ExecContext(ctx, `UPDATE fuzz_campaigns SET summary_json=? WHERE id=?`, marshalMapJSON(sum), id)
 }
 
 func (a *app) poolSyncFailedIDs() map[string]string {

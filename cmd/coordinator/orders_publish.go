@@ -17,7 +17,7 @@ import (
 //
 // Caps (publish path only; full admin bypasses):
 //
-//	HACKME_ORDERS_PUBLISH_MAX_BUDGET_RUNS     default 2048
+//	HACKME_ORDERS_PUBLISH_MAX_BUDGET_RUNS     default 16384 (covers hunt_heavy 12000)
 //	HACKME_ORDERS_PUBLISH_MAX_BUDGET_SECONDS  default 86400
 //	HACKME_ORDERS_PUBLISH_MAX_PER_HOUR        default 10
 //	HACKME_ORDERS_PUBLISH_MAX_PER_DAY         default 40
@@ -78,7 +78,8 @@ func envIntDefaultPositive(key string, def int) int {
 }
 
 func publishMaxBudgetRuns() int {
-	return envIntDefault("HACKME_ORDERS_PUBLISH_MAX_BUDGET_RUNS", 2048)
+	// Keep default aligned with poolsync.DefaultOrdersPublishMaxBudgetRuns (hunt_heavy=12000).
+	return envIntDefault("HACKME_ORDERS_PUBLISH_MAX_BUDGET_RUNS", 16384)
 }
 
 func publishMaxBudgetSeconds() int {

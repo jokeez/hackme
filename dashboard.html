@@ -15150,9 +15150,12 @@
 				if (box) {
 					box.classList.remove('hidden');
 					const c = (j && j.campaign) || {};
+					const regSt = String(j.pool_register_status || (c.summary && c.summary.pool_register_status) || j.pool_sync || 'n/a');
+					const regErr = String(j.pool_register_error || (c.summary && c.summary.pool_register_error) || j.pool_sync_warning || '');
 					box.innerHTML = [
 						'<div>campaign_id: <span class="text-warn">' + escapeHtml(c.id || '') + '</span></div>',
-						'<div>pool: <span class="text-neon">' + escapeHtml(String(j.pool_distributed || poolDist)) + '</span> · sync: ' + escapeHtml(String(j.pool_sync || 'n/a')) + '</div>',
+						'<div>pool: <span class="text-neon">' + escapeHtml(String(j.pool_distributed || poolDist)) + '</span> · sync: ' + escapeHtml(regSt) + '</div>',
+						(regSt === 'pool_register_failed' ? '<div class="text-warn">pool_register_failed: ' + escapeHtml(regErr) + '</div>' : ''),
 						'<div>escrow: ' + escapeHtml(String((j.escrow && j.escrow.status) || '')) + '</div>',
 					].join('');
 				}

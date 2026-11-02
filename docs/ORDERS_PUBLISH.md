@@ -26,7 +26,7 @@ Scoped credential **`pool.orders.token`** /
 
 | Cap | Default | Env |
 |-----|---------|-----|
-| `budget_runs` | ≤ 2048 | `HACKME_ORDERS_PUBLISH_MAX_BUDGET_RUNS` |
+| `budget_runs` | ≤ **16384** (covers `hunt_heavy` 12000) | `HACKME_ORDERS_PUBLISH_MAX_BUDGET_RUNS` |
 | `budget_seconds` | ≤ 86400 | `HACKME_ORDERS_PUBLISH_MAX_BUDGET_SECONDS` |
 | Registers / IP / hour | 10 | `HACKME_ORDERS_PUBLISH_MAX_PER_HOUR` |
 | Registers / IP / day | 40 | `HACKME_ORDERS_PUBLISH_MAX_PER_DAY` |

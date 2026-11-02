@@ -754,6 +754,9 @@ func (a *app) handleFuzzCampaignCreate(w http.ResponseWriter, r *http.Request) {
 			"pool_distributed Dig requires budget_hmc (top-level or config) to open escrow", nil)
 		return
 	}
+	if poolDistributedCampaign(cfgMap) && rejectIfExceedsOrdersPublishCaps(w, req.BudgetRuns, req.BudgetSeconds) {
+		return
+	}
 	cfg := marshalMapJSON(cfgMap)
 	err := execContextRetryBusy(r.Context(), a.db,
 		`INSERT INTO fuzz_campaigns
@@ -969,6 +972,7 @@ func (a *app) handleFuzzCampaignGet(w http.ResponseWriter, r *http.Request, camp
 		return
 	}
 	resp := map[string]any{"ok": true, "campaign": c}
+	a.attachPoolRegisterFields(resp, c)
 	if a.chain != nil {
 		if esc, err := a.chain.GetFuzzEscrow(r.Context(), campaignID); err == nil {
 			resp["escrow"] = esc

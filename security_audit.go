@@ -179,6 +179,9 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 			budgetSeconds = minSec
 		}
 	}
+	if poolDist && rejectIfExceedsOrdersPublishCaps(w, budgetRuns, budgetSeconds) {
+		return
+	}
 	targetSolves := req.TargetSolves
 	if targetSolves < 1 {
 		targetSolves = 1

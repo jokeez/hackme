@@ -252,6 +252,30 @@ func TestOrdersPublishRejectsOversizedBudget(t *testing.T) {
 	}
 }
 
+func TestOrdersPublishAcceptsHuntHeavyBudget(t *testing.T) {
+	t.Setenv("HACKME_ORDERS_PUBLISH_MAX_BUDGET_RUNS", "") // default 16384
+	mux := ordersPublishMux(t)
+	rec := publishReq(t, mux, "publish-tok", map[string]any{
+		"id": "camp-heavy", "budget_runs": 12000, "budget_seconds": 86400,
+		"config": map[string]any{"hunt_package": "hunt_heavy", "pool_distributed": true},
+	})
+	if rec.Code != http.StatusOK && rec.Code != http.StatusCreated {
+		t.Fatalf("hunt_heavy 12000 must fit default publish cap, got %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestOrdersPublishRejectsHuntHeavyWhenCapLow(t *testing.T) {
+	t.Setenv("HACKME_ORDERS_PUBLISH_MAX_BUDGET_RUNS", "2048")
+	mux := ordersPublishMux(t)
+	rec := publishReq(t, mux, "publish-tok", map[string]any{
+		"id": "camp-heavy-blocked", "budget_runs": 12000, "budget_seconds": 86400,
+		"config": map[string]any{"hunt_package": "hunt_heavy", "pool_distributed": true},
+	})
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("want 400 when cap=2048, got %d %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestOrdersPublishRejectsMissingPackage(t *testing.T) {
 	mux := ordersPublishMux(t)
 	rec := publishReq(t, mux, "publish-tok", map[string]any{
