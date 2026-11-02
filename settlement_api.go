@@ -33,17 +33,29 @@ type workerSettlementStateEntry struct {
 	PendingSettle json.RawMessage `json:"pending_settle,omitempty"`
 }
 
-// settlementUnpaidHMC matches the settler baseline (session_anchor after reset, else settled).
+// settlementUnpaidHMC matches workersettle.ComputeAccrualDelta (float display path):
+//   - accrued >= settled → lifetime watermark (settled); ignore stale session_anchor
+//   - settled > accrued  → coordinator rebase; unpaid is growth above session_anchor
 func settlementUnpaidHMC(accrued float64, ent workerSettlementStateEntry) float64 {
 	if accrued < 0 {
 		accrued = 0
 	}
-	baseline := ent.SettledHMC
-	if baseline < 0 {
-		baseline = 0
+	settled := ent.SettledHMC
+	if settled < 0 {
+		settled = 0
 	}
-	if ent.SessionAnchorHMC > 0 {
-		baseline = ent.SessionAnchorHMC
+	anchor := ent.SessionAnchorHMC
+	if anchor < 0 {
+		anchor = 0
+	}
+	var baseline float64
+	if settled > accrued {
+		baseline = anchor
+		if baseline == 0 || accrued < baseline {
+			baseline = accrued
+		}
+	} else {
+		baseline = settled
 	}
 	unpaid := accrued - baseline
 	if unpaid < 0 {
@@ -56,12 +68,22 @@ func settlementUnpaidSUP(accrued float64, ent workerSettlementStateEntry) float6
 	if accrued < 0 {
 		accrued = 0
 	}
-	baseline := ent.SettledSUP
-	if baseline < 0 {
-		baseline = 0
+	settled := ent.SettledSUP
+	if settled < 0 {
+		settled = 0
 	}
-	if ent.SessionAnchorSUP > 0 {
-		baseline = ent.SessionAnchorSUP
+	anchor := ent.SessionAnchorSUP
+	if anchor < 0 {
+		anchor = 0
+	}
+	var baseline float64
+	if settled > accrued {
+		baseline = anchor
+		if baseline == 0 || accrued < baseline {
+			baseline = accrued
+		}
+	} else {
+		baseline = settled
 	}
 	unpaid := accrued - baseline
 	if unpaid < 0 {
