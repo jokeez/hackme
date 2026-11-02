@@ -78,7 +78,7 @@ Helper: `scripts/ops/internet_preflight.sh` records sandbox/economics/status, se
 | File | Meaning |
 |------|--------|
 | `admin_auth.go` | Check `HACKME_ADMIN_TOKEN` |
-| `main.go`, `pool.go` | Routes, call `requireAdminAuth` |
+| `main.go`, `pool.go` | Mutating money/orders/fuzz routes use `requireAdminAuthStrict` (fail-closed if token unset). Legacy `requireAdminAuth` is test-only. |
 | `internal/store/sqlite.go` | Schema version |
 | `internal/nodecrypto/` | API Signing Key |
 | `spec/CHAIN_SPEC.md`, `docs/API.md` | Protocol and HTTP |

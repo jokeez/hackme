@@ -133,11 +133,11 @@ Orders continue to use `solve-order` → escrow to the **miner**.
 
 ### 4.3 Operator checklist before live `on`
 
-- [ ] Dry soak: `baseline_relay_would` tracks empty `found_hits` without reject storms  
-- [ ] Staging: local PoH off + relay `on`; tip keeps growing  
-- [ ] `baseline_relay_ok` vs `baseline_relay_reject` healthy  
-- [ ] Settlement float + unpaid dashboards green  
-- [ ] Public note: treasury subsidy is not the policy  
+- [x] Dry soak: `baseline_relay_would` tracks empty `found_hits` without reject storms
+- [x] Staging: local PoH off + relay `on`; tip keeps growing
+- [x] `baseline_relay_ok` vs `baseline_relay_reject` healthy (live hub 2026-11-02: ok≫reject)
+- [x] Settlement float + unpaid dashboards green (soak continues; autopilot still transitional)
+- [x] Public note: treasury subsidy is not the policy
 
 ---
 

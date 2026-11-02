@@ -258,6 +258,15 @@ GOOS=windows GOARCH="${WIN_ARCH}" CGO_ENABLED="${CGO_ENABLED}" \
   go build -trimpath -ldflags "${WF_LDFLAGS}" -o "${WIN_DIR}/workerfuzz.exe" ./cmd/workerfuzz
 ln -f "${LINUX_DIR}/workerfuzz" "${LINUX_DIR}/bin/workerfuzz" 2>/dev/null || \
   install -m 0755 "${LINUX_DIR}/workerfuzz" "${LINUX_DIR}/bin/workerfuzz"
+# Dig OOTB: Setup + ZIP must both ship workerfuzz (ISS no longer skipifsourcedoesntexist).
+if [[ ! -f "${WIN_DIR}/workerfuzz.exe" ]]; then
+  echo "[release] ERROR: windows workerfuzz.exe missing — Dig would break OOTB on Setup" >&2
+  exit 1
+fi
+if [[ ! -f "${WIN_DIR}/hackme-wasm-check.exe" ]]; then
+  echo "[release] ERROR: windows hackme-wasm-check.exe missing" >&2
+  exit 1
+fi
 # CUDA Dig uses sibling checker; fail closed if cuda ships without it.
 if [[ -x "${LINUX_DIR}/workerpoh-cuda" && ! -x "${LINUX_DIR}/hackme-wasm-check" ]]; then
   echo "[release] ERROR: workerpoh-cuda present but hackme-wasm-check missing" >&2

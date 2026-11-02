@@ -97,10 +97,11 @@ Source: "..\..\..\dist\release_{#MyAppVersion}\windows\{#MyAppExeName}"; DestDir
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\workerpoh.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\workerpoh-opencl.exe"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\workerpoh-cuda.exe"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
-; Hybrid Dig process-mode + dedicated diggers (ZIP already ships this; Setup must too).
-Source: "..\..\..\dist\release_{#MyAppVersion}\windows\workerfuzz.exe"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+; Hybrid Dig process-mode + dedicated diggers — REQUIRED (no skipifsourcedoesntexist:
+; silent omit broke Dig OOTB on Setup while ZIP still had the binary).
+Source: "..\..\..\dist\release_{#MyAppVersion}\windows\workerfuzz.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; No-cgo WASM validate child (CUDA/OpenCL workers must not self-reexec under RLIMIT_AS).
-Source: "..\..\..\dist\release_{#MyAppVersion}\windows\hackme-wasm-check.exe"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\..\..\dist\release_{#MyAppVersion}\windows\hackme-wasm-check.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\repair_hackme_env.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\repair_fair_env.bat"; DestDir: "{app}"; Flags: ignoreversion
