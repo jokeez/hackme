@@ -26,6 +26,23 @@ func TestHuntEngineByteFallbackDefaultOff(t *testing.T) {
 	}
 }
 
+func TestDecideHuntEnginePayFloorOnlyBlocksEdges(t *testing.T) {
+	cfg := map[string]any{"hunt_edge_pay": "floor_only"}
+	kind, full := DecideHuntEnginePayForConfig(cfg, 9, 3, 0, 0, false)
+	if kind != HuntEnginePayFloor || full {
+		t.Fatalf("floor_only edges: kind=%s full=%v", kind, full)
+	}
+	kind, full = DecideHuntEnginePayForConfig(cfg, 0, 0, 1, 0, false)
+	if kind != HuntEnginePayCrash || !full {
+		t.Fatalf("floor_only crash must still full-pay: kind=%s full=%v", kind, full)
+	}
+	cfg2 := map[string]any{"hunt_edge_pay": "showmap"}
+	kind, full = DecideHuntEnginePayForConfig(cfg2, 2, 1, 0, 0, false)
+	if kind != HuntEnginePayEdges || !full {
+		t.Fatalf("showmap edges: kind=%s full=%v", kind, full)
+	}
+}
+
 func TestDecideHuntEnginePayIgnoresMinerEdges(t *testing.T) {
 	t.Setenv("HACKME_HUNT_COVERAGE_ENGINE", "1")
 	// Fake miner edges must not unlock full pay without coordinator proof.

@@ -51,8 +51,8 @@ type EngineShardOpts struct {
 var LookPathFn = exec.LookPath
 
 // RunnerAvailable reports whether the local machine can run the engine.
-// Legacy byte engine is advertised only on Linux with a working bwrap probe —
-// Windows / no-cage hosts must not claim byte capability (audit: bare Hunt).
+// Byte and coverage engines (libFuzzer/AFL++) are Linux-only so Windows miners
+// soft-skip claim instead of advertising clang-only capability without isolate.
 func RunnerAvailable(engine string) (ok bool, reason string) {
 	engine = ParseHuntEngine(engine)
 	switch engine {
@@ -65,11 +65,17 @@ func RunnerAvailable(engine string) (ok bool, reason string) {
 		}
 		return true, ""
 	case EngineLibFuzzer:
+		if runtime.GOOS != "linux" {
+			return false, "libfuzzer_requires_linux"
+		}
 		if _, err := LookPathFn("clang"); err != nil {
 			return false, "clang_missing"
 		}
 		return true, ""
 	case EngineAFLPP:
+		if runtime.GOOS != "linux" {
+			return false, "aflpp_requires_linux"
+		}
 		if _, err := LookAFLFuzz(); err != nil {
 			return false, "afl_missing"
 		}

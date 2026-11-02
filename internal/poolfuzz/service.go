@@ -1303,7 +1303,8 @@ func (s *Service) SubmitWithOutcome(ctx context.Context, req SubmitRequest) (Sub
 			// Stamp worker engine/version + proven counters for customer reports (audit).
 			s.stampHuntProvenOnSubmit(ctx, req.CampaignID, req.ItemID, proven, req.HuntEngine, req.EngineVersion)
 			// Coordinator-proven edges/crashes only — ignore miner edges_touched.
-			kind, fullPay := DecideHuntEnginePay(proven.ProvenEdges, proven.SeedsAccepted, proven.CrashesOK, req.EdgesTouched, req.EdgesTouchedOK)
+			// floor_only campaigns (pool-attach / non–afl-cc) never unlock full pay via edges.
+			kind, fullPay := DecideHuntEnginePayForConfig(cfg, proven.ProvenEdges, proven.SeedsAccepted, proven.CrashesOK, req.EdgesTouched, req.EdgesTouchedOK)
 			if recordFinding {
 				kind, fullPay = HuntEnginePayCrash, true
 			}

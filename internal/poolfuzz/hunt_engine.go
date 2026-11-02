@@ -183,6 +183,28 @@ func DecideHuntEnginePay(provenEdges, seedsAccepted, crashesOK int, minerEdges i
 	return HuntEnginePayFloor, false
 }
 
+// huntEdgePayFloorOnly is true when campaign config stamps hunt_edge_pay=floor_only
+// (pool-attached / non–afl-cc inventory): edges must not unlock full PayRun.
+func huntEdgePayFloorOnly(cfg map[string]any) bool {
+	if cfg == nil {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(jsonString(cfg["hunt_edge_pay"])), "floor_only")
+}
+
+// DecideHuntEnginePayForConfig applies DecideHuntEnginePay, then enforces floor_only:
+// ASAN crashes still full-pay; coordinator-proven edges alone stay on floor.
+func DecideHuntEnginePayForConfig(cfg map[string]any, provenEdges, seedsAccepted, crashesOK int, minerEdges int, minerEdgesOK bool) (kind string, fullPay bool) {
+	kind, fullPay = DecideHuntEnginePay(provenEdges, seedsAccepted, crashesOK, minerEdges, minerEdgesOK)
+	if !huntEdgePayFloorOnly(cfg) {
+		return kind, fullPay
+	}
+	if kind == HuntEnginePayCrash && fullPay {
+		return kind, fullPay
+	}
+	return HuntEnginePayFloor, false
+}
+
 // huntEngineServerWallMS returns milliseconds since the work item was leased
 // (updated_at on claim). Fail-closed if the lease row is missing.
 func (s *Service) huntEngineServerWallMS(ctx context.Context, campaignID string, itemID int64, now int64) (int64, error) {

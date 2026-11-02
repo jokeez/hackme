@@ -107,3 +107,26 @@ func TestRunnerAvailableByte(t *testing.T) {
 		t.Fatalf("byte should be available with linux+bwrap: %v %s", ok, reason)
 	}
 }
+
+func TestRunnerAvailableCoverageEnginesLinuxOnly(t *testing.T) {
+	if runtime.GOOS == "linux" {
+		t.Skip("linux host — coverage engines may be available")
+	}
+	if ok, reason := RunnerAvailable(EngineLibFuzzer); ok {
+		t.Fatalf("libfuzzer must be unavailable on %s (%s)", runtime.GOOS, reason)
+	}
+	if ok, reason := RunnerAvailable(EngineAFLPP); ok {
+		t.Fatalf("aflpp must be unavailable on %s (%s)", runtime.GOOS, reason)
+	}
+}
+
+func TestHuntEngineFromConfigMonochromePerCampaign(t *testing.T) {
+	t.Setenv("HACKME_HUNT_ENGINE", "")
+	t.Setenv("HACKME_HUNT_ENGINE_DEEP_AFL", "")
+	cfg := map[string]any{"hunt_package": "hunt_standard", "hunt_source": "catalog"}
+	e1 := HuntEngineFromConfig(cfg)
+	e2 := HuntEngineFromConfig(cfg)
+	if e1 != e2 || e1 != EngineLibFuzzer {
+		t.Fatalf("campaign engine must be stable libfuzzer, got %q/%q", e1, e2)
+	}
+}
