@@ -16,7 +16,8 @@ import (
 const CurrentSchemaVersion = 18
 
 // sqliteDSN builds a shared coordinator/node DSN tuned for pool claim/submit under load.
-// cache_size(-131072) ≈ 128MiB page cache; temp_store=MEMORY; mmap_size=256MiB.
+// Defaults: cache_size ≈ 64MiB, mmap_size 64MiB (was 128/256 — RSS looked huge under cgroup accounting).
+// Override: HACKME_SQLITE_CACHE_KIB (negative PRAGMA units, e.g. 65536), HACKME_SQLITE_MMAP_BYTES.
 func sqliteDSN(dbPath string) string {
 	return sqliteDSNWithWALCheckpoint(dbPath, 500)
 }
@@ -24,6 +25,37 @@ func sqliteDSN(dbPath string) string {
 // SQLiteDSN is the shared WAL DSN for satellite ledgers (worker settlement, etc.).
 func SQLiteDSN(dbPath string) string {
 	return sqliteDSN(dbPath)
+}
+
+func sqliteCacheKib() int {
+	// PRAGMA cache_size negative ⇒ kibibytes. Default 64MiB (was 128).
+	v := strings.TrimSpace(os.Getenv("HACKME_SQLITE_CACHE_KIB"))
+	if v == "" {
+		return 65536
+	}
+	var n int
+	if _, err := fmt.Sscanf(v, "%d", &n); err != nil || n < 4096 {
+		return 65536
+	}
+	if n > 524288 { // cap 512MiB
+		return 524288
+	}
+	return n
+}
+
+func sqliteMmapBytes() int64 {
+	v := strings.TrimSpace(os.Getenv("HACKME_SQLITE_MMAP_BYTES"))
+	if v == "" {
+		return 64 << 20 // 64MiB (was 256)
+	}
+	var n int64
+	if _, err := fmt.Sscanf(v, "%d", &n); err != nil || n < 0 {
+		return 64 << 20
+	}
+	if n > 1<<30 { // 1GiB cap
+		return 1 << 30
+	}
+	return n
 }
 
 // sqliteDSNWithWALCheckpoint is the shared DSN; pages≈2MiB per 500 with 4KiB pages.
@@ -34,9 +66,11 @@ func sqliteDSNWithWALCheckpoint(dbPath string, walAutocheckpointPages int) strin
 		walAutocheckpointPages = 100
 	}
 	return fmt.Sprintf(
-		"file:%s?_pragma=busy_timeout(60000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=wal_autocheckpoint(%d)&_pragma=cache_size(-131072)&_pragma=temp_store(MEMORY)&_pragma=mmap_size(268435456)",
+		"file:%s?_pragma=busy_timeout(60000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=wal_autocheckpoint(%d)&_pragma=cache_size(-%d)&_pragma=temp_store(MEMORY)&_pragma=mmap_size(%d)",
 		filepath.ToSlash(dbPath),
 		walAutocheckpointPages,
+		sqliteCacheKib(),
+		sqliteMmapBytes(),
 	)
 }
 
