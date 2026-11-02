@@ -38,8 +38,8 @@ func (s *Service) ClaimBatch(ctx context.Context, workerID string, now int64, n 
 	var stickCamp string
 	for i := 0; i < n; i++ {
 		var (
-			w  ClaimedWork
-			ok bool
+			w   ClaimedWork
+			ok  bool
 			err error
 		)
 		if stickCamp != "" {

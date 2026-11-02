@@ -106,7 +106,6 @@ func (s *Service) clearLeaseProvenPersist(ctx context.Context, campaignID string
 		campaignID, itemID)
 }
 
-
 func takeLeaseProven(campaignID string, itemID int64) leaseProvenTrack {
 	key := leaseProvenKey(campaignID, itemID)
 	leaseProvenMu.Lock()

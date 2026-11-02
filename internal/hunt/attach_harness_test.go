@@ -130,11 +130,11 @@ func TestCampaignConfigAttachRejectsContentSHAMismatch(t *testing.T) {
 	t.Cleanup(func() { ProbeCoordinatorHarness = prev })
 	_, _, err := CampaignConfig(context.Background(), dir, CreateRequest{
 		Title: "squat", Package: "hunt_lite", BudgetHMC: 20, PoolDistributed: true,
-		HarnessHash: hash,
+		HarnessHash:          hash,
 		HarnessContentSHA256: "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-		TemplateAccept: true,
-		Inventory:      &TargetSummary{Path: "fuzz_target.c"},
-		Repo:           &RepoPinRequest{Path: dir},
+		TemplateAccept:       true,
+		Inventory:            &TargetSummary{Path: "fuzz_target.c"},
+		Repo:                 &RepoPinRequest{Path: dir},
 	})
 	if err == nil {
 		t.Fatal("expected content sha mismatch")
