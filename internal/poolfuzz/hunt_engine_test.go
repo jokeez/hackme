@@ -126,7 +126,7 @@ func TestStampHuntProvenOnSubmitKeepsAudit(t *testing.T) {
 	itemID, _ := res.LastInsertId()
 	svc.noteLeaseProvenPersist(context.Background(), cid, itemID, "worker-stamp", 3, 2, 0, hunt.EngineLibFuzzer, "libfuzzer")
 	proven := svc.takeLeaseProvenPersist(context.Background(), cid, itemID)
-	svc.stampHuntProvenOnSubmit(context.Background(), cid, itemID, proven, hunt.EngineLibFuzzer, "libfuzzer-vtest")
+	svc.stampHuntProvenOnSubmit(context.Background(), cid, itemID, "worker-stamp", proven, hunt.EngineLibFuzzer, "libfuzzer-vtest")
 	var edges, seeds int
 	var eng, ver string
 	if err := db.QueryRow(`SELECT hunt_proven_edges, hunt_proven_seeds, hunt_proven_engine, hunt_proven_engine_ver
@@ -135,6 +135,13 @@ func TestStampHuntProvenOnSubmitKeepsAudit(t *testing.T) {
 	}
 	if edges != 2 || seeds != 3 || eng != hunt.EngineLibFuzzer || ver != "libfuzzer-vtest" {
 		t.Fatalf("stamp edges=%d seeds=%d eng=%q ver=%q", edges, seeds, eng, ver)
+	}
+	// Foreign stamp must not overwrite after ownership moved.
+	_, _ = db.Exec(`UPDATE fuzz_work_items SET lease_owner='bob' WHERE id=?`, itemID)
+	svc.stampHuntProvenOnSubmit(context.Background(), cid, itemID, "alice", leaseProvenTrack{ProvenEdges: 99, SeedsAccepted: 99}, hunt.EngineLibFuzzer, "evil")
+	_ = db.QueryRow(`SELECT hunt_proven_edges, hunt_proven_seeds FROM fuzz_work_items WHERE id=?`, itemID).Scan(&edges, &seeds)
+	if edges != 2 || seeds != 3 {
+		t.Fatalf("foreign stamp overwrote: edges=%d seeds=%d", edges, seeds)
 	}
 }
 

@@ -85,6 +85,15 @@ func (s *Service) noteLeaseProvenPersist(ctx context.Context, campaignID string,
 	if aff == 0 {
 		return
 	}
+	// Re-check ownership before memory note: release/re-lease may have cleared
+	// between UPDATE and here; pending claim only zeros DB columns.
+	var owner, status string
+	if s.DB.QueryRowContext(ctx,
+		`SELECT COALESCE(lease_owner,''), COALESCE(status,'') FROM fuzz_work_items
+		  WHERE campaign_id=? AND id=?`, campaignID, itemID).Scan(&owner, &status) != nil ||
+		status != "leased" || owner != leaseOwner {
+		return
+	}
 	noteLeaseProven(campaignID, itemID, seeds, edges, crashes, engine, version)
 }
 
@@ -134,8 +143,10 @@ func (s *Service) takeLeaseProvenPersist(ctx context.Context, campaignID string,
 
 // stampHuntProvenOnSubmit writes final lease prove fields after engine submit
 // (worker hunt_engine / engine_version + coordinator-proven counters).
-func (s *Service) stampHuntProvenOnSubmit(ctx context.Context, campaignID string, itemID int64, proven leaseProvenTrack, engine, version string) {
-	if s == nil || s.DB == nil || itemID <= 0 {
+// Bound to lease_owner so a late predecessor submit cannot overwrite a successor's reset.
+func (s *Service) stampHuntProvenOnSubmit(ctx context.Context, campaignID string, itemID int64, leaseOwner string, proven leaseProvenTrack, engine, version string) {
+	leaseOwner = strings.TrimSpace(leaseOwner)
+	if s == nil || s.DB == nil || itemID <= 0 || leaseOwner == "" {
 		return
 	}
 	eng := strings.TrimSpace(engine)
@@ -153,8 +164,8 @@ func (s *Service) stampHuntProvenOnSubmit(ctx context.Context, campaignID string
 		       hunt_proven_crashes=?,
 		       hunt_proven_engine=?,
 		       hunt_proven_engine_ver=?
-		 WHERE campaign_id=? AND id=?`,
-		proven.ProvenEdges, proven.SeedsAccepted, proven.CrashesOK, eng, ver, campaignID, itemID)
+		 WHERE campaign_id=? AND id=? AND status='leased' AND lease_owner=?`,
+		proven.ProvenEdges, proven.SeedsAccepted, proven.CrashesOK, eng, ver, campaignID, itemID, leaseOwner)
 }
 
 func peekLeaseProven(campaignID string, itemID int64) leaseProvenTrack {

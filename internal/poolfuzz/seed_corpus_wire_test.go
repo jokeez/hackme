@@ -54,3 +54,24 @@ func TestTrimSeedByteCorpusForWireEmpty(t *testing.T) {
 		t.Fatal("empty")
 	}
 }
+
+func TestApplySeedByteCorpusWireTrimMutatesCfg(t *testing.T) {
+	in := make([]any, 0, 80)
+	for i := 0; i < 80; i++ {
+		in = append(in, "41")
+	}
+	cfg := map[string]any{"seed_byte_corpus": in}
+	applySeedByteCorpusWireTrim(cfg)
+	list, _ := cfg["seed_byte_corpus"].([]any)
+	if len(list) > defaultSeedCorpusWireMaxItems {
+		t.Fatalf("len=%d want <=%d", len(list), defaultSeedCorpusWireMaxItems)
+	}
+	// Claim + submit must see identical trimmed lists.
+	cfg2 := map[string]any{"seed_byte_corpus": append([]any(nil), in...)}
+	applySeedByteCorpusWireTrim(cfg2)
+	a, _ := cfg["seed_byte_corpus"].([]any)
+	b, _ := cfg2["seed_byte_corpus"].([]any)
+	if len(a) != len(b) {
+		t.Fatalf("parity len %d vs %d", len(a), len(b))
+	}
+}

@@ -1295,6 +1295,11 @@ func (s *Service) SubmitWithOutcome(ctx context.Context, req SubmitRequest) (Sub
 	_ = s.DB.QueryRowContext(ctx, `SELECT config_json FROM fuzz_campaigns WHERE id=?`, req.CampaignID).Scan(&cfgJSON)
 	cfg := parseConfigJSON(cfgJSON)
 	isHunt := IsHuntCampaign(cfg)
+	// Dig claim ships TrimSeedByteCorpusForWire; trim coordinator cfg before
+	// segment/hygiene prove so byteAnchorBase matches the worker (Qodo/jokeez High).
+	if !isHunt {
+		applySeedByteCorpusWireTrim(cfg)
+	}
 	sem := fuzzengine.ParseCheckSemantics(cfg)
 	hasWasm := !isHunt && wasmHexFromConfig(cfg) != ""
 
@@ -1387,7 +1392,7 @@ func (s *Service) SubmitWithOutcome(ctx context.Context, req SubmitRequest) (Sub
 		if engineMode {
 			proven := s.takeLeaseProvenPersist(ctx, req.CampaignID, req.ItemID)
 			// Stamp worker engine/version + proven counters for customer reports (audit).
-			s.stampHuntProvenOnSubmit(ctx, req.CampaignID, req.ItemID, proven, req.HuntEngine, req.EngineVersion)
+			s.stampHuntProvenOnSubmit(ctx, req.CampaignID, req.ItemID, req.WorkerID, proven, req.HuntEngine, req.EngineVersion)
 			// Coordinator-proven edges/crashes only — ignore miner edges_touched.
 			// floor_only campaigns (pool-attach / non–afl-cc) never unlock full pay via edges.
 			kind, fullPay := DecideHuntEnginePayForConfig(cfg, proven.ProvenEdges, proven.SeedsAccepted, proven.CrashesOK, req.EdgesTouched, req.EdgesTouchedOK)
