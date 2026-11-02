@@ -555,6 +555,12 @@ func (s *Service) runHuntReplayJob(ctx context.Context, job huntReplayJob, now i
 				return err
 			}
 		}
+		// Same TrimSeedByteCorpusForWire as hunt_shard claim path (parity).
+		if raw, ok := cfg["seed_byte_corpus"]; ok && raw != nil {
+			if list, ok := raw.([]any); ok && len(list) > 0 {
+				cfg["seed_byte_corpus"] = TrimSeedByteCorpusForWire(list)
+			}
+		}
 	}
 	expectedU, expectedB, err := s.expectedInputsForSubmit(ctx, job.CampaignID, job.ItemID, job.InputN, cfg)
 	if err != nil {

@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -649,12 +651,28 @@ func (s *Service) CancelHuntCampaignsMissingHarness(ctx context.Context, minAgeS
 // ReclaimExpiredLeases returns expired leased items to pending (Tick / health fix).
 // Each reclaim bumps attempts so ForceCompleteLeaseChurnItems can break infinite
 // lease→vanish→reclaim loops on the last shard of a near-done campaign.
+// In-memory prove is dropped (no live owner); durable hunt_proven_* stay so
+// force-complete can still mark result_ok for vanished workers. Successor claim
+// / phase-3 re-lease zeros those columns before a new lease_owner is set.
 func (s *Service) ReclaimExpiredLeases(ctx context.Context, now int64) (int64, error) {
 	if s == nil || s.DB == nil {
 		return 0, nil
 	}
 	if now <= 0 {
 		now = time.Now().Unix()
+	}
+	rows, qerr := s.DB.QueryContext(ctx,
+		`SELECT campaign_id, id FROM fuzz_work_items
+		  WHERE status='leased' AND lease_until > 0 AND lease_until < ?`, now)
+	if qerr == nil {
+		for rows.Next() {
+			var cid string
+			var id int64
+			if rows.Scan(&cid, &id) == nil {
+				clearLeaseProven(cid, id)
+			}
+		}
+		rows.Close()
 	}
 	res, err := s.DB.ExecContext(ctx,
 		`UPDATE fuzz_work_items
@@ -846,6 +864,10 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 		return out, false, err
 	}
 
+	// Skip campaigns with no pending rows (one DISTINCT probe beats N empty UPDATEs).
+	customers = s.filterIDsWithPendingWork(ctx, customers)
+	restPending := s.filterIDsWithPendingWork(ctx, rest)
+
 	// Phase 1: customer pending always wins over bootstrap lease reclaim / RR.
 	for _, cid := range customers {
 		if work, ok, err := s.claimOnePendingInCampaign(ctx, workerID, cid, now); err != nil || ok {
@@ -857,6 +879,7 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 	if s.claimRR.Load()%32 == 0 {
 		nearIDs, nerr := s.nearCompleteCampaignIDs(ctx)
 		if nerr == nil && len(nearIDs) > 0 && len(nearIDs) <= 8 {
+			nearIDs = s.filterIDsWithPendingWork(ctx, nearIDs)
 			for _, cid := range nearIDs {
 				if work, ok, err := s.claimOnePendingInCampaign(ctx, workerID, cid, now); err != nil || ok {
 					return work, ok, err
@@ -905,8 +928,12 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 				continue
 			}
 			leaseSec := leaseSecondsForConfig(cfg)
+			// Clear predecessor prove before / with ownership transfer.
+			clearLeaseProven(e.camp, int64(e.id))
 			res, err := s.DB.ExecContext(ctx,
-				`UPDATE fuzz_work_items SET status='leased', lease_owner=?, lease_until=?, updated_at=?
+				`UPDATE fuzz_work_items SET status='leased', lease_owner=?, lease_until=?, updated_at=?,
+				     hunt_proven_seeds=0, hunt_proven_edges=0, hunt_proven_crashes=0,
+				     hunt_proven_engine='', hunt_proven_engine_ver=''
 				 WHERE id=? AND campaign_id=? AND status='leased' AND lease_until < ?`,
 				workerID, now+leaseSec, now, int64(e.id), e.camp, now)
 			if err != nil {
@@ -925,14 +952,14 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 		}
 	}
 
-	// Phase 4: RR among other + bootstrap.
-	if len(rest) == 0 {
+	// Phase 4: RR among other + bootstrap (pending-filtered).
+	if len(restPending) == 0 {
 		s.noteEmptyClaim()
 		return out, false, nil
 	}
-	start := int(s.claimRR.Add(1) % uint64(len(rest)))
-	for i := 0; i < len(rest); i++ {
-		cid := rest[(start+i)%len(rest)]
+	start := int(s.claimRR.Add(1) % uint64(len(restPending)))
+	for i := 0; i < len(restPending); i++ {
+		cid := restPending[(start+i)%len(restPending)]
 		if work, ok, err := s.claimOnePendingInCampaign(ctx, workerID, cid, now); err != nil || ok {
 			if ok {
 				s.clearEmptyClaimCache()
@@ -944,11 +971,65 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 	return out, false, nil
 }
 
+// emptyClaimNegativeCacheTTL is how long Claim returns empty without re-scanning SQLite.
+// Default 400ms keeps idle fleets responsive; raise via HACKME_POOL_EMPTY_CLAIM_MS (50–5000).
+func emptyClaimNegativeCacheTTL() time.Duration {
+	d := 400 * time.Millisecond
+	if v := strings.TrimSpace(os.Getenv("HACKME_POOL_EMPTY_CLAIM_MS")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 50 && n <= 5000 {
+			d = time.Duration(n) * time.Millisecond
+		}
+	}
+	return d
+}
+
 func (s *Service) noteEmptyClaim() {
 	s.emptyClaimMu.Lock()
-	// Longer negative cache when no work — idle workerfuzz fleets were hammering SQLite ~3/s.
-	s.emptyClaimUntil = time.Now().Add(1500 * time.Millisecond)
+	s.emptyClaimUntil = time.Now().Add(emptyClaimNegativeCacheTTL())
 	s.emptyClaimMu.Unlock()
+}
+
+// filterIDsWithPendingWork drops campaign IDs that have no pending work items.
+// Fail-open (return ids unchanged) on query error so claim still works.
+func (s *Service) filterIDsWithPendingWork(ctx context.Context, ids []string) []string {
+	if s == nil || s.DB == nil || len(ids) == 0 {
+		return ids
+	}
+	const chunk = 64
+	have := make(map[string]struct{}, len(ids))
+	for i := 0; i < len(ids); i += chunk {
+		end := i + chunk
+		if end > len(ids) {
+			end = len(ids)
+		}
+		part := ids[i:end]
+		args := make([]any, len(part))
+		ph := make([]string, len(part))
+		for j, id := range part {
+			args[j] = id
+			ph[j] = "?"
+		}
+		q := `SELECT DISTINCT campaign_id FROM fuzz_work_items
+		       WHERE status='pending' AND campaign_id IN (` + strings.Join(ph, ",") + `)`
+		rows, err := s.DB.QueryContext(ctx, q, args...)
+		if err != nil {
+			return ids
+		}
+		for rows.Next() {
+			var cid string
+			if rows.Scan(&cid) == nil {
+				have[cid] = struct{}{}
+			}
+		}
+		rows.Close()
+	}
+	out := make([]string, 0, len(have))
+	for _, id := range ids {
+		if _, ok := have[id]; ok {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 func (s *Service) clearEmptyClaimCache() {
@@ -968,7 +1049,9 @@ func (s *Service) ReleaseWorkLease(ctx context.Context, campaignID string, itemI
 	now := time.Now().Unix()
 	res, err := s.DB.ExecContext(ctx, `
 		UPDATE fuzz_work_items
-		   SET status='pending', lease_owner='', lease_until=0, updated_at=?
+		   SET status='pending', lease_owner='', lease_until=0, updated_at=?,
+		       hunt_proven_seeds=0, hunt_proven_edges=0, hunt_proven_crashes=0,
+		       hunt_proven_engine='', hunt_proven_engine_ver=''
 		 WHERE id=? AND campaign_id=? AND status='leased' AND lease_owner=?`,
 		now, itemID, campaignID, workerID)
 	if err != nil {
@@ -976,6 +1059,7 @@ func (s *Service) ReleaseWorkLease(ctx context.Context, campaignID string, itemI
 	}
 	aff, _ := res.RowsAffected()
 	if aff > 0 {
+		clearLeaseProven(campaignID, itemID)
 		s.clearEmptyClaimCache()
 		return true, nil
 	}
@@ -1017,7 +1101,9 @@ func (s *Service) claimOnePendingInCampaign(ctx context.Context, workerID, campa
 	leaseSec := leaseSecondsForConfig(cfg)
 	res, err := s.DB.ExecContext(ctx, `
 		UPDATE fuzz_work_items
-		   SET status='leased', lease_owner=?, lease_until=?, updated_at=?
+		   SET status='leased', lease_owner=?, lease_until=?, updated_at=?,
+		       hunt_proven_seeds=0, hunt_proven_edges=0, hunt_proven_crashes=0,
+		       hunt_proven_engine='', hunt_proven_engine_ver=''
 		 WHERE id = (
 		   SELECT id FROM fuzz_work_items
 		    WHERE campaign_id=? AND status='pending'

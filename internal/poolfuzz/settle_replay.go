@@ -57,8 +57,11 @@ func (s *Service) ReplayCampaignSettles(ctx context.Context, campaignID string) 
 		case "pending_floor", "queued_floor":
 			// Hunt CLEAN floor — must not replay as full PayRun (econ overpay).
 			kind = "run_floor"
-		case "pending", "queued", "":
+		case "pending", "queued":
 			kind = "run"
+		case "":
+			// Never invent PayRun for force-complete / legacy rows with no stamp.
+			continue
 		default:
 			continue
 		}

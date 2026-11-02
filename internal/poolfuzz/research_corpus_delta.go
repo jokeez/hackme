@@ -158,10 +158,8 @@ func (s *Service) AcceptResearchCorpusDelta(ctx context.Context, req ResearchCor
 	}
 	out.SeedsAccepted = len(seeds)
 	if isHunt {
-		for _, seed := range seeds {
-			if err := s.upsertPoolCorpusSeed(ctx, campaignID, seed.Input, seed.InputBytes, seed.Energy, seed.Edge, seed.Path, false, now); err != nil {
-				return out, err
-			}
+		if err := s.upsertPoolCorpusSeedsBatch(ctx, campaignID, seeds, now); err != nil {
+			return out, err
 		}
 		// Coverage-guided Hunt: prove edges via coordinator replay (never trust miner counts).
 		if HuntEngineEnabled() && hunt.IsCoverageEngine(hunt.HuntEngineFromConfig(cfg)) {
@@ -173,7 +171,7 @@ func (s *Service) AcceptResearchCorpusDelta(ctx context.Context, req ResearchCor
 			if eng == "" {
 				eng = hunt.HuntEngineFromConfig(cfg)
 			}
-			s.noteLeaseProvenPersist(ctx, campaignID, req.ItemID, len(seeds), proven, 0, eng, strings.TrimSpace(req.EngineVersion))
+			s.noteLeaseProvenPersist(ctx, campaignID, req.ItemID, workerID, len(seeds), proven, 0, eng, strings.TrimSpace(req.EngineVersion))
 		}
 	}
 
@@ -198,7 +196,7 @@ func (s *Service) AcceptResearchCorpusDelta(ctx context.Context, req ResearchCor
 			if eng == "" {
 				eng = hunt.HuntEngineFromConfig(cfg)
 			}
-			s.noteLeaseProvenPersist(ctx, campaignID, req.ItemID, 0, 0, 1, eng, strings.TrimSpace(req.EngineVersion))
+			s.noteLeaseProvenPersist(ctx, campaignID, req.ItemID, workerID, 0, 0, 1, eng, strings.TrimSpace(req.EngineVersion))
 		}
 		u := fuzzengine.PackInputBytesToU64(crashB)
 		if err := s.upsertPoolCorpusSeed(ctx, campaignID, u, crashB, 12, 0, 0, true, now); err != nil {

@@ -62,21 +62,50 @@ func noteLeaseProven(campaignID string, itemID int64, seeds, edges, crashes int,
 }
 
 // noteLeaseProvenPersist updates in-memory track and durable fuzz_work_items columns (M3).
-func (s *Service) noteLeaseProvenPersist(ctx context.Context, campaignID string, itemID int64, seeds, edges, crashes int, engine, version string) {
-	noteLeaseProven(campaignID, itemID, seeds, edges, crashes, engine, version)
-	if s == nil || s.DB == nil || itemID <= 0 {
+// Writes are bound to the active lease_owner so a stolen/expired lease cannot credit
+// predecessor prove into a successor PayRun (clearLeaseProvenPersist on transfer).
+func (s *Service) noteLeaseProvenPersist(ctx context.Context, campaignID string, itemID int64, leaseOwner string, seeds, edges, crashes int, engine, version string) {
+	leaseOwner = strings.TrimSpace(leaseOwner)
+	if s == nil || s.DB == nil || itemID <= 0 || leaseOwner == "" {
 		return
 	}
-	_, _ = s.DB.ExecContext(ctx, `
+	res, err := s.DB.ExecContext(ctx, `
 		UPDATE fuzz_work_items
 		   SET hunt_proven_seeds = hunt_proven_seeds + ?,
 		       hunt_proven_edges = hunt_proven_edges + ?,
 		       hunt_proven_crashes = hunt_proven_crashes + ?,
 		       hunt_proven_engine = CASE WHEN ? != '' THEN ? ELSE hunt_proven_engine END,
 		       hunt_proven_engine_ver = CASE WHEN ? != '' THEN ? ELSE hunt_proven_engine_ver END
-		 WHERE campaign_id = ? AND id = ?`,
-		seeds, edges, crashes, engine, engine, version, version, campaignID, itemID)
+		 WHERE campaign_id = ? AND id = ? AND status = 'leased' AND lease_owner = ?`,
+		seeds, edges, crashes, engine, engine, version, version, campaignID, itemID, leaseOwner)
+	if err != nil {
+		return
+	}
+	aff, _ := res.RowsAffected()
+	if aff == 0 {
+		return
+	}
+	noteLeaseProven(campaignID, itemID, seeds, edges, crashes, engine, version)
 }
+
+// clearLeaseProvenPersist drops in-memory + durable prove counters for a work item.
+// Call on lease release / reclaim / re-lease so a successor cannot inherit PayRun credit.
+func (s *Service) clearLeaseProvenPersist(ctx context.Context, campaignID string, itemID int64) {
+	clearLeaseProven(campaignID, itemID)
+	if s == nil || s.DB == nil || itemID <= 0 {
+		return
+	}
+	_, _ = s.DB.ExecContext(ctx, `
+		UPDATE fuzz_work_items
+		   SET hunt_proven_seeds = 0,
+		       hunt_proven_edges = 0,
+		       hunt_proven_crashes = 0,
+		       hunt_proven_engine = '',
+		       hunt_proven_engine_ver = ''
+		 WHERE campaign_id = ? AND id = ?`,
+		campaignID, itemID)
+}
+
 
 func takeLeaseProven(campaignID string, itemID int64) leaseProvenTrack {
 	key := leaseProvenKey(campaignID, itemID)

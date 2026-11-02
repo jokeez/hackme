@@ -345,7 +345,8 @@ func Run(ctx context.Context, cfg Config, st *Stats) error {
 func runOne(ctx context.Context, cfg Config, base string, st *Stats, pbuf *prefetchBuf) {
 	batchN := cfg.BatchClaim
 	if batchN <= 0 {
-		batchN = EnvInt("HACKME_WORKER_BATCH_CLAIM", 1)
+		// Default 2 amortizes claim RTT for Dig; Hunt coverage still processes sequentially.
+		batchN = EnvInt("HACKME_WORKER_BATCH_CLAIM", 2)
 	}
 	if batchN > poolfuzz.MaxBatchClaimSubmit {
 		batchN = poolfuzz.MaxBatchClaimSubmit

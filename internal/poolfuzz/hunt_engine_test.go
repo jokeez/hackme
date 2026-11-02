@@ -118,13 +118,13 @@ func TestStampHuntProvenOnSubmitKeepsAudit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := db.Exec(`INSERT INTO fuzz_work_items(campaign_id, input_n, status, created_at, updated_at)
-		VALUES(?,?,?,?,?)`, cid, 1, "leased", 1, 1)
+	res, err := db.Exec(`INSERT INTO fuzz_work_items(campaign_id, input_n, status, lease_owner, created_at, updated_at)
+		VALUES(?,?,?,?,?,?)`, cid, 1, "leased", "worker-stamp", 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	itemID, _ := res.LastInsertId()
-	svc.noteLeaseProvenPersist(context.Background(), cid, itemID, 3, 2, 0, hunt.EngineLibFuzzer, "libfuzzer")
+	svc.noteLeaseProvenPersist(context.Background(), cid, itemID, "worker-stamp", 3, 2, 0, hunt.EngineLibFuzzer, "libfuzzer")
 	proven := svc.takeLeaseProvenPersist(context.Background(), cid, itemID)
 	svc.stampHuntProvenOnSubmit(context.Background(), cid, itemID, proven, hunt.EngineLibFuzzer, "libfuzzer-vtest")
 	var edges, seeds int
@@ -135,6 +135,98 @@ func TestStampHuntProvenOnSubmitKeepsAudit(t *testing.T) {
 	}
 	if edges != 2 || seeds != 3 || eng != hunt.EngineLibFuzzer || ver != "libfuzzer-vtest" {
 		t.Fatalf("stamp edges=%d seeds=%d eng=%q ver=%q", edges, seeds, eng, ver)
+	}
+}
+
+func TestNoteLeaseProvenBoundToOwnerAndClearedOnTransfer(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "bind.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	cid := "camp-proven-bind"
+	_, err = db.Exec(`INSERT INTO fuzz_campaigns(id, campaign_type, title, status, config_json, created_at)
+		VALUES(?,?,?,?,?,1)`, cid, "hunt", "t", "running", `{"work_kind":"hunt_shard","pool_distributed":true}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := db.Exec(`INSERT INTO fuzz_work_items(campaign_id, input_n, status, lease_owner, lease_until, created_at, updated_at)
+		VALUES(?,?,?,?,?,?,?)`, cid, 1, "leased", "alice", 9999999999, 1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	itemID, _ := res.LastInsertId()
+
+	// Foreign owner must not credit prove.
+	svc.noteLeaseProvenPersist(ctx, cid, itemID, "eve", 9, 9, 0, hunt.EngineLibFuzzer, "evil")
+	var edges, seeds int
+	_ = db.QueryRow(`SELECT hunt_proven_edges, hunt_proven_seeds FROM fuzz_work_items WHERE id=?`, itemID).
+		Scan(&edges, &seeds)
+	if edges != 0 || seeds != 0 {
+		t.Fatalf("foreign prove leaked: edges=%d seeds=%d", edges, seeds)
+	}
+	if peekLeaseProven(cid, itemID).ProvenEdges != 0 {
+		t.Fatal("foreign prove must not touch memory either")
+	}
+
+	svc.noteLeaseProvenPersist(ctx, cid, itemID, "alice", 2, 5, 0, hunt.EngineLibFuzzer, "ok")
+	_ = db.QueryRow(`SELECT hunt_proven_edges, hunt_proven_seeds FROM fuzz_work_items WHERE id=?`, itemID).
+		Scan(&edges, &seeds)
+	if edges != 5 || seeds != 2 {
+		t.Fatalf("owner prove: edges=%d seeds=%d", edges, seeds)
+	}
+
+	// Release clears durable + memory so successor cannot inherit PayRun.
+	ok, err := svc.ReleaseWorkLease(ctx, cid, itemID, "alice")
+	if err != nil || !ok {
+		t.Fatalf("release: ok=%v err=%v", ok, err)
+	}
+	_ = db.QueryRow(`SELECT hunt_proven_edges, hunt_proven_seeds FROM fuzz_work_items WHERE id=?`, itemID).
+		Scan(&edges, &seeds)
+	if edges != 0 || seeds != 0 {
+		t.Fatalf("after release want zero prove, got edges=%d seeds=%d", edges, seeds)
+	}
+	if peekLeaseProven(cid, itemID).ProvenEdges != 0 {
+		t.Fatal("memory prove must clear on release")
+	}
+
+	// Reclaim keeps durable prove for force-complete, clears memory only.
+	_, _ = db.Exec(`UPDATE fuzz_work_items SET status='leased', lease_owner='alice', lease_until=1,
+		hunt_proven_edges=7, hunt_proven_seeds=3 WHERE id=?`, itemID)
+	noteLeaseProven(cid, itemID, 3, 7, 0, hunt.EngineLibFuzzer, "stale")
+	now := int64(100)
+	n, err := svc.ReclaimExpiredLeases(ctx, now)
+	if err != nil || n != 1 {
+		t.Fatalf("reclaim n=%d err=%v", n, err)
+	}
+	var st string
+	_ = db.QueryRow(`SELECT status, hunt_proven_edges, hunt_proven_seeds FROM fuzz_work_items WHERE id=?`, itemID).
+		Scan(&st, &edges, &seeds)
+	if st != "pending" || edges != 7 || seeds != 3 {
+		t.Fatalf("reclaim should keep durable prove: status=%s edges=%d seeds=%d", st, edges, seeds)
+	}
+	if peekLeaseProven(cid, itemID).ProvenEdges != 0 {
+		t.Fatal("memory must clear on reclaim")
+	}
+
+	// Successor claim zeros prove so bob cannot inherit alice PayRun credit.
+	_, _ = db.Exec(`UPDATE fuzz_campaigns SET status='running' WHERE id=?`, cid)
+	cfgJSON := `{"pool_distributed":true,"work_kind":"hunt_shard","check_semantics":"detector","wasm_check_hex":"0061736d0100000001060160017e017f0302010007090105636865636b00000a0601040041010b"}`
+	_, _ = db.Exec(`UPDATE fuzz_campaigns SET config_json=? WHERE id=?`, cfgJSON, cid)
+	// claimOnePendingInCampaign requires harness for Hunt — use Dig-style property instead.
+	_, _ = db.Exec(`UPDATE fuzz_campaigns SET campaign_type='property', config_json=? WHERE id=?`,
+		`{"pool_distributed":true,"check_semantics":"detector","wasm_check_hex":"0061736d0100000001060160017e017f0302010007090105636865636b00000a0601040041010b"}`, cid)
+	work, ok, err := svc.claimOnePendingInCampaign(ctx, "bob", cid, now+10)
+	if err != nil || !ok {
+		t.Fatalf("claim successor: ok=%v err=%v", ok, err)
+	}
+	_ = db.QueryRow(`SELECT hunt_proven_edges, hunt_proven_seeds FROM fuzz_work_items WHERE id=?`, work.ItemID).
+		Scan(&edges, &seeds)
+	if edges != 0 || seeds != 0 {
+		t.Fatalf("successor lease must zero prove: edges=%d seeds=%d", edges, seeds)
 	}
 }
 

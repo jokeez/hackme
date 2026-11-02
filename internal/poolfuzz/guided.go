@@ -97,7 +97,8 @@ func (s *Service) buildClaimedWork(ctx context.Context, campaignID string, itemI
 	var seedCorpus []any
 	if raw, ok := cfg["seed_byte_corpus"]; ok && raw != nil {
 		if list, ok := raw.([]any); ok && len(list) > 0 {
-			seedCorpus = list
+			// Match Hunt claim wire trim so Dig claim JSON stays bounded.
+			seedCorpus = TrimSeedByteCorpusForWire(list)
 		}
 	}
 	wasmHex := wasmHexFromConfig(cfg)
