@@ -63,7 +63,7 @@ func noteLeaseProven(campaignID string, itemID int64, seeds, edges, crashes int,
 
 // noteLeaseProvenPersist updates in-memory track and durable fuzz_work_items columns (M3).
 // Writes are bound to the active lease_owner so a stolen/expired lease cannot credit
-// predecessor prove into a successor PayRun (clearLeaseProvenPersist on transfer).
+// predecessor prove into a successor PayRun (release / re-lease zero counters).
 func (s *Service) noteLeaseProvenPersist(ctx context.Context, campaignID string, itemID int64, leaseOwner string, seeds, edges, crashes int, engine, version string) {
 	leaseOwner = strings.TrimSpace(leaseOwner)
 	if s == nil || s.DB == nil || itemID <= 0 || leaseOwner == "" {
@@ -86,24 +86,6 @@ func (s *Service) noteLeaseProvenPersist(ctx context.Context, campaignID string,
 		return
 	}
 	noteLeaseProven(campaignID, itemID, seeds, edges, crashes, engine, version)
-}
-
-// clearLeaseProvenPersist drops in-memory + durable prove counters for a work item.
-// Call on lease release / reclaim / re-lease so a successor cannot inherit PayRun credit.
-func (s *Service) clearLeaseProvenPersist(ctx context.Context, campaignID string, itemID int64) {
-	clearLeaseProven(campaignID, itemID)
-	if s == nil || s.DB == nil || itemID <= 0 {
-		return
-	}
-	_, _ = s.DB.ExecContext(ctx, `
-		UPDATE fuzz_work_items
-		   SET hunt_proven_seeds = 0,
-		       hunt_proven_edges = 0,
-		       hunt_proven_crashes = 0,
-		       hunt_proven_engine = '',
-		       hunt_proven_engine_ver = ''
-		 WHERE campaign_id = ? AND id = ?`,
-		campaignID, itemID)
 }
 
 func takeLeaseProven(campaignID string, itemID int64) leaseProvenTrack {
