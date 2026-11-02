@@ -55,12 +55,17 @@ func RunInputDetailed(ctx context.Context, binPath string, input []byte, opts Ru
 	return runStdinOnce(ctx, bin, input, opts)
 }
 
+// harnessProveWall is the one-shot sanitizer/prove exec budget. 3s was too tight
+// under bwrap+UBSan cold start on loaded CI hosts (wall exceeded flakes).
+func harnessProveWall() time.Duration { return 8 * time.Second }
+
 func runStdinOnce(ctx context.Context, bin string, input []byte, opts RunInputOpts) (crash bool, info SanitizerInfo, tail string, err error) {
-	runCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	wall := harnessProveWall()
+	runCtx, cancel := context.WithTimeout(ctx, wall)
 	defer cancel()
 	env := harnessExecEnv(opts)
 	if opts.Runner != nil {
-		out, runErr := opts.Runner(runCtx, bin, nil, env, input, 3*time.Second)
+		out, runErr := opts.Runner(runCtx, bin, nil, env, input, wall)
 		return classifyHarnessRun(runCtx, runErr, out)
 	}
 	cmd := exec.CommandContext(runCtx, bin)
@@ -83,12 +88,13 @@ func runLibFuzzerOnce(ctx context.Context, bin string, input []byte, opts RunInp
 	if err := os.WriteFile(inPath, input, 0o600); err != nil {
 		return false, SanitizerInfo{}, "", err
 	}
-	runCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	wall := harnessProveWall()
+	runCtx, cancel := context.WithTimeout(ctx, wall)
 	defer cancel()
 	args := []string{inPath, "-runs=1", "-timeout=2", fmt.Sprintf("-max_len=%d", opts.MaxInput)}
 	env := harnessExecEnv(opts)
 	if opts.Runner != nil {
-		out, runErr := opts.Runner(runCtx, bin, args, env, nil, 3*time.Second)
+		out, runErr := opts.Runner(runCtx, bin, args, env, nil, wall)
 		return classifyHarnessRun(runCtx, runErr, out)
 	}
 	// One-shot: feed a single corpus file; never start the interactive fuzz loop.

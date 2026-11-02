@@ -1421,10 +1421,25 @@ func (s *Service) SubmitWithOutcome(ctx context.Context, req SubmitRequest) (Sub
 				return SubmitOutcome{}, err
 			}
 		}
+		// Non-engine Hunt submits must still honor hunt_edge_pay=floor_only —
+		// otherwise CLEAN shards enqueue full PayRun and drain the runs pool 10× faster.
+		var legacyKind string
+		var legacyFull bool
+		legacyEngineGate := false
+		if huntEdgePayFloorOnly(cfg) {
+			legacyEngineGate = true
+			if recordFinding {
+				legacyKind, legacyFull = HuntEnginePayCrash, true
+			} else {
+				legacyKind, legacyFull = HuntEnginePayFloor, false
+			}
+			noteHuntEnginePay(legacyKind, legacyFull)
+		}
 		if err := s.finalizeHuntSubmit(ctx, finalizeHuntSubmitParams{
 			req: req, cfg: cfg, inputN: inputN, expectedU: expectedU, expectedB: expectedB,
 			pass: pass, recordFinding: recordFinding, findingU: findingU, findingB: findingB,
 			huntOrigLen: huntOrigLen, fromReplayPending: false, now: now,
+			enginePayKind: legacyKind, engineFullPay: legacyFull, engineMode: legacyEngineGate,
 		}); err != nil {
 			return SubmitOutcome{}, err
 		}

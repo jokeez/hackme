@@ -600,6 +600,20 @@ func (s *Service) runHuntReplayJob(ctx context.Context, job huntReplayJob, now i
 	}
 	req.CheckResult = checkResult
 	req.Trap = trap
+	// Async path is non-engineMode by default — still honor hunt_edge_pay=floor_only
+	// so CLEAN shards enqueue run_floor instead of full PayRun (same as sync submit).
+	var legacyKind string
+	var legacyFull bool
+	legacyEngineGate := false
+	if huntEdgePayFloorOnly(cfg) {
+		legacyEngineGate = true
+		if recordFinding {
+			legacyKind, legacyFull = HuntEnginePayCrash, true
+		} else {
+			legacyKind, legacyFull = HuntEnginePayFloor, false
+		}
+		noteHuntEnginePay(legacyKind, legacyFull)
+	}
 	return s.finalizeHuntSubmit(ctx, finalizeHuntSubmitParams{
 		req:               req,
 		cfg:               cfg,
@@ -613,6 +627,9 @@ func (s *Service) runHuntReplayJob(ctx context.Context, job huntReplayJob, now i
 		huntOrigLen:       huntOrigLen,
 		fromReplayPending: true,
 		now:               now,
+		enginePayKind:     legacyKind,
+		engineFullPay:     legacyFull,
+		engineMode:        legacyEngineGate,
 	})
 }
 

@@ -15,7 +15,9 @@ import (
 
 type spySettler struct {
 	mu         sync.Mutex
-	runs       int
+	runs       int // PayRun + PayRunFloor (legacy assert)
+	floors     int // PayRunFloor only
+	fullRuns   int // PayRun only (full shard)
 	findings   int
 	crashBonus int
 	finalize   int
@@ -24,12 +26,14 @@ type spySettler struct {
 func (s *spySettler) PayRunFloor(context.Context, string, string, int64, int64) (SettleResult, error) {
 	s.mu.Lock()
 	s.runs++
+	s.floors++
 	s.mu.Unlock()
 	return SettleResult{Applied: true}, nil
 }
 func (s *spySettler) PayRun(context.Context, string, string, int64, int64) (SettleResult, error) {
 	s.mu.Lock()
 	s.runs++
+	s.fullRuns++
 	s.mu.Unlock()
 	return SettleResult{Applied: true}, nil
 }

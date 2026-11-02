@@ -19,7 +19,7 @@ import (
 func IsolatedHarnessRunner() fuzzupstream.HarnessRunner {
 	return func(ctx context.Context, bin string, args []string, env []string, stdin []byte, wall time.Duration) (string, error) {
 		if wall <= 0 {
-			wall = 3 * time.Second
+			wall = 8 * time.Second // match fuzzupstream harnessProveWall (bwrap cold start)
 		}
 		var out bytes.Buffer
 		sw := newSyncWriter(&out)

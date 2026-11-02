@@ -222,3 +222,65 @@ func TestForceCompleteLeaseChurnItemsProvenEdgesOK(t *testing.T) {
 		t.Fatalf("status=%s ok=%d want done/1 (proven edges count as work)", st, ok)
 	}
 }
+
+// enqueueOnlySettler leaves settle intents unpaid (Applied=false → queued_floor)
+// so tryFinalizeEscrow must skip escrow close.
+type enqueueOnlySettler struct{ spySettler }
+
+func (s *enqueueOnlySettler) PayRunFloor(ctx context.Context, campaignID, miner string, itemID, reuse int64) (SettleResult, error) {
+	_, _ = s.spySettler.PayRunFloor(ctx, campaignID, miner, itemID, reuse)
+	return SettleResult{Applied: false, OutboxID: 42}, nil
+}
+func (s *enqueueOnlySettler) PayRun(ctx context.Context, campaignID, miner string, itemID, reuse int64) (SettleResult, error) {
+	_, _ = s.spySettler.PayRun(ctx, campaignID, miner, itemID, reuse)
+	return SettleResult{Applied: false, OutboxID: 42}, nil
+}
+
+func TestForceCompleteSkipsFinalizeWhileUnpaidFloor(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "fc-unpaid.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	ctx := context.Background()
+	now := time.Now().Unix()
+	spy := &enqueueOnlySettler{}
+	svc := &Service{DB: db, Settler: spy}
+	cfg := fuzzengine.NormalizeCampaignConfig(map[string]any{
+		"pool_distributed": true,
+		"budget_hmc":       10.0,
+		"escrow_split":     "50_50",
+		"check_semantics":  "detector",
+		"wasm_check_hex":   "0061736d0100000001060160017e017f0302010007090105636865636b00000a0601040041010b",
+	}, "property")
+	id := "camp-fc-unpaid-floor"
+	if err := svc.RegisterCampaign(ctx, Campaign{
+		ID: id, CampaignType: "property", Title: "fc-unpaid", Status: "running",
+		BudgetRuns: 1, Config: cfg,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var itemID int64
+	if err := db.QueryRowContext(ctx, `SELECT id FROM fuzz_work_items WHERE campaign_id=?`, id).Scan(&itemID); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = db.ExecContext(ctx,
+		`UPDATE fuzz_work_items SET status='leased', lease_owner='zombie', lease_until=?, attempts=9,
+		     miner_address=?, settle_run_status='pending_floor', hunt_proven_edges=2, updated_at=?
+		 WHERE campaign_id=? AND id=?`,
+		now+60, "HMC-1234567890123456", now, id, itemID)
+
+	if err := svc.forceCompleteWorkItem(ctx, id, itemID, true, "lease_churn_exhausted", now); err != nil {
+		t.Fatal(err)
+	}
+	if spy.finalize != 0 {
+		t.Fatalf("Finalize called %d times with unpaid queued_floor — want 0 (tryFinalizeEscrow gate)", spy.finalize)
+	}
+	var runSt string
+	_ = db.QueryRowContext(ctx,
+		`SELECT settle_run_status FROM fuzz_work_items WHERE campaign_id=?`, id).Scan(&runSt)
+	if runSt != "queued_floor" {
+		t.Fatalf("settle_run_status=%q want queued_floor after enqueue-only flush", runSt)
+	}
+}

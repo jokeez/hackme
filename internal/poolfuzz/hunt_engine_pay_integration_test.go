@@ -176,3 +176,60 @@ func TestFinalizeHuntEngineEdgesPays(t *testing.T) {
 		t.Fatal("proven edges must PayRun")
 	}
 }
+
+// Legacy (non-coverage-engine) submits with hunt_edge_pay=floor_only must enqueue
+// run_floor, not full PayRun — otherwise CLEAN drains the runs pool 10×.
+func TestFinalizeLegacyFloorOnlyEnqueuesFloor(t *testing.T) {
+	t.Setenv("HACKME_HUNT_ENGINE_FLOOR_PAY_RUN", "1")
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "legacy-floor.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	ctx := context.Background()
+	spy := &spySettler{}
+	svc := &Service{DB: db, Settler: spy}
+	id := "hunt-legacy-floor-only"
+	cfg := map[string]any{
+		"pool_distributed": true, "work_kind": "hunt_shard", "campaign_type": "hunt",
+		"escrow_split": "50_50", "budget_hmc": 20, "budget_shards": 8,
+		"upstream_target_id": "jsmn", "harness_hash": "deadbeef04",
+		"iterations_per_shard": 2, "check_semantics": "native_crash",
+		"hunt_edge_pay": "floor_only",
+	}
+	if err := svc.RegisterCampaign(ctx, Campaign{ID: id, CampaignType: "hunt", Status: "running", BudgetRuns: 8, Config: cfg}); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().Unix()
+	if err := svc.EnsureWorkItems(ctx, id, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx,
+		`UPDATE fuzz_work_items SET status='leased', lease_owner=?, lease_until=?, updated_at=? WHERE campaign_id=? AND id=1`,
+		"w1", now+600, now, id); err != nil {
+		t.Fatal(err)
+	}
+	// Mimic service.go non-engine branch: stamp floor gate even when engineMode was false for eval.
+	kind, full := DecideHuntEnginePayForConfig(cfg, 0, 0, 0, 0, false)
+	if kind != HuntEnginePayFloor || full {
+		t.Fatalf("Decide: kind=%s full=%v", kind, full)
+	}
+	err = svc.finalizeHuntSubmit(ctx, finalizeHuntSubmitParams{
+		req: SubmitRequest{
+			WorkerID: "w1", MinerAddress: "HMC-1234567890123456", CampaignID: id, ItemID: 1,
+			ActualInput: 1, DurationMS: 1000, SegmentExecDone: 1,
+		},
+		cfg: cfg, inputN: 1, expectedU: 1, pass: true, recordFinding: false, now: now,
+		engineMode: true, enginePayKind: kind, engineFullPay: full,
+	})
+	if err != nil {
+		t.Fatalf("finalize: %v", err)
+	}
+	if spy.floors < 1 {
+		t.Fatalf("floor_only legacy must PayRunFloor, floors=%d fullRuns=%d", spy.floors, spy.fullRuns)
+	}
+	if spy.fullRuns != 0 {
+		t.Fatalf("floor_only must not full PayRun, fullRuns=%d", spy.fullRuns)
+	}
+}

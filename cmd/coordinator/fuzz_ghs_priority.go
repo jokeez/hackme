@@ -15,9 +15,11 @@ import (
 // and publishes honest ETA capacity from live hybrid GHS.
 
 const (
-	// Pre-Blake3 hybrid calib was often ≥1 GH/s; Blake3 LIVE wall-rate is ~0.05–0.4 GH/s/GPU.
-	// Keep a small floor so noise/canary ≪0.05 does not count as hybrid Dig capacity.
-	fuzzGHSHybridMinGHS     = 0.05
+	// Pre-Blake3 hybrid calib was often ≥1 GH/s. Blake3 SHARE_STRICT wall/share-implied
+	// rates on CPU/display hybrids are often ~0.002–0.05 GH/s; single GPU ~0.05–0.4+.
+	// Floor must sit under honest share-implied submits so hybrid Dig capacity is real —
+	// not "0 hybrid / N dig-only" while named fleets mine+fuzz. Pure zero-GH diggers stay dig-only.
+	fuzzGHSHybridMinGHS     = 0.002
 	fuzzGHSPriorityStaleSec = 90 // recent PoH / fuzz activity window
 	fuzzGHSDigOnlyAdmitPct  = 25 // dig-only admit share when hybrids are online
 )

@@ -18,6 +18,9 @@ ops/stop_test_named_fuzz_fleet.sh
 ops/stop_test_named_fleet_desktop_extra.sh
 ops/stop_test_named_fleet_tail5.sh
 ops/named_hybrid_unit.sh
+ops/fleet_profit_status.sh
+ops/fleet_profit_watchdog.sh
+ops/fleet_settle_named.sh
 ops/desktop_extra_live_activity.sh
 ops/systemd/hackme-test-named-fleet*.service
 ops/systemd/hackme-desktop-extra-live-activity.*
