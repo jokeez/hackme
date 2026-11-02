@@ -21,6 +21,8 @@ type BatchSubmitItem struct {
 
 // ClaimBatch leases up to n work items for the same worker (n capped at MaxBatchClaimSubmit).
 // Stops early when the queue is empty. Each item keeps independent lease_owner semantics.
+// After the first lease, prefers draining the same campaign via claimOnePendingInCampaign
+// (avoids re-scanning the full customer/bootstrap schedule on every item).
 func (s *Service) ClaimBatch(ctx context.Context, workerID string, now int64, n int) ([]ClaimedWork, error) {
 	workerID = strings.TrimSpace(workerID)
 	if workerID == "" {
@@ -33,13 +35,31 @@ func (s *Service) ClaimBatch(ctx context.Context, workerID string, now int64, n 
 		n = MaxBatchClaimSubmit
 	}
 	out := make([]ClaimedWork, 0, n)
+	var stickCamp string
 	for i := 0; i < n; i++ {
-		w, ok, err := s.Claim(ctx, workerID, now)
-		if err != nil {
-			return out, err
+		var (
+			w  ClaimedWork
+			ok bool
+			err error
+		)
+		if stickCamp != "" {
+			w, ok, err = s.claimOnePendingInCampaign(ctx, workerID, stickCamp, now)
+			if err != nil {
+				return out, err
+			}
+			if !ok {
+				stickCamp = ""
+			}
 		}
 		if !ok {
-			break
+			w, ok, err = s.Claim(ctx, workerID, now)
+			if err != nil {
+				return out, err
+			}
+			if !ok {
+				break
+			}
+			stickCamp = w.CampaignID
 		}
 		out = append(out, w)
 	}
