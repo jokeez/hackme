@@ -1,5 +1,6 @@
 // Open missing Hunt 50/50 escrow for a running campaign (ops heal).
-//   go run ./cmd/openhunteescrow -campaign hunt-… -budget 150 -shards 12000
+//
+//	go run ./cmd/openhunteescrow -campaign hunt-… -budget 150 -shards 12000
 package main
 
 import (
