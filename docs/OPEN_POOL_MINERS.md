@@ -27,23 +27,27 @@ Installer / desktop hybrid is **ON by default** (`HACKME_WORKER_HYBRID_FUZZ=1`):
 | Order type | What the miner runs |
 |------------|---------------------|
 | **Dig** | WASM `check_bytes` segments (scan/audit/deep) — Dig never runs AFL/libFuzzer |
-| **Hunt** | Coverage-guided engine lease: **libFuzzer** fleet default · **AFL++** Deep when present · ASAN harness from coordinator. Byte fallback **OFF** (soft-skip without clang/LF). Optional research slot: escape `HACKME_WORKER_RESEARCH_SLOT=0` |
+| **Hunt** | Coverage-guided engine lease: **libFuzzer** fleet default. **AFL++** only via explicit `hunt_engine=aflpp` or opt-in `HACKME_HUNT_ENGINE_DEEP_AFL=1` (default OFF). Byte fallback **OFF** (soft-skip without clang/LF). Optional research slot: escape `HACKME_WORKER_RESEARCH_SLOT=0` |
 
 Catalog Hunt harness binaries are fetched from the pool (not the customer git tree). **Linux install / self-update / firstboot** best-effort runs **`install_hunt_engines.sh`** — **rc18** installers auto-run (clang + AFL++ + bubblewrap — **do not** `git clone` AFL++). Opt-out: `HACKME_SKIP_HUNT_ENGINES=1`. Isolation prefers **bwrap**; missing engine → soft-skip, not fake CLEAN pay. Disk caps: `prune_hunt_miner_caches.sh`. PoH mining continues alongside fuzz work. Blake3 lane: **SHARE_STRICT share-PPS** (verified shares); empty finds can fund settlement via **D1 baseline relay** on the public hub. Dig/Hunt hybrid escrow unchanged. Speed honesty vs local LF: [HUNT_VS_LIBFUZZER.md](HUNT_VS_LIBFUZZER.md).
 
 ## New miner (Windows)
 
+Windows OOTB = **Dig WASM + PoH mining** only. Hunt coverage engines (libFuzzer/AFL++/bwrap) are **not** installed and are **not** advertised — missing runner → soft-skip, Dig/PoH continue.
+
 1. Download: https://hackme.tech/downloads.html → **HackMe-Setup.exe** (recommended) or portable zip.
-2. Run the installer — pool token is **preconfigured**.
+2. Run the installer — pool token is **preconfigured**; Setup must include `workerfuzz.exe` (Dig).
 3. Launch **HackMe Miner** from the Start menu or desktop shortcut.
 4. Dashboard → verify worker connects to `https://hackme.tech/pool/coordinator`.
 5. Register payout wallet (`HMC-…`) on the coordinator for your worker ID.
 
+Smoke checklist (no Hunt engines): `bash scripts/ops/windows_miner_ootb_checklist.sh`.
+
 ## New miner (Linux / second PC)
 
 ```bash
-bash scripts/ops/new_miner_journey_gate.sh
-# WORKER_ID=worker-my-pc-02 WORKER_SMOKE_SEC=90 bash scripts/ops/new_miner_journey_gate.sh
+bash scripts/ops/linux_miner_journey_gate.sh
+# WORKER_ID=worker-my-pc-02 WORKER_SMOKE_SEC=90 bash scripts/ops/linux_miner_journey_gate.sh
 ```
 
 ## Verify pool health

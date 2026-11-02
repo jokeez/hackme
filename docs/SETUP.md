@@ -107,7 +107,7 @@ go build -tags cuda -o bin/workerpoh-cuda ./cmd/workerpoh   # or opencl / cpu
 bin/workerpoh-cuda -coord "$COORD_URL" -token "$COORD_TOKEN" -worker "$WORKER_ID" -batch 4194304
 ```
 
-Smoke: `bash scripts/ops/new_miner_journey_gate.sh`
+Smoke: `bash scripts/ops/linux_miner_journey_gate.sh` (Windows Dig/PoH: `windows_miner_ootb_checklist.sh`)
 
 ---
 
@@ -124,7 +124,7 @@ Smoke: `bash scripts/ops/new_miner_journey_gate.sh`
 bash scripts/ops/start_pool_miner.sh                 # golden path + pool row wait
 bash scripts/ops/miner_happiness_check.sh          # pool health
 bash scripts/tests/public_site_smoke.sh            # hackme.tech pages + ISO size
-bash scripts/ops/run_miner_launch_gate.sh          # full RC gate (operators)
+bash scripts/tests/customer_dig_hunt_settle_ack_gate.sh  # Dig/Hunt/settle honesty gate
 ```
 
 Local UI tests (node on :8080):

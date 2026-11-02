@@ -14,6 +14,8 @@
 5. Keep the **HackMe Miner** window open (node is spinning in it). The worker starts on its own in ~10 s.
 6. **Watchdog:** if the GPU/worker fails — `watchdog_pool_worker.bat` and node will restart mining automatically (log: `logs\watchdog_worker.log`).
 
+**What Windows runs OOTB:** PoH mining + **Dig** (`workerfuzz.exe`). Hunt coverage engines (libFuzzer / AFL++ / bubblewrap) are **Linux-only** — the Windows bundle does not install them and does not promise Hunt engine pay; Hunt leases soft-skip while Dig/PoH continue.
+
 **The pool token is not needed manually** — it is in `pool.miner.token` inside the installer.
 
 **If hashrate stays 0 / claims 403 `payout_address_locked`:** the hostname `WORKER_ID` was reused with a new miner seed. Set a new `WORKER_ID=` in `hackme.env` (or re-run `write_hackme_env.ps1`, which mints a unique suffix on fresh installs) and restart the miner. Keep the same seed if you only meant to upgrade in place.

@@ -2,14 +2,14 @@
 
 Distributed **coverage-guided Hunt** — not an OSS-Fuzz replacement, and **not** “better than OSS-Fuzz.” Dig stays WASM + own mutator; AFL++/libFuzzer never enter Dig.
 
-**Inventory / Heavywire:** catalog + customer inventory fleet leases use **libFuzzer** + published ASAN stdin harness by default; Deep/long profile prefers **AFL++** when `afl-fuzz` is present.
+**Inventory / Heavywire:** catalog + customer inventory fleet leases use **libFuzzer** + published ASAN stdin harness by default. **Deep/Standard package = longer lease profile**, not automatic AFL++. AFL++ only when `hunt_engine=aflpp` is stamped **or** hub/miner sets `HACKME_HUNT_ENGINE_DEEP_AFL=1` (default **OFF** — published harnesses are LF/ASAN; bare `afl-fuzz` on them soft-skips).
 
 ## Engines
 
 | Engine | Role | Claim `hunt_engine` |
 |--------|------|---------------------|
-| **libFuzzer** | Fleet default (Lite/Standard/inventory) | `libfuzzer` |
-| **AFL++** | Deep / long profile when AFL present (afl-cc instrumented harness) | `aflpp` |
+| **libFuzzer** | Fleet default (Lite/Standard/Heavy/inventory) | `libfuzzer` |
+| **AFL++** | Controlled mix only: explicit `hunt_engine=aflpp` **or** `HACKME_HUNT_ENGINE_DEEP_AFL=1` + afl-cc harness | `aflpp` |
 | **byte** | Explicit opt-in fallback only (`HACKME_HUNT_ENGINE_BYTE_FALLBACK`) | `byte` |
 
 ## Claim / submit contract

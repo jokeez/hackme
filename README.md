@@ -42,7 +42,7 @@ HackMe is a mining network where rigs run fuzzing jobs ordered by developers —
 |------|---------|
 | **Mine** | Public HTTP pool · CUDA / OpenCL / CPU · hybrid Ed25519 submits · **HMC** share-PPS · **SUP** loyalty |
 | **Dig** | Customer packs (Scan / Audit / Deep) · pool workers · report + CI gate · unused bounty refunded |
-| **Hunt** | Coverage-guided fleet (libFuzzer · AFL++ Heavy) · Lite / Standard / Heavy · report + escrow |
+| **Hunt** | Coverage-guided fleet (**libFuzzer** default · AFL++ opt-in) · Lite / Standard / Heavy · report + escrow |
 | **Exchange** | Early access desk at [exchange.hackme.tech](https://exchange.hackme.tech/) — live matching + HMC/SUP custody; not a CEX listing |
 | **Research** | Public ledgers (Hunt Watch, OSS CVE Watch, Bitcoin30) — evidence, not hype |
 
@@ -141,7 +141,7 @@ GPU backends: [GPU_MINING_BACKENDS.md](docs/GPU_MINING_BACKENDS.md).
 | Product | Escrow | What you buy |
 |---------|--------|----------------|
 | **Dig · Scan / Audit / Deep** | 20/80 smoke · 40/60 Deep | WASM campaign on *your* guards · pool-distributed Dig (no AFL/LF in Dig) |
-| **Hunt · Lite / Standard / Heavy** | 50/50 | **Coverage-guided** libFuzzer / AFL++ on the pool · coordinator **ASAN + afl-showmap** prove · escrow report — distributed Hunt, **not** an OSS-Fuzz replacement |
+| **Hunt · Lite / Standard / Heavy** | 50/50 | **Coverage-guided** libFuzzer (default) · AFL++ only via explicit `hunt_engine=aflpp` / `DEEP_AFL=1` · coordinator **ASAN + afl-showmap** prove · escrow report — distributed Hunt, **not** an OSS-Fuzz replacement |
 
 ```bash
 hackme-fuzzing wizard --pack filter_utf8 --package audit
@@ -159,7 +159,7 @@ bash scripts/ops/install_hunt_engines.sh --desktop   # clang + AFL++ + bwrap (au
 |--------------|------|------------------|
 | Lite | 20 | libFuzzer fleet wall |
 | Standard | 60 | libFuzzer fleet wall |
-| Heavy | 150+ | AFL++ when present |
+| Heavy | 150+ | libFuzzer deep wall (AFL++ only if stamped / `DEEP_AFL=1`) |
 
 Pay: proven showmap edges and/or ASAN crash = full PayRun; CLEAN without delta = floor. Byte fallback OFF. Linux miners: engines install on `install_hackme` / `update_hackme_miner` / firstboot (opt-out `HACKME_SKIP_HUNT_ENGINES=1`).
 

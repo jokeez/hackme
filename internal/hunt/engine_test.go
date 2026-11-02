@@ -130,3 +130,44 @@ func TestHuntEngineFromConfigMonochromePerCampaign(t *testing.T) {
 		t.Fatalf("campaign engine must be stable libfuzzer, got %q/%q", e1, e2)
 	}
 }
+
+// Controlled LF/AFL mix: default fleet stays libfuzzer; AFL only via explicit stamp or DEEP_AFL opt-in.
+// Inventory never aflpp. Deep package alone must not flip to aflpp.
+func TestControlledLfAflMix(t *testing.T) {
+	t.Setenv("HACKME_HUNT_ENGINE", "")
+	t.Setenv("HACKME_HUNT_ENGINE_DEEP_AFL", "")
+
+	lf := map[string]any{"hunt_package": "hunt_lite", "hunt_source": "catalog"}
+	ApplyCoverageEngineDefaults(lf, "hunt_lite")
+	if HuntEngineFromConfig(lf) != EngineLibFuzzer {
+		t.Fatalf("lite default want libfuzzer got %q", HuntEngineFromConfig(lf))
+	}
+
+	std := map[string]any{"hunt_package": "hunt_standard", "hunt_source": "catalog"}
+	ApplyCoverageEngineDefaults(std, "hunt_standard")
+	if HuntEngineFromConfig(std) != EngineLibFuzzer {
+		t.Fatalf("standard without DEEP_AFL must stay libfuzzer, got %q", HuntEngineFromConfig(std))
+	}
+	if EngineProfileFromConfig(std) != EngineProfileDeep {
+		t.Fatalf("standard profile want deep got %q", EngineProfileFromConfig(std))
+	}
+
+	afl := map[string]any{"hunt_package": "hunt_heavy", "hunt_source": "catalog", "hunt_engine": "aflpp"}
+	if HuntEngineFromConfig(afl) != EngineAFLPP {
+		t.Fatalf("explicit aflpp want aflpp got %q", HuntEngineFromConfig(afl))
+	}
+
+	t.Setenv("HACKME_HUNT_ENGINE_DEEP_AFL", "1")
+	deepAuto := map[string]any{"hunt_package": "hunt_heavy", "hunt_source": "catalog"}
+	if HuntEngineFromConfig(deepAuto) != EngineAFLPP {
+		t.Fatalf("DEEP_AFL=1 heavy want aflpp got %q", HuntEngineFromConfig(deepAuto))
+	}
+
+	inv := map[string]any{
+		"hunt_source": "inventory", "hunt_package": "hunt_standard",
+		"hunt_engine": "aflpp", "upstream_target_id": "inv_fuzz_parse_c",
+	}
+	if HuntEngineFromConfig(inv) != EngineLibFuzzer {
+		t.Fatalf("inventory must coerce aflpp→libfuzzer, got %q", HuntEngineFromConfig(inv))
+	}
+}

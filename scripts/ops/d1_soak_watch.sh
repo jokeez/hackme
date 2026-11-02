@@ -18,6 +18,8 @@ SETTLEMENT_PRIMARY="${SETTLEMENT_PRIMARY:-HMC-dfc143732a1fc3bc}"
 SETTLEMENT_FLOAT_LEGACY="${SETTLEMENT_FLOAT_LEGACY:-HMC-381c0c5e2cfcc714}"
 OUT_JSONL="${OUT_JSONL:-$ROOT/logs/d1-soak/watch.jsonl}"
 MAX_REJECT_PCT="${MAX_REJECT_PCT:-5}"
+# After coordinator restart counters reset — ignore reject_pct until enough samples.
+MIN_RELAY_SAMPLES="${MIN_RELAY_SAMPLES:-40}"
 MAX_FLEET_UNPAID_HMC="${MAX_FLEET_UNPAID_HMC:-200}"
 REQUIRE_FLOAT_COVERS_UNPAID="${REQUIRE_FLOAT_COVERS_UNPAID:-1}"
 STRICT="${STRICT:-0}"
@@ -34,11 +36,13 @@ curl -fsS --max-time 15 -A "$UA" "${CHAIN_API%/}/address/${SETTLEMENT_PRIMARY}" 
 curl -fsS --max-time 15 -A "$UA" "${CHAIN_API%/}/address/${SETTLEMENT_FLOAT_LEGACY}" -o "$tmp/leg.json" || echo '{}' >"$tmp/leg.json"
 
 python3 - "$tmp" "$OUT_JSONL" "$MAX_REJECT_PCT" "$MAX_FLEET_UNPAID_HMC" \
-  "$REQUIRE_FLOAT_COVERS_UNPAID" "$STRICT" "$SETTLEMENT_PRIMARY" "$SETTLEMENT_FLOAT_LEGACY" <<'PY'
+  "$REQUIRE_FLOAT_COVERS_UNPAID" "$STRICT" "$SETTLEMENT_PRIMARY" "$SETTLEMENT_FLOAT_LEGACY" \
+  "$MIN_RELAY_SAMPLES" <<'PY'
 import json, sys, time
-tmp, out_path, max_rej, max_unpaid, need_cover, strict, prim_addr, leg_addr = sys.argv[1:9]
+tmp, out_path, max_rej, max_unpaid, need_cover, strict, prim_addr, leg_addr, min_samples = sys.argv[1:10]
 max_rej = float(max_rej)
 max_unpaid = float(max_unpaid)
+min_samples = int(float(min_samples))
 need_cover = need_cover not in ("0", "false", "False", "")
 strict = strict in ("1", "true", "True", "yes")
 
@@ -54,8 +58,7 @@ reject_pct = (100.0 * rej / tot) if tot else None
 unpaid = float(settle.get("fleet_unpaid_hmc") or settle.get("total_unpaid_hmc") or 0)
 prim_bal = float((prim or {}).get("balance_hmc") or 0)
 leg_bal = float((leg or {}).get("balance_hmc") or 0)
-# D1 coinbase lands on primary; legacy float is still a live settlement buffer.
-# Cover = primary + legacy (not primary alone — sweep keeps primary thin by design).
+# Settler pays from primary (node wallet). Legacy is observability-only — do not treat it as cover.
 combined = prim_bal + leg_bal
 local_poh = status.get("chain_leader_local_poh")
 tip = status.get("canonical_tip_height") or stats.get("tip_height")
@@ -85,11 +88,17 @@ if local_poh is True:
 if str(stats.get("baseline_relay_mode") or "").lower() not in ("on", "1", "true"):
     hard.append("relay_not_on")
 if reject_pct is not None and reject_pct > max_rej:
-    hard.append(f"reject_pct>{max_rej}")
+    if tot >= min_samples:
+        hard.append(f"reject_pct>{max_rej}")
+    else:
+        soft.append(f"reject_pct>{max_rej}_warmup_n={int(tot)}")
 if unpaid > max_unpaid:
     hard.append(f"fleet_unpaid>{max_unpaid}")
 if stats.get("share_strict") is not True and str(stats.get("share_strict")).lower() not in ("1", "true"):
     soft.append("share_strict_off")
+# Prefer primary: settler cannot spend legacy. combined-only cover is a soft WARN.
+if need_cover and not row["primary_covers_unpaid"]:
+    soft.append("settler_payer_shortfall")
 if need_cover and not row["float_covers_unpaid"]:
     soft.append("combined_float_below_unpaid")
 row["hard_alerts"] = hard
@@ -97,14 +106,12 @@ row["soft_alerts"] = soft
 row["ok"] = not hard and (not strict or not soft)
 with open(out_path, "a", encoding="utf-8") as f:
     f.write(json.dumps(row, separators=(",", ":")) + "\n")
-print("[d1-soak] tip=%s local_poh=%s reject_pct=%s unpaid=%.4f primary=%.4f legacy=%.4f combined=%.4f" % (
-    tip, local_poh, row["reject_pct"], unpaid, prim_bal, leg_bal, combined))
+print("[d1-soak] tip=%s local_poh=%s reject_pct=%s unpaid=%.4f primary=%.4f legacy=%.4f combined=%.4f primary_covers=%s" % (
+    tip, local_poh, row["reject_pct"], unpaid, prim_bal, leg_bal, combined, row["primary_covers_unpaid"]))
 if hard:
     print("[d1-soak] HARD:", ", ".join(hard), file=sys.stderr)
 if soft:
     print("[d1-soak] WARN:", ", ".join(soft), file=sys.stderr)
-elif need_cover and not row["primary_covers_unpaid"]:
-    print("[d1-soak] NOTE: primary thin (%.4f) but legacy+primary cover unpaid" % prim_bal, file=sys.stderr)
 if hard:
     raise SystemExit(1)
 if strict and soft:

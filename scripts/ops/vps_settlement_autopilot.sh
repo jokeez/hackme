@@ -68,10 +68,13 @@ fi
 fleet_unpaid="$(curl -fsS --max-time 8 "${CHAIN_BASE}/api/worker/settlement" 2>/dev/null \
   | jq -r '.fleet_unpaid_hmc // .total_unpaid_hmc // 0' 2>/dev/null || echo 0)"
 treasury="$(curl -fsS --max-time 8 "${CHAIN_BASE}/api/address/${TREASURY_ADDR}" | jq -r '.balance_hmc // 0' 2>/dev/null || echo 0)"
+# Settler spends TREASURY_ADDR (hub: primary node wallet). Never treat legacy float as spendable cover.
+SETTLEMENT_PRIMARY="${SETTLEMENT_PRIMARY:-${TREASURY_ADDR}}"
+primary_bal="$(curl -fsS --max-time 8 "${CHAIN_BASE}/api/address/${SETTLEMENT_PRIMARY}" | jq -r '.balance_hmc // 0' 2>/dev/null || echo 0)"
 
 if python3 -c "import sys; sys.exit(0 if float(sys.argv[1])<5 and float(sys.argv[2])>10 else 1)" \
-  "$treasury" "$fleet_unpaid" 2>/dev/null; then
-  echo "$LOG_TAG ALERT treasury=${treasury} HMC fleet_unpaid=${fleet_unpaid} HMC — catch-up expected" >&2
+  "$primary_bal" "$fleet_unpaid" 2>/dev/null; then
+  echo "$LOG_TAG ALERT primary=${primary_bal} HMC fleet_unpaid=${fleet_unpaid} HMC — settler_payer_shortfall" >&2
 fi
 
 if bash "${DEPLOY}/scripts/ops/ensure_settlement_treasury_float.sh"; then
@@ -81,17 +84,22 @@ else
 fi
 
 treasury="$(curl -fsS --max-time 8 "${CHAIN_BASE}/api/address/${TREASURY_ADDR}" | jq -r '.balance_hmc // 0' 2>/dev/null || echo "$treasury")"
+primary_bal="$(curl -fsS --max-time 8 "${CHAIN_BASE}/api/address/${SETTLEMENT_PRIMARY}" | jq -r '.balance_hmc // 0' 2>/dev/null || echo "$primary_bal")"
 
 HACKME_DB="${HACKME_DB:-${DEPLOY}/data/hackme.db}" \
   MAX_GENESIS_TOPUP_24H_HMC="${MAX_GENESIS_TOPUP_24H_HMC}" \
   FLEET_UNPAID_HMC="$fleet_unpaid" \
-  SETTLEMENT_BALANCE_HMC="$treasury" \
+  SETTLEMENT_BALANCE_HMC="$primary_bal" \
   bash "${DEPLOY}/scripts/ops/treasury_bootstrap_guard.sh" \
   || echo "$LOG_TAG WARN treasury bootstrap guard"
 
-# Nudge settlement when treasury can cover meaningful payouts (half of min float).
+# Nudge settlement only when primary can cover a meaningful chunk (not legacy float).
 settle_min="$(python3 -c "print(max(1.0, float('${MIN_FLOAT_HMC}')*0.5))")"
-if python3 -c "import sys; sys.exit(0 if float(sys.argv[1])>=float(sys.argv[2]) else 1)" "$treasury" "$settle_min" 2>/dev/null; then
+chunk_need="$(python3 -c "import sys; u=float(sys.argv[1]); m=float(sys.argv[2]); print(min(u,m) if u>0 else m)" "$fleet_unpaid" "$settle_min")"
+if python3 -c "import sys; sys.exit(0 if float(sys.argv[1])+1e-12 < float(sys.argv[2]) else 1)" \
+  "$primary_bal" "$chunk_need" 2>/dev/null; then
+  echo "$LOG_TAG SKIP settle: primary=${primary_bal} < need=${chunk_need} (unpaid=${fleet_unpaid}) — heal primary float first" >&2
+elif python3 -c "import sys; sys.exit(0 if float(sys.argv[1])>=float(sys.argv[2]) else 1)" "$primary_bal" "$settle_min" 2>/dev/null; then
   export ADMIN_TOKEN="${ADMIN_TOKEN:-${HACKME_ADMIN_TOKEN:-}}"
   if [[ -n "${ADMIN_TOKEN:-}" ]]; then
   set +e
@@ -117,4 +125,4 @@ if python3 -c "import sys; sys.exit(0 if float(sys.argv[1])>=float(sys.argv[2]) 
   fi
 fi
 
-echo "$LOG_TAG treasury=${treasury} HMC fleet_unpaid=${fleet_unpaid} HMC done"
+echo "$LOG_TAG primary=${primary_bal} treasury=${treasury} HMC fleet_unpaid=${fleet_unpaid} HMC done"

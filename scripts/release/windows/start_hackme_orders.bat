@@ -113,7 +113,7 @@ if not "!HAS_ORDERS_PUBLISH!"=="1" (
     echo Set scoped pool publish token from pool.orders.token
   ) else (
     echo.
-    echo NOTE: no pool.orders.token yet — local Dig/Hunt still work.
+    echo NOTE: no pool.orders.token yet — local Dig still works; Hunt engines need Linux pool miners.
     echo rc18.1+ Orders bundles ship a scoped publish token; or save one as:
     echo   %APP_DIR%\pool.orders.token
     echo.
@@ -142,7 +142,7 @@ if "!HACKME_POOL_COORDINATOR_URL!"=="" set "HACKME_POOL_COORDINATOR_URL=https://
 set "HACKME_REPO_ROOT=%APP_DIR%"
 
 echo.
-echo Starting HackMe Orders ^(local node for Dig / Hunt^)...
+echo Starting HackMe Orders ^(local Dig node; Hunt coverage = Linux pool^)...
 echo Install:   %APP_DIR%
 echo Dashboard: %BASE_URL%/#orders
 echo Data:      !HACKME_DATA_DIR!

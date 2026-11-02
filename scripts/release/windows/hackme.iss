@@ -146,7 +146,7 @@ Name: "{app}\logs\orders"; Permissions: users-modify
 
 [Icons]
 Name: "{group}\{#MyAppName} Miner"; Filename: "{app}\start_hackme_miner.bat"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Comment: "Public pool miner — hackme.tech"
-Name: "{group}\{#MyAppName} Orders"; Filename: "{app}\start_hackme_orders.bat"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Comment: "B2B Dig/Hunt orders — local node"
+Name: "{group}\{#MyAppName} Orders"; Filename: "{app}\start_hackme_orders.bat"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Comment: "B2B Dig orders — Hunt coverage runs on Linux pool"
 Name: "{group}\{#MyAppName} Dashboard"; Filename: "http://127.0.0.1:8080/"; IconFilename: "{app}\{#MyAppExeName}"
 Name: "{group}\Configure miner"; Filename: "{app}\setup_hackme_miner.bat"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"
 Name: "{group}\Check for updates"; Filename: "{app}\update_hackme_miner.bat"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Comment: "Fetch latest.json and update HackMe (keeps hackme.env)"
