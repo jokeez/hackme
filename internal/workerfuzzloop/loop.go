@@ -345,7 +345,8 @@ func Run(ctx context.Context, cfg Config, st *Stats) error {
 func runOne(ctx context.Context, cfg Config, base string, st *Stats, pbuf *prefetchBuf) {
 	batchN := cfg.BatchClaim
 	if batchN <= 0 {
-		batchN = EnvInt("HACKME_WORKER_BATCH_CLAIM", 1)
+		// Default 2 amortizes claim RTT for Dig; Hunt coverage still processes sequentially.
+		batchN = EnvInt("HACKME_WORKER_BATCH_CLAIM", 2)
 	}
 	if batchN > poolfuzz.MaxBatchClaimSubmit {
 		batchN = poolfuzz.MaxBatchClaimSubmit
@@ -393,6 +394,12 @@ func runOne(ctx context.Context, cfg Config, base string, st *Stats, pbuf *prefe
 		}
 		return
 	}
+	// Hunt shards (esp. coverage 180–300s walls) must not sit idle while another
+	// runs — release unstarted extras so Dig can keep default batch=2.
+	claims = releaseExtraHuntBatchClaims(ctx, cfg, base, claims)
+	if len(claims) == 0 {
+		return
+	}
 	// Prefetch only for single-claim Dig path (batch already amortizes RTT).
 	if batchN <= 1 && !IsHuntClaim(claims[0]) {
 		startPrefetch(ctx, cfg, base, pbuf)
@@ -400,6 +407,22 @@ func runOne(ctx context.Context, cfg Config, base string, st *Stats, pbuf *prefe
 	for i := range claims {
 		processClaim(ctx, cfg, base, st, &claims[i])
 	}
+}
+
+// releaseExtraHuntBatchClaims keeps the first Hunt claim and releases the rest.
+// Dig batches are unchanged. Pure helper for tests when releaseFn is injected via
+// the default ReleaseLease path.
+func releaseExtraHuntBatchClaims(ctx context.Context, cfg Config, base string, claims []ClaimResp) []ClaimResp {
+	if len(claims) <= 1 || !IsHuntClaim(claims[0]) {
+		return claims
+	}
+	for i := 1; i < len(claims); i++ {
+		cr := claims[i]
+		if rerr := ReleaseLease(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cr.CampaignID, cr.ItemID, cfg.PubHex, cfg.MinerAddr); rerr != nil {
+			fmt.Fprintf(os.Stderr, "%s: release extra hunt batch lease item=%d: %v\n", cfg.LogPrefix, cr.ItemID, rerr)
+		}
+	}
+	return claims[:1]
 }
 
 func processClaim(ctx context.Context, cfg Config, base string, st *Stats, cr *ClaimResp) {

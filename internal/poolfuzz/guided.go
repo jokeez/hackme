@@ -94,6 +94,9 @@ func (s *Service) buildClaimedWork(ctx context.Context, campaignID string, itemI
 	digGPU := fuzzengine.DigGPUMutatorsEnabled(cfg)
 	exploreV2 := fuzzengine.CorpusExploreV2Enabled(cfg)
 	mutDict := fuzzengine.ParseMutatorDict(cfg)
+	// Trim before shipping claim JSON; SubmitWithOutcome applies the same helper
+	// on coordinator cfg so Dig byteAnchorBase stays claim/replay identical.
+	applySeedByteCorpusWireTrim(cfg)
 	var seedCorpus []any
 	if raw, ok := cfg["seed_byte_corpus"]; ok && raw != nil {
 		if list, ok := raw.([]any); ok && len(list) > 0 {

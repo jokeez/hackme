@@ -30,6 +30,23 @@ func seedCorpusWireCaps() (maxItems, maxBytes int) {
 	return maxItems, maxBytes
 }
 
+// applySeedByteCorpusWireTrim mutates cfg["seed_byte_corpus"] in place so Dig
+// claim and submit/replay use the same capped list (byteAnchorBase parity).
+func applySeedByteCorpusWireTrim(cfg map[string]any) {
+	if cfg == nil {
+		return
+	}
+	raw, ok := cfg["seed_byte_corpus"]
+	if !ok || raw == nil {
+		return
+	}
+	list, ok := raw.([]any)
+	if !ok || len(list) == 0 {
+		return
+	}
+	cfg["seed_byte_corpus"] = TrimSeedByteCorpusForWire(list)
+}
+
 // TrimSeedByteCorpusForWire caps seed_byte_corpus for claim/replay wire parity.
 // Call after guided L2 merge on both claim and async replay so workers and
 // verifiers see the same truncated list (order preserved, first-fit).

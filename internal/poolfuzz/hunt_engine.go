@@ -62,20 +62,39 @@ func noteLeaseProven(campaignID string, itemID int64, seeds, edges, crashes int,
 }
 
 // noteLeaseProvenPersist updates in-memory track and durable fuzz_work_items columns (M3).
-func (s *Service) noteLeaseProvenPersist(ctx context.Context, campaignID string, itemID int64, seeds, edges, crashes int, engine, version string) {
-	noteLeaseProven(campaignID, itemID, seeds, edges, crashes, engine, version)
-	if s == nil || s.DB == nil || itemID <= 0 {
+// Writes are bound to the active lease_owner so a stolen/expired lease cannot credit
+// predecessor prove into a successor PayRun (release / re-lease zero counters).
+func (s *Service) noteLeaseProvenPersist(ctx context.Context, campaignID string, itemID int64, leaseOwner string, seeds, edges, crashes int, engine, version string) {
+	leaseOwner = strings.TrimSpace(leaseOwner)
+	if s == nil || s.DB == nil || itemID <= 0 || leaseOwner == "" {
 		return
 	}
-	_, _ = s.DB.ExecContext(ctx, `
+	res, err := s.DB.ExecContext(ctx, `
 		UPDATE fuzz_work_items
 		   SET hunt_proven_seeds = hunt_proven_seeds + ?,
 		       hunt_proven_edges = hunt_proven_edges + ?,
 		       hunt_proven_crashes = hunt_proven_crashes + ?,
 		       hunt_proven_engine = CASE WHEN ? != '' THEN ? ELSE hunt_proven_engine END,
 		       hunt_proven_engine_ver = CASE WHEN ? != '' THEN ? ELSE hunt_proven_engine_ver END
-		 WHERE campaign_id = ? AND id = ?`,
-		seeds, edges, crashes, engine, engine, version, version, campaignID, itemID)
+		 WHERE campaign_id = ? AND id = ? AND status = 'leased' AND lease_owner = ?`,
+		seeds, edges, crashes, engine, engine, version, version, campaignID, itemID, leaseOwner)
+	if err != nil {
+		return
+	}
+	aff, _ := res.RowsAffected()
+	if aff == 0 {
+		return
+	}
+	// Re-check ownership before memory note: release/re-lease may have cleared
+	// between UPDATE and here; pending claim only zeros DB columns.
+	var owner, status string
+	if s.DB.QueryRowContext(ctx,
+		`SELECT COALESCE(lease_owner,''), COALESCE(status,'') FROM fuzz_work_items
+		  WHERE campaign_id=? AND id=?`, campaignID, itemID).Scan(&owner, &status) != nil ||
+		status != "leased" || owner != leaseOwner {
+		return
+	}
+	noteLeaseProven(campaignID, itemID, seeds, edges, crashes, engine, version)
 }
 
 func takeLeaseProven(campaignID string, itemID int64) leaseProvenTrack {
@@ -124,8 +143,10 @@ func (s *Service) takeLeaseProvenPersist(ctx context.Context, campaignID string,
 
 // stampHuntProvenOnSubmit writes final lease prove fields after engine submit
 // (worker hunt_engine / engine_version + coordinator-proven counters).
-func (s *Service) stampHuntProvenOnSubmit(ctx context.Context, campaignID string, itemID int64, proven leaseProvenTrack, engine, version string) {
-	if s == nil || s.DB == nil || itemID <= 0 {
+// Bound to lease_owner so a late predecessor submit cannot overwrite a successor's reset.
+func (s *Service) stampHuntProvenOnSubmit(ctx context.Context, campaignID string, itemID int64, leaseOwner string, proven leaseProvenTrack, engine, version string) {
+	leaseOwner = strings.TrimSpace(leaseOwner)
+	if s == nil || s.DB == nil || itemID <= 0 || leaseOwner == "" {
 		return
 	}
 	eng := strings.TrimSpace(engine)
@@ -143,8 +164,8 @@ func (s *Service) stampHuntProvenOnSubmit(ctx context.Context, campaignID string
 		       hunt_proven_crashes=?,
 		       hunt_proven_engine=?,
 		       hunt_proven_engine_ver=?
-		 WHERE campaign_id=? AND id=?`,
-		proven.ProvenEdges, proven.SeedsAccepted, proven.CrashesOK, eng, ver, campaignID, itemID)
+		 WHERE campaign_id=? AND id=? AND status='leased' AND lease_owner=?`,
+		proven.ProvenEdges, proven.SeedsAccepted, proven.CrashesOK, eng, ver, campaignID, itemID, leaseOwner)
 }
 
 func peekLeaseProven(campaignID string, itemID int64) leaseProvenTrack {

@@ -123,7 +123,37 @@ func (s *Service) seedPoolCorpusFromConfig(ctx context.Context, campaignID strin
 	return nil
 }
 
+type corpusExec interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
 func (s *Service) upsertPoolCorpusSeed(ctx context.Context, campaignID string, input uint64, inputBytes []byte, energy, edge, path int, crash bool, now int64) error {
+	if s == nil || s.DB == nil {
+		return fmt.Errorf("poolfuzz: no database")
+	}
+	return upsertPoolCorpusSeedExec(ctx, s.DB, campaignID, input, inputBytes, energy, edge, path, crash, now)
+}
+
+// upsertPoolCorpusSeedsBatch writes many pool corpus rows in one transaction
+// (Hunt corpus_delta path — avoids per-seed autocommit latency).
+func (s *Service) upsertPoolCorpusSeedsBatch(ctx context.Context, campaignID string, seeds []fuzzengine.PoolCorpusSeed, now int64) error {
+	if s == nil || s.DB == nil || len(seeds) == 0 {
+		return nil
+	}
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	for _, seed := range seeds {
+		if err := upsertPoolCorpusSeedExec(ctx, tx, campaignID, seed.Input, seed.InputBytes, seed.Energy, seed.Edge, seed.Path, seed.Crash, now); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func upsertPoolCorpusSeedExec(ctx context.Context, db corpusExec, campaignID string, input uint64, inputBytes []byte, energy, edge, path int, crash bool, now int64) error {
 	if energy < 1 {
 		energy = 1
 	}
@@ -139,7 +169,7 @@ func (s *Service) upsertPoolCorpusSeed(ctx context.Context, campaignID string, i
 			inputBytes = marker
 		}
 	}
-	_, err := s.DB.ExecContext(ctx,
+	_, err := db.ExecContext(ctx,
 		`INSERT INTO fuzz_pool_corpus
 		 (campaign_id, input_u64, input_bytes, energy, edge_bucket, path_bucket, is_crash, first_seen_at, last_seen_at, exec_count)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
@@ -603,6 +633,8 @@ func ValidCorpusNamespace(ns string) bool {
 }
 
 // UpsertNamespaceCorpusSeeds merges coordinator/node namespace corpus rows.
+// Uses one SQLite transaction so corpus_delta with many seeds does not pay
+// fsync-per-row under WAL (idle claim path stays on autocommit elsewhere).
 func (s *Service) UpsertNamespaceCorpusSeeds(ctx context.Context, namespace string, seeds []fuzzengine.PoolCorpusSeed, now int64) error {
 	if s == nil || s.DB == nil || namespace == "" {
 		return nil
@@ -611,6 +643,14 @@ func (s *Service) UpsertNamespaceCorpusSeeds(ctx context.Context, namespace stri
 	if !ValidCorpusNamespace(namespace) {
 		return fmt.Errorf("poolfuzz: invalid corpus namespace")
 	}
+	if len(seeds) == 0 {
+		return nil
+	}
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
 	for _, seed := range seeds {
 		if seed.Crash {
 			continue
@@ -623,7 +663,7 @@ func (s *Service) UpsertNamespaceCorpusSeeds(ctx context.Context, namespace stri
 		if inputBytes == nil {
 			inputBytes = []byte{}
 		}
-		_, err := s.DB.ExecContext(ctx,
+		_, err := tx.ExecContext(ctx,
 			`INSERT INTO fuzz_corpus_namespace
 			 (namespace, input_u64, input_bytes, energy, edge_bucket, path_bucket, is_crash, first_seen_at, last_seen_at, exec_count)
 			 VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, 1)
@@ -641,7 +681,7 @@ func (s *Service) UpsertNamespaceCorpusSeeds(ctx context.Context, namespace stri
 			return err
 		}
 	}
-	return nil
+	return tx.Commit()
 }
 
 // ListNamespaceCorpus returns persisted cross-campaign seeds for a namespace.

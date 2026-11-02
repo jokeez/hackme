@@ -26,7 +26,7 @@ If `HACKME_COORDINATOR_FUZZ_DB` is unset, fuzz shares the main DB (compat).
 | POST | `/api/fuzz/work/submit_batch` | worker | Submit up to **16** items; each row auth’d; foreign leases fail that row only |
 | GET | `/api/fuzz/pool/stats` | public | Queue depth / runs done |
 
-Worker opt-in: `HACKME_WORKER_BATCH_CLAIM=N` (2–16). Dig WASM stays warm across shards via sandbox compile cache (`HACKME_WORKER_WARM_HARNESS=0` to disable pre-validate). Prefetch next Dig claim while current runs: `HACKME_WORKER_PREFETCH` default ON (`=0` to disable). Claim-light: `HACKME_POOL_CLAIM_LIGHT` default ON when `HACKME_POOL_CORPUS_DIR` is set.
+Worker batch: `HACKME_WORKER_BATCH_CLAIM=N` (default **2** for Dig RTT, max 16). Hunt claims in a batch keep only the first shard and **release** unstarted extras (coverage walls 180–300s). Dig WASM stays warm across shards via sandbox compile cache (`HACKME_WORKER_WARM_HARNESS=0` to disable pre-validate). Prefetch next Dig claim while current runs: `HACKME_WORKER_PREFETCH` default ON when batch≤1 (`=0` to disable); batch≥2 already amortizes RTT so prefetch stays off. Claim-light: `HACKME_POOL_CLAIM_LIGHT` default ON when `HACKME_POOL_CORPUS_DIR` is set. Idle claim negative cache: `HACKME_POOL_EMPTY_CLAIM_MS` (default **400**).
 
 Claim JSON includes: `exec_per_unit`, `max_input_bytes`, `coverage_kind`, `corpus_snapshot_sha256` (when guided). Fat `corpus_seeds[]` may be omitted when claim-light is on (`corpus_light: true` + sha) — worker fetches via `POST /api/fuzz/work/corpus_snapshot` under its lease. Hunt claims already prefer `harness_hash` / `harness_content_sha256`.
 

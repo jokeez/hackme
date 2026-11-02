@@ -555,6 +555,7 @@ func (s *Service) runHuntReplayJob(ctx context.Context, job huntReplayJob, now i
 				return err
 			}
 		}
+		applySeedByteCorpusWireTrim(cfg)
 	}
 	expectedU, expectedB, err := s.expectedInputsForSubmit(ctx, job.CampaignID, job.ItemID, job.InputN, cfg)
 	if err != nil {

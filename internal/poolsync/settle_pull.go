@@ -245,9 +245,9 @@ func AckSettleOutboxForCampaign(ctx context.Context, campaignID string, ids []in
 		}
 	}
 	bodyMap := map[string]any{
-		"ids":              ids,
-		"confirm_applied":  true,
-		"origin_applied":   true,
+		"ids":             ids,
+		"confirm_applied": true,
+		"origin_applied":  true,
 	}
 	if campaignID != "" {
 		bodyMap["campaign_id"] = campaignID

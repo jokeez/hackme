@@ -33,6 +33,7 @@ func TestReplayCampaignSettlesRespectsRunFloor(t *testing.T) {
 		{2, "queued_floor"},
 		{3, "pending"},
 		{4, "paid"},
+		{5, ""}, // unstamped — must not invent PayRun
 	} {
 		if _, err := db.ExecContext(ctx, `
 			INSERT INTO fuzz_work_items
@@ -47,7 +48,7 @@ func TestReplayCampaignSettlesRespectsRunFloor(t *testing.T) {
 		t.Fatal(err)
 	}
 	if runs != 3 {
-		t.Fatalf("runs enqueued=%d want 3 (skip paid)", runs)
+		t.Fatalf("runs enqueued=%d want 3 (skip paid + empty)", runs)
 	}
 	rows, err := db.QueryContext(ctx,
 		`SELECT kind, work_item_id FROM fuzz_settle_outbox WHERE campaign_id=? ORDER BY work_item_id`, id)
