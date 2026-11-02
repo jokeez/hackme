@@ -2063,6 +2063,17 @@ func (s *Service) PoolStats(ctx context.Context) (map[string]any, error) {
 
 // CampaignProgress returns live pool progress for one marketplace campaign (public read).
 func (s *Service) CampaignProgress(ctx context.Context, campaignID string) (map[string]any, error) {
+	return s.campaignProgress(ctx, campaignID, false)
+}
+
+// CampaignProgressOwner is for authenticated Orders publish / admin owners — skips the
+// public marketplace filter so owners are not told "not found" for their own campaign
+// (field confusion when ids match gate heuristics or status is non-marketplace).
+func (s *Service) CampaignProgressOwner(ctx context.Context, campaignID string) (map[string]any, error) {
+	return s.campaignProgress(ctx, campaignID, true)
+}
+
+func (s *Service) campaignProgress(ctx context.Context, campaignID string, ownerAccess bool) (map[string]any, error) {
 	campaignID = strings.TrimSpace(campaignID)
 	if campaignID == "" {
 		return nil, fmt.Errorf("poolfuzz: campaign id required")
@@ -2080,7 +2091,7 @@ func (s *Service) CampaignProgress(ctx context.Context, campaignID string) (map[
 		return nil, err
 	}
 	cfg := parseConfigJSON(cfgJSON)
-	if !IsPublicProgressVisible(status, campaignID, title, ownerRef, cfg) {
+	if !ownerAccess && !IsPublicProgressVisible(status, campaignID, title, ownerRef, cfg) {
 		// Same as missing — do not enumerate private/internal campaigns (M9).
 		return nil, sql.ErrNoRows
 	}

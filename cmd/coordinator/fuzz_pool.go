@@ -143,14 +143,31 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
+		ownerAccess := false
 		if isPublish && !isAdmin && !coordPoolReadOK(r, adminToken, workerToken, allowInsecure) {
+			exists, err := pf.CampaignExists(r.Context(), id)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			if !exists {
+				http.Error(w, "not found", http.StatusNotFound)
+				return
+			}
 			ok, err := pf.CampaignIsOrdersPublish(r.Context(), id)
 			if err != nil || !ok {
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
+			ownerAccess = true
 		}
-		prog, err := pf.CampaignProgress(r.Context(), id)
+		var prog map[string]any
+		var err error
+		if ownerAccess || isAdmin {
+			prog, err = pf.CampaignProgressOwner(r.Context(), id)
+		} else {
+			prog, err = pf.CampaignProgress(r.Context(), id)
+		}
 		if err == sql.ErrNoRows {
 			http.Error(w, "not found", http.StatusNotFound)
 			return

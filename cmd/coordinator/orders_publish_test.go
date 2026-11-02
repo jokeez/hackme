@@ -264,6 +264,37 @@ func TestOrdersPublishAcceptsHuntHeavyBudget(t *testing.T) {
 	}
 }
 
+func TestOrdersPublishProgressOwnerAfterHeavyRegister(t *testing.T) {
+	t.Setenv("HACKME_ORDERS_PUBLISH_MAX_BUDGET_RUNS", "")
+	mux := ordersPublishMux(t)
+	id := "hunt-20261102t001542"
+	rec := publishReq(t, mux, "publish-tok", map[string]any{
+		"id": id, "budget_runs": 12000, "budget_seconds": 86400,
+		"config": map[string]any{"hunt_package": "hunt_heavy", "pool_distributed": true},
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("register want 200, got %d %s", rec.Code, rec.Body.String())
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/fuzz/pool/campaigns/progress?id="+id, nil)
+	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	req.RemoteAddr = "203.0.113.10:4444"
+	prog := httptest.NewRecorder()
+	mux.ServeHTTP(prog, req)
+	if prog.Code != http.StatusOK {
+		t.Fatalf("owner progress want 200, got %d %s", prog.Code, prog.Body.String())
+	}
+	var body map[string]any
+	if err := json.Unmarshal(prog.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body["id"] != id {
+		t.Fatalf("progress id=%v", body["id"])
+	}
+	if int(body["budget_runs"].(float64)) != 12000 {
+		t.Fatalf("budget_runs=%v", body["budget_runs"])
+	}
+}
+
 func TestOrdersPublishRejectsHuntHeavyWhenCapLow(t *testing.T) {
 	t.Setenv("HACKME_ORDERS_PUBLISH_MAX_BUDGET_RUNS", "2048")
 	mux := ordersPublishMux(t)
