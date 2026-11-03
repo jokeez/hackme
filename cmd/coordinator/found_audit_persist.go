@@ -71,7 +71,38 @@ func (m *workManager) loadFoundAudit() {
 	}
 }
 
-func (m *workManager) persistFoundAuditLocked(key string) {
+// foundAuditPersistGapSec bounds sqlite writes per identity: the hot submit path runs under
+// m.mu, and a synchronous write per submit (busy_timeout 60s) could stall every submit.
+const foundAuditPersistGapSec = 30
+
+// markFoundAuditDirtyLocked records a change; it reaches sqlite at once when force (flag
+// transition) or when the identity's last write is older than foundAuditPersistGapSec.
+// The rest is flushed on shutdown (flushFoundAuditLocked). Caller holds m.mu.
+func (m *workManager) markFoundAuditDirtyLocked(key string, force bool) {
+	st := m.foundAudit[key]
+	if st == nil {
+		return
+	}
+	st.dirty = true
+	if now := time.Now().Unix(); force || now-st.persistedUnix >= foundAuditPersistGapSec {
+		m.persistFoundAuditLocked(key, now)
+	}
+}
+
+// flushFoundAuditLocked writes every unsaved identity (graceful stop). Caller holds m.mu.
+func (m *workManager) flushFoundAuditLocked() int {
+	n := 0
+	now := time.Now().Unix()
+	for key, st := range m.foundAudit {
+		if st != nil && st.dirty {
+			m.persistFoundAuditLocked(key, now)
+			n++
+		}
+	}
+	return n
+}
+
+func (m *workManager) persistFoundAuditLocked(key string, now int64) {
 	if m == nil || m.dedupDB == nil || key == "" || foundAuditMode() == "off" {
 		return
 	}
@@ -79,7 +110,6 @@ func (m *workManager) persistFoundAuditLocked(key string) {
 	if st == nil {
 		return
 	}
-	ensureFoundAuditTable(m.dedupDB)
 	flagged := 0
 	if st.Flagged {
 		flagged = 1
@@ -91,10 +121,13 @@ ON CONFLICT(audit_key) DO UPDATE SET
   actual=excluded.actual,
   flagged=excluded.flagged,
   updated_at=excluded.updated_at`,
-		key, st.Expected, st.Actual, flagged, time.Now().Unix())
+		key, st.Expected, st.Actual, flagged, now)
 	if err != nil {
 		log.Printf("found_audit persist: %v", err)
+		return
 	}
+	st.dirty = false
+	st.persistedUnix = now
 }
 
 func (m *workManager) deleteFoundAuditLocked(key string) {
