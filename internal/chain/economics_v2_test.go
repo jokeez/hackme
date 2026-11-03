@@ -261,6 +261,9 @@ func TestEconomicsV2BurnHalvesThenFreezes(t *testing.T) {
 	if got := OrderBurnRateAt(tipFreeze); math.Abs(got-wantFreeze) > 1e-15 {
 		t.Fatalf("freeze burn got %v want %v (epoch %d)", got, wantFreeze, freeze)
 	}
+	if freeze != 2 || math.Abs(wantFreeze-0.0125) > 1e-15 {
+		t.Fatalf("burn must freeze at 1.25%% from epoch 2 (got epoch %d, %v)", freeze, wantFreeze)
+	}
 	tipPast := (freeze+3)*V2RewardHalvingIntervalBlocks + 10
 	if got := OrderBurnRateAt(tipPast); math.Abs(got-wantFreeze) > 1e-15 {
 		t.Fatalf("past-freeze burn must stay frozen: got %v want %v", got, wantFreeze)

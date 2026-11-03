@@ -221,27 +221,20 @@ func v2RewardEpoch(index uint64) uint64 {
 	return (index - 1) / V2RewardHalvingIntervalBlocks
 }
 
-// v2BurnFreezeEpoch is the first epoch where base reward is clamped at the tail floor.
+// V2OrderBurnFreezeEpoch: the order burn halves with the first two HMC halvings
+// (5% → 2.5% → 1.25%) and stays at 1.25% from epoch 2 on. Freezing only at the HMC tail
+// (epoch 6, 0.078%) would make the burn decorative: offsetting the 5.76 HMC/day tail emission
+// would need ~7 400 HMC/day of orders, versus ~460 HMC/day at 1.25%.
+const V2OrderBurnFreezeEpoch uint64 = 2
+
+// v2BurnFreezeEpoch is the epoch from which the order burn rate no longer halves.
 func v2BurnFreezeEpoch() uint64 {
-	if V2InitialBaseRewardHMC <= RewardTailFloorHMC || RewardTailFloorHMC <= 0 {
-		return 0
-	}
-	// Find smallest e with initial/2^e <= floor (same clamp as baseRewardV2).
-	e := uint64(0)
-	r := V2InitialBaseRewardHMC
-	for r > RewardTailFloorHMC+1e-15 {
-		e++
-		r = V2InitialBaseRewardHMC / math.Pow(2, float64(e))
-		if e > 64 {
-			break
-		}
-	}
-	return e
+	return V2OrderBurnFreezeEpoch
 }
 
 // OrderBurnRateAt returns the order burn fraction for orders opened at tipHeight
 // (uses tip+1 so the next block's schedule gates the open).
-// After v2: starts at 5% and halves with HMC eras, then freezes in the reward-tail era (RFC §5.2).
+// After v2: starts at 5%, halves with the first two HMC halvings, then stays at 1.25% (RFC §5.2).
 func OrderBurnRateAt(tipHeight uint64) float64 {
 	idx := tipHeight + 1
 	if !EconomicsV2ActiveForIndex(idx) {

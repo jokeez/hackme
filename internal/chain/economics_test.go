@@ -49,8 +49,12 @@ func TestNextHalvingBlock(t *testing.T) {
 	if got := NextHalvingBlock(0); got != RewardHalvingIntervalBlocks+1 {
 		t.Fatalf("from tip 0: got %d want %d", got, RewardHalvingIntervalBlocks+1)
 	}
-	if got := NextHalvingBlock(RewardHalvingIntervalBlocks); got != 2*RewardHalvingIntervalBlocks+1 {
+	// tip = interval is the last block of epoch 0: the very next block already pays half.
+	if got := NextHalvingBlock(RewardHalvingIntervalBlocks); got != RewardHalvingIntervalBlocks+1 {
 		t.Fatalf("at epoch boundary: got %d", got)
+	}
+	if BaseRewardForBlockIndex(RewardHalvingIntervalBlocks+1) >= BaseRewardForBlockIndex(RewardHalvingIntervalBlocks) {
+		t.Fatal("block interval+1 must be the halving block")
 	}
 }
 

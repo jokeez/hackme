@@ -124,8 +124,13 @@ func NextHalvingBlock(currentTipHeight uint64) uint64 {
 	if interval == 0 {
 		return 0
 	}
-	curEpoch := currentTipHeight / interval
-	return (curEpoch+1)*interval + 1
+	// First block of epoch e is e·interval+1 (epoch = (index-1)/interval). The next halving is
+	// the first such block above the tip — the next block itself when tip = k·interval.
+	if currentTipHeight == 0 {
+		return interval + 1
+	}
+	nextEpoch := (currentTipHeight-1)/interval + 1
+	return nextEpoch*interval + 1
 }
 
 // ExpectedEmptyMiningHMCPerHour estimates base-reward-only earnings at target block time.
