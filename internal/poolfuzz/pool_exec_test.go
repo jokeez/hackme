@@ -90,6 +90,9 @@ func TestLeaseSecondsHuntHeavyCappedAt360(t *testing.T) {
 }
 
 func TestLeaseSecondsHuntLibFuzzerFleet(t *testing.T) {
+	// Hermetic: parent shells / CI may set HACKME_HUNT_COVERAGE_ENGINE=0 (byte path → 204).
+	t.Setenv("HACKME_HUNT_COVERAGE_ENGINE", "1")
+	t.Setenv("HACKME_HUNT_ENGINE_LEASE_SEC", "")
 	cfg := map[string]any{
 		"work_kind":        "hunt_shard",
 		"hunt_engine":      "libfuzzer",
