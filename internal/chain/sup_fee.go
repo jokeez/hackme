@@ -109,7 +109,12 @@ func (s *Service) BurnSUPForFee(ctx context.Context, b SUPFeeBurn) (string, erro
 	if derived, err := addressFromPubKeyHex(b.PubKeyEd25519); err != nil || derived != from {
 		return "address_pubkey_mismatch", errors.New("from does not match pubkey")
 	}
-	msg := BurnSUPForFeeMessage(s.ChainID(ctx), from, b.AmountUnits, b.Product, b.Ref)
+	_, tip, err := s.supAdminMintRetiredQ(ctx, s.db)
+	if err != nil {
+		return "internal_error", err
+	}
+	// Bound to the network of the next block: hackme-mainnet-1 from the v2 activation height.
+	msg := BurnSUPForFeeMessage(s.ChainIDForIndex(ctx, tip+1), from, b.AmountUnits, b.Product, b.Ref)
 	if !ed25519.Verify(ed25519.PublicKey(pub), msg, sig) {
 		return "invalid_signature", errors.New("signature verify failed")
 	}

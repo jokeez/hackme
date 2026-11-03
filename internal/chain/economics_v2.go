@@ -172,7 +172,10 @@ func (s *Service) lockEconomicsV2ActivationTx(ctx context.Context, tx queryRowEx
 		econV2MetaOverride = rawEnv
 		econV2MetaMu.Unlock()
 	}
-	return s.lockEconomicsV2AnnounceTx(ctx, tx)
+	if err := s.lockEconomicsV2AnnounceTx(ctx, tx); err != nil {
+		return err
+	}
+	return s.lockAuthorityPubKeyTx(ctx, tx)
 }
 
 // lockEconomicsV2AnnounceTx persists announce wall-clock once (D6 soft-start origin).

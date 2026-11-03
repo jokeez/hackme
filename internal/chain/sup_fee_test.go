@@ -130,7 +130,7 @@ func TestSUPFeeRefSquatCannotBlockOpen(t *testing.T) {
 	if _, err := c.db.Exec(`INSERT INTO accounts(address, balance_units, balance_sup_units, next_nonce, sup_next_nonce, updated_at) VALUES(?,0,?,0,0,0)`, attacker, HMCToUnits(5)); err != nil {
 		t.Fatal(err)
 	}
-	cid := c.svc.ChainID(c.ctx)
+	cid := c.svc.ChainIDForIndex(c.ctx, 1) // v2 active: spends are bound to hackme-mainnet-1
 	squat := signFee(c.svc, priv, pubHex, cid, attacker, 1, SUPFeeProductHMCOrder, "campaign:dig-victim")
 	if code, err := c.svc.BurnSUPForFee(c.ctx, squat); code != "product_internal_only" || !errors.Is(err, ErrSUPFeeInternal) {
 		t.Fatalf("public hmc_order burn: code=%q err=%v", code, err)

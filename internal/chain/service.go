@@ -653,6 +653,20 @@ func (s *Service) AppendPoHBlock(ctx context.Context, minerAddress string, nonce
 		b.Timestamp = prev.Timestamp
 		b.SetHash()
 	}
+	if EconomicsV2ActiveForIndex(nextIdx) {
+		// v2 header: network id + subsidy recipient are signed with the block.
+		if s.signer == nil {
+			return nil, fmt.Errorf("%w: node signer required to produce v2 blocks", ErrV2Header)
+		}
+		b.ChainID = V2ChainID
+		if orderTaskID == "" {
+			if err := s.db.QueryRowContext(ctx, `SELECT address FROM wallet WHERE id = 1`).Scan(&b.RewardTo); err != nil {
+				return nil, err
+			}
+			b.RewardTo = strings.TrimSpace(b.RewardTo)
+		}
+		b.SetHash()
+	}
 	if ASERTActiveForIndex(nextIdx + 1) {
 		nm, err := asertModAfterQ(ctx, s.db, nextIdx, b.Timestamp)
 		if err != nil {
@@ -677,6 +691,9 @@ func (s *Service) AppendPoHBlock(ctx context.Context, minerAddress string, nonce
 	}
 	defer func() { _ = tx.Rollback() }()
 	if err := s.lockEconomicsV2ActivationTx(ctx, tx); err != nil {
+		return nil, err
+	}
+	if err := s.validateV2HeaderQ(ctx, tx, b, orderTaskID); err != nil {
 		return nil, err
 	}
 	if _, err := s.expireOpenOrderTasksTx(ctx, tx, now); err != nil {

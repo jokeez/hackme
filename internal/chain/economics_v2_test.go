@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"hackme/internal/nodecrypto"
 	"hackme/internal/store"
 )
 
@@ -199,7 +200,11 @@ func TestEconomicsV2EmptyBlockMintsSUP(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	svc := New(db)
+	signer, err := nodecrypto.LoadOrCreate(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := NewWithSigner(db, signer) // v2 blocks must carry the authority signature
 	addr := "HMC-testnode"
 	if _, _, err := svc.InitGenesis(ctx, addr); err != nil {
 		t.Fatal(err)

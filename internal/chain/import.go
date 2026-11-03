@@ -139,6 +139,9 @@ func (s *Service) ImportPoHBlock(ctx context.Context, b *block.Block) error {
 	if err := s.lockEconomicsV2ActivationTx(ctx, tx); err != nil {
 		return err
 	}
+	if err := s.validateV2HeaderQ(ctx, tx, b, orderTaskID); err != nil {
+		return err
+	}
 
 	now := b.Timestamp
 	if now <= 0 {
@@ -206,9 +209,13 @@ func (s *Service) ImportPoHBlock(ctx context.Context, b *block.Block) error {
 				return err
 			}
 		} else {
-			var rewardCreditAddr string
-			if err := tx.QueryRowContext(ctx, `SELECT address FROM wallet WHERE id = 1`).Scan(&rewardCreditAddr); err != nil {
-				return err
+			// v2: credit the signed header recipient, the same account the authority credited.
+			// Pre-v2 blocks carry none, so followers keep the legacy local-wallet credit.
+			rewardCreditAddr := b.RewardTo
+			if !EconomicsV2ActiveForIndex(b.Index) {
+				if err := tx.QueryRowContext(ctx, `SELECT address FROM wallet WHERE id = 1`).Scan(&rewardCreditAddr); err != nil {
+					return err
+				}
 			}
 			rewardCreditAddr = strings.TrimSpace(rewardCreditAddr)
 			if rewardCreditAddr == "" {
@@ -246,11 +253,8 @@ func (s *Service) ImportPoHBlock(ctx context.Context, b *block.Block) error {
 		}
 	}
 	if orderTaskID == "" {
-		var supCreditAddr string
-		if err := tx.QueryRowContext(ctx, `SELECT address FROM wallet WHERE id = 1`).Scan(&supCreditAddr); err != nil {
-			return err
-		}
-		if err := s.mintEmptyBlockSUPTx(ctx, tx, b.Index, orderTaskID, supCreditAddr); err != nil {
+		// SUP is only minted from v2 on, always to the signed header recipient.
+		if err := s.mintEmptyBlockSUPTx(ctx, tx, b.Index, orderTaskID, b.RewardTo); err != nil {
 			return err
 		}
 	}
