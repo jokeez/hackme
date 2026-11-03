@@ -2563,7 +2563,6 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		m.mu.Unlock()
 		var probeOK bool
 		orderSnap, probeOK = m.activeOrderSnapshotStatus()
-		// Fail closed: probe outage OR open-but-unclaimable order must not mint baseline.
 		// Fail closed on the mint (probe outage, open order, tip/M race): never relay, but
 		// keep the shares — see downgradeRelayFound.
 		relaySkip := ""
