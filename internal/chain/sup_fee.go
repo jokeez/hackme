@@ -18,8 +18,13 @@ import (
 // SUP is the product's business. New products (HMS storage, later coins) register here and need
 // no new consensus rule.
 //
-// One burn per (product, ref): the burn's history row is keyed by that pair, so a replayed or
-// retried signed burn can never charge the payer twice.
+// One burn per (product, payer, ref): the history row is keyed by that triple, so a replayed or
+// retried burn never charges twice, and nobody else's burn can occupy a payer's ref.
+//
+// Products are internal (charged only by the chain inside the operation they pay for — the
+// order open burns its own fee) or public (holder-signed via BurnSUPForFee, for products whose
+// backend checks the burn afterwards). hmc_order is internal: a public pre-burn could squat the
+// predictable order:/campaign: refs and block the real open.
 
 // SUPFeeProductHMCOrder is the fee leg of an HMC order (PoH order, Dig/Hunt campaign).
 const SUPFeeProductHMCOrder = "hmc_order"
@@ -27,14 +32,19 @@ const SUPFeeProductHMCOrder = "hmc_order"
 // SUPFeeRateToHMCFee is SUP units charged per HMC unit of fee (RFC: 1:1).
 const SUPFeeRateToHMCFee = 1
 
-var supFeeProducts = map[string]bool{
-	SUPFeeProductHMCOrder: true,
+type supFeeProductSpec struct {
+	Public bool // may be paid through the holder-signed BurnSUPForFee path
+}
+
+var supFeeProducts = map[string]supFeeProductSpec{
+	SUPFeeProductHMCOrder: {Public: false},
 }
 
 const metaSUPTotalBurnedUnits = "sup_total_burned_units"
 
 var (
 	ErrSUPFeeProduct     = errors.New("chain: unknown SUP fee product")
+	ErrSUPFeeInternal    = errors.New("chain: SUP fee for this product is charged by the operation itself")
 	ErrSUPFeeRefPaid     = errors.New("chain: SUP fee already paid for this product/ref")
 	ErrSUPFeeInsufficent = errors.New("chain: insufficient SUP balance for fee")
 )
@@ -57,8 +67,8 @@ func BurnSUPForFeeMessage(chainID, from string, amountUnits uint64, product, ref
 		strings.TrimSpace(product), strings.TrimSpace(ref)))
 }
 
-func supFeeRefKey(product, ref string) string {
-	sum := sha256.Sum256([]byte(strings.TrimSpace(product) + "|" + strings.TrimSpace(ref)))
+func supFeeRefKey(product, from, ref string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(product) + "|" + strings.TrimSpace(from) + "|" + strings.TrimSpace(ref)))
 	return "supfee-" + hex.EncodeToString(sum[:16])
 }
 
@@ -69,7 +79,7 @@ func validateSUPFeeShape(from string, amountUnits uint64, product, ref string) (
 	if !strings.HasPrefix(strings.TrimSpace(from), "HMC-") {
 		return "invalid_address", errors.New("invalid address")
 	}
-	if !supFeeProducts[strings.TrimSpace(product)] {
+	if _, ok := supFeeProducts[strings.TrimSpace(product)]; !ok {
 		return "unknown_product", ErrSUPFeeProduct
 	}
 	ref = strings.TrimSpace(ref)
@@ -84,6 +94,9 @@ func (s *Service) BurnSUPForFee(ctx context.Context, b SUPFeeBurn) (string, erro
 	from := strings.TrimSpace(b.From)
 	if code, err := validateSUPFeeShape(from, b.AmountUnits, b.Product, b.Ref); err != nil {
 		return code, err
+	}
+	if !supFeeProducts[strings.TrimSpace(b.Product)].Public {
+		return "product_internal_only", ErrSUPFeeInternal
 	}
 	pub, err := hex.DecodeString(strings.TrimSpace(b.PubKeyEd25519))
 	if err != nil || len(pub) != ed25519.PublicKeySize {
@@ -123,7 +136,7 @@ func (s *Service) burnSUPForFeeTx(ctx context.Context, tx *sql.Tx, from string, 
 	if code, err := validateSUPFeeShape(from, amountUnits, product, ref); err != nil {
 		return code, err
 	}
-	key := supFeeRefKey(product, ref)
+	key := supFeeRefKey(product, from, ref)
 	var seen string
 	switch err := tx.QueryRowContext(ctx, `SELECT tx_hash FROM sup_tx_history WHERE tx_hash=?`, key).Scan(&seen); {
 	case err == nil:

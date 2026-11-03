@@ -6,7 +6,18 @@ import (
 	"encoding/hex"
 	"errors"
 	"testing"
+
+	"hackme/internal/fuzzescrow"
 )
+
+const testPublicSUPProduct = "test_public_product"
+
+// withPublicTestProduct registers a public fee product for the holder-signed path (tests only).
+func withPublicTestProduct(t *testing.T) {
+	t.Helper()
+	supFeeProducts[testPublicSUPProduct] = supFeeProductSpec{Public: true}
+	t.Cleanup(func() { delete(supFeeProducts, testPublicSUPProduct) })
+}
 
 func fundedSUPHolder(t *testing.T) (*Service, ed25519.PrivateKey, string, string) {
 	t.Helper()
@@ -33,10 +44,11 @@ func signFee(svc *Service, priv ed25519.PrivateKey, pubHex, chainID, from string
 }
 
 func TestBurnSUPForFeeOncePerProductRef(t *testing.T) {
+	withPublicTestProduct(t)
 	svc, priv, pubHex, addr := fundedSUPHolder(t)
 	ctx := t.Context()
 	cid := svc.ChainID(ctx)
-	b := signFee(svc, priv, pubHex, cid, addr, 3000, SUPFeeProductHMCOrder, "order-1")
+	b := signFee(svc, priv, pubHex, cid, addr, 3000, testPublicSUPProduct, "order-1")
 	if code, err := svc.BurnSUPForFee(ctx, b); err != nil {
 		t.Fatalf("burn: %s %v", code, err)
 	}
@@ -55,6 +67,7 @@ func TestBurnSUPForFeeOncePerProductRef(t *testing.T) {
 }
 
 func TestBurnSUPForFeeRejects(t *testing.T) {
+	withPublicTestProduct(t)
 	svc, priv, pubHex, addr := fundedSUPHolder(t)
 	ctx := t.Context()
 	cid := svc.ChainID(ctx)
@@ -63,11 +76,12 @@ func TestBurnSUPForFeeRejects(t *testing.T) {
 		b    SUPFeeBurn
 		code string
 	}{
-		{"other chain_id", signFee(svc, priv, pubHex, "hackme-other", addr, 100, SUPFeeProductHMCOrder, "r1"), "invalid_signature"},
+		{"other chain_id", signFee(svc, priv, pubHex, "hackme-other", addr, 100, testPublicSUPProduct, "r1"), "invalid_signature"},
 		{"unknown product", signFee(svc, priv, pubHex, cid, addr, 100, "free_lunch", "r2"), "unknown_product"},
-		{"over balance", signFee(svc, priv, pubHex, cid, addr, 10_001, SUPFeeProductHMCOrder, "r3"), "insufficient_sup_balance"},
-		{"bad ref", signFee(svc, priv, pubHex, cid, addr, 100, SUPFeeProductHMCOrder, "a|b"), "invalid_ref"},
-		{"zero", signFee(svc, priv, pubHex, cid, addr, 0, SUPFeeProductHMCOrder, "r4"), "invalid_amount"},
+		{"over balance", signFee(svc, priv, pubHex, cid, addr, 10_001, testPublicSUPProduct, "r3"), "insufficient_sup_balance"},
+		{"bad ref", signFee(svc, priv, pubHex, cid, addr, 100, testPublicSUPProduct, "a|b"), "invalid_ref"},
+		{"zero", signFee(svc, priv, pubHex, cid, addr, 0, testPublicSUPProduct, "r4"), "invalid_amount"},
+		{"internal product", signFee(svc, priv, pubHex, cid, addr, 100, SUPFeeProductHMCOrder, "r6"), "product_internal_only"},
 	}
 	for _, c := range cases {
 		if code, err := svc.BurnSUPForFee(ctx, c.b); code != c.code || err == nil {
@@ -76,7 +90,7 @@ func TestBurnSUPForFeeRejects(t *testing.T) {
 	}
 	// Someone else's key cannot spend addr's SUP.
 	_, priv2, _ := ed25519.GenerateKey(rand.Reader)
-	stolen := signFee(svc, priv2, pubHex, cid, addr, 100, SUPFeeProductHMCOrder, "r5")
+	stolen := signFee(svc, priv2, pubHex, cid, addr, 100, testPublicSUPProduct, "r5")
 	if code, _ := svc.BurnSUPForFee(ctx, stolen); code != "invalid_signature" {
 		t.Fatalf("foreign key: %q", code)
 	}
@@ -98,5 +112,48 @@ func TestBurnSUPWithOwnerProofNoReplay(t *testing.T) {
 	}
 	if st, _ := svc.SupAddressState(ctx, addr); st.BalanceSUPUnits != 9500 {
 		t.Fatalf("balance %d want 9500", st.BalanceSUPUnits)
+	}
+}
+
+// Squat: someone burns their own SUP under a victim's predictable ref (order:/campaign:<id>)
+// to make the victim's SUP-fee open fail with fee_ref_already_paid. hmc_order has no public
+// path, and refs are scoped per payer, so neither works.
+func TestSUPFeeRefSquatCannotBlockOpen(t *testing.T) {
+	withPublicTestProduct(t)
+	c := newFeeTestChain(t, "1", 200, HMCToUnits(20))
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pubHex := hex.EncodeToString(pub)
+	attacker, _ := addressFromPubKeyHex(pubHex)
+	if _, err := c.db.Exec(`INSERT INTO accounts(address, balance_units, balance_sup_units, next_nonce, sup_next_nonce, updated_at) VALUES(?,0,?,0,0,0)`, attacker, HMCToUnits(5)); err != nil {
+		t.Fatal(err)
+	}
+	cid := c.svc.ChainID(c.ctx)
+	squat := signFee(c.svc, priv, pubHex, cid, attacker, 1, SUPFeeProductHMCOrder, "campaign:dig-victim")
+	if code, err := c.svc.BurnSUPForFee(c.ctx, squat); code != "product_internal_only" || !errors.Is(err, ErrSUPFeeInternal) {
+		t.Fatalf("public hmc_order burn: code=%q err=%v", code, err)
+	}
+	// Even on a public product the attacker's burn sits under its own payer, not the victim's.
+	pubSquat := signFee(c.svc, priv, pubHex, cid, attacker, 1, testPublicSUPProduct, "campaign:dig-victim")
+	if code, err := c.svc.BurnSUPForFee(c.ctx, pubSquat); err != nil {
+		t.Fatalf("attacker own burn: %s %v", code, err)
+	}
+	c.svc.mu.Lock()
+	tx, err := c.db.BeginTx(c.ctx, nil)
+	if err != nil {
+		c.svc.mu.Unlock()
+		t.Fatal(err)
+	}
+	code, err := c.svc.burnSUPForFeeTx(c.ctx, tx, c.wallet, 10, testPublicSUPProduct, "campaign:dig-victim")
+	_ = tx.Rollback()
+	c.svc.mu.Unlock()
+	if err != nil {
+		t.Fatalf("victim burn under same ref blocked: %s %v", code, err)
+	}
+	// The real open pays its SUP fee normally.
+	if _, err := c.svc.OpenFuzzEscrowWithFee(c.ctx, "dig-victim", 100, 100, fuzzescrow.EscrowSplit2080, "SUP"); err != nil {
+		t.Fatalf("victim open after squat attempt: %v", err)
 	}
 }

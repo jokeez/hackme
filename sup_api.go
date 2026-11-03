@@ -350,7 +350,8 @@ func (a *app) handleSUPTransferSend(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleSUPFeeBurn pays a product fee in SUP (holder-signed, one burn per product/ref).
+// handleSUPFeeBurn pays a public-product fee in SUP (holder-signed, one burn per product/payer/ref).
+// Internal products (hmc_order) are refused here: their fee is burned inside the operation.
 // No unsigned admin path: the primary wallet pays its order fees inside the order open itself.
 func (a *app) handleSUPFeeBurn(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -374,7 +375,11 @@ func (a *app) handleSUPFeeBurn(w http.ResponseWriter, r *http.Request) {
 	code, err := a.chain.BurnSUPForFee(r.Context(), body)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(http.StatusBadRequest)
+		status := http.StatusBadRequest
+		if code == "product_internal_only" {
+			status = http.StatusForbidden
+		}
+		w.WriteHeader(status)
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error(), "code": code})
 		return
 	}
