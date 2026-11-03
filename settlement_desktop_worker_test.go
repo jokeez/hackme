@@ -24,7 +24,7 @@ func TestResolveDesktopSettlementWorkerIDPrefixMatch(t *testing.T) {
 func TestResolveDesktopSettlementWorkerIDExactPreferred(t *testing.T) {
 	a := &app{dataDir: t.TempDir(), nodeID: "HMC-aaa"}
 	workers := map[string]any{
-		"worker-kapa": map[string]any{"payout_hmc": 10.0, "payout_address": "HMC-aaa"},
+		"worker-kapa":    map[string]any{"payout_hmc": 10.0, "payout_address": "HMC-aaa"},
 		"worker-kapa-pc": map[string]any{"payout_hmc": 99.0, "payout_address": "HMC-aaa"},
 	}
 	got := a.resolveDesktopSettlementWorkerID(workers, "worker-kapa")
