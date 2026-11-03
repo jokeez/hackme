@@ -332,11 +332,17 @@ func TestPreV2TransferRejectsChainID(t *testing.T) {
 }
 
 func TestResolvedV2ChainIDEnvIsolation(t *testing.T) {
+	ResetEconomicsV2ActivationHeightForTest()
+	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
+	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "1")
+	ResetEconomicsV2ActivationHeightForTest()
+
 	t.Setenv("HACKME_V2_CHAIN_ID", "")
 	if got := ResolvedV2ChainID(); got != V2ChainID {
 		t.Fatalf("default %q", got)
 	}
 	t.Setenv("HACKME_V2_CHAIN_ID", "hackme-lab-audit")
+	t.Cleanup(func() { t.Setenv("HACKME_V2_CHAIN_ID", "") })
 	if got := ResolvedV2ChainID(); got != "hackme-lab-audit" {
 		t.Fatalf("env override %q", got)
 	}
