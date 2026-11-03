@@ -361,3 +361,50 @@ func (s *Service) mintEmptyBlockSUPTx(ctx context.Context, tx queryRowExecContex
 	}
 	return s.upsertMetaUint(ctx, tx, metaSUPTotalMintedUnits, mintedU+amount)
 }
+
+// Activation guard (producer side). Locking the height into chain meta is irreversible, so
+// the producing node locks only when the operator confirms the same height in
+// HACKME_ECONOMICS_V2_ACTIVATION_CONFIRM and the height is at least
+// HACKME_ECONOMICS_V2_MIN_LEAD_BLOCKS ahead of the tip (default 40 320 ≈ 14 days, RFC D8).
+// Otherwise block production stops with an explicit error (deploy gate / watchdog alert)
+// instead of silently locking a typo. Followers importing blocks are not gated.
+const defaultV2MinLeadBlocks = uint64(14 * 2880)
+
+// v2ActivationGuardOff is flipped by package tests that exercise v2 from tiny heights.
+var v2ActivationGuardOff bool
+
+func v2MinLeadBlocks() uint64 {
+	if v := strings.TrimSpace(os.Getenv("HACKME_ECONOMICS_V2_MIN_LEAD_BLOCKS")); v != "" {
+		if n, err := strconv.ParseUint(v, 10, 64); err == nil {
+			return n
+		}
+	}
+	return defaultV2MinLeadBlocks
+}
+
+// ErrV2ActivationGuard: refused to lock an unconfirmed or too-close activation height.
+var ErrV2ActivationGuard = errors.New("chain: economics v2 activation height not locked")
+
+// checkV2ActivationGuardTx runs before lockEconomicsV2ActivationTx on the producing path.
+func (s *Service) checkV2ActivationGuardTx(ctx context.Context, tx queryRowExecContext, nextIdx uint64) error {
+	if v2ActivationGuardOff {
+		return nil
+	}
+	metaH, err := s.metaUint(ctx, tx, metaEconomicsV2ActivationHeight, 0)
+	if err != nil || metaH >= 1 {
+		return err // already locked (env mismatch is checked by the lock itself)
+	}
+	raw := strings.TrimSpace(os.Getenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT"))
+	h, perr := strconv.ParseUint(raw, 10, 64)
+	if raw == "" || perr != nil || h < 1 {
+		return nil // not configured: nothing to lock
+	}
+	if c := strings.TrimSpace(os.Getenv("HACKME_ECONOMICS_V2_ACTIVATION_CONFIRM")); c != raw {
+		return fmt.Errorf("%w: set HACKME_ECONOMICS_V2_ACTIVATION_CONFIRM=%d to confirm (got %q)", ErrV2ActivationGuard, h, c)
+	}
+	if lead := v2MinLeadBlocks(); h < nextIdx || h-nextIdx < lead {
+		return fmt.Errorf("%w: height %d is only %d blocks after next block %d (minimum lead %d)",
+			ErrV2ActivationGuard, h, int64(h)-int64(nextIdx), nextIdx, lead)
+	}
+	return nil
+}

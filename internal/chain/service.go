@@ -690,6 +690,9 @@ func (s *Service) AppendPoHBlock(ctx context.Context, minerAddress string, nonce
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if err := s.checkV2ActivationGuardTx(ctx, tx, nextIdx); err != nil {
+		return nil, err
+	}
 	if err := s.lockEconomicsV2ActivationTx(ctx, tx); err != nil {
 		return nil, err
 	}

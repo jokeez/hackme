@@ -330,3 +330,64 @@ func TestPreV2TransferRejectsChainID(t *testing.T) {
 		t.Fatalf("legacy transfer pre-v2: %s %v", code, err)
 	}
 }
+
+func guardOn(t *testing.T) {
+	t.Helper()
+	v2ActivationGuardOff = false
+	t.Cleanup(func() { v2ActivationGuardOff = true })
+}
+
+func lockedV2Height(t *testing.T, s *Service, db *sql.DB) uint64 {
+	t.Helper()
+	h, err := s.metaUint(context.Background(), db, metaEconomicsV2ActivationHeight, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return h
+}
+
+// The activation height locks into chain meta for good, so the producer refuses to lock a
+// height the operator did not confirm, or one closer than the minimum lead; nothing is written.
+func TestV2ActivationGuard(t *testing.T) {
+	n := newV2Net(t, "50000")
+	guardOn(t)
+	m, _ := n.hub.PoHTargetMod(n.ctx)
+	nonce, eval := firstPoHHit(m)
+	appendOne := func() error {
+		_, err := n.hub.AppendPoHBlock(n.ctx, "HMC-poolworker0001", nonce, eval, BaseRewardForBlockIndex(1), m, "")
+		return err
+	}
+	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_CONFIRM", "")
+	if err := appendOne(); !errors.Is(err, ErrV2ActivationGuard) || !strings.Contains(err.Error(), "CONFIRM=50000") {
+		t.Fatalf("unconfirmed: %v", err)
+	}
+	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_CONFIRM", "5000") // typo
+	if err := appendOne(); !errors.Is(err, ErrV2ActivationGuard) {
+		t.Fatalf("mismatched confirm: %v", err)
+	}
+	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_CONFIRM", "50000")
+	t.Setenv("HACKME_ECONOMICS_V2_MIN_LEAD_BLOCKS", "60000") // 50000 is closer than the lead
+	if err := appendOne(); !errors.Is(err, ErrV2ActivationGuard) || !strings.Contains(err.Error(), "minimum lead") {
+		t.Fatalf("too close: %v", err)
+	}
+	if h := lockedV2Height(t, n.hub, n.hubDB); h != 0 {
+		t.Fatalf("guard failure locked height %d", h)
+	}
+}
+
+func TestV2ActivationGuardLocksWhenConfirmedWithLead(t *testing.T) {
+	n := newV2Net(t, "50000")
+	guardOn(t)
+	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_CONFIRM", "50000")
+	t.Setenv("HACKME_ECONOMICS_V2_MIN_LEAD_BLOCKS", "40320")
+	b := n.mine()
+	if b.Index != 1 || lockedV2Height(t, n.hub, n.hubDB) != 50000 {
+		t.Fatalf("confirmed height not locked: idx=%d", b.Index)
+	}
+	// Followers importing are never gated (they must catch up across the height).
+	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_CONFIRM", "")
+	f, _ := n.follower()
+	if err := f.ImportPoHBlock(n.ctx, b); err != nil {
+		t.Fatalf("follower import gated: %v", err)
+	}
+}
