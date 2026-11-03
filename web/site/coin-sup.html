@@ -40,7 +40,9 @@
           <h1>HackMe Support (SUP)</h1>
           <p class="hero-copy">
             Second coin in the HackMe <strong>ecosystem</strong>. Scarce, quality-gated companion for listing after HMC.
-            No faucet — earn via honest HMC pool work. On the live hub: wallet SUP send/activity (public routes).
+            No faucet — earn via honest HMC pool work; transferable on-chain. Fee spend is prepared in
+            <a href="https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md" target="_blank" rel="noreferrer">Economics v2</a>
+            (soft-announced; not tip-activated). Never Dig/Hunt escrow.
           </p>
           <div class="cta-row">
             <a class="btn btn-primary" href="./downloads.html">Mine HMC (earn SUP)</a>
@@ -60,12 +62,13 @@
         <table class="pool-table">
           <tbody>
             <tr><th>Ticker</th><td><strong>SUP</strong></td></tr>
-            <tr><th>Max supply</th><td>21,000,000 SUP</td></tr>
+            <tr><th>Max supply (today)</th><td>21,000,000 SUP</td></tr>
+            <tr><th>Max supply (v2 @ activation)</th><td>21,000 SUP (RFC) · block emit; admin mint retired</td></tr>
             <tr><th>Ledger</th><td>Parallel on HackMe node (same <code>HMC-</code> addresses)</td></tr>
             <tr><th>Earn path</th><td>Hybrid-signed official HMC pool work only</td></tr>
-            <tr><th>Base accrual</th><td>≤ 8% of HMC attempt value (quality multiplier 0–1.5×)</td></tr>
+            <tr><th>Base accrual (today)</th><td>≤ 8% of HMC attempt value (quality multiplier 0–1.5×)</td></tr>
             <tr><th>Faucet / airdrop</th><td><strong>None</strong></td></tr>
-            <tr><th>On-chain</th><td>Mint + <code>transfer_sup_v1</code> · activity / send on hub · <code>GET /api/sup/economics</code></td></tr>
+            <tr><th>On-chain</th><td>Mint / settle · <code>transfer_sup</code> · activity / send on hub · <code>GET /api/sup/economics</code></td></tr>
             <tr><th>CEX listing</th><td>After primary HMC lists</td></tr>
           </tbody>
         </table>
@@ -85,9 +88,9 @@
 
     <section class="panel glass">
       <div class="panel-head"><h2>Utility</h2></div>
-      <p class="section-lede"><strong>No live spending utility yet.</strong> SUP is earned and transferable today; the uses below are planned with economics v2 and are not active.</p>
+      <p class="section-lede">SUP is earned and transferable today. Order-fee spend is <strong>implemented on <code>main</code></strong> and height-gated with Economics v2 — soft-announced, <strong>not tip-activated</strong>.</p>
       <div class="grid grid-3">
-        <article class="card glass"><h3>Order fee in SUP (planned, v2)</h3><p>Pay the order fee in SUP instead of HMC. Order escrow itself always stays in HMC.</p></article>
+        <article class="card glass"><h3>Order fee in SUP (v2, height-gated)</h3><p>Pay the order fee in SUP instead of HMC. Escrow itself always stays in HMC. Never Dig/Hunt settlement in SUP.</p></article>
         <article class="card glass"><h3>Governance signal (planned)</h3><p>Non-binding votes on coordinator parameters.</p></article>
       </div>
     </section>

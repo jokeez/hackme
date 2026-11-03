@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Listing Readiness — HackMe Ecosystem</title>
-  <meta name="description" content="Exchange listing hub for HackMe ecosystem: HMC primary, paper soft-launch desk (D0) first, then PoW-friendly CEX. Honest readiness scores. Release 0.1.0-rc18.1." />
+  <meta name="description" content="Exchange listing hub for HackMe ecosystem: HMC primary, paper soft-launch desk (D0) first, then PoW-friendly CEX. Honest readiness scores. Channel 0.1.0-rc18.1 · Economics v2 soft-announced." />
   <link rel="canonical" href="https://hackme.tech/listing.html" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://hackme.tech/listing.html" />
@@ -47,14 +47,15 @@
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>Live evidence (2026-10-22)</h2></div>
+      <div class="panel-head"><h2>Live evidence (2026-11-03)</h2></div>
       <ul class="list">
-        <li><strong>Release</strong> — runtime <code>0.1.0-rc18.1</code> · installers <code>0.1.0-rc18.1</code> LIVE (paper Exchange · SUP wallet · Hunt · HackMe OS ISO). <a href="./downloads.html">downloads</a> · <a href="https://github.com/jokeez/hackme/releases/tag/0.1.0-rc18.1" target="_blank" rel="noreferrer">GitHub rc18</a></li>
-        <li><strong>Public pool</strong> — live coordinator + node · hybrid Ed25519 · tip ≥#485k · <strong>Blake3 PoH v3 LIVE</strong> (activated at #485000 · share-PPS · rc18) · mining on · fleet ~few GH/s Blake3 wall-rate (pre-cliff hybrid calib was multi-hundred GH/s — expected cliff) · GHS↔Dig/Hunt soft-priority live (hybrid GPUs prefer Dig leases; ASAN stays on CPU)</li>
+        <li><strong>Release</strong> — channel <code>0.1.0-rc18.1</code> LIVE (paper Exchange · SUP wallet · Dig/Hunt · HackMe OS ISO). Hub tip tracks <code>main</code> (Economics v2 code dormant until a published height). <a href="./downloads.html">downloads</a> · <a href="https://github.com/jokeez/hackme/releases/tag/0.1.0-rc18.1" target="_blank" rel="noreferrer">GitHub rc18</a></li>
+        <li><strong>Public pool</strong> — live coordinator + node · hybrid Ed25519 · tip ≥#515k · <strong>Blake3 PoH v3 LIVE</strong> (gate #485000 · share-PPS · paced day budget) · fleet ~few–tens GH/s Blake3 wall-rate · GHS↔Dig soft-priority (hybrid GPUs prefer Dig; Hunt engines Linux-only; Windows Dig/PoH)</li>
+        <li><strong>Economics v2</strong> — <a href="https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md" target="_blank" rel="noreferrer">RFC soft-announced</a> (2026-10-30); height package on <code>main</code>, <strong>not activated</strong> (no vanity height; tip+≥14d announce later)</li>
         <li><strong>Own exchange</strong> — spot paper desk at <a href="https://exchange.hackme.tech/" target="_blank" rel="noreferrer">exchange.hackme.tech</a> (no futures lane at start; customer buy-path for audit escrow)</li>
         <li><strong>Marketplace</strong> — campaign board shows live fleet capacity + per-order fleet ETA · <a href="./fuzz-marketplace.html">fuzz marketplace</a></li>
         <li><strong>Research</strong> — Hunt Watch 12/12 · nghttp2 CVE Watch 14/14 CLEAN · libheif CVE Watch <strong>14/14 CLEAN</strong> · <a href="./reports/hunt-watch-2026sep/">Hunt ledger</a></li>
-        <li><strong>Security / DR</strong> — lease ownership · public metrics redact · PoH/fuzz DB split · DE mirror static standby</li>
+        <li><strong>Security / DR</strong> — lease ownership · settle ACK confirm · Hunt isolate STRICT · public metrics redact · PoH/fuzz DB split · DE mirror static standby</li>
       </ul>
       <p class="muted" style="margin-top:0.75rem">Scores below are operator self-assessment for CEX desks — not a paid audit letter. Snapshot facts move with the live pool.</p>
     </section>
@@ -76,7 +77,7 @@
       <div class="grid grid-3">
         <article class="card glass">
           <h3>HMC <span class="pill live">primary</span></h3>
-          <p>Native chain asset · own desk now · external CEX later.</p>
+          <p>Native chain asset · Dig/Hunt escrow · own desk now · external CEX later. Economics v2 height switch deferred (soft announce only).</p>
           <ul class="list">
             <li><a href="./coin-hmc.html">Investor page</a></li>
             <li><a href="./token-transparency.html">Live supply</a></li>
@@ -86,16 +87,17 @@
         </article>
         <article class="card glass">
           <h3>SUP <span class="pill">companion</span></h3>
-          <p>After HMC has real spot traction · pool-earned only.</p>
+          <p>Utility / loyalty — CEX only after HMC traction. Earned on hybrid pool work; transferable; fee spend prepared in Economics v2 (not activated). Never Dig/Hunt escrow.</p>
           <ul class="list">
             <li><a href="./coin-sup.html">Utility page</a></li>
             <li><a href="https://hackme.tech/api/sup/economics">Economics API</a></li>
             <li><a href="https://github.com/jokeez/hackme/blob/main/docs/SUP_TOKENOMICS.md" target="_blank" rel="noreferrer">Tokenomics doc</a></li>
+            <li><a href="https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md" target="_blank" rel="noreferrer">Economics v2 RFC (SUP emit + fees)</a></li>
           </ul>
         </article>
         <article class="card glass">
           <h3>HMS <span class="pill prelaunch">prelaunch</span></h3>
-          <p>Not for exchange submission yet.</p>
+          <p>Storage-lane asset · not for exchange submission yet · transfers bind <code>chain_id</code> with Economics v2.</p>
           <ul class="list">
             <li><a href="./coin-hms.html">Prelaunch brief</a></li>
             <li><a href="https://github.com/jokeez/hackme/blob/main/docs/HMS_PUBLIC_ROADMAP.md" target="_blank" rel="noreferrer">Roadmap</a></li>
@@ -110,9 +112,9 @@
       <ul class="list">
         <li><strong>Blake3 PoH + Dig/Hunt</strong> — share-PPS mining; useful customer work on fuzz lanes</li>
         <li><strong>B2B demand layer</strong> — Dig/Hunt escrow in HMC; paper desk (D0) is the soft-launch buy-path for audit escrow</li>
-        <li><strong>Honest GHS↔Dig coupling</strong> — live hybrid GPUs steer Dig priority; Dig WASM + Hunt engines/ASAN stay on CPU</li>
-        <li><strong>Fair coordinator</strong> — hybrid Ed25519, published operator gates</li>
-        <li><strong>Ecosystem</strong> — SUP rewards loyalty; HMS extends to storage (future)</li>
+        <li><strong>Honest GHS↔Dig coupling</strong> — hybrid GPUs prefer Dig; Hunt coverage engines Linux-only; Windows Dig/PoH</li>
+        <li><strong>Fair coordinator</strong> — hybrid Ed25519 · paced day budget · settle confirm · published operator gates</li>
+        <li><strong>Ecosystem</strong> — SUP loyalty/fees (v2 path on main, height later); HMS storage (future)</li>
         <li><strong>Public research ledgers</strong> — Hunt Watch 12/12 · OSS CVE Watch (nghttp2 · libheif) with published reports</li>
       </ul>
       <p style="margin-top:1rem"><a class="btn btn-secondary" href="https://github.com/jokeez/hackme/blob/main/docs/internal/LISTING_PITCH_OUTLINE.md" target="_blank" rel="noreferrer">Pitch deck outline (10–12 slides)</a></p>
@@ -157,7 +159,7 @@
     </section>
   </main>
 
-  <footer class="footer"><p>HackMe Network · snapshot 2026-10-26 · channel 0.1.0-rc18.1 · installers 0.1.0-rc18.1</p><div class="footer-nav"></div></footer>
+  <footer class="footer"><p>HackMe Network · snapshot 2026-11-03 · channel 0.1.0-rc18.1 · Economics v2 soft-announce (not height-activated)</p><div class="footer-nav"></div></footer>
   <script src="./assets/site-shell.js?v=20261024eco1"></script>
   <script src="./assets/app.js?v=20260914dev1"></script>
 </body>

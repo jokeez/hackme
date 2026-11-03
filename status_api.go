@@ -133,6 +133,7 @@ func (a *app) buildStatusLite(ctx context.Context) map[string]any {
 	}
 	econCancel()
 	body["pool_sync"] = a.poolSyncStatusPayload()
+	redactInternalCoordinatorURLs(body)
 	return body
 }
 
@@ -336,6 +337,7 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 		a.warmWorkStatsCacheAsync(coord, false)
 	}
 	applyDisplayTipHeight(statusBody)
+	redactInternalCoordinatorURLs(statusBody)
 
 	writeJSON(w, statusBody)
 }

@@ -31,10 +31,10 @@ SUP is designed for **exchange listing**: fixed policy, on-chain transfers, publ
 
 ## Utility (why hold / trade)
 
-> **Status:** no SUP spending utility is live yet. Items 1–2 were never enforced in code and are
-> superseded by economics v2 (order fee payable in SUP; escrow always HMC; no pool priority).
+> **Status:** fee spend is implemented on `main` and **height-gated** with Economics v2 (soft-announced;
+> not tip-activated). Escrow always HMC; no pool priority. Pre-v2 accrual/mint rules still apply on live tip.
 
-1. ~~Security Audit discount — up to 15% of order escrow in SUP~~ → v2: pay the order **fee** in SUP (planned).
+1. ~~Security Audit discount — up to 15% of order escrow in SUP~~ → v2: pay the order **fee** in SUP (code ready; activates with height).
 2. ~~Pool priority under congestion~~ — dropped in v2.
 3. **Reputation badge** — public “Support miner” tier on explorer / dashboard (top SUP earners, anti-abuse reviewed).
 4. **Governance signal** — non-binding votes on coordinator params (reward_per_m, settle thresholds).
