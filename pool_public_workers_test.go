@@ -15,13 +15,13 @@ func TestRedactPublicWorkStats(t *testing.T) {
 		"tip_height":                    uint64(515000),
 		"hashrate_hs":                   1.5e9,
 		"pool_budget": map[string]any{
-			"enabled":            true,
-			"daily_budget_hmc":   28.8,
-			"accrued_today_hmc":  10.0,
+			"enabled":             true,
+			"daily_budget_hmc":    28.8,
+			"accrued_today_hmc":   10.0,
 			"remaining_today_hmc": 18.8,
-			"budget_clip_events": 99,
-			"persisted":          true,
-			"note":               "cap",
+			"budget_clip_events":  99,
+			"persisted":           true,
+			"note":                "cap",
 		},
 		"workers": map[string]any{
 			"worker-kapa-pc": map[string]any{
