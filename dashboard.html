@@ -5454,11 +5454,23 @@
 			const s = latestWorkerSettlementSnap || {};
 			const thr = Number(s.min_settle_hmc || 0);
 			const ready = !!s.threshold_ready;
-			const parts = ['your worker only'];
-			if (thr > 0) parts.push('min ' + fmt(thr, 4) + ' HMC · ' + (ready ? 'ready' : 'pending'));
-			if (s.next_daily_sweep_unix > 0) parts.push('next sweep ' + fmtUnix(s.next_daily_sweep_unix));
+			const unpaid = Number(s.wallet_unpaid_hmc || 0);
+			const accrued = Number(s.wallet_accrued_hmc || s.desktop_worker_accrued_hmc || 0);
+			const wid = String(s.desktop_worker_id || '').trim();
+			const parts = [];
+			if (wid) parts.push(wid);
+			else parts.push('your worker only');
+			if (unpaid <= 0.000001) {
+				if (accrued > 0.000001) parts.push('caught up · nothing pending');
+				else parts.push('no unpaid accrual yet');
+			} else if (thr > 0) {
+				parts.push('min ' + fmt(thr, 4) + ' HMC · ' + (ready ? 'ready' : 'below min'));
+			}
+			if (s.next_daily_sweep_unix > 0 && unpaid > 0.000001) {
+				parts.push('next sweep ' + fmtUnix(s.next_daily_sweep_unix));
+			}
 			if (Number(s.wallet_settled_hmc) > 0.000001) {
-				parts.push('lifetime settled ' + fmt(Number(s.wallet_settled_hmc), 4));
+				parts.push('settled ' + fmt(Number(s.wallet_settled_hmc), 4));
 			}
 			if (s.last_force_unix > 0) parts.push('last sweep ' + fmtUnix(s.last_force_unix));
 			el.textContent = parts.length ? parts.join(' · ') : 'No pending accrual for this wallet';
@@ -16503,8 +16515,11 @@
 						ok: true,
 						last_signed_miner_address: String(s.last_signed_miner_address || ''),
 						accrual_source: String(s.accrual_source || ''),
+						desktop_worker_id: wid,
 						// Never fall back to fleet total_unpaid — that desyncs every wallet to pool aggregate.
 						wallet_unpaid_hmc: Number(s.wallet_unpaid_hmc || 0),
+						wallet_accrued_hmc: Number(s.wallet_accrued_hmc || s.desktop_worker_accrued_hmc || 0),
+						desktop_worker_accrued_hmc: Number(s.desktop_worker_accrued_hmc || 0),
 						wallet_accrued_sup: Number(s.wallet_accrued_sup || 0),
 						wallet_unpaid_sup: Number(s.wallet_unpaid_sup || 0),
 						wallet_settled_hmc: Number(s.wallet_settled_hmc || 0),

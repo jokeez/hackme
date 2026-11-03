@@ -448,6 +448,81 @@ func workerSettlementExposeSensitive(r *http.Request) bool {
 	return hasValidAdminAuth(r) || (requestFromLoopback(r) && requestHostIsLoopbackLiteral(r))
 }
 
+// resolveDesktopSettlementWorkerID picks the coordinator worker row for this PC.
+// Autostart / external workerpoh often use worker-<host>-pc while DefaultDesktop()
+// is only worker-<host> — exact-key miss made #wallet pending settlement show 0.
+func (a *app) resolveDesktopSettlementWorkerID(workers map[string]any, configuredID string) string {
+	logRoot := filepath.Join(resolveWorkerRepoRoot(strings.TrimSpace(a.dataDir)), "logs")
+	fromLog := workerIDFromLatestWorkerpohLog(logRoot)
+	def := workerid.DefaultDesktop()
+	candidates := make([]string, 0, 4)
+	for _, c := range []string{configuredID, fromLog, def} {
+		c = strings.TrimSpace(c)
+		if c == "" {
+			continue
+		}
+		dup := false
+		for _, e := range candidates {
+			if e == c {
+				dup = true
+				break
+			}
+		}
+		if !dup {
+			candidates = append(candidates, c)
+		}
+	}
+	for _, c := range candidates {
+		if _, ok := workers[c]; ok {
+			return c
+		}
+	}
+	// Prefix soft-match: worker-kapa ↔ worker-kapa-pc
+	best := ""
+	bestPay := -1.0
+	for _, c := range candidates {
+		for id, v := range workers {
+			if id != c && !strings.HasPrefix(id, c+"-") && !strings.HasPrefix(c, id+"-") {
+				continue
+			}
+			pay := parseAnyFloat(mapFromAny(v)["payout_hmc"])
+			if best == "" || pay > bestPay {
+				best = id
+				bestPay = pay
+			}
+		}
+		if best != "" {
+			return best
+		}
+	}
+	nodeAddr := strings.TrimSpace(a.nodeID)
+	if nodeAddr != "" {
+		best = ""
+		bestPay = -1.0
+		for id, v := range workers {
+			row := mapFromAny(v)
+			if !strings.EqualFold(strings.TrimSpace(asString(row["payout_address"])), nodeAddr) {
+				continue
+			}
+			pay := parseAnyFloat(row["payout_hmc"])
+			if best == "" || pay > bestPay {
+				best = id
+				bestPay = pay
+			}
+		}
+		if best != "" {
+			return best
+		}
+	}
+	if configuredID != "" {
+		return configuredID
+	}
+	if fromLog != "" {
+		return fromLog
+	}
+	return def
+}
+
 func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -545,13 +620,15 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 	coordOmittedBreakdown := len(workers) == 0 && asUint64(ws["workers_count"]) > 0
 	payoutMap := workerPayoutMapFromEnv()
 	displayWallet := settlementDisplayWalletAddress(a.nodeID, payoutMap)
-	walletAccrued, _, walletUnpaid, accrualSource := walletAccrualFromCoordinator(ws, state.Workers, a.nodeID, a.workerID, payoutMap, a.workerProcessRunning())
-	walletAccruedSUP, _, walletUnpaidSUP := walletAccrualSUPFromCoordinator(ws, state.Workers, a.nodeID, a.workerID, payoutMap)
+	a.workerMu.Lock()
+	configuredWorkerID := strings.TrimSpace(a.workerID)
+	a.workerMu.Unlock()
+	walletAccrued, _, walletUnpaid, accrualSource := walletAccrualFromCoordinator(ws, state.Workers, a.nodeID, configuredWorkerID, payoutMap, a.workerProcessRunning())
+	walletAccruedSUP, _, walletUnpaidSUP := walletAccrualSUPFromCoordinator(ws, state.Workers, a.nodeID, configuredWorkerID, payoutMap)
 	var walletSettled, walletSettledSUP float64
-	desktopWorkerID := strings.TrimSpace(a.workerID)
-	if desktopWorkerID == "" {
-		desktopWorkerID = workerid.DefaultDesktop()
-	}
+	// Prefer the live workerpoh id (often worker-<host>-pc) over DefaultDesktop()
+	// worker-<host>, which otherwise zeroes "pending settlement" on #wallet.
+	desktopWorkerID := a.resolveDesktopSettlementWorkerID(workers, configuredWorkerID)
 	var desktopWorkerAccrued float64
 	if row := mapFromAny(workers[desktopWorkerID]); len(row) > 0 {
 		desktopWorkerAccrued = parseAnyFloat(row["payout_hmc"])
@@ -559,10 +636,13 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 			desktopWorkerAccrued = 0
 		}
 	}
+	// Pending is unsettled accrual only — never fall back to lifetime payout_hmc
+	// (that made coordinator_pending_hmc look like ~full history when unpaid was 0).
 	coordinatorPending := walletUnpaid
-	if coordinatorPending <= 0 && desktopWorkerAccrued > 0 {
-		coordinatorPending = desktopWorkerAccrued
+	if coordinatorPending < 0 {
+		coordinatorPending = 0
 	}
+	_ = desktopWorkerAccrued // retained for coordinator_raw_payout_hmc below
 	var totalAccrued, totalSettled, totalUnpaid float64
 	var totalAccruedSUP, totalSettledSUP, totalUnpaidSUP float64
 	for workerID, v := range workers {
@@ -666,16 +746,16 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		desktopWorkerAccruedHMC = parseAnyFloat(bd["accrued_hmc"])
 		desktopWorkerSettledHMC = parseAnyFloat(bd["settled_hmc"])
 		desktopWorkerUnpaidHMC = parseAnyFloat(bd["unpaid_hmc"])
-	}
-	// Dashboard: show this PC worker unsettled accrual, not fleet-wide pool total.
-	walletAccrued = desktopWorkerAccruedHMC
-	walletSettled = desktopWorkerSettledHMC
-	walletUnpaid = desktopWorkerUnpaidHMC
-	if bd, ok := workerBreakdown[desktopWorkerID].(map[string]any); ok {
+		// Dashboard: this PC worker unsettled accrual, not fleet-wide pool total.
+		walletAccrued = desktopWorkerAccruedHMC
+		walletSettled = desktopWorkerSettledHMC
+		walletUnpaid = desktopWorkerUnpaidHMC
 		walletAccruedSUP = parseAnyFloat(bd["accrued_sup"])
 		walletSettledSUP = parseAnyFloat(bd["settled_sup"])
 		walletUnpaidSUP = parseAnyFloat(bd["unpaid_sup"])
 	}
+	// If the resolved id still misses the coordinator map, keep address-scoped
+	// walletAccrual* already computed above (do not force a fake 0 pending).
 	supPolicy, _ := ws["sup_policy"].(map[string]any)
 	supNoteCtx, supNoteCancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
 	supNote := a.supSettlementNoteForAPI(supNoteCtx)
