@@ -403,8 +403,13 @@ func (s *Service) checkV2ActivationGuardTx(ctx context.Context, tx queryRowExecC
 		return fmt.Errorf("%w: set HACKME_ECONOMICS_V2_ACTIVATION_CONFIRM=%d to confirm (got %q)", ErrV2ActivationGuard, h, c)
 	}
 	if lead := v2MinLeadBlocks(); h < nextIdx || h-nextIdx < lead {
+		// Keep the lead distance in uint64 — avoid CodeQL incorrect-integer-conversion on ParseUint→int64.
+		var after uint64
+		if h >= nextIdx {
+			after = h - nextIdx
+		}
 		return fmt.Errorf("%w: height %d is only %d blocks after next block %d (minimum lead %d)",
-			ErrV2ActivationGuard, h, int64(h)-int64(nextIdx), nextIdx, lead)
+			ErrV2ActivationGuard, h, after, nextIdx, lead)
 	}
 	return nil
 }
