@@ -45,6 +45,28 @@ func TestBestMountOnDiskUnknownUsagePrefersLargerPartition(t *testing.T) {
 	}
 }
 
+func TestDiskHasSystemMountIgnoresPickedPartition(t *testing.T) {
+	orig := diskUsageFree
+	t.Cleanup(func() { diskUsageFree = orig })
+	diskUsageFree = func(string) (uint64, bool) { return 0, false }
+	dev := lsblkNode{Name: "sda", Type: "disk", Children: []lsblkNode{
+		{Name: "sda1", Type: "part", Fstype: "ext4", Mountpoint: "/", Size: 50_000_000_000},
+		{Name: "sda2", Type: "part", Fstype: "ext4", Mountpoint: "/data", Size: 450_000_000_000},
+	}}
+	if mount, _, _ := bestMountOnDisk(dev); mount != "/data" {
+		t.Fatalf("expected /data picked for usage, got %q", mount)
+	}
+	if !diskHasSystemMount(dev) {
+		t.Fatal("disk with / must be a system disk")
+	}
+	data := lsblkNode{Name: "sdb", Type: "disk", Children: []lsblkNode{
+		{Name: "sdb1", Type: "part", Fstype: "ext4", Mountpoint: "/data2", Size: 1},
+	}}
+	if diskHasSystemMount(data) {
+		t.Fatal("data-only disk must not be a system disk")
+	}
+}
+
 func TestIsStorageFstypeSkipsTmpfs(t *testing.T) {
 	if isStorageFstype("tmpfs") || !isStorageFstype("ext4") {
 		t.Fatal("fstype filter")

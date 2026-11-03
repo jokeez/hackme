@@ -137,7 +137,7 @@ func collectDisksLinux(root string, hmsUsage map[string]float64) ([]LocalDiskInf
 			info.Mount = mount
 			info.Device = partDev
 			info.Filesystem = fstype
-			info.SystemDisk = mount == "/" || strings.HasPrefix(mount, "/boot")
+			info.SystemDisk = diskHasSystemMount(dev)
 			fillUsage(&info)
 			info.StoragePathSuggest = suggestHMSStoragePath(mount, dev.Name, root)
 		}
@@ -145,6 +145,21 @@ func collectDisksLinux(root string, hmsUsage map[string]float64) ([]LocalDiskInf
 		disks = append(disks, info)
 	}
 	return disks, nil
+}
+
+// diskHasSystemMount reports whether any partition on the disk holds / or /boot*,
+// independently of the partition bestMountOnDisk picks for usage reporting.
+func diskHasSystemMount(n lsblkNode) bool {
+	mp := strings.TrimSpace(n.Mountpoint)
+	if mp == "/" || strings.HasPrefix(mp, "/boot") {
+		return true
+	}
+	for _, ch := range n.Children {
+		if diskHasSystemMount(ch) {
+			return true
+		}
+	}
+	return false
 }
 
 // diskUsageFree reports free bytes for a mount point; a var so tests can stub the host.
