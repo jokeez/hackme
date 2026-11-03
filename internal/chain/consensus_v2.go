@@ -60,6 +60,9 @@ func (s *Service) lockAuthorityPubKeyTx(ctx context.Context, tx queryRowExecCont
 	if EconomicsV2ActivationHeight() < 1 {
 		return nil
 	}
+	if err := s.lockV2ChainIDTx(ctx, tx); err != nil {
+		return err
+	}
 	var pinned string
 	if err := tx.QueryRowContext(ctx, `SELECT value FROM meta WHERE key=?`, metaAuthorityPubKey).Scan(&pinned); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return err
@@ -190,4 +193,24 @@ func (s *Service) NetworkChainID(ctx context.Context) string {
 		return s.ChainID(ctx)
 	}
 	return s.ChainIDForIndex(ctx, idx)
+}
+
+const metaV2ChainID = "v2_chain_id"
+
+// lockV2ChainIDTx pins the resolved v2 network id (HACKME_V2_CHAIN_ID or V2ChainID) next to the
+// authority key: a later env change would silently move the node to another network (its blocks
+// and transfers rejected everywhere else), so it stops with an explicit error instead.
+func (s *Service) lockV2ChainIDTx(ctx context.Context, tx queryRowExecContext) error {
+	want := ResolvedV2ChainID()
+	var pinned string
+	if err := tx.QueryRowContext(ctx, `SELECT value FROM meta WHERE key=?`, metaV2ChainID).Scan(&pinned); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	if pinned = strings.TrimSpace(pinned); pinned != "" {
+		if pinned != want {
+			return fmt.Errorf("chain: v2 chain_id %q (HACKME_V2_CHAIN_ID) disagrees with pinned %q", want, pinned)
+		}
+		return nil
+	}
+	return s.upsertMeta(ctx, tx, metaV2ChainID, want)
 }
