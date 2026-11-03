@@ -175,7 +175,7 @@ func (s *Service) lockEconomicsV2ActivationTx(ctx context.Context, tx queryRowEx
 	if err := s.lockEconomicsV2AnnounceTx(ctx, tx); err != nil {
 		return err
 	}
-	return s.lockAuthorityPubKeyTx(ctx, tx)
+	return s.lockAuthorityPubKeyTx(ctx, tx, false) // producer adds its own key in AppendPoHBlock
 }
 
 // lockEconomicsV2AnnounceTx persists announce wall-clock once (D6 soft-start origin).
@@ -399,12 +399,12 @@ func (s *Service) lockEconomicsV2ActivationForImportTx(ctx context.Context, tx q
 	raw := strings.TrimSpace(os.Getenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT"))
 	h, perr := strconv.ParseUint(raw, 10, 64)
 	if raw == "" || perr != nil || h < 1 {
-		return s.lockAuthorityPubKeyTx(ctx, tx)
+		return s.lockAuthorityPubKeyTx(ctx, tx, false)
 	}
 	if !v2ActivationGuardOff {
 		if c := strings.TrimSpace(os.Getenv("HACKME_ECONOMICS_V2_ACTIVATION_CONFIRM")); c != raw {
 			// Env height present but unconfirmed — do not lock; still pin authority if needed.
-			return s.lockAuthorityPubKeyTx(ctx, tx)
+			return s.lockAuthorityPubKeyTx(ctx, tx, false)
 		}
 	}
 	return s.lockEconomicsV2ActivationTx(ctx, tx)

@@ -53,10 +53,12 @@ func validAuthorityPubKeyHex(v string) bool {
 	return err == nil && len(raw) == 32
 }
 
-// lockAuthorityPubKeyTx pins the block-signing key once Economics v2 is configured: env, else the
-// node's own signer (the hub). A follower without either stays unpinned and refuses v2 blocks.
-// Later env must agree with the pin. Caller holds the append/import tx.
-func (s *Service) lockAuthorityPubKeyTx(ctx context.Context, tx queryRowExecContext) error {
+// lockAuthorityPubKeyTx pins the block-signing key once Economics v2 is configured: env, else —
+// only when producing blocks (allowSelf, the hub) — the node's own signer. Import never pins the
+// node's own key: every desktop/follower has a node key, and pinning it would make the node
+// reject the real hub's blocks forever. A follower without env stays unpinned and refuses v2
+// blocks (fail closed). Later env must agree with the pin. Caller holds the append/import tx.
+func (s *Service) lockAuthorityPubKeyTx(ctx context.Context, tx queryRowExecContext, allowSelf bool) error {
 	if EconomicsV2ActivationHeight() < 1 {
 		return nil
 	}
@@ -76,7 +78,7 @@ func (s *Service) lockAuthorityPubKeyTx(ctx context.Context, tx queryRowExecCont
 		return nil
 	}
 	key := env
-	if key == "" && s.signer != nil {
+	if key == "" && allowSelf && s.signer != nil {
 		key = strings.ToLower(strings.TrimSpace(s.signer.PublicKeyHex()))
 	}
 	if key == "" {
