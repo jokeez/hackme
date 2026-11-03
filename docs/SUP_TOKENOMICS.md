@@ -1,6 +1,6 @@
 # SUP (HackMe Support) — tokenomics
 
-**Ticker:** SUP · **Ledger:** parallel on HackMe node (same `HMC-` addresses) · **Decimals:** 8 · **Max supply:** **21,000,000 SUP**
+**Ticker:** SUP · **Ledger:** parallel on HackMe node (same `HMC-` addresses) · **Decimals:** 8 · **Max supply (today):** **21,000,000 SUP** · **Economics v2 (at activation):** **21,000 SUP** hard cap + block emit (see [RFC_ECONOMICS_V2.md](RFC_ECONOMICS_V2.md))
 
 Public site: [coin-sup.html](https://hackme.tech/coin-sup.html) · Live API: `GET https://hackme.tech/api/sup/economics`
 
@@ -10,9 +10,11 @@ Public site: [coin-sup.html](https://hackme.tech/coin-sup.html) · Live API: `GE
 
 | Parameter | Value |
 |-----------|-------|
-| Max supply | **21,000,000 SUP** |
+| Max supply (pre-v2) | **21,000,000 SUP** |
+| Max supply (v2, when activated) | **21,000 SUP** |
 | Genesis handout to public | **None** (no faucet / airdrop) |
-| Mint path | Coordinator accrual → `settle_worker_sup.sh` on-chain mint |
+| Mint / settle path (today) | Coordinator accrual → settlement mint / transfer |
+| Mint path (v2) | Empty-block emit only; admin mint retired; pool pays from settlement wallet |
 | Circulating | `total_minted_sup` from economics API |
 
 ## Emission (earn rules)
@@ -32,7 +34,8 @@ Full policy: [SUPPORT_COIN_UTILITY.md](SUPPORT_COIN_UTILITY.md) · Phase C on-ch
 
 | Utility | Status |
 |---------|--------|
-| Order fee payable in SUP (escrow stays HMC) | Planned — economics v2 |
+| Order fee payable in SUP (escrow stays HMC) | **Code on `main`** — activates with Economics v2 height (soft-announced; not live tip yet) |
+| On-chain transfers | Live (`transfer_sup` / settle-by-transfer path for v2) |
 | ~~Security Audit discount (15% escrow)~~ / ~~pool priority~~ | Not enforced; dropped in v2 |
 | Support-miner reputation tier | Explorer / dashboard |
 | Governance signal (non-binding param votes) | Planned |
