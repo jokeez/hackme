@@ -99,6 +99,14 @@ func TestFoundAuditPersistsAcrossRestart(t *testing.T) {
 	if st == nil || !st.Flagged || st.Expected < foundAuditMinExpected {
 		t.Fatalf("setup not flagged: %+v", st)
 	}
+	// Crash (no flush): the withhold flag is durable at once, numbers may lag ≤30s.
+	crash := &workManager{}
+	crash.attachDedupDB(db)
+	if cs := crash.foundAudit[key]; cs == nil || !cs.Flagged {
+		t.Fatalf("flag lost on crash restart: %+v", cs)
+	}
+	// Graceful stop flushes the exact counters.
+	wm.flushFoundAuditLocked()
 	wantExp, wantAct := st.Expected, st.Actual
 
 	wm2 := &workManager{}
@@ -245,5 +253,59 @@ func TestSecurityBlockWithholdingStopsPay(t *testing.T) {
 	t.Setenv("HACKME_COORDINATOR_FOUND_AUDIT", "log")
 	if logPaid, _ := run(false); logPaid < 75 {
 		t.Fatalf("log mode must not cut pay, paid %d/80", logPaid)
+	}
+}
+
+// Hot path: sqlite writes are bounded per identity (submits hold m.mu), flag transitions are
+// durable at once, and the rest is flushed on shutdown and restored after restart.
+func TestFoundAuditPersistThrottledAndFlushed(t *testing.T) {
+	db, err := store.Open(filepath.Join(t.TempDir(), "fa.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	wm := &workManager{worker: map[string]workerPayoutStat{}}
+	wm.attachDedupDB(db)
+	key := foundAuditKey("HMC-cccccccccccccccc", "w")
+	dbExpected := func() float64 {
+		var e float64
+		_ = db.QueryRow(`SELECT expected FROM found_audit WHERE audit_key=?`, key).Scan(&e)
+		return e
+	}
+	wm.mu.Lock()
+	wm.noteFoundAuditWorkLocked(key, 32, 2048, 70_000) // first write
+	first := dbExpected()
+	for i := 0; i < 10; i++ {
+		wm.noteFoundAuditWorkLocked(key, 32, 2048, 70_000) // within the gap: memory only
+	}
+	wm.mu.Unlock()
+	if first == 0 || dbExpected() != first {
+		t.Fatalf("writes not throttled: first=%v now=%v", first, dbExpected())
+	}
+	// Drive to a flag transition: written immediately even inside the gap.
+	wm.mu.Lock()
+	for i := 0; i < 100 && !wm.foundAudit[key].Flagged; i++ {
+		wm.noteFoundAuditWorkLocked(key, 32, 2048, 70_000)
+	}
+	wm.mu.Unlock()
+	var flagged int
+	_ = db.QueryRow(`SELECT flagged FROM found_audit WHERE audit_key=?`, key).Scan(&flagged)
+	if flagged != 1 {
+		t.Fatal("flag transition not persisted at once")
+	}
+	wm.mu.Lock()
+	wm.noteFoundAuditWorkLocked(key, 32, 2048, 70_000)
+	mem := wm.foundAudit[key].Expected
+	if n := wm.flushFoundAuditLocked(); n != 1 {
+		t.Fatalf("flush wrote %d identities, want 1", n)
+	}
+	wm.mu.Unlock()
+	if got := dbExpected(); got != mem {
+		t.Fatalf("flush: db %v mem %v", got, mem)
+	}
+	wm2 := &workManager{worker: map[string]workerPayoutStat{}}
+	wm2.attachDedupDB(db)
+	if st := wm2.foundAudit[key]; st == nil || st.Expected != mem || !st.Flagged {
+		t.Fatalf("restart restore: %+v", st)
 	}
 }

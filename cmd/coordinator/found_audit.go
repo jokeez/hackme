@@ -29,6 +29,9 @@ type foundAuditState struct {
 	Expected float64
 	Actual   float64
 	Flagged  bool
+
+	dirty         bool  // in-memory change not yet in sqlite
+	persistedUnix int64 // last sqlite write for this identity
 }
 
 func foundAuditMode() string {
@@ -88,7 +91,7 @@ func (m *workManager) noteFoundAuditHitLocked(key string) {
 		return
 	}
 	m.foundAuditEntryLocked(key).Actual++
-	m.persistFoundAuditLocked(key)
+	m.markFoundAuditDirtyLocked(key, false)
 }
 
 // undoFoundAuditHitLocked rolls back noteFoundAuditHitLocked when the submit is rejected after
@@ -102,7 +105,7 @@ func (m *workManager) undoFoundAuditHitLocked(key string) {
 		return
 	}
 	st.Actual--
-	m.persistFoundAuditLocked(key)
+	m.markFoundAuditDirtyLocked(key, false)
 }
 
 // noteFoundAuditWorkLocked adds share-implied hashes for a lease and reports whether the
@@ -121,7 +124,8 @@ func (m *workManager) noteFoundAuditWorkLocked(key string, nShares int, shareMod
 		st.Actual /= 2
 	}
 	suspicious := foundRateSuspicious(st.Expected, st.Actual)
-	if suspicious != st.Flagged {
+	transition := suspicious != st.Flagged
+	if transition {
 		st.Flagged = suspicious
 		if suspicious {
 			m.foundAuditFlagged++
@@ -129,7 +133,7 @@ func (m *workManager) noteFoundAuditWorkLocked(key string, nShares int, shareMod
 		log.Printf("found audit: %s flagged=%v expected=%.1f actual=%.0f mode=%s",
 			sanitizeLogToken(key), suspicious, st.Expected, st.Actual, foundAuditMode())
 	}
-	m.persistFoundAuditLocked(key)
+	m.markFoundAuditDirtyLocked(key, transition) // flag changes are durable at once
 	return suspicious
 }
 

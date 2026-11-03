@@ -53,12 +53,17 @@ func validAuthorityPubKeyHex(v string) bool {
 	return err == nil && len(raw) == 32
 }
 
-// lockAuthorityPubKeyTx pins the block-signing key once Economics v2 is configured: env, else the
-// node's own signer (the hub). A follower without either stays unpinned and refuses v2 blocks.
-// Later env must agree with the pin. Caller holds the append/import tx.
-func (s *Service) lockAuthorityPubKeyTx(ctx context.Context, tx queryRowExecContext) error {
+// lockAuthorityPubKeyTx pins the block-signing key once Economics v2 is configured: env, else —
+// only when producing blocks (allowSelf, the hub) — the node's own signer. Import never pins the
+// node's own key: every desktop/follower has a node key, and pinning it would make the node
+// reject the real hub's blocks forever. A follower without env stays unpinned and refuses v2
+// blocks (fail closed). Later env must agree with the pin. Caller holds the append/import tx.
+func (s *Service) lockAuthorityPubKeyTx(ctx context.Context, tx queryRowExecContext, allowSelf bool) error {
 	if EconomicsV2ActivationHeight() < 1 {
 		return nil
+	}
+	if err := s.lockV2ChainIDTx(ctx, tx); err != nil {
+		return err
 	}
 	var pinned string
 	if err := tx.QueryRowContext(ctx, `SELECT value FROM meta WHERE key=?`, metaAuthorityPubKey).Scan(&pinned); err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -73,7 +78,7 @@ func (s *Service) lockAuthorityPubKeyTx(ctx context.Context, tx queryRowExecCont
 		return nil
 	}
 	key := env
-	if key == "" && s.signer != nil {
+	if key == "" && allowSelf && s.signer != nil {
 		key = strings.ToLower(strings.TrimSpace(s.signer.PublicKeyHex()))
 	}
 	if key == "" {
@@ -190,4 +195,24 @@ func (s *Service) NetworkChainID(ctx context.Context) string {
 		return s.ChainID(ctx)
 	}
 	return s.ChainIDForIndex(ctx, idx)
+}
+
+const metaV2ChainID = "v2_chain_id"
+
+// lockV2ChainIDTx pins the resolved v2 network id (HACKME_V2_CHAIN_ID or V2ChainID) next to the
+// authority key: a later env change would silently move the node to another network (its blocks
+// and transfers rejected everywhere else), so it stops with an explicit error instead.
+func (s *Service) lockV2ChainIDTx(ctx context.Context, tx queryRowExecContext) error {
+	want := ResolvedV2ChainID()
+	var pinned string
+	if err := tx.QueryRowContext(ctx, `SELECT value FROM meta WHERE key=?`, metaV2ChainID).Scan(&pinned); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	if pinned = strings.TrimSpace(pinned); pinned != "" {
+		if pinned != want {
+			return fmt.Errorf("chain: v2 chain_id %q (HACKME_V2_CHAIN_ID) disagrees with pinned %q", want, pinned)
+		}
+		return nil
+	}
+	return s.upsertMeta(ctx, tx, metaV2ChainID, want)
 }

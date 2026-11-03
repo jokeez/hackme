@@ -301,6 +301,11 @@ func main() {
 		sig := <-sigCh
 		log.Printf("coordinator: got %v — flushing worker accruals then shutting down", sig)
 		wm.flushAllWorkerAccruals()
+		wm.mu.Lock()
+		if n := wm.flushFoundAuditLocked(); n > 0 {
+			log.Printf("found_audit: flushed %d identities on shutdown", n)
+		}
+		wm.mu.Unlock()
 		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(ctx)

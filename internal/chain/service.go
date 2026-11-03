@@ -696,6 +696,10 @@ func (s *Service) AppendPoHBlock(ctx context.Context, minerAddress string, nonce
 	if err := s.lockEconomicsV2ActivationTx(ctx, tx); err != nil {
 		return nil, err
 	}
+	// The producer (hub) may pin its own key when no HACKME_CHAIN_AUTHORITY_PUBKEY is set.
+	if err := s.lockAuthorityPubKeyTx(ctx, tx, true); err != nil {
+		return nil, err
+	}
 	if err := s.validateV2HeaderQ(ctx, tx, b, orderTaskID); err != nil {
 		return nil, err
 	}

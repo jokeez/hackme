@@ -418,3 +418,20 @@ func TestV2ActivationGuardLocksWhenConfirmedWithLead(t *testing.T) {
 		t.Fatalf("unconfirmed follower must not lock height meta, got %d", h)
 	}
 }
+
+func TestV2ChainIDPinRejectsEnvChange(t *testing.T) {
+	n := newV2Net(t, "1")
+	n.mine()
+	var pinned string
+	_ = n.hubDB.QueryRow(`SELECT value FROM meta WHERE key=?`, metaV2ChainID).Scan(&pinned)
+	if pinned != V2ChainID {
+		t.Fatalf("pinned chain id %q", pinned)
+	}
+	t.Setenv("HACKME_V2_CHAIN_ID", "hackme-lab-typo")
+	m, _ := n.hub.PoHTargetMod(n.ctx)
+	h, _, _ := n.hub.Tip(n.ctx)
+	nonce, eval := firstPoHHit(m)
+	if _, err := n.hub.AppendPoHBlock(n.ctx, "HMC-poolworker0001", nonce, eval, BaseRewardForBlockIndex(h+1), m, ""); err == nil || !strings.Contains(err.Error(), "disagrees with pinned") {
+		t.Fatalf("chain id env change after pin: %v", err)
+	}
+}
