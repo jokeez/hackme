@@ -2456,11 +2456,14 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	// the miner actually signed for replay dedup below.
 	signedReq := req
 	auditKey := foundAuditKey(signerAddr, req.WorkerID)
+	// H1: remember a verified hit for audit credit at accept — never Actual++ here (retries /
+	// mid-path rejects must not inflate the counter). Survives stale-tip and baseline-relay
+	// downgrades that clear req.Found while still proving the miner reports blocks.
+	foundAuditCreditPending := false
 	if req.Found && m.foundStaleForLeaseLocked(rec) {
 		m.staleFoundDropped++
-		// A real hit on the lease's own tip still proves the miner reports blocks.
 		if m.staleFoundProvenLocked(rec, req, signerAddr, leaseMod) {
-			m.noteFoundAuditHitLocked(auditKey)
+			foundAuditCreditPending = true
 		}
 		req.Found = false
 		req.FoundNonce = 0
@@ -2523,7 +2526,7 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 			m.rejectedSubmits++
 			return false, "found_nonce_invalid_for_target_mod", 0, "", false
 		}
-		m.noteFoundAuditHitLocked(auditKey)
+		foundAuditCreditPending = true
 		// M2: reject duplicate result_hash before consuming lease / recording nonces.
 		resultHashKey = strings.TrimSpace(strings.ToLower(req.ResultHash))
 		if resultHashKey != "" {
@@ -2854,9 +2857,17 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		}
 	}
 
+	// H1: credit Actual only on the accept path. Provisional credit before the found-rate
+	// gate so an honest recovery found is visible to the Poisson check; undo on reject.
+	if foundAuditCreditPending {
+		m.noteFoundAuditHitLocked(auditKey)
+	}
 	if useShares && !rec.OrderLease && m.noteFoundAuditWorkLocked(auditKey, len(validShares), sm, validateMod) && foundAuditMode() == "on" {
 		// Far fewer block hits than verified work implies: withholding, or a miner build that
 		// drops hits (update workerpoh). Shares stay unpaid until the found rate recovers.
+		if foundAuditCreditPending {
+			m.undoFoundAuditHitLocked(auditKey)
+		}
 		m.rejectedSubmits++
 		return false, "found_rate_too_low_update_miner", 0, signerAddr, signerAddr != ""
 	}

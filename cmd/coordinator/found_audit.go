@@ -80,11 +80,26 @@ func (m *workManager) foundAuditEntryLocked(key string) *foundAuditState {
 }
 
 // noteFoundAuditHitLocked records one block hit verified against the lease M (caller holds m.mu).
+// Call only on the accept path (or immediately before the found-rate gate with undo on reject) —
+// counting earlier lets retries inflate Actual and clear a withhold flag without paying a found.
 func (m *workManager) noteFoundAuditHitLocked(key string) {
 	if foundAuditMode() == "off" {
 		return
 	}
 	m.foundAuditEntryLocked(key).Actual++
+}
+
+// undoFoundAuditHitLocked rolls back noteFoundAuditHitLocked when the submit is rejected after
+// the provisional credit (found-rate gate in on mode).
+func (m *workManager) undoFoundAuditHitLocked(key string) {
+	if foundAuditMode() == "off" {
+		return
+	}
+	st := m.foundAudit[key]
+	if st == nil || st.Actual < 1 {
+		return
+	}
+	st.Actual--
 }
 
 // noteFoundAuditWorkLocked adds share-implied hashes for a lease and reports whether the
