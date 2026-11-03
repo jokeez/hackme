@@ -149,6 +149,85 @@ func findHitCPU(base, batch, mod uint64) (bool, uint64) {
 	return findHitCPUPoH(base, batch, mod, 1, "", "")
 }
 
+// gpuLeaseScan is what one claim's chunked GPU scan produced.
+type gpuLeaseScan struct {
+	found      bool
+	nonce      uint64
+	elapsedSec float64
+	searched   uint64
+}
+
+// scanLeaseGPU walks a claim lease in GPU-sized chunks. Shares go to mergeShares
+// (shareCount reports how many are held); the block hit is tracked in the result.
+// A chunk's block hit is always recorded before the "enough shares" early stop,
+// otherwise the hit from the chunk that crossed the share threshold is dropped.
+func scanLeaseGPU(srch searcher, cr claimResp, chunk uint64, timeout time.Duration,
+	searchReq func(base, count uint64) gpupoh.SearchRequest, fv int, minerForPoH, workerID string,
+	pastLease func() bool, mergeShares func([]uint64), shareCount func() int) gpuLeaseScan {
+	var out gpuLeaseScan
+	remain := cr.BatchSize
+	cur := cr.BaseNonce
+	for remain > 0 {
+		if pastLease() {
+			hotlog.Stderrf("workerpoh: lease deadline near — submit with %d shares searched=%d", shareCount(), out.searched)
+			break
+		}
+		n := chunk
+		if n > remain {
+			n = remain
+		}
+		res, sec, err := srch.SearchPoHCollect(timeout, searchReq(cur, n))
+		out.elapsedSec += sec
+		out.searched += n
+		mergeShares(res.Shares)
+		if err != nil {
+			// On transient GPU errors, fallback to CPU for this claim (preserve session; log for coordinator tail).
+			class := gputune.ClassifyGPUFailure(err)
+			if gputune.ShouldCPUFallback(class) {
+				hotlog.Stderrf("workerpoh: %s", gputune.FormatWorkerGPUEvent(workerID, workerGPUBackend, class, err))
+			}
+			fb, errFB := gpupoh.Blake3SearchCollect(context.Background(), searchReq(cur, n))
+			if errFB == nil {
+				mergeShares(fb.Shares)
+				if fb.Found {
+					out.found, out.nonce = true, fb.Nonce
+					// Keep scanning remaining chunks when ShareMod set so PPS reflects work.
+					if cr.ShareMod == 0 {
+						break
+					}
+				}
+			} else {
+				f2, nonce2 := findHitCPUPoH(cur, n, cr.TargetMod, fv, cr.PrevHash, minerForPoH)
+				if f2 {
+					out.found, out.nonce = true, nonce2
+					if cr.ShareMod == 0 {
+						break
+					}
+				}
+			}
+		} else if res.Found {
+			out.found, out.nonce = true, res.Nonce
+			// Soft / no shares: stop early. Strict PPS: finish lease for share proofs.
+			if cr.ShareMod == 0 {
+				break
+			}
+		}
+		cur += n
+		remain -= n
+		// Enough shares for PPS — don't burn the rest of a huge lease into expiry.
+		if cr.ShareMod > 0 && shareCount() >= 32 {
+			if out.found || !cr.ShareStrict {
+				break
+			}
+			// Still hunting a block hit is optional; prefer timely submit under strict.
+			if shareCount() >= 64 {
+				break
+			}
+		}
+	}
+	return out
+}
+
 func findHitCPUPoH(base, batch, mod uint64, formulaVersion int, prevHash, minerAddr string) (bool, uint64) {
 	end := base + batch
 	if end < base {
@@ -1097,70 +1176,16 @@ func main() {
 			return !leaseDeadline.IsZero() && time.Now().After(leaseDeadline)
 		}
 		if mode == "gpu" {
-			remain := cr.BatchSize
-			cur := cr.BaseNonce
 			chunk := *gpuChunk
 			if chunk < 1024 {
 				chunk = 1024
 			}
-			for remain > 0 {
-				if pastLease() {
-					hotlog.Stderrf("workerpoh: lease deadline near — submit with %d shares searched=%d", len(collectedShares), searched)
-					break
-				}
-				n := chunk
-				if n > remain {
-					n = remain
-				}
-				res, sec, err := srch.SearchPoHCollect(time.Duration(*searchTimeoutMS)*time.Millisecond, searchReq(cur, n))
-				elapsed += sec
-				searched += n
-				mergeShares(res.Shares)
-				// Enough shares for PPS — don't burn the rest of a huge lease into expiry.
-				if cr.ShareMod > 0 && len(collectedShares) >= 32 {
-					if found || !cr.ShareStrict {
-						break
-					}
-					// Still hunting a block hit is optional; prefer timely submit under strict.
-					if len(collectedShares) >= 64 {
-						break
-					}
-				}
-				if err != nil {
-					// On transient GPU errors, fallback to CPU for this claim (preserve session; log for coordinator tail).
-					class := gputune.ClassifyGPUFailure(err)
-					if gputune.ShouldCPUFallback(class) {
-						hotlog.Stderrf("workerpoh: %s", gputune.FormatWorkerGPUEvent(*workerID, workerGPUBackend, class, err))
-					}
-					fb, errFB := gpupoh.Blake3SearchCollect(context.Background(), searchReq(cur, n))
-					if errFB == nil {
-						mergeShares(fb.Shares)
-						if fb.Found {
-							found, foundNonce = true, fb.Nonce
-							// Keep scanning remaining chunks when ShareMod set so PPS reflects work.
-							if cr.ShareMod == 0 {
-								break
-							}
-						}
-					} else {
-						f2, nonce2 := findHitCPUPoH(cur, n, cr.TargetMod, fv, cr.PrevHash, minerForPoH)
-						if f2 {
-							found, foundNonce = true, nonce2
-							if cr.ShareMod == 0 {
-								break
-							}
-						}
-					}
-				} else if res.Found {
-					found, foundNonce = true, res.Nonce
-					// Soft / no shares: stop early. Strict PPS: finish lease for share proofs.
-					if cr.ShareMod == 0 {
-						break
-					}
-				}
-				cur += n
-				remain -= n
-			}
+			scan := scanLeaseGPU(srch, cr, chunk, time.Duration(*searchTimeoutMS)*time.Millisecond,
+				searchReq, fv, minerForPoH, *workerID, pastLease, mergeShares,
+				func() int { return len(collectedShares) })
+			found, foundNonce = scan.found, scan.nonce
+			elapsed += scan.elapsedSec
+			searched += scan.searched
 		} else {
 			res, sec, err := srch.SearchPoHCollect(0, searchReq(cr.BaseNonce, cr.BatchSize))
 			_ = err

@@ -3,6 +3,9 @@ package main
 import (
 	"math"
 	"testing"
+	"time"
+
+	"hackme/internal/gpupoh"
 )
 
 func TestEnvUint64(t *testing.T) {
@@ -143,5 +146,91 @@ func TestCollectShareNoncesStrideCoversLargeLease(t *testing.T) {
 		if n < base || n >= base+batch {
 			t.Fatalf("nonce out of lease: %d", n)
 		}
+	}
+}
+
+// chunkSearcher returns scripted SearchPoHCollect results, one per chunk.
+type chunkSearcher struct {
+	results []gpupoh.SearchResult
+	calls   int
+}
+
+func (s *chunkSearcher) Label() string { return "fake" }
+func (s *chunkSearcher) Search(time.Duration, uint64, uint64, uint64) (bool, uint64, float64, error) {
+	return false, 0, 0, nil
+}
+func (s *chunkSearcher) SearchPoH(time.Duration, gpupoh.SearchRequest) (bool, uint64, float64, error) {
+	return false, 0, 0, nil
+}
+func (s *chunkSearcher) SearchPoHCollect(_ time.Duration, req gpupoh.SearchRequest) (gpupoh.SearchResult, float64, error) {
+	var r gpupoh.SearchResult
+	if s.calls < len(s.results) {
+		r = s.results[s.calls]
+	}
+	s.calls++
+	r.Scanned = req.Count
+	return r, 0.001, nil
+}
+
+func seqNonces(from, n uint64) []uint64 {
+	out := make([]uint64, n)
+	for i := range out {
+		out[i] = from + uint64(i)
+	}
+	return out
+}
+
+func runScanLeaseGPU(t *testing.T, strict bool, results []gpupoh.SearchResult) (gpuLeaseScan, *chunkSearcher) {
+	t.Helper()
+	srch := &chunkSearcher{results: results}
+	cr := claimResp{BaseNonce: 0, BatchSize: 10 * 1024, TargetMod: 1_000_000, ShareMod: 1000, ShareStrict: strict}
+	var shares []uint64
+	req := func(base, count uint64) gpupoh.SearchRequest {
+		return gpupoh.SearchRequest{Base: base, Count: count, Mod: cr.TargetMod, ShareMod: cr.ShareMod}
+	}
+	got := scanLeaseGPU(srch, cr, 1024, time.Second, req, 3, "HMC-test", "w1",
+		func() bool { return false },
+		func(more []uint64) { shares = append(shares, more...) },
+		func() int { return len(shares) })
+	return got, srch
+}
+
+func TestScanLeaseGPUKeepsHitFromChunkReachingShareThreshold(t *testing.T) {
+	// Chunk 1: 31 shares. Chunk 2: the 32nd share and a block hit in the same pass.
+	got, srch := runScanLeaseGPU(t, false, []gpupoh.SearchResult{
+		{Shares: seqNonces(0, 31)},
+		{Shares: seqNonces(1024, 1), Found: true, Nonce: 1500},
+	})
+	if !got.found || got.nonce != 1500 {
+		t.Fatalf("block hit dropped: found=%v nonce=%d", got.found, got.nonce)
+	}
+	if srch.calls != 2 || got.searched != 2048 {
+		t.Fatalf("want stop after chunk 2: calls=%d searched=%d", srch.calls, got.searched)
+	}
+}
+
+func TestScanLeaseGPUStrictKeepsHitFromChunkReachingShareCap(t *testing.T) {
+	// Strict PPS: no hit until the chunk that also reaches the 64-share cap.
+	got, srch := runScanLeaseGPU(t, true, []gpupoh.SearchResult{
+		{Shares: seqNonces(0, 40)},
+		{Shares: seqNonces(1024, 24), Found: true, Nonce: 2000},
+	})
+	if !got.found || got.nonce != 2000 {
+		t.Fatalf("block hit dropped: found=%v nonce=%d", got.found, got.nonce)
+	}
+	if srch.calls != 2 {
+		t.Fatalf("want stop after chunk 2, calls=%d", srch.calls)
+	}
+}
+
+func TestScanLeaseGPUStrictKeepsScanningWithoutHit(t *testing.T) {
+	// Strict PPS with 32..63 shares and no hit: keep scanning for the block.
+	got, srch := runScanLeaseGPU(t, true, []gpupoh.SearchResult{
+		{Shares: seqNonces(0, 40)},
+		{},
+		{Found: true, Nonce: 2100},
+	})
+	if !got.found || got.nonce != 2100 || srch.calls != 3 {
+		t.Fatalf("found=%v nonce=%d calls=%d", got.found, got.nonce, srch.calls)
 	}
 }
