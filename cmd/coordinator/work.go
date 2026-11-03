@@ -133,6 +133,7 @@ type workManager struct {
 	poolPayDayID          int64
 	poolPayAccruedDay     float64
 	poolBudgetClipped     uint64
+	poolPayPersistUnix    int64 // last pool_pay_day write (clip-only updates are throttled)
 	dedupSubmits          uint64
 	dedupFoundNonce       uint64
 	staleFoundDropped     uint64 // founds on a superseded tip: found dropped, shares still paid
@@ -171,6 +172,11 @@ type workManager struct {
 	baselineRelayOK      uint64
 	baselineRelayReject  uint64
 	baselineRelayWould   uint64 // dry-mode would-mint (no chain POST)
+	// Relay failures that kept the lease's verified shares and dropped only the found.
+	baselineRelayDowngraded uint64
+
+	foundAudit        map[string]*foundAuditState
+	foundAuditFlagged uint64
 
 	lastAbusePruneUnix    int64
 	lastIdlePruneUnix     int64
@@ -216,6 +222,7 @@ type leaseRecord struct {
 	MinerAddress   string `json:"miner_address,omitempty"`
 	FormulaVersion int    `json:"formula_version,omitempty"`
 	TipHeight      uint64 `json:"tip_height,omitempty"`
+	OrderLease     bool   `json:"order_lease,omitempty"` // claim carried a WASM-gated order
 }
 
 type workerPayoutStat struct {
@@ -2428,8 +2435,13 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	// the found (no bonus) instead of rejecting the whole lease. signedReq keeps the bytes
 	// the miner actually signed for replay dedup below.
 	signedReq := req
+	auditKey := foundAuditKey(signerAddr, req.WorkerID)
 	if req.Found && m.foundStaleForLeaseLocked(rec) {
 		m.staleFoundDropped++
+		// A real hit on the lease's own tip still proves the miner reports blocks.
+		if m.staleFoundProvenLocked(rec, req, signerAddr, leaseMod) {
+			m.noteFoundAuditHitLocked(auditKey)
+		}
 		req.Found = false
 		req.FoundNonce = 0
 		req.ResultHash = ""
@@ -2491,6 +2503,7 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 			m.rejectedSubmits++
 			return false, "found_nonce_invalid_for_target_mod", 0, "", false
 		}
+		m.noteFoundAuditHitLocked(auditKey)
 		// M2: reject duplicate result_hash before consuming lease / recording nonces.
 		resultHashKey = strings.TrimSpace(strings.ToLower(req.ResultHash))
 		if resultHashKey != "" {
@@ -2508,6 +2521,34 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	leaseDeadAfterChain := false
 	// RFC D1: baseline (non-order) found → optional chain empty-block relay to settlement payer.
 	// Never steal an active WASM order find into empty-block mint (omit order_task_id / wasm_gate_pass).
+	// Relay failures drop only the found: the lease's verified shares stay payable (same rule
+	// as the stale-tip downgrade above), so reporting a block can never cost the miner pay —
+	// otherwise hiding founds would be the better strategy. Caller holds m.mu.
+	downgradeRelayFound := func() (string, bool) {
+		m.baselineRelayDowngraded++
+		req.Found = false
+		req.FoundNonce = 0
+		req.ResultHash = ""
+		resultHashKey = ""
+		now = time.Now().Unix()
+		rec, ok = m.active[k]
+		if !ok {
+			m.unknownSubmits++
+			return "unknown_or_already_closed_range", false
+		}
+		if rec.WorkerID != req.WorkerID {
+			m.rejectedSubmits++
+			return "range_leased_to_another_worker", false
+		}
+		if rec.ExpiresAt < now {
+			delete(m.active, k)
+			m.staleSubmits++
+			m.noteWorkerStale(req.WorkerID, now)
+			return "lease_expired", false
+		}
+		issuedAt = rec.IssuedAt
+		return "", true
+	}
 	if req.Found && orderID == "" && !req.WasmGatePass && signerAddr != "" && m.baselineRelayEnabled() {
 		mod := leaseMod
 		prevForRelay := strings.TrimSpace(rec.PrevHash)
@@ -2523,62 +2564,58 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		var probeOK bool
 		orderSnap, probeOK = m.activeOrderSnapshotStatus()
 		// Fail closed: probe outage OR open-but-unclaimable order must not mint baseline.
+		// Fail closed on the mint (probe outage, open order, tip/M race): never relay, but
+		// keep the shares — see downgradeRelayFound.
+		relaySkip := ""
 		if !probeOK && strings.TrimSpace(m.ordersProbeURL) != "" {
-			m.mu.Lock()
-			m.rejectedSubmits++
-			return false, "orders_probe_unavailable", 0, signerAddr, signerAddr != ""
-		}
-		if orderSnap.ID != "" {
-			m.mu.Lock()
-			m.rejectedSubmits++
-			return false, "active_order_requires_wasm_found", 0, signerAddr, signerAddr != ""
-		}
-		// Live tip+M gate matching SubmitBaselinePoHSolve predicates (shrink lease/retarget races).
-		if m.baselineRelayMode() == "on" {
+			relaySkip = "orders_probe_unavailable"
+		} else if orderSnap.ID != "" {
+			relaySkip = "active_order_requires_wasm_found"
+		} else if addrForRelay == "" {
+			// PoH binds miner_address; POST the same address used for live validation.
+			relaySkip = "baseline_relay_miner_missing"
+		} else if m.baselineRelayMode() == "on" {
+			// Live tip+M gate matching SubmitBaselinePoHSolve predicates (shrink lease/retarget races).
 			live := m.liveChainMetricsFromNode()
 			if live.TipHash != "" && prevForRelay != "" && !strings.EqualFold(prevForRelay, live.TipHash) {
-				m.mu.Lock()
-				m.rejectedSubmits++
-				return false, "stale_tip_before_baseline_relay", 0, signerAddr, signerAddr != ""
-			}
-			if live.HasMod && live.Mod > 0 {
+				relaySkip = "stale_tip_before_baseline_relay"
+			} else if live.HasMod && live.Mod > 0 {
 				liveMod := m.clampTargetMod(live.Mod)
 				tipForPoH := live.TipHash
 				if tipForPoH == "" {
 					tipForPoH = prevForRelay
 				}
-				if addrForRelay == "" || !validFoundNoncePoH(req.FoundNonce, liveMod, fvRelay, tipForPoH, addrForRelay) {
-					m.mu.Lock()
-					m.rejectedSubmits++
-					return false, "found_invalid_for_live_chain_mod", 0, signerAddr, signerAddr != ""
+				if !validFoundNoncePoH(req.FoundNonce, liveMod, fvRelay, tipForPoH, addrForRelay) {
+					relaySkip = "found_invalid_for_live_chain_mod"
+				} else {
+					mod = liveMod
 				}
-				mod = liveMod
 			}
 		}
-		// PoH binds miner_address; POST the same address used for live validation (not a
-		// divergent signer fallback) so solve-baseline header matches the verified nonce.
-		if addrForRelay == "" {
-			m.mu.Lock()
-			m.rejectedSubmits++
-			return false, "baseline_relay_miner_missing", 0, signerAddr, signerAddr != ""
+		if relaySkip == "" {
+			chainSolve = m.relayBaselineSolve(addrForRelay, req.FoundNonce, mod)
 		}
-		chainSolve = m.relayBaselineSolve(addrForRelay, req.FoundNonce, mod)
 		m.mu.Lock()
 		now = time.Now().Unix()
-		if !chainSolve.OK {
-			m.baselineRelayReject++
-			m.rejectedSubmits++
-			return false, "baseline_chain_solve_failed:" + chainSolve.Reason, 0, signerAddr, signerAddr != ""
-		}
-		if chainSolve.Reason == "baseline_relay_dry" {
-			m.baselineRelayWould++
+		if relaySkip != "" || !chainSolve.OK {
+			if relaySkip == "" {
+				m.baselineRelayReject++
+			}
+			chainSolve = orderSolveRelayResult{}
+			if reason, live := downgradeRelayFound(); !live {
+				return false, reason, 0, signerAddr, signerAddr != ""
+			}
 		} else {
-			m.baselineRelayOK++
-		}
-		m.recordFoundDedupLocked(req.FoundNonce, resultHashKey, now)
-		rec, ok = m.active[k]
-		if !ok || rec.WorkerID != req.WorkerID || rec.ExpiresAt < now {
-			leaseDeadAfterChain = true
+			if chainSolve.Reason == "baseline_relay_dry" {
+				m.baselineRelayWould++
+			} else {
+				m.baselineRelayOK++
+			}
+			m.recordFoundDedupLocked(req.FoundNonce, resultHashKey, now)
+			rec, ok = m.active[k]
+			if !ok || rec.WorkerID != req.WorkerID || rec.ExpiresAt < now {
+				leaseDeadAfterChain = true
+			}
 		}
 	}
 	if needOrderPath {
@@ -2772,6 +2809,12 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		}
 	}
 
+	if useShares && !rec.OrderLease && m.noteFoundAuditWorkLocked(auditKey, len(validShares), sm, validateMod) && foundAuditMode() == "on" {
+		// Far fewer block hits than verified work implies: withholding, or a miner build that
+		// drops hits (update workerpoh). Shares stay unpaid until the found rate recovers.
+		m.rejectedSubmits++
+		return false, "found_rate_too_low_update_miner", 0, signerAddr, signerAddr != ""
+	}
 	if ok {
 		delete(m.active, k)
 	}
@@ -3526,6 +3569,10 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 		"baseline_relay_ok":            m.baselineRelayOK,
 		"baseline_relay_reject":        m.baselineRelayReject,
 		"baseline_relay_would":         m.baselineRelayWould,
+		"baseline_relay_downgraded":    m.baselineRelayDowngraded,
+		"found_audit_mode":             foundAuditMode(),
+		"found_audit_flagged":          m.foundAuditFlagged,
+		"found_audit_flagged_now":      m.foundAuditFlaggedNowLocked(),
 		"expired_leases":               m.expiredLeases,
 		"unknown_submits":              m.unknownSubmits,
 		"stale_submits":                m.staleSubmits,
@@ -3926,14 +3973,18 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 					modOut = snap.ChainMod
 					resp["target_mod"] = modOut
 					resp["chunk_id"] = buildChunkID(base, size, modOut)
-					wm.mu.Lock()
-					wk := workKey{base: base, batch: size}
-					if rec, ok := wm.active[wk]; ok {
-						rec.TargetMod = modOut
-						wm.active[wk] = rec
-					}
-					wm.mu.Unlock()
 				}
+				wm.mu.Lock()
+				wk := workKey{base: base, batch: size}
+				if rec, ok := wm.active[wk]; ok {
+					if snap.ChainMod > 0 {
+						rec.TargetMod = modOut
+					}
+					// WASM-gated hits are dropped client-side: keep the lease out of the found audit.
+					rec.OrderLease = strings.TrimSpace(snap.WasmHex) != ""
+					wm.active[wk] = rec
+				}
+				wm.mu.Unlock()
 				resp["order_task_id"] = snap.ID
 				resp["order_reward_hmc"] = snap.RewardHMC
 				resp["wasm_check_hex"] = snap.WasmHex

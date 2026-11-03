@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"hackme/internal/store"
@@ -501,5 +503,68 @@ INSERT INTO worker_accrual (
 	_ = db.QueryRow(`SELECT COUNT(1) FROM worker_accrual WHERE worker_id=?`, "evil").Scan(&n)
 	if n != 0 {
 		t.Fatalf("persist under tombstone must leave accrual empty, got %d", n)
+	}
+}
+
+// Concurrent persists from many workers plus a competing writer: with the old deferred tx
+// (read, then upgrade to write) SQLite answered SQLITE_BUSY_SNAPSHOT at once and the row and
+// its journal delta were lost. BEGIN IMMEDIATE waits on busy_timeout instead.
+func TestPersistWorkerAccrualConcurrentWritersNoLoss(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "accrual-concurrent.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	wm := &workManager{worker: map[string]workerPayoutStat{}}
+	wm.attachDedupDB(db)
+	ensurePoolPayDayTable(db)
+
+	const workers, rounds = 24, 15
+	stop := make(chan struct{})
+	var other sync.WaitGroup
+	other.Add(1)
+	go func() { // competing writer on the same DB (pool_pay_day / dedup traffic)
+		defer other.Done()
+		for i := int64(0); ; i++ {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			_, _ = db.Exec(`INSERT INTO pool_pay_day (day_id, accrued_hmc, clip_events, updated_at) VALUES (1, ?, 0, ?)
+				ON CONFLICT(day_id) DO UPDATE SET accrued_hmc=excluded.accrued_hmc, updated_at=excluded.updated_at`, float64(i), i)
+		}
+	}()
+	var wg sync.WaitGroup
+	for w := 0; w < workers; w++ {
+		id := fmt.Sprintf("w-%02d", w)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for r := 1; r <= rounds; r++ {
+				wm.mu.Lock()
+				wm.worker[id] = workerPayoutStat{AcceptedAtt: uint64(r) * 100, PayoutUnits: uint64(r) * 1000}
+				wm.mu.Unlock()
+				wm.persistWorkerAccrual(id, true)
+			}
+		}()
+	}
+	wg.Wait()
+	close(stop)
+	other.Wait()
+
+	for w := 0; w < workers; w++ {
+		id := fmt.Sprintf("w-%02d", w)
+		var units, journal uint64
+		if err := db.QueryRow(`SELECT payout_units FROM worker_accrual WHERE worker_id=?`, id).Scan(&units); err != nil {
+			t.Fatalf("%s: row lost: %v", id, err)
+		}
+		if err := db.QueryRow(`SELECT COALESCE(SUM(delta_units),0) FROM accrual_journal WHERE worker_id=?`, id).Scan(&journal); err != nil {
+			t.Fatal(err)
+		}
+		if units != rounds*1000 || journal != units {
+			t.Fatalf("%s: units=%d journal=%d want %d", id, units, journal, rounds*1000)
+		}
 	}
 }

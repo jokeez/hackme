@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"strings"
@@ -361,28 +362,38 @@ func (m *workManager) persistWorkerAccrual(workerID string, force bool) {
 	}
 	hmcMirror := chain.UnitsToHMC(pu)
 
-	tx, err := m.dedupDB.Begin()
+	// BEGIN IMMEDIATE: a deferred tx reads first and then upgrades to write, which fails at once
+	// with SQLITE_BUSY_SNAPSHOT (517) when another writer committed in between — busy_timeout
+	// never applies. ~1000 accrual persists/day were lost that way under D1 load.
+	ctx := context.Background()
+	tx, err := m.dedupDB.Conn(ctx)
 	if err != nil {
+		log.Printf("worker accrual conn id=%s err=%v", sanitizeLogToken(workerID), err)
+		return
+	}
+	defer tx.Close()
+	if _, err := tx.ExecContext(ctx, `BEGIN IMMEDIATE`); err != nil {
 		log.Printf("worker accrual begin id=%s err=%v", sanitizeLogToken(workerID), err)
 		return
 	}
 	committed := false
 	defer func() {
 		if !committed {
-			_ = tx.Rollback()
+			_, _ = tx.ExecContext(ctx, `ROLLBACK`)
 		}
 	}()
 	var revoked int
-	_ = tx.QueryRow(`SELECT COUNT(1) FROM worker_accrual_revoked WHERE worker_id=?`, workerID).Scan(&revoked)
+	_ = tx.QueryRowContext(ctx, `SELECT COUNT(1) FROM worker_accrual_revoked WHERE worker_id=?`, workerID).Scan(&revoked)
 	if revoked > 0 {
-		_, _ = tx.Exec(`DELETE FROM worker_accrual WHERE worker_id=?`, workerID)
-		_ = tx.Commit()
-		committed = true
+		_, _ = tx.ExecContext(ctx, `DELETE FROM worker_accrual WHERE worker_id=?`, workerID)
+		if _, err := tx.ExecContext(ctx, `COMMIT`); err == nil {
+			committed = true
+		}
 		return
 	}
 	var prevUnits uint64
-	_ = tx.QueryRow(`SELECT COALESCE(payout_units,0) FROM worker_accrual WHERE worker_id=?`, workerID).Scan(&prevUnits)
-	res, err := tx.Exec(`
+	_ = tx.QueryRowContext(ctx, `SELECT COALESCE(payout_units,0) FROM worker_accrual WHERE worker_id=?`, workerID).Scan(&prevUnits)
+	res, err := tx.ExecContext(ctx, `
 INSERT INTO worker_accrual (
   worker_id, accepted_ranges, accepted_hits, accepted_attempts,
   payout_hmc, payout_units, payout_sup, payout_address, signed_submits,
@@ -415,14 +426,14 @@ WHERE excluded.accepted_attempts >= worker_accrual.accepted_attempts
 	n, _ := res.RowsAffected()
 	if n > 0 && pu > prevUnits {
 		delta := pu - prevUnits
-		if _, jerr := tx.Exec(`
+		if _, jerr := tx.ExecContext(ctx, `
 INSERT INTO accrual_journal (worker_id, delta_units, payout_units, created_at)
 VALUES (?, ?, ?, ?)`, workerID, delta, pu, now); jerr != nil {
 			log.Printf("accrual journal id=%s err=%v", sanitizeLogToken(workerID), jerr)
 			return
 		}
 	}
-	if err := tx.Commit(); err != nil {
+	if _, err := tx.ExecContext(ctx, `COMMIT`); err != nil {
 		log.Printf("worker accrual commit id=%s err=%v", sanitizeLogToken(workerID), err)
 		return
 	}
