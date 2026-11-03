@@ -44,8 +44,13 @@ func lspciGPUNames() []string {
 	if err != nil || len(out) == 0 {
 		return nil
 	}
+	return parseLspciGPUNames(string(out))
+}
+
+// parseLspciGPUNames extracts GPU model names from plain `lspci` output.
+func parseLspciGPUNames(out string) []string {
 	var names []string
-	for _, ln := range strings.Split(string(out), "\n") {
+	for _, ln := range strings.Split(out, "\n") {
 		l := strings.TrimSpace(ln)
 		low := strings.ToLower(l)
 		if !strings.Contains(low, "vga compatible controller") &&
