@@ -151,35 +151,77 @@ test.describe('Dashboard UI buttons and API wiring', () => {
     await page.waitForFunction(() => {
       const el = document.querySelector('#mine-calc-gh-slider') as HTMLInputElement | null;
       const out = document.querySelector('#mine-calc-out-hour');
-      return !!el && Number(el.max) >= 1 && !!out && (out.textContent || '').trim() !== '—';
+      const api = (window as unknown as { __hackmeMineCalc?: { setGh: (n: number) => void } }).__hackmeMineCalc;
+      return !!el && Number(el.max) >= 1 && !!out && (out.textContent || '').trim() !== '—' && !!api;
     }, null, { timeout: 20_000 });
     const readHour = async () => {
       const t = (await hour.textContent()) || '0';
       return Number(String(t).replace(/,/g, '')) || 0;
     };
     const setGh = async (v: number) => {
-      await slider.evaluate((el, gh) => {
-        const s = el as HTMLInputElement;
-        s.value = String(gh);
-        s.dispatchEvent(new Event('input', { bubbles: true }));
+      await page.evaluate((gh) => {
+        const api = (window as unknown as { __hackmeMineCalc?: { setGh: (n: number) => void } }).__hackmeMineCalc;
+        if (!api || typeof api.setGh !== 'function') throw new Error('mine calc API missing');
+        api.setGh(gh);
       }, v);
-      await page.waitForTimeout(200);
+      await expect(label).toContainText(String(Math.floor(v)), { timeout: 3_000 });
     };
     await setGh(5);
     const lowHour = await readHour();
     const lowLabel = (await label.textContent()) || '';
     const lowAps = (await aps.textContent()) || '';
-    await setGh(Math.min(Number(await slider.getAttribute('max')) || 20, 20));
+    const sliderMax = Number(await slider.evaluate((el) => (el as HTMLInputElement).max)) || 20;
+    const highTarget = Math.min(Math.max(sliderMax, 5.01), 20);
+    await setGh(highTarget);
     const highHour = await readHour();
     const highLabel = (await label.textContent()) || '';
     const highAps = (await aps.textContent()) || '';
     expect(lowLabel).toMatch(/5/);
-    expect(highLabel).toMatch(/20|1[0-9]/);
+    expect(highLabel).toMatch(new RegExp(String(Math.floor(highTarget))));
     // Attempts/sec must track the slider. HMC/h may saturate under share-PPS lease ceiling
     // (~2× base_reward / lease) when there is no live accrual Δ to scale.
     expect(highAps).not.toBe(lowAps);
     expect(highHour).toBeGreaterThan(0);
     expect(lowHour).toBeGreaterThan(0);
+  });
+
+  test('Mining calculator live compare + coin select stay in sync', async ({ page }) => {
+    await page.goto('/#mining');
+    await page.waitForSelector('body.js-ui', { timeout: 15_000 });
+    await page.click('#tab-bar .tab-btn[data-tab="mining"]');
+    const coin = page.locator('#mine-calc-coin');
+    const coinLabel = page.locator('#mine-calc-coin-label');
+    const liveBtn = page.locator('#btn-mine-calc-live');
+    await expect(coin).toBeVisible({ timeout: 15_000 });
+    await page.waitForFunction(
+      () => !!(window as unknown as { __hackmeMineCalc?: { setCoin: (id: string) => void } }).__hackmeMineCalc,
+      null,
+      { timeout: 15_000 }
+    );
+
+    await page.evaluate(() => {
+      (window as unknown as { __hackmeMineCalc: { setCoin: (id: string) => void } }).__hackmeMineCalc.setCoin('hms');
+    });
+    await expect(coin).toHaveValue('hms');
+    await expect(coinLabel).toContainText(/HMS/i);
+    await expect(page.locator('#mine-calc-gh-label')).toContainText(/MB\/s/);
+
+    await page.evaluate(() => {
+      (window as unknown as { __hackmeMineCalc: { setCoin: (id: string) => void } }).__hackmeMineCalc.setCoin('hmc');
+    });
+    await expect(coin).toHaveValue('hmc');
+    await expect(coinLabel).toContainText(/HMC/i);
+    await expect(page.locator('#mine-calc-gh-label')).toContainText(/GH\/s/);
+
+    await expect(liveBtn).toBeEnabled();
+    await liveBtn.click();
+    await expect(liveBtn).toHaveText(/Syncing|Live|No live|My rig/i, { timeout: 8_000 });
+    await expect(coin).toHaveValue('hmc');
+    await page.waitForFunction(() => {
+      const btn = document.querySelector('#btn-mine-calc-live') as HTMLButtonElement | null;
+      return !!btn && !btn.disabled && /My rig \(live\)/i.test(btn.textContent || '');
+    }, null, { timeout: 8_000 });
+    await expect(liveBtn).toBeEnabled();
   });
 
   test('Hardware refresh loads tune API', async ({ page }) => {

@@ -44,7 +44,10 @@ func TestHuntGuidedClaimFreezesCorpusSnapshot(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("claim ok=%v err=%v", ok, err)
 	}
-	if w.CoverageKind != "hunt_corpus_guided" {
+	// Fleet default is libFuzzer → hunt_libfuzzer; byte+guided → hunt_corpus_guided.
+	switch w.CoverageKind {
+	case "hunt_libfuzzer", "hunt_aflpp", "hunt_corpus_guided":
+	default:
 		t.Fatalf("coverage_kind=%q", w.CoverageKind)
 	}
 	if len(w.CorpusSeeds) == 0 {

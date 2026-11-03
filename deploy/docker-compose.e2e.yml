@@ -25,6 +25,9 @@ services:
       HACKME_POOL_HYBRID_SIGNER_ENABLED: "1"
       HACKME_COORDINATOR_DB: "/data/coordinator.db"
       HACKME_WASM_VALIDATE_BIN: "/opt/hackme/bin/hackme-wasm-check"
+      # Lab: toy harnesses can exit in <1s; production keeps the 75% wall floor.
+      HACKME_HUNT_ENGINE_MIN_WALL_MS: "${HACKME_HUNT_ENGINE_MIN_WALL_MS:-0}"
+      HACKME_COORDINATOR_CLAIM_PER_MIN: "${HACKME_COORDINATOR_CLAIM_PER_MIN:-600}"
     volumes:
       - coord_data:/data
     ports:
@@ -73,6 +76,8 @@ services:
       HACKME_WASM_VALIDATE_BIN: "/opt/hackme/bin/hackme-wasm-check"
       HACKME_HUNT_ISOLATE_STRICT: "${HACKME_HUNT_ISOLATE_STRICT:-}"
       HACKME_HUNT_BUILD_SANDBOX: "${HACKME_HUNT_BUILD_SANDBOX:-}"
+      # Lab containers run as root; Hunt clang wrapper refuses root unless allowed.
+      HACKME_HUNT_ALLOW_ROOT: "${HACKME_HUNT_ALLOW_ROOT:-1}"
     volumes:
       - node_data:/data
     ports:

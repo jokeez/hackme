@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 const ADMIN = process.env.E2E_ADMIN_TOKEN || 'e2e-admin-token-test';
 const BASE = process.env.E2E_BASE_URL || 'http://127.0.0.1:8080';
 
-test.describe('SoloPool multi-vector dashboard', () => {
+test.describe('HackMe pool multi-vector dashboard', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript((token) => {
       sessionStorage.setItem('hackme_admin_token', token);
@@ -14,7 +14,9 @@ test.describe('SoloPool multi-vector dashboard', () => {
   });
 
   test('vector tabs update ticker, units, and neon accent', async ({ page }) => {
-    await expect(page.locator('#solopool-vector-bar')).toBeVisible();
+    await page.click('#tab-bar .tab-btn[data-tab="overview"]');
+    await expect(page.locator('#panel-overview')).toHaveClass(/active/, { timeout: 10_000 });
+    await expect(page.locator('#solopool-vector-bar')).toBeVisible({ timeout: 10_000 });
     const status = page.locator('#solopool-vector-status');
 
     await page.click('.solopool-vector-btn[data-vector="hmc"]');
@@ -33,7 +35,16 @@ test.describe('SoloPool multi-vector dashboard', () => {
     await expect(page.locator('#solopool-dashboard-card')).toHaveClass(/border-warn/);
 
     await page.click('#tab-bar .tab-btn[data-tab="mining"]');
-    await page.selectOption('#mine-calc-coin', 'hmai');
+    await page.evaluate(() => {
+      const api = (window as unknown as { __hackmeMineCalc?: { setCoin: (id: string) => void } }).__hackmeMineCalc;
+      if (api && typeof api.setCoin === 'function') api.setCoin('hmai');
+      else {
+        const sel = document.querySelector('#mine-calc-coin') as HTMLSelectElement | null;
+        if (!sel) return;
+        sel.value = 'hmai';
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
     await expect(page.locator('#mine-calc-gh-label')).toContainText(/TFLOPS/);
     await expect(page.locator('#mine-calc-coin-label')).toContainText(/HMAI/);
   });

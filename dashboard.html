@@ -552,8 +552,17 @@
 			border: 1px solid rgba(0,209,255,0.25);
 			color: #9ee8ff;
 			background: rgba(0,209,255,0.06);
+			cursor: pointer;
+			transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 		}
 		.mine-calc-preset:hover { background: rgba(0,209,255,0.14); border-color: rgba(0,209,255,0.45); }
+		.mine-calc-preset:disabled { opacity: 0.65; cursor: wait; }
+		.mine-calc-preset.busy { border-color: rgba(255,176,32,0.55); color: #ffb020; }
+		.mine-calc-preset.ok { border-color: rgba(57,255,20,0.55); color: #8eff74; background: rgba(57,255,20,0.08); }
+		.mine-calc-preset.warn { border-color: rgba(255,176,32,0.55); color: #ffb020; }
+		#mine-calc-section[data-calc-coin="hms"] .mine-calc-live-only,
+		#mine-calc-section[data-calc-coin="hmai"] .mine-calc-live-only { opacity: 0.55; }
+		#mine-calc-out-hour-sub { max-height: 3.6em; overflow: hidden; line-height: 1.35; }
 		.price-chip {
 			display: inline-flex; align-items: center; gap: 0.35rem;
 			padding: 0.2rem 0.55rem; border-radius: 0.35rem;
@@ -2271,10 +2280,10 @@
 					<div class="card card-glow rounded-lg p-4 border-matrix/20" id="solopool-dashboard-card" data-coin-scope="shared">
 						<div class="flex flex-wrap items-center justify-between gap-2 mb-3">
 							<div>
-								<h3 class="font-display text-xs font-semibold tracking-[0.2em] text-gray-400 uppercase">SoloPool · multi-vector</h3>
+								<h3 class="font-display text-xs font-semibold tracking-[0.2em] text-gray-400 uppercase">HackMe pool · multi-vector</h3>
 								<p id="solopool-vector-status" class="text-[10px] text-gray-500 font-mono mt-1">HMC · live pool · GH/s</p>
 							</div>
-							<div id="solopool-vector-bar" class="flex flex-wrap gap-2" role="tablist" aria-label="Crypto vectors">
+							<div id="solopool-vector-bar" class="flex flex-wrap gap-2" role="tablist" aria-label="Pool crypto vectors">
 								<button type="button" class="solopool-vector-btn active" data-vector="hmc" aria-selected="true">HMC</button>
 								<button type="button" class="solopool-vector-btn" data-vector="hms" aria-selected="false">HMS</button>
 								<button type="button" class="solopool-vector-btn" data-vector="hmai" aria-selected="false">HMAI</button>
@@ -2821,8 +2830,8 @@
 								</div>
 							</div>
 
-							<div id="mine-calc-live-strip" class="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4 text-[10px] font-mono">
-								<div class="rounded border border-white/10 bg-black/30 px-2 py-1.5"><span class="text-gray-500">reward/M</span><div id="mine-calc-net-rpm" class="text-neon">—</div></div>
+							<div id="mine-calc-live-strip" class="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4 text-[10px] font-mono mine-calc-live-only">
+								<div class="rounded border border-white/10 bg-black/30 px-2 py-1.5"><span id="mine-calc-net-rpm-label" class="text-gray-500">reward/M</span><div id="mine-calc-net-rpm" class="text-neon">—</div></div>
 								<div class="rounded border border-white/10 bg-black/30 px-2 py-1.5"><span class="text-gray-500">difficulty M</span><div id="mine-calc-net-target" class="text-white">—</div></div>
 								<div class="rounded border border-white/10 bg-black/30 px-2 py-1.5"><span class="text-gray-500">pool GH/s</span><div id="mine-calc-net-pool-gh" class="text-white">—</div></div>
 								<div class="rounded border border-white/10 bg-black/30 px-2 py-1.5"><span class="text-gray-500">found hit</span><div id="mine-calc-net-found" class="text-matrix">—</div></div>
@@ -5211,30 +5220,37 @@
 			}
 			return false;
 		}
-		/** Pool M from coordinator; never chain solo floor (251) when pool work is active. */
-		function effectiveMiningTargetMod(payload, ws) {
+		/** Resolve live pool/chain M for display. Prefer coordinator; public /api/work/stats
+		 *  redacts target_mod — fall back to metrics.mining_target_mod / status.pool_target_mod /
+		 *  lastGlobalTargetMod so Difficulty + eval-mod tiles stay populated on public edges. */
+		function resolveMiningTargetModCandidate(payload, ws) {
 			const tmWork = (ws && ws.ok !== false) ? workStatsTargetMod(ws) : 0;
 			const st = latestStatus || {};
-			const poolCtx = isPoolWorkContext();
 			const pm = Number(st.pool_target_mod || 0);
+			const tmMetrics = Number((payload && payload.mining_target_mod) ||
+				(lastMetricsPayload && lastMetricsPayload.mining_target_mod) || 0);
+			const cached = Number(lastGlobalTargetMod || 0);
+			return { tmWork, pm, tmMetrics, cached };
+		}
+		function effectiveMiningTargetMod(payload, ws) {
+			const { tmWork, pm, tmMetrics, cached } = resolveMiningTargetModCandidate(payload, ws);
+			const poolCtx = isPoolWorkContext();
 			if (poolCtx) {
 				if (tmWork >= POOL_TARGET_MOD_FLOOR) return { mod: tmWork, src: 'pool coordinator' };
-				if (pm >= POOL_TARGET_MOD_FLOOR) return { mod: pm, src: 'pool coordinator' };
-				if (tmWork > 0) return { mod: tmWork, src: 'pool coordinator' };
-				const cached = Number(lastGlobalTargetMod || 0);
+				if (pm >= POOL_TARGET_MOD_FLOOR) return { mod: pm, src: 'status.pool_target_mod' };
+				// Public /api/work/stats redacts target_mod — metrics/cache still carry live M.
+				if (tmMetrics >= POOL_TARGET_MOD_FLOOR) return { mod: tmMetrics, src: 'metrics.mining_target_mod' };
 				if (cached >= POOL_TARGET_MOD_FLOOR) {
-					return { mod: cached, src: lastTargetModSource || 'pool coordinator' };
+					return { mod: cached, src: lastTargetModSource || 'cached target_mod' };
 				}
+				if (tmWork > 0) return { mod: tmWork, src: 'pool coordinator' };
 				return { mod: 0, src: 'pool coordinator' };
 			}
-			const tmMetrics = Number((payload && payload.mining_target_mod) || 0);
-			if (tmMetrics > 0 && tmMetrics >= POOL_TARGET_MOD_FLOOR) {
-				return { mod: tmMetrics, src: 'local metrics' };
-			}
+			if (tmMetrics >= POOL_TARGET_MOD_FLOOR) return { mod: tmMetrics, src: 'local metrics' };
 			if (tmWork > 0) return { mod: tmWork, src: 'pool coordinator' };
-			const tmC = Number(lastGlobalTargetMod || 0);
-			if (tmC > 0 && tmC >= POOL_TARGET_MOD_FLOOR) {
-				return { mod: tmC, src: lastTargetModSource || 'network status' };
+			if (pm >= POOL_TARGET_MOD_FLOOR) return { mod: pm, src: 'status.pool_target_mod' };
+			if (cached >= POOL_TARGET_MOD_FLOOR) {
+				return { mod: cached, src: lastTargetModSource || 'cached target_mod' };
 			}
 			if (tmMetrics > 0) return { mod: tmMetrics, src: 'local metrics' };
 			return { mod: 0, src: '' };
@@ -5340,6 +5356,7 @@
 		let pollInFlight = false;
 		let pollTimer = null;
 		const POLL_INTERVAL_MS = 12000;
+		const POLL_INTERVAL_MINING_MS = 5000;
 		const POLL_INTERVAL_WALLET_MS = 6000;
 		const POLL_INTERVAL_ORDERS_MS = 8000;
 		const POLL_INTERVAL_HIDDEN_MS = 60000;
@@ -5874,8 +5891,10 @@
 		const GLOBAL_METRICS_INTERVAL_MS = 120000;
 		const METRICS_SNAPSHOT_INTERVAL_MS = 45000;
 		const METRICS_ANALYTICS_INTERVAL_MS = 20000;
-		const METRICS_FETCH_TIMEOUT_MS = 6000;
+		// Desktop pool nodes often overlay hub /api/metrics (5–8s); 6s aborted before M arrived.
+		const METRICS_FETCH_TIMEOUT_MS = 15000;
 		const GLOBAL_METRICS_FETCH_TIMEOUT_MS = 12000;
+		const TARGET_MOD_CACHE_KEY = 'hackme.pool_target_mod.v1';
 		let lastWalletEarningsMs = 0;
 		let walletEarningsInFlight = false;
 		let lastWalletActivityMs = 0;
@@ -5893,6 +5912,7 @@
 			try {
 				if (document.hidden) return POLL_INTERVAL_HIDDEN_MS;
 			} catch (_) {}
+			if (currentTab === 'mining') return POLL_INTERVAL_MINING_MS;
 			if (currentTab === 'wallet') return POLL_INTERVAL_WALLET_MS;
 			if (currentTab === 'orders') return POLL_INTERVAL_ORDERS_MS;
 			return POLL_INTERVAL_MS;
@@ -6365,6 +6385,37 @@
 		let lastGlobalTargetMod = 0;
 		let lastTargetModUpdatedUnix = 0;
 		let lastTargetModSource = '';
+		function rememberGlobalTargetMod(mod, src) {
+			const tm = Number(mod || 0);
+			if (!(tm >= POOL_TARGET_MOD_FLOOR)) return false;
+			lastGlobalTargetMod = tm;
+			if (src) lastTargetModSource = String(src);
+			lastTargetModUpdatedUnix = Math.floor(Date.now() / 1000);
+			try {
+				localStorage.setItem(TARGET_MOD_CACHE_KEY, JSON.stringify({
+					mod: tm,
+					src: lastTargetModSource || '',
+					unix: lastTargetModUpdatedUnix,
+				}));
+			} catch (_) {}
+			return true;
+		}
+		function restoreGlobalTargetModCache() {
+			try {
+				const raw = localStorage.getItem(TARGET_MOD_CACHE_KEY);
+				if (!raw) return;
+				const j = JSON.parse(raw);
+				const tm = Number((j && j.mod) || 0);
+				const age = Math.floor(Date.now() / 1000) - Number((j && j.unix) || 0);
+				// Keep for 6h so public-edge reloads still paint Difficulty before slow metrics.
+				if (tm >= POOL_TARGET_MOD_FLOOR && age >= 0 && age <= 6 * 3600) {
+					lastGlobalTargetMod = tm;
+					lastTargetModSource = String((j && j.src) || 'cached target_mod');
+					lastTargetModUpdatedUnix = Number((j && j.unix) || 0) || lastTargetModUpdatedUnix;
+				}
+			} catch (_) {}
+		}
+		try { restoreGlobalTargetModCache(); } catch (_) {}
 		let latestGlobalSource = '';
 		let lastMetricsPayload = null;
 		const workAttemptsRate = new Map();
@@ -6517,7 +6568,10 @@
 				}
 			}
 			if (forceRender || inputChanged) {
-				try { if (typeof renderMineCalc === 'function') renderMineCalc(); } catch (_) {}
+				try {
+					if (typeof scheduleRenderMineCalc === 'function') scheduleRenderMineCalc();
+					else if (typeof renderMineCalc === 'function') renderMineCalc();
+				} catch (_) {}
 			}
 		}
 		function bindFilePick(inputId, nameId, pickId) {
@@ -8663,8 +8717,38 @@
 		let mineCalcGhTouched = false;
 		let mineCalcShareTouched = false;
 		let mineCalcCoinId = 'hmc';
+		let mineCalcRenderRaf = 0;
+		let mineCalcLiveBusy = false;
 
 		function mineCalcEl(id) { return $(id); }
+
+		function mineCalcActiveCoin() {
+			return MINE_CALC_COINS.find((c) => c.id === mineCalcCoinId) || MINE_CALC_COINS[0];
+		}
+
+		function mineCalcSpeedUnit() {
+			return mineCalcActiveCoin().unit || 'GH/s';
+		}
+
+		function syncMineCalcCoinSelect() {
+			const coinSel = mineCalcEl('mine-calc-coin');
+			if (coinSel && coinSel.value !== mineCalcCoinId) coinSel.value = mineCalcCoinId;
+			const sec = mineCalcEl('mine-calc-section');
+			if (sec) sec.setAttribute('data-calc-coin', mineCalcCoinId);
+		}
+
+		function scheduleRenderMineCalc() {
+			if (mineCalcRenderRaf) return;
+			const run = () => {
+				mineCalcRenderRaf = 0;
+				try { renderMineCalc(); } catch (_) {}
+			};
+			if (typeof requestAnimationFrame === 'function') {
+				mineCalcRenderRaf = requestAnimationFrame(run);
+			} else {
+				mineCalcRenderRaf = window.setTimeout(run, 16);
+			}
+		}
 
 		function migrateMineCalcPrefsV1() {
 			try {
@@ -8709,7 +8793,11 @@
 					gh = Math.min(MINE_CALC_GH_SLIDER_MAX, gh);
 					setMineCalcGhValue(gh, { skipRender: true });
 				}
-				if (p.coinId && MINE_CALC_COINS.some((c) => c.id === p.coinId)) mineCalcCoinId = p.coinId;
+				if (p.coinId && MINE_CALC_COINS.some((c) => c.id === p.coinId)) {
+					mineCalcCoinId = p.coinId;
+					solopoolVectorId = p.coinId;
+				}
+				syncMineCalcCoinSelect();
 				// Legacy default treated 1 HMC = $1 — clear unless user explicitly set a price.
 				const hmcUsdEl = mineCalcEl('mine-calc-hmc-usd');
 				if (hmcUsdEl && Number(hmcUsdEl.value) === 1 && !p.hmcUsdExplicit) {
@@ -8775,7 +8863,7 @@
 				ghSlider.value = String(clamped);
 			}
 			if (ghEl) ghEl.value = String(clamped);
-			if (ghLabel) ghLabel.textContent = fmt(clamped, clamped >= 10 ? 1 : 3) + ' GH/s';
+			if (ghLabel) ghLabel.textContent = fmt(clamped, clamped >= 10 ? 1 : 3) + ' ' + mineCalcSpeedUnit();
 			if (!opts.skipRender) syncMineCalcSliders();
 		}
 
@@ -8788,7 +8876,7 @@
 			const gh = clampMineCalcGh(ghSlider ? ghSlider.value : (ghEl && ghEl.value));
 			if (ghSlider && Math.abs(Number(ghSlider.value) - gh) > 0.0001) ghSlider.value = String(gh);
 			if (ghEl && String(ghEl.value) !== String(gh)) ghEl.value = String(gh);
-			if (ghLabel) ghLabel.textContent = (gh > 0 ? fmt(gh, gh >= 10 ? 1 : 3) : '0') + ' GH/s';
+			if (ghLabel) ghLabel.textContent = (gh > 0 ? fmt(gh, gh >= 10 ? 1 : 3) : '0') + ' ' + mineCalcSpeedUnit();
 		}
 
 		/** Reject mislabeled GH/s×10⁹ passed as attempts/s (caps coordinator billing). */
@@ -8895,12 +8983,19 @@
 			const st = latestStatus || {};
 			const eff = effectiveMiningTargetMod(m, ws);
 			let targetMod = eff.mod > 0 ? eff.mod : workStatsTargetMod(ws);
-			if (targetMod <= 0) targetMod = Math.max(POOL_TARGET_MOD_FLOOR, Number(st.pool_target_mod || m.mining_target_mod || 0));
-			const rewardPerM = Number(ws.reward_per_m || 0);
+			if (targetMod <= 0) {
+				const raw = Number(st.pool_target_mod || m.mining_target_mod || lastGlobalTargetMod || 0);
+				// Only apply floor when a real modulus exists — never invent M=2e6 for display.
+				if (raw > 0) targetMod = Math.max(POOL_TARGET_MOD_FLOOR, raw);
+			}
+			let rewardPerM = Number(ws.reward_per_m || 0);
 			const baseRewardHmc = Number(ws.base_reward_hmc || 0.01);
 			const foundBonus = Number(ws.found_bonus_hmc || 0);
 			const shareStrict = !!(ws.share_strict === true || ws.share_strict === 1 || ws.share_strict === 'true');
 			const emptyHour = Number(m.econ_expected_empty_hmc_hour || 0);
+			const poolBudget = (ws.pool_budget && typeof ws.pool_budget === 'object') ? ws.pool_budget : {};
+			const dailyBudgetHmc = Number(poolBudget.daily_budget_hmc || 0);
+			const accruedTodayHmc = Number(poolBudget.accrued_today_hmc || 0);
 			let poolGh = poolGhFromWorkStats(ws);
 			if (!(poolGh > 0)) {
 				const netTh = Number((latestNetworkStats && latestNetworkStats.global_hashrate_th_s) || 0);
@@ -8942,9 +9037,21 @@
 			const shareDivisor = Math.max(2, Number(ws.share_divisor || 1024));
 			const maxClaimBatch = Math.max(1, Number(ws.max_claim_batch || (64 * Math.pow(2, 30))));
 			const defaultBatch = Math.max(1, Number(ws.default_batch || (4 * Math.pow(2, 20))));
+			// Public edge redacts reward_per_m — derive honest display rate from base/M.
+			let rewardPerMDisplay = rewardPerM;
+			let rewardPerMLabel = 'reward/M';
+			if (!(rewardPerMDisplay > 0) && targetMod > 0 && baseRewardHmc > 0) {
+				rewardPerMDisplay = baseRewardHmc * 1e6 / targetMod;
+				rewardPerMLabel = shareStrict ? 'share-PPS ≈' : '≈ base/M';
+			} else if (rewardPerMDisplay > 0 && shareStrict) {
+				rewardPerMLabel = 'reward/M';
+			}
+			if (!(rewardPerM > 0) && rewardPerMDisplay > 0) rewardPerM = rewardPerMDisplay;
 			return {
 				targetMod,
 				rewardPerM,
+				rewardPerMDisplay,
+				rewardPerMLabel,
 				baseRewardHmc,
 				shareStrict,
 				foundBonus,
@@ -8954,7 +9061,7 @@
 				mySharePct,
 				schedulerMode: String(ws.scheduler_mode || 'baseline'),
 				syncAgeSec: syncAge,
-				hasLive: !!(ws && ws.ok !== false && (rewardPerM > 0 || baseRewardHmc > 0)),
+				hasLive: !!(ws && ws.ok !== false && (rewardPerM > 0 || baseRewardHmc > 0 || targetMod > 0)),
 				netMode: !!st.network_mode_active,
 				poolWork: isPoolWorkContext(),
 				observedRewardPerM,
@@ -8969,6 +9076,8 @@
 				loadCapped: loadTel.loadCapped,
 				targetModMin: loadTel.minM,
 				targetModMax: loadTel.maxM,
+				dailyBudgetHmc,
+				accruedTodayHmc,
 			};
 		}
 
@@ -9073,10 +9182,10 @@
 				setMineCalcGhValue(net.workerGh, { skipRender: true });
 				inputs = readMineCalcInputs();
 			}
-			const coin = MINE_CALC_COINS.find((c) => c.id === mineCalcCoinId) || MINE_CALC_COINS[0];
+			const coin = mineCalcActiveCoin();
 			if (mineCalcEl('mine-calc-coin-label')) {
 				mineCalcEl('mine-calc-coin-label').textContent = coin.label + ' · ' + coin.name +
-					(coin.active ? ' — pool payout estimate' : ' — preview (' + coin.unit + ')');
+					(coin.active ? ' — pool payout estimate' : ' — preview (' + coin.unit + ') · switch to HMC for live compare');
 			}
 			const ghLbl = mineCalcEl('mine-calc-gh-label');
 			if (ghLbl && coin.unit) {
@@ -9089,10 +9198,18 @@
 			const displayHmcMonth = displayHmcDay * 30;
 			saveMineCalcPrefs(inputs);
 
-			if (mineCalcEl('mine-calc-net-rpm')) mineCalcEl('mine-calc-net-rpm').textContent = net.rewardPerM > 0 ? fmt(net.rewardPerM, 6) : '—';
+			const rpmShow = Number(net.rewardPerMDisplay || net.rewardPerM || 0);
+			const rpmLbl = mineCalcEl('mine-calc-net-rpm-label');
+			if (rpmLbl) rpmLbl.textContent = net.rewardPerMLabel || 'reward/M';
+			if (mineCalcEl('mine-calc-net-rpm')) {
+				setTextSilent(
+					mineCalcEl('mine-calc-net-rpm'),
+					rpmShow > 0 ? fmt(rpmShow, rpmShow < 1e-6 ? 10 : (rpmShow < 1e-3 ? 8 : 6)) : '—'
+				);
+			}
 			if (mineCalcEl('mine-calc-net-target')) {
 				const tEl = mineCalcEl('mine-calc-net-target');
-				tEl.textContent = net.targetMod > 0 ? fmtUInt(net.targetMod) : '—';
+				setTextSilent(tEl, net.targetMod > 0 ? fmtUInt(net.targetMod) : '—');
 				let tip = '';
 				if (net.poolWork && net.targetMod > 0) {
 					tip = 'Applied pool target_mod M used for claim/submit validation and reward/M.';
@@ -9228,6 +9345,9 @@
 
 			if (mineCalcEl('mine-calc-footnote')) {
 				const parts = [
+					!coin.active
+						? (coin.label + ' is preview-only — estimates still use live HMC pool math for scale. Switch coin to HMC or tap My rig (live).')
+						: '',
 					out.poolWork
 						? (net.shareStrict
 							? 'Share-PPS estimate from base_reward, live M, and your GH/s slider (advanced Share % = payout weight).'
@@ -9235,6 +9355,11 @@
 						: 'Connect pool worker for live coordinator stats.',
 					out.poolWork && net.foundBonus > 0
 						? ('Rare found bonus +' + fmt(net.foundBonus, 6) + ' HMC per hit — not averaged into HMC/h.')
+						: '',
+					(net.dailyBudgetHmc > 0 && displayHmcDay > net.dailyBudgetHmc && out.poolShareOfTotal >= 40)
+						? ('Pool daily budget ≈ ' + fmt(net.dailyBudgetHmc, 1) + ' HMC' +
+							(net.accruedTodayHmc > 0 ? (' (accrued today ' + fmt(net.accruedTodayHmc, 1) + ')') : '') +
+							' — what-if above that is clipped in practice.')
 						: '',
 					'Higher M (more miners/hash) → lower HMC/h. Work payout shows settled accrual (may include older stock).',
 					inputs.hmcUsd > 0
@@ -9270,55 +9395,124 @@
 			renderMineCalc();
 		}
 
+		async function applyMineCalcLiveCompare() {
+			const btn = mineCalcEl('btn-mine-calc-live');
+			if (mineCalcLiveBusy) return;
+			mineCalcLiveBusy = true;
+			const resetBtn = (cls, label, delayMs) => {
+				if (!btn) return;
+				btn.classList.remove('busy', 'ok', 'warn');
+				if (cls) btn.classList.add(cls);
+				btn.textContent = label;
+				window.setTimeout(() => {
+					if (!btn) return;
+					btn.disabled = false;
+					btn.classList.remove('busy', 'ok', 'warn');
+					btn.textContent = 'My rig (live)';
+					mineCalcLiveBusy = false;
+				}, delayMs || 1600);
+			};
+			if (btn) {
+				btn.disabled = true;
+				btn.classList.add('busy');
+				btn.textContent = 'Syncing…';
+			}
+			try {
+				mineCalcCoinId = 'hmc';
+				syncMineCalcCoinSelect();
+				try { applySolopoolVector('hmc'); } catch (_) {}
+				await Promise.allSettled([
+					typeof refreshWorkStats === 'function' ? refreshWorkStats(true) : Promise.resolve(),
+					typeof refreshWorkerStatus === 'function' ? refreshWorkerStatus() : Promise.resolve(),
+				]);
+				const net = getMineCalcNetworkParams();
+				let gh = Number(net.workerGh || 0);
+				if (!(gh > 0)) {
+					gh = Number((latestMiningDevices && latestMiningDevices.pool_worker_hashrate_gh_s) || 0) ||
+						Number((lastMetricsPayload && lastMetricsPayload.pool_worker_hashrate_gh_s) || 0) ||
+						Number((latestWorkerStatus && (latestWorkerStatus.measured_hashrate_gh_s || latestWorkerStatus.hashrate_gh_s)) || 0);
+				}
+				mineCalcGhTouched = false;
+				mineCalcShareTouched = false;
+				const shareEl = mineCalcEl('mine-calc-share');
+				if (shareEl) shareEl.value = '100';
+				if (gh > 0.01) {
+					setMineCalcGhValue(gh, { skipRender: true });
+					renderMineCalc();
+					resetBtn('ok', 'Live · ' + fmt(gh, gh >= 10 ? 1 : 2) + ' GH/s', 2000);
+				} else {
+					renderMineCalc();
+					resetBtn('warn', 'No live GH yet', 2200);
+				}
+			} catch (_) {
+				try { renderMineCalc(); } catch (__) {}
+				resetBtn('warn', 'Sync failed', 2000);
+			}
+		}
+
 		function bindMineCalcEvents() {
-			if (!mineCalcEl('mine-calc-section')) return;
+			const sec = mineCalcEl('mine-calc-section');
+			if (!sec) return;
 			loadMineCalcPrefs();
-			const rerender = () => { try { renderMineCalc(); } catch (_) {} };
+			syncMineCalcCoinSelect();
+			if (sec.dataset.bound === '1') {
+				try { renderMineCalc(); } catch (_) {}
+				return;
+			}
+			const paintGhFromControl = (raw) => {
+				mineCalcGhTouched = true;
+				setMineCalcGhValue(raw, { skipRender: true });
+				try { renderMineCalc(); } catch (_) {}
+			};
+			const paintCoin = (raw) => {
+				mineCalcCoinId = String(raw || 'hmc');
+				syncMineCalcCoinSelect();
+				try { applySolopoolVector(mineCalcCoinId); } catch (_) {}
+				try { renderMineCalc(); } catch (_) {}
+			};
 			const ids = ['mine-calc-gh', 'mine-calc-rigs', 'mine-calc-share', 'mine-calc-power', 'mine-calc-kwh', 'mine-calc-hmc-usd', 'mine-calc-hw-cost', 'mine-calc-scenario'];
 			ids.forEach((id) => {
 				const el = mineCalcEl(id);
 				if (!el) return;
-				el.addEventListener('input', () => {
+				const onEdit = () => {
 					if (id === 'mine-calc-share') mineCalcShareTouched = true;
-					if (id === 'mine-calc-gh') mineCalcGhTouched = true;
+					if (id === 'mine-calc-gh') paintGhFromControl(el.value);
 					if (id === 'mine-calc-hmc-usd') {
 						const v = String(el.value || '').trim();
 						mineCalcHmcUsdExplicit = v !== '' && Number(v) > 0;
 					}
-					rerender();
-				});
-				el.addEventListener('change', () => {
-					if (id === 'mine-calc-share') mineCalcShareTouched = true;
-					if (id === 'mine-calc-gh') mineCalcGhTouched = true;
-					if (id === 'mine-calc-hmc-usd') {
-						const v = String(el.value || '').trim();
-						mineCalcHmcUsdExplicit = v !== '' && Number(v) > 0;
+					if (id !== 'mine-calc-gh') {
+						try { renderMineCalc(); } catch (_) {}
 					}
-					rerender();
-				});
+				};
+				el.addEventListener('input', onEdit);
+				el.addEventListener('change', onEdit);
 			});
 			const ghSlider = mineCalcEl('mine-calc-gh-slider');
 			if (ghSlider) {
-				const onGhSlider = () => {
-					mineCalcGhTouched = true;
-					setMineCalcGhValue(ghSlider.value, { skipRender: true });
-					rerender();
-				};
-				ghSlider.addEventListener('input', onGhSlider);
-				ghSlider.addEventListener('change', onGhSlider);
+				const onGh = () => paintGhFromControl(ghSlider.value);
+				ghSlider.addEventListener('input', onGh);
+				ghSlider.addEventListener('change', onGh);
 			}
 			const coinSel = mineCalcEl('mine-calc-coin');
 			if (coinSel) {
-				coinSel.addEventListener('change', () => {
-					mineCalcCoinId = String(coinSel.value || 'hmc');
-					const sec = mineCalcEl('mine-calc-section');
-					if (sec) sec.setAttribute('data-calc-coin', mineCalcCoinId);
-					applySolopoolVector(mineCalcCoinId);
-					renderMineCalc();
-				});
+				coinSel.addEventListener('change', () => paintCoin(coinSel.value));
+				coinSel.addEventListener('input', () => paintCoin(coinSel.value));
 			}
-			if (mineCalcEl('btn-mine-calc-live')) mineCalcEl('btn-mine-calc-live').addEventListener('click', () => applyMineCalcPreset('live'));
-			renderMineCalc();
+			const liveBtn = mineCalcEl('btn-mine-calc-live');
+			if (liveBtn) {
+				liveBtn.addEventListener('click', () => { void applyMineCalcLiveCompare(); });
+			}
+			try {
+				window.__hackmeMineCalc = {
+					setGh: (gh) => paintGhFromControl(gh),
+					setCoin: (id) => paintCoin(id),
+					getCoin: () => mineCalcCoinId,
+					render: () => { try { renderMineCalc(); } catch (_) {} },
+				};
+			} catch (_) {}
+			sec.dataset.bound = '1';
+			try { renderMineCalc(); } catch (_) {}
 		}
 
 		function updateOrdersWalletGate() {
@@ -9900,7 +10094,8 @@
 				'<div class="miner-card-grid">' + grid + '</div>' +
 				(opts.explorerAddr ? minerLookupExplorerLink(opts.explorerAddr) : '');
 		}
-		function applySolopoolVector(id) {
+		function applySolopoolVector(id, opts) {
+			opts = opts || {};
 			const v = SOLOPOOL_VECTORS[id] || SOLOPOOL_VECTORS.hmc;
 			solopoolVectorId = id in SOLOPOOL_VECTORS ? id : 'hmc';
 			document.querySelectorAll('.solopool-vector-btn').forEach((btn) => {
@@ -9924,11 +10119,14 @@
 			if (kl) kl.textContent = v.kpiLabel;
 			const ks = $('kpi-hash-sub');
 			if (ks && !v.live) ks.textContent = 'preview vector · switch to HMC for live GH/s';
-			if (mineCalcCoinId !== solopoolVectorId && MINE_CALC_COINS.some((c) => c.id === solopoolVectorId)) {
-				mineCalcCoinId = solopoolVectorId;
-				const sel = $('mine-calc-coin');
-				if (sel) sel.value = solopoolVectorId;
-				renderMineCalc();
+			// Default: do not clobber calculator coin (dashboard coin pills / boot used to force HMC and break HMS compare).
+			// Pool vector buttons pass syncCalc:true to keep calc in lockstep.
+			if (opts.syncCalc === true) {
+				if (mineCalcCoinId !== solopoolVectorId && MINE_CALC_COINS.some((c) => c.id === solopoolVectorId)) {
+					mineCalcCoinId = solopoolVectorId;
+					syncMineCalcCoinSelect();
+					scheduleRenderMineCalc();
+				}
 			}
 		}
 		function bindSolopoolVectors() {
@@ -9936,9 +10134,13 @@
 			if (!bar || bar.dataset.bound === '1') return;
 			bar.dataset.bound = '1';
 			bar.querySelectorAll('.solopool-vector-btn').forEach((btn) => {
-				btn.addEventListener('click', () => applySolopoolVector(btn.getAttribute('data-vector') || 'hmc'));
+				btn.addEventListener('click', () => applySolopoolVector(btn.getAttribute('data-vector') || 'hmc', { syncCalc: true }));
 			});
-			applySolopoolVector(solopoolVectorId);
+			// Keep pool vector aligned with calculator coin prefs (avoid wiping HMS/HMAI on boot).
+			if (mineCalcPrefsLoaded && mineCalcCoinId && (mineCalcCoinId in SOLOPOOL_VECTORS)) {
+				solopoolVectorId = mineCalcCoinId;
+			}
+			applySolopoolVector(solopoolVectorId, { syncCalc: false });
 		}
 		function renderMinerLookupResult() {
 			const out = $('overview-miner-result');
@@ -11238,8 +11440,7 @@
 			{
 				const tmWs = workStatsTargetMod(ws);
 				if (tmWs > 0 && (!isPoolWorkContext() || tmWs >= POOL_TARGET_MOD_FLOOR)) {
-					lastGlobalTargetMod = tmWs;
-					lastTargetModSource = 'coordinator';
+					rememberGlobalTargetMod(tmWs, 'coordinator');
 				}
 				const tmUp = Number(ws.target_mod_updated_unix || 0);
 				if (tmUp > 0) lastTargetModUpdatedUnix = tmUp;
@@ -11787,41 +11988,67 @@
 				const r = await fetchWithTimeout('/api/metrics', { cache: 'no-store' }, METRICS_FETCH_TIMEOUT_MS);
 				if (!r.ok) {
 					try { applyTelemetryFallbackFromPool(); } catch (_) {}
-					return;
-				}
-				lastMetricsPayload = await r.json();
-				const m0 = lastMetricsPayload || {};
-				const poolFollower = isPoolWorkContext();
-				const econEmpty = !(Number(m0.econ_window_total_hmc || 0) > 0 || Number(m0.econ_window_blocks || 0) > 0);
-				if (poolFollower && econEmpty && latestStatus) {
-					const canonM = await fetchCanonicalMetricsFallback(latestStatus);
-					if (canonM) {
-						lastMetricsPayload = Object.assign({}, m0, {
-							econ_window_base_hmc: canonM.econ_window_base_hmc,
-							econ_window_order_hmc: canonM.econ_window_order_hmc,
-							econ_window_total_hmc: canonM.econ_window_total_hmc,
-							econ_window_blocks: canonM.econ_window_blocks,
-							econ_window_base_blocks: canonM.econ_window_base_blocks,
-							econ_window_order_blocks: canonM.econ_window_order_blocks,
-							econ_window_order_share_pct: canonM.econ_window_order_share_pct,
-							mining_hmc_last_hour_approx: canonM.mining_hmc_last_hour_approx || canonM.econ_window_total_hmc,
-							mining_poh_blocks_last_1h: canonM.mining_poh_blocks_last_1h || canonM.econ_window_blocks,
-							mining_insight_note: 'Chain economics from canonical (client overlay). ' + String(m0.mining_insight_note || ''),
-						});
+				} else {
+					lastMetricsPayload = await r.json();
+					const m0 = lastMetricsPayload || {};
+					const poolFollower = isPoolWorkContext();
+					const econEmpty = !(Number(m0.econ_window_total_hmc || 0) > 0 || Number(m0.econ_window_blocks || 0) > 0);
+					const localTm = Number(m0.mining_target_mod || 0);
+					const needCanonMod = poolFollower && (!(localTm >= POOL_TARGET_MOD_FLOOR));
+					if (poolFollower && (econEmpty || needCanonMod) && latestStatus) {
+						const canonM = await fetchCanonicalMetricsFallback(latestStatus);
+						if (canonM) {
+							const patch = {
+								econ_window_base_hmc: canonM.econ_window_base_hmc,
+								econ_window_order_hmc: canonM.econ_window_order_hmc,
+								econ_window_total_hmc: canonM.econ_window_total_hmc,
+								econ_window_blocks: canonM.econ_window_blocks,
+								econ_window_base_blocks: canonM.econ_window_base_blocks,
+								econ_window_order_blocks: canonM.econ_window_order_blocks,
+								econ_window_order_share_pct: canonM.econ_window_order_share_pct,
+								mining_hmc_last_hour_approx: canonM.mining_hmc_last_hour_approx || canonM.econ_window_total_hmc,
+								mining_poh_blocks_last_1h: canonM.mining_poh_blocks_last_1h || canonM.econ_window_blocks,
+								mining_insight_note: 'Chain economics from canonical (client overlay). ' + String(m0.mining_insight_note || ''),
+							};
+							const canonTm = Number(canonM.mining_target_mod || 0);
+							if (needCanonMod && canonTm >= POOL_TARGET_MOD_FLOOR) {
+								patch.mining_target_mod = canonTm;
+							}
+							lastMetricsPayload = Object.assign({}, m0, patch);
+						}
 					}
-				}
-				applyTelemetryFromMetrics(lastMetricsPayload);
-				applied = true;
-				const m = lastMetricsPayload || {};
-				if (!(Number(m.hashrate_th_s || 0) > 1e-12) && !(series.hash.length > 0)) {
-					try { applyTelemetryFallbackFromPool(); } catch (_) {}
+					if (poolFollower && !(Number((lastMetricsPayload || {}).mining_target_mod || 0) >= POOL_TARGET_MOD_FLOOR)) {
+						const cmod = await fetchCanonicalTargetModFallback(latestStatus);
+						if (cmod >= POOL_TARGET_MOD_FLOOR) {
+							lastMetricsPayload = Object.assign({}, lastMetricsPayload || {}, { mining_target_mod: cmod });
+							rememberGlobalTargetMod(cmod, 'canonical metrics');
+						}
+					}
+					applyTelemetryFromMetrics(lastMetricsPayload);
+					applied = true;
+					const m = lastMetricsPayload || {};
+					if (!(Number(m.hashrate_th_s || 0) > 1e-12) && !(series.hash.length > 0)) {
+						try { applyTelemetryFallbackFromPool(); } catch (_) {}
+					}
 				}
 			} catch (_) {
 				/* keep lastMetricsPayload — do not blank mining panel on flaky /api/metrics */
 			}
 			if (!applied) {
 				try { applyTelemetryFallbackFromPool(); } catch (_) {}
+				// Timeout / error: still paint Difficulty from cache or same-origin canonical metrics.
+				try {
+					if (!(lastGlobalTargetMod >= POOL_TARGET_MOD_FLOOR)) {
+						const cmod = await fetchCanonicalTargetModFallback(latestStatus || {});
+						if (cmod >= POOL_TARGET_MOD_FLOOR) rememberGlobalTargetMod(cmod, 'canonical metrics');
+					}
+				} catch (_) {}
 			}
+			try {
+				if (typeof syncMiningPanelFromMetrics === 'function') {
+					syncMiningPanelFromMetrics(lastMetricsPayload && typeof lastMetricsPayload === 'object' ? lastMetricsPayload : {});
+				}
+			} catch (_) {}
 		}
 
 		let lastTelemetryApplyMs = 0;
@@ -11829,6 +12056,11 @@
 			const x = (m && typeof m === 'object') ? m : null;
 			if (!x) return;
 			lastTelemetryApplyMs = Date.now();
+			{
+				const tmM = Number(x.mining_target_mod || 0);
+				// Seed cache even when work/stats redacts target_mod (public edge).
+				rememberGlobalTargetMod(tmM, 'metrics.mining_target_mod');
+			}
 			const wst = latestWorkerStatus || {};
 			const util = deriveTelemetryUtilPct(x, wst);
 			const cpu = util.cpu;
@@ -11976,14 +12208,10 @@
 			if ($('kpi-challenge')) $('kpi-challenge').textContent = chMain;
 			if ($('kpi-challenge-sub')) $('kpi-challenge-sub').textContent = chSub;
 			let tmDisp = effectiveMiningTargetMod(m, ws).mod;
-			if (!tmDisp) {
-				if (isPoolWorkContext()) {
-					tmDisp = workStatsTargetMod(ws) || workStatsTargetMod(lastGoodWorkStats) ||
-						Number((latestStatus || {}).pool_target_mod || 0) ||
-						(lastGlobalTargetMod >= POOL_TARGET_MOD_FLOOR ? lastGlobalTargetMod : 0);
-				} else {
-					tmDisp = tmL || workStatsTargetMod(ws) || Number(lastGlobalTargetMod || 0);
-				}
+			if (!(tmDisp >= POOL_TARGET_MOD_FLOOR)) {
+				const cand = resolveMiningTargetModCandidate(m, ws || lastGoodWorkStats || {});
+				tmDisp = cand.tmWork || cand.pm || cand.tmMetrics || cand.cached ||
+					(isPoolWorkContext() ? 0 : tmL) || 0;
 			}
 			if ($('kpi-poh-difficulty') && tmDisp > 0) {
 				$('kpi-poh-difficulty').textContent = fmtUInt(tmDisp);
@@ -12088,19 +12316,33 @@
 				(netMode && Number(ws.workers_count || 0) > 0) || coordTraffic ||
 				(!!(latestWorkerStatus && latestWorkerStatus.running));
 			let effTm = effectiveMiningTargetMod(payload, ws);
-			let tm = effTm.mod;
-			if (!tm && isPoolWorkContext()) {
-				const pm = Number((latestStatus || {}).pool_target_mod || 0);
-				const wsTm = workStatsTargetMod(ws) || workStatsTargetMod(lastGoodWorkStats);
-				if (pm >= POOL_TARGET_MOD_FLOOR) {
-					tm = pm;
-					effTm = { mod: pm, src: 'pool coordinator' };
+			let tm = Number(effTm.mod || 0);
+			if (!(tm >= POOL_TARGET_MOD_FLOOR)) {
+				// Belt-and-suspenders: public work/stats omit target_mod; never leave tiles blank
+				// when metrics / status / cache already know live M.
+				const cand = resolveMiningTargetModCandidate(payload, latestWorkStats || lastGoodWorkStats || ws);
+				const wsTm = cand.tmWork || workStatsTargetMod(lastGoodWorkStats);
+				if (cand.pm >= POOL_TARGET_MOD_FLOOR) {
+					tm = cand.pm;
+					effTm = { mod: tm, src: 'status.pool_target_mod' };
+				} else if (cand.tmMetrics >= POOL_TARGET_MOD_FLOOR) {
+					tm = cand.tmMetrics;
+					effTm = { mod: tm, src: 'metrics.mining_target_mod' };
+				} else if (wsTm >= POOL_TARGET_MOD_FLOOR) {
+					tm = wsTm;
+					effTm = { mod: tm, src: 'pool coordinator' };
+				} else if (cand.cached >= POOL_TARGET_MOD_FLOOR) {
+					tm = cand.cached;
+					effTm = { mod: tm, src: lastTargetModSource || 'cached target_mod' };
 				} else if (wsTm > 0) {
 					tm = wsTm;
-					effTm = { mod: wsTm, src: 'pool coordinator' };
+					effTm = { mod: tm, src: 'pool coordinator' };
 				}
 			}
-			if ($('mine-stat-difficulty')) $('mine-stat-difficulty').textContent = tm > 0 ? fmtUInt(tm) : '—';
+			if (tm >= POOL_TARGET_MOD_FLOOR) {
+				rememberGlobalTargetMod(tm, effTm.src || lastTargetModSource || 'live');
+			}
+			if ($('mine-stat-difficulty')) setTextSilent($('mine-stat-difficulty'), tm > 0 ? fmtUInt(tm) : '—');
 			const diffSub = $('mine-stat-difficulty-sub');
 			if (diffSub) {
 				const src = effTm.src || 'live';
@@ -12118,9 +12360,13 @@
 				} else if (poolCtxDiff && tm > 0 && tel.maxM > 0 && tm >= tel.maxM * 0.999 && tel.loadHint > 0 && tel.loadHint <= tm * 1.02) {
 					loadExtra = ' · at pool max M ' + fmtUInt(tel.maxM);
 				}
-				diffSub.textContent = tm > 0
-					? ((src || 'live') + ageTxt + retarget + loadExtra)
-					: 'waiting for work/stats or metrics…';
+				const srcFriendly = String(src || 'live')
+					.replace(/^metrics\.mining_target_mod$/, 'pool metrics')
+					.replace(/^status\.pool_target_mod$/, 'pool status')
+					.replace(/^cached target_mod$/, 'cached');
+				setTextSilent(diffSub, tm > 0
+					? (srcFriendly + ageTxt + retarget + loadExtra)
+					: 'waiting for work/stats or metrics…');
 			}
 			const poolWorker = isPoolWorkContext();
 			const localSliceActive = poolWorker && workerDerived.isLocalSlice;
@@ -12222,10 +12468,18 @@
 					}
 				}
 			}
-			if ($('mine-stat-mod')) $('mine-stat-mod').textContent = tm > 0 ? fmtUInt(modRem) : '—';
+			if ($('mine-stat-mod')) {
+				if (tm > 0) {
+					setTextSilent($('mine-stat-mod'), fmtUInt(modRem));
+					$('mine-stat-mod').title = 'Σ attempts mod M (residue vs Difficulty M=' + fmtUInt(tm) + ')';
+				} else {
+					setTextSilent($('mine-stat-mod'), '—');
+					$('mine-stat-mod').title = 'Needs live Difficulty M from metrics or coordinator';
+				}
+			}
 			if ($('mine-stat-nonce')) {
 				if (netMode && !leaderLocal) {
-					if (modRem > 0 && tm > 0) {
+					if (tm > 0 && (modRem > 0 || tot > 0)) {
 						$('mine-stat-nonce').textContent = fmtUInt(modRem);
 						$('mine-stat-nonce').title = 'Pool progress: Σ attempts mod M (same as eval mod target; not a WASM nonce index).';
 					} else {
@@ -12428,7 +12682,7 @@
 					: (poolWorker ? 'Pool follower — chain window from canonical when synced' : '0 blocks · base 0 · order 0');
 			}
 			try { updateRigProfileLiveMetrics(ws, wst); } catch (_) {}
-			try { renderMineCalc(); } catch (_) {}
+			try { scheduleRenderMineCalc(); } catch (_) { try { renderMineCalc(); } catch (__) {} }
 		}
 
 		function deriveCanonicalStatusURLFromCoordinator(coordURL) {
@@ -12590,14 +12844,14 @@
 						}
 						const pm = Number(st.pool_target_mod || 0);
 						if (pm > 0 && (!isPoolWorkContext() || pm >= POOL_TARGET_MOD_FLOOR)) {
-							lastGlobalTargetMod = pm;
+							rememberGlobalTargetMod(pm, 'status.pool_target_mod');
 							if ($('kpi-poh-difficulty')) $('kpi-poh-difficulty').textContent = fmtUInt(pm);
 						}
 					}
 					if (!(st && Number(st.pool_target_mod || 0) >= POOL_TARGET_MOD_FLOOR)) {
 						const cmod = await fetchCanonicalTargetModFallback(st);
 						if (cmod > 0 && (!isPoolWorkContext() || cmod >= POOL_TARGET_MOD_FLOOR)) {
-							lastGlobalTargetMod = cmod;
+							rememberGlobalTargetMod(cmod, 'canonical metrics');
 							if ($('kpi-poh-difficulty')) $('kpi-poh-difficulty').textContent = fmtUInt(cmod);
 						}
 					}
@@ -12607,7 +12861,7 @@
 					if (wk) {
 						const t = Number(wk.target_mod || 0);
 						if (t > 0 && (!isPoolWorkContext() || t >= POOL_TARGET_MOD_FLOOR)) {
-							lastGlobalTargetMod = t;
+							rememberGlobalTargetMod(t, 'coordinator');
 							if ($('kpi-poh-difficulty')) $('kpi-poh-difficulty').textContent = fmtUInt(t);
 						}
 						if ($('pool-workers-online')) $('pool-workers-online').textContent = fmtUInt(poolWorkersCountFromWorkStats(wk) || wk.workers_online || 0);
@@ -12682,7 +12936,7 @@
 				renderHive(networkStatsFromGlobalNetwork(network), metricsForHive || null);
 				const target = Number(work.target_mod || 0);
 				if (target > 0) {
-					lastGlobalTargetMod = target;
+					rememberGlobalTargetMod(target, 'global work');
 					if ($('kpi-poh-difficulty')) $('kpi-poh-difficulty').textContent = fmtUInt(target);
 				}
 				if ($('kpi-challenge-sub')) $('kpi-challenge-sub').textContent = 'GLOBAL(VPS) chain + coordinator';
@@ -13871,8 +14125,7 @@
 				}
 				const pm = Number(s.pool_target_mod || 0);
 				if (pm > 0) {
-					lastGlobalTargetMod = pm;
-					lastTargetModSource = 'pool coordinator';
+					rememberGlobalTargetMod(pm, 'status.pool_target_mod');
 					if ($('kpi-poh-difficulty')) $('kpi-poh-difficulty').textContent = fmtUInt(pm);
 				}
 				if ($('kpi-poh-difficulty-sub') && pm > 0) {
@@ -16198,8 +16451,10 @@
 				try { updateAnalyticsPowCompact(); } catch (_) {}
 			}
 			if (name === 'mining') {
+				try { scheduleRenderMineCalc(); } catch (_) {}
 				void refreshMiningDevices();
 				void refreshMiningFuzzMarketplace();
+				if (typeof refreshWorkStats === 'function') void refreshWorkStats(true);
 				if (activeDashboardCoinId === 'hms') {
 					void refreshHmsDiskPanel();
 					void fetchHmsPoolStats().then((hs) => {
@@ -16212,6 +16467,8 @@
 						if (typeof refreshWorkerStatus === 'function') await refreshWorkerStatus();
 					} catch (_) {}
 					void refreshMiningLogsOnce();
+					try { scheduleRenderMineCalc(); } catch (_) {}
+					scheduleNextPoll();
 				})();
 			}
 			if (name === 'hms-market') {
@@ -16635,8 +16892,9 @@
 					void refreshExchangeSpotPrices(false);
 				}
 				if (currentTab === 'mining') {
-					if (typeof refreshMiningLogsOnce === 'function') void refreshMiningLogsOnce();
-					if ((pollSeq % 2) === 0 && typeof refreshMiningDevices === 'function') void refreshMiningDevices();
+					try { scheduleRenderMineCalc(); } catch (_) {}
+					if ((pollSeq % 2) === 0 && typeof refreshMiningLogsOnce === 'function') void refreshMiningLogsOnce();
+					if ((pollSeq % 3) === 0 && typeof refreshMiningDevices === 'function') void refreshMiningDevices();
 				}
 				if ((pollSeq % 12) === 0 && currentTab === 'chain') {
 					void (typeof refreshP2PPeers === 'function' ? refreshP2PPeers() : Promise.resolve());
@@ -16985,7 +17243,29 @@
 				if ($('btn-developer-token-register')) $('btn-developer-token-register').addEventListener('click', () => { void registerDeveloperTokenLocal(); });
 				updateDeveloperTokenUI();
 				document.addEventListener('visibilitychange', () => {
-					if (!uiPollingPaused) scheduleNextPoll();
+					if (document.hidden) {
+						if (!uiPollingPaused) scheduleNextPoll();
+						return;
+					}
+					if (!uiPollingPaused) {
+						scheduleNextPoll();
+						// Soft resume: keep last-good numbers, refresh in background (no blank flash).
+						void (async () => {
+							try {
+								if (typeof refreshStatus === 'function') await refreshStatus();
+							} catch (_) {}
+							if (currentTab === 'mining' || currentTab === 'overview' || currentTab === 'ecosystem' || currentTab === 'analytics') {
+								try { if (typeof refreshWorkStats === 'function') await refreshWorkStats(true); } catch (_) {}
+								try { if (typeof refreshWorkerStatus === 'function') await refreshWorkerStatus(); } catch (_) {}
+							}
+							try { scheduleRenderMineCalc(); } catch (_) {}
+							try {
+								if (typeof syncMiningPanelFromMetrics === 'function' && lastMetricsPayload) {
+									syncMiningPanelFromMetrics(lastMetricsPayload);
+								}
+							} catch (_) {}
+						})();
+					}
 					scheduleExchangePriceRefresh();
 				});
 				void refreshExchangeSpotPrices(true);
