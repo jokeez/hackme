@@ -46,7 +46,7 @@ type secLease struct {
 func secClaim(t *testing.T, wm *workManager, worker, addr string) secLease {
 	t.Helper()
 	wm.worker[worker] = workerPayoutStat{PayoutAddress: addr}
-	base, size, _, mod, _, ok, reason := wm.claim(worker, 1<<16)
+	base, size, _, mod, _, ok, reason := wm.claim(worker, wm.defaultBatch)
 	if !ok {
 		t.Fatalf("claim: %s", reason)
 	}
