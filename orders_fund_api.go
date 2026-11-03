@@ -134,6 +134,7 @@ func (a *app) fundOrdersSpendable(ctx context.Context, amountHMC float64) (*orde
 		Memo:          chain.OrdersFundMemo(from),
 		PubKeyEd25519: strings.TrimSpace(a.signer.PublicKeyHex()),
 	}
+	tx.ChainID = a.chain.TxChainIDForNextBlock(ctx) // "" before Economics v2
 	canon, err := tx.CanonicalBytes()
 	if err != nil {
 		return nil, &ordersAutoFundError{

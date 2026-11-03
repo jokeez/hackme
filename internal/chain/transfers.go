@@ -32,6 +32,8 @@ type TransferTx struct {
 	Memo          string `json:"memo,omitempty"`
 	PubKeyEd25519 string `json:"pubkey_ed25519"`
 	SigEd25519    string `json:"sig_ed25519"`
+	// ChainID binds the signature to one network (required from Economics v2, see checkTxChainID).
+	ChainID string `json:"chain_id,omitempty"`
 }
 
 type TransferAddressState struct {
@@ -128,6 +130,7 @@ func (tx TransferTx) canonicalBytes() ([]byte, error) {
 		TimestampUnix int64  `json:"timestamp_unix"`
 		Memo          string `json:"memo,omitempty"`
 		PubKeyEd25519 string `json:"pubkey_ed25519"`
+		ChainID       string `json:"chain_id,omitempty"` // omitted when empty: legacy signatures unchanged
 	}{
 		TxType:        tx.TxType,
 		SigAlg:        strings.TrimSpace(strings.ToLower(tx.SigAlg)),
@@ -139,6 +142,7 @@ func (tx TransferTx) canonicalBytes() ([]byte, error) {
 		TimestampUnix: tx.TimestampUnix,
 		Memo:          tx.Memo,
 		PubKeyEd25519: strings.TrimSpace(tx.PubKeyEd25519),
+		ChainID:       strings.TrimSpace(tx.ChainID),
 	}
 	return json.Marshal(wire)
 }
@@ -277,6 +281,9 @@ func (s *Service) SubmitTransferTx(ctx context.Context, tx TransferTx) (string, 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	code, msg := s.validateTransferTx(ctx, tx, s.db)
+	if code == "" {
+		code, msg = s.checkTxChainIDNextQ(ctx, s.db, tx.ChainID)
+	}
 	if code != "" {
 		return "", code, errors.New(msg)
 	}
@@ -768,6 +775,9 @@ func (s *Service) applyPendingTransfers(ctx context.Context, txq queryRowExecCon
 	devAddr := DevFeeAddress
 	for _, item := range pool {
 		code, _ := s.validateTransferTx(ctx, item.tx, txq)
+		if code == "" {
+			code, _ = checkTxChainID(blockIndex, item.tx.ChainID)
+		}
 		if code != "" {
 			if _, err := txq.ExecContext(ctx, `UPDATE tx_pool SET status='rejected', reject_code=? WHERE tx_hash=?`, code, item.hash); err != nil {
 				return err

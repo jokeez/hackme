@@ -249,6 +249,7 @@ func (a *app) handleSUPTransferSend(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		tx.PubKeyEd25519 = strings.TrimSpace(a.signer.PublicKeyHex())
+		tx.ChainID = a.chain.TxChainIDForNextBlock(r.Context()) // "" before Economics v2
 		canon, err := tx.CanonicalBytes()
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")

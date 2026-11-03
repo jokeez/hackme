@@ -125,3 +125,57 @@ func (s *Service) ChainIDForIndex(ctx context.Context, index uint64) string {
 	}
 	return s.ChainID(ctx)
 }
+
+// checkTxChainID: a transfer (HMC, SUP, HMS) applied in block idx must be signed for that
+// block's network from Economics v2 on; before v2 the field stays empty (legacy signatures).
+func checkTxChainID(idx uint64, chainID string) (string, string) {
+	chainID = strings.TrimSpace(chainID)
+	if EconomicsV2ActiveForIndex(idx) {
+		if chainID != V2ChainID {
+			return "chain_id_mismatch", fmt.Sprintf("tx chain_id %q, network is %s", chainID, V2ChainID)
+		}
+		return "", ""
+	}
+	if chainID != "" {
+		return "chain_id_mismatch", "chain_id is accepted from the Economics v2 activation height"
+	}
+	return "", ""
+}
+
+func (s *Service) nextBlockIndexQ(ctx context.Context, q queryRowContext) (uint64, error) {
+	var maxIdx sql.NullInt64
+	if err := q.QueryRowContext(ctx, `SELECT MAX(block_index) FROM blocks`).Scan(&maxIdx); err != nil {
+		return 0, err
+	}
+	if !maxIdx.Valid || maxIdx.Int64 < 0 {
+		return 1, nil
+	}
+	return uint64(maxIdx.Int64) + 1, nil
+}
+
+// checkTxChainIDNextQ validates a submitted transfer against the next block's network.
+func (s *Service) checkTxChainIDNextQ(ctx context.Context, q queryRowContext, chainID string) (string, string) {
+	idx, err := s.nextBlockIndexQ(ctx, q)
+	if err != nil {
+		return "internal_error", err.Error()
+	}
+	return checkTxChainID(idx, chainID)
+}
+
+// TxChainIDForNextBlock is the chain_id a signer must put in a new transfer ("" before v2).
+func (s *Service) TxChainIDForNextBlock(ctx context.Context) string {
+	idx, err := s.nextBlockIndexQ(ctx, s.db)
+	if err != nil || !EconomicsV2ActiveForIndex(idx) {
+		return ""
+	}
+	return V2ChainID
+}
+
+// NetworkChainID is the network id of the next block (status / explorer display).
+func (s *Service) NetworkChainID(ctx context.Context) string {
+	idx, err := s.nextBlockIndexQ(ctx, s.db)
+	if err != nil {
+		return s.ChainID(ctx)
+	}
+	return s.ChainIDForIndex(ctx, idx)
+}

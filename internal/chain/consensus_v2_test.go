@@ -3,10 +3,12 @@ package chain
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"hackme/internal/block"
 	"hackme/internal/nodecrypto"
@@ -228,5 +230,103 @@ func TestLegacyHeaderHashUnchanged(t *testing.T) {
 	b.RewardTo = "HMC-y"
 	if b.HeaderHashHex() == before {
 		t.Fatal("reward_to must be covered by the header hash")
+	}
+}
+
+func signedTransfer(t *testing.T, s *nodecrypto.Signer, to string, nonce uint64, chainID string) TransferTx {
+	t.Helper()
+	tx := TransferTx{
+		TxType: "transfer_v1", From: s.Address(), To: to, AmountUnits: 1000, FeeUnits: DefaultTransferMinFee,
+		Nonce: nonce, TimestampUnix: time.Now().Unix(), Memo: "t", PubKeyEd25519: s.PublicKeyHex(), ChainID: chainID,
+	}
+	canon, err := tx.CanonicalBytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx.SigEd25519 = s.SignHex(canon)
+	return tx
+}
+
+func fundAddr(t *testing.T, db *sql.DB, addr string, units uint64) {
+	t.Helper()
+	if _, err := db.Exec(`INSERT INTO accounts(address, balance_units, next_nonce, updated_at) VALUES(?,?,0,0)
+		ON CONFLICT(address) DO UPDATE SET balance_units=excluded.balance_units`, addr, units); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// From v2 a transfer signature is bound to hackme-mainnet-1: unsigned-network transfers and
+// signatures replayed from another network are refused; before v2 the field must stay empty.
+func TestV2TransferChainIDBinding(t *testing.T) {
+	n := newV2Net(t, "1")
+	fundAddr(t, n.hubDB, n.signer.Address(), HMCToUnits(1))
+	to := "HMC-receiver000001"
+	if got := n.hub.TxChainIDForNextBlock(n.ctx); got != V2ChainID {
+		t.Fatalf("tx chain id for next block %q", got)
+	}
+	if _, code, _ := n.hub.SubmitTransferTx(n.ctx, signedTransfer(t, n.signer, to, 0, "")); code != "chain_id_mismatch" {
+		t.Fatalf("legacy (no chain_id) after v2: code=%q", code)
+	}
+	if _, code, _ := n.hub.SubmitTransferTx(n.ctx, signedTransfer(t, n.signer, to, 0, "hackme-testnet")); code != "chain_id_mismatch" {
+		t.Fatalf("other network: code=%q", code)
+	}
+	// Signature covers chain_id: relabelling a signed tx breaks it.
+	relabel := signedTransfer(t, n.signer, to, 0, "hackme-testnet")
+	relabel.ChainID = V2ChainID
+	if _, code, _ := n.hub.SubmitTransferTx(n.ctx, relabel); code != "invalid_signature" {
+		t.Fatalf("relabelled chain_id: code=%q", code)
+	}
+	if _, code, err := n.hub.SubmitTransferTx(n.ctx, signedTransfer(t, n.signer, to, 0, V2ChainID)); err != nil {
+		t.Fatalf("v2 transfer: %s %v", code, err)
+	}
+	n.mine()
+	if h, _ := unitsOf(t, n.hubDB, to); h != 1000 {
+		t.Fatalf("receiver %d units after block", h)
+	}
+}
+
+// A transfer queued before the activation height (no chain_id) is rejected when the first v2
+// block tries to apply it, instead of slipping in unbound.
+func TestV2PendingLegacyTransferRejectedAtBoundary(t *testing.T) {
+	n := newV2Net(t, "2")
+	fundAddr(t, n.hubDB, n.signer.Address(), HMCToUnits(1))
+	n.mine() // block 1: v1
+	to := "HMC-receiver000002"
+	if _, code, err := n.hub.SubmitTransferTx(n.ctx, signedTransfer(t, n.signer, to, 0, "")); err == nil || code != "chain_id_mismatch" {
+		// Next block (2) is v2 already: submit refuses it up front.
+		t.Fatalf("submit legacy just before v2: code=%q err=%v", code, err)
+	}
+	// Simulate a tx accepted while block 1 was next (pre-v2) and still pending at the switch.
+	legacy := signedTransfer(t, n.signer, to, 0, "")
+	raw, _ := json.Marshal(legacy)
+	h, _ := legacy.HashHex()
+	if _, err := n.hubDB.Exec(`INSERT INTO tx_pool (tx_hash, tx_json, from_address, to_address, nonce, fee_units, amount_units, received_at, status, reject_code)
+		VALUES (?, ?, ?, ?, 0, ?, 1000, 0, 'pending', '')`, h, string(raw), legacy.From, to, legacy.FeeUnits); err != nil {
+		t.Fatal(err)
+	}
+	n.mine() // block 2: v2
+	var status, code string
+	if err := n.hubDB.QueryRow(`SELECT status, reject_code FROM tx_history WHERE tx_hash=?`, h).Scan(&status, &code); err != nil {
+		t.Fatal(err)
+	}
+	if status != "rejected" || code != "chain_id_mismatch" {
+		t.Fatalf("pending legacy tx: status=%q code=%q", status, code)
+	}
+	if b, _ := unitsOf(t, n.hubDB, to); b != 0 {
+		t.Fatal("legacy tx applied in a v2 block")
+	}
+}
+
+func TestPreV2TransferRejectsChainID(t *testing.T) {
+	n := newV2Net(t, "50")
+	fundAddr(t, n.hubDB, n.signer.Address(), HMCToUnits(1))
+	if got := n.hub.TxChainIDForNextBlock(n.ctx); got != "" {
+		t.Fatalf("pre-v2 tx chain id %q", got)
+	}
+	if _, code, _ := n.hub.SubmitTransferTx(n.ctx, signedTransfer(t, n.signer, "HMC-receiver000003", 0, V2ChainID)); code != "chain_id_mismatch" {
+		t.Fatalf("chain_id before v2: code=%q", code)
+	}
+	if _, code, err := n.hub.SubmitTransferTx(n.ctx, signedTransfer(t, n.signer, "HMC-receiver000003", 0, "")); err != nil {
+		t.Fatalf("legacy transfer pre-v2: %s %v", code, err)
 	}
 }

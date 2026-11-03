@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"hackme/internal/block"
 	"hackme/internal/chain"
 	"hackme/internal/poolauth"
 	"hackme/internal/sandbox"
@@ -78,7 +77,8 @@ func (a *app) buildStatusLite(ctx context.Context) map[string]any {
 	coordEff := strings.TrimRight(strings.TrimSpace(a.coordinatorBaseURL()), "/")
 	canonBase := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/")
 	body := map[string]any{
-		"chain_id":                       block.ChainID,
+		"chain_id":                       a.chain.NetworkChainID(ctx),
+		"tx_chain_id":                    a.chain.TxChainIDForNextBlock(ctx), // sign transfers with this ("" before v2)
 		"version":                        Version,
 		"commit":                         Commit,
 		"build_date":                     BuildDate,
@@ -167,7 +167,8 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 	econCancel()
 	poolCoordURL := strings.TrimSpace(os.Getenv("HACKME_POOL_COORDINATOR_URL"))
 	statusBody := map[string]any{
-		"chain_id":               block.ChainID,
+		"chain_id":               a.chain.NetworkChainID(ctx),
+		"tx_chain_id":            a.chain.TxChainIDForNextBlock(ctx),
 		"version":                Version,
 		"commit":                 Commit,
 		"build_date":             BuildDate,
