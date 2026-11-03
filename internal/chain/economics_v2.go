@@ -63,7 +63,7 @@ func EconomicsV2ActivationHeight() uint64 {
 		return meta
 	}
 	econV2HeightOnce.Do(func() {
-		econV2Height = 0
+		econV2Height = DefaultEconomicsV2ActivationHeight
 		if v := strings.TrimSpace(os.Getenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT")); v != "" {
 			if n, err := strconv.ParseUint(v, 10, 64); err == nil && n >= 1 {
 				econV2Height = n
@@ -72,6 +72,12 @@ func EconomicsV2ActivationHeight() uint64 {
 	})
 	return econV2Height
 }
+
+// DefaultEconomicsV2ActivationHeight is the published activation height compiled into the
+// announce release (0 = not announced). Followers and desktops have no v2 env: like the ASERT
+// height (495 400), the switch ships in the binary so every updated node crosses it on its own.
+// Preference order stays: locked chain meta > env > this default.
+const DefaultEconomicsV2ActivationHeight uint64 = 0
 
 // ResetEconomicsV2ActivationHeightForTest clears the cached env/meta height (tests only).
 func ResetEconomicsV2ActivationHeightForTest() {
