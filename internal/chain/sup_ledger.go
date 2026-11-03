@@ -55,6 +55,26 @@ type SUPEconomics struct {
 	GenesisUnix       int64   `json:"genesis_unix,omitempty"`
 	MintEnabled       bool    `json:"mint_enabled"`
 	OnChainSettleLive bool    `json:"on_chain_settle_live"`
+	// Economics v2: SUP is emitted only by blocks (0.002/block to the settlement wallet);
+	// admin mint is retired and settlement pays SUP by transfer from that wallet.
+	AdminMintRetired  bool    `json:"admin_mint_retired"`
+	RewardPerBlockSUP float64 `json:"reward_per_block_sup"`
+}
+
+// ErrSUPMintRetired: admin/settlement mint after Economics v2 activation (single SUP emission path).
+var ErrSUPMintRetired = errors.New("chain: SUP admin mint retired after Economics v2 activation — settle by transfer")
+
+// supAdminMintRetiredQ reports whether the next block is under Economics v2 (no admin SUP mint).
+func (s *Service) supAdminMintRetiredQ(ctx context.Context, q queryRowContext) (bool, uint64, error) {
+	var maxIdx sql.NullInt64
+	if err := q.QueryRowContext(ctx, `SELECT MAX(block_index) FROM blocks`).Scan(&maxIdx); err != nil {
+		return false, 0, err
+	}
+	tip := uint64(0)
+	if maxIdx.Valid && maxIdx.Int64 > 0 {
+		tip = uint64(maxIdx.Int64)
+	}
+	return EconomicsV2ActiveForIndex(tip + 1), tip, nil
 }
 
 func SUPToUnits(v float64) uint64 { return HMCToUnits(v) }
@@ -156,6 +176,15 @@ func (s *Service) SUPEconomics(ctx context.Context) (SUPEconomics, error) {
 	mintMeta := ""
 	_ = s.db.QueryRowContext(ctx, `SELECT value FROM meta WHERE key=?`, metaSUPMintEnabled).Scan(&mintMeta)
 	mintOn := strings.TrimSpace(mintMeta) == "1" || supMintEnabledFromEnv()
+	retired, tip, err := s.supAdminMintRetiredQ(ctx, s.db)
+	if err != nil {
+		return SUPEconomics{}, err
+	}
+	if EconomicsV2ActivationHeight() >= 1 {
+		if v2Cap := SUPToUnits(V2SUPMaxSupply); v2Cap < maxU {
+			maxU = v2Cap
+		}
+	}
 	remain := uint64(0)
 	if mintedU < maxU {
 		remain = maxU - mintedU
@@ -165,8 +194,10 @@ func (s *Service) SUPEconomics(ctx context.Context) (SUPEconomics, error) {
 		TotalMintedSUP:    UnitsToSUP(mintedU),
 		RemainingSUP:      UnitsToSUP(remain),
 		GenesisUnix:       genesis,
-		MintEnabled:       mintOn,
-		OnChainSettleLive: mintOn,
+		MintEnabled:       mintOn && !retired,
+		OnChainSettleLive: mintOn || retired,
+		AdminMintRetired:  retired,
+		RewardPerBlockSUP: SUPRewardForBlockIndex(tip + 1),
 	}, nil
 }
 
@@ -277,6 +308,9 @@ func (s *Service) MintSUP(ctx context.Context, to string, amountUnits uint64, me
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	ec, _ := s.SUPEconomics(ctx)
+	if ec.AdminMintRetired {
+		return "sup_mint_retired_v2", ErrSUPMintRetired
+	}
 	if !ec.MintEnabled && !supMintEnabledFromEnv() {
 		return "sup_mint_disabled", errors.New("SUP mint not enabled — run sup_genesis_init.sh")
 	}
@@ -305,6 +339,12 @@ func (s *Service) MintSUP(ctx context.Context, to string, amountUnits uint64, me
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return "internal_error", err
 		}
+	}
+	// Re-check inside the tx: a block may have crossed the activation height since SUPEconomics.
+	if retired, _, err := s.supAdminMintRetiredQ(ctx, tx); err != nil {
+		return "internal_error", err
+	} else if retired {
+		return "sup_mint_retired_v2", ErrSUPMintRetired
 	}
 	maxU, err := s.supMaxSupplyUnits(ctx, tx)
 	if err != nil {

@@ -67,6 +67,7 @@ type MetricsSnapshot struct {
 	EconBurnImpactPct float64 `json:"econ_burn_impact_pct"`
 	// Base mining reward schedule (public economics formula).
 	EconBaseRewardNowHMC      float64 `json:"econ_base_reward_now_hmc"`
+	EconSUPRewardNow          float64 `json:"econ_sup_reward_now"` // v2: SUP per next empty block (0 before activation)
 	EconRewardTailFloorHMC    float64 `json:"econ_reward_tail_floor_hmc"`
 	EconRewardHalvingInterval uint64  `json:"econ_reward_halving_interval_blocks"`
 	EconNextHalvingBlock      uint64  `json:"econ_next_halving_block"`

@@ -164,15 +164,25 @@ func (m *workManager) computeSUPAccrual(workerID string, workHMC float64, hybrid
 	if mult <= 0 {
 		return 0
 	}
-	sup := attemptHMC * m.supPolicy.RateOfHMC * mult
+	rate, capRatio := m.supPolicy.RateOfHMC, m.supPolicy.DailyCapRatio
+	if r, ok := m.supV2RatioLocked(); ok {
+		// Economics v2: one SUP emission path. The chain mints SUP per block to the settlement
+		// wallet; the pool hands it out in proportion to HMC work pay, so pool SUP never exceeds
+		// chain SUP. No streak bonus (it would promise SUP the chain did not emit).
+		rate, capRatio = r, r
+		if mult > 1 {
+			mult = 1
+		}
+	}
+	sup := attemptHMC * rate * mult
 	if sup <= 0 || math.IsNaN(sup) || math.IsInf(sup, 0) {
 		return 0
 	}
 	m.resetSupDayIfNeeded(now)
 	// V3-M3: daily SUP cap basis is HMC credited for verified work only (not found_bonus).
 	m.hmcAccruedDay += attemptHMC
-	if m.supPolicy.DailyCapRatio > 0 && m.hmcAccruedDay > 0 {
-		cap := m.hmcAccruedDay * m.supPolicy.DailyCapRatio
+	if capRatio > 0 && m.hmcAccruedDay > 0 {
+		cap := m.hmcAccruedDay * capRatio
 		if m.supAccruedDay >= cap {
 			return 0
 		}
@@ -193,22 +203,39 @@ func (m *workManager) computeSUPAccrual(workerID string, workHMC float64, hybrid
 	return sup
 }
 
+// supV2RatioLocked returns chain SUP per block / HMC per block once Economics v2 is live
+// (0.002 / 0.1 = 0.02 in era 0; both halve together). Caller holds m.mu.
+func (m *workManager) supV2RatioLocked() (float64, bool) {
+	if m.supPerBlock <= 0 || m.baseRewardHMC <= 0 {
+		return 0, false
+	}
+	r := m.supPerBlock / m.baseRewardHMC
+	if r <= 0 || r > 1 || math.IsNaN(r) {
+		return 0, false
+	}
+	return r, true
+}
+
 func (m *workManager) supPolicyStats() map[string]any {
 	if m == nil {
 		return map[string]any{"enabled": false}
 	}
+	v2Ratio, v2 := m.supV2RatioLocked()
 	return map[string]any{
-		"enabled":           m.supPolicy.Enabled,
-		"rate_of_hmc":       m.supPolicy.RateOfHMC,
-		"streak_sec":        m.supPolicy.StreakSec,
-		"streak_bonus":      m.supPolicy.StreakBonus,
-		"daily_cap_ratio":   m.supPolicy.DailyCapRatio,
-		"require_hybrid":    m.supPolicy.RequireHybrid,
-		"stale_rate_max":    m.supPolicy.StaleRateMax,
-		"total_payout_sup":  m.totalPayoutSUP,
-		"sup_accrued_today": m.supAccruedDay,
-		"hmc_accrued_today": m.hmcAccruedDay,
-		"on_chain_settle":   supOnChainSettleEnabled(),
-		"listing_note":      "SUP list on exchanges after primary HMC listing; accrual is live in coordinator",
+		"economics_v2":        v2,
+		"v2_rate_of_hmc":      v2Ratio,
+		"chain_sup_per_block": m.supPerBlock,
+		"enabled":             m.supPolicy.Enabled,
+		"rate_of_hmc":         m.supPolicy.RateOfHMC,
+		"streak_sec":          m.supPolicy.StreakSec,
+		"streak_bonus":        m.supPolicy.StreakBonus,
+		"daily_cap_ratio":     m.supPolicy.DailyCapRatio,
+		"require_hybrid":      m.supPolicy.RequireHybrid,
+		"stale_rate_max":      m.supPolicy.StaleRateMax,
+		"total_payout_sup":    m.totalPayoutSUP,
+		"sup_accrued_today":   m.supAccruedDay,
+		"hmc_accrued_today":   m.hmcAccruedDay,
+		"on_chain_settle":     supOnChainSettleEnabled(),
+		"listing_note":        "SUP list on exchanges after primary HMC listing; accrual is live in coordinator",
 	}
 }
