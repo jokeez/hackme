@@ -331,6 +331,24 @@ func TestPreV2TransferRejectsChainID(t *testing.T) {
 	}
 }
 
+func TestResolvedV2ChainIDEnvIsolation(t *testing.T) {
+	t.Setenv("HACKME_V2_CHAIN_ID", "")
+	if got := ResolvedV2ChainID(); got != V2ChainID {
+		t.Fatalf("default %q", got)
+	}
+	t.Setenv("HACKME_V2_CHAIN_ID", "hackme-lab-audit")
+	if got := ResolvedV2ChainID(); got != "hackme-lab-audit" {
+		t.Fatalf("env override %q", got)
+	}
+	// Lab network must reject a mainnet-bound transfer chain_id.
+	if code, _ := checkTxChainID(1, V2ChainID); code != "chain_id_mismatch" {
+		t.Fatalf("mainnet id on lab network: code=%q", code)
+	}
+	if code, _ := checkTxChainID(1, "hackme-lab-audit"); code != "" {
+		t.Fatalf("lab id refused: code=%q", code)
+	}
+}
+
 func guardOn(t *testing.T) {
 	t.Helper()
 	v2ActivationGuardOff = false

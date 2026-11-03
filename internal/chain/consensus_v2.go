@@ -24,8 +24,18 @@ import (
 //
 // Blocks below the height must not carry the new fields (legacy hashes stay unchanged).
 
-// V2ChainID is the network id from the Economics v2 activation height.
+// V2ChainID is the default public-network id from the Economics v2 activation height.
+// Lab/test nodes must set HACKME_V2_CHAIN_ID to a distinct value so signed blocks/txs
+// cannot be replayed across environments (audit H4).
 const V2ChainID = "hackme-mainnet-1"
+
+// ResolvedV2ChainID returns the active v2 network id (env override or V2ChainID).
+func ResolvedV2ChainID() string {
+	if v := strings.TrimSpace(os.Getenv("HACKME_V2_CHAIN_ID")); v != "" {
+		return v
+	}
+	return V2ChainID
+}
 
 const metaAuthorityPubKey = "authority_pubkey_ed25519"
 
@@ -92,8 +102,9 @@ func (s *Service) validateV2HeaderQ(ctx context.Context, q queryRowContext, b *b
 		}
 		return nil
 	}
-	if b.ChainID != V2ChainID {
-		return fmt.Errorf("%w: chain_id %q, want %q", ErrV2Header, b.ChainID, V2ChainID)
+	wantID := ResolvedV2ChainID()
+	if b.ChainID != wantID {
+		return fmt.Errorf("%w: chain_id %q, want %q", ErrV2Header, b.ChainID, wantID)
 	}
 	if strings.TrimSpace(orderTaskID) == "" {
 		if !strings.HasPrefix(b.RewardTo, "HMC-") || strings.TrimSpace(b.RewardTo) != b.RewardTo {
@@ -121,7 +132,7 @@ func (s *Service) validateV2HeaderQ(ctx context.Context, q queryRowContext, b *b
 // ChainIDForIndex is the network id that block (or a signature applied in it) belongs to.
 func (s *Service) ChainIDForIndex(ctx context.Context, index uint64) string {
 	if EconomicsV2ActiveForIndex(index) {
-		return V2ChainID
+		return ResolvedV2ChainID()
 	}
 	return s.ChainID(ctx)
 }
@@ -131,8 +142,9 @@ func (s *Service) ChainIDForIndex(ctx context.Context, index uint64) string {
 func checkTxChainID(idx uint64, chainID string) (string, string) {
 	chainID = strings.TrimSpace(chainID)
 	if EconomicsV2ActiveForIndex(idx) {
-		if chainID != V2ChainID {
-			return "chain_id_mismatch", fmt.Sprintf("tx chain_id %q, network is %s", chainID, V2ChainID)
+		want := ResolvedV2ChainID()
+		if chainID != want {
+			return "chain_id_mismatch", fmt.Sprintf("tx chain_id %q, network is %s", chainID, want)
 		}
 		return "", ""
 	}
@@ -168,7 +180,7 @@ func (s *Service) TxChainIDForNextBlock(ctx context.Context) string {
 	if err != nil || !EconomicsV2ActiveForIndex(idx) {
 		return ""
 	}
-	return V2ChainID
+	return ResolvedV2ChainID()
 }
 
 // NetworkChainID is the network id of the next block (status / explorer display).
