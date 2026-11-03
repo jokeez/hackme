@@ -351,6 +351,29 @@ func (a *app) handleSUPTransferSend(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleSUPTransferByHash reports a SUP transfer status (settlers confirm inclusion with it).
+func (a *app) handleSUPTransferByHash(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	h := strings.TrimSpace(strings.TrimPrefix(r.URL.Path, "/api/sup/tx/"))
+	if h == "" || len(h) > 128 || strings.Contains(h, "/") {
+		http.Error(w, "tx hash required", http.StatusBadRequest)
+		return
+	}
+	row, ok, err := a.chain.SupTxByHash(r.Context(), h)
+	if err != nil {
+		http.Error(w, "lookup failed", http.StatusInternalServerError)
+		return
+	}
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	writeJSON(w, row)
+}
+
 // handleSUPFeeBurn pays a public-product fee in SUP (holder-signed, one burn per product/payer/ref).
 // Internal products (hmc_order) are refused here: their fee is burned inside the operation.
 // No unsigned admin path: the primary wallet pays its order fees inside the order open itself.

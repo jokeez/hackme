@@ -594,6 +594,7 @@ func main() {
 	mux.HandleFunc("/api/sup/fee/burn", a.handleSUPFeeBurn)
 	mux.HandleFunc("/api/sup/tx/send", a.handleSUPTransferSend)
 	mux.HandleFunc("/api/sup/tx/pool", a.handleSUPTransferPool)
+	mux.HandleFunc("/api/sup/tx/", a.handleSUPTransferByHash)
 	mux.HandleFunc("/api/sup/activity", a.handleSUPActivity)
 	mux.HandleFunc("/api/sup/earnings", a.handleSUPEarnings)
 	mux.HandleFunc("/api/hms/economics", a.handleHMSEconomics)

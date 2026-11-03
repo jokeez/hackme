@@ -111,8 +111,14 @@ fi
 # fall back to genesis/mint here. Accrual keeps growing in the coordinator until that runs.
 sup_econ="$(curl -fsS --max-time 8 "${CHAIN_BASE}/api/sup/economics" 2>/dev/null || true)"
 if [[ "$(jq -r '.economics.admin_mint_retired // false' <<<"$sup_econ" 2>/dev/null)" == "true" ]]; then
-  echo "[settle-sup] economics v2: admin SUP mint retired — mint settlement disabled (pay by transfer)" >&2
-  exit 0
+  echo "[settle-sup] economics v2: admin SUP mint retired — settling SUP by transfer (workersettle -asset sup)" >&2
+  for b in "$ROOT_DIR/bin/workersettle" "$ROOT_DIR/workersettle"; do
+    if [[ -x "$b" ]]; then
+      ADMIN_TOKEN="$ADMIN_TOKEN" COORD_ADMIN_TOKEN="$COORD_ADMIN_TOKEN" STATE_FILE="$STATE_FILE" exec "$b" -asset sup
+    fi
+  done
+  echo "[settle-sup] ERROR: workersettle binary not found — SUP stays accrued (no mint fallback)" >&2
+  exit 1
 fi
 
 # Ensure SUP genesis only when mint is not live yet.
