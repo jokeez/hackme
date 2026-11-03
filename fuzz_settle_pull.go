@@ -23,19 +23,31 @@ func (a *app) pullFuzzSettleOutbox(ctx context.Context) error {
 	}
 	// Scoped publish token cannot list/ACK the global outbox — drain per local escrow.
 	if poolsync.OrdersPublishToken() != "" {
-		ids, err := a.localOpenFuzzEscrowCampaignIDs(ctx)
-		if err != nil {
-			return err
-		}
-		var firstErr error
-		for _, cid := range ids {
-			if err := a.pullFuzzSettleOutboxWindow(ctx, cid, true); err != nil && firstErr == nil {
-				firstErr = err
-			}
-		}
-		return firstErr
+		return a.pullLocalFuzzSettleEscrows(ctx)
 	}
-	return a.pullFuzzSettleOutboxWindow(ctx, "", false)
+	// Admin global pull: Soft-OK returns nil on a foreign-only fair window, which used
+	// to skip this node's campaigns forever when ≥32 older foreign camps filled the
+	// window (audit H5). Always follow with scoped drains of local open escrows.
+	globalErr := a.pullFuzzSettleOutboxWindow(ctx, "", false)
+	localErr := a.pullLocalFuzzSettleEscrows(ctx)
+	if globalErr != nil {
+		return globalErr
+	}
+	return localErr
+}
+
+func (a *app) pullLocalFuzzSettleEscrows(ctx context.Context) error {
+	ids, err := a.localOpenFuzzEscrowCampaignIDs(ctx)
+	if err != nil {
+		return err
+	}
+	var firstErr error
+	for _, cid := range ids {
+		if err := a.pullFuzzSettleOutboxWindow(ctx, cid, true); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
 }
 
 // pullFuzzSettleOutboxWindow drains coordinator outbox (global admin or one campaign).
