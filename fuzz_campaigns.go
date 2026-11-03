@@ -68,6 +68,7 @@ type fuzzCampaignCreateRequest struct {
 	BudgetRuns    int            `json:"budget_runs"`
 	BudgetSeconds int            `json:"budget_seconds"`
 	BudgetHMC     float64        `json:"budget_hmc"`
+	FeeAsset      string         `json:"fee_asset,omitempty"` // Economics v2: HMC (default) | SUP
 	Config        map[string]any `json:"config"`
 }
 
@@ -797,7 +798,7 @@ func (a *app) handleFuzzCampaignCreate(w http.ResponseWriter, r *http.Request) {
 			writeOrdersAutoFundOrEscrowFailed(w, fundErr)
 			return
 		}
-		escrow, err := a.chain.OpenFuzzEscrowSplit(r.Context(), id, req.BudgetHMC, req.BudgetRuns, escrowSplit)
+		escrow, err := a.chain.OpenFuzzEscrowWithFee(r.Context(), id, req.BudgetHMC, req.BudgetRuns, escrowSplit, req.FeeAsset)
 		if err != nil {
 			_, _ = a.db.ExecContext(r.Context(), `DELETE FROM fuzz_campaigns WHERE id=?`, id)
 			writeFuzzEscrowFailed(w, err)

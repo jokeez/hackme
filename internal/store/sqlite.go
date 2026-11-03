@@ -218,6 +218,9 @@ func migrate(db *sql.DB) error {
 	if err := migrateTasksEscrowColumns(db); err != nil {
 		return err
 	}
+	if err := migrateOrderFeeColumns(db, "tasks"); err != nil {
+		return err
+	}
 	if err := migrateLANPeerRigs(db); err != nil {
 		return err
 	}
@@ -737,6 +740,23 @@ func migrateFuzzEscrow(db *sql.DB) error {
 	if _, err := db.Exec(`ALTER TABLE fuzz_campaign_escrow ADD COLUMN escrow_split TEXT NOT NULL DEFAULT '20_80'`); err != nil {
 		if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
 			return err
+		}
+	}
+	return migrateOrderFeeColumns(db, "fuzz_campaign_escrow")
+}
+
+// migrateOrderFeeColumns adds the Economics v2 order-fee record (asset + legs in units).
+func migrateOrderFeeColumns(db *sql.DB, table string) error {
+	for _, col := range []string{
+		`fee_asset TEXT NOT NULL DEFAULT ''`,
+		`fee_burn_units INTEGER NOT NULL DEFAULT 0`,
+		`fee_platform_units INTEGER NOT NULL DEFAULT 0`,
+		`fee_sup_units INTEGER NOT NULL DEFAULT 0`,
+	} {
+		if _, err := db.Exec(`ALTER TABLE ` + table + ` ADD COLUMN ` + col); err != nil {
+			if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+				return err
+			}
 		}
 	}
 	return nil
