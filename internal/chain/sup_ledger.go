@@ -58,6 +58,7 @@ type SUPEconomics struct {
 	// Economics v2: SUP is emitted only by blocks (0.002/block to the settlement wallet);
 	// admin mint is retired and settlement pays SUP by transfer from that wallet.
 	AdminMintRetired  bool    `json:"admin_mint_retired"`
+	TotalBurnedSUP    float64 `json:"total_burned_sup"`
 	RewardPerBlockSUP float64 `json:"reward_per_block_sup"`
 }
 
@@ -180,6 +181,10 @@ func (s *Service) SUPEconomics(ctx context.Context) (SUPEconomics, error) {
 	if err != nil {
 		return SUPEconomics{}, err
 	}
+	burnedU, err := s.metaUint(ctx, s.db, metaSUPTotalBurnedUnits, 0)
+	if err != nil {
+		return SUPEconomics{}, err
+	}
 	if EconomicsV2ActivationHeight() >= 1 {
 		if v2Cap := SUPToUnits(V2SUPMaxSupply); v2Cap < maxU {
 			maxU = v2Cap
@@ -197,6 +202,7 @@ func (s *Service) SUPEconomics(ctx context.Context) (SUPEconomics, error) {
 		MintEnabled:       mintOn && !retired,
 		OnChainSettleLive: mintOn || retired,
 		AdminMintRetired:  retired,
+		TotalBurnedSUP:    UnitsToSUP(burnedU),
 		RewardPerBlockSUP: SUPRewardForBlockIndex(tip + 1),
 	}, nil
 }
@@ -423,7 +429,7 @@ func (s *Service) BurnSUPForService(ctx context.Context, from string, amountUnit
 	if from != walletAddr {
 		return "owner_required", errors.New("chain: unsigned SUP burn only allowed for primary wallet; use BurnSUPWithOwnerProof")
 	}
-	return s.burnSUPTx(ctx, from, amountUnits, memo)
+	return s.burnSUPTx(ctx, from, amountUnits, memo, "")
 }
 
 // BurnSUPCanonicalMessage is the ed25519 payload for BurnSUPWithOwnerProof.
@@ -457,15 +463,28 @@ func (s *Service) BurnSUPWithOwnerProof(ctx context.Context, from string, amount
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.burnSUPTx(ctx, from, amountUnits, memo)
+	// The v1 message has no nonce: key the burn by its signature so a seen signature cannot be
+	// replayed to burn the owner's SUP again. New callers use BurnSUPForFee (product/ref, chain_id).
+	sigSum := sha256.Sum256(sig)
+	return s.burnSUPTx(ctx, from, amountUnits, memo, "burn-sig-"+hex.EncodeToString(sigSum[:16]))
 }
 
-func (s *Service) burnSUPTx(ctx context.Context, from string, amountUnits uint64, memo string) (string, error) {
+func (s *Service) burnSUPTx(ctx context.Context, from string, amountUnits uint64, memo, txHash string) (string, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return "internal_error", err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if txHash == "" {
+		txHash = fmt.Sprintf("burn-%d-%s", time.Now().UnixNano(), from)
+	} else {
+		var seen string
+		if err := tx.QueryRowContext(ctx, `SELECT tx_hash FROM sup_tx_history WHERE tx_hash=?`, txHash).Scan(&seen); err == nil {
+			return "burn_replay", errors.New("chain: SUP burn signature already used")
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return "internal_error", err
+		}
+	}
 	var bal uint64
 	err = tx.QueryRowContext(ctx, `SELECT COALESCE(balance_sup_units,0) FROM accounts WHERE address=?`, from).Scan(&bal)
 	if errors.Is(err, sql.ErrNoRows) || bal < amountUnits {
@@ -485,7 +504,14 @@ func (s *Service) burnSUPTx(ctx context.Context, from string, amountUnits uint64
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO sup_tx_history (tx_hash, tx_json, from_address, to_address, nonce, fee_units, amount_units, status, block_index, block_hash, applied_at, reject_code)
 		 VALUES (?, ?, ?, '', 0, 0, ?, 'included', 0, 'burn', ?, '')`,
-		fmt.Sprintf("burn-%d-%s", time.Now().UnixNano(), from), string(raw), from, amountUnits, time.Now().Unix()); err != nil {
+		txHash, string(raw), from, amountUnits, time.Now().Unix()); err != nil {
+		return "internal_error", err
+	}
+	burned, err := s.metaUint(ctx, tx, metaSUPTotalBurnedUnits, 0)
+	if err != nil {
+		return "internal_error", err
+	}
+	if err := s.upsertMetaUint(ctx, tx, metaSUPTotalBurnedUnits, burned+amountUnits); err != nil {
 		return "internal_error", err
 	}
 	if err := tx.Commit(); err != nil {

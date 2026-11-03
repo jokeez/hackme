@@ -591,6 +591,7 @@ func main() {
 	mux.HandleFunc("/api/sup/genesis", a.handleSUPGenesisInit)
 	mux.HandleFunc("/api/sup/mint", a.handleSUPMint)
 	mux.HandleFunc("/api/sup/burn", a.handleSUPBurn)
+	mux.HandleFunc("/api/sup/fee/burn", a.handleSUPFeeBurn)
 	mux.HandleFunc("/api/sup/tx/send", a.handleSUPTransferSend)
 	mux.HandleFunc("/api/sup/tx/pool", a.handleSUPTransferPool)
 	mux.HandleFunc("/api/sup/activity", a.handleSUPActivity)
