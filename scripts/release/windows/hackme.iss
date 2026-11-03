@@ -61,7 +61,7 @@ VersionInfoProductName={#MyAppName}
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [CustomMessages]
-english.WelcomeLabel2=Welcome to HackMe Setup.%n%nChoose Miner (public pool) or Orders (B2B Dig/Hunt) on the next pages. Pool access for miners is preconfigured — no manual token hunt.
+english.WelcomeLabel2=Welcome to HackMe Setup.%n%nChoose Miner (public pool · Dig + PoH) or Orders (B2B Dig; Hunt coverage = Linux pool) on the next pages. Pool access for miners is preconfigured — no manual token hunt.
 english.FinishedLabel=Setup finished. Use the Start menu shortcuts for your selected profile.
 english.ProfilePageTitle=How will you use HackMe?
 english.ProfilePageSubtitle=One installer — two products. You can open the other profile later from the Start menu.

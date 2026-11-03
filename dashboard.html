@@ -2100,7 +2100,7 @@
 							<article class="eco-lane" data-lane="hunt">
 								<p class="eco-lane-kicker">Hunt</p>
 								<p class="eco-lane-title">Coverage ASAN · 50/50</p>
-								<p class="eco-lane-copy">libFuzzer · AFL++ Deep · published <code class="text-warn/90">harness_hash</code>.</p>
+								<p class="eco-lane-copy" id="eco-lane-hunt-copy">libFuzzer · AFL++ Deep · published <code class="text-warn/90">harness_hash</code>.</p>
 							</article>
 						</div>
 						<div class="eco-hero-actions">
@@ -2632,9 +2632,9 @@
 					<div id="mining-fuzz-rc15-banner" class="card card-glow rounded-lg p-4 md:p-5 border-neon/40 bg-gradient-to-r from-neon/12 via-black/45 to-matrix/[0.06]">
 						<div class="flex flex-wrap items-start justify-between gap-3 mb-2">
 							<div class="max-w-3xl">
-								<p class="font-display text-[10px] tracking-[0.35em] text-neon uppercase mb-1">B2B fuzz · Coverage Hunt · 0.1.0-rc18.1</p>
-								<h3 class="font-display text-sm font-semibold text-white tracking-wide">Dig · Hunt · customer campaigns first</h3>
-								<p class="text-[11px] text-gray-400 leading-relaxed mt-1"><strong class="text-neon/90">Dig</strong> WASM packs · smoke <strong class="text-white/85">20/80</strong> · Deep <strong class="text-white/85">40/60</strong>. <strong class="text-matrix">Hunt</strong> ASAN · <strong class="text-white/85">50/50</strong> escrow. Orders rc18.1+ can publish to the public pool with <code class="text-neon/80">pool.orders.token</code>. Place on <strong class="text-neon/80">#orders</strong>.</p>
+								<p class="font-display text-[10px] tracking-[0.35em] text-neon uppercase mb-1" id="mining-fuzz-banner-kicker">B2B fuzz · Coverage Hunt · 0.1.0-rc18.1</p>
+								<h3 class="font-display text-sm font-semibold text-white tracking-wide" id="mining-fuzz-banner-title">Dig · Hunt · customer campaigns first</h3>
+								<p class="text-[11px] text-gray-400 leading-relaxed mt-1" id="mining-fuzz-banner-copy"><strong class="text-neon/90">Dig</strong> WASM packs · smoke <strong class="text-white/85">20/80</strong> · Deep <strong class="text-white/85">40/60</strong>. <strong class="text-matrix">Hunt</strong> ASAN · <strong class="text-white/85">50/50</strong> escrow. Orders rc18.1+ can publish to the public pool with <code class="text-neon/80">pool.orders.token</code>. Place on <strong class="text-neon/80">#orders</strong>.</p>
 								<div class="fuzz-sku-pills" aria-label="SKU escrow">
 									<span class="fuzz-sku-pill">Dig smoke · 20/80</span>
 									<span class="fuzz-sku-pill">Dig Deep · 40/60</span>
@@ -3210,9 +3210,9 @@
 						<pre id="audit-compile-log" class="hidden mt-2 text-[10px] font-mono text-gray-400 overflow-x-auto whitespace-pre-wrap max-h-28 overflow-y-auto p-2 rounded bg-black/50 border border-white/10"></pre>
 					</div>
 					<div id="orders-hunt-campaign" class="hidden order-product-card hunt-card mt-1" data-orders-section="hunt">
-						<p class="card-kicker text-warn">Hunt · native</p>
+						<p class="card-kicker text-warn" id="orders-hunt-kicker">Hunt · native</p>
 						<h3 class="font-display text-base font-bold text-white tracking-wide mb-1">ASAN shards</h3>
-						<p class="text-[12px] text-gray-400 mb-1 leading-relaxed max-w-3xl">OSS/repo → ASAN shards · escrow <strong class="text-warn/90">50/50</strong> · CLEAN ≠ CVE.</p>
+						<p class="text-[12px] text-gray-400 mb-1 leading-relaxed max-w-3xl" id="orders-hunt-lede">OSS/repo → ASAN shards · escrow <strong class="text-warn/90">50/50</strong> · CLEAN ≠ CVE.</p>
 						<div class="sku-picker" id="hunt-sku-picker" role="listbox" aria-label="Hunt package">
 							<button type="button" class="sku-card active" data-hunt-sku="hunt_lite" role="option" aria-selected="true">
 								<span class="sku-badge">smoke</span>
@@ -4508,6 +4508,40 @@
 			if (t && profile.heroTitle) t.textContent = profile.heroTitle;
 			if (c && profile.heroCopy) c.innerHTML = profile.heroCopy;
 			if (h && profile.hint) h.textContent = profile.hint;
+			applyWindowsDigHonesty();
+		}
+		// Windows OOTB: Dig + PoH on this PC; Hunt coverage engines are Linux-only.
+		function applyWindowsDigHonesty() {
+			if (!isWindowsClient()) return;
+			const hmc = COIN_DASH_PROFILES.hmc;
+			if (hmc) {
+				hmc.heroCopy = 'Live <strong class="text-white/90">HMC</strong> pool · Dig + PoH on this PC · Hunt engines = <strong class="text-warn/90">Linux pool</strong> · Wallet.';
+				hmc.hint = 'Live PoW · Dig on Windows · Hunt = Linux miners';
+			}
+			if (activeDashboardCoinId === 'hmc') {
+				const c = $('eco-hero-copy');
+				const h = $('coin-context-hint');
+				if (c && hmc) c.innerHTML = hmc.heroCopy;
+				if (h && hmc) h.textContent = hmc.hint;
+			}
+			const huntLane = $('eco-lane-hunt-copy');
+			if (huntLane) {
+				huntLane.innerHTML = 'Coverage engines run on <strong class="text-warn/90">Linux pool</strong> miners · publish from Orders.';
+			}
+			const fuzzTitle = $('mining-fuzz-banner-title');
+			const fuzzCopy = $('mining-fuzz-banner-copy');
+			const fuzzKicker = $('mining-fuzz-banner-kicker');
+			if (fuzzKicker) fuzzKicker.textContent = 'B2B fuzz · Dig on Windows · 0.1.0-rc18.1';
+			if (fuzzTitle) fuzzTitle.textContent = 'Dig on this PC · Hunt via Linux pool';
+			if (fuzzCopy) {
+				fuzzCopy.innerHTML = '<strong class="text-neon/90">Dig</strong> WASM runs here · smoke <strong class="text-white/85">20/80</strong> · Deep <strong class="text-white/85">40/60</strong>. <strong class="text-matrix">Hunt</strong> ASAN engines are <strong class="text-warn/90">Linux-only</strong> — publish from Orders so the public Linux pool runs coverage. Place Dig/Hunt on <strong class="text-neon/80">#orders</strong>.';
+			}
+			const huntKicker = $('orders-hunt-kicker');
+			const huntLede = $('orders-hunt-lede');
+			if (huntKicker) huntKicker.textContent = 'Hunt · Linux pool';
+			if (huntLede) {
+				huntLede.innerHTML = 'Publish ASAN shards to the <strong class="text-warn/90">Linux pool</strong> · escrow <strong class="text-warn/90">50/50</strong> · CLEAN ≠ CVE. This Windows node does not run libFuzzer/AFL++.';
+			}
 		}
 		const ECO_KPI_LABELS = {
 			hmc: {
@@ -6812,6 +6846,7 @@
 				return false;
 			}
 		}
+		try { applyWindowsDigHonesty(); } catch (_) {}
 		function syncWindowsUpdateBanner(doc) {
 			const ban = $('win-update-banner');
 			if (!ban) return;

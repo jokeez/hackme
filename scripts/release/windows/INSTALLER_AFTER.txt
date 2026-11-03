@@ -17,8 +17,8 @@ Tips
   • Admin token is in hackme.env (Miner) or .env.orders.windows (Orders)
   • Dig (WASM) runs on this Windows PC (hybrid miner + Orders) — default path.
   • Hunt (libFuzzer/AFL++ + bwrap) is Linux-only. This Windows installer does not
-    fake a sandbox. Optional later: enable Hunt via WSL2 (same Linux engines).
-    Until then, create Hunt orders on Linux or use the public Linux pool miners.
+    ship Hunt engines. Publish Hunt from Orders so Linux pool miners run coverage,
+    or create Hunt orders on a Linux node.
 
 Site: https://hackme.tech/downloads.html
 Guide: https://hackme.tech/fuzz-guide.html

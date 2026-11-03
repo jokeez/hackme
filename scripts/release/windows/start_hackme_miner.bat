@@ -7,7 +7,7 @@ set "HACKME_DIR=%~dp0"
 if "%HACKME_DIR:~-1%"=="\" set "HACKME_DIR=%HACKME_DIR:~0,-1%"
 
 if not exist "%HACKME_DIR%\hackme.exe" (
-  echo ERROR: run from the HackMe install folder ^(e.g. C:\Program Files\HackMe^).
+  echo ERROR: run from the HackMe install folder ^(e.g. %%LOCALAPPDATA%%\HackMe^).
   pause
   exit /b 1
 )
