@@ -108,8 +108,9 @@ Source: "..\..\..\dist\release_{#MyAppVersion}\windows\repair_fair_env.bat"; Des
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\fleetplan.exe"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\minersign.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\pool.miner.token"; DestDir: "{app}"; Flags: ignoreversion
-; Never ship pool.orders.token in public installers (was live admin credential).
-; Operators paste a scoped publish token into pool.orders.token after install.
+; Never ship live pool.orders.token in public installers (was admin credential).
+; Operators copy pool.orders.token.example → pool.orders.token and paste a scoped publish token.
+Source: "..\..\..\dist\release_{#MyAppVersion}\windows\pool.orders.token.example"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\hackme.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\detect_gpu.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\write_hackme_env.ps1"; DestDir: "{app}"; Flags: ignoreversion

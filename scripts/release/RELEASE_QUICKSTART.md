@@ -4,16 +4,18 @@ Local-only solo mining was removed. Use the **public pool** at `https://hackme.t
 
 ## Windows
 
-1. Download **`hackme_*_windows_setup.zip`** (flat layout — all files in zip root).
-2. Run **`setup_hackme_miner.bat`** once (installs to `C:\HackMe`, generates local admin token, applies pool miner token from `pool.miner.token`).
-3. Run **`start_hackme_miner.bat`** (or desktop shortcut **Start HackMe Miner**).
-4. Browser opens → **Mining** tab; worker autostarts when the node is up.
-5. Legacy: **`start_hackme_public_pool.bat`** forwards to `start_hackme_miner.bat`.
-6. **Update:** run **`update_hackme_miner.bat`** (or `.ps1`) — prefers Setup.exe from `latest.json`, keeps `hackme.env`.
+**Primary:** download **`HackMe-Setup-*.exe`** from https://hackme.tech/downloads.html (installs under `%LOCALAPPDATA%\HackMe`).
 
-See `docs/MINER_WINDOWS_ONE_CLICK.md` in the repo.
+1. Run Setup → Start Menu **HackMe Miner** (`start_hackme_miner.bat`).
+2. Browser opens → **Mining** tab; PoH + Dig (`workerfuzz.exe`) autostart on the public pool.
+3. **Orders (B2B Dig):** Start Menu **HackMe Orders** (`start_hackme_orders.bat`) — local node + `#orders`, no mining worker. Paste a scoped publish token into `pool.orders.token` (copy from `pool.orders.token.example`). Settle-pull is forced ON for Orders so escrow can close.
+4. **Update:** `update_hackme_miner.bat` / `.ps1` — prefers Setup.exe from `latest.json`, keeps `hackme.env`.
 
-Binaries: `hackme.exe` (node), `workerpoh.exe` (pool worker), `minersign.exe` (hybrid signer).
+**Zip fallback:** `hackme_*_windows_setup.zip` → `setup_hackme_miner.bat` then `start_hackme_miner.bat`.
+
+Windows OOTB = **Dig WASM + PoH only**. Hunt coverage engines (libFuzzer / AFL++ / bwrap) are **Linux-only** — soft-skip on Windows, Dig/PoH continue. See `docs/MINER_WINDOWS_ONE_CLICK.md`.
+
+Binaries: `hackme.exe` (node), `workerpoh.exe` (pool worker), `workerfuzz.exe` (Dig), `minersign.exe` (hybrid signer).
 
 ## Linux (one click — recommended)
 

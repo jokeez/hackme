@@ -60,6 +60,7 @@ Requires Dig `dig_package` (`scan`/`starter`/`audit`/`pro`/`deep`/`enterprise`) 
 3. Release: `HACKME_RELEASE_ORDERS_PUBLISH_TOKEN=…` when building Orders-capable bundles
 4. Smoke: Orders node wizard with `pool_distributed` → campaign on pool stats → workers claim →
    settle-pull closes local escrow
-5. **Do not deploy** until unit tests + this checklist pass
+5. **Windows Orders:** `start_hackme_orders.bat` seeds/repairs `HACKME_FUZZ_SETTLE_PULL=1` (miner `hackme.env` may seed `0`). Copy `pool.orders.token.example` → `pool.orders.token` with the scoped publish token. Hunt engines stay Linux-pool-only.
+6. **Do not deploy** until unit tests + this checklist pass
 
 Local Dig/Hunt without public register still works with no publish token.

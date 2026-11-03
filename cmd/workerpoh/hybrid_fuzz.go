@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -233,17 +234,26 @@ func resolveWorkerfuzzBin() string {
 			return v
 		}
 	}
-	candidates := []string{
-		filepath.Join("bin", "workerfuzz"),
-		"./workerfuzz",
-		"workerfuzz",
+	names := []string{"workerfuzz"}
+	if runtime.GOOS == "windows" {
+		names = []string{"workerfuzz.exe", "workerfuzz"}
 	}
+	var candidates []string
 	if exe, err := os.Executable(); err == nil {
 		dir := filepath.Dir(exe)
-		candidates = append([]string{
-			filepath.Join(dir, "workerfuzz"),
-			filepath.Join(dir, "..", "bin", "workerfuzz"),
-		}, candidates...)
+		for _, n := range names {
+			candidates = append(candidates,
+				filepath.Join(dir, n),
+				filepath.Join(dir, "..", "bin", n),
+			)
+		}
+	}
+	for _, n := range names {
+		candidates = append(candidates,
+			filepath.Join("bin", n),
+			filepath.Join(".", n),
+			n,
+		)
 	}
 	for _, c := range candidates {
 		if st, err := os.Stat(c); err == nil && !st.IsDir() {

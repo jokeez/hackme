@@ -69,6 +69,8 @@ if not exist "%ENV_FILE%" (
     echo HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech
     echo HACKME_CANONICAL_CHAIN_URL=https://hackme.tech
     echo HACKME_POOL_COORDINATOR_URL=https://hackme.tech/pool/coordinator
+    rem Miner hackme.env may seed settle-pull=0; Orders needs pull to close escrow.
+    echo HACKME_FUZZ_SETTLE_PULL=1
   ) > "%ENV_FILE%"
   echo Created %ENV_FILE%
 )
@@ -116,9 +118,24 @@ if not "!HAS_ORDERS_PUBLISH!"=="1" (
     echo NOTE: no pool.orders.token yet — local Dig still works; Hunt engines need Linux pool miners.
     echo rc18.1+ Orders bundles ship a scoped publish token; or save one as:
     echo   %APP_DIR%\pool.orders.token
+    echo ^(copy pool.orders.token.example and replace the placeholder^)
     echo.
   )
 )
+
+rem Miner hackme.env seeds settle-pull=0 (pool miner token cannot ACK). Orders desktop
+rem must pull-settle so escrow closes after progress sync. Process env wins (envfile.go).
+findstr /B /I /C:"HACKME_FUZZ_SETTLE_PULL=0" "%ENV_FILE%" >nul 2>&1
+if not errorlevel 1 (
+  powershell -NoProfile -Command "(Get-Content -LiteralPath '%ENV_FILE%') -replace '^HACKME_FUZZ_SETTLE_PULL=.*','HACKME_FUZZ_SETTLE_PULL=1' | Set-Content -LiteralPath '%ENV_FILE%'"
+  echo Enabled HACKME_FUZZ_SETTLE_PULL=1 ^(Orders profile^)
+) else (
+  findstr /B /I /C:"HACKME_FUZZ_SETTLE_PULL=" "%ENV_FILE%" >nul 2>&1 || (
+    echo HACKME_FUZZ_SETTLE_PULL=1>> "%ENV_FILE%"
+    echo Set HACKME_FUZZ_SETTLE_PULL=1
+  )
+)
+set "HACKME_FUZZ_SETTLE_PULL=1"
 
 rem Ensure Orders isolation even if env file is from an older install
 if "!HACKME_DATA_DIR!"=="" set "HACKME_DATA_DIR=%DATA_DIR%"

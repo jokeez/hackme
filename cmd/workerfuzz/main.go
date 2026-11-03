@@ -74,16 +74,17 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	cfg := workerfuzzloop.Config{
-		CoordURL:        base,
-		Token:           *token,
-		WorkerID:        *workerID,
-		MinerAddr:       *minerAddr,
-		TimeoutMS:       *timeoutMS,
-		HTTPClient:      cl,
-		Priv:            priv,
-		PubHex:          pubHex,
-		Hybrid:          hybrid,
-		HuntHarnessExec: workerfuzzloop.EnvHuntHarnessOrLibFuzzer(),
+		CoordURL:   base,
+		Token:      *token,
+		WorkerID:   *workerID,
+		MinerAddr:  *minerAddr,
+		TimeoutMS:  *timeoutMS,
+		HTTPClient: cl,
+		Priv:       priv,
+		PubHex:     pubHex,
+		Hybrid:     hybrid,
+		// Dig-only when no local Hunt engines (Windows OOTB / Linux without clang).
+		HuntHarnessExec: huntHarnessExecForStandalone(),
 		Concurrency:     workerfuzzloop.EnvInt("HACKME_WORKER_HYBRID_FUZZ_CONCURRENCY", 1),
 		MinClaimGap:     workerfuzzloop.EnvDurationMS("HACKME_WORKER_HYBRID_FUZZ_CLAIM_GAP_MS", 50),
 		LogPrefix:       "workerfuzz",
@@ -93,4 +94,16 @@ func main() {
 		fmt.Fprintf(os.Stderr, "workerfuzz: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// huntHarnessExecForStandalone advertises a Hunt harness only when a local engine
+// is usable, or HACKME_HUNT_HARNESS_EXEC is set. Empty → Dig-only claim posture.
+func huntHarnessExecForStandalone() string {
+	if v := strings.TrimSpace(os.Getenv("HACKME_HUNT_HARNESS_EXEC")); v != "" {
+		return v
+	}
+	if len(workerfuzzloop.DetectHuntEngines()) == 0 {
+		return ""
+	}
+	return workerfuzzloop.EnvHuntHarnessOrLibFuzzer()
 }

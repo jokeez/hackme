@@ -110,3 +110,11 @@ jobs:
           go build -trimpath -o bin/hackme-e2e .
       - name: Playwright E2E
         run: bash scripts/tests/run_ui_e2e.sh
+
+  windows-ootb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Windows Dig/PoH OOTB honesty (no Hunt engines promised)
+        # Public status curl is best-effort in CI (flaky egress); local file gates always run.
+        run: SKIP_PUBLIC_STATUS=1 bash scripts/ops/windows_miner_ootb_checklist.sh

@@ -47,7 +47,7 @@ Dig stays **WASM-only**. LF/AFL never enter Dig.
 ### How to talk about speed in public
 
 - ✅ “Hunt runs **coverage-guided libFuzzer / AFL++** on the pool — same engine generation as the research world.”
-- ✅ “Miners install clang + AFL++ + bubblewrap (`install_hunt_engines.sh`; on **rc18**); Dig keeps earning while Hunt leases run.”
+- ✅ “**Linux** miners install clang + AFL++ + bubblewrap (`install_hunt_engines.sh`; on **rc18**); Dig keeps earning while Hunt leases run. Windows OOTB = Dig/PoH only (Hunt soft-skip).”
 - ✅ “Pay for **proven new edges** and/or **ASAN crashes** — not worker self-reported counters.”
 - ❌ “We beat libFuzzer at 15k exec/s.”
 - ❌ “We replaced OSS-Fuzz.”
