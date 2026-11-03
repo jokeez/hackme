@@ -2580,6 +2580,11 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		if fvRelay <= 0 {
 			fvRelay = m.resolvedPoHFormulaVersionLocked()
 		}
+		// C1: consume the lease under lock before HTTP relay so a concurrent submit cannot
+		// pay the same range while we are unlocked (double-pay). Snapshot keeps pay rights
+		// for this goroutine; restore only when the found is downgraded and shares remain.
+		relayLease := rec
+		delete(m.active, k)
 		m.mu.Unlock()
 		var probeOK bool
 		orderSnap, probeOK = m.activeOrderSnapshotStatus()
@@ -2621,6 +2626,10 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 				m.baselineRelayReject++
 			}
 			chainSolve = orderSolveRelayResult{}
+			// Put the lease back so downgradeRelayFound / share pay can consume it once.
+			if _, taken := m.active[k]; !taken && relayLease.ExpiresAt >= now {
+				m.active[k] = relayLease
+			}
 			if reason, live := downgradeRelayFound(); !live {
 				return false, reason, 0, signerAddr, signerAddr != ""
 			}
@@ -2631,29 +2640,41 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 				m.baselineRelayOK++
 			}
 			m.recordFoundDedupLocked(req.FoundNonce, resultHashKey, now)
-			rec, ok = m.active[k]
-			if !ok || rec.WorkerID != req.WorkerID || rec.ExpiresAt < now {
+			// Pay from the pre-relay snapshot; lease stays consumed (no second payer).
+			rec, ok = relayLease, true
+			if relayLease.ExpiresAt < now {
 				leaseDeadAfterChain = true
 			}
 		}
 	}
 	if needOrderPath {
+		// C1: same consume-before-unlock as baseline — concurrent submit must not pay this range.
+		relayLease := rec
+		delete(m.active, k)
+		restoreOrderLease := func() {
+			if _, taken := m.active[k]; !taken && relayLease.ExpiresAt >= time.Now().Unix() {
+				m.active[k] = relayLease
+			}
+		}
 		// H3: release work mutex around orders probe / WASM / HTTP relay.
 		m.mu.Unlock()
 		orderSnap = m.activeOrderSnapshot()
 		if orderSnap.ID != "" && strings.TrimSpace(orderSnap.WasmHex) != "" {
 			if !req.WasmGatePass {
 				m.mu.Lock()
+				restoreOrderLease()
 				m.rejectedSubmits++
 				return false, "wasm_gate_required", 0, "", false
 			}
 			if okGate, gateReason := m.verifyOrderWasmGate(orderSnap, req.FoundNonce); !okGate {
 				m.mu.Lock()
+				restoreOrderLease()
 				m.rejectedSubmits++
 				return false, gateReason, 0, "", false
 			}
 			if orderID != "" && orderID != orderSnap.ID {
 				m.mu.Lock()
+				restoreOrderLease()
 				m.rejectedSubmits++
 				return false, "order_task_mismatch", 0, "", false
 			}
@@ -2667,6 +2688,7 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 			chainSolve = m.relayOrderSolve(signerAddr, req.FoundNonce, mod, orderID)
 			if !chainSolve.OK {
 				m.mu.Lock()
+				restoreOrderLease()
 				m.rejectedSubmits++
 				return false, "order_chain_solve_failed:" + chainSolve.Reason, 0, signerAddr, signerAddr != ""
 			}
@@ -2679,11 +2701,15 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		if chainSolve.OK && req.Found {
 			m.recordFoundDedupLocked(req.FoundNonce, resultHashKey, now)
 		}
-		rec, ok = m.active[k]
 		if chainSolve.OK {
-			if !ok || rec.WorkerID != req.WorkerID || rec.ExpiresAt < now {
+			// Success: keep lease consumed; pay from snapshot (escrow already minted).
+			rec, ok = relayLease, true
+			if relayLease.ExpiresAt < now {
 				leaseDeadAfterChain = true
 			}
+		} else {
+			restoreOrderLease()
+			rec, ok = m.active[k]
 		}
 		if !chainSolve.OK || !leaseDeadAfterChain {
 			if !ok {
