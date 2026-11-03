@@ -144,6 +144,65 @@ func TestRelaySettlerAckOnHTTPSuccess(t *testing.T) {
 	}
 }
 
+func TestRelaySettlerNoAckWithoutOKBody(t *testing.T) {
+	ctx := context.Background()
+	db, err := store.Open(filepath.Join(t.TempDir(), "relay-no-ok.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	if err := svc.RegisterCampaign(ctx, Campaign{
+		ID: "no-ok-camp", CampaignType: "property", Status: "running", BudgetRuns: 1,
+		Config: map[string]any{},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"accepted"}`))
+	}))
+	defer server.Close()
+	_, _ = db.ExecContext(ctx, `UPDATE fuzz_campaigns SET config_json=? WHERE id=?`,
+		`{"pool_distributed":true,"orders_settle_pull":false}`, "no-ok-camp")
+
+	relay := &RelaySettler{
+		Service:          svc,
+		DefaultOrdersURL: server.URL,
+		AdminToken:       func() string { return "tok" },
+		HTTPClient:       &http.Client{Timeout: 5 * time.Second},
+	}
+	res, err := relay.PayRun(ctx, "no-ok-camp", "HMC-2222222222222222", 1, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Applied {
+		t.Fatal("HTTP 200 without ok:true must not mark Applied")
+	}
+	items, err := svc.ListPendingSettleOutbox(ctx, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("pending outbox=%d want 1", len(items))
+	}
+}
+
+func TestSettleRelayBodyOK(t *testing.T) {
+	if !settleRelayBodyOK([]byte(`{"ok":true,"escrow":{}}`)) {
+		t.Fatal("want ok")
+	}
+	if settleRelayBodyOK([]byte(`{"ok":false}`)) {
+		t.Fatal("ok:false")
+	}
+	if settleRelayBodyOK([]byte(`{}`)) {
+		t.Fatal("missing ok")
+	}
+	if settleRelayBodyOK([]byte(`not-json`)) {
+		t.Fatal("garbage")
+	}
+}
+
 func TestRelaySettlerQueuedNotAppliedOnPull(t *testing.T) {
 	ctx := context.Background()
 	db, err := store.Open(filepath.Join(t.TempDir(), "relay-pull.db"))

@@ -335,6 +335,11 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			http.Error(w, "confirm_applied=true required (ACK only after origin Apply)", http.StatusBadRequest)
 			return
 		}
+		const maxSettleAckIDs = 256
+		if len(req.IDs) > maxSettleAckIDs {
+			http.Error(w, "too many settle ack ids (max 256)", http.StatusBadRequest)
+			return
+		}
 		var (
 			n   int64
 			err error
@@ -342,6 +347,10 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		if isPublish && !isAdmin {
 			if strings.TrimSpace(req.CampaignID) == "" {
 				http.Error(w, "campaign_id required for publish token", http.StatusBadRequest)
+				return
+			}
+			if !publishRateAllow(r) {
+				http.Error(w, "publish rate limit exceeded", http.StatusTooManyRequests)
 				return
 			}
 			n, err = pf.AckSettleOutboxForOrdersPublish(r.Context(), req.CampaignID, req.IDs)

@@ -188,6 +188,9 @@ func (s *Service) lockEconomicsV2AnnounceTx(ctx context.Context, tx queryRowExec
 		}
 	}
 	if metaA >= 1 {
+		if metaA > uint64(math.MaxInt64) {
+			return fmt.Errorf("chain: economics_v2 announce unix meta %d overflows int64", metaA)
+		}
 		if rawEnv >= 1 && uint64(rawEnv) != metaA {
 			return fmt.Errorf("chain: HACKME_ECONOMICS_V2_ANNOUNCE_UNIX=%d disagrees with locked meta %d", rawEnv, metaA)
 		}

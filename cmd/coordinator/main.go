@@ -174,6 +174,18 @@ func main() {
 	if token == "" && !coordinatorBindLoopbackOnly(addr) && !allowInsecure {
 		log.Fatal("security: coordinator bind " + addr + " is not loopback-only — set HACKME_COORDINATOR_ADMIN_TOKEN")
 	}
+	// Public bind must keep Hunt isolation fail-closed (customer harness compile/run).
+	if !coordinatorBindLoopbackOnly(addr) {
+		if !hunt.IsolateStrict() {
+			log.Fatal("security: non-loopback coordinator requires HACKME_HUNT_ISOLATE_STRICT default ON (unset or 1)")
+		}
+		if !hunt.BuildSandboxEnabled() {
+			log.Fatal("security: non-loopback coordinator requires HACKME_HUNT_BUILD_SANDBOX default ON (unset or 1)")
+		}
+		if !hunt.BubblewrapAvailable() {
+			log.Fatal("security: non-loopback coordinator requires bwrap on PATH for Hunt isolate")
+		}
+	}
 	initClientIPTrust(addr)
 
 	mux := http.NewServeMux()

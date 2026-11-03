@@ -149,16 +149,27 @@ func (r *RelaySettler) httpRelayOnce(ctx context.Context, s *Service, kind, camp
 		return SettleResult{OutboxID: outboxID, Applied: false}, nil
 	}
 	defer resp.Body.Close()
-	_, _ = io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if resp.StatusCode == http.StatusOK {
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	// Require HTTP 200 + explicit ok:true so a buggy/proxy 200 empty body cannot false-ACK.
+	if resp.StatusCode == http.StatusOK && settleRelayBodyOK(raw) {
 		if _, err := s.AckSettleOutbox(ctx, []int64{outboxID}); err != nil {
 			// Origin accepted but local ACK failed — still treat as applied (idempotent event_id).
 			return SettleResult{OutboxID: outboxID, Applied: true}, nil
 		}
 		return SettleResult{OutboxID: outboxID, Applied: true}, nil
 	}
-	// Non-OK: leave pending for pull drain (same event_id). Never re-enqueue.
+	// Non-OK / missing ok: leave pending for pull drain (same event_id). Never re-enqueue.
 	return SettleResult{OutboxID: outboxID, Applied: false}, nil
+}
+
+func settleRelayBodyOK(raw []byte) bool {
+	var body struct {
+		OK bool `json:"ok"`
+	}
+	if err := json.Unmarshal(raw, &body); err != nil {
+		return false
+	}
+	return body.OK
 }
 
 // DrainPendingSettleHTTP attempts inline HTTP relay for pending outbox rows (background ticker).

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -165,6 +166,14 @@ func (s *Service) creditUnits(ctx context.Context, tx *sql.Tx, addr string, unit
 	addr = strings.TrimSpace(addr)
 	if addr == "" || units == 0 {
 		return nil
+	}
+	var cur uint64
+	err := tx.QueryRowContext(ctx, `SELECT balance_units FROM accounts WHERE address=?`, addr).Scan(&cur)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	if err == nil && cur > math.MaxUint64-units {
+		return fmt.Errorf("chain: balance overflow crediting %d to %s", units, addr)
 	}
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO accounts (address, balance_units, next_nonce, updated_at) VALUES (?, ?, 0, strftime('%s','now'))

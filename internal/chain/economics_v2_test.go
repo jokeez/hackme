@@ -356,3 +356,34 @@ func TestEconomicsV2InvariantAllowsMintedAboveLegacyMax(t *testing.T) {
 		t.Fatal("v1 schedule must still reject minted>max supply")
 	}
 }
+
+func TestEconomicsV2AnnounceRejectsUint64Overflow(t *testing.T) {
+	ResetEconomicsV2ActivationHeightForTest()
+	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
+	t.Setenv("HACKME_ECONOMICS_V2_ANNOUNCE_UNIX", "")
+	ResetEconomicsV2ActivationHeightForTest()
+
+	ctx := context.Background()
+	db, err := store.Open(filepath.Join(t.TempDir(), "announce-overflow.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	svc := New(db)
+	if _, _, err := svc.InitGenesis(ctx, "HMC-testnode"); err != nil {
+		t.Fatal(err)
+	}
+	overflow := uint64(math.MaxInt64) + 1
+	if err := svc.upsertMetaUint(ctx, db, metaEconomicsV2AnnounceUnix, overflow); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = svc.lockEconomicsV2AnnounceTx(ctx, tx)
+	_ = tx.Rollback()
+	if err == nil {
+		t.Fatal("expected overflow rejection for announce unix meta")
+	}
+}
