@@ -29,9 +29,10 @@ func TestV2HalvingBoundaries(t *testing.T) {
 		{iv + 1, 0.05, 0.001, 0.025, false},
 		{2 * iv, 0.05, 0.001, 0.025, false},
 		{2*iv + 1, 0.025, 0.0005, 0.0125, false},
-		{5*iv + 1, 0.003125, 0.002 / 32, 0.05 / 32, false},
-		{6*iv + 1, 0.002, 0.002 / 64, 0.05 / 64, true}, // HMC tail floor from epoch 6
-		{40 * iv, 0.002, 0, 0.05 / 64, true},           // SUP long stopped, burn frozen
+		{3*iv + 1, 0.0125, 0.00025, 0.0125, false},
+		{5*iv + 1, 0.003125, 0.002 / 32, 0.0125, false}, // burn frozen at 1.25% from epoch 2
+		{6*iv + 1, 0.002, 0.002 / 64, 0.0125, true},     // HMC tail floor from epoch 6
+		{40 * iv, 0.002, 0, 0.0125, true},               // SUP long stopped, burn still 1.25%
 	}
 	for _, c := range cases {
 		if got := BaseRewardForBlockIndex(c.idx); math.Abs(got-c.hmc) > 1e-15 {
@@ -50,6 +51,8 @@ func TestV2HalvingBoundaries(t *testing.T) {
 	}
 }
 
+// Burn freeze (RFC §5.2, decided 2026-11-03): 5% → 2.5% → 1.25%, then 1.25% forever.
+//
 // HMC never drops below the 0.002 tail; SUP has no tail and stops once a reward rounds below
 // one unit; total v2 block SUP stays under the 21 000 cap even with the pre-v2 supply.
 func TestV2EmissionTotals(t *testing.T) {

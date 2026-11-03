@@ -33,7 +33,7 @@ v1 used a short halving interval and a public **100M max supply** that does not 
 
 ### 1.3 Fees and burns that mean something
 
-Order open already records platform fee + burn tallies. v2 tightens the story: **10% upfront** (5% burn / 5% platform), with a Dig soft-start window, and burn intensity that follows HMC halvings then freezes in the tail era. Burns are **real destruction**, not cosmetic metadata forever.
+Order open already records platform fee + burn tallies. v2 tightens the story: **10% upfront** (5% burn / 5% platform), with a Dig soft-start window, and a burn that halves with the first two HMC halvings and then stays at **1.25%**. Burns are **real destruction**, not cosmetic metadata forever.
 
 ### 1.4 SUP as loyalty utility, not a second money printer
 
@@ -161,7 +161,7 @@ Customer prepaid Dig/Hunt budgets remain **HMC escrow**. That does not become SU
 | Platform | **5%** | DevFee / platform |
 | Working escrow | **90%** | Runs + bounty pools per package rules |
 
-**Soft-start:** Dig-only for the first **~30 days** after activation, then Hunt (exact calendar in the activation announce). Burn **percentage** halves when HMC halves, then **freezes** in the tail era so fees do not asymptote to zero accounting noise.
+**Soft-start:** Dig-only for the first **~30 days** after activation, then Hunt (exact calendar in the activation announce). Burn **percentage** halves with the first two HMC halvings (**5% → 2.5% → 1.25%**), then **stays at 1.25%** for good. Freezing only at the HMC tail would leave ~0.08% — too small to offset the 0.002 HMC/block tail emission; at 1.25% roughly 460 HMC/day of orders burn as much as the tail mints. Platform fee stays 5%.
 
 PoH order prepaid (`reward_hmc × target_solves`) keeps existing minimums and pool-attach behavior unless called out in the activation notes.
 
@@ -261,7 +261,7 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 | Lock + public RFC (this doc) | ✅ |
 | Soft announce (news + public docs) | ✅ 2026-10-30 |
 | D9 height package + consensus harden | ✅ on `main` (env bootstrap → locked `meta economics_v2_activation_height`; **unset on hub**) |
-| D6 Dig soft-start + burn-halve wiring | ✅ on `main` (`HACKME_ECONOMICS_V2_ANNOUNCE_UNIX` / meta; Hunt 50/50 gated; burn halves with HMC eras then freezes; **unset on hub** ⇒ gate off) |
+| D6 Dig soft-start + burn-halve wiring | ✅ on `main` (`HACKME_ECONOMICS_V2_ANNOUNCE_UNIX` / meta; Hunt 50/50 gated; burn 5% → 2.5% → 1.25% then fixed; **unset on hub** ⇒ gate off) |
 | Activation announce + ≥14d | ⏳ tip-relative; do not set height/announce env until announce |
 | Height switch | ⏳ |
 | Post-switch dumps / verify / 1.0.0 | after stability |
@@ -323,6 +323,7 @@ Miners, desktop nodes, explorers, and customers need a predictable upgrade windo
 | 2026-10-30 | Soft announce on news + public docs; D1 flipped to live `on` + hub `LOCAL_POH=0` (soak continues; v2 height still deferred) |
 | 2026-10-31 | Locked D3=2000 HMC, D6=30 calendar days, SUP cap=21k; D1 soak watch script+timer; D9 height package on `econ-v2` |
 | 2026-11-01 | D6 soft-start + burn-halve wired on `main` (announce unix / meta; Hunt gated; height+announce still unset on hub) |
+| 2026-11-03 | Burn freeze moved to epoch 2: 5% → 2.5% → 1.25%, then 1.25% permanently (was: freeze at the HMC tail, ~0.08%) |
 
 ---
 
