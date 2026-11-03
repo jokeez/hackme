@@ -658,7 +658,7 @@ func (s *Service) AppendPoHBlock(ctx context.Context, minerAddress string, nonce
 		if s.signer == nil {
 			return nil, fmt.Errorf("%w: node signer required to produce v2 blocks", ErrV2Header)
 		}
-		b.ChainID = V2ChainID
+		b.ChainID = ResolvedV2ChainID()
 		if orderTaskID == "" {
 			if err := s.db.QueryRowContext(ctx, `SELECT address FROM wallet WHERE id = 1`).Scan(&b.RewardTo); err != nil {
 				return nil, err

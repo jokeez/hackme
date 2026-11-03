@@ -2456,11 +2456,14 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	// the miner actually signed for replay dedup below.
 	signedReq := req
 	auditKey := foundAuditKey(signerAddr, req.WorkerID)
+	// H1: remember a verified hit for audit credit at accept — never Actual++ here (retries /
+	// mid-path rejects must not inflate the counter). Survives stale-tip and baseline-relay
+	// downgrades that clear req.Found while still proving the miner reports blocks.
+	foundAuditCreditPending := false
 	if req.Found && m.foundStaleForLeaseLocked(rec) {
 		m.staleFoundDropped++
-		// A real hit on the lease's own tip still proves the miner reports blocks.
 		if m.staleFoundProvenLocked(rec, req, signerAddr, leaseMod) {
-			m.noteFoundAuditHitLocked(auditKey)
+			foundAuditCreditPending = true
 		}
 		req.Found = false
 		req.FoundNonce = 0
@@ -2523,7 +2526,7 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 			m.rejectedSubmits++
 			return false, "found_nonce_invalid_for_target_mod", 0, "", false
 		}
-		m.noteFoundAuditHitLocked(auditKey)
+		foundAuditCreditPending = true
 		// M2: reject duplicate result_hash before consuming lease / recording nonces.
 		resultHashKey = strings.TrimSpace(strings.ToLower(req.ResultHash))
 		if resultHashKey != "" {
@@ -2580,6 +2583,11 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		if fvRelay <= 0 {
 			fvRelay = m.resolvedPoHFormulaVersionLocked()
 		}
+		// C1: consume the lease under lock before HTTP relay so a concurrent submit cannot
+		// pay the same range while we are unlocked (double-pay). Snapshot keeps pay rights
+		// for this goroutine; restore only when the found is downgraded and shares remain.
+		relayLease := rec
+		delete(m.active, k)
 		m.mu.Unlock()
 		var probeOK bool
 		orderSnap, probeOK = m.activeOrderSnapshotStatus()
@@ -2621,6 +2629,10 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 				m.baselineRelayReject++
 			}
 			chainSolve = orderSolveRelayResult{}
+			// Put the lease back so downgradeRelayFound / share pay can consume it once.
+			if _, taken := m.active[k]; !taken && relayLease.ExpiresAt >= now {
+				m.active[k] = relayLease
+			}
 			if reason, live := downgradeRelayFound(); !live {
 				return false, reason, 0, signerAddr, signerAddr != ""
 			}
@@ -2631,29 +2643,41 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 				m.baselineRelayOK++
 			}
 			m.recordFoundDedupLocked(req.FoundNonce, resultHashKey, now)
-			rec, ok = m.active[k]
-			if !ok || rec.WorkerID != req.WorkerID || rec.ExpiresAt < now {
+			// Pay from the pre-relay snapshot; lease stays consumed (no second payer).
+			rec, ok = relayLease, true
+			if relayLease.ExpiresAt < now {
 				leaseDeadAfterChain = true
 			}
 		}
 	}
 	if needOrderPath {
+		// C1: same consume-before-unlock as baseline — concurrent submit must not pay this range.
+		relayLease := rec
+		delete(m.active, k)
+		restoreOrderLease := func() {
+			if _, taken := m.active[k]; !taken && relayLease.ExpiresAt >= time.Now().Unix() {
+				m.active[k] = relayLease
+			}
+		}
 		// H3: release work mutex around orders probe / WASM / HTTP relay.
 		m.mu.Unlock()
 		orderSnap = m.activeOrderSnapshot()
 		if orderSnap.ID != "" && strings.TrimSpace(orderSnap.WasmHex) != "" {
 			if !req.WasmGatePass {
 				m.mu.Lock()
+				restoreOrderLease()
 				m.rejectedSubmits++
 				return false, "wasm_gate_required", 0, "", false
 			}
 			if okGate, gateReason := m.verifyOrderWasmGate(orderSnap, req.FoundNonce); !okGate {
 				m.mu.Lock()
+				restoreOrderLease()
 				m.rejectedSubmits++
 				return false, gateReason, 0, "", false
 			}
 			if orderID != "" && orderID != orderSnap.ID {
 				m.mu.Lock()
+				restoreOrderLease()
 				m.rejectedSubmits++
 				return false, "order_task_mismatch", 0, "", false
 			}
@@ -2667,6 +2691,7 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 			chainSolve = m.relayOrderSolve(signerAddr, req.FoundNonce, mod, orderID)
 			if !chainSolve.OK {
 				m.mu.Lock()
+				restoreOrderLease()
 				m.rejectedSubmits++
 				return false, "order_chain_solve_failed:" + chainSolve.Reason, 0, signerAddr, signerAddr != ""
 			}
@@ -2679,11 +2704,15 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		if chainSolve.OK && req.Found {
 			m.recordFoundDedupLocked(req.FoundNonce, resultHashKey, now)
 		}
-		rec, ok = m.active[k]
 		if chainSolve.OK {
-			if !ok || rec.WorkerID != req.WorkerID || rec.ExpiresAt < now {
+			// Success: keep lease consumed; pay from snapshot (escrow already minted).
+			rec, ok = relayLease, true
+			if relayLease.ExpiresAt < now {
 				leaseDeadAfterChain = true
 			}
+		} else {
+			restoreOrderLease()
+			rec, ok = m.active[k]
 		}
 		if !chainSolve.OK || !leaseDeadAfterChain {
 			if !ok {
@@ -2828,9 +2857,17 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		}
 	}
 
+	// H1: credit Actual only on the accept path. Provisional credit before the found-rate
+	// gate so an honest recovery found is visible to the Poisson check; undo on reject.
+	if foundAuditCreditPending {
+		m.noteFoundAuditHitLocked(auditKey)
+	}
 	if useShares && !rec.OrderLease && m.noteFoundAuditWorkLocked(auditKey, len(validShares), sm, validateMod) && foundAuditMode() == "on" {
 		// Far fewer block hits than verified work implies: withholding, or a miner build that
 		// drops hits (update workerpoh). Shares stay unpaid until the found rate recovers.
+		if foundAuditCreditPending {
+			m.undoFoundAuditHitLocked(auditKey)
+		}
 		m.rejectedSubmits++
 		return false, "found_rate_too_low_update_miner", 0, signerAddr, signerAddr != ""
 	}

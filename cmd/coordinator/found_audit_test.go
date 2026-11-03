@@ -2,9 +2,11 @@ package main
 
 import (
 	"math"
+	"path/filepath"
 	"testing"
 
 	"hackme/internal/chain"
+	"hackme/internal/store"
 )
 
 func TestPoissonLogCDF(t *testing.T) {
@@ -74,6 +76,109 @@ func TestFoundAuditWithholderFlaggedAndRecovers(t *testing.T) {
 	}
 	if !cleared {
 		t.Fatalf("recovered miner still flagged: %+v", *wm.foundAudit[key])
+	}
+}
+
+// H2: withhold counters survive coordinator restart via dedupDB.
+func TestFoundAuditPersistsAcrossRestart(t *testing.T) {
+	t.Setenv("HACKME_COORDINATOR_FOUND_AUDIT", "on")
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "found-audit.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	wm := &workManager{}
+	wm.attachDedupDB(db)
+	key := foundAuditKey("HMC-persistpersist01", "w")
+	for i := 0; i < 80; i++ {
+		wm.noteFoundAuditWorkLocked(key, 32, 2048, 70_000)
+	}
+	st := wm.foundAudit[key]
+	if st == nil || !st.Flagged || st.Expected < foundAuditMinExpected {
+		t.Fatalf("setup not flagged: %+v", st)
+	}
+	wantExp, wantAct := st.Expected, st.Actual
+
+	wm2 := &workManager{}
+	wm2.attachDedupDB(db)
+	st2 := wm2.foundAudit[key]
+	if st2 == nil {
+		t.Fatal("found_audit not restored after restart")
+	}
+	if st2.Expected != wantExp || st2.Actual != wantAct || !st2.Flagged {
+		t.Fatalf("restored %+v want expected=%v actual=%v flagged=true", st2, wantExp, wantAct)
+	}
+	// Still rejects after reload without re-warming the window.
+	if !wm2.noteFoundAuditWorkLocked(key, 32, 2048, 70_000) {
+		t.Fatal("flagged identity must stay suspicious after restart")
+	}
+}
+
+func TestFoundAuditUndoHit(t *testing.T) {
+	wm := &workManager{}
+	key := foundAuditKey("HMC-undo", "w")
+	wm.noteFoundAuditHitLocked(key)
+	if wm.foundAudit[key].Actual != 1 {
+		t.Fatalf("Actual=%v", wm.foundAudit[key].Actual)
+	}
+	wm.undoFoundAuditHitLocked(key)
+	if wm.foundAudit[key].Actual != 0 {
+		t.Fatalf("undo left Actual=%v", wm.foundAudit[key].Actual)
+	}
+	wm.undoFoundAuditHitLocked(key) // no underflow
+	if wm.foundAudit[key].Actual != 0 {
+		t.Fatalf("underflow Actual=%v", wm.foundAudit[key].Actual)
+	}
+}
+
+// Rejected founds (duplicate nonce) must not bump Actual — otherwise retries clear withhold flags.
+func TestFoundAuditRejectedFoundDoesNotInflateActual(t *testing.T) {
+	t.Setenv("HACKME_COORDINATOR_FOUND_AUDIT", "log")
+	wm := secWM(t)
+	wm.defaultBatch, wm.maxClaimBatch, wm.targetMod = 1<<12, 1<<12, 1
+	addr := "HMC-cccccccccccccccc"
+	l := secClaim(t, wm, "w-inf", addr)
+	shares := honestShares(l, l.prev, l.addr, 64)
+	var found uint64
+	okHit := false
+	for n := l.base; n < l.base+l.size; n++ {
+		if chain.PohWorkBlake3(l.prev, l.addr, n)%l.mod == 0 {
+			found, okHit = n, true
+			break
+		}
+	}
+	if !okHit {
+		t.Fatal("no hit")
+	}
+	req := submitWorkRequest{
+		WorkerID: "w-inf", BaseNonce: l.base, BatchSize: l.size, Attempts: l.size,
+		HashrateGHS: 1, ShareNonces: shares,
+		Found: true, FoundNonce: found, ResultHash: "rh-inf-1",
+	}
+	_, reason, payout, _, _ := wm.submit(req)
+	if reason != "" || payout <= 0 {
+		t.Fatalf("first accept failed: %q payout=%v", reason, payout)
+	}
+	key := foundAuditKey("", "w-inf")
+	if st := wm.foundAudit[key]; st == nil || st.Actual != 1 {
+		t.Fatalf("after accept: %+v", st)
+	}
+	// Same found again on a fresh lease: duplicate_found_nonce before accept credit.
+	l2 := secClaim(t, wm, "w-inf", addr)
+	shares2 := honestShares(l2, l2.prev, l2.addr, 64)
+	req2 := submitWorkRequest{
+		WorkerID: "w-inf", BaseNonce: l2.base, BatchSize: l2.size, Attempts: l2.size,
+		HashrateGHS: 1, ShareNonces: shares2,
+		Found: true, FoundNonce: found, ResultHash: "rh-inf-2",
+	}
+	_, reason2, payout2, _, _ := wm.submit(req2)
+	if reason2 != "duplicate_found_nonce" || payout2 != 0 {
+		t.Fatalf("want duplicate reject, got reason=%q payout=%v", reason2, payout2)
+	}
+	if st := wm.foundAudit[key]; st == nil || st.Actual != 1 {
+		t.Fatalf("rejected found inflated Actual: %+v", st)
 	}
 }
 

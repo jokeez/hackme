@@ -182,6 +182,30 @@ func (s *Service) ListPendingSettleOutboxForCampaign(ctx context.Context, campai
 	return out, rows.Err()
 }
 
+const settleOutboxCampaignScanCap = 512
+const settleOutboxCampaignWindow = 32
+
+// rotateCampaignWindow picks up to window campaigns from the ordered list, rotating
+// the start index every ~30s so Soft-OK foreign heads cannot permanently starve
+// younger local campaigns past the old fixed LIMIT 32 (audit H5).
+func rotateCampaignWindow(camps []string, nowUnix int64, window int) []string {
+	if window <= 0 || len(camps) == 0 {
+		return nil
+	}
+	if len(camps) <= window {
+		return camps
+	}
+	if nowUnix < 0 {
+		nowUnix = time.Now().Unix()
+	}
+	start := int((nowUnix / 30) % int64(len(camps)))
+	out := make([]string, 0, window)
+	for i := 0; i < window; i++ {
+		out = append(out, camps[(start+i)%len(camps)])
+	}
+	return out
+}
+
 // ListPendingSettleOutbox returns pending outbox rows with a fair multi-campaign
 // window. A single orphan/foreign campaign must not monopolize the pull batch
 // (FIFO head of 1200 runs used to block every other payer's settle-pull).
@@ -198,11 +222,11 @@ func (s *Service) ListPendingSettleOutbox(ctx context.Context, limit int) ([]Set
 		 WHERE status='pending'
 		 GROUP BY campaign_id
 		 ORDER BY MIN(id) ASC
-		 LIMIT 32`)
+		 LIMIT ?`, settleOutboxCampaignScanCap)
 	if err != nil {
 		return nil, err
 	}
-	camps := make([]string, 0, 32)
+	camps := make([]string, 0, 64)
 	for campRows.Next() {
 		var cid string
 		if err := campRows.Scan(&cid); err != nil {
@@ -216,6 +240,7 @@ func (s *Service) ListPendingSettleOutbox(ctx context.Context, limit int) ([]Set
 		return nil, err
 	}
 	campRows.Close()
+	camps = rotateCampaignWindow(camps, time.Now().Unix(), settleOutboxCampaignWindow)
 	if len(camps) == 0 {
 		return nil, nil
 	}

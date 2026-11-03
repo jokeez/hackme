@@ -2,11 +2,40 @@ package poolfuzz
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"testing"
 
 	"hackme/internal/store"
 )
+
+func TestRotateCampaignWindowIncludesYoungerCamps(t *testing.T) {
+	camps := make([]string, 0, 40)
+	for i := 0; i < 40; i++ {
+		camps = append(camps, fmt.Sprintf("camp-%02d", i))
+	}
+	// Slot 0: camps 0..31 — local camp-39 starved.
+	w0 := rotateCampaignWindow(camps, 0, settleOutboxCampaignWindow)
+	if len(w0) != settleOutboxCampaignWindow {
+		t.Fatalf("len=%d", len(w0))
+	}
+	seen0 := map[string]bool{}
+	for _, c := range w0 {
+		seen0[c] = true
+	}
+	if seen0["camp-39"] {
+		t.Fatal("unexpected camp-39 at slot 0")
+	}
+	// ~20 minutes later start index moves; camp-39 must appear.
+	w1 := rotateCampaignWindow(camps, 30*20, settleOutboxCampaignWindow)
+	seen1 := map[string]bool{}
+	for _, c := range w1 {
+		seen1[c] = true
+	}
+	if !seen1["camp-39"] {
+		t.Fatalf("rotation must eventually include camp-39, got %v", w1)
+	}
+}
 
 func TestFairSettleOutboxWindowDoesNotMonopolize(t *testing.T) {
 	var items []SettleOutboxItem
