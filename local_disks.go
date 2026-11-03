@@ -137,7 +137,7 @@ func collectDisksLinux(root string, hmsUsage map[string]float64) ([]LocalDiskInf
 			info.Mount = mount
 			info.Device = partDev
 			info.Filesystem = fstype
-			info.SystemDisk = mount == "/" || strings.HasPrefix(mount, "/boot")
+			info.SystemDisk = diskHasSystemMount(dev)
 			fillUsage(&info)
 			info.StoragePathSuggest = suggestHMSStoragePath(mount, dev.Name, root)
 		}
@@ -147,23 +147,49 @@ func collectDisksLinux(root string, hmsUsage map[string]float64) ([]LocalDiskInf
 	return disks, nil
 }
 
+// diskHasSystemMount reports whether any partition on the disk holds / or /boot*,
+// independently of the partition bestMountOnDisk picks for usage reporting.
+func diskHasSystemMount(n lsblkNode) bool {
+	mp := strings.TrimSpace(n.Mountpoint)
+	if mp == "/" || strings.HasPrefix(mp, "/boot") {
+		return true
+	}
+	for _, ch := range n.Children {
+		if diskHasSystemMount(ch) {
+			return true
+		}
+	}
+	return false
+}
+
+// diskUsageFree reports free bytes for a mount point; a var so tests can stub the host.
+var diskUsageFree = func(mp string) (uint64, bool) {
+	u, err := disk.Usage(mp)
+	if err != nil || u == nil {
+		return 0, false
+	}
+	return u.Free, true
+}
+
 func bestMountOnDisk(dev lsblkNode) (mount, fstype, partDev string) {
 	var candidates []struct {
 		mount, fstype, partDev string
 		free                   float64
+		size                   uint64
 	}
 	var walk func(lsblkNode)
 	walk = func(n lsblkNode) {
 		mp := strings.TrimSpace(n.Mountpoint)
 		if mp != "" && isStorageFstype(n.Fstype) {
 			free := 0.0
-			if u, err := disk.Usage(mp); err == nil && u != nil {
-				free = float64(u.Free)
+			if f, ok := diskUsageFree(mp); ok {
+				free = float64(f)
 			}
 			candidates = append(candidates, struct {
 				mount, fstype, partDev string
 				free                   float64
-			}{mp, n.Fstype, "/dev/" + n.Name, free})
+				size                   uint64
+			}{mp, n.Fstype, "/dev/" + n.Name, free, n.Size})
 		}
 		for _, ch := range n.Children {
 			walk(ch)
@@ -173,7 +199,13 @@ func bestMountOnDisk(dev lsblkNode) (mount, fstype, partDev string) {
 	if len(candidates) == 0 {
 		return "", "", ""
 	}
-	sort.Slice(candidates, func(i, j int) bool { return candidates[i].free > candidates[j].free })
+	// Ties (e.g. usage unknown for every mount) fall back to the larger partition.
+	sort.SliceStable(candidates, func(i, j int) bool {
+		if candidates[i].free != candidates[j].free {
+			return candidates[i].free > candidates[j].free
+		}
+		return candidates[i].size > candidates[j].size
+	})
 	best := candidates[0]
 	return best.mount, best.fstype, best.partDev
 }

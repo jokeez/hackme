@@ -3,6 +3,7 @@ package hunt
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -27,6 +28,9 @@ func TestUniqueBindPathsDedupes(t *testing.T) {
 }
 
 func TestRunBareBuildSeesEphemeralWrapper(t *testing.T) {
+	if _, err := exec.LookPath("clang"); err != nil {
+		t.Skip("clang not in PATH")
+	}
 	t.Setenv("HACKME_HUNT_BUILD_SANDBOX", "0")
 	t.Setenv("HACKME_HUNT_ISOLATE_STRICT", "0")
 	t.Setenv("HACKME_HUNT_ALLOW_ROOT", "1")

@@ -31,14 +31,15 @@ func prepareBlake3ModDiv(mod uint64) (blake3ModDiv, bool) {
 
 // modInverseOddUint64 returns x such that odd*x ≡ 1 (mod 2⁶⁴). odd must be odd.
 func modInverseOddUint64(odd uint64) uint64 {
-	// Newton iteration for 2-adics; starts from inverse mod 2⁸.
+	// Newton iteration for 2-adics. x = odd is already the inverse mod 2³
+	// (odd*odd ≡ 1 mod 8); each step doubles the correct bits:
+	// 3 → 6 → 12 → 24 → 48 → 96, so five steps are needed to cover 2⁶⁴.
 	x := odd
-	// odd*odd ≡ 1 (mod 8) for odd odd; refine.
-	x = x * (2 - odd*x) // mod 2^4… grows; classic doubling
-	x = x * (2 - odd*x)
-	x = x * (2 - odd*x)
-	x = x * (2 - odd*x)
-	x = x * (2 - odd*x) // 2^64
+	x = x * (2 - odd*x) // mod 2⁶
+	x = x * (2 - odd*x) // mod 2¹²
+	x = x * (2 - odd*x) // mod 2²⁴
+	x = x * (2 - odd*x) // mod 2⁴⁸
+	x = x * (2 - odd*x) // mod 2⁶⁴
 	return x
 }
 
