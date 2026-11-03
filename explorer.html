@@ -209,8 +209,8 @@
     <div class="row">
       <div class="card" id="kpi-height-card" title=""><div class="label" id="kpi-height-label">Chain height</div><div id="kpi-height" class="value">—</div></div>
       <div class="card" id="kpi-tip-card" title=""><div class="label" id="kpi-tip-label">Chain head hash</div><div id="kpi-tip" class="value mono" style="font-size:15px;">—</div></div>
-      <div class="card" id="kpi-target-card" title="Pool PoH target from coordinator or canonical /api/metrics (same source as miners on VPS).">
-        <div class="label">PoH target (pool)</div><div id="kpi-pool-target" class="value mono" style="font-size:18px;">—</div>
+      <div class="card" id="kpi-target-card" title="Pool PoH target_mod when available; public edges may redact M and show wall hashrate (GH/s) instead.">
+        <div class="label" id="kpi-pool-target-label">PoH target (pool)</div><div id="kpi-pool-target" class="value mono" style="font-size:18px;">—</div>
       </div>
       <div class="card"><div class="label">Pending TX</div><div id="kpi-txpool" class="value">—</div></div>
       <div class="card"><div class="label">Updated</div><div id="kpi-updated" class="value" style="font-size:16px;color:#b7c3d8;">—</div></div>
@@ -360,6 +360,90 @@
       return (th < 1 ? th.toFixed(3) : th.toFixed(2)) + ' TH/s';
     }
 
+    /** Exact M when known; else wall hashrate (public edges redact target_mod / pool_target_mod). */
+    function fmtWallHashFromGh(gh) {
+      const g = Number(gh);
+      if (!Number.isFinite(g) || g <= 0) return '—';
+      if (g >= 1000) return (g / 1000).toFixed(2) + ' TH/s';
+      if (g >= 1) return g.toFixed(2) + ' GH/s';
+      return (g * 1000).toFixed(0) + ' MH/s';
+    }
+
+    let lastExplorerPoolTM = 0;
+    let lastExplorerPoolGh = 0;
+    let lastExplorerPoolSrc = '';
+    // Match dashboard: ignore chain solo floor (251) as pool M.
+    const POOL_TARGET_MOD_FLOOR = 2000000;
+
+    function paintExplorerPoolLane(opts) {
+      const o = opts || {};
+      const tmRaw = Number(o.targetMod || 0);
+      const tmIn = tmRaw >= POOL_TARGET_MOD_FLOOR ? tmRaw : 0;
+      const ghIn = Number(o.hashGh || 0);
+      const thIn = Number(o.hashTH || 0);
+      const miners = Number(o.miners || 0);
+      const wk = Number(o.workers || 0);
+      const src = String(o.src || '').trim();
+      const loadHint = Number(o.loadHint || 0);
+      const loadCapped = o.loadCapped === true;
+      if (tmIn > 0) {
+        lastExplorerPoolTM = tmIn;
+        if (src) lastExplorerPoolSrc = src;
+      }
+      let poolGh = ghIn;
+      if (!(poolGh > 0) && thIn > 0) poolGh = thIn * 1000;
+      if (poolGh > 0) lastExplorerPoolGh = poolGh;
+      const poolTM = tmIn > 0 ? tmIn : lastExplorerPoolTM;
+      if (!(poolGh > 0)) poolGh = lastExplorerPoolGh;
+      const ptEl = $('kpi-pool-target');
+      const lab = $('kpi-pool-target-label');
+      const poolStrip = $('kpi-pool-strip');
+      if (ptEl) {
+        if (poolTM > 0) {
+          ptEl.textContent = String(poolTM);
+          ptEl.title = (src || lastExplorerPoolSrc)
+            ? ('target_mod from ' + (src || lastExplorerPoolSrc))
+            : 'pool target_mod';
+          if (lab) lab.textContent = 'PoH target (pool)';
+        } else if (poolGh > 0) {
+          ptEl.textContent = fmtWallHashFromGh(poolGh);
+          ptEl.title = 'Exact pool M redacted on public edge — wall hashrate proxy';
+          if (lab) lab.textContent = 'Pool hashrate';
+        } else {
+          ptEl.textContent = '—';
+          ptEl.title = 'pool target unavailable';
+          if (lab) lab.textContent = 'PoH target (pool)';
+        }
+      }
+      if (poolStrip) {
+        if (poolTM > 0 || poolGh > 0) {
+          const thLbl = poolGh > 0 ? fmtPoolAggTHS(poolGh / 1000) : '—';
+          const minerLbl = miners > 0 ? ('payout addrs ' + miners) : 'miners n/a';
+          const wkLbl = wk > 0 ? ('workers ' + wk) : '';
+          if (poolTM > 0) {
+            poolStrip.textContent = 'pool: target ' + poolTM + ' · hash ' + thLbl + ' · ' + minerLbl + (wkLbl ? (' · ' + wkLbl) : '');
+          } else {
+            poolStrip.textContent = 'pool: hash ' + thLbl + ' · M redacted · ' + minerLbl + (wkLbl ? (' · ' + wkLbl) : '');
+          }
+          poolStrip.className = 'badge ok';
+          let poolTitle = src || lastExplorerPoolSrc
+            ? ('lane from ' + (src || lastExplorerPoolSrc))
+            : 'pool lane';
+          if (poolTM > 0 && loadHint > poolTM * 1.02) {
+            poolTitle += ' · load hint ~' + loadHint + (loadCapped ? ' (applied M capped)' : '');
+          }
+          if (!(poolTM > 0) && poolGh > 0) {
+            poolTitle += ' · public edge omits exact target_mod';
+          }
+          poolStrip.title = poolTitle;
+        } else {
+          poolStrip.textContent = 'pool: target unavailable (metrics/work fallback empty)';
+          poolStrip.className = 'badge warn';
+          poolStrip.title = String(o.error || 'no pool M / hashrate yet');
+        }
+      }
+    }
+
     function applyStatusPayload(s) {
         if (!s || typeof s !== 'object') return;
         const localTip = Number(s.tip_height || 0);
@@ -390,36 +474,17 @@
           tipEl.style.cursor = primaryHash ? 'pointer' : '';
           tipEl.onclick = primaryHash ? (() => copyText(primaryHash)) : null;
         }
-        const poolTM = Number(s.pool_target_mod || 0);
-        const poolLoadHint = Number(s.pool_target_mod_load_hint || 0);
-        const poolLoadCapped = s.pool_target_mod_load_capped === true;
-        const poolTH = Number(s.pool_global_hashrate_th_s || 0);
-        const poolSrc = String(s.pool_target_mod_source || '').trim();
-        const ptEl = $('kpi-pool-target');
-        if (ptEl) {
-          ptEl.textContent = poolTM > 0 ? String(poolTM) : '—';
-        }
-        const poolStrip = $('kpi-pool-strip');
-        if (poolStrip) {
-          if (poolTM > 0) {
-            const th = fmtPoolAggTHS(poolTH);
-            const miners = Number(s.pool_total_miners || 0);
-            const wk = Number(s.pool_workers_count || 0);
-            const minerLbl = miners > 0 ? ('payout addrs ' + miners) : 'miners n/a';
-            const wkLbl = wk > 0 ? ('workers ' + wk) : '';
-            poolStrip.textContent = 'pool: target ' + poolTM + ' · hash ' + th + ' · ' + minerLbl + (wkLbl ? (' · ' + wkLbl) : '');
-            poolStrip.className = 'badge ok';
-            let poolTitle = poolSrc ? ('target_mod from ' + poolSrc) : 'pool lane from /api/status';
-            if (poolLoadHint > poolTM * 1.02) {
-              poolTitle += ' · load hint ~' + poolLoadHint + (poolLoadCapped ? ' (applied M capped)' : '');
-            }
-            poolStrip.title = poolTitle;
-          } else {
-            poolStrip.textContent = 'pool: target unavailable (set coordinator URL or canonical for metrics)';
-            poolStrip.className = 'badge warn';
-            poolStrip.title = String(s.pool_work_stats_error || s.pool_network_stats_error || 'no pool_target_mod on status');
-          }
-        }
+        paintExplorerPoolLane({
+          targetMod: Number(s.pool_target_mod || 0),
+          hashTH: Number(s.pool_global_hashrate_th_s || 0),
+          hashGh: Number(s.pool_hashrate_gh_s || 0),
+          miners: Number(s.pool_total_miners || 0),
+          workers: Number(s.pool_workers_count || 0),
+          src: String(s.pool_target_mod_source || '').trim() || 'status',
+          loadHint: Number(s.pool_target_mod_load_hint || 0),
+          loadCapped: s.pool_target_mod_load_capped === true,
+          error: s.pool_work_stats_error || s.pool_network_stats_error || '',
+        });
         const hLab = $('kpi-height-label');
         const tLab = $('kpi-tip-label');
         const hCard = $('kpi-height-card');
@@ -538,21 +603,32 @@
 
     function applyWorkStatsPayload(j) {
       if (!j || typeof j !== 'object') return;
-      const tm = Number(j.target_mod || 0);
-      if (tm > 0 && $('kpi-pool-target')) $('kpi-pool-target').textContent = String(tm);
-      const poolStrip = $('kpi-pool-strip');
-      if (poolStrip && tm > 0) {
-        let poolGh = Number(j.pool_hashrate_gh_s || 0);
-        if (!(poolGh > 0)) {
-          const rigs = Array.isArray(j.active_rigs) ? j.active_rigs : [];
-          rigs.forEach((r) => { poolGh += Number((r && r.hashrate_gh_s) || 0); });
-        }
-        const th = poolGh > 0 ? (poolGh / 1000) : Number(j.pool_global_hashrate_th_s || 0);
-        const miners = Number(j.workers_count || Object.keys(j.workers || {}).length || 0);
-        poolStrip.textContent = 'pool: target ' + tm + ' · hash ' + fmtPoolAggTHS(th) + ' · workers ' + miners;
-        poolStrip.className = 'badge ok';
-        poolStrip.title = 'from /api/work/stats';
+      let poolGh = Number(j.pool_hashrate_gh_s || 0);
+      if (!(poolGh > 0)) {
+        const rigs = Array.isArray(j.active_rigs) ? j.active_rigs : [];
+        rigs.forEach((r) => { poolGh += Number((r && r.hashrate_gh_s) || 0); });
       }
+      paintExplorerPoolLane({
+        targetMod: Number(j.target_mod || 0),
+        hashGh: poolGh,
+        hashTH: Number(j.pool_global_hashrate_th_s || 0),
+        miners: Number(j.workers_count || Object.keys(j.workers || {}).length || 0),
+        workers: Number(j.workers_count || Object.keys(j.workers || {}).length || 0),
+        src: 'work/stats',
+        loadHint: Number(j.target_mod_load_hint || 0),
+        loadCapped: j.target_mod_load_capped === true,
+      });
+    }
+
+    function applyMetricsPayload(m) {
+      if (!m || typeof m !== 'object') return;
+      const tm = Number(m.mining_target_mod || 0);
+      // Fill exact M when status/work redacted it (dashboard metrics fallback parity).
+      paintExplorerPoolLane({
+        targetMod: tm,
+        hashGh: Number(m.mining_gpu_total_ghs || m.pool_hashrate_gh_s || 0),
+        src: tm > 0 ? 'metrics.mining_target_mod' : '',
+      });
     }
 
     async function refreshTop() {
@@ -561,10 +637,11 @@
         if ($('kpi-updated')) $('kpi-updated').textContent = new Date().toISOString().replace('T', ' ').slice(0, 19) + 'Z';
       };
       try {
-        const [liteR, poolR, workR] = await Promise.all([
+        const [liteR, poolR, workR, metricsR] = await Promise.all([
           fetchJsonTimeout(apiUrl('/status?lite=1'), 4000).catch(() => null),
           fetchJsonTimeout(apiUrl('/tx/pool'), 5000).catch(() => null),
           fetchJsonTimeout(apiUrl('/work/stats'), 6000).catch(() => null),
+          fetchJsonTimeout(apiUrl('/metrics'), 8000).catch(() => null),
         ]);
         if (liteR && liteR.ok) applyStatusPayload(await liteR.json());
         if (poolR && poolR.ok) {
@@ -572,6 +649,7 @@
           if ($('kpi-txpool')) $('kpi-txpool').textContent = String((p.txs || []).length);
         }
         if (workR && workR.ok) applyWorkStatsPayload(await workR.json());
+        if (metricsR && metricsR.ok) applyMetricsPayload(await metricsR.json());
         stamp();
       } catch (e) {
         if ($('kpi-updated')) $('kpi-updated').textContent = 'refresh error';
