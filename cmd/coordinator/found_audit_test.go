@@ -2,9 +2,11 @@ package main
 
 import (
 	"math"
+	"path/filepath"
 	"testing"
 
 	"hackme/internal/chain"
+	"hackme/internal/store"
 )
 
 func TestPoissonLogCDF(t *testing.T) {
@@ -74,6 +76,43 @@ func TestFoundAuditWithholderFlaggedAndRecovers(t *testing.T) {
 	}
 	if !cleared {
 		t.Fatalf("recovered miner still flagged: %+v", *wm.foundAudit[key])
+	}
+}
+
+// H2: withhold counters survive coordinator restart via dedupDB.
+func TestFoundAuditPersistsAcrossRestart(t *testing.T) {
+	t.Setenv("HACKME_COORDINATOR_FOUND_AUDIT", "on")
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "found-audit.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	wm := &workManager{}
+	wm.attachDedupDB(db)
+	key := foundAuditKey("HMC-persistpersist01", "w")
+	for i := 0; i < 80; i++ {
+		wm.noteFoundAuditWorkLocked(key, 32, 2048, 70_000)
+	}
+	st := wm.foundAudit[key]
+	if st == nil || !st.Flagged || st.Expected < foundAuditMinExpected {
+		t.Fatalf("setup not flagged: %+v", st)
+	}
+	wantExp, wantAct := st.Expected, st.Actual
+
+	wm2 := &workManager{}
+	wm2.attachDedupDB(db)
+	st2 := wm2.foundAudit[key]
+	if st2 == nil {
+		t.Fatal("found_audit not restored after restart")
+	}
+	if st2.Expected != wantExp || st2.Actual != wantAct || !st2.Flagged {
+		t.Fatalf("restored %+v want expected=%v actual=%v flagged=true", st2, wantExp, wantAct)
+	}
+	// Still rejects after reload without re-warming the window.
+	if !wm2.noteFoundAuditWorkLocked(key, 32, 2048, 70_000) {
+		t.Fatal("flagged identity must stay suspicious after restart")
 	}
 }
 

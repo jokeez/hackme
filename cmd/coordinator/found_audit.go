@@ -70,6 +70,7 @@ func (m *workManager) foundAuditEntryLocked(key string) *foundAuditState {
 		if len(m.foundAudit) >= foundAuditMaxEntries {
 			for k := range m.foundAudit {
 				delete(m.foundAudit, k)
+				m.deleteFoundAuditLocked(k)
 				break
 			}
 		}
@@ -87,6 +88,7 @@ func (m *workManager) noteFoundAuditHitLocked(key string) {
 		return
 	}
 	m.foundAuditEntryLocked(key).Actual++
+	m.persistFoundAuditLocked(key)
 }
 
 // undoFoundAuditHitLocked rolls back noteFoundAuditHitLocked when the submit is rejected after
@@ -100,6 +102,7 @@ func (m *workManager) undoFoundAuditHitLocked(key string) {
 		return
 	}
 	st.Actual--
+	m.persistFoundAuditLocked(key)
 }
 
 // noteFoundAuditWorkLocked adds share-implied hashes for a lease and reports whether the
@@ -126,6 +129,7 @@ func (m *workManager) noteFoundAuditWorkLocked(key string, nShares int, shareMod
 		log.Printf("found audit: %s flagged=%v expected=%.1f actual=%.0f mode=%s",
 			sanitizeLogToken(key), suspicious, st.Expected, st.Actual, foundAuditMode())
 	}
+	m.persistFoundAuditLocked(key)
 	return suspicious
 }
 
