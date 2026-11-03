@@ -53,6 +53,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	txChainID, err := fetchTxChainID(strings.TrimRight(*base, "/"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "chain_id:", err)
+		os.Exit(1)
+	}
+
 	tx := chain.TransferTx{
 		TxType:        "transfer_v1",
 		From:          from,
@@ -63,6 +69,7 @@ func main() {
 		TimestampUnix: time.Now().Unix(),
 		Memo:          *memo,
 		PubKeyEd25519: signer.PublicKeyHex(),
+		ChainID:       txChainID, // network binding from Economics v2 ("" before)
 	}
 	canon, err := tx.CanonicalBytes()
 	if err != nil {
@@ -108,4 +115,27 @@ func fetchNonce(base, addr string) (uint64, error) {
 		return 0, err
 	}
 	return st.NextNonce, nil
+}
+
+// fetchTxChainID reads the chain_id new transfers must be signed with (GET /api/status).
+func fetchTxChainID(base string) (string, error) {
+	cli := &http.Client{Timeout: 15 * time.Second}
+	resp, err := cli.Get(base + "/api/status")
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("status %d", resp.StatusCode)
+	}
+	var st struct {
+		TxChainID *string `json:"tx_chain_id"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&st); err != nil {
+		return "", err
+	}
+	if st.TxChainID == nil {
+		return "", nil // pre-v2 node: legacy unsigned network id
+	}
+	return strings.TrimSpace(*st.TxChainID), nil
 }

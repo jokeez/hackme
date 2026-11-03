@@ -19,6 +19,8 @@ func (b *Block) headerForHash() []byte {
 		Nonce        uint64 `json:"nonce"`
 		MinerAddress string `json:"miner_address"`
 		Task         Task   `json:"task"`
+		ChainID      string `json:"chain_id,omitempty"`
+		RewardTo     string `json:"reward_to,omitempty"`
 	}
 	w := wire{
 		Index:        b.Index,
@@ -27,6 +29,8 @@ func (b *Block) headerForHash() []byte {
 		Nonce:        b.Nonce,
 		MinerAddress: b.MinerAddress,
 		Task:         b.Task,
+		ChainID:      b.ChainID,
+		RewardTo:     b.RewardTo,
 	}
 	buf, err := json.Marshal(w)
 	if err != nil {

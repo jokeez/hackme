@@ -39,6 +39,8 @@ type SupTransferTx struct {
 	Memo          string `json:"memo,omitempty"`
 	PubKeyEd25519 string `json:"pubkey_ed25519"`
 	SigEd25519    string `json:"sig_ed25519"`
+	// ChainID binds the signature to one network (required from Economics v2, see checkTxChainID).
+	ChainID string `json:"chain_id,omitempty"`
 }
 
 type SupAddressState struct {
@@ -55,6 +57,27 @@ type SUPEconomics struct {
 	GenesisUnix       int64   `json:"genesis_unix,omitempty"`
 	MintEnabled       bool    `json:"mint_enabled"`
 	OnChainSettleLive bool    `json:"on_chain_settle_live"`
+	// Economics v2: SUP is emitted only by blocks (0.002/block to the settlement wallet);
+	// admin mint is retired and settlement pays SUP by transfer from that wallet.
+	AdminMintRetired  bool    `json:"admin_mint_retired"`
+	TotalBurnedSUP    float64 `json:"total_burned_sup"`
+	RewardPerBlockSUP float64 `json:"reward_per_block_sup"`
+}
+
+// ErrSUPMintRetired: admin/settlement mint after Economics v2 activation (single SUP emission path).
+var ErrSUPMintRetired = errors.New("chain: SUP admin mint retired after Economics v2 activation — settle by transfer")
+
+// supAdminMintRetiredQ reports whether the next block is under Economics v2 (no admin SUP mint).
+func (s *Service) supAdminMintRetiredQ(ctx context.Context, q queryRowContext) (bool, uint64, error) {
+	var maxIdx sql.NullInt64
+	if err := q.QueryRowContext(ctx, `SELECT MAX(block_index) FROM blocks`).Scan(&maxIdx); err != nil {
+		return false, 0, err
+	}
+	tip := uint64(0)
+	if maxIdx.Valid && maxIdx.Int64 > 0 {
+		tip = uint64(maxIdx.Int64)
+	}
+	return EconomicsV2ActiveForIndex(tip + 1), tip, nil
 }
 
 func SUPToUnits(v float64) uint64 { return HMCToUnits(v) }
@@ -81,6 +104,7 @@ func (tx SupTransferTx) CanonicalBytes() ([]byte, error) {
 		TimestampUnix int64  `json:"timestamp_unix"`
 		Memo          string `json:"memo,omitempty"`
 		PubKeyEd25519 string `json:"pubkey_ed25519"`
+		ChainID       string `json:"chain_id,omitempty"` // omitted when empty: legacy signatures unchanged
 	}{
 		TxType:        tx.TxType,
 		SigAlg:        strings.TrimSpace(strings.ToLower(tx.SigAlg)),
@@ -92,6 +116,7 @@ func (tx SupTransferTx) CanonicalBytes() ([]byte, error) {
 		TimestampUnix: tx.TimestampUnix,
 		Memo:          strings.TrimSpace(tx.Memo),
 		PubKeyEd25519: strings.TrimSpace(tx.PubKeyEd25519),
+		ChainID:       strings.TrimSpace(tx.ChainID),
 	}
 	return json.Marshal(wire)
 }
@@ -156,6 +181,19 @@ func (s *Service) SUPEconomics(ctx context.Context) (SUPEconomics, error) {
 	mintMeta := ""
 	_ = s.db.QueryRowContext(ctx, `SELECT value FROM meta WHERE key=?`, metaSUPMintEnabled).Scan(&mintMeta)
 	mintOn := strings.TrimSpace(mintMeta) == "1" || supMintEnabledFromEnv()
+	retired, tip, err := s.supAdminMintRetiredQ(ctx, s.db)
+	if err != nil {
+		return SUPEconomics{}, err
+	}
+	burnedU, err := s.metaUint(ctx, s.db, metaSUPTotalBurnedUnits, 0)
+	if err != nil {
+		return SUPEconomics{}, err
+	}
+	if EconomicsV2ActivationHeight() >= 1 {
+		if v2Cap := SUPToUnits(V2SUPMaxSupply); v2Cap < maxU {
+			maxU = v2Cap
+		}
+	}
 	remain := uint64(0)
 	if mintedU < maxU {
 		remain = maxU - mintedU
@@ -165,8 +203,11 @@ func (s *Service) SUPEconomics(ctx context.Context) (SUPEconomics, error) {
 		TotalMintedSUP:    UnitsToSUP(mintedU),
 		RemainingSUP:      UnitsToSUP(remain),
 		GenesisUnix:       genesis,
-		MintEnabled:       mintOn,
-		OnChainSettleLive: mintOn,
+		MintEnabled:       mintOn && !retired,
+		OnChainSettleLive: mintOn || retired,
+		AdminMintRetired:  retired,
+		TotalBurnedSUP:    UnitsToSUP(burnedU),
+		RewardPerBlockSUP: SUPRewardForBlockIndex(tip + 1),
 	}, nil
 }
 
@@ -277,6 +318,9 @@ func (s *Service) MintSUP(ctx context.Context, to string, amountUnits uint64, me
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	ec, _ := s.SUPEconomics(ctx)
+	if ec.AdminMintRetired {
+		return "sup_mint_retired_v2", ErrSUPMintRetired
+	}
 	if !ec.MintEnabled && !supMintEnabledFromEnv() {
 		return "sup_mint_disabled", errors.New("SUP mint not enabled — run sup_genesis_init.sh")
 	}
@@ -305,6 +349,12 @@ func (s *Service) MintSUP(ctx context.Context, to string, amountUnits uint64, me
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return "internal_error", err
 		}
+	}
+	// Re-check inside the tx: a block may have crossed the activation height since SUPEconomics.
+	if retired, _, err := s.supAdminMintRetiredQ(ctx, tx); err != nil {
+		return "internal_error", err
+	} else if retired {
+		return "sup_mint_retired_v2", ErrSUPMintRetired
 	}
 	maxU, err := s.supMaxSupplyUnits(ctx, tx)
 	if err != nil {
@@ -383,7 +433,7 @@ func (s *Service) BurnSUPForService(ctx context.Context, from string, amountUnit
 	if from != walletAddr {
 		return "owner_required", errors.New("chain: unsigned SUP burn only allowed for primary wallet; use BurnSUPWithOwnerProof")
 	}
-	return s.burnSUPTx(ctx, from, amountUnits, memo)
+	return s.burnSUPTx(ctx, from, amountUnits, memo, "")
 }
 
 // BurnSUPCanonicalMessage is the ed25519 payload for BurnSUPWithOwnerProof.
@@ -417,15 +467,28 @@ func (s *Service) BurnSUPWithOwnerProof(ctx context.Context, from string, amount
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.burnSUPTx(ctx, from, amountUnits, memo)
+	// The v1 message has no nonce: key the burn by its signature so a seen signature cannot be
+	// replayed to burn the owner's SUP again. New callers use BurnSUPForFee (product/ref, chain_id).
+	sigSum := sha256.Sum256(sig)
+	return s.burnSUPTx(ctx, from, amountUnits, memo, "burn-sig-"+hex.EncodeToString(sigSum[:16]))
 }
 
-func (s *Service) burnSUPTx(ctx context.Context, from string, amountUnits uint64, memo string) (string, error) {
+func (s *Service) burnSUPTx(ctx context.Context, from string, amountUnits uint64, memo, txHash string) (string, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return "internal_error", err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if txHash == "" {
+		txHash = fmt.Sprintf("burn-%d-%s", time.Now().UnixNano(), from)
+	} else {
+		var seen string
+		if err := tx.QueryRowContext(ctx, `SELECT tx_hash FROM sup_tx_history WHERE tx_hash=?`, txHash).Scan(&seen); err == nil {
+			return "burn_replay", errors.New("chain: SUP burn signature already used")
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return "internal_error", err
+		}
+	}
 	var bal uint64
 	err = tx.QueryRowContext(ctx, `SELECT COALESCE(balance_sup_units,0) FROM accounts WHERE address=?`, from).Scan(&bal)
 	if errors.Is(err, sql.ErrNoRows) || bal < amountUnits {
@@ -445,7 +508,14 @@ func (s *Service) burnSUPTx(ctx context.Context, from string, amountUnits uint64
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO sup_tx_history (tx_hash, tx_json, from_address, to_address, nonce, fee_units, amount_units, status, block_index, block_hash, applied_at, reject_code)
 		 VALUES (?, ?, ?, '', 0, 0, ?, 'included', 0, 'burn', ?, '')`,
-		fmt.Sprintf("burn-%d-%s", time.Now().UnixNano(), from), string(raw), from, amountUnits, time.Now().Unix()); err != nil {
+		txHash, string(raw), from, amountUnits, time.Now().Unix()); err != nil {
+		return "internal_error", err
+	}
+	burned, err := s.metaUint(ctx, tx, metaSUPTotalBurnedUnits, 0)
+	if err != nil {
+		return "internal_error", err
+	}
+	if err := s.upsertMetaUint(ctx, tx, metaSUPTotalBurnedUnits, burned+amountUnits); err != nil {
 		return "internal_error", err
 	}
 	if err := tx.Commit(); err != nil {
@@ -541,6 +611,9 @@ func (s *Service) SubmitSupTransferTx(ctx context.Context, tx SupTransferTx) (st
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	code, msg := s.validateSupTransferTx(ctx, tx, s.db)
+	if code == "" {
+		code, msg = s.checkTxChainIDNextQ(ctx, s.db, tx.ChainID)
+	}
 	if code != "" {
 		return "", code, errors.New(msg)
 	}
@@ -629,6 +702,9 @@ func (s *Service) applyPendingSupTransfers(ctx context.Context, txq queryRowExec
 	devAddr := DevFeeAddress
 	for _, item := range pool {
 		code, _ := s.validateSupTransferTx(ctx, item.tx, txq)
+		if code == "" {
+			code, _ = checkTxChainID(blockIndex, item.tx.ChainID)
+		}
 		if code != "" {
 			_, _ = txq.ExecContext(ctx, `UPDATE sup_tx_pool SET status='rejected', reject_code=? WHERE tx_hash=?`, code, item.hash)
 			_, _ = txq.ExecContext(ctx,

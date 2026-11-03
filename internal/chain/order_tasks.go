@@ -64,6 +64,7 @@ type orderManifestJSON struct {
 	TargetSolves     int     `json:"target_solves"`
 	TTLSeconds       int64   `json:"ttl_sec,omitempty"`
 	PayerRef         string  `json:"payer_ref"`
+	FeeAsset         string  `json:"fee_asset,omitempty"` // Economics v2: HMC (default) or SUP
 }
 
 const (
@@ -85,8 +86,10 @@ type InsertOrderResult struct {
 	TotalDebitHMC float64 `json:"total_debit_hmc"`
 	BurnHMC       float64 `json:"burn_hmc"`
 	BalanceAfter  float64 `json:"balance_after"`
-	ExpiresAtUnix int64   `json:"expires_at,omitempty"`
-	TTLSeconds    int64   `json:"ttl_sec,omitempty"`
+	// Economics v2 fee record (empty before activation).
+	Fee           *OrderFeeV2 `json:"fee,omitempty"`
+	ExpiresAtUnix int64       `json:"expires_at,omitempty"`
+	TTLSeconds    int64       `json:"ttl_sec,omitempty"`
 }
 
 // InsertOrderTask validates a manifest JSON, debits escrow from the node wallet (reward × target_solves), and inserts an open task.
@@ -172,11 +175,27 @@ func (s *Service) InsertOrderTask(ctx context.Context, manifestJSON []byte) (*In
 	if err := s.db.QueryRowContext(ctx, `SELECT MAX(block_index) FROM blocks`).Scan(&maxIdx); err == nil && maxIdx.Valid && maxIdx.Int64 >= 0 {
 		tipH = uint64(maxIdx.Int64)
 	}
+	feeAsset, err := NormalizeFeeAsset(m.FeeAsset)
+	if err != nil {
+		return nil, err
+	}
+	// Economics v2: price = escrow + fee (burn + platform, RFC §5.2); burn is a real debit.
+	var feeV2 *OrderFeeV2
+	if EconomicsV2ActiveForIndex(tipH + 1) {
+		f := OrderFeeV2ForEscrow(tipH, prepaidUnits, feeAsset)
+		feeV2 = &f
+	} else if feeAsset != FeeAssetHMC {
+		return nil, errors.New("chain: fee_asset SUP requires Economics v2")
+	}
 	orderFee := UnitsToHMC(prepaidUnits) * OrderPlatformFeeRateAt(tipH)
 	if orderFee < 0 || orderFee != orderFee {
 		return nil, errors.New("chain: invalid order fee total")
 	}
 	orderFeeUnits := HMCToUnits(orderFee)
+	if feeV2 != nil {
+		orderFeeUnits = feeV2.HMCUnits()
+		orderFee = UnitsToHMC(orderFeeUnits)
+	}
 	totalDebitUnits := prepaidUnits
 	if ^uint64(0)-totalDebitUnits < orderFeeUnits {
 		return nil, errors.New("chain: total debit overflow")
@@ -239,7 +258,11 @@ func (s *Service) InsertOrderTask(ctx context.Context, manifestJSON []byte) (*In
 		totalDebitUnits, walletAddr); err != nil {
 		return nil, err
 	}
-	if orderFeeUnits > 0 {
+	if feeV2 != nil {
+		if _, err := s.applyOrderFeeV2Tx(ctx, tx, walletAddr, *feeV2, "order:"+id); err != nil {
+			return nil, err
+		}
+	} else if orderFeeUnits > 0 {
 		devAddr := DevFeeAddress
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO accounts (address, balance_units, next_nonce, updated_at) VALUES (?, ?, 0, strftime('%s','now'))
@@ -256,7 +279,10 @@ func (s *Service) InsertOrderTask(ctx context.Context, manifestJSON []byte) (*In
 	burn := prepaid * OrderBurnRateAt(tipH)
 	burnUnits := HMCToUnits(burn)
 	escrowUnits := prepaidUnits
-	if burn > 0 {
+	if feeV2 != nil {
+		burn = UnitsToHMC(feeV2.BurnUnits) // booked (for real) by applyOrderFeeV2Tx
+	} else if burn > 0 {
+		// v1: counter-only burn (no units leave any balance) — kept for pre-activation history.
 		mintedUnits, burnedUnits, err := s.econTotalsUnits(ctx, tx)
 		if err != nil {
 			return nil, err
@@ -283,12 +309,18 @@ func (s *Service) InsertOrderTask(ctx context.Context, manifestJSON []byte) (*In
 		return nil, err
 	}
 
+	var feeRecord OrderFeeV2
+	if feeV2 != nil {
+		feeRecord = *feeV2
+	}
 	now := time.Now().Unix()
 	expiresAt := now + ttlSec
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO tasks (id, artifact_hash, reward, status, created_at, manifest_json, kind, target_solves, progress_count, payer_ref, prepaid_hmc, expires_at)
-		 VALUES (?,?,?,?,?,?,?,?,0,?,?,?)`,
+		`INSERT INTO tasks (id, artifact_hash, reward, status, created_at, manifest_json, kind, target_solves, progress_count, payer_ref, prepaid_hmc, expires_at,
+		  fee_asset, fee_burn_units, fee_platform_units, fee_sup_units)
+		 VALUES (?,?,?,?,?,?,?,?,0,?,?,?,?,?,?,?)`,
 		id, artifact, m.RewardHMC, TaskStatusOpen, now, string(manifestJSON), string(kind), target, payerRef, prepaid, expiresAt,
+		feeRecord.Asset, feeRecord.BurnUnits, feeRecord.PlatformUnits, feeRecord.SUPUnits,
 	)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "unique") {
@@ -313,6 +345,7 @@ func (s *Service) InsertOrderTask(ctx context.Context, manifestJSON []byte) (*In
 		TotalDebitHMC: UnitsToHMC(totalDebitUnits),
 		BurnHMC:       burn,
 		BalanceAfter:  UnitsToHMC(balUnits),
+		Fee:           feeV2,
 		ExpiresAtUnix: expiresAt,
 		TTLSeconds:    ttlSec,
 	}, nil

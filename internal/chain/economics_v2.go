@@ -172,7 +172,10 @@ func (s *Service) lockEconomicsV2ActivationTx(ctx context.Context, tx queryRowEx
 		econV2MetaOverride = rawEnv
 		econV2MetaMu.Unlock()
 	}
-	return s.lockEconomicsV2AnnounceTx(ctx, tx)
+	if err := s.lockEconomicsV2AnnounceTx(ctx, tx); err != nil {
+		return err
+	}
+	return s.lockAuthorityPubKeyTx(ctx, tx)
 }
 
 // lockEconomicsV2AnnounceTx persists announce wall-clock once (D6 soft-start origin).
@@ -357,4 +360,81 @@ func (s *Service) mintEmptyBlockSUPTx(ctx context.Context, tx queryRowExecContex
 		return err
 	}
 	return s.upsertMetaUint(ctx, tx, metaSUPTotalMintedUnits, mintedU+amount)
+}
+
+// Activation guard (producer side). Locking the height into chain meta is irreversible, so
+// the producing node locks only when the operator confirms the same height in
+// HACKME_ECONOMICS_V2_ACTIVATION_CONFIRM and the height is at least
+// HACKME_ECONOMICS_V2_MIN_LEAD_BLOCKS ahead of the tip (default 40 320 ≈ 14 days, RFC D8).
+// Otherwise block production stops with an explicit error (deploy gate / watchdog alert)
+// instead of silently locking a typo. Followers importing blocks are not gated.
+const defaultV2MinLeadBlocks = uint64(14 * 2880)
+
+// v2ActivationGuardOff is flipped by package tests that exercise v2 from tiny heights.
+var v2ActivationGuardOff bool
+
+func v2MinLeadBlocks() uint64 {
+	if v := strings.TrimSpace(os.Getenv("HACKME_ECONOMICS_V2_MIN_LEAD_BLOCKS")); v != "" {
+		if n, err := strconv.ParseUint(v, 10, 64); err == nil {
+			return n
+		}
+	}
+	return defaultV2MinLeadBlocks
+}
+
+// ErrV2ActivationGuard: refused to lock an unconfirmed or too-close activation height.
+var ErrV2ActivationGuard = errors.New("chain: economics v2 activation height not locked")
+
+// lockEconomicsV2ActivationForImportTx syncs locked meta / confirmed env, but never writes
+// height meta from HEIGHT alone (CONFIRM required). Unconfirmed followers still validate
+// headers via EconomicsV2ActivationHeight() env without poisoning local meta.
+func (s *Service) lockEconomicsV2ActivationForImportTx(ctx context.Context, tx queryRowExecContext) error {
+	metaH, err := s.metaUint(ctx, tx, metaEconomicsV2ActivationHeight, 0)
+	if err != nil {
+		return err
+	}
+	if metaH >= 1 {
+		return s.lockEconomicsV2ActivationTx(ctx, tx)
+	}
+	raw := strings.TrimSpace(os.Getenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT"))
+	h, perr := strconv.ParseUint(raw, 10, 64)
+	if raw == "" || perr != nil || h < 1 {
+		return s.lockAuthorityPubKeyTx(ctx, tx)
+	}
+	if !v2ActivationGuardOff {
+		if c := strings.TrimSpace(os.Getenv("HACKME_ECONOMICS_V2_ACTIVATION_CONFIRM")); c != raw {
+			// Env height present but unconfirmed — do not lock; still pin authority if needed.
+			return s.lockAuthorityPubKeyTx(ctx, tx)
+		}
+	}
+	return s.lockEconomicsV2ActivationTx(ctx, tx)
+}
+
+// checkV2ActivationGuardTx runs before lockEconomicsV2ActivationTx on the producing path.
+func (s *Service) checkV2ActivationGuardTx(ctx context.Context, tx queryRowExecContext, nextIdx uint64) error {
+	if v2ActivationGuardOff {
+		return nil
+	}
+	metaH, err := s.metaUint(ctx, tx, metaEconomicsV2ActivationHeight, 0)
+	if err != nil || metaH >= 1 {
+		return err // already locked (env mismatch is checked by the lock itself)
+	}
+	raw := strings.TrimSpace(os.Getenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT"))
+	h, perr := strconv.ParseUint(raw, 10, 64)
+	if raw == "" || perr != nil || h < 1 {
+		return nil // not configured: nothing to lock
+	}
+	if c := strings.TrimSpace(os.Getenv("HACKME_ECONOMICS_V2_ACTIVATION_CONFIRM")); c != raw {
+		return fmt.Errorf("%w: set HACKME_ECONOMICS_V2_ACTIVATION_CONFIRM=%d to confirm (got %q)", ErrV2ActivationGuard, h, c)
+	}
+	if lead := v2MinLeadBlocks(); h < nextIdx || h-nextIdx < lead {
+		// Keep the lead distance in uint64 — avoid CodeQL incorrect-integer-conversion on ParseUint→int64.
+		var after uint64
+		if h >= nextIdx {
+			after = h - nextIdx
+		}
+		return fmt.Errorf("%w: height %d is only %d blocks after next block %d (minimum lead %d)",
+			ErrV2ActivationGuard, h, after, nextIdx, lead)
+	}
+	return nil
 }

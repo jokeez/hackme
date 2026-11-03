@@ -39,7 +39,8 @@ func TestBaselineRelayFailureKeepsSharePay(t *testing.T) {
 	}
 	addr := signerAddr(pub)
 	wm := secWM(t)
-	wm.defaultBatch, wm.maxClaimBatch, wm.targetMod = 1<<12, 1<<12, 2_000
+	// targetMod=1 guarantees a block hit in any lease (mod=2000 + random key was flaky).
+	wm.defaultBatch, wm.maxClaimBatch, wm.targetMod = 1<<12, 1<<12, 1
 	wm.ordersProbeURL = srv.URL
 	wm.hybridSignerEnabled = true
 	wm.acceptedSubmitNonces = make(map[string]struct{})

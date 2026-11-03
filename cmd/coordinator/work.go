@@ -128,6 +128,8 @@ type workManager struct {
 	supMeta              map[string]workerSupMeta
 	supDayID             int64
 	supAccruedDay        float64
+	supPerBlock          float64 // chain SUP per empty block; > 0 ⇒ Economics v2 SUP ratio
+	supAdminMintRetired  bool    // chain retired admin mint — never invent legacy 0.08 SUP
 	hmcAccruedDay        float64
 	// Pool pay solvency (UTC day): cap SHARE_STRICT accrual to emission schedule.
 	poolPayDayID          int64
@@ -860,6 +862,10 @@ func (m *workManager) resolvedPoHFormulaVersionLocked() int {
 type chainMetricsSnap struct {
 	Mod                 uint64
 	BaseRewardHMC       float64
+	SUPPerBlock         float64 // Economics v2 SUP per empty block (0 before activation)
+	HasSUPBlock         bool
+	SUPAdminMintRetired bool
+	HasSUPMintRetired   bool
 	HasMod              bool
 	HasBase             bool
 	TipHash             string
@@ -925,6 +931,14 @@ func fetchChainMetricsFromNode(targetURL string) chainMetricsSnap {
 				out.BaseRewardHMC = x
 			}
 		}
+	}
+	if v, ok := body["econ_sup_reward_now"].(float64); ok && v >= 0 && !math.IsNaN(v) && !math.IsInf(v, 0) {
+		out.SUPPerBlock = v
+		out.HasSUPBlock = true
+	}
+	if b, ok := body["econ_sup_admin_mint_retired"].(bool); ok {
+		out.SUPAdminMintRetired = b
+		out.HasSUPMintRetired = true
 	}
 	if th, ok := body["tip_hash"].(string); ok {
 		out.TipHash = strings.TrimSpace(th)
@@ -1026,6 +1040,12 @@ func (m *workManager) prefetchTargetMod(now int64) {
 	}
 	if snap.HasBase {
 		m.baseRewardHMC = snap.BaseRewardHMC
+	}
+	if snap.HasSUPBlock {
+		m.supPerBlock = snap.SUPPerBlock
+	}
+	if snap.HasSUPMintRetired {
+		m.supAdminMintRetired = snap.SUPAdminMintRetired
 	}
 	if snap.TipHash != "" {
 		m.tipHash = snap.TipHash

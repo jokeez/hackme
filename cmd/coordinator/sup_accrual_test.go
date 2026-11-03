@@ -87,3 +87,43 @@ func TestSUPDailyCapUsesWorkHMC(t *testing.T) {
 		t.Fatalf("hmc_accrued_day should be the verified-work HMC (~1), got %v", wm.hmcAccruedDay)
 	}
 }
+
+// Economics v2: pool SUP is a share of chain SUP, never a second emission. With chain
+// 0.002 SUP / 0.1 HMC per block the pool pays ≤ 2% of credited HMC in SUP — streak bonus off.
+func TestSUPAccrualV2FollowsChainSUPPerBlock(t *testing.T) {
+	wm := &workManager{
+		supPolicy:     supPolicy{Enabled: true, RateOfHMC: 0.08, DailyCapRatio: 0.12, StreakSec: 3600, StreakBonus: 0.25, StaleRateMax: 0.05, ReducedMult: 0.25},
+		supMeta:       map[string]workerSupMeta{"w": {CleanSinceUnix: 1}}, // long clean streak
+		abuse:         map[string]workerAbuseState{},
+		baseRewardHMC: 0.1,
+		supPerBlock:   0.002,
+	}
+	now := int64(1_800_000_000)
+	var hmc, sup float64
+	for i := 0; i < 2880; i++ { // one day of per-block pay
+		hmc += 0.1
+		sup += wm.computeSUPAccrual("w", 0.1, true, now+int64(i))
+	}
+	if want := hmc * 0.02; sup > want*1.000001 || sup < want*0.999 {
+		t.Fatalf("v2 SUP/day %.6f want %.6f (= chain 0.002/block × 2880)", sup, want)
+	}
+	// Before activation the chain reports 0 SUP/block: legacy policy applies.
+	wm2 := &workManager{supPolicy: wm.supPolicy, supMeta: map[string]workerSupMeta{}, abuse: map[string]workerAbuseState{}, baseRewardHMC: 0.01}
+	if got := wm2.computeSUPAccrual("w", 1, true, now); got < 0.079 || got > 0.081 {
+		t.Fatalf("v1 SUP for 1 HMC = %v want 0.08", got)
+	}
+}
+
+func TestSUPAccrualFailClosedWhenMintRetiredWithoutRatio(t *testing.T) {
+	wm := &workManager{
+		supPolicy:           supPolicy{Enabled: true, RateOfHMC: 0.08, DailyCapRatio: 0.12},
+		supMeta:             map[string]workerSupMeta{},
+		abuse:               map[string]workerAbuseState{},
+		baseRewardHMC:       0.1,
+		supPerBlock:         0, // metrics miss
+		supAdminMintRetired: true,
+	}
+	if got := wm.computeSUPAccrual("w", 1, true, 1_800_000_000); got != 0 {
+		t.Fatalf("retired without ratio must pay 0 SUP, got %v (would have been legacy 0.08)", got)
+	}
+}

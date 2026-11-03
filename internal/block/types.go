@@ -20,4 +20,7 @@ type Block struct {
 	Nonce        uint64 `json:"nonce"`
 	MinerAddress string `json:"miner_address"`
 	Task         Task   `json:"task"`
+	// Economics v2 header (empty before activation, so legacy JSON and hashes are unchanged).
+	ChainID  string `json:"chain_id,omitempty"`  // network id the block belongs to
+	RewardTo string `json:"reward_to,omitempty"` // empty-block subsidy recipient (signed)
 }

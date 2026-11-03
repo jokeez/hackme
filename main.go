@@ -591,8 +591,10 @@ func main() {
 	mux.HandleFunc("/api/sup/genesis", a.handleSUPGenesisInit)
 	mux.HandleFunc("/api/sup/mint", a.handleSUPMint)
 	mux.HandleFunc("/api/sup/burn", a.handleSUPBurn)
+	mux.HandleFunc("/api/sup/fee/burn", a.handleSUPFeeBurn)
 	mux.HandleFunc("/api/sup/tx/send", a.handleSUPTransferSend)
 	mux.HandleFunc("/api/sup/tx/pool", a.handleSUPTransferPool)
+	mux.HandleFunc("/api/sup/tx/", a.handleSUPTransferByHash)
 	mux.HandleFunc("/api/sup/activity", a.handleSUPActivity)
 	mux.HandleFunc("/api/sup/earnings", a.handleSUPEarnings)
 	mux.HandleFunc("/api/hms/economics", a.handleHMSEconomics)
@@ -1286,6 +1288,8 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		s.EconNextHalvingBlock = chain.NextHalvingBlock(s.BlockHeight)
 		s.EconExpectedEmptyHmcHour = chain.ExpectedEmptyMiningHMCPerHour(s.BlockHeight)
 		s.EconBaseRewardNowHMC = chain.BaseRewardForBlockIndex(s.BlockHeight + 1)
+		s.EconSUPRewardNow = chain.SUPRewardForBlockIndex(s.BlockHeight + 1)
+		s.EconSUPAdminMintRetired = chain.EconomicsV2ActiveForIndex(s.BlockHeight + 1)
 	}
 	ms := a.miner.Stats()
 	s.MiningPoHBackend = ms.PoHBackend
@@ -4181,6 +4185,7 @@ func (a *app) handleTransferSend(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		tx.PubKeyEd25519 = strings.TrimSpace(a.signer.PublicKeyHex())
+		tx.ChainID = a.chain.TxChainIDForNextBlock(r.Context()) // "" before Economics v2
 		canon, err := tx.CanonicalBytes()
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")

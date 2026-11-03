@@ -153,6 +153,7 @@ func (a *app) handleHMSTransferSend(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		tx.PubKeyEd25519 = strings.TrimSpace(a.signer.PublicKeyHex())
+		tx.ChainID = a.chain.TxChainIDForNextBlock(r.Context()) // "" before Economics v2
 		canon, err := tx.CanonicalBytes()
 		if err != nil {
 			writeJSON(w, map[string]any{"ok": false, "code": "invalid_tx_encoding", "error": "invalid tx canonical payload"})

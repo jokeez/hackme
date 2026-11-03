@@ -28,7 +28,16 @@ func writeFuzzEscrowFailed(w http.ResponseWriter, err error) {
 	case errors.Is(err, chain.ErrFuzzInsufficientBalance):
 		writeAPIError(w, http.StatusPaymentRequired, "escrow_failed",
 			"insufficient Wallet HMC for escrow — top up on-chain balance on #wallet, then Start (auto-funds spendable)", nil)
+	case errors.Is(err, chain.ErrSUPFeeInsufficent):
+		writeAPIError(w, http.StatusPaymentRequired, "fee_sup_insufficient",
+			"not enough SUP to pay the order fee — pay the fee in HMC (fee_asset=HMC) or add SUP", nil)
+	case errors.Is(err, chain.ErrFeeAsset):
+		writeAPIError(w, http.StatusBadRequest, "invalid_fee_asset", "fee_asset must be HMC or SUP", nil)
 	default:
+		if err != nil && strings.Contains(err.Error(), "fee_asset SUP requires Economics v2") {
+			writeAPIError(w, http.StatusBadRequest, "fee_asset_unavailable", "paying the order fee in SUP starts with Economics v2", nil)
+			return
+		}
 		// Surface stable validation messages (shards/budget floors) without sql driver leaks.
 		msg := "escrow open failed"
 		if err != nil {

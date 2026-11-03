@@ -249,6 +249,7 @@ func (a *app) handleSUPTransferSend(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		tx.PubKeyEd25519 = strings.TrimSpace(a.signer.PublicKeyHex())
+		tx.ChainID = a.chain.TxChainIDForNextBlock(r.Context()) // "" before Economics v2
 		canon, err := tx.CanonicalBytes()
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -348,6 +349,65 @@ func (a *app) handleSUPTransferSend(w http.ResponseWriter, r *http.Request) {
 		"tx_hash": txHash,
 		"status":  status,
 	})
+}
+
+// handleSUPTransferByHash reports a SUP transfer status (settlers confirm inclusion with it).
+func (a *app) handleSUPTransferByHash(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	h := strings.TrimSpace(strings.TrimPrefix(r.URL.Path, "/api/sup/tx/"))
+	if h == "" || len(h) > 128 || strings.Contains(h, "/") {
+		http.Error(w, "tx hash required", http.StatusBadRequest)
+		return
+	}
+	row, ok, err := a.chain.SupTxByHash(r.Context(), h)
+	if err != nil {
+		http.Error(w, "lookup failed", http.StatusInternalServerError)
+		return
+	}
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	writeJSON(w, row)
+}
+
+// handleSUPFeeBurn pays a public-product fee in SUP (holder-signed, one burn per product/payer/ref).
+// Internal products (hmc_order) are refused here: their fee is burned inside the operation.
+// No unsigned admin path: the primary wallet pays its order fees inside the order open itself.
+func (a *app) handleSUPFeeBurn(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !a.allowRate("sup_fee_burn:"+clientIP(r), 20) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusTooManyRequests)
+		writeJSON(w, map[string]any{"ok": false, "error": "rate limited", "code": "rate_limited"})
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
+	var body chain.SUPFeeBurn
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(w, map[string]any{"ok": false, "error": "invalid json", "code": "invalid_json"})
+		return
+	}
+	code, err := a.chain.BurnSUPForFee(r.Context(), body)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		status := http.StatusBadRequest
+		if code == "product_internal_only" {
+			status = http.StatusForbidden
+		}
+		w.WriteHeader(status)
+		writeJSON(w, map[string]any{"ok": false, "error": err.Error(), "code": code})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "product": body.Product, "ref": body.Ref, "burned_sup_units": body.AmountUnits})
 }
 
 func (a *app) handleSUPEarnings(w http.ResponseWriter, r *http.Request) {

@@ -36,6 +36,7 @@ type WorkerRow struct {
 	LastTxHash         string
 	LastSettleUnix     int64
 	PendingJSON        string // raw pending_settle object or empty
+	PendingSUPJSON     string // raw SUP pending intent (v2 transfer settle) or empty
 }
 
 // Meta holds ledger-wide fields.
@@ -145,6 +146,24 @@ CREATE INDEX IF NOT EXISTS idx_settle_ledger_kind_ts ON settle_ledger(kind, crea
 	_, _ = s.db.Exec(`ALTER TABLE settle_workers ADD COLUMN session_anchor_units INTEGER NOT NULL DEFAULT 0`)
 	_, _ = s.db.Exec(`ALTER TABLE settle_workers ADD COLUMN session_anchor_sup_units INTEGER NOT NULL DEFAULT 0`)
 	_, _ = s.db.Exec(`ALTER TABLE settle_outbox ADD COLUMN delta_units INTEGER NOT NULL DEFAULT 0`)
+	// Economics v2 SUP settlement by transfer: own pending + outbox so HMC and SUP intents
+	// never pick each other's rows.
+	_, _ = s.db.Exec(`ALTER TABLE settle_workers ADD COLUMN pending_sup_json TEXT NOT NULL DEFAULT ''`)
+	if _, err := s.db.Exec(`
+CREATE TABLE IF NOT EXISTS settle_sup_outbox (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  worker_id TEXT NOT NULL,
+  payout_address TEXT NOT NULL,
+  delta_units INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  tx_hash TEXT NOT NULL DEFAULT '',
+  nonce INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  applied_at INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_settle_sup_outbox_status ON settle_sup_outbox(status, id);`); err != nil {
+		return err
+	}
 	s.backfillUnitsFromFloat()
 	return nil
 }
@@ -281,11 +300,11 @@ func (s *Store) GetWorker(ctx context.Context, workerID string) (WorkerRow, erro
 	err := s.db.QueryRowContext(ctx, `
 SELECT worker_id, settled_hmc, settled_sup, COALESCE(settled_units,0), COALESCE(settled_sup_units,0),
        session_anchor_hmc, session_anchor_sup, COALESCE(session_anchor_units,0), COALESCE(session_anchor_sup_units,0),
-       payout_address, last_tx_hash, last_settle_unix, pending_json
+       payout_address, last_tx_hash, last_settle_unix, pending_json, COALESCE(pending_sup_json,'')
   FROM settle_workers WHERE worker_id=?`, workerID).Scan(
 		&r.WorkerID, &r.SettledHMC, &r.SettledSUP, &r.SettledUnits, &r.SettledSUPUnits,
 		&r.SessionAnchorHMC, &r.SessionAnchorSUP, &r.SessionAnchorUnits, &r.SessionAnchorSUPU,
-		&r.PayoutAddress, &r.LastTxHash, &r.LastSettleUnix, &r.PendingJSON)
+		&r.PayoutAddress, &r.LastTxHash, &r.LastSettleUnix, &r.PendingJSON, &r.PendingSUPJSON)
 	if err == sql.ErrNoRows {
 		r.WorkerID = workerID
 		return r, nil

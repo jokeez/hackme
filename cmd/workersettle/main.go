@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -15,6 +16,8 @@ import (
 )
 
 func main() {
+	asset := flag.String("asset", "hmc", "hmc (coordinator HMC accrual) or sup (Economics v2 SUP by transfer)")
+	flag.Parse()
 	cfg := workersettle.DefaultConfig()
 	if root := findRoot(); root != "" {
 		if cfg.PublishScript == "" {
@@ -30,7 +33,16 @@ func main() {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()
 
-	res, err := workersettle.Run(ctx, cfg)
+	run := workersettle.Run
+	switch *asset {
+	case "hmc":
+	case "sup":
+		run = workersettle.RunSUP
+	default:
+		fmt.Fprintf(os.Stderr, "[settle-workers] unknown -asset %q\n", *asset)
+		os.Exit(2)
+	}
+	res, err := run(ctx, cfg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[settle-workers] FATAL: %v\n", err)
 		os.Exit(1)

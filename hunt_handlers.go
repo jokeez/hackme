@@ -201,7 +201,7 @@ func (a *app) handleHuntCampaignCreate(w http.ResponseWriter, r *http.Request) {
 		writeOrdersAutoFundOrEscrowFailed(w, fundErr)
 		return
 	}
-	escrow, err := a.chain.OpenHuntEscrow(r.Context(), id, budgetHMC, shards)
+	escrow, err := a.chain.OpenFuzzEscrowWithFee(r.Context(), id, budgetHMC, shards, fuzzescrow.EscrowSplit5050, toString(cfgMap["fee_asset"]))
 	if err != nil {
 		_, _ = a.db.ExecContext(r.Context(), `DELETE FROM fuzz_campaigns WHERE id=?`, id)
 		writeFuzzEscrowFailed(w, err)

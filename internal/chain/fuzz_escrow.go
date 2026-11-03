@@ -57,8 +57,19 @@ func (s *Service) OpenHuntEscrow(ctx context.Context, campaignID string, budgetH
 	return s.OpenFuzzEscrowSplit(ctx, campaignID, budgetHMC, budgetShards, fuzzescrow.EscrowSplit5050)
 }
 
-// OpenFuzzEscrowSplit locks budget with the selected escrow split.
+// OpenFuzzEscrowSplit locks budget with the selected escrow split (fee in HMC).
 func (s *Service) OpenFuzzEscrowSplit(ctx context.Context, campaignID string, budgetHMC float64, budgetRuns int, escrowSplit string) (*FuzzEscrowRow, error) {
+	return s.OpenFuzzEscrowWithFee(ctx, campaignID, budgetHMC, budgetRuns, escrowSplit, FeeAssetHMC)
+}
+
+// OpenFuzzEscrowWithFee locks a Dig/Hunt campaign. Under Economics v2 budgetHMC is the customer
+// price: the order fee comes out of it and the rest is miner escrow (same escrow for HMC and
+// SUP fees — with SUP the payer spends escrow HMC + fee SUP). Before v2 the whole budget is escrow.
+func (s *Service) OpenFuzzEscrowWithFee(ctx context.Context, campaignID string, budgetHMC float64, budgetRuns int, escrowSplit, feeAsset string) (*FuzzEscrowRow, error) {
+	asset, err := NormalizeFeeAsset(feeAsset)
+	if err != nil {
+		return nil, err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	campaignID = strings.TrimSpace(campaignID)
@@ -86,8 +97,18 @@ func (s *Service) OpenFuzzEscrowSplit(ctx context.Context, campaignID string, bu
 	if total == 0 {
 		return nil, errors.New("fuzz escrow: budget rounds to zero units")
 	}
+	var tipH uint64
+	var maxIdx sql.NullInt64
+	if err := s.db.QueryRowContext(ctx, `SELECT MAX(block_index) FROM blocks`).Scan(&maxIdx); err == nil && maxIdx.Valid && maxIdx.Int64 >= 0 {
+		tipH = uint64(maxIdx.Int64)
+	}
+	var fee OrderFeeV2
+	if EconomicsV2ActiveForIndex(tipH + 1) {
+		fee, total = OrderFeeV2FromPrice(tipH, total, asset)
+	} else if asset != FeeAssetHMC {
+		return nil, errors.New("chain: fee_asset SUP requires Economics v2")
+	}
 	var split fuzzescrow.SplitUnits
-	var err error
 	switch escrowSplit {
 	case fuzzescrow.EscrowSplit5050:
 		split, err = fuzzescrow.ComputeHuntSplitUnits(total, budgetRuns)
@@ -119,7 +140,8 @@ func (s *Service) OpenFuzzEscrowSplit(ctx context.Context, campaignID string, bu
 		}
 		return nil, err
 	}
-	if balUnits < split.TotalUnits {
+	debitUnits := split.TotalUnits + fee.HMCUnits()
+	if balUnits < debitUnits {
 		return nil, ErrFuzzInsufficientBalance
 	}
 	var accountUnits uint64
@@ -129,28 +151,35 @@ func (s *Service) OpenFuzzEscrowSplit(ctx context.Context, campaignID string, bu
 		}
 		return nil, err
 	}
-	if accountUnits < split.TotalUnits {
+	if accountUnits < debitUnits {
 		return nil, ErrFuzzInsufficientBalance
 	}
 	// Dual-ledger: wallet + accounts must both debit (same invariant as order escrow).
 	if _, err := tx.ExecContext(ctx,
 		`UPDATE wallet SET balance_units = balance_units - ?, balance_hmc = (balance_units - ?) / ? WHERE id=1`,
-		split.TotalUnits, split.TotalUnits, float64(UnitsPerHMC)); err != nil {
+		debitUnits, debitUnits, float64(UnitsPerHMC)); err != nil {
 		return nil, err
 	}
 	if _, err := tx.ExecContext(ctx,
 		`UPDATE accounts SET balance_units = balance_units - ?, updated_at = strftime('%s','now') WHERE address = ?`,
-		split.TotalUnits, walletAddr); err != nil {
+		debitUnits, walletAddr); err != nil {
 		return nil, err
+	}
+	if fee.Asset != "" {
+		if _, err := s.applyOrderFeeV2Tx(ctx, tx, walletAddr, fee, "campaign:"+campaignID); err != nil {
+			return nil, err // ErrSUPFeeInsufficent when the SUP fee is not covered: nothing is debited
+		}
 	}
 	now := time.Now().Unix()
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO fuzz_campaign_escrow
 		 (campaign_id, budget_units, runs_pool_units, bounty_pool_units, runs_paid_units, bounty_paid_units,
-		  runs_done, budget_runs, per_run_units, finding_winner, status, created_at, escrow_split)
-		 VALUES (?, ?, ?, ?, 0, 0, 0, ?, ?, '', 'open', ?, ?)`,
+		  runs_done, budget_runs, per_run_units, finding_winner, status, created_at, escrow_split,
+		  fee_asset, fee_burn_units, fee_platform_units, fee_sup_units)
+		 VALUES (?, ?, ?, ?, 0, 0, 0, ?, ?, '', 'open', ?, ?, ?, ?, ?, ?)`,
 		campaignID, split.TotalUnits, split.RunsPoolUnits, split.BountyPoolUnits,
-		budgetRuns, split.PerRunUnits, now, escrowSplit); err != nil {
+		budgetRuns, split.PerRunUnits, now, escrowSplit,
+		fee.Asset, fee.BurnUnits, fee.PlatformUnits, fee.SUPUnits); err != nil {
 		return nil, err
 	}
 	if err := s.checkEconomicInvariants(ctx, tx); err != nil {

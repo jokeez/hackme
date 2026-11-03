@@ -106,10 +106,25 @@ if [[ -z "$ADMIN_TOKEN" || -z "$COORD_ADMIN_TOKEN" ]]; then
   exit 1
 fi
 
+# Economics v2: SUP is emitted only by blocks to the settlement wallet and admin mint is
+# retired on chain. Settlement must then pay SUP by transfer (Go settler, nonce-safe) — never
+# fall back to genesis/mint here. Accrual keeps growing in the coordinator until that runs.
+sup_econ="$(curl -fsS --max-time 8 "${CHAIN_BASE}/api/sup/economics" 2>/dev/null || true)"
+if [[ "$(jq -r '.economics.admin_mint_retired // false' <<<"$sup_econ" 2>/dev/null)" == "true" ]]; then
+  echo "[settle-sup] economics v2: admin SUP mint retired — settling SUP by transfer (workersettle -asset sup)" >&2
+  for b in "$ROOT_DIR/bin/workersettle" "$ROOT_DIR/workersettle"; do
+    if [[ -x "$b" ]]; then
+      ADMIN_TOKEN="$ADMIN_TOKEN" COORD_ADMIN_TOKEN="$COORD_ADMIN_TOKEN" STATE_FILE="$STATE_FILE" exec "$b" -asset sup
+    fi
+  done
+  echo "[settle-sup] ERROR: workersettle binary not found — SUP stays accrued (no mint fallback)" >&2
+  exit 1
+fi
+
 # Ensure SUP genesis only when mint is not live yet.
 # (Genesis is now idempotent and will not wipe total_minted; still avoid
 # hammering it every settle tick.)
-sup_live="$(curl -fsS --max-time 8 "${CHAIN_BASE}/api/sup/economics" 2>/dev/null | jq -r '.economics.mint_enabled // false' 2>/dev/null || echo false)"
+sup_live="$(jq -r '.economics.mint_enabled // false' <<<"$sup_econ" 2>/dev/null || echo false)"
 if [[ "$sup_live" != "true" ]]; then
   curl -fsS -X POST "${CHAIN_BASE}/api/sup/genesis" \
     -H "X-Hackme-Admin-Token: ${ADMIN_TOKEN}" \
