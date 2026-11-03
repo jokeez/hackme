@@ -44,8 +44,16 @@ var (
 	ErrAuthorityPubKeyCfg = errors.New("chain: authority pubkey not configured (set HACKME_CHAIN_AUTHORITY_PUBKEY)")
 )
 
+// DefaultAuthorityPubKey is the hub's block-signing key compiled into the announce release
+// ("" = none): followers verify v2 blocks without any env. A hub whose own key differs refuses
+// to produce v2 blocks (validateV2HeaderQ), so a wrong constant fails loudly, never silently.
+const DefaultAuthorityPubKey = ""
+
 func authorityPubKeyFromEnv() string {
-	return strings.ToLower(strings.TrimSpace(os.Getenv("HACKME_CHAIN_AUTHORITY_PUBKEY")))
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("HACKME_CHAIN_AUTHORITY_PUBKEY"))); v != "" {
+		return v
+	}
+	return strings.ToLower(strings.TrimSpace(DefaultAuthorityPubKey))
 }
 
 func validAuthorityPubKeyHex(v string) bool {
