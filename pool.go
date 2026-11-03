@@ -286,6 +286,8 @@ func (a *app) resolveCoordinatorWorkStats(ctx context.Context, base string, deta
 		return nil, false, err
 	}
 	ensureCoordinatorWorkersMap(ws)
+	redactPublicWorkStats(ws)
+	ws["source"] = publicCoordinatorSourceLabel(base)
 	storeWorkStatsCacheLane(ws, false)
 	return ws, false, nil
 }
@@ -340,31 +342,12 @@ func applyWorkStatsPoolFields(statusBody map[string]any, ws map[string]any) {
 	if statusBody == nil || ws == nil {
 		return
 	}
-	if tm := asUint64(ws["target_mod"]); tm > 0 {
-		statusBody["pool_target_mod"] = tm
-		statusBody["pool_target_mod_source"] = "coordinator"
-	}
-	if hint := asUint64(ws["target_mod_load_hint"]); hint > 0 {
-		statusBody["pool_target_mod_load_hint"] = hint
-	}
-	if _, ok := ws["target_mod_load_capped"]; ok {
-		if b, ok := ws["target_mod_load_capped"].(bool); ok {
-			statusBody["pool_target_mod_load_capped"] = b
-		}
-	}
-	if min := asUint64(ws["target_mod_min"]); min > 0 {
-		statusBody["pool_target_mod_min"] = min
-	}
-	if max := asUint64(ws["target_mod_max"]); max > 0 {
-		statusBody["pool_target_mod_max"] = max
-	}
+	// Exact pool target_mod / load hints stay off the public status surface
+	// (same class as /api/work/stats redaction). Hashrate + worker counts remain.
 	statusBody["pool_workers_count"] = asUint64(ws["workers_count"])
 	if gh := parseAnyFloat(ws["pool_hashrate_gh_s"]); gh > 0 {
 		statusBody["pool_hashrate_gh_s"] = gh
 		statusBody["pool_global_hashrate_th_s"] = gh / 1000.0
-	}
-	if rpm := parseAnyFloat(ws["reward_per_m"]); rpm > 0 {
-		statusBody["pool_reward_per_m"] = rpm
 	}
 }
 
@@ -381,6 +364,10 @@ func (a *app) warmWorkStatsCacheAsync(base string, details bool) {
 			return
 		}
 		ensureCoordinatorWorkersMap(ws)
+		if !details {
+			redactPublicWorkStats(ws)
+			ws["source"] = publicCoordinatorSourceLabel(base)
+		}
 		storeWorkStatsCacheLane(ws, details)
 	}()
 }
@@ -1582,7 +1569,7 @@ func (a *app) attachPoolLaneCached(statusBody map[string]any) {
 		statusBody["pool_work_stats_cached_sec"] = age
 	}
 	coord := strings.TrimRight(strings.TrimSpace(a.coordinatorBaseURL()), "/")
-	if coord != "" && asUint64(statusBody["pool_target_mod"]) == 0 {
+	if coord != "" && asUint64(statusBody["pool_workers_count"]) == 0 {
 		a.warmWorkStatsCacheAsync(coord, false)
 	}
 }
@@ -1610,6 +1597,8 @@ func (a *app) attachPoolLaneToStatus(ctx context.Context, statusBody map[string]
 			wsErr = err
 			if err == nil && m != nil {
 				ensureCoordinatorWorkersMap(m)
+				redactPublicWorkStats(m)
+				m["source"] = publicCoordinatorSourceLabel(coord)
 				storeWorkStatsCache(m)
 			}
 		}()
@@ -1640,39 +1629,7 @@ func (a *app) attachPoolLaneToStatus(ctx context.Context, statusBody map[string]
 	} else if coord != "" && netErr != nil {
 		statusBody["pool_network_stats_error"] = netErr.Error()
 	}
-	if asUint64(statusBody["pool_target_mod"]) == 0 {
-		peer := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/")
-		if peer == "" {
-			return
-		}
-		mctx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
-		req, err := http.NewRequestWithContext(mctx, http.MethodGet, peer+"/api/metrics", nil)
-		if err != nil {
-			cancel()
-			return
-		}
-		cl := &http.Client{Timeout: 1500 * time.Millisecond}
-		resp, err2 := cl.Do(req)
-		if err2 != nil || resp == nil {
-			cancel()
-			return
-		}
-		func() {
-			defer resp.Body.Close()
-			if resp.StatusCode != http.StatusOK {
-				return
-			}
-			var remote map[string]any
-			if json.NewDecoder(resp.Body).Decode(&remote) != nil {
-				return
-			}
-			if tm := asUint64(remote["mining_target_mod"]); tm > 0 {
-				statusBody["pool_target_mod"] = tm
-				statusBody["pool_target_mod_source"] = "canonical_metrics"
-			}
-		}()
-		cancel()
-	}
+	// Exact pool/chain target_mod stays off public /api/status (work/stats redaction class).
 }
 
 func anySlice(v any) []any {
@@ -1896,20 +1853,23 @@ func (a *app) handleGlobalMetrics(w http.ResponseWriter, r *http.Request) {
 		if workRes.err == nil {
 			ws := workRes.work
 			workPart["ok"] = true
-			workPart["issued_ranges"] = asUint64(ws["issued_ranges"])
 			workPart["submitted_items"] = asUint64(ws["submitted_items"])
 			workPart["accepted_attempts"] = asUint64(ws["accepted_attempts"])
-			workPart["target_mod"] = asUint64(ws["target_mod"])
 			workPart["total_payout_hmc"] = ws["total_payout_hmc"]
 			workPart["pool_hashrate_gh_s"] = ws["pool_hashrate_gh_s"]
+			workPart["base_reward_hmc"] = ws["base_reward_hmc"]
+			workPart["found_bonus_hmc"] = ws["found_bonus_hmc"]
+			workPart["tip_height"] = ws["tip_height"]
 			workPart["workers"] = ws["workers"]
 			workPart["miners"] = ws["miners"]
 			workPart["active_rigs"] = ws["active_rigs"]
+			workPart["workers_online"] = ws["workers_online"]
 			wc := asUint64(ws["workers_count"])
 			if wc == 0 {
 				wc = uint64(len(mapFromAny(ws["workers"])))
 			}
 			workPart["workers_count"] = wc
+			// Do not publish exact target_mod / issued_ranges on the public aggregate.
 		} else {
 			workPart["reason"] = "coordinator_unavailable"
 			workPart["error"] = workRes.err.Error()
@@ -1919,29 +1879,15 @@ func (a *app) handleGlobalMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 	applyPoolHashrateToNetwork(networkPart, workPart)
 	mergeWorkActiveRigsIntoNetwork(networkPart, workPart)
-	// If coordinator target_mod is unavailable, pull canonical target_mod so
-	// follower dashboards keep difficulty fresh while idle.
-	if asUint64(workPart["target_mod"]) == 0 {
-		if peer := strings.TrimRight(a.canonicalChainBaseURL(), "/"); peer != "" {
-			metricsCtx, metricsCancel := context.WithTimeout(r.Context(), 1*time.Second)
-			req, _ := http.NewRequestWithContext(metricsCtx, http.MethodGet, peer+"/api/metrics", nil)
-			cl := &http.Client{Timeout: 1 * time.Second}
-			if resp, err := cl.Do(req); err == nil && resp != nil {
-				defer resp.Body.Close()
-				if resp.StatusCode == http.StatusOK {
-					var remote map[string]any
-					if decErr := json.NewDecoder(resp.Body).Decode(&remote); decErr == nil {
-						if tm := asUint64(remote["mining_target_mod"]); tm > 0 {
-							workPart["target_mod"] = tm
-							if _, ok := workPart["reason"]; !ok {
-								workPart["reason"] = "target_from_canonical_metrics"
-							}
-						}
-					}
-				}
-			}
-			metricsCancel()
+	if workers, ok := workPart["workers"].(map[string]any); ok {
+		tmp := map[string]any{"workers": workers, "active_rigs": workPart["active_rigs"]}
+		redactPublicWorkStats(tmp)
+		workPart["workers"] = tmp["workers"]
+		if ar, ok := tmp["active_rigs"]; ok {
+			workPart["active_rigs"] = ar
 		}
+		workPart["workers_count"] = tmp["workers_count"]
+		workPart["workers_keys"] = "pseudonym_v1"
 	}
 
 	writeJSON(w, map[string]any{
@@ -2072,11 +2018,12 @@ func (a *app) handleWorkStats(w http.ResponseWriter, r *http.Request) {
 		if adminDetails {
 			a.enrichWorkStatsDesktopWorker(out)
 			out["details"] = true
+			out["source"] = base
 		} else {
 			redactPublicWorkStats(out)
+			out["source"] = publicCoordinatorSourceLabel(base)
 		}
 		out["ok"] = true
-		out["source"] = base
 		out["stale"] = age > int64(workStatsCacheFreshSec)
 		out["stale_sec"] = age
 		out["cache_hit"] = true
@@ -2095,11 +2042,12 @@ func (a *app) handleWorkStats(w http.ResponseWriter, r *http.Request) {
 		if adminDetails {
 			a.enrichWorkStatsDesktopWorker(out)
 			out["details"] = true
+			out["source"] = base
 		} else {
 			redactPublicWorkStats(out)
+			out["source"] = publicCoordinatorSourceLabel(base)
 		}
 		out["ok"] = true
-		out["source"] = base
 		out["stale"] = true
 		out["stale_sec"] = age
 		out["cache_hit"] = true
@@ -2123,11 +2071,15 @@ func (a *app) handleWorkStats(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		log.Printf("work/stats coordinator fallback: %v", err)
+		src := base
+		if !adminDetails {
+			src = publicCoordinatorSourceLabel(base)
+		}
 		writeJSON(w, map[string]any{
 			"ok":      false,
 			"reason":  "coordinator_unavailable",
 			"message": err.Error(),
-			"source":  base,
+			"source":  src,
 		})
 		return
 	}
@@ -2140,14 +2092,15 @@ func (a *app) handleWorkStats(w http.ResponseWriter, r *http.Request) {
 		ws["workers_count"] = uint64(len(workersMap))
 	}
 	ws["ok"] = true
-	ws["source"] = base
 	ws["stale"] = false
 	ws["stale_sec"] = int64(0)
 	if adminDetails {
 		ws["details"] = true
+		ws["source"] = base
 		a.enrichWorkStatsDesktopWorker(ws)
 	} else {
 		redactPublicWorkStats(ws)
+		ws["source"] = publicCoordinatorSourceLabel(base)
 	}
 	storeWorkStatsCacheLane(ws, adminDetails)
 	writeJSON(w, ws)

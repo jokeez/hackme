@@ -7,6 +7,22 @@ func TestRedactPublicWorkStats(t *testing.T) {
 		"desktop_worker_id":             "worker-email-host",
 		"desktop_worker_injected":       true,
 		"desktop_worker_on_coordinator": false,
+		"source":                        "http://127.0.0.1:18083",
+		"target_mod":                    uint64(93615156251),
+		"share_divisor":                 uint64(1024),
+		"default_batch":                 uint64(4194304),
+		"next_nonce":                    uint64(99),
+		"tip_height":                    uint64(515000),
+		"hashrate_hs":                   1.5e9,
+		"pool_budget": map[string]any{
+			"enabled":            true,
+			"daily_budget_hmc":   28.8,
+			"accrued_today_hmc":  10.0,
+			"remaining_today_hmc": 18.8,
+			"budget_clip_events": 99,
+			"persisted":          true,
+			"note":               "cap",
+		},
 		"workers": map[string]any{
 			"worker-kapa-pc": map[string]any{
 				"payout_hmc":     1.5,
@@ -19,6 +35,21 @@ func TestRedactPublicWorkStats(t *testing.T) {
 	redactPublicWorkStats(ws)
 	if _, ok := ws["desktop_worker_id"]; ok {
 		t.Fatal("desktop_worker_id must be stripped")
+	}
+	for _, k := range []string{"source", "target_mod", "share_divisor", "default_batch", "next_nonce"} {
+		if _, ok := ws[k]; ok {
+			t.Fatalf("%s must be stripped for public callers", k)
+		}
+	}
+	if ws["tip_height"] != uint64(515000) {
+		t.Fatalf("tip_height should remain for transparency, got %v", ws["tip_height"])
+	}
+	pb := ws["pool_budget"].(map[string]any)
+	if _, ok := pb["budget_clip_events"]; ok {
+		t.Fatalf("budget_clip_events must not be public: %v", pb)
+	}
+	if pb["daily_budget_hmc"] != 28.8 {
+		t.Fatalf("daily_budget_hmc should remain, got %v", pb)
 	}
 	workers := ws["workers"].(map[string]any)
 	if len(workers) != 1 {
@@ -35,6 +66,33 @@ func TestRedactPublicWorkStats(t *testing.T) {
 		if m["payout_address"] != "HMC-abc" {
 			t.Fatalf("row=%v", m)
 		}
+	}
+}
+
+func TestPublicCoordinatorSourceLabel(t *testing.T) {
+	if got := publicCoordinatorSourceLabel("http://127.0.0.1:18083"); got != "pool" {
+		t.Fatalf("loopback -> pool, got %q", got)
+	}
+	if got := publicCoordinatorSourceLabel("https://hackme.tech/pool/coordinator"); got != "pool" {
+		t.Fatalf("public also opaque label, got %q", got)
+	}
+}
+
+func TestRedactInternalCoordinatorURLs(t *testing.T) {
+	m := map[string]any{
+		"pool_coordinator_url":           "http://127.0.0.1:18083",
+		"pool_coordinator_url_effective": "http://127.0.0.1:18083",
+		"miner_public_ux": map[string]any{
+			"coordinator_url_effective": "http://127.0.0.1:18083",
+		},
+	}
+	redactInternalCoordinatorURLs(m)
+	if m["pool_coordinator_url"] != "pool" {
+		t.Fatalf("url=%v", m["pool_coordinator_url"])
+	}
+	ux := m["miner_public_ux"].(map[string]any)
+	if ux["coordinator_url_effective"] != defaultPublicStagingCoordinatorBase {
+		t.Fatalf("ux=%v", ux)
 	}
 }
 

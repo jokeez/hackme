@@ -795,17 +795,15 @@
         ? Math.floor(tipHeight).toLocaleString("en-US")
         : "—";
 
-    let diff = global && global.work ? Number(global.work.target_mod) : NaN;
-    if (!Number.isFinite(diff) || diff <= 0) {
-      diff = Number(work && work.target_mod);
-    }
+    // Exact pool target_mod is redacted on public edges; show Blake3 wall hashrate instead.
+    const gh =
+      Number(work && (work.pool_hashrate_gh_s != null ? work.pool_hashrate_gh_s : work.hashrate_hs / 1e9)) ||
+      Number(global && global.work && global.work.pool_hashrate_gh_s);
     const diffText = (() => {
-      if (!Number.isFinite(diff) || diff <= 0) return "—";
-      const n = Math.floor(diff);
-      // Compact form once M leaves the familiar millions range (solvency-scale / misconfig).
-      if (n >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
-      if (n >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
-      return n.toLocaleString("en-US");
+      if (!Number.isFinite(gh) || gh <= 0) return "—";
+      if (gh >= 1000) return `${(gh / 1000).toFixed(2)} TH/s`;
+      if (gh >= 1) return `${gh.toFixed(2)} GH/s`;
+      return `${(gh * 1000).toFixed(0)} MH/s`;
     })();
 
     let reward = Number(work && work.base_reward_hmc);
@@ -829,7 +827,9 @@
     const miners = Number.isFinite(online) && online >= 0 ? online : known;
     const workersText = Number.isFinite(miners) && miners >= 0 ? String(Math.floor(miners)) : "—";
 
-    const poolOk = (global && global.work && global.work.ok) || (work && work.issued_ranges != null);
+    const poolOk =
+      (global && global.work && global.work.ok) ||
+      (work && (work.ok === true || work.workers_online != null || work.hashrate_hs != null));
     let statusText = "degraded";
     if (poolOk) {
       statusText = miners > 0 ? "online" : "online · idle";
@@ -856,7 +856,7 @@
   async function updateLiveStatus(liveEl) {
     if (!liveEl) return;
     const work = await fetchJson(coordinatorApi("/api/work/stats"), 3500);
-    if (work && work.issued_ranges != null) {
+    if (work && (work.ok === true || work.workers_online != null || work.hashrate_hs != null)) {
       liveEl.textContent = "online";
       return;
     }

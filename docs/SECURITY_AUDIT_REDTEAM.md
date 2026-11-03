@@ -53,6 +53,7 @@ Reports: `reports/tests/security_full_20260828T190633Z/` · `reports/gates/redte
 |------|----------------|------------------------|
 | Coordinator claim/submit without token | **Critical** on public bind | **Fail-closed** unless `HACKME_COORDINATOR_ALLOW_INSECURE=1` |
 | `GET /api/work/stats?details=1` leak | **High** | Requires coordinator token; node forwards token |
+| Public `/api/work/stats` overshare (`source` loopback URL, `target_mod` / lease knobs) | **Medium** | Public lane allowlist-style strip + opaque `source=pool`; loopback coordinator URLs redacted on `/api/status`; share_mod remains on authenticated claim |
 | `POST /api/tx/send` remote auto-sign | **High** | Requires admin token (except loopback + token) |
 | Desktop `/api/desktop/local-auth` token leak | **High** (loopback/desktop) | API always returns token on loopback+desktop (UX); HTML embed still gated by `HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1`. Rotate token on shared hosts. |
 | Fake attempts payout | **High** (economic) | **Operator policy** — use `PAYOUT_FOUND_ONLY` + hybrid strict |
