@@ -1,6 +1,7 @@
-// Open missing Hunt 50/50 escrow for a running campaign (ops heal).
+// Open missing Hunt 50/50 escrow or finalize an open one (ops heal).
 //
 //	go run ./cmd/openhunteescrow -campaign hunt-… -budget 150 -shards 12000
+//	go run ./cmd/openhunteescrow -campaign hunt-… -finalize -db /opt/hackme-bootstrap/data/hackme.db
 package main
 
 import (
@@ -19,8 +20,9 @@ import (
 
 func main() {
 	camp := flag.String("campaign", "", "campaign id")
-	budget := flag.Float64("budget", 150, "budget HMC")
-	shards := flag.Int("shards", 12000, "budget shards/runs")
+	budget := flag.Float64("budget", 150, "budget HMC (open only)")
+	shards := flag.Int("shards", 12000, "budget shards/runs (open only)")
+	finalize := flag.Bool("finalize", false, "FinalizeFuzzEscrow (refund unused + close)")
 	dbPath := flag.String("db", "", "hackme.db path")
 	flag.Parse()
 	if *camp == "" {
@@ -45,6 +47,16 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	svc := chain.New(db)
+	if *finalize {
+		row, err := svc.FinalizeFuzzEscrow(ctx, *camp)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "FinalizeFuzzEscrow: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("ok finalize campaign=%s status=%s runs_paid=%.4f refunded_runs=%.4f refunded_bounty=%.4f\n",
+			row.CampaignID, row.Status, row.RunsPaidHMC, row.RefundedRunsHMC, row.RefundedBountyHMC)
+		return
+	}
 	row, err := svc.OpenHuntEscrow(ctx, *camp, *budget, *shards)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "OpenHuntEscrow: %v\n", err)

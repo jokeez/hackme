@@ -126,6 +126,11 @@ func (a *app) pullFuzzSettleOutboxWindow(ctx context.Context, campaignID string,
 			if undrainable == len(items) {
 				log.Printf("fuzz settle pull: %d undrainable outbox head row(s) (local_hits=%d) — not blocking other campaigns",
 					len(items), localHits)
+				// Foreign-only window (no local escrow on this node): soft-OK so
+				// reopen/finalize ops are not wedged by another customer's findings.
+				if localHits == 0 {
+					return nil
+				}
 				return fmt.Errorf("%w (%d pending, local_hits=%d)", errSettleOutboxUndrainableHead, len(items), localHits)
 			}
 			if localHits == 0 {
