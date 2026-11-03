@@ -1,7 +1,7 @@
 // Open missing Hunt 50/50 escrow or finalize an open one (ops heal).
 //
 //	go run ./cmd/openhunteescrow -campaign hunt-… -budget 150 -shards 12000
-//	go run ./cmd/openhunteescrow -campaign hunt-… -finalize -db /opt/hackme-bootstrap/data/hackme.db
+//	go run ./cmd/openhunteescrow -campaign hunt-… -finalize -confirm-campaign hunt-… -db …
 package main
 
 import (
@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"hackme/internal/chain"
@@ -23,6 +24,7 @@ func main() {
 	budget := flag.Float64("budget", 150, "budget HMC (open only)")
 	shards := flag.Int("shards", 12000, "budget shards/runs (open only)")
 	finalize := flag.Bool("finalize", false, "FinalizeFuzzEscrow (refund unused + close)")
+	confirm := flag.String("confirm-campaign", "", "must equal -campaign when using -finalize (anti-footgun)")
 	dbPath := flag.String("db", "", "hackme.db path")
 	flag.Parse()
 	if *camp == "" {
@@ -48,6 +50,10 @@ func main() {
 	defer cancel()
 	svc := chain.New(db)
 	if *finalize {
+		if err := authorizeFinalize(*camp, *confirm, os.Getenv("HACKME_ESCROW_FINALIZE_OK")); err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(2)
+		}
 		row, err := svc.FinalizeFuzzEscrow(ctx, *camp)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "FinalizeFuzzEscrow: %v\n", err)
@@ -68,4 +74,20 @@ func main() {
 	}
 	fmt.Printf("ok campaign=%s status=%s budget_hmc=%.4f runs_pool=%.4f bounty_pool=%.4f per_run≈%.6f\n",
 		row.CampaignID, row.Status, row.BudgetHMC, row.RunsPoolHMC, row.BountyPoolHMC, per)
+}
+
+// authorizeFinalize requires an explicit second copy of the campaign id so a stray
+// -finalize on a live DB cannot refund escrow by accident (audit H3). Either
+// -confirm-campaign or HACKME_ESCROW_FINALIZE_OK must equal the campaign id.
+func authorizeFinalize(campaign, confirmFlag, confirmEnv string) error {
+	camp := strings.TrimSpace(campaign)
+	if camp == "" {
+		return fmt.Errorf("refuse finalize: empty campaign")
+	}
+	okFlag := strings.TrimSpace(confirmFlag) == camp
+	okEnv := strings.TrimSpace(confirmEnv) == camp
+	if okFlag || okEnv {
+		return nil
+	}
+	return fmt.Errorf("refuse finalize: pass -confirm-campaign=%s (or HACKME_ESCROW_FINALIZE_OK with the same id)", camp)
 }
