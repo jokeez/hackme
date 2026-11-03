@@ -23,19 +23,30 @@ export E2E_TOKEN E2E_WORKER_TOKEN E2E_PUBLISH_TOKEN
 NODE_PUBLISH_PORT="${NODE_PUBLISH_PORT:-28080}"
 COORD_PUBLISH_PORT="${COORD_PUBLISH_PORT:-28081}"
 export NODE_PUBLISH_PORT COORD_PUBLISH_PORT
-NODE_URL="${NODE_URL:-http://127.0.0.1:${NODE_PUBLISH_PORT}}"
-COORD_URL="${COORD_URL:-http://127.0.0.1:${COORD_PUBLISH_PORT}}"
+# Force loopback publish URLs — stale COORD_URL/NODE_URL from the host shell
+# (e.g. VPS tunnels) must not win over ${VAR:-default} empty-vs-unset semantics.
+NODE_URL="http://127.0.0.1:${NODE_PUBLISH_PORT}"
+COORD_URL="http://127.0.0.1:${COORD_PUBLISH_PORT}"
+export NODE_URL COORD_URL
 ADMIN="$E2E_TOKEN"
 WORKER="$E2E_WORKER_TOKEN"
 PUBLISH="$E2E_PUBLISH_TOKEN"
 
 cleanup() {
+  if [[ "${HACKME_E2E_KEEP:-0}" == "1" ]]; then
+    echo "[e2e] KEEP=1 — leaving stack up (node=$NODE_URL coord=$COORD_URL)"
+    return 0
+  fi
   "${COMPOSE[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
 echo "[e2e] admin=${E2E_TOKEN:0:8}… worker=${E2E_WORKER_TOKEN:0:8}… publish=${E2E_PUBLISH_TOKEN:0:8}… node=$NODE_URL"
-cleanup
+if [[ "${HACKME_E2E_KEEP:-0}" != "1" ]]; then
+  cleanup
+else
+  "${COMPOSE[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
+fi
 if [[ "${HACKME_E2E_NO_BUILD:-0}" == "1" ]]; then
   "${COMPOSE[@]}" up -d
 else

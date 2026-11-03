@@ -55,8 +55,10 @@ func TestLeaseSecondsForConfigScalesWithExec(t *testing.T) {
 }
 
 func TestLeaseSecondsForHuntShardUsesIterations(t *testing.T) {
+	// Force byte path — coverage engines use engine_lease_sec (not L1 iter × timeout).
 	cfg := map[string]any{
 		"work_kind":            "hunt_shard",
+		"hunt_engine":          "byte",
 		"iterations_per_shard": 128,
 		"pool_distributed":     true,
 		"exec_per_unit":        1,
@@ -75,12 +77,26 @@ func TestLeaseSecondsForHuntShardUsesIterations(t *testing.T) {
 }
 
 func TestLeaseSecondsHuntHeavyCappedAt360(t *testing.T) {
+	// Byte heavy: iter×timeout hits the 360s Hunt cap. LF fleet default is ~180 (2×60).
 	cfg := map[string]any{
 		"work_kind":            "hunt_shard",
+		"hunt_engine":          "byte",
 		"iterations_per_shard": 256,
 		"pool_distributed":     true,
 	}
 	if sec := leaseSecondsForConfig(cfg); sec != 360 {
 		t.Fatalf("heavy hunt lease=%d want 360", sec)
+	}
+}
+
+func TestLeaseSecondsHuntLibFuzzerFleet(t *testing.T) {
+	cfg := map[string]any{
+		"work_kind":        "hunt_shard",
+		"hunt_engine":      "libfuzzer",
+		"pool_distributed": true,
+	}
+	// Default LF wall 60s → lease max(2×60, 60+120)=180, capped ≤360.
+	if sec := leaseSecondsForConfig(cfg); sec != 180 {
+		t.Fatalf("LF fleet lease=%d want 180", sec)
 	}
 }
