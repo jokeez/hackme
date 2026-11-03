@@ -113,3 +113,17 @@ func TestSUPAccrualV2FollowsChainSUPPerBlock(t *testing.T) {
 		t.Fatalf("v1 SUP for 1 HMC = %v want 0.08", got)
 	}
 }
+
+func TestSUPAccrualFailClosedWhenMintRetiredWithoutRatio(t *testing.T) {
+	wm := &workManager{
+		supPolicy:           supPolicy{Enabled: true, RateOfHMC: 0.08, DailyCapRatio: 0.12},
+		supMeta:             map[string]workerSupMeta{},
+		abuse:               map[string]workerAbuseState{},
+		baseRewardHMC:       0.1,
+		supPerBlock:         0, // metrics miss
+		supAdminMintRetired: true,
+	}
+	if got := wm.computeSUPAccrual("w", 1, true, 1_800_000_000); got != 0 {
+		t.Fatalf("retired without ratio must pay 0 SUP, got %v (would have been legacy 0.08)", got)
+	}
+}

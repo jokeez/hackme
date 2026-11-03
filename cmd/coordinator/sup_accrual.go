@@ -173,6 +173,10 @@ func (m *workManager) computeSUPAccrual(workerID string, workHMC float64, hybrid
 		if mult > 1 {
 			mult = 1
 		}
+	} else if m.supAdminMintRetired {
+		// Chain already retired admin mint but we have no SUP/block ratio yet (metrics miss /
+		// restart race). Prefer pay 0 over inventing legacy 0.08×HMC (~4× era-0 emission).
+		return 0
 	}
 	sup := attemptHMC * rate * mult
 	if sup <= 0 || math.IsNaN(sup) || math.IsInf(sup, 0) {
@@ -225,6 +229,7 @@ func (m *workManager) supPolicyStats() map[string]any {
 		"economics_v2":        v2,
 		"v2_rate_of_hmc":      v2Ratio,
 		"chain_sup_per_block": m.supPerBlock,
+		"admin_mint_retired":  m.supAdminMintRetired,
 		"enabled":             m.supPolicy.Enabled,
 		"rate_of_hmc":         m.supPolicy.RateOfHMC,
 		"streak_sec":          m.supPolicy.StreakSec,

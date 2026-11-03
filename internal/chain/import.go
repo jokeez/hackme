@@ -136,7 +136,9 @@ func (s *Service) ImportPoHBlock(ctx context.Context, b *block.Block) error {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if err := s.lockEconomicsV2ActivationTx(ctx, tx); err != nil {
+	// Import must not bootstrap irreversible height meta from a typo HEIGHT env (no CONFIRM).
+	// Confirmed env or already-locked meta still syncs; otherwise env alone drives validation.
+	if err := s.lockEconomicsV2ActivationForImportTx(ctx, tx); err != nil {
 		return err
 	}
 	if err := s.validateV2HeaderQ(ctx, tx, b, orderTaskID); err != nil {

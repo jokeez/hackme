@@ -1289,6 +1289,7 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		s.EconExpectedEmptyHmcHour = chain.ExpectedEmptyMiningHMCPerHour(s.BlockHeight)
 		s.EconBaseRewardNowHMC = chain.BaseRewardForBlockIndex(s.BlockHeight + 1)
 		s.EconSUPRewardNow = chain.SUPRewardForBlockIndex(s.BlockHeight + 1)
+		s.EconSUPAdminMintRetired = chain.EconomicsV2ActiveForIndex(s.BlockHeight + 1)
 	}
 	ms := a.miner.Stats()
 	s.MiningPoHBackend = ms.PoHBackend

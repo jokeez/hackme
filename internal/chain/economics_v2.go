@@ -385,6 +385,31 @@ func v2MinLeadBlocks() uint64 {
 // ErrV2ActivationGuard: refused to lock an unconfirmed or too-close activation height.
 var ErrV2ActivationGuard = errors.New("chain: economics v2 activation height not locked")
 
+// lockEconomicsV2ActivationForImportTx syncs locked meta / confirmed env, but never writes
+// height meta from HEIGHT alone (CONFIRM required). Unconfirmed followers still validate
+// headers via EconomicsV2ActivationHeight() env without poisoning local meta.
+func (s *Service) lockEconomicsV2ActivationForImportTx(ctx context.Context, tx queryRowExecContext) error {
+	metaH, err := s.metaUint(ctx, tx, metaEconomicsV2ActivationHeight, 0)
+	if err != nil {
+		return err
+	}
+	if metaH >= 1 {
+		return s.lockEconomicsV2ActivationTx(ctx, tx)
+	}
+	raw := strings.TrimSpace(os.Getenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT"))
+	h, perr := strconv.ParseUint(raw, 10, 64)
+	if raw == "" || perr != nil || h < 1 {
+		return s.lockAuthorityPubKeyTx(ctx, tx)
+	}
+	if !v2ActivationGuardOff {
+		if c := strings.TrimSpace(os.Getenv("HACKME_ECONOMICS_V2_ACTIVATION_CONFIRM")); c != raw {
+			// Env height present but unconfirmed — do not lock; still pin authority if needed.
+			return s.lockAuthorityPubKeyTx(ctx, tx)
+		}
+	}
+	return s.lockEconomicsV2ActivationTx(ctx, tx)
+}
+
 // checkV2ActivationGuardTx runs before lockEconomicsV2ActivationTx on the producing path.
 func (s *Service) checkV2ActivationGuardTx(ctx context.Context, tx queryRowExecContext, nextIdx uint64) error {
 	if v2ActivationGuardOff {

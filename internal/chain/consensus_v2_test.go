@@ -384,10 +384,13 @@ func TestV2ActivationGuardLocksWhenConfirmedWithLead(t *testing.T) {
 	if b.Index != 1 || lockedV2Height(t, n.hub, n.hubDB) != 50000 {
 		t.Fatalf("confirmed height not locked: idx=%d", b.Index)
 	}
-	// Followers importing are never gated (they must catch up across the height).
+	// Followers without CONFIRM still import (env drives validation) but must not lock meta.
 	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_CONFIRM", "")
-	f, _ := n.follower()
+	f, fdb := n.follower()
 	if err := f.ImportPoHBlock(n.ctx, b); err != nil {
 		t.Fatalf("follower import gated: %v", err)
+	}
+	if h := lockedV2Height(t, f, fdb); h != 0 {
+		t.Fatalf("unconfirmed follower must not lock height meta, got %d", h)
 	}
 }
