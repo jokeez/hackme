@@ -847,6 +847,20 @@ const claimCandidateLimit = 512 // retained for tests / callers; claim path is c
 //  3. expired lease reclaim
 //  4. round-robin among other + bootstrap
 func (s *Service) Claim(ctx context.Context, workerID string, now int64) (ClaimedWork, bool, error) {
+	return s.ClaimWithOptions(ctx, workerID, now, ClaimOptions{})
+}
+
+// ClaimOptions narrows Claim to work the worker can actually execute.
+type ClaimOptions struct {
+	// SkipHunt: the worker cannot run Hunt ASAN harnesses. Hunt campaigns are skipped at
+	// selection time instead of leased, released and re-leased: customer Hunt campaigns
+	// sit in phase 1, so a dig-only worker used to get the same Hunt shard back on every
+	// try and never reached dig/bootstrap work while any Hunt campaign had pending rows.
+	SkipHunt bool
+}
+
+// ClaimWithOptions is Claim with worker-capability filtering (see ClaimOptions).
+func (s *Service) ClaimWithOptions(ctx context.Context, workerID string, now int64, opts ClaimOptions) (ClaimedWork, bool, error) {
 	var out ClaimedWork
 	workerID = strings.TrimSpace(workerID)
 	if workerID == "" {
@@ -870,7 +884,7 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 
 	// Phase 1: customer pending always wins over bootstrap lease reclaim / RR.
 	for _, cid := range customers {
-		if work, ok, err := s.claimOnePendingInCampaign(ctx, workerID, cid, now); err != nil || ok {
+		if work, ok, err := s.claimOnePendingInCampaignOpts(ctx, workerID, cid, now, opts); err != nil || ok {
 			return work, ok, err
 		}
 	}
@@ -881,7 +895,7 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 		if nerr == nil && len(nearIDs) > 0 && len(nearIDs) <= 8 {
 			nearIDs = s.filterIDsWithPendingWork(ctx, nearIDs)
 			for _, cid := range nearIDs {
-				if work, ok, err := s.claimOnePendingInCampaign(ctx, workerID, cid, now); err != nil || ok {
+				if work, ok, err := s.claimOnePendingInCampaignOpts(ctx, workerID, cid, now, opts); err != nil || ok {
 					return work, ok, err
 				}
 			}
@@ -927,6 +941,9 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 			if !poolDistributed(cfg) || IsInternalGateCampaign(e.camp, title, ownerRef, cfg) {
 				continue
 			}
+			if opts.SkipHunt && IsHuntCampaign(cfg) {
+				continue
+			}
 			leaseSec := leaseSecondsForConfig(cfg)
 			// Clear predecessor prove before / with ownership transfer.
 			clearLeaseProven(e.camp, int64(e.id))
@@ -953,21 +970,27 @@ func (s *Service) Claim(ctx context.Context, workerID string, now int64) (Claime
 	}
 
 	// Phase 4: RR among other + bootstrap (pending-filtered).
+	// A filtered (capability-limited) miss says nothing about work for other workers, so it
+	// must not arm the global empty-claim cache.
 	if len(restPending) == 0 {
-		s.noteEmptyClaim()
+		if !opts.SkipHunt {
+			s.noteEmptyClaim()
+		}
 		return out, false, nil
 	}
 	start := int(s.claimRR.Add(1) % uint64(len(restPending)))
 	for i := 0; i < len(restPending); i++ {
 		cid := restPending[(start+i)%len(restPending)]
-		if work, ok, err := s.claimOnePendingInCampaign(ctx, workerID, cid, now); err != nil || ok {
+		if work, ok, err := s.claimOnePendingInCampaignOpts(ctx, workerID, cid, now, opts); err != nil || ok {
 			if ok {
 				s.clearEmptyClaimCache()
 			}
 			return work, ok, err
 		}
 	}
-	s.noteEmptyClaim()
+	if !opts.SkipHunt {
+		s.noteEmptyClaim()
+	}
 	return out, false, nil
 }
 
@@ -1070,6 +1093,10 @@ func (s *Service) ReleaseWorkLease(ctx context.Context, campaignID string, itemI
 // Uses a single atomic UPDATE…WHERE id=(SELECT…) so empty campaigns do not
 // pay BEGIN IMMEDIATE (that stampeded claim latency under no_fuzz_work).
 func (s *Service) claimOnePendingInCampaign(ctx context.Context, workerID, campaignID string, now int64) (ClaimedWork, bool, error) {
+	return s.claimOnePendingInCampaignOpts(ctx, workerID, campaignID, now, ClaimOptions{})
+}
+
+func (s *Service) claimOnePendingInCampaignOpts(ctx context.Context, workerID, campaignID string, now int64, opts ClaimOptions) (ClaimedWork, bool, error) {
 	var out ClaimedWork
 	var title, ownerRef, cfgJSON string
 	err := s.DB.QueryRowContext(ctx, `
@@ -1084,6 +1111,9 @@ func (s *Service) claimOnePendingInCampaign(ctx context.Context, workerID, campa
 	}
 	cfg := parseConfigJSON(cfgJSON)
 	if !poolDistributed(cfg) || IsInternalGateCampaign(campaignID, title, ownerRef, cfg) {
+		return out, false, nil
+	}
+	if opts.SkipHunt && IsHuntCampaign(cfg) {
 		return out, false, nil
 	}
 	// Hunt: never lease shards when the ASAN harness is missing — workers would only spin leases.

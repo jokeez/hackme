@@ -809,8 +809,9 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		var ok bool
 		var err error
 		// Dig-only workers must not sticky-lease Hunt shards then 403 — skip/retry for Dig.
+		claimOpts := poolfuzz.ClaimOptions{SkipHunt: !huntCapable}
 		for try := 0; try < 8; try++ {
-			work, ok, err = pf.Claim(r.Context(), workerID, now)
+			work, ok, err = pf.ClaimWithOptions(r.Context(), workerID, now, claimOpts)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -840,7 +841,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		if !ok {
 			wm.recordDrop("no_fuzz_work")
 			w.WriteHeader(http.StatusTooManyRequests)
-			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": "no_fuzz_work"})
+			_ = json.NewEncoder(w).Encode(noFuzzWorkBody(r.Context(), pf, huntCapable, nil))
 			return
 		}
 		// Bind payout lock only after a fully successful claim (not on no_fuzz_work /
@@ -933,6 +934,9 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		// Capacity uses the compile-time cap so allocation size is not attacker-controlled
 		// (CodeQL go/uncontrolled-allocation-size); loop still respects capped limit.
 		items := make([]map[string]any, 0, poolfuzz.MaxBatchClaimSubmit)
+		batchHuntCapable := poolfuzz.HuntHarnessCapable(req.HuntHarnessExec)
+		batchOpts := poolfuzz.ClaimOptions{SkipHunt: !batchHuntCapable}
+		softSkips := 0
 		for i := 0; i < limit; i++ {
 			// Charge IP claim bucket per lease (not once per batch) so multi-id
 			// clients cannot pull up to 16 leases for a single IP slot.
@@ -945,7 +949,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				}
 				break
 			}
-			work, ok, err := pf.Claim(r.Context(), workerID, now)
+			work, ok, err := pf.ClaimWithOptions(r.Context(), workerID, now, batchOpts)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -954,15 +958,21 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				break
 			}
 			isHunt := work.TaskClass == "hunt" || work.WorkKind == "hunt_shard"
-			if isHunt && !poolfuzz.HuntHarnessCapable(req.HuntHarnessExec) {
+			if isHunt && !batchHuntCapable {
+				// Defensive: SkipHunt already filters at selection.
 				_, _ = pf.ReleaseWorkLease(r.Context(), work.CampaignID, work.ItemID, workerID)
 				wm.recordDrop("worker_outdated_for_hunt")
-				continue
+				break
 			}
 			if isHunt {
 				if soft, reason := applyHuntEngineClaimGate(&work, req.HuntEngines); soft {
 					_, _ = pf.ReleaseWorkLease(r.Context(), work.CampaignID, work.ItemID, workerID)
 					wm.recordDrop(reason)
+					// The released shard comes straight back on the next Claim; stop after
+					// a couple instead of churning the same lease up to `limit` times.
+					if softSkips++; softSkips >= 2 {
+						break
+					}
 					continue
 				}
 			}
@@ -979,7 +989,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		if len(items) == 0 {
 			wm.recordDrop("no_fuzz_work")
 			w.WriteHeader(http.StatusTooManyRequests)
-			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": "no_fuzz_work", "items": []any{}})
+			_ = json.NewEncoder(w).Encode(noFuzzWorkBody(r.Context(), pf, batchHuntCapable, []any{}))
 			return
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "count": len(items), "items": items})
@@ -1643,6 +1653,23 @@ func applyHuntEngineClaimGate(work *poolfuzz.ClaimedWork, huntEnginesRaw string)
 		return false, ""
 	}
 	return true, "hunt_engine_soft_skip"
+}
+
+// noFuzzWorkBody is the empty-claim reply. A worker that cannot run Hunt is told when Hunt
+// work is what is waiting (hint), so "no_fuzz_work" stops hiding a capability problem such
+// as a missing clang/bwrap/afl-fuzz on the worker host.
+func noFuzzWorkBody(ctx context.Context, pf *poolfuzz.Service, huntCapable bool, items []any) map[string]any {
+	body := map[string]any{"ok": false, "reason": "no_fuzz_work"}
+	if items != nil {
+		body["items"] = items
+	}
+	if !huntCapable && pf != nil {
+		if n, err := pf.PendingHuntItems(ctx); err == nil && n > 0 {
+			body["hint"] = "hunt_capability_required"
+			body["hunt_campaigns_pending"] = n
+		}
+	}
+	return body
 }
 
 func fuzzClaimPayload(workerID string, work poolfuzz.ClaimedWork) map[string]any {
