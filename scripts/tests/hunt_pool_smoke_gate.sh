@@ -159,6 +159,11 @@ if [[ -z "${HACKME_HUNT_ISOLATE_STRICT:-}" ]]; then
     echo "[hunt-pool-gate] WARN: bwrap probe failed/missing — STRICT=0 for desk gate only (Vast must re-run with working userns)"
   fi
 fi
+# workerfuzz signs claims (hybrid signer): give the gate miner an ephemeral identity.
+if [[ -z "${HACKME_MINER_ED25519_SEED_HEX:-}" && -z "${HACKME_MINER_SEED_FILE:-}" ]]; then
+  HACKME_MINER_ED25519_SEED_HEX="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+  export HACKME_MINER_ED25519_SEED_HEX
+fi
 echo "[hunt-pool-gate] run workerfuzz (timeout_ms=$WORKERFUZZ_TIMEOUT_MS lease=${GATE_LEASE_SEC}s min_done=${GATE_MIN_DONE} isolate_strict=${HACKME_HUNT_ISOLATE_STRICT})"
 # Wall ≥ 2 coverage leases + drain slack (was fixed 120s wanting 4×60s → false FAIL).
 GATE_WALL_SEC="${GATE_WALL_SEC:-$((GATE_LEASE_SEC * GATE_MIN_DONE + 45))}"
