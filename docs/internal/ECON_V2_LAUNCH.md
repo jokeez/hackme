@@ -18,7 +18,7 @@ and inert until a height is set. Read the whole file before the announce day.
 bash scripts/ops/v2_height_planner.sh "YYYY-MM-DD 11:00"   # Tue–Thu, 10–14 UTC
 ```
 
-- Lead ≥ 40 320 blocks (≈ 14 days, RFC D8); the producer guard refuses less.
+- Lead ≥ 20 160 blocks (≈ 7 days, RFC D8); the producer guard refuses less.
 - Arrival error ≈ ±1 h per 2× hashrate change before the height (ASERT offset = difficulty).
 - Avoid 00:xx UTC (pool day reset, checkpoint at 00:10).
 

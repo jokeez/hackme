@@ -8,11 +8,11 @@
 # block lands at now + 30·(H − tip). Error budget: ±1 h of arrival per 2× hashrate change before
 # the height (the offset moves 1 h per doubling). Prints the height,
 # its expected time, the lead in blocks (must be ≥ HACKME_ECONOMICS_V2_MIN_LEAD_BLOCKS, default
-# 40 320 ≈ 14 days) and the env lines for the hub.
+# 20 160 ≈ 7 days) and the env lines for the hub.
 set -euo pipefail
 BASE="${CHAIN_BASE:-https://hackme.tech/pool}"
 TARGET="${1:?usage: $0 \"YYYY-MM-DD HH:MM\" (UTC)}"
-MIN_LEAD="${HACKME_ECONOMICS_V2_MIN_LEAD_BLOCKS:-40320}"
+MIN_LEAD="${HACKME_ECONOMICS_V2_MIN_LEAD_BLOCKS:-20160}"
 command -v jq >/dev/null || { echo "jq required" >&2; exit 2; }
 
 target_unix="$(date -u -d "$TARGET" +%s)"

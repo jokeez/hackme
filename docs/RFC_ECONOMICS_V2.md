@@ -48,9 +48,9 @@ Picking a round height months in advance ignores live tip velocity, soak results
 3. Ship the **height-switch package** (D9) on the release branch.
 4. **Publish the concrete activation height** computed as:
 
-   > **activation_height ≥ tip_at_announce + blocks_in_≥14_days**
+   > **activation_height ≥ tip_at_announce + blocks_in_≥7_days**
 
-   at ~30s target block time (≈ **40 320 blocks / 14 days**), with extra margin if soak needs it.
+   at ~30s target block time (≈ **20 160 blocks / 7 days**), with extra margin if soak needs it.
 
 5. Activate only at that height — one package, not piecemeal merges of “0.1 only” or “SUP only.”
 
@@ -69,7 +69,7 @@ Picking a round height months in advance ignores live tip velocity, soak results
 | Order fee/burn | 5% fee + 10% burn tally (see order docs) | **10% upfront: 5% burn / 5% platform**; Dig soft-start then Hunt |
 | SUP emission | Accrual % of HMC work (live) | On-switch: **0.002 SUP/block**, same halving heights as HMC, **no tail**, cap **21 000** |
 | SUP spend | Spec evolving | **Non-refundable fee only** (1:1 vs HMC fee); escrow always HMC |
-| Activation | n/a | **Announced height** after ≥14d notice — not a pre-chosen vanity height |
+| Activation | n/a | **Announced height** after ≥7d notice — not a pre-chosen vanity height |
 | Airdrops | n/a | **Out of scope** for this RFC |
 
 Dig/Hunt **package prices and escrow splits** (20/80, 40/60, Hunt 50/50) are **unchanged** by this RFC unless a later demand signal says otherwise.
@@ -213,7 +213,7 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 | **D5** | SUP utility | Non-refundable fee only; escrow always HMC |
 | **D6** | Order fee/burn | 10% (5/5); Dig soft-start **30 calendar days** from activation announce, then Hunt |
 | **D7** | Airdrops | **Out of scope** for this RFC / height switch |
-| **D8** | Activation | tip-at-announce + **≥14 days**; height published before release — **not** a vanity block like 650 000 |
+| **D8** | Activation | tip-at-announce + **≥7 days**; height published before release — **not** a vanity block like 650 000 |
 | **D9** | Minimal package | HMC schedule + fee/burn + SUP + `chain_id` + authority sig |
 | **D10** | GPU / share harvest | **Done live:** `SHARE_STRICT` share-PPS; shares from full lease pass |
 
@@ -234,10 +234,10 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 [ Activation announce ]
    - buffer tx hash (D3)
    - soft-start calendar (D6)
-   - activation_height := f(tip, ≥14d, margin)
+   - activation_height := f(tip, ≥7d, margin)
         │
         ▼
-[ Wait ≥14 days · operators upgrade ]
+[ Wait ≥7 days · operators upgrade ]
         │
         ▼
 [ Height switch — single package ]
@@ -262,7 +262,7 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 | Soft announce (news + public docs) | ✅ 2026-10-30 |
 | D9 height package + consensus harden | ✅ on `main` (env bootstrap → locked `meta economics_v2_activation_height`; **unset on hub**) |
 | D6 Dig soft-start + burn-halve wiring | ✅ on `main` (`HACKME_ECONOMICS_V2_ANNOUNCE_UNIX` / meta; Hunt 50/50 gated; burn 5% → 2.5% → 1.25% then fixed; **unset on hub** ⇒ gate off) |
-| Activation announce + ≥14d | ⏳ tip-relative; do not set height/announce env until announce |
+| Activation announce + ≥7d | ⏳ tip-relative; do not set height/announce env until announce |
 | Height switch | ⏳ |
 | Post-switch dumps / verify / 1.0.0 | after stability |
 
@@ -272,7 +272,7 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 
 | # | Topic | Decision (2026-10-31) | Why |
 |---|-------|------------------------|-----|
-| 1 | Start buffer (D3) | **2000 HMC** | Covers ≥14d notice + soft-start while primary float stays thin under live D1 mint→sweep |
+| 1 | Start buffer (D3) | **2000 HMC** | Covers ≥7d notice + soft-start while primary float stays thin under live D1 mint→sweep |
 | 2 | Dig burn soft-start (D6) | **30 calendar days** from activation announce wall-clock | Clearer for customers/operators than a block-count; code constant `V2DigBurnSoftStartCalendarDays` |
 | 3 | SUP cap (D4) | **21 000 hard cap** | Matches `V2SUPMaxSupply`; no “monitor ~16k” ambiguity for explorers/listings |
 | 4 | Extra OP_RETURN | **No** for first switch | Checkpoints + OTS already; do not block activation |
@@ -308,8 +308,8 @@ A permanent tail contradicts a hard cap. Prefer honesty over a marketing number.
 **Why SUP at all?**  
 Loyalty and fee utility without contaminating HMC escrow or inventing a second PoH currency.
 
-**Why ≥14 days notice?**  
-Miners, desktop nodes, explorers, and customers need a predictable upgrade window. Tip-relative height tracks real network time better than a frozen 650k-style guess.
+**Why ≥7 days notice?**  
+Miners, desktop nodes, explorers, and customers need a predictable upgrade window. Tip-relative height tracks real network time better than a frozen 650k-style guess. A week covers one release cycle (apt + desktop builds) and the exchange signing update; a node that misses it stops at the height without losing funds and catches up after upgrading.
 
 ---
 
@@ -324,6 +324,7 @@ Miners, desktop nodes, explorers, and customers need a predictable upgrade windo
 | 2026-10-31 | Locked D3=2000 HMC, D6=30 calendar days, SUP cap=21k; D1 soak watch script+timer; D9 height package on `econ-v2` |
 | 2026-11-01 | D6 soft-start + burn-halve wired on `main` (announce unix / meta; Hunt gated; height+announce still unset on hub) |
 | 2026-11-03 | Burn freeze moved to epoch 2: 5% → 2.5% → 1.25%, then 1.25% permanently (was: freeze at the HMC tail, ~0.08%) |
+| 2026-11-04 | Minimum activation notice shortened from 14 to 7 days (20 160 blocks) |
 
 ---
 

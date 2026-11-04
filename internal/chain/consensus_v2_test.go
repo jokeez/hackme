@@ -403,7 +403,7 @@ func TestV2ActivationGuardLocksWhenConfirmedWithLead(t *testing.T) {
 	n := newV2Net(t, "50000")
 	guardOn(t)
 	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_CONFIRM", "50000")
-	t.Setenv("HACKME_ECONOMICS_V2_MIN_LEAD_BLOCKS", "40320")
+	t.Setenv("HACKME_ECONOMICS_V2_MIN_LEAD_BLOCKS", "20160")
 	b := n.mine()
 	if b.Index != 1 || lockedV2Height(t, n.hub, n.hubDB) != 50000 {
 		t.Fatalf("confirmed height not locked: idx=%d", b.Index)

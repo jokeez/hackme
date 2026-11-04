@@ -364,10 +364,10 @@ func (s *Service) mintEmptyBlockSUPTx(ctx context.Context, tx queryRowExecContex
 // Activation guard (producer side). Locking the height into chain meta is irreversible, so
 // the producing node locks only when the operator confirms the same height in
 // HACKME_ECONOMICS_V2_ACTIVATION_CONFIRM and the height is at least
-// HACKME_ECONOMICS_V2_MIN_LEAD_BLOCKS ahead of the tip (default 40 320 ≈ 14 days, RFC D8).
+// HACKME_ECONOMICS_V2_MIN_LEAD_BLOCKS ahead of the tip (default 20 160 ≈ 7 days, RFC D8).
 // Otherwise block production stops with an explicit error (deploy gate / watchdog alert)
 // instead of silently locking a typo. Followers importing blocks are not gated.
-const defaultV2MinLeadBlocks = uint64(14 * 2880)
+const defaultV2MinLeadBlocks = uint64(7 * 2880)
 
 // v2ActivationGuardOff is flipped by package tests that exercise v2 from tiny heights.
 var v2ActivationGuardOff bool
