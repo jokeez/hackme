@@ -345,14 +345,23 @@ func applyWorkStatsPoolFields(statusBody map[string]any, ws map[string]any) {
 	// Exact pool target_mod / load hints stay off the public status surface
 	// (same class as /api/work/stats redaction). Hashrate + worker counts remain.
 	statusBody["pool_lane_mode"] = "hashrate"
-	statusBody["pool_workers_count"] = asUint64(ws["workers_count"])
+	workersLive := asUint64(ws["workers_online"])
+	if workersLive == 0 {
+		if pd, ok := ws["pool_display"].(map[string]any); ok {
+			workersLive = asUint64(pd["workers_online"])
+			if workersLive == 0 {
+				workersLive = asUint64(pd["workers_count"])
+			}
+		}
+	}
+	if workersLive == 0 {
+		workersLive = asUint64(ws["workers_count"])
+	}
+	statusBody["pool_workers_count"] = workersLive
 	gh := parseAnyFloat(ws["pool_hashrate_gh_s"])
 	if !(gh > 0) {
 		if pd, ok := ws["pool_display"].(map[string]any); ok {
 			gh = parseAnyFloat(pd["hashrate_gh_s"])
-			if n := asUint64(pd["workers_count"]); n > 0 {
-				statusBody["pool_workers_count"] = n
-			}
 		}
 	}
 	if gh > 0 {

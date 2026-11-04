@@ -121,7 +121,8 @@ func TestPublicWorkerPseudoKeyStable(t *testing.T) {
 
 func TestApplyWorkStatsPoolFieldsHashrateLane(t *testing.T) {
 	ws := map[string]any{
-		"workers_count":      uint64(3),
+		"workers_count":      uint64(53), // stale map size
+		"workers_online":     uint64(32), // live
 		"pool_hashrate_gh_s": 12.5,
 		"hashrate_hs":        0.0,
 		"target_mod":         uint64(9e9),
@@ -136,8 +137,12 @@ func TestApplyWorkStatsPoolFieldsHashrateLane(t *testing.T) {
 	if status["pool_lane_mode"] != "hashrate" {
 		t.Fatalf("lane=%v", status["pool_lane_mode"])
 	}
-	if status["pool_workers_count"] != uint64(3) {
-		t.Fatalf("workers=%v", status["pool_workers_count"])
+	if status["pool_workers_count"] != uint64(32) {
+		t.Fatalf("workers live=%v want 32 (not tracked 53)", status["pool_workers_count"])
+	}
+	pd := ws["pool_display"].(map[string]any)
+	if pd["workers_online"] != uint64(32) || pd["workers_tracked"] != uint64(53) {
+		t.Fatalf("pool_display=%v", pd)
 	}
 	gh := parseAnyFloat(status["pool_hashrate_gh_s"])
 	if !(gh > 12.0 && gh < 13.0) {
