@@ -88,7 +88,9 @@ if [[ "${HACKME_SKIP_HUNT_ENGINES:-0}" != "1" ]]; then
       || echo "[hackme-miner-firstboot] WARN: Hunt engines incomplete" >&2
     if [[ -f "${ROOT}/.env.hunt-engines" ]]; then
       # shellcheck disable=SC1090
+      _hackme_prev_path="$PATH"
       set -a; . "${ROOT}/.env.hunt-engines"; set +a
+      PATH="$PATH:$_hackme_prev_path"; export PATH
       {
         echo "HACKME_AFL_FUZZ=${HACKME_AFL_FUZZ:-${ROOT}/aflpp/bin/afl-fuzz}"
         echo "HACKME_PREFIX=${HACKME_PREFIX:-$ROOT}"

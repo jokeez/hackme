@@ -71,6 +71,13 @@ func main() {
 	cl := &http.Client{Timeout: workerfuzzloop.HTTPTimeoutFromEnv()}
 	fmt.Fprintf(os.Stderr, "workerfuzz: coord=%s worker=%s\n", base, *workerID)
 
+	huntExec := huntHarnessExecForStandalone()
+	if huntExec == "" {
+		fmt.Fprintf(os.Stderr, "workerfuzz: dig-only — no Hunt engine usable (need clang or afl-fuzz, plus bwrap, on PATH=%s); Hunt shards will not be offered\n", os.Getenv("PATH"))
+	} else {
+		fmt.Fprintf(os.Stderr, "workerfuzz: hunt-capable exec=%s engines=%s\n", huntExec, workerfuzzloop.HuntEnginesClaimCSV())
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	cfg := workerfuzzloop.Config{
@@ -84,7 +91,7 @@ func main() {
 		PubHex:     pubHex,
 		Hybrid:     hybrid,
 		// Dig-only when no local Hunt engines (Windows OOTB / Linux without clang).
-		HuntHarnessExec: huntHarnessExecForStandalone(),
+		HuntHarnessExec: huntExec,
 		Concurrency:     workerfuzzloop.EnvInt("HACKME_WORKER_HYBRID_FUZZ_CONCURRENCY", 1),
 		MinClaimGap:     workerfuzzloop.EnvDurationMS("HACKME_WORKER_HYBRID_FUZZ_CLAIM_GAP_MS", 50),
 		LogPrefix:       "workerfuzz",

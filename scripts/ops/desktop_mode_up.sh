@@ -272,16 +272,22 @@ ensure_hunt_engines
 sync_toolchain_env_to_log_dir
 source_toolchain_env
 if [[ -f "$LOG_DIR/toolchains/.env.hunt-engines" ]]; then
+  _hackme_prev_path="$PATH"
   set -a
   # shellcheck disable=SC1090
   . "$LOG_DIR/toolchains/.env.hunt-engines"
   set +a
+  # env file carries a literal system PATH (systemd-safe); keep the user's dirs too.
+  PATH="$PATH:$_hackme_prev_path"
   export PATH
 elif [[ -f "$ROOT_DIR/logs/desktop/toolchains/.env.hunt-engines" ]]; then
+  _hackme_prev_path="$PATH"
   set -a
   # shellcheck disable=SC1090
   . "$ROOT_DIR/logs/desktop/toolchains/.env.hunt-engines"
   set +a
+  # env file carries a literal system PATH (systemd-safe); keep the user's dirs too.
+  PATH="$PATH:$_hackme_prev_path"
   export PATH
 fi
 

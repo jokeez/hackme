@@ -10,10 +10,12 @@ cd "$ROOT"
 export HACKME_REPO_ROOT="$ROOT"
 # Prefer desktop Hunt engines PATH when present.
 if [[ -f "$ROOT/logs/desktop/toolchains/.env.hunt-engines" ]]; then
+  _hackme_prev_path="$PATH"
   set -a
   # shellcheck disable=SC1090
   . "$ROOT/logs/desktop/toolchains/.env.hunt-engines"
   set +a
+  PATH="$PATH:$_hackme_prev_path"; export PATH
 fi
 
 TARGET="${TARGET:-cjson}"

@@ -177,10 +177,13 @@ if [[ "${HACKME_SKIP_HUNT_ENGINES:-0}" != "1" && -x "$INSTALL_DIR/install_hunt_e
     HACKME_PREFIX="$INSTALL_DIR" bash "$INSTALL_DIR/install_hunt_engines.sh" --prefix "$INSTALL_DIR" \
       || echo "[miner] WARN: Hunt engines incomplete — coverage Hunt soft-skips" >&2
     if [[ -f "$INSTALL_DIR/.env.hunt-engines" ]]; then
+      _hackme_prev_path="$PATH"
       set -a
       # shellcheck disable=SC1090
       . "$INSTALL_DIR/.env.hunt-engines"
       set +a
+      # env file carries a literal system PATH (systemd-safe); keep the caller's dirs too.
+      PATH="$PATH:$_hackme_prev_path"
       export PATH
     fi
   fi
