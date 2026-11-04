@@ -22,24 +22,20 @@ func (s *Service) PendingHuntItems(ctx context.Context) (int, error) {
 		return n, nil
 	}
 	pendingHuntCache.mu.Unlock()
-	rows, err := s.DB.QueryContext(ctx, `SELECT id, config_json FROM fuzz_campaigns WHERE status IN ('planned','running')`)
+	// Same runnable set Claim uses (pool-distributed, not an internal gate campaign).
+	customers, rest, err := s.runnablePoolCampaignIDsByTier(ctx, time.Now().Unix())
 	if err != nil {
 		return 0, err
 	}
 	var ids []string
-	for rows.Next() {
-		var id, cfgJSON string
-		if err := rows.Scan(&id, &cfgJSON); err != nil {
-			rows.Close()
-			return 0, err
+	for _, id := range append(customers, rest...) {
+		var cfgJSON string
+		if err := s.DB.QueryRowContext(ctx, `SELECT config_json FROM fuzz_campaigns WHERE id=?`, id).Scan(&cfgJSON); err != nil {
+			continue
 		}
 		if IsHuntCampaign(parseConfigJSON(cfgJSON)) {
 			ids = append(ids, id)
 		}
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return 0, err
 	}
 	n := len(s.filterIDsWithPendingWork(ctx, ids))
 	pendingHuntCache.mu.Lock()

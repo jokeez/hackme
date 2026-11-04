@@ -61,7 +61,7 @@ func RunSUP(ctx context.Context, cfg Config) (Result, error) {
 	}
 	defer unlock()
 
-	client := netutil.HTTPClientNoRedirect(time.Duration(cfg.HTTPTimeoutSec) * time.Second)
+	client := netutil.HTTPClientNoRedirect(time.Duration(settleHTTPTimeoutSec(cfg)) * time.Second)
 	if client == nil {
 		client = &http.Client{Timeout: time.Duration(cfg.HTTPTimeoutSec) * time.Second}
 	}
@@ -88,7 +88,7 @@ func RunSUP(ctx context.Context, cfg Config) (Result, error) {
 	if err != nil || payer == "" {
 		return out, fmt.Errorf("resolve payer wallet: %w", err)
 	}
-	unlockPayer, heldPayer, err := lockPayer(cfg, payer)
+	unlockPayer, heldPayer, err := lockPayer(ctx, cfg, payer, "sup")
 	if err != nil {
 		return out, err
 	}

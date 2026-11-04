@@ -176,7 +176,7 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 	}
 	lg.Printf("sqlite ledger: %s", cfg.StateDB)
 
-	client := netutil.HTTPClientNoRedirect(time.Duration(cfg.HTTPTimeoutSec) * time.Second)
+	client := netutil.HTTPClientNoRedirect(time.Duration(settleHTTPTimeoutSec(cfg)) * time.Second)
 	if client == nil {
 		client = &http.Client{Timeout: time.Duration(cfg.HTTPTimeoutSec) * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error {
 			return http.ErrUseLastResponse
@@ -202,12 +202,12 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 	if err != nil || payer == "" {
 		return out, fmt.Errorf("resolve payer wallet: %w", err)
 	}
-	unlockPayer, heldPayer, err := lockPayer(cfg, payer)
+	unlockPayer, heldPayer, err := lockPayer(ctx, cfg, payer, "hmc")
 	if err != nil {
 		return out, err
 	}
 	if !heldPayer {
-		lg.Printf("skip: another settler is sending from payer %s (%s)", payer, payerLockPath(cfg, payer))
+		lg.Printf("skip: another settler is sending from payer %s (%s)", payer, payerLockPath(cfg, payer, "hmc"))
 		out.SkippedLock = true
 		return out, nil
 	}
@@ -753,20 +753,24 @@ func waitPoolClear(ctx context.Context, client *http.Client, base string, waitSe
 	return fmt.Errorf("tx pool still pending after %ds", waitSec)
 }
 
-// payerLockPath is one lock per payer address, independent of STATE_FILE: any settler that
-// signs from this payer (HMC, SUP, a named-fleet run with its own ledger) shares the
-// payer's nonce sequence, and two of them interleaving on it strands intents as
-// ambiguous_pending (the nonce of one is consumed by the other). Override with
-// HACKME_SETTLE_PAYER_LOCK (full path).
-func payerLockPath(cfg Config, payer string) string {
-	if p := strings.TrimSpace(os.Getenv("HACKME_SETTLE_PAYER_LOCK")); p != "" {
-		return p
+// payerLockPath is one lock per payer address and nonce lane ("hmc" / "sup"), independent of
+// STATE_FILE: any settler that signs from this payer (scheduled run, a named-fleet run with
+// its own ledger) shares the payer's nonce sequence for that lane, and two of them
+// interleaving on it strands intents as ambiguous_pending. The default lives in one
+// host-wide directory (/run/lock) so ledgers in different directories still share it;
+// HACKME_SETTLE_PAYER_LOCK_DIR overrides the directory.
+func payerLockPath(cfg Config, payer, lane string) string {
+	dir := strings.TrimSpace(os.Getenv("HACKME_SETTLE_PAYER_LOCK_DIR"))
+	if dir == "" {
+		if st, err := os.Stat("/run/lock"); err == nil && st.IsDir() {
+			dir = "/run/lock"
+		} else if strings.TrimSpace(cfg.StateDB) != "" {
+			dir = filepath.Dir(cfg.StateDB)
+		} else {
+			dir = filepath.Dir(cfg.StateJSON)
+		}
 	}
-	dir := filepath.Dir(cfg.StateDB)
-	if strings.TrimSpace(cfg.StateDB) == "" {
-		dir = filepath.Dir(cfg.StateJSON)
-	}
-	return filepath.Join(dir, "settle-payer-"+sanitizeLockName(payer)+".flock")
+	return filepath.Join(dir, "hackme-settle-payer-"+sanitizeLockName(payer)+"-"+sanitizeLockName(lane)+".flock")
 }
 
 func sanitizeLockName(s string) string {
@@ -779,10 +783,10 @@ func sanitizeLockName(s string) string {
 	return string(b)
 }
 
-// lockPayer waits up to HACKME_SETTLE_PAYER_LOCK_WAIT_SEC (default 90) for the payer lock:
-// a scheduled run and an ad-hoc run then serialize instead of racing the nonce.
-func lockPayer(cfg Config, payer string) (unlock func(), held bool, err error) {
-	path := payerLockPath(cfg, payer)
+// lockPayer waits up to HACKME_SETTLE_PAYER_LOCK_WAIT_SEC (default 90) for the payer lock, so
+// a scheduled run and an ad-hoc run serialize instead of racing the nonce. Honors ctx.
+func lockPayer(ctx context.Context, cfg Config, payer, lane string) (unlock func(), held bool, err error) {
+	path := payerLockPath(cfg, payer, lane)
 	wait := 90
 	if v := strings.TrimSpace(os.Getenv("HACKME_SETTLE_PAYER_LOCK_WAIT_SEC")); v != "" {
 		if n, e := strconv.Atoi(v); e == nil && n >= 0 && n <= 3600 {
@@ -790,27 +794,39 @@ func lockPayer(cfg Config, payer string) (unlock func(), held bool, err error) {
 		}
 	}
 	deadline := time.Now().Add(time.Duration(wait) * time.Second)
+	t := time.NewTicker(time.Second)
+	defer t.Stop()
 	for {
 		unlock, held, err = tryFlockShared(path)
 		if err != nil || held || !time.Now().Before(deadline) {
 			return unlock, held, err
 		}
-		time.Sleep(time.Second)
+		select {
+		case <-ctx.Done():
+			return nil, false, ctx.Err()
+		case <-t.C:
+		}
 	}
 }
 
 // tryFlockShared is tryFlock for a lock file opened by settlers running as different users
-// (systemd unit as hackme, ops runs as root): the file is created world-RW so neither
-// side is locked out by the other's ownership.
+// (systemd unit as hackme, ops runs as root). O_NOFOLLOW: never follow a planted symlink
+// (the chmod below would otherwise widen the target's mode). The file holds no data, so
+// world-RW only lets another local user hold the lock, never alter a payout.
 func tryFlockShared(path string) (unlock func(), held bool, err error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil && filepath.Dir(path) != "." {
 		return nil, false, err
 	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o666)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0o666)
 	if err != nil {
 		return nil, false, fmt.Errorf("payer lock %s: %w", path, err)
 	}
-	_ = f.Chmod(0o666)
+	if st, serr := f.Stat(); serr == nil && st.Mode().IsRegular() {
+		_ = f.Chmod(0o666)
+	} else {
+		_ = f.Close()
+		return nil, false, fmt.Errorf("payer lock %s: not a regular file", path)
+	}
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		_ = f.Close()
 		if err == syscall.EWOULDBLOCK || err == syscall.EAGAIN {
@@ -822,6 +838,14 @@ func tryFlockShared(path string) (unlock func(), held bool, err error) {
 		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
 		_ = f.Close()
 	}, true, nil
+}
+
+// settleHTTPTimeoutSec keeps settle HTTP calls bounded (the payer lock is held across them).
+func settleHTTPTimeoutSec(cfg Config) int {
+	if cfg.HTTPTimeoutSec > 0 {
+		return cfg.HTTPTimeoutSec
+	}
+	return 30
 }
 
 func tryFlock(path string) (unlock func(), held bool, err error) {

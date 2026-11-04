@@ -904,10 +904,16 @@ func (s *Service) ClaimWithOptions(ctx context.Context, workerID string, now int
 
 	// Phase 3: reclaim expired leases (only when no customer pending above).
 	{
+		// SkipHunt workers look deeper: expired Hunt leases at the head must not hide an
+		// expired dig lease behind them.
+		expLimit := 16
+		if opts.SkipHunt {
+			expLimit = 128
+		}
 		rows, err := s.DB.QueryContext(ctx, `
 			SELECT id, campaign_id, input_n FROM fuzz_work_items
 			 WHERE status='leased' AND lease_until < ?
-			 ORDER BY lease_until ASC LIMIT 16`, now)
+			 ORDER BY lease_until ASC LIMIT ?`, now, expLimit)
 		if err != nil {
 			return out, false, err
 		}
