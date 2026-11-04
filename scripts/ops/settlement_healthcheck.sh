@@ -102,7 +102,9 @@ if [[ ! -f "$STATE_FILE" ]]; then
 fi
 
 # Prefer settlement API (same math as dashboard) over raw coord−state for all workers.
-settle="$(curl -fsS --max-time 12 "${LOCAL_BASE}/api/worker/settlement?lite=1" || true)"
+# Not ?lite=1: lite reads public work/stats, whose workers{} are blake3 pseudonyms that never
+# match settlement state keys → settled=0 and fleet_unpaid == lifetime accrual (false alarm).
+settle="$(curl -fsS --max-time 20 "${LOCAL_BASE}/api/worker/settlement" || true)"
 settle_ok="$(printf '%s' "$settle" | jq -r '.ok // false' 2>/dev/null || echo false)"
 wallet_unpaid="0"
 fleet_unpaid="0"
