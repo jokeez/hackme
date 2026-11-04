@@ -571,7 +571,7 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 			"ok":      false,
 			"reason":  "coordinator_unavailable",
 			"message": msg,
-			"source":  base,
+			"source":  settlementSourceLabel(r, base),
 		})
 		return
 	}
@@ -763,7 +763,7 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 	out := map[string]any{
 		"ok":                           true,
 		"lite":                         lite,
-		"source":                       base,
+		"source":                       settlementSourceLabel(r, base),
 		"coordinator_stats_stale":      statsStale,
 		"workers_count":                len(workers),
 		"total_accrued_hmc":            totalAccrued,
@@ -870,4 +870,14 @@ func (a *app) handleSettlementCanonicalJSON(w http.ResponseWriter, r *http.Reque
 		"meta":          state.Meta,
 		"workers_count": len(pubWorkers),
 	})
+}
+
+// settlementSourceLabel: the coordinator base URL only for callers allowed the sensitive
+// breakdown (loopback desktop / admin); public edges get the opaque "pool" label instead of
+// an internal address such as http://127.0.0.1:18083.
+func settlementSourceLabel(r *http.Request, base string) string {
+	if r != nil && workerSettlementExposeSensitive(r) {
+		return base
+	}
+	return publicCoordinatorSourceLabel(base)
 }
