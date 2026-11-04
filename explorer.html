@@ -480,7 +480,9 @@
           hashGh: Number(s.pool_hashrate_gh_s || 0),
           miners: Number(s.pool_total_miners || 0),
           workers: Number(s.pool_workers_count || 0),
-          src: String(s.pool_target_mod_source || '').trim() || 'status',
+          src: String(s.pool_lane_mode || '') === 'hashrate'
+            ? 'status · public hashrate lane'
+            : (String(s.pool_target_mod_source || '').trim() || 'status'),
           loadHint: Number(s.pool_target_mod_load_hint || 0),
           loadCapped: s.pool_target_mod_load_capped === true,
           error: s.pool_work_stats_error || s.pool_network_stats_error || '',
@@ -603,18 +605,31 @@
 
     function applyWorkStatsPayload(j) {
       if (!j || typeof j !== 'object') return;
+      const pd = (j.pool_display && typeof j.pool_display === 'object') ? j.pool_display : null;
       let poolGh = Number(j.pool_hashrate_gh_s || 0);
+      if (!(poolGh > 0) && pd) poolGh = Number(pd.hashrate_gh_s || 0);
+      if (!(poolGh > 0)) {
+        const hs = Number(j.hashrate_hs || 0);
+        if (hs > 0) poolGh = hs / 1e9;
+      }
       if (!(poolGh > 0)) {
         const rigs = Array.isArray(j.active_rigs) ? j.active_rigs : [];
         rigs.forEach((r) => { poolGh += Number((r && r.hashrate_gh_s) || 0); });
       }
+      const workersN = Number(
+        (pd && pd.workers_count) ||
+        j.workers_count ||
+        Object.keys(j.workers || {}).length || 0
+      );
       paintExplorerPoolLane({
         targetMod: Number(j.target_mod || 0),
         hashGh: poolGh,
         hashTH: Number(j.pool_global_hashrate_th_s || 0),
-        miners: Number(j.workers_count || Object.keys(j.workers || {}).length || 0),
-        workers: Number(j.workers_count || Object.keys(j.workers || {}).length || 0),
-        src: 'work/stats',
+        miners: workersN,
+        workers: workersN,
+        src: (pd && String(pd.mode || '') === 'hashrate')
+          ? 'work/stats · public hashrate lane'
+          : 'work/stats',
         loadHint: Number(j.target_mod_load_hint || 0),
         loadCapped: j.target_mod_load_capped === true,
       });

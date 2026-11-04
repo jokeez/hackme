@@ -796,9 +796,13 @@
         : "—";
 
     // Exact pool target_mod is redacted on public edges; show Blake3 wall hashrate instead.
+    const pd = work && work.pool_display && typeof work.pool_display === "object" ? work.pool_display : null;
     const gh =
-      Number(work && (work.pool_hashrate_gh_s != null ? work.pool_hashrate_gh_s : work.hashrate_hs / 1e9)) ||
-      Number(global && global.work && global.work.pool_hashrate_gh_s);
+      Number(
+        (pd && pd.hashrate_gh_s) ||
+          (work && (work.pool_hashrate_gh_s != null ? work.pool_hashrate_gh_s : work.hashrate_hs / 1e9)) ||
+          (global && global.work && global.work.pool_hashrate_gh_s)
+      );
     const diffText = (() => {
       if (!Number.isFinite(gh) || gh <= 0) return "—";
       if (gh >= 1000) return `${(gh / 1000).toFixed(2)} TH/s`;
@@ -806,20 +810,22 @@
       return `${(gh * 1000).toFixed(0)} MH/s`;
     })();
 
-    let reward = Number(work && work.base_reward_hmc);
+    let reward = Number((pd && pd.base_reward_hmc) || (work && work.base_reward_hmc));
     if (!Number.isFinite(reward) || reward <= 0) {
-      reward = Number(work && work.found_bonus_hmc);
+      reward = Number((pd && pd.found_bonus_hmc) || (work && work.found_bonus_hmc));
     }
     const rewardText = Number.isFinite(reward) && reward > 0 ? `${reward.toFixed(6)} HMC` : "—";
 
     const online = Number(
       (work && work.workers_online) ||
         (work && work.miners) ||
+        (pd && pd.workers_count) ||
         (global && global.work && global.work.workers_online) ||
         NaN
     );
     const known = Number(
-      (work && work.workers_count) ||
+      (pd && pd.workers_count) ||
+        (work && work.workers_count) ||
         (global && global.work && global.work.workers_count) ||
         (work && work.workers && Object.keys(work.workers).length) ||
         0

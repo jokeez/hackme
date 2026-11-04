@@ -13,6 +13,9 @@ permissions:
 jobs:
   build-test-static-lang:
     runs-on: ubuntu-latest
+    # Gate must stay snappy: fuzzupstream ASAN smokes alone can take ~10m and drown
+    # signal from poolfuzz/hermetic unit flakes. Heavy Hunt lives in fuzzupstream-smoke.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
 
@@ -30,10 +33,8 @@ jobs:
           bash scripts/build_security_task_pack.sh
           bash scripts/build_task_wasm.sh
 
-      # GitHub runners sometimes ship a broken nightly where `rustc +nightly` works
-      # but `cargo +nightly` errors ("cargo … not applicable to nightly"). Repair so
-      # Hunt/fuzzupstream Rust ASAN smokes can run; if repair fails, Go tests skip.
-      - name: Ensure Rust nightly cargo (Hunt / fuzzupstream)
+      # Nightly cargo only needed for lang_static / optional Hunt tooling — keep light.
+      - name: Ensure Rust nightly cargo (Hunt tooling)
         run: |
           set -euo pipefail
           rustup toolchain install nightly --profile minimal
@@ -63,9 +64,14 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@latest
           govulncheck ./...
 
-      - name: Go test + coverage
+      - name: Go test + coverage (gate, exclude fuzzupstream)
+        env:
+          # Hermetic Hunt lease math even if runner env bleeds coverage-engine=0.
+          HACKME_HUNT_COVERAGE_ENGINE: "1"
         run: |
-          go test ./... -count=1 -covermode=atomic -coverprofile=coverage.out
+          set -euo pipefail
+          mapfile -t pkgs < <(go list ./... | grep -v '/internal/fuzzupstream$')
+          go test "${pkgs[@]}" -count=1 -timeout 15m -covermode=atomic -coverprofile=coverage.out
           go tool cover -func=coverage.out | tail -8
       - uses: actions/upload-artifact@v7
         if: always()
@@ -78,6 +84,24 @@ jobs:
         env:
           RUN_ID: ci-${{ github.run_id }}
         run: MODE=lang_static bash scripts/tests/run_daily.sh
+
+  fuzzupstream-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.10"
+          cache-dependency-path: go.sum
+      - name: Ensure Rust nightly cargo (ASAN smokes)
+        run: |
+          set -euo pipefail
+          rustup toolchain install nightly --profile minimal
+          rustup component add cargo --toolchain nightly || true
+          cargo +nightly -V || echo "::warning::cargo +nightly missing — smokes that need ASAN will skip"
+      - name: fuzzupstream package tests
+        run: go test ./internal/fuzzupstream/ -count=1 -timeout 35m
   coordinator-unit:
     runs-on: ubuntu-latest
     steps:

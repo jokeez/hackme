@@ -44,6 +44,20 @@ func TestRedactPublicWorkStats(t *testing.T) {
 	if ws["tip_height"] != uint64(515000) {
 		t.Fatalf("tip_height should remain for transparency, got %v", ws["tip_height"])
 	}
+	pd, ok := ws["pool_display"].(map[string]any)
+	if !ok || pd == nil {
+		t.Fatal("pool_display required after public redact")
+	}
+	if pd["mode"] != "hashrate" {
+		t.Fatalf("pool_display.mode=%v", pd["mode"])
+	}
+	gh := parseAnyFloat(pd["hashrate_gh_s"])
+	if !(gh > 1.4 && gh < 1.6) {
+		t.Fatalf("pool_display.hashrate_gh_s from hashrate_hs want ~1.5, got %v", pd["hashrate_gh_s"])
+	}
+	if got := parseAnyFloat(ws["pool_hashrate_gh_s"]); !(got > 1.4 && got < 1.6) {
+		t.Fatalf("pool_hashrate_gh_s should stay public, got %v", ws["pool_hashrate_gh_s"])
+	}
 	pb := ws["pool_budget"].(map[string]any)
 	if _, ok := pb["budget_clip_events"]; ok {
 		t.Fatalf("budget_clip_events must not be public: %v", pb)
@@ -102,6 +116,35 @@ func TestPublicWorkerPseudoKeyStable(t *testing.T) {
 	c := publicWorkerPseudoKey("other")
 	if a == "" || a != b || a == c {
 		t.Fatalf("a=%q b=%q c=%q", a, b, c)
+	}
+}
+
+func TestApplyWorkStatsPoolFieldsHashrateLane(t *testing.T) {
+	ws := map[string]any{
+		"workers_count":      uint64(3),
+		"pool_hashrate_gh_s": 12.5,
+		"hashrate_hs":        0.0,
+		"target_mod":         uint64(9e9),
+		"base_reward_hmc":    0.01,
+		"found_bonus_hmc":    0.002,
+		"share_strict":       true,
+		"pool_hashrate_kind": "blake3_pow_ghs",
+	}
+	redactPublicWorkStats(ws)
+	status := map[string]any{}
+	applyWorkStatsPoolFields(status, ws)
+	if status["pool_lane_mode"] != "hashrate" {
+		t.Fatalf("lane=%v", status["pool_lane_mode"])
+	}
+	if status["pool_workers_count"] != uint64(3) {
+		t.Fatalf("workers=%v", status["pool_workers_count"])
+	}
+	gh := parseAnyFloat(status["pool_hashrate_gh_s"])
+	if !(gh > 12.0 && gh < 13.0) {
+		t.Fatalf("status gh=%v", status["pool_hashrate_gh_s"])
+	}
+	if _, ok := status["pool_target_mod"]; ok {
+		t.Fatal("public status must not carry pool_target_mod from redacted work stats")
 	}
 }
 

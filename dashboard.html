@@ -2344,9 +2344,9 @@
 							<p id="kpi-block-sub" class="text-[10px] text-gray-500 mt-2 font-mono leading-snug">This node · Chain tab</p>
 						</div>
 						<div class="card card-glow kpi-stat-card rounded-lg border-warn/20 bg-warn/5">
-							<p class="kpi-label text-[10px] uppercase tracking-[0.28em] mb-2">Difficulty (M)</p>
+							<p class="kpi-label text-[10px] uppercase tracking-[0.28em] mb-2">Difficulty / hashrate</p>
 							<p id="kpi-poh-difficulty" class="font-display text-xl lg:text-2xl font-bold text-warn tabular-nums">—</p>
-							<p id="kpi-poh-difficulty-sub" class="text-[10px] text-gray-500 mt-2 font-mono">Pool M from coordinator when mining pool work</p>
+							<p id="kpi-poh-difficulty-sub" class="text-[10px] text-gray-500 mt-2 font-mono">Pool M when known · else public GH/s lane</p>
 						</div>
 						<div class="card card-glow kpi-stat-card rounded-lg border-matrix/25 cursor-pointer hover:border-matrix/50" id="kpi-balance-card" title="Open Wallet tab">
 							<p class="kpi-label text-[10px] uppercase tracking-[0.28em] mb-2">Balance</p>
@@ -2697,7 +2697,7 @@
 						<div id="mining-admin-hint" class="hidden mb-3 rounded border border-warn/35 bg-warn/5 px-3 py-2 text-[10px] text-warn/95 font-mono leading-relaxed"></div>
 						<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2 lg:gap-3">
 							<div class="rounded-lg border border-warn/35 bg-warn/5 p-3 text-center lg:text-left">
-								<p class="text-[9px] text-gray-600 uppercase tracking-wider mb-1">Difficulty (M)</p>
+								<p class="text-[9px] text-gray-600 uppercase tracking-wider mb-1">Difficulty / hashrate</p>
 								<p id="mine-stat-difficulty" class="font-display text-lg font-bold text-warn tabular-nums">—</p>
 								<p id="mine-stat-difficulty-sub" class="text-[8px] text-gray-600 mt-0.5 leading-snug">—</p>
 							</div>
@@ -4217,8 +4217,8 @@
 		try {
 		// Enable JS-driven tab behavior (single active panel view).
 		document.body.classList.add('js-ui');
-		const DASHBOARD_UI_VER = '0.1.0-rc18.1';
-		const DASHBOARD_WHATS_NEW_HTML = '<strong class="text-white/90">rc18.1</strong> — Orders <strong class="text-matrix">publish token</strong> (scoped Dig/Hunt → public pool, not admin) · Blake3 @ <strong class="text-neon/90">#485000</strong> · <strong class="text-white/90">share-PPS</strong> · CUDA/OpenCL · HackMe OS ISO. Channel <code class="text-neon/80">0.1.0-rc18.1</code>';
+		const DASHBOARD_UI_VER = '0.1.0-rc18.2';
+		const DASHBOARD_WHATS_NEW_HTML = '<strong class="text-white/90">rc18.2</strong> — Public pool lane = <strong class="text-neon/90">GH/s</strong> (exact M on claim) · CI gate without fuzzupstream soak · Blake3 share-PPS · CUDA/OpenCL. Channel <code class="text-neon/80">0.1.0-rc18.2</code>';
 		function updateUIModeBadge() {
 			const el = document.getElementById('hdr-ui-mode');
 			if (!el) return;
@@ -4689,8 +4689,8 @@
 			const labels = ECO_KPI_LABELS[coinId] || ECO_KPI_LABELS.hmc;
 			const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
 			set('eco-kpi-miners-label', labels.miners);
-			set('eco-kpi-target-mod-label', labels.targetMod);
-			set('eco-kpi-reward-m-label', labels.rewardM);
+			set('eco-kpi-target-mod-label', m.targetModLabel || labels.targetMod);
+			set('eco-kpi-reward-m-label', m.rewardMLabel || labels.rewardM);
 			set('eco-kpi-height-label', labels.height);
 			set('eco-kpi-miners', fmtUInt(m.miners));
 			set('eco-kpi-target-mod', m.targetMod);
@@ -7424,7 +7424,14 @@
 			// Blake3: coordinator pool_hashrate_gh_s is wall-timed PoW — prefer it over Σ worker
 			// rows that may still carry sticky hybrid calib peaks on older coordinators.
 			const kind = String(ws.pool_hashrate_kind || '');
-			const poolField = Number(ws.pool_hashrate_gh_s || 0);
+			let poolField = Number(ws.pool_hashrate_gh_s || 0);
+			if (!(poolField > 0) && ws.pool_display && typeof ws.pool_display === 'object') {
+				poolField = Number(ws.pool_display.hashrate_gh_s || 0);
+			}
+			if (!(poolField > 0)) {
+				const hs = Number(ws.hashrate_hs || 0);
+				if (hs > 0) poolField = hs / 1e9;
+			}
 			if (kind === 'blake3_pow_ghs' && poolField > 0) return Math.min(poolField, 5000);
 			const workers = ws.workers;
 			if (workers && typeof workers === 'object') {
@@ -8989,9 +8996,11 @@
 				if (raw > 0) targetMod = Math.max(POOL_TARGET_MOD_FLOOR, raw);
 			}
 			let rewardPerM = Number(ws.reward_per_m || 0);
-			const baseRewardHmc = Number(ws.base_reward_hmc || 0.01);
-			const foundBonus = Number(ws.found_bonus_hmc || 0);
-			const shareStrict = !!(ws.share_strict === true || ws.share_strict === 1 || ws.share_strict === 'true');
+			const pd = (ws.pool_display && typeof ws.pool_display === 'object') ? ws.pool_display : {};
+			const baseRewardHmc = Number(pd.base_reward_hmc || ws.base_reward_hmc || 0.01);
+			const foundBonus = Number(pd.found_bonus_hmc || ws.found_bonus_hmc || 0);
+			const shareStrict = !!(pd.share_strict === true || ws.share_strict === true || ws.share_strict === 1 || ws.share_strict === 'true');
+			const shareDivisorPub = Math.max(2, Number(pd.share_divisor || ws.share_divisor || 1024));
 			const emptyHour = Number(m.econ_expected_empty_hmc_hour || 0);
 			const poolBudget = (ws.pool_budget && typeof ws.pool_budget === 'object') ? ws.pool_budget : {};
 			const dailyBudgetHmc = Number(poolBudget.daily_budget_hmc || 0);
@@ -9034,10 +9043,10 @@
 				Number(workerDerived.attemptsPerSec || workerDerived.acceptedAttemptsPerSec5s || 0)
 			);
 			const leaseWorkSec = Math.max(1, Number(ws.lease_work_sec || m.lease_work_sec || 3));
-			const shareDivisor = Math.max(2, Number(ws.share_divisor || 1024));
+			const shareDivisor = shareDivisorPub;
 			const maxClaimBatch = Math.max(1, Number(ws.max_claim_batch || (64 * Math.pow(2, 30))));
 			const defaultBatch = Math.max(1, Number(ws.default_batch || (4 * Math.pow(2, 20))));
-			// Public edge redacts reward_per_m — derive honest display rate from base/M.
+			// Public edge redacts reward_per_m — derive honest display rate from base/M when M known.
 			let rewardPerMDisplay = rewardPerM;
 			let rewardPerMLabel = 'reward/M';
 			if (!(rewardPerMDisplay > 0) && targetMod > 0 && baseRewardHmc > 0) {
@@ -9045,6 +9054,8 @@
 				rewardPerMLabel = shareStrict ? 'share-PPS ≈' : '≈ base/M';
 			} else if (rewardPerMDisplay > 0 && shareStrict) {
 				rewardPerMLabel = 'reward/M';
+			} else if (!(rewardPerMDisplay > 0) && !(targetMod > 0) && baseRewardHmc > 0) {
+				rewardPerMLabel = 'base reward (M on claim)';
 			}
 			if (!(rewardPerM > 0) && rewardPerMDisplay > 0) rewardPerM = rewardPerMDisplay;
 			return {
@@ -9061,7 +9072,7 @@
 				mySharePct,
 				schedulerMode: String(ws.scheduler_mode || 'baseline'),
 				syncAgeSec: syncAge,
-				hasLive: !!(ws && ws.ok !== false && (rewardPerM > 0 || baseRewardHmc > 0 || targetMod > 0)),
+				hasLive: !!(ws && ws.ok !== false && (rewardPerM > 0 || baseRewardHmc > 0 || targetMod > 0 || poolGh > 0)),
 				netMode: !!st.network_mode_active,
 				poolWork: isPoolWorkContext(),
 				observedRewardPerM,
@@ -10335,35 +10346,60 @@
 			const ws = latestWorkStats || {};
 			const st = latestStatus || {};
 			const poolGh = resolvePoolAggregateGh(ws);
+			const stGh = Number(st.pool_hashrate_gh_s || 0);
+			const poolGhEff = poolGh > 0 ? poolGh : (stGh > 0 ? Math.min(stGh, 5000) : 0);
 			const tm = effectiveMiningTargetMod(lastMetricsPayload, ws).mod;
 			// Same online PoH count as Mining strip / hackme.tech — not workers{} map size
 			// (map keeps stale offline entries → inflated "40" vs live "32").
 			const miners = Math.max(
 				poolWorkersCountFromWorkStats(ws),
+				Number(st.pool_workers_count || 0),
 				Number((latestNetworkStats && latestNetworkStats.total_miners) || 0)
 			);
 			const heightNums = overviewChainHeightNumbers(st, null);
 			const height = Number(heightNums.display || latestCanonicalChainHeight || 0);
 			const blocks = height > 0 ? height : 0;
 			let rewardM = Number(ws.reward_per_m || 0);
-			const baseReward = Number(ws.base_reward_hmc || 0.01);
+			const baseReward = Number(
+				(ws.pool_display && ws.pool_display.base_reward_hmc) ||
+				ws.base_reward_hmc || 0.01
+			);
 			// Public edge redacts reward_per_m — same ≈ base/M display as mine-calc.
 			let rewardMApprox = false;
+			let rewardMLabel = null;
+			let targetModLabel = null;
+			let targetModText = '—';
+			if (tm > 0) {
+				targetModText = fmtUInt(tm);
+			} else if (poolGhEff > 0) {
+				// Public lane: exact M redacted — show wall hashrate instead of blank "—".
+				targetModText = poolHashLabelFromGh(poolGhEff, '');
+				targetModLabel = 'Pool hashrate';
+			}
 			if (!(rewardM > 0) && tm > 0 && baseReward > 0) {
 				rewardM = baseReward * 1e6 / tm;
 				rewardMApprox = true;
+			}
+			let rewardMText = '—';
+			if (rewardM > 0) {
+				rewardMText = (rewardMApprox ? '≈ ' : '') + fmt(rewardM, 6);
+			} else if (!(tm > 0) && baseReward > 0) {
+				rewardMText = fmt(baseReward, 4) + ' HMC';
+				rewardMLabel = 'Base reward';
 			}
 			const foundHits = Number(ws.found_hits || 0);
 			const issued = Number(ws.issued_ranges || 0);
 			const poolLuck = (issued > 0 && foundHits > 0) ? Math.min(100, (foundHits / issued) * 100) : null;
 			return {
-				poolGh,
-				poolGhLabel: poolGh > 0 ? poolHashLabelFromGh(poolGh, '') : '—',
-				networkGhLabel: poolGh > 0 ? poolHashLabelFromGh(poolGh, '') : '—',
+				poolGh: poolGhEff,
+				poolGhLabel: poolGhEff > 0 ? poolHashLabelFromGh(poolGhEff, '') : '—',
+				networkGhLabel: poolGhEff > 0 ? poolHashLabelFromGh(poolGhEff, '') : '—',
 				blocks: blocks > 0 ? fmtUInt(blocks) : '—',
 				poolLuck: poolLuck != null ? fmt(poolLuck, 1) + '%' : '—',
-				targetMod: tm > 0 ? fmtUInt(tm) : '—',
-				rewardM: rewardM > 0 ? ((rewardMApprox ? '≈ ' : '') + fmt(rewardM, 6)) : '—',
+				targetMod: targetModText,
+				targetModLabel,
+				rewardM: rewardMText,
+				rewardMLabel,
 				blockReward: baseReward > 0 ? fmt(baseReward, 4) + ' HMC' : '—',
 				price: (typeof liveHmcUsdPrice === 'function' && liveHmcUsdPrice() > 0)
 					? ('$' + fmt(liveHmcUsdPrice(), liveHmcUsdPrice() >= 0.1 ? 4 : 6))
@@ -12219,20 +12255,31 @@
 				tmDisp = cand.tmWork || cand.pm || cand.tmMetrics || cand.cached ||
 					(isPoolWorkContext() ? 0 : tmL) || 0;
 			}
-			if ($('kpi-poh-difficulty') && tmDisp > 0) {
-				$('kpi-poh-difficulty').textContent = fmtUInt(tmDisp);
-			}
 			const loadTel = workStatsLoadTelemetry(ws);
 			const subDiff = $('kpi-poh-difficulty-sub');
-			if (subDiff && tmDisp > 0) {
-				let diffNote = 'Pool target_mod M · coordinator (fair retarget vs fleet GH/s)';
-				if (loadTel.loadHint > 0 && loadTel.loadHint !== tmDisp) {
-					diffNote += ' · load hint ' + fmtUInt(loadTel.loadHint) + (loadTel.loadCapped ? ' (capped)' : '');
+			if ($('kpi-poh-difficulty') && tmDisp > 0) {
+				$('kpi-poh-difficulty').textContent = fmtUInt(tmDisp);
+				if (subDiff) {
+					let diffNote = 'Pool target_mod M · coordinator (fair retarget vs fleet GH/s)';
+					if (loadTel.loadHint > 0 && loadTel.loadHint !== tmDisp) {
+						diffNote += ' · load hint ' + fmtUInt(loadTel.loadHint) + (loadTel.loadCapped ? ' (capped)' : '');
+					}
+					if (ws && Number(ws.reward_per_m || 0) > 0) {
+						diffNote += ' · reward/M ' + fmt(Number(ws.reward_per_m), 6);
+					}
+					subDiff.textContent = diffNote;
 				}
-				if (ws && Number(ws.reward_per_m || 0) > 0) {
-					diffNote += ' · reward/M ' + fmt(Number(ws.reward_per_m), 6);
+			} else if ($('kpi-poh-difficulty')) {
+				// Public edge: exact M redacted — show fleet GH/s instead of a blank tile.
+				const ghPub = resolvePoolAggregateGh(ws);
+				const stGh = Number((latestStatus && latestStatus.pool_hashrate_gh_s) || 0);
+				const ghShow = ghPub > 0 ? ghPub : stGh;
+				if (ghShow > 0) {
+					$('kpi-poh-difficulty').textContent = poolHashLabelFromGh(ghShow, '');
+					if (subDiff) {
+						subDiff.textContent = 'Public lane · wall hashrate (exact M on claim path)';
+					}
 				}
-				subDiff.textContent = diffNote;
 			}
 		}
 
@@ -12348,7 +12395,16 @@
 			if (tm >= POOL_TARGET_MOD_FLOOR) {
 				rememberGlobalTargetMod(tm, effTm.src || lastTargetModSource || 'live');
 			}
-			if ($('mine-stat-difficulty')) setTextSilent($('mine-stat-difficulty'), tm > 0 ? fmtUInt(tm) : '—');
+			const poolGhLane = resolvePoolAggregateGh(ws);
+			if ($('mine-stat-difficulty')) {
+				if (tm > 0) {
+					setTextSilent($('mine-stat-difficulty'), fmtUInt(tm));
+				} else if (poolGhLane > 0) {
+					setTextSilent($('mine-stat-difficulty'), poolHashLabelFromGh(poolGhLane, ''));
+				} else {
+					setTextSilent($('mine-stat-difficulty'), '—');
+				}
+			}
 			const diffSub = $('mine-stat-difficulty-sub');
 			if (diffSub) {
 				const src = effTm.src || 'live';
@@ -12370,9 +12426,13 @@
 					.replace(/^metrics\.mining_target_mod$/, 'pool metrics')
 					.replace(/^status\.pool_target_mod$/, 'pool status')
 					.replace(/^cached target_mod$/, 'cached');
-				setTextSilent(diffSub, tm > 0
-					? (srcFriendly + ageTxt + retarget + loadExtra)
-					: 'waiting for work/stats or metrics…');
+				if (tm > 0) {
+					setTextSilent(diffSub, srcFriendly + ageTxt + retarget + loadExtra);
+				} else if (poolGhLane > 0) {
+					setTextSilent(diffSub, 'public hashrate lane · exact M on authenticated claim');
+				} else {
+					setTextSilent(diffSub, 'waiting for work/stats or metrics…');
+				}
 			}
 			const poolWorker = isPoolWorkContext();
 			const localSliceActive = poolWorker && workerDerived.isLocalSlice;
