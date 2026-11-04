@@ -164,7 +164,16 @@ func redactPublicWorkStats(ws map[string]any) {
 	if !(gh > 0) {
 		gh = parseAnyFloat(ws["hashrate_hs"]) / 1e9
 	}
-	workersN := asUint64(ws["workers_count"])
+	trackedN := asUint64(ws["workers_count"])
+	onlineN := asUint64(ws["workers_online"])
+	if onlineN == 0 {
+		onlineN = asUint64(ws["miners"])
+	}
+	// Prefer live online for public boards — workers_count keeps stale offline map rows.
+	workersN := onlineN
+	if workersN == 0 {
+		workersN = trackedN
+	}
 	baseReward := parseAnyFloat(ws["base_reward_hmc"])
 	foundBonus := parseAnyFloat(ws["found_bonus_hmc"])
 	shareStrict := ws["share_strict"] == true || ws["share_strict"] == 1 || ws["share_strict"] == "true"
@@ -188,11 +197,16 @@ func redactPublicWorkStats(ws map[string]any) {
 		"hashrate_gh_s":   gh,
 		"hashrate_kind":   hashKind,
 		"workers_count":   workersN,
+		"workers_online":  onlineN,
+		"workers_tracked": trackedN,
 		"base_reward_hmc": baseReward,
 		"found_bonus_hmc": foundBonus,
 		"share_strict":    shareStrict,
 		"share_divisor":   shareDiv,
 		"note":            "exact target_mod on authenticated claim; public board uses hashrate",
+	}
+	if onlineN > 0 {
+		ws["workers_online"] = onlineN
 	}
 	if gh > 0 {
 		ws["pool_hashrate_gh_s"] = gh
