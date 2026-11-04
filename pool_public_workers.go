@@ -159,10 +159,43 @@ func redactPublicWorkStats(ws map[string]any) {
 	if ws == nil {
 		return
 	}
+	// Capture public-safe board fields before stripping exact M / lease knobs.
+	gh := parseAnyFloat(ws["pool_hashrate_gh_s"])
+	if !(gh > 0) {
+		gh = parseAnyFloat(ws["hashrate_hs"]) / 1e9
+	}
+	workersN := asUint64(ws["workers_count"])
+	baseReward := parseAnyFloat(ws["base_reward_hmc"])
+	foundBonus := parseAnyFloat(ws["found_bonus_hmc"])
+	shareStrict := ws["share_strict"] == true || ws["share_strict"] == 1 || ws["share_strict"] == "true"
+	shareDiv := asUint64(ws["share_divisor"])
+	if shareDiv == 0 {
+		shareDiv = 1024
+	}
+	hashKind := ""
+	if s, ok := ws["pool_hashrate_kind"].(string); ok {
+		hashKind = s
+	}
+
 	stripDesktopWorkerFields(ws)
 	redactPublicActiveRigRows(ws)
 	for _, k := range publicWorkStatsSensitiveKeys {
 		delete(ws, k)
+	}
+	// Public board lane: GH/s + rewards, never exact target_mod (claim path only).
+	ws["pool_display"] = map[string]any{
+		"mode":            "hashrate",
+		"hashrate_gh_s":   gh,
+		"hashrate_kind":   hashKind,
+		"workers_count":   workersN,
+		"base_reward_hmc": baseReward,
+		"found_bonus_hmc": foundBonus,
+		"share_strict":    shareStrict,
+		"share_divisor":   shareDiv,
+		"note":            "exact target_mod on authenticated claim; public board uses hashrate",
+	}
+	if gh > 0 {
+		ws["pool_hashrate_gh_s"] = gh
 	}
 	// Keep transparency totals; drop nested anti-abuse / emit knobs that are not
 	// needed for public pool boards.
