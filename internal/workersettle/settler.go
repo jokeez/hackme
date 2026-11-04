@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -201,6 +202,16 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 	if err != nil || payer == "" {
 		return out, fmt.Errorf("resolve payer wallet: %w", err)
 	}
+	unlockPayer, heldPayer, err := lockPayer(cfg, payer)
+	if err != nil {
+		return out, err
+	}
+	if !heldPayer {
+		lg.Printf("skip: another settler is sending from payer %s (%s)", payer, payerLockPath(cfg, payer))
+		out.SkippedLock = true
+		return out, nil
+	}
+	defer unlockPayer()
 
 	workers := extractWorkers(stats, cfg.WorkerPayoutMap, lg)
 	if len(workers) == 0 {
@@ -740,6 +751,77 @@ func waitPoolClear(ctx context.Context, client *http.Client, base string, waitSe
 		}
 	}
 	return fmt.Errorf("tx pool still pending after %ds", waitSec)
+}
+
+// payerLockPath is one lock per payer address, independent of STATE_FILE: any settler that
+// signs from this payer (HMC, SUP, a named-fleet run with its own ledger) shares the
+// payer's nonce sequence, and two of them interleaving on it strands intents as
+// ambiguous_pending (the nonce of one is consumed by the other). Override with
+// HACKME_SETTLE_PAYER_LOCK (full path).
+func payerLockPath(cfg Config, payer string) string {
+	if p := strings.TrimSpace(os.Getenv("HACKME_SETTLE_PAYER_LOCK")); p != "" {
+		return p
+	}
+	dir := filepath.Dir(cfg.StateDB)
+	if strings.TrimSpace(cfg.StateDB) == "" {
+		dir = filepath.Dir(cfg.StateJSON)
+	}
+	return filepath.Join(dir, "settle-payer-"+sanitizeLockName(payer)+".flock")
+}
+
+func sanitizeLockName(s string) string {
+	b := []byte(strings.TrimSpace(s))
+	for i, c := range b {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '_') {
+			b[i] = '_'
+		}
+	}
+	return string(b)
+}
+
+// lockPayer waits up to HACKME_SETTLE_PAYER_LOCK_WAIT_SEC (default 90) for the payer lock:
+// a scheduled run and an ad-hoc run then serialize instead of racing the nonce.
+func lockPayer(cfg Config, payer string) (unlock func(), held bool, err error) {
+	path := payerLockPath(cfg, payer)
+	wait := 90
+	if v := strings.TrimSpace(os.Getenv("HACKME_SETTLE_PAYER_LOCK_WAIT_SEC")); v != "" {
+		if n, e := strconv.Atoi(v); e == nil && n >= 0 && n <= 3600 {
+			wait = n
+		}
+	}
+	deadline := time.Now().Add(time.Duration(wait) * time.Second)
+	for {
+		unlock, held, err = tryFlockShared(path)
+		if err != nil || held || !time.Now().Before(deadline) {
+			return unlock, held, err
+		}
+		time.Sleep(time.Second)
+	}
+}
+
+// tryFlockShared is tryFlock for a lock file opened by settlers running as different users
+// (systemd unit as hackme, ops runs as root): the file is created world-RW so neither
+// side is locked out by the other's ownership.
+func tryFlockShared(path string) (unlock func(), held bool, err error) {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil && filepath.Dir(path) != "." {
+		return nil, false, err
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o666)
+	if err != nil {
+		return nil, false, fmt.Errorf("payer lock %s: %w", path, err)
+	}
+	_ = f.Chmod(0o666)
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		_ = f.Close()
+		if err == syscall.EWOULDBLOCK || err == syscall.EAGAIN {
+			return nil, false, nil
+		}
+		return nil, false, err
+	}
+	return func() {
+		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+		_ = f.Close()
+	}, true, nil
 }
 
 func tryFlock(path string) (unlock func(), held bool, err error) {

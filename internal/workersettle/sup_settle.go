@@ -88,6 +88,16 @@ func RunSUP(ctx context.Context, cfg Config) (Result, error) {
 	if err != nil || payer == "" {
 		return out, fmt.Errorf("resolve payer wallet: %w", err)
 	}
+	unlockPayer, heldPayer, err := lockPayer(cfg, payer)
+	if err != nil {
+		return out, err
+	}
+	if !heldPayer {
+		lg.Printf("sup: skip, another settler is sending from payer %s", payer)
+		out.SkippedLock = true
+		return out, nil
+	}
+	defer unlockPayer()
 	raw, _ := stats["workers"].(map[string]any)
 	sent := 0
 	for wid, v := range raw {
