@@ -1,0 +1,90 @@
+package netutil
+
+import (
+	"io"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+)
+
+func TestOriginDialRewritesMatchingHost(t *testing.T) {
+	t.Cleanup(ResetOriginDialForTest)
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	_, port, err := net.SplitHostPort(ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		host := r.Host
+		if host != "hackme.tech" && host != "hackme.tech:"+port {
+			t.Errorf("Host=%q want hackme.tech", host)
+		}
+		_, _ = io.WriteString(w, "ok-origin")
+	})}
+	go srv.Serve(ln) //nolint:errcheck
+	defer srv.Close()
+
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL", "127.0.0.1")
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL_HOST", "hackme.tech")
+	ResetOriginDialForTest()
+
+	cl := HTTPClientNoRedirect(5 * time.Second)
+	req, err := http.NewRequest(http.MethodGet, "http://hackme.tech:"+port+"/probe", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := cl.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+	if string(body) != "ok-origin" {
+		t.Fatalf("body=%q", body)
+	}
+}
+
+func TestOriginDialLeavesOtherHostsAlone(t *testing.T) {
+	t.Cleanup(ResetOriginDialForTest)
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL", "203.0.113.9")
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL_HOST", "hackme.tech")
+	ResetOriginDialForTest()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, "local")
+	}))
+	defer srv.Close()
+
+	cl := HTTPClientNoRedirect(5 * time.Second)
+	res, err := cl.Get(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+	if string(body) != "local" {
+		t.Fatalf("body=%q", body)
+	}
+}
+
+func TestOriginDialConfigured(t *testing.T) {
+	t.Cleanup(ResetOriginDialForTest)
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL", "")
+	ResetOriginDialForTest()
+	if OriginDialConfigured() {
+		t.Fatal("empty dial must be off")
+	}
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL", "132.243.112.100")
+	ResetOriginDialForTest()
+	if !OriginDialConfigured() {
+		t.Fatal("want configured")
+	}
+}
