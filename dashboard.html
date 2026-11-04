@@ -3828,8 +3828,8 @@
 									<p class="wallet-bd-sub">Settled mining payouts + transfers (canonical)</p>
 								</div>
 								<div class="wallet-bd-box secondary" id="wallet-bd-pending-box">
-									<p class="wallet-bd-label">Your wallet · pending settlement</p>
-									<p id="wallet-bd-pending" class="wallet-bd-value">0 HMC</p>
+									<p class="wallet-bd-label" id="wallet-bd-pending-label">Worker accrual · this PC</p>
+									<p id="wallet-bd-pending" class="wallet-bd-value">—</p>
 									<p id="wallet-bd-settle-sub" class="wallet-bd-sub">this PC worker only · not fleet total</p>
 								</div>
 							</div>
@@ -4217,8 +4217,8 @@
 		try {
 		// Enable JS-driven tab behavior (single active panel view).
 		document.body.classList.add('js-ui');
-		const DASHBOARD_UI_VER = '0.1.0-rc18.2';
-		const DASHBOARD_WHATS_NEW_HTML = '<strong class="text-white/90">rc18.2</strong> — Public pool lane = <strong class="text-neon/90">GH/s</strong> (exact M on claim) · CI gate without fuzzupstream soak · Blake3 share-PPS · CUDA/OpenCL. Channel <code class="text-neon/80">0.1.0-rc18.2</code>';
+		const DASHBOARD_UI_VER = '0.1.0-rc18.2.1';
+		const DASHBOARD_WHATS_NEW_HTML = '<strong class="text-white/90">rc18.2.1</strong> — Wallet accrual card shows <strong class="text-neon/90">lifetime settled</strong> (not fake 0 pending) · public GH/s lane · Blake3 share-PPS. Channel <code class="text-neon/80">0.1.0-rc18.2.1</code>';
 		function updateUIModeBadge() {
 			const el = document.getElementById('hdr-ui-mode');
 			if (!el) return;
@@ -5507,21 +5507,28 @@
 			const ready = !!s.threshold_ready;
 			const unpaid = Number(s.wallet_unpaid_hmc || 0);
 			const accrued = Number(s.wallet_accrued_hmc || s.desktop_worker_accrued_hmc || 0);
+			const settled = Number(s.wallet_settled_hmc || 0);
 			const wid = String(s.desktop_worker_id || '').trim();
 			const parts = [];
 			if (wid) parts.push(wid);
 			else parts.push('your worker only');
 			if (unpaid <= 0.000001) {
-				if (accrued > 0.000001) parts.push('caught up · nothing pending');
-				else parts.push('no unpaid accrual yet');
+				if (accrued > 0.000001 || settled > 0.000001) {
+					parts.push('unpaid 0 · already on-chain');
+				} else {
+					parts.push('no pool accrual yet');
+				}
 			} else if (thr > 0) {
 				parts.push('min ' + fmt(thr, 4) + ' HMC · ' + (ready ? 'ready' : 'below min'));
 			}
 			if (s.next_daily_sweep_unix > 0 && unpaid > 0.000001) {
 				parts.push('next sweep ' + fmtUnix(s.next_daily_sweep_unix));
 			}
-			if (Number(s.wallet_settled_hmc) > 0.000001) {
-				parts.push('settled ' + fmt(Number(s.wallet_settled_hmc), 4));
+			// Lifetime watermark — never imply this is the spendable balance.
+			if (settled > 0.000001) {
+				parts.push('lifetime settled ' + fmt(settled, 4) + ' HMC');
+			} else if (accrued > 0.000001 && unpaid > 0.000001) {
+				parts.push('accrued ' + fmt(accrued, 4) + ' HMC');
 			}
 			if (s.last_force_unix > 0) parts.push('last sweep ' + fmtUnix(s.last_force_unix));
 			el.textContent = parts.length ? parts.join(' · ') : 'No pending accrual for this wallet';
@@ -5586,15 +5593,25 @@
 			const orders = Number(walletSnapshot.ordersSpendableHMC || 0);
 			const st = latestWorkerSettlementSnap || {};
 			const accrued = Number(st.wallet_accrued_hmc || st.desktop_worker_accrued_hmc || 0);
+			const settled = Number(st.wallet_settled_hmc || 0);
 			const unpaid = effectivePendingHmc(walletUnpaidHmc(), accrued, onChain);
 			const canonKnown = onChain > 0.000001 || String(walletSnapshot.walletSource || '').includes('canonical');
 			if ($('wallet-bd-onchain')) {
 				$('wallet-bd-onchain').textContent = canonKnown ? (fmt(onChain, 8) + ' HMC') : '…';
 			}
-			if ($('wallet-bd-pending')) {
-				$('wallet-bd-pending').textContent = unpaid > 0.000001
-					? ('+' + fmt(unpaid, 6) + ' HMC')
-					: '0 HMC';
+			const pendingLabel = $('wallet-bd-pending-label');
+			const pendingVal = $('wallet-bd-pending');
+			if (unpaid > 0.000001) {
+				if (pendingLabel) pendingLabel.textContent = 'Pending on-chain settlement';
+				if (pendingVal) pendingVal.textContent = '+' + fmt(unpaid, 6) + ' HMC';
+			} else if (settled > 0.000001 || accrued > 0.000001) {
+				// Caught up: show lifetime settled watermark — not a fake "0 balance".
+				const life = settled > 0.000001 ? settled : accrued;
+				if (pendingLabel) pendingLabel.textContent = 'Worker accrual · lifetime settled';
+				if (pendingVal) pendingVal.textContent = fmt(life, 4) + ' HMC';
+			} else {
+				if (pendingLabel) pendingLabel.textContent = 'Worker accrual · this PC';
+				if (pendingVal) pendingVal.textContent = '0 pending';
 			}
 			const pendingBox = $('wallet-bd-pending-box');
 			if (pendingBox) pendingBox.classList.toggle('active', unpaid > 0.000001);
