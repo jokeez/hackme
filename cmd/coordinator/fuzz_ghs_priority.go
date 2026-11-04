@@ -91,9 +91,10 @@ func workerHybridCapacity(st workerPayoutStat, now int64) bool {
 }
 
 // fuzzClaimGHSExemptPrefixes returns worker-id prefixes that skip dig-only defer.
-// Default: dedicated dig/Hunt fleets that never submit PoH GH/s
-// (bootstrap-fuzz-*, bootstrap-dig-*, worker-hunt-*, hunt-*).
+// Default: bootstrap dedicated dig fleets (bootstrap-fuzz-*, bootstrap-dig-*).
 // Override with HACKME_FUZZ_CLAIM_GHS_EXEMPT_PREFIXES=comma,separated (empty string disables).
+// Hunt fleets (worker-hunt-*) are not default-exempt — worker IDs are self-reported;
+// operators set HACKME_FUZZ_CLAIM_GHS_EXEMPT_PREFIXES on the coordinator when needed.
 func fuzzClaimGHSExemptPrefixes() []string {
 	v, set := os.LookupEnv("HACKME_FUZZ_CLAIM_GHS_EXEMPT_PREFIXES")
 	if set {
@@ -111,7 +112,7 @@ func fuzzClaimGHSExemptPrefixes() []string {
 		}
 		return out
 	}
-	return []string{"bootstrap-fuzz-", "bootstrap-dig-", "worker-hunt-", "hunt-"}
+	return []string{"bootstrap-fuzz-", "bootstrap-dig-"}
 }
 
 func fuzzClaimGHSExemptWorker(workerID string) bool {

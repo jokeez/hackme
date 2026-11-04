@@ -36,7 +36,7 @@ func TestOriginDialRewritesMatchingHost(t *testing.T) {
 	t.Setenv("HACKME_POOL_ORIGIN_DIAL_HOST", "hackme.tech")
 	ResetOriginDialForTest()
 
-	cl := HTTPClientNoRedirect(5 * time.Second)
+	cl := HTTPClientPoolOriginDial(5 * time.Second)
 	req, err := http.NewRequest(http.MethodGet, "http://hackme.tech:"+port+"/probe", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -63,7 +63,7 @@ func TestOriginDialLeavesOtherHostsAlone(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	cl := HTTPClientNoRedirect(5 * time.Second)
+	cl := HTTPClientPoolOriginDial(5 * time.Second)
 	res, err := cl.Get(srv.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -72,6 +72,38 @@ func TestOriginDialLeavesOtherHostsAlone(t *testing.T) {
 	body, _ := io.ReadAll(res.Body)
 	if string(body) != "local" {
 		t.Fatalf("body=%q", body)
+	}
+}
+
+func TestOriginDialExactHostOnly(t *testing.T) {
+	t.Cleanup(ResetOriginDialForTest)
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL", "203.0.113.9")
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL_HOST", "hackme.tech")
+	ResetOriginDialForTest()
+
+	if hostMatchesOriginDial("api.hackme.tech") {
+		t.Fatal("subdomain must not match exact host")
+	}
+	if hostMatchesOriginDial("evil-hackme.tech") {
+		t.Fatal("suffix lookalike must not match")
+	}
+	if !hostMatchesOriginDial("hackme.tech") {
+		t.Fatal("exact host must match")
+	}
+	if !hostMatchesOriginDial("HackMe.Tech") {
+		t.Fatal("exact host match is case-insensitive")
+	}
+}
+
+func TestHTTPClientNoRedirectIgnoresOriginDial(t *testing.T) {
+	t.Cleanup(ResetOriginDialForTest)
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL", "203.0.113.9")
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL_HOST", "hackme.tech")
+	ResetOriginDialForTest()
+
+	cl := HTTPClientNoRedirect(5 * time.Second)
+	if cl.Transport != nil {
+		t.Fatal("shared HTTPClientNoRedirect must not install origin dial transport")
 	}
 }
 

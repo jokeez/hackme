@@ -2,7 +2,6 @@ package netutil
 
 import (
 	"context"
-	"crypto/tls"
 	"net"
 	"net/http"
 	"os"
@@ -17,13 +16,15 @@ import (
 //	HACKME_POOL_ORIGIN_DIAL=132.243.112.100
 //	HACKME_POOL_ORIGIN_DIAL_HOST=hackme.tech   // optional; default hackme.tech
 //
-// When set, HTTPS/HTTP dials whose hostname matches DIAL_HOST connect to DIAL
-// while preserving the original Host / SNI (certificate name).
+// When set, HTTPS/HTTP dials whose hostname equals DIAL_HOST connect to DIAL
+// while preserving the original Host / SNI so the publicly trusted leaf verifies.
 
 var (
-	originDialOnce sync.Once
-	originDialIP   string
-	originDialHost string
+	originDialOnce      sync.Once
+	originDialIP        string
+	originDialHost      string
+	originTransportOnce sync.Once
+	originTransport     http.RoundTripper
 )
 
 func loadOriginDial() {
@@ -42,11 +43,13 @@ func OriginDialConfigured() bool {
 	return originDialIP != ""
 }
 
-// ResetOriginDialForTest clears the cached env (tests only).
+// ResetOriginDialForTest clears cached env + transport (tests only).
 func ResetOriginDialForTest() {
 	originDialOnce = sync.Once{}
+	originTransportOnce = sync.Once{}
 	originDialIP = ""
 	originDialHost = ""
+	originTransport = nil
 }
 
 func hostMatchesOriginDial(hostname string) bool {
@@ -56,17 +59,9 @@ func hostMatchesOriginDial(hostname string) bool {
 	}
 	h := strings.ToLower(strings.TrimSpace(hostname))
 	h = strings.Trim(h, "[]")
-	if h == originDialHost {
-		return true
-	}
-	// Allow www.hackme.tech when dial host is hackme.tech.
-	if strings.HasSuffix(h, "."+originDialHost) {
-		return true
-	}
-	return false
+	return h == originDialHost
 }
 
-// originDialContext dials originDialIP when the requested host matches, else default.
 func originDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	loadOriginDial()
 	host, port, err := net.SplitHostPort(addr)
@@ -80,30 +75,32 @@ func originDialContext(ctx context.Context, network, addr string) (net.Conn, err
 	return d.DialContext(ctx, network, addr)
 }
 
-// OriginAwareTransport returns a clone of http.DefaultTransport with optional
-// origin IP dial + TLS ServerName preserved for the logical host.
-func OriginAwareTransport() http.RoundTripper {
-	loadOriginDial()
-	base, ok := http.DefaultTransport.(*http.Transport)
-	if !ok || base == nil {
-		return http.DefaultTransport
+// OriginDialTransport returns a process-wide RoundTripper. When
+// HACKME_POOL_ORIGIN_DIAL is set, matching hosts dial that IP with normal TLS
+// verification (SNI stays the URL hostname). Built once so idle conns are reused.
+func OriginDialTransport() http.RoundTripper {
+	originTransportOnce.Do(func() {
+		loadOriginDial()
+		base, ok := http.DefaultTransport.(*http.Transport)
+		if !ok || base == nil {
+			originTransport = http.DefaultTransport
+			return
+		}
+		tr := base.Clone()
+		if originDialIP != "" {
+			tr.DialContext = originDialContext
+		}
+		originTransport = tr
+	})
+	return originTransport
+}
+
+// HTTPClientPoolOriginDial is the opt-in client for Orders poolsync and Hunt
+// harness fetch. Unrelated callers must keep using HTTPClientNoRedirect.
+func HTTPClientPoolOriginDial(timeout time.Duration) *http.Client {
+	return &http.Client{
+		Timeout:       timeout,
+		CheckRedirect: DenyAdminTokenRedirect,
+		Transport:     OriginDialTransport(),
 	}
-	tr := base.Clone()
-	if originDialIP == "" {
-		return tr
-	}
-	tr.DialContext = originDialContext
-	// Ensure TLS handshake uses the SNI/hostname from the URL, not the dial IP.
-	if tr.TLSClientConfig == nil {
-		tr.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
-	} else {
-		tr.TLSClientConfig = tr.TLSClientConfig.Clone()
-	}
-	// Origin :443 often serves a self-signed / incomplete chain while CF holds the
-	// public leaf. Opt-in only — never default insecure.
-	insecure := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_POOL_ORIGIN_DIAL_INSECURE")))
-	if insecure == "1" || insecure == "true" || insecure == "yes" || insecure == "on" {
-		tr.TLSClientConfig.InsecureSkipVerify = true
-	}
-	return tr
 }

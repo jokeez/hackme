@@ -548,7 +548,7 @@ func fetchHarnessHTTP(ctx context.Context, rawURL string) ([]byte, error) {
 	}
 	// Never use http.DefaultClient: no timeout + follows redirects (worker bearer leak).
 	// Multi-MB ASAN harnesses need headroom (esp. via HACKME_POOL_ORIGIN_DIAL).
-	res, err := netutil.HTTPClientNoRedirect(120 * time.Second).Do(req)
+	res, err := netutil.HTTPClientPoolOriginDial(120 * time.Second).Do(req)
 	if err != nil {
 		return nil, err
 	}

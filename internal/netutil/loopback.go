@@ -18,13 +18,9 @@ func DenyAdminTokenRedirect(_ *http.Request, _ []*http.Request) error {
 }
 
 // HTTPClientNoRedirect returns an http.Client that never follows redirects.
-// Honors HACKME_POOL_ORIGIN_DIAL (see origin_dial.go) for CDN-bypass dials.
+// For Orders poolsync / Hunt harness CDN bypass, use HTTPClientPoolOriginDial.
 func HTTPClientNoRedirect(timeout time.Duration) *http.Client {
-	return &http.Client{
-		Timeout:       timeout,
-		CheckRedirect: DenyAdminTokenRedirect,
-		Transport:     OriginAwareTransport(),
-	}
+	return &http.Client{Timeout: timeout, CheckRedirect: DenyAdminTokenRedirect}
 }
 
 // IsLoopbackHost reports whether host is a loopback name or address.

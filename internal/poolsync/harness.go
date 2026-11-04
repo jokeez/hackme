@@ -56,7 +56,7 @@ func uploadHuntHarnessOctet(ctx context.Context, coordURL, token, hash string, d
 		req.Header.Set("X-Hackme-Source-Rel", sourceRel)
 	}
 	req.Header.Set("X-Hackme-Admin-Token", token)
-	res, err := netutil.HTTPClientNoRedirect(timeoutDuration()).Do(req)
+	res, err := netutil.HTTPClientPoolOriginDial(timeoutDuration()).Do(req)
 	if err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func uploadHuntHarnessJSON(ctx context.Context, coordURL, token, hash string, da
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Hackme-Admin-Token", token)
-	res, err := netutil.HTTPClientNoRedirect(timeoutDuration()).Do(req)
+	res, err := netutil.HTTPClientPoolOriginDial(timeoutDuration()).Do(req)
 	if err != nil {
 		return err
 	}
@@ -153,7 +153,7 @@ func CoordinatorHarnessProbe(ctx context.Context, coordURL, token, hash string) 
 			req.Header.Set("X-Hackme-Admin-Token", tok)
 			req.Header.Set("X-Hackme-Worker-Token", tok)
 		}
-		res, err := netutil.HTTPClientNoRedirect(timeoutDuration()).Do(req)
+		res, err := netutil.HTTPClientPoolOriginDial(timeoutDuration()).Do(req)
 		if err != nil {
 			cancel()
 			continue

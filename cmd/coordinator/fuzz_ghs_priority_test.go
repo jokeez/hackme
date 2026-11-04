@@ -69,11 +69,10 @@ func TestAllowFuzzClaimBootstrapFuzzExemptFromDefer(t *testing.T) {
 	}
 }
 
-func TestAllowFuzzClaimWorkerHuntExemptByDefault(t *testing.T) {
+func TestAllowFuzzClaimWorkerHuntExemptViaEnv(t *testing.T) {
 	t.Setenv("HACKME_FUZZ_CLAIM_GHS_PRIORITY", "1")
 	t.Setenv("HACKME_FUZZ_CLAIM_GHS_DIG_ONLY_PCT", "0")
-	// Mirror production default prefixes (t.Setenv cannot truly unset).
-	t.Setenv("HACKME_FUZZ_CLAIM_GHS_EXEMPT_PREFIXES", "bootstrap-fuzz-,bootstrap-dig-,worker-hunt-,hunt-")
+	t.Setenv("HACKME_FUZZ_CLAIM_GHS_EXEMPT_PREFIXES", "worker-hunt-")
 	now := time.Now().Unix()
 	wm := &workManager{worker: map[string]workerPayoutStat{
 		"gpu-1": {
@@ -81,14 +80,10 @@ func TestAllowFuzzClaimWorkerHuntExemptByDefault(t *testing.T) {
 			LastPoHSeenUnix: now, LastFuzzSeenUnix: now,
 		},
 		"worker-hunt-rx580": {LastHashrateGHS: 0, LastSeenUnix: now, LastFuzzSeenUnix: now},
-		"hunt-fleet-1":      {LastHashrateGHS: 0, LastSeenUnix: now, LastFuzzSeenUnix: now},
 		"dig-cheap":         {LastHashrateGHS: 0, LastSeenUnix: now, LastFuzzSeenUnix: now},
 	}}
 	if ok, reason := wm.allowFuzzClaimByGHS("worker-hunt-rx580", now); !ok {
-		t.Fatalf("worker-hunt must be exempt: %s", reason)
-	}
-	if ok, reason := wm.allowFuzzClaimByGHS("hunt-fleet-1", now); !ok {
-		t.Fatalf("hunt- prefix must be exempt: %s", reason)
+		t.Fatalf("worker-hunt must be exempt via env: %s", reason)
 	}
 	if ok, reason := wm.allowFuzzClaimByGHS("dig-cheap", now); ok || reason != "ghs_priority_defer" {
 		t.Fatalf("non-exempt dig-only must defer: ok=%v reason=%q", ok, reason)

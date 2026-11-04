@@ -117,7 +117,7 @@ func coordHealthOK(base string) bool {
 	if err != nil {
 		return false
 	}
-	res, err := netutil.HTTPClientNoRedirect(800 * time.Millisecond).Do(req)
+	res, err := netutil.HTTPClientPoolOriginDial(800 * time.Millisecond).Do(req)
 	if err != nil {
 		return false
 	}
@@ -199,7 +199,7 @@ func RegisterOnce(ctx context.Context, coordURL, token string, req RegisterReque
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("X-Hackme-Admin-Token", token)
-	cl := netutil.HTTPClientNoRedirect(timeoutDuration())
+	cl := netutil.HTTPClientPoolOriginDial(timeoutDuration())
 	res, err := cl.Do(httpReq)
 	latency = time.Since(start)
 	if err != nil {

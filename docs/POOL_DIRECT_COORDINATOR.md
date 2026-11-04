@@ -57,20 +57,19 @@ For **desktop Orders** (publish token + settle-pull + harness sync), prefer:
 export HACKME_POOL_COORDINATOR_URL=https://hackme.tech/pool/coordinator
 export HACKME_POOL_ORDERS_PUBLISH_TOKEN=…   # pool.orders.token
 export HACKME_POOL_ORIGIN_DIAL=132.243.112.100   # dial origin IP, keep Host/SNI=hackme.tech
-# Origin leaf is often self-signed vs CF's public cert — desktop/lab only:
-export HACKME_POOL_ORIGIN_DIAL_INSECURE=1
-# optional:
+# optional exact-host override (default hackme.tech; no subdomain suffix match):
 # export HACKME_POOL_ORIGIN_DIAL_HOST=hackme.tech
 # export HACKME_POOL_SYNC_TIMEOUT_SEC=180
 ```
 
-`HACKME_POOL_ORIGIN_DIAL` is honored by `netutil.HTTPClientNoRedirect` (Orders
-poolsync + workerfuzz harness fetch). Do **not** use miner-only `:18083` for
-settle outbox — nginx returns **403** on admin settle routes (see table above).
+`HACKME_POOL_ORIGIN_DIAL` is honored only by `netutil.HTTPClientPoolOriginDial`
+(Orders poolsync + Hunt harness fetch). Shared `HTTPClientNoRedirect` is unchanged.
+TLS verification stays on (SNI = URL hostname). Do **not** use miner-only `:18083`
+for settle outbox — nginx returns **403** on admin settle routes (see table above).
 
-Dedicated Hunt fleets (`worker-hunt-*`, `hunt-*`) are **GHS-priority exempt** so
-dig-only ASAN workers are not starved by `ghs_priority_defer` when hybrid PoH
-miners are online.
+Dedicated Hunt fleets need coordinator env when GHS priority is on, e.g.
+`HACKME_FUZZ_CLAIM_GHS_EXEMPT_PREFIXES=bootstrap-fuzz-,bootstrap-dig-,worker-hunt-`
+so dig-only ASAN workers are not starved by `ghs_priority_defer`.
 
 ## Templates / release
 
