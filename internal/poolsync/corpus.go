@@ -56,7 +56,7 @@ func UploadCorpusNamespace(ctx context.Context, coordURL, token, namespace strin
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Hackme-Admin-Token", token)
 	// Admin token must never ride DefaultClient redirects (netutil DenyAdminTokenRedirect).
-	res, err := netutil.HTTPClientNoRedirect(timeoutDuration()).Do(req)
+	res, err := netutil.HTTPClientPoolOriginDial(timeoutDuration()).Do(req)
 	if err != nil {
 		return err
 	}

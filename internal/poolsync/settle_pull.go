@@ -137,7 +137,7 @@ func countSettleOutboxOnce(ctx context.Context, reqURL, token string) (int64, er
 		return 0, err
 	}
 	req.Header.Set("X-Hackme-Admin-Token", token)
-	cli := netutil.HTTPClientNoRedirect(120 * time.Second)
+	cli := netutil.HTTPClientPoolOriginDial(120 * time.Second)
 	res, err := cli.Do(req)
 	if err != nil {
 		return 0, err
@@ -162,7 +162,7 @@ func fetchSettleOutboxOnce(ctx context.Context, reqURL, token string) ([]SettleO
 		return nil, err
 	}
 	req.Header.Set("X-Hackme-Admin-Token", token)
-	cli := netutil.HTTPClientNoRedirect(120 * time.Second)
+	cli := netutil.HTTPClientPoolOriginDial(120 * time.Second)
 	res, err := cli.Do(req)
 	if err != nil {
 		return nil, err
@@ -283,7 +283,7 @@ func ackSettleOutboxOnce(ctx context.Context, coordURL, token string, body []byt
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Hackme-Admin-Token", token)
-	cli := netutil.HTTPClientNoRedirect(120 * time.Second)
+	cli := netutil.HTTPClientPoolOriginDial(120 * time.Second)
 	res, err := cli.Do(req)
 	if err != nil {
 		return err

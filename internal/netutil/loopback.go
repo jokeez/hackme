@@ -18,6 +18,7 @@ func DenyAdminTokenRedirect(_ *http.Request, _ []*http.Request) error {
 }
 
 // HTTPClientNoRedirect returns an http.Client that never follows redirects.
+// For Orders poolsync / Hunt harness CDN bypass, use HTTPClientPoolOriginDial.
 func HTTPClientNoRedirect(timeout time.Duration) *http.Client {
 	return &http.Client{Timeout: timeout, CheckRedirect: DenyAdminTokenRedirect}
 }

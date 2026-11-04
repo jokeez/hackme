@@ -45,6 +45,32 @@ bin/workerpoh-cuda -coord http://132.243.112.100:18083 -batch 16777216 ...
 - Public site/API on **:443** should be reached via Cloudflare. Optional nginx guard: `scripts/ops/apply_cloudflare_origin_guard.sh` (CF IP allowlist via `$realip_remote_addr`). **Do not** enable `APPLY_VHOSTS=1` until verified on a canary — a 2026-10-26 attempt using `$remote_addr` after `real_ip` falsely 403'd Cloudflare and was rolled back. Do **not** put that guard on `:18083` / `:18443`.
 - Pool-direct ports stay open for miners by design (cleartext + TLS).
 
+### Orders settle-pull + Hunt harness (CDN body hang)
+
+Cloudflare / edge often **stalls** request/response bodies ≳ ~24KiB on
+`/api/fuzz/pool/hunt/harness` and can starve settle outbox pulls when Orders is
+pointed at a CF-fronted URL (or a local proxy that only forwards to CF).
+
+For **desktop Orders** (publish token + settle-pull + harness sync), prefer:
+
+```bash
+export HACKME_POOL_COORDINATOR_URL=https://hackme.tech/pool/coordinator
+export HACKME_POOL_ORDERS_PUBLISH_TOKEN=…   # pool.orders.token
+export HACKME_POOL_ORIGIN_DIAL=132.243.112.100   # dial origin IP, keep Host/SNI=hackme.tech
+# optional exact-host override (default hackme.tech; no subdomain suffix match):
+# export HACKME_POOL_ORIGIN_DIAL_HOST=hackme.tech
+# export HACKME_POOL_SYNC_TIMEOUT_SEC=180
+```
+
+`HACKME_POOL_ORIGIN_DIAL` is honored only by `netutil.HTTPClientPoolOriginDial`
+(Orders poolsync + Hunt harness fetch). Shared `HTTPClientNoRedirect` is unchanged.
+TLS verification stays on (SNI = URL hostname). Do **not** use miner-only `:18083`
+for settle outbox — nginx returns **403** on admin settle routes (see table above).
+
+Dedicated Hunt fleets need coordinator env when GHS priority is on, e.g.
+`HACKME_FUZZ_CLAIM_GHS_EXEMPT_PREFIXES=bootstrap-fuzz-,bootstrap-dig-,worker-hunt-`
+so dig-only ASAN workers are not starved by `ghs_priority_defer`.
+
 ## Templates / release
 
 Examples ship the bake-in values: `.env.desktop.example`, `scripts/ops/desktop_worker.env.example`, Vast pack, ISO miner firstboot / `run-miner-worker.sh`, Windows `write_hackme_env.ps1`. Reinstall or restart worker after pulling so env picks up the new defaults.
