@@ -1987,7 +1987,7 @@
 						<span id="hdr-ui-mode" class="hidden sm:inline text-[9px] px-2 py-0.5 rounded border border-white/20 text-gray-300 uppercase tracking-widest" title="UI rendering mode">ui: full</span>
 						<span class="hidden sm:inline text-[10px] px-2 py-0.5 rounded border border-neon/25 text-neon/90 bg-neon/5">WASM</span>
 						<span id="chain-id-pill" class="tag-pill text-matrix/90 border-matrix/30">hackme-dev-mainnet</span>
-						<span id="hdr-node-version" class="text-[9px] px-2 py-0.5 rounded border border-white/10 text-neon/80 font-mono max-w-[280px] truncate hidden sm:inline-block" title="Node version · commit · build date from /api/status">0.1.0-rc18.1 · …</span>
+						<span id="hdr-node-version" class="text-[9px] px-2 py-0.5 rounded border border-white/10 text-neon/80 font-mono max-w-[280px] truncate hidden sm:inline-block" title="Node version · commit · build date from /api/status">0.1.0-rc18.2 · …</span>
 						<button type="button" id="btn-check-updates" class="inline text-[9px] px-2 py-0.5 rounded border border-neon/30 text-neon/90 hover:bg-neon/10 uppercase tracking-wider" title="Compare to hackme.tech/dist/latest.json">Updates</button>
 						<span id="hdr-update-pill" class="hidden text-[9px] px-2 py-0.5 rounded border border-warn/40 text-warn uppercase tracking-widest" title="Newer release published">update</span>
 					</div>
@@ -2069,8 +2069,8 @@
 				<div id="dashboard-whats-new" class="hidden mb-4 max-w-[1600px] mx-auto rounded-lg border border-neon/30 bg-gradient-to-r from-neon/[0.08] via-matrix/[0.06] to-transparent px-4 py-3.5 text-[11px] leading-relaxed shadow-[0_0_28px_rgba(0,209,255,0.08)]" role="status">
 					<div class="flex flex-wrap items-start justify-between gap-3">
 						<div class="min-w-0 flex-1">
-							<p class="font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-neon mb-1.5">What&apos;s new · <span id="dashboard-whats-new-ver">0.1.0-rc18.1</span></p>
-							<p id="dashboard-whats-new-body" class="text-gray-200/95"><strong class="text-white/90">rc18.1</strong> — Orders <strong class="text-matrix">publish token</strong> (scoped Dig/Hunt → public pool, not admin) · Blake3 @ <strong class="text-neon/90">#485000</strong> · <strong class="text-white/90">share-PPS</strong> · CUDA/OpenCL · HackMe OS ISO. Channel <code class="text-neon/80">0.1.0-rc18.1</code>.</p>
+							<p class="font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-neon mb-1.5">What&apos;s new · <span id="dashboard-whats-new-ver">0.1.0-rc18.2</span></p>
+							<p id="dashboard-whats-new-body" class="text-gray-200/95"><strong class="text-white/90">rc18.2</strong> — Public pool lane = <strong class="text-neon/90">GH/s</strong> (exact M on claim) · CI gate without fuzzupstream soak · Blake3 share-PPS · CUDA/OpenCL. Channel <code class="text-neon/80">0.1.0-rc18.2</code>.</p>
 						</div>
 						<button type="button" id="dashboard-whats-new-dismiss" class="shrink-0 text-[10px] px-2 py-1 rounded border border-white/15 text-gray-400 hover:text-gray-200 uppercase tracking-wider">Dismiss</button>
 					</div>
@@ -2641,7 +2641,7 @@
 					<div id="mining-fuzz-rc15-banner" class="card card-glow rounded-lg p-4 md:p-5 border-neon/40 bg-gradient-to-r from-neon/12 via-black/45 to-matrix/[0.06]">
 						<div class="flex flex-wrap items-start justify-between gap-3 mb-2">
 							<div class="max-w-3xl">
-								<p class="font-display text-[10px] tracking-[0.35em] text-neon uppercase mb-1" id="mining-fuzz-banner-kicker">B2B fuzz · Coverage Hunt · 0.1.0-rc18.1</p>
+								<p class="font-display text-[10px] tracking-[0.35em] text-neon uppercase mb-1" id="mining-fuzz-banner-kicker">B2B fuzz · Coverage Hunt · 0.1.0-rc18.2</p>
 								<h3 class="font-display text-sm font-semibold text-white tracking-wide" id="mining-fuzz-banner-title">Dig · Hunt · customer campaigns first</h3>
 								<p class="text-[11px] text-gray-400 leading-relaxed mt-1" id="mining-fuzz-banner-copy"><strong class="text-neon/90">Dig</strong> WASM packs · smoke <strong class="text-white/85">20/80</strong> · Deep <strong class="text-white/85">40/60</strong>. <strong class="text-matrix">Hunt</strong> ASAN · <strong class="text-white/85">50/50</strong> escrow. Orders rc18.1+ can publish to the public pool with <code class="text-neon/80">pool.orders.token</code>. Place on <strong class="text-neon/80">#orders</strong>.</p>
 								<div class="fuzz-sku-pills" aria-label="SKU escrow">
@@ -4540,7 +4540,7 @@
 			const fuzzTitle = $('mining-fuzz-banner-title');
 			const fuzzCopy = $('mining-fuzz-banner-copy');
 			const fuzzKicker = $('mining-fuzz-banner-kicker');
-			if (fuzzKicker) fuzzKicker.textContent = 'B2B fuzz · Dig on Windows · 0.1.0-rc18.1';
+			if (fuzzKicker) fuzzKicker.textContent = 'B2B fuzz · Dig on Windows · 0.1.0-rc18.2';
 			if (fuzzTitle) fuzzTitle.textContent = 'Dig on this PC · Hunt via Linux pool';
 			if (fuzzCopy) {
 				fuzzCopy.innerHTML = '<strong class="text-neon/90">Dig</strong> WASM runs here · smoke <strong class="text-white/85">20/80</strong> · Deep <strong class="text-white/85">40/60</strong>. <strong class="text-matrix">Hunt</strong> ASAN engines are <strong class="text-warn/90">Linux-only</strong> — publish from Orders so the public Linux pool runs coverage. Place Dig/Hunt on <strong class="text-neon/80">#orders</strong>.';
