@@ -4,9 +4,16 @@
 <title>HackMe Network News</title>
 <link>https://hackme.tech/news.html</link>
 <description>Official HackMe pool, release, and research notices.</description>
-<lastBuildDate>Sat, 31 Oct 2026 18:01:59 +0000</lastBuildDate>
+<lastBuildDate>Thu, 05 Nov 2026 08:17:00 +0000</lastBuildDate>
 <atom:link href="https://hackme.tech/news.xml" rel="self" type="application/rss+xml"/>
 <language>en-us</language>
+<item>
+<title>HackMe Official Pool listed on MiningBoard</title>
+<link>https://hackme.tech/news.html#2026-11-05-miningboard-listed</link>
+<guid isPermaLink="false">2026-11-05-miningboard-listed</guid>
+<pubDate>Thu, 05 Nov 2026 00:00:00 +0000</pubDate>
+<description>MiningBoard verified our pool-v1 feed and listed HMC + HackMe Official Pool (as of 2026-11-04 UTC). They read our endpoint directly: hashrate, miners, fee 0%, CUSTOM payout, min payout 0.0001 HMC — not a third-party estimate. Chain params from our docs (30s ASERT, 0.01 HMC/block with halvings, 0.002 HMC floor, 100M max) checked clean.</description>
+</item>
 <item>
 <title>0.1.0-rc18.1 — Orders publish token · pool Dig/Hunt without admin</title>
 <link>https://hackme.tech/news.html#2026-10-31-rc18-1-orders-publish</link>
@@ -279,13 +286,6 @@
 <guid isPermaLink="false">2026-07-17-oss-cve-watch-day10-nghttp2-libfuzzer</guid>
 <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
 <description>Day 10 on nghttp2: 5.0h libFuzzer depth, 384,015,656 executions at ~21,333 exec/s. Corpus 415 (297KB), 467 coverage edges. ASAN heap crashes: 0 — verdict CLEAN.</description>
-</item>
-<item>
-<title>OSS CVE Watch Day 9/14 · nghttp2 · 0.31B libFuzzer exec · CLEAN</title>
-<link>https://hackme.tech/news.html#2026-07-16-oss-cve-watch-day09-nghttp2-libfuzzer</link>
-<guid isPermaLink="false">2026-07-16-oss-cve-watch-day09-nghttp2-libfuzzer</guid>
-<pubDate>Thu, 16 Jul 2026 00:00:00 +0000</pubDate>
-<description>Day 9 on nghttp2: 4.0h libFuzzer depth, 313,781,660 executions at ~21,788 exec/s. Corpus 413 (303KB), 467 coverage edges. ASAN heap crashes: 0 — verdict CLEAN.</description>
 </item>
 </channel>
 </rss>

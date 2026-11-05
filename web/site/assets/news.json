@@ -1,6 +1,66 @@
 {
   "items": [
     {
+      "id": "2026-11-05-miningboard-listed",
+      "date": "2026-11-05",
+      "title": "HackMe Official Pool listed on MiningBoard",
+      "summary": "MiningBoard verified our pool-v1 feed and listed HMC + HackMe Official Pool (as of 2026-11-04 UTC). They read our endpoint directly: hashrate, miners, fee 0%, CUSTOM payout, min payout 0.0001 HMC — not a third-party estimate. Chain params from our docs (30s ASERT, 0.01 HMC/block with halvings, 0.002 HMC floor, 100M max) checked clean.",
+      "impact": "Miners and aggregators can cross-check live pool numbers on MiningBoard. Our stats stay the source of truth via https://hackme.tech/pool/coordinator/api/miningboard/hmc. Optional “Tracked on MiningBoard” badge is self-hosted on contacts.",
+      "action": "Pool page: https://miningboard.com/pools/hackme.tech · Coin: https://miningboard.com/mining/hackme · Contacts: https://hackme.tech/contacts.html · Feed: https://hackme.tech/pool/coordinator/api/miningboard/hmc · Mine: https://hackme.tech/downloads.html",
+      "tags": [
+        "listing",
+        "miningboard",
+        "pool",
+        "hmc",
+        "announcement"
+      ],
+      "status": "published",
+      "featured": true,
+      "social": {
+        "lead": "HackMe Official Pool is live on MiningBoard — they read our numbers, not estimates.",
+        "bullets": [
+          "HMC + Official Pool listed",
+          "pool-v1 feed verified",
+          "Fee 0% · CUSTOM share-PPS",
+          "Independent hashrate / miners / height"
+        ],
+        "body": "**HackMe × MiningBoard**\n\nHMC and HackMe Official Pool are listed.\nMiningBoard polls our pool-v1 feed directly.\n\n• Pool: https://miningboard.com/pools/hackme.tech\n• Coin: https://miningboard.com/mining/hackme\n• Feed: https://hackme.tech/pool/coordinator/api/miningboard/hmc\n• Mine: https://hackme.tech/downloads.html",
+        "headline": "HackMe Official Pool listed on MiningBoard",
+        "github": "https://github.com/jokeez/hackme"
+      },
+      "telegram": {
+        "headline": "MiningBoard listing LIVE",
+        "lead": "HMC + HackMe Official Pool are on MiningBoard. They verified our pool-v1 feed and read hashrate / miners / fee straight from hackme.tech.",
+        "bullets": [
+          "Pool: miningboard.com/pools/hackme.tech",
+          "Coin: miningboard.com/mining/hackme",
+          "Our feed: /pool/coordinator/api/miningboard/hmc",
+          "Blake3 share-PPS · fee 0% · HTTP coordinator (not Stratum)",
+          "Downloads: hackme.tech/downloads.html"
+        ],
+        "footer": "Independent check for miners · not financial advice"
+      },
+      "discord": {
+        "title": "MiningBoard — HackMe Official Pool listed",
+        "body": "**We’re on MiningBoard.**\n\nThey verified our **pool-v1** stats feed and listed **HMC** + **HackMe Official Pool** (as of 4 Nov 2026 UTC).\n\n• Pool → https://miningboard.com/pools/hackme.tech\n• Coin → https://miningboard.com/mining/hackme\n• Our feed → https://hackme.tech/pool/coordinator/api/miningboard/hmc\n• Contacts badge → https://hackme.tech/contacts.html\n\nBlake3 share-PPS · fee **0%** · useful PoW / PoH. Not Stratum.",
+        "ping": "#announcements"
+      },
+      "bitcointalk": {
+        "title": "[ANN][PoW] HackMe Official Pool listed on MiningBoard",
+        "body": "Update — MiningBoard listed HMC and HackMe Official Pool (verified 2026-11-04 UTC).\n\nThey poll our MiningBoard pool-v1 feed directly (hashrate, miners, fee, height) — not a third-party estimate:\nhttps://hackme.tech/pool/coordinator/api/miningboard/hmc\n\nPool page: https://miningboard.com/pools/hackme.tech\nCoin page: https://miningboard.com/mining/hackme\nContacts / badge: https://hackme.tech/contacts.html\n\nPool remains HTTP coordinator + open-source workerpoh (CUDA/OpenCL), Blake3 share-PPS, fee 0%.\nANN: https://bitcointalk.org/index.php?topic=5583373.0\nDownloads: https://hackme.tech/downloads.html"
+      },
+      "x": {
+        "body": "HackMe Official Pool is live on @MiningBoard.\n\nThey read our pool-v1 feed — hashrate, miners, fee — straight from the source.\n\nPool → https://miningboard.com/pools/hackme.tech\nCoin → https://miningboard.com/mining/hackme\nMine → https://hackme.tech/downloads.html\n\n#HMC #PoW #mining"
+      },
+      "facebook": {
+        "body": "HackMe Official Pool is now listed on MiningBoard.\n\nMiningBoard verified our public pool-v1 stats feed and tracks HMC + the official pool directly (hashrate, miners, fee, height) — independent of third-party estimates.\n\nPool: https://miningboard.com/pools/hackme.tech\nCoin: https://miningboard.com/mining/hackme\nOur feed: https://hackme.tech/pool/coordinator/api/miningboard/hmc\nMine / downloads: https://hackme.tech/downloads.html\n\nBlake3 share-PPS · fee 0% · HTTP coordinator (not Stratum)."
+      },
+      "reddit": {
+        "title": "HackMe (HMC) Official Pool listed on MiningBoard",
+        "body": "MiningBoard listed **HMC** and **HackMe Official Pool** after verifying our pool-v1 JSON feed (as of 2026-11-04 UTC).\n\n- Pool: https://miningboard.com/pools/hackme.tech\n- Coin: https://miningboard.com/mining/hackme\n- Feed they poll: https://hackme.tech/pool/coordinator/api/miningboard/hmc\n- Downloads: https://hackme.tech/downloads.html\n\nUseful PoW / PoH (Blake3 share-PPS), fee 0%, HTTP coordinator + open-source CUDA/OpenCL workers — not Stratum."
+      }
+    },
+    {
       "id": "2026-10-31-rc18-1-orders-publish",
       "date": "2026-10-31",
       "title": "0.1.0-rc18.1 — Orders publish token · pool Dig/Hunt without admin",

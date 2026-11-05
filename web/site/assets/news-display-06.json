@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-05-07-desktop-mode-launchers-and-first-run-wizard",
+      "date": "2026-05-07",
+      "title": "Desktop Mode: Linux Launcher + Windows Scripts + First-Run Wizard",
+      "summary": "Shipped app-like desktop operations: Linux .desktop launcher installer, Windows start/stop/status scripts, and a built-in dashboard first-run wizard for token generation and Solo/Worker quick start.",
+      "impact": "New miners can start with fewer manual steps: local node startup, admin token bootstrap, and worker-mode onboarding are now guided in one flow.",
+      "action": "Linux: run scripts/ops/install_linux_desktop_launcher.sh then desktop_mode_up.sh. Windows: use start_hackme_desktop_mode.bat and verify /api/status via status_hackme_desktop_mode.bat.",
+      "tags": [
+        "desktop",
+        "ux",
+        "release",
+        "ops"
+      ],
+      "status": "deployed"
+    },
+    {
       "id": "2026-05-07-status-schema-canonical-overlay",
       "date": "2026-05-07",
       "title": "/api/status: Schema Always + Canonical Economics Overlay",
@@ -228,20 +243,6 @@
       "tags": [
         "release",
         "ops"
-      ],
-      "status": "deployed"
-    },
-    {
-      "id": "2026-05-02-security-hardening-pack",
-      "date": "2026-05-02",
-      "title": "Security Hardening Pack Extended",
-      "summary": "WASM validation gates, signature checks, and fail-closed controls were expanded and integrated into daily/ultimate validation packs.",
-      "impact": "Lower risk of unsafe task execution and stronger deterministic verification in pipeline.",
-      "action": "Run production runbooks before major operator changes.",
-      "tags": [
-        "security",
-        "core",
-        "testing"
       ],
       "status": "deployed"
     }
