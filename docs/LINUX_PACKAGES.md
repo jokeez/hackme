@@ -19,7 +19,7 @@ The image is built from the published Linux tarball (prebuilt CPU / CUDA / OpenC
 checks its SHA256 during the build.
 
 ```bash
-docker run -d --name hackme --restart unless-stopped \
+docker run -d --name hackme --restart unless-stopped --stop-timeout 60 \
   --network host --gpus all \
   -v hackme-state:/state hackme/miner:<ver>
 ```
@@ -31,7 +31,7 @@ docker run -d --name hackme --restart unless-stopped \
 - **`/state` holds the wallet key** (`data/node_ed25519.seed`), the chain DB, `.env` and logs.
   Back the volume up — losing it loses the wallet:
   `docker run --rm -v hackme-state:/s -v "$PWD":/b debian tar -czf /b/hackme-state.tgz -C /s .`
-- Upgrade: `docker pull` the new tag, `docker rm -f hackme`, run again with the same volume.
+- Upgrade: `docker pull` the new tag, `docker stop -t 60 hackme && docker rm hackme`, run again with the same volume (`rm -f` kills the node without flushing).
 - Hunt (ASAN/bwrap) needs unprivileged user namespaces, which Docker blocks by default: in the
   container the worker runs Dig + PoH and soft-skips Hunt.
 

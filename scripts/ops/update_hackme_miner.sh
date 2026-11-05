@@ -139,10 +139,17 @@ url="$(jq -r '.url' <<<"$plat")"
 mirror="$(jq -r '.mirror_url // empty' <<<"$plat")"
 [[ -n "$file" && -n "$sha" && -n "$url" ]] || die "linux platform incomplete"
 
+# file comes from remote JSON: a bare archive name only (no path), or curl could write anywhere.
+[[ "$file" =~ ^[A-Za-z0-9._+-]+$ && "$file" != .* ]] || die "latest.json: bad file name"
 ARCHIVE="${TMP}/${file}"
 download_ok=0
 for u in "$url" "$mirror"; do
   [[ -n "$u" && "$u" != null ]] || continue
+  # Only https from a remote feed; file:// only when the feed itself is a local file (tests).
+  if [[ "$u" == file://* && "${HACKME_LATEST_URL:-}" != file://* ]] || [[ "$u" != file://* && "$u" != https://* ]]; then
+    log "skip non-https download URL: $u"
+    continue
+  fi
   log "download $u"
   if [[ "$u" == file://* ]]; then
     cp "${u#file://}" "$ARCHIVE" && download_ok=1 && break

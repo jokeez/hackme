@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| **Status** | Public design — soft announce / process lock |
-| **Branch** | Implementation on `econ-v2`; activation is a later height switch |
+| **Status** | Activation height **550 000** compiled into the release (≈ 2026-11-15) |
+| **Branch** | On `main`; one height switch at block 550 000 |
 | **Network today** | `0.1.0-rc18` · Blake3 PoH · ASERT · `SHARE_STRICT` share-PPS · solvency M |
 | **Scope** | HMC emission, pool funding, order fee/burn, SUP utility, activation process |
-| **Out of scope** | Airdrops, vesting giveaways, address redesign as a blocker |
+| **Out of scope** | Airdrops, vesting giveaways |
 
 > **One-line target:** at a published activation height, HMC becomes **0.1 HMC/block**, with **~4-year halvings from genesis**, a permanent **0.002 HMC tail**, **no max-supply fiction**, real burns, and a pool funded from **emission** — not perpetual treasury subsidy.
 
@@ -86,7 +86,7 @@ Dig/Hunt **package prices and escrow splits** (20/80, 40/60, Hunt 50/50) are **u
 | Target block time | ~**30 seconds** (unchanged) |
 | Blocks / day (nominal) | ~**2 880** |
 | Gross empty-block emission (era 0) | ~**288 HMC/day** |
-| Halving interval | **4 204 800** blocks (~4 years) |
+| Halving interval | **4 204 800** blocks (~4 years), counted from genesis: first v2 halving at block 4 204 801 (≈ 3.5 years after activation) |
 | Epoch formula | `epoch = floor((height - 1) / halving_interval)` |
 | Base reward | `max(0.002, 0.1 / 2^epoch)` HMC |
 | Tail | **0.002 HMC/block** permanently after halvings reach it |
@@ -245,7 +245,7 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 [ Height switch — single package ]
 ```
 
-**We will not** ship economics v2 by merging isolated numbers into `main` early. **We will not** freeze a block height in this RFC. The height comes in the **activation announce**, with enough wall-clock notice for miners, customers, and explorers.
+**We did not** ship economics v2 as isolated numbers: everything switches together at one height. The height (**550 000**) was fixed with the activation announce, at least 7 days ahead, so miners, customers and explorers can upgrade.
 
 ---
 
@@ -267,7 +267,7 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 | Address/key binding | ✅ recorded from history now, enforced from the activation height |
 | Long address format | ✅ `HMC-` + 64 hex accepted from the activation height (voluntary migration) |
 | Activation height | ✅ **550 000** compiled into the release with the hub authority key (≈ 2026-11-15) |
-| Activation announce + ≥7d | ⏳ announce 2026-11-05 |
+| Activation announce + ≥7d | ⏳ announce 2026-11-06 (rc19 release) |
 | Height switch | ⏳ |
 | Post-switch dumps / verify / 1.0.0 | after stability |
 
@@ -335,4 +335,13 @@ Miners, desktop nodes, explorers, and customers need a predictable upgrade windo
 
 ---
 
-*HackMe Economics v2 — public RFC. Activation height will be published separately before the switch.*
+*HackMe Economics v2 — public RFC. Activation height: block 550 000.*
+
+---
+
+### Note on fee arithmetic
+
+Dig/Hunt budgets are split 90 / 5 / 5 (escrow / burn / platform) of the price. PoH orders have a
+fixed escrow (reward × solves), so the fee is added on top: price = escrow / 0.9, i.e. each leg is
+≈ 5.56 % of the escrow. SUP is capped at 21 000; with the schedule above total emission ends at
+≈ 19 000 SUP, so the cap is a ceiling, not a target.

@@ -5,6 +5,9 @@
 #   VERSION=0.1.0-rc15 bash scripts/release/linux/build_deb_from_dist.sh
 #   bash scripts/release/linux/build_deb_from_dist.sh /path/to/dist/release_0.1.0-rc15
 set -euo pipefail
+# Package file modes must not depend on the builder's umask: a 002 umask made the rpm claim
+# shared dirs (/usr/share/icons/hicolor…) as 0775 and conflict with hicolor-icon-theme.
+umask 022
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 export PATH="${PATH}:$(go env GOPATH 2>/dev/null)/bin"
 VERSION="${VERSION:-$(tr -d ' \n\r' <"${ROOT}/scripts/release/CURRENT_VERSION" 2>/dev/null || true)}"
@@ -194,6 +197,7 @@ echo "hackme-node: updates (L1): bash /opt/hackme/update_hackme_miner.sh"
 EOF
 chmod +x "$POSTINST"
 
+chmod -R u+rwX,go-w,go+rX "$PKG"
 # Relative paths for nfpm (run from STAGE)
 NFPM_YAML="${STAGE}/nfpm.yaml"
 cat >"$NFPM_YAML" <<EOF

@@ -8,8 +8,12 @@ VERSION="${VERSION:-$(tr -d ' \n\r' <"$ROOT/scripts/release/CURRENT_VERSION")}"
 DIST="${DIST_DIR:-$ROOT/dist/release_${VERSION}}"
 
 command -v nfpm >/dev/null || { echo "[gate] nfpm required" >&2; exit 2; }
-bash "$ROOT/scripts/release/linux/build_deb_from_dist.sh" "$DIST"
 DEB="$DIST/hackme-node_${VERSION}_amd64.deb"
+# Check the packages that were already built and hashed into SHA256SUMS / the apt pool:
+# rebuilding here (nfpm is not reproducible) silently invalidated the published hashes.
+if [[ ! -f "$DEB" || "${DEB_GATE_REBUILD:-0}" == "1" ]]; then
+  bash "$ROOT/scripts/release/linux/build_deb_from_dist.sh" "$DIST"
+fi
 [[ -f "$DEB" ]] || { echo "[gate] missing deb" >&2; exit 1; }
 LIST="$(mktemp)"
 trap 'rm -f "$LIST"' EXIT

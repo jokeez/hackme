@@ -56,4 +56,6 @@ gpg --verify dist/apt/repo/dists/stable/InRelease >/dev/null 2>&1 || \
   GNUPGHOME="$ROOT/.secrets/apt/gnupg" gpg --verify dist/apt/repo/dists/stable/InRelease
 
 echo "[full-release] DONE dist/release_${VERSION}"
-ls -lh "dist/release_${VERSION}"/*.{tar.gz,exe,zip,deb,iso,json,txt} 2>/dev/null | head -40
+ls -lh "dist/release_${VERSION}"/*.{tar.gz,exe,zip,deb,rpm,zst,iso,json,txt} 2>/dev/null | head -40
+# Published hashes must match the files (gates above no longer rebuild packages).
+(cd "dist/release_${VERSION}" && sha256sum -c --ignore-missing SHA256SUMS.txt)

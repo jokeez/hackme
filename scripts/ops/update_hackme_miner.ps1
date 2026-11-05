@@ -106,6 +106,8 @@ try {
     $plat = $latest.platforms | Where-Object { $_.id -eq "windows_zip" } | Select-Object -First 1
   }
   if (-not $plat) { throw "no windows platform in latest.json" }
+  # file comes from remote JSON: bare archive name only (Join-Path would honour ..\ or rooted paths).
+  if ([string]$plat.file -notmatch '^[A-Za-z0-9._+-]+$' -or ([string]$plat.file).StartsWith('.')) { throw "latest.json: bad file name" }
 
   if ($plat.kind -eq "installer") {
     Log "installer payload detected: $($plat.file)"
