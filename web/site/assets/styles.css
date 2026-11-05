@@ -2840,28 +2840,48 @@ html {
   grid-template-columns: 1fr auto;
 }
 
+.hof-empty[hidden],
+.hof-month-list[hidden],
+.hof-detail[hidden],
+.hof-budget[hidden] {
+  display: none !important;
+}
+html.hof-ledger-open,
+html.hof-ledger-open body {
+  overflow: hidden;
+}
 .hof-dialog {
   border: 0;
   padding: 0;
   max-width: min(1120px, calc(100vw - 1.5rem));
   width: 100%;
-  background: transparent;
+  /* Opaque — transparent <dialog> paints as a blank dark sheet on some mobile browsers */
+  background: #070d18;
   color: var(--text);
+  border-radius: 20px;
+  overflow: hidden;
+}
+.hof-dialog[open] {
+  display: block;
 }
 .hof-dialog::backdrop {
-  background: rgba(2, 6, 14, 0.72);
+  background: rgba(2, 6, 14, 0.82);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 .hof-dialog-shell {
   display: flex;
   flex-direction: column;
+  width: 100%;
   max-height: min(90vh, 820px);
+  max-height: min(90dvh, 820px);
   border-radius: 20px;
   border: 1px solid rgba(77, 228, 255, 0.22);
   background:
-    linear-gradient(165deg, rgba(12, 20, 36, 0.98), rgba(6, 10, 18, 0.98));
+    linear-gradient(165deg, #0c1424 0%, #060a12 100%);
   box-shadow: 0 30px 90px rgba(0, 8, 28, 0.55);
   overflow: hidden;
+  color: var(--text);
 }
 .hof-dialog-head {
   flex: 0 0 auto;
@@ -3074,17 +3094,67 @@ html {
 }
 
 @media (max-width: 900px) {
+  /* Full-viewport sheet — avoids “black empty” modal on phones */
+  .hof-dialog {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+    padding:
+      env(safe-area-inset-top, 0)
+      env(safe-area-inset-right, 0)
+      env(safe-area-inset-bottom, 0)
+      env(safe-area-inset-left, 0);
+    box-sizing: border-box;
+  }
+  .hof-dialog-shell {
+    max-height: none;
+    height: 100%;
+    border-radius: 0;
+    border: 0;
+    box-shadow: none;
+  }
+  .hof-dialog-head {
+    padding: 0.9rem 1rem;
+    gap: 0.75rem;
+  }
+  .hof-dialog-head h2 {
+    font-size: 1.15rem;
+  }
+  .hof-dialog-head .subtle {
+    font-size: 0.82rem;
+  }
   .hof-dialog-body {
     grid-template-columns: 1fr;
-    height: min(78vh, 680px);
+    grid-template-rows: minmax(42%, 1fr) minmax(38%, 1fr);
+    height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
   }
   .hof-ledger-table-wrap {
     border-right: 0;
     border-bottom: 1px solid rgba(87, 118, 168, 0.22);
-    max-height: 36%;
+    max-height: none;
+    min-height: 0;
+  }
+  .hof-ledger-table {
+    font-size: 0.82rem;
+  }
+  .hof-ledger-table th,
+  .hof-ledger-table td {
+    padding: 0.65rem 0.7rem;
+  }
+  .hof-ledger-table th:nth-child(3),
+  .hof-ledger-table td:nth-child(3) {
+    display: none; /* Reports — save width on phones */
   }
   .hof-detail {
     min-height: 0;
+    background: rgba(0, 0, 0, 0.28);
   }
   .hof-month-card {
     grid-template-columns: auto 1fr;
@@ -3099,7 +3169,15 @@ html {
   .hof-month-card--no-avatar .hof-payout {
     grid-column: 1;
   }
-  .hof-detail-stats { grid-template-columns: 1fr; }
+  .hof-detail-stats { grid-template-columns: 1fr 1fr; }
+  .hof-detail-stats div:last-child { grid-column: 1 / -1; }
+  .hof-board-actions {
+    width: 100%;
+  }
+  .hof-open-ledger {
+    flex: 1 1 auto;
+    min-height: 44px;
+  }
 }
 .hof-finding-link {
   color: inherit;

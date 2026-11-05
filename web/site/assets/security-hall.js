@@ -318,8 +318,16 @@
 
   function openLedger(selectId) {
     if (!DIALOG) return;
-    if (typeof DIALOG.showModal === "function") DIALOG.showModal();
-    else DIALOG.setAttribute("open", "");
+    try {
+      if (typeof DIALOG.showModal === "function") {
+        if (!DIALOG.open) DIALOG.showModal();
+      } else {
+        DIALOG.setAttribute("open", "");
+      }
+    } catch (_) {
+      DIALOG.setAttribute("open", "");
+    }
+    document.documentElement.classList.add("hof-ledger-open");
     if (selectId) selectResearcher(selectId);
     else if (DETAIL) {
       DETAIL.hidden = false;
@@ -329,12 +337,19 @@
         row.classList.remove("is-active")
       );
     }
+    // Keep focus inside the sheet (helps VoiceOver / mobile browsers)
+    CLOSE_BTN?.focus({ preventScroll: true });
   }
 
   function closeLedger() {
     if (!DIALOG) return;
-    if (typeof DIALOG.close === "function") DIALOG.close();
-    else DIALOG.removeAttribute("open");
+    document.documentElement.classList.remove("hof-ledger-open");
+    try {
+      if (typeof DIALOG.close === "function" && DIALOG.open) DIALOG.close();
+      else DIALOG.removeAttribute("open");
+    } catch (_) {
+      DIALOG.removeAttribute("open");
+    }
   }
 
   function render(data) {
@@ -382,10 +397,22 @@
     ROOT.dataset.state = researchers.length ? "ready" : "empty";
   }
 
-  OPEN_BTN?.addEventListener("click", () => openLedger());
-  CLOSE_BTN?.addEventListener("click", closeLedger);
+  OPEN_BTN?.addEventListener("click", (e) => {
+    e.preventDefault();
+    openLedger();
+  });
+  CLOSE_BTN?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeLedger();
+  });
+  // Only close when tapping the backdrop / dialog chrome — not the opaque shell
   DIALOG?.addEventListener("click", (e) => {
     if (e.target === DIALOG) closeLedger();
+  });
+  DIALOG?.addEventListener("cancel", (e) => {
+    e.preventDefault();
+    closeLedger();
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && DIALOG?.open) closeLedger();
