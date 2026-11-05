@@ -3928,6 +3928,14 @@
 								<code id="wallet-address-display" class="flex-1 text-xs text-neon bg-black/60 px-3 py-2 rounded border border-neon/20 break-all">HMC-91fe007e4036c602</code>
 								<button type="button" id="btn-copy-address" class="shrink-0 px-4 py-2 rounded border border-neon/40 text-neon text-[10px] font-display font-bold uppercase tracking-wider hover:bg-neon/10">Copy</button>
 							</div>
+							<div id="wallet-long-address-block" class="hidden mt-3">
+								<p class="text-[10px] uppercase tracking-widest text-gray-600 mb-1">Long address (same key) <span id="wallet-long-address-when" class="normal-case tracking-normal text-gray-500"></span></p>
+								<div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+									<code id="wallet-long-address-display" class="flex-1 text-[10px] text-matrix/90 bg-black/60 px-3 py-2 rounded border border-matrix/20 break-all"></code>
+									<button type="button" id="btn-copy-long-address" class="shrink-0 px-4 py-2 rounded border border-matrix/40 text-matrix text-[10px] font-display font-bold uppercase tracking-wider hover:bg-matrix/10">Copy</button>
+								</div>
+								<p class="mt-1 text-[10px] text-gray-500 leading-snug">Full-length form of your address. Move funds to it with a normal transfer once it is active; your current address keeps working. Nothing moves automatically.</p>
+							</div>
 							<p id="wallet-sync-badge" class="mt-2 inline-flex items-center rounded border border-yellow-500/40 bg-yellow-500/10 px-2 py-1 text-[10px] uppercase tracking-wider text-yellow-200">Canonical sync: checking...</p>
 							<p id="wallet-signer-note" class="mt-2 text-[10px] text-gray-500 font-mono"></p>
 							<p id="wallet-chain-meta" class="mt-4 text-[10px] text-gray-500 leading-relaxed text-left"></p>
@@ -5913,6 +5921,23 @@
 				if (btn) btn.disabled = false;
 				try { refreshHuntSpendableHint(); } catch (_) {}
 			}
+		}
+		// Economics v2 long address of the node key (only for this node's own wallet).
+		function renderWalletLongAddress(w) {
+			const block = $('wallet-long-address-block');
+			if (!block) return;
+			const long = String((w && w.long_address) || '').trim();
+			if (!/^HMC-[0-9a-f]{64}$/.test(long)) { block.classList.add('hidden'); return; }
+			$('wallet-long-address-display').textContent = long;
+			const from = Number((w && w.long_address_from_height) || 0);
+			const tip = Number((latestStatus && (latestStatus.display_tip_height || latestStatus.canonical_tip_height || latestStatus.tip_height)) || 0);
+			const when = $('wallet-long-address-when');
+			if (when) {
+				when.textContent = from > 0
+					? (tip > 0 && tip + 1 >= from ? '· active' : '· active from block ' + fmtUInt(from))
+					: '';
+			}
+			block.classList.remove('hidden');
 		}
 		function paintWalletShellInstant() {
 			restoreWalletSnapshotCache();
@@ -7970,6 +7995,12 @@
 					txFormSetValidation('To: required HMC- address');
 					return;
 				}
+				// Chain format: legacy HMC- + 16 hex, or the v2 long form HMC- + 64 hex (from the
+				// activation height). Uppercase or other lengths would strand the funds.
+				if (!/^HMC-([0-9a-f]{16}|[0-9a-f]{64})$/.test(tx.to)) {
+					txFormSetValidation('To: must be HMC- + 16 or 64 lowercase hex characters');
+					return;
+				}
 				if (!(tx.amount_units > 0)) {
 					txFormSetValidation('Amount must be > 0');
 					return;
@@ -8430,6 +8461,13 @@
 						ev.preventDefault();
 						runHashLookup();
 					}
+				});
+			}
+			if ($('btn-copy-long-address')) {
+				$('btn-copy-long-address').addEventListener('click', async () => {
+					const t = String(($('wallet-long-address-display') || {}).textContent || '').trim();
+					if (!/^HMC-[0-9a-f]{64}$/.test(t)) return;
+					try { await navigator.clipboard.writeText(t); logLine('[wallet] long address copied'); } catch (_) { logLine('[wallet] copy failed'); }
 				});
 			}
 			if ($('btn-copy-address')) {
@@ -10155,12 +10193,13 @@
 			const q = String(raw || '').trim();
 			if (!q) return { ok: false, code: 'empty', message: '[lookup] ERROR: empty query — enter HMC-… wallet or worker id.' };
 			if (!q.startsWith('HMC-')) return { ok: true, kind: 'worker' };
-			if (q.length !== 20) {
-				return { ok: false, code: 'hmc_len', message: '[lookup] ERROR: invalid HMC address length (' + q.length + ' chars, expected 20 like HMC-91fe007e4036c602).' };
+			// Legacy HMC- + 16 hex, or the Economics v2 long form HMC- + 64 hex (full key hash).
+			if (q.length !== 20 && q.length !== 68) {
+				return { ok: false, code: 'hmc_len', message: '[lookup] ERROR: invalid HMC address length (' + q.length + ' chars, expected 20 (HMC- + 16 hex) or 68 (HMC- + 64 hex)).' };
 			}
 			const suf = q.slice(4);
-			if (!/^[0-9a-fA-F]{16}$/.test(suf)) {
-				return { ok: false, code: 'hmc_hex', message: '[lookup] ERROR: HMC suffix must be 16 hex digits (got: ' + suf + ').' };
+			if (!/^[0-9a-f]+$/.test(suf)) {
+				return { ok: false, code: 'hmc_hex', message: '[lookup] ERROR: HMC address must be lowercase hex after HMC- (got: ' + suf.slice(0, 20) + (suf.length > 20 ? '…' : '') + ').' };
 			}
 			return { ok: true, kind: 'wallet' };
 		}
@@ -12832,7 +12871,7 @@
 				// Before the Economics v2 switch the next schedule change is the activation height
 				// (v1 halving at 2,102,401 never happens: v2 restarts the schedule).
 				const v2h = Number(payload.econ_v2_activation_height || 0);
-				const tipH = Number(payload.block_height || payload.height || 0);
+				const tipH = Math.max(Number(payload.block_height || 0), Number((latestStatus && (latestStatus.display_tip_height || latestStatus.canonical_tip_height)) || 0));
 				const v2Ahead = v2h > 0 && (!(tipH > 0) || tipH < v2h);
 				const lbl = $('econ-next-halving-label');
 				const sub = $('econ-next-halving-sub');
@@ -16946,6 +16985,7 @@
 				}
 				if (r.ok) {
 					let w = await r.json();
+					try { renderWalletLongAddress(w); } catch (_) {}
 					if (w.public_redacted) {
 						await syncDesktopAdminTokenFromNode();
 						const r2 = await fetchWithTimeout('/api/wallet' + q, { cache: 'no-store', headers: adminHeaders() }, WALLET_FETCH_TIMEOUT_MS);

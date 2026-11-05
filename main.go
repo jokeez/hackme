@@ -1882,6 +1882,12 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 		"balance_orders_spendable_units": localMirrorUnits,
 		"balance_alignment":              alignment,
 	}
+	// Economics v2 long address of this node's key (same key, full sha256): shown so owners can
+	// move funds to it after the activation height. Never for a foreign/looked-up address.
+	if a.signer != nil && strings.TrimSpace(displayAddr) == strings.TrimSpace(a.signer.Address()) {
+		out["long_address"] = a.signer.LongAddress()
+		out["long_address_from_height"] = chain.EconomicsV2ActivationHeight()
+	}
 	if canonActive && balanceUnits > localMirrorUnits {
 		out["orders_spendable_note"] = "Dig/Hunt Start auto-funds from this on-chain Wallet balance (locks HMC into prepaid escrow). Prepaid spendable shown separately."
 	}
@@ -2003,9 +2009,13 @@ func finalizeWalletEarningsCanonicalProxy(remote map[string]any) {
 	delete(remote, "fork_hint")
 }
 
-// parseOptionalHMCAddress returns s if it matches the fixed HMC- + 16-hex display form; otherwise "".
+// parseOptionalHMCAddress returns s if it is HMC- + 16 hex (legacy) or the Economics v2 long
+// form HMC- + 64 lowercase hex; otherwise "".
 func parseOptionalHMCAddress(s string) string {
 	s = strings.TrimSpace(s)
+	if chain.IsLongAddress(s) {
+		return s
+	}
 	if !strings.HasPrefix(s, "HMC-") || len(s) != 20 {
 		return ""
 	}
