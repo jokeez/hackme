@@ -56,7 +56,11 @@ func TestLongAddressDerivation(t *testing.T) {
 	if !pubKeyOwnsAddress(s.PublicKeyHex(), s.Address()) || !pubKeyOwnsAddress(s.PublicKeyHex(), want) {
 		t.Fatal("key must own both of its addresses")
 	}
-	if pubKeyOwnsAddress(s.PublicKeyHex(), want[:len(want)-1]+"0") || pubKeyOwnsAddress(s.PublicKeyHex(), strings.ToUpper(want)) {
+	flip := "0"
+	if strings.HasSuffix(want, "0") {
+		flip = "1"
+	}
+	if pubKeyOwnsAddress(s.PublicKeyHex(), want[:len(want)-1]+flip) || pubKeyOwnsAddress(s.PublicKeyHex(), strings.ToUpper(want)) {
 		t.Fatal("near-miss address accepted")
 	}
 	if _, err := LongAddressFromPubKeyHex("zz"); err == nil {
