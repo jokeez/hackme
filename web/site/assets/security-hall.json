@@ -1,0 +1,16 @@
+{
+  "updated": "2026-11-05",
+  "program": {
+    "asset": "HMC",
+    "monthly_budget_hmc": 200,
+    "policy_url": "https://github.com/jokeez/hackme/blob/main/docs/BUG_BOUNTY.md",
+    "report_url": "./contacts.html",
+    "note": "Discretionary on-chain grants after a verified fix. Names appear only with researcher consent."
+  },
+  "stats": {
+    "total_paid_hmc": 0,
+    "researchers": 0,
+    "reports_accepted": 0
+  },
+  "researchers": []
+}

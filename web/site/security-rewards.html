@@ -3,18 +3,21 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HackMe Security Rewards — Bug Bounty (HMC)</title>
-  <meta name="description" content="HackMe discretionary security rewards: report bugs privately, earn small HMC grants for valid security, UI, and UX findings after fix." />
+  <title>HackMe Security Rewards — Bug Bounty Hall of Fame</title>
+  <meta name="description" content="HackMe discretionary security rewards in HMC. Hall of fame for researchers who reported bugs and vulnerabilities — with payouts, GitHub or nick credit." />
   <link rel="canonical" href="https://hackme.tech/security-rewards.html" />
+  <meta property="og:title" content="HackMe Security Rewards — Hall of Fame" />
+  <meta property="og:url" content="https://hackme.tech/security-rewards.html" />
+  <meta property="og:description" content="Private reports. On-chain HMC after fix. Public credit for researchers who help harden HackMe." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./assets/styles.css?v=20261024eco1" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20261105hof1" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
   <link rel="icon" href="/assets/favicon.png" type="image/png" />
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
 </head>
-<body>
+<body class="page-security-rewards">
   <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
   <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
   <header class="topbar">
@@ -23,101 +26,138 @@
   </header>
 
   <main class="container">
-    <section class="hero glass hero-small">
+    <section class="hero glass hero-small hof-hero">
       <p class="kicker">Security rewards</p>
-      <h1>Bug bounty &amp; UX reports (HMC)</h1>
+      <h1>Bug bounty &amp; researchers board</h1>
       <p class="hero-copy">
-        Private reports welcome. We pay <strong>small on-chain HMC grants</strong> after verified fixes — not a token sale, not guaranteed income.
-        Amounts are <strong>guidelines</strong>; the operator decides each case.
+        Private reports. <strong>On-chain HMC</strong> after a verified fix.
+        This page is the public ledger of who helped — GitHub when they have one, nick credit when they don’t.
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="./contacts.html">Report privately</a>
-        <a class="btn btn-secondary" href="https://github.com/jokeez/hackme/blob/main/docs/BUG_BOUNTY.md" target="_blank" rel="noreferrer">Full policy (GitHub)</a>
+        <a class="btn btn-secondary" href="https://github.com/jokeez/hackme/blob/main/docs/BUG_BOUNTY.md" target="_blank" rel="noreferrer">Full policy</a>
         <a class="btn btn-secondary" href="./security-notes.html">Security notes</a>
       </div>
-    </section>
-
-    <section class="panel glass">
-      <div class="panel-head"><h2>Reward tiers (guideline)</h2></div>
-      <div class="table-wrap">
-        <table class="pool-table">
-          <thead>
-            <tr>
-              <th>Severity</th>
-              <th>Examples</th>
-              <th>Typical HMC</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Informational</td>
-              <td>Docs typo, duplicate known issue</td>
-              <td><strong>0</strong> (thanks)</td>
-            </tr>
-            <tr>
-              <td>Low — UI/UX</td>
-              <td>Broken layout, wrong link on official site</td>
-              <td><strong>1 – 5</strong></td>
-            </tr>
-            <tr>
-              <td>Low — functional</td>
-              <td>Minor API/validation issue, no exploit</td>
-              <td><strong>2 – 10</strong></td>
-            </tr>
-            <tr>
-              <td>Medium</td>
-              <td>Auth leak, DoS with PoC, coordinator issue without drain</td>
-              <td><strong>10 – 40</strong></td>
-            </tr>
-            <tr>
-              <td>High</td>
-              <td>Settlement bug with fund impact, sandbox escape PoC</td>
-              <td><strong>40 – 100</strong></td>
-            </tr>
-            <tr>
-              <td>Critical</td>
-              <td>Drain treasury/pool accounting, consensus break</td>
-              <td><strong>100 – 200</strong></td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="hof-hero-stats" aria-label="Program snapshot">
+        <div class="hof-stat">
+          <span class="hof-stat-value" id="hall-stat-paid">0</span>
+          <span class="hof-stat-unit">HMC paid</span>
+        </div>
+        <div class="hof-stat">
+          <span class="hof-stat-value" id="hall-stat-people">0</span>
+          <span class="hof-stat-unit">researchers</span>
+        </div>
+        <div class="hof-stat">
+          <span class="hof-stat-value" id="hall-stat-reports">0</span>
+          <span class="hof-stat-unit">accepted</span>
+        </div>
+        <div class="hof-stat hof-stat--soft">
+          <span class="hof-stat-value">~200</span>
+          <span class="hof-stat-unit">HMC / month budget</span>
+        </div>
       </div>
-      <p class="muted">Monthly program budget (discretionary): ~<strong>200 HMC</strong> total across payouts until reviewed.</p>
+    </section>
+
+    <section class="panel glass hof-board" id="security-hall" data-state="loading" aria-labelledby="hof-heading">
+      <div class="panel-head hof-board-head">
+        <div>
+          <h2 id="hof-heading">Hall of fame</h2>
+          <p class="subtle">Ranked by total HMC paid. Credit only with researcher OK. Updated <time id="hall-updated">—</time>.</p>
+        </div>
+        <a class="hof-board-cta" href="./contacts.html">Earn a seat →</a>
+      </div>
+
+      <div class="hof-empty" id="security-hall-empty">
+        <div class="hof-empty-stage" aria-hidden="true">
+          <div class="hof-podium hof-podium--2"><span>2</span></div>
+          <div class="hof-podium hof-podium--1"><span>1</span></div>
+          <div class="hof-podium hof-podium--3"><span>3</span></div>
+        </div>
+        <h3 class="hof-empty-title">Board opens with the first payout</h3>
+        <p class="hof-empty-copy">
+          No accepted, paid reports yet. Find something real, report privately, get paid after the fix —
+          then your GitHub or nick lands here next to the HMC amount.
+        </p>
+        <div class="hof-empty-slots" aria-hidden="true">
+          <div class="hof-ghost-row"><span class="hof-ghost-rank">#1</span><span class="hof-ghost-bar"></span><span class="hof-ghost-pay">— HMC</span></div>
+          <div class="hof-ghost-row"><span class="hof-ghost-rank">#2</span><span class="hof-ghost-bar"></span><span class="hof-ghost-pay">— HMC</span></div>
+          <div class="hof-ghost-row"><span class="hof-ghost-rank">#3</span><span class="hof-ghost-bar"></span><span class="hof-ghost-pay">— HMC</span></div>
+        </div>
+      </div>
+
+      <div class="hof-list" id="security-hall-list" hidden></div>
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>Rules (short)</h2></div>
-      <ul class="list">
-        <li><strong>Private first</strong> — use <a href="./contacts.html">Contacts</a>; do not post working exploits on forums or GitHub issues.</li>
-        <li><strong>Official builds only</strong> — verify SHA256 from <a href="./downloads.html">Downloads</a>.</li>
-        <li><strong>One reward per root cause</strong> — duplicates may be declined or split.</li>
-        <li><strong>Payment after fix</strong> — we send HMC to your <span class="code-inline">HMC-…</span> address when resolved.</li>
-        <li><strong>Out of scope:</strong> phishing clones, miner payout disputes, scanner noise without impact, the published <strong>public pool join token</strong> (<code>pool.miner.token</code>), pool-direct cleartext HTTP for miners, and documented public wallet earnings/activity aggregates.</li>
-      </ul>
+      <div class="panel-head">
+        <h2>Reward tiers</h2>
+        <p class="subtle">Guidelines per accepted root cause — operator decides each case.</p>
+      </div>
+      <div class="hof-tiers" role="list">
+        <article class="hof-tier hof-tier--info" role="listitem">
+          <span class="hof-tier-sev">Informational</span>
+          <strong class="hof-tier-pay">0 HMC</strong>
+          <p>Docs typo, duplicate known issue — thanks / credit only.</p>
+        </article>
+        <article class="hof-tier hof-tier--low" role="listitem">
+          <span class="hof-tier-sev">Low · UI/UX</span>
+          <strong class="hof-tier-pay">1 – 5</strong>
+          <p>Broken layout, wrong link on the official site.</p>
+        </article>
+        <article class="hof-tier hof-tier--lowf" role="listitem">
+          <span class="hof-tier-sev">Low · functional</span>
+          <strong class="hof-tier-pay">2 – 10</strong>
+          <p>Minor API/validation gap, no exploit path.</p>
+        </article>
+        <article class="hof-tier hof-tier--med" role="listitem">
+          <span class="hof-tier-sev">Medium</span>
+          <strong class="hof-tier-pay">10 – 40</strong>
+          <p>Auth leak, DoS with PoC, coordinator issue without drain.</p>
+        </article>
+        <article class="hof-tier hof-tier--high" role="listitem">
+          <span class="hof-tier-sev">High</span>
+          <strong class="hof-tier-pay">40 – 100</strong>
+          <p>Settlement bug with fund impact, sandbox escape PoC.</p>
+        </article>
+        <article class="hof-tier hof-tier--crit" role="listitem">
+          <span class="hof-tier-sev">Critical</span>
+          <strong class="hof-tier-pay">100 – 200</strong>
+          <p>Treasury/pool drain, consensus break.</p>
+        </article>
+      </div>
     </section>
 
-    <section class="panel glass">
-      <div class="panel-head"><h2>In scope</h2></div>
-      <p class="section-lede">Production stack at <strong>hackme.tech</strong>: node, coordinator, worker, nginx, WASM PoH path, hybrid signer, settlement tooling.</p>
-      <p class="muted">Full text: <a href="https://github.com/jokeez/hackme/blob/main/docs/BUG_BOUNTY.md" target="_blank" rel="noreferrer">docs/BUG_BOUNTY.md</a> · Red-team baseline: <a href="https://github.com/jokeez/hackme/blob/main/docs/SECURITY_AUDIT_REDTEAM.md" target="_blank" rel="noreferrer">SECURITY_AUDIT_REDTEAM.md</a></p>
-    </section>
+    <div class="hof-two-col">
+      <section class="panel glass">
+        <div class="panel-head"><h2>Rules (short)</h2></div>
+        <ul class="list">
+          <li><strong>Private first</strong> — use <a href="./contacts.html">Contacts</a>; do not post working exploits publicly.</li>
+          <li><strong>Official builds only</strong> — verify SHA256 from <a href="./downloads.html">Downloads</a>.</li>
+          <li><strong>One reward per root cause</strong> — duplicates may be declined or split.</li>
+          <li><strong>Payment after fix</strong> — HMC to your <span class="code-inline">HMC-…</span> address when resolved.</li>
+          <li><strong>Public credit optional</strong> — hall listing needs your OK (GitHub or nick).</li>
+        </ul>
+      </section>
 
-    <section class="panel glass">
-      <div class="panel-head"><h2>Operator notes (transparency)</h2></div>
-      <ul class="list">
-        <li><strong>Public pool stats</strong> show hashrate and accruals for transparency — <strong>miner client IPs are not published</strong> on unauthenticated edges (<code>/api/work/stats</code>, <code>/api/work/by-wallet</code>).</li>
-        <li><strong>Hall of fame</strong> — after an accepted report and your OK, we may list alias + severity here. Empty until the first accepted payout.</li>
-      </ul>
-    </section>
+      <section class="panel glass">
+        <div class="panel-head"><h2>In scope</h2></div>
+        <p class="section-lede">Production stack at <strong>hackme.tech</strong>: node, coordinator, worker, nginx, WASM PoH path, hybrid signer, settlement tooling.</p>
+        <ul class="list">
+          <li><strong>Out of scope:</strong> phishing clones, miner payout disputes, scanner noise, the published <code>pool.miner.token</code>, pool-direct cleartext HTTP for miners, documented public wallet aggregates.</li>
+        </ul>
+        <p class="muted">Full text: <a href="https://github.com/jokeez/hackme/blob/main/docs/BUG_BOUNTY.md" target="_blank" rel="noreferrer">docs/BUG_BOUNTY.md</a> · <a href="https://github.com/jokeez/hackme/blob/main/docs/SECURITY_AUDIT_REDTEAM.md" target="_blank" rel="noreferrer">Red-team baseline</a></p>
+      </section>
+    </div>
   </main>
 
   <footer class="footer">
     <p>HackMe Network</p>
-    <p class="muted">HMC rewards are discretionary grants, not investment advice.</p>
+    <p class="muted">HMC rewards are discretionary grants, not investment advice. Hall credit is opt-in.</p>
     <div class="footer-nav"></div>
   </footer>
 
   <script src="./assets/site-shell.js?v=20261024eco1"></script>
   <script src="./assets/app.js?v=20260914dev1"></script>
+  <script src="./assets/security-hall.js?v=20261105hof1"></script>
 </body>
 </html>
