@@ -1,7 +1,9 @@
 # MiningBoard — HackMe Official Pool listing
 
 Submit HackMe (HMC) to [MiningBoard](https://miningboard.com/en/pools) pool directory.  
-**Status:** first submit stalled (legacy `/api/pool/stats` shape ≠ MiningBoard `pool-v1`) — use **`/api/miningboard/hmc`** + follow-up email.
+**Status:** **LISTED** (MiningBoard email 2026-11-04 UTC) — HMC + HackMe Official Pool.  
+Live pages: https://miningboard.com/pools/hackme.tech · https://miningboard.com/mining/hackme  
+Site badge/links: https://hackme.tech/contacts.html (self-hosted brand-kit SVGs under `web/site/assets/partners/`).
 
 Related: MiningPoolStats listing was removed (directory **defunct**; do not cite as live proof).
 
@@ -144,9 +146,10 @@ HackMe Network
 
 ## After approval
 
-- Add MiningBoard link to https://hackme.tech/contacts.html (optional card).
-- Bump Bitcointalk ANN with “now on MiningBoard”.
-- Keep stats API uptime — MiningBoard aggregates from pool APIs.
+- [x] Add MiningBoard link + self-hosted badge to https://hackme.tech/contacts.html
+- [x] News item + social copy (`web/site/assets/news.json` id `2026-11-05-miningboard-listed`)
+- [ ] Post Telegram / X / Discord / Facebook / Reddit / Bitcointalk ANN bump (copy in PR / chat)
+- Keep stats API uptime — MiningBoard aggregates from pool APIs (`/api/miningboard/hmc`).
 
 ## Not a substitute for
 

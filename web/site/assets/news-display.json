@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-11-05-miningboard-listed",
+      "date": "2026-11-05",
+      "title": "HackMe Official Pool listed on MiningBoard",
+      "summary": "MiningBoard verified our pool-v1 feed and listed HMC + HackMe Official Pool (as of 2026-11-04 UTC). They read our endpoint directly: hashrate, miners, fee 0%, CUSTOM payout, min payout 0.0001 HMC — not a third-party estimate. Chain params from our docs (30s ASERT, 0.01 HMC/block with halvings, 0.002 HMC floor, 100M max) checked clean.",
+      "impact": "Miners and aggregators can cross-check live pool numbers on MiningBoard. Our stats stay the source of truth via https://hackme.tech/pool/coordinator/api/miningboard/hmc. Optional “Tracked on MiningBoard” badge is self-hosted on contacts.",
+      "action": "Pool page: https://miningboard.com/pools/hackme.tech · Coin: https://miningboard.com/mining/hackme · Contacts: https://hackme.tech/contacts.html · Feed: https://hackme.tech/pool/coordinator/api/miningboard/hmc · Mine: https://hackme.tech/downloads.html",
+      "tags": [
+        "listing",
+        "miningboard",
+        "pool",
+        "hmc",
+        "announcement"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-10-31-rc18-1-orders-publish",
       "date": "2026-10-31",
       "title": "0.1.0-rc18.1 — Orders publish token · pool Dig/Hunt without admin",

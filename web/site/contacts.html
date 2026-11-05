@@ -4,14 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>HackMe Contacts and Community</title>
-  <meta name="description" content="Official HackMe channels: Telegram, Facebook, Discord, X, YouTube, Reddit, GitHub (AGPL-3.0), Bitcointalk ANN, and partner support." />
+  <meta name="description" content="Official HackMe channels: Telegram, Facebook, Discord, X, YouTube, Reddit, GitHub (AGPL-3.0), Bitcointalk ANN, MiningBoard listing, and partner support." />
   <link rel="canonical" href="https://hackme.tech/contacts.html" />
   <meta property="og:title" content="HackMe — Community &amp; contacts" />
   <meta property="og:url" content="https://hackme.tech/contacts.html" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./assets/styles.css?v=20261024eco1" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20261105mb1" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
   <link rel="icon" href="/assets/favicon.png" type="image/png" />
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
@@ -41,6 +41,7 @@
         <span class="contacts-pill" style="--pill-color:#ff0033"><span class="contacts-pill-dot"></span> YouTube @HackmeTech</span>
         <span class="contacts-pill" style="--pill-color:#ff4500"><span class="contacts-pill-dot"></span> Reddit u/Hackme-Official</span>
         <span class="contacts-pill" style="--pill-color:#6effad"><span class="contacts-pill-dot"></span> AGPL-3.0 source</span>
+        <span class="contacts-pill" style="--pill-color:#26a69a"><span class="contacts-pill-dot"></span> MiningBoard</span>
       </div>
     </section>
 
@@ -103,6 +104,37 @@
             </div>
             <p class="social-card__text">International community, dev threads, and campaign collaboration.</p>
             <span class="social-card__badge">Chat</span>
+          </a>
+        </div>
+
+        <p class="social-hub-label">Directories &amp; trackers</p>
+        <div class="social-hub-row">
+          <a class="social-card social-card--miningboard" href="https://miningboard.com/pools/hackme.tech" target="_blank" rel="noreferrer">
+            <div class="social-card__top">
+              <span class="social-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z"/></svg>
+              </span>
+              <div>
+                <h3 class="social-card__title">MiningBoard</h3>
+                <p class="social-card__handle">HackMe Official Pool</p>
+              </div>
+            </div>
+            <p class="social-card__text">Independent tracker — hashrate, miners, fee and height from our pool-v1 feed (not a third-party estimate).</p>
+            <span class="social-card__badge">Listed</span>
+            <img class="social-card__badge-img" src="./assets/partners/miningboard-badge-dark.svg" width="149" height="44" alt="Tracked on MiningBoard" loading="lazy" />
+          </a>
+          <a class="social-card social-card--miningboard" href="https://miningboard.com/mining/hackme" target="_blank" rel="noreferrer">
+            <div class="social-card__top">
+              <span class="social-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2 2 7l10 5 10-5-10-5zm0 9.2L4.2 7.5 12 3.6l7.8 3.9L12 11.2zM4 9.5V17l8 4 8-4V9.5l-8 4-8-4z"/></svg>
+              </span>
+              <div>
+                <h3 class="social-card__title">HMC on MiningBoard</h3>
+                <p class="social-card__handle">miningboard.com/mining/hackme</p>
+              </div>
+            </div>
+            <p class="social-card__text">Coin page for HackMe (HMC) — Useful PoW / PoH · Blake3 share-PPS on the official pool.</p>
+            <span class="social-card__badge">HMC</span>
           </a>
         </div>
 
@@ -236,6 +268,18 @@
             </div>
           </div>
           <p class="social-card__text">Live JSON hashrate &amp; workers · HTTP coordinator (not Stratum). Mine via <a href="./downloads.html">downloads</a>.</p>
+        </a>
+        <a class="social-card social-card--site" href="https://hackme.tech/pool/coordinator/api/miningboard/hmc" target="_blank" rel="noreferrer">
+          <div class="social-card__top">
+            <span class="social-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5 3h14v2H5V3zm0 4h14v2H5V7zm0 4h14v10H5V11zm2 2v6h10v-6H7z"/></svg>
+            </span>
+            <div>
+              <h3 class="social-card__title">MiningBoard feed</h3>
+              <p class="social-card__handle">pool-v1 · /api/miningboard/hmc</p>
+            </div>
+          </div>
+          <p class="social-card__text">Canonical stats MiningBoard polls — coin, pool.hashrate, miners, fee. Same numbers we publish.</p>
         </a>
         <a class="social-card social-card--site" href="./downloads.html">
           <div class="social-card__top">

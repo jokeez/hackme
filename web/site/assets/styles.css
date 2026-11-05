@@ -2073,6 +2073,18 @@ html {
   --social-icon-bg: rgba(110, 255, 173, 0.12);
 }
 .social-card--mail .social-card__icon { color: #6effad; }
+.social-card--miningboard {
+  --social-accent: #26a69a;
+  --social-glow: rgba(38, 166, 154, 0.28);
+  --social-icon-bg: rgba(38, 166, 154, 0.16);
+}
+.social-card--miningboard .social-card__icon { color: #4db6ac; }
+.social-card__badge-img {
+  display: block;
+  margin-top: 0.75rem;
+  max-width: 149px;
+  height: auto;
+}
 .social-hub-row--telegram {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }

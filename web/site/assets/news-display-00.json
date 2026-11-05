@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-11-05-miningboard-listed",
+      "date": "2026-11-05",
+      "title": "HackMe Official Pool listed on MiningBoard",
+      "summary": "MiningBoard verified our pool-v1 feed and listed HMC + HackMe Official Pool (as of 2026-11-04 UTC). They read our endpoint directly: hashrate, miners, fee 0%, CUSTOM payout, min payout 0.0001 HMC — not a third-party estimate. Chain params from our docs (30s ASERT, 0.01 HMC/block with halvings, 0.002 HMC floor, 100M max) checked clean.",
+      "impact": "Miners and aggregators can cross-check live pool numbers on MiningBoard. Our stats stay the source of truth via https://hackme.tech/pool/coordinator/api/miningboard/hmc. Optional “Tracked on MiningBoard” badge is self-hosted on contacts.",
+      "action": "Pool page: https://miningboard.com/pools/hackme.tech · Coin: https://miningboard.com/mining/hackme · Contacts: https://hackme.tech/contacts.html · Feed: https://hackme.tech/pool/coordinator/api/miningboard/hmc · Mine: https://hackme.tech/downloads.html",
+      "tags": [
+        "listing",
+        "miningboard",
+        "pool",
+        "hmc",
+        "announcement"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-10-31-rc18-1-orders-publish",
       "date": "2026-10-31",
       "title": "0.1.0-rc18.1 — Orders publish token · pool Dig/Hunt without admin",
@@ -255,24 +271,6 @@
         "honesty",
         "report-plane",
         "pre-exchange"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-08-11-release-rc14-pool-fuzz-customer-first",
-      "date": "2026-08-11",
-      "title": "HackMe 0.1.0-rc14 is live — pool fuzz customer-first priority",
-      "summary": "E2E customer order flow on Aug 11: rc14 reduced claim latency from seconds to milliseconds and improved pool throughput for real customer orders. Customer order completed 256/256 in ~26 minutes; hybrid dig is ON on customer campaigns; escrow 20/80 unchanged.",
-      "impact": "Evidence for correct pool scheduling + fuzz integration: claim path priority, customer-first ordering, and hybrid dig/fuzz runs that produce findings on customer campaigns. Not a claim of trustless L1 / exchange readiness / CEX readiness.",
-      "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc14 · ISO: https://hackme.tech/dist/release_0.1.0-rc14/HackMe-OS-0.1.0-rc14-amd64.iso · ISO SHA256: 1f7b7e15a696d898494f14292be8b031e428b430093a47bc41f7f539f1b0bf9b · Verify SHA256SUMS.txt before running any artifact.",
-      "tags": [
-        "release",
-        "rc14",
-        "pool",
-        "fuzzing",
-        "customer-first",
-        "hybrid-dig",
-        "operations"
       ],
       "status": "published"
     }
