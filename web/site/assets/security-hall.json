@@ -13,11 +13,132 @@
     "limit_hmc": 200
   },
   "stats": {
-    "total_paid_hmc": 210,
-    "researchers": 2,
-    "reports_accepted": 7
+    "total_paid_hmc": 780,
+    "researchers": 4,
+    "reports_accepted": 22
   },
   "researchers": [
+    {
+      "id": "bobbyning",
+      "name": "bobbyning",
+      "github": "bobbyning",
+      "total_paid_hmc": 565,
+      "findings": [
+        {
+          "title": "Windows Hunt OOTB gap — publish + harness_hash attach (no local bwrap/ASAN)",
+          "severity": "medium",
+          "paid_hmc": 20,
+          "date": "2026-11-02",
+          "note": "Paid tx 79a36a9e…; fixed on rc18.1",
+          "txid": "79a36a9e022de646e8c99d348d61efec8128d4c8e7bcbd3ec5aea9cb56d36b94"
+        },
+        {
+          "title": "Report #23 — escrow close before settle drain (cancel/completed)",
+          "severity": "high",
+          "paid_hmc": 60,
+          "date": "2026-10-01",
+          "commit": "761ceeb6",
+          "note": "Drain-before-close + refuse close when settle pull blocked; tx fb7480c2…"
+        },
+        {
+          "title": "Report #24 — wizard IsLoopbackBase userinfo bypass",
+          "severity": "high",
+          "paid_hmc": 50,
+          "date": "2026-10-01",
+          "commit": "e78eb97c",
+          "note": "http://127.0.0.1:8080@evil.example passed gate; real URL parse + reject userinfo"
+        },
+        {
+          "title": "Report #25 — forged worker_id rewrote hunt_crash claim (burial)",
+          "severity": "high",
+          "paid_hmc": 50,
+          "date": "2026-10-01",
+          "commit": "267fded8",
+          "note": "Refuse claim-weakening + sticky processing"
+        },
+        {
+          "title": "Report #26 — forged worker_id upgrade pending clean→hunt_crash",
+          "severity": "high",
+          "paid_hmc": 50,
+          "date": "2026-10-02",
+          "commit": "6c02322d",
+          "pr": 26,
+          "note": "Sticky claims; no PayRun on rejected checks; follow-up to #25"
+        },
+        {
+          "title": "Report #30 — SUP self-send mint (From==To clobber debit)",
+          "severity": "high",
+          "paid_hmc": 50,
+          "date": "2026-10-04",
+          "commit": "5c198bb7",
+          "note": "Funds-integrity; ValidateSupTransferShape rejects self-sends"
+        },
+        {
+          "title": "Report #6 — Hunt harness supply-chain (attest SHA + lock fetch host)",
+          "severity": "high",
+          "paid_hmc": 50,
+          "date": "2026-09-23",
+          "commit": "0483db5e",
+          "note": "September subset settlement tx 7fdb587c…"
+        },
+        {
+          "title": "Report #27 — signatureless payout-lock poisoning via release",
+          "severity": "medium",
+          "paid_hmc": 40,
+          "date": "2026-10-03",
+          "commit": "ed6ae56b",
+          "note": "Release check-only; admin unbind-payout-lock"
+        },
+        {
+          "title": "Report #17 — fleet-merge payout capture",
+          "severity": "high",
+          "paid_hmc": 40,
+          "date": "2026-09-23",
+          "commit": "e9adf360",
+          "note": "Closed in e9adf36 batch with #11–#18 class fixes"
+        },
+        {
+          "title": "Report #28 — submit rate slot freeze on declared worker_id",
+          "severity": "medium",
+          "paid_hmc": 30,
+          "date": "2026-10-03",
+          "commit": "dd66a1f4",
+          "note": "Charge submit slot only after identity proven"
+        },
+        {
+          "title": "Reports #2–#5 — rc17.1 settled Windows/coordinator set",
+          "severity": "high",
+          "paid_hmc": 65,
+          "date": "2026-09-21",
+          "note": "Part of September pool (195/200 total). Exact per-report split not restated in TG; #2 orphan/lock reap, #3 settlement flock, #4/#5 identity/payout-lock class — treated as settled before the #6/#12/#13/#17 subset"
+        },
+        {
+          "title": "Report #13 — public settlement ledger wipe",
+          "severity": "medium",
+          "paid_hmc": 20,
+          "date": "2026-09-23",
+          "commit": "e9adf360",
+          "note": "September subset"
+        },
+        {
+          "title": "Report #12 — unauthenticated progress / escrow close",
+          "severity": "medium",
+          "paid_hmc": 20,
+          "date": "2026-09-23",
+          "commit": "e9adf360",
+          "note": "September subset"
+        },
+        {
+          "title": "Report #29 — pool target_mod unsolvable freeze (×7)",
+          "severity": "medium",
+          "paid_hmc": 20,
+          "date": "2026-10-04",
+          "commit": "ee5f7025",
+          "pr": 24,
+          "note": "PohEval solvability nudge on pool clamp"
+        }
+      ]
+    },
     {
       "id": "founderb",
       "name": "FounderB",
@@ -30,7 +151,7 @@
           "paid_hmc": 80,
           "date": "2026-11-03",
           "pr": 62,
-          "note": "Consume lease before relay unlock — closes Critical from Nov3 audit"
+          "note": "Consume lease before relay unlock — Nov3 audit Critical"
         },
         {
           "title": "Desktop same-site Origin CSRF on spend paths",
@@ -87,7 +208,23 @@
           "date": "2026-11-03",
           "reported": "2026-11-01",
           "commit": "6d1de733",
-          "note": "Unauthenticated coordinator edge disclosure; fix redacts work/stats + public status; 90-day disclosure agreed; reward confirmed"
+          "note": "Unauthenticated coordinator edge disclosure; 90-day disclosure agreed; reward confirmed"
+        }
+      ]
+    },
+    {
+      "id": "andre",
+      "name": "Andre",
+      "handle": "Andre",
+      "total_paid_hmc": 5,
+      "findings": [
+        {
+          "title": "Thank-you — professional rc17 pool-token + pool-direct HTTP write-up (out of severity scope)",
+          "severity": "informational",
+          "paid_hmc": 5,
+          "date": "2026-10-02",
+          "reported": "2026-09-25",
+          "note": "Findings classified out of scope: pool.miner.token is the intentional public join credential; :18083 cleartext is the documented low-latency miner path. Small Low/Info thank-you for careful private PDF, read-only ethics, and 90-day hold. Payout HMC-89ed3dd8df9e2376"
         }
       ]
     }

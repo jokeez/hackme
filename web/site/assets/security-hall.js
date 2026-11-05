@@ -38,13 +38,6 @@
       .replace(/"/g, "&quot;");
   }
 
-  function initials(name) {
-    const parts = String(name || "?").trim().split(/\s+/).filter(Boolean);
-    if (!parts.length) return "?";
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-
   function fmtHmc(n) {
     const x = Number(n);
     if (!Number.isFinite(x)) return "—";
@@ -94,6 +87,20 @@
         : `<span class="hof-handle hof-handle--soft">nick credit</span>`,
       github: "",
     };
+  }
+
+  /** GitHub avatar only — email/nick reporters get name-only (no FO-style initials tile). */
+  function avatarHtml(r, sizeClass) {
+    const gh = (r.github || "").replace(/^@/, "").trim();
+    const custom = (r.avatar_url || "").trim();
+    const src = custom
+      ? custom
+      : gh
+        ? `https://github.com/${encodeURIComponent(gh)}.png?size=96`
+        : "";
+    if (!src) return "";
+    const cls = sizeClass ? `hof-avatar ${sizeClass}` : "hof-avatar";
+    return `<img class="${cls}" src="${esc(src)}" alt="" width="44" height="44" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()" />`;
   }
 
   function fixLinkHtml(f) {
@@ -175,8 +182,10 @@
         const findings = findingsInPeriod(r, period);
         const id = esc(r.id || displayName(r));
         const bits = identityBits(r);
-        return `<button type="button" class="hof-month-card" data-researcher-id="${id}" style="--hof-i:${i}">
-          <div class="hof-avatar" aria-hidden="true">${esc(initials(displayName(r)))}</div>
+        const avatar = avatarHtml(r);
+        const noAv = avatar ? "" : " hof-month-card--no-avatar";
+        return `<button type="button" class="hof-month-card${noAv}" data-researcher-id="${id}" style="--hof-i:${i}">
+          ${avatar}
           <div class="hof-main">
             <div class="hof-identity">
               <span class="hof-name">${bits.name}</span>
@@ -209,11 +218,12 @@
         const gh = bits.github
           ? `<a class="hof-table-gh" href="${esc(`https://github.com/${encodeURIComponent(bits.github)}`)}" target="_blank" rel="noreferrer" onclick="event.stopPropagation()">@${esc(bits.github)}</a>`
           : bits.handleHtml;
+        const avatar = avatarHtml(r, "hof-avatar--sm");
         return `<tr class="hof-ledger-row" tabindex="0" data-researcher-id="${id}">
           <td class="hof-td-rank">#${i + 1}</td>
           <td>
-            <div class="hof-table-person">
-              <span class="hof-avatar hof-avatar--sm" aria-hidden="true">${esc(initials(displayName(r)))}</span>
+            <div class="hof-table-person${avatar ? "" : " hof-table-person--no-avatar"}">
+              ${avatar}
               <div>
                 <div class="hof-table-name">${bits.name}</div>
                 ${gh}
@@ -259,46 +269,55 @@
     const ghBlock = bits.github
       ? `<a class="btn btn-secondary hof-detail-gh" href="${esc(`https://github.com/${encodeURIComponent(bits.github)}`)}" target="_blank" rel="noreferrer">GitHub @${esc(bits.github)}</a>`
       : "";
+    const avatar = avatarHtml(r, "hof-avatar--lg");
+    const topCls = avatar ? "hof-detail-top" : "hof-detail-top hof-detail-top--no-avatar";
 
     DETAIL.hidden = false;
     DETAIL.innerHTML = `
-      <div class="hof-detail-top">
-        <div class="hof-avatar" aria-hidden="true">${esc(initials(displayName(r)))}</div>
-        <div>
-          <h3 class="hof-detail-name">${bits.name}</h3>
-          ${bits.handleHtml}
+      <div class="hof-detail-head">
+        <div class="${topCls}">
+          ${avatar}
+          <div>
+            <h3 class="hof-detail-name">${bits.name}</h3>
+            ${bits.handleHtml}
+          </div>
         </div>
+        <div class="hof-detail-stats">
+          <div><span>Lifetime</span><strong>${esc(fmtHmc(life))} HMC</strong></div>
+          <div><span>This month</span><strong>${esc(fmtHmc(month))} HMC</strong></div>
+          <div><span>Reports</span><strong>${findings.length}</strong></div>
+        </div>
+        ${ghBlock}
       </div>
-      <div class="hof-detail-stats">
-        <div><span>Lifetime</span><strong>${esc(fmtHmc(life))} HMC</strong></div>
-        <div><span>This month</span><strong>${esc(fmtHmc(month))} HMC</strong></div>
-        <div><span>Reports</span><strong>${findings.length}</strong></div>
+      <div class="hof-detail-scroll">
+        <h4 class="hof-detail-findings-title">Findings &amp; fixes</h4>
+        <ul class="hof-detail-findings">
+          ${findings
+            .map((f) => {
+              const reported = f.reported
+                ? `<span class="hof-detail-reported">Reported ${esc(f.reported)}</span>`
+                : "";
+              return `<li>
+                <div class="hof-detail-finding-head">
+                  ${sevHtml(f.severity)}
+                  <strong class="hof-detail-pay">${esc(fmtHmc(f.paid_hmc))} HMC</strong>
+                </div>
+                <p class="hof-detail-finding-title">${esc(f.title || "Finding")}</p>
+                <div class="hof-detail-finding-meta">
+                  <span>Paid ${esc(f.date || "—")}</span>
+                  ${reported}
+                  <span>${fixLinkHtml(f)}</span>
+                </div>
+                ${f.note ? `<p class="hof-detail-note">${esc(f.note)}</p>` : ""}
+              </li>`;
+            })
+            .join("")}
+        </ul>
       </div>
-      ${ghBlock}
-      <h4 class="hof-detail-findings-title">Findings &amp; fixes</h4>
-      <ul class="hof-detail-findings">
-        ${findings
-          .map((f) => {
-            const reported = f.reported
-              ? `<span class="hof-detail-reported">Reported ${esc(f.reported)}</span>`
-              : "";
-            return `<li>
-              <div class="hof-detail-finding-head">
-                ${sevHtml(f.severity)}
-                <strong class="hof-detail-pay">${esc(fmtHmc(f.paid_hmc))} HMC</strong>
-              </div>
-              <p class="hof-detail-finding-title">${esc(f.title || "Finding")}</p>
-              <div class="hof-detail-finding-meta">
-                <span>Paid ${esc(f.date || "—")}</span>
-                ${reported}
-                <span>${fixLinkHtml(f)}</span>
-              </div>
-              ${f.note ? `<p class="hof-detail-note">${esc(f.note)}</p>` : ""}
-            </li>`;
-          })
-          .join("")}
-      </ul>
     `;
+    DETAIL.scrollTop = 0;
+    const scroll = DETAIL.querySelector(".hof-detail-scroll");
+    if (scroll) scroll.scrollTop = 0;
   }
 
   function openLedger(selectId) {

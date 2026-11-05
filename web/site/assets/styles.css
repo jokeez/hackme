@@ -2835,13 +2835,10 @@ html {
   font-size: 0.8rem;
   color: var(--muted);
 }
-.hof-avatar--sm {
-  width: 34px;
-  height: 34px;
-  border-radius: 11px;
-  font-size: 0.72rem;
-}
 .hof-muted { color: var(--muted); }
+.hof-month-card--no-avatar {
+  grid-template-columns: 1fr auto;
+}
 
 .hof-dialog {
   border: 0;
@@ -2856,6 +2853,9 @@ html {
   backdrop-filter: blur(8px);
 }
 .hof-dialog-shell {
+  display: flex;
+  flex-direction: column;
+  max-height: min(90vh, 820px);
   border-radius: 20px;
   border: 1px solid rgba(77, 228, 255, 0.22);
   background:
@@ -2864,6 +2864,7 @@ html {
   overflow: hidden;
 }
 .hof-dialog-head {
+  flex: 0 0 auto;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -2877,13 +2878,16 @@ html {
   font-size: 1.35rem;
 }
 .hof-dialog-body {
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
-  min-height: min(70vh, 560px);
-  max-height: min(80vh, 720px);
+  height: min(70vh, 620px);
 }
 .hof-ledger-table-wrap {
+  min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   border-right: 1px solid rgba(87, 118, 168, 0.22);
 }
 .hof-ledger-table {
@@ -2944,15 +2948,33 @@ html {
 }
 
 .hof-detail {
-  padding: 1.1rem 1.15rem 1.25rem;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
   background: rgba(0, 0, 0, 0.18);
+}
+.hof-detail-head {
+  flex: 0 0 auto;
+  padding: 1.1rem 1.15rem 0.85rem;
+  border-bottom: 1px solid rgba(87, 118, 168, 0.2);
+  background: rgba(8, 12, 22, 0.55);
+}
+.hof-detail-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.85rem 1.15rem 1.25rem;
+  -webkit-overflow-scrolling: touch;
 }
 .hof-detail-placeholder {
   margin: 2rem 0.5rem;
   color: var(--muted);
   text-align: center;
   line-height: 1.5;
+  padding: 1.1rem;
 }
 .hof-detail-top {
   display: flex;
@@ -2960,6 +2982,7 @@ html {
   align-items: center;
   margin-bottom: 1rem;
 }
+.hof-detail-top--no-avatar { gap: 0; }
 .hof-detail-name {
   margin: 0;
   font-family: "Space Grotesk", sans-serif;
@@ -3053,19 +3076,28 @@ html {
 @media (max-width: 900px) {
   .hof-dialog-body {
     grid-template-columns: 1fr;
-    max-height: min(85vh, 760px);
+    height: min(78vh, 680px);
   }
   .hof-ledger-table-wrap {
     border-right: 0;
     border-bottom: 1px solid rgba(87, 118, 168, 0.22);
-    max-height: 40vh;
+    max-height: 36%;
+  }
+  .hof-detail {
+    min-height: 0;
   }
   .hof-month-card {
     grid-template-columns: auto 1fr;
   }
+  .hof-month-card--no-avatar {
+    grid-template-columns: 1fr;
+  }
   .hof-month-card .hof-payout {
     grid-column: 2;
     text-align: left;
+  }
+  .hof-month-card--no-avatar .hof-payout {
+    grid-column: 1;
   }
   .hof-detail-stats { grid-template-columns: 1fr; }
 }
@@ -3220,16 +3252,25 @@ html {
   width: 44px;
   height: 44px;
   border-radius: 14px;
-  display: grid;
-  place-items: center;
-  font-family: "Space Grotesk", sans-serif;
-  font-weight: 700;
-  font-size: 0.85rem;
-  letter-spacing: 0.04em;
-  color: #e8f6ff;
-  background:
-    linear-gradient(145deg, rgba(77, 228, 255, 0.28), rgba(110, 255, 173, 0.12));
+  object-fit: cover;
+  object-position: center;
+  flex: 0 0 auto;
+  display: block;
+  background: rgba(12, 18, 30, 0.9);
   border: 1px solid rgba(77, 228, 255, 0.28);
+}
+.hof-avatar--sm {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+}
+.hof-avatar--lg {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+}
+.hof-table-person--no-avatar {
+  gap: 0;
 }
 .hof-identity {
   display: flex;
