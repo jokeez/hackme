@@ -23,16 +23,21 @@ BUILD_DEB=0 bash scripts/release/make_release_bundle.sh
 echo "[full-release] 2/5 deb + signed apt"
 bash scripts/release/linux/build_deb_from_dist.sh "dist/release_${VERSION}"
 bash scripts/release/apt/publish_signed_apt_repo.sh
-# Also keep SHA256SUMS aware of deb if present
-if [[ -f "dist/release_${VERSION}/hackme-node_${VERSION}_amd64.deb" ]]; then
-  (
-    cd "dist/release_${VERSION}"
-    if [[ -f SHA256SUMS.txt ]]; then
-      grep -v "hackme-node_${VERSION}_amd64.deb" SHA256SUMS.txt >SHA256SUMS.txt.tmp || true
-      sha256sum "hackme-node_${VERSION}_amd64.deb" >>SHA256SUMS.txt.tmp
+# Keep SHA256SUMS aware of the Linux packages (deb + rpm + Arch) when present.
+(
+  cd "dist/release_${VERSION}"
+  if [[ -f SHA256SUMS.txt ]]; then
+    for pkg in "hackme-node_${VERSION}_amd64.deb" "hackme-node-${VERSION}.x86_64.rpm" "hackme-node-${VERSION}-x86_64.pkg.tar.zst"; do
+      [[ -f "$pkg" ]] || continue
+      grep -v " ${pkg}\$" SHA256SUMS.txt >SHA256SUMS.txt.tmp || true
+      sha256sum "$pkg" >>SHA256SUMS.txt.tmp
       mv SHA256SUMS.txt.tmp SHA256SUMS.txt
-    fi
-  )
+    done
+  fi
+)
+# Optional miner image from the same tarball (BUILD_DOCKER=1; push is a separate, manual step).
+if [[ "${BUILD_DOCKER:-0}" == "1" ]]; then
+  VERSION="$VERSION" bash scripts/release/docker/build_miner_image.sh "dist/release_${VERSION}"
 fi
 
 echo "[full-release] 3/5 ISO"

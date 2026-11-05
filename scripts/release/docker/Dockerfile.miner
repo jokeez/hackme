@@ -1,0 +1,50 @@
+# HackMe miner image — the published Linux release (prebuilt CPU/CUDA/OpenCL workers), not a
+# source build. Build with scripts/release/docker/build_miner_image.sh.
+#
+# Run (Linux, NVIDIA via nvidia-container-toolkit; drop --gpus for CPU only):
+#   docker run -d --name hackme --restart unless-stopped --network host --gpus all \
+#     -v hackme-state:/state hackme/miner:<version>
+#   Dashboard: http://127.0.0.1:8080  (host network keeps the node on loopback, like a native install)
+#
+# /state holds the wallet key (data/node_ed25519.seed), chain DB, .env and logs. Back it up:
+# losing the volume loses the wallet.
+FROM debian:bookworm-slim
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates curl bash jq python3 procps tini \
+  && rm -rf /var/lib/apt/lists/* \
+  && useradd --create-home --uid 10001 --shell /bin/bash hackme
+
+ARG HACKME_VERSION
+LABEL org.opencontainers.image.title="HackMe miner" \
+      org.opencontainers.image.version="${HACKME_VERSION}" \
+      org.opencontainers.image.source="https://github.com/jokeez/hackme" \
+      org.opencontainers.image.url="https://hackme.tech"
+
+COPY hackme_linux.tar.gz /tmp/hackme_linux.tar.gz
+COPY SHA256SUMS.txt /tmp/SHA256SUMS.txt
+RUN cd /tmp \
+  && want="$(awk '$2 ~ /_linux\.tar\.gz$/ {print $1; exit}' SHA256SUMS.txt)" \
+  && got="$(sha256sum hackme_linux.tar.gz | awk '{print $1}')" \
+  && [ -n "$want" ] && [ "$want" = "$got" ] || { echo "release tarball SHA256 mismatch ($got vs $want)" >&2; exit 1; } \
+  && tar -xzf hackme_linux.tar.gz -C /opt \
+  && mv /opt/linux /opt/hackme \
+  && rm -f /tmp/hackme_linux.tar.gz /tmp/SHA256SUMS.txt /opt/hackme/.env /opt/hackme/hackme.env \
+  && find /opt/hackme -name '*.seed' -delete \
+  && rm -rf /opt/hackme/data /opt/hackme/logs \
+  && chown -R hackme:hackme /opt/hackme \
+  && install -d -o hackme -g hackme /state
+
+COPY miner-entrypoint.sh /usr/local/bin/hackme-miner-entrypoint
+RUN chmod 0755 /usr/local/bin/hackme-miner-entrypoint
+
+ENV HACKME_DATA_DIR=/state/data \
+    HACKME_DESKTOP_MODE=1 \
+    LD_LIBRARY_PATH=/opt/hackme/lib
+USER hackme
+WORKDIR /opt/hackme
+VOLUME ["/state"]
+EXPOSE 8080
+HEALTHCHECK --interval=60s --timeout=10s --start-period=90s --retries=3 \
+  CMD curl -fsS "http://127.0.0.1:${HACKME_PORT:-8080}/api/status" >/dev/null || exit 1
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/hackme-miner-entrypoint"]

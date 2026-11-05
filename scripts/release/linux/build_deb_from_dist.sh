@@ -242,6 +242,28 @@ if command -v nfpm >/dev/null 2>&1; then
   fi
   rm -f "$LIST"
   dpkg-deb -I "$OUT_DEB_ABS" | head -20 || true
+  # rpm (Fedora/RHEL/openSUSE) + Arch from the same tree. Separate config with
+  # version_schema: semver so 0.1.0-rc19 becomes 0.1.0~rc19 (pre-release sorts before the final
+  # release). The .deb keeps its historical version string: changing it would break apt upgrades.
+  EXTRA="${HACKME_EXTRA_PACKAGERS-rpm archlinux}"
+  if [[ -n "$EXTRA" ]]; then
+    { cat "$NFPM_YAML"; printf 'version_schema: semver\n'; } >"${STAGE}/nfpm.semver.yaml"
+    # pacman drops a semver pre-release ("0.1.0-1" for every rc); its vercmp orders 0.1.0rc19 <
+    # 0.1.0 natively, so Arch gets the version with the dash removed and no schema.
+    sed 's/^version: .*/version: '"${VERSION//-/}"'/' "$NFPM_YAML" >"${STAGE}/nfpm.arch.yaml"
+    for pk in $EXTRA; do
+      case "$pk" in
+        rpm) out="${DIST_DIR}/hackme-node-${VERSION}.x86_64.rpm" ;;
+        archlinux) out="${DIST_DIR}/hackme-node-${VERSION}-x86_64.pkg.tar.zst" ;;
+        *) echo "[pkg] unknown packager $pk" >&2; exit 1 ;;
+      esac
+      out_abs="$(cd "$(dirname "$out")" && pwd)/$(basename "$out")"
+      cfg=nfpm.semver.yaml
+      [[ "$pk" == archlinux ]] && cfg=nfpm.arch.yaml
+      (cd "$STAGE" && nfpm package --config "$cfg" --packager "$pk" --target "$out_abs")
+      echo "[pkg] wrote $out_abs"
+    done
+  fi
 else
   FALLBACK="${DIST_DIR}/hackme-node_${VERSION}_amd64.deb.staging.tar.gz"
   tar -C "$PKG" -czf "$FALLBACK" .
