@@ -13,9 +13,9 @@
     "limit_hmc": 200
   },
   "stats": {
-    "total_paid_hmc": 185,
-    "researchers": 1,
-    "reports_accepted": 6
+    "total_paid_hmc": 210,
+    "researchers": 2,
+    "reports_accepted": 7
   },
   "researchers": [
     {
@@ -71,6 +71,23 @@
           "date": "2026-10-31",
           "pr": 46,
           "note": "Metadata/link-local blocked like wallet curl (#38 + #46)"
+        }
+      ]
+    },
+    {
+      "id": "lolyhv3children",
+      "name": "lolyhv3children",
+      "handle": "lolyhv3children",
+      "total_paid_hmc": 25,
+      "findings": [
+        {
+          "title": "Public /api/work/stats leaked internal URL + PoH modulus",
+          "severity": "medium",
+          "paid_hmc": 25,
+          "date": "2026-11-03",
+          "reported": "2026-11-01",
+          "commit": "6d1de733",
+          "note": "Unauthenticated coordinator edge disclosure; fix redacts work/stats + public status; 90-day disclosure agreed; reward confirmed"
         }
       ]
     }

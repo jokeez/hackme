@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./assets/styles.css?v=20261105hof3" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20261105hof4" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
   <link rel="icon" href="/assets/favicon.png" type="image/png" />
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
@@ -31,7 +31,7 @@
       <h1>Bug bounty &amp; researchers board</h1>
       <p class="hero-copy">
         Private reports. <strong>On-chain HMC</strong> after a verified fix.
-        This page is the public ledger of who helped — GitHub when they have one, nick credit when they don’t.
+        This page shows the <strong>current month</strong>; open the full ledger for every researcher, PR, and payout.
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="./contacts.html">Report privately</a>
@@ -41,7 +41,7 @@
       <div class="hof-hero-stats" aria-label="Program snapshot">
         <div class="hof-stat">
           <span class="hof-stat-value" id="hall-stat-paid">0</span>
-          <span class="hof-stat-unit">HMC paid</span>
+          <span class="hof-stat-unit">HMC paid (all time)</span>
         </div>
         <div class="hof-stat">
           <span class="hof-stat-value" id="hall-stat-people">0</span>
@@ -61,13 +61,21 @@
     <section class="panel glass hof-board" id="security-hall" data-state="loading" aria-labelledby="hof-heading">
       <div class="panel-head hof-board-head">
         <div>
-          <h2 id="hof-heading">Hall of fame</h2>
-          <p class="subtle">Ranked by total HMC paid. Credit only with researcher OK. Updated <time id="hall-updated">—</time>.</p>
+          <h2 id="hof-heading">This month</h2>
+          <p class="subtle">Current envelope &amp; researchers paid in this period. Updated <time id="hall-updated">—</time>.</p>
         </div>
-        <a class="hof-board-cta" href="./contacts.html">Earn a seat →</a>
+        <div class="hof-board-actions">
+          <button type="button" class="btn btn-secondary hof-open-ledger" id="hof-open-ledger">Open full table</button>
+          <a class="hof-board-cta" href="./contacts.html">Earn a seat →</a>
+        </div>
       </div>
 
       <div class="hof-budget" id="hof-budget" hidden></div>
+
+      <div class="hof-month-head">
+        <h3 class="hof-month-title">Paid this month</h3>
+        <p class="subtle" id="hof-month-sub">Researchers with accepted payouts in the current period.</p>
+      </div>
 
       <div class="hof-empty" id="security-hall-empty" hidden>
         <div class="hof-empty-stage" aria-hidden="true">
@@ -75,19 +83,13 @@
           <div class="hof-podium hof-podium--1"><span>1</span></div>
           <div class="hof-podium hof-podium--3"><span>3</span></div>
         </div>
-        <h3 class="hof-empty-title">Board opens with the first payout</h3>
+        <h3 class="hof-empty-title">No payouts this month yet</h3>
         <p class="hof-empty-copy">
-          No accepted, paid reports yet. Find something real, report privately, get paid after the fix —
-          then your GitHub or nick lands here next to the HMC amount.
+          The monthly board is empty. Open the full table for lifetime researchers, or report privately to earn a seat.
         </p>
-        <div class="hof-empty-slots" aria-hidden="true">
-          <div class="hof-ghost-row"><span class="hof-ghost-rank">#1</span><span class="hof-ghost-bar"></span><span class="hof-ghost-pay">— HMC</span></div>
-          <div class="hof-ghost-row"><span class="hof-ghost-rank">#2</span><span class="hof-ghost-bar"></span><span class="hof-ghost-pay">— HMC</span></div>
-          <div class="hof-ghost-row"><span class="hof-ghost-rank">#3</span><span class="hof-ghost-bar"></span><span class="hof-ghost-pay">— HMC</span></div>
-        </div>
       </div>
 
-      <div class="hof-list" id="security-hall-list" hidden></div>
+      <div class="hof-month-list" id="security-hall-month" hidden></div>
     </section>
 
     <section class="panel glass">
@@ -152,6 +154,38 @@
     </div>
   </main>
 
+  <dialog class="hof-dialog" id="hof-ledger" aria-labelledby="hof-ledger-title">
+    <div class="hof-dialog-shell">
+      <header class="hof-dialog-head">
+        <div>
+          <p class="hof-budget-kicker">Hall of fame</p>
+          <h2 id="hof-ledger-title">Full researcher table</h2>
+          <p class="subtle">Everyone credited for security contributions. Click a row for PRs, commits, and payouts.</p>
+        </div>
+        <button type="button" class="btn btn-secondary" id="hof-ledger-close" aria-label="Close full table">Close</button>
+      </header>
+      <div class="hof-dialog-body">
+        <div class="hof-ledger-table-wrap">
+          <table class="hof-ledger-table" id="hof-ledger-table">
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Researcher</th>
+                <th scope="col">Reports</th>
+                <th scope="col">Lifetime</th>
+                <th scope="col">This month</th>
+              </tr>
+            </thead>
+            <tbody id="hof-ledger-body"></tbody>
+          </table>
+        </div>
+        <aside class="hof-detail" id="hof-detail" hidden>
+          <p class="hof-detail-placeholder">Select a researcher to see findings, fix links, and payouts.</p>
+        </aside>
+      </div>
+    </div>
+  </dialog>
+
   <footer class="footer">
     <p>HackMe Network</p>
     <p class="muted">HMC rewards are discretionary grants, not investment advice. Hall credit is opt-in.</p>
@@ -160,6 +194,6 @@
 
   <script src="./assets/site-shell.js?v=20261024eco1"></script>
   <script src="./assets/app.js?v=20260914dev1"></script>
-  <script src="./assets/security-hall.js?v=20261105hof3"></script>
+  <script src="./assets/security-hall.js?v=20261105hof4"></script>
 </body>
 </html>

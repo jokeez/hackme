@@ -2,7 +2,7 @@
   const ROOT = document.getElementById("security-hall");
   if (!ROOT) return;
 
-  const LIST = document.getElementById("security-hall-list");
+  const MONTH_LIST = document.getElementById("security-hall-month");
   const EMPTY = document.getElementById("security-hall-empty");
   const STAT_PAID = document.getElementById("hall-stat-paid");
   const STAT_PEOPLE = document.getElementById("hall-stat-people");
@@ -10,6 +10,12 @@
   const STAT_BUDGET = document.getElementById("hall-stat-budget");
   const UPDATED = document.getElementById("hall-updated");
   const BUDGET = document.getElementById("hof-budget");
+  const MONTH_SUB = document.getElementById("hof-month-sub");
+  const OPEN_BTN = document.getElementById("hof-open-ledger");
+  const DIALOG = document.getElementById("hof-ledger");
+  const CLOSE_BTN = document.getElementById("hof-ledger-close");
+  const LEDGER_BODY = document.getElementById("hof-ledger-body");
+  const DETAIL = document.getElementById("hof-detail");
 
   const SEV_LABEL = {
     informational: "Info",
@@ -21,10 +27,8 @@
     critical: "Critical",
   };
 
-  const MONTH_NAMES = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-  ];
+  /** @type {{ researchers: any[], period: string, lifetime: number } | null} */
+  let STATE = null;
 
   function esc(s) {
     return String(s ?? "")
@@ -58,96 +62,61 @@
     return (r.findings || []).reduce((a, f) => a + (Number(f.paid_hmc) || 0), 0);
   }
 
-  function allFindings(researchers) {
-    const out = [];
-    for (const r of researchers) {
-      for (const f of r.findings || []) {
-        out.push({ ...f, _researcher: r.name || r.handle || r.github || "Anonymous" });
-      }
-    }
-    return out;
+  function findingsInPeriod(r, period) {
+    const list = r.findings || [];
+    if (!period) return list;
+    return list.filter((f) => String(f.date || "").startsWith(period));
   }
 
-  function periodSpent(findings, period) {
-    if (!period) {
-      return findings.reduce((a, f) => a + (Number(f.paid_hmc) || 0), 0);
-    }
-    return findings
-      .filter((f) => String(f.date || "").startsWith(period))
-      .reduce((a, f) => a + (Number(f.paid_hmc) || 0), 0);
+  function periodPaid(r, period) {
+    return findingsInPeriod(r, period).reduce((a, f) => a + (Number(f.paid_hmc) || 0), 0);
   }
 
-  function monthKey(dateStr) {
-    const m = String(dateStr || "").match(/^(\d{4})-(\d{2})/);
-    return m ? `${m[1]}-${m[2]}` : null;
+  function displayName(r) {
+    return r.name || r.handle || r.github || "Anonymous";
   }
 
-  function monthLabel(key) {
-    const m = String(key || "").match(/^(\d{4})-(\d{2})$/);
-    if (!m) return key || "—";
-    const idx = Number(m[2]) - 1;
-    const name = MONTH_NAMES[idx] || m[2];
-    return `${name} ${m[1]}`;
-  }
-
-  function monthlySeries(findings) {
-    const map = new Map();
-    for (const f of findings) {
-      const key = monthKey(f.date);
-      if (!key) continue;
-      map.set(key, (map.get(key) || 0) + (Number(f.paid_hmc) || 0));
-    }
-    return [...map.entries()]
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([key, paid]) => ({ key, paid, label: monthLabel(key) }));
-  }
-
-  function identityHtml(r) {
-    const name = esc(r.name || r.handle || "Anonymous");
+  function identityBits(r) {
+    const name = esc(displayName(r));
     const gh = (r.github || "").replace(/^@/, "").trim();
     if (gh) {
-      const url = `https://github.com/${encodeURIComponent(gh)}`;
-      return `<a class="hof-identity" href="${esc(url)}" target="_blank" rel="noreferrer">
-        <span class="hof-name">${name}</span>
-        <span class="hof-handle">@${esc(gh)}</span>
-      </a>`;
+      return {
+        name,
+        handleHtml: `<span class="hof-handle">@${esc(gh)}</span>`,
+        github: gh,
+      };
     }
     const handle = r.handle ? esc(r.handle) : "";
-    return `<div class="hof-identity">
-      <span class="hof-name">${name}</span>
-      ${handle ? `<span class="hof-handle">${handle}</span>` : `<span class="hof-handle hof-handle--soft">nick credit</span>`}
-    </div>`;
+    return {
+      name,
+      handleHtml: handle
+        ? `<span class="hof-handle">${handle}</span>`
+        : `<span class="hof-handle hof-handle--soft">nick credit</span>`,
+      github: "",
+    };
   }
 
-  function findingsHtml(findings) {
-    if (!findings || !findings.length) return "";
-    return `<ul class="hof-findings">${findings
-      .map((f) => {
-        const sev = String(f.severity || "low").toLowerCase();
-        const sevClass = sev.replace(/[^a-z0-9-]/g, "");
-        const label = SEV_LABEL[sev] || sev;
-        const paid = fmtHmc(f.paid_hmc);
-        let title = esc(f.title || "Finding");
-        if (f.pr) {
-          const url = `https://github.com/jokeez/hackme/pull/${encodeURIComponent(f.pr)}`;
-          title = `<a class="hof-finding-link" href="${esc(url)}" target="_blank" rel="noreferrer">${title}</a>`;
-        }
-        const date = f.date ? `<time datetime="${esc(f.date)}">${esc(f.date)}</time>` : "";
-        return `<li class="hof-finding">
-          <span class="hof-sev hof-sev--${esc(sevClass)}">${esc(label)}</span>
-          <span class="hof-finding-title">${title}</span>
-          <span class="hof-finding-pay"><strong>${esc(paid)}</strong> HMC</span>
-          ${date}
-        </li>`;
-      })
-      .join("")}</ul>`;
+  function fixLinkHtml(f) {
+    const bits = [];
+    if (f.pr) {
+      bits.push(
+        `<a href="${esc(`https://github.com/jokeez/hackme/pull/${encodeURIComponent(f.pr)}`)}" target="_blank" rel="noreferrer">PR #${esc(f.pr)}</a>`
+      );
+    }
+    if (f.commit) {
+      const short = String(f.commit).slice(0, 8);
+      bits.push(
+        `<a href="${esc(`https://github.com/jokeez/hackme/commit/${encodeURIComponent(f.commit)}`)}" target="_blank" rel="noreferrer"><code>${esc(short)}</code></a>`
+      );
+    }
+    return bits.length ? bits.join(" · ") : `<span class="hof-muted">fix pending / private</span>`;
   }
 
-  function rankClass(i) {
-    if (i === 0) return "hof-row--gold";
-    if (i === 1) return "hof-row--silver";
-    if (i === 2) return "hof-row--bronze";
-    return "";
+  function sevHtml(sevRaw) {
+    const sev = String(sevRaw || "low").toLowerCase();
+    const sevClass = sev.replace(/[^a-z0-9-]/g, "");
+    const label = SEV_LABEL[sev] || sev;
+    return `<span class="hof-sev hof-sev--${esc(sevClass)}">${esc(label)}</span>`;
   }
 
   function toneFor(pct) {
@@ -156,123 +125,208 @@
     return "ok";
   }
 
-  function renderInsights(data, researchers, findings, lifetime, periodSpend) {
+  function renderMonthBudget(data, monthSpent) {
     if (!BUDGET) return;
-    const prog = data.program || {};
     const bud = data.budget || {};
+    const prog = data.program || {};
     const limit = Number(bud.limit_hmc ?? prog.monthly_budget_hmc ?? 200) || 200;
-    const monthSpent =
-      typeof bud.spent_hmc === "number" ? bud.spent_hmc : periodSpend;
     const remaining = Math.max(0, limit - monthSpent);
-    const monthPct = limit > 0 ? (monthSpent / limit) * 100 : 0;
-    const monthFill = Math.min(100, monthPct);
-    const monthLabelText = bud.period_label || bud.period || "This month";
-    const months = monthlySeries(findings);
-    const maxMonth = Math.max(limit, ...months.map((m) => m.paid), 1);
-    const ranked = [...researchers].sort((a, b) => researcherPaid(b) - researcherPaid(a));
-    const shareMax = Math.max(...ranked.map(researcherPaid), 1);
-
-    const sharesHtml = ranked.length
-      ? ranked
-          .map((r, i) => {
-            const paid = researcherPaid(r);
-            const pct = lifetime > 0 ? (paid / lifetime) * 100 : 0;
-            const bar = (paid / shareMax) * 100;
-            const name = esc(r.name || r.handle || r.github || "Anonymous");
-            const gh = (r.github || "").replace(/^@/, "").trim();
-            const label = gh
-              ? `<a href="${esc(`https://github.com/${encodeURIComponent(gh)}`)}" target="_blank" rel="noreferrer">${name}</a>`
-              : name;
-            return `<div class="hof-share-row" style="--hof-i:${i}">
-              <div class="hof-share-label">${label}</div>
-              <div class="hof-share-track"><div class="hof-share-fill" style="width:${bar}%"></div></div>
-              <div class="hof-share-val"><strong>${esc(fmtHmc(paid))}</strong> <span>${esc(fmtPct(pct))}%</span></div>
-            </div>`;
-          })
-          .join("")
-      : `<p class="hof-insight-empty">No lifetime payouts yet.</p>`;
-
-    const monthsHtml = months.length
-      ? `<div class="hof-months" role="img" aria-label="Payouts by month">
-          ${months
-            .map((m) => {
-              const h = Math.max(8, (m.paid / maxMonth) * 100);
-              const over = m.paid > limit;
-              return `<div class="hof-month ${over ? "hof-month--over" : ""}" title="${esc(m.label)}: ${esc(fmtHmc(m.paid))} HMC">
-                <div class="hof-month-bar-wrap">
-                  <div class="hof-month-cap" style="bottom:${(limit / maxMonth) * 100}%"></div>
-                  <div class="hof-month-bar" style="height:${h}%"></div>
-                </div>
-                <span class="hof-month-amt">${esc(fmtHmc(m.paid))}</span>
-                <span class="hof-month-label">${esc(m.label.replace(/ (\d{4})$/, ""))}</span>
-              </div>`;
-            })
-            .join("")}
-        </div>
-        <p class="hof-months-legend">Bars = HMC paid that month · faint line = monthly envelope (${esc(fmtHmc(limit))})</p>`
-      : `<p class="hof-insight-empty">No dated payouts yet.</p>`;
+    const pct = limit > 0 ? (monthSpent / limit) * 100 : 0;
+    const label = bud.period_label || bud.period || "This month";
 
     BUDGET.hidden = false;
-    BUDGET.className = "hof-budget hof-insight";
+    BUDGET.className = "hof-budget hof-budget--month-only";
+    BUDGET.dataset.tone = toneFor(pct);
     BUDGET.innerHTML = `
-      <div class="hof-insight-grid">
-        <article class="hof-insight-card hof-insight-card--month" data-tone="${toneFor(monthPct)}">
-          <div class="hof-budget-top">
-            <div>
-              <p class="hof-budget-kicker">This month</p>
-              <h3 class="hof-budget-title">${esc(monthLabelText)}</h3>
-            </div>
-            <div class="hof-budget-nums">
-              <span><strong>${esc(fmtHmc(monthSpent))}</strong> spent</span>
-              <span class="hof-budget-sep">/</span>
-              <span><strong>${esc(fmtHmc(limit))}</strong></span>
-            </div>
-          </div>
-          <div class="hof-budget-track" role="progressbar" aria-valuemin="0" aria-valuemax="${esc(limit)}" aria-valuenow="${esc(monthSpent)}" aria-label="Monthly security budget used">
-            <div class="hof-budget-fill" style="width:${monthFill}%"></div>
-          </div>
-          <div class="hof-budget-meta">
-            <span>${esc(fmtPct(monthPct))}% of envelope · <strong>${esc(fmtHmc(remaining))}</strong> left</span>
-            <span>${months.find((m) => m.key === (bud.period || "")) ? "current period" : "by finding dates"}</span>
-          </div>
-        </article>
-
-        <article class="hof-insight-card hof-insight-card--all">
-          <div class="hof-budget-top">
-            <div>
-              <p class="hof-budget-kicker">All time</p>
-              <h3 class="hof-budget-title">Who earned what</h3>
-            </div>
-            <div class="hof-budget-nums">
-              <span>Lifetime <strong>${esc(fmtHmc(lifetime))}</strong> HMC</span>
-            </div>
-          </div>
-          <div class="hof-shares">${sharesHtml}</div>
-        </article>
-      </div>
-
-      <article class="hof-insight-card hof-insight-card--history">
-        <div class="hof-budget-top">
-          <div>
-            <p class="hof-budget-kicker">History</p>
-            <h3 class="hof-budget-title">Paid by month</h3>
-          </div>
-          <div class="hof-budget-nums">
-            <span>${esc(String(months.length))} month${months.length === 1 ? "" : "s"} · avg <strong>${esc(fmtHmc(months.length ? lifetime / months.length : 0))}</strong></span>
-          </div>
+      <div class="hof-budget-top">
+        <div>
+          <p class="hof-budget-kicker">Program budget</p>
+          <h3 class="hof-budget-title">${esc(label)}</h3>
         </div>
-        ${monthsHtml}
-      </article>
+        <div class="hof-budget-nums">
+          <span><strong>${esc(fmtHmc(monthSpent))}</strong> spent</span>
+          <span class="hof-budget-sep">/</span>
+          <span><strong>${esc(fmtHmc(limit))}</strong> HMC</span>
+        </div>
+      </div>
+      <div class="hof-budget-track" role="progressbar" aria-valuemin="0" aria-valuemax="${esc(limit)}" aria-valuenow="${esc(monthSpent)}" aria-label="Monthly security budget used">
+        <div class="hof-budget-fill" style="width:${Math.min(100, pct)}%"></div>
+      </div>
+      <div class="hof-budget-meta">
+        <span>${esc(fmtPct(pct))}% used · <strong>${esc(fmtHmc(remaining))}</strong> HMC left</span>
+        <span>Open the full table for lifetime history</span>
+      </div>
     `;
     if (STAT_BUDGET) STAT_BUDGET.textContent = `${fmtHmc(monthSpent)}/${fmtHmc(limit)}`;
+  }
+
+  function renderMonthCards(monthResearchers, period) {
+    if (!MONTH_LIST) return;
+    if (!monthResearchers.length) {
+      MONTH_LIST.hidden = true;
+      if (EMPTY) EMPTY.hidden = false;
+      return;
+    }
+    if (EMPTY) EMPTY.hidden = true;
+    MONTH_LIST.hidden = false;
+    MONTH_LIST.innerHTML = monthResearchers
+      .map((r, i) => {
+        const paid = periodPaid(r, period);
+        const findings = findingsInPeriod(r, period);
+        const id = esc(r.id || displayName(r));
+        const bits = identityBits(r);
+        return `<button type="button" class="hof-month-card" data-researcher-id="${id}" style="--hof-i:${i}">
+          <div class="hof-avatar" aria-hidden="true">${esc(initials(displayName(r)))}</div>
+          <div class="hof-main">
+            <div class="hof-identity">
+              <span class="hof-name">${bits.name}</span>
+              ${bits.handleHtml}
+            </div>
+            <p class="hof-month-card-meta">${findings.length} payout${findings.length === 1 ? "" : "s"} this month · click for details</p>
+          </div>
+          <div class="hof-payout">
+            <span class="hof-payout-label">This month</span>
+            <span class="hof-payout-value"><strong>${esc(fmtHmc(paid))}</strong> HMC</span>
+          </div>
+        </button>`;
+      })
+      .join("");
+
+    MONTH_LIST.querySelectorAll("[data-researcher-id]").forEach((el) => {
+      el.addEventListener("click", () => openLedger(el.getAttribute("data-researcher-id")));
+    });
+  }
+
+  function renderLedgerTable(researchers, period) {
+    if (!LEDGER_BODY) return;
+    LEDGER_BODY.innerHTML = researchers
+      .map((r, i) => {
+        const id = esc(r.id || displayName(r));
+        const bits = identityBits(r);
+        const life = researcherPaid(r);
+        const month = periodPaid(r, period);
+        const n = (r.findings || []).length;
+        const gh = bits.github
+          ? `<a class="hof-table-gh" href="${esc(`https://github.com/${encodeURIComponent(bits.github)}`)}" target="_blank" rel="noreferrer" onclick="event.stopPropagation()">@${esc(bits.github)}</a>`
+          : bits.handleHtml;
+        return `<tr class="hof-ledger-row" tabindex="0" data-researcher-id="${id}">
+          <td class="hof-td-rank">#${i + 1}</td>
+          <td>
+            <div class="hof-table-person">
+              <span class="hof-avatar hof-avatar--sm" aria-hidden="true">${esc(initials(displayName(r)))}</span>
+              <div>
+                <div class="hof-table-name">${bits.name}</div>
+                ${gh}
+              </div>
+            </div>
+          </td>
+          <td>${n}</td>
+          <td><strong class="hof-td-pay">${esc(fmtHmc(life))}</strong> HMC</td>
+          <td>${month > 0 ? `<strong class="hof-td-pay">${esc(fmtHmc(month))}</strong> HMC` : `<span class="hof-muted">—</span>`}</td>
+        </tr>`;
+      })
+      .join("");
+
+    LEDGER_BODY.querySelectorAll(".hof-ledger-row").forEach((row) => {
+      const id = row.getAttribute("data-researcher-id");
+      const activate = () => selectResearcher(id);
+      row.addEventListener("click", activate);
+      row.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          activate();
+        }
+      });
+    });
+  }
+
+  function selectResearcher(id) {
+    if (!STATE || !DETAIL) return;
+    const r = STATE.researchers.find((x) => String(x.id || displayName(x)) === String(id));
+    if (!r) return;
+
+    LEDGER_BODY?.querySelectorAll(".hof-ledger-row").forEach((row) => {
+      row.classList.toggle("is-active", row.getAttribute("data-researcher-id") === String(id));
+    });
+
+    const bits = identityBits(r);
+    const life = researcherPaid(r);
+    const month = periodPaid(r, STATE.period);
+    const findings = [...(r.findings || [])].sort((a, b) =>
+      String(b.date || "").localeCompare(String(a.date || ""))
+    );
+
+    const ghBlock = bits.github
+      ? `<a class="btn btn-secondary hof-detail-gh" href="${esc(`https://github.com/${encodeURIComponent(bits.github)}`)}" target="_blank" rel="noreferrer">GitHub @${esc(bits.github)}</a>`
+      : "";
+
+    DETAIL.hidden = false;
+    DETAIL.innerHTML = `
+      <div class="hof-detail-top">
+        <div class="hof-avatar" aria-hidden="true">${esc(initials(displayName(r)))}</div>
+        <div>
+          <h3 class="hof-detail-name">${bits.name}</h3>
+          ${bits.handleHtml}
+        </div>
+      </div>
+      <div class="hof-detail-stats">
+        <div><span>Lifetime</span><strong>${esc(fmtHmc(life))} HMC</strong></div>
+        <div><span>This month</span><strong>${esc(fmtHmc(month))} HMC</strong></div>
+        <div><span>Reports</span><strong>${findings.length}</strong></div>
+      </div>
+      ${ghBlock}
+      <h4 class="hof-detail-findings-title">Findings &amp; fixes</h4>
+      <ul class="hof-detail-findings">
+        ${findings
+          .map((f) => {
+            const reported = f.reported
+              ? `<span class="hof-detail-reported">Reported ${esc(f.reported)}</span>`
+              : "";
+            return `<li>
+              <div class="hof-detail-finding-head">
+                ${sevHtml(f.severity)}
+                <strong class="hof-detail-pay">${esc(fmtHmc(f.paid_hmc))} HMC</strong>
+              </div>
+              <p class="hof-detail-finding-title">${esc(f.title || "Finding")}</p>
+              <div class="hof-detail-finding-meta">
+                <span>Paid ${esc(f.date || "—")}</span>
+                ${reported}
+                <span>${fixLinkHtml(f)}</span>
+              </div>
+              ${f.note ? `<p class="hof-detail-note">${esc(f.note)}</p>` : ""}
+            </li>`;
+          })
+          .join("")}
+      </ul>
+    `;
+  }
+
+  function openLedger(selectId) {
+    if (!DIALOG) return;
+    if (typeof DIALOG.showModal === "function") DIALOG.showModal();
+    else DIALOG.setAttribute("open", "");
+    if (selectId) selectResearcher(selectId);
+    else if (DETAIL) {
+      DETAIL.hidden = false;
+      DETAIL.innerHTML =
+        '<p class="hof-detail-placeholder">Select a researcher to see findings, fix links, and payouts.</p>';
+      LEDGER_BODY?.querySelectorAll(".hof-ledger-row").forEach((row) =>
+        row.classList.remove("is-active")
+      );
+    }
+  }
+
+  function closeLedger() {
+    if (!DIALOG) return;
+    if (typeof DIALOG.close === "function") DIALOG.close();
+    else DIALOG.removeAttribute("open");
   }
 
   function render(data) {
     const researchers = Array.isArray(data.researchers) ? [...data.researchers] : [];
     researchers.sort((a, b) => researcherPaid(b) - researcherPaid(a));
-
-    const findings = allFindings(researchers);
-    const paid =
+    const period = (data.budget && data.budget.period) || "";
+    const lifetime =
       data.stats && typeof data.stats.total_paid_hmc === "number"
         ? data.stats.total_paid_hmc
         : researchers.reduce((a, r) => a + researcherPaid(r), 0);
@@ -283,52 +337,44 @@
     const reports =
       data.stats && typeof data.stats.reports_accepted === "number"
         ? data.stats.reports_accepted
-        : findings.length;
-    const period = (data.budget && data.budget.period) || "";
-    const periodSpend = periodSpent(findings, period);
+        : researchers.reduce((a, r) => a + (r.findings || []).length, 0);
 
-    if (STAT_PAID) STAT_PAID.textContent = fmtHmc(paid);
+    const monthResearchers = researchers
+      .map((r) => ({ r, paid: periodPaid(r, period) }))
+      .filter((x) => x.paid > 0)
+      .sort((a, b) => b.paid - a.paid)
+      .map((x) => x.r);
+    const monthSpent = monthResearchers.reduce((a, r) => a + periodPaid(r, period), 0);
+
+    STATE = { researchers, period, lifetime };
+
+    if (STAT_PAID) STAT_PAID.textContent = fmtHmc(lifetime);
     if (STAT_PEOPLE) STAT_PEOPLE.textContent = String(people);
     if (STAT_REPORTS) STAT_REPORTS.textContent = String(reports);
     if (UPDATED && data.updated) {
       UPDATED.textContent = data.updated;
       UPDATED.setAttribute("datetime", data.updated);
     }
-
-    renderInsights(data, researchers, findings, paid, periodSpend);
-
-    if (!researchers.length) {
-      if (LIST) LIST.hidden = true;
-      if (EMPTY) EMPTY.hidden = false;
-      ROOT.dataset.state = "empty";
-      return;
+    if (MONTH_SUB) {
+      MONTH_SUB.textContent = monthResearchers.length
+        ? `${monthResearchers.length} researcher${monthResearchers.length === 1 ? "" : "s"} paid in ${data.budget?.period_label || period || "this period"}.`
+        : "No payouts in the current period yet.";
     }
 
-    if (EMPTY) EMPTY.hidden = true;
-    if (LIST) {
-      LIST.hidden = false;
-      LIST.innerHTML = researchers
-        .map((r, i) => {
-          const total = fmtHmc(researcherPaid(r));
-          const n = r.findings ? r.findings.length : r.reports || 0;
-          return `<article class="hof-row ${rankClass(i)}" style="--hof-i:${i}">
-            <div class="hof-rank" aria-label="Rank ${i + 1}">#${i + 1}</div>
-            <div class="hof-avatar" aria-hidden="true">${esc(initials(r.name || r.handle || r.github))}</div>
-            <div class="hof-main">
-              ${identityHtml(r)}
-              ${findingsHtml(r.findings)}
-            </div>
-            <div class="hof-payout">
-              <span class="hof-payout-label">Paid</span>
-              <span class="hof-payout-value"><strong>${esc(total)}</strong> HMC</span>
-              <span class="hof-payout-meta">${n} report${n === 1 ? "" : "s"}</span>
-            </div>
-          </article>`;
-        })
-        .join("");
-    }
-    ROOT.dataset.state = "ready";
+    renderMonthBudget(data, monthSpent);
+    renderMonthCards(monthResearchers, period);
+    renderLedgerTable(researchers, period);
+    ROOT.dataset.state = researchers.length ? "ready" : "empty";
   }
+
+  OPEN_BTN?.addEventListener("click", () => openLedger());
+  CLOSE_BTN?.addEventListener("click", closeLedger);
+  DIALOG?.addEventListener("click", (e) => {
+    if (e.target === DIALOG) closeLedger();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && DIALOG?.open) closeLedger();
+  });
 
   fetch("./assets/security-hall.json", { cache: "no-store" })
     .then((r) => {
@@ -346,7 +392,7 @@
         if (c)
           c.textContent = "Retry later — the reward program itself is still open.";
       }
-      if (LIST) LIST.hidden = true;
+      if (MONTH_LIST) MONTH_LIST.hidden = true;
       if (BUDGET) BUDGET.hidden = true;
     });
 })();
