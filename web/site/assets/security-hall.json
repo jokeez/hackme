@@ -7,10 +7,72 @@
     "report_url": "./contacts.html",
     "note": "Discretionary on-chain grants after a verified fix. Names appear only with researcher consent."
   },
-  "stats": {
-    "total_paid_hmc": 0,
-    "researchers": 0,
-    "reports_accepted": 0
+  "budget": {
+    "period": "2026-11",
+    "period_label": "November 2026",
+    "limit_hmc": 200
   },
-  "researchers": []
+  "stats": {
+    "total_paid_hmc": 185,
+    "researchers": 1,
+    "reports_accepted": 6
+  },
+  "researchers": [
+    {
+      "id": "founderb",
+      "name": "FounderB",
+      "github": "FounderB",
+      "total_paid_hmc": 185,
+      "findings": [
+        {
+          "title": "Baseline/order relay concurrent double-pay (C1)",
+          "severity": "critical",
+          "paid_hmc": 80,
+          "date": "2026-11-03",
+          "pr": 62,
+          "note": "Consume lease before relay unlock — closes Critical from Nov3 audit"
+        },
+        {
+          "title": "Desktop same-site Origin CSRF on spend paths",
+          "severity": "high",
+          "paid_hmc": 35,
+          "date": "2026-10-25",
+          "pr": 32,
+          "note": "Reject Sec-Fetch-Site:same-site; Origin host+port must match Host"
+        },
+        {
+          "title": "Accrual resurrect after revoke (stale persist + tombstone)",
+          "severity": "high",
+          "paid_hmc": 30,
+          "date": "2026-10-31",
+          "pr": 45,
+          "note": "Epoch purge (#33) + durable worker_accrual_revoked tombstone (#45)"
+        },
+        {
+          "title": "Settle AttachTxHash gap → double-pay risk",
+          "severity": "high",
+          "paid_hmc": 25,
+          "date": "2026-11-01",
+          "pr": 52,
+          "note": "Hard-require tx hash stamp after send; never clear pending blind"
+        },
+        {
+          "title": "Hunt prove lease-steal PayRun inheritance",
+          "severity": "high",
+          "paid_hmc": 20,
+          "date": "2026-11-02",
+          "pr": 57,
+          "note": "Prove bound to active lease_owner; clear on release/re-lease"
+        },
+        {
+          "title": "SSRF egress gaps (POST curl + settlement canonical)",
+          "severity": "medium",
+          "paid_hmc": 15,
+          "date": "2026-10-31",
+          "pr": 46,
+          "note": "Metadata/link-local blocked like wallet curl (#38 + #46)"
+        }
+      ]
+    }
+  ]
 }

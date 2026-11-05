@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./assets/styles.css?v=20261105hof1" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20261105hof2" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
   <link rel="icon" href="/assets/favicon.png" type="image/png" />
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
@@ -52,8 +52,8 @@
           <span class="hof-stat-unit">accepted</span>
         </div>
         <div class="hof-stat hof-stat--soft">
-          <span class="hof-stat-value">~200</span>
-          <span class="hof-stat-unit">HMC / month budget</span>
+          <span class="hof-stat-value" id="hall-stat-budget">0/200</span>
+          <span class="hof-stat-unit">month budget used</span>
         </div>
       </div>
     </section>
@@ -67,7 +67,9 @@
         <a class="hof-board-cta" href="./contacts.html">Earn a seat →</a>
       </div>
 
-      <div class="hof-empty" id="security-hall-empty">
+      <div class="hof-budget" id="hof-budget" hidden></div>
+
+      <div class="hof-empty" id="security-hall-empty" hidden>
         <div class="hof-empty-stage" aria-hidden="true">
           <div class="hof-podium hof-podium--2"><span>2</span></div>
           <div class="hof-podium hof-podium--1"><span>1</span></div>
@@ -158,6 +160,6 @@
 
   <script src="./assets/site-shell.js?v=20261024eco1"></script>
   <script src="./assets/app.js?v=20260914dev1"></script>
-  <script src="./assets/security-hall.js?v=20261105hof1"></script>
+  <script src="./assets/security-hall.js?v=20261105hof2"></script>
 </body>
 </html>

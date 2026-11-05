@@ -2702,6 +2702,105 @@ html {
   transform: translateX(2px);
 }
 
+.hof-budget {
+  margin: 0 0 1.25rem;
+  padding: 1rem 1.15rem 1.05rem;
+  border-radius: 16px;
+  border: 1px solid rgba(77, 228, 255, 0.22);
+  background:
+    linear-gradient(145deg, rgba(77, 228, 255, 0.07), rgba(8, 12, 22, 0.65));
+}
+.hof-budget-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+.hof-budget-kicker {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.hof-budget-title {
+  margin: 0.2rem 0 0;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #f2f8ff;
+}
+.hof-budget-nums {
+  font-size: 0.95rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.hof-budget-nums strong {
+  color: #e8f6ff;
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+}
+.hof-budget-sep { opacity: 0.45; margin: 0 0.2rem; }
+.hof-budget-track {
+  position: relative;
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(87, 118, 168, 0.28);
+  overflow: hidden;
+}
+.hof-budget-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1ec8e8, #6effad 70%, #b8ffd6);
+  box-shadow: 0 0 18px rgba(110, 255, 173, 0.35);
+  transition: width 0.9s var(--ease-out);
+}
+.hof-budget[data-tone="warn"] .hof-budget-fill {
+  background: linear-gradient(90deg, #1ec8e8, #ffd36a 75%, #ffe08a);
+  box-shadow: 0 0 18px rgba(255, 211, 106, 0.28);
+}
+.hof-budget[data-tone="over"] .hof-budget-fill {
+  background: linear-gradient(90deg, #ff9b6a, #ff6b8a);
+  box-shadow: 0 0 18px rgba(255, 107, 138, 0.28);
+}
+.hof-budget-overmark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
+}
+.hof-budget-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.65rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.hof-budget-meta strong { color: #dbe8ff; }
+.hof-budget-note {
+  margin: 0.65rem 0 0;
+  font-size: 0.8rem;
+  color: #ffb48a;
+}
+.hof-finding-link {
+  color: inherit;
+  border-bottom: 1px dotted rgba(77, 228, 255, 0.35);
+}
+.hof-finding-link:hover {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
 .hof-empty {
   text-align: center;
   padding: 1.25rem 0.5rem 0.5rem;

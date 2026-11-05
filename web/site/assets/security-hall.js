@@ -7,7 +7,9 @@
   const STAT_PAID = document.getElementById("hall-stat-paid");
   const STAT_PEOPLE = document.getElementById("hall-stat-people");
   const STAT_REPORTS = document.getElementById("hall-stat-reports");
+  const STAT_BUDGET = document.getElementById("hall-stat-budget");
   const UPDATED = document.getElementById("hall-updated");
+  const BUDGET = document.getElementById("hof-budget");
 
   const SEV_LABEL = {
     informational: "Info",
@@ -45,6 +47,23 @@
     return (r.findings || []).reduce((a, f) => a + (Number(f.paid_hmc) || 0), 0);
   }
 
+  function allFindings(researchers) {
+    const out = [];
+    for (const r of researchers) {
+      for (const f of r.findings || []) out.push(f);
+    }
+    return out;
+  }
+
+  function periodSpent(findings, period) {
+    if (!period) {
+      return findings.reduce((a, f) => a + (Number(f.paid_hmc) || 0), 0);
+    }
+    return findings
+      .filter((f) => String(f.date || "").startsWith(period))
+      .reduce((a, f) => a + (Number(f.paid_hmc) || 0), 0);
+  }
+
   function identityHtml(r) {
     const name = esc(r.name || r.handle || "Anonymous");
     const gh = (r.github || "").replace(/^@/, "").trim();
@@ -70,7 +89,11 @@
         const sevClass = sev.replace(/[^a-z0-9-]/g, "");
         const label = SEV_LABEL[sev] || sev;
         const paid = fmtHmc(f.paid_hmc);
-        const title = esc(f.title || "Finding");
+        let title = esc(f.title || "Finding");
+        if (f.pr) {
+          const url = `https://github.com/jokeez/hackme/pull/${encodeURIComponent(f.pr)}`;
+          title = `<a class="hof-finding-link" href="${esc(url)}" target="_blank" rel="noreferrer">${title}</a>`;
+        }
         const date = f.date ? `<time datetime="${esc(f.date)}">${esc(f.date)}</time>` : "";
         return `<li class="hof-finding">
           <span class="hof-sev hof-sev--${esc(sevClass)}">${esc(label)}</span>
@@ -89,10 +112,54 @@
     return "";
   }
 
+  function renderBudget(data, lifetime, periodSpend) {
+    if (!BUDGET) return;
+    const prog = data.program || {};
+    const bud = data.budget || {};
+    const limit = Number(bud.limit_hmc ?? prog.monthly_budget_hmc ?? 200) || 200;
+    const spent =
+      typeof bud.spent_hmc === "number" ? bud.spent_hmc : periodSpend;
+    const remaining = Math.max(0, limit - spent);
+    const pctRaw = limit > 0 ? (spent / limit) * 100 : 0;
+    const pctFill = Math.min(100, pctRaw);
+    const over = spent > limit;
+    const label = bud.period_label || bud.period || "This month";
+    let tone = "ok";
+    if (pctRaw >= 100) tone = "over";
+    else if (pctRaw >= 75) tone = "warn";
+
+    BUDGET.hidden = false;
+    BUDGET.dataset.tone = tone;
+    BUDGET.innerHTML = `
+      <div class="hof-budget-top">
+        <div>
+          <p class="hof-budget-kicker">Program budget</p>
+          <h3 class="hof-budget-title">${esc(label)}</h3>
+        </div>
+        <div class="hof-budget-nums" aria-label="Budget numbers">
+          <span><strong>${esc(fmtHmc(spent))}</strong> spent</span>
+          <span class="hof-budget-sep">/</span>
+          <span><strong>${esc(fmtHmc(limit))}</strong> HMC</span>
+        </div>
+      </div>
+      <div class="hof-budget-track" role="progressbar" aria-valuemin="0" aria-valuemax="${esc(limit)}" aria-valuenow="${esc(spent)}" aria-label="Monthly security budget used">
+        <div class="hof-budget-fill" style="width:${pctFill}%"></div>
+        ${over ? `<div class="hof-budget-overmark" style="left:100%"></div>` : ""}
+      </div>
+      <div class="hof-budget-meta">
+        <span>${esc(fmtHmc(pctRaw))}% used · <strong>${esc(fmtHmc(remaining))}</strong> HMC left this period</span>
+        <span>Lifetime paid <strong>${esc(fmtHmc(lifetime))}</strong> HMC</span>
+      </div>
+      ${over ? `<p class="hof-budget-note">Period cap exceeded — exceptional accepted reports; operator may raise the monthly envelope.</p>` : ""}
+    `;
+    if (STAT_BUDGET) STAT_BUDGET.textContent = `${fmtHmc(spent)}/${fmtHmc(limit)}`;
+  }
+
   function render(data) {
     const researchers = Array.isArray(data.researchers) ? [...data.researchers] : [];
     researchers.sort((a, b) => researcherPaid(b) - researcherPaid(a));
 
+    const findings = allFindings(researchers);
     const paid =
       data.stats && typeof data.stats.total_paid_hmc === "number"
         ? data.stats.total_paid_hmc
@@ -104,12 +171,19 @@
     const reports =
       data.stats && typeof data.stats.reports_accepted === "number"
         ? data.stats.reports_accepted
-        : researchers.reduce((a, r) => a + (r.findings ? r.findings.length : r.reports || 0), 0);
+        : findings.length;
+    const period = (data.budget && data.budget.period) || "";
+    const periodSpend = periodSpent(findings, period);
 
     if (STAT_PAID) STAT_PAID.textContent = fmtHmc(paid);
     if (STAT_PEOPLE) STAT_PEOPLE.textContent = String(people);
     if (STAT_REPORTS) STAT_REPORTS.textContent = String(reports);
-    if (UPDATED && data.updated) UPDATED.textContent = data.updated;
+    if (UPDATED && data.updated) {
+      UPDATED.textContent = data.updated;
+      UPDATED.setAttribute("datetime", data.updated);
+    }
+
+    renderBudget(data, paid, periodSpend);
 
     if (!researchers.length) {
       if (LIST) LIST.hidden = true;
@@ -154,10 +228,13 @@
       ROOT.dataset.state = "error";
       if (EMPTY) {
         EMPTY.hidden = false;
-        EMPTY.querySelector(".hof-empty-title").textContent = "Board temporarily unavailable";
-        EMPTY.querySelector(".hof-empty-copy").textContent =
-          "Retry later — the reward program itself is still open.";
+        const t = EMPTY.querySelector(".hof-empty-title");
+        const c = EMPTY.querySelector(".hof-empty-copy");
+        if (t) t.textContent = "Board temporarily unavailable";
+        if (c)
+          c.textContent = "Retry later — the reward program itself is still open.";
       }
       if (LIST) LIST.hidden = true;
+      if (BUDGET) BUDGET.hidden = true;
     });
 })();
