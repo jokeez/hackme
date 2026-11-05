@@ -634,7 +634,11 @@ func (s *Service) CancelHuntCampaignsMissingHarness(ctx context.Context, minAgeS
 		if hash == "" {
 			continue
 		}
-		if hunt.HarnessArtifactReady(ctx, s.DB, hash) == nil {
+		// Mirror the claim gate: a published harness whose content attestation disagrees with
+		// the campaign config is never leased, so the campaign would sit "running" with all
+		// shards pending until its time budget ends.
+		if hunt.HarnessArtifactReady(ctx, s.DB, hash) == nil &&
+			hunt.ValidContentSHA256(huntHarnessContentSHA256(ctx, s, hash, cfg)) {
 			continue
 		}
 		if err := s.SetCampaignStatus(ctx, id, "cancelled"); err != nil {
@@ -646,6 +650,27 @@ func (s *Service) CancelHuntCampaignsMissingHarness(ctx context.Context, minAgeS
 		}
 	}
 	return n, rows.Err()
+}
+
+// CancelPendingOfFinishedCampaigns cancels never-claimed shards left behind when a campaign
+// finishes outside SetCampaignStatus (recomputeProgress completes on the time/run budget
+// without touching items), so pool stats stop counting them as pending work.
+func (s *Service) CancelPendingOfFinishedCampaigns(ctx context.Context, now int64) (int64, error) {
+	if s == nil || s.DB == nil {
+		return 0, nil
+	}
+	res, err := s.DB.ExecContext(ctx,
+		`UPDATE fuzz_work_items SET status='cancelled', updated_at=?
+		 WHERE status='pending' AND campaign_id IN (
+		   SELECT id FROM fuzz_campaigns WHERE status IN ('completed','cancelled'))`, now)
+	if err != nil {
+		return 0, err
+	}
+	n, _ := res.RowsAffected()
+	if n > 0 {
+		s.invalidateSchedCache()
+	}
+	return n, nil
 }
 
 // ReclaimExpiredLeases returns expired leased items to pending (Tick / health fix).
@@ -763,6 +788,9 @@ func (s *Service) Tick(ctx context.Context) error {
 			return err
 		}
 		if _, err := s.CancelHuntCampaignsMissingHarness(ctx, 900, 50); err != nil {
+			return err
+		}
+		if _, err := s.CancelPendingOfFinishedCampaigns(ctx, now); err != nil {
 			return err
 		}
 		if _, err := s.ForceCompleteStalledNearDoneCampaigns(ctx, now, 30); err != nil {
