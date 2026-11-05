@@ -195,6 +195,7 @@ Same activation height packages:
 - SUP emit + fee utility  
 - `chain_id` binding appropriate to the switch  
 - Mandatory authority block signature where required for hub blocks  
+- Address/key binding: an address spends only with the key bound to it (first included spend, or a signed `POST /api/address/bind` proof; desktop wallets bind automatically)  
 
 Nice-to-have, **not** blockers: new address format, every pool accrual as an on-chain tx (verify completeness debt).
 
@@ -262,7 +263,9 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 | Soft announce (news + public docs) | ✅ 2026-10-30 |
 | D9 height package + consensus harden | ✅ on `main` (env bootstrap → locked `meta economics_v2_activation_height`; **unset on hub**) |
 | D6 Dig soft-start + burn-halve wiring | ✅ on `main` (`HACKME_ECONOMICS_V2_ANNOUNCE_UNIX` / meta; Hunt 50/50 gated; burn 5% → 2.5% → 1.25% then fixed; **unset on hub** ⇒ gate off) |
-| Activation announce + ≥7d | ⏳ tip-relative; do not set height/announce env until announce |
+| Address/key binding | ✅ recorded from history now, enforced from the activation height |
+| Activation height | ✅ **540 000** compiled into the release with the hub authority key (≈ 2026-11-12) |
+| Activation announce + ≥7d | ⏳ announce 2026-11-05 |
 | Height switch | ⏳ |
 | Post-switch dumps / verify / 1.0.0 | after stability |
 
@@ -325,6 +328,7 @@ Miners, desktop nodes, explorers, and customers need a predictable upgrade windo
 | 2026-11-01 | D6 soft-start + burn-halve wired on `main` (announce unix / meta; Hunt gated; height+announce still unset on hub) |
 | 2026-11-03 | Burn freeze moved to epoch 2: 5% → 2.5% → 1.25%, then 1.25% permanently (was: freeze at the HMC tail, ~0.08%) |
 | 2026-11-04 | Minimum activation notice shortened from 14 to 7 days (20 160 blocks) |
+| 2026-11-05 | Activation height 540 000 + authority key compiled in; address/key binding added to the height package |
 
 ---
 
