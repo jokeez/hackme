@@ -280,3 +280,27 @@ func TestSessionAnchorHMC(t *testing.T) {
 		t.Fatalf("clear anchor must zero units+float, keep settled: %+v", w)
 	}
 }
+
+func TestTxHashKnown(t *testing.T) {
+	ctx := context.Background()
+	s, err := Open(filepath.Join(t.TempDir(), "s.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if k, err := s.TxHashKnown(ctx, "aa"); err != nil || k {
+		t.Fatalf("empty store: %v %v", k, err)
+	}
+	if _, err := s.SetPendingUnits(ctx, "w1", "HMC-to", 100, 7); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AttachTxHash(ctx, "w1", "aa"); err != nil {
+		t.Fatal(err)
+	}
+	if k, err := s.TxHashKnown(ctx, "aa"); err != nil || !k {
+		t.Fatalf("attached hash must be known: %v %v", k, err)
+	}
+	if k, _ := s.TxHashKnown(ctx, "bb"); k {
+		t.Fatal("unknown hash reported known")
+	}
+}

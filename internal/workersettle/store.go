@@ -401,6 +401,22 @@ VALUES (?, ?, ?, ?, 'pending', ?, ?)`, workerID, payoutAddr, deltaHMC, deltaUnit
 }
 
 // AttachTxHash stamps pending + latest outbox row with tx_hash atomically.
+// TxHashKnown reports whether txHash is already recorded for any worker (outbox row, last
+// settled tx, or an attached pending intent) in this ledger.
+func (s *Store) TxHashKnown(ctx context.Context, txHash string) (bool, error) {
+	txHash = strings.TrimSpace(txHash)
+	if txHash == "" {
+		return false, nil
+	}
+	var n int
+	err := s.db.QueryRowContext(ctx, `SELECT
+		  (SELECT COUNT(*) FROM settle_outbox WHERE tx_hash=?)
+		+ (SELECT COUNT(*) FROM settle_workers WHERE last_tx_hash=?)
+		+ (SELECT COUNT(*) FROM settle_workers WHERE pending_json<>'' AND json_valid(pending_json) AND json_extract(pending_json,'$.tx_hash')=?)`,
+		txHash, txHash, txHash).Scan(&n)
+	return n > 0, err
+}
+
 func (s *Store) AttachTxHash(ctx context.Context, workerID, txHash string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -63,8 +63,8 @@ func TestResolveStranded_PaidAtLaterNonce(t *testing.T) {
 func TestResolveStranded_UnsentWhenEverySlotTakenByOthers(t *testing.T) {
 	f := &fakeChain{next: 102, slots: map[uint64][]byNonceTx{
 		100: {{TxHash: "a", Status: "included", To: rpOther, AmountUnits: 777}},
-		// same recipient, different amount: not this intent
-		101: {{TxHash: "b", Status: "included", To: rpTo, AmountUnits: 778}},
+		// other recipient (same-recipient/other-amount is kept: see KeepWhenSameRecipientDifferentAmount)
+		101: {{TxHash: "b", Status: "included", To: rpOther, AmountUnits: 778}},
 	}}
 	srv := f.server(t)
 	res := resolveStrandedPending(context.Background(), srv.Client(), srv.URL, rpPayer, rpTo, rpPend(100, 777))
@@ -119,5 +119,45 @@ func TestResolveStranded_KeepWhenMatchingStillPendingOrRangeTooWide(t *testing.T
 	// legacy intent without a recorded nonce is never auto-resolved
 	if res := resolveStrandedPending(context.Background(), srv.Client(), srv.URL, rpPayer, rpTo, rpPend(0, 777)); res.Outcome != strandedKeep {
 		t.Fatalf("no nonce: %+v", res)
+	}
+}
+
+// Audit 2026-11-05 HIGH-1: an included transfer to the same worker for a DIFFERENT amount (an
+// earlier intent's delta) must not count as "someone else's slot" — clearing would re-pay.
+func TestResolveStranded_KeepWhenSameRecipientDifferentAmount(t *testing.T) {
+	f := &fakeChain{next: 101, slots: map[uint64][]byNonceTx{
+		100: {{TxHash: "t1", Status: "included", To: rpTo, AmountUnits: 500}},
+	}}
+	srv := f.server(t)
+	res := resolveStrandedPending(context.Background(), srv.Client(), srv.URL, rpPayer, rpTo, rpPend(100, 777))
+	if res.Outcome != strandedKeep {
+		t.Fatalf("same recipient, other amount must keep: %+v", res)
+	}
+}
+
+// Audit MEDIUM-2: next_nonce behind the intent nonce is an inconsistent view — keep.
+func TestResolveStranded_KeepWhenNextBehindIntent(t *testing.T) {
+	f := &fakeChain{next: 90}
+	srv := f.server(t)
+	if res := resolveStrandedPending(context.Background(), srv.Client(), srv.URL, rpPayer, rpTo, rpPend(100, 777)); res.Outcome != strandedKeep {
+		t.Fatalf("next behind intent must keep: %+v", res)
+	}
+}
+
+// Lost send response: the node may still hold the tx — it must be found, not cleared.
+func TestFindInflightTransfer(t *testing.T) {
+	f := &fakeChain{next: 100, slots: map[uint64][]byNonceTx{
+		100: {{TxHash: "x", Status: "rejected", To: rpTo, AmountUnits: 777}, {TxHash: "p", Status: "pending", To: rpTo, AmountUnits: 777}},
+	}}
+	srv := f.server(t)
+	if h, err := findInflightTransfer(context.Background(), srv.Client(), srv.URL, rpPayer, rpTo, 777, 100); err != nil || h != "p" {
+		t.Fatalf("in-flight: %q %v", h, err)
+	}
+	if h, err := findInflightTransfer(context.Background(), srv.Client(), srv.URL, rpPayer, rpTo, 777, 101); err != nil || h != "" {
+		t.Fatalf("empty slot: %q %v", h, err)
+	}
+	srv.Close()
+	if _, err := findInflightTransfer(context.Background(), srv.Client(), srv.URL, rpPayer, rpTo, 777, 100); err == nil {
+		t.Fatal("unreachable node must error (keep pending)")
 	}
 }

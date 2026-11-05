@@ -71,6 +71,21 @@ func fetchTxsByNonce(ctx context.Context, client *http.Client, base, from string
 	return m.Txs, nil
 }
 
+// findInflightTransfer returns the hash of a non-rejected transfer payer→to of amount at nonce
+// ("" when the node holds none; err when the lookup itself failed).
+func findInflightTransfer(ctx context.Context, client *http.Client, base, payer, to string, amount, nonce uint64) (string, error) {
+	txs, err := fetchTxsByNonce(ctx, client, base, payer, nonce)
+	if err != nil {
+		return "", err
+	}
+	for _, t := range txs {
+		if t.To == to && t.AmountUnits == amount && t.Status != "rejected" && strings.TrimSpace(t.TxHash) != "" {
+			return t.TxHash, nil
+		}
+	}
+	return "", nil
+}
+
 // poolHasTransfer reports whether the mempool holds from→to of amount (err when unknown).
 func poolHasTransfer(ctx context.Context, client *http.Client, base, from, to string, amount uint64) (bool, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(base, "/")+"/api/tx/pool", nil)
@@ -118,6 +133,11 @@ func resolveStrandedPending(ctx context.Context, client *http.Client, base, paye
 	if err != nil {
 		return strandedResult{Reason: "nonce lookup: " + err.Error()}
 	}
+	if next < start {
+		// The chain says the payer never reached the intent's nonce: a stale view (follower
+		// cache, restored DB). Clearing now could re-send at a lower nonce — keep for an operator.
+		return strandedResult{Reason: fmt.Sprintf("payer next_nonce %d is behind intent nonce %d", next, start)}
+	}
 	if next > start && next-start > strandedMaxScan {
 		return strandedResult{Reason: fmt.Sprintf("nonce range %d..%d too wide", start, next)}
 	}
@@ -139,6 +159,11 @@ func resolveStrandedPending(ctx context.Context, client *http.Client, base, paye
 				}
 			}
 			if t.Status == "included" {
+				if t.To == to {
+					// Same recipient, different amount: may be this worker's earlier intent for an
+					// older delta. Treating the slot as "someone else's" would re-pay — keep.
+					return strandedResult{Reason: fmt.Sprintf("included transfer %s at nonce %d pays the same address a different amount", t.TxHash, n), Nonce: n}
+				}
 				taken = true
 			}
 		}

@@ -315,6 +315,12 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 			payTo := firstNonEmpty(pend.PayoutAddress, toAddr)
 			switch res := resolveStrandedPending(ctx, client, cfg.ChainBase, payer, payTo, pend); res.Outcome {
 			case strandedPaid:
+				// Never adopt a transfer already credited to another intent (two workers sharing
+				// a payout address and amount would otherwise settle one of them for free).
+				if used, uerr := store.TxHashKnown(ctx, res.TxHash); uerr != nil || used {
+					lg.Printf("stranded pending %s kept: candidate tx=%s already recorded (err=%v)", wid, res.TxHash, uerr)
+					continue
+				}
 				if err := store.AttachTxHash(ctx, wid, res.TxHash); err != nil {
 					lg.Printf("resolve %s: attach tx=%s: %v", wid, res.TxHash, err)
 					continue
@@ -439,6 +445,18 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 				lg.Printf("ALERT ambiguous_pending %s: nonce %d->%d without verifiable tx_hash — keeping pending (CLEAR_PENDING_HMC_FORCE only if rejected)", wid, nonceBefore, nonceAfter)
 				_ = store.AppendLedger(ctx, "ambiguous_pending", wid, payUnits, 0, 0, 0, 0, 0,
 					fmt.Sprintf("nonce %d->%d", nonceBefore, nonceAfter))
+			} else if inflight, ferr := findInflightTransfer(ctx, client, cfg.ChainBase, payer, toAddr, payUnits, nonce); ferr != nil || inflight != "" {
+				// A lost response does not mean "not sent": the node may hold the tx in its
+				// pool. Clearing here and re-sending later (at the next nonce, once it lands)
+				// double-pays. Adopt the in-flight hash, or keep the intent when unsure.
+				if inflight != "" {
+					if aerr := store.AttachTxHash(ctx, wid, inflight); aerr == nil {
+						lg.Printf("settle %s: response lost but tx %s is in flight at nonce %d — attached", wid, inflight, nonce)
+					}
+				} else {
+					lg.Printf("ALERT settle %s: send failed and in-flight lookup failed (%v) — keeping pending", wid, ferr)
+				}
+				_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
 			} else {
 				lg.Printf("ERROR settle %s -> %s: %v %s", wid, toAddr, sendErr, string(mustJSON(resp)))
 				_ = store.ClearPending(ctx, wid)
@@ -654,11 +672,19 @@ func fetchNonce(ctx context.Context, client *http.Client, base, addr string) (ui
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("address lookup: http %d", resp.StatusCode)
+	}
 	var m map[string]any
 	if err := json.Unmarshal(body, &m); err != nil {
 		return 0, err
 	}
-	return anyUint64(m["next_nonce"]), nil
+	v, ok := m["next_nonce"]
+	if !ok {
+		// A body without next_nonce must not read as "nonce 0" (resolver/clear decisions).
+		return 0, fmt.Errorf("address lookup: next_nonce missing")
+	}
+	return anyUint64(v), nil
 }
 
 func sendTransfer(ctx context.Context, client *http.Client, cfg Config, from, to string, amount, nonce uint64, ts int64) (map[string]any, string, error) {
