@@ -246,6 +246,23 @@
     });
   }
 
+  function setHofView(view) {
+    if (!DIALOG) return;
+    DIALOG.dataset.hofView = view === "detail" ? "detail" : "list";
+  }
+
+  function showLedgerList() {
+    setHofView("list");
+    if (DETAIL) {
+      DETAIL.hidden = false;
+      DETAIL.innerHTML =
+        '<p class="hof-detail-placeholder">Select a researcher to see findings, fix links, and payouts.</p>';
+    }
+    LEDGER_BODY?.querySelectorAll(".hof-ledger-row").forEach((row) =>
+      row.classList.remove("is-active")
+    );
+  }
+
   function selectResearcher(id) {
     if (!STATE || !DETAIL) return;
     const r = STATE.researchers.find((x) => String(x.id || displayName(x)) === String(id));
@@ -271,6 +288,7 @@
     DETAIL.hidden = false;
     DETAIL.innerHTML = `
       <div class="hof-detail-head">
+        <button type="button" class="hof-detail-back" id="hof-detail-back" aria-label="Back to researcher table">← Back to table</button>
         <div class="${topCls}">
           ${avatar}
           <div>
@@ -311,6 +329,13 @@
         </ul>
       </div>
     `;
+    DETAIL.querySelector("#hof-detail-back")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showLedgerList();
+      CLOSE_BTN?.focus({ preventScroll: true });
+    });
+    setHofView("detail");
     DETAIL.scrollTop = 0;
     const scroll = DETAIL.querySelector(".hof-detail-scroll");
     if (scroll) scroll.scrollTop = 0;
@@ -329,14 +354,7 @@
     }
     document.documentElement.classList.add("hof-ledger-open");
     if (selectId) selectResearcher(selectId);
-    else if (DETAIL) {
-      DETAIL.hidden = false;
-      DETAIL.innerHTML =
-        '<p class="hof-detail-placeholder">Select a researcher to see findings, fix links, and payouts.</p>';
-      LEDGER_BODY?.querySelectorAll(".hof-ledger-row").forEach((row) =>
-        row.classList.remove("is-active")
-      );
-    }
+    else showLedgerList();
     // Keep focus inside the sheet (helps VoiceOver / mobile browsers)
     CLOSE_BTN?.focus({ preventScroll: true });
   }
@@ -344,6 +362,7 @@
   function closeLedger() {
     if (!DIALOG) return;
     document.documentElement.classList.remove("hof-ledger-open");
+    setHofView("list");
     try {
       if (typeof DIALOG.close === "function" && DIALOG.open) DIALOG.close();
       else DIALOG.removeAttribute("open");
@@ -417,6 +436,16 @@
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && DIALOG?.open) closeLedger();
   });
+
+  function maybeOpenFromHash() {
+    if (location.hash !== "#open-ledger") return;
+    if (ROOT.dataset.state === "ready" || ROOT.dataset.state === "empty" || ROOT.dataset.state === "error") {
+      openLedger();
+    }
+  }
+  const stateObs = new MutationObserver(maybeOpenFromHash);
+  stateObs.observe(ROOT, { attributes: true, attributeFilter: ["data-state"] });
+  maybeOpenFromHash();
 
   fetch("./assets/security-hall.json", { cache: "no-store" })
     .then((r) => {

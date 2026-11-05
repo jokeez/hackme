@@ -2873,6 +2873,7 @@ html.hof-ledger-open body {
   display: flex;
   flex-direction: column;
   width: 100%;
+  min-height: 0;
   max-height: min(90vh, 820px);
   max-height: min(90dvh, 820px);
   border-radius: 20px;
@@ -3093,8 +3094,12 @@ html.hof-ledger-open body {
   line-height: 1.45;
 }
 
+.hof-detail-back {
+  display: none;
+}
+
 @media (max-width: 900px) {
-  /* Full-viewport sheet — avoids “black empty” modal on phones */
+  /* Full-viewport sheet — table gets the whole body until a row is opened */
   .hof-dialog {
     width: 100vw;
     max-width: 100vw;
@@ -3129,17 +3134,55 @@ html.hof-ledger-open body {
     font-size: 0.82rem;
   }
   .hof-dialog-body {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(42%, 1fr) minmax(38%, 1fr);
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    grid-template-rows: none;
     height: auto;
     flex: 1 1 auto;
     min-height: 0;
   }
   .hof-ledger-table-wrap {
     border-right: 0;
-    border-bottom: 1px solid rgba(87, 118, 168, 0.22);
+    border-bottom: 0;
+    flex: 1 1 auto;
     max-height: none;
     min-height: 0;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* list: full-height table; detail pane parked off-layout */
+  .hof-dialog[data-hof-view="list"] .hof-detail,
+  .hof-dialog:not([data-hof-view="detail"]) .hof-detail {
+    display: none !important;
+  }
+  .hof-dialog[data-hof-view="detail"] .hof-ledger-table-wrap {
+    display: none !important;
+  }
+  .hof-dialog[data-hof-view="detail"] .hof-detail {
+    display: flex !important;
+    flex: 1 1 auto;
+    min-height: 0;
+    background: rgba(0, 0, 0, 0.28);
+  }
+  .hof-detail-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0 0 0.75rem;
+    min-height: 40px;
+    padding: 0.45rem 0.85rem;
+    border-radius: 10px;
+    border: 1px solid rgba(77, 228, 255, 0.35);
+    background: rgba(77, 228, 255, 0.08);
+    color: var(--primary);
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+  }
+  .hof-detail-back:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
   }
   .hof-ledger-table {
     font-size: 0.82rem;
@@ -3151,10 +3194,6 @@ html.hof-ledger-open body {
   .hof-ledger-table th:nth-child(3),
   .hof-ledger-table td:nth-child(3) {
     display: none; /* Reports — save width on phones */
-  }
-  .hof-detail {
-    min-height: 0;
-    background: rgba(0, 0, 0, 0.28);
   }
   .hof-month-card {
     grid-template-columns: auto 1fr;
@@ -3177,6 +3216,13 @@ html.hof-ledger-open body {
   .hof-open-ledger {
     flex: 1 1 auto;
     min-height: 44px;
+  }
+}
+
+@media (max-width: 420px) {
+  .hof-ledger-table th:nth-child(5),
+  .hof-ledger-table td:nth-child(5) {
+    display: none; /* This month — lifetime is enough on tiny phones */
   }
 }
 .hof-finding-link {
