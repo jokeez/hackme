@@ -637,9 +637,14 @@ func (s *Service) CancelHuntCampaignsMissingHarness(ctx context.Context, minAgeS
 		// Mirror the claim gate: a published harness whose content attestation disagrees with
 		// the campaign config is never leased, so the campaign would sit "running" with all
 		// shards pending until its time budget ends.
-		if hunt.HarnessArtifactReady(ctx, s.DB, hash) == nil &&
-			hunt.ValidContentSHA256(huntHarnessContentSHA256(ctx, s, hash, cfg)) {
-			continue
+		if hunt.HarnessArtifactReady(ctx, s.DB, hash) == nil {
+			// A lookup error (SQLITE_BUSY…) is not a mismatch: never cancel a paying campaign on it.
+			if _, ferr := hunt.GetHarnessContentSHA256(ctx, s.DB, hash); ferr != nil {
+				continue
+			}
+			if hunt.ValidContentSHA256(huntHarnessContentSHA256(ctx, s, hash, cfg)) {
+				continue
+			}
 		}
 		if err := s.SetCampaignStatus(ctx, id, "cancelled"); err != nil {
 			return n, err

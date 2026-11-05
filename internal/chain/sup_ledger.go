@@ -720,6 +720,10 @@ func (s *Service) applyPendingSupTransfers(ctx context.Context, txq queryRowExec
 		if code == "" {
 			code, _ = checkSpendRulesQ(ctx, txq, blockIndex, item.tx.From, item.tx.To, item.tx.PubKeyEd25519)
 		}
+		if code == "internal_error" {
+			// A transient DB error is not a verdict on the tx: leave it pending for the next block.
+			continue
+		}
 		if code != "" {
 			_, _ = txq.ExecContext(ctx, `UPDATE sup_tx_pool SET status='rejected', reject_code=? WHERE tx_hash=?`, code, item.hash)
 			_, _ = txq.ExecContext(ctx,

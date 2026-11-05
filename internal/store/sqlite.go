@@ -366,6 +366,8 @@ func migrateTransferLedger(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_tx_pool_from_nonce ON tx_pool(from_address, nonce)`,
 		`CREATE INDEX IF NOT EXISTS idx_tx_pool_status_received ON tx_pool(status, received_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_tx_history_from_applied ON tx_history(from_address, applied_at DESC)`,
+		// /api/tx/by-nonce + the settler's stranded-intent resolver look up (from, nonce).
+		`CREATE INDEX IF NOT EXISTS idx_tx_history_from_nonce ON tx_history(from_address, nonce)`,
 		`CREATE INDEX IF NOT EXISTS idx_tx_history_to_applied ON tx_history(to_address, applied_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_tx_history_status_applied ON tx_history(status, applied_at DESC)`,
 	}
@@ -510,19 +512,26 @@ func migrateAddressPubKeys(db *sql.DB) error {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	for _, src := range []struct{ table, source string }{
-		{"tx_history", "backfill_hmc"},
-		{"sup_tx_history", "backfill_sup"},
-		{"hms_tx_history", "backfill_hms"},
-	} {
-		if _, err := tx.Exec(`INSERT OR IGNORE INTO address_pubkeys (address, pubkey_ed25519, bound_at_index, source)
-			SELECT from_address, lower(trim(json_extract(tx_json, '$.pubkey_ed25519'))), block_index, ?
-			  FROM `+src.table+`
-			 WHERE status='included' AND from_address LIKE 'HMC-%'
-			   AND length(trim(COALESCE(json_extract(tx_json, '$.pubkey_ed25519'), ''))) = 64
-			 ORDER BY block_index ASC, nonce ASC`, src.source); err != nil {
-			return err
-		}
+	// One ordered pass over all three ledgers: the earliest spend (by block, then time, then
+	// nonce) wins across HMC/SUP/HMS. json_valid keeps a malformed legacy row from failing the
+	// migration (and the node start).
+	if _, err := tx.Exec(`INSERT OR IGNORE INTO address_pubkeys (address, pubkey_ed25519, bound_at_index, source)
+		SELECT address, pub, block_index, source FROM (
+		  SELECT from_address AS address, lower(trim(json_extract(tx_json, '$.pubkey_ed25519'))) AS pub,
+		         block_index, applied_at, nonce, 'backfill_hmc' AS source
+		    FROM tx_history WHERE status='included' AND json_valid(tx_json)
+		  UNION ALL
+		  SELECT from_address, lower(trim(json_extract(tx_json, '$.pubkey_ed25519'))),
+		         block_index, applied_at, nonce, 'backfill_sup'
+		    FROM sup_tx_history WHERE status='included' AND json_valid(tx_json)
+		  UNION ALL
+		  SELECT from_address, lower(trim(json_extract(tx_json, '$.pubkey_ed25519'))),
+		         block_index, applied_at, nonce, 'backfill_hms'
+		    FROM hms_tx_history WHERE status='included' AND json_valid(tx_json)
+		)
+		 WHERE address LIKE 'HMC-%' AND length(COALESCE(pub, '')) = 64
+		 ORDER BY block_index ASC, applied_at ASC, nonce ASC`); err != nil {
+		return err
 	}
 	if _, err := tx.Exec(`INSERT INTO meta (key, value) VALUES ('address_pubkeys_backfill_v1', '1')
 		ON CONFLICT(key) DO UPDATE SET value=excluded.value`); err != nil {

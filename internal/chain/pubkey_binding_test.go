@@ -206,3 +206,41 @@ func TestAddressPubKeysBackfillEarliestWins(t *testing.T) {
 		t.Fatalf("backfill %q/%q", got, src)
 	}
 }
+
+// Audit: the earliest spend across ledgers wins, and a malformed legacy tx_json row does not
+// fail the migration (node start).
+func TestAddressPubKeysBackfillAcrossLedgersAndMalformedRow(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bf2.db")
+	db, err := store.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := "HMC-backfill000002"
+	kSup, kHmc := strings.Repeat("cc", 32), strings.Repeat("dd", 32)
+	rawSup, _ := json.Marshal(map[string]any{"pubkey_ed25519": kSup})
+	rawHmc, _ := json.Marshal(map[string]any{"pubkey_ed25519": kHmc})
+	for _, q := range []struct {
+		table, hash, raw string
+		idx              int
+	}{
+		{"sup_tx_history", "s1", string(rawSup), 3},
+		{"tx_history", "h1", string(rawHmc), 9},
+		{"tx_history", "bad", "not json", 1},
+	} {
+		if _, err := db.Exec(`INSERT INTO `+q.table+` (tx_hash, tx_json, from_address, to_address, nonce, fee_units, amount_units, status, block_index, block_hash, applied_at, reject_code)
+			VALUES (?, ?, ?, 'HMC-x', 0, 0, 1, 'included', ?, 'h', 0, '')`, q.hash, q.raw, addr, q.idx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, _ = db.Exec(`DELETE FROM meta WHERE key='address_pubkeys_backfill_v1'`)
+	_, _ = db.Exec(`DELETE FROM address_pubkeys`)
+	_ = db.Close()
+	db, err = store.Open(path)
+	if err != nil {
+		t.Fatalf("migration must survive a malformed row: %v", err)
+	}
+	defer db.Close()
+	if got, src := boundKey(t, db, addr); got != kSup || src != "backfill_sup" {
+		t.Fatalf("earliest cross-ledger spend must win: %q/%q", got, src)
+	}
+}
