@@ -736,8 +736,8 @@ func hardenHTTPHandler(next http.Handler) http.Handler {
 			"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.tailwindcss.com",
 			"font-src 'self' https://fonts.gstatic.com data:",
 			"img-src 'self' data: blob:",
-			"connect-src 'self' https: http://127.0.0.1:8080 http://127.0.0.1:18080 http://127.0.0.1:18081 http://127.0.0.1:18082 http://127.0.0.1:18443 http://127.0.0.1:5199 http://localhost:5199 http://[::1]:5199",
-			"frame-src 'self' https://exchange.hackme.tech http://127.0.0.1:5199 http://localhost:5199 http://[::1]:5199",
+			"connect-src 'self' https: http://127.0.0.1:8080 http://127.0.0.1:18080 http://127.0.0.1:18081 http://127.0.0.1:18082 http://127.0.0.1:18443 http://127.0.0.1:5199 http://localhost:5199",
+			"frame-src 'self' https://exchange.hackme.tech http://127.0.0.1:5199 http://localhost:5199",
 			// Prefer frame-ancestors in the HTTP header (meta CSP ignores it). Keep
 			// X-Frame-Options: DENY above; ancestors list documents allowed parents.
 			"frame-ancestors 'none'",
@@ -1289,6 +1289,8 @@ func (a *app) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		s.EconRewardTailFloorHMC = chain.RewardTailFloorHMC
 		s.EconRewardHalvingInterval = chain.RewardHalvingIntervalBlocks
 		s.EconNextHalvingBlock = chain.NextHalvingBlock(s.BlockHeight)
+		s.EconV2ActivationHeight = chain.EconomicsV2ActivationHeight()
+		s.EconV2BaseRewardHMC = chain.V2InitialBaseRewardHMC
 		s.EconExpectedEmptyHmcHour = chain.ExpectedEmptyMiningHMCPerHour(s.BlockHeight)
 		s.EconBaseRewardNowHMC = chain.BaseRewardForBlockIndex(s.BlockHeight + 1)
 		s.EconSUPRewardNow = chain.SUPRewardForBlockIndex(s.BlockHeight + 1)

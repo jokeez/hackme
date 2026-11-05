@@ -89,15 +89,11 @@
     };
   }
 
-  /** GitHub avatar only — email/nick reporters get name-only (no FO-style initials tile). */
+  /** Self-hosted avatar (assets/hof/) only — the site CSP blocks third-party images, and a
+   *  hotlinked github.com avatar would also leak visitors' IPs. No avatar_url → name only. */
   function avatarHtml(r, sizeClass) {
-    const gh = (r.github || "").replace(/^@/, "").trim();
     const custom = (r.avatar_url || "").trim();
-    const src = custom
-      ? custom
-      : gh
-        ? `https://github.com/${encodeURIComponent(gh)}.png?size=96`
-        : "";
+    const src = /^\.\/assets\/hof\/[A-Za-z0-9._-]+\.(png|jpe?g|webp)$/.test(custom) ? custom : "";
     if (!src) return "";
     const cls = sizeClass ? `hof-avatar ${sizeClass}` : "hof-avatar";
     return `<img class="${cls}" src="${esc(src)}" alt="" width="44" height="44" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()" />`;

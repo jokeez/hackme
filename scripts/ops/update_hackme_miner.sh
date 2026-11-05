@@ -122,6 +122,14 @@ if [[ -n "$local_ver" && "$local_ver" == "$remote_ver" && "$FORCE" != "1" ]]; th
   log "already up to date ($local_ver) — nothing to do"
   exit 0
 fi
+# Never downgrade: a pre-release (-rcN) sorts before its final release ("~" in sort -V).
+if [[ -n "$local_ver" && "$FORCE" != "1" ]]; then
+  newest="$(printf '%s\n%s\n' "${local_ver//-/\~}" "${remote_ver//-/\~}" | sort -V | tail -1)"
+  if [[ "$newest" == "${local_ver//-/\~}" ]]; then
+    log "local $local_ver is newer than latest.json $remote_ver — nothing to do (FORCE=1 to reinstall)"
+    exit 0
+  fi
+fi
 
 plat="$(jq -c '.platforms[] | select(.id=="linux")' "$LATEST_FILE" | head -1)"
 [[ -n "$plat" ]] || die "latest.json has no linux platform"

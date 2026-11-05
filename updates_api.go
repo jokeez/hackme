@@ -167,7 +167,93 @@ func updateAvailable(local, remote string) bool {
 	if local == "" || remote == "" {
 		return false
 	}
-	return local != remote
+	return compareReleaseVersions(remote, local) > 0
+}
+
+// compareReleaseVersions orders release strings like 0.1.0-rc18.2 (-1, 0, 1). Numeric runs
+// compare as numbers, letters lexically; a pre-release (-rc…) sorts before its final release.
+// A node newer than latest.json (hub/dev build) is therefore never offered a "downgrade".
+func compareReleaseVersions(a, b string) int {
+	coreA, preA, _ := strings.Cut(strings.TrimPrefix(strings.TrimSpace(a), "v"), "-")
+	coreB, preB, _ := strings.Cut(strings.TrimPrefix(strings.TrimSpace(b), "v"), "-")
+	if c := compareVersionTokens(coreA, coreB); c != 0 {
+		return c
+	}
+	switch {
+	case preA == "" && preB == "":
+		return 0
+	case preA == "":
+		return 1
+	case preB == "":
+		return -1
+	}
+	return compareVersionTokens(preA, preB)
+}
+
+func compareVersionTokens(a, b string) int {
+	ta, tb := versionTokens(a), versionTokens(b)
+	for i := 0; i < len(ta) || i < len(tb); i++ {
+		if i >= len(ta) {
+			return -1
+		}
+		if i >= len(tb) {
+			return 1
+		}
+		x, y := ta[i], tb[i]
+		nx, ex := strconv.ParseUint(x, 10, 64)
+		ny, ey := strconv.ParseUint(y, 10, 64)
+		switch {
+		case ex == nil && ey == nil:
+			if nx != ny {
+				if nx < ny {
+					return -1
+				}
+				return 1
+			}
+		case ex == nil: // number before letters
+			return -1
+		case ey == nil:
+			return 1
+		default:
+			if c := strings.Compare(x, y); c != 0 {
+				return c
+			}
+		}
+	}
+	return 0
+}
+
+// versionTokens splits "rc18.2" into ["rc","18","2"] (digit/letter runs; separators dropped).
+func versionTokens(s string) []string {
+	var out []string
+	cur := ""
+	kind := 0 // 1 digit, 2 letter
+	flush := func() {
+		if cur != "" {
+			out = append(out, cur)
+		}
+		cur, kind = "", 0
+	}
+	for _, r := range strings.ToLower(s) {
+		k := 0
+		switch {
+		case r >= '0' && r <= '9':
+			k = 1
+		case r >= 'a' && r <= 'z':
+			k = 2
+		}
+		if k == 0 {
+			flush()
+			continue
+		}
+		if kind != 0 && k != kind {
+			flush()
+		}
+		cur += string(r)
+		kind = k
+	}
+	flush()
+	return out
 }
 
 func buildUpdateCheckPayload(doc *latestDoc, sourceURL string) map[string]any {

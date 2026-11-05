@@ -226,13 +226,14 @@ func (a *app) handleReportsBlocks(w http.ResponseWriter, r *http.Request) {
 	if source == "" {
 		source = "auto"
 	}
-	localNote := "PoH reward history uses ~0.01 HMC per block in metrics; on-chain wallet is authoritative."
-
 	localH, _, tipErr := a.chain.Tip(ctx)
 	if tipErr != nil {
 		http.Error(w, tipErr.Error(), http.StatusInternalServerError)
 		return
 	}
+	// Reward follows the live schedule (v1 0.01 → v2 0.1 HMC at the activation height).
+	localNote := fmt.Sprintf("PoH reward history uses ~%g HMC per block in metrics; on-chain wallet is authoritative.",
+		chain.BaseRewardForBlockIndex(localH+1))
 
 	canonBase := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/")
 	writeCanon := func(rm map[string]any) bool {

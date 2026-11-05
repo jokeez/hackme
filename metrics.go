@@ -74,7 +74,11 @@ type MetricsSnapshot struct {
 	EconRewardTailFloorHMC    float64 `json:"econ_reward_tail_floor_hmc"`
 	EconRewardHalvingInterval uint64  `json:"econ_reward_halving_interval_blocks"`
 	EconNextHalvingBlock      uint64  `json:"econ_next_halving_block"`
-	EconExpectedEmptyHmcHour  float64 `json:"econ_expected_empty_hmc_hour"`
+	// Economics v2 schedule switch (0 = not announced) and its base reward, for the "next
+	// schedule change" display before the switch.
+	EconV2ActivationHeight   uint64  `json:"econ_v2_activation_height,omitempty"`
+	EconV2BaseRewardHMC      float64 `json:"econ_v2_base_reward_hmc,omitempty"`
+	EconExpectedEmptyHmcHour float64 `json:"econ_expected_empty_hmc_hour"`
 	// Recent reward window breakdown (actual observed in recent blocks).
 	EconWindowSec         int64   `json:"econ_window_sec"`
 	EconWindowBlocks      int     `json:"econ_window_blocks"`

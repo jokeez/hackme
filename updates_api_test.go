@@ -96,3 +96,25 @@ func TestHandleUpdatesCheck(t *testing.T) {
 		t.Fatalf("expected update_available true, got %v (local=%v)", out["update_available"], out["local_version"])
 	}
 }
+
+func TestUpdateAvailableNeverDowngrades(t *testing.T) {
+	cases := []struct {
+		local, remote string
+		want          bool
+	}{
+		{"0.1.0-rc18.2", "0.1.0-rc18.1", false}, // hub/dev build newer than latest.json
+		{"0.1.0-rc18.1", "0.1.0-rc18.2", true},
+		{"0.1.0-rc9", "0.1.0-rc18", true},
+		{"0.1.0-rc18", "0.1.0-rc18.1", true},
+		{"0.1.0-rc19", "0.1.0", true}, // final release beats its rc
+		{"0.1.0", "0.1.0-rc19", false},
+		{"0.1.0-rc11k", "0.1.0-rc11l", true},
+		{"0.1.0-rc18.1", "0.1.0-rc18.1", false},
+		{"0.2.0", "0.1.9", false},
+	}
+	for _, c := range cases {
+		if got := updateAvailable(c.local, c.remote); got != c.want {
+			t.Errorf("updateAvailable(%q, %q) = %v, want %v", c.local, c.remote, got, c.want)
+		}
+	}
+}

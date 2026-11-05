@@ -22,6 +22,7 @@
       "id": "bobbyning",
       "name": "bobbyning",
       "github": "bobbyning",
+      "avatar_url": "./assets/hof/bobbyning.png",
       "total_paid_hmc": 565,
       "findings": [
         {
@@ -143,6 +144,7 @@
       "id": "founderb",
       "name": "FounderB",
       "github": "FounderB",
+      "avatar_url": "./assets/hof/FounderB.jpg",
       "total_paid_hmc": 185,
       "findings": [
         {

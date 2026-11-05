@@ -2508,6 +2508,8 @@ func applyCanonicalBlockEconomics(s *MetricsSnapshot, bh uint64) bool {
 	s.PoHFormula = chain.PoHFormulaLabelForIndex(bh + 1)
 	s.PoHActivationHeight = chain.PoHFormulaV3ActivationHeight()
 	s.EconNextHalvingBlock = chain.NextHalvingBlock(bh)
+	s.EconV2ActivationHeight = chain.EconomicsV2ActivationHeight()
+	s.EconV2BaseRewardHMC = chain.V2InitialBaseRewardHMC
 	s.EconExpectedEmptyHmcHour = chain.ExpectedEmptyMiningHMCPerHour(bh)
 	s.EconBaseRewardNowHMC = chain.BaseRewardForBlockIndex(bh + 1)
 	s.EconSUPRewardNow = chain.SUPRewardForBlockIndex(bh + 1)
@@ -2674,6 +2676,8 @@ func (a *app) overlayCanonicalMiningIntoSnapshot(ctx context.Context, s *Metrics
 	}
 	if sched {
 		s.EconNextHalvingBlock = chain.NextHalvingBlock(s.BlockHeight)
+		s.EconV2ActivationHeight = chain.EconomicsV2ActivationHeight()
+		s.EconV2BaseRewardHMC = chain.V2InitialBaseRewardHMC
 		s.EconExpectedEmptyHmcHour = chain.ExpectedEmptyMiningHMCPerHour(s.BlockHeight)
 		s.EconBaseRewardNowHMC = chain.BaseRewardForBlockIndex(s.BlockHeight + 1)
 		s.EconSUPRewardNow = chain.SUPRewardForBlockIndex(s.BlockHeight + 1)

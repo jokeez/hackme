@@ -146,7 +146,12 @@
 		.kpi-stat-card .font-display.tabular-nums {
 			margin: 0;
 			line-height: 1.15;
+			max-width: 100%;
+			overflow-wrap: anywhere;
 		}
+		.kpi-stat-card { min-width: 0; }
+		/* 8-decimal balances must fit the 5-column KPI row (they overflowed the card at 1440px). */
+		#kpi-balance-card .font-display.tabular-nums { font-size: clamp(1.05rem, 1.45vw, 1.875rem); }
 		.kpi-stat-card .text-\[10px\].text-gray-500 {
 			margin-top: 0 !important;
 		}
@@ -534,6 +539,9 @@
 			padding: 0.75rem;
 		}
 		.mine-calc-kpi.highlight { border-color: rgba(57,255,20,0.35); background: rgba(57,255,20,0.06); }
+		.mine-calc-kpi { min-width: 0; }
+		.mine-calc-kpi .font-mono { overflow-wrap: anywhere; }
+		.mine-calc-kpi .font-display { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 		.mine-calc-bar-track {
 			height: 8px;
 			border-radius: 999px;
@@ -2806,8 +2814,9 @@
 									<p id="econ-base-now" class="font-mono text-matrix tabular-nums">—</p>
 								</div>
 								<div class="rounded border border-white/10 bg-black/35 p-3">
-									<p class="text-[9px] text-gray-600 uppercase tracking-wider mb-1">Next halving block</p>
+									<p id="econ-next-halving-label" class="text-[9px] text-gray-600 uppercase tracking-wider mb-1">Next halving block</p>
 									<p id="econ-next-halving" class="font-mono text-gray-200 tabular-nums">—</p>
+									<p id="econ-next-halving-sub" class="text-[9px] text-gray-500 mt-1 font-mono hidden"></p>
 								</div>
 								<div class="rounded border border-white/10 bg-black/35 p-3">
 									<p class="text-[9px] text-gray-600 uppercase tracking-wider mb-1">Tail floor</p>
@@ -3083,7 +3092,7 @@
 					</div>
 					<div class="rounded-lg border border-white/10 bg-black/25 px-3 py-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
 						<span id="hardware-tune-env" class="text-[10px] text-gray-500 font-mono"></span>
-						<span id="hardware-tune-msg" class="text-[10px] text-warn/85 font-mono max-w-full xl:max-w-[36rem] truncate" title=""></span>
+						<span id="hardware-tune-msg" class="text-[10px] text-warn/85 font-mono max-w-full xl:max-w-[36rem] break-words" title=""></span>
 					</div>
 					<div id="rig-profile-card" class="rounded-lg border border-neon/25 bg-black/35 p-4 space-y-3">
 						<div class="flex flex-wrap items-start justify-between gap-2">
@@ -3529,7 +3538,7 @@
 								<button type="button" id="btn-fuzz-quick-paused" class="text-[9px] px-2 py-1 rounded border border-warn/35 text-warn hover:bg-warn/10 uppercase tracking-wider">pause</button>
 								<button type="button" id="btn-fuzz-quick-completed" class="text-[9px] px-2 py-1 rounded border border-matrix/35 text-matrix hover:bg-matrix/10 uppercase tracking-wider">complete</button>
 							</div>
-							<p id="fuzz-access-summary" class="text-[10px] text-gray-500 font-mono">access: —</p>
+							<p id="fuzz-access-summary" class="break-words text-[10px] text-gray-500 font-mono">access: —</p>
 							<div class="pt-2 flex flex-wrap gap-2">
 								<button type="button" id="btn-fuzz-open-report" class="text-[10px] px-3 py-1 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Open report</button>
 								<button type="button" id="btn-fuzz-open-report-json" class="text-[10px] px-3 py-1 rounded border border-white/20 text-gray-300 hover:bg-white/5 uppercase tracking-wider">JSON</button>
@@ -5767,6 +5776,7 @@
 			const warn = $('admin-token-expose-warn');
 			if (warn) warn.classList.add('hidden');
 		}
+		let desktopLocalAuthMissing = false;
 		async function syncDesktopAdminTokenFromNode() {
 			showAdminTokenExposeWarn();
 			let got = false;
@@ -5784,8 +5794,10 @@
 				}
 			} catch (_) {}
 			try {
-				const r = await fetch('/api/desktop/local-auth', { cache: 'no-store' });
-				if (r.ok) {
+				// Non-desktop nodes (hub /dashboard, servers) answer 404 forever: ask once per page.
+				const r = desktopLocalAuthMissing ? null : await fetch('/api/desktop/local-auth', { cache: 'no-store' });
+				if (r && r.status === 404) desktopLocalAuthMissing = true;
+				if (r && r.ok) {
 					const j = await r.json();
 					const tok = sanitizeAdminTokenForHTTP(j && j.admin_token);
 					if (tok) {
@@ -8980,7 +8992,27 @@
 		 * Live path: accrual Δ × (slider GH / live worker GH). Old bug set scaleGh=workerGh → ratio 1.
 		 * Fallback: share-PPS lease model (block-capped) or soft reward/M.
 		 */
+		// The pool can never pay more than its emission budget: cap any estimate at
+		// (daily budget / 24) × this rig's share of pool GH/s (the slider rig joins the pool).
+		function mineCalcEmissionCapHour(fleetGh, net) {
+			const gh = Math.max(0, Number(fleetGh) || 0);
+			if (!(gh > 0)) return 0;
+			let budgetDay = Math.max(0, Number(net.dailyBudgetHmc) || 0);
+			if (!(budgetDay > 0)) budgetDay = Math.max(0, Number(net.baseRewardHmc) || 0) * 2880;
+			if (!(budgetDay > 0)) return Infinity;
+			const poolGh = Math.max(0, Number(net.poolGh) || 0);
+			const mine = Math.max(0, Number(net.workerGh) || 0);
+			const others = Math.max(0, poolGh - mine);
+			return (budgetDay / 24) * (gh / (others + gh));
+		}
+
 		function mineCalcPoolDisplayHour(inputs, net) {
+			const raw = mineCalcPoolDisplayHourRaw(inputs, net);
+			const fleetGh = Math.max(0, Number(inputs.hashrateGh) || 0) * Math.max(1, Math.floor(Number(inputs.rigCount) || 1));
+			return Math.min(raw, mineCalcEmissionCapHour(fleetGh, net));
+		}
+
+		function mineCalcPoolDisplayHourRaw(inputs, net) {
 			const fleetGh = Math.max(0, Number(inputs.hashrateGh) || 0) * Math.max(1, Math.floor(Number(inputs.rigCount) || 1));
 			const rpm = Math.max(0, Number(net.rewardPerM) || 0);
 			const sharePct = Math.max(0.01, Math.min(100, Number(inputs.poolSharePct) || 100));
@@ -9260,7 +9292,11 @@
 				ghLbl.textContent = (ghVal > 0 ? fmt(ghVal, ghVal >= 10 ? 1 : 2) : '10') + ' ' + coin.unit;
 			}
 			const out = computeMineCalc(inputs, net, {});
-			const displayHmcHour = out.poolWork ? out.displayHmcHour : (out.scaledObservedHour > 0 ? out.scaledObservedHour : out.poolHmcHour);
+			const calcFleetGh = Math.max(0, Number(inputs.hashrateGh) || 0) * Math.max(1, Math.floor(Number(inputs.rigCount) || 1));
+			const displayHmcHour = Math.min(
+				out.poolWork ? out.displayHmcHour : (out.scaledObservedHour > 0 ? out.scaledObservedHour : out.poolHmcHour),
+				mineCalcEmissionCapHour(calcFleetGh, net)
+			);
 			const displayHmcDay = displayHmcHour * 24;
 			const displayHmcMonth = displayHmcDay * 30;
 			saveMineCalcPrefs(inputs);
@@ -9297,10 +9333,14 @@
 					? (fmt(net.poolGh, net.poolGh >= 10 ? 1 : 2) + ' GH/s')
 					: '—';
 			}
-			if (mineCalcEl('mine-calc-out-hour')) setTextSilent(mineCalcEl('mine-calc-out-hour'), fmt(displayHmcHour, 6));
+			if (mineCalcEl('mine-calc-out-hour')) setTextSilent(mineCalcEl('mine-calc-out-hour'), fmt(displayHmcHour, displayHmcHour >= 1 ? 4 : 6));
 			const hourSub = mineCalcEl('mine-calc-out-hour-sub');
 			if (hourSub) {
 				const parts = [];
+				const emCap = mineCalcEmissionCapHour(calcFleetGh, net);
+				if (Number.isFinite(emCap) && emCap > 0 && displayHmcHour >= emCap * 0.999) {
+					parts.push('capped · pool emission ' + fmt(emCap * 24, 1) + ' HMC/day');
+				}
 				if (out.ghCapped) {
 					parts.push('fleet ' + fmt(inputs.hashrateGh * inputs.rigCount, 2) + ' GH/s > pool ' + fmt(net.poolGh, 2) + ' GH/s — capped to pool size');
 					if (out.impliedPoolSharePct > 0) parts.push('~' + fmt(out.impliedPoolSharePct, 2) + '% of pool at your share %');
@@ -11226,10 +11266,11 @@
 			return;
 		}
 		async function fetchCanonicalWalletFallback(addr, timeoutMs) {
-			const base = String((latestStatus && latestStatus.public_authority_base) || 'https://hackme.tech').replace(/\/$/, '');
+			// Same-origin: the local node relays /api/address to the canonical hub (cached). A direct
+			// browser fetch to the hub is cross-origin and the hub sends no CORS headers — it always failed.
 			if (!addr || !addr.startsWith('HMC-')) return null;
 			try {
-				const r = await fetchWithTimeout(base + '/api/address/' + encodeURIComponent(addr), { cache: 'no-store' }, timeoutMs || 3500);
+				const r = await fetchWithTimeout('/api/address/' + encodeURIComponent(addr), { cache: 'no-store' }, timeoutMs || 3500);
 				if (!r.ok) return null;
 				const j = await r.json();
 				const u = Number(j.balance_units);
@@ -12787,7 +12828,29 @@
 
 			if ($('econ-empty-hour')) $('econ-empty-hour').textContent = fmt(Number(payload.econ_expected_empty_hmc_hour || 0), 6);
 			if ($('econ-base-now')) $('econ-base-now').textContent = fmt(Number(payload.econ_base_reward_now_hmc || 0), 8);
-			if ($('econ-next-halving')) $('econ-next-halving').textContent = fmtUInt(Number(payload.econ_next_halving_block || 0));
+			if ($('econ-next-halving')) {
+				// Before the Economics v2 switch the next schedule change is the activation height
+				// (v1 halving at 2,102,401 never happens: v2 restarts the schedule).
+				const v2h = Number(payload.econ_v2_activation_height || 0);
+				const tipH = Number(payload.block_height || payload.height || 0);
+				const v2Ahead = v2h > 0 && (!(tipH > 0) || tipH < v2h);
+				const lbl = $('econ-next-halving-label');
+				const sub = $('econ-next-halving-sub');
+				if (v2Ahead) {
+					if (lbl) lbl.textContent = 'Economics v2 switch';
+					$('econ-next-halving').textContent = fmtUInt(v2h);
+					if (sub) {
+						const left = tipH > 0 ? v2h - tipH : 0;
+						sub.textContent = 'base reward → ' + fmt(Number(payload.econ_v2_base_reward_hmc || 0.1), 2) + ' HMC' +
+							(left > 0 ? ' · in ' + fmtUInt(left) + ' blocks (~' + fmt(left * 30 / 86400, 1) + ' d)' : '');
+						sub.classList.remove('hidden');
+					}
+				} else {
+					if (lbl) lbl.textContent = 'Next halving block';
+					$('econ-next-halving').textContent = fmtUInt(Number(payload.econ_next_halving_block || 0));
+					if (sub) sub.classList.add('hidden');
+				}
+			}
 			if ($('econ-tail-floor')) $('econ-tail-floor').textContent = fmt(Number(payload.econ_reward_tail_floor_hmc || 0), 8);
 			if ($('econ-burn-impact')) $('econ-burn-impact').textContent = fmt(Number(payload.econ_burn_impact_pct || 0), 2) + '%';
 			if ($('econ-window-base')) {
@@ -12831,6 +12894,9 @@
 						u.pathname = '/api/status';
 						u.search = '';
 						u.hash = '';
+						// Loopback guesses are only useful when they are this very node (same origin);
+						// any other local port is not ours and the page CSP refuses it anyway.
+						if (/^(127\.0\.0\.1|localhost|\[::1\])$/.test(u.hostname) && u.origin !== window.location.origin) return '';
 						return u.toString();
 					}
 				}
@@ -12882,6 +12948,12 @@
 			for (const u of candidates) {
 				if (!u || seen.has(u) || !isBrowserSafeMetricsURL(u)) continue;
 				seen.add(u);
+				// A guessed loopback port (coordinator port − 1) is usually not this node and is
+				// refused by the page CSP — skip it instead of logging a CSP error every refresh.
+				try {
+					const pu = new URL(u, window.location.origin);
+					if (/^(127\.0\.0\.1|localhost|\[::1\])$/.test(pu.hostname) && pu.origin !== window.location.origin) continue;
+				} catch (_) { continue; }
 				try {
 					const r = await fetch(u, { cache: 'no-store', mode: 'cors' });
 					if (!r.ok) continue;
@@ -14600,7 +14672,7 @@
 				if (ar.ok) {
 					const a = await ar.json();
 					if ($('fuzz-access-summary')) {
-						$('fuzz-access-summary').textContent = 'access: total=' + fmtUInt(a.total) + ' · by_kind ' + JSON.stringify(a.by_access_kind || {});
+						$('fuzz-access-summary').textContent = 'access: total=' + fmtUInt(a.total) + ' · ' + Object.entries(a.by_access_kind || {}).map(([k, v]) => k + ' ' + fmtUInt(v)).join(' · ');
 					}
 				} else {
 					if ($('fuzz-access-summary')) $('fuzz-access-summary').textContent = fuzzHttpStatusLabel('access', ar.status);
@@ -15694,7 +15766,9 @@
 				}
 				const j = await r.json().catch(() => ({}));
 				if (!r.ok) {
-					const err = (j && (j.error || j.message)) || ('HTTP ' + r.status);
+					let err = (j && (j.error || j.message)) || ('HTTP ' + r.status);
+					const hintM = String((j && j.compile_log) || '').match(/hint:\s*([^\n]+)/i);
+					if (hintM) err += ' — ' + hintM[1].trim();
 					if (msg) msg.textContent = 'Audit failed: ' + err;
 					if (logPre && j.compile_log) {
 						logPre.textContent = String(j.compile_log);
@@ -16229,7 +16303,9 @@
 			let jj = null;
 			try { jj = JSON.parse(raw); } catch (_) {}
 			if (!r.ok) {
-				throw new Error((jj && (jj.message || jj.error)) || raw.slice(0, 280) || ('HTTP ' + r.status));
+				// Prefer the actionable hint ("run with sudo / correct groups") over "exit status 4".
+				const why = jj && (jj.message || jj.error);
+				throw new Error((jj && jj.hint ? (why ? why + ' — ' : '') + jj.hint : why) || raw.slice(0, 280) || ('HTTP ' + r.status));
 			}
 			return jj;
 		}
