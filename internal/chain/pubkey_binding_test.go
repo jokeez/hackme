@@ -48,7 +48,7 @@ func queueTransfer(t *testing.T, db *sql.DB, tx TransferTx) string {
 func TestPubKeyBindingFirstSpendBinds(t *testing.T) {
 	n := newV2Net(t, "1")
 	fundAddr(t, n.hubDB, n.signer.Address(), HMCToUnits(1))
-	if _, code, err := n.hub.SubmitTransferTx(n.ctx, signedTransfer(t, n.signer, "HMC-receiver000010", 0, V2ChainID)); err != nil {
+	if _, code, err := n.hub.SubmitTransferTx(n.ctx, signedTransfer(t, n.signer, "HMC-ec00000000000010", 0, V2ChainID)); err != nil {
 		t.Fatalf("submit: %s %v", code, err)
 	}
 	n.mine()
@@ -57,7 +57,7 @@ func TestPubKeyBindingFirstSpendBinds(t *testing.T) {
 		t.Fatalf("binding %q/%q", pub, src)
 	}
 	// Same key keeps spending.
-	if _, code, err := n.hub.SubmitTransferTx(n.ctx, signedTransfer(t, n.signer, "HMC-receiver000010", 1, V2ChainID)); err != nil {
+	if _, code, err := n.hub.SubmitTransferTx(n.ctx, signedTransfer(t, n.signer, "HMC-ec00000000000010", 1, V2ChainID)); err != nil {
 		t.Fatalf("second spend: %s %v", code, err)
 	}
 }
@@ -69,7 +69,7 @@ func TestPubKeyBindingMismatchRejectedFromV2(t *testing.T) {
 	addr := n.signer.Address()
 	fundAddr(t, n.hubDB, addr, HMCToUnits(1))
 	preBind(t, n.hubDB, addr, otherPubKey)
-	to := "HMC-receiver000011"
+	to := "HMC-ec00000000000011"
 	tx := signedTransfer(t, n.signer, to, 0, V2ChainID)
 	if _, code, err := n.hub.SubmitTransferTx(n.ctx, tx); err == nil || code != "pubkey_binding_mismatch" {
 		t.Fatalf("submit: code=%q err=%v", code, err)
@@ -98,7 +98,7 @@ func TestPubKeyBindingNotEnforcedBeforeV2(t *testing.T) {
 	addr := n.signer.Address()
 	fundAddr(t, n.hubDB, addr, HMCToUnits(1))
 	preBind(t, n.hubDB, addr, otherPubKey)
-	to := "HMC-receiver000012"
+	to := "HMC-ec00000000000012"
 	if _, code, err := n.hub.SubmitTransferTx(n.ctx, signedTransfer(t, n.signer, to, 0, "")); err != nil {
 		t.Fatalf("pre-v2 submit: %s %v", code, err)
 	}

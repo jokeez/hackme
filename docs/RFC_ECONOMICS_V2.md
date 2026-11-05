@@ -196,8 +196,9 @@ Same activation height packages:
 - `chain_id` binding appropriate to the switch  
 - Mandatory authority block signature where required for hub blocks  
 - Address/key binding: an address spends only with the key bound to it (first included spend, or a signed `POST /api/address/bind` proof; desktop wallets bind automatically)  
+- Long address format `HMC-` + 64 hex (the full sha256 of the key) accepted as sender and recipient; from the same height every recipient must be `HMC-` + 16 or 64 **lowercase** hex. No automatic migration: owners move funds from the short to the long address of the same key with a normal transfer when it suits them; the short form keeps working  
 
-Nice-to-have, **not** blockers: new address format, every pool accrual as an on-chain tx (verify completeness debt).
+Nice-to-have, **not** blockers: every pool accrual as an on-chain tx (verify completeness debt). Wallet / pool / exchange switch to the long address after the height, one service at a time (no consensus change needed).
 
 Checkpoints (OTS + git) already run; post-activation work continues on dumps + `hackme-verify`.
 
@@ -264,7 +265,8 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 | D9 height package + consensus harden | ✅ on `main` (env bootstrap → locked `meta economics_v2_activation_height`; **unset on hub**) |
 | D6 Dig soft-start + burn-halve wiring | ✅ on `main` (`HACKME_ECONOMICS_V2_ANNOUNCE_UNIX` / meta; Hunt 50/50 gated; burn 5% → 2.5% → 1.25% then fixed; **unset on hub** ⇒ gate off) |
 | Address/key binding | ✅ recorded from history now, enforced from the activation height |
-| Activation height | ✅ **540 000** compiled into the release with the hub authority key (≈ 2026-11-12) |
+| Long address format | ✅ `HMC-` + 64 hex accepted from the activation height (voluntary migration) |
+| Activation height | ✅ **550 000** compiled into the release with the hub authority key (≈ 2026-11-15) |
 | Activation announce + ≥7d | ⏳ announce 2026-11-05 |
 | Height switch | ⏳ |
 | Post-switch dumps / verify / 1.0.0 | after stability |
@@ -329,6 +331,7 @@ Miners, desktop nodes, explorers, and customers need a predictable upgrade windo
 | 2026-11-03 | Burn freeze moved to epoch 2: 5% → 2.5% → 1.25%, then 1.25% permanently (was: freeze at the HMC tail, ~0.08%) |
 | 2026-11-04 | Minimum activation notice shortened from 14 to 7 days (20 160 blocks) |
 | 2026-11-05 | Activation height 540 000 + authority key compiled in; address/key binding added to the height package |
+| 2026-11-05 | Height moved to **550 000** (keeps the ≥7-day notice for a 2026-11-06 announce); long `HMC-` + 64 hex addresses added to the height package |
 
 ---
 

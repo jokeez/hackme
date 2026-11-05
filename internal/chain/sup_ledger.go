@@ -458,8 +458,7 @@ func (s *Service) BurnSUPWithOwnerProof(ctx context.Context, from string, amount
 	if err != nil || len(sig) != ed25519.SignatureSize {
 		return "invalid_signature", errors.New("invalid signature")
 	}
-	derived, err := addressFromPubKeyHex(pubKeyHex)
-	if err != nil || derived != from {
+	if !pubKeyOwnsAddress(pubKeyHex, from) {
 		return "address_pubkey_mismatch", errors.New("from does not match pubkey")
 	}
 	if !ed25519.Verify(ed25519.PublicKey(pub), BurnSUPCanonicalMessage(from, amountUnits, memo), sig) {
@@ -469,7 +468,7 @@ func (s *Service) BurnSUPWithOwnerProof(ctx context.Context, from string, amount
 	defer s.mu.Unlock()
 	// The v1 message has no nonce: key the burn by its signature so a seen signature cannot be
 	// replayed to burn the owner's SUP again. New callers use BurnSUPForFee (product/ref, chain_id).
-	if code, msg := s.checkPubKeyBindingNextQ(ctx, s.db, from, pubKeyHex); code != "" {
+	if code, msg := s.checkSpendRulesNextQ(ctx, s.db, from, "", pubKeyHex); code != "" {
 		return code, errors.New(msg)
 	}
 	sigSum := sha256.Sum256(sig)
@@ -585,11 +584,7 @@ func (s *Service) validateSupTransferTx(ctx context.Context, tx SupTransferTx, q
 	if !ed25519.Verify(ed25519.PublicKey(pub), b, sig) {
 		return "invalid_signature", "signature verify failed"
 	}
-	derived, err := addressFromPubKeyHex(tx.PubKeyEd25519)
-	if err != nil {
-		return "invalid_signature", "invalid pubkey format"
-	}
-	if derived != tx.From {
+	if !pubKeyOwnsAddress(tx.PubKeyEd25519, tx.From) {
 		return "address_pubkey_mismatch", "from does not match pubkey"
 	}
 	if tx.TimestampUnix <= 0 {
@@ -629,7 +624,7 @@ func (s *Service) SubmitSupTransferTx(ctx context.Context, tx SupTransferTx) (st
 		code, msg = s.checkTxChainIDNextQ(ctx, s.db, tx.ChainID)
 	}
 	if code == "" {
-		code, msg = s.checkPubKeyBindingNextQ(ctx, s.db, tx.From, tx.PubKeyEd25519)
+		code, msg = s.checkSpendRulesNextQ(ctx, s.db, tx.From, tx.To, tx.PubKeyEd25519)
 	}
 	if code != "" {
 		return "", code, errors.New(msg)
@@ -723,7 +718,7 @@ func (s *Service) applyPendingSupTransfers(ctx context.Context, txq queryRowExec
 			code, _ = checkTxChainID(blockIndex, item.tx.ChainID)
 		}
 		if code == "" {
-			code, _ = checkPubKeyBindingQ(ctx, txq, blockIndex, item.tx.From, item.tx.PubKeyEd25519)
+			code, _ = checkSpendRulesQ(ctx, txq, blockIndex, item.tx.From, item.tx.To, item.tx.PubKeyEd25519)
 		}
 		if code != "" {
 			_, _ = txq.ExecContext(ctx, `UPDATE sup_tx_pool SET status='rejected', reject_code=? WHERE tx_hash=?`, code, item.hash)

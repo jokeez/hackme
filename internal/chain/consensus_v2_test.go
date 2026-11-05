@@ -260,7 +260,7 @@ func fundAddr(t *testing.T, db *sql.DB, addr string, units uint64) {
 func TestV2TransferChainIDBinding(t *testing.T) {
 	n := newV2Net(t, "1")
 	fundAddr(t, n.hubDB, n.signer.Address(), HMCToUnits(1))
-	to := "HMC-receiver000001"
+	to := "HMC-ec00000000000001"
 	if got := n.hub.TxChainIDForNextBlock(n.ctx); got != V2ChainID {
 		t.Fatalf("tx chain id for next block %q", got)
 	}
@@ -291,7 +291,7 @@ func TestV2PendingLegacyTransferRejectedAtBoundary(t *testing.T) {
 	n := newV2Net(t, "2")
 	fundAddr(t, n.hubDB, n.signer.Address(), HMCToUnits(1))
 	n.mine() // block 1: v1
-	to := "HMC-receiver000002"
+	to := "HMC-ec00000000000002"
 	if _, code, err := n.hub.SubmitTransferTx(n.ctx, signedTransfer(t, n.signer, to, 0, "")); err == nil || code != "chain_id_mismatch" {
 		// Next block (2) is v2 already: submit refuses it up front.
 		t.Fatalf("submit legacy just before v2: code=%q err=%v", code, err)
@@ -323,10 +323,10 @@ func TestPreV2TransferRejectsChainID(t *testing.T) {
 	if got := n.hub.TxChainIDForNextBlock(n.ctx); got != "" {
 		t.Fatalf("pre-v2 tx chain id %q", got)
 	}
-	if _, code, _ := n.hub.SubmitTransferTx(n.ctx, signedTransfer(t, n.signer, "HMC-receiver000003", 0, V2ChainID)); code != "chain_id_mismatch" {
+	if _, code, _ := n.hub.SubmitTransferTx(n.ctx, signedTransfer(t, n.signer, "HMC-ec00000000000003", 0, V2ChainID)); code != "chain_id_mismatch" {
 		t.Fatalf("chain_id before v2: code=%q", code)
 	}
-	if _, code, err := n.hub.SubmitTransferTx(n.ctx, signedTransfer(t, n.signer, "HMC-receiver000003", 0, "")); err != nil {
+	if _, code, err := n.hub.SubmitTransferTx(n.ctx, signedTransfer(t, n.signer, "HMC-ec00000000000003", 0, "")); err != nil {
 		t.Fatalf("legacy transfer pre-v2: %s %v", code, err)
 	}
 }

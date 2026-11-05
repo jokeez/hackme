@@ -106,7 +106,7 @@ func (s *Service) BurnSUPForFee(ctx context.Context, b SUPFeeBurn) (string, erro
 	if err != nil || len(sig) != ed25519.SignatureSize {
 		return "invalid_signature", errors.New("invalid signature")
 	}
-	if derived, err := addressFromPubKeyHex(b.PubKeyEd25519); err != nil || derived != from {
+	if !pubKeyOwnsAddress(b.PubKeyEd25519, from) {
 		return "address_pubkey_mismatch", errors.New("from does not match pubkey")
 	}
 	_, tip, err := s.supAdminMintRetiredQ(ctx, s.db)
@@ -125,7 +125,7 @@ func (s *Service) BurnSUPForFee(ctx context.Context, b SUPFeeBurn) (string, erro
 		return "internal_error", err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if code, msg := s.checkPubKeyBindingNextQ(ctx, tx, from, b.PubKeyEd25519); code != "" {
+	if code, msg := s.checkSpendRulesNextQ(ctx, tx, from, "", b.PubKeyEd25519); code != "" {
 		return code, errors.New(msg)
 	}
 	if code, err := s.burnSUPForFeeTx(ctx, tx, from, b.AmountUnits, b.Product, b.Ref); err != nil {

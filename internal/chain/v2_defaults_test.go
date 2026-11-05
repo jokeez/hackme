@@ -46,16 +46,16 @@ func setV2HeightEnv(t *testing.T, h string) {
 	ResetEconomicsV2ActivationHeightForTest()
 }
 
-// The announce release: height 540 000 and the hub's block key, with no env at all.
+// The announce release: height 550 000 and the hub's block key, with no env at all.
 func TestV2CompiledDefaultsAnnounceValues(t *testing.T) {
 	withV2CompiledDefaults(t)
 	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "")
 	t.Setenv("HACKME_CHAIN_AUTHORITY_PUBKEY", "")
 	ResetEconomicsV2ActivationHeightForTest()
-	if got := EconomicsV2ActivationHeight(); got != 540_000 {
+	if got := EconomicsV2ActivationHeight(); got != 550_000 {
 		t.Fatalf("height %d", got)
 	}
-	if EconomicsV2ActiveForIndex(539_999) || !EconomicsV2ActiveForIndex(540_000) {
+	if EconomicsV2ActiveForIndex(549_999) || !EconomicsV2ActiveForIndex(550_000) {
 		t.Fatal("activation boundary")
 	}
 	if got := authorityPubKeyFromEnv(); got != DefaultAuthorityPubKey || !validAuthorityPubKeyHex(got) {

@@ -80,15 +80,6 @@ func checkPubKeyBindingQ(ctx context.Context, q queryRowContext, idx uint64, fro
 	return "", ""
 }
 
-// checkPubKeyBindingNextQ checks a submitted spend against the next block's rules.
-func (s *Service) checkPubKeyBindingNextQ(ctx context.Context, q queryRowContext, from, pubKeyHex string) (string, string) {
-	idx, err := s.nextBlockIndexQ(ctx, q)
-	if err != nil {
-		return "internal_error", err.Error()
-	}
-	return checkPubKeyBindingQ(ctx, q, idx, from, pubKeyHex)
-}
-
 // bindPubKeyQ records the first key seen for address (an existing binding is never replaced).
 func bindPubKeyQ(ctx context.Context, q queryRowExecContext, address, pubKeyHex string, idx uint64, source string) error {
 	pub := normPubKeyHex(pubKeyHex)
@@ -107,7 +98,11 @@ func bindPubKeyQ(ctx context.Context, q queryRowExecContext, address, pubKeyHex 
 // addresses can be bound, so the table cannot be filled with throwaway keys.
 func (s *Service) BindAddressPubKey(ctx context.Context, address, pubKeyHex, sigHex string) (string, error) {
 	address = strings.TrimSpace(address)
-	if !strings.HasPrefix(address, "HMC-") {
+	if IsLongAddress(address) {
+		// The long address is the full key hash: nothing to bind.
+		return "not_needed", errors.New("long addresses need no binding")
+	}
+	if !IsLegacyAddress(address) {
 		return "invalid_address", errors.New("invalid address")
 	}
 	pub, err := hex.DecodeString(strings.TrimSpace(pubKeyHex))

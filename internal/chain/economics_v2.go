@@ -80,7 +80,7 @@ func EconomicsV2ActivationHeight() uint64 {
 // announce release (0 = not announced). Followers and desktops have no v2 env: like the ASERT
 // height (495 400), the switch ships in the binary so every updated node crosses it on its own.
 // Preference order stays: locked chain meta > env > this default.
-const DefaultEconomicsV2ActivationHeight uint64 = 540_000
+const DefaultEconomicsV2ActivationHeight uint64 = 550_000
 
 // v2CompiledDefaultsOff makes the compiled announce defaults (height + authority key) read as
 // unset, for tests of pre-announce behavior. Production never sets it.

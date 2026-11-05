@@ -252,11 +252,7 @@ func (s *Service) validateTransferTx(ctx context.Context, tx TransferTx, q query
 	if !ed25519.Verify(ed25519.PublicKey(pub), b, sig) {
 		return "invalid_signature", "signature verify failed"
 	}
-	derived, err := addressFromPubKeyHex(tx.PubKeyEd25519)
-	if err != nil {
-		return "invalid_signature", "invalid pubkey format"
-	}
-	if derived != tx.From {
+	if !pubKeyOwnsAddress(tx.PubKeyEd25519, tx.From) {
 		return "address_pubkey_mismatch", "from does not match pubkey"
 	}
 	var bal, nonce uint64
@@ -285,7 +281,7 @@ func (s *Service) SubmitTransferTx(ctx context.Context, tx TransferTx) (string, 
 		code, msg = s.checkTxChainIDNextQ(ctx, s.db, tx.ChainID)
 	}
 	if code == "" {
-		code, msg = s.checkPubKeyBindingNextQ(ctx, s.db, tx.From, tx.PubKeyEd25519)
+		code, msg = s.checkSpendRulesNextQ(ctx, s.db, tx.From, tx.To, tx.PubKeyEd25519)
 	}
 	if code != "" {
 		return "", code, errors.New(msg)
@@ -826,7 +822,7 @@ func (s *Service) applyPendingTransfers(ctx context.Context, txq queryRowExecCon
 			code, _ = checkTxChainID(blockIndex, item.tx.ChainID)
 		}
 		if code == "" {
-			code, _ = checkPubKeyBindingQ(ctx, txq, blockIndex, item.tx.From, item.tx.PubKeyEd25519)
+			code, _ = checkSpendRulesQ(ctx, txq, blockIndex, item.tx.From, item.tx.To, item.tx.PubKeyEd25519)
 		}
 		if code != "" {
 			if _, err := txq.ExecContext(ctx, `UPDATE tx_pool SET status='rejected', reject_code=? WHERE tx_hash=?`, code, item.hash); err != nil {

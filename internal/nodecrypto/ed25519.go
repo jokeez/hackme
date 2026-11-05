@@ -143,6 +143,13 @@ func (s *Signer) Address() string {
 	return "HMC-" + hex.EncodeToString(sum[:])[:16]
 }
 
+// LongAddress returns the Economics v2 long address: HMC- + all 64 hex of sha256(pubkey).
+// Same key as Address(); valid on chain from the v2 activation height.
+func (s *Signer) LongAddress() string {
+	sum := sha256.Sum256(s.pub)
+	return "HMC-" + hex.EncodeToString(sum[:])
+}
+
 // Sign returns a detached Ed25519 signature (128 hex chars).
 func (s *Signer) Sign(message []byte) []byte {
 	return ed25519.Sign(s.priv, message)
