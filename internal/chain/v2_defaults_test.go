@@ -20,6 +20,7 @@ func TestV2CompiledDefaultsConsistent(t *testing.T) {
 
 // Env still overrides the compiled default (labs), and locked meta beats both.
 func TestV2HeightPreferenceOrder(t *testing.T) {
+	withV2CompiledDefaults(t)
 	setV2HeightEnv(t, "777")
 	if got := EconomicsV2ActivationHeight(); got != 777 {
 		t.Fatalf("env height %d", got)
@@ -30,10 +31,34 @@ func TestV2HeightPreferenceOrder(t *testing.T) {
 	}
 }
 
+// withV2CompiledDefaults runs a test with the compiled announce defaults in effect.
+func withV2CompiledDefaults(t *testing.T) {
+	t.Helper()
+	SetV2CompiledDefaultsOffForTest(false)
+	t.Cleanup(func() { SetV2CompiledDefaultsOffForTest(true) })
+}
+
 func setV2HeightEnv(t *testing.T, h string) {
 	t.Helper()
 	ResetEconomicsV2ActivationHeightForTest()
 	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
 	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", h)
 	ResetEconomicsV2ActivationHeightForTest()
+}
+
+// The announce release: height 540 000 and the hub's block key, with no env at all.
+func TestV2CompiledDefaultsAnnounceValues(t *testing.T) {
+	withV2CompiledDefaults(t)
+	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "")
+	t.Setenv("HACKME_CHAIN_AUTHORITY_PUBKEY", "")
+	ResetEconomicsV2ActivationHeightForTest()
+	if got := EconomicsV2ActivationHeight(); got != 540_000 {
+		t.Fatalf("height %d", got)
+	}
+	if EconomicsV2ActiveForIndex(539_999) || !EconomicsV2ActiveForIndex(540_000) {
+		t.Fatal("activation boundary")
+	}
+	if got := authorityPubKeyFromEnv(); got != DefaultAuthorityPubKey || !validAuthorityPubKeyHex(got) {
+		t.Fatalf("authority %q", got)
+	}
 }

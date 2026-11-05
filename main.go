@@ -518,6 +518,7 @@ func main() {
 		log.Printf("lan_peer_rigs load: %v", err)
 	}
 	liveApp = a
+	go a.runAddressBindLoop(context.Background())
 	go func() {
 		wctx, wcancel := context.WithTimeout(context.Background(), 3*time.Second)
 		a.warmLocalLedgerTipCache(wctx)
@@ -605,6 +606,7 @@ func main() {
 	mux.HandleFunc("/api/tx/pool", a.handleTransferPool)
 	mux.HandleFunc("/api/tx/by-nonce", a.handleTransferByNonce)
 	mux.HandleFunc("/api/tx/", a.handleTransferByHash)
+	mux.HandleFunc("/api/address/bind", a.handleAddressBind)
 	mux.HandleFunc("/api/address/", a.handleTransferAddressState)
 	mux.HandleFunc("/api/p2p/handshake", a.handleP2PHandshake)
 	mux.HandleFunc("/api/p2p/tx", a.handleP2PTx)

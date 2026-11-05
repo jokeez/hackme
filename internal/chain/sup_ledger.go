@@ -469,8 +469,22 @@ func (s *Service) BurnSUPWithOwnerProof(ctx context.Context, from string, amount
 	defer s.mu.Unlock()
 	// The v1 message has no nonce: key the burn by its signature so a seen signature cannot be
 	// replayed to burn the owner's SUP again. New callers use BurnSUPForFee (product/ref, chain_id).
+	if code, msg := s.checkPubKeyBindingNextQ(ctx, s.db, from, pubKeyHex); code != "" {
+		return code, errors.New(msg)
+	}
 	sigSum := sha256.Sum256(sig)
-	return s.burnSUPTx(ctx, from, amountUnits, memo, "burn-sig-"+hex.EncodeToString(sigSum[:16]))
+	code, err := s.burnSUPTx(ctx, from, amountUnits, memo, "burn-sig-"+hex.EncodeToString(sigSum[:16]))
+	if err != nil || code != "" {
+		return code, err
+	}
+	idx, ierr := s.nextBlockIndexQ(ctx, s.db)
+	if ierr != nil {
+		return "", nil // burn committed; the binding is recorded on the next spend
+	}
+	if err := bindPubKeyQ(ctx, s.db, from, pubKeyHex, idx, PubKeyBindSourceBurn); err != nil {
+		return "", nil
+	}
+	return "", nil
 }
 
 func (s *Service) burnSUPTx(ctx context.Context, from string, amountUnits uint64, memo, txHash string) (string, error) {
@@ -614,6 +628,9 @@ func (s *Service) SubmitSupTransferTx(ctx context.Context, tx SupTransferTx) (st
 	if code == "" {
 		code, msg = s.checkTxChainIDNextQ(ctx, s.db, tx.ChainID)
 	}
+	if code == "" {
+		code, msg = s.checkPubKeyBindingNextQ(ctx, s.db, tx.From, tx.PubKeyEd25519)
+	}
 	if code != "" {
 		return "", code, errors.New(msg)
 	}
@@ -705,6 +722,9 @@ func (s *Service) applyPendingSupTransfers(ctx context.Context, txq queryRowExec
 		if code == "" {
 			code, _ = checkTxChainID(blockIndex, item.tx.ChainID)
 		}
+		if code == "" {
+			code, _ = checkPubKeyBindingQ(ctx, txq, blockIndex, item.tx.From, item.tx.PubKeyEd25519)
+		}
 		if code != "" {
 			_, _ = txq.ExecContext(ctx, `UPDATE sup_tx_pool SET status='rejected', reject_code=? WHERE tx_hash=?`, code, item.hash)
 			_, _ = txq.ExecContext(ctx,
@@ -757,6 +777,9 @@ func (s *Service) applyPendingSupTransfers(ctx context.Context, txq queryRowExec
 			`INSERT INTO sup_tx_history (tx_hash, tx_json, from_address, to_address, nonce, fee_units, amount_units, status, block_index, block_hash, applied_at, reject_code)
 			 VALUES (?, ?, ?, ?, ?, ?, ?, 'included', ?, ?, ?, '')`,
 			item.hash, mustJSON(item.tx), item.tx.From, item.tx.To, item.tx.Nonce, item.tx.FeeUnits, item.tx.AmountUnits, blockIndex, blockHash, time.Now().Unix()); err != nil {
+			return err
+		}
+		if err := bindPubKeyQ(ctx, txq, item.tx.From, item.tx.PubKeyEd25519, blockIndex, PubKeyBindSourceSUP); err != nil {
 			return err
 		}
 		if _, err := txq.ExecContext(ctx, `DELETE FROM sup_tx_pool WHERE tx_hash=?`, item.hash); err != nil {
