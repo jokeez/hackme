@@ -177,11 +177,12 @@ func handleStratumConn(coord *Coordinator, conn net.Conn) {
 			case float64:
 				ep = int64(v)
 			}
+			// Always the worker this connection authorized as: taking params[0] let one HMAC
+			// credential claim seals under any worker_id (audit L1).
 			wid := workerID
-			if len(msg.Params) > 0 {
-				if s, ok := msg.Params[0].(string); ok && strings.TrimSpace(s) != "" {
-					wid = strings.TrimSpace(s)
-				}
+			if wid == "" {
+				replyStratumErr(conn, msg.ID, "not authorized")
+				continue
 			}
 			p := SealSubmitPayload{WorkerID: wid, EpochID: ep, Nonce: nonce}
 			mu.Lock()

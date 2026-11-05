@@ -426,7 +426,16 @@ func (s *Service) ackSettleOutbox(ctx context.Context, campaignID string, ids []
 		}
 		aff, _ := res.RowsAffected()
 		n += aff
-		// Promote local work-item settle status from queued → paid once origin ACKed.
+		// Promote local work-item settle status from queued → paid only for an outbox row that
+		// is really applied (and, on scoped ACKs, belongs to this campaign): a publish token for
+		// campaign A could otherwise mark B's still-pending items paid (audit #2).
+		var obStatus, obCampaign string
+		if err := s.DB.QueryRowContext(ctx, `SELECT status, campaign_id FROM fuzz_settle_outbox WHERE id=?`, id).Scan(&obStatus, &obCampaign); err != nil {
+			continue
+		}
+		if obStatus != "applied" || (requireCampaign && obCampaign != campaignID) {
+			continue
+		}
 		_, _ = s.DB.ExecContext(ctx,
 			`UPDATE fuzz_work_items SET settle_run_status='paid'
 			 WHERE settle_run_outbox_id=? AND settle_run_status IN ('queued','pending','queued_floor','pending_floor')`, id)

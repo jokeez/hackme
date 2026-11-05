@@ -147,10 +147,19 @@ func (s *Service) PayHMSStorageMarket(ctx context.Context, label string, sizeByt
 	if err != nil {
 		return nil, err
 	}
-	if ^uint64(0)-cur < storageUnits {
+	// The burn is carved out of the storage amount (it left the payer's balance with it): the
+	// escrow keeps storage − burn, so debit = escrow + burned + fee. Before, the full storage went
+	// to escrow AND the burn counter grew — a phantom burn of 10% per order (audit M3).
+	escrowUnits := storageUnits
+	if burnUnits <= escrowUnits {
+		escrowUnits -= burnUnits
+	} else {
+		escrowUnits = 0
+	}
+	if ^uint64(0)-cur < escrowUnits {
 		return nil, errors.New("chain: hms market escrow overflow")
 	}
-	if err := s.upsertMetaUint(ctx, tx, metaHMSMarketEscrowUnits, cur+storageUnits); err != nil {
+	if err := s.upsertMetaUint(ctx, tx, metaHMSMarketEscrowUnits, cur+escrowUnits); err != nil {
 		return nil, err
 	}
 	paymentID := "hmsp-" + strings.ReplaceAll(strings.TrimSpace(label), " ", "-")

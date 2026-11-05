@@ -79,8 +79,12 @@ func poolBudgetSegUnlocked(base, rate float64, segStart, now int64) float64 {
 		return base
 	}
 	dayEnd := (now/86400 + 1) * 86400
-	if segStart <= 0 || segStart > now {
+	if segStart <= 0 {
 		segStart = (now / 86400) * 86400
+	}
+	if segStart > now {
+		// Clock stepped back after a restart: the base already covers up to segStart.
+		segStart = now
 	}
 	u := base + rate*float64(now-segStart+poolBudgetBurstSec())
 	if dayTotal := base + rate*float64(dayEnd-segStart); u > dayTotal {

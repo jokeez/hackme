@@ -2,8 +2,10 @@ package main
 
 import (
 	"crypto/ed25519"
+	cryptorand "crypto/rand"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -297,6 +299,20 @@ type submitWorkRequest struct {
 	WasmGatePass bool    `json:"wasm_gate_pass,omitempty"`
 	// ShareNonces: pseudo-shares (PoH work % share_mod == 0) verified by coordinator.
 	ShareNonces []uint64 `json:"share_nonces,omitempty"`
+}
+
+// randomNonceBase returns a random 2^40-aligned start below 2^63 (headroom for any fleet).
+func randomNonceBase() uint64 {
+	var b [8]byte
+	if _, err := cryptorand.Read(b[:]); err != nil {
+		return uint64(time.Now().UnixNano()) &^ (1<<40 - 1) & (1<<63 - 1)
+	}
+	v := binary.LittleEndian.Uint64(b[:]) & (1<<63 - 1)
+	v &^= 1<<40 - 1
+	if v == 0 {
+		v = 1 << 40
+	}
+	return v
 }
 
 func newWorkManagerFromEnv() *workManager {
@@ -1904,7 +1920,12 @@ func (m *workManager) pruneStaleWorkersLocked(prefix string, maxPayout float64, 
 			kept = append(kept, id)
 			continue
 		}
-		if !ignorePayout && st.PayoutHMC > maxPayout {
+		// Never prune a row that carries accrual (unless an explicit revoke, which also deletes the
+		// durable accrual): the settlement export would shrink, the settler re-anchor lower, and
+		// the accrual re-hydrated on the next submit would be paid a second time (audit HIGH-1).
+		// maxPayout is kept for callers but no longer lets accrual-bearing rows go.
+		_ = maxPayout
+		if !ignorePayout && (st.PayoutUnits > 0 || st.PayoutHMC > 0 || st.PayoutSUP > 0) {
 			kept = append(kept, id)
 			continue
 		}
@@ -1943,7 +1964,10 @@ func (m *workManager) pruneIdleWorkersLocked(now int64) []string {
 		return nil
 	}
 	m.lastIdlePruneUnix = now
-	removed, _ := m.pruneStaleWorkersLocked("", coordinatorIdlePruneMaxHMC(), coordinatorIdlePruneSec(), false, false, now)
+	// Automatic prune drops only rows that never earned: removing a fleet member with accrual
+	// shrank the merged settlement export, the settler re-anchored lower, and the member's
+	// accrual (re-hydrated on its next submit) was paid again on every offline/online cycle.
+	removed, _ := m.pruneStaleWorkersLocked("", 0, coordinatorIdlePruneSec(), false, false, now)
 	return removed
 }
 
@@ -2338,6 +2362,12 @@ func (m *workManager) claim(workerID string, batch uint64) (base uint64, size ui
 	}
 	m.purgeExpiredLeases(now)
 	next := m.nextNonce.Load()
+	if next == 0 {
+		// First range of this process: start at a random 2^40-aligned offset. Ranges restarted
+		// from 0 re-issued the nonces of the previous run on the same tip, and their shares
+		// (no lease binding in Blake3(prev||addr||nonce)) were paid again (audit MEDIUM-3).
+		next = randomNonceBase()
+	}
 	if batch > math.MaxUint64-next {
 		m.mu.Unlock()
 		return 0, 0, 0, m.targetMod, false, false, "nonce_space_exhausted"
@@ -3723,6 +3753,18 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 			st = redactPublicWorkerStat(st)
 		}
 		base := fleetBaseWorkerID(k)
+		// Fold a -gpuN row into its fleet only when it pays the same address as the fleet's base
+		// row: a stranger claiming "<victim>-gpu9" with their own key used to mark the merged
+		// row address_conflict and freeze the victim's payouts (audit M4). A mismatching member
+		// is exported under its own id and paid to its own address.
+		if base != k {
+			if baseRow, ok := m.worker[base]; ok && baseRow.PayoutAddress != "" && st.PayoutAddress != "" &&
+				!strings.EqualFold(strings.TrimSpace(baseRow.PayoutAddress), strings.TrimSpace(st.PayoutAddress)) {
+				workers[k] = st
+				m.fleetAddressConflicts++
+				continue
+			}
+		}
 		var conflict bool
 		workers[base], conflict = mergeWorkerStat(workers[base], st)
 		if conflict {

@@ -57,12 +57,14 @@ func (c *Coordinator) epochPrepaidUnits(epochID int64) (uint64, error) {
 	err := c.db.QueryRow(`
 		SELECT COALESCE(SUM(ROUND(o.prepaid_hmc * 100000000)), 0)
 		FROM hms_orders o
-		WHERE o.order_id IN (
-			SELECT DISTINCT oc.order_id
-			FROM hms_order_chunks oc
-			INNER JOIN hms_chunks ch ON ch.chunk_id = oc.chunk_id
-			WHERE ch.epoch_id = ?
-		) AND o.prepaid_hmc > 0`, epochID).Scan(&sum)
+		WHERE o.prepaid_hmc > 0 AND TRIM(o.payment_id) <> ''
+		  AND (SELECT MIN(ch.epoch_id)
+		         FROM hms_order_chunks oc
+		         INNER JOIN hms_chunks ch ON ch.chunk_id = oc.chunk_id
+		        WHERE oc.order_id = o.order_id) = ?`, epochID).Scan(&sum)
+	// Each paid order counts once — in the first epoch that holds one of its chunks. Counting it
+	// in every epoch with a chunk let one 1-byte upload per epoch re-emit the prepaid as HMS
+	// forever; pilot orders (no payment_id) are not backed by a debit (audit M2).
 	if err != nil {
 		return 0, err
 	}

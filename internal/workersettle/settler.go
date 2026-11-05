@@ -593,6 +593,12 @@ func extractWorkers(stats map[string]any, payoutMap map[string]string, lg *log.L
 		tpu = HMCToUnits(tp)
 	}
 	if wcount > 0 && tpu > 0 {
+		// Legacy solo setups only (SETTLE_SYNTHETIC_SINGLE=1): the pool total covers every miner,
+		// so paying it to the single mapped worker overpaid whenever others mined (audit L7).
+		if len(payoutMap) == 1 && !envBool("SETTLE_SYNTHETIC_SINGLE") {
+			lg.Printf("ERROR: coordinator omitted workers{} — not paying the pool total to one worker (set SETTLE_SYNTHETIC_SINGLE=1 for a solo rig)")
+			return out
+		}
 		if len(payoutMap) == 1 {
 			for wid := range payoutMap {
 				out[wid] = workerAccrual{PayoutHMC: tp, PayoutUnits: tpu}

@@ -153,8 +153,11 @@ func (s *Service) payFuzzCrashBonusTx(ctx context.Context, tx *sql.Tx, campaignI
 	if row.crashBonusPaidUnits > 0 {
 		return ErrFuzzEscrowAlreadyPaid
 	}
+	if row.refundedBountyUnits > 0 {
+		return ErrFuzzEscrowDepleted // bounty pool already went back to the payer (terminal)
+	}
 	remaining := row.bountyPoolUnits - row.bountyPaidUnits
-	if remaining == 0 {
+	if remaining == 0 || row.bountyPoolUnits < row.bountyPaidUnits {
 		return ErrFuzzEscrowDepleted
 	}
 	bonus := fuzzescrow.UniqueCrashBonusUnitsForSplit(row.bountyPoolUnits, row.escrowSplit)
@@ -181,11 +184,19 @@ func (s *Service) payFuzzBountyTx(ctx context.Context, tx *sql.Tx, campaignID, m
 	if err != nil {
 		return err
 	}
+	if row.status == "bounty_paid" {
+		// A later finding after the bounty was paid is a terminal no-op (AlreadyPaid is ACKed by
+		// both drains); Closed kept it pending forever and blocked the escrow finalize.
+		return ErrFuzzEscrowAlreadyPaid
+	}
 	if row.status != "open" {
 		return ErrFuzzEscrowClosed
 	}
 	if row.bountyPaidUnits > 0 || row.findingWinner != "" {
 		return ErrFuzzEscrowAlreadyPaid
+	}
+	if row.refundedBountyUnits > 0 {
+		return ErrFuzzEscrowDepleted // bounty pool already went back to the payer (terminal)
 	}
 	remaining := row.bountyPoolUnits - row.crashBonusPaidUnits
 	if remaining == 0 || row.bountyPoolUnits < row.crashBonusPaidUnits {
@@ -227,10 +238,9 @@ func (s *Service) finalizeFuzzEscrowTx(ctx context.Context, tx *sql.Tx, campaign
 		return nil
 	}
 	runsRefund := row.runsPoolUnits - row.runsPaidUnits
-	bountyRefund := row.bountyPoolUnits - row.bountyPaidUnits - row.crashBonusPaidUnits
-	if row.bountyPoolUnits < row.bountyPaidUnits+row.crashBonusPaidUnits {
-		bountyRefund = 0
-	}
+	// Net of what an earlier finalize already refunded (a reopen for settle drain re-locks runs
+	// only): without it a second finalize refunded the bounty pool again — HMC from nothing.
+	bountyRefund := row.bountyLeftUnits()
 	refund := runsRefund + bountyRefund
 	if refund > 0 {
 		var walletAddr string

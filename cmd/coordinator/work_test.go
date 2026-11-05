@@ -23,10 +23,11 @@ func TestWorkManagerClaimMonotonic(t *testing.T) {
 	if !ok1 || reason1 != "" || !ok2 || reason2 != "" {
 		t.Fatalf("claim failed: c1 ok=%v reason=%q c2 ok=%v reason=%q", ok1, reason1, ok2, reason2)
 	}
-	if b1 != 0 || s1 != 1000 {
+	// First range starts at a random 2^40-aligned base (restart replay guard), then monotonic.
+	if b1 == 0 || b1%(1<<40) != 0 || s1 != 1000 {
 		t.Fatalf("first claim got base=%d size=%d", b1, s1)
 	}
-	if b2 != 1000 || s2 != 2000 {
+	if b2 != b1+1000 || s2 != 2000 {
 		t.Fatalf("second claim got base=%d size=%d", b2, s2)
 	}
 	st := wm.stats(false)

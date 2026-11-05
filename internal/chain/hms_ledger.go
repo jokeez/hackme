@@ -519,6 +519,14 @@ func (s *Service) SubmitHmsTransferTx(ctx context.Context, tx HmsTransferTx) (st
 	if err != nil {
 		return "", "invalid_tx_encoding", err
 	}
+	// A hash already in history (included or rejected) must not re-enter the pool: re-applying it
+	// failed the history insert on UNIQUE(tx_hash) and aborted every later block (chain halt).
+	var seenHist int
+	if err := s.db.QueryRowContext(ctx, `SELECT 1 FROM hms_tx_history WHERE tx_hash=? LIMIT 1`, txHash).Scan(&seenHist); err == nil {
+		return "", "duplicate_or_replay", errors.New("tx already processed")
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return "", "internal_error", err
+	}
 	var existing string
 	err = s.db.QueryRowContext(ctx,
 		`SELECT tx_hash FROM hms_tx_pool WHERE from_address=? AND nonce=? AND status='pending' LIMIT 1`,
@@ -642,7 +650,9 @@ func (s *Service) applyPendingHmsTransfers(ctx context.Context, txq queryRowExec
 		}
 		if _, err := txq.ExecContext(ctx,
 			`INSERT INTO hms_tx_history (tx_hash, tx_json, from_address, to_address, nonce, fee_units, amount_units, status, block_index, block_hash, applied_at, reject_code)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, 'included', ?, ?, ?, '')`,
+			 VALUES (?, ?, ?, ?, ?, ?, ?, 'included', ?, ?, ?, '')
+			 ON CONFLICT(tx_hash) DO UPDATE SET status='included', block_index=excluded.block_index,
+			   block_hash=excluded.block_hash, applied_at=excluded.applied_at, reject_code=''`,
 			item.hash, mustJSON(item.tx), item.tx.From, item.tx.To, item.tx.Nonce, item.tx.FeeUnits, item.tx.AmountUnits, blockIndex, blockHash, time.Now().Unix()); err != nil {
 			return err
 		}

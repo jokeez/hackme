@@ -170,6 +170,10 @@ func (s *Service) InsertOrderTask(ctx context.Context, manifestJSON []byte) (*In
 		return nil, errors.New("chain: prepaid units overflow")
 	}
 	prepaidUnits := rewardUnits * uint64(target)
+	// Hold s.mu from the tip read on: a block appended between reading the tip and booking the
+	// order priced a first-v2-block order with v1 fees (audit #6).
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	var tipH uint64
 	var maxIdx sql.NullInt64
 	if err := s.db.QueryRowContext(ctx, `SELECT MAX(block_index) FROM blocks`).Scan(&maxIdx); err == nil && maxIdx.Valid && maxIdx.Int64 >= 0 {
@@ -177,6 +181,9 @@ func (s *Service) InsertOrderTask(ctx context.Context, manifestJSON []byte) (*In
 	}
 	feeAsset, err := NormalizeFeeAsset(m.FeeAsset)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.checkFeeAssetAllowed(feeAsset); err != nil {
 		return nil, err
 	}
 	// Economics v2: price = escrow + fee (burn + platform, RFC §5.2); burn is a real debit.
@@ -208,9 +215,6 @@ func (s *Service) InsertOrderTask(ctx context.Context, manifestJSON []byte) (*In
 			hourCap = x
 		}
 	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

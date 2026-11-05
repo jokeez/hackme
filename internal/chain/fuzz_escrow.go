@@ -70,6 +70,9 @@ func (s *Service) OpenFuzzEscrowWithFee(ctx context.Context, campaignID string, 
 	if err != nil {
 		return nil, err
 	}
+	if err := s.checkFeeAssetAllowed(asset); err != nil {
+		return nil, err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	campaignID = strings.TrimSpace(campaignID)
@@ -303,10 +306,9 @@ func (s *Service) CancelFuzzEscrow(ctx context.Context, campaignID string) (*Fuz
 	}
 	// Align with finalizeFuzzEscrowTx: Hunt high pays a slice; unused bounty must refund on cancel too.
 	runsRefund := row.runsPoolUnits - row.runsPaidUnits
-	bountyRefund := row.bountyPoolUnits - row.bountyPaidUnits - row.crashBonusPaidUnits
-	if row.bountyPoolUnits < row.bountyPaidUnits+row.crashBonusPaidUnits {
-		bountyRefund = 0
-	}
+	// Net of what an earlier finalize already refunded (a reopen for settle drain re-locks runs
+	// only): without it a second finalize refunded the bounty pool again — HMC from nothing.
+	bountyRefund := row.bountyLeftUnits()
 	refund := runsRefund + bountyRefund
 	if refund > 0 {
 		var walletAddr string
@@ -424,10 +426,9 @@ func (s *Service) FinalizeFuzzEscrow(ctx context.Context, campaignID string) (*F
 		return s.getFuzzEscrowUnlocked(ctx, campaignID)
 	}
 	runsRefund := row.runsPoolUnits - row.runsPaidUnits
-	bountyRefund := row.bountyPoolUnits - row.bountyPaidUnits - row.crashBonusPaidUnits
-	if row.bountyPoolUnits < row.bountyPaidUnits+row.crashBonusPaidUnits {
-		bountyRefund = 0
-	}
+	// Net of what an earlier finalize already refunded (a reopen for settle drain re-locks runs
+	// only): without it a second finalize refunded the bounty pool again — HMC from nothing.
+	bountyRefund := row.bountyLeftUnits()
 	if err := s.finalizeFuzzEscrowTx(ctx, tx, campaignID); err != nil {
 		return nil, err
 	}
@@ -458,6 +459,15 @@ type fuzzEscrowDBRow struct {
 	status              string
 	refundedBountyUnits uint64
 	escrowSplit         string
+}
+
+// bountyLeftUnits is the bounty pool still held: pool − paid slice − crash bonus − already refunded.
+func (r *fuzzEscrowDBRow) bountyLeftUnits() uint64 {
+	used := r.bountyPaidUnits + r.crashBonusPaidUnits + r.refundedBountyUnits
+	if r.bountyPoolUnits <= used {
+		return 0
+	}
+	return r.bountyPoolUnits - used
 }
 
 func (s *Service) lockFuzzEscrowTx(ctx context.Context, tx *sql.Tx, campaignID string) (*fuzzEscrowDBRow, error) {

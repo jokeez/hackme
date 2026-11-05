@@ -146,7 +146,8 @@ func RunSUP(ctx context.Context, cfg Config) (Result, error) {
 			if pend.TxHash == "" && envBool("CLEAR_PENDING_SUP") {
 				// Manual clear of an intent that never got a tx_hash: only while the payer nonce
 				// has not moved past it (otherwise the send may have landed — ambiguous).
-				if _, nNow, nerr := fetchSUPState(ctx, client, cfg.ChainBase, payer); nerr == nil && nNow <= pend.Nonce {
+				inflight, ierr := findSUPInflight(ctx, client, cfg.ChainBase, payer, firstNonEmpty(pend.Payout, toAddr), pend.DeltaUnits)
+				if _, nNow, nerr := fetchSUPState(ctx, client, cfg.ChainBase, payer); nerr == nil && nNow <= pend.Nonce && ierr == nil && inflight == "" {
 					_ = store.ClearPendingSUP(ctx, wid)
 					lg.Printf("sup: CLEAR_PENDING_SUP cleared %s (nonce %d not consumed)", wid, pend.Nonce)
 				} else {
@@ -204,6 +205,16 @@ func RunSUP(ctx context.Context, cfg Config) (Result, error) {
 			if nonceAfter > nonce {
 				lg.Printf("sup: ALERT ambiguous %s: nonce %d->%d without tx_hash — intent kept", wid, nonce, nonceAfter)
 				_ = store.AppendLedger(ctx, "sup_ambiguous_pending", wid, pay, 0, 0, 0, 0, 0, fmt.Sprintf("nonce %d->%d code=%s", nonce, nonceAfter, code))
+			} else if inflight, ierr := findSUPInflight(ctx, client, cfg.ChainBase, payer, toAddr, pay); ierr != nil || inflight != "" {
+				// Confirmed nonce does not see a tx still in the mempool: a lost response must
+				// not clear the intent (the next run re-sent at the new nonce — double pay).
+				if inflight != "" {
+					if aerr := store.AttachSUPTxHash(ctx, wid, inflight); aerr == nil {
+						lg.Printf("sup: %s response lost but tx %s is in the mempool — attached", wid, inflight)
+					}
+				} else {
+					lg.Printf("sup: ALERT %s: send failed and mempool lookup failed (%v) — intent kept", wid, ierr)
+				}
 			} else {
 				lg.Printf("sup: ERROR %s -> %s: %v %s", wid, toAddr, sendErr, code)
 				_ = store.ClearPendingSUP(ctx, wid)
@@ -341,4 +352,38 @@ func getJSON(ctx context.Context, client *http.Client, url string) (map[string]a
 		return nil, err
 	}
 	return m, nil
+}
+
+// findSUPInflight returns the hash of a pending SUP transfer payer→to of amount in the node's
+// mempool ("" when none; err when the lookup failed).
+func findSUPInflight(ctx context.Context, client *http.Client, base, payer, to string, amount uint64) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(base, "/")+"/api/sup/tx/pool", nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("sup pool: http %d", resp.StatusCode)
+	}
+	var m struct {
+		Txs []struct {
+			TxHash      string `json:"tx_hash"`
+			From        string `json:"from"`
+			To          string `json:"to"`
+			AmountUnits uint64 `json:"amount_units"`
+		} `json:"txs"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&m); err != nil {
+		return "", err
+	}
+	for _, t := range m.Txs {
+		if t.From == payer && t.To == to && t.AmountUnits == amount && strings.TrimSpace(t.TxHash) != "" {
+			return t.TxHash, nil
+		}
+	}
+	return "", nil
 }

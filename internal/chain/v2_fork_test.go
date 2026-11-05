@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"errors"
 	"testing"
 
 	"hackme/internal/block"
@@ -47,9 +48,14 @@ func TestV2ForkCrossesActivationEndToEnd(t *testing.T) {
 	for i := 0; i < 3; i++ {          // blocks 5..7: v2
 		blocks = append(blocks, n.mine())
 	}
-	post, err := n.hub.OpenFuzzEscrowWithFee(n.ctx, "dig-post", 100, 100, fuzzescrow.EscrowSplit2080, "SUP")
+	// The hub's SUP backs miner payouts: a SUP-paid fee is refused there (customers pay SUP
+	// fees from their own node). The HMC fee path still splits 90/5/5 after activation.
+	if _, err := n.hub.OpenFuzzEscrowWithFee(n.ctx, "dig-post-sup", 100, 100, fuzzescrow.EscrowSplit2080, "SUP"); !errors.Is(err, ErrSUPFeeOnHub) {
+		t.Fatalf("v2 SUP-fee open on the hub must be refused: %v", err)
+	}
+	post, err := n.hub.OpenFuzzEscrowWithFee(n.ctx, "dig-post", 100, 100, fuzzescrow.EscrowSplit2080, "HMC")
 	if err != nil {
-		t.Fatalf("v2 SUP-fee open: %v", err)
+		t.Fatalf("v2 HMC-fee open: %v", err)
 	}
 	if HMCToUnits(pre.RunsPoolHMC+pre.BountyPoolHMC) != HMCToUnits(100) || HMCToUnits(post.RunsPoolHMC+post.BountyPoolHMC) != HMCToUnits(90) {
 		t.Fatalf("escrow pre=%v+%v post=%v+%v", pre.RunsPoolHMC, pre.BountyPoolHMC, post.RunsPoolHMC, post.BountyPoolHMC)
@@ -79,7 +85,7 @@ func TestV2ForkCrossesActivationEndToEnd(t *testing.T) {
 	if folSUP != wantSUP {
 		t.Fatalf("follower SUP %d want %d (3 v2 blocks)", folSUP, wantSUP)
 	}
-	if hubSUP != HMCToUnits(50)+wantSUP-HMCToUnits(10) { // +3 blocks, −10 SUP fee for dig-post
+	if hubSUP != HMCToUnits(50)+wantSUP { // +3 v2 blocks; SUP fees are refused on the hub
 		t.Fatalf("hub SUP %d", hubSUP)
 	}
 	fh, _ := unitsOf(t, fdb, n.wallet)

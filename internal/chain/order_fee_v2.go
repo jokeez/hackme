@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"math"
 	"math/bits"
 	"strings"
@@ -25,6 +26,21 @@ const (
 )
 
 var ErrFeeAsset = errors.New("chain: fee_asset must be HMC or SUP")
+
+// ErrSUPFeeOnHub: the pool hub's SUP backs miner SUP payouts; an order fee in SUP opened on the
+// hub (integrator / developer tokens included) would burn that backing (audit M4).
+var ErrSUPFeeOnHub = fmt.Errorf("%w: SUP order fees are not accepted on the pool hub — pay in HMC", ErrFeeAsset)
+
+// checkFeeAssetAllowed refuses SUP fees on the block-producing hub (its signer is the authority).
+func (s *Service) checkFeeAssetAllowed(asset string) error {
+	if asset != FeeAssetSUP || s == nil || s.signer == nil {
+		return nil
+	}
+	if auth := authorityPubKeyFromEnv(); auth != "" && strings.EqualFold(strings.TrimSpace(s.signer.PublicKeyHex()), auth) {
+		return ErrSUPFeeOnHub
+	}
+	return nil
+}
 
 // OrderFeeV2 is one order's fee legs in units.
 type OrderFeeV2 struct {
