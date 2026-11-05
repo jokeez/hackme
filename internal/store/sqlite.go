@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -231,6 +232,9 @@ func migrate(db *sql.DB) error {
 		return err
 	}
 	if err := migrateHMSLedger(db); err != nil {
+		return err
+	}
+	if err := migrateAddressPubKeys(db); err != nil {
 		return err
 	}
 	if err := migrateWalletUnits(db); err != nil {
@@ -479,6 +483,52 @@ func migrateHMSLedger(db *sql.DB) error {
 		}
 	}
 	return nil
+}
+
+// migrateAddressPubKeys creates the address → spending pubkey binding (Economics v2) and, once,
+// seeds it from every included signed spend: the earliest key that spent from an address is the
+// one bound to it. Burns/mints carry no pubkey and are skipped.
+func migrateAddressPubKeys(db *sql.DB) error {
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS address_pubkeys (
+			address TEXT PRIMARY KEY,
+			pubkey_ed25519 TEXT NOT NULL,
+			bound_at_index INTEGER NOT NULL DEFAULT 0,
+			source TEXT NOT NULL DEFAULT ''
+		)`); err != nil {
+		return err
+	}
+	var done string
+	err := db.QueryRow(`SELECT value FROM meta WHERE key='address_pubkeys_backfill_v1'`).Scan(&done)
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	for _, src := range []struct{ table, source string }{
+		{"tx_history", "backfill_hmc"},
+		{"sup_tx_history", "backfill_sup"},
+		{"hms_tx_history", "backfill_hms"},
+	} {
+		if _, err := tx.Exec(`INSERT OR IGNORE INTO address_pubkeys (address, pubkey_ed25519, bound_at_index, source)
+			SELECT from_address, lower(trim(json_extract(tx_json, '$.pubkey_ed25519'))), block_index, ?
+			  FROM `+src.table+`
+			 WHERE status='included' AND from_address LIKE 'HMC-%'
+			   AND length(trim(COALESCE(json_extract(tx_json, '$.pubkey_ed25519'), ''))) = 64
+			 ORDER BY block_index ASC, nonce ASC`, src.source); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.Exec(`INSERT INTO meta (key, value) VALUES ('address_pubkeys_backfill_v1', '1')
+		ON CONFLICT(key) DO UPDATE SET value=excluded.value`); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func migrateWalletUnits(db *sql.DB) error {

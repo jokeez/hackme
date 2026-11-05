@@ -513,6 +513,9 @@ func (s *Service) SubmitHmsTransferTx(ctx context.Context, tx HmsTransferTx) (st
 	if code == "" {
 		code, msg = s.checkTxChainIDNextQ(ctx, s.db, tx.ChainID)
 	}
+	if code == "" {
+		code, msg = s.checkPubKeyBindingNextQ(ctx, s.db, tx.From, tx.PubKeyEd25519)
+	}
 	if code != "" {
 		return "", code, errors.New(msg)
 	}
@@ -584,6 +587,9 @@ func (s *Service) applyPendingHmsTransfers(ctx context.Context, txq queryRowExec
 		if code == "" {
 			code, _ = checkTxChainID(blockIndex, item.tx.ChainID)
 		}
+		if code == "" {
+			code, _ = checkPubKeyBindingQ(ctx, txq, blockIndex, item.tx.From, item.tx.PubKeyEd25519)
+		}
 		if code != "" {
 			_, _ = txq.ExecContext(ctx, `UPDATE hms_tx_pool SET status='rejected', reject_code=? WHERE tx_hash=?`, code, item.hash)
 			_, _ = txq.ExecContext(ctx,
@@ -638,6 +644,9 @@ func (s *Service) applyPendingHmsTransfers(ctx context.Context, txq queryRowExec
 			`INSERT INTO hms_tx_history (tx_hash, tx_json, from_address, to_address, nonce, fee_units, amount_units, status, block_index, block_hash, applied_at, reject_code)
 			 VALUES (?, ?, ?, ?, ?, ?, ?, 'included', ?, ?, ?, '')`,
 			item.hash, mustJSON(item.tx), item.tx.From, item.tx.To, item.tx.Nonce, item.tx.FeeUnits, item.tx.AmountUnits, blockIndex, blockHash, time.Now().Unix()); err != nil {
+			return err
+		}
+		if err := bindPubKeyQ(ctx, txq, item.tx.From, item.tx.PubKeyEd25519, blockIndex, PubKeyBindSourceHMS); err != nil {
 			return err
 		}
 		if _, err := txq.ExecContext(ctx, `DELETE FROM hms_tx_pool WHERE tx_hash=?`, item.hash); err != nil {

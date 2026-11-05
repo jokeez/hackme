@@ -125,8 +125,14 @@ func (s *Service) BurnSUPForFee(ctx context.Context, b SUPFeeBurn) (string, erro
 		return "internal_error", err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if code, msg := s.checkPubKeyBindingNextQ(ctx, tx, from, b.PubKeyEd25519); code != "" {
+		return code, errors.New(msg)
+	}
 	if code, err := s.burnSUPForFeeTx(ctx, tx, from, b.AmountUnits, b.Product, b.Ref); err != nil {
 		return code, err
+	}
+	if err := bindPubKeyQ(ctx, tx, from, b.PubKeyEd25519, tip+1, PubKeyBindSourceBurn); err != nil {
+		return "internal_error", err
 	}
 	if err := tx.Commit(); err != nil {
 		return "internal_error", err

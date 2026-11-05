@@ -47,11 +47,14 @@ var (
 // DefaultAuthorityPubKey is the hub's block-signing key compiled into the announce release
 // ("" = none): followers verify v2 blocks without any env. A hub whose own key differs refuses
 // to produce v2 blocks (validateV2HeaderQ), so a wrong constant fails loudly, never silently.
-const DefaultAuthorityPubKey = ""
+const DefaultAuthorityPubKey = "9b02a948b238b4b993bc19cbe4f6f7571682b2024d496f4f293f26cb67ef1683"
 
 func authorityPubKeyFromEnv() string {
 	if v := strings.ToLower(strings.TrimSpace(os.Getenv("HACKME_CHAIN_AUTHORITY_PUBKEY"))); v != "" {
 		return v
+	}
+	if v2CompiledDefaultsOff {
+		return ""
 	}
 	return strings.ToLower(strings.TrimSpace(DefaultAuthorityPubKey))
 }

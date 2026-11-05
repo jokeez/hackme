@@ -64,6 +64,9 @@ func EconomicsV2ActivationHeight() uint64 {
 	}
 	econV2HeightOnce.Do(func() {
 		econV2Height = DefaultEconomicsV2ActivationHeight
+		if v2CompiledDefaultsOff {
+			econV2Height = 0
+		}
 		if v := strings.TrimSpace(os.Getenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT")); v != "" {
 			if n, err := strconv.ParseUint(v, 10, 64); err == nil && n >= 1 {
 				econV2Height = n
@@ -77,7 +80,17 @@ func EconomicsV2ActivationHeight() uint64 {
 // announce release (0 = not announced). Followers and desktops have no v2 env: like the ASERT
 // height (495 400), the switch ships in the binary so every updated node crosses it on its own.
 // Preference order stays: locked chain meta > env > this default.
-const DefaultEconomicsV2ActivationHeight uint64 = 0
+const DefaultEconomicsV2ActivationHeight uint64 = 540_000
+
+// v2CompiledDefaultsOff makes the compiled announce defaults (height + authority key) read as
+// unset, for tests of pre-announce behavior. Production never sets it.
+var v2CompiledDefaultsOff bool
+
+// SetV2CompiledDefaultsOffForTest toggles v2CompiledDefaultsOff (tests only) and clears caches.
+func SetV2CompiledDefaultsOffForTest(off bool) {
+	v2CompiledDefaultsOff = off
+	ResetEconomicsV2ActivationHeightForTest()
+}
 
 // ResetEconomicsV2ActivationHeightForTest clears the cached env/meta height (tests only).
 func ResetEconomicsV2ActivationHeightForTest() {
