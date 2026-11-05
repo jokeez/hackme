@@ -371,6 +371,15 @@ func (a *app) readCanonicalWalletCache(addr string) (float64, uint64, uint64, ui
 }
 
 func main() {
+	// Print the version and exit before ANY initialisation (cwd, .env, rig profile, DB, key):
+	// the self-updater runs `hackme --version`, which used to start a full node.
+	if len(os.Args) > 1 {
+		switch strings.TrimLeft(strings.TrimSpace(os.Args[1]), "-") {
+		case "version", "v":
+			fmt.Println("HackMe " + Version)
+			return
+		}
+	}
 	// -hackme-wasm-validate is handled in sandbox.init (any linked binary).
 	ensureStableWorkingDir()
 	loadHackmeDotEnv()
@@ -4408,8 +4417,13 @@ func (a *app) handleTransferByNonce(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if !a.allowRate("tx_by_nonce:"+clientIP(r), 30) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		writeJSON(w, map[string]any{"error": "rate limited", "code": "rate_limited"})
+		return
+	}
 	from := strings.TrimSpace(r.URL.Query().Get("from"))
-	if !strings.HasPrefix(from, "HMC-") || len(from) > 80 {
+	if !chain.IsValidAddress(from) {
 		http.Error(w, "from must be an HMC- address", http.StatusBadRequest)
 		return
 	}
@@ -4492,6 +4506,12 @@ func (a *app) handleTransferAddressState(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	supSt, _ := a.chain.SupAddressState(r.Context(), addr)
+	// Tell clients whether this is the canonical ledger or a follower's local fallback (the
+	// canonical relay above failed): the dashboard must not label local data as synced.
+	source := "canonical_local"
+	if a.shouldUseCanonicalChainAPI() {
+		source = "local_db"
+	}
 	writeJSON(w, map[string]any{
 		"address":           row.Address,
 		"balance_units":     row.BalanceUnits,
@@ -4500,6 +4520,7 @@ func (a *app) handleTransferAddressState(w http.ResponseWriter, r *http.Request)
 		"balance_sup":       supSt.BalanceSUP,
 		"balance_sup_units": supSt.BalanceSUPUnits,
 		"sup_next_nonce":    supSt.SUPNextNonce,
+		"source":            source,
 	})
 }
 

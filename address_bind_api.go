@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"hackme/internal/chain"
+	"hackme/internal/netutil"
 )
 
 type addressBindRequest struct {
@@ -45,7 +46,7 @@ func (a *app) handleAddressBind(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"error": "invalid json", "code": "invalid_json"})
 		return
 	}
-	if base := a.addressBindRelayBase(); base != "" {
+	if base := a.addressBindRelayBase(); base != "" && !canonicalBaseWouldLoopbackProxy(r, base) {
 		code, status, err := postAddressBind(r.Context(), base, req)
 		if err != nil {
 			w.WriteHeader(http.StatusBadGateway)
@@ -94,7 +95,8 @@ func postAddressBind(ctx context.Context, base string, req addressBindRequest) (
 		return "", 0, err
 	}
 	hreq.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(hreq)
+	// No redirects: a 307/308 would resend the body to a host walletCanonicalBaseUsable never vetted.
+	resp, err := netutil.HTTPClientNoRedirect(15 * time.Second).Do(hreq)
 	if err != nil {
 		return "", 0, err
 	}
@@ -114,7 +116,7 @@ func postAddressBind(ctx context.Context, base string, req addressBindRequest) (
 // runAddressBindLoop binds this node's wallet key on the canonical chain (desktop/follower nodes).
 // It stops once the chain reports the address bound; an unfunded address is retried hourly.
 func (a *app) runAddressBindLoop(ctx context.Context) {
-	if a == nil || a.signer == nil {
+	if a == nil || a.signer == nil || !envBool("HACKME_ADDRESS_AUTOBIND", true) {
 		return
 	}
 	addr := strings.TrimSpace(a.signer.Address())
@@ -155,6 +157,9 @@ func (a *app) runAddressBindLoop(ctx context.Context) {
 			return
 		case code == "unknown_address":
 			delay = time.Hour
+		case status >= 400 && status < 500 && status != http.StatusTooManyRequests:
+			log.Printf("address bind: %s refused by the canonical chain (%s) — not retrying", addr, code)
+			return
 		default:
 			delay = 10 * time.Minute
 		}

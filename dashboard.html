@@ -3926,13 +3926,13 @@
 							<p class="text-[10px] uppercase tracking-widest text-gray-600 mb-2">Address</p>
 							<div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
 								<code id="wallet-address-display" class="flex-1 text-xs text-neon bg-black/60 px-3 py-2 rounded border border-neon/20 break-all">HMC-91fe007e4036c602</code>
-								<button type="button" id="btn-copy-address" class="shrink-0 px-4 py-2 rounded border border-neon/40 text-neon text-[10px] font-display font-bold uppercase tracking-wider hover:bg-neon/10">Copy</button>
+								<button type="button" id="btn-copy-address" aria-label="Copy address" class="shrink-0 px-4 py-2 rounded border border-neon/40 text-neon text-[10px] font-display font-bold uppercase tracking-wider hover:bg-neon/10">Copy</button>
 							</div>
 							<div id="wallet-long-address-block" class="hidden mt-3">
 								<p class="text-[10px] uppercase tracking-widest text-gray-600 mb-1">Long address (same key) <span id="wallet-long-address-when" class="normal-case tracking-normal text-gray-500"></span></p>
 								<div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
 									<code id="wallet-long-address-display" class="flex-1 text-[10px] text-matrix/90 bg-black/60 px-3 py-2 rounded border border-matrix/20 break-all"></code>
-									<button type="button" id="btn-copy-long-address" class="shrink-0 px-4 py-2 rounded border border-matrix/40 text-matrix text-[10px] font-display font-bold uppercase tracking-wider hover:bg-matrix/10">Copy</button>
+									<button type="button" id="btn-copy-long-address" aria-label="Copy long address" class="shrink-0 px-4 py-2 rounded border border-matrix/40 text-matrix text-[10px] font-display font-bold uppercase tracking-wider hover:bg-matrix/10">Copy</button>
 								</div>
 								<p class="mt-1 text-[10px] text-gray-500 leading-snug">Full-length form of your address. Move funds to it with a normal transfer once it is active; your current address keeps working. Nothing moves automatically.</p>
 							</div>
@@ -9371,13 +9371,16 @@
 					? (fmt(net.poolGh, net.poolGh >= 10 ? 1 : 2) + ' GH/s')
 					: '—';
 			}
-			if (mineCalcEl('mine-calc-out-hour')) setTextSilent(mineCalcEl('mine-calc-out-hour'), fmt(displayHmcHour, displayHmcHour >= 1 ? 4 : 6));
+			if (mineCalcEl('mine-calc-out-hour')) {
+				setTextSilent(mineCalcEl('mine-calc-out-hour'), fmt(displayHmcHour, displayHmcHour >= 1 ? 4 : 6));
+				mineCalcEl('mine-calc-out-hour').title = fmt(displayHmcHour, 8) + ' HMC/h';
+			}
 			const hourSub = mineCalcEl('mine-calc-out-hour-sub');
 			if (hourSub) {
 				const parts = [];
 				const emCap = mineCalcEmissionCapHour(calcFleetGh, net);
 				if (Number.isFinite(emCap) && emCap > 0 && displayHmcHour >= emCap * 0.999) {
-					parts.push('capped · pool emission ' + fmt(emCap * 24, 1) + ' HMC/day');
+					parts.push('capped at your share of pool emission (' + fmt(emCap * 24, 1) + ' HMC/day)');
 				}
 				if (out.ghCapped) {
 					parts.push('fleet ' + fmt(inputs.hashrateGh * inputs.rigCount, 2) + ' GH/s > pool ' + fmt(net.poolGh, 2) + ' GH/s — capped to pool size');
@@ -11312,6 +11315,8 @@
 				const r = await fetchWithTimeout('/api/address/' + encodeURIComponent(addr), { cache: 'no-store' }, timeoutMs || 3500);
 				if (!r.ok) return null;
 				const j = await r.json();
+				// A follower whose hub relay failed answers from its local DB: not canonical.
+				if (String(j.source || '') === 'local_db') return null;
 				const u = Number(j.balance_units);
 				if (!Number.isFinite(u)) return null;
 				return {
@@ -12987,12 +12992,6 @@
 			for (const u of candidates) {
 				if (!u || seen.has(u) || !isBrowserSafeMetricsURL(u)) continue;
 				seen.add(u);
-				// A guessed loopback port (coordinator port − 1) is usually not this node and is
-				// refused by the page CSP — skip it instead of logging a CSP error every refresh.
-				try {
-					const pu = new URL(u, window.location.origin);
-					if (/^(127\.0\.0\.1|localhost|\[::1\])$/.test(pu.hostname) && pu.origin !== window.location.origin) continue;
-				} catch (_) { continue; }
 				try {
 					const r = await fetch(u, { cache: 'no-store', mode: 'cors' });
 					if (!r.ok) continue;
@@ -16985,7 +16984,6 @@
 				}
 				if (r.ok) {
 					let w = await r.json();
-					try { renderWalletLongAddress(w); } catch (_) {}
 					if (w.public_redacted) {
 						await syncDesktopAdminTokenFromNode();
 						const r2 = await fetchWithTimeout('/api/wallet' + q, { cache: 'no-store', headers: adminHeaders() }, WALLET_FETCH_TIMEOUT_MS);
@@ -16994,6 +16992,7 @@
 							w = await r2.json();
 						}
 					}
+					try { renderWalletLongAddress(w); } catch (_) {}
 				const addrFromApi = String(w.address || '').trim();
 				const addrHint = walletKnownAddress();
 				if (addrFromApi.startsWith('HMC-')) {
