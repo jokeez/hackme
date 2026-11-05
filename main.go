@@ -603,6 +603,7 @@ func main() {
 	mux.HandleFunc("/api/hms/tx/send", a.handleHMSTransferSend)
 	mux.HandleFunc("/api/local/disks", a.handleLocalDisks)
 	mux.HandleFunc("/api/tx/pool", a.handleTransferPool)
+	mux.HandleFunc("/api/tx/by-nonce", a.handleTransferByNonce)
 	mux.HandleFunc("/api/tx/", a.handleTransferByHash)
 	mux.HandleFunc("/api/address/", a.handleTransferAddressState)
 	mux.HandleFunc("/api/p2p/handshake", a.handleP2PHandshake)
@@ -4383,6 +4384,35 @@ func (a *app) handleTransferByHash(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, row)
+}
+
+// handleTransferByNonce lists the transfers that used (from, nonce) on this node's chain view
+// (GET /api/tx/by-nonce?from=HMC-…&nonce=N). Public read like /api/tx/{hash}; the worker
+// settler uses it to resolve payout intents stranded without a tx_hash.
+func (a *app) handleTransferByNonce(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	from := strings.TrimSpace(r.URL.Query().Get("from"))
+	if !strings.HasPrefix(from, "HMC-") || len(from) > 80 {
+		http.Error(w, "from must be an HMC- address", http.StatusBadRequest)
+		return
+	}
+	nonce, err := strconv.ParseUint(strings.TrimSpace(r.URL.Query().Get("nonce")), 10, 64)
+	if err != nil {
+		http.Error(w, "nonce must be an unsigned integer", http.StatusBadRequest)
+		return
+	}
+	txs, err := a.chain.TransfersByFromNonce(r.Context(), from, nonce)
+	if err != nil {
+		http.Error(w, "lookup failed", http.StatusInternalServerError)
+		return
+	}
+	if txs == nil {
+		txs = []chain.TransferStatusRow{}
+	}
+	writeJSON(w, map[string]any{"from": from, "nonce": nonce, "txs": txs})
 }
 
 func (a *app) handleTransferAddressState(w http.ResponseWriter, r *http.Request) {

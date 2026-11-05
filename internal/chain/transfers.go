@@ -718,6 +718,50 @@ func (s *Service) TransferTxByHash(ctx context.Context, txHash string) (Transfer
 	return r, true, nil
 }
 
+// TransfersByFromNonce returns every transfer that used (from, nonce): history rows (included or
+// rejected) and pending pool rows. The worker settler uses it to resolve a payout intent stranded
+// without a tx_hash: the payer nonce tells which slot the send could have taken.
+func (s *Service) TransfersByFromNonce(ctx context.Context, from string, nonce uint64) ([]TransferStatusRow, error) {
+	from = strings.TrimSpace(from)
+	var out []TransferStatusRow
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT tx_hash, status, block_index, block_hash, reject_code, from_address, to_address, amount_units, fee_units, nonce, tx_json
+		 FROM tx_history WHERE from_address = ? AND nonce = ? LIMIT 16`, from, nonce)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var r TransferStatusRow
+		var txJSON string
+		if err := rows.Scan(&r.TxHash, &r.Status, &r.BlockIndex, &r.BlockHash, &r.RejectCode, &r.From, &r.To, &r.AmountUnits, &r.FeeUnits, &r.Nonce, &txJSON); err != nil {
+			_ = rows.Close()
+			return nil, err
+		}
+		r.Memo = memoFromTransferTxJSON(txJSON)
+		out = append(out, r)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	rows, err = s.db.QueryContext(ctx,
+		`SELECT tx_hash, status, from_address, to_address, amount_units, fee_units, nonce, reject_code, tx_json
+		 FROM tx_pool WHERE from_address = ? AND nonce = ? AND status = 'pending' LIMIT 16`, from, nonce)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var r TransferStatusRow
+		var txJSON string
+		if err := rows.Scan(&r.TxHash, &r.Status, &r.From, &r.To, &r.AmountUnits, &r.FeeUnits, &r.Nonce, &r.RejectCode, &txJSON); err != nil {
+			return nil, err
+		}
+		r.Memo = memoFromTransferTxJSON(txJSON)
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 type pendingTransfer struct {
 	hash       string
 	tx         TransferTx

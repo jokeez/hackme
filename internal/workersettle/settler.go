@@ -311,6 +311,32 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 			continue
 		}
 		if row.PendingJSON != "" && pend.TxHash == "" {
+			// Decide the stranded intent from the chain (payer nonce slots) before any operator step.
+			payTo := firstNonEmpty(pend.PayoutAddress, toAddr)
+			switch res := resolveStrandedPending(ctx, client, cfg.ChainBase, payer, payTo, pend); res.Outcome {
+			case strandedPaid:
+				if err := store.AttachTxHash(ctx, wid, res.TxHash); err != nil {
+					lg.Printf("resolve %s: attach tx=%s: %v", wid, res.TxHash, err)
+					continue
+				}
+				_ = store.AppendLedger(ctx, "stranded_resolved_paid", wid, pend.DeltaUnits, 0, 0, 0, 0, 0,
+					fmt.Sprintf("tx=%s nonce=%d", res.TxHash, res.Nonce))
+				_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
+				lg.Printf("resolved stranded pending %s: paid on chain tx=%s nonce=%d (applied by recovery next cycle)", wid, res.TxHash, res.Nonce)
+				continue
+			case strandedUnsent:
+				if err := store.ClearPending(ctx, wid); err != nil {
+					lg.Printf("resolve %s: clear: %v", wid, err)
+					continue
+				}
+				_ = store.AppendLedger(ctx, "stranded_resolved_unsent", wid, pend.DeltaUnits, 0, 0, 0, 0, 0,
+					fmt.Sprintf("intent nonce %d: every slot taken by another included transfer", pend.Nonce))
+				_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
+				lg.Printf("resolved stranded pending %s: never sent (nonce %d slots taken by other txs) — cleared, re-paid next cycle", wid, pend.Nonce)
+				continue
+			default:
+				lg.Printf("stranded pending %s kept: %s", wid, res.Reason)
+			}
 			lg.Printf("skip %s: pending_settle without tx_hash — not re-sending", wid)
 			if cfg.ClearPending {
 				// If the recorded nonce may already have been consumed, clearing

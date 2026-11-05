@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"net"
 	"net/url"
 	"strings"
 
@@ -151,6 +152,31 @@ func redactInternalCoordinatorURLs(m map[string]any) {
 			ux["coordinator_url_redacted"] = true
 		}
 	}
+	// Nested internal topology (hub listen ports): nothing outside the host needs it.
+	if ps, ok := m["pool_sync"].(map[string]any); ok {
+		if v, ok := ps["coordinator_url_resolved"].(string); ok && netutil.IsLoopbackURL(v) {
+			ps["coordinator_url_resolved"] = publicCoordinatorSourceLabel(v)
+		}
+	}
+	if ns, ok := m["network_sync"].(map[string]any); ok {
+		if v, ok := ns["bind_addr"].(string); ok && bindAddrIsLoopback(v) {
+			ns["bind_addr"] = "loopback"
+		}
+	}
+}
+
+// bindAddrIsLoopback reports whether a listen address (host:port, no scheme) is loopback.
+func bindAddrIsLoopback(v string) bool {
+	host, _, err := net.SplitHostPort(strings.TrimSpace(v))
+	if err != nil {
+		return false
+	}
+	host = strings.ToLower(strings.Trim(host, "[]"))
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // redactPublicWorkStats strips desktop id leakage, re-keys workers, and removes
