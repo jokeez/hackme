@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -62,6 +63,57 @@ CREATE TABLE IF NOT EXISTS pool_pay_day (
   updated_at INTEGER NOT NULL DEFAULT 0
 )`
 
+// Pacing segments (reward changes mid-day: v2 activation 10×, halvings ½). Unlocked budget is
+// the emission actually scheduled so far — not "today's fraction × the NEW daily rate", which
+// opened ~140 HMC of headroom at once on activation day and underpaid the rest of a halving day.
+var poolPayDaySegCols = []string{
+	`ALTER TABLE pool_pay_day ADD COLUMN seg_start_unix INTEGER NOT NULL DEFAULT 0`,
+	`ALTER TABLE pool_pay_day ADD COLUMN seg_rate_hmc_s REAL NOT NULL DEFAULT 0`,
+	`ALTER TABLE pool_pay_day ADD COLUMN unlocked_base_hmc REAL NOT NULL DEFAULT 0`,
+}
+
+// poolBudgetSegUnlocked: unlocked budget at now for a day with base (unlocked before segStart)
+// and the current segment rate, plus the burst allowance, capped at the day's total schedule.
+func poolBudgetSegUnlocked(base, rate float64, segStart, now int64) float64 {
+	if rate <= 0 {
+		return base
+	}
+	dayEnd := (now/86400 + 1) * 86400
+	if segStart <= 0 || segStart > now {
+		segStart = (now / 86400) * 86400
+	}
+	u := base + rate*float64(now-segStart+poolBudgetBurstSec())
+	if dayTotal := base + rate*float64(dayEnd-segStart); u > dayTotal {
+		u = dayTotal
+	}
+	return u
+}
+
+// syncPoolPaySegmentLocked starts a new pacing segment when the daily budget (reward) changed.
+// Caller holds m.mu and has run resetPoolPayDayIfNeeded.
+func (m *workManager) syncPoolPaySegmentLocked(budget float64, now int64) {
+	rate := budget / 86400.0
+	dayStart := (now / 86400) * 86400
+	if m.poolPaySegStart < dayStart || m.poolPaySegRate <= 0 {
+		// New day or no segment yet: the whole day so far at the current rate (old behaviour).
+		m.poolPaySegStart = dayStart
+		m.poolPaySegRate = rate
+		m.poolPayUnlockedBase = 0
+		return
+	}
+	if rate != m.poolPaySegRate {
+		m.poolPayUnlockedBase += m.poolPaySegRate * float64(now-m.poolPaySegStart)
+		m.poolPaySegStart = now
+		m.poolPaySegRate = rate
+		m.persistPoolPayDayLocked(now)
+	}
+}
+
+func (m *workManager) poolBudgetUnlockedLocked(budget float64, now int64) float64 {
+	m.syncPoolPaySegmentLocked(budget, now)
+	return poolBudgetSegUnlocked(m.poolPayUnlockedBase, m.poolPaySegRate, m.poolPaySegStart, now)
+}
+
 func poolBlockSec() float64 {
 	v := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_POOL_BLOCK_SEC"))
 	if v == "" {
@@ -102,6 +154,9 @@ func ensurePoolPayDayTable(db *sql.DB) {
 	if _, err := db.Exec(poolPayDayTable); err != nil {
 		log.Printf("pool_pay_day schema: %v", err)
 	}
+	for _, q := range poolPayDaySegCols {
+		_, _ = db.Exec(q) // duplicate column on re-run is expected
+	}
 }
 
 func (m *workManager) loadPoolPayDay() {
@@ -110,10 +165,11 @@ func (m *workManager) loadPoolPayDay() {
 	}
 	ensurePoolPayDayTable(m.dedupDB)
 	day := utcDayID(nowUnix())
-	var accrued float64
+	var accrued, segRate, unlockedBase float64
 	var clips uint64
-	err := m.dedupDB.QueryRow(`SELECT accrued_hmc, clip_events FROM pool_pay_day WHERE day_id=?`, day).
-		Scan(&accrued, &clips)
+	var segStart int64
+	err := m.dedupDB.QueryRow(`SELECT accrued_hmc, clip_events, seg_start_unix, seg_rate_hmc_s, unlocked_base_hmc FROM pool_pay_day WHERE day_id=?`, day).
+		Scan(&accrued, &clips, &segStart, &segRate, &unlockedBase)
 	if err == sql.ErrNoRows {
 		m.poolPayDayID = day
 		m.poolPayAccruedDay = 0
@@ -126,6 +182,14 @@ func (m *workManager) loadPoolPayDay() {
 	m.poolPayDayID = day
 	m.poolPayAccruedDay = accrued
 	m.poolBudgetClipped = clips
+	m.poolPaySegStart, m.poolPaySegRate, m.poolPayUnlockedBase = segStart, segRate, unlockedBase
+	// Until node metrics load, price shares at the last reward this coordinator saw today
+	// (not the compiled 0.01 placeholder: after the v2 switch that underpaid 10×).
+	if segRate > 0 && strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_POOL_DAILY_BUDGET_HMC")) == "" {
+		if b := math.Round(segRate*poolBlockSec()*1e8) / 1e8; b > 0 {
+			m.baseRewardHMC = b
+		}
+	}
 }
 
 func (m *workManager) persistPoolPayDayLocked(now int64) {
@@ -134,12 +198,15 @@ func (m *workManager) persistPoolPayDayLocked(now int64) {
 	}
 	ensurePoolPayDayTable(m.dedupDB)
 	_, err := m.dedupDB.Exec(`
-INSERT INTO pool_pay_day (day_id, accrued_hmc, clip_events, updated_at) VALUES (?, ?, ?, ?)
+INSERT INTO pool_pay_day (day_id, accrued_hmc, clip_events, updated_at, seg_start_unix, seg_rate_hmc_s, unlocked_base_hmc) VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(day_id) DO UPDATE SET
   accrued_hmc=excluded.accrued_hmc,
   clip_events=excluded.clip_events,
-  updated_at=excluded.updated_at`,
-		m.poolPayDayID, m.poolPayAccruedDay, m.poolBudgetClipped, now)
+  updated_at=excluded.updated_at,
+  seg_start_unix=excluded.seg_start_unix,
+  seg_rate_hmc_s=excluded.seg_rate_hmc_s,
+  unlocked_base_hmc=excluded.unlocked_base_hmc`,
+		m.poolPayDayID, m.poolPayAccruedDay, m.poolBudgetClipped, now, m.poolPaySegStart, m.poolPaySegRate, m.poolPayUnlockedBase)
 	if err != nil {
 		log.Printf("pool_pay_day persist: %v", err)
 	}
@@ -165,7 +232,7 @@ func (m *workManager) applyPoolDailyBudget(payout float64, now int64) float64 {
 		return payout
 	}
 	m.resetPoolPayDayIfNeeded(now)
-	remain := poolBudgetUnlocked(budget, now) - m.poolPayAccruedDay
+	remain := m.poolBudgetUnlockedLocked(budget, now) - m.poolPayAccruedDay
 	if remain <= 0 {
 		m.poolBudgetClipped++
 		if now-m.poolPayPersistUnix >= poolPayClipPersistGapSec {
@@ -194,7 +261,8 @@ func (m *workManager) poolBudgetStats() map[string]any {
 	if remain < 0 {
 		remain = 0
 	}
-	unlockedRemain := poolBudgetUnlocked(budget, now) - m.poolPayAccruedDay
+	m.resetPoolPayDayIfNeeded(now)
+	unlockedRemain := m.poolBudgetUnlockedLocked(budget, now) - m.poolPayAccruedDay
 	if unlockedRemain < 0 {
 		unlockedRemain = 0
 	}

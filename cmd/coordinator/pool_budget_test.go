@@ -1,6 +1,8 @@
 package main
 
 import (
+	"database/sql"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -115,5 +117,79 @@ func TestLoadRetargetUsesHashTimesBlockSec(t *testing.T) {
 	}
 	if wm.targetMod > poolTargetModMax {
 		t.Fatalf("M %d exceeds max", wm.targetMod)
+	}
+}
+
+// Audit 2026-11-05 M1: a mid-day reward change (v2 activation 10×, halving ½) changes the rate
+// from that moment only. Before, the new rate applied to the whole day: activation day opened
+// ~140 HMC of headroom at once; a halving day stopped accrual for hours.
+func TestPoolBudgetMidDayRewardChange(t *testing.T) {
+	t.Setenv("HACKME_COORDINATOR_POOL_DAILY_BUDGET_HMC", "")
+	t.Setenv("HACKME_COORDINATOR_POOL_BUDGET_BURST_SEC", "0")
+	wm := &workManager{baseRewardHMC: 0.01}
+	day := int64(20_000) * 86400
+	noon := day + 43200
+	// v1 morning: 28.8/day → 14.4 unlocked at noon.
+	if u := wm.poolBudgetUnlockedLocked(wm.poolDailyBudgetHMC(), noon); u < 14.39 || u > 14.41 {
+		t.Fatalf("v1 noon unlocked %v", u)
+	}
+	// Activation at noon: 288/day from now on.
+	wm.baseRewardHMC = 0.1
+	if u := wm.poolBudgetUnlockedLocked(wm.poolDailyBudgetHMC(), noon); u < 14.39 || u > 14.41 {
+		t.Fatalf("activation must not open the new rate for the past: %v", u)
+	}
+	if u := wm.poolBudgetUnlockedLocked(wm.poolDailyBudgetHMC(), noon+3600); u < 26.39 || u > 26.41 {
+		t.Fatalf("one hour of v2 = 14.4 + 12: %v", u)
+	}
+	// Halving at 18:00 (rate ½): what was unlocked stays unlocked.
+	six := day + 64800
+	before := wm.poolBudgetUnlockedLocked(wm.poolDailyBudgetHMC(), six)
+	wm.baseRewardHMC = 0.05
+	if u := wm.poolBudgetUnlockedLocked(wm.poolDailyBudgetHMC(), six); u < before-0.001 {
+		t.Fatalf("halving must not take back unlocked budget: %v < %v", u, before)
+	}
+	// Next UTC day: plain pacing at the current rate.
+	if u := wm.poolBudgetUnlockedLocked(wm.poolDailyBudgetHMC(), day+86400+43200); u < 71.99 || u > 72.01 {
+		t.Fatalf("next day noon at 144/day: %v", u)
+	}
+}
+
+// The segment survives a coordinator restart (persisted with the day row).
+func TestPoolBudgetSegmentPersists(t *testing.T) {
+	t.Setenv("HACKME_COORDINATOR_POOL_DAILY_BUDGET_HMC", "")
+	t.Setenv("HACKME_COORDINATOR_POOL_BUDGET_BURST_SEC", "0")
+	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "d.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	now := time.Now().Unix()
+	wm := &workManager{baseRewardHMC: 0.01, dedupDB: db}
+	wm.loadPoolPayDay()
+	wm.poolBudgetUnlockedLocked(wm.poolDailyBudgetHMC(), now-600)
+	wm.baseRewardHMC = 0.1
+	_ = wm.applyPoolDailyBudget(0.001, now)
+	wm2 := &workManager{baseRewardHMC: 0.1, dedupDB: db}
+	wm2.loadPoolPayDay()
+	if wm2.poolPaySegRate != wm.poolPaySegRate || wm2.poolPaySegStart != wm.poolPaySegStart || wm2.poolPayUnlockedBase != wm.poolPayUnlockedBase {
+		t.Fatalf("segment not restored: %+v vs %+v", []any{wm2.poolPaySegStart, wm2.poolPaySegRate, wm2.poolPayUnlockedBase}, []any{wm.poolPaySegStart, wm.poolPaySegRate, wm.poolPayUnlockedBase})
+	}
+}
+
+// Audit L3: after a restart the share price starts from the last reward seen today.
+func TestPoolBudgetRestoresBaseRewardAfterRestart(t *testing.T) {
+	t.Setenv("HACKME_COORDINATOR_POOL_DAILY_BUDGET_HMC", "")
+	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "d.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	wm := &workManager{baseRewardHMC: 0.1, dedupDB: db}
+	wm.loadPoolPayDay()
+	_ = wm.applyPoolDailyBudget(0.001, time.Now().Unix())
+	wm2 := &workManager{baseRewardHMC: 0.01, dedupDB: db}
+	wm2.loadPoolPayDay()
+	if wm2.baseRewardHMC != 0.1 {
+		t.Fatalf("base after restart %v", wm2.baseRewardHMC)
 	}
 }

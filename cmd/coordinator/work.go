@@ -132,8 +132,12 @@ type workManager struct {
 	supAdminMintRetired  bool    // chain retired admin mint — never invent legacy 0.08 SUP
 	hmcAccruedDay        float64
 	// Pool pay solvency (UTC day): cap SHARE_STRICT accrual to emission schedule.
-	poolPayDayID          int64
-	poolPayAccruedDay     float64
+	poolPayDayID      int64
+	poolPayAccruedDay float64
+	// Budget pacing segment: unlocked-so-far before poolPaySegStart, then poolPaySegRate HMC/s.
+	poolPaySegStart       int64
+	poolPaySegRate        float64
+	poolPayUnlockedBase   float64
 	poolBudgetClipped     uint64
 	poolPayPersistUnix    int64 // last pool_pay_day write (clip-only updates are throttled)
 	dedupSubmits          uint64
@@ -1038,7 +1042,8 @@ func (m *workManager) prefetchTargetMod(now int64) {
 	if now-m.targetLastAt < m.targetEvery && !snap.HasMod && !snap.HasBase && snap.TipHash == "" {
 		return
 	}
-	if snap.HasBase {
+	if snap.HasBase && snap.BaseRewardHMC > 0 {
+		// A zero from a broken metrics read must not price every share at 0.
 		m.baseRewardHMC = snap.BaseRewardHMC
 	}
 	if snap.HasSUPBlock {
