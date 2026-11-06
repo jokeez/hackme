@@ -431,26 +431,149 @@
     }
     .dl-verify-grid p { margin: 0; font-size: 0.8rem; color: var(--muted); }
 
+    .dl-cli {
+      margin-top: 1rem;
+      display: grid;
+      gap: 0.85rem;
+    }
+    .dl-cli-intro {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.65rem;
+    }
+    @media (max-width: 860px) {
+      .dl-cli-intro { grid-template-columns: 1fr; }
+    }
+    .dl-cli-fact {
+      padding: 0.85rem 0.95rem;
+      border-radius: 0.85rem;
+      border: 1px solid rgba(77, 228, 255, 0.14);
+      background: rgba(5, 10, 18, 0.48);
+    }
+    .dl-cli-fact strong {
+      display: block;
+      font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+      font-size: 0.92rem;
+      color: #fff;
+      margin-bottom: 0.28rem;
+    }
+    .dl-cli-fact p {
+      margin: 0;
+      font-size: 0.82rem;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+    .dl-cli-fact code { color: var(--dl-mint); font-size: 0.78rem; }
+
     .dl-cli-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 0.75rem;
-      margin-top: 0.9rem;
     }
     @media (max-width: 700px) {
       .dl-cli-grid { grid-template-columns: 1fr; }
     }
     .dl-cli-card {
-      padding: 1.05rem;
-      border-radius: 0.95rem;
-      border: 1px solid rgba(77, 228, 255, 0.16);
-      background: rgba(5, 10, 18, 0.55);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      padding: 1.15rem 1.15rem 1.1rem;
+      border-radius: 1rem;
+      border: 1px solid rgba(77, 228, 255, 0.18);
+      background:
+        linear-gradient(165deg, rgba(0, 209, 255, 0.08), transparent 42%),
+        rgba(5, 10, 18, 0.62);
+      transition: border-color 0.22s ease, transform 0.22s ease;
+    }
+    .dl-cli-card:hover {
+      border-color: rgba(77, 228, 255, 0.42);
+      transform: translateY(-2px);
+    }
+    .dl-cli-card-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.5rem;
     }
     .dl-cli-card h3 {
-      margin: 0 0 0.75rem;
+      margin: 0;
       font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+      font-size: 1.12rem;
+      color: #fff;
     }
-    .dl-cli-card .btn + .btn { margin-top: 0.5rem; }
+    .dl-cli-os {
+      font-size: 0.66rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(142, 163, 194, 0.9);
+    }
+    .dl-cli-bin {
+      display: grid;
+      gap: 0.55rem;
+    }
+    .dl-cli-bin-row {
+      display: grid;
+      gap: 0.35rem;
+      padding: 0.7rem 0.75rem;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(120, 170, 220, 0.14);
+      background: rgba(3, 8, 16, 0.45);
+    }
+    .dl-cli-bin-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.4rem 0.55rem;
+    }
+    .dl-cli-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.18rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid rgba(110, 255, 173, 0.28);
+      background: rgba(110, 255, 173, 0.08);
+      color: var(--dl-mint);
+      font-size: 0.62rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .dl-cli-pill.alt {
+      border-color: rgba(77, 228, 255, 0.28);
+      background: rgba(77, 228, 255, 0.08);
+      color: var(--dl-cyan);
+    }
+    .dl-cli-bin-meta span {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .dl-cli-note {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .dl-cli-note strong { color: #dbe8ff; }
+    .dl-cli-note code { color: var(--dl-mint); font-size: 0.76rem; }
+    .dl-cli-steps {
+      margin-top: 0.15rem;
+      padding: 0.95rem 1rem;
+      border-radius: 0.9rem;
+      border: 1px solid rgba(110, 255, 173, 0.2);
+      background: linear-gradient(90deg, rgba(110, 255, 173, 0.06), rgba(0, 209, 255, 0.03));
+    }
+    .dl-cli-steps ol {
+      margin: 0.55rem 0 0;
+      padding-left: 1.15rem;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+    .dl-cli-steps li + li { margin-top: 0.35rem; }
+    .dl-cli-steps code { color: var(--dl-mint); font-size: 0.8rem; }
 
     @media (prefers-reduced-motion: reduce) {
       .dl-hero, .dl-platform, .dl-section,
@@ -771,36 +894,112 @@ bash /opt/hackme/hackme_desktop_launch.sh
     <section class="dl-section" id="fuzzing-client">
       <div class="panel-head">
         <p class="kicker" style="color:#00d1ff">B2B · Fuzzing CLI</p>
-        <h2>hackme-fuzzing</h2>
-        <p class="subtle">Talks only to <code>127.0.0.1:8080</code>. Keep both binaries in one folder.</p>
+        <h2>hackme-fuzzing · rc19</h2>
+        <p class="subtle">
+          Integrator CLI for Dig / Hunt against your <strong>local Orders node</strong> only
+          (<code>127.0.0.1:8080</code> — not hackme.tech). Channel matches installers:
+          <strong>0.1.0-rc19</strong>. Keep <em>both</em> binaries in one folder — <code>build</code> shells out to <code>hackme-fuzzing-build</code> beside it.
+        </p>
       </div>
-      <div class="dl-cli-grid">
-        <article class="dl-cli-card">
-          <h3>Windows</h3>
-          <a id="download-fuzzing-win" class="btn btn-primary btn-block" href="#">hackme-fuzzing (.exe)</a>
-          <a id="download-fuzzing-build-win" class="btn btn-secondary btn-block" href="#">hackme-fuzzing-build (.exe)</a>
-        </article>
-        <article class="dl-cli-card">
-          <h3>Linux amd64</h3>
-          <a id="download-fuzzing-linux" class="btn btn-primary btn-block" href="#">hackme-fuzzing</a>
-          <a id="download-fuzzing-build-linux" class="btn btn-secondary btn-block" href="#">hackme-fuzzing-build</a>
-        </article>
-      </div>
-      <details class="dev-details" style="margin-top:0.85rem">
-        <summary>Quick start</summary>
-        <pre class="code-block" style="margin-top:0.5rem;font-size:0.84rem"><code># Keep both binaries in one folder. Node must be up on :8080.
-# Top up on-chain HMC on Wallet (#wallet); Dig/Hunt Start auto-funds escrow (Fund Orders optional).
+
+      <div class="dl-cli">
+        <div class="dl-cli-intro" aria-label="What you get">
+          <article class="dl-cli-fact">
+            <strong>CLI</strong>
+            <p><code>hackme-fuzzing</code> — register, wizard Dig packs, Hunt pin/build/create, campaign status.</p>
+          </article>
+          <article class="dl-cli-fact">
+            <strong>Build helper</strong>
+            <p><code>hackme-fuzzing-build</code> — compiles rust/c/cpp/zig/… sources to WASM tasks for <code>build</code>.</p>
+          </article>
+          <article class="dl-cli-fact">
+            <strong>Already in the tarball</strong>
+            <p>Linux bundle ships both under <code>linux/</code>. Standalone downloads below for Windows or a thin CLI-only kit.</p>
+          </article>
+        </div>
+
+        <div class="dl-cli-grid">
+          <article class="dl-cli-card">
+            <div class="dl-cli-card-head">
+              <h3>Windows</h3>
+              <span class="dl-cli-os">amd64 · .exe</span>
+            </div>
+            <div class="dl-cli-bin">
+              <div class="dl-cli-bin-row">
+                <div class="dl-cli-bin-meta">
+                  <span class="dl-cli-pill">CLI</span>
+                  <span>register · wizard · hunt · campaigns</span>
+                </div>
+                <a id="download-fuzzing-win" class="btn btn-primary btn-block" href="#">Download hackme-fuzzing.exe</a>
+              </div>
+              <div class="dl-cli-bin-row">
+                <div class="dl-cli-bin-meta">
+                  <span class="dl-cli-pill alt">Build</span>
+                  <span>compiles sources next to the CLI</span>
+                </div>
+                <a id="download-fuzzing-build-win" class="btn btn-secondary btn-block" href="#">Download hackme-fuzzing-build.exe</a>
+              </div>
+            </div>
+            <p class="dl-cli-note">Put both <code>.exe</code> files in the same folder. Node must already be running (Orders or Miner).</p>
+          </article>
+
+          <article class="dl-cli-card">
+            <div class="dl-cli-card-head">
+              <h3>Linux</h3>
+              <span class="dl-cli-os">amd64 · ELF</span>
+            </div>
+            <div class="dl-cli-bin">
+              <div class="dl-cli-bin-row">
+                <div class="dl-cli-bin-meta">
+                  <span class="dl-cli-pill">CLI</span>
+                  <span>register · wizard · hunt · campaigns</span>
+                </div>
+                <a id="download-fuzzing-linux" class="btn btn-primary btn-block" href="#">Download hackme-fuzzing</a>
+              </div>
+              <div class="dl-cli-bin-row">
+                <div class="dl-cli-bin-meta">
+                  <span class="dl-cli-pill alt">Build</span>
+                  <span>compiles sources next to the CLI</span>
+                </div>
+                <a id="download-fuzzing-build-linux" class="btn btn-secondary btn-block" href="#">Download hackme-fuzzing-build</a>
+              </div>
+            </div>
+            <p class="dl-cli-note">Or use the copies from the <strong>Linux tarball</strong>: <code>linux/hackme-fuzzing</code> + <code>linux/hackme-fuzzing-build</code>.</p>
+          </article>
+        </div>
+
+        <div class="dl-cli-steps">
+          <strong style="color:#6effad;letter-spacing:0.08em;font-size:0.72rem;text-transform:uppercase">Happy path</strong>
+          <ol>
+            <li>Start <em>HackMe Orders</em> (or open <code>#orders</code> on a local node) at <code>http://127.0.0.1:8080</code>.</li>
+            <li>Top up on-chain HMC on <strong>Wallet</strong> — Dig/Hunt Start auto-funds escrow.</li>
+            <li><code>hackme-fuzzing register --save</code> → <code>wizard --pack secrets --package audit</code> → gate/report on loopback.</li>
+            <li>Hunt (Linux): <code>hunt pin</code> → <code>hunt build</code> → <code>hunt create</code> · guide: <a href="./fuzz-guide.html">Dig + Hunt</a>.</li>
+          </ol>
+        </div>
+
+        <details class="dev-details">
+          <summary>Copy-paste commands</summary>
+          <pre class="code-block" style="margin-top:0.5rem;font-size:0.84rem"><code># Keep both binaries in one folder. Local node on :8080.
 
 # Windows (PowerShell)
-.\hackme-fuzzing-*-windows-amd64.exe register --base http://127.0.0.1:8080 --save
-.\hackme-fuzzing-*-windows-amd64.exe wizard --pack secrets --package audit --title "My pack"
-# Gate/report are on http://127.0.0.1:8080 (not hackme.tech)
+.\hackme-fuzzing-0.1.0-rc19-windows-amd64.exe register --base http://127.0.0.1:8080 --save
+.\hackme-fuzzing-0.1.0-rc19-windows-amd64.exe wizard --pack secrets --package audit --title "My pack"
 
 # Linux
-chmod +x hackme-fuzzing-*
-./hackme-fuzzing-*-linux-amd64 register --base http://127.0.0.1:8080 --save
-./hackme-fuzzing-*-linux-amd64 wizard --pack secrets --package audit</code></pre>
-      </details>
+chmod +x hackme-fuzzing-0.1.0-rc19-linux-amd64 hackme-fuzzing-build-0.1.0-rc19-linux-amd64
+./hackme-fuzzing-0.1.0-rc19-linux-amd64 register --base http://127.0.0.1:8080 --save
+./hackme-fuzzing-0.1.0-rc19-linux-amd64 wizard --pack secrets --package audit
+
+# Ready packs: secrets · script_bounds · filter_utf8 · parser_expat · bounds_smoke · …</code></pre>
+        </details>
+        <p class="dl-muted-links subtle">
+          <a href="./fuzz-guide.html">Fuzz guide</a> ·
+          <a href="./developers.html#integrator-token">Developer token</a> ·
+          <a href="./fuzzing-console.html">Public tracker</a> ·
+          <a href="#" data-mirror="download-sha">SHA256SUMS</a>
+        </p>
+      </div>
     </section>
 
     <section class="dl-section">
