@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"hackme/internal/chain"
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzznative"
 	"hackme/internal/poolauth"
@@ -46,7 +47,7 @@ func (s *Service) ReplayCampaignSettles(ctx context.Context, campaignID string) 
 		miner = strings.TrimSpace(miner)
 		runSt = strings.TrimSpace(strings.ToLower(runSt))
 		// Never attribute empty work-item miners to the finding winner (H-04).
-		if miner == "" || !strings.HasPrefix(miner, "HMC-") || len(miner) != 20 {
+		if miner == "" || !chain.IsValidAddress(miner) {
 			continue
 		}
 		kind := "run"
@@ -124,7 +125,7 @@ func minerFromFindingDetail(detail string) string {
 	}
 	if addr, ok := m["miner_address"].(string); ok {
 		addr = strings.TrimSpace(addr)
-		if strings.HasPrefix(addr, "HMC-") && len(addr) == 20 {
+		if chain.IsValidAddress(addr) {
 			return addr
 		}
 	}
@@ -136,7 +137,7 @@ func minerFromFindingDetail(detail string) string {
 
 func resolveWorkerPayoutAddress(workerID string) string {
 	workerID = strings.TrimSpace(workerID)
-	if legacy := strings.TrimSpace(os.Getenv("FUZZ_LEGACY_MINER_ADDRESS")); strings.HasPrefix(legacy, "HMC-") && len(legacy) == 20 {
+	if legacy := strings.TrimSpace(os.Getenv("FUZZ_LEGACY_MINER_ADDRESS")); chain.IsValidAddress(legacy) {
 		if workerID == "" {
 			return legacy
 		}
@@ -154,13 +155,13 @@ func resolveWorkerPayoutAddress(workerID string) string {
 			}
 			if strings.TrimSpace(kv[0]) == workerID {
 				addr := strings.TrimSpace(kv[1])
-				if strings.HasPrefix(addr, "HMC-") && len(addr) == 20 {
+				if chain.IsValidAddress(addr) {
 					return addr
 				}
 			}
 		}
 	}
-	if legacy := strings.TrimSpace(os.Getenv("FUZZ_LEGACY_MINER_ADDRESS")); strings.HasPrefix(legacy, "HMC-") && len(legacy) == 20 {
+	if legacy := strings.TrimSpace(os.Getenv("FUZZ_LEGACY_MINER_ADDRESS")); chain.IsValidAddress(legacy) {
 		return legacy
 	}
 	// Fail closed: never fall back to "first address in WORKER_PAYOUT_MAP" (wrong-pay risk).

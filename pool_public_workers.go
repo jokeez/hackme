@@ -131,8 +131,8 @@ func publicCoordinatorSourceLabel(base string) string {
 	return "pool"
 }
 
-// redactInternalCoordinatorURLs replaces loopback coordinator URLs in status maps
-// so public HTTPS edges do not advertise 127.0.0.1:18083.
+// redactInternalCoordinatorURLs replaces loopback/private coordinator and chain-base
+// URLs in status maps so public HTTPS edges do not advertise 127.0.0.1 / 10.x topology.
 func redactInternalCoordinatorURLs(m map[string]any) {
 	if m == nil {
 		return
@@ -141,42 +141,54 @@ func redactInternalCoordinatorURLs(m map[string]any) {
 		"pool_coordinator_url",
 		"pool_coordinator_url_effective",
 		"source",
+		"canonical_chain_base_url",
+		"public_authority_base",
 	} {
-		if v, ok := m[k].(string); ok && strings.TrimSpace(v) != "" && netutil.IsLoopbackURL(v) {
+		if v, ok := m[k].(string); ok && strings.TrimSpace(v) != "" && netutil.IsNonPublicURL(v) {
 			m[k] = publicCoordinatorSourceLabel(v)
 		}
 	}
 	if ux, ok := m["miner_public_ux"].(map[string]any); ok {
-		if v, ok := ux["coordinator_url_effective"].(string); ok && netutil.IsLoopbackURL(v) {
-			ux["coordinator_url_effective"] = defaultPublicStagingCoordinatorBase
-			ux["coordinator_url_redacted"] = true
+		for _, k := range []string{"coordinator_url_effective", "canonical_chain_base"} {
+			if v, ok := ux[k].(string); ok && netutil.IsNonPublicURL(v) {
+				if k == "coordinator_url_effective" {
+					ux[k] = defaultPublicStagingCoordinatorBase
+				} else {
+					ux[k] = publicCoordinatorSourceLabel(v)
+				}
+				ux["coordinator_url_redacted"] = true
+			}
 		}
 	}
 	// Nested internal topology (hub listen ports): nothing outside the host needs it.
 	if ps, ok := m["pool_sync"].(map[string]any); ok {
-		if v, ok := ps["coordinator_url_resolved"].(string); ok && netutil.IsLoopbackURL(v) {
+		if v, ok := ps["coordinator_url_resolved"].(string); ok && netutil.IsNonPublicURL(v) {
 			ps["coordinator_url_resolved"] = publicCoordinatorSourceLabel(v)
 		}
 	}
 	if ns, ok := m["network_sync"].(map[string]any); ok {
-		if v, ok := ns["bind_addr"].(string); ok && bindAddrIsLoopback(v) {
-			ns["bind_addr"] = "loopback"
+		if v, ok := ns["bind_addr"].(string); ok && bindAddrIsInternal(v) {
+			ns["bind_addr"] = "internal"
 		}
 	}
 }
 
-// bindAddrIsLoopback reports whether a listen address (host:port, no scheme) is loopback.
+// bindAddrIsInternal reports whether a listen address (host:port) is loopback/private/link-local.
+func bindAddrIsInternal(v string) bool {
+	host, _, err := net.SplitHostPort(strings.TrimSpace(v))
+	if err != nil {
+		return false
+	}
+	return netutil.IsNonPublicHost(host)
+}
+
+// bindAddrIsLoopback kept for older call sites / tests.
 func bindAddrIsLoopback(v string) bool {
 	host, _, err := net.SplitHostPort(strings.TrimSpace(v))
 	if err != nil {
 		return false
 	}
-	host = strings.ToLower(strings.Trim(host, "[]"))
-	if host == "localhost" {
-		return true
-	}
-	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
+	return netutil.IsLoopbackHost(host)
 }
 
 // redactPublicWorkStats strips desktop id leakage, re-keys workers, and removes

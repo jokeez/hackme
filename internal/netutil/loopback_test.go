@@ -31,6 +31,26 @@ func TestIsLoopbackURL(t *testing.T) {
 	}
 }
 
+func TestIsNonPublicURL(t *testing.T) {
+	cases := []struct {
+		in   string
+		want bool
+	}{
+		{"http://127.0.0.1:18081", true},
+		{"http://10.0.0.8:18081", true},
+		{"http://192.168.1.1:90", true},
+		{"http://169.254.169.254/latest", true},
+		{"https://hackme.tech/pool", false},
+		{"http://127.0.0.1.attacker.example/", false},
+		{"", false},
+	}
+	for _, tc := range cases {
+		if got := IsNonPublicURL(tc.in); got != tc.want {
+			t.Fatalf("%q: got %v want %v", tc.in, got, tc.want)
+		}
+	}
+}
+
 func TestLooksRemoteCoordinatorURL(t *testing.T) {
 	if LooksRemoteCoordinatorURL("http://127.0.0.1:18081") {
 		t.Fatal("loopback should not look remote")

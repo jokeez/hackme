@@ -2008,16 +2008,53 @@ func buildChunkID(base, batch, mod uint64) string {
 }
 
 func deriveAddressFromPubHex(pubHex string) (string, bool) {
+	legacy, _, ok := addressesFromPubHex(pubHex)
+	return legacy, ok
+}
+
+// addressesFromPubHex returns legacy (HMC-+16) and long (HMC-+64) forms for a pubkey.
+func addressesFromPubHex(pubHex string) (legacy, long string, ok bool) {
 	pubHex = strings.TrimSpace(pubHex)
 	if pubHex == "" {
-		return "", false
+		return "", "", false
 	}
 	pub, err := hex.DecodeString(pubHex)
 	if err != nil || len(pub) != ed25519.PublicKeySize {
-		return "", false
+		return "", "", false
 	}
 	sum := sha256.Sum256(pub)
-	return "HMC-" + hex.EncodeToString(sum[:])[:16], true
+	full := hex.EncodeToString(sum[:])
+	return "HMC-" + full[:16], "HMC-" + full, true
+}
+
+func minerAddressMatchesPub(pubHex, addr string) bool {
+	addr = strings.TrimSpace(addr)
+	if addr == "" {
+		return true
+	}
+	legacy, long, ok := addressesFromPubHex(pubHex)
+	if !ok {
+		return false
+	}
+	return strings.EqualFold(addr, legacy) || strings.EqualFold(addr, long)
+}
+
+func payoutAddrForPub(pubHex, addrHint string) (string, bool) {
+	legacy, long, ok := addressesFromPubHex(pubHex)
+	if !ok {
+		return "", false
+	}
+	addrHint = strings.TrimSpace(addrHint)
+	if addrHint == "" {
+		return legacy, true
+	}
+	if strings.EqualFold(addrHint, legacy) {
+		return legacy, true
+	}
+	if strings.EqualFold(addrHint, long) {
+		return long, true
+	}
+	return "", false
 }
 
 func payoutAddressLockedReason(locked, submitted string) string {
@@ -2083,18 +2120,18 @@ func (m *workManager) checkMinerIdentity(workerID, pubHex, addrHint string, crea
 		return true, ""
 	}
 
-	derived, okAddr := deriveAddressFromPubHex(pubHex)
+	payout, okAddr := payoutAddrForPub(pubHex, addrHint)
 	if !okAddr {
-		return false, "invalid_pubkey"
-	}
-	if addrHint != "" && !strings.EqualFold(addrHint, derived) {
+		if _, _, pubOK := addressesFromPubHex(pubHex); !pubOK {
+			return false, "invalid_pubkey"
+		}
 		return false, "pubkey_address_mismatch"
 	}
-	if locked != "" && !strings.EqualFold(locked, derived) {
-		return false, payoutAddressLockedReason(locked, derived)
+	if locked != "" && !minerAddressMatchesPub(pubHex, locked) {
+		return false, payoutAddressLockedReason(locked, payout)
 	}
 	if locked == "" && createLock {
-		m.notePayoutLock(workerID, derived)
+		m.notePayoutLock(workerID, payout)
 	}
 	return true, ""
 }
@@ -2187,12 +2224,15 @@ func (m *workManager) validateHybridSignature(req submitWorkRequest) (ok bool, r
 	if alg != "ed25519" {
 		return false, "unsupported_sig_alg", ""
 	}
-	derivedAddr, okAddr := deriveAddressFromPubHex(pubHex)
+	derivedAddr, okAddr := payoutAddrForPub(pubHex, addr)
 	if !okAddr {
-		return false, "invalid_pubkey", ""
-	}
-	if addr != "" && !strings.EqualFold(addr, derivedAddr) {
+		if _, _, pubOK := addressesFromPubHex(pubHex); !pubOK {
+			return false, "invalid_pubkey", ""
+		}
 		return false, "pubkey_address_mismatch", ""
+	}
+	if addr != "" && !chain.IsValidAddress(addr) {
+		return false, "invalid_miner_address", ""
 	}
 	sig, err := hex.DecodeString(sigHex)
 	if err != nil || len(sig) != ed25519.SignatureSize {

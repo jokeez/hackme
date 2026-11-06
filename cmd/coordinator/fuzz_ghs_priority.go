@@ -93,28 +93,27 @@ func workerHybridCapacity(st workerPayoutStat, now int64) bool {
 }
 
 // fuzzClaimGHSExemptPrefixes returns worker-id prefixes that skip dig-only defer.
-// Default: bootstrap dedicated dig fleets (bootstrap-fuzz-*, bootstrap-dig-*).
-// Override with HACKME_FUZZ_CLAIM_GHS_EXEMPT_PREFIXES=comma,separated (empty string disables).
-// Hunt fleets (worker-hunt-*) are not default-exempt — worker IDs are self-reported;
-// operators set HACKME_FUZZ_CLAIM_GHS_EXEMPT_PREFIXES on the coordinator when needed.
+// Default: none. Worker IDs are self-reported, so trusting bootstrap-* by default
+// let dig-only miners spoof past ghs_priority_defer. Operators who need fleet
+// exemptions set HACKME_FUZZ_CLAIM_GHS_EXEMPT_PREFIXES=comma,separated (empty = off).
 func fuzzClaimGHSExemptPrefixes() []string {
 	v, set := os.LookupEnv("HACKME_FUZZ_CLAIM_GHS_EXEMPT_PREFIXES")
-	if set {
-		v = strings.TrimSpace(v)
-		if v == "" {
-			return nil
-		}
-		parts := strings.Split(v, ",")
-		out := make([]string, 0, len(parts))
-		for _, p := range parts {
-			p = strings.ToLower(strings.TrimSpace(p))
-			if p != "" {
-				out = append(out, p)
-			}
-		}
-		return out
+	if !set {
+		return nil
 	}
-	return []string{"bootstrap-fuzz-", "bootstrap-dig-"}
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return nil
+	}
+	parts := strings.Split(v, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.ToLower(strings.TrimSpace(p))
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func fuzzClaimGHSExemptWorker(workerID string) bool {
@@ -132,8 +131,8 @@ func fuzzClaimGHSExemptWorker(workerID string) bool {
 
 // allowFuzzClaimByGHS soft-defers dig-only (no recent PoH GH/s) workers when live hybrid
 // Dig/Hunt capacity is on the pool. When no hybrid capacity is online, dig-only fleets
-// keep full access (bootstrap / dedicated dig). Dedicated bootstrap-fuzz workers are
-// always exempt so customer dig fleets are not idle behind the dig-only lottery.
+// keep full access. Optional HACKME_FUZZ_CLAIM_GHS_EXEMPT_PREFIXES skips defer for
+// operator-trusted fleets (still self-reported — prefer empty default).
 func (m *workManager) allowFuzzClaimByGHS(workerID string, now int64) (bool, string) {
 	if m == nil || !fuzzClaimGHSPriorityEnabled() {
 		return true, ""

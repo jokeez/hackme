@@ -73,6 +73,49 @@ func LooksRemoteCoordinatorURL(raw string) bool {
 	return !IsLoopbackURL(raw)
 }
 
+// IsNonPublicHost reports loopback, RFC1918/ULA private, or link-local hosts.
+// Used to scrub operator topology from unauthenticated /api/status.
+func IsNonPublicHost(host string) bool {
+	host = strings.TrimSpace(strings.ToLower(host))
+	host = strings.Trim(host, "[]")
+	if host == "" {
+		return false
+	}
+	if IsLoopbackHost(host) {
+		return true
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return false
+	}
+	return ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast()
+}
+
+// IsNonPublicURL is true when raw's hostname is non-public (loopback/private/link-local).
+// Userinfo forms are treated as non-public so they never leak on status edges.
+func IsNonPublicURL(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return false
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return false
+	}
+	if u.User != nil && u.User.String() != "" {
+		return true
+	}
+	host := u.Hostname()
+	if host == "" {
+		if h, _, err := net.SplitHostPort(raw); err == nil {
+			host = h
+		} else {
+			host = raw
+		}
+	}
+	return IsNonPublicHost(host)
+}
+
 // SafeHTTPBaseURL reports whether raw is an http(s) URL with a host and no userinfo.
 // Used for coordinator / settle bases so credentials are never dialed to userinfo hosts.
 // Prefer SafeHTTPURLForEgress for outbound money/status dials (also blocks metadata/private).

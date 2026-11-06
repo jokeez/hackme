@@ -69,6 +69,25 @@ func TestAllowFuzzClaimBootstrapFuzzExemptFromDefer(t *testing.T) {
 	}
 }
 
+func TestAllowFuzzClaimBootstrapPrefixNotTrustedByDefault(t *testing.T) {
+	t.Setenv("HACKME_FUZZ_CLAIM_GHS_PRIORITY", "1")
+	t.Setenv("HACKME_FUZZ_CLAIM_GHS_DIG_ONLY_PCT", "0")
+	t.Setenv("HACKME_FUZZ_CLAIM_GHS_EXEMPT_PREFIXES", "") // explicit empty = no exemptions
+	// Unset path: also cover default-when-unset by deleting after set empty... 
+	// LookupEnv empty-but-set returns nil prefixes; same as unset after our change.
+	now := time.Now().Unix()
+	wm := &workManager{worker: map[string]workerPayoutStat{
+		"gpu-1": {
+			LastHashrateGHS: 40, LastSeenUnix: now,
+			LastPoHSeenUnix: now, LastFuzzSeenUnix: now,
+		},
+		"bootstrap-fuzz-spoof": {LastHashrateGHS: 0, LastSeenUnix: now, LastFuzzSeenUnix: now},
+	}}
+	if ok, reason := wm.allowFuzzClaimByGHS("bootstrap-fuzz-spoof", now); ok || reason != "ghs_priority_defer" {
+		t.Fatalf("self-reported bootstrap-* must not skip GHS defer by default: ok=%v reason=%q", ok, reason)
+	}
+}
+
 func TestAllowFuzzClaimWorkerHuntExemptViaEnv(t *testing.T) {
 	t.Setenv("HACKME_FUZZ_CLAIM_GHS_PRIORITY", "1")
 	t.Setenv("HACKME_FUZZ_CLAIM_GHS_DIG_ONLY_PCT", "0")
