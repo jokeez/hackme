@@ -30,7 +30,6 @@ func (s *Service) ReplayCampaignSettles(ctx context.Context, campaignID string) 
 	if done == 0 {
 		return 0, 0, 0, fmt.Errorf("poolfuzz: no completed work for %s", campaignID)
 	}
-	fallbackMiner := s.findingMinerAddress(ctx, campaignID)
 	rows, err := s.DB.QueryContext(ctx,
 		`SELECT id, COALESCE(miner_address,''), COALESCE(settle_run_status,'') FROM fuzz_work_items
 		 WHERE campaign_id=? AND status='done' ORDER BY id ASC`, campaignID)
@@ -99,7 +98,8 @@ func (s *Service) ReplayCampaignSettles(ctx context.Context, campaignID string) 
 		}
 		miner := minerFromFindingDetail(detail)
 		if miner == "" {
-			miner = fallbackMiner
+			_, itemID := minerAndItemFromFindingDetail(detail)
+			miner = s.workItemMinerAddress(ctx, campaignID, itemID)
 		}
 		if miner == "" {
 			continue

@@ -544,3 +544,112 @@ func (s *Service) GetFuzzEscrow(ctx context.Context, campaignID string) (*FuzzEs
 	}
 	return fuzzEscrowPublic(r), nil
 }
+
+// ErrFuzzEscrowStarted: the escrow already paid or refunded something, so it cannot be undone as
+// if it never opened — callers fall back to CancelFuzzEscrow.
+var ErrFuzzEscrowStarted = errors.New("chain: fuzz escrow already has payouts")
+
+// RollbackUnstartedFuzzEscrow undoes an escrow that opened in the same request whose campaign
+// create then failed (readback, harness publish, pool sync): the escrow and the whole Economics v2
+// fee go back to the payer — the platform leg is taken back and the burn is reversed — and the
+// escrow row is removed. CancelFuzzEscrow keeps the fee (a customer cancel); for our own failed
+// create the customer must not pay it (audit: v2 fee lost on campaign-create rollback).
+func (s *Service) RollbackUnstartedFuzzEscrow(ctx context.Context, campaignID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	campaignID = strings.TrimSpace(campaignID)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	var status, feeAsset string
+	var budget, runsPaid, bountyPaid, crashPaid, refunded, feeBurn, feePlatform, feeSUP uint64
+	err = tx.QueryRowContext(ctx, `SELECT status, budget_units, runs_paid_units, bounty_paid_units,
+	        COALESCE(crash_bonus_paid_units,0), COALESCE(refunded_bounty_units,0),
+	        COALESCE(fee_asset,''), COALESCE(fee_burn_units,0), COALESCE(fee_platform_units,0), COALESCE(fee_sup_units,0)
+	   FROM fuzz_campaign_escrow WHERE campaign_id=?`, campaignID).Scan(
+		&status, &budget, &runsPaid, &bountyPaid, &crashPaid, &refunded, &feeAsset, &feeBurn, &feePlatform, &feeSUP)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if status != "open" || runsPaid != 0 || bountyPaid != 0 || crashPaid != 0 || refunded != 0 {
+		return ErrFuzzEscrowStarted
+	}
+	var walletAddr string
+	if err := tx.QueryRowContext(ctx, `SELECT address FROM wallet WHERE id=1`).Scan(&walletAddr); err != nil {
+		return err
+	}
+	refund := budget
+	switch feeAsset {
+	case FeeAssetHMC:
+		if feePlatform > 0 {
+			var dev uint64
+			if err := tx.QueryRowContext(ctx, `SELECT balance_units FROM accounts WHERE address=?`, DevFeeAddress).Scan(&dev); err != nil || dev < feePlatform {
+				return fmt.Errorf("chain: cannot take back platform fee for %s (dev balance)", campaignID)
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE accounts SET balance_units=balance_units-?, updated_at=strftime('%s','now') WHERE address=?`, feePlatform, DevFeeAddress); err != nil {
+				return err
+			}
+			if DevFeeAddress == walletAddr {
+				if _, err := tx.ExecContext(ctx, `UPDATE wallet SET balance_units=balance_units-?, balance_hmc=(balance_units-?)/? WHERE id=1`, feePlatform, feePlatform, float64(UnitsPerHMC)); err != nil {
+					return err
+				}
+			}
+			refund += feePlatform
+		}
+		if feeBurn > 0 {
+			mintedUnits, burnedUnits, err := s.econTotalsUnits(ctx, tx)
+			if err != nil {
+				return err
+			}
+			if burnedUnits < feeBurn {
+				return fmt.Errorf("chain: burn counter below campaign burn for %s", campaignID)
+			}
+			if err := s.upsertMetaUint(ctx, tx, metaTotalBurnedUnits, burnedUnits-feeBurn); err != nil {
+				return err
+			}
+			if err := s.upsertMetaFloat(ctx, tx, metaTotalBurnedHMC, UnitsToHMC(burnedUnits-feeBurn)); err != nil {
+				return err
+			}
+			if err := s.upsertMetaFloat(ctx, tx, metaTotalMintedHMC, UnitsToHMC(mintedUnits)); err != nil {
+				return err
+			}
+			refund += feeBurn
+		}
+	case FeeAssetSUP:
+		if feeSUP > 0 {
+			burned, err := s.metaUint(ctx, tx, metaSUPTotalBurnedUnits, 0)
+			if err != nil {
+				return err
+			}
+			if burned < feeSUP {
+				return fmt.Errorf("chain: SUP burn counter below campaign fee for %s", campaignID)
+			}
+			if err := s.upsertMetaUint(ctx, tx, metaSUPTotalBurnedUnits, burned-feeSUP); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE accounts SET balance_sup_units=COALESCE(balance_sup_units,0)+?, updated_at=strftime('%s','now') WHERE address=?`, feeSUP, walletAddr); err != nil {
+				return err
+			}
+			// Keep the record (renamed, status reverted) so the same campaign id can pay a fee again.
+			if _, err := tx.ExecContext(ctx, `UPDATE sup_tx_history SET status='reverted', tx_hash=tx_hash||':reverted:'||strftime('%s','now') WHERE tx_hash=?`,
+				supFeeRefKey(SUPFeeProductHMCOrder, walletAddr, "campaign:"+campaignID)); err != nil {
+				return err
+			}
+		}
+	}
+	if err := s.creditUnits(ctx, tx, walletAddr, refund); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM fuzz_campaign_escrow WHERE campaign_id=?`, campaignID); err != nil {
+		return err
+	}
+	if err := s.checkEconomicInvariants(ctx, tx); err != nil {
+		return err
+	}
+	return tx.Commit()
+}

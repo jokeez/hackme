@@ -1055,8 +1055,12 @@ func (a *app) rollbackNewCampaignEscrow(ctx context.Context, campaignID string) 
 		return
 	}
 	if a.chain != nil {
-		if _, err := a.chain.CancelFuzzEscrow(ctx, campaignID); err != nil {
-			log.Printf("fuzz escrow: rollback %s: %v", logsafe.ID(campaignID), err)
+		// Full undo (escrow + v2 fee) while nothing was paid; otherwise a normal cancel.
+		if err := a.chain.RollbackUnstartedFuzzEscrow(ctx, campaignID); err != nil {
+			log.Printf("fuzz escrow: rollback %s: %v — falling back to cancel", logsafe.ID(campaignID), err)
+			if _, err := a.chain.CancelFuzzEscrow(ctx, campaignID); err != nil {
+				log.Printf("fuzz escrow: rollback cancel %s: %v", logsafe.ID(campaignID), err)
+			}
 		}
 	}
 	if a.db != nil {

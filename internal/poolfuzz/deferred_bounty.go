@@ -2,7 +2,6 @@ package poolfuzz
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"strings"
 
@@ -52,7 +51,8 @@ func (s *Service) flushDeferredBounties(ctx context.Context) error {
 		}
 		miner, itemID := minerAndItemFromFindingDetail(detailJSON)
 		if miner == "" {
-			miner = s.findingMinerAddress(ctx, campaignID)
+			// Only the work item that produced this finding — never another finding's miner.
+			miner = s.workItemMinerAddress(ctx, campaignID, itemID)
 		}
 		if miner == "" {
 			continue
@@ -107,23 +107,21 @@ func minerAndItemFromFindingDetail(detailJSON string) (miner string, itemID int6
 }
 
 // findingMinerAddress is used by settle replay and deferred bounty flush.
-func (s *Service) findingMinerAddress(ctx context.Context, campaignID string) string {
-	var detail string
-	err := s.DB.QueryRowContext(ctx,
-		`SELECT detail_json FROM fuzz_findings WHERE campaign_id=? ORDER BY created_at DESC LIMIT 1`, campaignID).
-		Scan(&detail)
-	if err == sql.ErrNoRows || err != nil {
+// workItemMinerAddress is the payout address recorded on the work item that produced a finding.
+// The old fallback took the newest finding of the campaign, so a bounty for a finding without a
+// miner in its detail went to whoever reported last (audit: bounty to the wrong finder).
+func (s *Service) workItemMinerAddress(ctx context.Context, campaignID string, itemID int64) string {
+	if itemID <= 0 {
 		return ""
 	}
-	miner, _ := minerAndItemFromFindingDetail(detail)
-	if miner != "" {
-		return miner
+	var addr string
+	if err := s.DB.QueryRowContext(ctx,
+		`SELECT COALESCE(miner_address,'') FROM fuzz_work_items WHERE campaign_id=? AND id=?`, campaignID, itemID).Scan(&addr); err != nil {
+		return ""
 	}
-	var m map[string]any
-	if json.Unmarshal([]byte(detail), &m) == nil {
-		if workerID, ok := m["worker_id"].(string); ok {
-			return resolveWorkerPayoutAddress(workerID)
-		}
+	addr = strings.TrimSpace(addr)
+	if strings.HasPrefix(addr, "HMC-") && len(addr) == 20 {
+		return addr
 	}
 	return ""
 }
