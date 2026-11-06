@@ -33,7 +33,7 @@ v1 used a short halving interval and a public **100M max supply** that does not 
 
 ### 1.3 Fees and burns that mean something
 
-Order open already records platform fee + burn tallies. v2 tightens the story: **10% upfront** (5% burn / 5% platform), with a Dig soft-start window, and a burn that halves with the first two HMC halvings and then stays at **1.25%**. Burns are **real destruction**, not cosmetic metadata forever.
+Order open already records platform fee + burn tallies. v2 tightens the story: **10% upfront** (5% burn / 5% platform), Dig and Hunt open from the first v2 block (no soft-start window), and a burn that halves with the first two HMC halvings and then stays at **1.25%**. Burns are **real destruction**, not cosmetic metadata forever.
 
 ### 1.4 SUP as loyalty utility, not a second money printer
 
@@ -66,7 +66,7 @@ Picking a round height months in advance ignores live tip velocity, soak results
 | Max supply in public economics | Often 100M / misleading | **None** (remove hard-cap narrative) |
 | Who captures empty coinbase | Often authority local PoH | **Settlement / pool float** (D1+D2) |
 | Treasury auto-topup | Disabled / manual catch-up | Remains off; not a policy substitute |
-| Order fee/burn | 5% fee + 10% burn tally (see order docs) | **10% upfront: 5% burn / 5% platform**; Dig soft-start then Hunt |
+| Order fee/burn | 5% fee + 10% burn tally (see order docs) | **10% upfront: 5% burn / 5% platform**; Dig and Hunt open from activation |
 | SUP emission | Accrual % of HMC work (live) | On-switch: **0.002 SUP/block**, same halving heights as HMC, **no tail**, cap **21 000** |
 | SUP spend | Spec evolving | **Non-refundable fee only** (1:1 vs HMC fee); escrow always HMC |
 | Activation | n/a | **Announced height** after ≥7d notice — not a pre-chosen vanity height |
@@ -161,7 +161,7 @@ Customer prepaid Dig/Hunt budgets remain **HMC escrow**. That does not become SU
 | Platform | **5%** | DevFee / platform |
 | Working escrow | **90%** | Runs + bounty pools per package rules |
 
-**Soft-start:** Dig-only for the first **~30 days** after activation, then Hunt (exact calendar in the activation announce). Burn **percentage** halves with the first two HMC halvings (**5% → 2.5% → 1.25%**), then **stays at 1.25%** for good. Freezing only at the HMC tail would leave ~0.08% — too small to offset the 0.002 HMC/block tail emission; at 1.25% roughly 460 HMC/day of orders burn as much as the tail mints. Platform fee stays 5%.
+**No soft-start:** Dig **and** Hunt are open from the first v2 block. (An earlier draft kept Hunt closed for ~30 days after the announce; dropped 2026-11-06 — it would have stopped paying Hunt customers for a month for no protocol reason.) Burn **percentage** halves with the first two HMC halvings (**5% → 2.5% → 1.25%**), then **stays at 1.25%** for good. Freezing only at the HMC tail would leave ~0.08% — too small to offset the 0.002 HMC/block tail emission; at 1.25% roughly 460 HMC/day of orders burn as much as the tail mints. Platform fee stays 5%.
 
 PoH order prepaid (`reward_hmc × target_solves`) keeps existing minimums and pool-attach behavior unless called out in the activation notes.
 
@@ -213,7 +213,7 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 | **D3** | Start buffer | One public **2000 HMC** transfer; hash in activation announce |
 | **D4** | SUP emission | 0.002 SUP/block, shared halving heights, no tail, **hard cap 21 000** |
 | **D5** | SUP utility | Non-refundable fee only; escrow always HMC |
-| **D6** | Order fee/burn | 10% (5/5); Dig soft-start **30 calendar days** from activation announce, then Hunt |
+| **D6** | Order fee/burn | 10% (5/5) · burn 5% → 2.5% → 1.25% · **no soft-start** — Dig and Hunt from activation (soft-start dropped 2026-11-06) |
 | **D7** | Airdrops | **Out of scope** for this RFC / height switch |
 | **D8** | Activation | tip-at-announce + **≥7 days**; height published before release — **not** a vanity block like 650 000 |
 | **D9** | Minimal package | HMC schedule + fee/burn + SUP + `chain_id` + authority sig |
@@ -235,7 +235,6 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
         ▼
 [ Activation announce ]
    - buffer tx hash (D3)
-   - soft-start calendar (D6)
    - activation_height := f(tip, ≥7d, margin)
         │
         ▼
@@ -263,7 +262,7 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 | Lock + public RFC (this doc) | ✅ |
 | Soft announce (news + public docs) | ✅ 2026-10-30 |
 | D9 height package + consensus harden | ✅ on `main` (env bootstrap → locked `meta economics_v2_activation_height`; **unset on hub**) |
-| D6 Dig soft-start + burn-halve wiring | ✅ on `main` (`HACKME_ECONOMICS_V2_ANNOUNCE_UNIX` / meta; Hunt 50/50 gated; burn 5% → 2.5% → 1.25% then fixed; **unset on hub** ⇒ gate off) |
+| D6 burn-halve wiring | ✅ on `main` (burn 5% → 2.5% → 1.25% then fixed). Hunt soft-start gate **removed from code** 2026-11-06 — the announce timestamp is recorded but gates nothing |
 | Address/key binding | ✅ recorded from history now, enforced from the activation height |
 | Long address format | ✅ `HMC-` + 64 hex accepted from the activation height (voluntary migration) |
 | Activation height | ✅ **550 000** compiled into the release with the hub authority key (≈ 2026-11-15) |
@@ -277,8 +276,8 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 
 | # | Topic | Decision (2026-10-31) | Why |
 |---|-------|------------------------|-----|
-| 1 | Start buffer (D3) | **2000 HMC** | Covers ≥7d notice + soft-start while primary float stays thin under live D1 mint→sweep |
-| 2 | Dig burn soft-start (D6) | **30 calendar days** from activation announce wall-clock | Clearer for customers/operators than a block-count; code constant `V2DigBurnSoftStartCalendarDays` |
+| 1 | Start buffer (D3) | **2000 HMC** | Covers ≥7d notice and the first days after activation while primary float stays thin under live D1 mint→sweep |
+| 2 | Dig/Hunt soft-start (D6) | **None** (was 30 calendar days; dropped 2026-11-06) | Hunt customers keep being served across the switch; no calendar to coordinate |
 | 3 | SUP cap (D4) | **21 000 hard cap** | Matches `V2SUPMaxSupply`; no “monitor ~16k” ambiguity for explorers/listings |
 | 4 | Extra OP_RETURN | **No** for first switch | Checkpoints + OTS already; do not block activation |
 
@@ -332,6 +331,7 @@ Miners, desktop nodes, explorers, and customers need a predictable upgrade windo
 | 2026-11-04 | Minimum activation notice shortened from 14 to 7 days (20 160 blocks) |
 | 2026-11-05 | Activation height 540 000 + authority key compiled in; address/key binding added to the height package |
 | 2026-11-05 | Height moved to **550 000** (keeps the ≥7-day notice for a 2026-11-06 announce); long `HMC-` + 64 hex addresses added to the height package |
+| 2026-11-06 | D6 soft-start dropped: Hunt stays open across activation; gate removed from code |
 | 2026-11-06 | 0.1.0-rc19 published with the height package (all installers rebuilt from `main`); public site/docs switched from "soft announce" to "activates at 550 000" |
 
 ---

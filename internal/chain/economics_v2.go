@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 )
 
 // Economics v2 (RFC_ECONOMICS_V2.md D9) — height-gated; unset/0 = never activate.
@@ -27,17 +26,12 @@ const (
 	V2SUPMaxSupply = 21_000.0
 	// V2ActivationBufferHMC is the public start-buffer size for the activation announce (D3 locked).
 	V2ActivationBufferHMC = 2000.0
-	// V2DigBurnSoftStartCalendarDays is Dig-only product soft-start after announce wall-clock (D6 locked).
-	V2DigBurnSoftStartCalendarDays = 30
 )
 
 const (
 	metaEconomicsV2ActivationHeight = "economics_v2_activation_height"
 	metaEconomicsV2AnnounceUnix     = "economics_v2_announce_unix"
 )
-
-// ErrHuntSoftStart is returned while Economics v2 Dig-only soft-start is active.
-var ErrHuntSoftStart = errors.New("chain: Hunt escrow blocked during Economics v2 Dig soft-start")
 
 var (
 	econV2HeightOnce   sync.Once
@@ -112,8 +106,9 @@ func EconomicsV2ActiveForIndex(index uint64) bool {
 	return act >= 1 && index >= 1 && index >= act
 }
 
-// EconomicsV2AnnounceUnix is the activation-announce wall-clock (RFC D6 soft-start origin).
-// Preference: locked chain meta, else HACKME_ECONOMICS_V2_ANNOUNCE_UNIX. Unset/0 ⇒ no soft-start gate.
+// EconomicsV2AnnounceUnix is the activation-announce wall-clock, kept as locked meta for the record.
+// Preference: locked chain meta, else HACKME_ECONOMICS_V2_ANNOUNCE_UNIX. It gates nothing: the D6
+// Dig-only soft-start was dropped (2026-11-06), Hunt is open from activation.
 func EconomicsV2AnnounceUnix() int64 {
 	econV2AnnounceMetaMu.RLock()
 	meta := econV2AnnounceOverride
@@ -130,22 +125,6 @@ func EconomicsV2AnnounceUnix() int64 {
 		}
 	})
 	return econV2AnnounceUnix
-}
-
-// DigSoftStartActiveAt reports whether Dig-only soft-start applies at wallClockUnix.
-// Requires a published announce unix; inactive when unset (pre-announce / soak).
-func DigSoftStartActiveAt(wallClockUnix int64) bool {
-	ann := EconomicsV2AnnounceUnix()
-	if ann < 1 || wallClockUnix < 1 {
-		return false
-	}
-	end := ann + int64(V2DigBurnSoftStartCalendarDays)*24*3600
-	return wallClockUnix >= ann && wallClockUnix < end
-}
-
-// DigSoftStartActiveNow is DigSoftStartActiveAt(time.Now().Unix()).
-func DigSoftStartActiveNow() bool {
-	return DigSoftStartActiveAt(time.Now().Unix())
 }
 
 // economicsV2ActivationHeightQ prefers immutable chain meta, then env bootstrap.

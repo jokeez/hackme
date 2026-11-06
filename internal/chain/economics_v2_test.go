@@ -2,7 +2,6 @@ package chain
 
 import (
 	"context"
-	"errors"
 	"math"
 	"path/filepath"
 	"strconv"
@@ -270,42 +269,15 @@ func TestEconomicsV2BurnHalvesThenFreezes(t *testing.T) {
 	}
 }
 
-func TestEconomicsV2DigSoftStartGate(t *testing.T) {
+// D6 dropped: an announce timestamp (env or meta) must not block Hunt escrow.
+func TestOpenHuntEscrowNotBlockedByAnnounce(t *testing.T) {
 	ResetEconomicsV2ActivationHeightForTest()
 	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
-	t.Setenv("HACKME_ECONOMICS_V2_ANNOUNCE_UNIX", "")
-	ResetEconomicsV2ActivationHeightForTest()
-	if DigSoftStartActiveAt(1_700_000_000) {
-		t.Fatal("unset announce must not soft-start")
-	}
-
-	ann := int64(1_700_000_000)
-	t.Setenv("HACKME_ECONOMICS_V2_ANNOUNCE_UNIX", strconv.FormatInt(ann, 10))
-	ResetEconomicsV2ActivationHeightForTest()
-	if !DigSoftStartActiveAt(ann) {
-		t.Fatal("at announce should soft-start")
-	}
-	if !DigSoftStartActiveAt(ann + 29*24*3600) {
-		t.Fatal("day 29 should soft-start")
-	}
-	if DigSoftStartActiveAt(ann + 30*24*3600) {
-		t.Fatal("day 30 boundary should end soft-start")
-	}
-	if DigSoftStartActiveAt(ann - 1) {
-		t.Fatal("before announce must not soft-start")
-	}
-}
-
-func TestOpenHuntEscrowBlockedDuringSoftStart(t *testing.T) {
-	ResetEconomicsV2ActivationHeightForTest()
-	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
-	ann := time.Now().Unix() - 60
-	t.Setenv("HACKME_ECONOMICS_V2_ANNOUNCE_UNIX", strconv.FormatInt(ann, 10))
+	t.Setenv("HACKME_ECONOMICS_V2_ANNOUNCE_UNIX", strconv.FormatInt(time.Now().Unix()-60, 10))
 	ResetEconomicsV2ActivationHeightForTest()
 
 	ctx := context.Background()
-	dir := t.TempDir()
-	db, err := store.Open(filepath.Join(dir, "softstart.db"))
+	db, err := store.Open(filepath.Join(t.TempDir(), "nosoftstart.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,13 +288,11 @@ func TestOpenHuntEscrowBlockedDuringSoftStart(t *testing.T) {
 		t.Fatal(err)
 	}
 	preFundEscrow(t, ctx, db, addr, 40.0)
-	_, err = svc.OpenHuntEscrow(ctx, "hunt-soft-start", 20.0, 100)
-	if !errors.Is(err, ErrHuntSoftStart) {
-		t.Fatalf("want ErrHuntSoftStart, got %v", err)
+	if _, err := svc.OpenHuntEscrow(ctx, "hunt-right-after-announce", 20.0, 100); err != nil {
+		t.Fatalf("Hunt escrow right after the announce: %v", err)
 	}
-	// Dig 20/80 still allowed during soft-start.
-	if _, err := svc.OpenFuzzEscrow(ctx, "dig-soft-start", 20.0, 100); err != nil {
-		t.Fatalf("Dig escrow during soft-start: %v", err)
+	if _, err := svc.OpenFuzzEscrow(ctx, "dig-right-after-announce", 10.0, 100); err != nil {
+		t.Fatalf("Dig escrow right after the announce: %v", err)
 	}
 }
 

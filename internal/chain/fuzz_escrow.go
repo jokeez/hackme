@@ -82,10 +82,6 @@ func (s *Service) OpenFuzzEscrowWithFee(ctx context.Context, campaignID string, 
 	minBudget := fuzzescrow.MinCampaignBudgetHMC
 	switch escrowSplit {
 	case fuzzescrow.EscrowSplit5050:
-		// RFC D6: Dig-only soft-start after activation announce (Hunt 50/50 blocked).
-		if DigSoftStartActiveNow() {
-			return nil, ErrHuntSoftStart
-		}
 		minBudget = fuzzescrow.HuntMinLiteBudgetHMC
 	case fuzzescrow.EscrowSplit4060:
 		minBudget = fuzzescrow.MinDeepCampaignBudgetHMC
