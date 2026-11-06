@@ -43,10 +43,15 @@ grep -q 'hackme_desktop_launch.sh' "$DESKTOP_TMP/usr/share/applications/hackme-d
   exit 1
 }
 
-bash "$ROOT/scripts/release/apt/build_local_apt_repo.sh"
-[[ -f "$ROOT/dist/apt/repo/dists/unstable/Release" ]] || { echo "[gate] FAIL apt Release" >&2; exit 1; }
+# Scratch repo: build_local_apt_repo.sh wipes pool/ and dists/ of its REPO_ROOT. Pointing it at
+# dist/apt/repo deleted the signed "stable" suite that the release had just published, so the
+# public apt index silently stayed on the previous version (rc19).
+GATE_REPO="$(mktemp -d)"
+trap 'rm -f "$LIST"; rm -rf "$DESKTOP_TMP" "$GATE_REPO"' EXIT
+APT_REPO_ROOT="$GATE_REPO" bash "$ROOT/scripts/release/apt/build_local_apt_repo.sh"
+[[ -f "$GATE_REPO/dists/unstable/Release" ]] || { echo "[gate] FAIL apt Release" >&2; exit 1; }
 [[ -f "$ROOT/dist/apt/hackme-local.list" ]] || { echo "[gate] FAIL list file" >&2; exit 1; }
-grep -q 'hackme-node' "$ROOT/dist/apt/repo/dists/unstable/main/binary-amd64/Packages" || {
+grep -q 'hackme-node' "$GATE_REPO/dists/unstable/main/binary-amd64/Packages" || {
   echo "[gate] FAIL Packages missing hackme-node" >&2
   exit 1
 }

@@ -73,6 +73,11 @@ bash scripts/tests/update_channel_gate.sh
 bash scripts/tests/apt_deb_gate.sh || true
 # Signed apt quick check
 test -f dist/apt/repo/dists/stable/InRelease
+deb_ver="$(printf '%s' "$VERSION" | tr '-' '~')"
+grep -qxF "Version: ${deb_ver}" dist/apt/repo/dists/stable/main/binary-amd64/Packages || {
+  echo "[full-release] ERROR: signed apt suite does not carry ${VERSION}" >&2
+  exit 1
+}
 gpg --verify dist/apt/repo/dists/stable/InRelease >/dev/null 2>&1 || \
   GNUPGHOME="$ROOT/.secrets/apt/gnupg" gpg --verify dist/apt/repo/dists/stable/InRelease
 
