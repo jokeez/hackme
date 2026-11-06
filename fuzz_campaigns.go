@@ -793,6 +793,12 @@ func (a *app) handleFuzzCampaignCreate(w http.ResponseWriter, r *http.Request) {
 				fmt.Sprintf("dig package %s requires budget_hmc >= %.2f", digPkg, minDig), nil)
 			return
 		}
+		if poolDistributedCampaign(cfgMap) && !poolSyncCoordinatorConfigured() {
+			_, _ = a.db.ExecContext(r.Context(), `DELETE FROM fuzz_campaigns WHERE id=?`, id)
+			writeAPIError(w, http.StatusBadRequest, "pool_coordinator_required",
+				"pool_distributed requires HACKME_POOL_COORDINATOR_URL", nil)
+			return
+		}
 		if _, fundErr := a.ensureOrdersSpendableForBudget(r.Context(), req.BudgetHMC); fundErr != nil {
 			_, _ = a.db.ExecContext(r.Context(), `DELETE FROM fuzz_campaigns WHERE id=?`, id)
 			writeOrdersAutoFundOrEscrowFailed(w, fundErr)
@@ -835,6 +841,7 @@ func (a *app) handleFuzzCampaignCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	c, err := a.getFuzzCampaign(r.Context(), id)
 	if err != nil {
+		_, _ = a.db.ExecContext(r.Context(), `DELETE FROM fuzz_campaigns WHERE id=?`, id)
 		writeAPIError(w, http.StatusInternalServerError, "load_failed", "campaign created but readback failed", nil)
 		return
 	}

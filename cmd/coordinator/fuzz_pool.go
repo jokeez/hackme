@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"hackme/internal/fuzzengine"
@@ -1601,12 +1602,23 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		if path, ok := hunt.GetHarnessArtifactPath(hash); ok {
 			safe, allowOk := pathsafe.Allow(path)
 			if allowOk && pathsafe.AbsRE.MatchString(safe) {
-				w.Header().Set("Content-Type", "application/octet-stream")
-				if fp, err := hunt.GetHarnessContentSHA256(r.Context(), pf.DB, hash); err == nil && fp != "" {
-					w.Header().Set("X-Hackme-Content-SHA256", fp)
+				disk := filepath.FromSlash(safe)
+				// Never ServeFile: it follows symlinks. Open with O_NOFOLLOW so a planted
+				// link in the harness store cannot exfiltrate outside the object root.
+				f, openErr := os.OpenFile(disk, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+				if openErr == nil {
+					st, stErr := f.Stat()
+					if stErr == nil && st.Mode().IsRegular() {
+						w.Header().Set("Content-Type", "application/octet-stream")
+						if fp, err := hunt.GetHarnessContentSHA256(r.Context(), pf.DB, hash); err == nil && fp != "" {
+							w.Header().Set("X-Hackme-Content-SHA256", fp)
+						}
+						http.ServeContent(w, r, st.Name(), st.ModTime(), f)
+						_ = f.Close()
+						return
+					}
+					_ = f.Close()
 				}
-				http.ServeFile(w, r, filepath.FromSlash(safe))
-				return
 			}
 		}
 		data, err := huntGetHarnessArtifact(r.Context(), pf.DB, hash)

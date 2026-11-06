@@ -16,6 +16,7 @@ func TestFetchExchangeTickersJSON_OK(t *testing.T) {
 	}))
 	defer srv.Close()
 	t.Setenv("HACKME_EXCHANGE_TICKERS_URL", srv.URL)
+	globalExchangeTickersCache = exchangeTickersCache{}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -29,6 +30,33 @@ func TestFetchExchangeTickersJSON_OK(t *testing.T) {
 	}
 	if payload["ok"] != true {
 		t.Fatalf("ok=%v", payload["ok"])
+	}
+}
+
+func TestExchangeTickersUpstreamRejectsMetadata(t *testing.T) {
+	t.Setenv("HACKME_ALLOW_PRIVATE_EGRESS", "0")
+	t.Setenv("HACKME_EXCHANGE_TICKERS_URL", "http://169.254.169.254/latest/meta-data")
+	if got := exchangeTickersUpstreamURL(); got != defaultExchangeTickersURL {
+		t.Fatalf("metadata override must fall back to default, got %q", got)
+	}
+}
+
+func TestFetchExchangeTickersJSON_RefusesRedirect(t *testing.T) {
+	final := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("redirect target must not be fetched")
+	}))
+	defer final.Close()
+	redir := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, final.URL, http.StatusFound)
+	}))
+	defer redir.Close()
+	t.Setenv("HACKME_EXCHANGE_TICKERS_URL", redir.URL)
+	globalExchangeTickersCache = exchangeTickersCache{}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if _, err := fetchExchangeTickersJSON(ctx); err == nil {
+		t.Fatal("expected redirect refusal")
 	}
 }
 

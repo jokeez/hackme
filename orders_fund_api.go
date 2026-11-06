@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"hackme/internal/chain"
+	"hackme/internal/netutil"
 )
 
 const ordersFundMemoMaxWait = 75 * time.Second
@@ -326,7 +327,7 @@ func (a *app) relayOrdersFundTransfer(ctx context.Context, base string, submitRa
 		return "", "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{Timeout: txTimeout}
+	client := netutil.HTTPClientNoRedirect(txTimeout)
 	resp, err := client.Do(req)
 	var body []byte
 	var code int
@@ -401,7 +402,7 @@ func (a *app) fetchCanonicalTransferMap(ctx context.Context, base, txHash string
 	if err != nil {
 		return nil, err
 	}
-	resp, err := (&http.Client{Timeout: 8 * time.Second}).Do(req)
+	resp, err := netutil.HTTPClientNoRedirect(8 * time.Second).Do(req)
 	if err == nil && resp != nil {
 		defer resp.Body.Close()
 		body, _ := io.ReadAll(resp.Body)

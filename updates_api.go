@@ -334,7 +334,13 @@ func (a *app) handleUpdatesCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	updateCheckCached.mu.Unlock()
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	// No redirects: a 3xx from latest.json hosts must not pivot egress to a private IP.
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 	doc, src, err := fetchLatestJSON(client)
 	if err != nil {
 		writeJSON(w, map[string]any{

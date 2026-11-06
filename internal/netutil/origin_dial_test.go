@@ -120,3 +120,13 @@ func TestOriginDialConfigured(t *testing.T) {
 		t.Fatal("want configured")
 	}
 }
+
+func TestOriginDialRejectsHostnamePin(t *testing.T) {
+	t.Cleanup(ResetOriginDialForTest)
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL", "evil.example")
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL_HOST", "hackme.tech")
+	ResetOriginDialForTest()
+	if OriginDialConfigured() {
+		t.Fatal("hostname pin must be ignored; only literal IPs are allowed")
+	}
+}

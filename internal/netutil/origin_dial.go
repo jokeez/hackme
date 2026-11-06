@@ -29,7 +29,12 @@ var (
 
 func loadOriginDial() {
 	originDialOnce.Do(func() {
-		originDialIP = strings.TrimSpace(os.Getenv("HACKME_POOL_ORIGIN_DIAL"))
+		raw := strings.TrimSpace(os.Getenv("HACKME_POOL_ORIGIN_DIAL"))
+		// Pin must be a literal IP — hostnames would reintroduce DNS / CDN path.
+		if raw != "" && net.ParseIP(raw) == nil {
+			raw = ""
+		}
+		originDialIP = raw
 		originDialHost = strings.ToLower(strings.TrimSpace(os.Getenv("HACKME_POOL_ORIGIN_DIAL_HOST")))
 		if originDialHost == "" {
 			originDialHost = "hackme.tech"

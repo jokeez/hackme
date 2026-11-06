@@ -3,10 +3,12 @@ package hunt
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 
 	"hackme/internal/gitutil"
 	"hackme/internal/pathsafe"
@@ -38,7 +40,21 @@ func fsReadFile(p string) ([]byte, error) {
 	if !pathsafe.AbsRE.MatchString(safe) {
 		return nil, fmt.Errorf("hunt: path rejected by allowlist")
 	}
-	return os.ReadFile(safe)
+	// O_NOFOLLOW: pathsafe only checks the string; a same-UID symlink plant must not
+	// exfiltrate files outside the harness store.
+	f, err := os.OpenFile(safe, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !st.Mode().IsRegular() {
+		return nil, fmt.Errorf("hunt: not a regular file")
+	}
+	return io.ReadAll(io.LimitReader(f, 64<<20))
 }
 
 func fsStat(p string) (os.FileInfo, error) {
@@ -49,7 +65,7 @@ func fsStat(p string) (os.FileInfo, error) {
 	if !pathsafe.AbsRE.MatchString(safe) {
 		return nil, fmt.Errorf("hunt: path rejected by allowlist")
 	}
-	return os.Stat(safe)
+	return os.Lstat(safe)
 }
 
 func fsReadDir(p string) ([]os.DirEntry, error) {

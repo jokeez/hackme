@@ -196,6 +196,12 @@ func (a *app) handleHuntCampaignCreate(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusConflict, "create_failed", "campaign create failed", map[string]any{"detail": err.Error()})
 		return
 	}
+	if poolDistributedCampaign(cfgMap) && !poolSyncCoordinatorConfigured() {
+		_, _ = a.db.ExecContext(r.Context(), `DELETE FROM fuzz_campaigns WHERE id=?`, id)
+		writeAPIError(w, http.StatusBadRequest, "pool_coordinator_required",
+			"pool_distributed requires HACKME_POOL_COORDINATOR_URL", nil)
+		return
+	}
 	if _, fundErr := a.ensureOrdersSpendableForBudget(r.Context(), budgetHMC); fundErr != nil {
 		_, _ = a.db.ExecContext(r.Context(), `DELETE FROM fuzz_campaigns WHERE id=?`, id)
 		writeOrdersAutoFundOrEscrowFailed(w, fundErr)

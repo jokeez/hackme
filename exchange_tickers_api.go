@@ -3,12 +3,15 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"hackme/internal/netutil"
 )
 
 const (
@@ -29,9 +32,25 @@ var globalExchangeTickersCache exchangeTickersCache
 
 func exchangeTickersUpstreamURL() string {
 	if u := strings.TrimSpace(os.Getenv("HACKME_EXCHANGE_TICKERS_URL")); u != "" {
+		// Operator override must still be http(s) without userinfo and not metadata.
+		// Lab/loopback allowed (httptest tests + LAN desk); redirects are refused separately.
+		if !netutil.SafeHTTPURLForEgressAllowLab(u) {
+			return defaultExchangeTickersURL
+		}
 		return u
 	}
 	return defaultExchangeTickersURL
+}
+
+func exchangeTickersHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: exchangeTickersFetchTO,
+		// Default Client follows 3xx and can land on link-local/metadata after a
+		// compromised or mis-set upstream. Never follow redirects on this proxy.
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return fmt.Errorf("exchange tickers: refusing HTTP redirect")
+		},
+	}
 }
 
 func fetchExchangeTickersJSON(ctx context.Context) ([]byte, error) {
@@ -41,8 +60,7 @@ func fetchExchangeTickersJSON(ctx context.Context) ([]byte, error) {
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "HackMe-Node/exchange-tickers-proxy")
-	client := &http.Client{Timeout: exchangeTickersFetchTO}
-	resp, err := client.Do(req)
+	resp, err := exchangeTickersHTTPClient().Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -122,10 +140,11 @@ func (a *app) handleExchangeTickers(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	raw, staleErr, ok := cachedExchangeTickers(ctx)
 	if !ok {
+		// Do not echo the configured upstream URL (may be operator-local / mistaken).
 		writeJSON(w, map[string]any{
 			"ok":     false,
 			"error":  staleErr,
-			"source": exchangeTickersUpstreamURL(),
+			"source": "exchange-tickers",
 		})
 		return
 	}
@@ -135,6 +154,6 @@ func (a *app) handleExchangeTickers(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-HackMe-Tickers-Stale", "1")
 		w.Header().Set("X-HackMe-Tickers-Error", staleErr)
 	}
-	w.Header().Set("X-HackMe-Tickers-Source", exchangeTickersUpstreamURL())
+	w.Header().Set("X-HackMe-Tickers-Source", "exchange-tickers")
 	_, _ = w.Write(raw)
 }
