@@ -1,28 +1,36 @@
 {
   "version": 1,
-  "updated_unix": 1761933600,
+  "updated_unix": 1762416000,
   "notices": [
     {
-      "id": "rc18-1-orders-publish",
+      "id": "rc19-wallet-econ-packages",
       "severity": "info",
-      "title": "0.1.0-rc18.1 \u2014 Orders publish token",
-      "body": "Channel 0.1.0-rc18.1: Orders may ship scoped pool.orders.token for capped Dig/Hunt register on the public pool (not full admin). Miners still use pool.miner.token. Blake3 share-PPS unchanged.",
-      "cta_label": "Orders",
-      "cta_href": "/orders.html"
+      "title": "0.1.0-rc19 — longer wallets · Economics v2 prep · packages",
+      "body": "Channel 0.1.0-rc19 prepares longer HMC wallet addresses and Economics v2 (not activated yet). Miner and Orders installers: Windows Setup, Linux deb/rpm/Arch, Docker (HACKME_PROFILE=orders), HackMe OS ISO. Secrets stay in your home directory — never inside the package.",
+      "cta_label": "Downloads",
+      "cta_href": "/downloads.html"
     },
     {
       "id": "economics-v2-soft-announce",
       "severity": "info",
       "title": "Economics v2 — soft announce (not activated)",
-      "body": "Public RFC locks Economics v2 design: target 0.1 HMC/block, ~4y halvings, 0.002 tail, pool from emission, no airdrops. Not live yet — activation only after soak + \u226514 days notice. Live payouts remain current rc18.1 rules.",
+      "body": "Public RFC locks Economics v2 design: target 0.1 HMC/block, ~4y halvings, 0.002 tail, pool from emission, no airdrops. Not live yet — activation only after soak + \u226514 days notice. Live payouts remain current rules until the activation height.",
       "cta_label": "Read RFC",
       "cta_href": "https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md"
+    },
+    {
+      "id": "rc19-orders-beside-miner",
+      "severity": "info",
+      "title": "Orders beside Miner — use port 8081",
+      "body": "Miner and Orders both default to 8080. If the miner is already running, Orders now errors clearly instead of opening the miner dashboard. Run: HACKME_ORDERS_PORT=8081 bash start_hackme_orders.sh (port is remembered).",
+      "cta_label": "Linux packages",
+      "cta_href": "https://github.com/jokeez/hackme/blob/main/docs/LINUX_PACKAGES.md"
     },
     {
       "id": "rc18-share-pps",
       "severity": "info",
       "title": "Blake3 share-PPS \u00b7 CUDA/OpenCL",
-      "body": "Blake3 PoH LIVE (tip \u2265 #485000). Pool pays verified shares (SHARE_STRICT PPS at M/1024). Pool GH/s is blake3_pow_ghs (shares/wall). NVIDIA CUDA / AMD OpenCL. Hunt = Linux + bubblewrap.",
+      "body": "Blake3 PoH LIVE. Pool pays verified shares (SHARE_STRICT PPS at M/1024). Pool GH/s is blake3_pow_ghs (shares/wall). NVIDIA CUDA / AMD OpenCL. Hunt = Linux + bubblewrap.",
       "cta_label": "Downloads",
       "cta_href": "/downloads.html"
     },
@@ -33,14 +41,6 @@
       "body": "Each share_nonce is a PoH hit with work % (M/1024) == 0, verified by the coordinator. SHARE_STRICT pays those shares; client hashrate_gh_s is not the paycheck. Dig/Hunt remain the useful-work / bounty lanes.",
       "cta_label": "Economics",
       "cta_href": "/economics-model.html"
-    },
-    {
-      "id": "found-recheck",
-      "severity": "info",
-      "title": "Found-hit recheck",
-      "body": "Coordinator samples found=false submits and rejects missed_found_unreported if the lease prefix contains a valid PoH hit you did not report.",
-      "cta_label": "Docs",
-      "cta_href": "/docs.html"
     }
   ]
 }

@@ -1,8 +1,8 @@
 (() => {
   /** Channel label (UI / news). Artifact URLs use PUBLISHED_ARTIFACT_VER. */
-  const RELEASE_VER = "0.1.0-rc18.2";
+  const RELEASE_VER = "0.1.0-rc19";
   /** Published downloadables on GitHub / dist (installer channel). */
-  const PUBLISHED_ARTIFACT_VER = "0.1.0-rc18.1";
+  const PUBLISHED_ARTIFACT_VER = "0.1.0-rc19";
   /** HackMe OS ISO channel follows PUBLISHED_ARTIFACT_VER. */
   const ISO_CHANNEL = PUBLISHED_ARTIFACT_VER;
 
@@ -40,7 +40,7 @@
     newsDisplay: "/assets/news-display.json",
     newsArchive: "/assets/news.json",
     releaseChannel: RELEASE_VER,
-    releaseChannelNote: RELEASE_VER.replace(/^0\.1\.0-/, "") + " channel — Coverage Hunt engines auto-install · Dig/Hunt pool · paper Exchange · SUP; installers " + PUBLISHED_ARTIFACT_VER,
+    releaseChannelNote: RELEASE_VER.replace(/^0\.1\.0-/, "") + " channel — longer wallets + Economics v2 prep · miner/Orders packages (deb/rpm/Arch/Docker) · Dig/Hunt · paper Exchange; installers " + PUBLISHED_ARTIFACT_VER,
     publishedArtifactVer: PUBLISHED_ARTIFACT_VER,
     releaseBase: `/dist/release_${PUBLISHED_ARTIFACT_VER}`,
     // Primary downloads: GitHub Releases (Cloudflare /dist often stalls or truncates large files).
@@ -56,6 +56,10 @@
     linuxBundleMirror: `/dist/release_${PUBLISHED_ARTIFACT_VER}/hackme_${PUBLISHED_ARTIFACT_VER}_linux.tar.gz`,
     linuxDeb: `https://github.com/jokeez/hackme/releases/download/${PUBLISHED_ARTIFACT_VER}/hackme-node_${PUBLISHED_ARTIFACT_VER}_amd64.deb`,
     linuxDebMirror: `/dist/release_${PUBLISHED_ARTIFACT_VER}/hackme-node_${PUBLISHED_ARTIFACT_VER}_amd64.deb`,
+    linuxRpm: `https://github.com/jokeez/hackme/releases/download/${PUBLISHED_ARTIFACT_VER}/hackme-node-${PUBLISHED_ARTIFACT_VER}.x86_64.rpm`,
+    linuxRpmMirror: `/dist/release_${PUBLISHED_ARTIFACT_VER}/hackme-node-${PUBLISHED_ARTIFACT_VER}.x86_64.rpm`,
+    linuxArch: `https://github.com/jokeez/hackme/releases/download/${PUBLISHED_ARTIFACT_VER}/hackme-node-${PUBLISHED_ARTIFACT_VER}-x86_64.pkg.tar.zst`,
+    linuxArchMirror: `/dist/release_${PUBLISHED_ARTIFACT_VER}/hackme-node-${PUBLISHED_ARTIFACT_VER}-x86_64.pkg.tar.zst`,
     hackmeOSIso: `https://github.com/jokeez/hackme/releases/download/${ISO_CHANNEL}/HackMe-OS-${ISO_CHANNEL}-amd64.iso`,
     hackmeOSIsoMirror: `/dist/release_${ISO_CHANNEL}/HackMe-OS-${ISO_CHANNEL}-amd64.iso`,
     hackmeOSIsoLegacy: `/dist/release_${ISO_CHANNEL}/HackMe-Miner-${ISO_CHANNEL}-amd64.iso`,
@@ -207,6 +211,8 @@
     setHref("download-win-zip", CONFIG.windowsBundleLegacy || CONFIG.windowsBundle);
     setHref("download-linux", CONFIG.linuxBundle);
     setHref("download-linux-deb", CONFIG.linuxDeb);
+    setHref("download-linux-rpm", CONFIG.linuxRpm);
+    setHref("download-linux-arch", CONFIG.linuxArch);
     setHref("download-fuzzing-linux", CONFIG.fuzzingLinux);
     setHref("download-fuzzing-win", CONFIG.fuzzingWindows);
     setHref("download-fuzzing-build-linux", CONFIG.fuzzingBuildLinux);

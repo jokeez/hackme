@@ -1,6 +1,19 @@
 {
   "items": [
     {
+      "id": "2026-11-06-rc19",
+      "date": "2026-11-06",
+      "title": "0.1.0-rc19 — longer wallets · Economics v2 prep · packages",
+      "summary": "rc19 channel: prep for longer HMC wallets and Economics v2; Miner/Orders installers for Windows, deb/rpm/Arch, Docker Orders profile, HackMe OS. Fedora/slim launcher fixes; Orders beside miner on port 8081.",
+      "tags": [
+        "release",
+        "rc19",
+        "packages",
+        "economics"
+      ],
+      "href": "/downloads.html#start"
+    },
+    {
       "id": "2026-11-05-miningboard-listed",
       "date": "2026-11-05",
       "title": "HackMe Official Pool listed on MiningBoard",
@@ -275,5 +288,6 @@
       "status": "published"
     }
   ],
-  "chunk": 0
+  "chunk": 0,
+  "updated": "2026-11-06T08:19:40Z"
 }

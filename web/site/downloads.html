@@ -3,19 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HackMe Downloads · 0.1.0-rc18.1</title>
-  <meta name="description" content="HackMe 0.1.0-rc18.1 LIVE — Win/Linux/deb/ISO with SHA256SUMS. Verify SHA256." />
+  <title>HackMe Downloads · 0.1.0-rc19</title>
+  <meta name="description" content="HackMe 0.1.0-rc19 LIVE — Win/Linux deb·rpm·Arch/Docker/ISO. Miner + Orders. Verify SHA256." />
   <link rel="canonical" href="https://hackme.tech/downloads.html" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://hackme.tech/downloads.html" />
-  <meta property="og:title" content="HackMe Downloads · 0.1.0-rc18.1" />
-  <meta property="og:description" content="Installers LIVE — Win/Linux/deb/ISO. Verify SHA256SUMS before install." />
+  <meta property="og:title" content="HackMe Downloads · 0.1.0-rc19" />
+  <meta property="og:description" content="Installers LIVE — Win/Linux packages/Docker/ISO. Miner + Orders. Verify SHA256SUMS." />
   <meta property="og:image" content="https://hackme.tech/assets/og-share-1200x630.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="HackMe Downloads · 0.1.0-rc18.1" />
-  <meta name="twitter:description" content="Installers LIVE — Win/Linux/deb/ISO. Verify SHA256SUMS before install." />
+  <meta name="twitter:title" content="HackMe Downloads · 0.1.0-rc19" />
+  <meta name="twitter:description" content="Installers LIVE — Win/Linux packages/Docker/ISO. Miner + Orders. Verify SHA256SUMS." />
   <meta name="twitter:image" content="https://hackme.tech/assets/og-share-1200x630.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -134,6 +134,58 @@
       background: rgba(255, 196, 86, 0.06);
       font-size: 0.9rem;
     }
+    .dl-role-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin-top: 1.15rem;
+    }
+    @media (max-width: 700px) {
+      .dl-role-row { grid-template-columns: 1fr; }
+    }
+    .dl-role {
+      border: 1px solid rgba(77, 228, 255, 0.2);
+      border-radius: 0.9rem;
+      padding: 0.95rem 1.05rem;
+      background: linear-gradient(160deg, rgba(0, 209, 255, 0.08), rgba(8, 14, 27, 0.55));
+      cursor: pointer;
+      text-align: left;
+      color: inherit;
+      font: inherit;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+    .dl-role:hover { border-color: rgba(77, 228, 255, 0.5); transform: translateY(-1px); }
+    .dl-role.is-active {
+      border-color: rgba(110, 255, 173, 0.55);
+      box-shadow: 0 0 0 1px rgba(110, 255, 173, 0.25), 0 10px 28px rgba(0, 0, 0, 0.28);
+    }
+    .dl-role strong {
+      display: block;
+      font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+      font-size: 1.05rem;
+      margin-bottom: 0.25rem;
+      color: #fff;
+    }
+    .dl-role span { color: var(--muted); font-size: 0.88rem; line-height: 1.45; }
+    .dl-pkg-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.55rem;
+      margin-top: 0.35rem;
+    }
+    @media (max-width: 560px) {
+      .dl-pkg-grid { grid-template-columns: 1fr; }
+    }
+    .dl-pkg-grid .btn { margin-top: 0; }
+    .dl-hint {
+      margin: 0.35rem 0 0;
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .dl-hint code { color: #6effad; font-size: 0.78rem; }
+    [data-role-panel] { display: none; }
+    [data-role-panel].is-visible { display: block; }
   </style>
 </head>
 <body>
@@ -145,73 +197,143 @@
   <main class="container">
     <section class="hero glass hero-small" id="start">
       <p class="kicker">Downloads</p>
-      <h1>Get the miner</h1>
+      <h1>Get HackMe</h1>
       <p class="hero-copy">
-        Channel <strong id="dl-release-ver">0.1.0-rc18.1</strong>
+        Channel <strong id="dl-release-ver">0.1.0-rc19</strong>
         · always verify SHA256 ·
-        <a id="dl-github-release" href="https://github.com/jokeez/hackme/releases/tag/0.1.0-rc18.1" target="_blank" rel="noreferrer">GitHub 0.1.0-rc18.1</a>
+        <a id="dl-github-release" href="https://github.com/jokeez/hackme/releases/tag/0.1.0-rc19" target="_blank" rel="noreferrer">GitHub 0.1.0-rc19</a>
       </p>
 
       <div class="dl-steps" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:1.25rem" aria-label="Three steps">
         <article class="dl-step">
           <span class="dl-step-num">1</span>
-          <h3>Download</h3>
-          <p class="subtle">Pick Windows, Linux, or HackMe OS below. Verify SHA256 before you run anything.</p>
+          <h3>Choose role</h3>
+          <p class="subtle"><strong>Miner</strong> joins the public pool. <strong>Orders</strong> runs Dig/Hunt campaigns. Same package, different launcher.</p>
         </article>
         <article class="dl-step">
           <span class="dl-step-num">2</span>
-          <h3>Run</h3>
-          <p class="subtle">Start <em>HackMe Miner</em> (pool) or <em>HackMe Orders</em> (security scans). Dashboard opens at <code>127.0.0.1:8080</code>.</p>
+          <h3>Install</h3>
+          <p class="subtle">Windows Setup, Linux deb/rpm/Arch/tarball, Docker, or HackMe OS. Verify SHA256 before you run anything.</p>
         </article>
         <article class="dl-step">
           <span class="dl-step-num">3</span>
-          <h3>See earnings</h3>
-          <p class="subtle">Wallet shows ecosystem pay (HMC for work today). Pool pays by the hour; crashes can add a bounty share.</p>
+          <h3>Earn / scan</h3>
+          <p class="subtle">Dashboard at <code>127.0.0.1:8080</code>. Beside a miner, Orders uses <code>HACKME_ORDERS_PORT=8081</code>.</p>
         </article>
       </div>
 
       <div class="dl-meta-row" aria-label="Release facts">
-        <span class="dl-chip">Channel <strong>rc18</strong></span>
-        <span class="dl-chip">Installers <strong>rc18</strong></span>
+        <span class="dl-chip">Channel <strong>rc19</strong></span>
+        <span class="dl-chip">Packages <strong>deb · rpm · Arch · Docker</strong></span>
         <span class="dl-chip">Self-update <strong>on</strong></span>
-        <span class="dl-chip">Apt <strong>hackme-node</strong></span>
+        <span class="dl-chip">Econ v2 <strong>prep</strong></span>
       </div>
-      <p id="dl-artifact-note" class="subtle" style="margin-top:0.55rem;max-width:40rem">
-        Installers are published for <strong>0.1.0-rc18.1</strong> — verify SHA256SUMS before install. Apt, pool token, and checksums are below.
+      <p id="dl-artifact-note" class="subtle" style="margin-top:0.55rem;max-width:42rem">
+        Installers are published for <strong>0.1.0-rc19</strong> — verify SHA256SUMS before install. Apt, pool token, and checksums are below.
       </p>
 
-      <div class="dl-pick">
+      <div class="dl-role-row" role="tablist" aria-label="Installer role">
+        <button type="button" class="dl-role is-active" data-role-tab="miner" aria-selected="true">
+          <strong>Miner</strong>
+          <span>Public pool · Blake3 share-PPS · Dig + PoH. Watchdog on Windows. Token included in Win/tarball.</span>
+        </button>
+        <button type="button" class="dl-role" data-role-tab="orders" aria-selected="false">
+          <strong>Orders (customer)</strong>
+          <span>B2B Dig/Hunt node · no pool miner. Settings in your home dir (mode 600). Publish with <code>pool.orders.token</code>.</span>
+        </button>
+      </div>
+
+      <div class="dl-pick" style="margin-top:1rem">
         <article class="card glass">
           <h3>Windows</h3>
-          <p class="subtle">Setup wizard: <strong>Miner</strong> (public pool · Dig + PoH) or <strong>Orders</strong> (B2B Dig; Hunt = Linux pool). Watchdog for Miner.</p>
-          <a id="download-win" class="btn btn-primary btn-block" href="#">Download Setup (.exe)</a>
-          <a id="download-win-zip" class="btn btn-secondary btn-block" href="#">Portable ZIP</a>
+          <div data-role-panel="miner" class="is-visible">
+            <p class="subtle">Setup wizard → <strong>Miner</strong>. Portable ZIP for USB / air-gapped boxes.</p>
+            <a id="download-win" class="btn btn-primary btn-block" href="#">Download Setup (.exe)</a>
+            <a id="download-win-zip" class="btn btn-secondary btn-block" href="#">Portable ZIP</a>
+          </div>
+          <div data-role-panel="orders">
+            <p class="subtle">Same Setup → choose <strong>Orders</strong>. Start menu: <em>HackMe Orders</em>.</p>
+            <a class="btn btn-primary btn-block" href="#" data-mirror="download-win">Download Setup (.exe)</a>
+            <a class="btn btn-secondary btn-block" href="#" data-mirror="download-win-zip">Portable ZIP</a>
+          </div>
         </article>
         <article class="card glass">
           <h3>Linux</h3>
-          <p class="subtle">Tarball includes pool token + Orders launcher. Apt/.deb needs one extra step → <a href="#pool-token">#pool-token</a>.</p>
-          <a id="download-linux" class="btn btn-primary btn-block" href="#">Download Linux Bundle</a>
-          <a id="download-linux-deb" class="btn btn-secondary btn-block" href="#">Download .deb</a>
-          <p class="subtle" style="font-size:0.82rem">Miner: <code>cd linux &amp;&amp; bash start_hackme_miner.sh</code><br>
-            Orders: <code>bash start_hackme_orders.sh</code> · Deb: <code>sudo apt install ./hackme-node_*.deb</code> · <a href="#apt">#apt</a></p>
+          <div data-role-panel="miner" class="is-visible">
+            <p class="subtle">One package tree for Ubuntu, Fedora, Arch. Apt/.deb still needs → <a href="#pool-token">#pool-token</a>.</p>
+            <div class="dl-pkg-grid">
+              <a id="download-linux-deb" class="btn btn-primary" href="#">.deb (Debian/Ubuntu)</a>
+              <a id="download-linux-rpm" class="btn btn-secondary" href="#">.rpm (Fedora/RHEL)</a>
+              <a id="download-linux-arch" class="btn btn-secondary" href="#">Arch pkg.tar.zst</a>
+              <a id="download-linux" class="btn btn-secondary" href="#">Tarball (.tar.gz)</a>
+            </div>
+            <p class="dl-hint">After install: Apps → <em>HackMe Miner</em>, or <code>bash start_hackme_miner.sh</code> · <a href="#apt">signed apt</a></p>
+          </div>
+          <div data-role-panel="orders">
+            <p class="subtle">Same packages — launch <em>HackMe Orders</em>. No secrets in the package; env under <code>~/.config/hackme</code>.</p>
+            <div class="dl-pkg-grid">
+              <a class="btn btn-primary" href="#" data-mirror="download-linux-deb">.deb (Debian/Ubuntu)</a>
+              <a class="btn btn-secondary" href="#" data-mirror="download-linux-rpm">.rpm (Fedora/RHEL)</a>
+              <a class="btn btn-secondary" href="#" data-mirror="download-linux-arch">Arch pkg.tar.zst</a>
+              <a class="btn btn-secondary" href="#" data-mirror="download-linux">Tarball (.tar.gz)</a>
+            </div>
+            <p class="dl-hint">Beside a miner: <code>HACKME_ORDERS_PORT=8081 bash start_hackme_orders.sh</code></p>
+          </div>
         </article>
         <article class="card glass" id="hackme-os">
-          <h3>HackMe OS</h3>
-          <p class="subtle">Bootable USB — wallet + mining. Verify ISO SHA before flash.</p>
-          <a id="download-iso" class="btn btn-primary btn-block" href="#">Download ISO</a>
-          <a id="download-iso-sha" class="btn btn-secondary btn-block" href="#">SHA256SUMS (ISO)</a>
-          <p id="download-iso-status" class="subtle" style="font-size:0.82rem">Checking availability…</p>
+          <h3>HackMe OS · Docker</h3>
+          <div data-role-panel="miner" class="is-visible">
+            <p class="subtle">Bootable USB, or Docker miner with state in a volume.</p>
+            <a id="download-iso" class="btn btn-primary btn-block" href="#">Download ISO</a>
+            <a id="download-iso-sha" class="btn btn-secondary btn-block" href="#">SHA256SUMS (ISO)</a>
+            <p class="dl-hint">Docker: <code>docker run … -v hackme-state:/state hackme/miner:0.1.0-rc19</code></p>
+            <p id="download-iso-status" class="subtle" style="font-size:0.82rem">Checking availability…</p>
+          </div>
+          <div data-role-panel="orders">
+            <p class="subtle">Docker Orders profile — node only, wallet in the volume. ISO still boots a full desktop miner.</p>
+            <a class="btn btn-primary btn-block" href="#" data-mirror="download-iso">Download ISO</a>
+            <a class="btn btn-secondary btn-block" href="#" data-mirror="download-iso-sha">SHA256SUMS (ISO)</a>
+            <p class="dl-hint"><code>-e HACKME_PROFILE=orders -e HACKME_PORT=8081 -v hackme-orders-state:/state</code></p>
+          </div>
         </article>
       </div>
 
       <div class="dl-strip">
         <strong style="color:#6effad;letter-spacing:0.06em;font-size:0.72rem;text-transform:uppercase">After install</strong>
         <span class="subtle">Windows: Start → <em>HackMe Miner</em> or <em>HackMe Orders</em></span>
-        <span class="subtle">Linux tar: <code>start_hackme_miner.sh</code> / <code>start_hackme_orders.sh</code></span>
-        <span class="subtle">Linux apt: Apps → <em>HackMe</em> · Orders menu · <a href="#pool-token">pool token</a></span>
+        <span class="subtle">Linux: menu entries or <code>start_hackme_*.sh</code></span>
+        <span class="subtle">Docker Orders: see <a href="https://github.com/jokeez/hackme/blob/main/docs/LINUX_PACKAGES.md">LINUX_PACKAGES.md</a></span>
         <span class="subtle">Update: <code>update_hackme_miner.bat</code> / <code>bash update_hackme_miner.sh</code></span>
       </div>
     </section>
+    <script>
+      (function () {
+        const tabs = Array.from(document.querySelectorAll("[data-role-tab]"));
+        const panels = Array.from(document.querySelectorAll("[data-role-panel]"));
+        function syncMirrors() {
+          document.querySelectorAll("[data-mirror]").forEach((el) => {
+            const src = document.getElementById(el.getAttribute("data-mirror"));
+            if (src && src.href) el.href = src.href;
+          });
+        }
+        function select(role) {
+          tabs.forEach((t) => {
+            const on = t.getAttribute("data-role-tab") === role;
+            t.classList.toggle("is-active", on);
+            t.setAttribute("aria-selected", on ? "true" : "false");
+          });
+          panels.forEach((p) => {
+            p.classList.toggle("is-visible", p.getAttribute("data-role-panel") === role);
+          });
+          syncMirrors();
+        }
+        tabs.forEach((t) => t.addEventListener("click", () => select(t.getAttribute("data-role-tab"))));
+        // Re-sync after app.js wires primary hrefs.
+        window.addEventListener("load", syncMirrors);
+        setTimeout(syncMirrors, 400);
+        setTimeout(syncMirrors, 1200);
+      })();
+    </script>
 
     <section class="panel glass dl-section-tight" id="apt">
       <div class="panel-head">
