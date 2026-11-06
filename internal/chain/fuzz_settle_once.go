@@ -104,7 +104,7 @@ func (s *Service) payFuzzRunFloorTx(ctx context.Context, tx *sql.Tx, campaignID,
 
 // payFuzzRunAmountTx credits one run. floorBPS==0 → full perRunUnits; else pay = perRun * bps / 10000 (min 1).
 func (s *Service) payFuzzRunAmountTx(ctx context.Context, tx *sql.Tx, campaignID, minerAddress string, floorBPS int) error {
-	if !IsValidAddress(minerAddress) {
+	if !strings.HasPrefix(minerAddress, "HMC-") || len(minerAddress) != 20 {
 		return errors.New("chain: valid miner_address required")
 	}
 	row, err := s.lockFuzzEscrowTx(ctx, tx, campaignID)
@@ -138,7 +138,7 @@ func (s *Service) payFuzzRunAmountTx(ctx context.Context, tx *sql.Tx, campaignID
 
 // payFuzzCrashBonusTx pays a one-shot unique-crash bonus from the bounty pool without closing bounty.
 func (s *Service) payFuzzCrashBonusTx(ctx context.Context, tx *sql.Tx, campaignID, minerAddress string) error {
-	if !IsValidAddress(minerAddress) {
+	if !strings.HasPrefix(minerAddress, "HMC-") || len(minerAddress) != 20 {
 		return errors.New("chain: valid miner_address required")
 	}
 	row, err := s.lockFuzzEscrowTx(ctx, tx, campaignID)
@@ -174,7 +174,7 @@ func (s *Service) payFuzzCrashBonusTx(ctx context.Context, tx *sql.Tx, campaignI
 }
 
 func (s *Service) payFuzzBountyTx(ctx context.Context, tx *sql.Tx, campaignID, minerAddress, severity string) error {
-	if !IsValidAddress(minerAddress) {
+	if !strings.HasPrefix(minerAddress, "HMC-") || len(minerAddress) != 20 {
 		return errors.New("chain: valid miner_address required")
 	}
 	if severity != "high" && severity != "critical" && severity != "medium" {

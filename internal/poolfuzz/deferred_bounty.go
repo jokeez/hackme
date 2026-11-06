@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"strings"
 
-	"hackme/internal/chain"
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzznative"
 )
@@ -121,7 +120,7 @@ func (s *Service) workItemMinerAddress(ctx context.Context, campaignID string, i
 		return ""
 	}
 	addr = strings.TrimSpace(addr)
-	if chain.IsValidAddress(addr) {
+	if strings.HasPrefix(addr, "HMC-") && len(addr) == 20 {
 		return addr
 	}
 	return ""

@@ -5,8 +5,6 @@ import (
 	"encoding/hex"
 	"strconv"
 	"strings"
-
-	"hackme/internal/chain"
 )
 
 type fuzzSubmitAuth struct {
@@ -21,10 +19,9 @@ type fuzzSubmitAuth struct {
 // validateFuzzHybridSignature binds miner_address to ed25519 proof-of-possession (same model as PoH submit).
 // Any non-empty miner_address for escrow payout requires hybrid PoP (B4 fail-closed).
 // M1: signature checks only — nonce is committed via commitFuzzHybridNonce after work accept.
-// Accepts Economics v2 long addresses (HMC-+64) as well as legacy (HMC-+16).
 func (m *workManager) validateFuzzHybridSignature(auth fuzzSubmitAuth, body []byte) (ok bool, reason string, payoutAddr string) {
 	addr := strings.TrimSpace(auth.MinerAddress)
-	if addr != "" && !chain.IsValidAddress(addr) {
+	if addr != "" && (!strings.HasPrefix(addr, "HMC-") || len(addr) != 20) {
 		return false, "invalid_miner_address", ""
 	}
 	if m == nil || !m.hybridSignerEnabled {
@@ -53,11 +50,11 @@ func (m *workManager) validateFuzzHybridSignature(auth fuzzSubmitAuth, body []by
 	if alg != "ed25519" {
 		return false, "unsupported_sig_alg", ""
 	}
-	payout, okAddr := payoutAddrForPub(pubHex, addr)
+	derived, okAddr := deriveAddressFromPubHex(pubHex)
 	if !okAddr {
-		if _, _, pubOK := addressesFromPubHex(pubHex); !pubOK {
-			return false, "invalid_pubkey", ""
-		}
+		return false, "invalid_pubkey", ""
+	}
+	if addr != "" && !strings.EqualFold(addr, derived) {
 		return false, "pubkey_address_mismatch", ""
 	}
 	sig, err := hex.DecodeString(sigHex)
@@ -69,18 +66,17 @@ func (m *workManager) validateFuzzHybridSignature(auth fuzzSubmitAuth, body []by
 		return false, "invalid_signature", ""
 	}
 	// Same mutex as PoH submit — concurrent map reads without it panic under load.
-	// Nonce keys stay on the canonical payout form (legacy or long) the miner presented.
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if maxNonce, ok := m.signedSubmitNonceMax[payout]; ok && auth.SubmitNonce <= maxNonce {
+	if maxNonce, ok := m.signedSubmitNonceMax[derived]; ok && auth.SubmitNonce <= maxNonce {
 		return false, "replay", ""
 	}
-	nonceKey := payout + ":fuzz:" + strconv.FormatUint(auth.SubmitNonce, 10)
+	nonceKey := derived + ":fuzz:" + strconv.FormatUint(auth.SubmitNonce, 10)
 	if _, exists := m.acceptedSubmitNonces[nonceKey]; exists {
 		return false, "replay", ""
 	}
 	// Validate-only: do not burn nonce / update max until commitFuzzHybridNonce after Submit OK.
-	return true, "", payout
+	return true, "", derived
 }
 
 // commitFuzzHybridNonce records a fuzz submit nonce after the work item was accepted.
