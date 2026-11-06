@@ -14,7 +14,28 @@ export CGO_ENABLED="${CGO_ENABLED:-1}"
 export BUILD_DEB="${BUILD_DEB:-1}"
 export HACKME_RELEASE_POOL_MINER_TOKEN="${HACKME_RELEASE_POOL_MINER_TOKEN:-$(tr -d '\r\n' <.secrets/hackme_coordinator_worker_token 2>/dev/null || true)}"
 
-echo "[full-release] VERSION=$VERSION CGO_ENABLED=$CGO_ENABLED"
+# Release binaries must be reproducible from a published commit: rc19 shipped binaries built from
+# an older commit plus local edits (vcs.modified=true) while the tag pointed at newer code.
+# Override only for throwaway local builds: ALLOW_DIRTY_RELEASE=1.
+if [[ "${ALLOW_DIRTY_RELEASE:-0}" != "1" ]]; then
+  dirty="$(git status --porcelain --untracked-files=no 2>/dev/null || true)"
+  if [[ -n "$dirty" ]]; then
+    echo "[full-release] ERROR: uncommitted changes — commit or stash them first:" >&2
+    echo "$dirty" | head -20 >&2
+    exit 1
+  fi
+  git fetch -q origin main 2>/dev/null || echo "[full-release] WARN: could not fetch origin/main" >&2
+  if ! git merge-base --is-ancestor HEAD origin/main 2>/dev/null; then
+    echo "[full-release] ERROR: HEAD $(git rev-parse --short HEAD) is not on origin/main — push it first" >&2
+    exit 1
+  fi
+  behind="$(git rev-list --count HEAD..origin/main 2>/dev/null || echo 0)"
+  if [[ "$behind" != "0" ]]; then
+    echo "[full-release] ERROR: HEAD is $behind commit(s) behind origin/main — git pull --rebase first" >&2
+    exit 1
+  fi
+fi
+echo "[full-release] VERSION=$VERSION CGO_ENABLED=$CGO_ENABLED commit=$(git rev-parse --short HEAD)"
 bash scripts/release/apt/ensure_apt_signing_key.sh
 
 echo "[full-release] 1/5 make_release_bundle"

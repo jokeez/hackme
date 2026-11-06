@@ -1,0 +1,13 @@
+[Unit]
+Description=HackMe OS per-machine root password
+DefaultDependencies=no
+After=local-fs.target
+Before=hackme-boot-banner.service getty@tty1.service serial-getty@ttyS0.service ssh.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/hackme/scripts/release/iso/hackme-rotate-root-pw.sh
+
+[Install]
+WantedBy=sysinit.target

@@ -133,6 +133,7 @@ passwd -l ubuntu 2>/dev/null || true
 rm -f /etc/sudoers.d/99-hackme-live
 
 echo "hackme-os" >/etc/hostname
+systemctl enable hackme-rotate-root-pw.service
 systemctl enable hackme-boot-banner.service
 systemctl enable getty@tty1.service
 systemctl enable serial-getty@ttyS0.service 2>/dev/null || true
