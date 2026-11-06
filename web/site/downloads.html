@@ -629,10 +629,14 @@
         <span>Channel <strong>rc19</strong></span>
         <span>Packages <strong>deb · rpm · Arch · Docker</strong></span>
         <span>Self-update <strong>on</strong></span>
-        <span>Econ v2 <strong>prep</strong></span>
+        <span>Econ v2 <strong>#550,000</strong></span>
       </div>
       <p id="dl-artifact-note" class="subtle" style="margin-top:0.7rem;max-width:40rem;font-size:0.9rem">
         Installers are published for <strong>0.1.0-rc19</strong> — verify SHA256SUMS before install.
+      </p>
+      <p class="subtle" style="margin-top:0.4rem;max-width:40rem;font-size:0.9rem">
+        <strong>Update before block 550,000</strong> (≈ November 15): Economics v2 switches on there — 0.1 HMC per block, new <code>HMC-</code> + 64-hex addresses (old ones keep working). The built-in updater keeps your wallet and settings.
+        <a href="./news.html#2026-11-06-rc19">What changes</a>
       </p>
 
       <div class="dl-stage">
@@ -711,7 +715,7 @@
                 <a id="download-iso" class="btn btn-primary btn-block" href="#">Download ISO</a>
                 <a id="download-iso-sha" class="btn btn-secondary btn-block" href="#">SHA256SUMS (ISO)</a>
               </div>
-              <p class="dl-hint">Docker: <code>docker run … -v hackme-state:/state hackme/miner:0.1.0-rc19</code></p>
+              <p class="dl-hint">Docker: build locally from the release tarball → <code>localhost/hackme-miner:0.1.0-rc19</code> · <a href="https://github.com/jokeez/hackme/blob/main/docs/LINUX_PACKAGES.md#docker-miner" target="_blank" rel="noreferrer">steps</a>. No image on Docker Hub — don't pull one.</p>
               <p id="download-iso-status" class="subtle" style="font-size:0.8rem;margin:0">Checking availability…</p>
             </div>
             <div data-role-panel="orders">
@@ -720,7 +724,7 @@
                 <a class="btn btn-primary btn-block" href="#" data-mirror="download-iso">Download ISO</a>
                 <a class="btn btn-secondary btn-block" href="#" data-mirror="download-iso-sha">SHA256SUMS (ISO)</a>
               </div>
-              <p class="dl-hint"><code>-e HACKME_PROFILE=orders -e HACKME_PORT=8081 -v hackme-orders-state:/state</code></p>
+              <p class="dl-hint">Docker (local build): <code>-e HACKME_PROFILE=orders -e HACKME_PORT=8081 -v hackme-orders:/state localhost/hackme-miner:0.1.0-rc19</code></p>
             </div>
           </article>
         </div>

@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**HackMe Network** · `0.1.0-rc18` (full bundle) · [hackme.tech](https://hackme.tech) · [Telegram](https://t.me/hackme_tech)
+**HackMe Network** · `0.1.0-rc19` (full bundle; Economics v2 at block 550,000) · [hackme.tech](https://hackme.tech) · [Telegram](https://t.me/hackme_tech)
 
 </div>
 

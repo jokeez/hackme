@@ -44,9 +44,9 @@
 \renewcommand{\arraystretch}{1.15}
 
 \makeatletter
-\def\HackMeSubtitle{%
-  \@ifundefined{subtitle}{}{\subtitle}%
-}
+% pandoc's \subtitle{...} already appends the subtitle to \@title; calling \subtitle here made it
+% swallow the next \vspace as its argument and print "0.6cm" on every title page.
+\def\HackMeSubtitle{}
 \renewcommand{\maketitle}{%
   \begin{titlepage}
     \centering

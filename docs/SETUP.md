@@ -87,7 +87,7 @@ AMD **RX 580**: use build with `workerpoh-opencl.exe` (installer picks OpenCL wh
 ## Path C — HackMe OS (live USB)
 
 1. Download ISO + `SHA256SUMS-iso.txt` from the downloads page  
-2. Verify: `bash scripts/tests/verify_hackme_iso.sh /path/to/HackMe-OS-0.1.0-rc18-amd64.iso` (published ISO is **0.1.0-rc18** — only flash after `SHA256SUMS-iso.txt` matches)  
+2. Verify: `bash scripts/tests/verify_hackme_iso.sh /path/to/HackMe-OS-0.1.0-rc19-amd64.iso` (published ISO is **0.1.0-rc19** — only flash after `SHA256SUMS-iso.txt` matches)  
 3. Flash USB (Etcher / `dd`), boot **HackMe OS** GRUB entry — not Alpine `localhost login`  
 4. On-screen: generated `HMC-…` wallet + recovery phrase; mining starts against hackme.tech  
 
@@ -113,7 +113,7 @@ Smoke: `bash scripts/ops/linux_miner_journey_gate.sh` (Windows Dig/PoH: `windows
 
 ## Payout address
 
-- Submits must use a valid **`HMC-` + 16 hex** address (derived from your Ed25519 seed or assigned by operator).
+- Submits must use a valid lowercase **`HMC-` + 16 hex** address, or from block 550,000 also **`HMC-` + 64 hex** (both derived from your Ed25519 key; the dashboard shows both).
 - Accrual is **off-chain** on the coordinator until operator **settlement** maps `WORKER_ID` → wallet ([NETWORK_MODEL.md](NETWORK_MODEL.md)).
 
 ---

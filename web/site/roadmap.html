@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Ecosystem Roadmap — HackMe Network</title>
-  <meta name="description" content="Current HackMe roadmap: 0.1.0-rc19 LIVE (installers 0.1.0-rc19), own spot desk first, HMC pool live, Dig/Hunt customers, external CEX deferred. Updated 26 October 2026." />
+  <meta name="description" content="Current HackMe roadmap: 0.1.0-rc19 LIVE (installers 0.1.0-rc19), own spot desk first, HMC pool live, Dig/Hunt customers, external CEX deferred. Economics v2 at block 550,000. Updated 6 November 2026." />
   <link rel="canonical" href="https://hackme.tech/roadmap.html" />
   <link rel="stylesheet" href="./assets/styles.css?v=20261024eco1" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
@@ -19,7 +19,7 @@
 
   <main class="container">
     <section class="hero glass hero-small">
-      <p class="kicker">Ecosystem roadmap · October 2026</p>
+      <p class="kicker">Ecosystem roadmap · November 2026</p>
       <h1>What shipped · what&apos;s next</h1>
       <p class="hero-copy">
         One honest timeline: <strong>HMC</strong> (Blake3 share-PPS + Dig/Hunt useful fuzz), <strong>SUP</strong> (loyalty + wallet send),
@@ -53,6 +53,7 @@
           <h3>Hold the live stack</h3>
           <ul class="list">
             <li>Public pool + hybrid settlement (HMC / SUP)</li>
+            <li>Economics v2 at block 550,000 (≈ Nov 15) — watch the switch live</li>
             <li>Customer Dig/Hunt · GHS↔Dig priority live</li>
             <li>Own spot desk for buy-path (no futures)</li>
           </ul>
@@ -83,11 +84,18 @@
         <h2>HMC — HackMe Coin</h2>
         <p class="subtle">Primary coin — pays miners for work; customers pay HMC for security scans</p>
       </div>
+      <div class="roadmap-milestone planned">
+        <span class="roadmap-badge planned">Nov 15</span>
+        <div>
+          <strong>Economics v2 · block 550,000</strong>
+          <p>Shipped in <code>0.1.0-rc19</code>, switches on at the height: <strong>0.1 HMC/block</strong> (×10), ~4-year halvings to a 0.002 tail, 5% of every order burned + 5% platform fee, SUP block emission (0.002/block, cap 21,000), <code>HMC-</code> + 64-hex addresses and <code>chain_id</code> <code>hackme-mainnet-1</code>. <a href="https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md" target="_blank" rel="noreferrer">RFC</a></p>
+        </div>
+      </div>
       <div class="roadmap-milestone shipped">
         <span class="roadmap-badge shipped">Live</span>
         <div>
           <strong>Public pool · hybrid strict · on-chain transfers</strong>
-          <p>Coordinator, explorer, installers/ISO <code>0.1.0-rc19</code> LIVE. Settlement + wallet sync. Hunt engines auto-install on Linux miners. D1 empty finds mint into settlement float on the public hub.</p>
+          <p>Coordinator, explorer, installers <code>0.1.0-rc19</code> LIVE (Windows · Linux tar · deb · rpm · Arch · Docker · ISO · Orders profile). Settlement + wallet sync. Hunt engines auto-install on Linux miners. D1 empty finds mint into settlement float on the public hub.</p>
         </div>
       </div>
       <div class="roadmap-milestone shipped">
@@ -136,7 +144,7 @@
         <span class="roadmap-badge shipped">Live</span>
         <div>
           <strong>Accrual + on-chain mint</strong>
-          <p>~8% of qualifying HMC · hybrid-required · daily cap · anti-abuse. Public <code>/api/sup/economics</code> · settlement script mints on-chain.</p>
+          <p>~8% of qualifying HMC · hybrid-required · daily cap · anti-abuse. Public <code>/api/sup/economics</code> · settled on-chain; from block 550,000 SUP is minted by the chain (0.002/block, cap 21,000).</p>
         </div>
       </div>
       <div class="roadmap-milestone planned">
@@ -212,14 +220,14 @@
       <div class="eco-link-grid">
         <a class="eco-link-card" href="./listing.html"><strong>Listing hub</strong><span>Readiness scores · memo · packs</span></a>
         <a class="eco-link-card" href="./token-transparency.html"><strong>Transparency</strong><span>Live HMC / SUP supply APIs</span></a>
-        <a class="eco-link-card" href="./downloads.html"><strong>Downloads</strong><span>rc18 LIVE · Blake3 @ #485k · installers published</span></a>
+        <a class="eco-link-card" href="./downloads.html"><strong>Downloads</strong><span>rc19 LIVE · Economics v2 @ #550k · all packages</span></a>
       </div>
     </section>
   </main>
 
   <footer class="footer">
     <p>HackMe Network</p>
-    <p class="muted">Roadmap updated 21 Sep 2026 · ops detail stays on GitHub</p>
+    <p class="muted">Roadmap updated 6 Nov 2026 · ops detail stays on GitHub</p>
     <div class="footer-nav"></div>
   </footer>
   <script src="./assets/site-shell.js?v=20261024eco1"></script>

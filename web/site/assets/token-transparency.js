@@ -39,12 +39,14 @@
 
   async function paintHMC(st) {
     const ec = st?.economics || {};
+    // Economics v2 (block 550,000+): the API reports max_supply_hmc = 0 — no hard cap, tail emission.
+    const capped = Number(ec.max_supply_hmc) > 0;
     const rows = [
-      ["Max supply", fmt(ec.max_supply_hmc, 0) + " HMC"],
+      ["Max supply", capped ? fmt(ec.max_supply_hmc, 0) + " HMC" : "No hard cap (Economics v2 · 0.002 HMC/block tail)"],
       ["Total minted", fmt(ec.total_minted_hmc) + " HMC"],
       ["Burned (tally)", fmt(ec.total_burned_hmc) + " HMC"],
       ["Circulating", fmt(ec.circulating_hmc) + " HMC"],
-      ["Mint remaining", fmt(ec.mint_remaining_hmc) + " HMC"],
+      ...(capped ? [["Mint remaining", fmt(ec.mint_remaining_hmc) + " HMC"]] : []),
       ["Base reward now", fmt(ec.base_reward_now_hmc) + " HMC/block"],
       ["Tail floor", fmt(ec.reward_tail_floor_hmc) + " HMC"],
       ["Policy hash", `<span class="code-inline">${esc(ec.policy_hash || st?.policy_hash || "—")}</span>`],
@@ -56,7 +58,12 @@
         .map(([k, v]) => `<tr><th>${esc(k)}</th><td>${v}</td></tr>`)
         .join("")}</tbody></table>`
     );
-    setHtml("transparency-hmc-pct", `Circulating is <strong>${pct(ec.circulating_hmc, ec.max_supply_hmc)}</strong> of max supply (live).`);
+    setHtml(
+      "transparency-hmc-pct",
+      capped
+        ? `Circulating is <strong>${pct(ec.circulating_hmc, ec.max_supply_hmc)}</strong> of max supply (live).`
+        : `Circulating <strong>${fmt(ec.circulating_hmc)} HMC</strong> (live) — no hard cap under Economics v2.`
+    );
   }
 
   async function paintSUP(sup) {

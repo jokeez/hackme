@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>HMC (HackMe Coin) — Tokenomics &amp; Listing</title>
-  <meta name="description" content="HMC pays miners for work and is how customers pay for security scans. 100M max supply, halving emission." />
+  <meta name="description" content="HMC pays miners for work and is how customers pay for security scans. Economics v2 from block 550,000: 0.1 HMC per block, ~4-year halvings, 0.002 tail, real order burns." />
   <link rel="canonical" href="https://hackme.tech/coin-hmc.html" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://hackme.tech/coin-hmc.html" />
@@ -38,7 +38,7 @@
         <div>
           <p class="kicker">Primary asset · Live</p>
           <h1>HackMe Coin (HMC)</h1>
-          <p class="hero-copy">HMC pays miners for work and is how customers pay for security scans. Part of the HackMe <strong>ecosystem</strong> — see also <a href="./coin-sup.html">SUP</a> and <a href="./coin-hms.html">HMS</a>. Economics v2 is soft-announced (design lock) — <a href="https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md" target="_blank" rel="noreferrer">RFC</a> · <a href="./news.html#2026-10-30-economics-v2-soft-announce">news</a> — not activated as live numbers yet.</p>
+          <p class="hero-copy">HMC pays miners for work and is how customers pay for security scans. Part of the HackMe <strong>ecosystem</strong> — see also <a href="./coin-sup.html">SUP</a> and <a href="./coin-hms.html">HMS</a>. <strong>Economics v2 activates at block 550,000</strong> (≈ November 15, 2026): block reward ×10, real order burns, SUP block emission and long addresses — <a href="https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md" target="_blank" rel="noreferrer">RFC</a> · <a href="./news.html#2026-11-06-rc19">news</a>. Update to 0.1.0-rc19 before the height.</p>
           <div class="cta-row">
             <a class="btn btn-primary" href="./downloads.html">Start mining</a>
             <a class="btn btn-secondary" href="./token-transparency.html">Live supply</a>
@@ -54,16 +54,18 @@
     <section class="panel glass">
       <div class="panel-head"><h2>At a glance</h2></div>
       <div class="table-wrap">
-        <table class="pool-table">
+        <table class="pool-table pool-table--wrap">
           <tbody>
             <tr><th>Ticker</th><td><strong>HMC</strong></td></tr>
-            <tr><th>Max supply</th><td>100,000,000 HMC</td></tr>
+            <tr><th>Supply</th><td>No hard cap from block 550,000: halvings shrink emission to a permanent <strong>0.002 HMC/block</strong> tail. (v1 counted toward a 100M ceiling.)</td></tr>
             <tr><th>Decimals</th><td>8</td></tr>
             <tr><th>Consensus</th><td>Blake3 Proof of History (fv≥3); WASM on Dig/Hunt orders</td></tr>
             <tr><th>Block target</th><td>~30 seconds</td></tr>
-            <tr><th>Base emission</th><td>0.01 HMC/block → halving every 2,102,400 blocks → tail 0.002 HMC</td></tr>
-            <tr><th>Genesis treasury</th><td>50,000 HMC (0.05%) → <code>HMC-719006d93916ad52</code></td></tr>
-            <tr><th>Address format</th><td><code>HMC-</code> + 16 hex · Ed25519 <code>transfer_v1</code></td></tr>
+            <tr><th>Block reward</th><td><strong>0.1 HMC</strong> from block 550,000 (0.01 before) → halving every 4,204,800 blocks (~4 years, counted from genesis; first at #4,204,801) → tail 0.002 HMC</td></tr>
+            <tr><th>Order fees (v2)</th><td>5% burned + 5% platform on top of escrow; the burn steps 5% → 2.5% → 1.25% with the first two halvings</td></tr>
+            <tr><th>Genesis treasury</th><td>50,000 HMC → <code>HMC-719006d93916ad52</code></td></tr>
+            <tr><th>Address format</th><td><code>HMC-</code> + <strong>64 hex</strong> (full SHA-256 of the Ed25519 key) from block 550,000; legacy <code>HMC-</code> + 16 hex stays valid and is bound to its key. No automatic migration — move funds with a normal transfer when you like.</td></tr>
+            <tr><th>Chain id</th><td><code>hackme-mainnet-1</code> (signed into every transfer from block 550,000)</td></tr>
           </tbody>
         </table>
       </div>
@@ -74,20 +76,20 @@
       <div class="grid grid-3">
         <article class="card glass"><h3>Mining</h3><p>Pool work that finds vulnerabilities in real code settles to on-chain HMC.</p></article>
         <article class="card glass"><h3>Security scans</h3><p>Customers escrow HMC for Dig/Hunt campaigns — demand beyond speculation.</p></article>
-        <article class="card glass"><h3>Network fees</h3><p>Transfers and order creation debit HMC; burn tally reduces long-term supply pressure.</p></article>
+        <article class="card glass"><h3>Network fees</h3><p>Transfers pay a small HMC fee; from block 550,000 every paid order also burns 5% of its escrow value for real.</p></article>
       </div>
     </section>
 
     <section class="panel glass">
       <div class="panel-head"><h2>Allocation &amp; vesting</h2></div>
-      <p class="section-lede">~99.95% of max supply enters via miner/order emission. No declared team pre-mine beyond public genesis treasury.</p>
+      <p class="section-lede">Everything beyond the public 50,000 HMC genesis treasury enters through block emission and paid orders. No team pre-mine, no airdrops.</p>
       <p><a href="https://github.com/jokeez/hackme/blob/main/docs/TOKEN_ALLOCATION_AND_VESTING.md" target="_blank" rel="noreferrer">Full allocation tables →</a> · <a href="./economics-model.html">Three-layer economics →</a></p>
     </section>
 
     <section class="panel glass">
       <div class="panel-head"><h2>Listing documents</h2></div>
       <ul class="list">
-        <li><a href="/dist/docs/HMC_Listing_Pack.pdf?v=20261030-rc18" download><strong>PDF:</strong> HMC Listing Pack</a></li>
+        <li><a href="/dist/docs/HMC_Listing_Pack.pdf?v=20261106-rc19" download><strong>PDF:</strong> HMC Listing Pack</a></li>
         <li><a href="https://github.com/jokeez/hackme/blob/main/docs/internal/EXCHANGE_LISTING_MEMO.md" target="_blank" rel="noreferrer">One-page listing memo (Markdown)</a></li>
         <li><a href="https://github.com/jokeez/hackme/blob/main/docs/HMC_TOKENOMICS.md" target="_blank" rel="noreferrer">HMC tokenomics (GitHub)</a></li>
         <li><a href="https://github.com/jokeez/hackme/blob/main/docs/internal/EXCHANGE_LISTING_WALLET_PREP.md" target="_blank" rel="noreferrer">Exchange integration pack</a></li>

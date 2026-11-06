@@ -12,7 +12,7 @@ English guide for anyone joining **https://hackme.tech** as a pool worker.
 
 Dig/Hunt escrow (customer orders) is a **separate** rail: PayRun / bounty / Hunt `run_floor` from campaign escrow, not the Blake3 share-PPS formula below.
 
-**Economics v2** (higher base reward, long halvings) is soft-announced only — see [RFC_ECONOMICS_V2.md](RFC_ECONOMICS_V2.md). Live pay still uses current 0.01 HMC empty-block schedule until activation.
+**Economics v2** activates at block **550,000** (≈ 2026-11-15): the empty-block reward goes 0.01 → **0.1 HMC**, so the pool's daily budget grows about ×10 (≈ 28.8 → ≈ 288 HMC/day). The coordinator switches its budget at the height. See [RFC_ECONOMICS_V2.md](RFC_ECONOMICS_V2.md).
 
 ## Public pool payout (live — share-PPS)
 

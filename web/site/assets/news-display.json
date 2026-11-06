@@ -3,14 +3,20 @@
     {
       "id": "2026-11-06-rc19",
       "date": "2026-11-06",
-      "title": "0.1.0-rc19 — longer wallets · Economics v2 prep · packages",
-      "summary": "rc19 channel: prep for longer HMC wallets and Economics v2; Miner/Orders installers for Windows, deb/rpm/Arch, Docker Orders profile, HackMe OS. Fedora/slim launcher fixes; Orders beside miner on port 8081.",
+      "title": "0.1.0-rc19 — Economics v2 at block 550,000 · longer wallets · all packages",
+      "summary": "Economics v2 activates at block 550,000 (≈ November 15, 2026; watch the height, not the clock). Block reward 0.01 → 0.1 HMC (~288 HMC/day to miners), ~4-year halvings counted from genesis down to a permanent 0.002 HMC tail, no hard cap. Every paid order burns 5% (+5% platform fee). SUP is minted by the chain: 0.002 SUP per empty block, hard cap 21,000. New address format HMC- + 64 hex (full SHA-256 of your key); old 16-hex addresses keep working and are bound to their key — no automatic migration. Transfers carry chain_id hackme-mainnet-1 from the same height.",
       "tags": [
-        "release",
-        "rc19",
+        "announcement",
+        "economics",
+        "hmc",
         "packages",
-        "economics"
-      ]
+        "rc19",
+        "release",
+        "sup"
+      ],
+      "impact": "Nodes older than rc19 do not know the v2 rules. Installers for Windows (Setup/ZIP), Linux tar, deb, rpm, Arch, HackMe OS ISO and a Docker image built from the tarball; a separate HackMe Orders profile for customers (also beside a miner via HACKME_ORDERS_PORT=8081).",
+      "action": "Update to 0.1.0-rc19 before block 550,000 (built-in updater keeps wallet, keys and .env; apt: sudo apt update && sudo apt install hackme-node). Check the dashboard shows 0.1.0-rc19 and note your long address. Downloads: https://hackme.tech/downloads.html · RFC: https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md",
+      "status": "published"
     },
     {
       "id": "2026-11-05-miningboard-listed",

@@ -30,20 +30,20 @@
         HackMe is <strong>not</strong> classic pooled PoW where every share maps to a block fraction.
         Three layers: <strong>on-chain PoH</strong> (Blake3 @ #485000 <strong>LIVE</strong>), <strong>coordinator accounting</strong> (share-PPS / verified shares under SHARE_STRICT), and <strong>paid audit orders</strong>.
         Companion coins (<a href="./coin-sup.html">SUP</a>, <a href="./coin-hms.html">HMS</a>) use separate rules — see <a href="./coins.html">ecosystem registry</a>.
-        Economics <strong>v2</strong> is now a <strong>public soft announce</strong> (design lock) — <em>not</em> activated on-chain yet. Live numbers below remain v1 / rc18 until a published activation height (≥14 days notice).
+        Economics <strong>v2</strong> activates at block <strong>550,000</strong> (≈ November 15, 2026), compiled into 0.1.0-rc19. Numbers below show both: v1 until the height, v2 from it.
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md" target="_blank" rel="noreferrer">Economics v2 RFC</a>
-        <a class="btn btn-secondary" href="./news.html#2026-10-30-economics-v2-soft-announce">News announce</a>
+        <a class="btn btn-secondary" href="./news.html#2026-11-06-rc19">News: height 550,000</a>
         <a class="btn btn-secondary" href="./token-transparency.html">Live supply</a>
         <a class="btn btn-secondary" href="./coin-hmc.html">HMC listing page</a>
       </div>
     </section>
     <section class="panel glass">
-      <div class="panel-head"><h2>Economics v2 soft announce</h2></div>
+      <div class="panel-head"><h2>Economics v2 — block 550,000</h2></div>
       <p>
-        Target at a later height: <strong>0.1 HMC</strong>/empty block · ~4-year halvings · permanent <strong>0.002</strong> tail · no hard max-supply fiction · pool funded from emission · no airdrops.
-        Activation only after soak + announced height. Full text:
+        From block 550,000: <strong>0.1 HMC</strong>/empty block · ~4-year halvings (every 4,204,800 blocks, counted from genesis) · permanent <strong>0.002</strong> tail · no hard max-supply fiction · orders burn 5% + 5% platform fee · SUP 0.002/block (cap 21,000) · pool funded from emission · no airdrops.
+        Height published with 0.1.0-rc19, more than 7 days ahead as the RFC requires. Full text:
         <a href="https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md" target="_blank" rel="noreferrer">RFC_ECONOMICS_V2.md</a>.
       </p>
     </section>
@@ -83,7 +83,7 @@
           </tbody>
         </table>
       </div>
-      <p class="muted" style="margin-top:0.75rem">Constants: base <strong>0.01 HMC</strong>/block · halving every <strong>2,102,400</strong> blocks · max supply <strong>100M</strong>. Details: <a href="https://github.com/jokeez/hackme/blob/main/docs/HMC_TOKENOMICS.md" target="_blank" rel="noreferrer">HMC_TOKENOMICS.md</a> · <code>GET /api/status</code>.</p>
+      <p class="muted" style="margin-top:0.75rem">Constants: v1 (until #550,000) <strong>0.01 HMC</strong>/block · halving every 2,102,400 blocks · 100M ceiling. v2 (from #550,000) <strong>0.1 HMC</strong>/block · halving every <strong>4,204,800</strong> blocks · 0.002 tail · no hard cap. Details: <a href="https://github.com/jokeez/hackme/blob/main/docs/HMC_TOKENOMICS.md" target="_blank" rel="noreferrer">HMC_TOKENOMICS.md</a> · <code>GET /api/status</code>.</p>
     </section>
 
     <section class="panel glass">
@@ -114,12 +114,12 @@
       <div class="eco-link-grid">
         <a class="eco-link-card" href="./coin-hmc.html">
           <h3>HMC</h3>
-          <p>Primary · 100M max · mining + audit escrow · listing pack PDF.</p>
+          <p>Primary · 0.1 HMC/block from #550,000 · mining + audit escrow · listing pack PDF.</p>
           <span class="eco-link-cta">HMC page →</span>
         </a>
         <a class="eco-link-card" href="./coin-sup.html">
           <h3>SUP</h3>
-          <p>Companion · 21M max · pool-quality mint · on-chain live.</p>
+          <p>Companion · 21,000 cap from #550,000 · block-minted · on-chain live.</p>
           <span class="eco-link-cta">SUP page →</span>
         </a>
         <a class="eco-link-card" href="./token-transparency.html">

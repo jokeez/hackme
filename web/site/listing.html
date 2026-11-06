@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Listing Readiness — HackMe Ecosystem</title>
-  <meta name="description" content="Exchange listing hub for HackMe ecosystem: HMC primary, paper soft-launch desk (D0) first, then PoW-friendly CEX. Honest readiness scores. Channel 0.1.0-rc19 · Economics v2 soft-announced." />
+  <meta name="description" content="Exchange listing hub for HackMe ecosystem: HMC primary, paper soft-launch desk (D0) first, then PoW-friendly CEX. Honest readiness scores. Channel 0.1.0-rc19 · Economics v2 at block 550,000." />
   <link rel="canonical" href="https://hackme.tech/listing.html" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://hackme.tech/listing.html" />
@@ -49,10 +49,10 @@
     <section class="panel glass">
       <div class="panel-head"><h2>Live evidence (2026-11-03)</h2></div>
       <ul class="list">
-        <li><strong>Release</strong> — channel <code>0.1.0-rc19</code> LIVE (paper Exchange · SUP wallet · Dig/Hunt · HackMe OS ISO). Hub tip tracks <code>main</code> (Economics v2 code dormant until a published height). <a href="./downloads.html">downloads</a> · <a href="https://github.com/jokeez/hackme/releases/tag/0.1.0-rc19" target="_blank" rel="noreferrer">GitHub rc18</a></li>
-        <li><strong>Public pool</strong> — live coordinator + node · hybrid Ed25519 · tip ≥#515k · <strong>Blake3 PoH v3 LIVE</strong> (gate #485000 · share-PPS · paced day budget) · fleet ~few–tens GH/s Blake3 wall-rate · GHS↔Dig soft-priority (hybrid GPUs prefer Dig; Hunt engines Linux-only; Windows Dig/PoH)</li>
+        <li><strong>Release</strong> — channel <code>0.1.0-rc19</code> LIVE (paper Exchange · SUP wallet · Dig/Hunt · HackMe OS ISO). Economics v2 compiled in, activates at block 550,000. Packages: Windows · Linux tar · deb · rpm · Arch · Docker · ISO. <a href="./downloads.html">downloads</a> · <a href="https://github.com/jokeez/hackme/releases/tag/0.1.0-rc19" target="_blank" rel="noreferrer">GitHub rc19</a></li>
+        <li><strong>Public pool</strong> — live coordinator + node · hybrid Ed25519 · tip ≥#523k · <strong>Blake3 PoH v3 LIVE</strong> (gate #485000 · share-PPS · paced day budget) · fleet ~few–tens GH/s Blake3 wall-rate · GHS↔Dig soft-priority (hybrid GPUs prefer Dig; Hunt engines Linux-only; Windows Dig/PoH)</li>
         <li><strong>MiningBoard</strong> — HMC + HackMe Official Pool listed (verified 2026-11-04). Independent page: <a href="https://miningboard.com/pools/hackme.tech" target="_blank" rel="noreferrer">miningboard.com/pools/hackme.tech</a> · coin: <a href="https://miningboard.com/mining/hackme" target="_blank" rel="noreferrer">/mining/hackme</a> · our feed: <a href="https://hackme.tech/pool/coordinator/api/miningboard/hmc" target="_blank" rel="noreferrer">pool-v1 JSON</a></li>
-        <li><strong>Economics v2</strong> — <a href="https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md" target="_blank" rel="noreferrer">RFC soft-announced</a> (2026-10-30); height package on <code>main</code>, <strong>not activated</strong> (no vanity height; tip+≥14d announce later)</li>
+        <li><strong>Economics v2</strong> — <a href="https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md" target="_blank" rel="noreferrer">RFC</a> · activation height <strong>550,000</strong> (≈ 2026-11-15) in 0.1.0-rc19: 0.1 HMC/block, ~4-year halvings, 0.002 tail, 5% order burn + 5% platform fee, SUP 0.002/block (cap 21,000), <code>HMC-</code> + 64-hex addresses, <code>chain_id</code> <code>hackme-mainnet-1</code></li>
         <li><strong>Own exchange</strong> — spot paper desk at <a href="https://exchange.hackme.tech/" target="_blank" rel="noreferrer">exchange.hackme.tech</a> (no futures lane at start; customer buy-path for audit escrow)</li>
         <li><strong>Marketplace</strong> — campaign board shows live fleet capacity + per-order fleet ETA · <a href="./fuzz-marketplace.html">fuzz marketplace</a></li>
         <li><strong>Research</strong> — Hunt Watch 12/12 · nghttp2 CVE Watch 14/14 CLEAN · libheif CVE Watch <strong>14/14 CLEAN</strong> · <a href="./reports/hunt-watch-2026sep/">Hunt ledger</a></li>
@@ -78,7 +78,7 @@
       <div class="grid grid-3">
         <article class="card glass">
           <h3>HMC <span class="pill live">primary</span></h3>
-          <p>Native chain asset · Dig/Hunt escrow · own desk now · external CEX later. Economics v2 height switch deferred (soft announce only).</p>
+          <p>Native chain asset · Dig/Hunt escrow · own desk now · external CEX later. Economics v2 from block 550,000: 0.1 HMC/block, real order burns, no hard cap (0.002 tail).</p>
           <ul class="list">
             <li><a href="./coin-hmc.html">Investor page</a></li>
             <li><a href="./token-transparency.html">Live supply</a></li>
@@ -88,7 +88,7 @@
         </article>
         <article class="card glass">
           <h3>SUP <span class="pill">companion</span></h3>
-          <p>Utility / loyalty — CEX only after HMC traction. Earned on hybrid pool work; transferable; fee spend prepared in Economics v2 (not activated). Never Dig/Hunt escrow.</p>
+          <p>Utility / loyalty — CEX only after HMC traction. Earned on hybrid pool work; transferable; pays order fees from block 550,000 (Economics v2; cap 21,000). Never Dig/Hunt escrow.</p>
           <ul class="list">
             <li><a href="./coin-sup.html">Utility page</a></li>
             <li><a href="https://hackme.tech/api/sup/economics">Economics API</a></li>
@@ -128,39 +128,39 @@
         <article class="card glass">
           <h3>HMC Listing Pack</h3>
           <p>Memo + tokenomics + allocation/vesting.</p>
-          <a class="btn btn-primary" href="/dist/docs/HMC_Listing_Pack.pdf?v=20261030-rc18" download>HMC_Listing_Pack.pdf</a>
+          <a class="btn btn-primary" href="/dist/docs/HMC_Listing_Pack.pdf?v=20261106-rc19" download>HMC_Listing_Pack.pdf</a>
         </article>
         <article class="card glass">
           <h3>SUP Companion</h3>
           <p>Tokenomics + utility policy.</p>
-          <a class="btn btn-secondary" href="/dist/docs/SUP_Companion_Overview.pdf?v=20261030-rc18" download>SUP_Companion_Overview.pdf</a>
+          <a class="btn btn-secondary" href="/dist/docs/SUP_Companion_Overview.pdf?v=20261106-rc19" download>SUP_Companion_Overview.pdf</a>
         </article>
         <article class="card glass">
           <h3>Network Pitch</h3>
           <p>10–12 slide deck + ecosystem overview.</p>
-          <a class="btn btn-secondary" href="/dist/docs/HackMe_Network_Pitch.pdf?v=20261030-rc18" download>HackMe_Network_Pitch.pdf</a>
+          <a class="btn btn-secondary" href="/dist/docs/HackMe_Network_Pitch.pdf?v=20261106-rc19" download>HackMe_Network_Pitch.pdf</a>
         </article>
         <article class="card glass">
           <h3>Legal &amp; Rights</h3>
           <p>AGPL summary, trademarks, honest status, risk disclosures.</p>
-          <a class="btn btn-secondary" href="/dist/docs/HackMe_Legal_and_Rights.pdf?v=20261030-rc18" download>HackMe_Legal_and_Rights.pdf</a>
+          <a class="btn btn-secondary" href="/dist/docs/HackMe_Legal_and_Rights.pdf?v=20261106-rc19" download>HackMe_Legal_and_Rights.pdf</a>
         </article>
         <article class="card glass">
           <h3>AGPL-3.0 License</h3>
           <p>Full GNU Affero GPL v3 verbatim text.</p>
-          <a class="btn btn-secondary" href="/dist/docs/AGPL-3.0_License.pdf?v=20261030-rc18" download>AGPL-3.0_License.pdf</a>
+          <a class="btn btn-secondary" href="/dist/docs/AGPL-3.0_License.pdf?v=20261106-rc19" download>AGPL-3.0_License.pdf</a>
         </article>
         <article class="card glass">
           <h3>Checksums</h3>
           <p>SHA256 for all five PDFs.</p>
-          <a class="btn btn-secondary" href="/dist/docs/SHA256SUMS-docs.txt?v=20261030-rc18">SHA256SUMS-docs.txt</a>
+          <a class="btn btn-secondary" href="/dist/docs/SHA256SUMS-docs.txt?v=20261106-rc19">SHA256SUMS-docs.txt</a>
         </article>
       </div>
       <p class="muted" style="margin-top:1rem">Sources: <a href="https://github.com/jokeez/hackme/blob/main/docs/internal/DOCUMENTATION_EXPORT.md" target="_blank" rel="noreferrer">DOCUMENTATION_EXPORT.md</a> · <a href="./legal.html">Legal hub</a></p>
     </section>
   </main>
 
-  <footer class="footer"><p>HackMe Network · snapshot 2026-11-03 · channel 0.1.0-rc19 · Economics v2 soft-announce (not height-activated)</p><div class="footer-nav"></div></footer>
+  <footer class="footer"><p>HackMe Network · snapshot 2026-11-06 · channel 0.1.0-rc19 · Economics v2 at block 550,000</p><div class="footer-nav"></div></footer>
   <script src="./assets/site-shell.js?v=20261024eco1"></script>
   <script src="./assets/app.js?v=20260914dev1"></script>
 </body>

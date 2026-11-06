@@ -8,12 +8,12 @@ Live balances: [token-transparency.html](https://hackme.tech/token-transparency.
 
 ## HMC (HackMe Coin)
 
-**Max supply:** 100,000,000 HMC
+**Supply:** no hard cap from block 550,000 (Economics v2): 0.1 HMC per empty block, halving every 4,204,800 blocks down to a permanent 0.002 HMC tail. Until then v1 (0.01 HMC/block, 100M ceiling).
 
-| Category | % of max | Amount (HMC) | Vesting / unlock |
-|----------|----------|--------------|------------------|
-| Genesis treasury (DevFee) | **0.05%** | **50,000** | **Unlocked at genesis** (block #0); public address |
-| Miner + order emission | **~99.95%** | ~99,950,000 | **Continuous** via PoH halving + order escrow |
+| Category | Share | Amount (HMC) | Vesting / unlock |
+|----------|-------|--------------|------------------|
+| Genesis treasury (DevFee) | one-time | **50,000** | **Unlocked at genesis** (block #0); public address |
+| Miner + order emission | everything else | open-ended | **Continuous** via PoH halving + order escrow |
 | Team pre-mine | **0%** | 0 | None declared |
 | Investor SAFT | **0%** | 0 | None declared |
 
@@ -26,7 +26,7 @@ Live balances: [token-transparency.html](https://hackme.tech/token-transparency.
 | Genesis (done) | +50,000 treasury |
 | Ongoing | PoH base emission (~120 blocks/h × reward_base) |
 | Ongoing | Order escrow payouts (customer-funded, not inflation) |
-| Per transfer | Fee burn tally reduces circulating over time |
+| Per transfer / order | Fee burn tally; from block 550,000 each order also burns 5% for real |
 
 **Top-holder note:** Early mining concentrates supply in active pool wallets; no hidden team cliff. Concentration decreases as emission spreads — publish top-10 holder report quarterly (operator commitment).
 
@@ -34,12 +34,12 @@ Live balances: [token-transparency.html](https://hackme.tech/token-transparency.
 
 ## SUP (HackMe Support)
 
-**Max supply:** 21,000,000 SUP
+**Max supply:** 21,000 SUP from block 550,000 (21,000,000 under v1; SUP minted before the height counts toward the cap)
 
 | Category | % of max | Vesting |
 |----------|----------|---------|
 | Public / team pre-mine | **0%** | None |
-| Miner pool emission | **100%** | Minted only via quality-gated pool work |
+| Miner pool emission | **100%** | v1: minted via quality-gated pool work · v2: 0.002 SUP per empty block, passed to miners by the pool |
 
 **No vesting cliffs** — SUP that exists was earned through coordinator rules or on-chain mint after settlement.
 

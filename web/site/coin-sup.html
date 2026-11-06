@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SUP (HackMe Support) — Utility &amp; Tokenomics</title>
-  <meta name="description" content="HackMe Support (SUP): companion ecosystem coin, 21M max, earned only via quality HMC pool mining. On-chain live, CEX after HMC lists." />
+  <meta name="description" content="HackMe Support (SUP): companion ecosystem coin, hard cap 21,000 from block 550,000 (0.002 SUP per block), earned via quality HMC pool mining. On-chain live, CEX after HMC lists." />
   <link rel="canonical" href="https://hackme.tech/coin-sup.html" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://hackme.tech/coin-sup.html" />
@@ -40,9 +40,9 @@
           <h1>HackMe Support (SUP)</h1>
           <p class="hero-copy">
             Second coin in the HackMe <strong>ecosystem</strong>. Scarce, quality-gated companion for listing after HMC.
-            No faucet — earn via honest HMC pool work; transferable on-chain. Fee spend is prepared in
-            <a href="https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md" target="_blank" rel="noreferrer">Economics v2</a>
-            (soft-announced; not tip-activated). Never Dig/Hunt escrow.
+            No faucet — earn via honest HMC pool work; transferable on-chain. From block 550,000
+            (<a href="https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md" target="_blank" rel="noreferrer">Economics v2</a>,
+            ≈ November 15, 2026) SUP is minted by the chain itself — 0.002 SUP per empty block, hard cap 21,000 — and can pay order fees. Never Dig/Hunt escrow.
           </p>
           <div class="cta-row">
             <a class="btn btn-primary" href="./downloads.html">Mine HMC (earn SUP)</a>
@@ -59,14 +59,14 @@
     <section class="panel glass">
       <div class="panel-head"><h2>At a glance</h2></div>
       <div class="table-wrap">
-        <table class="pool-table">
+        <table class="pool-table pool-table--wrap">
           <tbody>
             <tr><th>Ticker</th><td><strong>SUP</strong></td></tr>
-            <tr><th>Max supply (today)</th><td>21,000,000 SUP</td></tr>
-            <tr><th>Max supply (v2 @ activation)</th><td>21,000 SUP (RFC) · block emit; admin mint retired</td></tr>
+            <tr><th>Max supply</th><td><strong>21,000 SUP</strong> from block 550,000 (supply minted before the height counts toward it); 21,000,000 under v1</td></tr>
+            <tr><th>Emission (v2)</th><td>0.002 SUP per empty PoH block, halving with HMC (every 4,204,800 blocks), no tail · admin mint retired</td></tr>
             <tr><th>Ledger</th><td>Parallel on HackMe node (same <code>HMC-</code> addresses)</td></tr>
             <tr><th>Earn path</th><td>Hybrid-signed official HMC pool work only</td></tr>
-            <tr><th>Base accrual (today)</th><td>≤ 8% of HMC attempt value (quality multiplier 0–1.5×)</td></tr>
+            <tr><th>Pool accrual</th><td>≤ 8% of HMC attempt value (quality multiplier 0–1.5×); from v2 paid out of block-minted SUP</td></tr>
             <tr><th>Faucet / airdrop</th><td><strong>None</strong></td></tr>
             <tr><th>On-chain</th><td>Mint / settle · <code>transfer_sup</code> · activity / send on hub · <code>GET /api/sup/economics</code></td></tr>
             <tr><th>CEX listing</th><td>After primary HMC lists</td></tr>
@@ -88,9 +88,9 @@
 
     <section class="panel glass">
       <div class="panel-head"><h2>Utility</h2></div>
-      <p class="section-lede">SUP is earned and transferable today. Order-fee spend is <strong>implemented on <code>main</code></strong> and height-gated with Economics v2 — soft-announced, <strong>not tip-activated</strong>.</p>
+      <p class="section-lede">SUP is earned and transferable today. Paying order fees in SUP switches on at block <strong>550,000</strong> with Economics v2 (shipped in 0.1.0-rc19).</p>
       <div class="grid grid-3">
-        <article class="card glass"><h3>Order fee in SUP (v2, height-gated)</h3><p>Pay the order fee in SUP instead of HMC. Escrow itself always stays in HMC. Never Dig/Hunt settlement in SUP.</p></article>
+        <article class="card glass"><h3>Order fee in SUP (from block 550,000)</h3><p>Pay the order fee in SUP instead of HMC. Escrow itself always stays in HMC. Never Dig/Hunt settlement in SUP.</p></article>
         <article class="card glass"><h3>Governance signal (planned)</h3><p>Non-binding votes on coordinator parameters.</p></article>
       </div>
     </section>
@@ -98,7 +98,7 @@
     <section class="panel glass">
       <div class="panel-head"><h2>Allocation</h2></div>
       <p class="section-lede"><strong>100% work-based emission.</strong> No team pre-mine. See <a href="./token-transparency.html">live minted supply</a>.</p>
-      <p><a href="/dist/docs/SUP_Companion_Overview.pdf?v=20261030-rc18" download><strong>PDF:</strong> SUP Companion Overview</a> · <a href="https://github.com/jokeez/hackme/blob/main/docs/SUP_TOKENOMICS.md" target="_blank" rel="noreferrer">SUP tokenomics doc</a></p>
+      <p><a href="/dist/docs/SUP_Companion_Overview.pdf?v=20261106-rc19" download><strong>PDF:</strong> SUP Companion Overview</a> · <a href="https://github.com/jokeez/hackme/blob/main/docs/SUP_TOKENOMICS.md" target="_blank" rel="noreferrer">SUP tokenomics doc</a></p>
     </section>
 
     <section class="panel glass">

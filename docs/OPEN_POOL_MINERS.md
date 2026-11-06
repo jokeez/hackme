@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**HackMe Network** · release **0.1.0-rc18** LIVE (Win/Linux/fuzz/ISO channel + installers)
+**HackMe Network** · release **0.1.0-rc19** LIVE (Win/Linux deb·rpm·Arch/Docker/fuzz/ISO + installers) · Economics v2 at block 550,000
 
 [hackme.tech](https://hackme.tech) · [Downloads](https://hackme.tech/downloads.html) · [Pool stats](https://hackme.tech/pool/coordinator/api/pool/stats) · [Telegram](https://t.me/hackme_tech) · [Bitcointalk](https://bitcointalk.org/index.php?topic=5583373.0)
 
@@ -29,7 +29,7 @@ Installer / desktop hybrid is **ON by default** (`HACKME_WORKER_HYBRID_FUZZ=1`):
 | **Dig** | WASM `check_bytes` segments (scan/audit/deep) — Dig never runs AFL/libFuzzer |
 | **Hunt** | Coverage-guided engine lease: **libFuzzer** fleet default. **AFL++** only via explicit `hunt_engine=aflpp` or opt-in `HACKME_HUNT_ENGINE_DEEP_AFL=1` (default OFF). Byte fallback **OFF** (soft-skip without clang/LF). Optional research slot: escape `HACKME_WORKER_RESEARCH_SLOT=0` |
 
-Catalog Hunt harness binaries are fetched from the pool (not the customer git tree). **Linux install / self-update / firstboot** best-effort runs **`install_hunt_engines.sh`** — **rc18** installers auto-run (clang + AFL++ + bubblewrap — **do not** `git clone` AFL++). Opt-out: `HACKME_SKIP_HUNT_ENGINES=1`. Isolation prefers **bwrap**; missing engine → soft-skip, not fake CLEAN pay. Disk caps: `prune_hunt_miner_caches.sh`. PoH mining continues alongside fuzz work. Blake3 lane: **SHARE_STRICT share-PPS** (verified shares); empty finds can fund settlement via **D1 baseline relay** on the public hub. Dig/Hunt hybrid escrow unchanged. Speed honesty vs local LF: [HUNT_VS_LIBFUZZER.md](HUNT_VS_LIBFUZZER.md).
+Catalog Hunt harness binaries are fetched from the pool (not the customer git tree). **Linux install / self-update / firstboot** best-effort runs **`install_hunt_engines.sh`** — **rc18+** installers auto-run (clang + AFL++ + bubblewrap — **do not** `git clone` AFL++). Opt-out: `HACKME_SKIP_HUNT_ENGINES=1`. Isolation prefers **bwrap**; missing engine → soft-skip, not fake CLEAN pay. Disk caps: `prune_hunt_miner_caches.sh`. PoH mining continues alongside fuzz work. Blake3 lane: **SHARE_STRICT share-PPS** (verified shares); empty finds can fund settlement via **D1 baseline relay** on the public hub. Dig/Hunt hybrid escrow unchanged. Speed honesty vs local LF: [HUNT_VS_LIBFUZZER.md](HUNT_VS_LIBFUZZER.md).
 
 ## New miner (Windows)
 

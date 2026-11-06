@@ -15,14 +15,25 @@ pacman), so a later stable release upgrades cleanly.
 
 ## Docker (miner)
 
-The image is built from the published Linux tarball (prebuilt CPU / CUDA / OpenCL workers) and
-checks its SHA256 during the build.
+There is no image on a public registry yet: build it locally from the published Linux tarball
+(prebuilt CPU / CUDA / OpenCL workers). The build checks the tarball against `SHA256SUMS.txt`.
 
 ```bash
+git clone --depth 1 https://github.com/jokeez/hackme && cd hackme
+VER=0.1.0-rc19; mkdir -p dist/release_$VER
+for f in hackme_${VER}_linux.tar.gz SHA256SUMS.txt; do
+  curl -fL -o dist/release_$VER/$f https://github.com/jokeez/hackme/releases/download/$VER/$f
+done
+VERSION=$VER bash scripts/release/docker/build_miner_image.sh      # → localhost/hackme-miner:$VER
+
 docker run -d --name hackme --restart unless-stopped --stop-timeout 60 \
   --network host --gpus all \
-  -v hackme-state:/state hackme/miner:<ver>
+  -v hackme-state:/state localhost/hackme-miner:<ver>
 ```
+
+The `localhost/` name is deliberate: if the image is missing, Docker fails instead of pulling an
+unrelated `hackme/miner` from Docker Hub. Do not run HackMe images from any registry we have not
+announced.
 
 - `--network host` keeps the node on `127.0.0.1:8080` exactly like a native install (the dashboard is
   not exposed to the LAN). Set `-e HACKME_PORT=18080` if port 8080 is taken.
@@ -42,7 +53,7 @@ Same image, Orders profile: a Dig/Hunt campaign node with no pool miner.
 ```bash
 docker run -d --name hackme-orders --restart unless-stopped --stop-timeout 60 \
   --network host -e HACKME_PROFILE=orders -e HACKME_PORT=8081 \
-  -v hackme-orders:/state hackme/miner:<ver>
+  -v hackme-orders:/state localhost/hackme-miner:<ver>
 # dashboard: http://127.0.0.1:8081/#orders
 ```
 

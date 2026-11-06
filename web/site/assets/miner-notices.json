@@ -1,22 +1,14 @@
 {
   "version": 1,
-  "updated_unix": 1762416000,
+  "updated_unix": 1793964210,
   "notices": [
     {
-      "id": "rc19-wallet-econ-packages",
-      "severity": "info",
-      "title": "0.1.0-rc19 — longer wallets · Economics v2 prep · packages",
-      "body": "Channel 0.1.0-rc19 prepares longer HMC wallet addresses and Economics v2 (not activated yet). Miner and Orders installers: Windows Setup, Linux deb/rpm/Arch, Docker (HACKME_PROFILE=orders), HackMe OS ISO. Secrets stay in your home directory — never inside the package.",
-      "cta_label": "Downloads",
+      "id": "economics-v2-550000",
+      "severity": "warn",
+      "title": "Economics v2 at block 550,000 — update to 0.1.0-rc19",
+      "body": "At block 550,000 (≈ November 15) the block reward goes 0.01 → 0.1 HMC, every paid order burns 5%, SUP is minted per block (cap 21,000) and HMC- + 64-hex addresses become valid (your old address keeps working). Nodes older than 0.1.0-rc19 do not know these rules — update now; the updater keeps your wallet and settings.",
+      "cta_label": "Update",
       "cta_href": "/downloads.html"
-    },
-    {
-      "id": "economics-v2-soft-announce",
-      "severity": "info",
-      "title": "Economics v2 — soft announce (not activated)",
-      "body": "Public RFC locks Economics v2 design: target 0.1 HMC/block, ~4y halvings, 0.002 tail, pool from emission, no airdrops. Not live yet — activation only after soak + \u226514 days notice. Live payouts remain current rules until the activation height.",
-      "cta_label": "Read RFC",
-      "cta_href": "https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md"
     },
     {
       "id": "rc19-orders-beside-miner",
@@ -29,7 +21,7 @@
     {
       "id": "rc18-share-pps",
       "severity": "info",
-      "title": "Blake3 share-PPS \u00b7 CUDA/OpenCL",
+      "title": "Blake3 share-PPS · CUDA/OpenCL",
       "body": "Blake3 PoH LIVE. Pool pays verified shares (SHARE_STRICT PPS at M/1024). Pool GH/s is blake3_pow_ghs (shares/wall). NVIDIA CUDA / AMD OpenCL. Hunt = Linux + bubblewrap.",
       "cta_label": "Downloads",
       "cta_href": "/downloads.html"

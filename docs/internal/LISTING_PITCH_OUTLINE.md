@@ -35,7 +35,7 @@ Three layers on one stack:
 
 ## Slide 5 — Technology proof
 
-- Live pool + explorer + downloads (**0.1.0-rc18** LIVE · installers published)
+- Live pool + explorer + downloads (**0.1.0-rc19** LIVE · Windows · deb/rpm/Arch · Docker · ISO)
 - Hunt Watch 2026sep: **12/12 CLOSED** (~192.5M Hunt Standard · ASAN+UBSan) · [ledger](https://hackme.tech/reports/hunt-watch-2026sep/)
 - OSS CVE Watch: nghttp2 14/14 CLEAN · libheif 14/14 CLEAN (~2.57B series exec · ASAN=0)
 - Operator gates: miner launch, SUP verdict, site consistency
@@ -44,7 +44,7 @@ Three layers on one stack:
 
 ## Slide 6 — HMC tokenomics (summary)
 
-- 100M max · halving + tail · 50k genesis treasury (0.05%)
+- Economics v2 from block 550,000: 0.1 HMC/block · ~4-year halvings · 0.002 tail, no hard cap · 5% order burn · 50k genesis treasury
 - Circulating = API-verifiable
 - Utility: mining, fees, order escrow
 

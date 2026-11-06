@@ -1,6 +1,6 @@
 # HackMe Network — exchange listing memo (one page)
 
-**Version:** 2026-10-16 · **Contact:** https://hackme.tech/contacts.html · **Repo:** https://github.com/jokeez/hackme (AGPL-3.0)
+**Version:** 2026-11-06 · **Contact:** https://hackme.tech/contacts.html · **Repo:** https://github.com/jokeez/hackme (AGPL-3.0)
 
 ---
 
@@ -26,26 +26,27 @@ Cold mid-tier CEX pitches are **deferred** while the desk and product deepen.
 |-------|-------|
 | Ticker | **HMC** |
 | Name | HackMe Coin |
-| Max supply | 100,000,000 |
+| Supply | No hard cap from block 550,000 (Economics v2): 0.1 HMC/block, halving every 4,204,800 blocks (~4 y) to a permanent 0.002 HMC tail. v1 before: 0.01 HMC/block, 100M ceiling |
 | Decimals | 8 |
 | Consensus | Blake3 Proof of History (fv≥3); WASM on Dig/Hunt orders |
 | Block target | ~30s |
-| Address format | `HMC-` + 16 hex chars |
+| Address format | `HMC-` + 64 hex from block 550,000 (full SHA-256 of the key); legacy `HMC-` + 16 hex stays valid, bound to its key · lowercase only |
+| Chain id | `hackme-mainnet-1` (signed into transfers from block 550,000) |
 | Signature | Ed25519 `transfer_v1` |
 | Explorer | https://hackme.tech/explorer-lite.html |
 | Node API | https://hackme.tech/api/status |
 | Pool PoH stats | https://hackme.tech/pool/coordinator/api/work/stats |
 | Dig/Hunt capacity | https://hackme.tech/pool/coordinator/api/fuzz/pool/stats |
 
-**Genesis treasury (disclosed):** 50,000 HMC → `HMC-719006d93916ad52` (0.05% of max). Remaining supply = miner/order emission.
+**Genesis treasury (disclosed):** 50,000 HMC → `HMC-719006d93916ad52`. Remaining supply = miner/order emission. From block 550,000 every paid order burns 5% of its escrow value.
 
 ## Companion asset: SUP (after HMC has spot traction)
 
 | Field | Value |
 |-------|-------|
 | Ticker | **SUP** |
-| Max supply | 21,000,000 |
-| Earn | Quality-gated HMC pool mining only |
+| Max supply | 21,000 from block 550,000 (21,000,000 under v1) |
+| Earn | Quality-gated HMC pool mining; from block 550,000 minted 0.002 SUP per empty block |
 | On-chain | Live (`GET /api/sup/economics`) |
 | Listing | Companion ticker after HMC desk/CEX traction |
 
@@ -61,7 +62,7 @@ Cold mid-tier CEX pitches are **deferred** while the desk and product deepen.
 
 ## Technology transparency
 
-- Open source node, coordinator, worker binaries (`0.1.0-rc18`)
+- Open source node, coordinator, worker binaries (`0.1.0-rc19`)
 - Security research: Hunt Watch 12/12 · OSS CVE Watch (nghttp2 14/14 CLEAN · libheif 14/14 CLEAN)
 - Marketplace fleet ETA / capacity: https://hackme.tech/fuzz-marketplace.html
 - Policy regression locks in Go (`economics_test.go`)
@@ -91,7 +92,7 @@ Cold mid-tier CEX pitches are **deferred** while the desk and product deepen.
 
 - Bitcointalk ANN topic 5583373
 - Telegram: @hackme_tech
-- GitHub releases: `0.1.0-rc18`
+- GitHub releases: `0.1.0-rc19`
 - Pool / research: live APIs + https://hackme.tech/listing.html
 
 ---

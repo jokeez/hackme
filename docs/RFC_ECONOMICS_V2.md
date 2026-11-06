@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | Activation height **550 000** compiled into the release (≈ 2026-11-15) |
 | **Branch** | On `main`; one height switch at block 550 000 |
-| **Network today** | `0.1.0-rc18` · Blake3 PoH · ASERT · `SHARE_STRICT` share-PPS · solvency M |
+| **Network today** | `0.1.0-rc19` (v2 rules compiled in) · Blake3 PoH · ASERT · `SHARE_STRICT` share-PPS · solvency M |
 | **Scope** | HMC emission, pool funding, order fee/burn, SUP utility, activation process |
 | **Out of scope** | Airdrops, vesting giveaways |
 
@@ -267,7 +267,7 @@ Checkpoints (OTS + git) already run; post-activation work continues on dumps + `
 | Address/key binding | ✅ recorded from history now, enforced from the activation height |
 | Long address format | ✅ `HMC-` + 64 hex accepted from the activation height (voluntary migration) |
 | Activation height | ✅ **550 000** compiled into the release with the hub authority key (≈ 2026-11-15) |
-| Activation announce + ≥7d | ⏳ announce 2026-11-06 (rc19 release) |
+| Activation announce + ≥7d | ✅ 0.1.0-rc19 published 2026-11-06 (~9 days ahead) · site, docs and miner dashboards updated |
 | Height switch | ⏳ |
 | Post-switch dumps / verify / 1.0.0 | after stability |
 
@@ -332,6 +332,7 @@ Miners, desktop nodes, explorers, and customers need a predictable upgrade windo
 | 2026-11-04 | Minimum activation notice shortened from 14 to 7 days (20 160 blocks) |
 | 2026-11-05 | Activation height 540 000 + authority key compiled in; address/key binding added to the height package |
 | 2026-11-05 | Height moved to **550 000** (keeps the ≥7-day notice for a 2026-11-06 announce); long `HMC-` + 64 hex addresses added to the height package |
+| 2026-11-06 | 0.1.0-rc19 published with the height package (all installers rebuilt from `main`); public site/docs switched from "soft announce" to "activates at 550 000" |
 
 ---
 

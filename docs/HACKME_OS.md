@@ -24,14 +24,14 @@ Commands: `hackme-show-wallet` · `hackme-os-status`
 | **Scheduler** | Worker: `SCHED_FIFO` priority 90, `Nice=-20`, realtime I/O |
 | **GPU** | AMD: `power_dpm` performance + compute profile; NVIDIA: persistence mode |
 | **Rig profiles** | Auto-detect RX 580 2048SP / generic / NVIDIA / Intel Arc → batch sizes from `internal/gputune` |
-| **Root** | Login `root` / `hackme` (change with `passwd`) · SSH enabled for farms |
+| **Root** | Per-machine random password set at first boot, stored in `/etc/hackme/root-password` (mode 600) · change with `passwd` · SSH is key-only |
 | **Pool** | Preconfigured `https://hackme.tech/pool/coordinator` |
 
 ## Build
 
 ```bash
 export HACKME_RELEASE_POOL_MINER_TOKEN="$(cat .secrets/hackme_coordinator_worker_token)"
-VERSION=0.1.0-rc18 bash scripts/release/iso/build_hackme_miner_iso.sh
+VERSION=0.1.0-rc19 bash scripts/release/iso/build_hackme_miner_iso.sh
 # ISO channel: scripts/release/CURRENT_ISO_VERSION (aligned with CURRENT_VERSION)
 ```
 
@@ -40,7 +40,7 @@ VERSION=0.1.0-rc18 bash scripts/release/iso/build_hackme_miner_iso.sh
 ## Flash & boot
 
 ```bash
-sudo dd if=dist/release_0.1.0-rc18/HackMe-OS-0.1.0-rc18-amd64.iso of=/dev/sdX bs=4M status=progress conv=fsync
+sudo dd if=dist/release_0.1.0-rc19/HackMe-OS-0.1.0-rc19-amd64.iso of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
 Choose **HackMe OS (live · max performance)** in GRUB.
@@ -55,10 +55,10 @@ Choose **HackMe OS (live · max performance)** in GRUB.
 Before flashing, verify the file:
 
 ```bash
-bash scripts/tests/verify_hackme_iso.sh /path/to/HackMe-OS-0.1.0-rc18-amd64.iso
+bash scripts/tests/verify_hackme_iso.sh /path/to/HackMe-OS-0.1.0-rc19-amd64.iso
 ```
 
-Published SHA256: `https://hackme.tech/dist/release_0.1.0-rc18/SHA256SUMS-iso.txt`
+Published SHA256: `https://hackme.tech/dist/release_0.1.0-rc19/SHA256SUMS-iso.txt`
 
 Re-flash with Balena Etcher (verify SHA256), boot **only** that USB, disable other OS entries in BIOS if needed.
 
@@ -83,7 +83,7 @@ Install proprietary driver, then in `/var/lib/hackme/rig.env` set `HACKME_GPU_BA
 
 ## Security
 
-Change default root password on production farms. Pool token is embedded at ISO build time — rebuild ISO for rotation, do not publish token.
+Each machine gets its own root password on first boot (older ISOs before rc19 shared one build-time password — run `passwd` on those). Pool token is embedded at ISO build time — rebuild ISO for rotation, do not publish token.
 
 ## Nightly chaos guard
 

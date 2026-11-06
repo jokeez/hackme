@@ -18,8 +18,8 @@ Total miner income is split into three parts:
 
 Where current chain constants are:
 
-- `initial_base = 0.01 HMC`
-- `halving_interval_blocks = 2,102,400` (~2 years at 30 sec target block time)
+- v1 (until block 549,999): `initial_base = 0.01 HMC`, `halving_interval_blocks = 2,102,400` (~2 years at 30 sec target block time)
+- Economics v2 (from block 550,000): `initial_base = 0.1 HMC`, `halving_interval_blocks = 4,204,800` (~4 years, epochs counted from genesis)
 - `tail_floor = 0.002 HMC` (`RewardTailFloorHMC`)
 
 ## 2) Emission model selected now

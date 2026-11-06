@@ -4,15 +4,15 @@
 <title>HackMe Network News</title>
 <link>https://hackme.tech/news.html</link>
 <description>Official HackMe pool, release, and research notices.</description>
-<lastBuildDate>Fri, 06 Nov 2026 08:52:13 +0000</lastBuildDate>
+<lastBuildDate>Fri, 06 Nov 2026 11:34:24 +0000</lastBuildDate>
 <atom:link href="https://hackme.tech/news.xml" rel="self" type="application/rss+xml"/>
 <language>en-us</language>
 <item>
-<title>0.1.0-rc19 — longer wallets · Economics v2 prep · packages</title>
+<title>0.1.0-rc19 — Economics v2 at block 550,000 · longer wallets · all packages</title>
 <link>https://hackme.tech/news.html#2026-11-06-rc19</link>
 <guid isPermaLink="false">2026-11-06-rc19</guid>
 <pubDate>Fri, 06 Nov 2026 00:00:00 +0000</pubDate>
-<description>rc19 channel: prep for longer HMC wallets and Economics v2; Miner/Orders installers for Windows, deb/rpm/Arch, Docker Orders profile, HackMe OS. Fedora/slim launcher fixes; Orders beside miner on port 8081.</description>
+<description>Economics v2 activates at block 550,000 (≈ November 15, 2026; watch the height, not the clock). Block reward 0.01 → 0.1 HMC (~288 HMC/day to miners), ~4-year halvings counted from genesis down to a permanent 0.002 HMC tail, no hard cap. Every paid order burns 5% (+5% platform fee). SUP is minted by the chain: 0.002 SUP per empty block, hard cap 21,000. New address format HMC- + 64 hex (full SHA-256 of your key); old 16-hex addresses keep working and are bound to their key — no automatic migration. Transfers carry chain_id hackme-mainnet-1 from the same height.</description>
 </item>
 <item>
 <title>HackMe Official Pool listed on MiningBoard</title>

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build hackme/miner:<VERSION> from a release dir (dist/release_<VERSION>) — the same tarball and
+# Build localhost/hackme-miner:<VERSION> from a release dir (dist/release_<VERSION>) — the same tarball and
 # SHA256SUMS users download, checked inside the build.
 #   VERSION=0.1.0-rc19 bash scripts/release/docker/build_miner_image.sh [dist/release_<ver>]
 set -euo pipefail
@@ -18,7 +18,9 @@ else
   echo "[docker] WARN: no SHA256SUMS.txt in $DIST — pinned the local tarball hash" >&2
 fi
 cp "$ROOT/scripts/release/docker/Dockerfile.miner" "$ROOT/scripts/release/docker/miner-entrypoint.sh" "$CTX/"
-IMAGE="${IMAGE:-hackme/miner}"
+# "localhost/" never resolves to Docker Hub: a missing local image fails instead of pulling a
+# stranger's "hackme/miner" (that Hub namespace is not ours to rely on).
+IMAGE="${IMAGE:-localhost/hackme-miner}"
 # DOCKER_BUILD_NETWORK=host when the default bridge has no DNS on the build machine.
 docker build ${DOCKER_BUILD_NETWORK:+--network="$DOCKER_BUILD_NETWORK"} -f "$CTX/Dockerfile.miner" --build-arg HACKME_VERSION="$VERSION" \
   -t "$IMAGE:$VERSION" "$CTX"

@@ -29,7 +29,7 @@
 | Doc | Asset |
 |-----|-------|
 | [HMC_TOKENOMICS.md](HMC_TOKENOMICS.md) | Live supply, halving, fees, circulating |
-| [RFC_ECONOMICS_V2.md](RFC_ECONOMICS_V2.md) | Economics v2 soft announce (not height-activated) |
+| [RFC_ECONOMICS_V2.md](RFC_ECONOMICS_V2.md) | Economics v2 — activates at block 550,000 (0.1.0-rc19) |
 | [SUP_TOKENOMICS.md](SUP_TOKENOMICS.md) | Pool accrual, caps, on-chain mint |
 | [HMS_TOKENOMICS.md](HMS_TOKENOMICS.md) | Storage lane epoch budget |
 | [TOKEN_ALLOCATION_AND_VESTING.md](TOKEN_ALLOCATION_AND_VESTING.md) | Allocation table + unlock calendar |

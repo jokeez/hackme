@@ -31,8 +31,9 @@ SUP is designed for **exchange listing**: fixed policy, on-chain transfers, publ
 
 ## Utility (why hold / trade)
 
-> **Status:** fee spend is implemented on `main` and **height-gated** with Economics v2 (soft-announced;
-> not tip-activated). Escrow always HMC; no pool priority. Pre-v2 accrual/mint rules still apply on live tip.
+> **Status:** paying order fees in SUP switches on at block **550,000** with Economics v2 (0.1.0-rc19).
+> Escrow always HMC; no pool priority. Until that height the pre-v2 accrual/mint rules apply; from it the
+> chain mints 0.002 SUP per empty block (cap 21,000) and the pool passes it on to miners.
 
 1. ~~Security Audit discount — up to 15% of order escrow in SUP~~ → v2: pay the order **fee** in SUP (code ready; activates with height).
 2. ~~Pool priority under congestion~~ — dropped in v2.

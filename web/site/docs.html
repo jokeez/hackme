@@ -181,23 +181,23 @@
 
     <section class="panel glass">
       <div class="panel-head"><h2>PDF exports (branded)</h2></div>
-      <p class="section-lede">Downloadable packs for CEX forms, partners, and legal review. Built with <code>bash scripts/release/build_listing_pdfs.sh</code>. <strong>Updated 2026-10-30</strong> · channel <strong>0.1.0-rc19</strong> (verify <a href="/dist/docs/SHA256SUMS-docs.txt?v=20261030-rc18"><code>SHA256SUMS-docs.txt</code></a>).</p>
+      <p class="section-lede">Downloadable packs for CEX forms, partners, and legal review. Built with <code>bash scripts/release/build_listing_pdfs.sh</code>. <strong>Updated 2026-10-30</strong> · channel <strong>0.1.0-rc19</strong> (verify <a href="/dist/docs/SHA256SUMS-docs.txt?v=20261106-rc19"><code>SHA256SUMS-docs.txt</code></a>).</p>
       <div class="grid grid-3">
         <article class="doc-card">
           <h3>HMC Listing Pack</h3>
           <p>Memo · tokenomics · vesting</p>
-          <a href="/dist/docs/HMC_Listing_Pack.pdf?v=20261030-rc18" download>Download PDF</a>
+          <a href="/dist/docs/HMC_Listing_Pack.pdf?v=20261106-rc19" download>Download PDF</a>
         </article>
         <article class="doc-card">
           <h3>Network Pitch</h3>
           <p>Institutional deck outline</p>
-          <a href="/dist/docs/HackMe_Network_Pitch.pdf?v=20261030-rc18" download>Download PDF</a>
+          <a href="/dist/docs/HackMe_Network_Pitch.pdf?v=20261106-rc19" download>Download PDF</a>
         </article>
         <article class="doc-card">
           <h3>Legal &amp; AGPL</h3>
           <p>Rights · trademarks · full license</p>
-          <a href="/dist/docs/HackMe_Legal_and_Rights.pdf?v=20261030-rc18" download>Rights PDF</a> ·
-          <a href="/dist/docs/AGPL-3.0_License.pdf?v=20261030-rc18" download>AGPL PDF</a>
+          <a href="/dist/docs/HackMe_Legal_and_Rights.pdf?v=20261106-rc19" download>Rights PDF</a> ·
+          <a href="/dist/docs/AGPL-3.0_License.pdf?v=20261106-rc19" download>AGPL PDF</a>
         </article>
       </div>
     </section>
@@ -216,53 +216,61 @@
     <section class="panel glass">
       <div class="panel-head"><h2>Tokenomics snapshot</h2></div>
       <div class="table-wrap">
-        <table class="pool-table">
+        <table class="pool-table pool-table--wrap">
           <thead>
             <tr>
               <th>Metric</th>
-              <th>Value</th>
-              <th>Notes</th>
+              <th>v1 (until #549,999)</th>
+              <th>Economics v2 (from #550,000)</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td>Initial base reward</td>
-              <td>0.010000 HMC</td>
-              <td>Per PoH block cadence before halving milestones.</td>
+              <td>Base reward</td>
+              <td>0.01 HMC / block</td>
+              <td><strong>0.1 HMC</strong> / empty PoH block</td>
             </tr>
             <tr>
-              <td>Halving interval</td>
-              <td>2,102,400 blocks</td>
-              <td>Programmatic emission throttle.</td>
+              <td>Halving</td>
+              <td>every 2,102,400 blocks (~2 y)</td>
+              <td>every <strong>4,204,800</strong> blocks (~4 y, counted from genesis; first at #4,204,801)</td>
             </tr>
             <tr>
-              <td>Tail floor</td>
-              <td>0.002000 HMC</td>
-              <td>Long-run security budget baseline.</td>
-            </tr>
-            <tr>
-              <td>Transfer fee split</td>
-              <td>70% service/dev · 30% burn</td>
-              <td>On <span class="code-inline">fee_units</span> included in signed transfers.</td>
+              <td>Tail / cap</td>
+              <td>0.002 HMC floor · 100M ceiling</td>
+              <td>permanent <strong>0.002 HMC</strong> tail · no hard cap</td>
             </tr>
             <tr>
               <td>Order platform fee</td>
-              <td>5% of prepaid</td>
-              <td>Goes to consensus dev/service address at order creation.</td>
+              <td>5% of prepaid → dev/service address</td>
+              <td>5% of prepaid → dev/service address</td>
             </tr>
             <tr>
-              <td>Order-open burn tally</td>
-              <td>10% of prepaid</td>
-              <td><span class="code-inline">OrderBurnRate</span> — burned-supply accounting when the task opens.</td>
+              <td>Order burn</td>
+              <td>10% of prepaid — accounting tally only</td>
+              <td><strong>5%</strong> of prepaid, really debited (→ 2.5% → 1.25% with the first two halvings)</td>
+            </tr>
+            <tr>
+              <td>Transfer fee split</td>
+              <td colspan="2">70% service/dev · 30% burn (unchanged)</td>
+            </tr>
+            <tr>
+              <td>SUP</td>
+              <td>pool-quality mint · 21M ceiling</td>
+              <td>0.002 SUP per empty block · cap <strong>21,000</strong> · can pay order fees</td>
+            </tr>
+            <tr>
+              <td>Addresses</td>
+              <td><span class="code-inline">HMC-</span> + 16 hex</td>
+              <td><span class="code-inline">HMC-</span> + 64 hex added (16-hex stays valid, bound to its key) · <span class="code-inline">chain_id</span> hackme-mainnet-1</td>
             </tr>
           </tbody>
         </table>
       </div>
       <div class="formula-box">
         prepaid = reward_hmc × target_solves<br />
-        order_fee = prepaid × 0.05 → dev/service<br />
-        burn_recorded = prepaid × 0.10<br />
-        wallet_debit = prepaid + order_fee<br />
+        v2 wallet_debit = prepaid + prepaid × 0.05 (platform) + prepaid × 0.05 (burn)<br />
+        v1 wallet_debit = prepaid + prepaid × 0.05 · burn_recorded = prepaid × 0.10 (tally)<br />
         — transfers: fee_units → 70% dev · 30% burn
       </div>
     </section>

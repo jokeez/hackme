@@ -1,6 +1,6 @@
 # SUP (HackMe Support) — tokenomics
 
-**Ticker:** SUP · **Ledger:** parallel on HackMe node (same `HMC-` addresses) · **Decimals:** 8 · **Max supply (today):** **21,000,000 SUP** · **Economics v2 (at activation):** **21,000 SUP** hard cap + block emit (see [RFC_ECONOMICS_V2.md](RFC_ECONOMICS_V2.md))
+**Ticker:** SUP · **Ledger:** parallel on HackMe node (same `HMC-` addresses) · **Decimals:** 8 · **Max supply:** **21,000 SUP** from block 550,000 (Economics v2; everything minted before counts toward it) · 21,000,000 under v1 · block emission 0.002 SUP (see [RFC_ECONOMICS_V2.md](RFC_ECONOMICS_V2.md))
 
 Public site: [coin-sup.html](https://hackme.tech/coin-sup.html) · Live API: `GET https://hackme.tech/api/sup/economics`
 
@@ -10,8 +10,9 @@ Public site: [coin-sup.html](https://hackme.tech/coin-sup.html) · Live API: `GE
 
 | Parameter | Value |
 |-----------|-------|
-| Max supply (pre-v2) | **21,000,000 SUP** |
-| Max supply (v2, when activated) | **21,000 SUP** |
+| Max supply (v1, until #549,999) | 21,000,000 SUP |
+| Max supply (v2, from #550,000) | **21,000 SUP** (incl. ~3,309 SUP minted under v1) |
+| Block emission (v2) | **0.002 SUP** per empty PoH block, halving with HMC every 4,204,800 blocks, no tail |
 | Genesis handout to public | **None** (no faucet / airdrop) |
 | Mint / settle path (today) | Coordinator accrual → settlement mint / transfer |
 | Mint path (v2) | Empty-block emit only; admin mint retired; pool pays from settlement wallet |
@@ -19,7 +20,7 @@ Public site: [coin-sup.html](https://hackme.tech/coin-sup.html) · Live API: `GE
 
 ## Emission (earn rules)
 
-SUP is **only** minted when miners do **quality hybrid-signed work** on the official HMC coordinator.
+Until block 550,000 SUP is minted when miners do **quality hybrid-signed work** on the official HMC coordinator. From block 550,000 the chain mints it per block and the pool passes it on to miners by the same quality rules.
 
 | Gate | Effect |
 |------|--------|
@@ -34,7 +35,7 @@ Full policy: [SUPPORT_COIN_UTILITY.md](SUPPORT_COIN_UTILITY.md) · Phase C on-ch
 
 | Utility | Status |
 |---------|--------|
-| Order fee payable in SUP (escrow stays HMC) | **Code on `main`** — activates with Economics v2 height (soft-announced; not live tip yet) |
+| Order fee payable in SUP (escrow stays HMC) | From block **550,000** (Economics v2, 0.1.0-rc19) |
 | On-chain transfers | Live (`transfer_sup` / settle-by-transfer path for v2) |
 | ~~Security Audit discount (15% escrow)~~ / ~~pool priority~~ | Not enforced; dropped in v2 |
 | Support-miner reputation tier | Explorer / dashboard |

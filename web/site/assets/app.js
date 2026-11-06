@@ -40,7 +40,7 @@
     newsDisplay: "/assets/news-display.json",
     newsArchive: "/assets/news.json",
     releaseChannel: RELEASE_VER,
-    releaseChannelNote: RELEASE_VER.replace(/^0\.1\.0-/, "") + " channel — longer wallets + Economics v2 prep · miner/Orders packages (deb/rpm/Arch/Docker) · Dig/Hunt · paper Exchange; installers " + PUBLISHED_ARTIFACT_VER,
+    releaseChannelNote: RELEASE_VER.replace(/^0\.1\.0-/, "") + " channel — Economics v2 at block 550,000 (≈ Nov 15) · longer wallets · miner/Orders packages (deb/rpm/Arch/Docker) · Dig/Hunt · paper Exchange; installers " + PUBLISHED_ARTIFACT_VER,
     publishedArtifactVer: PUBLISHED_ARTIFACT_VER,
     releaseBase: `/dist/release_${PUBLISHED_ARTIFACT_VER}`,
     // Primary downloads: GitHub Releases (Cloudflare /dist often stalls or truncates large files).

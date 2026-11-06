@@ -1,27 +1,27 @@
 {
-  "updated": "2026-11-06T08:00:00Z",
+  "updated": "2026-11-06T12:00:00Z",
   "interval_ms": 6200,
   "pool_poll_ms": 30000,
   "slides": [
     {
       "kind": "release",
-      "badge": "CHANNEL",
-      "title": "0.1.0-rc19 \u2014 longer wallets \u00b7 Economics v2 prep",
-      "detail": "Preparing wallet address lengthening + new economics. Miner/Orders install packages: deb, rpm, Arch, Docker. Verify SHA256.",
-      "cta": "Downloads",
+      "badge": "ECONOMICS V2",
+      "title": "Economics v2 at block 550,000 — update to 0.1.0-rc19",
+      "detail": "≈ Nov 15: block reward 0.01 → 0.1 HMC · 5% order burn · SUP 0.002/block (cap 21,000) · new HMC- + 64-hex addresses, old ones keep working. Verify SHA256.",
+      "cta": "Update",
       "href": "/downloads.html#start",
       "accent": "success",
       "stats": [
-        "rc19",
-        "wallets",
-        "econ v2"
+        "#550,000",
+        "0.1 HMC",
+        "rc19"
       ]
     },
     {
       "kind": "product",
       "badge": "PACKAGES",
       "title": "Miner + Orders packages across distros",
-      "detail": "Ubuntu/Debian .deb · Fedora rpm · Arch pkg.tar.zst · Docker HACKME_PROFILE=orders · secrets stay in your home dir",
+      "detail": "Ubuntu/Debian .deb · Fedora rpm · Arch pkg.tar.zst · Docker (local build, HACKME_PROFILE=orders) · secrets stay in your home dir",
       "cta": "Get packages",
       "href": "/downloads.html#start",
       "accent": "neon",
@@ -34,8 +34,8 @@
     {
       "kind": "product",
       "badge": "POOL",
-      "title": "Share-PPS \u00b7 verified shares at M/1024",
-      "detail": "Live pool: SHARE_STRICT pays verified share_nonces \u00b7 GH/s = blake3_pow_ghs (shares/wall)",
+      "title": "Share-PPS · verified shares at M/1024",
+      "detail": "Live pool: SHARE_STRICT pays verified share_nonces · GH/s = blake3_pow_ghs (shares/wall)",
       "cta": "Economics",
       "href": "/economics-model.html",
       "accent": "neon",
@@ -48,8 +48,8 @@
     {
       "kind": "product",
       "badge": "HUNT",
-      "title": "Coverage Hunt live \u2014 libFuzzer fleet \u00b7 AFL++ Deep",
-      "detail": "Engines on desktop; fleet auto-install \u00b7 prove/pay on edges",
+      "title": "Coverage Hunt live — libFuzzer fleet · AFL++ Deep",
+      "detail": "Engines on desktop; fleet auto-install · prove/pay on edges",
       "cta": "Fuzz guide",
       "href": "/fuzz-guide.html",
       "accent": "neon",
@@ -62,8 +62,8 @@
     {
       "kind": "exchange",
       "badge": "D0",
-      "title": "Paper Exchange live \u2014 HMC spot \u00b7 pool oracle",
-      "detail": "exchange.hackme.tech paper soft-launch (D0) \u00b7 local node #exchange embeds the same desk",
+      "title": "Paper Exchange live — HMC spot · pool oracle",
+      "detail": "exchange.hackme.tech paper soft-launch (D0) · local node #exchange embeds the same desk",
       "cta": "Open desk",
       "href": "https://exchange.hackme.tech/",
       "accent": "cyan",
@@ -77,7 +77,7 @@
       "kind": "pool",
       "badge": "Live pool",
       "title": "Official HMC pool",
-      "detail": "Live hashrate \u00b7 miners \u00b7 tip height",
+      "detail": "Live hashrate · miners · tip height",
       "cta": "Mine",
       "href": "/downloads.html#start",
       "accent": "cyan",
