@@ -20,112 +20,374 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./assets/styles.css?v=20261024eco1" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20261106dl1" />
+  <link rel="stylesheet" href="./assets/disclosure-ticker.css?v=20261106dl1" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
   <link rel="icon" href="/assets/favicon.png" type="image/png" />
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
   <style>
-    .dl-pick {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 1rem;
-      margin-top: 1.25rem;
+    .page-downloads {
+      --dl-cyan: #4de4ff;
+      --dl-mint: #6effad;
+      --dl-ink: #041018;
+      --dl-panel: rgba(8, 14, 27, 0.62);
+      --dl-line: rgba(77, 228, 255, 0.2);
     }
-    @media (max-width: 900px) {
-      .dl-pick { grid-template-columns: 1fr; }
+
+    .page-downloads .dl-atmosphere {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
     }
-    .dl-pick .card {
+    .page-downloads .dl-atmosphere::before,
+    .page-downloads .dl-atmosphere::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: 0.34;
+      animation: dl-drift 16s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)) infinite alternate;
+    }
+    .page-downloads .dl-atmosphere::before {
+      width: 42rem;
+      height: 42rem;
+      top: -14rem;
+      left: -10rem;
+      background: radial-gradient(circle, rgba(77, 228, 255, 0.55), transparent 68%);
+    }
+    .page-downloads .dl-atmosphere::after {
+      width: 36rem;
+      height: 36rem;
+      right: -8rem;
+      bottom: 10%;
+      background: radial-gradient(circle, rgba(110, 255, 173, 0.35), transparent 70%);
+      animation-delay: -7s;
+    }
+    @keyframes dl-drift {
+      from { transform: translate3d(0, 0, 0) scale(1); }
+      to { transform: translate3d(2.5%, 3%, 0) scale(1.08); }
+    }
+
+    .dl-hero {
+      position: relative;
+      overflow: hidden;
+      padding: 1.65rem 1.55rem 1.45rem;
+      border: 1px solid var(--dl-line);
+      background:
+        linear-gradient(145deg, rgba(0, 209, 255, 0.1), transparent 42%),
+        linear-gradient(205deg, rgba(110, 255, 173, 0.06), transparent 50%),
+        var(--dl-panel);
+      box-shadow: 0 28px 80px rgba(0, 8, 24, 0.4);
+      animation: dl-rise 0.7s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)) both;
+    }
+    .dl-hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 55% at 88% -10%, rgba(77, 228, 255, 0.22), transparent 55%),
+        linear-gradient(180deg, transparent 60%, rgba(5, 7, 13, 0.35));
+      pointer-events: none;
+    }
+    .dl-hero > * { position: relative; z-index: 1; }
+    @keyframes dl-rise {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .dl-brand {
       display: flex;
-      flex-direction: column;
-      gap: 0.65rem;
-      min-height: 100%;
-      border: 1px solid rgba(77, 228, 255, 0.18);
-      transition: border-color 0.2s ease, transform 0.2s ease;
-    }
-    .dl-pick .card:hover {
-      border-color: rgba(77, 228, 255, 0.45);
-      transform: translateY(-2px);
-    }
-    .dl-pick .card h3 {
-      font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
-      letter-spacing: 0.02em;
-      margin: 0;
-    }
-    .dl-pick .card p { margin: 0; flex: 1; }
-    .dl-pick .btn { margin-top: auto; }
-    .dl-strip {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.55rem 1rem;
       align-items: center;
-      margin-top: 1rem;
-      padding: 0.85rem 1rem;
-      border-radius: 0.85rem;
-      border: 1px solid rgba(110, 255, 173, 0.28);
-      background: rgba(110, 255, 173, 0.05);
+      gap: 0.75rem;
+      margin-bottom: 0.85rem;
     }
-    .dl-strip code {
-      font-size: 0.82rem;
-      color: #6effad;
+    .dl-brand img {
+      width: 2.65rem;
+      height: 2.65rem;
+      filter: drop-shadow(0 0 18px rgba(77, 228, 255, 0.35));
     }
-    .dl-meta-row {
+    .dl-brand-word {
+      font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+      font-weight: 700;
+      font-size: clamp(1.55rem, 3.2vw, 2.15rem);
+      letter-spacing: 0.01em;
+      line-height: 1;
+      color: #fff;
+    }
+    .dl-hero .kicker {
+      margin-bottom: 0.35rem;
+      letter-spacing: 0.18em;
+    }
+    .dl-hero h1 {
+      font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+      font-size: clamp(1.55rem, 3.4vw, 2.35rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0 0 0.55rem;
+      max-width: 18ch;
+      color: #fff;
+    }
+    .dl-hero-lead {
+      margin: 0;
+      max-width: 38rem;
+      color: var(--muted);
+      font-size: 1.02rem;
+      line-height: 1.55;
+    }
+    .dl-hero-lead strong { color: var(--dl-mint); font-weight: 650; }
+    .dl-hero-lead a { color: var(--dl-cyan); border-bottom: 1px solid rgba(77, 228, 255, 0.35); }
+
+    .dl-signal {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-top: 0.85rem;
+      gap: 0.45rem;
+      margin-top: 1rem;
     }
-    .dl-chip {
+    .dl-signal span {
       display: inline-flex;
       align-items: center;
       gap: 0.35rem;
-      padding: 0.28rem 0.65rem;
+      padding: 0.32rem 0.7rem;
       border-radius: 999px;
       border: 1px solid rgba(120, 170, 220, 0.28);
-      background: rgba(8, 14, 27, 0.55);
-      font-size: 0.72rem;
-      letter-spacing: 0.08em;
+      background: rgba(5, 10, 20, 0.55);
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--muted);
     }
-    .dl-chip strong { color: var(--ok); font-weight: 700; letter-spacing: 0.04em; text-transform: none; }
-    .dl-section-tight .panel-head h2 { margin-bottom: 0.35rem; }
-    .dl-muted-links { margin-top: 0.85rem; font-size: 0.88rem; }
-    details.dev-details summary { cursor: pointer; color: var(--primary); }
-    .dl-steps {
+    .dl-signal strong {
+      color: var(--dl-mint);
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: none;
+    }
+
+    .dl-stage {
+      margin-top: 1.35rem;
+      padding-top: 1.2rem;
+      border-top: 1px solid rgba(120, 170, 220, 0.14);
+    }
+    .dl-stage-label {
+      margin: 0 0 0.65rem;
+      font-size: 0.68rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(142, 163, 194, 0.9);
+    }
+
+    .dl-roles {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.65rem;
+      padding: 0.35rem;
+      border-radius: 1.05rem;
+      border: 1px solid rgba(120, 170, 220, 0.18);
+      background: rgba(3, 8, 16, 0.55);
+    }
+    @media (max-width: 720px) {
+      .dl-roles { grid-template-columns: 1fr; }
+    }
+    .dl-role {
+      position: relative;
+      border: 1px solid transparent;
+      border-radius: 0.85rem;
+      padding: 0.95rem 1.05rem 1rem;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color 0.25s ease, background 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .dl-role:hover { transform: translateY(-1px); border-color: rgba(77, 228, 255, 0.28); }
+    .dl-role.is-active {
+      border-color: rgba(110, 255, 173, 0.45);
+      background: linear-gradient(160deg, rgba(110, 255, 173, 0.12), rgba(0, 209, 255, 0.06));
+      box-shadow: inset 0 0 0 1px rgba(110, 255, 173, 0.12), 0 12px 36px rgba(0, 0, 0, 0.28);
+    }
+    .dl-role-tag {
+      display: inline-block;
+      margin-bottom: 0.4rem;
+      font-size: 0.62rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--dl-cyan);
+    }
+    .dl-role.is-active .dl-role-tag { color: var(--dl-mint); }
+    .dl-role strong {
+      display: block;
+      font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+      font-size: 1.12rem;
+      color: #fff;
+      margin-bottom: 0.28rem;
+    }
+    .dl-role p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.45;
+    }
+
+    .dl-platforms {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.85rem;
+      margin-top: 1rem;
+    }
+    @media (max-width: 960px) {
+      .dl-platforms { grid-template-columns: 1fr; }
+    }
+    .dl-platform {
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+      min-height: 100%;
+      padding: 1.1rem 1.1rem 1.05rem;
+      border-radius: 1rem;
+      border: 1px solid rgba(77, 228, 255, 0.16);
+      background:
+        linear-gradient(180deg, rgba(77, 228, 255, 0.05), transparent 40%),
+        rgba(5, 10, 18, 0.72);
+      transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+      animation: dl-rise 0.75s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)) both;
+    }
+    .dl-platform:nth-child(2) { animation-delay: 0.06s; }
+    .dl-platform:nth-child(3) { animation-delay: 0.12s; }
+    .dl-platform:hover {
+      border-color: rgba(77, 228, 255, 0.42);
+      transform: translateY(-3px);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    }
+    .dl-platform-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .dl-platform h3 {
+      margin: 0;
+      font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+      font-size: 1.18rem;
+      letter-spacing: 0.01em;
+      color: #fff;
+    }
+    .dl-platform-os {
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(142, 163, 194, 0.85);
+    }
+    .dl-platform .subtle { margin: 0; flex: 1; font-size: 0.9rem; line-height: 1.45; }
+
+    .dl-actions { display: flex; flex-direction: column; gap: 0.5rem; margin-top: auto; }
+    .dl-pkg-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.45rem;
+    }
+    @media (max-width: 560px) {
+      .dl-pkg-grid { grid-template-columns: 1fr; }
+    }
+    .dl-pkg-grid .btn,
+    .dl-actions .btn { margin-top: 0; }
+    .dl-hint {
+      margin: 0;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+    .dl-hint code { color: var(--dl-mint); font-size: 0.74rem; }
+    .dl-hint a { color: var(--dl-cyan); }
+
+    [data-role-panel] {
+      display: none;
+      flex-direction: column;
+      gap: 0.7rem;
+      flex: 1;
+      animation: dl-panel 0.28s ease both;
+    }
+    [data-role-panel].is-visible { display: flex; }
+    @keyframes dl-panel {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .dl-after {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem 1.1rem;
+      align-items: center;
+      margin-top: 1.05rem;
+      padding: 0.85rem 1rem;
+      border-radius: 0.95rem;
+      border: 1px solid rgba(110, 255, 173, 0.26);
+      background: linear-gradient(90deg, rgba(110, 255, 173, 0.07), rgba(0, 209, 255, 0.03));
+    }
+    .dl-after-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--dl-mint);
+      font-weight: 700;
+    }
+    .dl-after .subtle { font-size: 0.84rem; }
+    .dl-after code { color: var(--dl-mint); font-size: 0.8rem; }
+
+    .dl-section {
+      margin-top: 1.15rem;
+      padding: 1.25rem 1.3rem 1.35rem;
+      border-radius: 1.05rem;
+      border: 1px solid rgba(120, 170, 220, 0.16);
+      background: rgba(8, 14, 27, 0.55);
+      animation: dl-rise 0.8s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)) both;
+    }
+    .dl-section .panel-head { margin-bottom: 0.15rem; }
+    .dl-section .panel-head h2 {
+      font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+      margin-bottom: 0.35rem;
+      letter-spacing: -0.01em;
+    }
+    .dl-section .kicker { margin-bottom: 0.2rem; }
+
+    .dl-flow {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 1rem;
+      gap: 0.75rem;
       margin-top: 1rem;
     }
     @media (max-width: 800px) {
-      .dl-steps { grid-template-columns: 1fr !important; }
+      .dl-flow { grid-template-columns: 1fr; }
     }
-    .dl-step {
-      border: 1px solid rgba(77, 228, 255, 0.16);
+    .dl-flow-item {
+      padding: 0.95rem 1rem;
       border-radius: 0.85rem;
-      padding: 1rem 1.05rem;
-      background: rgba(8, 14, 27, 0.35);
+      border: 1px solid rgba(77, 228, 255, 0.14);
+      background: rgba(5, 10, 18, 0.45);
     }
-    .dl-step-num {
+    .dl-flow-num {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 1.55rem;
-      height: 1.55rem;
+      width: 1.45rem;
+      height: 1.45rem;
+      margin-bottom: 0.5rem;
       border-radius: 999px;
-      margin-bottom: 0.55rem;
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      color: #041018;
-      background: linear-gradient(135deg, #4de4ff, #6effad);
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: var(--dl-ink);
+      background: linear-gradient(135deg, var(--dl-cyan), var(--dl-mint));
     }
-    .dl-step h3 {
-      margin: 0 0 0.4rem;
+    .dl-flow-item h3 {
+      margin: 0 0 0.35rem;
       font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
-      font-size: 1.05rem;
+      font-size: 1rem;
     }
-    .dl-step p { margin: 0; }
+    .dl-flow-item p { margin: 0; font-size: 0.88rem; }
+
     .dl-callout {
       margin-top: 1rem;
       padding: 0.9rem 1rem;
@@ -134,178 +396,222 @@
       background: rgba(255, 196, 86, 0.06);
       font-size: 0.9rem;
     }
-    .dl-role-row {
+    .dl-muted-links { margin-top: 0.85rem; font-size: 0.88rem; }
+    details.dev-details summary { cursor: pointer; color: var(--primary); }
+
+    .dl-verify-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.75rem;
-      margin-top: 1.15rem;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.65rem;
+      margin-top: 0.9rem;
     }
-    @media (max-width: 700px) {
-      .dl-role-row { grid-template-columns: 1fr; }
-    }
-    .dl-role {
-      border: 1px solid rgba(77, 228, 255, 0.2);
-      border-radius: 0.9rem;
-      padding: 0.95rem 1.05rem;
-      background: linear-gradient(160deg, rgba(0, 209, 255, 0.08), rgba(8, 14, 27, 0.55));
-      cursor: pointer;
-      text-align: left;
-      color: inherit;
-      font: inherit;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-    }
-    .dl-role:hover { border-color: rgba(77, 228, 255, 0.5); transform: translateY(-1px); }
-    .dl-role.is-active {
-      border-color: rgba(110, 255, 173, 0.55);
-      box-shadow: 0 0 0 1px rgba(110, 255, 173, 0.25), 0 10px 28px rgba(0, 0, 0, 0.28);
-    }
-    .dl-role strong {
-      display: block;
-      font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
-      font-size: 1.05rem;
-      margin-bottom: 0.25rem;
-      color: #fff;
-    }
-    .dl-role span { color: var(--muted); font-size: 0.88rem; line-height: 1.45; }
-    .dl-pkg-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.55rem;
-      margin-top: 0.35rem;
+    @media (max-width: 900px) {
+      .dl-verify-grid { grid-template-columns: 1fr 1fr; }
     }
     @media (max-width: 560px) {
-      .dl-pkg-grid { grid-template-columns: 1fr; }
+      .dl-verify-grid { grid-template-columns: 1fr; }
     }
-    .dl-pkg-grid .btn { margin-top: 0; }
-    .dl-hint {
-      margin: 0.35rem 0 0;
-      font-size: 0.8rem;
-      color: var(--muted);
-      line-height: 1.45;
+    .dl-verify-grid a {
+      display: block;
+      padding: 0.95rem 1rem;
+      border-radius: 0.85rem;
+      border: 1px solid rgba(77, 228, 255, 0.16);
+      background: rgba(5, 10, 18, 0.5);
+      transition: border-color 0.2s ease, transform 0.2s ease;
     }
-    .dl-hint code { color: #6effad; font-size: 0.78rem; }
-    [data-role-panel] { display: none; }
-    [data-role-panel].is-visible { display: block; }
+    .dl-verify-grid a:hover {
+      border-color: rgba(77, 228, 255, 0.45);
+      transform: translateY(-2px);
+    }
+    .dl-verify-grid h4 {
+      margin: 0 0 0.25rem;
+      font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+      font-size: 0.95rem;
+      color: #fff;
+    }
+    .dl-verify-grid p { margin: 0; font-size: 0.8rem; color: var(--muted); }
+
+    .dl-cli-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-top: 0.9rem;
+    }
+    @media (max-width: 700px) {
+      .dl-cli-grid { grid-template-columns: 1fr; }
+    }
+    .dl-cli-card {
+      padding: 1.05rem;
+      border-radius: 0.95rem;
+      border: 1px solid rgba(77, 228, 255, 0.16);
+      background: rgba(5, 10, 18, 0.55);
+    }
+    .dl-cli-card h3 {
+      margin: 0 0 0.75rem;
+      font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+    }
+    .dl-cli-card .btn + .btn { margin-top: 0.5rem; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .dl-hero, .dl-platform, .dl-section,
+      .page-downloads .dl-atmosphere::before,
+      .page-downloads .dl-atmosphere::after,
+      [data-role-panel] {
+        animation: none !important;
+      }
+    }
   </style>
 </head>
-<body>
+<body class="page-downloads">
+  <div class="dl-atmosphere" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
+
   <header class="topbar">
     <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/logo-hex.png" alt="HackMe logo" /><span>HackMe Network</span></a>
     <nav class="nav" data-site-page="downloads"></nav>
   </header>
 
+  <div class="disclosure-ticker disclosure-ticker-slot" aria-hidden="true">
+    <div class="dt-shell">
+      <div class="dt-bar glass dt-bar--skeleton">
+        <div class="dt-live">
+          <span class="dt-pulse" aria-hidden="true"></span>
+          <span class="dt-live-label">LIVE</span>
+        </div>
+        <div class="dt-poolchip dt-poolchip--pending">
+          <span class="dt-poolchip-dot" aria-hidden="true"></span>
+          <span class="dt-poolchip-val">pool …</span>
+        </div>
+        <div class="dt-stage"><div class="dt-slide dt-slide--active dt-slide--skeleton"><span class="dt-skel"></span></div></div>
+        <div class="dt-dots" aria-hidden="true"></div>
+      </div>
+    </div>
+  </div>
+
   <main class="container">
-    <section class="hero glass hero-small" id="start">
-      <p class="kicker">Downloads</p>
-      <h1>Get HackMe</h1>
-      <p class="hero-copy">
+    <section class="dl-hero glass" id="start">
+      <div class="dl-brand">
+        <img src="./assets/logo-hex.png" alt="" width="42" height="42" />
+        <span class="dl-brand-word">HackMe</span>
+      </div>
+      <p class="kicker">Downloads · channel live</p>
+      <h1>Install the network node</h1>
+      <p class="dl-hero-lead">
         Channel <strong id="dl-release-ver">0.1.0-rc19</strong>
-        · always verify SHA256 ·
+        — always verify SHA256 ·
         <a id="dl-github-release" href="https://github.com/jokeez/hackme/releases/tag/0.1.0-rc19" target="_blank" rel="noreferrer">GitHub 0.1.0-rc19</a>
       </p>
-
-      <div class="dl-steps" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:1.25rem" aria-label="Three steps">
-        <article class="dl-step">
-          <span class="dl-step-num">1</span>
-          <h3>Choose role</h3>
-          <p class="subtle"><strong>Miner</strong> joins the public pool. <strong>Orders</strong> runs Dig/Hunt campaigns. Same package, different launcher.</p>
-        </article>
-        <article class="dl-step">
-          <span class="dl-step-num">2</span>
-          <h3>Install</h3>
-          <p class="subtle">Windows Setup, Linux deb/rpm/Arch/tarball, Docker, or HackMe OS. Verify SHA256 before you run anything.</p>
-        </article>
-        <article class="dl-step">
-          <span class="dl-step-num">3</span>
-          <h3>Earn / scan</h3>
-          <p class="subtle">Dashboard at <code>127.0.0.1:8080</code>. Beside a miner, Orders uses <code>HACKME_ORDERS_PORT=8081</code>.</p>
-        </article>
+      <div class="dl-signal" aria-label="Release facts">
+        <span>Channel <strong>rc19</strong></span>
+        <span>Packages <strong>deb · rpm · Arch · Docker</strong></span>
+        <span>Self-update <strong>on</strong></span>
+        <span>Econ v2 <strong>prep</strong></span>
       </div>
-
-      <div class="dl-meta-row" aria-label="Release facts">
-        <span class="dl-chip">Channel <strong>rc19</strong></span>
-        <span class="dl-chip">Packages <strong>deb · rpm · Arch · Docker</strong></span>
-        <span class="dl-chip">Self-update <strong>on</strong></span>
-        <span class="dl-chip">Econ v2 <strong>prep</strong></span>
-      </div>
-      <p id="dl-artifact-note" class="subtle" style="margin-top:0.55rem;max-width:42rem">
-        Installers are published for <strong>0.1.0-rc19</strong> — verify SHA256SUMS before install. Apt, pool token, and checksums are below.
+      <p id="dl-artifact-note" class="subtle" style="margin-top:0.7rem;max-width:40rem;font-size:0.9rem">
+        Installers are published for <strong>0.1.0-rc19</strong> — verify SHA256SUMS before install.
       </p>
 
-      <div class="dl-role-row" role="tablist" aria-label="Installer role">
-        <button type="button" class="dl-role is-active" data-role-tab="miner" aria-selected="true">
-          <strong>Miner</strong>
-          <span>Public pool · Blake3 share-PPS · Dig + PoH. Watchdog on Windows. Token included in Win/tarball.</span>
-        </button>
-        <button type="button" class="dl-role" data-role-tab="orders" aria-selected="false">
-          <strong>Orders (customer)</strong>
-          <span>B2B Dig/Hunt node · no pool miner. Settings in your home dir (mode 600). Publish with <code>pool.orders.token</code>.</span>
-        </button>
-      </div>
+      <div class="dl-stage">
+        <p class="dl-stage-label">1 · Choose role</p>
+        <div class="dl-roles" role="tablist" aria-label="Installer role">
+          <button type="button" class="dl-role is-active" data-role-tab="miner" aria-selected="true">
+            <span class="dl-role-tag">Pool</span>
+            <strong>Miner</strong>
+            <p>Public pool · Blake3 share-PPS · Dig + PoH. Watchdog on Windows. Token in Win/tarball.</p>
+          </button>
+          <button type="button" class="dl-role" data-role-tab="orders" aria-selected="false">
+            <span class="dl-role-tag">Customer</span>
+            <strong>Orders</strong>
+            <p>B2B Dig/Hunt node · no pool miner. Settings in your home dir (mode 600).</p>
+          </button>
+        </div>
 
-      <div class="dl-pick" style="margin-top:1rem">
-        <article class="card glass">
-          <h3>Windows</h3>
-          <div data-role-panel="miner" class="is-visible">
-            <p class="subtle">Setup wizard → <strong>Miner</strong>. Portable ZIP for USB / air-gapped boxes.</p>
-            <a id="download-win" class="btn btn-primary btn-block" href="#">Download Setup (.exe)</a>
-            <a id="download-win-zip" class="btn btn-secondary btn-block" href="#">Portable ZIP</a>
-          </div>
-          <div data-role-panel="orders">
-            <p class="subtle">Same Setup → choose <strong>Orders</strong>. Start menu: <em>HackMe Orders</em>.</p>
-            <a class="btn btn-primary btn-block" href="#" data-mirror="download-win">Download Setup (.exe)</a>
-            <a class="btn btn-secondary btn-block" href="#" data-mirror="download-win-zip">Portable ZIP</a>
-          </div>
-        </article>
-        <article class="card glass">
-          <h3>Linux</h3>
-          <div data-role-panel="miner" class="is-visible">
-            <p class="subtle">One package tree for Ubuntu, Fedora, Arch. Apt/.deb still needs → <a href="#pool-token">#pool-token</a>.</p>
-            <div class="dl-pkg-grid">
-              <a id="download-linux-deb" class="btn btn-primary" href="#">.deb (Debian/Ubuntu)</a>
-              <a id="download-linux-rpm" class="btn btn-secondary" href="#">.rpm (Fedora/RHEL)</a>
-              <a id="download-linux-arch" class="btn btn-secondary" href="#">Arch pkg.tar.zst</a>
-              <a id="download-linux" class="btn btn-secondary" href="#">Tarball (.tar.gz)</a>
+        <p class="dl-stage-label" style="margin-top:1.15rem">2 · Pick your platform</p>
+        <div class="dl-platforms">
+          <article class="dl-platform">
+            <div class="dl-platform-head">
+              <h3>Windows</h3>
+              <span class="dl-platform-os">Setup · ZIP</span>
             </div>
-            <p class="dl-hint">After install: Apps → <em>HackMe Miner</em>, or <code>bash start_hackme_miner.sh</code> · <a href="#apt">signed apt</a></p>
-          </div>
-          <div data-role-panel="orders">
-            <p class="subtle">Same packages — launch <em>HackMe Orders</em>. No secrets in the package; env under <code>~/.config/hackme</code>.</p>
-            <div class="dl-pkg-grid">
-              <a class="btn btn-primary" href="#" data-mirror="download-linux-deb">.deb (Debian/Ubuntu)</a>
-              <a class="btn btn-secondary" href="#" data-mirror="download-linux-rpm">.rpm (Fedora/RHEL)</a>
-              <a class="btn btn-secondary" href="#" data-mirror="download-linux-arch">Arch pkg.tar.zst</a>
-              <a class="btn btn-secondary" href="#" data-mirror="download-linux">Tarball (.tar.gz)</a>
+            <div data-role-panel="miner" class="is-visible">
+              <p class="subtle">Setup wizard → <strong>Miner</strong>. Portable ZIP for USB / air-gapped boxes.</p>
+              <div class="dl-actions">
+                <a id="download-win" class="btn btn-primary btn-block" href="#">Download Setup (.exe)</a>
+                <a id="download-win-zip" class="btn btn-secondary btn-block" href="#">Portable ZIP</a>
+              </div>
             </div>
-            <p class="dl-hint">Beside a miner: <code>HACKME_ORDERS_PORT=8081 bash start_hackme_orders.sh</code></p>
-          </div>
-        </article>
-        <article class="card glass" id="hackme-os">
-          <h3>HackMe OS · Docker</h3>
-          <div data-role-panel="miner" class="is-visible">
-            <p class="subtle">Bootable USB, or Docker miner with state in a volume.</p>
-            <a id="download-iso" class="btn btn-primary btn-block" href="#">Download ISO</a>
-            <a id="download-iso-sha" class="btn btn-secondary btn-block" href="#">SHA256SUMS (ISO)</a>
-            <p class="dl-hint">Docker: <code>docker run … -v hackme-state:/state hackme/miner:0.1.0-rc19</code></p>
-            <p id="download-iso-status" class="subtle" style="font-size:0.82rem">Checking availability…</p>
-          </div>
-          <div data-role-panel="orders">
-            <p class="subtle">Docker Orders profile — node only, wallet in the volume. ISO still boots a full desktop miner.</p>
-            <a class="btn btn-primary btn-block" href="#" data-mirror="download-iso">Download ISO</a>
-            <a class="btn btn-secondary btn-block" href="#" data-mirror="download-iso-sha">SHA256SUMS (ISO)</a>
-            <p class="dl-hint"><code>-e HACKME_PROFILE=orders -e HACKME_PORT=8081 -v hackme-orders-state:/state</code></p>
-          </div>
-        </article>
-      </div>
+            <div data-role-panel="orders">
+              <p class="subtle">Same Setup → choose <strong>Orders</strong>. Start menu: <em>HackMe Orders</em>.</p>
+              <div class="dl-actions">
+                <a class="btn btn-primary btn-block" href="#" data-mirror="download-win">Download Setup (.exe)</a>
+                <a class="btn btn-secondary btn-block" href="#" data-mirror="download-win-zip">Portable ZIP</a>
+              </div>
+            </div>
+          </article>
 
-      <div class="dl-strip">
-        <strong style="color:#6effad;letter-spacing:0.06em;font-size:0.72rem;text-transform:uppercase">After install</strong>
-        <span class="subtle">Windows: Start → <em>HackMe Miner</em> or <em>HackMe Orders</em></span>
-        <span class="subtle">Linux: menu entries or <code>start_hackme_*.sh</code></span>
-        <span class="subtle">Docker Orders: see <a href="https://github.com/jokeez/hackme/blob/main/docs/LINUX_PACKAGES.md">LINUX_PACKAGES.md</a></span>
-        <span class="subtle">Update: <code>update_hackme_miner.bat</code> / <code>bash update_hackme_miner.sh</code></span>
+          <article class="dl-platform">
+            <div class="dl-platform-head">
+              <h3>Linux</h3>
+              <span class="dl-platform-os">deb · rpm · Arch · tar</span>
+            </div>
+            <div data-role-panel="miner" class="is-visible">
+              <p class="subtle">One tree for Ubuntu, Fedora, Arch. Apt/.deb still needs → <a href="#pool-token">pool token</a>.</p>
+              <div class="dl-pkg-grid">
+                <a id="download-linux-deb" class="btn btn-primary" href="#">.deb</a>
+                <a id="download-linux-rpm" class="btn btn-secondary" href="#">.rpm</a>
+                <a id="download-linux-arch" class="btn btn-secondary" href="#">Arch</a>
+                <a id="download-linux" class="btn btn-secondary" href="#">Tarball</a>
+              </div>
+              <p class="dl-hint">Apps → <em>HackMe Miner</em> · or <code>bash start_hackme_miner.sh</code> · <a href="#apt">signed apt</a></p>
+            </div>
+            <div data-role-panel="orders">
+              <p class="subtle">Same packages — launch <em>HackMe Orders</em>. No secrets in the package.</p>
+              <div class="dl-pkg-grid">
+                <a class="btn btn-primary" href="#" data-mirror="download-linux-deb">.deb</a>
+                <a class="btn btn-secondary" href="#" data-mirror="download-linux-rpm">.rpm</a>
+                <a class="btn btn-secondary" href="#" data-mirror="download-linux-arch">Arch</a>
+                <a class="btn btn-secondary" href="#" data-mirror="download-linux">Tarball</a>
+              </div>
+              <p class="dl-hint">Beside a miner: <code>HACKME_ORDERS_PORT=8081 bash start_hackme_orders.sh</code></p>
+            </div>
+          </article>
+
+          <article class="dl-platform" id="hackme-os">
+            <div class="dl-platform-head">
+              <h3>OS · Docker</h3>
+              <span class="dl-platform-os">ISO · container</span>
+            </div>
+            <div data-role-panel="miner" class="is-visible">
+              <p class="subtle">Bootable USB, or Docker miner with wallet state in a volume.</p>
+              <div class="dl-actions">
+                <a id="download-iso" class="btn btn-primary btn-block" href="#">Download ISO</a>
+                <a id="download-iso-sha" class="btn btn-secondary btn-block" href="#">SHA256SUMS (ISO)</a>
+              </div>
+              <p class="dl-hint">Docker: <code>docker run … -v hackme-state:/state hackme/miner:0.1.0-rc19</code></p>
+              <p id="download-iso-status" class="subtle" style="font-size:0.8rem;margin:0">Checking availability…</p>
+            </div>
+            <div data-role-panel="orders">
+              <p class="subtle">Docker Orders profile — node only; wallet survives recreate. ISO boots a full desktop miner.</p>
+              <div class="dl-actions">
+                <a class="btn btn-primary btn-block" href="#" data-mirror="download-iso">Download ISO</a>
+                <a class="btn btn-secondary btn-block" href="#" data-mirror="download-iso-sha">SHA256SUMS (ISO)</a>
+              </div>
+              <p class="dl-hint"><code>-e HACKME_PROFILE=orders -e HACKME_PORT=8081 -v hackme-orders-state:/state</code></p>
+            </div>
+          </article>
+        </div>
+
+        <div class="dl-after">
+          <span class="dl-after-label">After install</span>
+          <span class="subtle">Windows: Start → <em>HackMe Miner</em> / <em>Orders</em></span>
+          <span class="subtle">Linux: menu or <code>start_hackme_*.sh</code></span>
+          <span class="subtle">Docker Orders: <a href="https://github.com/jokeez/hackme/blob/main/docs/LINUX_PACKAGES.md">LINUX_PACKAGES.md</a></span>
+          <span class="subtle">Update: <code>update_hackme_miner.*</code></span>
+        </div>
       </div>
     </section>
+
     <script>
       (function () {
         const tabs = Array.from(document.querySelectorAll("[data-role-tab]"));
@@ -313,7 +619,9 @@
         function syncMirrors() {
           document.querySelectorAll("[data-mirror]").forEach((el) => {
             const src = document.getElementById(el.getAttribute("data-mirror"));
-            if (src && src.href) el.href = src.href;
+            if (src && src.getAttribute("href") && src.getAttribute("href") !== "#") {
+              el.href = src.href;
+            }
           });
         }
         function select(role) {
@@ -328,20 +636,19 @@
           syncMirrors();
         }
         tabs.forEach((t) => t.addEventListener("click", () => select(t.getAttribute("data-role-tab"))));
-        // Re-sync after app.js wires primary hrefs.
         window.addEventListener("load", syncMirrors);
         setTimeout(syncMirrors, 400);
         setTimeout(syncMirrors, 1200);
       })();
     </script>
 
-    <section class="panel glass dl-section-tight" id="apt">
+    <section class="dl-section" id="apt">
       <div class="panel-head">
         <p class="kicker" style="color:#00d1ff">Ubuntu / Debian</p>
         <h2>Signed apt · <code>hackme-node</code></h2>
         <p class="subtle">Install under <code>/opt/hackme</code>. Keeps your <code>.env</code>. Branded app menu included. <code>install.sh</code> also drops the public pool token for your user.</p>
       </div>
-      <pre class="code-block" style="margin-top:0.85rem;font-size:0.84rem"><code>curl -fsSL https://hackme.tech/apt/install.sh | sudo bash
+      <pre class="code-block" style="margin-top:0.95rem;font-size:0.84rem"><code>curl -fsSL https://hackme.tech/apt/install.sh | sudo bash
 # later (fast mirrors, not slow CDN apt fetch):
 curl -fsSL https://hackme.tech/apt/upgrade.sh | sudo bash</code></pre>
       <details class="dev-details" style="margin-top:0.75rem">
@@ -362,7 +669,7 @@ sudo apt update &amp;&amp; sudo apt install hackme-node
       </p>
     </section>
 
-    <section class="panel glass dl-section-tight" id="pool-token">
+    <section class="dl-section" id="pool-token">
       <div class="panel-head">
         <p class="kicker" style="color:#6effad">Public pool</p>
         <h2>One-time pool token (Linux apt / .deb)</h2>
@@ -376,14 +683,14 @@ sudo apt update &amp;&amp; sudo apt install hackme-node
         </p>
       </div>
 
-      <div class="dl-steps">
-        <article class="dl-step">
-          <span class="dl-step-num">1</span>
+      <div class="dl-flow">
+        <article class="dl-flow-item">
+          <span class="dl-flow-num">1</span>
           <h3>Install the node</h3>
           <p class="subtle">Use <a href="#apt">signed apt</a> or the <code>.deb</code> download. Binaries land in <code>/opt/hackme</code>.</p>
         </article>
-        <article class="dl-step">
-          <span class="dl-step-num">2</span>
+        <article class="dl-flow-item">
+          <span class="dl-flow-num">2</span>
           <h3>Drop the pool token</h3>
           <p class="subtle"><code>install.sh</code> does this automatically. If you used manual apt, run the block below once.</p>
         </article>
@@ -409,7 +716,7 @@ bash /opt/hackme/hackme_desktop_launch.sh
       </p>
     </section>
 
-    <section class="panel glass dl-section-tight" id="hardware">
+    <section class="dl-section" id="hardware">
       <div class="panel-head">
         <p class="kicker" style="color:#6effad">GPU · drivers</p>
         <h2>Hardware &amp; driver requirements</h2>
@@ -440,7 +747,7 @@ bash /opt/hackme/hackme_desktop_launch.sh
       </div>
     </section>
 
-    <section class="panel glass dl-section-tight" id="local-node">
+    <section class="dl-section" id="local-node">
       <div class="panel-head">
         <p class="kicker" style="color:#00d1ff">B2B · Local node</p>
         <h2>Orders stay on your PC</h2>
@@ -461,22 +768,22 @@ bash /opt/hackme/hackme_desktop_launch.sh
       </p>
     </section>
 
-    <section class="panel glass dl-section-tight" id="fuzzing-client">
+    <section class="dl-section" id="fuzzing-client">
       <div class="panel-head">
         <p class="kicker" style="color:#00d1ff">B2B · Fuzzing CLI</p>
         <h2>hackme-fuzzing</h2>
         <p class="subtle">Talks only to <code>127.0.0.1:8080</code>. Keep both binaries in one folder.</p>
       </div>
-      <div class="grid grid-2" style="margin-top:0.85rem">
-        <article class="card glass">
+      <div class="dl-cli-grid">
+        <article class="dl-cli-card">
           <h3>Windows</h3>
           <a id="download-fuzzing-win" class="btn btn-primary btn-block" href="#">hackme-fuzzing (.exe)</a>
-          <a id="download-fuzzing-build-win" class="btn btn-secondary btn-block" href="#" style="margin-top:0.5rem">hackme-fuzzing-build (.exe)</a>
+          <a id="download-fuzzing-build-win" class="btn btn-secondary btn-block" href="#">hackme-fuzzing-build (.exe)</a>
         </article>
-        <article class="card glass">
+        <article class="dl-cli-card">
           <h3>Linux amd64</h3>
           <a id="download-fuzzing-linux" class="btn btn-primary btn-block" href="#">hackme-fuzzing</a>
-          <a id="download-fuzzing-build-linux" class="btn btn-secondary btn-block" href="#" style="margin-top:0.5rem">hackme-fuzzing-build</a>
+          <a id="download-fuzzing-build-linux" class="btn btn-secondary btn-block" href="#">hackme-fuzzing-build</a>
         </article>
       </div>
       <details class="dev-details" style="margin-top:0.85rem">
@@ -496,16 +803,16 @@ chmod +x hackme-fuzzing-*
       </details>
     </section>
 
-    <section class="panel glass dl-section-tight">
+    <section class="dl-section">
       <div class="panel-head">
         <h2>Verify before you run</h2>
         <p class="subtle">Same bytes on GitHub Releases and CDN. Never trust Telegram DMs.</p>
       </div>
-      <div class="quick-links" style="margin-top:0.85rem">
-        <a id="download-sha" class="quick-item" href="#"><h4>SHA256SUMS</h4><p>Windows + Linux + deb</p></a>
-        <a id="download-iso-sha-card" class="quick-item" href="#"><h4>SHA256SUMS (ISO)</h4><p>Bootable image hash</p></a>
-        <a id="download-manifest" class="quick-item" href="#"><h4>RELEASE_MANIFEST</h4><p>Sizes + commit</p></a>
-        <a id="download-buildinfo" class="quick-item" href="#"><h4>BUILD_INFO</h4><p>Build stamp</p></a>
+      <div class="dl-verify-grid">
+        <a id="download-sha" href="#"><h4>SHA256SUMS</h4><p>Windows + Linux + packages</p></a>
+        <a id="download-iso-sha-card" href="#"><h4>SHA256SUMS (ISO)</h4><p>Bootable image hash</p></a>
+        <a id="download-manifest" href="#"><h4>RELEASE_MANIFEST</h4><p>Sizes + commit</p></a>
+        <a id="download-buildinfo" href="#"><h4>BUILD_INFO</h4><p>Build stamp</p></a>
       </div>
       <ol class="steps" style="margin-top:1rem">
         <li><code>sha256sum -c SHA256SUMS.txt</code> (and <code>SHA256SUMS-iso.txt</code> for ISO).</li>
@@ -528,7 +835,8 @@ chmod +x hackme-fuzzing-*
     <div class="footer-nav"></div>
   </footer>
 
-  <script src="./assets/site-shell.js?v=20261024eco1"></script>
-  <script src="./assets/app.js?v=20261024eco1"></script>
+  <script src="./assets/site-shell.js?v=20261106dl1"></script>
+  <script src="./assets/disclosure-ticker.js?v=20261106dl1"></script>
+  <script src="./assets/app.js?v=20261106dl1"></script>
 </body>
 </html>
