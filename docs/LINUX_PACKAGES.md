@@ -35,5 +35,30 @@ docker run -d --name hackme --restart unless-stopped --stop-timeout 60 \
 - Hunt (ASAN/bwrap) needs unprivileged user namespaces, which Docker blocks by default: in the
   container the worker runs Dig + PoH and soft-skips Hunt.
 
+### Orders (B2B customer) in Docker
+
+Same image, Orders profile: a Dig/Hunt campaign node with no pool miner.
+
+```bash
+docker run -d --name hackme-orders --restart unless-stopped --stop-timeout 60 \
+  --network host -e HACKME_PROFILE=orders -e HACKME_PORT=8081 \
+  -v hackme-orders:/state hackme/miner:<ver>
+# dashboard: http://127.0.0.1:8081/#orders
+```
+
+- Put the scoped publish token in the volume as `pool.orders.token` (it is copied to
+  `config/hackme/pool.orders.token`, mode 600); without it local Dig/Hunt still work.
+- `/state` holds the node key, `config/hackme/env.orders` and the chain DB — back it up like the miner volume.
+- Toolchain downloads are skipped in the container (`SKIP_TOOLCHAINS=1`); set `-e SKIP_TOOLCHAINS=0` to allow them.
+
+## Orders next to a miner on one machine
+
+Both profiles default to `127.0.0.1:8080`. The Orders launcher refuses to treat a running Miner/desktop
+node as the Orders node; run Orders on its own port once and it is remembered in `~/.config/hackme/env.orders`:
+
+```bash
+HACKME_ORDERS_PORT=8081 bash /opt/hackme/start_hackme_orders.sh
+```
+
 Build locally from a release dir: `VERSION=<ver> bash scripts/release/docker/build_miner_image.sh`
 (`DOCKER_BUILD_NETWORK=host` if the default bridge has no DNS).

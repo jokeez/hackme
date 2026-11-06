@@ -17,6 +17,32 @@ ln -sfn "$STATE/logs" "$APP/logs"
 if [[ -f "$STATE/.env" ]]; then
   ln -sfn "$STATE/.env" "$APP/.env"
 fi
+# HACKME_PROFILE=orders: B2B Orders node (Dig/Hunt campaigns, no pool miner). State, env.orders and
+# the node key live under the /state volume; the dashboard is on 127.0.0.1:${HACKME_ORDERS_PORT:-8080}.
+if [[ "${HACKME_PROFILE:-miner}" == "orders" ]]; then
+  export HOME="$STATE" XDG_DATA_HOME="$STATE/share" XDG_CONFIG_HOME="$STATE/config"
+  # The image filesystem is thrown away on re-create, so a toolchain download (zig, ~15 min worst
+  # case) would repeat on every start and hold the dashboard back. Opt in with SKIP_TOOLCHAINS=0.
+  export SKIP_TOOLCHAINS="${SKIP_TOOLCHAINS:-1}"
+  if [[ -n "${HACKME_PORT:-}" && -z "${HACKME_ORDERS_PORT:-}" ]]; then
+    export HACKME_ORDERS_PORT="$HACKME_PORT"
+  fi
+  if [[ -f "$STATE/pool.orders.token" ]]; then
+    mkdir -p "$XDG_CONFIG_HOME/hackme"
+    install -m 0600 "$STATE/pool.orders.token" "$XDG_CONFIG_HOME/hackme/pool.orders.token"
+  fi
+  OLOG="$XDG_DATA_HOME/hackme/logs/orders"
+  rm -f "$OLOG/hackme-orders.pid"
+  cd "$APP"
+  bash ./start_hackme_orders.sh --start
+  PID="$(cat "$OLOG/hackme-orders.pid" 2>/dev/null || true)"
+  [[ -n "$PID" ]] || { echo "[hackme] Orders node did not start (see $OLOG)" >&2; sleep 30; exit 1; }
+  trap 'echo "[hackme] stopping"; kill -TERM "$PID" 2>/dev/null; for _ in $(seq 1 50); do kill -0 "$PID" 2>/dev/null || break; sleep 0.5; done; exit 0' TERM INT
+  tail -n 50 -F "$OLOG/hackme-orders.log" &
+  while kill -0 "$PID" 2>/dev/null; do sleep 5 & wait $! || true; done
+  echo "[hackme] Orders node exited" >&2
+  exit 1
+fi
 export HACKME_MINER_DAEMON=1
 if [[ -n "${HACKME_PORT:-}" ]]; then
   export HACKME_BIND_ADDR="127.0.0.1:${HACKME_PORT}" BASE_URL="http://127.0.0.1:${HACKME_PORT}"

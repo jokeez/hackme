@@ -213,6 +213,12 @@ license: Proprietary
 description: |
   HackMe node + miner binaries. Data and env live under /opt/hackme.
   App menu entries with HackMe icon. Self-update via update_hackme_miner.sh (L1).
+# Same package names on Debian/Ubuntu, Fedora and Arch. The launchers need curl (health checks,
+# updates) and the CA bundle for https://hackme.tech; slim images ship neither.
+depends:
+  - bash
+  - curl
+  - ca-certificates
 contents:
   - src: pkg/opt/hackme
     dst: /opt/hackme

@@ -31,7 +31,7 @@ if [[ -z "$admin" ]]; then
   if command -v openssl >/dev/null 2>&1; then
     admin="$(openssl rand -hex 24)"
   else
-    admin="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
+    admin="$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')"
   fi
 fi
 

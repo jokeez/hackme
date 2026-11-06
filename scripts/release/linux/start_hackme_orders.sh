@@ -25,7 +25,10 @@ BIN="${INSTALL_DIR}/hackme"
 if [[ ! -x "$BIN" && -x /opt/hackme/hackme ]]; then
   BIN=/opt/hackme/hackme
 fi
-BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
+# HACKME_ORDERS_PORT runs the Orders node next to a miner node on the same host (miner keeps 8080).
+ORDERS_PORT="${HACKME_ORDERS_PORT:-8080}"
+BASE_URL_SET="${BASE_URL:+1}"
+BASE_URL="${BASE_URL:-http://127.0.0.1:${ORDERS_PORT}}"
 STATE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/hackme"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/hackme"
 LOG_DIR="${LOG_DIR:-$STATE_DIR/logs/orders}"
@@ -84,13 +87,13 @@ ensure_env() {
     if command -v openssl >/dev/null 2>&1; then
       admin="$(openssl rand -hex 24)"
     else
-      admin="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
+      admin="$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')"
     fi
   fi
 
   if [[ ! -f "$ENV_FILE" ]]; then
     cat >"$ENV_FILE" <<EOF
-HACKME_BIND_ADDR=127.0.0.1:8080
+HACKME_BIND_ADDR=127.0.0.1:${ORDERS_PORT}
 HACKME_ADMIN_TOKEN=${admin}
 HACKME_REQUIRE_ADMIN_TOKEN=1
 HACKME_DESKTOP_MODE=1
@@ -232,13 +235,40 @@ print_cli_hint() {
   echo "[hackme-orders]        or place it next to hackme in ${INSTALL_DIR}" >&2
 }
 
+# Port from env.orders (HACKME_BIND_ADDR), overridden by HACKME_ORDERS_PORT; keeps BASE_URL in step.
+sync_bind_addr() {
+  local bind
+  bind="$(grep -E '^HACKME_BIND_ADDR=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\r' || true)"
+  if [[ -n "${HACKME_ORDERS_PORT:-}" ]]; then
+    bind="127.0.0.1:${HACKME_ORDERS_PORT}"
+    if grep -q '^HACKME_BIND_ADDR=' "$ENV_FILE" 2>/dev/null; then
+      sed -i "s|^HACKME_BIND_ADDR=.*|HACKME_BIND_ADDR=${bind}|" "$ENV_FILE"
+    else
+      echo "HACKME_BIND_ADDR=${bind}" >>"$ENV_FILE"
+    fi
+  fi
+  if [[ -n "$bind" && -z "$BASE_URL_SET" ]]; then
+    BASE_URL="http://${bind}"
+  fi
+}
+orders_pid_alive() {
+  local p
+  p="$(cat "$PID_FILE" 2>/dev/null || true)"
+  [[ -n "$p" ]] && kill -0 "$p" 2>/dev/null
+}
 start_node() {
   ensure_toolchains
   ensure_env
+  sync_bind_addr
   stop_stale_pid
   if node_up; then
-    notify "Node already running — ${BASE_URL}/#orders"
-    return 0
+    if orders_pid_alive; then
+      notify "Node already running — ${BASE_URL}/#orders"
+      return 0
+    fi
+    # Something else answers on this port — usually the Miner/desktop node, which has no Orders
+    # credentials. Do not open it as if it were the Orders node.
+    die "Port ${BASE_URL##*:} is used by another HackMe node (Miner/desktop?). Stop it, or run Orders on its own port: HACKME_ORDERS_PORT=8081 bash $0"
   fi
 
   set -a
@@ -263,7 +293,7 @@ start_node() {
   if ! node_up; then
     tail -n 40 "$NODE_LOG" >&2 || true
     if grep -q 'address already in use' "$NODE_LOG" 2>/dev/null; then
-      die "Port 8080 is in use. Stop Miner/desktop first, or set HACKME_BIND_ADDR in $ENV_FILE."
+      die "Port ${BASE_URL##*:} is in use. Stop Miner/desktop first, or run with HACKME_ORDERS_PORT=8081."
     fi
     die "Node did not start. See log: $NODE_LOG"
   fi

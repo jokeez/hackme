@@ -121,7 +121,7 @@ if [[ ! -f "${INSTALL_DIR}/.env" ]]; then
   if command -v openssl >/dev/null 2>&1; then
     admin="$(openssl rand -hex 24)"
   else
-    admin="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
+    admin="$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')"
   fi
   cat > "${INSTALL_DIR}/.env" <<EOF
 HACKME_BIND_ADDR=127.0.0.1:8080
