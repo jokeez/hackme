@@ -156,6 +156,13 @@ set -a
 # shellcheck disable=SC1090
 . "$ENV_FILE"
 set +a
+# HACKME_PORT (Docker image, or a second node on one host) wins over .env's HACKME_BIND_ADDR:
+# sourcing .env above used to reset the bind to 8080, so the node collided with a host node.
+if [[ -n "${HACKME_PORT:-}" ]]; then
+  [[ "$HACKME_PORT" =~ ^[0-9]{2,5}$ ]] || { echo "[miner] HACKME_PORT must be a port number" >&2; exit 1; }
+  export HACKME_BIND_ADDR="127.0.0.1:${HACKME_PORT}"
+  BASE_URL="http://127.0.0.1:${HACKME_PORT}"
+fi
 
 # Hunt engines PATH (clang/AFL++) when install_hunt_engines.sh ran on this prefix.
 for hunt_env in "$INSTALL_DIR/.env.hunt-engines" \
