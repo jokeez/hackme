@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-06-09-rc11n-stability-payments",
+      "date": "2026-06-09",
+      "title": "Release 0.1.0-rc11n — hub stability, transfers & payments E2E",
+      "summary": "Production download channel bumped to rc11n. VPS hub runs an HTTP health watchdog that restarts hackme-node when /api/status stops responding (fixes hung hub and stale wallet cache). Desktop transfers and payment demos now use the canonical nonce from hackme.tech. Repeatable payments E2E test pack for operators. HackMe OS ISO stays on rc11l.",
+      "impact": "Miners on Windows/Linux should update from downloads — same wallet treasury as rc11m, plus more reliable hub uptime and correct on-chain transfer nonces from local nodes.",
+      "action": "Downloads: https://hackme.tech/downloads.html · Dashboard: http://127.0.0.1:8080/#wallet · Pool: https://hackme.tech/pool/coordinator",
+      "tags": [
+        "release",
+        "infrastructure",
+        "wallet",
+        "mining"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-06-08-rc11m-wallet-treasury",
       "date": "2026-06-08",
       "title": "Release 0.1.0-rc11m — wallet treasury & canonical balance fix",
@@ -240,21 +255,6 @@
         "fuzzing",
         "release",
         "infrastructure"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-25-fuzzing-b2b-cli-hardening",
-      "date": "2026-05-25",
-      "title": "B2B fuzzing hardened · hackme-fuzzing CLI · no browser admin on hackme.tech",
-      "summary": "Integrators now use a scoped developer token and the hackme-fuzzing CLI (Windows/Linux) instead of pasting admin secrets into a web console. Public site: read-only wallet + order tracker only. Remote from_code and fuzz APIs return 403 on hackme.tech. WASM is built locally; POST /api/tasks uses X-Hackme-Developer-Token.",
-      "impact": "B2B clients get a smaller attack surface; operators issue per-integrator tokens; miners unchanged (ISO/Windows pool).",
-      "action": "Downloads: https://hackme.tech/downloads.html#fuzzing-client · Docs: https://hackme.tech/developers.html · Status: https://hackme.tech/fuzzing-console.html",
-      "tags": [
-        "security",
-        "infrastructure",
-        "release",
-        "fuzzing"
       ],
       "status": "published"
     }

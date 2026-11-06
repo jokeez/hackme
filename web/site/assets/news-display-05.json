@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "id": "2026-05-25-fuzzing-b2b-cli-hardening",
+      "date": "2026-05-25",
+      "title": "B2B fuzzing hardened · hackme-fuzzing CLI · no browser admin on hackme.tech",
+      "summary": "Integrators now use a scoped developer token and the hackme-fuzzing CLI (Windows/Linux) instead of pasting admin secrets into a web console. Public site: read-only wallet + order tracker only. Remote from_code and fuzz APIs return 403 on hackme.tech. WASM is built locally; POST /api/tasks uses X-Hackme-Developer-Token.",
+      "impact": "B2B clients get a smaller attack surface; operators issue per-integrator tokens; miners unchanged (ISO/Windows pool).",
+      "action": "Downloads: https://hackme.tech/downloads.html#fuzzing-client · Docs: https://hackme.tech/developers.html · Status: https://hackme.tech/fuzzing-console.html",
+      "tags": [
+        "security",
+        "infrastructure",
+        "release",
+        "fuzzing"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-05-22-hackme-os-iso-published",
       "date": "2026-05-22",
       "title": "HackMe OS ISO published (956 MB) · SHA256 verified · pool ~2.4 GH/s",
@@ -245,22 +260,6 @@
         "ops",
         "security",
         "release"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-05-13-miner-onboarding-pool-worker-rc9",
-      "date": "2026-05-13",
-      "title": "Miner onboarding: Windows pool worker, .env autoload, release 0.1.0-rc9",
-      "summary": "Windows dashboard worker start now launches native workerpoh.exe (release zips never shipped bash/curl loops). hackme loads .env / hackme.env beside the binary without overriding existing OS env. Dashboard defaults pool worker; API mining policy covered by tests. Bundle adds start_hackme_public_pool.bat + env.public_pool.example, Linux workerpoh binary, and opens the Mining tab by default.",
-      "impact": "Public pool participants on Windows can run Start pool worker without WSL; operators can distribute one zip plus a short env template for HACKME_PUBLIC_AUTHORITY_BASE and HACKME_POOL_COORDINATOR_TOKEN.",
-      "action": "Deploy web/site/assets/news.json to the site static path; upload dist/release_0.1.0-rc9/hackme_0.1.0-rc9_{windows,linux}.* + SHA256SUMS.txt + RELEASE_MANIFEST.json to Downloads; restart node/coordinator only if you also roll server binaries from the linux tarball. Telegram: operator bot unchanged — see docs/TELEGRAM_BOT.md; channel bot reposts when NEWS_FEED_URL points at the updated news.json.",
-      "tags": [
-        "release",
-        "mining",
-        "ux",
-        "windows",
-        "ops"
       ],
       "status": "published"
     }

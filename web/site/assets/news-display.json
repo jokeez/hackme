@@ -10,8 +10,7 @@
         "rc19",
         "packages",
         "economics"
-      ],
-      "href": "/downloads.html#start"
+      ]
     },
     {
       "id": "2026-11-05-miningboard-listed",
@@ -1867,6 +1866,5 @@
       "status": "deployed"
     }
   ],
-  "feed": "display",
-  "updated": "2026-11-06T08:19:40Z"
+  "feed": "display"
 }

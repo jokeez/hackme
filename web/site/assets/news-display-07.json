@@ -1,6 +1,19 @@
 {
   "items": [
     {
+      "id": "2026-05-03-release-rc6",
+      "date": "2026-05-03",
+      "title": "Release Candidate 0.1.0-rc6 Published",
+      "summary": "RC6 release bundles, checksums, and deployment automation were refreshed with latest stability and validation updates.",
+      "impact": "Improved deployment consistency and repeatability across local and VPS environments.",
+      "action": "Operators should use only RC6 artifacts from the Downloads page.",
+      "tags": [
+        "release",
+        "ops"
+      ],
+      "status": "deployed"
+    },
+    {
       "id": "2026-05-02-security-hardening-pack",
       "date": "2026-05-02",
       "title": "Security Hardening Pack Extended",
