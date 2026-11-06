@@ -4,11 +4,11 @@ import "testing"
 
 func TestRedactInternalTopologyNested(t *testing.T) {
 	m := map[string]any{
-		"pool_sync":                  map[string]any{"coordinator_url_resolved": "http://127.0.0.1:18081"},
-		"network_sync":               map[string]any{"bind_addr": "127.0.0.1:18080"},
-		"pool_coordinator_url":       "http://10.0.0.8:18081",
-		"canonical_chain_base_url":   "http://192.168.1.10:18090",
-		"public_authority_base":      "http://169.254.169.254/",
+		"pool_sync":                map[string]any{"coordinator_url_resolved": "http://127.0.0.1:18081"},
+		"network_sync":             map[string]any{"bind_addr": "127.0.0.1:18080"},
+		"pool_coordinator_url":     "http://10.0.0.8:18081",
+		"canonical_chain_base_url": "http://192.168.1.10:18090",
+		"public_authority_base":    "http://169.254.169.254/",
 	}
 	redactInternalCoordinatorURLs(m)
 	if got := m["pool_sync"].(map[string]any)["coordinator_url_resolved"]; got != "pool" {
