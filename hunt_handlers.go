@@ -283,6 +283,12 @@ func (a *app) handleHuntCampaignCreate(w http.ResponseWriter, r *http.Request) {
 		resp["harness_hash"] = cfgMap["harness_hash"]
 		fc := fuzzAutoCampaign{ID: id, BudgetRuns: shards, BudgetSeconds: 86400, ConfigJSON: cfg, OwnerRef: ownerRef}
 		a.applyPoolSyncResponse(resp, r.Context(), fc)
+		if fail, _ := resp["pool_sync"].(string); fail == "fail" {
+			a.rollbackNewCampaignEscrow(r.Context(), id)
+			writeAPIError(w, http.StatusBadGateway, "pool_sync_failed",
+				toString(resp["pool_sync_warning"]), map[string]any{"rolled_back": true})
+			return
+		}
 	}
 	writeJSON(w, resp)
 }

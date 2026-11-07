@@ -277,6 +277,15 @@ func (a *app) startFuzzSettlePullTicker() {
 	if !poolsync.FuzzSettlePullEnabled() {
 		return
 	}
+	poolsync.SetSettleOwnerRefLookup(func(campaignID string) string {
+		if a == nil || a.db == nil || strings.TrimSpace(campaignID) == "" {
+			return ""
+		}
+		var owner string
+		_ = a.db.QueryRow(
+			`SELECT COALESCE(owner_ref,'') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&owner)
+		return strings.TrimSpace(owner)
+	})
 	go func() {
 		interval := 15 * time.Second
 		authBackoff := time.Duration(0)

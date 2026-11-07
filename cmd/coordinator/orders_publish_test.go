@@ -241,6 +241,75 @@ func TestOrdersPublishCannotHijackAdminCampaign(t *testing.T) {
 	}
 }
 
+func TestOrdersPublishCannotOverwritePeerOrdersCampaign(t *testing.T) {
+	mux := ordersPublishMux(t)
+	rec := publishReq(t, mux, "publish-tok", map[string]any{
+		"id": "camp-peer", "budget_runs": 8, "owner_ref": "customer:alice",
+		"config": map[string]any{"dig_package": "scan", "guard_pack": "secrets"},
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("alice create want 200, got %d %s", rec.Code, rec.Body.String())
+	}
+	// Bob tries to retarget the same id with a hostile dig_package.
+	rec = publishReq(t, mux, "publish-tok", map[string]any{
+		"id": "camp-peer", "budget_runs": 64, "owner_ref": "customer:bob",
+		"config": map[string]any{"dig_package": "deep", "guard_pack": "secrets"},
+	})
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("bob overwrite want 409, got %d %s", rec.Code, rec.Body.String())
+	}
+	// Alice idempotent re-POST keeps original budget (no upsert).
+	rec = publishReq(t, mux, "publish-tok", map[string]any{
+		"id": "camp-peer", "budget_runs": 64, "owner_ref": "customer:alice",
+		"config": map[string]any{"dig_package": "deep", "guard_pack": "secrets"},
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("alice idempotent want 200, got %d %s", rec.Code, rec.Body.String())
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/fuzz/pool/campaigns/progress?id=camp-peer", nil)
+	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	req.Header.Set("X-Hackme-Orders-Owner-Ref", "customer:alice")
+	req.RemoteAddr = "203.0.113.10:4444"
+	prog := httptest.NewRecorder()
+	mux.ServeHTTP(prog, req)
+	if prog.Code != http.StatusOK {
+		t.Fatalf("progress want 200, got %d %s", prog.Code, prog.Body.String())
+	}
+	var body map[string]any
+	if err := json.Unmarshal(prog.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if int(body["budget_runs"].(float64)) != 8 {
+		t.Fatalf("budget_runs mutated after idempotent re-POST: %v", body["budget_runs"])
+	}
+}
+
+func TestOrdersPublishOwnerRefGatesProgress(t *testing.T) {
+	mux := ordersPublishMux(t)
+	rec := publishReq(t, mux, "publish-tok", map[string]any{
+		"id": "camp-owned", "budget_runs": 8, "owner_ref": "customer:acme",
+		"config": map[string]any{"dig_package": "scan", "guard_pack": "secrets"},
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create want 200, got %d", rec.Code)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/fuzz/pool/campaigns/progress?id=camp-owned", nil)
+	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	req.Header.Set("X-Hackme-Orders-Owner-Ref", "customer:evil")
+	req.RemoteAddr = "203.0.113.10:4444"
+	prog := httptest.NewRecorder()
+	mux.ServeHTTP(prog, req)
+	if prog.Code != http.StatusForbidden {
+		t.Fatalf("wrong owner want 403, got %d %s", prog.Code, prog.Body.String())
+	}
+	req.Header.Set("X-Hackme-Orders-Owner-Ref", "customer:acme")
+	prog = httptest.NewRecorder()
+	mux.ServeHTTP(prog, req)
+	if prog.Code != http.StatusOK {
+		t.Fatalf("matching owner want 200, got %d %s", prog.Code, prog.Body.String())
+	}
+}
+
 func TestOrdersPublishRejectsOversizedBudget(t *testing.T) {
 	mux := ordersPublishMux(t)
 	rec := publishReq(t, mux, "publish-tok", map[string]any{

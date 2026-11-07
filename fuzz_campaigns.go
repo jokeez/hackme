@@ -835,6 +835,12 @@ func (a *app) handleFuzzCampaignCreate(w http.ResponseWriter, r *http.Request) {
 			resp["pool_distributed"] = true
 			fc := fuzzAutoCampaign{ID: id, OwnerRef: strings.TrimSpace(req.OwnerRef), BudgetRuns: req.BudgetRuns, BudgetSeconds: req.BudgetSeconds, ConfigJSON: cfg}
 			a.applyPoolSyncResponse(resp, r.Context(), fc)
+			if fail, _ := resp["pool_sync"].(string); fail == "fail" {
+				a.rollbackNewCampaignEscrow(r.Context(), id)
+				writeAPIError(w, http.StatusBadGateway, "pool_sync_failed",
+					toString(resp["pool_sync_warning"]), map[string]any{"rolled_back": true})
+				return
+			}
 		}
 		writeJSON(w, resp)
 		return
@@ -862,6 +868,12 @@ func (a *app) handleFuzzCampaignCreate(w http.ResponseWriter, r *http.Request) {
 			ConfigJSON:    cfg,
 		}
 		a.applyPoolSyncResponse(resp, r.Context(), fc)
+		if fail, _ := resp["pool_sync"].(string); fail == "fail" {
+			a.rollbackNewCampaignEscrow(r.Context(), id)
+			writeAPIError(w, http.StatusBadGateway, "pool_sync_failed",
+				toString(resp["pool_sync_warning"]), map[string]any{"rolled_back": true})
+			return
+		}
 	}
 	writeJSON(w, resp)
 }

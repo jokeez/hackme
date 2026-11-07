@@ -25,6 +25,31 @@ type SettleOutboxItem struct {
 	CreatedAt    int64  `json:"created_at"`
 }
 
+// settleOwnerRefLookup optionally stamps X-Hackme-Orders-Owner-Ref on settle HTTP
+// so a shared publish token cannot read/ACK another customer's campaigns.
+var settleOwnerRefLookup func(campaignID string) string
+
+// SetSettleOwnerRefLookup registers a local owner_ref resolver (node DB). Pass nil to clear.
+func SetSettleOwnerRefLookup(fn func(campaignID string) string) {
+	settleOwnerRefLookup = fn
+}
+
+func settleOwnerRefFor(campaignID string) string {
+	if settleOwnerRefLookup == nil {
+		return ""
+	}
+	return strings.TrimSpace(settleOwnerRefLookup(strings.TrimSpace(campaignID)))
+}
+
+func setOrdersOwnerHeader(req *http.Request, campaignID string) {
+	if req == nil {
+		return
+	}
+	if owner := settleOwnerRefFor(campaignID); owner != "" {
+		req.Header.Set("X-Hackme-Orders-Owner-Ref", owner)
+	}
+}
+
 // FetchSettleOutbox returns pending settlements from the coordinator (fair multi-campaign window).
 // When a coordinator URL is configured but the admin token is missing, this
 // returns an error (not a silent empty success): callers that close escrow
@@ -79,7 +104,7 @@ func CountPendingSettleOutbox(ctx context.Context, campaignID string) (int64, er
 			case <-time.After(delay):
 			}
 		}
-		n, err := countSettleOutboxOnce(ctx, reqURL, token)
+		n, err := countSettleOutboxOnce(ctx, reqURL, token, campaignID)
 		if err == nil {
 			return n, nil
 		}
@@ -119,7 +144,7 @@ func fetchSettleOutboxQuery(ctx context.Context, limit int, campaignID string) (
 			case <-time.After(delay):
 			}
 		}
-		items, err := fetchSettleOutboxOnce(ctx, reqURL, token)
+		items, err := fetchSettleOutboxOnce(ctx, reqURL, token, campaignID)
 		if err == nil {
 			return items, nil
 		}
@@ -131,12 +156,13 @@ func fetchSettleOutboxQuery(ctx context.Context, limit int, campaignID string) (
 	return nil, lastErr
 }
 
-func countSettleOutboxOnce(ctx context.Context, reqURL, token string) (int64, error) {
+func countSettleOutboxOnce(ctx context.Context, reqURL, token, campaignID string) (int64, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return 0, err
 	}
 	req.Header.Set("X-Hackme-Admin-Token", token)
+	setOrdersOwnerHeader(req, campaignID)
 	cli := netutil.HTTPClientPoolOriginDial(120 * time.Second)
 	res, err := cli.Do(req)
 	if err != nil {
@@ -156,12 +182,13 @@ func countSettleOutboxOnce(ctx context.Context, reqURL, token string) (int64, er
 	return payload.Pending, nil
 }
 
-func fetchSettleOutboxOnce(ctx context.Context, reqURL, token string) ([]SettleOutboxItem, error) {
+func fetchSettleOutboxOnce(ctx context.Context, reqURL, token, campaignID string) ([]SettleOutboxItem, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("X-Hackme-Admin-Token", token)
+	setOrdersOwnerHeader(req, campaignID)
 	cli := netutil.HTTPClientPoolOriginDial(120 * time.Second)
 	res, err := cli.Do(req)
 	if err != nil {
@@ -263,7 +290,7 @@ func AckSettleOutboxForCampaign(ctx context.Context, campaignID string, ids []in
 			case <-time.After(delay):
 			}
 		}
-		err := ackSettleOutboxOnce(ctx, coordURL, token, body)
+		err := ackSettleOutboxOnce(ctx, coordURL, token, campaignID, body)
 		if err == nil {
 			return nil
 		}
@@ -275,7 +302,7 @@ func AckSettleOutboxForCampaign(ctx context.Context, campaignID string, ids []in
 	return lastErr
 }
 
-func ackSettleOutboxOnce(ctx context.Context, coordURL, token string, body []byte) error {
+func ackSettleOutboxOnce(ctx context.Context, coordURL, token, campaignID string, body []byte) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		coordURL+"/api/fuzz/pool/settle/outbox/ack", bytes.NewReader(body))
 	if err != nil {
@@ -283,6 +310,7 @@ func ackSettleOutboxOnce(ctx context.Context, coordURL, token string, body []byt
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Hackme-Admin-Token", token)
+	setOrdersOwnerHeader(req, campaignID)
 	cli := netutil.HTTPClientPoolOriginDial(120 * time.Second)
 	res, err := cli.Do(req)
 	if err != nil {

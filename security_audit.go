@@ -481,8 +481,14 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 
 	if poolDistributedCampaign(cfgMap) {
 		resp["pool_distributed"] = true
-		fc := fuzzAutoCampaign{ID: campaignID, BudgetRuns: budgetRuns, BudgetSeconds: budgetSeconds, ConfigJSON: cfg}
+		fc := fuzzAutoCampaign{ID: campaignID, OwnerRef: ownerRef, BudgetRuns: budgetRuns, BudgetSeconds: budgetSeconds, ConfigJSON: cfg}
 		a.applyPoolSyncResponse(resp, r.Context(), fc)
+		if fail, _ := resp["pool_sync"].(string); fail == "fail" {
+			a.rollbackNewCampaignEscrow(r.Context(), campaignID)
+			writeAPIError(w, http.StatusBadGateway, "pool_sync_failed",
+				toString(resp["pool_sync_warning"]), map[string]any{"rolled_back": true})
+			return
+		}
 	}
 
 	writeJSON(w, resp)

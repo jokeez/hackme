@@ -160,6 +160,15 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
+			storedOwner, err := pf.CampaignOwnerRef(r.Context(), id)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			if !publishOwnerAccessOK(r, storedOwner) {
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
 			ownerAccess = true
 		}
 		var prog map[string]any
@@ -222,6 +231,15 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
+			storedOwner, err := pf.CampaignOwnerRef(r.Context(), id)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			if !publishOwnerAccessOK(r, storedOwner) {
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
 		}
 		limit := 100
 		if s := strings.TrimSpace(r.URL.Query().Get("limit")); s != "" {
@@ -274,6 +292,15 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				return
 			}
 			if !pub {
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
+			storedOwner, err := pf.CampaignOwnerRef(r.Context(), campaignID)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			if !publishOwnerAccessOK(r, storedOwner) {
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
@@ -348,6 +375,15 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		if isPublish && !isAdmin {
 			if strings.TrimSpace(req.CampaignID) == "" {
 				http.Error(w, "campaign_id required for publish token", http.StatusBadRequest)
+				return
+			}
+			storedOwner, errOwn := pf.CampaignOwnerRef(r.Context(), req.CampaignID)
+			if errOwn != nil {
+				http.Error(w, errOwn.Error(), http.StatusInternalServerError)
+				return
+			}
+			if !publishOwnerAccessOK(r, storedOwner) {
+				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
 			if !publishRateAllow(r) {
@@ -649,6 +685,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			pkg := configString(req.Config, "dig_package")
 			req.Config = fuzzingcli.FinalizeDigCampaignConfig(req.Config, pkg, pack, repoRoot)
 		}
+		publishIdempotent := false
 		if isPublish && !isAdmin {
 			stripPublishEscalationConfig(req.Config)
 			req.Config["orders_publish"] = true
@@ -667,21 +704,43 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 					http.Error(w, "campaign id exists (not orders_publish) — publish cannot hijack", http.StatusConflict)
 					return
 				}
+				// Shared publish token must not overwrite another customer's
+				// config/budget/status via ON CONFLICT. Idempotent re-POST is OK
+				// when owner_ref matches (or both empty for legacy rows).
+				existingOwner, err := pf.CampaignOwnerRef(r.Context(), req.ID)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				reqOwner := strings.TrimSpace(req.OwnerRef)
+				if existingOwner != "" {
+					if reqOwner == "" {
+						http.Error(w, "owner_ref required to refresh existing orders_publish campaign", http.StatusConflict)
+						return
+					}
+					if reqOwner != existingOwner {
+						http.Error(w, "campaign id exists under a different owner_ref — publish cannot hijack", http.StatusConflict)
+						return
+					}
+				}
+				publishIdempotent = true
 			}
 		}
-		if err := pf.RegisterCampaign(r.Context(), poolfuzz.Campaign{
-			ID:            req.ID,
-			CampaignType:  req.CampaignType,
-			Title:         req.Title,
-			Description:   req.Description,
-			OwnerRef:      req.OwnerRef,
-			Status:        req.Status,
-			BudgetRuns:    req.BudgetRuns,
-			BudgetSeconds: req.BudgetSeconds,
-			Config:        req.Config,
-		}); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		if !publishIdempotent {
+			if err := pf.RegisterCampaign(r.Context(), poolfuzz.Campaign{
+				ID:            req.ID,
+				CampaignType:  req.CampaignType,
+				Title:         req.Title,
+				Description:   req.Description,
+				OwnerRef:      req.OwnerRef,
+				Status:        req.Status,
+				BudgetRuns:    req.BudgetRuns,
+				BudgetSeconds: req.BudgetSeconds,
+				Config:        req.Config,
+			}); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
 		campaignID := req.ID
 		go func() {
@@ -693,6 +752,9 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		// Publish token must never attach PoH escrow (admin-only escalation).
 		if isPublish && !isAdmin {
 			attach = map[string]any{"ok": false, "skipped": true, "reason": "orders_publish_no_poh_attach"}
+			if publishIdempotent {
+				attach["idempotent"] = true
+			}
 		} else if wm != nil {
 			attach = wm.attachPoHOrderFromFuzzConfig(req.ID, req.Config)
 		}

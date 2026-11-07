@@ -253,3 +253,24 @@ func writePublishAuthError(w http.ResponseWriter) {
 	w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
 	http.Error(w, "orders publish or admin authentication required", http.StatusUnauthorized)
 }
+
+// publishOwnerRefFromRequest reads the Orders owner claim (header preferred, query fallback).
+func publishOwnerRefFromRequest(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	if v := strings.TrimSpace(r.Header.Get("X-Hackme-Orders-Owner-Ref")); v != "" {
+		return v
+	}
+	return strings.TrimSpace(r.URL.Query().Get("owner_ref"))
+}
+
+// publishOwnerAccessOK gates shared publish-token reads/ACKs to the campaign's owner_ref
+// when one was stamped at register. Legacy rows with empty owner_ref keep flag-only access.
+func publishOwnerAccessOK(r *http.Request, storedOwner string) bool {
+	storedOwner = strings.TrimSpace(storedOwner)
+	if storedOwner == "" {
+		return true
+	}
+	return publishOwnerRefFromRequest(r) == storedOwner
+}

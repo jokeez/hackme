@@ -458,6 +458,27 @@ func (s *Service) CampaignIsOrdersPublish(ctx context.Context, campaignID string
 	return configTruthyAny(cfg, "orders_publish"), nil
 }
 
+// CampaignOwnerRef returns the stored owner_ref for a campaign (empty if unset/missing).
+func (s *Service) CampaignOwnerRef(ctx context.Context, campaignID string) (string, error) {
+	if s == nil || s.DB == nil {
+		return "", fmt.Errorf("poolfuzz: no database")
+	}
+	campaignID = strings.TrimSpace(campaignID)
+	if campaignID == "" {
+		return "", nil
+	}
+	var owner string
+	err := s.DB.QueryRowContext(ctx,
+		`SELECT COALESCE(owner_ref,'') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&owner)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(owner), nil
+}
+
 // CampaignExists reports whether a pool campaign row exists.
 func (s *Service) CampaignExists(ctx context.Context, campaignID string) (bool, error) {
 	if s == nil || s.DB == nil {
