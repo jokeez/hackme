@@ -44,5 +44,6 @@ func IsolateCmd(cmd *exec.Cmd) {
 		"-c", "core.hooksPath=" + nullHooks,
 		"-c", "protocol.file.allow=never",
 		"-c", "submodule.recurse=false",
+		"-c", "core.symlinks=false",
 	}, rest...)
 }

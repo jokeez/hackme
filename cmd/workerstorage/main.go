@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -18,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"hackme/internal/hms"
 	"hackme/internal/netutil"
 )
 
@@ -73,7 +73,7 @@ func main() {
 		if pushToken == "" {
 			log.Fatal("HACKME_STORAGE_LISTEN set but HMS_WORKER_PUSH_TOKEN is empty")
 		}
-		go serveChunkPush(listen, dir, pushToken)
+		go serveChunkPush(listen, dir, pushToken, workerID)
 		log.Printf("storage push listener on %s", listen)
 	}
 
@@ -91,16 +91,19 @@ func main() {
 	}
 }
 
-func serveChunkPush(listen, dir, pushToken string) {
+func serveChunkPush(listen, dir, pushToken, workerID string) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/worker/storage/chunks/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		auth := strings.TrimSpace(r.Header.Get("Authorization"))
-		want := "Bearer " + pushToken
-		if subtle.ConstantTimeCompare([]byte(auth), []byte(want)) != 1 {
+		hdrWID := strings.TrimSpace(r.Header.Get("X-HMS-Worker-ID"))
+		if hdrWID != "" && !strings.EqualFold(hdrWID, workerID) {
+			http.Error(w, "worker id mismatch", http.StatusForbidden)
+			return
+		}
+		if !hms.AuthorizeWorkerPushBearer(r.Header.Get("Authorization"), pushToken, workerID) {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}

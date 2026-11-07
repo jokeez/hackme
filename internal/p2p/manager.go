@@ -115,9 +115,15 @@ func NewManager(nodeID string, peers []string, token string, discovery bool, adv
 	}
 	advertiseURL = validateStaticPeerURL(advertiseURL)
 	return &Manager{
-		nodeID:      nodeID,
-		token:       strings.TrimSpace(token),
-		client:      &http.Client{Timeout: 5 * time.Second},
+		nodeID: nodeID,
+		token:  strings.TrimSpace(token),
+		client: &http.Client{
+			Timeout: 5 * time.Second,
+			// Do not follow redirects: X-Hackme-P2P-Token must not jump hosts.
+			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		},
 		discoveryOn: discovery,
 		advertise:   advertiseURL,
 		policyHash:  strings.TrimSpace(policyHash),

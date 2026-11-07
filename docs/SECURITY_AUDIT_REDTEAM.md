@@ -28,6 +28,10 @@ Reports: `reports/tests/security_full_20260828T190633Z/` · `reports/gates/redte
 | Fleet merge payout capture (report #17): address conflict stays sticky; settle scripts skip `address_conflict` | `mergeWorkerStat`, `settle_worker_payouts.sh`, `settle_worker_sup.sh` |
 | Orphan multi-GPU fleet freeze bypass (2026-11-07): M4 only guarded bare `m.worker[base]`; CUDA fleets use only `-gpuN` — mismatching sibling no longer folds into empty/other destination | `shouldExportFleetMemberSeparately`, deterministic fold order, `publicWorkersMap` clash guard |
 | Empty-address unpaid accruals must not adopt stranger payout on fold (post-unbind / legacy) | `shouldExportFleetMemberSeparately` + `mergeWorkerStat` refuse address adopt onto unpaid blank dst |
+| Unbind with unpaid accruals: require `rebind_to` or `forfeit_unpaid`; claim/submit must not adopt onto unpaid blank | `clearPayoutLockWith`, `notePayoutLock`, submit adopt guard |
+| HMS remote push: per-worker derived bearer (not shared master) + no redirect follow on egress | `DeriveWorkerPushBearer`, `egressHTTPClient.CheckRedirect` |
+| P2P client: no redirect follow (token must not jump hosts) | `internal/p2p/manager.go` client |
+| Hunt git isolate: `core.symlinks=false` | `internal/gitutil/isolate.go` |
 | HMS cancel vs upload/complete TOCTOU: status CAS + refuse resurrect after cancel | `CancelStorageOrder` / upload UPDATE / complete UPDATE `WHERE status NOT IN (cancelled,failed)` |
 | Block height `index`/`q` SQLite high-bit bind → 400 (extends from_height/before fix) | `GetBlockSummaryByIndex` + reports handlers |
 | Public settlement GET is read-only and keeps `pending_settle` (report #13) | `settlement_api.go` |

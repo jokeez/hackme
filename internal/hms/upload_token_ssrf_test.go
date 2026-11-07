@@ -94,7 +94,8 @@ func TestRemotePushUsesDedicatedTokenNotWorkerToken(t *testing.T) {
 			http.Error(w, "shared token not allowed", http.StatusUnauthorized)
 			return
 		}
-		if sawAuth != "Bearer push-only-token" {
+		want := "Bearer " + DeriveWorkerPushBearer("push-only-token", "w-push")
+		if sawAuth != want {
 			http.Error(w, "bad push token", http.StatusUnauthorized)
 			return
 		}
@@ -131,8 +132,9 @@ func TestRemotePushUsesDedicatedTokenNotWorkerToken(t *testing.T) {
 	if sawWorkerToken {
 		t.Fatal("must not forward shared worker token")
 	}
-	if sawAuth != "Bearer push-only-token" {
-		t.Fatalf("auth=%q", sawAuth)
+	want := "Bearer " + DeriveWorkerPushBearer("push-only-token", "w-push")
+	if sawAuth != want {
+		t.Fatalf("auth=%q want derived %q", sawAuth, want)
 	}
 }
 

@@ -57,5 +57,12 @@ func egressHTTPClient(timeout time.Duration) *http.Client {
 			return nil, last
 		},
 	}
-	return &http.Client{Timeout: timeout, Transport: transport}
+	return &http.Client{
+		Timeout:   timeout,
+		Transport: transport,
+		// Never follow redirects: Authorization would be replayed onto a new host.
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 }

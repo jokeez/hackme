@@ -7,11 +7,9 @@ import (
 	"time"
 )
 
-// A3: epochPrepaidUnits sums the FULL prepaid_hmc of every order that has at least one chunk
-// first assigned in the epoch. An order whose chunks are spread over N epochs is counted N
-// times, so its 1% seal-budget bonus (minted as HMS by settle_worker_hms.sh) is paid N times.
-// A customer holding an upload token uploads one tiny chunk per epoch (≤1e6 chunk indexes,
-// bounded only by size_plan_bytes, and the 5 GB price floor makes size_plan almost free).
+// Regression (fixed): epochPrepaidUnits must count each paid order once — in the first epoch
+// that holds any of its chunks (MIN(epoch_id)). Counting per-epoch with a chunk let one
+// 1-byte upload per epoch re-emit prepaid as HMS forever.
 func TestAudit9_EpochPrepaidCountedPerEpoch(t *testing.T) {
 	dir := t.TempDir()
 	db, err := OpenDB(filepath.Join(dir, "hms.db"))

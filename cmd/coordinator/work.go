@@ -2123,12 +2123,18 @@ func (m *workManager) notePayoutLock(workerID, addr string) {
 	}
 	cur := strings.TrimSpace(st.PayoutAddress)
 	if cur == "" {
-		st.PayoutAddress = addr
-		m.worker[workerID] = st
-		cur = addr
+		// Do not rebind historical unpaid accruals to a first claimant after
+		// admin unbind (worker_id is public in pool stats — snipe risk).
+		if !workerStatHasUnpaidAccrual(st) {
+			st.PayoutAddress = addr
+			m.worker[workerID] = st
+			cur = addr
+		}
 	}
 	m.mu.Unlock()
-	if strings.EqualFold(cur, addr) {
+	// Always establish the identity lock for this claim when unbound or matching,
+	// even if unpaid accruals stay address-blank (settle skips until admin rebind_to).
+	if cur == "" || strings.EqualFold(cur, addr) {
 		m.persistPayoutLock(workerID, addr)
 	}
 }
@@ -3080,7 +3086,9 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	}
 	if signerAddr != "" {
 		if strings.TrimSpace(st.PayoutAddress) == "" {
-			st.PayoutAddress = signerAddr
+			if !workerStatHasUnpaidAccrual(st) {
+				st.PayoutAddress = signerAddr
+			}
 			m.persistPayoutLock(req.WorkerID, signerAddr)
 		}
 		st.SignedSubmits++
@@ -4373,11 +4381,25 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
 		var req struct {
-			WorkerID  string   `json:"worker_id"`
-			WorkerIDs []string `json:"worker_ids"`
+			WorkerID      string   `json:"worker_id"`
+			WorkerIDs     []string `json:"worker_ids"`
+			RebindTo      string   `json:"rebind_to"`
+			ForfeitUnpaid bool     `json:"forfeit_unpaid"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		opts := clearPayoutLockOpts{
+			RebindTo:      strings.TrimSpace(req.RebindTo),
+			ForfeitUnpaid: req.ForfeitUnpaid,
+		}
+		if opts.RebindTo != "" && !chain.IsValidAddress(opts.RebindTo) {
+			http.Error(w, "rebind_to must be a valid HMC address", http.StatusBadRequest)
+			return
+		}
+		if opts.RebindTo != "" && opts.ForfeitUnpaid {
+			http.Error(w, "rebind_to and forfeit_unpaid are mutually exclusive", http.StatusBadRequest)
 			return
 		}
 		if len(req.WorkerIDs) > 0 {
@@ -4397,7 +4419,7 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 			clearedN := 0
 			failed := []map[string]string{}
 			for _, id := range ids {
-				did, _, uerr := wm.clearPayoutLock(id)
+				did, _, uerr := wm.clearPayoutLockWith(id, opts)
 				if uerr != nil {
 					failed = append(failed, map[string]string{"worker_id": id, "error": uerr.Error()})
 					continue
@@ -4408,7 +4430,14 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 			}
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			if len(failed) > 0 {
-				w.WriteHeader(http.StatusInternalServerError)
+				code := http.StatusInternalServerError
+				for _, f := range failed {
+					if strings.Contains(f["error"], "rebind_to or forfeit_unpaid") {
+						code = http.StatusConflict
+						break
+					}
+				}
+				w.WriteHeader(code)
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"ok":      len(failed) == 0,
@@ -4422,10 +4451,14 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 			http.Error(w, "invalid worker_id", http.StatusBadRequest)
 			return
 		}
-		cleared, prev, uerr := wm.clearPayoutLock(workerID)
+		cleared, prev, uerr := wm.clearPayoutLockWith(workerID, opts)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		if uerr != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+			code := http.StatusInternalServerError
+			if strings.Contains(uerr.Error(), "rebind_to or forfeit_unpaid") {
+				code = http.StatusConflict
+			}
+			w.WriteHeader(code)
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"ok":        false,
 				"error":     uerr.Error(),
@@ -4438,6 +4471,8 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 			"cleared":          cleared,
 			"worker_id":        workerID,
 			"previous_address": prev,
+			"rebind_to":        opts.RebindTo,
+			"forfeit_unpaid":   opts.ForfeitUnpaid,
 		})
 	})
 

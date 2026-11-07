@@ -396,12 +396,24 @@ func (m *workManager) persistPayoutLock(workerID, addr string) {
 	m.payoutLockMu.Unlock()
 }
 
+// clearPayoutLockOpts controls unpaid-accrual handling during admin unbind.
+// Unpaid blank rows are a snipe surface (public worker_id + first claim after
+// unbind); callers must forfeit or admin-attest rebind_to when unpaid > 0.
+type clearPayoutLockOpts struct {
+	RebindTo      string
+	ForfeitUnpaid bool
+}
+
 // clearPayoutLock removes the durable + in-memory payout binding for worker_id
 // (admin unbind / report #27 recovery). The durable DELETE runs first and its
 // failure is surfaced: answering success while the row survives would silently
 // re-bind the worker after the next coordinator restart. Returns the address
 // that was cleared.
 func (m *workManager) clearPayoutLock(workerID string) (cleared bool, prevAddr string, err error) {
+	return m.clearPayoutLockWith(workerID, clearPayoutLockOpts{})
+}
+
+func (m *workManager) clearPayoutLockWith(workerID string, opts clearPayoutLockOpts) (cleared bool, prevAddr string, err error) {
 	if m == nil {
 		return false, "", nil
 	}
@@ -409,13 +421,29 @@ func (m *workManager) clearPayoutLock(workerID string) (cleared bool, prevAddr s
 	if workerID == "" {
 		return false, "", nil
 	}
+	rebindTo := strings.TrimSpace(opts.RebindTo)
 	prevAddr = m.lockedPayoutAddress(workerID)
 	if prevAddr == payoutLockLookupFailed {
 		prevAddr = ""
 	}
+
 	m.mu.Lock()
+	st := workerPayoutStat{}
+	if m.worker != nil {
+		st = m.worker[workerID]
+	}
+	unpaid := workerStatHasUnpaidAccrual(st)
+	memAddr := strings.TrimSpace(st.PayoutAddress)
+	if prevAddr == "" {
+		prevAddr = memAddr
+	}
 	db := m.dedupDB
 	m.mu.Unlock()
+
+	if unpaid && rebindTo == "" && !opts.ForfeitUnpaid {
+		return false, prevAddr, errors.New("unbind with unpaid accruals requires rebind_to or forfeit_unpaid")
+	}
+
 	if db != nil {
 		// payoutLockMu covers DELETE + memory clear together so an in-flight
 		// claim persist cannot land between them and re-insert the binding.
@@ -425,9 +453,23 @@ func (m *workManager) clearPayoutLock(workerID string) (cleared bool, prevAddr s
 			m.mu.Lock()
 			if m.worker != nil {
 				st := m.worker[workerID]
-				if strings.TrimSpace(st.PayoutAddress) != "" {
+				changed := false
+				if opts.ForfeitUnpaid && workerStatHasUnpaidAccrual(st) {
+					st.PayoutHMC = 0
+					st.PayoutUnits = 0
+					st.PayoutSUP = 0
+					changed = true
+				}
+				if rebindTo != "" {
+					st.PayoutAddress = rebindTo
+					st.AddressConflict = false
+					changed = true
+				} else if strings.TrimSpace(st.PayoutAddress) != "" {
 					st.PayoutAddress = ""
-					m.worker[workerID] = st
+					changed = true
+				}
+				m.worker[workerID] = st
+				if changed {
 					cleared = true
 				}
 			}
@@ -445,18 +487,37 @@ func (m *workManager) clearPayoutLock(workerID string) (cleared bool, prevAddr s
 		m.mu.Lock()
 		if m.worker != nil {
 			st := m.worker[workerID]
-			if strings.TrimSpace(st.PayoutAddress) != "" {
+			changed := false
+			if opts.ForfeitUnpaid && workerStatHasUnpaidAccrual(st) {
+				st.PayoutHMC = 0
+				st.PayoutUnits = 0
+				st.PayoutSUP = 0
+				changed = true
+			}
+			if rebindTo != "" {
+				st.PayoutAddress = rebindTo
+				st.AddressConflict = false
+				changed = true
+			} else if strings.TrimSpace(st.PayoutAddress) != "" {
 				st.PayoutAddress = ""
-				m.worker[workerID] = st
+				changed = true
+			}
+			m.worker[workerID] = st
+			if changed {
 				cleared = true
 			}
 		}
 		m.mu.Unlock()
 	}
-	if prevAddr == "" && !cleared {
+	if rebindTo != "" {
+		m.persistPayoutLock(workerID, rebindTo)
+	}
+	// Durable accrual must not resurrect the old address across restart.
+	m.persistWorkerAccrual(workerID, true)
+	if prevAddr == "" && !cleared && rebindTo == "" {
 		return false, "", nil
 	}
-	return cleared || prevAddr != "", prevAddr, nil
+	return cleared || prevAddr != "" || rebindTo != "", prevAddr, nil
 }
 
 func (m *workManager) persistResultHash(key string) {

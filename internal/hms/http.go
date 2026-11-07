@@ -1,8 +1,8 @@
 package hms
 
 import (
+	"crypto/hmac"
 	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"io"
@@ -545,7 +545,7 @@ func bearerOK(r *http.Request, token string) bool {
 	if h == "" {
 		h = strings.TrimSpace(r.Header.Get("X-Hackme-Admin-Token"))
 	}
-	return subtle.ConstantTimeCompare([]byte(h), []byte(token)) == 1
+	return hmac.Equal([]byte(h), []byte(token))
 }
 
 func loopbackOnly(r *http.Request) bool {

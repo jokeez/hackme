@@ -2,6 +2,10 @@ package hms
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,6 +23,50 @@ func WorkerPushToken() string {
 		}
 	}
 	return ""
+}
+
+// DeriveWorkerPushBearer returns a per-worker push credential derived from the
+// fleet master push token. Coordinator sends this (not the master) so a
+// malicious registered endpoint_url cannot harvest a bearer that authorizes
+// writes on every other storage listener.
+func DeriveWorkerPushBearer(master, workerID string) string {
+	master = strings.TrimSpace(master)
+	workerID = trimWorkerID(workerID)
+	if master == "" || workerID == "" {
+		return ""
+	}
+	mac := hmac.New(sha256.New, []byte(master))
+	_, _ = mac.Write([]byte("hms-push-v1:" + workerID))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// AuthorizeWorkerPushBearer accepts the derived per-worker bearer. The shared
+// master is rejected unless HMS_WORKER_PUSH_ALLOW_SHARED=1 (legacy lab only).
+func AuthorizeWorkerPushBearer(authorizationHeader, master, workerID string) bool {
+	auth := strings.TrimSpace(authorizationHeader)
+	master = strings.TrimSpace(master)
+	if auth == "" || master == "" {
+		return false
+	}
+	wantDerived := "Bearer " + DeriveWorkerPushBearer(master, workerID)
+	if subtle.ConstantTimeCompare([]byte(auth), []byte(wantDerived)) == 1 {
+		return true
+	}
+	if allowSharedWorkerPushBearer() {
+		wantShared := "Bearer " + master
+		return subtle.ConstantTimeCompare([]byte(auth), []byte(wantShared)) == 1
+	}
+	return false
+}
+
+func allowSharedWorkerPushBearer() bool {
+	for _, k := range []string{"HMS_WORKER_PUSH_ALLOW_SHARED", "HACKME_HMS_WORKER_PUSH_ALLOW_SHARED"} {
+		v := strings.TrimSpace(strings.ToLower(os.Getenv(k)))
+		if v == "1" || v == "true" || v == "yes" || v == "on" {
+			return true
+		}
+	}
+	return false
 }
 
 func requireRemotePush() bool {
@@ -57,6 +105,10 @@ func (c *Coordinator) pushChunkToWorkerEndpoint(workerID, chunkID string, cipher
 	if token == "" {
 		return fmt.Errorf("HMS_WORKER_PUSH_TOKEN required for remote chunk push")
 	}
+	bearer := DeriveWorkerPushBearer(token, workerID)
+	if bearer == "" {
+		return fmt.Errorf("derived push bearer empty")
+	}
 	if err := ValidateChunkID(chunkID); err != nil {
 		return err
 	}
@@ -66,7 +118,7 @@ func (c *Coordinator) pushChunkToWorkerEndpoint(workerID, chunkID string, cipher
 		return err
 	}
 	req.Header.Set("Content-Type", "application/octet-stream")
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", "Bearer "+bearer)
 	req.Header.Set("X-HMS-Worker-ID", workerID)
 	client := egressHTTPClient(60 * time.Second)
 	resp, err := client.Do(req)

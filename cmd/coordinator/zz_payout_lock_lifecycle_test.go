@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -392,5 +393,83 @@ func TestLoadPayoutLocksRespectsMaxWorkers(t *testing.T) {
 	}
 	if addr := wm.lockedPayoutAddress("wk-m0"); addr != "HMC-m0" {
 		t.Fatalf("capped binding lost enforcement via fallback: %q", addr)
+	}
+}
+
+func TestUnbindWithUnpaidRequiresRebindOrForfeit(t *testing.T) {
+	_, wm, mux := payoutLockSetup(t)
+	wm.persistPayoutLock("wk-unpaid", "HMC-aaaaaaaaaaaaaaaa")
+	wm.mu.Lock()
+	st := wm.worker["wk-unpaid"]
+	st.PayoutAddress = "HMC-aaaaaaaaaaaaaaaa"
+	st.PayoutHMC = 1.25
+	st.PayoutUnits = 125000000
+	wm.worker["wk-unpaid"] = st
+	wm.mu.Unlock()
+
+	code, out := payoutLockPost(t, mux, map[string]any{"worker_id": "wk-unpaid"})
+	if code != http.StatusConflict {
+		t.Fatalf("expected 409 without rebind/forfeit, got %d %v", code, out)
+	}
+
+	code, out = payoutLockPost(t, mux, map[string]any{
+		"worker_id": "wk-unpaid", "rebind_to": "HMC-bbbbbbbbbbbbbbbb",
+	})
+	if code != http.StatusOK || out["ok"] != true {
+		t.Fatalf("rebind_to: %d %v", code, out)
+	}
+	wm.mu.Lock()
+	got := wm.worker["wk-unpaid"]
+	wm.mu.Unlock()
+	if !strings.EqualFold(strings.TrimSpace(got.PayoutAddress), "HMC-bbbbbbbbbbbbbbbb") {
+		t.Fatalf("rebind address = %q", got.PayoutAddress)
+	}
+	if got.PayoutUnits < 125000000 {
+		t.Fatalf("rebind must keep unpaid units, got %d", got.PayoutUnits)
+	}
+	if addr := wm.lockedPayoutAddress("wk-unpaid"); !strings.EqualFold(addr, "HMC-bbbbbbbbbbbbbbbb") {
+		t.Fatalf("lock after rebind = %q", addr)
+	}
+}
+
+func TestUnbindForfeitUnpaidClearsAccruals(t *testing.T) {
+	_, wm, mux := payoutLockSetup(t)
+	wm.persistPayoutLock("wk-forfeit", "HMC-cccccccccccccccc")
+	wm.mu.Lock()
+	wm.worker["wk-forfeit"] = workerPayoutStat{
+		PayoutAddress: "HMC-cccccccccccccccc",
+		PayoutHMC:     2, PayoutUnits: 200000000, PayoutSUP: 0.5,
+	}
+	wm.mu.Unlock()
+	code, out := payoutLockPost(t, mux, map[string]any{
+		"worker_id": "wk-forfeit", "forfeit_unpaid": true,
+	})
+	if code != http.StatusOK || out["ok"] != true {
+		t.Fatalf("forfeit: %d %v", code, out)
+	}
+	wm.mu.Lock()
+	got := wm.worker["wk-forfeit"]
+	wm.mu.Unlock()
+	if workerStatHasUnpaidAccrual(got) || strings.TrimSpace(got.PayoutAddress) != "" {
+		t.Fatalf("forfeit must zero unpaid+address: %+v", got)
+	}
+}
+
+func TestNotePayoutLockDoesNotAdoptOntoUnpaidBlank(t *testing.T) {
+	_, wm, _ := payoutLockSetup(t)
+	wm.mu.Lock()
+	wm.worker["wk-snipe"] = workerPayoutStat{
+		PayoutAddress: "", PayoutHMC: 3, PayoutUnits: 300000000,
+	}
+	wm.mu.Unlock()
+	wm.notePayoutLock("wk-snipe", "HMC-dddddddddddddddd")
+	wm.mu.Lock()
+	got := wm.worker["wk-snipe"]
+	wm.mu.Unlock()
+	if strings.TrimSpace(got.PayoutAddress) != "" {
+		t.Fatalf("unpaid blank must not adopt claim address, got %q", got.PayoutAddress)
+	}
+	if addr := wm.lockedPayoutAddress("wk-snipe"); !strings.EqualFold(addr, "HMC-dddddddddddddddd") {
+		t.Fatalf("identity lock should still bind, got %q", addr)
 	}
 }
