@@ -618,6 +618,8 @@ func main() {
 	mux.HandleFunc("/api/address/bind", a.handleAddressBind)
 	mux.HandleFunc("/exchange-login", a.handleExchangeLoginPage)
 	mux.HandleFunc("/api/exchange-login/approve", a.handleExchangeLoginApprove)
+	mux.HandleFunc("/api/exchange/account", a.handleExchangeAccount)
+	mux.HandleFunc("/api/exchange/account/enable", a.handleExchangeAccount)
 	mux.HandleFunc("/api/address/", a.handleTransferAddressState)
 	mux.HandleFunc("/api/p2p/handshake", a.handleP2PHandshake)
 	mux.HandleFunc("/api/p2p/tx", a.handleP2PTx)
