@@ -461,6 +461,19 @@ func registerMarketRoutes(mux *http.ServeMux, coord *Coordinator, adminToken, wo
 			})
 			return
 		}
+		if len(parts) == 2 && parts[1] == "cancel" && r.Method == http.MethodPost {
+			if !auth(r, false) {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+			o, err := coord.CancelStorageOrder(orderID)
+			if err != nil {
+				http.Error(w, err.Error(), marketHTTPStatus(err))
+				return
+			}
+			writeJSON(w, map[string]any{"status": "ok", "order": o})
+			return
+		}
 		if len(parts) == 1 && r.Method == http.MethodGet {
 			if !auth(r, false) {
 				http.Error(w, "unauthorized", http.StatusUnauthorized)

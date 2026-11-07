@@ -19,6 +19,7 @@ const (
 	OrderStatusUploading = "uploading"
 	OrderStatusStored    = "stored"
 	OrderStatusFailed    = "failed"
+	OrderStatusCancelled = "cancelled"
 
 	maxMarketChunkBytes = 8 << 20 // 8 MiB per upload
 )
@@ -182,6 +183,31 @@ func (c *Coordinator) GetStorageOrder(orderID string) (*StorageOrder, error) {
 	return &o, nil
 }
 
+// CancelStorageOrder stops an active market order (draft/uploading/stored/degraded).
+// Idempotent on already-cancelled/failed. Clears the upload token so further uploads fail closed.
+func (c *Coordinator) CancelStorageOrder(orderID string) (*StorageOrder, error) {
+	orderID = strings.TrimSpace(orderID)
+	if orderID == "" {
+		return nil, errors.New("order_id required")
+	}
+	o, err := c.GetStorageOrder(orderID)
+	if err != nil {
+		return nil, err
+	}
+	switch strings.TrimSpace(strings.ToLower(o.Status)) {
+	case OrderStatusCancelled, OrderStatusFailed:
+		return o, nil
+	}
+	now := time.Now().Unix()
+	_, err = c.db.Exec(`UPDATE hms_orders SET status=?, upload_token='', health_detail=?, updated_unix=? WHERE order_id=?`,
+		OrderStatusCancelled, "cancelled by customer", now, orderID)
+	if err != nil {
+		return nil, err
+	}
+	_ = c.refreshOrderHealth()
+	return c.GetStorageOrder(orderID)
+}
+
 func (c *Coordinator) verifyUploadToken(orderID, token string) error {
 	var stored string
 	err := c.db.QueryRow(`SELECT upload_token FROM hms_orders WHERE order_id=?`, orderID).Scan(&stored)
@@ -221,6 +247,12 @@ func (c *Coordinator) PickStorageWorker() (string, error) {
 func (c *Coordinator) UploadOrderChunk(orderID, uploadToken string, chunkIndex int, ciphertext []byte) (map[string]any, error) {
 	if err := c.verifyUploadToken(orderID, uploadToken); err != nil {
 		return nil, err
+	}
+	var curStatus string
+	_ = c.db.QueryRow(`SELECT status FROM hms_orders WHERE order_id=?`, orderID).Scan(&curStatus)
+	switch strings.TrimSpace(strings.ToLower(curStatus)) {
+	case OrderStatusCancelled, OrderStatusFailed:
+		return nil, errors.New("order is " + curStatus)
 	}
 	if chunkIndex < 0 || chunkIndex > 1_000_000 {
 		return nil, errors.New("invalid chunk_index")

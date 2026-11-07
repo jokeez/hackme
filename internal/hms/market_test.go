@@ -316,6 +316,50 @@ func TestMarketPilotSkipRequiresLoopbackFlag(t *testing.T) {
 	}
 }
 
+func TestCancelStorageOrder(t *testing.T) {
+	dir := t.TempDir()
+	db, err := OpenDB(filepath.Join(dir, "hms.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	coord := NewCoordinator(db, Config{MinQuotaGB: 10, MaxQuotaGB: 100, EpochDuration: time.Hour, FreezeAfter: time.Hour, SealWindow: time.Minute, InitialSealTarget: defaultSealTarget()})
+	_ = coord.RegisterStorageWorker("w1", repeatHex(64), 50)
+	t.Setenv("HMS_MARKET_DATA_DIR", filepath.Join(dir, "market"))
+	t.Setenv("HMS_MARKET_STORAGE_ROOT", filepath.Join(dir, "storage"))
+	_ = os.MkdirAll(filepath.Join(dir, "storage", "w1"), 0o755)
+	t.Setenv("HMS_MARKET_SKIP_PAYMENT", "1")
+	t.Setenv("HMS_COORDINATOR_ALLOW_INSECURE", "1")
+	created, err := coord.CreateStorageOrder("stop-me", "u1", 1<<20, 30, "", "", "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cancelled, err := coord.CancelStorageOrder(created.Order.OrderID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cancelled.Status != OrderStatusCancelled {
+		t.Fatalf("status=%s", cancelled.Status)
+	}
+	again, err := coord.CancelStorageOrder(created.Order.OrderID)
+	if err != nil || again.Status != OrderStatusCancelled {
+		t.Fatalf("idempotent cancel: %v %+v", err, again)
+	}
+	if _, err := coord.UploadOrderChunk(created.Order.OrderID, created.UploadToken, 0, []byte("nope")); err == nil {
+		t.Fatal("expected upload rejected after cancel")
+	}
+
+	mux := http.NewServeMux()
+	RegisterHTTP(mux, coord, "", "")
+	req := httptest.NewRequest(http.MethodPost, "/api/market/orders/"+created.Order.OrderID+"/cancel", nil)
+	req.RemoteAddr = "127.0.0.1:9999"
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("http cancel: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
 func repeatHex(n int) string {
 	const h = "0123456789abcdef"
 	b := make([]byte, n)

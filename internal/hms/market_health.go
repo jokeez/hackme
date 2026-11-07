@@ -249,7 +249,7 @@ func (c *Coordinator) refreshOrderHealth() error {
 		if curStatus == OrderStatusUploading && totalHealthy > 0 {
 			status = OrderStatusUploading
 		}
-		_, _ = c.db.Exec(`UPDATE hms_orders SET health_status=?, health_detail=?, alert_unix=?, status=CASE WHEN status IN ('failed') THEN status ELSE ? END, updated_unix=? WHERE order_id=?`,
+		_, _ = c.db.Exec(`UPDATE hms_orders SET health_status=?, health_detail=?, alert_unix=?, status=CASE WHEN status IN ('failed','cancelled') THEN status ELSE ? END, updated_unix=? WHERE order_id=?`,
 			health, detail, now, status, now, orderID)
 	}
 	return rows.Err()
@@ -269,6 +269,6 @@ func (c *Coordinator) OrderHealth(orderID string) (map[string]any, error) {
 		"health_detail":  o.HealthDetail,
 		"replica_target": marketReplicaCount(),
 		"chunks":         chunks,
-		"restore_ok":     o.HealthStatus != HealthFailed && o.Status != OrderStatusFailed,
+		"restore_ok":     o.HealthStatus != HealthFailed && o.Status != OrderStatusFailed && o.Status != OrderStatusCancelled,
 	}, nil
 }

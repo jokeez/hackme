@@ -1464,6 +1464,32 @@
 			padding: 1.2rem 1.35rem;
 			box-shadow: 0 14px 36px rgba(0, 0, 0, 0.3);
 		}
+		#panel-hms-market .hms-market-hero {
+			border-radius: 1rem;
+			border: 1px solid rgba(16, 185, 129, 0.32);
+			background:
+				radial-gradient(ellipse 70% 80% at 0% 0%, rgba(16, 185, 129, 0.12), transparent 55%),
+				linear-gradient(160deg, rgba(8, 18, 14, 0.96), rgba(4, 10, 8, 0.98));
+			padding: 1.2rem 1.35rem;
+			box-shadow: 0 14px 36px rgba(0, 0, 0, 0.3);
+		}
+		#panel-hms-market .hms-svc-card {
+			border-radius: 0.75rem;
+			border: 1px solid rgba(16, 185, 129, 0.22);
+			background: rgba(0, 0, 0, 0.35);
+			padding: 0.9rem 1rem;
+		}
+		#panel-hms-market .hms-svc-card.is-active {
+			border-color: rgba(16, 185, 129, 0.55);
+			box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.2);
+		}
+		#panel-hms-market .hms-order-row {
+			cursor: pointer;
+		}
+		#panel-hms-market .hms-order-row:hover,
+		#panel-hms-market .hms-order-row.is-selected {
+			background: rgba(16, 185, 129, 0.08);
+		}
 		#panel-orders .audit-code-shell,
 		#panel-orders .hunt-extra-shell {
 			border-radius: 0.75rem;
@@ -3043,31 +3069,91 @@
 				</div>
 
 				<!-- HMS STORAGE MARKET (local node — pay HMC, upload chunks) -->
-				<div id="panel-hms-market" data-coin-scope="hms-only" class="tab-panel max-w-[960px] mx-auto space-y-4 coin-scope-hidden">
-					<div class="card card-glow rounded-lg p-4 md:p-5 border-emerald-500/30">
-						<div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+				<div id="panel-hms-market" data-coin-scope="hms-only" class="tab-panel max-w-[1600px] mx-auto space-y-4 coin-scope-hidden">
+					<div id="hms-market-banner" class="hms-market-hero text-[12px] text-gray-300 leading-relaxed">
+						<p class="font-display text-[10px] tracking-[0.3em] text-emerald-400 uppercase mb-1">HMS · storage market</p>
+						<p><strong class="text-emerald-300">Customer:</strong> browse services · quote → order (HMC) · track health · stop. <strong class="text-warn">Operator:</strong> local node + coordinator <code class="text-emerald-300/80">:18082</code> · admin token.</p>
+					</div>
+					<p id="hms-public-hub-banner-market" class="hidden text-[10px] text-warn font-mono border border-warn/30 rounded px-3 py-2">Public hub: read-only pricing/stats. Orders / cancel require <strong class="text-white/90">http://127.0.0.1:8080/</strong> (or your local node port).</p>
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+						<button type="button" class="hms-svc-card text-left is-active" data-hms-svc="backup" id="hms-svc-backup">
+							<p class="font-display text-[10px] tracking-[0.25em] text-emerald-400 uppercase mb-1">Service</p>
+							<p class="text-sm text-white font-semibold">Encrypted backup</p>
+							<p class="text-[11px] text-gray-500 mt-1">Plan GB · retention · prepaid HMC · chunk upload to storage workers.</p>
+						</button>
+						<button type="button" class="hms-svc-card text-left" data-hms-svc="retention" id="hms-svc-retention">
+							<p class="font-display text-[10px] tracking-[0.25em] text-emerald-400 uppercase mb-1">Service</p>
+							<p class="text-sm text-white font-semibold">Retention lease</p>
+							<p class="text-[11px] text-gray-500 mt-1">7–365 day hold · health probe · cancel stops further upload / serving.</p>
+						</button>
+						<button type="button" class="hms-svc-card text-left" data-hms-svc="capacity" id="hms-svc-capacity">
+							<p class="font-display text-[10px] tracking-[0.25em] text-emerald-400 uppercase mb-1">Pool</p>
+							<p class="text-sm text-white font-semibold">Worker capacity</p>
+							<p class="text-[11px] text-gray-500 mt-1" id="hms-svc-capacity-blurb">Live free GB · online workers · replica target from coordinator.</p>
+						</button>
+					</div>
+					<div class="card card-glow rounded-lg p-4 md:p-5 border-emerald-500/30 space-y-3">
+						<div class="flex flex-wrap items-start justify-between gap-3">
 							<div>
-								<p class="font-display text-[10px] tracking-[0.35em] text-emerald-400 uppercase mb-1">HMS · storage market</p>
-								<h3 class="font-display text-sm font-semibold text-white tracking-wide">B2B encrypted backup (HMC)</h3>
-								<p class="text-[11px] text-gray-400 leading-relaxed mt-1 max-w-2xl">Quote → order (debits local <strong class="text-white/90">HMC</strong>) → upload · needs local node.</p>
+								<p class="font-display text-[10px] tracking-[0.35em] text-emerald-400 uppercase mb-1">New order</p>
+								<h3 class="font-display text-sm font-semibold text-white tracking-wide">Quote → debit HMC → open order</h3>
 							</div>
 							<span class="tag-pill border-emerald-500/40 text-emerald-300">local node</span>
 						</div>
-						<p id="hms-public-hub-banner-market" class="hidden text-[10px] text-warn font-mono border border-warn/30 rounded px-3 py-2 mb-4">Public hub: read-only pricing/stats. Orders require <strong class="text-white/90">http://127.0.0.1:8080/</strong> (or your local node port).</p>
-						<div class="rounded border border-emerald-500/25 bg-black/35 p-4 space-y-3">
-							<p id="hms-market-pricing" class="text-[10px] text-gray-400 font-mono leading-relaxed">Loading pricing…</p>
-							<p id="hms-market-capacity" class="text-[10px] text-gray-500 font-mono">Capacity: —</p>
-							<div class="grid sm:grid-cols-2 gap-3 text-[10px]">
-								<label class="text-gray-500">Plan GB<input type="number" id="hms-market-gb" class="mt-1 w-full rounded border border-white/15 bg-black/50 px-2 py-1.5 text-emerald-200 font-mono" min="5" max="16384" step="1" value="50"></label>
-								<label class="text-gray-500">Retention days<input type="number" id="hms-market-retention" class="mt-1 w-full rounded border border-white/15 bg-black/50 px-2 py-1.5 text-emerald-200 font-mono" min="7" max="365" step="1" value="30"></label>
+						<p id="hms-market-pricing" class="text-[10px] text-gray-400 font-mono leading-relaxed">Loading pricing…</p>
+						<p id="hms-market-capacity" class="text-[10px] text-gray-500 font-mono">Capacity: —</p>
+						<div class="grid sm:grid-cols-2 gap-3 text-[10px]">
+							<label class="text-gray-500">Plan GB<input type="number" id="hms-market-gb" class="mt-1 w-full rounded border border-white/15 bg-black/50 px-2 py-1.5 text-emerald-200 font-mono" min="5" max="16384" step="1" value="50"></label>
+							<label class="text-gray-500">Retention days<input type="number" id="hms-market-retention" class="mt-1 w-full rounded border border-white/15 bg-black/50 px-2 py-1.5 text-emerald-200 font-mono" min="7" max="365" step="1" value="30"></label>
+						</div>
+						<label class="text-gray-500 text-[10px] block">Order label<input type="text" id="hms-market-label" class="mt-1 w-full rounded border border-white/15 bg-black/50 px-2 py-1.5 text-emerald-200 font-mono" maxlength="64" value="storage-backup"></label>
+						<div class="flex flex-wrap gap-2">
+							<button type="button" id="btn-hms-market-quote" class="text-[10px] px-4 py-2 rounded border border-emerald-500/40 text-emerald-300 uppercase tracking-wider">Get HMC quote</button>
+							<button type="button" id="btn-hms-market-order" class="text-[10px] px-4 py-2 rounded border border-neon/40 text-neon uppercase tracking-wider opacity-60 cursor-not-allowed" disabled title="Get a quote first (local node only)">Create order (debit HMC)</button>
+						</div>
+						<p id="hms-market-quote-out" class="text-[10px] font-mono text-gray-300 break-all min-h-[1.25rem]">—</p>
+						<p id="hms-market-order-out" class="text-[10px] font-mono text-gray-400 break-all min-h-[1.25rem]">—</p>
+					</div>
+					<div class="flex flex-wrap items-center justify-between gap-3">
+						<div>
+							<p class="font-display text-[10px] tracking-[0.35em] text-emerald-400 uppercase mb-1">Live orders</p>
+							<h2 class="font-display text-sm font-bold text-white tracking-wide">Storage jobs · stop &amp; health</h2>
+							<p class="text-[11px] text-gray-500 mt-1 max-w-2xl"><code class="text-emerald-300/80">/api/hms/market/orders</code> · select a row to cancel or inspect health.</p>
+							<p id="hms-market-orders-hint" class="text-[10px] text-warn/90 font-mono mt-1"></p>
+						</div>
+						<button type="button" id="btn-hms-market-orders-refresh" class="text-[10px] px-3 py-1.5 rounded border border-emerald-500/35 text-emerald-300 hover:bg-emerald-500/10 uppercase tracking-wider">Refresh</button>
+					</div>
+					<div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+						<div class="card card-glow rounded-lg p-4 xl:col-span-2 border-white/10 overflow-x-auto">
+							<table class="w-full text-left text-[11px] font-mono">
+								<thead class="bg-black/60 text-gray-500 uppercase tracking-wider text-[9px]">
+									<tr>
+										<th class="px-2 py-2">Label</th>
+										<th class="px-2 py-2">Order</th>
+										<th class="px-2 py-2">Status</th>
+										<th class="px-2 py-2">Health</th>
+										<th class="px-2 py-2">Plan</th>
+										<th class="px-2 py-2">Uploaded</th>
+										<th class="px-2 py-2">Retention</th>
+									</tr>
+								</thead>
+								<tbody id="hms-market-order-rows" class="text-gray-300 divide-y divide-white/5">
+									<tr><td colspan="7" class="px-2 py-3 text-gray-500">No orders yet — create one above.</td></tr>
+								</tbody>
+							</table>
+						</div>
+						<div class="card card-glow rounded-lg p-4 border-emerald-500/25 space-y-2">
+							<p class="text-[10px] uppercase tracking-[0.2em] text-gray-500">Selected order</p>
+							<p id="hms-market-selected-id" class="text-emerald-300 text-xs font-mono break-all">—</p>
+							<p id="hms-market-selected-label" class="text-[10px] text-gray-400 font-mono">—</p>
+							<p id="hms-market-selected-status" class="text-[11px] text-gray-300 font-mono">status: —</p>
+							<p id="hms-market-selected-health" class="text-[10px] text-gray-500 font-mono">health: —</p>
+							<p id="hms-market-selected-detail" class="text-[10px] text-gray-500 font-mono break-all min-h-[1rem]">—</p>
+							<div class="flex flex-wrap gap-2 pt-1">
+								<button type="button" id="btn-hms-market-order-health" class="text-[9px] px-2 py-1 rounded border border-emerald-500/35 text-emerald-300 hover:bg-emerald-500/10 uppercase tracking-wider" disabled>Refresh health</button>
+								<button type="button" id="btn-hms-market-order-cancel" class="text-[9px] px-2 py-1 rounded border border-warn/40 text-warn hover:bg-warn/10 uppercase tracking-wider" disabled title="Stop order (cancel)">Stop / cancel</button>
 							</div>
-							<label class="text-gray-500 text-[10px] block">Order label<input type="text" id="hms-market-label" class="mt-1 w-full rounded border border-white/15 bg-black/50 px-2 py-1.5 text-emerald-200 font-mono" maxlength="64" value="storage-backup"></label>
-							<div class="flex flex-wrap gap-2">
-								<button type="button" id="btn-hms-market-quote" class="text-[10px] px-4 py-2 rounded border border-emerald-500/40 text-emerald-300 uppercase tracking-wider">Get HMC quote</button>
-								<button type="button" id="btn-hms-market-order" class="text-[10px] px-4 py-2 rounded border border-neon/40 text-neon uppercase tracking-wider opacity-60 cursor-not-allowed" disabled title="Get a quote first (local node only)">Create order (debit HMC)</button>
-							</div>
-							<p id="hms-market-quote-out" class="text-[10px] font-mono text-gray-300 break-all min-h-[1.25rem]">—</p>
-							<p id="hms-market-order-out" class="text-[10px] font-mono text-gray-400 break-all min-h-[1.25rem]">—</p>
+							<p id="hms-market-selected-msg" class="text-[10px] text-warn/90 font-mono min-h-[1rem]"></p>
 						</div>
 					</div>
 				</div>
@@ -10864,9 +10950,149 @@
 			const toast = $('hms-preview-toast');
 			if (toast) toast.textContent = 'HMS storage worker is prelaunch — not available on this node.';
 		}
+		let hmsMarketSelectedOrderId = '';
+		let hmsMarketOrdersCache = [];
+		function hmsMarketFmtBytes(n) {
+			const v = Number(n) || 0;
+			if (v >= 1 << 30) return fmt(v / (1 << 30), 2) + ' GB';
+			if (v >= 1 << 20) return fmt(v / (1 << 20), 1) + ' MB';
+			if (v >= 1 << 10) return fmt(v / (1 << 10), 0) + ' KB';
+			return fmtUInt(v) + ' B';
+		}
+		function hmsMarketOrderTerminal(status) {
+			const s = String(status || '').toLowerCase();
+			return s === 'cancelled' || s === 'failed';
+		}
+		function paintHmsMarketSelected(order) {
+			const idEl = $('hms-market-selected-id');
+			const labelEl = $('hms-market-selected-label');
+			const statusEl = $('hms-market-selected-status');
+			const healthEl = $('hms-market-selected-health');
+			const detailEl = $('hms-market-selected-detail');
+			const btnHealth = $('btn-hms-market-order-health');
+			const btnCancel = $('btn-hms-market-order-cancel');
+			if (!order) {
+				if (idEl) idEl.textContent = '—';
+				if (labelEl) labelEl.textContent = '—';
+				if (statusEl) statusEl.textContent = 'status: —';
+				if (healthEl) healthEl.textContent = 'health: —';
+				if (detailEl) detailEl.textContent = 'Select an order row.';
+				if (btnHealth) btnHealth.disabled = true;
+				if (btnCancel) btnCancel.disabled = true;
+				return;
+			}
+			if (idEl) idEl.textContent = String(order.order_id || '—');
+			if (labelEl) labelEl.textContent = String(order.label || '—') + (order.client_ref ? ' · ' + order.client_ref : '');
+			if (statusEl) statusEl.textContent = 'status: ' + String(order.status || '—');
+			if (healthEl) healthEl.textContent = 'health: ' + String(order.health_status || '—');
+			if (detailEl) {
+				detailEl.textContent =
+					String(order.health_detail || '—') +
+					' · prepaid ' +
+					fmt(order.prepaid_hmc, 4) +
+					' HMC · chunks ' +
+					fmtUInt(order.chunk_count || 0);
+			}
+			if (btnHealth) btnHealth.disabled = false;
+			if (btnCancel) {
+				const terminal = hmsMarketOrderTerminal(order.status);
+				btnCancel.disabled = terminal || isPublicHackmeHub();
+				btnCancel.title = terminal ? 'Already stopped' : 'Stop / cancel this storage order';
+			}
+		}
+		function selectHmsMarketOrder(orderId) {
+			hmsMarketSelectedOrderId = String(orderId || '').trim();
+			const order = hmsMarketOrdersCache.find((o) => String(o.order_id) === hmsMarketSelectedOrderId) || null;
+			paintHmsMarketSelected(order);
+			document.querySelectorAll('#hms-market-order-rows .hms-order-row').forEach((row) => {
+				row.classList.toggle('is-selected', row.getAttribute('data-order-id') === hmsMarketSelectedOrderId);
+			});
+			const msg = $('hms-market-selected-msg');
+			if (msg) msg.textContent = '';
+		}
+		function renderHmsMarketOrders(orders) {
+			const tb = $('hms-market-order-rows');
+			if (!tb) return;
+			hmsMarketOrdersCache = Array.isArray(orders) ? orders : [];
+			if (!hmsMarketOrdersCache.length) {
+				tb.innerHTML = '<tr><td colspan="7" class="px-2 py-3 text-gray-500">No orders yet — create one above.</td></tr>';
+				if (hmsMarketSelectedOrderId) {
+					hmsMarketSelectedOrderId = '';
+					paintHmsMarketSelected(null);
+				}
+				return;
+			}
+			tb.innerHTML = hmsMarketOrdersCache
+				.map((o) => {
+					const id = String(o.order_id || '');
+					const sel = id && id === hmsMarketSelectedOrderId ? ' is-selected' : '';
+					return (
+						'<tr class="hms-order-row' +
+						sel +
+						'" data-order-id="' +
+						escapeHtml(id) +
+						'">' +
+						'<td class="px-2 py-2">' +
+						escapeHtml(String(o.label || '—')) +
+						'</td>' +
+						'<td class="px-2 py-2 text-emerald-300/90">' +
+						escapeHtml(id.slice(0, 14) + (id.length > 14 ? '…' : '')) +
+						'</td>' +
+						'<td class="px-2 py-2">' +
+						escapeHtml(String(o.status || '—')) +
+						'</td>' +
+						'<td class="px-2 py-2">' +
+						escapeHtml(String(o.health_status || '—')) +
+						'</td>' +
+						'<td class="px-2 py-2">' +
+						escapeHtml(hmsMarketFmtBytes(o.size_plan_bytes)) +
+						'</td>' +
+						'<td class="px-2 py-2">' +
+						escapeHtml(hmsMarketFmtBytes(o.bytes_uploaded)) +
+						'</td>' +
+						'<td class="px-2 py-2">' +
+						escapeHtml(String(o.retention_days || '—')) +
+						'd</td>' +
+						'</tr>'
+					);
+				})
+				.join('');
+			if (hmsMarketSelectedOrderId) {
+				const still = hmsMarketOrdersCache.find((o) => String(o.order_id) === hmsMarketSelectedOrderId);
+				paintHmsMarketSelected(still || null);
+				if (!still) hmsMarketSelectedOrderId = '';
+			}
+		}
+		async function refreshHmsMarketOrders() {
+			const hint = $('hms-market-orders-hint');
+			try {
+				const r = await fetch('/api/hms/market/orders', {
+					cache: 'no-store',
+					headers: adminHeaders(),
+				});
+				const j = r.ok ? await r.json() : null;
+				if (!r.ok) {
+					if (hint) {
+						hint.textContent =
+							r.status === 401 || r.status === 403
+								? 'Orders list needs admin token (Sync token on local node).'
+								: 'Orders list HTTP ' + r.status + (j && j.reason ? ' · ' + j.reason : '');
+					}
+					if (j && j.available === false) {
+						renderHmsMarketOrders([]);
+					}
+					return;
+				}
+				if (hint) hint.textContent = '';
+				renderHmsMarketOrders(j.orders || []);
+			} catch (e) {
+				if (hint) hint.textContent = 'Orders list error: ' + e;
+			}
+		}
 		async function refreshHmsMarketPanel() {
 			const prEl = $('hms-market-pricing');
 			const capEl = $('hms-market-capacity');
+			const svcBlurb = $('hms-svc-capacity-blurb');
 			try {
 				const [pr, st] = await Promise.all([
 					fetch('/api/hms/market/pricing', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)),
@@ -10886,7 +11112,7 @@
 				} else if (prEl) prEl.textContent = 'Market pricing unavailable (start node + HMS coordinator).';
 				if (capEl && st && st.market && st.market.capacity) {
 					const c = st.market.capacity;
-					capEl.textContent =
+					const line =
 						'Capacity: ' +
 						fmt(c.free_gb, 0) +
 						' GB free / ' +
@@ -10895,10 +11121,23 @@
 						fmtUInt(c.online_workers || 0) +
 						' storage workers online · replica target ' +
 						fmtUInt(st.market.replica_target || 2);
-				} else if (capEl) capEl.textContent = 'Capacity: no storage workers yet on coordinator.';
+					capEl.textContent = line;
+					if (svcBlurb) {
+						svcBlurb.textContent =
+							fmt(c.free_gb, 0) +
+							' GB free · ' +
+							fmtUInt(c.online_workers || 0) +
+							' workers · replica ×' +
+							fmtUInt(st.market.replica_target || 2);
+					}
+				} else if (capEl) {
+					capEl.textContent = 'Capacity: no storage workers yet on coordinator.';
+					if (svcBlurb) svcBlurb.textContent = 'No storage workers online yet.';
+				}
 			} catch (_) {
 				if (prEl) prEl.textContent = 'Market API error.';
 			}
+			void refreshHmsMarketOrders();
 		}
 		async function hmsMarketQuote() {
 			const out = $('hms-market-quote-out');
@@ -10977,15 +11216,82 @@
 					if (out) out.textContent = 'Order failed: ' + (j && j.error ? j.error : 'HTTP ' + r.status);
 					return;
 				}
-				const oid = (j.order && j.order.order_id) || j.order_id || '';
+				const oid =
+					(j.result && j.result.order && j.result.order.order_id) ||
+					(j.order && j.order.order_id) ||
+					j.order_id ||
+					'';
+				const pay =
+					(j.result && j.result.order && j.result.order.payment_id) ||
+					j.payment_id ||
+					'—';
 				if (out) {
 					out.textContent = oid
-						? 'Order ' + oid + ' created — upload via local API (payment_id ' + String(j.payment_id || '—') + ')'
+						? 'Order ' + oid + ' created — upload via local API (payment_id ' + String(pay) + ')'
 						: 'Order created: ' + JSON.stringify(j).slice(0, 120);
 				}
+				if (oid) hmsMarketSelectedOrderId = oid;
 				void refreshHmsMarketPanel();
 			} catch (e) {
 				if (out) out.textContent = 'Order error: ' + e;
+			}
+		}
+		async function hmsMarketCancelSelected() {
+			const msg = $('hms-market-selected-msg');
+			if (isPublicHackmeHub()) {
+				if (msg) msg.textContent = 'Cancel requires local node.';
+				return;
+			}
+			const oid = hmsMarketSelectedOrderId;
+			if (!oid) {
+				if (msg) msg.textContent = 'Select an order first.';
+				return;
+			}
+			if (msg) msg.textContent = 'Cancelling…';
+			try {
+				const r = await fetch('/api/hms/market/orders/' + encodeURIComponent(oid) + '/cancel', {
+					method: 'POST',
+					headers: adminHeaders(),
+				});
+				const j = r.ok ? await r.json() : null;
+				if (!r.ok) {
+					if (msg) msg.textContent = 'Cancel failed: HTTP ' + r.status;
+					return;
+				}
+				if (msg) msg.textContent = 'Stopped · status ' + String((j && j.order && j.order.status) || 'cancelled');
+				void refreshHmsMarketOrders();
+			} catch (e) {
+				if (msg) msg.textContent = 'Cancel error: ' + e;
+			}
+		}
+		async function hmsMarketRefreshSelectedHealth() {
+			const msg = $('hms-market-selected-msg');
+			const oid = hmsMarketSelectedOrderId;
+			if (!oid) {
+				if (msg) msg.textContent = 'Select an order first.';
+				return;
+			}
+			if (msg) msg.textContent = 'Loading health…';
+			try {
+				const r = await fetch('/api/hms/market/orders/' + encodeURIComponent(oid) + '/health', {
+					cache: 'no-store',
+					headers: adminHeaders(),
+				});
+				const j = r.ok ? await r.json() : null;
+				if (!r.ok || !j) {
+					if (msg) msg.textContent = 'Health HTTP ' + r.status;
+					return;
+				}
+				const h = j.health || j;
+				const healthEl = $('hms-market-selected-health');
+				const detailEl = $('hms-market-selected-detail');
+				const statusEl = $('hms-market-selected-status');
+				if (healthEl) healthEl.textContent = 'health: ' + String(h.health_status || '—');
+				if (statusEl && (h.status || h.order_status)) statusEl.textContent = 'status: ' + String(h.status || h.order_status);
+				if (detailEl) detailEl.textContent = String(h.health_detail || h.detail || JSON.stringify(h).slice(0, 160));
+				if (msg) msg.textContent = 'Health refreshed.';
+			} catch (e) {
+				if (msg) msg.textContent = 'Health error: ' + e;
 			}
 		}
 		function initHmsPreviewUi() {
@@ -11032,6 +11338,36 @@
 			if (btnQuote) btnQuote.addEventListener('click', () => void hmsMarketQuote());
 			const btnOrder = $('btn-hms-market-order');
 			if (btnOrder) btnOrder.addEventListener('click', () => void hmsMarketCreateOrder());
+			const btnOrdersRefresh = $('btn-hms-market-orders-refresh');
+			if (btnOrdersRefresh) btnOrdersRefresh.addEventListener('click', () => void refreshHmsMarketOrders());
+			const btnCancel = $('btn-hms-market-order-cancel');
+			if (btnCancel) btnCancel.addEventListener('click', () => void hmsMarketCancelSelected());
+			const btnHealth = $('btn-hms-market-order-health');
+			if (btnHealth) btnHealth.addEventListener('click', () => void hmsMarketRefreshSelectedHealth());
+			const orderRows = $('hms-market-order-rows');
+			if (orderRows) {
+				orderRows.addEventListener('click', (ev) => {
+					const row = ev.target && ev.target.closest ? ev.target.closest('tr[data-order-id]') : null;
+					if (!row) return;
+					selectHmsMarketOrder(row.getAttribute('data-order-id'));
+				});
+			}
+			document.querySelectorAll('[data-hms-svc]').forEach((btn) => {
+				btn.addEventListener('click', () => {
+					document.querySelectorAll('[data-hms-svc]').forEach((b) => b.classList.remove('is-active'));
+					btn.classList.add('is-active');
+					const svc = btn.getAttribute('data-hms-svc');
+					if (svc === 'retention') {
+						const ret = $('hms-market-retention');
+						if (ret) ret.focus();
+					} else if (svc === 'capacity') {
+						void refreshHmsMarketPanel();
+					} else {
+						const gb = $('hms-market-gb');
+						if (gb) gb.focus();
+					}
+				});
+			});
 			void refreshHmsMarketPanel();
 			void refreshHmsDiskPanel();
 		}
