@@ -31,6 +31,7 @@ func TestSecurityAuditWasmHex(t *testing.T) {
 		"budget_runs":      8,
 		"wasm_check_hex":   sandbox.MinimalGateWasmHex,
 		"create_poh_order": true,
+		"pool_distributed": false, // local PoH path; no coordinator in unit test
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/security-audit", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")

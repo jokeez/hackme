@@ -136,9 +136,16 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	if req.CreatePoHOrder != nil {
 		createPoH = *req.CreatePoHOrder
 	}
+	// Default pool_distributed=true for public audits, but fall back to local when the
+	// caller left it unset and this node has no coordinator URL (CI / solo / unit tests).
+	// Explicit pool_distributed=true still fails closed in campaign create.
 	poolDist := true
-	if req.PoolDistributed != nil {
+	poolDistExplicit := req.PoolDistributed != nil
+	if poolDistExplicit {
 		poolDist = *req.PoolDistributed
+	}
+	if poolDist && !poolDistExplicit && !poolSyncCoordinatorConfigured() {
+		poolDist = false
 	}
 
 	depthTier := fuzzengine.DepthWasmOnly
