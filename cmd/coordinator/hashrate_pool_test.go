@@ -68,12 +68,28 @@ func TestWorkerRateLimitPerMinGPUMinFloor(t *testing.T) {
 	wm := &workManager{
 		claimPerMin: 6000,
 		worker: map[string]workerPayoutStat{
-			"gpu-rig": {LastHashrateGHS: 0.002, PeakHashrateGHS: 0.004},
+			"gpu-rig": {LastHashrateGHS: 4.0, PeakHashrateGHS: 4.0},
 		},
 	}
 	lim := wm.workerRateLimitPerMin("gpu-rig", wm.claimPerMin)
 	if lim < 120 {
-		t.Fatalf("GPU pool rig should not be throttled to %d/min", lim)
+		t.Fatalf("live GPU (≥1 GH/s) must not be throttled below 120/min, got %d", lim)
+	}
+}
+
+func TestWorkerRateLimitPerMinSubOneNotRaisedToFloor(t *testing.T) {
+	wm := &workManager{
+		claimPerMin: 6000,
+		worker: map[string]workerPayoutStat{
+			"cpu-spam": {LastHashrateGHS: 0.002, PeakHashrateGHS: 0.004},
+		},
+	}
+	lim := wm.workerRateLimitPerMin("cpu-spam", wm.claimPerMin)
+	if lim >= 120 {
+		t.Fatalf("sub-1 GH/s must keep spam cap, got %d/min", lim)
+	}
+	if lim < 2 {
+		t.Fatalf("sub-1 GH/s floor is 2/min, got %d", lim)
 	}
 }
 

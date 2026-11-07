@@ -125,6 +125,9 @@ Thumbs.db
 # Operator session dumps (not for GitHub)
 scripts/reports/
 
+# Seed hunters / offline key scanners must not ship in the public tree
+tools/scan_ed25519_seeds/
+
 # Economics v2 — keep abuse / internal memos local; public RFC is tracked
 docs/RFC_ECONOMICS_V2_ABUSE.md
 docs/RFC_ECONOMICS_V2_INTERNAL*.md

@@ -21,6 +21,16 @@ func TestValidateWorkerEndpointURL_BlocksMetadata(t *testing.T) {
 	}
 }
 
+func TestValidateWorkerEndpointURL_BlocksCGNAT(t *testing.T) {
+	t.Setenv("HMS_ALLOW_PRIVATE_ENDPOINTS", "0")
+	if _, err := ValidateWorkerEndpointURL("http://100.64.1.1:9090"); err == nil {
+		t.Fatal("CGNAT 100.64/10 must be blocked")
+	}
+	if _, err := ValidateWorkerEndpointURL("http://0.0.0.1:9090"); err == nil {
+		t.Fatal("0.0.0.0/8 must be blocked")
+	}
+}
+
 func TestValidateWorkerEndpointURL_PrivateRequiresFlag(t *testing.T) {
 	t.Setenv("HMS_ALLOW_PRIVATE_ENDPOINTS", "")
 	if _, err := ValidateWorkerEndpointURL("http://10.0.0.5:9090"); err == nil {

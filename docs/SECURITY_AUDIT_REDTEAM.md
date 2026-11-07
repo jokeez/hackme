@@ -32,6 +32,9 @@ Reports: `reports/tests/security_full_20260828T190633Z/` · `reports/gates/redte
 | HMS remote push: per-worker derived bearer (not shared master) + no redirect follow on egress | `DeriveWorkerPushBearer`, `egressHTTPClient.CheckRedirect` |
 | P2P client: no redirect follow (token must not jump hosts) | `internal/p2p/manager.go` client |
 | Hunt git isolate: `core.symlinks=false` | `internal/gitutil/isolate.go` |
+| Sub-1 GH/s rate floor must not be re-raised to 120/min on high global ceilings | `workerRateLimitPerMin` |
+| SSRF block CGNAT `100.64/10` + `0.0.0.0/8` | `internal/hms/ssrf.go`, `internal/p2p/ssrf.go`, `internal/netutil` |
+| Removed tracked `tools/scan_ed25519_seeds` seed hunter | `.gitignore` |
 | HMS cancel vs upload/complete TOCTOU: status CAS + refuse resurrect after cancel | `CancelStorageOrder` / upload UPDATE / complete UPDATE `WHERE status NOT IN (cancelled,failed)` |
 | Block height `index`/`q` SQLite high-bit bind → 400 (extends from_height/before fix) | `GetBlockSummaryByIndex` + reports handlers |
 | Public settlement GET is read-only and keeps `pending_settle` (report #13) | `settlement_api.go` |

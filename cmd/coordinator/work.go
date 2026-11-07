@@ -1616,8 +1616,10 @@ func (m *workManager) workerRateLimitPerMin(workerID string, globalMax int) int 
 	if lim > globalMax {
 		lim = globalMax
 	}
-	// Public pool runs with high global ceilings (e.g. 6000/min); never throttle a live GPU rig to 2/min.
-	if globalMax >= 120 && lim < 120 {
+	// Public pool high ceilings (e.g. 6000/min): never throttle a real GPU (≥1 GH/s)
+	// down to the sub-1 spam floor. Do NOT re-raise lim for sub-1 GH/s — that undid
+	// the 2/min cap and let self-reported tiny samples claim at 120/min.
+	if gh >= 1 && globalMax >= 120 && lim < 120 {
 		lim = 120
 	}
 	return lim

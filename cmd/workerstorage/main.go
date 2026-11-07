@@ -77,10 +77,13 @@ func main() {
 		log.Printf("storage push listener on %s", listen)
 	}
 
-	// Demo chunk if empty
-	entries, _ := os.ReadDir(dir)
-	if len(entries) == 0 {
-		seedChunk(coord, token, workerID, dir, "chunk-demo-1")
+	// Demo chunk only when explicitly enabled (empty-dir auto-seed is lab-only).
+	demo := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_STORAGE_DEMO")))
+	if demo == "1" || demo == "true" || demo == "yes" || demo == "on" {
+		entries, _ := os.ReadDir(dir)
+		if len(entries) == 0 {
+			seedChunk(coord, token, workerID, dir, "chunk-demo-1")
+		}
 	}
 
 	tick := time.NewTicker(30 * time.Second)

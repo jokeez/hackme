@@ -92,6 +92,14 @@ func ipUnsafeForEgress(ip net.IP, allowPrivate bool) bool {
 		if ip4[0] == 169 && ip4[1] == 254 {
 			return true
 		}
+		// 0.0.0.0/8 (beyond unspecified) and CGNAT 100.64.0.0/10 are non-routable
+		// on the public Internet but not covered by net.IP.IsPrivate.
+		if ip4[0] == 0 {
+			return true
+		}
+		if ip4[0] == 100 && ip4[1] >= 64 && ip4[1] <= 127 {
+			return true
+		}
 	}
 	if !allowPrivate {
 		if ip.IsLoopback() || ip.IsPrivate() {
