@@ -444,7 +444,17 @@ func registerMarketRoutes(mux *http.ServeMux, coord *Coordinator, adminToken, wo
 				return
 			}
 			now := time.Now().Unix()
-			_, _ = coord.db.Exec(`UPDATE hms_orders SET status=?, updated_unix=? WHERE order_id=?`, OrderStatusStored, now, orderID)
+			res, err := coord.db.Exec(`UPDATE hms_orders SET status=?, updated_unix=?
+				WHERE order_id=? AND status NOT IN (?,?) AND upload_token<>''`,
+				OrderStatusStored, now, orderID, OrderStatusCancelled, OrderStatusFailed)
+			if err != nil {
+				http.Error(w, err.Error(), marketHTTPStatus(err))
+				return
+			}
+			if n, _ := res.RowsAffected(); n == 0 {
+				http.Error(w, "order is cancelled or failed", http.StatusConflict)
+				return
+			}
 			_ = coord.refreshOrderHealth()
 			o, _ := coord.GetStorageOrder(orderID)
 			status := OrderStatusStored

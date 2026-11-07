@@ -1528,6 +1528,36 @@ func TestOrphanFleetMismatchDoesNotFreezePayout(t *testing.T) {
 		t.Fatalf("both addresses must stay payable, workers=%v", workers)
 	}
 
+	// Empty-address unpaid accruals must not adopt a stranger's payout address.
+	wmEmpty := newTestWorkManagerForPayout(1e-5, false)
+	wmEmpty.mu.Lock()
+	wmEmpty.worker["emptyorph-gpu0"] = workerPayoutStat{
+		LastSeenUnix: now, LastPoHSeenUnix: now, LastHashrateGHS: 5,
+		PayoutAddress: "", PayoutHMC: 0.5, PayoutUnits: 50000000, SignedSubmits: 100,
+	}
+	wmEmpty.worker["emptyorph-gpu1"] = workerPayoutStat{
+		LastSeenUnix: now, LastPoHSeenUnix: now, LastHashrateGHS: 1,
+		PayoutAddress: attackerAddr, PayoutHMC: 0.01, SignedSubmits: 0,
+	}
+	wmEmpty.mu.Unlock()
+	stEmpty := wmEmpty.stats(true)
+	wEmpty, _ := stEmpty["workers"].(map[string]workerPayoutStat)
+	for id, w := range wEmpty {
+		if strings.EqualFold(strings.TrimSpace(w.PayoutAddress), attackerAddr) && w.PayoutHMC >= 0.4 {
+			t.Fatalf("attacker must not inherit unpaid accruals on %q: %+v", id, w)
+		}
+	}
+	victimRow := wEmpty["emptyorph"]
+	if victimRow.PayoutHMC < 0.4 {
+		victimRow = wEmpty["emptyorph-gpu0"]
+	}
+	if victimRow.PayoutHMC < 0.4 {
+		t.Fatalf("victim accruals missing after empty-address fold guard: %v", wEmpty)
+	}
+	if strings.TrimSpace(victimRow.PayoutAddress) != "" && strings.EqualFold(victimRow.PayoutAddress, attackerAddr) {
+		t.Fatalf("victim row rebound to attacker: %+v", victimRow)
+	}
+
 	// Same-address orphan siblings must still fold into one payable fleet row.
 	wmSame := newTestWorkManagerForPayout(1e-5, false)
 	wmSame.mu.Lock()

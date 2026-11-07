@@ -1203,6 +1203,9 @@ func (s *Service) ListBlockSummariesBefore(ctx context.Context, before uint64, l
 
 // GetBlockSummaryByIndex returns one block summary row (explorer / deep links).
 func (s *Service) GetBlockSummaryByIndex(ctx context.Context, index uint64) (BlockSummary, bool, error) {
+	if err := CheckSQLiteBlockHeight(index); err != nil {
+		return BlockSummary{}, false, err
+	}
 	var raw string
 	err := s.db.QueryRowContext(ctx, `SELECT json FROM blocks WHERE block_index = ?`, index).Scan(&raw)
 	if errors.Is(err, sql.ErrNoRows) {

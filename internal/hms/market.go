@@ -199,10 +199,15 @@ func (c *Coordinator) CancelStorageOrder(orderID string) (*StorageOrder, error) 
 		return o, nil
 	}
 	now := time.Now().Unix()
-	_, err = c.db.Exec(`UPDATE hms_orders SET status=?, upload_token='', health_detail=?, updated_unix=? WHERE order_id=?`,
-		OrderStatusCancelled, "cancelled by customer", now, orderID)
+	res, err := c.db.Exec(`UPDATE hms_orders SET status=?, upload_token='', health_detail=?, updated_unix=?
+		WHERE order_id=? AND status NOT IN (?,?)`,
+		OrderStatusCancelled, "cancelled by customer", now, orderID, OrderStatusCancelled, OrderStatusFailed)
 	if err != nil {
 		return nil, err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		// Lost a race to another cancel/fail — return current row.
+		return c.GetStorageOrder(orderID)
 	}
 	_ = c.refreshOrderHealth()
 	return c.GetStorageOrder(orderID)
@@ -324,13 +329,17 @@ func (c *Coordinator) UploadOrderChunk(orderID, uploadToken string, chunkIndex i
 		health = HealthDegraded
 		detail = fmt.Sprintf("replica shortfall %d/%d — repair will backfill when workers online", len(written), replicaN)
 	}
-	_, err = c.db.Exec(`UPDATE hms_orders SET
+	res, err := c.db.Exec(`UPDATE hms_orders SET
 		bytes_uploaded=(SELECT COALESCE(SUM(size),0) FROM hms_order_chunks WHERE order_id=?),
 		chunk_count=(SELECT COUNT(*) FROM hms_order_chunks WHERE order_id=?),
-		status=?, health_status=?, health_detail=?, updated_unix=? WHERE order_id=?`,
-		orderID, orderID, status, health, detail, now, orderID)
+		status=?, health_status=?, health_detail=?, updated_unix=?
+		WHERE order_id=? AND status NOT IN (?,?) AND upload_token<>''`,
+		orderID, orderID, status, health, detail, now, orderID, OrderStatusCancelled, OrderStatusFailed)
 	if err != nil {
 		return nil, err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return nil, errors.New("order is cancelled or failed")
 	}
 	return map[string]any{
 		"ok":             true,

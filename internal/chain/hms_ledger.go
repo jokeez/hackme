@@ -50,14 +50,14 @@ type HmsAddressState struct {
 }
 
 type HMSEconomics struct {
-	MaxSupplyHMS       float64 `json:"max_supply_hms"`
-	TotalMintedHMS     float64 `json:"total_minted_hms"`
-	TotalBurnedHMS     float64 `json:"total_burned_hms"`
-	RemainingHMS       float64 `json:"remaining_hms"`
-	CirculatingHMS     float64 `json:"circulating_hms"`
-	GenesisUnix        int64   `json:"genesis_unix,omitempty"`
-	MintEnabled        bool    `json:"mint_enabled"`
-	OnChainSettleLive  bool    `json:"on_chain_settle_live"`
+	MaxSupplyHMS      float64 `json:"max_supply_hms"`
+	TotalMintedHMS    float64 `json:"total_minted_hms"`
+	TotalBurnedHMS    float64 `json:"total_burned_hms"`
+	RemainingHMS      float64 `json:"remaining_hms"`
+	CirculatingHMS    float64 `json:"circulating_hms"`
+	GenesisUnix       int64   `json:"genesis_unix,omitempty"`
+	MintEnabled       bool    `json:"mint_enabled"`
+	OnChainSettleLive bool    `json:"on_chain_settle_live"`
 	// LaneEnabled is the ops switch for a public HMS host (HACKME_HMS_LANE_ENABLED).
 	// Ledger mint can be ready while the lane stays prelaunch.
 	LaneEnabled        bool    `json:"lane_enabled"`

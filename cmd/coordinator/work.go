@@ -3296,6 +3296,10 @@ func fleetBaseWorkerID(id string) string {
 // shouldExportFleetMemberSeparately is true when folding st into the fleet destination would
 // blank payouts via address_conflict. Checks both the durable base row (if present) and any
 // -gpuN sibling already folded into the export map (orphan multi-GPU fleets).
+func workerStatHasUnpaidAccrual(st workerPayoutStat) bool {
+	return st.PayoutUnits > 0 || st.PayoutHMC > 0 || st.PayoutSUP > 0
+}
+
 func shouldExportFleetMemberSeparately(baseRow workerPayoutStat, folded workerPayoutStat, st workerPayoutStat) bool {
 	stAddr := strings.TrimSpace(st.PayoutAddress)
 	if stAddr == "" {
@@ -3305,11 +3309,19 @@ func shouldExportFleetMemberSeparately(baseRow workerPayoutStat, folded workerPa
 	if baseAddr != "" && !strings.EqualFold(baseAddr, stAddr) {
 		return true
 	}
+	// Empty-address destination with preexisting unpaid accruals must not adopt a
+	// stranger's payout address (post-unbind / legacy orphan fold → pay-to-attacker).
+	if baseAddr == "" && workerStatHasUnpaidAccrual(baseRow) {
+		return true
+	}
 	foldedAddr := strings.TrimSpace(folded.PayoutAddress)
 	if folded.AddressConflict {
 		return true
 	}
 	if foldedAddr != "" && !strings.EqualFold(foldedAddr, stAddr) {
+		return true
+	}
+	if foldedAddr == "" && workerStatHasUnpaidAccrual(folded) {
 		return true
 	}
 	return false
@@ -3327,6 +3339,7 @@ func mergeWorkerStat(dst, src workerPayoutStat) (workerPayoutStat, bool) {
 		dst.PayoutAddress = ""
 		dst.AddressConflict = true
 	}
+	dstHadUnpaid := workerStatHasUnpaidAccrual(dst)
 	dst.AcceptedRanges += src.AcceptedRanges
 	dst.AcceptedHits += src.AcceptedHits
 	dst.AcceptedAtt += src.AcceptedAtt
@@ -3348,7 +3361,9 @@ func mergeWorkerStat(dst, src workerPayoutStat) (workerPayoutStat, bool) {
 	if src.LastFuzzSeenUnix > dst.LastFuzzSeenUnix {
 		dst.LastFuzzSeenUnix = src.LastFuzzSeenUnix
 	}
-	if !dst.AddressConflict && !addrConflict && dst.PayoutAddress == "" && srcAddr != "" {
+	// Never adopt src address onto a blank destination that already had unpaid
+	// accruals — that would rebind historical unpaid units to a stranger.
+	if !dst.AddressConflict && !addrConflict && dst.PayoutAddress == "" && srcAddr != "" && !dstHadUnpaid {
 		dst.PayoutAddress = srcAddr
 	}
 	if dst.LastClientIP == "" && src.LastClientIP != "" {

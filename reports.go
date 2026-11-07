@@ -188,6 +188,10 @@ func (a *app) handleReportsBlocks(w http.ResponseWriter, r *http.Request) {
 	if q := strings.TrimSpace(r.URL.Query().Get("q")); q != "" {
 		row, ok, err := a.chain.FindBlockSummary(r.Context(), q)
 		if err != nil {
+			if errors.Is(err, chain.ErrHeightOutOfRange) {
+				http.Error(w, "bad q", http.StatusBadRequest)
+				return
+			}
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -342,12 +346,16 @@ func (a *app) handleReportsBlockLookup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	idx, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
+	if err != nil || chain.CheckSQLiteBlockHeight(idx) != nil {
 		http.Error(w, "invalid index", http.StatusBadRequest)
 		return
 	}
 	row, ok, err := a.chain.GetBlockSummaryByIndex(r.Context(), idx)
 	if err != nil {
+		if errors.Is(err, chain.ErrHeightOutOfRange) {
+			http.Error(w, "invalid index", http.StatusBadRequest)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

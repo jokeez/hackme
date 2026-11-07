@@ -358,6 +358,20 @@ func TestCancelStorageOrder(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("http cancel: %d %s", rec.Code, rec.Body.String())
 	}
+
+	// Complete must not resurrect a cancelled order even with a stale token copy.
+	reqDone := httptest.NewRequest(http.MethodPost, "/api/market/orders/"+created.Order.OrderID+"/complete", nil)
+	reqDone.RemoteAddr = "127.0.0.1:9999"
+	reqDone.Header.Set("X-HMS-Upload-Token", created.UploadToken)
+	recDone := httptest.NewRecorder()
+	mux.ServeHTTP(recDone, reqDone)
+	if recDone.Code == http.StatusOK {
+		t.Fatalf("complete must refuse cancelled order, got %d %s", recDone.Code, recDone.Body.String())
+	}
+	final, err := coord.GetStorageOrder(created.Order.OrderID)
+	if err != nil || final.Status != OrderStatusCancelled {
+		t.Fatalf("status must stay cancelled: %v %+v", err, final)
+	}
 }
 
 func repeatHex(n int) string {

@@ -27,6 +27,9 @@ Reports: `reports/tests/security_full_20260828T190633Z/` · `reports/gates/redte
 | Hunt harness supply-chain (report #6): binary `harness_content_sha256` attestation + coordinator-only fetch | `internal/hunt/artifact.go`, claim payload, worker materialize |
 | Fleet merge payout capture (report #17): address conflict stays sticky; settle scripts skip `address_conflict` | `mergeWorkerStat`, `settle_worker_payouts.sh`, `settle_worker_sup.sh` |
 | Orphan multi-GPU fleet freeze bypass (2026-11-07): M4 only guarded bare `m.worker[base]`; CUDA fleets use only `-gpuN` — mismatching sibling no longer folds into empty/other destination | `shouldExportFleetMemberSeparately`, deterministic fold order, `publicWorkersMap` clash guard |
+| Empty-address unpaid accruals must not adopt stranger payout on fold (post-unbind / legacy) | `shouldExportFleetMemberSeparately` + `mergeWorkerStat` refuse address adopt onto unpaid blank dst |
+| HMS cancel vs upload/complete TOCTOU: status CAS + refuse resurrect after cancel | `CancelStorageOrder` / upload UPDATE / complete UPDATE `WHERE status NOT IN (cancelled,failed)` |
+| Block height `index`/`q` SQLite high-bit bind → 400 (extends from_height/before fix) | `GetBlockSummaryByIndex` + reports handlers |
 | Public settlement GET is read-only and keeps `pending_settle` (report #13) | `settlement_api.go` |
 | Worker payout lock persists across restart and idle prune (report #18) | `worker_payout_lock` in coordinator SQLite |
 | Release lane must not create payout locks; admin unbind recovers (report #27) | `checkReleaseMinerIdentity` + `/api/work/admin/unbind-payout-lock` |

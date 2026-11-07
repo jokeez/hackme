@@ -46,4 +46,7 @@ func TestListBlocksFromHeightRejectsHighBitUint64(t *testing.T) {
 	if _, err := svc.ListBlockSummariesBefore(ctx, math.MaxInt64, 1); err != nil {
 		t.Fatalf("before MaxInt64 should query ok: %v", err)
 	}
+	if _, _, err := svc.GetBlockSummaryByIndex(ctx, uint64(math.MaxInt64)+1); !errors.Is(err, ErrHeightOutOfRange) {
+		t.Fatalf("index 2^63: %v", err)
+	}
 }
