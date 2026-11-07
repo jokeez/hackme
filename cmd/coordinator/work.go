@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -3761,7 +3762,23 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 	// Per-worker payout summary is public pool transparency; miner UIs need it without admin token.
 	// last_client_ip stays admin-only (details=1) — do not expose miner IPs on the public edge.
 	workers := make(map[string]workerPayoutStat, len(m.worker))
-	for k, v := range m.worker {
+	// Deterministic fold order: bare fleet base ids first, then -gpuN (lexicographic). Orphan
+	// multi-GPU fleets then always see the first sibling already in workers[base].
+	foldKeys := make([]string, 0, len(m.worker))
+	for k := range m.worker {
+		foldKeys = append(foldKeys, k)
+	}
+	sort.SliceStable(foldKeys, func(i, j int) bool {
+		ki, kj := foldKeys[i], foldKeys[j]
+		bi := fleetBaseWorkerID(ki) == ki
+		bj := fleetBaseWorkerID(kj) == kj
+		if bi != bj {
+			return bi
+		}
+		return ki < kj
+	})
+	for _, k := range foldKeys {
+		v := m.worker[k]
 		st := v
 		// Online for mining UI / Pool miners = PoH (not fuzz-only heartbeats).
 		online := workerCountsAsPoolMiner(st, now, poolHashrateStaleSec)

@@ -26,6 +26,7 @@ Reports: `reports/tests/security_full_20260828T190633Z/` · `reports/gates/redte
 | Settlement state writes take exclusive lock on `*.flock` (**Unix flock + Windows LockFileEx**; fail-closed) + atomic temp+rename | `settlement_flock_*.go`, `atomicWriteFile` in `settlement_api.go` |
 | Hunt harness supply-chain (report #6): binary `harness_content_sha256` attestation + coordinator-only fetch | `internal/hunt/artifact.go`, claim payload, worker materialize |
 | Fleet merge payout capture (report #17): address conflict stays sticky; settle scripts skip `address_conflict` | `mergeWorkerStat`, `settle_worker_payouts.sh`, `settle_worker_sup.sh` |
+| Orphan multi-GPU fleet freeze bypass (2026-11-07): M4 only guarded bare `m.worker[base]`; CUDA fleets use only `-gpuN` — mismatching sibling no longer folds into empty/other destination | `shouldExportFleetMemberSeparately`, deterministic fold order, `publicWorkersMap` clash guard |
 | Public settlement GET is read-only and keeps `pending_settle` (report #13) | `settlement_api.go` |
 | Worker payout lock persists across restart and idle prune (report #18) | `worker_payout_lock` in coordinator SQLite |
 | Release lane must not create payout locks; admin unbind recovers (report #27) | `checkReleaseMinerIdentity` + `/api/work/admin/unbind-payout-lock` |

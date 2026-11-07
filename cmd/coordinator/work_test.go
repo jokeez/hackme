@@ -1528,6 +1528,28 @@ func TestOrphanFleetMismatchDoesNotFreezePayout(t *testing.T) {
 		t.Fatalf("both addresses must stay payable, workers=%v", workers)
 	}
 
+	// Same-address orphan siblings must still fold into one payable fleet row.
+	wmSame := newTestWorkManagerForPayout(1e-5, false)
+	wmSame.mu.Lock()
+	wmSame.worker["sameorph-gpu0"] = workerPayoutStat{
+		LastSeenUnix: now, LastPoHSeenUnix: now, LastHashrateGHS: 8,
+		PayoutAddress: victimAddr, PayoutHMC: 0.2, SignedSubmits: 20,
+	}
+	wmSame.worker["sameorph-gpu1"] = workerPayoutStat{
+		LastSeenUnix: now, LastPoHSeenUnix: now, LastHashrateGHS: 7,
+		PayoutAddress: victimAddr, PayoutHMC: 0.1, SignedSubmits: 10,
+	}
+	wmSame.mu.Unlock()
+	stSame := wmSame.stats(true)
+	wSame, _ := stSame["workers"].(map[string]workerPayoutStat)
+	mergedSame := wSame["sameorph"]
+	if mergedSame.AddressConflict || !strings.EqualFold(strings.TrimSpace(mergedSame.PayoutAddress), victimAddr) {
+		t.Fatalf("matching orphan siblings must fold: %+v map=%v", mergedSame, wSame)
+	}
+	if mergedSame.PayoutHMC < 0.29 {
+		t.Fatalf("matching orphan accruals must sum, got %v", mergedSame.PayoutHMC)
+	}
+
 	// Negative control: when a real base row exists, M4 still isolates the stranger.
 	wm2 := newTestWorkManagerForPayout(1e-5, false)
 	wm2.mu.Lock()

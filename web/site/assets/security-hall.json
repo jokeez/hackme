@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-05",
+  "updated": "2026-11-07",
   "program": {
     "asset": "HMC",
     "monthly_budget_hmc": 200,
@@ -13,11 +13,28 @@
     "limit_hmc": 200
   },
   "stats": {
-    "total_paid_hmc": 780,
-    "researchers": 4,
-    "reports_accepted": 22
+    "total_paid_hmc": 840,
+    "researchers": 5,
+    "reports_accepted": 23
   },
   "researchers": [
+    {
+      "id": "fimasw",
+      "name": "fimasw",
+      "handle": "fimasw",
+      "total_paid_hmc": 60,
+      "findings": [
+        {
+          "title": "Orphan multi-GPU fleet payout freeze (M4 bypass) — unauth claim on sibling -gpuN",
+          "severity": "high",
+          "paid_hmc": 60,
+          "date": "2026-11-07",
+          "reported": "2026-11-07",
+          "commit": "66774935",
+          "note": "Not a duplicate of #17: CUDA fleets never register bare base id; M4 only guarded m.worker[base]. Fix: shouldExportFleetMemberSeparately + deterministic fold. Live freeze unblocked on coordinator restart. Payout HMC-dd2d1608462c378"
+        }
+      ]
+    },
     {
       "id": "bobbyning",
       "name": "bobbyning",

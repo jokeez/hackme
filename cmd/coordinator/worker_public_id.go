@@ -64,6 +64,18 @@ func publicWorkersMap(workers map[string]workerPayoutStat) map[string]workerPayo
 		}
 		st = redactPublicWorkerStat(st)
 		if prev, ok := out[key]; ok {
+			// Belt-and-suspenders: never blank a payable public row via address_conflict merge
+			// (hash collision or future re-keying). Prefer keeping the higher-accrual non-conflict row.
+			prevAddr := strings.TrimSpace(prev.PayoutAddress)
+			stAddr := strings.TrimSpace(st.PayoutAddress)
+			clash := prev.AddressConflict || st.AddressConflict ||
+				(prevAddr != "" && stAddr != "" && !strings.EqualFold(prevAddr, stAddr))
+			if clash {
+				if !st.AddressConflict && (prev.AddressConflict || st.PayoutHMC > prev.PayoutHMC) {
+					out[key] = st
+				}
+				continue
+			}
 			merged, _ := mergeWorkerStat(prev, st)
 			out[key] = merged
 			continue
