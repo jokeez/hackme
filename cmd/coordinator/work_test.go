@@ -1486,6 +1486,72 @@ func TestClaimMinerIdentityLocked(t *testing.T) {
 	}
 }
 
+func TestOrphanFleetMismatchDoesNotFreezePayout(t *testing.T) {
+	// CUDA multi-GPU shape: only -gpuN rows, no bare base id (see internal/gpuhost/fleet_plan.go).
+	// Pre-fix M4 only guarded m.worker[base]; an attacker claim on <fleet>-gpu1 froze accruals.
+	wm := newTestWorkManagerForPayout(1e-5, false)
+	now := time.Now().Unix()
+	const victimAddr = "HMC-victim000000000"
+	const attackerAddr = "HMC-attacker0000000"
+	wm.mu.Lock()
+	wm.worker["lexyorph-gpu0"] = workerPayoutStat{
+		LastSeenUnix: now, LastPoHSeenUnix: now, LastHashrateGHS: 10,
+		PayoutAddress: victimAddr, PayoutHMC: 0.336, PayoutUnits: 33600000, SignedSubmits: 1680, AcceptedRanges: 1680,
+	}
+	wm.worker["lexyorph-gpu1"] = workerPayoutStat{
+		LastSeenUnix: now, LastPoHSeenUnix: now, LastHashrateGHS: 1,
+		PayoutAddress: attackerAddr, PayoutHMC: 0.0001, PayoutUnits: 10, SignedSubmits: 0, AcceptedRanges: 0,
+	}
+	wm.mu.Unlock()
+
+	st := wm.stats(true) // details=1 keeps real worker ids (public map uses pseudonyms)
+	workers, _ := st["workers"].(map[string]workerPayoutStat)
+	if len(workers) < 2 {
+		t.Fatalf("expected separate export rows, got %d keys=%v", len(workers), workers)
+	}
+	var victimOK, attackerOK bool
+	for id, w := range workers {
+		if w.AddressConflict {
+			t.Fatalf("orphan fleet must not freeze via address_conflict on %q: %+v", id, w)
+		}
+		if strings.EqualFold(strings.TrimSpace(w.PayoutAddress), victimAddr) {
+			if w.PayoutHMC < 0.3 {
+				t.Fatalf("victim accrual missing on %q: %+v", id, w)
+			}
+			victimOK = true
+		}
+		if strings.EqualFold(strings.TrimSpace(w.PayoutAddress), attackerAddr) {
+			attackerOK = true
+		}
+	}
+	if !victimOK || !attackerOK {
+		t.Fatalf("both addresses must stay payable, workers=%v", workers)
+	}
+
+	// Negative control: when a real base row exists, M4 still isolates the stranger.
+	wm2 := newTestWorkManagerForPayout(1e-5, false)
+	wm2.mu.Lock()
+	wm2.worker["lexyguard"] = workerPayoutStat{
+		LastSeenUnix: now, LastPoHSeenUnix: now, LastHashrateGHS: 10,
+		PayoutAddress: victimAddr, PayoutHMC: 0.1, SignedSubmits: 10,
+	}
+	wm2.worker["lexyguard-gpu1"] = workerPayoutStat{
+		LastSeenUnix: now, LastPoHSeenUnix: now, LastHashrateGHS: 1,
+		PayoutAddress: attackerAddr, PayoutHMC: 0.01,
+	}
+	wm2.mu.Unlock()
+	st2 := wm2.stats(true)
+	w2, _ := st2["workers"].(map[string]workerPayoutStat)
+	base := w2["lexyguard"]
+	if base.AddressConflict || !strings.EqualFold(strings.TrimSpace(base.PayoutAddress), victimAddr) {
+		t.Fatalf("base row must stay intact: %+v", base)
+	}
+	sib, ok := w2["lexyguard-gpu1"]
+	if !ok || sib.AddressConflict || !strings.EqualFold(strings.TrimSpace(sib.PayoutAddress), attackerAddr) {
+		t.Fatalf("mismatching sibling must export under own id: ok=%v %+v", ok, sib)
+	}
+}
+
 func TestMergeWorkerStatAddressConflictDoesNotStealPayout(t *testing.T) {
 	victim := workerPayoutStat{PayoutAddress: "HMC-victim000000000", PayoutHMC: 10, PayoutSUP: 1, LastHashrateGHS: 100}
 	attacker := workerPayoutStat{PayoutAddress: "HMC-attacker0000000", PayoutHMC: 0.1, PayoutSUP: 0.01, LastHashrateGHS: 1}

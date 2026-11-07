@@ -3292,6 +3292,28 @@ func fleetBaseWorkerID(id string) string {
 	return id[:i]
 }
 
+// shouldExportFleetMemberSeparately is true when folding st into the fleet destination would
+// blank payouts via address_conflict. Checks both the durable base row (if present) and any
+// -gpuN sibling already folded into the export map (orphan multi-GPU fleets).
+func shouldExportFleetMemberSeparately(baseRow workerPayoutStat, folded workerPayoutStat, st workerPayoutStat) bool {
+	stAddr := strings.TrimSpace(st.PayoutAddress)
+	if stAddr == "" {
+		return false
+	}
+	baseAddr := strings.TrimSpace(baseRow.PayoutAddress)
+	if baseAddr != "" && !strings.EqualFold(baseAddr, stAddr) {
+		return true
+	}
+	foldedAddr := strings.TrimSpace(folded.PayoutAddress)
+	if folded.AddressConflict {
+		return true
+	}
+	if foldedAddr != "" && !strings.EqualFold(foldedAddr, stAddr) {
+		return true
+	}
+	return false
+}
+
 func mergeWorkerStat(dst, src workerPayoutStat) (workerPayoutStat, bool) {
 	dstAddr := strings.TrimSpace(dst.PayoutAddress)
 	srcAddr := strings.TrimSpace(src.PayoutAddress)
@@ -3753,17 +3775,16 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 			st = redactPublicWorkerStat(st)
 		}
 		base := fleetBaseWorkerID(k)
-		// Fold a -gpuN row into its fleet only when it pays the same address as the fleet's base
-		// row: a stranger claiming "<victim>-gpu9" with their own key used to mark the merged
-		// row address_conflict and freeze the victim's payouts (audit M4). A mismatching member
-		// is exported under its own id and paid to its own address.
-		if base != k {
-			if baseRow, ok := m.worker[base]; ok && baseRow.PayoutAddress != "" && st.PayoutAddress != "" &&
-				!strings.EqualFold(strings.TrimSpace(baseRow.PayoutAddress), strings.TrimSpace(st.PayoutAddress)) {
-				workers[k] = st
-				m.fleetAddressConflicts++
-				continue
-			}
+		// Fold a -gpuN row into its fleet only when it pays the same address as the fleet
+		// destination. A stranger claiming "<victim>-gpuN" with another key used to mark the
+		// merged row address_conflict and freeze accruals (audit M4 + 2026-11-07 orphan bypass).
+		// CUDA multi-GPU fleets never register a bare base id (only -gpu0/-gpu1/…), so the
+		// destination may be an earlier sibling already folded into workers[base] — treat that
+		// the same as m.worker[base]. Mismatching members export under their own id.
+		if base != k && shouldExportFleetMemberSeparately(m.worker[base], workers[base], st) {
+			workers[k] = st
+			m.fleetAddressConflicts++
+			continue
 		}
 		var conflict bool
 		workers[base], conflict = mergeWorkerStat(workers[base], st)
