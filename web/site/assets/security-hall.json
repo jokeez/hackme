@@ -31,7 +31,8 @@
           "date": "2026-11-07",
           "reported": "2026-11-07",
           "commit": "66774935",
-          "note": "Not a duplicate of #17: CUDA fleets never register bare base id; M4 only guarded m.worker[base]. Fix: shouldExportFleetMemberSeparately + deterministic fold. Live freeze unblocked on coordinator restart. Payout HMC-dd2d1608462c378"
+          "txid": "538285099565a4ae660188189c81fb764ef8e9d0be54402a43862589c3db89b7",
+          "note": "Not a duplicate of #17: CUDA fleets never register bare base id; M4 only guarded m.worker[base]. Fix: shouldExportFleetMemberSeparately + deterministic fold. Live freeze unblocked on coordinator restart. Paid 60 HMC → HMC-dd2d1608462c378 tx 53828509…"
         }
       ]
     },
