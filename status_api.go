@@ -133,6 +133,7 @@ func (a *app) buildStatusLite(ctx context.Context) map[string]any {
 	}
 	econCancel()
 	body["pool_sync"] = a.poolSyncStatusPayload()
+	body["hms"] = a.hmsStatusPayload(ctx)
 	redactInternalCoordinatorURLs(body)
 	return body
 }
@@ -209,6 +210,7 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 			"hybrid_signer_enabled":   poolauth.HybridSignerEnabled(),
 		},
 		"pool_sync": a.poolSyncStatusPayload(),
+		"hms":       a.hmsStatusPayload(statusCtx),
 	}
 	if tipStale {
 		statusBody["tip_read_stale"] = true

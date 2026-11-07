@@ -15,10 +15,17 @@ Production HMS lane code lives in the **main repo** (not only `adapters/hms/`).
 ## Local dev
 
 ```bash
-# Terminal 1
+# Terminal 1 — coordinator only
 bash scripts/ops/hms_coordinator_up.sh
 
-# Terminal 2 (optional)
+# Or full local pilot (disk + seal + stratum smoke)
+bash scripts/ops/hms_local_pilot.sh          # or scripts/local/ops/hms_local_pilot.sh
+bash scripts/ops/hms_local_pilot.sh stop
+
+# Readiness gate (CI / desk, no multi-GB disk)
+bash scripts/tests/hms_readiness_gate.sh
+
+# Terminal 2 (optional storage worker)
 go build -o bin/workerstorage ./cmd/workerstorage
 HACKME_HMS_COORDINATOR_URL=http://127.0.0.1:18082 bin/workerstorage
 
@@ -28,6 +35,8 @@ HMS_EPOCH_SECONDS=120 HMS_FREEZE_AFTER_SEC=60 HMS_SEAL_WINDOW_SEC=50 \
 ```
 
 Stats: `curl -s http://127.0.0.1:18082/api/pool/stats | jq`
+
+Lane stays **prelaunch** until `HACKME_HMS_LANE_ENABLED=1` on the dedicated host. Hub must not set that flag.
 
 ## Anti-abuse (MVP)
 

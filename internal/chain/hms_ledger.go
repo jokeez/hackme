@@ -58,11 +58,23 @@ type HMSEconomics struct {
 	GenesisUnix        int64   `json:"genesis_unix,omitempty"`
 	MintEnabled        bool    `json:"mint_enabled"`
 	OnChainSettleLive  bool    `json:"on_chain_settle_live"`
+	// LaneEnabled is the ops switch for a public HMS host (HACKME_HMS_LANE_ENABLED).
+	// Ledger mint can be ready while the lane stays prelaunch.
+	LaneEnabled        bool    `json:"lane_enabled"`
+	Prelaunch          bool    `json:"prelaunch"`
 	TreasuryAddress    string  `json:"treasury_address,omitempty"`
 	FeeBurnShare       float64 `json:"fee_burn_share"`
 	FeeTreasuryShare   float64 `json:"fee_treasury_share"`
 	TreasuryGenesisPct float64 `json:"treasury_genesis_float_pct"`
 }
+
+func hmsLaneEnabledFromEnv() bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_HMS_LANE_ENABLED")))
+	return v == "1" || v == "true" || v == "yes" || v == "on"
+}
+
+// HMSLaneEnabled is the public ops switch for a dedicated HMS host.
+func HMSLaneEnabled() bool { return hmsLaneEnabledFromEnv() }
 
 func HMSToUnits(v float64) uint64 { return HMCToUnits(v) }
 func UnitsToHMS(v uint64) float64 { return UnitsToHMC(v) }
@@ -121,8 +133,8 @@ func ValidateHmsTransferShape(tx HmsTransferTx) (code, msg string) {
 	}
 	from := strings.TrimSpace(tx.From)
 	to := strings.TrimSpace(tx.To)
-	if from == "" || to == "" || !strings.HasPrefix(from, "HMC-") || !strings.HasPrefix(to, "HMC-") {
-		return "invalid_address", "from/to must be HMC- addresses"
+	if from == "" || to == "" || !IsValidAddress(from) || !IsValidAddress(to) {
+		return "invalid_address", "from/to must be HMC- + 16 or 64 lowercase hex"
 	}
 	// The signing payload and the checks above trim addresses, but settlement
 	// credits the raw tx strings: a padded recipient would settle into an account
@@ -204,6 +216,7 @@ func (s *Service) HMSEconomics(ctx context.Context) (HMSEconomics, error) {
 	} else {
 		circ = 0
 	}
+	laneOn := hmsLaneEnabledFromEnv()
 	return HMSEconomics{
 		MaxSupplyHMS:       UnitsToHMS(maxU),
 		TotalMintedHMS:     UnitsToHMS(mintedU),
@@ -213,6 +226,8 @@ func (s *Service) HMSEconomics(ctx context.Context) (HMSEconomics, error) {
 		GenesisUnix:        genesis,
 		MintEnabled:        mintOn,
 		OnChainSettleLive:  mintOn && treasury != "",
+		LaneEnabled:        laneOn,
+		Prelaunch:          !laneOn,
 		TreasuryAddress:    treasury,
 		FeeBurnShare:       HMSNetworkFeeBurnShare,
 		FeeTreasuryShare:   HMSNetworkFeeTreasuryShare,
@@ -315,8 +330,8 @@ func (s *Service) MintHMS(ctx context.Context, to string, amountUnits uint64, me
 	if memo == "" {
 		return "memo_required", errors.New("memo required for mint idempotency")
 	}
-	if !strings.HasPrefix(to, "HMC-") {
-		return "invalid_address", errors.New("invalid address")
+	if !IsValidAddress(to) {
+		return "invalid_address", errors.New("to must be HMC- + 16 or 64 lowercase hex")
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()

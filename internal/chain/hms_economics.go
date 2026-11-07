@@ -20,8 +20,9 @@ const metaHMSTreasuryAddress = "hms_treasury_address"
 
 func validateHMSTreasuryAddress(addr string) error {
 	addr = strings.TrimSpace(addr)
-	if !strings.HasPrefix(addr, "HMC-") || len(addr) != 20 {
-		return fmt.Errorf("hms treasury address must be HMC- + 16 hex")
+	// Accept legacy (16 hex) and long (64 hex) so genesis stays ready past Economics v2.
+	if !IsValidAddress(addr) {
+		return fmt.Errorf("hms treasury address must be HMC- + 16 or 64 lowercase hex")
 	}
 	return nil
 }

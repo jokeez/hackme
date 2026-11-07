@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -167,4 +168,33 @@ func (a *app) handleHMSTransferSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true, "tx_hash": txHash, "status": status})
+}
+
+// hmsStatusPayload is the honest HMS lane snapshot for /api/status (prelaunch by default).
+func (a *app) hmsStatusPayload(ctx context.Context) map[string]any {
+	out := map[string]any{
+		"prelaunch":           true,
+		"lane_enabled":        chain.HMSLaneEnabled(),
+		"coordinator_url_set": strings.TrimSpace(os.Getenv("HACKME_HMS_COORDINATOR_URL")) != "",
+	}
+	if chain.HMSLaneEnabled() {
+		out["prelaunch"] = false
+	}
+	if a == nil || a.chain == nil {
+		return out
+	}
+	econCtx, cancel := context.WithTimeout(ctx, 200*time.Millisecond)
+	defer cancel()
+	if ec, err := a.chain.HMSEconomics(econCtx); err == nil {
+		out["mint_enabled"] = ec.MintEnabled
+		out["on_chain_settle_live"] = ec.OnChainSettleLive
+		out["prelaunch"] = ec.Prelaunch
+		out["lane_enabled"] = ec.LaneEnabled
+		out["circulating_hms"] = ec.CirculatingHMS
+		out["max_supply_hms"] = ec.MaxSupplyHMS
+		if ec.TreasuryAddress != "" {
+			out["treasury_configured"] = true
+		}
+	}
+	return out
 }

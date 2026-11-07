@@ -3,13 +3,21 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 
+	"hackme/internal/chain"
 	"hackme/internal/hms"
+)
+
+var (
+	errHMSCoordURL    = errors.New("invalid hms coordinator url")
+	errHMSCoordRemote = errors.New("remote hms coordinator requires HACKME_HMS_LANE_ENABLED=1")
 )
 
 func (a *app) hmsCoordinatorURL() string {
@@ -17,7 +25,39 @@ func (a *app) hmsCoordinatorURL() string {
 	if u == "" {
 		u = "http://127.0.0.1:18082"
 	}
-	return strings.TrimRight(u, "/")
+	u = strings.TrimRight(u, "/")
+	if err := validateHMSCoordinatorURL(u); err != nil {
+		// Fail closed to loopback — never proxy to a malformed/SSRF-shaped URL.
+		return "http://127.0.0.1:18082"
+	}
+	return u
+}
+
+// validateHMSCoordinatorURL keeps the desktop/hub proxy on http(s) without userinfo.
+// Remote hosts are allowed only when HACKME_HMS_LANE_ENABLED=1 (dedicated lane).
+func validateHMSCoordinatorURL(raw string) error {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return errHMSCoordURL
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return errHMSCoordURL
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return errHMSCoordURL
+	}
+	if u.User != nil {
+		return errHMSCoordURL
+	}
+	host := strings.ToLower(strings.TrimSpace(u.Hostname()))
+	if host == "127.0.0.1" || host == "localhost" || host == "::1" {
+		return nil
+	}
+	if chain.HMSLaneEnabled() {
+		return nil
+	}
+	return errHMSCoordRemote
 }
 
 func (a *app) proxyHMSCoordinator(w http.ResponseWriter, r *http.Request, method, path string, body []byte) {
