@@ -2663,7 +2663,7 @@
 							</div>
 							<span class="tag-pill border-emerald-500/40 text-emerald-300">prelaunch</span>
 						</div>
-						<p id="hms-public-hub-banner" class="hidden text-[10px] text-warn font-mono border border-warn/30 rounded px-3 py-2 mb-3">Public hub (hackme.tech): market pricing and pool stats only. Storage worker, disk scan, and paid orders require <strong class="text-white/90">local hackme-node</strong> at <code class="text-emerald-300">http://127.0.0.1:18080/</code>.</p>
+						<p id="hms-public-hub-banner" class="hidden text-[10px] text-warn font-mono border border-warn/30 rounded px-3 py-2 mb-3">Public hub (hackme.tech): market pricing and pool stats only. Storage worker, disk scan, and paid orders require a <strong class="text-white/90">local hackme-node</strong> (e.g. <code class="text-emerald-300">http://127.0.0.1:8080/</code>).</p>
 						<div class="grid md:grid-cols-2 gap-4">
 							<div class="rounded border border-white/10 bg-black/35 p-3 space-y-3">
 								<p class="text-[10px] uppercase tracking-wider text-gray-500">Disk worker (PoSt)</p>
@@ -3074,7 +3074,7 @@
 						<p class="font-display text-[10px] tracking-[0.3em] text-emerald-400 uppercase mb-1">HMS · storage market</p>
 						<p><strong class="text-emerald-300">Customer:</strong> browse services · quote → order (HMC) · track health · stop. <strong class="text-warn">Operator:</strong> local node + coordinator <code class="text-emerald-300/80">:18082</code> · admin token.</p>
 					</div>
-					<p id="hms-public-hub-banner-market" class="hidden text-[10px] text-warn font-mono border border-warn/30 rounded px-3 py-2">Public hub: read-only pricing/stats. Orders / cancel require <strong class="text-white/90">http://127.0.0.1:8080/</strong> (or your local node port).</p>
+					<p id="hms-public-hub-banner-market" class="hidden text-[10px] text-warn font-mono border border-warn/30 rounded px-3 py-2">Public hub: read-only pricing/stats. Orders / cancel require a <strong class="text-white/90">local hackme-node</strong> (e.g. <code class="text-emerald-300">http://127.0.0.1:8080/</code> or <code class="text-emerald-300">:8081</code> preview).</p>
 					<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
 						<button type="button" class="hms-svc-card text-left is-active" data-hms-svc="backup" id="hms-svc-backup">
 							<p class="font-display text-[10px] tracking-[0.25em] text-emerald-400 uppercase mb-1">Service</p>
@@ -3121,7 +3121,10 @@
 							<p class="text-[11px] text-gray-500 mt-1 max-w-2xl"><code class="text-emerald-300/80">/api/hms/market/orders</code> · select a row to cancel or inspect health.</p>
 							<p id="hms-market-orders-hint" class="text-[10px] text-warn/90 font-mono mt-1"></p>
 						</div>
-						<button type="button" id="btn-hms-market-orders-refresh" class="text-[10px] px-3 py-1.5 rounded border border-emerald-500/35 text-emerald-300 hover:bg-emerald-500/10 uppercase tracking-wider">Refresh</button>
+						<div class="flex flex-wrap items-center gap-2">
+							<button type="button" id="btn-hms-market-sync-admin" class="text-[10px] px-3 py-1.5 rounded border border-warn/35 text-warn hover:bg-warn/10 uppercase tracking-wider" title="Load HACKME_ADMIN_TOKEN from local node">Sync token</button>
+							<button type="button" id="btn-hms-market-orders-refresh" class="text-[10px] px-3 py-1.5 rounded border border-emerald-500/35 text-emerald-300 hover:bg-emerald-500/10 uppercase tracking-wider">Refresh</button>
+						</div>
 					</div>
 					<div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
 						<div class="card card-glow rounded-lg p-4 xl:col-span-2 border-white/10 overflow-x-auto">
@@ -11010,12 +11013,15 @@
 			const msg = $('hms-market-selected-msg');
 			if (msg) msg.textContent = '';
 		}
-		function renderHmsMarketOrders(orders) {
+		function renderHmsMarketOrders(orders, emptyMsg) {
 			const tb = $('hms-market-order-rows');
 			if (!tb) return;
 			hmsMarketOrdersCache = Array.isArray(orders) ? orders : [];
 			if (!hmsMarketOrdersCache.length) {
-				tb.innerHTML = '<tr><td colspan="7" class="px-2 py-3 text-gray-500">No orders yet — create one above.</td></tr>';
+				tb.innerHTML =
+					'<tr><td colspan="7" class="px-2 py-3 text-gray-500">' +
+					escapeHtml(emptyMsg || 'No orders yet — create one above.') +
+					'</td></tr>';
 				if (hmsMarketSelectedOrderId) {
 					hmsMarketSelectedOrderId = '';
 					paintHmsMarketSelected(null);
@@ -11063,9 +11069,28 @@
 				if (!still) hmsMarketSelectedOrderId = '';
 			}
 		}
+		function hmsMarketCoordDown(j) {
+			return !!(j && (j.available === false || j.status === 'unavailable' || j.reason === 'hms_coordinator_unreachable'));
+		}
+		async function ensureHmsMarketAdminToken() {
+			await ensureDesktopAdminToken(true);
+			const ok = adminTokenCurrent().length > 0;
+			const hint = $('hms-market-orders-hint');
+			if (hint && !ok) {
+				hint.textContent = isPublicHackmeHub()
+					? 'Orders need a local hackme-node (not public hub).'
+					: 'Admin token missing — click Sync token or hard-refresh (Ctrl+F5).';
+			}
+			return ok;
+		}
 		async function refreshHmsMarketOrders() {
 			const hint = $('hms-market-orders-hint');
 			try {
+				if (isPublicHackmeHub()) {
+					if (hint) hint.textContent = 'Orders list is local-node only (public hub is read-only).';
+					renderHmsMarketOrders([], 'Public hub — open local node for orders.');
+					return;
+				}
 				const r = await fetch('/api/hms/market/orders', {
 					cache: 'no-store',
 					headers: adminHeaders(),
@@ -11075,15 +11100,21 @@
 					if (hint) {
 						hint.textContent =
 							r.status === 401 || r.status === 403
-								? 'Orders list needs admin token (Sync token on local node).'
+								? 'Orders list needs admin token — click Sync token.'
 								: 'Orders list HTTP ' + r.status + (j && j.reason ? ' · ' + j.reason : '');
 					}
-					if (j && j.available === false) {
-						renderHmsMarketOrders([]);
-					}
+					renderHmsMarketOrders([], 'Cannot list orders (HTTP ' + r.status + ').');
 					return;
 				}
-				if (hint) hint.textContent = '';
+				if (hmsMarketCoordDown(j)) {
+					if (hint) {
+						hint.textContent =
+							'HMS coordinator offline — start with bash scripts/ops/hms_coordinator_up.sh (:18082).';
+					}
+					renderHmsMarketOrders([], 'Coordinator unreachable — orders unavailable until :18082 is up.');
+					return;
+				}
+				if (hint) hint.textContent = adminTokenCurrent() ? '' : 'Admin token missing — click Sync token.';
 				renderHmsMarketOrders(j.orders || []);
 			} catch (e) {
 				if (hint) hint.textContent = 'Orders list error: ' + e;
@@ -11110,7 +11141,13 @@
 						fmt(p.min_prepaid_hmc, 2) +
 						' HMC';
 				} else if (prEl) prEl.textContent = 'Market pricing unavailable (start node + HMS coordinator).';
-				if (capEl && st && st.market && st.market.capacity) {
+				if (hmsMarketCoordDown(st)) {
+					const msg =
+						'Capacity: HMS coordinator offline (:18082) — ' +
+						String((st && (st.hint || st.reason)) || 'start hmscoordinator');
+					if (capEl) capEl.textContent = msg;
+					if (svcBlurb) svcBlurb.textContent = 'Coordinator offline — capacity unknown.';
+				} else if (capEl && st && st.market && st.market.capacity) {
 					const c = st.market.capacity;
 					const line =
 						'Capacity: ' +
@@ -11216,19 +11253,36 @@
 					if (out) out.textContent = 'Order failed: ' + (j && j.error ? j.error : 'HTTP ' + r.status);
 					return;
 				}
-				const oid =
-					(j.result && j.result.order && j.result.order.order_id) ||
-					(j.order && j.order.order_id) ||
-					j.order_id ||
-					'';
-				const pay =
-					(j.result && j.result.order && j.result.order.payment_id) ||
-					j.payment_id ||
-					'—';
+				const res = j.result || {};
+				const order = res.order || j.order || {};
+				const oid = order.order_id || j.order_id || '';
+				const pay = order.payment_id || j.payment_id || '—';
+				const uploadTok = String(res.upload_token || j.upload_token || '');
+				const uploadPath = '/api/hms/market/orders/' + encodeURIComponent(oid) + '/upload';
+				if (uploadTok) {
+					try {
+						sessionStorage.setItem('hackme.hms.upload.' + oid, uploadTok);
+					} catch (_) {}
+					window.__hmsLastUpload = { order_id: oid, upload_token: uploadTok, upload_path: uploadPath };
+				}
 				if (out) {
-					out.textContent = oid
-						? 'Order ' + oid + ' created — upload via local API (payment_id ' + String(pay) + ')'
-						: 'Order created: ' + JSON.stringify(j).slice(0, 120);
+					if (!oid) {
+						out.textContent = 'Order created: ' + JSON.stringify(j).slice(0, 120);
+					} else if (uploadTok) {
+						out.textContent =
+							'Order ' +
+							oid +
+							' · payment ' +
+							String(pay) +
+							' · upload POST ' +
+							uploadPath +
+							' · X-HMS-Upload-Token ' +
+							uploadTok.slice(0, 10) +
+							'… (shown once)';
+					} else {
+						out.textContent =
+							'Order ' + oid + ' created — payment_id ' + String(pay) + ' (upload token not in response)';
+					}
 				}
 				if (oid) hmsMarketSelectedOrderId = oid;
 				void refreshHmsMarketPanel();
@@ -11283,12 +11337,25 @@
 					return;
 				}
 				const h = j.health || j;
-				const healthEl = $('hms-market-selected-health');
-				const detailEl = $('hms-market-selected-detail');
-				const statusEl = $('hms-market-selected-status');
-				if (healthEl) healthEl.textContent = 'health: ' + String(h.health_status || '—');
-				if (statusEl && (h.status || h.order_status)) statusEl.textContent = 'status: ' + String(h.status || h.order_status);
-				if (detailEl) detailEl.textContent = String(h.health_detail || h.detail || JSON.stringify(h).slice(0, 160));
+				const st = String(h.status || h.order_status || '');
+				const hs = String(h.health_status || '');
+				const detail = String(h.health_detail || h.detail || '').trim();
+				const idx = hmsMarketOrdersCache.findIndex((o) => String(o.order_id) === oid);
+				if (idx >= 0) {
+					if (st) hmsMarketOrdersCache[idx].status = st;
+					if (hs) hmsMarketOrdersCache[idx].health_status = hs;
+					if (detail) hmsMarketOrdersCache[idx].health_detail = detail;
+					paintHmsMarketSelected(hmsMarketOrdersCache[idx]);
+					renderHmsMarketOrders(hmsMarketOrdersCache);
+					selectHmsMarketOrder(oid);
+				} else {
+					const healthEl = $('hms-market-selected-health');
+					const detailEl = $('hms-market-selected-detail');
+					const statusEl = $('hms-market-selected-status');
+					if (healthEl) healthEl.textContent = 'health: ' + (hs || '—');
+					if (statusEl && st) statusEl.textContent = 'status: ' + st;
+					if (detailEl) detailEl.textContent = detail || 'no health detail yet';
+				}
 				if (msg) msg.textContent = 'Health refreshed.';
 			} catch (e) {
 				if (msg) msg.textContent = 'Health error: ' + e;
@@ -11339,7 +11406,16 @@
 			const btnOrder = $('btn-hms-market-order');
 			if (btnOrder) btnOrder.addEventListener('click', () => void hmsMarketCreateOrder());
 			const btnOrdersRefresh = $('btn-hms-market-orders-refresh');
-			if (btnOrdersRefresh) btnOrdersRefresh.addEventListener('click', () => void refreshHmsMarketOrders());
+			if (btnOrdersRefresh) btnOrdersRefresh.addEventListener('click', () => void refreshHmsMarketPanel());
+			const btnSync = $('btn-hms-market-sync-admin');
+			if (btnSync) {
+				btnSync.addEventListener('click', () => {
+					void (async () => {
+						await ensureHmsMarketAdminToken();
+						void refreshHmsMarketOrders();
+					})();
+				});
+			}
 			const btnCancel = $('btn-hms-market-order-cancel');
 			if (btnCancel) btnCancel.addEventListener('click', () => void hmsMarketCancelSelected());
 			const btnHealth = $('btn-hms-market-order-health');
@@ -16998,6 +17074,10 @@
 		}
 
 		function switchTab(name) {
+			if (name === 'hms-market' && activeDashboardCoinId !== 'hms') {
+				setActiveDashboardCoin('hms', { tab: 'hms-market' });
+				return;
+			}
 			const prof = COIN_DASH_PROFILES[activeDashboardCoinId];
 			if (prof && prof.tabs && !prof.tabs.includes(name)) {
 				name = firstVisibleTabForProfile(prof);
@@ -17171,6 +17251,7 @@
 			if (currentTab === 'reports') void refreshReportsList();
 			if (currentTab === 'orders') void refreshOrdersList();
 			if (currentTab === 'fuzz') void refreshFuzzCampaigns();
+			if (currentTab === 'hms-market') void refreshHmsMarketPanel();
 			if (currentTab === 'hardware') void refreshHardwareTune();
 			if (currentTab === 'mining') {
 				void refreshMiningDevices();
@@ -17518,6 +17599,9 @@
 					if ((pollSeq % 2) === 0 && typeof refreshMiningLogsOnce === 'function') void refreshMiningLogsOnce();
 					if ((pollSeq % 3) === 0 && typeof refreshMiningDevices === 'function') void refreshMiningDevices();
 				}
+				if (currentTab === 'hms-market' && (pollSeq % 2) === 0) {
+					void refreshHmsMarketPanel();
+				}
 				if ((pollSeq % 12) === 0 && currentTab === 'chain') {
 					void (typeof refreshP2PPeers === 'function' ? refreshP2PPeers() : Promise.resolve());
 				}
@@ -17838,6 +17922,9 @@
 				}
 				if (!initTab) initTab = 'ecosystem';
 				if (!adminTokenCurrent() && initTab === 'fuzz') initTab = 'ecosystem';
+				if (initTab === 'hms-market' && activeDashboardCoinId !== 'hms') {
+					setActiveDashboardCoin('hms', { switchTab: false });
+				}
 				const coinProf = COIN_DASH_PROFILES[activeDashboardCoinId];
 				if (coinProf && coinProf.tabs && !coinProf.tabs.includes(initTab)) {
 					initTab = coinProf.defaultTab || coinProf.tabs[0] || 'ecosystem';
