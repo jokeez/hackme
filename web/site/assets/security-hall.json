@@ -13,11 +13,28 @@
     "limit_hmc": 200
   },
   "stats": {
-    "total_paid_hmc": 840,
-    "researchers": 5,
-    "reports_accepted": 23
+    "total_paid_hmc": 850,
+    "researchers": 6,
+    "reports_accepted": 24
   },
   "researchers": [
+    {
+      "id": "startupcompliancekit",
+      "name": "StartupComplianceKit",
+      "handle": "StartupComplianceKit",
+      "total_paid_hmc": 10,
+      "findings": [
+        {
+          "title": "rc19 block-height filters: uint64 high-bit → SQLite bind HTTP 500",
+          "severity": "low",
+          "paid_hmc": 10,
+          "date": "2026-11-07",
+          "reported": "2026-11-07",
+          "commit": "f7c0df93",
+          "note": "Low functional: ParseUint full uint64 then database/sql reject ≥2^63. Fixed CheckSQLiteBlockHeight → HTTP 400 on /api/chain and /api/reports/blocks. On-chain 10 HMC pending reporter HMC-… address (none in report)."
+        }
+      ]
+    },
     {
       "id": "fimasw",
       "name": "fimasw",
