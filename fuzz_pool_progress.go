@@ -111,6 +111,22 @@ func (a *app) fetchCoordinatorPoolCampaignProgress(ctx context.Context, campaign
 	return c, ok
 }
 
+// stampOrdersOwnerHeader binds shared publish-token reads to the local campaign owner_ref.
+func (a *app) stampOrdersOwnerHeader(req *http.Request, campaignID string) {
+	if a == nil || a.db == nil || req == nil {
+		return
+	}
+	campaignID = strings.TrimSpace(campaignID)
+	if campaignID == "" {
+		return
+	}
+	var owner string
+	_ = a.db.QueryRow(`SELECT COALESCE(owner_ref,'') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&owner)
+	if owner = strings.TrimSpace(owner); owner != "" {
+		req.Header.Set("X-Hackme-Orders-Owner-Ref", owner)
+	}
+}
+
 // fetchCoordinatorPoolCampaignProgressErr distinguishes "not on pool yet" (ok=false, err=nil)
 // from transport/auth/decode failures (err != nil) so customer gates can fail-closed.
 func (a *app) fetchCoordinatorPoolCampaignProgressErr(ctx context.Context, campaignID string) (coordinatorPoolCampaign, bool, error) {
@@ -127,6 +143,7 @@ func (a *app) fetchCoordinatorPoolCampaignProgressErr(ctx context.Context, campa
 	if tok := coordinatorOrdersCustomerToken(); tok != "" {
 		req.Header.Set("X-Hackme-Admin-Token", tok)
 	}
+	a.stampOrdersOwnerHeader(req, campaignID)
 	res, err := netutil.HTTPClientNoRedirect(6 * time.Second).Do(req)
 	if err != nil {
 		return coordinatorPoolCampaign{}, false, err
@@ -460,6 +477,7 @@ func (a *app) pullPoolFindingsFromCoordinator(ctx context.Context, campaignID st
 		return 0, fmt.Errorf("orders publish or coordinator admin token required for findings mirror")
 	}
 	req.Header.Set("X-Hackme-Admin-Token", tok)
+	a.stampOrdersOwnerHeader(req, campaignID)
 	res, err := netutil.HTTPClientNoRedirect(12 * time.Second).Do(req)
 	if err != nil {
 		return 0, err
