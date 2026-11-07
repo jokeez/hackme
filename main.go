@@ -2412,6 +2412,10 @@ func (a *app) handleChain(w http.ResponseWriter, r *http.Request) {
 	var err error
 	if fh := strings.TrimSpace(r.URL.Query().Get("from_height")); fh != "" {
 		if minH, perr := strconv.ParseUint(fh, 10, 64); perr == nil {
+			if perr = chain.CheckSQLiteBlockHeight(minH); perr != nil {
+				http.Error(w, "bad from_height", http.StatusBadRequest)
+				return
+			}
 			blocks, err = a.chain.ListBlocksFromHeight(r.Context(), minH, limit)
 		} else {
 			http.Error(w, "bad from_height", http.StatusBadRequest)
@@ -2421,6 +2425,10 @@ func (a *app) handleChain(w http.ResponseWriter, r *http.Request) {
 		blocks, err = a.chain.ListBlocks(r.Context(), limit)
 	}
 	if err != nil {
+		if errors.Is(err, chain.ErrHeightOutOfRange) {
+			http.Error(w, "bad from_height", http.StatusBadRequest)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

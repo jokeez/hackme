@@ -418,6 +418,9 @@ func (s *Service) ListBlocks(ctx context.Context, limit int) ([]json.RawMessage,
 // ListBlocksFromHeight returns up to `limit` blocks with block_index >= minHeight, oldest-first.
 // Used by P2P sync to anchor an empty follower with genesis (block 0) before tail replay.
 func (s *Service) ListBlocksFromHeight(ctx context.Context, minHeight uint64, limit int) ([]json.RawMessage, error) {
+	if err := CheckSQLiteBlockHeight(minHeight); err != nil {
+		return nil, err
+	}
 	if limit <= 0 {
 		limit = 20
 	}
@@ -1141,6 +1144,11 @@ func (s *Service) ListRecentBlockSummaries(ctx context.Context, limit int) ([]Bl
 // ListBlockSummariesBefore returns up to `limit` blocks with index < before,
 // newest first (explorer pagination back to genesis). before == 0 means tip.
 func (s *Service) ListBlockSummariesBefore(ctx context.Context, before uint64, limit int) ([]BlockSummary, error) {
+	if before > 0 {
+		if err := CheckSQLiteBlockHeight(before); err != nil {
+			return nil, err
+		}
+	}
 	if limit <= 0 {
 		limit = 30
 	}

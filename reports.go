@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -215,7 +216,7 @@ func (a *app) handleReportsBlocks(w http.ResponseWriter, r *http.Request) {
 	var before uint64
 	if s := strings.TrimSpace(r.URL.Query().Get("before")); s != "" {
 		n, err := strconv.ParseUint(s, 10, 64)
-		if err != nil {
+		if err != nil || chain.CheckSQLiteBlockHeight(n) != nil {
 			http.Error(w, "bad before", http.StatusBadRequest)
 			return
 		}
@@ -278,6 +279,10 @@ func (a *app) handleReportsBlocks(w http.ResponseWriter, r *http.Request) {
 		}
 		rows, err2 := a.chain.ListBlockSummariesBefore(ctx, before, limit)
 		if err2 != nil {
+			if errors.Is(err2, chain.ErrHeightOutOfRange) {
+				http.Error(w, "bad before", http.StatusBadRequest)
+				return
+			}
 			http.Error(w, err2.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -311,6 +316,10 @@ func (a *app) handleReportsBlocks(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := a.chain.ListBlockSummariesBefore(ctx, before, limit)
 	if err != nil {
+		if errors.Is(err, chain.ErrHeightOutOfRange) {
+			http.Error(w, "bad before", http.StatusBadRequest)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
