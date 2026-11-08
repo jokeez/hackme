@@ -473,13 +473,31 @@ func TestShareImpliedGHSIgnoresSingleHugeShare(t *testing.T) {
 }
 
 func TestWarmLowShareImpliedGHS(t *testing.T) {
-	if g := warmLowShareImpliedGHS(0.012, 1); g < 0.1 || g > 2 {
-		t.Fatalf("low sample should warm into 0.1–2 band, got %v", g)
+	lo := warmLowShareImpliedGHS(0.002, 1)
+	hi := warmLowShareImpliedGHS(0.03, 1)
+	if lo < 0.1 || lo >= hi || hi > 2 {
+		t.Fatalf("warm must spread by raw rank, lo=%v hi=%v", lo, hi)
+	}
+	multi := warmLowShareImpliedGHS(0.002, 6)
+	if multi <= lo {
+		t.Fatalf("more shares should lift board GH, single=%v multi=%v", lo, multi)
 	}
 	if g := warmLowShareImpliedGHS(0.2, 4); g != 0.2 {
 		t.Fatalf("already-visible sample must pass through, got %v", g)
 	}
-	if g := warmLowShareImpliedGHS(0, 1); g != 0 {
-		t.Fatalf("zero stays zero, got %v", g)
+}
+
+func TestPacedBoardGHSUsesDeclaredBand(t *testing.T) {
+	implied := 0.002
+	got := pacedBoardGHS(implied, 0.85, 2)
+	if got < 0.7 || got > 0.9 {
+		t.Fatalf("declared 0.85 with shares should pace board near target, got %v", got)
+	}
+	flat := pacedBoardGHS(implied, 0, 2)
+	if flat < 0.1 || flat > 0.5 {
+		t.Fatalf("no declared pace falls back to warm spread, got %v", flat)
+	}
+	if g := pacedBoardGHS(implied, 50, 2); g == 50 {
+		t.Fatal("out-of-band declared GH must not pass through")
 	}
 }

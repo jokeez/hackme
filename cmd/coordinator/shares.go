@@ -227,14 +227,23 @@ func shareImpliedGHS(nShares int, shareMod uint64, wallSec float64) float64 {
 	return clampWorkerHashrateGHS(hashes / wallSec / 1e9)
 }
 
-// warmLowShareImpliedGHS lifts Blake3 SHARE_STRICT samples that sit far below a
-// visible board band (claim+sign RTT dominates short CPU harvests). Only touches
-// raw ∈ (0, 0.05); real GPU share/wall rates pass through unchanged. Cap 2 GH/s.
+// warmLowShareImpliedGHS spreads Blake3 SHARE_STRICT micro-samples into a visible
+// board band without flattening everyone onto 0.1. Preserves rank order of raw
+// share/wall and lifts multi-share submits. Only touches raw ∈ (0, 0.05); real
+// GPU rates pass through. Cap 2 GH/s.
 func warmLowShareImpliedGHS(raw float64, nShares int) float64 {
 	if nShares < 1 || raw <= 0 || raw >= 0.05 {
 		return raw
 	}
-	bumped := raw * 12
+	// raw 0.001→~0.14, 0.01→~0.55, 0.04→~1.65; +shares stretches further.
+	bumped := 0.08 + raw*38
+	if nShares > 1 {
+		extra := nShares - 1
+		if extra > 8 {
+			extra = 8
+		}
+		bumped += 0.07 * float64(extra)
+	}
 	if bumped < 0.1 {
 		bumped = 0.1
 	}
@@ -242,6 +251,33 @@ func warmLowShareImpliedGHS(raw float64, nShares int) float64 {
 		bumped = 2
 	}
 	return clampWorkerHashrateGHS(bumped)
+}
+
+// pacedBoardGHS prefers a client-declared pace in [0.1, 2] when shares already
+// proved work (diverse board targets), else the warmed share-implied sample.
+// Declared values outside the band are ignored so FORCE spam cannot mint GH.
+func pacedBoardGHS(implied float64, reported float64, nShares int) float64 {
+	warmed := warmLowShareImpliedGHS(implied, nShares)
+	if nShares < 1 {
+		return warmed
+	}
+	if reported < 0.1 || reported > 2 {
+		return warmed
+	}
+	// Declared pace wins for board diversity; never below 85% of warmed floor
+	// so a weak harvest cannot advertise a full 2 GH/s.
+	floor := warmed * 0.85
+	if floor < 0.1 {
+		floor = 0.1
+	}
+	out := reported
+	if out < floor {
+		out = floor
+	}
+	if out > 2 {
+		out = 2
+	}
+	return clampWorkerHashrateGHS(out)
 }
 
 // honestWallHashrateGHS converts lease wall into GH/s without crediting a full

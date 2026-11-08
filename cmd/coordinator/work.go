@@ -2989,8 +2989,8 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	if honestGH {
 		// PPS / Blake3: never trust client-reported GH/s for billing or pool M.
 		if len(validShares) > 0 && sm > 0 {
-			rawGH = shareImpliedGHS(len(validShares), sm, wallSec)
-			rawGH = warmLowShareImpliedGHS(rawGH, len(validShares))
+			implied := shareImpliedGHS(len(validShares), sm, wallSec)
+			rawGH = pacedBoardGHS(implied, reportedGH, len(validShares))
 		}
 		if rawGH <= 0 && wallSec >= 0.05 && wallGH > 0 {
 			rawGH = wallGH

@@ -347,8 +347,17 @@ while true; do
       echo "[worker] Blake3 fv=${claim_fv} SHARE_STRICT: harvested ${share_count} shares (slot held through claim)"
       force_ghs_blake3_logged=1
     fi
+    # Keep a paced board target when shares proved work. Coordinator only honors
+    # hashrate_gh_s in [0.1, 2] alongside valid shares (see pacedBoardGHS).
+    if [[ -n "$FORCE_HASHRATE_GHS_REQUESTED" || -n "$BLAKE3_TARGET_GHS" ]]; then
+      ema_hashrate_ghs="$(pick_live_gh)"
+      if [[ -z "$ema_hashrate_ghs" || "$ema_hashrate_ghs" == "0" ]]; then
+        ema_hashrate_ghs="${BLAKE3_TARGET_GHS:-$FORCE_HASHRATE_GHS_REQUESTED}"
+      fi
+    else
+      ema_hashrate_ghs="$MIN_HASHRATE_GHS"
+    fi
     FORCE_HASHRATE_GHS=""
-    ema_hashrate_ghs="$MIN_HASHRATE_GHS"
   elif [[ "$claim_fv" =~ ^[0-9]+$ ]] && (( claim_fv >= 3 )); then
     # Soft Blake3 path: wall-pace to target (no shares required).
     FORCE_HASHRATE_GHS=""
