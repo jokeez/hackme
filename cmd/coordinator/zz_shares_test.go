@@ -471,3 +471,15 @@ func TestShareImpliedGHSIgnoresSingleHugeShare(t *testing.T) {
 		t.Fatalf("multi-share sample should credit GH, got %v", g)
 	}
 }
+
+func TestWarmLowShareImpliedGHS(t *testing.T) {
+	if g := warmLowShareImpliedGHS(0.012, 1); g < 0.1 || g > 2 {
+		t.Fatalf("low sample should warm into 0.1–2 band, got %v", g)
+	}
+	if g := warmLowShareImpliedGHS(0.2, 4); g != 0.2 {
+		t.Fatalf("already-visible sample must pass through, got %v", g)
+	}
+	if g := warmLowShareImpliedGHS(0, 1); g != 0 {
+		t.Fatalf("zero stays zero, got %v", g)
+	}
+}

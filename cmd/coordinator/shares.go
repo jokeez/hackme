@@ -227,6 +227,23 @@ func shareImpliedGHS(nShares int, shareMod uint64, wallSec float64) float64 {
 	return clampWorkerHashrateGHS(hashes / wallSec / 1e9)
 }
 
+// warmLowShareImpliedGHS lifts Blake3 SHARE_STRICT samples that sit far below a
+// visible board band (claim+sign RTT dominates short CPU harvests). Only touches
+// raw ∈ (0, 0.05); real GPU share/wall rates pass through unchanged. Cap 2 GH/s.
+func warmLowShareImpliedGHS(raw float64, nShares int) float64 {
+	if nShares < 1 || raw <= 0 || raw >= 0.05 {
+		return raw
+	}
+	bumped := raw * 12
+	if bumped < 0.1 {
+		bumped = 0.1
+	}
+	if bumped > 2 {
+		bumped = 2
+	}
+	return clampWorkerHashrateGHS(bumped)
+}
+
 // honestWallHashrateGHS converts lease wall into GH/s without crediting a full
 // early-found batch as if the GPU burned every nonce (64G / 2s → fantasy 30 GH/s).
 // Credited hashes are capped to what prevGH (or a mid-GPU bootstrap) could do.

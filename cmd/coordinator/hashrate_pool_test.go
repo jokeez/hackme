@@ -88,8 +88,24 @@ func TestWorkerRateLimitPerMinSubOneNotRaisedToFloor(t *testing.T) {
 	if lim >= 120 {
 		t.Fatalf("sub-1 GH/s must keep spam cap, got %d/min", lim)
 	}
-	if lim < 2 {
-		t.Fatalf("sub-1 GH/s floor is 2/min, got %d", lim)
+	if lim < 10 {
+		t.Fatalf("sub-1 GH/s Blake3 floor is 10/min when globalMax>=120, got %d", lim)
+	}
+	if lim > 15 {
+		t.Fatalf("sub-1 GH/s must stay well below GPU floors, got %d/min", lim)
+	}
+}
+
+func TestWorkerRateLimitPerMinSubOneTightGlobal(t *testing.T) {
+	wm := &workManager{
+		claimPerMin: 60,
+		worker: map[string]workerPayoutStat{
+			"cpu-spam": {LastHashrateGHS: 0.002, PeakHashrateGHS: 0.004},
+		},
+	}
+	lim := wm.workerRateLimitPerMin("cpu-spam", wm.claimPerMin)
+	if lim != 2 {
+		t.Fatalf("tight globalMax keeps legacy 2/min floor, got %d", lim)
 	}
 }
 

@@ -1606,9 +1606,14 @@ func (m *workManager) workerRateLimitPerMin(workerID string, globalMax int) int 
 	// ~15 claim/submit cycles per minute per 1 GH/s (caps CPU submit-spam rigs).
 	lim := int(gh * 15)
 	if gh < 1 {
-		// Sub-1 GH/s CPU rigs: do not apply the 20/min floor (was letting 0.02 GH/s spam ~20 claims/min).
+		// Sub-1 GH/s: keep a spam cap (no 20/min floor). Blake3 SHARE_STRICT
+		// share-implied samples often land 0.01–0.2 GH/s; a 2/min floor then
+		// traps those workers in claim_rate_limited.
 		if lim < 2 {
 			lim = 2
+		}
+		if lim < 10 && globalMax >= 120 {
+			lim = 10
 		}
 	} else if lim < 20 {
 		lim = 20
@@ -1650,7 +1655,14 @@ func (m *workManager) allowClaim(workerID, ipKey string, now int64) (bool, strin
 	if ip := m.ipAbuse[ipKey]; ip.BannedUntil > now {
 		return false, "worker_temporarily_banned"
 	}
-	ip, ok := m.allowRateSlot(m.ipAbuse[ipKey], now, perMin*4, true)
+	// Shared-IP: never let a sub-1 GH/s sibling shrink the IP budget to
+	// perMin*4 (~8–12/min). Floor at the global claim ceiling; still allow the
+	// legacy 4× headroom when a high-GH worker would expand it.
+	ipLim := perMin * 4
+	if ipLim < m.claimPerMin {
+		ipLim = m.claimPerMin
+	}
+	ip, ok := m.allowRateSlot(m.ipAbuse[ipKey], now, ipLim, true)
 	m.ipAbuse[ipKey] = ip
 	if !ok {
 		return false, "claim_rate_limited"
@@ -1682,7 +1694,11 @@ func (m *workManager) allowClaimPeer(workerID, ipKey string, now int64) (bool, s
 	if ip := m.ipAbuse[ipKey]; ip.BannedUntil > now {
 		return false, "worker_temporarily_banned"
 	}
-	ip, ok := m.allowRateSlot(m.ipAbuse[ipKey], now, perMin*4, true)
+	ipLim := perMin * 4
+	if ipLim < m.claimPerMin {
+		ipLim = m.claimPerMin
+	}
+	ip, ok := m.allowRateSlot(m.ipAbuse[ipKey], now, ipLim, true)
 	m.ipAbuse[ipKey] = ip
 	if !ok {
 		return false, "claim_rate_limited"
@@ -1722,7 +1738,11 @@ func (m *workManager) allowSubmitPeer(workerID, ipKey string, now int64) (bool, 
 	if ip := m.ipAbuse[ipKey]; ip.BannedUntil > now {
 		return false, "worker_temporarily_banned"
 	}
-	ip, ok := m.allowRateSlot(m.ipAbuse[ipKey], now, perMin*4, false)
+	ipLim := perMin * 4
+	if ipLim < m.submitPerMin {
+		ipLim = m.submitPerMin
+	}
+	ip, ok := m.allowRateSlot(m.ipAbuse[ipKey], now, ipLim, false)
 	m.ipAbuse[ipKey] = ip
 	if !ok {
 		return false, "submit_rate_limited"
@@ -2235,8 +2255,9 @@ func (m *workManager) validateHybridSignature(req submitWorkRequest) (ok bool, r
 }
 
 // blake3BootstrapBatch: cold-start Blake3 lease without credited GH/s.
-// 512M ≈ a few seconds on mid-CPU (0.1–0.2 GH/s); old 8G expired under lease_sec=90.
-const blake3BootstrapBatch = uint64(1 << 29)
+// 64M (was 512M): CPU SHARE_STRICT shareharvest lands a first share in seconds
+// instead of 30–60s walls; GPUs still grow via adaptClaimBatch.
+const blake3BootstrapBatch = uint64(1 << 26)
 
 // adaptClaimBatch grows Blake3 leases toward ~leaseWorkSec of last credited GH/s
 // so claim→submit wall reflects real work, not RTT.
@@ -2969,6 +2990,7 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		// PPS / Blake3: never trust client-reported GH/s for billing or pool M.
 		if len(validShares) > 0 && sm > 0 {
 			rawGH = shareImpliedGHS(len(validShares), sm, wallSec)
+			rawGH = warmLowShareImpliedGHS(rawGH, len(validShares))
 		}
 		if rawGH <= 0 && wallSec >= 0.05 && wallGH > 0 {
 			rawGH = wallGH
