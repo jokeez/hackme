@@ -103,14 +103,29 @@ func OrderFeeV2FromPrice(tipHeight, priceUnits uint64, asset string) (OrderFeeV2
 }
 
 // OrderFeeV2ForEscrow prices a fixed escrow (PoH order reward × solves): price = escrow/(1−r).
-func OrderFeeV2ForEscrow(tipHeight, escrowUnits uint64, asset string) OrderFeeV2 {
+// Oversized escrows that would panic bits.Div64 (hi ≥ divisor) return an error instead.
+func OrderFeeV2ForEscrow(tipHeight, escrowUnits uint64, asset string) (OrderFeeV2, error) {
+	if a, err := NormalizeFeeAsset(asset); err != nil {
+		return OrderFeeV2{}, err
+	} else {
+		asset = a
+	}
 	bp, pp := orderFeeV2Rates(tipHeight)
 	if bp+pp == 0 || bp+pp >= 1_000_000 {
-		return newOrderFeeV2(asset, 0, 0)
+		return newOrderFeeV2(asset, 0, 0), nil
+	}
+	den := 1_000_000 - bp - pp
+	// bits.Mul64 wraps; reject before mul when escrow*1e6 cannot fit in 128 bits cleanly
+	// for the subsequent Div64 (Div64 panics when hi >= den).
+	if escrowUnits > (^uint64(0))/1_000_000 {
+		return OrderFeeV2{}, fmt.Errorf("order fee: escrow %d units too large", escrowUnits)
 	}
 	hi, lo := bits.Mul64(escrowUnits, 1_000_000)
-	price, _ := bits.Div64(hi, lo, 1_000_000-bp-pp)
-	return newOrderFeeV2(asset, mulDivPPM(price, bp), mulDivPPM(price, pp))
+	if hi >= den {
+		return OrderFeeV2{}, fmt.Errorf("order fee: escrow %d units too large", escrowUnits)
+	}
+	price, _ := bits.Div64(hi, lo, den)
+	return newOrderFeeV2(asset, mulDivPPM(price, bp), mulDivPPM(price, pp)), nil
 }
 
 // applyOrderFeeV2Tx books the fee inside the order-open tx. The caller has already debited

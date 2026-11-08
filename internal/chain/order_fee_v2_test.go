@@ -71,9 +71,24 @@ func TestOrderFeeV2Split(t *testing.T) {
 		t.Fatalf("SUP fee: escrow=%d fee=%+v", escrowS, s)
 	}
 	// PoH order: escrow fixed, price = escrow/0.9 ⇒ fee ≈ escrow/9.
-	p := OrderFeeV2ForEscrow(10, HMCToUnits(9), FeeAssetHMC)
+	p, err := OrderFeeV2ForEscrow(10, HMCToUnits(9), FeeAssetHMC)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if p.BurnUnits != HMCToUnits(0.5) || p.PlatformUnits != HMCToUnits(0.5) {
 		t.Fatalf("PoH fee for 9 HMC escrow: %+v", p)
+	}
+	// lowercase asset still books SUPUnits (NormalizeFeeAsset inside ForEscrow).
+	supFee, err := OrderFeeV2ForEscrow(10, HMCToUnits(9), "sup")
+	if err != nil || supFee.Asset != FeeAssetSUP || supFee.SUPUnits == 0 {
+		t.Fatalf("sup asset normalize: %+v err=%v", supFee, err)
+	}
+	// Huge escrow must error, not panic bits.Div64 (fimasw 2026-11-08).
+	if _, err := OrderFeeV2ForEscrow(550_000, 15_679_732_462_653_118_874, FeeAssetHMC); err == nil {
+		t.Fatal("oversized escrow must return error")
+	}
+	if _, err := OrderFeeV2ForEscrow(550_000, ^uint64(0), FeeAssetHMC); err == nil {
+		t.Fatal("max uint64 escrow must return error")
 	}
 	// Era 1: burn halves, platform stays.
 	e1, _ := OrderFeeV2FromPrice(V2RewardHalvingIntervalBlocks, HMCToUnits(100), FeeAssetHMC)

@@ -189,7 +189,10 @@ func (s *Service) InsertOrderTask(ctx context.Context, manifestJSON []byte) (*In
 	// Economics v2: price = escrow + fee (burn + platform, RFC §5.2); burn is a real debit.
 	var feeV2 *OrderFeeV2
 	if EconomicsV2ActiveForIndex(tipH + 1) {
-		f := OrderFeeV2ForEscrow(tipH, prepaidUnits, feeAsset)
+		f, err := OrderFeeV2ForEscrow(tipH, prepaidUnits, feeAsset)
+		if err != nil {
+			return nil, err
+		}
 		feeV2 = &f
 	} else if feeAsset != FeeAssetHMC {
 		return nil, errors.New("chain: fee_asset SUP requires Economics v2")
