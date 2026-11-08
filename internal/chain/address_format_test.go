@@ -37,6 +37,21 @@ func TestAddressFormats(t *testing.T) {
 	}
 }
 
+// Pre-v2 used to skip format checks and credit HMC- + 15 hex (unspendable). Regression for
+// fimasw bounty typo 2026-11-08.
+func TestPreV2RejectsMalformedLegacyRecipient(t *testing.T) {
+	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "")
+	SetV2CompiledDefaultsOffForTest(true)
+	t.Cleanup(func() { SetV2CompiledDefaultsOffForTest(false) })
+	from := "HMC-0123456789abcdef"
+	if code, _ := checkAddressRulesForIndex(1, from, "HMC-dd2d1608462c378"); code != "invalid_address" {
+		t.Fatalf("15-hex recipient pre-v2: got %q", code)
+	}
+	if code, _ := checkAddressRulesForIndex(1, from, "HMC-dd2d1608462c378c"); code != "" {
+		t.Fatalf("valid 16-hex recipient pre-v2: got %q", code)
+	}
+}
+
 func TestLongAddressDerivation(t *testing.T) {
 	s, err := nodecrypto.LoadOrCreate(filepath.Join(t.TempDir(), "k"))
 	if err != nil {

@@ -50,8 +50,9 @@
           "date": "2026-11-07",
           "reported": "2026-11-07",
           "commit": "66774935",
-          "txid": "538285099565a4ae660188189c81fb764ef8e9d0be54402a43862589c3db89b7",
-          "note": "Not a duplicate of #17: CUDA fleets never register bare base id; M4 only guarded m.worker[base]. Fix: shouldExportFleetMemberSeparately + deterministic fold. Live freeze unblocked on coordinator restart. Paid 60 HMC → HMC-dd2d1608462c378 tx 53828509…"
+          "txid": "6329d409ced58c11f8eddd8281da228702bb9056fc7be48caf3c27c5a3f42af4",
+          "payout_address": "HMC-dd2d1608462c378c",
+          "note": "Not a duplicate of #17: CUDA fleets never register bare base id; M4 only guarded m.worker[base]. Fix: shouldExportFleetMemberSeparately + deterministic fold. Live freeze unblocked on coordinator restart. First payout 60 HMC → typo’d HMC-dd2d1608462c378 (15 hex, unspendable) tx 53828509…; correction 60 HMC → HMC-dd2d1608462c378c tx 6329d409… after reporter signed bind proof. Pre-v2 transfer path now rejects malformed legacy recipients."
         }
       ]
     },

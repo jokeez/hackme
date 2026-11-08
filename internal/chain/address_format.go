@@ -82,6 +82,14 @@ func checkAddressRulesForIndex(idx uint64, from, to string) (string, string) {
 		if IsLongAddress(from) || IsLongAddress(to) {
 			return "address_format_not_active", ErrAddressFormatNotActive.Error()
 		}
+		// Pre-v2 only legacy is live, but still reject malformed strings (e.g. HMC- +
+		// 15 hex). Without this, a typo’d bounty payout lands on an unspendable account.
+		if from != "" && !IsLegacyAddress(from) {
+			return "invalid_address", "from must be HMC- + 16 lowercase hex"
+		}
+		if to != "" && !IsLegacyAddress(to) {
+			return "invalid_address", "to must be HMC- + 16 lowercase hex"
+		}
 		return "", ""
 	}
 	if !IsValidAddress(from) {
