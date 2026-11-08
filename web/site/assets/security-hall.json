@@ -31,7 +31,9 @@
           "date": "2026-11-07",
           "reported": "2026-11-07",
           "commit": "f7c0df93",
-          "note": "Low functional: ParseUint full uint64 then database/sql reject ≥2^63. Fixed CheckSQLiteBlockHeight → HTTP 400 on /api/chain and /api/reports/blocks. On-chain 10 HMC pending reporter HMC-… address (none in report)."
+          "note": "Low functional: ParseUint full uint64 then database/sql reject ≥2^63. Fixed CheckSQLiteBlockHeight → HTTP 400 on /api/chain and /api/reports/blocks. Paid 10 HMC → HMC-1a56bc6fc5f3aced tx b9960a1f…",
+          "txid": "b9960a1f9126243b91aac242e34ec13563074152cb4381151b635421e3f9c1ab",
+          "payout_address": "HMC-1a56bc6fc5f3aced"
         }
       ]
     },
