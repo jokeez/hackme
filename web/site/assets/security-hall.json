@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-07",
+  "updated": "2026-11-08",
   "program": {
     "asset": "HMC",
     "monthly_budget_hmc": 200,
@@ -13,9 +13,9 @@
     "limit_hmc": 200
   },
   "stats": {
-    "total_paid_hmc": 850,
+    "total_paid_hmc": 860,
     "researchers": 6,
-    "reports_accepted": 24
+    "reports_accepted": 25
   },
   "researchers": [
     {
@@ -41,8 +41,19 @@
       "id": "fimasw",
       "name": "fimasw",
       "handle": "fimasw",
-      "total_paid_hmc": 60,
+      "total_paid_hmc": 70,
       "findings": [
+        {
+          "title": "OrderFeeV2ForEscrow Mul64/Div64 panic on oversized escrow",
+          "severity": "low",
+          "paid_hmc": 10,
+          "date": "2026-11-08",
+          "reported": "2026-11-08",
+          "commit": "18819293",
+          "txid": "9b8e5bb7c19ae5394717bf4e4aac93749c04955ba0e50a3ae683fcb454a08432",
+          "payout_address": "HMC-dd2d1608462c378c",
+          "note": "Low defence-in-depth: bits.Div64 panics when hi≥divisor; unreachable from unauth POST /api/tasks without ~157B HMC node wallet + developer token. Fixed OrderFeeV2ForEscrow → (OrderFeeV2,error) + NormalizeFeeAsset; fuzz kept. Paid 10 HMC → HMC-dd2d1608462c378c tx 9b8e5bb7…"
+        },
         {
           "title": "Orphan multi-GPU fleet payout freeze (M4 bypass) — unauth claim on sibling -gpuN",
           "severity": "high",
