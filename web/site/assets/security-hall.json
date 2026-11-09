@@ -49,7 +49,7 @@
           "paid_hmc": 10,
           "date": "2026-11-09",
           "reported": "2026-11-09",
-          "commit": "pending",
+          "commit": "c1e4ea6f",
           "txid": "6b9e64c6f6a780c3f725325810bb37efc288b65d678ea3e33cd4b0a9055d8103",
           "payout_address": "HMC-a6d09759a4c12019",
           "note": "Low functional follow-up to StartupComplianceKit height bind: by-nonce ParseUint accepted ≥2^63 then database/sql 500. Fixed handler→400 + TransfersByFromNonce guard; also HMC/SUP/HMS transfer shape + RejectStaleLocalPending. Paid 10 HMC → HMC-a6d09759a4c12019 @531638."
