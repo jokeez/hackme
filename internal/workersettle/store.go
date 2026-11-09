@@ -549,10 +549,12 @@ func (s *Store) ApplySettleUnits(ctx context.Context, workerID, payoutAddr, txHa
 
 	var prevSettled uint64
 	_ = conn.QueryRowContext(ctx, `SELECT COALESCE(settled_units,0) FROM settle_workers WHERE worker_id=?`, workerID).Scan(&prevSettled)
-	var deltaUnits uint64
-	if newSettledUnits > prevSettled {
-		deltaUnits = newSettledUnits - prevSettled
+	// Match SUP ApplySettleSUPUnits: never let a buggy/reordered apply shrink the
+	// paid watermark (would re-open already-settled units for a second payout).
+	if newSettledUnits < prevSettled {
+		return fmt.Errorf("workersettle: HMC watermark would go down for %s (%d < %d)", workerID, newSettledUnits, prevSettled)
 	}
+	deltaUnits := newSettledUnits - prevSettled
 
 	// Never touch settled_sup here — SUP settle owns that watermark (audit 5a).
 	_, err = conn.ExecContext(ctx, `

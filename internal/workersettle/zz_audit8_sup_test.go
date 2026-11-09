@@ -13,10 +13,8 @@ import (
 	"testing"
 )
 
-// A3: RunSUP treats a lost /api/sup/tx/send response (tx accepted into the mempool, reply never
-// arrives) as "not sent" when the confirmed sup_next_nonce has not moved yet, clears the intent,
-// and re-sends the same delta on the next run once the first tx has landed. The HMC lane guards
-// this with findInflightTransfer; the SUP lane has no equivalent.
+// A3 regression: lost /api/sup/tx/send reply while the tx sits in mempool must NOT clear the
+// intent (findSUPInflight attaches the hash). Clearing + re-send after include = double-pay.
 func TestAudit8SUPLostResponseDoublePays(t *testing.T) {
 	const payer = "HMC-payer00000000001"
 	const to = "HMC-worker0000000001"

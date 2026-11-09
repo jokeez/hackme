@@ -506,6 +506,17 @@ func (m *workManager) clearPayoutLockWith(workerID string, opts clearPayoutLockO
 					log.Printf("payout lock rebind accrual addr failed: worker_id=%q err=%v", workerID, rerr)
 					return false, prevAddr, errors.New("durable rebind accrual address update failed")
 				}
+				// Install the new lock BEFORE releasing payoutLockMu. Calling
+				// persistPayoutLock after Unlock races a claim's first-binding INSERT
+				// and can leave the attacker address durable.
+				if _, lerr := db.Exec(
+					`INSERT INTO worker_payout_lock(worker_id, payout_address, seen_at) VALUES(?,?,?)
+					 ON CONFLICT(worker_id) DO UPDATE SET seen_at=excluded.seen_at, payout_address=excluded.payout_address`,
+					workerID, rebindTo, time.Now().Unix()); lerr != nil {
+					m.payoutLockMu.Unlock()
+					log.Printf("payout lock rebind insert failed: worker_id=%q err=%v", workerID, lerr)
+					return false, prevAddr, errors.New("durable rebind payout-lock insert failed")
+				}
 			}
 		}
 		m.payoutLockMu.Unlock()
@@ -552,10 +563,12 @@ func (m *workManager) clearPayoutLockWith(workerID string, opts clearPayoutLockO
 		}
 		m.mu.Unlock()
 	}
-	if rebindTo != "" {
+	if rebindTo != "" && db == nil {
+		// No durable store — memory-only rebind already applied above.
 		m.persistPayoutLock(workerID, rebindTo)
 	}
 	// Sync non-payout fields; forfeit already deleted+tombstoned durable unpaid.
+	// Rebind lock row was written under payoutLockMu when db != nil.
 	m.persistWorkerAccrual(workerID, true)
 	if prevAddr == "" && !cleared && rebindTo == "" {
 		return false, "", nil

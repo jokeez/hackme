@@ -615,6 +615,45 @@ WHERE excluded.accepted_attempts >= worker_accrual.accepted_attempts
 	}
 }
 
+// Rebind must install the new lock under payoutLockMu before unlock so a
+// concurrent claim cannot win first-binding with an attacker address.
+func TestUnbindRebindLockInstalledBeforeRelease(t *testing.T) {
+	db, wm, mux := payoutLockSetup(t)
+	id := "wk-rebind-lock-race"
+	oldAddr, newAddr := "HMC-1111111111111111", "HMC-2222222222222222"
+	wm.persistPayoutLock(id, oldAddr)
+	wm.mu.Lock()
+	wm.worker[id] = workerPayoutStat{
+		PayoutAddress: oldAddr, PayoutHMC: 0.5, PayoutUnits: 50000000, AcceptedAtt: 3,
+	}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual(id, true)
+
+	code, out := payoutLockPost(t, mux, map[string]any{
+		"worker_id": id, "rebind_to": newAddr,
+	})
+	if code != http.StatusOK || out["ok"] != true {
+		t.Fatalf("rebind: %d %v", code, out)
+	}
+	// Immediately after unbind returns, durable lock must already be newAddr
+	// (not absent / oldAddr — the window persistPayoutLock-after-Unlock left open).
+	var lockAddr string
+	if err := db.QueryRow(`SELECT payout_address FROM worker_payout_lock WHERE worker_id=?`, id).Scan(&lockAddr); err != nil {
+		t.Fatalf("lock missing after rebind: %v", err)
+	}
+	if !strings.EqualFold(lockAddr, newAddr) {
+		t.Fatalf("lock after rebind=%q want %q", lockAddr, newAddr)
+	}
+	if got := wm.lockedPayoutAddress(id); !strings.EqualFold(got, newAddr) {
+		t.Fatalf("lockedPayoutAddress=%q want %q", got, newAddr)
+	}
+	// Claim with attacker address must not replace admin rebind.
+	wm.persistPayoutLock(id, "HMC-evil999999999999")
+	if err := db.QueryRow(`SELECT payout_address FROM worker_payout_lock WHERE worker_id=?`, id).Scan(&lockAddr); err != nil || !strings.EqualFold(lockAddr, newAddr) {
+		t.Fatalf("first-wins after rebind broken: addr=%q err=%v", lockAddr, err)
+	}
+}
+
 func TestNotePayoutLockDoesNotAdoptOntoUnpaidBlank(t *testing.T) {
 	_, wm, _ := payoutLockSetup(t)
 	wm.mu.Lock()
