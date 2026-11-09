@@ -18,6 +18,9 @@ import (
 
 func ordersPublishMux(t *testing.T) *http.ServeMux {
 	t.Helper()
+	// Fresh limiter per test: publishRateAllow is process-global and shared IP
+	// 203.0.113.10 hits HACKME_ORDERS_PUBLISH_MAX_PER_* under -shuffle=on.
+	globalPublishRate = &publishRateLimiter{hour: map[string][]time.Time{}, day: map[string][]time.Time{}}
 	db, err := store.Open(filepath.Join(t.TempDir(), "pub.db"))
 	if err != nil {
 		t.Fatal(err)
