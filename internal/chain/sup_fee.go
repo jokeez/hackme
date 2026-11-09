@@ -76,6 +76,9 @@ func validateSUPFeeShape(from string, amountUnits uint64, product, ref string) (
 	if amountUnits == 0 {
 		return "invalid_amount", errors.New("amount_units must be > 0")
 	}
+	if !FitsSQLiteBindUint64(amountUnits) {
+		return "invalid_amount", errors.New("amount_units out of supported range")
+	}
 	if !strings.HasPrefix(strings.TrimSpace(from), "HMC-") {
 		return "invalid_address", errors.New("invalid address")
 	}

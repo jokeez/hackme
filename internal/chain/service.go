@@ -579,6 +579,12 @@ func (s *Service) AppendPoHBlock(ctx context.Context, minerAddress string, nonce
 		return nil, errors.New("chain: empty (genesis required)")
 	}
 	nextIdx := uint64(maxIdx.Int64) + 1
+	if err := CheckSQLiteBindUint64(nextIdx); err != nil {
+		return nil, fmt.Errorf("chain: next block index out of supported range")
+	}
+	if err := CheckSQLiteBindUint64(nonce); err != nil {
+		return nil, fmt.Errorf("chain: found_nonce out of supported range")
+	}
 
 	orderTaskID = strings.TrimSpace(orderTaskID)
 	asertActive := ASERTActiveForIndex(nextIdx)

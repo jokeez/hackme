@@ -5151,6 +5151,9 @@ func (a *app) handleP2PSyncPull(w http.ResponseWriter, r *http.Request) {
 		if err := verifySyncBlockSignature(&b); err != nil {
 			continue
 		}
+		if !chain.FitsSQLiteBlockHeight(b.Index) {
+			continue
+		}
 		if _, err := a.db.ExecContext(r.Context(),
 			`INSERT INTO p2p_sync_stage (block_hash, block_index, prev_hash, peer_url, block_json, fetched_at)
 			 VALUES (?, ?, ?, ?, ?, ?)
@@ -5332,6 +5335,9 @@ func (a *app) p2pSyncRunExecute(ctx context.Context, depthLimit uint64, maxApply
 				continue
 			}
 			if err := verifySyncBlockSignature(&b); err != nil {
+				continue
+			}
+			if !chain.FitsSQLiteBlockHeight(b.Index) {
 				continue
 			}
 			_, _ = a.db.ExecContext(ctx,

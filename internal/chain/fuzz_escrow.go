@@ -195,6 +195,9 @@ func (s *Service) creditUnits(ctx context.Context, tx *sql.Tx, addr string, unit
 	if addr == "" || units == 0 {
 		return nil
 	}
+	if !FitsSQLiteBindUint64(units) {
+		return fmt.Errorf("chain: credit units out of supported range (%d)", units)
+	}
 	var cur uint64
 	err := tx.QueryRowContext(ctx, `SELECT balance_units FROM accounts WHERE address=?`, addr).Scan(&cur)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {

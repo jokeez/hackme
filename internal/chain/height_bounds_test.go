@@ -92,4 +92,24 @@ func TestTransferShapesRejectSQLiteHighBitUint64(t *testing.T) {
 	}); code == "" {
 		t.Fatal("HMS shape must reject high-bit nonce")
 	}
+	if code, err := validateSUPFeeShape(okFrom, hi, "api", "ref-1"); code == "" || err == nil {
+		t.Fatal("SUP fee shape must reject high-bit amount")
+	}
+}
+
+func TestMintRejectsSQLiteHighBitAmount(t *testing.T) {
+	db, err := store.Open(filepath.Join(t.TempDir(), "mint.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	svc := New(db)
+	ctx := context.Background()
+	hi := uint64(math.MaxInt64) + 1
+	if code, err := svc.MintSUP(ctx, "HMC-1111111111111111", hi, "audit"); code != "invalid_amount" || err == nil {
+		t.Fatalf("MintSUP: code=%q err=%v", code, err)
+	}
+	if code, err := svc.MintHMS(ctx, "HMC-1111111111111111", hi, "audit"); code != "invalid_amount" || err == nil {
+		t.Fatalf("MintHMS: code=%q err=%v", code, err)
+	}
 }

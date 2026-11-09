@@ -312,6 +312,9 @@ func (s *Service) MintSUP(ctx context.Context, to string, amountUnits uint64, me
 	if amountUnits == 0 {
 		return "invalid_amount", errors.New("amount_units must be > 0")
 	}
+	if !FitsSQLiteBindUint64(amountUnits) {
+		return "invalid_amount", errors.New("amount_units out of supported range")
+	}
 	to = strings.TrimSpace(to)
 	memo = strings.TrimSpace(memo)
 	if memo == "" {
