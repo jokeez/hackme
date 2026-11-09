@@ -46,4 +46,9 @@ func TestTransferByNonceAPI(t *testing.T) {
 			t.Fatalf("%s: want 400, got %d", bad, rec.Code)
 		}
 	}
+	// SQLite cannot bind uint64 with high bit (same class as from_height / reports index).
+	rec, _ = call("/api/tx/by-nonce?from=" + from + "&nonce=9223372036854775808")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("nonce 2^63: want 400, got %d: %s", rec.Code, rec.Body.String())
+	}
 }

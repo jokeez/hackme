@@ -304,3 +304,25 @@ func TestTxHashKnown(t *testing.T) {
 		t.Fatal("unknown hash reported known")
 	}
 }
+
+func TestApplySettleUnitsRefusesWatermarkDecrease(t *testing.T) {
+	ctx := context.Background()
+	s, err := Open(filepath.Join(t.TempDir(), "wm-mono.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if err := s.ApplySettleUnits(ctx, "w", "HMC-to", "tx1", HMCToUnits(2.0), 0, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ApplySettleUnits(ctx, "w", "HMC-to", "tx2", HMCToUnits(1.0), 0, true); err == nil {
+		t.Fatal("expected refuse when newSettled < prevSettled")
+	}
+	w, err := s.GetWorker(ctx, "w")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w.SettledUnits != HMCToUnits(2.0) {
+		t.Fatalf("watermark changed after refused decrease: %+v", w)
+	}
+}

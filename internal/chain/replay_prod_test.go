@@ -27,10 +27,7 @@ func TestReplayProdHistory(t *testing.T) {
 	if snap == "" {
 		t.Skip("set HACKME_REPLAY_PROD_SNAPSHOT to a prod chain DB copy")
 	}
-	ResetEconomicsV2ActivationHeightForTest()
-	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
-	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "")
-	ResetEconomicsV2ActivationHeightForTest()
+	setV2HeightForTest(t, "")
 	maxBlocks := uint64(0)
 	if v := os.Getenv("HACKME_REPLAY_MAX_BLOCKS"); v != "" {
 		maxBlocks, _ = strconv.ParseUint(v, 10, 64)

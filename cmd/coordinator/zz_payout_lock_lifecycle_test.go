@@ -455,6 +455,205 @@ func TestUnbindForfeitUnpaidClearsAccruals(t *testing.T) {
 	}
 }
 
+// Forfeit must durable-zero worker_accrual; monotonic UPSERT alone leaves unpaid
+// units in SQLite and loadWorkerAccruals resurrects them after restart.
+func TestUnbindForfeitUnpaidDoesNotResurrectOnRestart(t *testing.T) {
+	db, wm, mux := payoutLockSetup(t)
+	workerID := "wk-resurrect"
+	initialAddr := "HMC-cccccccccccccccc"
+	wm.persistPayoutLock(workerID, initialAddr)
+	wm.mu.Lock()
+	wm.worker[workerID] = workerPayoutStat{
+		PayoutAddress: initialAddr,
+		PayoutHMC:     2.0,
+		PayoutUnits:   200000000,
+		PayoutSUP:     0.5,
+	}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual(workerID, true)
+
+	code, out := payoutLockPost(t, mux, map[string]any{
+		"worker_id": workerID, "forfeit_unpaid": true,
+	})
+	if code != http.StatusOK || out["ok"] != true {
+		t.Fatalf("forfeit call failed: code=%d out=%v", code, out)
+	}
+
+	var dbUnits uint64
+	var dbAddr string
+	err := db.QueryRow(`SELECT payout_units, payout_address FROM worker_accrual WHERE worker_id=?`, workerID).Scan(&dbUnits, &dbAddr)
+	if err == nil && (dbUnits != 0 || strings.TrimSpace(dbAddr) != "") {
+		t.Fatalf("durable forfeit must delete/zero accrual: units=%d addr=%q", dbUnits, dbAddr)
+	}
+	if err != nil && err != sql.ErrNoRows {
+		t.Fatalf("accrual row: %v", err)
+	}
+	var revoked int
+	if err := db.QueryRow(`SELECT COUNT(1) FROM worker_accrual_revoked WHERE worker_id=?`, workerID).Scan(&revoked); err != nil || revoked != 1 {
+		t.Fatalf("forfeit must stamp revoke tombstone: revoked=%d err=%v", revoked, err)
+	}
+
+	newWM := &workManager{worker: map[string]workerPayoutStat{}}
+	newWM.attachDedupDB(db)
+	newWM.mu.Lock()
+	restored := newWM.worker[workerID]
+	newWM.mu.Unlock()
+	if restored.PayoutUnits > 0 || strings.TrimSpace(restored.PayoutAddress) != "" {
+		t.Fatalf("forfeited accruals resurrected across restart: units=%d hmc=%f addr=%q",
+			restored.PayoutUnits, restored.PayoutHMC, restored.PayoutAddress)
+	}
+}
+
+// Stale persist snapped before forfeit must not UPSERT unpaid back over the tombstone/epoch.
+func TestUnbindForfeitBeatsStaleAccrualPersist(t *testing.T) {
+	db, wm, mux := payoutLockSetup(t)
+	id := "wk-stale-forfeit"
+	wm.persistPayoutLock(id, "HMC-cccccccccccccccc")
+	wm.mu.Lock()
+	wm.worker[id] = workerPayoutStat{
+		PayoutAddress: "HMC-cccccccccccccccc", PayoutHMC: 2, PayoutUnits: 200000000, AcceptedAtt: 50,
+	}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual(id, true)
+
+	started := make(chan struct{})
+	blocked := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		wm.mu.Lock()
+		st, ok := wm.worker[id]
+		epoch := wm.accrualEpochLocked(id)
+		wm.mu.Unlock()
+		if !ok {
+			return
+		}
+		close(started)
+		<-blocked
+		_, _ = db.Exec(`
+INSERT INTO worker_accrual (
+  worker_id, accepted_ranges, accepted_hits, accepted_attempts,
+  payout_hmc, payout_units, payout_sup, payout_address, signed_submits,
+  last_ghs, peak_ghs, last_seen_unix, last_poh_seen_unix, last_fuzz_seen_unix, updated_at
+) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+ON CONFLICT(worker_id) DO UPDATE SET
+  accepted_attempts=excluded.accepted_attempts,
+  payout_hmc=excluded.payout_hmc,
+  payout_units=excluded.payout_units,
+  payout_address=excluded.payout_address,
+  updated_at=excluded.updated_at
+WHERE excluded.accepted_attempts >= worker_accrual.accepted_attempts
+  AND excluded.payout_units >= worker_accrual.payout_units
+`, id, 0, 0, st.AcceptedAtt, st.PayoutHMC, st.PayoutUnits, st.PayoutSUP, st.PayoutAddress, 0, 0.0, 0.0, 0, 0, 0, time.Now().Unix())
+		wm.mu.Lock()
+		if wm.accrualEpochLocked(id) != epoch {
+			wm.deleteWorkerAccrualLocked(id)
+		}
+		wm.mu.Unlock()
+	}()
+	<-started
+	code, out := payoutLockPost(t, mux, map[string]any{"worker_id": id, "forfeit_unpaid": true})
+	if code != http.StatusOK || out["ok"] != true {
+		t.Fatalf("forfeit: %d %v", code, out)
+	}
+	close(blocked)
+	<-done
+	if _, alive := wm.fetchDurableAccrual(id); alive {
+		t.Fatal("stale persist after forfeit must not leave durable unpaid")
+	}
+}
+
+func TestUnbindRebindKeepsAccrualAddressAgainstStalePersist(t *testing.T) {
+	db, wm, mux := payoutLockSetup(t)
+	id := "wk-rebind-addr"
+	oldAddr, newAddr := "HMC-aaaaaaaaaaaaaaaa", "HMC-bbbbbbbbbbbbbbbb"
+	wm.persistPayoutLock(id, oldAddr)
+	wm.mu.Lock()
+	wm.worker[id] = workerPayoutStat{
+		PayoutAddress: oldAddr, PayoutHMC: 1.25, PayoutUnits: 125000000, AcceptedAtt: 10,
+	}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual(id, true)
+
+	code, out := payoutLockPost(t, mux, map[string]any{
+		"worker_id": id, "rebind_to": newAddr,
+	})
+	if code != http.StatusOK || out["ok"] != true {
+		t.Fatalf("rebind: %d %v", code, out)
+	}
+	var addr string
+	if err := db.QueryRow(`SELECT payout_address FROM worker_accrual WHERE worker_id=?`, id).Scan(&addr); err != nil || !strings.EqualFold(addr, newAddr) {
+		t.Fatalf("durable rebind addr=%q err=%v", addr, err)
+	}
+
+	// Stale flat-watermark persist with the OLD address must not clobber rebind.
+	_, err := db.Exec(`
+INSERT INTO worker_accrual (
+  worker_id, accepted_ranges, accepted_hits, accepted_attempts,
+  payout_hmc, payout_units, payout_sup, payout_address, signed_submits,
+  last_ghs, peak_ghs, last_seen_unix, last_poh_seen_unix, last_fuzz_seen_unix, updated_at
+) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+ON CONFLICT(worker_id) DO UPDATE SET
+  accepted_attempts=excluded.accepted_attempts,
+  payout_hmc=excluded.payout_hmc,
+  payout_units=excluded.payout_units,
+  payout_address=CASE
+    WHEN excluded.payout_units > worker_accrual.payout_units
+      OR excluded.accepted_attempts > worker_accrual.accepted_attempts
+      THEN excluded.payout_address
+    ELSE worker_accrual.payout_address
+  END,
+  updated_at=excluded.updated_at
+WHERE excluded.accepted_attempts >= worker_accrual.accepted_attempts
+  AND excluded.payout_units >= worker_accrual.payout_units
+`, id, 0, 0, 10, 1.25, uint64(125000000), 0.0, oldAddr, 0, 0.0, 0.0, 0, 0, 0, time.Now().Unix())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT payout_address FROM worker_accrual WHERE worker_id=?`, id).Scan(&addr); err != nil || !strings.EqualFold(addr, newAddr) {
+		t.Fatalf("stale persist clobbered rebind: addr=%q err=%v", addr, err)
+	}
+}
+
+// Rebind must install the new lock under payoutLockMu before unlock so a
+// concurrent claim cannot win first-binding with an attacker address.
+func TestUnbindRebindLockInstalledBeforeRelease(t *testing.T) {
+	db, wm, mux := payoutLockSetup(t)
+	id := "wk-rebind-lock-race"
+	oldAddr, newAddr := "HMC-1111111111111111", "HMC-2222222222222222"
+	wm.persistPayoutLock(id, oldAddr)
+	wm.mu.Lock()
+	wm.worker[id] = workerPayoutStat{
+		PayoutAddress: oldAddr, PayoutHMC: 0.5, PayoutUnits: 50000000, AcceptedAtt: 3,
+	}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual(id, true)
+
+	code, out := payoutLockPost(t, mux, map[string]any{
+		"worker_id": id, "rebind_to": newAddr,
+	})
+	if code != http.StatusOK || out["ok"] != true {
+		t.Fatalf("rebind: %d %v", code, out)
+	}
+	// Immediately after unbind returns, durable lock must already be newAddr
+	// (not absent / oldAddr — the window persistPayoutLock-after-Unlock left open).
+	var lockAddr string
+	if err := db.QueryRow(`SELECT payout_address FROM worker_payout_lock WHERE worker_id=?`, id).Scan(&lockAddr); err != nil {
+		t.Fatalf("lock missing after rebind: %v", err)
+	}
+	if !strings.EqualFold(lockAddr, newAddr) {
+		t.Fatalf("lock after rebind=%q want %q", lockAddr, newAddr)
+	}
+	if got := wm.lockedPayoutAddress(id); !strings.EqualFold(got, newAddr) {
+		t.Fatalf("lockedPayoutAddress=%q want %q", got, newAddr)
+	}
+	// Claim with attacker address must not replace admin rebind.
+	wm.persistPayoutLock(id, "HMC-evil999999999999")
+	if err := db.QueryRow(`SELECT payout_address FROM worker_payout_lock WHERE worker_id=?`, id).Scan(&lockAddr); err != nil || !strings.EqualFold(lockAddr, newAddr) {
+		t.Fatalf("first-wins after rebind broken: addr=%q err=%v", lockAddr, err)
+	}
+}
+
 func TestNotePayoutLockDoesNotAdoptOntoUnpaidBlank(t *testing.T) {
 	_, wm, _ := payoutLockSetup(t)
 	wm.mu.Lock()
@@ -471,5 +670,45 @@ func TestNotePayoutLockDoesNotAdoptOntoUnpaidBlank(t *testing.T) {
 	}
 	if addr := wm.lockedPayoutAddress("wk-snipe"); !strings.EqualFold(addr, "HMC-dddddddddddddddd") {
 		t.Fatalf("identity lock should still bind, got %q", addr)
+	}
+	// lockedPayoutAddress must not undo notePayoutLock's unpaid-blank guard.
+	wm.mu.Lock()
+	got = wm.worker["wk-snipe"]
+	wm.mu.Unlock()
+	if strings.TrimSpace(got.PayoutAddress) != "" {
+		t.Fatalf("lock lookup must not adopt into unpaid blank, got %q", got.PayoutAddress)
+	}
+}
+
+func TestPoHSubmitEnforcesDurableLockOnUnpaidBlank(t *testing.T) {
+	db, wm, _ := payoutLockSetup(t)
+	id := "wk-poh-snipe"
+	victim, sniper := "HMC-vvvvvvvvvvvvvvvv", "HMC-ssssssssssssssss"
+	wm.mu.Lock()
+	wm.worker[id] = workerPayoutStat{
+		PayoutAddress: "", PayoutHMC: 2, PayoutUnits: 200000000, AcceptedAtt: 5,
+	}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual(id, true)
+	// Sniper claim-binds durable lock; memory stays blank.
+	wm.persistPayoutLock(id, sniper)
+	var lockAddr string
+	if err := db.QueryRow(`SELECT payout_address FROM worker_payout_lock WHERE worker_id=?`, id).Scan(&lockAddr); err != nil || !strings.EqualFold(lockAddr, sniper) {
+		t.Fatalf("setup lock=%q err=%v", lockAddr, err)
+	}
+	wm.mu.Lock()
+	got := wm.lockedPayoutAddressUnderMu(id)
+	wm.mu.Unlock()
+	if !strings.EqualFold(got, sniper) {
+		t.Fatalf("UnderMu lock=%q want sniper", got)
+	}
+	if !strings.EqualFold(got, sniper) || strings.EqualFold(got, victim) {
+		t.Fatalf("victim must not pass durable lock check via memory blank")
+	}
+	wm.mu.Lock()
+	mem := wm.worker[id].PayoutAddress
+	wm.mu.Unlock()
+	if strings.TrimSpace(mem) != "" {
+		t.Fatalf("UnderMu must not adopt into unpaid blank, got %q", mem)
 	}
 }

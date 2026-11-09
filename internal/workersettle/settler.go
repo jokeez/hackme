@@ -42,8 +42,9 @@ type Config struct {
 	NonceRetries          int
 	HTTPTimeoutSec        int
 	ClearPending          bool
-	// ClearPendingForce allows dropping pending that already has a tx_hash or
-	// whose nonce may have been consumed — default ClearPending refuses those.
+	// ClearPendingForce allows dropping empty-hash pending when the payer nonce
+	// may have been consumed (operator-attested). Pending with a tx_hash only
+	// clears on explicit chain "rejected" — never via FORCE alone.
 	ClearPendingForce bool
 	ExpectedHostname  string
 	FeeUnits          uint64
@@ -264,28 +265,30 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 			_ = store.SetSessionAnchorHMC(ctx, wid, 0, true)
 		}
 
-		if !ShouldSettle(deltaInfo.DeltaUnits, cfg.MinSettleUnits, force, cfg.DailyMinSettleUnits) {
-			if force {
-				lg.Printf("skip %s: delta %s HMC < force-daily min %s", wid, fmtUnits(deltaInfo.DeltaUnits), fmtUnits(cfg.DailyMinSettleUnits))
-			} else {
-				lg.Printf("skip %s: delta %s HMC < min %s", wid, fmtUnits(deltaInfo.DeltaUnits), fmtUnits(cfg.MinSettleUnits))
-			}
-			continue
-		}
-		if deltaInfo.DeltaUnits == 0 {
-			continue
-		}
-
-		// Crash recovery: pending with tx_hash.
+		// Crash recovery runs BEFORE ShouldSettle/delta==0 skips (match SUP settler):
+		// a confirmed pending must still apply when current unpaid delta is below min
+		// or temporarily zero after a coordinator counter reset.
 		pend := parsePending(row.PendingJSON)
 		if pend.TxHash != "" {
-			if ok, _ := verifyTxIncluded(ctx, client, cfg.ChainBase, pend.TxHash, cfg.TxWaitSec); ok {
-				newSettled := row.SettledUnits + pend.DeltaUnits
-				if pend.DeltaUnits == 0 {
-					newSettled = row.SettledUnits + HMCToUnits(pend.DeltaHMC)
+			ok, rejected, _ := verifyTxIncluded(ctx, client, cfg.ChainBase, pend.TxHash, cfg.TxWaitSec)
+			if rejected {
+				// Chain refused this exact hash — safe to drop and re-pay next cycle.
+				_ = store.ClearPending(ctx, wid)
+				_ = store.AppendLedger(ctx, "hmc_pending_rejected", wid, pend.DeltaUnits, 0, 0, 0, 0, 0, pend.TxHash)
+				_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
+				lg.Printf("pending %s tx=%s rejected by chain — intent cleared, retried next run", wid, pend.TxHash)
+				continue
+			}
+			if ok {
+				pendDelta := pend.DeltaUnits
+				if pendDelta == 0 {
+					pendDelta = HMCToUnits(pend.DeltaHMC)
 				}
+				newSettled := row.SettledUnits + pendDelta
 				clear := !deltaInfo.Rebase
-				anchor := accrued
+				// Same as success-path ApplySettle: under rebase advance anchor by the
+				// paid chunk only — never jump to full accrued (lost-pay on remainder).
+				anchor := deltaInfo.BaselineUnits + pendDelta
 				if clear {
 					anchor = 0
 				}
@@ -300,13 +303,9 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 			}
 			lg.Printf("skip %s: pending_settle tx=%s not confirmed — not re-sending", wid, pend.TxHash)
 			if cfg.ClearPending {
-				if !cfg.ClearPendingForce {
-					lg.Printf("CLEAR_PENDING_HMC refused for %s: tx_hash=%s set (use CLEAR_PENDING_HMC_FORCE=1 only if chain rejected)", wid, pend.TxHash)
-				} else {
-					_ = store.ClearPending(ctx, wid)
-					_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
-					lg.Printf("CLEAR_PENDING_HMC_FORCE cleared pending for %s tx=%s", wid, pend.TxHash)
-				}
+				// Refuse FORCE while status is unknown/mempool: clearing + resend = double-pay
+				// if the original tx later includes (match SUP rejected-only clear).
+				lg.Printf("CLEAR_PENDING_HMC refused for %s: tx_hash=%s not rejected (mempool/unknown)", wid, pend.TxHash)
 			}
 			continue
 		}
@@ -342,21 +341,25 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 				continue
 			default:
 				lg.Printf("stranded pending %s kept: %s", wid, res.Reason)
-			}
-			lg.Printf("skip %s: pending_settle without tx_hash — not re-sending", wid)
-			if cfg.ClearPending {
-				// If the recorded nonce may already have been consumed, clearing
-				// and re-sending the same delta is a double-pay class bug.
-				if !cfg.ClearPendingForce && pend.Nonce > 0 {
-					if nNow, nerr := fetchNonce(ctx, client, cfg.ChainBase, payer); nerr == nil && int64(nNow) > pend.Nonce {
-						lg.Printf("CLEAR_PENDING_HMC refused for %s: nonce advanced %d->%d without tx_hash (ambiguous; use CLEAR_PENDING_HMC_FORCE=1 only if rejected)", wid, pend.Nonce, nNow)
-						continue
-					}
+				// Resolver kept the intent (mempool match / ambiguous). CLEAR_PENDING
+				// here would drop it while an in-flight tx can still include → double-pay
+				// on the next cycle. Only strandedUnsent auto-clears above.
+				if cfg.ClearPending {
+					lg.Printf("CLEAR_PENDING_HMC refused for %s: stranded kept (%s)", wid, res.Reason)
 				}
-				_ = store.ClearPending(ctx, wid)
-				_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
-				lg.Printf("CLEAR_PENDING_HMC cleared empty pending for %s", wid)
+				continue
 			}
+		}
+
+		if !ShouldSettle(deltaInfo.DeltaUnits, cfg.MinSettleUnits, force, cfg.DailyMinSettleUnits) {
+			if force {
+				lg.Printf("skip %s: delta %s HMC < force-daily min %s", wid, fmtUnits(deltaInfo.DeltaUnits), fmtUnits(cfg.DailyMinSettleUnits))
+			} else {
+				lg.Printf("skip %s: delta %s HMC < min %s", wid, fmtUnits(deltaInfo.DeltaUnits), fmtUnits(cfg.MinSettleUnits))
+			}
+			continue
+		}
+		if deltaInfo.DeltaUnits == 0 {
 			continue
 		}
 
@@ -458,8 +461,11 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 				}
 				_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
 			} else {
-				lg.Printf("ERROR settle %s -> %s: %v %s", wid, toAddr, sendErr, string(mustJSON(resp)))
-				_ = store.ClearPending(ctx, wid)
+				// Empty pool + nonce unmoved still is not proof of "never sent" (race with
+				// mempool propagation). Match SUP: keep intent; stranded resolve / rejected
+				// clear handles recovery. Clearing here was audit #8 double-pay class.
+				lg.Printf("ERROR settle %s -> %s: %v %s — pending retained (no definitive reject)", wid, toAddr, sendErr, string(mustJSON(resp)))
+				_ = store.AppendLedger(ctx, "send_failed_keep_pending", wid, payUnits, 0, 0, 0, 0, 0, string(mustJSON(resp)))
 				_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
 			}
 			continue
@@ -491,7 +497,14 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 			continue
 		}
 		_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
-		ok, _ := verifyTxIncluded(ctx, client, cfg.ChainBase, txHash, cfg.TxWaitSec)
+		ok, rejected, _ := verifyTxIncluded(ctx, client, cfg.ChainBase, txHash, cfg.TxWaitSec)
+		if rejected {
+			_ = store.ClearPending(ctx, wid)
+			_ = store.AppendLedger(ctx, "hmc_pending_rejected", wid, payUnits, 0, 0, 0, 0, 0, txHash)
+			_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
+			lg.Printf("ERROR settle %s: tx_hash rejected (%s) — intent cleared, retried next run", wid, txHash)
+			continue
+		}
 		if !ok {
 			lg.Printf("ERROR settle %s: tx_hash not confirmed (%s) — pending retained", wid, txHash)
 			continue
@@ -743,10 +756,13 @@ func txResponseOK(resp map[string]any) bool {
 	return st == "pending" || st == "accepted" || st == "included"
 }
 
-func verifyTxIncluded(ctx context.Context, client *http.Client, base, txHash string, waitSec int) (bool, error) {
+// verifyTxIncluded reports whether txHash is included. rejected=true only when the
+// chain explicitly refused the hash (safe to ClearPending); unknown/mempool stays
+// rejected=false so FORCE cannot drop an in-flight pay and re-send (double-pay).
+func verifyTxIncluded(ctx context.Context, client *http.Client, base, txHash string, waitSec int) (included, rejected bool, err error) {
 	txHash = strings.TrimSpace(txHash)
 	if txHash == "" || txHash == "nonce-advanced" || txHash == "ok" {
-		return false, nil
+		return false, false, nil
 	}
 	if waitSec <= 0 {
 		waitSec = 90
@@ -755,7 +771,7 @@ func verifyTxIncluded(ctx context.Context, client *http.Client, base, txHash str
 	for time.Now().Before(deadline) {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(base, "/")+"/api/tx/"+txHash, nil)
 		if err != nil {
-			return false, err
+			return false, false, err
 		}
 		resp, err := client.Do(req)
 		if err == nil {
@@ -771,18 +787,18 @@ func verifyTxIncluded(ctx context.Context, client *http.Client, base, txHash str
 			}
 			switch st {
 			case "included":
-				return true, nil
+				return true, false, nil
 			case "rejected":
-				return false, nil
+				return false, true, nil
 			}
 		}
 		select {
 		case <-ctx.Done():
-			return false, ctx.Err()
+			return false, false, ctx.Err()
 		case <-time.After(time.Second):
 		}
 	}
-	return false, nil
+	return false, false, nil
 }
 
 func waitPoolClear(ctx context.Context, client *http.Client, base string, waitSec int) error {

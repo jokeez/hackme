@@ -4436,12 +4436,17 @@ func (a *app) handleTransferByNonce(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	nonce, err := strconv.ParseUint(strings.TrimSpace(r.URL.Query().Get("nonce")), 10, 64)
-	if err != nil {
-		http.Error(w, "nonce must be an unsigned integer", http.StatusBadRequest)
+	// Same SQLite INTEGER bind ceiling as from_height / reports before+index (fimasw 2026-11-09).
+	if err != nil || chain.CheckSQLiteBindUint64(nonce) != nil {
+		http.Error(w, "nonce must be an unsigned integer in supported range", http.StatusBadRequest)
 		return
 	}
 	txs, err := a.chain.TransfersByFromNonce(r.Context(), from, nonce)
 	if err != nil {
+		if errors.Is(err, chain.ErrHeightOutOfRange) {
+			http.Error(w, "nonce must be an unsigned integer in supported range", http.StatusBadRequest)
+			return
+		}
 		http.Error(w, "lookup failed", http.StatusInternalServerError)
 		return
 	}
@@ -5146,6 +5151,9 @@ func (a *app) handleP2PSyncPull(w http.ResponseWriter, r *http.Request) {
 		if err := verifySyncBlockSignature(&b); err != nil {
 			continue
 		}
+		if !chain.FitsSQLiteBlockHeight(b.Index) {
+			continue
+		}
 		if _, err := a.db.ExecContext(r.Context(),
 			`INSERT INTO p2p_sync_stage (block_hash, block_index, prev_hash, peer_url, block_json, fetched_at)
 			 VALUES (?, ?, ?, ?, ?, ?)
@@ -5327,6 +5335,9 @@ func (a *app) p2pSyncRunExecute(ctx context.Context, depthLimit uint64, maxApply
 				continue
 			}
 			if err := verifySyncBlockSignature(&b); err != nil {
+				continue
+			}
+			if !chain.FitsSQLiteBlockHeight(b.Index) {
 				continue
 			}
 			_, _ = a.db.ExecContext(ctx,

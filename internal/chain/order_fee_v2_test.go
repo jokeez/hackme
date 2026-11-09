@@ -21,11 +21,8 @@ type feeTestChain struct {
 
 func newFeeTestChain(t *testing.T, activation string, hmc float64, supUnits uint64) feeTestChain {
 	t.Helper()
-	ResetEconomicsV2ActivationHeightForTest()
-	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
-	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", activation)
+	setV2HeightForTest(t, activation)
 	t.Setenv("HACKME_ECONOMICS_V2_ANNOUNCE_UNIX", "")
-	ResetEconomicsV2ActivationHeightForTest()
 	ctx := context.Background()
 	db, err := store.Open(filepath.Join(t.TempDir(), "fee.db"))
 	if err != nil {
@@ -58,10 +55,7 @@ func (c feeTestChain) balances(t *testing.T) (hmcUnits, supUnits, devUnits, burn
 }
 
 func TestOrderFeeV2Split(t *testing.T) {
-	ResetEconomicsV2ActivationHeightForTest()
-	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
-	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "1")
-	ResetEconomicsV2ActivationHeightForTest()
+	setV2HeightForTest(t, "1")
 	f, escrow := OrderFeeV2FromPrice(10, HMCToUnits(60), FeeAssetHMC)
 	if escrow != HMCToUnits(54) || f.BurnUnits != HMCToUnits(3) || f.PlatformUnits != HMCToUnits(3) || f.SUPUnits != 0 {
 		t.Fatalf("Hunt Standard 60: escrow=%d fee=%+v", escrow, f)

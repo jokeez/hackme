@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-08",
+  "updated": "2026-11-09",
   "program": {
     "asset": "HMC",
     "monthly_budget_hmc": 200,
@@ -13,9 +13,9 @@
     "limit_hmc": 200
   },
   "stats": {
-    "total_paid_hmc": 860,
+    "total_paid_hmc": 980,
     "researchers": 6,
-    "reports_accepted": 25
+    "reports_accepted": 31
   },
   "researchers": [
     {
@@ -41,8 +41,71 @@
       "id": "fimasw",
       "name": "fimasw",
       "handle": "fimasw",
-      "total_paid_hmc": 70,
+      "total_paid_hmc": 190,
       "findings": [
+        {
+          "title": "Fuzz escrow per-run integer division strands runs-pool dust (ComputeSplitUnitsShare)",
+          "severity": "informational",
+          "paid_hmc": 0,
+          "date": "2026-11-09",
+          "reported": "2026-11-09",
+          "commit": "12589aa3",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Informational / hall credit only: runsUnits%budgetRuns truncation left ≤budgetRuns-1 units in runs_pool that PayFuzzRun could never distribute. Not a platform fee — Finalize/Cancel already refunded that dust to the campaign wallet (units are 1e8/HMC, so max shortfall ≪ 1e-6 HMC; report's “20 units HMC ≈ $40” conflates ledger units with HMC). Fixed Dig+Hunt: RunsPoolUnits=perRun*runs, remainder → bounty pool; conservation tests. No payout (rounding hygiene, no fund-loss path)."
+        },
+        {
+          "title": "HMS pilot- payment_id inflates epochPrepaidUnits / seal bonus (M2)",
+          "severity": "low",
+          "paid_hmc": 0,
+          "date": "2026-11-09",
+          "reported": "2026-11-09",
+          "commit": "fd1172a6",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Accepted / no payout: HMS storage lane is still prelaunch (not live on hub). Insecure pilot CreateStorageOrder stamps payment_id=pilot-<hex>, so epochPrepaidUnits TRIM<>'' counted unbacked prepaid into SealEpochBudgetFromPrepaidUnits. Fixed NOT LIKE 'pilot-%' + regression. Hall credit only — lane not production-exposed (needs SKIP_PAYMENT+ALLOW_INSECURE+loopback)."
+        },
+        {
+          "title": "Admin forfeit_unpaid unbind does not durable-zero worker_accrual (resurrects on restart)",
+          "severity": "medium",
+          "paid_hmc": 30,
+          "date": "2026-11-09",
+          "reported": "2026-11-09",
+          "commit": "a0f13d1a",
+          "txid": "90a78637dfc51d2644755a101226056f4efa2e9fcd90634e8e44edb949dda3a2",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Medium fund-integrity: clearPayoutLockWith forfeit zeroed RAM then persistWorkerAccrual monotonic WHERE (excluded.payout_units >= row) silently skipped UPDATE; loadWorkerAccruals restored unpaid+address after restart into settle path. Fixed direct UPDATE worker_accrual on forfeit + resurrection test. Paid 30 HMC → HMC-a6d09759a4c12019."
+        },
+        {
+          "title": "GET /api/tx/by-nonce HTTP 500 on nonce ≥ 2^63 (SQLite uint64 bind)",
+          "severity": "low",
+          "paid_hmc": 10,
+          "date": "2026-11-09",
+          "reported": "2026-11-09",
+          "commit": "c1e4ea6f",
+          "txid": "6b9e64c6f6a780c3f725325810bb37efc288b65d678ea3e33cd4b0a9055d8103",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Low functional follow-up to StartupComplianceKit height bind: by-nonce ParseUint accepted ≥2^63 then database/sql 500. Fixed handler→400 + TransfersByFromNonce guard; also HMC/SUP/HMS transfer shape + RejectStaleLocalPending. Paid 10 HMC → HMC-a6d09759a4c12019 @531638."
+        },
+        {
+          "title": "SUP ValidateSupTransferShape prefix-only vs HMS IsValidAddress asymmetry",
+          "severity": "low",
+          "paid_hmc": 0,
+          "date": "2026-11-09",
+          "reported": "2026-11-09",
+          "commit": "18da5290",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Low defence-in-depth / hygiene: exported SUP shape gate accepted malformed HMC- (15-hex, uppercase, junk) while HMS used IsValidAddress; consensus checkAddressRulesForIndex already blocked credit. Reporter requested no payout. Fixed ValidateSupTransferShape → IsValidAddress + SUP/HMS parity test."
+        },
+        {
+          "title": "Economics v2 test env Once cache pollution (order-dependent suite fail)",
+          "severity": "low",
+          "paid_hmc": 10,
+          "date": "2026-11-09",
+          "reported": "2026-11-09",
+          "commit": "63b3746d",
+          "txid": "e4cc1a90785d87910faaa912bd7cc7c5530716459781f131c628d1fb2e34d277",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Low quality: address_format_test Cleanup flipped v2CompiledDefaultsOff=false so sync.Once cached height 550000 + DefaultAuthorityPubKey into later tests; full go test ./internal/chain/ failed 6 cases / flaky under -shuffle. Fixed setV2HeightForTest helper + CI -shuffle=on; paid 10 HMC → HMC-a6d09759a4c12019 @531078. Not a production economics bug."
+        },
         {
           "title": "OrderFeeV2ForEscrow Mul64/Div64 panic on oversized escrow",
           "severity": "low",
@@ -51,8 +114,8 @@
           "reported": "2026-11-08",
           "commit": "18819293",
           "txid": "9b8e5bb7c19ae5394717bf4e4aac93749c04955ba0e50a3ae683fcb454a08432",
-          "payout_address": "HMC-dd2d1608462c378c",
-          "note": "Low defence-in-depth: bits.Div64 panics when hi≥divisor; unreachable from unauth POST /api/tasks without ~157B HMC node wallet + developer token. Fixed OrderFeeV2ForEscrow → (OrderFeeV2,error) + NormalizeFeeAsset; fuzz kept. Paid 10 HMC → HMC-dd2d1608462c378c tx 9b8e5bb7…"
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Low defence-in-depth: bits.Div64 panics when hi≥divisor; unreachable from unauth POST /api/tasks without ~157B HMC node wallet + developer token. Fixed OrderFeeV2ForEscrow → (OrderFeeV2,error) + NormalizeFeeAsset; fuzz kept. First credit 10 HMC → stranded HMC-dd2d1608462c378c (reporter key mismatch); goodwill reissue of full 70 HMC (10+60) → HMC-a6d09759a4c12019 tx b8e684cf… after pubkey→address verify."
         },
         {
           "title": "Orphan multi-GPU fleet payout freeze (M4 bypass) — unauth claim on sibling -gpuN",
@@ -61,9 +124,9 @@
           "date": "2026-11-07",
           "reported": "2026-11-07",
           "commit": "66774935",
-          "txid": "6329d409ced58c11f8eddd8281da228702bb9056fc7be48caf3c27c5a3f42af4",
-          "payout_address": "HMC-dd2d1608462c378c",
-          "note": "Not a duplicate of #17: CUDA fleets never register bare base id; M4 only guarded m.worker[base]. Fix: shouldExportFleetMemberSeparately + deterministic fold. Live freeze unblocked on coordinator restart. First payout 60 HMC → typo’d HMC-dd2d1608462c378 (15 hex, unspendable) tx 53828509…; correction 60 HMC → HMC-dd2d1608462c378c tx 6329d409… after reporter signed bind proof. Pre-v2 transfer path now rejects malformed legacy recipients."
+          "txid": "b8e684cf060c035abc6a2ed1546d756fec9fc0f77ac816183e54f20d56f66497",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Not a duplicate of #17: CUDA fleets never register bare base id; M4 only guarded m.worker[base]. Fix: shouldExportFleetMemberSeparately + deterministic fold. Live freeze unblocked on coordinator restart. Path: 60→15-hex typo, then 60→HMC-dd2d1608462c378c (key mismatch / unspendable for reporter), then goodwill reissue 70 HMC (High 60 + Low 10) → HMC-a6d09759a4c12019 tx b8e684cf…@529565. Stranded prior credits left on-chain."
         }
       ]
     },

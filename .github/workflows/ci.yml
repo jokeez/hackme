@@ -71,7 +71,7 @@ jobs:
         run: |
           set -euo pipefail
           mapfile -t pkgs < <(go list ./... | grep -v '/internal/fuzzupstream$')
-          go test "${pkgs[@]}" -count=1 -timeout 15m -covermode=atomic -coverprofile=coverage.out
+          go test "${pkgs[@]}" -count=1 -shuffle=on -timeout 15m -covermode=atomic -coverprofile=coverage.out
           go tool cover -func=coverage.out | tail -8
       - uses: actions/upload-artifact@v7
         if: always()
@@ -115,7 +115,7 @@ jobs:
       # Full pool + consensus suites under the race detector (incl. TestSecurity*, ASERT,
       # TestSecurityClaimWithoutTipDoesNotDeadlock): lock leaks and data races fail here.
       - name: Coordinator, chain and settlement under -race
-        run: go test -race -count=1 -timeout 25m ./cmd/coordinator/ ./internal/chain/ ./internal/workersettle/ ./internal/checkpoint/
+        run: go test -race -count=1 -shuffle=on -timeout 25m ./cmd/coordinator/ ./internal/chain/ ./internal/workersettle/ ./internal/checkpoint/
 
   ui-e2e:
     runs-on: ubuntu-latest

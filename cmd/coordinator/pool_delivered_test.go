@@ -60,14 +60,17 @@ func TestEnrichPoolStatsPrefersDeliveredOverDeviceGH(t *testing.T) {
 	out := map[string]any{}
 	enrichPoolStatsForPublic(out, nil, wm)
 	gh, _ := out["pool_hashrate_gh_s"].(float64)
-	if math.Abs(gh-3) > 0.2 {
-		t.Fatalf("public pool_hashrate_gh_s=%v want delivered ~3", gh)
+	if gh < 14 {
+		t.Fatalf("public pool_hashrate_gh_s=%v want board/device ~15", gh)
+	}
+	if out["pool_hashrate_kind"] != "board_device_sum" {
+		t.Fatalf("kind=%v want board_device_sum", out["pool_hashrate_kind"])
+	}
+	if del, _ := out["pool_hashrate_gh_s_delivered"].(float64); math.Abs(del-3) > 0.2 {
+		t.Fatalf("delivered side-channel=%v want ~3", del)
 	}
 	if dev, _ := out["pool_hashrate_gh_s_device"].(float64); dev < 14 {
 		t.Fatalf("device GH/s must stay visible separately, got %v", dev)
-	}
-	if out["pool_hashrate_kind"] != "delivered_verified_shares_10m" {
-		t.Fatalf("kind=%v", out["pool_hashrate_kind"])
 	}
 }
 

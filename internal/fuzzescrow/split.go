@@ -63,7 +63,6 @@ func ComputeSplitUnitsShare(totalUnits uint64, budgetRuns int, runsShare float64
 	default:
 		runsUnits = uint64(float64(totalUnits) * runsShare)
 	}
-	bountyUnits := totalUnits - runsUnits
 	perRun := runsUnits / uint64(budgetRuns)
 	if perRun == 0 {
 		return SplitUnits{}, errors.New("fuzz escrow: per-run payout rounds to zero; increase budget or lower runs")
@@ -71,9 +70,15 @@ func ComputeSplitUnitsShare(totalUnits uint64, budgetRuns int, runsShare float64
 	if perRun < MinPerRunUnits {
 		return SplitUnits{}, errors.New("fuzz escrow: per-run payout below minimum; increase budget_hmc or reduce budget_runs")
 	}
+	// Integer division truncates; keep RunsPoolUnits as the exact payable multiple so
+	// perRun*budgetRuns == RunsPoolUnits (no stranded run-pool dust). Truncation
+	// remainder returns to the bounty pool (refunds to the campaign wallet on finalize
+	// if unused — not a platform fee).
+	runsPayable := perRun * uint64(budgetRuns)
+	bountyUnits := totalUnits - runsPayable
 	return SplitUnits{
 		TotalUnits:      totalUnits,
-		RunsPoolUnits:   runsUnits,
+		RunsPoolUnits:   runsPayable,
 		BountyPoolUnits: bountyUnits,
 		PerRunUnits:     perRun,
 	}, nil

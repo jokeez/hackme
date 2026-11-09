@@ -7,10 +7,7 @@ import (
 
 func withV2From(t *testing.T, h string) {
 	t.Helper()
-	ResetEconomicsV2ActivationHeightForTest()
-	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
-	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", h)
-	ResetEconomicsV2ActivationHeightForTest()
+	setV2HeightForTest(t, h)
 }
 
 // Exact v2 epoch boundaries: epoch = (index-1)/4 204 800 counted from genesis, so block

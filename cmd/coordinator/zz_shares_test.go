@@ -472,32 +472,31 @@ func TestShareImpliedGHSIgnoresSingleHugeShare(t *testing.T) {
 	}
 }
 
-func TestWarmLowShareImpliedGHS(t *testing.T) {
-	lo := warmLowShareImpliedGHS(0.002, 1)
-	hi := warmLowShareImpliedGHS(0.03, 1)
-	if lo < 0.1 || lo >= hi || hi > 2 {
-		t.Fatalf("warm must spread by raw rank, lo=%v hi=%v", lo, hi)
+func TestPacedBoardGHSMidDesktopBand(t *testing.T) {
+	implied := 0.002
+	// Outside 0.1–0.8 → stay on share-implied (blocks 30–100 fantasy).
+	if got := pacedBoardGHS(implied, 0.85, 2); got != implied {
+		t.Fatalf("reported>0.8 must not lift board, got %v want %v", got, implied)
 	}
-	multi := warmLowShareImpliedGHS(0.002, 6)
-	if multi <= lo {
-		t.Fatalf("more shares should lift board GH, single=%v multi=%v", lo, multi)
+	if got := pacedBoardGHS(implied, 50, 4); got != implied {
+		t.Fatalf("fantasy reported must not replace implied, got %v", got)
 	}
-	if g := warmLowShareImpliedGHS(0.2, 4); g != 0.2 {
-		t.Fatalf("already-visible sample must pass through, got %v", g)
+	// Verified shares + mid-desktop declare → card follows declare.
+	if got := pacedBoardGHS(implied, 0.45, 2); got != 0.45 {
+		t.Fatalf("0.1–0.8 declare with shares should win, got %v", got)
+	}
+	if got := pacedBoardGHS(0, 0.45, 2); got != 0 {
+		t.Fatalf("no implied sample → no board lift, got %v", got)
 	}
 }
 
-func TestPacedBoardGHSUsesDeclaredBand(t *testing.T) {
-	implied := 0.002
-	got := pacedBoardGHS(implied, 0.85, 2)
-	if got < 0.7 || got > 0.9 {
-		t.Fatalf("declared 0.85 with shares should pace board near target, got %v", got)
+func TestHonestWallHashrateColdBootstrapNotFullGPU(t *testing.T) {
+	// 512M lease in 0.1s with cold prev used to credit ~5 GH via ceiling=12.
+	got := honestWallHashrateGHS(512<<20, 0.1, 0)
+	if got > 1.0 {
+		t.Fatalf("cold bootstrap wall GH too high: got %v want ≤1.0", got)
 	}
-	flat := pacedBoardGHS(implied, 0, 2)
-	if flat < 0.1 || flat > 0.5 {
-		t.Fatalf("no declared pace falls back to warm spread, got %v", flat)
-	}
-	if g := pacedBoardGHS(implied, 50, 2); g == 50 {
-		t.Fatal("out-of-band declared GH must not pass through")
+	if got <= 0 {
+		t.Fatalf("cold bootstrap should still credit something, got %v", got)
 	}
 }

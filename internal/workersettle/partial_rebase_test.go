@@ -21,3 +21,33 @@ func TestPartialRebaseAnchorAdvancesByPaidOnly(t *testing.T) {
 		t.Fatalf("remainder delta=%d want %d", d2.DeltaUnits, HMCToUnits(0.08))
 	}
 }
+
+// Crash-recovery ApplySettle must use the same anchor rule as the success path:
+// BaselineUnits+paid under rebase — never jump to full accrued (lost remainder).
+func TestRecoverPendingAnchorMatchesSuccessPath(t *testing.T) {
+	accrued := HMCToUnits(0.20)
+	settled := HMCToUnits(10.0)
+	sessionAnchor := HMCToUnits(0.05)
+	d := ComputeAccrualDelta(accrued, settled, sessionAnchor)
+	pendDelta := HMCToUnits(0.07)
+
+	// Old buggy recover: anchor := accrued (=0.20) → remainder lost.
+	buggy := accrued
+	dBuggy := ComputeAccrualDelta(accrued, settled+pendDelta, buggy)
+	if dBuggy.DeltaUnits != 0 {
+		t.Fatalf("buggy recover should zero remainder, got %d", dBuggy.DeltaUnits)
+	}
+
+	clear := !d.Rebase
+	anchor := d.BaselineUnits + pendDelta
+	if clear {
+		anchor = 0
+	}
+	if clear || anchor != HMCToUnits(0.12) {
+		t.Fatalf("recover anchor=%d clear=%v want 0.12 under rebase", anchor, clear)
+	}
+	dOk := ComputeAccrualDelta(accrued, settled+pendDelta, anchor)
+	if dOk.DeltaUnits != HMCToUnits(0.08) {
+		t.Fatalf("recover remainder=%d want %d", dOk.DeltaUnits, HMCToUnits(0.08))
+	}
+}

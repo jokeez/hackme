@@ -154,6 +154,9 @@ func ValidateHmsTransferShape(tx HmsTransferTx) (code, msg string) {
 	if tx.FeeUnits < DefaultHMSTransferMinFee {
 		return "fee_too_low", fmt.Sprintf("fee_units must be >= %d", DefaultHMSTransferMinFee)
 	}
+	if !FitsSQLiteBindUint64(tx.Nonce) || !FitsSQLiteBindUint64(tx.AmountUnits) || !FitsSQLiteBindUint64(tx.FeeUnits) {
+		return "invalid_amount", "nonce/amount/fee out of supported range"
+	}
 	return "", ""
 }
 
@@ -324,6 +327,9 @@ const metaHMSMintIdemPrefix = "mint_idem:hms:"
 func (s *Service) MintHMS(ctx context.Context, to string, amountUnits uint64, memo string) (string, error) {
 	if amountUnits == 0 {
 		return "invalid_amount", errors.New("amount_units must be > 0")
+	}
+	if !FitsSQLiteBindUint64(amountUnits) {
+		return "invalid_amount", errors.New("amount_units out of supported range")
 	}
 	to = strings.TrimSpace(to)
 	memo = strings.TrimSpace(memo)

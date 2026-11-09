@@ -58,13 +58,16 @@ func (c *Coordinator) epochPrepaidUnits(epochID int64) (uint64, error) {
 		SELECT COALESCE(SUM(ROUND(o.prepaid_hmc * 100000000)), 0)
 		FROM hms_orders o
 		WHERE o.prepaid_hmc > 0 AND TRIM(o.payment_id) <> ''
+		  AND o.payment_id NOT LIKE 'pilot-%'
 		  AND (SELECT MIN(ch.epoch_id)
 		         FROM hms_order_chunks oc
 		         INNER JOIN hms_chunks ch ON ch.chunk_id = oc.chunk_id
 		        WHERE oc.order_id = o.order_id) = ?`, epochID).Scan(&sum)
 	// Each paid order counts once — in the first epoch that holds one of its chunks. Counting it
 	// in every epoch with a chunk let one 1-byte upload per epoch re-emit the prepaid as HMS
-	// forever; pilot orders (no payment_id) are not backed by a debit (audit M2).
+	// forever. Pilot CreateStorageOrder fills payment_id with "pilot-<hex>" under insecure skip
+	// (audit M2): those rows are not backed by an HMC debit / market escrow and must not
+	// inflate SealEpochBudgetFromPrepaidUnits.
 	if err != nil {
 		return 0, err
 	}

@@ -33,10 +33,7 @@ const v2FollowerWallet = "HMC-follower000001"
 // for followers via HACKME_CHAIN_AUTHORITY_PUBKEY.
 func newV2Net(t *testing.T, activation string) *v2Net {
 	t.Helper()
-	ResetEconomicsV2ActivationHeightForTest()
-	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
-	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", activation)
-	ResetEconomicsV2ActivationHeightForTest()
+	setV2HeightForTest(t, activation)
 	ctx := context.Background()
 	dir := t.TempDir()
 	db, err := store.Open(filepath.Join(dir, "hub.db"))
@@ -332,10 +329,7 @@ func TestPreV2TransferRejectsChainID(t *testing.T) {
 }
 
 func TestResolvedV2ChainIDEnvIsolation(t *testing.T) {
-	ResetEconomicsV2ActivationHeightForTest()
-	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
-	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "1")
-	ResetEconomicsV2ActivationHeightForTest()
+	setV2HeightForTest(t, "1")
 
 	t.Setenv("HACKME_V2_CHAIN_ID", "")
 	if got := ResolvedV2ChainID(); got != V2ChainID {

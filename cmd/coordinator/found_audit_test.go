@@ -256,8 +256,8 @@ func TestSecurityBlockWithholdingStopsPay(t *testing.T) {
 	}
 }
 
-// Hot path: sqlite writes are bounded per identity (submits hold m.mu), flag transitions are
-// durable at once, and the rest is flushed on shutdown and restored after restart.
+// Hot path: sqlite writes are async (never under m.mu), coalesced per identity, flag
+// transitions schedule an immediate async write, and flush+wait restores after restart.
 func TestFoundAuditPersistThrottledAndFlushed(t *testing.T) {
 	db, err := store.Open(filepath.Join(t.TempDir(), "fa.db"))
 	if err != nil {
@@ -273,33 +273,49 @@ func TestFoundAuditPersistThrottledAndFlushed(t *testing.T) {
 		return e
 	}
 	wm.mu.Lock()
-	wm.noteFoundAuditWorkLocked(key, 32, 2048, 70_000) // first write
-	first := dbExpected()
+	wm.noteFoundAuditWorkLocked(key, 32, 2048, 70_000) // schedules first async write
 	for i := 0; i < 10; i++ {
 		wm.noteFoundAuditWorkLocked(key, 32, 2048, 70_000) // within the gap: memory only
 	}
 	wm.mu.Unlock()
-	if first == 0 || dbExpected() != first {
-		t.Fatalf("writes not throttled: first=%v now=%v", first, dbExpected())
+	wm.waitFoundAuditPersisted()
+	first := dbExpected()
+	if first == 0 {
+		t.Fatal("first async write missing")
 	}
-	// Drive to a flag transition: written immediately even inside the gap.
+	// Further memory bumps inside the gap must not schedule another write yet.
+	wm.mu.Lock()
+	before := wm.foundAudit[key].Expected
+	for i := 0; i < 5; i++ {
+		wm.noteFoundAuditWorkLocked(key, 32, 2048, 70_000)
+	}
+	afterMem := wm.foundAudit[key].Expected
+	wm.mu.Unlock()
+	wm.waitFoundAuditPersisted()
+	if afterMem <= before {
+		t.Fatal("memory must keep moving inside persist gap")
+	}
+	if dbExpected() != first {
+		t.Fatalf("gap writes must stay coalesced in sqlite: first=%v now=%v", first, dbExpected())
+	}
+	// Drive to a flag transition: schedules immediate async persist.
 	wm.mu.Lock()
 	for i := 0; i < 100 && !wm.foundAudit[key].Flagged; i++ {
 		wm.noteFoundAuditWorkLocked(key, 32, 2048, 70_000)
 	}
 	wm.mu.Unlock()
+	wm.waitFoundAuditPersisted()
 	var flagged int
 	_ = db.QueryRow(`SELECT flagged FROM found_audit WHERE audit_key=?`, key).Scan(&flagged)
 	if flagged != 1 {
-		t.Fatal("flag transition not persisted at once")
+		t.Fatal("flag transition not persisted")
 	}
 	wm.mu.Lock()
 	wm.noteFoundAuditWorkLocked(key, 32, 2048, 70_000)
 	mem := wm.foundAudit[key].Expected
-	if n := wm.flushFoundAuditLocked(); n != 1 {
-		t.Fatalf("flush wrote %d identities, want 1", n)
-	}
+	_ = wm.flushFoundAuditLocked()
 	wm.mu.Unlock()
+	wm.waitFoundAuditPersisted()
 	if got := dbExpected(); got != mem {
 		t.Fatalf("flush: db %v mem %v", got, mem)
 	}
