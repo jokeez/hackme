@@ -17,6 +17,25 @@ func TestComputeHuntSplitUnits5050(t *testing.T) {
 	}
 }
 
+func TestComputeHuntSplitUnitsPerShardConservation(t *testing.T) {
+	const unitsPerHMC = 100_000_000
+	// Odd-ish budgets so runsUnits % shards != 0 under float half.
+	for _, shards := range []int{9, 13, 99, 1000} {
+		total := uint64(17.5 * unitsPerHMC)
+		sp, err := ComputeHuntSplitUnits(total, shards)
+		if err != nil {
+			t.Fatalf("shards=%d: %v", shards, err)
+		}
+		if sp.RunsPoolUnits+sp.BountyPoolUnits != sp.TotalUnits {
+			t.Fatalf("conservation shards=%d", shards)
+		}
+		if sp.PerRunUnits*uint64(shards) != sp.RunsPoolUnits {
+			t.Fatalf("stranded hunt dust shards=%d pool=%d paid=%d",
+				shards, sp.RunsPoolUnits, sp.PerRunUnits*uint64(shards))
+		}
+	}
+}
+
 func TestHuntCrashBonusCap(t *testing.T) {
 	const unitsPerHMC = 100_000_000
 	bonus := UniqueCrashBonusUnitsForSplit(30*unitsPerHMC, EscrowSplit5050)

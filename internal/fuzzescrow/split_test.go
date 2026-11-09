@@ -2,6 +2,41 @@ package fuzzescrow
 
 import "testing"
 
+// Truncation remainder must not strand in the runs pool: payable runs are an exact
+// multiple of PerRunUnits, and Runs+Bounty == Total.
+func TestComputeSplitUnitsSharePerRunConservation(t *testing.T) {
+	cases := []struct {
+		total, share float64
+		budgetRuns   int
+	}{
+		{100, 0.2, 3}, // reporter seed shape (below MinCampaignRuns — use Min)
+		{100, 0.2, 13},
+		{100, 0.2, 99},
+		{10, 0.2, 8},
+		{40, 0.4, 2048},
+		{7.5, 0.2, 64},
+	}
+	const unitsPerHMC = 100_000_000
+	for _, c := range cases {
+		runs := c.budgetRuns
+		if runs < MinCampaignRuns {
+			runs = MinCampaignRuns
+		}
+		total := uint64(c.total * unitsPerHMC)
+		sp, err := ComputeSplitUnitsShare(total, runs, c.share)
+		if err != nil {
+			t.Fatalf("total=%v runs=%d share=%v: %v", c.total, runs, c.share, err)
+		}
+		if sp.RunsPoolUnits+sp.BountyPoolUnits != sp.TotalUnits {
+			t.Fatalf("conservation: runs=%d bounty=%d total=%d", sp.RunsPoolUnits, sp.BountyPoolUnits, sp.TotalUnits)
+		}
+		if sp.PerRunUnits*uint64(runs) != sp.RunsPoolUnits {
+			t.Fatalf("stranded runs dust: pool=%d per_run=%d runs=%d paid=%d",
+				sp.RunsPoolUnits, sp.PerRunUnits, runs, sp.PerRunUnits*uint64(runs))
+		}
+	}
+}
+
 func TestComputeSplitUnits2080(t *testing.T) {
 	const unitsPerHMC = 100_000_000
 	total := uint64(10.0 * unitsPerHMC)

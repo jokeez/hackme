@@ -15,7 +15,7 @@
   "stats": {
     "total_paid_hmc": 980,
     "researchers": 6,
-    "reports_accepted": 30
+    "reports_accepted": 31
   },
   "researchers": [
     {
@@ -43,6 +43,16 @@
       "handle": "fimasw",
       "total_paid_hmc": 190,
       "findings": [
+        {
+          "title": "Fuzz escrow per-run integer division strands runs-pool dust (ComputeSplitUnitsShare)",
+          "severity": "informational",
+          "paid_hmc": 0,
+          "date": "2026-11-09",
+          "reported": "2026-11-09",
+          "commit": "PENDING",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Informational / hall credit only: runsUnits%budgetRuns truncation left ≤budgetRuns-1 units in runs_pool that PayFuzzRun could never distribute. Not a platform fee — Finalize/Cancel already refunded that dust to the campaign wallet (units are 1e8/HMC, so max shortfall ≪ 1e-6 HMC; report's “20 units HMC ≈ $40” conflates ledger units with HMC). Fixed Dig+Hunt: RunsPoolUnits=perRun*runs, remainder → bounty pool; conservation tests. No payout (rounding hygiene, no fund-loss path)."
+        },
         {
           "title": "HMS pilot- payment_id inflates epochPrepaidUnits / seal bonus (M2)",
           "severity": "low",

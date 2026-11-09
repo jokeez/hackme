@@ -53,7 +53,6 @@ func ComputeHuntSplitUnits(totalUnits uint64, budgetShards int) (SplitUnits, err
 		return SplitUnits{}, errors.New("hunt escrow: budget_shards too large")
 	}
 	runsUnits := uint64(float64(totalUnits) * HuntRunsPoolShare)
-	bountyUnits := totalUnits - runsUnits
 	perShard := runsUnits / uint64(budgetShards)
 	if perShard == 0 {
 		return SplitUnits{}, errors.New("hunt escrow: per-shard payout rounds to zero; increase budget or lower shards")
@@ -61,9 +60,13 @@ func ComputeHuntSplitUnits(totalUnits uint64, budgetShards int) (SplitUnits, err
 	if perShard < HuntMinPerShardUnits {
 		return SplitUnits{}, errors.New("hunt escrow: per-shard payout below minimum; increase budget_hmc or reduce budget_shards")
 	}
+	// Same conservation as Dig: payable runs pool is an exact multiple; truncation
+	// remainder goes to bounty (refunds unused on finalize).
+	runsPayable := perShard * uint64(budgetShards)
+	bountyUnits := totalUnits - runsPayable
 	return SplitUnits{
 		TotalUnits:      totalUnits,
-		RunsPoolUnits:   runsUnits,
+		RunsPoolUnits:   runsPayable,
 		BountyPoolUnits: bountyUnits,
 		PerRunUnits:     perShard,
 	}, nil
