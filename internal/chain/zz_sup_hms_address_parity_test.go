@@ -5,13 +5,13 @@ import "testing"
 // SUP shape must reject every malformed address HMS rejects (fimasw 2026-11-09).
 func TestSupHmsTransferShapeAddressParity(t *testing.T) {
 	malformed := []string{
-		"HMC-dd2d1608462c378",      // 15 hex
-		"HMC-a6d09759a4c120190",    // 17 hex
-		"HMC-a6d09759a4c1201g",     // non-hex
-		"HMC-A6D09759A4C12019",     // uppercase
-		"HMC-",                     // empty body
-		"HMC",                      // no dash body
-		"hmc-a6d09759a4c12019",     // wrong prefix case
+		"HMC-dd2d1608462c378",   // 15 hex
+		"HMC-a6d09759a4c120190", // 17 hex
+		"HMC-a6d09759a4c1201g",  // non-hex
+		"HMC-A6D09759A4C12019",  // uppercase
+		"HMC-",                  // empty body
+		"HMC",                   // no dash body
+		"hmc-a6d09759a4c12019",  // wrong prefix case
 	}
 	for _, a := range malformed {
 		if IsValidAddress(a) {
