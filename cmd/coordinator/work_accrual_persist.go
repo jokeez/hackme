@@ -391,6 +391,14 @@ func (m *workManager) persistWorkerAccrual(workerID string, force bool) {
 		}
 		return
 	}
+	// Epoch may have moved (forfeit/revoke) after we snapped — abandon before any UPSERT
+	// so a stale high watermark cannot land and then race a soft-recovery persist.
+	m.mu.Lock()
+	epochAlive := m.accrualEpochLocked(workerID) == epoch
+	m.mu.Unlock()
+	if !epochAlive {
+		return
+	}
 	var prevUnits uint64
 	_ = tx.QueryRowContext(ctx, `SELECT COALESCE(payout_units,0) FROM worker_accrual WHERE worker_id=?`, workerID).Scan(&prevUnits)
 	res, err := tx.ExecContext(ctx, `
@@ -439,19 +447,30 @@ VALUES (?, ?, ?, ?)`, workerID, delta, pu, now); jerr != nil {
 			return
 		}
 	}
+	// Re-check epoch before COMMIT: forfeit/revoke may have bumped during UPSERT.
+	m.mu.Lock()
+	epochAlive = m.accrualEpochLocked(workerID) == epoch
+	m.mu.Unlock()
+	if !epochAlive {
+		return // ROLLBACK via defer — do not publish stale unpaid
+	}
 	if _, err := tx.ExecContext(ctx, `COMMIT`); err != nil {
 		log.Printf("worker accrual commit id=%s err=%v", sanitizeLogToken(workerID), err)
 		return
 	}
 	committed = true
 
-	// Revoke may have DELETE'd while we held the snapshot; purge any resurrection.
+	// Belt-and-suspenders: if epoch moved in the commit window, drop the row only.
+	// Do NOT re-stamp worker_accrual_revoked — that would tombstone a soft-revoked
+	// worker who already cleared the tombstone and started a fresh unpaid session.
 	m.mu.Lock()
 	cur := m.accrualEpochLocked(workerID)
-	if cur != epoch {
-		m.deleteWorkerAccrualLocked(workerID)
-	}
 	m.mu.Unlock()
+	if cur != epoch {
+		if _, err := m.dedupDB.Exec(`DELETE FROM worker_accrual WHERE worker_id=?`, workerID); err != nil {
+			log.Printf("worker accrual stale-epoch purge id=%s err=%v", sanitizeLogToken(workerID), err)
+		}
+	}
 }
 
 // flushAllWorkerAccruals force-persists every in-memory row (SIGTERM / graceful stop).

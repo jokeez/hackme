@@ -568,3 +568,71 @@ func TestPersistWorkerAccrualConcurrentWritersNoLoss(t *testing.T) {
 		}
 	}
 }
+
+// Soft-revoke recovery clears the tombstone and accrues fresh unpaid. A stale
+// persist from the pre-forfeit epoch must not re-stamp the tombstone (that
+// would hide/delete the new session forever until another clear).
+func TestSoftRecoveryStaleEpochPurgeDoesNotRetombstone(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "accrual-soft-recovery.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	wm := &workManager{
+		worker:       map[string]workerPayoutStat{},
+		accrualEpoch: map[string]uint64{},
+		abuse:        map[string]workerAbuseState{},
+		ipAbuse:      map[string]workerAbuseState{},
+	}
+	wm.attachDedupDB(db)
+	id := "soft-w"
+	wm.mu.Lock()
+	wm.worker[id] = workerPayoutStat{AcceptedAtt: 500, PayoutHMC: 2, PayoutUnits: 200_000_000}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual(id, true)
+
+	wm.mu.Lock()
+	staleEpoch := wm.accrualEpochLocked(id)
+	wm.bumpAccrualEpochLocked(id)
+	wm.deleteWorkerAccrualLocked(id)
+	wm.clearAccrualRevokedLocked(id)
+	wm.worker[id] = workerPayoutStat{AcceptedAtt: 1, PayoutHMC: 0.5, PayoutUnits: 50_000_000}
+	freshEpoch := wm.accrualEpochLocked(id)
+	wm.mu.Unlock()
+	if freshEpoch == staleEpoch {
+		t.Fatal("forfeit-like bump must move epoch")
+	}
+	wm.persistWorkerAccrual(id, true)
+	got, ok := wm.fetchDurableAccrual(id)
+	if !ok || got.PayoutUnits != 50_000_000 {
+		t.Fatalf("fresh unpaid missing: ok=%v %+v", ok, got)
+	}
+	if wm.accrualRevoked(id) {
+		t.Fatal("tombstone must stay clear after soft recovery")
+	}
+
+	// Stale persist finishes: epoch mismatch purge must DROP the row only.
+	// (If it re-tombstoned, the next persist would refuse to write unpaid.)
+	wm.mu.Lock()
+	cur := wm.accrualEpochLocked(id)
+	wm.mu.Unlock()
+	if cur == staleEpoch {
+		t.Fatal("stale epoch should not equal current")
+	}
+	if _, err := wm.dedupDB.Exec(`DELETE FROM worker_accrual WHERE worker_id=?`, id); err != nil {
+		t.Fatal(err)
+	}
+	if wm.accrualRevoked(id) {
+		t.Fatal("stale-epoch purge must not re-stamp tombstone")
+	}
+	wm.persistWorkerAccrual(id, true)
+	got, ok = wm.fetchDurableAccrual(id)
+	if !ok || got.PayoutUnits != 50_000_000 {
+		t.Fatalf("fresh session not re-persisted after purge: ok=%v %+v", ok, got)
+	}
+	if wm.accrualRevoked(id) {
+		t.Fatal("persist after soft recovery must not leave tombstone")
+	}
+}
