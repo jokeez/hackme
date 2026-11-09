@@ -49,7 +49,7 @@
           "paid_hmc": 0,
           "date": "2026-11-09",
           "reported": "2026-11-09",
-          "commit": "pending",
+          "commit": "fd1172a6",
           "payout_address": "HMC-a6d09759a4c12019",
           "note": "Accepted / no payout: HMS storage lane is still prelaunch (not live on hub). Insecure pilot CreateStorageOrder stamps payment_id=pilot-<hex>, so epochPrepaidUnits TRIM<>'' counted unbacked prepaid into SealEpochBudgetFromPrepaidUnits. Fixed NOT LIKE 'pilot-%' + regression. Hall credit only — lane not production-exposed (needs SKIP_PAYMENT+ALLOW_INSECURE+loopback)."
         },
