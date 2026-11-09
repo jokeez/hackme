@@ -11,11 +11,8 @@ import (
 
 func newSUPTestChain(t *testing.T, activation string) (*Service, context.Context, string) {
 	t.Helper()
-	ResetEconomicsV2ActivationHeightForTest()
-	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
-	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", activation)
+	setV2HeightForTest(t, activation)
 	t.Setenv("HACKME_SUP_MINT_ENABLED", "1")
-	ResetEconomicsV2ActivationHeightForTest()
 	ctx := context.Background()
 	db, err := store.Open(filepath.Join(t.TempDir(), "chain.db"))
 	if err != nil {

@@ -13,10 +13,7 @@ import (
 )
 
 func TestEconomicsV2DisabledByDefault(t *testing.T) {
-	ResetEconomicsV2ActivationHeightForTest()
-	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
-	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "")
-	ResetEconomicsV2ActivationHeightForTest()
+	setV2HeightForTest(t, "")
 	if EconomicsV2ActivationHeight() != 0 {
 		t.Fatalf("want 0 unset, got %d", EconomicsV2ActivationHeight())
 	}
@@ -38,10 +35,7 @@ func TestEconomicsV2DisabledByDefault(t *testing.T) {
 }
 
 func TestEconomicsV2ActivationHeightEnv(t *testing.T) {
-	ResetEconomicsV2ActivationHeightForTest()
-	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
-	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "600000")
-	ResetEconomicsV2ActivationHeightForTest()
+	setV2HeightForTest(t, "600000")
 	if got := EconomicsV2ActivationHeight(); got != 600_000 {
 		t.Fatalf("got %d", got)
 	}
@@ -54,10 +48,7 @@ func TestEconomicsV2ActivationHeightEnv(t *testing.T) {
 }
 
 func TestEconomicsV2RewardsAndFees(t *testing.T) {
-	ResetEconomicsV2ActivationHeightForTest()
-	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
-	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "100")
-	ResetEconomicsV2ActivationHeightForTest()
+	setV2HeightForTest(t, "100")
 
 	if got := BaseRewardForBlockIndex(99); got != InitialBaseRewardHMC {
 		t.Fatalf("pre-v2 reward %v", got)
@@ -84,10 +75,7 @@ func TestEconomicsV2RewardsAndFees(t *testing.T) {
 }
 
 func TestEconomicsV2HalvingInterval(t *testing.T) {
-	ResetEconomicsV2ActivationHeightForTest()
-	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
-	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "1")
-	ResetEconomicsV2ActivationHeightForTest()
+	setV2HeightForTest(t, "1")
 	// First era still 0.1 until 4_204_800 blocks from genesis epoch math.
 	if got := BaseRewardForBlockIndex(1); got != 0.1 {
 		t.Fatalf("era0 %v", got)
@@ -104,10 +92,7 @@ func TestEconomicsV2HalvingInterval(t *testing.T) {
 }
 
 func TestEconomicsV2ActivationLocksToMeta(t *testing.T) {
-	ResetEconomicsV2ActivationHeightForTest()
-	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
-	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "50")
-	ResetEconomicsV2ActivationHeightForTest()
+	setV2HeightForTest(t, "50")
 
 	ctx := context.Background()
 	dir := t.TempDir()
@@ -148,10 +133,7 @@ func TestEconomicsV2ActivationLocksToMeta(t *testing.T) {
 }
 
 func TestEconomicsV2InvariantAllowsMintPastV1Cap(t *testing.T) {
-	ResetEconomicsV2ActivationHeightForTest()
-	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
-	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "1")
-	ResetEconomicsV2ActivationHeightForTest()
+	setV2HeightForTest(t, "1")
 
 	ctx := context.Background()
 	dir := t.TempDir()
@@ -187,10 +169,7 @@ func TestEconomicsV2InvariantAllowsMintPastV1Cap(t *testing.T) {
 }
 
 func TestEconomicsV2EmptyBlockMintsSUP(t *testing.T) {
-	ResetEconomicsV2ActivationHeightForTest()
-	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
-	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "1")
-	ResetEconomicsV2ActivationHeightForTest()
+	setV2HeightForTest(t, "1")
 
 	ctx := context.Background()
 	dir := t.TempDir()
@@ -238,10 +217,7 @@ func TestEconomicsV2EmptyBlockMintsSUP(t *testing.T) {
 }
 
 func TestEconomicsV2BurnHalvesThenFreezes(t *testing.T) {
-	ResetEconomicsV2ActivationHeightForTest()
-	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
-	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "1")
-	ResetEconomicsV2ActivationHeightForTest()
+	setV2HeightForTest(t, "1")
 
 	if got := OrderBurnRateAt(0); got != V2OrderBurnRate {
 		t.Fatalf("era0 burn %v", got)
@@ -299,10 +275,7 @@ func TestOpenHuntEscrowNotBlockedByAnnounce(t *testing.T) {
 // After v2 activation, empty mint no longer clamps at 100M — invariants must not
 // brick the node if meta minted is above the legacy cap (long-run / import soak).
 func TestEconomicsV2InvariantAllowsMintedAboveLegacyMax(t *testing.T) {
-	ResetEconomicsV2ActivationHeightForTest()
-	t.Cleanup(ResetEconomicsV2ActivationHeightForTest)
-	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "1")
-	ResetEconomicsV2ActivationHeightForTest()
+	setV2HeightForTest(t, "1")
 
 	ctx := context.Background()
 	dir := t.TempDir()
@@ -327,9 +300,7 @@ func TestEconomicsV2InvariantAllowsMintedAboveLegacyMax(t *testing.T) {
 		t.Fatalf("v2 active must allow minted>legacy max: %v", err)
 	}
 
-	ResetEconomicsV2ActivationHeightForTest()
-	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "")
-	ResetEconomicsV2ActivationHeightForTest()
+	setV2HeightForTest(t, "")
 	if err := svc.checkEconomicInvariants(ctx, db); err == nil {
 		t.Fatal("v1 schedule must still reject minted>max supply")
 	}
