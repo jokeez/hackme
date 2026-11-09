@@ -49,7 +49,7 @@
           "paid_hmc": 0,
           "date": "2026-11-09",
           "reported": "2026-11-09",
-          "commit": "pending",
+          "commit": "18da5290",
           "payout_address": "HMC-a6d09759a4c12019",
           "note": "Low defence-in-depth / hygiene: exported SUP shape gate accepted malformed HMC- (15-hex, uppercase, junk) while HMS used IsValidAddress; consensus checkAddressRulesForIndex already blocked credit. Reporter requested no payout. Fixed ValidateSupTransferShape → IsValidAddress + SUP/HMS parity test."
         },
