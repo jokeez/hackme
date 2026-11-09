@@ -49,7 +49,7 @@
           "paid_hmc": 10,
           "date": "2026-11-09",
           "reported": "2026-11-09",
-          "commit": "2cce9fce",
+          "commit": "63b3746d",
           "txid": "e4cc1a90785d87910faaa912bd7cc7c5530716459781f131c628d1fb2e34d277",
           "payout_address": "HMC-a6d09759a4c12019",
           "note": "Low quality: address_format_test Cleanup flipped v2CompiledDefaultsOff=false so sync.Once cached height 550000 + DefaultAuthorityPubKey into later tests; full go test ./internal/chain/ failed 6 cases / flaky under -shuffle. Fixed setV2HeightForTest helper + CI -shuffle=on; paid 10 HMC → HMC-a6d09759a4c12019 @531078. Not a production economics bug."
