@@ -481,11 +481,16 @@ func TestUnbindForfeitUnpaidDoesNotResurrectOnRestart(t *testing.T) {
 
 	var dbUnits uint64
 	var dbAddr string
-	if err := db.QueryRow(`SELECT payout_units, payout_address FROM worker_accrual WHERE worker_id=?`, workerID).Scan(&dbUnits, &dbAddr); err != nil {
+	err := db.QueryRow(`SELECT payout_units, payout_address FROM worker_accrual WHERE worker_id=?`, workerID).Scan(&dbUnits, &dbAddr)
+	if err == nil && (dbUnits != 0 || strings.TrimSpace(dbAddr) != "") {
+		t.Fatalf("durable forfeit must delete/zero accrual: units=%d addr=%q", dbUnits, dbAddr)
+	}
+	if err != nil && err != sql.ErrNoRows {
 		t.Fatalf("accrual row: %v", err)
 	}
-	if dbUnits != 0 || strings.TrimSpace(dbAddr) != "" {
-		t.Fatalf("durable forfeit must zero accrual: units=%d addr=%q", dbUnits, dbAddr)
+	var revoked int
+	if err := db.QueryRow(`SELECT COUNT(1) FROM worker_accrual_revoked WHERE worker_id=?`, workerID).Scan(&revoked); err != nil || revoked != 1 {
+		t.Fatalf("forfeit must stamp revoke tombstone: revoked=%d err=%v", revoked, err)
 	}
 
 	newWM := &workManager{worker: map[string]workerPayoutStat{}}
@@ -496,6 +501,117 @@ func TestUnbindForfeitUnpaidDoesNotResurrectOnRestart(t *testing.T) {
 	if restored.PayoutUnits > 0 || strings.TrimSpace(restored.PayoutAddress) != "" {
 		t.Fatalf("forfeited accruals resurrected across restart: units=%d hmc=%f addr=%q",
 			restored.PayoutUnits, restored.PayoutHMC, restored.PayoutAddress)
+	}
+}
+
+// Stale persist snapped before forfeit must not UPSERT unpaid back over the tombstone/epoch.
+func TestUnbindForfeitBeatsStaleAccrualPersist(t *testing.T) {
+	db, wm, mux := payoutLockSetup(t)
+	id := "wk-stale-forfeit"
+	wm.persistPayoutLock(id, "HMC-cccccccccccccccc")
+	wm.mu.Lock()
+	wm.worker[id] = workerPayoutStat{
+		PayoutAddress: "HMC-cccccccccccccccc", PayoutHMC: 2, PayoutUnits: 200000000, AcceptedAtt: 50,
+	}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual(id, true)
+
+	started := make(chan struct{})
+	blocked := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		wm.mu.Lock()
+		st, ok := wm.worker[id]
+		epoch := wm.accrualEpochLocked(id)
+		wm.mu.Unlock()
+		if !ok {
+			return
+		}
+		close(started)
+		<-blocked
+		_, _ = db.Exec(`
+INSERT INTO worker_accrual (
+  worker_id, accepted_ranges, accepted_hits, accepted_attempts,
+  payout_hmc, payout_units, payout_sup, payout_address, signed_submits,
+  last_ghs, peak_ghs, last_seen_unix, last_poh_seen_unix, last_fuzz_seen_unix, updated_at
+) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+ON CONFLICT(worker_id) DO UPDATE SET
+  accepted_attempts=excluded.accepted_attempts,
+  payout_hmc=excluded.payout_hmc,
+  payout_units=excluded.payout_units,
+  payout_address=excluded.payout_address,
+  updated_at=excluded.updated_at
+WHERE excluded.accepted_attempts >= worker_accrual.accepted_attempts
+  AND excluded.payout_units >= worker_accrual.payout_units
+`, id, 0, 0, st.AcceptedAtt, st.PayoutHMC, st.PayoutUnits, st.PayoutSUP, st.PayoutAddress, 0, 0.0, 0.0, 0, 0, 0, time.Now().Unix())
+		wm.mu.Lock()
+		if wm.accrualEpochLocked(id) != epoch {
+			wm.deleteWorkerAccrualLocked(id)
+		}
+		wm.mu.Unlock()
+	}()
+	<-started
+	code, out := payoutLockPost(t, mux, map[string]any{"worker_id": id, "forfeit_unpaid": true})
+	if code != http.StatusOK || out["ok"] != true {
+		t.Fatalf("forfeit: %d %v", code, out)
+	}
+	close(blocked)
+	<-done
+	if _, alive := wm.fetchDurableAccrual(id); alive {
+		t.Fatal("stale persist after forfeit must not leave durable unpaid")
+	}
+}
+
+func TestUnbindRebindKeepsAccrualAddressAgainstStalePersist(t *testing.T) {
+	db, wm, mux := payoutLockSetup(t)
+	id := "wk-rebind-addr"
+	oldAddr, newAddr := "HMC-aaaaaaaaaaaaaaaa", "HMC-bbbbbbbbbbbbbbbb"
+	wm.persistPayoutLock(id, oldAddr)
+	wm.mu.Lock()
+	wm.worker[id] = workerPayoutStat{
+		PayoutAddress: oldAddr, PayoutHMC: 1.25, PayoutUnits: 125000000, AcceptedAtt: 10,
+	}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual(id, true)
+
+	code, out := payoutLockPost(t, mux, map[string]any{
+		"worker_id": id, "rebind_to": newAddr,
+	})
+	if code != http.StatusOK || out["ok"] != true {
+		t.Fatalf("rebind: %d %v", code, out)
+	}
+	var addr string
+	if err := db.QueryRow(`SELECT payout_address FROM worker_accrual WHERE worker_id=?`, id).Scan(&addr); err != nil || !strings.EqualFold(addr, newAddr) {
+		t.Fatalf("durable rebind addr=%q err=%v", addr, err)
+	}
+
+	// Stale flat-watermark persist with the OLD address must not clobber rebind.
+	_, err := db.Exec(`
+INSERT INTO worker_accrual (
+  worker_id, accepted_ranges, accepted_hits, accepted_attempts,
+  payout_hmc, payout_units, payout_sup, payout_address, signed_submits,
+  last_ghs, peak_ghs, last_seen_unix, last_poh_seen_unix, last_fuzz_seen_unix, updated_at
+) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+ON CONFLICT(worker_id) DO UPDATE SET
+  accepted_attempts=excluded.accepted_attempts,
+  payout_hmc=excluded.payout_hmc,
+  payout_units=excluded.payout_units,
+  payout_address=CASE
+    WHEN excluded.payout_units > worker_accrual.payout_units
+      OR excluded.accepted_attempts > worker_accrual.accepted_attempts
+      THEN excluded.payout_address
+    ELSE worker_accrual.payout_address
+  END,
+  updated_at=excluded.updated_at
+WHERE excluded.accepted_attempts >= worker_accrual.accepted_attempts
+  AND excluded.payout_units >= worker_accrual.payout_units
+`, id, 0, 0, 10, 1.25, uint64(125000000), 0.0, oldAddr, 0, 0.0, 0.0, 0, 0, 0, time.Now().Unix())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT payout_address FROM worker_accrual WHERE worker_id=?`, id).Scan(&addr); err != nil || !strings.EqualFold(addr, newAddr) {
+		t.Fatalf("stale persist clobbered rebind: addr=%q err=%v", addr, err)
 	}
 }
 

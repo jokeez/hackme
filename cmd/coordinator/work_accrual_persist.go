@@ -406,7 +406,13 @@ ON CONFLICT(worker_id) DO UPDATE SET
   payout_hmc=excluded.payout_hmc,
   payout_units=excluded.payout_units,
   payout_sup=excluded.payout_sup,
-  payout_address=excluded.payout_address,
+  -- Flat watermark + stale snap must not clobber a newer rebind address.
+  payout_address=CASE
+    WHEN excluded.payout_units > worker_accrual.payout_units
+      OR excluded.accepted_attempts > worker_accrual.accepted_attempts
+      THEN excluded.payout_address
+    ELSE worker_accrual.payout_address
+  END,
   signed_submits=excluded.signed_submits,
   last_ghs=excluded.last_ghs,
   peak_ghs=excluded.peak_ghs,

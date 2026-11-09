@@ -455,10 +455,26 @@ func (m *workManager) clearPayoutLockWith(workerID string, opts clearPayoutLockO
 				st := m.worker[workerID]
 				changed := false
 				if opts.ForfeitUnpaid && workerStatHasUnpaidAccrual(st) {
+					// Match revoke: drop pool totals, bump epoch, DELETE+tombstone so a
+					// stale persistWorkerAccrual snap cannot UPSERT unpaid back after us.
+					if st.PayoutHMC > 0 {
+						m.totalPayoutHMC -= st.PayoutHMC
+						if m.totalPayoutHMC < 0 {
+							m.totalPayoutHMC = 0
+						}
+					}
+					if st.PayoutSUP > 0 {
+						m.totalPayoutSUP -= st.PayoutSUP
+						if m.totalPayoutSUP < 0 {
+							m.totalPayoutSUP = 0
+						}
+					}
 					st.PayoutHMC = 0
 					st.PayoutUnits = 0
 					st.PayoutSUP = 0
 					changed = true
+					m.bumpAccrualEpochLocked(workerID)
+					m.deleteWorkerAccrualLocked(workerID)
 				}
 				if rebindTo != "" {
 					st.PayoutAddress = rebindTo
@@ -472,24 +488,23 @@ func (m *workManager) clearPayoutLockWith(workerID string, opts clearPayoutLockO
 				if changed {
 					cleared = true
 				}
+			} else if opts.ForfeitUnpaid {
+				// No memory row — still purge durable unpaid (restart-safe).
+				m.bumpAccrualEpochLocked(workerID)
+				m.deleteWorkerAccrualLocked(workerID)
+				cleared = true
 			}
 			m.mu.Unlock()
 			if n, _ := res.RowsAffected(); n > 0 {
 				cleared = true
 			}
-			// Forfeit must bypass persistWorkerAccrual's monotonic UPSERT
-			// (excluded.payout_units >= row.payout_units): zeroing loses that race and
-			// SQLite silently keeps unpaid units + address, which resurrect on restart
-			// (fimasw 2026-11-09).
-			if opts.ForfeitUnpaid {
-				addr := ""
-				if rebindTo != "" {
-					addr = rebindTo
-				}
-				if _, ferr := db.Exec(`UPDATE worker_accrual SET payout_hmc=0, payout_units=0, payout_sup=0, payout_address=? WHERE worker_id=?`, addr, workerID); ferr != nil {
+			// Rebind must durable-update address even when units/attempts are flat;
+			// otherwise only RAM changes and restart restores the old accrual address.
+			if rebindTo != "" {
+				if _, rerr := db.Exec(`UPDATE worker_accrual SET payout_address=? WHERE worker_id=?`, rebindTo, workerID); rerr != nil {
 					m.payoutLockMu.Unlock()
-					log.Printf("payout lock forfeit accrual failed: worker_id=%q err=%v", workerID, ferr)
-					return false, prevAddr, errors.New("durable forfeit accrual update failed")
+					log.Printf("payout lock rebind accrual addr failed: worker_id=%q err=%v", workerID, rerr)
+					return false, prevAddr, errors.New("durable rebind accrual address update failed")
 				}
 			}
 		}
@@ -504,10 +519,23 @@ func (m *workManager) clearPayoutLockWith(workerID string, opts clearPayoutLockO
 			st := m.worker[workerID]
 			changed := false
 			if opts.ForfeitUnpaid && workerStatHasUnpaidAccrual(st) {
+				if st.PayoutHMC > 0 {
+					m.totalPayoutHMC -= st.PayoutHMC
+					if m.totalPayoutHMC < 0 {
+						m.totalPayoutHMC = 0
+					}
+				}
+				if st.PayoutSUP > 0 {
+					m.totalPayoutSUP -= st.PayoutSUP
+					if m.totalPayoutSUP < 0 {
+						m.totalPayoutSUP = 0
+					}
+				}
 				st.PayoutHMC = 0
 				st.PayoutUnits = 0
 				st.PayoutSUP = 0
 				changed = true
+				m.bumpAccrualEpochLocked(workerID)
 			}
 			if rebindTo != "" {
 				st.PayoutAddress = rebindTo
@@ -527,7 +555,7 @@ func (m *workManager) clearPayoutLockWith(workerID string, opts clearPayoutLockO
 	if rebindTo != "" {
 		m.persistPayoutLock(workerID, rebindTo)
 	}
-	// Durable accrual must not resurrect the old address across restart.
+	// Sync non-payout fields; forfeit already deleted+tombstoned durable unpaid.
 	m.persistWorkerAccrual(workerID, true)
 	if prevAddr == "" && !cleared && rebindTo == "" {
 		return false, "", nil
