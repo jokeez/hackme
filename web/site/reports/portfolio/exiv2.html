@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe Case P03 — Exiv2 custom inventory Hunt</title>
+  <meta name="description" content="HackMe Hunt case: custom ASAN harness for Exiv2 (Ubuntu LTS) on the public pool — CLEAN crash-class." />
+  <link rel="canonical" href="https://hackme.tech/reports/portfolio/exiv2.html" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="../../assets/styles.css?v=20261109pf1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="../../index.html">
+      <img class="brand-logo" src="../../assets/logo-hex.png" alt="HackMe logo" />
+      <span>HackMe Network</span>
+    </a>
+    <nav class="nav" data-site-page="research"></nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass hero-small pf-case-hero">
+      <p class="kicker">P03 · CLEAN · custom inventory</p>
+      <h1>Exiv2 · custom Hunt harness</h1>
+      <p class="hero-copy">
+        Non-catalog library with a prebuilt ASAN stdin harness attached by
+        <code class="notranslate">harness_hash</code> — the same path customers use for inventory targets.
+      </p>
+      <div class="pf-verdict">
+        <div class="rh-metric"><span class="label">Verdict</span><span class="value ok">CLEAN</span></div>
+        <div class="rh-metric"><span class="label">Critical</span><span class="value ok notranslate">0</span></div>
+        <div class="rh-metric"><span class="label">Crashes</span><span class="value ok notranslate">0</span></div>
+        <div class="rh-metric"><span class="label">SKU</span><span class="value notranslate">standard</span></div>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>What we ran</h2></div>
+      <ul class="list">
+        <li>Target: Exiv2 via Ubuntu LTS <code class="notranslate">libexiv2</code> (0.27.x) + <code class="notranslate">LLVMFuzzerTestOneInput</code> read driver</li>
+        <li>Campaign <code class="notranslate">hunt-exiv2-bb-20261109t011326z</code> · hunt_standard · 60 HMC / 4000 shards</li>
+        <li>Not in HackMe catalog — forced custom publish/attach path</li>
+      </ul>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Result</h2></div>
+      <ul class="list">
+        <li>Thousands of pool shards · <strong>0</strong> crash-class / ASAN findings in the campaign window</li>
+        <li>Local report showed CLEAN human summary (gate noise = sync fail-closed, not bugs)</li>
+        <li>Useful as a <em>method</em> case: custom inventory works end-to-end</li>
+      </ul>
+      <p class="subtle" style="margin-top:0.85rem">CLEAN ≠ “Exiv2 is free of bugs”. Depth, seeds, and 0.28.x tip are follow-ups (P04).</p>
+    </section>
+
+    <section class="panel glass">
+      <div class="cta-row">
+        <a class="btn btn-primary" href="../../research.html">Back to ledger</a>
+        <a class="btn btn-secondary" href="./traplib.html">See P01 Found</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>HackMe Network</p>
+    <p class="muted"><a href="../../research.html">Research</a> · P03 Exiv2</p>
+    <div class="footer-nav"></div>
+  </footer>
+  <script src="../../assets/site-shell.js?v=20261024eco1"></script>
+  <script src="../../assets/app.js?v=20260914dev1"></script>
+</body>
+</html>

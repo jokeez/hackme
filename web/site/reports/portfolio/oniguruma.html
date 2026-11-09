@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HackMe Case P02 — oniguruma catalog Hunt</title>
+  <meta name="description" content="HackMe Hunt catalog soak on oniguruma — two hunt_standard pool campaigns, CLEAN crash-class." />
+  <link rel="canonical" href="https://hackme.tech/reports/portfolio/oniguruma.html" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="../../assets/styles.css?v=20261109pf1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="../../index.html">
+      <img class="brand-logo" src="../../assets/logo-hex.png" alt="HackMe logo" />
+      <span>HackMe Network</span>
+    </a>
+    <nav class="nav" data-site-page="research"></nav>
+  </header>
+
+  <main class="container">
+    <section class="hero glass hero-small pf-case-hero">
+      <p class="kicker">P02 · CLEAN · catalog Hunt</p>
+      <h1>oniguruma · catalog soak</h1>
+      <p class="hero-copy">
+        Two back-to-back <code class="notranslate">hunt_standard</code> campaigns on the public catalog target —
+        fleet depth check after rc19 Orders bring-up.
+      </p>
+      <div class="pf-verdict">
+        <div class="rh-metric"><span class="label">Verdict</span><span class="value ok">CLEAN</span></div>
+        <div class="rh-metric"><span class="label">Campaigns</span><span class="value ok notranslate">2</span></div>
+        <div class="rh-metric"><span class="label">Critical</span><span class="value ok notranslate">0</span></div>
+        <div class="rh-metric"><span class="label">SKU</span><span class="value notranslate">standard</span></div>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>What we ran</h2></div>
+      <ul class="list">
+        <li><code class="notranslate">hunt-oniguruma-20261108t152210z</code> · catalog · 60 HMC / 4000</li>
+        <li><code class="notranslate">hunt-oniguruma-20261108t152836z</code> · catalog · 60 HMC / 4000</li>
+        <li>Pool fleet burned both budgets off the active list with <code class="notranslate">native_status=n/a</code> / no findings fields</li>
+      </ul>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Result</h2></div>
+      <ul class="list">
+        <li><strong>0</strong> crash-class findings observed across both soaks</li>
+        <li>Honest product story: mature catalog target + smoke SKU often stays CLEAN</li>
+        <li>Pairs with P01 (Found) so the ledger shows both outcomes</li>
+      </ul>
+    </section>
+
+    <section class="panel glass">
+      <div class="cta-row">
+        <a class="btn btn-primary" href="../../research.html">Back to ledger</a>
+        <a class="btn btn-secondary" href="./">Portfolio hub</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>HackMe Network</p>
+    <p class="muted"><a href="../../research.html">Research</a> · P02 oniguruma</p>
+    <div class="footer-nav"></div>
+  </footer>
+  <script src="../../assets/site-shell.js?v=20261024eco1"></script>
+  <script src="../../assets/app.js?v=20260914dev1"></script>
+</body>
+</html>
