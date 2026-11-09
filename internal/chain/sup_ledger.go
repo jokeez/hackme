@@ -136,11 +136,13 @@ func ValidateSupTransferShape(tx SupTransferTx) (code, msg string) {
 	}
 	from := strings.TrimSpace(tx.From)
 	to := strings.TrimSpace(tx.To)
-	// Parity with HMC validateTransferTx: self-sends are rejected. Without this,
-	// applyPendingSupTransfers' pre-debit UPSERT clobbers the debit and mints SUP
-	// (report #30).
-	if from == "" || to == "" || from == to || !strings.HasPrefix(from, "HMC-") || !strings.HasPrefix(to, "HMC-") {
-		return "invalid_address", "from/to invalid"
+	// Parity with HMS ValidateHmsTransferShape / HMC IsValidAddress: prefix-only
+	// checks accepted malformed HMC- strings (15-hex, uppercase, trailing junk).
+	// Consensus still rejected them in checkAddressRulesForIndex; tighten the
+	// exported shape gate so UI/API prechecks cannot inherit a looser contract.
+	// Self-sends stay rejected (report #30 mint via pre-debit UPSERT).
+	if from == "" || to == "" || from == to || !IsValidAddress(from) || !IsValidAddress(to) {
+		return "invalid_address", "from/to must be HMC- + 16 or 64 lowercase hex"
 	}
 	// Parity with HMS (#28): signing payload trims From/To, but settlement credits
 	// the raw strings — reject surrounding whitespace so funds cannot strand.

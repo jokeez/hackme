@@ -15,7 +15,7 @@
   "stats": {
     "total_paid_hmc": 940,
     "researchers": 6,
-    "reports_accepted": 26
+    "reports_accepted": 27
   },
   "researchers": [
     {
@@ -43,6 +43,16 @@
       "handle": "fimasw",
       "total_paid_hmc": 150,
       "findings": [
+        {
+          "title": "SUP ValidateSupTransferShape prefix-only vs HMS IsValidAddress asymmetry",
+          "severity": "low",
+          "paid_hmc": 0,
+          "date": "2026-11-09",
+          "reported": "2026-11-09",
+          "commit": "pending",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Low defence-in-depth / hygiene: exported SUP shape gate accepted malformed HMC- (15-hex, uppercase, junk) while HMS used IsValidAddress; consensus checkAddressRulesForIndex already blocked credit. Reporter requested no payout. Fixed ValidateSupTransferShape → IsValidAddress + SUP/HMS parity test."
+        },
         {
           "title": "Economics v2 test env Once cache pollution (order-dependent suite fail)",
           "severity": "low",
