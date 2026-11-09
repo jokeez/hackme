@@ -234,6 +234,7 @@ func shareImpliedGHS(nShares int, shareMod uint64, wallSec float64) float64 {
 // Worker rows may follow a declared mid-desktop pace when:
 //   - at least one share validated this submit, and
 //   - client reported GH/s is inside the honest named-fleet band [0.1, 0.8].
+//
 // Outside that band (or no shares) we keep raw share-implied only — no 30–100 fantasy.
 func pacedBoardGHS(implied float64, reported float64, nShares int) float64 {
 	implied = clampWorkerHashrateGHS(implied)
