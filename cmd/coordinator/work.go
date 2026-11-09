@@ -666,10 +666,9 @@ func smoothWorkerHashrateGHS(prev, sample float64) float64 {
 	if prev <= 0 {
 		return sample
 	}
-	// Blake3 / post-cliff wall sample vs sticky pre-cliff calib EMA: never drag the
-	// old peak down slowly — that resurrected FORCE/calib GH/s into attempt-pay caps
-	// and Dig soft-priority after fv≥3 activation.
-	if prev >= 10 && sample >= 0.05 && prev > sample*20 {
+	// Blake3 / post-cliff wall sample vs sticky FORCE / paced-board EMA: snap down
+	// so device Σ converges on delivered share GH/s (not a multi-minute crawl).
+	if sample >= 0.001 && prev > sample*3 {
 		return sample
 	}
 	alpha := 0.35
@@ -2458,7 +2457,17 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		return false, sigReason, 0, "", false
 	}
 	if signerAddr != "" {
-		if locked := strings.TrimSpace(m.worker[req.WorkerID].PayoutAddress); locked != "" && !strings.EqualFold(locked, signerAddr) {
+		// Match fuzz submit: enforce durable payout lock even when memory
+		// PayoutAddress is blank (unbind/conflict unpaid). Memory-only checks
+		// let a sniper claim-lock the id then both parties accrue on PoH.
+		// UnderMu: submit already holds m.mu (lockedPayoutAddress would deadlock).
+		locked := m.lockedPayoutAddressUnderMu(req.WorkerID)
+		if locked == payoutLockLookupFailed {
+			m.signedRejects++
+			m.rejectedSubmits++
+			return false, "payout_lock_unavailable", 0, "", false
+		}
+		if locked != "" && !strings.EqualFold(locked, signerAddr) {
 			m.signedRejects++
 			m.rejectedSubmits++
 			return false, payoutAddressLockedReason(locked, signerAddr), 0, "", false
@@ -2995,10 +3004,14 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		if rawGH <= 0 && wallSec >= 0.05 && wallGH > 0 {
 			rawGH = wallGH
 		}
+		// Mid-desktop declare (named LIVE 0.1–0.8): card follows declare once we have any
+		// verified sample — blocks wall-bootstrap twin rows at ~4.5–5 GH/s.
+		if reportedGH >= 0.1 && reportedGH <= 0.8 && rawGH > reportedGH {
+			rawGH = reportedGH
+		}
 		// Do NOT seed rawGH from batch/wall on short RTT walls. That path treated
 		// early-found 64G leases (CPU canary found=true in <1s) as hundreds of GH/s,
 		// then adaptClaimBatch grew MAX leases and share-PPS volume exploded.
-		// honestWallHashrateGHS already caps credited hashes to prevGH/bootstrap.
 		// Prefer device-reported only as an upper clamp when wall was capped (early found).
 		if reportedGH > 0 && rawGH > reportedGH*1.35 && reportedGH >= 0.5 {
 			rawGH = reportedGH
@@ -3011,8 +3024,8 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		rawGH = workerHashrateGHSForSubmitFormulaMs(reportedGH, req.BatchSize, issuedAt, now, rec.IssuedAtMs, nowMs, prevGH, leaseFV)
 	}
 	gh := smoothWorkerHashrateGHS(prevGH, rawGH)
-	// Share/wall samples can sit far below sticky FORCE peaks — snap down.
-	if honestGH && rawGH > 0 && prevGH >= 10 && (prevGH > rawGH*20 || rawGH < 0.05) {
+	// Share/wall samples can sit far below sticky FORCE / paced-board peaks — snap down.
+	if honestGH && rawGH > 0 && prevGH > rawGH*3 {
 		gh = rawGH
 	}
 	if !honestGH && req.Found && reportedGH <= 0 {
@@ -3112,8 +3125,10 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 		if strings.TrimSpace(st.PayoutAddress) == "" {
 			if !workerStatHasUnpaidAccrual(st) {
 				st.PayoutAddress = signerAddr
+				// First-binding only when adopting into memory — never squat the
+				// durable lock onto unpaid-blank rows (admin must rebind_to).
+				m.persistPayoutLock(req.WorkerID, signerAddr)
 			}
-			m.persistPayoutLock(req.WorkerID, signerAddr)
 		}
 		st.SignedSubmits++
 	}
@@ -3544,17 +3559,22 @@ func enrichPoolStatsForPublic(out map[string]any, reg *lanpool.Registry, wm *wor
 		}
 		online = len(reg.ListOnline())
 	}
-	out["pool_hashrate_gh_s_device"] = poolGH
+	deviceGH := poolGH
+	out["pool_hashrate_gh_s_device"] = deviceGH
+	deliveredGH := 0.0
 	if wm != nil {
 		if delivered, ok := wm.deliveredPoolGH(time.Now().Unix()); ok {
-			// Public / listing hashrate and load retarget use verified delivered work.
-			poolGH = delivered
-			out["pool_hashrate_kind"] = "delivered_verified_shares_10m"
+			deliveredGH = delivered
+			out["pool_hashrate_gh_s_delivered"] = delivered
+			out["pool_hashrate_delivered_kind"] = "delivered_verified_shares_10m"
 		}
 	}
-	out["pool_hashrate_gh_s"] = poolGH
-	out["hashrate"] = poolGH * 1e9
-	out["hashrate_hs"] = poolGH * 1e9
+	// Public strip / MiningBoard / site match operator dashboard: board Σ (device cards).
+	// Load retarget below still prefers verified delivered when available (solvency).
+	out["pool_hashrate_gh_s"] = deviceGH
+	out["hashrate"] = deviceGH * 1e9
+	out["hashrate_hs"] = deviceGH * 1e9
+	out["pool_hashrate_kind"] = "board_device_sum"
 	out["miners"] = online
 	out["workers_online"] = online
 	if len(rigs) > 0 {
@@ -3565,7 +3585,11 @@ func enrichPoolStatsForPublic(out map[string]any, reg *lanpool.Registry, wm *wor
 		out["active_rigs"] = anyRigs
 	}
 	if wm != nil {
-		wm.maybeRetargetPoolLoad(time.Now().Unix(), poolGH, online)
+		retargetGH := deviceGH
+		if deliveredGH > 0 {
+			retargetGH = deliveredGH
+		}
+		wm.maybeRetargetPoolLoad(time.Now().Unix(), retargetGH, online)
 		wm.mu.Lock()
 		applied := wm.clampTargetMod(wm.targetMod)
 		hint := poolLoadHintUnclamped(poolGH, online, wm.targetModMinOrDefault())

@@ -341,22 +341,14 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 				continue
 			default:
 				lg.Printf("stranded pending %s kept: %s", wid, res.Reason)
-			}
-			lg.Printf("skip %s: pending_settle without tx_hash — not re-sending", wid)
-			if cfg.ClearPending {
-				// If the recorded nonce may already have been consumed, clearing
-				// and re-sending the same delta is a double-pay class bug.
-				if !cfg.ClearPendingForce && pend.Nonce > 0 {
-					if nNow, nerr := fetchNonce(ctx, client, cfg.ChainBase, payer); nerr == nil && int64(nNow) > pend.Nonce {
-						lg.Printf("CLEAR_PENDING_HMC refused for %s: nonce advanced %d->%d without tx_hash (ambiguous; use CLEAR_PENDING_HMC_FORCE=1 only if rejected)", wid, pend.Nonce, nNow)
-						continue
-					}
+				// Resolver kept the intent (mempool match / ambiguous). CLEAR_PENDING
+				// here would drop it while an in-flight tx can still include → double-pay
+				// on the next cycle. Only strandedUnsent auto-clears above.
+				if cfg.ClearPending {
+					lg.Printf("CLEAR_PENDING_HMC refused for %s: stranded kept (%s)", wid, res.Reason)
 				}
-				_ = store.ClearPending(ctx, wid)
-				_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
-				lg.Printf("CLEAR_PENDING_HMC cleared empty pending for %s", wid)
+				continue
 			}
-			continue
 		}
 
 		if !ShouldSettle(deltaInfo.DeltaUnits, cfg.MinSettleUnits, force, cfg.DailyMinSettleUnits) {
@@ -469,8 +461,11 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 				}
 				_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
 			} else {
-				lg.Printf("ERROR settle %s -> %s: %v %s", wid, toAddr, sendErr, string(mustJSON(resp)))
-				_ = store.ClearPending(ctx, wid)
+				// Empty pool + nonce unmoved still is not proof of "never sent" (race with
+				// mempool propagation). Match SUP: keep intent; stranded resolve / rejected
+				// clear handles recovery. Clearing here was audit #8 double-pay class.
+				lg.Printf("ERROR settle %s -> %s: %v %s — pending retained (no definitive reject)", wid, toAddr, sendErr, string(mustJSON(resp)))
+				_ = store.AppendLedger(ctx, "send_failed_keep_pending", wid, payUnits, 0, 0, 0, 0, 0, string(mustJSON(resp)))
 				_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
 			}
 			continue

@@ -671,4 +671,44 @@ func TestNotePayoutLockDoesNotAdoptOntoUnpaidBlank(t *testing.T) {
 	if addr := wm.lockedPayoutAddress("wk-snipe"); !strings.EqualFold(addr, "HMC-dddddddddddddddd") {
 		t.Fatalf("identity lock should still bind, got %q", addr)
 	}
+	// lockedPayoutAddress must not undo notePayoutLock's unpaid-blank guard.
+	wm.mu.Lock()
+	got = wm.worker["wk-snipe"]
+	wm.mu.Unlock()
+	if strings.TrimSpace(got.PayoutAddress) != "" {
+		t.Fatalf("lock lookup must not adopt into unpaid blank, got %q", got.PayoutAddress)
+	}
+}
+
+func TestPoHSubmitEnforcesDurableLockOnUnpaidBlank(t *testing.T) {
+	db, wm, _ := payoutLockSetup(t)
+	id := "wk-poh-snipe"
+	victim, sniper := "HMC-vvvvvvvvvvvvvvvv", "HMC-ssssssssssssssss"
+	wm.mu.Lock()
+	wm.worker[id] = workerPayoutStat{
+		PayoutAddress: "", PayoutHMC: 2, PayoutUnits: 200000000, AcceptedAtt: 5,
+	}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual(id, true)
+	// Sniper claim-binds durable lock; memory stays blank.
+	wm.persistPayoutLock(id, sniper)
+	var lockAddr string
+	if err := db.QueryRow(`SELECT payout_address FROM worker_payout_lock WHERE worker_id=?`, id).Scan(&lockAddr); err != nil || !strings.EqualFold(lockAddr, sniper) {
+		t.Fatalf("setup lock=%q err=%v", lockAddr, err)
+	}
+	wm.mu.Lock()
+	got := wm.lockedPayoutAddressUnderMu(id)
+	wm.mu.Unlock()
+	if !strings.EqualFold(got, sniper) {
+		t.Fatalf("UnderMu lock=%q want sniper", got)
+	}
+	if !strings.EqualFold(got, sniper) || strings.EqualFold(got, victim) {
+		t.Fatalf("victim must not pass durable lock check via memory blank")
+	}
+	wm.mu.Lock()
+	mem := wm.worker[id].PayoutAddress
+	wm.mu.Unlock()
+	if strings.TrimSpace(mem) != "" {
+		t.Fatalf("UnderMu must not adopt into unpaid blank, got %q", mem)
+	}
 }
