@@ -41,8 +41,10 @@ func TestAddressFormats(t *testing.T) {
 // fimasw bounty typo 2026-11-08.
 func TestPreV2RejectsMalformedLegacyRecipient(t *testing.T) {
 	t.Setenv("HACKME_ECONOMICS_V2_ACTIVATION_HEIGHT", "")
+	// Keep compiled announce defaults off (TestMain baseline). Cleanup must NOT flip
+	// v2CompiledDefaultsOff=false — that leaks height 550000 + DefaultAuthorityPubKey into later tests.
 	SetV2CompiledDefaultsOffForTest(true)
-	t.Cleanup(func() { SetV2CompiledDefaultsOffForTest(false) })
+	t.Cleanup(func() { SetV2CompiledDefaultsOffForTest(true) })
 	from := "HMC-0123456789abcdef"
 	if code, _ := checkAddressRulesForIndex(1, from, "HMC-dd2d1608462c378"); code != "invalid_address" {
 		t.Fatalf("15-hex recipient pre-v2: got %q", code)
