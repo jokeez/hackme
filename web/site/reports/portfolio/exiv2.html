@@ -7,7 +7,7 @@
   <meta name="description" content="HackMe Hunt case: custom ASAN harness for Exiv2 (Ubuntu LTS) on the public pool — CLEAN crash-class." />
   <link rel="canonical" href="https://hackme.tech/reports/portfolio/exiv2.html" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-  <link rel="stylesheet" href="../../assets/styles.css?v=20261109pf1" />
+  <link rel="stylesheet" href="../../assets/styles.css?v=20261109pf4" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
@@ -51,8 +51,8 @@
     <section class="panel glass">
       <div class="panel-head"><h2>Result</h2></div>
       <ul class="list">
-        <li>Thousands of pool shards · <strong>0</strong> crash-class / ASAN findings in the campaign window</li>
-        <li>Local report showed CLEAN human summary (gate noise = sync fail-closed, not bugs)</li>
+        <li><strong>3561</strong> pool shards at cancel · <strong>0</strong> crash-class / ASAN findings</li>
+        <li>Orders deliverable = CLEAN gate PASS (budget statement, not a CVE claim)</li>
         <li>Useful as a <em>method</em> case: custom inventory works end-to-end</li>
       </ul>
       <p class="subtle" style="margin-top:0.85rem">CLEAN ≠ “Exiv2 is free of bugs”. Depth, seeds, and 0.28.x tip are follow-ups (P04).</p>
@@ -60,7 +60,8 @@
 
     <section class="panel glass">
       <div class="cta-row">
-        <a class="btn btn-primary" href="../../research.html">Back to ledger</a>
+        <button type="button" class="btn btn-primary" data-rh-report="./deliverables/exiv2.html" data-rh-report-title="Exiv2 custom inventory Hunt">Show report</button>
+        <a class="btn btn-secondary" href="../../research.html">Back to ledger</a>
         <a class="btn btn-secondary" href="./traplib.html">See P01 Found</a>
       </div>
     </section>
@@ -73,5 +74,6 @@
   </footer>
   <script src="../../assets/site-shell.js?v=20261024eco1"></script>
   <script src="../../assets/app.js?v=20260914dev1"></script>
+  <script src="../../assets/report-viewer.js?v=20261109pf4"></script>
 </body>
 </html>

@@ -39,39 +39,48 @@
     },
   ];
 
+  // when = display label · whenSort = ISO for ordering (YYYY-MM-DD)
+  // report = optional fuzz_report_v2 deliverable (same HTML Orders emit on completion)
   const CASES = [
     {
       id: "P01",
       title: "traplib · ASAN positive control",
       blurb: "Intentional heap OOB / UAF / overflow. Pool Hunt found ASAN heap-buffer-overflow.",
       href: "./reports/portfolio/traplib.html",
+      report: "./reports/portfolio/deliverables/traplib.html",
       domain: "custom",
       kind: "found",
       tags: ["Hunt", "inventory", "ASAN", "positive-control"],
       when: "2026-11-09",
-      stats: { runs: "~665+", crashes: 1, critical: 1, note: "0xA3 path" },
+      whenSort: "2026-11-09",
+      stats: { runs: "~665+", crashes: 1, critical: 1, note: "0xA3 HBO" },
       featured: true,
+      pulse: true,
     },
     {
       id: "P03",
       title: "Exiv2 · custom inventory Hunt",
-      blurb: "Non-catalog lib · prebuilt ASAN harness · Ubuntu LTS 0.27.x · BB-shaped pick · CLEAN.",
+      blurb: "Non-catalog lib · prebuilt ASAN harness · Ubuntu LTS 0.27.6 · BB-shaped pick · CLEAN at cancel.",
       href: "./reports/portfolio/exiv2.html",
+      report: "./reports/portfolio/deliverables/exiv2.html",
       domain: "bugbounty",
       kind: "clean",
       tags: ["Hunt", "Exiv2", "custom-harness", "GHSA-lane"],
       when: "2026-11-09",
-      stats: { runs: "~3.6k", crashes: 0, critical: 0, note: "CLEAN" },
+      whenSort: "2026-11-09",
+      stats: { runs: 3561, crashes: 0, critical: 0, note: "CLEAN · cancelled" },
     },
     {
       id: "P02",
       title: "oniguruma · catalog Hunt soak",
       blurb: "Two hunt_standard pool campaigns on catalog target · ~4k shards each.",
       href: "./reports/portfolio/oniguruma.html",
+      report: "./reports/portfolio/deliverables/oniguruma.html",
       domain: "libraries",
       kind: "clean",
       tags: ["Hunt", "catalog", "oniguruma"],
       when: "2026-11-08",
+      whenSort: "2026-11-08",
       stats: { runs: "~8k", crashes: 0, critical: 0, note: "CLEAN×2" },
     },
     {
@@ -83,6 +92,7 @@
       kind: "pilot",
       tags: ["B2B", "Scan", "promo"],
       when: "2026-06",
+      whenSort: "2026-06-15",
       stats: { runs: 64, crashes: 0, critical: 0, note: "guard on seed2" },
     },
     {
@@ -94,6 +104,7 @@
       kind: "series",
       tags: ["Hunt Watch", "ASAN", "libucl"],
       when: "2026-09",
+      whenSort: "2026-09-30",
       stats: { runs: "50 targets", crashes: "8 families", critical: 0, note: "43 CLEAN" },
     },
     {
@@ -104,7 +115,8 @@
       domain: "libraries",
       kind: "series",
       tags: ["OSS", "libFuzzer", "nghttp2"],
-      when: "2026",
+      when: "2026 · 14d",
+      whenSort: "2026-08-31",
       stats: { runs: "~14.32B", crashes: 0, critical: 0, note: "CLEAN" },
     },
     {
@@ -115,7 +127,8 @@
       domain: "libraries",
       kind: "series",
       tags: ["OSS", "libheif", "libFuzzer"],
-      when: "2026",
+      when: "2026 · 14d",
+      whenSort: "2026-08-30",
       stats: { runs: "~2.57B", crashes: 0, critical: 0, note: "CLEAN" },
     },
     {
@@ -127,6 +140,7 @@
       kind: "series",
       tags: ["OSS CVE", "ASAN", "disclosure"],
       when: "2026",
+      whenSort: "2026-07-15",
       stats: { runs: "waves 29+", crashes: "—", critical: 0, note: "mixed" },
     },
     {
@@ -137,7 +151,8 @@
       domain: "crypto",
       kind: "series",
       tags: ["Bitcoin", "WASM", "Depth v3"],
-      when: "2026",
+      when: "2026 · 30d",
+      whenSort: "2026-04-30",
       stats: { runs: 8808, crashes: 1953, critical: 0, note: "signals≠CVE" },
     },
     {
@@ -149,7 +164,9 @@
       kind: "live",
       tags: ["L1", "prod-pool", "5-chain"],
       when: "2026-05",
+      whenSort: "2026-05-20",
       stats: { runs: "—", crashes: "—", critical: 0, note: "redacted" },
+      pulse: true,
     },
     {
       id: "MKPOOL",
@@ -160,6 +177,7 @@
       kind: "clean",
       tags: ["Stratum", "mkpool"],
       when: "2026-06",
+      whenSort: "2026-06-10",
       stats: { runs: "~16k", crashes: 400, critical: 0, note: "guards" },
     },
     {
@@ -171,6 +189,7 @@
       kind: "clean",
       tags: ["Stratum", "ckpool"],
       when: "2026-06",
+      whenSort: "2026-06-12",
       stats: { runs: "~19.5k", crashes: 1000, critical: 0, note: "guards" },
     },
     {
@@ -182,6 +201,7 @@
       kind: "clean",
       tags: ["Sv2", "stratum"],
       when: "2026-06",
+      whenSort: "2026-06-08",
       stats: { runs: "8k", crashes: 800, critical: 0, note: "guards" },
     },
     {
@@ -192,7 +212,8 @@
       domain: "crypto",
       kind: "clean",
       tags: ["rotation", "L1"],
-      when: "2026",
+      when: "2026-03",
+      whenSort: "2026-03-20",
       stats: { runs: 2560, crashes: 384, critical: 0, note: "guards" },
     },
     {
@@ -203,7 +224,8 @@
       domain: "crypto",
       kind: "archive",
       tags: ["Bitcoin", "archive"],
-      when: "2026",
+      when: "2026-02",
+      whenSort: "2026-02-15",
       stats: { runs: "—", crashes: "—", critical: 0, note: "study" },
     },
     {
@@ -214,7 +236,8 @@
       domain: "crypto",
       kind: "archive",
       tags: ["L1", "archive"],
-      when: "2026",
+      when: "2026-01",
+      whenSort: "2026-01-20",
       stats: { runs: "—", crashes: "—", critical: 0, note: "corpus" },
     },
     {
@@ -226,6 +249,7 @@
       kind: "archive",
       tags: ["L1", "archive"],
       when: "2025",
+      whenSort: "2025-12-01",
       stats: { runs: "—", crashes: "—", critical: 0, note: "archive" },
     },
   ];
@@ -302,13 +326,41 @@
     return typeof v === "number" ? v : Number.NaN;
   }
 
+  function sortKeyWhen(c) {
+    if (c.whenSort) return String(c.whenSort);
+    const w = String(c.when || "");
+    if (/^\d{4}-\d{2}-\d{2}$/.test(w)) return w;
+    if (/^\d{4}-\d{2}$/.test(w)) return `${w}-28`;
+    if (/^\d{4}$/.test(w)) return `${w}-12-31`;
+    const m = w.match(/^(\d{4})/);
+    return m ? `${m[1]}-06-30` : "1970-01-01";
+  }
+
+  function relativeWhen(c) {
+    const iso = sortKeyWhen(c);
+    const d = new Date(`${iso}T12:00:00Z`);
+    if (Number.isNaN(d.getTime())) return esc(c.when);
+    const now = new Date();
+    const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    const then = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    const days = Math.round((today - then) / 86400000);
+    let rel = "";
+    if (days === 0) rel = "today";
+    else if (days === 1) rel = "yesterday";
+    else if (days > 1 && days < 14) rel = `${days}d ago`;
+    else if (days >= 14 && days < 60) rel = `${Math.round(days / 7)}w ago`;
+    const label = esc(c.when);
+    if (!rel) return `<span title="${esc(iso)}">${label}</span>`;
+    return `<span title="${esc(iso)}">${label}</span><span class="rh-rel">${esc(rel)}</span>`;
+  }
+
   function sorted(list) {
     const out = list.slice();
     const dir = state.sortDir === "asc" ? 1 : -1;
     const key = state.sortKey;
     out.sort((a, b) => {
       let cmp = 0;
-      if (key === "when") cmp = String(a.when).localeCompare(String(b.when));
+      if (key === "when") cmp = sortKeyWhen(a).localeCompare(sortKeyWhen(b));
       else if (key === "id") cmp = String(a.id).localeCompare(String(b.id));
       else if (key === "title") cmp = a.title.localeCompare(b.title);
       else if (key === "kind") cmp = (KIND_RANK[a.kind] ?? 9) - (KIND_RANK[b.kind] ?? 9);
@@ -318,7 +370,7 @@
         cmp = (Number.isNaN(ca) ? -1 : ca) - (Number.isNaN(cb) ? -1 : cb);
       } else if (key === "runs") {
         cmp = String(a.stats?.runs ?? "").localeCompare(String(b.stats?.runs ?? ""), undefined, { numeric: true });
-      } else cmp = String(a.when).localeCompare(String(b.when));
+      } else cmp = sortKeyWhen(a).localeCompare(sortKeyWhen(b));
       if (cmp === 0) cmp = String(a.id).localeCompare(String(b.id));
       return cmp * dir;
     });
@@ -338,6 +390,41 @@
     return DOMAINS.find((d) => d.id === id) || { id, label: id, blurb: "" };
   }
 
+  function renderActivity(host) {
+    if (!host) return;
+    const tapeRank = { found: 0, live: 1, pilot: 2, clean: 3 };
+    const recent = CASES.slice()
+      .filter((c) => c.kind === "found" || c.kind === "live" || c.kind === "clean" || c.kind === "pilot")
+      .sort((a, b) => {
+        const kr = (tapeRank[a.kind] ?? 9) - (tapeRank[b.kind] ?? 9);
+        if (kr !== 0) return kr;
+        return sortKeyWhen(b).localeCompare(sortKeyWhen(a));
+      })
+      .slice(0, 5);
+    if (!recent.length) {
+      host.hidden = true;
+      return;
+    }
+    host.hidden = false;
+    host.innerHTML = `
+      <div class="rh-activity" aria-label="Recent ledger motion">
+        <span class="rh-activity-label">Live tape</span>
+        <div class="rh-activity-track">
+          ${recent
+            .map(
+              (c) => `
+            <a class="rh-activity-item rh-kind-${esc(c.kind)}" href="${esc(c.href)}">
+              <span class="${kindClass(c.kind)}${c.pulse ? " rh-pill-pulse" : ""}">${esc(KIND_LABEL[c.kind])}</span>
+              <span class="rh-activity-id notranslate">${esc(c.id)}</span>
+              <span class="rh-activity-title">${esc(c.title)}</span>
+              <span class="rh-activity-when notranslate">${esc(c.when)}</span>
+            </a>`
+            )
+            .join("")}
+        </div>
+      </div>`;
+  }
+
   function renderSpotlight(host) {
     if (!host) return;
     const feat = CASES.find((c) => c.featured) || CASES.find((c) => c.kind === "found");
@@ -351,13 +438,16 @@
     }
     const dom = domainMeta(feat.domain);
     host.hidden = false;
+    const reportBtn = feat.report
+      ? `<button type="button" class="btn btn-secondary rh-spot-report" data-rh-report="${esc(feat.report)}" data-rh-report-title="${esc(feat.title)}">Show report</button>`
+      : "";
     host.innerHTML = `
-      <a class="rh-spotlight" href="${esc(feat.href)}">
+      <div class="rh-spotlight">
         <div class="rh-spot-glow" aria-hidden="true"></div>
         <div class="rh-spot-top">
-          <span class="${kindClass(feat.kind)}">${esc(KIND_LABEL[feat.kind])} · ${esc(feat.id)}</span>
+          <span class="${kindClass(feat.kind)}${feat.pulse ? " rh-pill-pulse" : ""}">${esc(KIND_LABEL[feat.kind])} · ${esc(feat.id)}</span>
           <span class="rh-domain-chip rh-domain-${esc(feat.domain)}">${esc(dom.label)}</span>
-          <span class="rh-spot-when notranslate">${esc(feat.when)}</span>
+          <span class="rh-spot-when notranslate">${relativeWhen(feat)}</span>
         </div>
         <h2>${highlight(feat.title)}</h2>
         <p>${highlight(feat.blurb)}</p>
@@ -366,8 +456,11 @@
           <span><b>${esc(feat.stats.critical)}</b> critical</span>
           <span class="rh-note">${esc(feat.stats.note || "")}</span>
         </div>
-        <span class="rh-spot-cta">Open case →</span>
-      </a>`;
+        <div class="rh-spot-cta-row">
+          ${reportBtn}
+          <a class="rh-spot-cta" href="${esc(feat.href)}">Open case →</a>
+        </div>
+      </div>`;
   }
 
   function renderCounts() {
@@ -402,6 +495,7 @@
           <th scope="col" class="rh-th rh-th-num${sortedCls("runs")}" data-rh-sort="runs" tabindex="0" aria-sort="${aria("runs")}">Runs <span class="rh-sort-ind">${ind("runs")}</span></th>
           <th scope="col" class="rh-th rh-th-num${sortedCls("critical")}" data-rh-sort="critical" tabindex="0" aria-sort="${aria("critical")}">Crit <span class="rh-sort-ind">${ind("critical")}</span></th>
           <th scope="col" class="rh-th${sortedCls("when")}" data-rh-sort="when" tabindex="0" aria-sort="${aria("when")}">Date <span class="rh-sort-ind">${ind("when")}</span></th>
+          <th scope="col" class="rh-th rh-th-report">Report</th>
           <th scope="col" class="rh-th rh-th-go"><span class="sr-only">Open</span></th>
         </tr>
       </thead>`;
@@ -410,9 +504,12 @@
   function rowHtml(c, i) {
     const crit = c.stats?.critical;
     const critCls = typeof crit === "number" && crit > 0 ? "rh-crit-hot" : "rh-crit-ok";
+    const reportCell = c.report
+      ? `<button type="button" class="rh-report-btn" data-rh-report="${esc(c.report)}" data-rh-report-title="${esc(c.title)}" title="Show fuzz_report_v2 deliverable">Report</button>`
+      : `<span class="rh-report-none" title="No Orders deliverable snapshot">—</span>`;
     return `
-      <tr class="rh-tr rh-kind-${esc(c.kind)}" style="--rh-i:${i}" tabindex="0" role="link" data-href="${esc(c.href)}">
-        <td class="rh-td-status"><span class="${kindClass(c.kind)}">${esc(KIND_LABEL[c.kind] || c.kind)}</span></td>
+      <tr class="rh-tr rh-kind-${esc(c.kind)}${c.pulse ? " rh-tr-pulse" : ""}" style="--rh-i:${i}" tabindex="0" role="link" data-href="${esc(c.href)}">
+        <td class="rh-td-status"><span class="${kindClass(c.kind)}${c.pulse ? " rh-pill-pulse" : ""}">${esc(KIND_LABEL[c.kind] || c.kind)}</span></td>
         <td class="rh-td-id notranslate"><code>${highlight(c.id)}</code></td>
         <td class="rh-td-case">
           <div class="rh-case-title">${highlight(c.title)}</div>
@@ -421,7 +518,8 @@
         </td>
         <td class="rh-td-num notranslate">${esc(c.stats?.runs ?? "—")}</td>
         <td class="rh-td-num notranslate ${critCls}">${esc(crit ?? "—")}</td>
-        <td class="rh-td-when notranslate">${highlight(c.when)}</td>
+        <td class="rh-td-when notranslate">${relativeWhen(c)}</td>
+        <td class="rh-td-report">${reportCell}</td>
         <td class="rh-td-go" aria-hidden="true">→</td>
       </tr>`;
   }
@@ -431,9 +529,13 @@
       const go = () => {
         window.location.href = tr.getAttribute("data-href");
       };
-      tr.addEventListener("click", go);
+      tr.addEventListener("click", (e) => {
+        if (e.target.closest("[data-rh-report]")) return;
+        go();
+      });
       tr.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") {
+          if (e.target.closest("[data-rh-report]")) return;
           e.preventDefault();
           go();
         }
@@ -508,6 +610,7 @@
     if (empty) empty.hidden = filtered.length > 0;
     if (countEl) countEl.textContent = String(filtered.length);
     if (clearBtn) clearBtn.hidden = !state.q.trim();
+    renderActivity(document.getElementById("rh-activity"));
     renderSpotlight(document.getElementById("rh-spotlight"));
     renderCounts();
 

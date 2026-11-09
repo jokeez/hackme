@@ -7,7 +7,7 @@
   <meta name="description" content="HackMe research ledger split by origin: crypto & mining, OSS libraries, bug-bounty lane, custom lab harnesses, customer pilots — searchable tables." />
   <link rel="canonical" href="https://hackme.tech/research.html" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-  <link rel="stylesheet" href="./assets/styles.css?v=20261109pf3" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20261109pf4" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
@@ -54,6 +54,7 @@
           <span class="value notranslate" data-rh-count="found">—</span>
         </div>
       </div>
+      <div id="rh-activity" class="rh-activity-wrap" aria-live="polite"></div>
     </section>
 
     <section class="panel glass research-section rh-panel" aria-label="Case ledger">
@@ -129,7 +130,8 @@
       <ul class="list">
         <li><strong>Found</strong> — coordinator-attested crash-class; validate native upstream before CVE claims.</li>
         <li><strong>CLEAN</strong> — no qualifying crash-class in the window; not a proof of security.</li>
-        <li>New case: set <code class="notranslate">domain</code> + <code class="notranslate">kind</code> in <code class="notranslate">assets/research-ledger.js</code>.</li>
+        <li><strong>Report</strong> — Orders completion deliverable (<code class="notranslate">fuzz_report_v2</code>); same HTML as <code class="notranslate">…/report.html</code>.</li>
+        <li>New case: set <code class="notranslate">domain</code> + <code class="notranslate">kind</code> (+ optional <code class="notranslate">report</code>) in <code class="notranslate">assets/research-ledger.js</code>.</li>
       </ul>
     </section>
   </main>
@@ -147,6 +149,7 @@
   </style>
   <script src="./assets/site-shell.js?v=20261024eco1"></script>
   <script src="./assets/app.js?v=20260914dev1"></script>
-  <script src="./assets/research-ledger.js?v=20261109pf3"></script>
+  <script src="./assets/report-viewer.js?v=20261109pf4"></script>
+  <script src="./assets/research-ledger.js?v=20261109pf4"></script>
 </body>
 </html>
