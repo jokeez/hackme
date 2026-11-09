@@ -13,9 +13,9 @@
     "limit_hmc": 200
   },
   "stats": {
-    "total_paid_hmc": 940,
+    "total_paid_hmc": 950,
     "researchers": 6,
-    "reports_accepted": 27
+    "reports_accepted": 28
   },
   "researchers": [
     {
@@ -41,8 +41,19 @@
       "id": "fimasw",
       "name": "fimasw",
       "handle": "fimasw",
-      "total_paid_hmc": 150,
+      "total_paid_hmc": 160,
       "findings": [
+        {
+          "title": "GET /api/tx/by-nonce HTTP 500 on nonce ≥ 2^63 (SQLite uint64 bind)",
+          "severity": "low",
+          "paid_hmc": 10,
+          "date": "2026-11-09",
+          "reported": "2026-11-09",
+          "commit": "pending",
+          "txid": "6b9e64c6f6a780c3f725325810bb37efc288b65d678ea3e33cd4b0a9055d8103",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Low functional follow-up to StartupComplianceKit height bind: by-nonce ParseUint accepted ≥2^63 then database/sql 500. Fixed handler→400 + TransfersByFromNonce guard; also HMC/SUP/HMS transfer shape + RejectStaleLocalPending. Paid 10 HMC → HMC-a6d09759a4c12019 @531638."
+        },
         {
           "title": "SUP ValidateSupTransferShape prefix-only vs HMS IsValidAddress asymmetry",
           "severity": "low",

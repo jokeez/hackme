@@ -4436,12 +4436,17 @@ func (a *app) handleTransferByNonce(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	nonce, err := strconv.ParseUint(strings.TrimSpace(r.URL.Query().Get("nonce")), 10, 64)
-	if err != nil {
-		http.Error(w, "nonce must be an unsigned integer", http.StatusBadRequest)
+	// Same SQLite INTEGER bind ceiling as from_height / reports before+index (fimasw 2026-11-09).
+	if err != nil || chain.CheckSQLiteBindUint64(nonce) != nil {
+		http.Error(w, "nonce must be an unsigned integer in supported range", http.StatusBadRequest)
 		return
 	}
 	txs, err := a.chain.TransfersByFromNonce(r.Context(), from, nonce)
 	if err != nil {
+		if errors.Is(err, chain.ErrHeightOutOfRange) {
+			http.Error(w, "nonce must be an unsigned integer in supported range", http.StatusBadRequest)
+			return
+		}
 		http.Error(w, "lookup failed", http.StatusInternalServerError)
 		return
 	}

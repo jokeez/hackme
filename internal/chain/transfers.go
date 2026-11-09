@@ -182,6 +182,10 @@ func ValidateTransferShape(tx TransferTx) (code, msg string) {
 	if tx.FeeUnits < DefaultTransferMinFee {
 		return "invalid_fee", "fee below minimum"
 	}
+	// database/sql cannot bind uint64 with the high bit set into SQLite INTEGER.
+	if !FitsSQLiteBindUint64(tx.Nonce) || !FitsSQLiteBindUint64(tx.AmountUnits) || !FitsSQLiteBindUint64(tx.FeeUnits) {
+		return "invalid_amount", "nonce/amount/fee out of supported range"
+	}
 	if len(tx.Memo) > 256 {
 		return "invalid_memo", "memo too long"
 	}
@@ -216,6 +220,9 @@ func (s *Service) validateTransferTx(ctx context.Context, tx TransferTx, q query
 	}
 	if tx.FeeUnits < DefaultTransferMinFee {
 		return "invalid_fee", "fee below minimum"
+	}
+	if !FitsSQLiteBindUint64(tx.Nonce) || !FitsSQLiteBindUint64(tx.AmountUnits) || !FitsSQLiteBindUint64(tx.FeeUnits) {
+		return "invalid_amount", "nonce/amount/fee out of supported range"
 	}
 	if len(tx.Memo) > 256 {
 		return "invalid_memo", "memo too long"
@@ -657,6 +664,9 @@ func (s *Service) WalletActivitySummary(ctx context.Context, address string, win
 // RejectStaleLocalPending marks pending transfers from addr whose nonce does not match the
 // authoritative next_nonce (desktop followers must not show local-fork ghost txs).
 func (s *Service) RejectStaleLocalPending(ctx context.Context, from string, authoritativeNonce uint64) (int64, error) {
+	if err := CheckSQLiteBindUint64(authoritativeNonce); err != nil {
+		return 0, err
+	}
 	from = strings.TrimSpace(from)
 	if from == "" {
 		return 0, nil
@@ -730,6 +740,9 @@ func (s *Service) TransferTxByHash(ctx context.Context, txHash string) (Transfer
 // without a tx_hash: the payer nonce tells which slot the send could have taken.
 func (s *Service) TransfersByFromNonce(ctx context.Context, from string, nonce uint64) ([]TransferStatusRow, error) {
 	from = strings.TrimSpace(from)
+	if err := CheckSQLiteBindUint64(nonce); err != nil {
+		return nil, err
+	}
 	var out []TransferStatusRow
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT tx_hash, status, block_index, block_hash, reject_code, from_address, to_address, amount_units, fee_units, nonce, tx_json

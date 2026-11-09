@@ -154,6 +154,9 @@ func ValidateHmsTransferShape(tx HmsTransferTx) (code, msg string) {
 	if tx.FeeUnits < DefaultHMSTransferMinFee {
 		return "fee_too_low", fmt.Sprintf("fee_units must be >= %d", DefaultHMSTransferMinFee)
 	}
+	if !FitsSQLiteBindUint64(tx.Nonce) || !FitsSQLiteBindUint64(tx.AmountUnits) || !FitsSQLiteBindUint64(tx.FeeUnits) {
+		return "invalid_amount", "nonce/amount/fee out of supported range"
+	}
 	return "", ""
 }
 
