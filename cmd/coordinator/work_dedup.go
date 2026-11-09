@@ -477,6 +477,21 @@ func (m *workManager) clearPayoutLockWith(workerID string, opts clearPayoutLockO
 			if n, _ := res.RowsAffected(); n > 0 {
 				cleared = true
 			}
+			// Forfeit must bypass persistWorkerAccrual's monotonic UPSERT
+			// (excluded.payout_units >= row.payout_units): zeroing loses that race and
+			// SQLite silently keeps unpaid units + address, which resurrect on restart
+			// (fimasw 2026-11-09).
+			if opts.ForfeitUnpaid {
+				addr := ""
+				if rebindTo != "" {
+					addr = rebindTo
+				}
+				if _, ferr := db.Exec(`UPDATE worker_accrual SET payout_hmc=0, payout_units=0, payout_sup=0, payout_address=? WHERE worker_id=?`, addr, workerID); ferr != nil {
+					m.payoutLockMu.Unlock()
+					log.Printf("payout lock forfeit accrual failed: worker_id=%q err=%v", workerID, ferr)
+					return false, prevAddr, errors.New("durable forfeit accrual update failed")
+				}
+			}
 		}
 		m.payoutLockMu.Unlock()
 		if derr != nil {

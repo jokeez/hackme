@@ -455,6 +455,50 @@ func TestUnbindForfeitUnpaidClearsAccruals(t *testing.T) {
 	}
 }
 
+// Forfeit must durable-zero worker_accrual; monotonic UPSERT alone leaves unpaid
+// units in SQLite and loadWorkerAccruals resurrects them after restart.
+func TestUnbindForfeitUnpaidDoesNotResurrectOnRestart(t *testing.T) {
+	db, wm, mux := payoutLockSetup(t)
+	workerID := "wk-resurrect"
+	initialAddr := "HMC-cccccccccccccccc"
+	wm.persistPayoutLock(workerID, initialAddr)
+	wm.mu.Lock()
+	wm.worker[workerID] = workerPayoutStat{
+		PayoutAddress: initialAddr,
+		PayoutHMC:     2.0,
+		PayoutUnits:   200000000,
+		PayoutSUP:     0.5,
+	}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual(workerID, true)
+
+	code, out := payoutLockPost(t, mux, map[string]any{
+		"worker_id": workerID, "forfeit_unpaid": true,
+	})
+	if code != http.StatusOK || out["ok"] != true {
+		t.Fatalf("forfeit call failed: code=%d out=%v", code, out)
+	}
+
+	var dbUnits uint64
+	var dbAddr string
+	if err := db.QueryRow(`SELECT payout_units, payout_address FROM worker_accrual WHERE worker_id=?`, workerID).Scan(&dbUnits, &dbAddr); err != nil {
+		t.Fatalf("accrual row: %v", err)
+	}
+	if dbUnits != 0 || strings.TrimSpace(dbAddr) != "" {
+		t.Fatalf("durable forfeit must zero accrual: units=%d addr=%q", dbUnits, dbAddr)
+	}
+
+	newWM := &workManager{worker: map[string]workerPayoutStat{}}
+	newWM.attachDedupDB(db)
+	newWM.mu.Lock()
+	restored := newWM.worker[workerID]
+	newWM.mu.Unlock()
+	if restored.PayoutUnits > 0 || strings.TrimSpace(restored.PayoutAddress) != "" {
+		t.Fatalf("forfeited accruals resurrected across restart: units=%d hmc=%f addr=%q",
+			restored.PayoutUnits, restored.PayoutHMC, restored.PayoutAddress)
+	}
+}
+
 func TestNotePayoutLockDoesNotAdoptOntoUnpaidBlank(t *testing.T) {
 	_, wm, _ := payoutLockSetup(t)
 	wm.mu.Lock()

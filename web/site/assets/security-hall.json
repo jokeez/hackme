@@ -13,9 +13,9 @@
     "limit_hmc": 200
   },
   "stats": {
-    "total_paid_hmc": 950,
+    "total_paid_hmc": 980,
     "researchers": 6,
-    "reports_accepted": 28
+    "reports_accepted": 29
   },
   "researchers": [
     {
@@ -41,8 +41,19 @@
       "id": "fimasw",
       "name": "fimasw",
       "handle": "fimasw",
-      "total_paid_hmc": 160,
+      "total_paid_hmc": 190,
       "findings": [
+        {
+          "title": "Admin forfeit_unpaid unbind does not durable-zero worker_accrual (resurrects on restart)",
+          "severity": "medium",
+          "paid_hmc": 30,
+          "date": "2026-11-09",
+          "reported": "2026-11-09",
+          "commit": "pending",
+          "txid": "90a78637dfc51d2644755a101226056f4efa2e9fcd90634e8e44edb949dda3a2",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Medium fund-integrity: clearPayoutLockWith forfeit zeroed RAM then persistWorkerAccrual monotonic WHERE (excluded.payout_units >= row) silently skipped UPDATE; loadWorkerAccruals restored unpaid+address after restart into settle path. Fixed direct UPDATE worker_accrual on forfeit + resurrection test. Paid 30 HMC → HMC-a6d09759a4c12019."
+        },
         {
           "title": "GET /api/tx/by-nonce HTTP 500 on nonce ≥ 2^63 (SQLite uint64 bind)",
           "severity": "low",
