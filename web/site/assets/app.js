@@ -456,10 +456,15 @@
     );
     const tip = String((global && global.chain && global.chain.tip_hash) || "");
     const kind = String((work && work.pool_hashrate_kind) || "");
-    const ghPow = Number(work && work.pool_hashrate_gh_s);
+    // Same as dashboard: board/device Σ first, then public pool_hashrate_gh_s.
+    const ghPow = Number(
+      (work && work.pool_hashrate_gh_s_device) ||
+        (work && work.pool_hashrate_gh_s) ||
+        NaN
+    );
     let poolTH = NaN;
     const mock = !!(global && global.network && global.network.global_mock === true);
-    if (kind === "blake3_pow_ghs" && Number.isFinite(ghPow) && ghPow > 0) {
+    if (Number.isFinite(ghPow) && ghPow > 0) {
       poolTH = ghPow / 1000;
     } else {
       poolTH = Number(global && global.network && global.network.global_hashrate_th_s);
@@ -755,18 +760,23 @@
       return;
     }
 
-    // Prefer coordinator blake3_pow_ghs (signed/wall window) — avoid mixing network TH/s,
-    // hashrate_hs, and worker Σ into three different public numbers.
+    // Same number as operator dashboard Pool hash*: board/device Σ (live worker cards).
     let poolTH = NaN;
     let poolMock = false;
     const workBlob = work || (global && global.work) || null;
     const kind = String((workBlob && workBlob.pool_hashrate_kind) || "");
-    const ghPow = Number(workBlob && workBlob.pool_hashrate_gh_s);
-    if (kind === "blake3_pow_ghs" && Number.isFinite(ghPow) && ghPow > 0) {
+    const ghPow = Number(
+      (workBlob && workBlob.pool_hashrate_gh_s_device) ||
+        (workBlob && workBlob.pool_hashrate_gh_s) ||
+        NaN
+    );
+    if (Number.isFinite(ghPow) && ghPow > 0) {
       poolTH = ghPow / 1000;
     }
     if ((!Number.isFinite(poolTH) || poolTH <= 0) && global && global.network) {
-      poolTH = Number(global.network.global_hashrate_th_s);
+      const netDev = Number(global.network.pool_hashrate_gh_s_device);
+      if (Number.isFinite(netDev) && netDev > 0) poolTH = netDev / 1000;
+      else poolTH = Number(global.network.global_hashrate_th_s);
       poolMock = global.network.global_mock === true;
     }
     if ((!Number.isFinite(poolTH) || poolTH <= 0) && Number.isFinite(ghPow) && ghPow > 0) {
@@ -779,9 +789,11 @@
       hashText = fmtPoolHashrateTHS(poolTH, poolMock);
       hashTitle = poolMock
         ? "Simulated totals (HACKME_NETWORK_MOCK)."
-        : kind === "blake3_pow_ghs"
-          ? "Coordinator blake3_pow_ghs (shares/wall · ~5–10m window)."
-          : "Live coordinator aggregate (sub-1 TH/s shown as GH/s).";
+        : kind === "board_device_sum" || Number(workBlob && workBlob.pool_hashrate_gh_s_device) > 0
+          ? "Live board Σ (same as dashboard Pool hash* · worker cards)."
+          : kind === "blake3_pow_ghs"
+            ? "Coordinator blake3_pow_ghs (shares/wall · ~5–10m window)."
+            : "Live coordinator aggregate (sub-1 TH/s shown as GH/s).";
     }
 
     let tipHeight = NaN;

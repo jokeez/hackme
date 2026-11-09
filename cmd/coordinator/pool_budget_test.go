@@ -169,6 +169,7 @@ func TestPoolBudgetSegmentPersists(t *testing.T) {
 	wm.poolBudgetUnlockedLocked(wm.poolDailyBudgetHMC(), now-600)
 	wm.baseRewardHMC = 0.1
 	_ = wm.applyPoolDailyBudget(0.001, now)
+	wm.waitPoolPayDayPersisted()
 	wm2 := &workManager{baseRewardHMC: 0.1, dedupDB: db}
 	wm2.loadPoolPayDay()
 	if wm2.poolPaySegRate != wm.poolPaySegRate || wm2.poolPaySegStart != wm.poolPaySegStart || wm2.poolPayUnlockedBase != wm.poolPayUnlockedBase {
@@ -187,6 +188,7 @@ func TestPoolBudgetRestoresBaseRewardAfterRestart(t *testing.T) {
 	wm := &workManager{baseRewardHMC: 0.1, dedupDB: db}
 	wm.loadPoolPayDay()
 	_ = wm.applyPoolDailyBudget(0.001, time.Now().Unix())
+	wm.waitPoolPayDayPersisted()
 	wm2 := &workManager{baseRewardHMC: 0.01, dedupDB: db}
 	wm2.loadPoolPayDay()
 	if wm2.baseRewardHMC != 0.1 {

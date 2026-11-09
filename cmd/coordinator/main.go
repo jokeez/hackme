@@ -302,10 +302,17 @@ func main() {
 		log.Printf("coordinator: got %v — flushing worker accruals then shutting down", sig)
 		wm.flushAllWorkerAccruals()
 		wm.mu.Lock()
-		if n := wm.flushFoundAuditLocked(); n > 0 {
+		n := wm.flushFoundAuditLocked()
+		wm.mu.Unlock()
+		wm.waitFoundAuditPersisted()
+		if n > 0 {
 			log.Printf("found_audit: flushed %d identities on shutdown", n)
 		}
+		// Final pool_pay_day snapshot (throttled path may have skipped the last seconds).
+		wm.mu.Lock()
+		wm.persistPoolPayDayLocked(time.Now().Unix())
 		wm.mu.Unlock()
+		wm.waitPoolPayDayPersisted()
 		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(ctx)

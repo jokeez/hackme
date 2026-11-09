@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -23,9 +24,9 @@ import (
 const (
 	defaultPoolBlockSec       = 30.0
 	defaultPoolBudgetBurstSec = 3600
-	// poolPayClipPersistGapSec throttles pool_pay_day writes when only the clip counter moved
-	// (every clipped submit used to write SQLite under m.mu).
-	poolPayClipPersistGapSec = 10
+	// poolPayPersistGapSec throttles pool_pay_day sqlite writes on the hot submit path.
+	// Writes run async — never block m.mu on busy_timeout (was wedging the coordinator).
+	poolPayPersistGapSec = 10
 )
 
 func poolBudgetBurstSec() int64 {
@@ -200,8 +201,22 @@ func (m *workManager) persistPoolPayDayLocked(now int64) {
 	if m == nil || m.dedupDB == nil {
 		return
 	}
-	ensurePoolPayDayTable(m.dedupDB)
-	_, err := m.dedupDB.Exec(`
+	// Snapshot under caller's m.mu, write off-lock (submit hot path).
+	dayID := m.poolPayDayID
+	accrued := m.poolPayAccruedDay
+	clips := m.poolBudgetClipped
+	segStart := m.poolPaySegStart
+	segRate := m.poolPaySegRate
+	unlocked := m.poolPayUnlockedBase
+	db := m.dedupDB
+	if m.poolPayPersistWG == nil {
+		m.poolPayPersistWG = &sync.WaitGroup{}
+	}
+	m.poolPayPersistWG.Add(1)
+	go func() {
+		defer m.poolPayPersistWG.Done()
+		ensurePoolPayDayTable(db)
+		_, err := db.Exec(`
 INSERT INTO pool_pay_day (day_id, accrued_hmc, clip_events, updated_at, seg_start_unix, seg_rate_hmc_s, unlocked_base_hmc) VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(day_id) DO UPDATE SET
   accrued_hmc=excluded.accrued_hmc,
@@ -210,10 +225,19 @@ ON CONFLICT(day_id) DO UPDATE SET
   seg_start_unix=excluded.seg_start_unix,
   seg_rate_hmc_s=excluded.seg_rate_hmc_s,
   unlocked_base_hmc=excluded.unlocked_base_hmc`,
-		m.poolPayDayID, m.poolPayAccruedDay, m.poolBudgetClipped, now, m.poolPaySegStart, m.poolPaySegRate, m.poolPayUnlockedBase)
-	if err != nil {
-		log.Printf("pool_pay_day persist: %v", err)
+			dayID, accrued, clips, now, segStart, segRate, unlocked)
+		if err != nil {
+			log.Printf("pool_pay_day persist: %v", err)
+		}
+	}()
+}
+
+// waitPoolPayDayPersisted blocks until in-flight pool_pay_day writes finish (tests/shutdown).
+func (m *workManager) waitPoolPayDayPersisted() {
+	if m == nil || m.poolPayPersistWG == nil {
+		return
 	}
+	m.poolPayPersistWG.Wait()
 }
 
 func (m *workManager) resetPoolPayDayIfNeeded(now int64) {
@@ -239,7 +263,7 @@ func (m *workManager) applyPoolDailyBudget(payout float64, now int64) float64 {
 	remain := m.poolBudgetUnlockedLocked(budget, now) - m.poolPayAccruedDay
 	if remain <= 0 {
 		m.poolBudgetClipped++
-		if now-m.poolPayPersistUnix >= poolPayClipPersistGapSec {
+		if now-m.poolPayPersistUnix >= poolPayPersistGapSec {
 			m.poolPayPersistUnix = now
 			m.persistPoolPayDayLocked(now)
 		}
@@ -250,8 +274,10 @@ func (m *workManager) applyPoolDailyBudget(payout float64, now int64) float64 {
 		m.poolBudgetClipped++
 	}
 	m.poolPayAccruedDay += payout
-	m.poolPayPersistUnix = now
-	m.persistPoolPayDayLocked(now)
+	if now-m.poolPayPersistUnix >= poolPayPersistGapSec {
+		m.poolPayPersistUnix = now
+		m.persistPoolPayDayLocked(now)
+	}
 	return payout
 }
 

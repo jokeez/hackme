@@ -31,6 +31,7 @@ type foundAuditState struct {
 	Flagged  bool
 
 	dirty         bool  // in-memory change not yet in sqlite
+	flushing      bool  // async writer in flight for this identity
 	persistedUnix int64 // last sqlite write for this identity
 }
 

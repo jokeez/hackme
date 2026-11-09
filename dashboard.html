@@ -7603,18 +7603,12 @@
 		}
 		function poolGhFromWorkStats(ws) {
 			if (!ws || typeof ws !== 'object') return 0;
-			// Blake3: coordinator pool_hashrate_gh_s is wall-timed PoW — prefer it over Σ worker
-			// rows that may still carry sticky hybrid calib peaks on older coordinators.
+			// Operator Mining strip: prefer board Σ (cards / device) — that is the fleet
+			// declare band (~0.1–0.8 × N + kapa). Public hackme.tech uses delivered
+			// pool_hashrate_gh_s (~shares/10m); those two numbers intentionally differ.
 			const kind = String(ws.pool_hashrate_kind || '');
-			let poolField = Number(ws.pool_hashrate_gh_s || 0);
-			if (!(poolField > 0) && ws.pool_display && typeof ws.pool_display === 'object') {
-				poolField = Number(ws.pool_display.hashrate_gh_s || 0);
-			}
-			if (!(poolField > 0)) {
-				const hs = Number(ws.hashrate_hs || 0);
-				if (hs > 0) poolField = hs / 1e9;
-			}
-			if (kind === 'blake3_pow_ghs' && poolField > 0) return Math.min(poolField, 5000);
+			let deviceField = Number(ws.pool_hashrate_gh_s_device || 0);
+			if (deviceField > 0) return Math.min(deviceField, 5000);
 			const workers = ws.workers;
 			if (workers && typeof workers === 'object') {
 				let sum = 0;
@@ -7626,10 +7620,23 @@
 			}
 			let gh = sumActiveRigsGh(ws.active_rigs);
 			if (gh > 0) return Math.min(gh, 5000);
+			// Fallback to public delivered only if device Σ unavailable.
+			let poolField = Number(ws.pool_hashrate_gh_s || 0);
+			if (!(poolField > 0) && ws.pool_display && typeof ws.pool_display === 'object') {
+				poolField = Number(ws.pool_display.hashrate_gh_s || 0);
+			}
+			if (!(poolField > 0)) {
+				const hs = Number(ws.hashrate_hs || 0);
+				if (hs > 0) poolField = hs / 1e9;
+			}
 			if (poolField > 0) return Math.min(poolField, 5000);
 			const fromDelta = poolGhFromAttemptsDelta(ws);
 			if (fromDelta > 0) return fromDelta;
 			return 0;
+		}
+		function poolGhIsPublicAggregate(ws) {
+			// Mining strip now prefers device Σ; never treat that as the public site figure.
+			return false;
 		}
 		/** Same GH/s source as pool strip / Mining → Pool hash (coordinator Σ, then network fallback). */
 		function resolvePoolAggregateGh(wsOpt) {
@@ -12156,10 +12163,14 @@
 			const totalAttempts = Number(ws.accepted_attempts || 0);
 			const rigsGhNow = poolGhFromWorkStats(ws);
 			if (rigsGhNow > 0) {
-				applyPoolHashDisplayGh(rigsGhNow, poolGhFromAttemptsDelta(ws) > 0 ? '' : '*');
-				if ($('hive-note')) $('hive-note').textContent = poolGhFromAttemptsDelta(ws) > 0
-					? 'derived from coordinator accepted_attempts delta (live)'
-					: 'derived from coordinator active_rigs (* submit hashrate)';
+				// * = board/device Σ (ops). Site/MiningBoard use delivered (~shares/10m), often lower.
+				applyPoolHashDisplayGh(rigsGhNow, '*');
+				if ($('hive-note')) {
+					const del = Number(ws.pool_hashrate_gh_s || 0);
+					$('hive-note').textContent = del > 0
+						? `board Σ (device)*; public site/listings ≈ ${del.toFixed(2)} GH/s delivered`
+						: 'board Σ from coordinator worker cards (device)*';
+				}
 			} else if (workTotalAttemptsPrevTs > 0 && sampleUnix > workTotalAttemptsPrevTs && totalAttempts >= workTotalAttemptsPrev) {
 				const dt = sampleUnix - workTotalAttemptsPrevTs;
 				const dAttempts = totalAttempts - workTotalAttemptsPrev;

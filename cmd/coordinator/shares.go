@@ -227,62 +227,34 @@ func shareImpliedGHS(nShares int, shareMod uint64, wallSec float64) float64 {
 	return clampWorkerHashrateGHS(hashes / wallSec / 1e9)
 }
 
-// warmLowShareImpliedGHS spreads Blake3 SHARE_STRICT micro-samples into a visible
-// board band without flattening everyone onto 0.1. Preserves rank order of raw
-// share/wall and lifts multi-share submits. Only touches raw ∈ (0, 0.05); real
-// GPU rates pass through. Cap 2 GH/s.
-func warmLowShareImpliedGHS(raw float64, nShares int) float64 {
-	if nShares < 1 || raw <= 0 || raw >= 0.05 {
-		return raw
-	}
-	// raw 0.001→~0.14, 0.01→~0.55, 0.04→~1.65; +shares stretches further.
-	bumped := 0.08 + raw*38
-	if nShares > 1 {
-		extra := nShares - 1
-		if extra > 8 {
-			extra = 8
-		}
-		bumped += 0.07 * float64(extra)
-	}
-	if bumped < 0.1 {
-		bumped = 0.1
-	}
-	if bumped > 2 {
-		bumped = 2
-	}
-	return clampWorkerHashrateGHS(bumped)
-}
-
-// pacedBoardGHS prefers a client-declared pace in [0.1, 2] when shares already
-// proved work (diverse board targets), else the warmed share-implied sample.
-// Declared values outside the band are ignored so FORCE spam cannot mint GH.
+// pacedBoardGHS maps verified-share throughput onto the worker card.
+//
+// Public pool strip / listings use board device Σ (worker cards); delivered stays
+// on pool_hashrate_gh_s_delivered for solvency retarget.
+// Worker rows may follow a declared mid-desktop pace when:
+//   - at least one share validated this submit, and
+//   - client reported GH/s is inside the honest named-fleet band [0.1, 0.8].
+// Outside that band (or no shares) we keep raw share-implied only — no 30–100 fantasy.
 func pacedBoardGHS(implied float64, reported float64, nShares int) float64 {
-	warmed := warmLowShareImpliedGHS(implied, nShares)
-	if nShares < 1 {
-		return warmed
+	implied = clampWorkerHashrateGHS(implied)
+	if nShares < 1 || implied <= 0 {
+		return implied
 	}
-	if reported < 0.1 || reported > 2 {
-		return warmed
+	reported = clampWorkerHashrateGHS(reported)
+	const bandLo = 0.1
+	const bandHi = 0.8
+	if reported >= bandLo && reported <= bandHi {
+		return reported
 	}
-	// Declared pace wins for board diversity; never below 85% of warmed floor
-	// so a weak harvest cannot advertise a full 2 GH/s.
-	floor := warmed * 0.85
-	if floor < 0.1 {
-		floor = 0.1
-	}
-	out := reported
-	if out < floor {
-		out = floor
-	}
-	if out > 2 {
-		out = 2
-	}
-	return clampWorkerHashrateGHS(out)
+	return implied
 }
 
 // honestWallHashrateGHS converts lease wall into GH/s without crediting a full
 // early-found batch as if the GPU burned every nonce (64G / 2s → fantasy 30 GH/s).
-// Credited hashes are capped to what prevGH (or a mid-GPU bootstrap) could do.
+// Credited hashes are capped to what prevGH (or a mid-desktop bootstrap) could do.
+//
+// Cold bootstrap must NOT be a full GPU (old ceiling=12 → 512M/0.1s ≈ 5 GH/s on every
+// shareharvest unit and a board of identical ~4.5–5 GH rows). Named LIVE band is 0.1–0.8.
 func honestWallHashrateGHS(batch uint64, wallSec, prevGH float64) float64 {
 	if batch == 0 || wallSec < 0.05 {
 		return 0
@@ -292,8 +264,8 @@ func honestWallHashrateGHS(batch uint64, wallSec, prevGH float64) float64 {
 		w = 0.001
 	}
 	ceiling := prevGH
-	if ceiling < 0.5 {
-		ceiling = 12 // single mid-class GPU bootstrap until share/wall samples land
+	if ceiling < 0.05 {
+		ceiling = 0.8 // mid-desktop cold start; real CUDA grows via share/wall samples
 	}
 	if ceiling > maxWorkerHashrateGHS {
 		ceiling = maxWorkerHashrateGHS

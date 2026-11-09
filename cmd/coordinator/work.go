@@ -142,7 +142,8 @@ type workManager struct {
 	poolPaySegRate        float64
 	poolPayUnlockedBase   float64
 	poolBudgetClipped     uint64
-	poolPayPersistUnix    int64 // last pool_pay_day write (clip-only updates are throttled)
+	poolPayPersistUnix    int64          // last pool_pay_day write (clip-only updates are throttled)
+	poolPayPersistWG      *sync.WaitGroup // async pool_pay_day writers (never under m.mu)
 	dedupSubmits          uint64
 	dedupFoundNonce       uint64
 	staleFoundDropped     uint64 // founds on a superseded tip: found dropped, shares still paid
@@ -184,8 +185,9 @@ type workManager struct {
 	// Relay failures that kept the lease's verified shares and dropped only the found.
 	baselineRelayDowngraded uint64
 
-	foundAudit        map[string]*foundAuditState
-	foundAuditFlagged uint64
+	foundAudit           map[string]*foundAuditState
+	foundAuditFlagged    uint64
+	foundAuditPersistWG  *sync.WaitGroup // async found_audit sqlite writers (never under m.mu)
 
 	lastAbusePruneUnix    int64
 	lastIdlePruneUnix     int64

@@ -111,13 +111,17 @@ func (m *workManager) maybeJournalSharePrice(nShares, instant, ema, targetMod, s
 	if m.sharePrice != nil {
 		m.sharePrice.lastJournalUnix = now
 	}
-	ensureSharePriceJournal(m.dedupDB)
-	_, err := m.dedupDB.Exec(`
+	db := m.dedupDB
+	// Async: observeSharePrice runs under submit's m.mu; never block on busy_timeout.
+	go func() {
+		ensureSharePriceJournal(db)
+		_, err := db.Exec(`
 INSERT INTO share_price_journal (created_at, share_count, instant_units, ema_units, target_mod, share_mod)
 VALUES (?, ?, ?, ?, ?, ?)`, now, nShares, instant, ema, targetMod, shareMod)
-	if err != nil {
-		log.Printf("share_price_journal: %v", err)
-	}
+		if err != nil {
+			log.Printf("share_price_journal: %v", err)
+		}
+	}()
 }
 
 const sharePriceJournalTable = `

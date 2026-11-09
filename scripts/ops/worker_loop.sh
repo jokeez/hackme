@@ -348,7 +348,7 @@ while true; do
       force_ghs_blake3_logged=1
     fi
     # Keep a paced board target when shares proved work. Coordinator only honors
-    # hashrate_gh_s in [0.1, 2] alongside valid shares (see pacedBoardGHS).
+    # Report a live pace for logs; coordinator credits share-implied GH/s only.
     if [[ -n "$FORCE_HASHRATE_GHS_REQUESTED" || -n "$BLAKE3_TARGET_GHS" ]]; then
       ema_hashrate_ghs="$(pick_live_gh)"
       if [[ -z "$ema_hashrate_ghs" || "$ema_hashrate_ghs" == "0" ]]; then

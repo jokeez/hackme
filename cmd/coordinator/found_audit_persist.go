@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"log"
+	"sync"
 	"time"
 )
 
@@ -71,47 +72,56 @@ func (m *workManager) loadFoundAudit() {
 	}
 }
 
-// foundAuditPersistGapSec bounds sqlite writes per identity: the hot submit path runs under
-// m.mu, and a synchronous write per submit (busy_timeout 60s) could stall every submit.
+// foundAuditPersistGapSec coalesces sqlite writes per identity. Writes never run under
+// m.mu: busy_timeout(60s) on the hot submit path previously stalled every claim/submit
+// and wedged the whole coordinator (tip stall / stats timeout).
 const foundAuditPersistGapSec = 30
 
-// markFoundAuditDirtyLocked records a change; it reaches sqlite at once when force (flag
-// transition) or when the identity's last write is older than foundAuditPersistGapSec.
-// The rest is flushed on shutdown (flushFoundAuditLocked). Caller holds m.mu.
+type foundAuditSnap struct {
+	Expected float64
+	Actual   float64
+	Flagged  bool
+}
+
+// markFoundAuditDirtyLocked records a change and schedules an async sqlite write when
+// force (flag transition) or the identity's last write is older than the gap.
+// Caller holds m.mu. NEVER performs SQLite I/O itself.
 func (m *workManager) markFoundAuditDirtyLocked(key string, force bool) {
 	st := m.foundAudit[key]
 	if st == nil {
 		return
 	}
 	st.dirty = true
-	if now := time.Now().Unix(); force || now-st.persistedUnix >= foundAuditPersistGapSec {
-		m.persistFoundAuditLocked(key, now)
-	}
-}
-
-// flushFoundAuditLocked writes every unsaved identity (graceful stop). Caller holds m.mu.
-func (m *workManager) flushFoundAuditLocked() int {
-	n := 0
 	now := time.Now().Unix()
-	for key, st := range m.foundAudit {
-		if st != nil && st.dirty {
-			m.persistFoundAuditLocked(key, now)
-			n++
-		}
-	}
-	return n
-}
-
-func (m *workManager) persistFoundAuditLocked(key string, now int64) {
-	if m == nil || m.dedupDB == nil || key == "" || foundAuditMode() == "off" {
+	if !force && now-st.persistedUnix < foundAuditPersistGapSec {
 		return
 	}
-	st := m.foundAudit[key]
-	if st == nil {
+	m.scheduleFoundAuditWriteLocked(key, st, now)
+}
+
+func (m *workManager) scheduleFoundAuditWriteLocked(key string, st *foundAuditState, now int64) {
+	if st == nil || st.flushing {
+		return
+	}
+	st.flushing = true
+	snap := foundAuditSnap{Expected: st.Expected, Actual: st.Actual, Flagged: st.Flagged}
+	if m.foundAuditPersistWG == nil {
+		m.foundAuditPersistWG = &sync.WaitGroup{}
+	}
+	m.foundAuditPersistWG.Add(1)
+	go func() {
+		defer m.foundAuditPersistWG.Done()
+		m.writeFoundAuditRow(key, snap, now)
+	}()
+}
+
+func (m *workManager) writeFoundAuditRow(key string, snap foundAuditSnap, now int64) {
+	if m == nil || m.dedupDB == nil || key == "" || foundAuditMode() == "off" {
+		m.finishFoundAuditWrite(key, snap, now, false)
 		return
 	}
 	flagged := 0
-	if st.Flagged {
+	if snap.Flagged {
 		flagged = 1
 	}
 	_, err := m.dedupDB.Exec(`
@@ -121,18 +131,67 @@ ON CONFLICT(audit_key) DO UPDATE SET
   actual=excluded.actual,
   flagged=excluded.flagged,
   updated_at=excluded.updated_at`,
-		key, st.Expected, st.Actual, flagged, now)
+		key, snap.Expected, snap.Actual, flagged, now)
 	if err != nil {
 		log.Printf("found_audit persist: %v", err)
+		m.finishFoundAuditWrite(key, snap, now, false)
 		return
 	}
-	st.dirty = false
-	st.persistedUnix = now
+	m.finishFoundAuditWrite(key, snap, now, true)
+}
+
+func (m *workManager) finishFoundAuditWrite(key string, snap foundAuditSnap, now int64, ok bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	st := m.foundAudit[key]
+	if st == nil {
+		return
+	}
+	st.flushing = false
+	if ok {
+		st.persistedUnix = now
+		// Clear dirty only if memory still matches the snap we wrote; else reschedule.
+		if st.Expected == snap.Expected && st.Actual == snap.Actual && st.Flagged == snap.Flagged {
+			st.dirty = false
+			return
+		}
+	}
+	if st.dirty {
+		m.scheduleFoundAuditWriteLocked(key, st, time.Now().Unix())
+	}
+}
+
+// flushFoundAuditLocked snapshots dirty rows and writes them asynchronously.
+// Prefer waitFoundAuditPersisted after unlock on shutdown/tests. Returns dirty count queued.
+// Caller holds m.mu.
+func (m *workManager) flushFoundAuditLocked() int {
+	n := 0
+	now := time.Now().Unix()
+	for key, st := range m.foundAudit {
+		if st == nil || !st.dirty {
+			continue
+		}
+		m.scheduleFoundAuditWriteLocked(key, st, now)
+		n++
+	}
+	return n
+}
+
+// waitFoundAuditPersisted blocks until in-flight found_audit writes finish (tests/shutdown).
+func (m *workManager) waitFoundAuditPersisted() {
+	if m == nil || m.foundAuditPersistWG == nil {
+		return
+	}
+	m.foundAuditPersistWG.Wait()
 }
 
 func (m *workManager) deleteFoundAuditLocked(key string) {
 	if m == nil || m.dedupDB == nil || key == "" {
 		return
 	}
-	_, _ = m.dedupDB.Exec(`DELETE FROM found_audit WHERE audit_key=?`, key)
+	// Async: eviction runs under m.mu on the hot path.
+	db := m.dedupDB
+	go func() {
+		_, _ = db.Exec(`DELETE FROM found_audit WHERE audit_key=?`, key)
+	}()
 }
