@@ -50,9 +50,9 @@
           "date": "2026-11-10",
           "reported": "2026-11-10",
           "commit": "4c33e34f",
-          "txid": "PENDING",
+          "txid": "21deb772c3225f1f66e491c7ec14805011c9894448367cf9ae7e4f004f6711ee",
           "payout_address": "HMC-a6d09759a4c12019",
-          "note": "Low durability regression of audit H2: e129d193 moved found_audit writes off m.mu via go func(); force flag transitions were async and only waited on graceful shutdown, so SIGKILL/OOM/deploy kill could drop withhold evidence (TestFoundAuditPersistsAcrossRestart was later masked by wait). Fixed sync force persist (brief m.mu release for SQLite only); crash test no longer waits. Paid 10 HMC → HMC-a6d09759a4c12019."
+          "note": "Low durability regression of audit H2: e129d193 moved found_audit writes off m.mu via go func(); force flag transitions were async and only waited on graceful shutdown, so SIGKILL/OOM/deploy kill could drop withhold evidence (TestFoundAuditPersistsAcrossRestart was later masked by wait). Fixed sync force persist (brief m.mu release for SQLite only); crash test no longer waits. Paid 10 HMC → HMC-a6d09759a4c12019 tx 21deb772c3225f1f… @534173."
         },
         {
           "title": "Fuzz escrow per-run integer division strands runs-pool dust (ComputeSplitUnitsShare)",
