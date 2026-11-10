@@ -15,7 +15,7 @@
   "stats": {
     "total_paid_hmc": 990,
     "researchers": 6,
-    "reports_accepted": 32
+    "reports_accepted": 33
   },
   "researchers": [
     {
@@ -43,6 +43,16 @@
       "handle": "fimasw",
       "total_paid_hmc": 200,
       "findings": [
+        {
+          "title": "HMS UploadOrderChunk reopens stored orders (status→uploading + chunk rewrite)",
+          "severity": "low",
+          "paid_hmc": 0,
+          "date": "2026-11-10",
+          "reported": "2026-11-10",
+          "commit": "PENDING",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Accepted / no payout: HMS storage lane is still prelaunch (not live on hub). UploadOrderChunk rejected only cancelled/failed; complete left upload_token intact, so a token holder could reupload after stored, rewrite ON CONFLICT chunks, and regress status to uploading. Fixed reject stored + UPDATE NOT IN (stored,cancelled,failed); restore download still uses token. Hall credit only."
+        },
         {
           "title": "found_audit flag transition async — H2 wipe on crash after e129d193",
           "severity": "low",

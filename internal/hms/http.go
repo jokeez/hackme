@@ -444,6 +444,8 @@ func registerMarketRoutes(mux *http.ServeMux, coord *Coordinator, adminToken, wo
 				return
 			}
 			now := time.Now().Unix()
+			// Idempotent complete: already-stored stays stored. upload_token kept for restore
+			// downloads; UploadOrderChunk rejects stored so the token cannot reopen the order.
 			res, err := coord.db.Exec(`UPDATE hms_orders SET status=?, updated_unix=?
 				WHERE order_id=? AND status NOT IN (?,?) AND upload_token<>''`,
 				OrderStatusStored, now, orderID, OrderStatusCancelled, OrderStatusFailed)
@@ -452,8 +454,14 @@ func registerMarketRoutes(mux *http.ServeMux, coord *Coordinator, adminToken, wo
 				return
 			}
 			if n, _ := res.RowsAffected(); n == 0 {
-				http.Error(w, "order is cancelled or failed", http.StatusConflict)
-				return
+				var cur string
+				_ = coord.db.QueryRow(`SELECT status FROM hms_orders WHERE order_id=?`, orderID).Scan(&cur)
+				if strings.TrimSpace(strings.ToLower(cur)) == OrderStatusStored {
+					// already complete — OK
+				} else {
+					http.Error(w, "order is cancelled or failed", http.StatusConflict)
+					return
+				}
 			}
 			_ = coord.refreshOrderHealth()
 			o, _ := coord.GetStorageOrder(orderID)

@@ -422,3 +422,46 @@ func TestSwappedReplicaIsNotHealthyOrRestored(t *testing.T) {
 		t.Fatal("repair cloned swapped bytes onto a new worker")
 	}
 }
+
+// Stored orders must stay sealed: a still-valid upload_token must not reopen status→uploading
+// or rewrite ciphertext (fimasw 2026-11-10).
+func TestStoredOrderRejectsChunkReupload(t *testing.T) {
+	coord, _ := setupIntegrityCoord(t, "w-a", "w-b")
+	created, err := coord.CreateStorageOrder("sealed", "c1", 4096, 30, "", "", "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oid := created.Order.OrderID
+	tok := created.UploadToken
+	orig := []byte("sealed-ciphertext-v1")
+	if _, err := coord.UploadOrderChunk(oid, tok, 0, orig); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().Unix()
+	if _, err := coord.db.Exec(`UPDATE hms_orders SET status=?, updated_unix=? WHERE order_id=?`,
+		OrderStatusStored, now, oid); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := coord.UploadOrderChunk(oid, tok, 0, []byte("attacker-replacement-v2")); err == nil {
+		t.Fatal("expected reject reupload on stored order")
+	}
+	var status string
+	var sha []byte
+	if err := coord.db.QueryRow(`SELECT status FROM hms_orders WHERE order_id=?`, oid).Scan(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status != OrderStatusStored {
+		t.Fatalf("status=%q want stored (must not regress to uploading)", status)
+	}
+	if err := coord.db.QueryRow(`SELECT ciphertext_sha256 FROM hms_order_chunks WHERE order_id=? AND chunk_index=0`, oid).Scan(&sha); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(orig)
+	if !bytes.Equal(sha, sum[:]) {
+		t.Fatalf("ciphertext hash rewritten after rejected reupload")
+	}
+	got, _, err := coord.DownloadOrderChunk(oid, tok, 0)
+	if err != nil || !bytes.Equal(got, orig) {
+		t.Fatalf("restore after reject: err=%v got=%q", err, got)
+	}
+}

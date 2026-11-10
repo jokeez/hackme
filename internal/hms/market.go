@@ -256,7 +256,9 @@ func (c *Coordinator) UploadOrderChunk(orderID, uploadToken string, chunkIndex i
 	var curStatus string
 	_ = c.db.QueryRow(`SELECT status FROM hms_orders WHERE order_id=?`, orderID).Scan(&curStatus)
 	switch strings.TrimSpace(strings.ToLower(curStatus)) {
-	case OrderStatusCancelled, OrderStatusFailed:
+	case OrderStatusStored, OrderStatusCancelled, OrderStatusFailed:
+		// stored is terminal for upload: keep upload_token for restore downloads, but never
+		// reopen sealed orders (would regress status→uploading and rewrite ciphertext).
 		return nil, errors.New("order is " + curStatus)
 	}
 	if chunkIndex < 0 || chunkIndex > 1_000_000 {
@@ -333,13 +335,14 @@ func (c *Coordinator) UploadOrderChunk(orderID, uploadToken string, chunkIndex i
 		bytes_uploaded=(SELECT COALESCE(SUM(size),0) FROM hms_order_chunks WHERE order_id=?),
 		chunk_count=(SELECT COUNT(*) FROM hms_order_chunks WHERE order_id=?),
 		status=?, health_status=?, health_detail=?, updated_unix=?
-		WHERE order_id=? AND status NOT IN (?,?) AND upload_token<>''`,
-		orderID, orderID, status, health, detail, now, orderID, OrderStatusCancelled, OrderStatusFailed)
+		WHERE order_id=? AND status NOT IN (?,?,?) AND upload_token<>''`,
+		orderID, orderID, status, health, detail, now, orderID,
+		OrderStatusStored, OrderStatusCancelled, OrderStatusFailed)
 	if err != nil {
 		return nil, err
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
-		return nil, errors.New("order is cancelled or failed")
+		return nil, errors.New("order is stored, cancelled, or failed")
 	}
 	return map[string]any{
 		"ok":             true,
