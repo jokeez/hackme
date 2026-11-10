@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HackMe Research — Hunt Watch, L1 &amp; Security Ledgers</title>
-  <meta name="description" content="Public security research: Hunt Watch 12/12 (~192.5M Hunt Standard), OSS CVE Watch (nghttp2/libheif), Bitcoin 30-Day, L1 live prod fuzz — honest ledgers, not CVE claims." />
+  <title>HackMe Research — Living Hunt &amp; Dig case ledger</title>
+  <meta name="description" content="HackMe research ledger split by origin: crypto & mining, OSS libraries, bug-bounty lane, custom lab harnesses, customer pilots — searchable tables." />
   <link rel="canonical" href="https://hackme.tech/research.html" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-  <link rel="stylesheet" href="./assets/styles.css?v=20261024eco1" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20261109pf4" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
 </head>
-<body>
+<body class="page-research">
   <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
   <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
   <header class="topbar">
@@ -24,261 +24,103 @@
   </header>
 
   <main class="container">
-    <section class="hero glass hero-small">
-      <p class="kicker">Security research · Ecosystem</p>
-      <h1>Research hub</h1>
+    <section class="hero glass hero-small rh-hero">
+      <div class="rh-hero-brand">
+        <img src="./assets/logo-hex.png" alt="" width="44" height="44" />
+        <p class="hs-wordmark">HackMe</p>
+      </div>
+      <p class="kicker">Research · living portfolio</p>
+      <h1>Case ledger</h1>
       <p class="hero-copy">
-        Public ledgers for <strong>Hunt Watch</strong> (historical ASAN/UBSan marathon),
-        the <strong>Bitcoin 30-Day</strong> series, <strong>OSS CVE Watch</strong> (standalone libFuzzer research lane),
-        and <strong>live prod fuzz</strong> — honest scope, published HTML.
-        Product Hunt today is <strong>coverage-guided</strong> (libFuzzer fleet · AFL++ Deep) — see <a href="./fuzz-guide.html">fuzz guide</a>.
-        Customer audits stay <strong>token-gated</strong> on your local node — see <a href="./developers.html">Developers</a>.
+        Cases grouped by <strong>where the target came from</strong> — crypto &amp; mining, OSS libraries,
+        bug-bounty lane, our custom lab harnesses, customer pilots.
+        Press <kbd class="rh-kbd">/</kbd> to search. CLEAN ≠ CVE.
       </p>
-      <div class="pill-row">
-        <span class="pill">Hunt Watch 12/12</span>
-        <span class="pill">5-chain L1 WASM</span>
-        <span class="pill">Bitcoin30 series</span>
-        <span class="pill">OSS parser fuzz</span>
-        <span class="pill">0 critical · honest triage</span>
+      <div class="rh-metric-strip" aria-label="Ledger snapshot">
+        <div class="rh-metric">
+          <span class="label">Cases</span>
+          <span class="value notranslate" data-rh-domain-count="all">—</span>
+        </div>
+        <div class="rh-metric">
+          <span class="label">Crypto</span>
+          <span class="value notranslate" data-rh-domain-count="crypto">—</span>
+        </div>
+        <div class="rh-metric">
+          <span class="label">Libraries</span>
+          <span class="value notranslate" data-rh-domain-count="libraries">—</span>
+        </div>
+        <div class="rh-metric">
+          <span class="label">Found</span>
+          <span class="value notranslate" data-rh-count="found">—</span>
+        </div>
       </div>
+      <div id="rh-activity" class="rh-activity-wrap" aria-live="polite"></div>
+    </section>
+
+    <section class="panel glass research-section rh-panel" aria-label="Case ledger">
+      <div class="rh-toolbar">
+        <div class="rh-nav-label">Origin</div>
+        <div class="rh-domains-nav" id="rh-domains-nav" role="toolbar" aria-label="Filter by origin">
+          <button type="button" class="rh-chip is-active" data-rh-domain="all" aria-pressed="true">All <span class="rh-chip-n" data-rh-domain-count="all">0</span></button>
+          <button type="button" class="rh-chip" data-rh-domain="crypto" aria-pressed="false">Crypto &amp; mining <span class="rh-chip-n" data-rh-domain-count="crypto">0</span></button>
+          <button type="button" class="rh-chip" data-rh-domain="libraries" aria-pressed="false">OSS libraries <span class="rh-chip-n" data-rh-domain-count="libraries">0</span></button>
+          <button type="button" class="rh-chip" data-rh-domain="bugbounty" aria-pressed="false">Bug bounty <span class="rh-chip-n" data-rh-domain-count="bugbounty">0</span></button>
+          <button type="button" class="rh-chip" data-rh-domain="custom" aria-pressed="false">Custom &amp; lab <span class="rh-chip-n" data-rh-domain-count="custom">0</span></button>
+          <button type="button" class="rh-chip" data-rh-domain="customer" aria-pressed="false">Customer <span class="rh-chip-n" data-rh-domain-count="customer">0</span></button>
+        </div>
+
+        <div class="rh-nav-label">Outcome</div>
+        <div class="rh-filters" id="rh-filters" role="toolbar" aria-label="Filter by outcome">
+          <button type="button" class="rh-chip is-active" data-rh-filter="all" aria-pressed="true">All <span class="rh-chip-n" data-rh-count="all">0</span></button>
+          <button type="button" class="rh-chip" data-rh-filter="found" aria-pressed="false">Found <span class="rh-chip-n" data-rh-count="found">0</span></button>
+          <button type="button" class="rh-chip" data-rh-filter="clean" aria-pressed="false">CLEAN <span class="rh-chip-n" data-rh-count="clean">0</span></button>
+          <button type="button" class="rh-chip" data-rh-filter="series" aria-pressed="false">Series <span class="rh-chip-n" data-rh-count="series">0</span></button>
+          <button type="button" class="rh-chip" data-rh-filter="live" aria-pressed="false">Live <span class="rh-chip-n" data-rh-count="live">0</span></button>
+          <button type="button" class="rh-chip" data-rh-filter="pilot" aria-pressed="false">Pilot <span class="rh-chip-n" data-rh-count="pilot">0</span></button>
+          <button type="button" class="rh-chip" data-rh-filter="archive" aria-pressed="false">Archive <span class="rh-chip-n" data-rh-count="archive">0</span></button>
+        </div>
+
+        <div class="rh-search-wrap">
+          <span class="rh-search-icon" aria-hidden="true">⌕</span>
+          <label class="sr-only" for="rh-search">Search cases</label>
+          <input class="rh-search" id="rh-search" type="search" placeholder="Search id, title, tag, domain…" autocomplete="off" spellcheck="false" />
+          <button type="button" class="rh-clear" id="rh-clear" hidden title="Clear search">✕</button>
+          <kbd class="rh-kbd rh-kbd-inline" title="Focus search">/</kbd>
+        </div>
+
+        <span class="rh-visible"><b id="rh-visible-count" class="notranslate">0</b> shown</span>
+      </div>
+
+      <div class="rh-spotlight-wrap" id="rh-spotlight" aria-label="Featured case"></div>
+
+      <div id="rh-domains" class="rh-domains"></div>
+      <p class="rh-empty" id="rh-empty" hidden>No cases match — clear search or pick another origin / outcome.</p>
     </section>
 
     <section class="panel glass research-section">
       <div class="research-section-head">
         <div>
-          <h2>Hunt Watch · 2026sep</h2>
-          <p class="subtle">Series complete · 12/12 days · Hunt Standard (ASAN+UBSan subprocess era) · historical ledger — product Hunt is now coverage-guided</p>
+          <h2>How the shelves work</h2>
+          <p class="subtle">Origin = where we took the target · Outcome = what the campaign produced</p>
         </div>
-        <a class="btn btn-secondary" href="./reports/hunt-watch-2026sep/" style="font-size:0.82rem;padding:0.45rem 0.9rem">Series ledger</a>
+        <a class="btn btn-secondary" href="./reports/portfolio/" style="font-size:0.82rem;padding:0.45rem 0.9rem">Portfolio hub</a>
       </div>
-      <div class="research-grid">
-        <a class="research-card research-card-featured" href="./reports/hunt-watch-2026sep/">
-          <span class="research-tag series">12/12 · complete</span>
-          <h3>Multi-target Hunt Standard marathon</h3>
-          <p>50 target runs · ~192.5M iterations · <strong>8 finding families</strong> (1,437 variant inputs) · 43 CLEAN · 2 CVE_CANDIDATE · 5 INFORMATIONAL. Honesty 2.0 — cite families, not raw crashes. Separate from nghttp2/libheif libFuzzer watches.</p>
-          <div class="research-stats notranslate"><span><b>~192.5M</b> iter</span><span><b>8</b> families</span><span><b>43</b> CLEAN</span></div>
+      <div class="rh-aside-links">
+        <a href="#domain-crypto">
+          <h4>Crypto &amp; mining</h4>
+          <p>Bitcoin series, L1 stacks, stratum / pool parsers.</p>
         </a>
-        <a class="research-card" href="./reports/hunt-watch-2026sep/#signals">
-          <span class="research-tag series">Highlights</span>
-          <h3>sheredom · libucl · cfgpack</h3>
-          <p>CVE_CANDIDATE / INFORMATIONAL sanitizer classes — public triage notes, not CVE IDs. Full table on the ledger.</p>
-          <div class="research-stats notranslate"><span>ASAN+UBSan</span><span>honest scope</span></div>
+        <a href="#domain-libraries">
+          <h4>OSS libraries</h4>
+          <p>Catalog soaks &amp; long watches (nghttp2, oniguruma, …).</p>
         </a>
-      </div>
-    </section>
-
-    <section class="panel glass research-section b2b-pilots-section">
-      <div class="research-section-head">
-        <div>
-          <h2>B2B customer pilots</h2>
-          <p class="subtle">Published with consent · promo Scan slots · redacted fuzz_report_v2 · <a href="./reports/b2b-fuzz/">case hub →</a></p>
-        </div>
-        <a class="btn btn-secondary" href="./developers.html" style="font-size:0.82rem;padding:0.45rem 0.9rem">Run your Scan</a>
-      </div>
-      <article class="research-card research-card-featured">
-        <span class="research-tag live">Scan · promo #1</span>
-        <h3><a href="./reports/b2b-fuzz/shannon-packet-scan.html">C packet parser · Shannon Bautista</a></h3>
-        <p>Free promo Scan — customer <code class="notranslate">target.c</code> + seed corpus. seed1 clean · seed2 intentional crash path (test seed).</p>
-        <div class="research-stats notranslate"><span><b>64</b> runs</span><span>seed1 clean</span><span>seed2 guard hit</span></div>
-        <p class="b2b-card-links"><a href="./reports/b2b-fuzz/shannon-packet-scan.html">Case summary</a> · <a href="./reports/b2b-fuzz/shannon-packet-scan-report.html">HTML report</a></p>
-      </article>
-      <p class="subtle b2b-promo-foot">First <strong>5</strong> Scan packages free — <a href="https://t.me/hackme_network">@hackme_network</a></p>
-    </section>
-
-            <section class="panel glass research-section">
-      <div class="research-section-head">
-        <div>
-          <h2>OSS CVE Watch · nghttp2</h2>
-          <p class="subtle">Series complete · 14/14 days · Day 2+ libFuzzer · honest CLEAN ledger</p>
-        </div>
-        <a class="btn btn-secondary" href="./reports/oss-cve-watch/" style="font-size:0.82rem;padding:0.45rem 0.9rem">Series hub</a>
-      </div>
-      <div class="research-grid">
-        <a class="research-card" href="./reports/oss-cve-watch/">
-          <span class="research-tag series">14/14 · complete</span>
-          <h3>nghttp2 HTTP/2 parser</h3>
-          <p>Session <code class="notranslate">mem_recv</code> · persistent corpus · Days 2–14 cumulative ~14.32B libFuzzer exec · CLEAN.</p>
-          <div class="research-stats notranslate"><span><b>~14.32B</b> exec</span><span><b>0</b> ASAN</span><span>CLEAN</span></div>
+        <a href="#domain-bugbounty">
+          <h4>Bug bounty lane</h4>
+          <p>Disclosure-shaped picks (e.g. Exiv2) — still honest CLEAN/Found.</p>
         </a>
-        <a class="research-card" href="./reports/oss-cve-watch/day14.html">
-          <span class="research-tag series">Finale ledger</span>
-          <h3>Day 14 · 3.03B · 17.0h</h3>
-          <p>libFuzzer + ASAN · ~49,622 exec/s · corpus 420 · ASAN=0 — verdict CLEAN.</p>
-          <div class="research-stats notranslate"><span><b>3.03B</b> exec</span><span><b>0</b> ASAN</span></div>
-        </a>
-      </div>
-    </section>
-
-    <section class="panel glass research-section">
-      <div class="research-section-head">
-        <div>
-          <h2>OSS CVE Watch · libheif</h2>
-          <p class="subtle">Series complete · 14/14 CLEAN · HEIF/AVIF decode · libFuzzer + ASAN · ~2.57B exec</p>
-        </div>
-        <a class="btn btn-secondary" href="./reports/oss-cve-watch-libheif/" style="font-size:0.82rem;padding:0.45rem 0.9rem">Series hub</a>
-      </div>
-      <div class="research-grid">
-        <a class="research-card" href="./reports/oss-cve-watch-libheif/">
-          <span class="research-tag series">14/14 · complete</span>
-          <h3>libheif HEIF/AVIF</h3>
-          <p>Upstream <code class="notranslate">file_fuzzer</code> · libde265 + dav1d · Days 1–14 cumulative ~2.57B libFuzzer exec · 14/14 CLEAN · ASAN=0.</p>
-          <div class="research-stats notranslate"><span><b>~2.57B</b> exec</span><span><b>0</b> ASAN</span><span>CLEAN</span></div>
-        </a>
-        <a class="research-card" href="./reports/oss-cve-watch-libheif/day14.html">
-          <span class="research-tag series">Finale ledger</span>
-          <h3>Day 14 · 316.6M · ~39.5h</h3>
-          <p>libFuzzer + ASAN · ~2,228 exec/s · corpus 3215 · 7509 edges · ASAN=0 — verdict CLEAN. Not a CVE claim.</p>
-          <div class="research-stats notranslate"><span><b>316.6M</b> exec</span><span><b>0</b> ASAN</span></div>
-        </a>
-      </div>
-    </section>
-
-    <section class="panel glass research-section">
-      <div class="research-section-head">
-        <div>
-          <h2>Live production fuzz</h2>
-          <p class="subtle">Escrow · workerfuzz · coordinator · published HTML</p>
-        </div>
-      </div>
-      <div class="research-grid">
-        <a class="research-card" href="./reports/l1-crypto-stack-v4.html">
-          <span class="research-tag live">Live · prod pool</span>
-          <h3>L1 Crypto Stack v4</h3>
-          <p>BTC · ETH · DOGE · LTC · HackMe — public campaign tracker on hackme.tech (redacted; orders on local node).</p>
-          <div class="research-stats"><span>May 2026</span><span><b>5</b> chains</span></div>
-        </a>
-      </div>
-      <div class="cta-row" style="margin-top:1rem">
-        <a class="btn btn-primary" href="./reports/l1-crypto-stack-v4.html">Open v4 report</a>
-        <a class="btn btn-secondary" href="./fuzz-campaigns.html">Fuzz marketplace</a>
-      </div>
-    </section>
-
-    <section class="panel glass research-section">
-      <div class="research-section-head">
-        <div>
-          <h2>Bitcoin Core · 30-Day series</h2>
-          <p class="subtle">Daily upstream WASM · week ledgers — not a flat list of every day</p>
-        </div>
-      </div>
-      <div class="research-grid">
-        <a class="research-card" href="./reports/bitcoin30.html">
-          <span class="research-tag series">Series hub · complete</span>
-          <h3>Bitcoin 30-Day fuzz</h3>
-          <p><strong>30/30 days</strong> · Fuzz Depth v3 weeks 3–4 · upstream WASM guards on useful-PoW.</p>
-          <div class="research-stats"><span><b>8,808</b> runs</span><span><b>1,953</b> signals</span><span><b>0</b> critical</span></div>
-        </a>
-        <a class="research-card" href="./reports/bitcoin30-day30.html">
-          <span class="research-tag series">Milestone</span>
-          <h3>Day 30 · series finale</h3>
-          <p>bytes_corpus deep tier · structured inputs · honest triage — not a CVE claim.</p>
-          <div class="research-stats"><span><b>0</b> critical</span><span>Week 4</span></div>
-        </a>
-        <a class="research-card" href="./reports/bitcoin30-week4.html">
-          <span class="research-tag series">Week 4 ledger</span>
-          <h3>Week 4 · days 22–30</h3>
-          <p>bytes_corpus · <em>historical</em> 10 HMC tier (current Deep ~40 HMC / 2048 · 40/60) · native bridge.</p>
-          <div class="research-stats"><span><b>0</b> critical</span><span>9 modules</span></div>
-        </a>
-        <a class="research-card" href="./reports/bitcoin30-week3.html">
-          <span class="research-tag series">Week 3 ledger</span>
-          <h3>Week 3 · days 15–21</h3>
-          <p>wasm_native · 186 native_confirmed · Fuzz Depth v3 bridge.</p>
-          <div class="research-stats"><span><b>0</b> critical</span><span>7 modules</span></div>
-        </a>
-        <a class="research-card" href="./reports/bitcoin30-two-weeks.html">
-          <span class="research-tag series">Archive</span>
-          <h3>Days 1–14 · combined</h3>
-          <p>Two-week ledger · 809 guard signals · 1 clean module.</p>
-          <div class="research-stats"><span><b>0</b> critical</span><span>14 modules</span></div>
-        </a>
-        <a class="research-card" href="./reports/fuzz-depth-v3.html">
-          <span class="research-tag live">Fuzz Depth v3</span>
-          <h3>WASM → native → bounty</h3>
-          <p>Three depth tiers used in BTC30 weeks 3–4 · production gates on hub.</p>
-        </a>
-      </div>
-    </section>
-
-    <section class="panel glass research-section">
-      <div class="research-section-head">
-        <div>
-          <h2>OSS case studies</h2>
-          <p class="subtle">Voluntary parser / consensus boundary fuzz · fuzz_report_v2 export</p>
-        </div>
-      </div>
-      <div class="research-grid">
-        <a class="research-card" href="./reports/mkpool-fuzz/">
-          <span class="research-tag case">Stratum · mkpool</span>
-          <h3>Mecanik / mkpool parser fuzz</h3>
-          <p>SV2 Reader · version mask · mining.submit hex · V1 framing — 4 guards, ~16k checks.</p>
-          <div class="research-stats"><span><b>0</b> critical</span><span>400 guard signals</span><span>no patch requested</span></div>
-        </a>
-        <a class="research-card" href="./reports/ckpool-fuzz/">
-          <span class="research-tag case">Stratum · ckpool</span>
-          <h3>ckpool (Con Kolivas) parser fuzz</h3>
-          <p>MAX_MSGSIZE 1024 · parse_submit hex · version mask · ntime window — 5 guards, ~19.5k checks.</p>
-          <div class="research-stats"><span><b>0</b> critical</span><span>1,000 guard signals</span><span>no patch requested</span></div>
-        </a>
-        <a class="research-card" href="./reports/stratum-mining-fuzz/">
-          <span class="research-tag case">Sv2 · stratum-mining</span>
-          <h3>stratum-mining/stratum reference</h3>
-          <p>Sv2 frame bounds · extranonce · user identity · open_channel target — 4 guards, 8k checks.</p>
-          <div class="research-stats"><span><b>0</b> critical</span><span>800 guard signals</span><span>no patch requested</span></div>
-        </a>
-        <a class="research-card" href="./reports/oss-cve/">
-          <span class="research-tag case">OSS CVE · Tier D</span>
-          <h3>Upstream ASAN hunts</h3>
-          <p>Waves 29–31+ on hub · cfgpack fix merged · centijson/libucl in disclosure · waves 32–41 marathon live.</p>
-          <div class="research-stats"><span><b>5</b> cases</span><span>wave 31 CLEAN</span><span>driver-ranked queue</span></div>
-        </a>
-        <a class="research-card" href="./reports/oss-pr-sweep/">
-          <span class="research-tag case">OSS rotation · 5 targets</span>
-          <h3>Upstream guard sweep</h3>
-          <p>Dogecoin · Litecoin · geth · Solana SPL · CentiJSON — 2,560 runs · 384 guard signals.</p>
-          <div class="research-stats"><span><b>0</b> critical</span><span>5 repos</span><span>ROTATE CLEAN</span></div>
-        </a>
-        <a class="research-card" href="./reports/bitcoin-core-5module.html">
-          <span class="research-tag case">Bitcoin Core</span>
-          <h3>Core 5-module study</h3>
-          <p>Companion guards · honest non-CVE scope · upstream excerpts.</p>
-        </a>
-      </div>
-    </section>
-
-    <section class="panel glass research-section">
-      <div class="research-section-head">
-        <div>
-          <h2>Archive · L1 stack</h2>
-          <p class="subtle">Earlier corpora and property probes</p>
-        </div>
-      </div>
-      <div class="research-grid">
-        <a class="research-card" href="./reports/l1-crypto-stack-v3.html">
-          <span class="research-tag archive">Corpus v3</span>
-          <h3>L1 Crypto Stack v3</h3>
-          <p>Bitcoin Core qa-assets · pinned upstream · 20k golden match.</p>
-        </a>
-        <a class="research-card" href="./reports/l1-crypto-stack.html">
-          <span class="research-tag archive">v2</span>
-          <h3>L1 Crypto Stack v2</h3>
-          <p>Five-chain property probes · no sandbox traps.</p>
-        </a>
-      </div>
-    </section>
-
-    <section class="panel glass research-section">
-      <div class="research-section-head">
-        <h2>Operators &amp; policy</h2>
-      </div>
-      <div class="quick-links quick-links-two">
-        <a class="quick-item" href="./fuzz-guide.html">
-          <h4>Fuzz operator guide</h4>
-          <p>Campaign lifecycle, gates, autorunner — local node <code>#fuzz</code>.</p>
-        </a>
-        <a class="quick-item" href="./security-rewards.html">
-          <h4>Security rewards</h4>
-          <p>Bounty policy and disclosure channels.</p>
+        <a href="#domain-custom">
+          <h4>Custom &amp; lab</h4>
+          <p>Our harnesses &amp; positive controls (traplib).</p>
         </a>
       </div>
     </section>
@@ -286,9 +128,10 @@
     <section class="panel glass">
       <div class="panel-head"><h2>Honest scope</h2></div>
       <ul class="list">
-        <li>WASM guards exercise <em>selected</em> upstream logic — validate crash-class issues on native builds before CVE claims.</li>
-        <li><code>fail_high</code> + guard signals often mean <strong>expected rejections</strong>, not exploitable bugs.</li>
-        <li>Mining economics: <a href="./economics-model.html">Economics</a> · <a href="./coins.html">Coins</a>.</li>
+        <li><strong>Found</strong> — coordinator-attested crash-class; validate native upstream before CVE claims.</li>
+        <li><strong>CLEAN</strong> — no qualifying crash-class in the window; not a proof of security.</li>
+        <li><strong>Report</strong> — Orders completion deliverable (<code class="notranslate">fuzz_report_v2</code>); same HTML as <code class="notranslate">…/report.html</code>.</li>
+        <li>New case: set <code class="notranslate">domain</code> + <code class="notranslate">kind</code> (+ optional <code class="notranslate">report</code>) in <code class="notranslate">assets/research-ledger.js</code>.</li>
       </ul>
     </section>
   </main>
@@ -298,7 +141,15 @@
     <p class="muted">Ecosystem: mine · fuzz · research · explore.</p>
     <div class="footer-nav"></div>
   </footer>
+  <style>
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+  </style>
   <script src="./assets/site-shell.js?v=20261024eco1"></script>
   <script src="./assets/app.js?v=20260914dev1"></script>
+  <script src="./assets/report-viewer.js?v=20261109pf4"></script>
+  <script src="./assets/research-ledger.js?v=20261109pf4"></script>
 </body>
 </html>
