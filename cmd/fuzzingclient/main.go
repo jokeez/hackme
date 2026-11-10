@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"hackme/internal/fuzzingcli"
+	"hackme/internal/netutil"
 )
 
 func main() {
@@ -255,8 +256,8 @@ func apiDoAdmin(base, adminTok, method, path string, body []byte) ([]byte, int, 
 	if adminTok != "" {
 		req.Header.Set("X-Hackme-Admin-Token", adminTok)
 	}
-	cl := &http.Client{Timeout: 90 * time.Second}
-	resp, err := cl.Do(req)
+	// Never follow redirects with token headers (X-Hackme-* are not stripped cross-origin).
+	resp, err := netutil.HTTPClientNoRedirect(90 * time.Second).Do(req)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -284,8 +285,7 @@ func apiDo(base, token, method, path string, body []byte) ([]byte, int, error) {
 	if token != "" {
 		req.Header.Set("X-Hackme-Developer-Token", token)
 	}
-	cl := &http.Client{Timeout: 60 * time.Second}
-	resp, err := cl.Do(req)
+	resp, err := netutil.HTTPClientNoRedirect(60 * time.Second).Do(req)
 	if err != nil {
 		return nil, 0, err
 	}

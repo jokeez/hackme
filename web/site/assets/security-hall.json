@@ -13,9 +13,9 @@
     "limit_hmc": 200
   },
   "stats": {
-    "total_paid_hmc": 990,
+    "total_paid_hmc": 1000,
     "researchers": 6,
-    "reports_accepted": 33
+    "reports_accepted": 34
   },
   "researchers": [
     {
@@ -41,8 +41,19 @@
       "id": "fimasw",
       "name": "fimasw",
       "handle": "fimasw",
-      "total_paid_hmc": 200,
+      "total_paid_hmc": 210,
       "findings": [
+        {
+          "title": "hackme-fuzzing CLI follows redirects with X-Hackme-* tokens (apiDo/apiDoAdmin/fetchJSONAuth)",
+          "severity": "low",
+          "paid_hmc": 10,
+          "date": "2026-11-10",
+          "reported": "2026-11-10",
+          "commit": "PENDING",
+          "txid": "PENDING",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Low: cmd/fuzzingclient token clients used plain http.Client and followed 3xx while re-sending X-Hackme-Developer/Admin/Report-Token (wizard fetchGatePass already DenyRedirect). Fixed HTTPClientNoRedirect on apiDo/apiDoAdmin/fetchJSONAuth + local-auth probe; redirect-leak regression tests. Paid 10 HMC → HMC-a6d09759a4c12019. (HMS stored-reopen mail same day already fixed in 40a1b472 — no second payout.)"
+        },
         {
           "title": "HMS UploadOrderChunk reopens stored orders (status→uploading + chunk rewrite)",
           "severity": "low",

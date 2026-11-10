@@ -435,8 +435,7 @@ func fetchLoopbackAdminToken(base string) string {
 	}
 	// Mirror dashboard same-origin fetch: local-auth omits token for bare curl unless EXPOSE=1.
 	req.Header.Set("Sec-Fetch-Site", "same-origin")
-	cl := &http.Client{Timeout: 5 * time.Second}
-	resp, err := cl.Do(req)
+	resp, err := netutil.HTTPClientNoRedirect(5 * time.Second).Do(req)
 	if err != nil {
 		return ""
 	}

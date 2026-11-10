@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"hackme/internal/netutil"
 )
 
 // EscrowSpendView is the honest escrow slice shown by `status`.
@@ -300,8 +302,7 @@ func fetchJSONAuth(base, reportTok, path string) ([]byte, error) {
 	if adm := adminToken(); adm != "" {
 		req.Header.Set("X-Hackme-Admin-Token", adm)
 	}
-	cl := &http.Client{Timeout: 30 * time.Second}
-	resp, err := cl.Do(req)
+	resp, err := netutil.HTTPClientNoRedirect(30 * time.Second).Do(req)
 	if err != nil {
 		return nil, err
 	}
