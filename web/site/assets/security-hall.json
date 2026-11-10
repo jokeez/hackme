@@ -49,7 +49,7 @@
           "paid_hmc": 0,
           "date": "2026-11-10",
           "reported": "2026-11-10",
-          "commit": "PENDING",
+          "commit": "40a1b472",
           "payout_address": "HMC-a6d09759a4c12019",
           "note": "Accepted / no payout: HMS storage lane is still prelaunch (not live on hub). UploadOrderChunk rejected only cancelled/failed; complete left upload_token intact, so a token holder could reupload after stored, rewrite ON CONFLICT chunks, and regress status to uploading. Fixed reject stored + UPDATE NOT IN (stored,cancelled,failed); restore download still uses token. Hall credit only."
         },
