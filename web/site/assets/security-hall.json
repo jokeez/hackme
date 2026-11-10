@@ -50,9 +50,9 @@
           "date": "2026-11-10",
           "reported": "2026-11-10",
           "commit": "0dd8ac60",
-          "txid": "PENDING",
+          "txid": "29be7ea391752e2a0031b13301fe5a5ba889bf95a4a3377022df94d553b27d62",
           "payout_address": "HMC-a6d09759a4c12019",
-          "note": "Low: cmd/fuzzingclient token clients used plain http.Client and followed 3xx while re-sending X-Hackme-Developer/Admin/Report-Token (wizard fetchGatePass already DenyRedirect). Fixed HTTPClientNoRedirect on apiDo/apiDoAdmin/fetchJSONAuth + local-auth probe; redirect-leak regression tests. Paid 10 HMC → HMC-a6d09759a4c12019. (HMS stored-reopen mail same day already fixed in 40a1b472 — no second payout.)"
+          "note": "Low: cmd/fuzzingclient token clients used plain http.Client and followed 3xx while re-sending X-Hackme-Developer/Admin/Report-Token (wizard fetchGatePass already DenyRedirect). Fixed HTTPClientNoRedirect on apiDo/apiDoAdmin/fetchJSONAuth + local-auth probe; redirect-leak regression tests. Paid 10 HMC → HMC-a6d09759a4c12019. (HMS stored-reopen mail same day already fixed in 40a1b472 — no second payout.) tx 29be7ea391752e2a…."
         },
         {
           "title": "HMS UploadOrderChunk reopens stored orders (status→uploading + chunk rewrite)",
