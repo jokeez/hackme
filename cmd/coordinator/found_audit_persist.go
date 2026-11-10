@@ -72,9 +72,9 @@ func (m *workManager) loadFoundAudit() {
 	}
 }
 
-// foundAuditPersistGapSec coalesces sqlite writes per identity. Writes never run under
-// m.mu: busy_timeout(60s) on the hot submit path previously stalled every claim/submit
-// and wedged the whole coordinator (tip stall / stats timeout).
+// foundAuditPersistGapSec coalesces sqlite writes per identity. Routine counter bumps
+// stay async (never under m.mu: busy_timeout wedged claim/submit). Flag transitions
+// (force) write synchronously after a brief m.mu release so SIGKILL cannot wipe H2 evidence.
 const foundAuditPersistGapSec = 30
 
 type foundAuditSnap struct {
@@ -83,9 +83,9 @@ type foundAuditSnap struct {
 	Flagged  bool
 }
 
-// markFoundAuditDirtyLocked records a change and schedules an async sqlite write when
-// force (flag transition) or the identity's last write is older than the gap.
-// Caller holds m.mu. NEVER performs SQLite I/O itself.
+// markFoundAuditDirtyLocked records a change and persists it.
+// force (flag transition): durable sync write — briefly releases m.mu for SQLite only.
+// otherwise: async coalesced write. Caller holds m.mu.
 func (m *workManager) markFoundAuditDirtyLocked(key string, force bool) {
 	st := m.foundAudit[key]
 	if st == nil {
@@ -93,10 +93,55 @@ func (m *workManager) markFoundAuditDirtyLocked(key string, force bool) {
 	}
 	st.dirty = true
 	now := time.Now().Unix()
-	if !force && now-st.persistedUnix < foundAuditPersistGapSec {
+	if force {
+		m.persistFoundAuditForceLocked(key, st, now)
+		return
+	}
+	if now-st.persistedUnix < foundAuditPersistGapSec {
 		return
 	}
 	m.scheduleFoundAuditWriteLocked(key, st, now)
+}
+
+// persistFoundAuditForceLocked makes a flag transition survive crash/SIGKILL.
+// Caller holds m.mu; this unlocks for the SQLite round-trip then re-locks.
+func (m *workManager) persistFoundAuditForceLocked(key string, st *foundAuditState, now int64) {
+	if st == nil {
+		return
+	}
+	if m.dedupDB == nil || foundAuditMode() == "off" {
+		return
+	}
+	// Drain any in-flight async writer so it cannot clobber this snap with a stale row.
+	for st.flushing {
+		m.mu.Unlock()
+		m.waitFoundAuditPersisted()
+		m.mu.Lock()
+		st = m.foundAudit[key]
+		if st == nil {
+			return
+		}
+	}
+	snap := foundAuditSnap{Expected: st.Expected, Actual: st.Actual, Flagged: st.Flagged}
+	st.flushing = true
+	m.mu.Unlock()
+	ok := m.execFoundAuditRow(key, snap, now)
+	m.mu.Lock()
+	st = m.foundAudit[key]
+	if st == nil {
+		return
+	}
+	st.flushing = false
+	if ok {
+		st.persistedUnix = now
+		if st.Expected == snap.Expected && st.Actual == snap.Actual && st.Flagged == snap.Flagged {
+			st.dirty = false
+			return
+		}
+	}
+	if st.dirty {
+		m.scheduleFoundAuditWriteLocked(key, st, time.Now().Unix())
+	}
 }
 
 func (m *workManager) scheduleFoundAuditWriteLocked(key string, st *foundAuditState, now int64) {
@@ -104,8 +149,6 @@ func (m *workManager) scheduleFoundAuditWriteLocked(key string, st *foundAuditSt
 		return
 	}
 	// No sqlite attached: keep dirty for a later attach/flush, but never spawn writers.
-	// Spawning finishFoundAuditWrite with dedupDB==nil raced unit tests that call
-	// noteFoundAudit*Locked without holding m.mu (and wasted goroutines in prod).
 	if m.dedupDB == nil {
 		return
 	}
@@ -121,10 +164,9 @@ func (m *workManager) scheduleFoundAuditWriteLocked(key string, st *foundAuditSt
 	}()
 }
 
-func (m *workManager) writeFoundAuditRow(key string, snap foundAuditSnap, now int64) {
+func (m *workManager) execFoundAuditRow(key string, snap foundAuditSnap, now int64) bool {
 	if m == nil || m.dedupDB == nil || key == "" || foundAuditMode() == "off" {
-		m.finishFoundAuditWrite(key, snap, now, false)
-		return
+		return false
 	}
 	flagged := 0
 	if snap.Flagged {
@@ -140,10 +182,14 @@ ON CONFLICT(audit_key) DO UPDATE SET
 		key, snap.Expected, snap.Actual, flagged, now)
 	if err != nil {
 		log.Printf("found_audit persist: %v", err)
-		m.finishFoundAuditWrite(key, snap, now, false)
-		return
+		return false
 	}
-	m.finishFoundAuditWrite(key, snap, now, true)
+	return true
+}
+
+func (m *workManager) writeFoundAuditRow(key string, snap foundAuditSnap, now int64) {
+	ok := m.execFoundAuditRow(key, snap, now)
+	m.finishFoundAuditWrite(key, snap, now, ok)
 }
 
 func (m *workManager) finishFoundAuditWrite(key string, snap foundAuditSnap, now int64, ok bool) {

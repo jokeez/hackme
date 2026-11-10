@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-09",
+  "updated": "2026-11-10",
   "program": {
     "asset": "HMC",
     "monthly_budget_hmc": 200,
@@ -13,9 +13,9 @@
     "limit_hmc": 200
   },
   "stats": {
-    "total_paid_hmc": 980,
+    "total_paid_hmc": 990,
     "researchers": 6,
-    "reports_accepted": 31
+    "reports_accepted": 32
   },
   "researchers": [
     {
@@ -41,8 +41,19 @@
       "id": "fimasw",
       "name": "fimasw",
       "handle": "fimasw",
-      "total_paid_hmc": 190,
+      "total_paid_hmc": 200,
       "findings": [
+        {
+          "title": "found_audit flag transition async — H2 wipe on crash after e129d193",
+          "severity": "low",
+          "paid_hmc": 10,
+          "date": "2026-11-10",
+          "reported": "2026-11-10",
+          "commit": "PENDING",
+          "txid": "PENDING",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Low durability regression of audit H2: e129d193 moved found_audit writes off m.mu via go func(); force flag transitions were async and only waited on graceful shutdown, so SIGKILL/OOM/deploy kill could drop withhold evidence (TestFoundAuditPersistsAcrossRestart was later masked by wait). Fixed sync force persist (brief m.mu release for SQLite only); crash test no longer waits. Paid 10 HMC → HMC-a6d09759a4c12019."
+        },
         {
           "title": "Fuzz escrow per-run integer division strands runs-pool dust (ComputeSplitUnitsShare)",
           "severity": "informational",

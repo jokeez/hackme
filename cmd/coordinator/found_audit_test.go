@@ -107,8 +107,8 @@ func TestFoundAuditPersistsAcrossRestart(t *testing.T) {
 		t.Fatalf("setup not flagged: %+v", st)
 	}
 	wm.mu.Unlock()
-	wm.waitFoundAuditPersisted()
-	// Crash (no flush): the withhold flag is durable at once, numbers may lag ≤30s.
+	// Crash without wait/flush: flag transitions must already be in sqlite (sync force
+	// persist). Waiting here would mask the H2 durability regression.
 	crash := &workManager{}
 	crash.attachDedupDB(db)
 	if cs := crash.foundAudit[key]; cs == nil || !cs.Flagged {
@@ -277,8 +277,8 @@ func TestSecurityBlockWithholdingStopsPay(t *testing.T) {
 	}
 }
 
-// Hot path: sqlite writes are async (never under m.mu), coalesced per identity, flag
-// transitions schedule an immediate async write, and flush+wait restores after restart.
+// Hot path: routine sqlite writes are async (never under m.mu), coalesced per identity;
+// flag transitions sync-persist (H2), and flush+wait restores counters after restart.
 func TestFoundAuditPersistThrottledAndFlushed(t *testing.T) {
 	db, err := store.Open(filepath.Join(t.TempDir(), "fa.db"))
 	if err != nil {
@@ -319,17 +319,16 @@ func TestFoundAuditPersistThrottledAndFlushed(t *testing.T) {
 	if dbExpected() != first {
 		t.Fatalf("gap writes must stay coalesced in sqlite: first=%v now=%v", first, dbExpected())
 	}
-	// Drive to a flag transition: schedules immediate async persist.
+	// Drive to a flag transition: sync-persisted before unlock (no wait needed).
 	wm.mu.Lock()
 	for i := 0; i < 100 && !wm.foundAudit[key].Flagged; i++ {
 		wm.noteFoundAuditWorkLocked(key, 32, 2048, 70_000)
 	}
 	wm.mu.Unlock()
-	wm.waitFoundAuditPersisted()
 	var flagged int
 	_ = db.QueryRow(`SELECT flagged FROM found_audit WHERE audit_key=?`, key).Scan(&flagged)
 	if flagged != 1 {
-		t.Fatal("flag transition not persisted")
+		t.Fatal("flag transition not persisted synchronously")
 	}
 	wm.mu.Lock()
 	wm.noteFoundAuditWorkLocked(key, 32, 2048, 70_000)
