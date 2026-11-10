@@ -103,6 +103,12 @@ func (m *workManager) scheduleFoundAuditWriteLocked(key string, st *foundAuditSt
 	if st == nil || st.flushing {
 		return
 	}
+	// No sqlite attached: keep dirty for a later attach/flush, but never spawn writers.
+	// Spawning finishFoundAuditWrite with dedupDB==nil raced unit tests that call
+	// noteFoundAudit*Locked without holding m.mu (and wasted goroutines in prod).
+	if m.dedupDB == nil {
+		return
+	}
 	st.flushing = true
 	snap := foundAuditSnap{Expected: st.Expected, Actual: st.Actual, Flagged: st.Flagged}
 	if m.foundAuditPersistWG == nil {

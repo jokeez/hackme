@@ -48,6 +48,8 @@ func TestFoundAuditHonestBigLeasesNotFlagged(t *testing.T) {
 	wm := &workManager{}
 	key := foundAuditKey("HMC-aaaaaaaaaaaaaaaa", "w")
 	const leaseMod, sm = 1_000_000, 100_000
+	wm.mu.Lock()
+	defer wm.mu.Unlock()
 	for i := 0; i < 5000; i++ {
 		wm.noteFoundAuditHitLocked(key) // λ=3.2 ⇒ honest lease nearly always has a hit
 		if wm.noteFoundAuditWorkLocked(key, 32, sm, leaseMod) {
@@ -59,6 +61,8 @@ func TestFoundAuditHonestBigLeasesNotFlagged(t *testing.T) {
 func TestFoundAuditWithholderFlaggedAndRecovers(t *testing.T) {
 	wm := &workManager{}
 	key := foundAuditKey("", "w-hide")
+	wm.mu.Lock()
+	defer wm.mu.Unlock()
 	flagged := false
 	for i := 0; i < 100 && !flagged; i++ {
 		flagged = wm.noteFoundAuditWorkLocked(key, 32, 2048, 70_000) // λ≈0.94, never reports
@@ -91,14 +95,19 @@ func TestFoundAuditPersistsAcrossRestart(t *testing.T) {
 
 	wm := &workManager{}
 	wm.attachDedupDB(db)
+	t.Cleanup(func() { wm.waitFoundAuditPersisted() })
 	key := foundAuditKey("HMC-persistpersist01", "w")
+	wm.mu.Lock()
 	for i := 0; i < 80; i++ {
 		wm.noteFoundAuditWorkLocked(key, 32, 2048, 70_000)
 	}
 	st := wm.foundAudit[key]
 	if st == nil || !st.Flagged || st.Expected < foundAuditMinExpected {
+		wm.mu.Unlock()
 		t.Fatalf("setup not flagged: %+v", st)
 	}
+	wm.mu.Unlock()
+	wm.waitFoundAuditPersisted()
 	// Crash (no flush): the withhold flag is durable at once, numbers may lag ≤30s.
 	crash := &workManager{}
 	crash.attachDedupDB(db)
@@ -106,8 +115,11 @@ func TestFoundAuditPersistsAcrossRestart(t *testing.T) {
 		t.Fatalf("flag lost on crash restart: %+v", cs)
 	}
 	// Graceful stop flushes the exact counters.
+	wm.mu.Lock()
 	wm.flushFoundAuditLocked()
 	wantExp, wantAct := st.Expected, st.Actual
+	wm.mu.Unlock()
+	wm.waitFoundAuditPersisted()
 
 	wm2 := &workManager{}
 	wm2.attachDedupDB(db)
@@ -119,7 +131,11 @@ func TestFoundAuditPersistsAcrossRestart(t *testing.T) {
 		t.Fatalf("restored %+v want expected=%v actual=%v flagged=true", st2, wantExp, wantAct)
 	}
 	// Still rejects after reload without re-warming the window.
-	if !wm2.noteFoundAuditWorkLocked(key, 32, 2048, 70_000) {
+	wm2.mu.Lock()
+	keep := wm2.noteFoundAuditWorkLocked(key, 32, 2048, 70_000)
+	wm2.mu.Unlock()
+	wm2.waitFoundAuditPersisted()
+	if !keep {
 		t.Fatal("flagged identity must stay suspicious after restart")
 	}
 }
@@ -127,6 +143,8 @@ func TestFoundAuditPersistsAcrossRestart(t *testing.T) {
 func TestFoundAuditUndoHit(t *testing.T) {
 	wm := &workManager{}
 	key := foundAuditKey("HMC-undo", "w")
+	wm.mu.Lock()
+	defer wm.mu.Unlock()
 	wm.noteFoundAuditHitLocked(key)
 	if wm.foundAudit[key].Actual != 1 {
 		t.Fatalf("Actual=%v", wm.foundAudit[key].Actual)
@@ -197,11 +215,14 @@ func TestFoundAuditModeOffAndLog(t *testing.T) {
 	}
 	t.Setenv("HACKME_COORDINATOR_FOUND_AUDIT", "off")
 	wm := &workManager{}
+	wm.mu.Lock()
 	for i := 0; i < 200; i++ {
 		if wm.noteFoundAuditWorkLocked("k", 32, 2048, 70_000) {
+			wm.mu.Unlock()
 			t.Fatal("audit off must never flag")
 		}
 	}
+	wm.mu.Unlock()
 	t.Setenv("HACKME_COORDINATOR_FOUND_AUDIT", "log")
 	if foundAuditMode() != "log" {
 		t.Fatal("log mode")

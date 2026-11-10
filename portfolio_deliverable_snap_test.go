@@ -118,7 +118,7 @@ func TestWritePortfolioDeliverableSnaps(t *testing.T) {
 						"Money spent: ~60 HMC (hunt_standard)", "Harness: custom inventory (not catalog)",
 					},
 				},
-				"top_issues":    []fuzzProductTopIssue{},
+				"top_issues":     []fuzzProductTopIssue{},
 				"coverage_noise": []fuzzProductTopIssue{},
 				"evidence_window": map[string]any{
 					"query_limit": 500, "fetched_findings": 0, "full_campaign_findings": 0, "history_truncated": false,
@@ -166,7 +166,7 @@ func TestWritePortfolioDeliverableSnaps(t *testing.T) {
 						"SKU: hunt_standard · catalog",
 					},
 				},
-				"top_issues":    []fuzzProductTopIssue{},
+				"top_issues":     []fuzzProductTopIssue{},
 				"coverage_noise": []fuzzProductTopIssue{},
 				"evidence_window": map[string]any{
 					"query_limit": 500, "fetched_findings": 0, "full_campaign_findings": 0, "history_truncated": false,
