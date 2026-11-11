@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"hackme/internal/chain"
+	"hackme/internal/netutil"
 )
 
 func (a *app) supSettlementNoteForAPI(ctx context.Context) string {
@@ -289,7 +290,7 @@ func (a *app) handleSUPTransferSend(w http.ResponseWriter, r *http.Request) {
 			if relayTok := canonicalRelayAdminToken(r); relayTok != "" {
 				req.Header.Set("X-Hackme-Admin-Token", relayTok)
 			}
-			client := &http.Client{Timeout: txTimeout}
+			client := netutil.HTTPClientNoRedirect(txTimeout)
 			if resp, err := client.Do(req); err == nil && resp != nil {
 				defer resp.Body.Close()
 				canonBody, _ = io.ReadAll(resp.Body)

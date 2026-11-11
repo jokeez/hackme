@@ -21,15 +21,35 @@ type Coordinator struct {
 	guard   *AbuseGuard
 	stratum *StratumRegistry
 	mu      sync.RWMutex
+	// Per-order mutex serializes UploadOrderChunk with complete/cancel so status
+	// checks and file+DB mutation share one critical section (stored-reopen race).
+	uploadMu   sync.Mutex
+	orderLocks map[string]*sync.Mutex
 }
 
 func NewCoordinator(db *sql.DB, cfg Config) *Coordinator {
 	return &Coordinator{
-		cfg:     cfg,
-		db:      db,
-		guard:   NewAbuseGuard(120, time.Minute),
-		stratum: NewStratumRegistry(),
+		cfg:        cfg,
+		db:         db,
+		guard:      NewAbuseGuard(120, time.Minute),
+		stratum:    NewStratumRegistry(),
+		orderLocks: make(map[string]*sync.Mutex),
 	}
+}
+
+func (c *Coordinator) lockOrder(orderID string) (unlock func()) {
+	c.uploadMu.Lock()
+	if c.orderLocks == nil {
+		c.orderLocks = make(map[string]*sync.Mutex)
+	}
+	m := c.orderLocks[orderID]
+	if m == nil {
+		m = &sync.Mutex{}
+		c.orderLocks[orderID] = m
+	}
+	c.uploadMu.Unlock()
+	m.Lock()
+	return m.Unlock
 }
 
 // RunEpochLoop advances epochs and freezes manifests (background).
@@ -498,25 +518,24 @@ func (c *Coordinator) SealWork() (map[string]any, error) {
 }
 
 // SubmitSeal validates nonce and signature against the registered immutable pubkey (H48).
+// HTTP /api/seal/submit always requires a registered-pubkey signature — HMS_STRATUM_INSECURE
+// only relaxes the Stratum bridge (SubmitSealFromStratum), never this path.
 func (c *Coordinator) SubmitSeal(p SealSubmitPayload, pubHex, sigHex string) error {
 	p.WorkerID = trimWorkerID(p.WorkerID)
 	sigHex = strings.TrimSpace(sigHex)
 	pubHex = strings.TrimSpace(pubHex)
-	if sigHex != "" {
-		reg, err := c.registeredPubkey(p.WorkerID)
-		if err != nil {
-			return err
-		}
-		if pubHex != "" && !strings.EqualFold(pubHex, reg) {
-			return errors.New("pubkey does not match registered worker")
-		}
-		if err := VerifySealSubmit(p, reg, sigHex); err != nil {
-			return err
-		}
-	} else if pubHex != "" {
+	if sigHex == "" {
 		return errors.New("signature required")
-	} else if !stratumInsecureEnabled() {
-		return errors.New("signature required")
+	}
+	reg, err := c.registeredPubkey(p.WorkerID)
+	if err != nil {
+		return err
+	}
+	if pubHex != "" && !strings.EqualFold(pubHex, reg) {
+		return errors.New("pubkey does not match registered worker")
+	}
+	if err := VerifySealSubmit(p, reg, sigHex); err != nil {
+		return err
 	}
 	return c.submitSealCore(p)
 }

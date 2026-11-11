@@ -66,7 +66,7 @@ Reports: `reports/tests/security_full_20260828T190633Z/` · `reports/gates/redte
 | `GET /api/work/stats?details=1` leak | **High** | Requires coordinator token; node forwards token |
 | Public `/api/work/stats` overshare (`source` loopback URL, `target_mod` / lease knobs) | **Medium** | Public lane allowlist-style strip + opaque `source=pool`; loopback coordinator URLs redacted on `/api/status`; share_mod remains on authenticated claim |
 | `POST /api/tx/send` remote auto-sign | **High** | Requires admin token (except loopback + token) |
-| Desktop `/api/desktop/local-auth` token leak | **High** (loopback/desktop) | API always returns token on loopback+desktop (UX); HTML embed still gated by `HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1`. Rotate token on shared hosts. |
+| Desktop `/api/desktop/local-auth` token leak | **High** (loopback/desktop) | Fail-closed: token only for `EXPOSE=1`, Unix-socket, or Origin+Referer loopback same-origin (not `Sec-Fetch-Site` alone). HTML embed still gated by `EXPOSE=1`. Rotate token on shared hosts. |
 | Fake attempts payout | **High** (economic) | **Operator policy** — use `PAYOUT_FOUND_ONLY` + hybrid strict |
 | Settlement synthetic row | **High** (ops) | Script refuses multi-key map when `workers{}` empty |
 
@@ -121,7 +121,7 @@ Automated smoke: `scripts/tests/security_assertions.sh`, `scripts/tests/redteam_
 2. **Coordinator** — `GET /api/work/stats?details=1` requires admin token.
 3. **Node** — `fetchCoordinatorWorkStats` sends coordinator token for `details=1`.
 4. **Node** — `POST /api/tx/send` requires admin for non-loopback callers.
-5. **Desktop** — admin token is **not** embedded in dashboard HTML unless `HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1`. Loopback desktop `local-auth` JSON returns the token for UI re-sync (by design). Orders Linux/Windows starters default `EXPOSE=0`. Full-audit live node (non-desktop) expects HTTP 404 on local-auth; desktop contract is covered by `TestDesktopLocalAuth*` / `TestDesktopAdminTokenEmbed*`.
+5. **Desktop** — admin token is **not** embedded in dashboard HTML unless `HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1`. Loopback desktop `local-auth` returns the token for browser Origin+Referer same-origin (or `EXPOSE=1` / Unix-socket); bare curl / spoofed `Sec-Fetch-Site` alone does not. Orders Linux/Windows starters default `EXPOSE=0`. Full-audit live node (non-desktop) expects HTTP 404 on local-auth; desktop contract is covered by `TestDesktopLocalAuth*` / `TestDesktopAdminTokenEmbed*`.
 6. **Worker ID** — `[a-zA-Z0-9._-]{1,128}` on claim/submit.
 7. **worker_loop.sh** — unsigned submit JSON built with `jq`, not string concat.
 8. **Coordinator** — optional `HACKME_COORDINATOR_WORKER_TOKEN` for claim/submit only; admin token required for `clear-abuse` and `stats?details=1`.

@@ -106,6 +106,9 @@ func TestBaselineRelayOnBlockedWhenLocalPoH(t *testing.T) {
 	t.Setenv("HACKME_POOL_BASELINE_RELAY", "1")
 	t.Setenv("HACKME_CHAIN_LEADER_LOCAL_POH", "1")
 	t.Setenv("HACKME_POOL_BASELINE_RELAY_ALLOW_LOCAL_POH", "")
+	t.Setenv("HACKME_DESKTOP_MODE", "1") // lab path so ALLOW escape can be tested below
+	t.Setenv("HACKME_NETWORK_MODE", "")
+	t.Setenv("HACKME_COORDINATOR_ORDERS_URL", "")
 	if wm.baselineRelayMode() != "blocked" || wm.baselineRelayEnabled() {
 		t.Fatalf("mode=%q enabled=%v want blocked/disabled", wm.baselineRelayMode(), wm.baselineRelayEnabled())
 	}
@@ -113,16 +116,41 @@ func TestBaselineRelayOnBlockedWhenLocalPoH(t *testing.T) {
 	if res.OK || res.Reason != "baseline_relay_blocked_local_poh" {
 		t.Fatalf("got %+v", res)
 	}
-	// Escape hatch for lab.
+	// Escape hatch for lab (desktop / non-prod).
 	t.Setenv("HACKME_POOL_BASELINE_RELAY_ALLOW_LOCAL_POH", "1")
 	if wm.baselineRelayMode() != "on" || !wm.baselineRelayEnabled() {
 		t.Fatalf("allow escape: mode=%q", wm.baselineRelayMode())
 	}
+	// Production path refuses ALLOW_LOCAL_POH even when set.
+	t.Setenv("HACKME_DESKTOP_MODE", "0")
+	t.Setenv("HACKME_NETWORK_MODE", "1")
+	if wm.baselineRelayMode() != "blocked" {
+		t.Fatalf("prod must refuse ALLOW_LOCAL_POH dual-mint, mode=%q", wm.baselineRelayMode())
+	}
+	t.Setenv("HACKME_NETWORK_MODE", "")
+	t.Setenv("HACKME_DESKTOP_MODE", "1")
 	// Dry still works with local PoH (observe-only).
 	t.Setenv("HACKME_POOL_BASELINE_RELAY", "dry")
 	t.Setenv("HACKME_POOL_BASELINE_RELAY_ALLOW_LOCAL_POH", "")
 	if wm.baselineRelayMode() != "dry" || !wm.baselineRelayEnabled() {
 		t.Fatalf("dry should stay enabled under local PoH, mode=%q", wm.baselineRelayMode())
+	}
+}
+
+func TestBaselineRelayGatesOnHubStatusSignal(t *testing.T) {
+	hub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"chain_leader_local_poh": true,
+			"local_solo_allowed":     true,
+		})
+	}))
+	defer hub.Close()
+	wm := &workManager{ordersProbeURL: hub.URL}
+	t.Setenv("HACKME_POOL_BASELINE_RELAY", "on")
+	t.Setenv("HACKME_CHAIN_LEADER_LOCAL_POH", "0") // mirrored env says off — hub signal wins
+	t.Setenv("HACKME_POOL_BASELINE_RELAY_ALLOW_LOCAL_POH", "")
+	if wm.baselineRelayMode() != "blocked" {
+		t.Fatalf("hub local PoH signal must block RELAY=on, mode=%q", wm.baselineRelayMode())
 	}
 }
 

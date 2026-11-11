@@ -10,7 +10,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // RegisterHTTP mounts HMS lane routes on mux.
@@ -433,38 +432,21 @@ func registerMarketRoutes(mux *http.ServeMux, coord *Coordinator, adminToken, wo
 		}
 		if len(parts) == 2 && parts[1] == "complete" && r.Method == http.MethodPost {
 			token := strings.TrimSpace(r.Header.Get("X-HMS-Upload-Token"))
-			if err := coord.verifyUploadToken(orderID, token); err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
-				return
-			}
-			var chunkCount int
-			_ = coord.db.QueryRow(`SELECT COUNT(*) FROM hms_order_chunks WHERE order_id=?`, orderID).Scan(&chunkCount)
-			if chunkCount < 1 {
-				http.Error(w, "no chunks uploaded", http.StatusBadRequest)
-				return
-			}
-			now := time.Now().Unix()
-			// Idempotent complete: already-stored stays stored. upload_token kept for restore
-			// downloads; UploadOrderChunk rejects stored so the token cannot reopen the order.
-			res, err := coord.db.Exec(`UPDATE hms_orders SET status=?, updated_unix=?
-				WHERE order_id=? AND status NOT IN (?,?) AND upload_token<>''`,
-				OrderStatusStored, now, orderID, OrderStatusCancelled, OrderStatusFailed)
+			// Idempotent complete under same per-order lock as UploadOrderChunk.
+			o, err := coord.CompleteStorageOrder(orderID, token)
 			if err != nil {
-				http.Error(w, err.Error(), marketHTTPStatus(err))
-				return
-			}
-			if n, _ := res.RowsAffected(); n == 0 {
-				var cur string
-				_ = coord.db.QueryRow(`SELECT status FROM hms_orders WHERE order_id=?`, orderID).Scan(&cur)
-				if strings.TrimSpace(strings.ToLower(cur)) == OrderStatusStored {
-					// already complete — OK
-				} else {
-					http.Error(w, "order is cancelled or failed", http.StatusConflict)
+				msg := err.Error()
+				if strings.Contains(msg, "upload token") || strings.Contains(msg, "order not found") {
+					http.Error(w, msg, http.StatusUnauthorized)
 					return
 				}
+				if strings.Contains(msg, "cancelled") || strings.Contains(msg, "failed") {
+					http.Error(w, msg, http.StatusConflict)
+					return
+				}
+				http.Error(w, msg, marketHTTPStatus(err))
+				return
 			}
-			_ = coord.refreshOrderHealth()
-			o, _ := coord.GetStorageOrder(orderID)
 			status := OrderStatusStored
 			healthStatus := HealthOK
 			healthDetail := ""

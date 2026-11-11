@@ -296,10 +296,15 @@ func fetchJSONAuth(base, reportTok, path string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Defense in depth: never send tokens when URL carries userinfo (mirror apiDoAdmin).
+	if req.URL.User != nil && req.URL.User.String() != "" {
+		return nil, fmt.Errorf("refusing request: URL userinfo not allowed on API base")
+	}
 	if reportTok != "" {
 		req.Header.Set("X-Hackme-Report-Token", reportTok)
 	}
-	if adm := adminToken(); adm != "" {
+	// Never attach HACKME_ADMIN_TOKEN on report/status paths — only explicit admin APIs.
+	if adm := adminToken(); adm != "" && isAdminAPIPath(path) {
 		req.Header.Set("X-Hackme-Admin-Token", adm)
 	}
 	resp, err := netutil.HTTPClientNoRedirect(30 * time.Second).Do(req)
@@ -315,6 +320,26 @@ func fetchJSONAuth(base, reportTok, path string) ([]byte, error) {
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
 	}
 	return b, nil
+}
+
+// isAdminAPIPath is true only for routes that intentionally take X-Hackme-Admin-Token.
+// Report-token lanes (pulse/escrow/gate) must not inherit HACKME_ADMIN_TOKEN from the env.
+func isAdminAPIPath(path string) bool {
+	p := strings.TrimSpace(path)
+	if p == "" {
+		return false
+	}
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	switch {
+	case strings.HasPrefix(p, "/api/admin/"):
+		return true
+	case p == "/api/desktop/local-auth":
+		return false
+	default:
+		return false
+	}
 }
 
 func fetchTaskByID(base, orderID string) ([]byte, error) {

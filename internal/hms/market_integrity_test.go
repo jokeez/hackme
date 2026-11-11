@@ -423,6 +423,43 @@ func TestSwappedReplicaIsNotHealthyOrRestored(t *testing.T) {
 	}
 }
 
+// Complete under the shared order lock must win against a concurrent reupload attempt:
+// after stored, UploadOrderChunk refuses before rewriting ciphertext (residual of 40a1b472).
+func TestUploadChunkRefusesAfterCompleteUnderLock(t *testing.T) {
+	coord, _ := setupIntegrityCoord(t, "w-a", "w-b")
+	created, err := coord.CreateStorageOrder("cas", "c1", 4096, 30, "", "", "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oid := created.Order.OrderID
+	tok := created.UploadToken
+	orig := []byte("cas-ciphertext-v1")
+	if _, err := coord.UploadOrderChunk(oid, tok, 0, orig); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := coord.CompleteStorageOrder(oid, tok); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := coord.UploadOrderChunk(oid, tok, 0, []byte("should-not-land")); err == nil {
+		t.Fatal("expected reject reupload after complete")
+	}
+	var status string
+	var sha []byte
+	if err := coord.db.QueryRow(`SELECT status FROM hms_orders WHERE order_id=?`, oid).Scan(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status != OrderStatusStored {
+		t.Fatalf("status=%q want stored", status)
+	}
+	if err := coord.db.QueryRow(`SELECT ciphertext_sha256 FROM hms_order_chunks WHERE order_id=? AND chunk_index=0`, oid).Scan(&sha); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(orig)
+	if !bytes.Equal(sha, sum[:]) {
+		t.Fatal("ciphertext hash rewritten after complete")
+	}
+}
+
 // Stored orders must stay sealed: a still-valid upload_token must not reopen status→uploading
 // or rewrite ciphertext (fimasw 2026-11-10).
 func TestStoredOrderRejectsChunkReupload(t *testing.T) {

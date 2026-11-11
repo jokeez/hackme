@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -197,14 +198,15 @@ func (m *workManager) ordersSolveEnabled() bool {
 
 // baselineRelayMode returns off | dry | on | blocked for HACKME_POOL_BASELINE_RELAY.
 // dry: count would-mint without POST (safe soak while hub local PoH still on).
-// on/1/true: live POST /api/poh/solve-baseline — refused (→ blocked) if hub still
-// has HACKME_CHAIN_LEADER_LOCAL_POH=1 unless HACKME_POOL_BASELINE_RELAY_ALLOW_LOCAL_POH=1.
+// on/1/true: live POST /api/poh/solve-baseline — refused (→ blocked) if the hub
+// still has local PoH (live /api/status signal, else mirrored env) unless the lab
+// escape hatch HACKME_POOL_BASELINE_RELAY_ALLOW_LOCAL_POH=1 is set (refused in prod).
 // Default off.
 func (m *workManager) baselineRelayMode() string {
 	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_POOL_BASELINE_RELAY")))
 	switch v {
 	case "1", "true", "yes", "on":
-		if chainLeaderLocalPoHEnabled() && !baselineRelayAllowLocalPoH() {
+		if m.hubLocalPoHEnabled() && !baselineRelayAllowLocalPoH() {
 			return "blocked"
 		}
 		return "on"
@@ -220,9 +222,86 @@ func chainLeaderLocalPoHEnabled() bool {
 	return v == "1" || v == "true" || v == "yes" || v == "on"
 }
 
+// hubLocalPoHEnabled prefers a live hub /api/status signal over the coordinator's
+// mirrored HACKME_CHAIN_LEADER_LOCAL_POH env (dual-mint gate must track the minting node).
+func (m *workManager) hubLocalPoHEnabled() bool {
+	if m != nil {
+		if on, ok := m.probeHubLocalPoH(); ok {
+			return on
+		}
+	}
+	return chainLeaderLocalPoHEnabled()
+}
+
+func (m *workManager) probeHubLocalPoH() (enabled bool, ok bool) {
+	base := strings.TrimRight(strings.TrimSpace(m.ordersProbeURL), "/")
+	if base == "" {
+		return false, false
+	}
+	cl := netutil.HTTPClientNoRedirect(2 * time.Second)
+	req, err := http.NewRequest(http.MethodGet, base+"/api/status?lite=1", nil)
+	if err != nil {
+		return false, false
+	}
+	if tok := m.ordersAdminToken(); tok != "" {
+		req.Header.Set("X-Hackme-Admin-Token", tok)
+	}
+	resp, err := cl.Do(req)
+	if err != nil {
+		return false, false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return false, false
+	}
+	var body map[string]any
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&body); err != nil {
+		return false, false
+	}
+	for _, key := range []string{"chain_leader_local_poh", "local_solo_allowed"} {
+		switch v := body[key].(type) {
+		case bool:
+			return v, true
+		case string:
+			s := strings.TrimSpace(strings.ToLower(v))
+			if s == "1" || s == "true" || s == "yes" || s == "on" {
+				return true, true
+			}
+			if s == "0" || s == "false" || s == "no" || s == "off" || s == "" {
+				return false, true
+			}
+		}
+	}
+	return false, false
+}
+
 func baselineRelayAllowLocalPoH() bool {
 	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_POOL_BASELINE_RELAY_ALLOW_LOCAL_POH")))
-	return v == "1" || v == "true" || v == "yes" || v == "on"
+	allowed := v == "1" || v == "true" || v == "yes" || v == "on"
+	if !allowed {
+		return false
+	}
+	// Production path: refuse dual-mint escape hatch even if env is set.
+	if baselineRelayProductionPath() {
+		log.Printf("ALARM: HACKME_POOL_BASELINE_RELAY_ALLOW_LOCAL_POH ignored on production path (refusing dual mint with RELAY=on)")
+		return false
+	}
+	return true
+}
+
+// baselineRelayProductionPath is true outside desktop/lab (network mode or non-loopback orders URL).
+func baselineRelayProductionPath() bool {
+	if v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_DESKTOP_MODE"))); v == "1" || v == "true" || v == "yes" || v == "on" {
+		return false
+	}
+	if v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_NETWORK_MODE"))); v == "1" || v == "true" || v == "yes" || v == "on" {
+		return true
+	}
+	orders := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_ORDERS_URL"))
+	if orders != "" && netutil.LooksRemoteCoordinatorURL(orders) {
+		return true
+	}
+	return false
 }
 
 // baselineRelayEnabled is true for dry or on (enter found→baseline path).

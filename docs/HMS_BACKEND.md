@@ -55,7 +55,7 @@ Set on coordinator:
 ```bash
 HMS_STRATUM_ENABLE=1
 HMS_STRATUM_ADDR=:3334
-HMS_STRATUM_INSECURE=1   # pilot only — use signed submits in prod
+HMS_STRATUM_INSECURE=1   # pilot Stratum only — HTTP /api/seal/submit always requires registered pubkey sig
 ```
 
 Point Antminer/stratum client at heavy VPS port 3334 when nginx exposes it.

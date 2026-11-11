@@ -433,8 +433,8 @@ func fetchLoopbackAdminToken(base string) string {
 	if req.URL.User != nil && req.URL.User.String() != "" {
 		return ""
 	}
-	// Mirror dashboard same-origin fetch: local-auth omits token for bare curl unless EXPOSE=1.
-	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	// Fail-closed: do not spoof Sec-Fetch-Site. CLI gets admin_token only when the node
+	// has HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1 (or set HACKME_ADMIN_TOKEN / token file).
 	resp, err := netutil.HTTPClientNoRedirect(5 * time.Second).Do(req)
 	if err != nil {
 		return ""
@@ -458,7 +458,11 @@ func fetchGatePass(base, campaignID, reportTok string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	if req.URL.User != nil && req.URL.User.String() != "" {
+		return false, fmt.Errorf("refusing request: URL userinfo not allowed on API base")
+	}
 	req.Header.Set("X-Hackme-Report-Token", reportTok)
+	// Do not attach HACKME_ADMIN_TOKEN — gate is report-token scoped (mirror fetchJSONAuth).
 	resp, err := netutil.HTTPClientNoRedirect(30 * time.Second).Do(req)
 	if err != nil {
 		return false, err

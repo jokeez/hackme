@@ -190,6 +190,8 @@ func (c *Coordinator) CancelStorageOrder(orderID string) (*StorageOrder, error) 
 	if orderID == "" {
 		return nil, errors.New("order_id required")
 	}
+	unlock := c.lockOrder(orderID)
+	defer unlock()
 	o, err := c.GetStorageOrder(orderID)
 	if err != nil {
 		return nil, err
@@ -208,6 +210,43 @@ func (c *Coordinator) CancelStorageOrder(orderID string) (*StorageOrder, error) 
 	if n, _ := res.RowsAffected(); n == 0 {
 		// Lost a race to another cancel/fail — return current row.
 		return c.GetStorageOrder(orderID)
+	}
+	_ = c.refreshOrderHealth()
+	return c.GetStorageOrder(orderID)
+}
+
+// CompleteStorageOrder seals an uploading/draft order as stored under the same
+// per-order lock as UploadOrderChunk (upload_token kept for restore downloads).
+func (c *Coordinator) CompleteStorageOrder(orderID, uploadToken string) (*StorageOrder, error) {
+	orderID = strings.TrimSpace(orderID)
+	if orderID == "" {
+		return nil, errors.New("order_id required")
+	}
+	unlock := c.lockOrder(orderID)
+	defer unlock()
+	if err := c.verifyUploadToken(orderID, uploadToken); err != nil {
+		return nil, err
+	}
+	var chunkCount int
+	_ = c.db.QueryRow(`SELECT COUNT(*) FROM hms_order_chunks WHERE order_id=?`, orderID).Scan(&chunkCount)
+	if chunkCount < 1 {
+		return nil, errors.New("no chunks uploaded")
+	}
+	now := time.Now().Unix()
+	res, err := c.db.Exec(`UPDATE hms_orders SET status=?, updated_unix=?
+		WHERE order_id=? AND status NOT IN (?,?) AND upload_token<>''`,
+		OrderStatusStored, now, orderID, OrderStatusCancelled, OrderStatusFailed)
+	if err != nil {
+		return nil, err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		var cur string
+		_ = c.db.QueryRow(`SELECT status FROM hms_orders WHERE order_id=?`, orderID).Scan(&cur)
+		cur = strings.TrimSpace(strings.ToLower(cur))
+		if cur == OrderStatusStored {
+			return c.GetStorageOrder(orderID)
+		}
+		return nil, errors.New("order is cancelled or failed")
 	}
 	_ = c.refreshOrderHealth()
 	return c.GetStorageOrder(orderID)
@@ -249,17 +288,14 @@ func (c *Coordinator) PickStorageWorker() (string, error) {
 }
 
 // UploadOrderChunk stores ciphertext and registers chunk on the lane.
+// Status must be draft|uploading under the same per-order lock as Complete/Cancel;
+// file writes and chunk DB mutation are refused otherwise (no TOCTOU reopen of stored).
 func (c *Coordinator) UploadOrderChunk(orderID, uploadToken string, chunkIndex int, ciphertext []byte) (map[string]any, error) {
+	orderID = strings.TrimSpace(orderID)
+	unlock := c.lockOrder(orderID)
+	defer unlock()
 	if err := c.verifyUploadToken(orderID, uploadToken); err != nil {
 		return nil, err
-	}
-	var curStatus string
-	_ = c.db.QueryRow(`SELECT status FROM hms_orders WHERE order_id=?`, orderID).Scan(&curStatus)
-	switch strings.TrimSpace(strings.ToLower(curStatus)) {
-	case OrderStatusStored, OrderStatusCancelled, OrderStatusFailed:
-		// stored is terminal for upload: keep upload_token for restore downloads, but never
-		// reopen sealed orders (would regress status→uploading and rewrite ciphertext).
-		return nil, errors.New("order is " + curStatus)
 	}
 	if chunkIndex < 0 || chunkIndex > 1_000_000 {
 		return nil, errors.New("invalid chunk_index")
@@ -269,6 +305,23 @@ func (c *Coordinator) UploadOrderChunk(orderID, uploadToken string, chunkIndex i
 	}
 	if len(ciphertext) > maxMarketChunkBytes {
 		return nil, fmt.Errorf("chunk exceeds %d bytes", maxMarketChunkBytes)
+	}
+	now := time.Now().Unix()
+	// CAS claim: only draft|uploading may mutate files/chunks (same lock as complete).
+	claim, err := c.db.Exec(`UPDATE hms_orders SET status=?, updated_unix=?
+		WHERE order_id=? AND status IN (?,?) AND upload_token<>''`,
+		OrderStatusUploading, now, orderID, OrderStatusDraft, OrderStatusUploading)
+	if err != nil {
+		return nil, err
+	}
+	if n, _ := claim.RowsAffected(); n == 0 {
+		var curStatus string
+		_ = c.db.QueryRow(`SELECT status FROM hms_orders WHERE order_id=?`, orderID).Scan(&curStatus)
+		curStatus = strings.TrimSpace(strings.ToLower(curStatus))
+		if curStatus == "" {
+			return nil, errors.New("order not found")
+		}
+		return nil, errors.New("order is " + curStatus)
 	}
 	var sizePlan, uploaded int64
 	if err := c.db.QueryRow(`SELECT size_plan_bytes, bytes_uploaded FROM hms_orders WHERE order_id=?`, orderID).Scan(&sizePlan, &uploaded); err != nil {
@@ -312,7 +365,6 @@ func (c *Coordinator) UploadOrderChunk(orderID, uploadToken string, chunkIndex i
 	if err := c.recordChunkReplicas(orderID, chunkIndex, written); err != nil {
 		return nil, err
 	}
-	now := time.Now().Unix()
 	_, err = c.db.Exec(`INSERT INTO hms_order_chunks(order_id, chunk_index, chunk_id, worker_id, size, ciphertext_sha256, replica_count, created_unix)
 		VALUES(?,?,?,?,?,?,?,?)
 		ON CONFLICT(order_id, chunk_index) DO UPDATE SET chunk_id=excluded.chunk_id, worker_id=excluded.worker_id, size=excluded.size,
@@ -335,9 +387,9 @@ func (c *Coordinator) UploadOrderChunk(orderID, uploadToken string, chunkIndex i
 		bytes_uploaded=(SELECT COALESCE(SUM(size),0) FROM hms_order_chunks WHERE order_id=?),
 		chunk_count=(SELECT COUNT(*) FROM hms_order_chunks WHERE order_id=?),
 		status=?, health_status=?, health_detail=?, updated_unix=?
-		WHERE order_id=? AND status NOT IN (?,?,?) AND upload_token<>''`,
+		WHERE order_id=? AND status IN (?,?) AND upload_token<>''`,
 		orderID, orderID, status, health, detail, now, orderID,
-		OrderStatusStored, OrderStatusCancelled, OrderStatusFailed)
+		OrderStatusDraft, OrderStatusUploading)
 	if err != nil {
 		return nil, err
 	}

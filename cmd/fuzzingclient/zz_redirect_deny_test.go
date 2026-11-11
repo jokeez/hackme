@@ -84,3 +84,31 @@ func TestFetchJSONAuthRefusesRedirectTokenLeak(t *testing.T) {
 		t.Fatal("report/admin token leaked to redirect target")
 	}
 }
+
+func TestFetchJSONAuthOmitsAdminTokenOnReportPaths(t *testing.T) {
+	t.Setenv("HACKME_ADMIN_TOKEN", "adminsecret-must-not-attach")
+	var sawAdmin bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Hackme-Admin-Token") != "" {
+			sawAdmin = true
+		}
+		if r.Header.Get("X-Hackme-Report-Token") != "report-tok" {
+			t.Errorf("missing report token")
+		}
+		_, _ = io.WriteString(w, `{"ok":true}`)
+	}))
+	defer srv.Close()
+	if _, err := fetchJSONAuth(srv.URL, "report-tok", "/api/fuzz/campaigns/x/pulse"); err != nil {
+		t.Fatal(err)
+	}
+	if sawAdmin {
+		t.Fatal("HACKME_ADMIN_TOKEN must not attach on pulse/report paths")
+	}
+}
+
+func TestFetchJSONAuthRefusesURLUserinfo(t *testing.T) {
+	_, err := fetchJSONAuth("http://user:pass@127.0.0.1:9", "tok", "/api/fuzz/campaigns/x/pulse")
+	if err == nil || !strings.Contains(err.Error(), "userinfo") {
+		t.Fatalf("expected userinfo refusal, got %v", err)
+	}
+}

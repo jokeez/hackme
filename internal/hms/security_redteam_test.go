@@ -51,6 +51,28 @@ func TestSubmitSealRequiresSignatureByDefault(t *testing.T) {
 	}
 }
 
+func TestSubmitSealRequiresSignatureEvenWhenStratumInsecure(t *testing.T) {
+	// HMS_STRATUM_INSECURE must not open unsigned HTTP /api/seal/submit.
+	t.Setenv("HMS_STRATUM_INSECURE", "1")
+	dir := t.TempDir()
+	db, err := OpenDB(filepath.Join(dir, "h.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	cfg := Config{PoolID: "hackme-official", FreezeAfter: time.Minute, SealWindow: time.Hour, InitialSealTarget: defaultSealTarget()}
+	coord := NewCoordinator(db, cfg)
+	now := time.Now().Unix()
+	var root [32]byte
+	root[31] = 1
+	_, _ = db.Exec(`INSERT INTO hms_epochs(epoch_id, started_unix, freeze_unix, seal_end_unix, manifest_root, seal_target, sealed, payouts_enabled)
+		VALUES(1,?,?,?,?,?,0,0)`, now-120, now-60, now+3600, root[:], defaultSealTarget())
+	err = coord.SubmitSeal(SealSubmitPayload{WorkerID: "w", EpochID: 1, Nonce: 1}, "", "")
+	if err == nil || !strings.Contains(err.Error(), "signature") {
+		t.Fatalf("HTTP SubmitSeal must require signature under STRATUM_INSECURE, got %v", err)
+	}
+}
+
 func TestMarketOrdersRequireAuth(t *testing.T) {
 	dir := t.TempDir()
 	db, err := OpenDB(filepath.Join(dir, "h.db"))

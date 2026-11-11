@@ -40,7 +40,7 @@ Env on coordinator:
 ```bash
 HMS_STRATUM_ENABLE=1
 HMS_STRATUM_ADDR=:3334
-HMS_STRATUM_INSECURE=1   # pilot only; prod requires signed seal submits
+HMS_STRATUM_INSECURE=1   # pilot Stratum only; HTTP /api/seal/submit always requires registered pubkey sig
 ```
 
 ## `mining.notify` field mapping

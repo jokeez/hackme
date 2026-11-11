@@ -332,8 +332,12 @@ func desktopAdminTokenEmbedScript(r *http.Request) string {
 }
 
 // handleDesktopLocalAuth exposes HACKME_ADMIN_TOKEN to the dashboard on loopback
-// only (desktop mode). Token is returned for same-origin fetches or when
-// HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1 (also gates HTML embed).
+// only (desktop mode). Token return is fail-closed:
+//   - HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1, or
+//   - Unix-socket peer, or
+//   - browser document context: Origin + Referer both loopback same-origin
+//     (Sec-Fetch-Site alone is spoofable — curl with a forged header gets nothing).
+// EXPOSE also gates HTML embed + the optional UI note. CLI must use EXPOSE=1 or a token file.
 func handleDesktopLocalAuth(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -354,24 +358,80 @@ func handleDesktopLocalAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tok := adminTokenFromEnv()
-	// Prefer same-origin browser fetches (dashboard re-sync). Bare curl/local
-	// processes only get the raw token when EXPOSE=1 (shared-machine hardening).
-	// EXPOSE also still controls HTML embed + the optional UI note.
 	expose := envBool("HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN", false)
-	site := strings.ToLower(strings.TrimSpace(r.Header.Get("Sec-Fetch-Site")))
-	allowToken := expose || site == "same-origin"
+	allowToken := expose || requestViaUnixSocket(r) || desktopLocalAuthBrowserDocumentOK(r)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	out := map[string]any{
 		"ok":                     true,
 		"admin_token_configured": tok != "",
 		"desktop_mode":           true,
 		"exposed":                expose,
-		"hint":                   "admin_token returned for same-origin dashboard fetches, or when HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1; rotate token on shared machines",
+		"hint":                   "admin_token returned when HACKME_DESKTOP_EXPOSE_ADMIN_TOKEN=1, Unix-socket, or browser Origin+Referer loopback same-origin; Sec-Fetch-Site alone is not enough; rotate token on shared machines",
 	}
 	if tok != "" && allowToken {
 		out["admin_token"] = tok
 	}
 	_ = json.NewEncoder(w).Encode(out)
+}
+
+// requestViaUnixSocket reports a UDS peer (RemoteAddr "@" / empty host forms used by net/http).
+func requestViaUnixSocket(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	addr := strings.TrimSpace(r.RemoteAddr)
+	if addr == "@" || strings.HasPrefix(addr, "@") {
+		return true
+	}
+	// Go unix peers often look like "@" or lack a host:port TCP shape.
+	if _, _, err := net.SplitHostPort(addr); err != nil && addr != "" && !strings.Contains(addr, ".") {
+		if !strings.Contains(addr, ":") {
+			return true
+		}
+	}
+	return false
+}
+
+// desktopLocalAuthBrowserDocumentOK requires both Origin and Referer to be loopback
+// same-origin with Host, plus Sec-Fetch-Site=same-origin. Spoofing only Sec-Fetch-Site
+// (curl -H) must not yield the admin token when EXPOSE=0.
+func desktopLocalAuthBrowserDocumentOK(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	site := strings.ToLower(strings.TrimSpace(r.Header.Get("Sec-Fetch-Site")))
+	if site != "same-origin" {
+		return false
+	}
+	origin := strings.TrimSpace(r.Header.Get("Origin"))
+	referer := strings.TrimSpace(r.Header.Get("Referer"))
+	if origin == "" || referer == "" {
+		return false
+	}
+	if !requestHostIsLoopbackLiteral(r) {
+		return false
+	}
+	ou, err := url.Parse(origin)
+	if err != nil || ou == nil {
+		return false
+	}
+	ru, err := url.Parse(referer)
+	if err != nil || ru == nil {
+		return false
+	}
+	oh, op := originHostPort(ou)
+	rh, rp := originHostPort(ru)
+	hh, hp := requestHostPort(r)
+	if oh == "" || rh == "" || hh == "" {
+		return false
+	}
+	if !loopbackHostAlias(oh, hh) || !loopbackHostAlias(rh, hh) {
+		return false
+	}
+	if hp == "" {
+		return (op == "80" || op == "443") && (rp == "80" || rp == "443")
+	}
+	return op == hp && rp == hp
 }
 
 // resolveCoordinatorToken picks the coordinator worker bearer token. Never falls back to

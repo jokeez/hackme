@@ -4917,15 +4917,29 @@ func p2pBackgroundSyncIntervalSec() int {
 	return n
 }
 
+// chainCommandLedgerBlocksP2PReplay refuses state-replay import on the producer ledger.
+// Classic command node: HACKME_CHAIN_LEADER_LOCAL_POH=1.
+// D1 minting hub: LOCAL_POH=0 but this process mints empty blocks via solve-baseline
+// (HACKME_CHAIN_MINTING_HUB=1, set on public hub alongside BASELINE_RELAY=on).
+func chainCommandLedgerBlocksP2PReplay() (reason string, blocked bool) {
+	if envBool("HACKME_CHAIN_LEADER_LOCAL_POH", false) {
+		return "HACKME_CHAIN_LEADER_LOCAL_POH=1", true
+	}
+	if envBool("HACKME_CHAIN_MINTING_HUB", false) {
+		return "HACKME_CHAIN_MINTING_HUB=1 (baseline-relay mint authority)", true
+	}
+	return "", false
+}
+
 // startP2PBackgroundSync periodically pulls and applies blocks on followers when state replay is enabled.
-// Skipped on chain command nodes (HACKME_CHAIN_LEADER_LOCAL_POH=1) to avoid mutating the producer ledger from peers.
+// Skipped on chain command / minting-hub ledgers to avoid mutating the producer from peers.
 func (a *app) startP2PBackgroundSync(ctx context.Context) {
 	interval := p2pBackgroundSyncIntervalSec()
 	if interval <= 0 {
 		return
 	}
-	if envBool("HACKME_CHAIN_LEADER_LOCAL_POH", false) {
-		log.Printf("P2P background sync disabled: HACKME_CHAIN_LEADER_LOCAL_POH=1 (command node)")
+	if reason, blocked := chainCommandLedgerBlocksP2PReplay(); blocked {
+		log.Printf("P2P background sync disabled: %s (command/minting ledger)", reason)
 		return
 	}
 	if !envBool("HACKME_P2P_SYNC_STATE_REPLAY_ENABLED", false) {
@@ -5260,6 +5274,17 @@ func (a *app) handleP2PSyncApply(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	_, maxApply, budgetReason := a.adaptiveSyncBudgets(0, maxApply)
+	if reason, blocked := chainCommandLedgerBlocksP2PReplay(); blocked {
+		writeJSON(w, map[string]any{
+			"ok":            false,
+			"code":          "sync_apply_disabled_command_ledger_v1",
+			"reason":        "state replay import refused on command/minting ledger: " + reason,
+			"action":        "followers only; minting hubs must not import peer state",
+			"max_apply":     maxApply,
+			"budget_reason": budgetReason,
+		})
+		return
+	}
 	if !envBool("HACKME_P2P_SYNC_STATE_REPLAY_ENABLED", false) {
 		writeJSON(w, map[string]any{
 			"ok":            false,
@@ -5300,6 +5325,16 @@ func (a *app) p2pSyncRunExecute(ctx context.Context, depthLimit uint64, maxApply
 		return map[string]any{"ok": false, "code": "p2p_disabled"}
 	}
 	depthLimit, maxApply, budgetReason := a.adaptiveSyncBudgets(depthLimit, maxApply)
+	if reason, blocked := chainCommandLedgerBlocksP2PReplay(); blocked {
+		return map[string]any{
+			"ok":            false,
+			"code":          "sync_apply_disabled_command_ledger_v1",
+			"reason":        "sync run apply refused on command/minting ledger: " + reason,
+			"action":        "followers only; minting hubs must not import peer state",
+			"max_apply":     maxApply,
+			"budget_reason": budgetReason,
+		}
+	}
 	if !envBool("HACKME_P2P_SYNC_STATE_REPLAY_ENABLED", false) {
 		return map[string]any{
 			"ok":            false,

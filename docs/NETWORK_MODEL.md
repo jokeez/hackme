@@ -28,7 +28,7 @@ The price of the model is **trust in the canon operator** (VPS) and transparency
 
 | Layer | What is this | Typical host |
 |------|---------|----------------|
-| **Command node** (chain node) | SQLite blockchain, `POST /api/genesis`, public tip/balance/mempool. **Staging/prod D1:** hub runs with `HACKME_CHAIN_LEADER_LOCAL_POH=0` and accepts pool empty finds via admin `POST /api/poh/solve-baseline` (subsidy → settlement primary wallet). `LOCAL_POH=1` is lab / emergency leader mining only. | **VPS** (staging / prod) |
+| **Command node** (chain node) | SQLite blockchain, `POST /api/genesis`, public tip/balance/mempool. **Staging/prod D1:** hub runs with `HACKME_CHAIN_LEADER_LOCAL_POH=0` + `HACKME_CHAIN_MINTING_HUB=1` and accepts pool empty finds via admin `POST /api/poh/solve-baseline` (subsidy → settlement primary wallet). Minting hubs refuse P2P state-replay import like classic `LOCAL_POH=1` command nodes. `LOCAL_POH=1` is lab / emergency leader mining only. | **VPS** (staging / prod) |
 | **Coordinator** | Work queue: `claim` / `submit` / `stats`, share-PPS accrual, optional **baseline relay** (`HACKME_POOL_BASELINE_RELAY=on`) that posts valid empty finds to the command node. Does **not** replace the chain ledger. | Often the same VPS (`go run ./cmd/coordinator`) |
 
 A miner on a home PC in **worker-mode** connects to **coordinator** and to the **canonical API** of the node (via `HACKME_POOL_COORDINATOR_URL`, `HACKME_CANONICAL_CHAIN_URL` or output from `HACKME_PUBLIC_AUTHORITY_BASE`). Local WASM PoH on the participant is **disabled** - this is not a “second chain”, but a client of the pool.

@@ -13,6 +13,7 @@ import (
 
 	"hackme/internal/chain"
 	"hackme/internal/hms"
+	"hackme/internal/netutil"
 )
 
 var (
@@ -78,7 +79,7 @@ func (a *app) proxyHMSCoordinator(w http.ResponseWriter, r *http.Request, method
 			req.Header.Set(h, v)
 		}
 	}
-	client := &http.Client{Timeout: 120 * time.Second}
+	client := netutil.HTTPClientNoRedirect(120 * time.Second)
 	resp, err := client.Do(req)
 	if err != nil {
 		// Desktop / prelaunch: HMS coordinator is optional. GET stats must not
