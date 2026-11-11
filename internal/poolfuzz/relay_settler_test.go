@@ -115,8 +115,12 @@ func TestRelaySettlerAckOnHTTPSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		var body map[string]any
+		_ = json.Unmarshal(raw, &body)
+		eid, _ := body["event_id"].(string)
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"ok":true}`))
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "event_id": eid})
 	}))
 	defer server.Close()
 	_, _ = db.ExecContext(ctx, `UPDATE fuzz_campaigns SET config_json=? WHERE id=?`,
@@ -200,6 +204,60 @@ func TestSettleRelayBodyOK(t *testing.T) {
 	}
 	if settleRelayBodyOK([]byte(`not-json`)) {
 		t.Fatal("garbage")
+	}
+	want := "outbox:ok-camp:7"
+	if !settleRelayBodyMatches([]byte(`{"ok":true,"event_id":"outbox:ok-camp:7"}`), want) {
+		t.Fatal("matching event_id")
+	}
+	if settleRelayBodyMatches([]byte(`{"ok":true}`), want) {
+		t.Fatal("missing event_id must fail when want set")
+	}
+	if settleRelayBodyMatches([]byte(`{"ok":true,"event_id":"outbox:other:1"}`), want) {
+		t.Fatal("wrong event_id must fail")
+	}
+}
+
+func TestRelaySettlerNoAckWithoutEventIDEcho(t *testing.T) {
+	ctx := context.Background()
+	db, err := store.Open(filepath.Join(t.TempDir(), "relay-no-eid.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	if err := svc.RegisterCampaign(ctx, Campaign{
+		ID: "no-eid-camp", CampaignType: "property", Status: "running", BudgetRuns: 1,
+		Config: map[string]any{},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`)) // RELAY-01: no event_id echo
+	}))
+	defer server.Close()
+	_, _ = db.ExecContext(ctx, `UPDATE fuzz_campaigns SET config_json=? WHERE id=?`,
+		`{"pool_distributed":true,"orders_settle_pull":false}`, "no-eid-camp")
+
+	relay := &RelaySettler{
+		Service:          svc,
+		DefaultOrdersURL: server.URL,
+		AdminToken:       func() string { return "tok" },
+		HTTPClient:       &http.Client{Timeout: 5 * time.Second},
+	}
+	res, err := relay.PayRun(ctx, "no-eid-camp", "HMC-2222222222222222", 1, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Applied {
+		t.Fatal("ok:true without event_id echo must not mark Applied")
+	}
+	items, err := svc.ListPendingSettleOutbox(ctx, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("pending outbox=%d want 1", len(items))
 	}
 }
 

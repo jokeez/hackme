@@ -28,7 +28,8 @@ import (
 )
 
 // verifySettleAckReceipts ensures each ACK id has a MAC'd Apply receipt bound to the
-// outbox row (event_id + campaign + kind + units hash). Never trust bare bools.
+// outbox row (event_id + campaign + kind + hub-expected units_hash). Never trust bare bools
+// or tenant-invented escrow unit vectors (PUB-07).
 func verifySettleAckReceipts(ctx context.Context, pf *poolfuzz.Service, publishToken, ownerRef, ownerSecret, campaignID string, ids []int64, receipts []poolsync.SettleApplyReceipt) error {
 	if pf == nil {
 		return fmt.Errorf("no pool service")
@@ -72,14 +73,16 @@ func verifySettleAckReceipts(ctx context.Context, pf *poolfuzz.Service, publishT
 		if strings.ToLower(strings.TrimSpace(rc.Kind)) != strings.ToLower(strings.TrimSpace(it.Kind)) {
 			return fmt.Errorf("outbox id %d kind mismatch", id)
 		}
-		switch strings.ToLower(strings.TrimSpace(rc.Outcome)) {
+		outcome := strings.ToLower(strings.TrimSpace(rc.Outcome))
+		switch outcome {
 		case poolsync.SettleOutcomeApplied, poolsync.SettleOutcomeDepleted,
 			poolsync.SettleOutcomeAlreadyPaid, poolsync.SettleOutcomeDrainClose:
 		default:
 			return fmt.Errorf("outbox id %d invalid outcome", id)
 		}
-		if strings.TrimSpace(rc.UnitsHash) == "" {
-			return fmt.Errorf("outbox id %d units_hash required", id)
+		wantUnits := poolsync.UnitsHashFromOutbox(wantEvent, it.CampaignID, it.Kind, it.MinerAddress, it.Severity, it.WorkItemID, outcome)
+		if !strings.EqualFold(strings.TrimSpace(rc.UnitsHash), wantUnits) {
+			return fmt.Errorf("outbox id %d units_hash mismatch (hub outbox binding)", id)
 		}
 		if !poolsync.VerifySettleReceiptMAC(publishToken, ownerRef, ownerSecret, rc) {
 			return fmt.Errorf("outbox id %d receipt mac invalid", id)
@@ -473,6 +476,27 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			}
 			n, err = pf.AckSettleOutboxForOrdersPublish(r.Context(), req.CampaignID, req.IDs)
 		} else if hubSide {
+			// SETTLE-01: bare hub_applied must not clear orders_publish outbox rows —
+			// those require owner-signed receipts (false ACK without Apply).
+			for _, id := range req.IDs {
+				if id <= 0 {
+					continue
+				}
+				it, gerr := pf.GetSettleOutboxItem(r.Context(), id)
+				if gerr != nil {
+					http.Error(w, gerr.Error(), http.StatusBadRequest)
+					return
+				}
+				pub, perr := pf.CampaignIsOrdersPublish(r.Context(), it.CampaignID)
+				if perr != nil {
+					http.Error(w, perr.Error(), http.StatusInternalServerError)
+					return
+				}
+				if pub {
+					http.Error(w, "hub_applied refused for orders_publish outbox; owner-signed settle receipts required", http.StatusBadRequest)
+					return
+				}
+			}
 			n, err = pf.AckSettleOutbox(r.Context(), req.IDs)
 		} else {
 			camp := strings.TrimSpace(req.CampaignID)
@@ -562,10 +586,14 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			http.Error(w, "stats failed", http.StatusInternalServerError)
 			return
 		}
-		cap := wm.fuzzFleetCapacity(time.Now().Unix())
-		st["fleet_capacity"] = cap
-		st["fleet_hashrate_gh_s"] = cap.FleetHashrateGHS
-		st["est_shards_per_hour"] = cap.EstShardsPerHour
+		// POOL-01: keep queue depth public for marketplace UX; fleet capacity /
+		// hashrate / shard ETA only for admin|worker (not anonymous scrape intel).
+		if coordPoolReadOK(r, adminToken, workerToken, allowInsecure) {
+			cap := wm.fuzzFleetCapacity(time.Now().Unix())
+			st["fleet_capacity"] = cap
+			st["fleet_hashrate_gh_s"] = cap.FleetHashrateGHS
+			st["est_shards_per_hour"] = cap.EstShardsPerHour
+		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		_ = json.NewEncoder(w).Encode(st)
@@ -1938,6 +1966,11 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			}
 			sum := sha256.Sum256(data)
 			fp := hex.EncodeToString(sum[:])
+			// HUNT-01: publish-token uploads must attest content_sha256 (admin may omit in lab).
+			if isPublish && !isAdmin && wantContent == "" {
+				http.Error(w, "harness_content_sha256 required for orders publish harness upload", http.StatusBadRequest)
+				return
+			}
 			if wantContent != "" {
 				wantContent = strings.ToLower(wantContent)
 				if !hunt.ValidContentSHA256(wantContent) || wantContent != fp {

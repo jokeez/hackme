@@ -83,7 +83,29 @@ func VerifySettleReceiptMAC(publishToken, ownerRef, ownerSecret string, r Settle
 	return hmac.Equal(want, mac.Sum(nil))
 }
 
+// UnitsHashFromOutbox is the hub-verifiable ACK units fingerprint (PUB-07).
+// Bound only to outbox fields the hub already stores + claimed outcome — never to
+// tenant-supplied escrow balances (those were honor-system and let false ACKs invent units).
+func UnitsHashFromOutbox(eventID, campaignID, kind, minerAddress, severity string, workItemID int64, outcome string) string {
+	if workItemID < 0 {
+		workItemID = 0
+	}
+	sum := sha256.Sum256([]byte(strings.Join([]string{
+		"hackme-settle-units-v2",
+		strings.TrimSpace(eventID),
+		strings.TrimSpace(campaignID),
+		strings.ToLower(strings.TrimSpace(kind)),
+		strings.TrimSpace(minerAddress),
+		strings.ToLower(strings.TrimSpace(severity)),
+		strconv.FormatInt(workItemID, 10),
+		strings.ToLower(strings.TrimSpace(outcome)),
+	}, "|")))
+	return hex.EncodeToString(sum[:])
+}
+
 // UnitsHashFromEscrow fingerprints post-Apply escrow units (event_id+campaign+units).
+// Deprecated for settle ACK: hub cannot verify tenant escrow snapshots (PUB-07).
+// Prefer UnitsHashFromOutbox. Kept for diagnostics / older lab tooling.
 func UnitsHashFromEscrow(eventID, campaignID string, row *chain.FuzzEscrowRow) string {
 	var b strings.Builder
 	b.WriteString(strings.TrimSpace(eventID))
@@ -100,7 +122,8 @@ func UnitsHashFromEscrow(eventID, campaignID string, row *chain.FuzzEscrowRow) s
 	return hex.EncodeToString(sum[:])
 }
 
-// UnitsHashTerminal is used when Apply did not return a row (drain / already-paid).
+// UnitsHashTerminal is a legacy drain fingerprint (event+campaign+outcome only).
+// Prefer UnitsHashFromOutbox for ACK; hub verify rejects this when outbox binding is enforced.
 func UnitsHashTerminal(eventID, campaignID, outcome string) string {
 	sum := sha256.Sum256([]byte(strings.Join([]string{
 		strings.TrimSpace(eventID),

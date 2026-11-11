@@ -325,15 +325,13 @@ func writePublishAuthError(w http.ResponseWriter) {
 	http.Error(w, "orders publish or admin authentication required", http.StatusUnauthorized)
 }
 
-// publishOwnerRefFromRequest reads the Orders owner claim (header preferred, query fallback).
+// publishOwnerRefFromRequest reads the Orders owner claim from headers only.
+// Query owner_ref is rejected (access-log / Referer / CDN leak — PUB-10b).
 func publishOwnerRefFromRequest(r *http.Request) string {
 	if r == nil {
 		return ""
 	}
-	if v := strings.TrimSpace(r.Header.Get("X-Hackme-Orders-Owner-Ref")); v != "" {
-		return v
-	}
-	return strings.TrimSpace(r.URL.Query().Get("owner_ref"))
+	return strings.TrimSpace(r.Header.Get("X-Hackme-Orders-Owner-Ref"))
 }
 
 // publishOwnerSecretFromRequest reads the per-publish tenant secret from headers only
@@ -347,20 +345,18 @@ func publishOwnerSecretFromRequest(r *http.Request) string {
 
 // publishOwnerAccessOK gates shared publish-token reads/ACKs to the campaign's owner_ref
 // and per-publish owner secret. Rows with empty owner_ref and no secret hash are denied
-// (no flag-only grandfather — PUB-05).
+// (no flag-only grandfather — PUB-05). Legacy owner_ref-only rows (empty secret hash)
+// are also denied (PUB-05b): shared fleet publish token + guessed owner_ref is not enough.
 func publishOwnerAccessOK(r *http.Request, storedOwner, storedSecretHash string) bool {
 	storedOwner = strings.TrimSpace(storedOwner)
 	storedSecretHash = strings.TrimSpace(storedSecretHash)
-	if storedOwner == "" && storedSecretHash == "" {
+	if storedOwner == "" || storedSecretHash == "" {
 		return false
 	}
-	if storedOwner != "" && publishOwnerRefFromRequest(r) != storedOwner {
+	if publishOwnerRefFromRequest(r) != storedOwner {
 		return false
 	}
-	if storedSecretHash != "" {
-		return poolsync.OwnerSecretHashEqual(publishOwnerSecretFromRequest(r), storedSecretHash)
-	}
-	return publishOwnerRefFromRequest(r) == storedOwner
+	return poolsync.OwnerSecretHashEqual(publishOwnerSecretFromRequest(r), storedSecretHash)
 }
 
 // loadPublishOwnerGate reads owner_ref + secret hash for publish-token tenant checks.

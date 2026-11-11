@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -209,11 +211,14 @@ func TestOrdersPublishTokenDeniedOnAdminRoutes(t *testing.T) {
 func TestOrdersPublishTokenMayUploadHarness(t *testing.T) {
 	mux := ordersPublishMux(t)
 	payload := []byte("hunt-customer-harness-v1")
+	sum := sha256.Sum256(payload)
+	fp := hex.EncodeToString(sum[:])
 	hash := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	b64Body, _ := json.Marshal(map[string]any{
-		"harness_hash": hash,
-		"source_rel":   "customer/harness",
-		"binary_b64":   base64.StdEncoding.EncodeToString(payload),
+		"harness_hash":           hash,
+		"source_rel":             "customer/harness",
+		"binary_b64":             base64.StdEncoding.EncodeToString(payload),
+		"harness_content_sha256": fp,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/hunt/harness", bytes.NewReader(b64Body))
 	req.Header.Set("Content-Type", "application/json")
@@ -225,11 +230,29 @@ func TestOrdersPublishTokenMayUploadHarness(t *testing.T) {
 		t.Fatalf("publish harness JSON want 200, got %d body=%s", rec.Code, rec.Body.String())
 	}
 
+	// HUNT-01: publish without content attestation refused.
+	missing, _ := json.Marshal(map[string]any{
+		"harness_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+		"binary_b64":   base64.StdEncoding.EncodeToString([]byte("no-attest")),
+	})
+	reqMiss := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/hunt/harness", bytes.NewReader(missing))
+	reqMiss.Header.Set("Content-Type", "application/json")
+	reqMiss.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	reqMiss.RemoteAddr = "203.0.113.50:9"
+	recMiss := httptest.NewRecorder()
+	mux.ServeHTTP(recMiss, reqMiss)
+	if recMiss.Code != http.StatusBadRequest || !strings.Contains(recMiss.Body.String(), "harness_content_sha256") {
+		t.Fatalf("publish without content sha want 400, got %d %s", recMiss.Code, recMiss.Body.String())
+	}
+
 	hash2 := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	bin := []byte("octet-harness-blob")
+	sum2 := sha256.Sum256(bin)
+	fp2 := hex.EncodeToString(sum2[:])
 	req2 := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/hunt/harness", bytes.NewReader(bin))
 	req2.Header.Set("Content-Type", "application/octet-stream")
 	req2.Header.Set("X-Hackme-Harness-Hash", hash2)
+	req2.Header.Set("X-Hackme-Harness-Content-SHA256", fp2)
 	req2.Header.Set("X-Hackme-Admin-Token", "publish-tok")
 	req2.RemoteAddr = "203.0.113.51:9"
 	rec2 := httptest.NewRecorder()
@@ -897,7 +920,7 @@ func TestOrdersPublishSettleAckRequiresValidReceipt(t *testing.T) {
 	rc := poolsync.SettleApplyReceipt{
 		OutboxID: outboxID, EventID: eventID, CampaignID: "camp-ack-rcpt",
 		Kind: "run", Outcome: poolsync.SettleOutcomeApplied,
-		UnitsHash: poolsync.UnitsHashTerminal(eventID, "camp-ack-rcpt", poolsync.SettleOutcomeApplied),
+		UnitsHash: poolsync.UnitsHashFromOutbox(eventID, "camp-ack-rcpt", "run", "HMC-1111111111111111", "", 0, poolsync.SettleOutcomeApplied),
 	}
 	poolsync.SignSettleReceipt("publish-tok", "customer:rcpt", secret, &rc)
 	raw, _ := json.Marshal(map[string]any{
@@ -913,6 +936,33 @@ func TestOrdersPublishSettleAckRequiresValidReceipt(t *testing.T) {
 	if ack.Code != http.StatusOK {
 		t.Fatalf("valid receipt ACK want 200, got %d %s", ack.Code, ack.Body.String())
 	}
+	// Invented escrow units_hash (PUB-07) rejected even with valid MAC.
+	outboxIDInvent, err := pf.EnqueueSettleOutbox(ctx, "run", "camp-ack-rcpt", "HMC-1111111111111111", "", 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	eventInvent := chain.FuzzSettleEventID("camp-ack-rcpt", outboxIDInvent)
+	invented := poolsync.SettleApplyReceipt{
+		OutboxID: outboxIDInvent, EventID: eventInvent, CampaignID: "camp-ack-rcpt",
+		Kind: "run", Outcome: poolsync.SettleOutcomeApplied,
+		UnitsHash: poolsync.UnitsHashFromEscrow(eventInvent, "camp-ack-rcpt", &chain.FuzzEscrowRow{
+			BudgetHMC: 999, RunsPaidHMC: 999, Status: "open",
+		}),
+	}
+	poolsync.SignSettleReceipt("publish-tok", "customer:rcpt", secret, &invented)
+	raw, _ = json.Marshal(map[string]any{
+		"ids": []int64{outboxIDInvent}, "campaign_id": "camp-ack-rcpt", "receipts": []poolsync.SettleApplyReceipt{invented},
+	})
+	req = httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle/outbox/ack", bytes.NewReader(raw))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	req.Header.Set("X-Hackme-Orders-Owner-Ref", "customer:rcpt")
+	req.Header.Set("X-Hackme-Orders-Owner-Secret", secret)
+	ack = httptest.NewRecorder()
+	mux.ServeHTTP(ack, req)
+	if ack.Code != http.StatusBadRequest || !strings.Contains(ack.Body.String(), "units_hash") {
+		t.Fatalf("invented units_hash want 400 units_hash, got %d %s", ack.Code, ack.Body.String())
+	}
 	// Tampered MAC rejected on a fresh pending row.
 	outboxID2, err := pf.EnqueueSettleOutbox(ctx, "finding", "camp-ack-rcpt", "HMC-1111111111111111", "high", 0)
 	if err != nil {
@@ -922,7 +972,7 @@ func TestOrdersPublishSettleAckRequiresValidReceipt(t *testing.T) {
 	bad := poolsync.SettleApplyReceipt{
 		OutboxID: outboxID2, EventID: eventID2, CampaignID: "camp-ack-rcpt",
 		Kind: "finding", Outcome: poolsync.SettleOutcomeApplied,
-		UnitsHash: poolsync.UnitsHashTerminal(eventID2, "camp-ack-rcpt", poolsync.SettleOutcomeApplied),
+		UnitsHash: poolsync.UnitsHashFromOutbox(eventID2, "camp-ack-rcpt", "finding", "HMC-1111111111111111", "high", 0, poolsync.SettleOutcomeApplied),
 		MAC:       strings.Repeat("ab", 32),
 	}
 	raw, _ = json.Marshal(map[string]any{
@@ -991,5 +1041,93 @@ func TestOrdersPublishOwnerRefTooLong(t *testing.T) {
 	})
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("want 400 owner_ref, got %d", rec.Code)
+	}
+}
+
+func TestHubAppliedRefusedForOrdersPublishOutbox(t *testing.T) {
+	globalPublishRate = &publishRateLimiter{hour: map[string][]time.Time{}, day: map[string][]time.Time{}}
+	db, err := store.Open(filepath.Join(t.TempDir(), "huback.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	pf := &poolfuzz.Service{DB: db}
+	mux := http.NewServeMux()
+	addFuzzPoolRoutes(mux, "admin-tok", "worker-tok", "publish-tok", false, &workManager{
+		hybridSignerEnabled: true, claimRequirePubKey: true, claimPerMin: 60, submitPerMin: 60,
+		abuse: make(map[string]workerAbuseState), ipAbuse: make(map[string]workerAbuseState),
+		worker: map[string]workerPayoutStat{}, dropReasonCount: make(map[string]uint64),
+	}, pf)
+
+	rec := publishReq(t, mux, "publish-tok", map[string]any{
+		"id": "camp-hub-ack", "budget_runs": 8, "owner_ref": "customer:huback",
+		"config": map[string]any{"dig_package": "scan", "guard_pack": "secrets"},
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("register want 200, got %d %s", rec.Code, rec.Body.String())
+	}
+	ctx := context.Background()
+	outboxID, err := pf.EnqueueSettleOutbox(ctx, "run", "camp-hub-ack", "HMC-1111111111111111", "", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(map[string]any{"ids": []int64{outboxID}, "hub_applied": true})
+	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle/outbox/ack", bytes.NewReader(raw))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", "admin-tok")
+	ack := httptest.NewRecorder()
+	mux.ServeHTTP(ack, req)
+	if ack.Code != http.StatusBadRequest || !strings.Contains(ack.Body.String(), "orders_publish") {
+		t.Fatalf("SETTLE-01 hub_applied on orders_publish want 400, got %d %s", ack.Code, ack.Body.String())
+	}
+}
+
+func TestPublishOwnerGateRejectsQueryOwnerRefAndLegacyNoSecret(t *testing.T) {
+	if publishOwnerAccessOK(httptest.NewRequest(http.MethodGet, "/x?owner_ref=customer:a", nil), "customer:a", "deadbeef") {
+		t.Fatal("query owner_ref must not satisfy gate (PUB-10b)")
+	}
+	req := httptest.NewRequest(http.MethodGet, "/x", nil)
+	req.Header.Set("X-Hackme-Orders-Owner-Ref", "customer:a")
+	if publishOwnerAccessOK(req, "customer:a", "") {
+		t.Fatal("legacy owner_ref without secret hash must deny (PUB-05b)")
+	}
+	req.Header.Set("X-Hackme-Orders-Owner-Secret", "secret")
+	hash := poolsync.OwnerSecretHash("secret")
+	if !publishOwnerAccessOK(req, "customer:a", hash) {
+		t.Fatal("header owner_ref + matching secret must pass")
+	}
+}
+
+func TestPoolStatsRedactsFleetForAnon(t *testing.T) {
+	mux := ordersPublishMux(t)
+	req := httptest.NewRequest(http.MethodGet, "/api/fuzz/pool/stats", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("public stats want 200, got %d", rec.Code)
+	}
+	var anon map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &anon); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := anon["fleet_capacity"]; ok {
+		t.Fatal("POOL-01 anon must not see fleet_capacity")
+	}
+	if _, ok := anon["fleet_hashrate_gh_s"]; ok {
+		t.Fatal("POOL-01 anon must not see fleet_hashrate_gh_s")
+	}
+	req = httptest.NewRequest(http.MethodGet, "/api/fuzz/pool/stats", nil)
+	req.Header.Set("X-Hackme-Admin-Token", "admin-tok")
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("admin stats want 200, got %d %s", rec.Code, rec.Body.String())
+	}
+	var admin map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &admin); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := admin["fleet_capacity"]; !ok {
+		t.Fatal("admin stats must include fleet_capacity")
 	}
 }

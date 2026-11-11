@@ -150,9 +150,9 @@ func (r *RelaySettler) httpRelayOnce(ctx context.Context, s *Service, kind, camp
 	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	// Require HTTP 200 + explicit ok:true so a buggy/proxy 200 empty body cannot false-ACK.
+	// Require HTTP 200 + ok:true + echoing event_id so a buggy origin cannot false-ACK.
 	// Hub-side apply: origin HTTP Apply succeeded — ACK locally (never via honor-system bool).
-	if resp.StatusCode == http.StatusOK && settleRelayBodyOK(raw) {
+	if resp.StatusCode == http.StatusOK && settleRelayBodyMatches(raw, eventID) {
 		if _, err := s.AckSettleOutbox(ctx, []int64{outboxID}); err != nil {
 			// Origin accepted but local ACK failed — still treat as applied (idempotent event_id).
 			return SettleResult{OutboxID: outboxID, Applied: true}, nil
@@ -164,13 +164,27 @@ func (r *RelaySettler) httpRelayOnce(ctx context.Context, s *Service, kind, camp
 }
 
 func settleRelayBodyOK(raw []byte) bool {
+	return settleRelayBodyMatches(raw, "")
+}
+
+// settleRelayBodyMatches requires ok:true and, when wantEventID is set, an echoing
+// event_id so a buggy/compromised origin cannot false-ACK with a generic 200 (RELAY-01).
+func settleRelayBodyMatches(raw []byte, wantEventID string) bool {
 	var body struct {
-		OK bool `json:"ok"`
+		OK      bool   `json:"ok"`
+		EventID string `json:"event_id"`
 	}
 	if err := json.Unmarshal(raw, &body); err != nil {
 		return false
 	}
-	return body.OK
+	if !body.OK {
+		return false
+	}
+	wantEventID = strings.TrimSpace(wantEventID)
+	if wantEventID == "" {
+		return true
+	}
+	return strings.TrimSpace(body.EventID) == wantEventID
 }
 
 // DrainPendingSettleHTTP attempts inline HTTP relay for pending outbox rows (background ticker).

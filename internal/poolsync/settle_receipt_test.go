@@ -1,16 +1,18 @@
 package poolsync
 
 import (
+	"strings"
 	"testing"
 
 	"hackme/internal/chain"
 )
 
 func TestSettleReceiptMACRoundTrip(t *testing.T) {
+	eventID := chain.FuzzSettleEventID("camp-a", 7)
 	rc := SettleApplyReceipt{
-		OutboxID: 7, EventID: chain.FuzzSettleEventID("camp-a", 7),
+		OutboxID: 7, EventID: eventID,
 		CampaignID: "camp-a", Kind: "run", Outcome: SettleOutcomeApplied,
-		UnitsHash: UnitsHashTerminal(chain.FuzzSettleEventID("camp-a", 7), "camp-a", SettleOutcomeApplied),
+		UnitsHash: UnitsHashFromOutbox(eventID, "camp-a", "run", "HMC-1111111111111111", "", 42, SettleOutcomeApplied),
 	}
 	SignSettleReceipt("pub-tok", "customer:a", "secret-a", &rc)
 	if rc.MAC == "" {
@@ -24,6 +26,32 @@ func TestSettleReceiptMACRoundTrip(t *testing.T) {
 	}
 	if VerifySettleReceiptMAC("pub-tok", "customer:b", "secret-a", rc) {
 		t.Fatal("wrong owner must fail")
+	}
+}
+
+func TestUnitsHashFromOutboxBindsHubFields(t *testing.T) {
+	eventID := chain.FuzzSettleEventID("camp-a", 7)
+	a := UnitsHashFromOutbox(eventID, "camp-a", "run", "HMC-1111111111111111", "", 42, SettleOutcomeApplied)
+	b := UnitsHashFromOutbox(eventID, "camp-a", "run", "HMC-1111111111111111", "", 42, SettleOutcomeApplied)
+	if a == "" || a != b {
+		t.Fatal("stable hash required")
+	}
+	// Invented escrow snapshot must not equal outbox binding.
+	invented := UnitsHashFromEscrow(eventID, "camp-a", &chain.FuzzEscrowRow{
+		BudgetHMC: 999, RunsPaidHMC: 999, Status: "open",
+	})
+	if strings.EqualFold(a, invented) {
+		t.Fatal("outbox hash must not collide with inventable escrow hash")
+	}
+	if UnitsHashFromOutbox(eventID, "camp-a", "run", "HMC-1111111111111111", "", 43, SettleOutcomeApplied) == a {
+		t.Fatal("work_item_id must bind")
+	}
+	if UnitsHashFromOutbox(eventID, "camp-a", "run", "HMC-1111111111111111", "", 42, SettleOutcomeDepleted) == a {
+		t.Fatal("outcome must bind")
+	}
+	legacy := UnitsHashTerminal(eventID, "camp-a", SettleOutcomeApplied)
+	if strings.EqualFold(a, legacy) {
+		t.Fatal("v2 outbox hash must differ from legacy terminal")
 	}
 }
 

@@ -291,7 +291,9 @@ func (a *app) applyLocalFuzzSettleOnce(ctx context.Context, it poolsync.SettleOu
 
 // settleApplyReceipt builds an origin-verified ACK receipt after ApplyFuzzSettleOnce
 // (or a terminal drain outcome). Requires the per-publish owner secret for MAC.
+// units_hash is hub outbox-bound (PUB-07) — never a tenant-inventable escrow snapshot.
 func (a *app) settleApplyReceipt(ctx context.Context, it poolsync.SettleOutboxItem, outcome string, row *chain.FuzzEscrowRow) (poolsync.SettleApplyReceipt, bool) {
+	_ = row // escrow snapshot is local-only; ACK binds to outbox, not inventable units
 	eventID := chain.FuzzSettleEventID(it.CampaignID, it.ID)
 	rc := poolsync.SettleApplyReceipt{
 		OutboxID:   it.ID,
@@ -299,26 +301,15 @@ func (a *app) settleApplyReceipt(ctx context.Context, it poolsync.SettleOutboxIt
 		CampaignID: it.CampaignID,
 		Kind:       it.Kind,
 		Outcome:    outcome,
-	}
-	if row != nil && outcome == poolsync.SettleOutcomeApplied {
-		rc.UnitsHash = poolsync.UnitsHashFromEscrow(eventID, it.CampaignID, row)
-	} else {
-		rc.UnitsHash = poolsync.UnitsHashTerminal(eventID, it.CampaignID, outcome)
+		UnitsHash: poolsync.UnitsHashFromOutbox(
+			eventID, it.CampaignID, it.Kind, it.MinerAddress, it.Severity, it.WorkItemID, outcome),
 	}
 	owner := ""
 	secret := poolsync.LoadOrdersOwnerSecret(it.CampaignID)
 	if a != nil && a.db != nil {
 		_ = a.db.QueryRowContext(ctx,
 			`SELECT COALESCE(owner_ref,'') FROM fuzz_campaigns WHERE id=?`, it.CampaignID).Scan(&owner)
-		if secret == "" {
-			var cfgRaw string
-			_ = a.db.QueryRowContext(ctx,
-				`SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, it.CampaignID).Scan(&cfgRaw)
-			cfg := parseMapJSON(cfgRaw)
-			if v, ok := cfg["orders_owner_secret"].(string); ok {
-				secret = strings.TrimSpace(v)
-			}
-		}
+		// SYNC-01: never fall back to plaintext orders_owner_secret in config_json.
 	}
 	pubTok := poolsync.OrdersPublishToken()
 	if secret == "" {
@@ -352,20 +343,8 @@ func (a *app) startFuzzSettlePullTicker() {
 		if strings.TrimSpace(campaignID) == "" {
 			return ""
 		}
-		if sec := poolsync.LoadOrdersOwnerSecret(campaignID); sec != "" {
-			return sec
-		}
-		if a == nil || a.db == nil {
-			return ""
-		}
-		var cfgRaw string
-		_ = a.db.QueryRow(
-			`SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgRaw)
-		cfg := parseMapJSON(cfgRaw)
-		if v, ok := cfg["orders_owner_secret"].(string); ok {
-			return strings.TrimSpace(v)
-		}
-		return ""
+		// SYNC-01: disk/env secret only — no config_json plaintext fallback.
+		return poolsync.LoadOrdersOwnerSecret(campaignID)
 	})
 	go func() {
 		interval := 15 * time.Second

@@ -54,11 +54,19 @@ Requires Dig `dig_package` (`scan`/`starter`/`audit`/`pro`/`deep`/`enterprise`) 
   `HACKME_ORDERS_PREPAID_LOCAL_SIGN=0` (default when `MINTING_HUB`/`REQUIRE_HUB` is set),
   and mint via admin `POST /api/fuzz/pool/prepaid-ticket` so a leaked fleet publish
   token cannot forge `hubv1:` tickets. Lab (no minting hub) still accepts self-MAC.
-  Settle ACK needs origin Apply receipts (MAC over event_id+campaign+units hash), not
-  bare `confirm_applied`. Settle-pull only **applies** rows for local escrow; do not
+  Settle ACK needs origin Apply receipts (MAC over event_id+campaign+**hub outbox-bound**
+  `units_hash`), not bare `confirm_applied`. Hub verifies `units_hash` against outbox
+  fields (kind/miner/severity/work_item/outcome) so false ACKs cannot invent escrow
+  unit vectors (PUB-07). Settle-pull only **applies** rows for local escrow; do not
   ACK foreign campaigns. Per-publish owner secret is stored on Orders as a `0600` file
   under `HACKME_ORDERS_OWNER_SECRET_DIR` / `data/orders_owner_secrets/` (not plaintext in
-  `config_json`).
+  `config_json`).   Shared fleet publish token still needs rotation if leaked (PUB-09);
+  per-owner `owner_ref` + secret already scopes ACK/list — full per-tenant tokens are a
+  redesign, not an incremental harden. Owner claim is header-only
+  (`X-Hackme-Orders-Owner-Ref`); query `owner_ref` is ignored. Publish-scoped reads
+  require a stamped `orders_owner_secret_hash` (legacy owner_ref-only rows denied).
+  Admin `hub_applied` ACK is refused for `orders_publish` outbox rows (receipts required).
+  Publish Hunt harness upload requires `harness_content_sha256`.
 - **Med-prepaid / minting hub:** publish-token self-MAC is lab-only. On D1
   (`HACKME_CHAIN_MINTING_HUB=1` or `HACKME_ORDERS_REQUIRE_HUB_PREPAID_TICKET=1`) the
   coordinator **refuses** self-MAC and requires a hub-signed ticket
