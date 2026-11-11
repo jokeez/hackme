@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"hackme/internal/fuzzengine"
+	"hackme/internal/pathsafe"
 )
 
 // GuardPack is a ready-made detector pack (customer does not write a rule).
@@ -405,7 +406,7 @@ func LoadPackWasmHex(repoRoot string, p GuardPack) (wasmHex string, absPath stri
 	if err != nil {
 		return "", path, err
 	}
-	raw, err := os.ReadFile(path)
+	raw, err := readConfinedPackWasm(repoRoot, path)
 	if err != nil {
 		return "", path, fmt.Errorf("pack %s: read wasm: %w", p.ID, err)
 	}
@@ -413,6 +414,20 @@ func LoadPackWasmHex(repoRoot string, p GuardPack) (wasmHex string, absPath stri
 		return "", path, fmt.Errorf("pack %s: empty wasm at %s", p.ID, path)
 	}
 	return hex.EncodeToString(raw), path, nil
+}
+
+// readConfinedPackWasm reads a shipped guard WASM and refuses symlink escapes.
+// dig_preset / guard_pack resolve a fixed repo-relative path; a planted symlink
+// at that path must not be followed outside the repo (same class as wasm_path).
+func readConfinedPackWasm(repoRoot, path string) ([]byte, error) {
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return nil, err
+	}
+	if _, ok := pathsafe.WithinRoot(repoRoot, resolved); !ok {
+		return nil, fmt.Errorf("pack wasm escapes repo root via symlink")
+	}
+	return os.ReadFile(resolved)
 }
 
 // ResolveDigGuardWasm resolves dig_preset and/or guard_pack to a GuardPack + shipped WASM hex.

@@ -45,11 +45,13 @@ func (a *app) pullLocalFuzzSettleEscrows(ctx context.Context) error {
 	var firstErr error
 	var authErr error
 	attempted := 0
+	authFails := 0
 	for _, cid := range ids {
 		// Shared publish token + hardened hub: settle GET/ACK need owner_ref +
 		// per-campaign owner secret. Legacy open escrows without either only
 		// produce 403 storms and exponential settle backoff that starves
 		// campaigns that *can* drain — skip them (ops refund via admin token).
+		// Skipping does not ACK and does not weaken SETTLE-01 / owner-secret gates.
 		if publishScoped {
 			owner := ""
 			if a.db != nil {
@@ -65,6 +67,8 @@ func (a *app) pullLocalFuzzSettleEscrows(ctx context.Context) error {
 		attempted++
 		if err := a.pullFuzzSettleOutboxWindow(ctx, cid, true); err != nil {
 			if poolsync.SettleOutboxErrAuth(err) {
+				log.Printf("fuzz settle pull: auth error on %s (siblings keep draining): %v", cid, err)
+				authFails++
 				if authErr == nil {
 					authErr = err
 				}
@@ -75,11 +79,18 @@ func (a *app) pullLocalFuzzSettleEscrows(ctx context.Context) error {
 			}
 		}
 	}
+	return settleLocalPullResult(attempted, authFails, firstErr, authErr)
+}
+
+// settleLocalPullResult surfaces an error to the settle ticker.
+// Auth backoff (1m→15m) runs only when every credentialed attempt failed auth.
+// One 403 must not freeze siblings that already ACK'd — that sticks refunds
+// behind the cooldown the legacy-skip path was meant to avoid.
+func settleLocalPullResult(attempted, authFails int, firstErr, authErr error) error {
 	if firstErr != nil {
 		return firstErr
 	}
-	// Only surface auth backoff when every attempted (credentialed) campaign failed auth.
-	if authErr != nil && attempted > 0 {
+	if authErr != nil && attempted > 0 && authFails == attempted {
 		return authErr
 	}
 	return nil

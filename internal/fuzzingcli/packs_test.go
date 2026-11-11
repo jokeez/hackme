@@ -184,3 +184,44 @@ func TestResolveDigGuardWasmMismatch(t *testing.T) {
 		t.Fatal("expected dig_preset/guard_pack mismatch error")
 	}
 }
+
+func TestLoadPackWasmHexRejectsSymlinkEscape(t *testing.T) {
+	root := t.TempDir()
+	rel := filepath.Join("tasks", "artifacts", "security", "evil.wasm")
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(root, rel)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := t.TempDir()
+	secret := filepath.Join(outside, "secret.wasm")
+	if err := os.WriteFile(secret, []byte("not-a-real-wasm-secret"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secret, filepath.Join(root, rel)); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err := LoadPackWasmHex(root, GuardPack{ID: "evil", WasmRelPath: filepath.ToSlash(rel)})
+	if err == nil {
+		t.Fatal("expected symlink escape reject")
+	}
+	if !strings.Contains(err.Error(), "symlink") && !strings.Contains(err.Error(), "escapes") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestLoadPackWasmHexReadsRegularFile(t *testing.T) {
+	root := t.TempDir()
+	rel := filepath.Join("tasks", "artifacts", "security", "ok.wasm")
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(root, rel)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, rel), []byte{0x00, 0x61, 0x73, 0x6d}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	hexStr, _, err := LoadPackWasmHex(root, GuardPack{ID: "ok", WasmRelPath: filepath.ToSlash(rel)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hexStr != "0061736d" {
+		t.Fatalf("hex=%s", hexStr)
+	}
+}

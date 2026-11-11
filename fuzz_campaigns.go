@@ -1735,7 +1735,6 @@ func (a *app) handleFuzzCampaignPulse(w http.ResponseWriter, r *http.Request, ca
 	}
 	newEdges := intFromAny(c.Summary["new_edges"])
 	newPaths := intFromAny(c.Summary["new_paths"])
-	uniqueCrashes := intFromAny(c.Summary["unique_crashes"])
 	firstCrashSec := intFromAny(c.Summary["time_to_first_crash_sec"])
 	progressPct := 0.0
 	if c.BudgetRuns > 0 && runsDone > 0 {
@@ -1824,12 +1823,17 @@ func (a *app) handleFuzzCampaignPulse(w http.ResponseWriter, r *http.Request, ca
 			noiseCount++
 		}
 	}
-	// coverage.unique_crashes is crash-class only. Pool Findings is crash-class (coordinator);
-	// raise the hint when settle/mirror lags. Never fold into uniqueCrashes — that variable
-	// is emitted as coverage.failed_checks (summary detector-fail semantics).
+	// coverage.unique_crashes is crash-class only (local rows, or pool Findings when
+	// the mirror lags). failed_checks stays detector / work-item rejects from
+	// summary or coordinator failed_checks — never the crash count and never
+	// findings_total. Folding crashes into failed_checks invented detector fails.
 	coverageCrashes := crashCount
 	if poolOK && poolRC.Findings > coverageCrashes {
 		coverageCrashes = poolRC.Findings
+	}
+	failedChecks := intFromAny(c.Summary["failed_checks"])
+	if poolOK && poolRC.FailedChecks > failedChecks {
+		failedChecks = poolRC.FailedChecks
 	}
 	progress := map[string]any{
 		"runs_done":       runsDone,
@@ -1873,9 +1877,9 @@ func (a *app) handleFuzzCampaignPulse(w http.ResponseWriter, r *http.Request, ca
 			"new_edges": newEdges,
 			"new_paths": newPaths,
 			// Honest: crash-class count (local rows, or pool-attributed hint when mirror lags).
-			// failed_checks keeps summary detector-fail semantics — never pool Findings.
+			// failed_checks is detector/work-item rejects — never crash count or Findings.
 			"unique_crashes":          coverageCrashes,
-			"failed_checks":           uniqueCrashes,
+			"failed_checks":           failedChecks,
 			"time_to_first_crash_sec": firstCrashSec,
 		},
 		"findings": map[string]any{
