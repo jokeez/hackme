@@ -3981,14 +3981,15 @@ func validCoordinatorWorkerID(id string) bool {
 
 func coordinatorPOSTAuthed(r *http.Request, token string, allowInsecure bool) bool {
 	if token != "" {
-		return coordAdminOK(r, token)
+		// AUTH-02: Admin-Token / Bearer only (not Worker-Token carrier).
+		return coordPublishRouteOK(r, token)
 	}
 	return allowInsecure
 }
 
 // coordinatorWorkPOSTAuthed allows claim/submit with admin or worker-scoped token.
 func coordinatorWorkPOSTAuthed(r *http.Request, adminToken, workerToken string, allowInsecure bool) bool {
-	if adminToken != "" && coordAdminOK(r, adminToken) {
+	if adminToken != "" && coordPublishRouteOK(r, adminToken) {
 		return true
 	}
 	if workerToken != "" && coordAdminOK(r, workerToken) {
@@ -4607,7 +4608,7 @@ func addWorkRoutes(mux *http.ServeMux, adminToken, workerToken string, allowInse
 		includeDetails := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("details")))
 		details := includeDetails == "1" || includeDetails == "true" || includeDetails == "yes"
 		if details {
-			if adminToken != "" && !coordAdminOK(r, adminToken) {
+			if adminToken != "" && !coordPublishRouteOK(r, adminToken) {
 				w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
 				http.Error(w, "admin authentication required", http.StatusUnauthorized)
 				return

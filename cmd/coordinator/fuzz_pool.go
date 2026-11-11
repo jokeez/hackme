@@ -97,7 +97,8 @@ func coordPoolReadOK(r *http.Request, adminToken, workerToken string, allowInsec
 	if strings.TrimSpace(adminToken) == "" && strings.TrimSpace(workerToken) == "" && allowInsecure {
 		return true
 	}
-	if adminToken != "" && coordAdminOK(r, adminToken) {
+	// AUTH-02: admin secret only via Admin-Token / Bearer (not Worker-Token carrier).
+	if adminToken != "" && coordPublishRouteOK(r, adminToken) {
 		return true
 	}
 	if workerToken != "" && coordAdminOK(r, workerToken) {
@@ -542,7 +543,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		}
 		if adminToken == "" && allowInsecure {
 			// loopback dev
-		} else if adminToken == "" || !coordAdminOK(r, adminToken) {
+		} else if adminToken == "" || !coordPublishRouteOK(r, adminToken) {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
 			http.Error(w, "admin authentication required", http.StatusUnauthorized)
 			return
@@ -606,7 +607,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		}
 		if adminToken == "" && allowInsecure {
 			// loopback dev
-		} else if adminToken == "" || !coordAdminOK(r, adminToken) {
+		} else if adminToken == "" || !coordPublishRouteOK(r, adminToken) {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
 			http.Error(w, "admin authentication required", http.StatusUnauthorized)
 			return
@@ -643,7 +644,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		}
 		if adminToken == "" && allowInsecure {
 			// loopback dev
-		} else if adminToken == "" || !coordAdminOK(r, adminToken) {
+		} else if adminToken == "" || !coordPublishRouteOK(r, adminToken) {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
 			http.Error(w, "admin authentication required", http.StatusUnauthorized)
 			return
@@ -664,7 +665,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		}
 		if adminToken == "" && allowInsecure {
 			// loopback dev
-		} else if adminToken == "" || !coordAdminOK(r, adminToken) {
+		} else if adminToken == "" || !coordPublishRouteOK(r, adminToken) {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
 			http.Error(w, "admin authentication required", http.StatusUnauthorized)
 			return
@@ -725,7 +726,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		}
 		if adminToken == "" && allowInsecure {
 			// loopback dev
-		} else if adminToken == "" || !coordAdminOK(r, adminToken) {
+		} else if adminToken == "" || !coordPublishRouteOK(r, adminToken) {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
 			http.Error(w, "admin authentication required", http.StatusUnauthorized)
 			return
@@ -1847,7 +1848,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		// Admin may release any lease; shared worker token must CHECK worker_id→payout
 		// lock (anti-snipe) but must NOT create one — a failed/no-op release is not a
 		// registration act (report #27 payout-lock poisoning).
-		isAdmin := adminToken != "" && coordAdminOK(r, adminToken)
+		isAdmin := adminToken != "" && coordPublishRouteOK(r, adminToken)
 		if !isAdmin {
 			pub := strings.TrimSpace(req.MinerPubKey)
 			if pub == "" {

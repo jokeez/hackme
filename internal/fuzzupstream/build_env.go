@@ -12,48 +12,55 @@ import (
 	"time"
 )
 
-// ScrubBuildEnv drops admin/settlement/API tokens from a compiler/cargo env so
-// customer build.rs / proc-macros cannot inherit hub secrets (finding #5).
-// Mirrors hunt.scrubIsolateEnv deny lists.
+// ScrubBuildEnv keeps a whitelist of compiler/fuzzer knobs and drops everything
+// else (tokens, cloud keys, proxies, SSH agents). Prefer allowlist over denylist
+// so catalog Dig/Hunt builds cannot piggyback hub admin/P2P/relay secrets via
+// customer build.rs / proc-macros (FUZZ-ENV-01). Mirrors hunt.scrubIsolateEnv.
 func ScrubBuildEnv(env []string) []string {
-	denyExact := map[string]bool{
-		"http_proxy": true, "https_proxy": true, "HTTP_PROXY": true, "HTTPS_PROXY": true,
-		"ALL_PROXY": true, "all_proxy": true, "GIT_ASKPASS": true, "SSH_AUTH_SOCK": true,
-		"AWS_SECRET_ACCESS_KEY": true, "AWS_ACCESS_KEY_ID": true, "AWS_SESSION_TOKEN": true,
-		"COORD_TOKEN": true, "GITHUB_TOKEN": true, "GH_TOKEN": true,
-		"HACKME_ADMIN_TOKEN": true, "HACKME_POOL_COORDINATOR_TOKEN": true,
-		"HACKME_MINER_ED25519_SEED_HEX": true, "HACKME_COORDINATOR_ADMIN_TOKEN": true,
-		"HACKME_COORDINATOR_WORKER_TOKEN": true, "HACKME_COORDINATOR_ORDERS_PUBLISH_TOKEN": true,
-		"HACKME_ORDERS_PUBLISH_TOKEN": true, "HACKME_POOL_ORDERS_PUBLISH_TOKEN": true,
-		"HACKME_SETTLEMENT_ADMIN_TOKEN": true, "OPENAI_API_KEY": true, "ANTHROPIC_API_KEY": true,
+	allowExact := map[string]bool{
+		"PATH": true, "HOME": true, "USER": true, "LOGNAME": true, "SHELL": true,
+		"TMPDIR": true, "TMP": true, "TEMP": true, "LANG": true, "LANGUAGE": true,
+		"TERM": true, "TZ": true, "PWD": true,
+		"CC": true, "CXX": true, "CPP": true, "AR": true, "RANLIB": true, "LD": true,
+		"CFLAGS": true, "CXXFLAGS": true, "CPPFLAGS": true, "LDFLAGS": true,
+		"CARGO_HOME": true, "CARGO_TARGET_DIR": true, "CARGO_NET_OFFLINE": true,
+		"CARGO_TERM_COLOR": true, "RUSTUP_HOME": true, "RUSTC": true, "RUSTFLAGS": true,
+		"RUSTDOCFLAGS": true, "RUST_BACKTRACE": true,
+		"XDG_CACHE_HOME": true, "XDG_CONFIG_HOME": true, "XDG_DATA_HOME": true,
+		"AFL_PATH": true, "AFL_SKIP_CPUFREQ": true, "AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES": true,
+		"AFL_NO_UI": true, "AFL_MAP_SIZE": true, "AFL_USE_ASAN": true, "AFL_USE_UBSAN": true,
+		"ASAN_OPTIONS": true, "UBSAN_OPTIONS": true, "MSAN_OPTIONS": true, "LSAN_OPTIONS": true,
+		"LIBFUZZER_OPTS": true, "LLVM_PROFILE_FILE": true,
+		"HACKME_POOL_COORDINATOR_URL": true, "HACKME_POOL_SEED_FROM_RESEARCH": true,
+		"HACKME_PREFIX": true, "HACKME_AFL_FUZZ": true, "HACKME_LIBFUZZER_VERSION": true,
+		"HACKME_ISOLATE_RSS_MB": true,
 	}
-	denyPrefix := []string{
-		"HACKME_MINER_", "HACKME_POOL_", "HACKME_SETTLE", "HACKME_ORDERS_", "AWS_", "GITHUB_",
+	allowPrefix := []string{
+		"LC_", "AFL_", "LIBFUZZER_", "CARGO_", "RUST", "CCACHE_", "SCCACHE_",
 	}
-	out := make([]string, 0, len(env))
+	out := make([]string, 0, len(env)/4+8)
 	for _, e := range env {
 		key, _, _ := strings.Cut(e, "=")
-		if denyExact[key] {
+		if key == "" {
 			continue
 		}
-		skip := false
-		for _, p := range denyPrefix {
+		uk := strings.ToUpper(key)
+		if strings.Contains(uk, "TOKEN") || strings.Contains(uk, "SECRET") ||
+			strings.Contains(uk, "PASSWORD") || strings.Contains(uk, "CREDENTIAL") ||
+			strings.Contains(uk, "API_KEY") || strings.Contains(uk, "PRIVATE") ||
+			strings.Contains(uk, "SEED_HEX") {
+			continue
+		}
+		if allowExact[key] {
+			out = append(out, e)
+			continue
+		}
+		for _, p := range allowPrefix {
 			if strings.HasPrefix(key, p) {
-				if key == "HACKME_POOL_COORDINATOR_URL" || key == "HACKME_POOL_SEED_FROM_RESEARCH" {
-					break
-				}
-				up := strings.ToUpper(key)
-				if strings.Contains(up, "TOKEN") || strings.Contains(up, "SECRET") ||
-					strings.Contains(up, "SEED") || strings.Contains(up, "KEY") {
-					skip = true
-					break
-				}
+				out = append(out, e)
+				break
 			}
 		}
-		if skip {
-			continue
-		}
-		out = append(out, e)
 	}
 	return out
 }

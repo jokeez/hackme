@@ -212,7 +212,7 @@ func main() {
 			return
 		}
 		resp := lanpool.RealNetworkStats(reg, "", lanpool.LocalMining{})
-		if !coordAdminOK(r, token) || strings.TrimSpace(r.URL.Query().Get("details")) != "1" {
+		if !coordPublishRouteOK(r, token) || strings.TrimSpace(r.URL.Query().Get("details")) != "1" {
 			resp = lanpool.RedactPublicNetworkStats(resp)
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -226,7 +226,7 @@ func main() {
 		}
 		if token == "" && allowInsecure {
 			// loopback-only dev
-		} else if token == "" || !coordAdminOK(r, token) {
+		} else if token == "" || !coordPublishRouteOK(r, token) {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
 			http.Error(w, "admin authentication required", http.StatusUnauthorized)
 			return

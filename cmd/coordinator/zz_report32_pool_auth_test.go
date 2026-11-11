@@ -121,3 +121,52 @@ func TestReport32CorpusNamespaceRejectsPathInjection(t *testing.T) {
 		t.Fatalf("path namespace want 400, got %d", code)
 	}
 }
+
+// AUTH-02: admin secret via X-Hackme-Worker-Token carrier must not unlock admin-mutating
+// pool routes (Admin-Token / Bearer only). Worker claim still works with Worker-Token.
+func TestAuth02AdminSecretViaWorkerHeaderDenied(t *testing.T) {
+	mux := report32Mux(t)
+	cases := []struct {
+		method, path string
+		body         any
+	}{
+		{http.MethodPost, "/api/fuzz/pool/campaigns/status", map[string]any{"id": "x", "status": "cancelled"}},
+		{http.MethodPost, "/api/fuzz/pool/settle/replay", map[string]any{"campaign_id": "x"}},
+		{http.MethodPost, "/api/fuzz/pool/campaigns/cleanup-stale", map[string]any{}},
+		{http.MethodPost, "/api/fuzz/pool/campaigns/cleanup-gates", map[string]any{}},
+		{http.MethodPost, "/api/fuzz/pool/campaigns/repair-zombies", map[string]any{}},
+		{http.MethodPost, "/api/fuzz/pool/corpus/namespace", map[string]any{
+			"namespace": "research:jsmn", "seeds": []map[string]any{},
+		}},
+		{http.MethodGet, "/api/fuzz/pool/settle/outbox", nil},
+	}
+	for _, tc := range cases {
+		var rdr *bytes.Reader
+		if tc.body != nil {
+			raw, _ := json.Marshal(tc.body)
+			rdr = bytes.NewReader(raw)
+		} else {
+			rdr = bytes.NewReader(nil)
+		}
+		req := httptest.NewRequest(tc.method, tc.path, rdr)
+		if tc.body != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		req.Header.Set("X-Hackme-Worker-Token", "admin-tok")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code == http.StatusOK {
+			t.Fatalf("%s %s: Worker-Token carrier with admin secret must not unlock admin route, got %d", tc.method, tc.path, rec.Code)
+		}
+	}
+
+	// Worker claim still authenticates with the real worker token header.
+	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/work/claim", bytes.NewReader([]byte(`{"worker_id":"rig-auth02"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Worker-Token", "worker-tok")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code == http.StatusUnauthorized {
+		t.Fatalf("worker claim with Worker-Token must authenticate, got 401")
+	}
+}

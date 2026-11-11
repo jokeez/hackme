@@ -22,7 +22,7 @@ func addCorpusNamespaceRoute(mux *http.ServeMux, adminToken string, allowInsecur
 		}
 		if adminToken == "" && allowInsecure {
 			// loopback dev
-		} else if adminToken == "" || !coordAdminOK(r, adminToken) {
+		} else if adminToken == "" || !coordPublishRouteOK(r, adminToken) {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
 			http.Error(w, "admin authentication required", http.StatusUnauthorized)
 			return
