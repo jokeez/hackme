@@ -23,6 +23,7 @@ import (
 	"hackme/internal/logsafe"
 	"hackme/internal/logsetup"
 	"hackme/internal/poolfuzz"
+	"hackme/internal/poolsync"
 	_ "hackme/internal/sandbox" // wasm-validate child init
 	"hackme/internal/store"
 )
@@ -164,6 +165,19 @@ func main() {
 		if workerToken != "" && subtle.ConstantTimeCompare([]byte(publishToken), []byte(workerToken)) == 1 {
 			log.Fatal("security: HACKME_COORDINATOR_ORDERS_PUBLISH_TOKEN must differ from HACKME_COORDINATOR_WORKER_TOKEN")
 		}
+	}
+	if hubPrepaid := poolsync.OrdersPrepaidHubSecret(); hubPrepaid != "" {
+		if publishToken != "" && subtle.ConstantTimeCompare([]byte(hubPrepaid), []byte(publishToken)) == 1 {
+			log.Fatal("security: HACKME_ORDERS_PREPAID_HUB_SECRET must differ from ORDERS_PUBLISH_TOKEN")
+		}
+		if token != "" && subtle.ConstantTimeCompare([]byte(hubPrepaid), []byte(token)) == 1 {
+			log.Fatal("security: HACKME_ORDERS_PREPAID_HUB_SECRET must differ from ADMIN_TOKEN")
+		}
+		if workerToken != "" && subtle.ConstantTimeCompare([]byte(hubPrepaid), []byte(workerToken)) == 1 {
+			log.Fatal("security: HACKME_ORDERS_PREPAID_HUB_SECRET must differ from WORKER_TOKEN")
+		}
+	} else if poolsync.RequireHubPrepaidTicket() {
+		log.Fatal("security: HACKME_CHAIN_MINTING_HUB/REQUIRE_HUB_PREPAID_TICKET requires HACKME_ORDERS_PREPAID_HUB_SECRET")
 	}
 	if requireToken && token == "" && !allowInsecure {
 		log.Fatal("security: HACKME_COORDINATOR_ADMIN_TOKEN is required (or set HACKME_COORDINATOR_ALLOW_INSECURE=1 for loopback-only dev)")

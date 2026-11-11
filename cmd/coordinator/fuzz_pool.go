@@ -717,6 +717,66 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "repaired": n})
 	})
 
+	// Admin-minted hub prepaid tickets (ops / after confirmed funds). Publish token alone cannot mint.
+	mux.HandleFunc("/api/fuzz/pool/prepaid-ticket", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if adminToken == "" || !coordAdminOK(r, adminToken) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
+			http.Error(w, "admin authentication required", http.StatusUnauthorized)
+			return
+		}
+		hubSec := poolsync.OrdersPrepaidHubSecret()
+		if hubSec == "" {
+			http.Error(w, "HACKME_ORDERS_PREPAID_HUB_SECRET not configured", http.StatusServiceUnavailable)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
+		var req struct {
+			CampaignID        string  `json:"campaign_id"`
+			OwnerRef          string  `json:"owner_ref"`
+			BudgetHMC         float64 `json:"budget_hmc"`
+			BudgetRuns        int     `json:"budget_runs"`
+			EscrowFingerprint string  `json:"escrow_fingerprint"`
+			TTLSec            int64   `json:"ttl_sec"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		owner := strings.TrimSpace(req.OwnerRef)
+		camp := strings.TrimSpace(req.CampaignID)
+		if owner == "" || camp == "" || req.BudgetHMC <= 0 || req.BudgetRuns <= 0 {
+			http.Error(w, "campaign_id, owner_ref, budget_hmc, budget_runs required", http.StatusBadRequest)
+			return
+		}
+		// Always bind ticket FP to the claimed open escrow (ignore client-supplied opaque FP).
+		fp := poolsync.EscrowPrepaidFingerprintParts(camp, req.BudgetHMC, req.BudgetRuns, "open")
+		ttl := req.TTLSec
+		if ttl <= 0 {
+			ttl = poolsync.DefaultHubPrepaidTicketTTL
+		}
+		if ttl > poolsync.DefaultHubPrepaidTicketTTL {
+			ttl = poolsync.DefaultHubPrepaidTicketTTL
+		}
+		exp := time.Now().Unix() + ttl
+		ticket := poolsync.SignHubPrepaidTicket(hubSec, owner, camp, req.BudgetHMC, req.BudgetRuns, fp, exp)
+		if ticket == "" {
+			http.Error(w, "ticket sign failed", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok":                 true,
+			"prepaid_attestation": ticket,
+			"escrow_fingerprint": fp,
+			"exp_unix":           exp,
+			"note":               "hub-signed; bind on POST /api/fuzz/pool/campaigns with matching budget/owner/escrow_fingerprint",
+		})
+	})
+
 	mux.HandleFunc("/api/fuzz/pool/campaigns", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -739,6 +799,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			BudgetSeconds      int            `json:"budget_seconds"`
 			BudgetHMC          float64        `json:"budget_hmc"`
 			PrepaidAttestation string         `json:"prepaid_attestation"`
+			EscrowFingerprint  string         `json:"escrow_fingerprint"`
 			Config             map[string]any `json:"config"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -757,12 +818,18 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		prepaidOK := false
 		verifiedBudgetHMC := 0.0
 		if isPublish && !isAdmin {
-			// Capture client budget before strip; strip removes spoofable config budget_hmc.
+			// Capture client budget / attest / escrow FP before strip (strip drops spoofable markers).
 			verifiedBudgetHMC = publishBudgetHMCFromReq(req.BudgetHMC, req.Config)
 			attest := strings.TrimSpace(req.PrepaidAttestation)
 			if attest == "" {
 				if v, ok := req.Config["prepaid_attestation"].(string); ok {
 					attest = strings.TrimSpace(v)
+				}
+			}
+			escrowFP := strings.TrimSpace(req.EscrowFingerprint)
+			if escrowFP == "" {
+				if v, ok := req.Config["escrow_fingerprint"].(string); ok {
+					escrowFP = strings.TrimSpace(v)
 				}
 			}
 			stripPublishEscalationConfig(req.Config)
@@ -795,11 +862,32 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				http.Error(w, fmt.Sprintf("budget_hmc exceeds publish cap (%.2f)", maxHMC), http.StatusBadRequest)
 				return
 			}
-			if !poolsync.VerifyPrepaidAttestation(publishToken, req.OwnerRef, req.ID, verifiedBudgetHMC, req.BudgetRuns, attest) {
-				http.Error(w, "prepaid_attestation invalid or missing (open escrow then attest before publish)", http.StatusBadRequest)
+			requireHub := poolsync.RequireHubPrepaidTicket()
+			hubSec := poolsync.OrdersPrepaidHubSecret()
+			if requireHub && hubSec == "" {
+				http.Error(w, "prepaid_hub_secret_required: set HACKME_ORDERS_PREPAID_HUB_SECRET on minting hub", http.StatusServiceUnavailable)
+				return
+			}
+			if requireHub || poolsync.IsHubPrepaidTicket(attest) {
+				wantFP := poolsync.EscrowPrepaidFingerprintParts(req.ID, verifiedBudgetHMC, req.BudgetRuns, "open")
+				if escrowFP == "" || !strings.EqualFold(escrowFP, wantFP) {
+					http.Error(w, "escrow_fingerprint must match open escrow for claimed budget_hmc/budget_runs", http.StatusBadRequest)
+					return
+				}
+				escrowFP = wantFP
+			}
+			if !poolsync.VerifyPublishPrepaidAttestation(publishToken, hubSec, req.OwnerRef, req.ID, verifiedBudgetHMC, req.BudgetRuns, escrowFP, attest, time.Now().Unix(), requireHub) {
+				if requireHub {
+					http.Error(w, "prepaid_attestation invalid or missing (hub-signed ticket required; self-MAC refused)", http.StatusBadRequest)
+				} else {
+					http.Error(w, "prepaid_attestation invalid or missing (open escrow then attest before publish)", http.StatusBadRequest)
+				}
 				return
 			}
 			prepaidOK = true
+			if escrowFP != "" {
+				req.Config["escrow_fingerprint"] = escrowFP
+			}
 			// Force safe lifecycle — register upsert must not cancel/complete via publish.
 			st := strings.ToLower(strings.TrimSpace(req.Status))
 			if st == "" || st == "planned" {

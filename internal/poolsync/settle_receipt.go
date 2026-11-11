@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"hackme/internal/chain"
 )
@@ -110,7 +111,9 @@ func UnitsHashTerminal(eventID, campaignID, outcome string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// PrepaidAttestationMACKey binds prepaid claims under the shared publish token + owner.
+// PrepaidAttestationMACKey binds lab/self prepaid claims under the shared publish
+// token + owner. Forgeable by any publish-token holder — refused when
+// RequireHubPrepaidTicket() (minting-hub / D1). Prefer SignHubPrepaidTicket.
 func PrepaidAttestationMACKey(publishToken, ownerRef string) []byte {
 	h := sha256.New()
 	h.Write([]byte("hackme-prepaid-attest-v1\n"))
@@ -125,22 +128,155 @@ func CanonicalPrepaidAttestation(campaignID string, budgetHMC float64, budgetRun
 	return fmt.Sprintf("%s|%.4f|%d", strings.TrimSpace(campaignID), budgetHMC, budgetRuns)
 }
 
-// SignPrepaidAttestation returns hex HMAC for a prepaid claim.
+// SignPrepaidAttestation returns hex HMAC for a lab prepaid claim (publish-token key).
+// Do not use under HACKME_CHAIN_MINTING_HUB=1 — coordinator refuses self-MAC there.
 func SignPrepaidAttestation(publishToken, ownerRef, campaignID string, budgetHMC float64, budgetRuns int) string {
 	mac := hmac.New(sha256.New, PrepaidAttestationMACKey(publishToken, ownerRef))
 	_, _ = mac.Write([]byte(CanonicalPrepaidAttestation(campaignID, budgetHMC, budgetRuns)))
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
-// VerifyPrepaidAttestation checks a prepaid claim MAC.
+// VerifyPrepaidAttestation checks a lab/self prepaid claim MAC.
 func VerifyPrepaidAttestation(publishToken, ownerRef, campaignID string, budgetHMC float64, budgetRuns int, got string) bool {
-	want, err := hex.DecodeString(strings.TrimSpace(got))
+	got = strings.TrimSpace(got)
+	if IsHubPrepaidTicket(got) {
+		return false
+	}
+	want, err := hex.DecodeString(got)
 	if err != nil || len(want) == 0 {
 		return false
 	}
 	mac := hmac.New(sha256.New, PrepaidAttestationMACKey(publishToken, ownerRef))
 	_, _ = mac.Write([]byte(CanonicalPrepaidAttestation(campaignID, budgetHMC, budgetRuns)))
 	return hmac.Equal(want, mac.Sum(nil))
+}
+
+// Hub prepaid tickets (minting-hub / D1). Secret ≠ publish token so a leaked
+// fleet publish credential alone cannot enqueue unpaid pool work.
+
+const (
+	HubPrepaidTicketPrefix     = "hubv1:"
+	DefaultHubPrepaidTicketTTL = 2 * 3600 // seconds
+)
+
+// EscrowPrepaidFingerprint commits to an open escrow row (campaign + budget + runs + status).
+func EscrowPrepaidFingerprint(row *chain.FuzzEscrowRow) string {
+	if row == nil {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%s|%.8f|%d|%s",
+		strings.TrimSpace(row.CampaignID), row.BudgetHMC, row.BudgetRuns,
+		strings.ToLower(strings.TrimSpace(row.Status)))))
+	return hex.EncodeToString(sum[:])
+}
+
+// EscrowPrepaidFingerprintParts builds the same fingerprint without a row object.
+func EscrowPrepaidFingerprintParts(campaignID string, budgetHMC float64, budgetRuns int, status string) string {
+	return EscrowPrepaidFingerprint(&chain.FuzzEscrowRow{
+		CampaignID: campaignID, BudgetHMC: budgetHMC, BudgetRuns: budgetRuns, Status: status,
+	})
+}
+
+// HubPrepaidTicketMACKey derives the HMAC key for hub-signed prepaid tickets.
+func HubPrepaidTicketMACKey(hubSecret string) []byte {
+	h := sha256.New()
+	h.Write([]byte("hackme-prepaid-hub-ticket-v1\n"))
+	h.Write([]byte(strings.TrimSpace(hubSecret)))
+	return h.Sum(nil)
+}
+
+// CanonicalHubPrepaidTicket is the HMAC message for a hub ticket.
+func CanonicalHubPrepaidTicket(ownerRef, campaignID string, budgetHMC float64, budgetRuns int, escrowFP string, expUnix int64) string {
+	return strings.Join([]string{
+		strings.TrimSpace(ownerRef),
+		strings.TrimSpace(campaignID),
+		fmt.Sprintf("%.4f", budgetHMC),
+		strconv.Itoa(budgetRuns),
+		strings.ToLower(strings.TrimSpace(escrowFP)),
+		strconv.FormatInt(expUnix, 10),
+	}, "|")
+}
+
+// IsHubPrepaidTicket reports whether the attestation uses the hubv1 wire format.
+func IsHubPrepaidTicket(got string) bool {
+	return strings.HasPrefix(strings.TrimSpace(got), HubPrepaidTicketPrefix)
+}
+
+// SignHubPrepaidTicket returns hubv1:<exp>:<mac> bound to escrow fingerprint.
+func SignHubPrepaidTicket(hubSecret, ownerRef, campaignID string, budgetHMC float64, budgetRuns int, escrowFP string, expUnix int64) string {
+	hubSecret = strings.TrimSpace(hubSecret)
+	escrowFP = strings.ToLower(strings.TrimSpace(escrowFP))
+	if hubSecret == "" || escrowFP == "" || expUnix <= 0 {
+		return ""
+	}
+	mac := hmac.New(sha256.New, HubPrepaidTicketMACKey(hubSecret))
+	_, _ = mac.Write([]byte(CanonicalHubPrepaidTicket(ownerRef, campaignID, budgetHMC, budgetRuns, escrowFP, expUnix)))
+	return HubPrepaidTicketPrefix + strconv.FormatInt(expUnix, 10) + ":" + hex.EncodeToString(mac.Sum(nil))
+}
+
+// ParseHubPrepaidTicket splits hubv1:<exp>:<mac>.
+func ParseHubPrepaidTicket(got string) (expUnix int64, macHex string, ok bool) {
+	got = strings.TrimSpace(got)
+	if !strings.HasPrefix(got, HubPrepaidTicketPrefix) {
+		return 0, "", false
+	}
+	rest := strings.TrimPrefix(got, HubPrepaidTicketPrefix)
+	expStr, macHex, cut := strings.Cut(rest, ":")
+	if !cut || macHex == "" {
+		return 0, "", false
+	}
+	expUnix, err := strconv.ParseInt(expStr, 10, 64)
+	if err != nil || expUnix <= 0 {
+		return 0, "", false
+	}
+	return expUnix, macHex, true
+}
+
+// VerifyHubPrepaidTicket checks a hub-signed prepaid ticket (constant-time MAC + expiry).
+func VerifyHubPrepaidTicket(hubSecret, ownerRef, campaignID string, budgetHMC float64, budgetRuns int, escrowFP string, got string, nowUnix int64) bool {
+	hubSecret = strings.TrimSpace(hubSecret)
+	escrowFP = strings.ToLower(strings.TrimSpace(escrowFP))
+	if hubSecret == "" || escrowFP == "" {
+		return false
+	}
+	expUnix, macHex, ok := ParseHubPrepaidTicket(got)
+	if !ok {
+		return false
+	}
+	if nowUnix <= 0 {
+		nowUnix = time.Now().Unix()
+	}
+	if expUnix < nowUnix {
+		return false
+	}
+	// Reject absurdly long-lived tickets (mis-issue / clock skew abuse).
+	if expUnix-nowUnix > int64(DefaultHubPrepaidTicketTTL)+300 {
+		return false
+	}
+	want, err := hex.DecodeString(strings.TrimSpace(macHex))
+	if err != nil || len(want) == 0 {
+		return false
+	}
+	mac := hmac.New(sha256.New, HubPrepaidTicketMACKey(hubSecret))
+	_, _ = mac.Write([]byte(CanonicalHubPrepaidTicket(ownerRef, campaignID, budgetHMC, budgetRuns, escrowFP, expUnix)))
+	return hmac.Equal(want, mac.Sum(nil))
+}
+
+// VerifyPublishPrepaidAttestation verifies publish prepaid proof.
+// Minting-hub / REQUIRE_HUB mode: hub ticket only (self-MAC refused).
+// Lab: hub ticket if presented, else publish-token self-MAC.
+func VerifyPublishPrepaidAttestation(publishToken, hubSecret, ownerRef, campaignID string, budgetHMC float64, budgetRuns int, escrowFP, got string, nowUnix int64, requireHub bool) bool {
+	got = strings.TrimSpace(got)
+	if got == "" {
+		return false
+	}
+	if requireHub || IsHubPrepaidTicket(got) {
+		if requireHub && !IsHubPrepaidTicket(got) {
+			return false
+		}
+		return VerifyHubPrepaidTicket(hubSecret, ownerRef, campaignID, budgetHMC, budgetRuns, escrowFP, got, nowUnix)
+	}
+	return VerifyPrepaidAttestation(publishToken, ownerRef, campaignID, budgetHMC, budgetRuns, got)
 }
 
 // OwnerSecretHash stores a non-reversible form of the per-publish owner secret.

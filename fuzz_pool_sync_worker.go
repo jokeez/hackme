@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -175,17 +176,41 @@ func (a *app) runPoolSyncJob(job poolSyncJob) {
 	if v, ok := cfg["budget_hmc"].(float64); ok {
 		budgetHMC = v
 	}
+	escrowFP := ""
+	if a.chain != nil && budgetHMC > 0 {
+		row, err := a.chain.GetFuzzEscrow(ctx, job.campaign.ID)
+		if err != nil || row == nil {
+			log.Printf("pool sync: campaign %s missing open escrow before prepaid attest: %v", logsafe.ID(job.campaign.ID), err)
+			a.poolSyncMarkFailed(job.campaign.ID, fmt.Errorf("open escrow required before pool register"))
+			return
+		}
+		st := strings.ToLower(strings.TrimSpace(row.Status))
+		if st != "open" {
+			a.poolSyncMarkFailed(job.campaign.ID, fmt.Errorf("escrow status %q not open", row.Status))
+			return
+		}
+		if row.BudgetHMC+1e-9 < budgetHMC || (job.campaign.BudgetRuns > 0 && row.BudgetRuns < job.campaign.BudgetRuns) {
+			a.poolSyncMarkFailed(job.campaign.ID, fmt.Errorf("escrow budget/runs below publish claim"))
+			return
+		}
+		// Fingerprint the *claimed* open escrow (not opaque row noise) so hub verify can recompute.
+		escrowFP = poolsync.EscrowPrepaidFingerprintParts(job.campaign.ID, budgetHMC, job.campaign.BudgetRuns, "open")
+	} else if poolsync.RequireHubPrepaidTicket() || poolsync.OrdersPrepaidHubSecret() != "" {
+		a.poolSyncMarkFailed(job.campaign.ID, fmt.Errorf("open escrow required for hub prepaid ticket"))
+		return
+	}
 	req := poolsync.RegisterRequest{
-		ID:            job.campaign.ID,
-		CampaignType:  ctype,
-		Title:         job.title,
-		Description:   job.desc,
-		OwnerRef:      job.campaign.OwnerRef,
-		Status:        "running",
-		BudgetRuns:    job.campaign.BudgetRuns,
-		BudgetSeconds: job.campaign.BudgetSeconds,
-		BudgetHMC:     budgetHMC,
-		Config:        cfg,
+		ID:                job.campaign.ID,
+		CampaignType:      ctype,
+		Title:             job.title,
+		Description:       job.desc,
+		OwnerRef:          job.campaign.OwnerRef,
+		Status:            "running",
+		BudgetRuns:        job.campaign.BudgetRuns,
+		BudgetSeconds:     job.campaign.BudgetSeconds,
+		BudgetHMC:         budgetHMC,
+		EscrowFingerprint: escrowFP,
+		Config:            cfg,
 	}
 	res, err := poolsync.RegisterWithRetryResult(ctx, req)
 	if err != nil {

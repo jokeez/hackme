@@ -236,6 +236,7 @@ func stripPublishEscalationConfig(cfg map[string]any) {
 		"admin", "admin_token", "coordinator_admin",
 		"settle_replay", "force_settle", "bypass_budget",
 		"budget_hmc", "prepaid_attested", "prepaid_attestation",
+		"escrow_fingerprint",
 		"orders_owner_secret", "orders_owner_secret_hash",
 	} {
 		delete(cfg, k)

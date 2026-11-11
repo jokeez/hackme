@@ -17,17 +17,18 @@ import (
 
 // RegisterRequest is the coordinator pool campaign upsert body.
 type RegisterRequest struct {
-	ID                 string         `json:"id"`
-	CampaignType       string         `json:"campaign_type"`
-	Title              string         `json:"title"`
-	Description        string         `json:"description"`
-	OwnerRef           string         `json:"owner_ref,omitempty"`
-	Status             string         `json:"status"`
-	BudgetRuns         int            `json:"budget_runs"`
-	BudgetSeconds      int            `json:"budget_seconds"`
-	BudgetHMC          float64        `json:"budget_hmc,omitempty"`
-	PrepaidAttestation string         `json:"prepaid_attestation,omitempty"`
-	Config             map[string]any `json:"config"`
+	ID                   string         `json:"id"`
+	CampaignType         string         `json:"campaign_type"`
+	Title                string         `json:"title"`
+	Description          string         `json:"description"`
+	OwnerRef             string         `json:"owner_ref,omitempty"`
+	Status               string         `json:"status"`
+	BudgetRuns           int            `json:"budget_runs"`
+	BudgetSeconds        int            `json:"budget_seconds"`
+	BudgetHMC            float64        `json:"budget_hmc,omitempty"`
+	PrepaidAttestation   string         `json:"prepaid_attestation,omitempty"`
+	EscrowFingerprint    string         `json:"escrow_fingerprint,omitempty"`
+	Config               map[string]any `json:"config"`
 }
 
 // RegisterResult captures one-time secrets returned by the coordinator.
@@ -213,7 +214,33 @@ func RegisterOnce(ctx context.Context, coordURL, token string, req RegisterReque
 			return 0, result, fmt.Errorf("pool sync: budget_hmc required for orders publish")
 		}
 		if strings.TrimSpace(req.PrepaidAttestation) == "" {
-			req.PrepaidAttestation = SignPrepaidAttestation(OrdersPublishToken(), owner, req.ID, req.BudgetHMC, req.BudgetRuns)
+			hubSec := OrdersPrepaidHubSecret()
+			escrowFP := strings.TrimSpace(req.EscrowFingerprint)
+			if escrowFP == "" {
+				if v, ok := req.Config["escrow_fingerprint"].(string); ok {
+					escrowFP = strings.TrimSpace(v)
+				}
+			}
+			if RequireHubPrepaidTicket() || hubSec != "" {
+				if hubSec == "" {
+					return 0, result, fmt.Errorf("pool sync: HACKME_ORDERS_PREPAID_HUB_SECRET required for hub prepaid tickets")
+				}
+				if escrowFP == "" {
+					return 0, result, fmt.Errorf("pool sync: open escrow fingerprint required before hub prepaid ticket")
+				}
+				exp := time.Now().Unix() + DefaultHubPrepaidTicketTTL
+				req.PrepaidAttestation = SignHubPrepaidTicket(hubSec, owner, req.ID, req.BudgetHMC, req.BudgetRuns, escrowFP, exp)
+				if req.PrepaidAttestation == "" {
+					return 0, result, fmt.Errorf("pool sync: hub prepaid ticket sign failed")
+				}
+				req.EscrowFingerprint = escrowFP
+			} else {
+				// Lab only: publish-token self-MAC (forgeable; refused when minting hub).
+				req.PrepaidAttestation = SignPrepaidAttestation(OrdersPublishToken(), owner, req.ID, req.BudgetHMC, req.BudgetRuns)
+			}
+		}
+		if fp := strings.TrimSpace(req.EscrowFingerprint); fp != "" {
+			req.Config["escrow_fingerprint"] = fp
 		}
 	}
 	body, _ := json.Marshal(req)

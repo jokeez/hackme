@@ -102,6 +102,12 @@ func stampPublishPrepaid(token string, body map[string]any) {
 		macTok = "publish-tok"
 	}
 	// Always re-sign: callers often mutate id on a shared map (rate-limit loops).
+	if hub := poolsync.OrdersPrepaidHubSecret(); hub != "" || poolsync.RequireHubPrepaidTicket() {
+		fp := poolsync.EscrowPrepaidFingerprintParts(id, budget, runs, "open")
+		body["escrow_fingerprint"] = fp
+		body["prepaid_attestation"] = poolsync.SignHubPrepaidTicket(hub, owner, id, budget, runs, fp, time.Now().Unix()+3600)
+		return
+	}
 	body["prepaid_attestation"] = poolsync.SignPrepaidAttestation(macTok, owner, id, budget, runs)
 }
 
@@ -694,6 +700,64 @@ func TestOrdersPublishRejectsEmptyOwnerRef(t *testing.T) {
 	mux.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("want 400 missing owner header, got %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestOrdersPublishMintingHubRefusesSelfMAC(t *testing.T) {
+	t.Setenv("HACKME_CHAIN_MINTING_HUB", "1")
+	t.Setenv("HACKME_ORDERS_PREPAID_HUB_SECRET", "test-hub-prepaid-secret")
+	mux := ordersPublishMux(t)
+
+	// Publish-token self-MAC must be refused on minting hub (even with matching escrow FP).
+	self := poolsync.SignPrepaidAttestation("publish-tok", "customer:hub", "camp-hub-self", 1.0, 8)
+	fpSelf := poolsync.EscrowPrepaidFingerprintParts("camp-hub-self", 1.0, 8, "open")
+	raw, _ := json.Marshal(map[string]any{
+		"id": "camp-hub-self", "budget_runs": 8, "owner_ref": "customer:hub", "budget_hmc": 1.0,
+		"prepaid_attestation": self, "escrow_fingerprint": fpSelf,
+		"config": map[string]any{"dig_package": "scan", "guard_pack": "secrets"},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/campaigns", bytes.NewReader(raw))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	req.Header.Set("X-Hackme-Orders-Owner-Ref", "customer:hub")
+	req.RemoteAddr = "203.0.113.55:4444"
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "hub-signed") {
+		t.Fatalf("want 400 hub-signed refuse, got %d %s", rec.Code, rec.Body.String())
+	}
+
+	// Matching hub ticket + escrow fingerprint must succeed.
+	rec2 := publishReq(t, mux, "publish-tok", map[string]any{
+		"id": "camp-hub-ok", "budget_runs": 8, "owner_ref": "customer:hub", "budget_hmc": 1.0,
+		"config": map[string]any{"dig_package": "scan", "guard_pack": "secrets"},
+	})
+	if rec2.Code != http.StatusOK {
+		t.Fatalf("hub ticket publish: %d %s", rec2.Code, rec2.Body.String())
+	}
+
+	// Admin ticket mint endpoint.
+	fp := poolsync.EscrowPrepaidFingerprintParts("camp-mint", 2.0, 16, "open")
+	mintBody, _ := json.Marshal(map[string]any{
+		"campaign_id": "camp-mint", "owner_ref": "customer:hub",
+		"budget_hmc": 2.0, "budget_runs": 16, "escrow_fingerprint": fp,
+	})
+	mreq := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/prepaid-ticket", bytes.NewReader(mintBody))
+	mreq.Header.Set("Content-Type", "application/json")
+	mreq.Header.Set("X-Hackme-Admin-Token", "admin-tok")
+	mrec := httptest.NewRecorder()
+	mux.ServeHTTP(mrec, mreq)
+	if mrec.Code != http.StatusOK {
+		t.Fatalf("admin mint: %d %s", mrec.Code, mrec.Body.String())
+	}
+	// Publish token cannot mint tickets.
+	mreq2 := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/prepaid-ticket", bytes.NewReader(mintBody))
+	mreq2.Header.Set("Content-Type", "application/json")
+	mreq2.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	mrec2 := httptest.NewRecorder()
+	mux.ServeHTTP(mrec2, mreq2)
+	if mrec2.Code != http.StatusUnauthorized {
+		t.Fatalf("publish must not mint tickets, got %d", mrec2.Code)
 	}
 }
 
