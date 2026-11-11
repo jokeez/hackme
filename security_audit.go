@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzescrow"
 	"hackme/internal/fuzzingcli"
+	"hackme/internal/pathsafe"
 	"hackme/internal/sandbox"
 )
 
@@ -28,6 +30,8 @@ type securityAuditRequest struct {
 	Language         string   `json:"language"`
 	Code             string   `json:"code"`
 	WasmCheckHex     string   `json:"wasm_check_hex"`
+	WasmPath         string   `json:"wasm_path"` // relative .wasm under repo (tasks/artifacts/…)
+	DigPreset        string   `json:"dig_preset"` // one-click named pack → shipped WASM
 	BudgetHMC        float64  `json:"budget_hmc"`
 	UseSUPDiscount   *bool    `json:"use_sup_discount"`
 	PayerWallet      string   `json:"payer_wallet"`
@@ -90,36 +94,124 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 
 	wasmHex := strings.TrimSpace(strings.ToLower(req.WasmCheckHex))
 	var compileLog string
+	resolvedPreset := strings.TrimSpace(req.DigPreset)
+	resolvedGuardPack := strings.TrimSpace(req.GuardPack)
+	repoRoot := strings.TrimSpace(os.Getenv("HACKME_REPO_ROOT"))
+	if repoRoot == "" {
+		repoRoot = fuzzingcli.DiscoverRepoRoot()
+	}
 	if wasmHex == "" {
 		code := strings.TrimSpace(req.Code)
-		if code == "" {
-			writeAPIError(w, http.StatusBadRequest, "guard_required", "provide wasm_check_hex or language+code", nil)
-			return
-		}
-		if !fromCodeEnabled() {
-			writeAPIError(w, http.StatusForbidden, "from_code_disabled", "compile-from-code is disabled on this node; provide wasm_check_hex or set HACKME_FROM_CODE=1", nil)
-			return
-		}
-		lang := normalizeFromCodeLanguage(req.Language)
-		if lang == "" {
-			writeAPIError(w, http.StatusBadRequest, "language_required", "language required with code", nil)
-			return
-		}
-		wasmBytes, _, _, logText, err := a.compileTaskFromCode(r.Context(), taskFromCodeRequest{
-			ID:       orderID,
-			Language: lang,
-			Code:     code,
-		})
-		compileLog = logText
-		if err != nil {
-			compileLog = enrichFromCodeCompileLog(compileLog, err)
-			writeAPIError(w, http.StatusBadRequest, "compile_failed", "compile failed", map[string]any{
-				"compile_log": compileLog,
-				"detail":      err.Error(),
+		wasmPath := strings.TrimSpace(req.WasmPath)
+		switch {
+		case resolvedPreset != "" || resolvedGuardPack != "":
+			pack, hexStr, preset, err := fuzzingcli.ResolveDigGuardWasm(repoRoot, resolvedPreset, resolvedGuardPack)
+			if err != nil {
+				codeName := "pack_wasm_unavailable"
+				if strings.Contains(err.Error(), "unknown") {
+					codeName = "unknown_dig_preset"
+				}
+				writeAPIError(w, http.StatusBadRequest, codeName, err.Error(), nil)
+				return
+			}
+			raw, decErr := hex.DecodeString(hexStr)
+			if decErr != nil || len(raw) == 0 {
+				writeAPIError(w, http.StatusBadRequest, "pack_wasm_unavailable", "resolved pack wasm is empty", nil)
+				return
+			}
+			if err := sandbox.ValidateCheckWasm(r.Context(), raw); err != nil {
+				writeAPIError(w, http.StatusBadRequest, "wasm_validation_failed", err.Error(), nil)
+				return
+			}
+			wasmHex = hexStr
+			resolvedGuardPack = pack.ID
+			if resolvedPreset == "" {
+				resolvedPreset = preset.ID
+			}
+			if strings.TrimSpace(req.DigPackage) == "" && preset.DigPackage != "" {
+				req.DigPackage = preset.DigPackage
+			}
+			if strings.TrimSpace(req.Title) == "" && preset.Title != "" {
+				req.Title = "HackMe Dig · " + preset.Title
+			}
+			if strings.TrimSpace(req.GuardName) == "" {
+				req.GuardName = pack.ID
+			}
+			// Apply pack defaults when caller did not set depth/budget (one-click path).
+			if strings.TrimSpace(req.DepthTier) == "" && strings.TrimSpace(req.DigPackage) != "" {
+				if pkg, perr := fuzzingcli.B2BPackageFor(req.DigPackage); perr == nil {
+					req.DepthTier = string(pkg.DepthTier)
+					if req.BudgetHMC <= 0 {
+						req.BudgetHMC = pkg.BudgetHMC
+					}
+					if req.BudgetRuns < 8 {
+						req.BudgetRuns = pkg.BudgetRuns
+					}
+					if req.BudgetSeconds < 60 {
+						req.BudgetSeconds = pkg.BudgetSeconds
+					}
+					if req.PoolDistributed == nil {
+						v := pkg.PoolDistributed
+						req.PoolDistributed = &v
+					}
+					if req.CreatePoHOrder == nil {
+						v := pkg.CreatePoHOrder
+						req.CreatePoHOrder = &v
+					}
+					pkgAdj := fuzzingcli.AdjustPackageForPack(pkg, pack)
+					if pkgAdj.BudgetRuns > 0 {
+						req.BudgetRuns = pkgAdj.BudgetRuns
+					}
+					if pkgAdj.BudgetSeconds > 0 {
+						req.BudgetSeconds = pkgAdj.BudgetSeconds
+					}
+					if req.MutationRounds <= 0 && pkgAdj.MutationRounds > 0 {
+						req.MutationRounds = pkgAdj.MutationRounds
+					}
+				}
+			}
+			req.GuardPack = pack.ID
+		case wasmPath != "":
+			raw, err := readSecurityAuditWasmPath(repoRoot, wasmPath)
+			if err != nil {
+				writeAPIError(w, http.StatusBadRequest, "invalid_wasm_path", err.Error(), nil)
+				return
+			}
+			if err := sandbox.ValidateCheckWasm(r.Context(), raw); err != nil {
+				writeAPIError(w, http.StatusBadRequest, "wasm_validation_failed", err.Error(), nil)
+				return
+			}
+			wasmHex = hex.EncodeToString(raw)
+		case code != "":
+			if !fromCodeEnabled() {
+				writeAPIError(w, http.StatusForbidden, "from_code_disabled", "compile-from-code is disabled on this node; provide wasm_check_hex, dig_preset/guard_pack, or set HACKME_FROM_CODE=1", nil)
+				return
+			}
+			lang := normalizeFromCodeLanguage(req.Language)
+			if lang == "" {
+				writeAPIError(w, http.StatusBadRequest, "language_required", "language required with code", nil)
+				return
+			}
+			wasmBytes, _, _, logText, err := a.compileTaskFromCode(r.Context(), taskFromCodeRequest{
+				ID:       orderID,
+				Language: lang,
+				Code:     code,
 			})
+			compileLog = logText
+			if err != nil {
+				compileLog = enrichFromCodeCompileLog(compileLog, err)
+				writeAPIError(w, http.StatusBadRequest, "compile_failed", "compile failed", map[string]any{
+					"compile_log": compileLog,
+					"detail":      err.Error(),
+				})
+				return
+			}
+			wasmHex = hex.EncodeToString(wasmBytes)
+		default:
+			writeAPIError(w, http.StatusBadRequest, "guard_required",
+				"provide dig_preset/guard_pack (shipped WASM), wasm_check_hex, wasm_path, or language+code", nil)
 			return
 		}
-		wasmHex = hex.EncodeToString(wasmBytes)
 	} else {
 		raw, err := hex.DecodeString(wasmHex)
 		if err != nil || len(raw) == 0 {
@@ -248,6 +340,12 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	}
 	if compileLog != "" {
 		resp["compile_log"] = compileLog
+	}
+	if resolvedPreset != "" {
+		resp["dig_preset"] = resolvedPreset
+	}
+	if resolvedGuardPack != "" {
+		resp["guard_pack"] = resolvedGuardPack
 	}
 
 	// Local PoH escrow when not handing attach to the pool coordinator.
@@ -384,10 +482,6 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	if req.PublicProof != nil && *req.PublicProof {
 		cfgMap["public_proof"] = true
 	}
-	repoRoot := strings.TrimSpace(os.Getenv("HACKME_REPO_ROOT"))
-	if repoRoot == "" {
-		repoRoot = "."
-	}
 	cfgMap = fuzzingcli.FinalizeDigCampaignConfig(cfgMap, digPkgHint, strings.TrimSpace(req.GuardPack), repoRoot)
 	digPkgFinal := strings.TrimSpace(strings.ToLower(toString(cfgMap["dig_package"])))
 	if digPkgFinal == "" {
@@ -499,6 +593,50 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, resp)
+}
+
+// readSecurityAuditWasmPath loads a .wasm under the repo (tasks/artifacts/… only).
+func readSecurityAuditWasmPath(repoRoot, rel string) ([]byte, error) {
+	rel = strings.TrimSpace(rel)
+	if rel == "" {
+		return nil, errors.New("wasm_path empty")
+	}
+	if filepath.IsAbs(rel) {
+		return nil, errors.New("wasm_path must be relative to the repo root")
+	}
+	rel = filepath.ToSlash(filepath.Clean(rel))
+	if strings.HasPrefix(rel, "../") || rel == ".." {
+		return nil, errors.New("wasm_path escapes repo root")
+	}
+	if !strings.HasPrefix(rel, "tasks/artifacts/") {
+		return nil, errors.New("wasm_path must be under tasks/artifacts/")
+	}
+	if !strings.HasSuffix(strings.ToLower(rel), ".wasm") {
+		return nil, errors.New("wasm_path must end with .wasm")
+	}
+	root := strings.TrimSpace(repoRoot)
+	if root == "" {
+		root = fuzzingcli.DiscoverRepoRoot()
+	}
+	absRoot, ok := pathsafe.Allow(root)
+	if !ok || !pathsafe.AbsRE.MatchString(absRoot) {
+		return nil, errors.New("invalid repo root for wasm_path")
+	}
+	full, ok := pathsafe.WithinRoot(absRoot, filepath.Join(filepath.FromSlash(absRoot), filepath.FromSlash(rel)))
+	if !ok || !pathsafe.AbsRE.MatchString(full) {
+		return nil, errors.New("wasm_path rejected")
+	}
+	raw, err := os.ReadFile(full)
+	if err != nil {
+		return nil, fmt.Errorf("read wasm_path: %w", err)
+	}
+	if len(raw) == 0 {
+		return nil, errors.New("wasm_path file is empty")
+	}
+	if len(raw) > sandbox.MaxCheckWasmBytes() {
+		return nil, fmt.Errorf("wasm_path too large (%d bytes)", len(raw))
+	}
+	return raw, nil
 }
 
 func openFuzzEscrowRetry(ctx context.Context, ch *chain.Service, campaignID string, budgetHMC float64, budgetRuns int) (*chain.FuzzEscrowRow, error) {

@@ -254,8 +254,136 @@ func ListGuardPacks() []GuardPack {
 	return out
 }
 
+// DigPreset is a one-click Dig start name that resolves to a shipped guard pack
+// (and a default dig_package) so customers need not paste wasm_check_hex.
+type DigPreset struct {
+	ID         string
+	GuardPack  string
+	DigPackage string // scan|audit|deep
+	Title      string
+	Summary    string
+}
+
+// digPresets are customer-facing one-click aliases. Unknown names fall through
+// to GuardPackFor so dig_preset:"secrets" works the same as guard_pack.
+var digPresets = map[string]DigPreset{
+	"scan_smoke": {
+		ID: "scan_smoke", GuardPack: "overflow_smoke", DigPackage: "scan",
+		Title:   "Scan · overflow smoke (one-click)",
+		Summary: "Shipped overflow_smoke WASM · local Dig Scan without hex paste",
+	},
+	"overflow_smoke": {
+		ID: "overflow_smoke", GuardPack: "overflow_smoke", DigPackage: "scan",
+		Title: "Scan · overflow wrap smoke", Summary: "Wrapping-multiply guard for CI smoke",
+	},
+	"bounds_smoke": {
+		ID: "bounds_smoke", GuardPack: "bounds_smoke", DigPackage: "scan",
+		Title: "Scan · numeric bounds smoke", Summary: "Fast WASM range/stride CI smoke",
+	},
+	"state_smoke": {
+		ID: "state_smoke", GuardPack: "state_smoke", DigPackage: "scan",
+		Title: "Scan · state transition smoke", Summary: "FSM-style transition CI smoke",
+	},
+	"script_bounds": {
+		ID: "script_bounds", GuardPack: "script_bounds", DigPackage: "audit",
+		Title: "Script push bounds", Summary: "Consensus-class OP_PUSHDATA bounds",
+	},
+	"secrets": {
+		ID: "secrets", GuardPack: "secrets", DigPackage: "audit",
+		Title: "Secrets & supply-chain", Summary: "AWS/GitHub/Slack-style secret patterns",
+	},
+	"filter_utf8": {
+		ID: "filter_utf8", GuardPack: "filter_utf8", DigPackage: "audit",
+		Title: "Malformed filter / UTF-8", Summary: "Invalid-UTF-8 + operator index skew",
+	},
+	"parser_expat": {
+		ID: "parser_expat", GuardPack: "parser_expat", DigPackage: "deep",
+		Title: "Parser · expat (XML)", Summary: "XML parser portable verify + native ASAN path",
+	},
+}
+
+// DigPresetFor resolves a one-click Dig preset name (or a known guard_pack id/alias).
+func DigPresetFor(name string) (DigPreset, error) {
+	key := strings.TrimSpace(strings.ToLower(name))
+	if key == "" {
+		return DigPreset{}, fmt.Errorf("empty dig_preset")
+	}
+	switch key {
+	case "smoke", "one_click", "one-click", "dig_smoke":
+		key = "scan_smoke"
+	case "secret", "tracefuse", "supply-chain", "supply_chain":
+		key = "secrets"
+	case "script", "script_push", "bitcoin_script", "push_bounds":
+		key = "script_bounds"
+	case "filter", "fluxtap", "utf8", "display_filter":
+		key = "filter_utf8"
+	case "parser", "expat", "xml_parser":
+		key = "parser_expat"
+	case "bounds", "numeric":
+		key = "bounds_smoke"
+	case "overflow", "wrap":
+		key = "overflow_smoke"
+	case "state", "fsm":
+		key = "state_smoke"
+	}
+	if p, ok := digPresets[key]; ok {
+		return p, nil
+	}
+	pack, err := GuardPackFor(key)
+	if err != nil {
+		return DigPreset{}, fmt.Errorf("unknown dig_preset %q (use: scan_smoke, overflow_smoke, secrets, script_bounds, filter_utf8, parser_expat, bounds_smoke, state_smoke)", name)
+	}
+	pkg := pack.DefaultPackage
+	if pkg == "" {
+		pkg = "scan"
+	}
+	return DigPreset{
+		ID:         pack.ID,
+		GuardPack:  pack.ID,
+		DigPackage: pkg,
+		Title:      pack.Title,
+		Summary:    pack.Summary,
+	}, nil
+}
+
+// ListDigPresets returns one-click Dig presets in stable order.
+func ListDigPresets() []DigPreset {
+	order := []string{"scan_smoke", "overflow_smoke", "bounds_smoke", "state_smoke", "script_bounds", "secrets", "filter_utf8", "parser_expat"}
+	out := make([]DigPreset, 0, len(order))
+	for _, id := range order {
+		out = append(out, digPresets[id])
+	}
+	return out
+}
+
+// DiscoverRepoRoot returns HACKME_REPO_ROOT or walks up from cwd for go.mod.
+func DiscoverRepoRoot() string {
+	if r := strings.TrimSpace(os.Getenv("HACKME_REPO_ROOT")); r != "" {
+		return r
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return "."
+	}
+	dir := wd
+	for i := 0; i < 10; i++ {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return wd
+}
+
 // ResolvePackWasm returns absolute wasm path, building from source if missing.
 func ResolvePackWasm(repoRoot string, p GuardPack) (string, error) {
+	if strings.TrimSpace(repoRoot) == "" {
+		repoRoot = DiscoverRepoRoot()
+	}
 	wasm := filepath.Join(repoRoot, p.WasmRelPath)
 	if _, err := os.Stat(wasm); err == nil {
 		return wasm, nil
@@ -269,6 +397,62 @@ func ResolvePackWasm(repoRoot string, p GuardPack) (string, error) {
 	}
 	// Caller may build via rustc; return expected path after ensuring source exists.
 	return wasm, fmt.Errorf("pack %s: wasm not built — run: rustc --target wasm32-unknown-unknown -O --crate-type=cdylib %s -o %s", p.ID, src, wasm)
+}
+
+// LoadPackWasmHex reads the shipped pack WASM and returns lowercase hex + absolute path.
+func LoadPackWasmHex(repoRoot string, p GuardPack) (wasmHex string, absPath string, err error) {
+	path, err := ResolvePackWasm(repoRoot, p)
+	if err != nil {
+		return "", path, err
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return "", path, fmt.Errorf("pack %s: read wasm: %w", p.ID, err)
+	}
+	if len(raw) == 0 {
+		return "", path, fmt.Errorf("pack %s: empty wasm at %s", p.ID, path)
+	}
+	return hex.EncodeToString(raw), path, nil
+}
+
+// ResolveDigGuardWasm resolves dig_preset and/or guard_pack to a GuardPack + shipped WASM hex.
+// Prefer dig_preset when both are set for dig_package defaults; guard_pack must match when both given.
+func ResolveDigGuardWasm(repoRoot, digPreset, guardPack string) (pack GuardPack, wasmHex string, preset DigPreset, err error) {
+	digPreset = strings.TrimSpace(digPreset)
+	guardPack = strings.TrimSpace(guardPack)
+	if digPreset == "" && guardPack == "" {
+		return GuardPack{}, "", DigPreset{}, fmt.Errorf("dig_preset or guard_pack required")
+	}
+	if digPreset != "" {
+		preset, err = DigPresetFor(digPreset)
+		if err != nil {
+			return GuardPack{}, "", DigPreset{}, err
+		}
+		if guardPack != "" {
+			gp, gerr := GuardPackFor(guardPack)
+			if gerr != nil {
+				return GuardPack{}, "", DigPreset{}, gerr
+			}
+			if gp.ID != preset.GuardPack {
+				return GuardPack{}, "", DigPreset{}, fmt.Errorf("dig_preset %q resolves to pack %q, not guard_pack %q", digPreset, preset.GuardPack, gp.ID)
+			}
+		}
+		pack, err = GuardPackFor(preset.GuardPack)
+		if err != nil {
+			return GuardPack{}, "", DigPreset{}, err
+		}
+	} else {
+		pack, err = GuardPackFor(guardPack)
+		if err != nil {
+			return GuardPack{}, "", DigPreset{}, err
+		}
+		preset = DigPreset{ID: pack.ID, GuardPack: pack.ID, DigPackage: pack.DefaultPackage, Title: pack.Title, Summary: pack.Summary}
+	}
+	wasmHex, _, err = LoadPackWasmHex(repoRoot, pack)
+	if err != nil {
+		return GuardPack{}, "", DigPreset{}, err
+	}
+	return pack, wasmHex, preset, nil
 }
 
 // AdjustPackageForPack applies pack-aware budget presets on top of scan|audit|deep.
