@@ -48,17 +48,20 @@ Requires Dig `dig_package` (`scan`/`starter`/`audit`/`pro`/`deep`/`enterprise`) 
   (`HACKME_CHAIN_MINTING_HUB=1` or `HACKME_ORDERS_REQUIRE_HUB_PREPAID_TICKET=1` on the
   coordinator): forgeable publish-token self-MAC is refused — require hub-signed
   `hubv1:` ticket + `escrow_fingerprint` (open escrow for claimed budget/runs). Set the
-  same `HACKME_ORDERS_PREPAID_HUB_SECRET` on hub + Orders (≠ publish/admin/worker).
-  Admin can mint tickets via `POST /api/fuzz/pool/prepaid-ticket`. Lab (no minting hub)
-  still accepts self-MAC. Settle ACK needs origin Apply receipts (MAC over
-  event_id+campaign+units hash), not bare `confirm_applied`. Settle-pull only **applies**
-  rows for local escrow; do not ACK foreign campaigns.
+  same `HACKME_ORDERS_PREPAID_HUB_SECRET` on hub + Orders (≠ publish/admin/worker),
+  stored as **`pool.orders.prepaid_hub.secret`** (never reuse `pool.orders.token`).
+  Prefer hub-only key: set `HACKME_ORDERS_PREPAID_LOCAL_SIGN=0` on Orders and mint via
+  admin `POST /api/fuzz/pool/prepaid-ticket` so the fleet publish token cannot sign.
+  Lab (no minting hub) still accepts self-MAC. Settle ACK needs origin Apply receipts
+  (MAC over event_id+campaign+units hash), not bare `confirm_applied`. Settle-pull only
+  **applies** rows for local escrow; do not ACK foreign campaigns.
 - **Med-prepaid / minting hub:** publish-token self-MAC is lab-only. On D1
   (`HACKME_CHAIN_MINTING_HUB=1` or `HACKME_ORDERS_REQUIRE_HUB_PREPAID_TICKET=1`) the
   coordinator **refuses** self-MAC and requires a hub-signed ticket
   (`hubv1:<exp>:<mac>`) keyed by `HACKME_ORDERS_PREPAID_HUB_SECRET` (≠ publish/admin/worker)
-  plus `escrow_fingerprint` from an open origin escrow. Orders nodes sign the ticket only
-  after `GetFuzzEscrow` shows open matching budget. Admin may mint tickets via
+  plus `escrow_fingerprint` from an open origin escrow. Orders nodes may local-sign only
+  when the distinct prepaid hub secret is present and `HACKME_ORDERS_PREPAID_LOCAL_SIGN`
+  is not `0`, and only after `GetFuzzEscrow` shows open matching budget. Admin mint:
   `POST /api/fuzz/pool/prepaid-ticket`. Residual ops for Crit-grade on-hub PoF: reserve
   balance / open escrow on the command-node ledger (or per-owner hub prepaid), then mint
   or sync tickets from that SoT — origin escrow + rate/caps remain economic SoT until then.
@@ -76,11 +79,15 @@ Requires Dig `dig_package` (`scan`/`starter`/`audit`/`pro`/`deep`/`enterprise`) 
 ## Operator checklist
 
 1. `bash scripts/ops/gen_orders_publish_token.sh`
-2. `bash scripts/ops/gen_orders_prepaid_hub_secret.sh` — set same value on coordinator
-   (`HACKME_ORDERS_PREPAID_HUB_SECRET`) and Orders release/env
+2. `bash scripts/ops/gen_orders_prepaid_hub_secret.sh` — set on coordinator
+   (`HACKME_ORDERS_PREPAID_HUB_SECRET`) and optionally Orders
+   (`pool.orders.prepaid_hub.secret` / `HACKME_RELEASE_ORDERS_PREPAID_HUB_SECRET`).
+   For hub-only signing, omit the secret from customer Orders and set
+   `HACKME_ORDERS_PREPAID_LOCAL_SIGN=0`; mint tickets with admin.
 3. Hub coordinator: set `HACKME_COORDINATOR_ORDERS_PUBLISH_TOKEN` (≠ admin, ≠ worker),
    `HACKME_CHAIN_MINTING_HUB=1`, `HACKME_CHAIN_LEADER_LOCAL_POH=0` on the command node, restart
-4. Release: `HACKME_RELEASE_ORDERS_PUBLISH_TOKEN=…` (+ prepaid hub secret) when building Orders bundles
+4. Release: `HACKME_RELEASE_ORDERS_PUBLISH_TOKEN=…` and optionally
+   `HACKME_RELEASE_ORDERS_PREPAID_HUB_SECRET=…` (must differ from publish/admin/miner)
 5. Smoke: Orders node wizard with `pool_distributed` → open escrow → hub ticket attest →
    campaign on pool stats → workers claim → settle-pull closes local escrow
 6. **Windows Orders:** `start_hackme_orders.bat` seeds/repairs `HACKME_FUZZ_SETTLE_PULL=1` (miner `hackme.env` may seed `0`). Copy `pool.orders.token.example` → `pool.orders.token` with the scoped publish token. Hunt engines stay Linux-pool-only.

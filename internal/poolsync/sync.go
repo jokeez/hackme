@@ -222,6 +222,9 @@ func RegisterOnce(ctx context.Context, coordURL, token string, req RegisterReque
 				}
 			}
 			if RequireHubPrepaidTicket() || hubSec != "" {
+				if !PrepaidLocalSignAllowed() {
+					return 0, result, fmt.Errorf("pool sync: prepaid_attestation required (HACKME_ORDERS_PREPAID_LOCAL_SIGN=0 — use hub admin mint; signing key stays hub-only)")
+				}
 				if hubSec == "" {
 					return 0, result, fmt.Errorf("pool sync: HACKME_ORDERS_PREPAID_HUB_SECRET required for hub prepaid tickets")
 				}

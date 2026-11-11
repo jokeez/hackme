@@ -5,8 +5,11 @@
 #   bash scripts/ops/gen_orders_prepaid_hub_secret.sh
 #   FORCE=1 bash scripts/ops/gen_orders_prepaid_hub_secret.sh
 #
-# Hub coordinator + Orders nodes:
-#   HACKME_ORDERS_PREPAID_HUB_SECRET=<same>
+# Hub coordinator (required on D1):
+#   HACKME_ORDERS_PREPAID_HUB_SECRET=<value>
+# Orders: pool.orders.prepaid_hub.secret / HACKME_RELEASE_ORDERS_PREPAID_HUB_SECRET
+#   (≠ pool.orders.token). Prefer hub-only: omit on customer Orders +
+#   HACKME_ORDERS_PREPAID_LOCAL_SIGN=0 and mint via admin prepaid-ticket.
 # On D1 set also HACKME_ORDERS_REQUIRE_HUB_PREPAID_TICKET=1 (or HACKME_CHAIN_MINTING_HUB=1)
 # on the coordinator so forgeable publish-token self-MAC is refused.
 set -euo pipefail
@@ -33,6 +36,8 @@ done
 printf '%s' "$tok" >"$OUT"
 chmod 600 "$OUT"
 echo "wrote $OUT (${#tok} hex chars)"
-echo "Hub+Orders: HACKME_ORDERS_PREPAID_HUB_SECRET=<value>"
+echo "Hub:        HACKME_ORDERS_PREPAID_HUB_SECRET=<value>"
+echo "Orders file: pool.orders.prepaid_hub.secret  (optional; ≠ publish token)"
+echo "Hub-only:   HACKME_ORDERS_PREPAID_LOCAL_SIGN=0 + admin mint"
 echo "D1 coord:   HACKME_ORDERS_REQUIRE_HUB_PREPAID_TICKET=1  (or HACKME_CHAIN_MINTING_HUB=1)"
 echo "Admin mint: POST /api/fuzz/pool/prepaid-ticket (admin token only)"

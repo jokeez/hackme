@@ -113,3 +113,40 @@ func TestOpenSecretFileRejectsGroupReadable(t *testing.T) {
 		t.Fatal("expected error for 0640")
 	}
 }
+
+func TestReadOrdersPrepaidHubSecretDistinctFromPublish(t *testing.T) {
+	dir := t.TempDir()
+	const pub = "orders-publish-fleet-token-xxxxx"
+	const hub = "orders-prepaid-hub-secret-yyyyy"
+	if err := os.WriteFile(filepath.Join(dir, "pool.orders.token"), []byte(pub+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ordersPrepaidHubSecretFile), []byte(hub+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HACKME_REPO_ROOT", dir)
+	if got := ReadOrdersPublishToken(); got != pub {
+		t.Fatalf("publish=%q want %q", got, pub)
+	}
+	if got := ReadOrdersPrepaidHubSecret(); got != hub {
+		t.Fatalf("prepaid hub=%q want %q", got, hub)
+	}
+	if ReadOrdersPrepaidHubSecret() == ReadOrdersPublishToken() {
+		t.Fatal("prepaid hub secret must not alias publish token")
+	}
+}
+
+func TestReadOrdersPrepaidHubSecretRejectsSymlink(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "elsewhere")
+	if err := os.WriteFile(target, []byte("symlink-prepaid\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(dir, ordersPrepaidHubSecretFile)); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HACKME_REPO_ROOT", dir)
+	if got := ReadOrdersPrepaidHubSecret(); got != "" {
+		t.Fatalf("symlink prepaid secret must be rejected, got %q", got)
+	}
+}

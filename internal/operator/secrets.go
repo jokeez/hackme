@@ -10,6 +10,8 @@ import (
 const coordinatorAdminTokenFile = "hackme_coordinator_admin_token"
 const coordinatorWorkerTokenFile = "hackme_coordinator_worker_token"
 const ordersPublishTokenFile = "pool.orders.token"
+const ordersPrepaidHubSecretFile = "pool.orders.prepaid_hub.secret"
+const ordersPrepaidHubSecretAltFile = "hackme_orders_prepaid_hub_secret"
 
 // CoordinatorAdminTokenPaths returns candidate paths for the pool coordinator admin token.
 func CoordinatorAdminTokenPaths() []string {
@@ -151,6 +153,78 @@ func ReadOrdersPublishToken() string {
 		}
 		line := strings.TrimSpace(strings.SplitN(string(b), "\n", 2)[0])
 		if line != "" && line != "REPLACE_WITH_ORDERS_PUBLISH_TOKEN" {
+			return line
+		}
+	}
+	return ""
+}
+
+// OrdersPrepaidHubSecretPaths returns candidate paths for the hub prepaid ticket
+// signing secret (≠ pool.orders.token / publish fleet credential).
+func OrdersPrepaidHubSecretPaths() []string {
+	var paths []string
+	seen := make(map[string]struct{})
+	add := func(p string) {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			return
+		}
+		if _, ok := seen[p]; ok {
+			return
+		}
+		seen[p] = struct{}{}
+		paths = append(paths, p)
+	}
+	addNamed := func(base string, names ...string) {
+		for _, n := range names {
+			add(filepath.Join(base, n))
+			add(filepath.Join(base, ".secrets", n))
+		}
+	}
+	names := []string{ordersPrepaidHubSecretFile, ordersPrepaidHubSecretAltFile}
+	if root := strings.TrimSpace(os.Getenv("HACKME_REPO_ROOT")); root != "" {
+		addNamed(root, names...)
+	}
+	if ex, err := os.Executable(); err == nil {
+		dir := filepath.Dir(ex)
+		for i := 0; i < 6; i++ {
+			addNamed(dir, names...)
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
+			}
+			dir = parent
+		}
+	}
+	if dataDir := strings.TrimSpace(os.Getenv("HACKME_DATA_DIR")); dataDir != "" {
+		dir := filepath.Dir(dataDir)
+		for i := 0; i < 4; i++ {
+			addNamed(dir, names...)
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
+			}
+			dir = parent
+		}
+	}
+	for _, n := range names {
+		add(n)
+		add(filepath.Join(".secrets", n))
+	}
+	return paths
+}
+
+// ReadOrdersPrepaidHubSecret loads pool.orders.prepaid_hub.secret (or
+// .secrets/hackme_orders_prepaid_hub_secret). Distinct from the Orders publish
+// fleet token so a leaked pool.orders.token alone cannot mint hubv1 tickets.
+func ReadOrdersPrepaidHubSecret() string {
+	for _, p := range OrdersPrepaidHubSecretPaths() {
+		b, err := openSecretFile(p)
+		if err != nil {
+			continue
+		}
+		line := strings.TrimSpace(strings.SplitN(string(b), "\n", 2)[0])
+		if line != "" && line != "REPLACE_WITH_ORDERS_PREPAID_HUB_SECRET" {
 			return line
 		}
 	}

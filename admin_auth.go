@@ -254,6 +254,14 @@ func ensurePoolCoordinatorAdminTokenEnv() {
 			_ = os.Setenv("HACKME_POOL_ORDERS_PUBLISH_TOKEN", t)
 		}
 	}
+	// Prepaid hub signing secret is a distinct file from pool.orders.token (fleet publish).
+	if strings.TrimSpace(os.Getenv("HACKME_ORDERS_PREPAID_HUB_SECRET")) == "" &&
+		strings.TrimSpace(os.Getenv("HACKME_POOL_ORDERS_PREPAID_HUB_SECRET")) == "" &&
+		strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_ORDERS_PREPAID_HUB_SECRET")) == "" {
+		if t := operator.ReadOrdersPrepaidHubSecret(); t != "" {
+			_ = os.Setenv("HACKME_ORDERS_PREPAID_HUB_SECRET", t)
+		}
+	}
 	if strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_ADMIN_TOKEN")) != "" {
 		return
 	}

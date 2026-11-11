@@ -198,11 +198,29 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 		}
 	}()
 	var existingCfgJSON string
-	qerr := conn.QueryRowContext(ctx, `SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, c.ID).Scan(&existingCfgJSON)
+	var prevBudgetRuns int
+	qerr := conn.QueryRowContext(ctx,
+		`SELECT COALESCE(config_json,'{}'), COALESCE(budget_runs,0) FROM fuzz_campaigns WHERE id=?`, c.ID).
+		Scan(&existingCfgJSON, &prevBudgetRuns)
 	if qerr != nil && qerr != sql.ErrNoRows {
 		return qerr
 	}
-	merged := mergeRegisterConfig(cfg, parseConfigJSON(existingCfgJSON))
+	if qerr == sql.ErrNoRows {
+		prevBudgetRuns = 0
+		existingCfgJSON = "{}"
+	}
+	// Fresh prepaid stamp binds attested budget caps so admin UPSERT cannot raise unpaid work.
+	if configTruthyAny(cfg, "prepaid_attested") {
+		if configIntLoose(cfg, "prepaid_attest_budget_runs") <= 0 && c.BudgetRuns > 0 {
+			cfg["prepaid_attest_budget_runs"] = c.BudgetRuns
+		}
+		if configFloatLoose(cfg, "prepaid_attest_budget_hmc") <= 0 {
+			if hmc := configFloatLoose(cfg, "budget_hmc"); hmc > 0 {
+				cfg["prepaid_attest_budget_hmc"] = hmc
+			}
+		}
+	}
+	merged := mergeRegisterConfig(cfg, parseConfigJSON(existingCfgJSON), c.BudgetRuns, prevBudgetRuns)
 	mergedCfgJSON := marshalConfigJSON(merged)
 	_, err = conn.ExecContext(ctx,
 		`INSERT INTO fuzz_campaigns
@@ -257,7 +275,9 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 }
 
 // mergeRegisterConfig keeps prepaid / owner-secret stamps from the stored row.
-func mergeRegisterConfig(incoming, existing map[string]any) map[string]any {
+// prepaid_attested sticks only while new budget_runs / budget_hmc stay within the
+// attested caps (blocks admin UPSERT from expanding unpaid pool work — PUB-02).
+func mergeRegisterConfig(incoming, existing map[string]any, newBudgetRuns, prevBudgetRuns int) map[string]any {
 	out := map[string]any{}
 	for k, v := range incoming {
 		out[k] = v
@@ -265,8 +285,38 @@ func mergeRegisterConfig(incoming, existing map[string]any) map[string]any {
 	if existing == nil {
 		return out
 	}
-	if configTruthyAny(existing, "prepaid_attested") {
-		out["prepaid_attested"] = true
+	freshPrepaid := configTruthyAny(incoming, "prepaid_attested")
+	if freshPrepaid {
+		// Incoming just re-attested — keep its caps (RegisterCampaign stamped them).
+	} else if configTruthyAny(existing, "prepaid_attested") {
+		attestedRuns := configIntLoose(existing, "prepaid_attest_budget_runs")
+		attestedHMC := configFloatLoose(existing, "prepaid_attest_budget_hmc")
+		newHMC := configFloatLoose(incoming, "budget_hmc")
+		keep := true
+		if attestedRuns > 0 && newBudgetRuns > attestedRuns {
+			keep = false
+		}
+		if attestedHMC > 0 && newHMC > attestedHMC+1e-9 {
+			keep = false
+		}
+		// Legacy rows without caps: drop stamp when budget_runs increases.
+		if attestedRuns <= 0 && attestedHMC <= 0 && prevBudgetRuns > 0 && newBudgetRuns > prevBudgetRuns {
+			keep = false
+		}
+		if keep {
+			out["prepaid_attested"] = true
+			if attestedRuns > 0 {
+				out["prepaid_attest_budget_runs"] = attestedRuns
+			}
+			if attestedHMC > 0 {
+				out["prepaid_attest_budget_hmc"] = attestedHMC
+			}
+			if fp := strings.TrimSpace(jsonString(existing["escrow_fingerprint"])); fp != "" {
+				if strings.TrimSpace(jsonString(out["escrow_fingerprint"])) == "" {
+					out["escrow_fingerprint"] = fp
+				}
+			}
+		}
 	}
 	// First writer wins for owner secret hash (never rotate via racing UPSERT).
 	if h := strings.TrimSpace(jsonString(existing["orders_owner_secret_hash"])); h != "" {
@@ -276,6 +326,52 @@ func mergeRegisterConfig(incoming, existing map[string]any) map[string]any {
 		out["orders_publish"] = true
 	}
 	return out
+}
+
+func configIntLoose(cfg map[string]any, key string) int {
+	if cfg == nil {
+		return 0
+	}
+	switch v := cfg[key].(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case float64:
+		return int(v)
+	case json.Number:
+		n, _ := v.Int64()
+		return int(n)
+	case string:
+		n, _ := strconv.Atoi(strings.TrimSpace(v))
+		return n
+	default:
+		return 0
+	}
+}
+
+func configFloatLoose(cfg map[string]any, key string) float64 {
+	if cfg == nil {
+		return 0
+	}
+	switch v := cfg[key].(type) {
+	case float64:
+		return v
+	case float32:
+		return float64(v)
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case json.Number:
+		n, _ := v.Float64()
+		return n
+	case string:
+		n, _ := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		return n
+	default:
+		return 0
+	}
 }
 
 func (s *Service) invalidateSchedCache() {

@@ -123,6 +123,31 @@ if not "!HAS_ORDERS_PUBLISH!"=="1" (
   )
 )
 
+rem Prepaid hub signing secret — DISTINCT from pool.orders.token (fleet publish).
+set "HAS_PREPAID_HUB="
+for /f "usebackq tokens=1,* delims==" %%A in ("%ENV_FILE%") do (
+  if /I "%%~A"=="HACKME_ORDERS_PREPAID_HUB_SECRET" if not "%%~B"=="" set "HAS_PREPAID_HUB=1"
+  if /I "%%~A"=="HACKME_POOL_ORDERS_PREPAID_HUB_SECRET" if not "%%~B"=="" set "HAS_PREPAID_HUB=1"
+)
+if not "!HAS_PREPAID_HUB!"=="1" (
+  set "ORD_PREPAID="
+  if exist "%APP_DIR%\pool.orders.prepaid_hub.secret" (
+    for /f "usebackq delims=" %%T in ("%APP_DIR%\pool.orders.prepaid_hub.secret") do set "ORD_PREPAID=%%T"
+  )
+  if "!ORD_PREPAID!"=="" if exist "%APP_DIR%\.secrets\hackme_orders_prepaid_hub_secret" (
+    for /f "usebackq delims=" %%T in ("%APP_DIR%\.secrets\hackme_orders_prepaid_hub_secret") do set "ORD_PREPAID=%%T"
+  )
+  if not "!ORD_PREPAID!"=="" if /I not "!ORD_PREPAID!"=="REPLACE_WITH_ORDERS_PREPAID_HUB_SECRET" (
+    if /I "!ORD_PREPAID!"=="!HACKME_POOL_ORDERS_PUBLISH_TOKEN!" (
+      echo REFUSING: prepaid hub secret must differ from pool.orders.token
+    ) else (
+      echo HACKME_ORDERS_PREPAID_HUB_SECRET=!ORD_PREPAID!>> "%ENV_FILE%"
+      set "HACKME_ORDERS_PREPAID_HUB_SECRET=!ORD_PREPAID!"
+      echo Set prepaid hub secret from pool.orders.prepaid_hub.secret
+    )
+  )
+)
+
 rem Miner hackme.env seeds settle-pull=0 (pool miner token cannot ACK). Orders desktop
 rem must pull-settle so escrow closes after progress sync. Process env wins (envfile.go).
 findstr /B /I /C:"HACKME_FUZZ_SETTLE_PULL=0" "%ENV_FILE%" >nul 2>&1

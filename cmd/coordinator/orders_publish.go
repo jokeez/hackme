@@ -336,25 +336,23 @@ func publishOwnerRefFromRequest(r *http.Request) string {
 	return strings.TrimSpace(r.URL.Query().Get("owner_ref"))
 }
 
-// publishOwnerSecretFromRequest reads the per-publish tenant secret (header preferred).
+// publishOwnerSecretFromRequest reads the per-publish tenant secret from headers only
+// (query owner_secret rejected — proxy/access-log leak class PUB-10).
 func publishOwnerSecretFromRequest(r *http.Request) string {
 	if r == nil {
 		return ""
 	}
-	if v := strings.TrimSpace(r.Header.Get("X-Hackme-Orders-Owner-Secret")); v != "" {
-		return v
-	}
-	return strings.TrimSpace(r.URL.Query().Get("owner_secret"))
+	return strings.TrimSpace(r.Header.Get("X-Hackme-Orders-Owner-Secret"))
 }
 
 // publishOwnerAccessOK gates shared publish-token reads/ACKs to the campaign's owner_ref
-// and per-publish owner secret. Legacy rows with empty owner_ref and no secret hash keep
-// flag-only access (grandfathered); new campaigns always stamp both.
+// and per-publish owner secret. Rows with empty owner_ref and no secret hash are denied
+// (no flag-only grandfather — PUB-05).
 func publishOwnerAccessOK(r *http.Request, storedOwner, storedSecretHash string) bool {
 	storedOwner = strings.TrimSpace(storedOwner)
 	storedSecretHash = strings.TrimSpace(storedSecretHash)
 	if storedOwner == "" && storedSecretHash == "" {
-		return true
+		return false
 	}
 	if storedOwner != "" && publishOwnerRefFromRequest(r) != storedOwner {
 		return false

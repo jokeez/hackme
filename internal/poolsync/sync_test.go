@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -58,6 +59,22 @@ func TestRegisterWithRetryOK(t *testing.T) {
 	snap := Snapshot()
 	if snap.TotalOK < 1 {
 		t.Fatalf("metrics: %+v", snap)
+	}
+}
+
+func TestRegisterOnceLocalSignDisabledRequiresTicket(t *testing.T) {
+	t.Setenv("HACKME_POOL_COORDINATOR_URL", "http://127.0.0.1:9")
+	t.Setenv("HACKME_POOL_ORDERS_PUBLISH_TOKEN", "pub-tok")
+	t.Setenv("HACKME_ORDERS_PREPAID_HUB_SECRET", "hub-secret-distinct")
+	t.Setenv("HACKME_ORDERS_PREPAID_LOCAL_SIGN", "0")
+	t.Setenv("HACKME_CHAIN_MINTING_HUB", "1")
+	fp := EscrowPrepaidFingerprintParts("camp-nosign", 1.0, 8, "open")
+	_, _, err := RegisterOnce(context.Background(), "http://127.0.0.1:9", "pub-tok", RegisterRequest{
+		ID: "camp-nosign", OwnerRef: "customer:x", BudgetHMC: 1.0, BudgetRuns: 8,
+		EscrowFingerprint: fp, Config: map[string]any{},
+	})
+	if err == nil || !strings.Contains(err.Error(), "LOCAL_SIGN=0") {
+		t.Fatalf("want LOCAL_SIGN=0 error, got %v", err)
 	}
 }
 

@@ -78,6 +78,24 @@ read_orders_publish_token() {
   return 1
 }
 
+# Hub prepaid signing secret — DISTINCT from pool.orders.token (fleet publish).
+read_orders_prepaid_hub_secret() {
+  local tok="" f
+  for f in \
+    "${INSTALL_DIR}/pool.orders.prepaid_hub.secret" \
+    "${CONFIG_DIR}/pool.orders.prepaid_hub.secret" \
+    "${INSTALL_DIR}/.secrets/hackme_orders_prepaid_hub_secret" \
+    "${INSTALL_DIR}/.secrets/pool.orders.prepaid_hub.secret"; do
+    [[ -f "$f" ]] || continue
+    tok="$(tr -d '\r\n' <"$f")"
+    if [[ -n "$tok" && "$tok" != "REPLACE_WITH_ORDERS_PREPAID_HUB_SECRET" ]]; then
+      printf '%s' "$tok"
+      return 0
+    fi
+  done
+  return 1
+}
+
 ensure_env() {
   local admin=""
   if [[ -f "$ENV_FILE" ]]; then
@@ -138,28 +156,48 @@ repair_pool_coordinator_env() {
     fi
     echo "[hackme-orders] set HACKME_POOL_COORDINATOR_URL=${DEFAULT_COORD_URL}"
   fi
-  if grep -q '^HACKME_POOL_ORDERS_PUBLISH_TOKEN=.\+' "$ENV_FILE" 2>/dev/null \
-    || grep -q '^HACKME_COORDINATOR_ORDERS_PUBLISH_TOKEN=.\+' "$ENV_FILE" 2>/dev/null; then
-    return 0
+  if ! grep -q '^HACKME_POOL_ORDERS_PUBLISH_TOKEN=.\+' "$ENV_FILE" 2>/dev/null \
+    && ! grep -q '^HACKME_COORDINATOR_ORDERS_PUBLISH_TOKEN=.\+' "$ENV_FILE" 2>/dev/null; then
+    local pub
+    pub="$(read_orders_publish_token 2>/dev/null || true)"
+    if [[ -z "$pub" ]]; then
+      echo "[hackme-orders] NOTE: no pool.orders.token yet — local Dig/Hunt still work."
+      echo "[hackme-orders] rc18.1+ Orders bundles ship a scoped publish token; or paste into:"
+      echo "[hackme-orders]   ${INSTALL_DIR}/pool.orders.token  (or ${CONFIG_DIR}/pool.orders.token)"
+    else
+      if grep -q '^HACKME_POOL_ORDERS_PUBLISH_TOKEN=' "$ENV_FILE" 2>/dev/null; then
+        sed -i "s|^HACKME_POOL_ORDERS_PUBLISH_TOKEN=.*|HACKME_POOL_ORDERS_PUBLISH_TOKEN=${pub}|" "$ENV_FILE"
+      else
+        echo "HACKME_POOL_ORDERS_PUBLISH_TOKEN=${pub}" >>"$ENV_FILE"
+      fi
+      if [[ -f "${INSTALL_DIR}/pool.orders.token" && ! -f "${CONFIG_DIR}/pool.orders.token" ]]; then
+        cp "${INSTALL_DIR}/pool.orders.token" "${CONFIG_DIR}/pool.orders.token"
+        chmod 600 "${CONFIG_DIR}/pool.orders.token" 2>/dev/null || true
+      fi
+      echo "[hackme-orders] set scoped pool publish token from pool.orders.token (not admin/miner)"
+    fi
   fi
-  local pub
-  pub="$(read_orders_publish_token 2>/dev/null || true)"
-  if [[ -z "$pub" ]]; then
-    echo "[hackme-orders] NOTE: no pool.orders.token yet — local Dig/Hunt still work."
-    echo "[hackme-orders] rc18.1+ Orders bundles ship a scoped publish token; or paste into:"
-    echo "[hackme-orders]   ${INSTALL_DIR}/pool.orders.token  (or ${CONFIG_DIR}/pool.orders.token)"
-    return 0
+  # Distinct prepaid hub signing secret (≠ publish fleet token). Optional when hub
+  # mints tickets via admin and HACKME_ORDERS_PREPAID_LOCAL_SIGN=0.
+  if ! grep -q '^HACKME_ORDERS_PREPAID_HUB_SECRET=.\+' "$ENV_FILE" 2>/dev/null \
+    && ! grep -q '^HACKME_POOL_ORDERS_PREPAID_HUB_SECRET=.\+' "$ENV_FILE" 2>/dev/null; then
+    local prepaid
+    prepaid="$(read_orders_prepaid_hub_secret 2>/dev/null || true)"
+    if [[ -n "$prepaid" ]]; then
+      local pubchk
+      pubchk="$(grep -E '^HACKME_POOL_ORDERS_PUBLISH_TOKEN=' "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2- || true)"
+      if [[ -n "$pubchk" && "$prepaid" == "$pubchk" ]]; then
+        echo "[hackme-orders] REFUSING: prepaid hub secret must differ from pool.orders.token" >&2
+      else
+        echo "HACKME_ORDERS_PREPAID_HUB_SECRET=${prepaid}" >>"$ENV_FILE"
+        if [[ -f "${INSTALL_DIR}/pool.orders.prepaid_hub.secret" && ! -f "${CONFIG_DIR}/pool.orders.prepaid_hub.secret" ]]; then
+          cp "${INSTALL_DIR}/pool.orders.prepaid_hub.secret" "${CONFIG_DIR}/pool.orders.prepaid_hub.secret"
+          chmod 600 "${CONFIG_DIR}/pool.orders.prepaid_hub.secret" 2>/dev/null || true
+        fi
+        echo "[hackme-orders] set HACKME_ORDERS_PREPAID_HUB_SECRET from pool.orders.prepaid_hub.secret"
+      fi
+    fi
   fi
-  if grep -q '^HACKME_POOL_ORDERS_PUBLISH_TOKEN=' "$ENV_FILE" 2>/dev/null; then
-    sed -i "s|^HACKME_POOL_ORDERS_PUBLISH_TOKEN=.*|HACKME_POOL_ORDERS_PUBLISH_TOKEN=${pub}|" "$ENV_FILE"
-  else
-    echo "HACKME_POOL_ORDERS_PUBLISH_TOKEN=${pub}" >>"$ENV_FILE"
-  fi
-  if [[ -f "${INSTALL_DIR}/pool.orders.token" && ! -f "${CONFIG_DIR}/pool.orders.token" ]]; then
-    cp "${INSTALL_DIR}/pool.orders.token" "${CONFIG_DIR}/pool.orders.token"
-    chmod 600 "${CONFIG_DIR}/pool.orders.token" 2>/dev/null || true
-  fi
-  echo "[hackme-orders] set scoped pool publish token from pool.orders.token (not admin/miner)"
 }
 
 # Miner scripts seed settle-pull=0; Orders needs pull when publish/admin token is present
