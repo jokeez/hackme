@@ -13,9 +13,9 @@
     "limit_hmc": 200
   },
   "stats": {
-    "total_paid_hmc": 1180,
+    "total_paid_hmc": 1400,
     "researchers": 6,
-    "reports_accepted": 37
+    "reports_accepted": 41
   },
   "researchers": [
     {
@@ -41,8 +41,52 @@
       "id": "fimasw",
       "name": "fimasw",
       "handle": "fimasw",
-      "total_paid_hmc": 390,
+      "total_paid_hmc": 610,
       "findings": [
+        {
+          "title": "Dig pack corpus namespace cross-tenant leak (pack:id shared)",
+          "severity": "high",
+          "paid_hmc": 120,
+          "date": "2026-11-11",
+          "reported": "2026-11-11",
+          "commit": "60b53dd3",
+          "txid": "2d6eb1a0cfad56ac698340ca6d1cc1e55a7778a5b5d90acade4a1cdd94ebf983",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "High: CorpusPersistNamespace preferred guard_pack→pack:<id> before owner_ref; FinalizeDig auto-enabled corpus_persist; importNamespaceCorpus had no owner check — tenant B on same Dig pack imported A's seeds. Fixed: tenant-scoped owner:<ref>:pack:<id>, refuse pack-only ns, import/export ownership gate, strip corpus_persist_key on publish. Paid 120 HMC (60+60 incl. duplicate-send goodwill) txs 2d6eb1a0… + d52d5737…. Deployed 60b53dd3."
+        },
+        {
+          "title": "Fleet-fold reverse-order still double-pays (bare base before -gpuN)",
+          "severity": "high",
+          "paid_hmc": 60,
+          "date": "2026-11-11",
+          "reported": "2026-11-11",
+          "commit": "97b11680",
+          "txid": "22b71cf7fe17230a7dbe0d8accdffbb741218f2f9d087fd2700747c9752980fa",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "High follow-up: a5923b02 refused decoy only when -gpuN already present; reverse order (bare base first) still ejected via folded-addr branch. Closed in 97b11680 (unpaid required on folded eject) + reverse-order regression in 60b53dd3. Paid 60 HMC → tx 22b71cf7…."
+        },
+        {
+          "title": "Admin settle ACK accepts caller-computed receipt MAC (SETTLE-01 bypass)",
+          "severity": "medium",
+          "paid_hmc": 30,
+          "date": "2026-11-11",
+          "reported": "2026-11-11",
+          "commit": "60b53dd3",
+          "txid": "3b67359d1d3d8cf077115b29a2858c5483ab11fb27bbbb381172248385ddddb7",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Medium: admin fallback ACK branch verified MAC with caller-supplied owner secret without orders_owner_secret_hash gate (hub_applied correctly refused). Fixed loadPublishOwnerGate on admin receipt path. Paid 30 HMC → tx 3b67359d…."
+        },
+        {
+          "title": "Sandbox prefix filter equality-only (ancestor /usr exposes INSTALL_DIR)",
+          "severity": "low",
+          "paid_hmc": 10,
+          "date": "2026-11-11",
+          "reported": "2026-11-11",
+          "commit": "60b53dd3",
+          "txid": "fef932951242a22e02b6660dfdd9ba911c572494a5a8c3ef518dd4662434cf63",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Low/hardening: filterSecretPrefixRoots matched prefix equality only; INSTALL_DIR under /usr left .env.vps inside static /usr RO bind. Fixed ancestor containment + narrower /usr leaf binds when prefix under /usr. Default /opt/hackme was already covered. Paid 10 HMC → tx fef93295…."
+        },
         {
           "title": "Fleet-fold settlement key churn double-pays accrual (bare-base decoy claim)",
           "severity": "high",
