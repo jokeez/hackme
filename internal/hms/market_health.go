@@ -2,8 +2,10 @@ package hms
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -32,12 +34,86 @@ func (c *Coordinator) RunHealthLoop(ctx context.Context) {
 	}
 }
 
-// RunHealthTick scans replicas, attempts repair, updates order health fields.
+// RunHealthTick expires paid retention, repairs replicas, and refreshes order health.
 func (c *Coordinator) RunHealthTick() error {
+	if err := c.expireRetentionOrders(time.Now().Unix()); err != nil {
+		return err
+	}
 	if err := c.repairMissingReplicas(); err != nil {
 		return err
 	}
 	return c.refreshOrderHealth()
+}
+
+// expireRetentionOrders marks orders past created_unix+retention_days as expired
+// and purges their bytes the same way customer cancel does.
+func (c *Coordinator) expireRetentionOrders(now int64) error {
+	if now <= 0 {
+		now = time.Now().Unix()
+	}
+	rows, err := c.db.Query(`SELECT order_id FROM hms_orders
+		WHERE status NOT IN (?, ?)
+		AND retention_days > 0
+		AND created_unix > 0
+		AND created_unix + retention_days * 86400 <= ?`,
+		OrderStatusCancelled, OrderStatusExpired, now)
+	if err != nil {
+		return err
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return err
+	}
+	_ = rows.Close()
+	for _, id := range ids {
+		if err := c.expireOneOrder(id, now); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Coordinator) expireOneOrder(orderID string, now int64) error {
+	unlock := c.lockOrder(orderID)
+	defer unlock()
+	var status string
+	var created int64
+	var days int
+	err := c.db.QueryRow(`SELECT status, created_unix, retention_days FROM hms_orders WHERE order_id=?`, orderID).
+		Scan(&status, &created, &days)
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	status = strings.TrimSpace(strings.ToLower(status))
+	if status == OrderStatusCancelled || status == OrderStatusExpired {
+		return c.purgeOrderStorage(orderID)
+	}
+	if created <= 0 || days <= 0 || created+int64(days)*86400 > now {
+		return nil
+	}
+	res, err := c.db.Exec(`UPDATE hms_orders SET status=?, upload_token='', health_status=?, health_detail=?, updated_unix=?
+		WHERE order_id=? AND status NOT IN (?, ?)`,
+		OrderStatusExpired, HealthFailed, "retention expired", now, orderID,
+		OrderStatusCancelled, OrderStatusExpired)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return nil
+	}
+	return c.purgeOrderStorage(orderID)
 }
 
 func (c *Coordinator) workerOnline(workerID string) bool {
@@ -243,13 +319,17 @@ func (c *Coordinator) refreshOrderHealth() error {
 		}
 		var curStatus string
 		_ = c.db.QueryRow(`SELECT status FROM hms_orders WHERE order_id=?`, orderID).Scan(&curStatus)
+		curStatus = strings.TrimSpace(strings.ToLower(curStatus))
+		if curStatus == OrderStatusCancelled || curStatus == OrderStatusExpired || curStatus == OrderStatusFailed {
+			continue
+		}
 		if curStatus == OrderStatusDraft {
 			status = curStatus
 		}
 		if curStatus == OrderStatusUploading && totalHealthy > 0 {
 			status = OrderStatusUploading
 		}
-		_, _ = c.db.Exec(`UPDATE hms_orders SET health_status=?, health_detail=?, alert_unix=?, status=CASE WHEN status IN ('failed','cancelled') THEN status ELSE ? END, updated_unix=? WHERE order_id=?`,
+		_, _ = c.db.Exec(`UPDATE hms_orders SET health_status=?, health_detail=?, alert_unix=?, status=CASE WHEN status IN ('failed','cancelled','expired') THEN status ELSE ? END, updated_unix=? WHERE order_id=?`,
 			health, detail, now, status, now, orderID)
 	}
 	return rows.Err()
@@ -269,6 +349,9 @@ func (c *Coordinator) OrderHealth(orderID string) (map[string]any, error) {
 		"health_detail":  o.HealthDetail,
 		"replica_target": marketReplicaCount(),
 		"chunks":         chunks,
-		"restore_ok":     o.HealthStatus != HealthFailed && o.Status != OrderStatusFailed && o.Status != OrderStatusCancelled,
+		"restore_ok": o.HealthStatus != HealthFailed &&
+			o.Status != OrderStatusFailed &&
+			o.Status != OrderStatusCancelled &&
+			o.Status != OrderStatusExpired,
 	}, nil
 }

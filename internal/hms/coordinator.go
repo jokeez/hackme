@@ -321,7 +321,17 @@ func (c *Coordinator) IssueChallenge(workerID string) (map[string]any, error) {
 	var chunkID string
 	var ct []byte
 	var size int64
-	err = c.db.QueryRow(`SELECT chunk_id, ciphertext_sha256, size FROM hms_chunks WHERE worker_id=? ORDER BY RANDOM() LIMIT 1`, workerID).Scan(&chunkID, &ct, &size)
+	// Skip chunks that belong to cancelled, expired, or failed orders. Lane
+	// chunks with no market order stay eligible. Purged rows are already gone;
+	// this is the backstop when a terminal order still has hms_chunks.
+	err = c.db.QueryRow(`SELECT c.chunk_id, c.ciphertext_sha256, c.size FROM hms_chunks c
+		WHERE c.worker_id=?
+		AND NOT EXISTS (
+			SELECT 1 FROM hms_order_chunks oc
+			JOIN hms_orders o ON o.order_id=oc.order_id
+			WHERE oc.chunk_id=c.chunk_id AND o.status IN ('cancelled','expired','failed')
+		)
+		ORDER BY RANDOM() LIMIT 1`, workerID).Scan(&chunkID, &ct, &size)
 	if err == sql.ErrNoRows {
 		return nil, errors.New("no chunks assigned to worker")
 	}

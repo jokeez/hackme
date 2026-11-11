@@ -33,7 +33,15 @@ func TestFinalizeDigCampaignConfigDeepPoolDepth(t *testing.T) {
 	cfg := FinalizeDigCampaignConfig(map[string]any{
 		"dig_package": "deep",
 		"guard_pack":  "secrets",
+		"owner_ref":   "tenant-a",
 	}, "deep", "secrets", t.TempDir())
+	bare := FinalizeDigCampaignConfig(map[string]any{
+		"dig_package": "deep",
+		"guard_pack":  "secrets",
+	}, "deep", "secrets", t.TempDir())
+	if fuzzengine.CorpusPersistEnabled(bare) {
+		t.Fatal("deep Dig without owner_ref must not share a pack corpus")
+	}
 	if !fuzzengine.GuidedSchedulingEnabled(cfg) {
 		t.Fatal("deep Dig must enable guided_scheduling")
 	}

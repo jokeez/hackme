@@ -78,12 +78,8 @@ func MaybeFeedResearchSeedsToDig(repoRoot, packID, researchTargetID string) (int
 			if !ok {
 				continue
 			}
-			// Lstat + regular: research/Hunt seed trees may be customer-writable.
-			st, err := os.Lstat(srcPath)
-			if err != nil || !st.Mode().IsRegular() || st.Size() <= 0 || st.Size() > digSeedMaxBytes {
-				continue
-			}
-			b, err := os.ReadFile(srcPath)
+			// O_NOFOLLOW: research/Hunt seed trees may be customer-writable.
+			b, err := readRegularNoFollow(srcPath, digSeedMaxBytes)
 			if err != nil || len(b) == 0 || int64(len(b)) > digSeedMaxBytes {
 				continue
 			}

@@ -1,6 +1,7 @@
 package hms
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -36,7 +37,9 @@ func TestAudit9_EpochPrepaidCountedPerEpoch(t *testing.T) {
 	if _, err := db.Exec(`UPDATE hms_orders SET payment_id=? WHERE order_id=?`, "paid-audit9-"+created.Order.OrderID, created.Order.OrderID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := coord.UploadOrderChunk(created.Order.OrderID, created.UploadToken, 0, []byte("a")); err != nil {
+	chunkA := bytes.Repeat([]byte("a"), minMarketChunkBytes)
+	chunkB := bytes.Repeat([]byte("b"), minMarketChunkBytes)
+	if _, err := coord.UploadOrderChunk(created.Order.OrderID, created.UploadToken, 0, chunkA); err != nil {
 		t.Fatal(err)
 	}
 	ep1, _ := coord.CurrentEpoch()
@@ -45,7 +48,7 @@ func TestAudit9_EpochPrepaidCountedPerEpoch(t *testing.T) {
 		VALUES(?, ?, ?, ?, ?, 0, 0)`, ep1.EpochID+1, now, now+3000, now+3600, defaultSealTarget()); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := coord.UploadOrderChunk(created.Order.OrderID, created.UploadToken, 1, []byte("b")); err != nil {
+	if _, err := coord.UploadOrderChunk(created.Order.OrderID, created.UploadToken, 1, chunkB); err != nil {
 		t.Fatal(err)
 	}
 	u1, _ := coord.epochPrepaidUnits(ep1.EpochID)
@@ -86,7 +89,7 @@ func TestPilotOrderDoesNotInflateEpochSealBudget(t *testing.T) {
 	if created.Order.PaymentID == "" || len(created.Order.PaymentID) < 6 || created.Order.PaymentID[:6] != "pilot-" {
 		t.Fatalf("expected pilot- payment_id, got %q", created.Order.PaymentID)
 	}
-	if _, err := coord.UploadOrderChunk(created.Order.OrderID, created.UploadToken, 0, []byte("data")); err != nil {
+	if _, err := coord.UploadOrderChunk(created.Order.OrderID, created.UploadToken, 0, bytes.Repeat([]byte("d"), minMarketChunkBytes)); err != nil {
 		t.Fatal(err)
 	}
 	ep, err := coord.CurrentEpoch()

@@ -119,7 +119,11 @@ func TestIntegrityMultiChunkOrderTotals(t *testing.T) {
 	oid := created.Order.OrderID
 	tok := created.UploadToken
 
-	for i, payload := range [][]byte{[]byte("chunk-zero-data"), []byte("chunk-one-is-longer")} {
+	payloads := [][]byte{
+		bytes.Repeat([]byte("a"), minMarketChunkBytes),
+		bytes.Repeat([]byte("b"), minMarketChunkBytes),
+	}
+	for i, payload := range payloads {
 		if _, err := coord.UploadOrderChunk(oid, tok, i, payload); err != nil {
 			t.Fatalf("upload %d: %v", i, err)
 		}
@@ -130,7 +134,7 @@ func TestIntegrityMultiChunkOrderTotals(t *testing.T) {
 		t.Fatalf("chunk_count=%d", o.ChunkCount)
 	}
 	var expect int64
-	for _, p := range [][]byte{[]byte("chunk-zero-data"), []byte("chunk-one-is-longer")} {
+	for _, p := range payloads {
 		expect += int64(len(p))
 	}
 	if o.BytesUploaded != expect {
@@ -198,7 +202,7 @@ func TestIntegrityCapacityDecreasesAfterUpload(t *testing.T) {
 
 func TestIntegrityRepairRestoresHealth(t *testing.T) {
 	coord, dir := setupIntegrityCoord(t, "w-a", "w-b", "w-c")
-	created, err := coord.CreateStorageOrder("repair", "u1", 1<<20, 30, "", "", "", true)
+	created, err := coord.CreateStorageOrder("repair", "u1", 4096, 30, "", "", "", true)
 	if err != nil {
 		t.Fatal(err)
 	}

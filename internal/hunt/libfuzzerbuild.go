@@ -48,12 +48,8 @@ func LibFuzzerImportCorpusDir(repoRoot, targetID string) string {
 // isSubprocessStubLibFuzzerBin reports whether bin was built from stdin_subprocess_libfuzzer.c
 // (generic stub). Those are not in-process target fuzzers — "hits" are harness noise.
 func isSubprocessStubLibFuzzerBin(binPath string) bool {
-	// Lstat+regular: never follow a harness-planted symlink over the cache bin.
-	st, err := os.Lstat(binPath)
-	if err != nil || !st.Mode().IsRegular() || st.Size() <= 0 {
-		return false
-	}
-	raw, err := os.ReadFile(binPath)
+	// O_NOFOLLOW: never follow a harness-planted symlink over the cache bin.
+	raw, err := ReadRegularCorpusFile(binPath, 64<<20)
 	if err != nil || len(raw) == 0 {
 		return false
 	}

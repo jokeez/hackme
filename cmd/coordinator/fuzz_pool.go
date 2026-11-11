@@ -1647,25 +1647,10 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			return
 		}
 		// Commit hybrid nonce + payout bind only after accepted work.
+		// adoptFuzzPayoutLock matches notePayoutLock: prefetch unpaid, refuse
+		// fleet-decoy plants, and pin the durable settle key on first adopt.
 		if payoutAddr != "" {
-			wm.mu.Lock()
-			if wm.worker == nil {
-				wm.worker = make(map[string]workerPayoutStat)
-			}
-			st := wm.worker[req.WorkerID]
-			if locked := strings.TrimSpace(st.PayoutAddress); locked == "" {
-				// Match PoH notePayoutLock/submit: unpaid-blank snipe + fleet-fold
-				// bare-base decoy must not plant a settle-key churn row.
-				if wm.canAdoptBlankPayoutLocked(req.WorkerID, st) {
-					st.PayoutAddress = payoutAddr
-				}
-			}
-			st.SignedSubmits++
-			ts := time.Now().Unix()
-			st.LastSeenUnix = ts
-			st.LastFuzzSeenUnix = ts
-			wm.worker[req.WorkerID] = st
-			wm.mu.Unlock()
+			wm.adoptFuzzPayoutLock(req.WorkerID, payoutAddr)
 			wm.commitFuzzHybridNonce(payoutAddr, req.SubmitNonce)
 		} else {
 			wm.touchWorkerSeen(req.WorkerID)

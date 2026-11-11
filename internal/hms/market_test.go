@@ -41,7 +41,7 @@ func TestMarketCreateUploadList(t *testing.T) {
 		t.Fatal("missing token")
 	}
 
-	ct := []byte("encrypted-chunk-payload-12345")
+	ct := bytes.Repeat([]byte("e"), minMarketChunkBytes)
 	out, err := coord.UploadOrderChunk(created.Order.OrderID, created.UploadToken, 0, ct)
 	if err != nil {
 		t.Fatal(err)

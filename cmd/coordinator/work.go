@@ -2178,6 +2178,44 @@ func (m *workManager) notePayoutLock(workerID, addr string) {
 	}
 }
 
+// adoptFuzzPayoutLock is the fuzz-submit twin of notePayoutLock / PoH submit.
+// Prefetch durable accrual before the adopt decision so a pruned unpaid-blank
+// row cannot be sniped, refuse fleet-decoy bare-base plants, and pin
+// worker_payout_lock when the first adopt wins (restart-stable settle key).
+func (m *workManager) adoptFuzzPayoutLock(workerID, payoutAddr string) {
+	if m == nil {
+		return
+	}
+	workerID = strings.TrimSpace(workerID)
+	payoutAddr = strings.TrimSpace(payoutAddr)
+	if workerID == "" || payoutAddr == "" {
+		return
+	}
+	m.prefetchWorkerAccrual(workerID)
+	m.mu.Lock()
+	if m.worker == nil {
+		m.worker = map[string]workerPayoutStat{}
+	}
+	st, existed := m.worker[workerID]
+	adopted := ""
+	if strings.TrimSpace(st.PayoutAddress) == "" && m.canAdoptBlankPayoutLocked(workerID, st) {
+		st.PayoutAddress = payoutAddr
+		adopted = payoutAddr
+	} else if !existed {
+		m.mu.Unlock()
+		return
+	}
+	st.SignedSubmits++
+	ts := time.Now().Unix()
+	st.LastSeenUnix = ts
+	st.LastFuzzSeenUnix = ts
+	m.worker[workerID] = st
+	m.mu.Unlock()
+	if adopted != "" {
+		m.persistPayoutLock(workerID, adopted)
+	}
+}
+
 func canonicalSubmitBytes(req submitWorkRequest) []byte {
 	rh, ph := worksubmit.NormalizeHashes(req.ResultHash, req.ProofHash)
 	p := worksubmit.SignPayload{

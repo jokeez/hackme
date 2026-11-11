@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -489,20 +491,34 @@ func copyCorpusFiles(src, dst string, max int) int {
 	return n
 }
 
-// placeCorpusFile prefers a same-FS hardlink (no Read+Write) then falls back to copy.
-// Mode is always 0600 so linked files match WriteFile semantics for AFL inputs.
-// Refuses symlinks / non-regular sources (Hunt harness RW corpus bind).
+// placeCorpusFile hardlinks a regular corpus input when the inode is unchanged,
+// otherwise copies bytes from the O_NOFOLLOW fd. link(2) can attach a symlink
+// swapped in after the open; that dest is discarded and the original fd is copied.
 func placeCorpusFile(srcPath, dest string) bool {
-	info, ok := isRegularCorpusFile(srcPath)
-	if !ok || info.Size() <= 0 || info.Size() > 1<<20 {
+	f, err := os.OpenFile(srcPath, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil || !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > 1<<20 {
 		return false
 	}
 	if err := os.Link(srcPath, dest); err == nil {
-		_ = os.Chmod(dest, 0o600)
-		return true
+		dstInfo, lerr := os.Lstat(dest)
+		// SameFile checks device+inode. A swapped symlink (or a different
+		// regular file) does not match the fd we opened with O_NOFOLLOW.
+		if lerr == nil && dstInfo.Mode().IsRegular() && os.SameFile(info, dstInfo) {
+			_ = os.Chmod(dest, 0o600)
+			return true
+		}
+		_ = os.Remove(dest)
 	}
-	b, err := os.ReadFile(srcPath)
-	if err != nil || len(b) == 0 {
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return false
+	}
+	b, err := io.ReadAll(io.LimitReader(f, info.Size()))
+	if err != nil || int64(len(b)) != info.Size() || len(b) == 0 {
 		return false
 	}
 	return os.WriteFile(dest, b, 0o600) == nil

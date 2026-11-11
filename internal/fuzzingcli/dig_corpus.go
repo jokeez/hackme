@@ -3,9 +3,11 @@ package fuzzingcli
 import (
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"hackme/internal/fuzzengine"
 	"hackme/internal/pathsafe"
@@ -77,16 +79,12 @@ func LoadDigSeedFiles(dir string, maxSeeds int) ([][]byte, error) {
 		if !ok || !pathsafe.AbsRE.MatchString(safePath) {
 			continue
 		}
-		// Lstat + regular only — never follow planted symlinks into host secrets
-		// (incomplete-fix twin of cdb092e/a5923b02 Hunt corpus hardening).
-		st, err := os.Lstat(safePath)
-		if err != nil || !st.Mode().IsRegular() || st.Size() <= 0 || st.Size() > digSeedMaxBytes {
-			continue
-		}
 		if !pathsafe.AbsRE.MatchString(safePath) {
 			continue
 		}
-		b, err := os.ReadFile(safePath)
+		// O_NOFOLLOW: Lstat-then-ReadFile still follows a symlink swapped in
+		// between the check and the read (Dig seed cache / host secret exfil).
+		b, err := readRegularNoFollow(safePath, digSeedMaxBytes)
 		if err != nil || len(b) == 0 {
 			continue
 		}
@@ -216,4 +214,21 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// readRegularNoFollow reads path only when the final component is a regular file.
+func readRegularNoFollow(path string, maxSize int64) ([]byte, error) {
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !st.Mode().IsRegular() || st.Size() <= 0 || (maxSize > 0 && st.Size() > maxSize) {
+		return nil, fmt.Errorf("dig corpus: refuse non-regular %s", path)
+	}
+	return io.ReadAll(io.LimitReader(f, maxSize))
 }

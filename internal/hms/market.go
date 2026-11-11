@@ -20,8 +20,13 @@ const (
 	OrderStatusStored    = "stored"
 	OrderStatusFailed    = "failed"
 	OrderStatusCancelled = "cancelled"
+	OrderStatusExpired   = "expired"
 
-	maxMarketChunkBytes = 8 << 20 // 8 MiB per upload
+	maxMarketChunkBytes = 8 << 20  // 8 MiB per upload
+	minMarketChunkBytes = 64 << 10 // 64 KiB — blocks 1-byte × 1e6 chunk-index DoS
+	// Hard ceiling carried from the old chunk_index check. Paid plans cannot
+	// exceed it even when size_plan/min would allow more rows.
+	maxMarketChunkCount = 1_000_000
 )
 
 // StorageOrder is a client backup job on the HMS lane.
@@ -184,7 +189,8 @@ func (c *Coordinator) GetStorageOrder(orderID string) (*StorageOrder, error) {
 }
 
 // CancelStorageOrder stops an active market order (draft/uploading/stored/degraded).
-// Idempotent on already-cancelled/failed. Clears the upload token so further uploads fail closed.
+// Idempotent on already-cancelled/expired/failed. Clears the upload token and
+// purges chunk files plus lane rows so quota is reclaimed (not token-only).
 func (c *Coordinator) CancelStorageOrder(orderID string) (*StorageOrder, error) {
 	orderID = strings.TrimSpace(orderID)
 	if orderID == "" {
@@ -197,19 +203,28 @@ func (c *Coordinator) CancelStorageOrder(orderID string) (*StorageOrder, error) 
 		return nil, err
 	}
 	switch strings.TrimSpace(strings.ToLower(o.Status)) {
-	case OrderStatusCancelled, OrderStatusFailed:
+	case OrderStatusCancelled, OrderStatusExpired:
+		if err := c.purgeOrderStorage(orderID); err != nil {
+			return nil, err
+		}
+		return c.GetStorageOrder(orderID)
+	case OrderStatusFailed:
 		return o, nil
 	}
 	now := time.Now().Unix()
-	res, err := c.db.Exec(`UPDATE hms_orders SET status=?, upload_token='', health_detail=?, updated_unix=?
-		WHERE order_id=? AND status NOT IN (?,?)`,
-		OrderStatusCancelled, "cancelled by customer", now, orderID, OrderStatusCancelled, OrderStatusFailed)
+	res, err := c.db.Exec(`UPDATE hms_orders SET status=?, upload_token='', health_status=?, health_detail=?, updated_unix=?
+		WHERE order_id=? AND status NOT IN (?,?,?)`,
+		OrderStatusCancelled, HealthFailed, "cancelled by customer", now, orderID,
+		OrderStatusCancelled, OrderStatusExpired, OrderStatusFailed)
 	if err != nil {
 		return nil, err
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
-		// Lost a race to another cancel/fail — return current row.
+		// Lost a race to another cancel/fail/expire — return current row.
 		return c.GetStorageOrder(orderID)
+	}
+	if err := c.purgeOrderStorage(orderID); err != nil {
+		return nil, err
 	}
 	_ = c.refreshOrderHealth()
 	return c.GetStorageOrder(orderID)
@@ -234,8 +249,8 @@ func (c *Coordinator) CompleteStorageOrder(orderID, uploadToken string) (*Storag
 	}
 	now := time.Now().Unix()
 	res, err := c.db.Exec(`UPDATE hms_orders SET status=?, updated_unix=?
-		WHERE order_id=? AND status NOT IN (?,?) AND upload_token<>''`,
-		OrderStatusStored, now, orderID, OrderStatusCancelled, OrderStatusFailed)
+		WHERE order_id=? AND status NOT IN (?,?,?) AND upload_token<>''`,
+		OrderStatusStored, now, orderID, OrderStatusCancelled, OrderStatusExpired, OrderStatusFailed)
 	if err != nil {
 		return nil, err
 	}
@@ -274,10 +289,11 @@ func (c *Coordinator) PickStorageWorker() (string, error) {
 		SELECT w.worker_id, w.quota_gb, COALESCE((SELECT COUNT(*) FROM hms_chunks c WHERE c.worker_id=w.worker_id),0)
 		FROM hms_workers w
 		WHERE w.role='storage' AND w.quota_gb > 0 AND w.last_seen_unix >= ?
+		AND (w.quota_gb * 1073741824 - COALESCE((SELECT SUM(size) FROM hms_chunks c2 WHERE c2.worker_id=w.worker_id),0)) > 0
 		ORDER BY (w.quota_gb * 1073741824 - COALESCE((SELECT SUM(size) FROM hms_chunks c2 WHERE c2.worker_id=w.worker_id),0)) DESC
 		LIMIT 1`, cutoff).Scan(&workerID, &quota, &chunks)
 	if err == sql.ErrNoRows {
-		return "", errors.New("no storage workers online — start workerstorage first")
+		return "", errors.New("no storage workers with free quota — start workerstorage first")
 	}
 	if err != nil {
 		return "", err
@@ -297,7 +313,7 @@ func (c *Coordinator) UploadOrderChunk(orderID, uploadToken string, chunkIndex i
 	if err := c.verifyUploadToken(orderID, uploadToken); err != nil {
 		return nil, err
 	}
-	if chunkIndex < 0 || chunkIndex > 1_000_000 {
+	if chunkIndex < 0 || chunkIndex >= maxMarketChunkCount {
 		return nil, errors.New("invalid chunk_index")
 	}
 	if len(ciphertext) == 0 {
@@ -305,6 +321,18 @@ func (c *Coordinator) UploadOrderChunk(orderID, uploadToken string, chunkIndex i
 	}
 	if len(ciphertext) > maxMarketChunkBytes {
 		return nil, fmt.Errorf("chunk exceeds %d bytes", maxMarketChunkBytes)
+	}
+	var sizePlan, uploaded int64
+	if err := c.db.QueryRow(`SELECT size_plan_bytes, bytes_uploaded FROM hms_orders WHERE order_id=?`, orderID).Scan(&sizePlan, &uploaded); err != nil {
+		return nil, err
+	}
+	var prevSize int64
+	_ = c.db.QueryRow(`SELECT COALESCE(size,0) FROM hms_order_chunks WHERE order_id=? AND chunk_index=?`, orderID, chunkIndex).Scan(&prevSize)
+	if chunkIndex >= maxMarketChunksForPlan(sizePlan) {
+		return nil, errors.New("invalid chunk_index")
+	}
+	if err := checkMarketChunkSize(sizePlan, uploaded, prevSize, len(ciphertext)); err != nil {
+		return nil, err
 	}
 	now := time.Now().Unix()
 	// CAS claim: only draft|uploading may mutate files/chunks (same lock as complete).
@@ -323,12 +351,6 @@ func (c *Coordinator) UploadOrderChunk(orderID, uploadToken string, chunkIndex i
 		}
 		return nil, errors.New("order is " + curStatus)
 	}
-	var sizePlan, uploaded int64
-	if err := c.db.QueryRow(`SELECT size_plan_bytes, bytes_uploaded FROM hms_orders WHERE order_id=?`, orderID).Scan(&sizePlan, &uploaded); err != nil {
-		return nil, err
-	}
-	var prevSize int64
-	_ = c.db.QueryRow(`SELECT COALESCE(size,0) FROM hms_order_chunks WHERE order_id=? AND chunk_index=?`, orderID, chunkIndex).Scan(&prevSize)
 	newUploaded := uploaded - prevSize + int64(len(ciphertext))
 	if sizePlan > 0 && newUploaded > sizePlan {
 		return nil, errors.New("upload exceeds order size plan")
@@ -537,6 +559,158 @@ func (c *Coordinator) MarketStats() map[string]any {
 		"market_policy_hash": pol.PolicyHash,
 		"pricing":            pol,
 		"capacity":           capSnap,
+	}
+}
+
+// maxMarketChunksForPlan is ceil(size_plan / min chunk), at least 1, capped
+// so a client cannot open 1e6 tiny chunk rows against a small plan.
+func maxMarketChunksForPlan(sizePlan int64) int {
+	if sizePlan <= 0 {
+		return 1
+	}
+	n := (sizePlan + int64(minMarketChunkBytes) - 1) / int64(minMarketChunkBytes)
+	if n < 1 {
+		n = 1
+	}
+	if n > maxMarketChunkCount {
+		n = maxMarketChunkCount
+	}
+	return int(n)
+}
+
+// checkMarketChunkSize rejects sub-minimum pieces while the order still has
+// room for a full minimum chunk. The tail is allowed when the remaining plan
+// is itself smaller than the minimum (small orders and the final partial).
+func checkMarketChunkSize(sizePlan, uploaded, prevSize int64, n int) error {
+	if n >= minMarketChunkBytes {
+		return nil
+	}
+	committed := uploaded - prevSize
+	if committed < 0 {
+		committed = 0
+	}
+	remaining := sizePlan - committed
+	if sizePlan <= 0 || remaining >= int64(minMarketChunkBytes) {
+		return fmt.Errorf("chunk below minimum %d bytes", minMarketChunkBytes)
+	}
+	return nil
+}
+
+// purgeOrderStorage deletes chunk bytes, replica rows, and lane chunk metadata
+// so cancelled/expired orders stop occupying worker quota.
+func (c *Coordinator) purgeOrderStorage(orderID string) error {
+	orderID = strings.TrimSpace(orderID)
+	if orderID == "" {
+		return errors.New("order_id required")
+	}
+	type loc struct {
+		workerID string
+		chunkID  string
+	}
+	seen := map[loc]struct{}{}
+	var locs []loc
+	add := func(workerID, chunkID string) {
+		workerID = strings.TrimSpace(workerID)
+		chunkID = strings.TrimSpace(chunkID)
+		if workerID == "" || chunkID == "" {
+			return
+		}
+		key := loc{workerID, chunkID}
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		locs = append(locs, key)
+	}
+	rows, err := c.db.Query(`SELECT worker_id, chunk_id FROM hms_order_chunks WHERE order_id=?`, orderID)
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var workerID, chunkID string
+		if err := rows.Scan(&workerID, &chunkID); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		add(workerID, chunkID)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return err
+	}
+	_ = rows.Close()
+	repRows, err := c.db.Query(`SELECT r.worker_id, c.chunk_id FROM hms_order_chunk_replicas r
+		JOIN hms_order_chunks c ON c.order_id=r.order_id AND c.chunk_index=r.chunk_index
+		WHERE r.order_id=?`, orderID)
+	if err != nil {
+		return err
+	}
+	for repRows.Next() {
+		var workerID, chunkID string
+		if err := repRows.Scan(&workerID, &chunkID); err != nil {
+			_ = repRows.Close()
+			return err
+		}
+		add(workerID, chunkID)
+	}
+	if err := repRows.Err(); err != nil {
+		_ = repRows.Close()
+		return err
+	}
+	_ = repRows.Close()
+
+	tx, err := c.db.Begin()
+	if err != nil {
+		return err
+	}
+	rollback := true
+	defer func() {
+		if rollback {
+			_ = tx.Rollback()
+		}
+	}()
+	if _, err := tx.Exec(`DELETE FROM hms_challenges WHERE chunk_id IN (SELECT chunk_id FROM hms_order_chunks WHERE order_id=?)`, orderID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM hms_chunks WHERE chunk_id IN (SELECT chunk_id FROM hms_order_chunks WHERE order_id=?)`, orderID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM hms_replica_health WHERE order_id=?`, orderID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM hms_repair_log WHERE order_id=?`, orderID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM hms_order_chunk_replicas WHERE order_id=?`, orderID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM hms_order_chunks WHERE order_id=?`, orderID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`UPDATE hms_orders SET bytes_uploaded=0, chunk_count=0, upload_token='' WHERE order_id=?`, orderID); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	rollback = false
+	for _, l := range locs {
+		removeMarketChunkFile(l.workerID, l.chunkID)
+	}
+	return nil
+}
+
+func removeMarketChunkFile(workerID, chunkID string) {
+	for _, root := range []string{marketStorageRoot(), marketDataRoot()} {
+		p := filepathJoinMarket(root, workerID, chunkID+".dat")
+		if p == "" {
+			continue
+		}
+		safe, ok := pathsafe.Allow(p)
+		if !ok || !pathsafe.AbsRE.MatchString(safe) {
+			continue
+		}
+		_ = os.Remove(safe)
 	}
 }
 

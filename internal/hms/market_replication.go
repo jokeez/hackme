@@ -34,6 +34,7 @@ func (c *Coordinator) PickStorageWorkers(n int) ([]string, error) {
 	rows, err := c.db.Query(`
 		SELECT w.worker_id FROM hms_workers w
 		WHERE w.role='storage' AND w.quota_gb > 0 AND w.last_seen_unix >= ?
+		AND (w.quota_gb * 1073741824 - COALESCE((SELECT SUM(size) FROM hms_chunks c2 WHERE c2.worker_id=w.worker_id),0)) > 0
 		ORDER BY (w.quota_gb * 1073741824 - COALESCE((SELECT SUM(size) FROM hms_chunks c2 WHERE c2.worker_id=w.worker_id),0)) DESC
 		LIMIT ?`, cutoff, n)
 	if err != nil {
@@ -52,7 +53,7 @@ func (c *Coordinator) PickStorageWorkers(n int) ([]string, error) {
 		return nil, err
 	}
 	if len(out) == 0 {
-		return nil, errors.New("no online storage workers — register workerstorage and keep heartbeat")
+		return nil, errors.New("no online storage workers with free quota — register workerstorage and keep heartbeat")
 	}
 	return out, nil
 }
