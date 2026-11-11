@@ -703,9 +703,92 @@ func TestOrdersPublishRejectsEmptyOwnerRef(t *testing.T) {
 	}
 }
 
+func TestOrdersPublishHubEscrowGate(t *testing.T) {
+	t.Setenv("HACKME_CHAIN_MINTING_HUB", "1")
+	t.Setenv("HACKME_ORDERS_PREPAID_HUB_SECRET", "test-hub-prepaid-secret")
+	t.Setenv("HACKME_ORDERS_PREPAID_ALLOW_ALGEBRAIC_MINT", "")
+	t.Setenv("HACKME_COORDINATOR_ORDERS_URL", "")
+
+	escrowOK := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, "/escrow") {
+			http.NotFound(w, r)
+			return
+		}
+		camp := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api/fuzz/campaigns/"), "/escrow")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok": true,
+			"escrow": chain.FuzzEscrowRow{
+				CampaignID: camp, BudgetHMC: 2.0, BudgetRuns: 16, Status: "open",
+			},
+		})
+	}))
+	t.Cleanup(escrowOK.Close)
+
+	globalPublishRate = &publishRateLimiter{hour: map[string][]time.Time{}, day: map[string][]time.Time{}}
+	db, err := store.Open(filepath.Join(t.TempDir(), "escrow-gate.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	wm := &workManager{
+		ordersProbeURL:      escrowOK.URL,
+		hybridSignerEnabled: true, claimRequirePubKey: true, claimPerMin: 60, submitPerMin: 60,
+		abuse: make(map[string]workerAbuseState), ipAbuse: make(map[string]workerAbuseState),
+		worker: map[string]workerPayoutStat{}, dropReasonCount: make(map[string]uint64),
+	}
+	mux := http.NewServeMux()
+	addFuzzPoolRoutes(mux, "admin-tok", "worker-tok", "publish-tok", false, wm, &poolfuzz.Service{DB: db})
+
+	// Mint without matching escrow coverage → 409.
+	mintBody, _ := json.Marshal(map[string]any{
+		"campaign_id": "camp-tiny", "owner_ref": "customer:hub",
+		"budget_hmc": 99.0, "budget_runs": 16,
+	})
+	mreq := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/prepaid-ticket", bytes.NewReader(mintBody))
+	mreq.Header.Set("Content-Type", "application/json")
+	mreq.Header.Set("X-Hackme-Admin-Token", "admin-tok")
+	mrec := httptest.NewRecorder()
+	mux.ServeHTTP(mrec, mreq)
+	if mrec.Code != http.StatusConflict {
+		t.Fatalf("mint over budget want 409, got %d %s", mrec.Code, mrec.Body.String())
+	}
+
+	// Mint covered by live escrow → 200.
+	mintBody2, _ := json.Marshal(map[string]any{
+		"campaign_id": "camp-ok", "owner_ref": "customer:hub",
+		"budget_hmc": 2.0, "budget_runs": 16,
+	})
+	mreq2 := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/prepaid-ticket", bytes.NewReader(mintBody2))
+	mreq2.Header.Set("Content-Type", "application/json")
+	mreq2.Header.Set("X-Hackme-Admin-Token", "admin-tok")
+	mrec2 := httptest.NewRecorder()
+	mux.ServeHTTP(mrec2, mreq2)
+	if mrec2.Code != http.StatusOK {
+		t.Fatalf("mint with escrow: %d %s", mrec2.Code, mrec2.Body.String())
+	}
+	var mintResp map[string]any
+	_ = json.Unmarshal(mrec2.Body.Bytes(), &mintResp)
+	ticket, _ := mintResp["prepaid_attestation"].(string)
+	fp, _ := mintResp["escrow_fingerprint"].(string)
+	if ticket == "" || fp == "" {
+		t.Fatalf("mint response missing ticket/fp: %#v", mintResp)
+	}
+
+	rec := publishReq(t, mux, "publish-tok", map[string]any{
+		"id": "camp-ok", "budget_runs": 16, "owner_ref": "customer:hub", "budget_hmc": 2.0,
+		"prepaid_attestation": ticket, "escrow_fingerprint": fp,
+		"config": map[string]any{"dig_package": "scan", "guard_pack": "secrets"},
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("publish with live escrow ticket: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestOrdersPublishMintingHubRefusesSelfMAC(t *testing.T) {
 	t.Setenv("HACKME_CHAIN_MINTING_HUB", "1")
 	t.Setenv("HACKME_ORDERS_PREPAID_HUB_SECRET", "test-hub-prepaid-secret")
+	// Unit mux has no linked hub escrow RPC — use documented algebraic break-glass.
+	t.Setenv("HACKME_ORDERS_PREPAID_ALLOW_ALGEBRAIC_MINT", "1")
 	mux := ordersPublishMux(t)
 
 	// Publish-token self-MAC must be refused on minting hub (even with matching escrow FP).

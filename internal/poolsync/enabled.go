@@ -26,12 +26,20 @@ func RequireHubPrepaidTicket() bool {
 	return OrdersPrepaidHubSecret() != ""
 }
 
-// PrepaidLocalSignAllowed is false when operators keep the signing key hub-only
-// (HACKME_ORDERS_PREPAID_LOCAL_SIGN=0). Orders then must present an admin-minted
-// hubv1 ticket; the fleet publish token alone cannot mint.
+// PrepaidLocalSignAllowed is false when operators keep the signing key hub-only.
+// Explicit HACKME_ORDERS_PREPAID_LOCAL_SIGN=0/1 wins. When unset, minting-hub /
+// REQUIRE_HUB modes default to hub-only (PUB-01): fleet holding publish token
+// cannot forge hubv1 tickets unless LOCAL_SIGN=1 is set intentionally.
 func PrepaidLocalSignAllowed() bool {
 	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_ORDERS_PREPAID_LOCAL_SIGN")))
 	if v == "0" || v == "false" || v == "no" || v == "off" {
+		return false
+	}
+	if v == "1" || v == "true" || v == "yes" || v == "on" {
+		return true
+	}
+	// Safe default on D1 / forced hub prepaid: no Orders-side hubv1 mint.
+	if envTruthy("HACKME_ORDERS_REQUIRE_HUB_PREPAID_TICKET") || envTruthy("HACKME_CHAIN_MINTING_HUB") {
 		return false
 	}
 	return true

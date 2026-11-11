@@ -123,13 +123,22 @@ if not "!HAS_ORDERS_PUBLISH!"=="1" (
   )
 )
 
-rem Prepaid hub signing secret — DISTINCT from pool.orders.token (fleet publish).
+rem Prefer hub-only prepaid (PUB-01): LOCAL_SIGN=0 unless ops opts into local mint.
+findstr /B /I /C:"HACKME_ORDERS_PREPAID_LOCAL_SIGN=" "%ENV_FILE%" >nul 2>&1 || (
+  echo HACKME_ORDERS_PREPAID_LOCAL_SIGN=0>> "%ENV_FILE%"
+  echo Set HACKME_ORDERS_PREPAID_LOCAL_SIGN=0 ^(hub-only prepaid; admin mint^)
+)
+set "HACKME_ORDERS_PREPAID_LOCAL_SIGN=0"
+for /f "usebackq tokens=1,* delims==" %%A in ("%ENV_FILE%") do (
+  if /I "%%~A"=="HACKME_ORDERS_PREPAID_LOCAL_SIGN" set "HACKME_ORDERS_PREPAID_LOCAL_SIGN=%%~B"
+)
+rem Prepaid hub signing secret — only load when LOCAL_SIGN=1 (fleet must not forge hubv1).
 set "HAS_PREPAID_HUB="
 for /f "usebackq tokens=1,* delims==" %%A in ("%ENV_FILE%") do (
   if /I "%%~A"=="HACKME_ORDERS_PREPAID_HUB_SECRET" if not "%%~B"=="" set "HAS_PREPAID_HUB=1"
   if /I "%%~A"=="HACKME_POOL_ORDERS_PREPAID_HUB_SECRET" if not "%%~B"=="" set "HAS_PREPAID_HUB=1"
 )
-if not "!HAS_PREPAID_HUB!"=="1" (
+if /I "!HACKME_ORDERS_PREPAID_LOCAL_SIGN!"=="1" if not "!HAS_PREPAID_HUB!"=="1" (
   set "ORD_PREPAID="
   if exist "%APP_DIR%\pool.orders.prepaid_hub.secret" (
     for /f "usebackq delims=" %%T in ("%APP_DIR%\pool.orders.prepaid_hub.secret") do set "ORD_PREPAID=%%T"
@@ -143,7 +152,7 @@ if not "!HAS_PREPAID_HUB!"=="1" (
     ) else (
       echo HACKME_ORDERS_PREPAID_HUB_SECRET=!ORD_PREPAID!>> "%ENV_FILE%"
       set "HACKME_ORDERS_PREPAID_HUB_SECRET=!ORD_PREPAID!"
-      echo Set prepaid hub secret from pool.orders.prepaid_hub.secret
+      echo Set prepaid hub secret from pool.orders.prepaid_hub.secret ^(LOCAL_SIGN=1^)
     )
   )
 )

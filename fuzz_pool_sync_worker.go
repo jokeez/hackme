@@ -231,7 +231,12 @@ func (a *app) runPoolSyncJob(job poolSyncJob) {
 func (a *app) persistOrdersOwnerSecret(ctx context.Context, campaignID, secret string) {
 	campaignID = strings.TrimSpace(campaignID)
 	secret = strings.TrimSpace(secret)
-	if a == nil || a.db == nil || campaignID == "" || secret == "" {
+	if a == nil || campaignID == "" || secret == "" {
+		return
+	}
+	// Prefer 0600 file outside config_json (PUB-08); keep DB wipe of any prior plaintext.
+	_ = poolsync.PersistOrdersOwnerSecret(campaignID, secret)
+	if a.db == nil {
 		return
 	}
 	var raw string
@@ -240,9 +245,12 @@ func (a *app) persistOrdersOwnerSecret(ctx context.Context, campaignID, secret s
 	}
 	cfg := parseMapJSON(raw)
 	if cfg == nil {
-		cfg = map[string]any{}
+		return
 	}
-	cfg["orders_owner_secret"] = secret
+	if _, had := cfg["orders_owner_secret"]; !had {
+		return
+	}
+	delete(cfg, "orders_owner_secret")
 	_, _ = a.db.ExecContext(ctx, `UPDATE fuzz_campaigns SET config_json=? WHERE id=?`, marshalMapJSON(cfg), campaignID)
 }
 

@@ -306,16 +306,18 @@ func (a *app) settleApplyReceipt(ctx context.Context, it poolsync.SettleOutboxIt
 		rc.UnitsHash = poolsync.UnitsHashTerminal(eventID, it.CampaignID, outcome)
 	}
 	owner := ""
-	secret := ""
+	secret := poolsync.LoadOrdersOwnerSecret(it.CampaignID)
 	if a != nil && a.db != nil {
 		_ = a.db.QueryRowContext(ctx,
 			`SELECT COALESCE(owner_ref,'') FROM fuzz_campaigns WHERE id=?`, it.CampaignID).Scan(&owner)
-		var cfgRaw string
-		_ = a.db.QueryRowContext(ctx,
-			`SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, it.CampaignID).Scan(&cfgRaw)
-		cfg := parseMapJSON(cfgRaw)
-		if v, ok := cfg["orders_owner_secret"].(string); ok {
-			secret = strings.TrimSpace(v)
+		if secret == "" {
+			var cfgRaw string
+			_ = a.db.QueryRowContext(ctx,
+				`SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, it.CampaignID).Scan(&cfgRaw)
+			cfg := parseMapJSON(cfgRaw)
+			if v, ok := cfg["orders_owner_secret"].(string); ok {
+				secret = strings.TrimSpace(v)
+			}
 		}
 	}
 	pubTok := poolsync.OrdersPublishToken()
@@ -347,7 +349,13 @@ func (a *app) startFuzzSettlePullTicker() {
 		return strings.TrimSpace(owner)
 	})
 	poolsync.SetSettleOwnerSecretLookup(func(campaignID string) string {
-		if a == nil || a.db == nil || strings.TrimSpace(campaignID) == "" {
+		if strings.TrimSpace(campaignID) == "" {
+			return ""
+		}
+		if sec := poolsync.LoadOrdersOwnerSecret(campaignID); sec != "" {
+			return sec
+		}
+		if a == nil || a.db == nil {
 			return ""
 		}
 		var cfgRaw string

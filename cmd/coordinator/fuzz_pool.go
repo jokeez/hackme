@@ -754,6 +754,28 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		}
 		// Always bind ticket FP to the claimed open escrow (ignore client-supplied opaque FP).
 		fp := poolsync.EscrowPrepaidFingerprintParts(camp, req.BudgetHMC, req.BudgetRuns, "open")
+		algebraic := false
+		if poolsync.RequireHubPrepaidTicket() {
+			if poolsync.PrepaidAlgebraicMintAllowed() {
+				algebraic = true
+			} else {
+				hubBase := poolsync.HubEscrowProbeURL("")
+				if wm != nil {
+					hubBase = poolsync.HubEscrowProbeURL(wm.ordersProbeURL)
+				}
+				hubTok := adminToken
+				if wm != nil {
+					if t := wm.ordersAdminToken(); t != "" {
+						hubTok = t
+					}
+				}
+				if err := poolsync.VerifyHubPrepaidEscrowLive(r.Context(), hubBase, hubTok, camp, req.BudgetHMC, req.BudgetRuns, fp); err != nil {
+					http.Error(w, "hub escrow required before prepaid mint: "+err.Error()+
+						" (open escrow on hub ledger, or set HACKME_ORDERS_PREPAID_ALLOW_ALGEBRAIC_MINT=1 break-glass)", http.StatusConflict)
+					return
+				}
+			}
+		}
 		ttl := req.TTLSec
 		if ttl <= 0 {
 			ttl = poolsync.DefaultHubPrepaidTicketTTL
@@ -767,13 +789,20 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			http.Error(w, "ticket sign failed", http.StatusInternalServerError)
 			return
 		}
+		note := "hub-signed; bind on POST /api/fuzz/pool/campaigns with matching budget/owner/escrow_fingerprint"
+		if algebraic {
+			note = "hub-signed (algebraic break-glass — no live GetFuzzEscrow); " + note
+		} else if poolsync.RequireHubPrepaidTicket() {
+			note = "hub-signed after live hub escrow verify; " + note
+		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"ok":                  true,
 			"prepaid_attestation": ticket,
 			"escrow_fingerprint":  fp,
 			"exp_unix":            exp,
-			"note":                "hub-signed; bind on POST /api/fuzz/pool/campaigns with matching budget/owner/escrow_fingerprint",
+			"algebraic_mint":      algebraic,
+			"note":                note,
 		})
 	})
 
@@ -875,6 +904,23 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 					return
 				}
 				escrowFP = wantFP
+				// Crit-grade on-hub PoF: MAC alone is not enough — require live hub escrow
+				// (or documented algebraic break-glass) before accepting hubv1 tickets.
+				hubBase := poolsync.HubEscrowProbeURL("")
+				if wm != nil {
+					hubBase = poolsync.HubEscrowProbeURL(wm.ordersProbeURL)
+				}
+				hubTok := adminToken
+				if wm != nil {
+					if t := wm.ordersAdminToken(); t != "" {
+						hubTok = t
+					}
+				}
+				if err := poolsync.VerifyHubPrepaidEscrowLive(r.Context(), hubBase, hubTok, req.ID, verifiedBudgetHMC, req.BudgetRuns, escrowFP); err != nil {
+					http.Error(w, "hub escrow required for hub prepaid ticket: "+err.Error()+
+						" (open escrow on hub ledger, or set HACKME_ORDERS_PREPAID_ALLOW_ALGEBRAIC_MINT=1 break-glass)", http.StatusConflict)
+					return
+				}
 			}
 			if !poolsync.VerifyPublishPrepaidAttestation(publishToken, hubSec, req.OwnerRef, req.ID, verifiedBudgetHMC, req.BudgetRuns, escrowFP, attest, time.Now().Unix(), requireHub) {
 				if requireHub {

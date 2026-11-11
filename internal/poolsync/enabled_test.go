@@ -45,9 +45,11 @@ func TestPreferPoolSyncDirect(t *testing.T) {
 }
 
 func TestPrepaidLocalSignAllowed(t *testing.T) {
+	t.Setenv("HACKME_CHAIN_MINTING_HUB", "")
+	t.Setenv("HACKME_ORDERS_REQUIRE_HUB_PREPAID_TICKET", "")
 	t.Setenv("HACKME_ORDERS_PREPAID_LOCAL_SIGN", "")
 	if !PrepaidLocalSignAllowed() {
-		t.Fatal("default must allow local sign (ops-compatible)")
+		t.Fatal("lab default must allow local sign (ops-compatible)")
 	}
 	t.Setenv("HACKME_ORDERS_PREPAID_LOCAL_SIGN", "0")
 	if PrepaidLocalSignAllowed() {

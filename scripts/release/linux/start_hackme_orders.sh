@@ -177,26 +177,38 @@ repair_pool_coordinator_env() {
       echo "[hackme-orders] set scoped pool publish token from pool.orders.token (not admin/miner)"
     fi
   fi
-  # Distinct prepaid hub signing secret (≠ publish fleet token). Optional when hub
-  # mints tickets via admin and HACKME_ORDERS_PREPAID_LOCAL_SIGN=0.
-  if ! grep -q '^HACKME_ORDERS_PREPAID_HUB_SECRET=.\+' "$ENV_FILE" 2>/dev/null \
-    && ! grep -q '^HACKME_POOL_ORDERS_PREPAID_HUB_SECRET=.\+' "$ENV_FILE" 2>/dev/null; then
-    local prepaid
-    prepaid="$(read_orders_prepaid_hub_secret 2>/dev/null || true)"
-    if [[ -n "$prepaid" ]]; then
-      local pubchk
-      pubchk="$(grep -E '^HACKME_POOL_ORDERS_PUBLISH_TOKEN=' "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2- || true)"
-      if [[ -n "$pubchk" && "$prepaid" == "$pubchk" ]]; then
-        echo "[hackme-orders] REFUSING: prepaid hub secret must differ from pool.orders.token" >&2
-      else
-        echo "HACKME_ORDERS_PREPAID_HUB_SECRET=${prepaid}" >>"$ENV_FILE"
-        if [[ -f "${INSTALL_DIR}/pool.orders.prepaid_hub.secret" && ! -f "${CONFIG_DIR}/pool.orders.prepaid_hub.secret" ]]; then
-          cp "${INSTALL_DIR}/pool.orders.prepaid_hub.secret" "${CONFIG_DIR}/pool.orders.prepaid_hub.secret"
-          chmod 600 "${CONFIG_DIR}/pool.orders.prepaid_hub.secret" 2>/dev/null || true
+  # Prefer hub-only prepaid signing (PUB-01): default LOCAL_SIGN=0 so a leaked
+  # fleet publish token cannot mint hubv1 tickets. Only load prepaid hub secret
+  # when ops explicitly set LOCAL_SIGN=1 (or already configured the env).
+  if ! grep -q '^HACKME_ORDERS_PREPAID_LOCAL_SIGN=' "$ENV_FILE" 2>/dev/null; then
+    echo "HACKME_ORDERS_PREPAID_LOCAL_SIGN=0" >>"$ENV_FILE"
+    echo "[hackme-orders] set HACKME_ORDERS_PREPAID_LOCAL_SIGN=0 (hub-only prepaid; admin mint)"
+  fi
+  local local_sign
+  local_sign="$(grep -E '^HACKME_ORDERS_PREPAID_LOCAL_SIGN=' "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '\r' || true)"
+  local_sign="$(echo "$local_sign" | tr '[:upper:]' '[:lower:]')"
+  if [[ "$local_sign" == "1" || "$local_sign" == "true" || "$local_sign" == "yes" || "$local_sign" == "on" ]]; then
+    if ! grep -q '^HACKME_ORDERS_PREPAID_HUB_SECRET=.\+' "$ENV_FILE" 2>/dev/null \
+      && ! grep -q '^HACKME_POOL_ORDERS_PREPAID_HUB_SECRET=.\+' "$ENV_FILE" 2>/dev/null; then
+      local prepaid
+      prepaid="$(read_orders_prepaid_hub_secret 2>/dev/null || true)"
+      if [[ -n "$prepaid" ]]; then
+        local pubchk
+        pubchk="$(grep -E '^HACKME_POOL_ORDERS_PUBLISH_TOKEN=' "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2- || true)"
+        if [[ -n "$pubchk" && "$prepaid" == "$pubchk" ]]; then
+          echo "[hackme-orders] REFUSING: prepaid hub secret must differ from pool.orders.token" >&2
+        else
+          echo "HACKME_ORDERS_PREPAID_HUB_SECRET=${prepaid}" >>"$ENV_FILE"
+          if [[ -f "${INSTALL_DIR}/pool.orders.prepaid_hub.secret" && ! -f "${CONFIG_DIR}/pool.orders.prepaid_hub.secret" ]]; then
+            cp "${INSTALL_DIR}/pool.orders.prepaid_hub.secret" "${CONFIG_DIR}/pool.orders.prepaid_hub.secret"
+            chmod 600 "${CONFIG_DIR}/pool.orders.prepaid_hub.secret" 2>/dev/null || true
+          fi
+          echo "[hackme-orders] set HACKME_ORDERS_PREPAID_HUB_SECRET (LOCAL_SIGN=1)"
         fi
-        echo "[hackme-orders] set HACKME_ORDERS_PREPAID_HUB_SECRET from pool.orders.prepaid_hub.secret"
       fi
     fi
+  elif [[ -f "${INSTALL_DIR}/pool.orders.prepaid_hub.secret" || -f "${CONFIG_DIR}/pool.orders.prepaid_hub.secret" ]]; then
+    echo "[hackme-orders] NOTE: prepaid hub secret file present but LOCAL_SIGN=0 — not loading (hub-only mint)"
   fi
 }
 
