@@ -37,6 +37,45 @@ func TestIsSubprocessStubLibFuzzerBin(t *testing.T) {
 	}
 }
 
+// High: after harness unlinks+symlinks session.stderr, host must still read the open fd.
+func TestReadOpenSessionLogIgnoresPathSymlinkSwap(t *testing.T) {
+	if testing.Short() {
+		// still cheap — keep on
+	}
+	dir := t.TempDir()
+	stderrPath := filepath.Join(dir, "session.stderr")
+	f, err := os.Create(stderrPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if _, err := f.WriteString("legit-session-output\n"); err != nil {
+		t.Fatal(err)
+	}
+	secret := filepath.Join(t.TempDir(), "secret.env")
+	if err := os.WriteFile(secret, []byte("TOKEN=leak\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(stderrPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secret, stderrPath); err != nil {
+		t.Fatal(err)
+	}
+	got := readOpenSessionLog(f)
+	if got != "legit-session-output\n" {
+		t.Fatalf("fd read must keep original content, got %q", got)
+	}
+	// Path re-open would follow the symlink — that is the bug class we refuse.
+	b, err := os.ReadFile(stderrPath)
+	if err != nil || string(b) != "TOKEN=leak\n" {
+		t.Fatalf("precondition: path follow should see secret, got %q err=%v", b, err)
+	}
+	if isSubprocessStubLibFuzzerBin(stderrPath) {
+		t.Fatal("symlink cache bin must not be treated as regular stub")
+	}
+}
+
 func TestLibFuzzerSeedDirPaths(t *testing.T) {
 	dir := t.TempDir()
 	target := "jsmn"

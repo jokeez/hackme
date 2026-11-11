@@ -18,6 +18,7 @@ import (
 	"syscall"
 
 	"hackme/internal/netutil"
+	"hackme/internal/operator"
 	"hackme/internal/workerfuzzloop"
 	"hackme/internal/workerlock"
 )
@@ -34,9 +35,8 @@ func main() {
 		*coordURL = "http://127.0.0.1:18081"
 	}
 	if *token == "" {
-		if b, err := os.ReadFile(".secrets/hackme_coordinator_worker_token"); err == nil {
-			*token = strings.TrimSpace(string(b))
-		}
+		// Lstat+mode via operator.openSecretFile — never follow a planted symlink.
+		*token = operator.ReadCoordinatorWorkerToken()
 	}
 	if *workerID == "" {
 		*workerID = "workerfuzz-1"

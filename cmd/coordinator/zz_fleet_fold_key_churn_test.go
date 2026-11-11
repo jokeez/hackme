@@ -116,6 +116,41 @@ func TestFleetFoldLiveDecoyDoesNotRemountMemberKey(t *testing.T) {
 	}
 }
 
+// Claim-before-members: decoy plants while no -gpuN in memory; later member
+// must still fold under 'rig' (folded unpaid gate), not remount.
+func TestFleetFoldClaimBeforeMembersDoesNotRemount(t *testing.T) {
+	t.Setenv("HACKME_COORDINATOR_AUTO_PRUNE_IDLE", "0")
+	const addrA = "0x1111111111111111111111111111111111111111"
+	const addrB = "0x2222222222222222222222222222222222222222"
+	const units = uint64(1_000_000_000)
+	wm := &workManager{
+		worker:          map[string]workerPayoutStat{},
+		abuse:           make(map[string]workerAbuseState),
+		active:          make(map[workKey]leaseRecord),
+		dropReasonCount: map[string]uint64{},
+		maxWorkers:      100,
+	}
+	wm.notePayoutLock("rig", addrB) // members absent → plant allowed
+	wm.mu.Lock()
+	if wm.worker["rig"].PayoutAddress != addrB {
+		t.Fatalf("expected decoy plant when members absent: %#v", wm.worker["rig"])
+	}
+	wm.worker["rig-gpu0"] = workerPayoutStat{PayoutUnits: units, PayoutAddress: addrA}
+	wm.mu.Unlock()
+	w := wm.stats(true)["workers"].(map[string]workerPayoutStat)
+	if _, ok := w["rig-gpu0"]; ok {
+		t.Fatalf("claim-before-members remounted: %#v", w)
+	}
+	folded := w["rig"]
+	if folded.PayoutUnits != units || folded.PayoutAddress != addrA {
+		t.Fatalf("fold after claim-before-members: %#v", folded)
+	}
+	d := workersettle.ComputeAccrualDelta(folded.PayoutUnits, units, 0)
+	if d.DeltaUnits != 0 {
+		t.Fatalf("watermark reopen delta=%d", d.DeltaUnits)
+	}
+}
+
 // Real unpaid address conflict must still eject the stranger member.
 func TestFleetFoldUnpaidConflictStillExportsSeparately(t *testing.T) {
 	t.Setenv("HACKME_COORDINATOR_AUTO_PRUNE_IDLE", "0")

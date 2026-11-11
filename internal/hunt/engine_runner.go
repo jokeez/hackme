@@ -188,7 +188,8 @@ func runLibFuzzerEngineShard(ctx context.Context, repoRoot, targetID string, wal
 	if after > before {
 		out.NewCorpus = after - before
 	}
-	out.CrashFiles = collectCrashArtifacts(filepath.Dir(corpusDir), 16)
+	// LF crashes live under corpusDir/.hunt-run (session Dir bind); never parent tree.
+	out.CrashFiles = collectCrashArtifacts(filepath.Join(corpusDir, ".hunt-run"), 16)
 	if err != nil {
 		out.Err = err.Error()
 	}
@@ -520,7 +521,12 @@ func listFiles(dir string, max int) []string {
 		if e.IsDir() || strings.HasPrefix(e.Name(), ".") || e.Name() == "README.txt" {
 			continue
 		}
-		out = append(out, filepath.Join(dir, e.Name()))
+		p := filepath.Join(dir, e.Name())
+		// Defense-in-depth: skip symlinks (consumers also ReadRegularCorpusFile).
+		if _, ok := isRegularCorpusFile(p); !ok {
+			continue
+		}
+		out = append(out, p)
 	}
 	return out
 }

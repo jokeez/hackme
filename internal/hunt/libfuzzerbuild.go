@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -47,6 +48,11 @@ func LibFuzzerImportCorpusDir(repoRoot, targetID string) string {
 // isSubprocessStubLibFuzzerBin reports whether bin was built from stdin_subprocess_libfuzzer.c
 // (generic stub). Those are not in-process target fuzzers — "hits" are harness noise.
 func isSubprocessStubLibFuzzerBin(binPath string) bool {
+	// Lstat+regular: never follow a harness-planted symlink over the cache bin.
+	st, err := os.Lstat(binPath)
+	if err != nil || !st.Mode().IsRegular() || st.Size() <= 0 {
+		return false
+	}
 	raw, err := os.ReadFile(binPath)
 	if err != nil || len(raw) == 0 {
 		return false
@@ -99,7 +105,7 @@ func BuildLibFuzzerImport(ctx context.Context, repoRoot, targetID string) (binPa
 		return "", "", err
 	}
 	harness := DedicatedLibFuzzerHarness(repoRoot, targetID)
-	if st, err := os.Stat(binPath); err == nil && st.Mode().IsRegular() && st.Size() > 0 {
+	if st, err := os.Lstat(binPath); err == nil && st.Mode().IsRegular() && st.Size() > 0 {
 		// Dedicated harness: never reuse a cached stdin_subprocess stub under the same name.
 		if harness != "" && !isSubprocessStubLibFuzzerBin(binPath) {
 			return binPath, "", nil
@@ -233,8 +239,14 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 	before, _ := countCorpusFiles(corpusDir)
 	runCtx, cancel := context.WithTimeout(ctx, time.Duration(wallSec+30)*time.Second)
 	defer cancel()
-	crashDir := filepath.Join(filepath.Dir(corpusDir), "crashes")
-	_ = os.MkdirAll(crashDir, 0o755)
+	// Session artifacts live under corpusDir/.hunt-run (dot-dir skipped by
+	// countCorpusFiles). Dir binds corpusDir only — never the parent
+	// hunt-lf-import / report tree (sibling cache bins + session.stderr).
+	sessionDir := filepath.Join(corpusDir, ".hunt-run")
+	crashDir := filepath.Join(sessionDir, "crashes")
+	if err := os.MkdirAll(crashDir, 0o755); err != nil {
+		return 0, err
+	}
 	args := []string{
 		corpusDir,
 		"-max_total_time=" + fmt.Sprint(wallSec),
@@ -245,7 +257,7 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 		"-print_final_stats=1",
 	}
 	if len(opts.DictBytes) > 0 {
-		dictPath := filepath.Join(filepath.Dir(corpusDir), "libfuzzer.dict")
+		dictPath := filepath.Join(sessionDir, "libfuzzer.dict")
 		if err := os.WriteFile(dictPath, opts.DictBytes, 0o600); err != nil {
 			return 0, fmt.Errorf("hunt: libfuzzer dict write: %w", err)
 		}
@@ -258,11 +270,12 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 	if stdinBin != "" {
 		env = append(env, "HACKME_LF_STDIN_BIN="+stdinBin)
 	}
-	stderrPath := filepath.Join(filepath.Dir(corpusDir), "session.stderr")
-	stderrFile, _ := os.Create(stderrPath)
-	if stderrFile != nil {
-		defer stderrFile.Close()
+	stderrPath := filepath.Join(sessionDir, "session.stderr")
+	stderrFile, err := os.Create(stderrPath)
+	if err != nil {
+		return 0, fmt.Errorf("hunt: libfuzzer stderr create: %w", err)
 	}
+	defer stderrFile.Close()
 	extraRo := []string{filepath.Dir(binPath)}
 	if stdinBin != "" {
 		extraRo = append(extraRo, filepath.Dir(stdinBin))
@@ -274,7 +287,7 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 		Bin:         binPath,
 		Args:        args,
 		Env:         env,
-		Dir:         filepath.Dir(corpusDir),
+		Dir:         corpusDir,
 		ExtraBind:   []string{corpusDir},
 		ExtraRoBind: extraRo,
 		Wall:        time.Duration(wallSec+15) * time.Second,
@@ -282,10 +295,9 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 		Stdout:      stderrFile,
 		Stderr:      stderrFile,
 	})
-	sessionLog := ""
-	if b, err := os.ReadFile(stderrPath); err == nil {
-		sessionLog = string(b)
-	}
+	// Read the still-open fd — never re-open session.stderr by path (harness can
+	// unlink+symlink to host secrets inside the RW corpus Dir bind).
+	sessionLog := readOpenSessionLog(stderrFile)
 	if isoErr != nil {
 		low := strings.ToLower(isoErr.Error())
 		// Only STRICT isolate failures soft-skip; userns/RTM_NEWADDR already bare-retried.
@@ -307,7 +319,7 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 			sessionLog += fmt.Sprintf("\n[merge] err=%v before=%d after=%d\n", merr, mb, ma)
 		}
 	}
-	statsPath := filepath.Join(filepath.Dir(corpusDir), "session_stats.json")
+	statsPath := filepath.Join(sessionDir, "session_stats.json")
 	_ = writeLibFuzzerSessionStats(statsPath, targetID, wallSec, before, after, sessionLog)
 
 	if persist && after == 0 && wallSec >= 90 {
@@ -341,6 +353,22 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 		return 0, err
 	}
 	return n, nil
+}
+
+// readOpenSessionLog reads stderr/stdout captured via an already-open file
+// descriptor. Path-based re-open is unsafe after a harness RW Dir bind.
+func readOpenSessionLog(f *os.File) string {
+	if f == nil {
+		return ""
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return ""
+	}
+	b, err := io.ReadAll(io.LimitReader(f, 1<<20))
+	if err != nil {
+		return ""
+	}
+	return string(b)
 }
 
 func countCorpusFiles(dir string) (int, error) {

@@ -99,8 +99,10 @@ func (m *workManager) attachDedupDB(db *sql.DB) {
 	}
 	m.gcIdlePayoutLocks()
 	m.loadDurableDedup()
-	m.loadPayoutLocks()
+	// Accruals before locks so canAdoptBlankPayoutLocked sees unpaid -gpuN
+	// members when deciding whether a bare-base durable lock may plant in memory.
 	m.loadWorkerAccruals()
+	m.loadPayoutLocks()
 	m.loadPoolPayDay()
 	m.loadFoundAudit()
 }
@@ -269,7 +271,7 @@ func (m *workManager) loadPayoutLocks() {
 			break
 		}
 		st := m.worker[r.id]
-		if strings.TrimSpace(st.PayoutAddress) == "" {
+		if strings.TrimSpace(st.PayoutAddress) == "" && m.canAdoptBlankPayoutLocked(r.id, st) {
 			st.PayoutAddress = r.addr
 			m.worker[r.id] = st
 		}
