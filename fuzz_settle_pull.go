@@ -41,13 +41,48 @@ func (a *app) pullLocalFuzzSettleEscrows(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	publishScoped := poolsync.OrdersPublishToken() != ""
 	var firstErr error
+	var authErr error
+	attempted := 0
 	for _, cid := range ids {
-		if err := a.pullFuzzSettleOutboxWindow(ctx, cid, true); err != nil && firstErr == nil {
-			firstErr = err
+		// Shared publish token + hardened hub: settle GET/ACK need owner_ref +
+		// per-campaign owner secret. Legacy open escrows without either only
+		// produce 403 storms and exponential settle backoff that starves
+		// campaigns that *can* drain — skip them (ops refund via admin token).
+		if publishScoped {
+			owner := ""
+			if a.db != nil {
+				_ = a.db.QueryRowContext(ctx,
+					`SELECT COALESCE(owner_ref,'') FROM fuzz_campaigns WHERE id=?`, cid).Scan(&owner)
+			}
+			secret := poolsync.LoadOrdersOwnerSecret(cid)
+			if strings.TrimSpace(owner) == "" || strings.TrimSpace(secret) == "" {
+				log.Printf("fuzz settle pull: skip %s (publish token needs owner_ref+secret; legacy undrainable here)", cid)
+				continue
+			}
+		}
+		attempted++
+		if err := a.pullFuzzSettleOutboxWindow(ctx, cid, true); err != nil {
+			if poolsync.SettleOutboxErrAuth(err) {
+				if authErr == nil {
+					authErr = err
+				}
+				continue
+			}
+			if firstErr == nil {
+				firstErr = err
+			}
 		}
 	}
-	return firstErr
+	if firstErr != nil {
+		return firstErr
+	}
+	// Only surface auth backoff when every attempted (credentialed) campaign failed auth.
+	if authErr != nil && attempted > 0 {
+		return authErr
+	}
+	return nil
 }
 
 // pullFuzzSettleOutboxWindow drains coordinator outbox (global admin or one campaign).

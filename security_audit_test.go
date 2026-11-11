@@ -241,9 +241,21 @@ func TestSecurityAuditPoolDistributedAttachesPoH(t *testing.T) {
 	if _, err := db.ExecContext(context.Background(), `UPDATE accounts SET balance_units=? WHERE address=?`, units, addr); err != nil {
 		t.Fatal(err)
 	}
+	// Hub hard-fails Start when pool register fails — mock a live coordinator so
+	// attach_via_pool can be asserted (dead 127.0.0.1:9 only proves 502 rollback).
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/api/fuzz/pool/campaigns") {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "id": "campaign-pool-attach-test"})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
 	t.Setenv("HACKME_ADMIN_TOKEN", "audit-admin-test")
-	t.Setenv("HACKME_POOL_COORDINATOR_URL", "http://127.0.0.1:9")
+	t.Setenv("HACKME_POOL_COORDINATOR_URL", srv.URL)
 	t.Setenv("HACKME_COORDINATOR_ADMIN_TOKEN", "coord-admin")
+	t.Setenv("HACKME_ALLOW_PRIVATE_EGRESS", "1")
 
 	body, _ := json.Marshal(map[string]any{
 		"title":            "audit-pool-attach",
