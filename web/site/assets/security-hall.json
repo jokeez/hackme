@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-10",
+  "updated": "2026-11-11",
   "program": {
     "asset": "HMC",
     "monthly_budget_hmc": 200,
@@ -13,9 +13,9 @@
     "limit_hmc": 200
   },
   "stats": {
-    "total_paid_hmc": 1000,
+    "total_paid_hmc": 1060,
     "researchers": 6,
-    "reports_accepted": 34
+    "reports_accepted": 35
   },
   "researchers": [
     {
@@ -41,8 +41,19 @@
       "id": "fimasw",
       "name": "fimasw",
       "handle": "fimasw",
-      "total_paid_hmc": 210,
+      "total_paid_hmc": 270,
       "findings": [
+        {
+          "title": "Hunt RunBuildIsolated RO-binds whole /opt/hackme (build.rs reads .env.vps)",
+          "severity": "high",
+          "paid_hmc": 60,
+          "date": "2026-11-11",
+          "reported": "2026-11-11",
+          "commit": "e72f730a",
+          "txid": "c1c6a9e3f47415faf05e4b5b96fad01d7828be381948d8736462b46df3242870",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "High: from_code task_codegen_sandbox already decomposed HACKME_PREFIX into toolchain subdirs, but Hunt buildToolchainRoBinds() still RO-bound /opt/hackme (+ prefix) into RunBuildIsolated — attacker build.rs can read .env.vps (HACKME_ADMIN_TOKEN) and print via cargo:warning into publisher-visible stderr. Fixed: toolchain subdirs only + filterSecretPrefixRoots; regression tests. Paid 60 HMC → HMC-a6d09759a4c12019 tx c1c6a9e3f47415fa… @537709. Deployed e72f730a."
+        },
         {
           "title": "hackme-fuzzing CLI follows redirects with X-Hackme-* tokens (apiDo/apiDoAdmin/fetchJSONAuth)",
           "severity": "low",
