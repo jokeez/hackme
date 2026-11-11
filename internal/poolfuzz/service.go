@@ -181,7 +181,30 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 		"fuzz_engine": fuzzengine.MetaFromConfig(cfg),
 		"pool":        true,
 	}
-	_, err := s.DB.ExecContext(ctx,
+	// BEGIN IMMEDIATE serializes concurrent first-publish: owner_ref never hijacked,
+	// prepaid_attested / orders_owner_secret_hash never wiped by a racing UPSERT.
+	conn, err := s.DB.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	if _, err := conn.ExecContext(ctx, `BEGIN IMMEDIATE`); err != nil {
+		return err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_, _ = conn.ExecContext(ctx, `ROLLBACK`)
+		}
+	}()
+	var existingCfgJSON string
+	qerr := conn.QueryRowContext(ctx, `SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, c.ID).Scan(&existingCfgJSON)
+	if qerr != nil && qerr != sql.ErrNoRows {
+		return qerr
+	}
+	merged := mergeRegisterConfig(cfg, parseConfigJSON(existingCfgJSON))
+	mergedCfgJSON := marshalConfigJSON(merged)
+	_, err = conn.ExecContext(ctx,
 		`INSERT INTO fuzz_campaigns
 		 (id, campaign_type, status, title, description, owner_ref, task_id, target_ref,
 		  budget_runs, budget_seconds, config_json, summary_json, created_at, started_at, completed_at)
@@ -191,7 +214,7 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 		   status=excluded.status,
 		   title=excluded.title,
 		   description=excluded.description,
-		   owner_ref=CASE WHEN excluded.owner_ref != '' THEN excluded.owner_ref ELSE fuzz_campaigns.owner_ref END,
+		   owner_ref=CASE WHEN TRIM(COALESCE(fuzz_campaigns.owner_ref,''))='' THEN excluded.owner_ref ELSE fuzz_campaigns.owner_ref END,
 		   budget_runs=excluded.budget_runs,
 		   budget_seconds=excluded.budget_seconds,
 		   config_json=excluded.config_json,
@@ -200,10 +223,14 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 		   started_at=CASE WHEN fuzz_campaigns.started_at=0 THEN excluded.started_at ELSE fuzz_campaigns.started_at END`,
 		c.ID, strings.TrimSpace(c.CampaignType), status, strings.TrimSpace(c.Title), strings.TrimSpace(c.Description),
 		strings.TrimSpace(c.OwnerRef),
-		c.BudgetRuns, c.BudgetSeconds, marshalConfigJSON(cfg), marshalSummaryJSON(summary), now, now)
+		c.BudgetRuns, c.BudgetSeconds, mergedCfgJSON, marshalSummaryJSON(summary), now, now)
 	if err != nil {
 		return err
 	}
+	if _, err := conn.ExecContext(ctx, `COMMIT`); err != nil {
+		return err
+	}
+	committed = true
 	s.invalidateSchedCache()
 	// Seed work items once on register so claims do not need Tick-on-claim.
 	// Orders publish campaigns must present prepaid_attested before work is enqueued
@@ -213,20 +240,42 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 			return err
 		}
 		seedWork := true
-		if configTruthyAny(cfg, "orders_publish") && !configTruthyAny(cfg, "prepaid_attested") {
+		if configTruthyAny(merged, "orders_publish") && !configTruthyAny(merged, "prepaid_attested") {
 			seedWork = false
 		}
 		if seedWork {
 			_ = s.EnsureWorkItems(ctx, c.ID, now)
 		}
-		if err := s.seedPoolCorpusFromConfig(ctx, c.ID, cfg, now); err != nil {
+		if err := s.seedPoolCorpusFromConfig(ctx, c.ID, merged, now); err != nil {
 			return err
 		}
-		if err := s.importNamespaceCorpus(ctx, c.ID, cfg, now); err != nil {
+		if err := s.importNamespaceCorpus(ctx, c.ID, merged, now); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// mergeRegisterConfig keeps prepaid / owner-secret stamps from the stored row.
+func mergeRegisterConfig(incoming, existing map[string]any) map[string]any {
+	out := map[string]any{}
+	for k, v := range incoming {
+		out[k] = v
+	}
+	if existing == nil {
+		return out
+	}
+	if configTruthyAny(existing, "prepaid_attested") {
+		out["prepaid_attested"] = true
+	}
+	// First writer wins for owner secret hash (never rotate via racing UPSERT).
+	if h := strings.TrimSpace(jsonString(existing["orders_owner_secret_hash"])); h != "" {
+		out["orders_owner_secret_hash"] = h
+	}
+	if configTruthyAny(existing, "orders_publish") {
+		out["orders_publish"] = true
+	}
+	return out
 }
 
 func (s *Service) invalidateSchedCache() {
