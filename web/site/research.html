@@ -7,7 +7,7 @@
   <meta name="description" content="HackMe research ledger split by origin: crypto & mining, OSS libraries, bug-bounty lane, custom lab harnesses, customer pilots — searchable tables." />
   <link rel="canonical" href="https://hackme.tech/research.html" />
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-  <link rel="stylesheet" href="./assets/styles.css?v=20261109pf4" />
+  <link rel="stylesheet" href="./assets/styles.css?v=20261111tape1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
@@ -25,15 +25,10 @@
 
   <main class="container">
     <section class="hero glass hero-small rh-hero">
-      <div class="rh-hero-brand">
-        <img src="./assets/logo-hex.png" alt="" width="44" height="44" />
-        <p class="hs-wordmark">HackMe</p>
-      </div>
       <p class="kicker">Research · living portfolio</p>
       <h1>Case ledger</h1>
       <p class="hero-copy">
-        Cases grouped by <strong>where the target came from</strong> — crypto &amp; mining, OSS libraries,
-        bug-bounty lane, our custom lab harnesses, customer pilots.
+        Cases by origin — crypto &amp; mining, OSS libraries, bug-bounty lane, lab harnesses, customer pilots.
         Press <kbd class="rh-kbd">/</kbd> to search. CLEAN ≠ CVE.
       </p>
       <div class="rh-metric-strip" aria-label="Ledger snapshot">
@@ -42,16 +37,12 @@
           <span class="value notranslate" data-rh-domain-count="all">—</span>
         </div>
         <div class="rh-metric">
-          <span class="label">Crypto</span>
-          <span class="value notranslate" data-rh-domain-count="crypto">—</span>
-        </div>
-        <div class="rh-metric">
-          <span class="label">Libraries</span>
-          <span class="value notranslate" data-rh-domain-count="libraries">—</span>
-        </div>
-        <div class="rh-metric">
           <span class="label">Found</span>
           <span class="value notranslate" data-rh-count="found">—</span>
+        </div>
+        <div class="rh-metric">
+          <span class="label">Live</span>
+          <span class="value notranslate" data-rh-count="live">—</span>
         </div>
       </div>
       <div id="rh-activity" class="rh-activity-wrap" aria-live="polite"></div>
@@ -97,41 +88,18 @@
       <p class="rh-empty" id="rh-empty" hidden>No cases match — clear search or pick another origin / outcome.</p>
     </section>
 
-    <section class="panel glass research-section">
+    <section class="panel glass">
       <div class="research-section-head">
         <div>
-          <h2>How the shelves work</h2>
-          <p class="subtle">Origin = where we took the target · Outcome = what the campaign produced</p>
+          <h2>Honest scope</h2>
         </div>
         <a class="btn btn-secondary" href="./reports/portfolio/" style="font-size:0.82rem;padding:0.45rem 0.9rem">Portfolio hub</a>
       </div>
-      <div class="rh-aside-links">
-        <a href="#domain-crypto">
-          <h4>Crypto &amp; mining</h4>
-          <p>Bitcoin series, L1 stacks, stratum / pool parsers.</p>
-        </a>
-        <a href="#domain-libraries">
-          <h4>OSS libraries</h4>
-          <p>Catalog soaks &amp; long watches (nghttp2, oniguruma, …).</p>
-        </a>
-        <a href="#domain-bugbounty">
-          <h4>Bug bounty lane</h4>
-          <p>Disclosure-shaped picks (e.g. Exiv2) — still honest CLEAN/Found.</p>
-        </a>
-        <a href="#domain-custom">
-          <h4>Custom &amp; lab</h4>
-          <p>Our harnesses &amp; positive controls (traplib).</p>
-        </a>
-      </div>
-    </section>
-
-    <section class="panel glass">
-      <div class="panel-head"><h2>Honest scope</h2></div>
       <ul class="list">
         <li><strong>Found</strong> — coordinator-attested crash-class; validate native upstream before CVE claims.</li>
         <li><strong>CLEAN</strong> — no qualifying crash-class in the window; not a proof of security.</li>
         <li><strong>Report</strong> — Orders completion deliverable (<code class="notranslate">fuzz_report_v2</code>); same HTML as <code class="notranslate">…/report.html</code>.</li>
-        <li>New case: set <code class="notranslate">domain</code> + <code class="notranslate">kind</code> (+ optional <code class="notranslate">report</code>) in <code class="notranslate">assets/research-ledger.js</code>.</li>
+        <li>New case: add an entry in <code class="notranslate">assets/research-cases.json</code> (<code class="notranslate">domain</code> + <code class="notranslate">kind</code>, optional <code class="notranslate">report</code>).</li>
       </ul>
     </section>
   </main>
@@ -149,7 +117,7 @@
   </style>
   <script src="./assets/site-shell.js?v=20261024eco1"></script>
   <script src="./assets/app.js?v=20260914dev1"></script>
-  <script src="./assets/report-viewer.js?v=20261109pf4"></script>
-  <script src="./assets/research-ledger.js?v=20261109pf4"></script>
+  <script src="./assets/report-viewer.js?v=20261111tape1"></script>
+  <script src="./assets/research-ledger.js?v=20261111tape1"></script>
 </body>
 </html>

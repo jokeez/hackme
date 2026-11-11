@@ -1,258 +1,10 @@
 /**
  * HackMe Research hub — domain tables + search.
- *
- * domain: where the target came from
- *   crypto    — L1 / Bitcoin / stratum & mining parsers
- *   libraries — OSS libs (catalog soaks, watches)
- *   bugbounty — bounty / disclosure-shaped picks
- *   custom    — our harnesses, positive controls, calibration
- *   customer  — published-with-consent pilots
- *
- * kind: outcome/status (found | clean | series | live | pilot | archive)
+ * Case data lives in ./research-cases.json (domain shelves + outcome kinds).
  */
 (() => {
-  const DOMAINS = [
-    {
-      id: "crypto",
-      label: "Crypto & mining",
-      blurb: "L1 stacks, Bitcoin Core series, stratum / pool parsers.",
-    },
-    {
-      id: "libraries",
-      label: "OSS libraries",
-      blurb: "Catalog & watch soaks on public libraries — often honest CLEAN.",
-    },
-    {
-      id: "bugbounty",
-      label: "Bug bounty lane",
-      blurb: "Targets chosen for disclosure / bounty surface (not a CVE claim by itself).",
-    },
-    {
-      id: "custom",
-      label: "Custom & lab",
-      blurb: "Our inventory harnesses, positive controls, pipeline calibration.",
-    },
-    {
-      id: "customer",
-      label: "Customer pilots",
-      blurb: "Published with consent · redacted customer Scans.",
-    },
-  ];
-
-  // when = display label · whenSort = ISO for ordering (YYYY-MM-DD)
-  // report = optional fuzz_report_v2 deliverable (same HTML Orders emit on completion)
-  const CASES = [
-    {
-      id: "P01",
-      title: "traplib · ASAN positive control",
-      blurb: "Intentional heap OOB / UAF / overflow. Pool Hunt found ASAN heap-buffer-overflow.",
-      href: "./reports/portfolio/traplib.html",
-      report: "./reports/portfolio/deliverables/traplib.html",
-      domain: "custom",
-      kind: "found",
-      tags: ["Hunt", "inventory", "ASAN", "positive-control"],
-      when: "2026-11-09",
-      whenSort: "2026-11-09",
-      stats: { runs: "~665+", crashes: 1, critical: 1, note: "0xA3 HBO" },
-      featured: true,
-      pulse: true,
-    },
-    {
-      id: "P03",
-      title: "Exiv2 · custom inventory Hunt",
-      blurb: "Non-catalog lib · prebuilt ASAN harness · Ubuntu LTS 0.27.6 · BB-shaped pick · CLEAN at cancel.",
-      href: "./reports/portfolio/exiv2.html",
-      report: "./reports/portfolio/deliverables/exiv2.html",
-      domain: "bugbounty",
-      kind: "clean",
-      tags: ["Hunt", "Exiv2", "custom-harness", "GHSA-lane"],
-      when: "2026-11-09",
-      whenSort: "2026-11-09",
-      stats: { runs: 3561, crashes: 0, critical: 0, note: "CLEAN · cancelled" },
-    },
-    {
-      id: "P02",
-      title: "oniguruma · catalog Hunt soak",
-      blurb: "Two hunt_standard pool campaigns on catalog target · ~4k shards each.",
-      href: "./reports/portfolio/oniguruma.html",
-      report: "./reports/portfolio/deliverables/oniguruma.html",
-      domain: "libraries",
-      kind: "clean",
-      tags: ["Hunt", "catalog", "oniguruma"],
-      when: "2026-11-08",
-      whenSort: "2026-11-08",
-      stats: { runs: "~8k", crashes: 0, critical: 0, note: "CLEAN×2" },
-    },
-    {
-      id: "B2B-1",
-      title: "C packet parser · Shannon Bautista",
-      blurb: "Promo Scan with consent · seed1 clean · seed2 intentional crash path.",
-      href: "./reports/b2b-fuzz/shannon-packet-scan.html",
-      domain: "customer",
-      kind: "pilot",
-      tags: ["B2B", "Scan", "promo"],
-      when: "2026-06",
-      whenSort: "2026-06-15",
-      stats: { runs: 64, crashes: 0, critical: 0, note: "guard on seed2" },
-    },
-    {
-      id: "HW-2026sep",
-      title: "Hunt Watch · 2026sep marathon",
-      blurb: "12/12 days · ~192.5M iterations · 8 finding families · honesty 2.0.",
-      href: "./reports/hunt-watch-2026sep/",
-      domain: "libraries",
-      kind: "series",
-      tags: ["Hunt Watch", "ASAN", "libucl"],
-      when: "2026-09",
-      whenSort: "2026-09-30",
-      stats: { runs: "50 targets", crashes: "8 families", critical: 0, note: "43 CLEAN" },
-    },
-    {
-      id: "OSS-nghttp2",
-      title: "OSS CVE Watch · nghttp2",
-      blurb: "14/14 days libFuzzer + ASAN · HTTP/2 mem_recv · ~14.32B exec.",
-      href: "./reports/oss-cve-watch/",
-      domain: "libraries",
-      kind: "series",
-      tags: ["OSS", "libFuzzer", "nghttp2"],
-      when: "2026 · 14d",
-      whenSort: "2026-08-31",
-      stats: { runs: "~14.32B", crashes: 0, critical: 0, note: "CLEAN" },
-    },
-    {
-      id: "OSS-libheif",
-      title: "OSS CVE Watch · libheif",
-      blurb: "14/14 CLEAN · HEIF/AVIF decode · ~2.57B libFuzzer exec.",
-      href: "./reports/oss-cve-watch-libheif/",
-      domain: "libraries",
-      kind: "series",
-      tags: ["OSS", "libheif", "libFuzzer"],
-      when: "2026 · 14d",
-      whenSort: "2026-08-30",
-      stats: { runs: "~2.57B", crashes: 0, critical: 0, note: "CLEAN" },
-    },
-    {
-      id: "OSS-TIERD",
-      title: "Upstream ASAN hunts · Tier D",
-      blurb: "cfgpack / centijson / libucl disclosure lane · driver-ranked queue.",
-      href: "./reports/oss-cve/",
-      domain: "bugbounty",
-      kind: "series",
-      tags: ["OSS CVE", "ASAN", "disclosure"],
-      when: "2026",
-      whenSort: "2026-07-15",
-      stats: { runs: "waves 29+", crashes: "—", critical: 0, note: "mixed" },
-    },
-    {
-      id: "BTC30",
-      title: "Bitcoin Core · 30-Day series",
-      blurb: "30/30 upstream WASM guards · Fuzz Depth v3 · honest non-CVE scope.",
-      href: "./reports/bitcoin30.html",
-      domain: "crypto",
-      kind: "series",
-      tags: ["Bitcoin", "WASM", "Depth v3"],
-      when: "2026 · 30d",
-      whenSort: "2026-04-30",
-      stats: { runs: 8808, crashes: 1953, critical: 0, note: "signals≠CVE" },
-    },
-    {
-      id: "L1-v4",
-      title: "L1 Crypto Stack v4",
-      blurb: "BTC · ETH · DOGE · LTC · HackMe — live prod pool tracker.",
-      href: "./reports/l1-crypto-stack-v4.html",
-      domain: "crypto",
-      kind: "live",
-      tags: ["L1", "prod-pool", "5-chain"],
-      when: "2026-05",
-      whenSort: "2026-05-20",
-      stats: { runs: "—", crashes: "—", critical: 0, note: "redacted" },
-      pulse: true,
-    },
-    {
-      id: "MKPOOL",
-      title: "mkpool parser fuzz",
-      blurb: "SV2 / submit hex / V1 framing · 0 critical · no patch requested.",
-      href: "./reports/mkpool-fuzz/",
-      domain: "crypto",
-      kind: "clean",
-      tags: ["Stratum", "mkpool"],
-      when: "2026-06",
-      whenSort: "2026-06-10",
-      stats: { runs: "~16k", crashes: 400, critical: 0, note: "guards" },
-    },
-    {
-      id: "CKPOOL",
-      title: "ckpool parser fuzz",
-      blurb: "Con Kolivas ckpool · MAX_MSGSIZE / parse_submit / ntime.",
-      href: "./reports/ckpool-fuzz/",
-      domain: "crypto",
-      kind: "clean",
-      tags: ["Stratum", "ckpool"],
-      when: "2026-06",
-      whenSort: "2026-06-12",
-      stats: { runs: "~19.5k", crashes: 1000, critical: 0, note: "guards" },
-    },
-    {
-      id: "SV2-REF",
-      title: "stratum-mining reference",
-      blurb: "Sv2 frame bounds · extranonce · user identity · open_channel.",
-      href: "./reports/stratum-mining-fuzz/",
-      domain: "crypto",
-      kind: "clean",
-      tags: ["Sv2", "stratum"],
-      when: "2026-06",
-      whenSort: "2026-06-08",
-      stats: { runs: "8k", crashes: 800, critical: 0, note: "guards" },
-    },
-    {
-      id: "OSS-ROTATE",
-      title: "OSS PR sweep · 5 targets",
-      blurb: "Dogecoin · Litecoin · geth · Solana SPL · CentiJSON — ROTATE CLEAN.",
-      href: "./reports/oss-pr-sweep/",
-      domain: "crypto",
-      kind: "clean",
-      tags: ["rotation", "L1"],
-      when: "2026-03",
-      whenSort: "2026-03-20",
-      stats: { runs: 2560, crashes: 384, critical: 0, note: "guards" },
-    },
-    {
-      id: "BTC5",
-      title: "Bitcoin Core · 5-module study",
-      blurb: "Companion guards · honest non-CVE scope · upstream excerpts.",
-      href: "./reports/bitcoin-core-5module.html",
-      domain: "crypto",
-      kind: "archive",
-      tags: ["Bitcoin", "archive"],
-      when: "2026-02",
-      whenSort: "2026-02-15",
-      stats: { runs: "—", crashes: "—", critical: 0, note: "study" },
-    },
-    {
-      id: "L1-v3",
-      title: "L1 Crypto Stack v3",
-      blurb: "Bitcoin Core qa-assets · pinned upstream · 20k golden match.",
-      href: "./reports/l1-crypto-stack-v3.html",
-      domain: "crypto",
-      kind: "archive",
-      tags: ["L1", "archive"],
-      when: "2026-01",
-      whenSort: "2026-01-20",
-      stats: { runs: "—", crashes: "—", critical: 0, note: "corpus" },
-    },
-    {
-      id: "L1-v2",
-      title: "L1 Crypto Stack v2",
-      blurb: "Five-chain property probes · no sandbox traps.",
-      href: "./reports/l1-crypto-stack.html",
-      domain: "crypto",
-      kind: "archive",
-      tags: ["L1", "archive"],
-      when: "2025",
-      whenSort: "2025-12-01",
-      stats: { runs: "—", crashes: "—", critical: 0, note: "archive" },
-    },
-  ];
+  let DOMAINS = [];
+  let CASES = [];
 
   const KIND_LABEL = {
     found: "Found",
@@ -390,6 +142,16 @@
     return DOMAINS.find((d) => d.id === id) || { id, label: id, blurb: "" };
   }
 
+  function tapeItemHtml(c) {
+    return `
+      <a class="rh-activity-item rh-kind-${esc(c.kind)}" href="${esc(c.href)}">
+        <span class="${kindClass(c.kind)}${c.pulse ? " rh-pill-pulse" : ""}">${esc(KIND_LABEL[c.kind])}</span>
+        <span class="rh-activity-id notranslate">${esc(c.id)}</span>
+        <span class="rh-activity-title">${esc(c.title)}</span>
+        <span class="rh-activity-when notranslate">${esc(c.when)}</span>
+      </a>`;
+  }
+
   function renderActivity(host) {
     if (!host) return;
     const tapeRank = { found: 0, live: 1, pilot: 2, clean: 3 };
@@ -400,27 +162,22 @@
         if (kr !== 0) return kr;
         return sortKeyWhen(b).localeCompare(sortKeyWhen(a));
       })
-      .slice(0, 5);
+      .slice(0, 8);
     if (!recent.length) {
       host.hidden = true;
       return;
     }
     host.hidden = false;
+    const items = recent.map(tapeItemHtml).join("");
+    // Duplicate track for seamless CSS marquee; pause on hover via CSS.
     host.innerHTML = `
       <div class="rh-activity" aria-label="Recent ledger motion">
         <span class="rh-activity-label">Live tape</span>
-        <div class="rh-activity-track">
-          ${recent
-            .map(
-              (c) => `
-            <a class="rh-activity-item rh-kind-${esc(c.kind)}" href="${esc(c.href)}">
-              <span class="${kindClass(c.kind)}${c.pulse ? " rh-pill-pulse" : ""}">${esc(KIND_LABEL[c.kind])}</span>
-              <span class="rh-activity-id notranslate">${esc(c.id)}</span>
-              <span class="rh-activity-title">${esc(c.title)}</span>
-              <span class="rh-activity-when notranslate">${esc(c.when)}</span>
-            </a>`
-            )
-            .join("")}
+        <div class="rh-activity-viewport">
+          <div class="rh-activity-marquee">
+            <div class="rh-activity-track">${items}</div>
+            <div class="rh-activity-track" aria-hidden="true">${items}</div>
+          </div>
         </div>
       </div>`;
   }
@@ -688,8 +445,34 @@
     render();
   }
 
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
-  else bind();
+  async function boot() {
+    const host = document.getElementById("rh-domains");
+    try {
+      const url = new URL("./assets/research-cases.json", window.location.href);
+      url.searchParams.set("v", "20261111tape1");
+      const res = await fetch(url.href, { credentials: "same-origin" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      if (!Array.isArray(data.cases) || !Array.isArray(data.domains)) {
+        throw new Error("invalid research-cases.json shape");
+      }
+      CASES = data.cases;
+      DOMAINS = data.domains;
+      bind();
+    } catch (err) {
+      console.error("[research-ledger]", err);
+      if (host) {
+        host.innerHTML = '<p class="rh-empty">Could not load case ledger. Refresh or check assets/research-cases.json.</p>';
+      }
+    }
+  }
 
-  window.HackMeResearchLedger = { cases: CASES, domains: DOMAINS, render };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+
+  window.HackMeResearchLedger = {
+    get cases() { return CASES; },
+    get domains() { return DOMAINS; },
+    render,
+  };
 })();
