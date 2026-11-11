@@ -82,6 +82,32 @@ func TestScanInventoryBlocksEtc(t *testing.T) {
 	}
 }
 
+func TestResolveInventoryRootBlocksSecretPins(t *testing.T) {
+	t.Setenv("HACKME_PREFIX", "/opt/hackme")
+	t.Setenv("HOME", "/home/testuser")
+	work := t.TempDir()
+	for _, bad := range []string{"/opt/hackme", "/home", "/root", "/", "/home/testuser"} {
+		if _, err := resolveInventoryRoot(work, bad); err == nil {
+			t.Fatalf("expected block for %s", bad)
+		}
+	}
+	// Absolute pin outside work roots (and not under HOME/tmp/repo).
+	if _, err := resolveInventoryRoot(work, "/var/tmp/not-a-work-root-hackme-pin"); err == nil {
+		t.Fatal("absolute pin outside work roots must be rejected")
+	}
+	okDir := filepath.Join(work, "customer")
+	if err := os.MkdirAll(okDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got, err := resolveInventoryRoot(work, okDir)
+	if err != nil {
+		t.Fatalf("allowlisted absolute under work root: %v", err)
+	}
+	if filepath.Clean(got) != filepath.Clean(okDir) {
+		t.Fatalf("got %s want %s", got, okDir)
+	}
+}
+
 func TestListCatalogTargets(t *testing.T) {
 	root, err := repoRootForTest()
 	if err != nil {

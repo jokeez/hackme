@@ -190,6 +190,7 @@ func BuildInventoryAFLHarness(ctx context.Context, repoRoot string, req HarnessB
 			"AFL_QUIET=1",
 			"AFL_PATH="+filepath.Dir(aflCC),
 		),
+		// filterSecretPrefixRoots applied inside RunBuildIsolated (never RW-mount /opt/hackme).
 		ExtraBind: uniqueBindPaths(binds...),
 		Wall:      180 * time.Second,
 		Stderr:    &stderr,

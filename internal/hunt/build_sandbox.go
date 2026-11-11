@@ -69,18 +69,27 @@ func RunBuildIsolated(ctx context.Context, opts BuildIsolateOpts) error {
 	if wall <= 0 {
 		wall = 180 * time.Second
 	}
+	// Never RW/RO-bind the operator prefix root (or /home,/root,…) — ExtraRo alone
+	// was insufficient after e72f730a (catalog repoRoot + absolute pins remounted it).
 	extraRo := filterSecretPrefixRoots(append(append([]string{}, opts.ExtraRoBind...), buildToolchainRoBinds()...))
 	extraBind := append([]string{}, opts.ExtraBind...)
-	// Ephemeral CARGO_HOME / XDG_CACHE under a RW bind — never mount ~/.cargo or
-	// ~/.cache writable (persistence via config.toml / registry).
-	cargoHome, cacheHome, homeBinds, homeEnv := buildEphemeralHomeBinds(opts.Dir)
+	dir := sanitizeCageDir(opts.Dir)
+	// Ephemeral HOME / CARGO_HOME / XDG_* — strip host values first so scrub
+	// allowlist + Go/environ first-wins cannot keep operator ~/.cargo credentials.
+	env = stripEnvKeys(env, "CARGO_HOME", "HOME", "XDG_CACHE_HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME")
+	cargoHome, cacheHome, homeBinds, homeEnv := buildEphemeralHomeBinds(dir)
 	extraBind = append(extraBind, homeBinds...)
 	env = append(env, homeEnv...)
 	_ = cargoHome
 	_ = cacheHome
+	extraBind = filterSecretPrefixRoots(uniqueBindPaths(extraBind...))
+	extraRo = uniqueBindPaths(extraRo...)
 
 	if !BuildSandboxEnabled() {
-		return runBareBuild(ctx, opts, env, wall)
+		return runBareBuild(ctx, BuildIsolateOpts{
+			Bin: opts.Bin, Args: opts.Args, Dir: dir,
+			Stdout: opts.Stdout, Stderr: opts.Stderr,
+		}, env, wall)
 	}
 	if !BubblewrapAvailable() || !BubblewrapWorking() {
 		// Hub (STRICT default ON): fail closed — never bare-compile customer code.
@@ -88,18 +97,21 @@ func RunBuildIsolated(ctx context.Context, opts BuildIsolateOpts) error {
 		if IsolateStrict() {
 			return fmt.Errorf("hunt build isolate: bwrap required for harness builds (probe failed)")
 		}
-		return runBareBuild(ctx, opts, env, wall)
+		return runBareBuild(ctx, BuildIsolateOpts{
+			Bin: opts.Bin, Args: opts.Args, Dir: dir,
+			Stdout: opts.Stdout, Stderr: opts.Stderr,
+		}, env, wall)
 	}
 	return RunIsolated(ctx, IsolateOpts{
 		Bin:         opts.Bin,
 		Args:        opts.Args,
-		Dir:         opts.Dir,
+		Dir:         dir,
 		Env:         env,
 		Wall:        wall,
 		Stdout:      opts.Stdout,
 		Stderr:      opts.Stderr,
-		ExtraBind:   uniqueBindPaths(extraBind...),
-		ExtraRoBind: uniqueBindPaths(extraRo...),
+		ExtraBind:   extraBind,
+		ExtraRoBind: extraRo,
 		AllowBare:   false,
 	})
 }
@@ -166,8 +178,8 @@ func hackmePrefixRoot() string {
 }
 
 // filterSecretPrefixRoots drops the operator prefix root (and a few broad FS
-// roots) so ExtraRoBind / toolchain lists cannot reintroduce .env.vps into the
-// Hunt build cage. Toolchain *subdirs* under the prefix are kept.
+// roots) so ExtraRoBind / ExtraBind / Dir / binDir lists cannot reintroduce
+// .env.vps into the Hunt cage. Toolchain *subdirs* under the prefix are kept.
 func filterSecretPrefixRoots(paths []string) []string {
 	prefix := hackmePrefixRoot()
 	out := make([]string, 0, len(paths))
@@ -188,33 +200,76 @@ func filterSecretPrefixRoots(paths []string) []string {
 	return out
 }
 
-// buildEphemeralHomeBinds places CARGO_HOME and XDG_CACHE_HOME under workDir (or
+// sanitizeCageDir returns dir only when it is safe to RW-bind / chdir into.
+func sanitizeCageDir(dir string) string {
+	dir = strings.TrimSpace(dir)
+	if dir == "" {
+		return ""
+	}
+	kept := filterSecretPrefixRoots([]string{dir})
+	if len(kept) == 0 {
+		return ""
+	}
+	return kept[0]
+}
+
+// stripEnvKeys removes KEY=… entries so later exclusive values always win.
+func stripEnvKeys(env []string, keys ...string) []string {
+	drop := make(map[string]bool, len(keys))
+	for _, k := range keys {
+		drop[k] = true
+	}
+	out := make([]string, 0, len(env))
+	for _, e := range env {
+		key, _, _ := strings.Cut(e, "=")
+		if drop[key] {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
+}
+
+// buildEphemeralHomeBinds places HOME / CARGO_HOME / XDG_* under workDir (or
 // a temp dir) so the cage never gets a writable bind of the operator ~/.cargo.
 func buildEphemeralHomeBinds(workDir string) (cargoHome, cacheHome string, binds []string, env []string) {
 	base := strings.TrimSpace(workDir)
 	if base == "" {
 		base = os.TempDir()
 	}
-	var err error
-	cargoHome, err = SafeJoinUnder(base, ".hackme-build-cargo")
+	homeDir, err := SafeJoinUnder(base, ".hackme-build-home")
 	if err != nil {
 		return "", "", nil, nil
 	}
-	cacheHome, err = SafeJoinUnder(base, ".hackme-build-cache")
+	cargoHome, err = SafeJoinUnder(homeDir, ".cargo")
+	if err != nil {
+		return "", "", nil, nil
+	}
+	cacheHome, err = SafeJoinUnder(homeDir, ".cache")
+	if err != nil {
+		return "", "", nil, nil
+	}
+	xdgConfig, err := SafeJoinUnder(homeDir, ".config")
+	if err != nil {
+		return "", "", nil, nil
+	}
+	xdgData, err := SafeJoinUnder(homeDir, ".local", "share")
 	if err != nil {
 		return "", "", nil, nil
 	}
 	// CodeQL path-injection barrier: only MkdirAll allowlisted absolute paths.
-	if err := fsMkdirAll(cargoHome, 0o700); err != nil {
-		return "", "", nil, nil
+	for _, d := range []string{homeDir, cargoHome, cacheHome, xdgConfig, xdgData} {
+		if err := fsMkdirAll(d, 0o700); err != nil {
+			return "", "", nil, nil
+		}
 	}
-	if err := fsMkdirAll(cacheHome, 0o700); err != nil {
-		return "", "", nil, nil
-	}
-	binds = []string{cargoHome, cacheHome}
+	binds = []string{homeDir}
 	env = []string{
+		"HOME=" + homeDir,
 		"CARGO_HOME=" + cargoHome,
 		"XDG_CACHE_HOME=" + cacheHome,
+		"XDG_CONFIG_HOME=" + xdgConfig,
+		"XDG_DATA_HOME=" + xdgData,
 		"CARGO_NET_OFFLINE=false",
 	}
 	return cargoHome, cacheHome, binds, env

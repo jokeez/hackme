@@ -17,7 +17,8 @@ func init() {
 			Args:      args,
 			Dir:       dir,
 			Env:       env,
-			ExtraBind: uniqueBindPaths(extraBind...),
+			// RunBuildIsolated also filterSecretPrefixRoots ExtraBind/Dir — belt + suspenders.
+			ExtraBind: filterSecretPrefixRoots(uniqueBindPaths(extraBind...)),
 			Wall:      wall,
 			Stdout:    stdout,
 			Stderr:    stderr,

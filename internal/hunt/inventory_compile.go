@@ -383,7 +383,7 @@ func compileInventoryObjects(ctx context.Context, plan *inventoryCompilePlan, wr
 			args = append(args, "-x", langX)
 		}
 		args = append(args, src)
-		binds := append([]string{tmpDir, filepath.Dir(src)}, plan.IncludeDirs...)
+		binds := filterSecretPrefixRoots(append([]string{tmpDir, filepath.Dir(src)}, plan.IncludeDirs...))
 		stderr, err := runCompilerBuild(ctx, compiler, args, binds, 180*time.Second)
 		if err != nil {
 			return nil, fmt.Errorf("%s %s: %w (%s)", compiler, filepath.Base(src), err, strings.TrimSpace(stderr))
@@ -404,6 +404,7 @@ func linkInventoryObjects(ctx context.Context, plan *inventoryCompilePlan, objs 
 	for _, o := range objs {
 		binds = append(binds, filepath.Dir(o))
 	}
+	binds = filterSecretPrefixRoots(binds)
 	stderr, err := runCompilerBuild(ctx, plan.Compiler, args, binds, 180*time.Second)
 	if err != nil {
 		return fmt.Errorf("%s link: %w (%s)", plan.Compiler, err, strings.TrimSpace(stderr))

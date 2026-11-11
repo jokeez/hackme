@@ -80,6 +80,47 @@ func TestIsolateRequiredDefaultOn(t *testing.T) {
 	}
 }
 
+func TestAFLEngineShardBindsHarnessDir(t *testing.T) {
+	// Structural check: wrapBubblewrap path used by AFL must accept ExtraRo harness dir
+	// without remounting the operator prefix (regression for H2 + C1).
+	t.Setenv("HACKME_PREFIX", "/opt/hackme")
+	tmp := t.TempDir()
+	harnessDir := filepath.Join(tmp, "hunt-afl-bin")
+	if err := os.MkdirAll(harnessDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	harness := filepath.Join(harnessDir, "target.bin")
+	if err := os.WriteFile(harness, []byte("x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	work := filepath.Join(tmp, "work")
+	if err := os.MkdirAll(work, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	argv, ok := wrapBubblewrap("/bin/true", []string{"--", harness}, work,
+		[]string{work}, []string{harnessDir, "/opt/hackme"})
+	if !ok {
+		t.Skip("bwrap not on PATH")
+	}
+	foundHarness := false
+	for i := 0; i+2 < len(argv); i++ {
+		if argv[i] == "--ro-bind-try" || argv[i] == "--ro-bind" {
+			if filepath.Clean(argv[i+1]) == filepath.Clean(harnessDir) {
+				foundHarness = true
+			}
+			if filepath.Clean(argv[i+1]) == "/opt/hackme" {
+				t.Fatalf("prefix must not be RO-bound: %v", argv)
+			}
+		}
+		if argv[i] == "--bind" && filepath.Clean(argv[i+1]) == "/opt/hackme" {
+			t.Fatalf("prefix must not be RW-bound: %v", argv)
+		}
+	}
+	if !foundHarness {
+		t.Fatalf("expected harness dir ExtraRoBind in argv: %v", argv)
+	}
+}
+
 func TestIsolateStrictDefaultOn(t *testing.T) {
 	t.Setenv("HACKME_HUNT_ISOLATE_STRICT", "")
 	if !IsolateStrict() {

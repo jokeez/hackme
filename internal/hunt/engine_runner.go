@@ -327,6 +327,11 @@ func runAFLPPEngineShard(ctx context.Context, repoRoot, targetID string, wall in
 	}
 	args = append(args, "--", harness)
 	started := time.Now()
+	harnessDir := filepath.Dir(harness)
+	extraBind := []string{work, inDir, outDir}
+	if persist != "" {
+		extraBind = append(extraBind, persist)
+	}
 	runErr := RunIsolated(ctx, IsolateOpts{
 		Bin:  afl,
 		Args: args,
@@ -335,6 +340,9 @@ func runAFLPPEngineShard(ctx context.Context, repoRoot, targetID string, wall in
 		Wall: time.Duration(wall+30) * time.Second,
 		// ASAN targets need huge virtual address space; RLIMIT_AS≈2GiB kills them.
 		RSSLimitMB: 0,
+		// Match showmap/LF: RO-bind harness dir so STRICT cage can exec the target.
+		ExtraBind:   extraBind,
+		ExtraRoBind: []string{harnessDir},
 	})
 	elapsed := time.Since(started)
 	if runErr != nil {

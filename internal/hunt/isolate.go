@@ -458,25 +458,36 @@ func wrapBubblewrap(bin string, args []string, dir string, extraBind, extraRo []
 		"--ro-bind-try", "/etc/alternatives", "/etc/alternatives",
 		"--tmpfs", "/tmp",
 	}
-	if dir != "" {
+	if dir = sanitizeCageDir(dir); dir != "" {
 		abs, err := filepath.Abs(dir)
 		if err == nil {
-			argv = append(argv, "--bind", abs, abs, "--chdir", abs)
+			if kept := filterSecretPrefixRoots([]string{abs}); len(kept) == 1 {
+				argv = append(argv, "--bind", kept[0], kept[0], "--chdir", kept[0])
+			}
 		}
 	}
-	for _, p := range extraBind {
+	for _, p := range filterSecretPrefixRoots(extraBind) {
 		if abs, err := filepath.Abs(strings.TrimSpace(p)); err == nil && abs != "" {
-			argv = append(argv, "--bind", abs, abs)
+			if kept := filterSecretPrefixRoots([]string{abs}); len(kept) == 1 {
+				argv = append(argv, "--bind", kept[0], kept[0])
+			}
 		}
 	}
-	for _, p := range extraRo {
+	for _, p := range filterSecretPrefixRoots(extraRo) {
 		if abs, err := filepath.Abs(strings.TrimSpace(p)); err == nil && abs != "" {
-			argv = append(argv, "--ro-bind-try", abs, abs)
+			if kept := filterSecretPrefixRoots([]string{abs}); len(kept) == 1 {
+				argv = append(argv, "--ro-bind-try", kept[0], kept[0])
+			}
 		}
 	}
 	if absBin, err := filepath.Abs(bin); err == nil {
 		binDir := filepath.Dir(absBin)
-		argv = append(argv, "--ro-bind", binDir, binDir)
+		// Never RO-bind the operator prefix root as binDir (misplaced tool under /opt/hackme).
+		if kept := filterSecretPrefixRoots([]string{binDir}); len(kept) == 1 {
+			argv = append(argv, "--ro-bind", kept[0], kept[0])
+		} else {
+			argv = append(argv, "--ro-bind", absBin, absBin)
+		}
 		bin = absBin
 	}
 	argv = append(argv, "--", bin)

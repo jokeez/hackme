@@ -119,7 +119,7 @@ func BuildTargetAFL(ctx context.Context, repoRoot string, t Target) (binPath, cl
 		"AFL_QUIET=1",
 		"AFL_PATH="+filepath.Dir(aflCC),
 	)
-	binds := []string{tmpDir, clonePath, driverDir, filepath.Dir(aflCC), repoRoot}
+	binds := catalogBuildBinds(repoRoot, tmpDir, clonePath, driverSrc, t, filepath.Dir(aflCC))
 	stderr, err := runBuildCmd(buildCtx, aflCC, args, env, "", binds, buildTimeout(t))
 	if err != nil {
 		return "", "", fmt.Errorf("afl-cc build %s: %w (%s)", t.ID, err, strings.TrimSpace(stderr))
@@ -227,7 +227,7 @@ func buildTargetCSanitize(ctx context.Context, repoRoot string, t Target, saniti
 
 	buildCtx, cancel := context.WithTimeout(ctx, buildTimeout(t))
 	defer cancel()
-	binds := []string{tmpDir, clonePath, driverDir, repoRoot}
+	binds := catalogBuildBinds(repoRoot, tmpDir, clonePath, driverSrc, t)
 	stderr, err := runBuildCmd(buildCtx, "clang", args, ScrubBuildEnv(os.Environ()), "", binds, buildTimeout(t))
 	if err != nil {
 		return "", "", fmt.Errorf("clang build %s: %w (%s)", t.ID, err, strings.TrimSpace(stderr))
@@ -247,6 +247,49 @@ func includeDir(repoRoot, clonePath, inc string) string {
 		return filepath.Join(repoRoot, inc)
 	}
 	return filepath.Join(clonePath, inc)
+}
+
+// catalogBuildBinds lists RW mounts for catalog clang/afl-cc cages.
+// Never bind the whole repoRoot (/opt/hackme on hub) — only tmp, clone, driver,
+// include dirs, and optional toolchain paths (e.g. afl-cc dir).
+func catalogBuildBinds(repoRoot, tmpDir, clonePath, driverSrc string, t Target, extra ...string) []string {
+	binds := make([]string, 0, 8+len(t.IncludeDirs)+len(extra))
+	binds = append(binds, tmpDir, clonePath, filepath.Dir(driverSrc))
+	for _, inc := range t.IncludeDirs {
+		binds = append(binds, includeDir(repoRoot, clonePath, inc))
+	}
+	binds = append(binds, extra...)
+	out := make([]string, 0, len(binds))
+	seen := map[string]struct{}{}
+	repoClean := ""
+	if repoRoot != "" {
+		if abs, err := filepath.Abs(filepath.Clean(repoRoot)); err == nil {
+			repoClean = abs
+		}
+	}
+	for _, p := range binds {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		abs, err := filepath.Abs(filepath.Clean(p))
+		if err != nil || abs == "" || abs == "/" {
+			continue
+		}
+		// Defense in depth: never remount the repo root wholesale.
+		if repoClean != "" && abs == repoClean {
+			continue
+		}
+		if abs == "/opt/hackme" {
+			continue
+		}
+		if _, ok := seen[abs]; ok {
+			continue
+		}
+		seen[abs] = struct{}{}
+		out = append(out, abs)
+	}
+	return out
 }
 
 func injectOSSCveBuildStubs(repoRoot, targetID, clonePath string) error {

@@ -22,6 +22,12 @@ var blockedPathPrefixes = []string{
 	"/etc", "/proc", "/sys", "/dev", "/run", "/var/run",
 }
 
+// blockedPinExact are absolute inventory/pin roots that must never be ExtraBind'd
+// (hub secrets under /opt/hackme; whole home trees).
+var blockedPinExact = []string{
+	"/opt/hackme", "/home", "/root", "/",
+}
+
 // ScanInventory walks a local directory tree for libFuzzer entrypoints.
 func ScanInventory(repoRoot, rawPath string, maxFiles, maxDepth int) (*InventoryResult, error) {
 	root, err := resolveInventoryRoot(repoRoot, rawPath)
@@ -108,9 +114,10 @@ func resolveInventoryRoot(repoRoot, rawPath string) (string, error) {
 	if rawPath == "" {
 		return "", errors.New("hunt inventory: path required")
 	}
+	wasAbs := filepath.IsAbs(rawPath)
 	var abs string
 	var err error
-	if filepath.IsAbs(rawPath) {
+	if wasAbs {
 		abs = filepath.Clean(rawPath)
 	} else {
 		if repoRoot == "" {
@@ -125,10 +132,11 @@ func resolveInventoryRoot(repoRoot, rawPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	for _, prefix := range blockedPathPrefixes {
-		if abs == prefix || strings.HasPrefix(abs, prefix+string(os.PathSeparator)) {
-			return "", fmt.Errorf("hunt inventory: path blocked: %s", abs)
-		}
+	if err := rejectBlockedInventoryPin(abs); err != nil {
+		return "", err
+	}
+	if wasAbs && !underInventoryWorkRoot(abs, repoRoot) {
+		return "", fmt.Errorf("hunt inventory: absolute path outside allowlisted work roots: %s", abs)
 	}
 	safe, err := allowlistedAbs(abs)
 	if err != nil {
@@ -142,6 +150,76 @@ func resolveInventoryRoot(repoRoot, rawPath string) (string, error) {
 		return "", errors.New("hunt inventory: path must be a directory")
 	}
 	return safe, nil
+}
+
+func rejectBlockedInventoryPin(abs string) error {
+	abs = filepath.Clean(strings.TrimSpace(abs))
+	if abs == "" || abs == "." {
+		return errors.New("hunt inventory: path required")
+	}
+	if abs == hackmePrefixRoot() {
+		return fmt.Errorf("hunt inventory: path blocked: %s", abs)
+	}
+	for _, exact := range blockedPinExact {
+		if abs == filepath.Clean(exact) {
+			return fmt.Errorf("hunt inventory: path blocked: %s", abs)
+		}
+	}
+	if home := strings.TrimSpace(os.Getenv("HOME")); home != "" {
+		if abs == filepath.Clean(home) {
+			return fmt.Errorf("hunt inventory: path blocked: %s", abs)
+		}
+	}
+	for _, prefix := range blockedPathPrefixes {
+		if abs == prefix || strings.HasPrefix(abs, prefix+string(os.PathSeparator)) {
+			return fmt.Errorf("hunt inventory: path blocked: %s", abs)
+		}
+	}
+	switch abs {
+	case "/var", "/opt", "/tmp", "/dev", "/proc", "/sys", "/etc":
+		return fmt.Errorf("hunt inventory: path blocked: %s", abs)
+	}
+	return nil
+}
+
+// inventoryWorkRoots lists directories under which absolute inventory pins are allowed.
+// Relative pins still resolve under repoRoot via SafeJoinUnder.
+func inventoryWorkRoots(repoRoot string) []string {
+	add := func(dst *[]string, seen map[string]struct{}, p string) {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			return
+		}
+		abs, err := filepath.Abs(filepath.Clean(p))
+		if err != nil || abs == "" || abs == "/" {
+			return
+		}
+		if _, ok := seen[abs]; ok {
+			return
+		}
+		seen[abs] = struct{}{}
+		*dst = append(*dst, abs)
+	}
+	seen := map[string]struct{}{}
+	var roots []string
+	add(&roots, seen, repoRoot)
+	add(&roots, seen, os.TempDir())
+	add(&roots, seen, os.Getenv("HACKME_DATA_DIR"))
+	add(&roots, seen, os.Getenv("HOME"))
+	for _, part := range filepath.SplitList(os.Getenv("HACKME_HUNT_WORK_ROOTS")) {
+		add(&roots, seen, part)
+	}
+	return roots
+}
+
+func underInventoryWorkRoot(abs, repoRoot string) bool {
+	abs = filepath.Clean(abs)
+	for _, root := range inventoryWorkRoots(repoRoot) {
+		if abs == root || strings.HasPrefix(abs, root+string(os.PathSeparator)) {
+			return true
+		}
+	}
+	return false
 }
 
 func isSourceFile(path string) bool {

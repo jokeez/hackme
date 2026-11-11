@@ -25,6 +25,47 @@ func TestWrapBubblewrapHardeningFlags(t *testing.T) {
 	}
 }
 
+func TestWrapBubblewrapNeverBindsPrefixRoot(t *testing.T) {
+	t.Setenv("HACKME_PREFIX", "/opt/hackme")
+	tmp := t.TempDir()
+	// Fake binary sitting directly under a simulated prefix root.
+	prefix := filepath.Join(tmp, "opt-hackme")
+	if err := os.MkdirAll(prefix, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(prefix, "clang")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HACKME_PREFIX", prefix)
+	argv, ok := wrapBubblewrap(bin, nil, prefix, []string{prefix, tmp}, []string{prefix})
+	if !ok {
+		t.Skip("bwrap not on PATH")
+	}
+	joined := strings.Join(argv, "\x00")
+	prefixClean := filepath.Clean(prefix)
+	// Count --bind/--ro-bind targets equal to the prefix root.
+	for i := 0; i+2 < len(argv); i++ {
+		switch argv[i] {
+		case "--bind", "--ro-bind", "--ro-bind-try":
+			if filepath.Clean(argv[i+1]) == prefixClean || filepath.Clean(argv[i+2]) == prefixClean {
+				t.Fatalf("prefix root must not be bound: argv=%v", argv)
+			}
+		}
+	}
+	_ = joined
+	// File-only bind of the binary is OK when binDir == prefix.
+	foundBin := false
+	for i := 0; i+2 < len(argv); i++ {
+		if argv[i] == "--ro-bind" && filepath.Clean(argv[i+1]) == filepath.Clean(bin) {
+			foundBin = true
+		}
+	}
+	if !foundBin {
+		t.Fatalf("expected file-only ro-bind of bin when binDir is prefix: %v", argv)
+	}
+}
+
 func TestAllowBareTriesBwrapFirst(t *testing.T) {
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "bwrap-used")

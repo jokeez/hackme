@@ -536,7 +536,11 @@ func buildDedicatedLibFuzzer(ctx context.Context, repoRoot string, t fuzzupstrea
 	}
 	buildCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
-	stderr, err := runCompilerBuild(buildCtx, "clang", args, []string{tmpDir, clonePath, repoRoot}, 10*time.Minute)
+	binds := []string{tmpDir, clonePath, filepath.Dir(harness)}
+	for _, inc := range t.IncludeDirs {
+		binds = append(binds, fuzzupstream.IncludeDir(repoRoot, clonePath, inc))
+	}
+	stderr, err := runCompilerBuild(buildCtx, "clang", args, binds, 10*time.Minute)
 	if err != nil {
 		return fmt.Errorf("clang dedicated libfuzzer %s: %w (%s)", t.ID, err, strings.TrimSpace(stderr))
 	}
