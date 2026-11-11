@@ -43,6 +43,16 @@ type Service struct {
 
 	// staleSweepN counts Tick calls; every Nth tick cancels zero-progress / expired-lease zombies.
 	staleSweepN atomic.Uint64
+
+	// settleStripes serializes pay enqueue and escrow finalize for a campaign.
+	// Pending/unpaid reads in tryFinalizeEscrow are otherwise not atomic with the
+	// last settle: a concurrent submit can enqueue Finalize before the pay row lands.
+	settleStripes [32]sync.Mutex
+
+	// testInjectBeforeFinalize runs inside the settle lock after the first
+	// clear-to-finalize read and before the second. Tests use it to land a pay
+	// in that window. Production leaves it nil.
+	testInjectBeforeFinalize func(ctx context.Context, campaignID string)
 }
 
 type Campaign struct {
@@ -516,8 +526,47 @@ func (s *Service) RepairZombiePoolCampaigns(ctx context.Context, limit int) (int
 }
 
 // tryFinalizeEscrow enqueues Finalize only when no unpaid settle intents remain.
-// Prevents closed-escrow + pending run/run_floor undrainable heads (econ audit).
+// The pending/unpaid reads and the Finalize enqueue share the campaign settle
+// lock with submit, and the reads are repeated immediately before Finalize so a
+// pay that lands in that window cannot close the escrow first.
 func (s *Service) tryFinalizeEscrow(ctx context.Context, campaignID string) error {
+	if s == nil {
+		return nil
+	}
+	return s.withCampaignSettle(campaignID, func() error {
+		return s.tryFinalizeEscrowLocked(ctx, campaignID)
+	})
+}
+
+// withCampaignSettle runs fn while holding the per-campaign settle lock.
+// Submit, hunt replay, lease-churn force-complete, and deferred bounty all
+// take this lock across the pay enqueue and the finalize decision.
+func (s *Service) withCampaignSettle(campaignID string, fn func() error) error {
+	if fn == nil {
+		return nil
+	}
+	if s == nil {
+		return fn()
+	}
+	mu := s.campaignSettleMu(campaignID)
+	mu.Lock()
+	defer mu.Unlock()
+	return fn()
+}
+
+func (s *Service) campaignSettleMu(campaignID string) *sync.Mutex {
+	var h uint32 = 2166136261
+	for i := 0; i < len(campaignID); i++ {
+		h ^= uint32(campaignID[i])
+		h *= 16777619
+	}
+	return &s.settleStripes[h%uint32(len(s.settleStripes))]
+}
+
+// tryFinalizeEscrowLocked is tryFinalizeEscrow for callers that already hold
+// the campaign settle lock. It must not call tryFinalizeEscrow (the mutex is
+// not re-entrant).
+func (s *Service) tryFinalizeEscrowLocked(ctx context.Context, campaignID string) error {
 	if s == nil || s.Settler == nil {
 		return nil
 	}
@@ -525,16 +574,34 @@ func (s *Service) tryFinalizeEscrow(ctx context.Context, campaignID string) erro
 	if campaignID == "" {
 		return nil
 	}
+	clear, err := s.escrowClearToFinalize(ctx, campaignID)
+	if err != nil || !clear {
+		return err
+	}
+	if s.testInjectBeforeFinalize != nil {
+		s.testInjectBeforeFinalize(ctx, campaignID)
+	}
+	clear, err = s.escrowClearToFinalize(ctx, campaignID)
+	if err != nil || !clear {
+		return err
+	}
+	if _, err := s.Settler.Finalize(ctx, campaignID, 0); err != nil {
+		return fmt.Errorf("poolfuzz: finalize escrow: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) escrowClearToFinalize(ctx context.Context, campaignID string) (bool, error) {
 	// Heal applied-outbox / still-queued drift before the unpaid gate.
 	if _, err := s.PromoteAppliedSettleIntents(ctx, campaignID); err != nil {
-		return err
+		return false, err
 	}
 	pending, err := s.CountPendingSettleOutbox(ctx, campaignID)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if pending > 0 {
-		return nil
+		return false, nil
 	}
 	var unpaid int64
 	if err := s.DB.QueryRowContext(ctx,
@@ -543,15 +610,9 @@ func (s *Service) tryFinalizeEscrow(ctx context.Context, campaignID string) erro
 		   settle_run_status IN ('pending','queued','pending_floor','queued_floor')
 		   OR settle_finding_status IN ('pending','queued')
 		 )`, campaignID).Scan(&unpaid); err != nil {
-		return err
+		return false, err
 	}
-	if unpaid > 0 {
-		return nil
-	}
-	if _, err := s.Settler.Finalize(ctx, campaignID, 0); err != nil {
-		return fmt.Errorf("poolfuzz: finalize escrow: %w", err)
-	}
-	return nil
+	return unpaid == 0, nil
 }
 
 // campaignAcceptsSettle gates new settle-outbox PayRun / run_floor rows.
@@ -1781,130 +1842,138 @@ func (s *Service) SubmitWithOutcome(ctx context.Context, req SubmitRequest) (Sub
 	if workerID == "" {
 		return SubmitOutcome{}, fmt.Errorf("poolfuzz: worker_id required")
 	}
-	// H03: only the active lease owner may complete work (no pending/empty-owner harvest).
-	res, err := s.DB.ExecContext(ctx,
-		`UPDATE fuzz_work_items
+	var outcome SubmitOutcome
+	err = s.withCampaignSettle(req.CampaignID, func() error {
+		// H03: only the active lease owner may complete work (no pending/empty-owner harvest).
+		res, err := s.DB.ExecContext(ctx,
+			`UPDATE fuzz_work_items
 		 SET status='done', attempts=attempts+1, result_ok=?, duration_ms=?, last_error=?, lease_owner='', lease_until=0, updated_at=?,
 		     miner_address=?,
 		     settle_run_status=CASE WHEN ?!='' THEN ? ELSE settle_run_status END
 		 WHERE id=? AND campaign_id=?
 		   AND status='leased'
 		   AND lease_owner=?`,
-		boolToInt(pass), req.DurationMS, strings.TrimSpace(req.Trap), now,
-		minerBind, runSettleStatus, runSettleStatus,
-		req.ItemID, req.CampaignID, workerID)
-	if err != nil {
-		return SubmitOutcome{}, err
-	}
-	aff, _ := res.RowsAffected()
-	if aff == 0 {
-		var st, owner string
-		_ = s.DB.QueryRowContext(ctx,
-			`SELECT status, COALESCE(lease_owner,'') FROM fuzz_work_items WHERE id=? AND campaign_id=?`,
-			req.ItemID, req.CampaignID).Scan(&st, &owner)
-		switch st {
-		case "pending":
-			return SubmitOutcome{}, fmt.Errorf("poolfuzz: work item not leased (claim first)")
-		case "leased":
-			if owner != "" && owner != workerID {
-				return SubmitOutcome{}, fmt.Errorf("poolfuzz: work item leased by another worker")
-			}
-			return SubmitOutcome{}, fmt.Errorf("poolfuzz: work item not leased by worker")
-		case "done", "cancelled":
-			// Already finished — still flush unsettled payment intents (PayRun may have failed earlier).
-		default:
-			if st == "" {
-				return SubmitOutcome{}, fmt.Errorf("poolfuzz: work item not found")
-			}
-		}
-		if err := s.flushPendingSettles(ctx, req.CampaignID, req.ItemID, cfg); err != nil {
-			return SubmitOutcome{}, err
-		}
-		completed, err := s.recomputeProgress(ctx, req.CampaignID, now)
+			boolToInt(pass), req.DurationMS, strings.TrimSpace(req.Trap), now,
+			minerBind, runSettleStatus, runSettleStatus,
+			req.ItemID, req.CampaignID, workerID)
 		if err != nil {
-			return SubmitOutcome{}, err
+			return err
 		}
-		if completed && s.Settler != nil && escrowEnabled(cfg) {
-			if err := s.tryFinalizeEscrow(ctx, req.CampaignID); err != nil {
-				return SubmitOutcome{}, err
+		aff, _ := res.RowsAffected()
+		if aff == 0 {
+			var st, owner string
+			_ = s.DB.QueryRowContext(ctx,
+				`SELECT status, COALESCE(lease_owner,'') FROM fuzz_work_items WHERE id=? AND campaign_id=?`,
+				req.ItemID, req.CampaignID).Scan(&st, &owner)
+			switch st {
+			case "pending":
+				return fmt.Errorf("poolfuzz: work item not leased (claim first)")
+			case "leased":
+				if owner != "" && owner != workerID {
+					return fmt.Errorf("poolfuzz: work item leased by another worker")
+				}
+				return fmt.Errorf("poolfuzz: work item not leased by worker")
+			case "done", "cancelled":
+				// Already finished — still flush unsettled payment intents (PayRun may have failed earlier).
+			default:
+				if st == "" {
+					return fmt.Errorf("poolfuzz: work item not found")
+				}
 			}
+			if err := s.flushPendingSettles(ctx, req.CampaignID, req.ItemID, cfg); err != nil {
+				return err
+			}
+			completed, err := s.recomputeProgress(ctx, req.CampaignID, now)
+			if err != nil {
+				return err
+			}
+			if completed && s.Settler != nil && escrowEnabled(cfg) {
+				if err := s.tryFinalizeEscrowLocked(ctx, req.CampaignID); err != nil {
+					return err
+				}
+			}
+			return nil
 		}
-		return SubmitOutcome{}, nil
-	}
-	var newEdge, newPath bool
-	var covErr error
-	if len(seg.ExecCoverage) > 0 {
-		newEdge, newPath, covErr = s.recordSegmentCoverage(ctx, req.CampaignID, inputN, cfg, seeds, seg, now)
-	} else {
-		newEdge, newPath, covErr = s.recordCoverage(ctx, req.CampaignID, cfg, req.ActualInput, req.InputBytes, nil, now)
-	}
-	if covErr != nil {
-		return SubmitOutcome{}, covErr
-	}
-	ftHint := ""
-	if recordFinding {
-		if IsHuntCampaign(cfg) {
-			ft, _, _ := classifyHuntFinding(cfg, req)
-			ftHint = ft
-		} else if fuzzengine.IsHangTrap(req.Trap) {
-			ftHint = "timeout_hang"
-		} else if strings.TrimSpace(req.Trap) != "" {
-			ft, _, _ := fuzzengine.ClassifyWasmTrap(req.ActualInput, req.Trap, true)
-			ftHint = ft
-		}
-	}
-	if err := s.observePoolCorpusNovelty(ctx, req.CampaignID, req.ActualInput, req.InputBytes, recordFinding, now, true, newEdge, newPath, ftHint); err != nil {
-		return SubmitOutcome{}, err
-	}
-	var findingSeverity string
-	var findingType string
-	var findingID string
-	if recordFinding {
-		submitReq := req
-		submitReq.ActualInput = findingU
-		if len(findingB) > 0 {
-			submitReq.InputBytes = findingB
+		var newEdge, newPath bool
+		var covErr error
+		if len(seg.ExecCoverage) > 0 {
+			newEdge, newPath, covErr = s.recordSegmentCoverage(ctx, req.CampaignID, inputN, cfg, seeds, seg, now)
 		} else {
-			submitReq.InputBytes = expectedB
+			newEdge, newPath, covErr = s.recordCoverage(ctx, req.CampaignID, cfg, req.ActualInput, req.InputBytes, nil, now)
 		}
-		var err error
-		findingID, findingSeverity, findingType, err = s.insertFinding(ctx, submitReq, cfg, sem, hasWasm, now)
-		if err != nil {
-			return SubmitOutcome{}, err
+		if covErr != nil {
+			return covErr
 		}
-	}
-	if wantAnySettle {
-		if recordFinding && huntBountyEligible(cfg, findingSeverity) && s.bountyAllowed(ctx, cfg, findingID) {
-			_, _ = s.DB.ExecContext(ctx,
-				`UPDATE fuzz_work_items SET settle_finding_status='pending', settle_finding_severity=? WHERE id=? AND campaign_id=?`,
-				findingSeverity, req.ItemID, req.CampaignID)
+		ftHint := ""
+		if recordFinding {
+			if IsHuntCampaign(cfg) {
+				ft, _, _ := classifyHuntFinding(cfg, req)
+				ftHint = ft
+			} else if fuzzengine.IsHangTrap(req.Trap) {
+				ftHint = "timeout_hang"
+			} else if strings.TrimSpace(req.Trap) != "" {
+				ft, _, _ := fuzzengine.ClassifyWasmTrap(req.ActualInput, req.Trap, true)
+				ftHint = ft
+			}
 		}
-		if err := s.flushPendingSettles(ctx, req.CampaignID, req.ItemID, cfg); err != nil {
-			return SubmitOutcome{}, err
+		if err := s.observePoolCorpusNovelty(ctx, req.CampaignID, req.ActualInput, req.InputBytes, recordFinding, now, true, newEdge, newPath, ftHint); err != nil {
+			return err
 		}
-		// One-shot unique-crash micro-bonus (does not close the confirmed-native bounty).
-		// Crash-class only — detector/property noise must not skim the bonus pool.
-		// workItemID=0 so outbox dedupes campaign-wide (first crash wins).
-		if recordFinding && miner != "" && fuzzengine.IsCrashClass(findingType) {
-			if _, err := s.Settler.PayCrashBonus(ctx, req.CampaignID, miner, 0, 0); err != nil {
-				// already paid / depleted / closed are non-fatal for the submit path
-				low := strings.ToLower(err.Error())
-				if !strings.Contains(low, "already paid") && !strings.Contains(low, "depleted") && !strings.Contains(low, "closed") {
-					return SubmitOutcome{}, fmt.Errorf("poolfuzz: settle crash bonus: %w", err)
+		var findingSeverity string
+		var findingType string
+		var findingID string
+		if recordFinding {
+			submitReq := req
+			submitReq.ActualInput = findingU
+			if len(findingB) > 0 {
+				submitReq.InputBytes = findingB
+			} else {
+				submitReq.InputBytes = expectedB
+			}
+			var err error
+			findingID, findingSeverity, findingType, err = s.insertFinding(ctx, submitReq, cfg, sem, hasWasm, now)
+			if err != nil {
+				return err
+			}
+		}
+		if wantAnySettle {
+			if recordFinding && huntBountyEligible(cfg, findingSeverity) && s.bountyAllowed(ctx, cfg, findingID) {
+				_, _ = s.DB.ExecContext(ctx,
+					`UPDATE fuzz_work_items SET settle_finding_status='pending', settle_finding_severity=? WHERE id=? AND campaign_id=?`,
+					findingSeverity, req.ItemID, req.CampaignID)
+			}
+			if err := s.flushPendingSettles(ctx, req.CampaignID, req.ItemID, cfg); err != nil {
+				return err
+			}
+			// One-shot unique-crash micro-bonus (does not close the confirmed-native bounty).
+			// Crash-class only — detector/property noise must not skim the bonus pool.
+			// workItemID=0 so outbox dedupes campaign-wide (first crash wins).
+			if recordFinding && miner != "" && fuzzengine.IsCrashClass(findingType) {
+				if _, err := s.Settler.PayCrashBonus(ctx, req.CampaignID, miner, 0, 0); err != nil {
+					// already paid / depleted / closed are non-fatal for the submit path
+					low := strings.ToLower(err.Error())
+					if !strings.Contains(low, "already paid") && !strings.Contains(low, "depleted") && !strings.Contains(low, "closed") {
+						return fmt.Errorf("poolfuzz: settle crash bonus: %w", err)
+					}
 				}
 			}
 		}
-	}
-	completed, err := s.recomputeProgress(ctx, req.CampaignID, now)
+		completed, err := s.recomputeProgress(ctx, req.CampaignID, now)
+		if err != nil {
+			return err
+		}
+		if completed && s.Settler != nil && escrowEnabled(cfg) {
+			if err := s.tryFinalizeEscrowLocked(ctx, req.CampaignID); err != nil {
+				return err
+			}
+		}
+		outcome = SubmitOutcome{ReplayStatus: digReplayStatus}
+		return nil
+	})
 	if err != nil {
 		return SubmitOutcome{}, err
 	}
-	if completed && s.Settler != nil && escrowEnabled(cfg) {
-		if err := s.tryFinalizeEscrow(ctx, req.CampaignID); err != nil {
-			return SubmitOutcome{}, err
-		}
-	}
-	return SubmitOutcome{ReplayStatus: digReplayStatus}, nil
+	return outcome, nil
 }
 
 // flushPendingSettles pays unsettled run/finding intents exactly once (idempotent status transitions).

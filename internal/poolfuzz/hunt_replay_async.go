@@ -738,71 +738,73 @@ func (s *Service) finalizeHuntSubmit(ctx context.Context, p finalizeHuntSubmitPa
 			return err
 		}
 	}
-	res, err := s.DB.ExecContext(ctx,
-		`UPDATE fuzz_work_items
+	return s.withCampaignSettle(p.req.CampaignID, func() error {
+		res, err := s.DB.ExecContext(ctx,
+			`UPDATE fuzz_work_items
 		 SET status='done', attempts=attempts+1, result_ok=?, duration_ms=?, last_error=?, lease_owner='', lease_until=0, updated_at=?,
 		     miner_address=?,
 		     settle_run_status=CASE WHEN ?!='' THEN ? ELSE settle_run_status END
 		 WHERE id=? AND campaign_id=?
 		   AND status=?
 		   AND lease_owner=CASE WHEN ?='leased' THEN ? ELSE lease_owner END`,
-		boolToInt(p.pass), p.req.DurationMS, strings.TrimSpace(p.req.Trap), p.now,
-		minerBind, runSettleStatus, runSettleStatus,
-		p.req.ItemID, p.req.CampaignID, statusWhere, statusWhere, p.req.WorkerID)
-	if err != nil {
-		return err
-	}
-	aff, _ := res.RowsAffected()
-	if aff == 0 {
-		// Work already marked done (prior attempt crashed mid-settle). Drain settles only —
-		// never leave pending payouts stranded behind a non-retryable "state changed".
-		var st string
-		_ = s.DB.QueryRowContext(ctx,
-			`SELECT status FROM fuzz_work_items WHERE campaign_id=? AND id=?`,
-			p.req.CampaignID, p.req.ItemID).Scan(&st)
-		if strings.TrimSpace(st) == "done" && s.Settler != nil && escrowEnabled(p.cfg) {
+			boolToInt(p.pass), p.req.DurationMS, strings.TrimSpace(p.req.Trap), p.now,
+			minerBind, runSettleStatus, runSettleStatus,
+			p.req.ItemID, p.req.CampaignID, statusWhere, statusWhere, p.req.WorkerID)
+		if err != nil {
+			return err
+		}
+		aff, _ := res.RowsAffected()
+		if aff == 0 {
+			// Work already marked done (prior attempt crashed mid-settle). Drain settles only —
+			// never leave pending payouts stranded behind a non-retryable "state changed".
+			var st string
+			_ = s.DB.QueryRowContext(ctx,
+				`SELECT status FROM fuzz_work_items WHERE campaign_id=? AND id=?`,
+				p.req.CampaignID, p.req.ItemID).Scan(&st)
+			if strings.TrimSpace(st) == "done" && s.Settler != nil && escrowEnabled(p.cfg) {
+				if err := s.flushPendingSettles(ctx, p.req.CampaignID, p.req.ItemID, p.cfg); err != nil {
+					return fmt.Errorf("poolfuzz: settle flush: %w", err)
+				}
+				completed, err := s.recomputeProgress(ctx, p.req.CampaignID, p.now)
+				if err != nil {
+					return err
+				}
+				if completed {
+					if err := s.tryFinalizeEscrowLocked(ctx, p.req.CampaignID); err != nil {
+						return err
+					}
+				}
+				return nil
+			}
+			return fmt.Errorf("poolfuzz: hunt finalize: work item state changed")
+		}
+		if wantAnySettle {
+			if p.recordFinding && huntBountyEligible(p.cfg, findingSeverity) && s.bountyAllowed(ctx, p.cfg, findingID) {
+				_, _ = s.DB.ExecContext(ctx,
+					`UPDATE fuzz_work_items SET settle_finding_status='pending', settle_finding_severity=? WHERE id=? AND campaign_id=?`,
+					findingSeverity, p.req.ItemID, p.req.CampaignID)
+			}
 			if err := s.flushPendingSettles(ctx, p.req.CampaignID, p.req.ItemID, p.cfg); err != nil {
 				return fmt.Errorf("poolfuzz: settle flush: %w", err)
 			}
-			completed, err := s.recomputeProgress(ctx, p.req.CampaignID, p.now)
-			if err != nil {
-				return err
-			}
-			if completed {
-				if err := s.tryFinalizeEscrow(ctx, p.req.CampaignID); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-		return fmt.Errorf("poolfuzz: hunt finalize: work item state changed")
-	}
-	if wantAnySettle {
-		if p.recordFinding && huntBountyEligible(p.cfg, findingSeverity) && s.bountyAllowed(ctx, p.cfg, findingID) {
-			_, _ = s.DB.ExecContext(ctx,
-				`UPDATE fuzz_work_items SET settle_finding_status='pending', settle_finding_severity=? WHERE id=? AND campaign_id=?`,
-				findingSeverity, p.req.ItemID, p.req.CampaignID)
-		}
-		if err := s.flushPendingSettles(ctx, p.req.CampaignID, p.req.ItemID, p.cfg); err != nil {
-			return fmt.Errorf("poolfuzz: settle flush: %w", err)
-		}
-		if p.recordFinding && miner != "" && fuzzengine.IsCrashClass(findingType) {
-			if _, err := s.Settler.PayCrashBonus(ctx, p.req.CampaignID, miner, 0, 0); err != nil {
-				low := strings.ToLower(err.Error())
-				if !strings.Contains(low, "already paid") && !strings.Contains(low, "depleted") && !strings.Contains(low, "closed") {
-					return fmt.Errorf("poolfuzz: settle crash bonus: %w", err)
+			if p.recordFinding && miner != "" && fuzzengine.IsCrashClass(findingType) {
+				if _, err := s.Settler.PayCrashBonus(ctx, p.req.CampaignID, miner, 0, 0); err != nil {
+					low := strings.ToLower(err.Error())
+					if !strings.Contains(low, "already paid") && !strings.Contains(low, "depleted") && !strings.Contains(low, "closed") {
+						return fmt.Errorf("poolfuzz: settle crash bonus: %w", err)
+					}
 				}
 			}
 		}
-	}
-	completed, err := s.recomputeProgress(ctx, p.req.CampaignID, p.now)
-	if err != nil {
-		return err
-	}
-	if completed && s.Settler != nil && escrowEnabled(p.cfg) {
-		if err := s.tryFinalizeEscrow(ctx, p.req.CampaignID); err != nil {
+		completed, err := s.recomputeProgress(ctx, p.req.CampaignID, p.now)
+		if err != nil {
 			return err
 		}
-	}
-	return nil
+		if completed && s.Settler != nil && escrowEnabled(p.cfg) {
+			if err := s.tryFinalizeEscrowLocked(ctx, p.req.CampaignID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

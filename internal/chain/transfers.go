@@ -827,6 +827,11 @@ func (s *Service) loadPendingTransfers(ctx context.Context, limit int) ([]pendin
 	return out, nil
 }
 
+// hmcApplyBypassValidate is a test seam. Production leaves it false so
+// validateTransferTx still rejects From==To. Tests set it to prove the
+// applier itself does not mint when a self-send reaches the balance write.
+var hmcApplyBypassValidate bool
+
 func (s *Service) applyPendingTransfers(ctx context.Context, txq queryRowExecContext, blockIndex uint64, blockHash string) error {
 	pool, err := s.loadPendingTransfers(ctx, DefaultTransferMaxBatch)
 	if err != nil {
@@ -838,7 +843,10 @@ func (s *Service) applyPendingTransfers(ctx context.Context, txq queryRowExecCon
 	}
 	devAddr := DevFeeAddress
 	for _, item := range pool {
-		code, _ := s.validateTransferTx(ctx, item.tx, txq)
+		code := ""
+		if !hmcApplyBypassValidate {
+			code, _ = s.validateTransferTx(ctx, item.tx, txq)
+		}
 		if code == "" {
 			code, _ = checkTxChainID(blockIndex, item.tx.ChainID)
 		}
@@ -865,32 +873,30 @@ func (s *Service) applyPendingTransfers(ctx context.Context, txq queryRowExecCon
 			}
 			continue
 		}
-		var fromBal, fromNonce, toBal, toNonce uint64
+		var fromBal, fromNonce uint64
 		if err := txq.QueryRowContext(ctx, `SELECT balance_units, next_nonce FROM accounts WHERE address=?`, item.tx.From).Scan(&fromBal, &fromNonce); err != nil {
 			return err
-		}
-		if err := txq.QueryRowContext(ctx, `SELECT balance_units, next_nonce FROM accounts WHERE address=?`, item.tx.To).Scan(&toBal, &toNonce); err != nil {
-			if !errors.Is(err, sql.ErrNoRows) {
-				return err
-			}
-			toBal = 0
-			toNonce = 0
 		}
 		total := item.tx.AmountUnits + item.tx.FeeUnits
 		fromBal -= total
 		fromNonce++
-		toBal += item.tx.AmountUnits
 		burnFeeUnits := uint64(float64(item.tx.FeeUnits) * NetworkFeeBurnShare)
 		devFeeUnits := item.tx.FeeUnits - burnFeeUnits
 		if _, err := txq.ExecContext(ctx, `UPDATE accounts SET balance_units=?, next_nonce=?, updated_at=strftime('%s','now') WHERE address=?`, fromBal, fromNonce, item.tx.From); err != nil {
 			return err
 		}
-		if _, err := txq.ExecContext(ctx,
-			`INSERT INTO accounts (address, balance_units, next_nonce, updated_at)
-			 VALUES (?, ?, ?, strftime('%s','now'))
-			 ON CONFLICT(address) DO UPDATE SET balance_units=excluded.balance_units, updated_at=excluded.updated_at`,
-			item.tx.To, toBal, toNonce); err != nil {
-			return err
+		// Credit via SQL arithmetic (not a pre-debit Go read): if From==To somehow
+		// slipped past validation, a precomputed UPSERT would mint HMC. Skip the
+		// recipient write entirely on self-send so the debit alone remains
+		// (same hardening as the SUP/HMS appliers).
+		if item.tx.From != item.tx.To {
+			if _, err := txq.ExecContext(ctx,
+				`INSERT INTO accounts (address, balance_units, next_nonce, updated_at)
+				 VALUES (?, ?, 0, strftime('%s','now'))
+				 ON CONFLICT(address) DO UPDATE SET balance_units=accounts.balance_units + excluded.balance_units, updated_at=excluded.updated_at`,
+				item.tx.To, item.tx.AmountUnits); err != nil {
+				return err
+			}
 		}
 		if devFeeUnits > 0 {
 			if _, err := txq.ExecContext(ctx,

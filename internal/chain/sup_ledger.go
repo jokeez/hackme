@@ -26,6 +26,10 @@ const (
 	DefaultSUPTransferMaxBatch = 128
 )
 
+// ErrGenesisAlreadyInitialized means the HMS or SUP genesis marker is already set.
+// A later call must not re-pin treasury, supply cap, or minted supply.
+var ErrGenesisAlreadyInitialized = errors.New("chain: genesis already initialized")
+
 // SupTransferTx moves SUP on the parallel ledger (same address format as HMC).
 type SupTransferTx struct {
 	TxType        string `json:"tx_type"`
@@ -217,9 +221,10 @@ func (s *Service) SUPEconomics(ctx context.Context) (SUPEconomics, error) {
 }
 
 // InitSUPGenesis pins max supply and enables settlement mint.
-// Idempotent: does not reset total_minted or genesis_unix once set.
-// Self-heal: if sum(account SUP balances) > total_minted (legacy wipe),
-// raises the minted floor so supply-cap accounting stays honest.
+// One-shot: once sup_genesis_unix is set, a later call is refused so it cannot
+// re-pin the cap or raise total_minted from SUM(balances).
+// On the true first call only, a pre-existing balance sum above minted (legacy
+// ledger with no marker) raises the minted floor so the cap stays honest.
 func (s *Service) InitSUPGenesis(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -230,18 +235,21 @@ func (s *Service) InitSUPGenesis(ctx context.Context) error {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if err := s.upsertMetaUint(ctx, tx, metaSUPMaxSupplyUnits, maxU); err != nil {
-		return err
-	}
 
 	var genesisStr string
 	genesisErr := tx.QueryRowContext(ctx, `SELECT value FROM meta WHERE key=?`, metaSUPGenesisUnix).Scan(&genesisStr)
-	if errors.Is(genesisErr, sql.ErrNoRows) || strings.TrimSpace(genesisStr) == "" {
-		if err := s.upsertMeta(ctx, tx, metaSUPGenesisUnix, strconv.FormatInt(now, 10)); err != nil {
-			return err
-		}
-	} else if genesisErr != nil {
+	if genesisErr != nil && !errors.Is(genesisErr, sql.ErrNoRows) {
 		return genesisErr
+	}
+	if genesisErr == nil && strings.TrimSpace(genesisStr) != "" {
+		return ErrGenesisAlreadyInitialized
+	}
+
+	if err := s.upsertMetaUint(ctx, tx, metaSUPMaxSupplyUnits, maxU); err != nil {
+		return err
+	}
+	if err := s.upsertMeta(ctx, tx, metaSUPGenesisUnix, strconv.FormatInt(now, 10)); err != nil {
+		return err
 	}
 
 	mintedU, err := s.supTotalMintedUnits(ctx, tx)
@@ -252,14 +260,13 @@ func (s *Service) InitSUPGenesis(ctx context.Context) error {
 	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(balance_sup_units), 0) FROM accounts`).Scan(&balSum); err != nil {
 		return err
 	}
-	// First-ever genesis with empty ledger: keep minted at 0.
-	// If balances already exist above minted (repeated genesis wipe), heal the floor.
+	// True genesis only. A later InitSUPGenesis must not upward-heal minted
+	// from live balances (that would mint cap room an admin can re-grant).
 	if balSum > mintedU {
 		if err := s.upsertMetaUint(ctx, tx, metaSUPTotalMintedUnits, balSum); err != nil {
 			return err
 		}
 	} else if mintedU == 0 && balSum == 0 {
-		// Ensure key exists for fresh chains.
 		var exists string
 		err := tx.QueryRowContext(ctx, `SELECT value FROM meta WHERE key=?`, metaSUPTotalMintedUnits).Scan(&exists)
 		if errors.Is(err, sql.ErrNoRows) {

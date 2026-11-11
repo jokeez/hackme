@@ -239,60 +239,79 @@ func (s *Service) HMSEconomics(ctx context.Context) (HMSEconomics, error) {
 }
 
 // InitHMSGenesis pins supply cap, treasury address, enables mint, and credits genesis float to treasury.
+// One-shot: once hms_genesis_unix is set, a later call is refused. Treasury is not
+// re-pinned, and the float is added to any pre-existing HMS balance (not overwritten).
 func (s *Service) InitHMSGenesis(ctx context.Context, treasuryAddress string) error {
 	treasuryAddress = strings.TrimSpace(treasuryAddress)
 	if treasuryAddress == "" {
 		treasuryAddress = strings.TrimSpace(os.Getenv("HMS_TREASURY_ADDRESS"))
 	}
-	if err := validateHMSTreasuryAddress(treasuryAddress); err != nil {
-		return err
-	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	maxU := HMSToUnits(MaxSupplyHMS)
-	genesisFloatU := uint64(float64(maxU) * HMSTreasuryGenesisFloatPct)
-	now := time.Now().Unix()
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
+
+	var existingGenesis string
+	genErr := tx.QueryRowContext(ctx, `SELECT value FROM meta WHERE key=?`, metaHMSGenesisUnix).Scan(&existingGenesis)
+	if genErr != nil && !errors.Is(genErr, sql.ErrNoRows) {
+		return genErr
+	}
+	if genErr == nil && strings.TrimSpace(existingGenesis) != "" {
+		return ErrGenesisAlreadyInitialized
+	}
+	if err := validateHMSTreasuryAddress(treasuryAddress); err != nil {
+		return err
+	}
+
+	maxU := HMSToUnits(MaxSupplyHMS)
+	genesisFloatU := uint64(float64(maxU) * HMSTreasuryGenesisFloatPct)
+	now := time.Now().Unix()
 	if err := s.upsertMetaUint(ctx, tx, metaHMSMaxSupplyUnits, maxU); err != nil {
 		return err
 	}
 	if err := s.upsertMeta(ctx, tx, metaHMSTreasuryAddress, treasuryAddress); err != nil {
 		return err
 	}
-	var existingGenesis string
-	_ = tx.QueryRowContext(ctx, `SELECT value FROM meta WHERE key=?`, metaHMSGenesisUnix).Scan(&existingGenesis)
-	firstInit := strings.TrimSpace(existingGenesis) == ""
-	if firstInit {
-		if err := s.upsertMetaUint(ctx, tx, metaHMSTotalMintedUnits, genesisFloatU); err != nil {
-			return err
-		}
+	mintedU, err := s.hmsTotalMintedUnits(ctx, tx)
+	if err != nil {
+		return err
+	}
+	if err := s.upsertMetaUint(ctx, tx, metaHMSTotalMintedUnits, mintedU+genesisFloatU); err != nil {
+		return err
+	}
+	var burnedExists string
+	burnErr := tx.QueryRowContext(ctx, `SELECT value FROM meta WHERE key=?`, metaHMSTotalBurnedUnits).Scan(&burnedExists)
+	if errors.Is(burnErr, sql.ErrNoRows) || strings.TrimSpace(burnedExists) == "" {
 		if err := s.upsertMetaUint(ctx, tx, metaHMSTotalBurnedUnits, 0); err != nil {
 			return err
 		}
-		if genesisFloatU > 0 {
-			if _, err := tx.ExecContext(ctx,
-				`INSERT INTO accounts (address, balance_units, balance_hms_units, next_nonce, hms_next_nonce, updated_at)
-				 VALUES (?, 0, ?, 0, 0, strftime('%s','now'))
-				 ON CONFLICT(address) DO UPDATE SET balance_hms_units=excluded.balance_hms_units, updated_at=excluded.updated_at`,
-				treasuryAddress, genesisFloatU); err != nil {
-				return err
-			}
-			mintRow := map[string]any{"op": "hms_genesis_float", "to": treasuryAddress, "amount_units": genesisFloatU, "ts": now}
-			raw, _ := json.Marshal(mintRow)
-			if _, err := tx.ExecContext(ctx,
-				`INSERT INTO hms_tx_history (tx_hash, tx_json, from_address, to_address, nonce, fee_units, amount_units, status, block_index, block_hash, applied_at, reject_code)
-				 VALUES (?, ?, '', ?, 0, 0, ?, 'included', 0, 'genesis', ?, '')`,
-				fmt.Sprintf("hms-genesis-float-%d", now), string(raw), treasuryAddress, genesisFloatU, now); err != nil {
-				return err
-			}
-		}
-		if err := s.upsertMeta(ctx, tx, metaHMSGenesisUnix, strconv.FormatInt(now, 10)); err != nil {
+	} else if burnErr != nil {
+		return burnErr
+	}
+	if genesisFloatU > 0 {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO accounts (address, balance_units, balance_hms_units, next_nonce, hms_next_nonce, updated_at)
+			 VALUES (?, 0, ?, 0, 0, strftime('%s','now'))
+			 ON CONFLICT(address) DO UPDATE SET
+			   balance_hms_units=COALESCE(accounts.balance_hms_units,0)+excluded.balance_hms_units,
+			   updated_at=excluded.updated_at`,
+			treasuryAddress, genesisFloatU); err != nil {
 			return err
 		}
+		mintRow := map[string]any{"op": "hms_genesis_float", "to": treasuryAddress, "amount_units": genesisFloatU, "ts": now}
+		raw, _ := json.Marshal(mintRow)
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO hms_tx_history (tx_hash, tx_json, from_address, to_address, nonce, fee_units, amount_units, status, block_index, block_hash, applied_at, reject_code)
+			 VALUES (?, ?, '', ?, 0, 0, ?, 'included', 0, 'genesis', ?, '')`,
+			fmt.Sprintf("hms-genesis-float-%d", now), string(raw), treasuryAddress, genesisFloatU, now); err != nil {
+			return err
+		}
+	}
+	if err := s.upsertMeta(ctx, tx, metaHMSGenesisUnix, strconv.FormatInt(now, 10)); err != nil {
+		return err
 	}
 	if err := s.upsertMeta(ctx, tx, metaHMSMintEnabled, "1"); err != nil {
 		return err

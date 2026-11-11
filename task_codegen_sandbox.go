@@ -169,11 +169,25 @@ func compilerSandboxROBinds(inner *exec.Cmd, compilerPath string) []string {
 		envMap = envMapFromSlice(inner.Env)
 	}
 	for _, key := range []string{
-		"RUSTUP_HOME", "CARGO_HOME", "TINYGOROOT", "WASMTIME_HOME",
+		"TINYGOROOT", "WASMTIME_HOME",
 		"ZIG_GLOBAL_CACHE_DIR", "ZIG_LOCAL_CACHE_DIR",
 	} {
 		if v := strings.TrimSpace(envMap[key]); v != "" {
 			out = append(out, filepath.Clean(v))
+		}
+	}
+	// Never RO-bind a real CARGO_HOME / RUSTUP_HOME root: credentials.toml and
+	// config sit there and build.rs can echo them via cargo:warning=.
+	if v := strings.TrimSpace(envMap["CARGO_HOME"]); v != "" {
+		p := filepath.Join(filepath.Clean(v), "bin")
+		if pathExists(p) {
+			out = append(out, p)
+		}
+	}
+	if v := strings.TrimSpace(envMap["RUSTUP_HOME"]); v != "" {
+		p := filepath.Join(filepath.Clean(v), "toolchains")
+		if pathExists(p) {
+			out = append(out, p)
 		}
 	}
 	// Portable toolchains under HACKME_PREFIX (never bind the whole prefix —
@@ -185,7 +199,8 @@ func compilerSandboxROBinds(inner *exec.Cmd, compilerPath string) []string {
 	prefix = filepath.Clean(prefix)
 	if prefix != "/" && pathExists(prefix) {
 		for _, sub := range []string{
-			".rustup", ".cargo", "tinygo", "wabt", "nodejs", "bin",
+			filepath.Join(".rustup", "toolchains"), filepath.Join(".cargo", "bin"),
+			"tinygo", "wabt", "nodejs", "bin",
 			".npm-global", "zig", "toolchains",
 		} {
 			p := filepath.Join(prefix, sub)
@@ -226,6 +241,40 @@ func compilerSandboxROBinds(inner *exec.Cmd, compilerPath string) []string {
 		}
 	}
 
+	return narrowCargoRustupBinds(uniqueCleanDirs(out...))
+}
+
+// narrowCargoRustupBinds rewrites a wholesale cargo/rustup home to its toolchain
+// subdirectory and drops any path that still contains credentials.toml.
+func narrowCargoRustupBinds(dirs []string) []string {
+	out := make([]string, 0, len(dirs))
+	for _, d := range dirs {
+		d = filepath.Clean(strings.TrimSpace(d))
+		if d == "" || d == "." || d == "/" {
+			continue
+		}
+		if filepath.Base(d) == "credentials.toml" {
+			continue
+		}
+		switch filepath.Base(d) {
+		case ".cargo":
+			bin := filepath.Join(d, "bin")
+			if pathExists(bin) && !pathExists(filepath.Join(bin, "credentials.toml")) {
+				out = append(out, bin)
+			}
+			continue
+		case ".rustup":
+			tc := filepath.Join(d, "toolchains")
+			if pathExists(tc) && !pathExists(filepath.Join(tc, "credentials.toml")) {
+				out = append(out, tc)
+			}
+			continue
+		}
+		if pathExists(filepath.Join(d, "credentials.toml")) {
+			continue
+		}
+		out = append(out, d)
+	}
 	return uniqueCleanDirs(out...)
 }
 

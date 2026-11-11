@@ -2,6 +2,7 @@ package chain
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 
@@ -56,9 +57,19 @@ func TestSUPGenesisIdempotentPreservesMinted(t *testing.T) {
 	if code, err := svc.MintSUP(ctx, to, SUPToUnits(3.5), "idem"); err != nil || code != "" {
 		t.Fatalf("MintSUP: code=%q err=%v", code, err)
 	}
-	// Legacy bug: repeated genesis must NOT wipe total_minted.
-	if err := svc.InitSUPGenesis(ctx); err != nil {
+	// Re-entry must refuse. It must not wipe minted or rewrite the cap.
+	if _, err := db.Exec(`UPDATE meta SET value='1' WHERE key=?`, metaSUPMaxSupplyUnits); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.InitSUPGenesis(ctx); !errors.Is(err, ErrGenesisAlreadyInitialized) {
 		t.Fatalf("genesis2: %v", err)
+	}
+	var capRaw string
+	if err := db.QueryRow(`SELECT value FROM meta WHERE key=?`, metaSUPMaxSupplyUnits).Scan(&capRaw); err != nil {
+		t.Fatal(err)
+	}
+	if capRaw != "1" {
+		t.Fatalf("re-genesis re-pinned cap to %q", capRaw)
 	}
 	ec2, err := svc.SUPEconomics(ctx)
 	if err != nil {
@@ -72,7 +83,7 @@ func TestSUPGenesisIdempotentPreservesMinted(t *testing.T) {
 	}
 }
 
-func TestSUPGenesisSelfHealsMintedFloor(t *testing.T) {
+func TestSUPGenesisHealsMintedOnlyOnTrueGenesis(t *testing.T) {
 	ctx := context.Background()
 	db, err := store.Open(filepath.Join(t.TempDir(), "sup-heal.db"))
 	if err != nil {
@@ -80,29 +91,38 @@ func TestSUPGenesisSelfHealsMintedFloor(t *testing.T) {
 	}
 	defer db.Close()
 	svc := New(db)
-	if err := svc.InitSUPGenesis(ctx); err != nil {
-		t.Fatalf("genesis: %v", err)
-	}
 	to := "HMC-suphealwallet01"
-	if code, err := svc.MintSUP(ctx, to, SUPToUnits(7.0), "heal"); err != nil || code != "" {
-		t.Fatalf("MintSUP: %v %s", err, code)
-	}
-	// Simulate legacy wipe of minted counter while balances remain.
-	if _, err := db.Exec(`UPDATE meta SET value='0' WHERE key=?`, metaSUPTotalMintedUnits); err != nil {
+	pre := SUPToUnits(7.0)
+	if _, err := db.ExecContext(ctx,
+		`INSERT INTO accounts (address, balance_units, balance_sup_units, next_nonce, sup_next_nonce, updated_at)
+		 VALUES (?, 0, ?, 0, 0, strftime('%s','now'))`, to, pre); err != nil {
 		t.Fatal(err)
 	}
-	ecBroken, _ := svc.SUPEconomics(ctx)
-	if ecBroken.TotalMintedSUP > 0.001 {
-		t.Fatalf("setup failed, minted still %v", ecBroken.TotalMintedSUP)
-	}
+	// No genesis marker yet: the first call may raise minted to the balance sum.
 	if err := svc.InitSUPGenesis(ctx); err != nil {
-		t.Fatalf("heal genesis: %v", err)
+		t.Fatalf("true genesis: %v", err)
 	}
 	ec, err := svc.SUPEconomics(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if ec.TotalMintedSUP < 6.99 {
-		t.Fatalf("self-heal failed: economics=%+v", ec)
+		t.Fatalf("true-genesis heal failed: %+v", ec)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE accounts SET balance_sup_units=balance_sup_units+? WHERE address=?`, SUPToUnits(3.0), to); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`UPDATE meta SET value='0' WHERE key=?`, metaSUPTotalMintedUnits); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.InitSUPGenesis(ctx); !errors.Is(err, ErrGenesisAlreadyInitialized) {
+		t.Fatalf("re-entry must refuse, got %v", err)
+	}
+	ec2, err := svc.SUPEconomics(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ec2.TotalMintedSUP > 0.001 {
+		t.Fatalf("re-entry upward-healed minted: %+v", ec2)
 	}
 }

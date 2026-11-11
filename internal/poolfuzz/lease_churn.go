@@ -198,48 +198,50 @@ func (s *Service) forceCompleteWorkItem(ctx context.Context, campaignID string, 
 	if reason == "" {
 		reason = "force_complete"
 	}
-	res, err := s.DB.ExecContext(ctx,
-		`UPDATE fuzz_work_items
+	return s.withCampaignSettle(campaignID, func() error {
+		res, err := s.DB.ExecContext(ctx,
+			`UPDATE fuzz_work_items
 		 SET status='done', attempts=attempts+1, result_ok=?, duration_ms=CASE WHEN duration_ms>0 THEN duration_ms ELSE 0 END,
 		     last_error=?, lease_owner='', lease_until=0, updated_at=?
 		 WHERE id=? AND campaign_id=? AND status IN ('pending','leased','replay_pending')`,
-		boolToInt(pass), reason, now, itemID, campaignID)
-	if err != nil {
-		return err
-	}
-	aff, _ := res.RowsAffected()
-	if aff == 0 {
-		return nil
-	}
-	// Drop any stale hunt replay row so async workers do not resurrect the shard.
-	if _, err := s.DB.ExecContext(ctx,
-		`UPDATE fuzz_hunt_replay_queue SET status='failed', last_error=?, updated_at=?
+			boolToInt(pass), reason, now, itemID, campaignID)
+		if err != nil {
+			return err
+		}
+		aff, _ := res.RowsAffected()
+		if aff == 0 {
+			return nil
+		}
+		// Drop any stale hunt replay row so async workers do not resurrect the shard.
+		if _, err := s.DB.ExecContext(ctx,
+			`UPDATE fuzz_hunt_replay_queue SET status='failed', last_error=?, updated_at=?
 		 WHERE campaign_id=? AND item_id=? AND status IN ('pending','processing')`,
-		reason, now, campaignID, itemID); err != nil && !strings.Contains(strings.ToLower(err.Error()), "no such table") {
-		return err
-	}
+			reason, now, campaignID, itemID); err != nil && !strings.Contains(strings.ToLower(err.Error()), "no such table") {
+			return err
+		}
 
-	var cfgJSON string
-	_ = s.DB.QueryRowContext(ctx, `SELECT config_json FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgJSON)
-	cfg := parseConfigJSON(cfgJSON)
-	// Flush PayRun/PayFinding before campaign Finalize so force-complete does not
-	// strand settle outbox rows (audit tip 3415c68 H2: forceComplete→Finalize sans PayRun).
-	if s.Settler != nil && escrowEnabled(cfg) {
-		if err := s.flushPendingSettles(ctx, campaignID, itemID, cfg); err != nil {
-			return fmt.Errorf("poolfuzz: flush settle after %s: %w", reason, err)
+		var cfgJSON string
+		_ = s.DB.QueryRowContext(ctx, `SELECT config_json FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgJSON)
+		cfg := parseConfigJSON(cfgJSON)
+		// Flush PayRun/PayFinding before campaign Finalize so force-complete does not
+		// strand settle outbox rows (audit tip 3415c68 H2: forceComplete→Finalize sans PayRun).
+		if s.Settler != nil && escrowEnabled(cfg) {
+			if err := s.flushPendingSettles(ctx, campaignID, itemID, cfg); err != nil {
+				return fmt.Errorf("poolfuzz: flush settle after %s: %w", reason, err)
+			}
 		}
-	}
-	completed, err := s.recomputeProgress(ctx, campaignID, now)
-	if err != nil {
-		return err
-	}
-	if completed && s.Settler != nil && escrowEnabled(cfg) {
-		// tryFinalizeEscrow skips close while pending/pending_floor intents remain
-		// (direct Finalize here previously risked undrainable closed-escrow heads).
-		if err := s.tryFinalizeEscrow(ctx, campaignID); err != nil {
-			return fmt.Errorf("poolfuzz: finalize after %s: %w", reason, err)
+		completed, err := s.recomputeProgress(ctx, campaignID, now)
+		if err != nil {
+			return err
 		}
-	}
-	s.clearEmptyClaimCache()
-	return nil
+		if completed && s.Settler != nil && escrowEnabled(cfg) {
+			// tryFinalizeEscrow skips close while pending/pending_floor intents remain
+			// (direct Finalize here previously risked undrainable closed-escrow heads).
+			if err := s.tryFinalizeEscrowLocked(ctx, campaignID); err != nil {
+				return fmt.Errorf("poolfuzz: finalize after %s: %w", reason, err)
+			}
+		}
+		s.clearEmptyClaimCache()
+		return nil
+	})
 }

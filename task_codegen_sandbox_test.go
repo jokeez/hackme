@@ -128,6 +128,54 @@ func TestCompilerSandboxROBindsExcludesEtcRoot(t *testing.T) {
 	}
 }
 
+func TestCompilerSandboxROBindsSkipsCargoCredentials(t *testing.T) {
+	dir := t.TempDir()
+	cargo := filepath.Join(dir, ".cargo")
+	if err := os.MkdirAll(filepath.Join(cargo, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cargo, "credentials.toml"), []byte("token=\"secret\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rustup := filepath.Join(dir, ".rustup")
+	if err := os.MkdirAll(filepath.Join(rustup, "toolchains"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	prefix := filepath.Join(dir, "prefix")
+	if err := os.MkdirAll(filepath.Join(prefix, ".cargo", "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(prefix, ".cargo", "credentials.toml"), []byte("token=\"p\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(prefix, ".rustup", "toolchains"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	inner := exec.Command("true")
+	inner.Env = []string{
+		"PATH=/usr/bin",
+		"CARGO_HOME=" + cargo,
+		"RUSTUP_HOME=" + rustup,
+		"HACKME_PREFIX=" + prefix,
+	}
+	binds := compilerSandboxROBinds(inner, "")
+	for _, b := range binds {
+		if b == cargo || b == rustup || b == filepath.Join(prefix, ".cargo") || b == filepath.Join(prefix, ".rustup") {
+			t.Fatalf("wholesale cargo/rustup home bound: %s in %v", b, binds)
+		}
+		if strings.HasSuffix(b, "credentials.toml") {
+			t.Fatalf("credentials bound: %s", b)
+		}
+	}
+	joined := strings.Join(binds, "\n")
+	if !strings.Contains(joined, filepath.Join(cargo, "bin")) {
+		t.Fatalf("expected cargo bin, got %v", binds)
+	}
+	if !strings.Contains(joined, filepath.Join(rustup, "toolchains")) {
+		t.Fatalf("expected rustup toolchains, got %v", binds)
+	}
+}
+
 func TestLooksLikeToolchainDir(t *testing.T) {
 	if !looksLikeToolchainDir("/opt/hackme/.cargo/bin") {
 		t.Fatal("expected cargo bin as toolchain")

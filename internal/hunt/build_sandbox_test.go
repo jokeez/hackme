@@ -31,7 +31,7 @@ func TestUniqueBindPathsDedupes(t *testing.T) {
 func TestBuildToolchainRoBindsNeverMountsPrefixRoot(t *testing.T) {
 	tmp := t.TempDir()
 	prefix := filepath.Join(tmp, "hackme-prefix")
-	for _, sub := range []string{".cargo", "bin", "toolchains"} {
+	for _, sub := range []string{filepath.Join(".cargo", "bin"), "bin", "toolchains", filepath.Join(".rustup", "toolchains")} {
 		if err := os.MkdirAll(filepath.Join(prefix, sub), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -40,8 +40,24 @@ func TestBuildToolchainRoBindsNeverMountsPrefixRoot(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(prefix, ".env.vps"), []byte("HACKME_ADMIN_TOKEN=secret\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(prefix, ".cargo", "credentials.toml"), []byte("token = \"secret\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(prefix, ".cargo", "config.toml"), []byte("[registry]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	home := filepath.Join(tmp, "home")
+	if err := os.MkdirAll(filepath.Join(home, ".rustup", "toolchains"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(home, ".cargo"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(home, ".cargo", "credentials.toml"), []byte("token = \"home\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("HACKME_PREFIX", prefix)
-	t.Setenv("HOME", filepath.Join(tmp, "home"))
+	t.Setenv("HOME", home)
 
 	got := buildToolchainRoBinds()
 	for _, p := range got {
@@ -49,11 +65,15 @@ func TestBuildToolchainRoBindsNeverMountsPrefixRoot(t *testing.T) {
 		if clean == filepath.Clean(prefix) || clean == "/opt/hackme" {
 			t.Fatalf("prefix root must not be RO-bound: %#v", got)
 		}
-		if strings.HasSuffix(clean, ".env.vps") {
-			t.Fatalf("env file must not be RO-bound: %#v", got)
+		if strings.HasSuffix(clean, ".env.vps") || strings.HasSuffix(clean, "credentials.toml") || strings.HasSuffix(clean, "config.toml") {
+			t.Fatalf("secret file must not be RO-bound: %#v", got)
+		}
+		base := filepath.Base(clean)
+		if base == ".cargo" || base == ".rustup" {
+			t.Fatalf("cargo/rustup home must not be RO-bound wholesale: %s in %#v", clean, got)
 		}
 	}
-	wantSub := filepath.Join(prefix, ".cargo")
+	wantSub := filepath.Join(prefix, ".cargo", "bin")
 	found := false
 	for _, p := range got {
 		if filepath.Clean(p) == wantSub {
@@ -63,6 +83,47 @@ func TestBuildToolchainRoBindsNeverMountsPrefixRoot(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected toolchain subdir %s in %#v", wantSub, got)
+	}
+	if !bindListHas(got, filepath.Join(prefix, ".rustup", "toolchains")) {
+		t.Fatalf("expected rustup toolchains in %#v", got)
+	}
+	if !bindListHas(got, filepath.Join(home, ".rustup", "toolchains")) {
+		t.Fatalf("expected HOME rustup toolchains in %#v", got)
+	}
+}
+
+func bindListHas(got []string, want string) bool {
+	want = filepath.Clean(want)
+	for _, p := range got {
+		if filepath.Clean(p) == want {
+			return true
+		}
+	}
+	return false
+}
+
+func TestNarrowSecretToolchainBindsDropsCargoHome(t *testing.T) {
+	dir := t.TempDir()
+	cargo := filepath.Join(dir, ".cargo")
+	if err := os.MkdirAll(filepath.Join(cargo, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cargo, "credentials.toml"), []byte("token=\"x\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rustup := filepath.Join(dir, ".rustup")
+	if err := os.MkdirAll(filepath.Join(rustup, "toolchains"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got := narrowSecretToolchainBinds([]string{cargo, rustup, filepath.Join(cargo, "credentials.toml"), filepath.Join(dir, "work")})
+	if bindListHas(got, cargo) || bindListHas(got, rustup) || bindListHas(got, filepath.Join(cargo, "credentials.toml")) {
+		t.Fatalf("secret homes leaked: %#v", got)
+	}
+	if !bindListHas(got, filepath.Join(cargo, "bin")) || !bindListHas(got, filepath.Join(rustup, "toolchains")) {
+		t.Fatalf("narrow toolchain dirs missing: %#v", got)
+	}
+	if !bindListHas(got, filepath.Join(dir, "work")) {
+		t.Fatalf("unrelated dir dropped: %#v", got)
 	}
 }
 

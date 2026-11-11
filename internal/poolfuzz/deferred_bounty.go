@@ -57,22 +57,20 @@ func (s *Service) flushDeferredBounties(ctx context.Context) error {
 		if miner == "" {
 			continue
 		}
-		if itemID > 0 {
-			_, _ = s.DB.ExecContext(ctx,
-				`UPDATE fuzz_work_items
-				 SET settle_finding_status='pending', settle_finding_severity=?,
-				     miner_address=CASE WHEN miner_address='' THEN ? ELSE miner_address END
-				 WHERE campaign_id=? AND id=? AND settle_finding_status=''`,
-				strings.TrimSpace(severity), miner, campaignID, itemID)
-			if err := s.flushPendingSettles(ctx, campaignID, itemID, cfg); err != nil {
-				if strings.Contains(strings.ToLower(err.Error()), "already paid") {
-					continue
-				}
-				return err
+		err = s.withCampaignSettle(campaignID, func() error {
+			if itemID > 0 {
+				_, _ = s.DB.ExecContext(ctx,
+					`UPDATE fuzz_work_items
+					 SET settle_finding_status='pending', settle_finding_severity=?,
+					     miner_address=CASE WHEN miner_address='' THEN ? ELSE miner_address END
+					 WHERE campaign_id=? AND id=? AND settle_finding_status=''`,
+					strings.TrimSpace(severity), miner, campaignID, itemID)
+				return s.flushPendingSettles(ctx, campaignID, itemID, cfg)
 			}
-			continue
-		}
-		if _, err := s.Settler.PayFinding(ctx, campaignID, miner, severity, 0, 0); err != nil {
+			_, err := s.Settler.PayFinding(ctx, campaignID, miner, severity, 0, 0)
+			return err
+		})
+		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "already paid") {
 				continue
 			}

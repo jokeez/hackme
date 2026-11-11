@@ -71,7 +71,7 @@ func RunBuildIsolated(ctx context.Context, opts BuildIsolateOpts) error {
 	}
 	// Never RW/RO-bind the operator prefix root (or /home,/root,…) — ExtraRo alone
 	// was insufficient after e72f730a (catalog repoRoot + absolute pins remounted it).
-	extraRo := filterSecretPrefixRoots(append(append([]string{}, opts.ExtraRoBind...), buildToolchainRoBinds()...))
+	extraRo := narrowSecretToolchainBinds(filterSecretPrefixRoots(append(append([]string{}, opts.ExtraRoBind...), buildToolchainRoBinds()...)))
 	extraBind := append([]string{}, opts.ExtraBind...)
 	dir := sanitizeCageDir(opts.Dir)
 	// Ephemeral HOME / CARGO_HOME / XDG_* — strip host values first so scrub
@@ -147,8 +147,13 @@ func buildToolchainRoBinds() []string {
 		out = []string{"/usr", "/lib", "/lib64", "/bin", "/sbin"}
 	}
 	if prefix != "/" && prefix != "." && buildPathExists(prefix) {
+		// .cargo and .rustup roots hold credentials.toml / config. Bind only the
+		// compiler bins and rustup toolchains; CARGO_HOME itself stays ephemeral
+		// (buildEphemeralHomeBinds). narrowSecretToolchainBinds repeats this for
+		// any ExtraRoBind that still names the real home.
 		for _, sub := range []string{
-			".rustup", ".cargo", "tinygo", "wabt", "nodejs", "bin",
+			filepath.Join(".rustup", "toolchains"), filepath.Join(".cargo", "bin"),
+			"tinygo", "wabt", "nodejs", "bin",
 			".npm-global", "zig", "toolchains",
 		} {
 			p := filepath.Join(prefix, sub)
@@ -159,10 +164,46 @@ func buildToolchainRoBinds() []string {
 	}
 	if home := strings.TrimSpace(os.Getenv("HOME")); home != "" {
 		out = append(out, filepath.Join(home, ".local/share/hackme/toolchains"))
-		// rustup toolchains are read-only; cargo registry stays ephemeral.
-		out = append(out, filepath.Join(home, ".rustup"))
+		// Toolchain trees only — never the rustup root (settings can carry tokens).
+		out = append(out, filepath.Join(home, ".rustup", "toolchains"))
 	}
-	return filterSecretPrefixRoots(out)
+	return narrowSecretToolchainBinds(filterSecretPrefixRoots(out))
+}
+
+// narrowSecretToolchainBinds drops cargo/rustup homes that would expose
+// credentials.toml or config into a customer build.rs (cargo:warning= exfil).
+// A .cargo directory becomes .cargo/bin when that directory exists; .rustup
+// becomes .rustup/toolchains. Missing narrow targets are omitted (fail closed).
+func narrowSecretToolchainBinds(paths []string) []string {
+	out := make([]string, 0, len(paths))
+	for _, p := range paths {
+		p = filepath.Clean(strings.TrimSpace(p))
+		if p == "" || p == "." || p == "/" {
+			continue
+		}
+		if filepath.Base(p) == "credentials.toml" {
+			continue
+		}
+		switch filepath.Base(p) {
+		case ".cargo":
+			bin := filepath.Join(p, "bin")
+			if buildPathExists(bin) && !buildPathExists(filepath.Join(bin, "credentials.toml")) {
+				out = append(out, bin)
+			}
+			continue
+		case ".rustup":
+			tc := filepath.Join(p, "toolchains")
+			if buildPathExists(tc) && !buildPathExists(filepath.Join(tc, "credentials.toml")) {
+				out = append(out, tc)
+			}
+			continue
+		}
+		if buildPathExists(filepath.Join(p, "credentials.toml")) {
+			continue
+		}
+		out = append(out, p)
+	}
+	return out
 }
 
 func buildPathExists(p string) bool {
