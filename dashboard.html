@@ -4003,9 +4003,14 @@
 								</div>
 							</div>
 							<div class="wallet-bd-orders" id="wallet-bd-orders-row">
-								<span class="wallet-bd-label">Prepaid escrow (after Start)</span>
+								<span class="wallet-bd-label">Available to start · prepaid spendable</span>
 								<span id="wallet-bd-orders" class="wallet-bd-value">0 HMC</span>
-								<span class="wallet-bd-sub">local escrow budget · not the same as on-chain</span>
+								<span class="wallet-bd-sub" id="wallet-bd-orders-sub">Dig/Hunt Start debits this · on-chain can auto-fund · escrow-locked is separate</span>
+							</div>
+							<div class="wallet-bd-orders" id="wallet-bd-escrow-row" style="margin-top:0.45rem;border-color:rgba(192,132,252,0.55);">
+								<span class="wallet-bd-label">In escrow · locked</span>
+								<span id="wallet-bd-escrow-locked" class="wallet-bd-value">0 HMC</span>
+								<span class="wallet-bd-sub">Open Dig/Hunt / PoH liability · refunds after finalize or cancel</span>
 							</div>
 						</div>
 						<div id="wallet-sup-breakdown" class="wallet-detail-sup-only hidden max-w-xl mx-auto mb-4 text-left">

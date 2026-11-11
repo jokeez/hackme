@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -75,5 +76,43 @@ func TestHandleWalletAdminShowsTreasury(t *testing.T) {
 	}
 	if out["address"] == nil || out["address"] == "" {
 		t.Fatalf("expected address for admin")
+	}
+}
+
+func TestHandleWalletOrdersSpendableTriadFields(t *testing.T) {
+	a, _ := newWalletTestApp(t)
+	tok := "test-admin-wallet-triad"
+	t.Setenv("HACKME_ADMIN_TOKEN", tok)
+	req := httptest.NewRequest(http.MethodGet, "/api/wallet", nil)
+	req.Header.Set("X-Hackme-Admin-Token", tok)
+	rec := httptest.NewRecorder()
+	a.handleWallet(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var out map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	for _, key := range []string{
+		"balance_orders_spendable_hmc",
+		"balance_orders_escrow_locked_hmc",
+		"orders_spendable_note",
+	} {
+		if _, ok := out[key]; !ok {
+			t.Fatalf("missing %s in wallet JSON", key)
+		}
+	}
+	note, _ := out["orders_spendable_note"].(string)
+	for _, needle := range []string{"Available to start", "On-chain", "In escrow"} {
+		if !strings.Contains(note, needle) {
+			t.Fatalf("orders_spendable_note missing %q: %q", needle, note)
+		}
+	}
+	if _, ok := out["balance_orders_spendable_hmc"].(float64); !ok {
+		t.Fatalf("balance_orders_spendable_hmc type=%T", out["balance_orders_spendable_hmc"])
+	}
+	if _, ok := out["balance_orders_escrow_locked_hmc"].(float64); !ok {
+		t.Fatalf("balance_orders_escrow_locked_hmc type=%T", out["balance_orders_escrow_locked_hmc"])
 	}
 }
