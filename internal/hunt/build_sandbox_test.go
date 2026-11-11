@@ -114,6 +114,27 @@ func TestFilterSecretPrefixRootsAppliesToExtraBindAndDir(t *testing.T) {
 	}
 }
 
+func TestFilterSecretPrefixRootsRejectsSymlinkToPrefix(t *testing.T) {
+	prefix := t.TempDir()
+	t.Setenv("HACKME_PREFIX", prefix)
+	if err := os.MkdirAll(filepath.Join(prefix, "secrets"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "alias-prefix")
+	if err := os.Symlink(prefix, link); err != nil {
+		t.Fatal(err)
+	}
+	got := filterSecretPrefixRoots([]string{link, filepath.Join(prefix, "secrets")})
+	for _, p := range got {
+		if filepath.Clean(p) == filepath.Clean(prefix) {
+			t.Fatalf("symlink to prefix root must be stripped: %#v", got)
+		}
+	}
+	if len(got) != 1 || filepath.Clean(got[0]) != filepath.Clean(filepath.Join(prefix, "secrets")) {
+		t.Fatalf("subdir under prefix must remain, got %#v", got)
+	}
+}
+
 func TestEphemeralHomeEnvExclusiveAfterStrip(t *testing.T) {
 	tmp := t.TempDir()
 	env := []string{

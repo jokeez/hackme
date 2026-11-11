@@ -180,6 +180,8 @@ func hackmePrefixRoot() string {
 // filterSecretPrefixRoots drops the operator prefix root (and a few broad FS
 // roots) so ExtraRoBind / ExtraBind / Dir / binDir lists cannot reintroduce
 // .env.vps into the Hunt cage. Toolchain *subdirs* under the prefix are kept.
+// Symlinks are resolved when possible so a plant like /tmp/x → /opt/hackme
+// cannot reintroduce the prefix root under a non-prefix path string.
 func filterSecretPrefixRoots(paths []string) []string {
 	prefix := hackmePrefixRoot()
 	out := make([]string, 0, len(paths))
@@ -188,14 +190,20 @@ func filterSecretPrefixRoots(paths []string) []string {
 		if p == "" || p == "." || p == "/" {
 			continue
 		}
-		if p == prefix || p == "/opt/hackme" {
+		check := p
+		if resolved, err := filepath.EvalSymlinks(p); err == nil && strings.TrimSpace(resolved) != "" {
+			check = filepath.Clean(resolved)
+		}
+		if check == prefix || check == "/opt/hackme" || check == "/" {
 			continue
 		}
-		switch p {
+		switch check {
 		case "/etc", "/home", "/root", "/var", "/opt", "/tmp", "/dev", "/proc", "/sys":
 			continue
 		}
-		out = append(out, p)
+		// Bind the resolved path when available so bwrap cannot follow a
+		// leftover symlink into a filtered root after the string check.
+		out = append(out, check)
 	}
 	return out
 }
