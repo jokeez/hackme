@@ -524,7 +524,8 @@ func scrubIsolateEnv(env []string) []string {
 	allowPrefix := []string{
 		"LC_", "AFL_", "LIBFUZZER_", "CARGO_", "RUST", "CCACHE_", "SCCACHE_",
 	}
-	out := make([]string, 0, len(env)/4+8)
+	// Fixed hint only — avoid len(env)/4+8 style size math CodeQL flags as overflow-prone.
+	out := make([]string, 0, 8)
 	for _, e := range env {
 		key, _, _ := strings.Cut(e, "=")
 		if key == "" {

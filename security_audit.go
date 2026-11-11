@@ -30,7 +30,7 @@ type securityAuditRequest struct {
 	Language         string   `json:"language"`
 	Code             string   `json:"code"`
 	WasmCheckHex     string   `json:"wasm_check_hex"`
-	WasmPath         string   `json:"wasm_path"` // relative .wasm under repo (tasks/artifacts/…)
+	WasmPath         string   `json:"wasm_path"`  // relative .wasm under repo (tasks/artifacts/…)
 	DigPreset        string   `json:"dig_preset"` // one-click named pack → shipped WASM
 	BudgetHMC        float64  `json:"budget_hmc"`
 	UseSUPDiscount   *bool    `json:"use_sup_discount"`
