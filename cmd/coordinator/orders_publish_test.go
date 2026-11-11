@@ -617,6 +617,29 @@ func TestOrdersPublishRateLimit(t *testing.T) {
 	}
 }
 
+// settleAckWithStubReceipt hits the publish settle ACK path past owner+receipts gates
+// so rate-limit tests can observe settle vs publish buckets. Stub outbox ids fail
+// verifySettleAckReceipts with 400 after settleRateAllow — that is intentional.
+func settleAckWithStubReceipt(t *testing.T, mux *http.ServeMux, campaignID, ownerRef, ownerSecret string) *httptest.ResponseRecorder {
+	t.Helper()
+	raw, _ := json.Marshal(map[string]any{
+		"ids":         []int64{1},
+		"campaign_id": campaignID,
+		"receipts": []map[string]any{
+			{"outbox_id": 1, "event_id": "stub", "campaign_id": campaignID, "kind": "run", "outcome": "applied"},
+		},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle/outbox/ack", bytes.NewReader(raw))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	req.Header.Set("X-Hackme-Orders-Owner-Ref", ownerRef)
+	req.Header.Set("X-Hackme-Orders-Owner-Secret", ownerSecret)
+	req.RemoteAddr = "203.0.113.10:4444"
+	ack := httptest.NewRecorder()
+	mux.ServeHTTP(ack, req)
+	return ack
+}
+
 func TestOrdersSettleAckNotStarvedByPublishRateLimit(t *testing.T) {
 	// Lab: exhausted publish hourly (register/harness) must not block settle ACK,
 	// or CLEAN campaigns leave escrow open / refunds stuck.
@@ -626,14 +649,21 @@ func TestOrdersSettleAckNotStarvedByPublishRateLimit(t *testing.T) {
 	t.Setenv("HACKME_ORDERS_SETTLE_MAX_PER_DAY", "8")
 	mux := ordersPublishMux(t)
 	body := map[string]any{
-		"budget_runs": 8, "budget_seconds": 60,
+		"budget_runs": 8, "budget_seconds": 60, "owner_ref": "customer:settle-sep",
 		"config": map[string]any{"dig_package": "scan", "guard_pack": "secrets"},
 	}
+	var ownerSecret string
 	for i := 0; i < 2; i++ {
 		body["id"] = "settle-sep-" + strconv.Itoa(i)
 		rec := publishReq(t, mux, "publish-tok", body)
 		if rec.Code != http.StatusOK {
 			t.Fatalf("register %d want 200 got %d %s", i, rec.Code, rec.Body.String())
+		}
+		if i == 0 {
+			ownerSecret = publishOwnerSecretFromResp(t, rec)
+			if ownerSecret == "" {
+				t.Fatal("expected orders_owner_secret on register")
+			}
 		}
 	}
 	body["id"] = "settle-sep-blocked"
@@ -659,18 +689,14 @@ func TestOrdersSettleAckNotStarvedByPublishRateLimit(t *testing.T) {
 		t.Fatalf("harness after publish cap want 429, got %d %s", hRec.Code, hRec.Body.String())
 	}
 
-	raw, _ := json.Marshal(map[string]any{
-		"ids": []int64{}, "campaign_id": "settle-sep-0", "confirm_applied": true,
-	})
 	for i := 0; i < 3; i++ {
-		req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle/outbox/ack", bytes.NewReader(raw))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
-		req.RemoteAddr = "203.0.113.10:4444"
-		ack := httptest.NewRecorder()
-		mux.ServeHTTP(ack, req)
-		if ack.Code != http.StatusOK {
+		ack := settleAckWithStubReceipt(t, mux, "settle-sep-0", "customer:settle-sep", ownerSecret)
+		// Stub receipt fails verify (400) after settleRateAllow — must never be publish 429.
+		if ack.Code == http.StatusTooManyRequests {
 			t.Fatalf("settle ACK %d must not share publish 429, got %d %s", i, ack.Code, ack.Body.String())
+		}
+		if ack.Code != http.StatusBadRequest {
+			t.Fatalf("settle ACK %d want 400 stub-receipt verify, got %d %s", i, ack.Code, ack.Body.String())
 		}
 	}
 }
@@ -682,32 +708,27 @@ func TestOrdersSettleAckHasOwnRateLimit(t *testing.T) {
 	t.Setenv("HACKME_ORDERS_SETTLE_MAX_PER_DAY", "2")
 	mux := ordersPublishMux(t)
 	rec := publishReq(t, mux, "publish-tok", map[string]any{
-		"id": "settle-own-1", "budget_runs": 8, "budget_seconds": 60,
+		"id": "settle-own-1", "budget_runs": 8, "budget_seconds": 60, "owner_ref": "customer:settle-own",
 		"config": map[string]any{"dig_package": "scan", "guard_pack": "secrets"},
 	})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("register want 200, got %d %s", rec.Code, rec.Body.String())
 	}
-	raw, _ := json.Marshal(map[string]any{
-		"ids": []int64{}, "campaign_id": "settle-own-1", "confirm_applied": true,
-	})
+	ownerSecret := publishOwnerSecretFromResp(t, rec)
+	if ownerSecret == "" {
+		t.Fatal("expected orders_owner_secret on register")
+	}
 	for i := 0; i < 2; i++ {
-		req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle/outbox/ack", bytes.NewReader(raw))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
-		req.RemoteAddr = "203.0.113.10:4444"
-		ack := httptest.NewRecorder()
-		mux.ServeHTTP(ack, req)
-		if ack.Code != http.StatusOK {
-			t.Fatalf("settle ACK %d want 200, got %d %s", i, ack.Code, ack.Body.String())
+		ack := settleAckWithStubReceipt(t, mux, "settle-own-1", "customer:settle-own", ownerSecret)
+		// Counts against settle bucket even when stub receipt verify fails.
+		if ack.Code == http.StatusTooManyRequests {
+			t.Fatalf("settle ACK %d want pre-cap (400 verify), got 429 %s", i, ack.Body.String())
+		}
+		if ack.Code != http.StatusBadRequest {
+			t.Fatalf("settle ACK %d want 400 stub-receipt verify, got %d %s", i, ack.Code, ack.Body.String())
 		}
 	}
-	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle/outbox/ack", bytes.NewReader(raw))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
-	req.RemoteAddr = "203.0.113.10:4444"
-	ack := httptest.NewRecorder()
-	mux.ServeHTTP(ack, req)
+	ack := settleAckWithStubReceipt(t, mux, "settle-own-1", "customer:settle-own", ownerSecret)
 	if ack.Code != http.StatusTooManyRequests {
 		t.Fatalf("settle overflow want 429, got %d %s", ack.Code, ack.Body.String())
 	}
@@ -716,7 +737,7 @@ func TestOrdersSettleAckHasOwnRateLimit(t *testing.T) {
 	}
 	// Exhausted settle bucket must not starve a fresh publish register.
 	rec = publishReq(t, mux, "publish-tok", map[string]any{
-		"id": "settle-own-publish-ok", "budget_runs": 8, "budget_seconds": 60,
+		"id": "settle-own-publish-ok", "budget_runs": 8, "budget_seconds": 60, "owner_ref": "customer:settle-own",
 		"config": map[string]any{"dig_package": "scan", "guard_pack": "secrets"},
 	})
 	if rec.Code != http.StatusOK {
