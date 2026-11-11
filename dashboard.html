@@ -1127,8 +1127,8 @@
 		.orders-balance-strip {
 			display: flex;
 			flex-wrap: wrap;
-			align-items: center;
-			gap: 0.65rem 1.1rem;
+			align-items: stretch;
+			gap: 0.65rem 0.85rem;
 			border-radius: 0.85rem;
 			border: 1px solid rgba(0, 209, 255, 0.28);
 			background: linear-gradient(105deg, rgba(0, 209, 255, 0.1), rgba(255, 176, 32, 0.06) 55%, rgba(0, 0, 0, 0.4));
@@ -1136,7 +1136,34 @@
 			font-size: 11px;
 			box-shadow: inset 0 1px 0 rgba(0, 209, 255, 0.12), 0 10px 28px rgba(0, 0, 0, 0.28);
 		}
-		.orders-balance-strip strong { color: #7ddfff; font-variant-numeric: tabular-nums; font-size: 13px; }
+		.orders-bal-cell {
+			display: flex;
+			flex-direction: column;
+			gap: 0.15rem;
+			min-width: 7.5rem;
+			padding: 0.35rem 0.55rem;
+			border-radius: 0.55rem;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			background: rgba(0, 0, 0, 0.22);
+		}
+		.orders-bal-cell.start {
+			border-color: rgba(0, 209, 255, 0.35);
+			background: rgba(0, 209, 255, 0.08);
+		}
+		.orders-bal-label {
+			font-size: 9px;
+			text-transform: uppercase;
+			letter-spacing: 0.14em;
+			color: #9ca3af;
+		}
+		.orders-balance-strip strong {
+			color: #7ddfff;
+			font-variant-numeric: tabular-nums;
+			font-size: 13px;
+			font-weight: 650;
+		}
+		.orders-bal-cell.escrow strong { color: #e9d5ff; }
+		.orders-bal-cell.onchain strong { color: #86efac; }
 		/* —— Orders / Mining / Fuzz visual refresh —— */
 		.orders-hero {
 			position: relative;
