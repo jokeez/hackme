@@ -13,9 +13,9 @@
     "limit_hmc": 200
   },
   "stats": {
-    "total_paid_hmc": 1060,
+    "total_paid_hmc": 1180,
     "researchers": 6,
-    "reports_accepted": 35
+    "reports_accepted": 37
   },
   "researchers": [
     {
@@ -41,8 +41,30 @@
       "id": "fimasw",
       "name": "fimasw",
       "handle": "fimasw",
-      "total_paid_hmc": 270,
+      "total_paid_hmc": 390,
       "findings": [
+        {
+          "title": "Fleet-fold settlement key churn double-pays accrual (bare-base decoy claim)",
+          "severity": "high",
+          "paid_hmc": 60,
+          "date": "2026-11-11",
+          "reported": "2026-11-11",
+          "commit": "a5923b02",
+          "txid": "1f5ae034d93fcd57a1b550de5f479dc1cc6dda05a89dff372482d761ec30fd38",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "High: claim on bare fleet base id with a second address planted a 0-accrual decoy that flipped -gpuN export out of the fold; settler watermark is per exported wid so SettledUnits=0 repaid lifetime accrual. Fixed: refuse decoy bare-base when fleet members exist; ignore 0-accrual base addr for separate export; drop decoy addr on merge. Paid 60 HMC → HMC-a6d09759a4c12019 tx 1f5ae034… Deployed a5923b02."
+        },
+        {
+          "title": "Hunt corpus readers follow symlinks (incomplete cdb092e catalog-only fix)",
+          "severity": "high",
+          "paid_hmc": 60,
+          "date": "2026-11-11",
+          "reported": "2026-11-11",
+          "commit": "a5923b02",
+          "txid": "89981a72c1c6d319e404713397b8dd2a9e7490c2774b8bfb61407500c6dfcd22",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "High: cdb092e Lstat-hardened fuzzupstream catalog corpus only; Hunt copyCorpusFiles/placeCorpusFile/collectEngineDelta still followed harness-planted symlinks in RW persist bind → host .env.vps exfil via corpus delta upload. Fixed ReadRegularCorpusFile (Lstat+regular) on Hunt copy/collect/seed/merge + workerfuzzloop. Secondary: fuzz_pool blank-address adopt now matches PoH unpaid guard. Paid 60 HMC → HMC-a6d09759a4c12019 tx 89981a72… Deployed a5923b02."
+        },
         {
           "title": "Hunt RunBuildIsolated RO-binds whole /opt/hackme (build.rs reads .env.vps)",
           "severity": "high",
