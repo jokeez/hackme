@@ -734,6 +734,7 @@ func (s *Service) ReclaimExpiredLeases(ctx context.Context, now int64) (int64, e
 }
 
 // EnsureWorkItems tops up pending queue for active pool campaigns.
+// Orders-publish campaigns without prepaid_attested never enqueue (Tick/sweep included).
 func (s *Service) EnsureWorkItems(ctx context.Context, campaignID string, now int64) error {
 	var budgetRuns int
 	var cfgJSON string
@@ -743,6 +744,9 @@ func (s *Service) EnsureWorkItems(ctx context.Context, campaignID string, now in
 		return err
 	}
 	cfg := parseConfigJSON(cfgJSON)
+	if configTruthyAny(cfg, "orders_publish") && !configTruthyAny(cfg, "prepaid_attested") {
+		return nil
+	}
 	queueDepth := 128
 	if v, ok := cfg["queue_depth"]; ok {
 		if n := intFromJSON(v); n > 0 && n <= 10000 {
