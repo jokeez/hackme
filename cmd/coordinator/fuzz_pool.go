@@ -866,8 +866,32 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 						http.Error(w, "campaign id exists under a different owner_ref — publish cannot hijack", http.StatusConflict)
 						return
 					}
+				} else if reqOwner == "" {
+					http.Error(w, "owner_ref required to refresh existing orders_publish campaign", http.StatusConflict)
+					return
+				} else if err := pf.StampCampaignOwnerRefIfEmpty(r.Context(), req.ID, reqOwner); err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
 				}
 				publishIdempotent = true
+				// Legacy rows minted before owner-secret: issue once on authenticated refresh.
+				existingHash, err := pf.CampaignOwnerSecretHash(r.Context(), req.ID)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				if strings.TrimSpace(existingHash) == "" {
+					sec, hash, err := newOrdersOwnerSecret()
+					if err != nil {
+						http.Error(w, "owner secret mint failed", http.StatusInternalServerError)
+						return
+					}
+					if err := pf.StampOrdersOwnerSecretHash(r.Context(), req.ID, hash); err != nil {
+						http.Error(w, err.Error(), http.StatusInternalServerError)
+						return
+					}
+					issuedOwnerSecret = sec
+				}
 			} else {
 				sec, hash, err := newOrdersOwnerSecret()
 				if err != nil {

@@ -30,6 +30,7 @@ Scoped credential **`pool.orders.token`** /
 | `budget_seconds` | ≤ 86400 | `HACKME_ORDERS_PUBLISH_MAX_BUDGET_SECONDS` |
 | Registers / IP / hour | 10 | `HACKME_ORDERS_PUBLISH_MAX_PER_HOUR` |
 | Registers / IP / day | 40 | `HACKME_ORDERS_PUBLISH_MAX_PER_DAY` |
+| `budget_hmc` | ≤ **500** (SKU floor still applies) | `HACKME_ORDERS_PUBLISH_MAX_BUDGET_HMC` |
 
 Requires Dig `dig_package` (`scan`/`starter`/`audit`/`pro`/`deep`/`enterprise`) or Hunt
 `hunt_package` (`hunt_lite`/`hunt_standard`/`hunt_heavy`), or a Dig `guard_pack`.

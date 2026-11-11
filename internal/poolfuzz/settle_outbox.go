@@ -479,6 +479,22 @@ func (s *Service) CampaignOwnerRef(ctx context.Context, campaignID string) (stri
 	return strings.TrimSpace(owner), nil
 }
 
+// StampCampaignOwnerRefIfEmpty sets owner_ref only when the row still has an empty owner.
+func (s *Service) StampCampaignOwnerRefIfEmpty(ctx context.Context, campaignID, ownerRef string) error {
+	if s == nil || s.DB == nil {
+		return fmt.Errorf("poolfuzz: no database")
+	}
+	campaignID = strings.TrimSpace(campaignID)
+	ownerRef = strings.TrimSpace(ownerRef)
+	if campaignID == "" || ownerRef == "" {
+		return fmt.Errorf("poolfuzz: campaign id and owner_ref required")
+	}
+	_, err := s.DB.ExecContext(ctx,
+		`UPDATE fuzz_campaigns SET owner_ref=? WHERE id=? AND TRIM(COALESCE(owner_ref,''))=''`,
+		ownerRef, campaignID)
+	return err
+}
+
 // CampaignExists reports whether a pool campaign row exists.
 func (s *Service) CampaignExists(ctx context.Context, campaignID string) (bool, error) {
 	if s == nil || s.DB == nil {
@@ -617,6 +633,31 @@ func (s *Service) CampaignOwnerSecretHash(ctx context.Context, campaignID string
 	}
 	v, _ := cfg["orders_owner_secret_hash"].(string)
 	return strings.TrimSpace(v), nil
+}
+
+// StampOrdersOwnerSecretHash sets orders_owner_secret_hash once (no-op if already set).
+func (s *Service) StampOrdersOwnerSecretHash(ctx context.Context, campaignID, hash string) error {
+	if s == nil || s.DB == nil {
+		return fmt.Errorf("poolfuzz: no database")
+	}
+	campaignID = strings.TrimSpace(campaignID)
+	hash = strings.TrimSpace(hash)
+	if campaignID == "" || hash == "" {
+		return fmt.Errorf("poolfuzz: campaign id and secret hash required")
+	}
+	cfg, err := s.CampaignConfig(ctx, campaignID)
+	if err != nil {
+		return err
+	}
+	if cfg == nil {
+		cfg = map[string]any{}
+	}
+	if existing, _ := cfg["orders_owner_secret_hash"].(string); strings.TrimSpace(existing) != "" {
+		return nil
+	}
+	cfg["orders_owner_secret_hash"] = hash
+	_, err = s.DB.ExecContext(ctx, `UPDATE fuzz_campaigns SET config_json=? WHERE id=?`, marshalConfigJSON(cfg), campaignID)
+	return err
 }
 
 // CampaignConfig loads parsed config_json for a pool campaign.

@@ -358,6 +358,7 @@ func TestOrdersPublishCannotOverwritePeerOrdersCampaign(t *testing.T) {
 		t.Fatalf("bob overwrite want 409, got %d %s", rec.Code, rec.Body.String())
 	}
 	// Alice idempotent re-POST keeps original budget (no upsert).
+	// Body may claim dig deep + higher runs; prepaid floor must still match the claim SKU.
 	m := map[string]any{
 		"id": "camp-peer", "budget_runs": 64, "owner_ref": "customer:alice", "budget_hmc": 25.0,
 		"config": map[string]any{"dig_package": "deep", "guard_pack": "secrets"},
