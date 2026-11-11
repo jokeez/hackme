@@ -751,7 +751,8 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if adminToken == "" || !coordAdminOK(r, adminToken) {
+		// AUTH-01: admin mint accepts Admin-Token / Bearer only (not Worker-Token carrier).
+		if adminToken == "" || !coordPublishRouteOK(r, adminToken) {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
 			http.Error(w, "admin authentication required", http.StatusUnauthorized)
 			return
@@ -1997,8 +1998,12 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		// Workers + admin + Orders publish (customer verify/attach after upload).
-		if !coordinatorWorkPOSTAuthed(r, adminToken, workerToken, allowInsecure) && !coordPublishOK(r, publishToken) {
+		// Workers + admin: full fetch. Orders publish: HEAD for probe/verify; GET body
+		// requires content attestation (HUNT-02 — shared publish token must not exfil
+		// proprietary binaries by harness_hash alone).
+		workOK := coordinatorWorkPOSTAuthed(r, adminToken, workerToken, allowInsecure)
+		pubOK := !workOK && coordPublishOK(r, publishToken)
+		if !workOK && !pubOK {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
 			http.Error(w, "coordinator authentication required", http.StatusUnauthorized)
 			return
@@ -2019,6 +2024,19 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				}
 			}
 		}
+		storedFP, fpErr := hunt.GetHarnessContentSHA256(r.Context(), pf.DB, hash)
+		storedFP = strings.ToLower(strings.TrimSpace(storedFP))
+		if pubOK && r.Method == http.MethodGet {
+			if fpErr != nil || storedFP == "" {
+				http.Error(w, "harness not found", http.StatusNotFound)
+				return
+			}
+			want := strings.ToLower(strings.TrimSpace(r.Header.Get("X-Hackme-Harness-Content-SHA256")))
+			if want == "" || !hunt.ValidContentSHA256(want) || want != storedFP {
+				http.Error(w, "harness_content_sha256 required for orders publish harness download", http.StatusForbidden)
+				return
+			}
+		}
 		if path, ok := hunt.GetHarnessArtifactPath(hash); ok {
 			safe, allowOk := pathsafe.Allow(path)
 			if allowOk && pathsafe.AbsRE.MatchString(safe) {
@@ -2030,8 +2048,8 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 					st, stErr := f.Stat()
 					if stErr == nil && st.Mode().IsRegular() {
 						w.Header().Set("Content-Type", "application/octet-stream")
-						if fp, err := hunt.GetHarnessContentSHA256(r.Context(), pf.DB, hash); err == nil && fp != "" {
-							w.Header().Set("X-Hackme-Content-SHA256", fp)
+						if storedFP != "" {
+							w.Header().Set("X-Hackme-Content-SHA256", storedFP)
 						}
 						http.ServeContent(w, r, st.Name(), st.ModTime(), f)
 						_ = f.Close()
@@ -2047,7 +2065,11 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			return
 		}
 		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Header().Set("X-Hackme-Content-SHA256", hunt.ContentFingerprint(data))
+		fp := storedFP
+		if fp == "" {
+			fp = hunt.ContentFingerprint(data)
+		}
+		w.Header().Set("X-Hackme-Content-SHA256", fp)
 		if r.Method == http.MethodHead {
 			w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 			return

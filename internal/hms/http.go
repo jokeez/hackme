@@ -404,13 +404,10 @@ func registerMarketRoutes(mux *http.ServeMux, coord *Coordinator, adminToken, wo
 		if len(parts) == 3 && parts[1] == "download" && r.Method == http.MethodGet {
 			token := strings.TrimSpace(r.Header.Get("X-HMS-Upload-Token"))
 			if token == "" {
-				// M11: query tokens land in access logs / Referer. Allow only when
-				// explicitly opted in (legacy clients) or from loopback.
-				allowQ := loopbackOnly(r)
+				// HMS-01 / M11: query tokens land in access logs / Referer / proxies.
+				// Default deny (including loopback). Break-glass only:
+				// HMS_ALLOW_QUERY_TOKEN=1 for legacy clients.
 				if v := strings.TrimSpace(strings.ToLower(os.Getenv("HMS_ALLOW_QUERY_TOKEN"))); v == "1" || v == "true" || v == "yes" {
-					allowQ = true
-				}
-				if allowQ {
 					token = strings.TrimSpace(r.URL.Query().Get("token"))
 				}
 			}

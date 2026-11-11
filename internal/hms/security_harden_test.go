@@ -1,9 +1,13 @@
 package hms
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"encoding/hex"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -101,6 +105,64 @@ func TestMarketPaymentHMACSecretNoAdminFallback(t *testing.T) {
 	t.Setenv("HMS_MARKET_PAYMENT_HMAC_SECRET", "only-this")
 	if MarketPaymentHMACSecret() != "only-this" {
 		t.Fatal("dedicated secret not read")
+	}
+}
+
+func TestMarketDownloadQueryTokenFailClosed(t *testing.T) {
+	// HMS-01: query ?token= denied by default (incl. loopback); header-only.
+	dir := t.TempDir()
+	db, err := OpenDB(filepath.Join(dir, "h.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	coord := NewCoordinator(db, Config{MinQuotaGB: 10, MaxQuotaGB: 100, EpochDuration: time.Hour, FreezeAfter: time.Hour, SealWindow: time.Minute, InitialSealTarget: defaultSealTarget()})
+	_ = coord.RegisterStorageWorker("w1", repeatHex(64), 50)
+	t.Setenv("HMS_MARKET_DATA_DIR", filepath.Join(dir, "market"))
+	t.Setenv("HMS_MARKET_STORAGE_ROOT", filepath.Join(dir, "storage"))
+	_ = os.MkdirAll(filepath.Join(dir, "storage", "w1"), 0o755)
+	t.Setenv("HMS_MARKET_SKIP_PAYMENT", "1")
+	t.Setenv("HMS_COORDINATOR_ALLOW_INSECURE", "1")
+	t.Setenv("HMS_ALLOW_QUERY_TOKEN", "")
+
+	created, err := coord.CreateStorageOrder("dl-q", "u", 4096, 30, "", "", "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oid := created.Order.OrderID
+	tok := created.UploadToken
+	ct := []byte("query-token-should-not-work")
+	if _, err := coord.UploadOrderChunk(oid, tok, 0, ct); err != nil {
+		t.Fatal(err)
+	}
+
+	mux := http.NewServeMux()
+	RegisterHTTP(mux, coord, "", "")
+
+	qReq := httptest.NewRequest(http.MethodGet, "/api/market/orders/"+oid+"/download/0?token="+tok, nil)
+	qReq.RemoteAddr = "127.0.0.1:9"
+	qRec := httptest.NewRecorder()
+	mux.ServeHTTP(qRec, qReq)
+	if qRec.Code == http.StatusOK {
+		t.Fatalf("loopback query token must be denied by default, got 200 body=%q", qRec.Body.String())
+	}
+
+	hReq := httptest.NewRequest(http.MethodGet, "/api/market/orders/"+oid+"/download/0", nil)
+	hReq.Header.Set("X-HMS-Upload-Token", tok)
+	hReq.RemoteAddr = "127.0.0.1:9"
+	hRec := httptest.NewRecorder()
+	mux.ServeHTTP(hRec, hReq)
+	if hRec.Code != http.StatusOK || !bytes.Equal(hRec.Body.Bytes(), ct) {
+		t.Fatalf("header token want 200, got %d", hRec.Code)
+	}
+
+	t.Setenv("HMS_ALLOW_QUERY_TOKEN", "1")
+	q2 := httptest.NewRequest(http.MethodGet, "/api/market/orders/"+oid+"/download/0?token="+tok, nil)
+	q2.RemoteAddr = "203.0.113.9:1"
+	q2Rec := httptest.NewRecorder()
+	mux.ServeHTTP(q2Rec, q2)
+	if q2Rec.Code != http.StatusOK || !bytes.Equal(q2Rec.Body.Bytes(), ct) {
+		t.Fatalf("break-glass query token want 200, got %d", q2Rec.Code)
 	}
 }
 

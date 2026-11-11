@@ -20,7 +20,7 @@ Changing them requires a coordinated upgrade and a new `market_policy_hash`.
 2. `POST /api/hms/market/orders` on **desktop node** — debits HMC wallet (`PayHMSStorageMarket`), forwards to coordinator with `payment_id`
 3. Upload encrypted chunks with `X-HMS-Upload-Token`
 4. `POST …/complete` — order `stored`
-5. Restore: `GET …/chunks` + `GET …/download/{index}` + client decrypt
+5. Restore: `GET …/chunks` + `GET …/download/{index}` with header `X-HMS-Upload-Token` (query `?token=` denied by default — set `HMS_ALLOW_QUERY_TOKEN=1` only as legacy break-glass) + client decrypt
 6. **Restore pack**: export `HMSRESTORE1:` base64 bundle (upload token + file manifest) — import on another device; passphrase stays local.
 
 Production:

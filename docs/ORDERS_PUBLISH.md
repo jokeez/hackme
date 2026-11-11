@@ -66,7 +66,10 @@ Requires Dig `dig_package` (`scan`/`starter`/`audit`/`pro`/`deep`/`enterprise`) 
   (`X-Hackme-Orders-Owner-Ref`); query `owner_ref` is ignored. Publish-scoped reads
   require a stamped `orders_owner_secret_hash` (legacy owner_ref-only rows denied).
   Admin `hub_applied` ACK is refused for `orders_publish` outbox rows (receipts required).
-  Publish Hunt harness upload requires `harness_content_sha256`.
+  Publish Hunt harness upload requires `harness_content_sha256`. Publish harness **GET**
+  body requires the same content attestation header (HEAD probe OK without it); workers
+  fetch freely. Publish routes accept `X-Hackme-Admin-Token` / Bearer only — not
+  `X-Hackme-Worker-Token` (AUTH-01).
 - **Med-prepaid / minting hub:** publish-token self-MAC is lab-only. On D1
   (`HACKME_CHAIN_MINTING_HUB=1` or `HACKME_ORDERS_REQUIRE_HUB_PREPAID_TICKET=1`) the
   coordinator **refuses** self-MAC and requires a hub-signed ticket
@@ -79,7 +82,8 @@ Requires Dig `dig_package` (`scan`/`starter`/`audit`/`pro`/`deep`/`enterprise`) 
   `HACKME_ORDERS_PREPAID_ALLOW_ALGEBRAIC_MINT=1` skips the hub escrow RPC (ops / lab).
 - Publish cannot: cancel/complete via status API **or** register upsert; settle replay;
   cleanup-stale/gates/repair-zombies; PoH attach (`attach_poh_order` stripped).
-  Harness upload + GET verify are allowed (Windows attach flow uses publish then `harness_hash` on create).
+  Harness upload + HEAD verify are allowed; publish GET body needs content sha
+  (Windows attach flow uses publish then `harness_hash` on create).
 - Publish cannot hijack existing non-`orders_publish` campaign IDs (HTTP 409).
 - Settle outbox GET/ACK with publish **requires `campaign_id`** and only works for
   `orders_publish` campaigns (no global list / cross-tenant ACK of admin campaigns).

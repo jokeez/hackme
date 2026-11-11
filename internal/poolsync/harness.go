@@ -114,7 +114,9 @@ func CoordinatorHarnessAvailable(ctx context.Context, coordURL, token, hash stri
 	return ok
 }
 
-// CoordinatorHarnessProbe GETs (or HEADs) a published harness and returns content SHA when present.
+// CoordinatorHarnessProbe HEADs (then GETs) a published harness and returns content SHA when present.
+// HEAD is preferred so Orders publish tokens can probe without HUNT-02 content attestation
+// required for publish-token GET body download.
 func CoordinatorHarnessProbe(ctx context.Context, coordURL, token, hash string) (ok bool, contentSHA256 string) {
 	coordURL = strings.TrimRight(strings.TrimSpace(coordURL), "/")
 	hash = strings.TrimSpace(hash)
@@ -142,28 +144,43 @@ func CoordinatorHarnessProbe(ctx context.Context, coordURL, token, hash string) 
 	if len(tokens) == 0 {
 		tokens = []string{""}
 	}
+	methods := []string{http.MethodHead, http.MethodGet}
 	for _, tok := range tokens {
-		reqCtx, cancel := context.WithTimeout(ctx, timeoutDuration())
-		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, coordURL+"/api/fuzz/pool/hunt/harness/"+hash, nil)
-		if err != nil {
+		for _, method := range methods {
+			reqCtx, cancel := context.WithTimeout(ctx, timeoutDuration())
+			req, err := http.NewRequestWithContext(reqCtx, method, coordURL+"/api/fuzz/pool/hunt/harness/"+hash, nil)
+			if err != nil {
+				cancel()
+				continue
+			}
+			if tok != "" {
+				// Prefer Admin-Token / Bearer shape; Worker-Token kept as fallback for
+				// true worker credentials only (publish routes ignore Worker-Token — AUTH-01).
+				req.Header.Set("X-Hackme-Admin-Token", tok)
+				req.Header.Set("X-Hackme-Worker-Token", tok)
+			}
+			res, err := netutil.HTTPClientPoolOriginDial(timeoutDuration()).Do(req)
+			if err != nil {
+				cancel()
+				continue
+			}
+			sha := strings.TrimSpace(res.Header.Get("X-Hackme-Content-SHA256"))
+			n, _ := io.Copy(io.Discard, io.LimitReader(res.Body, 64<<20))
+			_ = res.Body.Close()
 			cancel()
-			continue
-		}
-		if tok != "" {
-			req.Header.Set("X-Hackme-Admin-Token", tok)
-			req.Header.Set("X-Hackme-Worker-Token", tok)
-		}
-		res, err := netutil.HTTPClientPoolOriginDial(timeoutDuration()).Do(req)
-		if err != nil {
-			cancel()
-			continue
-		}
-		sha := strings.TrimSpace(res.Header.Get("X-Hackme-Content-SHA256"))
-		n, _ := io.Copy(io.Discard, io.LimitReader(res.Body, 64<<20))
-		_ = res.Body.Close()
-		cancel()
-		if res.StatusCode == http.StatusOK && n > 0 {
-			return true, sha
+			if res.StatusCode != http.StatusOK {
+				continue
+			}
+			// HEAD: presence + content sha header is enough (no body).
+			if method == http.MethodHead {
+				if sha != "" || res.ContentLength > 0 {
+					return true, sha
+				}
+				continue
+			}
+			if n > 0 {
+				return true, sha
+			}
 		}
 	}
 	return false, ""

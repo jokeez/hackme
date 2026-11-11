@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"fmt"
 	"net/http"
@@ -158,15 +159,44 @@ func newOrdersOwnerSecret() (secret, hash string, err error) {
 	return secret, hash, nil
 }
 
+// extractCoordPublishRouteSecret reads publish/admin credentials for Orders publish
+// surfaces. AUTH-01: do not accept X-Hackme-Worker-Token here — that header is
+// worker-only; clients must use X-Hackme-Admin-Token or Authorization Bearer.
+func extractCoordPublishRouteSecret(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	if s := strings.TrimSpace(r.Header.Get("X-Hackme-Admin-Token")); s != "" {
+		return s
+	}
+	const p = "Bearer "
+	a := r.Header.Get("Authorization")
+	if len(a) > len(p) && strings.EqualFold(a[:len(p)], p) {
+		return strings.TrimSpace(a[len(p):])
+	}
+	return ""
+}
+
+func coordPublishRouteOK(r *http.Request, expected string) bool {
+	if expected == "" {
+		return false
+	}
+	got := extractCoordPublishRouteSecret(r)
+	if len(got) != len(expected) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(got), []byte(expected)) == 1
+}
+
 func coordPublishOK(r *http.Request, publishToken string) bool {
-	return publishToken != "" && coordAdminOK(r, publishToken)
+	return publishToken != "" && coordPublishRouteOK(r, publishToken)
 }
 
 func campaignRegisterAuthed(r *http.Request, adminToken, publishToken string, allowInsecure bool) (isAdmin, isPublish bool, ok bool) {
-	if adminToken != "" && coordAdminOK(r, adminToken) {
+	if adminToken != "" && coordPublishRouteOK(r, adminToken) {
 		return true, false, true
 	}
-	if publishToken != "" && coordAdminOK(r, publishToken) {
+	if publishToken != "" && coordPublishRouteOK(r, publishToken) {
 		return false, true, true
 	}
 	if adminToken == "" && publishToken == "" && allowInsecure {

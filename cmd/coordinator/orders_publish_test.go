@@ -270,6 +270,49 @@ func TestOrdersPublishTokenMayUploadHarness(t *testing.T) {
 	if rec3.Code != http.StatusUnauthorized {
 		t.Fatalf("worker harness upload want 401, got %d", rec3.Code)
 	}
+
+	// HUNT-02: publish GET without content attestation must not exfil body.
+	getBare := httptest.NewRequest(http.MethodGet, "/api/fuzz/pool/hunt/harness/"+hash, nil)
+	getBare.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	getBare.RemoteAddr = "203.0.113.50:9"
+	recBare := httptest.NewRecorder()
+	mux.ServeHTTP(recBare, getBare)
+	if recBare.Code != http.StatusForbidden {
+		t.Fatalf("publish GET without content sha want 403, got %d %s", recBare.Code, recBare.Body.String())
+	}
+
+	// HEAD probe still allowed for attach/existence (returns content sha header).
+	headReq := httptest.NewRequest(http.MethodHead, "/api/fuzz/pool/hunt/harness/"+hash, nil)
+	headReq.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	headReq.RemoteAddr = "203.0.113.50:9"
+	recHead := httptest.NewRecorder()
+	mux.ServeHTTP(recHead, headReq)
+	if recHead.Code != http.StatusOK {
+		t.Fatalf("publish HEAD want 200, got %d", recHead.Code)
+	}
+	if got := strings.TrimSpace(recHead.Header().Get("X-Hackme-Content-SHA256")); got != fp {
+		t.Fatalf("publish HEAD content sha=%q want %q", got, fp)
+	}
+
+	getOK := httptest.NewRequest(http.MethodGet, "/api/fuzz/pool/hunt/harness/"+hash, nil)
+	getOK.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	getOK.Header.Set("X-Hackme-Harness-Content-SHA256", fp)
+	getOK.RemoteAddr = "203.0.113.50:9"
+	recGet := httptest.NewRecorder()
+	mux.ServeHTTP(recGet, getOK)
+	if recGet.Code != http.StatusOK || recGet.Body.String() != string(payload) {
+		t.Fatalf("publish GET with content sha want 200 body, got %d len=%d", recGet.Code, recGet.Body.Len())
+	}
+
+	// Worker may download without content attestation.
+	getWorker := httptest.NewRequest(http.MethodGet, "/api/fuzz/pool/hunt/harness/"+hash, nil)
+	getWorker.Header.Set("X-Hackme-Worker-Token", "worker-tok")
+	getWorker.RemoteAddr = "203.0.113.50:9"
+	recWorker := httptest.NewRecorder()
+	mux.ServeHTTP(recWorker, getWorker)
+	if recWorker.Code != http.StatusOK || recWorker.Body.String() != string(payload) {
+		t.Fatalf("worker GET want 200 body, got %d", recWorker.Code)
+	}
 }
 
 func TestOrdersPublishTokenMaySettleOutbox(t *testing.T) {
@@ -767,6 +810,16 @@ func TestOrdersPublishHubEscrowGate(t *testing.T) {
 		"campaign_id": "camp-tiny", "owner_ref": "customer:hub",
 		"budget_hmc": 99.0, "budget_runs": 16,
 	})
+	// AUTH-01: admin mint must not accept Worker-Token as credential carrier.
+	badMint := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/prepaid-ticket", bytes.NewReader(mintBody))
+	badMint.Header.Set("Content-Type", "application/json")
+	badMint.Header.Set("X-Hackme-Worker-Token", "admin-tok")
+	badRec := httptest.NewRecorder()
+	mux.ServeHTTP(badRec, badMint)
+	if badRec.Code != http.StatusUnauthorized {
+		t.Fatalf("prepaid-ticket via Worker-Token want 401, got %d", badRec.Code)
+	}
+
 	mreq := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/prepaid-ticket", bytes.NewReader(mintBody))
 	mreq.Header.Set("Content-Type", "application/json")
 	mreq.Header.Set("X-Hackme-Admin-Token", "admin-tok")
@@ -1016,9 +1069,9 @@ func TestOrdersPublishWorkerHeaderDoesNotElevate(t *testing.T) {
 	req.RemoteAddr = "203.0.113.12:1"
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
-	// extractCoordAdminSecret accepts Worker-Token header as secret carrier — publish value still matches publishToken.
-	if rec.Code != http.StatusOK {
-		t.Fatalf("publish via worker-header carrier should still auth as publish: got %d %s", rec.Code, rec.Body.String())
+	// AUTH-01: Worker-Token must not carry publish credentials on publish routes.
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("publish via worker-header carrier must 401: got %d %s", rec.Code, rec.Body.String())
 	}
 	// Worker token value itself must not register.
 	req = httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/campaigns", bytes.NewReader(raw))
@@ -1030,6 +1083,17 @@ func TestOrdersPublishWorkerHeaderDoesNotElevate(t *testing.T) {
 	mux.ServeHTTP(rec, req)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("worker value want 401, got %d", rec.Code)
+	}
+	// Admin-Token header still works for publish.
+	req = httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/campaigns", bytes.NewReader(raw))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	req.Header.Set("X-Hackme-Orders-Owner-Ref", "customer:wh")
+	req.RemoteAddr = "203.0.113.12:1"
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("publish via admin-header want 200, got %d %s", rec.Code, rec.Body.String())
 	}
 }
 
