@@ -19,7 +19,14 @@ import (
 	"hackme/internal/netutil"
 )
 
-const maxHarnessArtifactBytes = 32 << 20 // 32 MiB
+// CoordinatorHarnessUploadMaxBytes matches coordinator MaxBytesReader on
+// POST /api/fuzz/pool/hunt/harness (octet-stream / JSON body cap).
+const CoordinatorHarnessUploadMaxBytes = 36 << 20
+
+// maxHarnessArtifactBytes is the local artifact store + Orders publish preflight cap.
+// Kept equal to the coordinator upload max so one-shot publish fails early with
+// harness_too_large instead of opaque HTML 413 mid-flight.
+const maxHarnessArtifactBytes = CoordinatorHarnessUploadMaxBytes
 
 var harnessHashRe = regexp.MustCompile(`(?i)^[a-f0-9]{8,128}$`)
 
@@ -247,26 +254,60 @@ func bytesEqual(a, b []byte) bool {
 	return v == 0
 }
 
+// PreflightHarnessBinarySize stats a local harness path and fails closed when it
+// exceeds CoordinatorHarnessUploadMaxBytes (Orders publish / one-shot early reject).
+func PreflightHarnessBinarySize(root, path string) (size int64, absPath string, err error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return 0, "", fmt.Errorf("hunt artifact: binary_path required")
+	}
+	if root != "" {
+		absPath, err = MustUnderRoot(root, path)
+		if err != nil {
+			return 0, "", fmt.Errorf("hunt artifact: harness path outside repo root: %w", err)
+		}
+		st, serr := SafeStatUnder(root, absPath)
+		if serr != nil {
+			return 0, "", serr
+		}
+		size = st.Size()
+	} else {
+		safe, aerr := allowlistedAbs(path)
+		if aerr != nil {
+			return 0, "", aerr
+		}
+		absPath = safe
+		st, serr := fsStat(safe)
+		if serr != nil {
+			return 0, "", serr
+		}
+		size = st.Size()
+	}
+	if size <= 0 {
+		return size, absPath, fmt.Errorf("hunt artifact: empty binary")
+	}
+	if size > int64(CoordinatorHarnessUploadMaxBytes) {
+		return size, absPath, fmt.Errorf("harness_too_large: harness size %d exceeds max %d bytes", size, CoordinatorHarnessUploadMaxBytes)
+	}
+	return size, absPath, nil
+}
+
 // PublishHarnessFile reads a local harness binary into the artifact store.
 func PublishHarnessFile(ctx context.Context, db *sql.DB, hash, path, sourceRel string) error {
 	root := RepoRoot()
+	if _, abs, err := PreflightHarnessBinarySize(root, path); err != nil {
+		return err
+	} else {
+		path = abs
+	}
 	if root != "" {
-		var err error
-		path, err = MustUnderRoot(root, path)
-		if err != nil {
-			return fmt.Errorf("hunt artifact: harness path outside repo root: %w", err)
-		}
 		data, err := SafeReadFileUnder(root, path)
 		if err != nil {
 			return err
 		}
 		return PutHarnessArtifact(ctx, db, hash, data, sourceRel)
 	}
-	safe, err := allowlistedAbs(path)
-	if err != nil {
-		return err
-	}
-	data, err := fsReadFile(safe)
+	data, err := fsReadFile(path)
 	if err != nil {
 		return err
 	}
