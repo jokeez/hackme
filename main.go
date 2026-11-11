@@ -1871,34 +1871,38 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 			supCancel()
 		}
 	}
+	escrowLockedHMC, escrowLockedUnits, _ := a.chain.OrdersEscrowLockedHMC(ctx)
 	out := map[string]any{
-		"address":                        displayAddr,
-		"balance_hmc":                    bal,
-		"balance_units":                  balanceUnits,
-		"balance_sup":                    supSt.BalanceSUP,
-		"balance_sup_units":              supSt.BalanceSUPUnits,
-		"sup_next_nonce":                 supSt.SUPNextNonce,
-		"next_nonce":                     nextNonce,
-		"wallet_source":                  walletSource,
-		"balance_local_mirror_hmc":       localMirrorHMC,
-		"balance_local_mirror_units":     localMirrorUnits,
-		"balance_display_hmc":            dispH,
-		"balance_display_units":          dispU,
-		"balance_display_mode":           dispMode,
-		"balance_primary_hmc":            dispH,
-		"balance_primary_units":          dispU,
-		"balance_orders_spendable_hmc":   localMirrorHMC,
-		"balance_orders_spendable_units": localMirrorUnits,
-		"balance_alignment":              alignment,
+		"address":                            displayAddr,
+		"balance_hmc":                        bal,
+		"balance_units":                      balanceUnits,
+		"balance_sup":                        supSt.BalanceSUP,
+		"balance_sup_units":                  supSt.BalanceSUPUnits,
+		"sup_next_nonce":                     supSt.SUPNextNonce,
+		"next_nonce":                         nextNonce,
+		"wallet_source":                      walletSource,
+		"balance_local_mirror_hmc":           localMirrorHMC,
+		"balance_local_mirror_units":         localMirrorUnits,
+		"balance_display_hmc":                dispH,
+		"balance_display_units":              dispU,
+		"balance_display_mode":               dispMode,
+		"balance_primary_hmc":                dispH,
+		"balance_primary_units":              dispU,
+		"balance_orders_spendable_hmc":       localMirrorHMC,
+		"balance_orders_spendable_units":     localMirrorUnits,
+		"balance_orders_escrow_locked_hmc":   escrowLockedHMC,
+		"balance_orders_escrow_locked_units": escrowLockedUnits,
+		"balance_alignment":                  alignment,
+		// Always surface the triad so UI never treats on-chain alone as Start-ready.
+		"orders_spendable_note": "Available to start = balance_orders_spendable_hmc (local prepaid). " +
+			"On-chain (balance_on_chain_hmc) can auto-fund Start but is not itself escrow budget. " +
+			"In escrow (balance_orders_escrow_locked_hmc) unlocks only after Dig/Hunt finalize or cancel refund.",
 	}
 	// Economics v2 long address of this node's key (same key, full sha256): shown so owners can
 	// move funds to it after the activation height. Never for a foreign/looked-up address.
 	if a.signer != nil && strings.TrimSpace(displayAddr) == strings.TrimSpace(a.signer.Address()) {
 		out["long_address"] = a.signer.LongAddress()
 		out["long_address_from_height"] = chain.EconomicsV2ActivationHeight()
-	}
-	if canonActive && balanceUnits > localMirrorUnits {
-		out["orders_spendable_note"] = "Dig/Hunt Start auto-funds from this on-chain Wallet balance (locks HMC into prepaid escrow). Prepaid spendable shown separately."
 	}
 	if canonActive {
 		out["balance_on_chain_hmc"] = bal

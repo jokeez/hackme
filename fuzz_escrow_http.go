@@ -26,8 +26,8 @@ func writeFuzzEscrowFailed(w http.ResponseWriter, err error) {
 		writeAPIError(w, http.StatusPaymentRequired, "escrow_unavailable",
 			"local wallet not initialized — run POST /api/genesis on this node, then Start Dig/Hunt (auto-funds from #wallet on-chain) or Fund Orders", nil)
 	case errors.Is(err, chain.ErrFuzzInsufficientBalance):
-		writeAPIError(w, http.StatusPaymentRequired, "escrow_failed",
-			"insufficient Wallet HMC for escrow — top up on-chain balance on #wallet, then Start (auto-funds spendable)", nil)
+		writeAPIError(w, http.StatusPaymentRequired, "insufficient_orders_spendable",
+			"available to start (spendable) is below Dig/Hunt budget — on-chain alone is not enough until Start auto-funds or you Fund Orders; if HMC is in escrow, wait for finalize/cancel refund", nil)
 	case errors.Is(err, chain.ErrSUPFeeInsufficent):
 		writeAPIError(w, http.StatusPaymentRequired, "fee_sup_insufficient",
 			"not enough SUP to pay the order fee — pay the fee in HMC (fee_asset=HMC) or add SUP", nil)

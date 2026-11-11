@@ -813,3 +813,24 @@ func estimatePulseETA(runsDone, budgetRuns int, elapsedSec int64, budgetSeconds 
 	out["runs_per_sec"] = rate
 	return out
 }
+
+// poolAttributedProgressNote is honest copy when Orders local/escrow lag the pool.
+// It never invents runs — it only explains pool-attributed progress / fleet activity.
+func poolAttributedProgressNote(localRuns, poolRuns, poolLeased, poolPending, escrowRuns int) string {
+	if poolRuns > localRuns {
+		return fmt.Sprintf(
+			"Pool reports %d runs/shards done (local summary %d); settle/ACK may still be catching up — pool-attributed, not fake local runs",
+			poolRuns, localRuns)
+	}
+	if escrowRuns >= 0 && poolRuns > escrowRuns {
+		return fmt.Sprintf(
+			"Pool reports %d runs done; local escrow settled %d (settle-pull lag) — progress is pool-attributed",
+			poolRuns, escrowRuns)
+	}
+	if poolRuns == 0 && (poolLeased > 0 || poolPending > 0) {
+		return fmt.Sprintf(
+			"Fleet working on pool: %d leased / %d pending shards (runs_done still 0 — not idle)",
+			poolLeased, poolPending)
+	}
+	return ""
+}

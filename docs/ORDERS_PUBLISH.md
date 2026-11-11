@@ -84,6 +84,9 @@ Requires Dig `dig_package` (`scan`/`starter`/`audit`/`pro`/`deep`/`enterprise`) 
   cleanup-stale/gates/repair-zombies; PoH attach (`attach_poh_order` stripped).
   Harness upload + HEAD verify are allowed; publish GET body needs content sha
   (Windows attach flow uses publish then `harness_hash` on create).
+  Prefer **`POST /api/hunt/campaigns/one-shot`** with `binary_path` for custom inventory — publish+create fails early with
+  `harness_too_large` / `publish_rate_limited` / `harness_sync_failed` instead of opaque HTML 413/502 mid-flight.
+  Coordinator harness POST max body = **36 MiB** (`36<<20`).
 - Publish cannot hijack existing non-`orders_publish` campaign IDs (HTTP 409).
 - Settle outbox GET/ACK with publish **requires `campaign_id`** and only works for
   `orders_publish` campaigns (no global list / cross-tenant ACK of admin campaigns).

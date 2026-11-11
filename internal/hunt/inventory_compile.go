@@ -92,7 +92,8 @@ func collectCompanionSources(pinRoot, mainRel string) ([]string, error) {
 		return nil, err
 	}
 	seen := map[string]struct{}{}
-	out := make([]string, 0, len(sameDir)+len(parent)+len(common))
+	// No summed cap: multi-len add can overflow int and poison make (CodeQL).
+	out := make([]string, 0)
 	for _, rel := range append(append(sameDir, parent...), common...) {
 		if _, ok := seen[rel]; ok {
 			continue

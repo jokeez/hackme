@@ -23,6 +23,8 @@ type coordinatorPoolCampaign struct {
 	Findings      int    `json:"findings"`       // crash-class only (honest)
 	FindingsTotal int    `json:"findings_total"` // all rows incl. Dig detector noise
 	FailedChecks  int    `json:"failed_checks"`
+	WorkPending   int    `json:"work_pending"` // shards/items waiting on pool
+	WorkLeased    int    `json:"work_leased"`  // shards/items currently with fleet
 }
 
 func (a *app) fetchCoordinatorPoolCampaigns(ctx context.Context) (map[string]coordinatorPoolCampaign, error) {
@@ -342,6 +344,10 @@ func (a *app) syncPoolCampaignProgressFromCoordinator(ctx context.Context, campa
 // applyPoolCampaignProgressFromCoordinator merges coordinator progress into the local
 // campaign row. When closeEscrow is false, escrow is not finalized (used from
 // tryCloseFuzzEscrowForStatus to avoid sync→close recursion).
+//
+// Progress mirror is independent of settle-pull ACK: pool runs/shards/findings hints
+// are stamped even while outbox drain is delayed (429/backoff), so Orders pulse does
+// not sit at runs_done=0 while the fleet is working.
 func (a *app) applyPoolCampaignProgressFromCoordinator(ctx context.Context, campaignID string, closeEscrow bool) error {
 	rc, ok, fetchErr := a.fetchCoordinatorPoolCampaignProgressErr(ctx, campaignID)
 	if fetchErr != nil {
@@ -351,12 +357,6 @@ func (a *app) applyPoolCampaignProgressFromCoordinator(ctx context.Context, camp
 		return nil
 	}
 	remoteStatus := strings.TrimSpace(strings.ToLower(rc.Status))
-	// Always honor terminal coordinator status — even when runs_done is 0 (cancelled /
-	// never-started zombies). Previously RunsDone<=0 returned early and left the node
-	// marketplace showing "running / ETA warming up" forever with closed escrow.
-	if rc.RunsDone <= 0 && remoteStatus != "completed" && remoteStatus != "cancelled" {
-		return nil
-	}
 	var summaryJSON, status string
 	var budgetRuns int
 	err := a.db.QueryRowContext(ctx,
@@ -369,8 +369,30 @@ func (a *app) applyPoolCampaignProgressFromCoordinator(ctx context.Context, camp
 		return err
 	}
 	summary := parseMapJSON(summaryJSON)
+	if summary == nil {
+		summary = map[string]any{}
+	}
 	cur := intFromAny(summary["runs_done"])
 	changed := false
+	now := time.Now().Unix()
+
+	// Always stamp pool-attributed mirror fields (honest hints; not invented findings).
+	if intFromAny(summary["pool_runs_done"]) != rc.RunsDone {
+		summary["pool_runs_done"] = rc.RunsDone
+		changed = true
+	}
+	if intFromAny(summary["pool_work_pending"]) != rc.WorkPending {
+		summary["pool_work_pending"] = rc.WorkPending
+		changed = true
+	}
+	if intFromAny(summary["pool_work_leased"]) != rc.WorkLeased {
+		summary["pool_work_leased"] = rc.WorkLeased
+		changed = true
+	}
+	summary["pool_progress_at"] = now
+	changed = true
+
+	// Prefer live pool runs over stale local summary (settle ACK may lag).
 	if rc.RunsDone > cur {
 		summary["runs_done"] = rc.RunsDone
 		changed = true
@@ -399,6 +421,13 @@ func (a *app) applyPoolCampaignProgressFromCoordinator(ctx context.Context, camp
 	if nextStatus != strings.TrimSpace(strings.ToLower(status)) {
 		changed = true
 	}
+	fleetActive := rc.RunsDone > 0 || rc.WorkLeased > 0 || rc.WorkPending > 0 ||
+		remoteStatus == "running" || remoteStatus == "completed" || remoteStatus == "cancelled"
+	if fleetActive {
+		summary["pool_workers"] = true
+		summary["heartbeat_at"] = now
+		changed = true
+	}
 	if !changed {
 		if closeEscrow && (nextStatus == "completed" || nextStatus == "cancelled") {
 			// Local row already matches the coordinator. Still close escrow:
@@ -407,11 +436,9 @@ func (a *app) applyPoolCampaignProgressFromCoordinator(ctx context.Context, camp
 		}
 		return nil
 	}
-	summary["pool_workers"] = true
-	summary["heartbeat_at"] = time.Now().Unix()
 	completedAt := int64(0)
 	if nextStatus == "completed" || nextStatus == "cancelled" {
-		completedAt = time.Now().Unix()
+		completedAt = now
 	}
 	_, err = a.db.ExecContext(ctx,
 		`UPDATE fuzz_campaigns

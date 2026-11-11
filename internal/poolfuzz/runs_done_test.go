@@ -141,6 +141,52 @@ func TestCampaignProgressRunsOKExcludesFailed(t *testing.T) {
 	}
 }
 
+func TestCampaignProgressIncludesWorkQueueHints(t *testing.T) {
+	db, err := store.Open(filepath.Join(t.TempDir(), "prog-queue.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	cid := "campaign-progress-queue"
+	if err := svc.RegisterCampaign(ctx, Campaign{
+		ID: cid, CampaignType: "hunt", Title: "hunt queue", Status: "running",
+		BudgetRuns: 8, Config: map[string]any{"pool_distributed": true, "work_kind": "hunt_shard"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.EnsureWorkItems(ctx, cid, time.Now().Unix()); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().Unix()
+	_, err = db.ExecContext(ctx,
+		`UPDATE fuzz_work_items SET status='done', result_ok=1, updated_at=? WHERE campaign_id=? AND input_n=1`,
+		now, cid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.ExecContext(ctx,
+		`UPDATE fuzz_work_items SET status='leased', lease_owner='w1', lease_until=?, updated_at=? WHERE campaign_id=? AND input_n IN (2,3)`,
+		now+60, now, cid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog, err := svc.CampaignProgress(ctx, cid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if intFromJSON(prog["runs_done"]) != 1 {
+		t.Fatalf("runs_done=%v want 1", prog["runs_done"])
+	}
+	if intFromJSON(prog["work_leased"]) != 2 {
+		t.Fatalf("work_leased=%v want 2", prog["work_leased"])
+	}
+	if intFromJSON(prog["work_pending"]) < 1 {
+		t.Fatalf("work_pending=%v want >=1", prog["work_pending"])
+	}
+}
+
 func TestCampaignProgressFindingsAreCrashClassOnly(t *testing.T) {
 	dir := t.TempDir()
 	db, err := store.Open(filepath.Join(dir, "prog-findings.db"))

@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -89,6 +90,16 @@ func verifySettleAckReceipts(ctx context.Context, pf *poolfuzz.Service, publishT
 		}
 	}
 	return nil
+}
+
+// writeHarnessUploadAPIError returns structured JSON for Orders harness publish
+// (harness_too_large / publish_rate_limited) instead of opaque HTML/plain 413/429.
+func writeHarnessUploadAPIError(w http.ResponseWriter, status int, code, msg string) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"ok": false, "code": code, "error": msg,
+	})
 }
 
 // coordPoolReadOK allows the pool admin token or the worker token.
@@ -465,8 +476,9 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
-			if !publishRateAllow(r) {
-				http.Error(w, "publish rate limit exceeded", http.StatusTooManyRequests)
+			// Separate from publish/harness hourly caps — settle must drain after CLEAN.
+			if !settleRateAllow(r) {
+				http.Error(w, "settle rate limit exceeded", http.StatusTooManyRequests)
 				return
 			}
 			storedOwner, _ := pf.CampaignOwnerRef(r.Context(), req.CampaignID)
@@ -1937,11 +1949,13 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			}
 			if isPublish && !isAdmin {
 				if !publishRateAllow(r) {
-					http.Error(w, "orders publish rate limit exceeded", http.StatusTooManyRequests)
+					writeHarnessUploadAPIError(w, http.StatusTooManyRequests, "publish_rate_limited",
+						"orders publish rate limit exceeded")
 					return
 				}
 			}
-			r.Body = http.MaxBytesReader(w, r.Body, 36<<20)
+			const harnessUploadMax = 36 << 20 // keep in sync with hunt.CoordinatorHarnessUploadMaxBytes
+			r.Body = http.MaxBytesReader(w, r.Body, harnessUploadMax)
 			ct := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]))
 			var hash, sourceRel, wantContent string
 			var data []byte
@@ -1952,6 +1966,12 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				wantContent = strings.TrimSpace(r.Header.Get("X-Hackme-Harness-Content-SHA256"))
 				data, err = io.ReadAll(r.Body)
 				if err != nil {
+					var maxErr *http.MaxBytesError
+					if errors.As(err, &maxErr) {
+						writeHarnessUploadAPIError(w, http.StatusRequestEntityTooLarge, "harness_too_large",
+							fmt.Sprintf("harness exceeds coordinator max (%d bytes)", harnessUploadMax))
+						return
+					}
 					http.Error(w, "read body failed", http.StatusBadRequest)
 					return
 				}
@@ -1963,6 +1983,12 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 					HarnessContentSHA256 string `json:"harness_content_sha256"`
 				}
 				if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+					var maxErr *http.MaxBytesError
+					if errors.As(err, &maxErr) {
+						writeHarnessUploadAPIError(w, http.StatusRequestEntityTooLarge, "harness_too_large",
+							fmt.Sprintf("harness exceeds coordinator max (%d bytes)", harnessUploadMax))
+						return
+					}
 					http.Error(w, "invalid json", http.StatusBadRequest)
 					return
 				}
@@ -1974,6 +2000,11 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 					http.Error(w, "invalid binary_b64", http.StatusBadRequest)
 					return
 				}
+			}
+			if int64(len(data)) > harnessUploadMax {
+				writeHarnessUploadAPIError(w, http.StatusRequestEntityTooLarge, "harness_too_large",
+					fmt.Sprintf("harness exceeds coordinator max (%d bytes)", harnessUploadMax))
+				return
 			}
 			sum := sha256.Sum256(data)
 			fp := hex.EncodeToString(sum[:])
@@ -1990,6 +2021,11 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				}
 			}
 			if err := huntPutHarnessArtifact(r.Context(), pf.DB, hash, data, sourceRel); err != nil {
+				lower := strings.ToLower(err.Error())
+				if strings.Contains(lower, "exceeds") && strings.Contains(lower, "bytes") {
+					writeHarnessUploadAPIError(w, http.StatusRequestEntityTooLarge, "harness_too_large", err.Error())
+					return
+				}
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}

@@ -31,6 +31,9 @@ func UploadHuntHarness(ctx context.Context, coordURL, token, hash string, data [
 	if len(data) == 0 {
 		return fmt.Errorf("pool harness sync: empty harness")
 	}
+	if int64(len(data)) > CoordinatorHarnessUploadMaxBytes {
+		return ErrHarnessTooLarge(int64(len(data)), CoordinatorHarnessUploadMaxBytes)
+	}
 	forceJSON := strings.TrimSpace(os.Getenv("HACKME_HUNT_HARNESS_JSON_UPLOAD")) == "1"
 	if !forceJSON {
 		if err := uploadHuntHarnessOctet(ctx, coordURL, token, hash, data, sourceRel); err == nil {

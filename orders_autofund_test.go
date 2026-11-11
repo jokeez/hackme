@@ -58,8 +58,11 @@ func TestEnsureOrdersSpendableInsufficientNoCanonical(t *testing.T) {
 	if !errors.As(err, &af) {
 		t.Fatalf("want ordersAutoFundError, got %T %v", err, err)
 	}
-	if af.Code != "escrow_failed" && af.Code != "insufficient_on_chain" {
+	if af.Code != "insufficient_orders_spendable" && af.Code != "insufficient_on_chain" && af.Code != "escrow_failed" {
 		t.Fatalf("code=%s msg=%s", af.Code, af.Msg)
+	}
+	if !strings.Contains(af.Msg, "available to start") {
+		t.Fatalf("expected actionable spendable hint, got %q", af.Msg)
 	}
 }
 

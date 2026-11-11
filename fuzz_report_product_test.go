@@ -183,6 +183,24 @@ func TestEstimatePulseETA(t *testing.T) {
 	}
 }
 
+func TestPoolAttributedProgressNote(t *testing.T) {
+	note := poolAttributedProgressNote(0, 40, 0, 0, 0)
+	if note == "" || !strings.Contains(note, "Pool reports 40") || !strings.Contains(note, "local summary 0") {
+		t.Fatalf("lag note=%q", note)
+	}
+	escrowLag := poolAttributedProgressNote(40, 40, 0, 0, 5)
+	if escrowLag == "" || !strings.Contains(escrowLag, "escrow settled 5") || !strings.Contains(escrowLag, "settle-pull lag") {
+		t.Fatalf("escrow lag note=%q", escrowLag)
+	}
+	fleet := poolAttributedProgressNote(0, 0, 3, 10, -1)
+	if fleet == "" || !strings.Contains(fleet, "3 leased") || !strings.Contains(fleet, "10 pending") {
+		t.Fatalf("fleet note=%q", fleet)
+	}
+	if got := poolAttributedProgressNote(10, 10, 0, 0, 10); got != "" {
+		t.Fatalf("expected empty note when in sync, got %q", got)
+	}
+}
+
 func TestCrashClassSeverityScore_excludesDetector(t *testing.T) {
 	findings := []fuzzFinding{
 		{FindingType: "security_violation", Severity: "high"},

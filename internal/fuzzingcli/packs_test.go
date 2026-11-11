@@ -1,6 +1,8 @@
 package fuzzingcli
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -123,5 +125,62 @@ func TestExplainPackFindingHex(t *testing.T) {
 	msg := ExplainPackFinding("filter_utf8", "c73d", "")
 	if !strings.Contains(msg, "UTF-8") && !strings.Contains(msg, "ToLower") {
 		t.Fatalf("explain=%q", msg)
+	}
+}
+
+func TestDigPresetForOneClickAliases(t *testing.T) {
+	p, err := DigPresetFor("scan_smoke")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.GuardPack != "overflow_smoke" || p.DigPackage != "scan" {
+		t.Fatalf("scan_smoke=%+v", p)
+	}
+	p, err = DigPresetFor("smoke")
+	if err != nil || p.ID != "scan_smoke" {
+		t.Fatalf("smoke alias: %+v err=%v", p, err)
+	}
+	p, err = DigPresetFor("secrets")
+	if err != nil || p.GuardPack != "secrets" || p.DigPackage != "audit" {
+		t.Fatalf("secrets preset: %+v err=%v", p, err)
+	}
+	if _, err := DigPresetFor("no_such_preset"); err == nil {
+		t.Fatal("expected unknown dig_preset error")
+	}
+}
+
+func TestResolveDigGuardWasmOverflowSmoke(t *testing.T) {
+	root := DiscoverRepoRoot()
+	wasm := filepath.Join(root, "tasks", "artifacts", "security", "rust_overflow_smoke_guard.wasm")
+	if _, err := os.Stat(wasm); err != nil {
+		t.Skip("overflow_smoke wasm not shipped:", err)
+	}
+	pack, hexStr, preset, err := ResolveDigGuardWasm(root, "scan_smoke", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pack.ID != "overflow_smoke" {
+		t.Fatalf("pack=%s", pack.ID)
+	}
+	if preset.DigPackage != "scan" {
+		t.Fatalf("dig_package=%s", preset.DigPackage)
+	}
+	if len(hexStr) < 16 || len(hexStr)%2 != 0 {
+		t.Fatalf("bad hex len=%d", len(hexStr))
+	}
+	// guard_pack alone (no dig_preset) still loads shipped WASM.
+	pack2, hex2, _, err := ResolveDigGuardWasm(root, "", "overflow_smoke")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pack2.ID != "overflow_smoke" || hex2 != hexStr {
+		t.Fatalf("guard_pack path mismatch pack=%s", pack2.ID)
+	}
+}
+
+func TestResolveDigGuardWasmMismatch(t *testing.T) {
+	_, _, _, err := ResolveDigGuardWasm(".", "scan_smoke", "secrets")
+	if err == nil {
+		t.Fatal("expected dig_preset/guard_pack mismatch error")
 	}
 }

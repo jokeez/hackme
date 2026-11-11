@@ -30,9 +30,12 @@ import (
 //	HACKME_ORDERS_PUBLISH_MAX_PER_DAY         default 40
 //	HACKME_ORDERS_PUBLISH_MAX_BUDGET_HMC      default 500
 //
-// Harness upload (POST /api/fuzz/pool/hunt/harness) shares the same hourly/daily
-// publish rate limiter so customer nodes can sync custom ASAN binaries without
-// the full coordinator admin token.
+// Harness upload (POST /api/fuzz/pool/hunt/harness) and Dig/Hunt campaign register
+// share the publish hourly/daily limiter. Settle-outbox ACK uses a separate bucket
+// so publish/harness traffic cannot starve escrow finalize/refund (and vice versa):
+//
+//	HACKME_ORDERS_SETTLE_MAX_PER_HOUR         default 600
+//	HACKME_ORDERS_SETTLE_MAX_PER_DAY          default 10000
 
 type publishCampaignReq struct {
 	ID            string
@@ -52,6 +55,13 @@ type publishRateLimiter struct {
 }
 
 var globalPublishRate = &publishRateLimiter{
+	hour: make(map[string][]time.Time),
+	day:  make(map[string][]time.Time),
+}
+
+// globalSettleRate is independent of publish/harness so settle ACK drain cannot
+// be starved by the low publish hourly cap (default 10/h).
+var globalSettleRate = &publishRateLimiter{
 	hour: make(map[string][]time.Time),
 	day:  make(map[string][]time.Time),
 }
@@ -188,6 +198,15 @@ func coordPublishRouteOK(r *http.Request, expected string) bool {
 	return subtle.ConstantTimeCompare([]byte(got), []byte(expected)) == 1
 }
 
+func settleMaxPerHour() int {
+	// Default covers ~15s settle-pull ACKs with headroom for multi-campaign drain.
+	return envIntDefaultPositive("HACKME_ORDERS_SETTLE_MAX_PER_HOUR", 600)
+}
+
+func settleMaxPerDay() int {
+	return envIntDefaultPositive("HACKME_ORDERS_SETTLE_MAX_PER_DAY", 10000)
+}
+
 func coordPublishOK(r *http.Request, publishToken string) bool {
 	return publishToken != "" && coordPublishRouteOK(r, publishToken)
 }
@@ -316,14 +335,12 @@ func validatePublishCampaignCaps(req publishCampaignReq) error {
 	return nil
 }
 
-func (p *publishRateLimiter) allow(key string, now time.Time) bool {
+func (p *publishRateLimiter) allow(key string, now time.Time, maxH, maxD int) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if key == "" {
 		key = "unknown"
 	}
-	maxH := publishMaxPerHour()
-	maxD := publishMaxPerDay()
 	hourCut := now.Add(-time.Hour)
 	dayCut := now.Add(-24 * time.Hour)
 	p.hour[key] = filterTimes(p.hour[key], hourCut)
@@ -350,7 +367,11 @@ func filterTimes(in []time.Time, after time.Time) []time.Time {
 }
 
 func publishRateAllow(r *http.Request) bool {
-	return globalPublishRate.allow(clientIPKey(r), time.Now())
+	return globalPublishRate.allow(clientIPKey(r), time.Now(), publishMaxPerHour(), publishMaxPerDay())
+}
+
+func settleRateAllow(r *http.Request) bool {
+	return globalSettleRate.allow(clientIPKey(r), time.Now(), settleMaxPerHour(), settleMaxPerDay())
 }
 
 func writePublishAuthError(w http.ResponseWriter) {

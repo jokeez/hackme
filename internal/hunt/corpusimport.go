@@ -222,7 +222,8 @@ func ApplyHuntPowerScheduling(cfg map[string]any, pkgKey string) {
 func mergeSeedByteCorpus(cfg map[string]any, seeds [][]byte) int {
 	existing := fuzzengine.ParseByteCorpus(cfg)
 	seen := map[string]struct{}{}
-	raw := make([]any, 0, len(existing)+len(seeds))
+	// No summed cap: len(a)+len(b) can overflow int and poison make (CodeQL).
+	raw := make([]any, 0)
 	for _, b := range existing {
 		key := hex.EncodeToString(b)
 		if _, ok := seen[key]; ok {

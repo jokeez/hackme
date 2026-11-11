@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 
 	"hackme/internal/fuzzescrow"
 	"hackme/internal/hunt"
+	"hackme/internal/poolsync"
 )
 
 func (a *app) handleHuntAPI(w http.ResponseWriter, r *http.Request) {
@@ -36,6 +38,8 @@ func (a *app) handleHuntAPI(w http.ResponseWriter, r *http.Request) {
 		a.handleHuntTemplatePreview(w, r)
 	case path == "pack-suggest" && r.Method == http.MethodPost:
 		a.handleHuntPackSuggest(w, r)
+	case path == "campaigns/one-shot" && r.Method == http.MethodPost:
+		a.handleHuntCampaignOneShot(w, r)
 	case path == "campaigns" && r.Method == http.MethodPost:
 		a.handleHuntCampaignCreate(w, r)
 	case strings.HasSuffix(path, "/run-local") && r.Method == http.MethodPost:
@@ -264,8 +268,9 @@ func (a *app) handleHuntCampaignCreate(w http.ResponseWriter, r *http.Request) {
 		if !deferred {
 			if syncErr := a.syncHuntHarnessToCoordinator(r.Context(), cfgMap); syncErr != nil {
 				a.rollbackNewCampaignEscrow(r.Context(), id)
-				writeAPIError(w, http.StatusBadGateway, "harness_pool_sync_failed", syncErr.Error(), map[string]any{
+				writeHarnessSyncAPIError(w, syncErr, map[string]any{
 					"harness_hash": cfgMap["harness_hash"],
+					"rolled_back":  true,
 				})
 				return
 			}
@@ -494,7 +499,7 @@ func (a *app) handleHuntHarnessPublish(w http.ResponseWriter, r *http.Request) {
 	if !requireAdminAuthStrict(w, r) {
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 36<<20)
+	r.Body = http.MaxBytesReader(w, r.Body, hunt.CoordinatorHarnessUploadMaxBytes)
 	defer r.Body.Close()
 	var req struct {
 		HarnessHash string `json:"harness_hash"`
@@ -502,6 +507,14 @@ func (a *app) handleHuntHarnessPublish(w http.ResponseWriter, r *http.Request) {
 		SourceRel   string `json:"source_rel"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			writeAPIError(w, http.StatusRequestEntityTooLarge, poolsync.CodeHarnessTooLarge,
+				"request body too large for harness publish", map[string]any{
+					"max_bytes": hunt.CoordinatorHarnessUploadMaxBytes,
+				})
+			return
+		}
 		writeAPIError(w, http.StatusBadRequest, "invalid_json", "invalid json", nil)
 		return
 	}
@@ -511,21 +524,41 @@ func (a *app) handleHuntHarnessPublish(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusBadRequest, "invalid_request", "harness_hash and binary_path required", nil)
 		return
 	}
-	if err := hunt.PublishHarnessFile(r.Context(), a.db, hash, path, req.SourceRel); err != nil {
-		writeAPIError(w, http.StatusBadRequest, "publish_failed", err.Error(), nil)
+	root := a.repoRoot()
+	size, absPath, preErr := hunt.PreflightHarnessBinarySize(root, path)
+	if preErr != nil {
+		writeHarnessSyncAPIError(w, preErr, map[string]any{
+			"harness_hash": hash,
+			"binary_path":  path,
+			"byte_size":    size,
+			"max_bytes":    hunt.CoordinatorHarnessUploadMaxBytes,
+		})
 		return
 	}
+	if err := hunt.PublishHarnessFile(r.Context(), a.db, hash, absPath, req.SourceRel); err != nil {
+		writeHarnessSyncAPIError(w, err, map[string]any{
+			"harness_hash": hash,
+			"binary_path":  absPath,
+		})
+		return
+	}
+	contentSHA, _ := hunt.GetHarnessContentSHA256(r.Context(), a.db, hash)
 	if syncErr := a.syncHuntHarnessToCoordinator(r.Context(), map[string]any{
 		"harness_hash": hash, "hunt_source_rel": req.SourceRel,
 	}); syncErr != nil {
-		writeAPIError(w, http.StatusBadGateway, "harness_pool_sync_failed", syncErr.Error(), map[string]any{
-			"harness_hash": hash,
+		writeHarnessSyncAPIError(w, syncErr, map[string]any{
+			"harness_hash":           hash,
+			"harness_content_sha256": contentSHA,
+			"byte_size":              size,
 		})
 		return
 	}
 	writeJSON(w, map[string]any{
 		"ok": true, "harness_hash": hash,
-		"harness_fetch_path": hunt.HarnessFetchURL(hash),
+		"harness_fetch_path":     hunt.HarnessFetchURL(hash),
+		"harness_content_sha256": contentSHA,
+		"byte_size":              size,
+		"max_bytes":              hunt.CoordinatorHarnessUploadMaxBytes,
 	})
 }
 

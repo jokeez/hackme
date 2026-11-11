@@ -1127,8 +1127,8 @@
 		.orders-balance-strip {
 			display: flex;
 			flex-wrap: wrap;
-			align-items: center;
-			gap: 0.65rem 1.1rem;
+			align-items: stretch;
+			gap: 0.65rem 0.85rem;
 			border-radius: 0.85rem;
 			border: 1px solid rgba(0, 209, 255, 0.28);
 			background: linear-gradient(105deg, rgba(0, 209, 255, 0.1), rgba(255, 176, 32, 0.06) 55%, rgba(0, 0, 0, 0.4));
@@ -1136,7 +1136,34 @@
 			font-size: 11px;
 			box-shadow: inset 0 1px 0 rgba(0, 209, 255, 0.12), 0 10px 28px rgba(0, 0, 0, 0.28);
 		}
-		.orders-balance-strip strong { color: #7ddfff; font-variant-numeric: tabular-nums; font-size: 13px; }
+		.orders-bal-cell {
+			display: flex;
+			flex-direction: column;
+			gap: 0.15rem;
+			min-width: 7.5rem;
+			padding: 0.35rem 0.55rem;
+			border-radius: 0.55rem;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			background: rgba(0, 0, 0, 0.22);
+		}
+		.orders-bal-cell.start {
+			border-color: rgba(0, 209, 255, 0.35);
+			background: rgba(0, 209, 255, 0.08);
+		}
+		.orders-bal-label {
+			font-size: 9px;
+			text-transform: uppercase;
+			letter-spacing: 0.14em;
+			color: #9ca3af;
+		}
+		.orders-balance-strip strong {
+			color: #7ddfff;
+			font-variant-numeric: tabular-nums;
+			font-size: 13px;
+			font-weight: 650;
+		}
+		.orders-bal-cell.escrow strong { color: #e9d5ff; }
+		.orders-bal-cell.onchain strong { color: #86efac; }
 		/* —— Orders / Mining / Fuzz visual refresh —— */
 		.orders-hero {
 			position: relative;
@@ -3235,15 +3262,25 @@
 						</div>
 					</div>
 					<div id="orders-market-banner" class="orders-banner info">
-						<strong class="text-neon">Start pays from Wallet</strong> — on-chain HMC on <a href="#" class="text-neon/90 underline" data-goto-tab="wallet">#wallet</a>, then Dig/Hunt Start.
+						<strong class="text-neon">Start uses Available to start</strong> — not the on-chain total. Escrow-locked HMC cannot Start until refunded; on-chain can auto-fund spendable from <a href="#" class="text-neon/90 underline" data-goto-tab="wallet">#wallet</a>.
 					</div>
 					<div id="orders-wallet-gate" class="hidden rounded-lg border border-warn/35 bg-warn/5 p-3 text-[11px] text-warn/95 leading-snug"></div>
 					<div id="orders-balance-strip" class="orders-balance-strip hidden">
-						<span class="text-[10px] uppercase tracking-[0.18em] text-gray-500">Order wallet</span>
-						<strong id="orders-spendable-hmc">— HMC</strong>
-						<span id="orders-onchain-hmc" class="text-gray-500 font-mono text-[10px]"></span>
-						<span id="orders-balance-alignment" class="text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border border-white/10 text-gray-400"></span>
-						<a href="#" class="text-neon/90 underline text-[10px] ml-auto" data-goto-tab="wallet">Wallet breakdown →</a>
+						<div class="orders-bal-cell start">
+							<span class="orders-bal-label">Available to start</span>
+							<strong id="orders-spendable-hmc">— HMC</strong>
+						</div>
+						<div class="orders-bal-cell onchain">
+							<span class="orders-bal-label">On-chain</span>
+							<strong id="orders-onchain-hmc-val">— HMC</strong>
+						</div>
+						<div class="orders-bal-cell escrow">
+							<span class="orders-bal-label">In escrow</span>
+							<strong id="orders-escrow-locked-hmc">— HMC</strong>
+						</div>
+						<span id="orders-onchain-hmc" class="hidden"></span>
+						<span id="orders-balance-alignment" class="text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border border-white/10 text-gray-400 self-center"></span>
+						<a href="#" class="text-neon/90 underline text-[10px] ml-auto self-center" data-goto-tab="wallet">Wallet breakdown →</a>
 					</div>
 					<div id="orders-fund-panel" class="rounded-lg border border-white/10 bg-black/20 p-3 space-y-2">
 						<p class="text-[10px] uppercase tracking-[0.18em] text-gray-500">Optional · Fund Orders (prepaid)</p>
@@ -3297,7 +3334,25 @@
 							<div class="order-field"><label for="audit-budget-hmc">Budget HMC</label><input id="audit-budget-hmc" type="number" min="0.5" step="0.1" value="1" /></div>
 							<div class="order-field"><label for="audit-runs">Fuzz runs</label><input id="audit-runs" type="number" min="8" value="64" /></div>
 						</div>
+						<div class="order-form-grid cols-4 mt-2">
+							<div class="order-field"><label for="audit-dig-preset">Dig preset (one-click · no hex paste)</label>
+								<select id="audit-dig-preset">
+									<option value="scan_smoke" selected>scan_smoke · overflow WASM · Scan</option>
+									<option value="overflow_smoke">overflow_smoke · Scan</option>
+									<option value="script_bounds">script_bounds · Audit</option>
+									<option value="secrets">secrets · Audit</option>
+									<option value="filter_utf8">filter_utf8 · Audit</option>
+									<option value="">Custom · paste code / upload WASM</option>
+								</select>
+							</div>
+							<div class="order-field flex items-end">
+								<label class="text-[11px] text-gray-400 flex items-center gap-2 mb-2"><input type="checkbox" id="audit-pool-distributed" class="rounded" /> Pool distributed (optional)</label>
+							</div>
+						</div>
+						<p class="text-[11px] text-gray-500 mb-2">Start Dig with a shipped pack on this node — no <code class="text-neon/80">wasm_check_hex</code> paste. Advanced custom guard below is optional.</p>
 						<div class="audit-code-shell">
+							<button type="button" id="btn-audit-toggle-custom" class="mb-2 px-3 py-1 rounded border border-white/20 text-gray-400 text-[10px] uppercase tracking-wider hover:bg-white/5">Custom guard: off</button>
+							<div id="audit-custom-guard-wrap" class="hidden">
 							<div class="order-form-grid">
 								<div class="order-field"><label for="audit-code-lang">Language</label>
 									<select id="audit-code-lang">
@@ -3313,15 +3368,10 @@
 									</label>
 								</div>
 							</div>
-							<p id="audit-wasm-meta" class="text-[10px] text-gray-500 mt-2 font-mono">Paste <code class="text-neon/80">check(i64)→i32</code> below, or upload .wasm.</p>
-							<textarea id="audit-code-input" class="mt-2 w-full text-[11px] font-mono p-3 text-gray-300" spellcheck="false">(module
-  (func (export "check") (param i64) (result i32)
-    local.get 0
-    i64.const 23
-    i64.rem_s
-    i64.eqz
-    if (result i32) i32.const 1 else i32.const 0 end))</textarea>
-							<label class="mt-3 text-[11px] text-gray-400 flex items-center gap-2"><input type="checkbox" id="audit-include-poh" checked class="rounded" /> Include useful-PoW order (miners on pool + fuzz workers)</label>
+							<p id="audit-wasm-meta" class="text-[10px] text-gray-500 mt-2 font-mono">Optional: paste <code class="text-neon/80">check(i64)→i32</code> or upload .wasm (overrides preset).</p>
+							<textarea id="audit-code-input" class="mt-2 w-full text-[11px] font-mono p-3 text-gray-300" spellcheck="false"></textarea>
+							</div>
+							<label class="mt-3 text-[11px] text-gray-400 flex items-center gap-2"><input type="checkbox" id="audit-include-poh" class="rounded" /> Include useful-PoW order (miners on pool + fuzz workers)</label>
 						</div>
 						<div id="audit-scope-contract" class="order-scope-box space-y-1">
 							<p class="text-[9px] uppercase tracking-[0.2em] text-gray-500 mb-1">Before you pay · scope contract</p>
@@ -3330,7 +3380,7 @@
 							<p id="audit-scope-clean" class="text-gray-600 font-mono text-[9px]">CLEAN = budget exhausted · not a security guarantee.</p>
 						</div>
 						<div class="order-cta-row">
-							<button type="button" id="btn-audit-run" class="btn-order-primary dig">Run Dig security audit</button>
+							<button type="button" id="btn-audit-run" class="btn-order-primary dig">Start Dig</button>
 							<button type="button" id="btn-audit-goto-report" class="btn-order-ghost">Open reports</button>
 						</div>
 						<p id="audit-run-msg" class="mt-2 text-[10px] font-mono text-gray-500"></p>
@@ -3953,9 +4003,14 @@
 								</div>
 							</div>
 							<div class="wallet-bd-orders" id="wallet-bd-orders-row">
-								<span class="wallet-bd-label">Prepaid escrow (after Start)</span>
+								<span class="wallet-bd-label">Available to start · prepaid spendable</span>
 								<span id="wallet-bd-orders" class="wallet-bd-value">0 HMC</span>
-								<span class="wallet-bd-sub">local escrow budget · not the same as on-chain</span>
+								<span class="wallet-bd-sub" id="wallet-bd-orders-sub">Dig/Hunt Start debits this · on-chain can auto-fund · escrow-locked is separate</span>
+							</div>
+							<div class="wallet-bd-orders" id="wallet-bd-escrow-row" style="margin-top:0.45rem;border-color:rgba(192,132,252,0.55);">
+								<span class="wallet-bd-label">In escrow · locked</span>
+								<span id="wallet-bd-escrow-locked" class="wallet-bd-value">0 HMC</span>
+								<span class="wallet-bd-sub">Open Dig/Hunt / PoH liability · refunds after finalize or cancel</span>
 							</div>
 						</div>
 						<div id="wallet-sup-breakdown" class="wallet-detail-sup-only hidden max-w-xl mx-auto mb-4 text-left">
@@ -5517,6 +5572,7 @@
 				if (Number.isFinite(Number(j.balanceUnits))) walletSnapshot.balanceUnits = Number(j.balanceUnits);
 				if (Number.isFinite(Number(j.onChainHMC))) walletSnapshot.onChainHMC = Number(j.onChainHMC);
 				if (Number.isFinite(Number(j.ordersSpendableHMC))) walletSnapshot.ordersSpendableHMC = Number(j.ordersSpendableHMC);
+				if (Number.isFinite(Number(j.ordersEscrowLockedHMC))) walletSnapshot.ordersEscrowLockedHMC = Number(j.ordersEscrowLockedHMC);
 				if (j.balanceAlignment) walletSnapshot.balanceAlignment = String(j.balanceAlignment);
 				if (j.walletSource) walletSnapshot.walletSource = String(j.walletSource);
 				if (Number.isFinite(Number(j.nextNonce))) walletSnapshot.nextNonce = Number(j.nextNonce);
@@ -5535,6 +5591,7 @@
 					balanceUnits: walletSnapshot.balanceUnits,
 					onChainHMC: walletSnapshot.onChainHMC,
 					ordersSpendableHMC: walletSnapshot.ordersSpendableHMC,
+					ordersEscrowLockedHMC: walletSnapshot.ordersEscrowLockedHMC,
 					balanceAlignment: walletSnapshot.balanceAlignment,
 					walletSource: walletSnapshot.walletSource,
 					nextNonce: walletSnapshot.nextNonce,
@@ -5596,6 +5653,7 @@
 			const authU = Number(w.balance_units || 0);
 			const onChainH = Number(w.balance_on_chain_hmc);
 			const ordersH = Number(w.balance_orders_spendable_hmc);
+			const escrowLockedH = Number(w.balance_orders_escrow_locked_hmc);
 			const localH = Number(w.balance_local_mirror_hmc || 0);
 			let balH = Number.isFinite(primaryH) && primaryH >= 0 ? primaryH
 				: (Number.isFinite(dispH) && dispH >= 0 ? dispH : authH);
@@ -5607,6 +5665,7 @@
 				? onChainH
 				: (String(w.wallet_source || '').includes('canonical') ? authH : 0);
 			walletSnapshot.ordersSpendableHMC = Number.isFinite(ordersH) && ordersH >= 0 ? ordersH : localH;
+			walletSnapshot.ordersEscrowLockedHMC = Number.isFinite(escrowLockedH) && escrowLockedH >= 0 ? escrowLockedH : 0;
 			walletSnapshot.ordersSpendableNote = String(w.orders_spendable_note || '');
 			walletSnapshot.balanceAlignment = String(w.balance_alignment || 'local_only');
 			walletSnapshot.walletSource = String(w.wallet_source || '');
@@ -5746,6 +5805,14 @@
 				pendingBox.classList.toggle('caught-up', unpaid <= 0.000001 && (settled > 0.000001 || accrued > 0.000001));
 			}
 			if ($('wallet-bd-orders')) $('wallet-bd-orders').textContent = fmt(orders, 4) + ' HMC';
+			const locked = Number(walletSnapshot.ordersEscrowLockedHMC || 0);
+			if ($('wallet-bd-escrow-locked')) $('wallet-bd-escrow-locked').textContent = fmt(locked, 4) + ' HMC';
+			const bdSub = $('wallet-bd-orders-sub');
+			if (bdSub) {
+				bdSub.textContent = locked > 0.000001
+					? ('Start debits spendable · ' + fmt(locked, 2) + ' HMC locked in escrow (not available to start)')
+					: 'Dig/Hunt Start debits this · on-chain can auto-fund · escrow-locked is separate';
+			}
 			const badge = $('wallet-pending-badge');
 			if (badge) {
 				if (unpaid > 0.000001) {
@@ -5763,9 +5830,13 @@
 				if (align === 'local_ahead') {
 					banner.classList.remove('hidden');
 					banner.textContent = 'Local ledger is ahead of canonical — sync before large order escrows.';
-				} else if (align === 'canonical_ahead') {
+				} else if (align === 'canonical_ahead' || onChain > orders + 0.000001) {
 					banner.classList.remove('hidden');
-					banner.textContent = 'Wallet on-chain ' + fmt(onChain, 2) + ' HMC · Dig/Hunt Start auto-funds prepaid escrow (now prepaid ' + fmt(orders, 2) + ' HMC).';
+					banner.textContent = 'Available to start ' + fmt(orders, 2) + ' HMC · on-chain ' + fmt(onChain, 2) +
+						' · in escrow ' + fmt(locked, 2) + ' — Start uses spendable (auto-funds from on-chain when short).';
+				} else if (locked > 0.000001) {
+					banner.classList.remove('hidden');
+					banner.textContent = 'In escrow ' + fmt(locked, 2) + ' HMC is locked until Dig/Hunt finalize/cancel refund.';
 				} else {
 					banner.classList.add('hidden');
 					banner.textContent = '';
@@ -5931,23 +6002,54 @@
 				default: return { text: 'Local ledger', cls: 'text-gray-400 border-white/15' };
 			}
 		}
+		function ordersInsufficientSpendableMessage(need) {
+			const spend = Number(walletSnapshot.ordersSpendableHMC || 0);
+			const onChain = Number(walletSnapshot.onChainHMC || walletSnapshot.balanceHMC || 0);
+			const locked = Number(walletSnapshot.ordersEscrowLockedHMC || 0);
+			const needN = Number(need) || 0;
+			if (onChain + 0.0001 >= needN && spend + 0.0001 < needN) {
+				return 'Available to start ' + fmt(spend, 2) + ' HMC < need ~' + needN +
+					' (on-chain ' + fmt(onChain, 2) + ' is enough — retry Start to auto-fund, or Fund Orders).' +
+					(locked > 0.0001 ? (' In escrow ' + fmt(locked, 2) + ' HMC is locked until refund.') : '');
+			}
+			if (locked > 0.0001 && onChain + spend + 0.0001 < needN) {
+				return 'Available to start ' + fmt(spend, 2) + ' HMC < need ~' + needN +
+					'. ' + fmt(locked, 2) + ' HMC is in escrow — wait for Dig/Hunt finalize/cancel refund, or top up #wallet.';
+			}
+			return 'Available to start ' + fmt(spend, 2) + ' HMC < need ~' + needN +
+				' (on-chain ' + fmt(onChain, 2) + ', in escrow ' + fmt(locked, 2) +
+				'). Top up #wallet, then Start (auto-funds spendable).';
+		}
+		function formatOrdersStartApiError(j, fallback) {
+			const code = String((j && j.code) || '');
+			const err = String((j && (j.error || j.message)) || fallback || 'request failed');
+			if (code === 'insufficient_orders_spendable' || code === 'insufficient_on_chain' ||
+				code === 'escrow_failed' || code === 'fund_pending_confirm') {
+				return err;
+			}
+			if (/insufficient|402|spendable|escrow/i.test(err)) return err;
+			return err;
+		}
 		function renderOrdersBalanceStrip() {
 			const strip = $('orders-balance-strip');
 			if (!strip) return;
 			strip.classList.remove('hidden');
 			const orders = Number(walletSnapshot.ordersSpendableHMC || 0);
 			const onChain = Number(walletSnapshot.onChainHMC || 0);
-			if ($('orders-spendable-hmc')) $('orders-spendable-hmc').textContent = fmt(Math.max(orders, onChain), 6) + ' HMC (Wallet)';
+			const locked = Number(walletSnapshot.ordersEscrowLockedHMC || 0);
+			// Never Math.max(spendable, on-chain) — that implies Start will succeed.
+			if ($('orders-spendable-hmc')) $('orders-spendable-hmc').textContent = fmt(orders, 4) + ' HMC';
+			if ($('orders-onchain-hmc-val')) $('orders-onchain-hmc-val').textContent = fmt(onChain, 4) + ' HMC';
+			if ($('orders-escrow-locked-hmc')) $('orders-escrow-locked-hmc').textContent = fmt(locked, 4) + ' HMC';
 			if ($('orders-onchain-hmc')) {
-				$('orders-onchain-hmc').textContent = onChain > 0.000001
-					? ('on-chain ' + fmt(onChain, 6) + ' · prepaid ' + fmt(orders, 6) + ' · pending +' + fmt(walletUnpaidHmc(), 4))
-					: ('prepaid ' + fmt(orders, 6) + ' · pending +' + fmt(walletUnpaidHmc(), 4));
+				$('orders-onchain-hmc').textContent =
+					'pending +' + fmt(walletUnpaidHmc(), 4) + (walletSnapshot.ordersSpendableNote ? '' : '');
 			}
 			const badge = $('orders-balance-alignment');
 			if (badge) {
 				const lab = walletAlignmentLabel(walletSnapshot.balanceAlignment);
 				badge.textContent = lab.text;
-				badge.className = 'text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border ' + lab.cls;
+				badge.className = 'text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border self-center ' + lab.cls;
 			}
 			const addrEl = $('orders-fund-address');
 			if (addrEl) {
@@ -7711,6 +7813,8 @@
 			balanceUnits: 0,
 			onChainHMC: 0,
 			ordersSpendableHMC: 0,
+			ordersEscrowLockedHMC: 0,
+			ordersSpendableNote: '',
 			balanceAlignment: 'local_only',
 			walletSource: '',
 			balanceSUP: 0,
@@ -9777,6 +9881,9 @@
 			if (!m) return 'unknown error';
 			if (m.includes('developer authentication required')) return '401: save developer token (header → Issue / Save)';
 			if (m.includes('admin authentication required') || m.includes('401')) return '401: save developer or admin token in header';
+			if (m.includes('available to start') || m.includes('insufficient_orders_spendable')) {
+				return '402: available to start too low — fund #wallet or wait for escrow refund (on-chain ≠ spendable)';
+			}
 			if (m.includes('insufficient') || m.includes('402')) return '402: insufficient wallet for escrow (reward_hmc × target_solves)';
 			if (m.includes('genesis required') || m.includes('wallet row missing')) {
 				return 'Orders escrow needs a command-node wallet — pool worker mining still works.';
@@ -11707,14 +11814,17 @@
 			const spendNote = String(walletSnapshot.ordersSpendableNote || '').trim();
 			const onChain = Number(walletSnapshot.onChainHMC || walletSnapshot.balanceHMC || 0);
 			const orders = Number(walletSnapshot.ordersSpendableHMC || 0);
-			if (spendNote || (onChain > orders + 0.000001)) {
+			const locked = Number(walletSnapshot.ordersEscrowLockedHMC || 0);
+			if (spendNote || (onChain > orders + 0.000001) || locked > 0.000001) {
 				note.classList.remove('hidden');
-				note.textContent = spendNote || ('Dig/Hunt Start pays from on-chain Wallet (' + onChain.toFixed(4) + ' HMC); prepaid escrow now ' + orders.toFixed(4) + ' HMC.');
+				note.textContent = spendNote ||
+					('Available to start ' + orders.toFixed(4) + ' HMC · on-chain ' + onChain.toFixed(4) +
+						' · in escrow ' + locked.toFixed(4) + ' — Start uses spendable, not on-chain alone.');
 			} else {
 				note.classList.add('hidden');
 				note.textContent = '';
 			}
-			if (balHi && !(spendNote || (onChain > orders + 0.000001))) {
+			if (balHi && !(spendNote || (onChain > orders + 0.000001) || locked > 0.000001)) {
 				note.classList.add('hidden');
 				note.textContent = '';
 			}
@@ -15814,6 +15924,42 @@
 			if ($('btn-audit-goto-report')) {
 				$('btn-audit-goto-report').addEventListener('click', () => switchTab('fuzz'));
 			}
+			if ($('btn-audit-toggle-custom')) {
+				$('btn-audit-toggle-custom').addEventListener('click', () => {
+					const wrap = $('audit-custom-guard-wrap');
+					const btn = $('btn-audit-toggle-custom');
+					if (!wrap || !btn) return;
+					const on = wrap.classList.toggle('hidden') === false;
+					btn.textContent = on ? 'Custom guard: on' : 'Custom guard: off';
+					if (on) {
+						const sel = $('audit-dig-preset');
+						if (sel && sel.value) sel.value = '';
+					} else if ($('audit-dig-preset') && !$('audit-dig-preset').value) {
+						$('audit-dig-preset').value = 'scan_smoke';
+					}
+				});
+			}
+			if ($('audit-dig-preset')) {
+				$('audit-dig-preset').addEventListener('change', () => {
+					const v = String(($('audit-dig-preset') && $('audit-dig-preset').value) || '');
+					const wrap = $('audit-custom-guard-wrap');
+					const btn = $('btn-audit-toggle-custom');
+					if (!v && wrap && wrap.classList.contains('hidden')) {
+						wrap.classList.remove('hidden');
+						if (btn) btn.textContent = 'Custom guard: on';
+					}
+					if (v === 'scan_smoke' || v === 'overflow_smoke') {
+						if ($('audit-depth-tier')) $('audit-depth-tier').value = 'wasm_only';
+						if ($('audit-pool-distributed')) $('audit-pool-distributed').checked = false;
+						if ($('audit-include-poh')) $('audit-include-poh').checked = false;
+						document.querySelectorAll('#dig-sku-picker .sku-card').forEach((el) => {
+							const on = el.getAttribute('data-dig-sku') === 'wasm_only';
+							el.classList.toggle('active', on);
+							el.setAttribute('aria-selected', on ? 'true' : 'false');
+						});
+					}
+				});
+			}
 			if ($('btn-audit-run')) {
 				$('btn-audit-run').addEventListener('click', () => { void submitSecurityAudit(); });
 			}
@@ -16061,13 +16207,19 @@
 			if (!el) return;
 			const spend = Number(walletSnapshot.ordersSpendableHMC || 0);
 			const onChain = Number(walletSnapshot.onChainHMC || walletSnapshot.balanceHMC || 0);
+			const locked = Number(walletSnapshot.ordersEscrowLockedHMC || 0);
 			const pkg = String(($('hunt-package') && $('hunt-package').value) || 'hunt_lite');
 			const need = pkg === 'hunt_heavy' ? 150 : (pkg === 'hunt_standard' ? 60 : 20);
 			const tok = !!(developerTokenCurrent() || adminTokenCurrent());
 			const canPay = spend + 0.0001 >= need || onChain + 0.0001 >= need;
-			el.textContent = 'Wallet on-chain: ' + fmt(onChain, 2) + ' · prepaid: ' + fmt(spend, 2) + ' · need ~' + need + ' for ' + pkg
+			let ready = ' · ready to Start';
+			if (spend + 0.0001 < need && onChain + 0.0001 >= need) ready = ' · Start will auto-fund from on-chain';
+			else if (!canPay && locked > 0.0001) ready = ' · wait escrow refund or top up #wallet';
+			else if (!canPay) ready = ' · top up #wallet first';
+			el.textContent = 'Available to start: ' + fmt(spend, 2) + ' · on-chain: ' + fmt(onChain, 2) +
+				' · in escrow: ' + fmt(locked, 2) + ' · need ~' + need + ' for ' + pkg
 				+ (tok ? ' · auth OK' : ' · waiting for desktop token sync')
-				+ (canPay ? ' · ready to Start' : ' · top up #wallet first');
+				+ ready;
 			el.classList.toggle('text-warn', !canPay || !tok);
 			el.classList.toggle('text-matrix', canPay && tok);
 		}
@@ -16087,7 +16239,7 @@
 			const spend = Number(walletSnapshot.ordersSpendableHMC || 0);
 			const onChain = Number(walletSnapshot.onChainHMC || walletSnapshot.balanceHMC || 0);
 			if (spend + 0.0001 < need && onChain + 0.0001 < need) {
-				if (msg) msg.textContent = 'Not enough Wallet HMC (on-chain ' + fmt(onChain, 2) + ', prepaid ' + fmt(spend, 2) + '; need ~' + need + '). Top up #wallet, then Start.';
+				if (msg) msg.textContent = ordersInsufficientSpendableMessage(need);
 				return;
 			}
 			const title = String(($('hunt-title') && $('hunt-title').value) || '').trim() || ('hunt-' + Date.now());
@@ -16128,17 +16280,26 @@
 				body.inventory_target = { path: sourceRel, title: sourceRel.split('/').pop() || sourceRel, source: 'inventory' };
 				body.repo = { path: repoPath, git_url: gitURL, ref: gitRef };
 			}
-			if (msg) msg.textContent = 'Creating Hunt campaign (50/50 escrow)…';
+			const harnessBin = String(($('hunt-harness-binary-path') && $('hunt-harness-binary-path').value) || '').trim();
+			const useOneShot = mode === 'inventory' && !!harnessBin;
+			if (useOneShot) {
+				body.binary_path = harnessBin;
+				body.pool_distributed = true;
+			}
+			const createPath = useOneShot ? '/api/hunt/campaigns/one-shot' : '/api/hunt/campaigns';
+			if (msg) msg.textContent = useOneShot
+				? 'One-shot publish+create (size/sync preflight)…'
+				: 'Creating Hunt campaign (50/50 escrow)…';
 			if (box) box.classList.add('hidden');
 			try {
-				let r = await fetch('/api/hunt/campaigns', {
+				let r = await fetch(createPath, {
 					method: 'POST',
 					headers: Object.assign({ 'Content-Type': 'application/json' }, adminHeaders()),
 					body: JSON.stringify(body),
 				});
 				if (r.status === 401) {
 					await ensureDesktopAdminToken(true);
-					r = await fetch('/api/hunt/campaigns', {
+					r = await fetch(createPath, {
 						method: 'POST',
 						headers: Object.assign({ 'Content-Type': 'application/json' }, adminHeaders()),
 						body: JSON.stringify(body),
@@ -16146,11 +16307,22 @@
 				}
 				const j = await r.json().catch(() => ({}));
 				if (!r.ok) {
-					const err = (j && (j.error || j.message)) || ('HTTP ' + r.status);
-					if (msg) msg.textContent = 'Hunt failed: ' + err;
+					const code = j && j.code ? String(j.code) : '';
+					let err = formatOrdersStartApiError(j, 'HTTP ' + r.status);
+					const hint = code === 'harness_too_large'
+						? ' — strip debug symbols (e.g. strip -s) or shrink below 36MiB'
+						: (code === 'publish_rate_limited' ? ' — wait and retry; publish shares hourly caps' : '');
+					if ((r.status === 402 || code === 'insufficient_orders_spendable' || code === 'insufficient_on_chain' ||
+						code === 'escrow_failed' || code === 'fund_pending_confirm') &&
+						!/available to start|in escrow|auto-fund|retry Start/i.test(err)) {
+						err = ordersInsufficientSpendableMessage(need) + (err ? (' · ' + err) : '');
+					}
+					if (msg) msg.textContent = 'Hunt failed' + (code ? ' [' + code + ']' : '') + ': ' + err + hint;
+					try { await refreshWallet(true); } catch (_) {}
 					return;
 				}
 				if (msg) msg.textContent = 'Hunt campaign created · escrow 50/50';
+				try { await refreshWallet(true); } catch (_) {}
 				if (box) {
 					box.classList.remove('hidden');
 					const c = (j && j.campaign) || {};
@@ -16178,18 +16350,23 @@
 				if (msg) msg.textContent = 'Admin token required for Security audit — click Sync token (desktop) or Save admin.';
 				return;
 			}
+			const digPreset = String(($('audit-dig-preset') && $('audit-dig-preset').value) || '').trim();
 			const code = String(($('audit-code-input') && $('audit-code-input').value) || '').trim();
-			if (!auditWasmHex && !code) {
-				if (msg) msg.textContent = 'Paste guard source or upload WASM.';
+			const customOpen = $('audit-custom-guard-wrap') && !$('audit-custom-guard-wrap').classList.contains('hidden');
+			if (!auditWasmHex && !(customOpen && code) && !digPreset) {
+				if (msg) msg.textContent = 'Pick a Dig preset, or open Custom guard and paste source / upload WASM.';
 				return;
 			}
 			const title = String(($('audit-title') && $('audit-title').value) || '').trim() || ('audit-' + Date.now());
 			const payerRef = String(($('audit-payer') && $('audit-payer').value) || '').trim() || ('audit:' + title.slice(0, 32));
 			const budgetHmc = Math.max(0.5, Number(($('audit-budget-hmc') && $('audit-budget-hmc').value) || 1));
 			const budgetRuns = Math.max(8, Math.floor(Number(($('audit-runs') && $('audit-runs').value) || 64)));
-			const includePoH = !$('audit-include-poh') || $('audit-include-poh').checked;
+			const includePoH = !!( $('audit-include-poh') && $('audit-include-poh').checked );
+			const poolDist = !!( $('audit-pool-distributed') && $('audit-pool-distributed').checked );
 			const lang = String(($('audit-code-lang') && $('audit-code-lang').value) || 'wat').trim();
-			if (msg) msg.textContent = 'Running audit (compile → order → fuzz)…';
+			if (msg) msg.textContent = digPreset && !auditWasmHex && !code
+				? ('Starting Dig preset ' + digPreset + '…')
+				: 'Running audit (compile → order → fuzz)…';
 			if (box) box.classList.add('hidden');
 			if (logPre) {
 				logPre.classList.add('hidden');
@@ -16204,13 +16381,18 @@
 					budget_runs: budgetRuns,
 					budget_seconds: 3600,
 					create_poh_order: includePoH,
-					pool_distributed: true,
+					pool_distributed: poolDist,
 					depth_tier: depthTier,
 				};
 				if (auditWasmHex) body.wasm_check_hex = auditWasmHex;
-				else {
+				else if (customOpen && code) {
 					body.language = lang;
 					body.code = code;
+				} else if (digPreset) {
+					body.dig_preset = digPreset;
+					if (depthTier === 'wasm_only') body.dig_package = 'scan';
+					else if (depthTier === 'bytes_corpus') body.dig_package = 'deep';
+					else body.dig_package = 'audit';
 				}
 				let r = await fetch('/api/security-audit', {
 					method: 'POST',
@@ -16227,14 +16409,21 @@
 				}
 				const j = await r.json().catch(() => ({}));
 				if (!r.ok) {
-					let err = (j && (j.error || j.message)) || ('HTTP ' + r.status);
+					let err = formatOrdersStartApiError(j, 'HTTP ' + r.status);
 					const hintM = String((j && j.compile_log) || '').match(/hint:\s*([^\n]+)/i);
 					if (hintM) err += ' — ' + hintM[1].trim();
+					const code = String((j && j.code) || '');
+					if ((r.status === 402 || code === 'insufficient_orders_spendable' || code === 'insufficient_on_chain' ||
+						code === 'escrow_failed') && !/available to start|in escrow|auto-fund/i.test(err)) {
+						const needAudit = Math.max(0.5, Number(($('audit-budget-hmc') && $('audit-budget-hmc').value) || 1));
+						err = ordersInsufficientSpendableMessage(needAudit) + (err ? (' · ' + err) : '');
+					}
 					if (msg) msg.textContent = 'Audit failed: ' + err;
 					if (logPre && j.compile_log) {
 						logPre.textContent = String(j.compile_log);
 						logPre.classList.remove('hidden');
 					}
+					try { await refreshWallet(true); } catch (_) {}
 					return;
 				}
 				const cid = String(j.campaign_id || (j.campaign && j.campaign.id) || '');

@@ -17,7 +17,7 @@ func TestWriteFuzzEscrowFailedCodes(t *testing.T) {
 		deny string
 	}{
 		{chain.ErrFuzzWalletMissing, "escrow_unavailable", "sql:"},
-		{chain.ErrFuzzInsufficientBalance, "escrow_failed", "sql:"},
+		{chain.ErrFuzzInsufficientBalance, "insufficient_orders_spendable", "sql:"},
 		{chain.ErrFuzzEscrowNotFound, "escrow_failed", "sql:"},
 	}
 	for _, tc := range cases {
