@@ -69,8 +69,7 @@ func RunBuildIsolated(ctx context.Context, opts BuildIsolateOpts) error {
 	if wall <= 0 {
 		wall = 180 * time.Second
 	}
-	extraRo := append([]string{}, opts.ExtraRoBind...)
-	extraRo = append(extraRo, buildToolchainRoBinds()...)
+	extraRo := filterSecretPrefixRoots(append(append([]string{}, opts.ExtraRoBind...), buildToolchainRoBinds()...))
 	extraBind := append([]string{}, opts.ExtraBind...)
 	// Ephemeral CARGO_HOME / XDG_CACHE under a RW bind — never mount ~/.cargo or
 	// ~/.cache writable (persistence via config.toml / registry).
@@ -121,15 +120,70 @@ func runBareBuild(ctx context.Context, opts BuildIsolateOpts, env []string, wall
 	}, env, wall)
 }
 
+// buildToolchainRoBinds lists RO mounts for clang/cargo/afl-cc cages.
+// Never bind the whole HACKME_PREFIX / /opt/hackme — that tree holds .env.vps
+// secrets (HACKME_ADMIN_TOKEN, …). Mirror task_codegen_sandbox: only toolchain
+// subdirs under the prefix. System roots (/usr,/lib,…) stay for host compilers.
 func buildToolchainRoBinds() []string {
-	out := []string{"/opt/hackme", "/usr", "/lib", "/lib64", "/bin", "/sbin"}
-	if p := strings.TrimSpace(os.Getenv("HACKME_PREFIX")); p != "" {
-		out = append(out, p)
+	out := []string{"/usr", "/lib", "/lib64", "/bin", "/sbin"}
+	prefix := strings.TrimSpace(os.Getenv("HACKME_PREFIX"))
+	if prefix == "" {
+		prefix = "/opt/hackme"
+	}
+	prefix = filepath.Clean(prefix)
+	if prefix != "/" && prefix != "." && buildPathExists(prefix) {
+		for _, sub := range []string{
+			".rustup", ".cargo", "tinygo", "wabt", "nodejs", "bin",
+			".npm-global", "zig", "toolchains",
+		} {
+			p := filepath.Join(prefix, sub)
+			if buildPathExists(p) {
+				out = append(out, p)
+			}
+		}
 	}
 	if home := strings.TrimSpace(os.Getenv("HOME")); home != "" {
 		out = append(out, filepath.Join(home, ".local/share/hackme/toolchains"))
 		// rustup toolchains are read-only; cargo registry stays ephemeral.
 		out = append(out, filepath.Join(home, ".rustup"))
+	}
+	return filterSecretPrefixRoots(out)
+}
+
+func buildPathExists(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
+}
+
+// hackmePrefixRoot returns the cleaned operator prefix that must never be
+// RO-bound wholesale into customer build cages.
+func hackmePrefixRoot() string {
+	prefix := strings.TrimSpace(os.Getenv("HACKME_PREFIX"))
+	if prefix == "" {
+		prefix = "/opt/hackme"
+	}
+	return filepath.Clean(prefix)
+}
+
+// filterSecretPrefixRoots drops the operator prefix root (and a few broad FS
+// roots) so ExtraRoBind / toolchain lists cannot reintroduce .env.vps into the
+// Hunt build cage. Toolchain *subdirs* under the prefix are kept.
+func filterSecretPrefixRoots(paths []string) []string {
+	prefix := hackmePrefixRoot()
+	out := make([]string, 0, len(paths))
+	for _, p := range paths {
+		p = filepath.Clean(strings.TrimSpace(p))
+		if p == "" || p == "." || p == "/" {
+			continue
+		}
+		if p == prefix || p == "/opt/hackme" {
+			continue
+		}
+		switch p {
+		case "/etc", "/home", "/root", "/var", "/opt", "/tmp", "/dev", "/proc", "/sys":
+			continue
+		}
+		out = append(out, p)
 	}
 	return out
 }
