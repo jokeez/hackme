@@ -626,7 +626,20 @@ func readSecurityAuditWasmPath(repoRoot, rel string) ([]byte, error) {
 	if !ok || !pathsafe.AbsRE.MatchString(full) {
 		return nil, errors.New("wasm_path rejected")
 	}
-	raw, err := os.ReadFile(full)
+	// Reject symlink escape: path string may sit under tasks/artifacts/ while the
+	// target resolves outside the repo (arbitrary file read as wasm bytes).
+	resolved, rerr := filepath.EvalSymlinks(full)
+	if rerr != nil {
+		return nil, fmt.Errorf("read wasm_path: %w", rerr)
+	}
+	resolvedSlash := filepath.ToSlash(resolved)
+	if !pathsafe.AbsRE.MatchString(resolvedSlash) {
+		return nil, errors.New("wasm_path rejected")
+	}
+	if _, ok := pathsafe.WithinRoot(absRoot, resolvedSlash); !ok {
+		return nil, errors.New("wasm_path escapes repo root via symlink")
+	}
+	raw, err := os.ReadFile(resolved)
 	if err != nil {
 		return nil, fmt.Errorf("read wasm_path: %w", err)
 	}

@@ -183,6 +183,54 @@ func TestSecurityAuditGuardPackWithoutHex(t *testing.T) {
 	}
 }
 
+func TestReadSecurityAuditWasmPathRejectsTraversal(t *testing.T) {
+	root := t.TempDir()
+	art := filepath.Join(root, "tasks", "artifacts")
+	if err := os.MkdirAll(art, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	good := filepath.Join(art, "ok.wasm")
+	if err := os.WriteFile(good, []byte{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readSecurityAuditWasmPath(root, "tasks/artifacts/ok.wasm"); err != nil {
+		t.Fatalf("expected ok wasm: %v", err)
+	}
+	if _, err := readSecurityAuditWasmPath(root, "tasks/artifacts/../../etc/passwd"); err == nil {
+		t.Fatal("expected traversal reject")
+	}
+	if _, err := readSecurityAuditWasmPath(root, "/etc/passwd"); err == nil {
+		t.Fatal("expected absolute reject")
+	}
+	if _, err := readSecurityAuditWasmPath(root, "tasks/other/x.wasm"); err == nil {
+		t.Fatal("expected prefix reject")
+	}
+}
+
+func TestReadSecurityAuditWasmPathRejectsSymlinkEscape(t *testing.T) {
+	root := t.TempDir()
+	art := filepath.Join(root, "tasks", "artifacts")
+	if err := os.MkdirAll(art, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := t.TempDir()
+	secret := filepath.Join(outside, "secret.bin")
+	if err := os.WriteFile(secret, []byte("not-wasm-secret"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(art, "escape.wasm")
+	if err := os.Symlink(secret, link); err != nil {
+		t.Fatal(err)
+	}
+	_, err := readSecurityAuditWasmPath(root, "tasks/artifacts/escape.wasm")
+	if err == nil {
+		t.Fatal("expected symlink escape reject")
+	}
+	if !strings.Contains(err.Error(), "symlink") && !strings.Contains(err.Error(), "escapes") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
 func TestSecurityAuditPoolDistributedAttachesPoH(t *testing.T) {
 	a, db := newWalletTestApp(t)
 	addr, _, _ := a.chain.Wallet(context.Background())

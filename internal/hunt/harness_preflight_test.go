@@ -51,6 +51,27 @@ func TestPreflightHarnessBinarySizeTooLarge(t *testing.T) {
 	}
 }
 
+func TestPreflightHarnessBinarySizeRejectsTraversal(t *testing.T) {
+	dir := t.TempDir()
+	nested := filepath.Join(dir, "cache")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := t.TempDir()
+	secret := filepath.Join(outside, "secret.bin")
+	if err := os.WriteFile(secret, []byte("secret"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := PreflightHarnessBinarySize(dir, filepath.Join(dir, "..", filepath.Base(outside), "secret.bin")); err == nil {
+		// Rel path that escapes via .. must fail MustUnderRoot.
+		t.Fatal("expected path-outside-root error")
+	}
+	if _, _, err := PreflightHarnessBinarySize(dir, secret); err == nil {
+		t.Fatal("expected absolute outside-root reject")
+	}
+	_ = nested
+}
+
 func TestCoordinatorHarnessUploadMaxBytesAligned(t *testing.T) {
 	if CoordinatorHarnessUploadMaxBytes != 36<<20 {
 		t.Fatalf("max=%d want %d", CoordinatorHarnessUploadMaxBytes, 36<<20)

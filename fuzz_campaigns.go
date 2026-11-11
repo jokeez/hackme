@@ -1824,9 +1824,12 @@ func (a *app) handleFuzzCampaignPulse(w http.ResponseWriter, r *http.Request, ca
 			noiseCount++
 		}
 	}
-	// Crash-class hint from pool only — never invent finding rows here.
-	if poolOK && poolRC.Findings > crashCount {
-		uniqueCrashes = poolRC.Findings
+	// coverage.unique_crashes is crash-class only. Pool Findings is crash-class (coordinator);
+	// raise the hint when settle/mirror lags. Never fold into uniqueCrashes — that variable
+	// is emitted as coverage.failed_checks (summary detector-fail semantics).
+	coverageCrashes := crashCount
+	if poolOK && poolRC.Findings > coverageCrashes {
+		coverageCrashes = poolRC.Findings
 	}
 	progress := map[string]any{
 		"runs_done":       runsDone,
@@ -1869,8 +1872,9 @@ func (a *app) handleFuzzCampaignPulse(w http.ResponseWriter, r *http.Request, ca
 		"coverage": map[string]any{
 			"new_edges": newEdges,
 			"new_paths": newPaths,
-			// Honest: crash-class findings only (summary unique_crashes may count detector fails).
-			"unique_crashes":          crashCount,
+			// Honest: crash-class count (local rows, or pool-attributed hint when mirror lags).
+			// failed_checks keeps summary detector-fail semantics — never pool Findings.
+			"unique_crashes":          coverageCrashes,
 			"failed_checks":           uniqueCrashes,
 			"time_to_first_crash_sec": firstCrashSec,
 		},
