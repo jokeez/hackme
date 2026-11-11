@@ -220,6 +220,15 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 			}
 		}
 	}
+	// Dig corpus namespaces are tenant-scoped; stamp verified campaign owner into cfg.
+	if own := strings.TrimSpace(c.OwnerRef); own != "" {
+		if cfg == nil {
+			cfg = map[string]any{}
+		}
+		if strings.TrimSpace(fmt.Sprint(cfg["owner_ref"])) == "" || fmt.Sprint(cfg["owner_ref"]) == "<nil>" {
+			cfg["owner_ref"] = own
+		}
+	}
 	merged := mergeRegisterConfig(cfg, parseConfigJSON(existingCfgJSON), c.BudgetRuns, prevBudgetRuns)
 	mergedCfgJSON := marshalConfigJSON(merged)
 	_, err = conn.ExecContext(ctx,

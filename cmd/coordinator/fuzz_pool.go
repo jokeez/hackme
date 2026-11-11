@@ -504,6 +504,19 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			if camp == "" && len(req.Receipts) > 0 {
 				camp = strings.TrimSpace(req.Receipts[0].CampaignID)
 			}
+			// SETTLE-01 admin fallback: still require the campaign owner secret
+			// (hash gate). Caller-chosen MAC key must not bypass owner binding.
+			if camp != "" {
+				okOwner, errOwn := loadPublishOwnerGate(r, pf, camp)
+				if errOwn != nil {
+					http.Error(w, errOwn.Error(), http.StatusInternalServerError)
+					return
+				}
+				if !okOwner {
+					http.Error(w, "forbidden: owner-signed settle receipts required", http.StatusForbidden)
+					return
+				}
+			}
 			storedOwner, _ := pf.CampaignOwnerRef(r.Context(), camp)
 			ownerSecret := publishOwnerSecretFromRequest(r)
 			if ownerSecret == "" || storedOwner == "" {
@@ -986,6 +999,13 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				if wd, err := os.Getwd(); err == nil {
 					repoRoot = wd
 				}
+			}
+			// Tenant-scope Dig corpus namespaces (owner:<ref>:pack:<id>).
+			if strings.TrimSpace(req.OwnerRef) != "" {
+				if req.Config == nil {
+					req.Config = map[string]any{}
+				}
+				req.Config["owner_ref"] = strings.TrimSpace(req.OwnerRef)
 			}
 			pack := configString(req.Config, "guard_pack", "guard_name")
 			pkg := configString(req.Config, "dig_package")

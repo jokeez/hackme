@@ -564,6 +564,18 @@ func (s *Service) importNamespaceCorpus(ctx context.Context, campaignID string, 
 	if ns == "" {
 		return nil
 	}
+	// Belt-and-suspenders: refuse import unless namespace is scoped to this
+	// campaign's owner/payer (cross-tenant pack:<id> leak class).
+	owner := strings.TrimSpace(fmt.Sprint(cfg["owner_ref"]))
+	if owner == "" || owner == "<nil>" {
+		owner = strings.TrimSpace(fmt.Sprint(cfg["payer_ref"]))
+	}
+	if owner == "<nil>" {
+		owner = ""
+	}
+	if !fuzzengine.CorpusNamespaceOwnedBy(ns, owner) {
+		return nil
+	}
 	seeds, err := s.loadNamespaceCorpusSeeds(ctx, ns, fuzzengine.CorpusPersistMax(cfg))
 	if err != nil {
 		return err
@@ -585,6 +597,16 @@ func (s *Service) exportNamespaceCorpus(ctx context.Context, cfg map[string]any,
 	}
 	ns := fuzzengine.CorpusPersistNamespace(cfg)
 	if ns == "" {
+		return nil
+	}
+	owner := strings.TrimSpace(fmt.Sprint(cfg["owner_ref"]))
+	if owner == "" || owner == "<nil>" {
+		owner = strings.TrimSpace(fmt.Sprint(cfg["payer_ref"]))
+	}
+	if owner == "<nil>" {
+		owner = ""
+	}
+	if !fuzzengine.CorpusNamespaceOwnedBy(ns, owner) {
 		return nil
 	}
 	if energy < 1 {

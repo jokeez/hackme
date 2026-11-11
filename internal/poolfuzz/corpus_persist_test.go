@@ -10,8 +10,7 @@ import (
 	"hackme/internal/store"
 )
 
-// TestCorpusPersistCrossCampaignE2E verifies namespace export from campaign A
-// is imported when campaign B registers with the same guard_pack namespace.
+// Same-tenant campaigns with the same owner_ref+pack may share corpus.
 func TestCorpusPersistCrossCampaignE2E(t *testing.T) {
 	dir := t.TempDir()
 	db, err := store.Open(filepath.Join(dir, "corpus-persist.db"))
@@ -27,18 +26,21 @@ func TestCorpusPersistCrossCampaignE2E(t *testing.T) {
 	cfg := map[string]any{
 		"guided_scheduling": true,
 		"guard_pack":        "bounds_smoke",
+		"owner_ref":         "customer:same-tenant",
 		"corpus_persist":    true,
 		"input_mode":        "u64",
 		"seed_corpus":       []any{uint64(10_000_000)},
 	}
 	ns := fuzzengine.CorpusPersistNamespace(cfg)
-	if ns != "pack:bounds_smoke" {
-		t.Fatalf("namespace=%q", ns)
+	wantNS := "owner:customer:same-tenant:pack:bounds_smoke"
+	if ns != wantNS {
+		t.Fatalf("namespace=%q want %q", ns, wantNS)
 	}
 
 	const exportedInput = uint64(0x0123456789ABCDEF0)
 	if err := svc.RegisterCampaign(ctx, Campaign{
 		ID: "persist-a", CampaignType: "property", Title: "export", Status: "running",
+		OwnerRef: "customer:same-tenant",
 		BudgetRuns: 8, BudgetSeconds: 120, Config: cfg,
 	}); err != nil {
 		t.Fatal(err)
@@ -59,6 +61,7 @@ func TestCorpusPersistCrossCampaignE2E(t *testing.T) {
 
 	if err := svc.RegisterCampaign(ctx, Campaign{
 		ID: "persist-b", CampaignType: "property", Title: "import", Status: "running",
+		OwnerRef: "customer:same-tenant",
 		BudgetRuns: 8, BudgetSeconds: 120, Config: cfg,
 	}); err != nil {
 		t.Fatal(err)

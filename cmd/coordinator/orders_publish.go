@@ -268,6 +268,9 @@ func stripPublishEscalationConfig(cfg map[string]any) {
 		"budget_hmc", "prepaid_attested", "prepaid_attestation",
 		"escrow_fingerprint",
 		"orders_owner_secret", "orders_owner_secret_hash",
+		// Cross-tenant corpus: customer must not pick a global persist key;
+		// namespace is derived server-side from verified owner_ref + pack.
+		"corpus_persist_key",
 	} {
 		delete(cfg, k)
 	}

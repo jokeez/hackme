@@ -137,12 +137,15 @@ func runBareBuild(ctx context.Context, opts BuildIsolateOpts, env []string, wall
 // secrets (HACKME_ADMIN_TOKEN, …). Mirror task_codegen_sandbox: only toolchain
 // subdirs under the prefix. System roots (/usr,/lib,…) stay for host compilers.
 func buildToolchainRoBinds() []string {
-	out := []string{"/usr", "/lib", "/lib64", "/bin", "/sbin"}
-	prefix := strings.TrimSpace(os.Getenv("HACKME_PREFIX"))
-	if prefix == "" {
-		prefix = "/opt/hackme"
+	prefix := hackmePrefixRoot()
+	// When HACKME_PREFIX lives under /usr (e.g. /usr/local/hackme), binding
+	// whole /usr would put .env.vps inside the cage — use leaf tool dirs instead.
+	var out []string
+	if pathIsAncestorOf(filepath.Clean("/usr"), prefix) {
+		out = []string{"/usr/bin", "/usr/lib", "/usr/lib64", "/usr/include", "/lib", "/lib64", "/bin", "/sbin"}
+	} else {
+		out = []string{"/usr", "/lib", "/lib64", "/bin", "/sbin"}
 	}
-	prefix = filepath.Clean(prefix)
 	if prefix != "/" && prefix != "." && buildPathExists(prefix) {
 		for _, sub := range []string{
 			".rustup", ".cargo", "tinygo", "wabt", "nodejs", "bin",
@@ -197,6 +200,11 @@ func filterSecretPrefixRoots(paths []string) []string {
 		if check == prefix || check == "/opt/hackme" || check == "/" {
 			continue
 		}
+		// Ancestor of the operator prefix (e.g. /usr when prefix=/usr/local/hackme,
+		// or /home/user when prefix=$HOME/.local/share/hackme) would expose .env.vps.
+		if pathIsAncestorOf(check, prefix) || pathIsAncestorOf(check, "/opt/hackme") {
+			continue
+		}
 		switch check {
 		case "/etc", "/home", "/root", "/var", "/opt", "/tmp", "/dev", "/proc", "/sys":
 			continue
@@ -206,6 +214,23 @@ func filterSecretPrefixRoots(paths []string) []string {
 		out = append(out, check)
 	}
 	return out
+}
+
+// pathIsAncestorOf reports whether ancestor contains child (or equals it).
+func pathIsAncestorOf(ancestor, child string) bool {
+	ancestor = filepath.Clean(strings.TrimSpace(ancestor))
+	child = filepath.Clean(strings.TrimSpace(child))
+	if ancestor == "" || child == "" || ancestor == "." || child == "." {
+		return false
+	}
+	rel, err := filepath.Rel(ancestor, child)
+	if err != nil {
+		return false
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return false
+	}
+	return true
 }
 
 // sanitizeCageDir returns dir only when it is safe to RW-bind / chdir into.

@@ -114,6 +114,26 @@ func TestFilterSecretPrefixRootsAppliesToExtraBindAndDir(t *testing.T) {
 	}
 }
 
+func TestFilterSecretPrefixRootsRejectsAncestorOfPrefix(t *testing.T) {
+	t.Setenv("HACKME_PREFIX", "/usr/local/hackme")
+	got := filterSecretPrefixRoots([]string{"/usr", "/usr/bin", "/usr/local/hackme/.cargo", "/opt/hackme"})
+	for _, p := range got {
+		switch filepath.Clean(p) {
+		case "/usr", "/opt/hackme", "/usr/local/hackme":
+			t.Fatalf("ancestor/prefix root must be stripped: %s in %#v", p, got)
+		}
+	}
+	ok := false
+	for _, p := range got {
+		if filepath.Clean(p) == "/usr/bin" || filepath.Clean(p) == "/usr/local/hackme/.cargo" {
+			ok = true
+		}
+	}
+	if !ok {
+		t.Fatalf("leaf tool paths should remain: %#v", got)
+	}
+}
+
 func TestFilterSecretPrefixRootsRejectsSymlinkToPrefix(t *testing.T) {
 	prefix := t.TempDir()
 	t.Setenv("HACKME_PREFIX", prefix)

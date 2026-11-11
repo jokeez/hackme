@@ -2,27 +2,59 @@ package fuzzengine
 
 import "strings"
 
-// CorpusPersistNamespace returns stable key for cross-campaign corpus reuse.
+// CorpusPersistNamespace returns a stable key for cross-campaign corpus reuse.
+// Namespaces are always tenant-scoped when an owner/payer is present so two
+// customers on the same Dig guard_pack cannot share raw fuzz seeds (cross-tenant
+// leak). Pack-only namespaces without owner_ref/payer_ref are refused (empty).
 func CorpusPersistNamespace(cfg map[string]any) string {
 	if cfg == nil {
 		return ""
 	}
+	owner := sanitizeCorpusNamespace(toString(cfg["owner_ref"]))
+	if owner == "" {
+		owner = sanitizeCorpusNamespace(toString(cfg["payer_ref"]))
+	}
 	if v := strings.TrimSpace(toString(cfg["corpus_persist_key"])); v != "" {
-		return sanitizeCorpusNamespace(v)
+		key := sanitizeCorpusNamespace(v)
+		if key == "" {
+			return ""
+		}
+		// Never honor a bare/global key: require tenant scope.
+		if owner == "" {
+			return ""
+		}
+		return "owner:" + owner + ":key:" + key
 	}
-	if v := strings.TrimSpace(toString(cfg["guard_pack"])); v != "" {
-		return "pack:" + sanitizeCorpusNamespace(v)
+	pack := strings.TrimSpace(toString(cfg["guard_pack"]))
+	if pack == "" {
+		pack = strings.TrimSpace(toString(cfg["guard_name"]))
 	}
-	if v := strings.TrimSpace(toString(cfg["guard_name"])); v != "" {
-		return "pack:" + sanitizeCorpusNamespace(v)
+	if pack != "" {
+		pack = sanitizeCorpusNamespace(pack)
+		if pack == "" {
+			return ""
+		}
+		if owner == "" {
+			// Shared pack:<id> namespaces are forbidden (cross-tenant leak).
+			return ""
+		}
+		return "owner:" + owner + ":pack:" + pack
 	}
-	if v := strings.TrimSpace(toString(cfg["owner_ref"])); v != "" {
-		return "owner:" + sanitizeCorpusNamespace(v)
-	}
-	if v := strings.TrimSpace(toString(cfg["payer_ref"])); v != "" {
-		return "payer:" + sanitizeCorpusNamespace(v)
+	if owner != "" {
+		return "owner:" + owner
 	}
 	return ""
+}
+
+// CorpusNamespaceOwnedBy reports whether ns is scoped to the given owner/payer ref.
+func CorpusNamespaceOwnedBy(ns, ownerRef string) bool {
+	ns = strings.TrimSpace(strings.ToLower(ns))
+	owner := sanitizeCorpusNamespace(ownerRef)
+	if ns == "" || owner == "" {
+		return false
+	}
+	prefix := "owner:" + owner
+	return ns == prefix || strings.HasPrefix(ns, prefix+":")
 }
 
 // CorpusPersistEnabled reports whether pool corpus should import/export a namespace.
@@ -80,9 +112,9 @@ func sanitizeCorpusNamespace(s string) string {
 			b.WriteRune('_')
 		}
 	}
-	out := strings.Trim(b.String(), "_")
-	if len(out) > 120 {
-		out = out[:120]
+	out := b.String()
+	if len(out) > 96 {
+		out = out[:96]
 	}
 	return out
 }
