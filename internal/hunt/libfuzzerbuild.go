@@ -366,7 +366,7 @@ func seedPersistentCorpus(repoRoot, targetID, corpusDir string) error {
 			if e.IsDir() {
 				continue
 			}
-			b, err := os.ReadFile(filepath.Join(src, e.Name()))
+			b, err := ReadRegularCorpusFile(filepath.Join(src, e.Name()), 1<<20)
 			if err != nil || len(b) == 0 {
 				continue
 			}

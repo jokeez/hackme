@@ -69,3 +69,22 @@ func TestCollectEngineDeltaSkipsPreLeaseFiles(t *testing.T) {
 		t.Fatalf("want only new-seed, got %#v", seeds)
 	}
 }
+
+func TestCollectEngineDeltaRefusesSymlinkHostSecret(t *testing.T) {
+	dir := t.TempDir()
+	secretDir := t.TempDir()
+	secretPath := filepath.Join(secretDir, ".env.vps")
+	if err := os.WriteFile(secretPath, []byte("HACKME_ADMIN_TOKEN=leak-me\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secretPath, filepath.Join(dir, "leak.bin")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "ok.bin"), []byte("ok-seed"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	seeds, _ := collectEngineDelta(hunt.EngineShardResult{CorpusDir: dir}, nil, 32)
+	if len(seeds) != 1 || string(seeds[0].InputBytes) != "ok-seed" {
+		t.Fatalf("symlink must be skipped; got %#v", seeds)
+	}
+}

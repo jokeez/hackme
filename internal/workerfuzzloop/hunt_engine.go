@@ -180,8 +180,9 @@ func collectEngineDelta(res hunt.EngineShardResult, before map[string]string, ma
 			continue
 		}
 		p := filepath.Join(dir, e.Name())
-		b, err := os.ReadFile(p)
-		if err != nil || len(b) == 0 || len(b) > 65536 {
+		// Hunt corpus: never follow symlinks planted in the RW persist bind.
+		b, err := hunt.ReadRegularCorpusFile(p, 65536)
+		if err != nil || len(b) == 0 {
 			continue
 		}
 		sum := sha256.Sum256(b)
@@ -222,8 +223,8 @@ func collectEngineDelta(res hunt.EngineShardResult, before map[string]string, ma
 		if len(crashes) >= 8 {
 			break
 		}
-		b, err := os.ReadFile(p)
-		if err != nil || len(b) == 0 || len(b) > 65536 {
+		b, err := hunt.ReadRegularCorpusFile(p, 65536)
+		if err != nil || len(b) == 0 {
 			continue
 		}
 		crashes = append(crashes, b)

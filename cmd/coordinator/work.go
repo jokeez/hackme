@@ -2158,6 +2158,13 @@ func (m *workManager) notePayoutLock(workerID, addr string) {
 		// Do not rebind historical unpaid accruals to a first claimant after
 		// admin unbind (worker_id is public in pool stats — snipe risk).
 		if !workerStatHasUnpaidAccrual(st) {
+			// Fleet-fold double-pay: a 0-accrual bare-base claim with a second
+			// address must not plant a decoy row (or durable lock) that flips
+			// -gpuN export keys — settler watermark is per exported wid.
+			if fleetBaseWorkerID(workerID) == workerID && m.fleetMemberPresentLocked(workerID) {
+				m.mu.Unlock()
+				return
+			}
 			st.PayoutAddress = addr
 			m.worker[workerID] = st
 			cur = addr
@@ -3365,7 +3372,11 @@ func shouldExportFleetMemberSeparately(baseRow workerPayoutStat, folded workerPa
 	}
 	baseAddr := strings.TrimSpace(baseRow.PayoutAddress)
 	if baseAddr != "" && !strings.EqualFold(baseAddr, stAddr) {
-		return true
+		// Only eject when the base row itself carries unpaid accrual. A 0-accrual
+		// decoy bare-base claim must not flip the member onto a new settle wid.
+		if workerStatHasUnpaidAccrual(baseRow) {
+			return true
+		}
 	}
 	// Empty-address destination with preexisting unpaid accruals must not adopt a
 	// stranger's payout address (post-unbind / legacy orphan fold → pay-to-attacker).
@@ -3385,9 +3396,34 @@ func shouldExportFleetMemberSeparately(baseRow workerPayoutStat, folded workerPa
 	return false
 }
 
+// fleetMemberPresentLocked reports whether any "<base>-gpuN" row exists in memory.
+// Caller must hold m.mu.
+func (m *workManager) fleetMemberPresentLocked(base string) bool {
+	if m == nil || m.worker == nil {
+		return false
+	}
+	base = strings.TrimSpace(base)
+	if base == "" {
+		return false
+	}
+	for id := range m.worker {
+		if id != base && fleetBaseWorkerID(id) == base {
+			return true
+		}
+	}
+	return false
+}
+
 func mergeWorkerStat(dst, src workerPayoutStat) (workerPayoutStat, bool) {
 	dstAddr := strings.TrimSpace(dst.PayoutAddress)
 	srcAddr := strings.TrimSpace(src.PayoutAddress)
+	// Drop a 0-accrual decoy destination address before conflict detection so a
+	// bare-base claim cannot freeze/flip fleet settlement via address_conflict.
+	if dstAddr != "" && srcAddr != "" && !strings.EqualFold(dstAddr, srcAddr) &&
+		!workerStatHasUnpaidAccrual(dst) && workerStatHasUnpaidAccrual(src) {
+		dst.PayoutAddress = ""
+		dstAddr = ""
+	}
 	addrConflict := dstAddr != "" && srcAddr != "" && !strings.EqualFold(dstAddr, srcAddr)
 	if addrConflict || dst.AddressConflict || src.AddressConflict {
 		// Keep accruals visible for ops/settle drift detection; clear address so

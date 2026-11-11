@@ -176,7 +176,7 @@ func snapshotCorpusHashes(dir string) (map[string]string, error) {
 			continue
 		}
 		p := filepath.Join(dir, e.Name())
-		b, err := os.ReadFile(p)
+		b, err := hunt.ReadRegularCorpusFile(p, 1<<20)
 		if err != nil || len(b) == 0 {
 			continue
 		}
@@ -204,8 +204,8 @@ func collectResearchDelta(dir string, before map[string]string, maxFiles int) (s
 		name := e.Name()
 		low := strings.ToLower(name)
 		p := filepath.Join(dir, name)
-		b, rerr := os.ReadFile(p)
-		if rerr != nil || len(b) == 0 || len(b) > 65536 {
+		b, rerr := hunt.ReadRegularCorpusFile(p, 65536)
+		if rerr != nil || len(b) == 0 {
 			continue
 		}
 		sum := sha256.Sum256(b)

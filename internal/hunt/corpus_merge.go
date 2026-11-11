@@ -104,8 +104,8 @@ func pruneCorpusDir(dir string, maxKeep int) error {
 		if e.IsDir() || len(e.Name()) == 0 || e.Name()[0] == '.' {
 			continue
 		}
-		info, err := e.Info()
-		if err != nil {
+		info, ok := isRegularCorpusFile(filepath.Join(dir, e.Name()))
+		if !ok {
 			continue
 		}
 		files = append(files, item{name: e.Name(), mod: info.ModTime().UnixNano(), size: info.Size()})

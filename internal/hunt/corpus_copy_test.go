@@ -138,3 +138,61 @@ func TestPlaceCorpusFileFallbackCopy(t *testing.T) {
 		t.Fatalf("got %q err=%v", got, err)
 	}
 }
+
+// High (fimasw): Hunt corpus must not follow harness-planted symlinks into host secrets.
+func TestCopyCorpusFilesRefusesSymlinkToHostSecret(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink semantics differ on windows")
+	}
+	host := t.TempDir()
+	secretPath := filepath.Join(host, ".env.vps")
+	secret := []byte("HACKME_ADMIN_TOKEN=super-secret-value\n")
+	if err := os.WriteFile(secretPath, secret, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	src := t.TempDir()
+	dst := t.TempDir()
+	if err := os.Symlink(secretPath, filepath.Join(src, "leak")); err != nil {
+		t.Fatal(err)
+	}
+	// Legitimate seed alongside the decoy.
+	if err := os.WriteFile(filepath.Join(src, "ok"), []byte("seed"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	n := copyCorpusFiles(src, dst, 32)
+	if n != 1 {
+		t.Fatalf("copied=%d want 1 (symlink skipped)", n)
+	}
+	if _, err := os.Lstat(filepath.Join(dst, "afl-leak")); err == nil {
+		t.Fatal("symlink must not be copied/linked into destination")
+	}
+	got, err := os.ReadFile(filepath.Join(dst, "afl-ok"))
+	if err != nil || string(got) != "seed" {
+		t.Fatalf("regular seed missing: %q err=%v", got, err)
+	}
+	if placeCorpusFile(filepath.Join(src, "leak"), filepath.Join(dst, "placed")) {
+		t.Fatal("placeCorpusFile must refuse symlink source")
+	}
+}
+
+func TestReadRegularCorpusFileRefusesSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink semantics differ on windows")
+	}
+	dir := t.TempDir()
+	target := filepath.Join(dir, "secret")
+	if err := os.WriteFile(target, []byte("SECRET"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "leak")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadRegularCorpusFile(link, 65536); err == nil {
+		t.Fatal("expected refuse symlink")
+	}
+	b, err := ReadRegularCorpusFile(target, 65536)
+	if err != nil || string(b) != "SECRET" {
+		t.Fatalf("regular read: %q err=%v", b, err)
+	}
+}

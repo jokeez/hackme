@@ -465,8 +465,10 @@ func copyCorpusFiles(src, dst string, max int) int {
 			continue
 		}
 		srcPath := filepath.Join(src, e.Name())
-		info, err := e.Info()
-		if err != nil || info.Size() <= 0 || info.Size() > 1<<20 {
+		// CORPUS-SYMLINK (Hunt): Lstat — never follow harness-planted symlinks
+		// into host secrets (.env.vps) via e.Info()/ReadFile.
+		info, ok := isRegularCorpusFile(srcPath)
+		if !ok || info.Size() <= 0 || info.Size() > 1<<20 {
 			continue
 		}
 		name := e.Name()
@@ -476,7 +478,7 @@ func copyCorpusFiles(src, dst string, max int) int {
 			name = "afl-" + name
 		}
 		dest := filepath.Join(dst, name)
-		if _, err := os.Stat(dest); err == nil {
+		if _, err := os.Lstat(dest); err == nil {
 			continue
 		}
 		if placeCorpusFile(srcPath, dest) {
@@ -488,7 +490,12 @@ func copyCorpusFiles(src, dst string, max int) int {
 
 // placeCorpusFile prefers a same-FS hardlink (no Read+Write) then falls back to copy.
 // Mode is always 0600 so linked files match WriteFile semantics for AFL inputs.
+// Refuses symlinks / non-regular sources (Hunt harness RW corpus bind).
 func placeCorpusFile(srcPath, dest string) bool {
+	info, ok := isRegularCorpusFile(srcPath)
+	if !ok || info.Size() <= 0 || info.Size() > 1<<20 {
+		return false
+	}
 	if err := os.Link(srcPath, dest); err == nil {
 		_ = os.Chmod(dest, 0o600)
 		return true
