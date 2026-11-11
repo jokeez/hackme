@@ -17,18 +17,18 @@ import (
 
 // RegisterRequest is the coordinator pool campaign upsert body.
 type RegisterRequest struct {
-	ID                   string         `json:"id"`
-	CampaignType         string         `json:"campaign_type"`
-	Title                string         `json:"title"`
-	Description          string         `json:"description"`
-	OwnerRef             string         `json:"owner_ref,omitempty"`
-	Status               string         `json:"status"`
-	BudgetRuns           int            `json:"budget_runs"`
-	BudgetSeconds        int            `json:"budget_seconds"`
-	BudgetHMC            float64        `json:"budget_hmc,omitempty"`
-	PrepaidAttestation   string         `json:"prepaid_attestation,omitempty"`
-	EscrowFingerprint    string         `json:"escrow_fingerprint,omitempty"`
-	Config               map[string]any `json:"config"`
+	ID                 string         `json:"id"`
+	CampaignType       string         `json:"campaign_type"`
+	Title              string         `json:"title"`
+	Description        string         `json:"description"`
+	OwnerRef           string         `json:"owner_ref,omitempty"`
+	Status             string         `json:"status"`
+	BudgetRuns         int            `json:"budget_runs"`
+	BudgetSeconds      int            `json:"budget_seconds"`
+	BudgetHMC          float64        `json:"budget_hmc,omitempty"`
+	PrepaidAttestation string         `json:"prepaid_attestation,omitempty"`
+	EscrowFingerprint  string         `json:"escrow_fingerprint,omitempty"`
+	Config             map[string]any `json:"config"`
 }
 
 // RegisterResult captures one-time secrets returned by the coordinator.

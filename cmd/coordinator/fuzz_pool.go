@@ -412,11 +412,11 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
 		var req struct {
-			IDs            []int64                      `json:"ids"`
-			CampaignID     string                       `json:"campaign_id"`
-			ConfirmApplied bool                         `json:"confirm_applied"` // ignored alone
-			OriginApplied  bool                         `json:"origin_applied"`  // ignored alone
-			HubApplied     bool                         `json:"hub_applied"`     // admin/hub-side only
+			IDs            []int64                       `json:"ids"`
+			CampaignID     string                        `json:"campaign_id"`
+			ConfirmApplied bool                          `json:"confirm_applied"` // ignored alone
+			OriginApplied  bool                          `json:"origin_applied"`  // ignored alone
+			HubApplied     bool                          `json:"hub_applied"`     // admin/hub-side only
 			Receipts       []poolsync.SettleApplyReceipt `json:"receipts"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -769,11 +769,11 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"ok":                 true,
+			"ok":                  true,
 			"prepaid_attestation": ticket,
-			"escrow_fingerprint": fp,
-			"exp_unix":           exp,
-			"note":               "hub-signed; bind on POST /api/fuzz/pool/campaigns with matching budget/owner/escrow_fingerprint",
+			"escrow_fingerprint":  fp,
+			"exp_unix":            exp,
+			"note":                "hub-signed; bind on POST /api/fuzz/pool/campaigns with matching budget/owner/escrow_fingerprint",
 		})
 	})
 

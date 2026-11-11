@@ -337,6 +337,7 @@ func desktopAdminTokenEmbedScript(r *http.Request) string {
 //   - Unix-socket peer, or
 //   - browser document context: Origin + Referer both loopback same-origin
 //     (Sec-Fetch-Site alone is spoofable — curl with a forged header gets nothing).
+//
 // EXPOSE also gates HTML embed + the optional UI note. CLI must use EXPOSE=1 or a token file.
 func handleDesktopLocalAuth(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
