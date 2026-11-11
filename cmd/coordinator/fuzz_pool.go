@@ -886,11 +886,14 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 						http.Error(w, "owner secret mint failed", http.StatusInternalServerError)
 						return
 					}
-					if err := pf.StampOrdersOwnerSecretHash(r.Context(), req.ID, hash); err != nil {
+					stamped, err := pf.StampOrdersOwnerSecretHash(r.Context(), req.ID, hash)
+					if err != nil {
 						http.Error(w, err.Error(), http.StatusInternalServerError)
 						return
 					}
-					issuedOwnerSecret = sec
+					if stamped {
+						issuedOwnerSecret = sec
+					}
 				}
 			} else {
 				sec, hash, err := newOrdersOwnerSecret()

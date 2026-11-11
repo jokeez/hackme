@@ -635,29 +635,56 @@ func (s *Service) CampaignOwnerSecretHash(ctx context.Context, campaignID string
 	return strings.TrimSpace(v), nil
 }
 
-// StampOrdersOwnerSecretHash sets orders_owner_secret_hash once (no-op if already set).
-func (s *Service) StampOrdersOwnerSecretHash(ctx context.Context, campaignID, hash string) error {
+// StampOrdersOwnerSecretHash sets orders_owner_secret_hash once under BEGIN IMMEDIATE.
+// stamped is true only when this caller wrote the hash (plaintext may be returned once).
+func (s *Service) StampOrdersOwnerSecretHash(ctx context.Context, campaignID, hash string) (stamped bool, err error) {
 	if s == nil || s.DB == nil {
-		return fmt.Errorf("poolfuzz: no database")
+		return false, fmt.Errorf("poolfuzz: no database")
 	}
 	campaignID = strings.TrimSpace(campaignID)
 	hash = strings.TrimSpace(hash)
 	if campaignID == "" || hash == "" {
-		return fmt.Errorf("poolfuzz: campaign id and secret hash required")
+		return false, fmt.Errorf("poolfuzz: campaign id and secret hash required")
 	}
-	cfg, err := s.CampaignConfig(ctx, campaignID)
+	conn, err := s.DB.Conn(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
+	defer conn.Close()
+	if _, err := conn.ExecContext(ctx, `BEGIN IMMEDIATE`); err != nil {
+		return false, err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_, _ = conn.ExecContext(ctx, `ROLLBACK`)
+		}
+	}()
+	var raw string
+	err = conn.QueryRowContext(ctx, `SELECT config_json FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&raw)
+	if err != nil {
+		return false, err
+	}
+	cfg := parseConfigJSON(raw)
 	if cfg == nil {
 		cfg = map[string]any{}
 	}
 	if existing, _ := cfg["orders_owner_secret_hash"].(string); strings.TrimSpace(existing) != "" {
-		return nil
+		if _, err := conn.ExecContext(ctx, `COMMIT`); err != nil {
+			return false, err
+		}
+		committed = true
+		return false, nil
 	}
 	cfg["orders_owner_secret_hash"] = hash
-	_, err = s.DB.ExecContext(ctx, `UPDATE fuzz_campaigns SET config_json=? WHERE id=?`, marshalConfigJSON(cfg), campaignID)
-	return err
+	if _, err := conn.ExecContext(ctx, `UPDATE fuzz_campaigns SET config_json=? WHERE id=?`, marshalConfigJSON(cfg), campaignID); err != nil {
+		return false, err
+	}
+	if _, err := conn.ExecContext(ctx, `COMMIT`); err != nil {
+		return false, err
+	}
+	committed = true
+	return true, nil
 }
 
 // CampaignConfig loads parsed config_json for a pool campaign.
