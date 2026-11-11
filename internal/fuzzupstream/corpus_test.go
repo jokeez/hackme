@@ -61,6 +61,42 @@ func TestLoadExtraSeedDirs(t *testing.T) {
 	}
 }
 
+func TestLoadCorpusDirSkipsSymlinks(t *testing.T) {
+	dir := t.TempDir()
+	secret := filepath.Join(t.TempDir(), "secret.bin")
+	if err := os.WriteFile(secret, []byte("top-secret-seed-bytes"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "seed-real.bin"), []byte("real-seed"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secret, filepath.Join(dir, "seed-link.bin")); err != nil {
+		t.Fatal(err)
+	}
+	got := loadCorpusDir(dir, 10)
+	if len(got) != 1 || string(got[0]) != "real-seed" {
+		t.Fatalf("want only regular seed, got %#v", got)
+	}
+}
+
+func TestLoadExtraSeedDirsSkipsSymlinkRoot(t *testing.T) {
+	root := t.TempDir()
+	real := filepath.Join(t.TempDir(), "real-corpus")
+	if err := os.MkdirAll(real, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	linkParent := filepath.Join(root, ".cache", "hunt-lf-seeds")
+	if err := os.MkdirAll(linkParent, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(real, filepath.Join(linkParent, "mpack")); err != nil {
+		t.Fatal(err)
+	}
+	if dirs := loadExtraSeedDirs(root, "mpack"); len(dirs) != 0 {
+		t.Fatalf("symlink corpus root must be refused, got %v", dirs)
+	}
+}
+
 func TestShareWallFromEnv(t *testing.T) {
 	t.Setenv("HACKME_OSS_SHARE_WALL", "")
 	if ShareWallFromEnv() {

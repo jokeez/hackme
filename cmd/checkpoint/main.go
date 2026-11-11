@@ -28,6 +28,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	"hackme/internal/checkpoint"
+	"hackme/internal/netutil"
 	"hackme/internal/nodecrypto"
 )
 
@@ -221,7 +222,8 @@ func runVerify(args []string) error {
 	if *last > 0 && *last < len(cps) {
 		start = len(cps) - *last
 	}
-	client := &http.Client{Timeout: 20 * time.Second}
+	// Refuse 3xx so a malicious API hop cannot swap block hashes mid-verify (CKPT-REDIR-01).
+	client := netutil.HTTPClientNoRedirect(20 * time.Second)
 	ctx := context.Background()
 	for _, c := range cps[start:] {
 		// Compare block hash only. Under D1 baseline relay the header miner_address is

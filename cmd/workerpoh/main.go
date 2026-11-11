@@ -23,6 +23,7 @@ import (
 	"hackme/internal/gpupoh"
 	"hackme/internal/gputune"
 	"hackme/internal/hotlog"
+	"hackme/internal/netutil"
 	"hackme/internal/operator"
 	"hackme/internal/sandbox"
 	"hackme/internal/workerfuzzloop"
@@ -542,8 +543,10 @@ func newWorkerHTTPClient(timeout time.Duration) *http.Client {
 	if hdrTimeout < 3*time.Second {
 		hdrTimeout = 3 * time.Second
 	}
+	// Claim/submit/push carry X-Hackme-Admin-Token — never follow 3xx (WPOH-REDIR-01).
 	return &http.Client{
-		Timeout: timeout,
+		Timeout:       timeout,
+		CheckRedirect: netutil.DenyAdminTokenRedirect,
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer{

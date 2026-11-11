@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"hackme/internal/chain"
+	"hackme/internal/netutil"
 	"hackme/internal/nodecrypto"
 )
 
@@ -87,7 +88,8 @@ func main() {
 	} else if t := strings.TrimSpace(os.Getenv("HACKME_ADMIN_TOKEN")); t != "" {
 		req.Header.Set("X-Hackme-Admin-Token", t)
 	}
-	cli := &http.Client{Timeout: 30 * time.Second}
+	// Admin-Token on /api/tx/send must not hop hosts on 3xx (SENDTX-REDIR-01).
+	cli := netutil.HTTPClientNoRedirect(30 * time.Second)
 	resp, err := cli.Do(req)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "http:", err)

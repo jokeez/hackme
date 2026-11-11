@@ -10,8 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"hackme/internal/chain"
+	"hackme/internal/netutil"
 	"hackme/internal/nodecrypto"
 	"hackme/internal/store"
 )
@@ -115,4 +117,29 @@ func TestCreateVerifyEndToEnd(t *testing.T) {
 		t.Fatal("create must refuse to extend a chain that does not verify")
 	}
 	_ = db.Close()
+}
+
+// CKPT-REDIR-01: API hash compare must not follow 3xx to a forged block payload.
+func TestFetchBlockRefusesRedirect(t *testing.T) {
+	var sawSecond bool
+	collector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sawSecond = true
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"lookup": true, "found": true,
+			"blocks": []map[string]any{{"index": uint64(1), "hash": strings.Repeat("a", 64)}},
+		})
+	}))
+	defer collector.Close()
+	redirector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, collector.URL+"/reports/blocks?q=1", http.StatusFound)
+	}))
+	defer redirector.Close()
+
+	_, err := fetchBlock(context.Background(), netutil.HTTPClientNoRedirect(5*time.Second), redirector.URL, 1)
+	if err == nil || !strings.Contains(err.Error(), "refusing HTTP redirect") {
+		t.Fatalf("expected redirect refusal, got %v", err)
+	}
+	if sawSecond {
+		t.Fatal("verify client must not follow redirect")
+	}
 }

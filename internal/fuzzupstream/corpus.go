@@ -29,15 +29,15 @@ func loadCorpusDir(dir string, limit int) [][]byte {
 	}
 	var files []item
 	for _, e := range ents {
-		if e.IsDir() {
-			continue
-		}
 		name := e.Name()
 		if strings.HasPrefix(name, ".") {
 			continue
 		}
-		info, err := e.Info()
-		if err != nil {
+		// CORPUS-SYMLINK-01: Lstat + regular-file only — never follow symlinks into
+		// secrets/host paths planted in a shared corpus directory.
+		full := filepath.Join(dir, name)
+		info, err := os.Lstat(full)
+		if err != nil || !info.Mode().IsRegular() {
 			continue
 		}
 		if info.Size() <= 0 || info.Size() > 1<<20 {
@@ -119,7 +119,7 @@ func loadExtraSeedDirs(repoRoot, targetID string) []string {
 	}
 	var out []string
 	for _, d := range candidates {
-		if st, err := os.Stat(d); err == nil && st.IsDir() {
+		if st, err := os.Lstat(d); err == nil && st.IsDir() {
 			out = append(out, d)
 		}
 	}

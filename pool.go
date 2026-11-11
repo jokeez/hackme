@@ -1689,7 +1689,7 @@ func forwardPushWorkToCoordinator(ctx context.Context, base string, body lanpool
 	if t := coordinatorToken(); t != "" {
 		req.Header.Set("X-Hackme-Admin-Token", t)
 	}
-	cl := &http.Client{Timeout: 4 * time.Second}
+	cl := netutil.HTTPClientNoRedirect(4 * time.Second)
 	res, err := cl.Do(req)
 	if err != nil {
 		return err

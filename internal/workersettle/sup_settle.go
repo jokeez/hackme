@@ -63,7 +63,8 @@ func RunSUP(ctx context.Context, cfg Config) (Result, error) {
 
 	client := netutil.HTTPClientNoRedirect(time.Duration(settleHTTPTimeoutSec(cfg)) * time.Second)
 	if client == nil {
-		client = &http.Client{Timeout: time.Duration(cfg.HTTPTimeoutSec) * time.Second}
+		// Parity with HMC Run: never follow redirects (Admin-Token on settle POSTs).
+		client = &http.Client{Timeout: time.Duration(cfg.HTTPTimeoutSec) * time.Second, CheckRedirect: netutil.DenyAdminTokenRedirect}
 	}
 	retired, err := fetchSUPMintRetired(ctx, client, cfg.ChainBase)
 	if err != nil {

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"hackme/internal/netutil"
 	"hackme/internal/workerfuzzloop"
 	"hackme/internal/workerlock"
 )
@@ -97,7 +97,7 @@ func runHybridFuzzInline(ctx context.Context, st *hybridFuzzState, coordURL, tok
 		WorkerID:             workerID,
 		MinerAddr:            addr,
 		TimeoutMS:            timeoutMS,
-		HTTPClient:           &http.Client{Timeout: httpTimeout},
+		HTTPClient:           netutil.HTTPClientNoRedirect(httpTimeout),
 		Priv:                 priv,
 		PubHex:               pubHex,
 		Hybrid:               hybrid,

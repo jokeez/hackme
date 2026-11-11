@@ -17,6 +17,7 @@ import (
 	"strings"
 	"syscall"
 
+	"hackme/internal/netutil"
 	"hackme/internal/workerfuzzloop"
 	"hackme/internal/workerlock"
 )
@@ -68,7 +69,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "workerfuzz: hybrid signer payout=%s\n", derivedAddr)
 	}
 	base := strings.TrimRight(*coordURL, "/")
-	cl := &http.Client{Timeout: workerfuzzloop.HTTPTimeoutFromEnv()}
+	cl := newWorkerfuzzHTTPClient()
 	fmt.Fprintf(os.Stderr, "workerfuzz: coord=%s worker=%s\n", base, *workerID)
 
 	huntExec := huntHarnessExecForStandalone()
@@ -101,6 +102,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "workerfuzz: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// newWorkerfuzzHTTPClient refuses redirects: claim/submit carry X-Hackme-Admin-Token (WFUZZ-REDIR-01).
+func newWorkerfuzzHTTPClient() *http.Client {
+	return netutil.HTTPClientNoRedirect(workerfuzzloop.HTTPTimeoutFromEnv())
 }
 
 // huntHarnessExecForStandalone advertises a Hunt harness only when a local engine
