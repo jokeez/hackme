@@ -152,8 +152,9 @@ func collectCompanionSourcesInDir(pinRoot, dirRel, skipBase string) ([]string, e
 		if err != nil {
 			continue
 		}
-		st, err := e.Info()
-		if err != nil {
+		// SafeStatUnder = Lstat: skip symlinks (e.Info size of a link is not the target).
+		st, err := SafeStatUnder(pinRoot, abs)
+		if err != nil || !st.Mode().IsRegular() {
 			continue
 		}
 		if st.Size() > 512*1024 {
@@ -211,8 +212,8 @@ func collectParentCompanions(pinRoot, mainRel string) ([]string, error) {
 		if err != nil {
 			continue
 		}
-		st, err := e.Info()
-		if err != nil || st.Size() > 1024*1024 {
+		st, err := SafeStatUnder(pinRoot, abs)
+		if err != nil || !st.Mode().IsRegular() || st.Size() > 1024*1024 {
 			continue
 		}
 		if hit, err := fileHasFuzzEntry(pinRoot, abs); err != nil || hit {

@@ -2155,16 +2155,16 @@ func (m *workManager) notePayoutLock(workerID, addr string) {
 	}
 	cur := strings.TrimSpace(st.PayoutAddress)
 	if cur == "" {
+		// Fleet-fold double-pay: refuse entirely (no memory row, no durable lock)
+		// when a 0-accrual bare-base claim would plant a decoy beside -gpuN members.
+		if !workerStatHasUnpaidAccrual(st) &&
+			fleetBaseWorkerID(workerID) == workerID && m.fleetMemberPresentLocked(workerID) {
+			m.mu.Unlock()
+			return
+		}
 		// Do not rebind historical unpaid accruals to a first claimant after
 		// admin unbind (worker_id is public in pool stats — snipe risk).
 		if !workerStatHasUnpaidAccrual(st) {
-			// Fleet-fold double-pay: a 0-accrual bare-base claim with a second
-			// address must not plant a decoy row (or durable lock) that flips
-			// -gpuN export keys — settler watermark is per exported wid.
-			if fleetBaseWorkerID(workerID) == workerID && m.fleetMemberPresentLocked(workerID) {
-				m.mu.Unlock()
-				return
-			}
 			st.PayoutAddress = addr
 			m.worker[workerID] = st
 			cur = addr
@@ -3141,7 +3141,8 @@ func (m *workManager) submit(req submitWorkRequest) (accepted bool, reason strin
 	}
 	if signerAddr != "" {
 		if strings.TrimSpace(st.PayoutAddress) == "" {
-			if !workerStatHasUnpaidAccrual(st) {
+			// Same adopt gates as notePayoutLock / fuzz submit (fleet-fold decoy twin).
+			if m.canAdoptBlankPayoutLocked(req.WorkerID, st) {
 				st.PayoutAddress = signerAddr
 				// First-binding only when adopting into memory — never squat the
 				// durable lock onto unpaid-blank rows (admin must rebind_to).
@@ -3388,7 +3389,12 @@ func shouldExportFleetMemberSeparately(baseRow workerPayoutStat, folded workerPa
 		return true
 	}
 	if foldedAddr != "" && !strings.EqualFold(foldedAddr, stAddr) {
-		return true
+		// Fold order puts bare base into workers[base] first. A 0-accrual decoy
+		// already folded there must not eject the unpaid -gpuN member onto a new
+		// settle wid (same class as the baseRow unpaid check above).
+		if workerStatHasUnpaidAccrual(folded) {
+			return true
+		}
 	}
 	if foldedAddr == "" && workerStatHasUnpaidAccrual(folded) {
 		return true
@@ -3412,6 +3418,21 @@ func (m *workManager) fleetMemberPresentLocked(base string) bool {
 		}
 	}
 	return false
+}
+
+// canAdoptBlankPayoutLocked reports whether a blank memory row may take a first
+// payout address. Caller must hold m.mu.
+// Refuses unpaid-blank snipe and 0-accrual bare-base decoys while -gpuN members
+// exist (fleet-fold export-key churn / settler watermark per wid).
+func (m *workManager) canAdoptBlankPayoutLocked(workerID string, st workerPayoutStat) bool {
+	if workerStatHasUnpaidAccrual(st) {
+		return false
+	}
+	workerID = strings.TrimSpace(workerID)
+	if workerID != "" && fleetBaseWorkerID(workerID) == workerID && m.fleetMemberPresentLocked(workerID) {
+		return false
+	}
+	return true
 }
 
 func mergeWorkerStat(dst, src workerPayoutStat) (workerPayoutStat, bool) {

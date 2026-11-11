@@ -337,10 +337,9 @@ func (m *workManager) lockedPayoutAddress(workerID string) string {
 	}
 	m.mu.Lock()
 	st := m.worker[workerID]
-	// Never adopt durable identity onto unpaid-blank memory — that would rebind
-	// historical unpaid to a claim sniper after admin unbind (notePayoutLock
-	// deliberately leaves PayoutAddress empty in that state).
-	if strings.TrimSpace(st.PayoutAddress) == "" && !workerStatHasUnpaidAccrual(st) {
+	// Never adopt durable identity onto unpaid-blank / fleet-decoy memory —
+	// unpaid snipe after admin unbind, or bare-base decoy beside -gpuN members.
+	if strings.TrimSpace(st.PayoutAddress) == "" && m.canAdoptBlankPayoutLocked(workerID, st) {
 		st.PayoutAddress = addr
 		if m.worker == nil {
 			m.worker = map[string]workerPayoutStat{}

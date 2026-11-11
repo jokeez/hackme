@@ -20,6 +20,25 @@ func TestLoadDigSeedFilesFilters(t *testing.T) {
 	}
 }
 
+// Low: dig seed cache must not follow planted symlinks into host secrets.
+func TestLoadDigSeedFilesRefusesSymlink(t *testing.T) {
+	dir := t.TempDir()
+	secret := filepath.Join(t.TempDir(), "secret.env")
+	if err := os.WriteFile(secret, []byte("TOKEN=leak\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "ok.bin"), []byte("ok"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secret, filepath.Join(dir, "leak.bin")); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadDigSeedFiles(dir, 8)
+	if err != nil || len(got) != 1 || string(got[0]) != "ok" {
+		t.Fatalf("symlink must be skipped; got=%v err=%v", got, err)
+	}
+}
+
 func TestMergeDigSeedCorpusU64(t *testing.T) {
 	dir := t.TempDir()
 	pack := "script_bounds"

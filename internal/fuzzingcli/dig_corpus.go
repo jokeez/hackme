@@ -77,8 +77,10 @@ func LoadDigSeedFiles(dir string, maxSeeds int) ([][]byte, error) {
 		if !ok || !pathsafe.AbsRE.MatchString(safePath) {
 			continue
 		}
-		st, err := os.Stat(safePath)
-		if err != nil || st.IsDir() || st.Size() <= 0 || st.Size() > digSeedMaxBytes {
+		// Lstat + regular only — never follow planted symlinks into host secrets
+		// (incomplete-fix twin of cdb092e/a5923b02 Hunt corpus hardening).
+		st, err := os.Lstat(safePath)
+		if err != nil || !st.Mode().IsRegular() || st.Size() <= 0 || st.Size() > digSeedMaxBytes {
 			continue
 		}
 		if !pathsafe.AbsRE.MatchString(safePath) {

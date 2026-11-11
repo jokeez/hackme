@@ -1634,9 +1634,9 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			}
 			st := wm.worker[req.WorkerID]
 			if locked := strings.TrimSpace(st.PayoutAddress); locked == "" {
-				// Match PoH submit: never adopt onto unpaid-blank rows (snipe /
-				// secondary twin of work.go workerStatHasUnpaidAccrual guard).
-				if !workerStatHasUnpaidAccrual(st) {
+				// Match PoH notePayoutLock/submit: unpaid-blank snipe + fleet-fold
+				// bare-base decoy must not plant a settle-key churn row.
+				if wm.canAdoptBlankPayoutLocked(req.WorkerID, st) {
 					st.PayoutAddress = payoutAddr
 				}
 			}

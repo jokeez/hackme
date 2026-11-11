@@ -87,8 +87,10 @@ func resolveSourceFile(repoRoot, pinPath, sourceRel string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if st.IsDir() {
-		return "", fmt.Errorf("hunt: source must be a file")
+	// Lstat via SafeStatUnder: refuse symlinks so clang cannot follow a pin-planted
+	// link into host secrets during inventory/template compile (cdb092e twin).
+	if !st.Mode().IsRegular() {
+		return "", fmt.Errorf("hunt: source must be a regular file")
 	}
 	return abs, nil
 }

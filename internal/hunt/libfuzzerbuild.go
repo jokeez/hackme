@@ -353,6 +353,10 @@ func countCorpusFiles(dir string) (int, error) {
 		if e.IsDir() || strings.HasPrefix(e.Name(), ".") {
 			continue
 		}
+		// Count regular files only — RW corpus may contain planted symlinks.
+		if _, ok := isRegularCorpusFile(filepath.Join(dir, e.Name())); !ok {
+			continue
+		}
 		n++
 	}
 	return n, nil

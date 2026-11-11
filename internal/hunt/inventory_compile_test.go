@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -37,6 +38,65 @@ func TestCollectCompanionSourcesSkipsMain(t *testing.T) {
 	}
 	if len(got) != 1 || got[0] != "helper.c" {
 		t.Fatalf("companions=%v", got)
+	}
+}
+
+// Medium: pin-planted symlink must not resolve as inventory/template source (clang follows).
+func TestResolveSourceFileRefusesSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink semantics differ on windows")
+	}
+	dir := t.TempDir()
+	secret := filepath.Join(dir, "secret.env")
+	if err := os.WriteFile(secret, []byte("TOKEN=leak\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	pin := filepath.Join(dir, "pin")
+	if err := os.MkdirAll(pin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(pin, "fuzz.c")
+	if err := os.Symlink(secret, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := resolveSourceFile("", pin, "fuzz.c"); err == nil {
+		t.Fatal("expected refuse symlink source")
+	}
+	regular := filepath.Join(pin, "ok.c")
+	if err := os.WriteFile(regular, []byte("int x;\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := resolveSourceFile("", pin, "ok.c")
+	if err != nil || got != regular {
+		t.Fatalf("regular source: got=%q err=%v", got, err)
+	}
+}
+
+// Low: companion enumeration must skip symlink entries (Lstat+IsRegular).
+func TestCollectCompanionSourcesSkipsSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink semantics differ on windows")
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fuzz.c"), []byte("int LLVMFuzzerTestOneInput(const unsigned char*,unsigned long){return 0;}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "helper.c"), []byte("int helper(int x){return x+1;}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(t.TempDir(), "outside.c")
+	if err := os.WriteFile(outside, []byte("int outside(void){return 1;}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(dir, "evil.c")); err != nil {
+		t.Fatal(err)
+	}
+	got, err := collectCompanionSources(dir, "fuzz.c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0] != "helper.c" {
+		t.Fatalf("companions=%v want only helper.c (symlink skipped)", got)
 	}
 }
 
