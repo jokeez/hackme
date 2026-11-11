@@ -938,6 +938,9 @@ func (a *app) enrichFuzzCampaignFromCoordinator(ctx context.Context, c *fuzzCamp
 	if !ok {
 		return
 	}
+	c.Summary["pool_runs_done"] = rc.RunsDone
+	c.Summary["pool_work_pending"] = rc.WorkPending
+	c.Summary["pool_work_leased"] = rc.WorkLeased
 	if rc.RunsDone > intFromAny(c.Summary["runs_done"]) {
 		c.Summary["runs_done"] = rc.RunsDone
 	}
@@ -1674,10 +1677,17 @@ func (a *app) handleFuzzCampaignPulse(w http.ResponseWriter, r *http.Request, ca
 		writeAPIError(w, http.StatusInternalServerError, "campaign_load_failed", "campaign load failed", nil)
 		return
 	}
+	var poolRC coordinatorPoolCampaign
+	var poolOK bool
 	if poolDistributedCampaign(c.Config) {
 		_ = a.syncPoolCampaignProgressFromCoordinator(r.Context(), campaignID)
 		if c2, err2 := a.getFuzzCampaign(r.Context(), campaignID); err2 == nil {
 			c = c2
+		}
+		// Live coordinator read even if DB persist raced/failed — pulse must not look dead
+		// while settle-pull is delayed.
+		if rc, ok := a.fetchCoordinatorPoolCampaignProgress(r.Context(), campaignID); ok {
+			poolRC, poolOK = rc, true
 		}
 	}
 	findings, err := a.loadCampaignFindings(r.Context(), campaignID)
@@ -1708,9 +1718,20 @@ func (a *app) handleFuzzCampaignPulse(w http.ResponseWriter, r *http.Request, ca
 			lastFindingAt = f.CreatedAt
 		}
 	}
-	runsDone := intFromAny(c.Summary["runs_done"])
-	if runsDone == 0 {
-		runsDone = intFromAny(c.Summary["executions"])
+	localRunsDone := intFromAny(c.Summary["runs_done"])
+	if localRunsDone == 0 {
+		localRunsDone = intFromAny(c.Summary["executions"])
+	}
+	runsDone := localRunsDone
+	poolAttributed := false
+	if poolOK && poolRC.RunsDone > runsDone {
+		runsDone = poolRC.RunsDone
+		poolAttributed = true
+	} else if !poolOK {
+		if hint := intFromAny(c.Summary["pool_runs_done"]); hint > runsDone {
+			runsDone = hint
+			poolAttributed = true
+		}
 	}
 	newEdges := intFromAny(c.Summary["new_edges"])
 	newPaths := intFromAny(c.Summary["new_paths"])
@@ -1753,7 +1774,47 @@ func (a *app) handleFuzzCampaignPulse(w http.ResponseWriter, r *http.Request, ca
 		   COALESCE(SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END),0)
 		 FROM fuzz_work_items
 		 WHERE campaign_id=?`, campaignID).Scan(&queuePending, &queueLeased, &queueDone, &queueFailed)
+	if poolOK {
+		if poolRC.WorkPending > queuePending {
+			queuePending = poolRC.WorkPending
+		}
+		if poolRC.WorkLeased > queueLeased {
+			queueLeased = poolRC.WorkLeased
+		}
+		if poolRC.RunsDone > queueDone {
+			queueDone = poolRC.RunsDone
+		}
+		if poolRC.RunsDone > 0 || poolRC.WorkLeased > 0 || poolRC.WorkPending > 0 {
+			runnerStale = false
+			heartbeatAt = now
+		}
+	}
 	eta := estimatePulseETA(runsDone, c.BudgetRuns, elapsed, c.BudgetSeconds, c.Status)
+	escrowRuns := -1
+	if a.chain != nil {
+		if esc, err := a.chain.GetFuzzEscrow(r.Context(), campaignID); err == nil && esc != nil {
+			escrowRuns = esc.RunsDone
+		}
+	}
+	poolRunsHint := 0
+	poolLeasedHint := 0
+	poolPendingHint := 0
+	if poolOK {
+		poolRunsHint = poolRC.RunsDone
+		poolLeasedHint = poolRC.WorkLeased
+		poolPendingHint = poolRC.WorkPending
+	} else {
+		poolRunsHint = intFromAny(c.Summary["pool_runs_done"])
+		poolLeasedHint = intFromAny(c.Summary["pool_work_leased"])
+		poolPendingHint = intFromAny(c.Summary["pool_work_pending"])
+	}
+	if note := poolAttributedProgressNote(localRunsDone, poolRunsHint, poolLeasedHint, poolPendingHint, escrowRuns); note != "" {
+		eta["progress_note"] = note
+		eta["honest_progress"] = true
+		if poolAttributed || poolRunsHint > localRunsDone || (escrowRuns >= 0 && poolRunsHint > escrowRuns) {
+			eta["eta_source"] = "pool_attributed"
+		}
+	}
 	crashCount := 0
 	noiseCount := 0
 	for _, f := range findings {
@@ -1763,6 +1824,27 @@ func (a *app) handleFuzzCampaignPulse(w http.ResponseWriter, r *http.Request, ca
 			noiseCount++
 		}
 	}
+	// Crash-class hint from pool only — never invent finding rows here.
+	if poolOK && poolRC.Findings > crashCount {
+		uniqueCrashes = poolRC.Findings
+	}
+	progress := map[string]any{
+		"runs_done":       runsDone,
+		"budget_runs":     c.BudgetRuns,
+		"progress_pct":    progressPct,
+		"runs_per_sec":    ratePerSec,
+		"budget_seconds":  c.BudgetSeconds,
+		"eta_sec":         eta["eta_sec"],
+		"eta_sec_est":     eta["eta_sec"],
+		"eta_source":      eta["eta_source"],
+		"remaining_runs":  eta["remaining_runs"],
+		"progress_note":   eta["progress_note"],
+		"honest_progress": eta["honest_progress"],
+	}
+	if poolAttributed {
+		progress["pool_attributed"] = true
+		progress["local_runs_done"] = localRunsDone
+	}
 	resp := map[string]any{
 		"ok":           true,
 		"campaign_id":  campaignID,
@@ -1771,20 +1853,8 @@ func (a *app) handleFuzzCampaignPulse(w http.ResponseWriter, r *http.Request, ca
 		"started_at":   c.StartedAt,
 		"completed_at": c.CompletedAt,
 		"elapsed_sec":  elapsed,
-		"progress": map[string]any{
-			"runs_done":       runsDone,
-			"budget_runs":     c.BudgetRuns,
-			"progress_pct":    progressPct,
-			"runs_per_sec":    ratePerSec,
-			"budget_seconds":  c.BudgetSeconds,
-			"eta_sec":         eta["eta_sec"],
-			"eta_sec_est":     eta["eta_sec"],
-			"eta_source":      eta["eta_source"],
-			"remaining_runs":  eta["remaining_runs"],
-			"progress_note":   eta["progress_note"],
-			"honest_progress": eta["honest_progress"],
-		},
-		"eta": eta,
+		"progress":     progress,
+		"eta":          eta,
 		"runner": map[string]any{
 			"heartbeat_at":    heartbeatAt,
 			"stale_after_sec": staleAfterSec,
@@ -1812,6 +1882,27 @@ func (a *app) handleFuzzCampaignPulse(w http.ResponseWriter, r *http.Request, ca
 			"coverage_noise_count": noiseCount,
 		},
 		"summary": c.Summary,
+	}
+	if poolDistributedCampaign(c.Config) {
+		poolView := map[string]any{
+			"runs_done":      poolRunsHint,
+			"work_pending":   poolPendingHint,
+			"work_leased":    poolLeasedHint,
+			"findings":       0,
+			"findings_total": 0,
+			"live":           poolOK,
+		}
+		if poolOK {
+			poolView["status"] = poolRC.Status
+			poolView["findings"] = poolRC.Findings
+			poolView["findings_total"] = poolRC.FindingsTotal
+			poolView["failed_checks"] = poolRC.FailedChecks
+			poolView["budget_runs"] = poolRC.BudgetRuns
+		} else {
+			poolView["findings"] = intFromAny(c.Summary["unique_crashes"])
+			poolView["findings_total"] = intFromAny(c.Summary["findings_total"])
+		}
+		resp["pool"] = poolView
 	}
 	if a.chain != nil {
 		if esc, err := a.chain.GetFuzzEscrow(r.Context(), campaignID); err == nil {
@@ -2355,6 +2446,19 @@ func (a *app) buildFuzzReport(ctx context.Context, campaignID string, limit int)
 		recommendations = append([]string{
 			fmt.Sprintf("Pool reported %d crash-class finding(s); local mirror pending settle/sync — do not treat as clean.", poolFindingHint),
 		}, recommendations...)
+	}
+	poolRunsHint := intFromAny(c.Summary["pool_runs_done"])
+	if poolRunsHint > runsDone {
+		runsDone = poolRunsHint
+		recommendations = append([]string{
+			fmt.Sprintf("Pool-attributed progress: coordinator reports %d runs/shards done (local summary lagged; settle/ACK may still be catching up).", poolRunsHint),
+		}, recommendations...)
+	} else if poolDist && runsDone == 0 {
+		leased := intFromAny(c.Summary["pool_work_leased"])
+		pending := intFromAny(c.Summary["pool_work_pending"])
+		if note := poolAttributedProgressNote(0, poolRunsHint, leased, pending, -1); note != "" {
+			recommendations = append([]string{note}, recommendations...)
+		}
 	}
 	// Fail-closed: if we could not refresh coordinator progress/findings, never claim clean
 	// when the campaign already has local runs (stale mirror risk).

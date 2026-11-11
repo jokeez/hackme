@@ -2443,6 +2443,12 @@ func (s *Service) campaignProgress(ctx context.Context, campaignID string, owner
 	var findingsTotal int
 	_ = s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM fuzz_findings WHERE campaign_id=?`, campaignID).Scan(&findingsTotal)
 	findings, _ := s.countCrashClassFindings(ctx, campaignID)
+	var workPending, workLeased int
+	_ = s.DB.QueryRowContext(ctx,
+		`SELECT
+		   COALESCE(SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END),0),
+		   COALESCE(SUM(CASE WHEN status='leased' THEN 1 ELSE 0 END),0)
+		 FROM fuzz_work_items WHERE campaign_id=?`, campaignID).Scan(&workPending, &workLeased)
 	displayStatus := status
 	if budgetRuns > 0 && runsDone >= budgetRuns && displayStatus == "running" {
 		displayStatus = "completed"
@@ -2474,7 +2480,10 @@ func (s *Service) campaignProgress(ctx context.Context, campaignID string, owner
 		"failed_checks":  failedChecks,
 		"findings":       findings,
 		"findings_total": findingsTotal,
-		"completed_at":   completedAt,
+		// Shard/queue hints so Orders pulse can show fleet activity before settle ACK.
+		"work_pending": workPending,
+		"work_leased":  workLeased,
+		"completed_at": completedAt,
 	}, nil
 }
 

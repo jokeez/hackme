@@ -43,7 +43,56 @@ func (a *app) startPoolSyncWorker() {
 		a.startFuzzSettlePullTicker()
 		go a.retryFailedPoolSyncCampaigns()
 		go a.reconcilePoolSyncCampaignsLoop()
+		go a.mirrorPoolProgressLoop()
 	})
+}
+
+// mirrorPoolProgressLoop refreshes local summary from coordinator progress on a short
+// interval so Orders pulse/report stay honest while settle-pull is delayed (429/backoff).
+// Register/reconcile stays on the slower loop; this path only calls progress sync.
+func (a *app) mirrorPoolProgressLoop() {
+	time.Sleep(8 * time.Second)
+	a.mirrorPoolProgressOnce()
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
+		a.mirrorPoolProgressOnce()
+	}
+}
+
+func (a *app) mirrorPoolProgressOnce() {
+	if a == nil || a.db == nil {
+		return
+	}
+	if strings.TrimSpace(poolsync.ResolveCoordinatorURL()) == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	rows, err := a.db.QueryContext(ctx,
+		`SELECT id FROM fuzz_campaigns
+		 WHERE status IN ('planned','running')
+		   AND json_extract(config_json, '$.pool_distributed') IN (1, 'true', '1')
+		 ORDER BY created_at DESC LIMIT 32`)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			continue
+		}
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		syncCtx, syncCancel := context.WithTimeout(ctx, 8*time.Second)
+		if err := a.syncPoolCampaignProgressFromCoordinator(syncCtx, id); err != nil {
+			log.Printf("pool progress mirror: %s: %v", logsafe.ID(id), err)
+		}
+		syncCancel()
+	}
 }
 
 // reconcilePoolSyncCampaignsLoop re-queues pool campaigns missing on the coordinator.
