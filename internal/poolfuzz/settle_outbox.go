@@ -583,6 +583,42 @@ func (s *Service) SettleOutboxStatus(ctx context.Context, id int64) (string, err
 	return strings.TrimSpace(strings.ToLower(st)), nil
 }
 
+// GetSettleOutboxItem loads one outbox row by id (any status).
+func (s *Service) GetSettleOutboxItem(ctx context.Context, id int64) (SettleOutboxItem, error) {
+	var it SettleOutboxItem
+	if s == nil || s.DB == nil {
+		return it, fmt.Errorf("poolfuzz: no database")
+	}
+	if id <= 0 {
+		return it, fmt.Errorf("poolfuzz: invalid outbox id")
+	}
+	ensureSettleOutboxSchema(s.DB)
+	err := s.DB.QueryRowContext(ctx,
+		`SELECT id, campaign_id, kind, miner_address, severity, COALESCE(work_item_id,0), created_at
+		 FROM fuzz_settle_outbox WHERE id=?`, id).
+		Scan(&it.ID, &it.CampaignID, &it.Kind, &it.MinerAddress, &it.Severity, &it.WorkItemID, &it.CreatedAt)
+	if err != nil {
+		return it, err
+	}
+	return it, nil
+}
+
+// CampaignOwnerSecretHash returns orders_owner_secret_hash from campaign config (empty if unset).
+func (s *Service) CampaignOwnerSecretHash(ctx context.Context, campaignID string) (string, error) {
+	cfg, err := s.CampaignConfig(ctx, campaignID)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	if cfg == nil {
+		return "", nil
+	}
+	v, _ := cfg["orders_owner_secret_hash"].(string)
+	return strings.TrimSpace(v), nil
+}
+
 // CampaignConfig loads parsed config_json for a pool campaign.
 func (s *Service) CampaignConfig(ctx context.Context, campaignID string) (map[string]any, error) {
 	if s == nil || s.DB == nil {

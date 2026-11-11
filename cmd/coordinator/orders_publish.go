@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"os"
@@ -8,6 +10,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"hackme/internal/fuzzescrow"
+	"hackme/internal/poolfuzz"
+	"hackme/internal/poolsync"
 )
 
 // Orders publish token: campaign register + settle-pull + Hunt harness upload (with caps).
@@ -21,6 +27,7 @@ import (
 //	HACKME_ORDERS_PUBLISH_MAX_BUDGET_SECONDS  default 86400
 //	HACKME_ORDERS_PUBLISH_MAX_PER_HOUR        default 10
 //	HACKME_ORDERS_PUBLISH_MAX_PER_DAY         default 40
+//	HACKME_ORDERS_PUBLISH_MAX_BUDGET_HMC      default 500
 //
 // Harness upload (POST /api/fuzz/pool/hunt/harness) shares the same hourly/daily
 // publish rate limiter so customer nodes can sync custom ASAN binaries without
@@ -94,6 +101,63 @@ func publishMaxPerDay() int {
 	return envIntDefaultPositive("HACKME_ORDERS_PUBLISH_MAX_PER_DAY", 40)
 }
 
+func publishMaxBudgetHMC() float64 {
+	v := strings.TrimSpace(os.Getenv("HACKME_ORDERS_PUBLISH_MAX_BUDGET_HMC"))
+	if v == "" {
+		return 500
+	}
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil || f <= 0 {
+		return 500
+	}
+	return f
+}
+
+func publishMinBudgetHMC(cfg map[string]any) float64 {
+	if cfg == nil {
+		return fuzzescrow.MinCampaignBudgetHMC
+	}
+	if hunt := strings.ToLower(strings.TrimSpace(configString(cfg, "hunt_package"))); hunt != "" {
+		return fuzzescrow.MinBudgetHMCForHuntPackage(hunt)
+	}
+	dig := strings.ToLower(strings.TrimSpace(configString(cfg, "dig_package")))
+	return fuzzescrow.MinBudgetHMCForDigPackage(dig)
+}
+
+func publishBudgetHMCFromReq(budgetHMC float64, cfg map[string]any) float64 {
+	if budgetHMC > 0 {
+		return budgetHMC
+	}
+	if cfg == nil {
+		return 0
+	}
+	switch v := cfg["budget_hmc"].(type) {
+	case float64:
+		return v
+	case float32:
+		return float64(v)
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case string:
+		f, _ := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		return f
+	default:
+		return 0
+	}
+}
+
+func newOrdersOwnerSecret() (secret, hash string, err error) {
+	var b [32]byte
+	if _, err = rand.Read(b[:]); err != nil {
+		return "", "", err
+	}
+	secret = hex.EncodeToString(b[:])
+	hash = poolsync.OwnerSecretHash(secret)
+	return secret, hash, nil
+}
+
 func coordPublishOK(r *http.Request, publishToken string) bool {
 	return publishToken != "" && coordAdminOK(r, publishToken)
 }
@@ -162,6 +226,7 @@ func publishStatusAllowed(status string) bool {
 }
 
 // stripPublishEscalationConfig removes flags that would elevate beyond register+settle-pull.
+// Also strips client-supplied budget_hmc / prepaid markers — handler re-stamps verified values.
 func stripPublishEscalationConfig(cfg map[string]any) {
 	if cfg == nil {
 		return
@@ -170,10 +235,11 @@ func stripPublishEscalationConfig(cfg map[string]any) {
 		"attach_poh_order", "create_poh_order",
 		"admin", "admin_token", "coordinator_admin",
 		"settle_replay", "force_settle", "bypass_budget",
+		"budget_hmc", "prepaid_attested", "prepaid_attestation",
+		"orders_owner_secret", "orders_owner_secret_hash",
 	} {
 		delete(cfg, k)
 	}
-	// Nested string forms sometimes used by older clients.
 	for _, k := range []string{"attach_poh_order", "create_poh_order"} {
 		if v, ok := cfg[k]; ok {
 			_ = v
@@ -197,7 +263,11 @@ func validatePublishCampaignCaps(req publishCampaignReq) error {
 	if req.BudgetSeconds < 0 || req.BudgetSeconds > maxSec {
 		return fmt.Errorf("budget_seconds out of range for publish token (0..%d)", maxSec)
 	}
-	if len(req.OwnerRef) > 256 {
+	owner := strings.TrimSpace(req.OwnerRef)
+	if owner == "" {
+		return fmt.Errorf("owner_ref required for publish token")
+	}
+	if len(owner) > 256 {
 		return fmt.Errorf("owner_ref too long for publish token")
 	}
 	if len(req.Title) > 512 || len(req.Description) > 4096 {
@@ -265,12 +335,47 @@ func publishOwnerRefFromRequest(r *http.Request) string {
 	return strings.TrimSpace(r.URL.Query().Get("owner_ref"))
 }
 
+// publishOwnerSecretFromRequest reads the per-publish tenant secret (header preferred).
+func publishOwnerSecretFromRequest(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	if v := strings.TrimSpace(r.Header.Get("X-Hackme-Orders-Owner-Secret")); v != "" {
+		return v
+	}
+	return strings.TrimSpace(r.URL.Query().Get("owner_secret"))
+}
+
 // publishOwnerAccessOK gates shared publish-token reads/ACKs to the campaign's owner_ref
-// when one was stamped at register. Legacy rows with empty owner_ref keep flag-only access.
-func publishOwnerAccessOK(r *http.Request, storedOwner string) bool {
+// and per-publish owner secret. Legacy rows with empty owner_ref and no secret hash keep
+// flag-only access (grandfathered); new campaigns always stamp both.
+func publishOwnerAccessOK(r *http.Request, storedOwner, storedSecretHash string) bool {
 	storedOwner = strings.TrimSpace(storedOwner)
-	if storedOwner == "" {
+	storedSecretHash = strings.TrimSpace(storedSecretHash)
+	if storedOwner == "" && storedSecretHash == "" {
 		return true
 	}
+	if storedOwner != "" && publishOwnerRefFromRequest(r) != storedOwner {
+		return false
+	}
+	if storedSecretHash != "" {
+		return poolsync.OwnerSecretHashEqual(publishOwnerSecretFromRequest(r), storedSecretHash)
+	}
 	return publishOwnerRefFromRequest(r) == storedOwner
+}
+
+// loadPublishOwnerGate reads owner_ref + secret hash for publish-token tenant checks.
+func loadPublishOwnerGate(r *http.Request, pf *poolfuzz.Service, campaignID string) (ok bool, err error) {
+	if pf == nil {
+		return false, fmt.Errorf("no pool service")
+	}
+	storedOwner, err := pf.CampaignOwnerRef(r.Context(), campaignID)
+	if err != nil {
+		return false, err
+	}
+	secretHash, err := pf.CampaignOwnerSecretHash(r.Context(), campaignID)
+	if err != nil {
+		return false, err
+	}
+	return publishOwnerAccessOK(r, storedOwner, secretHash), nil
 }

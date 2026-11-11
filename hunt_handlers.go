@@ -160,8 +160,12 @@ func (a *app) handleHuntCampaignCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	id := cleanFuzzID(req.ID, "hunt")
 	ownerRef := strings.TrimSpace(req.OwnerRef)
-	if ownerRef == "" && strings.HasPrefix(id, "hunt-customer-") {
-		ownerRef = "customer:" + strings.TrimPrefix(id, "hunt-customer-")
+	// Do not derive owner_ref from campaign id (spoofable/predictable under shared publish token).
+	// Callers must supply a non-empty owner_ref for pool-distributed Hunt campaigns.
+	if ownerRef == "" && poolDistributedCampaign(cfgMap) {
+		writeAPIError(w, http.StatusBadRequest, "owner_ref_required",
+			"pool_distributed Hunt requires owner_ref (not derived from campaign id)", nil)
+		return
 	}
 	now := time.Now().Unix()
 	reportToken := newReportToken()

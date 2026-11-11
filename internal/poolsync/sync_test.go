@@ -85,7 +85,7 @@ func TestRegisterOnceRejectsNonOK(t *testing.T) {
 		http.Error(w, "busy", http.StatusServiceUnavailable)
 	}))
 	defer srv.Close()
-	_, err := RegisterOnce(context.Background(), srv.URL, "tok", RegisterRequest{ID: "x", BudgetRuns: 8})
+	_, _, err := RegisterOnce(context.Background(), srv.URL, "tok", RegisterRequest{ID: "x", BudgetRuns: 8})
 	if err == nil {
 		t.Fatal("expected error")
 	}

@@ -41,6 +41,10 @@ Requires Dig `dig_package` (`scan`/`starter`/`audit`/`pro`/`deep`/`enterprise`) 
 - `pool.orders.token` loads into `HACKME_POOL_ORDERS_PUBLISH_TOKEN` only — never admin env.
 - Shared installer secret: every Orders build with the same release token can register and
   settle-pull. Treat as a fleet API key; rotate via new gen + hub env + rebuild if leaked.
+  Tenant binding: non-empty `owner_ref` + `X-Hackme-Orders-Owner-Ref` (must match) and
+  per-publish `orders_owner_secret` / `X-Hackme-Orders-Owner-Secret`. Prepaid
+  `budget_hmc` + `prepaid_attestation` required before work enqueue. Settle ACK needs
+  origin Apply receipts (MAC over event_id+campaign+units hash), not bare `confirm_applied`.
   Settle-pull only **applies** rows for local escrow; do not ACK foreign campaigns.
 - Publish cannot: cancel/complete via status API **or** register upsert; settle replay;
   cleanup-stale/gates/repair-zombies; PoH attach (`attach_poh_order` stripped).

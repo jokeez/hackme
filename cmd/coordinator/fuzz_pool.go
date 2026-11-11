@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -17,12 +18,75 @@ import (
 	"syscall"
 	"time"
 
+	"hackme/internal/chain"
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzingcli"
 	"hackme/internal/hunt"
 	"hackme/internal/pathsafe"
 	"hackme/internal/poolfuzz"
+	"hackme/internal/poolsync"
 )
+
+// verifySettleAckReceipts ensures each ACK id has a MAC'd Apply receipt bound to the
+// outbox row (event_id + campaign + kind + units hash). Never trust bare bools.
+func verifySettleAckReceipts(ctx context.Context, pf *poolfuzz.Service, publishToken, ownerRef, ownerSecret, campaignID string, ids []int64, receipts []poolsync.SettleApplyReceipt) error {
+	if pf == nil {
+		return fmt.Errorf("no pool service")
+	}
+	if strings.TrimSpace(ownerSecret) == "" {
+		return fmt.Errorf("owner secret required to verify settle receipts")
+	}
+	byID := make(map[int64]poolsync.SettleApplyReceipt, len(receipts))
+	for _, rc := range receipts {
+		if rc.OutboxID <= 0 {
+			return fmt.Errorf("receipt missing outbox_id")
+		}
+		byID[rc.OutboxID] = rc
+	}
+	if len(ids) == 0 {
+		return fmt.Errorf("ids required")
+	}
+	campaignID = strings.TrimSpace(campaignID)
+	for _, id := range ids {
+		if id <= 0 {
+			continue
+		}
+		rc, ok := byID[id]
+		if !ok {
+			return fmt.Errorf("missing settle receipt for outbox id %d", id)
+		}
+		it, err := pf.GetSettleOutboxItem(ctx, id)
+		if err != nil {
+			return fmt.Errorf("outbox id %d: %w", id, err)
+		}
+		if campaignID != "" && strings.TrimSpace(it.CampaignID) != campaignID {
+			return fmt.Errorf("outbox id %d campaign mismatch", id)
+		}
+		wantEvent := chain.FuzzSettleEventID(it.CampaignID, it.ID)
+		if strings.TrimSpace(rc.EventID) != wantEvent {
+			return fmt.Errorf("outbox id %d event_id mismatch", id)
+		}
+		if strings.TrimSpace(rc.CampaignID) != strings.TrimSpace(it.CampaignID) {
+			return fmt.Errorf("outbox id %d campaign_id mismatch", id)
+		}
+		if strings.ToLower(strings.TrimSpace(rc.Kind)) != strings.ToLower(strings.TrimSpace(it.Kind)) {
+			return fmt.Errorf("outbox id %d kind mismatch", id)
+		}
+		switch strings.ToLower(strings.TrimSpace(rc.Outcome)) {
+		case poolsync.SettleOutcomeApplied, poolsync.SettleOutcomeDepleted,
+			poolsync.SettleOutcomeAlreadyPaid, poolsync.SettleOutcomeDrainClose:
+		default:
+			return fmt.Errorf("outbox id %d invalid outcome", id)
+		}
+		if strings.TrimSpace(rc.UnitsHash) == "" {
+			return fmt.Errorf("outbox id %d units_hash required", id)
+		}
+		if !poolsync.VerifySettleReceiptMAC(publishToken, ownerRef, ownerSecret, rc) {
+			return fmt.Errorf("outbox id %d receipt mac invalid", id)
+		}
+	}
+	return nil
+}
 
 // coordPoolReadOK allows the pool admin token or the worker token.
 // Empty tokens are accepted only in explicit insecure mode (report #12).
@@ -160,12 +224,12 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
-			storedOwner, err := pf.CampaignOwnerRef(r.Context(), id)
+			okOwner, err := loadPublishOwnerGate(r, pf, id)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			if !publishOwnerAccessOK(r, storedOwner) {
+			if !okOwner {
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
@@ -231,12 +295,12 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
-			storedOwner, err := pf.CampaignOwnerRef(r.Context(), id)
+			okOwner, err := loadPublishOwnerGate(r, pf, id)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			if !publishOwnerAccessOK(r, storedOwner) {
+			if !okOwner {
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
@@ -295,12 +359,12 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
-			storedOwner, err := pf.CampaignOwnerRef(r.Context(), campaignID)
+			okOwner, err := loadPublishOwnerGate(r, pf, campaignID)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			if !publishOwnerAccessOK(r, storedOwner) {
+			if !okOwner {
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
@@ -348,25 +412,36 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
 		var req struct {
-			IDs             []int64 `json:"ids"`
-			CampaignID      string  `json:"campaign_id"`
-			ConfirmApplied  bool    `json:"confirm_applied"`
-			AppliedReceipts bool    `json:"origin_applied"` // alias accepted
+			IDs            []int64                      `json:"ids"`
+			CampaignID     string                       `json:"campaign_id"`
+			ConfirmApplied bool                         `json:"confirm_applied"` // ignored alone
+			OriginApplied  bool                         `json:"origin_applied"`  // ignored alone
+			HubApplied     bool                         `json:"hub_applied"`     // admin/hub-side only
+			Receipts       []poolsync.SettleApplyReceipt `json:"receipts"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid json", http.StatusBadRequest)
 			return
 		}
-		// Stolen-token ACK without a local Apply still risks false "paid".
-		// Callers that applied on-chain/escrow must set confirm_applied/origin_applied.
-		if !req.ConfirmApplied && !req.AppliedReceipts {
-			http.Error(w, "confirm_applied=true required (ACK only after origin Apply)", http.StatusBadRequest)
-			return
-		}
 		const maxSettleAckIDs = 256
-		if len(req.IDs) > maxSettleAckIDs {
+		if len(req.IDs) > maxSettleAckIDs || len(req.Receipts) > maxSettleAckIDs {
 			http.Error(w, "too many settle ack ids (max 256)", http.StatusBadRequest)
 			return
+		}
+		// Never trust bare confirm_applied/origin_applied.
+		hubSide := isAdmin && req.HubApplied && len(req.Receipts) == 0
+		if !hubSide {
+			if len(req.Receipts) == 0 {
+				http.Error(w, "settle receipts required (never trust confirm_applied alone)", http.StatusBadRequest)
+				return
+			}
+			if len(req.IDs) == 0 {
+				for _, rc := range req.Receipts {
+					if rc.OutboxID > 0 {
+						req.IDs = append(req.IDs, rc.OutboxID)
+					}
+				}
+			}
 		}
 		var (
 			n   int64
@@ -377,12 +452,12 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				http.Error(w, "campaign_id required for publish token", http.StatusBadRequest)
 				return
 			}
-			storedOwner, errOwn := pf.CampaignOwnerRef(r.Context(), req.CampaignID)
+			okOwner, errOwn := loadPublishOwnerGate(r, pf, req.CampaignID)
 			if errOwn != nil {
 				http.Error(w, errOwn.Error(), http.StatusInternalServerError)
 				return
 			}
-			if !publishOwnerAccessOK(r, storedOwner) {
+			if !okOwner {
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
@@ -390,9 +465,38 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				http.Error(w, "publish rate limit exceeded", http.StatusTooManyRequests)
 				return
 			}
+			storedOwner, _ := pf.CampaignOwnerRef(r.Context(), req.CampaignID)
+			ownerSecret := publishOwnerSecretFromRequest(r)
+			if err := verifySettleAckReceipts(r.Context(), pf, publishToken, storedOwner, ownerSecret, req.CampaignID, req.IDs, req.Receipts); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 			n, err = pf.AckSettleOutboxForOrdersPublish(r.Context(), req.CampaignID, req.IDs)
-		} else {
+		} else if hubSide {
 			n, err = pf.AckSettleOutbox(r.Context(), req.IDs)
+		} else {
+			camp := strings.TrimSpace(req.CampaignID)
+			if camp == "" && len(req.Receipts) > 0 {
+				camp = strings.TrimSpace(req.Receipts[0].CampaignID)
+			}
+			storedOwner, _ := pf.CampaignOwnerRef(r.Context(), camp)
+			ownerSecret := publishOwnerSecretFromRequest(r)
+			if ownerSecret == "" || storedOwner == "" {
+				http.Error(w, "hub_applied=true or owner-signed settle receipts required", http.StatusBadRequest)
+				return
+			}
+			if err := verifySettleAckReceipts(r.Context(), pf, publishToken, storedOwner, ownerSecret, camp, req.IDs, req.Receipts); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if camp != "" {
+				n, err = pf.AckSettleOutboxForOrdersPublish(r.Context(), camp, req.IDs)
+				if err != nil && strings.Contains(err.Error(), "not orders_publish") {
+					n, err = pf.AckSettleOutbox(r.Context(), req.IDs)
+				}
+			} else {
+				n, err = pf.AckSettleOutbox(r.Context(), req.IDs)
+			}
 		}
 		if err != nil {
 			msg := err.Error()
@@ -625,15 +729,17 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxCoordinatorJSONBodyBytes)
 		var req struct {
-			ID            string         `json:"id"`
-			CampaignType  string         `json:"campaign_type"`
-			Title         string         `json:"title"`
-			Description   string         `json:"description"`
-			OwnerRef      string         `json:"owner_ref"`
-			Status        string         `json:"status"`
-			BudgetRuns    int            `json:"budget_runs"`
-			BudgetSeconds int            `json:"budget_seconds"`
-			Config        map[string]any `json:"config"`
+			ID                 string         `json:"id"`
+			CampaignType       string         `json:"campaign_type"`
+			Title              string         `json:"title"`
+			Description        string         `json:"description"`
+			OwnerRef           string         `json:"owner_ref"`
+			Status             string         `json:"status"`
+			BudgetRuns         int            `json:"budget_runs"`
+			BudgetSeconds      int            `json:"budget_seconds"`
+			BudgetHMC          float64        `json:"budget_hmc"`
+			PrepaidAttestation string         `json:"prepaid_attestation"`
+			Config             map[string]any `json:"config"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid json", http.StatusBadRequest)
@@ -647,8 +753,31 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			req.Config = map[string]any{}
 		}
 		req.Config["pool_distributed"] = true
+		issuedOwnerSecret := ""
+		prepaidOK := false
+		verifiedBudgetHMC := 0.0
 		if isPublish && !isAdmin {
+			// Capture client budget before strip; strip removes spoofable config budget_hmc.
+			verifiedBudgetHMC = publishBudgetHMCFromReq(req.BudgetHMC, req.Config)
+			attest := strings.TrimSpace(req.PrepaidAttestation)
+			if attest == "" {
+				if v, ok := req.Config["prepaid_attestation"].(string); ok {
+					attest = strings.TrimSpace(v)
+				}
+			}
 			stripPublishEscalationConfig(req.Config)
+			req.OwnerRef = strings.TrimSpace(req.OwnerRef)
+			headerOwner := publishOwnerRefFromRequest(r)
+			if headerOwner == "" {
+				http.Error(w, "X-Hackme-Orders-Owner-Ref required for publish token", http.StatusBadRequest)
+				return
+			}
+			if req.OwnerRef == "" {
+				req.OwnerRef = headerOwner
+			} else if req.OwnerRef != headerOwner {
+				http.Error(w, "owner_ref must match X-Hackme-Orders-Owner-Ref", http.StatusBadRequest)
+				return
+			}
 			if err := validatePublishCampaignCaps(publishCampaignReq{
 				ID: req.ID, Status: req.Status, Title: req.Title, Description: req.Description,
 				OwnerRef: req.OwnerRef, BudgetRuns: req.BudgetRuns, BudgetSeconds: req.BudgetSeconds, Config: req.Config,
@@ -656,6 +785,21 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
+			minHMC := publishMinBudgetHMC(req.Config)
+			maxHMC := publishMaxBudgetHMC()
+			if verifiedBudgetHMC+1e-12 < minHMC {
+				http.Error(w, fmt.Sprintf("budget_hmc_required: publish requires budget_hmc >= %.2f (prepaid)", minHMC), http.StatusBadRequest)
+				return
+			}
+			if verifiedBudgetHMC > maxHMC {
+				http.Error(w, fmt.Sprintf("budget_hmc exceeds publish cap (%.2f)", maxHMC), http.StatusBadRequest)
+				return
+			}
+			if !poolsync.VerifyPrepaidAttestation(publishToken, req.OwnerRef, req.ID, verifiedBudgetHMC, req.BudgetRuns, attest) {
+				http.Error(w, "prepaid_attestation invalid or missing (open escrow then attest before publish)", http.StatusBadRequest)
+				return
+			}
+			prepaidOK = true
 			// Force safe lifecycle — register upsert must not cancel/complete via publish.
 			st := strings.ToLower(strings.TrimSpace(req.Status))
 			if st == "" || st == "planned" {
@@ -670,8 +814,6 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				http.Error(w, "orders publish rate limit exceeded", http.StatusTooManyRequests)
 				return
 			}
-			req.Config["orders_publish"] = true
-			stripPublishEscalationConfig(req.Config) // again after any finalize side effects below
 		}
 		// Dig (non-Hunt) campaigns get the same depth pack/mutator/seed finalize as local B2B.
 		if !poolfuzz.IsHuntCampaign(req.Config) {
@@ -689,6 +831,10 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		if isPublish && !isAdmin {
 			stripPublishEscalationConfig(req.Config)
 			req.Config["orders_publish"] = true
+			if prepaidOK {
+				req.Config["budget_hmc"] = verifiedBudgetHMC
+				req.Config["prepaid_attested"] = true
+			}
 			exists, err := pf.CampaignExists(r.Context(), req.ID)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -704,9 +850,11 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 					http.Error(w, "campaign id exists (not orders_publish) — publish cannot hijack", http.StatusConflict)
 					return
 				}
-				// Shared publish token must not overwrite another customer's
-				// config/budget/status via ON CONFLICT. Idempotent re-POST is OK
-				// when owner_ref matches (or both empty for legacy rows).
+				okOwner, err := loadPublishOwnerGate(r, pf, req.ID)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
 				existingOwner, err := pf.CampaignOwnerRef(r.Context(), req.ID)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -714,16 +862,20 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				}
 				reqOwner := strings.TrimSpace(req.OwnerRef)
 				if existingOwner != "" {
-					if reqOwner == "" {
-						http.Error(w, "owner_ref required to refresh existing orders_publish campaign", http.StatusConflict)
-						return
-					}
-					if reqOwner != existingOwner {
+					if reqOwner == "" || reqOwner != existingOwner || !okOwner {
 						http.Error(w, "campaign id exists under a different owner_ref — publish cannot hijack", http.StatusConflict)
 						return
 					}
 				}
 				publishIdempotent = true
+			} else {
+				sec, hash, err := newOrdersOwnerSecret()
+				if err != nil {
+					http.Error(w, "owner secret mint failed", http.StatusInternalServerError)
+					return
+				}
+				issuedOwnerSecret = sec
+				req.Config["orders_owner_secret_hash"] = hash
 			}
 		}
 		if !publishIdempotent {
@@ -743,11 +895,14 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			}
 		}
 		campaignID := req.ID
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			defer cancel()
-			_ = pf.EnsureWorkItems(ctx, campaignID, time.Now().Unix())
-		}()
+		// Enqueue pool work only after prepaid attestation (publish) or for admin.
+		if !isPublish || isAdmin || prepaidOK {
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+				defer cancel()
+				_ = pf.EnsureWorkItems(ctx, campaignID, time.Now().Unix())
+			}()
+		}
 		attach := map[string]any{"ok": false, "skipped": true, "reason": "no_work_manager"}
 		// Publish token must never attach PoH escrow (admin-only escalation).
 		if isPublish && !isAdmin {
@@ -783,13 +938,22 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			}
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		resp := map[string]any{
 			"ok":               true,
 			"campaign_id":      req.ID,
 			"pool_distributed": true,
 			"work_queue":       "async",
 			"attach_poh_order": attach,
-		})
+		}
+		if prepaidOK {
+			resp["budget_hmc"] = verifiedBudgetHMC
+			resp["prepaid_attested"] = true
+		}
+		if issuedOwnerSecret != "" {
+			resp["orders_owner_secret"] = issuedOwnerSecret
+			resp["orders_owner_secret_header"] = "X-Hackme-Orders-Owner-Secret"
+		}
+		_ = json.NewEncoder(w).Encode(resp)
 		return
 	})
 

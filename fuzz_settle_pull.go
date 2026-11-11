@@ -78,7 +78,7 @@ func (a *app) pullFuzzSettleOutboxWindow(ctx context.Context, campaignID string,
 			}
 			return nil
 		}
-		acked := make([]int64, 0, len(items))
+		receipts := make([]poolsync.SettleApplyReceipt, 0, len(items))
 		localHits := 0
 		undrainable := 0
 		// Prefer run/crash_bonus/finding before finalize so refund cannot race ahead of payouts.
@@ -110,7 +110,9 @@ func (a *app) pullFuzzSettleOutboxWindow(ctx context.Context, campaignID string,
 			}
 			apply, drain := fuzzSettleOutboxAction(st, it.Kind)
 			if drain {
-				acked = append(acked, it.ID)
+				if rc, ok := a.settleApplyReceipt(ctx, it, poolsync.SettleOutcomeDrainClose, nil); ok {
+					receipts = append(receipts, rc)
+				}
 				continue
 			}
 			if !apply {
@@ -120,7 +122,13 @@ func (a *app) pullFuzzSettleOutboxWindow(ctx context.Context, campaignID string,
 			}
 			if err := a.applyLocalFuzzSettleOnce(ctx, it); err != nil {
 				if fuzzSettleOutboxDrainOnErr(err) {
-					acked = append(acked, it.ID)
+					outcome := poolsync.SettleOutcomeDepleted
+					if errors.Is(err, chain.ErrFuzzEscrowAlreadyPaid) {
+						outcome = poolsync.SettleOutcomeAlreadyPaid
+					}
+					if rc, ok := a.settleApplyReceipt(ctx, it, outcome, nil); ok {
+						receipts = append(receipts, rc)
+					}
 					continue
 				}
 				log.Printf("fuzz settle pull: campaign %s kind %s: %v", it.CampaignID, it.Kind, err)
@@ -129,12 +137,15 @@ func (a *app) pullFuzzSettleOutboxWindow(ctx context.Context, campaignID string,
 				}
 				continue
 			}
-			acked = append(acked, it.ID)
+			row, _ := a.chain.GetFuzzEscrow(ctx, it.CampaignID)
+			if rc, ok := a.settleApplyReceipt(ctx, it, poolsync.SettleOutcomeApplied, row); ok {
+				receipts = append(receipts, rc)
+			}
 		}
-		if len(payFailed) > 0 && len(acked) == 0 {
+		if len(payFailed) > 0 && len(receipts) == 0 {
 			return fmt.Errorf("fuzz settle pull: pay failures blocked drain (%d campaign(s))", len(payFailed))
 		}
-		if len(acked) == 0 {
+		if len(receipts) == 0 {
 			if undrainable == len(items) {
 				log.Printf("fuzz settle pull: %d undrainable outbox head row(s) (local_hits=%d) — not blocking other campaigns",
 					len(items), localHits)
@@ -151,16 +162,24 @@ func (a *app) pullFuzzSettleOutboxWindow(ctx context.Context, campaignID string,
 			return fmt.Errorf("fuzz settle pull: outbox not drained (%d pending, local_hits=%d)", len(items), localHits)
 		}
 		var ackErr error
-		if scoped {
-			ackErr = poolsync.AckSettleOutboxForCampaign(ctx, campaignID, acked)
+		if scoped || poolsync.OrdersPublishToken() != "" {
+			ackCamp := campaignID
+			if ackCamp == "" && len(receipts) > 0 {
+				ackCamp = receipts[0].CampaignID
+			}
+			ackErr = poolsync.AckSettleOutboxWithReceipts(ctx, ackCamp, receipts)
 		} else {
-			ackErr = poolsync.AckSettleOutbox(ctx, acked)
+			ids := make([]int64, 0, len(receipts))
+			for _, rc := range receipts {
+				ids = append(ids, rc.OutboxID)
+			}
+			ackErr = poolsync.AckSettleOutbox(ctx, ids)
 		}
 		if ackErr != nil {
 			log.Printf("fuzz settle pull: ack: %v", ackErr)
 			return ackErr
 		}
-		totalAcked += len(acked)
+		totalAcked += len(receipts)
 	}
 	return fmt.Errorf("fuzz settle pull: outbox still pending after %d passes (acked=%d)", maxPasses, totalAcked)
 }
@@ -270,6 +289,47 @@ func (a *app) applyLocalFuzzSettleOnce(ctx context.Context, it poolsync.SettleOu
 	return err
 }
 
+// settleApplyReceipt builds an origin-verified ACK receipt after ApplyFuzzSettleOnce
+// (or a terminal drain outcome). Requires the per-publish owner secret for MAC.
+func (a *app) settleApplyReceipt(ctx context.Context, it poolsync.SettleOutboxItem, outcome string, row *chain.FuzzEscrowRow) (poolsync.SettleApplyReceipt, bool) {
+	eventID := chain.FuzzSettleEventID(it.CampaignID, it.ID)
+	rc := poolsync.SettleApplyReceipt{
+		OutboxID:   it.ID,
+		EventID:    eventID,
+		CampaignID: it.CampaignID,
+		Kind:       it.Kind,
+		Outcome:    outcome,
+	}
+	if row != nil && outcome == poolsync.SettleOutcomeApplied {
+		rc.UnitsHash = poolsync.UnitsHashFromEscrow(eventID, it.CampaignID, row)
+	} else {
+		rc.UnitsHash = poolsync.UnitsHashTerminal(eventID, it.CampaignID, outcome)
+	}
+	owner := ""
+	secret := ""
+	if a != nil && a.db != nil {
+		_ = a.db.QueryRowContext(ctx,
+			`SELECT COALESCE(owner_ref,'') FROM fuzz_campaigns WHERE id=?`, it.CampaignID).Scan(&owner)
+		var cfgRaw string
+		_ = a.db.QueryRowContext(ctx,
+			`SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, it.CampaignID).Scan(&cfgRaw)
+		cfg := parseMapJSON(cfgRaw)
+		if v, ok := cfg["orders_owner_secret"].(string); ok {
+			secret = strings.TrimSpace(v)
+		}
+	}
+	pubTok := poolsync.OrdersPublishToken()
+	if secret == "" {
+		// Admin settle-pull: hub_applied path does not need receipts; publish path does.
+		if pubTok != "" {
+			return rc, false
+		}
+		return rc, true // caller uses hub_applied admin ACK without MAC
+	}
+	poolsync.SignSettleReceipt(pubTok, owner, secret, &rc)
+	return rc, true
+}
+
 func (a *app) startFuzzSettlePullTicker() {
 	if !poolSyncCoordinatorConfigured() {
 		return
@@ -285,6 +345,19 @@ func (a *app) startFuzzSettlePullTicker() {
 		_ = a.db.QueryRow(
 			`SELECT COALESCE(owner_ref,'') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&owner)
 		return strings.TrimSpace(owner)
+	})
+	poolsync.SetSettleOwnerSecretLookup(func(campaignID string) string {
+		if a == nil || a.db == nil || strings.TrimSpace(campaignID) == "" {
+			return ""
+		}
+		var cfgRaw string
+		_ = a.db.QueryRow(
+			`SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgRaw)
+		cfg := parseMapJSON(cfgRaw)
+		if v, ok := cfg["orders_owner_secret"].(string); ok {
+			return strings.TrimSpace(v)
+		}
+		return ""
 	})
 	go func() {
 		interval := 15 * time.Second

@@ -17,15 +17,22 @@ import (
 
 // RegisterRequest is the coordinator pool campaign upsert body.
 type RegisterRequest struct {
-	ID            string         `json:"id"`
-	CampaignType  string         `json:"campaign_type"`
-	Title         string         `json:"title"`
-	Description   string         `json:"description"`
-	OwnerRef      string         `json:"owner_ref,omitempty"`
-	Status        string         `json:"status"`
-	BudgetRuns    int            `json:"budget_runs"`
-	BudgetSeconds int            `json:"budget_seconds"`
-	Config        map[string]any `json:"config"`
+	ID                 string         `json:"id"`
+	CampaignType       string         `json:"campaign_type"`
+	Title              string         `json:"title"`
+	Description        string         `json:"description"`
+	OwnerRef           string         `json:"owner_ref,omitempty"`
+	Status             string         `json:"status"`
+	BudgetRuns         int            `json:"budget_runs"`
+	BudgetSeconds      int            `json:"budget_seconds"`
+	BudgetHMC          float64        `json:"budget_hmc,omitempty"`
+	PrepaidAttestation string         `json:"prepaid_attestation,omitempty"`
+	Config             map[string]any `json:"config"`
+}
+
+// RegisterResult captures one-time secrets returned by the coordinator.
+type RegisterResult struct {
+	OrdersOwnerSecret string
 }
 
 // Config from environment.
@@ -173,13 +180,13 @@ func CoordinatorAdminToken() string {
 }
 
 // RegisterOnce POSTs one campaign to the coordinator pool API.
-func RegisterOnce(ctx context.Context, coordURL, token string, req RegisterRequest) (latency time.Duration, err error) {
+func RegisterOnce(ctx context.Context, coordURL, token string, req RegisterRequest) (latency time.Duration, result RegisterResult, err error) {
 	coordURL = strings.TrimRight(strings.TrimSpace(coordURL), "/")
 	if coordURL == "" {
-		return 0, fmt.Errorf("pool sync: coordinator URL not set")
+		return 0, result, fmt.Errorf("pool sync: coordinator URL not set")
 	}
 	if token == "" {
-		return 0, fmt.Errorf("pool sync: orders publish or coordinator admin token not set")
+		return 0, result, fmt.Errorf("pool sync: orders publish or coordinator admin token not set")
 	}
 	if req.Config == nil {
 		req.Config = map[string]any{}
@@ -191,55 +198,88 @@ func RegisterOnce(ctx context.Context, coordURL, token string, req RegisterReque
 			req.Config["orders_settle_pull"] = true
 		}
 	}
+	// Prepaid attestation for Orders publish (mirror Dig budget_hmc_required).
+	if OrdersPublishToken() != "" {
+		owner := strings.TrimSpace(req.OwnerRef)
+		if owner == "" {
+			return 0, result, fmt.Errorf("pool sync: owner_ref required for orders publish")
+		}
+		if req.BudgetHMC <= 0 {
+			if v, ok := req.Config["budget_hmc"].(float64); ok {
+				req.BudgetHMC = v
+			}
+		}
+		if req.BudgetHMC <= 0 {
+			return 0, result, fmt.Errorf("pool sync: budget_hmc required for orders publish")
+		}
+		if strings.TrimSpace(req.PrepaidAttestation) == "" {
+			req.PrepaidAttestation = SignPrepaidAttestation(OrdersPublishToken(), owner, req.ID, req.BudgetHMC, req.BudgetRuns)
+		}
+	}
 	body, _ := json.Marshal(req)
 	start := time.Now()
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, coordURL+"/api/fuzz/pool/campaigns", bytes.NewReader(body))
 	if err != nil {
-		return 0, err
+		return 0, result, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("X-Hackme-Admin-Token", token)
+	if owner := strings.TrimSpace(req.OwnerRef); owner != "" {
+		httpReq.Header.Set("X-Hackme-Orders-Owner-Ref", owner)
+	}
 	cl := netutil.HTTPClientPoolOriginDial(timeoutDuration())
 	res, err := cl.Do(httpReq)
 	latency = time.Since(start)
 	if err != nil {
-		return latency, err
+		return latency, result, err
 	}
 	defer res.Body.Close()
 	b, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
 	if res.StatusCode != http.StatusOK {
-		return latency, fmt.Errorf("pool register HTTP %d: %s", res.StatusCode, strings.TrimSpace(string(b)))
+		return latency, result, fmt.Errorf("pool register HTTP %d: %s", res.StatusCode, strings.TrimSpace(string(b)))
 	}
-	return latency, nil
+	var resp struct {
+		OrdersOwnerSecret string `json:"orders_owner_secret"`
+	}
+	_ = json.Unmarshal(b, &resp)
+	result.OrdersOwnerSecret = strings.TrimSpace(resp.OrdersOwnerSecret)
+	return latency, result, nil
 }
 
 // RegisterWithRetry attempts registration with exponential backoff.
 func RegisterWithRetry(ctx context.Context, req RegisterRequest) error {
+	_, err := RegisterWithRetryResult(ctx, req)
+	return err
+}
+
+// RegisterWithRetryResult is RegisterWithRetry plus the one-time owner secret.
+func RegisterWithRetryResult(ctx context.Context, req RegisterRequest) (RegisterResult, error) {
 	coordURL := ResolveCoordinatorURL()
 	token := adminToken()
 	attempts := maxAttempts()
 	var lastErr error
+	var result RegisterResult
 	for attempt := 1; attempt <= attempts; attempt++ {
 		if attempt > 1 {
 			RecordRetry()
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return result, ctx.Err()
 			case <-time.After(retryBackoff(attempt)):
 			}
 		}
 		RecordAttempt()
-		lat, err := RegisterOnce(ctx, coordURL, token, req)
+		lat, res, err := RegisterOnce(ctx, coordURL, token, req)
 		if err == nil {
 			RecordOK(req.ID, lat)
-			return nil
+			return res, nil
 		}
 		lastErr = err
 	}
 	if lastErr != nil {
 		RecordFail(req.ID, 0, lastErr)
 	}
-	return lastErr
+	return result, lastErr
 }
 
 // AsyncEnabled returns true unless HACKME_POOL_SYNC_ASYNC=0.

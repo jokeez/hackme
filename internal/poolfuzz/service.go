@@ -206,11 +206,19 @@ func (s *Service) RegisterCampaign(ctx context.Context, c Campaign) error {
 	}
 	s.invalidateSchedCache()
 	// Seed work items once on register so claims do not need Tick-on-claim.
+	// Orders publish campaigns must present prepaid_attested before work is enqueued
+	// (mirror Dig node budget_hmc_required — no unpaid pool spam).
 	if status == "running" || status == "planned" {
 		if err := s.reconcileActiveCampaignWork(ctx, c.ID, now); err != nil {
 			return err
 		}
-		_ = s.EnsureWorkItems(ctx, c.ID, now)
+		seedWork := true
+		if configTruthyAny(cfg, "orders_publish") && !configTruthyAny(cfg, "prepaid_attested") {
+			seedWork = false
+		}
+		if seedWork {
+			_ = s.EnsureWorkItems(ctx, c.ID, now)
+		}
 		if err := s.seedPoolCorpusFromConfig(ctx, c.ID, cfg, now); err != nil {
 			return err
 		}

@@ -171,6 +171,10 @@ func (a *app) runPoolSyncJob(job poolSyncJob) {
 			return
 		}
 	}
+	budgetHMC := 0.0
+	if v, ok := cfg["budget_hmc"].(float64); ok {
+		budgetHMC = v
+	}
 	req := poolsync.RegisterRequest{
 		ID:            job.campaign.ID,
 		CampaignType:  ctype,
@@ -180,19 +184,41 @@ func (a *app) runPoolSyncJob(job poolSyncJob) {
 		Status:        "running",
 		BudgetRuns:    job.campaign.BudgetRuns,
 		BudgetSeconds: job.campaign.BudgetSeconds,
+		BudgetHMC:     budgetHMC,
 		Config:        cfg,
 	}
-	err := poolsync.RegisterWithRetry(ctx, req)
+	res, err := poolsync.RegisterWithRetryResult(ctx, req)
 	if err != nil {
 		log.Printf("pool sync: campaign %s failed after retries: %v", logsafe.ID(job.campaign.ID), err)
 		a.poolSyncMarkFailed(job.campaign.ID, err)
 		return
+	}
+	if sec := strings.TrimSpace(res.OrdersOwnerSecret); sec != "" {
+		a.persistOrdersOwnerSecret(ctx, job.campaign.ID, sec)
 	}
 	if fuzzengine.CorpusPersistEnabled(cfg) {
 		a.syncCorpusNamespaceToCoordinator(ctx, cfg)
 	}
 	log.Printf("pool sync: campaign %s registered on coordinator", logsafe.ID(job.campaign.ID))
 	a.poolSyncMarkOK(job.campaign.ID)
+}
+
+func (a *app) persistOrdersOwnerSecret(ctx context.Context, campaignID, secret string) {
+	campaignID = strings.TrimSpace(campaignID)
+	secret = strings.TrimSpace(secret)
+	if a == nil || a.db == nil || campaignID == "" || secret == "" {
+		return
+	}
+	var raw string
+	if err := a.db.QueryRowContext(ctx, `SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&raw); err != nil {
+		return
+	}
+	cfg := parseMapJSON(raw)
+	if cfg == nil {
+		cfg = map[string]any{}
+	}
+	cfg["orders_owner_secret"] = secret
+	_, _ = a.db.ExecContext(ctx, `UPDATE fuzz_campaigns SET config_json=? WHERE id=?`, marshalMapJSON(cfg), campaignID)
 }
 
 func (a *app) poolSyncMarkOK(id string) {
@@ -305,7 +331,11 @@ func (a *app) syncPoolFuzzCampaignSync(ctx context.Context, c fuzzAutoCampaign, 
 	if ctype == "" {
 		ctype = "property"
 	}
-	return poolsync.RegisterWithRetry(ctx, poolsync.RegisterRequest{
+	budgetHMC := 0.0
+	if v, ok := cfg["budget_hmc"].(float64); ok {
+		budgetHMC = v
+	}
+	res, err := poolsync.RegisterWithRetryResult(ctx, poolsync.RegisterRequest{
 		ID:            c.ID,
 		CampaignType:  ctype,
 		Title:         title,
@@ -314,6 +344,14 @@ func (a *app) syncPoolFuzzCampaignSync(ctx context.Context, c fuzzAutoCampaign, 
 		Status:        "running",
 		BudgetRuns:    c.BudgetRuns,
 		BudgetSeconds: c.BudgetSeconds,
+		BudgetHMC:     budgetHMC,
 		Config:        cfg,
 	})
+	if err != nil {
+		return err
+	}
+	if sec := strings.TrimSpace(res.OrdersOwnerSecret); sec != "" {
+		a.persistOrdersOwnerSecret(ctx, c.ID, sec)
+	}
+	return nil
 }

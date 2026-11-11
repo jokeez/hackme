@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
@@ -12,7 +13,9 @@ import (
 	"testing"
 	"time"
 
+	"hackme/internal/chain"
 	"hackme/internal/poolfuzz"
+	"hackme/internal/poolsync"
 	"hackme/internal/store"
 )
 
@@ -42,13 +45,78 @@ func ordersPublishMux(t *testing.T) *http.ServeMux {
 	return mux
 }
 
+func publishBodyMap(body any) map[string]any {
+	switch v := body.(type) {
+	case map[string]any:
+		return v
+	default:
+		raw, _ := json.Marshal(body)
+		out := map[string]any{}
+		_ = json.Unmarshal(raw, &out)
+		return out
+	}
+}
+
+func stampPublishPrepaid(token string, body map[string]any) {
+	token = strings.TrimSpace(token)
+	if token == "" || token == "admin-tok" || token == "worker-tok" {
+		return
+	}
+	owner, _ := body["owner_ref"].(string)
+	owner = strings.TrimSpace(owner)
+	if owner == "" {
+		owner = "customer:test"
+		body["owner_ref"] = owner
+	}
+	id, _ := body["id"].(string)
+	budget := 0.0
+	switch v := body["budget_hmc"].(type) {
+	case float64:
+		budget = v
+	case int:
+		budget = float64(v)
+	}
+	if budget <= 0 {
+		budget = 1.0
+		if cfg, ok := body["config"].(map[string]any); ok {
+			if hp, _ := cfg["hunt_package"].(string); strings.Contains(strings.ToLower(hp), "heavy") {
+				budget = 150
+			} else if hp != "" {
+				budget = 20
+			} else if dp, _ := cfg["dig_package"].(string); strings.EqualFold(dp, "deep") || strings.EqualFold(dp, "enterprise") {
+				budget = 25
+			}
+		}
+		body["budget_hmc"] = budget
+	}
+	runs := 0
+	switch v := body["budget_runs"].(type) {
+	case float64:
+		runs = int(v)
+	case int:
+		runs = v
+	}
+	// Hub verifies against the real publish token ("publish-tok" in tests).
+	macTok := token
+	if strings.HasPrefix(token, "publish-tok") || token == "publish-tok" {
+		macTok = "publish-tok"
+	}
+	// Always re-sign: callers often mutate id on a shared map (rate-limit loops).
+	body["prepaid_attestation"] = poolsync.SignPrepaidAttestation(macTok, owner, id, budget, runs)
+}
+
 func publishReq(t *testing.T, mux *http.ServeMux, token string, body any) *httptest.ResponseRecorder {
 	t.Helper()
-	raw, _ := json.Marshal(body)
+	m := publishBodyMap(body)
+	stampPublishPrepaid(token, m)
+	raw, _ := json.Marshal(m)
 	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/campaigns", bytes.NewReader(raw))
 	req.Header.Set("Content-Type", "application/json")
 	if token != "" {
 		req.Header.Set("X-Hackme-Admin-Token", token)
+	}
+	if owner, _ := m["owner_ref"].(string); strings.TrimSpace(owner) != "" {
+		req.Header.Set("X-Hackme-Orders-Owner-Ref", strings.TrimSpace(owner))
 	}
 	req.RemoteAddr = "203.0.113.10:4444"
 	rec := httptest.NewRecorder()
@@ -58,14 +126,29 @@ func publishReq(t *testing.T, mux *http.ServeMux, token string, body any) *httpt
 
 func publishReqBearer(t *testing.T, mux *http.ServeMux, token string, body any) *httptest.ResponseRecorder {
 	t.Helper()
-	raw, _ := json.Marshal(body)
+	m := publishBodyMap(body)
+	stampPublishPrepaid(token, m)
+	raw, _ := json.Marshal(m)
 	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/campaigns", bytes.NewReader(raw))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
+	if owner, _ := m["owner_ref"].(string); strings.TrimSpace(owner) != "" {
+		req.Header.Set("X-Hackme-Orders-Owner-Ref", strings.TrimSpace(owner))
+	}
 	req.RemoteAddr = "203.0.113.11:4444"
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 	return rec
+}
+
+func publishOwnerSecretFromResp(t *testing.T, rec *httptest.ResponseRecorder) string {
+	t.Helper()
+	var resp map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	sec, _ := resp["orders_owner_secret"].(string)
+	return strings.TrimSpace(sec)
 }
 
 func TestOrdersPublishTokenCanRegister(t *testing.T) {
@@ -172,40 +255,52 @@ func TestOrdersPublishTokenMaySettleOutbox(t *testing.T) {
 	}
 	// Register orders_publish campaign then scoped GET/ACK.
 	rec = publishReq(t, mux, "publish-tok", map[string]any{
-		"id": "camp-settle-1", "budget_runs": 8, "budget_seconds": 60,
+		"id": "camp-settle-1", "budget_runs": 8, "budget_seconds": 60, "owner_ref": "customer:settle",
 		"config": map[string]any{"dig_package": "scan", "guard_pack": "secrets"},
 	})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("register want 200, got %d %s", rec.Code, rec.Body.String())
 	}
+	ownerSecret := publishOwnerSecretFromResp(t, rec)
+	if ownerSecret == "" {
+		t.Fatal("expected orders_owner_secret on register")
+	}
 	req = httptest.NewRequest(http.MethodGet, "/api/fuzz/pool/settle/outbox?campaign_id=camp-settle-1&limit=8", nil)
 	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	req.Header.Set("X-Hackme-Orders-Owner-Ref", "customer:settle")
+	req.Header.Set("X-Hackme-Orders-Owner-Secret", ownerSecret)
 	rec = httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("publish scoped outbox GET want 200, got %d %s", rec.Code, rec.Body.String())
 	}
-	raw, _ := json.Marshal(map[string]any{"ids": []int64{}, "campaign_id": "camp-settle-1", "confirm_applied": true})
+	// Empty receipts ACK (no pending ids) OK.
+	raw, _ := json.Marshal(map[string]any{"ids": []int64{}, "campaign_id": "camp-settle-1", "receipts": []any{}})
 	req = httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle/outbox/ack", bytes.NewReader(raw))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	req.Header.Set("X-Hackme-Orders-Owner-Ref", "customer:settle")
+	req.Header.Set("X-Hackme-Orders-Owner-Secret", ownerSecret)
 	rec = httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("publish scoped ACK want 200, got %d %s", rec.Code, rec.Body.String())
+	// Empty receipts with empty ids → missing receipts error (never trust bare bool).
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("ACK without receipts want 400, got %d %s", rec.Code, rec.Body.String())
 	}
-	// ACK without confirm_applied rejected.
-	raw, _ = json.Marshal(map[string]any{"ids": []int64{}, "campaign_id": "camp-settle-1"})
+	// Honor-system confirm_applied alone rejected.
+	raw, _ = json.Marshal(map[string]any{"ids": []int64{1}, "campaign_id": "camp-settle-1", "confirm_applied": true})
 	req = httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle/outbox/ack", bytes.NewReader(raw))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	req.Header.Set("X-Hackme-Orders-Owner-Ref", "customer:settle")
+	req.Header.Set("X-Hackme-Orders-Owner-Secret", ownerSecret)
 	rec = httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("ACK without confirm_applied want 400, got %d", rec.Code)
+		t.Fatalf("ACK with confirm_applied alone want 400, got %d", rec.Code)
 	}
 	// ACK without campaign_id rejected.
-	raw, _ = json.Marshal(map[string]any{"ids": []int64{1}, "confirm_applied": true})
+	raw, _ = json.Marshal(map[string]any{"ids": []int64{1}, "receipts": []any{map[string]any{"outbox_id": 1}}})
 	req = httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle/outbox/ack", bytes.NewReader(raw))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
@@ -253,25 +348,37 @@ func TestOrdersPublishCannotOverwritePeerOrdersCampaign(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("alice create want 200, got %d %s", rec.Code, rec.Body.String())
 	}
+	aliceSecret := publishOwnerSecretFromResp(t, rec)
 	// Bob tries to retarget the same id with a hostile dig_package.
 	rec = publishReq(t, mux, "publish-tok", map[string]any{
-		"id": "camp-peer", "budget_runs": 64, "owner_ref": "customer:bob",
+		"id": "camp-peer", "budget_runs": 64, "owner_ref": "customer:bob", "budget_hmc": 25.0,
 		"config": map[string]any{"dig_package": "deep", "guard_pack": "secrets"},
 	})
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("bob overwrite want 409, got %d %s", rec.Code, rec.Body.String())
 	}
 	// Alice idempotent re-POST keeps original budget (no upsert).
-	rec = publishReq(t, mux, "publish-tok", map[string]any{
-		"id": "camp-peer", "budget_runs": 64, "owner_ref": "customer:alice",
+	m := map[string]any{
+		"id": "camp-peer", "budget_runs": 64, "owner_ref": "customer:alice", "budget_hmc": 25.0,
 		"config": map[string]any{"dig_package": "deep", "guard_pack": "secrets"},
-	})
+	}
+	stampPublishPrepaid("publish-tok", m)
+	raw, _ := json.Marshal(m)
+	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/campaigns", bytes.NewReader(raw))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	req.Header.Set("X-Hackme-Orders-Owner-Ref", "customer:alice")
+	req.Header.Set("X-Hackme-Orders-Owner-Secret", aliceSecret)
+	req.RemoteAddr = "203.0.113.10:4444"
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("alice idempotent want 200, got %d %s", rec.Code, rec.Body.String())
 	}
-	req := httptest.NewRequest(http.MethodGet, "/api/fuzz/pool/campaigns/progress?id=camp-peer", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/fuzz/pool/campaigns/progress?id=camp-peer", nil)
 	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
 	req.Header.Set("X-Hackme-Orders-Owner-Ref", "customer:alice")
+	req.Header.Set("X-Hackme-Orders-Owner-Secret", aliceSecret)
 	req.RemoteAddr = "203.0.113.10:4444"
 	prog := httptest.NewRecorder()
 	mux.ServeHTTP(prog, req)
@@ -296,9 +403,11 @@ func TestOrdersPublishOwnerRefGatesProgress(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("create want 200, got %d", rec.Code)
 	}
+	secret := publishOwnerSecretFromResp(t, rec)
 	req := httptest.NewRequest(http.MethodGet, "/api/fuzz/pool/campaigns/progress?id=camp-owned", nil)
 	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
 	req.Header.Set("X-Hackme-Orders-Owner-Ref", "customer:evil")
+	req.Header.Set("X-Hackme-Orders-Owner-Secret", secret)
 	req.RemoteAddr = "203.0.113.10:4444"
 	prog := httptest.NewRecorder()
 	mux.ServeHTTP(prog, req)
@@ -310,6 +419,12 @@ func TestOrdersPublishOwnerRefGatesProgress(t *testing.T) {
 	mux.ServeHTTP(prog, req)
 	if prog.Code != http.StatusOK {
 		t.Fatalf("matching owner want 200, got %d %s", prog.Code, prog.Body.String())
+	}
+	req.Header.Set("X-Hackme-Orders-Owner-Secret", "wrong-secret")
+	prog = httptest.NewRecorder()
+	mux.ServeHTTP(prog, req)
+	if prog.Code != http.StatusForbidden {
+		t.Fatalf("wrong secret want 403, got %d", prog.Code)
 	}
 }
 
@@ -341,14 +456,17 @@ func TestOrdersPublishProgressOwnerAfterHeavyRegister(t *testing.T) {
 	mux := ordersPublishMux(t)
 	id := "hunt-20261102t001542"
 	rec := publishReq(t, mux, "publish-tok", map[string]any{
-		"id": id, "budget_runs": 12000, "budget_seconds": 86400,
+		"id": id, "budget_runs": 12000, "budget_seconds": 86400, "owner_ref": "customer:heavy",
 		"config": map[string]any{"hunt_package": "hunt_heavy", "pool_distributed": true},
 	})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("register want 200, got %d %s", rec.Code, rec.Body.String())
 	}
+	secret := publishOwnerSecretFromResp(t, rec)
 	req := httptest.NewRequest(http.MethodGet, "/api/fuzz/pool/campaigns/progress?id="+id, nil)
 	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	req.Header.Set("X-Hackme-Orders-Owner-Ref", "customer:heavy")
+	req.Header.Set("X-Hackme-Orders-Owner-Secret", secret)
 	req.RemoteAddr = "203.0.113.10:4444"
 	prog := httptest.NewRecorder()
 	mux.ServeHTTP(prog, req)
@@ -546,16 +664,131 @@ func TestValidatePublishCampaignID(t *testing.T) {
 func TestStripPublishEscalationConfig(t *testing.T) {
 	cfg := map[string]any{
 		"dig_package": "scan", "attach_poh_order": true, "create_poh_order": 1,
-		"admin_token": "x", "force_settle": true,
+		"admin_token": "x", "force_settle": true, "budget_hmc": 999.0, "prepaid_attested": true,
 	}
 	stripPublishEscalationConfig(cfg)
-	for _, k := range []string{"attach_poh_order", "create_poh_order", "admin_token", "force_settle"} {
+	for _, k := range []string{"attach_poh_order", "create_poh_order", "admin_token", "force_settle", "budget_hmc", "prepaid_attested"} {
 		if _, ok := cfg[k]; ok {
 			t.Fatalf("%s not stripped", k)
 		}
 	}
 	if cfg["dig_package"] != "scan" {
 		t.Fatal("dig_package must remain")
+	}
+}
+
+func TestOrdersPublishRejectsEmptyOwnerRef(t *testing.T) {
+	mux := ordersPublishMux(t)
+	raw, _ := json.Marshal(map[string]any{
+		"id": "camp-no-owner", "budget_runs": 8, "budget_hmc": 1.0,
+		"prepaid_attestation": poolsync.SignPrepaidAttestation("publish-tok", "customer:x", "camp-no-owner", 1.0, 8),
+		"config":              map[string]any{"dig_package": "scan", "guard_pack": "secrets"},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/campaigns", bytes.NewReader(raw))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	// Header required; without owner_ref body+header mismatch path.
+	req.RemoteAddr = "203.0.113.10:4444"
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("want 400 missing owner header, got %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestOrdersPublishRejectsMissingBudgetHMC(t *testing.T) {
+	mux := ordersPublishMux(t)
+	raw, _ := json.Marshal(map[string]any{
+		"id": "camp-no-budget", "budget_runs": 8, "owner_ref": "customer:x",
+		"config": map[string]any{"dig_package": "scan", "guard_pack": "secrets"},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/campaigns", bytes.NewReader(raw))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	req.Header.Set("X-Hackme-Orders-Owner-Ref", "customer:x")
+	req.RemoteAddr = "203.0.113.10:4444"
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("want 400 budget_hmc_required, got %d %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "budget_hmc") {
+		t.Fatalf("want budget_hmc error, got %s", rec.Body.String())
+	}
+}
+
+func TestOrdersPublishSettleAckRequiresValidReceipt(t *testing.T) {
+	globalPublishRate = &publishRateLimiter{hour: map[string][]time.Time{}, day: map[string][]time.Time{}}
+	db, err := store.Open(filepath.Join(t.TempDir(), "ack.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	pf := &poolfuzz.Service{DB: db}
+	mux := http.NewServeMux()
+	addFuzzPoolRoutes(mux, "admin-tok", "worker-tok", "publish-tok", false, &workManager{
+		hybridSignerEnabled: true, claimRequirePubKey: true, claimPerMin: 60, submitPerMin: 60,
+		abuse: make(map[string]workerAbuseState), ipAbuse: make(map[string]workerAbuseState),
+		worker: map[string]workerPayoutStat{}, dropReasonCount: make(map[string]uint64),
+	}, pf)
+
+	rec := publishReq(t, mux, "publish-tok", map[string]any{
+		"id": "camp-ack-rcpt", "budget_runs": 8, "owner_ref": "customer:rcpt",
+		"config": map[string]any{"dig_package": "scan", "guard_pack": "secrets"},
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("register want 200, got %d %s", rec.Code, rec.Body.String())
+	}
+	secret := publishOwnerSecretFromResp(t, rec)
+	ctx := context.Background()
+	outboxID, err := pf.EnqueueSettleOutbox(ctx, "run", "camp-ack-rcpt", "HMC-1111111111111111", "", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	eventID := chain.FuzzSettleEventID("camp-ack-rcpt", outboxID)
+	rc := poolsync.SettleApplyReceipt{
+		OutboxID: outboxID, EventID: eventID, CampaignID: "camp-ack-rcpt",
+		Kind: "run", Outcome: poolsync.SettleOutcomeApplied,
+		UnitsHash: poolsync.UnitsHashTerminal(eventID, "camp-ack-rcpt", poolsync.SettleOutcomeApplied),
+	}
+	poolsync.SignSettleReceipt("publish-tok", "customer:rcpt", secret, &rc)
+	raw, _ := json.Marshal(map[string]any{
+		"ids": []int64{outboxID}, "campaign_id": "camp-ack-rcpt", "receipts": []poolsync.SettleApplyReceipt{rc},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle/outbox/ack", bytes.NewReader(raw))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	req.Header.Set("X-Hackme-Orders-Owner-Ref", "customer:rcpt")
+	req.Header.Set("X-Hackme-Orders-Owner-Secret", secret)
+	ack := httptest.NewRecorder()
+	mux.ServeHTTP(ack, req)
+	if ack.Code != http.StatusOK {
+		t.Fatalf("valid receipt ACK want 200, got %d %s", ack.Code, ack.Body.String())
+	}
+	// Tampered MAC rejected on a fresh pending row.
+	outboxID2, err := pf.EnqueueSettleOutbox(ctx, "finding", "camp-ack-rcpt", "HMC-1111111111111111", "high", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	eventID2 := chain.FuzzSettleEventID("camp-ack-rcpt", outboxID2)
+	bad := poolsync.SettleApplyReceipt{
+		OutboxID: outboxID2, EventID: eventID2, CampaignID: "camp-ack-rcpt",
+		Kind: "finding", Outcome: poolsync.SettleOutcomeApplied,
+		UnitsHash: poolsync.UnitsHashTerminal(eventID2, "camp-ack-rcpt", poolsync.SettleOutcomeApplied),
+		MAC:       strings.Repeat("ab", 32),
+	}
+	raw, _ = json.Marshal(map[string]any{
+		"ids": []int64{outboxID2}, "campaign_id": "camp-ack-rcpt", "receipts": []poolsync.SettleApplyReceipt{bad},
+	})
+	req = httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle/outbox/ack", bytes.NewReader(raw))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	req.Header.Set("X-Hackme-Orders-Owner-Ref", "customer:rcpt")
+	req.Header.Set("X-Hackme-Orders-Owner-Secret", secret)
+	ack = httptest.NewRecorder()
+	mux.ServeHTTP(ack, req)
+	if ack.Code != http.StatusBadRequest {
+		t.Fatalf("tampered receipt want 400, got %d %s", ack.Code, ack.Body.String())
 	}
 }
 
@@ -572,13 +805,16 @@ func TestOrdersPublishMethodNotAllowed(t *testing.T) {
 
 func TestOrdersPublishWorkerHeaderDoesNotElevate(t *testing.T) {
 	mux := ordersPublishMux(t)
-	raw, _ := json.Marshal(map[string]any{
-		"id": "camp-wheader", "budget_runs": 8,
-		"config": map[string]any{"dig_package": "scan"},
-	})
+	m := map[string]any{
+		"id": "camp-wheader", "budget_runs": 8, "owner_ref": "customer:wh",
+		"config": map[string]any{"dig_package": "scan", "guard_pack": "secrets"},
+	}
+	stampPublishPrepaid("publish-tok", m)
+	raw, _ := json.Marshal(m)
 	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/campaigns", bytes.NewReader(raw))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Hackme-Worker-Token", "publish-tok")
+	req.Header.Set("X-Hackme-Orders-Owner-Ref", "customer:wh")
 	req.RemoteAddr = "203.0.113.12:1"
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
@@ -590,6 +826,7 @@ func TestOrdersPublishWorkerHeaderDoesNotElevate(t *testing.T) {
 	req = httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/campaigns", bytes.NewReader(raw))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Hackme-Worker-Token", "worker-tok")
+	req.Header.Set("X-Hackme-Orders-Owner-Ref", "customer:wh")
 	req.RemoteAddr = "203.0.113.12:1"
 	rec = httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)

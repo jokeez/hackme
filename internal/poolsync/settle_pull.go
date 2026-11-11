@@ -29,9 +29,17 @@ type SettleOutboxItem struct {
 // so a shared publish token cannot read/ACK another customer's campaigns.
 var settleOwnerRefLookup func(campaignID string) string
 
+// settleOwnerSecretLookup returns the per-publish owner secret for settle receipt MACs.
+var settleOwnerSecretLookup func(campaignID string) string
+
 // SetSettleOwnerRefLookup registers a local owner_ref resolver (node DB). Pass nil to clear.
 func SetSettleOwnerRefLookup(fn func(campaignID string) string) {
 	settleOwnerRefLookup = fn
+}
+
+// SetSettleOwnerSecretLookup registers the per-campaign owner secret resolver. Pass nil to clear.
+func SetSettleOwnerSecretLookup(fn func(campaignID string) string) {
+	settleOwnerSecretLookup = fn
 }
 
 func settleOwnerRefFor(campaignID string) string {
@@ -41,12 +49,22 @@ func settleOwnerRefFor(campaignID string) string {
 	return strings.TrimSpace(settleOwnerRefLookup(strings.TrimSpace(campaignID)))
 }
 
+func settleOwnerSecretFor(campaignID string) string {
+	if settleOwnerSecretLookup == nil {
+		return ""
+	}
+	return strings.TrimSpace(settleOwnerSecretLookup(strings.TrimSpace(campaignID)))
+}
+
 func setOrdersOwnerHeader(req *http.Request, campaignID string) {
 	if req == nil {
 		return
 	}
 	if owner := settleOwnerRefFor(campaignID); owner != "" {
 		req.Header.Set("X-Hackme-Orders-Owner-Ref", owner)
+	}
+	if secret := settleOwnerSecretFor(campaignID); secret != "" {
+		req.Header.Set("X-Hackme-Orders-Owner-Secret", secret)
 	}
 }
 
@@ -248,13 +266,43 @@ func settleOutboxTransient(err error) bool {
 
 // AckSettleOutbox marks coordinator outbox rows applied on the origin node.
 // When using the scoped publish token, campaignID is required (hub enforces scope).
+// Prefer AckSettleOutboxWithReceipts — bare ids alone are rejected by the hub.
 func AckSettleOutbox(ctx context.Context, ids []int64) error {
 	return AckSettleOutboxForCampaign(ctx, "", ids)
 }
 
 // AckSettleOutboxForCampaign ACKs rows; campaignID required when OrdersPublishToken is set.
+// Deprecated for publish-token path: use AckSettleOutboxWithReceipts.
 func AckSettleOutboxForCampaign(ctx context.Context, campaignID string, ids []int64) error {
 	if len(ids) == 0 {
+		return nil
+	}
+	// Admin path may hub_applied; publish path must supply receipts via AckSettleOutboxWithReceipts.
+	if OrdersPublishToken() != "" {
+		return fmt.Errorf("settle outbox ack: receipts required with orders publish token")
+	}
+	coordURL := ResolveCoordinatorURL()
+	token := OrdersCustomerToken()
+	if coordURL == "" {
+		return nil
+	}
+	if token == "" {
+		return fmt.Errorf("settle outbox ack: orders publish or coordinator admin token required")
+	}
+	bodyMap := map[string]any{
+		"ids":         ids,
+		"hub_applied": true, // admin ACK after hub-side/local Apply
+	}
+	if campaignID != "" {
+		bodyMap["campaign_id"] = campaignID
+	}
+	body, _ := json.Marshal(bodyMap)
+	return ackSettleOutboxRetry(ctx, coordURL, token, campaignID, body)
+}
+
+// AckSettleOutboxWithReceipts ACKs with origin-verified Apply receipts (event_id+units hash MAC).
+func AckSettleOutboxWithReceipts(ctx context.Context, campaignID string, receipts []SettleApplyReceipt) error {
+	if len(receipts) == 0 {
 		return nil
 	}
 	coordURL := ResolveCoordinatorURL()
@@ -265,21 +313,28 @@ func AckSettleOutboxForCampaign(ctx context.Context, campaignID string, ids []in
 	if token == "" {
 		return fmt.Errorf("settle outbox ack: orders publish or coordinator admin token required")
 	}
-	if OrdersPublishToken() != "" {
-		campaignID = strings.TrimSpace(campaignID)
-		if campaignID == "" {
-			return fmt.Errorf("settle outbox ack: campaign_id required with orders publish token")
+	campaignID = strings.TrimSpace(campaignID)
+	if OrdersPublishToken() != "" && campaignID == "" {
+		return fmt.Errorf("settle outbox ack: campaign_id required with orders publish token")
+	}
+	ids := make([]int64, 0, len(receipts))
+	for _, rc := range receipts {
+		if rc.OutboxID > 0 {
+			ids = append(ids, rc.OutboxID)
 		}
 	}
 	bodyMap := map[string]any{
-		"ids":             ids,
-		"confirm_applied": true,
-		"origin_applied":  true,
+		"ids":      ids,
+		"receipts": receipts,
 	}
 	if campaignID != "" {
 		bodyMap["campaign_id"] = campaignID
 	}
 	body, _ := json.Marshal(bodyMap)
+	return ackSettleOutboxRetry(ctx, coordURL, token, campaignID, body)
+}
+
+func ackSettleOutboxRetry(ctx context.Context, coordURL, token, campaignID string, body []byte) error {
 	var lastErr error
 	for attempt := 0; attempt < 5; attempt++ {
 		if attempt > 0 {

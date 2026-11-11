@@ -151,6 +151,7 @@ func (r *RelaySettler) httpRelayOnce(ctx context.Context, s *Service, kind, camp
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	// Require HTTP 200 + explicit ok:true so a buggy/proxy 200 empty body cannot false-ACK.
+	// Hub-side apply: origin HTTP Apply succeeded — ACK locally (never via honor-system bool).
 	if resp.StatusCode == http.StatusOK && settleRelayBodyOK(raw) {
 		if _, err := s.AckSettleOutbox(ctx, []int64{outboxID}); err != nil {
 			// Origin accepted but local ACK failed — still treat as applied (idempotent event_id).
