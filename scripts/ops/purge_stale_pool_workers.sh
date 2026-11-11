@@ -12,7 +12,8 @@
 #   PREFIX                 optional worker_id prefix (empty = all offline stale)
 #   MAX_PAYOUT_HMC         keep offline rows above this accrual (default 2)
 #   STALE_SEC              offline threshold (default 1800 = 30m)
-#   IGNORE_PAYOUT          1 = remove all matching offline stale regardless of payout
+#   IGNORE_PAYOUT          1 = prune offline stale even with unpaid; forfeits/tombstones
+#                          durable worker_accrual for those rows (not a soft memory-only drop)
 #   DRY_RUN                1 = preview only
 
 set -euo pipefail

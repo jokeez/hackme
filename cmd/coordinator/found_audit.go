@@ -22,8 +22,10 @@ const (
 	foundAuditMaxRatio    = 0.2   // flag only below 20% of expected founds…
 	foundAuditMaxLogP     = -20.7 // …and P(X ≤ actual) < 1e-9
 	foundAuditWindow      = 200.0 // halve counters past this many expected founds (recovery)
-	foundAuditMaxEntries  = 50_000
 )
+
+// foundAuditMaxEntries caps the warm cache; var so tests can shrink it.
+var foundAuditMaxEntries = 50_000
 
 type foundAuditState struct {
 	Expected float64
@@ -72,10 +74,20 @@ func (m *workManager) foundAuditEntryLocked(key string) *foundAuditState {
 	st := m.foundAudit[key]
 	if st == nil {
 		if len(m.foundAudit) >= foundAuditMaxEntries {
-			for k := range m.foundAudit {
+			evicted := false
+			for k, v := range m.foundAudit {
+				// Never drop Flagged evidence to make room for a new identity.
+				if v != nil && v.Flagged {
+					continue
+				}
 				delete(m.foundAudit, k)
 				m.deleteFoundAuditLocked(k)
+				evicted = true
 				break
+			}
+			if !evicted {
+				// Cap saturated with Flagged rows — degrade new-key tracking only.
+				return &foundAuditState{}
 			}
 		}
 		st = &foundAuditState{}

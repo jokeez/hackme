@@ -33,7 +33,8 @@ func (m *workManager) loadFoundAudit() {
 		return
 	}
 	ensureFoundAuditTable(m.dedupDB)
-	rows, err := m.dedupDB.Query(`SELECT audit_key, expected, actual, flagged FROM found_audit`)
+	// Flagged first so a full warm cache never drops withhold evidence for recent keys.
+	rows, err := m.dedupDB.Query(`SELECT audit_key, expected, actual, flagged FROM found_audit ORDER BY flagged DESC, updated_at DESC`)
 	if err != nil {
 		log.Printf("found_audit load: %v", err)
 		return

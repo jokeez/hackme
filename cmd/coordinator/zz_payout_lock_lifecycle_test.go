@@ -712,3 +712,113 @@ func TestPoHSubmitEnforcesDurableLockOnUnpaidBlank(t *testing.T) {
 		t.Fatalf("UnderMu must not adopt into unpaid blank, got %q", mem)
 	}
 }
+
+// H2: memory pruned while durable unpaid remains — unbind without forfeit/rebind must 409.
+func TestUnbindRefusesDurableUnpaidAfterMemoryPrune(t *testing.T) {
+	db, wm, mux := payoutLockSetup(t)
+	id := "wk-durable-only"
+	owner := "HMC-aaaaaaaaaaaaaaaa"
+	wm.persistPayoutLock(id, owner)
+	wm.mu.Lock()
+	wm.worker[id] = workerPayoutStat{
+		PayoutAddress: owner, PayoutHMC: 1.5, PayoutUnits: 150000000, AcceptedAtt: 7, LastSeenUnix: 1,
+	}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual(id, true)
+
+	// Legacy soft prune: drop memory only (simulate pre-harden ignore_payout).
+	wm.mu.Lock()
+	delete(wm.worker, id)
+	wm.mu.Unlock()
+	if _, ok := wm.fetchDurableAccrual(id); !ok {
+		t.Fatal("setup: durable unpaid missing")
+	}
+
+	code, out := payoutLockPost(t, mux, map[string]any{"worker_id": id})
+	if code != http.StatusConflict {
+		t.Fatalf("durable unpaid must require rebind/forfeit, got %d %v", code, out)
+	}
+	if _, ok := payoutLockAddr(t, db, id); !ok {
+		t.Fatal("refused unbind must leave durable lock")
+	}
+
+	code, out = payoutLockPost(t, mux, map[string]any{
+		"worker_id": id, "forfeit_unpaid": true,
+	})
+	if code != http.StatusOK || out["ok"] != true {
+		t.Fatalf("forfeit after durable-only: %d %v", code, out)
+	}
+	if _, alive := wm.fetchDurableAccrual(id); alive {
+		t.Fatal("forfeit must purge durable unpaid when memory was empty")
+	}
+}
+
+// H3: forfeit_unpaid with no memory row still bumpEpoch+tombstones durable unpaid.
+func TestForfeitUnpaidWithoutMemoryRowPurgesDurable(t *testing.T) {
+	db, wm, mux := payoutLockSetup(t)
+	id := "wk-forfeit-ghost"
+	wm.mu.Lock()
+	wm.worker[id] = workerPayoutStat{
+		PayoutAddress: "HMC-cccccccccccccccc", PayoutHMC: 3, PayoutUnits: 300000000, AcceptedAtt: 9,
+	}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual(id, true)
+	wm.persistPayoutLock(id, "HMC-cccccccccccccccc")
+	wm.mu.Lock()
+	delete(wm.worker, id)
+	wm.mu.Unlock()
+
+	code, out := payoutLockPost(t, mux, map[string]any{
+		"worker_id": id, "forfeit_unpaid": true,
+	})
+	if code != http.StatusOK || out["ok"] != true {
+		t.Fatalf("forfeit ghost: %d %v", code, out)
+	}
+	if _, alive := wm.fetchDurableAccrual(id); alive {
+		t.Fatal("forfeit without memory must delete durable unpaid")
+	}
+	var revoked int
+	if err := db.QueryRow(`SELECT COUNT(1) FROM worker_accrual_revoked WHERE worker_id=?`, id).Scan(&revoked); err != nil || revoked != 1 {
+		t.Fatalf("forfeit ghost tombstone: revoked=%d err=%v", revoked, err)
+	}
+	wm.mu.Lock()
+	epoch := wm.accrualEpochLocked(id)
+	wm.mu.Unlock()
+	if epoch == 0 {
+		t.Fatal("forfeit ghost must bump accrual epoch")
+	}
+}
+
+// H2: notePayoutLock hydrates durable unpaid before bind — claim cannot adopt sniper address.
+func TestNotePayoutLockHydratesDurableBeforeBind(t *testing.T) {
+	_, wm, _ := payoutLockSetup(t)
+	id := "wk-hydrate-claim"
+	owner, sniper := "HMC-oooooooooooooooo", "HMC-ssssssssssssssss"
+	wm.mu.Lock()
+	wm.worker[id] = workerPayoutStat{
+		PayoutAddress: owner, PayoutHMC: 2.25, PayoutUnits: 225000000, AcceptedAtt: 4,
+	}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual(id, true)
+	wm.mu.Lock()
+	delete(wm.worker, id)
+	wm.mu.Unlock()
+
+	wm.notePayoutLock(id, sniper)
+	wm.mu.Lock()
+	got := wm.worker[id]
+	wm.mu.Unlock()
+	if !workerStatHasUnpaidAccrual(got) {
+		t.Fatalf("claim must hydrate durable unpaid, got %+v", got)
+	}
+	if !strings.EqualFold(strings.TrimSpace(got.PayoutAddress), owner) {
+		t.Fatalf("hydrated must keep durable owner addr (not sniper), got %q", got.PayoutAddress)
+	}
+	if got.PayoutUnits < 225000000 {
+		t.Fatalf("hydrated units=%d", got.PayoutUnits)
+	}
+	// Sniper must not win first-binding over the hydrated owner identity.
+	if addr := wm.lockedPayoutAddress(id); strings.EqualFold(addr, sniper) && !strings.EqualFold(owner, sniper) {
+		t.Fatalf("sniper must not overwrite owner lock, got %q", addr)
+	}
+}

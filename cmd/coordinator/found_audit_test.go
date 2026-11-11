@@ -345,3 +345,81 @@ func TestFoundAuditPersistThrottledAndFlushed(t *testing.T) {
 		t.Fatalf("restart restore: %+v", st)
 	}
 }
+
+func TestFoundAuditNeverEvictsFlagged(t *testing.T) {
+	prev := foundAuditMaxEntries
+	foundAuditMaxEntries = 2
+	t.Cleanup(func() { foundAuditMaxEntries = prev })
+
+	wm := &workManager{}
+	wm.mu.Lock()
+	a := wm.foundAuditEntryLocked("flagged")
+	a.Flagged = true
+	a.Expected = 40
+	_ = wm.foundAuditEntryLocked("plain")
+	// Cap full: admitting a third key must drop the non-flagged row, never the Flagged one.
+	_ = wm.foundAuditEntryLocked("newcomer")
+	if wm.foundAudit["flagged"] == nil || !wm.foundAudit["flagged"].Flagged {
+		t.Fatal("Flagged identity must survive eviction")
+	}
+	if _, ok := wm.foundAudit["plain"]; ok {
+		if _, ok2 := wm.foundAudit["newcomer"]; ok2 {
+			t.Fatal("cap must not grow past max while keeping both plain and newcomer")
+		}
+	}
+	// Saturate with only Flagged rows — new keys must not wipe evidence.
+	wm.foundAudit = map[string]*foundAuditState{
+		"f1": {Flagged: true, Expected: 50},
+		"f2": {Flagged: true, Expected: 50},
+	}
+	st := wm.foundAuditEntryLocked("ephemeral")
+	if wm.foundAudit["ephemeral"] != nil {
+		t.Fatal("must not store new key when cap is all Flagged")
+	}
+	if st == nil {
+		t.Fatal("entry helper must still return a stub")
+	}
+	if wm.foundAudit["f1"] == nil || wm.foundAudit["f2"] == nil {
+		t.Fatal("Flagged rows must remain when cap is saturated")
+	}
+	wm.mu.Unlock()
+}
+
+func TestFoundAuditLoadPrefersFlagged(t *testing.T) {
+	prev := foundAuditMaxEntries
+	foundAuditMaxEntries = 2
+	t.Cleanup(func() { foundAuditMaxEntries = prev })
+
+	db, err := store.Open(filepath.Join(t.TempDir(), "fa-flag-load.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	ensureFoundAuditTable(db)
+	now := int64(1_700_000_000)
+	for _, row := range []struct {
+		key     string
+		flagged int
+		updated int64
+	}{
+		{"plain-old", 0, now + 3},
+		{"flagged-a", 1, now + 1},
+		{"flagged-b", 1, now + 2},
+	} {
+		if _, err := db.Exec(`INSERT INTO found_audit (audit_key, expected, actual, flagged, updated_at) VALUES (?,?,?,?,?)`,
+			row.key, 40.0, 0.0, row.flagged, row.updated); err != nil {
+			t.Fatal(err)
+		}
+	}
+	wm := &workManager{worker: map[string]workerPayoutStat{}}
+	wm.attachDedupDB(db)
+	if st := wm.foundAudit["flagged-a"]; st == nil || !st.Flagged {
+		t.Fatalf("flagged-a missing: %+v", wm.foundAudit)
+	}
+	if st := wm.foundAudit["flagged-b"]; st == nil || !st.Flagged {
+		t.Fatalf("flagged-b missing: %+v", wm.foundAudit)
+	}
+	if _, ok := wm.foundAudit["plain-old"]; ok {
+		t.Fatal("cap must prefer Flagged over newer plain row")
+	}
+}

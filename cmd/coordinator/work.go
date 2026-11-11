@@ -1944,17 +1944,23 @@ func (m *workManager) pruneStaleWorkersLocked(prefix string, maxPayout float64, 
 			kept = append(kept, id)
 			continue
 		}
-		// Never prune a row that carries accrual (unless an explicit revoke, which also deletes the
-		// durable accrual): the settlement export would shrink, the settler re-anchor lower, and
-		// the accrual re-hydrated on the next submit would be paid a second time (audit HIGH-1).
-		// maxPayout is kept for callers but no longer lets accrual-bearing rows go.
+		// Never prune a row that carries accrual unless ignore_payout explicitly forfeits it:
+		// dropping memory while leaving durable unpaid lets unbind skip forfeit and a claim
+		// sniper rebind via notePayoutLock + monotonic UPSERT (settlement H2).
+		// maxPayout is kept for callers but no longer lets accrual-bearing rows go without forfeit.
 		_ = maxPayout
-		if !ignorePayout && (st.PayoutUnits > 0 || st.PayoutHMC > 0 || st.PayoutSUP > 0) {
+		hasUnpaid := workerStatHasUnpaidAccrual(st)
+		if hasUnpaid && !ignorePayout {
 			kept = append(kept, id)
 			continue
 		}
 		removed = append(removed, id)
 		if !dryRun {
+			if hasUnpaid && ignorePayout {
+				// Auto-forfeit/tombstone so ignore_payout cannot leave a durable snipe surface.
+				m.bumpAccrualEpochLocked(id)
+				m.deleteWorkerAccrualLocked(id)
+			}
 			m.totalPayoutHMC -= st.PayoutHMC
 			if m.totalPayoutHMC < 0 {
 				m.totalPayoutHMC = 0
@@ -2135,6 +2141,9 @@ func (m *workManager) notePayoutLock(workerID, addr string) {
 	if workerID == "" || addr == "" {
 		return
 	}
+	// Hydrate durable unpaid before bind decisions so a claim after prune cannot
+	// skip prefetch and adopt an empty memory row onto historical unpaid (H2).
+	m.prefetchWorkerAccrual(workerID)
 	m.mu.Lock()
 	if m.worker == nil {
 		m.worker = map[string]workerPayoutStat{}

@@ -470,6 +470,14 @@ func (m *workManager) clearPayoutLockWith(workerID string, opts clearPayoutLockO
 	db := m.dedupDB
 	m.mu.Unlock()
 
+	// Durable accrual is source of truth: ignore_payout prune / restart can leave
+	// memory empty while worker_accrual still holds unpaid (claim-snipe surface).
+	if !unpaid {
+		if dst, ok := m.fetchDurableAccrual(workerID); ok && workerStatHasUnpaidAccrual(dst) {
+			unpaid = true
+		}
+	}
+
 	if unpaid && rebindTo == "" && !opts.ForfeitUnpaid {
 		return false, prevAddr, errors.New("unbind with unpaid accruals requires rebind_to or forfeit_unpaid")
 	}
@@ -481,53 +489,48 @@ func (m *workManager) clearPayoutLockWith(workerID string, opts clearPayoutLockO
 		res, derr := db.Exec(`DELETE FROM worker_payout_lock WHERE worker_id=?`, workerID)
 		if derr == nil {
 			m.mu.Lock()
-			if m.worker != nil {
-				st := m.worker[workerID]
-				changed := false
-				if opts.ForfeitUnpaid && workerStatHasUnpaidAccrual(st) {
-					// Match revoke: drop pool totals, bump epoch, DELETE+tombstone so a
-					// stale persistWorkerAccrual snap cannot UPSERT unpaid back after us.
-					if st.PayoutHMC > 0 {
-						m.totalPayoutHMC -= st.PayoutHMC
-						if m.totalPayoutHMC < 0 {
-							m.totalPayoutHMC = 0
-						}
+			if m.worker == nil {
+				m.worker = map[string]workerPayoutStat{}
+			}
+			st := m.worker[workerID]
+			changed := false
+			if opts.ForfeitUnpaid {
+				// Always bumpEpoch+DELETE+tombstone (mirror revoke), even when the
+				// memory row is missing/flat after prune — otherwise durable unpaid
+				// survives and a later claim snipes it via monotonic UPSERT.
+				if st.PayoutHMC > 0 {
+					m.totalPayoutHMC -= st.PayoutHMC
+					if m.totalPayoutHMC < 0 {
+						m.totalPayoutHMC = 0
 					}
-					if st.PayoutSUP > 0 {
-						m.totalPayoutSUP -= st.PayoutSUP
-						if m.totalPayoutSUP < 0 {
-							m.totalPayoutSUP = 0
-						}
+				}
+				if st.PayoutSUP > 0 {
+					m.totalPayoutSUP -= st.PayoutSUP
+					if m.totalPayoutSUP < 0 {
+						m.totalPayoutSUP = 0
 					}
-					st.PayoutHMC = 0
-					st.PayoutUnits = 0
-					st.PayoutSUP = 0
-					changed = true
-					m.bumpAccrualEpochLocked(workerID)
-					m.deleteWorkerAccrualLocked(workerID)
 				}
-				if rebindTo != "" {
-					st.PayoutAddress = rebindTo
-					st.AddressConflict = false
-					changed = true
-					// Invalidate in-flight persist snapshots that still carry the old
-					// address at a higher watermark (CASE would otherwise write A over B).
-					m.bumpAccrualEpochLocked(workerID)
-				} else if strings.TrimSpace(st.PayoutAddress) != "" {
-					st.PayoutAddress = ""
-					changed = true
-				}
-				m.worker[workerID] = st
-				if changed {
-					cleared = true
-				}
-			} else if opts.ForfeitUnpaid {
-				// No memory row — still purge durable unpaid (restart-safe).
+				st.PayoutHMC = 0
+				st.PayoutUnits = 0
+				st.PayoutSUP = 0
+				changed = true
 				m.bumpAccrualEpochLocked(workerID)
 				m.deleteWorkerAccrualLocked(workerID)
-				cleared = true
-			} else if rebindTo != "" {
+			}
+			if rebindTo != "" {
+				st.PayoutAddress = rebindTo
+				st.AddressConflict = false
+				changed = true
+				// Invalidate in-flight persist snapshots that still carry the old
+				// address at a higher watermark (CASE would otherwise write A over B).
 				m.bumpAccrualEpochLocked(workerID)
+			} else if strings.TrimSpace(st.PayoutAddress) != "" {
+				st.PayoutAddress = ""
+				changed = true
+			}
+			m.worker[workerID] = st
+			if changed {
+				cleared = true
 			}
 			m.mu.Unlock()
 			if n, _ := res.RowsAffected(); n > 0 {
@@ -569,41 +572,43 @@ func (m *workManager) clearPayoutLockWith(workerID string, opts clearPayoutLockO
 		}
 	} else {
 		m.mu.Lock()
-		if m.worker != nil {
-			st := m.worker[workerID]
-			changed := false
-			if opts.ForfeitUnpaid && workerStatHasUnpaidAccrual(st) {
-				if st.PayoutHMC > 0 {
-					m.totalPayoutHMC -= st.PayoutHMC
-					if m.totalPayoutHMC < 0 {
-						m.totalPayoutHMC = 0
-					}
+		if m.worker == nil {
+			m.worker = map[string]workerPayoutStat{}
+		}
+		st := m.worker[workerID]
+		changed := false
+		if opts.ForfeitUnpaid {
+			if st.PayoutHMC > 0 {
+				m.totalPayoutHMC -= st.PayoutHMC
+				if m.totalPayoutHMC < 0 {
+					m.totalPayoutHMC = 0
 				}
-				if st.PayoutSUP > 0 {
-					m.totalPayoutSUP -= st.PayoutSUP
-					if m.totalPayoutSUP < 0 {
-						m.totalPayoutSUP = 0
-					}
+			}
+			if st.PayoutSUP > 0 {
+				m.totalPayoutSUP -= st.PayoutSUP
+				if m.totalPayoutSUP < 0 {
+					m.totalPayoutSUP = 0
 				}
-				st.PayoutHMC = 0
-				st.PayoutUnits = 0
-				st.PayoutSUP = 0
-				changed = true
-				m.bumpAccrualEpochLocked(workerID)
 			}
-			if rebindTo != "" {
-				st.PayoutAddress = rebindTo
-				st.AddressConflict = false
-				changed = true
-				m.bumpAccrualEpochLocked(workerID)
-			} else if strings.TrimSpace(st.PayoutAddress) != "" {
-				st.PayoutAddress = ""
-				changed = true
-			}
-			m.worker[workerID] = st
-			if changed {
-				cleared = true
-			}
+			st.PayoutHMC = 0
+			st.PayoutUnits = 0
+			st.PayoutSUP = 0
+			changed = true
+			m.bumpAccrualEpochLocked(workerID)
+			m.deleteWorkerAccrualLocked(workerID)
+		}
+		if rebindTo != "" {
+			st.PayoutAddress = rebindTo
+			st.AddressConflict = false
+			changed = true
+			m.bumpAccrualEpochLocked(workerID)
+		} else if strings.TrimSpace(st.PayoutAddress) != "" {
+			st.PayoutAddress = ""
+			changed = true
+		}
+		m.worker[workerID] = st
+		if changed {
+			cleared = true
 		}
 		m.mu.Unlock()
 	}

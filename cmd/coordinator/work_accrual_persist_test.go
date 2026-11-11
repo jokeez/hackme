@@ -414,7 +414,7 @@ ON CONFLICT(worker_id) DO UPDATE SET
 	}
 }
 
-func TestPruneDoesNotBumpAccrualEpoch(t *testing.T) {
+func TestPruneWithoutIgnoreLeavesDurableUnpaid(t *testing.T) {
 	dir := t.TempDir()
 	db, err := store.Open(filepath.Join(dir, "accrual-prune-epoch.db"))
 	if err != nil {
@@ -425,25 +425,58 @@ func TestPruneDoesNotBumpAccrualEpoch(t *testing.T) {
 	wm := &workManager{worker: map[string]workerPayoutStat{}, accrualEpoch: map[string]uint64{}}
 	wm.attachDedupDB(db)
 	wm.mu.Lock()
-	wm.worker["keep"] = workerPayoutStat{AcceptedAtt: 100, PayoutHMC: 0.5, LastSeenUnix: 1}
+	wm.worker["keep"] = workerPayoutStat{AcceptedAtt: 100, PayoutHMC: 0.5, PayoutUnits: 50_000_000, LastSeenUnix: 1}
 	wm.mu.Unlock()
 	wm.persistWorkerAccrual("keep", true)
 
 	wm.mu.Lock()
 	before := wm.accrualEpochLocked("keep")
-	wm.pruneStaleWorkersLocked("", 10, 1, false, true, 1_000_000)
+	removed, kept := wm.pruneStaleWorkersLocked("", 10, 1, false, false, 1_000_000)
 	after := wm.accrualEpochLocked("keep")
 	wm.mu.Unlock()
+	if len(removed) != 0 || len(kept) != 1 {
+		t.Fatalf("unpaid must stay without ignore_payout: removed=%v kept=%v", removed, kept)
+	}
 	if before != after {
-		t.Fatalf("prune must not bump epoch (%d → %d)", before, after)
+		t.Fatalf("kept prune must not bump epoch (%d → %d)", before, after)
 	}
 	if _, ok := wm.fetchDurableAccrual("keep"); !ok {
-		t.Fatal("prune must leave durable unpaid")
+		t.Fatal("kept prune must leave durable unpaid")
 	}
-	// persist with worker gone must not delete durable
-	wm.persistWorkerAccrual("keep", true)
-	if _, ok := wm.fetchDurableAccrual("keep"); !ok {
-		t.Fatal("persist after prune must not wipe durable")
+}
+
+func TestIgnorePayoutPruneForfeitsDurableUnpaid(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "accrual-ignore-forfeit.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	wm := &workManager{worker: map[string]workerPayoutStat{}, accrualEpoch: map[string]uint64{}}
+	wm.attachDedupDB(db)
+	wm.mu.Lock()
+	wm.worker["drop"] = workerPayoutStat{AcceptedAtt: 100, PayoutHMC: 0.5, PayoutUnits: 50_000_000, LastSeenUnix: 1}
+	wm.mu.Unlock()
+	wm.persistWorkerAccrual("drop", true)
+
+	wm.mu.Lock()
+	before := wm.accrualEpochLocked("drop")
+	removed, _ := wm.pruneStaleWorkersLocked("", 10, 1, false, true, 1_000_000)
+	after := wm.accrualEpochLocked("drop")
+	_, memGone := wm.worker["drop"]
+	wm.mu.Unlock()
+	if len(removed) != 1 || memGone {
+		t.Fatalf("ignore_payout must prune memory: removed=%v memGone=%v", removed, memGone)
+	}
+	if after <= before {
+		t.Fatalf("ignore_payout forfeit must bump epoch (%d → %d)", before, after)
+	}
+	if _, ok := wm.fetchDurableAccrual("drop"); ok {
+		t.Fatal("ignore_payout prune must tombstone durable unpaid")
+	}
+	if !wm.accrualRevoked("drop") {
+		t.Fatal("ignore_payout prune must stamp revoke tombstone")
 	}
 }
 
