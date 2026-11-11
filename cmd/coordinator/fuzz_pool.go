@@ -465,8 +465,9 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
-			if !publishRateAllow(r) {
-				http.Error(w, "publish rate limit exceeded", http.StatusTooManyRequests)
+			// Separate from publish/harness hourly caps — settle must drain after CLEAN.
+			if !settleRateAllow(r) {
+				http.Error(w, "settle rate limit exceeded", http.StatusTooManyRequests)
 				return
 			}
 			storedOwner, _ := pf.CampaignOwnerRef(r.Context(), req.CampaignID)

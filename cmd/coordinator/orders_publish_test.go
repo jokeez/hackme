@@ -23,9 +23,10 @@ import (
 
 func ordersPublishMux(t *testing.T) *http.ServeMux {
 	t.Helper()
-	// Fresh limiter per test: publishRateAllow is process-global and shared IP
-	// 203.0.113.10 hits HACKME_ORDERS_PUBLISH_MAX_PER_* under -shuffle=on.
+	// Fresh limiters per test: publish/settle rate allow are process-global and
+	// shared IP 203.0.113.10 hits HACKME_ORDERS_*_MAX_PER_* under -shuffle=on.
 	globalPublishRate = &publishRateLimiter{hour: map[string][]time.Time{}, day: map[string][]time.Time{}}
+	globalSettleRate = &publishRateLimiter{hour: map[string][]time.Time{}, day: map[string][]time.Time{}}
 	db, err := store.Open(filepath.Join(t.TempDir(), "pub.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -596,6 +597,7 @@ func TestOrdersPublishRateLimit(t *testing.T) {
 	t.Setenv("HACKME_ORDERS_PUBLISH_MAX_PER_HOUR", "2")
 	t.Setenv("HACKME_ORDERS_PUBLISH_MAX_PER_DAY", "2")
 	globalPublishRate = &publishRateLimiter{hour: map[string][]time.Time{}, day: map[string][]time.Time{}}
+	globalSettleRate = &publishRateLimiter{hour: map[string][]time.Time{}, day: map[string][]time.Time{}}
 	mux := ordersPublishMux(t)
 	body := map[string]any{
 		"budget_runs": 8, "budget_seconds": 60,
@@ -612,6 +614,113 @@ func TestOrdersPublishRateLimit(t *testing.T) {
 	rec := publishReq(t, mux, "publish-tok", body)
 	if rec.Code != http.StatusTooManyRequests {
 		t.Fatalf("want 429, got %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestOrdersSettleAckNotStarvedByPublishRateLimit(t *testing.T) {
+	// Lab: exhausted publish hourly (register/harness) must not block settle ACK,
+	// or CLEAN campaigns leave escrow open / refunds stuck.
+	t.Setenv("HACKME_ORDERS_PUBLISH_MAX_PER_HOUR", "2")
+	t.Setenv("HACKME_ORDERS_PUBLISH_MAX_PER_DAY", "2")
+	t.Setenv("HACKME_ORDERS_SETTLE_MAX_PER_HOUR", "8")
+	t.Setenv("HACKME_ORDERS_SETTLE_MAX_PER_DAY", "8")
+	mux := ordersPublishMux(t)
+	body := map[string]any{
+		"budget_runs": 8, "budget_seconds": 60,
+		"config": map[string]any{"dig_package": "scan", "guard_pack": "secrets"},
+	}
+	for i := 0; i < 2; i++ {
+		body["id"] = "settle-sep-" + strconv.Itoa(i)
+		rec := publishReq(t, mux, "publish-tok", body)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("register %d want 200 got %d %s", i, rec.Code, rec.Body.String())
+		}
+	}
+	body["id"] = "settle-sep-blocked"
+	rec := publishReq(t, mux, "publish-tok", body)
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("publish overflow want 429, got %d %s", rec.Code, rec.Body.String())
+	}
+	// Harness upload also consumes publish bucket — still must not block settle.
+	payload := []byte("harness-after-publish-cap")
+	hash := "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	b64Body, _ := json.Marshal(map[string]any{
+		"harness_hash": hash,
+		"source_rel":   "customer/harness",
+		"binary_b64":   base64.StdEncoding.EncodeToString(payload),
+	})
+	hReq := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/hunt/harness", bytes.NewReader(b64Body))
+	hReq.Header.Set("Content-Type", "application/json")
+	hReq.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	hReq.RemoteAddr = "203.0.113.10:4444"
+	hRec := httptest.NewRecorder()
+	mux.ServeHTTP(hRec, hReq)
+	if hRec.Code != http.StatusTooManyRequests {
+		t.Fatalf("harness after publish cap want 429, got %d %s", hRec.Code, hRec.Body.String())
+	}
+
+	raw, _ := json.Marshal(map[string]any{
+		"ids": []int64{}, "campaign_id": "settle-sep-0", "confirm_applied": true,
+	})
+	for i := 0; i < 3; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle/outbox/ack", bytes.NewReader(raw))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+		req.RemoteAddr = "203.0.113.10:4444"
+		ack := httptest.NewRecorder()
+		mux.ServeHTTP(ack, req)
+		if ack.Code != http.StatusOK {
+			t.Fatalf("settle ACK %d must not share publish 429, got %d %s", i, ack.Code, ack.Body.String())
+		}
+	}
+}
+
+func TestOrdersSettleAckHasOwnRateLimit(t *testing.T) {
+	t.Setenv("HACKME_ORDERS_PUBLISH_MAX_PER_HOUR", "40")
+	t.Setenv("HACKME_ORDERS_PUBLISH_MAX_PER_DAY", "40")
+	t.Setenv("HACKME_ORDERS_SETTLE_MAX_PER_HOUR", "2")
+	t.Setenv("HACKME_ORDERS_SETTLE_MAX_PER_DAY", "2")
+	mux := ordersPublishMux(t)
+	rec := publishReq(t, mux, "publish-tok", map[string]any{
+		"id": "settle-own-1", "budget_runs": 8, "budget_seconds": 60,
+		"config": map[string]any{"dig_package": "scan", "guard_pack": "secrets"},
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("register want 200, got %d %s", rec.Code, rec.Body.String())
+	}
+	raw, _ := json.Marshal(map[string]any{
+		"ids": []int64{}, "campaign_id": "settle-own-1", "confirm_applied": true,
+	})
+	for i := 0; i < 2; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle/outbox/ack", bytes.NewReader(raw))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+		req.RemoteAddr = "203.0.113.10:4444"
+		ack := httptest.NewRecorder()
+		mux.ServeHTTP(ack, req)
+		if ack.Code != http.StatusOK {
+			t.Fatalf("settle ACK %d want 200, got %d %s", i, ack.Code, ack.Body.String())
+		}
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/settle/outbox/ack", bytes.NewReader(raw))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hackme-Admin-Token", "publish-tok")
+	req.RemoteAddr = "203.0.113.10:4444"
+	ack := httptest.NewRecorder()
+	mux.ServeHTTP(ack, req)
+	if ack.Code != http.StatusTooManyRequests {
+		t.Fatalf("settle overflow want 429, got %d %s", ack.Code, ack.Body.String())
+	}
+	if !strings.Contains(ack.Body.String(), "settle rate limit") {
+		t.Fatalf("settle 429 body should mention settle rate limit, got %q", ack.Body.String())
+	}
+	// Exhausted settle bucket must not starve a fresh publish register.
+	rec = publishReq(t, mux, "publish-tok", map[string]any{
+		"id": "settle-own-publish-ok", "budget_runs": 8, "budget_seconds": 60,
+		"config": map[string]any{"dig_package": "scan", "guard_pack": "secrets"},
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("publish after settle cap want 200, got %d %s", rec.Code, rec.Body.String())
 	}
 }
 
