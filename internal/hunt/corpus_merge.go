@@ -27,11 +27,35 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 	parent := filepath.Dir(corpusDir)
 	// Unique raw dir so concurrent merges on the same parent cannot clobber each other.
 	rawDir := filepath.Join(parent, fmt.Sprintf("corpus.raw-merge.%d.%d", os.Getpid(), time.Now().UnixNano()))
+	// Preserve .hunt-run (crash artifacts) across rename→merge→RemoveAll(raw).
+	// Without this, successful -merge=1 wiped LF crashes before engine upload.
+	runAside := filepath.Join(parent, fmt.Sprintf("corpus.hunt-run.%d.%d", os.Getpid(), time.Now().UnixNano()))
+	runSrc := filepath.Join(corpusDir, ".hunt-run")
+	if st, serr := os.Lstat(runSrc); serr == nil && st.IsDir() {
+		if rerr := os.Rename(runSrc, runAside); rerr != nil {
+			runAside = ""
+		}
+	} else {
+		runAside = ""
+	}
+	restoreHuntRun := func() {
+		if runAside == "" {
+			return
+		}
+		dst := filepath.Join(corpusDir, ".hunt-run")
+		_ = os.RemoveAll(dst)
+		if err := os.Rename(runAside, dst); err != nil {
+			_ = os.RemoveAll(runAside)
+		}
+		runAside = ""
+	}
 	if err := os.Rename(corpusDir, rawDir); err != nil {
+		restoreHuntRun()
 		return before, before, err
 	}
 	if err := os.MkdirAll(corpusDir, 0o755); err != nil {
 		_ = os.Rename(rawDir, corpusDir) // best-effort restore
+		restoreHuntRun()
 		return before, before, err
 	}
 
@@ -62,12 +86,15 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 		// Merge failed — restore raw.
 		_ = os.RemoveAll(corpusDir)
 		if rerr := os.Rename(rawDir, corpusDir); rerr != nil {
+			restoreHuntRun()
 			return before, 0, fmt.Errorf("hunt: merge produced empty corpus: %s", out.String())
 		}
+		restoreHuntRun()
 		after, _ = countCorpusFiles(corpusDir)
 		return before, after, fmt.Errorf("hunt: merge failed (restored raw): %s", truncateMergeLog(out.String()))
 	}
 	_ = os.RemoveAll(rawDir)
+	restoreHuntRun()
 	_ = pruneCorpusDir(corpusDir, defaultMaxPersistentCorpus)
 	after, _ = countCorpusFiles(corpusDir)
 	_ = os.WriteFile(filepath.Join(parent, "merge_stats.json"),

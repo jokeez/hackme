@@ -25,6 +25,7 @@ func TestSafeJoinUnderRejectsEscape(t *testing.T) {
 }
 
 func TestValidateGitURLAndRef(t *testing.T) {
+	t.Setenv("HACKME_ALLOW_PRIVATE_EGRESS", "0")
 	if _, err := ValidateGitURL("https://github.com/foo/bar.git"); err != nil {
 		t.Fatal(err)
 	}

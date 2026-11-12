@@ -136,16 +136,17 @@ func RunHuntEngineShard(ctx context.Context, run ResearchSlotRun, cr ClaimResp) 
 			cr.CampaignID, cr.ItemID, ns, deltas, crashes, out.Engine, out.EngineVersion)
 		if upErr != nil {
 			fmt.Fprintf(os.Stderr, "hunt_engine: corpus_delta: %v\n", upErr)
-			// Lease already reclaimed (or never held): do not submit — that yields
-			// "work item state changed" / lease_not_held churn on the last shard.
+			// Any corpus_delta failure after wall spent: SoftSkip — otherwise CLEAN
+			// submit pays run_floor without corpus/crash evidence (and findings stall).
 			errText := strings.ToLower(upErr.Error())
+			out.SoftSkip = true
+			out.SkipReason = "corpus_delta_upload_failed"
 			if strings.Contains(errText, "requires active lease") ||
 				strings.Contains(errText, "lease_not_held") ||
 				strings.Contains(errText, "not leased") {
-				out.SoftSkip = true
 				out.SkipReason = "lease_lost_during_engine"
-				return out
 			}
+			return out
 		} else if findings > 0 {
 			out.CheckResult = 1
 			out.Trap = "hunt_crash:engine_corpus_delta"

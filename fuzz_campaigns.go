@@ -1096,17 +1096,27 @@ func (a *app) tryCloseFuzzEscrowForStatus(ctx context.Context, campaignID, statu
 	status = strings.TrimSpace(strings.ToLower(status))
 	switch status {
 	case "cancelled", "completed":
-		if poolSyncCoordinatorConfigured() {
-			_ = a.applyPoolCampaignProgressFromCoordinator(ctx, campaignID, false)
+		// Progress-mirror / reconcile often call with a short sync ctx (~8–20s).
+		// Drain alone may need 12×2s + settle pulls — do not inherit that budget.
+		budget := 3 * time.Minute
+		if deadline, ok := ctx.Deadline(); ok {
+			if rem := time.Until(deadline); rem > budget {
+				budget = rem
+			}
 		}
-		if !a.drainFuzzSettleBeforeClose(ctx, campaignID, status) {
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), budget)
+		defer closeCancel()
+		if poolSyncCoordinatorConfigured() {
+			_ = a.applyPoolCampaignProgressFromCoordinator(closeCtx, campaignID, false)
+		}
+		if !a.drainFuzzSettleBeforeClose(closeCtx, campaignID, status) {
 			return
 		}
 		if status == "cancelled" {
-			_, _ = a.chain.CancelFuzzEscrow(ctx, campaignID)
+			_, _ = a.chain.CancelFuzzEscrow(closeCtx, campaignID)
 			return
 		}
-		_, _ = a.chain.FinalizeFuzzEscrow(ctx, campaignID)
+		_, _ = a.chain.FinalizeFuzzEscrow(closeCtx, campaignID)
 	}
 }
 

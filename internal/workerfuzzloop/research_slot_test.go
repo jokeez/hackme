@@ -84,6 +84,27 @@ func TestCollectResearchDeltaNewUnitsAndCrashes(t *testing.T) {
 	}
 }
 
+func TestCollectResearchDeltaFindsHuntRunCrashes(t *testing.T) {
+	dir := t.TempDir()
+	crashDir := filepath.Join(dir, ".hunt-run", "crashes")
+	if err := os.MkdirAll(crashDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(crashDir, "crash-lf"), []byte("lf-boom"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	seeds, crashes, err := collectResearchDelta(dir, nil, 32)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(seeds) != 0 {
+		t.Fatalf("seeds=%v", seeds)
+	}
+	if len(crashes) != 1 || string(crashes[0]) != "lf-boom" {
+		t.Fatalf("crashes=%v", crashes)
+	}
+}
+
 func TestMaybeRunResearchSlotUploadsDelta(t *testing.T) {
 	t.Setenv("HACKME_WORKER_RESEARCH_SLOT", "1")
 	cfg := ResearchSlotFromEnv()

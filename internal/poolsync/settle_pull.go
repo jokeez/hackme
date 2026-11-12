@@ -252,7 +252,8 @@ func settleOutboxTransient(err error) bool {
 		return false
 	}
 	msg := strings.ToLower(err.Error())
-	if strings.Contains(msg, "http 502") ||
+	if strings.Contains(msg, "http 429") ||
+		strings.Contains(msg, "http 502") ||
 		strings.Contains(msg, "http 503") ||
 		strings.Contains(msg, "http 504") ||
 		strings.Contains(msg, "connection reset") ||
@@ -285,7 +286,7 @@ func AckSettleOutboxForCampaign(ctx context.Context, campaignID string, ids []in
 	coordURL := ResolveCoordinatorURL()
 	token := OrdersCustomerToken()
 	if coordURL == "" {
-		return nil
+		return fmt.Errorf("settle outbox ack: coordinator URL not configured")
 	}
 	if token == "" {
 		return fmt.Errorf("settle outbox ack: orders publish or coordinator admin token required")
@@ -309,7 +310,7 @@ func AckSettleOutboxWithReceipts(ctx context.Context, campaignID string, receipt
 	coordURL := ResolveCoordinatorURL()
 	token := OrdersCustomerToken()
 	if coordURL == "" {
-		return nil
+		return fmt.Errorf("settle outbox ack: coordinator URL not configured")
 	}
 	if token == "" {
 		return fmt.Errorf("settle outbox ack: orders publish or coordinator admin token required")

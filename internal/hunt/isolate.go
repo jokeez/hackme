@@ -252,9 +252,12 @@ func RunIsolated(ctx context.Context, opts IsolateOpts) error {
 		_ = setRSSLimitMB(cmd.Process.Pid, opts.RSSLimitMB)
 	}
 	waitErr := cmd.Wait()
-	if runCtx.Err() == context.DeadlineExceeded {
+	if runCtx.Err() != nil {
 		_ = killProcessGroup(cmd)
-		return fmt.Errorf("hunt isolate: wall exceeded (%s)", wall)
+		if runCtx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("hunt isolate: wall exceeded (%s)", wall)
+		}
+		return fmt.Errorf("hunt isolate: cancelled: %w", runCtx.Err())
 	}
 	// Post-Wait: never bare-retry. Cage setup failures (RTM_NEWADDR / uid_map)
 	// surface as errors under STRICT; forged stderr cannot unsandbox.
@@ -384,9 +387,12 @@ func runBareIsolated(runCtx context.Context, opts IsolateOpts, env []string, wal
 		_ = setRSSLimitMB(cmd.Process.Pid, opts.RSSLimitMB)
 	}
 	err := cmd.Wait()
-	if runCtx.Err() == context.DeadlineExceeded {
+	if runCtx.Err() != nil {
 		_ = killProcessGroup(cmd)
-		return fmt.Errorf("hunt isolate: wall exceeded (%s)", wall)
+		if runCtx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("hunt isolate: wall exceeded (%s)", wall)
+		}
+		return fmt.Errorf("hunt isolate: cancelled: %w", runCtx.Err())
 	}
 	return err
 }

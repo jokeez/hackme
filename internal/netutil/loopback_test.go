@@ -110,6 +110,8 @@ func TestIPUnsafeForEgress(t *testing.T) {
 }
 
 func TestAssertHostSafeForEgress(t *testing.T) {
+	// Lab shells often export HACKME_ALLOW_PRIVATE_EGRESS=1; pin off for this case.
+	t.Setenv("HACKME_ALLOW_PRIVATE_EGRESS", "0")
 	if err := AssertHostSafeForEgress("127.0.0.1", false); err == nil {
 		t.Fatal("expected loopback reject")
 	}

@@ -229,6 +229,19 @@ func collectResearchDelta(dir string, before map[string]string, maxFiles int) (s
 			Energy:     2,
 		})
 	}
+	// LF artifacts live under .hunt-run/crashes/ (dot-dir skipped above).
+	if len(crashes) < 16 {
+		for _, p := range hunt.ListCrashArtifactPaths(filepath.Join(dir, ".hunt-run"), 16-len(crashes)) {
+			b, rerr := hunt.ReadRegularCorpusFile(p, 65536)
+			if rerr != nil || len(b) == 0 {
+				continue
+			}
+			crashes = append(crashes, b)
+			if len(crashes) >= 16 {
+				break
+			}
+		}
+	}
 	return seeds, crashes, nil
 }
 

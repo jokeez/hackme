@@ -29,7 +29,11 @@ func (a *app) pullFuzzSettleOutbox(ctx context.Context) error {
 	// to skip this node's campaigns forever when ≥32 older foreign camps filled the
 	// window (audit H5). Always follow with scoped drains of local open escrows.
 	globalErr := a.pullFuzzSettleOutboxWindow(ctx, "", false)
-	localErr := a.pullLocalFuzzSettleEscrows(ctx)
+	// Local listing/pull must not inherit a near-dead shared tick ctx after a long
+	// global window — that silently skipped open escrows for the rest of the tick.
+	localCtx, localCancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	localErr := a.pullLocalFuzzSettleEscrows(localCtx)
+	localCancel()
 	if globalErr != nil {
 		return globalErr
 	}
@@ -55,8 +59,17 @@ func (a *app) pullLocalFuzzSettleEscrows(ctx context.Context) error {
 		if publishScoped {
 			owner := ""
 			if a.db != nil {
-				_ = a.db.QueryRowContext(ctx,
+				// Do not use the shared tick ctx here: a prior campaign ACK timeout
+				// cancels it and made Scan fail → empty owner → false "legacy" skip
+				// for siblings that already have secrets on disk.
+				qctx, qcancel := context.WithTimeout(context.Background(), 5*time.Second)
+				qerr := a.db.QueryRowContext(qctx,
 					`SELECT COALESCE(owner_ref,'') FROM fuzz_campaigns WHERE id=?`, cid).Scan(&owner)
+				qcancel()
+				if qerr != nil {
+					log.Printf("fuzz settle pull: owner_ref lookup %s: %v", cid, qerr)
+					continue
+				}
 			}
 			secret := poolsync.LoadOrdersOwnerSecret(cid)
 			if strings.TrimSpace(owner) == "" || strings.TrimSpace(secret) == "" {
@@ -65,7 +78,12 @@ func (a *app) pullLocalFuzzSettleEscrows(ctx context.Context) error {
 			}
 		}
 		attempted++
-		if err := a.pullFuzzSettleOutboxWindow(ctx, cid, true); err != nil {
+		// Per-campaign budget: one slow ACK must not expire the tick ctx for
+		// every later open escrow in the same pass.
+		campCtx, campCancel := context.WithTimeout(context.Background(), 90*time.Second)
+		err := a.pullFuzzSettleOutboxWindow(campCtx, cid, true)
+		campCancel()
+		if err != nil {
 			if poolsync.SettleOutboxErrAuth(err) {
 				log.Printf("fuzz settle pull: auth error on %s (siblings keep draining): %v", cid, err)
 				authFails++
@@ -353,8 +371,12 @@ func (a *app) settleApplyReceipt(ctx context.Context, it poolsync.SettleOutboxIt
 	owner := ""
 	secret := poolsync.LoadOrdersOwnerSecret(it.CampaignID)
 	if a != nil && a.db != nil {
-		_ = a.db.QueryRowContext(ctx,
+		// Independent of settle tick/campaign ctx: a cancelled parent left Scan
+		// failing → empty owner → bad MAC / receipt ok=false after local pay.
+		qctx, qcancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_ = a.db.QueryRowContext(qctx,
 			`SELECT COALESCE(owner_ref,'') FROM fuzz_campaigns WHERE id=?`, it.CampaignID).Scan(&owner)
+		qcancel()
 		// SYNC-01: never fall back to plaintext orders_owner_secret in config_json.
 	}
 	pubTok := poolsync.OrdersPublishToken()
@@ -399,7 +421,9 @@ func (a *app) startFuzzSettlePullTicker() {
 		defer timer.Stop()
 		for {
 			<-timer.C
-			ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+			// Long tick: many open escrows × per-campaign ACK budget. A short
+			// shared deadline previously false-skipped later campaigns as legacy.
+			ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
 			err := a.pullFuzzSettleOutbox(ctx)
 			cancel()
 			next := interval
