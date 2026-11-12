@@ -50,7 +50,7 @@
           "date": "2026-11-12",
           "reported": "2026-11-12",
           "commit": "16034dad",
-          "txid": "",
+          "txid": "779b1b4462ac4d65cbf9bf41a8bbfe9fd7a5666ad2df4adb6679b40bb957ac6d",
           "payout_address": "HMC-a6d09759a4c12019",
           "note": "Write-side counterpart of the read-side symlink series: os.WriteFile/os.Create into cage-bound RW dirs followed planted links, letting a customer harness overwrite/truncate any file the worker UID can write. Fixed with openat(O_NOFOLLOW) walks from the bind root + unlinkat/O_EXCL create for every host write. Reporter honestly scoped impact (no arbitrary-content write)."
         },
@@ -61,7 +61,7 @@
           "date": "2026-11-12",
           "reported": "2026-11-12",
           "commit": "49d16d47",
-          "txid": "",
+          "txid": "0904e57f13c41c9ff807f019e340a7bc663d8591a97da285a3bd5c872ef7dda7",
           "payout_address": "HMC-a6d09759a4c12019",
           "note": "v2 takes 5% burn + 5% platform at open, yet payFuzzBountyTx took 5% of the already-net bounty pool again (finder got 95%). Payout fee now follows the pricing recorded at open (fee_asset), so v1 orders settled after the fork keep v1 terms. Reporter self-corrected the victim (miner slice, not customer)."
         },
@@ -72,7 +72,7 @@
           "date": "2026-11-12",
           "reported": "2026-11-11",
           "commit": "56bcfcd9",
-          "txid": "",
+          "txid": "1815ff2963ead0dbaa4526e1e3413d4d20c393b87e79c2083c1d2fb5f9e15649",
           "payout_address": "HMC-a6d09759a4c12019",
           "note": "Incomplete fix of the Hunt corpus symlink High: Lstat/O_NOFOLLOW guarded only the final component, so a harness-planted directory symlink still redirected corpus reads outside the bind. Collectors now require the resolved path to stay under the root."
         },
