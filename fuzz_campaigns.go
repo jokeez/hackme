@@ -1131,6 +1131,7 @@ func (a *app) drainFuzzSettleBeforeClose(ctx context.Context, campaignID, closeK
 		pause       = 2 * time.Second
 	)
 	var lastPending bool
+	emptyStreak := 0
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		if attempt > 0 {
 			select {
@@ -1141,7 +1142,9 @@ func (a *app) drainFuzzSettleBeforeClose(ctx context.Context, campaignID, closeK
 			case <-time.After(pause):
 			}
 		}
-		err := a.pullFuzzSettleOutbox(ctx)
+		// Drain only this campaign — do not fan out to every local open escrow.
+		scoped := poolsync.OrdersPublishToken() != "" || strings.TrimSpace(campaignID) != ""
+		err := a.pullFuzzSettleOutboxWindow(ctx, campaignID, scoped)
 		if err != nil && !errors.Is(err, errSettleOutboxUndrainableHead) {
 			log.Printf("fuzz escrow: refuse %s %s: settle pull failed: %s",
 				logsafe.ID(closeKind), logsafe.ID(campaignID), logsafe.Err(err))
@@ -1151,6 +1154,7 @@ func (a *app) drainFuzzSettleBeforeClose(ctx context.Context, campaignID, closeK
 			}
 			// Transient edge noise — keep trying within the window.
 			if poolsync.SettleOutboxErrTransient(err) && attempt+1 < maxAttempts {
+				emptyStreak = 0
 				continue
 			}
 			return false
@@ -1162,16 +1166,19 @@ func (a *app) drainFuzzSettleBeforeClose(ctx context.Context, campaignID, closeK
 			log.Printf("fuzz escrow: refuse %s %s: settle pending check: %s",
 				logsafe.ID(closeKind), logsafe.ID(campaignID), logsafe.Err(perr))
 			if poolsync.SettleOutboxErrTransient(perr) && attempt+1 < maxAttempts {
+				emptyStreak = 0
 				continue
 			}
 			return false
 		}
 		lastPending = pending
 		if pending {
+			emptyStreak = 0
 			continue
 		}
-		// Grace re-check: first empty observation often races enqueue on the hub.
-		if attempt == 0 {
+		// Two consecutive empty observations — first empty often races hub enqueue.
+		emptyStreak++
+		if emptyStreak < 2 {
 			continue
 		}
 		return true

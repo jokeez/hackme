@@ -360,7 +360,8 @@ func runAFLPPEngineShard(ctx context.Context, repoRoot, targetID string, wall in
 		filepath.Join(outDir, "default", "queue"),
 		filepath.Join(outDir, "queue"),
 	} {
-		imported += copyCorpusFiles(d, persist, 64)
+		// Newest-first so late coverage units are not truncated by lexical id order.
+		imported += copyCorpusFilesNewest(d, persist, 256)
 	}
 	for _, d := range []string{
 		filepath.Join(outDir, "default", "crashes"),

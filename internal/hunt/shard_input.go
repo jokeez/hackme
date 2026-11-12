@@ -144,12 +144,16 @@ func ShardSegmentExecInput(campaignID string, inputN, execIdx uint64, cfg map[st
 		// guided energy on static pack starters every mutating exec.
 		base = append([]byte(nil), seed.InputBytes...)
 	} else if HuntCorpusGuided(cfg) && len(seeds) > 0 && len(seed.InputBytes) == 0 {
-		base = fuzzengine.U64LayoutToBytes(seed.Input)
+		// Empty InputBytes: pack corpus beats an 8-byte u64 layout collapse.
+		base = huntByteAnchorBase(campaignID, inputN, cfg, seeds)
 	} else {
 		base = huntByteAnchorBase(campaignID, inputN, cfg, seeds)
 	}
 	base = fuzzengine.CompactCorpusSeed(base, maxLen)
 	corpus := fuzzengine.CorpusBytesFromSeeds(seeds)
+	if pack := fuzzengine.ParseByteCorpus(cfg); len(pack) > 0 {
+		corpus = append(append([][]byte(nil), corpus...), pack...)
+	}
 	return fuzzengine.MutateBytesForHunt(base, stage, salt, maxLen, cfg, corpus)
 }
 

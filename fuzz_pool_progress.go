@@ -505,7 +505,8 @@ func (a *app) pullPoolFindingsFromCoordinator(ctx context.Context, campaignID st
 	}
 	req.Header.Set("X-Hackme-Admin-Token", tok)
 	a.stampOrdersOwnerHeader(req, campaignID)
-	res, err := netutil.HTTPClientNoRedirect(12 * time.Second).Do(req)
+	// Large findings JSON — OriginDial avoids CF ≈24KiB hang when pin is set.
+	res, err := netutil.HTTPClientPoolOriginDial(12 * time.Second).Do(req)
 	if err != nil {
 		return 0, err
 	}

@@ -11,6 +11,7 @@ import (
 
 func TestOriginDialRewritesMatchingHost(t *testing.T) {
 	t.Cleanup(ResetOriginDialForTest)
+	t.Setenv("HACKME_ALLOW_PRIVATE_EGRESS", "1")
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -54,6 +55,7 @@ func TestOriginDialRewritesMatchingHost(t *testing.T) {
 
 func TestOriginDialBypassesEnvProxyForPinnedHost(t *testing.T) {
 	t.Cleanup(ResetOriginDialForTest)
+	t.Setenv("HACKME_ALLOW_PRIVATE_EGRESS", "1")
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -175,5 +177,27 @@ func TestOriginDialRejectsHostnamePin(t *testing.T) {
 	ResetOriginDialForTest()
 	if OriginDialConfigured() {
 		t.Fatal("hostname pin must be ignored; only literal IPs are allowed")
+	}
+}
+
+func TestOriginDialRejectsMetadataPin(t *testing.T) {
+	t.Cleanup(ResetOriginDialForTest)
+	t.Setenv("HACKME_ALLOW_PRIVATE_EGRESS", "1")
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL", "169.254.169.254")
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL_HOST", "hackme.tech")
+	ResetOriginDialForTest()
+	if OriginDialConfigured() {
+		t.Fatal("metadata pin must be rejected")
+	}
+}
+
+func TestOriginDialTrailingDotHostMatches(t *testing.T) {
+	t.Cleanup(ResetOriginDialForTest)
+	t.Setenv("HACKME_ALLOW_PRIVATE_EGRESS", "1")
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL", "127.0.0.1")
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL_HOST", "hackme.tech")
+	ResetOriginDialForTest()
+	if !hostMatchesOriginDial("hackme.tech.") {
+		t.Fatal("trailing FQDN dot must still match pin host")
 	}
 }

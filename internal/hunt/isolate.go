@@ -235,6 +235,10 @@ func RunIsolated(ctx context.Context, opts IsolateOpts) error {
 	var stderrBuf bytes.Buffer
 	attachIsolatedStdio(cmd, opts.Stdout, opts.Stderr, &stderrBuf)
 	setProcessGroup(cmd)
+	// Kill the whole process group while the leader is still alive (Cancel runs
+	// before Wait returns). Post-Wait Getpgid was ESRCH and left orphans.
+	cmd.Cancel = func() error { return killProcessGroup(cmd) }
+	cmd.WaitDelay = 2 * time.Second
 	allowBareFallback := !IsolateStrict() || opts.AllowBare
 	// Bare fallback ONLY when bwrap fails to *launch* (Start error).
 	// Never after Wait — a malicious harness/build.rs can forge
@@ -253,7 +257,6 @@ func RunIsolated(ctx context.Context, opts IsolateOpts) error {
 	}
 	waitErr := cmd.Wait()
 	if runCtx.Err() != nil {
-		_ = killProcessGroup(cmd)
 		if runCtx.Err() == context.DeadlineExceeded {
 			return fmt.Errorf("hunt isolate: wall exceeded (%s)", wall)
 		}
@@ -380,6 +383,8 @@ func runBareIsolated(runCtx context.Context, opts IsolateOpts, env []string, wal
 	// Bare path: still serialize when stdout==stderr share one writer.
 	attachIsolatedStdio(cmd, opts.Stdout, opts.Stderr, nil)
 	setProcessGroup(cmd)
+	cmd.Cancel = func() error { return killProcessGroup(cmd) }
+	cmd.WaitDelay = 2 * time.Second
 	if err := cmd.Start(); err != nil {
 		return err
 	}
@@ -388,7 +393,6 @@ func runBareIsolated(runCtx context.Context, opts IsolateOpts, env []string, wal
 	}
 	err := cmd.Wait()
 	if runCtx.Err() != nil {
-		_ = killProcessGroup(cmd)
 		if runCtx.Err() == context.DeadlineExceeded {
 			return fmt.Errorf("hunt isolate: wall exceeded (%s)", wall)
 		}

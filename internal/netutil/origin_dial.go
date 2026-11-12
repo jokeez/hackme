@@ -2,6 +2,7 @@ package netutil
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"net/http"
 	"net/url"
@@ -32,11 +33,18 @@ func loadOriginDial() {
 	originDialOnce.Do(func() {
 		raw := strings.TrimSpace(os.Getenv("HACKME_POOL_ORIGIN_DIAL"))
 		// Pin must be a literal IP — hostnames would reintroduce DNS / CDN path.
-		if raw != "" && net.ParseIP(raw) == nil {
+		if ip := net.ParseIP(raw); raw != "" && ip == nil {
 			raw = ""
+		} else if raw != "" {
+			ip := net.ParseIP(raw)
+			// Always reject metadata/link-local/CGNAT; private/loopback only with lab flag.
+			if IPUnsafeForEgress(ip, true) || IPUnsafeForEgress(ip, AllowPrivateEgress()) {
+				raw = ""
+			}
 		}
 		originDialIP = raw
 		originDialHost = strings.ToLower(strings.TrimSpace(os.Getenv("HACKME_POOL_ORIGIN_DIAL_HOST")))
+		originDialHost = strings.TrimSuffix(originDialHost, ".")
 		if originDialHost == "" {
 			originDialHost = "hackme.tech"
 		}
@@ -65,6 +73,7 @@ func hostMatchesOriginDial(hostname string) bool {
 	}
 	h := strings.ToLower(strings.TrimSpace(hostname))
 	h = strings.Trim(h, "[]")
+	h = strings.TrimSuffix(h, ".")
 	return h == originDialHost
 }
 
@@ -93,20 +102,22 @@ func OriginDialTransport() http.RoundTripper {
 			return
 		}
 		tr := base.Clone()
+		// Align with coordinatorHTTPClient — HTTP/2 stall storms on large bodies.
+		tr.ForceAttemptHTTP2 = false
+		tr.TLSNextProto = map[string]func(authority string, c *tls.Conn) http.RoundTripper{}
 		if originDialIP != "" {
 			tr.DialContext = originDialContext
 			// Clone inherits ProxyFromEnvironment. A system HTTPS_PROXY would
 			// send pinned-host traffic through the proxy/CDN and silently undo
 			// the origin pin (Hunt harness + settle outbox hang >~24KiB).
-			envProxy := tr.Proxy
-			if envProxy == nil {
-				envProxy = http.ProxyFromEnvironment
-			}
+			// Defense in depth: when pin is configured, disable proxy entirely on
+			// this opt-in client (poolsync/hunt are not general egress).
 			tr.Proxy = func(req *http.Request) (*url.URL, error) {
 				if req != nil && req.URL != nil && hostMatchesOriginDial(req.URL.Hostname()) {
 					return nil, nil
 				}
-				return envProxy(req)
+				// Non-pinned hosts on this client: still direct (no CONNECT undo risk).
+				return nil, nil
 			}
 		}
 		originTransport = tr
