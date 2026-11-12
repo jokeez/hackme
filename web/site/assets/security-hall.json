@@ -2,15 +2,16 @@
   "updated": "2026-11-12",
   "program": {
     "asset": "HMC",
-    "monthly_budget_hmc": 200,
+    "monthly_budget_hmc": 500,
     "policy_url": "https://github.com/jokeez/hackme/blob/main/docs/BUG_BOUNTY.md",
     "report_url": "./contacts.html",
-    "note": "Discretionary on-chain grants after a verified fix. Names appear only with researcher consent."
+    "note": "Discretionary on-chain grants after a verified fix. Monthly cap 500 HMC from December 2026; High and Critical findings are paid outside the cap. Names appear only with researcher consent."
   },
   "budget": {
     "period": "2026-11",
     "period_label": "November 2026",
-    "limit_hmc": 200
+    "limit_hmc": 1000,
+    "note": "Pre-fork hardening month: the November cap was raised from 200 to 1000 HMC to close findings before Economics v2 (block 550,000)."
   },
   "stats": {
     "total_paid_hmc": 1550,

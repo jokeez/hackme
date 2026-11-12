@@ -159,6 +159,7 @@
         <span>${esc(fmtPct(pct))}% used · <strong>${esc(fmtHmc(remaining))}</strong> HMC left</span>
         <span>Open the full table for lifetime history</span>
       </div>
+      ${bud.note ? `<p class="hof-budget-note subtle">${esc(bud.note)}</p>` : ""}
     `;
     if (STAT_BUDGET) STAT_BUDGET.textContent = `${fmtHmc(monthSpent)}/${fmtHmc(limit)}`;
   }

@@ -28,7 +28,7 @@ Amounts below are **maximum guidelines** for a _single_ accepted report — the 
 | **High** | Steal operator token from misconfig PoC, settlement logic bug with fund impact, WASM sandbox escape PoC | **40 – 100** |
 | **Critical** | Remote drain of treasury/coordinator accrual, consensus break, forge settlement to arbitrary wallet | **100 – 200** |
 
-**Monthly program budget (operator discretion):** ~**200 HMC** total across all payouts — first-come for accepted reports until cap is reviewed.
+**Monthly program budget (operator discretion):** **500 HMC** per month from December 2026 for Low/Medium/Informational. **High and Critical are paid outside the cap** — a serious finding never waits for next month's budget. November 2026 was a pre-fork hardening month with the cap raised to 1000 HMC.
 
 > HMC has **no guaranteed market price**. Rewards are ecosystem grants, not salary or investment returns.
 
