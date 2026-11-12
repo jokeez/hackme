@@ -55,6 +55,9 @@ func (a *app) mergeCanonicalEconomicsIntoStatus(ctx context.Context, statusBody 
 	if v, ok := remote["economics"]; ok {
 		statusBody["economics"] = v
 	}
+	if v, ok := remote["economics_v2"]; ok {
+		statusBody["economics_v2"] = v
+	}
 	if v, ok := remote["crypto_policy"]; ok {
 		statusBody["crypto_policy"] = v
 	}
@@ -66,6 +69,29 @@ func (a *app) mergeCanonicalEconomicsIntoStatus(ctx context.Context, statusBody 
 func statusQueryLite(r *http.Request) bool {
 	q := strings.TrimSpace(r.URL.Query().Get("lite"))
 	return q == "1" || strings.EqualFold(q, "true")
+}
+
+// economicsV2StatusPayload publishes the pending/locked Economics v2 switch for
+// dashboards and the activation announce (RFC_ECONOMICS_V2, ECON_V2_LAUNCH):
+// the first v2 block height (locked chain meta > env > compiled announce default),
+// the announcement wall-clock kept as meta, and whether the tip has crossed it.
+// The schedule constants are compile-time public values, so miners, aggregators
+// and desktops can render the announced numbers without parsing release notes.
+// Read-only: no DB reads, no locks, no consensus surface. activation_height 0
+// means v2 is not scheduled and v1 continues.
+func economicsV2StatusPayload(tipHeight uint64) map[string]any {
+	return map[string]any{
+		"activation_height":              chain.EconomicsV2ActivationHeight(),
+		"active_at_tip":                  chain.EconomicsV2ActiveForIndex(tipHeight),
+		"announce_unix":                  chain.EconomicsV2AnnounceUnix(),
+		"initial_base_reward_hmc":        chain.V2InitialBaseRewardHMC,
+		"reward_halving_interval_blocks": chain.V2RewardHalvingIntervalBlocks,
+		"order_burn_rate":                chain.V2OrderBurnRate,
+		"order_platform_fee_rate":        chain.V2OrderPlatformFeeRate,
+		"sup_initial_reward":             chain.V2SUPInitialReward,
+		"sup_max_supply":                 chain.V2SUPMaxSupply,
+		"activation_buffer_hmc":          chain.V2ActivationBufferHMC,
+	}
 }
 
 // buildStatusLite serves fast polls for desktop dashboards: no coordinator fan-out,
@@ -106,6 +132,7 @@ func (a *app) buildStatusLite(ctx context.Context) map[string]any {
 	if tipStale {
 		body["tip_read_stale"] = true
 	}
+	body["economics_v2"] = economicsV2StatusPayload(h)
 	a.applyFollowerCanonicalTipSnapshot(ctx, body, 700*time.Millisecond)
 	if ct := asUint64(body["canonical_tip_height"]); ct > 0 && has {
 		lag := int64(ct) - int64(h)
@@ -217,6 +244,7 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 	if tipStale {
 		statusBody["tip_read_stale"] = true
 	}
+	statusBody["economics_v2"] = economicsV2StatusPayload(h)
 	if networkModeActive && !a.miner.Running() {
 		a.applyFollowerCanonicalTipSnapshot(statusCtx, statusBody, 900*time.Millisecond)
 	}
