@@ -7,6 +7,7 @@ func TestSettleOutboxTransient(t *testing.T) {
 		msg  string
 		want bool
 	}{
+		{"settle outbox HTTP 429: too many requests", true},
 		{"settle outbox HTTP 502: error code: 502", true},
 		{"settle outbox HTTP 503: unavailable", true},
 		{"settle outbox HTTP 504: gateway", true},

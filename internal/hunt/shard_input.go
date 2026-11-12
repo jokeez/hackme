@@ -139,6 +139,12 @@ func ShardSegmentExecInput(campaignID string, inputN, execIdx uint64, cfg map[st
 			bb = fuzzengine.U64LayoutToBytes(b.Input)
 		}
 		base = spliceShardBytes(ab, bb, maxLen)
+	} else if HuntCorpusGuided(cfg) && len(seed.InputBytes) > 0 {
+		// Prefer the rarity-weighted parent — seed_byte_corpus alone wasted
+		// guided energy on static pack starters every mutating exec.
+		base = append([]byte(nil), seed.InputBytes...)
+	} else if HuntCorpusGuided(cfg) && len(seeds) > 0 && len(seed.InputBytes) == 0 {
+		base = fuzzengine.U64LayoutToBytes(seed.Input)
 	} else {
 		base = huntByteAnchorBase(campaignID, inputN, cfg, seeds)
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -94,6 +95,19 @@ func OriginDialTransport() http.RoundTripper {
 		tr := base.Clone()
 		if originDialIP != "" {
 			tr.DialContext = originDialContext
+			// Clone inherits ProxyFromEnvironment. A system HTTPS_PROXY would
+			// send pinned-host traffic through the proxy/CDN and silently undo
+			// the origin pin (Hunt harness + settle outbox hang >~24KiB).
+			envProxy := tr.Proxy
+			if envProxy == nil {
+				envProxy = http.ProxyFromEnvironment
+			}
+			tr.Proxy = func(req *http.Request) (*url.URL, error) {
+				if req != nil && req.URL != nil && hostMatchesOriginDial(req.URL.Hostname()) {
+					return nil, nil
+				}
+				return envProxy(req)
+			}
 		}
 		originTransport = tr
 	})

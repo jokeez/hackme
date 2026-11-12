@@ -48,11 +48,35 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 	}
 	// Unique raw dir so concurrent merges on the same parent cannot clobber each other.
 	rawDir := filepath.Join(parent, fmt.Sprintf("corpus.raw-merge.%d.%d", os.Getpid(), time.Now().UnixNano()))
+	// Preserve .hunt-run (crash artifacts) across rename→merge→RemoveAll(raw).
+	// Without this, successful -merge=1 wiped LF crashes before engine upload.
+	runAside := filepath.Join(parent, fmt.Sprintf("corpus.hunt-run.%d.%d", os.Getpid(), time.Now().UnixNano()))
+	runSrc := filepath.Join(corpusDir, ".hunt-run")
+	if st, serr := os.Lstat(runSrc); serr == nil && st.IsDir() {
+		if rerr := os.Rename(runSrc, runAside); rerr != nil {
+			runAside = ""
+		}
+	} else {
+		runAside = ""
+	}
+	restoreHuntRun := func() {
+		if runAside == "" {
+			return
+		}
+		dst := filepath.Join(corpusDir, ".hunt-run")
+		_ = os.RemoveAll(dst)
+		if err := os.Rename(runAside, dst); err != nil {
+			_ = os.RemoveAll(runAside)
+		}
+		runAside = ""
+	}
 	if err := os.Rename(corpusDir, rawDir); err != nil {
+		restoreHuntRun()
 		return before, before, err
 	}
 	if err := os.MkdirAll(corpusDir, 0o755); err != nil {
 		_ = os.Rename(rawDir, corpusDir) // best-effort restore
+		restoreHuntRun()
 		return before, before, err
 	}
 
@@ -87,9 +111,11 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 			_ = os.MkdirAll(corpusDir, 0o755)
 			moveCorpusFiles(parent, rawDir, corpusDir)
 			if derr := os.RemoveAll(rawDir); derr != nil {
+				restoreHuntRun()
 				return before, 0, fmt.Errorf("hunt: merge restore: %v (raw dir left: %v)", rerr, derr)
 			}
 		}
+		restoreHuntRun()
 		after, _ = countCorpusFiles(corpusDir)
 		return before, after, fmt.Errorf("hunt: merge failed (restored raw): %s", truncateMergeLog(out.String()))
 	}
@@ -100,6 +126,7 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 	// looked like a short wall ("lf_wall_short") and was skipped, on miners and local Hunt
 	// alike (customer e2e 2026-11-13: a planted heap overflow found in <1 s, never reported).
 	keepSessionDirs(rawDir, corpusDir)
+	restoreHuntRun()
 	var cleanupErr error
 	if derr := os.RemoveAll(rawDir); derr != nil {
 		cleanupErr = fmt.Errorf("hunt: merge: remove %s: %w", filepath.Base(rawDir), derr)
