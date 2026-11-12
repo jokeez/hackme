@@ -42,7 +42,7 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 		return before, before, fmt.Errorf("hunt: merge lock: %w", lerr)
 	}
 	defer guard.Release()
-	if n := adoptStaleRawMergeDirs(parent, corpusDir, staleRawMergeAge); n > 0 {
+	if n := AdoptStaleRawMergeDirs(parent, corpusDir, staleRawMergeAge); n > 0 {
 		before, _ = countCorpusFiles(corpusDir)
 	}
 	// Unique raw dir so concurrent merges on the same parent cannot clobber each other.

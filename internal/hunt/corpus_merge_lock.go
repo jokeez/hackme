@@ -15,6 +15,9 @@ import (
 // running merge (merge wall is 10 minutes), so its inputs are folded back.
 const staleRawMergeAge = 30 * time.Minute
 
+// StaleRawMergeAgeForOps is the default min-age for adopt-stale cleanup tools.
+func StaleRawMergeAgeForOps() time.Duration { return staleRawMergeAge }
+
 const rawMergePrefix = "corpus.raw-merge."
 
 // acquireCorpusMergeLock takes a non-blocking, cross-process lock for merges of the
@@ -35,7 +38,8 @@ func acquireCorpusMergeLock(parent string) (*workerlock.Guard, error) {
 // crashed or raced merges) back into corpusDir and removes the dirs. Only regular
 // files are moved (never symlinks); names that already exist are content-hash names
 // of the same input and are dropped. Returns the number of dirs removed.
-func adoptStaleRawMergeDirs(parent, corpusDir string, minAge time.Duration) int {
+// AdoptStaleRawMergeDirs is exported for corpus-adopt-stale ops tooling.
+func AdoptStaleRawMergeDirs(parent, corpusDir string, minAge time.Duration) int {
 	ents, err := os.ReadDir(parent)
 	if err != nil {
 		return 0

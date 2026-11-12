@@ -31,7 +31,7 @@ func TestAdoptStaleRawMergeDirsFoldsInputsBack(t *testing.T) {
 	must(t, os.MkdirAll(fresh, 0o755))
 	must(t, os.WriteFile(filepath.Join(fresh, "c"), []byte("c"), 0o600))
 
-	if n := adoptStaleRawMergeDirs(parent, corpus, staleRawMergeAge); n != 1 {
+	if n := AdoptStaleRawMergeDirs(parent, corpus, staleRawMergeAge); n != 1 {
 		t.Fatalf("removed %d dirs, want 1", n)
 	}
 	if _, err := os.Stat(old); !os.IsNotExist(err) {
