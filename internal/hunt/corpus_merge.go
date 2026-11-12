@@ -3,10 +3,13 @@ package hunt
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
+
+	"hackme/internal/workerlock"
 )
 
 const (
@@ -25,6 +28,23 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 		return before, before, fmt.Errorf("hunt: merge: fuzzer bin missing: %s", fuzzerBin)
 	}
 	parent := filepath.Dir(corpusDir)
+	// Several workers (workerfuzz -worker N) share one persistent corpus. Without a
+	// cross-process lock their rename/restore steps interleave: restores fail on a
+	// non-empty corpus and every failed merge strands a corpus.raw-merge.* dir — on
+	// the bootstrap host that leaked ~2M files and exhausted the filesystem's inodes.
+	// Only one merge per corpus at a time; a busy lock means another worker is
+	// already minimizing this corpus, so skip.
+	guard, lerr := acquireCorpusMergeLock(parent)
+	if lerr != nil {
+		if errors.Is(lerr, workerlock.ErrAlreadyRunning) {
+			return before, before, nil
+		}
+		return before, before, fmt.Errorf("hunt: merge lock: %w", lerr)
+	}
+	defer guard.Release()
+	if n := adoptStaleRawMergeDirs(parent, corpusDir, staleRawMergeAge); n > 0 {
+		before, _ = countCorpusFiles(corpusDir)
+	}
 	// Unique raw dir so concurrent merges on the same parent cannot clobber each other.
 	rawDir := filepath.Join(parent, fmt.Sprintf("corpus.raw-merge.%d.%d", os.Getpid(), time.Now().UnixNano()))
 	if err := os.Rename(corpusDir, rawDir); err != nil {
@@ -62,18 +82,26 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 		// Merge failed — restore raw.
 		_ = os.RemoveAll(corpusDir)
 		if rerr := os.Rename(rawDir, corpusDir); rerr != nil {
-			return before, 0, fmt.Errorf("hunt: merge produced empty corpus: %s", out.String())
+			// Never strand the raw inputs: fold them back file by file.
+			_ = os.MkdirAll(corpusDir, 0o755)
+			moveCorpusFiles(rawDir, corpusDir)
+			if derr := os.RemoveAll(rawDir); derr != nil {
+				return before, 0, fmt.Errorf("hunt: merge restore: %v (raw dir left: %v)", rerr, derr)
+			}
 		}
 		after, _ = countCorpusFiles(corpusDir)
 		return before, after, fmt.Errorf("hunt: merge failed (restored raw): %s", truncateMergeLog(out.String()))
 	}
-	_ = os.RemoveAll(rawDir)
+	var cleanupErr error
+	if derr := os.RemoveAll(rawDir); derr != nil {
+		cleanupErr = fmt.Errorf("hunt: merge: remove %s: %w", filepath.Base(rawDir), derr)
+	}
 	_ = pruneCorpusDir(corpusDir, defaultMaxPersistentCorpus)
 	after, _ = countCorpusFiles(corpusDir)
 	_ = os.WriteFile(filepath.Join(parent, "merge_stats.json"),
 		[]byte(fmt.Sprintf("{\n  \"before\": %d,\n  \"after\": %d,\n  \"max_cap\": %d\n}\n", before, after, defaultMaxPersistentCorpus)),
 		0o644)
-	return before, after, nil
+	return before, after, cleanupErr
 }
 
 // MergeMinimizePersistentCorpus builds (or reuses) the LF binary and merges the durable corpus.
