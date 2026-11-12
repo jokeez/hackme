@@ -458,6 +458,16 @@ type fuzzEscrowDBRow struct {
 	status              string
 	refundedBountyUnits uint64
 	escrowSplit         string
+	// feeAsset is set only when the escrow was priced under Economics v2 (the 10%
+	// order fee was taken at open). Empty = v1 pricing (5% taken at bounty payout).
+	feeAsset string
+}
+
+// orderFeeTakenAtOpen reports whether this escrow already paid the platform fee at open.
+// Decided by the pricing recorded at open — never by the current tip: a v1 order
+// settled after the fork keeps v1 terms.
+func (r *fuzzEscrowDBRow) orderFeeTakenAtOpen() bool {
+	return r != nil && strings.TrimSpace(r.feeAsset) != ""
 }
 
 // bountyLeftUnits is the bounty pool still held: pool − paid slice − crash bonus − already refunded.
@@ -478,10 +488,10 @@ func (s *Service) readFuzzEscrow(ctx context.Context, q queryRowContext, campaig
 	err := q.QueryRowContext(ctx,
 		`SELECT campaign_id, budget_units, runs_pool_units, bounty_pool_units, runs_paid_units, bounty_paid_units,
 		        COALESCE(crash_bonus_paid_units,0), runs_done, budget_runs, per_run_units, finding_winner, status,
-		        COALESCE(refunded_bounty_units,0), COALESCE(escrow_split,'20_80')
+		        COALESCE(refunded_bounty_units,0), COALESCE(escrow_split,'20_80'), COALESCE(fee_asset,'')
 		 FROM fuzz_campaign_escrow WHERE campaign_id=?`, campaignID).
 		Scan(&r.campaignID, &r.budgetUnits, &r.runsPoolUnits, &r.bountyPoolUnits, &r.runsPaidUnits, &r.bountyPaidUnits,
-			&r.crashBonusPaidUnits, &r.runsDone, &r.budgetRuns, &r.perRunUnits, &r.findingWinner, &r.status, &r.refundedBountyUnits, &r.escrowSplit)
+			&r.crashBonusPaidUnits, &r.runsDone, &r.budgetRuns, &r.perRunUnits, &r.findingWinner, &r.status, &r.refundedBountyUnits, &r.escrowSplit, &r.feeAsset)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrFuzzEscrowNotFound
 	}
