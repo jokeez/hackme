@@ -166,6 +166,9 @@ func MaybeRunResearchSlot(ctx context.Context, run ResearchSlotRun) ResearchSlot
 }
 
 func snapshotCorpusHashes(dir string) (map[string]string, error) {
+	if !hunt.CorpusPathConfined(dir, dir) {
+		return nil, fmt.Errorf("research corpus dir escapes root")
+	}
 	ents, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -176,7 +179,7 @@ func snapshotCorpusHashes(dir string) (map[string]string, error) {
 			continue
 		}
 		p := filepath.Join(dir, e.Name())
-		b, err := hunt.ReadRegularCorpusFile(p, 1<<20)
+		b, err := hunt.ReadRegularCorpusFileUnder(dir, p, 1<<20)
 		if err != nil || len(b) == 0 {
 			continue
 		}
@@ -187,6 +190,9 @@ func snapshotCorpusHashes(dir string) (map[string]string, error) {
 }
 
 func collectResearchDelta(dir string, before map[string]string, maxFiles int) (seeds []fuzzengine.PoolCorpusSeed, crashes [][]byte, err error) {
+	if !hunt.CorpusPathConfined(dir, dir) {
+		return nil, nil, nil
+	}
 	ents, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -204,7 +210,7 @@ func collectResearchDelta(dir string, before map[string]string, maxFiles int) (s
 		name := e.Name()
 		low := strings.ToLower(name)
 		p := filepath.Join(dir, name)
-		b, rerr := hunt.ReadRegularCorpusFile(p, 65536)
+		b, rerr := hunt.ReadRegularCorpusFileUnder(dir, p, 65536)
 		if rerr != nil || len(b) == 0 {
 			continue
 		}

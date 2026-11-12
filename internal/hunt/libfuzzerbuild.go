@@ -368,6 +368,13 @@ func readOpenSessionLog(f *os.File) string {
 }
 
 func countCorpusFiles(dir string) (int, error) {
+	return countCorpusFilesUnder(dir, dir)
+}
+
+func countCorpusFilesUnder(root, dir string) (int, error) {
+	if root != "" && !corpusPathConfined(root, dir) {
+		return 0, nil
+	}
 	ents, err := os.ReadDir(dir)
 	if err != nil {
 		return 0, err
@@ -378,7 +385,7 @@ func countCorpusFiles(dir string) (int, error) {
 			continue
 		}
 		// Count regular files only — RW corpus may contain planted symlinks.
-		if _, ok := isRegularCorpusFile(filepath.Join(dir, e.Name())); !ok {
+		if _, ok := isRegularCorpusFileUnder(root, filepath.Join(dir, e.Name())); !ok {
 			continue
 		}
 		n++
@@ -394,7 +401,7 @@ func seedPersistentCorpus(repoRoot, targetID, corpusDir string) error {
 			if e.IsDir() {
 				continue
 			}
-			b, err := ReadRegularCorpusFile(filepath.Join(src, e.Name()), 1<<20)
+			b, err := ReadRegularCorpusFileUnder(src, filepath.Join(src, e.Name()), 1<<20)
 			if err != nil || len(b) == 0 {
 				continue
 			}

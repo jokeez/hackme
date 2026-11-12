@@ -70,6 +70,28 @@ func TestCollectEngineDeltaSkipsPreLeaseFiles(t *testing.T) {
 	}
 }
 
+func TestCollectEngineDeltaRefusesIntermediateDirSymlink(t *testing.T) {
+	dir := t.TempDir()
+	host := t.TempDir()
+	if err := os.WriteFile(filepath.Join(host, "exfil.bin"), []byte("host-leak"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	via := filepath.Join(dir, "nested")
+	if err := os.MkdirAll(via, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(host, filepath.Join(via, "queue")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "good.bin"), []byte("ok"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	seeds, _ := collectEngineDelta(hunt.EngineShardResult{CorpusDir: dir}, nil, 32)
+	if len(seeds) != 1 || string(seeds[0].InputBytes) != "ok" {
+		t.Fatalf("dir symlink must not enumerate host; got %#v", seeds)
+	}
+}
+
 func TestCollectEngineDeltaRefusesSymlinkHostSecret(t *testing.T) {
 	dir := t.TempDir()
 	secretDir := t.TempDir()
