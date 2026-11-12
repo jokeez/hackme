@@ -461,8 +461,10 @@ func (a *app) schedulePoolFuzzSync(ctx context.Context, c fuzzAutoCampaign) (syn
 	}
 
 	if err := a.syncPoolFuzzCampaignSync(ctx, c, title, desc, ctype); err != nil {
+		a.poolSyncMarkFailed(c.ID, err)
 		return "fail", err.Error()
 	}
+	a.poolSyncMarkOK(c.ID)
 	return "ok", ""
 }
 
