@@ -98,7 +98,7 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 	}
 	_ = pruneCorpusDir(corpusDir, defaultMaxPersistentCorpus)
 	after, _ = countCorpusFiles(corpusDir)
-	_ = os.WriteFile(filepath.Join(parent, "merge_stats.json"),
+	_ = writeFileBeneath(parent, filepath.Join(parent, "merge_stats.json"),
 		[]byte(fmt.Sprintf("{\n  \"before\": %d,\n  \"after\": %d,\n  \"max_cap\": %d\n}\n", before, after, defaultMaxPersistentCorpus)),
 		0o644)
 	return before, after, cleanupErr

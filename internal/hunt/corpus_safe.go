@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 )
 
 // ReadRegularCorpusFile reads path only when it is a non-symlink regular file.
@@ -27,6 +26,12 @@ func corpusPathConfined(root, path string) bool {
 	absRoot, err := filepath.Abs(filepath.Clean(root))
 	if err != nil {
 		return false
+	}
+	// Resolve the root too: it is host-chosen, and a legit symlink in its path
+	// (macOS /tmp → /private/tmp, a symlinked home or data disk) would otherwise put
+	// every resolved child "outside" and silently empty the corpus.
+	if rr, rerr := filepath.EvalSymlinks(absRoot); rerr == nil {
+		absRoot = rr
 	}
 	resolved, err := filepath.EvalSymlinks(path)
 	if err != nil {
@@ -55,7 +60,7 @@ func ReadRegularCorpusFileUnder(root, path string, maxSize int64) ([]byte, error
 	}
 	// O_NOFOLLOW closes the Lstat-then-ReadFile race: a harness that swaps the
 	// path for a symlink between the check and the read must not be followed.
-	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	f, err := os.OpenFile(path, os.O_RDONLY|oNoFollow, 0)
 	if err != nil {
 		return nil, err
 	}

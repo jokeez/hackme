@@ -11,7 +11,6 @@ import (
 	"runtime"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -27,9 +26,9 @@ type EngineShardResult struct {
 	CrashFiles    []string
 	// CorpusCollectRoots bounds ReadRegularCorpusFileUnder for delta uploads (persist + AFL out).
 	CorpusCollectRoots []string
-	SkippedReason string
-	Err           string
-	Ran           bool
+	SkippedReason      string
+	Err                string
+	Ran                bool
 }
 
 // EngineShardOpts configures a coverage-guided Hunt shard (lease = wall seconds).
@@ -145,7 +144,7 @@ func runLibFuzzerEngineShard(ctx context.Context, repoRoot, targetID string, wal
 		if len(b) == 0 || len(b) > 65536 {
 			continue
 		}
-		if err := os.WriteFile(filepath.Join(corpusDir, fmt.Sprintf("claim-seed-%d.bin", i)), b, 0o600); err == nil {
+		if err := writeFileBeneath(corpusDir, filepath.Join(corpusDir, fmt.Sprintf("claim-seed-%d.bin", i)), b, 0o600); err == nil {
 			seeded++
 		}
 	}
@@ -298,9 +297,10 @@ func runAFLPPEngineShard(ctx context.Context, repoRoot, targetID string, wall in
 	work := filepath.Join(repoRoot, ".cache", "hunt-afl", catalogTargetSegment(targetID))
 	inDir := filepath.Join(work, "in")
 	outDir := filepath.Join(work, "out")
-	_ = os.MkdirAll(inDir, 0o755)
-	_ = os.RemoveAll(outDir)
-	_ = os.MkdirAll(outDir, 0o755)
+	_ = os.MkdirAll(work, 0o755)
+	_ = mkdirAllBeneath(work, inDir, 0o755)
+	_ = os.RemoveAll(outDir) // RemoveAll unlinks symlinks, never follows them
+	_ = mkdirAllBeneath(work, outDir, 0o755)
 
 	// Seed from persistent LF corpus + claim seeds.
 	persist := PersistentLibFuzzerCorpusDir(repoRoot, targetID)
@@ -309,11 +309,11 @@ func runAFLPPEngineShard(ctx context.Context, repoRoot, targetID string, wall in
 		if len(b) == 0 || len(b) > 65536 {
 			continue
 		}
-		_ = os.WriteFile(filepath.Join(inDir, fmt.Sprintf("claim-%d.bin", i)), b, 0o600)
+		_ = writeFileBeneath(work, filepath.Join(inDir, fmt.Sprintf("claim-%d.bin", i)), b, 0o600)
 	}
 	if n, _ := countCorpusFilesUnder(work, inDir); n == 0 {
-		_ = os.WriteFile(filepath.Join(inDir, "seed1.json"), []byte("{}"), 0o600)
-		_ = os.WriteFile(filepath.Join(inDir, "seed2.bin"), []byte{0x00}, 0o600)
+		_ = writeFileBeneath(work, filepath.Join(inDir, "seed1.json"), []byte("{}"), 0o600)
+		_ = writeFileBeneath(work, filepath.Join(inDir, "seed2.bin"), []byte{0x00}, 0o600)
 	}
 	beforePersist, _ := countCorpusFilesUnder(persist, persist)
 	out.CorpusBefore = beforePersist
@@ -329,7 +329,7 @@ func runAFLPPEngineShard(ctx context.Context, repoRoot, targetID string, wall in
 	args := []string{"-i", inDir, "-o", outDir, "-V", fmt.Sprint(wall)}
 	if len(opts.DictBytes) > 0 {
 		dictPath := filepath.Join(work, "afl.dict")
-		if err := os.WriteFile(dictPath, opts.DictBytes, 0o600); err == nil {
+		if err := writeFileBeneath(work, dictPath, opts.DictBytes, 0o600); err == nil {
 			args = append(args, "-x", dictPath)
 		}
 	}
@@ -506,7 +506,7 @@ func placeCorpusFile(srcRoot, srcPath, dest string) bool {
 	if srcRoot != "" && !corpusPathConfined(srcRoot, srcPath) {
 		return false
 	}
-	f, err := os.OpenFile(srcPath, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	f, err := os.OpenFile(srcPath, os.O_RDONLY|oNoFollow, 0)
 	if err != nil {
 		return false
 	}
@@ -532,7 +532,7 @@ func placeCorpusFile(srcRoot, srcPath, dest string) bool {
 	if err != nil || int64(len(b)) != info.Size() || len(b) == 0 {
 		return false
 	}
-	return os.WriteFile(dest, b, 0o600) == nil
+	return writeFileBeneath(filepath.Dir(dest), dest, b, 0o600) == nil
 }
 
 func listFiles(root, dir string, max int) []string {
