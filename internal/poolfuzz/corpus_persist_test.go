@@ -40,7 +40,7 @@ func TestCorpusPersistCrossCampaignE2E(t *testing.T) {
 	const exportedInput = uint64(0x0123456789ABCDEF0)
 	if err := svc.RegisterCampaign(ctx, Campaign{
 		ID: "persist-a", CampaignType: "property", Title: "export", Status: "running",
-		OwnerRef: "customer:same-tenant",
+		OwnerRef:   "customer:same-tenant",
 		BudgetRuns: 8, BudgetSeconds: 120, Config: cfg,
 	}); err != nil {
 		t.Fatal(err)
@@ -61,7 +61,7 @@ func TestCorpusPersistCrossCampaignE2E(t *testing.T) {
 
 	if err := svc.RegisterCampaign(ctx, Campaign{
 		ID: "persist-b", CampaignType: "property", Title: "import", Status: "running",
-		OwnerRef: "customer:same-tenant",
+		OwnerRef:   "customer:same-tenant",
 		BudgetRuns: 8, BudgetSeconds: 120, Config: cfg,
 	}); err != nil {
 		t.Fatal(err)
