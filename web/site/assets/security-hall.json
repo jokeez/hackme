@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-11",
+  "updated": "2026-11-12",
   "program": {
     "asset": "HMC",
     "monthly_budget_hmc": 200,
@@ -13,9 +13,9 @@
     "limit_hmc": 200
   },
   "stats": {
-    "total_paid_hmc": 1400,
+    "total_paid_hmc": 1550,
     "researchers": 6,
-    "reports_accepted": 41
+    "reports_accepted": 44
   },
   "researchers": [
     {
@@ -41,8 +41,41 @@
       "id": "fimasw",
       "name": "fimasw",
       "handle": "fimasw",
-      "total_paid_hmc": 610,
+      "total_paid_hmc": 760,
       "findings": [
+        {
+          "title": "Hunt worker host writes follow harness-planted symlinks (merge_stats.json, session.stderr, dicts, seeds)",
+          "severity": "high",
+          "paid_hmc": 60,
+          "date": "2026-11-12",
+          "reported": "2026-11-12",
+          "commit": "16034dad",
+          "txid": "",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Write-side counterpart of the read-side symlink series: os.WriteFile/os.Create into cage-bound RW dirs followed planted links, letting a customer harness overwrite/truncate any file the worker UID can write. Fixed with openat(O_NOFOLLOW) walks from the bind root + unlinkat/O_EXCL create for every host write. Reporter honestly scoped impact (no arbitrary-content write)."
+        },
+        {
+          "title": "Economics v2 charges the 5% platform fee twice on Dig/Hunt bounty payout",
+          "severity": "medium",
+          "paid_hmc": 30,
+          "date": "2026-11-12",
+          "reported": "2026-11-12",
+          "commit": "49d16d47",
+          "txid": "",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "v2 takes 5% burn + 5% platform at open, yet payFuzzBountyTx took 5% of the already-net bounty pool again (finder got 95%). Payout fee now follows the pricing recorded at open (fee_asset), so v1 orders settled after the fork keep v1 terms. Reporter self-corrected the victim (miner slice, not customer)."
+        },
+        {
+          "title": "Hunt corpus collectors follow intermediate-directory symlinks",
+          "severity": "high",
+          "paid_hmc": 60,
+          "date": "2026-11-12",
+          "reported": "2026-11-11",
+          "commit": "56bcfcd9",
+          "txid": "",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Incomplete fix of the Hunt corpus symlink High: Lstat/O_NOFOLLOW guarded only the final component, so a harness-planted directory symlink still redirected corpus reads outside the bind. Collectors now require the resolved path to stay under the root."
+        },
         {
           "title": "Dig pack corpus namespace cross-tenant leak (pack:id shared)",
           "severity": "high",
