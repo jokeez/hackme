@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"hackme/internal/fuzzengine"
 	"hackme/internal/pathsafe"
@@ -218,7 +217,7 @@ func min(a, b int) int {
 
 // readRegularNoFollow reads path only when the final component is a regular file.
 func readRegularNoFollow(path string, maxSize int64) ([]byte, error) {
-	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	f, err := os.OpenFile(path, os.O_RDONLY|oNoFollow, 0)
 	if err != nil {
 		return nil, err
 	}

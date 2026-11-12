@@ -17,7 +17,7 @@ func TestCopyCorpusFilesHardlinkSameFS(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(src, "id:000002"), []byte("seed-body-bbbb"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	n := copyCorpusFiles(src, dst, 32)
+	n := copyCorpusFiles(src, src, dst, 32)
 	if n != 2 {
 		t.Fatalf("copied=%d want 2", n)
 	}
@@ -65,7 +65,7 @@ func TestCopyCorpusFilesSkipsExistingAndOversized(t *testing.T) {
 	if err := os.WriteFile(pre, []byte("already"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	n := copyCorpusFiles(src, dst, 32)
+	n := copyCorpusFiles(src, src, dst, 32)
 	if n != 0 {
 		t.Fatalf("existing dest must skip; oversized ignored; got n=%d", n)
 	}
@@ -86,7 +86,7 @@ func TestCopyCorpusFilesRespectsMaxAndStableOrder(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	n := copyCorpusFiles(src, dst, 2)
+	n := copyCorpusFiles(src, src, dst, 2)
 	if n != 2 {
 		t.Fatalf("n=%d want 2", n)
 	}
@@ -113,7 +113,7 @@ func TestCopyCorpusFilesCrashPrefix(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(crashDir, "id:crash1"), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	n := copyCorpusFiles(crashDir, dst, 8)
+	n := copyCorpusFiles(src, crashDir, dst, 8)
 	if n != 1 {
 		t.Fatalf("n=%d", n)
 	}
@@ -130,7 +130,7 @@ func TestPlaceCorpusFileFallbackCopy(t *testing.T) {
 		t.Fatal(err)
 	}
 	dest := filepath.Join(dst, "out")
-	if !placeCorpusFile(srcFile, dest) {
+	if !placeCorpusFile(src, srcFile, dest) {
 		t.Fatal("place failed")
 	}
 	got, err := os.ReadFile(dest)
@@ -159,7 +159,7 @@ func TestCopyCorpusFilesRefusesSymlinkToHostSecret(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(src, "ok"), []byte("seed"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	n := copyCorpusFiles(src, dst, 32)
+	n := copyCorpusFiles(src, src, dst, 32)
 	if n != 1 {
 		t.Fatalf("copied=%d want 1 (symlink skipped)", n)
 	}
@@ -170,8 +170,56 @@ func TestCopyCorpusFilesRefusesSymlinkToHostSecret(t *testing.T) {
 	if err != nil || string(got) != "seed" {
 		t.Fatalf("regular seed missing: %q err=%v", got, err)
 	}
-	if placeCorpusFile(filepath.Join(src, "leak"), filepath.Join(dst, "placed")) {
+	if placeCorpusFile(src, filepath.Join(src, "leak"), filepath.Join(dst, "placed")) {
 		t.Fatal("placeCorpusFile must refuse symlink source")
+	}
+}
+
+func TestCopyCorpusFilesRefusesIntermediateDirSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink semantics differ on windows")
+	}
+	work := t.TempDir()
+	host := t.TempDir()
+	secret := []byte("HACKME_ADMIN_TOKEN=exfil\n")
+	if err := os.WriteFile(filepath.Join(host, "id:000001"), secret, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outDir := filepath.Join(work, "out")
+	if err := os.MkdirAll(filepath.Join(outDir, "default"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	queue := filepath.Join(outDir, "default", "queue")
+	if err := os.Symlink(host, queue); err != nil {
+		t.Fatal(err)
+	}
+	dst := t.TempDir()
+	n := copyCorpusFiles(outDir, queue, dst, 32)
+	if n != 0 {
+		t.Fatalf("intermediate dir symlink must not enumerate host files; copied=%d", n)
+	}
+	if _, err := os.Stat(filepath.Join(dst, "afl-id:000001")); err == nil {
+		t.Fatal("host file must not land in persist corpus")
+	}
+}
+
+func TestReadRegularCorpusFileRefusesIntermediateDirSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink semantics differ on windows")
+	}
+	root := t.TempDir()
+	host := t.TempDir()
+	target := filepath.Join(host, "secret")
+	if err := os.WriteFile(target, []byte("HOST-LEAK"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	linkDir := filepath.Join(root, "via")
+	if err := os.Symlink(host, linkDir); err != nil {
+		t.Fatal(err)
+	}
+	leakPath := filepath.Join(linkDir, "secret")
+	if _, err := ReadRegularCorpusFileUnder(root, leakPath, 65536); err == nil {
+		t.Fatal("intermediate dir symlink must not expose host file")
 	}
 }
 

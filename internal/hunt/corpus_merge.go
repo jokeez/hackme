@@ -84,7 +84,7 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 		if rerr := os.Rename(rawDir, corpusDir); rerr != nil {
 			// Never strand the raw inputs: fold them back file by file.
 			_ = os.MkdirAll(corpusDir, 0o755)
-			moveCorpusFiles(rawDir, corpusDir)
+			moveCorpusFiles(parent, rawDir, corpusDir)
 			if derr := os.RemoveAll(rawDir); derr != nil {
 				return before, 0, fmt.Errorf("hunt: merge restore: %v (raw dir left: %v)", rerr, derr)
 			}
@@ -98,7 +98,7 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 	}
 	_ = pruneCorpusDir(corpusDir, defaultMaxPersistentCorpus)
 	after, _ = countCorpusFiles(corpusDir)
-	_ = os.WriteFile(filepath.Join(parent, "merge_stats.json"),
+	_ = writeFileBeneath(parent, filepath.Join(parent, "merge_stats.json"),
 		[]byte(fmt.Sprintf("{\n  \"before\": %d,\n  \"after\": %d,\n  \"max_cap\": %d\n}\n", before, after, defaultMaxPersistentCorpus)),
 		0o644)
 	return before, after, cleanupErr
@@ -115,7 +115,14 @@ func MergeMinimizePersistentCorpus(ctx context.Context, repoRoot, targetID strin
 }
 
 func pruneCorpusDir(dir string, maxKeep int) error {
+	return pruneCorpusDirUnder(dir, dir, maxKeep)
+}
+
+func pruneCorpusDirUnder(root, dir string, maxKeep int) error {
 	if maxKeep <= 0 {
+		return nil
+	}
+	if root != "" && !corpusPathConfined(root, dir) {
 		return nil
 	}
 	ents, err := os.ReadDir(dir)
@@ -132,7 +139,7 @@ func pruneCorpusDir(dir string, maxKeep int) error {
 		if e.IsDir() || len(e.Name()) == 0 || e.Name()[0] == '.' {
 			continue
 		}
-		info, ok := isRegularCorpusFile(filepath.Join(dir, e.Name()))
+		info, ok := isRegularCorpusFileUnder(root, filepath.Join(dir, e.Name()))
 		if !ok {
 			continue
 		}

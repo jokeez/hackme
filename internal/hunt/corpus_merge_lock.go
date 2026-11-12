@@ -54,7 +54,7 @@ func AdoptStaleRawMergeDirs(parent, corpusDir string, minAge time.Duration) int 
 		if err != nil || !info.IsDir() || time.Since(info.ModTime()) < minAge {
 			continue
 		}
-		moveCorpusFiles(dir, corpusDir)
+		moveCorpusFiles(parent, dir, corpusDir)
 		if os.RemoveAll(dir) == nil {
 			removed++
 		}
@@ -63,14 +63,17 @@ func AdoptStaleRawMergeDirs(parent, corpusDir string, minAge time.Duration) int 
 }
 
 // moveCorpusFiles moves regular files from src into dst (no overwrite).
-func moveCorpusFiles(src, dst string) {
+func moveCorpusFiles(srcRoot, src, dst string) {
+	if srcRoot != "" && !corpusPathConfined(srcRoot, src) {
+		return
+	}
 	ents, err := os.ReadDir(src)
 	if err != nil {
 		return
 	}
 	for _, e := range ents {
 		from := filepath.Join(src, e.Name())
-		if _, ok := isRegularCorpusFile(from); !ok {
+		if _, ok := isRegularCorpusFileUnder(srcRoot, from); !ok {
 			continue
 		}
 		to := filepath.Join(dst, e.Name())

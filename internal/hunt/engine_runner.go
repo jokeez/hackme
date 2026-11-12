@@ -11,7 +11,6 @@ import (
 	"runtime"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -25,9 +24,11 @@ type EngineShardResult struct {
 	CorpusAfter   int
 	NewCorpus     int
 	CrashFiles    []string
-	SkippedReason string
-	Err           string
-	Ran           bool
+	// CorpusCollectRoots bounds ReadRegularCorpusFileUnder for delta uploads (persist + AFL out).
+	CorpusCollectRoots []string
+	SkippedReason      string
+	Err                string
+	Ran                bool
 }
 
 // EngineShardOpts configures a coverage-guided Hunt shard (lease = wall seconds).
@@ -135,21 +136,22 @@ func runLibFuzzerEngineShard(ctx context.Context, repoRoot, targetID string, wal
 		return out
 	}
 	out.CorpusDir = corpusDir
-	before, _ := countCorpusFiles(corpusDir)
+	out.CorpusCollectRoots = []string{corpusDir}
+	before, _ := countCorpusFilesUnder(corpusDir, corpusDir)
 	out.CorpusBefore = before
 	seeded := 0
 	for i, b := range opts.SeedFiles {
 		if len(b) == 0 || len(b) > 65536 {
 			continue
 		}
-		if err := os.WriteFile(filepath.Join(corpusDir, fmt.Sprintf("claim-seed-%d.bin", i)), b, 0o600); err == nil {
+		if err := writeFileBeneath(corpusDir, filepath.Join(corpusDir, fmt.Sprintf("claim-seed-%d.bin", i)), b, 0o600); err == nil {
 			seeded++
 		}
 	}
 	// Defense: empty claim seeds → pull L2 pack cache / tiny boots so TLV targets are not
 	// stuck with only "{}" starters on miners that never saw seed_byte_corpus.
 	if seeded == 0 {
-		if n, _ := countCorpusFiles(corpusDir); n == 0 {
+		if n, _ := countCorpusFilesUnder(corpusDir, corpusDir); n == 0 {
 			_ = seedPersistentCorpus(repoRoot, targetID, corpusDir)
 		}
 	}
@@ -185,13 +187,14 @@ func runLibFuzzerEngineShard(ctx context.Context, repoRoot, targetID string, wal
 	n, err := RunLibFuzzerSession(ctx, sess)
 	_ = n
 	elapsed := time.Since(started)
-	after, _ := countCorpusFiles(corpusDir)
+	after, _ := countCorpusFilesUnder(corpusDir, corpusDir)
 	out.CorpusAfter = after
 	if after > before {
 		out.NewCorpus = after - before
 	}
 	// LF crashes live under corpusDir/.hunt-run (session Dir bind); never parent tree.
-	out.CrashFiles = collectCrashArtifacts(filepath.Join(corpusDir, ".hunt-run"), 16)
+	runRoot := filepath.Join(corpusDir, ".hunt-run")
+	out.CrashFiles = collectCrashArtifacts(corpusDir, runRoot, 16)
 	if err != nil {
 		out.Err = err.Error()
 	}
@@ -199,7 +202,7 @@ func runLibFuzzerEngineShard(ctx context.Context, repoRoot, targetID string, wal
 	// Empty corpus after LF ran → CLEAN floor submit + re-seed boot starters (avoid lease churn).
 	if after == 0 {
 		_ = seedPersistentCorpus(repoRoot, targetID, corpusDir)
-		if after2, _ := countCorpusFiles(corpusDir); after2 > after {
+		if after2, _ := countCorpusFilesUnder(corpusDir, corpusDir); after2 > after {
 			out.CorpusAfter = after2
 		}
 	}
@@ -294,26 +297,28 @@ func runAFLPPEngineShard(ctx context.Context, repoRoot, targetID string, wall in
 	work := filepath.Join(repoRoot, ".cache", "hunt-afl", catalogTargetSegment(targetID))
 	inDir := filepath.Join(work, "in")
 	outDir := filepath.Join(work, "out")
-	_ = os.MkdirAll(inDir, 0o755)
-	_ = os.RemoveAll(outDir)
-	_ = os.MkdirAll(outDir, 0o755)
+	_ = os.MkdirAll(work, 0o755)
+	_ = mkdirAllBeneath(work, inDir, 0o755)
+	_ = os.RemoveAll(outDir) // RemoveAll unlinks symlinks, never follows them
+	_ = mkdirAllBeneath(work, outDir, 0o755)
 
 	// Seed from persistent LF corpus + claim seeds.
 	persist := PersistentLibFuzzerCorpusDir(repoRoot, targetID)
-	copyCorpusFiles(persist, inDir, 32)
+	copyCorpusFiles(persist, persist, inDir, 32)
 	for i, b := range seeds {
 		if len(b) == 0 || len(b) > 65536 {
 			continue
 		}
-		_ = os.WriteFile(filepath.Join(inDir, fmt.Sprintf("claim-%d.bin", i)), b, 0o600)
+		_ = writeFileBeneath(work, filepath.Join(inDir, fmt.Sprintf("claim-%d.bin", i)), b, 0o600)
 	}
-	if n, _ := countCorpusFiles(inDir); n == 0 {
-		_ = os.WriteFile(filepath.Join(inDir, "seed1.json"), []byte("{}"), 0o600)
-		_ = os.WriteFile(filepath.Join(inDir, "seed2.bin"), []byte{0x00}, 0o600)
+	if n, _ := countCorpusFilesUnder(work, inDir); n == 0 {
+		_ = writeFileBeneath(work, filepath.Join(inDir, "seed1.json"), []byte("{}"), 0o600)
+		_ = writeFileBeneath(work, filepath.Join(inDir, "seed2.bin"), []byte{0x00}, 0o600)
 	}
-	beforePersist, _ := countCorpusFiles(persist)
+	beforePersist, _ := countCorpusFilesUnder(persist, persist)
 	out.CorpusBefore = beforePersist
 	out.CorpusDir = persist
+	out.CorpusCollectRoots = []string{persist, outDir}
 
 	env := append(os.Environ(),
 		"AFL_SKIP_CPUFREQ=1",
@@ -324,7 +329,7 @@ func runAFLPPEngineShard(ctx context.Context, repoRoot, targetID string, wall in
 	args := []string{"-i", inDir, "-o", outDir, "-V", fmt.Sprint(wall)}
 	if len(opts.DictBytes) > 0 {
 		dictPath := filepath.Join(work, "afl.dict")
-		if err := os.WriteFile(dictPath, opts.DictBytes, 0o600); err == nil {
+		if err := writeFileBeneath(work, dictPath, opts.DictBytes, 0o600); err == nil {
 			args = append(args, "-x", dictPath)
 		}
 	}
@@ -359,16 +364,16 @@ func runAFLPPEngineShard(ctx context.Context, repoRoot, targetID string, wall in
 		filepath.Join(outDir, "default", "queue"),
 		filepath.Join(outDir, "queue"),
 	} {
-		imported += copyCorpusFiles(d, persist, 64)
+		imported += copyCorpusFiles(outDir, d, persist, 64)
 	}
 	for _, d := range []string{
 		filepath.Join(outDir, "default", "crashes"),
 		filepath.Join(outDir, "crashes"),
 	} {
-		out.CrashFiles = append(out.CrashFiles, listFiles(d, 16)...)
+		out.CrashFiles = append(out.CrashFiles, listFiles(outDir, d, 16)...)
 	}
-	_ = pruneCorpusDir(persist, defaultMaxPersistentCorpus)
-	afterPersist, _ := countCorpusFiles(persist)
+	_ = pruneCorpusDirUnder(persist, persist, defaultMaxPersistentCorpus)
+	afterPersist, _ := countCorpusFilesUnder(persist, persist)
 	out.CorpusAfter = afterPersist
 	if afterPersist > beforePersist {
 		out.NewCorpus = afterPersist - beforePersist
@@ -448,9 +453,12 @@ func resolveAFLStdinHarness(ctx context.Context, repoRoot, targetID string, opts
 	return "", false, fmt.Errorf("hunt: no AFL stdin harness for %s", targetID)
 }
 
-func copyCorpusFiles(src, dst string, max int) int {
+func copyCorpusFiles(srcRoot, src, dst string, max int) int {
 	if max < 1 {
 		max = 32
+	}
+	if srcRoot != "" && !corpusPathConfined(srcRoot, src) {
+		return 0
 	}
 	ents, err := os.ReadDir(src)
 	if err != nil {
@@ -470,7 +478,7 @@ func copyCorpusFiles(src, dst string, max int) int {
 		srcPath := filepath.Join(src, e.Name())
 		// CORPUS-SYMLINK (Hunt): Lstat — never follow harness-planted symlinks
 		// into host secrets (.env.vps) via e.Info()/ReadFile.
-		info, ok := isRegularCorpusFile(srcPath)
+		info, ok := isRegularCorpusFileUnder(srcRoot, srcPath)
 		if !ok || info.Size() <= 0 || info.Size() > 1<<20 {
 			continue
 		}
@@ -484,7 +492,7 @@ func copyCorpusFiles(src, dst string, max int) int {
 		if _, err := os.Lstat(dest); err == nil {
 			continue
 		}
-		if placeCorpusFile(srcPath, dest) {
+		if placeCorpusFile(srcRoot, srcPath, dest) {
 			n++
 		}
 	}
@@ -494,8 +502,11 @@ func copyCorpusFiles(src, dst string, max int) int {
 // placeCorpusFile hardlinks a regular corpus input when the inode is unchanged,
 // otherwise copies bytes from the O_NOFOLLOW fd. link(2) can attach a symlink
 // swapped in after the open; that dest is discarded and the original fd is copied.
-func placeCorpusFile(srcPath, dest string) bool {
-	f, err := os.OpenFile(srcPath, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+func placeCorpusFile(srcRoot, srcPath, dest string) bool {
+	if srcRoot != "" && !corpusPathConfined(srcRoot, srcPath) {
+		return false
+	}
+	f, err := os.OpenFile(srcPath, os.O_RDONLY|oNoFollow, 0)
 	if err != nil {
 		return false
 	}
@@ -521,10 +532,13 @@ func placeCorpusFile(srcPath, dest string) bool {
 	if err != nil || int64(len(b)) != info.Size() || len(b) == 0 {
 		return false
 	}
-	return os.WriteFile(dest, b, 0o600) == nil
+	return writeFileBeneath(filepath.Dir(dest), dest, b, 0o600) == nil
 }
 
-func listFiles(dir string, max int) []string {
+func listFiles(root, dir string, max int) []string {
+	if root != "" && !corpusPathConfined(root, dir) {
+		return nil
+	}
 	ents, err := os.ReadDir(dir)
 	if err != nil {
 		return nil
@@ -539,7 +553,7 @@ func listFiles(dir string, max int) []string {
 		}
 		p := filepath.Join(dir, e.Name())
 		// Defense-in-depth: skip symlinks (consumers also ReadRegularCorpusFile).
-		if _, ok := isRegularCorpusFile(p); !ok {
+		if _, ok := isRegularCorpusFileUnder(root, p); !ok {
 			continue
 		}
 		out = append(out, p)
@@ -547,10 +561,10 @@ func listFiles(dir string, max int) []string {
 	return out
 }
 
-func collectCrashArtifacts(dir string, max int) []string {
+func collectCrashArtifacts(root, dir string, max int) []string {
 	var out []string
 	for _, sub := range []string{"crashes", "crash", "artifacts"} {
-		out = append(out, listFiles(filepath.Join(dir, sub), max)...)
+		out = append(out, listFiles(root, filepath.Join(dir, sub), max)...)
 		if len(out) >= max {
 			return out[:max]
 		}
