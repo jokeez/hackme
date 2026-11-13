@@ -128,8 +128,9 @@ runs:
         [ -n "$HFA_GUARD_PACK" ] && args+=(-guard-pack "$HFA_GUARD_PACK")
         [ -n "$HFA_PACKAGE" ]    && args+=(-package "$HFA_PACKAGE")
         [ -n "$HFA_TITLE" ]      && args+=(-title "$HFA_TITLE")
-        "$dir/hackme-fuzz-action" "${args[@]}"
-        code=$?
+        # `shell: bash` runs with -e on GitHub, so catch the code instead of dying here.
+        code=0
+        "$dir/hackme-fuzz-action" "${args[@]}" || code=$?
         if [ -f "$dir/comment.md" ]; then
           cat "$dir/comment.md" >> "$GITHUB_STEP_SUMMARY"
           echo "plan-path=$dir/plan.json" >> "$GITHUB_OUTPUT"
