@@ -1,0 +1,166 @@
+name: HackMe Fuzz (Dig)
+description: >-
+  Build a guard wasm on every PR, check it with the same sandbox gate the
+  HackMe pool uses and show the Dig plan (preset / guard_pack / package) as a
+  PR comment. Dry-run only for now: nothing is sent, no secrets needed.
+author: HackMe contributors
+branding:
+  icon: shield
+  color: green
+
+inputs:
+  wasm:
+    description: Prebuilt guard .wasm, relative to the workspace.
+    required: false
+    default: ""
+  source:
+    description: Single-file guard source to compile (WASM ABI v1, exports check). Use with `language`.
+    required: false
+    default: ""
+  language:
+    description: "Language of `source`: rust | c | cpp."
+    required: false
+    default: ""
+  dig-preset:
+    description: "One-click Dig preset with a shipped guard: scan_smoke, overflow_smoke, bounds_smoke, state_smoke, script_bounds, secrets, filter_utf8, parser_expat."
+    required: false
+    default: ""
+  guard-pack:
+    description: Guard pack whose config (input mode, seeds, budgets) is applied — to your wasm, or run as-is when no wasm/source is given.
+    required: false
+    default: ""
+  package:
+    description: "Dig package: scan | audit | deep. Defaults to the preset/pack default, else scan."
+    required: false
+    default: ""
+  title:
+    description: Campaign title shown in the plan.
+    required: false
+    default: ""
+  mode:
+    description: Only `dry-run` is supported for now.
+    required: false
+    default: dry-run
+  comment:
+    description: "Post / update a sticky PR comment with the result (needs `pull-requests: write`; skipped with a warning on fork PRs)."
+    required: false
+    default: "true"
+  fail-on-reject:
+    description: Fail the job when the wasm is rejected by the pool gate.
+    required: false
+    default: "true"
+  github-token:
+    description: Token for the PR comment.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  valid:
+    description: "`true` when the wasm passed the pool gate."
+    value: ${{ steps.run.outputs.valid }}
+  source:
+    description: "`dig_preset` or `custom_wasm`."
+    value: ${{ steps.run.outputs.source }}
+  dig-preset:
+    description: Resolved Dig preset id.
+    value: ${{ steps.run.outputs.dig-preset }}
+  guard-pack:
+    description: Resolved guard pack id.
+    value: ${{ steps.run.outputs.guard-pack }}
+  dig-package:
+    description: Resolved Dig package.
+    value: ${{ steps.run.outputs.dig-package }}
+  wasm-sha256:
+    description: sha256 of the guard wasm.
+    value: ${{ steps.run.outputs.wasm-sha256 }}
+  wasm-bytes:
+    description: Size of the guard wasm.
+    value: ${{ steps.run.outputs.wasm-bytes }}
+  plan-path:
+    description: Path to the plan JSON (what a real publish would send, wasm referenced by hash).
+    value: ${{ steps.run.outputs.plan-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: ${{ github.action_path }}/../../go.mod
+        cache-dependency-path: ${{ github.action_path }}/../../go.sum
+
+    - name: Add wasm32 target for Rust
+      if: inputs.language == 'rust' || inputs.language == 'rs' || ((inputs.dig-preset != '' || inputs.guard-pack != '') && inputs.wasm == '' && inputs.source == '')
+      shell: bash
+      run: rustup target add wasm32-unknown-unknown
+
+    - name: Build hackme-fuzz-action
+      shell: bash
+      working-directory: ${{ github.action_path }}/../..
+      run: |
+        set -euo pipefail
+        mkdir -p "$RUNNER_TEMP/hackme-fuzz-action"
+        go build -trimpath -o "$RUNNER_TEMP/hackme-fuzz-action/hackme-fuzz-action" ./cmd/hackme-fuzz-action
+
+    - name: Dry-run
+      id: run
+      shell: bash
+      env:
+        HFA_HACKME_ROOT: ${{ github.action_path }}/../..
+        HFA_WASM: ${{ inputs.wasm }}
+        HFA_SOURCE: ${{ inputs.source }}
+        HFA_LANGUAGE: ${{ inputs.language }}
+        HFA_DIG_PRESET: ${{ inputs.dig-preset }}
+        HFA_GUARD_PACK: ${{ inputs.guard-pack }}
+        HFA_PACKAGE: ${{ inputs.package }}
+        HFA_TITLE: ${{ inputs.title }}
+        HFA_MODE: ${{ inputs.mode }}
+      run: |
+        set -uo pipefail
+        dir="$RUNNER_TEMP/hackme-fuzz-action"
+        rm -f "$dir/plan.json" "$dir/comment.md"
+        args=(-mode "$HFA_MODE" -workspace "$GITHUB_WORKSPACE" -hackme-root "$HFA_HACKME_ROOT"
+              -plan-out "$dir/plan.json" -markdown-out "$dir/comment.md" -github-output "$GITHUB_OUTPUT")
+        [ -n "$HFA_WASM" ]       && args+=(-wasm "$HFA_WASM")
+        [ -n "$HFA_SOURCE" ]     && args+=(-source "$HFA_SOURCE")
+        [ -n "$HFA_LANGUAGE" ]   && args+=(-language "$HFA_LANGUAGE")
+        [ -n "$HFA_DIG_PRESET" ] && args+=(-dig-preset "$HFA_DIG_PRESET")
+        [ -n "$HFA_GUARD_PACK" ] && args+=(-guard-pack "$HFA_GUARD_PACK")
+        [ -n "$HFA_PACKAGE" ]    && args+=(-package "$HFA_PACKAGE")
+        [ -n "$HFA_TITLE" ]      && args+=(-title "$HFA_TITLE")
+        "$dir/hackme-fuzz-action" "${args[@]}"
+        code=$?
+        if [ -f "$dir/comment.md" ]; then
+          cat "$dir/comment.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "plan-path=$dir/plan.json" >> "$GITHUB_OUTPUT"
+        fi
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        # The verdict step fails the job; exiting 0 here lets the PR comment go out first.
+        exit 0
+
+    - name: PR comment
+      if: inputs.comment == 'true' && github.event_name == 'pull_request' && steps.run.outputs.plan-path != ''
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        HFA_REPO: ${{ github.repository }}
+        HFA_PR: ${{ github.event.pull_request.number }}
+        HFA_BODY: ${{ runner.temp }}/hackme-fuzz-action/comment.md
+      run: bash "$GITHUB_ACTION_PATH/comment.sh"
+
+    - name: Verdict
+      shell: bash
+      env:
+        HFA_CODE: ${{ steps.run.outputs.exit-code }}
+        HFA_FAIL_ON_REJECT: ${{ inputs.fail-on-reject }}
+      run: |
+        case "$HFA_CODE" in
+          0) echo "Guard wasm passes the pool gate (dry-run, nothing sent)." ;;
+          1) if [ "$HFA_FAIL_ON_REJECT" = "true" ]; then
+               echo "::error title=HackMe Dig::guard wasm rejected or failed to build — see the job summary"
+               exit 1
+             fi
+             echo "::warning title=HackMe Dig::guard wasm rejected or failed to build — see the job summary" ;;
+          *) echo "::error title=HackMe Dig::bad action inputs (exit ${HFA_CODE:-?}) — see the Dry-run step log"
+             exit 1 ;;
+        esac
