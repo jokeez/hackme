@@ -1034,6 +1034,15 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 						"); escrows on other nodes do not pay miners on chain", http.StatusConflict)
 					return
 				}
+				// The escrow must also cover what is being registered: work items = budget_runs, and the
+				// advertised budget must not exceed what is locked. A dust escrow under a large campaign
+				// would have miners work shards that can never be paid (fimasw, 2026-11-13).
+				claimHMC := publishBudgetHMCFromReq(req.BudgetHMC, req.Config)
+				if row.BudgetHMC+1e-9 < claimHMC || req.BudgetRuns > row.BudgetRuns {
+					http.Error(w, fmt.Sprintf("hub_escrow_required: hub escrow covers %.8f HMC / %d runs, registration claims %.8f HMC / %d runs",
+						row.BudgetHMC, row.BudgetRuns, claimHMC, req.BudgetRuns), http.StatusConflict)
+					return
+				}
 			}
 		}
 		// Dig (non-Hunt) campaigns get the same depth pack/mutator/seed finalize as local B2B.
