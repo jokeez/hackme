@@ -37,6 +37,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&o.Workspace, "workspace", os.Getenv("GITHUB_WORKSPACE"), "root the -wasm path must stay inside (default $GITHUB_WORKSPACE, else cwd)")
 	fs.StringVar(&o.HackmeRoot, "hackme-root", "", "hackme checkout with shipped guard packs (default: discover from cwd)")
 	fs.StringVar(&o.WasmPath, "wasm", "", "custom guard wasm, relative to -workspace")
+	fs.StringVar(&o.BuildSrc, "source", "", "single-file guard source to compile, relative to -workspace")
+	fs.StringVar(&o.BuildLang, "language", "", "language of -source: rust|c|cpp")
 	fs.StringVar(&o.DigPreset, "dig-preset", "", "one-click Dig preset (scan_smoke, secrets, …)")
 	fs.StringVar(&o.GuardPack, "guard-pack", "", "guard pack config (with -wasm) or pack to run")
 	fs.StringVar(&o.Package, "package", "", "Dig package: scan|audit|deep (default from preset/pack, else scan)")

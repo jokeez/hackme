@@ -29,6 +29,8 @@ type Options struct {
 	HackmeRoot string // hackme checkout (shipped packs live here)
 	TmpDir     string // scratch for pack builds
 	WasmPath   string
+	BuildLang  string // rust|c|cpp — compile BuildSource instead of reading WasmPath
+	BuildSrc   string
 	DigPreset  string
 	GuardPack  string
 	Package    string
@@ -81,11 +83,20 @@ func BuildPlan(ctx context.Context, o Options) (*Plan, error) {
 	wasmPath := strings.TrimSpace(o.WasmPath)
 	presetName := strings.TrimSpace(o.DigPreset)
 	packName := strings.TrimSpace(o.GuardPack)
-	if wasmPath == "" && presetName == "" && packName == "" {
-		return nil, usageErr("set wasm, dig-preset or guard-pack")
+	buildSrc := strings.TrimSpace(o.BuildSrc)
+	buildLang := strings.TrimSpace(o.BuildLang)
+	if (buildSrc == "") != (buildLang == "") {
+		return nil, usageErr("source and language go together")
 	}
-	if wasmPath != "" && presetName != "" {
-		return nil, usageErr("dig-preset runs a shipped guard; to fuzz your own wasm use wasm (+ optional guard-pack)")
+	if buildSrc != "" && wasmPath != "" {
+		return nil, usageErr("set either wasm or source, not both")
+	}
+	custom := wasmPath != "" || buildSrc != ""
+	if !custom && presetName == "" && packName == "" {
+		return nil, usageErr("set wasm, source+language, dig-preset or guard-pack")
+	}
+	if custom && presetName != "" {
+		return nil, usageErr("dig-preset runs a shipped guard; to fuzz your own wasm use wasm/source (+ optional guard-pack)")
 	}
 
 	var (
@@ -147,7 +158,18 @@ func BuildPlan(ctx context.Context, o Options) (*Plan, error) {
 	}
 
 	var raw []byte
-	if wasmPath != "" {
+	if buildSrc != "" {
+		plan.Source = sourceWasm
+		plan.Wasm.Path = buildSrc
+		out, err := buildGuard(ctx, buildLang, o.Workspace, buildSrc, o.TmpDir)
+		if err != nil {
+			return nil, err
+		}
+		raw, err = readWasmUnder(o.TmpDir, out)
+		if err != nil {
+			return nil, fmt.Errorf("built wasm: %w", err)
+		}
+	} else if wasmPath != "" {
 		plan.Source = sourceWasm
 		plan.Wasm.Path = wasmPath
 		raw, err = readWasmUnder(o.Workspace, wasmPath)
