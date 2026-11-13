@@ -77,6 +77,13 @@ func RenderMarkdown(p *Plan) string {
 	fmt.Fprintf(&b, "| Package | %s |\n", mdCell(p.DigPackage))
 	fmt.Fprintf(&b, "| Guard | %s · %d bytes wasm |\n", mdCell(p.Wasm.Path), p.Wasm.Bytes)
 	fmt.Fprintf(&b, "| sha256 | %s |\n", mdCell(p.Wasm.SHA256))
+	if p.Source == sourceWasm {
+		if p.CustomerGuard {
+			b.WriteString("| Violations | fail the gate (your own guard) |\n")
+		} else {
+			b.WriteString("| Violations | coverage noise (identical to the shipped pack) |\n")
+		}
+	}
 	if v, ok := p.Payload["budget_runs"]; ok {
 		fmt.Fprintf(&b, "| Budget | %v runs · %vs · %v HMC |\n", v, p.Payload["budget_seconds"], p.Payload["budget_hmc"])
 	}
