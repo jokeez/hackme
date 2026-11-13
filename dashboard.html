@@ -2074,15 +2074,15 @@
 						<span id="hdr-update-pill" class="hidden text-[9px] px-2 py-0.5 rounded border border-warn/40 text-warn uppercase tracking-widest" title="Newer release published">update</span>
 					</div>
 					<div class="flex flex-wrap items-center gap-3 text-right text-[11px]">
-						<div class="flex items-center gap-2 rounded border border-warn/25 bg-black/40 px-2 py-1">
+						<div class="flex flex-wrap sm:flex-nowrap items-center gap-2 rounded border border-warn/25 bg-black/40 px-2 py-1 max-w-full">
 							<label for="admin-token-input" class="text-[9px] uppercase tracking-wider text-warn/80">Admin token</label>
-							<input id="admin-token-input" type="password" autocomplete="off" spellcheck="false" class="w-40 lg:w-56 text-[10px] font-mono rounded border border-white/10 bg-black/60 px-2 py-1 text-neon" placeholder="set token..." />
+							<input id="admin-token-input" type="password" autocomplete="off" spellcheck="false" class="min-w-0 flex-1 sm:flex-none w-40 lg:w-56 text-[10px] font-mono rounded border border-white/10 bg-black/60 px-2 py-1 text-neon" placeholder="set token..." />
 							<button id="btn-admin-token-save" type="button" class="text-[10px] px-2 py-1 rounded border border-neon/30 text-neon hover:bg-neon/10">Save</button>
 							<button id="btn-admin-token-clear" type="button" class="text-[10px] px-2 py-1 rounded border border-danger/40 text-danger hover:bg-danger/10">Clear</button>
 						</div>
-						<div class="flex items-center gap-2 rounded border border-matrix/25 bg-black/40 px-2 py-1">
+						<div class="flex flex-wrap sm:flex-nowrap items-center gap-2 rounded border border-matrix/25 bg-black/40 px-2 py-1 max-w-full">
 							<label for="developer-token-input" class="text-[9px] uppercase tracking-wider text-matrix/80">Developer token</label>
-							<input id="developer-token-input" type="password" autocomplete="off" spellcheck="false" class="w-40 lg:w-56 text-[10px] font-mono rounded border border-white/10 bg-black/60 px-2 py-1 text-matrix" placeholder="integrator token…" />
+							<input id="developer-token-input" type="password" autocomplete="off" spellcheck="false" class="min-w-0 flex-1 sm:flex-none w-40 lg:w-56 text-[10px] font-mono rounded border border-white/10 bg-black/60 px-2 py-1 text-matrix" placeholder="integrator token…" />
 							<button id="btn-developer-token-save" type="button" class="text-[10px] px-2 py-1 rounded border border-matrix/30 text-matrix hover:bg-matrix/10">Save</button>
 							<button id="btn-developer-token-clear" type="button" class="text-[10px] px-2 py-1 rounded border border-danger/40 text-danger hover:bg-danger/10">Clear</button>
 							<button id="btn-developer-token-register" type="button" class="text-[10px] px-2 py-1 rounded border border-white/20 text-gray-400 hover:bg-white/5" title="POST /api/integrator/register on this node">Issue</button>
@@ -3201,8 +3201,8 @@
 					<div class="flex flex-wrap items-start justify-between gap-4">
 						<div class="flex-1 min-w-0 max-w-3xl">
 							<h2 class="font-display text-sm font-bold tracking-[0.15em] text-white uppercase">Hardware tune</h2>
-							<p class="hardware-tune-subtitle text-[11px] mt-1 leading-relaxed"><code class="text-neon/60">GET/POST /api/hardware/tune</code> <span class="text-gray-600">— admin token required for POST</span></p>
-							<p class="text-[10px] text-gray-600 mt-1">Blake3 LIVE — power caps for stability; GH/s gains come from CUDA calib, not OC</p>
+							<p class="hardware-tune-subtitle text-[11px] mt-1 leading-relaxed text-gray-400">GPU power presets, CPU limit and rig profile for this computer. Changes are saved and the miner restarts to apply them.</p>
+							
 						</div>
 						<button type="button" id="btn-hardware-refresh" class="shrink-0 text-[10px] px-3 py-1.5 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
 					</div>
@@ -3233,7 +3233,6 @@
 					</div>
 					<div class="grid grid-cols-1 xl:grid-cols-2 gap-5 xl:gap-8 items-start">
 						<div class="min-w-0 space-y-2">
-							<p class="text-[10px] uppercase tracking-[0.2em] text-matrix/90 font-display">CPU — soft ceiling</p>
 							<div id="hardware-cpu-mount" class="min-w-0"></div>
 						</div>
 						<div class="min-w-0 space-y-2">
@@ -4359,7 +4358,7 @@
 					<div id="exchange-chrome">
 						<span class="ex-title">Exchange</span>
 						<span class="ex-sep">·</span>
-						<span class="ex-meta" title="Paper desk — operator reference mid, not a live CEX">PAPER · REF MID</span>
+						<span class="ex-meta">exchange.hackme.tech · HMC · SUP · USDT (BEP-20)</span>
 						<span id="exchange-lab-status" class="ex-meta">checking…</span>
 						<span class="ex-meta hidden sm:inline" id="exchange-origin-label">https://exchange.hackme.tech</span>
 						<span class="ml-auto flex flex-wrap gap-2 items-center">
@@ -4369,7 +4368,35 @@
 							<a id="btn-exchange-popout" href="https://exchange.hackme.tech/" target="_blank" rel="noopener noreferrer" class="text-[10px] px-2.5 py-1 rounded border border-matrix/35 text-matrix hover:bg-matrix/10 uppercase tracking-wider no-underline">Pop out</a>
 						</span>
 					</div>
-					<iframe id="exchange-spa-frame" title="HackMe Exchange paper desk" width="100%" height="100%" referrerpolicy="strict-origin-when-cross-origin" allow="clipboard-read; clipboard-write" style="width:100%;height:100%;min-width:0;border:1px solid rgba(0,209,255,0.22);border-radius:0.35rem;background:#05070d;"></iframe>
+					<div id="exchange-native" class="hidden max-w-[1200px] mx-auto w-full space-y-4 p-1">
+						<section class="rounded-xl border border-neon/20 bg-black/40 p-4">
+							<div class="flex flex-wrap items-center gap-2 justify-between">
+								<div>
+									<p class="font-display text-[10px] tracking-[0.3em] text-neon uppercase">Markets</p>
+									<p class="text-[11px] text-gray-500">Live spot prices on exchange.hackme.tech · <span id="exchange-native-updated">loading…</span></p>
+								</div>
+								<div class="flex flex-wrap gap-2 text-[10px] font-mono">
+									<a href="https://exchange.hackme.tech/" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded border border-matrix/40 text-matrix hover:bg-matrix/10 uppercase tracking-wider">Open exchange ↗</a>
+									<button type="button" id="btn-exchange-native-balances" class="px-3 py-1.5 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">My exchange balances</button>
+									<a href="https://exchange.hackme.tech/info/buy.html" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded border border-white/15 text-gray-300 hover:bg-white/5 uppercase tracking-wider">How to buy HMC ↗</a>
+								</div>
+							</div>
+							<div class="overflow-x-auto mt-3">
+								<table class="w-full text-left border-collapse text-[11px] font-mono">
+									<thead><tr class="text-[9px] uppercase tracking-wider text-gray-600 border-b border-white/10">
+										<th class="py-1.5 px-2 font-normal">Pair</th><th class="py-1.5 px-2 font-normal text-right">Last</th><th class="py-1.5 px-2 font-normal text-right">24h</th><th class="py-1.5 px-2 font-normal text-right">24h volume</th><th class="py-1.5 px-2 font-normal text-right">Last trade</th>
+									</tr></thead>
+									<tbody id="exchange-native-rows"></tbody>
+								</table>
+							</div>
+						</section>
+						<section class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-gray-400">
+							<div class="rounded-xl border border-white/10 bg-black/30 p-4"><p class="text-neon uppercase tracking-wider text-[10px] mb-1">Deposit HMC</p>Wallet → <em>On the exchange</em> → <strong>Send to exchange</strong> fills your exchange deposit address in the send form.</div>
+							<div class="rounded-xl border border-white/10 bg-black/30 p-4"><p class="text-neon uppercase tracking-wider text-[10px] mb-1">Withdraw</p>On the exchange: Account → Withdraw to your HackMe address (2FA required).</div>
+							<div class="rounded-xl border border-white/10 bg-black/30 p-4"><p class="text-neon uppercase tracking-wider text-[10px] mb-1">Proof of reserves</p><a class="text-matrix hover:underline" href="https://exchange.hackme.tech/info/reserves.html" target="_blank" rel="noopener noreferrer">Customer balances vs on-chain wallets ↗</a></div>
+						</section>
+					</div>
+					<iframe id="exchange-spa-frame" title="HackMe Exchange" width="100%" height="100%" referrerpolicy="strict-origin-when-cross-origin" allow="clipboard-read; clipboard-write" style="width:100%;height:100%;min-width:0;border:1px solid rgba(0,209,255,0.22);border-radius:0.35rem;background:#05070d;"></iframe>
 				</div>
 			</main>
 		</div>
@@ -11362,7 +11389,7 @@
 						hint.textContent =
 							'HMS coordinator offline — start with bash scripts/ops/hms_coordinator_up.sh (:18082).';
 					}
-					renderHmsMarketOrders([], 'Coordinator unreachable — orders unavailable until :18082 is up.');
+					renderHmsMarketOrders([], 'HMS storage market is not live yet — orders will appear here when it launches.');
 					return;
 				}
 				if (hint) hint.textContent = adminTokenCurrent() ? '' : 'Admin token missing — click Sync token.';
@@ -13651,13 +13678,9 @@
 
 		async function fetchCanonicalMetricsFallback(localStatus) {
 			const st = localStatus || latestStatus || {};
+			// Same-origin node proxy only: hackme.tech sends no CORS headers, so direct cross-origin
+			// fetches always failed and filled the console with CORS errors.
 			const candidates = ['/api/canonical/metrics'];
-			const ux = st.miner_public_ux || {};
-			const canonBase = String(ux.canonical_chain_base || st.canonical_chain_base || '').trim();
-			if (canonBase) candidates.push(canonBase.replace(/\/+$/, '') + '/api/metrics');
-			const coordEff = String(st.pool_coordinator_url_effective || st.pool_coordinator_url || ux.coordinator_url_effective || '').trim();
-			const fromCoordStatus = deriveCanonicalStatusURLFromCoordinator(coordEff);
-			if (fromCoordStatus) candidates.push(fromCoordStatus.replace(/\/api\/status$/, '/api/metrics'));
 			const seen = new Set();
 			for (const u of candidates) {
 				if (!u || seen.has(u) || !isBrowserSafeMetricsURL(u)) continue;
@@ -13699,12 +13722,7 @@
 		async function fetchCanonicalTargetModFallback(localStatus) {
 			const st = localStatus || {};
 			const ux = st.miner_public_ux || {};
-			const candidates = [];
-			const canonBase = String(ux.canonical_chain_base || '').trim();
-			if (canonBase) candidates.push(canonBase.replace(/\/+$/, '') + '/api/metrics');
-			const coordEff = String(st.pool_coordinator_url_effective || st.pool_coordinator_url || ux.coordinator_url_effective || '').trim();
-			const fromCoordStatus = deriveCanonicalStatusURLFromCoordinator(coordEff);
-			if (fromCoordStatus) candidates.push(fromCoordStatus.replace(/\/api\/status$/, '/api/metrics'));
+			const candidates = ['/api/canonical/metrics']; // same-origin proxy (see fetchCanonicalMetricsFallback)
 			const seen = new Set();
 			for (const u of candidates) {
 				if (!u || seen.has(u) || !isBrowserSafeMetricsURL(u)) continue;
@@ -15213,7 +15231,27 @@
 						'</td></tr>';
 					return;
 				}
-				rows.forEach((o) => {
+				// The network has hundreds of PoH tasks; show the newest 25 unless asked (the full list
+				// made this tab ~17,000 px tall).
+				const ORDERS_ROWS_DEFAULT = 25;
+				const showAllOrders = tb.dataset.showAll === '1';
+				rows.sort((x, y) => Number(y.created_at || y.created_unix || 0) - Number(x.created_at || x.created_unix || 0));
+				const shownRows = showAllOrders ? rows : rows.slice(0, ORDERS_ROWS_DEFAULT);
+				if (rows.length > ORDERS_ROWS_DEFAULT) {
+					const trm = document.createElement('tr');
+					const tdm = document.createElement('td');
+					tdm.colSpan = 9;
+					tdm.className = 'px-3 py-2 text-[11px] text-gray-500';
+					const btn = document.createElement('button');
+					btn.type = 'button';
+					btn.className = 'ml-2 px-2 py-0.5 rounded border border-neon/30 text-neon text-[10px] uppercase tracking-wider hover:bg-neon/10';
+					btn.textContent = showAllOrders ? 'Show newest ' + ORDERS_ROWS_DEFAULT : 'Show all ' + fmtUInt(rows.length);
+					btn.addEventListener('click', () => { tb.dataset.showAll = showAllOrders ? '0' : '1'; void refreshOrdersList(); });
+					tdm.append(showAllOrders ? 'All ' + fmtUInt(rows.length) + ' tasks' : 'Newest ' + ORDERS_ROWS_DEFAULT + ' of ' + fmtUInt(rows.length) + ' tasks', btn);
+					trm.appendChild(tdm);
+					tb.appendChild(trm);
+				}
+				shownRows.forEach((o) => {
 					const tr = document.createElement('tr');
 					const oid = String(o.id || '');
 					const rw = Number(o.reward != null ? o.reward : o.reward_hmc);
@@ -16922,12 +16960,12 @@
 
 			cpuEl.innerHTML =
 				'<div class="hardware-cpu-card rounded-xl border border-white/10 bg-black/40 py-4 pr-4 space-y-2">' +
-				'<h3 class="text-[10px] uppercase tracking-[0.2em] text-matrix">CPU — soft load cap (PoH)</h3>' +
+				'<h3 class="text-[10px] uppercase tracking-[0.2em] text-matrix">CPU — load limit for mining</h3>' +
 				'<p class="text-[11px] text-gray-400">' + escapeHtml(String(cpu.note || '')) + '</p>' +
-				'<p class="text-[10px] text-gray-500 font-mono">' + escapeHtml(String(cpu.env_var || '')) + (cpu.env_overrides ? ' · ' + escapeHtml(String(cpu.env_overrides)) : '') + '</p>' +
+				'<p class="text-[10px] text-gray-500">Limits the pool worker to a share of your ' + escapeHtml(String(Number(cpu.cpu_cores || 0) || '')) + ' CPU cores so the computer stays usable. Saved; the running worker restarts to apply it.</p>' +
 				envLine +
 				'<div class="flex flex-wrap items-end gap-4 mt-3">' +
-				'<label class="text-[10px] text-gray-500">soft_cap_pct (' + minP + '–' + maxP + ')<br>' +
+				'<label class="text-[10px] text-gray-500">Max CPU use, % (' + minP + '–' + maxP + ')<br>' +
 				'<input id="hw-cpu-cap-input" type="number" min="' + minP + '" max="' + maxP + '" step="1" class="mt-1 w-24 text-xs font-mono rounded border border-white/15 bg-black/60 px-2 py-1 text-neon" value="' + escapeHtml(String(Math.round(curCap))) + '" /></label>' +
 				'<button type="button" id="btn-hw-cpu-apply" class="btn-hw-cpu-apply rounded border border-neon/30 text-neon uppercase tracking-wider hover:bg-neon/10"' + dis + '>Apply CPU</button>' +
 				'</div>' + adminWarn + tipsHtml + '</div>';
@@ -16944,10 +16982,17 @@
 			const honestyEl = $('hardware-blake3-honesty');
 			if (honestyEl) {
 				let line = 'Live Blake3 CUDA is still latency-bound: nvidia-smi util often stays low while wall GH/s is only modestly above a good CPU. Raising PL / clocks will not make GPU ≫ CPU until the kernel saturates SMs — prefer Daily PL + CUDA calib.';
-				if (liveGhHw > 0.01 || liveUtilHint >= 0) {
-					line = 'Now: ~' + (liveGhHw > 0.01 ? fmt(liveGhHw, liveGhHw >= 1 ? 2 : 3) + ' GH/s' : '— GH/s') +
-						(Number.isFinite(liveUtilHint) ? ' · GPU util ~' + fmt(liveUtilHint, 0) + '%' : '') +
-						'. Low util + ~CPU-class GH/s is expected on Blake3 until kernel occupancy rises — OC/Turbo will not flip that.';
+				if (liveGhHw > 0.01 || devs.length) {
+					const now = 'Now: ' + (liveGhHw > 0.01 ? '~' + fmt(liveGhHw, liveGhHw >= 1 ? 2 : 3) + ' GH/s' : 'not mining') +
+						(devs.length && Number.isFinite(liveUtilHint) ? ' · GPU load ~' + fmt(liveUtilHint, 0) + '%' : '');
+					// Say what the numbers mean instead of one fixed caveat (it claimed "low util" at 94%).
+					let tail = '';
+					if (!devs.length) tail = ' · no GPU telemetry — mining on CPU.';
+					else if (liveGhHw <= 0.01 && liveUtilHint >= 30) tail = ' · this node is not mining; the GPU is busy with another program (another miner?).';
+					else if (liveGhHw <= 0.01) tail = ' · start mining to see GPU load.';
+					else if (liveUtilHint >= 70) tail = ' · the GPU is fully busy; more speed comes from cooling and a stable power limit, not overclocking.';
+					else tail = ' · low GPU load is normal for Blake3 (latency-bound); overclocking will not raise it — keep the Daily power preset.';
+					line = now + tail;
 				}
 				honestyEl.textContent = line;
 			}
@@ -16988,7 +17033,8 @@
 					const oc = d.manual_oc || {};
 					const ocTools = (oc.tools || []).map((t) => escapeHtml(String(t))).join(' · ');
 					const ocNotes = (oc.notes || []).map((n) => '<li class="text-[10px] text-gray-500">' + escapeHtml(String(n)) + '</li>').join('');
-					const ocBlock = (oc.vendor || ocTools) ? (
+					// Manual OC tips live in the rig profile card above; repeating them per GPU doubled the page.
+					const ocBlock = false ? (
 						'<div class="rounded border border-warn/25 bg-warn/5 p-3 mt-2 space-y-1">' +
 						'<p class="text-[9px] uppercase tracking-wider text-warn/90">Manual OC · ' + escapeHtml(String(oc.vendor || 'GPU')) + '</p>' +
 						(ocTools ? '<p class="text-[10px] text-gray-400"><strong class="text-gray-300">Tools:</strong> ' + ocTools + '</p>' : '') +
@@ -17036,8 +17082,13 @@
 					const v = inp ? Number(inp.value) : NaN;
 					if (!Number.isFinite(v)) { logLine('CPU cap: invalid number'); return; }
 					try {
-						await postHardwareTune({ soft_cap_pct: v });
-						if ($('hardware-tune-msg')) $('hardware-tune-msg').textContent = 'CPU cap applied';
+						const res = await postHardwareTune({ soft_cap_pct: v }) || {};
+						const cores = Number(res.pool_worker_cores || 0);
+						let msg = 'CPU limit ' + v + '% saved' + (cores > 0 ? ' — pool worker uses ' + cores + ' core' + (cores === 1 ? '' : 's') : ' — no limit (100%)');
+						if (res.pool_worker_restarted) msg += ' · worker restarted';
+						else if (res.pool_worker_error) msg += ' · restart mining to apply (' + res.pool_worker_error + ')';
+						else msg += ' · applies when mining starts';
+						if ($('hardware-tune-msg')) $('hardware-tune-msg').textContent = msg;
 						await refreshHardwareTune();
 					} catch (err) {
 						const m = err && err.message ? err.message : 'CPU apply failed';
@@ -17205,13 +17256,13 @@
 				const r = await fetch('/api/hardware/rig-profiles/apply', {
 					method: 'POST',
 					headers: Object.assign({ 'Content-Type': 'application/json' }, adminHeaders()),
-					body: JSON.stringify({ profile_id: pid, restart_worker: false }),
+					body: JSON.stringify({ profile_id: pid, restart_worker: true }),
 				});
 				const raw = await r.text();
 				let j = null;
 				try { j = JSON.parse(raw); } catch (_) {}
 				if (!r.ok) throw new Error((j && (j.error || j.message)) || raw.slice(0, 200));
-				if ($('rig-profile-status')) $('rig-profile-status').textContent = 'applied ' + pid + ' → ' + (j.env_file || 'hackme.env') + ' · stop/start worker';
+				if ($('rig-profile-status')) $('rig-profile-status').textContent = String(j.message || ('applied ' + pid));
 				await refreshRigProfilesList();
 				try {
 					await fetch('/api/worker/stop', { method: 'POST', headers: adminHeaders() });
@@ -17235,13 +17286,11 @@
 		function updateRigProfileLiveMetrics(ws, wst) {
 			const st = $('rig-profile-status');
 			if (!st || !ws) return;
-			const base = String(st.textContent || '').split(' · live')[0];
-			const m = Number(ws.target_mod || 0);
+			const base = String(st.textContent || '').split(' · live')[0].split(' · now ')[0];
 			const gh = Number((wst && (wst.measured_hashrate_gh_s || wst.hashrate_gh_s)) || 0);
-			const rpm = Number(ws.reward_per_m || 0);
-			if (m > 0 || gh > 0) {
-				st.textContent = base + ' · live M=' + fmtUInt(m) + ' GH=' + fmt(gh, 3) + ' reward/M=' + fmt(rpm, 6);
-			}
+			// Only show what a user can read: the speed. (target M / reward per M were always 0 on
+			// the pool path and read as an error.)
+			if (gh > 0) st.textContent = base + ' · now ' + fmt(gh, gh >= 1 ? 2 : 3) + ' GH/s';
 		}
 
 		async function refreshHardwareTune() {
@@ -17255,7 +17304,7 @@
 				const r = await fetch('/api/hardware/tune', { cache: 'no-store' });
 				if (!r.ok) throw new Error('HTTP ' + r.status);
 				const j = await r.json();
-				if ($('hardware-tune-env')) $('hardware-tune-env').textContent = 'GET /api/hardware/tune · policy loaded';
+				if ($('hardware-tune-env')) $('hardware-tune-env').textContent = 'Updated ' + new Date().toLocaleTimeString();
 				if ($('hardware-tune-msg')) {
 					let tm = String(j.message || '').trim();
 					if (/^exit status \d+$/i.test(tm)) tm = '';
@@ -17396,9 +17445,78 @@
 			pop.href = o + '/' + (h || '');
 		}
 
+		// The exchange only allows itself to be framed by hackme.tech (CSP frame-ancestors). A
+		// desktop node serves this page from 127.0.0.1, where the frame stayed blank — show a
+		// native market view there instead.
+		function exchangeEmbedAllowed() {
+			const h = String(location.hostname || '');
+			return location.protocol === 'https:' && (h === 'hackme.tech' || h.endsWith('.hackme.tech'));
+		}
+		function fmtExchangeAgo(iso) {
+			const t = Date.parse(String(iso || ''));
+			if (!Number.isFinite(t)) return '—';
+			const s = Math.max(0, Math.floor((Date.now() - t) / 1000));
+			if (s < 120) return s + 's ago';
+			if (s < 7200) return Math.floor(s / 60) + 'm ago';
+			if (s < 172800) return Math.floor(s / 3600) + 'h ago';
+			return Math.floor(s / 86400) + 'd ago';
+		}
+		async function renderExchangeNative() {
+			const rows = $('exchange-native-rows');
+			const upd = $('exchange-native-updated');
+			if (!rows) return;
+			let j = null;
+			try {
+				const r = await fetch('/api/exchange/tickers', { cache: 'no-store' });
+				j = r.ok ? await r.json() : null;
+			} catch (_) { j = null; }
+			const list = (j && Array.isArray(j.tickers) ? j.tickers : []).filter((t) => !/BTC/.test(String(t.pair || '')));
+			rows.textContent = '';
+			if (!list.length) {
+				const tr = document.createElement('tr');
+				const td = document.createElement('td');
+				td.colSpan = 5; td.className = 'py-3 px-2 text-gray-500';
+				td.textContent = 'Exchange prices are not reachable right now — open the exchange directly.';
+				tr.appendChild(td); rows.appendChild(tr);
+				if (upd) upd.textContent = 'offline';
+				return;
+			}
+			for (const t of list) {
+				const tr = document.createElement('tr');
+				tr.className = 'border-b border-white/5';
+				const quote = String(t.pair || '').split('/')[1] || '';
+				const last = Number(t.last || 0) / 1e8;
+				const chg = Number(t.change_bps || 0) / 100;
+				const vol = Number(t.volume_24h_base || 0) / 1e8;
+				const cells = [
+					[String(t.pair || '—'), 'text-gray-200'],
+					[last > 0 ? fmt(last, last < 1 ? 6 : 4) + ' ' + quote : '—', 'text-right text-neon'],
+					[Number(t.n_trades_24h || 0) > 0 ? (chg >= 0 ? '+' : '') + fmt(chg, 2) + '%' : '—', 'text-right ' + (chg > 0 ? 'text-matrix' : chg < 0 ? 'text-warn' : 'text-gray-500')],
+					[vol > 0 ? fmt(vol, 2) + ' ' + (String(t.pair || '').split('/')[0] || '') : '—', 'text-right text-gray-400'],
+					[fmtExchangeAgo(t.last_trade_at), 'text-right text-gray-500'],
+				];
+				for (const [txt, cls] of cells) {
+					const td = document.createElement('td');
+					td.className = 'py-1.5 px-2 ' + cls;
+					td.textContent = txt;
+					tr.appendChild(td);
+				}
+				rows.appendChild(tr);
+			}
+			if (upd) upd.textContent = 'updated ' + new Date().toLocaleTimeString();
+		}
 		async function ensureExchangeLabFrame(forceReload) {
 			const frame = $('exchange-spa-frame');
 			if (!frame) return;
+			if (!exchangeEmbedAllowed()) {
+				frame.style.display = 'none';
+				frame.removeAttribute('src');
+				if ($('exchange-native')) $('exchange-native').classList.remove('hidden');
+				for (const id of ['btn-exchange-public', 'btn-exchange-reload', 'btn-exchange-popout', 'exchange-origin-label']) { if ($(id)) $(id).classList.add('hidden'); }
+				setExchangeLabStatus('', '');
+				void renderExchangeNative();
+				return;
+			}
 			// Prefer in-memory origin after Public/Reload so we don't race a stale resolve.
 			const origin = (forceReload && exchangeResolvedOrigin)
 				? exchangeResolvedOrigin
@@ -17665,6 +17783,12 @@
 		if (btnExReload) {
 			btnExReload.addEventListener('click', () => {
 				void ensureExchangeLabFrame(true);
+			});
+		}
+		if ($('btn-exchange-native-balances')) {
+			$('btn-exchange-native-balances').addEventListener('click', () => {
+				switchTab('wallet');
+				setTimeout(() => { const c = $('wallet-exchange-card'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
 			});
 		}
 		const btnExPublic = $('btn-exchange-public');

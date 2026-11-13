@@ -2752,6 +2752,11 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 	if v := strings.TrimSpace(os.Getenv("HACKME_WORKER_HTTP_TIMEOUT")); v != "" {
 		workerEnv = append(workerEnv, "HACKME_WORKER_HTTP_TIMEOUT="+v)
 	}
+	// Hardware tab CPU cap: the pool worker is a separate Go process that otherwise uses every
+	// core, so the cap is passed as GOMAXPROCS (the runtime honours it at start).
+	if n := workerGOMAXPROCSForCPUCap(); n > 0 {
+		workerEnv = append(workerEnv, "GOMAXPROCS="+strconv.Itoa(n), "HACKME_MINER_CPU_PCT="+strings.TrimSpace(os.Getenv("HACKME_MINER_CPU_PCT")))
+	}
 	if v := strings.TrimSpace(os.Getenv("HACKME_WORKER_CLAIM_TIMEOUT")); v != "" {
 		workerEnv = append(workerEnv, "HACKME_WORKER_CLAIM_TIMEOUT="+v)
 	} else if remoteCoord {

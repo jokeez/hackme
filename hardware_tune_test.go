@@ -40,3 +40,16 @@ func TestBuildHardwareTuneAMDTelemetryLive(t *testing.T) {
 		t.Fatalf("hints family=%q for %q", resp.Devices[0].Hints.Family, resp.Devices[0].Name)
 	}
 }
+
+func TestWorkerGOMAXPROCSForCPUCap(t *testing.T) {
+	for _, tc := range []struct {
+		v    string
+		zero bool
+	}{{"", true}, {"abc", true}, {"0", true}, {"100", true}, {"150", true}, {"50", false}, {"1", false}} {
+		t.Setenv("HACKME_MINER_CPU_PCT", tc.v)
+		n := workerGOMAXPROCSForCPUCap()
+		if tc.zero != (n == 0) || n < 0 || n > runtime.NumCPU() {
+			t.Fatalf("pct %q → %d", tc.v, n)
+		}
+	}
+}

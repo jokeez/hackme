@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"math"
 	"net/http"
@@ -52,6 +53,7 @@ type hardwareTuneEnv struct {
 // cpuTuneBlock is soft CPU throttle info for PoH workers (not OS power plan).
 type cpuTuneBlock struct {
 	SoftCapPct   float64  `json:"soft_cap_pct"`
+	CPUCores     int      `json:"cpu_cores"`
 	DefaultPct   float64  `json:"default_soft_cap_pct"`
 	MinPct       float64  `json:"min_pct"`
 	MaxPct       float64  `json:"max_pct"`
@@ -204,18 +206,23 @@ func hostHasNVIDIAGPU() bool {
 }
 
 func cpuSoftCapHints() cpuTuneBlock {
+	cur := 0.0
+	if v, err := strconv.ParseFloat(strings.TrimSpace(os.Getenv("HACKME_MINER_CPU_PCT")), 64); err == nil && v > 0 {
+		cur = v
+	}
 	return cpuTuneBlock{
-		SoftCapPct: 0,
+		SoftCapPct: cur,
 		DefaultPct: chain.DefaultSoftCPUThrottlePct,
 		MinPct:     1,
 		MaxPct:     100,
+		CPUCores:   runtime.NumCPU(),
 		Tips: []string{
-			"Soft CPU cap: PoH workers yield briefly when sustained load exceeds the target (not a BIOS overclock).",
-			"OS power plan is separate; 100% effectively disables extra yield for this rule only.",
+			"100% = no limit. GPU miners need only a little CPU; lower values keep a desktop responsive.",
+			"This is a scheduling limit (cores used), not a power or clock setting.",
 		},
-		Note:         "Applies to the running miner; default at startup from env if set.",
+		Note:         "The pool worker uses at most this share of CPU cores. The value is saved and survives restarts.",
 		EnvVar:       "HACKME_MINER_CPU_PCT",
-		EnvOverrides: "Env at process start seeds the default; POST changes the cap until restart.",
+		EnvOverrides: "Saved to the node env file; a running pool worker restarts to apply it.",
 	}
 }
 
@@ -310,7 +317,7 @@ func envFloatTune(key string, def float64) float64 {
 
 func (a *app) buildHardwareTuneResponse() hardwareTuneResponse {
 	cpu := cpuSoftCapHints()
-	if a.miner != nil {
+	if cpu.SoftCapPct <= 0 && a.miner != nil {
 		cpu.SoftCapPct = a.miner.Stats().ThrottleCPUPct
 	}
 	nvRows := queryNVIDIAMulti()
@@ -486,10 +493,29 @@ func (a *app) handleHardwareTune(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			log.Printf("hardware tune: soft CPU cap set to %s%%", logsafe.ID(strconv.FormatFloat(in.SoftCapPct, 'f', 1, 64)))
+			// The cap used to reach only the in-process chain-leader miner; desktop pool mining runs
+			// in workerpoh, which kept every core busy. Persist it, and restart a running pool worker
+			// so the new GOMAXPROCS takes effect.
+			pctStr := strconv.FormatFloat(in.SoftCapPct, 'f', -1, 64)
+			_ = os.Setenv("HACKME_MINER_CPU_PCT", pctStr)
+			persisted := upsertNodeEnvKey("HACKME_MINER_CPU_PCT", pctStr) == nil
+			restarted := false
+			restartErr := ""
+			if a.workerProcessRunning() {
+				if err := a.forceRestartPoolWorker("hardware CPU cap"); err != nil {
+					restartErr = err.Error()
+				} else {
+					restarted = true
+				}
+			}
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"ok":           true,
-				"soft_cap_pct": in.SoftCapPct,
+				"ok":                    true,
+				"soft_cap_pct":          in.SoftCapPct,
+				"pool_worker_cores":     workerGOMAXPROCSForCPUCap(),
+				"pool_worker_restarted": restarted,
+				"pool_worker_error":     restartErr,
+				"saved":                 persisted,
 			})
 			return
 		}
@@ -587,7 +613,11 @@ func (a *app) handleHardwareTune(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if body.PowerLimitW <= 0 {
-			http.Error(w, "expected soft_cap_pct (1..100) or gpu_index>=0 with power_limit_w>0", http.StatusBadRequest)
+			if body.GPUIndex >= 0 && mode != "" {
+				http.Error(w, "GPU "+strconv.Itoa(body.GPUIndex)+" was not found on this computer (or its power range is unknown)", http.StatusBadRequest)
+				return
+			}
+			http.Error(w, "send soft_cap_pct (1-100), or gpu_index with power_limit_w or mode (eco|daily|turbo)", http.StatusBadRequest)
 			return
 		}
 		if selected != nil {
@@ -666,4 +696,51 @@ func (a *app) handleHardwareTune(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+// workerGOMAXPROCSForCPUCap converts HACKME_MINER_CPU_PCT into a core count for the pool
+// worker (0 = no cap: unset, invalid or >= 100%).
+func workerGOMAXPROCSForCPUCap() int {
+	v := strings.TrimSpace(os.Getenv("HACKME_MINER_CPU_PCT"))
+	if v == "" {
+		return 0
+	}
+	pct, err := strconv.ParseFloat(v, 64)
+	if err != nil || pct <= 0 || pct >= 100 {
+		return 0
+	}
+	n := int(float64(runtime.NumCPU()) * pct / 100)
+	if n < 1 {
+		n = 1
+	}
+	return n
+}
+
+// upsertNodeEnvKey sets KEY=value in the node env file (hackme.env / .env), keeping other lines.
+func upsertNodeEnvKey(key, value string) error {
+	p := rigProfileEnvPath()
+	if p == "" {
+		return fmt.Errorf("env file not found")
+	}
+	b, err := os.ReadFile(p)
+	if err != nil {
+		return err
+	}
+	lines := strings.Split(strings.TrimRight(string(b), "\n"), "\n")
+	found := false
+	for i, l := range lines {
+		if strings.HasPrefix(strings.TrimSpace(l), key+"=") {
+			lines[i] = key + "=" + value
+			found = true
+		}
+	}
+	if !found {
+		lines = append(lines, key+"="+value)
+	}
+	st, _ := os.Stat(p)
+	mode := os.FileMode(0o600)
+	if st != nil {
+		mode = st.Mode().Perm()
+	}
+	return os.WriteFile(p, []byte(strings.Join(lines, "\n")+"\n"), mode)
 }

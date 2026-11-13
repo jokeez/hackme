@@ -223,6 +223,12 @@ func (a *app) handleRigProfilesApply(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "profile_id required (or no GPU match for auto-detect)", http.StatusBadRequest)
 		return
 	}
+	if isNVIDIARigProfile(pid) && !cudaDriverPresent() && runtime.GOOS != "darwin" {
+		// The CUDA profile would start a worker that cannot load libcuda and mines nothing.
+		writeAPIError(w, http.StatusConflict, "cuda_driver_missing",
+			"This profile needs the NVIDIA driver (libcuda / nvcuda.dll), which is not installed. Install the NVIDIA driver first; until then the miner runs on CPU.", nil)
+		return
+	}
 	p, err := mergeRigProfileIntoEnvFile(pid)
 	if err != nil {
 		if err == errRigProfileNotFound {
@@ -233,14 +239,32 @@ func (a *app) handleRigProfilesApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = parseEnvFileIntoOSEnv(rigProfileEnvPath())
+	// restart_worker used to be echoed back and ignored: the profile only took effect after the
+	// user found a manual stop/start. Restart a running pool worker when asked.
+	restarted := false
+	restartErr := ""
+	if req.RestartWorker && a.workerProcessRunning() {
+		if err := a.forceRestartPoolWorker("rig profile " + pid); err != nil {
+			restartErr = err.Error()
+		} else {
+			restarted = true
+		}
+	}
+	msg := "Profile saved. It applies the next time mining starts."
+	if restarted {
+		msg = "Profile saved and the pool worker restarted with it."
+	} else if restartErr != "" {
+		msg = "Profile saved; restarting the worker failed (" + restartErr + ") — stop and start mining to apply it."
+	}
 	writeJSON(w, map[string]any{
-		"ok":             true,
-		"profile":        p,
-		"env_file":       rigProfileEnvPath(),
-		"env_merged":     true,
-		"restart_worker": req.RestartWorker,
-		"platform_note":  rigPlatformNote(),
-		"message":        "Rig profile merged into hackme.env. Stop/start pool worker (or restart HackMe) to pick up batch/GPU env.",
+		"ok":               true,
+		"profile":          p,
+		"env_file":         rigProfileEnvPath(),
+		"env_merged":       true,
+		"restart_worker":   req.RestartWorker,
+		"worker_restarted": restarted,
+		"platform_note":    rigPlatformNote(),
+		"message":          msg,
 	})
 }
 
