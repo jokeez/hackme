@@ -41,8 +41,8 @@ func TestMarkdownCannotBeBrokenOut(t *testing.T) {
 		if strings.HasPrefix(line, "| injected") || strings.HasPrefix(line, "<!--") && line != commentMarker {
 			t.Fatalf("injected line survived: %q", line)
 		}
-		if strings.HasPrefix(line, "| Wasm |") && strings.Count(line, "|") != 3 {
-			t.Fatalf("pipe split the Wasm cell: %q", line)
+		if strings.HasPrefix(line, "| Guard |") && strings.Count(line, "|") != 3 {
+			t.Fatalf("pipe split the Guard cell: %q", line)
 		}
 	}
 	if strings.Contains(md, "‮") || strings.Contains(md, "AKIA") {

@@ -74,7 +74,7 @@ func RenderMarkdown(p *Plan) string {
 		fmt.Fprintf(&b, "| Guard pack | %s |\n", mdCell(p.GuardPack))
 	}
 	fmt.Fprintf(&b, "| Package | %s |\n", mdCell(p.DigPackage))
-	fmt.Fprintf(&b, "| Wasm | %s · %d bytes |\n", mdCell(p.Wasm.Path), p.Wasm.Bytes)
+	fmt.Fprintf(&b, "| Guard | %s · %d bytes wasm |\n", mdCell(p.Wasm.Path), p.Wasm.Bytes)
 	fmt.Fprintf(&b, "| sha256 | %s |\n", mdCell(p.Wasm.SHA256))
 	if v, ok := p.Payload["budget_runs"]; ok {
 		fmt.Fprintf(&b, "| Budget | %v runs · %vs · %v HMC |\n", v, p.Payload["budget_seconds"], p.Payload["budget_hmc"])
