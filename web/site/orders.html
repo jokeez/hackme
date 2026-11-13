@@ -84,7 +84,9 @@
         </table>
       </div>
       <p class="subtle">
-        Most of the price is the reward pool for the machines doing the work; whatever is not used is refunded when the scan closes.
+        You top up your node's <strong>order balance</strong> once (minimum 15 HMC, sent on-chain to the platform); each scan locks its
+        price from that balance and returns whatever it did not use when it closes. The order balance stays on your node for the next
+        scans — it cannot be sent back to a wallet, so top up only what you plan to spend.
         Orders opened from block 550,000 (Economics v2) also pay a one-time 10% fee at the start (5% burned, 5% platform).
         Need HMC? <a href="https://exchange.hackme.tech/info/buy.html">How to get HMC</a>.
       </p>
@@ -117,8 +119,10 @@
       <div class="panel-head"><h2>How to order</h2></div>
       <ol class="list">
         <li><strong>Install the node</strong> from <a href="./downloads.html">Downloads</a> and pick the <em>Orders</em> role (Windows setup or Linux). It opens a local dashboard on your machine.</li>
-        <li><strong>Add HMC</strong> to the wallet in that dashboard.</li>
-        <li><strong>Start a scan</strong>: choose a package and your target, press Start. The budget is locked in escrow and the report link appears when it finishes.</li>
+        <li><strong>Add HMC</strong> to the wallet in that dashboard (at least 15 HMC for the first top-up).</li>
+        <li><strong>Start a scan</strong>: choose a package and your target, press Start. The report link and a CI gate URL appear right away and fill in as it runs.</li>
+        <li><strong>C/C++ Hunt on Linux:</strong> run <code>install_hunt_engines.sh --desktop</code> once from the install folder — it installs clang and the sandbox
+          (on Ubuntu 24.04 it asks to allow the sandbox through AppArmor). Hunt is Linux-only; Windows runs Dig scans.</li>
       </ol>
       <p class="subtle">
         <strong>Today</strong>, a scan you start from your own node runs on your own machine.
