@@ -22,6 +22,13 @@ package main
 //	HACKME_CI_MAX_PER_DAY      default 12
 //	HACKME_CI_MAX_HMC_PER_DAY  default 10
 //	HACKME_CI_ALLOW_DEEP       default off (deep is heavier; opt in separately)
+//	HACKME_CI_ALLOW_POOL       default off: CI orders run as a local Dig on this node
+//	                           (pool_distributed=false, no PoH order). With it on, the
+//	                           package defaults apply and the pool path needs prepaid
+//	                           hubv1 + escrow_fingerprint like any Orders publish.
+//
+// Caps count every CI row in the last 24h, including cancelled / failed ones:
+// a CI loop that keeps failing still burns its budget instead of retrying forever.
 
 import (
 	"bytes"
@@ -58,7 +65,8 @@ const (
 var ciLabelRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/#:@-]{0,99}$`)
 
 // ciDigMu serialises cap check + create so two parallel jobs can't both slip
-// under the cap.
+// under the cap. It is held for the whole create; with the default local Dig
+// that is short, with HACKME_CI_ALLOW_POOL a slow pool sync holds it too.
 var ciDigMu sync.Mutex
 
 func ciTokenFromEnv() string { return strings.TrimSpace(os.Getenv("HACKME_CI_TOKEN")) }
@@ -124,7 +132,20 @@ func ciCleanTitle(s string) string {
 
 // ciBuildAuditRequest maps the narrow CI request onto securityAuditRequest
 // with every budget / lifecycle knob decided here, never by the client.
-func ciBuildAuditRequest(in ciDigRequest, allowDeep bool) (securityAuditRequest, error) {
+// ciPolicy is the operator's opt-ins for the CI path.
+type ciPolicy struct {
+	AllowDeep bool
+	AllowPool bool
+}
+
+func ciPolicyFromEnv() ciPolicy {
+	return ciPolicy{
+		AllowDeep: envBool("HACKME_CI_ALLOW_DEEP", false),
+		AllowPool: envBool("HACKME_CI_ALLOW_POOL", false),
+	}
+}
+
+func ciBuildAuditRequest(in ciDigRequest, pol ciPolicy) (securityAuditRequest, error) {
 	preset := strings.TrimSpace(in.DigPreset)
 	packName := strings.TrimSpace(in.GuardPack)
 	hexStr := strings.TrimSpace(in.WasmCheckHex)
@@ -175,7 +196,7 @@ func ciBuildAuditRequest(in ciDigRequest, allowDeep bool) (securityAuditRequest,
 	switch pkgName {
 	case "scan", "audit":
 	case "deep":
-		if !allowDeep {
+		if !pol.AllowDeep {
 			return securityAuditRequest{}, errors.New("dig_package deep is not enabled for CI on this node (HACKME_CI_ALLOW_DEEP)")
 		}
 	default:
@@ -209,8 +230,13 @@ func ciBuildAuditRequest(in ciDigRequest, allowDeep bool) (securityAuditRequest,
 		depth = fuzzengine.DepthBytesCorpus
 	}
 	no := false
-	pool := pkg.PoolDistributed
-	poh := pkg.CreatePoHOrder
+	// audit/deep packages default to the pool + a PoH order. Under a minting hub
+	// that path needs live hub escrow (hub_escrow_required → 409 / long waits
+	// under ciDigMu), so CI stays a local Dig unless the operator opts in.
+	pool, poh := false, false
+	if pol.AllowPool {
+		pool, poh = pkg.PoolDistributed, pkg.CreatePoHOrder
+	}
 	return securityAuditRequest{
 		Title:           title,
 		PayerRef:        ciOwnerPrefix + label,
@@ -282,7 +308,8 @@ func (a *app) handleCIDig(w http.ResponseWriter, r *http.Request) {
 	// Dedicated header only: a CI token must never be mistaken for an admin
 	// Bearer, and an admin token is not accepted here either.
 	if !secretsEqualConstantTime(strings.TrimSpace(r.Header.Get("X-Hackme-CI-Token")), tok) {
-		w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-ci"`)
+		// Not "Bearer": clients must not retry with an Authorization header.
+		w.Header().Set("WWW-Authenticate", `X-Hackme-CI-Token realm="hackme-ci"`)
 		http.Error(w, "ci authentication required", http.StatusUnauthorized)
 		return
 	}
@@ -305,7 +332,7 @@ func (a *app) handleCIDig(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusBadRequest, "invalid_json", "trailing data after JSON object", nil)
 		return
 	}
-	req, err := ciBuildAuditRequest(in, envBool("HACKME_CI_ALLOW_DEEP", false))
+	req, err := ciBuildAuditRequest(in, ciPolicyFromEnv())
 	if err != nil {
 		writeAPIError(w, http.StatusBadRequest, "ci_request_invalid", err.Error(), nil)
 		return

@@ -34,7 +34,7 @@ func newCIDigTestApp(t *testing.T) (*app, *sql.DB) {
 	t.Setenv("HACKME_DEVELOPER_TOKEN", "")
 	t.Setenv("HACKME_CI_TOKEN", testCIToken)
 	t.Setenv("HACKME_POOL_COORDINATOR_URL", "")
-	for _, k := range []string{"HACKME_CI_MAX_PER_HOUR", "HACKME_CI_MAX_PER_DAY", "HACKME_CI_MAX_HMC_PER_DAY", "HACKME_CI_ALLOW_DEEP"} {
+	for _, k := range []string{"HACKME_CI_MAX_PER_HOUR", "HACKME_CI_MAX_PER_DAY", "HACKME_CI_MAX_HMC_PER_DAY", "HACKME_CI_ALLOW_DEEP", "HACKME_CI_ALLOW_POOL"} {
 		t.Setenv(k, "")
 	}
 	return a, db
@@ -203,7 +203,7 @@ func TestCIDigCaps(t *testing.T) {
 }
 
 func TestCIBuildAuditRequestServerPicksBudget(t *testing.T) {
-	req, err := ciBuildAuditRequest(ciDigRequest{DigPreset: "smoke"}, false)
+	req, err := ciBuildAuditRequest(ciDigRequest{DigPreset: "smoke"}, ciPolicy{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,7 +216,53 @@ func TestCIBuildAuditRequestServerPicksBudget(t *testing.T) {
 	if req.PayerRef != "ci:ci" || req.UseSUPDiscount != nil || req.PayerWallet != "" || req.WasmPath != "" || req.Code != "" {
 		t.Fatalf("fields CI must never set: %+v", req)
 	}
-	if _, err := ciBuildAuditRequest(ciDigRequest{DigPreset: "secrets", DigPackage: "deep"}, true); err != nil {
+	if _, err := ciBuildAuditRequest(ciDigRequest{DigPreset: "secrets", DigPackage: "deep"}, ciPolicy{AllowDeep: true}); err != nil {
 		t.Fatalf("deep with opt-in: %v", err)
+	}
+}
+
+// audit/deep packages default to pool + PoH; the CI path must stay local
+// unless the operator opts in with HACKME_CI_ALLOW_POOL (#89 review).
+func TestCIBuildAuditRequestLocalByDefault(t *testing.T) {
+	for _, pkg := range []string{"scan", "audit", "deep"} {
+		req, err := ciBuildAuditRequest(ciDigRequest{DigPreset: "overflow_smoke", DigPackage: pkg}, ciPolicy{AllowDeep: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if req.PoolDistributed == nil || *req.PoolDistributed || req.CreatePoHOrder == nil || *req.CreatePoHOrder {
+			t.Errorf("%s: CI must default to local Dig without PoH, got pool=%v poh=%v", pkg, *req.PoolDistributed, *req.CreatePoHOrder)
+		}
+	}
+	req, err := ciBuildAuditRequest(ciDigRequest{DigPreset: "overflow_smoke", DigPackage: "audit"}, ciPolicy{AllowPool: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !*req.PoolDistributed || !*req.CreatePoHOrder {
+		t.Errorf("with HACKME_CI_ALLOW_POOL audit keeps its package defaults, got pool=%v poh=%v", *req.PoolDistributed, *req.CreatePoHOrder)
+	}
+}
+
+// End to end: an audit order through the handler lands as a local campaign.
+func TestCIDigAuditStaysLocal(t *testing.T) {
+	a, db := newCIDigTestApp(t)
+	body := okBody()
+	body["dig_package"] = "audit"
+	rec := ciDig(t, a, "X-Hackme-CI-Token", testCIToken, body)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var resp map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &resp)
+	var cfg string
+	if err := db.QueryRowContext(context.Background(), `SELECT config_json FROM fuzz_campaigns WHERE id=?`, resp["campaign_id"]).Scan(&cfg); err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]any
+	_ = json.Unmarshal([]byte(cfg), &m)
+	if m["pool_distributed"] != false || m["dig_package"] != "audit" || m["attach_poh_order"] == true {
+		t.Fatalf("audit via CI should be a local Dig: %v", m)
+	}
+	if resp["order"] != nil {
+		t.Fatalf("no PoH order expected for CI audit: %v", resp["order"])
 	}
 }
