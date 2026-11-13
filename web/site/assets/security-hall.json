@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-12",
+  "updated": "2026-11-13",
   "program": {
     "asset": "HMC",
     "monthly_budget_hmc": 500,
@@ -14,9 +14,9 @@
     "note": "Pre-fork hardening month: the November cap was raised from 200 to 1000 HMC to close findings before Economics v2 (block 550,000)."
   },
   "stats": {
-    "total_paid_hmc": 1550,
+    "total_paid_hmc": 1558,
     "researchers": 6,
-    "reports_accepted": 44
+    "reports_accepted": 45
   },
   "researchers": [
     {
@@ -42,8 +42,19 @@
       "id": "fimasw",
       "name": "fimasw",
       "handle": "fimasw",
-      "total_paid_hmc": 760,
+      "total_paid_hmc": 768,
       "findings": [
+        {
+          "title": "Admin pool campaign register accepts dust hub escrow for large budget_runs (incomplete 361e2a2)",
+          "severity": "low",
+          "paid_hmc": 8,
+          "date": "2026-11-13",
+          "reported": "2026-11-13",
+          "commit": "60285360",
+          "txid": "ae573fc9da7d747ba809b479bc2f5bb8259226777073411e4cab1e2765ce2113",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Low functional: 361e2a2 required an open hub escrow on the admin POST /api/fuzz/pool/campaigns path but did not match BudgetHMC/BudgetRuns, so a dust escrow could register thousands of unpaid shards. Needs admin/publish credentials on both hub escrow open and coordinator register — not miner-reachable. Fixed: refuse 409 when hub escrow covers less than claimed budget/runs. Paid 8 HMC → HMC-a6d09759a4c12019 tx ae573fc9… @543767."
+        },
         {
           "title": "Hunt worker host writes follow harness-planted symlinks (merge_stats.json, session.stderr, dicts, seeds)",
           "severity": "high",
