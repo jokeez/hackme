@@ -47,6 +47,15 @@ func (a *app) pullLocalFuzzSettleEscrows(ctx context.Context) error {
 	attempted := 0
 	authFails := 0
 	for _, cid := range ids {
+		// A campaign that never reached the pool (local order, or local fallback after a
+		// refused publish) has nothing on the coordinator to drain.
+		if a.db != nil {
+			var cfgRaw string
+			if err := a.db.QueryRowContext(ctx, `SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, cid).Scan(&cfgRaw); err == nil &&
+				!poolDistributedCampaign(parseMapJSON(cfgRaw)) {
+				continue
+			}
+		}
 		// Shared publish token + hardened hub: settle GET/ACK need owner_ref +
 		// per-campaign owner secret. Legacy open escrows without either only
 		// produce 403 storms and exponential settle backoff that starves

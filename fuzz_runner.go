@@ -14,6 +14,7 @@ import (
 	"hackme/internal/fuzzartifacts"
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzingcli"
+	"hackme/internal/logsafe"
 	"hackme/internal/poolfuzz"
 	"hackme/internal/sandbox"
 )
@@ -43,6 +44,7 @@ func (a *app) startFuzzAutoRunner(ctx context.Context) {
 		}
 	}
 	log.Printf("fuzz autorunner: enabled tick=%s", interval)
+	go a.finalizeStrandedLocalEscrows(ctx)
 	go func() {
 		t := time.NewTicker(interval)
 		defer t.Stop()
@@ -94,12 +96,17 @@ func (a *app) fuzzAutoRunnerTick(ctx context.Context) error {
 			return err
 		}
 		cfg := parseMapJSON(c.ConfigJSON)
-		if v, ok := cfg["auto_runner"]; ok {
+		if v, ok := cfg["auto_runner"]; ok && !truthy(cfg["pool_fallback_local"]) {
 			if strings.EqualFold(strings.TrimSpace(toString(v)), "0") || strings.EqualFold(strings.TrimSpace(toString(v)), "false") {
 				continue
 			}
 		}
 		if poolDistributedCampaign(cfg) {
+			if sum := parseMapJSON(c.SummaryJSON); toString(sum["pool_register_status"]) == "pool_register_failed" {
+				// Failed before this build had the fallback (or the flip did not stick): run it here.
+				a.poolFallbackToLocal(ctx, c.ID, toString(sum["pool_register_error"]))
+				continue // next tick sees the local config
+			}
 			_ = a.syncPoolFuzzCampaign(ctx, c)
 			continue
 		}
@@ -580,6 +587,7 @@ func (a *app) insertWorkerWasmCheckFail(ctx context.Context, campaignID string, 
 	if len(inputBytes) > 0 && sem == fuzzengine.SemanticsDetector {
 		title = fuzzengine.BytesDetectorTitle(inputBytes)
 	}
+	ft, sev = fuzzengine.CustomerGuardFinding(cfg, ft, sev)
 	return a.insertWorkerFindingClassified(ctx, campaignID, inputN, actualInput, inputBytes, now, ft, sev, title, wasmPath, cfg)
 }
 
@@ -688,6 +696,9 @@ func (a *app) recomputeCampaignProgress(ctx context.Context, campaignID string, 
 		 WHERE id=?`,
 		nextStatus, marshalMapJSON(summary), nextStatus, completedAt, campaignID); err != nil {
 		return err
+	}
+	if nextStatus == "completed" && strings.TrimSpace(strings.ToLower(status)) != "completed" {
+		a.finalizeLocalCampaignEscrow(ctx, campaignID)
 	}
 	_, err := a.db.ExecContext(ctx,
 		`INSERT INTO fuzz_runtime_samples
@@ -831,4 +842,69 @@ func (a *app) fuzzAutoCleanup(ctx context.Context) error {
 			artifactRes.DeletedFiles, artifactRes.DeletedBytes, artifactRes.KeptFiles, artifactRes.KeptBytes)
 	}
 	return nil
+}
+
+// finalizeLocalCampaignEscrow closes the escrow of a campaign that ran on this node when
+// it completes: unused runs and the locked bounty go back to the prepaid balance. Local
+// completion used to only flip the status, so a finished local order kept its whole
+// budget locked with no way to get it back (customer e2e 2026-11-13). Pool campaigns
+// close through the coordinator settle drain instead.
+func (a *app) finalizeLocalCampaignEscrow(ctx context.Context, campaignID string) {
+	if a.chain == nil {
+		return
+	}
+	var cfgRaw string
+	if err := a.db.QueryRowContext(ctx, `SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgRaw); err != nil {
+		return
+	}
+	if poolDistributedCampaign(parseMapJSON(cfgRaw)) {
+		return
+	}
+	row, err := a.chain.GetFuzzEscrow(ctx, campaignID)
+	if err != nil || row == nil || !strings.EqualFold(strings.TrimSpace(row.Status), "open") {
+		return
+	}
+	if _, err := a.chain.FinalizeFuzzEscrow(ctx, campaignID); err != nil {
+		log.Printf("fuzz escrow: finalize local campaign %s: %v", logsafe.ID(campaignID), err)
+		return
+	}
+	log.Printf("fuzz escrow: local campaign %s completed — unused budget returned to prepaid", logsafe.ID(campaignID))
+}
+
+// finalizeStrandedLocalEscrows closes escrows of local campaigns that completed before
+// finalizeLocalCampaignEscrow existed (their budget is otherwise locked forever).
+func (a *app) finalizeStrandedLocalEscrows(ctx context.Context) {
+	if a.db == nil || a.chain == nil {
+		return
+	}
+	rows, err := a.db.QueryContext(ctx,
+		`SELECT id FROM fuzz_campaigns WHERE status='completed' AND completed_at > ? ORDER BY completed_at DESC LIMIT 500`,
+		time.Now().Add(-90*24*time.Hour).Unix())
+	if err != nil {
+		return
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if rows.Scan(&id) == nil {
+			ids = append(ids, id)
+		}
+	}
+	rows.Close()
+	for _, id := range ids {
+		if ctx.Err() != nil {
+			return
+		}
+		a.finalizeLocalCampaignEscrow(ctx, id)
+	}
+}
+
+func truthy(v any) bool {
+	switch t := v.(type) {
+	case bool:
+		return t
+	default:
+		x := strings.TrimSpace(strings.ToLower(toString(v)))
+		return x == "1" || x == "true" || x == "yes"
+	}
 }

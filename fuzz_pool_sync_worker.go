@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"time"
 
@@ -329,7 +330,51 @@ func (a *app) poolSyncMarkFailed(id string, err error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		a.persistPoolRegisterStatus(ctx, id, "pool_register_failed", msg)
+		a.poolFallbackToLocal(ctx, id, msg)
 	}
+}
+
+// poolFallbackToLocal runs a paid order on this machine when the pool would not take it.
+// A pool-distributed campaign is never executed locally, so a failed registration used to
+// leave a funded order "running" with zero runs until its time budget expired (customer
+// e2e 2026-11-13: an Orders node cannot mint a hub prepaid ticket, so every wizard order
+// hung). The escrow is local either way; running it here is what the customer paid for.
+// HACKME_ORDERS_POOL_FALLBACK_LOCAL=0 keeps the old behaviour (stay queued for the pool).
+func (a *app) poolFallbackToLocal(ctx context.Context, id, reason string) {
+	if strings.TrimSpace(os.Getenv("HACKME_ORDERS_POOL_FALLBACK_LOCAL")) == "0" || a == nil || a.db == nil {
+		return
+	}
+	var cfgRaw, sumRaw, status string
+	if err := a.db.QueryRowContext(ctx,
+		`SELECT COALESCE(config_json,'{}'), COALESCE(summary_json,'{}'), status FROM fuzz_campaigns WHERE id=?`, id).
+		Scan(&cfgRaw, &sumRaw, &status); err != nil {
+		return
+	}
+	if st := strings.ToLower(strings.TrimSpace(status)); st != "planned" && st != "running" {
+		return
+	}
+	cfg := parseMapJSON(cfgRaw)
+	if cfg == nil || !poolDistributedCampaign(cfg) {
+		return
+	}
+	cfg["pool_distributed"] = false
+	cfg["pool_fallback_local"] = true
+	cfg["auto_runner"] = "1" // pool Hunt is created with auto_runner=0; the local runner must pick it up
+	if poolfuzz.IsHuntCampaign(cfg) {
+		cfg["hunt_local_runner"] = true
+	}
+	sum := parseMapJSON(sumRaw)
+	if sum == nil {
+		sum = map[string]any{}
+	}
+	sum["execution"] = "local_fallback"
+	sum["execution_note"] = "The public pool did not accept this order (" + reason + "); it runs on this machine instead. Budget and refunds stay in this node's prepaid balance."
+	if _, err := a.db.ExecContext(ctx, `UPDATE fuzz_campaigns SET config_json=?, summary_json=? WHERE id=?`,
+		marshalMapJSON(cfg), marshalMapJSON(sum), id); err != nil {
+		log.Printf("pool sync: local fallback for %s failed: %v", logsafe.ID(id), err)
+		return
+	}
+	log.Printf("pool sync: campaign %s runs locally (pool register failed)", logsafe.ID(id))
 }
 
 // persistPoolRegisterStatus stamps summary_json so the dashboard shows more than "running".
