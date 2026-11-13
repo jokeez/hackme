@@ -57,6 +57,7 @@ Layout: **`docs/`** = public guides · **[`internal/`](internal/README.md)** = o
 | [HUNT_RUST_PHASE_B.md](HUNT_RUST_PHASE_B.md) | Rust Phase B |
 | [CUSTOMER_FUZZ_DELIVERABLES.md](CUSTOMER_FUZZ_DELIVERABLES.md) | Report token, repro, artifacts |
 | [DEVELOPERS_FUZZING.md](DEVELOPERS_FUZZING.md) | Orders API, limits, escrow |
+| [../actions/fuzz/README.md](../actions/fuzz/README.md) | GitHub Action: Dig dry-run on every PR |
 | [DIG_HUNT_SKU_TRUST.md](DIG_HUNT_SKU_TRUST.md) | SKU trust / honesty |
 | [FUZZ_ESCROW_20_80.md](FUZZ_ESCROW_20_80.md) | Dig escrow settlement split (Hunt is 50/50) |
 | [FUZZ_TIER_C.md](FUZZ_TIER_C.md) | Tier C native fuzz |
