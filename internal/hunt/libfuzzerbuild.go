@@ -305,15 +305,27 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 
 	after, _ := countCorpusFiles(corpusDir)
 	// Aggressive dedupe/minimize before L2 import — prevents overnight corpus bloat.
+	// Bound to remaining parent/lease budget (was Background×10m → lease overrun /
+	// lease_lost_during_engine + late CLEAN races).
 	if after > 8 {
-		mergeCtx, mergeCancel := context.WithTimeout(context.Background(), 10*time.Minute)
-		mb, ma, merr := MergeMinimizeCorpus(mergeCtx, binPath, corpusDir)
-		mergeCancel()
-		if merr == nil {
-			after = ma
-			sessionLog += fmt.Sprintf("\n[merge] before=%d after=%d\n", mb, ma)
+		mergeBudget := 2 * time.Minute
+		if deadline, ok := ctx.Deadline(); ok {
+			if rem := time.Until(deadline); rem > 0 && rem < mergeBudget {
+				mergeBudget = rem
+			}
+		}
+		if mergeBudget < 5*time.Second {
+			sessionLog += fmt.Sprintf("\n[merge] skipped: lease budget exhausted (%s)\n", mergeBudget)
 		} else {
-			sessionLog += fmt.Sprintf("\n[merge] err=%v before=%d after=%d\n", merr, mb, ma)
+			mergeCtx, mergeCancel := context.WithTimeout(ctx, mergeBudget)
+			mb, ma, merr := MergeMinimizeCorpus(mergeCtx, binPath, corpusDir)
+			mergeCancel()
+			if merr == nil {
+				after = ma
+				sessionLog += fmt.Sprintf("\n[merge] before=%d after=%d\n", mb, ma)
+			} else {
+				sessionLog += fmt.Sprintf("\n[merge] err=%v before=%d after=%d\n", merr, mb, ma)
+			}
 		}
 	}
 	statsPath := filepath.Join(sessionDir, "session_stats.json")

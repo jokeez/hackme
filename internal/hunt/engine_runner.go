@@ -304,7 +304,8 @@ func runAFLPPEngineShard(ctx context.Context, repoRoot, targetID string, wall in
 
 	// Seed from persistent LF corpus + claim seeds.
 	persist := PersistentLibFuzzerCorpusDir(repoRoot, targetID)
-	copyCorpusFiles(persist, persist, inDir, 32)
+	// Newest-first warmup so rare/late units are not starved by lexical a*/claim-* bias.
+	copyCorpusFilesNewest(persist, persist, inDir, 64)
 	for i, b := range seeds {
 		if len(b) == 0 || len(b) > 65536 {
 			continue
@@ -364,13 +365,19 @@ func runAFLPPEngineShard(ctx context.Context, repoRoot, targetID string, wall in
 		filepath.Join(outDir, "default", "queue"),
 		filepath.Join(outDir, "queue"),
 	} {
-		imported += copyCorpusFiles(outDir, d, persist, 64)
+		// Newest-first so late coverage units are not truncated by lexical id order.
+		imported += copyCorpusFilesNewest(outDir, d, persist, 256)
 	}
 	for _, d := range []string{
 		filepath.Join(outDir, "default", "crashes"),
 		filepath.Join(outDir, "crashes"),
+		filepath.Join(outDir, "default", "hangs"),
+		filepath.Join(outDir, "hangs"),
 	} {
 		out.CrashFiles = append(out.CrashFiles, listFiles(outDir, d, 16)...)
+	}
+	if len(out.CrashFiles) > 32 {
+		out.CrashFiles = out.CrashFiles[:32]
 	}
 	_ = pruneCorpusDirUnder(persist, persist, defaultMaxPersistentCorpus)
 	afterPersist, _ := countCorpusFilesUnder(persist, persist)
@@ -454,24 +461,39 @@ func resolveAFLStdinHarness(ctx context.Context, repoRoot, targetID string, opts
 }
 
 func copyCorpusFiles(srcRoot, src, dst string, max int) int {
+	return copyCorpusFilesOrdered(srcRoot, src, dst, max, false)
+}
+
+// copyCorpusFilesNewest prefers recently written corpus units (AFL -i warmup).
+func copyCorpusFilesNewest(srcRoot, src, dst string, max int) int {
+	return copyCorpusFilesOrdered(srcRoot, src, dst, max, true)
+}
+
+// rejectSymlinkDir is true when path is missing, a symlink, or not a real directory.
+// os.ReadDir follows directory symlinks. corpusPathConfined refuses a symlink that
+// resolves outside a real ancestor, but not a symlink passed as its own root.
+func rejectSymlinkDir(dir string) bool {
+	st, err := os.Lstat(dir)
+	return err != nil || st.Mode()&os.ModeSymlink != 0 || !st.IsDir()
+}
+
+func copyCorpusFilesOrdered(srcRoot, src, dst string, max int, newestFirst bool) int {
 	if max < 1 {
 		max = 32
 	}
-	if srcRoot != "" && !corpusPathConfined(srcRoot, src) {
+	if rejectSymlinkDir(src) || (srcRoot != "" && !corpusPathConfined(srcRoot, src)) {
 		return 0
 	}
 	ents, err := os.ReadDir(src)
 	if err != nil {
 		return 0
 	}
-	// Stable order so max-N imports are reproducible across lease warmups.
-	sort.Slice(ents, func(i, j int) bool { return ents[i].Name() < ents[j].Name() })
-	_ = os.MkdirAll(dst, 0o755)
-	n := 0
+	type cand struct {
+		name string
+		mod  int64
+	}
+	cands := make([]cand, 0, len(ents))
 	for _, e := range ents {
-		if n >= max {
-			break
-		}
 		if e.IsDir() || strings.HasPrefix(e.Name(), ".") {
 			continue
 		}
@@ -482,7 +504,27 @@ func copyCorpusFiles(srcRoot, src, dst string, max int) int {
 		if !ok || info.Size() <= 0 || info.Size() > 1<<20 {
 			continue
 		}
-		name := e.Name()
+		cands = append(cands, cand{name: e.Name(), mod: info.ModTime().UnixNano()})
+	}
+	if newestFirst {
+		sort.Slice(cands, func(i, j int) bool {
+			if cands[i].mod == cands[j].mod {
+				return cands[i].name < cands[j].name
+			}
+			return cands[i].mod > cands[j].mod
+		})
+	} else {
+		// Stable lexical order so max-N imports are reproducible across warmups.
+		sort.Slice(cands, func(i, j int) bool { return cands[i].name < cands[j].name })
+	}
+	_ = os.MkdirAll(dst, 0o755)
+	n := 0
+	for _, c := range cands {
+		if n >= max {
+			break
+		}
+		srcPath := filepath.Join(src, c.name)
+		name := c.name
 		if strings.HasPrefix(filepath.Base(src), "crash") || strings.Contains(src, "crashes") {
 			name = "afl-crash-" + name
 		} else if !strings.HasPrefix(name, "afl-") {
@@ -536,7 +578,7 @@ func placeCorpusFile(srcRoot, srcPath, dest string) bool {
 }
 
 func listFiles(root, dir string, max int) []string {
-	if root != "" && !corpusPathConfined(root, dir) {
+	if rejectSymlinkDir(dir) || (root != "" && !corpusPathConfined(root, dir)) {
 		return nil
 	}
 	ents, err := os.ReadDir(dir)
@@ -562,12 +604,25 @@ func listFiles(root, dir string, max int) []string {
 }
 
 func collectCrashArtifacts(root, dir string, max int) []string {
+	if rejectSymlinkDir(dir) {
+		return nil
+	}
 	var out []string
-	for _, sub := range []string{"crashes", "crash", "artifacts"} {
-		out = append(out, listFiles(root, filepath.Join(dir, sub), max)...)
+	for _, sub := range []string{"crashes", "hangs", "crash", "artifacts"} {
+		subDir := filepath.Join(dir, sub)
+		if rejectSymlinkDir(subDir) {
+			continue
+		}
+		out = append(out, listFiles(root, subDir, max)...)
 		if len(out) >= max {
 			return out[:max]
 		}
 	}
 	return out
+}
+
+// ListCrashArtifactPaths returns regular crash/hang artifact paths under dir
+// (typically corpus/.hunt-run). Used by research-slot delta upload.
+func ListCrashArtifactPaths(dir string, max int) []string {
+	return collectCrashArtifacts(filepath.Dir(dir), dir, max)
 }

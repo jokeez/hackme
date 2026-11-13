@@ -1110,17 +1110,27 @@ func (a *app) tryCloseFuzzEscrowForStatus(ctx context.Context, campaignID, statu
 	}
 	switch status {
 	case "cancelled", "completed":
-		if poolSyncCoordinatorConfigured() {
-			_ = a.applyPoolCampaignProgressFromCoordinator(ctx, campaignID, false)
+		// Progress-mirror / reconcile often call with a short sync ctx (~8–20s).
+		// Drain alone may need 12×2s + settle pulls — do not inherit that budget.
+		budget := 3 * time.Minute
+		if deadline, ok := ctx.Deadline(); ok {
+			if rem := time.Until(deadline); rem > budget {
+				budget = rem
+			}
 		}
-		if !a.drainFuzzSettleBeforeClose(ctx, campaignID, status) {
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), budget)
+		defer closeCancel()
+		if poolSyncCoordinatorConfigured() {
+			_ = a.applyPoolCampaignProgressFromCoordinator(closeCtx, campaignID, false)
+		}
+		if !a.drainFuzzSettleBeforeClose(closeCtx, campaignID, status) {
 			return
 		}
 		if status == "cancelled" {
-			_, _ = a.chain.CancelFuzzEscrow(ctx, campaignID)
+			_, _ = a.chain.CancelFuzzEscrow(closeCtx, campaignID)
 			return
 		}
-		_, _ = a.chain.FinalizeFuzzEscrow(ctx, campaignID)
+		_, _ = a.chain.FinalizeFuzzEscrow(closeCtx, campaignID)
 	}
 }
 
@@ -1135,6 +1145,7 @@ func (a *app) drainFuzzSettleBeforeClose(ctx context.Context, campaignID, closeK
 		pause       = 2 * time.Second
 	)
 	var lastPending bool
+	emptyStreak := 0
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		if attempt > 0 {
 			select {
@@ -1145,7 +1156,9 @@ func (a *app) drainFuzzSettleBeforeClose(ctx context.Context, campaignID, closeK
 			case <-time.After(pause):
 			}
 		}
-		err := a.pullFuzzSettleOutbox(ctx)
+		// Drain only this campaign — do not fan out to every local open escrow.
+		scoped := poolsync.OrdersPublishToken() != "" || strings.TrimSpace(campaignID) != ""
+		err := a.pullFuzzSettleOutboxWindow(ctx, campaignID, scoped)
 		if err != nil && !errors.Is(err, errSettleOutboxUndrainableHead) {
 			log.Printf("fuzz escrow: refuse %s %s: settle pull failed: %s",
 				logsafe.ID(closeKind), logsafe.ID(campaignID), logsafe.Err(err))
@@ -1155,6 +1168,7 @@ func (a *app) drainFuzzSettleBeforeClose(ctx context.Context, campaignID, closeK
 			}
 			// Transient edge noise — keep trying within the window.
 			if poolsync.SettleOutboxErrTransient(err) && attempt+1 < maxAttempts {
+				emptyStreak = 0
 				continue
 			}
 			return false
@@ -1166,16 +1180,19 @@ func (a *app) drainFuzzSettleBeforeClose(ctx context.Context, campaignID, closeK
 			log.Printf("fuzz escrow: refuse %s %s: settle pending check: %s",
 				logsafe.ID(closeKind), logsafe.ID(campaignID), logsafe.Err(perr))
 			if poolsync.SettleOutboxErrTransient(perr) && attempt+1 < maxAttempts {
+				emptyStreak = 0
 				continue
 			}
 			return false
 		}
 		lastPending = pending
 		if pending {
+			emptyStreak = 0
 			continue
 		}
-		// Grace re-check: first empty observation often races enqueue on the hub.
-		if attempt == 0 {
+		// Two consecutive empty observations — first empty often races hub enqueue.
+		emptyStreak++
+		if emptyStreak < 2 {
 			continue
 		}
 		return true

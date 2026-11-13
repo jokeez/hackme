@@ -213,54 +213,11 @@ func (a *app) runPoolSyncJob(job poolSyncJob) {
 	if ctype == "" {
 		ctype = "property"
 	}
-	// Hunt: upload harness BEFORE registering the campaign so workers never claim
-	// shards against a missing ASAN binary (yyjson-class lease spin).
-	if poolfuzz.IsHuntCampaign(cfg) {
-		if herr := a.syncHuntHarnessToCoordinator(ctx, cfg); herr != nil {
-			log.Printf("pool sync: campaign %s harness upload failed: %s", logsafe.ID(job.campaign.ID), logsafe.Err(herr))
-			a.poolSyncMarkFailed(job.campaign.ID, herr)
-			return
-		}
-	}
-	budgetHMC := 0.0
-	if v, ok := cfg["budget_hmc"].(float64); ok {
-		budgetHMC = v
-	}
-	escrowFP := ""
-	if a.chain != nil && budgetHMC > 0 {
-		row, err := a.chain.GetFuzzEscrow(ctx, job.campaign.ID)
-		if err != nil || row == nil {
-			log.Printf("pool sync: campaign %s missing open escrow before prepaid attest: %v", logsafe.ID(job.campaign.ID), err)
-			a.poolSyncMarkFailed(job.campaign.ID, fmt.Errorf("open escrow required before pool register"))
-			return
-		}
-		st := strings.ToLower(strings.TrimSpace(row.Status))
-		if st != "open" {
-			a.poolSyncMarkFailed(job.campaign.ID, fmt.Errorf("escrow status %q not open", row.Status))
-			return
-		}
-		if row.BudgetHMC+1e-9 < budgetHMC || (job.campaign.BudgetRuns > 0 && row.BudgetRuns < job.campaign.BudgetRuns) {
-			a.poolSyncMarkFailed(job.campaign.ID, fmt.Errorf("escrow budget/runs below publish claim"))
-			return
-		}
-		// Fingerprint the *claimed* open escrow (not opaque row noise) so hub verify can recompute.
-		escrowFP = poolsync.EscrowPrepaidFingerprintParts(job.campaign.ID, budgetHMC, job.campaign.BudgetRuns, "open")
-	} else if poolsync.RequireHubPrepaidTicket() || poolsync.OrdersPrepaidHubSecret() != "" {
-		a.poolSyncMarkFailed(job.campaign.ID, fmt.Errorf("open escrow required for hub prepaid ticket"))
+	req, prepErr := a.preparePoolRegisterRequest(ctx, job.campaign, job.title, job.desc, ctype, cfg)
+	if prepErr != nil {
+		log.Printf("pool sync: campaign %s prep failed: %s", logsafe.ID(job.campaign.ID), logsafe.Err(prepErr))
+		a.poolSyncMarkFailed(job.campaign.ID, prepErr)
 		return
-	}
-	req := poolsync.RegisterRequest{
-		ID:                job.campaign.ID,
-		CampaignType:      ctype,
-		Title:             job.title,
-		Description:       job.desc,
-		OwnerRef:          job.campaign.OwnerRef,
-		Status:            "running",
-		BudgetRuns:        job.campaign.BudgetRuns,
-		BudgetSeconds:     job.campaign.BudgetSeconds,
-		BudgetHMC:         budgetHMC,
-		EscrowFingerprint: escrowFP,
-		Config:            cfg,
 	}
 	res, err := poolsync.RegisterWithRetryResult(ctx, req)
 	if err != nil {
@@ -276,6 +233,58 @@ func (a *app) runPoolSyncJob(job poolSyncJob) {
 	}
 	log.Printf("pool sync: campaign %s registered on coordinator", logsafe.ID(job.campaign.ID))
 	a.poolSyncMarkOK(job.campaign.ID)
+}
+
+// preparePoolRegisterRequest uploads Hunt harness (when needed) and attests open
+// escrow fingerprint. Shared by async worker and sync register path.
+func (a *app) preparePoolRegisterRequest(ctx context.Context, c fuzzAutoCampaign, title, desc, ctype string, cfg map[string]any) (poolsync.RegisterRequest, error) {
+	if ctype == "" {
+		ctype = "property"
+	}
+	// Hunt: upload harness BEFORE registering so workers never claim shards
+	// against a missing ASAN binary (yyjson-class lease spin).
+	if poolfuzz.IsHuntCampaign(cfg) {
+		if herr := a.syncHuntHarnessToCoordinator(ctx, cfg); herr != nil {
+			return poolsync.RegisterRequest{}, herr
+		}
+	}
+	budgetHMC := 0.0
+	if v, ok := cfg["budget_hmc"].(float64); ok {
+		budgetHMC = v
+	}
+	escrowFP := ""
+	if a.chain != nil && budgetHMC > 0 {
+		row, err := a.chain.GetFuzzEscrow(ctx, c.ID)
+		if err != nil {
+			return poolsync.RegisterRequest{}, fmt.Errorf("open escrow required before pool register: %w", err)
+		}
+		if row == nil {
+			return poolsync.RegisterRequest{}, fmt.Errorf("open escrow required before pool register")
+		}
+		st := strings.ToLower(strings.TrimSpace(row.Status))
+		if st != "open" {
+			return poolsync.RegisterRequest{}, fmt.Errorf("escrow status %q not open", row.Status)
+		}
+		if row.BudgetHMC+1e-9 < budgetHMC || (c.BudgetRuns > 0 && row.BudgetRuns < c.BudgetRuns) {
+			return poolsync.RegisterRequest{}, fmt.Errorf("escrow budget/runs below publish claim")
+		}
+		escrowFP = poolsync.EscrowPrepaidFingerprintParts(c.ID, budgetHMC, c.BudgetRuns, "open")
+	} else if poolsync.RequireHubPrepaidTicket() || poolsync.OrdersPrepaidHubSecret() != "" {
+		return poolsync.RegisterRequest{}, fmt.Errorf("open escrow required for hub prepaid ticket")
+	}
+	return poolsync.RegisterRequest{
+		ID:                c.ID,
+		CampaignType:      ctype,
+		Title:             title,
+		Description:       desc,
+		OwnerRef:          c.OwnerRef,
+		Status:            "running",
+		BudgetRuns:        c.BudgetRuns,
+		BudgetSeconds:     c.BudgetSeconds,
+		BudgetHMC:         budgetHMC,
+		EscrowFingerprint: escrowFP,
+		Config:            cfg,
+	}, nil
 }
 
 func (a *app) persistOrdersOwnerSecret(ctx context.Context, campaignID, secret string) {
@@ -307,6 +316,7 @@ func (a *app) persistOrdersOwnerSecret(ctx context.Context, campaignID, secret s
 func (a *app) poolSyncMarkOK(id string) {
 	a.poolSyncMu.Lock()
 	delete(a.poolSyncFailed, id)
+	delete(a.poolSyncQueued, id)
 	a.poolSyncMu.Unlock()
 	if a.db != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -325,6 +335,7 @@ func (a *app) poolSyncMarkFailed(id string, err error) {
 		a.poolSyncFailed = make(map[string]string)
 	}
 	a.poolSyncFailed[id] = msg
+	delete(a.poolSyncQueued, id)
 	a.poolSyncMu.Unlock()
 	if a.db != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -448,37 +459,28 @@ func (a *app) schedulePoolFuzzSync(ctx context.Context, c fuzzAutoCampaign) (syn
 	}
 
 	if err := a.syncPoolFuzzCampaignSync(ctx, c, title, desc, ctype); err != nil {
+		a.poolSyncMarkFailed(c.ID, err)
 		return "fail", err.Error()
 	}
+	a.poolSyncMarkOK(c.ID)
 	return "ok", ""
 }
 
 func (a *app) syncPoolFuzzCampaignSync(ctx context.Context, c fuzzAutoCampaign, title, desc, ctype string) error {
 	cfg := parseMapJSON(c.ConfigJSON)
-	if ctype == "" {
-		ctype = "property"
+	req, err := a.preparePoolRegisterRequest(ctx, c, title, desc, ctype, cfg)
+	if err != nil {
+		return err
 	}
-	budgetHMC := 0.0
-	if v, ok := cfg["budget_hmc"].(float64); ok {
-		budgetHMC = v
-	}
-	res, err := poolsync.RegisterWithRetryResult(ctx, poolsync.RegisterRequest{
-		ID:            c.ID,
-		CampaignType:  ctype,
-		Title:         title,
-		Description:   desc,
-		OwnerRef:      c.OwnerRef,
-		Status:        "running",
-		BudgetRuns:    c.BudgetRuns,
-		BudgetSeconds: c.BudgetSeconds,
-		BudgetHMC:     budgetHMC,
-		Config:        cfg,
-	})
+	res, err := poolsync.RegisterWithRetryResult(ctx, req)
 	if err != nil {
 		return err
 	}
 	if sec := strings.TrimSpace(res.OrdersOwnerSecret); sec != "" {
 		a.persistOrdersOwnerSecret(ctx, c.ID, sec)
+	}
+	if fuzzengine.CorpusPersistEnabled(cfg) {
+		a.syncCorpusNamespaceToCoordinator(ctx, cfg)
 	}
 	return nil
 }

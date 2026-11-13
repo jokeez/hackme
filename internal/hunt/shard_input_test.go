@@ -97,3 +97,31 @@ func TestShardSegmentExecInputUsesCorpusAtExecZero(t *testing.T) {
 		t.Fatal("corpus-guided exec 0 not deterministic")
 	}
 }
+
+func TestShardSegmentExecInputMutatingPrefersGuidedSeedOverPackCorpus(t *testing.T) {
+	cfg := map[string]any{
+		"upstream_target_id":   "yyjson",
+		"max_input_bytes":      128,
+		"iterations_per_shard": 8,
+		"depth_tier":           "oss_cve",
+		"hunt_corpus_guided":   true,
+		"guided_scheduling":    true,
+		"input_mode":           "bytes",
+		"seed_byte_corpus":     []any{"PACK-STARTER-AAAAAAAA", "PACK-STARTER-BBBBBBBB"},
+	}
+	marker := []byte("RARE-GUIDED-PARENT-BYTES-SHOULD-DRIVE-MUTATING-EXECS-0123456789")
+	seeds := []fuzzengine.PoolCorpusSeed{
+		{InputBytes: marker, Energy: 8, Edge: 42},
+	}
+	campaignID := "camp-guided-mut"
+	inputN := uint64(9)
+	mut := ShardSegmentExecInput(campaignID, inputN, 1, cfg, seeds)
+	if bytes.Contains(mut, []byte("PACK-STARTER")) {
+		t.Fatalf("mutating exec should not prefer pack corpus when guided seeds exist: %q", mut)
+	}
+	// Deterministic with same guided parent set.
+	mut2 := ShardSegmentExecInput(campaignID, inputN, 1, cfg, seeds)
+	if !bytes.Equal(mut, mut2) {
+		t.Fatal("mutating guided exec not deterministic")
+	}
+}

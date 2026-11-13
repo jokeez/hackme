@@ -2,8 +2,10 @@ package netutil
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -31,11 +33,18 @@ func loadOriginDial() {
 	originDialOnce.Do(func() {
 		raw := strings.TrimSpace(os.Getenv("HACKME_POOL_ORIGIN_DIAL"))
 		// Pin must be a literal IP — hostnames would reintroduce DNS / CDN path.
-		if raw != "" && net.ParseIP(raw) == nil {
+		if ip := net.ParseIP(raw); raw != "" && ip == nil {
 			raw = ""
+		} else if raw != "" {
+			ip := net.ParseIP(raw)
+			// Always reject metadata/link-local/CGNAT; private/loopback only with lab flag.
+			if IPUnsafeForEgress(ip, true) || IPUnsafeForEgress(ip, AllowPrivateEgress()) {
+				raw = ""
+			}
 		}
 		originDialIP = raw
 		originDialHost = strings.ToLower(strings.TrimSpace(os.Getenv("HACKME_POOL_ORIGIN_DIAL_HOST")))
+		originDialHost = strings.TrimSuffix(originDialHost, ".")
 		if originDialHost == "" {
 			originDialHost = "hackme.tech"
 		}
@@ -64,6 +73,7 @@ func hostMatchesOriginDial(hostname string) bool {
 	}
 	h := strings.ToLower(strings.TrimSpace(hostname))
 	h = strings.Trim(h, "[]")
+	h = strings.TrimSuffix(h, ".")
 	return h == originDialHost
 }
 
@@ -92,8 +102,31 @@ func OriginDialTransport() http.RoundTripper {
 			return
 		}
 		tr := base.Clone()
+		// Always force HTTP/1.1 on this pool client. Large Hunt/settle bodies
+		// stall under h2 via CF; pin path needs h1 for origin nginx too.
+		// Clearing TLSNextProto alone is not enough — DefaultTransport's cloned
+		// TLSClientConfig still offers "h2" in ALPN, so the peer can select h2
+		// while Go reads the preface as HTTP/1.1 ("malformed HTTP response").
+		tr.ForceAttemptHTTP2 = false
+		tr.TLSNextProto = map[string]func(authority string, c *tls.Conn) http.RoundTripper{}
+		if tr.TLSClientConfig == nil {
+			tr.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+		} else {
+			tr.TLSClientConfig = tr.TLSClientConfig.Clone()
+		}
+		tr.TLSClientConfig.NextProtos = []string{"http/1.1"}
 		if originDialIP != "" {
 			tr.DialContext = originDialContext
+			// Clone inherits ProxyFromEnvironment. A system HTTPS_PROXY would
+			// send pinned-host traffic through the proxy/CDN and silently undo
+			// the pin (Hunt harness + settle outbox hang >~24KiB).
+			tr.Proxy = func(req *http.Request) (*url.URL, error) {
+				if req != nil && req.URL != nil && hostMatchesOriginDial(req.URL.Hostname()) {
+					return nil, nil
+				}
+				// Non-pinned hosts on this client: still direct (no CONNECT undo risk).
+				return nil, nil
+			}
 		}
 		originTransport = tr
 	})

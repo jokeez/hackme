@@ -48,15 +48,42 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 	}
 	// Unique raw dir so concurrent merges on the same parent cannot clobber each other.
 	rawDir := filepath.Join(parent, fmt.Sprintf("corpus.raw-merge.%d.%d", os.Getpid(), time.Now().UnixNano()))
+	// Preserve .hunt-run (crash artifacts) outside the merge bind so a timed-out
+	// -merge=1 cannot wipe crashes via RemoveAll(raw) or rewrite aside in parent.
+	runAside, asideErr := stashHuntRunAside(corpusDir)
+	restoreHuntRun := func() {
+		if runAside == "" {
+			return
+		}
+		dst := filepath.Join(corpusDir, ".hunt-run")
+		_ = os.RemoveAll(dst)
+		if err := os.Rename(runAside, dst); err != nil {
+			// Keep aside on disk for ops — never delete the only crash copy.
+			logMergeAside(runAside, err)
+			return
+		}
+		runAside = ""
+	}
+	if asideErr != nil {
+		return before, before, asideErr
+	}
 	if err := os.Rename(corpusDir, rawDir); err != nil {
+		restoreHuntRun()
 		return before, before, err
 	}
 	if err := os.MkdirAll(corpusDir, 0o755); err != nil {
 		_ = os.Rename(rawDir, corpusDir) // best-effort restore
+		restoreHuntRun()
 		return before, before, err
 	}
 
-	runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	mergeBudget := 10 * time.Minute
+	if deadline, ok := ctx.Deadline(); ok {
+		if rem := time.Until(deadline); rem > 0 && rem < mergeBudget {
+			mergeBudget = rem
+		}
+	}
+	runCtx, cancel := context.WithTimeout(ctx, mergeBudget)
 	defer cancel()
 	var out bytes.Buffer
 	env := []string{
@@ -65,32 +92,45 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 		"ASAN_OPTIONS=detect_leaks=0:halt_on_error=0:allocator_may_return_null=1",
 		"UBSAN_OPTIONS=halt_on_error=0",
 	}
+	maxTotalSec := int(mergeBudget.Seconds()) - 5
+	if maxTotalSec < 5 {
+		maxTotalSec = 5
+	}
 	// Same cage as LF session — never bare-exec the untrusted fuzzer for -merge=1.
-	_ = RunIsolated(runCtx, IsolateOpts{
+	// Bind only corpus+raw (not parent) so aside stays out of the cage.
+	isoErr := RunIsolated(runCtx, IsolateOpts{
 		Bin:         fuzzerBin,
-		Args:        []string{corpusDir, rawDir, "-merge=1"},
+		Args:        []string{corpusDir, rawDir, "-merge=1", fmt.Sprintf("-max_total_time=%d", maxTotalSec)},
 		Env:         env,
-		Wall:        10 * time.Minute,
+		Wall:        mergeBudget,
 		Stdout:      &out,
 		Stderr:      &out,
 		AllowBare:   false,
-		ExtraBind:   []string{corpusDir, rawDir, parent},
+		ExtraBind:   []string{corpusDir, rawDir},
 		ExtraRoBind: []string{filepath.Dir(fuzzerBin)},
 	})
 
 	after, _ = countCorpusFiles(corpusDir)
-	if after == 0 {
-		// Merge failed — restore raw.
+	// Cancelled/errored/empty merge must restore raw — never delete partial minimize.
+	if isoErr != nil || runCtx.Err() != nil || after == 0 {
 		_ = os.RemoveAll(corpusDir)
 		if rerr := os.Rename(rawDir, corpusDir); rerr != nil {
 			// Never strand the raw inputs: fold them back file by file.
 			_ = os.MkdirAll(corpusDir, 0o755)
 			moveCorpusFiles(parent, rawDir, corpusDir)
 			if derr := os.RemoveAll(rawDir); derr != nil {
+				restoreHuntRun()
 				return before, 0, fmt.Errorf("hunt: merge restore: %v (raw dir left: %v)", rerr, derr)
 			}
 		}
+		restoreHuntRun()
 		after, _ = countCorpusFiles(corpusDir)
+		if isoErr != nil {
+			return before, after, fmt.Errorf("hunt: merge failed (restored raw): %w", isoErr)
+		}
+		if runCtx.Err() != nil {
+			return before, after, fmt.Errorf("hunt: merge cancelled (restored raw): %w", runCtx.Err())
+		}
 		return before, after, fmt.Errorf("hunt: merge failed (restored raw): %s", truncateMergeLog(out.String()))
 	}
 	// The session's own artifacts live in dot-dirs inside the corpus (.hunt-run/crashes with
@@ -104,12 +144,50 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 	if derr := os.RemoveAll(rawDir); derr != nil {
 		cleanupErr = fmt.Errorf("hunt: merge: remove %s: %w", filepath.Base(rawDir), derr)
 	}
+	restoreHuntRun()
 	_ = pruneCorpusDir(corpusDir, defaultMaxPersistentCorpus)
 	after, _ = countCorpusFiles(corpusDir)
 	_ = writeFileBeneath(parent, filepath.Join(parent, "merge_stats.json"),
 		[]byte(fmt.Sprintf("{\n  \"before\": %d,\n  \"after\": %d,\n  \"max_cap\": %d\n}\n", before, after, defaultMaxPersistentCorpus)),
 		0o644)
 	return before, after, cleanupErr
+}
+
+func stashHuntRunAside(corpusDir string) (aside string, err error) {
+	runSrc := filepath.Join(corpusDir, ".hunt-run")
+	st, serr := os.Lstat(runSrc)
+	if serr != nil {
+		if os.IsNotExist(serr) {
+			return "", nil
+		}
+		return "", serr
+	}
+	if st.Mode()&os.ModeSymlink != 0 || !st.IsDir() {
+		// Fail closed: symlink .hunt-run would stay inside rawDir bind and be
+		// followed by host-side collectCrashArtifacts / research upload.
+		return "", fmt.Errorf("hunt: merge: refusing non-dir or symlink .hunt-run")
+	}
+	// Also refuse if crashes/ is a symlink (exfil via merge preserve + upload).
+	for _, sub := range []string{"crashes", "hangs", "crash", "artifacts"} {
+		p := filepath.Join(runSrc, sub)
+		if sst, err := os.Lstat(p); err == nil {
+			if sst.Mode()&os.ModeSymlink != 0 || !sst.IsDir() {
+				return "", fmt.Errorf("hunt: merge: refusing symlink crash dir %s", sub)
+			}
+		}
+	}
+	// Same filesystem as corpus (avoid EXDEV vs /tmp tmpfs). Outside merge bind
+	// (cage only mounts corpusDir+rawDir), so the harness cannot unlink it.
+	parent := filepath.Dir(corpusDir)
+	aside = filepath.Join(parent, fmt.Sprintf("corpus.hunt-run.%d.%d", os.Getpid(), time.Now().UnixNano()))
+	if err := os.Rename(runSrc, aside); err != nil {
+		return "", err
+	}
+	return aside, nil
+}
+
+func logMergeAside(path string, err error) {
+	_, _ = fmt.Fprintf(os.Stderr, "hunt: merge: crash aside restore failed path=%s err=%v\n", path, err)
 }
 
 // MergeMinimizePersistentCorpus builds (or reuses) the LF binary and merges the durable corpus.
