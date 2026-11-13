@@ -38,7 +38,7 @@ inputs:
     required: false
     default: ""
   mode:
-    description: "`dry-run` (default) or `gate`: wait for an already published campaign and use its CI gate as the verdict."
+    description: "`dry-run` (default), `gate` (wait for an already published campaign) or `publish` (create a capped Dig order on your Orders node and wait for its gate; workflow_dispatch / protected push / labelled same-repo PR only)."
     required: false
     default: dry-run
   hackme-url:
@@ -47,6 +47,14 @@ inputs:
     default: ""
   campaign-id:
     description: "Gate mode: campaign to wait for."
+    required: false
+    default: ""
+  ci-token:
+    description: "Publish mode: scoped Orders CI token (HACKME_CI_TOKEN on the node). Pass it from a secret."
+    required: false
+    default: ""
+  publish-label:
+    description: "Publish mode: PR label that opts a same-repo PR into a real publish. Empty = PRs never publish."
     required: false
     default: ""
   report-token:
@@ -107,21 +115,24 @@ outputs:
   plan-path:
     description: Path to the plan JSON (what a real publish would send, wasm referenced by hash).
     value: ${{ steps.run.outputs.plan-path }}
+  campaign-id:
+    description: "Publish mode: id of the campaign that was created."
+    value: ${{ steps.run.outputs.campaign-id }}
   gate-pass:
-    description: "Gate mode: `true` only for a completed campaign whose gate passed."
-    value: ${{ steps.gate.outputs.gate-pass }}
+    description: "Gate/publish mode: `true` only for a completed campaign whose gate passed."
+    value: ${{ steps.gate.outputs.gate-pass || steps.run.outputs.gate-pass }}
   campaign-status:
     description: "Gate mode: last campaign status seen."
-    value: ${{ steps.gate.outputs.campaign-status }}
+    value: ${{ steps.gate.outputs.campaign-status || steps.run.outputs.campaign-status }}
   runs-done:
     description: "Gate mode: runs done."
-    value: ${{ steps.gate.outputs.runs-done }}
+    value: ${{ steps.gate.outputs.runs-done || steps.run.outputs.runs-done }}
   critical-count:
     description: "Gate mode: crash-class critical findings."
-    value: ${{ steps.gate.outputs.critical-count }}
+    value: ${{ steps.gate.outputs.critical-count || steps.run.outputs.critical-count }}
   high-count:
     description: "Gate mode: crash-class high findings."
-    value: ${{ steps.gate.outputs.high-count }}
+    value: ${{ steps.gate.outputs.high-count || steps.run.outputs.high-count }}
 
 runs:
   using: composite
@@ -151,11 +162,23 @@ runs:
         mkdir -p "$RUNNER_TEMP/hackme-fuzz-action"
         go build -trimpath -o "$RUNNER_TEMP/hackme-fuzz-action/hackme-fuzz-action" ./cmd/hackme-fuzz-action
 
-    - name: Dry-run
+    - name: Dry-run / publish
       id: run
       if: inputs.mode != 'gate'
       shell: bash
       env:
+        HACKME_CI_TOKEN: ${{ inputs.ci-token }}
+        HFA_URL: ${{ inputs.hackme-url }}
+        HFA_PUBLISH_LABEL: ${{ inputs.publish-label }}
+        HFA_LABEL: ${{ github.repository }}${{ github.event.pull_request.number && format('#{0}', github.event.pull_request.number) || format('@{0}', github.ref_name) }}
+        HFA_REF_PROTECTED: ${{ github.ref_protected }}
+        HFA_PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        HFA_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        HFA_BASE_REPO: ${{ github.repository }}
+        HFA_TIMEOUT: ${{ inputs.gate-timeout }}
+        HFA_MAX_CRITICAL: ${{ inputs.max-critical }}
+        HFA_MAX_HIGH: ${{ inputs.max-high }}
+        HFA_MIN_RUNS: ${{ inputs.min-runs-done }}
         HFA_HACKME_ROOT: ${{ steps.root.outputs.dir }}
         HFA_WASM: ${{ inputs.wasm }}
         HFA_SOURCE: ${{ inputs.source }}
@@ -180,6 +203,18 @@ runs:
         [ -n "$HFA_GUARD_PACK" ] && args+=(-guard-pack "$HFA_GUARD_PACK")
         [ -n "$HFA_PACKAGE" ]    && args+=(-package "$HFA_PACKAGE")
         [ -n "$HFA_TITLE" ]      && args+=(-title "$HFA_TITLE")
+        if [ "$HFA_MODE" = publish ]; then
+          case "$HACKME_CI_TOKEN" in
+            *$'\n'*|*$'\r'*) ;;
+            ?*) echo "::add-mask::$HACKME_CI_TOKEN" ;;
+          esac
+          args+=(-hackme-url "$HFA_URL" -label "$HFA_LABEL" -publish-label "$HFA_PUBLISH_LABEL"
+                 -gate-timeout "$HFA_TIMEOUT" -max-critical "$HFA_MAX_CRITICAL" -max-high "$HFA_MAX_HIGH"
+                 -min-runs-done "$HFA_MIN_RUNS")
+        else
+          # The CI token is only for publish; don't hand it to a dry-run.
+          unset HACKME_CI_TOKEN
+        fi
         # `shell: bash` runs with -e on GitHub, so catch the code instead of dying here.
         code=0
         "$bin" "${args[@]}" || code=$?
@@ -230,7 +265,7 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.github-token }}
-        HFA_MARKER: ${{ inputs.mode == 'gate' && 'gate' || 'dry-run' }}
+        HFA_MARKER: ${{ inputs.mode == 'dry-run' && 'dry-run' || 'gate' }}
         HFA_REPO: ${{ github.repository }}
         HFA_PR: ${{ github.event.pull_request.number }}
         HFA_BODY: ${{ steps.run.outputs.comment-path || steps.gate.outputs.comment-path }}
@@ -243,7 +278,7 @@ runs:
         HFA_FAIL_ON_REJECT: ${{ inputs.fail-on-reject }}
         HFA_MODE: ${{ inputs.mode }}
       run: |
-        if [ "$HFA_MODE" = gate ]; then
+        if [ "$HFA_MODE" = gate ] || [ "$HFA_MODE" = publish ]; then
           ok="Campaign finished and the gate passed."
           bad="gate did not pass or the campaign did not finish — see the job summary"
         else
