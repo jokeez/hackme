@@ -143,6 +143,16 @@
     }
     @media (max-width: 1200px) { .row { grid-template-columns: 1fr 1fr; } .grid3 { grid-template-columns: 1fr; } }
     @media (max-width: 980px) { .grid2 { grid-template-columns: 1fr; } }
+    /* Phones: search inputs wrap under the title, and HMC-+64-hex long addresses / hashes
+       break instead of pushing the page sideways. */
+    @media (max-width: 560px) {
+      .toolbar { flex-wrap: wrap; }
+      .toolbar input { min-width: 0 !important; width: 100%; flex: 1 1 100% !important; }
+      #tx-result, #addr-result, .result-title, .result-val { overflow-wrap: anywhere; min-width: 0; }
+      .mono { overflow-wrap: anywhere; word-break: break-all; min-width: 0; }
+      .result-val.mono { word-break: normal; }
+      table { display: block; max-width: 100%; overflow-x: auto; }
+    }
     /* Dark thin scrollbars — kill default white pipe + arrow buttons */
     html, body {
       scrollbar-width: thin;

@@ -4095,7 +4095,10 @@
 									<code id="wallet-long-address-display" class="flex-1 text-[10px] text-matrix/90 bg-black/60 px-3 py-2 rounded border border-matrix/20 break-all"></code>
 									<button type="button" id="btn-copy-long-address" aria-label="Copy long address" class="shrink-0 px-4 py-2 rounded border border-matrix/40 text-matrix text-[10px] font-display font-bold uppercase tracking-wider hover:bg-matrix/10">Copy</button>
 								</div>
-								<p class="mt-1 text-[10px] text-gray-500 leading-snug">Full-length form of your address. Move funds to it with a normal transfer once it is active; your current address keeps working. Nothing moves automatically.</p>
+								<p id="wallet-long-balance-row" class="hidden mt-2 text-[11px] text-gray-300 leading-snug">On the long address: <span id="wallet-long-balance" class="font-mono text-matrix"></span> HMC — a separate account on chain, not included in the balance above.
+									<button type="button" id="btn-long-move-main" class="ml-1 px-2 py-0.5 rounded border border-matrix/40 text-matrix text-[10px] uppercase tracking-wider hover:bg-matrix/10">Move to main address</button>
+									<span id="wallet-long-move-status" class="ml-1 text-[10px] text-gray-500"></span></p>
+								<p class="mt-1 text-[10px] text-gray-500 leading-snug">Full-length form of the same key. Both forms are separate accounts on chain and nothing moves automatically: coins sent to the long address show up here and can be moved to your main address.</p>
 							</div>
 							<p id="wallet-sync-badge" class="mt-2 inline-flex items-center rounded border border-yellow-500/40 bg-yellow-500/10 px-2 py-1 text-[10px] uppercase tracking-wider text-yellow-200">Canonical sync: checking...</p>
 							<p id="wallet-signer-note" class="mt-2 text-[10px] text-gray-500 font-mono"></p>
@@ -5423,7 +5426,7 @@
 					$('btn-wx-send').classList.add('hidden');
 					return;
 				}
-				wxDeposit = (j.deposit_address && /^HMC-[0-9a-f]{16}$/.test(j.deposit_address)) ? j.deposit_address : '';
+				wxDeposit = (j.deposit_address && /^HMC-([0-9a-f]{16}|[0-9a-f]{64})$/.test(j.deposit_address)) ? j.deposit_address : '';
 				$('btn-wx-send').classList.toggle('hidden', !wxDeposit);
 				const order = ['HMC', 'SUP', 'USDT'];
 				const list = (j.balances || []).slice().sort((a, b) => order.indexOf(a.asset) - order.indexOf(b.asset));
@@ -6215,7 +6218,46 @@
 					? (tip > 0 && tip + 1 >= from ? '· active' : '· active from block ' + fmtUInt(from))
 					: '';
 			}
+			const row = $('wallet-long-balance-row');
+			const longUnits = Number((w && w.balance_long_units) || 0);
+			const fee = 1000; // DefaultTransferMinFee (0.00001 HMC)
+			if (row) {
+				row.classList.toggle('hidden', !(longUnits > 0));
+				if (longUnits > 0) $('wallet-long-balance').textContent = fmt(longUnits / 1e8, 8);
+				const btn = $('btn-long-move-main');
+				if (btn) {
+					btn.dataset.long = long;
+					btn.dataset.units = String(longUnits);
+					btn.disabled = !(longUnits > fee) || !(tip > 0 && tip + 1 >= from);
+				}
+			}
 			block.classList.remove('hidden');
+		}
+		async function moveLongBalanceToMain() {
+			const btn = $('btn-long-move-main');
+			const status = $('wallet-long-move-status');
+			const long = String((btn && btn.dataset.long) || '');
+			const units = Number((btn && btn.dataset.units) || 0);
+			const main = walletKnownAddress();
+			const fee = 1000;
+			if (!/^HMC-[0-9a-f]{64}$/.test(long) || !/^HMC-[0-9a-f]{16}$/.test(main) || !(units > fee)) return;
+			const amount = units - fee;
+			if (!confirm('Move ' + fmt(amount / 1e8, 8) + ' HMC from the long address to your main address ' + main + '?\n\nFee 0.00001 HMC. Same key, same wallet.')) return;
+			if (btn) btn.disabled = true;
+			if (status) status.textContent = 'sending…';
+			try {
+				const r = await fetch('/api/tx/send', {
+					method: 'POST',
+					credentials: 'same-origin',
+					headers: Object.assign({ 'Content-Type': 'application/json', Accept: 'application/json' }, adminHeaders()),
+					body: JSON.stringify({ tx_type: 'transfer_v1', from: long, to: main, amount_units: amount, fee_units: fee, timestamp_unix: Math.floor(Date.now() / 1000) }),
+				});
+				const j = await r.json().catch(() => ({}));
+				if (status) status.textContent = r.ok && j.ok ? 'sent · ' + String(j.tx_hash || '').slice(0, 12) + '… — appears after the next block' : 'failed: ' + String(j.error || j.code || r.status);
+			} catch (e) {
+				if (status) status.textContent = 'failed: node not reachable';
+			}
+			if (btn) btn.disabled = false;
 		}
 		function paintWalletShellInstant() {
 			restoreWalletSnapshotCache();
@@ -6323,6 +6365,10 @@
 			if (dev.startsWith('HMC-')) labels[dev] = 'Dev fee · treasury';
 			const self = String(walletKnownAddress() || '').trim().toUpperCase();
 			if (self.startsWith('HMC-')) labels[self] = 'You';
+			// The v2 long form of this wallet's own key: a transfer to it stays in your wallet.
+			const longEl = $('wallet-long-address-display');
+			const selfLong = String((longEl && longEl.textContent) || '').trim().toUpperCase();
+			if (/^HMC-[0-9A-F]{64}$/.test(selfLong)) labels[selfLong] = 'You · long address';
 			Object.assign(labels, walletActivityPeerLabels);
 			return labels;
 		}
@@ -8750,6 +8796,9 @@
 						runHashLookup();
 					}
 				});
+			}
+			if ($('btn-long-move-main')) {
+				$('btn-long-move-main').addEventListener('click', () => void moveLongBalanceToMain());
 			}
 			if ($('btn-copy-long-address')) {
 				$('btn-copy-long-address').addEventListener('click', async () => {

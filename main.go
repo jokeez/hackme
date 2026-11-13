@@ -1906,8 +1906,27 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 	// Economics v2 long address of this node's key (same key, full sha256): shown so owners can
 	// move funds to it after the activation height. Never for a foreign/looked-up address.
 	if a.signer != nil && strings.TrimSpace(displayAddr) == strings.TrimSpace(a.signer.Address()) {
-		out["long_address"] = a.signer.LongAddress()
+		long := a.signer.LongAddress()
+		out["long_address"] = long
 		out["long_address_from_height"] = chain.EconomicsV2ActivationHeight()
+		// The long address is a separate account on chain (nothing migrates). Coins sent to it —
+		// by another wallet or an exchange withdrawal — were invisible here and could not be
+		// spent from the dashboard. Report its balance so the UI can show it and move it.
+		var longUnits uint64
+		longOK := false
+		if canonActive {
+			lctx, lcancel := context.WithTimeout(r.Context(), 6*time.Second)
+			if u, _, ok := a.fetchCanonicalAddressState(lctx, long); ok {
+				longUnits, longOK = u, true
+			}
+			lcancel()
+		} else if st, err := a.chain.TransferAddressState(r.Context(), long); err == nil {
+			longUnits, longOK = st.BalanceUnits, true
+		}
+		if longOK {
+			out["balance_long_units"] = longUnits
+			out["balance_long_hmc"] = chain.UnitsToHMC(longUnits)
+		}
 	}
 	if canonActive {
 		out["balance_on_chain_hmc"] = bal
@@ -4198,6 +4217,18 @@ func (a *app) handleTransferSend(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	if canonicalBase == "" && strings.TrimSpace(tx.PubKeyEd25519) == "" && strings.TrimSpace(tx.SigEd25519) == "" && tx.Nonce == 0 && a.signer != nil {
+		// No canonical chain (the chain leader itself, an isolated devnet): take the nonce from
+		// this node's own ledger, as the canonical path above does — the dashboard sends none,
+		// so every send after the first failed with "nonce mismatch".
+		nonceFrom := strings.TrimSpace(tx.From)
+		if nonceFrom == "" {
+			nonceFrom = strings.TrimSpace(a.signer.Address())
+		}
+		if st, err := a.chain.TransferAddressState(r.Context(), nonceFrom); err == nil {
+			tx.Nonce = st.NextNonce
+		}
+	}
 	if strings.TrimSpace(tx.PubKeyEd25519) == "" && strings.TrimSpace(tx.SigEd25519) == "" {
 		if a.signer == nil {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -4212,7 +4243,8 @@ func (a *app) handleTransferSend(w http.ResponseWriter, r *http.Request) {
 		signerAddr := strings.TrimSpace(a.signer.Address())
 		if from == "" {
 			tx.From = signerAddr
-		} else if !strings.EqualFold(from, signerAddr) {
+		} else if !strings.EqualFold(from, signerAddr) && !strings.EqualFold(from, strings.TrimSpace(a.signer.LongAddress())) {
+			// The node may sign for both forms of its own key (short and the v2 long address).
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			w.WriteHeader(http.StatusBadRequest)
 			writeJSON(w, map[string]any{
