@@ -321,6 +321,12 @@ func applyRigProfileAtStartup() {
 			return
 		}
 		if p, ok := gputune.DetectRigProfile(names); ok {
+			if isNVIDIARigProfile(p.ID) && !cudaDriverPresent() {
+				// An NVIDIA card without the proprietary driver (nouveau / fresh install):
+				// the CUDA profile would start a worker that cannot load libcuda and mine nothing.
+				log.Printf("hackme: NVIDIA GPU %v found but the CUDA driver (libcuda) is not installed — mining on CPU. Install the NVIDIA driver and restart for GPU speed.", names)
+				return
+			}
 			pid = p.ID
 			log.Printf("hackme: auto-detected rig profile %q from GPU %v", pid, names)
 		} else {
@@ -332,4 +338,39 @@ func applyRigProfileAtStartup() {
 		return
 	}
 	log.Printf("hackme: applied rig profile %q to %s", pid, rigProfileEnvPath())
+}
+
+func isNVIDIARigProfile(id string) bool {
+	id = strings.ToLower(id)
+	return strings.Contains(id, "nvidia_") || strings.Contains(id, "rtx_") || strings.Contains(id, "gtx_")
+}
+
+// cudaDriverPresent reports whether the NVIDIA driver's CUDA library can be found
+// (libcuda.so.1 on Linux, nvcuda.dll on Windows). It does not load it.
+func cudaDriverPresent() bool {
+	if runtime.GOOS == "windows" {
+		root := os.Getenv("SystemRoot")
+		if root == "" {
+			root = `C:\Windows`
+		}
+		_, err := os.Stat(filepath.Join(root, "System32", "nvcuda.dll"))
+		return err == nil
+	}
+	for _, d := range []string{
+		"/usr/lib/x86_64-linux-gnu", "/usr/lib64", "/usr/lib", "/lib/x86_64-linux-gnu",
+		"/usr/local/nvidia/lib64", "/usr/lib/wsl/lib", "/run/opengl-driver/lib",
+	} {
+		if _, err := os.Stat(filepath.Join(d, "libcuda.so.1")); err == nil {
+			return true
+		}
+	}
+	for _, d := range filepath.SplitList(os.Getenv("LD_LIBRARY_PATH")) {
+		if d == "" {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(d, "libcuda.so.1")); err == nil {
+			return true
+		}
+	}
+	return false
 }

@@ -2627,11 +2627,7 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 		workerID = strings.TrimSpace(os.Getenv("WORKER_ID"))
 	}
 	if workerID == "" {
-		if h, err := os.Hostname(); err == nil && strings.TrimSpace(h) != "" {
-			workerID = "worker-" + sanitizeWorkerIDHost(h)
-		} else {
-			workerID = "worker-local-01"
-		}
+		workerID = a.defaultPoolWorkerID()
 	}
 	remoteCoord := coordinatorURLLooksRemote(coordURL)
 	batchSize := req.BatchSize
