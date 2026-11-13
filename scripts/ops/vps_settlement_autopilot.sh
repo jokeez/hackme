@@ -114,6 +114,12 @@ elif python3 -c "import sys; sys.exit(0 if float(sys.argv[1])>=float(sys.argv[2]
     printf 'CLEAR_PENDING_HMC=%s\n' "${CLEAR_PENDING_HMC:-0}"
     # FORCE only when a stamped/ambiguous pending is known-rejected on chain.
     printf 'CLEAR_PENDING_HMC_FORCE=%s\n' "${CLEAR_PENDING_HMC_FORCE:-0}"
+    # The settler's ledger MUST be the same one the timer settler uses. sudo drops the
+    # caller env, and without STATE_DB workersettle derives a DB beside STATE_FILE
+    # (worker_settlement_state.db) with its own watermarks — it then re-paid accrual the
+    # main ledger had already settled (~847 HMC double-paid 2026-10-31..11-12).
+    printf 'STATE_DB=%s\n' "${STATE_DB:-${DEPLOY}/data/worker_settlement.db}"
+    printf 'STATE_FILE=%s\n' "${STATE_FILE:-${DEPLOY}/data/worker_settlement_state.json}"
   } >"${_settle_env}"
   chmod 600 "${_settle_env}"
   chown hackme:hackme "${_settle_env}" 2>/dev/null || true

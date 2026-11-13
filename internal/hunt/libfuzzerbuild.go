@@ -240,7 +240,8 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 	// hunt-lf-import / report tree (sibling cache bins + session.stderr).
 	sessionDir := filepath.Join(corpusDir, ".hunt-run")
 	crashDir := filepath.Join(sessionDir, "crashes")
-	if err := os.MkdirAll(crashDir, 0o755); err != nil {
+	// corpusDir is bound RW into the cage: create/write beneath it without following links.
+	if err := mkdirAllBeneath(corpusDir, crashDir, 0o755); err != nil {
 		return 0, err
 	}
 	args := []string{
@@ -254,7 +255,7 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 	}
 	if len(opts.DictBytes) > 0 {
 		dictPath := filepath.Join(sessionDir, "libfuzzer.dict")
-		if err := os.WriteFile(dictPath, opts.DictBytes, 0o600); err != nil {
+		if err := writeFileBeneath(corpusDir, dictPath, opts.DictBytes, 0o600); err != nil {
 			return 0, fmt.Errorf("hunt: libfuzzer dict write: %w", err)
 		}
 		args = append(args, "-dict="+dictPath)
@@ -267,7 +268,7 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 		env = append(env, "HACKME_LF_STDIN_BIN="+stdinBin)
 	}
 	stderrPath := filepath.Join(sessionDir, "session.stderr")
-	stderrFile, err := os.Create(stderrPath)
+	stderrFile, err := createFileBeneath(corpusDir, stderrPath, 0o600)
 	if err != nil {
 		return 0, fmt.Errorf("hunt: libfuzzer stderr create: %w", err)
 	}
@@ -380,6 +381,13 @@ func readOpenSessionLog(f *os.File) string {
 }
 
 func countCorpusFiles(dir string) (int, error) {
+	return countCorpusFilesUnder(dir, dir)
+}
+
+func countCorpusFilesUnder(root, dir string) (int, error) {
+	if root != "" && !corpusPathConfined(root, dir) {
+		return 0, nil
+	}
 	ents, err := os.ReadDir(dir)
 	if err != nil {
 		return 0, err
@@ -390,7 +398,7 @@ func countCorpusFiles(dir string) (int, error) {
 			continue
 		}
 		// Count regular files only — RW corpus may contain planted symlinks.
-		if _, ok := isRegularCorpusFile(filepath.Join(dir, e.Name())); !ok {
+		if _, ok := isRegularCorpusFileUnder(root, filepath.Join(dir, e.Name())); !ok {
 			continue
 		}
 		n++
@@ -406,11 +414,11 @@ func seedPersistentCorpus(repoRoot, targetID, corpusDir string) error {
 			if e.IsDir() {
 				continue
 			}
-			b, err := ReadRegularCorpusFile(filepath.Join(src, e.Name()), 1<<20)
+			b, err := ReadRegularCorpusFileUnder(src, filepath.Join(src, e.Name()), 1<<20)
 			if err != nil || len(b) == 0 {
 				continue
 			}
-			_ = os.WriteFile(filepath.Join(corpusDir, e.Name()), b, 0o600)
+			_ = writeFileBeneath(corpusDir, filepath.Join(corpusDir, e.Name()), b, 0o600)
 		}
 	}
 	if n, _ := countCorpusFiles(corpusDir); n > 0 {
@@ -418,7 +426,7 @@ func seedPersistentCorpus(repoRoot, targetID, corpusDir string) error {
 	}
 	starters := [][]byte{[]byte("{}"), []byte("[]"), []byte("null"), {0x80}, {0x00}}
 	for i, b := range starters {
-		_ = os.WriteFile(filepath.Join(corpusDir, fmt.Sprintf("seed-boot-%d.bin", i)), b, 0o600)
+		_ = writeFileBeneath(corpusDir, filepath.Join(corpusDir, fmt.Sprintf("seed-boot-%d.bin", i)), b, 0o600)
 	}
 	return nil
 }

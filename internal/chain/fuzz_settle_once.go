@@ -215,6 +215,13 @@ func (s *Service) payFuzzBountyTx(ctx context.Context, tx *sql.Tx, campaignID, m
 		minerUnits, feeUnits = fuzzescrow.BountyPayoutUnits(remaining)
 		paidSlice = remaining
 	}
+	if row.orderFeeTakenAtOpen() {
+		// Economics v2 took the 5% platform fee (and 5% burn) out of the price at open;
+		// the bounty pool is already net. Charging 5% again here moved the finder's
+		// money to DevFeeAddress (fimasw, Medium). Keep the Hunt severity share.
+		minerUnits += feeUnits
+		feeUnits = 0
+	}
 	if err := s.creditUnits(ctx, tx, minerAddress, minerUnits); err != nil {
 		return err
 	}

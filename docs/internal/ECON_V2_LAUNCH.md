@@ -64,7 +64,7 @@ Height, expected UTC time (±1 h), what changes (0.1 HMC/block, SUP 0.002/block 
 Watch for 30 min after H:
 
 ```bash
-curl -s https://hackme.tech/pool/api/status | jq '{chain_id, tx_chain_id}'      # hackme-mainnet-1
+curl -s https://hackme.tech/pool/api/status | jq '{chain_id, tx_chain_id, economics_v2}'      # hackme-mainnet-1; economics_v2.active_at_tip true at H
 curl -s https://hackme.tech/pool/api/metrics | jq '{tip_height, econ_base_reward_now_hmc, econ_sup_reward_now}'
 curl -s "https://hackme.tech/pool/api/reports/blocks?q=<H>" | jq '.blocks[0]'      # chain_id + reward_to set
 curl -s https://hackme.tech/pool/coordinator/api/work/stats | jq '.sup_policy.economics_v2, .pool_budget.daily_budget_hmc'  # true, 288

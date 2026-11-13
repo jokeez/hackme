@@ -3,10 +3,13 @@ package hunt
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
+
+	"hackme/internal/workerlock"
 )
 
 const (
@@ -25,6 +28,23 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 		return before, before, fmt.Errorf("hunt: merge: fuzzer bin missing: %s", fuzzerBin)
 	}
 	parent := filepath.Dir(corpusDir)
+	// Several workers (workerfuzz -worker N) share one persistent corpus. Without a
+	// cross-process lock their rename/restore steps interleave: restores fail on a
+	// non-empty corpus and every failed merge strands a corpus.raw-merge.* dir — on
+	// the bootstrap host that leaked ~2M files and exhausted the filesystem's inodes.
+	// Only one merge per corpus at a time; a busy lock means another worker is
+	// already minimizing this corpus, so skip.
+	guard, lerr := acquireCorpusMergeLock(parent)
+	if lerr != nil {
+		if errors.Is(lerr, workerlock.ErrAlreadyRunning) {
+			return before, before, nil
+		}
+		return before, before, fmt.Errorf("hunt: merge lock: %w", lerr)
+	}
+	defer guard.Release()
+	if n := AdoptStaleRawMergeDirs(parent, corpusDir, staleRawMergeAge); n > 0 {
+		before, _ = countCorpusFiles(corpusDir)
+	}
 	// Unique raw dir so concurrent merges on the same parent cannot clobber each other.
 	rawDir := filepath.Join(parent, fmt.Sprintf("corpus.raw-merge.%d.%d", os.Getpid(), time.Now().UnixNano()))
 	// Preserve .hunt-run (crash artifacts) outside the merge bind so a timed-out
@@ -78,14 +98,14 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 	// Same cage as LF session — never bare-exec the untrusted fuzzer for -merge=1.
 	// Bind only corpus+raw (not parent) so aside stays out of the cage.
 	isoErr := RunIsolated(runCtx, IsolateOpts{
-		Bin:  fuzzerBin,
-		Args: []string{corpusDir, rawDir, "-merge=1", fmt.Sprintf("-max_total_time=%d", maxTotalSec)},
-		Env:  env,
-		Wall: mergeBudget,
-		Stdout:    &out,
-		Stderr:    &out,
-		AllowBare: false,
-		ExtraBind: []string{corpusDir, rawDir},
+		Bin:         fuzzerBin,
+		Args:        []string{corpusDir, rawDir, "-merge=1", fmt.Sprintf("-max_total_time=%d", maxTotalSec)},
+		Env:         env,
+		Wall:        mergeBudget,
+		Stdout:      &out,
+		Stderr:      &out,
+		AllowBare:   false,
+		ExtraBind:   []string{corpusDir, rawDir},
 		ExtraRoBind: []string{filepath.Dir(fuzzerBin)},
 	})
 
@@ -94,8 +114,13 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 	if isoErr != nil || runCtx.Err() != nil || after == 0 {
 		_ = os.RemoveAll(corpusDir)
 		if rerr := os.Rename(rawDir, corpusDir); rerr != nil {
-			restoreHuntRun()
-			return before, 0, fmt.Errorf("hunt: merge produced empty/incomplete corpus: %v %s", isoErr, truncateMergeLog(out.String()))
+			// Never strand the raw inputs: fold them back file by file.
+			_ = os.MkdirAll(corpusDir, 0o755)
+			moveCorpusFiles(parent, rawDir, corpusDir)
+			if derr := os.RemoveAll(rawDir); derr != nil {
+				restoreHuntRun()
+				return before, 0, fmt.Errorf("hunt: merge restore: %v (raw dir left: %v)", rerr, derr)
+			}
 		}
 		restoreHuntRun()
 		after, _ = countCorpusFiles(corpusDir)
@@ -107,14 +132,17 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 		}
 		return before, after, fmt.Errorf("hunt: merge failed (restored raw): %s", truncateMergeLog(out.String()))
 	}
-	_ = os.RemoveAll(rawDir)
+	var cleanupErr error
+	if derr := os.RemoveAll(rawDir); derr != nil {
+		cleanupErr = fmt.Errorf("hunt: merge: remove %s: %w", filepath.Base(rawDir), derr)
+	}
 	restoreHuntRun()
 	_ = pruneCorpusDir(corpusDir, defaultMaxPersistentCorpus)
 	after, _ = countCorpusFiles(corpusDir)
-	_ = os.WriteFile(filepath.Join(parent, "merge_stats.json"),
+	_ = writeFileBeneath(parent, filepath.Join(parent, "merge_stats.json"),
 		[]byte(fmt.Sprintf("{\n  \"before\": %d,\n  \"after\": %d,\n  \"max_cap\": %d\n}\n", before, after, defaultMaxPersistentCorpus)),
 		0o644)
-	return before, after, nil
+	return before, after, cleanupErr
 }
 
 func stashHuntRunAside(corpusDir string) (aside string, err error) {
@@ -165,7 +193,14 @@ func MergeMinimizePersistentCorpus(ctx context.Context, repoRoot, targetID strin
 }
 
 func pruneCorpusDir(dir string, maxKeep int) error {
+	return pruneCorpusDirUnder(dir, dir, maxKeep)
+}
+
+func pruneCorpusDirUnder(root, dir string, maxKeep int) error {
 	if maxKeep <= 0 {
+		return nil
+	}
+	if root != "" && !corpusPathConfined(root, dir) {
 		return nil
 	}
 	ents, err := os.ReadDir(dir)
@@ -182,7 +217,7 @@ func pruneCorpusDir(dir string, maxKeep int) error {
 		if e.IsDir() || len(e.Name()) == 0 || e.Name()[0] == '.' {
 			continue
 		}
-		info, ok := isRegularCorpusFile(filepath.Join(dir, e.Name()))
+		info, ok := isRegularCorpusFileUnder(root, filepath.Join(dir, e.Name()))
 		if !ok {
 			continue
 		}

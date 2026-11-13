@@ -251,6 +251,10 @@ func (m *workManager) deleteWorkerAccrualLocked(workerID string) {
 		workerID, now); err != nil {
 		log.Printf("worker accrual tombstone id=%s err=%v", sanitizeLogToken(workerID), err)
 	}
+	// Mark in memory even if the INSERT failed: a later clear must then try the DELETE.
+	if m.accrualRevokedMem != nil {
+		m.accrualRevokedMem[workerID] = struct{}{}
+	}
 	if _, err := m.dedupDB.Exec(`DELETE FROM worker_accrual WHERE worker_id=?`, workerID); err != nil {
 		// Avoid logging raw worker_id (code-scanning go/log-injection); token is sanitized.
 		log.Printf("worker accrual revoke id=%s err=%v", sanitizeLogToken(workerID), err)
@@ -270,9 +274,53 @@ func (m *workManager) clearAccrualRevokedLocked(workerID string) {
 	if workerID == "" {
 		return
 	}
+	// Runs on every credited submit while m.mu is held. A synchronous DELETE here waited
+	// out the 60s busy_timeout whenever another writer held the DB, freezing every
+	// claim/submit (2026-11-12: 116 such waits in 10h, ~4.4h without blocks). Only
+	// workers that actually carry a tombstone (rare) reach SQLite; the write stays
+	// synchronous so it can never reorder with a later tombstone INSERT.
+	if m.accrualRevokedMem != nil {
+		if _, ok := m.accrualRevokedMem[workerID]; !ok {
+			return
+		}
+	}
 	if _, err := m.dedupDB.Exec(`DELETE FROM worker_accrual_revoked WHERE worker_id=?`, workerID); err != nil {
 		log.Printf("worker accrual clear tombstone id=%s err=%v", sanitizeLogToken(workerID), err)
+		return
 	}
+	if m.accrualRevokedMem != nil {
+		delete(m.accrualRevokedMem, workerID)
+	}
+}
+
+// loadAccrualRevokedMem fills the in-memory tombstone set from SQLite (attach time,
+// before the coordinator serves). On error the set stays nil → DB fallback.
+func (m *workManager) loadAccrualRevokedMem() {
+	if m == nil || m.dedupDB == nil {
+		return
+	}
+	rows, err := m.dedupDB.Query(`SELECT worker_id FROM worker_accrual_revoked`)
+	if err != nil {
+		log.Printf("worker accrual tombstones load: %v (submit falls back to SQLite)", err)
+		return
+	}
+	defer rows.Close()
+	set := map[string]struct{}{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			log.Printf("worker accrual tombstones load: %v (submit falls back to SQLite)", err)
+			return
+		}
+		set[strings.TrimSpace(id)] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("worker accrual tombstones load: %v (submit falls back to SQLite)", err)
+		return
+	}
+	m.mu.Lock()
+	m.accrualRevokedMem = set
+	m.mu.Unlock()
 }
 
 func (m *workManager) accrualRevoked(workerID string) bool {
@@ -298,6 +346,8 @@ func (m *workManager) bumpAccrualEpochLocked(workerID string) {
 	if workerID == "" {
 		return
 	}
+	m.accrualEpochMu.Lock()
+	defer m.accrualEpochMu.Unlock()
 	if m.accrualEpoch == nil {
 		m.accrualEpoch = map[string]uint64{}
 	}
@@ -307,12 +357,22 @@ func (m *workManager) bumpAccrualEpochLocked(workerID string) {
 	}
 }
 
+// accrualEpochLocked reads the epoch; callable with or without m.mu held.
 func (m *workManager) accrualEpochLocked(workerID string) uint64 {
-	if m == nil || m.accrualEpoch == nil {
+	if m == nil {
+		return 0
+	}
+	m.accrualEpochMu.Lock()
+	defer m.accrualEpochMu.Unlock()
+	if m.accrualEpoch == nil {
 		return 0
 	}
 	return m.accrualEpoch[workerID]
 }
+
+// testHookAccrualAfterBegin is a test seam: called while persistWorkerAccrual holds
+// the SQLite write lock (after BEGIN IMMEDIATE). Always nil in production.
+var testHookAccrualAfterBegin func()
 
 func (m *workManager) persistWorkerAccrual(workerID string, force bool) {
 	if m == nil || m.dedupDB == nil {
@@ -382,6 +442,9 @@ func (m *workManager) persistWorkerAccrual(workerID string, force bool) {
 			_, _ = tx.ExecContext(ctx, `ROLLBACK`)
 		}
 	}()
+	if testHookAccrualAfterBegin != nil {
+		testHookAccrualAfterBegin()
+	}
 	var revoked int
 	_ = tx.QueryRowContext(ctx, `SELECT COUNT(1) FROM worker_accrual_revoked WHERE worker_id=?`, workerID).Scan(&revoked)
 	if revoked > 0 {
@@ -393,9 +456,8 @@ func (m *workManager) persistWorkerAccrual(workerID string, force bool) {
 	}
 	// Epoch may have moved (forfeit/revoke) after we snapped — abandon before any UPSERT
 	// so a stale high watermark cannot land and then race a soft-recovery persist.
-	m.mu.Lock()
+	// Epoch only (accrualEpochMu) — never m.mu while holding the SQLite write lock.
 	epochAlive := m.accrualEpochLocked(workerID) == epoch
-	m.mu.Unlock()
 	if !epochAlive {
 		return
 	}
@@ -448,9 +510,7 @@ VALUES (?, ?, ?, ?)`, workerID, delta, pu, now); jerr != nil {
 		}
 	}
 	// Re-check epoch before COMMIT: forfeit/revoke may have bumped during UPSERT.
-	m.mu.Lock()
 	epochAlive = m.accrualEpochLocked(workerID) == epoch
-	m.mu.Unlock()
 	if !epochAlive {
 		return // ROLLBACK via defer — do not publish stale unpaid
 	}
@@ -463,9 +523,7 @@ VALUES (?, ?, ?, ?)`, workerID, delta, pu, now); jerr != nil {
 	// Belt-and-suspenders: if epoch moved in the commit window, drop the row only.
 	// Do NOT re-stamp worker_accrual_revoked — that would tombstone a soft-revoked
 	// worker who already cleared the tombstone and started a fresh unpaid session.
-	m.mu.Lock()
 	cur := m.accrualEpochLocked(workerID)
-	m.mu.Unlock()
 	if cur != epoch {
 		if _, err := m.dedupDB.Exec(`DELETE FROM worker_accrual WHERE worker_id=?`, workerID); err != nil {
 			log.Printf("worker accrual stale-epoch purge id=%s err=%v", sanitizeLogToken(workerID), err)

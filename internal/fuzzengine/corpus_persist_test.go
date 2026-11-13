@@ -47,10 +47,10 @@ func TestCorpusPersistEnabledDefaultGuided(t *testing.T) {
 		t.Fatal("pack without owner must not enable persist")
 	}
 	if !CorpusPersistEnabled(map[string]any{
-		"guard_pack":         "secrets",
-		"owner_ref":          "customer:x",
-		"guided_scheduling":  true,
-		"corpus_persist":     true,
+		"guard_pack":        "secrets",
+		"owner_ref":         "customer:x",
+		"guided_scheduling": true,
+		"corpus_persist":    true,
 	}) {
 		t.Fatal("tenant-scoped guided persist should enable")
 	}

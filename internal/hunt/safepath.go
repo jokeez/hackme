@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"syscall"
 
 	"hackme/internal/gitutil"
 	"hackme/internal/pathsafe"
@@ -42,7 +41,7 @@ func fsReadFile(p string) ([]byte, error) {
 	}
 	// O_NOFOLLOW: pathsafe only checks the string; a same-UID symlink plant must not
 	// exfiltrate files outside the harness store.
-	f, err := os.OpenFile(safe, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	f, err := os.OpenFile(safe, os.O_RDONLY|oNoFollow, 0)
 	if err != nil {
 		return nil, err
 	}

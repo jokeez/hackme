@@ -31,7 +31,7 @@
 Unused bounty (no qualifying finding) **refunds** to payer on finalize — same as Dig.  
 Crash bonus already paid is not refunded. Empty CLEAN is **not** “full PayRun for free.”
 
-Platform fee: **5%** taken from **bounty payout only** (not from runs pool).
+Platform fee: orders opened **before block 550,000** pay **5%** from the **bounty payout only** (not from runs pool). **Economics v2** orders pay the 10% order fee (5% burn + 5% platform) once at open; the bounty is paid out **without** a further fee.
 
 ---
 
@@ -95,7 +95,7 @@ Main bounty (50% pool) unlock requires **all**:
 
 | Severity | Signal | Share of bounty pool |
 |----------|--------|----------------------|
-| **Critical** | ASAN heap/UAF/double-free + repro | **100%** (− 5% platform fee) |
+| **Critical** | ASAN heap/UAF/double-free + repro | **100%** (pre-v2 orders: − 5% platform fee) |
 | **High** | ASAN stack / confirmable crash + repro | **60%** (Phase 2; MVP can treat as Critical) |
 | **Medium** | sanitizer, needs triage | **0%** auto — hold for operator |
 | **Low / noise** | UBSan info, detectors | **0%** |

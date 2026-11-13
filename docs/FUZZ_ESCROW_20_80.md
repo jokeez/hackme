@@ -9,7 +9,7 @@
 | Pool | Share | Pays when |
 |------|-------|-----------|
 | Runs | 20% | Each verified pool work submit (`PayFuzzRun`) |
-| Bounty | 80% | First medium/high/critical finding (`PayFuzzBounty`, 5% fee to treasury) |
+| Bounty | 80% | First medium/high/critical finding (`PayFuzzBounty`). Orders opened before block 550,000: 5% fee to treasury at payout. Economics v2 orders: no payout fee — the 10% order fee (5% burn + 5% platform) was taken at open. |
 | Unique crash bonus | ≤1% of bounty (cap 0.01 HMC) | First **crash-class** finding (`PayFuzzCrashBonus` / settle kind `crash_bonus`) — does **not** close bounty; detector/property noise does not qualify |
 
 Unused bounty (no winner) is **refunded** to the campaign payer wallet on `FinalizeFuzzEscrow` when the campaign completes. Crash bonus already paid is not refunded.

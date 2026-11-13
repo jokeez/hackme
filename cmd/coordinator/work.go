@@ -36,7 +36,12 @@ import (
 const maxCoordinatorJSONBodyBytes = 2 << 20 // 2 MiB (large wasm hex + corpus seeds on claim)
 
 type workManager struct {
-	nextNonce atomic.Uint64
+	// accrualRevokedMem mirrors worker_accrual_revoked (loaded at attach, kept in step
+	// by deleteWorkerAccrualLocked / clearAccrualRevokedLocked under m.mu) so submit's
+	// hot path never touches SQLite when a worker has no tombstone. nil = unknown →
+	// fall back to the database (tests that set dedupDB directly).
+	accrualRevokedMem map[string]struct{}
+	nextNonce         atomic.Uint64
 
 	// payoutLockMu serializes durable payout-lock writes (persist vs clear) so
 	// an in-flight claim cannot re-insert a binding an admin unbind just deleted.
@@ -96,6 +101,11 @@ type workManager struct {
 	// snapped before revoke cannot INSERT durable unpaid after DELETE. UI prune
 	// deletes memory without bumping — durable accruals stay for settle/rehydrate.
 	accrualEpoch map[string]uint64
+	// accrualEpochMu guards accrualEpoch. Lock order: m.mu → accrualEpochMu. Nothing
+	// holding it touches SQLite or takes m.mu, so persistWorkerAccrual can check the
+	// epoch inside its BEGIN IMMEDIATE without the m.mu ⇄ SQLite write-lock inversion
+	// that froze claim/submit for busy_timeout (60s) at a time.
+	accrualEpochMu sync.Mutex
 	// acceptedResultHashes deduplicates useful submits globally.
 	acceptedResultHashes   map[string]struct{}
 	acceptedFoundNonces    map[uint64]struct{}

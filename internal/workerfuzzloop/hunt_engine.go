@@ -155,6 +155,15 @@ func RunHuntEngineShard(ctx context.Context, run ResearchSlotRun, cr ClaimResp) 
 	return out
 }
 
+func corpusReadRoot(roots []string, path string) string {
+	for _, r := range roots {
+		if r != "" && hunt.CorpusPathConfined(r, path) {
+			return r
+		}
+	}
+	return ""
+}
+
 func collectEngineDelta(res hunt.EngineShardResult, before map[string]string, maxFiles int) (seeds []fuzzengine.PoolCorpusSeed, crashes [][]byte) {
 	if maxFiles < 1 {
 		maxFiles = 32
@@ -164,6 +173,13 @@ func collectEngineDelta(res hunt.EngineShardResult, before map[string]string, ma
 	}
 	dir := res.CorpusDir
 	if dir == "" {
+		return nil, nil
+	}
+	roots := res.CorpusCollectRoots
+	if len(roots) == 0 {
+		roots = []string{dir}
+	}
+	if !hunt.CorpusPathConfined(dir, dir) {
 		return nil, nil
 	}
 	type fileHit struct {
@@ -182,7 +198,7 @@ func collectEngineDelta(res hunt.EngineShardResult, before map[string]string, ma
 		}
 		p := filepath.Join(dir, e.Name())
 		// Hunt corpus: never follow symlinks planted in the RW persist bind.
-		b, err := hunt.ReadRegularCorpusFile(p, 65536)
+		b, err := hunt.ReadRegularCorpusFileUnder(dir, p, 65536)
 		if err != nil || len(b) == 0 {
 			continue
 		}
@@ -224,7 +240,11 @@ func collectEngineDelta(res hunt.EngineShardResult, before map[string]string, ma
 		if len(crashes) >= 8 {
 			break
 		}
-		b, err := hunt.ReadRegularCorpusFile(p, 65536)
+		root := corpusReadRoot(roots, p)
+		if root == "" {
+			continue
+		}
+		b, err := hunt.ReadRegularCorpusFileUnder(root, p, 65536)
 		if err != nil || len(b) == 0 {
 			continue
 		}

@@ -97,6 +97,7 @@ func (m *workManager) attachDedupDB(db *sql.DB) {
 		log.Printf("work dedup migrate: %v", err)
 		return
 	}
+	m.loadAccrualRevokedMem()
 	m.gcIdlePayoutLocks()
 	m.loadDurableDedup()
 	// Accruals before locks so canAdoptBlankPayoutLocked sees unpaid -gpuN
