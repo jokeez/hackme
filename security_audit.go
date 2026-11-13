@@ -463,6 +463,36 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	if req.MaxInputBytes > 0 {
 		cfgMap["max_input_bytes"] = req.MaxInputBytes
 	}
+	// A guard the customer brought (not a shipped pack/preset): its violations are findings.
+	if strings.TrimSpace(req.GuardPack) == "" && strings.TrimSpace(req.DigPreset) == "" {
+		cfgMap["customer_guard"] = true
+	}
+	// The module's ABI decides the input mode: a check_bytes(ptr,len) guard driven in uint64
+	// mode gets an 8-byte integer where it expects a pointer and length, so every run
+	// "violates". The wizard always sends the tier default (uint64), so ignore it here.
+	if toString(cfgMap["input_mode"]) != "bytes" {
+		if raw, err := hex.DecodeString(wasmHex); err == nil && sandbox.WasmExportsCheckBytes(r.Context(), raw) {
+			cfgMap["input_abi_detected"] = "check_bytes"
+			cfgMap["input_mode"] = "bytes"
+			if intFromAny(cfgMap["max_input_bytes"]) <= 8 {
+				cfgMap["max_input_bytes"] = 1024 // the uint64 tier default is 8
+			}
+			if _, ok := cfgMap["guided_scheduling"]; !ok {
+				cfgMap["guided_scheduling"] = true
+			}
+			if _, ok := cfgMap["coverage_kind"]; !ok {
+				cfgMap["coverage_kind"] = "wasm_edge_bitmap"
+			}
+		}
+	}
+	// Bytes input needs the bytes tier (same pairing the wizard uses for bytes guard packs):
+	// the WASM-only tiers are uint64-shaped.
+	if toString(cfgMap["input_mode"]) == "bytes" {
+		switch fuzzengine.ParseDepthTier(cfgMap) {
+		case fuzzengine.DepthWasmOnly, fuzzengine.DepthWasmNative:
+			cfgMap["depth_tier"] = string(fuzzengine.DepthBytesCorpus)
+		}
+	}
 	if len(req.SeedByteCorpus) > 0 {
 		asAny := make([]any, len(req.SeedByteCorpus))
 		for i, s := range req.SeedByteCorpus {
@@ -501,6 +531,9 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	reportTokenHashHex := reportTokenHash(reportToken)
 	now := time.Now().Unix()
 	ownerRef := payerRef
+	if ownerRef == "" {
+		ownerRef = a.defaultOrdersOwnerRef() // pool publish needs an owner; the wizard sends none
+	}
 
 	err := execContextRetryBusy(r.Context(), a.db,
 		`INSERT INTO fuzz_campaigns
