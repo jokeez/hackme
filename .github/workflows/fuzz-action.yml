@@ -1,0 +1,85 @@
+# Self-test for actions/fuzz (hackme-fuzz-action). Dry-run only: no secrets.
+name: fuzz-action
+
+on:
+  pull_request:
+    paths:
+      - actions/fuzz/**
+      - cmd/hackme-fuzz-action/**
+      - internal/fuzzingcli/**
+      - internal/sandbox/**
+      - tasks/sources/security/**
+      - .github/workflows/fuzz-action.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write # sticky comment; read-only on fork PRs, the action just warns
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: preset scan_smoke
+            dig-preset: scan_smoke
+          - name: rust source + guard_pack
+            source: actions/fuzz/examples/guard.rs
+            language: rust
+            guard-pack: overflow_smoke
+            package: audit
+    name: ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - id: dig
+        uses: ./actions/fuzz
+        with:
+          dig-preset: ${{ matrix.dig-preset }}
+          source: ${{ matrix.source }}
+          language: ${{ matrix.language }}
+          guard-pack: ${{ matrix.guard-pack }}
+          package: ${{ matrix.package }}
+          # Only one matrix leg owns the sticky comment, otherwise they overwrite each other.
+          comment: ${{ matrix.dig-preset == 'scan_smoke' }}
+
+      - name: Check outputs
+        env:
+          VALID: ${{ steps.dig.outputs.valid }}
+          SHA: ${{ steps.dig.outputs.wasm-sha256 }}
+          PLAN: ${{ steps.dig.outputs.plan-path }}
+        run: |
+          set -euo pipefail
+          test "$VALID" = true
+          [[ "$SHA" =~ ^[0-9a-f]{64}$ ]]
+          jq -e '.mode == "dry-run" and .wasm.valid' "$PLAN" >/dev/null
+
+  rejects-bad-wasm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Write a wasm the gate must reject
+        run: printf '\0asm\1\0\0\0garbage' > bad.wasm
+
+      - id: dig
+        uses: ./actions/fuzz
+        with:
+          wasm: bad.wasm
+          comment: "false"
+          fail-on-reject: "false"
+
+      - name: Gate said no
+        env:
+          VALID: ${{ steps.dig.outputs.valid }}
+        run: test "$VALID" = false
