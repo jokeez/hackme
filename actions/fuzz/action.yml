@@ -83,11 +83,17 @@ outputs:
 runs:
   using: composite
   steps:
+    # setup-go refuses '..' in cache paths, so resolve the hackme root once.
+    - name: Locate hackme checkout
+      id: root
+      shell: bash
+      run: echo "dir=$(cd "$GITHUB_ACTION_PATH/../.." && pwd -P)" >> "$GITHUB_OUTPUT"
+
     - name: Set up Go
       uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
-        go-version-file: ${{ github.action_path }}/../../go.mod
-        cache-dependency-path: ${{ github.action_path }}/../../go.sum
+        go-version-file: ${{ steps.root.outputs.dir }}/go.mod
+        cache-dependency-path: ${{ steps.root.outputs.dir }}/go.sum
 
     - name: Add wasm32 target for Rust
       if: inputs.language == 'rust' || inputs.language == 'rs' || ((inputs.dig-preset != '' || inputs.guard-pack != '') && inputs.wasm == '' && inputs.source == '')
@@ -96,7 +102,7 @@ runs:
 
     - name: Build hackme-fuzz-action
       shell: bash
-      working-directory: ${{ github.action_path }}/../..
+      working-directory: ${{ steps.root.outputs.dir }}
       run: |
         set -euo pipefail
         mkdir -p "$RUNNER_TEMP/hackme-fuzz-action"
@@ -106,7 +112,7 @@ runs:
       id: run
       shell: bash
       env:
-        HFA_HACKME_ROOT: ${{ github.action_path }}/../..
+        HFA_HACKME_ROOT: ${{ steps.root.outputs.dir }}
         HFA_WASM: ${{ inputs.wasm }}
         HFA_SOURCE: ${{ inputs.source }}
         HFA_LANGUAGE: ${{ inputs.language }}
