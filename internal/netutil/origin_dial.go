@@ -102,16 +102,24 @@ func OriginDialTransport() http.RoundTripper {
 			return
 		}
 		tr := base.Clone()
-		// Align with coordinatorHTTPClient — HTTP/2 stall storms on large bodies.
+		// Always force HTTP/1.1 on this pool client. Large Hunt/settle bodies
+		// stall under h2 via CF; pin path needs h1 for origin nginx too.
+		// Clearing TLSNextProto alone is not enough — DefaultTransport's cloned
+		// TLSClientConfig still offers "h2" in ALPN, so the peer can select h2
+		// while Go reads the preface as HTTP/1.1 ("malformed HTTP response").
 		tr.ForceAttemptHTTP2 = false
 		tr.TLSNextProto = map[string]func(authority string, c *tls.Conn) http.RoundTripper{}
+		if tr.TLSClientConfig == nil {
+			tr.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+		} else {
+			tr.TLSClientConfig = tr.TLSClientConfig.Clone()
+		}
+		tr.TLSClientConfig.NextProtos = []string{"http/1.1"}
 		if originDialIP != "" {
 			tr.DialContext = originDialContext
 			// Clone inherits ProxyFromEnvironment. A system HTTPS_PROXY would
 			// send pinned-host traffic through the proxy/CDN and silently undo
-			// the origin pin (Hunt harness + settle outbox hang >~24KiB).
-			// Defense in depth: when pin is configured, disable proxy entirely on
-			// this opt-in client (poolsync/hunt are not general egress).
+			// the pin (Hunt harness + settle outbox hang >~24KiB).
 			tr.Proxy = func(req *http.Request) (*url.URL, error) {
 				if req != nil && req.URL != nil && hostMatchesOriginDial(req.URL.Hostname()) {
 					return nil, nil
