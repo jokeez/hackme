@@ -190,3 +190,24 @@ func TestCleanTitle(t *testing.T) {
 		t.Fatal("empty title should fall back")
 	}
 }
+
+// The payload must carry the effective mutation_rounds: AdjustPackageForPack
+// keeps the larger of package and pack, the pack config must not undercut it.
+func TestDeepKeepsEffectiveMutationRounds(t *testing.T) {
+	ws := t.TempDir()
+	writeFile(t, filepath.Join(ws, "g.wasm"), minimalCheckWasm)
+	for _, pkgName := range []string{"scan", "audit", "deep"} {
+		o := opts(t, ws)
+		o.WasmPath, o.GuardPack, o.Package = "g.wasm", "overflow_smoke", pkgName
+		plan, err := BuildPlan(context.Background(), o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		pack, _ := fuzzingcli.GuardPackFor("overflow_smoke")
+		base, _ := fuzzingcli.B2BPackageFor(pkgName)
+		want := fuzzingcli.AdjustPackageForPack(base, pack).MutationRounds
+		if got := plan.Payload["mutation_rounds"]; want > 0 && got != want {
+			t.Errorf("%s: payload mutation_rounds=%v, effective=%d", pkgName, got, want)
+		}
+	}
+}
