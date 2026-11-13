@@ -463,8 +463,10 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	if req.MaxInputBytes > 0 {
 		cfgMap["max_input_bytes"] = req.MaxInputBytes
 	}
-	// A guard the customer brought (not a shipped pack/preset): its violations are findings.
-	if strings.TrimSpace(req.GuardPack) == "" && strings.TrimSpace(req.DigPreset) == "" {
+	// A guard the customer brought: its violations are findings (not coverage noise).
+	// Compare wasm bytes to the shipped pack module — labeling with guard_pack alone is not
+	// enough (CI/action often sends wasm_check_hex + guard_pack for mutator defaults).
+	if securityAuditCustomerGuard(repoRoot, strings.TrimSpace(req.DigPreset), strings.TrimSpace(req.GuardPack), wasmHex) {
 		cfgMap["customer_guard"] = true
 	}
 	// The module's ABI decides the input mode: a check_bytes(ptr,len) guard driven in uint64
@@ -626,6 +628,47 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, resp)
+}
+
+// securityAuditCustomerGuard is true when the wasm is the caller's own module, so
+// violations must fail the gate (guard_violation) instead of sitting in coverage noise.
+//
+// Empty dig_preset/guard_pack → always customer. When a pack/preset is named, compare
+// the campaign wasm to the shipped pack bytes: same hash = detector pack (noise);
+// different bytes (typical CI: own wasm_check_hex + guard_pack for mutator defaults) =
+// customer guard. If the shipped pack wasm cannot be loaded, treat a non-empty wasm as
+// customer rather than silently demoting findings to noise.
+func securityAuditCustomerGuard(repoRoot, digPreset, guardPack, wasmHex string) bool {
+	digPreset = strings.TrimSpace(digPreset)
+	guardPack = strings.TrimSpace(guardPack)
+	wasmHex = strings.ToLower(strings.TrimSpace(wasmHex))
+	if digPreset == "" && guardPack == "" {
+		return true
+	}
+	if wasmHex == "" {
+		return false
+	}
+	packName := guardPack
+	if digPreset != "" {
+		if preset, err := fuzzingcli.DigPresetFor(digPreset); err == nil && strings.TrimSpace(preset.GuardPack) != "" {
+			packName = preset.GuardPack
+		} else if packName == "" {
+			packName = digPreset
+		}
+	}
+	pack, err := fuzzingcli.GuardPackFor(packName)
+	if err != nil {
+		return true
+	}
+	root := strings.TrimSpace(repoRoot)
+	if root == "" {
+		root = fuzzingcli.DiscoverRepoRoot()
+	}
+	shipped, _, err := fuzzingcli.LoadPackWasmHex(root, pack)
+	if err != nil {
+		return true
+	}
+	return !strings.EqualFold(strings.TrimSpace(shipped), wasmHex)
 }
 
 // readSecurityAuditWasmPath loads a .wasm under the repo (tasks/artifacts/… only).
