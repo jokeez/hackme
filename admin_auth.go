@@ -348,7 +348,9 @@ func desktopAdminTokenEmbedScript(r *http.Request) string {
 //
 // EXPOSE also gates HTML embed + the optional UI note. CLI must use EXPOSE=1 or a token file.
 func handleDesktopLocalAuth(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
+	// The dashboard asks with POST: browsers send Origin on same-origin POST but not on GET,
+	// and the token needs Origin+Referer (rc20 hardening left every desktop panel "NO AUTH").
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}

@@ -120,6 +120,7 @@ func (a *app) buildStatusLite(ctx context.Context) map[string]any {
 		"pool_coordinator_url":           poolCoordURL,
 		"pool_coordinator_url_effective": coordEff,
 		"desktop_mode":                   envBool("HACKME_DESKTOP_MODE", false),
+		"desktop_profile":                desktopProfile(),
 		"status_lite":                    true,
 		"admin_auth_enabled":             adminAuthEnabled(),
 		"sandbox_policy":                 sandbox.Policy(),
@@ -216,6 +217,7 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"chain_minting_hub":      envBool("HACKME_CHAIN_MINTING_HUB", false) || localSoloAllowed,
 		"pool_coordinator_url":   poolCoordURL,
 		"desktop_mode":           envBool("HACKME_DESKTOP_MODE", false),
+		"desktop_profile":        desktopProfile(),
 		"economics":              economics,
 		"sandbox_policy":         sandbox.Policy(),
 		"p2p_policy": map[string]any{
@@ -372,4 +374,10 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 	redactInternalCoordinatorURLs(statusBody)
 
 	writeJSON(w, statusBody)
+}
+
+// desktopProfile is the launcher profile (orders / miner / ""), so the dashboard does not
+// tell an Orders node — which never mines by design — to "Start pool worker".
+func desktopProfile() string {
+	return strings.ToLower(strings.TrimSpace(os.Getenv("DESKTOP_PROFILE")))
 }

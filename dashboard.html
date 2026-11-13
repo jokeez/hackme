@@ -5963,7 +5963,10 @@
 			} catch (_) {}
 			try {
 				// Non-desktop nodes (hub /dashboard, servers) answer 404 forever: ask once per page.
-				const r = desktopLocalAuthMissing ? null : await fetch('/api/desktop/local-auth', { cache: 'no-store' });
+				// local-auth hands the token only to a same-origin browser document (Origin + Referer).
+				// POST because browsers omit Origin on same-origin GET; referrerPolicy because the
+				// page is served with Referrer-Policy: no-referrer (Origin would be "null", no Referer).
+				const r = desktopLocalAuthMissing ? null : await fetch('/api/desktop/local-auth', { method: 'POST', cache: 'no-store', referrerPolicy: 'same-origin' });
 				if (r && r.status === 404) desktopLocalAuthMissing = true;
 				if (r && r.ok) {
 					const j = await r.json();
@@ -13927,7 +13930,8 @@
 			const body = $('desktop-status-banner-body');
 			const actions = $('desktop-status-banner-actions');
 			if (!wrap || !body) return;
-			if (currentTab === 'exchange') {
+			if (currentTab === 'exchange' || String((latestStatus || {}).desktop_profile || '') === 'orders') {
+				// Orders nodes never mine by design: no "mining paused / start pool worker" banner.
 				wrap.classList.add('hidden');
 				return;
 			}
@@ -14904,6 +14908,11 @@
 				const s = await r.json();
 				latestStatus = s;
 				latestNetworkSync = s.network_sync || null;
+				{
+					const na = String(s.node_address || '').trim();
+					const nid = $('node-id-display');
+					if (nid && na.startsWith('HMC-') && nid.textContent.trim() === '—') nid.textContent = na;
+				}
 				syncLocalPoHControlVisibility();
 				lastStatusOkUnix = Math.floor(Date.now() / 1000);
 				const canonSnap = Number(s.canonical_tip_height || 0);
