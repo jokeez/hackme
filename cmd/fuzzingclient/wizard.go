@@ -28,6 +28,8 @@ func doWizard(base string, args []string) error {
 	payerRef := fs.String("payer-ref", "", "optional payer_ref for bookkeeping")
 	publicProof := fs.Bool("public-proof", false, "publish Proof of Fuzz page + badge (no secret findings)")
 	publicOK := fs.Bool("allow-public-base", false, "allow non-loopback base (not recommended)")
+	var seeds seedList
+	fs.Var(&seeds, "seed", "example input file or directory of files for a check_bytes guard (repeatable; real packets/files make the fuzzer reach deep code)")
 	_ = fs.Parse(args)
 
 	if !*publicOK && !fuzzingcli.IsLoopbackBase(base) {
@@ -142,6 +144,14 @@ func doWizard(base string, args []string) error {
 	}
 	if *publicProof {
 		payload["public_proof"] = true
+	}
+	if len(seeds) > 0 {
+		hexSeeds, err := readSeedInputs(seeds)
+		if err != nil {
+			return err
+		}
+		payload["seed_byte_corpus"] = hexSeeds
+		payload["input_mode"] = "bytes" // seeds are byte inputs: the guard must be check_bytes
 	}
 	b, code, err := postSecurityAuditAuth(base, payload)
 	if err != nil {
@@ -488,4 +498,59 @@ func marshalWizardSummary(w io.Writer, v any) error {
 	}
 	_, err = w.Write(append(bytes.TrimSpace(b), '\n'))
 	return err
+}
+
+type seedList []string
+
+func (s *seedList) String() string     { return strings.Join(*s, ",") }
+func (s *seedList) Set(v string) error { *s = append(*s, v); return nil }
+
+// readSeedInputs loads --seed files (a directory contributes every regular file in it) as
+// hex strings. Limits match the sandbox: 4096 bytes per input, at most 256 inputs.
+func readSeedInputs(paths []string) ([]string, error) {
+	const maxSeed, maxCount = 4096, 256
+	var out []string
+	add := func(p string) error {
+		b, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		if len(b) == 0 {
+			return nil
+		}
+		if len(b) > maxSeed {
+			b = b[:maxSeed]
+		}
+		if len(out) < maxCount {
+			out = append(out, hex.EncodeToString(b))
+		}
+		return nil
+	}
+	for _, p := range paths {
+		st, err := os.Stat(p)
+		if err != nil {
+			return nil, fmt.Errorf("--seed %s: %w", p, err)
+		}
+		if !st.IsDir() {
+			if err := add(p); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		ents, err := os.ReadDir(p)
+		if err != nil {
+			return nil, err
+		}
+		for _, e := range ents {
+			if e.Type().IsRegular() {
+				if err := add(filepath.Join(p, e.Name())); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("--seed: no non-empty input files found")
+	}
+	return out, nil
 }

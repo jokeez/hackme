@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"hackme/internal/workerlock"
@@ -132,6 +133,13 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 		}
 		return before, after, fmt.Errorf("hunt: merge failed (restored raw): %s", truncateMergeLog(out.String()))
 	}
+	// The session's own artifacts live in dot-dirs inside the corpus (.hunt-run/crashes with
+	// the crash inputs libFuzzer just wrote). They were renamed away with the raw corpus; move
+	// them back before rawDir is deleted. Without this every session whose corpus had more
+	// than 8 files lost its crashes before RunEngineShard collected them — the crash shard then
+	// looked like a short wall ("lf_wall_short") and was skipped, on miners and local Hunt
+	// alike (customer e2e 2026-11-13: a planted heap overflow found in <1 s, never reported).
+	keepSessionDirs(rawDir, corpusDir)
 	var cleanupErr error
 	if derr := os.RemoveAll(rawDir); derr != nil {
 		cleanupErr = fmt.Errorf("hunt: merge: remove %s: %w", filepath.Base(rawDir), derr)
@@ -245,4 +253,29 @@ func truncateMergeLog(s string) string {
 		return s[len(s)-400:]
 	}
 	return s
+}
+
+// keepSessionDirs moves dot-directories (session artifacts, not corpus inputs) from the raw
+// pre-merge dir back into the merged corpus dir. Plain renames within one parent; entries
+// that are not real directories (e.g. a harness-planted symlink) are left to be deleted.
+func keepSessionDirs(rawDir, corpusDir string) {
+	ents, err := os.ReadDir(rawDir)
+	if err != nil {
+		return
+	}
+	for _, e := range ents {
+		name := e.Name()
+		if !strings.HasPrefix(name, ".") || name == "." || name == ".." {
+			continue
+		}
+		src := filepath.Join(rawDir, name)
+		if st, err := os.Lstat(src); err != nil || !st.IsDir() {
+			continue
+		}
+		dst := filepath.Join(corpusDir, name)
+		if _, err := os.Lstat(dst); err == nil {
+			continue
+		}
+		_ = os.Rename(src, dst)
+	}
 }

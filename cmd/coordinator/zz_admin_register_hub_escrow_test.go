@@ -28,6 +28,10 @@ func TestAdminRegisterRequiresHubEscrowOnMintingHub(t *testing.T) {
 		switch camp {
 		case "camp-hub-funded":
 			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "escrow": chain.FuzzEscrowRow{CampaignID: camp, BudgetHMC: 5, BudgetRuns: 16, Status: "open"}})
+		case "camp-dust":
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "escrow": chain.FuzzEscrowRow{CampaignID: camp, BudgetHMC: 0.001, BudgetRuns: 1, Status: "open"}})
+		case "camp-few-runs":
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "escrow": chain.FuzzEscrowRow{CampaignID: camp, BudgetHMC: 5, BudgetRuns: 4, Status: "open"}})
 		case "camp-closed":
 			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "escrow": chain.FuzzEscrowRow{CampaignID: camp, BudgetHMC: 5, BudgetRuns: 16, Status: "closed"}})
 		default:
@@ -66,6 +70,12 @@ func TestAdminRegisterRequiresHubEscrowOnMintingHub(t *testing.T) {
 	}
 	if rec := register("camp-closed"); rec.Code != http.StatusConflict {
 		t.Fatalf("closed hub escrow: want 409, got %d %s", rec.Code, rec.Body.String())
+	}
+	// Escrow open but smaller than the registration (budget or runs): refused.
+	for _, id := range []string{"camp-dust", "camp-few-runs"} {
+		if rec := register(id); rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "covers") {
+			t.Fatalf("%s: undercollateralized registration must be 409, got %d %s", id, rec.Code, rec.Body.String())
+		}
 	}
 	if rec := register("camp-hub-funded"); rec.Code == http.StatusConflict {
 		t.Fatalf("open hub escrow must register, got 409 %s", rec.Body.String())

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"hackme/internal/fuzzengine"
 	"hackme/internal/fuzzupstream"
@@ -81,6 +82,29 @@ func LocalAutorunTick(ctx context.Context, repoRoot string, cfg map[string]any, 
 		return st, nil, nil
 	}
 
+	if IsInventoryHunt(cfg) {
+		// Customer's own harness: wall-clock libFuzzer sessions, budget = package time limit.
+		tickWall := localInventoryTickWallSec
+		if wallSec > 0 {
+			if left := int64(wallSec) - (now - st.StartedAt); left < int64(tickWall) {
+				tickWall = int(left)
+			}
+		}
+		rep, err := localInventoryTick(ctx, repoRoot, cfg, tickWall)
+		if err != nil {
+			return st, nil, err
+		}
+		st.IterationsDone += rep.Iterations
+		st.CrashesFound += len(rep.Crashes)
+		if st.Verdict != "FOUND" {
+			st.Verdict = rep.Verdict
+		}
+		st.LastTickAt = now
+		if wallSec > 0 && time.Now().Unix()-st.StartedAt >= int64(wallSec) {
+			st.Completed = true
+		}
+		return st, rep, nil
+	}
 	rep, err := LocalRunWithConfig(ctx, LocalRunOptions{
 		RepoRoot:         repoRoot,
 		TargetID:         targetID,

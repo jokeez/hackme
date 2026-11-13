@@ -165,7 +165,11 @@ func (a *app) handleHuntCampaignCreate(w http.ResponseWriter, r *http.Request) {
 	id := cleanFuzzID(req.ID, "hunt")
 	ownerRef := strings.TrimSpace(req.OwnerRef)
 	// Do not derive owner_ref from campaign id (spoofable/predictable under shared publish token).
-	// Callers must supply a non-empty owner_ref for pool-distributed Hunt campaigns.
+	// Default to this node's own wallet address: the customer's identity, not guessable from
+	// the campaign, and the CLI's default `hunt create` then works (it sent none → 400).
+	if ownerRef == "" {
+		ownerRef = a.defaultOrdersOwnerRef()
+	}
 	if ownerRef == "" && poolDistributedCampaign(cfgMap) {
 		writeAPIError(w, http.StatusBadRequest, "owner_ref_required",
 			"pool_distributed Hunt requires owner_ref (not derived from campaign id)", nil)
@@ -575,4 +579,13 @@ func (a *app) handleHuntHarnessGet(w http.ResponseWriter, r *http.Request, hash 
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Cache-Control", "private, max-age=3600")
 	_, _ = w.Write(data)
+}
+
+// defaultOrdersOwnerRef is the node wallet address, used as owner_ref when the caller
+// supplies none (Orders CLI / wizard). Empty when the node has no signer.
+func (a *app) defaultOrdersOwnerRef() string {
+	if a == nil || a.signer == nil {
+		return ""
+	}
+	return strings.TrimSpace(a.signer.Address())
 }

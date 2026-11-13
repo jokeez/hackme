@@ -2256,6 +2256,9 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 	if len(inputBytes) > 0 && sem == fuzzengine.SemanticsDetector && strings.TrimSpace(req.Trap) == "" {
 		title = fuzzengine.BytesDetectorTitle(inputBytes)
 	}
+	if !IsHuntCampaign(cfg) {
+		ft, sev = fuzzengine.CustomerGuardFinding(cfg, ft, sev)
+	}
 	findingType = ft
 	severity = sev
 	findingID = fmt.Sprintf("finding-pool-%s-%d-%d", req.CampaignID, req.ItemID, now)

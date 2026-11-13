@@ -59,6 +59,11 @@ have() { command -v "$1" >/dev/null 2>&1; }
 
 afl_bin() { echo "$HACKME_PREFIX/aflpp/bin/afl-fuzz"; }
 
+bwrap_probe() {
+  bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-net --die-with-parent -- \
+    "$(command -v true 2>/dev/null || echo /bin/true)" >/dev/null 2>&1
+}
+
 check_status() {
   local ok=1
   if have clang; then
@@ -79,11 +84,11 @@ check_status() {
   if have bwrap; then
     log "bwrap: $(command -v bwrap)"
     # Probe the cage (nested userns / AppArmor may leave bwrap on PATH but unusable).
-    if bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-net --die-with-parent -- "$(command -v true 2>/dev/null || echo /bin/true)" >/dev/null 2>&1; then
+    if bwrap_probe; then
       log "bwrap: probe OK (userns cage)"
     else
       warn "bwrap present but probe FAILED (uid_map/userns/AppArmor) — Hunt STRICT will soft-skip"
-      warn "Ubuntu 24.04+: if aa-enabled, check unprivileged userns (kernel.apparmor_restrict_unprivileged_userns=0 or bwrap profile)"
+      warn "Ubuntu 24.04+: rerun with HACKME_FIX_APPARMOR=1 to allow user namespaces for bwrap only"
       ok=0
     fi
   else
@@ -99,6 +104,45 @@ fi
 
 mkdir -p "$HACKME_PREFIX/bin" "$HACKME_PREFIX/aflpp"
 
+# as_root runs a command as root: directly, via passwordless sudo, or via sudo with a
+# password prompt when a terminal is attached. Never prompts from a background launcher.
+as_root() {
+  if [[ "$(id -u)" -eq 0 ]]; then
+    "$@"
+  elif have sudo && sudo -n true 2>/dev/null; then
+    sudo -n "$@"
+  elif have sudo && [[ -t 0 && -t 1 ]]; then
+    sudo "$@"
+  else
+    return 126
+  fi
+}
+
+# pkg_install installs distro packages (apt / dnf / pacman / zypper). Args are
+# "apt:pkgs|dnf:pkgs|pacman:pkgs|zypper:pkgs" lists.
+PKG_UPDATED=0
+pkg_install() {
+  local apt="$1" dnf="$2" pac="$3" zyp="$4" rc=1
+  if have apt-get; then
+    if [[ "$PKG_UPDATED" == "0" ]]; then
+      as_root env DEBIAN_FRONTEND=noninteractive apt-get update -qq >/dev/null 2>&1 || true
+      PKG_UPDATED=1
+    fi
+    # shellcheck disable=SC2086
+    as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $apt; rc=$?
+  elif have dnf; then
+    # shellcheck disable=SC2086
+    as_root dnf install -y -q $dnf; rc=$?
+  elif have pacman; then
+    # shellcheck disable=SC2086
+    as_root pacman -S --needed --noconfirm $pac; rc=$?
+  elif have zypper; then
+    # shellcheck disable=SC2086
+    as_root zypper --non-interactive install $zyp; rc=$?
+  fi
+  return $rc
+}
+
 ensure_clang() {
   if [[ "$SKIP_CLANG" == "1" ]]; then
     return 0
@@ -107,12 +151,9 @@ ensure_clang() {
     log "clang already present"
     return 0
   fi
-  if [[ "$(id -u)" -eq 0 ]] && have apt-get; then
-    log "apt-get install clang (libFuzzer)"
-    DEBIAN_FRONTEND=noninteractive apt-get install -y clang || warn "apt clang failed"
-  else
-    warn "install clang via your package manager for libFuzzer Hunt (fleet default)"
-  fi
+  log "installing clang + libFuzzer runtime (needs sudo)"
+  pkg_install "clang lld llvm make" "clang compiler-rt llvm lld make" "clang compiler-rt llvm lld make" "clang lld llvm make" \
+    || warn "could not install clang automatically — install it with your package manager (Ubuntu: sudo apt install clang lld llvm)"
 }
 
 ensure_bubblewrap() {
@@ -123,11 +164,64 @@ ensure_bubblewrap() {
     log "bubblewrap already present"
     return 0
   fi
-  if [[ "$(id -u)" -eq 0 ]] && have apt-get; then
-    log "apt-get install bubblewrap (Hunt isolate cage)"
-    DEBIAN_FRONTEND=noninteractive apt-get install -y bubblewrap || warn "apt bubblewrap failed"
+  log "installing bubblewrap (Hunt sandbox, needs sudo)"
+  pkg_install bubblewrap bubblewrap bubblewrap bubblewrap \
+    || warn "could not install bubblewrap automatically — sudo apt install bubblewrap"
+}
+
+# Ubuntu 24.04+ blocks unprivileged user namespaces for unconfined programs
+# (kernel.apparmor_restrict_unprivileged_userns=1), which breaks bwrap and with it every
+# local Hunt. The narrow fix is an AppArmor profile that grants userns to /usr/bin/bwrap
+# only (what Ubuntu's own bwrap-userns-restrict / Flatpak setups do) — not a global sysctl.
+# Asked interactively, or HACKME_FIX_APPARMOR=1 for unattended installs.
+ensure_bwrap_userns() {
+  have bwrap || return 0
+  bwrap_probe && return 0
+  local restrict
+  restrict="$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)"
+  [[ "$restrict" == "1" ]] || return 0
+  local bw prof=/etc/apparmor.d/hackme-bwrap
+  bw="$(readlink -f "$(command -v bwrap)")"
+  if [[ -f "$prof" ]]; then
+    as_root apparmor_parser -r "$prof" >/dev/null 2>&1 || true
+    bwrap_probe && { log "bwrap: AppArmor profile reloaded"; return 0; }
+  fi
+  local ok="${HACKME_FIX_APPARMOR:-}"
+  if [[ -z "$ok" && -t 0 && -t 1 ]]; then
+    echo "[hunt-engines] This system (Ubuntu 24.04+) blocks user namespaces, so the Hunt sandbox (bubblewrap) cannot start."
+    echo "[hunt-engines] Fix: add an AppArmor profile that allows user namespaces for $bw only (no global change)."
+    read -r -p "[hunt-engines] Install it now with sudo? [y/N] " ok || ok=""
+  fi
+  case "$ok" in
+    1|y|Y|yes|YES) ;;
+    *)
+      warn "Hunt sandbox blocked by AppArmor — rerun with HACKME_FIX_APPARMOR=1 (adds $prof for $bw only)"
+      return 0
+      ;;
+  esac
+  local tmp
+  tmp="$(mktemp)"
+  cat >"$tmp" <<PROFILE
+# HackMe: allow user namespaces for bubblewrap only (Hunt sandbox). Remove this file and
+# run 'sudo systemctl reload apparmor' to undo.
+abi <abi/4.0>,
+include <tunables/global>
+
+profile hackme-bwrap $bw flags=(unconfined) {
+  userns,
+  include if exists <local/hackme-bwrap>
+}
+PROFILE
+  if as_root install -m 0644 "$tmp" "$prof" && as_root apparmor_parser -r "$prof"; then
+    rm -f "$tmp"
+    if bwrap_probe; then
+      log "bwrap: AppArmor profile installed — sandbox works"
+    else
+      warn "AppArmor profile installed but bwrap still fails — check 'sudo dmesg | grep apparmor'"
+    fi
   else
-    warn "install bubblewrap for net-isolated Hunt (apt install bubblewrap)"
+    rm -f "$tmp"
+    warn "could not install $prof (sudo needed)"
   fi
 }
 
@@ -272,6 +366,7 @@ EOF
 
 ensure_clang
 ensure_bubblewrap
+ensure_bwrap_userns
 install_aflpp_bundle
 write_env
 # Best-effort miner cache hygiene after engine install (idempotent).
@@ -284,8 +379,9 @@ if check_status; then
   log "done (clang + AFL++ + bwrap ready for Hunt)"
 else
   if [[ "${HACKME_SKIP_HUNT_ENGINES:-0}" == "1" || "${MODE_DESKTOP}" == "1" ]]; then
-    warn "partial install — Hunt soft-skips missing engines; Dig unchanged"
-    log "done (partial)"
+    warn "partial install — Hunt is NOT available on this machine yet; Dig orders work"
+    warn "fix the WARN lines above, then rerun: bash $0 --desktop"
+    log "done (partial — Hunt unavailable)"
   else
     # System/miner install: fail closed so STRICT isolate does not silent-starve Hunt.
     echo "[hunt-engines] ERROR: clang and/or afl-fuzz and/or bwrap missing after install" >&2

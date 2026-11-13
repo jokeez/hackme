@@ -409,6 +409,21 @@ worker_run_loop_slot() {
     fi
   fi
   local bin_help="$("$slot_bin" -h 2>&1 || true)"
+  # A GPU build that cannot even load (NVIDIA card without the CUDA driver: "libcuda.so.1:
+  # cannot open shared object file", rc=127) used to crash-loop forever with growing backoff
+  # and mine nothing. Fall back to the CPU worker and say why.
+  if [[ "$slot_backend" != "cpu" && "$bin_help" == *"error while loading shared libraries"* ]]; then
+    local missing_lib
+    missing_lib="$(printf '%s' "$bin_help" | sed -n 's/.*loading shared libraries: \([^:]*\):.*/\1/p' | head -1)"
+    echo "[worker-autostart] WARN: ${slot_bin##*/} cannot start (${missing_lib:-missing library}) — GPU driver not installed? Mining on CPU instead." >&2
+    echo "[worker-autostart] WARN: install the ${slot_backend^^} driver (NVIDIA: proprietary driver; AMD: an OpenCL ICD) and restart the miner for GPU speed." >&2
+    local cpu_bin
+    if cpu_bin="$(worker_bin_candidate workerpoh)"; then
+      slot_bin="$cpu_bin"
+      slot_backend="cpu"
+      bin_help="$("$slot_bin" -h 2>&1 || true)"
+    fi
+  fi
   supports_flag() { [[ "$bin_help" == *"$1"* ]]; }
   local backend_flag=() dev_flag=() disable_flag=()
   if [[ "$slot_backend" == "cpu" ]]; then

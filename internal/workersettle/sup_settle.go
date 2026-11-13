@@ -37,8 +37,8 @@ func RunSUP(ctx context.Context, cfg Config) (Result, error) {
 	if strings.TrimSpace(cfg.AdminToken) == "" || strings.TrimSpace(cfg.CoordAdminToken) == "" {
 		return out, fmt.Errorf("ADMIN_TOKEN and COORD_ADMIN_TOKEN are required")
 	}
-	if strings.TrimSpace(cfg.StateDB) == "" {
-		return out, fmt.Errorf("STATE_DB required (SQLite ledger)")
+	if err := cfg.checkLedgerPath(); err != nil {
+		return out, err
 	}
 	minUnits := HMCToUnits(envFloat("MIN_SETTLE_SUP", 0.01))
 	reserveUnits := HMCToUnits(envFloat("SUP_TREASURY_RESERVE", 0.001))

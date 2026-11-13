@@ -19,14 +19,14 @@ ADMIN_TOKEN="${ADMIN_TOKEN:-${HACKME_ADMIN_TOKEN:-}}"
 COORD_ADMIN_TOKEN="${COORD_ADMIN_TOKEN:-${HACKME_COORDINATOR_ADMIN_TOKEN:-${COORD_TOKEN:-}}}"
 MIN_SETTLE_SUP="${MIN_SETTLE_SUP:-0.01}"
 STATE_FILE="${STATE_FILE:-data/worker_settlement_state.json}"
-STATE_DB="${STATE_DB:-}"
-if [[ -z "$STATE_DB" && "${SETTLE_SQLITE:-1}" != "0" ]]; then
-  if [[ "$STATE_FILE" == *.json ]]; then
-    STATE_DB="${STATE_FILE%.json}.db"
-  else
-    STATE_DB="${STATE_FILE}.db"
-  fi
+STATE_DB="${STATE_DB:-${HACKME_WORKER_SETTLEMENT_DB:-}}"
+# One ledger only (same rule as settle_worker_payouts.sh): never derive a DB beside
+# STATE_FILE — a derived ledger has zero watermarks and pays accrual a second time.
+if [[ -z "$STATE_DB" ]]; then
+  echo "[settle-sup] FATAL: STATE_DB is not set — refusing to run on a derived ledger (source .env.settlement)." >&2
+  exit 1
 fi
+export STATE_DB
 SETTLECTL="${SETTLECTL:-}"
 if [[ -z "$SETTLECTL" ]]; then
   for c in "$ROOT_DIR/bin/workersettlectl" "$ROOT_DIR/workersettlectl"; do
@@ -114,7 +114,7 @@ if [[ "$(jq -r '.economics.admin_mint_retired // false' <<<"$sup_econ" 2>/dev/nu
   echo "[settle-sup] economics v2: admin SUP mint retired — settling SUP by transfer (workersettle -asset sup)" >&2
   for b in "$ROOT_DIR/bin/workersettle" "$ROOT_DIR/workersettle"; do
     if [[ -x "$b" ]]; then
-      ADMIN_TOKEN="$ADMIN_TOKEN" COORD_ADMIN_TOKEN="$COORD_ADMIN_TOKEN" STATE_FILE="$STATE_FILE" exec "$b" -asset sup
+      ADMIN_TOKEN="$ADMIN_TOKEN" COORD_ADMIN_TOKEN="$COORD_ADMIN_TOKEN" STATE_FILE="$STATE_FILE" STATE_DB="$STATE_DB" exec "$b" -asset sup
     fi
   done
   echo "[settle-sup] ERROR: workersettle binary not found — SUP stays accrued (no mint fallback)" >&2

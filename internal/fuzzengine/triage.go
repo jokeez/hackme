@@ -21,6 +21,8 @@ func IsCrashClass(findingType string) bool {
 		return false
 	}
 	switch ft {
+	case "guard_violation": // the customer's own guard said "bug" — a finding, not noise
+		return true
 	case "crash", "hang", "timeout", "timeout_hang", "asan", "ubsan", "msan", "tsan",
 		"memory", "memory_error", "leak", "oom", "segfault", "sigsegv", "abort",
 		"native_crash", "heap_overflow", "stack_overflow", "use_after_free":
@@ -179,4 +181,24 @@ func ReproCmdTool(wasmPath string, input uint64) string {
 		return ReproCmd(input)
 	}
 	return fmt.Sprintf("go run ./tools/check_repro -wasm %q -input %q", wasmPath, fmt.Sprintf("0x%x", input))
+}
+
+// CustomerGuardFinding promotes a detector/property violation from a guard the customer
+// wrote themselves (config customer_guard=true) to guard_violation. Shipped detector packs
+// keep their violations in the coverage-noise appendix (they fire on test templates), but
+// for a customer guard a violation is exactly the bug they asked us to find: it must reach
+// top issues and fail the CI gate (customer e2e 2026-11-13: 256 violations, gate PASS).
+func CustomerGuardFinding(cfg map[string]any, findingType, severity string) (string, string) {
+	if cfg == nil {
+		return findingType, severity
+	}
+	v := strings.TrimSpace(strings.ToLower(toString(cfg["customer_guard"])))
+	if v != "1" && v != "true" {
+		return findingType, severity
+	}
+	switch strings.TrimSpace(strings.ToLower(findingType)) {
+	case "security_violation", "property_violation":
+		return "guard_violation", "high"
+	}
+	return findingType, severity
 }

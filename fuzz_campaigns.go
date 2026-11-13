@@ -1094,6 +1094,20 @@ func (a *app) tryCloseFuzzEscrowForStatus(ctx context.Context, campaignID, statu
 		return
 	}
 	status = strings.TrimSpace(strings.ToLower(status))
+	// A campaign that never reached the pool has no coordinator settle to drain; the drain's
+	// owner-scoped outbox call answers 403 for it and the close was refused forever.
+	if (status == "completed" || status == "cancelled") && a.db != nil {
+		var cfgRaw string
+		if err := a.db.QueryRowContext(ctx, `SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgRaw); err == nil &&
+			!poolDistributedCampaign(parseMapJSON(cfgRaw)) {
+			if status == "cancelled" {
+				_, _ = a.chain.CancelFuzzEscrow(ctx, campaignID)
+			} else {
+				a.finalizeLocalCampaignEscrow(ctx, campaignID)
+			}
+			return
+		}
+	}
 	switch status {
 	case "cancelled", "completed":
 		// Progress-mirror / reconcile often call with a short sync ctx (~8–20s).

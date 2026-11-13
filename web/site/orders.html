@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HackMe Orders — Customer path (local node)</title>
-  <meta name="description" content="Order B2B security fuzz on HackMe: download local node, top up on-chain HMC on #wallet, Start Dig/Hunt or run wizard. Escrow and reports stay on your machine — not a checkout on hackme.tech." />
+  <title>HackMe Orders — Fuzz your C/C++ code</title>
+  <meta name="description" content="Order a fuzzing scan of your C/C++ library on HackMe: a crash report with a reproducer, a CI gate, and an honest CLEAN when nothing is found. Priced in HMC, unused budget refunded." />
   <link rel="canonical" href="https://hackme.tech/orders.html" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -31,77 +31,151 @@
     </nav>
 
     <section class="hero glass">
-      <p class="kicker">Customers · security orders</p>
-      <h1>Find crashes before attackers do.</h1>
+      <p class="kicker">Security orders</p>
+      <h1>Fuzz your C/C++ code before attackers do.</h1>
       <p class="hero-copy">
-        Order a Dig or Hunt scan on <strong>your local node</strong>
-        (<code>127.0.0.1:8080</code>). You get a report and a CI gate; unused bounty is refunded.
-        Pool miners pick customer work first. Keys and spendable balance stay on your machine —
-        Dig/Hunt <strong>Start</strong> auto-funds escrow.
+        Fuzzing feeds your parser or library millions of malformed inputs and watches for memory bugs.
+        You get a <strong>crash report with an input that reproduces it</strong>, a <strong>CI gate</strong> for your pipeline,
+        and an honest <strong>CLEAN</strong> when nothing turns up. Priced in HMC; the unused part of your budget comes back.
       </p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="./downloads.html#local-node">1 · Download local node</a>
-        <a class="btn btn-secondary" href="./downloads.html#fuzzing-client">2 · Get hackme-fuzzing CLI</a>
-        <a class="btn btn-secondary" href="./developers.html">Packages &amp; API</a>
+        <a class="btn btn-primary" href="#start">How to order</a>
+        <a class="btn btn-secondary" href="./reports/portfolio/deliverables/traplib.html">See a sample report</a>
       </div>
       <div class="pill-row">
-        <span class="pill">No checkout on this site</span>
-        <span class="pill">Escrow on localhost</span>
-        <span class="pill">Scan · Dig · Audit · Deep</span>
-        <span class="pill">Hunt · coverage-guided</span>
-        <span class="pill">Hunt Lite · Standard · Hunt Heavy</span>
-        <span class="pill">Unused bounty refunded</span>
-        <span class="pill">Orders publish to the public pool</span>
+        <span class="pill">libFuzzer · AFL++ · ASAN</span>
+        <span class="pill">Reproducer for every crash</span>
+        <span class="pill">CI pass/fail gate</span>
+        <span class="pill">Unused budget refunded</span>
       </div>
-    </section>
-
-    <section class="panel glass" style="margin-top:1rem">
-      <div class="panel-head"><h2>Three steps</h2></div>
-      <ol class="check-list">
-        <li><strong>Install</strong> — from <a href="./downloads.html">Downloads</a>: Windows Setup → <strong>Orders</strong>, or Linux <code>bash start_hackme_orders.sh</code> (tar/deb). Opens <code>http://127.0.0.1:8080/#orders</code> · sync token on <code>#wallet</code> (starter HMC = 0).</li>
-        <li><strong>Order</strong> — top up on-chain HMC on <code>#wallet</code>, then Dig/Hunt <strong>Start</strong> (auto-funds escrow) or CLI
-          <code>./hackme-fuzzing wizard --pack filter_utf8 --package audit</code>
-          (CLI ships next to the node in Orders profile; packs: <code>secrets</code> · <code>script_bounds</code> · <code>filter_utf8</code> · <code>parser_expat</code>
-          · <code>bounds_smoke</code> · <code>overflow_smoke</code> · <code>state_smoke</code>
-          · or <code>--wasm guard.wasm</code> · dashboard <code>#orders</code> · <strong>Hunt</strong> inventory).</li>
-        <li><strong>Deliverable</strong> — wizard prints <code>report_url</code>, <code>gate_url</code>, <code>pulse_url</code>. With <code>pool.orders.token</code> (rc18.1+ Orders bundle), the campaign registers on the public pool so diggers pick it up; without the token, Dig/Hunt still run locally.</li>
-      </ol>
-      <pre class="code-block" style="margin-top:1rem"><code>export HACKME_ADMIN_TOKEN=…   # local node only
-hackme-fuzzing wizard \
-  --wasm ./guard.wasm \
-  --package audit \
-  --title "Acme script bounds"</code></pre>
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>Packages (HMC)</h2></div>
+      <div class="panel-head"><h2>What you get</h2></div>
+      <div class="lane-grid">
+        <article class="lane-card lane-card-fuzz">
+          <span class="lane-tag">Found</span>
+          <h3>Crash report + reproducer</h3>
+          <p>Crash class (heap overflow, use-after-free, …), the stack, and the exact input that triggers it, so your developers can fix it the same day.</p>
+        </article>
+        <article class="lane-card">
+          <span class="lane-tag">CI</span>
+          <h3>A gate for your pipeline</h3>
+          <p>A pass/fail URL your CI can check. Run the same scan on every release and fail the build when a crash comes back.</p>
+        </article>
+        <article class="lane-card lane-card-mine">
+          <span class="lane-tag lane-tag-mine">Honest</span>
+          <h3>CLEAN is not "secure"</h3>
+          <p>If nothing crashes, the report says CLEAN and shows how much was tested. It is evidence, not a guarantee, and we never sell it as one.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Packages</h2></div>
       <div class="table-wrap">
         <table class="endpoint-table">
-          <thead><tr><th>Package</th><th>HMC</th><th>Runs</th><th>exec/unit</th><th>Best for</th></tr></thead>
+          <thead><tr><th>Package</th><th>Price</th><th>What it does</th><th>Typical time</th></tr></thead>
           <tbody>
-            <tr><td><code>scan</code></td><td>~1</td><td>64</td><td>1</td><td>CI smoke · numeric/state guards</td></tr>
-            <tr><td><code>audit</code></td><td>~5</td><td>256</td><td>64</td><td>Protocol / filter guards · corpus persist</td></tr>
-            <tr><td><code>deep</code></td><td>~25–40</td><td>2048</td><td>512 local · 256 pool cap</td><td>Hours-scale dig depth</td></tr>
-            <tr><td><code>hunt_lite</code></td><td>~20</td><td>fleet leases</td><td>libFuzzer</td><td>First coverage pass</td></tr>
-            <tr><td><code>hunt_standard</code></td><td>~60</td><td>fleet leases</td><td>libFuzzer</td><td>Larger inventory hunt</td></tr>
-            <tr><td><code>hunt_heavy</code></td><td>~150</td><td>fleet leases</td><td>AFL++ / LF</td><td>Deep bounty profile</td></tr>
+            <tr><td><strong>Quick scan</strong></td><td>~1 HMC</td><td>Property checks on a small function or format guard, 64 runs. Good for a first look and for every CI build.</td><td>minutes</td></tr>
+            <tr><td><strong>Standard Hunt</strong></td><td>~60 HMC</td><td>Coverage-guided libFuzzer on a C/C++ library, 4,000 work units.</td><td>6–16 h on the pool</td></tr>
+            <tr><td><strong>Deep Hunt</strong></td><td>~150 HMC</td><td>AFL++ and libFuzzer, 12,000 work units, for parsers you really care about.</td><td>about 1 day on the pool</td></tr>
           </tbody>
         </table>
       </div>
-      <p class="subtle" style="margin-top:1rem">
-        Live status (read-only): <a href="./fuzzing-console.html">observer tracker</a> ·
-        campaign board: <a href="./fuzz-marketplace.html">marketplace</a>.
-        Deep docs: <a href="./developers.html">Developers</a>.
+      <p class="subtle">
+        You top up your node's <strong>order balance</strong> once (minimum 15 HMC, sent on-chain to the platform); each scan locks its
+        price from that balance and returns whatever it did not use when it closes. The order balance stays on your node for the next
+        scans — it cannot be sent back to a wallet, so top up only what you plan to spend.
+        Orders opened from block 550,000 (Economics v2) also pay a one-time 10% fee at the start (5% burned, 5% platform).
+        Need HMC? <a href="https://exchange.hackme.tech/info/buy.html">How to get HMC</a>.
       </p>
     </section>
 
     <section class="panel glass">
-      <div class="panel-head"><h2>Why not a shop on hackme.tech?</h2></div>
+      <div class="panel-head"><h2>Real reports</h2></div>
+      <p class="subtle">These are actual deliverables from scans on our network, labelled honestly.</p>
+      <div class="lane-grid">
+        <a class="lane-card lane-card-fuzz" href="./reports/portfolio/deliverables/traplib.html">
+          <span class="lane-tag">Found · control</span>
+          <h3>traplib</h3>
+          <p>A library with bugs planted on purpose, to prove the pipeline finds them. The pool found the ASAN heap-buffer-overflow.</p>
+        </a>
+        <a class="lane-card" href="./reports/portfolio/deliverables/oniguruma.html">
+          <span class="lane-tag">CLEAN</span>
+          <h3>oniguruma</h3>
+          <p>Regex engine. Two Standard Hunts, ~8,000 work units, no crash in that window.</p>
+        </a>
+        <a class="lane-card" href="./reports/portfolio/deliverables/exiv2.html">
+          <span class="lane-tag">CLEAN</span>
+          <h3>Exiv2</h3>
+          <p>Image metadata library with a custom harness. CLEAN for the tested version and window.</p>
+        </a>
+      </div>
+      <p class="subtle">More cases, including long OSS and crypto series: <a href="./research.html">research ledger</a>.</p>
+    </section>
+
+    <section id="start" class="panel glass">
+      <div class="panel-head"><h2>How to order</h2></div>
+      <ol class="list">
+        <li><strong>Install the node</strong> from <a href="./downloads.html">Downloads</a> and pick the <em>Orders</em> role (Windows setup or Linux). It opens a local dashboard on your machine.</li>
+        <li><strong>Add HMC</strong> to the wallet in that dashboard (at least 15 HMC for the first top-up).</li>
+        <li><strong>Start a scan</strong>: choose a package and your target, press Start. The report link and a CI gate URL appear right away and fill in as it runs.</li>
+        <li><strong>C/C++ Hunt on Linux:</strong> run <code>install_hunt_engines.sh --desktop</code> once from the install folder — it installs clang and the sandbox
+          (on Ubuntu 24.04 it asks to allow the sandbox through AppArmor). Hunt is Linux-only; Windows runs Dig scans.</li>
+      </ol>
       <p class="subtle">
-        Orders spend <strong>your</strong> on-chain HMC from <code>#wallet</code>; Start locks prepaid escrow in one click. Putting checkout on the hub would make the site a custodian —
-        wrong for security customers and for the multi-coin roadmap.
-        Same pattern later for <a href="./coins.html#hms">HMS</a> and other lanes: site = catalog + onboarding, node = shop + settlement.
+        <strong>Today</strong>, a scan you start from your own node runs on your own machine.
+        <strong>Running on the public pool</strong> (the 6–16 h and ~1 day times above) is set up with us for now:
+        <a href="./contacts.html">contact us</a> with the target and package, and we open the escrow on the network so pool miners pick it up.
+        Self-service pool orders come back once that path is reworked.
       </p>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><h2>Questions</h2></div>
+      <details>
+        <summary><strong>Does my code leave my machine?</strong></summary>
+        <p class="subtle">For scans on your own node, no. For pool runs, the compiled test harness (not your source tree) runs on miners' machines inside a sandbox. Do not order pool runs for code you cannot share in compiled form; use a local scan instead.</p>
+      </details>
+      <details>
+        <summary><strong>What if a crash is found?</strong></summary>
+        <p class="subtle">The report and the crashing input are private: they open only with your report token. The miner who found it gets a bounty share from your escrow. Pool runs show the campaign title on the public <a href="./fuzz-marketplace.html">campaign board</a>, so pick a neutral title if the target is confidential. Public disclosure of the bug is your call.</p>
+      </details>
+      <details>
+        <summary><strong>Why is there no checkout on hackme.tech?</strong></summary>
+        <p class="subtle">Your HMC stays in your own wallet until you start a scan; the site never holds your funds. hackme.tech is the catalog and the docs.</p>
+      </details>
+      <details>
+        <summary><strong>Which languages and targets?</strong></summary>
+        <p class="subtle">C and C++ libraries and parsers with a libFuzzer-style entry point work best. Quick scans also take a WASM guard. If you are unsure, <a href="./contacts.html">ask us</a> first.</p>
+      </details>
+    </section>
+
+    <section class="panel glass">
+      <details>
+        <summary><strong>For developers: CLI, packages and API</strong></summary>
+        <p class="subtle">The <code>hackme-fuzzing</code> CLI ships next to the node in the Orders profile. Example:</p>
+        <pre class="code-block"><code>hackme-fuzzing wizard \
+  --wasm ./guard.wasm \
+  --package audit \
+  --title "Acme script bounds"</code></pre>
+        <p class="subtle">Guard packs: <code>secrets</code> · <code>script_bounds</code> · <code>filter_utf8</code> · <code>parser_expat</code> · <code>bounds_smoke</code> · <code>overflow_smoke</code> · <code>state_smoke</code>. The wizard prints <code>report_url</code>, <code>gate_url</code> and <code>pulse_url</code>.</p>
+        <div class="table-wrap">
+          <table class="endpoint-table">
+            <thead><tr><th>Package id</th><th>HMC</th><th>Runs</th><th>Engine</th></tr></thead>
+            <tbody>
+              <tr><td><code>scan</code></td><td>~1</td><td>64</td><td>Dig (WASM guards)</td></tr>
+              <tr><td><code>audit</code></td><td>~5</td><td>256</td><td>Dig, corpus persist</td></tr>
+              <tr><td><code>deep</code></td><td>~40</td><td>2048 local · 256 pool</td><td>Dig, hours-scale depth</td></tr>
+              <tr><td><code>hunt_lite</code></td><td>~20</td><td>fleet leases</td><td>libFuzzer</td></tr>
+              <tr><td><code>hunt_standard</code></td><td>~60</td><td>4,000 units</td><td>libFuzzer</td></tr>
+              <tr><td><code>hunt_heavy</code></td><td>~150</td><td>12,000 units</td><td>AFL++ / libFuzzer</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="subtle">Live status: <a href="./fuzzing-console.html">observer tracker</a> · <a href="./fuzz-marketplace.html">campaign board</a> · full docs: <a href="./developers.html">Developers</a>, <a href="./fuzz-guide.html">how-to guide</a>.</p>
+      </details>
     </section>
   </main>
   <script src="./assets/site-shell.js?v=20261024plain1"></script>

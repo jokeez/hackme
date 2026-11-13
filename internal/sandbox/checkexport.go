@@ -711,3 +711,22 @@ func probeTrapReason(err error) string {
 		return "check trapped during validation probe: " + strings.TrimSpace(err.Error())
 	}
 }
+
+// WasmExportsCheckBytes reports whether a guard module uses the bytes ABI
+// (check_bytes(ptr,len)->i32) rather than check(i64)->i32. Callers use it to pick
+// input_mode when the customer did not set one: calling a check_bytes guard in uint64
+// mode feeds it garbage and every run "violates" (customer e2e 2026-11-13).
+func WasmExportsCheckBytes(ctx context.Context, wasm []byte) bool {
+	if !wasmMagicAndVersionOK(wasm) {
+		return false
+	}
+	rt := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfigInterpreter())
+	defer rt.Close(ctx)
+	cm, err := rt.CompileModule(ctx, wasm)
+	if err != nil {
+		return false
+	}
+	defer cm.Close(ctx)
+	_, ok := cm.ExportedFunctions()["check_bytes"]
+	return ok
+}

@@ -77,7 +77,13 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusBadRequest, "invalid_json", "invalid json", nil)
 		return
 	}
+	a.serveSecurityAudit(w, r, req)
+}
 
+// serveSecurityAudit creates the order + campaign + escrow for an already
+// authenticated and decoded request. Callers own auth, rate limits and body
+// decoding (admin: handleSecurityAudit; scoped CI token: handleCIDig).
+func (a *app) serveSecurityAudit(w http.ResponseWriter, r *http.Request, req securityAuditRequest) {
 	ts := time.Now().UTC().Format("20060102t150405") + fmt.Sprintf("%06d", time.Now().Nanosecond()/1000)
 	orderID := strings.TrimSpace(req.OrderID)
 	if orderID == "" {
@@ -463,6 +469,38 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	if req.MaxInputBytes > 0 {
 		cfgMap["max_input_bytes"] = req.MaxInputBytes
 	}
+	// A guard the customer brought: its violations are findings (not coverage noise).
+	// Compare wasm bytes to the shipped pack module — labeling with guard_pack alone is not
+	// enough (CI/action often sends wasm_check_hex + guard_pack for mutator defaults).
+	if securityAuditCustomerGuard(repoRoot, strings.TrimSpace(req.DigPreset), strings.TrimSpace(req.GuardPack), wasmHex) {
+		cfgMap["customer_guard"] = true
+	}
+	// The module's ABI decides the input mode: a check_bytes(ptr,len) guard driven in uint64
+	// mode gets an 8-byte integer where it expects a pointer and length, so every run
+	// "violates". The wizard always sends the tier default (uint64), so ignore it here.
+	if toString(cfgMap["input_mode"]) != "bytes" {
+		if raw, err := hex.DecodeString(wasmHex); err == nil && sandbox.WasmExportsCheckBytes(r.Context(), raw) {
+			cfgMap["input_abi_detected"] = "check_bytes"
+			cfgMap["input_mode"] = "bytes"
+			if intFromAny(cfgMap["max_input_bytes"]) <= 8 {
+				cfgMap["max_input_bytes"] = 1024 // the uint64 tier default is 8
+			}
+			if _, ok := cfgMap["guided_scheduling"]; !ok {
+				cfgMap["guided_scheduling"] = true
+			}
+			if _, ok := cfgMap["coverage_kind"]; !ok {
+				cfgMap["coverage_kind"] = "wasm_edge_bitmap"
+			}
+		}
+	}
+	// Bytes input needs the bytes tier (same pairing the wizard uses for bytes guard packs):
+	// the WASM-only tiers are uint64-shaped.
+	if toString(cfgMap["input_mode"]) == "bytes" {
+		switch fuzzengine.ParseDepthTier(cfgMap) {
+		case fuzzengine.DepthWasmOnly, fuzzengine.DepthWasmNative:
+			cfgMap["depth_tier"] = string(fuzzengine.DepthBytesCorpus)
+		}
+	}
 	if len(req.SeedByteCorpus) > 0 {
 		asAny := make([]any, len(req.SeedByteCorpus))
 		for i, s := range req.SeedByteCorpus {
@@ -501,6 +539,9 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	reportTokenHashHex := reportTokenHash(reportToken)
 	now := time.Now().Unix()
 	ownerRef := payerRef
+	if ownerRef == "" {
+		ownerRef = a.defaultOrdersOwnerRef() // pool publish needs an owner; the wizard sends none
+	}
 
 	err := execContextRetryBusy(r.Context(), a.db,
 		`INSERT INTO fuzz_campaigns
@@ -593,6 +634,47 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, resp)
+}
+
+// securityAuditCustomerGuard is true when the wasm is the caller's own module, so
+// violations must fail the gate (guard_violation) instead of sitting in coverage noise.
+//
+// Empty dig_preset/guard_pack → always customer. When a pack/preset is named, compare
+// the campaign wasm to the shipped pack bytes: same hash = detector pack (noise);
+// different bytes (typical CI: own wasm_check_hex + guard_pack for mutator defaults) =
+// customer guard. If the shipped pack wasm cannot be loaded, treat a non-empty wasm as
+// customer rather than silently demoting findings to noise.
+func securityAuditCustomerGuard(repoRoot, digPreset, guardPack, wasmHex string) bool {
+	digPreset = strings.TrimSpace(digPreset)
+	guardPack = strings.TrimSpace(guardPack)
+	wasmHex = strings.ToLower(strings.TrimSpace(wasmHex))
+	if digPreset == "" && guardPack == "" {
+		return true
+	}
+	if wasmHex == "" {
+		return false
+	}
+	packName := guardPack
+	if digPreset != "" {
+		if preset, err := fuzzingcli.DigPresetFor(digPreset); err == nil && strings.TrimSpace(preset.GuardPack) != "" {
+			packName = preset.GuardPack
+		} else if packName == "" {
+			packName = digPreset
+		}
+	}
+	pack, err := fuzzingcli.GuardPackFor(packName)
+	if err != nil {
+		return true
+	}
+	root := strings.TrimSpace(repoRoot)
+	if root == "" {
+		root = fuzzingcli.DiscoverRepoRoot()
+	}
+	shipped, _, err := fuzzingcli.LoadPackWasmHex(root, pack)
+	if err != nil {
+		return true
+	}
+	return !strings.EqualFold(strings.TrimSpace(shipped), wasmHex)
 }
 
 // readSecurityAuditWasmPath loads a .wasm under the repo (tasks/artifacts/… only).

@@ -148,7 +148,7 @@ export HACKME_ADMIN_TOKEN=…   # local node only
 hackme-fuzzing wizard --pack filter_utf8 --package audit --title "Filter preflight"
 
 # Hunt
-bash scripts/ops/install_hunt_engines.sh --desktop
+bash install_hunt_engines.sh --desktop   # from the install folder (./linux or /opt/hackme)
 hackme-fuzzing hunt packages
 hackme-fuzzing hunt inventory --path ./repo
 hackme-fuzzing hunt create --package hunt_lite …</code></pre>

@@ -263,6 +263,11 @@ func StableFindingKeyFromDetail(findingType string, detail map[string]any) strin
 			return StableCrashBucket(ft, trap)
 		}
 	}
+	if ft == "guard_violation" {
+		// One customer guard = one property: N violating inputs are one finding with N
+		// reproducers, not N "unique crashes" (the uint64 op/item split is meaningless here).
+		return "guard_violation|guard"
+	}
 	if IsCrashClass(ft) && detail != nil {
 		op := anyInt(detail["op_type"])
 		item := anyInt(detail["item_id"])

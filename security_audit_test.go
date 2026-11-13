@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"hackme/internal/chain"
+	"hackme/internal/fuzzingcli"
 	"hackme/internal/sandbox"
 )
 
@@ -299,5 +300,32 @@ func TestSecurityAuditPoolDistributedAttachesPoH(t *testing.T) {
 		if row.ID == "order-pool-attach-test" {
 			t.Fatalf("local PoH order should not exist for pool_distributed attach")
 		}
+	}
+}
+
+func TestSecurityAuditCustomerGuardByWasmHash(t *testing.T) {
+	root := fuzzingcli.DiscoverRepoRoot()
+	// Own wasm, no pack → customer.
+	if !securityAuditCustomerGuard(root, "", "", sandbox.MinimalGateWasmHex) {
+		t.Fatal("bare wasm_check_hex must be customer_guard")
+	}
+	// Own wasm labeled with a pack (CI/action shape) → still customer.
+	if !securityAuditCustomerGuard(root, "", "overflow_smoke", sandbox.MinimalGateWasmHex) {
+		t.Fatal("custom wasm + guard_pack must be customer_guard (hash ≠ shipped)")
+	}
+	pack, err := fuzzingcli.GuardPackFor("overflow_smoke")
+	if err != nil {
+		t.Fatal(err)
+	}
+	shipped, _, err := fuzzingcli.LoadPackWasmHex(root, pack)
+	if err != nil {
+		t.Skipf("shipped overflow_smoke wasm not built: %v", err)
+	}
+	// Exact shipped module + pack/preset → detector (noise), not customer.
+	if securityAuditCustomerGuard(root, "", "overflow_smoke", shipped) {
+		t.Fatal("identical shipped pack wasm must not be customer_guard")
+	}
+	if securityAuditCustomerGuard(root, "overflow_smoke", "", shipped) {
+		t.Fatal("dig_preset with shipped wasm must not be customer_guard")
 	}
 }

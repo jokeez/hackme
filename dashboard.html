@@ -2097,7 +2097,7 @@
 						</div>
 						<div class="text-right min-w-0">
 							<p class="text-[9px] text-gray-600 uppercase tracking-widest">Node ID</p>
-							<code class="text-neon bg-neon/5 px-2 py-0.5 rounded border border-neon/20 truncate max-w-[200px] lg:max-w-[280px] inline-block">HMC-91fe007e4036c602</code>
+							<code id="node-id-display" class="text-neon bg-neon/5 px-2 py-0.5 rounded border border-neon/20 truncate max-w-[200px] lg:max-w-[280px] inline-block">—</code>
 						</div>
 					</div>
 				</div>
@@ -3961,6 +3961,23 @@
 							</div>
 						</div>
 					</section>
+					<section id="wallet-exchange-card" class="rounded-lg border border-neon/20 bg-black/30 p-4" aria-live="polite">
+						<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+							<div>
+								<p class="font-display text-[10px] tracking-[0.3em] text-neon uppercase">On the exchange</p>
+								<p class="text-[11px] text-gray-500">exchange.hackme.tech · read-only view of this wallet's account (cannot trade or withdraw)</p>
+							</div>
+							<div class="flex gap-2 text-[10px] font-mono">
+								<button type="button" id="btn-wx-enable" class="px-3 py-1.5 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Show exchange balances</button>
+								<button type="button" id="btn-wx-refresh" class="hidden px-3 py-1.5 rounded border border-white/15 text-gray-300 hover:bg-white/5 uppercase tracking-wider">Refresh</button>
+								<button type="button" id="btn-wx-send" class="hidden px-3 py-1.5 rounded border border-matrix/35 text-matrix hover:bg-matrix/10 uppercase tracking-wider">Send to exchange</button>
+								<a id="lnk-wx-open" class="hidden px-3 py-1.5 rounded border border-white/15 text-gray-300 hover:bg-white/5 uppercase tracking-wider" href="https://exchange.hackme.tech/#account" target="_blank" rel="noopener noreferrer">Open exchange ↗</a>
+								<button type="button" id="btn-wx-disable" class="hidden px-2 py-1.5 rounded text-gray-500 hover:text-gray-300" title="Stop syncing">✕</button>
+							</div>
+						</div>
+						<div id="wallet-exchange-rows" class="grid grid-cols-1 sm:grid-cols-3 gap-2 font-mono text-sm"></div>
+						<p id="wallet-exchange-note" class="text-[11px] text-gray-500 mt-2">Off — the node contacts the exchange only after you turn this on.</p>
+					</section>
 					<div class="wallet-layout grid grid-cols-1 lg:grid-cols-[minmax(260px,300px)_1fr] gap-4">
 						<aside class="wallet-sidebar">
 							<p class="text-[9px] uppercase tracking-[0.22em] text-gray-500 px-2 mb-2">Assets</p>
@@ -4069,7 +4086,7 @@
 						<div class="text-left max-w-lg mx-auto mt-4">
 							<p class="text-[10px] uppercase tracking-widest text-gray-600 mb-2">Address</p>
 							<div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-								<code id="wallet-address-display" class="flex-1 text-xs text-neon bg-black/60 px-3 py-2 rounded border border-neon/20 break-all">HMC-91fe007e4036c602</code>
+								<code id="wallet-address-display" class="flex-1 text-xs text-neon bg-black/60 px-3 py-2 rounded border border-neon/20 break-all">—</code>
 								<button type="button" id="btn-copy-address" aria-label="Copy address" class="shrink-0 px-4 py-2 rounded border border-neon/40 text-neon text-[10px] font-display font-bold uppercase tracking-wider hover:bg-neon/10">Copy</button>
 							</div>
 							<div id="wallet-long-address-block" class="hidden mt-3">
@@ -4078,7 +4095,10 @@
 									<code id="wallet-long-address-display" class="flex-1 text-[10px] text-matrix/90 bg-black/60 px-3 py-2 rounded border border-matrix/20 break-all"></code>
 									<button type="button" id="btn-copy-long-address" aria-label="Copy long address" class="shrink-0 px-4 py-2 rounded border border-matrix/40 text-matrix text-[10px] font-display font-bold uppercase tracking-wider hover:bg-matrix/10">Copy</button>
 								</div>
-								<p class="mt-1 text-[10px] text-gray-500 leading-snug">Full-length form of your address. Move funds to it with a normal transfer once it is active; your current address keeps working. Nothing moves automatically.</p>
+								<p id="wallet-long-balance-row" class="hidden mt-2 text-[11px] text-gray-300 leading-snug">On the long address: <span id="wallet-long-balance" class="font-mono text-matrix"></span> HMC — a separate account on chain, not included in the balance above.
+									<button type="button" id="btn-long-move-main" class="ml-1 px-2 py-0.5 rounded border border-matrix/40 text-matrix text-[10px] uppercase tracking-wider hover:bg-matrix/10">Move to main address</button>
+									<span id="wallet-long-move-status" class="ml-1 text-[10px] text-gray-500"></span></p>
+								<p class="mt-1 text-[10px] text-gray-500 leading-snug">Full-length form of the same key. Both forms are separate accounts on chain and nothing moves automatically: coins sent to the long address show up here and can be moved to your main address.</p>
 							</div>
 							<p id="wallet-sync-badge" class="mt-2 inline-flex items-center rounded border border-yellow-500/40 bg-yellow-500/10 px-2 py-1 text-[10px] uppercase tracking-wider text-yellow-200">Canonical sync: checking...</p>
 							<p id="wallet-signer-note" class="mt-2 text-[10px] text-gray-500 font-mono"></p>
@@ -5381,6 +5401,73 @@
 			document.querySelectorAll('.wallet-detail-tab').forEach((btn) => {
 				btn.addEventListener('click', () => setWalletDetailSection(btn.dataset.walletSection));
 			});
+			// Wallet ↔ exchange (read-only session held by the node; values are text-only, never HTML).
+			const wxFmt = (minor) => (Number(minor || 0) / 1e8).toLocaleString(undefined, { maximumFractionDigits: 4 });
+			let wxDeposit = '';
+			async function refreshExchangeAccount(method, force) {
+				const note = $('wallet-exchange-note');
+				const rows = $('wallet-exchange-rows');
+				if (!note || !rows) return;
+				let j;
+				try {
+					const url = method === 'GET' ? '/api/exchange/account' + (force ? '?force=1' : '') : '/api/exchange/account/enable';
+					const r = await fetch(url, { method, credentials: 'same-origin', headers: Object.assign({ Accept: 'application/json' }, adminHeaders()) });
+					j = await r.json();
+				} catch (e) {
+					note.textContent = 'Node not reachable';
+					return;
+				}
+				const on = !!(j && j.enabled);
+				$('btn-wx-enable').classList.toggle('hidden', on);
+				for (const id of ['btn-wx-refresh', 'btn-wx-disable', 'lnk-wx-open']) $(id).classList.toggle('hidden', !on);
+				rows.textContent = '';
+				if (!on) {
+					note.textContent = 'Off — the node contacts the exchange only after you turn this on.';
+					$('btn-wx-send').classList.add('hidden');
+					return;
+				}
+				wxDeposit = (j.deposit_address && /^HMC-([0-9a-f]{16}|[0-9a-f]{64})$/.test(j.deposit_address)) ? j.deposit_address : '';
+				$('btn-wx-send').classList.toggle('hidden', !wxDeposit);
+				const order = ['HMC', 'SUP', 'USDT'];
+				const list = (j.balances || []).slice().sort((a, b) => order.indexOf(a.asset) - order.indexOf(b.asset));
+				for (const b of list) {
+					const cell = document.createElement('div');
+					cell.className = 'rounded border border-white/10 px-3 py-2';
+					const head = document.createElement('div');
+					head.className = 'text-[10px] text-gray-500 uppercase tracking-wider';
+					head.textContent = String(b.asset);
+					const val = document.createElement('div');
+					val.className = 'text-white';
+					val.textContent = wxFmt(b.available);
+					const sub = document.createElement('div');
+					sub.className = 'text-[10px] text-gray-500';
+					const held = Number(b.reserved || 0) + Number(b.hold || 0);
+					sub.textContent = held > 0 ? ('+ ' + wxFmt(held) + ' in orders / on hold') : 'available';
+					cell.append(head, val, sub);
+					rows.append(cell);
+				}
+				if (!list.length) rows.textContent = 'No balances on the exchange yet.';
+				note.textContent = j.ok ? ('Updated ' + new Date(j.fetched_at).toLocaleTimeString() + ' · read-only session')
+					: ('Exchange: ' + String(j.error || 'unavailable'));
+			}
+			if ($('btn-wx-enable')) {
+				$('btn-wx-enable').addEventListener('click', () => {
+					if (!confirm('Show this wallet\'s exchange balances here?\n\nThe node will log in to exchange.hackme.tech with your wallet key using a READ-ONLY session: it can see balances but can never trade, convert or withdraw.')) return;
+					void refreshExchangeAccount('POST', true);
+				});
+				$('btn-wx-refresh').addEventListener('click', () => void refreshExchangeAccount('GET', true));
+				$('btn-wx-disable').addEventListener('click', () => void refreshExchangeAccount('DELETE', false));
+				$('btn-wx-send').addEventListener('click', () => {
+					const to = $('tx-form-to');
+					if (!to || !wxDeposit) return;
+					to.value = wxDeposit;
+					to.dispatchEvent(new Event('input', { bubbles: true }));
+					to.scrollIntoView({ behavior: 'smooth', block: 'center' });
+					to.focus();
+				});
+				void refreshExchangeAccount('GET', false);
+				setInterval(() => { if (!document.hidden) void refreshExchangeAccount('GET', false); }, 60000);
+			}
 			if ($('btn-wallet-refresh')) {
 				$('btn-wallet-refresh').addEventListener('click', () => {
 					if ($('wallet-sync-note')) $('wallet-sync-note').textContent = 'Refreshing HMC/SUP…';
@@ -5963,7 +6050,10 @@
 			} catch (_) {}
 			try {
 				// Non-desktop nodes (hub /dashboard, servers) answer 404 forever: ask once per page.
-				const r = desktopLocalAuthMissing ? null : await fetch('/api/desktop/local-auth', { cache: 'no-store' });
+				// local-auth hands the token only to a same-origin browser document (Origin + Referer).
+				// POST because browsers omit Origin on same-origin GET; referrerPolicy because the
+				// page is served with Referrer-Policy: no-referrer (Origin would be "null", no Referer).
+				const r = desktopLocalAuthMissing ? null : await fetch('/api/desktop/local-auth', { method: 'POST', cache: 'no-store', referrerPolicy: 'same-origin' });
 				if (r && r.status === 404) desktopLocalAuthMissing = true;
 				if (r && r.ok) {
 					const j = await r.json();
@@ -6128,7 +6218,46 @@
 					? (tip > 0 && tip + 1 >= from ? '· active' : '· active from block ' + fmtUInt(from))
 					: '';
 			}
+			const row = $('wallet-long-balance-row');
+			const longUnits = Number((w && w.balance_long_units) || 0);
+			const fee = 1000; // DefaultTransferMinFee (0.00001 HMC)
+			if (row) {
+				row.classList.toggle('hidden', !(longUnits > 0));
+				if (longUnits > 0) $('wallet-long-balance').textContent = fmt(longUnits / 1e8, 8);
+				const btn = $('btn-long-move-main');
+				if (btn) {
+					btn.dataset.long = long;
+					btn.dataset.units = String(longUnits);
+					btn.disabled = !(longUnits > fee) || !(tip > 0 && tip + 1 >= from);
+				}
+			}
 			block.classList.remove('hidden');
+		}
+		async function moveLongBalanceToMain() {
+			const btn = $('btn-long-move-main');
+			const status = $('wallet-long-move-status');
+			const long = String((btn && btn.dataset.long) || '');
+			const units = Number((btn && btn.dataset.units) || 0);
+			const main = walletKnownAddress();
+			const fee = 1000;
+			if (!/^HMC-[0-9a-f]{64}$/.test(long) || !/^HMC-[0-9a-f]{16}$/.test(main) || !(units > fee)) return;
+			const amount = units - fee;
+			if (!confirm('Move ' + fmt(amount / 1e8, 8) + ' HMC from the long address to your main address ' + main + '?\n\nFee 0.00001 HMC. Same key, same wallet.')) return;
+			if (btn) btn.disabled = true;
+			if (status) status.textContent = 'sending…';
+			try {
+				const r = await fetch('/api/tx/send', {
+					method: 'POST',
+					credentials: 'same-origin',
+					headers: Object.assign({ 'Content-Type': 'application/json', Accept: 'application/json' }, adminHeaders()),
+					body: JSON.stringify({ tx_type: 'transfer_v1', from: long, to: main, amount_units: amount, fee_units: fee, timestamp_unix: Math.floor(Date.now() / 1000) }),
+				});
+				const j = await r.json().catch(() => ({}));
+				if (status) status.textContent = r.ok && j.ok ? 'sent · ' + String(j.tx_hash || '').slice(0, 12) + '… — appears after the next block' : 'failed: ' + String(j.error || j.code || r.status);
+			} catch (e) {
+				if (status) status.textContent = 'failed: node not reachable';
+			}
+			if (btn) btn.disabled = false;
 		}
 		function paintWalletShellInstant() {
 			restoreWalletSnapshotCache();
@@ -6139,6 +6268,7 @@
 					$('wallet-address-display').textContent = addr;
 					$('wallet-address-display').dataset.address = addr;
 				}
+				if ($('node-id-display')) $('node-id-display').textContent = addr;
 			}
 			if (walletSnapshot.balanceHMC > 0 || walletSnapshot.balanceUnits > 0 || walletSnapshot.address) {
 				applyWalletHmcOnChainFields();
@@ -6235,6 +6365,10 @@
 			if (dev.startsWith('HMC-')) labels[dev] = 'Dev fee · treasury';
 			const self = String(walletKnownAddress() || '').trim().toUpperCase();
 			if (self.startsWith('HMC-')) labels[self] = 'You';
+			// The v2 long form of this wallet's own key: a transfer to it stays in your wallet.
+			const longEl = $('wallet-long-address-display');
+			const selfLong = String((longEl && longEl.textContent) || '').trim().toUpperCase();
+			if (/^HMC-[0-9A-F]{64}$/.test(selfLong)) labels[selfLong] = 'You · long address';
 			Object.assign(labels, walletActivityPeerLabels);
 			return labels;
 		}
@@ -8662,6 +8796,9 @@
 						runHashLookup();
 					}
 				});
+			}
+			if ($('btn-long-move-main')) {
+				$('btn-long-move-main').addEventListener('click', () => void moveLongBalanceToMain());
 			}
 			if ($('btn-copy-long-address')) {
 				$('btn-copy-long-address').addEventListener('click', async () => {
@@ -13926,7 +14063,8 @@
 			const body = $('desktop-status-banner-body');
 			const actions = $('desktop-status-banner-actions');
 			if (!wrap || !body) return;
-			if (currentTab === 'exchange') {
+			if (currentTab === 'exchange' || String((latestStatus || {}).desktop_profile || '') === 'orders') {
+				// Orders nodes never mine by design: no "mining paused / start pool worker" banner.
 				wrap.classList.add('hidden');
 				return;
 			}
@@ -14903,6 +15041,11 @@
 				const s = await r.json();
 				latestStatus = s;
 				latestNetworkSync = s.network_sync || null;
+				{
+					const na = String(s.node_address || '').trim();
+					const nid = $('node-id-display');
+					if (nid && na.startsWith('HMC-') && nid.textContent.trim() === '—') nid.textContent = na;
+				}
 				syncLocalPoHControlVisibility();
 				lastStatusOkUnix = Math.floor(Date.now() / 1000);
 				const canonSnap = Number(s.canonical_tip_height || 0);
@@ -17618,6 +17761,7 @@
 						$('wallet-address-display').textContent = addrFromApi;
 						$('wallet-address-display').dataset.address = addrFromApi;
 					}
+					if ($('node-id-display')) $('node-id-display').textContent = addrFromApi;
 				} else if (addrHint.startsWith('HMC-')) {
 					walletSnapshot.address = addrHint;
 				}
