@@ -464,9 +464,19 @@ func copyCorpusFilesNewest(src, dst string, max int) int {
 	return copyCorpusFilesOrdered(src, dst, max, true)
 }
 
+// rejectSymlinkDir is true when path is missing, a symlink, or not a real directory.
+// os.ReadDir follows directory symlinks — callers must Lstat first (exfil defense).
+func rejectSymlinkDir(dir string) bool {
+	st, err := os.Lstat(dir)
+	return err != nil || st.Mode()&os.ModeSymlink != 0 || !st.IsDir()
+}
+
 func copyCorpusFilesOrdered(src, dst string, max int, newestFirst bool) int {
 	if max < 1 {
 		max = 32
+	}
+	if rejectSymlinkDir(src) {
+		return 0
 	}
 	ents, err := os.ReadDir(src)
 	if err != nil {
@@ -557,6 +567,9 @@ func placeCorpusFile(srcPath, dest string) bool {
 }
 
 func listFiles(dir string, max int) []string {
+	if rejectSymlinkDir(dir) {
+		return nil
+	}
 	ents, err := os.ReadDir(dir)
 	if err != nil {
 		return nil
@@ -580,9 +593,16 @@ func listFiles(dir string, max int) []string {
 }
 
 func collectCrashArtifacts(dir string, max int) []string {
+	if rejectSymlinkDir(dir) {
+		return nil
+	}
 	var out []string
-	for _, sub := range []string{"crashes", "crash", "artifacts"} {
-		out = append(out, listFiles(filepath.Join(dir, sub), max)...)
+	for _, sub := range []string{"crashes", "hangs", "crash", "artifacts"} {
+		subDir := filepath.Join(dir, sub)
+		if rejectSymlinkDir(subDir) {
+			continue
+		}
+		out = append(out, listFiles(subDir, max)...)
 		if len(out) >= max {
 			return out[:max]
 		}

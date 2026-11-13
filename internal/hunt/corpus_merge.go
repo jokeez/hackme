@@ -126,9 +126,10 @@ func stashHuntRunAside(corpusDir string) (aside string, err error) {
 		}
 		return "", serr
 	}
-	if !st.IsDir() || st.Mode()&os.ModeSymlink != 0 {
-		// Refuse symlink/.hunt-run files — leave in place, do not move into aside.
-		return "", nil
+	if st.Mode()&os.ModeSymlink != 0 || !st.IsDir() {
+		// Fail closed: symlink .hunt-run would stay inside rawDir bind and be
+		// followed by host-side collectCrashArtifacts / research upload.
+		return "", fmt.Errorf("hunt: merge: refusing non-dir or symlink .hunt-run")
 	}
 	// Also refuse if crashes/ is a symlink (exfil via merge preserve + upload).
 	for _, sub := range []string{"crashes", "hangs", "crash", "artifacts"} {
