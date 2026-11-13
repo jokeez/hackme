@@ -15,8 +15,12 @@ head -n1 "$HFA_BODY" | grep -qxF "$marker" || warn "comment body has no marker: 
 
 # Only ever edit a comment we wrote ourselves: same author as this token and
 # the marker on the first line. A PR author can paste the marker, but not as us.
-# (GITHUB_TOKEN can't read /user, so fall back to the Actions bot login.)
-me="$(gh api user --jq .login 2>/dev/null || true)"
+# GITHUB_TOKEN can't read /user (403), and on errors gh prints the error JSON
+# to stdout even with --jq — so only trust a clean exit with a login-shaped value.
+me=""
+if login="$(gh api user --jq .login 2>/dev/null)" && [[ "$login" =~ ^[A-Za-z0-9-]+(\[bot\])?$ ]]; then
+  me="$login"
+fi
 [ -n "$me" ] || me="github-actions[bot]"
 
 existing="$(
