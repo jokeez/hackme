@@ -32,7 +32,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("hackme-fuzz-action", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	var o Options
-	var planOut string
+	var planOut, markdownOut, githubOutput string
 	fs.StringVar(&o.Mode, "mode", modeDryRun, "only dry-run for now")
 	fs.StringVar(&o.Workspace, "workspace", os.Getenv("GITHUB_WORKSPACE"), "root the -wasm path must stay inside (default $GITHUB_WORKSPACE, else cwd)")
 	fs.StringVar(&o.HackmeRoot, "hackme-root", "", "hackme checkout with shipped guard packs (default: discover from cwd)")
@@ -42,6 +42,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&o.Package, "package", "", "Dig package: scan|audit|deep (default from preset/pack, else scan)")
 	fs.StringVar(&o.Title, "title", "", "campaign title")
 	fs.StringVar(&planOut, "plan-out", "", "also write plan JSON to this file")
+	fs.StringVar(&markdownOut, "markdown-out", "", "write the PR comment / job summary markdown to this file")
+	fs.StringVar(&githubOutput, "github-output", "", "append step outputs here (pass $GITHUB_OUTPUT)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -92,6 +94,18 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if planOut != "" {
 		if err := os.WriteFile(planOut, b, 0o644); err != nil {
 			fmt.Fprintln(stderr, "error: write plan:", err)
+			return 1
+		}
+	}
+	if markdownOut != "" {
+		if err := os.WriteFile(markdownOut, []byte(RenderMarkdown(plan)), 0o644); err != nil {
+			fmt.Fprintln(stderr, "error: write markdown:", err)
+			return 1
+		}
+	}
+	if githubOutput != "" {
+		if err := appendFile(githubOutput, func(w io.Writer) error { return writeOutputs(w, Outputs(plan)) }); err != nil {
+			fmt.Fprintln(stderr, "error: write outputs:", err)
 			return 1
 		}
 	}
