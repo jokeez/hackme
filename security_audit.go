@@ -77,7 +77,13 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusBadRequest, "invalid_json", "invalid json", nil)
 		return
 	}
+	a.serveSecurityAudit(w, r, req)
+}
 
+// serveSecurityAudit creates the order + campaign + escrow for an already
+// authenticated and decoded request. Callers own auth, rate limits and body
+// decoding (admin: handleSecurityAudit; scoped CI token: handleCIDig).
+func (a *app) serveSecurityAudit(w http.ResponseWriter, r *http.Request, req securityAuditRequest) {
 	ts := time.Now().UTC().Format("20060102t150405") + fmt.Sprintf("%06d", time.Now().Nanosecond()/1000)
 	orderID := strings.TrimSpace(req.OrderID)
 	if orderID == "" {

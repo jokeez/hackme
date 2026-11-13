@@ -581,6 +581,7 @@ func main() {
 	mux.HandleFunc("/api/poh/solve-baseline", a.handlePohSolveBaseline)
 	mux.HandleFunc("/api/tasks/from_code", a.handleTaskFromCode)
 	mux.HandleFunc("/api/security-audit", a.handleSecurityAudit)
+	mux.HandleFunc("/api/ci/dig", a.handleCIDig)
 	mux.HandleFunc("/api/integrator/", a.handleIntegratorAPI)
 	mux.HandleFunc("/api/integrator", a.handleIntegratorAPI)
 	mux.HandleFunc("/api/fuzz/campaigns", a.handleFuzzCampaigns)
