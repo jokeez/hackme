@@ -66,9 +66,11 @@ func TestCustomWasmPlan(t *testing.T) {
 func TestPresetPlan(t *testing.T) {
 	o := opts(t, t.TempDir())
 	o.DigPreset = "smoke" // alias of scan_smoke
+	// scan_smoke's pack ships only Rust source, so it is built on the fly.
+	requireWasmTarget(t, "rustc")
 	plan, err := BuildPlan(context.Background(), o)
 	if err != nil {
-		t.Skipf("preset wasm unavailable here (needs rustc wasm32 target): %v", err)
+		t.Fatalf("BuildPlan: %v", err)
 	}
 	if !plan.OK() {
 		t.Fatalf("shipped preset rejected: %s", plan.Wasm.Error)
