@@ -83,3 +83,34 @@ jobs:
         env:
           VALID: ${{ steps.dig.outputs.valid }}
         run: test "$VALID" = false
+
+  two-calls-one-job:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - id: first
+        uses: ./actions/fuzz
+        with:
+          dig-preset: scan_smoke
+          comment: "false"
+
+      - id: second
+        uses: ./actions/fuzz
+        with:
+          source: actions/fuzz/examples/guard.rs
+          language: rust
+          comment: "false"
+
+      - name: Each call keeps its own plan
+        env:
+          P1: ${{ steps.first.outputs.plan-path }}
+          P2: ${{ steps.second.outputs.plan-path }}
+        run: |
+          set -euo pipefail
+          test "$P1" != "$P2"
+          jq -e '.source == "dig_preset"' "$P1" >/dev/null
+          jq -e '.source == "custom_wasm"' "$P2" >/dev/null

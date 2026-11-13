@@ -215,7 +215,9 @@ func buildPayload(pkg fuzzingcli.B2BPackage, pack fuzzingcli.GuardPack, havePack
 	payload = fuzzingcli.ApplyDigEngineToPayload(payload, pkg)
 	if havePack {
 		cfg := fuzzingcli.ApplyPackConfig(map[string]any{}, pack)
-		for _, k := range []string{"input_mode", "max_input_bytes", "guided_scheduling", "mutation_rounds", "seed_byte_corpus", "seed_corpus"} {
+		// mutation_rounds is not copied: AdjustPackageForPack already folded the
+		// pack value in (max of both) and ApplyDigEngineToPayload wrote it.
+		for _, k := range []string{"input_mode", "max_input_bytes", "guided_scheduling", "seed_byte_corpus", "seed_corpus"} {
 			if v, ok := cfg[k]; ok {
 				payload[k] = v
 			}

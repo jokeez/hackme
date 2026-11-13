@@ -123,10 +123,12 @@ runs:
         HFA_MODE: ${{ inputs.mode }}
       run: |
         set -uo pipefail
-        dir="$RUNNER_TEMP/hackme-fuzz-action"
-        rm -f "$dir/plan.json" "$dir/comment.md"
+        bin="$RUNNER_TEMP/hackme-fuzz-action/hackme-fuzz-action"
+        # Fresh dir per invocation: a second call in the same job must not
+        # overwrite the plan an earlier step's plan-path still points at.
+        out="$(mktemp -d "$RUNNER_TEMP/hackme-fuzz-action/run.XXXXXX")"
         args=(-mode "$HFA_MODE" -workspace "$GITHUB_WORKSPACE" -hackme-root "$HFA_HACKME_ROOT"
-              -plan-out "$dir/plan.json" -markdown-out "$dir/comment.md" -github-output "$GITHUB_OUTPUT")
+              -plan-out "$out/plan.json" -markdown-out "$out/comment.md" -github-output "$GITHUB_OUTPUT")
         [ -n "$HFA_WASM" ]       && args+=(-wasm "$HFA_WASM")
         [ -n "$HFA_SOURCE" ]     && args+=(-source "$HFA_SOURCE")
         [ -n "$HFA_LANGUAGE" ]   && args+=(-language "$HFA_LANGUAGE")
@@ -136,23 +138,24 @@ runs:
         [ -n "$HFA_TITLE" ]      && args+=(-title "$HFA_TITLE")
         # `shell: bash` runs with -e on GitHub, so catch the code instead of dying here.
         code=0
-        "$dir/hackme-fuzz-action" "${args[@]}" || code=$?
-        if [ -f "$dir/comment.md" ]; then
-          cat "$dir/comment.md" >> "$GITHUB_STEP_SUMMARY"
-          echo "plan-path=$dir/plan.json" >> "$GITHUB_OUTPUT"
+        "$bin" "${args[@]}" || code=$?
+        if [ -f "$out/comment.md" ]; then
+          cat "$out/comment.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "plan-path=$out/plan.json" >> "$GITHUB_OUTPUT"
+          echo "comment-path=$out/comment.md" >> "$GITHUB_OUTPUT"
         fi
         echo "exit-code=$code" >> "$GITHUB_OUTPUT"
         # The verdict step fails the job; exiting 0 here lets the PR comment go out first.
         exit 0
 
     - name: PR comment
-      if: inputs.comment == 'true' && github.event_name == 'pull_request' && steps.run.outputs.plan-path != ''
+      if: inputs.comment == 'true' && github.event_name == 'pull_request' && steps.run.outputs.comment-path != ''
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.github-token }}
         HFA_REPO: ${{ github.repository }}
         HFA_PR: ${{ github.event.pull_request.number }}
-        HFA_BODY: ${{ runner.temp }}/hackme-fuzz-action/comment.md
+        HFA_BODY: ${{ steps.run.outputs.comment-path }}
       run: bash "$GITHUB_ACTION_PATH/comment.sh"
 
     - name: Verdict

@@ -34,7 +34,9 @@ func buildGuard(ctx context.Context, lang, workspace, source, tmpDir string) (st
 	var name string
 	var args []string
 	clangArgs := []string{"--target=wasm32", "-O3", "-nostdlib",
-		"-Wl,--no-entry", "-Wl,--export=check", "-Wl,--export-if-defined=check_bytes", "-Wl,--strip-all",
+		// export-if-defined for both: a check_bytes-only guard must link, and a
+		// guard with neither export gets the sandbox's ABI error, not a linker one.
+		"-Wl,--no-entry", "-Wl,--export-if-defined=check", "-Wl,--export-if-defined=check_bytes", "-Wl,--strip-all",
 		"-o", out}
 	switch lang {
 	case "rust", "rs":
