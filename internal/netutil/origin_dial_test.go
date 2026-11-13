@@ -201,3 +201,22 @@ func TestOriginDialTrailingDotHostMatches(t *testing.T) {
 		t.Fatal("trailing FQDN dot must still match pin host")
 	}
 }
+
+func TestOriginDialTransportForcesHTTP1ALPN(t *testing.T) {
+	t.Cleanup(ResetOriginDialForTest)
+	for _, pin := range []string{"", "132.243.112.100"} {
+		t.Setenv("HACKME_POOL_ORIGIN_DIAL", pin)
+		t.Setenv("HACKME_POOL_ORIGIN_DIAL_HOST", "hackme.tech")
+		ResetOriginDialForTest()
+		tr, ok := OriginDialTransport().(*http.Transport)
+		if !ok || tr == nil {
+			t.Fatalf("pin=%q: want *http.Transport", pin)
+		}
+		if tr.ForceAttemptHTTP2 {
+			t.Fatalf("pin=%q: must not force HTTP/2", pin)
+		}
+		if tr.TLSClientConfig == nil || len(tr.TLSClientConfig.NextProtos) != 1 || tr.TLSClientConfig.NextProtos[0] != "http/1.1" {
+			t.Fatalf("pin=%q: ALPN NextProtos=%v want [http/1.1]", pin, tr.TLSClientConfig)
+		}
+	}
+}
