@@ -90,27 +90,17 @@ func parseBaseURL(raw string) (*url.URL, error) {
 	return u, nil
 }
 
-func newGateClient(o GateOptions) (*gateClient, error) {
-	base, err := parseBaseURL(o.BaseURL)
+// newAPIClient builds the hardened HTTP client for a node base URL.
+func newAPIClient(baseURL string) (*gateClient, error) {
+	base, err := parseBaseURL(baseURL)
 	if err != nil {
 		return nil, err
 	}
-	if !campaignIDRE.MatchString(o.CampaignID) || strings.Contains(o.CampaignID, "..") {
-		return nil, usageErr("campaign id %q: use [A-Za-z0-9._-], max 128", o.CampaignID)
-	}
-	tok := strings.TrimSpace(o.Token)
-	if tok == "" {
-		return nil, usageErr("report token missing: set %s", reportTokenEnv)
-	}
-	if strings.ContainsAny(tok, "\r\n") {
-		return nil, usageErr("report token contains a line break")
-	}
 	return &gateClient{
-		base:  base,
-		token: tok,
+		base: base,
 		http: &http.Client{
 			Timeout: 30 * time.Second,
-			// Never follow redirects: custom headers (the token) would ride along.
+			// Never follow redirects: custom headers (the tokens) would ride along.
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		},
 		sleep: func(ctx context.Context, d time.Duration) error {
@@ -124,6 +114,26 @@ func newGateClient(o GateOptions) (*gateClient, error) {
 			}
 		},
 	}, nil
+}
+
+// newGateClient is newAPIClient plus a validated campaign id and report token.
+func newGateClient(o GateOptions) (*gateClient, error) {
+	c, err := newAPIClient(o.BaseURL)
+	if err != nil {
+		return nil, err
+	}
+	if !campaignIDRE.MatchString(o.CampaignID) || strings.Contains(o.CampaignID, "..") {
+		return nil, usageErr("campaign id %q: use [A-Za-z0-9._-], max 128", o.CampaignID)
+	}
+	tok := strings.TrimSpace(o.Token)
+	if tok == "" {
+		return nil, usageErr("report token missing: set %s", reportTokenEnv)
+	}
+	if strings.ContainsAny(tok, "\r\n") {
+		return nil, usageErr("report token contains a line break")
+	}
+	c.token = tok
+	return c, nil
 }
 
 // errTransient marks failures worth retrying on the next poll.

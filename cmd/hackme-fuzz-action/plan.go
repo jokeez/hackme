@@ -56,6 +56,8 @@ type Plan struct {
 	DigPackage string         `json:"dig_package"`
 	Wasm       WasmInfo       `json:"wasm"`
 	Payload    map[string]any `json:"payload"`
+
+	raw []byte // validated wasm bytes, only for publish; never serialised
 }
 
 // OK reports whether the plan is safe to publish (wasm passed the pool gate).
@@ -187,6 +189,7 @@ func BuildPlan(ctx context.Context, o Options) (*Plan, error) {
 			return nil, err
 		}
 	}
+	plan.raw = raw
 	plan.Wasm.Bytes = len(raw)
 	plan.Wasm.SHA256 = sha256Hex(raw)
 	if verr := sandbox.ValidateCheckWasm(ctx, raw); verr != nil {
