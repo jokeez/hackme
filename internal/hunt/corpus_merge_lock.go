@@ -18,7 +18,10 @@ const staleRawMergeAge = 30 * time.Minute
 // StaleRawMergeAgeForOps is the default min-age for adopt-stale cleanup tools.
 func StaleRawMergeAgeForOps() time.Duration { return staleRawMergeAge }
 
-const rawMergePrefix = "corpus.raw-merge."
+const (
+	rawMergePrefix = "corpus.raw-merge."
+	huntRunPrefix  = "corpus.hunt-run."
+)
 
 // acquireCorpusMergeLock takes a non-blocking, cross-process lock for merges of the
 // corpus under parent. The lock file lives in <grandparent>/.corpus-merge-locks —
@@ -37,7 +40,9 @@ func acquireCorpusMergeLock(parent string) (*workerlock.Guard, error) {
 // adoptStaleRawMergeDirs folds the inputs of leftover corpus.raw-merge.* dirs (from
 // crashed or raced merges) back into corpusDir and removes the dirs. Only regular
 // files are moved (never symlinks); names that already exist are content-hash names
-// of the same input and are dropped. Returns the number of dirs removed.
+// of the same input and are dropped. Also restores stale corpus.hunt-run.* asides
+// into corpusDir/.hunt-run (failed restore rename left them forever — inode storm).
+// Returns the number of dirs removed.
 // AdoptStaleRawMergeDirs is exported for corpus-adopt-stale ops tooling.
 func AdoptStaleRawMergeDirs(parent, corpusDir string, minAge time.Duration) int {
 	ents, err := os.ReadDir(parent)
@@ -46,20 +51,67 @@ func AdoptStaleRawMergeDirs(parent, corpusDir string, minAge time.Duration) int 
 	}
 	removed := 0
 	for _, e := range ents {
-		if !strings.HasPrefix(e.Name(), rawMergePrefix) {
-			continue
-		}
-		dir := filepath.Join(parent, e.Name())
+		name := e.Name()
+		dir := filepath.Join(parent, name)
 		info, err := os.Lstat(dir)
-		if err != nil || !info.IsDir() || time.Since(info.ModTime()) < minAge {
+		if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.IsDir() || time.Since(info.ModTime()) < minAge {
 			continue
 		}
-		moveCorpusFiles(parent, dir, corpusDir)
-		if os.RemoveAll(dir) == nil {
-			removed++
+		switch {
+		case strings.HasPrefix(name, rawMergePrefix):
+			moveCorpusFiles(parent, dir, corpusDir)
+			if os.RemoveAll(dir) == nil {
+				removed++
+			}
+		case strings.HasPrefix(name, huntRunPrefix):
+			if adoptStaleHuntRunAside(parent, dir, corpusDir) {
+				removed++
+			}
 		}
 	}
 	return removed
+}
+
+// adoptStaleHuntRunAside folds a leftover crash aside back into corpusDir/.hunt-run.
+// Refuses symlink crash trees; never RemoveAll the aside on a failed restore rename.
+func adoptStaleHuntRunAside(parent, aside, corpusDir string) bool {
+	if parent != "" && !corpusPathConfined(parent, aside) {
+		return false
+	}
+	for _, sub := range []string{"crashes", "hangs", "crash", "artifacts"} {
+		p := filepath.Join(aside, sub)
+		if st, err := os.Lstat(p); err == nil {
+			if st.Mode()&os.ModeSymlink != 0 || !st.IsDir() {
+				return false
+			}
+		}
+	}
+	dst := filepath.Join(corpusDir, ".hunt-run")
+	if st, err := os.Lstat(dst); err == nil {
+		if st.Mode()&os.ModeSymlink != 0 {
+			return false
+		}
+		if st.IsDir() {
+			// Merge crash files into the existing tree; then drop empty aside.
+			for _, sub := range []string{"crashes", "hangs", "crash", "artifacts"} {
+				srcSub := filepath.Join(aside, sub)
+				if rejectSymlinkDir(srcSub) {
+					continue
+				}
+				dstSub := filepath.Join(dst, sub)
+				_ = os.MkdirAll(dstSub, 0o755)
+				moveCorpusFiles(aside, srcSub, dstSub)
+			}
+			if err := os.RemoveAll(aside); err != nil {
+				return false
+			}
+			return true
+		}
+	}
+	if err := os.Rename(aside, dst); err != nil {
+		return false
+	}
+	return true
 }
 
 // moveCorpusFiles moves regular files from src into dst (no overwrite).
