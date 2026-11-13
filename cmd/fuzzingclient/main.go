@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -19,12 +20,13 @@ import (
 )
 
 func main() {
-	defaultBase := envOr("HACKME_FUZZING_BASE", "http://127.0.0.1:8080")
+	defaultBase := envOr("HACKME_FUZZING_BASE", ordersEnvBase("http://127.0.0.1:8080"))
 	baseFlag := flag.String("base", defaultBase, "local node API base (integrators: loopback, not hackme.tech)")
 	tokenFlag := flag.String("token", "", "developer token (or load from config file)")
 	saveFlag := flag.Bool("save", false, "with register/rotate: save token to config file")
 	flag.Parse()
 	base, token, save, cmd, rest := reconcileCLI(*baseFlag, *tokenFlag, *saveFlag, flag.Args())
+	cliBase = base
 	if cmd == "" {
 		usage()
 		os.Exit(2)
@@ -233,7 +235,80 @@ func saveToken(tok string) error {
 }
 
 func adminToken() string {
-	return strings.TrimSpace(os.Getenv("HACKME_ADMIN_TOKEN"))
+	if t := strings.TrimSpace(os.Getenv("HACKME_ADMIN_TOKEN")); t != "" {
+		return t
+	}
+	// The Orders launcher keeps the local node's admin token in env.orders (mode 600, same
+	// user). Use it only for that node's own address, so the CLI works out of the box without
+	// handing the token to any other base.
+	env := readOrdersEnv()
+	if t := env["HACKME_ADMIN_TOKEN"]; t != "" && cliBase != "" && sameLoopbackBase(cliBase, ordersEnvBase("")) {
+		return t
+	}
+	return ""
+}
+
+// cliBase is the resolved -base for this invocation (set in main).
+var cliBase string
+
+// ordersEnvPath is the Orders profile env written by start_hackme_orders.sh.
+func ordersEnvPath() string {
+	if p := strings.TrimSpace(os.Getenv("HACKME_ORDERS_ENV_FILE")); p != "" {
+		return p
+	}
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(dir, "hackme", "env.orders")
+}
+
+func readOrdersEnv() map[string]string {
+	out := map[string]string{}
+	p := ordersEnvPath()
+	if p == "" {
+		return out
+	}
+	b, err := os.ReadFile(p)
+	if err != nil {
+		return out
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(strings.TrimSuffix(line, "\r"))
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		k, v, ok := strings.Cut(line, "=")
+		if ok {
+			out[strings.TrimSpace(k)] = strings.Trim(strings.TrimSpace(v), `"'`)
+		}
+	}
+	return out
+}
+
+// ordersEnvBase is http://<HACKME_BIND_ADDR> of the local Orders node when it is a loopback
+// address, else def.
+func ordersEnvBase(def string) string {
+	bind := readOrdersEnv()["HACKME_BIND_ADDR"]
+	host, port, err := net.SplitHostPort(bind)
+	if err != nil || port == "" {
+		return def
+	}
+	if host == "" || host == "0.0.0.0" || host == "localhost" {
+		host = "127.0.0.1"
+	}
+	if ip := net.ParseIP(host); ip == nil || !ip.IsLoopback() {
+		return def
+	}
+	return "http://" + net.JoinHostPort(host, port)
+}
+
+func sameLoopbackBase(a, b string) bool {
+	norm := func(s string) string {
+		s = strings.TrimRight(strings.TrimSpace(s), "/")
+		return strings.Replace(s, "://localhost:", "://127.0.0.1:", 1)
+	}
+	return b != "" && norm(a) == norm(b)
 }
 
 func apiDoAdmin(base, adminTok, method, path string, body []byte) ([]byte, int, error) {

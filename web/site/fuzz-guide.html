@@ -50,7 +50,7 @@
       <div class="panel-head"><h2>0a. Hunt (coverage-guided ASAN · separate CLI)</h2></div>
       <p class="section-lede">Hunt is <strong>not</strong> Dig <code>wizard</code>. Fleet default is <strong>libFuzzer</strong>; Deep prefers <strong>AFL++</strong> when present. Byte fallback is <strong>OFF</strong> (soft-skip). Use Hunt subcommands on a funded local node:</p>
       <div class="formula-box">
-        bash scripts/ops/install_hunt_engines.sh --desktop   # clang + AFL++ tools — no git clone
+        bash install_hunt_engines.sh --desktop   # in the install folder (tarball: ./linux, deb: /opt/hackme) — clang + sandbox + AFL++
         hackme-fuzzing hunt packages
         hackme-fuzzing hunt inventory --path ./my-repo
         hackme-fuzzing hunt create --package hunt_lite|hunt_standard|hunt_heavy …

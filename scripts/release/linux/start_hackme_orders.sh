@@ -276,8 +276,14 @@ print_cli_hint() {
     "${INSTALL_DIR}/bin/hackme-fuzzing" \
     "$(command -v hackme-fuzzing 2>/dev/null || true)"; do
     if [[ -n "$cli" && -x "$cli" ]]; then
-      echo "[hackme-orders] CLI: $cli wizard --pack secrets --package audit" >&2
-      echo "[hackme-orders] Hunt: $cli hunt packages" >&2
+      # The CLI reads this node's address and admin token from env.orders itself (rc20+).
+      echo "[hackme-orders] Dig (your guard):   $cli wizard --wasm ./guard.wasm --package audit" >&2
+      echo "[hackme-orders] Dig (ready pack):   $cli wizard --pack secrets --package audit" >&2
+      if [[ -x "${INSTALL_DIR}/install_hunt_engines.sh" ]] && ! bash "${INSTALL_DIR}/install_hunt_engines.sh" --check-only >/dev/null 2>&1; then
+        echo "[hackme-orders] Hunt (C/C++): first run  bash ${INSTALL_DIR}/install_hunt_engines.sh --desktop  (installs clang + sandbox)" >&2
+      else
+        echo "[hackme-orders] Hunt (C/C++): $cli hunt create --repo-path ./your-repo --source fuzz/your_harness.c --package hunt_lite" >&2
+      fi
       return 0
     fi
   done
