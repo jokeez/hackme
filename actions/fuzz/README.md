@@ -113,8 +113,12 @@ jobs:
 - The wasm goes through the same pool gate as a dry-run first; a rejected
   wasm is never sent.
 - One POST, no retries (it spends escrow). The node picks the package
-  budget and enforces hourly/daily/HMC caps; prepaid `hubv1` +
-  `escrow_fingerprint` are attached by the node on the pool path.
+  budget and enforces hourly/daily/HMC caps.
+- By default the node runs the order as a **local Dig** (no pool, no PoH
+  order) for every package. Only an operator with `HACKME_CI_ALLOW_POOL=1`
+  sends CI orders to the pool, and then prepaid `hubv1` +
+  `escrow_fingerprint` apply like on any Orders publish. Start with
+  `scan` / `overflow_smoke`.
 - The campaign's report token stays inside the engine process — it is
   never written to outputs or logs. Output: `campaign-id` + the gate outputs.
 
