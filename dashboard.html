@@ -2097,7 +2097,7 @@
 						</div>
 						<div class="text-right min-w-0">
 							<p class="text-[9px] text-gray-600 uppercase tracking-widest">Node ID</p>
-							<code class="text-neon bg-neon/5 px-2 py-0.5 rounded border border-neon/20 truncate max-w-[200px] lg:max-w-[280px] inline-block">HMC-91fe007e4036c602</code>
+							<code id="node-id-display" class="text-neon bg-neon/5 px-2 py-0.5 rounded border border-neon/20 truncate max-w-[200px] lg:max-w-[280px] inline-block">—</code>
 						</div>
 					</div>
 				</div>
@@ -4069,7 +4069,7 @@
 						<div class="text-left max-w-lg mx-auto mt-4">
 							<p class="text-[10px] uppercase tracking-widest text-gray-600 mb-2">Address</p>
 							<div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-								<code id="wallet-address-display" class="flex-1 text-xs text-neon bg-black/60 px-3 py-2 rounded border border-neon/20 break-all">HMC-91fe007e4036c602</code>
+								<code id="wallet-address-display" class="flex-1 text-xs text-neon bg-black/60 px-3 py-2 rounded border border-neon/20 break-all">—</code>
 								<button type="button" id="btn-copy-address" aria-label="Copy address" class="shrink-0 px-4 py-2 rounded border border-neon/40 text-neon text-[10px] font-display font-bold uppercase tracking-wider hover:bg-neon/10">Copy</button>
 							</div>
 							<div id="wallet-long-address-block" class="hidden mt-3">
@@ -6139,6 +6139,7 @@
 					$('wallet-address-display').textContent = addr;
 					$('wallet-address-display').dataset.address = addr;
 				}
+				if ($('node-id-display')) $('node-id-display').textContent = addr;
 			}
 			if (walletSnapshot.balanceHMC > 0 || walletSnapshot.balanceUnits > 0 || walletSnapshot.address) {
 				applyWalletHmcOnChainFields();
@@ -17618,6 +17619,7 @@
 						$('wallet-address-display').textContent = addrFromApi;
 						$('wallet-address-display').dataset.address = addrFromApi;
 					}
+					if ($('node-id-display')) $('node-id-display').textContent = addrFromApi;
 				} else if (addrHint.startsWith('HMC-')) {
 					walletSnapshot.address = addrHint;
 				}
