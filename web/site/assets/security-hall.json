@@ -14,9 +14,9 @@
     "note": "Pre-fork hardening month: the November cap was raised from 200 to 1000 HMC to close findings before Economics v2 (block 550,000)."
   },
   "stats": {
-    "total_paid_hmc": 1558,
+    "total_paid_hmc": 1578,
     "researchers": 6,
-    "reports_accepted": 45
+    "reports_accepted": 46
   },
   "researchers": [
     {
@@ -42,8 +42,19 @@
       "id": "fimasw",
       "name": "fimasw",
       "handle": "fimasw",
-      "total_paid_hmc": 768,
+      "total_paid_hmc": 788,
       "findings": [
+        {
+          "title": "workersettle still derives a second ledger when STATE_DB unset (binary + SUP wrapper)",
+          "severity": "medium",
+          "paid_hmc": 20,
+          "date": "2026-11-13",
+          "reported": "2026-11-13",
+          "commit": "d82656b4",
+          "txid": "8ec594f51ffe49d00d8f7625a9ff634cda87892b8595f6e9fd9c03da5e902625",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Medium: 23f2224a only guarded the HMC bash wrapper; ResolveStateDB still derived <STATE_FILE>.db and settle_worker_sup.sh kept the same derivation — a run without absolute STATE_DB/from another cwd opened a zero-watermark second ledger. Hub prod (.env.settlement absolute paths) was not hit; no new on-chain double-pay after 2026-11-12. Fixed: never derive; refuse empty/relative STATE_DB/STATE_FILE for HMC and SUP; SUP script passes STATE_DB. Paid 20 HMC → HMC-a6d09759a4c12019 tx 8ec594f5… @543914."
+        },
         {
           "title": "Admin pool campaign register accepts dust hub escrow for large budget_runs (incomplete 361e2a2)",
           "severity": "low",
