@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -131,9 +132,7 @@ func appendFile(path string, write func(io.Writer) error) error {
 	if err != nil {
 		return err
 	}
-	if err := write(f); err != nil {
-		f.Close()
-		return err
-	}
-	return f.Close()
+	// Close errors matter on a write handle (data may not have landed), so
+	// they're reported even when the write itself already failed.
+	return errors.Join(write(f), f.Close())
 }
