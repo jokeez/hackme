@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"hackme/internal/chain"
+	"hackme/internal/fuzzingcli"
 	"hackme/internal/sandbox"
 )
 
@@ -265,4 +266,58 @@ func TestCIDigAuditStaysLocal(t *testing.T) {
 	if resp["order"] != nil {
 		t.Fatalf("no PoH order expected for CI audit: %v", resp["order"])
 	}
+}
+
+// Own wasm sent by the action (often with guard_pack for mutator defaults) must
+// be a customer_guard, so its violations fail the gate instead of becoming
+// coverage noise and a false PASS in `mode: gate` (main 8647a3c9).
+func TestCIDigOwnWasmIsCustomerGuard(t *testing.T) {
+	for name, body := range map[string]map[string]any{
+		"own wasm":              okBody(),
+		"own wasm + guard_pack": func() map[string]any { b := okBody(); b["guard_pack"] = "overflow_smoke"; return b }(),
+	} {
+		t.Run(name, func(t *testing.T) {
+			a, db := newCIDigTestApp(t)
+			rec := ciDig(t, a, "X-Hackme-CI-Token", testCIToken, body)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+			}
+			if m := ciCampaignConfig(t, db, rec); m["customer_guard"] != true {
+				t.Fatalf("own wasm must be customer_guard: %v", m)
+			}
+		})
+	}
+}
+
+// A shipped preset stays a detector pack (no customer_guard).
+func TestCIDigPresetIsNotCustomerGuard(t *testing.T) {
+	pack, _ := fuzzingcli.GuardPackFor("overflow_smoke")
+	if _, _, err := fuzzingcli.LoadPackWasmHex(fuzzingcli.DiscoverRepoRoot(), pack); err != nil {
+		t.Skip("overflow_smoke wasm not built here (scripts/ops/build_scan_smoke_guards.sh):", err)
+	}
+	a, db := newCIDigTestApp(t)
+	rec := ciDig(t, a, "X-Hackme-CI-Token", testCIToken, map[string]any{"dig_preset": "overflow_smoke", "dig_package": "scan"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if m := ciCampaignConfig(t, db, rec); m["customer_guard"] == true {
+		t.Fatalf("shipped preset must not be customer_guard: %v", m)
+	}
+}
+
+func ciCampaignConfig(t *testing.T, db *sql.DB, rec *httptest.ResponseRecorder) map[string]any {
+	t.Helper()
+	var resp map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	var cfg string
+	if err := db.QueryRowContext(context.Background(), `SELECT config_json FROM fuzz_campaigns WHERE id=?`, resp["campaign_id"]).Scan(&cfg); err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal([]byte(cfg), &m); err != nil {
+		t.Fatal(err)
+	}
+	return m
 }
