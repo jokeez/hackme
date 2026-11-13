@@ -136,3 +136,46 @@ func appendFile(path string, write func(io.Writer) error) error {
 	// they're reported even when the write itself already failed.
 	return errors.Join(write(f), f.Close())
 }
+
+// gateMarker keeps the gate verdict in its own sticky comment.
+const gateMarker = "<!-- hackme-fuzz-action:gate -->"
+
+// RenderGateMarkdown is the gate verdict for the job summary / PR comment.
+func RenderGateMarkdown(g *GateResult) string {
+	var b strings.Builder
+	b.WriteString(gateMarker + "\n")
+	switch {
+	case g.OK():
+		b.WriteString("### ✅ HackMe Dig gate: pass\n\n")
+	case !g.Finished:
+		b.WriteString("### ⏳ HackMe Dig gate: campaign did not finish in time\n\n")
+	default:
+		b.WriteString("### ❌ HackMe Dig gate: fail\n\n")
+	}
+	b.WriteString("| | |\n|---|---|\n")
+	fmt.Fprintf(&b, "| Campaign | %s |\n", mdCell(g.CampaignID))
+	fmt.Fprintf(&b, "| Status | %s |\n", mdCell(g.Status))
+	fmt.Fprintf(&b, "| Runs | %d / %d |\n", g.RunsDone, g.BudgetRuns)
+	fmt.Fprintf(&b, "| Crash-class findings | %d critical · %d high · %d crashes |\n", g.Critical, g.High, g.Crashes)
+	if len(g.Reasons) > 0 {
+		b.WriteString("\n**Reasons**\n\n")
+		for _, r := range g.Reasons {
+			fmt.Fprintf(&b, "- %s\n", mdCode(r))
+		}
+	}
+	if g.Assurance != "" {
+		fmt.Fprintf(&b, "\n> %s\n", mdCode(g.Assurance))
+	}
+	return b.String()
+}
+
+// GateOutputs are the step outputs for gate mode.
+func GateOutputs(g *GateResult) [][2]string {
+	return [][2]string{
+		{"gate-pass", fmt.Sprint(g.OK())},
+		{"campaign-status", g.Status},
+		{"runs-done", fmt.Sprint(g.RunsDone)},
+		{"critical-count", fmt.Sprint(g.Critical)},
+		{"high-count", fmt.Sprint(g.High)},
+	}
+}
