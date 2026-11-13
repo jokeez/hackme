@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   dig:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       pull-requests: write   # sticky comment (read-only on fork PRs → just a warning)
