@@ -3961,6 +3961,23 @@
 							</div>
 						</div>
 					</section>
+					<section id="wallet-exchange-card" class="rounded-lg border border-neon/20 bg-black/30 p-4" aria-live="polite">
+						<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+							<div>
+								<p class="font-display text-[10px] tracking-[0.3em] text-neon uppercase">On the exchange</p>
+								<p class="text-[11px] text-gray-500">exchange.hackme.tech · read-only view of this wallet's account (cannot trade or withdraw)</p>
+							</div>
+							<div class="flex gap-2 text-[10px] font-mono">
+								<button type="button" id="btn-wx-enable" class="px-3 py-1.5 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Show exchange balances</button>
+								<button type="button" id="btn-wx-refresh" class="hidden px-3 py-1.5 rounded border border-white/15 text-gray-300 hover:bg-white/5 uppercase tracking-wider">Refresh</button>
+								<button type="button" id="btn-wx-send" class="hidden px-3 py-1.5 rounded border border-matrix/35 text-matrix hover:bg-matrix/10 uppercase tracking-wider">Send to exchange</button>
+								<a id="lnk-wx-open" class="hidden px-3 py-1.5 rounded border border-white/15 text-gray-300 hover:bg-white/5 uppercase tracking-wider" href="https://exchange.hackme.tech/#account" target="_blank" rel="noopener noreferrer">Open exchange ↗</a>
+								<button type="button" id="btn-wx-disable" class="hidden px-2 py-1.5 rounded text-gray-500 hover:text-gray-300" title="Stop syncing">✕</button>
+							</div>
+						</div>
+						<div id="wallet-exchange-rows" class="grid grid-cols-1 sm:grid-cols-3 gap-2 font-mono text-sm"></div>
+						<p id="wallet-exchange-note" class="text-[11px] text-gray-500 mt-2">Off — the node contacts the exchange only after you turn this on.</p>
+					</section>
 					<div class="wallet-layout grid grid-cols-1 lg:grid-cols-[minmax(260px,300px)_1fr] gap-4">
 						<aside class="wallet-sidebar">
 							<p class="text-[9px] uppercase tracking-[0.22em] text-gray-500 px-2 mb-2">Assets</p>
@@ -5381,6 +5398,73 @@
 			document.querySelectorAll('.wallet-detail-tab').forEach((btn) => {
 				btn.addEventListener('click', () => setWalletDetailSection(btn.dataset.walletSection));
 			});
+			// Wallet ↔ exchange (read-only session held by the node; values are text-only, never HTML).
+			const wxFmt = (minor) => (Number(minor || 0) / 1e8).toLocaleString(undefined, { maximumFractionDigits: 4 });
+			let wxDeposit = '';
+			async function refreshExchangeAccount(method, force) {
+				const note = $('wallet-exchange-note');
+				const rows = $('wallet-exchange-rows');
+				if (!note || !rows) return;
+				let j;
+				try {
+					const url = method === 'GET' ? '/api/exchange/account' + (force ? '?force=1' : '') : '/api/exchange/account/enable';
+					const r = await fetch(url, { method, credentials: 'same-origin', headers: Object.assign({ Accept: 'application/json' }, adminHeaders()) });
+					j = await r.json();
+				} catch (e) {
+					note.textContent = 'Node not reachable';
+					return;
+				}
+				const on = !!(j && j.enabled);
+				$('btn-wx-enable').classList.toggle('hidden', on);
+				for (const id of ['btn-wx-refresh', 'btn-wx-disable', 'lnk-wx-open']) $(id).classList.toggle('hidden', !on);
+				rows.textContent = '';
+				if (!on) {
+					note.textContent = 'Off — the node contacts the exchange only after you turn this on.';
+					$('btn-wx-send').classList.add('hidden');
+					return;
+				}
+				wxDeposit = (j.deposit_address && /^HMC-[0-9a-f]{16}$/.test(j.deposit_address)) ? j.deposit_address : '';
+				$('btn-wx-send').classList.toggle('hidden', !wxDeposit);
+				const order = ['HMC', 'SUP', 'USDT'];
+				const list = (j.balances || []).slice().sort((a, b) => order.indexOf(a.asset) - order.indexOf(b.asset));
+				for (const b of list) {
+					const cell = document.createElement('div');
+					cell.className = 'rounded border border-white/10 px-3 py-2';
+					const head = document.createElement('div');
+					head.className = 'text-[10px] text-gray-500 uppercase tracking-wider';
+					head.textContent = String(b.asset);
+					const val = document.createElement('div');
+					val.className = 'text-white';
+					val.textContent = wxFmt(b.available);
+					const sub = document.createElement('div');
+					sub.className = 'text-[10px] text-gray-500';
+					const held = Number(b.reserved || 0) + Number(b.hold || 0);
+					sub.textContent = held > 0 ? ('+ ' + wxFmt(held) + ' in orders / on hold') : 'available';
+					cell.append(head, val, sub);
+					rows.append(cell);
+				}
+				if (!list.length) rows.textContent = 'No balances on the exchange yet.';
+				note.textContent = j.ok ? ('Updated ' + new Date(j.fetched_at).toLocaleTimeString() + ' · read-only session')
+					: ('Exchange: ' + String(j.error || 'unavailable'));
+			}
+			if ($('btn-wx-enable')) {
+				$('btn-wx-enable').addEventListener('click', () => {
+					if (!confirm('Show this wallet\'s exchange balances here?\n\nThe node will log in to exchange.hackme.tech with your wallet key using a READ-ONLY session: it can see balances but can never trade, convert or withdraw.')) return;
+					void refreshExchangeAccount('POST', true);
+				});
+				$('btn-wx-refresh').addEventListener('click', () => void refreshExchangeAccount('GET', true));
+				$('btn-wx-disable').addEventListener('click', () => void refreshExchangeAccount('DELETE', false));
+				$('btn-wx-send').addEventListener('click', () => {
+					const to = $('tx-form-to');
+					if (!to || !wxDeposit) return;
+					to.value = wxDeposit;
+					to.dispatchEvent(new Event('input', { bubbles: true }));
+					to.scrollIntoView({ behavior: 'smooth', block: 'center' });
+					to.focus();
+				});
+				void refreshExchangeAccount('GET', false);
+				setInterval(() => { if (!document.hidden) void refreshExchangeAccount('GET', false); }, 60000);
+			}
 			if ($('btn-wallet-refresh')) {
 				$('btn-wallet-refresh').addEventListener('click', () => {
 					if ($('wallet-sync-note')) $('wallet-sync-note').textContent = 'Refreshing HMC/SUP…';
