@@ -1004,6 +1004,38 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				return
 			}
 		}
+		// Admin registration on a minting hub: the pool pays miners from an escrow, and only
+		// an escrow on the hub ledger pays them for real. An escrow on another node only
+		// credits that node's local accounts (2026-11-12: bootstrap/lab campaigns closed
+		// ~34k+ shards "paid" with no HMC reaching miners). The publish path already
+		// requires a live hub escrow; the admin path used to skip it.
+		if isAdmin && poolsync.RequireHubPrepaidTicket() && !poolsync.PrepaidAlgebraicMintAllowed() {
+			exists, eerr := pf.CampaignExists(r.Context(), req.ID)
+			if eerr != nil {
+				http.Error(w, eerr.Error(), http.StatusInternalServerError)
+				return
+			}
+			if !exists {
+				hubBase := poolsync.HubEscrowProbeURL("")
+				hubTok := adminToken
+				if wm != nil {
+					hubBase = poolsync.HubEscrowProbeURL(wm.ordersProbeURL)
+					if t := wm.ordersAdminToken(); t != "" {
+						hubTok = t
+					}
+				}
+				row, ferr := poolsync.FetchHubFuzzEscrow(r.Context(), hubBase, hubTok, req.ID)
+				if ferr != nil || row == nil || !strings.EqualFold(strings.TrimSpace(row.Status), "open") {
+					msg := "no open escrow"
+					if ferr != nil {
+						msg = ferr.Error()
+					}
+					http.Error(w, "hub_escrow_required: pool campaigns must be backed by an open escrow on the hub ledger ("+msg+
+						"); escrows on other nodes do not pay miners on chain", http.StatusConflict)
+					return
+				}
+			}
+		}
 		// Dig (non-Hunt) campaigns get the same depth pack/mutator/seed finalize as local B2B.
 		if !poolfuzz.IsHuntCampaign(req.Config) {
 			repoRoot := strings.TrimSpace(os.Getenv("HACKME_REPO_ROOT"))
