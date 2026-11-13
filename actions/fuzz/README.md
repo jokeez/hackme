@@ -82,6 +82,42 @@ Outputs: `gate-pass`, `campaign-status`, `runs-done`, `critical-count`,
 `high-count`. The verdict gets its own sticky comment, separate from the
 dry-run plan.
 
+## Publish mode (phase 2, preview)
+
+Creates a real, capped Dig order on **your Orders node** and waits for its
+gate. It needs the node's scoped CI token (`HACKME_CI_TOKEN`, endpoint
+`POST /api/ci/dig`, see [docs/API.md](../../docs/API.md)) — never the fleet
+publish token or the node admin token.
+
+```yaml
+on: workflow_dispatch
+jobs:
+  dig:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jokeez/hackme/actions/fuzz@<commit-sha>
+        with:
+          mode: publish
+          dig-preset: overflow_smoke
+          hackme-url: https://your-orders-node.example
+          ci-token: ${{ secrets.HACKME_CI_TOKEN }}
+          gate-timeout: 45m
+```
+
+- Runs only on `workflow_dispatch`, a push to a **protected** branch, or a
+  same-repo PR carrying `publish-label`. Fork PRs, `pull_request_target`
+  and everything else are refused before any network call.
+- The wasm goes through the same pool gate as a dry-run first; a rejected
+  wasm is never sent.
+- One POST, no retries (it spends escrow). The node picks the package
+  budget and enforces hourly/daily/HMC caps; prepaid `hubv1` +
+  `escrow_fingerprint` are attached by the node on the pool path.
+- The campaign's report token stays inside the engine process — it is
+  never written to outputs or logs. Output: `campaign-id` + the gate outputs.
+
 ## Inputs
 
 | Input | Default | |
@@ -92,9 +128,16 @@ dry-run plan.
 | `guard-pack` | | Pack config (input mode, seeds, budgets) applied to your wasm, or run as-is. |
 | `package` | preset/pack default, else `scan` | `scan` · `audit` · `deep`. |
 | `title` | | Campaign title (control chars stripped, 120 chars max). |
-| `mode` | `dry-run` | `dry-run` or `gate` (see above). |
+| `mode` | `dry-run` | `dry-run`, `gate` or `publish` (see above). |
 | `comment` | `true` | Keep a sticky PR comment updated. |
 | `fail-on-reject` | `true` | Fail the job when the gate rejects the wasm or it doesn't build. |
+| `hackme-url` | | Gate/publish: node base URL (https). |
+| `ci-token` | | Publish: scoped Orders CI token (from a secret). |
+| `publish-label` | | Publish: PR label that opts a same-repo PR in. |
+| `campaign-id` / `report-token` | | Gate: campaign to wait for and its report token. |
+| `gate-timeout` | `30m` | Gate/publish: max wait for the campaign to finish (≤ 6h). |
+| `max-critical` / `max-high` | `0` | Gate/publish: allowed crash-class findings. |
+| `min-runs-done` | `-1` | Gate/publish: required runs, `-1` = full budget. |
 | `github-token` | `github.token` | Token for the comment. |
 
 Outputs: `valid`, `source`, `dig-preset`, `guard-pack`, `dig-package`,
@@ -138,10 +181,9 @@ Exit codes: `0` ok · `1` rejected by the gate / build failed · `2` bad inputs.
 ## Roadmap
 
 1. ✅ Dry-run: build, gate, plan, PR comment.
-2. Publish behind an explicit opt-in: prepaid / org escrow ticket
-   (`hubv1:` + `escrow_fingerprint`) or a per-owner credential — never the
-   shared fleet publish token in a public repo. See
-   [docs/ORDERS_PUBLISH.md](../../docs/ORDERS_PUBLISH.md).
+2. 🚧 Publish behind an explicit opt-in through the Orders node's scoped CI
+   token; prepaid `hubv1:` + `escrow_fingerprint` on the pool path — never
+   the shared fleet publish token in a public repo (`mode: publish`, preview).
 3. 🚧 Poll `GET /api/fuzz/campaigns/{id}/gate` and turn `pass` / `reasons[]`
    into the job verdict (`mode: gate`, preview).
 4. Hunt via `workflow_dispatch` or a PR label, not on every push.
