@@ -51,6 +51,37 @@ func TestAdoptStaleRawMergeDirsFoldsInputsBack(t *testing.T) {
 	}
 }
 
+func TestAdoptStaleHuntRunAsideRestoresCrashes(t *testing.T) {
+	parent := t.TempDir()
+	corpus := filepath.Join(parent, "corpus")
+	must(t, os.MkdirAll(corpus, 0o755))
+
+	aside := filepath.Join(parent, huntRunPrefix+"9.9")
+	crashDir := filepath.Join(aside, "crashes")
+	must(t, os.MkdirAll(crashDir, 0o755))
+	must(t, os.WriteFile(filepath.Join(crashDir, "crash-keep"), []byte("boom"), 0o600))
+	past := time.Now().Add(-2 * time.Hour)
+	must(t, os.Chtimes(aside, past, past))
+
+	fresh := filepath.Join(parent, huntRunPrefix+"fresh")
+	must(t, os.MkdirAll(filepath.Join(fresh, "crashes"), 0o755))
+	must(t, os.WriteFile(filepath.Join(fresh, "crashes", "x"), []byte("x"), 0o600))
+
+	if n := AdoptStaleRawMergeDirs(parent, corpus, staleRawMergeAge); n != 1 {
+		t.Fatalf("removed %d dirs, want 1 (stale hunt-run aside)", n)
+	}
+	got, err := os.ReadFile(filepath.Join(corpus, ".hunt-run", "crashes", "crash-keep"))
+	if err != nil || string(got) != "boom" {
+		t.Fatalf("crash aside not restored: %q err=%v", got, err)
+	}
+	if _, err := os.Stat(aside); !os.IsNotExist(err) {
+		t.Fatalf("stale hunt-run aside still present: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(fresh, "crashes", "x")); err != nil {
+		t.Fatalf("fresh hunt-run aside must be left alone: %v", err)
+	}
+}
+
 func TestCorpusMergeLockIsExclusiveAndOutsideCage(t *testing.T) {
 	parent := filepath.Join(t.TempDir(), "zlib")
 	must(t, os.MkdirAll(parent, 0o755))
