@@ -88,24 +88,27 @@ func DefaultConfig() Config {
 	}
 }
 
-// ResolveStateDB picks SQLite path beside JSON when unset.
+// ResolveStateDB takes the SQLite ledger from STATE_DB / HACKME_WORKER_SETTLEMENT_DB.
+// It never derives one beside STATE_FILE: a derived ledger has its own zero watermarks
+// and re-pays accrual the main ledger already settled (2026-10-29..11-12: ~1153 HMC paid
+// twice). With no explicit ledger StateDB stays empty and Run/RunSUP refuse.
 func (c *Config) ResolveStateDB() {
 	if strings.TrimSpace(c.StateDB) != "" {
 		return
 	}
-	if v := strings.TrimSpace(firstNonEmpty(os.Getenv("STATE_DB"), os.Getenv("HACKME_WORKER_SETTLEMENT_DB"))); v != "" {
-		c.StateDB = v
-		return
+	c.StateDB = strings.TrimSpace(firstNonEmpty(os.Getenv("STATE_DB"), os.Getenv("HACKME_WORKER_SETTLEMENT_DB")))
+}
+
+// checkLedgerPath refuses a relative ledger: the same name from two working
+// directories would be two ledgers with two locks.
+func (c *Config) checkLedgerPath() error {
+	if strings.TrimSpace(c.StateDB) == "" {
+		return fmt.Errorf("STATE_DB required: name the one settlement ledger explicitly (STATE_DB or HACKME_WORKER_SETTLEMENT_DB); it is never derived from STATE_FILE")
 	}
-	if os.Getenv("SETTLE_SQLITE") == "0" {
-		return
+	if !filepath.IsAbs(c.StateDB) || !filepath.IsAbs(c.StateJSON) {
+		return fmt.Errorf("STATE_DB and STATE_FILE must be absolute paths (got %q, %q)", c.StateDB, c.StateJSON)
 	}
-	sf := c.StateJSON
-	if strings.HasSuffix(sf, ".json") {
-		c.StateDB = strings.TrimSuffix(sf, ".json") + ".db"
-	} else {
-		c.StateDB = sf + ".db"
-	}
+	return nil
 }
 
 func (c *Config) logger() *log.Logger {
@@ -133,8 +136,8 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 	if strings.TrimSpace(cfg.CoordAdminToken) == "" {
 		return out, fmt.Errorf("COORD_ADMIN_TOKEN required for /api/work/stats?details=1")
 	}
-	if strings.TrimSpace(cfg.StateDB) == "" {
-		return out, fmt.Errorf("STATE_DB required (SQLite ledger); set HACKME_WORKER_SETTLEMENT_DB or STATE_FILE")
+	if err := cfg.checkLedgerPath(); err != nil {
+		return out, err
 	}
 
 	if err := os.MkdirAll(filepath.Dir(cfg.StateJSON), 0o700); err != nil && filepath.Dir(cfg.StateJSON) != "." {
