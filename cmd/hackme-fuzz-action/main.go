@@ -6,7 +6,10 @@
 // security-audit payload that a real publish would send. No network, no
 // tokens — safe to run on pull requests from forks.
 //
-// Exit codes: 0 plan ok · 1 wasm rejected by the gate · 2 bad inputs.
+// -mode gate waits for an already published campaign and turns its CI gate
+// into the verdict (report token from $HACKME_REPORT_TOKEN).
+//
+// Exit codes: 0 ok/pass · 1 wasm rejected / gate failed / not finished · 2 bad inputs.
 package main
 
 import (
@@ -17,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"hackme/internal/fuzzingcli"
@@ -33,7 +37,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.SetOutput(stderr)
 	var o Options
 	var planOut, markdownOut, githubOutput string
-	fs.StringVar(&o.Mode, "mode", modeDryRun, "only dry-run for now")
+	fs.StringVar(&o.Mode, "mode", modeDryRun, "dry-run | gate")
 	fs.StringVar(&o.Workspace, "workspace", os.Getenv("GITHUB_WORKSPACE"), "root the -wasm path must stay inside (default $GITHUB_WORKSPACE, else cwd)")
 	fs.StringVar(&o.HackmeRoot, "hackme-root", "", "hackme checkout with shipped guard packs (default: discover from cwd)")
 	fs.StringVar(&o.WasmPath, "wasm", "", "custom guard wasm, relative to -workspace")
@@ -46,12 +50,24 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&planOut, "plan-out", "", "also write plan JSON to this file")
 	fs.StringVar(&markdownOut, "markdown-out", "", "write the PR comment / job summary markdown to this file")
 	fs.StringVar(&githubOutput, "github-output", "", "append step outputs here (pass $GITHUB_OUTPUT)")
+	var g GateOptions
+	fs.StringVar(&g.BaseURL, "hackme-url", "", "gate mode: Orders/node base URL (https)")
+	fs.StringVar(&g.CampaignID, "campaign-id", "", "gate mode: campaign to wait for")
+	fs.DurationVar(&g.Timeout, "gate-timeout", 30*time.Minute, "gate mode: max wait for the campaign to finish")
+	fs.DurationVar(&g.Poll, "gate-poll", 20*time.Second, "gate mode: pulse poll interval")
+	fs.IntVar(&g.MaxCritical, "max-critical", 0, "gate mode: allowed crash-class critical findings")
+	fs.IntVar(&g.MaxHigh, "max-high", 0, "gate mode: allowed crash-class high findings")
+	fs.IntVar(&g.MinRunsDone, "min-runs-done", -1, "gate mode: required runs (-1 = full budget)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if fs.NArg() > 0 {
 		fmt.Fprintf(stderr, "unexpected arguments: %v\n", fs.Args())
 		return 2
+	}
+	if strings.EqualFold(strings.TrimSpace(o.Mode), modeGate) {
+		g.Token = os.Getenv(reportTokenEnv)
+		return runGate(g, markdownOut, githubOutput, stdout, stderr)
 	}
 
 	if o.Workspace == "" {
@@ -113,6 +129,49 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	if !plan.OK() {
 		fmt.Fprintln(stderr, "wasm rejected by the pool gate:", plan.Wasm.Error)
+		return 1
+	}
+	return 0
+}
+
+// maxGateWait stays under GitHub's 6h job limit.
+const maxGateWait = 6 * time.Hour
+
+func runGate(g GateOptions, markdownOut, githubOutput string, stdout, stderr io.Writer) int {
+	if g.Timeout <= 0 || g.Timeout > maxGateWait || g.Poll <= 0 || g.Poll > g.Timeout {
+		fmt.Fprintf(stderr, "error: gate-timeout must be in (0, %s] and gate-poll in (0, gate-timeout]\n", maxGateWait)
+		return 2
+	}
+	if g.MaxCritical < 0 || g.MaxHigh < 0 || g.MinRunsDone < -1 {
+		fmt.Fprintln(stderr, "error: max-critical/max-high must be >= 0, min-runs-done >= -1")
+		return 2
+	}
+	c, err := newGateClient(g)
+	if err != nil {
+		fmt.Fprintln(stderr, "error:", err)
+		return 2
+	}
+	res, err := WaitGate(context.Background(), c, g)
+	if err != nil {
+		fmt.Fprintln(stderr, "error:", err)
+		return 1
+	}
+	b, _ := json.MarshalIndent(res, "", "  ")
+	_, _ = stdout.Write(append(b, '\n'))
+	if markdownOut != "" {
+		if err := os.WriteFile(markdownOut, []byte(RenderGateMarkdown(res)), 0o644); err != nil {
+			fmt.Fprintln(stderr, "error: write markdown:", err)
+			return 1
+		}
+	}
+	if githubOutput != "" {
+		if err := appendFile(githubOutput, func(w io.Writer) error { return writeOutputs(w, GateOutputs(res)) }); err != nil {
+			fmt.Fprintln(stderr, "error: write outputs:", err)
+			return 1
+		}
+	}
+	if !res.OK() {
+		fmt.Fprintln(stderr, "gate did not pass:", strings.Join(res.Reasons, "; "))
 		return 1
 	}
 	return 0

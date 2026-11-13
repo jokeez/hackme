@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -207,5 +208,59 @@ func TestGateOptionValidation(t *testing.T) {
 		if _, err := newGateClient(o); err != nil {
 			t.Errorf("%s should be allowed: %v", u, err)
 		}
+	}
+}
+
+func TestRunGateMode(t *testing.T) {
+	hub := &fakeHub{pulses: []string{"running", "completed"}, gatePass: true, budgetRuns: 48}
+	srv := httptest.NewServer(hub.handler(t))
+	defer srv.Close()
+	dir := t.TempDir()
+	md, gho := dir+"/g.md", dir+"/out"
+	args := []string{"-mode", "gate", "-hackme-url", srv.URL, "-campaign-id", "camp-1",
+		"-gate-poll", "1ms", "-gate-timeout", "5s", "-markdown-out", md, "-github-output", gho}
+
+	var out, errb strings.Builder
+	t.Setenv(reportTokenEnv, "")
+	if code := run(args, &out, &errb); code != 2 || !strings.Contains(errb.String(), reportTokenEnv) {
+		t.Fatalf("missing token: exit=%d %s", code, errb.String())
+	}
+	t.Setenv(reportTokenEnv, testToken)
+	errb.Reset()
+	if code := run(args, &out, &errb); code != 0 {
+		t.Fatalf("exit=%d %s", code, errb.String())
+	}
+	m, _ := os.ReadFile(md)
+	o, _ := os.ReadFile(gho)
+	if !strings.HasPrefix(string(m), gateMarker+"\n") || !strings.Contains(string(m), "✅") {
+		t.Fatalf("markdown:\n%s", m)
+	}
+	if !strings.Contains(string(o), "gate-pass=true\n") || !strings.Contains(string(o), "campaign-status=completed\n") {
+		t.Fatalf("outputs:\n%s", o)
+	}
+	if strings.Contains(out.String()+string(m)+string(o), testToken) {
+		t.Fatal("report token leaked into output")
+	}
+
+	for _, bad := range [][]string{
+		{"-gate-timeout", "0s"}, {"-gate-timeout", "7h"}, {"-gate-poll", "10s", "-gate-timeout", "5s"},
+		{"-max-critical", "-1"}, {"-min-runs-done", "-2"},
+	} {
+		if code := run(append(append([]string{}, args...), bad...), &out, &errb); code != 2 {
+			t.Errorf("%v: exit=%d, want 2", bad, code)
+		}
+	}
+}
+
+func TestGateMarkdownNeutralisesServerText(t *testing.T) {
+	md := RenderGateMarkdown(&GateResult{CampaignID: "c", Status: "running|x\n| row |", Finished: false,
+		Reasons: []string{"a`b\n### injected"}, Assurance: "<!-- hackme-fuzz-action -->"})
+	for _, line := range strings.Split(md, "\n") {
+		if strings.HasPrefix(line, "| row") || strings.HasPrefix(line, "### injected") || line == commentMarker {
+			t.Fatalf("server text broke out: %q\n%s", line, md)
+		}
+	}
+	if !strings.Contains(md, "⏳") {
+		t.Fatal("unfinished campaign should say so")
 	}
 }
