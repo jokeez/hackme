@@ -101,6 +101,11 @@ func (a *app) fuzzAutoRunnerTick(ctx context.Context) error {
 				continue
 			}
 		}
+		if poolEscrowMirrorCampaign(cfg) {
+			// Paid pool order run by the hub: only mirror its progress (throttled).
+			a.syncPoolOrderMirror(ctx, c.ID, now)
+			continue
+		}
 		if poolDistributedCampaign(cfg) {
 			if sum := parseMapJSON(c.SummaryJSON); toString(sum["pool_register_status"]) == "pool_register_failed" {
 				// Failed before this build had the fallback (or the flip did not stick): run it here.
@@ -869,6 +874,7 @@ func (a *app) finalizeLocalCampaignEscrow(ctx context.Context, campaignID string
 		return
 	}
 	log.Printf("fuzz escrow: local campaign %s completed — unused budget returned to prepaid", logsafe.ID(campaignID))
+	a.ordersPoolRefundOnClose(ctx, campaignID) // customer-funded (hub): unspent part back to the payer
 }
 
 // finalizeStrandedLocalEscrows closes escrows of local campaigns that completed before

@@ -139,8 +139,14 @@ func startWorkerFleetProcesses(repoRoot, coordURL, coordToken, workerBase string
 	return cmds, nil
 }
 
-func killExternalWorkerFleet(repoRoot string) {
+// killExternalWorkerFleet stops pool workers this node owns: processes running as one of ids
+// (base id or a fleet slot id-N). It used to stop every workerpoh of this uid on the machine,
+// so a second node (an Orders/test node, a devnet) restarting its own worker every ~45 s took
+// down the operator's systemd GPU miner and all named fleet units with it (2026-11-14).
+// With no known id it signals nothing; lock-file reaping still handles real orphans.
+func killExternalWorkerFleet(repoRoot string, ids []string) {
 	if runtime.GOOS == "windows" {
+		// taskkill /IM has no per-command-line filter; Windows nodes are single-rig.
 		_ = exec.Command("taskkill", "/F", "/IM", "workerpoh.exe").Run()
 		_ = exec.Command("taskkill", "/F", "/IM", "workerpoh-cuda.exe").Run()
 		_ = exec.Command("taskkill", "/F", "/IM", "workerpoh-opencl.exe").Run()
@@ -149,9 +155,51 @@ func killExternalWorkerFleet(repoRoot string) {
 	}
 	// Exact match only (see worker_proc_kill_linux.go): binaries by executable name, helper
 	// scripts by script file name — never a substring of an arbitrary command line.
-	killPoolWorkerProcs(nil)
+	if allow := ownedByWorkerIDs(ids); allow != nil {
+		killPoolWorkerProcs(allow)
+	}
 	if repoRoot != "" {
 		_ = os.Remove(filepath.Join(repoRoot, "logs", ".worker_autostart.lock"))
 	}
 	_ = os.Remove(filepath.Join("logs", ".worker_autostart.lock"))
+}
+
+// workerIDOwned: got equals one of ids, or is one of its fleet slots: "<id>-<N>",
+// "<id>-cuda<N>" / "-ocl<N>" / "-gpu<N>" (gpuhost fleet plan) or "<id>-fuzz".
+func workerIDOwned(got string, ids []string) bool {
+	got = strings.TrimSpace(got)
+	if got == "" {
+		return false
+	}
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if got == id {
+			return true
+		}
+		rest, ok := strings.CutPrefix(got, id+"-")
+		if !ok || rest == "" {
+			continue
+		}
+		if rest == "fuzz" {
+			return true
+		}
+		for _, p := range []string{"cuda", "ocl", "gpu", ""} {
+			if n, ok := strings.CutPrefix(rest, p); ok && n != "" && allDigits(n) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func allDigits(s string) bool {
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return s != ""
 }

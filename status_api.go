@@ -121,6 +121,7 @@ func (a *app) buildStatusLite(ctx context.Context) map[string]any {
 		"pool_coordinator_url_effective": coordEff,
 		"desktop_mode":                   envBool("HACKME_DESKTOP_MODE", false),
 		"desktop_profile":                desktopProfile(),
+		"orders_pool_escrow":             a.ordersPoolEscrowStatus(),
 		"status_lite":                    true,
 		"admin_auth_enabled":             adminAuthEnabled(),
 		"sandbox_policy":                 sandbox.Policy(),
@@ -218,6 +219,7 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"pool_coordinator_url":   poolCoordURL,
 		"desktop_mode":           envBool("HACKME_DESKTOP_MODE", false),
 		"desktop_profile":        desktopProfile(),
+		"orders_pool_escrow":     a.ordersPoolEscrowStatus(),
 		"economics":              economics,
 		"sandbox_policy":         sandbox.Policy(),
 		"p2p_policy": map[string]any{

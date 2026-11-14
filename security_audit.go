@@ -54,6 +54,10 @@ type securityAuditRequest struct {
 	TargetSolves     int      `json:"target_solves"`
 	PoolDistributed  *bool    `json:"pool_distributed"`
 	DigPackage       string   `json:"dig_package"`
+
+	// ownerSecretHash is set only by the hub's customer-funded pool route (never from JSON):
+	// the coordinator stores it so the paying customer can read progress and findings.
+	ownerSecretHash string
 }
 
 func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
@@ -531,6 +535,10 @@ func (a *app) serveSecurityAudit(w http.ResponseWriter, r *http.Request, req sec
 		writeAPIError(w, http.StatusBadRequest, "budget_too_low",
 			fmt.Sprintf("dig package %s requires budget_hmc >= %.2f", digPkgFinal, minDig), nil)
 		return
+	}
+	if h := strings.TrimSpace(req.ownerSecretHash); h != "" {
+		cfgMap["orders_owner_secret_hash"] = h
+		cfgMap["orders_pool_escrow"] = true // customer-funded on the hub; refund goes to owner_ref
 	}
 	cfgMap = normalizeFuzzCampaignConfig(cfgMap, "property")
 	cfg := marshalMapJSON(cfgMap)

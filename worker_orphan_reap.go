@@ -40,8 +40,13 @@ func reapLockDir(dir string, workerID string) {
 		return
 	}
 	_ = os.MkdirAll(dir, 0o755)
-	// ReapAll covers fleet suffixes (worker-id-gpu0, …) left after a crash.
-	results, err := workerlock.ReapAll(dir)
+	wid := strings.TrimSpace(workerID)
+	if wid == "" {
+		return // unknown own id: never reap other rigs' locks in a shared dir
+	}
+	// Own id + fleet suffixes (worker-id-cuda0, …) left after a crash; other ids in the same
+	// dir belong to other nodes / systemd miners and stay alone.
+	results, err := workerlock.ReapAllMatching(dir, func(w string) bool { return workerIDOwned(w, []string{wid}) })
 	for _, res := range results {
 		if res.Killed {
 			log.Printf("pool worker: reaped orphan %s worker_id=%s pid=%d dir=%s", res.Kind, logsafe.ID(res.Worker), res.PID, logsafe.ID(dir))
@@ -49,10 +54,6 @@ func reapLockDir(dir string, workerID string) {
 	}
 	if err != nil {
 		log.Printf("pool worker: orphan reap dir=%s: %v", logsafe.ID(dir), err)
-	}
-	wid := strings.TrimSpace(workerID)
-	if wid == "" {
-		return
 	}
 	for _, kind := range []string{"workerpoh", "workerfuzz"} {
 		res, err := workerlock.Reap(kind, wid, dir)
@@ -69,6 +70,9 @@ func reapLockDir(dir string, workerID string) {
 // Without this, POST /api/worker/start after node restart returns ok+pid then the child
 // exits immediately on ErrAlreadyRunning — leaving the rig unstartable via official paths.
 func reapOrphanPoolWorkers(logDir, workerID, repoRoot string) {
+	if strings.TrimSpace(workerID) == "" {
+		workerID = strings.TrimSpace(os.Getenv("WORKER_ID"))
+	}
 	lockDir := absoluteWorkerLockDir(logDir)
 	reapLockDir(lockDir, workerID)
 
@@ -85,13 +89,13 @@ func reapOrphanPoolWorkers(logDir, workerID, repoRoot string) {
 	}
 
 	// Belt-and-suspenders: same fleet kill used by /api/worker/stop (Windows IM + Unix pkill).
-	killExternalWorkerFleet(repoRoot)
-	killExternalWorkerfuzzFleet()
-
 	wid := strings.TrimSpace(workerID)
 	if wid == "" {
 		wid = strings.TrimSpace(os.Getenv("WORKER_ID"))
 	}
+	// Only this node's worker id — never every miner on the machine.
+	killExternalWorkerFleet(repoRoot, []string{wid})
+	killExternalWorkerfuzzFleet([]string{wid})
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
 		held := false
@@ -114,12 +118,14 @@ func reapOrphanPoolWorkersAtBoot(repoRoot string) {
 	reapOrphanPoolWorkers(logDir, strings.TrimSpace(os.Getenv("WORKER_ID")), repoRoot)
 }
 
-func killExternalWorkerfuzzFleet() {
+func killExternalWorkerfuzzFleet(ids []string) {
 	if runtime.GOOS == "windows" {
 		_ = exec.Command("taskkill", "/F", "/IM", "workerfuzz.exe").Run()
 		return
 	}
-	killWorkerfuzzProcs(nil)
+	if allow := ownedByWorkerIDs(ids); allow != nil {
+		killWorkerfuzzProcs(allow)
+	}
 }
 
 // rotateWorkerParticipantLog renames an existing participant log so O_TRUNC cannot

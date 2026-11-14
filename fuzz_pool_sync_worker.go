@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"hackme/internal/chain"
 	"hackme/internal/fuzzengine"
 	"hackme/internal/logsafe"
 	"hackme/internal/poolfuzz"
@@ -148,6 +149,11 @@ func (a *app) reconcilePoolSyncCampaigns() {
 			syncCancel()
 			continue
 		}
+		// A paid pool order's mirror (customer node) is registered by the hub, never from here:
+		// if progress is not readable yet, just wait for the next tick.
+		if poolEscrowMirrorCampaign(parseMapJSON(cfgJSON)) {
+			continue
+		}
 		// Retry missing campaigns every tick — including previously failed (hub cap may rise).
 		a.poolSyncMu.Lock()
 		delete(a.poolSyncQueued, id)
@@ -239,9 +245,22 @@ func (a *app) runPoolSyncJob(job poolSyncJob) {
 			a.poolSyncMarkFailed(job.campaign.ID, fmt.Errorf("escrow status %q not open", row.Status))
 			return
 		}
-		if row.BudgetHMC+1e-9 < budgetHMC || (job.campaign.BudgetRuns > 0 && row.BudgetRuns < job.campaign.BudgetRuns) {
+		// Under Economics v2 the order fee comes out of the price, so the escrow is the price
+		// minus the fee. Comparing the escrow with the full price failed every v2 pool order
+		// ("escrow budget/runs below publish claim"). Accept escrow >= price - fee and claim the
+		// escrow itself: that is what pool miners can be paid from.
+		minEscrow := budgetHMC
+		if tipH, _, terr := a.chain.Tip(ctx); terr == nil {
+			if fee, _ := chain.OrderFeeV2FromPrice(tipH, chain.HMCToUnits(budgetHMC), chain.FeeAssetHMC); fee.HMCUnits() > 0 && chain.EconomicsV2ActiveForIndex(tipH+1) {
+				minEscrow = chain.UnitsToHMC(chain.HMCToUnits(budgetHMC) - fee.HMCUnits())
+			}
+		}
+		if row.BudgetHMC+1e-6 < minEscrow || (job.campaign.BudgetRuns > 0 && row.BudgetRuns < job.campaign.BudgetRuns) {
 			a.poolSyncMarkFailed(job.campaign.ID, fmt.Errorf("escrow budget/runs below publish claim"))
 			return
+		}
+		if row.BudgetHMC < budgetHMC {
+			budgetHMC = row.BudgetHMC
 		}
 		// Fingerprint the *claimed* open escrow (not opaque row noise) so hub verify can recompute.
 		escrowFP = poolsync.EscrowPrepaidFingerprintParts(job.campaign.ID, budgetHMC, job.campaign.BudgetRuns, "open")
@@ -354,7 +373,21 @@ func (a *app) poolFallbackToLocal(ctx context.Context, id, reason string) {
 		return
 	}
 	cfg := parseMapJSON(cfgRaw)
-	if cfg == nil || !poolDistributedCampaign(cfg) {
+	if cfg == nil || !poolDistributedCampaign(cfg) || poolEscrowMirrorCampaign(cfg) {
+		return // a paid pool order's mirror never turns into a local run
+	}
+	if envBool("HACKME_CHAIN_MINTING_HUB", false) {
+		// The hub never fuzzes customer work on its own CPU (it would pay itself from the
+		// escrow). A paid pool order the pool refused is cancelled instead: the escrow closes
+		// and the unspent part goes back to the payer (ordersPoolRefundOnClose).
+		if truthy(cfg["orders_pool_escrow"]) {
+			if _, err := a.db.ExecContext(ctx, `UPDATE fuzz_campaigns SET status='cancelled', completed_at=? WHERE id=? AND status IN ('planned','running')`,
+				time.Now().Unix(), id); err == nil {
+				log.Printf("pool sync: paid pool order %s refused by the pool (%s) — cancelled, refund follows", logsafe.ID(id), reason)
+				_ = a.pushPoolCampaignStatus(ctx, id, "cancelled")
+				a.tryCloseFuzzEscrowForStatus(ctx, id, "cancelled")
+			}
+		}
 		return
 	}
 	cfg["pool_distributed"] = false

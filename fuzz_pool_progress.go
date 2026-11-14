@@ -13,6 +13,7 @@ import (
 
 	"hackme/internal/netutil"
 	"hackme/internal/poolfuzz"
+	"hackme/internal/poolsync"
 )
 
 type coordinatorPoolCampaign struct {
@@ -126,6 +127,11 @@ func (a *app) stampOrdersOwnerHeader(req *http.Request, campaignID string) {
 	_ = a.db.QueryRow(`SELECT COALESCE(owner_ref,'') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&owner)
 	if owner = strings.TrimSpace(owner); owner != "" {
 		req.Header.Set("X-Hackme-Orders-Owner-Ref", owner)
+		// The coordinator authorises owner reads with owner_ref AND the per-campaign owner
+		// secret (PUB-05b); sending only the ref made every progress/findings read 403.
+		if sec := strings.TrimSpace(poolsync.LoadOrdersOwnerSecret(campaignID)); sec != "" {
+			req.Header.Set("X-Hackme-Orders-Owner-Secret", sec)
+		}
 	}
 }
 

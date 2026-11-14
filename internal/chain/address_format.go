@@ -118,3 +118,7 @@ func (s *Service) checkSpendRulesNextQ(ctx context.Context, q queryRowContext, f
 	}
 	return checkSpendRulesQ(ctx, q, idx, from, to, pubKeyHex)
 }
+
+// PubKeyOwnsAddress reports whether the ed25519 public key (hex) derives addr in either the
+// legacy 16-hex or the v2 64-hex form.
+func PubKeyOwnsAddress(pubHex, addr string) bool { return pubKeyOwnsAddress(pubHex, addr) }

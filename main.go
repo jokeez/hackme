@@ -120,15 +120,17 @@ type app struct {
 	rlBan        map[string]int64
 	p2pTokenFail map[string]int
 	// Limits concurrent expensive P2P sync operations under storm load.
-	p2pSyncHeavySem chan struct{}
-	poolSyncOnce    sync.Once
-	poolSyncCh      chan poolSyncJob
-	poolSyncMu      sync.Mutex
-	poolSyncFailed  map[string]string // campaign_id → last error
-	poolSyncQueued  map[string]struct{}
-	fuzzMarketMu    sync.RWMutex
-	fuzzMarketCache []map[string]any
-	fuzzMarketAt    time.Time
+	p2pSyncHeavySem    chan struct{}
+	poolSyncOnce       sync.Once
+	poolSyncCh         chan poolSyncJob
+	poolSyncMu         sync.Mutex
+	ordersPoolEscrowMu sync.Mutex        // serialises customer-funded pool order claims (hub)
+	poolMirrorSyncAt   map[string]int64  // last progress pull per paid pool order (customer node)
+	poolSyncFailed     map[string]string // campaign_id → last error
+	poolSyncQueued     map[string]struct{}
+	fuzzMarketMu       sync.RWMutex
+	fuzzMarketCache    []map[string]any
+	fuzzMarketAt       time.Time
 	// Throttles stale rig pruning to keep network stats cheap.
 	rigPruneLastUnix      int64
 	workerMu              sync.Mutex
@@ -598,6 +600,8 @@ func main() {
 	mux.HandleFunc("/api/orders/fund", a.handleOrdersFundAPI)
 	mux.HandleFunc("/api/orders/fund/", a.handleOrdersFundAPI)
 	mux.HandleFunc("/api/tx/send", a.handleTransferSend)
+	mux.HandleFunc("/api/orders/pool-escrow", a.handleOrdersPoolEscrow)
+	mux.HandleFunc("/api/orders/pool-order", a.handleOrdersPoolOrder)
 	mux.HandleFunc("/api/sup/economics", a.handleSUPEconomics)
 	mux.HandleFunc("/api/sup/genesis", a.handleSUPGenesisInit)
 	mux.HandleFunc("/api/sup/mint", a.handleSUPMint)
@@ -719,6 +723,7 @@ func main() {
 		}
 	}
 	a.startFuzzAutoRunner(context.Background())
+	a.startOrdersPoolRefundWorker(context.Background())
 	// Clear workers left behind if a previous node process died without stop.
 	reapOrphanPoolWorkersAtBoot(resolveWorkerRepoRoot(strings.TrimSpace(a.dataDir)))
 	a.startPoolWorkerWatchdog()
@@ -3112,8 +3117,9 @@ func (a *app) handleWorkerStop(w http.ResponseWriter, r *http.Request) {
 	logAdminAction(r, "worker_stop")
 	a.workerMu.Lock()
 	defer a.workerMu.Unlock()
-	killExternalWorkerFleet(resolveWorkerRepoRoot(strings.TrimSpace(a.dataDir)))
-	killExternalWorkerfuzzFleet()
+	ownIDs := []string{a.workerID, os.Getenv("WORKER_ID")}
+	killExternalWorkerFleet(resolveWorkerRepoRoot(strings.TrimSpace(a.dataDir)), ownIDs)
+	killExternalWorkerfuzzFleet(ownIDs)
 	if a.workerCmd == nil || a.workerCmd.Process == nil || a.workerCmd.ProcessState != nil {
 		a.workerCoordURL = ""
 		a.workerID = ""
