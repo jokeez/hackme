@@ -31,7 +31,7 @@
           "paid_hmc": 0,
           "date": "2026-11-15",
           "reported": "2026-11-14",
-          "commit": "pending",
+          "commit": "6a1bd87d",
           "note": "High: RunSUP ClearPendingSUP when send body empty/lost, payer nonce unmoved, and mempool lookup empty. That triple is not proof the transfer never happened; next tick re-accrues and pays again. HMC settler already kept intent on the same class. Fixed: keep pending; recover empty-hash when nonce advances. Reward 80 HMC \u2014 payout pending reporter HMC- address. Active payout lane at Economics v2 height 550000."
         },
         {
@@ -40,7 +40,7 @@
           "paid_hmc": 0,
           "date": "2026-11-15",
           "reported": "2026-11-14",
-          "commit": "pending",
+          "commit": "6a1bd87d",
           "note": "High: flushDeferredBounties paid repro-passed findings without campaignAcceptsSettle; recomputeProgress resurrected cancelled\u2192completed on late worker retry, re-opening the settle gate and draining prepaid escrow. Fixed: gate deferred flush; preserve cancelled in recomputeProgress. Reward 60 HMC \u2014 payout pending reporter HMC- address."
         },
         {
@@ -49,7 +49,7 @@
           "paid_hmc": 0,
           "date": "2026-11-15",
           "reported": "2026-11-15",
-          "commit": "pending",
+          "commit": "6a1bd87d",
           "note": "High: OpenFuzzEscrowWithFee books post-fee budget (e.g. 18 HMC of 20); Dig/Hunt create wrote customer price into config budget_hmc; async pool sync refuses \"escrow budget/runs below publish claim\" with no rollback/refund. Arms at compiled activation height 550000. Fixed: stampEscrowBudgetClaim writes escrow.BudgetHMC as budget_hmc and keeps budget_hmc_price. Reward 80 HMC \u2014 payout pending reporter HMC- address. Hub deploy after fork."
         },
         {
