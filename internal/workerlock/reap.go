@@ -102,6 +102,13 @@ func Reap(kind, workerID, dir string) (ReapResult, error) {
 
 // ReapAll scans dir for workerlock-*.pid files and reaps each held lock.
 func ReapAll(dir string) ([]ReapResult, error) {
+	return ReapAllMatching(dir, nil)
+}
+
+// ReapAllMatching is ReapAll restricted to lock files whose worker id passes keep (nil keeps
+// all). Several nodes and systemd miners can share one lock dir: a node must only reap its
+// own workers, never another rig's live miner.
+func ReapAllMatching(dir string, keep func(workerID string) bool) ([]ReapResult, error) {
 	if dir == "" {
 		dir = "logs"
 	}
@@ -120,6 +127,9 @@ func ReapAll(dir string) ([]ReapResult, error) {
 		}
 		kind, wid, ok := parseLockFileName(e.Name())
 		if !ok {
+			continue
+		}
+		if keep != nil && !keep(wid) {
 			continue
 		}
 		res, err := Reap(kind, wid, dir)

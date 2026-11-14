@@ -234,7 +234,9 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				http.Error(w, "not found", http.StatusNotFound)
 				return
 			}
-			ok, err := pf.CampaignIsOrdersPublish(r.Context(), id)
+			// Owner-gated reads: publish-token campaigns, and hub-registered paid pool orders that
+			// carry an owner secret (the owner check below/after is what actually authorises).
+			ok, err := campaignOwnerReadable(r.Context(), pf, id)
 			if err != nil || !ok {
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
@@ -305,7 +307,9 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			return
 		}
 		if isPublish && !isAdmin {
-			ok, err := pf.CampaignIsOrdersPublish(r.Context(), id)
+			// Owner-gated reads: publish-token campaigns, and hub-registered paid pool orders that
+			// carry an owner secret (the owner check below/after is what actually authorises).
+			ok, err := campaignOwnerReadable(r.Context(), pf, id)
 			if err != nil || !ok {
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
@@ -2338,4 +2342,19 @@ func startPoolFuzzTicker(ctx context.Context, pf *poolfuzz.Service) {
 			}
 		}
 	}()
+}
+
+// campaignOwnerReadable: a publish-token reader may see a campaign's progress/findings when it
+// was published via Orders, or registered by the hub for a paid pool order with an owner
+// secret. Settle outbox routes keep requiring orders_publish.
+func campaignOwnerReadable(ctx context.Context, pf *poolfuzz.Service, id string) (bool, error) {
+	pub, err := pf.CampaignIsOrdersPublish(ctx, id)
+	if err != nil || pub {
+		return pub, err
+	}
+	h, err := pf.CampaignOwnerSecretHash(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(h) != "", nil
 }

@@ -1039,6 +1039,16 @@ func (a *app) handleFuzzCampaignStatus(w http.ResponseWriter, r *http.Request, c
 		writeAPIError(w, http.StatusNotFound, "campaign_not_found", "campaign not found", nil)
 		return
 	}
+	if status == "cancelled" || status == "completed" {
+		// Stop the pool first so no new work is leased against an escrow about to close.
+		var cfgRaw string
+		if err := a.db.QueryRowContext(r.Context(), `SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgRaw); err == nil &&
+			poolDistributedCampaign(parseMapJSON(cfgRaw)) && !poolEscrowMirrorCampaign(parseMapJSON(cfgRaw)) {
+			if err := a.pushPoolCampaignStatus(r.Context(), campaignID, status); err != nil {
+				log.Printf("fuzz campaign %s: pool status push: %v", logsafe.ID(campaignID), err)
+			}
+		}
+	}
 	a.tryCloseFuzzEscrowForStatus(r.Context(), campaignID, status)
 	a.fuzzMarketplaceInvalidate()
 	c, err := a.getFuzzCampaign(r.Context(), campaignID)
@@ -1099,9 +1109,14 @@ func (a *app) tryCloseFuzzEscrowForStatus(ctx context.Context, campaignID, statu
 	if (status == "completed" || status == "cancelled") && a.db != nil {
 		var cfgRaw string
 		if err := a.db.QueryRowContext(ctx, `SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgRaw); err == nil &&
+			poolEscrowMirrorCampaign(parseMapJSON(cfgRaw)) {
+			return // the hub holds and closes this escrow (paid pool order)
+		}
+		if err := a.db.QueryRowContext(ctx, `SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgRaw); err == nil &&
 			!poolDistributedCampaign(parseMapJSON(cfgRaw)) {
 			if status == "cancelled" {
 				_, _ = a.chain.CancelFuzzEscrow(ctx, campaignID)
+				a.ordersPoolRefundOnClose(ctx, campaignID) // finalize path calls it itself
 			} else {
 				a.finalizeLocalCampaignEscrow(ctx, campaignID)
 			}
@@ -1118,9 +1133,11 @@ func (a *app) tryCloseFuzzEscrowForStatus(ctx context.Context, campaignID, statu
 		}
 		if status == "cancelled" {
 			_, _ = a.chain.CancelFuzzEscrow(ctx, campaignID)
-			return
+		} else {
+			_, _ = a.chain.FinalizeFuzzEscrow(ctx, campaignID)
 		}
-		_, _ = a.chain.FinalizeFuzzEscrow(ctx, campaignID)
+		// Customer-funded pool order (hub): send the unspent part back to the payer.
+		a.ordersPoolRefundOnClose(ctx, campaignID)
 	}
 }
 
