@@ -2402,15 +2402,20 @@ func (s *Service) recomputeProgress(ctx context.Context, campaignID string, now 
 	if done > 0 {
 		summary["avg_duration_ms"] = sumDuration / done
 	}
-	nextStatus := strings.TrimSpace(strings.ToLower(status))
+	prevStatus := strings.TrimSpace(strings.ToLower(status))
+	nextStatus := prevStatus
 	completedAt := int64(0)
-	if budgetRuns > 0 && done >= budgetRuns {
-		nextStatus = "completed"
-		completedAt = now
-	}
-	if budgetSeconds > 0 && startedAt > 0 && now-startedAt >= int64(budgetSeconds) {
-		nextStatus = "completed"
-		completedAt = now
+	// Admin cancel is terminal: never resurrect to completed on a late worker retry
+	// (that re-opens campaignAcceptsSettle and pays deferred bounties).
+	if prevStatus != "cancelled" {
+		if budgetRuns > 0 && done >= budgetRuns {
+			nextStatus = "completed"
+			completedAt = now
+		}
+		if budgetSeconds > 0 && startedAt > 0 && now-startedAt >= int64(budgetSeconds) {
+			nextStatus = "completed"
+			completedAt = now
+		}
 	}
 	_, err = s.DB.ExecContext(ctx,
 		`UPDATE fuzz_campaigns
