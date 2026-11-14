@@ -123,7 +123,7 @@ func (a *app) stopPoolWorkerViaAPI() error {
 
 func (a *app) forceRestartPoolWorker(reason string) error {
 	if err := a.stopPoolWorkerViaAPI(); err != nil {
-		log.Printf("pool worker watchdog: stop before restart (%s): %v", reason, err)
+		log.Printf("pool worker watchdog: stop before restart (%s): %s", logsafe.ID(reason), logsafe.Err(err))
 		time.Sleep(200 * time.Millisecond)
 		if a.workerProcessRunning() {
 			return fmt.Errorf("stop failed and worker still running (%s): %w", reason, err)

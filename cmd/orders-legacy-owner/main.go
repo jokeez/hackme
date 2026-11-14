@@ -83,7 +83,12 @@ func run(ctx context.Context, dbPath, campaign, owner, out string, dry bool) err
 	if err != nil {
 		return fmt.Errorf("secret file: %w", err)
 	}
-	defer f.Close()
+	closed := false
+	defer func() {
+		if !closed {
+			_ = f.Close()
+		}
+	}()
 
 	var b [32]byte
 	if _, err := rand.Read(b[:]); err != nil {
@@ -104,6 +109,10 @@ func run(ctx context.Context, dbPath, campaign, owner, out string, dry bool) err
 	}
 	if _, err := fmt.Fprintf(f, "campaign=%s\nowner_ref=%s\nowner_secret=%s\n", campaign, owner, secret); err != nil {
 		return err
+	}
+	closed = true
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("secret file close (secret is stamped; re-issue needs operator reset): %w", err)
 	}
 	fmt.Printf("issued: owner_ref=%s secret written to %s (0600) — deliver out of band, then delete\n", owner, out)
 	return nil
