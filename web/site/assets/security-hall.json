@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-14",
+  "updated": "2026-11-15",
   "program": {
     "asset": "HMC",
     "monthly_budget_hmc": 500,
@@ -16,9 +16,26 @@
   "stats": {
     "total_paid_hmc": 1586,
     "researchers": 6,
-    "reports_accepted": 47
+    "reports_accepted": 48
   },
   "researchers": [
+    {
+      "id": "dickymuliafiqri",
+      "name": "Dicky Mulia Fiqri",
+      "handle": "Dicky Mulia Fiqri",
+      "total_paid_hmc": 0,
+      "findings": [
+        {
+          "title": "Hunt coverage-engine re-harvests stale crash artifacts \u2192 CLEAN shards get full PayRun",
+          "severity": "high",
+          "paid_hmc": 0,
+          "date": "2026-11-15",
+          "reported": "2026-11-14",
+          "commit": "95761fde",
+          "note": "High: .hunt-run/crashes never cleared between LF walls; collectCrashArtifacts listed all files; collectEngineDelta deduped seeds only. Coordinator ASAN-replay credited hunt_proven_crashes on the current lease \u2192 DecideHuntEnginePay full PayRun (10\u00d7 floor). Honest worker flow + deliberate re-upload. Fixed: resetHuntSessionCrashDir per wall, crash content-dedupe, campaign-novel crash pay credit only (PR #94). Reward 60 HMC confirmed \u2014 payout pending reporter HMC- address. Hub deploy after Economics v2 fork."
+        }
+      ]
+    },
     {
       "id": "startupcompliancekit",
       "name": "StartupComplianceKit",
