@@ -571,3 +571,19 @@ func collectCrashArtifacts(root, dir string, max int) []string {
 	}
 	return out
 }
+
+// resetHuntSessionCrashDir clears corpusDir/.hunt-run/crashes before a libFuzzer
+// wall so artifacts from earlier leases cannot be re-collected. Recreates the dir
+// beneath root without following symlinks (mkdirAllBeneath).
+func resetHuntSessionCrashDir(corpusDir, crashDir string) error {
+	if !CorpusPathConfined(corpusDir, crashDir) {
+		return fmt.Errorf("hunt: crash dir escapes corpus root")
+	}
+	if err := os.RemoveAll(crashDir); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("hunt: clear session crashes: %w", err)
+	}
+	if err := mkdirAllBeneath(corpusDir, crashDir, 0o755); err != nil {
+		return fmt.Errorf("hunt: recreate session crashes: %w", err)
+	}
+	return nil
+}

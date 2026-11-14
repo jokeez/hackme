@@ -81,6 +81,17 @@ func RunHuntEngineShard(ctx context.Context, run ResearchSlotRun, cr ClaimResp) 
 	targetID := strings.TrimSpace(cr.UpstreamTargetID)
 	corpusDir := hunt.PersistentLibFuzzerCorpusDir(repoRoot, targetID)
 	beforeHashes, _ := snapshotCorpusHashes(corpusDir)
+	// Snapshot crash-dir content hashes before the wall (RunEngineShard clears the
+	// dir). If clear fails, collectEngineDelta still drops those bytes as stale.
+	if crashBefore, err := snapshotHuntCrashHashes(corpusDir); err == nil {
+		if beforeHashes == nil {
+			beforeHashes = crashBefore
+		} else {
+			for k, v := range crashBefore {
+				beforeHashes[".hunt-crash:"+k] = v
+			}
+		}
+	}
 	var dictBytes []byte
 	if h := strings.TrimSpace(cr.LibFuzzerDictHex); h != "" {
 		if b, err := decodeHex(h); err == nil && len(b) > 0 {
@@ -235,6 +246,7 @@ func collectEngineDelta(res hunt.EngineShardResult, before map[string]string, ma
 			Energy:     2, // neutral — coordinator ignores miner energy for Hunt pay (L2)
 		})
 	}
+	seenCrash := map[string]struct{}{}
 	for _, p := range res.CrashFiles {
 		if len(crashes) >= 8 {
 			break
@@ -247,6 +259,24 @@ func collectEngineDelta(res hunt.EngineShardResult, before map[string]string, ma
 		if err != nil || len(b) == 0 {
 			continue
 		}
+		sum := sha256.Sum256(b)
+		hexSum := hex.EncodeToString(sum[:])
+		// Same content-dedupe as seeds: a pre-lease snapshot hash or duplicate
+		// in this batch must not re-enter crash credit (stale .hunt-run/crashes).
+		if _, ok := seenCrash[hexSum]; ok {
+			continue
+		}
+		stale := false
+		for _, h := range before {
+			if h == hexSum {
+				stale = true
+				break
+			}
+		}
+		if stale {
+			continue
+		}
+		seenCrash[hexSum] = struct{}{}
 		crashes = append(crashes, b)
 	}
 	return seeds, crashes

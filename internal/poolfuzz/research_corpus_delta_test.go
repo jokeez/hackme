@@ -151,6 +151,70 @@ func TestAcceptResearchCorpusDeltaCrashReplayRecordsFinding(t *testing.T) {
 	}
 }
 
+func TestAcceptResearchCorpusDeltaStaleCrashNoPayCredit(t *testing.T) {
+	t.Setenv("HACKME_HUNT_COVERAGE_ENGINE", "1")
+	svc, id, itemID := researchDeltaHuntCamp(t)
+	ctx := context.Background()
+	leaseWorkItemForTest(t, ctx, svc.DB, id, itemID, "w1")
+	prev := researchCrashReplayer
+	t.Cleanup(func() { researchCrashReplayer = prev })
+	researchCrashReplayer = func(ctx context.Context, s *Service, campaignID string, cfg map[string]any, input []byte) (bool, string, error) {
+		return true, "hunt_crash:heap-buffer-overflow", nil
+	}
+	crash := []byte("same-crash-bytes")
+	first, err := svc.AcceptResearchCorpusDelta(ctx, ResearchCorpusDeltaRequest{
+		WorkerID: "w1", CampaignID: id, ItemID: itemID, Namespace: "research:jsmn",
+		MinerAddr: "HMC-test", Crashes: [][]byte{crash},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.CrashesReplayOK != 1 || first.Findings != 1 {
+		t.Fatalf("first=%+v", first)
+	}
+	var provenCrashes int
+	_ = svc.DB.QueryRowContext(ctx,
+		`SELECT COALESCE(hunt_proven_crashes,0) FROM fuzz_work_items WHERE campaign_id=? AND id=?`, id, itemID).Scan(&provenCrashes)
+	if provenCrashes != 1 {
+		t.Fatalf("first DB hunt_proven_crashes=%d", provenCrashes)
+	}
+	clearLeaseProven(id, itemID)
+
+	// New item re-uploads the same bytes — ASAN still passes, but no PayRun credit.
+	now := time.Now().Unix()
+	res, err := svc.DB.ExecContext(ctx,
+		`INSERT INTO fuzz_work_items(campaign_id, input_n, status, created_at, updated_at) VALUES (?,?, 'pending', ?, ?)`,
+		id, 424242, now, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	item2, _ := res.LastInsertId()
+	leaseWorkItemForTest(t, ctx, svc.DB, id, item2, "w1")
+	second, err := svc.AcceptResearchCorpusDelta(ctx, ResearchCorpusDeltaRequest{
+		WorkerID: "w1", CampaignID: id, ItemID: item2, Namespace: "research:jsmn",
+		MinerAddr: "HMC-test", Crashes: [][]byte{crash, crash}, // duplicate in-batch too
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.CrashesReplayOK != 0 || second.Findings != 0 {
+		t.Fatalf("stale re-upload must not pay-credit, second=%+v", second)
+	}
+	if second.CrashesRejected < 1 {
+		t.Fatalf("expected rejects, second=%+v", second)
+	}
+	var proven2 int
+	_ = svc.DB.QueryRowContext(ctx,
+		`SELECT COALESCE(hunt_proven_crashes,0) FROM fuzz_work_items WHERE campaign_id=? AND id=?`, id, item2).Scan(&proven2)
+	if proven2 != 0 {
+		t.Fatalf("second DB hunt_proven_crashes=%d want 0", proven2)
+	}
+	kind, full := DecideHuntEnginePay(0, 0, second.CrashesReplayOK, 0, false)
+	if full || kind == HuntEnginePayCrash {
+		t.Fatalf("pay decision must be floor, kind=%s full=%v", kind, full)
+	}
+}
+
 func TestAcceptResearchCorpusDeltaRejectsUnauthedForeignLease(t *testing.T) {
 	svc, id, itemID := researchDeltaHuntCamp(t)
 	ctx := context.Background()

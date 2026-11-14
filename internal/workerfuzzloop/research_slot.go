@@ -189,6 +189,37 @@ func snapshotCorpusHashes(dir string) (map[string]string, error) {
 	return out, nil
 }
 
+// snapshotHuntCrashHashes hashes regular files under corpusDir/.hunt-run/crashes
+// (and sibling crash/artifacts dirs) keyed by content hex. Used to mark pre-lease
+// artifacts so collectEngineDelta can drop them if the session wipe fails.
+func snapshotHuntCrashHashes(corpusDir string) (map[string]string, error) {
+	if !hunt.CorpusPathConfined(corpusDir, corpusDir) {
+		return nil, fmt.Errorf("research corpus dir escapes root")
+	}
+	runRoot := filepath.Join(corpusDir, ".hunt-run")
+	out := map[string]string{}
+	for _, sub := range []string{"crashes", "crash", "artifacts"} {
+		dir := filepath.Join(runRoot, sub)
+		ents, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, e := range ents {
+			if e.IsDir() || strings.HasPrefix(e.Name(), ".") || e.Name() == "README.txt" {
+				continue
+			}
+			p := filepath.Join(dir, e.Name())
+			b, err := hunt.ReadRegularCorpusFileUnder(corpusDir, p, 65536)
+			if err != nil || len(b) == 0 {
+				continue
+			}
+			sum := sha256.Sum256(b)
+			out[hex.EncodeToString(sum[:])] = hex.EncodeToString(sum[:])
+		}
+	}
+	return out, nil
+}
+
 func collectResearchDelta(dir string, before map[string]string, maxFiles int) (seeds []fuzzengine.PoolCorpusSeed, crashes [][]byte, err error) {
 	if !hunt.CorpusPathConfined(dir, dir) {
 		return nil, nil, nil
@@ -218,6 +249,20 @@ func collectResearchDelta(dir string, before map[string]string, maxFiles int) (s
 		h := hex.EncodeToString(sum[:])
 		if strings.HasPrefix(low, "crash-") || strings.HasPrefix(low, "oom-") || strings.HasPrefix(low, "timeout-") ||
 			strings.HasPrefix(low, "leak-") {
+			// Mirror seed dedupe: unchanged/pre-lease crash-* must not re-upload.
+			if prev, ok := before[name]; ok && prev == h {
+				continue
+			}
+			dup := false
+			for _, old := range before {
+				if old == h {
+					dup = true
+					break
+				}
+			}
+			if dup {
+				continue
+			}
 			if len(crashes) < 16 {
 				crashes = append(crashes, b)
 			}
