@@ -70,6 +70,34 @@ func TestCollectEngineDeltaSkipsPreLeaseFiles(t *testing.T) {
 	}
 }
 
+func TestCollectEngineDeltaDropsStaleCrashContent(t *testing.T) {
+	dir := t.TempDir()
+	crashDir := filepath.Join(dir, ".hunt-run", "crashes")
+	if err := os.MkdirAll(crashDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stale := []byte("stale-crash-bytes")
+	fresh := []byte("fresh-crash-bytes")
+	stalePath := filepath.Join(crashDir, "crash-old")
+	freshPath := filepath.Join(crashDir, "crash-new")
+	if err := os.WriteFile(stalePath, stale, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(freshPath, fresh, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(stale)
+	before := map[string]string{".hunt-crash:" + hex.EncodeToString(sum[:]): hex.EncodeToString(sum[:])}
+	_, crashes := collectEngineDelta(hunt.EngineShardResult{
+		CorpusDir:          dir,
+		CorpusCollectRoots: []string{dir},
+		CrashFiles:         []string{stalePath, freshPath},
+	}, before, 32)
+	if len(crashes) != 1 || string(crashes[0]) != "fresh-crash-bytes" {
+		t.Fatalf("want only fresh crash, got %#v", crashes)
+	}
+}
+
 func TestCollectEngineDeltaRefusesIntermediateDirSymlink(t *testing.T) {
 	dir := t.TempDir()
 	host := t.TempDir()

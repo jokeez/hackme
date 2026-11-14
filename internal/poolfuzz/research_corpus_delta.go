@@ -64,6 +64,44 @@ func ResearchNamespaceForTarget(targetID string) string {
 	return ResearchNamespacePrefix + tid
 }
 
+// campaignCrashInputKnown reports whether this crash was already recorded for the
+// campaign (pool corpus is_crash row and/or findings by input_sha256). Used to
+// refuse full PayRun credit for re-harvested / re-uploaded crash bytes.
+func (s *Service) campaignCrashInputKnown(ctx context.Context, campaignID string, inputU64 uint64, inputSHA string) (bool, error) {
+	if s == nil || s.DB == nil {
+		return false, fmt.Errorf("poolfuzz: no database")
+	}
+	campaignID = strings.TrimSpace(campaignID)
+	inputSHA = strings.TrimSpace(strings.ToLower(inputSHA))
+	if campaignID == "" {
+		return false, fmt.Errorf("poolfuzz: campaign_id required")
+	}
+	var n int
+	if inputU64 != 0 {
+		err := s.DB.QueryRowContext(ctx,
+			`SELECT COUNT(1) FROM fuzz_pool_corpus WHERE campaign_id=? AND input_u64=? AND is_crash=1`,
+			campaignID, poolCorpusU64Arg(inputU64)).Scan(&n)
+		if err != nil {
+			return false, err
+		}
+		if n > 0 {
+			return true, nil
+		}
+	}
+	if inputSHA != "" {
+		err := s.DB.QueryRowContext(ctx,
+			`SELECT COUNT(1) FROM fuzz_findings WHERE campaign_id=? AND lower(input_sha256)=?`,
+			campaignID, inputSHA).Scan(&n)
+		if err != nil {
+			return false, err
+		}
+		if n > 0 {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // AcceptResearchCorpusDelta merges worker LF corpus units into a research namespace
 // and, for Hunt campaigns, into the leased campaign corpus. Crash artifacts are
 // ASAN-replayed before any finding is recorded. Does not settle bounty/escrow
@@ -175,6 +213,7 @@ func (s *Service) AcceptResearchCorpusDelta(ctx context.Context, req ResearchCor
 		}
 	}
 
+	seenCrashPay := map[string]struct{}{}
 	for _, crashB := range req.Crashes {
 		if len(crashB) == 0 || len(crashB) > maxResearchSeedBytes {
 			out.CrashesRejected++
@@ -190,21 +229,41 @@ func (s *Service) AcceptResearchCorpusDelta(ctx context.Context, req ResearchCor
 			out.CrashesRejected++
 			continue
 		}
-		out.CrashesReplayOK++
-		if HuntEngineEnabled() {
-			eng := strings.TrimSpace(req.HuntEngine)
-			if eng == "" {
-				eng = hunt.HuntEngineFromConfig(cfg)
-			}
-			s.noteLeaseProvenPersist(ctx, campaignID, req.ItemID, workerID, 0, 0, 1, eng, strings.TrimSpace(req.EngineVersion))
-		}
 		u := fuzzengine.PackInputBytesToU64(crashB)
+		sha := fuzzengine.InputBytesSHA256(crashB)
+		// Pay-credit only for campaign-novel crashes. Stale worker re-harvest / deliberate
+		// re-upload of the same bytes must not unlock full PayRun on a CLEAN shard
+		// (Dicky Mulia Fiqri, 2026-11-14). Corpus upsert still records the hit.
+		novelPay := true
+		if _, dup := seenCrashPay[sha]; dup {
+			novelPay = false
+		} else if known, kerr := s.campaignCrashInputKnown(ctx, campaignID, u, sha); kerr != nil {
+			return out, kerr
+		} else if known {
+			novelPay = false
+		}
+		if novelPay {
+			seenCrashPay[sha] = struct{}{}
+			out.CrashesReplayOK++
+			if HuntEngineEnabled() {
+				eng := strings.TrimSpace(req.HuntEngine)
+				if eng == "" {
+					eng = hunt.HuntEngineFromConfig(cfg)
+				}
+				s.noteLeaseProvenPersist(ctx, campaignID, req.ItemID, workerID, 0, 0, 1, eng, strings.TrimSpace(req.EngineVersion))
+			}
+		} else {
+			out.CrashesRejected++
+		}
 		if err := s.upsertPoolCorpusSeed(ctx, campaignID, u, crashB, 12, 0, 0, true, now); err != nil {
 			return out, err
 		}
 		_ = s.UpsertNamespaceCorpusSeeds(ctx, ns, []fuzzengine.PoolCorpusSeed{{
 			Input: u, InputBytes: crashB, Energy: 8,
 		}}, now)
+		if !novelPay {
+			continue
+		}
 		info, _ := fuzzupstream.ParseHuntTrap(trap)
 		if !info.Security {
 			continue

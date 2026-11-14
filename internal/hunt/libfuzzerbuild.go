@@ -240,8 +240,10 @@ func RunLibFuzzerSession(ctx context.Context, opts LibFuzzerSessionOpts) (int, e
 	// hunt-lf-import / report tree (sibling cache bins + session.stderr).
 	sessionDir := filepath.Join(corpusDir, ".hunt-run")
 	crashDir := filepath.Join(sessionDir, "crashes")
-	// corpusDir is bound RW into the cage: create/write beneath it without following links.
-	if err := mkdirAllBeneath(corpusDir, crashDir, 0o755); err != nil {
+	// Lease-scoped crash dir: wipe leftovers from prior shards so collectCrashArtifacts
+	// cannot re-harvest a stale crash into a CLEAN shard's PayRun (Dicky Mulia Fiqri /
+	// 2026-11-14). RemoveAll unlinks a planted symlink without following it.
+	if err := resetHuntSessionCrashDir(corpusDir, crashDir); err != nil {
 		return 0, err
 	}
 	args := []string{
