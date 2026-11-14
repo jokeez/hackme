@@ -211,3 +211,39 @@ func TestDeepKeepsEffectiveMutationRounds(t *testing.T) {
 		}
 	}
 }
+
+// Mirrors the node's customer_guard rule (main 8647a3c9): own wasm, even
+// labelled with a guard_pack, fails the gate on violations; only the
+// byte-identical shipped pack module is a detector pack.
+func TestPlanCustomerGuard(t *testing.T) {
+	ws := t.TempDir()
+	writeFile(t, filepath.Join(ws, "g.wasm"), minimalCheckWasm)
+	for _, pack := range []string{"", "overflow_smoke"} {
+		o := opts(t, ws)
+		o.WasmPath, o.GuardPack = "g.wasm", pack
+		plan, err := BuildPlan(context.Background(), o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !plan.CustomerGuard || plan.Payload["customer_guard"] != true {
+			t.Errorf("pack %q: own wasm must be a customer guard", pack)
+		}
+	}
+
+	root := fuzzingcli.DiscoverRepoRoot()
+	pack, _ := fuzzingcli.GuardPackFor("overflow_smoke")
+	shipped, err := os.ReadFile(filepath.Join(root, pack.WasmRelPath))
+	if err != nil {
+		t.Skip("overflow_smoke wasm not built here (scripts/ops/build_scan_smoke_guards.sh)")
+	}
+	writeFile(t, filepath.Join(ws, "same.wasm"), shipped)
+	o := opts(t, ws)
+	o.WasmPath, o.GuardPack = "same.wasm", "overflow_smoke"
+	plan, err := BuildPlan(context.Background(), o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.CustomerGuard {
+		t.Fatal("the shipped pack module itself is a detector pack, not a customer guard")
+	}
+}

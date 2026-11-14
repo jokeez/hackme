@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -56,6 +57,12 @@ type Plan struct {
 	DigPackage string         `json:"dig_package"`
 	Wasm       WasmInfo       `json:"wasm"`
 	Payload    map[string]any `json:"payload"`
+	// CustomerGuard mirrors the node (securityAuditCustomerGuard): the caller's
+	// own wasm is a customer guard whose violations fail the gate; only the
+	// byte-identical shipped pack module stays a detector (coverage noise).
+	CustomerGuard bool `json:"customer_guard"`
+
+	raw []byte // validated wasm bytes, only for publish; never serialised
 }
 
 // OK reports whether the plan is safe to publish (wasm passed the pool gate).
@@ -187,6 +194,16 @@ func BuildPlan(ctx context.Context, o Options) (*Plan, error) {
 			return nil, err
 		}
 	}
+	plan.raw = raw
+	if plan.Source == sourceWasm {
+		plan.CustomerGuard = true
+		if havePack {
+			// Same rule as the node: equal bytes to the shipped pack = detector pack.
+			if shipped, err := readWasmUnder(o.HackmeRoot, pack.WasmRelPath); err == nil && bytes.Equal(shipped, raw) {
+				plan.CustomerGuard = false
+			}
+		}
+	}
 	plan.Wasm.Bytes = len(raw)
 	plan.Wasm.SHA256 = sha256Hex(raw)
 	if verr := sandbox.ValidateCheckWasm(ctx, raw); verr != nil {
@@ -235,6 +252,7 @@ func buildPayload(pkg fuzzingcli.B2BPackage, pack fuzzingcli.GuardPack, havePack
 		payload["dig_preset"] = plan.DigPreset
 	} else if plan.Source == sourceWasm {
 		payload["wasm_check_hex"] = fmt.Sprintf("<%d bytes, sha256:%s>", plan.Wasm.Bytes, plan.Wasm.SHA256)
+		payload["customer_guard"] = plan.CustomerGuard
 	}
 	return payload
 }
