@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"hackme/internal/logsafe"
 )
 
 // defaultPoolWorkerID picks the pool worker id when none is configured.
@@ -85,13 +87,18 @@ func (a *app) persistWorkerID(id string) string {
 	if err != nil {
 		return id
 	}
-	defer f.Close()
 	prefix := ""
 	if len(b) > 0 && b[len(b)-1] != '\n' {
 		prefix = "\n"
 	}
-	if _, err := f.WriteString(prefix + "WORKER_ID=" + id + "\n"); err == nil {
-		log.Printf("hackme: pool worker id %s (saved to %s)", id, p)
+	_, werr := f.WriteString(prefix + "WORKER_ID=" + id + "\n")
+	if cerr := f.Close(); werr == nil {
+		werr = cerr
+	}
+	if werr == nil {
+		log.Printf("hackme: pool worker id %s (saved to %s)", logsafe.ID(id), logsafe.ID(p))
+	} else {
+		log.Printf("hackme: pool worker id %s not saved: %s", logsafe.ID(id), logsafe.Err(werr))
 	}
 	return id
 }
