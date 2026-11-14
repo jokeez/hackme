@@ -85,6 +85,36 @@ func TestRejectWasmHostileSectionsAllowsSmallRustTable(t *testing.T) {
 	}
 }
 
+func TestValidateCheckWasmRejectsHugeMemoryMinPages(t *testing.T) {
+	// memory count=1, flags=0, min=0xFFFFFFF0 pages (~3 TiB) — must fail in the
+	// pre-parser (HACKME-2026-WASM-MEM-01), not only in the RLIMIT child.
+	const withHugeMemory = "0061736d0100000001060160017e017f0302010005070100f0ffffff0f07090105636865636b00000a0601040041010b"
+	raw, err := hex.DecodeString(withHugeMemory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := rejectWasmHostileSections(raw); err == nil {
+		t.Fatal("expected huge memory min-pages rejection")
+	} else if !strings.Contains(err.Error(), "memory") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := ValidateCheckWasm(context.Background(), raw); err == nil {
+		t.Fatal("expected ValidateCheckWasm to reject huge memory min-pages")
+	}
+}
+
+func TestRejectWasmHostileSectionsAllowsSmallMemory(t *testing.T) {
+	// memory min=1 max=1 (common wasm32 linear memory)
+	const smallMemory = "0061736d0100000001060160017e017f0302010005040101010107090105636865636b00000a0601040041010b"
+	raw, err := hex.DecodeString(smallMemory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := rejectWasmHostileSections(raw); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestValidateCheckWasmRejectsInvalidHeader(t *testing.T) {
 	bad := []byte{0x00, 0x61, 0x73, 0x6d, 0x02, 0x00, 0x00, 0x00}
 	if err := ValidateCheckWasm(context.Background(), bad); err == nil {

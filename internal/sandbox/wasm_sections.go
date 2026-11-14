@@ -6,6 +6,12 @@ import "errors"
 // Unbounded table min (H44) allocates pointer arrays and can OOM the process.
 const maxWasmTableInitial = 256
 
+// maxWasmMemoryLimitPages caps memory-section minimum pages before wazero compile.
+// Matches maxMemoryLimitPages() ceiling (1024). Secure/default profiles are lower
+// (96/128); the child still enforces the active profile. Without this bound the
+// pre-parser only checked memory vector count (HACKME-2026-WASM-MEM-01 / fimasw).
+const maxWasmMemoryLimitPages = 1024
+
 // maxWasmElementSectionBytes bounds element-section payload size for check-gate modules.
 const maxWasmElementSectionBytes = 8192
 
@@ -32,9 +38,10 @@ const (
 )
 
 // rejectWasmHostileSections blocks start/import/custom sections, oversized
-// tables/elements, and inflated LEB vector counts (top-level and nested) before
-// CompileModule. Custom/name sections are rejected entirely — Dig/Hunt check
-// gates never need them, and decodeFunctionNames OOMs on inflated counts.
+// tables/memory pages/elements, and inflated LEB vector counts (top-level and
+// nested) before CompileModule. Custom/name sections are rejected entirely —
+// Dig/Hunt check gates never need them, and decodeFunctionNames OOMs on
+// inflated counts.
 //
 // This is a fast filter only; ValidateCheckWasm also runs CompileModule in a
 // RLIMIT_AS child so novel nested vectors cannot kill the hub process.
@@ -73,7 +80,7 @@ func rejectWasmHostileSections(wasm []byte) error {
 				return err
 			}
 		case 5: // memory
-			if err := rejectWasmVectorPrefix(body, maxWasmMemoryCount); err != nil {
+			if err := rejectWasmMemorySection(body); err != nil {
 				return err
 			}
 		case 6: // global
@@ -367,6 +374,44 @@ func rejectWasmTableSection(body []byte) error {
 		}
 		if minimum > maxWasmTableInitial {
 			return errors.New("sandbox: wasm table initial size too large")
+		}
+		if flag&0x01 != 0 {
+			if _, err := readU32LEB(body, &pos); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// rejectWasmMemorySection mirrors rejectWasmTableSection: vector count plus each
+// memory limit's minimum pages (and optional max). Without the pages bound,
+// min≈2^32 pages passed the pre-parser and only failed in the RLIMIT child.
+func rejectWasmMemorySection(body []byte) error {
+	pos := 0
+	count, err := readU32LEB(body, &pos)
+	if err != nil {
+		return err
+	}
+	if count > maxWasmMemoryCount {
+		return errors.New("sandbox: wasm vector count too large")
+	}
+	remain := len(body) - pos
+	if int(count) > remain {
+		return errors.New("sandbox: wasm vector count exceeds section bytes")
+	}
+	for i := uint32(0); i < count; i++ {
+		if pos >= len(body) {
+			return errors.New("sandbox: malformed wasm memory section")
+		}
+		flag := body[pos]
+		pos++
+		minimum, err := readU32LEB(body, &pos)
+		if err != nil {
+			return err
+		}
+		if minimum > maxWasmMemoryLimitPages {
+			return errors.New("sandbox: wasm memory initial size too large")
 		}
 		if flag&0x01 != 0 {
 			if _, err := readU32LEB(body, &pos); err != nil {
