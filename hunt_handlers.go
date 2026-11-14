@@ -225,7 +225,9 @@ func (a *app) handleHuntCampaignCreate(w http.ResponseWriter, r *http.Request) {
 		writeFuzzEscrowFailed(w, err)
 		return
 	}
-	cfgMap["budget_hmc"] = budgetHMC
+	// Economics v2: escrow row holds post-fee budget; pool sync/fingerprint compare
+	// against config budget_hmc — stamp the locked amount, keep customer price aside.
+	stampEscrowBudgetClaim(cfgMap, budgetHMC, escrow)
 	cfgMap["escrow_split"] = fuzzescrow.EscrowSplit5050
 	cfgMap["budget_shards"] = shards
 	cfg = marshalMapJSON(cfgMap)

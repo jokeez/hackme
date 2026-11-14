@@ -8,6 +8,25 @@ import (
 	"hackme/internal/chain"
 )
 
+// stampEscrowBudgetClaim writes the pool/fingerprint claim from the open escrow row.
+// Under Economics v2 the row holds the post-fee miner budget while the customer paid
+// priceHMC; pool sync refuses when config budget_hmc exceeds the row.
+func stampEscrowBudgetClaim(cfg map[string]any, priceHMC float64, escrow *chain.FuzzEscrowRow) {
+	if cfg == nil {
+		return
+	}
+	if priceHMC > 0 {
+		cfg["budget_hmc_price"] = priceHMC
+	}
+	if escrow != nil && escrow.BudgetHMC > 0 {
+		cfg["budget_hmc"] = escrow.BudgetHMC
+		return
+	}
+	if priceHMC > 0 {
+		cfg["budget_hmc"] = priceHMC
+	}
+}
+
 // writeOrdersAutoFundOrEscrowFailed maps auto-fund errors first, then escrow open failures.
 func writeOrdersAutoFundOrEscrowFailed(w http.ResponseWriter, err error) {
 	var af *ordersAutoFundError

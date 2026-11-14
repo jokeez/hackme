@@ -40,6 +40,11 @@ func (s *Service) flushDeferredBounties(ctx context.Context) error {
 		if err != nil || cfg == nil || !escrowEnabled(cfg) {
 			continue
 		}
+		// Same gate as PayRun enqueue: cancelled = admin kill, do not create undrainable
+		// heads / pay escrow after origin close.
+		if !s.campaignAcceptsSettle(ctx, campaignID) {
+			continue
+		}
 		if fuzzengine.BountyRequiresNative(cfg) {
 			ok, err := fuzznative.IsFindingNativeEligibleForBounty(ctx, s.DB, findingID)
 			if err != nil || !ok {

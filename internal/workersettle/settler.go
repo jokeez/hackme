@@ -465,8 +465,8 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 				_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
 			} else {
 				// Empty pool + nonce unmoved still is not proof of "never sent" (race with
-				// mempool propagation). Match SUP: keep intent; stranded resolve / rejected
-				// clear handles recovery. Clearing here was audit #8 double-pay class.
+				// mempool propagation). Keep intent; stranded resolve / rejected clear
+				// handles recovery. Clearing here was audit #8 double-pay class.
 				lg.Printf("ERROR settle %s -> %s: %v %s — pending retained (no definitive reject)", wid, toAddr, sendErr, string(mustJSON(resp)))
 				_ = store.AppendLedger(ctx, "send_failed_keep_pending", wid, payUnits, 0, 0, 0, 0, 0, string(mustJSON(resp)))
 				_ = store.ExportJSONToFile(ctx, cfg.StateJSON)

@@ -144,16 +144,34 @@ func RunSUP(ctx context.Context, cfg Config) (Result, error) {
 				Nonce      uint64 `json:"nonce"`
 			}
 			_ = json.Unmarshal([]byte(pendRaw), &pend)
-			if pend.TxHash == "" && envBool("CLEAR_PENDING_SUP") {
-				// Manual clear of an intent that never got a tx_hash: only while the payer nonce
-				// has not moved past it (otherwise the send may have landed — ambiguous).
-				inflight, ierr := findSUPInflight(ctx, client, cfg.ChainBase, payer, firstNonEmpty(pend.Payout, toAddr), pend.DeltaUnits)
-				if _, nNow, nerr := fetchSUPState(ctx, client, cfg.ChainBase, payer); nerr == nil && nNow <= pend.Nonce && ierr == nil && inflight == "" {
-					_ = store.ClearPendingSUP(ctx, wid)
-					lg.Printf("sup: CLEAR_PENDING_SUP cleared %s (nonce %d not consumed)", wid, pend.Nonce)
-				} else {
-					lg.Printf("sup: CLEAR_PENDING_SUP refused for %s: nonce advanced past %d", wid, pend.Nonce)
+			if pend.TxHash == "" {
+				_, nNow, nerr := fetchSUPState(ctx, client, cfg.ChainBase, payer)
+				if nerr == nil && nNow > pend.Nonce {
+					// Lost response that later included: nonce slot consumed — advance watermark,
+					// never re-send the same accrual.
+					anchor := d.BaselineUnits + pend.DeltaUnits
+					if err := store.ApplySettleSUPUnits(ctx, wid, firstNonEmpty(pend.Payout, toAddr), "sup-nonce-consumed",
+						row.SettledSUPUnits+pend.DeltaUnits, anchor, !d.Rebase); err != nil {
+						lg.Printf("sup: recover apply %s (nonce consumed): %v", wid, err)
+						continue
+					}
+					lg.Printf("sup: recovered %s: empty-hash intent paid (nonce %d->%d)", wid, pend.Nonce, nNow)
+					out.SettledAny = true
+					continue
 				}
+				if envBool("CLEAR_PENDING_SUP") {
+					// Manual clear of an intent that never got a tx_hash: only while the payer nonce
+					// has not moved past it (otherwise the send may have landed — ambiguous).
+					inflight, ierr := findSUPInflight(ctx, client, cfg.ChainBase, payer, firstNonEmpty(pend.Payout, toAddr), pend.DeltaUnits)
+					if nerr == nil && nNow <= pend.Nonce && ierr == nil && inflight == "" {
+						_ = store.ClearPendingSUP(ctx, wid)
+						lg.Printf("sup: CLEAR_PENDING_SUP cleared %s (nonce %d not consumed)", wid, pend.Nonce)
+					} else {
+						lg.Printf("sup: CLEAR_PENDING_SUP refused for %s: nonce/mempool ambiguous", wid)
+					}
+					continue
+				}
+				lg.Printf("sup: skip %s: pending SUP intent without tx_hash — not re-sending", wid)
 				continue
 			}
 			if pend.TxHash != "" {
@@ -217,8 +235,11 @@ func RunSUP(ctx context.Context, cfg Config) (Result, error) {
 					lg.Printf("sup: ALERT %s: send failed and mempool lookup failed (%v) — intent kept", wid, ierr)
 				}
 			} else {
-				lg.Printf("sup: ERROR %s -> %s: %v %s", wid, toAddr, sendErr, code)
-				_ = store.ClearPendingSUP(ctx, wid)
+				// Empty body + unchanged nonce + empty mempool is not proof the transfer never
+				// happened (lost HTTP response race). Match HMC: keep intent; only an explicit
+				// chain reject clears. Clearing here double-pays on the next tick.
+				lg.Printf("sup: ERROR %s -> %s: %v %s — pending retained (no definitive reject)", wid, toAddr, sendErr, code)
+				_ = store.AppendLedger(ctx, "sup_send_failed_keep_pending", wid, pay, 0, 0, 0, 0, 0, code)
 			}
 			continue
 		}

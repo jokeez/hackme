@@ -810,7 +810,9 @@ func (a *app) handleFuzzCampaignCreate(w http.ResponseWriter, r *http.Request) {
 			writeFuzzEscrowFailed(w, err)
 			return
 		}
-		cfgMap["budget_hmc"] = req.BudgetHMC
+		// Economics v2: escrow row holds post-fee budget; pool sync/fingerprint compare
+		// against config budget_hmc — stamp the locked amount, keep customer price aside.
+		stampEscrowBudgetClaim(cfgMap, req.BudgetHMC, escrow)
 		cfgMap["escrow_split"] = escrowSplit
 		cfgMap["dig_package"] = digPkg
 		cfgMap["product_mode"] = fuzzingcli.DigProductMode(digPkg)
