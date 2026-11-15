@@ -84,13 +84,22 @@ func requireAdminAuthStrict(w http.ResponseWriter, r *http.Request) bool {
 }
 
 // desktopLoopbackAdminOK is true for same-machine desktop dashboard traffic.
-// Used so Start Worker / Mining controls keep working after restart even if the
-// browser still holds a stale sessionStorage token (common after env repair).
+// Used so Start Worker / Mining / Fund Orders keep working after restart even if
+// the browser still holds a stale sessionStorage token (common after env repair).
+//
+// When HACKME_ADMIN_TOKEN is set, empty-Origin curl is NOT enough: any local
+// process could otherwise stop/start the pool worker or Fund Orders without the
+// secret (operator-panel HTTP gap). Require a browser same-origin document
+// (Origin + Referer + Sec-Fetch-Site=same-origin), matching local-auth.
+// CLI/scripts must send the admin token header.
 func desktopLoopbackAdminOK(r *http.Request) bool {
-	return envBool("HACKME_DESKTOP_MODE", false) &&
-		requestFromLoopback(r) &&
-		requestHostIsLoopbackLiteral(r) &&
-		desktopMutatingOriginOK(r)
+	if !envBool("HACKME_DESKTOP_MODE", false) || !requestFromLoopback(r) || !requestHostIsLoopbackLiteral(r) {
+		return false
+	}
+	if adminAuthEnabled() {
+		return desktopLocalAuthBrowserDocumentOK(r)
+	}
+	return desktopMutatingOriginOK(r)
 }
 
 // requireAdminAuthOrDesktopLoopback accepts a valid admin token OR trusted desktop loopback.

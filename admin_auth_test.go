@@ -257,9 +257,32 @@ func TestRequireAdminAuthOrDesktopLoopback(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/worker/start", nil)
 	req.RemoteAddr = "127.0.0.1:9"
 	req.Host = "127.0.0.1:8080"
-	// No admin header — must still pass on desktop loopback.
+	// Bare curl (no Origin/Referer) must NOT pass when admin token is configured.
+	if requireAdminAuthOrDesktopLoopback(rec, req) {
+		t.Fatal("empty-Origin loopback without admin token must fail when token is set")
+	}
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("want 401, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	// Browser same-origin document (dashboard) may pass without repeating the header.
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/worker/start", nil)
+	req.RemoteAddr = "127.0.0.1:9"
+	req.Host = "127.0.0.1:8080"
+	req.Header.Set("Origin", "http://127.0.0.1:8080")
+	req.Header.Set("Referer", "http://127.0.0.1:8080/#wallet")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
 	if !requireAdminAuthOrDesktopLoopback(rec, req) {
-		t.Fatal("desktop loopback should allow worker start without header")
+		t.Fatal("desktop browser same-origin document should allow worker start without header")
+	}
+	// Admin header still works from any client.
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/worker/start", nil)
+	req.RemoteAddr = "127.0.0.1:9"
+	req.Host = "127.0.0.1:8080"
+	req.Header.Set("X-Hackme-Admin-Token", "desktop-secret")
+	if !requireAdminAuthOrDesktopLoopback(rec, req) {
+		t.Fatal("admin token header must allow worker start")
 	}
 	rec = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPost, "/api/worker/start", nil)
@@ -289,6 +312,30 @@ func TestRequireAdminAuthOrDesktopLoopbackUnsetTokenRemote(t *testing.T) {
 	req.Host = "127.0.0.1:8080"
 	if !requireAdminAuthOrDesktopLoopback(rec, req) {
 		t.Fatal("loopback beginner solo without token should still pass")
+	}
+}
+
+func TestDesktopLoopbackAdminOKRejectsSecFetchSiteAlone(t *testing.T) {
+	t.Setenv("HACKME_DESKTOP_MODE", "1")
+	t.Setenv("HACKME_ADMIN_TOKEN", "desktop-secret")
+	req := httptest.NewRequest(http.MethodPost, "/api/worker/stop", nil)
+	req.RemoteAddr = "127.0.0.1:9"
+	req.Host = "127.0.0.1:8080"
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	if desktopLoopbackAdminOK(req) {
+		t.Fatal("Sec-Fetch-Site alone must not authorize desktop admin actions")
+	}
+	req.Header.Set("Origin", "http://127.0.0.1:8080")
+	if desktopLoopbackAdminOK(req) {
+		t.Fatal("Origin without Referer must not authorize")
+	}
+	req.Header.Set("Referer", "http://127.0.0.1:9999/")
+	if desktopLoopbackAdminOK(req) {
+		t.Fatal("cross-port Referer must not authorize")
+	}
+	req.Header.Set("Referer", "http://127.0.0.1:8080/")
+	if !desktopLoopbackAdminOK(req) {
+		t.Fatal("full same-origin browser document should authorize")
 	}
 }
 
