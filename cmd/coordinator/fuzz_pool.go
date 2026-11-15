@@ -1035,12 +1035,13 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 					return
 				}
 				// The escrow must also cover what is being registered: work items = budget_runs, and the
-				// advertised budget must not exceed what is locked. A dust escrow under a large campaign
-				// would have miners work shards that can never be paid (fimasw, 2026-11-13).
+				// locked row must cover the claim after Economics v2 order fees (row is post-fee;
+				// clients often claim the pre-fee price — fimasw 2026-11-15).
 				claimHMC := publishBudgetHMCFromReq(req.BudgetHMC, req.Config)
-				if row.BudgetHMC+1e-9 < claimHMC || req.BudgetRuns > row.BudgetRuns {
-					http.Error(w, fmt.Sprintf("hub_escrow_required: hub escrow covers %.8f HMC / %d runs, registration claims %.8f HMC / %d runs",
-						row.BudgetHMC, row.BudgetRuns, claimHMC, req.BudgetRuns), http.StatusConflict)
+				needHMC := poolsync.EscrowBudgetCoveringClaim(claimHMC, 0)
+				if row.BudgetHMC+1e-9 < needHMC || req.BudgetRuns > row.BudgetRuns {
+					http.Error(w, fmt.Sprintf("hub_escrow_required: hub escrow covers %.8f HMC / %d runs, registration claims %.8f HMC / %d runs (need >= %.8f after order fee)",
+						row.BudgetHMC, row.BudgetRuns, claimHMC, req.BudgetRuns, needHMC), http.StatusConflict)
 					return
 				}
 			}
