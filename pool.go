@@ -1709,7 +1709,9 @@ func (a *app) handleNetworkStats(w http.ResponseWriter, r *http.Request) {
 	}
 	if base := a.coordinatorBaseURL(); base != "" && r.Header.Get(coordinatorForwardHeader) != "1" {
 		if s, err := fetchCoordinatorStats(r.Context(), base); err == nil {
-			if !adminRequestAuthed(r) {
+			// Privileged view only with a configured token that matches (never fail-open
+			// when HACKME_ADMIN_TOKEN is unset — HACKME-2026-ADMIN-FAILOPEN-01).
+			if !(adminAuthEnabled() && adminRequestAuthed(r)) {
 				s = lanpool.RedactPublicNetworkStats(s)
 			}
 			writeJSON(w, s)
@@ -1718,7 +1720,7 @@ func (a *app) handleNetworkStats(w http.ResponseWriter, r *http.Request) {
 		log.Printf("network/stats coordinator fallback -> local aggregate")
 	}
 	resp := networkStatsForApp(a)
-	if !adminRequestAuthed(r) {
+	if !(adminAuthEnabled() && adminRequestAuthed(r)) {
 		resp = lanpool.RedactPublicNetworkStats(resp)
 	}
 	writeJSON(w, resp)
