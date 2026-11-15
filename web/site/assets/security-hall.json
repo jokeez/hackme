@@ -547,7 +547,7 @@
           "paid_hmc": 20,
           "date": "2026-11-02",
           "pr": 57,
-          "note": "Prove bound to active lease_owner; clear on release/re-lease"
+          "note": "Prove bound to active lease_owner; clear on release/re-lease. Listed 20 HMC; on-chain payout not confirmed — researcher total_paid_hmc is 185 (sum of the other five findings), not 205."
         },
         {
           "title": "SSRF egress gaps (POST curl + settlement canonical)",
