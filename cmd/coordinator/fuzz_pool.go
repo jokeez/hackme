@@ -824,7 +824,11 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 						hubTok = t
 					}
 				}
-				if err := poolsync.VerifyHubPrepaidEscrowLive(r.Context(), hubBase, hubTok, camp, req.BudgetHMC, req.BudgetRuns, fp); err != nil {
+				tipH := uint64(0)
+				if wm != nil {
+					tipH = wm.escrowFeeTipHeight()
+				}
+				if err := poolsync.VerifyHubPrepaidEscrowLiveAt(r.Context(), hubBase, hubTok, camp, req.BudgetHMC, req.BudgetRuns, fp, tipH); err != nil {
 					http.Error(w, "hub escrow required before prepaid mint: "+err.Error()+
 						" (open escrow on hub ledger, or set HACKME_ORDERS_PREPAID_ALLOW_ALGEBRAIC_MINT=1 break-glass)", http.StatusConflict)
 					return
@@ -971,7 +975,11 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 						hubTok = t
 					}
 				}
-				if err := poolsync.VerifyHubPrepaidEscrowLive(r.Context(), hubBase, hubTok, req.ID, verifiedBudgetHMC, req.BudgetRuns, escrowFP); err != nil {
+				tipH := uint64(0)
+				if wm != nil {
+					tipH = wm.escrowFeeTipHeight()
+				}
+				if err := poolsync.VerifyHubPrepaidEscrowLiveAt(r.Context(), hubBase, hubTok, req.ID, verifiedBudgetHMC, req.BudgetRuns, escrowFP, tipH); err != nil {
 					http.Error(w, "hub escrow required for hub prepaid ticket: "+err.Error()+
 						" (open escrow on hub ledger, or set HACKME_ORDERS_PREPAID_ALLOW_ALGEBRAIC_MINT=1 break-glass)", http.StatusConflict)
 					return
@@ -1038,7 +1046,11 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				// locked row must cover the claim after Economics v2 order fees (row is post-fee;
 				// clients often claim the pre-fee price — fimasw 2026-11-15).
 				claimHMC := publishBudgetHMCFromReq(req.BudgetHMC, req.Config)
-				needHMC := poolsync.EscrowBudgetCoveringClaim(claimHMC, 0)
+				tipH := uint64(0)
+				if wm != nil {
+					tipH = wm.escrowFeeTipHeight()
+				}
+				needHMC := poolsync.EscrowBudgetCoveringClaim(claimHMC, tipH)
 				if row.BudgetHMC+1e-9 < needHMC || req.BudgetRuns > row.BudgetRuns {
 					http.Error(w, fmt.Sprintf("hub_escrow_required: hub escrow covers %.8f HMC / %d runs, registration claims %.8f HMC / %d runs (need >= %.8f after order fee)",
 						row.BudgetHMC, row.BudgetRuns, claimHMC, req.BudgetRuns, needHMC), http.StatusConflict)

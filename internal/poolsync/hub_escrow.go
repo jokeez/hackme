@@ -90,28 +90,27 @@ func FetchHubFuzzEscrow(ctx context.Context, baseURL, adminToken, campaignID str
 // EscrowBudgetCoveringClaim is the minimum open-escrow BudgetHMC that backs a prepaid
 // claim. Under Economics v2 the escrow row holds the post-fee lock while clients often
 // claim the customer price; comparing row < price always rejects legitimate v2 escrows.
-// tipHeight is the hub tip used for fee eras; tipHeight==0 uses the compiled activation
-// height so post-fork coverage still accepts price claims without a tip probe.
+// tipHeight is the hub tip used for fee eras. tipHeight==0 means tip unknown: require the
+// full claim (pre-v2 / conservative). Callers with a live tip must pass it so post-fork
+// price claims match the post-fee row (do not invent activation height — that under-covered
+// campaigns for ~10% before block 550000).
 func EscrowBudgetCoveringClaim(claimHMC float64, tipHeight uint64) float64 {
 	if claimHMC <= 0 {
 		return 0
 	}
-	tip := tipHeight
-	if tip == 0 {
-		tip = chain.EconomicsV2ActivationHeight()
-	}
-	if !chain.EconomicsV2ActiveForIndex(tip + 1) {
+	if tipHeight == 0 || !chain.EconomicsV2ActiveForIndex(tipHeight+1) {
 		return claimHMC
 	}
 	priceUnits := chain.HMCToUnits(claimHMC)
 	if priceUnits == 0 {
 		return claimHMC
 	}
-	_, rem := chain.OrderFeeV2FromPrice(tip, priceUnits, chain.FeeAssetHMC)
+	_, rem := chain.OrderFeeV2FromPrice(tipHeight, priceUnits, chain.FeeAssetHMC)
 	return chain.UnitsToHMC(rem)
 }
 
 // MatchOpenHubEscrowForPrepaid checks an open hub escrow covers the claimed prepaid budget.
+// Prefer MatchOpenHubEscrowForPrepaidAt with a live tip after Economics v2.
 func MatchOpenHubEscrowForPrepaid(row *chain.FuzzEscrowRow, campaignID string, budgetHMC float64, budgetRuns int, wantFP string) error {
 	return MatchOpenHubEscrowForPrepaidAt(row, campaignID, budgetHMC, budgetRuns, wantFP, 0)
 }
@@ -157,6 +156,12 @@ func MatchOpenHubEscrowForPrepaidAt(row *chain.FuzzEscrowRow, campaignID string,
 // VerifyHubPrepaidEscrowLive fetches hub escrow and matches the prepaid claim.
 // When algebraic break-glass is on, skips the RPC (returns nil).
 func VerifyHubPrepaidEscrowLive(ctx context.Context, baseURL, adminToken, campaignID string, budgetHMC float64, budgetRuns int, wantFP string) error {
+	return VerifyHubPrepaidEscrowLiveAt(ctx, baseURL, adminToken, campaignID, budgetHMC, budgetRuns, wantFP, 0)
+}
+
+// VerifyHubPrepaidEscrowLiveAt is VerifyHubPrepaidEscrowLive with an explicit hub tip for
+// Economics v2 fee math (pass workManager tip; 0 = conservative full-claim coverage).
+func VerifyHubPrepaidEscrowLiveAt(ctx context.Context, baseURL, adminToken, campaignID string, budgetHMC float64, budgetRuns int, wantFP string, tipHeight uint64) error {
 	if PrepaidAlgebraicMintAllowed() {
 		return nil
 	}
@@ -164,5 +169,5 @@ func VerifyHubPrepaidEscrowLive(ctx context.Context, baseURL, adminToken, campai
 	if err != nil {
 		return err
 	}
-	return MatchOpenHubEscrowForPrepaid(row, campaignID, budgetHMC, budgetRuns, wantFP)
+	return MatchOpenHubEscrowForPrepaidAt(row, campaignID, budgetHMC, budgetRuns, wantFP, tipHeight)
 }

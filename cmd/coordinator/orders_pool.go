@@ -145,6 +145,22 @@ func nodeProbeBaseURL(m *workManager) string {
 	return base
 }
 
+// escrowFeeTipHeight is the tip used for Economics v2 prepaid/admin escrow coverage.
+// Prefers the cached PoH tip; falls back to a live node probe so tipHeight==0 does not
+// under-cover pre-fork (or invent activation height).
+func (m *workManager) escrowFeeTipHeight() uint64 {
+	if m == nil {
+		return 0
+	}
+	if m.tipHeight > 0 {
+		return m.tipHeight
+	}
+	if h, ok := m.liveCanonicalTipHeightFromNode(); ok {
+		return h
+	}
+	return 0
+}
+
 // liveCanonicalTipHeightFromNode returns canonical chain tip height from the linked hackme-node.
 func (m *workManager) liveCanonicalTipHeightFromNode() (uint64, bool) {
 	base := nodeProbeBaseURL(m)

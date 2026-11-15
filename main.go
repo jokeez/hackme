@@ -1932,7 +1932,7 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 		out["balance_on_chain_hmc"] = bal
 		out["balance_on_chain_units"] = balanceUnits
 	}
-	if adminRequestAuthed(r) {
+	if adminAuthEnabled() && adminRequestAuthed(r) {
 		if strings.TrimSpace(a.dataDir) != "" {
 			out["data_directory"] = a.dataDir
 		}
