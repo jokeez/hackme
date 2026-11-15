@@ -14,9 +14,9 @@
     "note": "Pre-fork hardening month: the November cap was raised from 200 to 1000 HMC to close findings before Economics v2 (block 550,000)."
   },
   "stats": {
-    "total_paid_hmc": 1866,
+    "total_paid_hmc": 1944,
     "researchers": 6,
-    "reports_accepted": 51
+    "reports_accepted": 53
   },
   "researchers": [
     {
@@ -94,8 +94,30 @@
       "id": "fimasw",
       "name": "fimasw",
       "handle": "fimasw",
-      "total_paid_hmc": 796,
+      "total_paid_hmc": 874,
       "findings": [
+        {
+          "title": "Economics v2 prepaid coverage gates compare post-fee escrow vs pre-fee price (mint-ticket + admin-register)",
+          "severity": "high",
+          "paid_hmc": 70,
+          "date": "2026-11-15",
+          "reported": "2026-11-15",
+          "commit": "e8707bbd",
+          "txid": "fad3e1d0e173bd3ceebd40908ddbdcffc1a8292ee1de0d86647c429b44e746e8",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "High: 6a1bd87 stamped config for pool-sync but mint-ticket MatchOpenHubEscrowForPrepaid and admin-register still compared row.BudgetHMC (post-fee) against the customer price claim \u2192 DoS + fee-gap stranding at block 550000. Fixed EscrowBudgetCoveringClaim / MatchOpenHubEscrowForPrepaidAt (need = OrderFeeV2 rem) + admin gate. Paid 70 HMC \u2192 HMC-a6d09759a4c12019 tx fad3e1d0\u2026 @549620. PR #96 / e8707bbd."
+        },
+        {
+          "title": "network/stats redacts only when adminRequestAuthed (fail-open if HACKME_ADMIN_TOKEN unset)",
+          "severity": "low",
+          "paid_hmc": 8,
+          "date": "2026-11-15",
+          "reported": "2026-11-15",
+          "commit": "e8707bbd",
+          "txid": "e42bca644406c0b4d0f6eb3ab29db77568092f8c26e28a608a6d292faaf9e370",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Low: handleNetworkStats used !adminRequestAuthed alone; when token unset adminRequestAuthed is true so TopMiners/IPs were not redacted (HACKME-2026-ADMIN-FAILOPEN-01). Fixed: redact unless adminAuthEnabled() && adminRequestAuthed(r). Paid 8 HMC \u2192 HMC-a6d09759a4c12019 tx e42bca64\u2026 @549621. PR #96 / e8707bbd."
+        },
         {
           "title": "WASM pre-parser skips memory min-pages (HACKME-2026-WASM-MEM-01)",
           "severity": "low",
