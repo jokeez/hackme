@@ -14,7 +14,7 @@
     "note": "Pre-fork hardening month: the November cap was raised from 200 to 1000 HMC to close findings before Economics v2 (block 550,000)."
   },
   "stats": {
-    "total_paid_hmc": 1586,
+    "total_paid_hmc": 1866,
     "researchers": 6,
     "reports_accepted": 51
   },
@@ -23,43 +23,51 @@
       "id": "dickymuliafiqri",
       "name": "Dicky Mulia Fiqri",
       "handle": "Dicky Mulia Fiqri",
-      "total_paid_hmc": 0,
+      "total_paid_hmc": 280,
       "findings": [
         {
           "title": "SUP settlement clears pending on empty response + unchanged nonce + empty mempool \u2192 double pay",
           "severity": "high",
-          "paid_hmc": 0,
+          "paid_hmc": 80,
           "date": "2026-11-15",
           "reported": "2026-11-14",
           "commit": "6a1bd87d",
-          "note": "High: RunSUP ClearPendingSUP when send body empty/lost, payer nonce unmoved, and mempool lookup empty. That triple is not proof the transfer never happened; next tick re-accrues and pays again. HMC settler already kept intent on the same class. Fixed: keep pending; recover empty-hash when nonce advances. Reward 80 HMC \u2014 payout pending reporter HMC- address. Active payout lane at Economics v2 height 550000."
+          "txid": "a86af14662741a008d58cee1f3db4acb0544fab0c51462022e4f34633afb1c58",
+          "payout_address": "HMC-e74c34f14d0960bd",
+          "note": "High: RunSUP ClearPendingSUP when send body empty/lost, payer nonce unmoved, and mempool lookup empty. That triple is not proof the transfer never happened; next tick re-accrues and pays again. HMC settler already kept intent on the same class. Fixed: keep pending; recover empty-hash when nonce advances. Paid 80 HMC \u2192 HMC-e74c34f14d0960bd tx a86af146\u2026 @549578. Active payout lane at Economics v2 height 550000."
         },
         {
           "title": "Pool-fuzz deferred bounty flush + recomputeProgress ignore admin cancel",
           "severity": "high",
-          "paid_hmc": 0,
+          "paid_hmc": 60,
           "date": "2026-11-15",
           "reported": "2026-11-14",
           "commit": "6a1bd87d",
-          "note": "High: flushDeferredBounties paid repro-passed findings without campaignAcceptsSettle; recomputeProgress resurrected cancelled\u2192completed on late worker retry, re-opening the settle gate and draining prepaid escrow. Fixed: gate deferred flush; preserve cancelled in recomputeProgress. Reward 60 HMC \u2014 payout pending reporter HMC- address."
+          "txid": "2e61e73c268ef9d825f95adb2fca1ed6dcd80ff60c1c9b66c0650ccebca30ea0",
+          "payout_address": "HMC-e74c34f14d0960bd",
+          "note": "High: flushDeferredBounties paid repro-passed findings without campaignAcceptsSettle; recomputeProgress resurrected cancelled\u2192completed on late worker retry, re-opening the settle gate and draining prepaid escrow. Fixed: gate deferred flush; preserve cancelled in recomputeProgress. Paid 60 HMC \u2192 HMC-e74c34f14d0960bd tx 2e61e73c\u2026 @549579."
         },
         {
           "title": "Economics v2 Dig/Hunt create stamps full price as budget_hmc vs post-fee escrow \u2192 pool sync strands escrow",
           "severity": "high",
-          "paid_hmc": 0,
+          "paid_hmc": 80,
           "date": "2026-11-15",
           "reported": "2026-11-15",
           "commit": "6a1bd87d",
-          "note": "High: OpenFuzzEscrowWithFee books post-fee budget (e.g. 18 HMC of 20); Dig/Hunt create wrote customer price into config budget_hmc; async pool sync refuses \"escrow budget/runs below publish claim\" with no rollback/refund. Arms at compiled activation height 550000. Fixed: stampEscrowBudgetClaim writes escrow.BudgetHMC as budget_hmc and keeps budget_hmc_price. Reward 80 HMC \u2014 payout pending reporter HMC- address. Hub deploy after fork."
+          "txid": "427f10545ee9538b4acc8ad01a7ec543997b0e450b35f12f4cc77c840d7d9eac",
+          "payout_address": "HMC-e74c34f14d0960bd",
+          "note": "High: OpenFuzzEscrowWithFee books post-fee budget (e.g. 18 HMC of 20); Dig/Hunt create wrote customer price into config budget_hmc; async pool sync refuses \"escrow budget/runs below publish claim\" with no rollback/refund. Arms at compiled activation height 550000. Fixed: stampEscrowBudgetClaim writes escrow.BudgetHMC as budget_hmc and keeps budget_hmc_price. Paid 80 HMC \u2192 HMC-e74c34f14d0960bd tx 427f1054\u2026 @549580. Hub deploy after fork."
         },
         {
           "title": "Hunt coverage-engine re-harvests stale crash artifacts \u2192 CLEAN shards get full PayRun",
           "severity": "high",
-          "paid_hmc": 0,
+          "paid_hmc": 60,
           "date": "2026-11-15",
           "reported": "2026-11-14",
           "commit": "95761fde",
-          "note": "High: .hunt-run/crashes never cleared between LF walls; collectCrashArtifacts listed all files; collectEngineDelta deduped seeds only. Coordinator ASAN-replay credited hunt_proven_crashes on the current lease \u2192 DecideHuntEnginePay full PayRun (10\u00d7 floor). Honest worker flow + deliberate re-upload. Fixed: resetHuntSessionCrashDir per wall, crash content-dedupe, campaign-novel crash pay credit only (PR #94). Reward 60 HMC confirmed \u2014 payout pending reporter HMC- address. Hub deploy after Economics v2 fork."
+          "txid": "936e93229cbb36d9b8d6925b599bd621da664bbd47da372a99572d6b55f5ace1",
+          "payout_address": "HMC-e74c34f14d0960bd",
+          "note": "High: .hunt-run/crashes never cleared between LF walls; collectCrashArtifacts listed all files; collectEngineDelta deduped seeds only. Coordinator ASAN-replay credited hunt_proven_crashes on the current lease \u2192 DecideHuntEnginePay full PayRun (10\u00d7 floor). Honest worker flow + deliberate re-upload. Fixed: resetHuntSessionCrashDir per wall, crash content-dedupe, campaign-novel crash pay credit only (PR #94). Paid 60 HMC \u2192 HMC-e74c34f14d0960bd tx 936e9322\u2026 @549581. Hub deploy after Economics v2 fork."
         }
       ]
     },
