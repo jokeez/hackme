@@ -81,6 +81,20 @@ func TestAdminRegisterRequiresHubEscrowOnMintingHub(t *testing.T) {
 		t.Fatalf("open hub escrow must register, got 409 %s", rec.Body.String())
 	}
 
+	// UPSERT must not raise budget_runs past the open hub escrow.
+	rawUp, _ := json.Marshal(map[string]any{
+		"id": "camp-hub-funded", "campaign_type": "hunt", "budget_runs": 64, "budget_hmc": 5.0,
+		"config": map[string]any{"campaign_type": "hunt", "work_kind": "hunt_shard", "upstream_target_id": "jsmn"},
+	})
+	upReq := httptest.NewRequest(http.MethodPost, "/api/fuzz/pool/campaigns", bytes.NewReader(rawUp))
+	upReq.Header.Set("Content-Type", "application/json")
+	upReq.Header.Set("X-Hackme-Admin-Token", "admin-tok")
+	upRec := httptest.NewRecorder()
+	mux.ServeHTTP(upRec, upReq)
+	if upRec.Code != http.StatusConflict || !strings.Contains(upRec.Body.String(), "covers") {
+		t.Fatalf("admin UPSERT raising budget_runs must 409, got %d %s", upRec.Code, upRec.Body.String())
+	}
+
 	// Not a minting hub (lab / local Orders node): admin registration is unchanged.
 	t.Setenv("HACKME_CHAIN_MINTING_HUB", "")
 	t.Setenv("HACKME_ORDERS_PREPAID_HUB_SECRET", "")

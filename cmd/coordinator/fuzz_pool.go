@@ -1018,44 +1018,39 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		// ~34k+ shards "paid" with no HMC reaching miners). The publish path already
 		// requires a live hub escrow; the admin path used to skip it.
 		if isAdmin && poolsync.RequireHubPrepaidTicket() && !poolsync.PrepaidAlgebraicMintAllowed() {
-			exists, eerr := pf.CampaignExists(r.Context(), req.ID)
-			if eerr != nil {
-				http.Error(w, eerr.Error(), http.StatusInternalServerError)
+			// Always re-check on create *and* UPSERT: an existing campaign must not
+			// raise budget_runs / budget_hmc past the open hub escrow (admin-only path).
+			hubBase := poolsync.HubEscrowProbeURL("")
+			hubTok := adminToken
+			if wm != nil {
+				hubBase = poolsync.HubEscrowProbeURL(wm.ordersProbeURL)
+				if t := wm.ordersAdminToken(); t != "" {
+					hubTok = t
+				}
+			}
+			row, ferr := poolsync.FetchHubFuzzEscrow(r.Context(), hubBase, hubTok, req.ID)
+			if ferr != nil || row == nil || !strings.EqualFold(strings.TrimSpace(row.Status), "open") {
+				msg := "no open escrow"
+				if ferr != nil {
+					msg = ferr.Error()
+				}
+				http.Error(w, "hub_escrow_required: pool campaigns must be backed by an open escrow on the hub ledger ("+msg+
+					"); escrows on other nodes do not pay miners on chain", http.StatusConflict)
 				return
 			}
-			if !exists {
-				hubBase := poolsync.HubEscrowProbeURL("")
-				hubTok := adminToken
-				if wm != nil {
-					hubBase = poolsync.HubEscrowProbeURL(wm.ordersProbeURL)
-					if t := wm.ordersAdminToken(); t != "" {
-						hubTok = t
-					}
-				}
-				row, ferr := poolsync.FetchHubFuzzEscrow(r.Context(), hubBase, hubTok, req.ID)
-				if ferr != nil || row == nil || !strings.EqualFold(strings.TrimSpace(row.Status), "open") {
-					msg := "no open escrow"
-					if ferr != nil {
-						msg = ferr.Error()
-					}
-					http.Error(w, "hub_escrow_required: pool campaigns must be backed by an open escrow on the hub ledger ("+msg+
-						"); escrows on other nodes do not pay miners on chain", http.StatusConflict)
-					return
-				}
-				// The escrow must also cover what is being registered: work items = budget_runs, and the
-				// locked row must cover the claim after Economics v2 order fees (row is post-fee;
-				// clients often claim the pre-fee price — fimasw 2026-11-15).
-				claimHMC := publishBudgetHMCFromReq(req.BudgetHMC, req.Config)
-				tipH := uint64(0)
-				if wm != nil {
-					tipH = wm.escrowFeeTipHeight()
-				}
-				needHMC := poolsync.EscrowBudgetCoveringClaim(claimHMC, tipH)
-				if row.BudgetHMC+1e-9 < needHMC || req.BudgetRuns > row.BudgetRuns {
-					http.Error(w, fmt.Sprintf("hub_escrow_required: hub escrow covers %.8f HMC / %d runs, registration claims %.8f HMC / %d runs (need >= %.8f after order fee)",
-						row.BudgetHMC, row.BudgetRuns, claimHMC, req.BudgetRuns, needHMC), http.StatusConflict)
-					return
-				}
+			// The escrow must also cover what is being registered: work items = budget_runs, and the
+			// locked row must cover the claim after Economics v2 order fees (row is post-fee;
+			// clients often claim the pre-fee price — fimasw 2026-11-15).
+			claimHMC := publishBudgetHMCFromReq(req.BudgetHMC, req.Config)
+			tipH := uint64(0)
+			if wm != nil {
+				tipH = wm.escrowFeeTipHeight()
+			}
+			needHMC := poolsync.EscrowBudgetCoveringClaim(claimHMC, tipH)
+			if row.BudgetHMC+1e-9 < needHMC || req.BudgetRuns > row.BudgetRuns {
+				http.Error(w, fmt.Sprintf("hub_escrow_required: hub escrow covers %.8f HMC / %d runs, registration claims %.8f HMC / %d runs (need >= %.8f after order fee)",
+					row.BudgetHMC, row.BudgetRuns, claimHMC, req.BudgetRuns, needHMC), http.StatusConflict)
+				return
 			}
 		}
 		// Dig (non-Hunt) campaigns get the same depth pack/mutator/seed finalize as local B2B.
@@ -1862,9 +1857,10 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				results = append(results, row)
 				continue
 			}
+			// Mirror single /submit: adopt durable payout lock after accepted work.
 			if payoutAddr != "" {
+				wm.adoptFuzzPayoutLock(workerID, payoutAddr)
 				wm.commitFuzzHybridNonce(payoutAddr, it.SubmitNonce)
-				wm.touchWorkerSeen(workerID)
 			} else {
 				wm.touchWorkerSeen(workerID)
 			}
@@ -2098,14 +2094,17 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		// Workers + admin: full fetch. Orders publish: HEAD for probe/verify; GET body
-		// requires content attestation (HUNT-02 — shared publish token must not exfil
-		// proprietary binaries by harness_hash alone).
+		// Workers + admin: full fetch. Orders publish: HEAD is forbidden; GET body
+		// requires content attestation (HUNT-02).
 		workOK := coordinatorWorkPOSTAuthed(r, adminToken, workerToken, allowInsecure)
 		pubOK := !workOK && coordPublishOK(r, publishToken)
 		if !workOK && !pubOK {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="hackme-coordinator"`)
 			http.Error(w, "coordinator authentication required", http.StatusUnauthorized)
+			return
+		}
+		if pubOK && r.Method == http.MethodHead {
+			http.Error(w, "orders publish harness metadata access forbidden", http.StatusForbidden)
 			return
 		}
 		hash := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/fuzz/pool/hunt/harness/"), "/")

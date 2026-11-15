@@ -282,17 +282,14 @@ func TestOrdersPublishTokenMayUploadHarness(t *testing.T) {
 		t.Fatalf("publish GET without content sha want 403, got %d %s", recBare.Code, recBare.Body.String())
 	}
 
-	// HEAD probe still allowed for attach/existence (returns content sha header).
+	// HUNT-02: publish HEAD must not leak harness metadata (size/etag/content sha).
 	headReq := httptest.NewRequest(http.MethodHead, "/api/fuzz/pool/hunt/harness/"+hash, nil)
 	headReq.Header.Set("X-Hackme-Admin-Token", "publish-tok")
 	headReq.RemoteAddr = "203.0.113.50:9"
 	recHead := httptest.NewRecorder()
 	mux.ServeHTTP(recHead, headReq)
-	if recHead.Code != http.StatusOK {
-		t.Fatalf("publish HEAD want 200, got %d", recHead.Code)
-	}
-	if got := strings.TrimSpace(recHead.Header().Get("X-Hackme-Content-SHA256")); got != fp {
-		t.Fatalf("publish HEAD content sha=%q want %q", got, fp)
+	if recHead.Code != http.StatusForbidden {
+		t.Fatalf("publish HEAD want 403, got %d", recHead.Code)
 	}
 
 	getOK := httptest.NewRequest(http.MethodGet, "/api/fuzz/pool/hunt/harness/"+hash, nil)
