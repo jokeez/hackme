@@ -251,6 +251,9 @@ func (a *app) cacheCanonicalTip(hasGenesis bool, height uint64, tipHash string) 
 	a.canonTipHeight = height
 	a.canonTipHash = strings.TrimSpace(tipHash)
 	a.canonMu.Unlock()
+	if a.chain != nil && height > 0 {
+		a.chain.SetNetworkTipHeight(height)
+	}
 }
 
 func (a *app) readCanonicalTipCache() (bool, uint64, string, bool) {

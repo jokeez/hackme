@@ -13,8 +13,8 @@ import (
 // Do not read overrides from env; changing values requires a coordinated lane upgrade
 // and a new market_policy_hash (see TestMarketPolicyMatchesChainKernel).
 const (
-	MarketPlatformFeeRate = 0.05 // align chain.OrderPlatformFeeRate
-	MarketBurnRate        = 0.10 // align chain.OrderBurnRate
+	MarketPlatformFeeRate = 0.05 // align chain.OrderPlatformFeeRate / V2OrderPlatformFeeRate
+	MarketBurnRate        = 0.05 // align chain.V2OrderBurnRate (Economics v2 era-0 Dig/Hunt)
 	MarketMinPrepaidHMC   = 0.01
 	// StorageHMCPerGBMonth is the storage pool accrual price (GB × month fraction).
 	StorageHMCPerGBMonth       = 0.002

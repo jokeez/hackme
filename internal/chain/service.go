@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"hackme/internal/block"
@@ -27,6 +28,53 @@ type Service struct {
 	db           *sql.DB
 	artifactRoot string // wasm_artifact_path resolves under here (see DefaultArtifactRoot)
 	signer       *nodecrypto.Signer
+	// networkTip is the last known canonical / display tip (followers often have local tip 0).
+	// Used for Economics v2 fee eras when opening Dig/Hunt/order escrow so tipHeight=0 does not skip v2 fees.
+	networkTip atomic.Uint64
+}
+
+// SetNetworkTipHeight records the canonical tip for fee-era selection on pool followers / desktop.
+// Safe to call from status/wallet overlay paths; never regresses a higher tip.
+func (s *Service) SetNetworkTipHeight(h uint64) {
+	if s == nil || h == 0 {
+		return
+	}
+	for {
+		cur := s.networkTip.Load()
+		if h <= cur {
+			return
+		}
+		if s.networkTip.CompareAndSwap(cur, h) {
+			return
+		}
+	}
+}
+
+// localTipHeight reads MAX(block_index) from SQLite (0 when empty / follower without blocks).
+func (s *Service) localTipHeight(ctx context.Context) uint64 {
+	if s == nil || s.db == nil {
+		return 0
+	}
+	var maxIdx sql.NullInt64
+	if err := s.db.QueryRowContext(ctx, `SELECT MAX(block_index) FROM blocks`).Scan(&maxIdx); err != nil || !maxIdx.Valid || maxIdx.Int64 < 0 {
+		return 0
+	}
+	return uint64(maxIdx.Int64)
+}
+
+// FeeEraTipHeight is the tip used for Economics v2 burn/platform fee selection.
+// Prefers the higher of local ledger tip and SetNetworkTipHeight (canonical) so desktop
+// followers with tip_height=0 still apply post-activation Dig/Hunt fees.
+func (s *Service) FeeEraTipHeight(ctx context.Context) uint64 {
+	if s == nil {
+		return 0
+	}
+	local := s.localTipHeight(ctx)
+	net := s.networkTip.Load()
+	if local >= net {
+		return local
+	}
+	return net
 }
 
 const (
@@ -143,11 +191,7 @@ func (s *Service) Economics(ctx context.Context) (EconomicsSnapshot, error) {
 	if remain < 0 {
 		remain = 0
 	}
-	tipH := uint64(0)
-	var maxIdx sql.NullInt64
-	if err := s.db.QueryRowContext(ctx, `SELECT MAX(block_index) FROM blocks`).Scan(&maxIdx); err == nil && maxIdx.Valid && maxIdx.Int64 >= 0 {
-		tipH = uint64(maxIdx.Int64)
-	}
+	tipH := s.FeeEraTipHeight(ctx)
 	maxSupply := MaxSupplyHMC
 	mintRemain := remain
 	// Economics v2: no hard-cap fiction in the live snapshot (RFC §3.1).

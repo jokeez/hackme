@@ -2567,10 +2567,12 @@ func (a *app) overlayCanonicalMiningIntoSnapshot(ctx context.Context, s *Metrics
 	if a == nil || s == nil {
 		return false
 	}
-	if a.miner.Running() {
+	// Desktop followers may keep a local miner warm while ledger tip stays empty — still overlay.
+	if a.miner.Running() && !envBool("HACKME_DESKTOP_MODE", false) {
 		return false
 	}
 	wantOverlay := a.workerProcessRunning() ||
+		envBool("HACKME_DESKTOP_MODE", false) ||
 		coordinatorBaseURLFromEnvAndPeers() != "" ||
 		strings.TrimSpace(os.Getenv("HACKME_CANONICAL_CHAIN_URL")) != "" ||
 		canonicalPeerBaseURLFromEnv() != ""
@@ -2736,6 +2738,53 @@ func (a *app) overlayCanonicalMiningIntoSnapshot(ctx context.Context, s *Metrics
 	}
 	if s.EconWindowSec <= 0 {
 		s.EconWindowSec = 3600
+	}
+	// Overlay supply/burn counters + order burn rate from canonical metrics when present
+	// (local follower SQLite often still shows genesis-era tallies).
+	if v, ok := remote["econ_total_burned_hmc"]; ok {
+		if f := asFloat64(v); f >= 0 {
+			s.EconBurnedHMC = f
+			out = true
+		}
+	}
+	if v, ok := remote["econ_total_minted_hmc"]; ok {
+		if f := asFloat64(v); f >= 0 {
+			s.EconMintedHMC = f
+			out = true
+		}
+	}
+	if v, ok := remote["econ_circulating_hmc"]; ok {
+		if f := asFloat64(v); f >= 0 {
+			s.EconCirculating = f
+			out = true
+		}
+	}
+	if v, ok := remote["econ_mint_remaining_hmc"]; ok {
+		if f := asFloat64(v); f >= 0 {
+			s.EconMintRemaining = f
+			out = true
+		}
+	}
+	if v, ok := remote["econ_max_supply_hmc"]; ok {
+		if f := asFloat64(v); f >= 0 {
+			s.EconMaxSupplyHMC = f
+			out = true
+		}
+	}
+	if v, ok := remote["econ_order_burn_rate"]; ok {
+		if f := asFloat64(v); f > 0 {
+			s.EconOrderBurnRate = f
+			out = true
+		}
+	}
+	if s.EconMintedHMC > 0 || s.EconBurnedHMC > 0 {
+		s.EconBurnImpactPct = chain.BurnImpactPct(chain.EconomicsSnapshot{
+			TotalMinted: s.EconMintedHMC,
+			TotalBurned: s.EconBurnedHMC,
+		})
+	}
+	if th := s.TipHeight; th > 0 && a.chain != nil {
+		a.chain.SetNetworkTipHeight(th)
 	}
 	return out
 }

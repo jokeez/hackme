@@ -4,10 +4,10 @@ import (
 	"testing"
 )
 
-// Locked alignment with internal/chain.OrderPlatformFeeRate and OrderBurnRate (kernel sheet).
+// Locked alignment with Dig/Hunt Economics v2 era-0 rates (kernel sheet).
 const (
 	chainOrderPlatformFeeRate = 0.05
-	chainOrderBurnRate        = 0.10
+	chainOrderBurnRate        = 0.05 // V2OrderBurnRate; legacy pre-v2 OrderBurnRate was 0.10
 )
 
 func TestMarketPolicyMatchesChainKernel(t *testing.T) {

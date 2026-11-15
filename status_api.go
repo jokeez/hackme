@@ -133,7 +133,6 @@ func (a *app) buildStatusLite(ctx context.Context) map[string]any {
 	if tipStale {
 		body["tip_read_stale"] = true
 	}
-	body["economics_v2"] = economicsV2StatusPayload(h)
 	a.applyFollowerCanonicalTipSnapshot(ctx, body, 700*time.Millisecond)
 	if ct := asUint64(body["canonical_tip_height"]); ct > 0 && has {
 		lag := int64(ct) - int64(h)
@@ -146,6 +145,11 @@ func (a *app) buildStatusLite(ctx context.Context) map[string]any {
 		}
 	}
 	applyDisplayTipHeight(body)
+	// Use display tip (canonical on followers) so economics_v2.active_at_tip is not stuck false at local tip 0.
+	body["economics_v2"] = economicsV2StatusPayload(asUint64(body["display_tip_height"]))
+	if ct := asUint64(body["canonical_tip_height"]); ct > 0 && a.chain != nil {
+		a.chain.SetNetworkTipHeight(ct)
+	}
 	if canonBase != "" {
 		body["canonical_chain_base_url"] = canonBase
 	}
@@ -246,13 +250,15 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 	if tipStale {
 		statusBody["tip_read_stale"] = true
 	}
-	statusBody["economics_v2"] = economicsV2StatusPayload(h)
-	if networkModeActive && !a.miner.Running() {
+	// Desktop pool followers often mine via local miner while SQLite tip stays 0 — still overlay canonical tip.
+	if networkModeActive && (!a.miner.Running() || envBool("HACKME_DESKTOP_MODE", false)) {
 		a.applyFollowerCanonicalTipSnapshot(statusCtx, statusBody, 900*time.Millisecond)
 	}
 	a.mergeCanonicalEconomicsIntoStatus(statusCtx, statusBody)
-	if !a.miner.Running() && !networkModeActive {
-		a.applyCanonicalChainTipToStatusMap(statusCtx, statusBody)
+	if (!a.miner.Running() && !networkModeActive) || (envBool("HACKME_DESKTOP_MODE", false) && networkModeActive) {
+		if !networkModeActive {
+			a.applyCanonicalChainTipToStatusMap(statusCtx, statusBody)
+		}
 		if ct := asUint64(statusBody["canonical_tip_height"]); ct > 0 && strings.TrimSpace(asString(statusBody["canonical_tip_hash"])) != "" {
 			hasG, _ := statusBody["canonical_tip_has_genesis"].(bool)
 			a.cacheCanonicalTip(hasG, ct, asString(statusBody["canonical_tip_hash"]))
@@ -371,6 +377,10 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 		a.warmWorkStatsCacheAsync(coord, false)
 	}
 	applyDisplayTipHeight(statusBody)
+	statusBody["economics_v2"] = economicsV2StatusPayload(asUint64(statusBody["display_tip_height"]))
+	if ct := asUint64(statusBody["canonical_tip_height"]); ct > 0 && a.chain != nil {
+		a.chain.SetNetworkTipHeight(ct)
+	}
 	redactInternalCoordinatorURLs(statusBody)
 
 	writeJSON(w, statusBody)

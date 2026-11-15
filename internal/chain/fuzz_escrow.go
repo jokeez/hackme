@@ -96,11 +96,9 @@ func (s *Service) OpenFuzzEscrowWithFee(ctx context.Context, campaignID string, 
 	if total == 0 {
 		return nil, errors.New("fuzz escrow: budget rounds to zero units")
 	}
-	var tipH uint64
-	var maxIdx sql.NullInt64
-	if err := s.db.QueryRowContext(ctx, `SELECT MAX(block_index) FROM blocks`).Scan(&maxIdx); err == nil && maxIdx.Valid && maxIdx.Int64 >= 0 {
-		tipH = uint64(maxIdx.Int64)
-	}
+	// Prefer FeeEraTipHeight so desktop/follower nodes with empty local blocks still
+	// charge Economics v2 order fees once the network tip has crossed activation.
+	tipH := s.FeeEraTipHeight(ctx)
 	var fee OrderFeeV2
 	if EconomicsV2ActiveForIndex(tipH + 1) {
 		fee, total = OrderFeeV2FromPrice(tipH, total, asset)

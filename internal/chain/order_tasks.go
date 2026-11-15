@@ -174,11 +174,7 @@ func (s *Service) InsertOrderTask(ctx context.Context, manifestJSON []byte) (*In
 	// order priced a first-v2-block order with v1 fees (audit #6).
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var tipH uint64
-	var maxIdx sql.NullInt64
-	if err := s.db.QueryRowContext(ctx, `SELECT MAX(block_index) FROM blocks`).Scan(&maxIdx); err == nil && maxIdx.Valid && maxIdx.Int64 >= 0 {
-		tipH = uint64(maxIdx.Int64)
-	}
+	tipH := s.FeeEraTipHeight(ctx)
 	feeAsset, err := NormalizeFeeAsset(m.FeeAsset)
 	if err != nil {
 		return nil, err
