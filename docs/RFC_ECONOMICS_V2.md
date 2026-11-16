@@ -2,13 +2,13 @@
 
 | | |
 |---|---|
-| **Status** | Activation height **550 000** compiled into the release (≈ 2026-11-15) |
-| **Branch** | On `main`; one height switch at block 550 000 |
-| **Network today** | `0.1.0-rc19` (v2 rules compiled in) · Blake3 PoH · ASERT · `SHARE_STRICT` share-PPS · solvency M |
+| **Status** | **LIVE** since block **550 000** (≈ 2026-11-15; tip past 552k) |
+| **Branch** | On `main`; height switch at block 550 000 is complete |
+| **Network today** | `0.1.0-rc19` (v2 rules live) · Blake3 PoH · ASERT · `SHARE_STRICT` share-PPS · solvency M |
 | **Scope** | HMC emission, pool funding, order fee/burn, SUP utility, activation process |
 | **Out of scope** | Airdrops, vesting giveaways |
 
-> **One-line target:** at a published activation height, HMC becomes **0.1 HMC/block**, with **~4-year halvings from genesis**, a permanent **0.002 HMC tail**, **no max-supply fiction**, real burns, and a pool funded from **emission** — not perpetual treasury subsidy.
+> **One-line (live):** since block 550 000, HMC is **0.1 HMC/block**, with **~4-year halvings from genesis**, a permanent **0.002 HMC tail**, **no max-supply fiction**, real burns, and a pool funded from **emission** — not perpetual treasury subsidy.
 
 This document is the canonical public description of what changes and why. Related live specs today: [HMC_TOKENOMICS.md](HMC_TOKENOMICS.md), [ORDER_ECONOMICS.md](ORDER_ECONOMICS.md), [SUPPORT_COIN_UTILITY.md](SUPPORT_COIN_UTILITY.md), [MINER_POOL_ECONOMICS.md](MINER_POOL_ECONOMICS.md).
 
@@ -333,6 +333,7 @@ Miners, desktop nodes, explorers, and customers need a predictable upgrade windo
 | 2026-11-05 | Height moved to **550 000** (keeps the ≥7-day notice for a 2026-11-06 announce); long `HMC-` + 64 hex addresses added to the height package |
 | 2026-11-06 | D6 soft-start dropped: Hunt stays open across activation; gate removed from code |
 | 2026-11-06 | 0.1.0-rc19 published with the height package (all installers rebuilt from `main`); public site/docs switched from "soft announce" to "activates at 550 000" |
+| 2026-11-16 | Height crossed; site/docs tense switched to **live since 550 000** (PDF packs deferred to next rebuild / rc20) |
 
 ---
 

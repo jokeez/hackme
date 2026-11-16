@@ -30,7 +30,7 @@
         HackMe is <strong>not</strong> classic pooled PoW where every share maps to a block fraction.
         Three layers: <strong>on-chain PoH</strong> (Blake3 @ #485000 <strong>LIVE</strong>), <strong>coordinator accounting</strong> (share-PPS / verified shares under SHARE_STRICT), and <strong>paid audit orders</strong>.
         Companion coins (<a href="./coin-sup.html">SUP</a>, <a href="./coin-hms.html">HMS</a>) use separate rules — see <a href="./coins.html">ecosystem registry</a>.
-        Economics <strong>v2</strong> activates at block <strong>550,000</strong> (≈ November 15, 2026), compiled into 0.1.0-rc19. Numbers below show both: v1 until the height, v2 from it.
+        Economics <strong>v2</strong> has been <strong>live since block 550,000</strong> (≈ 15 Nov 2026; tip past 552k), compiled into channel 0.1.0-rc19. Numbers below show both: v1 through #549,999, v2 from #550,000.
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md" target="_blank" rel="noreferrer">Economics v2 RFC</a>
@@ -40,10 +40,10 @@
       </div>
     </section>
     <section class="panel glass">
-      <div class="panel-head"><h2>Economics v2 — block 550,000</h2></div>
+      <div class="panel-head"><h2>Economics v2 — live since block 550,000</h2></div>
       <p>
-        From block 550,000: <strong>0.1 HMC</strong>/empty block · ~4-year halvings (every 4,204,800 blocks, counted from genesis) · permanent <strong>0.002</strong> tail · no hard max-supply fiction · orders burn 5% + 5% platform fee · SUP 0.002/block (cap 21,000) · pool funded from emission · no airdrops.
-        Height published with 0.1.0-rc19, more than 7 days ahead as the RFC requires. Full text:
+        Since block 550,000: <strong>0.1 HMC</strong>/empty block · ~4-year halvings (every 4,204,800 blocks, counted from genesis) · permanent <strong>0.002</strong> tail · no hard max-supply fiction · orders burn 5% + 5% platform fee · SUP 0.002/block (cap 21,000) · pool funded from emission · no airdrops.
+        Height was published with 0.1.0-rc19 (≥7 days notice). Full text:
         <a href="https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md" target="_blank" rel="noreferrer">RFC_ECONOMICS_V2.md</a>.
       </p>
     </section>
@@ -83,7 +83,7 @@
           </tbody>
         </table>
       </div>
-      <p class="muted" style="margin-top:0.75rem">Constants: v1 (until #550,000) <strong>0.01 HMC</strong>/block · halving every 2,102,400 blocks · 100M ceiling. v2 (from #550,000) <strong>0.1 HMC</strong>/block · halving every <strong>4,204,800</strong> blocks · 0.002 tail · no hard cap. Details: <a href="https://github.com/jokeez/hackme/blob/main/docs/HMC_TOKENOMICS.md" target="_blank" rel="noreferrer">HMC_TOKENOMICS.md</a> · <code>GET /api/status</code>.</p>
+      <p class="muted" style="margin-top:0.75rem">Constants: v1 (through #549,999) <strong>0.01 HMC</strong>/block · halvings every 2,102,400 blocks · 100M ceiling. v2 (since #550,000) <strong>0.1 HMC</strong>/block · halvings every <strong>4,204,800</strong> blocks · 0.002 tail · no hard cap. Details: <a href="https://github.com/jokeez/hackme/blob/main/docs/HMC_TOKENOMICS.md" target="_blank" rel="noreferrer">HMC_TOKENOMICS.md</a> · <code>GET /api/status</code>.</p>
     </section>
 
     <section class="panel glass">
@@ -114,12 +114,12 @@
       <div class="eco-link-grid">
         <a class="eco-link-card" href="./coin-hmc.html">
           <h3>HMC</h3>
-          <p>Primary · 0.1 HMC/block from #550,000 · mining + audit escrow · listing pack PDF.</p>
+          <p>Primary · 0.1 HMC/block since #550,000 · mining + audit escrow · listing pack PDF.</p>
           <span class="eco-link-cta">HMC page →</span>
         </a>
         <a class="eco-link-card" href="./coin-sup.html">
           <h3>SUP</h3>
-          <p>Companion · 21,000 cap from #550,000 · block-minted · on-chain live.</p>
+          <p>Companion · 21,000 cap since #550,000 · block-minted · on-chain live.</p>
           <span class="eco-link-cta">SUP page →</span>
         </a>
         <a class="eco-link-card" href="./token-transparency.html">

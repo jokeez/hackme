@@ -1,6 +1,47 @@
 {
   "items": [
     {
+      "id": "2026-11-06-rc19",
+      "date": "2026-11-06",
+      "title": "0.1.0-rc19 — Economics v2 live since block 550,000 · longer wallets · all packages",
+      "summary": "Economics v2 has been live since block 550,000 (≈ 15 Nov 2026). Block reward 0.01 → 0.1 HMC (~288 HMC/day to miners), ~4-year halvings counted from genesis down to a permanent 0.002 HMC tail, no hard cap. Every paid order burns 5% (+5% platform fee). SUP is minted by the chain: 0.002 SUP per empty block, hard cap 21,000. New address format HMC- + 64 hex (full SHA-256 of your key); old 16-hex addresses keep working and are bound to their key — no automatic migration. Transfers carry chain_id hackme-mainnet-1 from the same height.",
+      "tags": [
+        "announcement",
+        "economics",
+        "hmc",
+        "packages",
+        "rc19",
+        "release",
+        "sup"
+      ],
+      "impact": "Nodes older than rc19 do not know the v2 rules. Installers for Windows (Setup/ZIP), Linux tar, deb, rpm, Arch, HackMe OS ISO and a Docker image built from the tarball; a separate HackMe Orders profile for customers (also beside a miner via HACKME_ORDERS_PORT=8081).",
+      "action": "Stay on 0.1.0-rc19 or newer (built-in updater keeps wallet, keys and .env; apt: sudo apt update && sudo apt install hackme-node). Check the dashboard shows 0.1.0-rc19 and note your long address. Downloads: https://hackme.tech/downloads.html · RFC: https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md",
+      "status": "published",
+      "featured": true,
+      "social": {
+        "lead": "Economics v2 is live since #550,000 — 0.1 HMC/block, burns, SUP emission, long addresses.",
+        "bullets": [
+          "0.1 HMC/empty block · ~4y halvings · 0.002 tail",
+          "5% burn + 5% platform on paid orders",
+          "SUP 0.002/block · cap 21,000",
+          "HMC- + 64-hex addresses (legacy 16-hex keep working)",
+          "Stay on 0.1.0-rc19+"
+        ],
+        "body": "**0.1.0-rc19 — Economics v2 LIVE**\n\nSince block **550,000**:\n• **0.1 HMC**/empty block · ~4y halvings · **0.002** tail\n• Order burn 5% + platform 5%\n• SUP block mint 0.002 · cap **21,000**\n• Long addresses + `chain_id` hackme-mainnet-1\n\nDownloads: https://hackme.tech/downloads.html\nRFC: https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md",
+        "headline": "Economics v2 live since #550,000 (rc19)",
+        "github": "https://github.com/jokeez/hackme"
+      },
+      "telegram": {
+        "headline": "Economics v2 live since #550,000",
+        "body": "**Economics v2 LIVE** since block 550,000 (channel 0.1.0-rc19)\n\n• **0.1 HMC**/block · ~4y halvings · **0.002** tail\n• 5% burn + 5% platform on orders\n• SUP 0.002/block · cap 21,000\n• Long HMC- addresses\n\nhttps://hackme.tech/downloads.html"
+      },
+      "links": {
+        "news": "https://hackme.tech/news.html#2026-11-06-rc19",
+        "downloads": "https://hackme.tech/downloads.html",
+        "rfc": "https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md"
+      }
+    },
+    {
       "id": "2026-11-05-miningboard-listed",
       "date": "2026-11-05",
       "title": "HackMe Official Pool listed on MiningBoard",
@@ -15,7 +56,7 @@
         "announcement"
       ],
       "status": "published",
-      "featured": true,
+      "featured": false,
       "social": {
         "lead": "HackMe Official Pool is live on MiningBoard — they read our numbers, not estimates.",
         "bullets": [
@@ -64,7 +105,7 @@
       "id": "2026-10-31-rc18-1-orders-publish",
       "date": "2026-10-31",
       "title": "0.1.0-rc18.1 — Orders publish token · pool Dig/Hunt without admin",
-      "summary": "Current channel is 0.1.0-rc18.1. Orders bundles ship a scoped pool.orders.token so Dig/Hunt campaigns can register on the public pool without a full coordinator admin key. Caps and rate limits apply; settle-pull is campaign-scoped; PoH attach and cancel stay admin-only. Blake3 share-PPS, CUDA/OpenCL, Win/Linux/deb/ISO, and B2B fuzzing CLI (hackme-fuzzing + hackme-fuzzing-build) continue from rc18.",
+      "summary": "historical note — current channel is 0.1.0-rc19. Orders bundles ship a scoped pool.orders.token so Dig/Hunt campaigns can register on the public pool without a full coordinator admin key. Caps and rate limits apply; settle-pull is campaign-scoped; PoH attach and cancel stay admin-only. Blake3 share-PPS, CUDA/OpenCL, Win/Linux/deb/ISO, and B2B fuzzing CLI (hackme-fuzzing + hackme-fuzzing-build) continue from rc18.",
       "impact": "Orders customers: upgrade to 0.1.0-rc18.1 Orders profile (Win Setup → Orders, Linux → bash start_hackme_orders.sh). pool.orders.token loads as HACKME_POOL_ORDERS_PUBLISH_TOKEN — not admin, not miner. Miners: same share-PPS path; no token change. Verify SHA256SUMS before install.",
       "action": "Downloads: https://hackme.tech/downloads.html · Orders: https://hackme.tech/orders.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc18.1 · Docs: https://github.com/jokeez/hackme/blob/main/docs/ORDERS_PUBLISH.md",
       "tags": [
@@ -76,7 +117,7 @@
         "security"
       ],
       "status": "published",
-      "featured": true,
+      "featured": false,
       "social": {
         "lead": "0.1.0-rc18.1 — Orders → public pool without shipping admin.",
         "bullets": [
@@ -173,7 +214,7 @@
       "date": "2026-10-26",
       "title": "0.1.0-rc18 — Blake3 share-PPS LIVE · CUDA/OpenCL · ISO channel",
       "summary": "0.1.0-rc18 introduced SHARE_STRICT share-PPS: verified Blake3 share_nonces (work % (M/1024) == 0) pay. Pool hashrate kind is blake3_pow_ghs (shares/wall). NVIDIA CUDA and AMD OpenCL Blake3 miners are supported (see BLAKE3_GPU_MATRIX). Dig/Hunt remain useful-work lanes; Hunt needs Linux+bwrap. Legacy soft-mode copy is retired. Superseded by 0.1.0-rc18.1 (Orders publish).",
-      "impact": "Historical release note — current channel is 0.1.0-rc18.1. Upgrade via Downloads / self-update / apt. Verify SHA256SUMS before install.",
+      "impact": "Historical release note — historical note — current channel is 0.1.0-rc19. Upgrade via Downloads / self-update / apt. Verify SHA256SUMS before install.",
       "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc18.1 · Economics: https://hackme.tech/economics-model.html",
       "tags": [
         "release",
@@ -283,7 +324,7 @@
       "date": "2026-10-15",
       "title": "0.1.0-rc17.3 LIVE — Miner | Orders installers · Linux Orders · full Win/Linux/deb/ISO",
       "summary": "Channel cut published: Windows Setup chooses Miner or B2B Orders; Linux tar/deb ship start_hackme_orders.sh + hackme-fuzzing; Hunt engine auto-install on Linux update; HTTPS pool allowlist includes corpus_delta; SHA256SUMS + HackMe OS ISO on hackme.tech and GitHub.",
-      "impact": "Historical release note — current channel is 0.1.0-rc18 (share-PPS). Upgrade via Downloads / self-update / apt. Verify SHA256SUMS before install. Orders customers: Win → Orders profile, Linux → bash start_hackme_orders.sh.",
+      "impact": "Historical release note — historical note — current channel is 0.1.0-rc19 (share-PPS). Upgrade via Downloads / self-update / apt. Verify SHA256SUMS before install. Orders customers: Win → Orders profile, Linux → bash start_hackme_orders.sh.",
       "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc17.3 · Orders path: https://hackme.tech/orders.html",
       "tags": [
         "release",
@@ -360,7 +401,7 @@
       "date": "2026-09-25",
       "title": "0.1.0-rc17.2 LIVE — Hunt deep-havoc v2.8 · full Win/Linux/ISO bundle",
       "summary": "Full channel cut: runtime + installers + ISO on 0.1.0-rc17.2. Hunt deep-havoc v2.8 (opt-in), deeper shard budgets, fuzz release/capability harden, workerpoh GPU_CHUNK honor.",
-      "impact": "Historical release note — current channel is 0.1.0-rc18 (share-PPS). Upgrade via downloads / self-update / apt. Verify SHA256SUMS before install. Legacy Hunt campaigns without havoc_deep_v28 keep prior replay bytes.",
+      "impact": "Historical release note — historical note — current channel is 0.1.0-rc19 (share-PPS). Upgrade via downloads / self-update / apt. Verify SHA256SUMS before install. Legacy Hunt campaigns without havoc_deep_v28 keep prior replay bytes.",
       "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc17.2"
     },
     {
@@ -368,7 +409,7 @@
       "date": "2026-09-22",
       "title": "0.1.0-rc17.2 — worker lifecycle + claim-identity hotpatch",
       "summary": "Runtime/UI channel bumped to 0.1.0-rc17.2: orphan lock reap, settlement Windows flock, escrow ErrNoRows honesty, hybrid claim pubkey required. Superseded by 0.1.0-rc17.2 full bundle (2026-09-25).",
-      "impact": "Historical release note — current channel is 0.1.0-rc18 (share-PPS). Hub/source builds report 0.1.0-rc17.2. Superseded: installers/ISO now on 0.1.0-rc17.2.",
+      "impact": "Historical release note — historical note — current channel is 0.1.0-rc19 (share-PPS). Hub/source builds report 0.1.0-rc17.2. Superseded: installers/ISO now on 0.1.0-rc17.2.",
       "action": "Channel notes: https://hackme.tech/downloads.html · Bug bounty: https://github.com/jokeez/hackme/blob/main/docs/BUG_BOUNTY.md",
       "tags": [
         "release",
@@ -403,7 +444,7 @@
       "date": "2026-09-15",
       "title": "0.1.0-rc17 LIVE — paper Exchange · SUP · Hunt · Dig · installers published",
       "summary": "rc17 download channel is live: Windows installer, Linux tarball, signed apt deb, Dig/Hunt fuzz CLI, and HackMe OS ISO with SHA256SUMS. Paper Exchange desk on exchange.hackme.tech; hub #exchange + SUP activity on the public pool. Hunt Watch 12/12 ledger published.",
-      "impact": "Historical release note — current channel is 0.1.0-rc18 (share-PPS). Miners and operators should verify SHA256SUMS before upgrade. Installers now resolve to 0.1.0-rc17 (supersedes rc16 as published channel). Hub runtime already on rc17 from cutover.",
+      "impact": "Historical release note — historical note — current channel is 0.1.0-rc19 (share-PPS). Miners and operators should verify SHA256SUMS before upgrade. Installers now resolve to 0.1.0-rc17 (supersedes rc16 as published channel). Hub runtime already on rc17 from cutover.",
       "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc17 · Exchange: https://exchange.hackme.tech/ · Hunt ledger: https://hackme.tech/reports/hunt-watch-2026sep/",
       "tags": [
         "release",

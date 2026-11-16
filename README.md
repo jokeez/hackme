@@ -76,7 +76,7 @@ Payout follows **accepted work**, not lottery blocks. Model: [NETWORK_MODEL.md](
 | **Economics v2** | Activates at block **550,000** (≈ 2026-11-15, in 0.1.0-rc19): 0.1 HMC/block · ~4y halvings · 0.002 tail · 5% order burn · SUP 0.002/block (cap 21,000) · `HMC-` + 64-hex addresses — [RFC](docs/RFC_ECONOMICS_V2.md) · [news](https://hackme.tech/news.html#2026-11-06-rc19) |
 | **D1 pool mint** | **Live on hub:** empty PoH finds → `solve-baseline` → settlement float (`LOCAL_POH=0`, `BASELINE_RELAY=on`) — v2 height switch at block 550,000 |
 
-Channel: **0.1.0-rc19** — [docs/releases/](docs/releases/) · [docs/INDEX.md](docs/INDEX.md) · news: https://hackme.tech/news.html · update before block 550,000
+Channel: **0.1.0-rc19** — [docs/releases/](docs/releases/) · [docs/INDEX.md](docs/INDEX.md) · news: https://hackme.tech/news.html · Economics v2 live since block 550,000
 
 **Honesty:** Hunt/Dig **CLEAN ≠ CVE claim**. Customer value is **bugs in their target + report + escrow**, not “we mint CVEs.” Standalone libFuzzer still wins **raw local exec/s**; product Hunt ships the **same engine class on the pool** (prove + escrow + Dig hybrid) — live bench 2026-10-11 in [HUNT_VS_LIBFUZZER.md](docs/HUNT_VS_LIBFUZZER.md). Old byte “~100 vs ~700 exec/s” charts are **not** the fleet default.
 

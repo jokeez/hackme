@@ -6,13 +6,13 @@
     {
       "kind": "release",
       "badge": "ECONOMICS V2",
-      "title": "Economics v2 at block 550,000 — update to 0.1.0-rc19",
-      "detail": "≈ Nov 15: block reward 0.01 → 0.1 HMC · 5% order burn · SUP 0.002/block (cap 21,000) · new HMC- + 64-hex addresses, old ones keep working. Verify SHA256.",
-      "cta": "Update",
+      "title": "Economics v2 live since #550,000 — stay on 0.1.0-rc19+",
+      "detail": "Live: block reward 0.1 HMC · 5% order burn · SUP 0.002/block (cap 21,000) · HMC- + 64-hex addresses (old ones keep working). Verify SHA256.",
+      "cta": "Downloads",
       "href": "/downloads.html#start",
       "accent": "success",
       "stats": [
-        "#550,000",
+        "LIVE",
         "0.1 HMC",
         "rc19"
       ]

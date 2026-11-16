@@ -6,7 +6,8 @@ Factual pass/fail snapshots for releases and research series.
 |----------|-----------------|
 | [HUNT_WATCH_2026SEP_SERIES_VERDICT.md](HUNT_WATCH_2026SEP_SERIES_VERDICT.md) | **Hunt Watch 2026sep** — 12/12 CLOSED · ~192.5M Hunt Standard · public ledger |
 | [OSS_CVE_WATCH_NGHTTP2_SERIES_VERDICT.md](OSS_CVE_WATCH_NGHTTP2_SERIES_VERDICT.md) | **OSS CVE Watch Days 1–14** — nghttp2 series CLEAN · ~14.32B exec |
-| [../releases/HACKME_0.1.0-rc18_RELEASE.md](../releases/HACKME_0.1.0-rc18_RELEASE.md) | **Current channel rc18.x** — Blake3 · share-PPS · Dig/Hunt |
+| [../releases/HACKME_0.1.0-rc19_RELEASE.md](../releases/HACKME_0.1.0-rc19_RELEASE.md) | **Current channel rc19** — Economics v2 @ #550k · Blake3 · share-PPS · Dig/Hunt |
+| [../releases/HACKME_0.1.0-rc18_RELEASE.md](../releases/HACKME_0.1.0-rc18_RELEASE.md) | Prior rc18.x — Blake3 · share-PPS · Dig/Hunt |
 | [../archive/rc/HACKME_RC17.md](../archive/rc/HACKME_RC17.md) | Prior rc17 channel — exchange · SUP · Hunt |
 | [../archive/rc/HACKME_RC16.md](../archive/rc/HACKME_RC16.md) | Prior published channel — self-update + signed apt + ISO |
 | [../archive/rc/HACKME_RC15.md](../archive/rc/HACKME_RC15.md) | Previous rc15 — B2B fuzz Phase 2 + pool anticheat |
@@ -25,4 +26,4 @@ Public news feed: https://hackme.tech/news.html · `web/site/assets/news.json`
 
 ## Version policy
 
-Win/Linux runtime + published installers: see `scripts/release/CURRENT_VERSION` and [../releases/](../releases/) (channel **0.1.0-rc18.x**). Older rc17 notes remain under [../archive/rc/](../archive/rc/).
+Win/Linux runtime + published installers: see `scripts/release/CURRENT_VERSION` and [../releases/](../releases/) (channel **0.1.0-rc19**). Older rc18/rc17 notes remain under [../releases/](../releases/) and [../archive/rc/](../archive/rc/).

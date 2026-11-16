@@ -5,8 +5,8 @@
     {
       "id": "economics-v2-550000",
       "severity": "warn",
-      "title": "Economics v2 at block 550,000 — update to 0.1.0-rc19",
-      "body": "At block 550,000 (≈ November 15) the block reward goes 0.01 → 0.1 HMC, every paid order burns 5%, SUP is minted per block (cap 21,000) and HMC- + 64-hex addresses become valid (your old address keeps working). Nodes older than 0.1.0-rc19 do not know these rules — update now; the updater keeps your wallet and settings.",
+      "title": "Economics v2 live since #550,000 — stay on 0.1.0-rc19+",
+      "body": "Since block 550,000 the block reward is 0.1 HMC, every paid order burns 5%, SUP is minted per block (cap 21,000) and HMC- + 64-hex addresses are valid (your old address keeps working). Nodes older than 0.1.0-rc19 do not know these rules — update now; the updater keeps your wallet and settings.",
       "cta_label": "Update",
       "cta_href": "/downloads.html"
     },

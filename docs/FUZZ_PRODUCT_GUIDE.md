@@ -20,7 +20,7 @@ CLI/API keys stay `scan` | `audit` | `deep`. Customer-facing names:
 
 **Dig depth v2:** richer pack `mutator_dict` profiles, tier power scheduling (Audit **mut_cap≥8** · Deep **≥14**), **Deep-only** external seeds in `.cache/dig-seeds/{pack}/`, cross-campaign corpus persist `pack:{id}`, CLEAN floor + canary anticheat, and customer report `dig_depth` / SKU honesty card.
 
-**Hunt** (repo + ASAN on pool, 50/50 escrow) — **coverage-guided** on **0.1.0-rc18** channel:
+**Hunt** (repo + ASAN on pool, 50/50 escrow) — **coverage-guided** on **0.1.0-rc19** channel:
 
 | Engine | When |
 |--------|------|

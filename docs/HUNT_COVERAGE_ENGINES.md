@@ -59,7 +59,7 @@ sudo bash scripts/ops/install_hunt_engines.sh --system --prefix /opt/hackme
 
 Ships clang + AFL++ (`afl-fuzz`, `afl-clang-fast`, `afl-showmap`) + bubblewrap from apt / release tarball. Sets `HACKME_AFL_FUZZ`.
 
-**Auto on miner download/update (Linux):** `install_hackme.sh`, `update_hackme_miner.sh`, `start_hackme_miner.sh`, firstboot, and `desktop_mode_up.sh` call `install_hunt_engines.sh` best-effort on **0.1.0-rc18**. Opt out: `HACKME_SKIP_HUNT_ENGINES=1`. Windows Hunt engines remain soft-skip (Linux-only AFL++/LF path).
+**Auto on miner download/update (Linux):** `install_hackme.sh`, `update_hackme_miner.sh`, `start_hackme_miner.sh`, firstboot, and `desktop_mode_up.sh` call `install_hunt_engines.sh` best-effort on **0.1.0-rc19**. Opt out: `HACKME_SKIP_HUNT_ENGINES=1`. Windows Hunt engines remain soft-skip (Linux-only AFL++/LF path).
 
 **Windows Orders / custom inventory:** local ASAN harness build needs Linux `bwrap`+clang — not available on the Windows bundle. Supported path: publish the Linux ASAN artifact to the pool (`POST /api/fuzz/pool/hunt/harness` with Orders publish token), then `POST /api/hunt/campaigns` with the same `harness_hash` + `pool_distributed:true` (skips local build; workers fetch the published blob).
 

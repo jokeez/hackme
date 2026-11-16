@@ -35,7 +35,7 @@
       "earn": "Hybrid-signed HMC pool work + quality gates",
       "trade": "On-chain SUP transfers \u00b7 GET /api/sup/economics",
       "highlights": [
-        "Max 21M \u00b7 no faucet",
+        "Max 21,000 \u00b7 no faucet",
         "Base \u22648% of HMC attempt value",
         "72h streak bonus \u00b7 fleet daily cap",
         "Utility: audit discounts, pool priority"
