@@ -5,6 +5,8 @@
       "date": "2026-11-06",
       "title": "0.1.0-rc19 — Economics v2 live since block 550,000 · longer wallets · all packages",
       "summary": "Economics v2 has been live since block 550,000 (≈ 15 Nov 2026). Block reward 0.01 → 0.1 HMC (~288 HMC/day to miners), ~4-year halvings counted from genesis down to a permanent 0.002 HMC tail, no hard cap. Every paid order burns 5% (+5% platform fee). SUP is minted by the chain: 0.002 SUP per empty block, hard cap 21,000. New address format HMC- + 64 hex (full SHA-256 of your key); old 16-hex addresses keep working and are bound to their key — no automatic migration. Transfers carry chain_id hackme-mainnet-1 from the same height.",
+      "impact": "Nodes older than rc19 do not know the v2 rules. Installers for Windows (Setup/ZIP), Linux tar, deb, rpm, Arch, HackMe OS ISO and a Docker image built from the tarball; a separate HackMe Orders profile for customers (also beside a miner via HACKME_ORDERS_PORT=8081).",
+      "action": "Stay on 0.1.0-rc19 or newer (built-in updater keeps wallet, keys and .env; apt: sudo apt update && sudo apt install hackme-node). Check the dashboard shows 0.1.0-rc19 and note your long address. Downloads: https://hackme.tech/downloads.html · RFC: https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md",
       "tags": [
         "announcement",
         "economics",
@@ -14,8 +16,6 @@
         "release",
         "sup"
       ],
-      "impact": "Nodes older than rc19 do not know the v2 rules. Installers for Windows (Setup/ZIP), Linux tar, deb, rpm, Arch, HackMe OS ISO and a Docker image built from the tarball; a separate HackMe Orders profile for customers (also beside a miner via HACKME_ORDERS_PORT=8081).",
-      "action": "Stay on 0.1.0-rc19 or newer (built-in updater keeps wallet, keys and .env; apt: sudo apt update && sudo apt install hackme-node). Check the dashboard shows 0.1.0-rc19 and note your long address. Downloads: https://hackme.tech/downloads.html · RFC: https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md",
       "status": "published"
     },
     {
