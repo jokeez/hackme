@@ -335,13 +335,15 @@ func (a *app) poolSyncMarkFailed(id string, err error) {
 }
 
 // poolFallbackToLocal runs a paid order on this machine when the pool would not take it.
-// A pool-distributed campaign is never executed locally, so a failed registration used to
-// leave a funded order "running" with zero runs until its time budget expired (customer
-// e2e 2026-11-13: an Orders node cannot mint a hub prepaid ticket, so every wizard order
-// hung). The escrow is local either way; running it here is what the customer paid for.
-// HACKME_ORDERS_POOL_FALLBACK_LOCAL=0 keeps the old behaviour (stay queued for the pool).
+// rc20 product path: default OFF — local_fallback breaks the "pool" promise. Lab/dev must
+// set HACKME_ORDERS_ALLOW_LOCAL_FALLBACK=1 (or legacy HACKME_ORDERS_POOL_FALLBACK_LOCAL=1).
 func (a *app) poolFallbackToLocal(ctx context.Context, id, reason string) {
-	if strings.TrimSpace(os.Getenv("HACKME_ORDERS_POOL_FALLBACK_LOCAL")) == "0" || a == nil || a.db == nil {
+	if a == nil || a.db == nil {
+		return
+	}
+	legacy := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_ORDERS_POOL_FALLBACK_LOCAL")))
+	allow := ordersAllowLocalFallback() || legacy == "1" || legacy == "true" || legacy == "yes" || legacy == "on"
+	if !allow {
 		return
 	}
 	var cfgRaw, sumRaw, status string

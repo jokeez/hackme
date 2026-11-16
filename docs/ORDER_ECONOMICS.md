@@ -2,21 +2,25 @@
 
 ## Pool-distributed security audits (`attach_poh_order`)
 
-When a customer node creates `POST /api/security-audit` with **`create_poh_order: true`** and **`pool_distributed: true`**:
+When a customer node creates Dig/Hunt with **`pool_distributed: true`** (product default) and `HACKME_ORDERS_HUB_URL` set (**rc20+**):
 
-- Fuzz escrow stays on the **customer node** (report + settle pull).
-- PoH escrow is **not** opened on that node (pool workers never see a remote SQLite task list).
-- Campaign config carries `attach_poh_order` + Dig `wasm_check_hex`; coordinator `POST /api/fuzz/pool/campaigns` creates the PoH task on **`HACKME_COORDINATOR_ORDERS_URL`**.
-- **rc18.1+:** register uses scoped **`pool.orders.token`** / `HACKME_POOL_ORDERS_PUBLISH_TOKEN` (not full coordinator admin). Caps + rate limits apply — see [ORDERS_PUBLISH.md](ORDERS_PUBLISH.md).
-- **PoH gate WASM** defaults to embedded `upstream_hackme_order_gate` (solvable economics check on nonce bits). Dig detector modules are **not** reused as the PoH gate (they stuck orders at `0/N`). Override with config `poh_wasm_check_hex`, or lab opt-in `poh_use_campaign_wasm=true`.
-- Existing **`workerpoh`** clients auto-enter `scheduler_mode=orders` — no binary update for that rail.
-- Deep fuzz **runs** use `/api/fuzz/work/*` (hybrid `workerpoh` or standalone `workerfuzz`). Hub **exec_per_unit** capped at **64** on distributed pool; coordinator replays segment on submit (see [POOL_FUZZ_DISTRIBUTED.md](POOL_FUZZ_DISTRIBUTED.md)).
+- Customer Orders is a **thin client**: Fund → hub tenant prepaid → `POST /api/orders/pool/dig|hunt`.
+- **Fuzz escrow opens on the hub** from that prepaid (not on the laptop SQLite). Cancel/finalize refund unused escrow **to Orders prepaid**, not the on-chain wallet.
+- Package prices are **fee-from-price** under Economics v2 (live from block **#550,000**): listed HMC includes 10% (5% burn + 5% platform). Example: Hunt Standard **60 = 54 miner escrow + 6 fee**.
+- Hub mints `hubv1` and registers on the coordinator; settle applies on the hub node. See [ORDERS_PUBLISH.md](ORDERS_PUBLISH.md) §rc20.
 
-**B2B Dig packages (wizard):** scan ~1 HMC/64 · audit ~5/256 · deep ~40/2048 (**40/60** escrow). Packs: `secrets`, `script_bounds`, `filter_utf8`, `parser_expat`.
+When also **`create_poh_order: true`** (optional Dig attach):
 
-**Hunt packages (separate CLI):** `hunt_lite` ~20 · `hunt_standard` ~60 · `hunt_heavy` ~150 HMC · **50/50** escrow — [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md). Dig smoke (Scan/Audit) **20/80**; Dig Deep **40/60**.
+- PoH escrow is **not** opened on the customer node (pool workers never see a remote SQLite task list).
+- Campaign config carries `attach_poh_order` + Dig `wasm_check_hex`; coordinator creates the PoH task on **`HACKME_COORDINATOR_ORDERS_URL`**.
+- **PoH gate WASM** defaults to embedded `upstream_hackme_order_gate`. Override with `poh_wasm_check_hex`, or lab `poh_use_campaign_wasm=true`.
+- Deep fuzz **runs** use `/api/fuzz/work/*`. Hub **exec_per_unit** capped on distributed pool — [POOL_FUZZ_DISTRIBUTED.md](POOL_FUZZ_DISTRIBUTED.md).
 
-Disable with `HACKME_COORDINATOR_ATTACH_POH_ORDER=0`.
+**B2B Dig packages (wizard):** scan ~1 HMC/64 · audit ~5/256 · deep ~40 HMC **price**/2048 (**40/60** of post-fee escrow). Packs: `secrets`, `script_bounds`, `filter_utf8`, `parser_expat`.
+
+**Hunt packages:** `hunt_lite` ~20 · `hunt_standard` ~60 · `hunt_heavy` ~150 HMC **price** · **50/50** of post-fee escrow — [HUNT_ECONOMICS.md](HUNT_ECONOMICS.md). Dig smoke **20/80**; Dig Deep **40/60**.
+
+Disable PoH attach with `HACKME_COORDINATOR_ATTACH_POH_ORDER=0`. Local Dig/Hunt: `pool_distributed=false` (CI / lab).
 
 `HACKME_COORDINATOR_ORDERS_ADMIN_TOKEN` must match the command-node **`HACKME_ADMIN_TOKEN`**
 (or another secret accepted by `requireDeveloperTasksAuth` / `requireAdminAuth`). A distinct
@@ -27,7 +31,7 @@ coordinator-only token yields HTTP 401 on `POST /api/tasks` and attach silently 
 - **Prepaid** = `reward_hmc × target_solves` (held in `meta_order_escrow_units`). **Minimum prepaid = 0.05 HMC** (`MinOrderPrepaidHMC`) — prevents dust orders that pay miners negligible per-solve slices.
 - **Platform fee** = 5% of prepaid at order open (to dev fee address).
 - **Burn tally** = 10% of prepaid recorded in supply metadata at open.
-- **Economics v2 RFC** (not live): target **10% upfront = 5% burn / 5% platform** at activation — [RFC_ECONOMICS_V2.md](RFC_ECONOMICS_V2.md).
+- **Economics v2** (live from block #550,000): Dig/Hunt take **10% from package price**; PoH useful-work still prices fee **on top of** fixed escrow — [RFC_ECONOMICS_V2.md](RFC_ECONOMICS_V2.md).
 
 This is **not** a single “100 HMC to whoever finds a critical bug” jackpot unless you design the manifest that way (e.g. `target_solves: 1` with a high `reward_hmc`).
 

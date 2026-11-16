@@ -600,6 +600,8 @@ func main() {
 	mux.HandleFunc("/api/fuzz/artifacts/cleanup", a.handleFuzzArtifactsCleanup)
 	mux.HandleFunc("/api/orders/fund", a.handleOrdersFundAPI)
 	mux.HandleFunc("/api/orders/fund/", a.handleOrdersFundAPI)
+	mux.HandleFunc("/api/orders/pool", a.handleOrdersPoolAPI)
+	mux.HandleFunc("/api/orders/pool/", a.handleOrdersPoolAPI)
 	mux.HandleFunc("/api/tx/send", a.handleTransferSend)
 	mux.HandleFunc("/api/sup/economics", a.handleSUPEconomics)
 	mux.HandleFunc("/api/sup/genesis", a.handleSUPGenesisInit)

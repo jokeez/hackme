@@ -45,6 +45,8 @@ type FuzzEscrowRow struct {
 	RunsRemainingHMC float64 `json:"runs_remaining_hmc"`
 	RefundableHMC    float64 `json:"refundable_hmc"`
 	RefundPath       string  `json:"refund_path"`
+	// PayerAddress is set for hub tenant prepaid escrows (rc20); empty = primary wallet.
+	PayerAddress string `json:"payer_address,omitempty"`
 }
 
 // OpenFuzzEscrow locks budget from the primary wallet into a 20/80 split.
@@ -62,10 +64,30 @@ func (s *Service) OpenFuzzEscrowSplit(ctx context.Context, campaignID string, bu
 	return s.OpenFuzzEscrowWithFee(ctx, campaignID, budgetHMC, budgetRuns, escrowSplit, FeeAssetHMC)
 }
 
-// OpenFuzzEscrowWithFee locks a Dig/Hunt campaign. Under Economics v2 budgetHMC is the customer
+// OpenFuzzEscrowWithFee locks a Dig/Hunt campaign from the primary wallet.
+func (s *Service) OpenFuzzEscrowWithFee(ctx context.Context, campaignID string, budgetHMC float64, budgetRuns int, escrowSplit, feeAsset string) (*FuzzEscrowRow, error) {
+	return s.openFuzzEscrowWithFee(ctx, campaignID, "", budgetHMC, budgetRuns, escrowSplit, feeAsset)
+}
+
+// OpenFuzzEscrowForOwner locks budget from hub tenant prepaid (rc20 pool Dig/Hunt).
+func (s *Service) OpenFuzzEscrowForOwner(ctx context.Context, campaignID, ownerAddr string, budgetHMC float64, budgetRuns int, escrowSplit, feeAsset string) (*FuzzEscrowRow, error) {
+	ownerAddr = OrdersPrepaidNormalizeAddr(ownerAddr)
+	if ownerAddr == "" || !IsValidAddress(ownerAddr) {
+		return nil, errors.New("chain: payer address required for tenant escrow")
+	}
+	return s.openFuzzEscrowWithFee(ctx, campaignID, ownerAddr, budgetHMC, budgetRuns, escrowSplit, feeAsset)
+}
+
+// OpenHuntEscrowForOwner is OpenFuzzEscrowForOwner with Hunt 50/50 split.
+func (s *Service) OpenHuntEscrowForOwner(ctx context.Context, campaignID, ownerAddr string, budgetHMC float64, budgetShards int) (*FuzzEscrowRow, error) {
+	return s.OpenFuzzEscrowForOwner(ctx, campaignID, ownerAddr, budgetHMC, budgetShards, fuzzescrow.EscrowSplit5050, FeeAssetHMC)
+}
+
+// openFuzzEscrowWithFee locks a Dig/Hunt campaign. Under Economics v2 budgetHMC is the customer
 // price: the order fee comes out of it and the rest is miner escrow (same escrow for HMC and
 // SUP fees — with SUP the payer spends escrow HMC + fee SUP). Before v2 the whole budget is escrow.
-func (s *Service) OpenFuzzEscrowWithFee(ctx context.Context, campaignID string, budgetHMC float64, budgetRuns int, escrowSplit, feeAsset string) (*FuzzEscrowRow, error) {
+// When payerAddr is non-empty, debit orders_prepaid[payer] (hub tenant); otherwise primary wallet.
+func (s *Service) openFuzzEscrowWithFee(ctx context.Context, campaignID, payerAddr string, budgetHMC float64, budgetRuns int, escrowSplit, feeAsset string) (*FuzzEscrowRow, error) {
 	asset, err := NormalizeFeeAsset(feeAsset)
 	if err != nil {
 		return nil, err
@@ -76,6 +98,7 @@ func (s *Service) OpenFuzzEscrowWithFee(ctx context.Context, campaignID string, 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	campaignID = strings.TrimSpace(campaignID)
+	payerAddr = OrdersPrepaidNormalizeAddr(payerAddr)
 	if campaignID == "" {
 		return nil, errors.New("chain: campaign_id required")
 	}
@@ -129,41 +152,52 @@ func (s *Service) OpenFuzzEscrowWithFee(ctx context.Context, campaignID string, 
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
-	var balUnits uint64
-	var walletAddr string
-	if err := tx.QueryRowContext(ctx, `SELECT address, balance_units FROM wallet WHERE id=1`).Scan(&walletAddr, &balUnits); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrFuzzWalletMissing
-		}
-		return nil, err
-	}
 	debitUnits := split.TotalUnits + fee.HMCUnits()
-	if balUnits < debitUnits {
-		return nil, ErrFuzzInsufficientBalance
-	}
-	var accountUnits uint64
-	if err := tx.QueryRowContext(ctx, `SELECT balance_units FROM accounts WHERE address = ?`, walletAddr).Scan(&accountUnits); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+	feePayer := payerAddr
+	if payerAddr != "" {
+		if asset != FeeAssetHMC {
+			return nil, errors.New("chain: tenant prepaid escrow requires HMC fee_asset")
+		}
+		if err := s.debitOrdersPrepaidTx(ctx, tx, payerAddr, debitUnits); err != nil {
+			return nil, err
+		}
+	} else {
+		var balUnits uint64
+		var walletAddr string
+		if err := tx.QueryRowContext(ctx, `SELECT address, balance_units FROM wallet WHERE id=1`).Scan(&walletAddr, &balUnits); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, ErrFuzzWalletMissing
+			}
+			return nil, err
+		}
+		feePayer = walletAddr
+		if balUnits < debitUnits {
 			return nil, ErrFuzzInsufficientBalance
 		}
-		return nil, err
-	}
-	if accountUnits < debitUnits {
-		return nil, ErrFuzzInsufficientBalance
-	}
-	// Dual-ledger: wallet + accounts must both debit (same invariant as order escrow).
-	if _, err := tx.ExecContext(ctx,
-		`UPDATE wallet SET balance_units = balance_units - ?, balance_hmc = (balance_units - ?) / ? WHERE id=1`,
-		debitUnits, debitUnits, float64(UnitsPerHMC)); err != nil {
-		return nil, err
-	}
-	if _, err := tx.ExecContext(ctx,
-		`UPDATE accounts SET balance_units = balance_units - ?, updated_at = strftime('%s','now') WHERE address = ?`,
-		debitUnits, walletAddr); err != nil {
-		return nil, err
+		var accountUnits uint64
+		if err := tx.QueryRowContext(ctx, `SELECT balance_units FROM accounts WHERE address = ?`, walletAddr).Scan(&accountUnits); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, ErrFuzzInsufficientBalance
+			}
+			return nil, err
+		}
+		if accountUnits < debitUnits {
+			return nil, ErrFuzzInsufficientBalance
+		}
+		// Dual-ledger: wallet + accounts must both debit (same invariant as order escrow).
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE wallet SET balance_units = balance_units - ?, balance_hmc = (balance_units - ?) / ? WHERE id=1`,
+			debitUnits, debitUnits, float64(UnitsPerHMC)); err != nil {
+			return nil, err
+		}
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE accounts SET balance_units = balance_units - ?, updated_at = strftime('%s','now') WHERE address = ?`,
+			debitUnits, walletAddr); err != nil {
+			return nil, err
+		}
 	}
 	if fee.Asset != "" {
-		if _, err := s.applyOrderFeeV2Tx(ctx, tx, walletAddr, fee, "campaign:"+campaignID); err != nil {
+		if _, err := s.applyOrderFeeV2Tx(ctx, tx, feePayer, fee, "campaign:"+campaignID); err != nil {
 			return nil, err // ErrSUPFeeInsufficent when the SUP fee is not covered: nothing is debited
 		}
 	}
@@ -172,11 +206,11 @@ func (s *Service) OpenFuzzEscrowWithFee(ctx context.Context, campaignID string, 
 		`INSERT INTO fuzz_campaign_escrow
 		 (campaign_id, budget_units, runs_pool_units, bounty_pool_units, runs_paid_units, bounty_paid_units,
 		  runs_done, budget_runs, per_run_units, finding_winner, status, created_at, escrow_split,
-		  fee_asset, fee_burn_units, fee_platform_units, fee_sup_units)
-		 VALUES (?, ?, ?, ?, 0, 0, 0, ?, ?, '', 'open', ?, ?, ?, ?, ?, ?)`,
+		  fee_asset, fee_burn_units, fee_platform_units, fee_sup_units, payer_address)
+		 VALUES (?, ?, ?, ?, 0, 0, 0, ?, ?, '', 'open', ?, ?, ?, ?, ?, ?, ?)`,
 		campaignID, split.TotalUnits, split.RunsPoolUnits, split.BountyPoolUnits,
 		budgetRuns, split.PerRunUnits, now, escrowSplit,
-		fee.Asset, fee.BurnUnits, fee.PlatformUnits, fee.SUPUnits); err != nil {
+		fee.Asset, fee.BurnUnits, fee.PlatformUnits, fee.SUPUnits, payerAddr); err != nil {
 		return nil, err
 	}
 	if err := s.checkEconomicInvariants(ctx, tx); err != nil {
@@ -186,6 +220,39 @@ func (s *Service) OpenFuzzEscrowWithFee(ctx context.Context, campaignID string, 
 		return nil, err
 	}
 	return s.GetFuzzEscrow(ctx, campaignID)
+}
+
+// fuzzEscrowRefundAddr picks tenant prepaid payer or primary wallet for refunds.
+func (s *Service) fuzzEscrowRefundAddr(ctx context.Context, tx *sql.Tx, campaignID string) (string, bool, error) {
+	var payer string
+	err := tx.QueryRowContext(ctx,
+		`SELECT COALESCE(payer_address,'') FROM fuzz_campaign_escrow WHERE campaign_id=?`, campaignID).Scan(&payer)
+	if err != nil {
+		return "", false, err
+	}
+	payer = OrdersPrepaidNormalizeAddr(payer)
+	if payer != "" {
+		return payer, true, nil
+	}
+	var walletAddr string
+	if err := tx.QueryRowContext(ctx, `SELECT address FROM wallet WHERE id=1`).Scan(&walletAddr); err != nil {
+		return "", false, err
+	}
+	return strings.TrimSpace(walletAddr), false, nil
+}
+
+func (s *Service) creditFuzzEscrowRefund(ctx context.Context, tx *sql.Tx, campaignID string, units uint64) error {
+	if units == 0 {
+		return nil
+	}
+	addr, tenant, err := s.fuzzEscrowRefundAddr(ctx, tx, campaignID)
+	if err != nil {
+		return err
+	}
+	if tenant {
+		return s.creditOrdersPrepaidTx(ctx, tx, addr, units)
+	}
+	return s.creditUnits(ctx, tx, addr, units)
 }
 
 func (s *Service) creditUnits(ctx context.Context, tx *sql.Tx, addr string, units uint64) error {
@@ -307,14 +374,8 @@ func (s *Service) CancelFuzzEscrow(ctx context.Context, campaignID string) (*Fuz
 	// only): without it a second finalize refunded the bounty pool again — HMC from nothing.
 	bountyRefund := row.bountyLeftUnits()
 	refund := runsRefund + bountyRefund
-	if refund > 0 {
-		var walletAddr string
-		if err := tx.QueryRowContext(ctx, `SELECT address FROM wallet WHERE id=1`).Scan(&walletAddr); err != nil {
-			return nil, err
-		}
-		if err := s.creditUnits(ctx, tx, walletAddr, refund); err != nil {
-			return nil, err
-		}
+	if err := s.creditFuzzEscrowRefund(ctx, tx, campaignID, refund); err != nil {
+		return nil, err
 	}
 	if _, err := tx.ExecContext(ctx,
 		`UPDATE fuzz_campaign_escrow SET status='closed', refunded_bounty_units=refunded_bounty_units+? WHERE campaign_id=?`,
@@ -459,6 +520,8 @@ type fuzzEscrowDBRow struct {
 	// feeAsset is set only when the escrow was priced under Economics v2 (the 10%
 	// order fee was taken at open). Empty = v1 pricing (5% taken at bounty payout).
 	feeAsset string
+	// payerAddress is set for hub tenant prepaid escrows (rc20); empty = primary wallet.
+	payerAddress string
 }
 
 // orderFeeTakenAtOpen reports whether this escrow already paid the platform fee at open.
@@ -486,16 +549,18 @@ func (s *Service) readFuzzEscrow(ctx context.Context, q queryRowContext, campaig
 	err := q.QueryRowContext(ctx,
 		`SELECT campaign_id, budget_units, runs_pool_units, bounty_pool_units, runs_paid_units, bounty_paid_units,
 		        COALESCE(crash_bonus_paid_units,0), runs_done, budget_runs, per_run_units, finding_winner, status,
-		        COALESCE(refunded_bounty_units,0), COALESCE(escrow_split,'20_80'), COALESCE(fee_asset,'')
+		        COALESCE(refunded_bounty_units,0), COALESCE(escrow_split,'20_80'), COALESCE(fee_asset,''),
+		        COALESCE(payer_address,'')
 		 FROM fuzz_campaign_escrow WHERE campaign_id=?`, campaignID).
 		Scan(&r.campaignID, &r.budgetUnits, &r.runsPoolUnits, &r.bountyPoolUnits, &r.runsPaidUnits, &r.bountyPaidUnits,
-			&r.crashBonusPaidUnits, &r.runsDone, &r.budgetRuns, &r.perRunUnits, &r.findingWinner, &r.status, &r.refundedBountyUnits, &r.escrowSplit, &r.feeAsset)
+			&r.crashBonusPaidUnits, &r.runsDone, &r.budgetRuns, &r.perRunUnits, &r.findingWinner, &r.status, &r.refundedBountyUnits, &r.escrowSplit, &r.feeAsset, &r.payerAddress)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrFuzzEscrowNotFound
 	}
 	if err != nil {
 		return nil, err
 	}
+	r.payerAddress = OrdersPrepaidNormalizeAddr(r.payerAddress)
 	return &r, nil
 }
 
@@ -544,6 +609,7 @@ func fuzzEscrowPublic(r *fuzzEscrowDBRow) *FuzzEscrowRow {
 		RunsRemainingHMC:  UnitsToHMC(runsRemainingU),
 		RefundableHMC:     UnitsToHMC(refundableU),
 		RefundPath:        path,
+		PayerAddress:      r.payerAddress,
 	}
 }
 
@@ -574,13 +640,14 @@ func (s *Service) RollbackUnstartedFuzzEscrow(ctx context.Context, campaignID st
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	var status, feeAsset string
+	var status, feeAsset, payerAddr string
 	var budget, runsPaid, bountyPaid, crashPaid, refunded, feeBurn, feePlatform, feeSUP uint64
 	err = tx.QueryRowContext(ctx, `SELECT status, budget_units, runs_paid_units, bounty_paid_units,
 	        COALESCE(crash_bonus_paid_units,0), COALESCE(refunded_bounty_units,0),
-	        COALESCE(fee_asset,''), COALESCE(fee_burn_units,0), COALESCE(fee_platform_units,0), COALESCE(fee_sup_units,0)
+	        COALESCE(fee_asset,''), COALESCE(fee_burn_units,0), COALESCE(fee_platform_units,0), COALESCE(fee_sup_units,0),
+	        COALESCE(payer_address,'')
 	   FROM fuzz_campaign_escrow WHERE campaign_id=?`, campaignID).Scan(
-		&status, &budget, &runsPaid, &bountyPaid, &crashPaid, &refunded, &feeAsset, &feeBurn, &feePlatform, &feeSUP)
+		&status, &budget, &runsPaid, &bountyPaid, &crashPaid, &refunded, &feeAsset, &feeBurn, &feePlatform, &feeSUP, &payerAddr)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}
@@ -590,6 +657,7 @@ func (s *Service) RollbackUnstartedFuzzEscrow(ctx context.Context, campaignID st
 	if status != "open" || runsPaid != 0 || bountyPaid != 0 || crashPaid != 0 || refunded != 0 {
 		return ErrFuzzEscrowStarted
 	}
+	payerAddr = OrdersPrepaidNormalizeAddr(payerAddr)
 	var walletAddr string
 	if err := tx.QueryRowContext(ctx, `SELECT address FROM wallet WHERE id=1`).Scan(&walletAddr); err != nil {
 		return err
@@ -605,7 +673,7 @@ func (s *Service) RollbackUnstartedFuzzEscrow(ctx context.Context, campaignID st
 			if _, err := tx.ExecContext(ctx, `UPDATE accounts SET balance_units=balance_units-?, updated_at=strftime('%s','now') WHERE address=?`, feePlatform, DevFeeAddress); err != nil {
 				return err
 			}
-			if DevFeeAddress == walletAddr {
+			if payerAddr == "" && DevFeeAddress == walletAddr {
 				if _, err := tx.ExecContext(ctx, `UPDATE wallet SET balance_units=balance_units-?, balance_hmc=(balance_units-?)/? WHERE id=1`, feePlatform, feePlatform, float64(UnitsPerHMC)); err != nil {
 					return err
 				}
@@ -653,7 +721,7 @@ func (s *Service) RollbackUnstartedFuzzEscrow(ctx context.Context, campaignID st
 			}
 		}
 	}
-	if err := s.creditUnits(ctx, tx, walletAddr, refund); err != nil {
+	if err := s.creditFuzzEscrowRefund(ctx, tx, campaignID, refund); err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM fuzz_campaign_escrow WHERE campaign_id=?`, campaignID); err != nil {

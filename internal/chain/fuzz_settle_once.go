@@ -249,14 +249,8 @@ func (s *Service) finalizeFuzzEscrowTx(ctx context.Context, tx *sql.Tx, campaign
 	// only): without it a second finalize refunded the bounty pool again — HMC from nothing.
 	bountyRefund := row.bountyLeftUnits()
 	refund := runsRefund + bountyRefund
-	if refund > 0 {
-		var walletAddr string
-		if err := tx.QueryRowContext(ctx, `SELECT address FROM wallet WHERE id=1`).Scan(&walletAddr); err != nil {
-			return err
-		}
-		if err := s.creditUnits(ctx, tx, walletAddr, refund); err != nil {
-			return err
-		}
+	if err := s.creditFuzzEscrowRefund(ctx, tx, campaignID, refund); err != nil {
+		return err
 	}
 	if _, err := tx.ExecContext(ctx,
 		`UPDATE fuzz_campaign_escrow SET status='closed', refunded_bounty_units=refunded_bounty_units+? WHERE campaign_id=?`,

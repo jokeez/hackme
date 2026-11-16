@@ -367,5 +367,5 @@ func (a *app) handleCIDig(w http.ResponseWriter, r *http.Request) {
 	log.Printf("ci action=dig_create ip=%s owner=%s package=%s preset=%s pack=%s custom_wasm=%t",
 		clientIP(r), logsafe.ID(req.PayerRef), logsafe.ID(req.DigPackage), logsafe.ID(req.DigPreset),
 		logsafe.ID(req.GuardPack), req.WasmCheckHex != "")
-	a.serveSecurityAudit(w, r, req)
+	a.serveSecurityAudit(w, r, req, "")
 }

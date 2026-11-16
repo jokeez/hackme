@@ -882,7 +882,7 @@ bash /opt/hackme/hackme_desktop_launch.sh
       </div>
       <ol class="check-list" style="margin-top:0.85rem">
         <li>Install above → start <em>HackMe Orders</em> (or Miner, then open <code>#orders</code>) on <code>127.0.0.1:8080</code>.</li>
-        <li>Dashboard → <strong>Wallet</strong> (<code>#wallet</code>): top up <strong>on-chain HMC</strong> for Orders. <strong>Starter HMC is 0</strong> — no free genesis spendable. Dig/Hunt <strong>Start</strong> auto-funds prepaid escrow from that balance (<em>Fund Orders</em> is optional).</li>
+        <li>Dashboard → <strong>Wallet</strong> (<code>#wallet</code>): top up <strong>on-chain HMC</strong> for Orders. <strong>Starter HMC is 0</strong>. Dig/Hunt <strong>Start</strong> Funds Orders (hub prepaid) and, with Pool distributed on, registers on the public pool in one click. Package price includes the 10% fee; unused escrow returns to Orders balance (not the on-chain wallet).</li>
         <li>Developer token comes with install; re-issue on the local dashboard if needed, or CLI <code>./hackme-fuzzing register --save</code> (Orders folder / Linux tar).</li>
         <li>Create Dig in <strong>#orders</strong>, or CLI: <code>./hackme-fuzzing wizard --pack secrets --package audit</code> · Hunt: engines auto-install on Linux update; or <code>bash install_hunt_engines.sh --desktop</code> then <code>./hackme-fuzzing hunt create …</code>.</li>
         <li>Use gate/report URLs on <code>http://127.0.0.1:8080</code> (campaign data stays on your PC).</li>
@@ -976,7 +976,7 @@ bash /opt/hackme/hackme_desktop_launch.sh
           <strong style="color:#6effad;letter-spacing:0.08em;font-size:0.72rem;text-transform:uppercase">Happy path</strong>
           <ol>
             <li>Start <em>HackMe Orders</em> (or open <code>#orders</code> on a local node) at <code>http://127.0.0.1:8080</code>.</li>
-            <li>Top up on-chain HMC on <strong>Wallet</strong> — Dig/Hunt Start auto-funds escrow.</li>
+            <li>Top up on-chain HMC on <strong>Wallet</strong> — Dig/Hunt Start Funds Orders and runs on the public pool by default.</li>
             <li><code>hackme-fuzzing register --save</code> → <code>wizard --pack secrets --package audit</code> → gate/report on loopback.</li>
             <li>Hunt (Linux): <code>hunt pin</code> → <code>hunt build</code> → <code>hunt create</code> · guide: <a href="./fuzz-guide.html">Dig + Hunt</a>.</li>
           </ol>

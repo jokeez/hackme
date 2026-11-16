@@ -199,6 +199,26 @@ func (a *app) fundOrdersSpendable(ctx context.Context, amountHMC float64) (*orde
 			Extra:      map[string]any{"tx_hash": txHash},
 		}
 	}
+	// rc20: pool Dig debits hub tenant prepaid — mirror credit on hub after local spendable.
+	if hubErr := a.confirmOrdersFundOnHub(ctx, txHash, amountUnits); hubErr != nil {
+		return nil, &ordersAutoFundError{
+			HTTPStatus: http.StatusBadGateway,
+			Code:       "hub_fund_confirm_failed",
+			Msg:        "local spendable credited but hub prepaid confirm failed: " + hubErr.Error(),
+			Extra:      map[string]any{"tx_hash": txHash, "funded_local": res},
+		}
+	}
+	// When this node IS the minting hub, also credit tenant prepaid for the owner.
+	if a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false) {
+		if _, herr := a.chain.CreditOrdersFundForOwner(ctx, from, txHash, amountUnits); herr != nil {
+			return nil, &ordersAutoFundError{
+				HTTPStatus: http.StatusInternalServerError,
+				Code:       "hub_prepaid_credit_failed",
+				Msg:        herr.Error(),
+				Extra:      map[string]any{"tx_hash": txHash},
+			}
+		}
+	}
 	out.Funded = res
 	return out, nil
 }
@@ -301,6 +321,18 @@ func (a *app) handleOrdersFundConfirm(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeAPIError(w, http.StatusBadRequest, "fund_credit_failed", err.Error(), map[string]any{"tx_hash": txHash})
 		return
+	}
+	if hubErr := a.confirmOrdersFundOnHub(r.Context(), txHash, amountUnits); hubErr != nil {
+		writeAPIError(w, http.StatusBadGateway, "hub_fund_confirm_failed",
+			"local spendable credited but hub prepaid confirm failed: "+hubErr.Error(),
+			map[string]any{"tx_hash": txHash, "funded_local": res})
+		return
+	}
+	if a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false) {
+		if _, herr := a.chain.CreditOrdersFundForOwner(r.Context(), from, txHash, amountUnits); herr != nil {
+			writeAPIError(w, http.StatusBadRequest, "hub_prepaid_credit_failed", herr.Error(), map[string]any{"tx_hash": txHash})
+			return
+		}
 	}
 	writeJSON(w, map[string]any{"ok": true, "funded": res, "tx_hash": txHash, "on_chain": row})
 }

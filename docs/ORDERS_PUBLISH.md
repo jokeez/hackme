@@ -98,20 +98,35 @@ Requires Dig `dig_package` (`scan`/`starter`/`audit`/`pro`/`deep`/`enterprise`) 
 ## Operator checklist
 
 1. `bash scripts/ops/gen_orders_publish_token.sh`
-2. `bash scripts/ops/gen_orders_prepaid_hub_secret.sh` — set on **hub coordinator only**
+2. `bash scripts/ops/gen_orders_prepaid_hub_secret.sh` — set on **hub / command node only**
    (`HACKME_ORDERS_PREPAID_HUB_SECRET`). Prefer omit from customer Orders
-   (`HACKME_ORDERS_PREPAID_LOCAL_SIGN=0` / default under minting hub); mint via admin.
-   Only ship `pool.orders.prepaid_hub.secret` / `HACKME_RELEASE_ORDERS_PREPAID_HUB_SECRET`
-   when intentionally enabling `LOCAL_SIGN=1`.
-3. Hub coordinator: set `HACKME_COORDINATOR_ORDERS_PUBLISH_TOKEN` (≠ admin, ≠ worker),
-   `HACKME_CHAIN_MINTING_HUB=1`, `HACKME_COORDINATOR_ORDERS_URL` → command node,
-   `HACKME_CHAIN_LEADER_LOCAL_POH=0` on the command node, restart. Leave
+   (`HACKME_ORDERS_PREPAID_LOCAL_SIGN=0` / default under minting hub).
+   **Do not ship** `pool.orders.prepaid_hub.secret` in customer rc20+ bundles (PUB-01).
+3. Hub command node (`HACKME_CHAIN_MINTING_HUB=1`): prepaid hub secret + publish token;
+   nginx allowlists `/api/orders/pool/*` and `/api/orders/fund*`; settle URL
+   `HACKME_COORDINATOR_ORDERS_URL` → `http://127.0.0.1:18080`. Leave
    `HACKME_ORDERS_PREPAID_ALLOW_ALGEBRAIC_MINT` unset on prod.
-4. Release: `HACKME_RELEASE_ORDERS_PUBLISH_TOKEN=…`; avoid shipping prepaid hub secret
-   unless LOCAL_SIGN=1 is intentional (must differ from publish/admin/miner).
-5. Smoke: open escrow on hub ledger for campaign → admin mint ticket (or Orders with
-   LOCAL_SIGN=1 after local `GetFuzzEscrow`) → publish → workers claim → settle-pull
+4. Customer Orders release: `HACKME_RELEASE_ORDERS_PUBLISH_TOKEN=…`,
+   `HACKME_ORDERS_HUB_URL=https://hackme.tech` (Fund confirm + pool Dig/Hunt),
+   `HACKME_ORDERS_ALLOW_LOCAL_FALLBACK=0`, `LOCAL_SIGN=0`. No prepaid hub secret in the pack.
+5. Smoke (rc20): customer Fund Orders → hub tenant prepaid → `POST /api/orders/pool/dig`
+   (or local Dig UI with hub URL) → workers claim → settle on hub → cancel refunds prepaid.
 6. **Windows Orders:** `start_hackme_orders.bat` seeds/repairs `HACKME_FUZZ_SETTLE_PULL=1` (miner `hackme.env` may seed `0`). Copy `pool.orders.token.example` → `pool.orders.token` with the scoped publish token. Hunt engines stay Linux-pool-only.
 7. **Do not deploy** until unit tests + this checklist pass
 
-Local Dig/Hunt without public register still works with no publish token.
+### rc20 customer path (no admin mint)
+
+1. Fund Orders (on-chain → DevFee, memo `orders_fund_v1:<addr>`) then hub
+   `POST /api/orders/pool/fund/confirm` (publish token + `X-Hackme-Orders-Owner-Ref`;
+   tx `from` must match Owner-Ref).
+2. Dig/Hunt with `pool_distributed=true` → customer proxies to hub
+   `/api/orders/pool/dig|hunt` with publish token + Owner-Ref + **Ed25519 owner proof**
+   (`X-Hackme-Orders-Owner-PubKey` / `-Sig` / `-Ts`) so a leaked fleet token cannot spend
+   another tenant's prepaid. Hub opens escrow from **tenant prepaid**, mints `hubv1`,
+   registers on coordinator. Customer does **not** open local escrow.
+3. Package price is fee-from-price (e.g. 60 = 54 escrow + 6 fee). Cancel/finalize unused
+   escrow → Orders prepaid (not on-chain wallet).
+4. Failed pool register returns `pool_unavailable` — no `local_fallback` unless
+   `HACKME_ORDERS_ALLOW_LOCAL_FALLBACK=1` (lab only).
+
+Local Dig/Hunt with `pool_distributed=false` (CI) still works with no publish token.

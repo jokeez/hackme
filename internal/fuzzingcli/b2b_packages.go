@@ -49,7 +49,7 @@ var b2bPackages = map[string]B2BPackage{
 		// are paid for wall-clock depth, not just cheap CLEAN smoke shards.
 		BudgetHMC: 40.0, BudgetRuns: 2048, BudgetSeconds: 86400, // 24h hours-scale
 		PoolDistributed: true, CreatePoHOrder: true, RewardHMC: 0.25,
-		Summary:        "Deep · paid depth (40 HMC escrow, 40/60 runs/bounty, seed merge) — not OSS-Fuzz/CVE replacement",
+		Summary:        "Deep · paid depth (40 HMC price incl. v2 fee → post-fee 40/60 runs/bounty, seed merge) — not OSS-Fuzz/CVE replacement",
 		SignalTypes:    []string{"byte_corpus", "structured_mutation", "corpus_scheduling", "segment_exec", "native_repro"},
 		MutationRounds: 12,
 		CoverageGuided: true,

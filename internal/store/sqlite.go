@@ -802,7 +802,25 @@ func migrateFuzzEscrow(db *sql.DB) error {
 			return err
 		}
 	}
+	if _, err := db.Exec(`ALTER TABLE fuzz_campaign_escrow ADD COLUMN payer_address TEXT NOT NULL DEFAULT ''`); err != nil {
+		if !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+			return err
+		}
+	}
+	if err := migrateOrdersPrepaid(db); err != nil {
+		return err
+	}
 	return migrateOrderFeeColumns(db, "fuzz_campaign_escrow")
+}
+
+// migrateOrdersPrepaid is the hub multi-tenant Fund Orders ledger (rc20 pool Dig/Hunt).
+func migrateOrdersPrepaid(db *sql.DB) error {
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS orders_prepaid (
+		address TEXT PRIMARY KEY,
+		balance_units INTEGER NOT NULL DEFAULT 0,
+		updated_at INTEGER NOT NULL DEFAULT 0
+	)`)
+	return err
 }
 
 // migrateOrderFeeColumns adds the Economics v2 order-fee record (asset + legs in units).

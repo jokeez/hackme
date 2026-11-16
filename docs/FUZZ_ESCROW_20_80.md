@@ -12,7 +12,7 @@
 | Bounty | 80% | First medium/high/critical finding (`PayFuzzBounty`). Orders opened before block 550,000: 5% fee to treasury at payout. Economics v2 orders: no payout fee — the 10% order fee (5% burn + 5% platform) was taken at open. |
 | Unique crash bonus | ≤1% of bounty (cap 0.01 HMC) | First **crash-class** finding (`PayFuzzCrashBonus` / settle kind `crash_bonus`) — does **not** close bounty; detector/property noise does not qualify |
 
-Unused bounty (no winner) is **refunded** to the campaign payer wallet on `FinalizeFuzzEscrow` when the campaign completes. Crash bonus already paid is not refunded.
+Unused bounty (no winner) is **refunded** on `FinalizeFuzzEscrow` / cancel: to the **primary wallet** for local escrows, or to **Orders tenant prepaid** when `payer_address` is set (rc20 hub pool Dig/Hunt). Crash bonus already paid is not refunded.
 
 ## Live fields (`GET .../escrow`, also on campaign GET + pulse)
 

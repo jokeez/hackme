@@ -428,43 +428,49 @@ else
 fi
 
 # Prepaid hub signing secret — DISTINCT from pool.orders.token (fleet publish credential).
-# Prefer hub-only key + admin mint (HACKME_ORDERS_PREPAID_LOCAL_SIGN=0) when not shipping this.
+# rc20: do NOT ship into customer Orders by default (PUB-01). Hub opens escrow + mints hubv1.
+# Opt-in only: HACKME_RELEASE_SHIP_PREPAID_HUB_SECRET=1 (lab LOCAL_SIGN=1 packs).
 for _prepaid in "${WIN_DIR}/pool.orders.prepaid_hub.secret" "${LINUX_DIR}/pool.orders.prepaid_hub.secret"; do
   rm -f "${_prepaid}"
 done
 printf '%s\n' "REPLACE_WITH_ORDERS_PREPAID_HUB_SECRET" >"${WIN_DIR}/pool.orders.prepaid_hub.secret.example"
 printf '%s\n' "REPLACE_WITH_ORDERS_PREPAID_HUB_SECRET" >"${LINUX_DIR}/pool.orders.prepaid_hub.secret.example"
 ORDERS_PREPAID_HUB_SECRET="${HACKME_RELEASE_ORDERS_PREPAID_HUB_SECRET:-}"
-if [[ -z "${ORDERS_PREPAID_HUB_SECRET}" && -f "${ROOT_DIR}/.secrets/hackme_orders_prepaid_hub_secret" ]]; then
-  ORDERS_PREPAID_HUB_SECRET="$(tr -d '\r\n' <"${ROOT_DIR}/.secrets/hackme_orders_prepaid_hub_secret")"
-fi
-if [[ -n "${ORDERS_PREPAID_HUB_SECRET}" ]]; then
-  if [[ "${ORDERS_PREPAID_HUB_SECRET}" == "REPLACE_WITH_ORDERS_PREPAID_HUB_SECRET" ]]; then
-    echo "[release] REFUSING placeholder ORDERS_PREPAID_HUB_SECRET" >&2
-    exit 1
+SHIP_PREPAID_HUB="${HACKME_RELEASE_SHIP_PREPAID_HUB_SECRET:-0}"
+if [[ "${SHIP_PREPAID_HUB}" == "1" || "${SHIP_PREPAID_HUB}" == "true" ]]; then
+  if [[ -z "${ORDERS_PREPAID_HUB_SECRET}" && -f "${ROOT_DIR}/.secrets/hackme_orders_prepaid_hub_secret" ]]; then
+    ORDERS_PREPAID_HUB_SECRET="$(tr -d '\r\n' <"${ROOT_DIR}/.secrets/hackme_orders_prepaid_hub_secret")"
   fi
-  if [[ -n "${ORDERS_PUBLISH_TOKEN}" && "${ORDERS_PREPAID_HUB_SECRET}" == "${ORDERS_PUBLISH_TOKEN}" ]]; then
-    echo "[release] REFUSING: prepaid hub secret must differ from pool.orders.token (fleet publish)" >&2
-    exit 1
+  if [[ -n "${ORDERS_PREPAID_HUB_SECRET}" ]]; then
+    if [[ "${ORDERS_PREPAID_HUB_SECRET}" == "REPLACE_WITH_ORDERS_PREPAID_HUB_SECRET" ]]; then
+      echo "[release] REFUSING placeholder ORDERS_PREPAID_HUB_SECRET" >&2
+      exit 1
+    fi
+    if [[ -n "${ORDERS_PUBLISH_TOKEN}" && "${ORDERS_PREPAID_HUB_SECRET}" == "${ORDERS_PUBLISH_TOKEN}" ]]; then
+      echo "[release] REFUSING: prepaid hub secret must differ from pool.orders.token (fleet publish)" >&2
+      exit 1
+    fi
+    if [[ -n "${POOL_MINER_TOKEN}" && "${ORDERS_PREPAID_HUB_SECRET}" == "${POOL_MINER_TOKEN}" ]]; then
+      echo "[release] REFUSING: prepaid hub secret must differ from pool.miner.token" >&2
+      exit 1
+    fi
+    _admin_pp="${HACKME_COORDINATOR_ADMIN_TOKEN:-}"
+    if [[ -z "${_admin_pp}" && -f "${ROOT_DIR}/.secrets/hackme_coordinator_admin_token" ]]; then
+      _admin_pp="$(tr -d '\r\n' <"${ROOT_DIR}/.secrets/hackme_coordinator_admin_token")"
+    fi
+    if [[ -n "${_admin_pp}" && "${ORDERS_PREPAID_HUB_SECRET}" == "${_admin_pp}" ]]; then
+      echo "[release] REFUSING: prepaid hub secret must differ from coordinator admin token" >&2
+      exit 1
+    fi
+    printf '%s' "${ORDERS_PREPAID_HUB_SECRET}" >"${WIN_DIR}/pool.orders.prepaid_hub.secret"
+    printf '%s' "${ORDERS_PREPAID_HUB_SECRET}" >"${LINUX_DIR}/pool.orders.prepaid_hub.secret"
+    chmod 600 "${WIN_DIR}/pool.orders.prepaid_hub.secret" "${LINUX_DIR}/pool.orders.prepaid_hub.secret" 2>/dev/null || true
+    echo "[release] wrote pool.orders.prepaid_hub.secret (${#ORDERS_PREPAID_HUB_SECRET} chars) — SHIP_PREPAID_HUB=1"
+  else
+    echo "[release] NOTE: SHIP_PREPAID_HUB=1 but no secret — set HACKME_RELEASE_ORDERS_PREPAID_HUB_SECRET"
   fi
-  if [[ -n "${POOL_MINER_TOKEN}" && "${ORDERS_PREPAID_HUB_SECRET}" == "${POOL_MINER_TOKEN}" ]]; then
-    echo "[release] REFUSING: prepaid hub secret must differ from pool.miner.token" >&2
-    exit 1
-  fi
-  _admin_pp="${HACKME_COORDINATOR_ADMIN_TOKEN:-}"
-  if [[ -z "${_admin_pp}" && -f "${ROOT_DIR}/.secrets/hackme_coordinator_admin_token" ]]; then
-    _admin_pp="$(tr -d '\r\n' <"${ROOT_DIR}/.secrets/hackme_coordinator_admin_token")"
-  fi
-  if [[ -n "${_admin_pp}" && "${ORDERS_PREPAID_HUB_SECRET}" == "${_admin_pp}" ]]; then
-    echo "[release] REFUSING: prepaid hub secret must differ from coordinator admin token" >&2
-    exit 1
-  fi
-  printf '%s' "${ORDERS_PREPAID_HUB_SECRET}" >"${WIN_DIR}/pool.orders.prepaid_hub.secret"
-  printf '%s' "${ORDERS_PREPAID_HUB_SECRET}" >"${LINUX_DIR}/pool.orders.prepaid_hub.secret"
-  chmod 600 "${WIN_DIR}/pool.orders.prepaid_hub.secret" "${LINUX_DIR}/pool.orders.prepaid_hub.secret" 2>/dev/null || true
-  echo "[release] wrote pool.orders.prepaid_hub.secret (${#ORDERS_PREPAID_HUB_SECRET} chars) — distinct from publish token"
 else
-  echo "[release] NOTE: no prepaid hub secret — D1 minting hub needs hub-signed tickets (admin mint or set HACKME_RELEASE_ORDERS_PREPAID_HUB_SECRET)"
+  echo "[release] omit pool.orders.prepaid_hub.secret (rc20 hub pool path; set HACKME_RELEASE_SHIP_PREPAID_HUB_SECRET=1 to ship)"
 fi
 
 cat > "${DIST_DIR}/BUILD_INFO.txt" <<EOF

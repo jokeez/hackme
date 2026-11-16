@@ -39,6 +39,7 @@ PID_FILE="${PID_FILE:-$LOG_DIR/hackme-orders.pid}"
 NODE_LOG="${NODE_LOG:-$LOG_DIR/hackme-orders.log}"
 
 DEFAULT_COORD_URL="${HACKME_POOL_COORDINATOR_URL:-https://hackme.tech/pool/coordinator}"
+DEFAULT_HUB_URL="${HACKME_ORDERS_HUB_URL:-https://hackme.tech}"
 
 notify() {
   local msg="$1"
@@ -122,6 +123,9 @@ HACKME_INTEGRATOR_SELF_REGISTER=1
 HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech
 HACKME_CANONICAL_CHAIN_URL=https://hackme.tech
 HACKME_POOL_COORDINATOR_URL=${DEFAULT_COORD_URL}
+HACKME_ORDERS_HUB_URL=${DEFAULT_HUB_URL}
+HACKME_ORDERS_ALLOW_LOCAL_FALLBACK=0
+HACKME_ORDERS_PREPAID_LOCAL_SIGN=0
 HACKME_DATA_DIR=${DATA_DIR}
 HACKME_WORKING_DIR=${STATE_DIR}
 HACKME_WORKER_LOCK_DIR=${STATE_DIR}/logs
@@ -155,6 +159,19 @@ repair_pool_coordinator_env() {
       echo "HACKME_POOL_COORDINATOR_URL=${DEFAULT_COORD_URL}" >>"$ENV_FILE"
     fi
     echo "[hackme-orders] set HACKME_POOL_COORDINATOR_URL=${DEFAULT_COORD_URL}"
+  fi
+  # rc20: Fund confirm + pool Dig/Hunt start against hub tenant prepaid (not local escrow).
+  if ! grep -q '^HACKME_ORDERS_HUB_URL=.\+' "$ENV_FILE" 2>/dev/null; then
+    if grep -q '^HACKME_ORDERS_HUB_URL=' "$ENV_FILE" 2>/dev/null; then
+      sed -i "s|^HACKME_ORDERS_HUB_URL=.*|HACKME_ORDERS_HUB_URL=${DEFAULT_HUB_URL}|" "$ENV_FILE"
+    else
+      echo "HACKME_ORDERS_HUB_URL=${DEFAULT_HUB_URL}" >>"$ENV_FILE"
+    fi
+    echo "[hackme-orders] set HACKME_ORDERS_HUB_URL=${DEFAULT_HUB_URL}"
+  fi
+  if ! grep -q '^HACKME_ORDERS_ALLOW_LOCAL_FALLBACK=' "$ENV_FILE" 2>/dev/null; then
+    echo "HACKME_ORDERS_ALLOW_LOCAL_FALLBACK=0" >>"$ENV_FILE"
+    echo "[hackme-orders] set HACKME_ORDERS_ALLOW_LOCAL_FALLBACK=0 (pool product; no local_fallback)"
   fi
   if ! grep -q '^HACKME_POOL_ORDERS_PUBLISH_TOKEN=.\+' "$ENV_FILE" 2>/dev/null \
     && ! grep -q '^HACKME_COORDINATOR_ORDERS_PUBLISH_TOKEN=.\+' "$ENV_FILE" 2>/dev/null; then

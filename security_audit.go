@@ -77,13 +77,22 @@ func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusBadRequest, "invalid_json", "invalid json", nil)
 		return
 	}
-	a.serveSecurityAudit(w, r, req)
+	if a.tryCustomerPoolDigViaHub(w, r, req) {
+		return
+	}
+	a.serveSecurityAudit(w, r, req, "")
+}
+
+func (a *app) serveSecurityAuditPoolHub(w http.ResponseWriter, r *http.Request, req securityAuditRequest, owner string) {
+	a.serveSecurityAudit(w, r, req, owner)
 }
 
 // serveSecurityAudit creates the order + campaign + escrow for an already
 // authenticated and decoded request. Callers own auth, rate limits and body
 // decoding (admin: handleSecurityAudit; scoped CI token: handleCIDig).
-func (a *app) serveSecurityAudit(w http.ResponseWriter, r *http.Request, req securityAuditRequest) {
+// When hubOwner is non-empty (rc20 hub /api/orders/pool/dig), escrow debits tenant
+// prepaid and the hub mints hubv1 + registers on the coordinator.
+func (a *app) serveSecurityAudit(w http.ResponseWriter, r *http.Request, req securityAuditRequest, hubOwner string) {
 	ts := time.Now().UTC().Format("20060102t150405") + fmt.Sprintf("%06d", time.Now().Nanosecond()/1000)
 	orderID := strings.TrimSpace(req.OrderID)
 	if orderID == "" {
@@ -237,12 +246,17 @@ func (a *app) serveSecurityAudit(w http.ResponseWriter, r *http.Request, req sec
 	// Default pool_distributed=true for public audits, but fall back to local when the
 	// caller left it unset and this node has no coordinator URL (CI / solo / unit tests).
 	// Explicit pool_distributed=true still fails closed in campaign create.
+	// Hub pool Dig always forces pool_distributed.
 	poolDist := true
 	poolDistExplicit := req.PoolDistributed != nil
 	if poolDistExplicit {
 		poolDist = *req.PoolDistributed
 	}
-	if poolDist && !poolDistExplicit && !poolSyncCoordinatorConfigured() {
+	if hubOwner != "" {
+		poolDist = true
+		poolDistExplicit = true
+	}
+	if poolDist && !poolDistExplicit && !poolSyncCoordinatorConfigured() && ordersHubURL() == "" {
 		poolDist = false
 	}
 
@@ -539,6 +553,11 @@ func (a *app) serveSecurityAudit(w http.ResponseWriter, r *http.Request, req sec
 	reportTokenHashHex := reportTokenHash(reportToken)
 	now := time.Now().Unix()
 	ownerRef := payerRef
+	if hubOwner != "" {
+		ownerRef = hubOwner
+		cfgMap["hub_pool"] = true
+		cfg = marshalMapJSON(cfgMap)
+	}
 	if ownerRef == "" {
 		ownerRef = a.defaultOrdersOwnerRef() // pool publish needs an owner; the wizard sends none
 	}
@@ -559,16 +578,33 @@ func (a *app) serveSecurityAudit(w http.ResponseWriter, r *http.Request, req sec
 		return
 	}
 
-	if _, fundErr := a.ensureOrdersSpendableForBudget(r.Context(), escrowBudgetHMC); fundErr != nil {
-		_, _ = a.db.ExecContext(r.Context(), `DELETE FROM fuzz_campaigns WHERE id=?`, campaignID)
-		writeOrdersAutoFundOrEscrowFailed(w, fundErr)
-		return
-	}
-	escrow, err := openFuzzEscrowRetrySplit(r.Context(), a.chain, campaignID, escrowBudgetHMC, budgetRuns, escrowSplit)
-	if err != nil {
-		_, _ = a.db.ExecContext(r.Context(), `DELETE FROM fuzz_campaigns WHERE id=?`, campaignID)
-		writeFuzzEscrowFailed(w, err)
-		return
+	var escrow *chain.FuzzEscrowRow
+	if hubOwner != "" {
+		if fundErr := a.ensureOrdersPrepaidForBudget(r.Context(), hubOwner, escrowBudgetHMC); fundErr != nil {
+			_, _ = a.db.ExecContext(r.Context(), `DELETE FROM fuzz_campaigns WHERE id=?`, campaignID)
+			writeOrdersAutoFundOrEscrowFailed(w, fundErr)
+			return
+		}
+		var openErr error
+		escrow, openErr = openFuzzEscrowForOwnerRetry(r.Context(), a.chain, campaignID, hubOwner, escrowBudgetHMC, budgetRuns, escrowSplit)
+		if openErr != nil {
+			_, _ = a.db.ExecContext(r.Context(), `DELETE FROM fuzz_campaigns WHERE id=?`, campaignID)
+			writeFuzzEscrowFailed(w, openErr)
+			return
+		}
+	} else {
+		if _, fundErr := a.ensureOrdersSpendableForBudget(r.Context(), escrowBudgetHMC); fundErr != nil {
+			_, _ = a.db.ExecContext(r.Context(), `DELETE FROM fuzz_campaigns WHERE id=?`, campaignID)
+			writeOrdersAutoFundOrEscrowFailed(w, fundErr)
+			return
+		}
+		var openErr error
+		escrow, openErr = openFuzzEscrowRetrySplit(r.Context(), a.chain, campaignID, escrowBudgetHMC, budgetRuns, escrowSplit)
+		if openErr != nil {
+			_, _ = a.db.ExecContext(r.Context(), `DELETE FROM fuzz_campaigns WHERE id=?`, campaignID)
+			writeFuzzEscrowFailed(w, openErr)
+			return
+		}
 	}
 	// Align config budget_hmc with post-fee escrow row (same as handleFuzzCampaignCreate).
 	// Without this, pool Dig registration refuses under Economics v2 (valax / fimasw sibling).
@@ -632,13 +668,35 @@ func (a *app) serveSecurityAudit(w http.ResponseWriter, r *http.Request, req sec
 
 	if poolDistributedCampaign(cfgMap) {
 		resp["pool_distributed"] = true
-		fc := fuzzAutoCampaign{ID: campaignID, OwnerRef: ownerRef, BudgetRuns: budgetRuns, BudgetSeconds: budgetSeconds, ConfigJSON: cfg}
-		a.applyPoolSyncResponse(resp, r.Context(), fc)
-		if fail, _ := resp["pool_sync"].(string); fail == "fail" {
-			a.rollbackNewCampaignEscrow(r.Context(), campaignID)
-			writeAPIError(w, http.StatusBadGateway, "pool_sync_failed",
-				toString(resp["pool_sync_warning"]), map[string]any{"rolled_back": true})
-			return
+		if hubOwner != "" {
+			claimBudget := escrow.BudgetHMC
+			if claimBudget <= 0 {
+				claimBudget = budgetHMC
+			}
+			reg, regErr := a.registerPoolCampaignOnCoordinator(r.Context(), campaignID, ownerRef, "property",
+				budgetRuns, budgetSeconds, claimBudget, cfgMap)
+			if regErr != nil {
+				a.rollbackNewCampaignEscrow(r.Context(), campaignID)
+				writeAPIError(w, http.StatusBadGateway, "pool_sync_failed", regErr.Error(), map[string]any{"rolled_back": true})
+				return
+			}
+			if sec := strings.TrimSpace(reg.OrdersOwnerSecret); sec != "" {
+				a.persistOrdersOwnerSecret(r.Context(), campaignID, sec)
+				resp["orders_owner_secret"] = sec
+				resp["orders_owner_secret_header"] = "X-Hackme-Orders-Owner-Secret"
+			}
+			resp["pool_sync"] = "ok"
+			resp["hub_pool"] = true
+			a.persistPoolRegisterStatus(r.Context(), campaignID, "ok", "")
+		} else {
+			fc := fuzzAutoCampaign{ID: campaignID, OwnerRef: ownerRef, BudgetRuns: budgetRuns, BudgetSeconds: budgetSeconds, ConfigJSON: cfg}
+			a.applyPoolSyncResponse(resp, r.Context(), fc)
+			if fail, _ := resp["pool_sync"].(string); fail == "fail" {
+				a.rollbackNewCampaignEscrow(r.Context(), campaignID)
+				writeAPIError(w, http.StatusBadGateway, "pool_sync_failed",
+					toString(resp["pool_sync_warning"]), map[string]any{"rolled_back": true})
+				return
+			}
 		}
 	}
 

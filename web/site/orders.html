@@ -36,7 +36,7 @@
       <p class="hero-copy">
         Fuzzing feeds your parser or library millions of malformed inputs and watches for memory bugs.
         You get a <strong>crash report with an input that reproduces it</strong>, a <strong>CI gate</strong> for your pipeline,
-        and an honest <strong>CLEAN</strong> when nothing turns up. Priced in HMC; the unused part of your budget comes back.
+        and an honest <strong>CLEAN</strong> when nothing turns up. Priced in HMC; unused escrow returns to your Orders balance for the next scan.
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="#start">How to order</a>
@@ -84,10 +84,12 @@
         </table>
       </div>
       <p class="subtle">
-        You top up your node's <strong>order balance</strong> once (minimum 15 HMC, sent on-chain to the platform); each scan locks its
-        price from that balance and returns whatever it did not use when it closes. The order balance stays on your node for the next
-        scans — it cannot be sent back to a wallet, so top up only what you plan to spend.
-        Orders opened since block 550,000 (Economics v2) also pay a one-time 10% fee at the start (5% burned, 5% platform).
+        You Fund Orders once (minimum 15 HMC on-chain to the platform); each scan locks its
+        <strong>package price</strong> from that Orders balance. Under Economics v2 the listed price
+        <strong>already includes</strong> the 10% fee (5% burned + 5% platform) — e.g. Standard Hunt
+        <strong>60 HMC = 54 HMC miner escrow + 6 HMC fee</strong>, not 66. When the scan closes or you cancel,
+        unused escrow returns to the same Orders balance for the next Dig/Hunt — it is not sent back to your
+        on-chain wallet, so Fund only what you plan to spend.
         Need HMC? <a href="https://exchange.hackme.tech/info/buy.html">How to get HMC</a>.
       </p>
     </section>
@@ -118,17 +120,14 @@
     <section id="start" class="panel glass">
       <div class="panel-head"><h2>How to order</h2></div>
       <ol class="list">
-        <li><strong>Install the node</strong> from <a href="./downloads.html">Downloads</a> and pick the <em>Orders</em> role (Windows setup or Linux). It opens a local dashboard on your machine.</li>
-        <li><strong>Add HMC</strong> to the wallet in that dashboard (at least 15 HMC for the first top-up).</li>
-        <li><strong>Start a scan</strong>: choose a package and your target, press Start. The report link and a CI gate URL appear right away and fill in as it runs.</li>
-        <li><strong>C/C++ Hunt on Linux:</strong> run <code>install_hunt_engines.sh --desktop</code> once from the install folder — it installs clang and the sandbox
-          (on Ubuntu 24.04 it asks to allow the sandbox through AppArmor). Hunt is Linux-only; Windows runs Dig scans.</li>
+        <li><strong>Install Orders</strong> from <a href="./downloads.html">Downloads</a> (Windows or Linux). It opens a local dashboard on your machine.</li>
+        <li><strong>Top up Wallet</strong> with on-chain HMC (at least 15 HMC), then use <strong>Fund Orders</strong> so the Orders balance can pay Dig/Hunt.</li>
+        <li><strong>Start</strong>: pick Dig or Hunt, keep <em>Pool distributed</em> on, press Start. Your node registers the job on the public pool in one click — report link and CI gate appear immediately.</li>
+        <li><strong>C/C++ Hunt on Linux:</strong> run <code>install_hunt_engines.sh --desktop</code> once from the install folder (clang + sandbox). Hunt engines are Linux-only; Windows runs Dig on the pool.</li>
       </ol>
       <p class="subtle">
-        <strong>Today</strong>, a scan you start from your own node runs on your own machine.
-        <strong>Running on the public pool</strong> (the 6–16 h and ~1 day times above) is set up with us for now:
-        <a href="./contacts.html">contact us</a> with the target and package, and we open the escrow on the network so pool miners pick it up.
-        Self-service pool orders come back once that path is reworked.
+        Default Dig/Hunt packages run on the <strong>public pool</strong> (the 6–16 h / ~1 day times above). Uncheck pool only for a local-only lab run.
+        Need help with a custom harness? <a href="./contacts.html">Contact us</a>.
       </p>
     </section>
 
@@ -144,7 +143,7 @@
       </details>
       <details>
         <summary><strong>Why is there no checkout on hackme.tech?</strong></summary>
-        <p class="subtle">Your HMC stays in your own wallet until you start a scan; the site never holds your funds. hackme.tech is the catalog and the docs.</p>
+        <p class="subtle">You hold the keys on your Orders node. Fund moves HMC into an Orders balance (prepaid) that pays Dig/Hunt; hackme.tech is the catalog and docs, not a custodial checkout.</p>
       </details>
       <details>
         <summary><strong>Which languages and targets?</strong></summary>

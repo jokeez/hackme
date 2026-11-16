@@ -269,8 +269,9 @@
       </div>
       <div class="formula-box">
         prepaid = reward_hmc × target_solves<br />
-        v2 wallet_debit = prepaid + prepaid × 0.05 (platform) + prepaid × 0.05 (burn)<br />
-        v1 wallet_debit = prepaid + prepaid × 0.05 · burn_recorded = prepaid × 0.10 (tally)<br />
+        Dig/Hunt v2: package_price debit; miner_escrow = price − 10% (5% burn + 5% platform) — e.g. 60 → 54 + 6<br />
+        PoH useful-work v2: wallet_debit = escrow + escrow × 0.05 (platform) + escrow × 0.05 (burn)<br />
+        v1 PoH: wallet_debit = escrow + escrow × 0.05 · burn_recorded = escrow × 0.10 (tally)<br />
         — transfers: fee_units → 70% dev · 30% burn
       </div>
     </section>

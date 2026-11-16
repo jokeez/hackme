@@ -69,6 +69,9 @@ if not exist "%ENV_FILE%" (
     echo HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech
     echo HACKME_CANONICAL_CHAIN_URL=https://hackme.tech
     echo HACKME_POOL_COORDINATOR_URL=https://hackme.tech/pool/coordinator
+    echo HACKME_ORDERS_HUB_URL=https://hackme.tech
+    echo HACKME_ORDERS_ALLOW_LOCAL_FALLBACK=0
+    echo HACKME_ORDERS_PREPAID_LOCAL_SIGN=0
     rem Miner hackme.env may seed settle-pull=0; Orders needs pull to close escrow.
     echo HACKME_FUZZ_SETTLE_PULL=1
   ) > "%ENV_FILE%"
@@ -92,9 +95,18 @@ if "!HACKME_ADMIN_TOKEN!"=="" (
 
 rem Pool Dig/Hunt register needs coordinator URL + scoped publish token (not miner/admin).
 set "COORD_URL=https://hackme.tech/pool/coordinator"
+set "HUB_URL=https://hackme.tech"
 if "!HACKME_POOL_COORDINATOR_URL!"=="" set "HACKME_POOL_COORDINATOR_URL=!COORD_URL!"
 findstr /B /I "HACKME_POOL_COORDINATOR_URL=" "%ENV_FILE%" >nul 2>&1 || (
   echo HACKME_POOL_COORDINATOR_URL=!COORD_URL!>> "%ENV_FILE%"
+)
+rem rc20: Fund confirm + pool Dig/Hunt against hub tenant prepaid.
+if "!HACKME_ORDERS_HUB_URL!"=="" set "HACKME_ORDERS_HUB_URL=!HUB_URL!"
+findstr /B /I "HACKME_ORDERS_HUB_URL=" "%ENV_FILE%" >nul 2>&1 || (
+  echo HACKME_ORDERS_HUB_URL=!HUB_URL!>> "%ENV_FILE%"
+)
+findstr /B /I /C:"HACKME_ORDERS_ALLOW_LOCAL_FALLBACK=" "%ENV_FILE%" >nul 2>&1 || (
+  echo HACKME_ORDERS_ALLOW_LOCAL_FALLBACK=0>> "%ENV_FILE%"
 )
 set "HAS_ORDERS_PUBLISH="
 for /f "usebackq tokens=1,* delims==" %%A in ("%ENV_FILE%") do (

@@ -83,6 +83,12 @@ func pubKeyOwnsAddress(pubHex, addr string) bool {
 	return false
 }
 
+// PubKeyOwnsAddress is the exported form of pubKeyOwnsAddress (Orders pool owner proof).
+func PubKeyOwnsAddress(pubHex, addr string) bool {
+	return pubKeyOwnsAddress(pubHex, OrdersPrepaidNormalizeAddr(addr)) ||
+		pubKeyOwnsAddress(pubHex, strings.TrimSpace(addr))
+}
+
 // checkAddressRulesForIndex applies the height-dependent address rules to a spend in block idx.
 // to == "" for spends without a recipient (burns).
 func checkAddressRulesForIndex(idx uint64, from, to string) (string, string) {
