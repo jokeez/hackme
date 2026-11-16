@@ -53,10 +53,27 @@ func RegisterHTTP(mux *http.ServeMux, coord *Coordinator, adminToken, workerToke
 			PubkeyHex   string `json:"pubkey_hex"`
 			QuotaGB     int    `json:"quota_gb"`
 			EndpointURL string `json:"endpoint_url"`
+			SigHex      string `json:"sig_hex"`
 		}
 		if !readJSON(r, &req) {
 			http.Error(w, "bad json", http.StatusBadRequest)
 			return
+		}
+		// Admin bearer may bootstrap without PoP; worker-token path requires Ed25519 PoP
+		// so knowing a public key alone cannot bump quota or redirect endpoint_url (R10).
+		// Lab loopback with both tokens empty stays open (existing TestAuthLoopbackEmptyTokensAllowed).
+		adminOK := adminToken != "" && bearerOK(r, adminToken)
+		labOpen := adminToken == "" && workerToken == ""
+		if !adminOK && !labOpen {
+			if err := VerifyRegisterWorker(RegisterWorkerPayload{
+				WorkerID:    strings.TrimSpace(req.WorkerID),
+				PubkeyHex:   strings.TrimSpace(req.PubkeyHex),
+				QuotaGB:     req.QuotaGB,
+				EndpointURL: strings.TrimSpace(req.EndpointURL),
+			}, strings.TrimSpace(req.SigHex)); err != nil {
+				http.Error(w, "register proof of possession required: "+err.Error(), http.StatusUnauthorized)
+				return
+			}
 		}
 		if err := coord.RegisterStorageWorkerEndpoint(strings.TrimSpace(req.WorkerID), strings.TrimSpace(req.PubkeyHex), req.QuotaGB, strings.TrimSpace(req.EndpointURL)); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)

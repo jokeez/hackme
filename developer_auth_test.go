@@ -59,3 +59,12 @@ func TestTasksListShowsDetailsDeveloper(t *testing.T) {
 		t.Fatal("developer should see manifest")
 	}
 }
+
+func TestTasksListShowsDetailsNoFailOpenWithoutAdminToken(t *testing.T) {
+	t.Setenv("HACKME_ADMIN_TOKEN", "")
+	t.Setenv("HACKME_DEVELOPER_TOKEN", "")
+	req := httptest.NewRequest(http.MethodGet, "/api/tasks", nil)
+	if tasksListShowsDetails(req) {
+		t.Fatal("empty admin+developer tokens must not expose task details")
+	}
+}

@@ -8,6 +8,15 @@ import (
 	"strings"
 )
 
+// RegisterWorkerPayload is signed by a storage worker to prove possession of
+// the Ed25519 key being registered or used for quota/endpoint updates (audit R10).
+type RegisterWorkerPayload struct {
+	WorkerID    string `json:"worker_id"`
+	PubkeyHex   string `json:"pubkey_hex"`
+	QuotaGB     int    `json:"quota_gb"`
+	EndpointURL string `json:"endpoint_url"`
+}
+
 // StorageSubmitPayload is signed by storage workers on proof submit.
 type StorageSubmitPayload struct {
 	WorkerID    string `json:"worker_id"`
@@ -40,6 +49,18 @@ func verifyEd25519(pubHex string, body []byte, sigHex string) error {
 		return errors.New("signature verify failed")
 	}
 	return nil
+}
+
+// VerifyRegisterWorker checks Ed25519 PoP over the register/update body.
+func VerifyRegisterWorker(p RegisterWorkerPayload, sigHex string) error {
+	p.WorkerID = strings.TrimSpace(p.WorkerID)
+	p.PubkeyHex = strings.TrimSpace(strings.ToLower(p.PubkeyHex))
+	p.EndpointURL = strings.TrimSpace(p.EndpointURL)
+	b, err := canonicalJSON(p)
+	if err != nil {
+		return err
+	}
+	return verifyEd25519(p.PubkeyHex, b, sigHex)
 }
 
 func VerifyStorageSubmit(p StorageSubmitPayload, pubHex, sigHex string) error {

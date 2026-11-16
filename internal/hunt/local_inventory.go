@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -106,13 +105,16 @@ func localInventoryTick(ctx context.Context, repoRoot string, cfg map[string]any
 
 // replayInventoryCrash runs the libFuzzer binary on one crash input and classifies the
 // sanitizer report (the crash file alone does not say heap overflow vs UAF).
+// Uses the same RunIsolated path as coordinator prove (audit R01) — never bare exec
+// with the full node environment.
 func replayInventoryCrash(ctx context.Context, bin, input string) (fuzzupstream.SanitizerInfo, string) {
 	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(cctx, bin, "-runs=1", input)
-	cmd.Env = append(os.Environ(), "ASAN_OPTIONS=detect_leaks=1:symbolize=1", "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1")
-	out, _ := cmd.CombinedOutput()
-	blob := string(out)
+	env := append(ScrubBuildEnv(os.Environ()),
+		"ASAN_OPTIONS=detect_leaks=1:symbolize=1",
+		"UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1",
+	)
+	blob, _ := IsolatedHarnessRunner()(cctx, bin, []string{"-runs=1", input}, env, nil, 30*time.Second)
 	info := fuzzupstream.ClassifySanitizer(blob)
 	tail := blob
 	if i := strings.Index(blob, "==ERROR:"); i > 0 {

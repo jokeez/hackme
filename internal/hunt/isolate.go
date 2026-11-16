@@ -233,7 +233,8 @@ func RunIsolated(ctx context.Context, opts IsolateOpts) error {
 		cmd.Stdin = opts.Stdin
 	}
 	var stderrBuf bytes.Buffer
-	attachIsolatedStdio(cmd, opts.Stdout, opts.Stderr, &stderrBuf)
+	stderrCap := newLimitedWriter(&stderrBuf, DefaultHarnessOutputCap)
+	attachIsolatedStdio(cmd, opts.Stdout, opts.Stderr, stderrCap)
 	setProcessGroup(cmd)
 	allowBareFallback := !IsolateStrict() || opts.AllowBare
 	// Bare fallback ONLY when bwrap fails to *launch* (Start error).
@@ -394,7 +395,8 @@ func runBareIsolated(runCtx context.Context, opts IsolateOpts, env []string, wal
 // attachIsolatedStdio wires stdout/stderr. When both point at the same writer,
 // route through syncWriter so concurrent pipe pumps cannot race a bytes.Buffer.
 // When stderrTee is non-nil, stderr is also copied there (bwrap setup diagnostics).
-func attachIsolatedStdio(cmd *exec.Cmd, stdout, stderr io.Writer, stderrTee *bytes.Buffer) {
+// stderrTee is io.Writer so callers can cap retention (audit R03).
+func attachIsolatedStdio(cmd *exec.Cmd, stdout, stderr, stderrTee io.Writer) {
 	if cmd == nil {
 		return
 	}

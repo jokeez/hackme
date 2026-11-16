@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"hackme/internal/chain"
+	"hackme/internal/hunt"
 	"hackme/internal/pathsafe"
 	"hackme/internal/sandbox"
 )
@@ -294,7 +295,9 @@ func compileTaskWASM(ctx context.Context, lang, srcPath, outPath string) (string
 	// a stable HOME/rustup config. Overriding HOME to a temp dir breaks
 	// toolchain resolution ("no default is configured"), so we keep HOME
 	// unchanged for rust and only sandbox cache dirs.
-	env := append(os.Environ(),
+	// Scrub hub tokens/secrets before host compile (audit R04); re-add only
+	// toolchain cache knobs needed for the sandbox workDir.
+	env := append(hunt.ScrubBuildEnv(os.Environ()),
 		"GOCACHE="+workDir,
 		"XDG_CACHE_HOME="+workDir,
 	)

@@ -62,8 +62,14 @@ func requireDeveloperTasksAuth(w http.ResponseWriter, r *http.Request) bool {
 }
 
 // tasksListShowsDetails returns whether GET /api/tasks may include manifest_json.
+// Never fail-open when HACKME_ADMIN_TOKEN is unset (audit R12): require an explicit
+// admin or developer/integrator secret. adminRequestAuthed / developerRequestAuthed
+// both treat empty admin token as authenticated.
 func tasksListShowsDetails(r *http.Request) bool {
-	return adminRequestAuthed(r) || developerRequestAuthed(r)
+	if adminAuthEnabled() && secretsEqualConstantTime(extractAdminSecret(r), adminTokenFromEnv()) {
+		return true
+	}
+	return integratorTokenValid(extractDeveloperSecret(r))
 }
 
 // requireFuzzCampaignCreateAuth is admin-strict: paid escrow / treasury spend must not
