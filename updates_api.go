@@ -311,6 +311,10 @@ func (a *app) handleUpdatesCheck(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if !a.allowRate("updates_check:"+clientIP(r), 10) {
+		http.Error(w, "rate limit", http.StatusTooManyRequests)
+		return
+	}
 	if envBool("HACKME_UPDATE_CHECK_DISABLE", false) {
 		writeJSON(w, map[string]any{
 			"ok":               true,

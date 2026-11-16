@@ -1922,7 +1922,11 @@ func (s *Service) SubmitWithOutcome(ctx context.Context, req SubmitRequest) (Sub
 		var findingSeverity string
 		var findingType string
 		var findingID string
-		if recordFinding {
+		// Novel crash-class findings only (exact bytes OR StableCrashBucket). Same invariant
+		// as AcceptResearchCorpusDelta — Dig submit must not re-mint finding/bounty/bonus
+		// for a crash-preserving mutant (valax sibling on the non-corpus_delta path).
+		novelFinding := recordFinding
+		if novelFinding {
 			submitReq := req
 			submitReq.ActualInput = findingU
 			if len(findingB) > 0 {
@@ -1930,14 +1934,21 @@ func (s *Service) SubmitWithOutcome(ctx context.Context, req SubmitRequest) (Sub
 			} else {
 				submitReq.InputBytes = expectedB
 			}
-			var err error
-			findingID, findingSeverity, findingType, err = s.insertFinding(ctx, submitReq, cfg, sem, hasWasm, now)
-			if err != nil {
-				return err
+			if skip, serr := s.crashFindingAlreadyKnown(ctx, req.CampaignID, submitReq); serr != nil {
+				return serr
+			} else if skip {
+				novelFinding = false
+			}
+			if novelFinding {
+				var err error
+				findingID, findingSeverity, findingType, err = s.insertFinding(ctx, submitReq, cfg, sem, hasWasm, now)
+				if err != nil {
+					return err
+				}
 			}
 		}
 		if wantAnySettle {
-			if recordFinding && huntBountyEligible(cfg, findingSeverity) && s.bountyAllowed(ctx, cfg, findingID) {
+			if novelFinding && huntBountyEligible(cfg, findingSeverity) && s.bountyAllowed(ctx, cfg, findingID) {
 				_, _ = s.DB.ExecContext(ctx,
 					`UPDATE fuzz_work_items SET settle_finding_status='pending', settle_finding_severity=? WHERE id=? AND campaign_id=?`,
 					findingSeverity, req.ItemID, req.CampaignID)
@@ -1948,7 +1959,7 @@ func (s *Service) SubmitWithOutcome(ctx context.Context, req SubmitRequest) (Sub
 			// One-shot unique-crash micro-bonus (does not close the confirmed-native bounty).
 			// Crash-class only — detector/property noise must not skim the bonus pool.
 			// workItemID=0 so outbox dedupes campaign-wide (first crash wins).
-			if recordFinding && miner != "" && fuzzengine.IsCrashClass(findingType) {
+			if novelFinding && miner != "" && fuzzengine.IsCrashClass(findingType) {
 				if _, err := s.Settler.PayCrashBonus(ctx, req.CampaignID, miner, 0, 0); err != nil {
 					// already paid / depleted / closed are non-fatal for the submit path
 					low := strings.ToLower(err.Error())
@@ -2223,6 +2234,33 @@ func (s *Service) bountyAllowed(ctx context.Context, cfg map[string]any, finding
 	}
 	ok, err := fuzznative.IsFindingNativeEligibleForBounty(ctx, s.DB, findingID)
 	return err == nil && ok
+}
+
+// crashFindingAlreadyKnown reports whether this sanitizer/crash trap was already recorded
+// for the campaign (exact bytes or StableCrashBucket). Empty trap → not a crash novelty gate.
+func (s *Service) crashFindingAlreadyKnown(ctx context.Context, campaignID string, req SubmitRequest) (bool, error) {
+	trap := strings.TrimSpace(req.Trap)
+	if trap == "" {
+		return false, nil
+	}
+	u := req.ActualInput
+	sha := ""
+	if len(req.InputBytes) > 0 {
+		u = fuzzengine.PackInputBytesToU64(req.InputBytes)
+		sha = fuzzengine.InputBytesSHA256(req.InputBytes)
+	}
+	if known, err := s.campaignCrashInputKnown(ctx, campaignID, u, sha); err != nil {
+		return false, err
+	} else if known {
+		return true, nil
+	}
+	bucket := fuzzengine.StableCrashBucket("native_crash", trap)
+	if known, err := s.campaignCrashBucketKnown(ctx, campaignID, bucket); err != nil {
+		return false, err
+	} else if known {
+		return true, nil
+	}
+	return false, nil
 }
 
 func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[string]any, sem fuzzengine.CheckSemantics, hasWasm bool, now int64) (findingID, severity, findingType string, err error) {

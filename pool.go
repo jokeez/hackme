@@ -1707,6 +1707,10 @@ func (a *app) handleNetworkStats(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if !a.allowRate("network_stats:"+clientIP(r), 30) {
+		http.Error(w, "rate limit", http.StatusTooManyRequests)
+		return
+	}
 	if base := a.coordinatorBaseURL(); base != "" && r.Header.Get(coordinatorForwardHeader) != "1" {
 		if s, err := fetchCoordinatorStats(r.Context(), base); err == nil {
 			// Privileged view only with a configured token that matches (never fail-open
@@ -2008,6 +2012,11 @@ func (a *app) handleWorkAdminRevokeWorker(w http.ResponseWriter, r *http.Request
 func (a *app) handleWorkStats(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	// Public coordinator relay — same amp class as by-wallet / marketplace (fimasw).
+	if !a.allowRate("work_stats:"+clientIP(r), 40) {
+		http.Error(w, "rate limit", http.StatusTooManyRequests)
 		return
 	}
 	base := a.coordinatorBaseURL()
@@ -2797,6 +2806,10 @@ func (a *app) overlayCanonicalMiningIntoSnapshot(ctx context.Context, s *Metrics
 func (a *app) handleCanonicalMetricsProxy(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !a.allowRate("canonical_metrics:"+clientIP(r), 20) {
+		http.Error(w, "rate limit", http.StatusTooManyRequests)
 		return
 	}
 	base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/")

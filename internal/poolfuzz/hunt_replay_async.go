@@ -723,22 +723,32 @@ func (s *Service) finalizeHuntSubmit(ctx context.Context, p finalizeHuntSubmitPa
 			return err
 		}
 	}
-	var findingSeverity, findingType, findingID string
-	if p.recordFinding {
-		submitReq := p.req
-		submitReq.ActualInput = p.findingU
-		submitReq.InputOriginalLen = p.huntOrigLen
-		if len(p.findingB) > 0 {
-			submitReq.InputBytes = p.findingB
-		} else {
-			submitReq.InputBytes = p.expectedB
-		}
-		findingID, findingSeverity, findingType, err = s.insertFinding(ctx, submitReq, p.cfg, sem, hasWasm, p.now)
-		if err != nil {
-			return err
-		}
-	}
 	return s.withCampaignSettle(p.req.CampaignID, func() error {
+		// Insert finding under the settle lock + StableCrashBucket novelty (valax race sibling).
+		var findingSeverity, findingType, findingID string
+		novelFinding := p.recordFinding
+		if novelFinding {
+			submitReq := p.req
+			submitReq.ActualInput = p.findingU
+			submitReq.InputOriginalLen = p.huntOrigLen
+			if len(p.findingB) > 0 {
+				submitReq.InputBytes = p.findingB
+			} else {
+				submitReq.InputBytes = p.expectedB
+			}
+			if skip, serr := s.crashFindingAlreadyKnown(ctx, p.req.CampaignID, submitReq); serr != nil {
+				return serr
+			} else if skip {
+				novelFinding = false
+			}
+			if novelFinding {
+				var ierr error
+				findingID, findingSeverity, findingType, ierr = s.insertFinding(ctx, submitReq, p.cfg, sem, hasWasm, p.now)
+				if ierr != nil {
+					return ierr
+				}
+			}
+		}
 		res, err := s.DB.ExecContext(ctx,
 			`UPDATE fuzz_work_items
 		 SET status='done', attempts=attempts+1, result_ok=?, duration_ms=?, last_error=?, lease_owner='', lease_until=0, updated_at=?,
@@ -779,7 +789,7 @@ func (s *Service) finalizeHuntSubmit(ctx context.Context, p finalizeHuntSubmitPa
 			return fmt.Errorf("poolfuzz: hunt finalize: work item state changed")
 		}
 		if wantAnySettle {
-			if p.recordFinding && huntBountyEligible(p.cfg, findingSeverity) && s.bountyAllowed(ctx, p.cfg, findingID) {
+			if novelFinding && huntBountyEligible(p.cfg, findingSeverity) && s.bountyAllowed(ctx, p.cfg, findingID) {
 				_, _ = s.DB.ExecContext(ctx,
 					`UPDATE fuzz_work_items SET settle_finding_status='pending', settle_finding_severity=? WHERE id=? AND campaign_id=?`,
 					findingSeverity, p.req.ItemID, p.req.CampaignID)
@@ -787,7 +797,7 @@ func (s *Service) finalizeHuntSubmit(ctx context.Context, p finalizeHuntSubmitPa
 			if err := s.flushPendingSettles(ctx, p.req.CampaignID, p.req.ItemID, p.cfg); err != nil {
 				return fmt.Errorf("poolfuzz: settle flush: %w", err)
 			}
-			if p.recordFinding && miner != "" && fuzzengine.IsCrashClass(findingType) {
+			if novelFinding && miner != "" && fuzzengine.IsCrashClass(findingType) {
 				if _, err := s.Settler.PayCrashBonus(ctx, p.req.CampaignID, miner, 0, 0); err != nil {
 					low := strings.ToLower(err.Error())
 					if !strings.Contains(low, "already paid") && !strings.Contains(low, "depleted") && !strings.Contains(low, "closed") {

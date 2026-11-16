@@ -96,10 +96,9 @@ func desktopLoopbackAdminOK(r *http.Request) bool {
 	if !envBool("HACKME_DESKTOP_MODE", false) || !requestFromLoopback(r) || !requestHostIsLoopbackLiteral(r) {
 		return false
 	}
-	if adminAuthEnabled() {
-		return desktopLocalAuthBrowserDocumentOK(r)
-	}
-	return desktopMutatingOriginOK(r)
+	// Token set or unset: money/worker actions need browser same-origin document markers.
+	// Empty-Origin curl must not inherit desktopLoopbackAdminOK (sibling of Fund Orders fix).
+	return desktopLocalAuthBrowserDocumentOK(r)
 }
 
 // requireAdminAuthOrDesktopLoopback accepts a valid admin token OR trusted desktop loopback.

@@ -3956,6 +3956,13 @@ func (a *app) handleMiningLogsStream(w http.ResponseWriter, r *http.Request) {
 func (a *app) handleTasks(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
+		// GET may proxy to canonical/P2P peer (12s) — rate-limit like other relays.
+		if !a.allowRate("tasks_get:"+clientIP(r), 20) {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusTooManyRequests)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": "rate limited", "code": "rate_limited"})
+			return
+		}
 		ctx := r.Context()
 		var rows []chain.OrderTaskRow
 		// Follower UX: prefer a remote /api/tasks list so the dashboard orders tab

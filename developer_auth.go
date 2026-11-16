@@ -29,8 +29,10 @@ func extractDeveloperSecret(r *http.Request) string {
 }
 
 // developerRequestAuthed is true for a valid developer token or full admin.
+// Never fail-open via adminRequestAuthed when HACKME_ADMIN_TOKEN is unset
+// (tasks/network/stats sibling class).
 func developerRequestAuthed(r *http.Request) bool {
-	if adminRequestAuthed(r) {
+	if adminAuthEnabled() && adminRequestAuthed(r) {
 		return true
 	}
 	return integratorTokenValid(extractDeveloperSecret(r))

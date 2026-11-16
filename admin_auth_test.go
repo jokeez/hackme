@@ -325,6 +325,23 @@ func TestRequireAdminAuthOrDesktopLoopbackUnsetTokenRemote(t *testing.T) {
 	}
 }
 
+func TestDesktopLoopbackAdminOKRejectsEmptyOriginEvenWhenTokenUnset(t *testing.T) {
+	t.Setenv("HACKME_DESKTOP_MODE", "1")
+	t.Setenv("HACKME_ADMIN_TOKEN", "")
+	req := httptest.NewRequest(http.MethodPost, "/api/worker/stop", nil)
+	req.RemoteAddr = "127.0.0.1:9"
+	req.Host = "127.0.0.1:8080"
+	if desktopLoopbackAdminOK(req) {
+		t.Fatal("empty-Origin must not pass desktopLoopbackAdminOK when token unset")
+	}
+	req.Header.Set("Origin", "http://127.0.0.1:8080")
+	req.Header.Set("Referer", "http://127.0.0.1:8080/")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	if !desktopLoopbackAdminOK(req) {
+		t.Fatal("browser same-origin document should pass when token unset")
+	}
+}
+
 func TestDesktopLoopbackAdminOKRejectsSecFetchSiteAlone(t *testing.T) {
 	t.Setenv("HACKME_DESKTOP_MODE", "1")
 	t.Setenv("HACKME_ADMIN_TOKEN", "desktop-secret")

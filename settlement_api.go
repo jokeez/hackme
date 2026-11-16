@@ -528,6 +528,10 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if !a.allowRate("worker_settlement:"+clientIP(r), 20) {
+		http.Error(w, "rate limit", http.StatusTooManyRequests)
+		return
+	}
 	lite := strings.TrimSpace(r.URL.Query().Get("lite")) == "1"
 	base := a.coordinatorBaseURL()
 	if base == "" {
@@ -545,16 +549,19 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	// Settlement unpaid must use raw worker ids (details=1). Public work/stats
 	// re-keys workers to blake3 pseudonyms, which cannot match settlement state.
+	// Never attach the node coordinator admin token for anonymous remote callers
+	// (relay amp + privileged details=1 — sibling of by-wallet/marketplace).
 	var ws map[string]any
 	var statsStale bool
 	var err error
-	if lite {
-		ws, statsStale, err = a.resolveCoordinatorWorkStats(ctx, base, false)
-	} else {
+	useAdminDetails := !lite && workerSettlementExposeSensitive(r)
+	if useAdminDetails {
 		ws, statsStale, err = a.resolveCoordinatorWorkStatsAdmin(ctx, base)
+	} else {
+		ws, statsStale, err = a.resolveCoordinatorWorkStats(ctx, base, false)
 	}
 	if err != nil || ws == nil {
-		if lite {
+		if !useAdminDetails {
 			if cached, _, ok := copyCachedWorkStats(workStatsCacheStaleMaxSec); ok && cached != nil {
 				ws = cached
 				statsStale = true
@@ -829,6 +836,10 @@ func (a *app) handleWorkerSettlement(w http.ResponseWriter, r *http.Request) {
 func (a *app) handleSettlementCanonicalJSON(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !a.allowRate("settlement_canonical:"+clientIP(r), 30) {
+		http.Error(w, "rate limit", http.StatusTooManyRequests)
 		return
 	}
 	statePath := workerSettlementStatePath()
