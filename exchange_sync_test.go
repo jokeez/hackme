@@ -88,7 +88,9 @@ func syncApp(t *testing.T) *app {
 func localReq(method, path string, hdr map[string]string) *http.Request {
 	r := httptest.NewRequest(method, "http://127.0.0.1:18080"+path, nil)
 	r.RemoteAddr, r.Host = "127.0.0.1:50000", "127.0.0.1:18080"
+	// Match desktopLocalAuthBrowserDocumentOK (Origin+Referer+Sec-Fetch-Site).
 	r.Header.Set("Origin", "http://127.0.0.1:18080")
+	r.Header.Set("Referer", "http://127.0.0.1:18080/")
 	r.Header.Set("Sec-Fetch-Site", "same-origin")
 	for k, v := range hdr {
 		r.Header.Set(k, v)

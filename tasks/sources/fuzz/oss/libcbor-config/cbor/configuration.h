@@ -7,6 +7,8 @@
 
 #define CBOR_BUFFER_GROWTH 2
 #define CBOR_MAX_STACK_SIZE 2048
+/* Upstream master added this (PJK/libcbor); stub must define it for clang Hunt builds. */
+#define CBOR_MAX_UNCHECKED_DECLARED_SIZE 16
 #define CBOR_PRETTY_PRINTER 1
 
 #define CBOR_RESTRICT_SPECIFIER restrict
