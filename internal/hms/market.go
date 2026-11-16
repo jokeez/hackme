@@ -81,6 +81,9 @@ func (c *Coordinator) CreateStorageOrder(label, clientRef string, sizePlanBytes 
 	if label == "" {
 		label = "backup"
 	}
+	if len(label) > 64 {
+		return nil, errors.New("label too long (max 64)")
+	}
 	if sizePlanBytes < 0 {
 		sizePlanBytes = 0
 	}
@@ -114,7 +117,17 @@ func (c *Coordinator) CreateStorageOrder(label, clientRef string, sizePlanBytes 
 		var existing string
 		err = c.db.QueryRow(`SELECT order_id FROM hms_orders WHERE payment_id=?`, paymentID).Scan(&existing)
 		if err == nil {
-			return nil, errors.New("payment_id already used")
+			// D08: idempotent replay — return the prior order (upload token already issued once).
+			ord, gerr := c.GetStorageOrder(existing)
+			if gerr != nil {
+				return nil, gerr
+			}
+			return &CreateStorageOrderResult{
+				Order:         *ord,
+				UploadURL:     "/api/market/orders/" + existing + "/upload",
+				ChunkMaxBytes: maxMarketChunkBytes,
+				Quote:         q,
+			}, nil
 		}
 		if err != nil && err != sql.ErrNoRows {
 			return nil, err

@@ -11516,14 +11516,17 @@
 			const label = String(($('hms-market-label') && $('hms-market-label').value) || 'storage-backup').trim();
 			if (out) out.textContent = 'Creating order…';
 			try {
+				// D08: durable idempotency so a lost response does not debit twice.
+				const idem = 'hms-' + String(q.quote_hash || '').slice(0, 24) + '-' + String(label).slice(0, 24) + '-' + String(days);
 				const r = await fetch('/api/hms/market/orders', {
 					method: 'POST',
-					headers: Object.assign({ 'Content-Type': 'application/json' }, adminHeaders()),
+					headers: Object.assign({ 'Content-Type': 'application/json', 'Idempotency-Key': idem }, adminHeaders()),
 					body: JSON.stringify({
 						label,
 						size_plan_bytes: Math.floor(gb * 1024 * 1024 * 1024),
 						retention_days: days,
 						quote_hash: q.quote_hash,
+						idempotency_key: idem,
 					}),
 				});
 				const j = r.ok ? await r.json() : null;

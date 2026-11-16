@@ -299,11 +299,16 @@ func TestIntegrityPaymentIDUnique(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := coord.CreateStorageOrder("a", "b", 1<<20, 30, q.QuoteHash, pay, proof, false); err != nil {
+	first, err := coord.CreateStorageOrder("a", "b", 1<<20, 30, q.QuoteHash, pay, proof, false)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := coord.CreateStorageOrder("c", "d", 1<<20, 30, q.QuoteHash, pay, proof, false); err == nil {
-		t.Fatal("expected duplicate payment_id rejection")
+	second, err := coord.CreateStorageOrder("c", "d", 1<<20, 30, q.QuoteHash, pay, proof, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.Order.OrderID != first.Order.OrderID {
+		t.Fatalf("idempotent replay order_id=%s want %s", second.Order.OrderID, first.Order.OrderID)
 	}
 	var n int
 	_ = coord.db.QueryRow(`SELECT COUNT(*) FROM hms_orders WHERE payment_id=?`, pay).Scan(&n)

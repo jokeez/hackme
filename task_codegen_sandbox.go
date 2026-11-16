@@ -114,7 +114,10 @@ func wrapCompilerCmd(ctx context.Context, workDir, outPath string, inner *exec.C
 	case "bwrap":
 		bargs := []string{
 			"--die-with-parent",
+			"--new-session",
 			"--unshare-net",
+			"--unshare-pid", // C02: match Hunt wrapBubblewrap process isolation
+			"--unshare-ipc",
 			"--dev", "/dev",
 			"--proc", "/proc",
 			"--tmpfs", "/tmp",

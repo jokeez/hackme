@@ -451,7 +451,18 @@ func wrapBubblewrap(bin string, args []string, dir string, extraBind, extraRo []
 		"--cap-drop", "ALL",
 		"--proc", "/proc",
 		"--dev", "/dev",
-		"--ro-bind", "/usr", "/usr",
+	}
+	// C01: when HACKME_PREFIX lives under /usr, never RO-bind the whole /usr tree
+	// (would expose .env.vps). Use leaf toolchain dirs instead — same policy as buildToolchainRoBinds.
+	prefix := hackmePrefixRoot()
+	if pathIsAncestorOf(filepath.Clean("/usr"), prefix) {
+		for _, d := range []string{"/usr/bin", "/usr/lib", "/usr/lib64", "/usr/include"} {
+			argv = append(argv, "--ro-bind-try", d, d)
+		}
+	} else {
+		argv = append(argv, "--ro-bind", "/usr", "/usr")
+	}
+	argv = append(argv,
 		"--ro-bind", "/lib", "/lib",
 		"--ro-bind-try", "/lib64", "/lib64",
 		"--ro-bind-try", "/bin", "/bin",
@@ -459,7 +470,7 @@ func wrapBubblewrap(bin string, args []string, dir string, extraBind, extraRo []
 		"--ro-bind-try", "/etc/ld.so.cache", "/etc/ld.so.cache",
 		"--ro-bind-try", "/etc/alternatives", "/etc/alternatives",
 		"--tmpfs", "/tmp",
-	}
+	)
 	if dir = sanitizeCageDir(dir); dir != "" {
 		abs, err := filepath.Abs(dir)
 		if err == nil {

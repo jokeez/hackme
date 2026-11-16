@@ -267,11 +267,17 @@ func TestMarketPaymentReplayBlocked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := coord.CreateStorageOrder("a", "b", 1<<20, 30, q.QuoteHash, payID, proof, false); err != nil {
+	first, err := coord.CreateStorageOrder("a", "b", 1<<20, 30, q.QuoteHash, payID, proof, false)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := coord.CreateStorageOrder("c", "d", 1<<20, 30, q.QuoteHash, payID, proof, false); err == nil {
-		t.Fatal("expected payment_id replay error")
+	// D08: replay returns the same order (idempotent), still a single payment_id row.
+	second, err := coord.CreateStorageOrder("c", "d", 1<<20, 30, q.QuoteHash, payID, proof, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.Order.OrderID != first.Order.OrderID {
+		t.Fatalf("replay order_id=%s want %s", second.Order.OrderID, first.Order.OrderID)
 	}
 }
 

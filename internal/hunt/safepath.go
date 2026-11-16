@@ -32,6 +32,10 @@ func guardPathSink(p string) (string, error) {
 }
 
 func fsReadFile(p string) ([]byte, error) {
+	return fsReadFileUnderRoot("", p)
+}
+
+func fsReadFileUnderRoot(root, p string) ([]byte, error) {
 	safe, err := guardPathSink(p)
 	if err != nil {
 		return nil, err
@@ -39,9 +43,23 @@ func fsReadFile(p string) ([]byte, error) {
 	if !pathsafe.AbsRE.MatchString(safe) {
 		return nil, fmt.Errorf("hunt: path rejected by allowlist")
 	}
-	// O_NOFOLLOW: pathsafe only checks the string; a same-UID symlink plant must not
-	// exfiltrate files outside the harness store.
-	f, err := os.OpenFile(safe, os.O_RDONLY|oNoFollow, 0)
+	dir := filepath.Dir(safe)
+	base := filepath.Base(safe)
+	resolvedDir, rerr := filepath.EvalSymlinks(dir)
+	if rerr != nil {
+		// Parent missing — fall through to open (will fail similarly).
+		resolvedDir = dir
+	} else {
+		resolvedDir = filepath.Clean(resolvedDir)
+	}
+	// C03: if parent resolved via symlinks, require it remains under the trusted root.
+	if root != "" && resolvedDir != filepath.Clean(dir) {
+		if _, err := MustUnderRoot(root, resolvedDir); err != nil {
+			return nil, fmt.Errorf("hunt: intermediate symlink escapes root")
+		}
+	}
+	final := filepath.Join(resolvedDir, base)
+	f, err := os.OpenFile(final, os.O_RDONLY|oNoFollow, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +287,7 @@ func SafeReadFileUnder(root, path string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return fsReadFile(abs)
+	return fsReadFileUnderRoot(root, abs)
 }
 
 // SafeStatUnder stats a path only after confining it under root.

@@ -2,13 +2,13 @@ package chain
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"hackme/internal/hms"
 )
@@ -162,14 +162,12 @@ func (s *Service) PayHMSStorageMarket(ctx context.Context, label string, sizeByt
 	if err := s.upsertMetaUint(ctx, tx, metaHMSMarketEscrowUnits, cur+escrowUnits); err != nil {
 		return nil, err
 	}
-	paymentID := "hmsp-" + strings.ReplaceAll(strings.TrimSpace(label), " ", "-")
-	if paymentID == "hmsp-" {
-		paymentID = "hmsp"
+	// D09: independent random id — never truncate away uniqueness by appending label/time.
+	var idBytes [16]byte
+	if _, err := rand.Read(idBytes[:]); err != nil {
+		return nil, err
 	}
-	paymentID = paymentID + "-" + fmt.Sprintf("%d", time.Now().UnixNano())
-	if len(paymentID) > 120 {
-		paymentID = paymentID[:120]
-	}
+	paymentID := "hmsp-" + hex.EncodeToString(idBytes[:])
 	proof, err := hms.SignMarketPaymentProof(paymentID, q.QuoteHash, total)
 	if err != nil {
 		return nil, err
