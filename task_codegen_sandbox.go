@@ -155,8 +155,32 @@ func wrapCompilerCmd(ctx context.Context, workDir, outPath string, inner *exec.C
 // compilerSandboxROBinds lists host paths needed by compilers without exposing
 // the full filesystem (esp. /etc secrets readable via include_str!).
 func compilerSandboxROBinds(inner *exec.Cmd, compilerPath string) []string {
+	envMap := envMapFromSlice(nil)
+	if inner != nil && len(inner.Env) > 0 {
+		envMap = envMapFromSlice(inner.Env)
+	}
+	prefix := strings.TrimSpace(envMap["HACKME_PREFIX"])
+	if prefix == "" {
+		prefix = strings.TrimSpace(os.Getenv("HACKME_PREFIX"))
+	}
+	if prefix == "" {
+		prefix = "/opt/hackme"
+	}
+	prefix = filepath.Clean(prefix)
+
 	var out []string
-	for _, p := range []string{"/usr", "/lib", "/lib64", "/bin", "/sbin"} {
+	// C01: when HACKME_PREFIX lives under /usr, never RO-bind the whole /usr tree
+	// (would expose .env.vps). Leaf toolchain dirs — same policy as Hunt wrapBubblewrap.
+	if pathIsAncestorOfPath(filepath.Clean("/usr"), prefix) {
+		for _, d := range []string{"/usr/bin", "/usr/lib", "/usr/lib64", "/usr/include"} {
+			if pathExists(d) {
+				out = append(out, d)
+			}
+		}
+	} else if pathExists("/usr") {
+		out = append(out, "/usr")
+	}
+	for _, p := range []string{"/lib", "/lib64", "/bin", "/sbin"} {
 		if pathExists(p) {
 			out = append(out, p)
 		}
@@ -165,11 +189,6 @@ func compilerSandboxROBinds(inner *exec.Cmd, compilerPath string) []string {
 		if pathExists(p) {
 			out = append(out, p)
 		}
-	}
-
-	envMap := envMapFromSlice(nil)
-	if inner != nil && len(inner.Env) > 0 {
-		envMap = envMapFromSlice(inner.Env)
 	}
 	for _, key := range []string{
 		"TINYGOROOT", "WASMTIME_HOME",
@@ -195,11 +214,6 @@ func compilerSandboxROBinds(inner *exec.Cmd, compilerPath string) []string {
 	}
 	// Portable toolchains under HACKME_PREFIX (never bind the whole prefix —
 	// it may hold .env.vps secrets).
-	prefix := strings.TrimSpace(envMap["HACKME_PREFIX"])
-	if prefix == "" {
-		prefix = "/opt/hackme"
-	}
-	prefix = filepath.Clean(prefix)
 	if prefix != "/" && pathExists(prefix) {
 		for _, sub := range []string{
 			filepath.Join(".rustup", "toolchains"), filepath.Join(".cargo", "bin"),
@@ -330,6 +344,20 @@ func looksLikeToolchainDir(dir string) bool {
 		}
 	}
 	return false
+}
+
+// pathIsAncestorOfPath reports whether ancestor contains child (or equals it).
+func pathIsAncestorOfPath(ancestor, child string) bool {
+	ancestor = filepath.Clean(strings.TrimSpace(ancestor))
+	child = filepath.Clean(strings.TrimSpace(child))
+	if ancestor == "" || child == "" || ancestor == "." || child == "." {
+		return false
+	}
+	rel, err := filepath.Rel(ancestor, child)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)))
 }
 
 func uniqueCleanDirs(dirs ...string) []string {

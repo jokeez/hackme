@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -271,13 +272,23 @@ func TestMarketPaymentReplayBlocked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// D08: replay returns the same order (idempotent), still a single payment_id row.
+	// D08: replay returns the same order + a usable upload token (idempotent).
 	second, err := coord.CreateStorageOrder("c", "d", 1<<20, 30, q.QuoteHash, payID, proof, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if second.Order.OrderID != first.Order.OrderID {
 		t.Fatalf("replay order_id=%s want %s", second.Order.OrderID, first.Order.OrderID)
+	}
+	if strings.TrimSpace(second.UploadToken) == "" {
+		t.Fatal("D08: replay must reissue upload_token while order is still draft/uploading")
+	}
+	if err := coord.verifyUploadToken(second.Order.OrderID, second.UploadToken); err != nil {
+		t.Fatalf("reissued token must verify: %v", err)
+	}
+	// Old first-response token is rotated away.
+	if err := coord.verifyUploadToken(first.Order.OrderID, first.UploadToken); err == nil {
+		t.Fatal("expected old upload token invalidated after reissue")
 	}
 }
 

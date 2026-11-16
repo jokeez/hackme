@@ -310,6 +310,12 @@ func TestIntegrityPaymentIDUnique(t *testing.T) {
 	if second.Order.OrderID != first.Order.OrderID {
 		t.Fatalf("idempotent replay order_id=%s want %s", second.Order.OrderID, first.Order.OrderID)
 	}
+	if second.UploadToken == "" {
+		t.Fatal("D08: idempotent replay must return a fresh upload_token")
+	}
+	if err := coord.verifyUploadToken(second.Order.OrderID, second.UploadToken); err != nil {
+		t.Fatalf("reissued token: %v", err)
+	}
 	var n int
 	_ = coord.db.QueryRow(`SELECT COUNT(*) FROM hms_orders WHERE payment_id=?`, pay).Scan(&n)
 	if n != 1 {

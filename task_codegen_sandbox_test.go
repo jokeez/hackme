@@ -115,7 +115,7 @@ func TestFromCodeEnabledEnvAndBindDefault(t *testing.T) {
 
 func TestCompilerSandboxROBindsExcludesEtcRoot(t *testing.T) {
 	inner := exec.Command("true")
-	inner.Env = append(os.Environ(), "RUSTUP_HOME=/tmp/fake-rustup-does-not-need-exist")
+	inner.Env = append(os.Environ(), "RUSTUP_HOME=/tmp/fake-rustup-does-not-need-exist", "HACKME_PREFIX=/opt/hackme")
 	binds := compilerSandboxROBinds(inner, "true")
 	for _, b := range binds {
 		if b == "/etc" || b == "/" {
@@ -125,6 +125,25 @@ func TestCompilerSandboxROBindsExcludesEtcRoot(t *testing.T) {
 	joined := strings.Join(binds, " ")
 	if !strings.Contains(joined, "/usr") && pathExists("/usr") {
 		t.Fatalf("expected /usr in binds: %v", binds)
+	}
+}
+
+func TestCompilerSandboxROBindsLeafUsrWhenPrefixUnderUsr(t *testing.T) {
+	// C01: prefix under /usr must not RO-bind the whole /usr tree.
+	inner := exec.Command("true")
+	inner.Env = []string{
+		"PATH=/usr/bin",
+		"HACKME_PREFIX=/usr/local/hackme",
+	}
+	binds := compilerSandboxROBinds(inner, "")
+	for _, b := range binds {
+		if b == "/usr" {
+			t.Fatalf("must not bind whole /usr when prefix is under /usr; got %v", binds)
+		}
+	}
+	joined := strings.Join(binds, "\n")
+	if pathExists("/usr/bin") && !strings.Contains(joined, "/usr/bin") {
+		t.Fatalf("expected /usr/bin leaf bind, got %v", binds)
 	}
 }
 

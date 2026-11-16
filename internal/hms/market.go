@@ -117,17 +117,24 @@ func (c *Coordinator) CreateStorageOrder(label, clientRef string, sizePlanBytes 
 		var existing string
 		err = c.db.QueryRow(`SELECT order_id FROM hms_orders WHERE payment_id=?`, paymentID).Scan(&existing)
 		if err == nil {
-			// D08: idempotent replay — return the prior order (upload token already issued once).
+			// D08: idempotent replay — same order; reissue upload token while draft/uploading
+			// so a lost first response can still finish the purchase upload.
 			ord, gerr := c.GetStorageOrder(existing)
 			if gerr != nil {
 				return nil, gerr
 			}
-			return &CreateStorageOrderResult{
+			out := &CreateStorageOrderResult{
 				Order:         *ord,
 				UploadURL:     "/api/market/orders/" + existing + "/upload",
 				ChunkMaxBytes: maxMarketChunkBytes,
 				Quote:         q,
-			}, nil
+			}
+			if tok, rerr := c.reissueUploadTokenIfActive(existing, ord.Status); rerr != nil {
+				return nil, rerr
+			} else if tok != "" {
+				out.UploadToken = tok
+			}
+			return out, nil
 		}
 		if err != nil && err != sql.ErrNoRows {
 			return nil, err
@@ -290,6 +297,30 @@ func (c *Coordinator) verifyUploadToken(orderID, token string) error {
 		return err
 	}
 	return matchUploadToken(stored, token)
+}
+
+// reissueUploadTokenIfActive rotates the bearer upload token for draft/uploading
+// orders so an idempotent CreateStorageOrder replay can finish upload (D08).
+// Stored/cancelled/expired orders get no new token.
+func (c *Coordinator) reissueUploadTokenIfActive(orderID, status string) (string, error) {
+	status = strings.TrimSpace(strings.ToLower(status))
+	switch status {
+	case OrderStatusDraft, OrderStatusUploading:
+	default:
+		return "", nil
+	}
+	token := randomHex(16)
+	now := time.Now().Unix()
+	res, err := c.db.Exec(`UPDATE hms_orders SET upload_token=?, updated_unix=?
+		WHERE order_id=? AND status IN (?,?)`,
+		hashUploadToken(token), now, orderID, OrderStatusDraft, OrderStatusUploading)
+	if err != nil {
+		return "", err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return "", nil
+	}
+	return token, nil
 }
 
 // PickStorageWorker chooses an online storage worker with the most free quota headroom.
