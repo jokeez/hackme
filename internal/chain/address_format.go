@@ -47,6 +47,15 @@ func IsValidAddress(a string) bool {
 	return IsLegacyAddress(a) || IsLongAddress(a)
 }
 
+// LegacyAddressOfLong returns the legacy form (HMC- + first 16 hex) of a long address.
+// Empty when addr is not long. Same key hash prefix — separate on-chain account.
+func LegacyAddressOfLong(addr string) string {
+	if !IsLongAddress(addr) {
+		return ""
+	}
+	return addressPrefix + addr[len(addressPrefix):len(addressPrefix)+legacyAddressHexLen]
+}
+
 // LongAddressesActiveForIndex reports whether long addresses are valid in block idx.
 func LongAddressesActiveForIndex(idx uint64) bool {
 	return EconomicsV2ActiveForIndex(idx)

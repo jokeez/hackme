@@ -1042,13 +1042,38 @@
         : fmtHmcUnits(units);
       const nonce = Number(j.next_nonce || 0);
       const source = String(j.source || '—');
+      const form = String(j.address_form || '');
+      const formLabel = form === 'long' ? 'long (HMC- + 64 hex)' : (form === 'legacy' ? 'legacy (HMC- + 16 hex)' : '—');
       const raw = Object.assign({}, j, { balance_hmc_estimate: (units / 1e8).toFixed(8) });
+      let related = '';
+      const relAddr = String(j.related_legacy_address || '').trim();
+      const relNote = String(j.related_note || '').trim();
+      if (relAddr || relNote) {
+        const relUnits = Number(j.related_legacy_balance_units || 0);
+        const relHmc = Number.isFinite(Number(j.related_legacy_balance_hmc))
+          ? Number(j.related_legacy_balance_hmc)
+          : (relUnits / 1e8);
+        const relHmcTxt = Number.isFinite(relHmc)
+          ? relHmc.toLocaleString(undefined, { minimumFractionDigits: 8, maximumFractionDigits: 8 })
+          : fmtHmcUnits(relUnits);
+        related = '<div class="result-card" style="margin-top:0.75rem;border-color:rgba(0,255,136,0.25)">' +
+          '<div class="result-title">Same key · related form</div>' +
+          '<div class="result-grid">' +
+            (relAddr
+              ? ('<div class="result-key">Legacy address</div><div class="result-val mono"><a href="?addr=' + encodeURIComponent(relAddr) + '">' + esc(relAddr) + '</a></div>' +
+                 '<div class="result-key">Legacy balance</div><div class="result-val result-highlight mono">' + esc(relHmcTxt) + ' HMC</div>' +
+                 '<div class="result-key">Legacy nonce</div><div class="result-val mono">' + esc(String(j.related_legacy_next_nonce || 0)) + '</div>' +
+                 '<div class="result-key">Legacy source</div><div class="result-val mono">' + esc(String(j.related_legacy_source || '—')) + '</div>')
+              : '') +
+            (relNote ? ('<div class="result-key">Note</div><div class="result-val">' + esc(relNote) + '</div>') : '') +
+          '</div></div>';
+      }
       return '' +
         '<div class="addr-pill"><span class="live-dot" style="animation:none;opacity:0.85"></span><span class="mono">' + esc(addr) + '</span></div>' +
         '<div class="addr-balance">' +
           '<span class="amt">' + esc(hmcTxt) + '</span>' +
           '<span class="unit">HMC</span>' +
-          '<span class="sub mono">units ' + esc(fmtUnitsInt(units)) + ' · next nonce ' + esc(String(nonce)) + '</span>' +
+          '<span class="sub mono">units ' + esc(fmtUnitsInt(units)) + ' · next nonce ' + esc(String(nonce)) + (form ? (' · ' + esc(formLabel)) : '') + '</span>' +
         '</div>' +
         '<div class="result-card">' +
           '<div class="result-title">Account</div>' +
@@ -1056,9 +1081,11 @@
             '<div class="result-key">Balance</div><div class="result-val result-highlight mono">' + esc(hmcTxt) + ' HMC</div>' +
             '<div class="result-key">Balance units</div><div class="result-val mono">' + esc(fmtUnitsInt(units)) + '</div>' +
             '<div class="result-key">Next nonce</div><div class="result-val mono">' + esc(String(nonce)) + '</div>' +
+            '<div class="result-key">Form</div><div class="result-val mono">' + esc(formLabel) + '</div>' +
             '<div class="result-key">Source</div><div class="result-val mono">' + esc(source) + '</div>' +
           '</div>' +
         '</div>' +
+        related +
         '<div class="addr-raw"><details><summary>Raw JSON</summary><pre class="mono">' + esc(JSON.stringify(raw, null, 2)) + '</pre></details></div>';
     }
     async function findAddr() {

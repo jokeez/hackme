@@ -291,21 +291,32 @@ elif [[ -f "$ROOT_DIR/logs/desktop/toolchains/.env.hunt-engines" ]]; then
   export PATH
 fi
 
-if [[ -f "$PID_FILE" ]]; then
-  old_pid="$(cat "$PID_FILE" 2>/dev/null || true)"
-  if [[ -n "$old_pid" ]] && kill -0 "$old_pid" >/dev/null 2>&1; then
-    if [[ "${TOOLCHAINS_INSTALLED:-0}" == "1" ]]; then
-      echo "[desktop-up] restarting node to load new from_code toolchains (pid=$old_pid)"
-      kill "$old_pid" 2>/dev/null || true
-      sleep 1
-      rm -f "$PID_FILE"
-    else
-      echo "[desktop-up] node already running (pid=$old_pid)"
-    fi
-  else
-    rm -f "$PID_FILE"
+# Rebuild to a temp binary, then stop listeners, atomically replace, and start.
+# (Overwriting a running binary leaves a (deleted) inode serving stale HTML/API.)
+stop_desktop_node() {
+  local old_pid=""
+  if [[ -f "$PID_FILE" ]]; then
+    old_pid="$(/bin/cat "$PID_FILE" 2>/dev/null || true)"
+    old_pid="$(echo "$old_pid" | tr -cd '0-9')"
   fi
-fi
+  if [[ -n "$old_pid" ]] && kill -0 "$old_pid" >/dev/null 2>&1; then
+    echo "[desktop-up] stopping node pid=$old_pid"
+    kill "$old_pid" 2>/dev/null || true
+    sleep 1
+    kill -9 "$old_pid" 2>/dev/null || true
+  fi
+  pkill -9 -f "$NODE_BIN" 2>/dev/null || true
+  local bind_port="${BIND_ADDR##*:}"
+  if [[ -n "$bind_port" ]] && command -v ss >/dev/null 2>&1; then
+    local p
+    for p in $(ss -ltnp 2>/dev/null | grep -E ":${bind_port}\\b" | grep -oE 'pid=[0-9]+' | cut -d= -f2 | sort -u); do
+      echo "[desktop-up] freeing :$bind_port (pid=$p)"
+      kill -9 "$p" 2>/dev/null || true
+    done
+  fi
+  rm -f "$PID_FILE"
+  sleep 0.5
+}
 
 desktop_gpu_build_tags() {
   if [[ "${HACKME_DESKTOP_GPU_BUILD:-1}" != "1" ]]; then
@@ -335,27 +346,28 @@ desktop_gpu_build_tags() {
   fi
 }
 
-if [[ ! -f "$PID_FILE" ]]; then
-  gpu_tags="$(desktop_gpu_build_tags || true)"
-  # desktop_gpu_build_tags may source cuda_env inside $(...) — re-apply for go build in this shell.
-  if [[ -n "$gpu_tags" ]] && [[ "$gpu_tags" == *cuda* ]] && [[ -f "$ROOT_DIR/scripts/ops/cuda_env.sh" ]]; then
-    # shellcheck source=/dev/null
-    source "$ROOT_DIR/scripts/ops/cuda_env.sh" >/dev/null 2>&1 || true
-  fi
-  if [[ -n "$gpu_tags" ]]; then
-    echo "[desktop-up] go build -tags ${gpu_tags} -> $NODE_BIN (GPU PoH enabled)"
-    go build -trimpath -tags "$gpu_tags" -o "$NODE_BIN" .
-  else
-    echo "[desktop-up] go build -> $NODE_BIN (CPU PoH; install OpenCL/CUDA dev libs for GPU)"
-    go build -trimpath -o "$NODE_BIN" .
-  fi
-  chmod 755 "$NODE_BIN"
-  echo "[desktop-up] starting node on $BIND_ADDR (pid will be real server process, not go run)"
-  # Inherit full environment from this shell (already sourced .env.desktop + profile exports)
-  # so P2P, sync replay, CORS, and other HACKME_* vars reach the binary without listing each one.
-  nohup "$NODE_BIN" >"$NODE_LOG_FILE" 2>&1 &
-  echo "$!" >"$PID_FILE"
+gpu_tags="$(desktop_gpu_build_tags || true)"
+# desktop_gpu_build_tags may source cuda_env inside $(...) — re-apply for go build in this shell.
+if [[ -n "$gpu_tags" ]] && [[ "$gpu_tags" == *cuda* ]] && [[ -f "$ROOT_DIR/scripts/ops/cuda_env.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$ROOT_DIR/scripts/ops/cuda_env.sh" >/dev/null 2>&1 || true
 fi
+NODE_BIN_NEW="${NODE_BIN}.new"
+if [[ -n "$gpu_tags" ]]; then
+  echo "[desktop-up] go build -tags ${gpu_tags} -> $NODE_BIN_NEW (GPU PoH enabled)"
+  go build -trimpath -tags "$gpu_tags" -o "$NODE_BIN_NEW" .
+else
+  echo "[desktop-up] go build -> $NODE_BIN_NEW (CPU PoH; install OpenCL/CUDA dev libs for GPU)"
+  go build -trimpath -o "$NODE_BIN_NEW" .
+fi
+chmod 755 "$NODE_BIN_NEW"
+stop_desktop_node
+mv -f "$NODE_BIN_NEW" "$NODE_BIN"
+echo "[desktop-up] starting node on $BIND_ADDR (pid will be real server process, not go run)"
+# Inherit full environment from this shell (already sourced .env.desktop + profile exports)
+# so P2P, sync replay, CORS, and other HACKME_* vars reach the binary without listing each one.
+nohup "$NODE_BIN" >"$NODE_LOG_FILE" 2>&1 &
+echo "$!" >"$PID_FILE"
 
 for _ in $(seq 1 40); do
   if curl -fsS "$BASE_URL/api/status" >/dev/null 2>&1; then

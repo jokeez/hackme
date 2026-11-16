@@ -4505,6 +4505,65 @@ func (a *app) handleTransferByNonce(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"from": from, "nonce": nonce, "txs": txs})
 }
 
+// lookupAddressBalanceQuick returns HMC balance for addr via cache → canonical peer → local DB.
+func (a *app) lookupAddressBalanceQuick(ctx context.Context, addr string) (units, nonce uint64, hmc float64, source string, ok bool) {
+	addr = strings.TrimSpace(addr)
+	if addr == "" || a == nil {
+		return 0, 0, 0, "", false
+	}
+	if _, u, n, _, _, hit := a.readCanonicalWalletCache(addr); hit {
+		return u, n, float64(u) / 100_000_000.0, "canonical_peer_cache", true
+	}
+	if a.shouldUseCanonicalChainAPI() {
+		if base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/"); base != "" && walletCanonicalBaseUsable(base) && !a.canonicalBaseIsSelfNode(base) {
+			peerCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
+			u, n, peerOK := a.fetchCanonicalAddressState(peerCtx, addr)
+			cancel()
+			if peerOK {
+				hmc = float64(u) / 100_000_000.0
+				a.cacheCanonicalWallet(addr, hmc, u, n, 0, 0)
+				return u, n, hmc, "canonical_peer", true
+			}
+		}
+	}
+	if a.chain == nil {
+		return 0, 0, 0, "", false
+	}
+	row, err := a.chain.TransferAddressState(ctx, addr)
+	if err != nil {
+		return 0, 0, 0, "", false
+	}
+	source = "canonical_local"
+	if a.shouldUseCanonicalChainAPI() {
+		source = "local_db"
+	}
+	return row.BalanceUnits, row.NextNonce, chain.UnitsToHMC(row.BalanceUnits), source, true
+}
+
+// enrichAddressRelatedForms annotates long↔legacy sibling accounts (same key hash, separate balances).
+func (a *app) enrichAddressRelatedForms(ctx context.Context, addr string, out map[string]any) {
+	if out == nil {
+		return
+	}
+	addr = strings.TrimSpace(addr)
+	switch {
+	case chain.IsLongAddress(addr):
+		out["address_form"] = "long"
+		legacy := chain.LegacyAddressOfLong(addr)
+		out["related_legacy_address"] = legacy
+		out["related_note"] = "Long and legacy forms of the same key are separate on-chain accounts. Balance above is only the long form — check related_legacy_* for the short form."
+		if units, nonce, hmc, src, ok := a.lookupAddressBalanceQuick(ctx, legacy); ok {
+			out["related_legacy_balance_units"] = units
+			out["related_legacy_balance_hmc"] = hmc
+			out["related_legacy_next_nonce"] = nonce
+			out["related_legacy_source"] = src
+		}
+	case chain.IsLegacyAddress(addr):
+		out["address_form"] = "legacy"
+		out["related_note"] = "Economics v2 also has a long form (HMC- + 64 hex) of the same key — a separate account. Prefer long for new receives when you control the key; explorer cannot derive long from short without the pubkey."
+	}
+}
+
 func (a *app) handleTransferAddressState(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -4529,6 +4588,7 @@ func (a *app) handleTransferAddressState(w http.ResponseWriter, r *http.Request)
 				for k, v := range a.addressSupFieldsForResponse(r.Context(), addr) {
 					out[k] = v
 				}
+				a.enrichAddressRelatedForms(r.Context(), addr, out)
 				writeJSON(w, out)
 				return
 			}
@@ -4557,6 +4617,7 @@ func (a *app) handleTransferAddressState(w http.ResponseWriter, r *http.Request)
 				for k, v := range a.addressSupFieldsForResponse(r.Context(), addr) {
 					out[k] = v
 				}
+				a.enrichAddressRelatedForms(r.Context(), addr, out)
 				writeJSON(w, out)
 				return
 			}
@@ -4574,7 +4635,7 @@ func (a *app) handleTransferAddressState(w http.ResponseWriter, r *http.Request)
 	if a.shouldUseCanonicalChainAPI() {
 		source = "local_db"
 	}
-	writeJSON(w, map[string]any{
+	out := map[string]any{
 		"address":           row.Address,
 		"balance_units":     row.BalanceUnits,
 		"next_nonce":        row.NextNonce,
@@ -4583,7 +4644,9 @@ func (a *app) handleTransferAddressState(w http.ResponseWriter, r *http.Request)
 		"balance_sup_units": supSt.BalanceSUPUnits,
 		"sup_next_nonce":    supSt.SUPNextNonce,
 		"source":            source,
-	})
+	}
+	a.enrichAddressRelatedForms(r.Context(), addr, out)
+	writeJSON(w, out)
 }
 
 func (a *app) handleP2PHandshake(w http.ResponseWriter, r *http.Request) {

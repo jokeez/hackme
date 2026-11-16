@@ -69,6 +69,12 @@ func TestLongAddressDerivation(t *testing.T) {
 	if !strings.HasPrefix(want, s.Address()) || !IsLegacyAddress(s.Address()) {
 		t.Fatalf("legacy %q is not the prefix of %q", s.Address(), want)
 	}
+	if got := LegacyAddressOfLong(want); got != s.Address() {
+		t.Fatalf("LegacyAddressOfLong(%q)=%q want %q", want, got, s.Address())
+	}
+	if LegacyAddressOfLong(s.Address()) != "" || LegacyAddressOfLong("") != "" {
+		t.Fatal("LegacyAddressOfLong on non-long must be empty")
+	}
 	if !pubKeyOwnsAddress(s.PublicKeyHex(), s.Address()) || !pubKeyOwnsAddress(s.PublicKeyHex(), want) {
 		t.Fatal("key must own both of its addresses")
 	}

@@ -1037,6 +1037,16 @@
 			margin-top: 0.15rem;
 			letter-spacing: 0.04em;
 		}
+		.wallet-address-panel code {
+			word-break: break-all;
+			overflow-wrap: anywhere;
+		}
+		@media (max-width: 640px) {
+			.wallet-address-panel code {
+				font-size: 10px;
+				line-height: 1.45;
+			}
+		}
 		.fuzz-camp-progress {
 			height: 0.45rem;
 			border-radius: 999px;
@@ -2097,7 +2107,7 @@
 						</div>
 						<div class="text-right min-w-0">
 							<p class="text-[9px] text-gray-600 uppercase tracking-widest">Node ID</p>
-							<code id="node-id-display" class="text-neon bg-neon/5 px-2 py-0.5 rounded border border-neon/20 truncate max-w-[200px] lg:max-w-[280px] inline-block">—</code>
+							<code id="node-id-display" class="text-neon bg-neon/5 px-2 py-0.5 rounded border border-neon/20 truncate max-w-[200px] lg:max-w-[280px] inline-block" title="Legacy short address (long form preferred for new receives — see Wallet)">—</code>
 						</div>
 					</div>
 				</div>
@@ -4082,23 +4092,32 @@
 							<span id="wallet-sup-accrual-note" class="hidden" aria-hidden="true"></span>
 							<span id="wallet-sup-policy-note" class="hidden" aria-hidden="true"></span>
 						</div>
-						<div class="text-left max-w-lg mx-auto mt-4">
-							<p class="text-[10px] uppercase tracking-widest text-gray-600 mb-2">Address</p>
-							<div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-								<code id="wallet-address-display" class="flex-1 text-xs text-neon bg-black/60 px-3 py-2 rounded border border-neon/20 break-all">—</code>
-								<button type="button" id="btn-copy-address" aria-label="Copy address" class="shrink-0 px-4 py-2 rounded border border-neon/40 text-neon text-[10px] font-display font-bold uppercase tracking-wider hover:bg-neon/10">Copy</button>
-							</div>
-							<div id="wallet-long-address-block" class="hidden mt-3">
-								<p class="text-[10px] uppercase tracking-widest text-gray-600 mb-1">Long address (same key) <span id="wallet-long-address-when" class="normal-case tracking-normal text-gray-500"></span></p>
-								<div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-									<code id="wallet-long-address-display" class="flex-1 text-[10px] text-matrix/90 bg-black/60 px-3 py-2 rounded border border-matrix/20 break-all"></code>
-									<button type="button" id="btn-copy-long-address" aria-label="Copy long address" class="shrink-0 px-4 py-2 rounded border border-matrix/40 text-matrix text-[10px] font-display font-bold uppercase tracking-wider hover:bg-matrix/10">Copy</button>
+						<div class="text-left max-w-3xl mx-auto mt-5 wallet-address-panel">
+							<p class="text-[10px] uppercase tracking-widest text-gray-500 mb-3">Receive addresses · same Ed25519 key</p>
+							<div id="wallet-long-address-block" class="hidden rounded-lg border border-matrix/30 bg-matrix/[0.04] p-3 mb-3">
+								<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+									<p class="text-[10px] uppercase tracking-widest text-matrix/90 mb-0">Preferred · long <span class="text-gray-500 normal-case tracking-normal">(HMC- + 64 hex)</span> <span id="wallet-long-address-when" class="normal-case tracking-normal text-gray-500"></span></p>
+									<span class="text-[9px] px-1.5 py-0.5 rounded border border-matrix/35 text-matrix/80 uppercase tracking-wider">use for new payments</span>
 								</div>
-								<p id="wallet-long-balance-row" class="hidden mt-2 text-[11px] text-gray-300 leading-snug">On the long address: <span id="wallet-long-balance" class="font-mono text-matrix"></span> HMC — a separate account on chain, not included in the balance above.
-									<button type="button" id="btn-long-move-main" class="ml-1 px-2 py-0.5 rounded border border-matrix/40 text-matrix text-[10px] uppercase tracking-wider hover:bg-matrix/10">Move to main address</button>
+								<div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-start">
+									<code id="wallet-long-address-display" class="flex-1 text-[11px] leading-relaxed text-matrix bg-black/55 px-3 py-2.5 rounded border border-matrix/25 break-all font-mono select-all"></code>
+									<button type="button" id="btn-copy-long-address" aria-label="Copy long address" class="shrink-0 px-4 py-2 rounded border border-matrix/45 text-matrix text-[10px] font-display font-bold uppercase tracking-wider hover:bg-matrix/10">Copy</button>
+								</div>
+								<p id="wallet-long-balance-row" class="hidden mt-2 text-[11px] text-gray-300 leading-snug">On the long address: <span id="wallet-long-balance" class="font-mono text-matrix"></span> HMC — separate on-chain account (not in the big balance above).
+									<button type="button" id="btn-long-move-main" class="ml-1 px-2 py-0.5 rounded border border-matrix/40 text-matrix text-[10px] uppercase tracking-wider hover:bg-matrix/10">Move to legacy</button>
 									<span id="wallet-long-move-status" class="ml-1 text-[10px] text-gray-500"></span></p>
-								<p class="mt-1 text-[10px] text-gray-500 leading-snug">Full-length form of the same key. Both forms are separate accounts on chain and nothing moves automatically: coins sent to the long address show up here and can be moved to your main address.</p>
 							</div>
+							<div class="rounded-lg border border-neon/20 bg-black/25 p-3">
+								<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+									<p class="text-[10px] uppercase tracking-widest text-neon/80 mb-0">Legacy · short <span class="text-gray-500 normal-case tracking-normal">(HMC- + 16 hex)</span></p>
+									<span class="text-[9px] px-1.5 py-0.5 rounded border border-white/15 text-gray-500 uppercase tracking-wider">still valid</span>
+								</div>
+								<div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+									<code id="wallet-address-display" class="flex-1 text-xs text-neon bg-black/60 px-3 py-2 rounded border border-neon/20 break-all font-mono select-all">—</code>
+									<button type="button" id="btn-copy-address" aria-label="Copy legacy address" class="shrink-0 px-4 py-2 rounded border border-neon/40 text-neon text-[10px] font-display font-bold uppercase tracking-wider hover:bg-neon/10">Copy</button>
+								</div>
+							</div>
+							<p class="mt-2 text-[10px] text-gray-500 leading-relaxed">Long is the full key hash — prefer it for new receives. Short is the same key’s legacy form; both stay valid and are separate balances until you move funds.</p>
 							<p id="wallet-sync-badge" class="mt-2 inline-flex items-center rounded border border-yellow-500/40 bg-yellow-500/10 px-2 py-1 text-[10px] uppercase tracking-wider text-yellow-200">Canonical sync: checking...</p>
 							<p id="wallet-signer-note" class="mt-2 text-[10px] text-gray-500 font-mono"></p>
 							<p id="wallet-chain-meta" class="mt-4 text-[10px] text-gray-500 leading-relaxed text-left"></p>
@@ -6230,19 +6249,25 @@
 				try { refreshHuntSpendableHint(); } catch (_) {}
 			}
 		}
-		// Economics v2 long address of the node key (only for this node's own wallet).
+		// Economics v2 long address of the node key (preferred receive; legacy short stays valid).
 		function renderWalletLongAddress(w) {
 			const block = $('wallet-long-address-block');
 			if (!block) return;
-			const long = String((w && w.long_address) || '').trim();
-			if (!/^HMC-[0-9a-f]{64}$/.test(long)) { block.classList.add('hidden'); return; }
-			$('wallet-long-address-display').textContent = long;
+			const long = String((w && w.long_address) || '').trim().toLowerCase();
+			const longNorm = long.startsWith('hmc-') ? ('HMC-' + long.slice(4)) : long;
+			if (!/^HMC-[0-9a-f]{64}$/.test(longNorm)) { block.classList.add('hidden'); return; }
+			const longEl = $('wallet-long-address-display');
+			if (longEl) {
+				longEl.textContent = longNorm;
+				longEl.dataset.address = longNorm;
+				longEl.title = longNorm;
+			}
 			const from = Number((w && w.long_address_from_height) || 0);
 			const tip = Number((latestStatus && (latestStatus.display_tip_height || latestStatus.canonical_tip_height || latestStatus.tip_height)) || 0);
 			const when = $('wallet-long-address-when');
 			if (when) {
 				when.textContent = from > 0
-					? (tip > 0 && tip + 1 >= from ? '· active' : '· active from block ' + fmtUInt(from))
+					? (tip > 0 && tip + 1 >= from ? '· active' : '· from block ' + fmtUInt(from))
 					: '';
 			}
 			const row = $('wallet-long-balance-row');
@@ -6250,10 +6275,10 @@
 			const fee = 1000; // DefaultTransferMinFee (0.00001 HMC)
 			if (row) {
 				row.classList.toggle('hidden', !(longUnits > 0));
-				if (longUnits > 0) $('wallet-long-balance').textContent = fmt(longUnits / 1e8, 8);
+				if (longUnits > 0 && $('wallet-long-balance')) $('wallet-long-balance').textContent = fmt(longUnits / 1e8, 8);
 				const btn = $('btn-long-move-main');
 				if (btn) {
-					btn.dataset.long = long;
+					btn.dataset.long = longNorm;
 					btn.dataset.units = String(longUnits);
 					btn.disabled = !(longUnits > fee) || !(tip > 0 && tip + 1 >= from);
 				}
@@ -6269,7 +6294,7 @@
 			const fee = 1000;
 			if (!/^HMC-[0-9a-f]{64}$/.test(long) || !/^HMC-[0-9a-f]{16}$/.test(main) || !(units > fee)) return;
 			const amount = units - fee;
-			if (!confirm('Move ' + fmt(amount / 1e8, 8) + ' HMC from the long address to your main address ' + main + '?\n\nFee 0.00001 HMC. Same key, same wallet.')) return;
+			if (!confirm('Move ' + fmt(amount / 1e8, 8) + ' HMC from the long address to your legacy address ' + main + '?\n\nFee 0.00001 HMC. Same key, same wallet.')) return;
 			if (btn) btn.disabled = true;
 			if (status) status.textContent = 'sending…';
 			try {
@@ -8829,9 +8854,11 @@
 			}
 			if ($('btn-copy-long-address')) {
 				$('btn-copy-long-address').addEventListener('click', async () => {
-					const t = String(($('wallet-long-address-display') || {}).textContent || '').trim();
-					if (!/^HMC-[0-9a-f]{64}$/.test(t)) return;
-					try { await navigator.clipboard.writeText(t); logLine('[wallet] long address copied'); } catch (_) { logLine('[wallet] copy failed'); }
+					const code = $('wallet-long-address-display');
+					const t = String((code && (code.dataset.address || code.textContent)) || '').trim();
+					if (!/^HMC-[0-9a-f]{64}$/i.test(t)) return;
+					const out = t.slice(0, 4).toUpperCase() === 'HMC-' ? ('HMC-' + t.slice(4).toLowerCase()) : t;
+					try { await navigator.clipboard.writeText(out); logLine('[wallet] long address copied'); } catch (_) { logLine('[wallet] copy failed'); }
 				});
 			}
 			if ($('btn-copy-address')) {
@@ -10573,6 +10600,20 @@
 			}
 			return { ok: true, kind: 'wallet' };
 		}
+		/** Same-key address forms for lookup (long → also legacy prefix). */
+		function hmcAddressLookupForms(raw) {
+			const a = String(raw || '').trim().toLowerCase();
+			if (!a.startsWith('hmc-')) return [];
+			const norm = 'HMC-' + a.slice(4);
+			const out = [norm];
+			if (/^HMC-[0-9a-f]{64}$/.test(norm)) out.push('HMC-' + norm.slice(4, 20));
+			return out;
+		}
+		function hmcAddressMatchesQuery(addr, queryRaw) {
+			const forms = hmcAddressLookupForms(queryRaw);
+			const n = normMinerKey(addr);
+			return forms.some((f) => n === normMinerKey(f));
+		}
 		function setMinerLookupTone(tone) {
 			const out = $('overview-miner-result');
 			if (!out) return;
@@ -10678,11 +10719,15 @@
 			const rigs = (latestNetworkStats && Array.isArray(latestNetworkStats.active_rigs)) ? latestNetworkStats.active_rigs : [];
 			const topWallets = (latestNetworkStats && Array.isArray(latestNetworkStats.top_miners)) ? latestNetworkStats.top_miners : [];
 			const byWorker = workerRows.find((r) => normMinerKey(r.id) === q) || workerRows.find((r) => normMinerKey(r.id).includes(q));
-			const byPayout = workerRows.find((r) => normMinerKey(r.payout_address) === q) ||
-				workerRows.find((r) => normMinerKey(r.payout_address).includes(q));
+			const byPayout = workerRows.find((r) => hmcAddressMatchesQuery(r.payout_address, queryRaw)) ||
+				workerRows.find((r) => {
+					const p = normMinerKey(r.payout_address);
+					return p && (p === q || (!queryRaw.startsWith('HMC-') && p.includes(q)));
+				});
 			const byRig = rigs.find((r) => normMinerKey(r.worker_id) === q || normMinerKey(r.name) === q || normMinerKey(r.ip) === q) ||
 				rigs.find((r) => normMinerKey(r.worker_id).includes(q) || normMinerKey(r.name).includes(q) || normMinerKey(r.ip).includes(q));
-			const byWallet = topWallets.find((w) => normMinerKey(w) === q) || topWallets.find((w) => normMinerKey(w).includes(q));
+			const byWallet = topWallets.find((w) => hmcAddressMatchesQuery(w, queryRaw)) ||
+				topWallets.find((w) => normMinerKey(w) === q);
 			if (!byWorker && !byPayout && !byRig && !byWallet) {
 				setMinerLookupTerminal(
 					'Miner not found in current sample. Try worker id, HMC wallet, or IP — or press Find miner for pool/chain lookup.',
@@ -10737,45 +10782,65 @@
 			if (foundLocal) return;
 			if (!queryRaw.startsWith('HMC-')) return;
 			try {
-				const poolR = await fetch('/api/work/by-wallet?address=' + encodeURIComponent(queryRaw), { cache: 'no-store' });
-				if (poolR.ok) {
+				const addrForms = hmcAddressLookupForms(queryRaw);
+				let poolMatched = false;
+				for (const form of addrForms) {
+					const poolR = await fetch('/api/work/by-wallet?address=' + encodeURIComponent(form), { cache: 'no-store' });
+					if (!poolR.ok) continue;
 					const pj = await poolR.json();
 					const pw = (pj && pj.workers) ? pj.workers : {};
 					const ids = Object.keys(pw);
-					if (ids.length > 0) {
-						const rows = [
-							{ k: 'Query', v: queryRaw },
-							{ k: 'Source', v: 'pool coordinator (by-wallet)' },
-							{ k: 'Workers', v: fmtUInt(ids.length) },
-						];
-						ids.slice(0, 8).forEach((wid) => {
-							const st = pw[wid] || {};
-							const on = !!st.online;
-							rows.push(
-								{ k: 'Worker', v: wid, cls: 'text-neon/90' },
-								{ k: 'Status', v: on ? '● live' : '○ offline', cls: on ? 'hi' : 'off' },
-								{ k: 'Payout', v: fmt(Number(st.payout_hmc || 0), 6) + ' HMC' },
-								{ k: 'Hashrate', v: Number(st.hashrate_gh_s || 0) > 0 ? (fmt(Number(st.hashrate_gh_s || 0), 3) + ' GH/s') : '—' },
-								{ k: 'Attempts', v: fmtUInt(st.accepted_attempts || 0) }
-							);
-						});
-						renderMinerLookupCard(rows, { explorerAddr: queryRaw });
-						return;
+					if (ids.length === 0) continue;
+					const rows = [
+						{ k: 'Query', v: queryRaw },
+						{ k: 'Matched as', v: form, cls: 'mono' },
+						{ k: 'Source', v: 'pool coordinator (by-wallet)' },
+						{ k: 'Workers', v: fmtUInt(ids.length) },
+					];
+					ids.slice(0, 8).forEach((wid) => {
+						const st = pw[wid] || {};
+						const on = !!st.online;
+						rows.push(
+							{ k: 'Worker', v: wid, cls: 'text-neon/90' },
+							{ k: 'Status', v: on ? '● live' : '○ offline', cls: on ? 'hi' : 'off' },
+							{ k: 'Payout', v: fmt(Number(st.payout_hmc || 0), 6) + ' HMC' },
+							{ k: 'Hashrate', v: Number(st.hashrate_gh_s || 0) > 0 ? (fmt(Number(st.hashrate_gh_s || 0), 3) + ' GH/s') : '—' },
+							{ k: 'Attempts', v: fmtUInt(st.accepted_attempts || 0) }
+						);
+					});
+					if (form !== queryRaw && /^HMC-[0-9a-f]{64}$/i.test(queryRaw)) {
+						rows.push({ k: 'Note', v: 'Pool maps the legacy short form of this long address (same key; separate chain balances).' });
 					}
+					renderMinerLookupCard(rows, { explorerAddr: form });
+					poolMatched = true;
+					break;
 				}
+				if (poolMatched) return;
 				const r = await fetch('/api/address/' + encodeURIComponent(queryRaw), { cache: 'no-store' });
 				if (!r.ok) return;
 				const j = await r.json();
 				const units = Number(j.balance_units || 0);
-				const hmc = fmt(units / UNITS_PER_HMC, 8);
-				renderMinerLookupCard([
+				const hmc = fmt(Number.isFinite(Number(j.balance_hmc)) ? Number(j.balance_hmc) : (units / UNITS_PER_HMC), 8);
+				const form = String(j.address_form || '');
+				const rows = [
 					{ k: 'Address', v: String(j.address || queryRaw), cls: 'mono' },
+					{ k: 'Form', v: form === 'long' ? 'long (64 hex)' : (form === 'legacy' ? 'legacy (16 hex)' : '—') },
 					{ k: 'Balance', v: hmc + ' HMC', cls: 'hi' },
 					{ k: 'Units', v: fmtUInt(units) },
 					{ k: 'Next nonce', v: fmtUInt(j.next_nonce || 0) },
 					{ k: 'Source', v: String(j.source || 'chain address state') },
-					{ k: 'Note', v: 'no pool workers mapped to this wallet right now' },
-				], {
+				];
+				const rel = String(j.related_legacy_address || '').trim();
+				if (rel) {
+					const relHmc = fmt(Number(j.related_legacy_balance_hmc || 0), 8);
+					rows.push(
+						{ k: 'Related legacy', v: rel, cls: 'mono' },
+						{ k: 'Legacy balance', v: relHmc + ' HMC', cls: 'hi' },
+					);
+				}
+				if (j.related_note) rows.push({ k: 'Note', v: String(j.related_note) });
+				else rows.push({ k: 'Note', v: 'no pool workers mapped to this wallet right now' });
+				renderMinerLookupCard(rows, {
 					headHtml: '<div class="miner-card-head"><span class="miner-card-amt">' + escapeHtml(hmc) + '</span><span class="text-matrix text-[10px] tracking-wider">HMC</span></div>',
 					explorerAddr: queryRaw,
 				});
@@ -17906,6 +17971,7 @@
 					}
 					try { renderWalletLongAddress(w); } catch (_) {}
 				const addrFromApi = String(w.address || '').trim();
+				const longFromApi = String(w.long_address || '').trim();
 				const addrHint = walletKnownAddress();
 				if (addrFromApi.startsWith('HMC-')) {
 					walletSnapshot.address = addrFromApi;
@@ -17913,7 +17979,12 @@
 						$('wallet-address-display').textContent = addrFromApi;
 						$('wallet-address-display').dataset.address = addrFromApi;
 					}
-					if ($('node-id-display')) $('node-id-display').textContent = addrFromApi;
+					if ($('node-id-display')) {
+						$('node-id-display').textContent = addrFromApi;
+						$('node-id-display').title = (/^HMC-[0-9a-f]{64}$/i.test(longFromApi)
+							? ('Legacy ' + addrFromApi + ' · long ' + longFromApi)
+							: ('Legacy short address · prefer long form in Wallet for new receives'));
+					}
 				} else if (addrHint.startsWith('HMC-')) {
 					walletSnapshot.address = addrHint;
 				}
