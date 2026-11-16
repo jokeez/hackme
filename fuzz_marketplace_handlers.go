@@ -58,6 +58,14 @@ func (a *app) handleFuzzMarketplace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	force := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("refresh"))) == "1"
+	limit := 30
+	if force {
+		limit = 8 // refresh bypasses cache — tighter per-IP cap (fimasw relay amp)
+	}
+	if !a.allowRate("fuzz_marketplace:"+clientIP(r), limit) {
+		http.Error(w, "rate limit", http.StatusTooManyRequests)
+		return
+	}
 	if !force {
 		if cached, ok := a.fuzzMarketplaceCached(); ok {
 			cap, _ := a.fetchCoordinatorFleetCapacity(r.Context())

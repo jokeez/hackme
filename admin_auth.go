@@ -118,7 +118,9 @@ func requireAdminAuthOrDesktopLoopback(w http.ResponseWriter, r *http.Request) b
 		http.Error(w, "admin authentication required", http.StatusUnauthorized)
 		return false
 	}
-	if requestFromLoopback(r) && requestHostIsLoopbackLiteral(r) && desktopMutatingOriginOK(r) {
+	// Token unset: still require browser same-origin document markers. Empty-Origin curl
+	// must not reach Fund Orders / worker start (incomplete 2982f51 — fimasw 2026-11-16).
+	if requestFromLoopback(r) && requestHostIsLoopbackLiteral(r) && desktopLocalAuthBrowserDocumentOK(r) {
 		return true
 	}
 	return requireAdminAuthStrict(w, r)
@@ -145,6 +147,9 @@ func requireDesktopLoopbackMutating(w http.ResponseWriter, r *http.Request) bool
 	if !envBool("HACKME_DESKTOP_MODE", false) {
 		return true
 	}
+	// Keep empty-Origin CLI allowed here (integrator/tx helpers). Fund Orders / worker
+	// start use requireAdminAuthOrDesktopLoopback, which requires browser document markers
+	// when the admin token is unset.
 	if requestFromLoopback(r) && requestHostIsLoopbackLiteral(r) && desktopMutatingOriginOK(r) {
 		return true
 	}

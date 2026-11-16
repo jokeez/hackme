@@ -160,9 +160,10 @@ func superviseHybridFuzzProcess(ctx context.Context, coordURL, token, workerID s
 		loggedBusy = false
 		// Prefer `nice` wrapper so process-mode actually yields CPU to PoH/GPU
 		// (SysProcAttr has no portable Nice field on Linux).
+		// Do not put the coordinator token in argv — /proc/<pid>/cmdline is world-readable
+		// on shared hosts (fimasw CWE-214). workerfuzz already reads COORD_TOKEN from env.
 		args := []string{
 			"-coord", coordURL,
-			"-token", token,
 			"-worker", workerID,
 			"-timeout-ms", strconv.Itoa(timeoutMS),
 		}
@@ -177,7 +178,11 @@ func superviseHybridFuzzProcess(ctx context.Context, coordURL, token, workerID s
 		}
 		cmd.Stdout = os.Stderr
 		cmd.Stderr = os.Stderr
-		cmd.Env = os.Environ()
+		cmd.Env = append(os.Environ(),
+			"COORD_URL="+coordURL,
+			"COORD_TOKEN="+token,
+			"WORKER_ID="+workerID,
+		)
 		// Same WORKER_ID as PoH — intentional (one pool row). Child inherits miner seed.
 		configureHybridChild(cmd)
 		fmt.Fprintf(os.Stderr, "workerpoh: hybrid fuzz process start bin=%s nice=%d\n", bin, niceLevel)

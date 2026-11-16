@@ -570,6 +570,15 @@ func (a *app) serveSecurityAudit(w http.ResponseWriter, r *http.Request, req sec
 		writeFuzzEscrowFailed(w, err)
 		return
 	}
+	// Align config budget_hmc with post-fee escrow row (same as handleFuzzCampaignCreate).
+	// Without this, pool Dig registration refuses under Economics v2 (valax / fimasw sibling).
+	stampEscrowBudgetClaim(cfgMap, budgetHMC, escrow)
+	cfg = marshalMapJSON(cfgMap)
+	if _, err := a.db.ExecContext(r.Context(), `UPDATE fuzz_campaigns SET config_json=? WHERE id=?`, cfg, campaignID); err != nil {
+		a.rollbackNewCampaignEscrow(r.Context(), campaignID)
+		writeAPIError(w, http.StatusInternalServerError, "campaign_failed", "escrow budget stamp failed", map[string]any{"detail": err.Error()})
+		return
+	}
 
 	c, err := a.getFuzzCampaign(r.Context(), campaignID)
 	if err != nil {

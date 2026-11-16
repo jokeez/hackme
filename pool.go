@@ -2132,6 +2132,10 @@ func (a *app) handleWorkByWallet(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if !a.allowRate("work_by_wallet:"+clientIP(r), 20) {
+		http.Error(w, "rate limit", http.StatusTooManyRequests)
+		return
+	}
 	addr := strings.TrimSpace(r.URL.Query().Get("address"))
 	if addr == "" {
 		writeJSON(w, map[string]any{"ok": false, "reason": "address_required", "message": "pass ?address=HMC-..."})

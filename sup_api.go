@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -350,6 +351,43 @@ func (a *app) handleSUPTransferSend(w http.ResponseWriter, r *http.Request) {
 		"tx_hash": txHash,
 		"status":  status,
 	})
+}
+
+// handleSUPTransferByNonce lists SUP transfers that used (from, nonce) — same contract as
+// /api/tx/by-nonce. The SUP settler resolves empty-hash stranded intents from this view.
+func (a *app) handleSUPTransferByNonce(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !a.allowRate("sup_tx_by_nonce:"+clientIP(r), 30) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		writeJSON(w, map[string]any{"error": "rate limited", "code": "rate_limited"})
+		return
+	}
+	from := strings.TrimSpace(r.URL.Query().Get("from"))
+	if !chain.IsValidAddress(from) {
+		http.Error(w, "from must be an HMC- address", http.StatusBadRequest)
+		return
+	}
+	nonce, err := strconv.ParseUint(strings.TrimSpace(r.URL.Query().Get("nonce")), 10, 64)
+	if err != nil || chain.CheckSQLiteBindUint64(nonce) != nil {
+		http.Error(w, "nonce must be an unsigned integer in supported range", http.StatusBadRequest)
+		return
+	}
+	txs, err := a.chain.SupTxsByFromNonce(r.Context(), from, nonce)
+	if err != nil {
+		if errors.Is(err, chain.ErrHeightOutOfRange) {
+			http.Error(w, "nonce must be an unsigned integer in supported range", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, "lookup failed", http.StatusInternalServerError)
+		return
+	}
+	if txs == nil {
+		txs = []chain.TransferStatusRow{}
+	}
+	writeJSON(w, map[string]any{"from": from, "nonce": nonce, "asset": "SUP", "txs": txs})
 }
 
 // handleSUPTransferByHash reports a SUP transfer status (settlers confirm inclusion with it).

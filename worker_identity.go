@@ -20,8 +20,9 @@ import (
 // and mined nothing, retrying silently forever (miner e2e 2026-11-13).
 //
 // Now: a machine whose worker-<hostname> has already mined successfully keeps that id (no
-// identity change for running miners); everyone else gets worker-<hostname>-<6 hex of this
-// node's wallet>, which is unique per wallet. The choice is persisted so it never changes.
+// identity change for running miners); everyone else gets worker-<hostname>-<12 hex of this
+// node's wallet> (~48 bits). 6 hex (24 bits) collided on shared cloud hostnames (valax).
+// The choice is persisted so it never changes.
 func (a *app) defaultPoolWorkerID() string {
 	hostID := "worker-local-01"
 	if h, err := os.Hostname(); err == nil && strings.TrimSpace(h) != "" {
@@ -36,10 +37,13 @@ func (a *app) defaultPoolWorkerID() string {
 		addr = strings.TrimSpace(a.signer.Address())
 	}
 	suffix := strings.ToLower(strings.TrimPrefix(addr, "HMC-"))
-	if len(suffix) < 6 {
-		return hostID
+	if len(suffix) < 12 {
+		if len(suffix) < 6 {
+			return hostID
+		}
+		return a.persistWorkerID(hostID + "-" + suffix[:6])
 	}
-	return a.persistWorkerID(hostID + "-" + suffix[:6])
+	return a.persistWorkerID(hostID + "-" + suffix[:12])
 }
 
 // workerIDHasMined reports whether a workerpoh run log for exactly this id shows an accepted

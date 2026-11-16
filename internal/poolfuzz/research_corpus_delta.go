@@ -102,6 +102,52 @@ func (s *Service) campaignCrashInputKnown(ctx context.Context, campaignID string
 	return false, nil
 }
 
+// campaignCrashBucketKnown reports whether a StableCrashBucket was already paid/recorded
+// for this campaign. Exact-byte dedupe alone is not enough: a worker can flip one byte in
+// the first 8 while keeping the same ASAN trap and re-earn crash-tier PayRun (valax).
+func (s *Service) campaignCrashBucketKnown(ctx context.Context, campaignID, bucket string) (bool, error) {
+	if s == nil || s.DB == nil {
+		return false, fmt.Errorf("poolfuzz: no database")
+	}
+	campaignID = strings.TrimSpace(campaignID)
+	bucket = strings.TrimSpace(bucket)
+	if campaignID == "" || bucket == "" || bucket == "crash|generic" {
+		return false, nil
+	}
+	var n int
+	err := s.DB.QueryRowContext(ctx,
+		`SELECT COUNT(1) FROM fuzz_findings
+		 WHERE campaign_id=? AND json_valid(detail_json)
+		   AND json_extract(detail_json,'$.stable_crash_key')=?`,
+		campaignID, bucket).Scan(&n)
+	if err != nil {
+		return false, err
+	}
+	if n > 0 {
+		return true, nil
+	}
+	// Legacy findings (pre-key stamp): compare StableCrashBucket on stored trap.
+	rows, err := s.DB.QueryContext(ctx,
+		`SELECT COALESCE(finding_type,''), COALESCE(json_extract(detail_json,'$.trap'),'')
+		 FROM fuzz_findings WHERE campaign_id=? AND json_valid(detail_json)
+		   AND COALESCE(json_extract(detail_json,'$.trap'),'') <> ''`,
+		campaignID)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var ft, trap string
+		if err := rows.Scan(&ft, &trap); err != nil {
+			return false, err
+		}
+		if fuzzengine.StableCrashBucket(ft, trap) == bucket {
+			return true, nil
+		}
+	}
+	return false, rows.Err()
+}
+
 // AcceptResearchCorpusDelta merges worker LF corpus units into a research namespace
 // and, for Hunt campaigns, into the leased campaign corpus. Crash artifacts are
 // ASAN-replayed before any finding is recorded. Does not settle bounty/escrow
@@ -213,7 +259,7 @@ func (s *Service) AcceptResearchCorpusDelta(ctx context.Context, req ResearchCor
 		}
 	}
 
-	seenCrashPay := map[string]struct{}{}
+	seenCrashPay := map[string]struct{}{} // sha256 and/or stable crash bucket
 	for _, crashB := range req.Crashes {
 		if len(crashB) == 0 || len(crashB) > maxResearchSeedBytes {
 			out.CrashesRejected++
@@ -231,19 +277,43 @@ func (s *Service) AcceptResearchCorpusDelta(ctx context.Context, req ResearchCor
 		}
 		u := fuzzengine.PackInputBytesToU64(crashB)
 		sha := fuzzengine.InputBytesSHA256(crashB)
-		// Pay-credit only for campaign-novel crashes. Stale worker re-harvest / deliberate
-		// re-upload of the same bytes must not unlock full PayRun on a CLEAN shard
-		// (Dicky Mulia Fiqri, 2026-11-14). Corpus upsert still records the hit.
-		novelPay := true
-		if _, dup := seenCrashPay[sha]; dup {
-			novelPay = false
-		} else if known, kerr := s.campaignCrashInputKnown(ctx, campaignID, u, sha); kerr != nil {
-			return out, kerr
-		} else if known {
-			novelPay = false
-		}
-		if novelPay {
+		bucket := fuzzengine.StableCrashBucket("native_crash", trap)
+		// Serialize novelty check + finding insert so two concurrent leases cannot
+		// both credit the same crash family (valax F5 race sibling of F1).
+		lockErr := s.withCampaignSettle(campaignID, func() error {
+			// Pay-credit only for campaign-novel crashes (exact bytes OR stable bucket).
+			// Stale re-upload (Dicky) and crash-preserving mutations (valax) must not
+			// unlock full PayRun. Corpus upsert still records the hit outside.
+			novelPay := true
+			if _, dup := seenCrashPay[sha]; dup {
+				novelPay = false
+			} else if bucket != "" && bucket != "crash|generic" {
+				if _, dup := seenCrashPay["bucket:"+bucket]; dup {
+					novelPay = false
+				}
+			}
+			if novelPay {
+				if known, kerr := s.campaignCrashInputKnown(ctx, campaignID, u, sha); kerr != nil {
+					return kerr
+				} else if known {
+					novelPay = false
+				}
+			}
+			if novelPay && bucket != "" && bucket != "crash|generic" {
+				if known, kerr := s.campaignCrashBucketKnown(ctx, campaignID, bucket); kerr != nil {
+					return kerr
+				} else if known {
+					novelPay = false
+				}
+			}
+			if !novelPay {
+				out.CrashesRejected++
+				return nil
+			}
 			seenCrashPay[sha] = struct{}{}
+			if bucket != "" && bucket != "crash|generic" {
+				seenCrashPay["bucket:"+bucket] = struct{}{}
+			}
 			out.CrashesReplayOK++
 			if HuntEngineEnabled() {
 				eng := strings.TrimSpace(req.HuntEngine)
@@ -252,8 +322,31 @@ func (s *Service) AcceptResearchCorpusDelta(ctx context.Context, req ResearchCor
 				}
 				s.noteLeaseProvenPersist(ctx, campaignID, req.ItemID, workerID, 0, 0, 1, eng, strings.TrimSpace(req.EngineVersion))
 			}
-		} else {
-			out.CrashesRejected++
+			info, _ := fuzzupstream.ParseHuntTrap(trap)
+			if !info.Security {
+				return nil
+			}
+			sem := fuzzengine.ParseCheckSemantics(cfg)
+			findingReq := SubmitRequest{
+				WorkerID:        workerID,
+				MinerAddress:    strings.TrimSpace(req.MinerAddr),
+				CampaignID:      campaignID,
+				ItemID:          req.ItemID,
+				ActualInput:     u,
+				InputBytes:      crashB,
+				CheckResult:     1,
+				Trap:            trap,
+				SegmentExecDone: huntIterationsPerShard(cfg),
+			}
+			if _, _, _, err := s.insertFinding(ctx, findingReq, cfg, sem, false, now); err != nil {
+				return err
+			}
+			out.Findings++
+			_ = s.observePoolCorpusNovelty(ctx, campaignID, u, crashB, true, now, true, true, true, "native_crash")
+			return nil
+		})
+		if lockErr != nil {
+			return out, lockErr
 		}
 		if err := s.upsertPoolCorpusSeed(ctx, campaignID, u, crashB, 12, 0, 0, true, now); err != nil {
 			return out, err
@@ -261,30 +354,6 @@ func (s *Service) AcceptResearchCorpusDelta(ctx context.Context, req ResearchCor
 		_ = s.UpsertNamespaceCorpusSeeds(ctx, ns, []fuzzengine.PoolCorpusSeed{{
 			Input: u, InputBytes: crashB, Energy: 8,
 		}}, now)
-		if !novelPay {
-			continue
-		}
-		info, _ := fuzzupstream.ParseHuntTrap(trap)
-		if !info.Security {
-			continue
-		}
-		sem := fuzzengine.ParseCheckSemantics(cfg)
-		findingReq := SubmitRequest{
-			WorkerID:        workerID,
-			MinerAddress:    strings.TrimSpace(req.MinerAddr),
-			CampaignID:      campaignID,
-			ItemID:          req.ItemID,
-			ActualInput:     u,
-			InputBytes:      crashB,
-			CheckResult:     1,
-			Trap:            trap,
-			SegmentExecDone: huntIterationsPerShard(cfg),
-		}
-		if _, _, _, err := s.insertFinding(ctx, findingReq, cfg, sem, false, now); err != nil {
-			return out, err
-		}
-		out.Findings++
-		_ = s.observePoolCorpusNovelty(ctx, campaignID, u, crashB, true, now, true, true, true, "native_crash")
 	}
 	return out, nil
 }

@@ -680,15 +680,20 @@ func (a *app) recomputeCampaignProgress(ctx context.Context, campaignID string, 
 	if done > 0 {
 		summary["avg_duration_ms"] = sumDuration / done
 	}
-	nextStatus := strings.TrimSpace(strings.ToLower(status))
+	prevStatus := strings.TrimSpace(strings.ToLower(status))
+	nextStatus := prevStatus
 	completedAt := int64(0)
-	if budgetRuns > 0 && done >= budgetRuns {
-		nextStatus = "completed"
-		completedAt = now
-	}
-	if budgetSeconds > 0 && startedAt > 0 && now-startedAt >= int64(budgetSeconds) {
-		nextStatus = "completed"
-		completedAt = now
+	// Mirror poolfuzz.Service.recomputeProgress: never resurrect cancelled→completed
+	// (that re-opens deferred bounty flush — valax / Dicky incomplete sibling).
+	if prevStatus != "cancelled" {
+		if budgetRuns > 0 && done >= budgetRuns {
+			nextStatus = "completed"
+			completedAt = now
+		}
+		if budgetSeconds > 0 && startedAt > 0 && now-startedAt >= int64(budgetSeconds) {
+			nextStatus = "completed"
+			completedAt = now
+		}
 	}
 	if _, err := a.db.ExecContext(ctx,
 		`UPDATE fuzz_campaigns
@@ -861,7 +866,13 @@ func (a *app) finalizeLocalCampaignEscrow(ctx context.Context, campaignID string
 		return
 	}
 	row, err := a.chain.GetFuzzEscrow(ctx, campaignID)
-	if err != nil || row == nil || !strings.EqualFold(strings.TrimSpace(row.Status), "open") {
+	if err != nil || row == nil {
+		return
+	}
+	st := strings.ToLower(strings.TrimSpace(row.Status))
+	// bounty_paid still holds unpaid run escrow; chain Finalize already accepts it,
+	// but the local gate used to refuse and strand refunds (valax).
+	if st != "open" && st != "bounty_paid" {
 		return
 	}
 	if _, err := a.chain.FinalizeFuzzEscrow(ctx, campaignID); err != nil {

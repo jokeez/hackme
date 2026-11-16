@@ -63,6 +63,10 @@ func (s *Service) flushDeferredBounties(ctx context.Context) error {
 			continue
 		}
 		err = s.withCampaignSettle(campaignID, func() error {
+			// Re-check under the settle lock: cancel can land between the outer gate and PayFinding.
+			if !s.campaignAcceptsSettle(ctx, campaignID) {
+				return nil
+			}
 			if itemID > 0 {
 				_, _ = s.DB.ExecContext(ctx,
 					`UPDATE fuzz_work_items

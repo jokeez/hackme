@@ -2284,6 +2284,11 @@ func (s *Service) insertFinding(ctx context.Context, req SubmitRequest, cfg map[
 		"triage_label":    triage.Label,
 		"zero_day_hint":   triage.ZeroDayHint,
 	}
+	if trap := strings.TrimSpace(req.Trap); trap != "" {
+		if key := fuzzengine.StableCrashBucket(ft, trap); key != "" && key != "crash|generic" {
+			detailMap["stable_crash_key"] = key
+		}
+	}
 	if isCanary, _ := s.workItemIsCanary(ctx, req.CampaignID, req.ItemID); isCanary {
 		detailMap["is_canary"] = true
 		detailMap["source"] = "pool_fuzz_canary_v1"

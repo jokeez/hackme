@@ -65,6 +65,23 @@ VALUES (?, ?, ?, 'pending', ?, ?)`, workerID, payoutAddr, deltaUnits, nonce, now
 	})
 }
 
+// SUPTxHashKnown reports whether txHash is already recorded on any SUP outbox row or
+// attached pending_sup_json intent (prevents two workers sharing a payout from both
+// settling one on-chain transfer — valax empty-hash sibling).
+func (s *Store) SUPTxHashKnown(ctx context.Context, txHash string) (bool, error) {
+	txHash = strings.TrimSpace(txHash)
+	if txHash == "" {
+		return false, nil
+	}
+	var n int
+	err := s.db.QueryRowContext(ctx, `SELECT
+		  (SELECT COUNT(*) FROM settle_sup_outbox WHERE tx_hash=?)
+		+ (SELECT COUNT(*) FROM settle_workers WHERE pending_sup_json<>'' AND json_valid(pending_sup_json)
+		     AND json_extract(pending_sup_json,'$.tx_hash')=?)`,
+		txHash, txHash).Scan(&n)
+	return n > 0, err
+}
+
 // AttachSUPTxHash stamps the SUP pending intent and its outbox row with the tx hash.
 func (s *Store) AttachSUPTxHash(ctx context.Context, workerID, txHash string) error {
 	workerID = strings.TrimSpace(workerID)

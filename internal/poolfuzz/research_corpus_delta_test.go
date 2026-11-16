@@ -215,6 +215,58 @@ func TestAcceptResearchCorpusDeltaStaleCrashNoPayCredit(t *testing.T) {
 	}
 }
 
+func TestAcceptResearchCorpusDeltaMutatedCrashSameBucketNoPayCredit(t *testing.T) {
+	// valax High: flip first-8 bytes while keeping the same ASAN trap — must not re-earn PayRun.
+	t.Setenv("HACKME_HUNT_COVERAGE_ENGINE", "1")
+	svc, id, itemID := researchDeltaHuntCamp(t)
+	ctx := context.Background()
+	leaseWorkItemForTest(t, ctx, svc.DB, id, itemID, "w1")
+	prev := researchCrashReplayer
+	t.Cleanup(func() { researchCrashReplayer = prev })
+	// Same FormatHuntTrap-style trap for both inputs (crash-preserving mutation).
+	const trap = "hunt_crash:heap-buffer-overflow"
+	researchCrashReplayer = func(ctx context.Context, s *Service, campaignID string, cfg map[string]any, input []byte) (bool, string, error) {
+		return true, trap, nil
+	}
+	firstCrash := []byte("AAAAAAAACrash!")
+	first, err := svc.AcceptResearchCorpusDelta(ctx, ResearchCorpusDeltaRequest{
+		WorkerID: "w1", CampaignID: id, ItemID: itemID, Namespace: "research:jsmn",
+		MinerAddr: "HMC-test", Crashes: [][]byte{firstCrash},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.CrashesReplayOK != 1 || first.Findings != 1 {
+		t.Fatalf("first=%+v", first)
+	}
+	clearLeaseProven(id, itemID)
+
+	now := time.Now().Unix()
+	res, err := svc.DB.ExecContext(ctx,
+		`INSERT INTO fuzz_work_items(campaign_id, input_n, status, created_at, updated_at) VALUES (?,?, 'pending', ?, ?)`,
+		id, 424243, now, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	item2, _ := res.LastInsertId()
+	leaseWorkItemForTest(t, ctx, svc.DB, id, item2, "w1")
+	mutated := []byte("AAAAAAABCrash!") // first-8 u64 differs; same sanitizer trap
+	second, err := svc.AcceptResearchCorpusDelta(ctx, ResearchCorpusDeltaRequest{
+		WorkerID: "w1", CampaignID: id, ItemID: item2, Namespace: "research:jsmn",
+		MinerAddr: "HMC-test", Crashes: [][]byte{mutated},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.CrashesReplayOK != 0 || second.Findings != 0 {
+		t.Fatalf("mutated same-bucket crash must not pay-credit, second=%+v", second)
+	}
+	kind, full := DecideHuntEnginePay(0, 0, second.CrashesReplayOK, 0, false)
+	if full || kind == HuntEnginePayCrash {
+		t.Fatalf("pay decision must be floor, kind=%s full=%v", kind, full)
+	}
+}
+
 func TestAcceptResearchCorpusDeltaRejectsUnauthedForeignLease(t *testing.T) {
 	svc, id, itemID := researchDeltaHuntCamp(t)
 	ctx := context.Background()

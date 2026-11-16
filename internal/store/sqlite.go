@@ -427,6 +427,7 @@ func migrateSUPLedger(db *sql.DB) error {
 			reject_code TEXT NOT NULL DEFAULT ''
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_sup_tx_pool_from_nonce ON sup_tx_pool(from_address, nonce)`,
+		`CREATE INDEX IF NOT EXISTS idx_sup_tx_history_from_nonce ON sup_tx_history(from_address, nonce)`,
 		`CREATE INDEX IF NOT EXISTS idx_sup_tx_history_to_applied ON sup_tx_history(to_address, applied_at DESC)`,
 	}
 	for _, s := range stmts {

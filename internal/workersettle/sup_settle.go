@@ -145,34 +145,40 @@ func RunSUP(ctx context.Context, cfg Config) (Result, error) {
 			}
 			_ = json.Unmarshal([]byte(pendRaw), &pend)
 			if pend.TxHash == "" {
-				_, nNow, nerr := fetchSUPState(ctx, client, cfg.ChainBase, payer)
-				if nerr == nil && nNow > pend.Nonce {
-					// Lost response that later included: nonce slot consumed — advance watermark,
-					// never re-send the same accrual.
-					anchor := d.BaselineUnits + pend.DeltaUnits
-					if err := store.ApplySettleSUPUnits(ctx, wid, firstNonEmpty(pend.Payout, toAddr), "sup-nonce-consumed",
-						row.SettledSUPUnits+pend.DeltaUnits, anchor, !d.Rebase); err != nil {
-						lg.Printf("sup: recover apply %s (nonce consumed): %v", wid, err)
+				// Mirror HMC stranded resolver: never settle on nonce movement alone
+				// (unrelated SUP pay or shared payout would false-settle / double-credit).
+				payTo := firstNonEmpty(pend.Payout, toAddr)
+				supPend := pendingSettle{DeltaUnits: pend.DeltaUnits, PayoutAddress: payTo, Nonce: int64(pend.Nonce)}
+				switch res := resolveStrandedSUPPending(ctx, client, cfg.ChainBase, payer, payTo, supPend); res.Outcome {
+				case strandedPaid:
+					if used, uerr := store.SUPTxHashKnown(ctx, res.TxHash); uerr != nil || used {
+						lg.Printf("sup: stranded %s kept: candidate tx=%s already recorded (err=%v)", wid, res.TxHash, uerr)
 						continue
 					}
-					lg.Printf("sup: recovered %s: empty-hash intent paid (nonce %d->%d)", wid, pend.Nonce, nNow)
-					out.SettledAny = true
+					if err := store.AttachSUPTxHash(ctx, wid, res.TxHash); err != nil {
+						lg.Printf("sup: resolve %s: attach tx=%s: %v", wid, res.TxHash, err)
+						continue
+					}
+					_ = store.AppendLedger(ctx, "sup_stranded_resolved_paid", wid, pend.DeltaUnits, 0, 0, 0, 0, 0,
+						fmt.Sprintf("tx=%s nonce=%d", res.TxHash, res.Nonce))
+					lg.Printf("sup: resolved stranded %s: paid on chain tx=%s nonce=%d (applied by recovery next cycle)", wid, res.TxHash, res.Nonce)
 					continue
-				}
-				if envBool("CLEAR_PENDING_SUP") {
-					// Manual clear of an intent that never got a tx_hash: only while the payer nonce
-					// has not moved past it (otherwise the send may have landed — ambiguous).
-					inflight, ierr := findSUPInflight(ctx, client, cfg.ChainBase, payer, firstNonEmpty(pend.Payout, toAddr), pend.DeltaUnits)
-					if nerr == nil && nNow <= pend.Nonce && ierr == nil && inflight == "" {
-						_ = store.ClearPendingSUP(ctx, wid)
-						lg.Printf("sup: CLEAR_PENDING_SUP cleared %s (nonce %d not consumed)", wid, pend.Nonce)
-					} else {
-						lg.Printf("sup: CLEAR_PENDING_SUP refused for %s: nonce/mempool ambiguous", wid)
+				case strandedUnsent:
+					if err := store.ClearPendingSUP(ctx, wid); err != nil {
+						lg.Printf("sup: resolve %s: clear: %v", wid, err)
+						continue
+					}
+					_ = store.AppendLedger(ctx, "sup_stranded_resolved_unsent", wid, pend.DeltaUnits, 0, 0, 0, 0, 0,
+						fmt.Sprintf("intent nonce %d: every slot taken by another included SUP transfer", pend.Nonce))
+					lg.Printf("sup: resolved stranded %s: never sent (nonce %d) — cleared, re-paid next cycle", wid, pend.Nonce)
+					continue
+				default:
+					lg.Printf("sup: stranded %s kept: %s", wid, res.Reason)
+					if envBool("CLEAR_PENDING_SUP") {
+						lg.Printf("sup: CLEAR_PENDING_SUP refused for %s: stranded kept (%s)", wid, res.Reason)
 					}
 					continue
 				}
-				lg.Printf("sup: skip %s: pending SUP intent without tx_hash — not re-sending", wid)
-				continue
 			}
 			if pend.TxHash != "" {
 				okIncl, rejected, _ := verifySUPTxIncluded(ctx, client, cfg.ChainBase, pend.TxHash, cfg.TxWaitSec)

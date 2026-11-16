@@ -310,8 +310,18 @@ func TestRequireAdminAuthOrDesktopLoopbackUnsetTokenRemote(t *testing.T) {
 	req = httptest.NewRequest(http.MethodPost, "/api/orders/fund", nil)
 	req.RemoteAddr = "127.0.0.1:9"
 	req.Host = "127.0.0.1:8080"
+	if requireAdminAuthOrDesktopLoopback(rec, req) {
+		t.Fatal("empty-Origin loopback curl must not reach Fund Orders when admin token unset")
+	}
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/orders/fund", nil)
+	req.RemoteAddr = "127.0.0.1:9"
+	req.Host = "127.0.0.1:8080"
+	req.Header.Set("Origin", "http://127.0.0.1:8080")
+	req.Header.Set("Referer", "http://127.0.0.1:8080/#wallet")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
 	if !requireAdminAuthOrDesktopLoopback(rec, req) {
-		t.Fatal("loopback beginner solo without token should still pass")
+		t.Fatal("loopback browser same-origin document without token should still pass")
 	}
 }
 
