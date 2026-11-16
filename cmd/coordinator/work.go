@@ -1908,6 +1908,18 @@ func coordinatorIdlePruneSec() int64 {
 	return 600
 }
 
+// coordinatorPublicOfflineSec is how long an offline worker may still appear on
+// unauthenticated /api/work/stats (dashboard + explorer). Accrual stays durable;
+// settle uses details=1. Default 6h — corpses offline for days must not clutter the UI.
+func coordinatorPublicOfflineSec() int64 {
+	if v := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_PUBLIC_OFFLINE_SEC")); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n >= 300 {
+			return n
+		}
+	}
+	return 6 * 3600
+}
+
 func coordinatorAutoPruneIdle() bool {
 	v := strings.TrimSpace(os.Getenv("HACKME_COORDINATOR_AUTO_PRUNE_IDLE"))
 	if v == "" {
@@ -3997,8 +4009,14 @@ func (m *workManager) stats(includeDetails bool) map[string]any {
 		}
 	}
 	if !includeDetails {
+		before := len(workers)
+		workers = filterPublicOfflineWorkers(workers, now, coordinatorPublicOfflineSec())
+		hidden := before - len(workers)
 		workers = publicWorkersMap(workers)
 		out["workers_keys"] = "pseudonym_v1"
+		if hidden > 0 {
+			out["workers_hidden_stale"] = hidden
+		}
 	}
 	out["workers"] = workers
 	// Public miner count must match the merged workers{} map (fleet -gpuN collapse),

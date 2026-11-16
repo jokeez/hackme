@@ -12029,6 +12029,8 @@
 		// Pool online = coordinator Online / last_seen ≤ 300s (same as poolHashrateStaleSec).
 		// Do NOT treat cumulative attempts / abuse minute / pool aggregate as "live".
 		const POOL_WORKER_ONLINE_STALE_SEC = 300;
+		/** Hide offline corpses from mining/overview tables (accrual can keep them in the map for weeks). */
+		const POOL_WORKER_DISPLAY_OFFLINE_SEC = 6 * 3600;
 		function overviewMinerOnline(r, ws, sampleUnix) {
 			const runningWorkerID = String((latestWorkerStatus && latestWorkerStatus.worker_id) || '');
 			if (!!(latestWorkerStatus && latestWorkerStatus.running) &&
@@ -12075,6 +12077,22 @@
 			if (s.indexOf('bootstrap-fuzz') === 0 || s.indexOf('vps-canary-fuzz') === 0) return true;
 			return false;
 		}
+		function miningWorkerDisplaySeenUnix(r, rowSt) {
+			const st = rowSt || {};
+			return Math.max(
+				0,
+				Number(r.last_seen_unix || 0),
+				Number(st.last_seen_unix || 0),
+				Number(st.last_poh_seen_unix || 0),
+				Number((r.live && r.live.last_seen_unix) || 0),
+			);
+		}
+		function miningWorkerTooStaleOffline(r, rowSt, online, sampleUnix) {
+			if (online) return false;
+			const seen = miningWorkerDisplaySeenUnix(r, rowSt);
+			if (!(seen > 0) || !Number.isFinite(sampleUnix)) return true;
+			return (sampleUnix - seen) > POOL_WORKER_DISPLAY_OFFLINE_SEC;
+		}
 		function miningWorkerRowVisible(r, rowSt, online, sampleUnix) {
 			const myId = String((latestWorkerStatus && latestWorkerStatus.worker_id) || '');
 			const isMine = myId !== '' && r.id === myId;
@@ -12082,6 +12100,8 @@
 			if (miningWorkersFilter === 'fuzz') return isFuzz;
 			// Default PoH table: hide workerfuzz (escrow diggers; payout_hmc always 0 here).
 			if (isFuzz && miningWorkersFilter !== 'all') return false;
+			// Long-offline accrual ghosts — never list them (own miner always kept).
+			if (!isMine && miningWorkerTooStaleOffline(r, rowSt, online, sampleUnix)) return false;
 			if (miningWorkersFilter === 'all') return true;
 			if (miningWorkersFilter === 'live') return online;
 			if (miningWorkersFilter === 'offline') return !online;
@@ -12125,6 +12145,7 @@
 			const filtered = list.filter((r) => {
 				if (isFuzzPoolWorkerId(r.id)) return false; // PoH overview — not fuzz diggers
 				const online = overviewMinerOnline(r, ws, sampleUnix);
+				if (miningWorkerTooStaleOffline(r, {}, online, sampleUnix)) return false;
 				if (overviewMinersFilter === 'live') return online;
 				if (overviewMinersFilter === 'offline') return !online;
 				return true;

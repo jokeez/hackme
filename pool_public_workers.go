@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/zeebo/blake3"
 
@@ -275,7 +276,13 @@ func redactPublicWorkStats(ws map[string]any) {
 		ws["workers_keys"] = "pseudonym_v1"
 		return
 	}
+	now := int64(parseAnyFloat(ws["now_unix"]))
+	if now <= 0 {
+		now = time.Now().Unix()
+	}
+	const publicOfflineSec int64 = 6 * 3600
 	out := make(map[string]any, len(raw))
+	hidden := 0
 	for id, row := range raw {
 		key := publicWorkerPseudoKey(id)
 		if key == "" {
@@ -285,6 +292,17 @@ func redactPublicWorkStats(ws map[string]any) {
 		if !ok {
 			out[key] = row
 			continue
+		}
+		online := m["online"] == true || m["online"] == 1 || m["online"] == "true"
+		if !online {
+			seen := int64(parseAnyFloat(m["last_seen_unix"]))
+			if poh := int64(parseAnyFloat(m["last_poh_seen_unix"])); poh > seen {
+				seen = poh
+			}
+			if seen <= 0 || (now-seen) > publicOfflineSec {
+				hidden++
+				continue
+			}
 		}
 		cp := make(map[string]any, len(m))
 		for k, v := range m {
@@ -306,5 +324,8 @@ func redactPublicWorkStats(ws map[string]any) {
 	}
 	ws["workers"] = out
 	ws["workers_count"] = uint64(len(out))
+	if hidden > 0 {
+		ws["workers_hidden_stale"] = hidden
+	}
 	ws["workers_keys"] = "pseudonym_v1"
 }

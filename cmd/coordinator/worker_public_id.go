@@ -54,6 +54,45 @@ func asStringAny(v any) string {
 	return strings.TrimSpace(s)
 }
 
+// workerDisplaySeenUnix is the freshest heartbeat used for public UI stale filters.
+func workerDisplaySeenUnix(st workerPayoutStat) int64 {
+	seen := st.LastSeenUnix
+	if st.LastPoHSeenUnix > seen {
+		seen = st.LastPoHSeenUnix
+	}
+	return seen
+}
+
+// filterPublicOfflineWorkers drops offline rows older than maxOfflineSec from the
+// public workers map (dashboard / explorer). Online rows always stay.
+func filterPublicOfflineWorkers(workers map[string]workerPayoutStat, now, maxOfflineSec int64) map[string]workerPayoutStat {
+	if len(workers) == 0 {
+		return workers
+	}
+	if maxOfflineSec < 300 {
+		maxOfflineSec = 300
+	}
+	if now <= 0 {
+		now = 0
+	}
+	out := make(map[string]workerPayoutStat, len(workers))
+	for id, st := range workers {
+		if st.Online {
+			out[id] = st
+			continue
+		}
+		seen := workerDisplaySeenUnix(st)
+		if seen <= 0 {
+			continue // never heartbeated — hide from public board
+		}
+		if now > 0 && (now-seen) > maxOfflineSec {
+			continue
+		}
+		out[id] = st
+	}
+	return out
+}
+
 // publicWorkersMap re-keys workers under publicWorkerKey and drops raw hostname-like ids.
 func publicWorkersMap(workers map[string]workerPayoutStat) map[string]workerPayoutStat {
 	out := make(map[string]workerPayoutStat, len(workers))
