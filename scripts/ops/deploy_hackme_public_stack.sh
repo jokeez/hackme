@@ -63,8 +63,13 @@ if [[ "$SKIP_NGINX" != "1" ]]; then
     exit 2
   fi
   echo "[deploy-public-stack] install nginx vhost from $NGINX_SITE_CONF"
-  deploy_ssh_retry_run _deploy_scp "$NGINX_SITE_CONF" "${NODE_SSH}:/tmp/hackme-site-domain.conf.new"
-  deploy_ssh_retry_run _deploy_ssh "$NODE_SSH" "sudo cp /tmp/hackme-site-domain.conf.new /etc/nginx/sites-available/hackme-site-domain.conf && sudo nginx -t && sudo systemctl reload nginx"
+  # Prefer $HOME staging: some hosts deny SCP into /tmp even for root.
+  # sites-enabled may be a plain file (not a symlink) — update both.
+  deploy_ssh_retry_run _deploy_scp "$NGINX_SITE_CONF" "${NODE_SSH}:~/hackme-site-domain.conf.new"
+  deploy_ssh_retry_run _deploy_ssh "$NODE_SSH" \
+    "sudo cp ~/hackme-site-domain.conf.new /etc/nginx/sites-available/hackme-site-domain.conf && \
+     sudo cp ~/hackme-site-domain.conf.new /etc/nginx/sites-enabled/hackme-site-domain.conf && \
+     sudo nginx -t && sudo systemctl reload nginx && rm -f ~/hackme-site-domain.conf.new"
 fi
 
 if [[ "$SKIP_NODE" != "1" ]]; then
