@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2026-11-17-rc20",
+      "date": "2026-11-17",
+      "title": "0.1.0-rc20 — Paid pool Orders · hub escrow Dig/Hunt · authoritative reports",
+      "summary": "Orders customers Fund on hackme.tech prepaid, start Dig/Hunt on the public pool, and read reports from the hub (mirrors proxy). Cancel/finalize refund unused escrow to prepaid. Economics v2 unchanged since block 550,000.",
+      "impact": "Install/upgrade to 0.1.0-rc20 for Orders pack + node/dashboard report proxy. Miners keep share-PPS; settlement wallet unchanged.",
+      "action": "Upgrade via Downloads / self-update / apt. Verify SHA256SUMS. Orders: bash start_hackme_orders.sh (Linux) or Orders profile (Windows). https://hackme.tech/downloads.html",
+      "tags": [
+        "announcement",
+        "orders",
+        "pool",
+        "rc20",
+        "release"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-11-06-rc19",
       "date": "2026-11-06",
       "title": "0.1.0-rc19 — Economics v2 live since block 550,000 · longer wallets · all packages",
