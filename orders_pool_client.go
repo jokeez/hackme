@@ -29,6 +29,19 @@ func ordersHubURL() string {
 	return ""
 }
 
+// hubPoolAuthorityURL is where cancel/finalize for hub-held escrow must go.
+// Per-order clients discover the hub via canonical chain URL and may not set
+// HACKME_ORDERS_HUB_URL (U20-04).
+func (a *app) hubPoolAuthorityURL() string {
+	if u := ordersHubURL(); u != "" {
+		return u
+	}
+	if a == nil {
+		return ""
+	}
+	return strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/")
+}
+
 func (a *app) customerPoolOwnerRef() string {
 	if a != nil {
 		if ref := strings.TrimSpace(a.defaultOrdersOwnerRef()); ref != "" {
@@ -254,9 +267,9 @@ func (a *app) mirrorHubPoolCampaignLocal(ctx context.Context, hubJSON []byte) er
 }
 
 func (a *app) postHubPoolCampaignAction(ctx context.Context, action, campaignID string) (map[string]any, error) {
-	base := ordersHubURL()
+	base := a.hubPoolAuthorityURL()
 	if base == "" {
-		return nil, fmt.Errorf("HACKME_ORDERS_HUB_URL not set")
+		return nil, fmt.Errorf("hub authority URL not set (HACKME_ORDERS_HUB_URL or HACKME_CANONICAL_CHAIN_URL)")
 	}
 	if a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false) {
 		return nil, nil

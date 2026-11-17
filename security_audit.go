@@ -58,6 +58,10 @@ type securityAuditRequest struct {
 	// ownerSecretHash is set only by the hub's customer-funded pool route (never from JSON):
 	// the coordinator stores it so the paying customer can read progress and findings.
 	ownerSecretHash string
+	// poolOrderChainFunded is set only by /api/orders/pool-escrow after an included
+	// per-order payment to the hub wallet. Escrow then debits the hub primary wallet
+	// (which just received the funding), not legacy tenant prepaid.
+	poolOrderChainFunded bool
 }
 
 func (a *app) handleSecurityAudit(w http.ResponseWriter, r *http.Request) {
@@ -587,7 +591,10 @@ func (a *app) serveSecurityAudit(w http.ResponseWriter, r *http.Request, req sec
 	}
 
 	var escrow *chain.FuzzEscrowRow
-	if hubOwner != "" {
+	// Prepaid path: /api/orders/pool/dig with tenant prepaid.
+	// Chain-funded path: /api/orders/pool-escrow — money already on hub wallet.
+	useTenantPrepaid := hubOwner != "" && !req.poolOrderChainFunded
+	if useTenantPrepaid {
 		if fundErr := a.ensureOrdersPrepaidForBudget(r.Context(), hubOwner, escrowBudgetHMC); fundErr != nil {
 			_, _ = a.db.ExecContext(r.Context(), `DELETE FROM fuzz_campaigns WHERE id=?`, campaignID)
 			writeOrdersAutoFundOrEscrowFailed(w, fundErr)
@@ -676,7 +683,8 @@ func (a *app) serveSecurityAudit(w http.ResponseWriter, r *http.Request, req sec
 
 	if poolDistributedCampaign(cfgMap) {
 		resp["pool_distributed"] = true
-		if hubOwner != "" {
+		// Hub-side creates (prepaid Dig or chain-funded pool-escrow) register as admin.
+		if hubOwner != "" || req.poolOrderChainFunded {
 			claimBudget := escrow.BudgetHMC
 			if claimBudget <= 0 {
 				claimBudget = budgetHMC

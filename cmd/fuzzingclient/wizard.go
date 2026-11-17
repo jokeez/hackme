@@ -606,7 +606,11 @@ func runPoolOrder(base string, order map[string]any) (bool, error) {
 	_ = json.Unmarshal(b, &resp)
 	if code == http.StatusConflict {
 		if c, _ := resp["code"].(string); c == "pool_orders_unavailable" || c == "no_canonical_chain" {
-			return false, nil
+			// Lab-only local fallback; production must fail closed (rc20 product promise).
+			if os.Getenv("HACKME_ORDERS_ALLOW_LOCAL_FALLBACK") == "1" {
+				return false, nil
+			}
+			return true, fmt.Errorf("pool order unavailable (%s): %s", c, strings.TrimSpace(string(b)))
 		}
 	}
 	if code != http.StatusOK {

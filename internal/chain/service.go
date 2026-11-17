@@ -1032,11 +1032,13 @@ func (s *Service) checkEconomicInvariants(ctx context.Context, q queryRowContext
 	}
 	// Optional strict dual-ledger: primary wallet row must match accounts[wallet].
 	// Off by default so historically drifted nodes are not bricked mid-flight.
+	// Skip when primary == DevFee: tenant prepaid open/cancel keeps wallet stable while
+	// accounts track custody (intentional drift under Economics v2 — R20-03).
 	if strictDualLedgerFromEnv() {
 		var walletAddr string
 		var walletUnits, accountUnits uint64
 		err := q.QueryRowContext(ctx, `SELECT address, balance_units FROM wallet WHERE id = 1`).Scan(&walletAddr, &walletUnits)
-		if err == nil {
+		if err == nil && OrdersPrepaidNormalizeAddr(walletAddr) != OrdersPrepaidNormalizeAddr(DevFeeAddress) {
 			err2 := q.QueryRowContext(ctx, `SELECT balance_units FROM accounts WHERE address = ?`, walletAddr).Scan(&accountUnits)
 			if err2 == nil && walletUnits != accountUnits {
 				return fmt.Errorf("%w: primary wallet/accounts drift (%d != %d)", ErrEconomicInvariant, walletUnits, accountUnits)

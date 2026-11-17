@@ -197,8 +197,9 @@ func (a *app) handleOrdersPoolEscrow(w http.ResponseWriter, r *http.Request) {
 		}
 		var one int
 		if cerr := a.db.QueryRowContext(ctx, `SELECT 1 FROM fuzz_campaigns WHERE id=?`, req.CampaignID).Scan(&one); cerr != nil {
-			// Funding recorded but no campaign: the create failed or the funding was never
-			// claimed in time — it is being refunded, never reported as a live order.
+			// Funding recorded but create never finished — queue a full refund if not already
+			// pending/sent (crash between INSERT funding and campaign create).
+			a.recoverOrphanPoolFundingRow(ctx, req.CampaignID)
 			writeAPIError(w, http.StatusConflict, "funding_refunded", "this order was not created; the funding is refunded to "+req.Owner, nil)
 			return
 		}
@@ -285,8 +286,9 @@ func (a *app) handleOrdersPoolEscrow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Same code path as an operator order on the hub: escrow from the hub wallet (which just
-	// received the funding) + pool registration as admin.
+	// Escrow from the hub wallet (which just received the funding) + pool register as admin.
+	// Owner ref stays the customer; do NOT debit legacy tenant prepaid (U20-01).
+	audit.poolOrderChainFunded = true
 	rec := httptest.NewRecorder()
 	inner := httptest.NewRequest(http.MethodPost, "/api/security-audit", bytes.NewReader(nil)).WithContext(ctx)
 	inner.RemoteAddr = r.RemoteAddr
@@ -366,7 +368,8 @@ func (a *app) queueOrdersPoolRefund(ctx context.Context, campaignID string, unit
 
 // ordersPoolRefundOnClose queues the unspent escrow of a customer-funded campaign after the
 // hub closed it (the close itself returned those units to the hub wallet). Runs once per
-// campaign (closed_queued flips 0→1 atomically).
+// campaign: closed_queued + refund_units flip atomically so a crash/DB blip cannot mark
+// queued without recording the amount (U20-03).
 func (a *app) ordersPoolRefundOnClose(ctx context.Context, campaignID string) {
 	if a.db == nil || a.chain == nil {
 		return
@@ -378,16 +381,85 @@ func (a *app) ordersPoolRefundOnClose(ctx context.Context, campaignID string) {
 	if err != nil || row == nil || !strings.EqualFold(strings.TrimSpace(row.Status), "closed") {
 		return
 	}
-	res, err := a.db.ExecContext(ctx, `UPDATE orders_pool_escrow SET closed_queued=1 WHERE campaign_id=? AND closed_queued=0`, campaignID)
+	left := row.RunsPoolHMC + row.BountyPoolHMC - row.RunsPaidHMC - row.BountyPaidHMC - row.CrashBonusPaidHMC
+	units := chain.HMCToUnits(left)
+	res, err := a.db.ExecContext(ctx, `
+		UPDATE orders_pool_escrow
+		   SET closed_queued=1,
+		       refund_units = refund_units + ?,
+		       refund_error='',
+		       refund_status = CASE
+		         WHEN ? = 0 THEN refund_status
+		         WHEN refund_status IN ('sent','sending') THEN refund_status
+		         ELSE 'pending'
+		       END
+		 WHERE campaign_id=? AND closed_queued=0`,
+		units, units, campaignID)
 	if err != nil {
+		log.Printf("orders pool escrow: close-refund %s: %v", logsafe.ID(campaignID), err)
 		return
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
 		return // not customer-funded, or already queued
 	}
-	left := row.RunsPoolHMC + row.BountyPoolHMC - row.RunsPaidHMC - row.BountyPaidHMC - row.CrashBonusPaidHMC
-	if units := chain.HMCToUnits(left); units > 0 {
-		a.queueOrdersPoolRefund(ctx, campaignID, units, "campaign closed")
+	if units > 0 {
+		log.Printf("orders pool escrow: refund %s HMC queued for %s (campaign closed)",
+			strconv.FormatFloat(chain.UnitsToHMC(units), 'f', 8, 64), logsafe.ID(campaignID))
+	}
+}
+
+// recoverOrphanPoolFundingRow queues a full refund when funding was recorded but no
+// fuzz_campaigns row exists (create interrupted after INSERT).
+func (a *app) recoverOrphanPoolFundingRow(ctx context.Context, campaignID string) {
+	if a.db == nil || strings.TrimSpace(campaignID) == "" {
+		return
+	}
+	var funded, refundUnits uint64
+	var status string
+	err := a.db.QueryRowContext(ctx,
+		`SELECT funded_units, refund_units, COALESCE(refund_status,'none') FROM orders_pool_escrow WHERE campaign_id=?`,
+		campaignID).Scan(&funded, &refundUnits, &status)
+	if err != nil || funded == 0 {
+		return
+	}
+	var one int
+	if a.db.QueryRowContext(ctx, `SELECT 1 FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&one) == nil {
+		return // campaign exists — not an orphan
+	}
+	status = strings.ToLower(strings.TrimSpace(status))
+	if refundUnits > 0 || status == "pending" || status == "sending" || status == "sent" || status == "done" {
+		return
+	}
+	a.queueOrdersPoolRefund(ctx, campaignID, funded, "create interrupted")
+}
+
+// recoverOrphanPoolFunding sweeps funding rows older than the unclaimed window that never
+// got a campaign (same class as a crash between record and create).
+func (a *app) recoverOrphanPoolFunding(ctx context.Context) {
+	if a.db == nil {
+		return
+	}
+	cutoff := time.Now().Unix() - ordersPoolUnclaimedRefundSec
+	rows, err := a.db.QueryContext(ctx, `
+		SELECT e.campaign_id FROM orders_pool_escrow e
+		 WHERE e.created_at < ?
+		   AND e.refund_units=0
+		   AND COALESCE(e.refund_status,'none') IN ('','none')
+		   AND NOT EXISTS (SELECT 1 FROM fuzz_campaigns c WHERE c.id=e.campaign_id)
+		 LIMIT 32`, cutoff)
+	if err != nil {
+		return
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if rows.Scan(&id) == nil {
+			ids = append(ids, id)
+		}
+	}
+	rows.Close()
+	for _, id := range ids {
+		a.recoverOrphanPoolFundingRow(ctx, id)
 	}
 }
 
@@ -434,6 +506,7 @@ func (a *app) ordersPoolRefundTick(ctx context.Context) {
 		}
 	}
 	a.sweepUnclaimedPoolFunding(ctx)
+	a.recoverOrphanPoolFunding(ctx)
 	type pend struct {
 		campaign, owner, status, tx, memo string
 		units, sentUnits                  uint64

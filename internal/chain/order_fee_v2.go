@@ -138,7 +138,17 @@ func (s *Service) applyOrderFeeV2Tx(ctx context.Context, tx *sql.Tx, walletAddr 
 		return s.burnSUPForFeeTx(ctx, tx, walletAddr, f.SUPUnits, SUPFeeProductHMCOrder, ref)
 	}
 	if f.PlatformUnits > 0 {
-		if err := s.creditUnits(ctx, tx, DevFeeAddress, f.PlatformUnits); err != nil {
+		// Platform fee always lands on DevFee. When the node primary wallet *is*
+		// DevFee (tenant prepaid lab / misconfig), credit accounts only — the
+		// tenant open path never debited wallet, so creditUnits would invent
+		// wallet units and break dual-ledger / wallet-stable (R20-03).
+		var primary string
+		_ = tx.QueryRowContext(ctx, `SELECT address FROM wallet WHERE id=1`).Scan(&primary)
+		if OrdersPrepaidNormalizeAddr(primary) == OrdersPrepaidNormalizeAddr(DevFeeAddress) {
+			if err := s.creditAccountsOnly(ctx, tx, DevFeeAddress, f.PlatformUnits); err != nil {
+				return "internal_error", err
+			}
+		} else if err := s.creditUnits(ctx, tx, DevFeeAddress, f.PlatformUnits); err != nil {
 			return "internal_error", err
 		}
 	}

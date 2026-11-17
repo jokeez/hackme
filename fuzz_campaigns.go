@@ -1035,7 +1035,9 @@ func (a *app) handleFuzzCampaignStatus(w http.ResponseWriter, r *http.Request, c
 		var cfgRaw string
 		if err := a.db.QueryRowContext(r.Context(), `SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgRaw); err == nil {
 			cfg := parseMapJSON(cfgRaw)
-			needsHub := (hubPoolCampaign(cfg) || (poolDistributedCampaign(cfg) && ordersHubURL() != "")) &&
+			// Paid per-order mirrors discover hub via canonical URL (may omit ORDERS_HUB_URL).
+			needsHub := (hubPoolCampaign(cfg) || poolEscrowMirrorCampaign(cfg) ||
+				(poolDistributedCampaign(cfg) && a.hubPoolAuthorityURL() != "")) &&
 				!(a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false))
 			if needsHub {
 				var hubErr error
@@ -1145,7 +1147,8 @@ func (a *app) tryCloseFuzzEscrowForStatus(ctx context.Context, campaignID, statu
 			if poolEscrowMirrorCampaign(cfg) {
 				return // hub holds and closes this escrow (paid per-order pool claim)
 			}
-			needsHub := (hubPoolCampaign(cfg) || (poolDistributedCampaign(cfg) && ordersHubURL() != "")) &&
+			needsHub := (hubPoolCampaign(cfg) ||
+				(poolDistributedCampaign(cfg) && a.hubPoolAuthorityURL() != "")) &&
 				!(a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false))
 			if needsHub {
 				// Status API already proxied cancel/finalize; safety net must not invent local close.
