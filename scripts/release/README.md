@@ -3,8 +3,8 @@
 ## Build release bundle
 
 ```bash
-# Prefer: VERSION="$(cat scripts/release/CURRENT_VERSION)"  # → 0.1.0-rc21
-VERSION=0.1.0-rc21 bash scripts/release/make_release_bundle.sh
+# Prefer: VERSION="$(cat scripts/release/CURRENT_VERSION)"  # → 0.1.0-rc20
+VERSION=0.1.0-rc20 bash scripts/release/make_release_bundle.sh
 ```
 
 Output:
