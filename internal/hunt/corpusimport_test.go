@@ -55,18 +55,18 @@ func TestRankLibFuzzerSeedsCaps(t *testing.T) {
 func TestApplyHuntPowerScheduling(t *testing.T) {
 	cfg := map[string]any{"power_mut_cap": 2}
 	ApplyHuntPowerScheduling(cfg, "hunt_standard")
-	if cfg["power_mut_cap"] != 14 {
+	if cfg["power_mut_cap"] != 16 {
 		t.Fatalf("cap=%v", cfg["power_mut_cap"])
 	}
 	heavy := map[string]any{"power_mut_cap": 2}
 	ApplyHuntPowerScheduling(heavy, "hunt_heavy")
-	if heavy["power_mut_cap"] != 16 {
-		t.Fatalf("heavy cap=%v want 16", heavy["power_mut_cap"])
+	if heavy["power_mut_cap"] != 18 {
+		t.Fatalf("heavy cap=%v want 18", heavy["power_mut_cap"])
 	}
 	off := map[string]any{"power_mut_cap": 2, "hunt_heavy_power_boost": false}
 	ApplyHuntPowerScheduling(off, "hunt_heavy")
-	if off["power_mut_cap"] != 12 {
-		t.Fatalf("heavy boost off cap=%v want 12", off["power_mut_cap"])
+	if off["power_mut_cap"] != 14 {
+		t.Fatalf("heavy boost off cap=%v want 14", off["power_mut_cap"])
 	}
 }
 

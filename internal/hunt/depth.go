@@ -3,9 +3,10 @@ package hunt
 import "strings"
 
 const (
-	huntIterPerShardLite     = 48  // was 32 — deeper L1 chain per shard (v2.8)
-	huntIterPerShardStandard = 192 // was 128
-	huntIterPerShardHeavy    = 256
+	// Pool shard L1 depth: each leased unit runs this many mutating execs before reclaim.
+	huntIterPerShardLite     = 64  // was 48 — Lite still finds cheap crashes faster per wall-second
+	huntIterPerShardStandard = 224 // was 192
+	huntIterPerShardHeavy    = 256 // at maxShardIterationsPer
 	maxShardIterationsPer    = 256
 
 	huntLocalIterLite     = 20_000

@@ -221,12 +221,28 @@ func CampaignConfig(ctx context.Context, repoRoot string, req CreateRequest) (ma
 		// Optional on desktop Orders (empty cache / Windows path allowlist). Pool workers carry seeds.
 		cfg["libfuzzer_seed_note"] = err.Error()
 	}
-	// Pool Standard/Heavy: ~90s LF walls (was MaxEngineLeaseSec=300 — over-long + AFL soft_skip storms).
+	// Pool engine walls: long enough for LF/AFL to warm corpus, short enough to reclaim.
+	// (Previously Standard/Heavy were capped at 90s — too shallow vs local overnight.)
 	if pool {
+		if _, ok := cfg["engine_lease_sec"]; !ok {
+			switch pkgKey {
+			case "hunt_heavy", "heavy":
+				cfg["engine_lease_sec"] = DefaultAFLPPLeaseSec // 180s
+			case "hunt_standard", "standard":
+				cfg["engine_lease_sec"] = 150
+			default:
+				cfg["engine_lease_sec"] = 90 // Lite: above default 60s fleet floor
+			}
+		}
+		// Larger persistent corpus shared across miners for Standard/Heavy.
 		switch pkgKey {
-		case "hunt_standard", "standard", "hunt_heavy", "heavy":
-			if _, ok := cfg["engine_lease_sec"]; !ok {
-				cfg["engine_lease_sec"] = DefaultAFLPPLeaseSec / 2 // 90s
+		case "hunt_standard", "standard":
+			if n := intFromAny(cfg["pool_corpus_max"]); n < 512 {
+				cfg["pool_corpus_max"] = 512
+			}
+		case "hunt_heavy", "heavy":
+			if n := intFromAny(cfg["pool_corpus_max"]); n < 768 {
+				cfg["pool_corpus_max"] = 768
 			}
 		}
 	}

@@ -61,39 +61,82 @@ func main() {
 	case "dig":
 		budget := flag.Float64("budget-hmc", 1, "budget")
 		title := flag.String("title", "rc20-e2e", "title")
+		pkg := flag.String("package", "scan", "dig package: scan|audit|deep")
 		flag.Parse()
-		body, _ := json.Marshal(map[string]any{
+		digPkg := strings.ToLower(strings.TrimSpace(*pkg))
+		if digPkg == "" {
+			digPkg = "scan"
+		}
+		preset := "scan_smoke"
+		runs := 64
+		depth := "wasm_only"
+		switch digPkg {
+		case "audit", "pro":
+			digPkg = "audit"
+			preset = "audit_secrets"
+			runs = 256
+			depth = "wasm_native"
+			if *budget < 5 {
+				*budget = 5
+			}
+		case "deep", "enterprise":
+			digPkg = "deep"
+			preset = ""
+			runs = 2048
+			depth = "bytes_corpus"
+			if *budget < 40 {
+				*budget = 40
+			}
+		default:
+			digPkg = "scan"
+		}
+		payload := map[string]any{
 			"title":            *title,
-			"dig_preset":       "scan_smoke",
-			"dig_package":      "scan",
+			"dig_package":      digPkg,
 			"budget_hmc":       *budget,
-			"budget_runs":      64,
+			"budget_runs":      runs,
 			"pool_distributed": true,
 			"create_poh_order": false,
 			"payer_ref":        owner,
-			"depth_tier":       "wasm_only",
-		})
+			"depth_tier":       depth,
+		}
+		if preset != "" {
+			payload["dig_preset"] = preset
+		}
+		body, _ := json.Marshal(payload)
 		call(hub+"/api/orders/pool/dig", tok, owner, signer, body)
 	case "hunt":
 		budget := flag.Float64("budget-hmc", 20, "budget")
 		title := flag.String("title", "rc20-hunt-e2e", "title")
 		target := flag.String("target", "jsmn", "catalog target_id")
-		shards := flag.Int("shards", 32, "budget shards")
+		shards := flag.Int("shards", 0, "budget shards (0 = package default)")
 		engine := flag.String("engine", "libfuzzer", "hunt_engine")
+		pkg := flag.String("package", "hunt_lite", "hunt_lite|hunt_standard|hunt_heavy")
+		lease := flag.Int("engine-lease-sec", 0, "override engine lease (0 = server package default)")
 		flag.Parse()
-		body, _ := json.Marshal(map[string]any{
+		huntPkg := strings.ToLower(strings.TrimSpace(*pkg))
+		if huntPkg == "" {
+			huntPkg = "hunt_lite"
+		}
+		payload := map[string]any{
 			"title":            *title,
-			"package":          "hunt_lite",
+			"package":          huntPkg,
 			"catalog":          true,
 			"target_id":        strings.TrimSpace(*target),
 			"budget_hmc":       *budget,
-			"budget_shards":    *shards,
 			"pool_distributed": true,
 			"status":           "running",
 			"hunt_engine":      strings.TrimSpace(*engine),
-			"engine_lease_sec": 60,
 			"owner_ref":        owner,
-		})
+		}
+		if *shards > 0 {
+			payload["budget_shards"] = *shards
+		}
+		// Do not force a shallow 60s lease — hub package defaults are deeper.
+		if *lease > 0 {
+			payload["engine_lease_sec"] = *lease
+		}
+		body, _ := json.Marshal(payload)
 		call(hub+"/api/orders/pool/hunt", tok, owner, signer, body)
 	case "cancel":
 		id := flag.String("campaign-id", "", "campaign id")

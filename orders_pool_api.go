@@ -188,7 +188,7 @@ func (a *app) verifyHubOrdersFundTransfer(row chain.TransferStatusRow, owner str
 }
 
 func (a *app) handleOrdersPoolDig(w http.ResponseWriter, r *http.Request) {
-	if !a.allowRate("orders_pool_dig:"+clientIP(r), 6) {
+	if !a.allowRate("orders_pool_dig:"+clientIP(r), 20) {
 		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
 		return
 	}
@@ -219,7 +219,7 @@ func (a *app) handleOrdersPoolDig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleOrdersPoolHunt(w http.ResponseWriter, r *http.Request) {
-	if !a.allowRate("orders_pool_hunt:"+clientIP(r), 6) {
+	if !a.allowRate("orders_pool_hunt:"+clientIP(r), 20) {
 		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
 		return
 	}

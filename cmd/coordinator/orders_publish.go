@@ -26,8 +26,8 @@ import (
 //
 //	HACKME_ORDERS_PUBLISH_MAX_BUDGET_RUNS     default 16384 (covers hunt_heavy 12000)
 //	HACKME_ORDERS_PUBLISH_MAX_BUDGET_SECONDS  default 86400
-//	HACKME_ORDERS_PUBLISH_MAX_PER_HOUR        default 10
-//	HACKME_ORDERS_PUBLISH_MAX_PER_DAY         default 40
+//	HACKME_ORDERS_PUBLISH_MAX_PER_HOUR        default 36 (multi catalog Dig/Hunt waves)
+//	HACKME_ORDERS_PUBLISH_MAX_PER_DAY         default 150
 //	HACKME_ORDERS_PUBLISH_MAX_BUDGET_HMC      default 500
 //
 // Harness upload (POST /api/fuzz/pool/hunt/harness) and Dig/Hunt campaign register
@@ -105,11 +105,11 @@ func publishMaxBudgetSeconds() int {
 }
 
 func publishMaxPerHour() int {
-	return envIntDefaultPositive("HACKME_ORDERS_PUBLISH_MAX_PER_HOUR", 10)
+	return envIntDefaultPositive("HACKME_ORDERS_PUBLISH_MAX_PER_HOUR", 36)
 }
 
 func publishMaxPerDay() int {
-	return envIntDefaultPositive("HACKME_ORDERS_PUBLISH_MAX_PER_DAY", 40)
+	return envIntDefaultPositive("HACKME_ORDERS_PUBLISH_MAX_PER_DAY", 150)
 }
 
 func publishMaxBudgetHMC() float64 {

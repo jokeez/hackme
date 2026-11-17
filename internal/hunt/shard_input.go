@@ -57,7 +57,7 @@ func ApplyPoolGuidedDefaults(cfg map[string]any, targetID string) {
 		cfg["corpus_persist_key"] = "hunt:" + strings.TrimSpace(targetID)
 	}
 	if _, ok := cfg["pool_corpus_max"]; !ok {
-		cfg["pool_corpus_max"] = 256
+		cfg["pool_corpus_max"] = 384
 	}
 	// Opt-in fleet diversity: low-energy seeds keep a floor share (replay-stable with this flag).
 	if _, ok := cfg["corpus_explore_v2"]; !ok {
