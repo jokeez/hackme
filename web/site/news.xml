@@ -4,7 +4,7 @@
 <title>HackMe Network News</title>
 <link>https://hackme.tech/news.html</link>
 <description>Official HackMe pool, release, and research notices.</description>
-<lastBuildDate>Tue, 17 Nov 2026 15:35:27 +0000</lastBuildDate>
+<lastBuildDate>Tue, 17 Nov 2026 16:26:04 +0000</lastBuildDate>
 <atom:link href="https://hackme.tech/news.xml" rel="self" type="application/rss+xml"/>
 <language>en-us</language>
 <item>
@@ -13,6 +13,13 @@
 <guid isPermaLink="false">2026-11-17-rc20</guid>
 <pubDate>Tue, 17 Nov 2026 00:00:00 +0000</pubDate>
 <description>Orders customers Fund on hackme.tech prepaid, start Dig/Hunt on the public pool, and read reports from the hub (mirrors proxy). Cancel/finalize refund unused escrow to prepaid. Economics v2 unchanged since block 550,000.</description>
+</item>
+<item>
+<title>0.1.0-rc21 — Signed latest.json · OpenCL fail-closed · readiness gate</title>
+<link>https://hackme.tech/news.html#2026-11-17-rc21</link>
+<guid isPermaLink="false">2026-11-17-rc21</guid>
+<pubDate>Tue, 17 Nov 2026 00:00:00 +0000</pubDate>
+<description>Release honesty cut: ed25519-signed latest.json, security proxy harden, Windows OpenCL/NVRTC/dirty-tree fail-closed, honest prepaid/paper D0 UI, stable_readiness_gate, RELEASE_MANIFEST ISO honesty, CDN sums sync. Stable 0.1.0 still blocked (L1 sig default warn).</description>
 </item>
 <item>
 <title>0.1.0-rc19 — Economics v2 live since block 550,000 · longer wallets · all packages</title>
@@ -33,7 +40,7 @@
 <link>https://hackme.tech/news.html#2026-10-31-rc18-1-orders-publish</link>
 <guid isPermaLink="false">2026-10-31-rc18-1-orders-publish</guid>
 <pubDate>Sat, 31 Oct 2026 00:00:00 +0000</pubDate>
-<description>historical note — current channel is 0.1.0-rc20. Orders bundles ship a scoped pool.orders.token so Dig/Hunt campaigns can register on the public pool without a full coordinator admin key. Caps and rate limits apply; settle-pull is campaign-scoped; PoH attach and cancel stay admin-only. Blake3 share-PPS, CUDA/OpenCL, Win/Linux/deb/ISO, and B2B fuzzing CLI (hackme-fuzzing + hackme-fuzzing-build) continue from rc18.</description>
+<description>historical note — current channel is 0.1.0-rc21. Orders bundles ship a scoped pool.orders.token so Dig/Hunt campaigns can register on the public pool without a full coordinator admin key. Caps and rate limits apply; settle-pull is campaign-scoped; PoH attach and cancel stay admin-only. Blake3 share-PPS, CUDA/OpenCL, Win/Linux/deb/ISO, and B2B fuzzing CLI (hackme-fuzzing + hackme-fuzzing-build) continue from rc18.</description>
 </item>
 <item>
 <title>Economics v2 — soft announce (design lock; not activated)</title>
@@ -279,13 +286,6 @@
 <guid isPermaLink="false">2026-07-19-oss-cve-watch-day13-nghttp2-libfuzzer</guid>
 <pubDate>Sun, 19 Jul 2026 00:00:00 +0000</pubDate>
 <description>Day 13 on nghttp2: 4.3h libFuzzer depth, 355,230,313 executions at ~23,081 exec/s. Corpus 419 (293KB), 467 coverage edges. ASAN heap crashes: 0 — verdict CLEAN.</description>
-</item>
-<item>
-<title>OSS CVE Watch Day 12/14 · nghttp2 · 2.39B libFuzzer exec · CLEAN</title>
-<link>https://hackme.tech/news.html#2026-07-19-oss-cve-watch-day12-nghttp2-libfuzzer</link>
-<guid isPermaLink="false">2026-07-19-oss-cve-watch-day12-nghttp2-libfuzzer</guid>
-<pubDate>Sun, 19 Jul 2026 00:00:00 +0000</pubDate>
-<description>Day 12 on nghttp2: 14.2h libFuzzer depth, 2,387,073,360 executions at ~46,706 exec/s. Corpus 410 (307KB), 467 coverage edges. ASAN heap crashes: 0 — verdict CLEAN.</description>
 </item>
 </channel>
 </rss>
