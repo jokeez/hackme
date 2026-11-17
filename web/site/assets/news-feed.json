@@ -1,52 +1,6 @@
 {
   "items": [
     {
-      "id": "2026-11-17-rc20",
-      "date": "2026-11-17",
-      "title": "0.1.0-rc20 — Paid pool Orders · hub escrow Dig/Hunt · authoritative reports",
-      "summary": "Orders customers Fund on hackme.tech prepaid, start Dig/Hunt on the public pool, and read reports from the hub (mirrors proxy). Cancel/finalize refund unused escrow to prepaid. Economics v2 unchanged since block 550,000.",
-      "tags": [
-        "announcement",
-        "orders",
-        "pool",
-        "rc20",
-        "release"
-      ],
-      "impact": "Install/upgrade to 0.1.0-rc20 for Orders pack + node/dashboard report proxy. Miners keep share-PPS; settlement wallet unchanged.",
-      "action": "Upgrade via Downloads / self-update / apt. Verify SHA256SUMS. Orders: bash start_hackme_orders.sh (Linux) or Orders profile (Windows). https://hackme.tech/downloads.html",
-      "status": "published",
-      "featured": true,
-      "social": {
-        "lead": "Economics v2 is live since #550,000 — 0.1 HMC/block, burns, SUP emission, long addresses.",
-        "bullets": [
-          "0.1 HMC/empty block · ~4y halvings · 0.002 tail",
-          "5% burn + 5% platform on paid orders",
-          "SUP 0.002/block · cap 21,000",
-          "HMC- + 64-hex addresses (legacy 16-hex keep working)",
-          "Stay on 0.1.0-rc19+"
-        ],
-        "body": "**0.1.0-rc19 — Economics v2 LIVE**\n\nSince block **550,000**:\n• **0.1 HMC**/empty block · ~4y halvings · **0.002** tail\n• Order burn 5% + platform 5%\n• SUP block mint 0.002 · cap **21,000**\n• Long addresses + `chain_id` hackme-mainnet-1\n\nDownloads: https://hackme.tech/downloads.html\nRFC: https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md",
-        "headline": "Economics v2 live since #550,000 (rc19)",
-        "github": "https://github.com/jokeez/hackme"
-      },
-      "telegram": {
-        "headline": "Economics v2 live since #550,000",
-        "body": "**0.1.0-rc20 — Paid pool Orders**\n\n• Hub prepaid Dig/Hunt\n• Authoritative hub reports\n• Escrow refund on cancel\n\nhttps://hackme.tech/downloads.html",
-        "parse_mode": "Markdown",
-        "disable_web_page_preview": false,
-        "buttons": [
-          [
-            "Stay on 0.1.0-rc20+"
-          ]
-        ]
-      },
-      "links": {
-        "news": "https://hackme.tech/news.html#2026-11-06-rc19",
-        "downloads": "https://hackme.tech/downloads.html",
-        "rfc": "https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md"
-      }
-    },
-    {
       "id": "2026-11-06-rc19",
       "date": "2026-11-06",
       "title": "0.1.0-rc19 — Economics v2 live since block 550,000 · longer wallets · all packages",

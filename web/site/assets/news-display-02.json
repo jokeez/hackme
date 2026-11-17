@@ -1,6 +1,23 @@
 {
   "items": [
     {
+      "id": "2026-07-22-b2b-customer-crash-first-report",
+      "date": "2026-07-22",
+      "title": "B2B audits that CI can trust — crash-first reports · honest Scan/Audit/Deep",
+      "summary": "Customer path is productized: register → wizard (Scan · Audit · Deep) → status → HTML report + CI gate. Crash-first triage means detector noise never fails the gate. Escrow 20/80 stays transparent; PoH miners auto-switch to orders while workerfuzz fleets dig pool fuzz. Example: HackMe Bootstrap Audit · cjson — runs progressing, gate crash-first, clean / no critical crash-class.",
+      "impact": "Protocol and security teams get a deliverable they can wire into pipelines — PASS/FAIL on crash-class findings only, plus an honest assurance note (not proven secure). No fake CVE theater: CLEAN means no crash/hang/ASan/memory at the budgeted runs.",
+      "action": "Developers: https://hackme.tech/developers.html · CLI: https://hackme.tech/downloads.html#fuzzing-client · Tracker: https://hackme.tech/fuzzing-console.html · Campaigns: https://hackme.tech/fuzz-campaigns.html · Command: hackme-fuzzing wizard --wasm guard.wasm --package audit",
+      "tags": [
+        "fuzzing",
+        "b2b",
+        "security",
+        "product",
+        "devtools",
+        "escrow"
+      ],
+      "status": "published"
+    },
+    {
       "id": "2026-07-22-github-release-rc12w",
       "date": "2026-07-22",
       "title": "HackMe 0.1.0-rc12w — wallet Activity · security hardening · miners & devs",
@@ -245,21 +262,6 @@
         "mining",
         "fuzzing",
         "iso"
-      ],
-      "status": "published"
-    },
-    {
-      "id": "2026-07-10-oss-cve-watch-day03-nghttp2-libfuzzer",
-      "date": "2026-07-10",
-      "title": "OSS CVE Watch Day 3/14 · nghttp2 · 1.19B libFuzzer exec · CLEAN",
-      "summary": "Third night on nghttp2: 12h libFuzzer session after post-reboot resume, 1,185,926,547 executions at ~27k exec/s. Corpus 402 inputs (399KB), 467 coverage edges. Zero ASAN heap crashes — third honest CLEAN day.",
-      "impact": "Cumulative ~3.2B libFuzzer executions across Days 2–3 on the same persistent corpus. Coverage plateau at 467 edges suggests deeper state exploration needs new seeds or harness paths — still hunting ASAN heap bugs nightly.",
-      "action": "Day 3 report: https://hackme.tech/reports/oss-cve-watch/day03.html · Series hub: https://hackme.tech/reports/oss-cve-watch/ · Reproduce: MAX_TIME=43200 bash scripts/ops/run_oss_libfuzzer_session.sh",
-      "tags": [
-        "research",
-        "oss-cve",
-        "fuzzing",
-        "nghttp2"
       ],
       "status": "published"
     }
