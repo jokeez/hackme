@@ -1,7 +1,15 @@
 {
   "version": 1,
-  "updated_unix": 1794305400,
+  "updated_unix": 1794307200,
   "notices": [
+    {
+      "id": "rc21-signed-latest",
+      "severity": "info",
+      "title": "0.1.0-rc21 LIVE — signed latest.json · fail-closed OpenCL",
+      "body": "Update channel now ships latest.json.sig. Release builds fail closed without Windows OpenCL/NVRTC or on a dirty tree. Prepaid/D0 UI stays honest. Upgrade to 0.1.0-rc21; the updater keeps wallet and settings.",
+      "cta_label": "Downloads",
+      "cta_href": "/downloads.html"
+    },
     {
       "id": "rc20-paid-dig-hunt",
       "severity": "info",
@@ -13,8 +21,8 @@
     {
       "id": "economics-v2-550000",
       "severity": "warn",
-      "title": "Economics v2 live since #550,000 — stay on 0.1.0-rc20+",
-      "body": "Since block 550,000 the block reward is 0.1 HMC, every paid order burns 5%, SUP is minted per block (cap 21,000) and HMC- + 64-hex addresses are valid (your old address keeps working). Nodes older than 0.1.0-rc19 do not know these rules — stay on 0.1.0-rc20+; the updater keeps your wallet and settings.",
+      "title": "Economics v2 live since #550,000 — stay on 0.1.0-rc21+",
+      "body": "Since block 550,000 the block reward is 0.1 HMC, every paid order burns 5%, SUP is minted per block (cap 21,000) and HMC- + 64-hex addresses are valid (your old address keeps working). Nodes older than 0.1.0-rc19 do not know these rules — stay on 0.1.0-rc21+; the updater keeps your wallet and settings.",
       "cta_label": "Update",
       "cta_href": "/downloads.html"
     },
