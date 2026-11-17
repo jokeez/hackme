@@ -3962,7 +3962,7 @@
 							</div>
 							<div class="flex flex-wrap gap-2 text-[10px] font-mono items-center">
 								<span class="px-2 py-1 rounded border border-matrix/35 text-matrix">portfolio (ref/paper price): <span id="wallet-portfolio-total">—</span></span>
-								<span id="wallet-spot-chip" class="price-chip stale" title="Live HMC/USDT from exchange.hackme.tech"><span class="px-dot"></span><span id="wallet-spot-label">HMC $—</span></span>
+								<span id="wallet-spot-chip" class="price-chip stale" title="Paper ref mid (D0) · exchange.hackme.tech"><span class="px-dot"></span><span id="wallet-spot-label">HMC $—</span></span>
 								<span class="px-2 py-1 rounded border border-neon/35 text-neon">live: <span id="wallet-portfolio-live-count">1</span></span>
 								<span id="wallet-build-strip" class="px-2 py-1 rounded border border-white/10 text-gray-500 max-w-[280px] truncate" title="Dashboard UI + node build">ui — · node —</span>
 								<button type="button" id="btn-wallet-refresh" class="px-3 py-1.5 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
@@ -5804,6 +5804,7 @@
 			const ordersH = Number(w.balance_orders_spendable_hmc);
 			const escrowLockedH = Number(w.balance_orders_escrow_locked_hmc);
 			const localH = Number(w.balance_local_mirror_hmc || 0);
+			const spendSrc = String(w.balance_orders_spendable_source || '');
 			let balH = Number.isFinite(primaryH) && primaryH >= 0 ? primaryH
 				: (Number.isFinite(dispH) && dispH >= 0 ? dispH : authH);
 			let balU = Number.isFinite(primaryU) && primaryU >= 0 ? primaryU
@@ -5813,7 +5814,13 @@
 			walletSnapshot.onChainHMC = Number.isFinite(onChainH) && onChainH >= 0
 				? onChainH
 				: (String(w.wallet_source || '').includes('canonical') ? authH : 0);
-			walletSnapshot.ordersSpendableHMC = Number.isFinite(ordersH) && ordersH >= 0 ? ordersH : localH;
+			// Hub prepaid is authoritative: never fall back to local mirror (rc20 honesty).
+			if (spendSrc === 'hub_prepaid' || spendSrc === 'hub_prepaid_unavailable') {
+				walletSnapshot.ordersSpendableHMC = Number.isFinite(ordersH) && ordersH >= 0 ? ordersH : 0;
+			} else {
+				walletSnapshot.ordersSpendableHMC = Number.isFinite(ordersH) && ordersH >= 0 ? ordersH : localH;
+			}
+			walletSnapshot.ordersSpendableSource = spendSrc;
 			walletSnapshot.ordersEscrowLockedHMC = Number.isFinite(escrowLockedH) && escrowLockedH >= 0 ? escrowLockedH : 0;
 			walletSnapshot.ordersSpendableNote = String(w.orders_spendable_note || '');
 			walletSnapshot.balanceAlignment = String(w.balance_alignment || 'local_only');
@@ -6936,7 +6943,7 @@
 			if (px > 0) {
 				setTextSilent(label, 'HMC $' + fmt(px, px >= 0.1 ? 4 : 6));
 				if (chip) {
-					chip.title = 'Live HMC/USDT · exchange.hackme.tech' +
+					chip.title = 'Paper ref mid (D0) · exchange.hackme.tech' +
 						(exchangeSpot.source ? (' · ' + exchangeSpot.source) : '') +
 						(ageMs > 0 ? (' · ' + Math.round(ageMs / 1000) + 's ago') : '');
 				}
@@ -7028,7 +7035,7 @@
 			if (spotSub) {
 				const ageMs = exchangeSpot.updatedAt ? (Date.now() - exchangeSpot.updatedAt) : 0;
 				setTextSilent(spotSub, px > 0
-					? ('live USDT · ' + (exchangeSpot.source || 'spot') + (ageMs > 0 ? (' · ' + Math.round(ageMs / 1000) + 's') : ''))
+					? ('paper ref USDT · ' + (exchangeSpot.source || 'spot') + (ageMs > 0 ? (' · ' + Math.round(ageMs / 1000) + 's') : ''))
 					: 'waiting for exchange…');
 			}
 			const hmcUsdEl = typeof mineCalcEl === 'function' ? mineCalcEl('mine-calc-hmc-usd') : null;

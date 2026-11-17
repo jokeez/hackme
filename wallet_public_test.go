@@ -116,3 +116,74 @@ func TestHandleWalletOrdersSpendableTriadFields(t *testing.T) {
 		t.Fatalf("balance_orders_escrow_locked_hmc type=%T", out["balance_orders_escrow_locked_hmc"])
 	}
 }
+
+func TestHandleWalletHubPrepaidUnavailableFailsClosed(t *testing.T) {
+	a, _ := newWalletTestApp(t)
+	tok := "test-admin-wallet-hub-prepaid"
+	t.Setenv("HACKME_ADMIN_TOKEN", tok)
+	// Hub URL set but unreachable → spendable must be 0 (not local mirror).
+	t.Setenv("HACKME_ORDERS_HUB_URL", "http://127.0.0.1:1")
+	t.Setenv("HACKME_POOL_ORDERS_PUBLISH_TOKEN", "review-publish-token-for-local-tests")
+	t.Setenv("HACKME_CHAIN_MINTING_HUB", "0")
+	req := httptest.NewRequest(http.MethodGet, "/api/wallet", nil)
+	req.Header.Set("X-Hackme-Admin-Token", tok)
+	rec := httptest.NewRecorder()
+	a.handleWallet(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var out map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	src, _ := out["balance_orders_spendable_source"].(string)
+	if src != "hub_prepaid_unavailable" {
+		t.Fatalf("spendable_source=%q want hub_prepaid_unavailable", src)
+	}
+	spend, _ := out["balance_orders_spendable_hmc"].(float64)
+	if spend != 0 {
+		t.Fatalf("spendable_hmc=%v want 0 when hub unreachable", spend)
+	}
+	note, _ := out["orders_spendable_note"].(string)
+	if !strings.Contains(note, "Hub prepaid unreachable") {
+		t.Fatalf("note=%q", note)
+	}
+}
+
+func TestHandleWalletHubPrepaidAuthoritative(t *testing.T) {
+	a, _ := newWalletTestApp(t)
+	tok := "test-admin-wallet-hub-prepaid-ok"
+	t.Setenv("HACKME_ADMIN_TOKEN", tok)
+	t.Setenv("HACKME_POOL_ORDERS_PUBLISH_TOKEN", "review-publish-token-for-local-tests")
+	t.Setenv("HACKME_CHAIN_MINTING_HUB", "0")
+	hub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/orders/pool/prepaid" {
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok": true, "spendable_hmc": 42.5,
+		})
+	}))
+	t.Cleanup(hub.Close)
+	t.Setenv("HACKME_ORDERS_HUB_URL", hub.URL)
+	req := httptest.NewRequest(http.MethodGet, "/api/wallet", nil)
+	req.Header.Set("X-Hackme-Admin-Token", tok)
+	rec := httptest.NewRecorder()
+	a.handleWallet(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var out map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	src, _ := out["balance_orders_spendable_source"].(string)
+	if src != "hub_prepaid" {
+		t.Fatalf("spendable_source=%q want hub_prepaid body=%v", src, out)
+	}
+	spend, _ := out["balance_orders_spendable_hmc"].(float64)
+	if spend != 42.5 {
+		t.Fatalf("spendable_hmc=%v want 42.5", spend)
+	}
+}

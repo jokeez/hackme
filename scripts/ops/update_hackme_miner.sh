@@ -177,7 +177,8 @@ done
 
 got="$(sha256sum "$ARCHIVE" | awk '{print $1}')"
 [[ "$got" == "$sha" ]] || die "SHA256 mismatch (got $got want $sha)"
-log "sha256 ok"
+# L1 trust model: digest only (not signed). Prefer: sudo apt upgrade hackme-node (L3 GPG).
+log "sha256 ok (unsigned L1 — prefer signed apt when available)"
 
 EXTRACT="${TMP}/extract"
 mkdir -p "$EXTRACT"
