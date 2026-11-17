@@ -110,8 +110,20 @@ print(n(j) or n(j.get("summary") or {}) or n(j.get("escrow") or {}) or n(j.get("
   esc=$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("escrow") or {}).get("status",""))' "$cfile")
   runs_esc=$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("escrow") or {}).get("runs_done",0))' "$cfile")
   prepaid=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("spendable_hmc",""))' "$cfile")
-  log "$kind done escrow=$esc runs_esc=$runs_esc prepaid=$prepaid"
-  RESULTS+=("$kind:$id:pulse=$runs:esc_runs=$runs_esc:escrow=$esc")
+  # Authoritative private report must come from hub (token), not a local empty mirror.
+  local report_ok=0
+  if [[ -n "$tok" ]]; then
+    if curl -fsS --max-time 20 -H "X-Hackme-Report-Token: $tok" \
+         -H "Accept: application/json" \
+         "$HUB/api/fuzz/campaigns/$id/report?format=json&limit=20" >"$OUT/report-$id.json" 2>"$OUT/report-$id.err"; then
+      report_ok=$(python3 -c 'import json,sys
+j=json.load(open(sys.argv[1]))
+print(1 if j.get("ok") or j.get("report_version") or j.get("verdict_card") or j.get("gate") else 0)' "$OUT/report-$id.json" 2>/dev/null || echo 0)
+    fi
+  fi
+  [[ "$report_ok" == "1" ]] || die "$kind report fetch failed id=$id ($(tail -c 200 "$OUT/report-$id.err" 2>/dev/null || true))"
+  log "$kind done escrow=$esc runs_esc=$runs_esc prepaid=$prepaid report_ok=$report_ok"
+  RESULTS+=("$kind:$id:pulse=$runs:esc_runs=$runs_esc:escrow=$esc:report=$report_ok")
 }
 
 run_job dig
@@ -125,19 +137,20 @@ PRE_END=$("$OUT/rc20_pool_client" prepaid | python3 -c 'import json,sys; print(j
 python3 - <<PY >"$OUT/VERDICT.json"
 import json
 jobs = """$(printf '%s\n' "${RESULTS[@]}")""".strip().splitlines()
-pickup = any("esc_runs=" in j and not j.endswith("esc_runs=0:escrow=closed") and ":esc_runs=0:" not in j for j in jobs)
-# softer: any esc_runs > 0
 pickup = False
+reports = True
 for j in jobs:
-  for part in j.split(":"):
-    if part.startswith("esc_runs="):
-      try:
-        if int(part.split("=",1)[1]) >= 1:
-          pickup = True
-      except Exception:
-        pass
+  parts = dict(p.split("=",1) for p in j.split(":") if "=" in p)
+  try:
+    if int(parts.get("esc_runs","0") or 0) >= 1:
+      pickup = True
+  except Exception:
+    pass
+  if parts.get("report") != "1":
+    reports = False
+ok = pickup and reports and len(jobs) > 0
 v = {
-  "ok": True,
+  "ok": ok,
   "stamp": "$STAMP",
   "owner": "$OWNER",
   "fund_hmc": float("$FUND_HMC"),
@@ -145,6 +158,7 @@ v = {
   "prepaid_end": "$PRE_END",
   "jobs": jobs,
   "pickup_any": pickup,
+  "private_report_ok": reports,
   "targets": "$TARGETS".split(),
 }
 print(json.dumps(v, indent=2))
@@ -152,5 +166,5 @@ PY
 cat "$OUT/VERDICT.json"
 python3 -c 'import json,sys; v=json.load(open("'"$OUT/VERDICT.json"'"));
 print("PASS multi catalog demo" if v.get("ok") else "FAIL");
-sys.exit(0 if v.get("ok") and v.get("pickup_any") else (0 if v.get("ok") else 2))'
+sys.exit(0 if v.get("ok") else 1)'
 log "done OUT=$OUT"

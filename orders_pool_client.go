@@ -125,14 +125,28 @@ func (a *app) proxyOrdersPoolHub(w http.ResponseWriter, ctx context.Context, pat
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		if mirrorErr := a.mirrorHubPoolCampaignLocal(ctx, raw); mirrorErr != nil {
-			// Non-fatal for miners (hub already registered); surface in response.
-			var parsed map[string]any
-			if json.Unmarshal(raw, &parsed) == nil {
-				parsed["local_mirror_warning"] = mirrorErr.Error()
-				writeJSON(w, parsed)
-				return
+		// Hub minting returns relative report/gate/pulse URLs. Customer Orders must
+		// rewrite them to absolute hub URLs so CLI/dashboard never open a local mirror.
+		var parsed map[string]any
+		if json.Unmarshal(raw, &parsed) == nil {
+			id := strings.TrimSpace(toString(parsed["campaign_id"]))
+			if id == "" {
+				if camp, ok := parsed["campaign"].(map[string]any); ok {
+					id = strings.TrimSpace(toString(camp["id"]))
+				}
 			}
+			if id != "" {
+				mergeDeliverableURLs(parsed, id)
+			}
+			if mirrorErr := a.mirrorHubPoolCampaignLocal(ctx, raw); mirrorErr != nil {
+				parsed["local_mirror_warning"] = mirrorErr.Error()
+			}
+			writeJSON(w, parsed)
+			return
+		}
+		if mirrorErr := a.mirrorHubPoolCampaignLocal(ctx, raw); mirrorErr != nil {
+			writeAPIError(w, http.StatusBadGateway, "local_mirror_failed", mirrorErr.Error(), map[string]any{"hub_url": base})
+			return
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(resp.StatusCode)

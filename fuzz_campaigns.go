@@ -1029,21 +1029,25 @@ func (a *app) handleFuzzCampaignStatus(w http.ResponseWriter, r *http.Request, c
 		writeAPIError(w, http.StatusBadRequest, "invalid_status", "status must be planned|running|paused|completed|cancelled", nil)
 		return
 	}
-	// hub_pool mirrors: close authoritative hub escrow before flipping local status.
+	// Hub-authoritative campaigns: never flip local status unless hub cancel/finalize succeeds.
+	// Treat pool_distributed + HACKME_ORDERS_HUB_URL like hub_pool (mirrors may omit the flag).
 	if status == "cancelled" || status == "completed" {
 		var cfgRaw string
 		if err := a.db.QueryRowContext(r.Context(), `SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgRaw); err == nil {
 			cfg := parseMapJSON(cfgRaw)
-			if hubPoolCampaign(cfg) && !(a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false)) {
+			needsHub := (hubPoolCampaign(cfg) || (poolDistributedCampaign(cfg) && ordersHubURL() != "")) &&
+				!(a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false))
+			if needsHub {
 				var hubErr error
+				var hubResp map[string]any
 				if status == "cancelled" {
-					_, hubErr = a.cancelHubPoolCampaign(r.Context(), campaignID)
+					hubResp, hubErr = a.cancelHubPoolCampaign(r.Context(), campaignID)
 				} else {
-					_, hubErr = a.finalizeHubPoolCampaign(r.Context(), campaignID)
+					hubResp, hubErr = a.finalizeHubPoolCampaign(r.Context(), campaignID)
 				}
 				if hubErr != nil {
 					writeAPIError(w, http.StatusBadGateway, "hub_pool_close_failed", hubErr.Error(), map[string]any{
-						"campaign_id": campaignID, "status": status,
+						"campaign_id": campaignID, "status": status, "hub": hubResp,
 					})
 					return
 				}
@@ -1128,15 +1132,17 @@ func (a *app) tryCloseFuzzEscrowForStatus(ctx context.Context, campaignID, statu
 		var cfgRaw string
 		if err := a.db.QueryRowContext(ctx, `SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgRaw); err == nil {
 			cfg := parseMapJSON(cfgRaw)
-			if hubPoolCampaign(cfg) && !(a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false)) {
-				// Status API already proxied cancel/finalize; keep this as a safety net only.
+			needsHub := (hubPoolCampaign(cfg) || (poolDistributedCampaign(cfg) && ordersHubURL() != "")) &&
+				!(a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false))
+			if needsHub {
+				// Status API already proxied cancel/finalize; safety net must not invent local close.
 				if status == "cancelled" {
 					if _, err := a.cancelHubPoolCampaign(ctx, campaignID); err != nil {
-						log.Printf("fuzz escrow: hub pool cancel %s failed: %s", logsafe.ID(campaignID), logsafe.Err(err))
+						log.Printf("fuzz escrow: hub pool cancel %s failed (local status may be stale): %s", logsafe.ID(campaignID), logsafe.Err(err))
 					}
 				} else if status == "completed" {
 					if _, err := a.finalizeHubPoolCampaign(ctx, campaignID); err != nil {
-						log.Printf("fuzz escrow: hub pool finalize %s failed: %s", logsafe.ID(campaignID), logsafe.Err(err))
+						log.Printf("fuzz escrow: hub pool finalize %s failed (local status may be stale): %s", logsafe.ID(campaignID), logsafe.Err(err))
 					}
 				}
 				return

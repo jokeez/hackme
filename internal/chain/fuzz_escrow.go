@@ -275,9 +275,35 @@ func (s *Service) creditFuzzEscrowRefund(ctx context.Context, tx *sql.Tx, campai
 		if err := s.creditOrdersPrepaidTx(ctx, tx, addr, units); err != nil {
 			return err
 		}
-		return s.creditUnits(ctx, tx, DevFeeAddress, units)
+		// Accounts-only: when primary wallet == DevFee, creditUnits would also bump
+		// wallet — open never debited wallet on the tenant path, so that skews dual-ledger.
+		return s.creditAccountsOnly(ctx, tx, DevFeeAddress, units)
 	}
 	return s.creditUnits(ctx, tx, addr, units)
+}
+
+// creditAccountsOnly credits the accounts row without syncing the primary wallet ledger.
+func (s *Service) creditAccountsOnly(ctx context.Context, tx *sql.Tx, addr string, units uint64) error {
+	addr = strings.TrimSpace(addr)
+	if addr == "" || units == 0 {
+		return nil
+	}
+	if !FitsSQLiteBindUint64(units) {
+		return fmt.Errorf("chain: credit units out of supported range (%d)", units)
+	}
+	var cur uint64
+	err := tx.QueryRowContext(ctx, `SELECT balance_units FROM accounts WHERE address=?`, addr).Scan(&cur)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	if err == nil && cur > math.MaxUint64-units {
+		return fmt.Errorf("chain: balance overflow crediting %d to %s", units, addr)
+	}
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO accounts (address, balance_units, next_nonce, updated_at) VALUES (?, ?, 0, strftime('%s','now'))
+		 ON CONFLICT(address) DO UPDATE SET balance_units=accounts.balance_units + excluded.balance_units, updated_at=excluded.updated_at`,
+		addr, units)
+	return err
 }
 
 func (s *Service) creditUnits(ctx context.Context, tx *sql.Tx, addr string, units uint64) error {
@@ -615,6 +641,9 @@ func fuzzEscrowPublic(r *fuzzEscrowDBRow) *FuzzEscrowRow {
 		path = "finalize_or_cancel_refunds_unused_runs_and_leftover_bounty"
 	case "closed":
 		path = "already_closed"
+		// Already returned to prepaid/wallet — do not advertise leftover as still refundable.
+		refundableU = 0
+		runsRemainingU = 0
 	}
 	return &FuzzEscrowRow{
 		CampaignID:        r.campaignID,

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"hackme/internal/chain"
@@ -136,5 +137,22 @@ func TestFuzzCampaignDeliverableURLsPreferHubForCustomer(t *testing.T) {
 	got = fuzzCampaignDeliverableURLs("camp-1")
 	if got["report_url"] != "/api/fuzz/campaigns/camp-1/report.html" {
 		t.Fatalf("hub minting should keep relative URLs, got %q", got["report_url"])
+	}
+}
+
+func TestMergeDeliverableURLsRewritesRelativeHubProxy(t *testing.T) {
+	t.Setenv("HACKME_ORDERS_HUB_URL", "https://hackme.tech")
+	t.Setenv("HACKME_CHAIN_MINTING_HUB", "")
+	resp := map[string]any{
+		"ok":          true,
+		"campaign_id": "camp-proxy-1",
+		"report_url":  "/api/fuzz/campaigns/camp-proxy-1/report.html",
+	}
+	mergeDeliverableURLs(resp, "camp-proxy-1")
+	if resp["report_url"] != "https://hackme.tech/api/fuzz/campaigns/camp-proxy-1/report.html" {
+		t.Fatalf("report_url=%v", resp["report_url"])
+	}
+	if !strings.HasPrefix(toString(resp["gate_url"]), "https://hackme.tech/") {
+		t.Fatalf("gate_url=%v", resp["gate_url"])
 	}
 }
