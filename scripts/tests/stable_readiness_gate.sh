@@ -114,10 +114,15 @@ fi
 if is_stable_version; then
   echo "[stable-readiness] claiming stable — evaluating product blockers"
 
-  # L1 self-update remains sha256-only (no signature verify).
-  if grep -q 'SHA256 mismatch' "$ROOT/scripts/ops/update_hackme_miner.sh" && \
-     ! grep -qE 'minisign|cosign|gpg --verify|ed25519.*sig' "$ROOT/scripts/ops/update_hackme_miner.sh"; then
-    blockers+=("L1 self-update is sha256-only (unsigned) — prefer signed apt L3 or add detached sig verify")
+  # L1 self-update must verify ed25519 latest.json.sig and default to require for stable.
+  if ! grep -qE 'ed25519.*sig|pkeyutl.*-verify' "$ROOT/scripts/ops/update_hackme_miner.sh"; then
+    blockers+=("L1 self-update lacks ed25519 latest.json.sig verify — prefer signed apt L3 or ship detached sig")
+  fi
+  if ! grep -qE 'HACKME_UPDATE_SIG_MODE:-require' "$ROOT/scripts/ops/update_hackme_miner.sh"; then
+    blockers+=("L1 HACKME_UPDATE_SIG_MODE must default to require before tagging stable (rc may keep warn)")
+  fi
+  if [[ ! -f "$ROOT/scripts/release/keys/hackme_update_ed25519.pub.pem" ]]; then
+    blockers+=("missing committed scripts/release/keys/hackme_update_ed25519.pub.pem")
   fi
 
   # Paper exchange as the only desk is OK only if clearly labeled; claiming

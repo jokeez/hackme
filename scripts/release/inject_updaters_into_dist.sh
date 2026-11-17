@@ -10,6 +10,7 @@ VERSION="${VERSION:-$(tr -d ' \n\r' <"${ROOT}/scripts/release/CURRENT_VERSION")}
 DIST="${1:-${ROOT}/dist/release_${VERSION}}"
 [[ -d "$DIST" ]] || { echo "[inject] missing $DIST" >&2; exit 2; }
 
+PUBKEY="${ROOT}/scripts/release/keys/hackme_update_ed25519.pub.pem"
 if [[ -d "${DIST}/linux" ]]; then
   install -m 0755 "${ROOT}/scripts/ops/update_hackme_miner.sh" "${DIST}/linux/update_hackme_miner.sh"
   install -m 0755 "${ROOT}/scripts/ops/update_hackme_os_binaries.sh" "${DIST}/linux/update_hackme_os_binaries.sh"
@@ -18,11 +19,17 @@ if [[ -d "${DIST}/linux" ]]; then
   install -m 0644 "${ROOT}/scripts/release/linux/hackme-dashboard.desktop.template" "${DIST}/linux/hackme-dashboard.desktop.template"
   mkdir -p "${DIST}/linux/icons"
   cp -a "${ROOT}/scripts/release/linux/icons/." "${DIST}/linux/icons/"
+  if [[ -f "$PUBKEY" ]]; then
+    install -m 0644 "$PUBKEY" "${DIST}/linux/hackme_update_ed25519.pub.pem"
+  fi
   echo "[inject] linux/ updaters + menu/icons"
 fi
 if [[ -d "${DIST}/windows" ]]; then
   install -m 0644 "${ROOT}/scripts/ops/update_hackme_miner.ps1" "${DIST}/windows/update_hackme_miner.ps1"
   install -m 0644 "${ROOT}/scripts/ops/update_hackme_miner.bat" "${DIST}/windows/update_hackme_miner.bat"
+  if [[ -f "$PUBKEY" ]]; then
+    install -m 0644 "$PUBKEY" "${DIST}/windows/hackme_update_ed25519.pub.pem"
+  fi
   echo "[inject] windows/ updaters"
 fi
 bash "${ROOT}/scripts/release/generate_latest_json.sh" "$DIST" || true

@@ -121,6 +121,19 @@ jq -nc \
 mkdir -p "${ROOT}/dist"
 cp -f "$OUT" "${ROOT}/dist/latest.json"
 
+# Keep root SHA256SUMS*.txt aligned with this release (avoids stale CDN digests).
+bash "${ROOT}/scripts/release/sync_dist_cdn_sums.sh" >/dev/null || \
+  echo "[latest] WARN: sync_dist_cdn_sums.sh failed" >&2
+
+# Optional detached ed25519 sig (SEC-STABLE-01). Skip quietly when key absent.
+if [[ -f "${HACKME_UPDATE_SIGN_KEY:-${ROOT}/.secrets/hackme_update_ed25519.pem}" ]]; then
+  bash "${ROOT}/scripts/release/sign_latest_json.sh" "$OUT" || \
+    echo "[latest] WARN: sign_latest_json.sh failed" >&2
+elif [[ "${HACKME_UPDATE_REQUIRE_SIGN:-0}" == "1" ]]; then
+  echo "[latest] ERROR: HACKME_UPDATE_REQUIRE_SIGN=1 but no signing key" >&2
+  exit 1
+fi
+
 echo "[latest] wrote $OUT"
 echo "[latest] also ${ROOT}/dist/latest.json (CDN root hint)"
 jq -r '"version=\(.version) platforms=\(.platforms|length) linux=\(.platforms[]|select(.id=="linux")|.sha256[0:16])…"' "$OUT"

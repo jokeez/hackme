@@ -7,6 +7,8 @@
 #   powershell -File update_hackme_miner.ps1 -InstallDir "$env:LOCALAPPDATA\HackMe" -DryRun
 #
 # Env: HACKME_LATEST_URL
+#      HACKME_UPDATE_SIG_MODE = warn (default) | require | off — ed25519 latest.json.sig
+#      HACKME_UPDATE_PUBKEY    = path to hackme_update_ed25519.pub.pem
 
 param(
   [string]$InstallDir = "",
@@ -18,6 +20,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 function Log([string]$m) { Write-Host "[hackme-update] $m" }
+
+$SigMode = if ($env:HACKME_UPDATE_SIG_MODE) { $env:HACKME_UPDATE_SIG_MODE.ToLowerInvariant() } else { "warn" }
+if (@("warn", "require", "off") -notcontains $SigMode) {
+  throw "HACKME_UPDATE_SIG_MODE must be warn|require|off"
+}
 
 # Prefer curl.exe (Win10+) over Invoke-WebRequest: fewer TLS/proxy locale surprises on PS 5.1.
 function Download-Url([string]$Uri, [string]$OutFile, [int]$TimeoutSec = 60) {
@@ -79,17 +86,80 @@ New-Item -ItemType Directory -Path $tmp | Out-Null
 try {
   $latestFile = Join-Path $tmp "latest.json"
   $ok = $false
+  $fetchedFrom = ""
   foreach ($u in $urls) {
     try {
       Log "fetch $u"
       Download-Url -Uri $u -OutFile $latestFile -TimeoutSec 60
       $ok = $true
+      $fetchedFrom = $u
       break
     } catch {
       Log "miss: $u"
     }
   }
   if (-not $ok) { throw "could not fetch latest.json" }
+
+  # SEC-STABLE-01: ed25519 detached sig over latest.json (openssl.exe when present).
+  function Resolve-UpdatePubKey {
+    if ($env:HACKME_UPDATE_PUBKEY -and (Test-Path -LiteralPath $env:HACKME_UPDATE_PUBKEY)) {
+      return $env:HACKME_UPDATE_PUBKEY
+    }
+    $cands = @(
+      (Join-Path $PSScriptRoot "hackme_update_ed25519.pub.pem"),
+      (Join-Path $InstallDir "hackme_update_ed25519.pub.pem")
+    )
+    foreach ($c in $cands) {
+      if ($c -and (Test-Path -LiteralPath $c)) { return $c }
+    }
+    return $null
+  }
+  function Verify-LatestEd25519Sig([string]$JsonPath, [string]$BaseUrl) {
+    if ($SigMode -eq "off") {
+      Log "ed25519 sig verify off (HACKME_UPDATE_SIG_MODE=off)"
+      return
+    }
+    $openssl = Get-Command openssl.exe -ErrorAction SilentlyContinue
+    if (-not $openssl) { $openssl = Get-Command openssl -ErrorAction SilentlyContinue }
+    if (-not $openssl) {
+      if ($SigMode -eq "require") { throw "openssl required to verify ed25519 latest.json.sig" }
+      Log "WARN: openssl missing — cannot verify ed25519 latest.json.sig"
+      return
+    }
+    $pub = Resolve-UpdatePubKey
+    if (-not $pub) {
+      if ($SigMode -eq "require") { throw "ed25519 pubkey missing (ship hackme_update_ed25519.pub.pem)" }
+      Log "WARN: ed25519 pubkey missing — skipping latest.json.sig verify"
+      return
+    }
+    $sigPath = Join-Path $tmp "latest.json.sig"
+    $gotSig = $false
+    if ($BaseUrl -like "file://*") {
+      $src = ($BaseUrl -replace "^file:///", "" -replace "^file://", "") + ".sig"
+      if (Test-Path -LiteralPath $src) {
+        Copy-Item $src $sigPath -Force
+        $gotSig = $true
+      }
+    } else {
+      try {
+        Download-Url -Uri ($BaseUrl + ".sig") -OutFile $sigPath -TimeoutSec 30
+        $gotSig = $true
+      } catch { $gotSig = $false }
+    }
+    if (-not $gotSig -or -not (Test-Path -LiteralPath $sigPath) -or ((Get-Item $sigPath).Length -le 0)) {
+      if ($SigMode -eq "require") { throw "latest.json.sig missing (HACKME_UPDATE_SIG_MODE=require)" }
+      Log "WARN: latest.json.sig missing — L1 feed unsigned (sha256 still enforced)"
+      return
+    }
+    & $openssl.Source @("pkeyutl", "-verify", "-pubin", "-inkey", $pub, "-rawin", "-in", $JsonPath, "-sigfile", $sigPath) 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+      Log "ed25519 latest.json.sig ok"
+      return
+    }
+    if ($SigMode -eq "require") { throw "ed25519 latest.json.sig verify failed (fail-closed)" }
+    Log "WARN: ed25519 latest.json.sig verify failed — continuing (HACKME_UPDATE_SIG_MODE=warn)"
+  }
+  Verify-LatestEd25519Sig -JsonPath $latestFile -BaseUrl $fetchedFrom
 
   $latest = Get-Content -Raw $latestFile | ConvertFrom-Json
   if ($latest.schema -ne "hackme.release.latest.v1") {

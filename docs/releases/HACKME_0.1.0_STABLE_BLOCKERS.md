@@ -19,7 +19,7 @@ Channel today: `0.1.0-rc20` (`scripts/release/CURRENT_VERSION`).
 
 ## Blockers before tagging `0.1.0` (no `-rc`)
 
-1. **L1 self-update unsigned (sha256-only)** — `update_hackme_miner.sh` / `.ps1` verify digests but not signatures. Prefer signed **apt L3** as the supported upgrade path, **or** ship detached sig next to `latest.json` and verify fail-closed when advertised. Until then, stable notes must not imply signed self-update.
+1. **L1 self-update signing (SEC-STABLE-01)** — Scaffold landed: ed25519 `latest.json.sig` sign/verify (`scripts/release/sign_latest_json.sh`, updater `HACKME_UPDATE_SIG_MODE`). **Still open for stable:** flip default from `warn` → `require`, keep signing key only in `.secrets/`, publish `.sig` on every cut, and do not claim signed self-update in notes until `require` is the default.
 2. **Money-path E2E green without soft pickup** — run `rc20_customer_pool_e2e.sh` + hunt/demo against public hub with miners live; **no** `ALLOW_SOFT_PICKUP`. Wire a canary into release/rc-freeze when secrets + fleet are available.
 3. **Exchange remains paper/D0** — OK to ship stable **with paper desk** only if release notes + site + dashboard all say paper/D0 (not “live CEX”). Live custody/matching is **not** required for `0.1.0` if clearly labeled; do **not** claim D1+.
 4. **Release notes + site channel consistency** — `docs/releases/HACKME_0.1.0_RELEASE.md` must exist with paper/D0 disclosure; listing/roadmap/downloads must match `CURRENT_VERSION` (avoid stomping parallel site-banner work — coordinate cut).

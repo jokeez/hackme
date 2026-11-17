@@ -15,11 +15,18 @@
 #                       fallbacks tried automatically (GitHub release latest.json)
 #   HACKME_INSTALL_DIR  default: script's parent if it looks like an install, else /opt/hackme
 #   HACKME_UPDATE_RESTART=1  stop/start via stop_hackme_miner.sh + start_hackme_miner.sh when present
+#   HACKME_UPDATE_SIG_MODE  warn (default) | require | off — ed25519 latest.json.sig verify
+#   HACKME_UPDATE_PUBKEY    path to hackme_update_ed25519.pub.pem (optional override)
 set -euo pipefail
 
 UPDATER_VERSION=1
 log() { echo "[hackme-update $(date -u +%H:%M:%S)] $*"; }
 die() { echo "[hackme-update] ERROR: $*" >&2; exit 1; }
+
+# SEC-STABLE-01: detached ed25519 signature over latest.json (OpenSSL rawin).
+# Default warn for rc; set require (or claim stable with require default) for fail-closed.
+SIG_MODE="${HACKME_UPDATE_SIG_MODE:-warn}"
+case "$SIG_MODE" in warn|require|off) ;; *) die "HACKME_UPDATE_SIG_MODE must be warn|require|off" ;; esac
 
 DRY_RUN=0
 INSTALL_DIR="${HACKME_INSTALL_DIR:-}"
@@ -84,19 +91,95 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 LATEST_FILE="${TMP}/latest.json"
 
+# Resolve ed25519 pubkey: env → next to this script → install dir → repo keys/
+resolve_update_pubkey() {
+  if [[ -n "${HACKME_UPDATE_PUBKEY:-}" && -f "${HACKME_UPDATE_PUBKEY}" ]]; then
+    echo "${HACKME_UPDATE_PUBKEY}"
+    return 0
+  fi
+  local here cand
+  here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  for cand in \
+    "${here}/hackme_update_ed25519.pub.pem" \
+    "${INSTALL_DIR}/hackme_update_ed25519.pub.pem" \
+    "${here}/../release/keys/hackme_update_ed25519.pub.pem" \
+    "${here}/../../scripts/release/keys/hackme_update_ed25519.pub.pem"
+  do
+    [[ -f "$cand" ]] && { echo "$cand"; return 0; }
+  done
+  return 1
+}
+
+verify_latest_ed25519_sig() {
+  local json="$1" base_url="$2"
+  local sig="${TMP}/latest.json.sig" pub=""
+  if [[ "$SIG_MODE" == "off" ]]; then
+    log "ed25519 sig verify off (HACKME_UPDATE_SIG_MODE=off)"
+    return 0
+  fi
+  if ! command -v openssl >/dev/null 2>&1; then
+    if [[ "$SIG_MODE" == "require" ]]; then
+      die "openssl required to verify ed25519 latest.json.sig"
+    fi
+    log "WARN: openssl missing — cannot verify ed25519 latest.json.sig"
+    return 0
+  fi
+  if ! pub="$(resolve_update_pubkey)"; then
+    if [[ "$SIG_MODE" == "require" ]]; then
+      die "ed25519 pubkey missing (ship hackme_update_ed25519.pub.pem or set HACKME_UPDATE_PUBKEY)"
+    fi
+    log "WARN: ed25519 pubkey missing — skipping latest.json.sig verify"
+    return 0
+  fi
+  local sig_ok=0
+  if [[ "$base_url" == file://* ]]; then
+    local src="${base_url#file://}.sig"
+    [[ -f "$src" ]] && cp "$src" "$sig" && sig_ok=1
+  else
+    local sig_url="${base_url}.sig"
+    if curl -fsSL --connect-timeout 10 --max-time 30 -o "$sig" "$sig_url" 2>/dev/null; then
+      sig_ok=1
+    fi
+  fi
+  if [[ "$sig_ok" != "1" || ! -s "$sig" ]]; then
+    if [[ "$SIG_MODE" == "require" ]]; then
+      die "latest.json.sig missing (HACKME_UPDATE_SIG_MODE=require)"
+    fi
+    log "WARN: latest.json.sig missing — L1 feed unsigned (sha256 still enforced)"
+    return 0
+  fi
+  if openssl pkeyutl -verify -pubin -inkey "$pub" -rawin -in "$json" -sigfile "$sig" >/dev/null 2>&1; then
+    log "ed25519 latest.json.sig ok"
+    return 0
+  fi
+  if [[ "$SIG_MODE" == "require" ]]; then
+    die "ed25519 latest.json.sig verify failed (fail-closed)"
+  fi
+  log "WARN: ed25519 latest.json.sig verify failed — continuing (HACKME_UPDATE_SIG_MODE=warn)"
+  return 0
+}
+
 fetch_ok=0
+fetched_from=""
 for u in "${LATEST_URLS[@]}"; do
   log "fetch latest.json ← $u"
   if [[ "$u" == file://* ]]; then
-    cp "${u#file://}" "$LATEST_FILE" && fetch_ok=1 && break
+    if cp "${u#file://}" "$LATEST_FILE"; then
+      fetch_ok=1
+      fetched_from="$u"
+      break
+    fi
   elif curl -fsSL --connect-timeout 15 --max-time 60 -o "$LATEST_FILE" "$u"; then
     fetch_ok=1
+    fetched_from="$u"
     break
   else
     log "miss: $u"
   fi
 done
 [[ "$fetch_ok" == "1" ]] || die "could not fetch latest.json from any URL"
+
+verify_latest_ed25519_sig "$LATEST_FILE" "$fetched_from"
 
 schema="$(jq -r '.schema // empty' "$LATEST_FILE")"
 [[ "$schema" == "hackme.release.latest.v1" ]] || die "unsupported latest.json schema: ${schema:-empty}"
@@ -177,8 +260,9 @@ done
 
 got="$(sha256sum "$ARCHIVE" | awk '{print $1}')"
 [[ "$got" == "$sha" ]] || die "SHA256 mismatch (got $got want $sha)"
-# L1 trust model: digest only (not signed). Prefer: sudo apt upgrade hackme-node (L3 GPG).
-log "sha256 ok (unsigned L1 — prefer signed apt when available)"
+# L1: sha256 required; ed25519 latest.json.sig via HACKME_UPDATE_SIG_MODE (warn|require|off).
+# Prefer signed apt (L3 GPG) when available: sudo apt upgrade hackme-node
+log "sha256 ok (L1; ed25519 feed mode=${SIG_MODE})"
 
 EXTRACT="${TMP}/extract"
 mkdir -p "$EXTRACT"
