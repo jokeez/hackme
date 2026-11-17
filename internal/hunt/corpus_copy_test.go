@@ -157,13 +157,13 @@ func TestRejectSymlinkDirSkipsDirectorySymlink(t *testing.T) {
 		t.Fatal(err)
 	}
 	dst := t.TempDir()
-	if n := copyCorpusFilesNewest(link, dst, 32); n != 0 {
+	if n := copyCorpusFilesNewest(src, link, dst, 32); n != 0 {
 		t.Fatalf("directory symlink must not be walked: copied=%d", n)
 	}
-	if got := listFiles(link, 16); len(got) != 0 {
+	if got := listFiles(src, link, 16); len(got) != 0 {
 		t.Fatalf("listFiles must refuse symlink dir: %v", got)
 	}
-	if got := collectCrashArtifacts(src, 16); len(got) != 0 {
+	if got := collectCrashArtifacts(src, src, 16); len(got) != 0 {
 		// src itself is real; hangs/ is symlink — must skip that subtree
 		t.Fatalf("collectCrashArtifacts must skip symlink hangs: %v", got)
 	}
