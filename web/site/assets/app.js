@@ -1,6 +1,6 @@
 (() => {
   /** Channel label (UI / news). Artifact URLs use PUBLISHED_ARTIFACT_VER. */
-  const RELEASE_VER = "0.1.0-rc19";
+  const RELEASE_VER = "0.1.0-rc20";
   /** Published downloadables on GitHub / dist (installer channel). */
   const PUBLISHED_ARTIFACT_VER = "0.1.0-rc19";
   /** HackMe OS ISO channel follows PUBLISHED_ARTIFACT_VER. */
