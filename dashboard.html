@@ -4103,7 +4103,7 @@
 									<code id="wallet-long-address-display" class="flex-1 text-[11px] leading-relaxed text-matrix bg-black/55 px-3 py-2.5 rounded border border-matrix/25 break-all font-mono select-all"></code>
 									<button type="button" id="btn-copy-long-address" aria-label="Copy long address" class="shrink-0 px-4 py-2 rounded border border-matrix/45 text-matrix text-[10px] font-display font-bold uppercase tracking-wider hover:bg-matrix/10">Copy</button>
 								</div>
-								<p id="wallet-long-balance-row" class="hidden mt-2 text-[11px] text-gray-300 leading-snug">On the long address: <span id="wallet-long-balance" class="font-mono text-matrix"></span> HMC — separate on-chain account (not in the big balance above).
+								<p id="wallet-long-balance-row" class="hidden mt-2 text-[11px] text-gray-300 leading-snug">On the long address: <span id="wallet-long-balance" class="font-mono text-matrix"></span> HMC — separate on-chain account (not in the big HMC balance above).
 									<button type="button" id="btn-long-move-main" class="ml-1 px-2 py-0.5 rounded border border-matrix/40 text-matrix text-[10px] uppercase tracking-wider hover:bg-matrix/10">Move to legacy</button>
 									<span id="wallet-long-move-status" class="ml-1 text-[10px] text-gray-500"></span></p>
 							</div>
@@ -5393,6 +5393,12 @@
 				syncTxFormFromWalletSnapshot();
 			}
 		}
+		function syncWalletLongBalanceRowVisibility() {
+			const row = $('wallet-long-balance-row');
+			if (!row) return;
+			const units = Number(($('btn-long-move-main') && $('btn-long-move-main').dataset.units) || 0);
+			row.classList.toggle('hidden', !(isWalletCoinHMC(walletSelectedCoin()) && units > 0));
+		}
 		function selectWalletCoin(id) {
 			const coin = walletHubCoinById(id);
 			if (!coin) return;
@@ -5400,6 +5406,7 @@
 			try { localStorage.setItem('hackme.wallet.selected_coin.v1', walletSelectedCoinId); } catch (_) {}
 			renderWalletCoinSidebar();
 			syncWalletDetailPanes();
+			syncWalletLongBalanceRowVisibility();
 			renderWalletPortfolioSummary();
 			if (walletDetailSection === 'earnings') scheduleWalletEarningsRefresh(true);
 			if (walletDetailSection === 'activity') scheduleWalletActivityRefresh(true);
@@ -5508,6 +5515,8 @@
 					if (!to || !wxDeposit) return;
 					to.value = wxDeposit;
 					to.dispatchEvent(new Event('input', { bubbles: true }));
+					setWalletDetailSection('transfer');
+					try { txFormUpdatePreview(); } catch (_) {}
 					to.scrollIntoView({ behavior: 'smooth', block: 'center' });
 					to.focus();
 				});
@@ -6273,15 +6282,16 @@
 			const row = $('wallet-long-balance-row');
 			const longUnits = Number((w && w.balance_long_units) || 0);
 			const fee = 1000; // DefaultTransferMinFee (0.00001 HMC)
+			// HMC-only: do not show the HMC long-address balance while viewing SUP/HMS.
 			if (row) {
-				row.classList.toggle('hidden', !(longUnits > 0));
-				if (longUnits > 0 && $('wallet-long-balance')) $('wallet-long-balance').textContent = fmt(longUnits / 1e8, 8);
 				const btn = $('btn-long-move-main');
 				if (btn) {
 					btn.dataset.long = longNorm;
 					btn.dataset.units = String(longUnits);
 					btn.disabled = !(longUnits > fee) || !(tip > 0 && tip + 1 >= from);
 				}
+				if (longUnits > 0 && $('wallet-long-balance')) $('wallet-long-balance').textContent = fmt(longUnits / 1e8, 8);
+				syncWalletLongBalanceRowVisibility();
 			}
 			block.classList.remove('hidden');
 		}
