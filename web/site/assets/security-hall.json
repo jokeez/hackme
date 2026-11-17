@@ -102,10 +102,10 @@
           "paid_hmc": 8,
           "date": "2026-11-17",
           "reported": "2026-11-17",
-          "commit": "feae94eb",
+          "commit": "057f9380",
           "txid": "80e944e93014125443decbe572d37a49302dcc404ec4f0fdb7fa6f248e44e0b3",
           "payout_address": "HMC-a6d09759a4c12019",
-          "note": "Low: after hybrid_fuzz.go moved token to COORD_TOKEN env, POST /api/worker/start still spawned workerpoh with -token on Linux direct-spawn, Windows, and GPU fleet paths — world-readable /proc cmdline. Fixed: argv omits -token; COORD_TOKEN/COORD_ADMIN_TOKEN via env only. Paid 8 HMC → HMC-a6d09759a4c12019 tx 80e944e9… @554834."
+          "note": "Low: after hybrid_fuzz.go moved token to COORD_TOKEN env, POST /api/worker/start still spawned workerpoh with -token on Linux direct-spawn, Windows, and GPU fleet paths — world-readable /proc cmdline. Fixed in 057f9380: argv omits -token; COORD_TOKEN/COORD_ADMIN_TOKEN via env only. Paid 8 HMC → HMC-a6d09759a4c12019 tx 80e944e9… @554834."
         },
         {
           "title": "Fund Orders / worker start: empty-Origin curl still authorized when HACKME_ADMIN_TOKEN unset (incomplete 2982f51)",
