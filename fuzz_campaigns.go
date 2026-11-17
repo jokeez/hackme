@@ -1151,6 +1151,12 @@ func (a *app) tryCloseFuzzEscrowForStatus(ctx context.Context, campaignID, statu
 				(poolDistributedCampaign(cfg) && a.hubPoolAuthorityURL() != "")) &&
 				!(a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false))
 			if needsHub {
+				// Mirror coordinator progress before leaving — hub cancel/finalize must not
+				// skip runs_done refresh (Orders pulse / report honesty). closeEscrow=false
+				// avoids sync→close recursion.
+				if poolSyncCoordinatorConfigured() {
+					_ = a.applyPoolCampaignProgressFromCoordinator(ctx, campaignID, false)
+				}
 				// Status API already proxied cancel/finalize; safety net must not invent local close.
 				if status == "cancelled" {
 					if _, err := a.cancelHubPoolCampaign(ctx, campaignID); err != nil {

@@ -34,6 +34,11 @@ func TestTryCloseRefreshesPoolProgressBeforeFinalize(t *testing.T) {
 
 	t.Setenv("HACKME_POOL_COORDINATOR_URL", coord.URL)
 	t.Setenv("HACKME_COORDINATOR_ADMIN_TOKEN", "coord-admin")
+	// Inferring hub from coordinator port must not skip the progress mirror under test.
+	t.Setenv("HACKME_ORDERS_HUB_URL", "")
+	t.Setenv("HACKME_POOL_HUB_URL", "")
+	t.Setenv("HACKME_CANONICAL_CHAIN_URL", "")
+	t.Setenv("HACKME_PUBLIC_AUTHORITY_BASE", "")
 
 	ctx := context.Background()
 	db, err := store.Open(filepath.Join(t.TempDir(), "sync.db"))
