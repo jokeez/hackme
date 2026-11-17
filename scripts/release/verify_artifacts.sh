@@ -47,16 +47,32 @@ if [[ -f "RELEASE_MANIFEST.json" ]] && command -v jq >/dev/null 2>&1; then
     echo "[verify] RELEASE_MANIFEST.json has invalid shape" >&2
     exit 1
   fi
+  # ISO ships after the first manifest cut; refuse dishonest hackme_os_iso:false.
+  iso_on_disk=""
+  for cand in HackMe-OS-*-amd64.iso HackMe-Miner-*-amd64.iso; do
+    if [[ -f "$cand" ]]; then
+      iso_on_disk="$cand"
+      break
+    fi
+  done
+  has_iso_flag="$(jq -r '.hackme_os_iso // false' RELEASE_MANIFEST.json)"
+  iso_file="$(jq -r '.artifacts[]|select(.platform=="hackme-os")|.file // empty' RELEASE_MANIFEST.json)"
+  if [[ -n "$iso_on_disk" || -f SHA256SUMS-iso.txt ]]; then
+    if [[ "$has_iso_flag" != "true" || -z "$iso_file" ]]; then
+      echo "[verify] RELEASE_MANIFEST.json missing ISO (hackme_os_iso=${has_iso_flag}, artifact=${iso_file:-none}) but ISO artifacts are present" >&2
+      echo "[verify] run: bash scripts/release/refresh_release_manifest.sh" >&2
+      exit 1
+    fi
+  fi
   if [[ -f SHA256SUMS-iso.txt ]]; then
-    iso_file="$(jq -r '.artifacts[]|select(.platform=="hackme-os")|.file // empty' RELEASE_MANIFEST.json)"
     iso_manifest_sha="$(jq -r '.artifacts[]|select(.platform=="hackme-os")|.sha256 // empty' RELEASE_MANIFEST.json)"
     iso_sums_sha="$(awk -v f="$iso_file" '$NF==f {print $1; exit}' SHA256SUMS-iso.txt)"
-    if [[ -n "$iso_file" && -n "$iso_manifest_sha" && "$iso_manifest_sha" != "$iso_sums_sha" ]]; then
+    if [[ -n "$iso_file" && -n "$iso_manifest_sha" && -n "$iso_sums_sha" && "$iso_manifest_sha" != "$iso_sums_sha" ]]; then
       echo "[verify] ISO sha mismatch: manifest=$iso_manifest_sha sums=$iso_sums_sha" >&2
       echo "[verify] run: bash scripts/release/refresh_release_manifest.sh" >&2
       exit 1
     fi
-    if [[ -f "$iso_file" ]]; then
+    if [[ -n "$iso_file" && -f "$iso_file" && -n "$iso_sums_sha" ]]; then
       iso_actual="$(sha256sum "$iso_file" | awk '{print $1}')"
       if [[ "$iso_actual" != "$iso_sums_sha" ]]; then
         echo "[verify] ISO file sha mismatch (rebuild or refresh sums)" >&2

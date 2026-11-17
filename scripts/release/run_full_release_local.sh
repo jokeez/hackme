@@ -45,7 +45,9 @@ fi
 
 echo "[full-release] 3/6 ISO"
 VERSION="$VERSION" bash scripts/release/iso/build_hackme_miner_iso.sh
-bash scripts/release/refresh_release_manifest.sh "dist/release_${VERSION}" || true
+# Must succeed: Docker ISO often leaves root-owned SHA256SUMS-iso.txt; refresh
+# must still set hackme_os_iso:true when the ISO is on disk.
+bash scripts/release/refresh_release_manifest.sh "dist/release_${VERSION}"
 
 echo "[full-release] 4/6 latest.json"
 bash scripts/release/generate_latest_json.sh "dist/release_${VERSION}"

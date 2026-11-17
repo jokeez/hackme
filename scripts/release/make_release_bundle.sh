@@ -558,21 +558,37 @@ done
 )
 
 # Optional: bootable HackMe OS ISO (built separately; symlink legacy Miner name → OS name).
+# When ISO is not present yet, leave hackme_os_iso:false — refresh_release_manifest.sh
+# (called after ISO in run_full_release_local / iso build) must flip it true.
 ISO_OS="HackMe-OS-${VERSION}-amd64.iso"
 ISO_LEGACY="HackMe-Miner-${VERSION}-amd64.iso"
 if [[ -f "${DIST_DIR}/${ISO_LEGACY}" && ! -f "${DIST_DIR}/${ISO_OS}" ]]; then
   ln -sf "${ISO_LEGACY}" "${DIST_DIR}/${ISO_OS}"
   echo "[release] ISO: symlink ${ISO_OS} → ${ISO_LEGACY}"
 fi
+ISO_FILE=""
+ISO_SHA=""
+ISO_SIZE=0
 if [[ -f "${DIST_DIR}/${ISO_OS}" ]]; then
-  # Drop stale root-owned checksum files from prior ISO builds so release can rewrite.
-  rm -f "${DIST_DIR}/SHA256SUMS-iso.txt" 2>/dev/null || true
-  (cd "${DIST_DIR}" && sha256sum "$(basename "${ISO_OS}")" > SHA256SUMS-iso.txt)
-  echo "[release] HackMe OS ISO: ${ISO_OS} ($(du -h "${DIST_DIR}/${ISO_OS}" | awk '{print $1}'))"
+  ISO_FILE="${ISO_OS}"
 elif [[ -f "${DIST_DIR}/${ISO_LEGACY}" ]]; then
-  rm -f "${DIST_DIR}/SHA256SUMS-iso.txt" 2>/dev/null || true
-  (cd "${DIST_DIR}" && sha256sum "$(basename "${ISO_LEGACY}")" > SHA256SUMS-iso.txt)
-  echo "[release] HackMe OS ISO (legacy name): ${ISO_LEGACY}"
+  ISO_FILE="${ISO_LEGACY}"
+fi
+if [[ -n "$ISO_FILE" ]]; then
+  ISO_SIZE="$(stat -c%s "${DIST_DIR}/${ISO_FILE}")"
+  ISO_SHA="$(sha256sum "${DIST_DIR}/${ISO_FILE}" | awk '{print $1}')"
+  sums_path="${DIST_DIR}/SHA256SUMS-iso.txt"
+  # Drop stale writable checksum files; if root-owned (Docker ISO), keep and warn.
+  if [[ -f "$sums_path" && -w "$sums_path" ]]; then
+    rm -f "$sums_path"
+  fi
+  if [[ ! -f "$sums_path" ]] || [[ -w "$sums_path" ]]; then
+    printf '%s  %s\n' "$ISO_SHA" "$ISO_FILE" >"$sums_path"
+    chmod 644 "$sums_path" 2>/dev/null || true
+  else
+    echo "[release] WARN: ${sums_path} not writable (often root-owned after Docker ISO); embedding computed sha in RELEASE_MANIFEST.json" >&2
+  fi
+  echo "[release] HackMe OS ISO: ${ISO_FILE} ($(du -h "${DIST_DIR}/${ISO_FILE}" | awk '{print $1}'))"
 else
   echo "[release] ISO not in dist yet (run: VERSION=${VERSION} bash scripts/release/iso/build_hackme_miner_iso.sh)" >&2
 fi
@@ -590,22 +606,6 @@ fi
 LINUX_SHA="$(awk '/linux\.tar\.gz$/ {print $1}' "${DIST_DIR}/SHA256SUMS.txt")"
 WIN_SIZE="$(stat -c%s "${WIN_PRIMARY}")"
 LINUX_SIZE="$(stat -c%s "${LINUX_ARCHIVE}")"
-ISO_FILE=""
-ISO_SHA=""
-ISO_SIZE=0
-if [[ -f "${DIST_DIR}/${ISO_OS}" ]]; then
-  ISO_FILE="${ISO_OS}"
-elif [[ -f "${DIST_DIR}/${ISO_LEGACY}" ]]; then
-  ISO_FILE="${ISO_LEGACY}"
-fi
-if [[ -n "$ISO_FILE" && -f "${DIST_DIR}/${ISO_FILE}" ]]; then
-  ISO_SIZE="$(stat -c%s "${DIST_DIR}/${ISO_FILE}")"
-  if [[ -f "${DIST_DIR}/SHA256SUMS-iso.txt" && -w "${DIST_DIR}/SHA256SUMS-iso.txt" ]]; then
-    ISO_SHA="$(awk -v f="$ISO_FILE" '$2==f || $2 ~ f {print $1; exit}' "${DIST_DIR}/SHA256SUMS-iso.txt")"
-  else
-    ISO_SHA="$(sha256sum "${DIST_DIR}/${ISO_FILE}" | awk '{print $1}')"
-  fi
-fi
 jq -nc \
   --arg app "$APP_NAME" \
   --arg version "$VERSION" \

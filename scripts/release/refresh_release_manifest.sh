@@ -10,6 +10,8 @@ if [[ ! -d "$DIST_DIR" ]]; then
   echo "[manifest] missing: $DIST_DIR" >&2
   exit 2
 fi
+# Absolute path: we cd into DIST_DIR below; generate_latest_json must still see it.
+DIST_DIR="$(cd "$DIST_DIR" && pwd)"
 
 APP_NAME="HackMe"
 COMMIT_SHA="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
@@ -19,9 +21,48 @@ cd "$DIST_DIR"
 [[ -f SHA256SUMS.txt ]] || { echo "[manifest] run make_release_bundle first" >&2; exit 1; }
 
 ISO_OS="HackMe-OS-${VERSION}-amd64.iso"
+ISO_LEGACY="HackMe-Miner-${VERSION}-amd64.iso"
+if [[ -f "$ISO_LEGACY" && ! -f "$ISO_OS" ]]; then
+  ln -sf "$ISO_LEGACY" "$ISO_OS"
+  echo "[manifest] ISO: symlink ${ISO_OS} → ${ISO_LEGACY}"
+fi
+
+# Docker ISO builds often leave SHA256SUMS-iso.txt root-owned. Never fail the
+# manifest refresh on that: reuse existing sums when present/matching, else
+# compute in-memory and write only when the path is writable.
+ISO_FILE=""
+ISO_SHA=""
+ISO_SIZE=0
 if [[ -f "$ISO_OS" ]]; then
-  sha256sum "$(basename "$ISO_OS")" > SHA256SUMS-iso.txt
-  chmod 644 SHA256SUMS-iso.txt 2>/dev/null || true
+  ISO_FILE="$ISO_OS"
+elif [[ -f "$ISO_LEGACY" ]]; then
+  ISO_FILE="$ISO_LEGACY"
+fi
+if [[ -n "$ISO_FILE" ]]; then
+  ISO_SIZE="$(stat -c%s "$ISO_FILE")"
+  ISO_ACTUAL="$(sha256sum "$(basename "$ISO_FILE")" | awk '{print $1}')"
+  EXISTING_SHA=""
+  if [[ -f SHA256SUMS-iso.txt ]]; then
+    EXISTING_SHA="$(awk -v f="$ISO_FILE" '$2==f || $NF==f {print $1; exit}' SHA256SUMS-iso.txt)"
+  fi
+  if [[ -n "$EXISTING_SHA" && "$EXISTING_SHA" == "$ISO_ACTUAL" ]]; then
+    ISO_SHA="$EXISTING_SHA"
+  else
+    ISO_SHA="$ISO_ACTUAL"
+  fi
+  if [[ ! -f SHA256SUMS-iso.txt ]] || [[ -w SHA256SUMS-iso.txt ]]; then
+    # Atomic rewrite when permitted (avoids leaving a truncated root-owned file).
+    tmp_sums="$(mktemp "./.SHA256SUMS-iso.txt.XXXXXX")"
+    printf '%s  %s\n' "$ISO_SHA" "$ISO_FILE" >"$tmp_sums"
+    if mv -f "$tmp_sums" SHA256SUMS-iso.txt 2>/dev/null; then
+      chmod 644 SHA256SUMS-iso.txt 2>/dev/null || true
+    else
+      rm -f "$tmp_sums"
+      echo "[manifest] WARN: SHA256SUMS-iso.txt not writable (often root-owned after Docker ISO); keeping existing sums, still updating RELEASE_MANIFEST.json" >&2
+    fi
+  elif [[ -z "$EXISTING_SHA" || "$EXISTING_SHA" != "$ISO_ACTUAL" ]]; then
+    echo "[manifest] WARN: SHA256SUMS-iso.txt not writable and stale/missing entry for ${ISO_FILE}; embedding computed sha ${ISO_SHA} in RELEASE_MANIFEST.json only" >&2
+  fi
 fi
 
 WIN_INSTALLER="HackMe-Setup-${VERSION}.exe"
@@ -36,15 +77,6 @@ LINUX_ARCHIVE="hackme_${VERSION}_linux.tar.gz"
 LINUX_SHA="$(awk '/linux\.tar\.gz$/ {print $1}' SHA256SUMS.txt)"
 WIN_SIZE="$(stat -c%s "$WIN_PRIMARY")"
 LINUX_SIZE="$(stat -c%s "$LINUX_ARCHIVE")"
-
-ISO_FILE=""
-ISO_SHA=""
-ISO_SIZE=0
-if [[ -f "$ISO_OS" ]]; then
-  ISO_FILE="$ISO_OS"
-  ISO_SHA="$(awk -v f="$ISO_FILE" '$2==f || $NF==f {print $1; exit}' SHA256SUMS-iso.txt)"
-  ISO_SIZE="$(stat -c%s "$ISO_FILE")"
-fi
 
 jq -nc \
   --arg app "$APP_NAME" \

@@ -121,3 +121,23 @@ echo "[iso] artifacts:"
 ls -lh "${OUT_DIR}"/HackMe-OS-"${VERSION}"-amd64.iso "${OUT_DIR}"/SHA256SUMS-iso.txt 2>/dev/null || true
 # Legacy name from older builds
 ls -lh "${OUT_DIR}"/HackMe-Miner-"${VERSION}"-amd64.iso 2>/dev/null || true
+
+# Docker writes ISO + sums as root; reclaim when passwordless sudo is available so
+# later refresh/verify steps can rewrite SHA256SUMS-iso.txt without failing.
+if [[ "$(id -u)" -ne 0 ]]; then
+  for f in \
+    "${OUT_DIR}/HackMe-OS-${VERSION}-amd64.iso" \
+    "${OUT_DIR}/HackMe-Miner-${VERSION}-amd64.iso" \
+    "${OUT_DIR}/SHA256SUMS-iso.txt"; do
+    [[ -e "$f" ]] || continue
+    if [[ ! -w "$f" ]] && command -v sudo >/dev/null 2>&1; then
+      sudo -n chown "$(id -u):$(id -g)" "$f" 2>/dev/null || true
+      sudo -n chmod u+rw "$f" 2>/dev/null || true
+    fi
+  done
+fi
+
+# Keep RELEASE_MANIFEST.json honest after a standalone ISO build (rc21+).
+if [[ -f "${OUT_DIR}/SHA256SUMS.txt" ]]; then
+  VERSION="${VERSION}" bash "${ROOT_DIR}/scripts/release/refresh_release_manifest.sh" "${OUT_DIR}"
+fi
