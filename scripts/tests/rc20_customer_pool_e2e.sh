@@ -178,16 +178,13 @@ print(json.dumps(v, indent=2))
 PY
 cat "$OUT/VERDICT.json"
 python3 - <<PY
-import json,os,sys
+import importlib.util, json, pathlib, sys
 v=json.load(open("$OUT/VERDICT.json"))
-soft=os.environ.get("ALLOW_SOFT_PICKUP","0").strip()=="1"
 if not v.get("refund_ok"):
   print("FAIL: refund/escrow not closed", flush=True); sys.exit(2)
-if not v.get("pickup"):
-  if soft:
-    print("WARN: no miner pickup — ALLOW_SOFT_PICKUP=1", flush=True)
-  else:
-    print("FAIL: no miner pickup in window (set ALLOW_SOFT_PICKUP=1 only for ops triage)", flush=True)
-    sys.exit(3)
+spec=importlib.util.spec_from_file_location(
+  "soft_pickup_gate", pathlib.Path("$ROOT")/"scripts/tests/lib/soft_pickup_gate.py")
+mod=importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+mod.exit_on_missing_pickup(bool(v.get("pickup")), "miner pickup")
 print("PASS money path", flush=True)
 PY
