@@ -28,6 +28,7 @@ func doWizard(base string, args []string) error {
 	payerRef := fs.String("payer-ref", "", "optional payer_ref for bookkeeping")
 	publicProof := fs.Bool("public-proof", false, "publish Proof of Fuzz page + badge (no secret findings)")
 	publicOK := fs.Bool("allow-public-base", false, "allow non-loopback base (not recommended)")
+	where := fs.String("where", "", "pool (paid on chain, run by pool miners) | local (free, on this machine). Default: pool for audit/deep, local for scan")
 	var seeds seedList
 	fs.Var(&seeds, "seed", "example input file or directory of files for a check_bytes guard (repeatable; real packets/files make the fuzzer reach deep code)")
 	_ = fs.Parse(args)
@@ -152,6 +153,36 @@ func doWizard(base string, args []string) error {
 		}
 		payload["seed_byte_corpus"] = hexSeeds
 		payload["input_mode"] = "bytes" // seeds are byte inputs: the guard must be check_bytes
+	}
+	mode := strings.ToLower(strings.TrimSpace(*where))
+	if mode == "" {
+		if pkg.Name == "audit" || pkg.Name == "deep" {
+			mode = "pool"
+		} else {
+			mode = "local"
+		}
+	}
+	if mode == "pool" {
+		order := map[string]any{"dig_package": pkg.Name, "title": campTitle}
+		if havePack && strings.TrimSpace(*wasmPath) == "" {
+			order["guard_pack"] = pack.ID
+		} else {
+			order["wasm_check_hex"] = wasmHex
+			if havePack {
+				order["guard_pack"] = pack.ID
+			}
+		}
+		if v, ok := payload["seed_byte_corpus"]; ok {
+			order["seed_byte_corpus"] = v
+		}
+		done, err := runPoolOrder(base, order)
+		if done || err != nil {
+			return err
+		}
+		fmt.Println("The network does not take paid pool orders yet — running the scan on this machine instead.")
+		payload["pool_distributed"] = false
+	} else {
+		payload["pool_distributed"] = false
 	}
 	b, code, err := postSecurityAuditAuth(base, payload)
 	if err != nil {
@@ -553,4 +584,45 @@ func readSeedInputs(paths []string) ([]string, error) {
 		return nil, fmt.Errorf("--seed: no non-empty input files found")
 	}
 	return out, nil
+}
+
+// runPoolOrder pays for the scan on chain and puts it on the public pool via the local node.
+// done=false (and no error) means the network does not accept paid pool orders yet.
+func runPoolOrder(base string, order map[string]any) (bool, error) {
+	adm := adminToken()
+	if adm == "" && fuzzingcli.IsLoopbackBase(base) {
+		adm = fetchLoopbackAdminToken(base)
+	}
+	if adm == "" {
+		return false, fmt.Errorf("admin token required (run on the Orders node, or set HACKME_ADMIN_TOKEN)")
+	}
+	body, _ := json.Marshal(order)
+	fmt.Println("Paying for the scan on chain and sending it to the pool — this waits for one block (~30 s)…")
+	b, code, err := apiDoAdmin(base, adm, http.MethodPost, "/api/orders/pool-order", body)
+	if err != nil {
+		return false, err
+	}
+	var resp map[string]any
+	_ = json.Unmarshal(b, &resp)
+	if code == http.StatusConflict {
+		if c, _ := resp["code"].(string); c == "pool_orders_unavailable" || c == "no_canonical_chain" {
+			return false, nil
+		}
+	}
+	if code != http.StatusOK {
+		return true, fmt.Errorf("pool order HTTP %d: %s", code, strings.TrimSpace(string(b)))
+	}
+	str := func(k string) string { v, _ := resp[k].(string); return v }
+	num := func(k string) float64 { v, _ := resp[k].(float64); return v }
+	fmt.Println()
+	fmt.Printf("Pool order %s\n", str("campaign_id"))
+	fmt.Printf("  paid:        %.8f HMC on chain (tx %s)\n", num("funded_hmc"), str("funding_tx_hash"))
+	fmt.Printf("  how it pays: %s\n", str("payment"))
+	fmt.Printf("  report:      %s\n", str("report_url"))
+	fmt.Printf("  CI gate:     %s\n", str("gate_url"))
+	if tok := str("customer_report_token"); tok != "" {
+		fmt.Printf("  report token (save it — shown once): %s\n", tok)
+		fmt.Printf("  curl -sS -H \"X-Hackme-Report-Token: %s\" '%s'\n", tok, str("gate_url"))
+	}
+	return true, nil
 }

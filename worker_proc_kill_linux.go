@@ -89,3 +89,45 @@ func killPoolWorkerProcs(allow func(pid int) bool) {
 func killWorkerfuzzProcs(allow func(pid int) bool) {
 	signalWorkerProcs(workerfuzzBinaryNames, nil, syscall.SIGTERM, allow)
 }
+
+// procWorkerID returns the worker id a worker process runs as: the value of -worker/--worker
+// on its command line, else WORKER_ID from its environment (helper scripts).
+func procWorkerID(pid int) string {
+	ps := strconv.Itoa(pid)
+	if raw, err := os.ReadFile("/proc/" + ps + "/cmdline"); err == nil {
+		args := strings.Split(strings.TrimRight(string(raw), "\x00"), "\x00")
+		for i, a := range args {
+			switch {
+			case (a == "-worker" || a == "--worker") && i+1 < len(args):
+				return strings.TrimSpace(args[i+1])
+			case strings.HasPrefix(a, "-worker="):
+				return strings.TrimSpace(strings.TrimPrefix(a, "-worker="))
+			case strings.HasPrefix(a, "--worker="):
+				return strings.TrimSpace(strings.TrimPrefix(a, "--worker="))
+			}
+		}
+	}
+	if raw, err := os.ReadFile("/proc/" + ps + "/environ"); err == nil {
+		for _, kv := range strings.Split(string(raw), "\x00") {
+			if strings.HasPrefix(kv, "WORKER_ID=") {
+				return strings.TrimSpace(strings.TrimPrefix(kv, "WORKER_ID="))
+			}
+		}
+	}
+	return ""
+}
+
+// ownedByWorkerIDs allows only processes running as one of ids (or a fleet slot id-N of
+// one of them). Nil when ids is empty: callers must then not signal external workers at all.
+func ownedByWorkerIDs(ids []string) func(pid int) bool {
+	var clean []string
+	for _, id := range ids {
+		if id = strings.TrimSpace(id); id != "" {
+			clean = append(clean, id)
+		}
+	}
+	if len(clean) == 0 {
+		return nil
+	}
+	return func(pid int) bool { return workerIDOwned(procWorkerID(pid), clean) }
+}
