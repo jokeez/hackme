@@ -162,13 +162,19 @@ func allowedCampaignType(v string) bool {
 	}
 }
 
-// fuzzCampaignDeliverableURLs returns relative API paths for customer report/gate/pulse.
+// fuzzCampaignDeliverableURLs returns report/gate/pulse paths. On customer Orders
+// with HACKME_ORDERS_HUB_URL, prefer absolute hub URLs so mirrors do not imply a
+// local authoritative report (rc20 hub_pool).
 func fuzzCampaignDeliverableURLs(campaignID string) map[string]string {
 	campaignID = strings.TrimSpace(campaignID)
+	prefix := ""
+	if hub := ordersHubURL(); hub != "" && !envBool("HACKME_CHAIN_MINTING_HUB", false) {
+		prefix = hub
+	}
 	return map[string]string{
-		"report_url": "/api/fuzz/campaigns/" + campaignID + "/report.html",
-		"gate_url":   "/api/fuzz/campaigns/" + campaignID + "/gate?max_critical=0&max_high=0",
-		"pulse_url":  "/api/fuzz/campaigns/" + campaignID + "/pulse",
+		"report_url": prefix + "/api/fuzz/campaigns/" + campaignID + "/report.html",
+		"gate_url":   prefix + "/api/fuzz/campaigns/" + campaignID + "/gate?max_critical=0&max_high=0",
+		"pulse_url":  prefix + "/api/fuzz/campaigns/" + campaignID + "/pulse",
 	}
 }
 

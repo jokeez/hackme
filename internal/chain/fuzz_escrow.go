@@ -161,6 +161,27 @@ func (s *Service) openFuzzEscrowWithFee(ctx context.Context, campaignID, payerAd
 		if err := s.debitOrdersPrepaidTx(ctx, tx, payerAddr, debitUnits); err != nil {
 			return nil, err
 		}
+		// Fund Orders parked real HMC at DevFee. Draw the same dual-ledger
+		// backing as the wallet path: take escrow+fee out of DevFee custody,
+		// then applyOrderFeeV2Tx re-credits platform (net: −escrow −burn).
+		// Miner payouts / prepaid refunds restore those units later.
+		var devUnits uint64
+		if err := tx.QueryRowContext(ctx, `SELECT balance_units FROM accounts WHERE address = ?`, DevFeeAddress).Scan(&devUnits); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, fmt.Errorf("chain: hub prepaid escrow: treasury custody empty (Fund Orders first)")
+			}
+			return nil, err
+		}
+		if devUnits < debitUnits {
+			return nil, fmt.Errorf("%w: hub prepaid escrow needs %.8f HMC in treasury custody (have %.8f)",
+				ErrFuzzInsufficientBalance, UnitsToHMC(debitUnits), UnitsToHMC(devUnits))
+		}
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE accounts SET balance_units = balance_units - ?, updated_at = strftime('%s','now') WHERE address = ?`,
+			debitUnits, DevFeeAddress); err != nil {
+			return nil, err
+		}
+		feePayer = DevFeeAddress
 	} else {
 		var balUnits uint64
 		var walletAddr string
@@ -250,7 +271,11 @@ func (s *Service) creditFuzzEscrowRefund(ctx context.Context, tx *sql.Tx, campai
 		return err
 	}
 	if tenant {
-		return s.creditOrdersPrepaidTx(ctx, tx, addr, units)
+		// Restore customer prepaid claim and the DevFee custody that backed it.
+		if err := s.creditOrdersPrepaidTx(ctx, tx, addr, units); err != nil {
+			return err
+		}
+		return s.creditUnits(ctx, tx, DevFeeAddress, units)
 	}
 	return s.creditUnits(ctx, tx, addr, units)
 }

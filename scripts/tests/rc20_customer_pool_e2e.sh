@@ -52,7 +52,10 @@ FROM="$("$OUT/show_node_addr" "$TMP_T")"
 TOPUP=$(python3 -c "print($FUND_HMC + 0.01)")
 log "treasury topup customer $TOPUP HMC"
 HACKME_DATA_DIR="$TMP_T" "$OUT/sendtransfer" -base "$BASE" -to "$OWNER" -amount-hmc "$TOPUP" -memo "rc20_e2e_topup" \
-  >"$OUT/topup.json" 2>"$OUT/topup.err" || die "topup failed"
+  >"$OUT/topup.raw" 2>"$OUT/topup.err" || die "topup failed"
+# sendtransfer prints "http=N\n{json}"; keep JSON only for parsers
+python3 -c 'import pathlib,re,sys; t=pathlib.Path("'"$OUT/topup.raw"'").read_text(); m=re.search(r"\{.*\}",t,re.S); sys.exit("no json") if not m else pathlib.Path("'"$OUT/topup.json"'").write_text(m.group(0)+"\n")' \
+  || die "topup output not JSON ($(tail -c 200 "$OUT/topup.raw" 2>/dev/null || true))"
 TOP_TX=$(python3 -c 'import json; print(json.load(open("'"$OUT/topup.json"'")).get("tx_hash",""))')
 [[ -n "$TOP_TX" ]] || die "topup missing tx_hash"
 for i in $(seq 1 40); do
@@ -66,7 +69,9 @@ done
 MEMO="orders_fund_v1:${OWNER}"
 log "customer fund DevFee $FUND_HMC memo=$MEMO"
 HACKME_DATA_DIR="$CUST" "$OUT/sendtransfer" -base "$BASE" -to "$DEVFEE" -amount-hmc "$FUND_HMC" -memo "$MEMO" \
-  >"$OUT/fund.json" 2>"$OUT/fund.err" || die "fund failed"
+  >"$OUT/fund.raw" 2>"$OUT/fund.err" || die "fund failed"
+python3 -c 'import pathlib,re,sys; t=pathlib.Path("'"$OUT/fund.raw"'").read_text(); m=re.search(r"\{.*\}",t,re.S); sys.exit("no json") if not m else pathlib.Path("'"$OUT/fund.json"'").write_text(m.group(0)+"\n")' \
+  || die "fund output not JSON ($(tail -c 200 "$OUT/fund.raw" 2>/dev/null || true))"
 TX=$(python3 -c 'import json; print(json.load(open("'"$OUT/fund.json"'")).get("tx_hash",""))')
 [[ -n "$TX" ]] || die "fund missing tx_hash"
 echo "$TX" >"$OUT/fund_tx_hash.txt"

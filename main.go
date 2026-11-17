@@ -1883,6 +1883,24 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	escrowLockedHMC, escrowLockedUnits, _ := a.chain.OrdersEscrowLockedHMC(ctx)
+	ordersSpendableHMC := localMirrorHMC
+	ordersSpendableUnits := localMirrorUnits
+	ordersSpendableNote := "Available to start = balance_orders_spendable_hmc (local prepaid). " +
+		"On-chain (balance_on_chain_hmc) can auto-fund Start but is not itself escrow budget. " +
+		"In escrow (balance_orders_escrow_locked_hmc) unlocks only after Dig/Hunt finalize or cancel refund."
+	ordersSpendableSource := "local"
+	// rc20: when Orders points at the public hub, Start budget is hub tenant prepaid.
+	if ordersHubURL() != "" {
+		hubCtx, hubCancel := context.WithTimeout(ctx, 8*time.Second)
+		if hubHMC, hubErr := a.fetchHubOrdersPrepaidHMC(hubCtx); hubErr == nil {
+			ordersSpendableHMC = hubHMC
+			ordersSpendableUnits = chain.HMCToUnits(hubHMC)
+			ordersSpendableSource = "hub_prepaid"
+			ordersSpendableNote = "Available to start = hub prepaid (Fund Orders on hackme.tech). " +
+				"Local mirror is not the pool Start balance. Unused escrow refunds to hub prepaid."
+		}
+		hubCancel()
+	}
 	out := map[string]any{
 		"address":                            displayAddr,
 		"balance_hmc":                        bal,
@@ -1899,15 +1917,13 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 		"balance_display_mode":               dispMode,
 		"balance_primary_hmc":                dispH,
 		"balance_primary_units":              dispU,
-		"balance_orders_spendable_hmc":       localMirrorHMC,
-		"balance_orders_spendable_units":     localMirrorUnits,
+		"balance_orders_spendable_hmc":       ordersSpendableHMC,
+		"balance_orders_spendable_units":     ordersSpendableUnits,
+		"balance_orders_spendable_source":    ordersSpendableSource,
 		"balance_orders_escrow_locked_hmc":   escrowLockedHMC,
 		"balance_orders_escrow_locked_units": escrowLockedUnits,
 		"balance_alignment":                  alignment,
-		// Always surface the triad so UI never treats on-chain alone as Start-ready.
-		"orders_spendable_note": "Available to start = balance_orders_spendable_hmc (local prepaid). " +
-			"On-chain (balance_on_chain_hmc) can auto-fund Start but is not itself escrow budget. " +
-			"In escrow (balance_orders_escrow_locked_hmc) unlocks only after Dig/Hunt finalize or cancel refund.",
+		"orders_spendable_note":              ordersSpendableNote,
 	}
 	// Economics v2 long address of this node's key (same key, full sha256): shown so owners can
 	// move funds to it after the activation height. Never for a foreign/looked-up address.

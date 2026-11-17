@@ -21,7 +21,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: rc20_pool_client fund-confirm|dig|cancel|prepaid …")
+		fmt.Fprintln(os.Stderr, "usage: rc20_pool_client fund-confirm|dig|hunt|cancel|prepaid …")
 		os.Exit(2)
 	}
 	cmd := os.Args[1]
@@ -74,6 +74,27 @@ func main() {
 			"depth_tier":       "wasm_only",
 		})
 		call(hub+"/api/orders/pool/dig", tok, owner, signer, body)
+	case "hunt":
+		budget := flag.Float64("budget-hmc", 20, "budget")
+		title := flag.String("title", "rc20-hunt-e2e", "title")
+		target := flag.String("target", "jsmn", "catalog target_id")
+		shards := flag.Int("shards", 32, "budget shards")
+		engine := flag.String("engine", "libfuzzer", "hunt_engine")
+		flag.Parse()
+		body, _ := json.Marshal(map[string]any{
+			"title":            *title,
+			"package":          "hunt_lite",
+			"catalog":          true,
+			"target_id":        strings.TrimSpace(*target),
+			"budget_hmc":       *budget,
+			"budget_shards":    *shards,
+			"pool_distributed": true,
+			"status":           "running",
+			"hunt_engine":      strings.TrimSpace(*engine),
+			"engine_lease_sec": 60,
+			"owner_ref":        owner,
+		})
+		call(hub+"/api/orders/pool/hunt", tok, owner, signer, body)
 	case "cancel":
 		id := flag.String("campaign-id", "", "campaign id")
 		flag.Parse()

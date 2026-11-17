@@ -25,6 +25,21 @@ func TestCreditOrdersFundForOwnerIdempotentAndEscrow(t *testing.T) {
 
 	owner := "HMC-aabbccddeeff0011"
 	units := HMCToUnits(20)
+	acctUnits := func(addr string) uint64 {
+		t.Helper()
+		var u uint64
+		if err := db.QueryRow(`SELECT COALESCE(balance_units,0) FROM accounts WHERE address=?`, addr).Scan(&u); err != nil {
+			t.Fatalf("accounts %s: %v", addr, err)
+		}
+		return u
+	}
+	// Genesis parks treasury at DevFee; live Fund also credits DevFee via transfer.
+	// Prepaid credit alone must not invent accounts units — open draws DevFee custody.
+	devFunded := acctUnits(DevFeeAddress)
+	if devFunded < units {
+		t.Fatalf("treasury custody too low for test: %d < %d", devFunded, units)
+	}
+
 	r1, err := svc.CreditOrdersFundForOwner(ctx, owner, "ff00112233445566778899aabbccddee", units)
 	if err != nil {
 		t.Fatalf("credit: %v", err)
@@ -58,6 +73,11 @@ func TestCreditOrdersFundForOwnerIdempotentAndEscrow(t *testing.T) {
 	if after > 0.01 {
 		t.Fatalf("prepaid should be spent on escrow, got %.4f", after)
 	}
+	devAfterOpen := acctUnits(DevFeeAddress)
+	// Price 20 → ~10% fee; net DevFee drops by escrow+burn (platform re-credited).
+	if devAfterOpen >= devFunded {
+		t.Fatalf("DevFee custody must drop on tenant open: before=%d after=%d", devFunded, devAfterOpen)
+	}
 
 	canceled, err := svc.CancelFuzzEscrow(ctx, "camp-tenant-1")
 	if err != nil {
@@ -73,6 +93,11 @@ func TestCreditOrdersFundForOwnerIdempotentAndEscrow(t *testing.T) {
 	// Economics v2 keeps ~10% fee; refund ≈ 0.9 of customer price.
 	if refunded < 15.0 {
 		t.Fatalf("expected prepaid refund after cancel, got %.4f (escrow=%+v)", refunded, canceled)
+	}
+	devAfterCancel := acctUnits(DevFeeAddress)
+	// Refund restores escrow custody; fee burn stays out; platform stays at DevFee.
+	if devAfterCancel <= devAfterOpen {
+		t.Fatalf("DevFee custody must rise on tenant refund: open=%d cancel=%d", devAfterOpen, devAfterCancel)
 	}
 }
 

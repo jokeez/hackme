@@ -284,6 +284,49 @@ func (a *app) cancelHubPoolCampaign(ctx context.Context, campaignID string) (map
 	return parsed, nil
 }
 
+// fetchHubOrdersPrepaidHMC reads authoritative tenant prepaid from the hub (rc20 UI).
+func (a *app) fetchHubOrdersPrepaidHMC(ctx context.Context) (float64, error) {
+	base := ordersHubURL()
+	if base == "" {
+		return 0, fmt.Errorf("HACKME_ORDERS_HUB_URL not set")
+	}
+	if a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false) {
+		owner := ""
+		if a.signer != nil {
+			owner = chain.OrdersPrepaidNormalizeAddr(a.signer.Address())
+		}
+		return a.chain.GetOrdersPrepaidHMC(ctx, owner)
+	}
+	hdr, err := a.customerPoolAuthHeaders()
+	if err != nil {
+		return 0, err
+	}
+	reqCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
+	defer cancel()
+	httpReq, err := http.NewRequestWithContext(reqCtx, http.MethodGet, base+"/api/orders/pool/prepaid", nil)
+	if err != nil {
+		return 0, err
+	}
+	httpReq.Header = hdr
+	resp, err := netutil.HTTPClientNoRedirect(12 * time.Second).Do(httpReq)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return 0, fmt.Errorf("hub prepaid HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+	var parsed struct {
+		OK           bool    `json:"ok"`
+		SpendableHMC float64 `json:"spendable_hmc"`
+	}
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return 0, err
+	}
+	return parsed.SpendableHMC, nil
+}
+
 // confirmOrdersFundOnHub credits tenant prepaid on the hub after a proven Fund Orders tx.
 func (a *app) confirmOrdersFundOnHub(ctx context.Context, txHash string, amountUnits uint64) error {
 	base := ordersHubURL()
