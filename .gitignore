@@ -135,3 +135,6 @@ docs/RFC_ECONOMICS_V2*.bak.md
 
 # PDF pack builder venv
 scripts/release/pdf_pack/.venv/
+
+# Accidental local module mirror (never commit)
+/pkg/
