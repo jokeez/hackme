@@ -1,17 +1,20 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	"hackme/internal/chain"
+	"hackme/internal/netutil"
 	"hackme/internal/poolsync"
 )
 
@@ -29,6 +32,8 @@ func (a *app) handleOrdersPoolAPI(w http.ResponseWriter, r *http.Request) {
 		a.handleOrdersPoolHunt(w, r)
 	case path == "fund/confirm" && r.Method == http.MethodPost:
 		a.handleOrdersPoolFundConfirm(w, r)
+	case path == "cancel" && r.Method == http.MethodPost:
+		a.handleOrdersPoolCancel(w, r)
 	case path == "prepaid" && r.Method == http.MethodGet:
 		a.handleOrdersPoolPrepaidStatus(w, r)
 	default:
@@ -339,4 +344,94 @@ func openFuzzEscrowForOwnerRetry(ctx context.Context, ch *chain.Service, campaig
 func ordersAllowLocalFallback() bool {
 	v := strings.TrimSpace(strings.ToLower(os.Getenv("HACKME_ORDERS_ALLOW_LOCAL_FALLBACK")))
 	return v == "1" || v == "true" || v == "yes" || v == "on"
+}
+
+func (a *app) handleOrdersPoolCancel(w http.ResponseWriter, r *http.Request) {
+	if !a.allowRate("orders_pool_cancel:"+clientIP(r), 10) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
+		return
+	}
+	owner, ok := a.requireOrdersPoolPublishAuth(w, r)
+	if !ok {
+		return
+	}
+	if !a.requireOrdersPoolOwnerProof(w, r, owner) {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
+	defer r.Body.Close()
+	var req struct {
+		CampaignID string `json:"campaign_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid_json", "invalid json", nil)
+		return
+	}
+	campaignID := cleanFuzzID(strings.TrimSpace(req.CampaignID), "campaign")
+	if campaignID == "" {
+		writeAPIError(w, http.StatusBadRequest, "campaign_id_required", "campaign_id required", nil)
+		return
+	}
+	c, err := a.getFuzzCampaign(r.Context(), campaignID)
+	if err != nil {
+		writeAPIError(w, http.StatusNotFound, "campaign_not_found", "campaign not found", nil)
+		return
+	}
+	campOwner := chain.OrdersPrepaidNormalizeAddr(strings.TrimSpace(c.OwnerRef))
+	if campOwner == "" || campOwner != owner {
+		writeAPIError(w, http.StatusForbidden, "owner_mismatch", "campaign owner_ref does not match Owner-Ref", nil)
+		return
+	}
+	now := time.Now().Unix()
+	_, _ = a.db.ExecContext(r.Context(),
+		`UPDATE fuzz_campaigns SET status='cancelled',
+		 completed_at=CASE WHEN completed_at=0 THEN ? ELSE completed_at END WHERE id=?`,
+		now, campaignID)
+
+	// Stop miners on coordinator (admin path — publish token cannot cancel).
+	if cerr := a.pushCoordinatorCampaignStatus(r.Context(), campaignID, "cancelled"); cerr != nil {
+		writeAPIError(w, http.StatusBadGateway, "pool_cancel_failed",
+			"coordinator cancel failed: "+cerr.Error(), nil)
+		return
+	}
+	// Pull settle then refund unused escrow to tenant prepaid.
+	a.tryCloseFuzzEscrowForStatus(r.Context(), campaignID, "cancelled")
+
+	prepaid, _ := a.chain.GetOrdersPrepaidHMC(r.Context(), owner)
+	escrow, _ := a.chain.GetFuzzEscrow(r.Context(), campaignID)
+	writeJSON(w, map[string]any{
+		"ok":            true,
+		"campaign_id":   campaignID,
+		"status":        "cancelled",
+		"hub_pool":      true,
+		"spendable_hmc": prepaid,
+		"escrow":        escrow,
+	})
+}
+
+func (a *app) pushCoordinatorCampaignStatus(ctx context.Context, campaignID, status string) error {
+	coordURL := poolsync.ResolveCoordinatorURL()
+	token := poolsync.CoordinatorAdminToken()
+	if coordURL == "" || token == "" {
+		return fmt.Errorf("coordinator admin URL/token not configured")
+	}
+	body, _ := json.Marshal(map[string]any{"id": campaignID, "status": status})
+	reqCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	httpReq, err := http.NewRequestWithContext(reqCtx, http.MethodPost, coordURL+"/api/fuzz/pool/campaigns/status", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("X-Hackme-Admin-Token", token)
+	resp, err := netutil.HTTPClientPoolOriginDial(30 * time.Second).Do(httpReq)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+	return nil
 }

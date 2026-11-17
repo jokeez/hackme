@@ -239,6 +239,51 @@ func (a *app) mirrorHubPoolCampaignLocal(ctx context.Context, hubJSON []byte) er
 	return nil
 }
 
+// cancelHubPoolCampaign asks the hub to stop miners and refund unused escrow to prepaid.
+func (a *app) cancelHubPoolCampaign(ctx context.Context, campaignID string) (map[string]any, error) {
+	base := ordersHubURL()
+	if base == "" {
+		return nil, fmt.Errorf("HACKME_ORDERS_HUB_URL not set")
+	}
+	if a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false) {
+		// Already on hub — local cancel path handles escrow.
+		return nil, nil
+	}
+	hdr, err := a.customerPoolAuthHeaders()
+	if err != nil {
+		return nil, err
+	}
+	body, _ := json.Marshal(map[string]any{"campaign_id": campaignID})
+	reqCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	defer cancel()
+	httpReq, err := http.NewRequestWithContext(reqCtx, http.MethodPost, base+"/api/orders/pool/cancel", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header = hdr
+	resp, err := netutil.HTTPClientNoRedirect(90 * time.Second).Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("hub cancel unreachable: %w", err)
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	var parsed map[string]any
+	_ = json.Unmarshal(raw, &parsed)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		msg := strings.TrimSpace(string(raw))
+		if parsed != nil {
+			if e, ok := parsed["error"].(string); ok && e != "" {
+				msg = e
+			}
+		}
+		if msg == "" {
+			msg = fmt.Sprintf("hub cancel HTTP %d", resp.StatusCode)
+		}
+		return parsed, fmt.Errorf("%s", msg)
+	}
+	return parsed, nil
+}
+
 // confirmOrdersFundOnHub credits tenant prepaid on the hub after a proven Fund Orders tx.
 func (a *app) confirmOrdersFundOnHub(ctx context.Context, txHash string, amountUnits uint64) error {
 	base := ordersHubURL()

@@ -1096,18 +1096,29 @@ func (a *app) tryCloseFuzzEscrowForStatus(ctx context.Context, campaignID, statu
 		return
 	}
 	status = strings.TrimSpace(strings.ToLower(status))
-	// A campaign that never reached the pool has no coordinator settle to drain; the drain's
-	// owner-scoped outbox call answers 403 for it and the close was refused forever.
+	// rc20 hub_pool campaigns: escrow lives on hub — customer cancel/finalize must proxy.
 	if (status == "completed" || status == "cancelled") && a.db != nil {
 		var cfgRaw string
-		if err := a.db.QueryRowContext(ctx, `SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgRaw); err == nil &&
-			!poolDistributedCampaign(parseMapJSON(cfgRaw)) {
-			if status == "cancelled" {
-				_, _ = a.chain.CancelFuzzEscrow(ctx, campaignID)
-			} else {
-				a.finalizeLocalCampaignEscrow(ctx, campaignID)
+		if err := a.db.QueryRowContext(ctx, `SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgRaw); err == nil {
+			cfg := parseMapJSON(cfgRaw)
+			if hubPoolCampaign(cfg) && !(a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false)) {
+				if status == "cancelled" {
+					if _, err := a.cancelHubPoolCampaign(ctx, campaignID); err != nil {
+						log.Printf("fuzz escrow: hub pool cancel %s failed: %s", logsafe.ID(campaignID), logsafe.Err(err))
+					}
+				}
+				return
 			}
-			return
+			if !poolDistributedCampaign(cfg) {
+				// A campaign that never reached the pool has no coordinator settle to drain; the drain's
+				// owner-scoped outbox call answers 403 for it and the close was refused forever.
+				if status == "cancelled" {
+					_, _ = a.chain.CancelFuzzEscrow(ctx, campaignID)
+				} else {
+					a.finalizeLocalCampaignEscrow(ctx, campaignID)
+				}
+				return
+			}
 		}
 	}
 	switch status {
@@ -1124,6 +1135,20 @@ func (a *app) tryCloseFuzzEscrowForStatus(ctx context.Context, campaignID, statu
 		}
 		_, _ = a.chain.FinalizeFuzzEscrow(ctx, campaignID)
 	}
+}
+
+func hubPoolCampaign(cfg map[string]any) bool {
+	if cfg == nil {
+		return false
+	}
+	if v, ok := cfg["hub_pool"].(bool); ok && v {
+		return true
+	}
+	switch strings.ToLower(strings.TrimSpace(fmt.Sprint(cfg["hub_pool"]))) {
+	case "1", "true", "yes", "on":
+		return true
+	}
+	return false
 }
 
 // drainFuzzSettleBeforeClose pulls coordinator outbox with retries so a fast
