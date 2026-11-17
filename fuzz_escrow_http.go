@@ -27,6 +27,20 @@ func stampEscrowBudgetClaim(cfg map[string]any, priceHMC float64, escrow *chain.
 	}
 }
 
+// poolRegisterClaimBudgetHMC is the prepaid budget published to the coordinator.
+// Prefer the customer SKU price: Economics v2 locks a post-fee row (~90% of price),
+// and coordinator package floors (hunt_lite ≥15, dig deep ≥25) are priced in customer
+// HMC. Registering the post-fee row alone rejects legitimate min-SKU Hunt/Deep Dig.
+func poolRegisterClaimBudgetHMC(priceHMC float64, escrow *chain.FuzzEscrowRow) float64 {
+	if priceHMC > 0 {
+		return priceHMC
+	}
+	if escrow != nil && escrow.BudgetHMC > 0 {
+		return escrow.BudgetHMC
+	}
+	return 0
+}
+
 // writeOrdersAutoFundOrEscrowFailed maps auto-fund errors first, then escrow open failures.
 func writeOrdersAutoFundOrEscrowFailed(w http.ResponseWriter, err error) {
 	var af *ordersAutoFundError

@@ -159,6 +159,44 @@ func publishBudgetHMCFromReq(budgetHMC float64, cfg map[string]any) float64 {
 	}
 }
 
+// publishSKUPriceHMC returns config.budget_hmc_price (customer SKU) when present.
+// stripPublishEscalationConfig keeps this key so floors can use price under Economics v2.
+func publishSKUPriceHMC(cfg map[string]any) float64 {
+	if cfg == nil {
+		return 0
+	}
+	switch v := cfg["budget_hmc_price"].(type) {
+	case float64:
+		return v
+	case float32:
+		return float64(v)
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case string:
+		f, _ := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		return f
+	default:
+		return 0
+	}
+}
+
+// publishFloorBudgetHMC is the amount compared to package mins (hunt_lite ≥15, etc.).
+// verifiedClaim may be the post-fee escrow row (~90% of price under Economics v2);
+// when budget_hmc_price is present and the claim covers that price after fees, use price.
+func publishFloorBudgetHMC(verifiedClaim float64, cfg map[string]any, tipHeight uint64) float64 {
+	price := publishSKUPriceHMC(cfg)
+	if price <= 0 {
+		return verifiedClaim
+	}
+	need := poolsync.EscrowBudgetCoveringClaim(price, tipHeight)
+	if verifiedClaim+1e-9 >= need {
+		return price
+	}
+	return verifiedClaim
+}
+
 func newOrdersOwnerSecret() (secret, hash string, err error) {
 	var b [32]byte
 	if _, err = rand.Read(b[:]); err != nil {

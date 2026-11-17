@@ -1322,3 +1322,26 @@ func TestPoolStatsRedactsFleetForAnon(t *testing.T) {
 		t.Fatal("admin stats must include fleet_capacity")
 	}
 }
+
+func TestPublishFloorBudgetUsesSKUPriceUnderV2Fee(t *testing.T) {
+	// Post-fee claim for hunt_lite min price 15 with 5%+5% v2 fees ≈ 13.5.
+	cfg := map[string]any{
+		"hunt_package":     "hunt_lite",
+		"budget_hmc_price": 15.0,
+		"budget_hmc":       13.5,
+	}
+	tip := uint64(550_000)
+	got := publishFloorBudgetHMC(13.5, cfg, tip)
+	if got != 15.0 {
+		t.Fatalf("floor=%v want SKU price 15 when post-fee claim covers price", got)
+	}
+	min := publishMinBudgetHMC(cfg)
+	if got+1e-12 < min {
+		t.Fatalf("floor %v still below package min %v", got, min)
+	}
+	// Spoofed price without covering claim must not elevate the floor.
+	got = publishFloorBudgetHMC(0.5, cfg, tip)
+	if got != 0.5 {
+		t.Fatalf("floor=%v want verified claim 0.5 when price is not covered", got)
+	}
+}

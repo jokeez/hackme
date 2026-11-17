@@ -135,8 +135,14 @@ if is_stable_version; then
     blockers+=("missing docs/releases/HACKME_${VERSION}_RELEASE.md with paper/D0 disclosure")
   fi
 
-  # Soft pickup must never be greenlit for stable CI.
-  blockers+=("money-path E2E must pass without ALLOW_SOFT_PICKUP on public hub before stable tag")
+  # Money-path E2E proof (pool+hunt+demo VERDICTs, pickup=true, no soft pickup).
+  # Record via: HACKME_MONEY_PATH_PROOF=reports/gates/money_path_e2e bash scripts/tests/record_money_path_proof.sh
+  # or copy VERDICT.json into reports/gates/money_path_e2e/{pool,hunt,demo}/
+  if python3 "$ROOT/scripts/tests/lib/money_path_proof.py"; then
+    pass "money-path E2E proof (no soft pickup)"
+  else
+    blockers+=("money-path E2E must pass without ALLOW_SOFT_PICKUP on public hub before stable tag (see reports/gates/money_path_e2e/)")
+  fi
 
   if [[ "${#blockers[@]}" -gt 0 ]]; then
     for b in "${blockers[@]}"; do

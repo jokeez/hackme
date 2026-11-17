@@ -685,10 +685,7 @@ func (a *app) serveSecurityAudit(w http.ResponseWriter, r *http.Request, req sec
 		resp["pool_distributed"] = true
 		// Hub-side creates (prepaid Dig or chain-funded pool-escrow) register as admin.
 		if hubOwner != "" || req.poolOrderChainFunded {
-			claimBudget := escrow.BudgetHMC
-			if claimBudget <= 0 {
-				claimBudget = budgetHMC
-			}
+			claimBudget := poolRegisterClaimBudgetHMC(budgetHMC, escrow)
 			reg, regErr := a.registerPoolCampaignOnCoordinator(r.Context(), campaignID, ownerRef, "property",
 				budgetRuns, budgetSeconds, claimBudget, cfgMap)
 			if regErr != nil {

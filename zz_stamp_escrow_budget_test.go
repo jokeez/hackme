@@ -24,3 +24,14 @@ func TestStampEscrowBudgetClaimFallbackPrice(t *testing.T) {
 		t.Fatalf("budget_hmc=%v want 15", got)
 	}
 }
+
+func TestPoolRegisterClaimBudgetPrefersCustomerPrice(t *testing.T) {
+	got := poolRegisterClaimBudgetHMC(15.0, &chain.FuzzEscrowRow{BudgetHMC: 13.5})
+	if got != 15.0 {
+		t.Fatalf("claim=%v want customer price 15 (not post-fee 13.5)", got)
+	}
+	got = poolRegisterClaimBudgetHMC(0, &chain.FuzzEscrowRow{BudgetHMC: 13.5})
+	if got != 13.5 {
+		t.Fatalf("claim=%v want escrow fallback 13.5", got)
+	}
+}

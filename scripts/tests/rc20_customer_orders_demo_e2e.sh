@@ -63,13 +63,20 @@ export XDG_DATA_HOME="$OUT/xdg-data"
 mkdir -p "$XDG_CONFIG_HOME/hackme" "$XDG_DATA_HOME/hackme"
 export HACKME_ORDERS_PORT="$PORT"
 export HACKME_ORDERS_HUB_URL="$HUB"
+# Fund Orders hits canonical chain from the local node — use same base as CHAIN
+# (SSH tunnel http://127.0.0.1:28080) so public TLS flakes do not empty-reply the POST.
+export HACKME_CANONICAL_CHAIN_URL="$CHAIN"
+export HACKME_PUBLIC_AUTHORITY_BASE="${HACKME_PUBLIC_AUTHORITY_BASE:-$CHAIN}"
+export HACKME_CHAIN_BASE="$CHAIN"
 export SKIP_TOOLCHAINS=1
 
-log "start Orders on $BASE_LOCAL"
+log "start Orders on $BASE_LOCAL (canonical=$CHAIN hub=$HUB)"
 (
   cd "$PACK"
   # --start only: do not xdg-open browser in headless demo
-  nohup env HACKME_ORDERS_PORT="$PORT" HACKME_ORDERS_HUB_URL="$HUB" SKIP_TOOLCHAINS=1 \
+  nohup env HACKME_ORDERS_PORT="$PORT" HACKME_ORDERS_HUB_URL="$HUB" \
+    HACKME_CANONICAL_CHAIN_URL="$CHAIN" HACKME_PUBLIC_AUTHORITY_BASE="${HACKME_PUBLIC_AUTHORITY_BASE:-$CHAIN}" \
+    HACKME_CHAIN_BASE="$CHAIN" SKIP_TOOLCHAINS=1 \
     bash ./start_hackme_orders.sh --start >"$OUT/orders.stdout" 2>"$OUT/orders.stderr" &
   echo $! >"$OUT/orders.launcher.pid"
 )
@@ -203,8 +210,18 @@ FUND_ARGS=(-sS --max-time 120 -X POST -H 'Content-Type: application/json')
 if [[ -n "${ADMIN:-}" ]]; then
   FUND_ARGS+=(-H "X-Hackme-Admin-Token: $ADMIN" -H "Authorization: Bearer $ADMIN")
 fi
-curl "${FUND_ARGS[@]}" -d "{\"amount_hmc\":$FUND_HMC}" "$BASE_LOCAL/api/orders/fund" \
-  >"$OUT/fund.json" 2>"$OUT/fund.err" || die "fund POST failed"
+FUND_OK=0
+for fund_try in 1 2 3; do
+  if curl "${FUND_ARGS[@]}" -d "{\"amount_hmc\":$FUND_HMC}" "$BASE_LOCAL/api/orders/fund" \
+    >"$OUT/fund.json" 2>"$OUT/fund.err"; then
+    FUND_OK=1
+    break
+  fi
+  # curl 52 empty reply / 56 reset: Orders may still be settling after topup
+  log "fund POST try=$fund_try failed: $(tr -d '\n' <"$OUT/fund.err" | tail -c 160)"
+  sleep 3
+done
+[[ "$FUND_OK" == "1" ]] || die "fund POST failed"
 TX=$(python3 -c 'import json; j=json.load(open("'"$OUT/fund.json"'")); print(j.get("tx_hash") or (j.get("transfer") or {}).get("tx_hash") or "")')
 [[ -n "$TX" ]] || die "fund missing tx_hash body=$(head -c 300 "$OUT/fund.json")"
 echo "$TX" >"$OUT/fund_tx_hash.txt"
@@ -260,12 +277,19 @@ python3 -c 'import json; j=json.load(open("'"$OUT/dig.json"'"));
 print("report_url=", j.get("report_url")); print("gate_url=", j.get("gate_url")); print("pulse_url=", j.get("pulse_url")); print("report_token_len=", len(j.get("customer_report_token") or ""))' | tee -a "$OUT/run.log"
 [[ -n "$REPORT_TOK" ]] || die "missing customer_report_token from Dig"
 
-# 4) Wait for worker pickup — poll hub escrow + coordinator progress
+# 4) Wait for worker pickup — authoritative hub pulse (works on public hub or SSH tunnel to :18080)
 RUNS=0
 DEADLINE=$((SECONDS + WAIT_RUNS_SEC))
 while (( SECONDS < DEADLINE )); do
-  # hub escrow (local loopback on VPS not available — use public if allowed, else pool progress)
-  PROG=$(curl -fsS --max-time 12 "${HUB}/pool/coordinator/api/fuzz/pool/campaigns/progress?id=${CID}" 2>/dev/null || true)
+  PROG=""
+  if [[ -n "$REPORT_TOK" ]]; then
+    PROG=$(curl -fsS --max-time 12 -H "X-Hackme-Report-Token: $REPORT_TOK" \
+      "${HUB}/api/fuzz/campaigns/${CID}/pulse" 2>/dev/null || true)
+  fi
+  if [[ -z "$PROG" ]]; then
+    # Public nginx path (not valid when HUB is a raw node tunnel)
+    PROG=$(curl -fsS --max-time 12 "${HUB}/pool/coordinator/api/fuzz/pool/campaigns/progress?id=${CID}" 2>/dev/null || true)
+  fi
   if [[ -n "$PROG" ]]; then
     printf '%s' "$PROG" >"$OUT/progress.json"
     RUNS=$(python3 - <<'PY' "$OUT/progress.json" 2>/dev/null || echo 0
@@ -273,12 +297,14 @@ import json,sys
 j=json.load(open(sys.argv[1]))
 def pick(o):
   if not isinstance(o,dict): return 0
-  for k in ("runs_done","runs","progress_runs"):
+  for k in ("runs_done","runs","shards_done","progress_runs"):
     if k in o:
       try: return int(o[k] or 0)
       except Exception: return 0
   return 0
-n=pick(j) or pick(j.get("campaign") or {}) or pick(j.get("progress") or {})
+n=pick(j) or pick(j.get("campaign") or {}) or pick(j.get("progress") or {}) or pick(j.get("summary") or {})
+esc=j.get("escrow") or {}
+if not n: n=pick(esc)
 print(n)
 PY
 )
@@ -336,10 +362,19 @@ REPORT_HDR=()
 if [[ -n "${REPORT_TOK:-}" ]]; then
   REPORT_HDR=(-H "X-Hackme-Report-Token: $REPORT_TOK")
 fi
-REPORT_CODE_LOCAL=$(curl -sS -o "$OUT/report_local.html" -w "%{http_code}" --max-time 30 \
-  "${REPORT_HDR[@]}" "$BASE_LOCAL/api/fuzz/campaigns/${CID}/report.html" || echo err)
-REPORT_CODE_HUB=$(curl -sS -o "$OUT/report_hub.html" -w "%{http_code}" --max-time 30 \
-  "${REPORT_HDR[@]}" "$HUB/api/fuzz/campaigns/${CID}/report.html" || echo err)
+REPORT_CODE_LOCAL=err
+REPORT_CODE_HUB=err
+for report_try in 1 2 3 4 5; do
+  REPORT_CODE_LOCAL=$(curl -sS -o "$OUT/report_local.html" -w "%{http_code}" --max-time 30 \
+    "${REPORT_HDR[@]}" "$BASE_LOCAL/api/fuzz/campaigns/${CID}/report.html" 2>/dev/null || echo err)
+  REPORT_CODE_HUB=$(curl -sS -o "$OUT/report_hub.html" -w "%{http_code}" --max-time 30 \
+    "${REPORT_HDR[@]}" "$HUB/api/fuzz/campaigns/${CID}/report.html" 2>/dev/null || echo err)
+  if [[ "$REPORT_CODE_LOCAL" == 2* && "$REPORT_CODE_HUB" == 2* ]]; then
+    break
+  fi
+  log "report try=$report_try local=$REPORT_CODE_LOCAL hub=$REPORT_CODE_HUB (retry)"
+  sleep 2
+done
 log "report local=$REPORT_CODE_LOCAL hub=$REPORT_CODE_HUB"
 
 python3 - <<PY >"$OUT/VERDICT.json"

@@ -347,10 +347,7 @@ func (a *app) serveHuntCampaignCreate(w http.ResponseWriter, r *http.Request, re
 		resp["harness_fetch_path"] = cfgMap["harness_fetch_path"]
 		resp["harness_hash"] = cfgMap["harness_hash"]
 		if hubOwner != "" {
-			claimBudget := escrow.BudgetHMC
-			if claimBudget <= 0 {
-				claimBudget = budgetHMC
-			}
+			claimBudget := poolRegisterClaimBudgetHMC(budgetHMC, escrow)
 			reg, regErr := a.registerPoolCampaignOnCoordinator(r.Context(), id, ownerRef, "hunt",
 				shards, 86400, claimBudget, cfgMap)
 			if regErr != nil {

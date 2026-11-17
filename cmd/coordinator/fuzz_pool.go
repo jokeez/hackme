@@ -946,7 +946,12 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			}
 			minHMC := publishMinBudgetHMC(req.Config)
 			maxHMC := publishMaxBudgetHMC()
-			if verifiedBudgetHMC+1e-12 < minHMC {
+			tipForFloor := uint64(0)
+			if wm != nil {
+				tipForFloor = wm.escrowFeeTipHeight()
+			}
+			floorBudgetHMC := publishFloorBudgetHMC(verifiedBudgetHMC, req.Config, tipForFloor)
+			if floorBudgetHMC+1e-12 < minHMC {
 				http.Error(w, fmt.Sprintf("budget_hmc_required: publish requires budget_hmc >= %.2f (prepaid)", minHMC), http.StatusBadRequest)
 				return
 			}
