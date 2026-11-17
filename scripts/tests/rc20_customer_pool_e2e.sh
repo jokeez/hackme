@@ -100,11 +100,18 @@ CID=$(python3 -c 'import json; j=json.load(open("'"$OUT/dig.json"'")); print(j.g
 [[ -n "$CID" ]] || die "no campaign_id"
 echo "$CID" >"$OUT/campaign_id.txt"
 log "campaign_id=$CID hub_pool=$(python3 -c 'import json; print(json.load(open("'"$OUT/dig.json"'")).get("hub_pool"))')"
+REPORT_TOK=$(python3 -c 'import json; print(json.load(open("'"$OUT/dig.json"'")).get("customer_report_token") or "")')
 
 RUNS=0
 DEADLINE=$((SECONDS + WAIT_RUNS_SEC))
 while (( SECONDS < DEADLINE )); do
-  PROG=$(curl -fsS --max-time 12 "${HUB}/pool/coordinator/api/fuzz/pool/campaigns/progress?id=${CID}" 2>/dev/null || true)
+  # Authoritative pickup: hub pulse with report token (coordinator progress is auth'd / opaque).
+  if [[ -n "$REPORT_TOK" ]]; then
+    PROG=$(curl -fsS --max-time 12 -H "X-Hackme-Report-Token: $REPORT_TOK" \
+      "${HUB}/api/fuzz/campaigns/${CID}/pulse" 2>/dev/null || true)
+  else
+    PROG=""
+  fi
   if [[ -n "$PROG" ]]; then
     printf '%s' "$PROG" >"$OUT/progress.json"
     RUNS=$(python3 - <<'PY' "$OUT/progress.json" 2>/dev/null || echo 0
@@ -112,15 +119,14 @@ import json,sys
 j=json.load(open(sys.argv[1]))
 def pick(o):
   if not isinstance(o,dict): return 0
-  if "runs_done" in o:
-    try: return int(o["runs_done"] or 0)
-    except Exception: return 0
+  for k in ("runs_done","runs","shards_done","progress_runs"):
+    if k in o:
+      try: return int(o[k] or 0)
+      except Exception: return 0
   return 0
-n=pick(j)
-if not n: n=pick(j.get("campaign") or {})
-if not n: n=pick(j.get("progress") or {})
-arr=j.get("campaigns") or j.get("items") or []
-if not n and isinstance(arr,list) and arr: n=pick(arr[0] if isinstance(arr[0],dict) else {})
+n=pick(j) or pick(j.get("campaign") or {}) or pick(j.get("progress") or {}) or pick(j.get("summary") or {})
+esc=j.get("escrow") or {}
+if not n: n=pick(esc)
 print(n)
 PY
 )

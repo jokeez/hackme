@@ -69,22 +69,28 @@ CID=$(python3 -c 'import json; j=json.load(open("'"$OUT/hunt.json"'")); print(j.
 [[ -n "$CID" ]] || die "no campaign_id"
 echo "$CID" >"$OUT/campaign_id.txt"
 log "campaign_id=$CID engine=$(python3 -c 'import json; c=json.load(open("'"$OUT/hunt.json"'")).get("campaign") or {}; print((c.get("config") or {}).get("hunt_engine"))')"
+REPORT_TOK=$(python3 -c 'import json; print(json.load(open("'"$OUT/hunt.json"'")).get("customer_report_token") or "")')
 
 SHARDS=0
 DEADLINE=$((SECONDS + WAIT_SEC))
 while (( SECONDS < DEADLINE )); do
-  PROG=$(curl -fsS --max-time 12 "${HUB}/pool/coordinator/api/fuzz/pool/campaigns/progress?id=${CID}" 2>/dev/null || true)
+  if [[ -n "$REPORT_TOK" ]]; then
+    PROG=$(curl -fsS --max-time 12 -H "X-Hackme-Report-Token: $REPORT_TOK" \
+      "${HUB}/api/fuzz/campaigns/${CID}/pulse" 2>/dev/null || true)
+  else
+    PROG=""
+  fi
   if [[ -n "$PROG" ]]; then
     printf '%s' "$PROG" >"$OUT/progress.json"
     SHARDS=$(python3 -c 'import json; j=json.load(open("'"$OUT/progress.json"'"));
 def n(o):
   if not isinstance(o,dict): return 0
-  for k in ("runs_done","shards_done","progress_runs"):
+  for k in ("runs_done","shards_done","progress_runs","runs"):
     if k in o:
       try: return int(o[k] or 0)
       except: return 0
   return 0
-print(n(j) or n(j.get("campaign") or {}) or n(j.get("progress") or {}))' 2>/dev/null || echo 0)
+print(n(j) or n(j.get("campaign") or {}) or n(j.get("progress") or {}) or n(j.get("summary") or {}) or n(j.get("escrow") or {}))' 2>/dev/null || echo 0)
   fi
   log "progress=$SHARDS"
   (( SHARDS >= 1 )) && break

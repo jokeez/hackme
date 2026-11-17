@@ -166,13 +166,13 @@ func (a *app) mirrorHubPoolCampaignLocal(ctx context.Context, hubJSON []byte) er
 		return nil
 	}
 	var resp struct {
-		OK                    bool           `json:"ok"`
-		CampaignID            string         `json:"campaign_id"`
-		CustomerReportToken   string         `json:"customer_report_token"`
-		OrdersOwnerSecret     string         `json:"orders_owner_secret"`
-		Campaign              map[string]any `json:"campaign"`
-		HubPool               bool           `json:"hub_pool"`
-		PoolDistributed       bool           `json:"pool_distributed"`
+		OK                  bool           `json:"ok"`
+		CampaignID          string         `json:"campaign_id"`
+		CustomerReportToken string         `json:"customer_report_token"`
+		OrdersOwnerSecret   string         `json:"orders_owner_secret"`
+		Campaign            map[string]any `json:"campaign"`
+		HubPool             bool           `json:"hub_pool"`
+		PoolDistributed     bool           `json:"pool_distributed"`
 	}
 	if err := json.Unmarshal(hubJSON, &resp); err != nil {
 		return err

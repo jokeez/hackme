@@ -80,3 +80,43 @@ func TestOrdersAllowLocalFallbackDefaultOff(t *testing.T) {
 		t.Fatal("want on")
 	}
 }
+
+func TestHubPoolHuntRejectsCustomerLocalRepoPath(t *testing.T) {
+	a := &app{}
+	body, _ := json.Marshal(map[string]any{
+		"title":            "neg-local",
+		"package":          "hunt_lite",
+		"budget_hmc":       20,
+		"budget_shards":    32,
+		"pool_distributed": true,
+		"status":           "running",
+		"repo":             map[string]any{"path": "/tmp/customer-only-repo"},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/orders/pool/hunt", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+	a.serveHuntCampaignCreatePoolHub(rec, req, "HMC-aabbccddeeff0011")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("want 400 hub_local_repo_unsupported, got %d %s", rec.Code, rec.Body.String())
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp["code"] != "hub_local_repo_unsupported" {
+		t.Fatalf("code=%v body=%s", resp["code"], rec.Body.String())
+	}
+}
+
+func TestFuzzCampaignDeliverableURLsPreferHubForCustomer(t *testing.T) {
+	t.Setenv("HACKME_ORDERS_HUB_URL", "https://hackme.tech")
+	t.Setenv("HACKME_CHAIN_MINTING_HUB", "")
+	got := fuzzCampaignDeliverableURLs("camp-1")
+	if got["report_url"] != "https://hackme.tech/api/fuzz/campaigns/camp-1/report.html" {
+		t.Fatalf("report_url=%q", got["report_url"])
+	}
+	t.Setenv("HACKME_CHAIN_MINTING_HUB", "1")
+	got = fuzzCampaignDeliverableURLs("camp-1")
+	if got["report_url"] != "/api/fuzz/campaigns/camp-1/report.html" {
+		t.Fatalf("hub minting should keep relative URLs, got %q", got["report_url"])
+	}
+}
