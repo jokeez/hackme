@@ -4,7 +4,7 @@ Historical RC release notes, Hunt engine version logs, Vast.ai GPU field tests, 
 
 | Folder / file | Contents |
 |---------------|----------|
-| [rc/](rc/) | `HACKME_RC11*` … `HACKME_RC17` channel notes (superseded; current download channel is **0.1.0-rc19** — see [../releases/](../releases/) and https://hackme.tech/news.html) |
+| [rc/](rc/) | `HACKME_RC11*` … `HACKME_RC17` channel notes (superseded; current download channel is **0.1.0-rc20** — see [../releases/](../releases/) and https://hackme.tech/news.html) |
 | [hunt-engine/](hunt-engine/) | `HUNT_ENGINE_V24` … `V210` incremental engine notes |
 | [verdicts/](verdicts/) | Older security / economics verdict dumps moved out of `docs/` root |
 | [vast/](vast/) | Vast.ai GPU matrix field-test results |

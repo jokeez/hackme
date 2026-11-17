@@ -35,7 +35,7 @@ Full policy: [SUPPORT_COIN_UTILITY.md](SUPPORT_COIN_UTILITY.md) · Phase C on-ch
 
 | Utility | Status |
 |---------|--------|
-| Order fee payable in SUP (escrow stays HMC) | Live since block **550,000** (Economics v2, 0.1.0-rc19) |
+| Order fee payable in SUP (escrow stays HMC) | Live since block **550,000** (Economics v2; first in 0.1.0-rc19) |
 | On-chain transfers | Live (`transfer_sup` / settle-by-transfer path for v2) |
 | ~~Security Audit discount (15% escrow)~~ / ~~pool priority~~ | Not enforced; dropped in v2 |
 | Support-miner reputation tier | Explorer / dashboard |

@@ -60,7 +60,7 @@ Payout follows **accepted work**, not lottery blocks. Model: [NETWORK_MODEL.md](
 
 ---
 
-## Status · 0.1.0-rc19 LIVE
+## Status · 0.1.0-rc20 LIVE
 
 | Area | State |
 |------|--------|
@@ -68,15 +68,15 @@ Payout follows **accepted work**, not lottery blocks. Model: [NETWORK_MODEL.md](
 | **Pool** | Live coordinator · hybrid signer · **Blake3 + ASERT** · **SHARE_STRICT** solvency M · wall-rate GH/s (not pre-cliff calib) |
 | **Settlement** | Go settler + SQLite units · day budget persisted · `/api/settlement/canonical.json` for desktop merge |
 | **Checkpoints** | Daily signed tip+ledger · OpenTimestamps · [hackme-checkpoints](https://github.com/jokeez/hackme-checkpoints) · [ops note](docs/internal/CHECKPOINTS.md) |
-| **Dig / Hunt** | Live product rails · coverage-guided Hunt fleet · report + CI gate |
+| **Dig / Hunt** | **Paid pool Orders** (hub prepaid escrow) · coverage-guided Hunt fleet · hub report proxy · CI gate |
 | **Exchange desk** | Early access live · **not** a CEX, **not** financial advice |
 | **Hunt Watch 2026sep** | **12/12 closed** · [ledger](https://hackme.tech/reports/hunt-watch-2026sep/) |
 | **OSS CVE Watch** | nghttp2 **14/14** · libheif **14/14** CLEAN ledgers |
 | **HMS storage** | Preview only — not a miner lane |
-| **Economics v2** | Activates at block **550,000** (≈ 2026-11-15, in 0.1.0-rc19): 0.1 HMC/block · ~4y halvings · 0.002 tail · 5% order burn · SUP 0.002/block (cap 21,000) · `HMC-` + 64-hex addresses — [RFC](docs/RFC_ECONOMICS_V2.md) · [news](https://hackme.tech/news.html#2026-11-06-rc19) |
+| **Economics v2** | **Live since** block **550,000** (first shipped in 0.1.0-rc19): 0.1 HMC/block · ~4y halvings · 0.002 tail · 5% order burn · SUP 0.002/block (cap 21,000) · `HMC-` + 64-hex addresses — [RFC](docs/RFC_ECONOMICS_V2.md) · [news](https://hackme.tech/news.html#2026-11-06-rc19) |
 | **D1 pool mint** | **Live on hub:** empty PoH finds → `solve-baseline` → settlement float (`LOCAL_POH=0`, `BASELINE_RELAY=on`) — v2 height switch at block 550,000 |
 
-Channel: **0.1.0-rc19** — [docs/releases/](docs/releases/) · [docs/INDEX.md](docs/INDEX.md) · news: https://hackme.tech/news.html · Economics v2 live since block 550,000
+Channel: **0.1.0-rc20** — [docs/releases/HACKME_0.1.0-rc20_RELEASE.md](docs/releases/HACKME_0.1.0-rc20_RELEASE.md) · [docs/INDEX.md](docs/INDEX.md) · news: https://hackme.tech/news.html · Economics v2 live since block 550,000
 
 **Honesty:** Hunt/Dig **CLEAN ≠ CVE claim**. Customer value is **bugs in their target + report + escrow**, not “we mint CVEs.” Standalone libFuzzer still wins **raw local exec/s**; product Hunt ships the **same engine class on the pool** (prove + escrow + Dig hybrid) — live bench 2026-10-11 in [HUNT_VS_LIBFUZZER.md](docs/HUNT_VS_LIBFUZZER.md). Old byte “~100 vs ~700 exec/s” charts are **not** the fleet default.
 
@@ -119,7 +119,7 @@ Dashboard → **http://127.0.0.1:8080** · [SETUP.md](docs/SETUP.md)
 
 ### HackMe OS
 
-Flash the **rc19** ISO → boot → wallet + mining.
+Flash the **rc20** ISO → boot → wallet + mining.
 
 ```bash
 bash scripts/tests/verify_hackme_iso.sh your.iso
@@ -146,7 +146,7 @@ GPU backends: [GPU_MINING_BACKENDS.md](docs/GPU_MINING_BACKENDS.md).
 ```bash
 hackme-fuzzing wizard --pack filter_utf8 --package audit
 hackme-fuzzing hunt … --package hunt_lite   # see docs
-bash scripts/ops/install_hunt_engines.sh --desktop   # clang + AFL++ + bwrap (auto-install on published rc19 installers)
+bash scripts/ops/install_hunt_engines.sh --desktop   # clang + AFL++ + bwrap (auto-install on published rc20 installers)
 ```
 
 | Dig package | ~HMC | Runs (guide) |
@@ -203,7 +203,7 @@ bash scripts/tests/public_site_smoke.sh
 bash scripts/tests/version_consistency_gate.sh
 ```
 
-Release: `VERSION=0.1.0-rc19 bash scripts/release/make_release_bundle.sh` — [scripts/release/README.md](scripts/release/README.md)
+Release: `VERSION=0.1.0-rc20 bash scripts/release/make_release_bundle.sh` — [scripts/release/README.md](scripts/release/README.md)
 
 ---
 

@@ -4,7 +4,7 @@
 <title>HackMe Network News</title>
 <link>https://hackme.tech/news.html</link>
 <description>Official HackMe pool, release, and research notices.</description>
-<lastBuildDate>Tue, 17 Nov 2026 14:20:25 +0000</lastBuildDate>
+<lastBuildDate>Tue, 17 Nov 2026 15:35:27 +0000</lastBuildDate>
 <atom:link href="https://hackme.tech/news.xml" rel="self" type="application/rss+xml"/>
 <language>en-us</language>
 <item>
@@ -33,7 +33,7 @@
 <link>https://hackme.tech/news.html#2026-10-31-rc18-1-orders-publish</link>
 <guid isPermaLink="false">2026-10-31-rc18-1-orders-publish</guid>
 <pubDate>Sat, 31 Oct 2026 00:00:00 +0000</pubDate>
-<description>historical note — current channel is 0.1.0-rc19. Orders bundles ship a scoped pool.orders.token so Dig/Hunt campaigns can register on the public pool without a full coordinator admin key. Caps and rate limits apply; settle-pull is campaign-scoped; PoH attach and cancel stay admin-only. Blake3 share-PPS, CUDA/OpenCL, Win/Linux/deb/ISO, and B2B fuzzing CLI (hackme-fuzzing + hackme-fuzzing-build) continue from rc18.</description>
+<description>historical note — current channel is 0.1.0-rc20. Orders bundles ship a scoped pool.orders.token so Dig/Hunt campaigns can register on the public pool without a full coordinator admin key. Caps and rate limits apply; settle-pull is campaign-scoped; PoH attach and cancel stay admin-only. Blake3 share-PPS, CUDA/OpenCL, Win/Linux/deb/ISO, and B2B fuzzing CLI (hackme-fuzzing + hackme-fuzzing-build) continue from rc18.</description>
 </item>
 <item>
 <title>Economics v2 — soft announce (design lock; not activated)</title>

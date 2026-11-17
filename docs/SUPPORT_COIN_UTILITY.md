@@ -31,7 +31,7 @@ SUP is designed for **exchange listing**: fixed policy, on-chain transfers, publ
 
 ## Utility (why hold / trade)
 
-> **Status:** Economics v2 **live since block 550,000** (0.1.0-rc19). Order fees payable in SUP.
+> **Status:** Economics v2 **live since block 550,000** (first in 0.1.0-rc19; current **0.1.0-rc20**). Order fees payable in SUP.
 > Escrow always HMC; no pool priority. Chain mints **0.002 SUP** per empty block (cap **21,000**); pool passes it to miners.
 
 1. ~~Security Audit discount — up to 15% of order escrow in SUP~~ → v2: pay the order **fee** in SUP (**live** since #550,000).

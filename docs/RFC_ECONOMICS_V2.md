@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | **LIVE** since block **550 000** (≈ 2026-11-15; tip past 552k) |
 | **Branch** | On `main`; height switch at block 550 000 is complete |
-| **Network today** | `0.1.0-rc19` (v2 rules live) · Blake3 PoH · ASERT · `SHARE_STRICT` share-PPS · solvency M |
+| **Network today** | `0.1.0-rc20` (v2 rules live; paid pool Dig/Hunt) · Blake3 PoH · ASERT · `SHARE_STRICT` share-PPS · solvency M |
 | **Scope** | HMC emission, pool funding, order fee/burn, SUP utility, activation process |
 | **Out of scope** | Airdrops, vesting giveaways |
 

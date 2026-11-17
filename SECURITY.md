@@ -4,8 +4,9 @@
 
 | Version | Supported |
 |---------|-----------|
-| `0.1.0-rc19` | Yes (current runtime + published installers / ISO; required for Economics v2 at block 550,000) |
-| `0.1.0-rc18.x` | Best effort until block 550,000 — does not know the v2 rules |
+| `0.1.0-rc20` | Yes (current runtime + published installers / ISO; paid pool Dig/Hunt) |
+| `0.1.0-rc19` | Yes (Economics v2 at block 550,000; upgrade to rc20 for paid pool Orders) |
+| `0.1.0-rc18.x` | Best effort — does not know the v2 rules |
 | `0.1.0-rc17.4` | Best effort (superseded by rc18) |
 | `0.1.0-rc17`–`rc17.3` | Best effort (superseded by rc17.4) |
 | `0.1.0-rc16` | Best effort |

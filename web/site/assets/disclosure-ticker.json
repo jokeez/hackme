@@ -1,12 +1,40 @@
 {
-  "updated": "2026-11-06T12:00:00Z",
+  "updated": "2026-11-17T15:30:00Z",
   "interval_ms": 6200,
   "pool_poll_ms": 30000,
   "slides": [
     {
       "kind": "release",
+      "badge": "RC20",
+      "title": "0.1.0-rc20 LIVE — paid pool Dig/Hunt · hub escrow",
+      "detail": "Orders Dig/Hunt settle from hub prepaid escrow · authoritative hub reports · Fund→Start on hackme.tech. Upgrade installers; verify SHA256.",
+      "cta": "Downloads",
+      "href": "/downloads.html#start",
+      "accent": "success",
+      "stats": [
+        "rc20",
+        "Dig/Hunt",
+        "escrow"
+      ]
+    },
+    {
+      "kind": "exchange",
+      "badge": "D0",
+      "title": "Paper Exchange live — HMC spot · pool oracle",
+      "detail": "exchange.hackme.tech paper soft-launch (D0) · local node #exchange embeds the same desk",
+      "cta": "Open desk",
+      "href": "https://exchange.hackme.tech/",
+      "accent": "cyan",
+      "stats": [
+        "D0",
+        "paper",
+        "HMC"
+      ]
+    },
+    {
+      "kind": "release",
       "badge": "ECONOMICS V2",
-      "title": "Economics v2 live since #550,000 — stay on 0.1.0-rc19+",
+      "title": "Economics v2 live since #550,000 — stay on 0.1.0-rc20+",
       "detail": "Live: block reward 0.1 HMC · 5% order burn · SUP 0.002/block (cap 21,000) · HMC- + 64-hex addresses (old ones keep working). Verify SHA256.",
       "cta": "Downloads",
       "href": "/downloads.html#start",
@@ -14,7 +42,7 @@
       "stats": [
         "LIVE",
         "0.1 HMC",
-        "rc19"
+        "rc20"
       ]
     },
     {
@@ -49,7 +77,7 @@
       "kind": "product",
       "badge": "HUNT",
       "title": "Coverage Hunt live — libFuzzer fleet · AFL++ Deep",
-      "detail": "Engines on desktop; fleet auto-install · prove/pay on edges",
+      "detail": "Engines on desktop; fleet auto-install · prove/pay on edges · rc20 hub prepaid Dig/Hunt",
       "cta": "Fuzz guide",
       "href": "/fuzz-guide.html",
       "accent": "neon",
@@ -57,20 +85,6 @@
         "LF",
         "AFL++",
         "50/50"
-      ]
-    },
-    {
-      "kind": "exchange",
-      "badge": "D0",
-      "title": "Paper Exchange live — HMC spot · pool oracle",
-      "detail": "exchange.hackme.tech paper soft-launch (D0) · local node #exchange embeds the same desk",
-      "cta": "Open desk",
-      "href": "https://exchange.hackme.tech/",
-      "accent": "cyan",
-      "stats": [
-        "D0",
-        "paper",
-        "HMC"
       ]
     },
     {

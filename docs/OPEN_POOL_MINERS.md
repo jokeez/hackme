@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**HackMe Network** · release **0.1.0-rc19** LIVE (Win/Linux deb·rpm·Arch/Docker/fuzz/ISO + installers) · Economics v2 at block 550,000
+**HackMe Network** · release **0.1.0-rc20** LIVE (Win/Linux deb·rpm·Arch/Docker/fuzz/ISO + installers) · paid pool Dig/Hunt · Economics v2 since block 550,000
 
 [hackme.tech](https://hackme.tech) · [Downloads](https://hackme.tech/downloads.html) · [Pool stats](https://hackme.tech/pool/coordinator/api/pool/stats) · [Telegram](https://t.me/hackme_tech) · [Bitcointalk](https://bitcointalk.org/index.php?topic=5583373.0)
 

@@ -40,7 +40,7 @@ Copy the line `HACKME_ADMIN_TOKEN=...` from `hackme.env` (in the installation fo
 
 ```bash
 bash scripts/ops/rollout_coordinator_worker_token.sh   # when rotating the token
-VERSION=0.1.0-rc19 bash scripts/release/make_release_bundle.sh
+VERSION=0.1.0-rc20 bash scripts/release/make_release_bundle.sh
 ```
 
 The following are posted on the site:

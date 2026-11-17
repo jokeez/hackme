@@ -10,7 +10,7 @@ Verify downloads against `SHA256SUMS.txt` next to the files.
 | Arch / Manjaro | `hackme-node-<ver>-x86_64.pkg.tar.zst` | `sudo pacman -U hackme-node-<ver>-x86_64.pkg.tar.zst` |
 | Any glibc Linux | `hackme_<ver>_linux.tar.gz` | `tar -xzf … && cd linux && bash start_hackme_miner.sh` |
 
-Package versions sort pre-releases before the final release (`0.1.0~rc19` for rpm, `0.1.0rc19` for
+Package versions sort pre-releases before the final release (`0.1.0~rc20` for rpm, `0.1.0rc20` for
 pacman), so a later stable release upgrades cleanly.
 
 ## Docker (miner)
@@ -20,7 +20,7 @@ There is no image on a public registry yet: build it locally from the published 
 
 ```bash
 git clone --depth 1 https://github.com/jokeez/hackme && cd hackme
-VER=0.1.0-rc19; mkdir -p dist/release_$VER
+VER=0.1.0-rc20; mkdir -p dist/release_$VER
 for f in hackme_${VER}_linux.tar.gz SHA256SUMS.txt; do
   curl -fL -o dist/release_$VER/$f https://github.com/jokeez/hackme/releases/download/$VER/$f
 done

@@ -1,6 +1,6 @@
 # HackMe Network — exchange listing memo (one page)
 
-**Version:** 2026-11-17 · **Channel:** 0.1.0-rc19 · **Contact:** https://hackme.tech/contacts.html · **Repo:** https://github.com/jokeez/hackme (AGPL-3.0)
+**Version:** 2026-11-17 · **Channel:** 0.1.0-rc20 · **Contact:** https://hackme.tech/contacts.html · **Repo:** https://github.com/jokeez/hackme (AGPL-3.0)
 
 ---
 
@@ -62,7 +62,7 @@ Cold mid-tier CEX pitches are **deferred** while the desk and product deepen.
 
 ## Technology transparency
 
-- Open source node, coordinator, worker binaries (`0.1.0-rc19`)
+- Open source node, coordinator, worker binaries (`0.1.0-rc20`)
 - Security research: Hunt Watch 12/12 · OSS CVE Watch (nghttp2 14/14 CLEAN · libheif 14/14 CLEAN)
 - Marketplace fleet ETA / capacity: https://hackme.tech/fuzz-marketplace.html
 - Policy regression locks in Go (`economics_test.go`)
@@ -92,7 +92,7 @@ Cold mid-tier CEX pitches are **deferred** while the desk and product deepen.
 
 - Bitcointalk ANN topic 5583373
 - Telegram: @hackme_tech
-- GitHub releases: `0.1.0-rc19`
+- GitHub releases: `0.1.0-rc20`
 - Pool / research: live APIs + https://hackme.tech/listing.html
 
 ---

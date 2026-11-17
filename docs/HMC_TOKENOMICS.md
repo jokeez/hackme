@@ -4,7 +4,7 @@
 
 Public site: [coin-hmc.html](https://hackme.tech/coin-hmc.html) · Live API: `GET https://hackme.tech/api/status` → `economics`
 
-> **Economics v2 has been live since block 550,000** (≈ 2026-11-15; channel 0.1.0-rc19): 0.1 HMC/block, ~4-year halvings counted from genesis, permanent 0.002 HMC tail, no hard cap, real order burns, SUP block emission, long addresses and `chain_id` `hackme-mainnet-1`. Full text: [RFC_ECONOMICS_V2.md](RFC_ECONOMICS_V2.md). Tables below show v1 (through #549,999) and v2 (since #550,000).
+> **Economics v2 has been live since block 550,000** (≈ 2026-11-15; first shipped in 0.1.0-rc19; current channel **0.1.0-rc20**): 0.1 HMC/block, ~4-year halvings counted from genesis, permanent 0.002 HMC tail, no hard cap, real order burns, SUP block emission, long addresses and `chain_id` `hackme-mainnet-1`. Full text: [RFC_ECONOMICS_V2.md](RFC_ECONOMICS_V2.md). Tables below show v1 (through #549,999) and v2 (since #550,000).
 
 ## Supply
 
