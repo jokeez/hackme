@@ -38,13 +38,14 @@ type exchangeBalance struct {
 }
 
 type exchangeSync struct {
-	mu        sync.Mutex
-	client    *http.Client
-	loggedIn  bool
-	fetchedAt time.Time
-	balances  []exchangeBalance
-	depAddr   string
-	lastErr   string
+	mu         sync.Mutex
+	client     *http.Client
+	loggedIn   bool
+	fetchedAt  time.Time
+	balances   []exchangeBalance
+	depAddr    string
+	depAddrSUP string
+	lastErr    string
 }
 
 var exchangeSyncState = &exchangeSync{}
@@ -53,7 +54,7 @@ var exchangeSyncState = &exchangeSync{}
 func (s *exchangeSync) reset() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.client, s.loggedIn, s.fetchedAt, s.balances, s.depAddr, s.lastErr = nil, false, time.Time{}, nil, "", ""
+	s.client, s.loggedIn, s.fetchedAt, s.balances, s.depAddr, s.depAddrSUP, s.lastErr = nil, false, time.Time{}, nil, "", "", ""
 }
 
 func (a *app) exchangeSyncEnabled() bool {
@@ -174,6 +175,14 @@ func (s *exchangeSync) refresh(ctx context.Context, a *app, force bool) {
 				s.depAddr = d.DepositAddress
 			}
 		}
+		if s.depAddrSUP == "" {
+			var d struct {
+				DepositAddress string `json:"deposit_address"`
+			}
+			if c, err := s.get(ctx, "/deposit/address?asset=SUP", &d); err == nil && c == http.StatusOK && strings.HasPrefix(d.DepositAddress, "HMC-") {
+				s.depAddrSUP = d.DepositAddress
+			}
+		}
 		s.lastErr = ""
 		return
 	}
@@ -236,8 +245,9 @@ func (a *app) handleExchangeAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, map[string]any{
 		"ok": st.lastErr == "", "enabled": true, "address": a.signer.Address(), "balances": rows,
-		"deposit_address": st.depAddr, "fetched_at": st.fetchedAt.UTC().Format(time.RFC3339),
-		"error": st.lastErr, "exchange_url": exchangeLoginReturnURL,
+		"deposit_address": st.depAddr, "deposit_address_sup": st.depAddrSUP,
+		"fetched_at": st.fetchedAt.UTC().Format(time.RFC3339),
+		"error":      st.lastErr, "exchange_url": exchangeLoginReturnURL,
 	})
 }
 

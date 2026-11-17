@@ -5457,6 +5457,7 @@
 			// Wallet ↔ exchange (read-only session held by the node; values are text-only, never HTML).
 			const wxFmt = (minor) => (Number(minor || 0) / 1e8).toLocaleString(undefined, { maximumFractionDigits: 4 });
 			let wxDeposit = '';
+			let wxDepositSUP = '';
 			async function refreshExchangeAccount(method, force) {
 				const note = $('wallet-exchange-note');
 				const rows = $('wallet-exchange-rows');
@@ -5480,7 +5481,8 @@
 					return;
 				}
 				wxDeposit = (j.deposit_address && /^HMC-([0-9a-f]{16}|[0-9a-f]{64})$/.test(j.deposit_address)) ? j.deposit_address : '';
-				$('btn-wx-send').classList.toggle('hidden', !wxDeposit);
+				wxDepositSUP = (j.deposit_address_sup && /^HMC-([0-9a-f]{16}|[0-9a-f]{64})$/.test(j.deposit_address_sup)) ? j.deposit_address_sup : '';
+				$('btn-wx-send').classList.toggle('hidden', !(wxDeposit || wxDepositSUP));
 				const order = ['HMC', 'SUP', 'USDT'];
 				const list = (j.balances || []).slice().sort((a, b) => order.indexOf(a.asset) - order.indexOf(b.asset));
 				for (const b of list) {
@@ -5512,11 +5514,16 @@
 				$('btn-wx-disable').addEventListener('click', () => void refreshExchangeAccount('DELETE', false));
 				$('btn-wx-send').addEventListener('click', () => {
 					const to = $('tx-form-to');
-					if (!to || !wxDeposit) return;
-					to.value = wxDeposit;
+					const wantSup = isWalletCoinSUP(walletSelectedCoin());
+					const dest = wantSup ? (wxDepositSUP || wxDeposit) : (wxDeposit || wxDepositSUP);
+					if (!to || !dest) return;
+					to.value = dest;
 					to.dispatchEvent(new Event('input', { bubbles: true }));
 					setWalletDetailSection('transfer');
-					try { txFormUpdatePreview(); } catch (_) {}
+					try {
+						if (wantSup && typeof selectWalletCoin === 'function') selectWalletCoin('support');
+						txFormUpdatePreview();
+					} catch (_) {}
 					to.scrollIntoView({ behavior: 'smooth', block: 'center' });
 					to.focus();
 				});
