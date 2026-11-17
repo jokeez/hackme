@@ -11,6 +11,7 @@ import (
 
 func TestOriginDialRewritesMatchingHost(t *testing.T) {
 	t.Cleanup(ResetOriginDialForTest)
+	t.Setenv("HACKME_ALLOW_PRIVATE_EGRESS", "1")
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -49,6 +50,54 @@ func TestOriginDialRewritesMatchingHost(t *testing.T) {
 	body, _ := io.ReadAll(res.Body)
 	if string(body) != "ok-origin" {
 		t.Fatalf("body=%q", body)
+	}
+}
+
+func TestOriginDialBypassesEnvProxyForPinnedHost(t *testing.T) {
+	t.Cleanup(ResetOriginDialForTest)
+	t.Setenv("HACKME_ALLOW_PRIVATE_EGRESS", "1")
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	_, port, err := net.SplitHostPort(ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, "ok-direct")
+	})}
+	go srv.Serve(ln) //nolint:errcheck
+	defer srv.Close()
+
+	// Dead proxy — if OriginDialTransport kept ProxyFromEnvironment, the
+	// request would fail instead of dialing the pinned origin IP.
+	t.Setenv("HTTP_PROXY", "http://127.0.0.1:1")
+	t.Setenv("HTTPS_PROXY", "http://127.0.0.1:1")
+	t.Setenv("http_proxy", "http://127.0.0.1:1")
+	t.Setenv("https_proxy", "http://127.0.0.1:1")
+	t.Setenv("NO_PROXY", "")
+	t.Setenv("no_proxy", "")
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL", "127.0.0.1")
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL_HOST", "hackme.tech")
+	ResetOriginDialForTest()
+
+	cl := HTTPClientPoolOriginDial(5 * time.Second)
+	req, err := http.NewRequest(http.MethodGet, "http://hackme.tech:"+port+"/probe", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := cl.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+	if string(body) != "ok-direct" {
+		t.Fatalf("body=%q (proxy must not intercept pinned host)", body)
 	}
 }
 
@@ -128,5 +177,46 @@ func TestOriginDialRejectsHostnamePin(t *testing.T) {
 	ResetOriginDialForTest()
 	if OriginDialConfigured() {
 		t.Fatal("hostname pin must be ignored; only literal IPs are allowed")
+	}
+}
+
+func TestOriginDialRejectsMetadataPin(t *testing.T) {
+	t.Cleanup(ResetOriginDialForTest)
+	t.Setenv("HACKME_ALLOW_PRIVATE_EGRESS", "1")
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL", "169.254.169.254")
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL_HOST", "hackme.tech")
+	ResetOriginDialForTest()
+	if OriginDialConfigured() {
+		t.Fatal("metadata pin must be rejected")
+	}
+}
+
+func TestOriginDialTrailingDotHostMatches(t *testing.T) {
+	t.Cleanup(ResetOriginDialForTest)
+	t.Setenv("HACKME_ALLOW_PRIVATE_EGRESS", "1")
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL", "127.0.0.1")
+	t.Setenv("HACKME_POOL_ORIGIN_DIAL_HOST", "hackme.tech")
+	ResetOriginDialForTest()
+	if !hostMatchesOriginDial("hackme.tech.") {
+		t.Fatal("trailing FQDN dot must still match pin host")
+	}
+}
+
+func TestOriginDialTransportForcesHTTP1ALPN(t *testing.T) {
+	t.Cleanup(ResetOriginDialForTest)
+	for _, pin := range []string{"", "132.243.112.100"} {
+		t.Setenv("HACKME_POOL_ORIGIN_DIAL", pin)
+		t.Setenv("HACKME_POOL_ORIGIN_DIAL_HOST", "hackme.tech")
+		ResetOriginDialForTest()
+		tr, ok := OriginDialTransport().(*http.Transport)
+		if !ok || tr == nil {
+			t.Fatalf("pin=%q: want *http.Transport", pin)
+		}
+		if tr.ForceAttemptHTTP2 {
+			t.Fatalf("pin=%q: must not force HTTP/2", pin)
+		}
+		if tr.TLSClientConfig == nil || len(tr.TLSClientConfig.NextProtos) != 1 || tr.TLSClientConfig.NextProtos[0] != "http/1.1" {
+			t.Fatalf("pin=%q: ALPN NextProtos=%v want [http/1.1]", pin, tr.TLSClientConfig)
+		}
 	}
 }

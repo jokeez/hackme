@@ -497,6 +497,12 @@ func processClaim(ctx context.Context, cfg Config, base string, st *Stats, cr *C
 			Config: rsCfg, CoordURL: base, Token: cfg.Token, WorkerID: cfg.WorkerID,
 			MinerAddr: cfg.MinerAddr, HTTPClient: cfg.HTTPClient, Claim: *cr,
 		})
+		if rs.SkippedReason == "upload" && (rs.Crashes > 0 || rs.CorpusDeltas > 0 || rs.Err != "") {
+			// Do not attest CLEAN after a failed crash/corpus upload.
+			fmt.Fprintf(os.Stderr, "%s: research_slot upload failed — releasing (%s)\n", cfg.LogPrefix, rs.Err)
+			release("research_slot_upload")
+			return
+		}
 		if rs.Ran && (rs.CorpusDeltas > 0 || rs.Crashes > 0) {
 			fmt.Fprintf(os.Stderr, "%s: research_slot corpus=%d crashes=%d findings=%d\n",
 				cfg.LogPrefix, rs.CorpusDeltas, rs.Crashes, rs.Findings)

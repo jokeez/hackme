@@ -139,6 +139,36 @@ func TestPlaceCorpusFileFallbackCopy(t *testing.T) {
 	}
 }
 
+func TestRejectSymlinkDirSkipsDirectorySymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink semantics differ on windows")
+	}
+	host := t.TempDir()
+	real := filepath.Join(host, "real")
+	if err := os.MkdirAll(real, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(real, "secret"), []byte("host-secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	src := t.TempDir()
+	link := filepath.Join(src, "hangs")
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+	dst := t.TempDir()
+	if n := copyCorpusFilesNewest(src, link, dst, 32); n != 0 {
+		t.Fatalf("directory symlink must not be walked: copied=%d", n)
+	}
+	if got := listFiles(src, link, 16); len(got) != 0 {
+		t.Fatalf("listFiles must refuse symlink dir: %v", got)
+	}
+	if got := collectCrashArtifacts(src, src, 16); len(got) != 0 {
+		// src itself is real; hangs/ is symlink — must skip that subtree
+		t.Fatalf("collectCrashArtifacts must skip symlink hangs: %v", got)
+	}
+}
+
 // High (fimasw): Hunt corpus must not follow harness-planted symlinks into host secrets.
 func TestCopyCorpusFilesRefusesSymlinkToHostSecret(t *testing.T) {
 	if runtime.GOOS == "windows" {
