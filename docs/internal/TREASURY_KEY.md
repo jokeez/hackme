@@ -4,7 +4,7 @@ Consensus treasury address: **`HMC-719006d93916ad52`** (`internal/chain/economic
 
 ## Where is the private key
 
-- **Not** in git. The operator stores a **32-byte Ed25519 seed** (64 hex), from which the same `HMC-…` as the node is derived: `sha256(pubkey_ed25519)` → first 16 hex → prefix `HMC-`.
+- **Not** in git. The operator stores a **32-byte Ed25519 seed** (64 hex). Address = `HMC-` + hex of `sha256(pubkey_ed25519)`: **64 hex** since block 550,000; the genesis treasury keeps its legacy **16-hex** form `HMC-719006d93916ad52` (still valid, key-bound).
 - Recommended local file (directory `.secrets/` already in `.gitignore`): **`.secrets/hackme_treasury_ed25519_seed.hex`** - one line, hex only, rights `600`.
 
 ## Changing the treasury before launching the network

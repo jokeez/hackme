@@ -50,8 +50,8 @@ Three layers on one stack:
 
 ## Slide 7 — SUP & HMS (companion assets)
 
-- **SUP:** 21M cap, pool-only, anti-farm gates, CEX after HMC
-- **HMS:** 21M cap, storage economics, Amsterdam heavy VPS
+- **SUP:** 21,000 cap (v2 live) · 0.002/block · fee asset · CEX after HMC
+- **HMS:** 21M cap · storage economics · Amsterdam heavy VPS · prelaunch
 
 ## Slide 8 — Business model
 

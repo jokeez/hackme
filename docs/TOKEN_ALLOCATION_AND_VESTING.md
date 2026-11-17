@@ -8,7 +8,7 @@ Live balances: [token-transparency.html](https://hackme.tech/token-transparency.
 
 ## HMC (HackMe Coin)
 
-**Supply:** no hard cap from block 550,000 (Economics v2): 0.1 HMC per empty block, halving every 4,204,800 blocks down to a permanent 0.002 HMC tail. Until then v1 (0.01 HMC/block, 100M ceiling).
+**Supply:** no hard cap since block 550,000 (Economics v2 live): 0.1 HMC per empty block, halving every 4,204,800 blocks down to a permanent 0.002 HMC tail. v1 through #549,999 was 0.01 HMC/block with a 100M ceiling.
 
 | Category | Share | Amount (HMC) | Vesting / unlock |
 |----------|-------|--------------|------------------|

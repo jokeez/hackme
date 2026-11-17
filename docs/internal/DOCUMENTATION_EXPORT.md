@@ -1,26 +1,29 @@
-# Documentation export — PDF / DOCX per ticker
+# Documentation export — PDF packs
 
-HackMe maintains **Markdown as source of truth** on GitHub and **HTML on hackme.tech**. Exchange DD and investors often need **PDF or DOCX** attachments.
+HackMe maintains **Markdown as source of truth** on GitHub and **HTML on hackme.tech**. Exchange DD gets **branded PDF** packs (ReportLab · dark coal + cyan).
 
-## Quick build (recommended)
+## Quick build
 
 ```bash
-# From repo root — requires pandoc + texlive-xetex + fonts-dejavu-core
+# From repo root — requires Python 3 + reportlab + Pillow
 bash scripts/release/build_listing_pdfs.sh
+# first time:
+#   python3 -m venv scripts/release/pdf_pack/.venv
+#   scripts/release/pdf_pack/.venv/bin/pip install reportlab Pillow
 ```
 
 Output:
 
 | File | Contents |
 |------|----------|
-| `dist/docs/HMC_Listing_Pack.pdf` | Listing memo + HMC tokenomics + allocation |
-| `dist/docs/SUP_Companion_Overview.pdf` | SUP tokenomics + utility policy |
-| `dist/docs/HackMe_Network_Pitch.pdf` | Pitch outline + ecosystem overview |
-| `dist/docs/HackMe_Legal_and_Rights.pdf` | Rights, disclosures, trademark & forking |
-| `dist/docs/AGPL-3.0_License.pdf` | Full AGPL-3.0 license text (verbatim) |
+| `dist/docs/HMC_Listing_Pack.pdf` | Cover · memo · asset · edge · tokenomics v2 · allocation · DD · links |
+| `dist/docs/SUP_Companion_Overview.pdf` | SUP positioning · supply · utility · listing policy |
+| `dist/docs/HackMe_Network_Pitch.pdf` | Institutional pitch (problem → ask) |
+| `dist/docs/HackMe_Legal_and_Rights.pdf` | License · trademark · tokens · live snapshot · risk |
+| `dist/docs/AGPL-3.0_License.pdf` | Full AGPL-3.0 text (branded) |
 | `dist/docs/SHA256SUMS-docs.txt` | SHA256 checksums |
 
-Branding: `scripts/release/pandoc/hackme-header.tex` (title page, headers, HackMe colors).
+Builder: `scripts/release/pdf_pack/` · truth stamped to Economics v2 (live since block 550,000) · channel from `scripts/release/CURRENT_VERSION`.
 
 Published URLs (after deploy):
 
@@ -30,77 +33,15 @@ Published URLs (after deploy):
 - https://hackme.tech/dist/docs/HackMe_Legal_and_Rights.pdf
 - https://hackme.tech/dist/docs/AGPL-3.0_License.pdf
 
-## Manual pandoc (if script unavailable)
+## Source of truth (content)
 
-```bash
-mkdir -p dist/docs
-
-pandoc docs/internal/EXCHANGE_LISTING_MEMO.md docs/HMC_TOKENOMICS.md \
-  docs/TOKEN_ALLOCATION_AND_VESTING.md \
-  --pdf-engine=xelatex \
-  -V mainfont="DejaVu Sans" \
-  -V geometry:margin=1in \
-  -o dist/docs/HMC_Listing_Pack.pdf
-
-pandoc docs/SUP_TOKENOMICS.md docs/SUPPORT_COIN_UTILITY.md \
-  --pdf-engine=xelatex \
-  -V mainfont="DejaVu Sans" \
-  -o dist/docs/SUP_Companion_Overview.pdf
-```
-
-**Common pitfalls:**
-
-| Error | Fix |
-|-------|-----|
-| `does not exist` on input | Run from repo root (`cd ~/Desktop/HackMe`) |
-| `dist/docs/... does not exist` | `mkdir -p dist/docs` first |
-| Unicode LaTeX error | Use `--pdf-engine=xelatex` and `-V mainfont="DejaVu Sans"` |
-| `xelatex not found` | `sudo apt install texlive-xetex fonts-dejavu-core` |
-| Wrong output filename | SUP pack must be `SUP_Companion_Overview.pdf`, not `HMC_Listing_Pack.pdf` |
-
-## Per-ticker document sets
-
-### HMC pack (`HMC_Listing_Pack`)
-
-| Section | Source file |
-|---------|-------------|
-| Cover + memo | `docs/internal/EXCHANGE_LISTING_MEMO.md` |
-| Tokenomics | `docs/HMC_TOKENOMICS.md` |
-| Allocation & vesting | `docs/TOKEN_ALLOCATION_AND_VESTING.md` |
-
-### SUP pack (`SUP_Companion_Overview`)
-
-| Section | Source file |
-|---------|-------------|
-| Tokenomics | `docs/SUP_TOKENOMICS.md` |
-| Utility & policy | `docs/SUPPORT_COIN_UTILITY.md` |
-
-### HMS pack (`HMS_Prelaunch_Brief`) — when lane goes live
-
-| Section | Source file |
-|---------|-------------|
-| Public roadmap | `docs/HMS_PUBLIC_ROADMAP.md` |
-| Tokenomics | `docs/HMS_TOKENOMICS.md` |
-
-### Network deck (`HackMe_Network_Pitch`)
-
-| Section | Source file |
-|---------|-------------|
-| Slides | `docs/internal/LISTING_PITCH_OUTLINE.md` |
-| Ecosystem | `docs/ECOSYSTEM_OVERVIEW.md` |
-
-### Legal pack (`HackMe_Legal_and_Rights`)
-
-| Section | Source file |
-|---------|-------------|
-| Rights & disclosures | `docs/RIGHTS_AND_DISCLOSURES.md` |
-| Trademark & forking | `docs/TRADEMARK_AND_FORKING.md` |
-
-### AGPL license (`AGPL-3.0_License`)
-
-| Section | Source file |
-|---------|-------------|
-| Full license | `LICENSE` (verbatim export) |
+| Pack | Canonical docs |
+|------|----------------|
+| HMC | `EXCHANGE_LISTING_MEMO.md` · `HMC_TOKENOMICS.md` · `TOKEN_ALLOCATION_AND_VESTING.md` · `RFC_ECONOMICS_V2.md` |
+| SUP | `SUP_TOKENOMICS.md` · `SUPPORT_COIN_UTILITY.md` |
+| Pitch | `LISTING_PITCH_OUTLINE.md` · `ECOSYSTEM_OVERVIEW.md` |
+| Legal | `RIGHTS_AND_DISCLOSURES.md` · `TRADEMARK_AND_FORKING.md` |
+| AGPL | `LICENSE` |
 
 ## Deploy PDFs to hackme.tech
 

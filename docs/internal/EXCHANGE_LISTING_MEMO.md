@@ -1,6 +1,6 @@
 # HackMe Network — exchange listing memo (one page)
 
-**Version:** 2026-11-06 · **Contact:** https://hackme.tech/contacts.html · **Repo:** https://github.com/jokeez/hackme (AGPL-3.0)
+**Version:** 2026-11-17 · **Channel:** 0.1.0-rc19 · **Contact:** https://hackme.tech/contacts.html · **Repo:** https://github.com/jokeez/hackme (AGPL-3.0)
 
 ---
 

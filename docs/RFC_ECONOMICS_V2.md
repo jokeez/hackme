@@ -18,7 +18,7 @@ This document is the canonical public description of what changes and why. Relat
 
 ### 1.1 Honest pool economics
 
-Under solvency M and share-PPS, an honest fleet earns on the order of **tens of HMC/day**, not “print 100 HMC/day from nowhere.” The chain still mints **0.01 HMC per empty block** (~2880 blocks/day → ~28.8 HMC/day of *gross* empty-block emission). Today much of that coinbase can land on the **authority local PoH** path instead of the settlement wallet that pays miners.
+Under solvency M and share-PPS, an honest fleet earns on the order of **tens of HMC/day**, not “print 100 HMC/day from nowhere.” Before v2 the chain minted **0.01 HMC per empty block** (~2880 blocks/day → ~28.8 HMC/day of *gross* empty-block emission), and much of that coinbase could land on the **authority local PoH** path instead of the settlement wallet that pays miners.
 
 **Without routing empty-block emission into settlement, the pool cannot be sustained by the chain.** Treasury top-ups are a bridge, not a monetary policy.
 
@@ -334,6 +334,7 @@ Miners, desktop nodes, explorers, and customers need a predictable upgrade windo
 | 2026-11-06 | D6 soft-start dropped: Hunt stays open across activation; gate removed from code |
 | 2026-11-06 | 0.1.0-rc19 published with the height package (all installers rebuilt from `main`); public site/docs switched from "soft announce" to "activates at 550 000" |
 | 2026-11-16 | Height crossed; site/docs tense switched to **live since 550 000** (PDF packs deferred to next rebuild / rc20) |
+| 2026-11-17 | Branded PDF packs rebuilt (ReportLab) to Economics v2 truth — local; site deploy with dist/docs deferred |
 
 ---
 

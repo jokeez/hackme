@@ -41,10 +41,10 @@ Details: [TRADEMARK_AND_FORKING.md](TRADEMARK_AND_FORKING.md) (included after th
 
 ## 3. Ecosystem tokens — utility, not investment products
 
-| Ticker | Role | Status (Jun 2026) |
+| Ticker | Role | Status (Nov 2026) |
 |--------|------|-------------------|
-| **HMC** | Primary chain asset · mining settlement · B2B audit escrow | **Live** |
-| **SUP** | Quality-gated loyalty / utility companion | **Live on-chain** |
+| **HMC** | Primary chain asset · mining settlement · B2B audit escrow | **Live** · Economics v2 since #550,000 |
+| **SUP** | Loyalty / fee companion · cap 21,000 | **Live on-chain** |
 | **HMS** | Storage lane economics | **Prelaunch** — not marketed as tradable |
 
 **Important:**

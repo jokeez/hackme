@@ -1,7 +1,7 @@
 # HackMe 0.1.0-rc19
 
 ## Highlights
-- **Longer wallets + Economics v2 prep** — channel prepares address lengthening and the Economics v2 switch (not activated; live payouts unchanged until the announce height).
+- **Longer wallets + Economics v2** — height package at block **550,000** (live ≈ 2026-11-15): 0.1 HMC/block, ~4y halvings, 0.002 tail, real order burns, SUP 0.002/block (cap 21,000), `HMC-`+64 hex + `chain_id` `hackme-mainnet-1`.
 - **Miner + Orders packages** — same binaries as `.deb` (Ubuntu/Debian), `.rpm` (Fedora/RHEL), Arch `pkg.tar.zst`, Linux tarball, Windows Setup/ZIP, HackMe OS ISO, and Docker.
 - **Fedora / slim fixes** — admin token generation falls back to `/dev/urandom` when openssl/python are missing; packages require `bash`, `curl`, `ca-certificates`.
 - **Orders beside Miner** — clear error if port 8080 is taken; `HACKME_ORDERS_PORT=8081` runs Orders next to a miner and remembers the port.

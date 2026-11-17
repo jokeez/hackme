@@ -132,3 +132,6 @@ tools/scan_ed25519_seeds/
 docs/RFC_ECONOMICS_V2_ABUSE.md
 docs/RFC_ECONOMICS_V2_INTERNAL*.md
 docs/RFC_ECONOMICS_V2*.bak.md
+
+# PDF pack builder venv
+scripts/release/pdf_pack/.venv/
