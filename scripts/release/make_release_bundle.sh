@@ -149,7 +149,8 @@ if [[ "${CGO_ENABLED}" == "1" ]] && (pkg-config --exists OpenCL 2>/dev/null || [
   elif command -v docker >/dev/null 2>&1 && [[ -f "${ROOT_DIR}/scripts/release/windows/build_workerpoh_opencl.sh" ]]; then
     echo "[release] building workerpoh-opencl.exe (docker mingw)"
     rm -f "${WIN_DIR}/workerpoh-opencl.exe"
-    bash "${ROOT_DIR}/scripts/release/windows/build_workerpoh_opencl.sh" "${WIN_DIR}/workerpoh-opencl.exe"
+    bash "${ROOT_DIR}/scripts/release/windows/build_workerpoh_opencl.sh" "${WIN_DIR}/workerpoh-opencl.exe" || \
+      echo "[release] WARN: workerpoh-opencl.exe docker build failed" >&2
   else
     echo "[release] WARN: skip workerpoh-opencl.exe (install mingw-w64 or docker for Windows OpenCL build)" >&2
   fi

@@ -1,6 +1,6 @@
 # Cross-build workerpoh-opencl.exe for Windows (AMD/Intel/NVIDIA via OpenCL ICD).
-# Pin a toolchain that satisfies go.mod (go 1.26.10+). Floating golang:1.26-* can lag.
-FROM golang:1.26.10-bookworm
+# Pin a toolchain that satisfies go.mod (go 1.26.11+). Floating golang:1.26-* can lag.
+FROM golang:1.26.11-bookworm
 ENV GOTOOLCHAIN=local
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 \
