@@ -536,7 +536,13 @@ func (a *app) handleFuzzCampaigns(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if kind == "report_html" {
+			if a.maybeProxyHubPoolFuzzGET(w, r, campaignID, "/api/fuzz/campaigns/"+campaignID+"/report.html") {
+				return
+			}
 			a.handleFuzzCampaignReportHTML(w, r, campaignID)
+			return
+		}
+		if a.maybeProxyHubPoolFuzzGET(w, r, campaignID, "/api/fuzz/campaigns/"+campaignID+"/report") {
 			return
 		}
 		a.handleFuzzCampaignReport(w, r, campaignID)
@@ -548,6 +554,9 @@ func (a *app) handleFuzzCampaigns(w http.ResponseWriter, r *http.Request) {
 		if !a.requireFuzzReportAccess(w, r, campaignID, "report_html") {
 			return
 		}
+		if a.maybeProxyHubPoolFuzzGET(w, r, campaignID, "/api/fuzz/campaigns/"+campaignID+"/report.html") {
+			return
+		}
 		a.handleFuzzCampaignReportHTML(w, r, campaignID)
 	case "report.csv":
 		if r.Method != http.MethodGet {
@@ -557,6 +566,9 @@ func (a *app) handleFuzzCampaigns(w http.ResponseWriter, r *http.Request) {
 		if !a.requireFuzzReportAccess(w, r, campaignID, "report_csv") {
 			return
 		}
+		if a.maybeProxyHubPoolFuzzGET(w, r, campaignID, "/api/fuzz/campaigns/"+campaignID+"/report.csv") {
+			return
+		}
 		a.handleFuzzCampaignReportCSV(w, r, campaignID)
 	case "gate":
 		if r.Method != http.MethodGet {
@@ -564,6 +576,9 @@ func (a *app) handleFuzzCampaigns(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !a.requireFuzzReportAccess(w, r, campaignID, "gate") {
+			return
+		}
+		if a.maybeProxyHubPoolFuzzGET(w, r, campaignID, "/api/fuzz/campaigns/"+campaignID+"/gate") {
 			return
 		}
 		a.handleFuzzCampaignGate(w, r, campaignID)
@@ -591,6 +606,9 @@ func (a *app) handleFuzzCampaigns(w http.ResponseWriter, r *http.Request) {
 		if !a.requireFuzzReportAccess(w, r, campaignID, "pulse") {
 			return
 		}
+		if a.maybeProxyHubPoolFuzzGET(w, r, campaignID, "/api/fuzz/campaigns/"+campaignID+"/pulse") {
+			return
+		}
 		a.handleFuzzCampaignPulse(w, r, campaignID)
 	case "diff":
 		if r.Method != http.MethodGet {
@@ -610,6 +628,9 @@ func (a *app) handleFuzzCampaigns(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !a.requireFuzzReportAccess(w, r, campaignID, "proof_bundle") {
+			return
+		}
+		if a.maybeProxyHubPoolFuzzGET(w, r, campaignID, "/api/fuzz/campaigns/"+campaignID+"/proof-bundle") {
 			return
 		}
 		a.handleFuzzCampaignProofBundle(w, r, campaignID)

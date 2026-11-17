@@ -254,9 +254,11 @@ CID=$(python3 -c 'import json; j=json.load(open("'"$OUT/dig.json"'")); print(j.g
 echo "$CID" >"$OUT/campaign_id.txt"
 log "campaign_id=$CID hub_pool=$(python3 -c 'import json; j=json.load(open("'"$OUT/dig.json"'")); print(j.get("hub_pool") or (j.get("campaign") or {}).get("config",{}).get("hub_pool"))')"
 
-# Report URLs from response
+# Report URLs + one-time customer token from response
+REPORT_TOK=$(python3 -c 'import json; print(json.load(open("'"$OUT/dig.json"'")).get("customer_report_token") or "")')
 python3 -c 'import json; j=json.load(open("'"$OUT/dig.json"'"));
-print("report_url=", j.get("report_url")); print("gate_url=", j.get("gate_url")); print("pulse_url=", j.get("pulse_url"))' | tee -a "$OUT/run.log"
+print("report_url=", j.get("report_url")); print("gate_url=", j.get("gate_url")); print("pulse_url=", j.get("pulse_url")); print("report_token_len=", len(j.get("customer_report_token") or ""))' | tee -a "$OUT/run.log"
+[[ -n "$REPORT_TOK" ]] || die "missing customer_report_token from Dig"
 
 # 4) Wait for worker pickup — poll hub escrow + coordinator progress
 RUNS=0
@@ -298,31 +300,27 @@ PY
   sleep 5
 done
 
-# 5) Cancel via customer local status API (should proxy hub_pool)
-log "cancel via local status API"
+# 5) Cancel via customer local status API (must proxy hub_pool). No silent admin/hub-only mask.
+log "cancel via local status API (customer path)"
 CANCEL_ARGS=(-sS --max-time 90 -X POST -H 'Content-Type: application/json')
 if [[ -n "${ADMIN:-}" ]]; then
   CANCEL_ARGS+=(-H "X-Hackme-Admin-Token: $ADMIN" -H "Authorization: Bearer $ADMIN")
 fi
 curl "${CANCEL_ARGS[@]}" -d '{"status":"cancelled"}' \
-  "$BASE_LOCAL/api/fuzz/campaigns/${CID}/status" >"$OUT/cancel_local.json" 2>"$OUT/cancel_local.err" || true
-# Also hub cancel to ensure escrow closed if local proxy missed
-"$OUT/rc20_pool_client" cancel --campaign-id "$CID" >"$OUT/cancel_hub.json" 2>"$OUT/cancel_hub.err" || true
-PRE_AFTER=$(python3 -c 'import json,os
+  "$BASE_LOCAL/api/fuzz/campaigns/${CID}/status" >"$OUT/cancel_local.json" 2>"$OUT/cancel_local.err" \
+  || die "local cancel HTTP failed ($(tail -c 300 "$OUT/cancel_local.err" 2>/dev/null || true))"
+# Authoritative refund/escrow from customer pool client (same owner as Dig).
+"$OUT/rc20_pool_client" cancel --campaign-id "$CID" >"$OUT/cancel_hub.json" 2>"$OUT/cancel_hub.err" \
+  || die "hub cancel via pool client failed ($(tail -c 400 "$OUT/cancel_hub.err" 2>/dev/null || true) $(tail -c 400 "$OUT/cancel_hub.json" 2>/dev/null || true))"
+PRE_AFTER=$(python3 -c 'import json
 for p in ("'"$OUT/cancel_hub.json"'","'"$OUT/cancel_local.json"'"):
   try:
     j=json.load(open(p))
     if j.get("spendable_hmc") is not None:
       print(j["spendable_hmc"]); raise SystemExit
-    e=j.get("escrow") or {}
-    if e: print(j.get("spendable_hmc",""))
   except Exception: pass
 print("")
-' 2>/dev/null || true)
-if [[ -z "$PRE_AFTER" ]]; then
-  "$OUT/rc20_pool_client" prepaid >"$OUT/hub_prepaid_after.json" 2>/dev/null || true
-  PRE_AFTER=$(python3 -c 'import json; print(json.load(open("'"$OUT/hub_prepaid_after.json"'")).get("spendable_hmc",""))' 2>/dev/null || true)
-fi
+')
 ESC=$(python3 -c 'import json
 for p in ("'"$OUT/cancel_hub.json"'","'"$OUT/cancel_local.json"'"):
   try:
@@ -330,14 +328,18 @@ for p in ("'"$OUT/cancel_hub.json"'","'"$OUT/cancel_local.json"'"):
     if e.get("status"): print(e["status"]); raise SystemExit
   except Exception: pass
 print("")
-' 2>/dev/null || true)
+')
 log "prepaid_after_cancel=$PRE_AFTER escrow=$ESC"
 
-# Probe report on local + hub-relative
-REPORT_CODE_LOCAL=$(curl -sS -o "$OUT/report_local.html" -w "%{http_code}" --max-time 15 \
-  "$BASE_LOCAL/api/fuzz/campaigns/${CID}/report.html" || echo err)
-REPORT_CODE_HUB=$(curl -sS -o "$OUT/report_hub.html" -w "%{http_code}" --max-time 15 \
-  "$HUB/api/fuzz/campaigns/${CID}/report.html" || echo err)
+# Report: local path must proxy hub; also probe hub directly with report token.
+REPORT_HDR=()
+if [[ -n "${REPORT_TOK:-}" ]]; then
+  REPORT_HDR=(-H "X-Hackme-Report-Token: $REPORT_TOK")
+fi
+REPORT_CODE_LOCAL=$(curl -sS -o "$OUT/report_local.html" -w "%{http_code}" --max-time 30 \
+  "${REPORT_HDR[@]}" "$BASE_LOCAL/api/fuzz/campaigns/${CID}/report.html" || echo err)
+REPORT_CODE_HUB=$(curl -sS -o "$OUT/report_hub.html" -w "%{http_code}" --max-time 30 \
+  "${REPORT_HDR[@]}" "$HUB/api/fuzz/campaigns/${CID}/report.html" || echo err)
 log "report local=$REPORT_CODE_LOCAL hub=$REPORT_CODE_HUB"
 
 python3 - <<PY >"$OUT/VERDICT.json"
@@ -374,12 +376,22 @@ print(json.dumps(v, indent=2))
 PY
 cat "$OUT/VERDICT.json"
 python3 - <<PY
-import json,sys
+import json,os,sys
 v=json.load(open("$OUT/VERDICT.json"))
+soft=os.environ.get("ALLOW_SOFT_PICKUP","0").strip()=="1"
 if not v.get("refund_ok"):
   print("FAIL: refund path", flush=True); sys.exit(2)
+loc=str(v.get("report_local_http") or "")
+hub=str(v.get("report_hub_http") or "")
+if not (loc.startswith("2") and hub.startswith("2")):
+  print("FAIL: authenticated report must be 2xx on local proxy and hub (local=%s hub=%s)" % (loc, hub), flush=True)
+  sys.exit(4)
 if not v.get("pickup"):
-  print("WARN: no runs in progress poll — check cancel escrow runs_paid", flush=True)
+  if soft:
+    print("WARN: no runs — ALLOW_SOFT_PICKUP=1", flush=True)
+  else:
+    print("FAIL: no miner pickup in window (set ALLOW_SOFT_PICKUP=1 only for ops triage)", flush=True)
+    sys.exit(3)
 print("PASS demo money path", flush=True)
 print("PACK=$PACK", flush=True)
 print("OUT=$OUT", flush=True)

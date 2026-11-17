@@ -97,3 +97,41 @@ func TestReviewRC20CreateReturnsAuthoritativeReportURL(t *testing.T) {
 		}
 	}
 }
+
+func TestReviewRC20LocalReportProxiesToHub(t *testing.T) {
+	const tok = "local-test-report-token"
+	hub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/fuzz/campaigns/review-proxy/report.html" {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Header.Get("X-Hackme-Report-Token") != tok {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"ok":false}`))
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte(`<html>hub-authoritative-report</html>`))
+	}))
+	defer hub.Close()
+	a := reviewRC20Customer(t, hub.URL)
+	if err := a.mirrorHubPoolCampaignLocal(context.Background(), []byte(`{
+		"campaign_id":"review-proxy","hub_pool":true,"pool_distributed":true,
+		"customer_report_token":"`+tok+`"
+	}`)); err != nil {
+		t.Fatal(err)
+	}
+	r := httptest.NewRequest(http.MethodGet, "/api/fuzz/campaigns/review-proxy/report.html", nil)
+	r.Header.Set("X-Hackme-Report-Token", tok)
+	w := httptest.NewRecorder()
+	a.handleFuzzCampaigns(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("proxy HTTP %d: %s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("X-Hackme-Report-Source"); got != "hub_proxy" {
+		t.Fatalf("X-Hackme-Report-Source=%q", got)
+	}
+	if !bytes.Contains(w.Body.Bytes(), []byte("hub-authoritative-report")) {
+		t.Fatalf("body missing hub report: %s", w.Body.String())
+	}
+}

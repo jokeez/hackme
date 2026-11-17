@@ -58,29 +58,35 @@ python3 -c 'import pathlib,re,sys; t=pathlib.Path("'"$OUT/topup.raw"'").read_tex
   || die "topup output not JSON ($(tail -c 200 "$OUT/topup.raw" 2>/dev/null || true))"
 TOP_TX=$(python3 -c 'import json; print(json.load(open("'"$OUT/topup.json"'")).get("tx_hash",""))')
 [[ -n "$TOP_TX" ]] || die "topup missing tx_hash"
-for i in $(seq 1 40); do
-  st=$(curl -fsS --max-time 8 "$BASE/api/tx/$TOP_TX" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status",""))' 2>/dev/null || true)
+TOP_OK=0
+for i in $(seq 1 90); do
+  st=$(curl -fsS --max-time 20 "$BASE/api/tx/$TOP_TX" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status",""))' 2>/dev/null || true)
   log "topup status=$st"
-  [[ "$st" == "included" || "$st" == "applied" || "$st" == "confirmed" ]] && break
-  sleep 2
+  if [[ "$st" == "included" || "$st" == "applied" || "$st" == "confirmed" ]]; then TOP_OK=1; break; fi
+  if [[ "$st" == "rejected" || "$st" == "failed" ]]; then die "topup $st"; fi
+  sleep 3
 done
+[[ "$TOP_OK" == "1" ]] || die "topup not included in time (last status empty/timeout — do not proceed to fund)"
 
 # 2) Customer Fund Orders → DevFee
 MEMO="orders_fund_v1:${OWNER}"
 log "customer fund DevFee $FUND_HMC memo=$MEMO"
 HACKME_DATA_DIR="$CUST" "$OUT/sendtransfer" -base "$BASE" -to "$DEVFEE" -amount-hmc "$FUND_HMC" -memo "$MEMO" \
-  >"$OUT/fund.raw" 2>"$OUT/fund.err" || die "fund failed"
+  >"$OUT/fund.raw" 2>"$OUT/fund.err" || die "fund failed ($(tail -c 400 "$OUT/fund.err" 2>/dev/null || true))"
 python3 -c 'import pathlib,re,sys; t=pathlib.Path("'"$OUT/fund.raw"'").read_text(); m=re.search(r"\{.*\}",t,re.S); sys.exit("no json") if not m else pathlib.Path("'"$OUT/fund.json"'").write_text(m.group(0)+"\n")' \
-  || die "fund output not JSON ($(tail -c 200 "$OUT/fund.raw" 2>/dev/null || true))"
+  || die "fund output not JSON ($(tail -c 200 "$OUT/fund.raw" 2>/dev/null || true) $(tail -c 200 "$OUT/fund.err" 2>/dev/null || true))"
 TX=$(python3 -c 'import json; print(json.load(open("'"$OUT/fund.json"'")).get("tx_hash",""))')
 [[ -n "$TX" ]] || die "fund missing tx_hash"
 echo "$TX" >"$OUT/fund_tx_hash.txt"
-for i in $(seq 1 40); do
-  st=$(curl -fsS --max-time 8 "$BASE/api/tx/$TX" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status",""))' 2>/dev/null || true)
+FUND_OK=0
+for i in $(seq 1 90); do
+  st=$(curl -fsS --max-time 20 "$BASE/api/tx/$TX" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status",""))' 2>/dev/null || true)
   log "fund status=$st"
-  [[ "$st" == "included" || "$st" == "applied" || "$st" == "confirmed" ]] && break
-  sleep 2
+  if [[ "$st" == "included" || "$st" == "applied" || "$st" == "confirmed" ]]; then FUND_OK=1; break; fi
+  if [[ "$st" == "rejected" || "$st" == "failed" ]]; then die "fund $st"; fi
+  sleep 3
 done
+[[ "$FUND_OK" == "1" ]] || die "fund not included in time"
 
 export HACKME_ORDERS_HUB_URL="$HUB"
 export HACKME_POOL_ORDERS_PUBLISH_TOKEN
@@ -171,11 +177,16 @@ print(json.dumps(v, indent=2))
 PY
 cat "$OUT/VERDICT.json"
 python3 - <<PY
-import json,sys
+import json,os,sys
 v=json.load(open("$OUT/VERDICT.json"))
+soft=os.environ.get("ALLOW_SOFT_PICKUP","0").strip()=="1"
 if not v.get("refund_ok"):
   print("FAIL: refund/escrow not closed", flush=True); sys.exit(2)
 if not v.get("pickup"):
-  print("WARN: no miner pickup in window — money path OK", flush=True)
+  if soft:
+    print("WARN: no miner pickup — ALLOW_SOFT_PICKUP=1", flush=True)
+  else:
+    print("FAIL: no miner pickup in window (set ALLOW_SOFT_PICKUP=1 only for ops triage)", flush=True)
+    sys.exit(3)
 print("PASS money path", flush=True)
 PY

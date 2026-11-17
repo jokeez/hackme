@@ -7189,6 +7189,7 @@
 				campaign_id: String(rec.campaign_id),
 				title: String(rec.title || rec.campaign_id),
 				report_token: String(rec.report_token || ''),
+				report_url: String(rec.report_url || ''),
 				created_at: Number(rec.created_at || Date.now() / 1000),
 			});
 			try { localStorage.setItem(securityAuditStoreKey, JSON.stringify(list.slice(0, 64))); } catch (_) {}
@@ -7196,6 +7197,7 @@
 				id: rec.campaign_id,
 				title: rec.title || rec.campaign_id,
 				report_token: rec.report_token || '',
+				report_url: rec.report_url || '',
 			});
 		}
 		function securityAuditByOrderId(orderId) {
@@ -7219,6 +7221,7 @@
 				id: String(rec.id),
 				title: String(rec.title || rec.id),
 				report_token: String(rec.report_token || ''),
+				report_url: String(rec.report_url || ''),
 				created_at: Number(rec.created_at || Date.now() / 1000),
 			});
 			try { localStorage.setItem(fuzzCustomerStoreKey, JSON.stringify(list.slice(0, 64))); } catch (_) {}
@@ -7228,6 +7231,23 @@
 			if (!id) return '';
 			const row = loadCustomerFuzzCampaigns().find((x) => String(x.id || '') === id);
 			return row && row.report_token ? String(row.report_token).trim() : '';
+		}
+		function getCustomerFuzzReportURL(cid) {
+			const id = String(cid || '').trim();
+			if (!id) return '';
+			const row = loadCustomerFuzzCampaigns().find((x) => String(x.id || '') === id);
+			const u = row && row.report_url ? String(row.report_url).trim() : '';
+			if (/^https?:\/\//i.test(u)) return u;
+			return '';
+		}
+		/** Always hit local node paths — hub_pool mirrors proxy report/gate/pulse to the hub (avoids browser CORS). */
+		function fuzzCustomerReportPath(cid, kind) {
+			const id = String(cid || '').trim();
+			if (kind === 'html') return '/api/fuzz/campaigns/' + encodeURIComponent(id) + '/report.html?limit=80';
+			if (kind === 'json') return '/api/fuzz/campaigns/' + encodeURIComponent(id) + '/report?limit=50&format=json';
+			if (kind === 'csv') return '/api/fuzz/campaigns/' + encodeURIComponent(id) + '/report.csv?limit=80';
+			if (kind === 'proof') return '/api/fuzz/campaigns/' + encodeURIComponent(id) + '/proof-bundle';
+			return '/api/fuzz/campaigns/' + encodeURIComponent(id) + '/report.html';
 		}
 		function fuzzAccessHeaders(cid) {
 			const a = adminHeaders();
@@ -15480,7 +15500,8 @@
 		}
 
 		async function openFuzzReportHTML(cid) {
-			const r = await fetch('/api/fuzz/campaigns/' + encodeURIComponent(cid) + '/report.html?limit=80', {
+			const path = fuzzCustomerReportPath(cid, 'html');
+			const r = await fetch(path, {
 				cache: 'no-store',
 				headers: Object.assign({ Accept: 'text/html' }, fuzzAccessHeaders(cid)),
 			});
@@ -16716,7 +16737,8 @@
 				const cid = String(j.campaign_id || (j.campaign && j.campaign.id) || '');
 				const oid = String(j.order_id || '');
 				const tok = String(j.customer_report_token || '');
-				saveSecurityAudit({ order_id: oid, campaign_id: cid, title, report_token: tok });
+				const reportURL = String(j.report_url || '');
+				saveSecurityAudit({ order_id: oid, campaign_id: cid, title, report_token: tok, report_url: reportURL });
 				updateOrdersMarketUIMode();
 				if (msg) {
 					msg.textContent = 'Audit started · order ' + oid + ' · campaign ' + cid +
@@ -16729,7 +16751,8 @@
 						'<p><strong class="text-neon">order</strong> ' + escapeHtml(oid) + ' · <strong class="text-neon">campaign</strong> ' + escapeHtml(cid) + '</p>' +
 						'<p>fuzz escrow: runs ' + escapeHtml(String(esc.runs_locked_hmc != null ? esc.runs_locked_hmc : '—')) +
 						' HMC · bounty ' + escapeHtml(String(esc.bounty_locked_hmc != null ? esc.bounty_locked_hmc : '—')) + ' HMC</p>' +
-						'<p class="text-gray-500">Report token saved — <a href="#" class="text-neon underline" data-goto-tab="fuzz">#fuzz</a> → Open HTML report.</p>';
+						'<p class="text-gray-500">Report token saved — <a href="#" class="text-neon underline" data-goto-tab="fuzz">#fuzz</a> → Open HTML report' +
+						(reportURL ? (' · hub <span class="text-[10px] break-all">' + escapeHtml(reportURL) + '</span>') : '') + '.</p>';
 				}
 				if (logPre && j.compile_log) {
 					logPre.textContent = String(j.compile_log);
@@ -16776,7 +16799,7 @@
 						return;
 					}
 					try {
-						await openAuthenticatedGET('/api/fuzz/campaigns/' + encodeURIComponent(cid) + '/report?limit=50&format=json', 'application/json', cid);
+						await openAuthenticatedGET(fuzzCustomerReportPath(cid, 'json'), 'application/json', cid);
 					} catch (e) {
 						if (hint) hint.textContent = String(e && e.message ? e.message : e);
 						logLine('[fuzz] report json: ' + (e && e.message ? e.message : e));
@@ -16792,7 +16815,7 @@
 						return;
 					}
 					try {
-						await openAuthenticatedGET('/api/fuzz/campaigns/' + encodeURIComponent(cid) + '/proof-bundle', 'application/json', cid);
+						await openAuthenticatedGET(fuzzCustomerReportPath(cid, 'proof'), 'application/json', cid);
 					} catch (e) {
 						if (hint) hint.textContent = String(e && e.message ? e.message : e);
 						logLine('[fuzz] proof bundle: ' + (e && e.message ? e.message : e));

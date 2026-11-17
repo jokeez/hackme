@@ -408,3 +408,74 @@ func (a *app) confirmOrdersFundOnHub(ctx context.Context, txHash string, amountU
 	}
 	return nil
 }
+
+// hubPoolCustomerGETProxied is true when this Orders node must fetch report/gate/pulse
+// from the public hub instead of the local mirror (mirror has no authoritative findings).
+func (a *app) hubPoolCustomerGETProxied(ctx context.Context, campaignID string) (base string, ok bool) {
+	if a == nil || a.db == nil {
+		return "", false
+	}
+	if a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false) {
+		return "", false
+	}
+	base = a.hubPoolAuthorityURL()
+	if base == "" {
+		return "", false
+	}
+	var cfgRaw string
+	err := a.db.QueryRowContext(ctx, `SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgRaw)
+	if err != nil {
+		return "", false
+	}
+	cfg := parseMapJSON(cfgRaw)
+	if hubPoolCampaign(cfg) || poolEscrowMirrorCampaign(cfg) ||
+		(poolDistributedCampaign(cfg) && ordersHubURL() != "") {
+		return base, true
+	}
+	return "", false
+}
+
+// maybeProxyHubPoolFuzzGET forwards customer report/gate/pulse/csv reads to the hub.
+// Returns true when the response was written (caller must return).
+func (a *app) maybeProxyHubPoolFuzzGET(w http.ResponseWriter, r *http.Request, campaignID, hubPath string) bool {
+	base, ok := a.hubPoolCustomerGETProxied(r.Context(), campaignID)
+	if !ok {
+		return false
+	}
+	q := ""
+	if r.URL != nil && r.URL.RawQuery != "" {
+		q = "?" + r.URL.RawQuery
+	}
+	reqCtx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
+	defer cancel()
+	httpReq, err := http.NewRequestWithContext(reqCtx, http.MethodGet, base+hubPath+q, nil)
+	if err != nil {
+		writeAPIError(w, http.StatusBadGateway, "hub_report_unavailable", err.Error(), map[string]any{"hub_url": base})
+		return true
+	}
+	// Forward customer/admin auth the browser already presented to the local mirror.
+	for _, h := range []string{
+		"X-Hackme-Report-Token", "X-Hackme-Admin-Token", "Authorization", "Accept",
+	} {
+		if v := strings.TrimSpace(r.Header.Get(h)); v != "" {
+			httpReq.Header.Set(h, v)
+		}
+	}
+	resp, err := netutil.HTTPClientNoRedirect(45 * time.Second).Do(httpReq)
+	if err != nil {
+		writeAPIError(w, http.StatusBadGateway, "hub_report_unavailable",
+			"hub report unreachable: "+err.Error(), map[string]any{"hub_url": base})
+		return true
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+	ct := resp.Header.Get("Content-Type")
+	if ct != "" {
+		w.Header().Set("Content-Type", ct)
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Hackme-Report-Source", "hub_proxy")
+	w.WriteHeader(resp.StatusCode)
+	_, _ = w.Write(raw)
+	return true
+}

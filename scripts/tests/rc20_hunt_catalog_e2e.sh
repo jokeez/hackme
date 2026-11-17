@@ -136,11 +136,16 @@ print(json.dumps(v, indent=2))
 PY
 cat "$OUT/VERDICT.json"
 python3 - <<PY
-import json,sys
+import json,os,sys
 v=json.load(open("$OUT/VERDICT.json"))
+soft=os.environ.get("ALLOW_SOFT_PICKUP","0").strip()=="1"
 if not v.get("refund_ok"):
   print("FAIL: refund", flush=True); sys.exit(2)
 if not v.get("pickup"):
-  print("WARN: no shard pickup in window — money path OK", flush=True)
+  if soft:
+    print("WARN: no shard pickup — ALLOW_SOFT_PICKUP=1", flush=True)
+  else:
+    print("FAIL: no shard pickup in window (set ALLOW_SOFT_PICKUP=1 only for ops triage)", flush=True)
+    sys.exit(3)
 print("PASS hunt money path", flush=True)
 PY
