@@ -3,18 +3,18 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HackMe Downloads · 0.1.0-rc19</title>
-  <meta name="description" content="HackMe 0.1.0-rc19 LIVE — Win/Linux deb·rpm·Arch/Docker/ISO. Miner + Orders. Verify SHA256." />
+  <title>HackMe Downloads · 0.1.0-rc20</title>
+  <meta name="description" content="HackMe 0.1.0-rc20 LIVE — Win/Linux deb·rpm·Arch/Docker/ISO. Miner + Orders. Verify SHA256." />
   <link rel="canonical" href="https://hackme.tech/downloads.html" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://hackme.tech/downloads.html" />
-  <meta property="og:title" content="HackMe Downloads · 0.1.0-rc19" />
+  <meta property="og:title" content="HackMe Downloads · 0.1.0-rc20" />
   <meta property="og:description" content="Installers LIVE — Win/Linux packages/Docker/ISO. Miner + Orders. Verify SHA256SUMS." />
   <meta property="og:image" content="https://hackme.tech/assets/og-share-1200x630.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="HackMe Downloads · 0.1.0-rc19" />
+  <meta name="twitter:title" content="HackMe Downloads · 0.1.0-rc20" />
   <meta name="twitter:description" content="Installers LIVE — Win/Linux packages/Docker/ISO. Miner + Orders. Verify SHA256SUMS." />
   <meta name="twitter:image" content="https://hackme.tech/assets/og-share-1200x630.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -621,9 +621,9 @@
       <p class="kicker">Downloads · channel live</p>
       <h1>Install the network node</h1>
       <p class="dl-hero-lead">
-        Channel <strong id="dl-release-ver">0.1.0-rc19</strong>
+        Channel <strong id="dl-release-ver">0.1.0-rc20</strong>
         — always verify SHA256 ·
-        <a id="dl-github-release" href="https://github.com/jokeez/hackme/releases/tag/0.1.0-rc19" target="_blank" rel="noreferrer">GitHub 0.1.0-rc19</a>
+        <a id="dl-github-release" href="https://github.com/jokeez/hackme/releases/tag/0.1.0-rc20" target="_blank" rel="noreferrer">GitHub 0.1.0-rc20</a>
       </p>
       <div class="dl-signal" aria-label="Release facts">
         <span>Channel <strong>rc19</strong></span>
@@ -632,10 +632,10 @@
         <span>Econ v2 <strong>#550,000</strong></span>
       </div>
       <p id="dl-artifact-note" class="subtle" style="margin-top:0.7rem;max-width:40rem;font-size:0.9rem">
-        Installers are published for <strong>0.1.0-rc19</strong> — verify SHA256SUMS before install.
+        Installers are published for <strong>0.1.0-rc20</strong> — verify SHA256SUMS before install.
       </p>
       <p class="subtle" style="margin-top:0.4rem;max-width:40rem;font-size:0.9rem">
-        <strong>Economics v2 is live</strong> since block 550,000 — 0.1 HMC per block, <code>HMC-</code> + 64-hex addresses (old ones keep working). Stay on <strong>0.1.0-rc19+</strong>; the built-in updater keeps your wallet and settings.
+        <strong>Economics v2 is live</strong> since block 550,000 — 0.1 HMC per block, <code>HMC-</code> + 64-hex addresses (old ones keep working). Upgrade to <strong>0.1.0-rc20</strong> for paid pool Dig/Hunt (hub prepaid). Built-in updater keeps wallet and settings.
         <a href="./news.html#2026-11-06-rc19">What changed</a>
       </p>
 
@@ -715,7 +715,7 @@
                 <a id="download-iso" class="btn btn-primary btn-block" href="#">Download ISO</a>
                 <a id="download-iso-sha" class="btn btn-secondary btn-block" href="#">SHA256SUMS (ISO)</a>
               </div>
-              <p class="dl-hint">Docker: build locally from the release tarball → <code>localhost/hackme-miner:0.1.0-rc19</code> · <a href="https://github.com/jokeez/hackme/blob/main/docs/LINUX_PACKAGES.md#docker-miner" target="_blank" rel="noreferrer">steps</a>. No image on Docker Hub — don't pull one.</p>
+              <p class="dl-hint">Docker: build locally from the release tarball → <code>localhost/hackme-miner:0.1.0-rc20</code> · <a href="https://github.com/jokeez/hackme/blob/main/docs/LINUX_PACKAGES.md#docker-miner" target="_blank" rel="noreferrer">steps</a>. No image on Docker Hub — don't pull one.</p>
               <p id="download-iso-status" class="subtle" style="font-size:0.8rem;margin:0">Checking availability…</p>
             </div>
             <div data-role-panel="orders">
@@ -724,7 +724,7 @@
                 <a class="btn btn-primary btn-block" href="#" data-mirror="download-iso">Download ISO</a>
                 <a class="btn btn-secondary btn-block" href="#" data-mirror="download-iso-sha">SHA256SUMS (ISO)</a>
               </div>
-              <p class="dl-hint">Docker (local build): <code>-e HACKME_PROFILE=orders -e HACKME_PORT=8081 -v hackme-orders:/state localhost/hackme-miner:0.1.0-rc19</code></p>
+              <p class="dl-hint">Docker (local build): <code>-e HACKME_PROFILE=orders -e HACKME_PORT=8081 -v hackme-orders:/state localhost/hackme-miner:0.1.0-rc20</code></p>
             </div>
           </article>
         </div>
@@ -902,7 +902,7 @@ bash /opt/hackme/hackme_desktop_launch.sh
         <p class="subtle">
           Integrator CLI for Dig / Hunt against your <strong>local Orders node</strong> only
           (<code>127.0.0.1:8080</code> — not hackme.tech). Channel matches installers:
-          <strong>0.1.0-rc19</strong>. Keep <em>both</em> binaries in one folder — <code>build</code> shells out to <code>hackme-fuzzing-build</code> beside it.
+          <strong>0.1.0-rc20</strong>. Keep <em>both</em> binaries in one folder — <code>build</code> shells out to <code>hackme-fuzzing-build</code> beside it.
         </p>
       </div>
 
@@ -987,13 +987,13 @@ bash /opt/hackme/hackme_desktop_launch.sh
           <pre class="code-block" style="margin-top:0.5rem;font-size:0.84rem"><code># Keep both binaries in one folder. Local node on :8080.
 
 # Windows (PowerShell)
-.\hackme-fuzzing-0.1.0-rc19-windows-amd64.exe register --base http://127.0.0.1:8080 --save
-.\hackme-fuzzing-0.1.0-rc19-windows-amd64.exe wizard --pack secrets --package audit --title "My pack"
+.\hackme-fuzzing-0.1.0-rc20-windows-amd64.exe register --base http://127.0.0.1:8080 --save
+.\hackme-fuzzing-0.1.0-rc20-windows-amd64.exe wizard --pack secrets --package audit --title "My pack"
 
 # Linux
-chmod +x hackme-fuzzing-0.1.0-rc19-linux-amd64 hackme-fuzzing-build-0.1.0-rc19-linux-amd64
-./hackme-fuzzing-0.1.0-rc19-linux-amd64 register --base http://127.0.0.1:8080 --save
-./hackme-fuzzing-0.1.0-rc19-linux-amd64 wizard --pack secrets --package audit
+chmod +x hackme-fuzzing-0.1.0-rc20-linux-amd64 hackme-fuzzing-build-0.1.0-rc20-linux-amd64
+./hackme-fuzzing-0.1.0-rc20-linux-amd64 register --base http://127.0.0.1:8080 --save
+./hackme-fuzzing-0.1.0-rc20-linux-amd64 wizard --pack secrets --package audit
 
 # Ready packs: secrets · script_bounds · filter_utf8 · parser_expat · bounds_smoke · …</code></pre>
         </details>
