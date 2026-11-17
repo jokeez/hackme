@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-17T16:15:00Z",
+  "updated": "2026-11-17T16:45:00Z",
   "interval_ms": 6200,
   "pool_poll_ms": 30000,
   "slides": [
@@ -19,16 +19,16 @@
     },
     {
       "kind": "exchange",
-      "badge": "D0",
-      "title": "Paper Exchange live \u2014 HMC spot \u00b7 pool oracle",
-      "detail": "exchange.hackme.tech paper soft-launch (D0) \u00b7 local node #exchange embeds the same desk",
+      "badge": "SOFT",
+      "title": "Exchange soft-launch \u2014 matching + HMC/SUP custody",
+      "detail": "exchange.hackme.tech \u00b7 Connect desk wallet \u00b7 paper Spot without Connect \u00b7 USDT KYT manual \u00b7 BTC HOLD",
       "cta": "Open desk",
       "href": "https://exchange.hackme.tech/",
       "accent": "cyan",
       "stats": [
-        "D0",
-        "paper",
-        "HMC"
+        "soft",
+        "HMC/SUP",
+        "live match"
       ]
     },
     {

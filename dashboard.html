@@ -197,7 +197,7 @@
 		.tab-panel { display: block; animation: panelIn 0.2s ease; }
 		body.js-ui .tab-panel { display: none; }
 		body.js-ui .tab-panel.active { display: block; }
-		/* Exchange — full-bleed iframe; default D0 paper SPA on exchange.hackme.tech. */
+		/* Exchange — full-bleed iframe; soft-launch desk on exchange.hackme.tech. */
 		body.dash-tab-exchange .flex-1.flex.flex-col.min-w-0 {
 			min-height: 0;
 			height: 100dvh;
@@ -3962,7 +3962,7 @@
 							</div>
 							<div class="flex flex-wrap gap-2 text-[10px] font-mono items-center">
 								<span class="px-2 py-1 rounded border border-matrix/35 text-matrix">portfolio (ref/paper price): <span id="wallet-portfolio-total">—</span></span>
-								<span id="wallet-spot-chip" class="price-chip stale" title="Paper ref mid (D0) · exchange.hackme.tech"><span class="px-dot"></span><span id="wallet-spot-label">HMC $—</span></span>
+								<span id="wallet-spot-chip" class="price-chip stale" title="Desk mid (soft-launch) · exchange.hackme.tech"><span class="px-dot"></span><span id="wallet-spot-label">HMC $—</span></span>
 								<span class="px-2 py-1 rounded border border-neon/35 text-neon">live: <span id="wallet-portfolio-live-count">1</span></span>
 								<span id="wallet-build-strip" class="px-2 py-1 rounded border border-white/10 text-gray-500 max-w-[280px] truncate" title="Dashboard UI + node build">ui — · node —</span>
 								<button type="button" id="btn-wallet-refresh" class="px-3 py-1.5 rounded border border-neon/30 text-neon hover:bg-neon/10 uppercase tracking-wider">Refresh</button>
@@ -4372,7 +4372,7 @@
 					</div>
 				</div>
 
-				<!-- EXCHANGE (D0 paper SPA — always public exchange.hackme.tech) -->
+				<!-- EXCHANGE (soft-launch desk — always public exchange.hackme.tech) -->
 				<div id="panel-exchange" class="tab-panel">
 					<div id="exchange-chrome">
 						<span class="ex-title">Exchange</span>
@@ -6943,7 +6943,7 @@
 			if (px > 0) {
 				setTextSilent(label, 'HMC $' + fmt(px, px >= 0.1 ? 4 : 6));
 				if (chip) {
-					chip.title = 'Paper ref mid (D0) · exchange.hackme.tech' +
+					chip.title = 'Desk mid (soft-launch) · exchange.hackme.tech' +
 						(exchangeSpot.source ? (' · ' + exchangeSpot.source) : '') +
 						(ageMs > 0 ? (' · ' + Math.round(ageMs / 1000) + 's ago') : '');
 				}
