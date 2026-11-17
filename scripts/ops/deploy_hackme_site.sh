@@ -138,7 +138,14 @@ publish_stable_pool_token() {
   if [[ -n "$ver" && -f "${ROOT_DIR}/dist/release_${ver}/linux/pool.miner.token" ]]; then
     src="${ROOT_DIR}/dist/release_${ver}/linux/pool.miner.token"
   else
-    src="$(ls -1 "${ROOT_DIR}"/dist/release_*/linux/pool.miner.token 2>/dev/null | sort -V | tail -n1 || true)"
+    # Prefer CURRENT_VERSION / published channel — sort -V picks rc21 over rc20 if a partial cut exists.
+    cur=""
+    [[ -f "${ROOT_DIR}/scripts/release/CURRENT_VERSION" ]] && cur="$(tr -d " \n\r" <"${ROOT_DIR}/scripts/release/CURRENT_VERSION" || true)"
+    if [[ -n "$cur" && -f "${ROOT_DIR}/dist/release_${cur}/linux/pool.miner.token" ]]; then
+      src="${ROOT_DIR}/dist/release_${cur}/linux/pool.miner.token"
+    else
+      src="$(ls -1 "${ROOT_DIR}"/dist/release_*/linux/pool.miner.token 2>/dev/null | sort -V | tail -n1 || true)"
+    fi
   fi
   if [[ -z "$src" || ! -f "$src" ]]; then
     echo "[deploy-hackme-site] WARN: no pool.miner.token to publish at /dist/pool.miner.token" >&2
