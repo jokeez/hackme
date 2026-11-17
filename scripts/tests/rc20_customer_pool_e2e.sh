@@ -13,6 +13,7 @@ PUB_FILE="${HACKME_ORDERS_PUBLISH_TOKEN_FILE:-$ROOT/.secrets/hackme_coordinator_
 TREASURY_SEED="${TREASURY_FUND_SEED_HEX:-$ROOT/.secrets/hackme_treasury_ed25519_seed.hex}"
 TREASURY=HMC-719006d93916ad52
 DEVFEE=HMC-719006d93916ad52
+# Hub prepaid minimum fund is 15 HMC (OrdersFundMinHMC).
 FUND_HMC="${FUND_HMC:-15}"
 BUDGET_HMC="${BUDGET_HMC:-1}"
 WAIT_RUNS_SEC="${WAIT_RUNS_SEC:-240}"
