@@ -116,6 +116,8 @@ print(n(j) or n(j.get("summary") or {}) or n(j.get("escrow") or {}) or n(j.get("
 
 run_job dig
 for t in $TARGETS; do
+  # Orders publish rate limit (hub) trips if Hunt creates are back-to-back.
+  sleep "${HUNT_GAP_SEC:-12}"
   run_job hunt "$t"
 done
 
