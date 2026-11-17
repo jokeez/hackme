@@ -25,6 +25,14 @@ function Download-Url([string]$Uri, [string]$OutFile, [int]$TimeoutSec = 60) {
     Copy-Item ($Uri -replace "^file:///", "" -replace "^file://", "") $OutFile -Force
     return
   }
+  if ($Uri -notlike "https://*") { throw "non-https download URL refused: $Uri" }
+  # Host allowlist: tampered latest.json must not point at an arbitrary host.
+  $hostName = ([uri]$Uri).Host.ToLowerInvariant()
+  $allowed = @(
+    "hackme.tech", "www.hackme.tech", "github.com",
+    "objects.githubusercontent.com", "release-assets.githubusercontent.com"
+  )
+  if ($allowed -notcontains $hostName) { throw "non-allowlisted download host: $hostName" }
   $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
   if ($curl) {
     # Do not use $args (automatic variable); splat a dedicated array.

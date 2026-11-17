@@ -7250,10 +7250,11 @@
 			return '/api/fuzz/campaigns/' + encodeURIComponent(id) + '/report.html';
 		}
 		function fuzzAccessHeaders(cid) {
-			const a = adminHeaders();
-			if (a['X-Hackme-Admin-Token']) return a;
+			// Prefer customer report token: hub_pool proxies refuse local admin (not forwarded).
 			const tok = getCustomerFuzzReportToken(cid);
 			if (tok) return { 'X-Hackme-Report-Token': tok };
+			const a = adminHeaders();
+			if (a['X-Hackme-Admin-Token']) return a;
 			return tasksAuthHeaders();
 		}
 		function canViewFuzzTab() {
@@ -14184,11 +14185,17 @@
 				bodyEl.textContent = body;
 				if (linkEl) {
 					const href = String(n.link_url || '').trim();
-					if (href) {
-						linkEl.href = href;
+					let safeHref = '';
+					try {
+						const u = new URL(href, 'https://hackme.tech');
+						if (u.protocol === 'https:' || u.protocol === 'http:') safeHref = u.href;
+					} catch (_) {}
+					if (safeHref) {
+						linkEl.href = safeHref;
 						linkEl.textContent = String(n.link_label || 'Learn more');
 						linkEl.classList.remove('hidden');
 					} else {
+						linkEl.removeAttribute('href');
 						linkEl.classList.add('hidden');
 					}
 				}

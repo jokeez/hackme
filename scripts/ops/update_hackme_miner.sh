@@ -150,6 +150,20 @@ for u in "$url" "$mirror"; do
     log "skip non-https download URL: $u"
     continue
   fi
+  # Host allowlist: a tampered latest.json must not point the updater at an arbitrary host
+  # (sha256 still required; this narrows publisher-confusion / open-redirect class).
+  if [[ "$u" == https://* ]]; then
+    host="${u#https://}"
+    host="${host%%/*}"
+    host="${host%%:*}"
+    case "$host" in
+      hackme.tech|www.hackme.tech|github.com|objects.githubusercontent.com|release-assets.githubusercontent.com) ;;
+      *)
+        log "skip non-allowlisted download host: $host"
+        continue
+        ;;
+    esac
+  fi
   log "download $u"
   if [[ "$u" == file://* ]]; then
     cp "${u#file://}" "$ARCHIVE" && download_ok=1 && break

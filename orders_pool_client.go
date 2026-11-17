@@ -453,13 +453,19 @@ func (a *app) maybeProxyHubPoolFuzzGET(w http.ResponseWriter, r *http.Request, c
 		writeAPIError(w, http.StatusBadGateway, "hub_report_unavailable", err.Error(), map[string]any{"hub_url": base})
 		return true
 	}
-	// Forward customer/admin auth the browser already presented to the local mirror.
-	for _, h := range []string{
-		"X-Hackme-Report-Token", "X-Hackme-Admin-Token", "Authorization", "Accept",
-	} {
-		if v := strings.TrimSpace(r.Header.Get(h)); v != "" {
-			httpReq.Header.Set(h, v)
-		}
+	// Forward only the customer report credential (+ Accept). Never forward
+	// X-Hackme-Admin-Token / Authorization: those are the local node admin secret
+	// and would exfiltrate HACKME_ADMIN_TOKEN to the hub (and fail hub auth anyway).
+	reportTok := strings.TrimSpace(r.Header.Get("X-Hackme-Report-Token"))
+	if reportTok == "" {
+		writeAPIError(w, http.StatusUnauthorized, "report_token_required",
+			"hub pool reports require X-Hackme-Report-Token (local admin is not forwarded)",
+			map[string]any{"hub_url": base})
+		return true
+	}
+	httpReq.Header.Set("X-Hackme-Report-Token", reportTok)
+	if accept := strings.TrimSpace(r.Header.Get("Accept")); accept != "" {
+		httpReq.Header.Set("Accept", accept)
 	}
 	resp, err := netutil.HTTPClientNoRedirect(45 * time.Second).Do(httpReq)
 	if err != nil {

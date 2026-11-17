@@ -404,7 +404,13 @@ func (a *app) auditFuzzReportAccess(ctx context.Context, campaignID, actorType, 
 }
 
 func (a *app) requireFuzzReportAccess(w http.ResponseWriter, r *http.Request, campaignID, accessKind string) bool {
-	if hasValidAdminAuth(r) {
+	// hub_pool mirrors proxy reads to the public hub. Local HACKME_ADMIN_TOKEN must
+	// not short-circuit: it is not valid on the hub and must never be forwarded.
+	hubProxied := false
+	if a != nil {
+		_, hubProxied = a.hubPoolCustomerGETProxied(r.Context(), campaignID)
+	}
+	if !hubProxied && hasValidAdminAuth(r) {
 		a.auditFuzzReportAccess(r.Context(), campaignID, "admin", accessKind, r)
 		return true
 	}

@@ -100,10 +100,18 @@ func TestReviewRC20CreateReturnsAuthoritativeReportURL(t *testing.T) {
 
 func TestReviewRC20LocalReportProxiesToHub(t *testing.T) {
 	const tok = "local-test-report-token"
+	const localAdmin = "must-not-reach-hub-admin-secret"
+	var sawAdmin, sawAuth bool
 	hub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/fuzz/campaigns/review-proxy/report.html" {
 			http.NotFound(w, r)
 			return
+		}
+		if r.Header.Get("X-Hackme-Admin-Token") != "" {
+			sawAdmin = true
+		}
+		if r.Header.Get("Authorization") != "" {
+			sawAuth = true
 		}
 		if r.Header.Get("X-Hackme-Report-Token") != tok {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -123,6 +131,9 @@ func TestReviewRC20LocalReportProxiesToHub(t *testing.T) {
 	}
 	r := httptest.NewRequest(http.MethodGet, "/api/fuzz/campaigns/review-proxy/report.html", nil)
 	r.Header.Set("X-Hackme-Report-Token", tok)
+	// Poison headers: proxy must strip these so local admin never reaches the hub.
+	r.Header.Set("X-Hackme-Admin-Token", localAdmin)
+	r.Header.Set("Authorization", "Bearer "+localAdmin)
 	w := httptest.NewRecorder()
 	a.handleFuzzCampaigns(w, r)
 	if w.Code != http.StatusOK {
@@ -133,5 +144,29 @@ func TestReviewRC20LocalReportProxiesToHub(t *testing.T) {
 	}
 	if !bytes.Contains(w.Body.Bytes(), []byte("hub-authoritative-report")) {
 		t.Fatalf("body missing hub report: %s", w.Body.String())
+	}
+	if sawAdmin || sawAuth {
+		t.Fatalf("hub received local admin credentials (admin=%v auth=%v)", sawAdmin, sawAuth)
+	}
+}
+
+func TestReviewRC20HubPoolReportRejectsLocalAdminAlone(t *testing.T) {
+	hub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("hub must not be contacted without report token; got %s", r.URL.Path)
+	}))
+	defer hub.Close()
+	a := reviewRC20Customer(t, hub.URL)
+	if err := a.mirrorHubPoolCampaignLocal(context.Background(), []byte(`{
+		"campaign_id":"review-admin-only","hub_pool":true,"pool_distributed":true,
+		"customer_report_token":"unused-report-token"
+	}`)); err != nil {
+		t.Fatal(err)
+	}
+	r := httptest.NewRequest(http.MethodGet, "/api/fuzz/campaigns/review-admin-only/report.html", nil)
+	r.Header.Set("X-Hackme-Admin-Token", "review-local-admin-token-for-tests")
+	w := httptest.NewRecorder()
+	a.handleFuzzCampaigns(w, r)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("want 401 without report token, got %d: %s", w.Code, w.Body.String())
 	}
 }
