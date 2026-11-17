@@ -70,14 +70,14 @@ run_job() {
   shift
   if [[ "$kind" == "dig" ]]; then
     "$OUT/rc20_pool_client" dig --budget-hmc "$DIG_BUDGET" --title "multi-dig-$STAMP" >"$OUT/dig.json" 2>"$OUT/dig.err" || die "dig"
-    id=$(python3 -c 'import json; j=json.load(open("'"$OUT/dig.json"'")); print(j.get("campaign_id") or "")')
-    tok=$(python3 -c 'import json; print(json.load(open("'"$OUT/dig.json"'")).get("customer_report_token") or "")')
+    id=$(python3 -c 'import json,sys; j=json.load(open(sys.argv[1])); print(j.get("campaign_id") or "")' "$OUT/dig.json")
+    tok=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("customer_report_token") or "")' "$OUT/dig.json")
   else
     local target="$1"
     "$OUT/rc20_pool_client" hunt --budget-hmc "$HUNT_BUDGET" --target "$target" --shards 32 --title "multi-hunt-$target-$STAMP" \
       >"$OUT/hunt-$target.json" 2>"$OUT/hunt-$target.err" || die "hunt $target: $(tail -c 300 "$OUT/hunt-$target.err"; tail -c 300 "$OUT/hunt-$target.json")"
-    id=$(python3 -c 'import json; j=json.load(open("'"$OUT/hunt-'"$target"'.json"'")); print(j.get("campaign_id") or (j.get("campaign") or {}).get("id") or "")')
-    tok=$(python3 -c 'import json; print(json.load(open("'"$OUT/hunt-'"$target"'.json"'")).get("customer_report_token") or "")')
+    id=$(python3 -c 'import json,sys; j=json.load(open(sys.argv[1])); print(j.get("campaign_id") or (j.get("campaign") or {}).get("id") or "")' "$OUT/hunt-$target.json")
+    tok=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("customer_report_token") or "")' "$OUT/hunt-$target.json")
   fi
   [[ -n "$id" ]] || die "no campaign id for $kind"
   log "$kind id=$id waiting pickup"
@@ -88,26 +88,28 @@ run_job() {
       prog=$(curl -fsS --max-time 12 -H "X-Hackme-Report-Token: $tok" "$HUB/api/fuzz/campaigns/$id/pulse" 2>/dev/null || true)
       if [[ -n "$prog" ]]; then
         printf '%s' "$prog" >"$OUT/pulse-$id.json"
-        runs=$(python3 -c 'import json; j=json.load(open("'"$OUT/pulse-'"$id"'.json"'"));
+        runs=$(python3 -c 'import json,sys
+j=json.load(open(sys.argv[1]))
 def n(o):
   if not isinstance(o,dict): return 0
   for k in ("runs_done","shards_done","runs"):
     if k in o:
       try: return int(o[k] or 0)
-      except: return 0
+      except Exception: return 0
   return 0
-print(n(j) or n(j.get("summary") or {}) or n(j.get("escrow") or {}) or n(j.get("campaign") or {}))' 2>/dev/null || echo 0)
+print(n(j) or n(j.get("summary") or {}) or n(j.get("escrow") or {}) or n(j.get("campaign") or {}))' "$OUT/pulse-$id.json" 2>/dev/null || echo 0)
       fi
     fi
     log "$kind progress=$runs"
     (( runs >= 1 )) && break
     sleep 6
   done
-  "$OUT/rc20_pool_client" cancel --campaign-id "$id" >"$OUT/cancel-$id.json" 2>"$OUT/cancel-$id.err" || die "cancel $id"
+  local cfile="$OUT/cancel-${id}.json"
+  "$OUT/rc20_pool_client" cancel --campaign-id "$id" >"$cfile" 2>"$OUT/cancel-${id}.err" || die "cancel $id ($(tail -c 200 "$OUT/cancel-${id}.err" 2>/dev/null || true))"
   local esc runs_esc prepaid
-  esc=$(python3 -c 'import json; print((json.load(open("'"$OUT/cancel-'"$id"'.json"'")).get("escrow") or {}).get("status",""))')
-  runs_esc=$(python3 -c 'import json; print((json.load(open("'"$OUT/cancel-'"$id"'.json"'")).get("escrow") or {}).get("runs_done",0))')
-  prepaid=$(python3 -c 'import json; print(json.load(open("'"$OUT/cancel-'"$id"'.json"'")).get("spendable_hmc",""))')
+  esc=$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("escrow") or {}).get("status",""))' "$cfile")
+  runs_esc=$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("escrow") or {}).get("runs_done",0))' "$cfile")
+  prepaid=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("spendable_hmc",""))' "$cfile")
   log "$kind done escrow=$esc runs_esc=$runs_esc prepaid=$prepaid"
   RESULTS+=("$kind:$id:pulse=$runs:esc_runs=$runs_esc:escrow=$esc")
 }

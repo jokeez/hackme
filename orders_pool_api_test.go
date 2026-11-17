@@ -83,28 +83,45 @@ func TestOrdersAllowLocalFallbackDefaultOff(t *testing.T) {
 }
 
 func TestHubPoolHuntRejectsCustomerLocalRepoPath(t *testing.T) {
-	a := &app{}
-	body, _ := json.Marshal(map[string]any{
-		"title":            "neg-local",
-		"package":          "hunt_lite",
-		"budget_hmc":       20,
-		"budget_shards":    32,
-		"pool_distributed": true,
-		"status":           "running",
-		"repo":             map[string]any{"path": "/tmp/customer-only-repo"},
-	})
-	req := httptest.NewRequest(http.MethodPost, "/api/orders/pool/hunt", bytes.NewReader(body))
-	rec := httptest.NewRecorder()
-	a.serveHuntCampaignCreatePoolHub(rec, req, "HMC-aabbccddeeff0011")
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("want 400 hub_local_repo_unsupported, got %d %s", rec.Code, rec.Body.String())
+	cases := []struct {
+		name  string
+		repo  map[string]any
+		extra map[string]any
+	}{
+		{name: "path", repo: map[string]any{"path": "/tmp/customer-only-repo"}},
+		{name: "git_url", repo: map[string]any{"git_url": "https://github.com/example/repo.git"}},
+		{name: "catalog_plus_path", repo: map[string]any{"path": "/home/x/overlay"}, extra: map[string]any{"catalog": true, "target_id": "jsmn"}},
 	}
-	var resp map[string]any
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatal(err)
-	}
-	if resp["code"] != "hub_local_repo_unsupported" {
-		t.Fatalf("code=%v body=%s", resp["code"], rec.Body.String())
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			a := &app{}
+			payload := map[string]any{
+				"title":            "neg-local",
+				"package":          "hunt_lite",
+				"budget_hmc":       20,
+				"budget_shards":    32,
+				"pool_distributed": true,
+				"status":           "running",
+				"repo":             tc.repo,
+			}
+			for k, v := range tc.extra {
+				payload[k] = v
+			}
+			body, _ := json.Marshal(payload)
+			req := httptest.NewRequest(http.MethodPost, "/api/orders/pool/hunt", bytes.NewReader(body))
+			rec := httptest.NewRecorder()
+			a.serveHuntCampaignCreatePoolHub(rec, req, "HMC-aabbccddeeff0011")
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("want 400 hub_local_repo_unsupported, got %d %s", rec.Code, rec.Body.String())
+			}
+			var resp map[string]any
+			if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+				t.Fatal(err)
+			}
+			if resp["code"] != "hub_local_repo_unsupported" {
+				t.Fatalf("code=%v body=%s", resp["code"], rec.Body.String())
+			}
+		})
 	}
 }
 

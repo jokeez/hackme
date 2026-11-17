@@ -385,6 +385,21 @@ func (a *app) handleOrdersPoolCancel(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusForbidden, "owner_mismatch", "campaign owner_ref does not match Owner-Ref", nil)
 		return
 	}
+	curStatus := strings.ToLower(strings.TrimSpace(c.Status))
+	if curStatus == "cancelled" || curStatus == "completed" {
+		prepaid, _ := a.chain.GetOrdersPrepaidHMC(r.Context(), owner)
+		escrow, _ := a.chain.GetFuzzEscrow(r.Context(), campaignID)
+		writeJSON(w, map[string]any{
+			"ok":               true,
+			"campaign_id":      campaignID,
+			"status":           curStatus,
+			"already_terminal": true,
+			"hub_pool":         true,
+			"spendable_hmc":    prepaid,
+			"escrow":           escrow,
+		})
+		return
+	}
 	// Stop miners first — do not mark cancelled until coordinator accepts.
 	if cerr := a.pushCoordinatorCampaignStatus(r.Context(), campaignID, "cancelled"); cerr != nil {
 		writeAPIError(w, http.StatusBadGateway, "pool_cancel_failed",
@@ -395,17 +410,25 @@ func (a *app) handleOrdersPoolCancel(w http.ResponseWriter, r *http.Request) {
 	a.tryCloseFuzzEscrowForStatus(r.Context(), campaignID, "cancelled")
 
 	now := time.Now().Unix()
-	_, _ = a.db.ExecContext(r.Context(),
+	statusOut := "cancelled"
+	if res, uerr := a.db.ExecContext(r.Context(),
 		`UPDATE fuzz_campaigns SET status='cancelled',
-		 completed_at=CASE WHEN completed_at=0 THEN ? ELSE completed_at END WHERE id=?`,
-		now, campaignID)
+		 completed_at=CASE WHEN completed_at=0 THEN ? ELSE completed_at END
+		 WHERE id=? AND status NOT IN ('cancelled','completed')`,
+		now, campaignID); uerr == nil {
+		if n, _ := res.RowsAffected(); n == 0 {
+			if c2, err2 := a.getFuzzCampaign(r.Context(), campaignID); err2 == nil {
+				statusOut = strings.ToLower(strings.TrimSpace(c2.Status))
+			}
+		}
+	}
 
 	prepaid, _ := a.chain.GetOrdersPrepaidHMC(r.Context(), owner)
 	escrow, _ := a.chain.GetFuzzEscrow(r.Context(), campaignID)
 	writeJSON(w, map[string]any{
 		"ok":            true,
 		"campaign_id":   campaignID,
-		"status":        "cancelled",
+		"status":        statusOut,
 		"hub_pool":      true,
 		"spendable_hmc": prepaid,
 		"escrow":        escrow,
@@ -448,6 +471,21 @@ func (a *app) handleOrdersPoolFinalize(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusForbidden, "owner_mismatch", "campaign owner_ref does not match Owner-Ref", nil)
 		return
 	}
+	curStatus := strings.ToLower(strings.TrimSpace(c.Status))
+	if curStatus == "cancelled" || curStatus == "completed" {
+		prepaid, _ := a.chain.GetOrdersPrepaidHMC(r.Context(), owner)
+		escrow, _ := a.chain.GetFuzzEscrow(r.Context(), campaignID)
+		writeJSON(w, map[string]any{
+			"ok":               true,
+			"campaign_id":      campaignID,
+			"status":           curStatus,
+			"already_terminal": true,
+			"hub_pool":         true,
+			"spendable_hmc":    prepaid,
+			"escrow":           escrow,
+		})
+		return
+	}
 	if cerr := a.pushCoordinatorCampaignStatus(r.Context(), campaignID, "completed"); cerr != nil {
 		writeAPIError(w, http.StatusBadGateway, "pool_finalize_failed",
 			"coordinator complete failed: "+cerr.Error(), nil)
@@ -455,16 +493,24 @@ func (a *app) handleOrdersPoolFinalize(w http.ResponseWriter, r *http.Request) {
 	}
 	a.tryCloseFuzzEscrowForStatus(r.Context(), campaignID, "completed")
 	now := time.Now().Unix()
-	_, _ = a.db.ExecContext(r.Context(),
+	statusOut := "completed"
+	if res, uerr := a.db.ExecContext(r.Context(),
 		`UPDATE fuzz_campaigns SET status='completed',
-		 completed_at=CASE WHEN completed_at=0 THEN ? ELSE completed_at END WHERE id=?`,
-		now, campaignID)
+		 completed_at=CASE WHEN completed_at=0 THEN ? ELSE completed_at END
+		 WHERE id=? AND status NOT IN ('cancelled','completed')`,
+		now, campaignID); uerr == nil {
+		if n, _ := res.RowsAffected(); n == 0 {
+			if c2, err2 := a.getFuzzCampaign(r.Context(), campaignID); err2 == nil {
+				statusOut = strings.ToLower(strings.TrimSpace(c2.Status))
+			}
+		}
+	}
 	prepaid, _ := a.chain.GetOrdersPrepaidHMC(r.Context(), owner)
 	escrow, _ := a.chain.GetFuzzEscrow(r.Context(), campaignID)
 	writeJSON(w, map[string]any{
 		"ok":            true,
 		"campaign_id":   campaignID,
-		"status":        "completed",
+		"status":        statusOut,
 		"hub_pool":      true,
 		"spendable_hmc": prepaid,
 		"escrow":        escrow,

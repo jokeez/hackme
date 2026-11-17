@@ -139,7 +139,7 @@ func (a *app) syncHuntHarnessToCoordinator(ctx context.Context, cfg map[string]a
 	srcRel := strings.TrimSpace(toString(cfg["hunt_source_rel"]))
 	if err := poolsync.UploadHuntHarness(ctx, coord, token, hash, data, srcRel); err != nil {
 		// Catalog hash is metadata-stable; clang rebuilds can differ byte-for-byte across hosts.
-		// "already bound" must still match our local bytes — otherwise refuse inventory-hash squat.
+		// Inventory hashes are content-bound — refuse squat on mismatch.
 		if poolsync.IsHarnessAlreadyBound(err) {
 			ok, remoteSHA := poolsync.CoordinatorHarnessProbe(ctx, coord, token, hash)
 			if !ok {
@@ -149,6 +149,15 @@ func (a *app) syncHuntHarnessToCoordinator(ctx context.Context, cfg map[string]a
 				sum := sha256.Sum256(data)
 				localSHA := hex.EncodeToString(sum[:])
 				if !strings.EqualFold(remoteSHA, localSHA) {
+					if huntCatalogSource(cfg) {
+						// Pool truth is the first coordinator bind; miners fetch that blob.
+						cfg["harness_content_sha256"] = strings.ToLower(remoteSHA)
+						cfg["harness_pool_attached"] = true
+						cfg["harness_published"] = true
+						cfg["harness_fetch_path"] = hunt.HarnessFetchURL(hash)
+						cfg["harness_publish_note"] = "catalog metadata-stable hash; kept coordinator bind (local clang rebuild differed)"
+						return nil
+					}
 					return fmt.Errorf("hunt harness sync: harness_hash %s already bound to different binary (coordinator %s != local %s)", hash, remoteSHA, localSHA)
 				}
 			}
