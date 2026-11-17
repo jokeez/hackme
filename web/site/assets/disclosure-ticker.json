@@ -1,27 +1,27 @@
 {
-  "updated": "2026-11-17T16:15:00Z",
+  "updated": "2026-11-17T16:30:00Z",
   "interval_ms": 6200,
   "pool_poll_ms": 30000,
   "slides": [
     {
       "kind": "release",
-      "badge": "RC20",
-      "title": "0.1.0-rc20 LIVE \u2014 paid pool Dig/Hunt \u00b7 hub escrow",
-      "detail": "Paid Dig/Hunt on hub prepaid \u00b7 authoritative reports \u00b7 signed latest.json (ed25519) \u00b7 verify SHA256SUMS. Installers: 0.1.0-rc20.",
+      "badge": "RC21",
+      "title": "0.1.0-rc21 LIVE — signed latest.json · OpenCL fail-closed",
+      "detail": "ed25519 latest.json.sig · security proxy harden · dirty-tree/NVRTC fail-closed · readiness gate · honest prepaid/D0. Stable 0.1.0 still open. Verify SHA256.",
       "cta": "Downloads",
       "href": "/downloads.html#start",
       "accent": "success",
       "stats": [
-        "rc20",
-        "Dig/Hunt",
-        "signed"
+        "rc21",
+        "signed",
+        "gates"
       ]
     },
     {
       "kind": "exchange",
       "badge": "D0",
-      "title": "Paper Exchange live \u2014 HMC spot \u00b7 pool oracle",
-      "detail": "exchange.hackme.tech paper soft-launch (D0) \u00b7 local node #exchange embeds the same desk",
+      "title": "Paper Exchange live — HMC spot · pool oracle",
+      "detail": "exchange.hackme.tech paper soft-launch (D0) · local node #exchange embeds the same desk",
       "cta": "Open desk",
       "href": "https://exchange.hackme.tech/",
       "accent": "cyan",
@@ -34,8 +34,8 @@
     {
       "kind": "release",
       "badge": "ECONOMICS V2",
-      "title": "Economics v2 live since #550,000 \u2014 stay on 0.1.0-rc20+",
-      "detail": "Live: block reward 0.1 HMC \u00b7 5% order burn \u00b7 SUP 0.002/block (cap 21,000) \u00b7 HMC- + 64-hex addresses (old ones keep working). Verify SHA256.",
+      "title": "Economics v2 live since #550,000 — stay on 0.1.0-rc21+",
+      "detail": "Live: block reward 0.1 HMC · 5% order burn · SUP 0.002/block (cap 21,000) · HMC- + 64-hex addresses (old ones keep working). Verify SHA256.",
       "cta": "Downloads",
       "href": "/downloads.html#start",
       "accent": "success",
@@ -49,7 +49,7 @@
       "kind": "product",
       "badge": "PACKAGES",
       "title": "Miner + Orders packages across distros",
-      "detail": "Ubuntu/Debian .deb \u00b7 Fedora rpm \u00b7 Arch pkg.tar.zst \u00b7 Docker (local build, HACKME_PROFILE=orders) \u00b7 secrets stay in your home dir",
+      "detail": "Ubuntu/Debian .deb · Fedora rpm · Arch pkg.tar.zst · Docker (local build, HACKME_PROFILE=orders) · secrets stay in your home dir",
       "cta": "Get packages",
       "href": "/downloads.html#start",
       "accent": "neon",
@@ -62,8 +62,8 @@
     {
       "kind": "product",
       "badge": "POOL",
-      "title": "Share-PPS \u00b7 verified shares at M/1024",
-      "detail": "Live pool: SHARE_STRICT pays verified share_nonces \u00b7 GH/s = blake3_pow_ghs (shares/wall)",
+      "title": "Share-PPS · verified shares at M/1024",
+      "detail": "Live pool: SHARE_STRICT pays verified share_nonces · GH/s = blake3_pow_ghs (shares/wall)",
       "cta": "Economics",
       "href": "/economics-model.html",
       "accent": "neon",
@@ -76,8 +76,8 @@
     {
       "kind": "product",
       "badge": "HUNT",
-      "title": "Coverage Hunt live \u2014 libFuzzer fleet \u00b7 AFL++ Deep",
-      "detail": "Engines on desktop; fleet auto-install \u00b7 prove/pay on edges \u00b7 rc20 hub prepaid Dig/Hunt",
+      "title": "Coverage Hunt live — libFuzzer fleet · AFL++ Deep",
+      "detail": "Engines on desktop; fleet auto-install · prove/pay on edges · rc20 hub prepaid Dig/Hunt",
       "cta": "Fuzz guide",
       "href": "/fuzz-guide.html",
       "accent": "neon",
@@ -91,7 +91,7 @@
       "kind": "pool",
       "badge": "Live pool",
       "title": "Official HMC pool",
-      "detail": "Live hashrate \u00b7 miners \u00b7 tip height",
+      "detail": "Live hashrate · miners · tip height",
       "cta": "Mine",
       "href": "/downloads.html#start",
       "accent": "cyan",

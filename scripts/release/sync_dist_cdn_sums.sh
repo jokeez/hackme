@@ -3,7 +3,7 @@
 # Per-release paths remain authoritative; root files are current-channel only.
 #
 #   bash scripts/release/sync_dist_cdn_sums.sh
-#   VERSION=0.1.0-rc20 bash scripts/release/sync_dist_cdn_sums.sh
+#   VERSION=0.1.0-rc21 bash scripts/release/sync_dist_cdn_sums.sh
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 VERSION="${VERSION:-$(tr -d ' \n\r' <"${ROOT}/scripts/release/CURRENT_VERSION" 2>/dev/null || true)}"

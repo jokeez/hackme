@@ -1,8 +1,8 @@
-# HackMe 0.1.0 stable — remaining blockers (post-rc20)
+# HackMe 0.1.0 stable — remaining blockers (post-rc21)
 
 **Verdict (2026-11-17):** **Not ready to tag `0.1.0` stable.** Ship **`0.1.0-rc21`** next (gates + honesty), then stable only after the blockers below clear.
 
-Channel today: `0.1.0-rc20` (`scripts/release/CURRENT_VERSION`).
+Channel today: `0.1.0-rc21` (`scripts/release/CURRENT_VERSION`).
 
 ## Fixed in this hardening pass (do not regress)
 
@@ -36,7 +36,7 @@ Channel today: `0.1.0-rc20` (`scripts/release/CURRENT_VERSION`).
 
 | Cut | When |
 |-----|------|
-| **`0.1.0-rc21`** | After this hardening is on `main` + Windows OpenCL rebuild verified in a full local release |
+| **`0.1.0-rc21`** | Shipping now (gates + honesty on `main`) |
 | **`0.1.0`** | After blockers 1–4 above; `HACKME_CLAIM_STABLE=1 bash scripts/tests/stable_readiness_gate.sh` must PASS (today it correctly FAILs) |
 
 Do **not** set `HACKME_CLAIM_STABLE=1` or tag `0.1.0` until the gate passes.

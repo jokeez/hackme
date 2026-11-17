@@ -1,6 +1,46 @@
 {
   "items": [
     {
+      "id": "2026-11-17-rc21",
+      "date": "2026-11-17",
+      "title": "0.1.0-rc21 — Signed latest.json · OpenCL fail-closed · readiness gate",
+      "summary": "Release honesty cut: ed25519-signed latest.json, security proxy harden, Windows OpenCL/NVRTC/dirty-tree fail-closed, honest prepaid/paper D0 UI, stable_readiness_gate, RELEASE_MANIFEST ISO honesty, CDN sums sync. Stable 0.1.0 still blocked (L1 sig default warn).",
+      "impact": "Install/upgrade to 0.1.0-rc21 for signed update channel + fail-closed GPU/release gates. Paid pool Dig/Hunt from rc20 unchanged. Miners keep share-PPS.",
+      "action": "Upgrade via Downloads / self-update / apt. Verify SHA256SUMS and latest.json.sig. Orders: bash start_hackme_orders.sh (Linux) or Orders profile (Windows). https://hackme.tech/downloads.html · Release notes: https://github.com/jokeez/hackme/blob/main/docs/releases/HACKME_0.1.0-rc21_RELEASE.md",
+      "tags": [
+        "announcement",
+        "release",
+        "rc21",
+        "security",
+        "updater"
+      ],
+      "status": "published",
+      "featured": true,
+      "social": {
+        "lead": "0.1.0-rc21 — signed latest.json, OpenCL fail-closed, readiness gate.",
+        "bullets": [
+          "ed25519 latest.json.sig on every cut",
+          "Windows OpenCL / NVRTC / dirty-tree fail-closed",
+          "Honest prepaid + paper D0 UI",
+          "stable_readiness_gate in full release",
+          "Upgrade to 0.1.0-rc21"
+        ],
+        "body": "**0.1.0-rc21 — release honesty**\n\n• Signed latest.json (+.sig)\n• OpenCL/NVRTC/dirty-tree fail-closed\n• Readiness gate · prepaid/D0 honesty\n\nDownloads: https://hackme.tech/downloads.html\nGitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc21",
+        "headline": "0.1.0-rc21 — signed latest.json LIVE",
+        "github": "https://github.com/jokeez/hackme"
+      },
+      "telegram": {
+        "headline": "0.1.0-rc21 — signed latest.json",
+        "body": "**HackMe 0.1.0-rc21 LIVE**\n\n• Signed latest.json\n• OpenCL fail-closed\n• Readiness gate\n\nhttps://hackme.tech/downloads.html"
+      },
+      "links": {
+        "news": "https://hackme.tech/news.html#2026-11-17-rc21",
+        "downloads": "https://hackme.tech/downloads.html",
+        "github": "https://github.com/jokeez/hackme/releases/tag/0.1.0-rc21",
+        "notes": "https://github.com/jokeez/hackme/blob/main/docs/releases/HACKME_0.1.0-rc21_RELEASE.md"
+      }
+    },
+    {
       "id": "2026-11-17-rc20",
       "date": "2026-11-17",
       "title": "0.1.0-rc20 — Paid pool Orders · hub escrow Dig/Hunt · authoritative reports",
@@ -15,7 +55,7 @@
         "release"
       ],
       "status": "published",
-      "featured": true,
+      "featured": false,
       "social": {
         "lead": "0.1.0-rc20 — paid pool Dig/Hunt with hub prepaid escrow and live hub reports.",
         "bullets": [
@@ -55,7 +95,7 @@
         "sup"
       ],
       "impact": "Nodes older than rc19 do not know the v2 rules. Installers for Windows (Setup/ZIP), Linux tar, deb, rpm, Arch, HackMe OS ISO and a Docker image built from the tarball; a separate HackMe Orders profile for customers (also beside a miner via HACKME_ORDERS_PORT=8081).",
-      "action": "Stay on 0.1.0-rc20 or newer (built-in updater keeps wallet, keys and .env; apt: sudo apt update && sudo apt install hackme-node). Check the dashboard shows 0.1.0-rc20 and note your long address. Downloads: https://hackme.tech/downloads.html · RFC: https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md",
+      "action": "Stay on 0.1.0-rc21 or newer (built-in updater keeps wallet, keys and .env; apt: sudo apt update && sudo apt install hackme-node). Check the dashboard shows 0.1.0-rc21 and note your long address. Downloads: https://hackme.tech/downloads.html · RFC: https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md",
       "status": "published",
       "featured": false,
       "social": {
@@ -145,7 +185,7 @@
       "id": "2026-10-31-rc18-1-orders-publish",
       "date": "2026-10-31",
       "title": "0.1.0-rc18.1 — Orders publish token · pool Dig/Hunt without admin",
-      "summary": "historical note — current channel is 0.1.0-rc20. Orders bundles ship a scoped pool.orders.token so Dig/Hunt campaigns can register on the public pool without a full coordinator admin key. Caps and rate limits apply; settle-pull is campaign-scoped; PoH attach and cancel stay admin-only. Blake3 share-PPS, CUDA/OpenCL, Win/Linux/deb/ISO, and B2B fuzzing CLI (hackme-fuzzing + hackme-fuzzing-build) continue from rc18.",
+      "summary": "historical note — current channel is 0.1.0-rc21. Orders bundles ship a scoped pool.orders.token so Dig/Hunt campaigns can register on the public pool without a full coordinator admin key. Caps and rate limits apply; settle-pull is campaign-scoped; PoH attach and cancel stay admin-only. Blake3 share-PPS, CUDA/OpenCL, Win/Linux/deb/ISO, and B2B fuzzing CLI (hackme-fuzzing + hackme-fuzzing-build) continue from rc18.",
       "impact": "Orders customers: upgrade to 0.1.0-rc18.1 Orders profile (Win Setup → Orders, Linux → bash start_hackme_orders.sh). pool.orders.token loads as HACKME_POOL_ORDERS_PUBLISH_TOKEN — not admin, not miner. Miners: same share-PPS path; no token change. Verify SHA256SUMS before install.",
       "action": "Downloads: https://hackme.tech/downloads.html · Orders: https://hackme.tech/orders.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc18.1 · Docs: https://github.com/jokeez/hackme/blob/main/docs/ORDERS_PUBLISH.md",
       "tags": [
@@ -254,7 +294,7 @@
       "date": "2026-10-26",
       "title": "0.1.0-rc18 — Blake3 share-PPS LIVE · CUDA/OpenCL · ISO channel",
       "summary": "0.1.0-rc18 introduced SHARE_STRICT share-PPS: verified Blake3 share_nonces (work % (M/1024) == 0) pay. Pool hashrate kind is blake3_pow_ghs (shares/wall). NVIDIA CUDA and AMD OpenCL Blake3 miners are supported (see BLAKE3_GPU_MATRIX). Dig/Hunt remain useful-work lanes; Hunt needs Linux+bwrap. Legacy soft-mode copy is retired. Superseded by 0.1.0-rc18.1 (Orders publish).",
-      "impact": "Historical release note — historical note — current channel is 0.1.0-rc20. Upgrade via Downloads / self-update / apt. Verify SHA256SUMS before install.",
+      "impact": "Historical release note — historical note — current channel is 0.1.0-rc21. Upgrade via Downloads / self-update / apt. Verify SHA256SUMS before install.",
       "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc18.1 · Economics: https://hackme.tech/economics-model.html",
       "tags": [
         "release",
@@ -364,7 +404,7 @@
       "date": "2026-10-15",
       "title": "0.1.0-rc17.3 LIVE — Miner | Orders installers · Linux Orders · full Win/Linux/deb/ISO",
       "summary": "Channel cut published: Windows Setup chooses Miner or B2B Orders; Linux tar/deb ship start_hackme_orders.sh + hackme-fuzzing; Hunt engine auto-install on Linux update; HTTPS pool allowlist includes corpus_delta; SHA256SUMS + HackMe OS ISO on hackme.tech and GitHub.",
-      "impact": "Historical release note — historical note — current channel is 0.1.0-rc20 (share-PPS). Upgrade via Downloads / self-update / apt. Verify SHA256SUMS before install. Orders customers: Win → Orders profile, Linux → bash start_hackme_orders.sh.",
+      "impact": "Historical release note — historical note — current channel is 0.1.0-rc21 (share-PPS). Upgrade via Downloads / self-update / apt. Verify SHA256SUMS before install. Orders customers: Win → Orders profile, Linux → bash start_hackme_orders.sh.",
       "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc17.3 · Orders path: https://hackme.tech/orders.html",
       "tags": [
         "release",
@@ -441,7 +481,7 @@
       "date": "2026-09-25",
       "title": "0.1.0-rc17.2 LIVE — Hunt deep-havoc v2.8 · full Win/Linux/ISO bundle",
       "summary": "Full channel cut: runtime + installers + ISO on 0.1.0-rc17.2. Hunt deep-havoc v2.8 (opt-in), deeper shard budgets, fuzz release/capability harden, workerpoh GPU_CHUNK honor.",
-      "impact": "Historical release note — historical note — current channel is 0.1.0-rc20 (share-PPS). Upgrade via downloads / self-update / apt. Verify SHA256SUMS before install. Legacy Hunt campaigns without havoc_deep_v28 keep prior replay bytes.",
+      "impact": "Historical release note — historical note — current channel is 0.1.0-rc21 (share-PPS). Upgrade via downloads / self-update / apt. Verify SHA256SUMS before install. Legacy Hunt campaigns without havoc_deep_v28 keep prior replay bytes.",
       "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc17.2"
     },
     {
@@ -449,7 +489,7 @@
       "date": "2026-09-22",
       "title": "0.1.0-rc17.2 — worker lifecycle + claim-identity hotpatch",
       "summary": "Runtime/UI channel bumped to 0.1.0-rc17.2: orphan lock reap, settlement Windows flock, escrow ErrNoRows honesty, hybrid claim pubkey required. Superseded by 0.1.0-rc17.2 full bundle (2026-09-25).",
-      "impact": "Historical release note — historical note — current channel is 0.1.0-rc20 (share-PPS). Hub/source builds report 0.1.0-rc17.2. Superseded: installers/ISO now on 0.1.0-rc17.2.",
+      "impact": "Historical release note — historical note — current channel is 0.1.0-rc21 (share-PPS). Hub/source builds report 0.1.0-rc17.2. Superseded: installers/ISO now on 0.1.0-rc17.2.",
       "action": "Channel notes: https://hackme.tech/downloads.html · Bug bounty: https://github.com/jokeez/hackme/blob/main/docs/BUG_BOUNTY.md",
       "tags": [
         "release",
@@ -484,7 +524,7 @@
       "date": "2026-09-15",
       "title": "0.1.0-rc17 LIVE — paper Exchange · SUP · Hunt · Dig · installers published",
       "summary": "rc17 download channel is live: Windows installer, Linux tarball, signed apt deb, Dig/Hunt fuzz CLI, and HackMe OS ISO with SHA256SUMS. Paper Exchange desk on exchange.hackme.tech; hub #exchange + SUP activity on the public pool. Hunt Watch 12/12 ledger published.",
-      "impact": "Historical release note — historical note — current channel is 0.1.0-rc20 (share-PPS). Miners and operators should verify SHA256SUMS before upgrade. Installers now resolve to 0.1.0-rc17 (supersedes rc16 as published channel). Hub runtime already on rc17 from cutover.",
+      "impact": "Historical release note — historical note — current channel is 0.1.0-rc21 (share-PPS). Miners and operators should verify SHA256SUMS before upgrade. Installers now resolve to 0.1.0-rc17 (supersedes rc16 as published channel). Hub runtime already on rc17 from cutover.",
       "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc17 · Exchange: https://exchange.hackme.tech/ · Hunt ledger: https://hackme.tech/reports/hunt-watch-2026sep/",
       "tags": [
         "release",
@@ -561,7 +601,7 @@
       "date": "2026-09-14",
       "title": "0.1.0-rc17 — cutover channel (superseded — installers now on rc17)",
       "summary": "Historical cutover-day note (2026-09-14): hub UI bumped to rc17 for paper Exchange desk (D0), SUP wallet send/activity routes, Hunt ASAN escrow pool, Dig customer-first. Superseded: installers are now published on 0.1.0-rc17 (see 2026-09-15 LIVE release).",
-      "impact": "Historical release note — historical note — current channel is 0.1.0-rc20 (share-PPS). Installers now resolve to 0.1.0-rc17 — upgrade via downloads / self-update / apt. This item records the cutover window only; do not stay on rc16.",
+      "impact": "Historical release note — historical note — current channel is 0.1.0-rc21 (share-PPS). Installers now resolve to 0.1.0-rc17 — upgrade via downloads / self-update / apt. This item records the cutover window only; do not stay on rc16.",
       "action": "Downloads: https://hackme.tech/downloads.html · GitHub: https://github.com/jokeez/hackme/releases/tag/0.1.0-rc17 · Cutover plan (historical): https://github.com/jokeez/hackme/blob/feature/hunt-mvp/docs/RC17_CUTOVER.md",
       "tags": [
         "release",
