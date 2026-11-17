@@ -34,6 +34,8 @@ func (a *app) handleOrdersPoolAPI(w http.ResponseWriter, r *http.Request) {
 		a.handleOrdersPoolFundConfirm(w, r)
 	case path == "cancel" && r.Method == http.MethodPost:
 		a.handleOrdersPoolCancel(w, r)
+	case path == "finalize" && r.Method == http.MethodPost:
+		a.handleOrdersPoolFinalize(w, r)
 	case path == "prepaid" && r.Method == http.MethodGet:
 		a.handleOrdersPoolPrepaidStatus(w, r)
 	default:
@@ -111,6 +113,9 @@ func (a *app) handleOrdersPoolFundConfirm(w http.ResponseWriter, r *http.Request
 	}
 	owner, ok := a.requireOrdersPoolPublishAuth(w, r)
 	if !ok {
+		return
+	}
+	if !a.requireOrdersPoolOwnerProof(w, r, owner) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
@@ -237,12 +242,10 @@ func (a *app) ordersPoolHubCapable() bool {
 	if a == nil || a.chain == nil {
 		return false
 	}
-	if poolsync.OrdersPrepaidHubSecret() == "" {
+	// Explicit minting-hub role only — a leaked prepaid secret on a customer node
+	// must not enable hub Dig/Hunt handlers.
+	if !envBool("HACKME_CHAIN_MINTING_HUB", false) {
 		return false
-	}
-	// Prefer explicit minting hub; also allow when prepaid secret is set on this node.
-	if envBool("HACKME_CHAIN_MINTING_HUB", false) {
-		return true
 	}
 	return poolsync.OrdersPrepaidHubSecret() != ""
 }
@@ -382,20 +385,20 @@ func (a *app) handleOrdersPoolCancel(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusForbidden, "owner_mismatch", "campaign owner_ref does not match Owner-Ref", nil)
 		return
 	}
-	now := time.Now().Unix()
-	_, _ = a.db.ExecContext(r.Context(),
-		`UPDATE fuzz_campaigns SET status='cancelled',
-		 completed_at=CASE WHEN completed_at=0 THEN ? ELSE completed_at END WHERE id=?`,
-		now, campaignID)
-
-	// Stop miners on coordinator (admin path — publish token cannot cancel).
+	// Stop miners first — do not mark cancelled until coordinator accepts.
 	if cerr := a.pushCoordinatorCampaignStatus(r.Context(), campaignID, "cancelled"); cerr != nil {
 		writeAPIError(w, http.StatusBadGateway, "pool_cancel_failed",
 			"coordinator cancel failed: "+cerr.Error(), nil)
 		return
 	}
-	// Pull settle then refund unused escrow to tenant prepaid.
+	// Pull settle then refund unused escrow to tenant prepaid (authoritative money path).
 	a.tryCloseFuzzEscrowForStatus(r.Context(), campaignID, "cancelled")
+
+	now := time.Now().Unix()
+	_, _ = a.db.ExecContext(r.Context(),
+		`UPDATE fuzz_campaigns SET status='cancelled',
+		 completed_at=CASE WHEN completed_at=0 THEN ? ELSE completed_at END WHERE id=?`,
+		now, campaignID)
 
 	prepaid, _ := a.chain.GetOrdersPrepaidHMC(r.Context(), owner)
 	escrow, _ := a.chain.GetFuzzEscrow(r.Context(), campaignID)
@@ -403,6 +406,65 @@ func (a *app) handleOrdersPoolCancel(w http.ResponseWriter, r *http.Request) {
 		"ok":            true,
 		"campaign_id":   campaignID,
 		"status":        "cancelled",
+		"hub_pool":      true,
+		"spendable_hmc": prepaid,
+		"escrow":        escrow,
+	})
+}
+
+func (a *app) handleOrdersPoolFinalize(w http.ResponseWriter, r *http.Request) {
+	if !a.allowRate("orders_pool_finalize:"+clientIP(r), 10) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
+		return
+	}
+	owner, ok := a.requireOrdersPoolPublishAuth(w, r)
+	if !ok {
+		return
+	}
+	if !a.requireOrdersPoolOwnerProof(w, r, owner) {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
+	defer r.Body.Close()
+	var req struct {
+		CampaignID string `json:"campaign_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid_json", "invalid json", nil)
+		return
+	}
+	campaignID := cleanFuzzID(strings.TrimSpace(req.CampaignID), "campaign")
+	if campaignID == "" {
+		writeAPIError(w, http.StatusBadRequest, "campaign_id_required", "campaign_id required", nil)
+		return
+	}
+	c, err := a.getFuzzCampaign(r.Context(), campaignID)
+	if err != nil {
+		writeAPIError(w, http.StatusNotFound, "campaign_not_found", "campaign not found", nil)
+		return
+	}
+	campOwner := chain.OrdersPrepaidNormalizeAddr(strings.TrimSpace(c.OwnerRef))
+	if campOwner == "" || campOwner != owner {
+		writeAPIError(w, http.StatusForbidden, "owner_mismatch", "campaign owner_ref does not match Owner-Ref", nil)
+		return
+	}
+	if cerr := a.pushCoordinatorCampaignStatus(r.Context(), campaignID, "completed"); cerr != nil {
+		writeAPIError(w, http.StatusBadGateway, "pool_finalize_failed",
+			"coordinator complete failed: "+cerr.Error(), nil)
+		return
+	}
+	a.tryCloseFuzzEscrowForStatus(r.Context(), campaignID, "completed")
+	now := time.Now().Unix()
+	_, _ = a.db.ExecContext(r.Context(),
+		`UPDATE fuzz_campaigns SET status='completed',
+		 completed_at=CASE WHEN completed_at=0 THEN ? ELSE completed_at END WHERE id=?`,
+		now, campaignID)
+	prepaid, _ := a.chain.GetOrdersPrepaidHMC(r.Context(), owner)
+	escrow, _ := a.chain.GetFuzzEscrow(r.Context(), campaignID)
+	writeJSON(w, map[string]any{
+		"ok":            true,
+		"campaign_id":   campaignID,
+		"status":        "completed",
 		"hub_pool":      true,
 		"spendable_hmc": prepaid,
 		"escrow":        escrow,

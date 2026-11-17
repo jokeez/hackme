@@ -161,11 +161,10 @@ func (a *app) serveHuntCampaignCreatePoolHub(w http.ResponseWriter, r *http.Requ
 		writeAPIError(w, http.StatusBadRequest, "invalid_json", "invalid json", nil)
 		return
 	}
-	// Customer-local filesystem paths are not on the hub; require catalog or published harness.
-	if req.Repo != nil && strings.TrimSpace(req.Repo.Path) != "" && !req.Catalog &&
-		strings.TrimSpace(req.HarnessHash) == "" {
+	// Customer-local filesystem paths are never valid on the hub (even with a dummy harness_hash).
+	if req.Repo != nil && strings.TrimSpace(req.Repo.Path) != "" && !req.Catalog {
 		writeAPIError(w, http.StatusBadRequest, "hub_local_repo_unsupported",
-			"hub pool Hunt cannot PinRepo a customer-local path — use catalog:true + target_id, or publish harness_hash first", nil)
+			"hub pool Hunt cannot PinRepo a customer-local path — use catalog:true + target_id, or attach via harness_hash without repo.path", nil)
 		return
 	}
 	req.PoolDistributed = true

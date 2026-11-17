@@ -1892,14 +1892,21 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 	// rc20: when Orders points at the public hub, Start budget is hub tenant prepaid.
 	if ordersHubURL() != "" {
 		hubCtx, hubCancel := context.WithTimeout(ctx, 8*time.Second)
-		if hubHMC, hubErr := a.fetchHubOrdersPrepaidHMC(hubCtx); hubErr == nil {
+		hubHMC, hubErr := a.fetchHubOrdersPrepaidHMC(hubCtx)
+		hubCancel()
+		if hubErr == nil {
 			ordersSpendableHMC = hubHMC
 			ordersSpendableUnits = chain.HMCToUnits(hubHMC)
 			ordersSpendableSource = "hub_prepaid"
 			ordersSpendableNote = "Available to start = hub prepaid (Fund Orders on hackme.tech). " +
 				"Local mirror is not the pool Start balance. Unused escrow refunds to hub prepaid."
+		} else {
+			// Fail closed for Start: do not imply local mirror can pay hub pool Dig/Hunt.
+			ordersSpendableHMC = 0
+			ordersSpendableUnits = 0
+			ordersSpendableSource = "hub_prepaid_unavailable"
+			ordersSpendableNote = "Hub prepaid unreachable — Fund/Start blocked until HACKME_ORDERS_HUB_URL answers. " + hubErr.Error()
 		}
-		hubCancel()
 	}
 	out := map[string]any{
 		"address":                            displayAddr,

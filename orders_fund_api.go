@@ -190,36 +190,11 @@ func (a *app) fundOrdersSpendable(ctx context.Context, amountHMC float64) (*orde
 		out.Pending = true
 		return out, nil
 	}
-	res, err := a.chain.CreditOrdersFund(ctx, from, txHash, amountUnits)
+	credited, err := a.creditOrdersFundAfterIncluded(ctx, from, txHash, amountUnits, amountHMC)
 	if err != nil {
-		return nil, &ordersAutoFundError{
-			HTTPStatus: http.StatusInternalServerError,
-			Code:       "fund_credit_failed",
-			Msg:        err.Error(),
-			Extra:      map[string]any{"tx_hash": txHash},
-		}
+		return nil, err
 	}
-	// rc20: pool Dig debits hub tenant prepaid — mirror credit on hub after local spendable.
-	if hubErr := a.confirmOrdersFundOnHub(ctx, txHash, amountUnits); hubErr != nil {
-		return nil, &ordersAutoFundError{
-			HTTPStatus: http.StatusBadGateway,
-			Code:       "hub_fund_confirm_failed",
-			Msg:        "local spendable credited but hub prepaid confirm failed: " + hubErr.Error(),
-			Extra:      map[string]any{"tx_hash": txHash, "funded_local": res},
-		}
-	}
-	// When this node IS the minting hub, also credit tenant prepaid for the owner.
-	if a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false) {
-		if _, herr := a.chain.CreditOrdersFundForOwner(ctx, from, txHash, amountUnits); herr != nil {
-			return nil, &ordersAutoFundError{
-				HTTPStatus: http.StatusInternalServerError,
-				Code:       "hub_prepaid_credit_failed",
-				Msg:        herr.Error(),
-				Extra:      map[string]any{"tx_hash": txHash},
-			}
-		}
-	}
-	out.Funded = res
+	out.Funded = credited.Funded
 	return out, nil
 }
 
@@ -317,24 +292,47 @@ func (a *app) handleOrdersFundConfirm(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	res, err := a.chain.CreditOrdersFund(r.Context(), from, txHash, amountUnits)
+	amountHMC := chain.UnitsToHMC(amountUnits)
+	if v, ok := row["amount_hmc"].(float64); ok && v > 0 {
+		amountHMC = v
+	}
+	out, err := a.creditOrdersFundAfterIncluded(r.Context(), from, txHash, amountUnits, amountHMC)
 	if err != nil {
-		writeAPIError(w, http.StatusBadRequest, "fund_credit_failed", err.Error(), map[string]any{"tx_hash": txHash})
+		writeOrdersAutoFundFailed(w, err)
 		return
 	}
-	if hubErr := a.confirmOrdersFundOnHub(r.Context(), txHash, amountUnits); hubErr != nil {
-		writeAPIError(w, http.StatusBadGateway, "hub_fund_confirm_failed",
-			"local spendable credited but hub prepaid confirm failed: "+hubErr.Error(),
-			map[string]any{"tx_hash": txHash, "funded_local": res})
-		return
+	writeJSON(w, map[string]any{"ok": true, "funded": out.Funded, "tx_hash": txHash, "on_chain": row})
+}
+
+// creditOrdersFundAfterIncluded applies the single-credit Fund policy (hub prepaid XOR local).
+func (a *app) creditOrdersFundAfterIncluded(ctx context.Context, from, txHash string, amountUnits uint64, amountHMC float64) (*ordersFundOutcome, error) {
+	if amountHMC <= 0 {
+		amountHMC = chain.UnitsToHMC(amountUnits)
 	}
-	if a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false) {
-		if _, herr := a.chain.CreditOrdersFundForOwner(r.Context(), from, txHash, amountUnits); herr != nil {
-			writeAPIError(w, http.StatusBadRequest, "hub_prepaid_credit_failed", herr.Error(), map[string]any{"tx_hash": txHash})
-			return
+	out := &ordersFundOutcome{TxHash: txHash, AmountHMC: amountHMC, AmountUnits: amountUnits}
+	mintingHub := a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false)
+	hubURL := ordersHubURL()
+	switch {
+	case mintingHub:
+		res, err := a.chain.CreditOrdersFundForOwner(ctx, from, txHash, amountUnits)
+		if err != nil {
+			return nil, &ordersAutoFundError{HTTPStatus: http.StatusBadRequest, Code: "hub_prepaid_credit_failed", Msg: err.Error(), Extra: map[string]any{"tx_hash": txHash}}
 		}
+		out.Funded = res
+	case hubURL != "":
+		if hubErr := a.confirmOrdersFundOnHub(ctx, txHash, amountUnits); hubErr != nil {
+			return nil, &ordersAutoFundError{HTTPStatus: http.StatusBadGateway, Code: "hub_fund_confirm_failed", Msg: hubErr.Error(), Extra: map[string]any{"tx_hash": txHash}}
+		}
+		hmc, _ := a.fetchHubOrdersPrepaidHMC(ctx)
+		out.Funded = &chain.OrdersFundResult{TxHash: txHash, AmountHMC: amountHMC, AmountUnits: amountUnits, SpendableAfter: hmc, FromAddress: from}
+	default:
+		res, err := a.chain.CreditOrdersFund(ctx, from, txHash, amountUnits)
+		if err != nil {
+			return nil, &ordersAutoFundError{HTTPStatus: http.StatusBadRequest, Code: "fund_credit_failed", Msg: err.Error(), Extra: map[string]any{"tx_hash": txHash}}
+		}
+		out.Funded = res
 	}
-	writeJSON(w, map[string]any{"ok": true, "funded": res, "tx_hash": txHash, "on_chain": row})
+	return out, nil
 }
 
 func (a *app) handleOrdersFundStatus(w http.ResponseWriter, r *http.Request, txHash string) {

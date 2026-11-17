@@ -40,8 +40,9 @@ func TestOrdersPoolFundConfirmAuthAndCredit(t *testing.T) {
 	req.Header.Set("X-Hackme-Orders-Owner-Ref", owner)
 	rec := httptest.NewRecorder()
 	a.handleOrdersPoolAPI(rec, req)
-	if rec.Code == http.StatusUnauthorized {
-		t.Fatalf("auth should pass, got %d %s", rec.Code, rec.Body.String())
+	// Publish token alone is not enough — owner proof required to credit prepaid.
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("want owner_proof_required without proof, got %d %s", rec.Code, rec.Body.String())
 	}
 
 	req2 := httptest.NewRequest(http.MethodPost, "/api/orders/pool/fund/confirm", bytes.NewReader(body))

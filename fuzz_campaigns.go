@@ -1029,6 +1029,27 @@ func (a *app) handleFuzzCampaignStatus(w http.ResponseWriter, r *http.Request, c
 		writeAPIError(w, http.StatusBadRequest, "invalid_status", "status must be planned|running|paused|completed|cancelled", nil)
 		return
 	}
+	// hub_pool mirrors: close authoritative hub escrow before flipping local status.
+	if status == "cancelled" || status == "completed" {
+		var cfgRaw string
+		if err := a.db.QueryRowContext(r.Context(), `SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgRaw); err == nil {
+			cfg := parseMapJSON(cfgRaw)
+			if hubPoolCampaign(cfg) && !(a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false)) {
+				var hubErr error
+				if status == "cancelled" {
+					_, hubErr = a.cancelHubPoolCampaign(r.Context(), campaignID)
+				} else {
+					_, hubErr = a.finalizeHubPoolCampaign(r.Context(), campaignID)
+				}
+				if hubErr != nil {
+					writeAPIError(w, http.StatusBadGateway, "hub_pool_close_failed", hubErr.Error(), map[string]any{
+						"campaign_id": campaignID, "status": status,
+					})
+					return
+				}
+			}
+		}
+	}
 	now := time.Now().Unix()
 	res, err := a.db.ExecContext(r.Context(),
 		`UPDATE fuzz_campaigns
@@ -1108,9 +1129,14 @@ func (a *app) tryCloseFuzzEscrowForStatus(ctx context.Context, campaignID, statu
 		if err := a.db.QueryRowContext(ctx, `SELECT COALESCE(config_json,'{}') FROM fuzz_campaigns WHERE id=?`, campaignID).Scan(&cfgRaw); err == nil {
 			cfg := parseMapJSON(cfgRaw)
 			if hubPoolCampaign(cfg) && !(a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false)) {
+				// Status API already proxied cancel/finalize; keep this as a safety net only.
 				if status == "cancelled" {
 					if _, err := a.cancelHubPoolCampaign(ctx, campaignID); err != nil {
 						log.Printf("fuzz escrow: hub pool cancel %s failed: %s", logsafe.ID(campaignID), logsafe.Err(err))
+					}
+				} else if status == "completed" {
+					if _, err := a.finalizeHubPoolCampaign(ctx, campaignID); err != nil {
+						log.Printf("fuzz escrow: hub pool finalize %s failed: %s", logsafe.ID(campaignID), logsafe.Err(err))
 					}
 				}
 				return

@@ -239,14 +239,12 @@ func (a *app) mirrorHubPoolCampaignLocal(ctx context.Context, hubJSON []byte) er
 	return nil
 }
 
-// cancelHubPoolCampaign asks the hub to stop miners and refund unused escrow to prepaid.
-func (a *app) cancelHubPoolCampaign(ctx context.Context, campaignID string) (map[string]any, error) {
+func (a *app) postHubPoolCampaignAction(ctx context.Context, action, campaignID string) (map[string]any, error) {
 	base := ordersHubURL()
 	if base == "" {
 		return nil, fmt.Errorf("HACKME_ORDERS_HUB_URL not set")
 	}
 	if a.ordersPoolHubCapable() && envBool("HACKME_CHAIN_MINTING_HUB", false) {
-		// Already on hub — local cancel path handles escrow.
 		return nil, nil
 	}
 	hdr, err := a.customerPoolAuthHeaders()
@@ -256,14 +254,14 @@ func (a *app) cancelHubPoolCampaign(ctx context.Context, campaignID string) (map
 	body, _ := json.Marshal(map[string]any{"campaign_id": campaignID})
 	reqCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
-	httpReq, err := http.NewRequestWithContext(reqCtx, http.MethodPost, base+"/api/orders/pool/cancel", bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(reqCtx, http.MethodPost, base+"/api/orders/pool/"+action, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	httpReq.Header = hdr
 	resp, err := netutil.HTTPClientNoRedirect(90 * time.Second).Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("hub cancel unreachable: %w", err)
+		return nil, fmt.Errorf("hub %s unreachable: %w", action, err)
 	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
@@ -277,11 +275,21 @@ func (a *app) cancelHubPoolCampaign(ctx context.Context, campaignID string) (map
 			}
 		}
 		if msg == "" {
-			msg = fmt.Sprintf("hub cancel HTTP %d", resp.StatusCode)
+			msg = fmt.Sprintf("hub %s HTTP %d", action, resp.StatusCode)
 		}
 		return parsed, fmt.Errorf("%s", msg)
 	}
 	return parsed, nil
+}
+
+// cancelHubPoolCampaign asks the hub to stop miners and refund unused escrow to prepaid.
+func (a *app) cancelHubPoolCampaign(ctx context.Context, campaignID string) (map[string]any, error) {
+	return a.postHubPoolCampaignAction(ctx, "cancel", campaignID)
+}
+
+// finalizeHubPoolCampaign asks the hub to finalize escrow after budget/work completes.
+func (a *app) finalizeHubPoolCampaign(ctx context.Context, campaignID string) (map[string]any, error) {
+	return a.postHubPoolCampaignAction(ctx, "finalize", campaignID)
 }
 
 // fetchHubOrdersPrepaidHMC reads authoritative tenant prepaid from the hub (rc20 UI).
