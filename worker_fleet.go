@@ -103,9 +103,9 @@ func startWorkerFleetProcesses(repoRoot, coordURL, coordToken, workerBase string
 				slotBatch = x
 			}
 		}
+		// Token via COORD_TOKEN env only — never argv (CWE-214 /proc cmdline).
 		args := []string{
 			"-coord", coordURL,
-			"-token", coordToken,
 			"-worker", wid,
 			"-batch", strconv.FormatUint(slotBatch, 10),
 			"-gpu-backend", slot.Backend,
@@ -116,6 +116,9 @@ func startWorkerFleetProcesses(repoRoot, coordURL, coordToken, workerBase string
 		cmd.Stderr = logF
 		env := append([]string{}, os.Environ()...)
 		env = append(env, extraEnv...)
+		if strings.TrimSpace(coordToken) != "" {
+			env = append(env, "COORD_TOKEN="+coordToken, "COORD_ADMIN_TOKEN="+coordToken)
+		}
 		for k, v := range slot.Env {
 			env = append(env, k+"="+v)
 		}

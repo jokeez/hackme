@@ -2964,9 +2964,9 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 				})
 				return
 			}
+			// Token via COORD_TOKEN in workerEnv only — never argv (CWE-214 /proc cmdline).
 			wpArgs := []string{
 				"-coord", coordURL,
-				"-token", coordToken,
 				"-worker", workerID,
 				"-batch", strconv.FormatUint(batchSize, 10),
 			}
@@ -3068,9 +3068,10 @@ func (a *app) handleWorkerStart(w http.ResponseWriter, r *http.Request) {
 				})
 				return
 			}
+			// Token via COORD_TOKEN in workerEnv only — never argv (CWE-214 /proc cmdline;
+			// fimasw incomplete-fix sibling of hybrid_fuzz.go).
 			wpArgs := []string{
 				"-coord", coordURL,
-				"-token", coordToken,
 				"-worker", workerID,
 				"-batch", strconv.FormatUint(batchSize, 10),
 			}
