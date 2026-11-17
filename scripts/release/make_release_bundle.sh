@@ -15,6 +15,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
+# Dirty-tree / origin/main gate (rc19 shipped vcs.modified binaries). Throwaway: ALLOW_DIRTY_RELEASE=1.
+bash "${ROOT_DIR}/scripts/release/assert_clean_release_tree.sh"
+
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
     echo "[release] missing command: $1" >&2
@@ -68,13 +71,6 @@ GOOS=linux GOARCH="${LINUX_ARCH}" CGO_ENABLED="${CGO_ENABLED}" \
 GOOS=windows GOARCH="${WIN_ARCH}" CGO_ENABLED="${CGO_ENABLED}" \
   go build -trimpath -buildvcs=true -ldflags "${LDFLAGS}" -o "${WIN_DIR}/workerpoh.exe" ./cmd/workerpoh
 
-# Windows OpenCL worker (AMD RX 580 etc.): docker mingw or host mingw when available.
-if [[ -x "${ROOT_DIR}/scripts/release/windows/build_workerpoh_opencl.sh" ]] && command -v docker >/dev/null 2>&1; then
-  if [[ ! -f "${WIN_DIR}/workerpoh-opencl.exe" ]]; then
-    bash "${ROOT_DIR}/scripts/release/windows/build_workerpoh_opencl.sh" "${WIN_DIR}/workerpoh-opencl.exe" || \
-      echo "[release] WARN: workerpoh-opencl.exe build failed" >&2
-  fi
-fi
 # Prefer shipping a freshly built GPU worker. Only fall back to bin/ when the
 # fresh build is absent AND bin/ passes marker checks (never silently keep a
 # stale LINUX_DIR leftover from a previous release dir).
@@ -113,7 +109,7 @@ assert_worker_fresh() {
   local bin="$1"
   assert_bin_markers "$bin" "-hackme-wasm-validate" "share_scan_max" || return 1
   if command -v go >/dev/null 2>&1; then
-    local vcs
+    local vcs modified
     # go version -m lines look like: $'\t'build$'\t'vcs.revision=<hash>
     vcs="$(go version -m "$bin" 2>/dev/null | sed -n 's/.*vcs\.revision=//p' | head -n1 | tr -d '[:space:]')"
     if [[ -n "$vcs" && -n "${COMMIT_SHA}" && "${COMMIT_SHA}" != "nogit" ]]; then
@@ -122,6 +118,12 @@ assert_worker_fresh() {
         echo "[release] ERROR: $bin vcs.revision=${vcs} != build COMMIT_SHA=${COMMIT_SHA}" >&2
         return 1
       fi
+    fi
+    # Refuse binaries built from a dirty tree (rc19 incident).
+    modified="$(go version -m "$bin" 2>/dev/null | sed -n 's/.*vcs\.modified=//p' | head -n1 | tr -d '[:space:]')"
+    if [[ "$modified" == "true" && "${ALLOW_DIRTY_RELEASE:-0}" != "1" ]]; then
+      echo "[release] ERROR: $bin has vcs.modified=true — commit first or ALLOW_DIRTY_RELEASE=1 for throwaway" >&2
+      return 1
     fi
   fi
   return 0
@@ -149,10 +151,17 @@ if [[ "${CGO_ENABLED}" == "1" ]] && (pkg-config --exists OpenCL 2>/dev/null || [
   elif command -v docker >/dev/null 2>&1 && [[ -f "${ROOT_DIR}/scripts/release/windows/build_workerpoh_opencl.sh" ]]; then
     echo "[release] building workerpoh-opencl.exe (docker mingw)"
     rm -f "${WIN_DIR}/workerpoh-opencl.exe"
-    bash "${ROOT_DIR}/scripts/release/windows/build_workerpoh_opencl.sh" "${WIN_DIR}/workerpoh-opencl.exe" || \
-      echo "[release] WARN: workerpoh-opencl.exe docker build failed" >&2
+    if ! bash "${ROOT_DIR}/scripts/release/windows/build_workerpoh_opencl.sh" "${WIN_DIR}/workerpoh-opencl.exe"; then
+      echo "[release] ERROR: workerpoh-opencl.exe docker build failed" >&2
+      exit 1
+    fi
   else
-    echo "[release] WARN: skip workerpoh-opencl.exe (install mingw-w64 or docker for Windows OpenCL build)" >&2
+    echo "[release] ERROR: cannot build workerpoh-opencl.exe (install mingw-w64 or docker)" >&2
+    exit 1
+  fi
+  if [[ ! -f "${WIN_DIR}/workerpoh-opencl.exe" ]]; then
+    echo "[release] ERROR: workerpoh-opencl.exe missing after Windows OpenCL build" >&2
+    exit 1
   fi
 elif [[ "${CGO_ENABLED}" == "1" ]]; then
   echo "[release] ERROR: CGO_ENABLED=1 but OpenCL headers/ICD not found — cannot ship AMD workerpoh-opencl" >&2
@@ -187,9 +196,11 @@ else
   echo "[release] ERROR: linux workerpoh-opencl missing after OpenCL build step" >&2
   exit 1
 fi
-if [[ -f "${WIN_DIR}/workerpoh-opencl.exe" ]]; then
-  assert_bin_markers "${WIN_DIR}/workerpoh-opencl.exe" "-hackme-wasm-validate" "share_scan_max" || exit 1
+if [[ ! -f "${WIN_DIR}/workerpoh-opencl.exe" ]]; then
+  echo "[release] ERROR: workerpoh-opencl.exe missing — Windows AMD OpenCL miners need it in the bundle" >&2
+  exit 1
 fi
+assert_bin_markers "${WIN_DIR}/workerpoh-opencl.exe" "-hackme-wasm-validate" "share_scan_max" || exit 1
 assert_bin_markers "${WIN_DIR}/workerpoh.exe" "-hackme-wasm-validate" "share_scan_max" || exit 1
 assert_bin_markers "${LINUX_DIR}/workerpoh" "share_mod" || exit 1
 
@@ -212,7 +223,8 @@ done
 if [[ -e "${LINUX_DIR}/lib/libnvrtc.so.12" || -e "${LINUX_DIR}/lib/libnvrtc.so" ]]; then
   echo "[release] NVRTC libs: $(ls "${LINUX_DIR}/lib"/libnvrtc*.so* 2>/dev/null | wc -l) files"
 else
-  echo "[release] WARN: libnvrtc.so.12 not bundled — workerpoh-cuda may fail without system NVRTC" >&2
+  echo "[release] ERROR: libnvrtc.so.12 not bundled — NVIDIA miners need NVRTC next to workerpoh-cuda" >&2
+  exit 1
 fi
 unset _nvrtc_src
 

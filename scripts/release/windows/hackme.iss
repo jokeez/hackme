@@ -95,7 +95,8 @@ Name: "toolchains"; Description: "{cm:TaskToolchains}"; GroupDescription: "{cm:G
 [Files]
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\workerpoh.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\..\dist\release_{#MyAppVersion}\windows\workerpoh-opencl.exe"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+; OpenCL worker REQUIRED (AMD) — release bundle fails closed if missing; do not skip.
+Source: "..\..\..\dist\release_{#MyAppVersion}\windows\workerpoh-opencl.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\..\dist\release_{#MyAppVersion}\windows\workerpoh-cuda.exe"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 ; Hybrid Dig process-mode + dedicated diggers — REQUIRED (no skipifsourcedoesntexist:
 ; silent omit broke Dig OOTB on Setup while ZIP still had the binary).
