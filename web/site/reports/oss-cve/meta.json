@@ -4,7 +4,7 @@
   "cve_candidates": [],
   "informational_targets": [],
   "clean_targets": [
-    "cyaml"
+    "microtar"
   ],
   "hold_disclosure": [
     "centijson",
@@ -30,8 +30,8 @@
     "gpslib",
     "jes"
   ],
-  "wave": "cyaml",
-  "started_at": "2026-11-16T10:22:39Z",
-  "finished_at": "2026-11-16T11:23:03Z",
+  "wave": "microtar",
+  "started_at": "2026-11-17T06:26:09Z",
+  "finished_at": "2026-11-17T07:02:27Z",
   "publish_allowed": true
 }
