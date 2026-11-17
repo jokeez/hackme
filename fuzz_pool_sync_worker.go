@@ -225,7 +225,7 @@ func (a *app) runPoolSyncJob(job poolSyncJob) {
 		a.poolSyncMarkFailed(job.campaign.ID, prepErr)
 		return
 	}
-res, err := poolsync.RegisterWithRetryResult(ctx, req)
+	res, err := poolsync.RegisterWithRetryResult(ctx, req)
 	if err != nil {
 		log.Printf("pool sync: campaign %s failed after retries: %v", logsafe.ID(job.campaign.ID), err)
 		a.poolSyncMarkFailed(job.campaign.ID, err)

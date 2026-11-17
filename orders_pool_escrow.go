@@ -290,7 +290,7 @@ func (a *app) handleOrdersPoolEscrow(w http.ResponseWriter, r *http.Request) {
 	rec := httptest.NewRecorder()
 	inner := httptest.NewRequest(http.MethodPost, "/api/security-audit", bytes.NewReader(nil)).WithContext(ctx)
 	inner.RemoteAddr = r.RemoteAddr
-	a.serveSecurityAudit(rec, inner, audit)
+	a.serveSecurityAudit(rec, inner, audit, req.Owner)
 	res := rec.Result()
 	defer res.Body.Close()
 	out, _ := io.ReadAll(res.Body)

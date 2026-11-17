@@ -1201,7 +1201,6 @@ func (a *app) tryCloseFuzzEscrowForStatus(ctx context.Context, campaignID, statu
 	}
 }
 
-
 func hubPoolCampaign(cfg map[string]any) bool {
 	if cfg == nil {
 		return false
