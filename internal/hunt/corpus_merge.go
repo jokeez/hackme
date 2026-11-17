@@ -99,14 +99,14 @@ func MergeMinimizeCorpus(ctx context.Context, fuzzerBin, corpusDir string) (befo
 	// Same cage as LF session — never bare-exec the untrusted fuzzer for -merge=1.
 	// Bind only corpus+raw (not parent) so aside stays out of the cage.
 	isoErr := RunIsolated(runCtx, IsolateOpts{
-		Bin:  fuzzerBin,
-		Args: []string{corpusDir, rawDir, "-merge=1", fmt.Sprintf("-max_total_time=%d", maxTotalSec)},
-		Env:  env,
-		Wall: mergeBudget,
-		Stdout:    &out,
-		Stderr:    &out,
-		AllowBare: false,
-		ExtraBind: []string{corpusDir, rawDir},
+		Bin:         fuzzerBin,
+		Args:        []string{corpusDir, rawDir, "-merge=1", fmt.Sprintf("-max_total_time=%d", maxTotalSec)},
+		Env:         env,
+		Wall:        mergeBudget,
+		Stdout:      &out,
+		Stderr:      &out,
+		AllowBare:   false,
+		ExtraBind:   []string{corpusDir, rawDir},
 		ExtraRoBind: []string{filepath.Dir(fuzzerBin)},
 	})
 

@@ -648,4 +648,3 @@ func resetHuntSessionCrashDir(corpusDir, crashDir string) error {
 func ListCrashArtifactPaths(dir string, max int) []string {
 	return collectCrashArtifacts(dir, dir, max)
 }
-
