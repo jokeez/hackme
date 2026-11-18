@@ -14,9 +14,9 @@
     "note": "Pre-fork hardening month: the November cap was raised from 200 to 1000 HMC to close findings before Economics v2 (block 550,000)."
   },
   "stats": {
-    "total_paid_hmc": 2135,
+    "total_paid_hmc": 2183,
     "researchers": 9,
-    "reports_accepted": 67
+    "reports_accepted": 70
   },
   "researchers": [
     {
@@ -135,8 +135,41 @@
       "id": "fimasw",
       "name": "fimasw",
       "handle": "fimasw",
-      "total_paid_hmc": 1020,
+      "total_paid_hmc": 1068,
       "findings": [
+        {
+          "title": "Unauthenticated relay amplification on /api/global/metrics (no allowRate; incomplete 1d98e1a)",
+          "severity": "medium",
+          "paid_hmc": 20,
+          "date": "2026-11-18",
+          "reported": "2026-11-18",
+          "commit": "f18285a9",
+          "txid": "1b53c3c64ce9f28917f00cf408d0d18e287a67408c69407a06a53df6a5fb9130",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Medium: 1d98e1a rate-limited sibling relays but missed handleGlobalMetrics, which fans out to coordinator on non-lite GETs with no allowRate. Fixed per-IP allowRate(20). Paid 20 HMC → tx 1b53c3c6… @558613. Duplicate mail of the same report ignored."
+        },
+        {
+          "title": "SUP Send-to-exchange falls back to HMC deposit when SUP address fetch fails (incomplete 931c241)",
+          "severity": "medium",
+          "paid_hmc": 20,
+          "date": "2026-11-18",
+          "reported": "2026-11-18",
+          "commit": "f18285a9",
+          "txid": "e14f3cf5c16ccf0d97ef76440ca97c62444f4e6bbe236901a6640626230e95d6",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Medium: dashboard wxDepositSUP || wxDeposit reintroduced cross-asset mis-route on SUP deposit fetch failure. Fixed: asset-strict dest only + error note, no fallback. Paid 20 HMC → tx e14f3cf5… @558614."
+        },
+        {
+          "title": "macOS worker stop still global pkill -x (incomplete 938e385 ownedByWorkerIDs allow-all)",
+          "severity": "low",
+          "paid_hmc": 8,
+          "date": "2026-11-18",
+          "reported": "2026-11-18",
+          "commit": "f18285a9",
+          "txid": "86ac0220c3672572d71db3c37c4d22d0d10e4338c4b948521b49eda2ede5a573",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Low: Linux scoped kills; macOS kept machine-wide pkill -x + allow-all. Fixed: no-op kill / nil ownedByWorkerIDs on !linux&&!windows (prefer orphans over cross-rig). Paid 8 HMC → tx 86ac0220… @558616."
+        },
         {
           "title": "handleWorkerStart / fleet still pass COORD_TOKEN on workerpoh argv (CWE-214 incomplete-fix sibling)",
           "severity": "low",
