@@ -37,3 +37,20 @@ func CanonicalSubmitBytesLegacy(p SubmitSignPayload) []byte {
 	p.EdgesTouchedOK = false
 	return CanonicalSubmitBytes(p)
 }
+
+// ReleaseSignPayload is the canonical body for ed25519 fuzz lease-release PoP
+// (AZ 2026-11-15: unsigned pubkey alone must not free another worker's lease).
+type ReleaseSignPayload struct {
+	WorkerID     string `json:"worker_id"`
+	CampaignID   string `json:"campaign_id"`
+	ItemID       int64  `json:"item_id"`
+	ReleaseNonce uint64 `json:"release_nonce"`
+}
+
+// CanonicalReleaseBytes returns deterministic JSON for hybrid release signatures.
+func CanonicalReleaseBytes(p ReleaseSignPayload) []byte {
+	p.WorkerID = strings.TrimSpace(p.WorkerID)
+	p.CampaignID = strings.TrimSpace(p.CampaignID)
+	b, _ := json.Marshal(p)
+	return b
+}

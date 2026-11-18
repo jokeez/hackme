@@ -20,7 +20,7 @@ func TestReleaseLeasePostsBody(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
 	}))
 	defer srv.Close()
-	err := ReleaseLease(context.Background(), srv.Client(), srv.URL, "tok", "w1", "camp-1", 42, "pub", "HMC-aaaaaaaaaaaaaaaa")
+	err := ReleaseLease(context.Background(), srv.Client(), srv.URL, "tok", "w1", "camp-1", 42, "pub", "HMC-aaaaaaaaaaaaaaaa", nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -44,12 +44,17 @@ func TestHardenReleaseDoesNotChargeClaimBucket(t *testing.T) {
 	mux := http.NewServeMux()
 	addFuzzPoolRoutes(mux, "admin-tok", "worker-tok", "", false, wm, pf)
 
-	atkPub, _, _ := ed25519.GenerateKey(nil)
-	body, _ := json.Marshal(map[string]any{
-		"worker_id": "unlocked-victim", "campaign_id": "c", "item_id": 1,
-		"miner_pubkey": hex.EncodeToString(atkPub), "miner_address": signerAddr(atkPub),
-	})
+	atkPub, atkPriv, _ := ed25519.GenerateKey(nil)
 	for i := 0; i < 20; i++ {
+		nonce := uint64(i + 1)
+		sig := ed25519.Sign(atkPriv, poolfuzz.CanonicalReleaseBytes(poolfuzz.ReleaseSignPayload{
+			WorkerID: "unlocked-victim", CampaignID: "c", ItemID: 1, ReleaseNonce: nonce,
+		}))
+		body, _ := json.Marshal(map[string]any{
+			"worker_id": "unlocked-victim", "campaign_id": "c", "item_id": 1,
+			"miner_pubkey": hex.EncodeToString(atkPub), "miner_address": signerAddr(atkPub),
+			"miner_sig": hex.EncodeToString(sig), "miner_sig_alg": "ed25519", "release_nonce": nonce,
+		})
 		req := httptest.NewRequest(http.MethodPost, "/api/fuzz/work/release", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Hackme-Admin-Token", "worker-tok")

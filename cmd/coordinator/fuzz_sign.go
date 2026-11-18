@@ -105,3 +105,80 @@ func (m *workManager) commitFuzzHybridNonce(derived string, submitNonce uint64) 
 	}
 	m.lastSignedMiner = derived
 }
+
+// validateFuzzReleaseSignature is PoP for /api/fuzz/work/release (AZ lease-release).
+// Nonce lane is separate from submit (:fuzz-rel:) so release/submit nonces never collide.
+func (m *workManager) validateFuzzReleaseSignature(auth fuzzSubmitAuth, body []byte) (ok bool, reason string, payoutAddr string) {
+	addr := strings.TrimSpace(auth.MinerAddress)
+	if addr != "" && (!strings.HasPrefix(addr, "HMC-") || len(addr) != 20) {
+		return false, "invalid_miner_address", ""
+	}
+	if m == nil || !m.hybridSignerEnabled {
+		if addr != "" {
+			return false, "hybrid_required_for_payout", ""
+		}
+		return true, "", ""
+	}
+	pubHex := strings.TrimSpace(auth.MinerPubKey)
+	sigHex := strings.TrimSpace(auth.MinerSig)
+	hasSig := !(pubHex == "" && sigHex == "" && auth.SubmitNonce == 0)
+	if !hasSig {
+		if addr != "" || m.hybridSignerStrict || m.claimRequirePubKey {
+			return false, "signature_required", ""
+		}
+		return true, "", ""
+	}
+	if pubHex == "" || sigHex == "" || auth.SubmitNonce == 0 {
+		return false, "missing_signature_fields", ""
+	}
+	alg := strings.TrimSpace(strings.ToLower(auth.MinerSigAlg))
+	if alg == "" {
+		alg = "ed25519"
+	}
+	if alg != "ed25519" {
+		return false, "unsupported_sig_alg", ""
+	}
+	derived, okAddr := deriveAddressFromPubHex(pubHex)
+	if !okAddr {
+		return false, "invalid_pubkey", ""
+	}
+	if addr != "" && !strings.EqualFold(addr, derived) {
+		return false, "pubkey_address_mismatch", ""
+	}
+	sig, err := hex.DecodeString(sigHex)
+	if err != nil || len(sig) != ed25519.SignatureSize {
+		return false, "invalid_signature", ""
+	}
+	pub, _ := hex.DecodeString(pubHex)
+	if !ed25519.Verify(ed25519.PublicKey(pub), body, sig) {
+		return false, "invalid_signature", ""
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	nonceKey := derived + ":fuzz-rel:" + strconv.FormatUint(auth.SubmitNonce, 10)
+	if _, exists := m.acceptedSubmitNonces[nonceKey]; exists {
+		return false, "replay", ""
+	}
+	return true, "", derived
+}
+
+// commitFuzzReleaseNonce burns a release PoP nonce after a successful lease release.
+func (m *workManager) commitFuzzReleaseNonce(derived string, releaseNonce uint64) {
+	if m == nil || derived == "" || releaseNonce == 0 {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.acceptedSubmitNonces == nil {
+		m.acceptedSubmitNonces = make(map[string]struct{})
+	}
+	nonceKey := derived + ":fuzz-rel:" + strconv.FormatUint(releaseNonce, 10)
+	if len(m.acceptedSubmitNonces) >= m.maxDedupEntries && m.maxDedupEntries > 0 {
+		for k := range m.acceptedSubmitNonces {
+			delete(m.acceptedSubmitNonces, k)
+			break
+		}
+	}
+	m.acceptedSubmitNonces[nonceKey] = struct{}{}
+	m.lastSignedMiner = derived
+}

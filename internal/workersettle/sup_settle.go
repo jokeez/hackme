@@ -174,8 +174,17 @@ func RunSUP(ctx context.Context, cfg Config) (Result, error) {
 					continue
 				default:
 					lg.Printf("sup: stranded %s kept: %s", wid, res.Reason)
+					if cfg.ClearPendingForce {
+						if err := store.ClearPendingSUP(ctx, wid); err != nil {
+							lg.Printf("sup: CLEAR_PENDING_HMC_FORCE %s: clear: %v", wid, err)
+							continue
+						}
+						_ = store.AppendLedger(ctx, "sup_clear_pending_force", wid, pend.DeltaUnits, 0, 0, 0, 0, 0, res.Reason)
+						lg.Printf("sup: CLEAR_PENDING_HMC_FORCE cleared stranded %s (%s) — operator escape hatch", wid, res.Reason)
+						continue
+					}
 					if envBool("CLEAR_PENDING_SUP") {
-						lg.Printf("sup: CLEAR_PENDING_SUP refused for %s: stranded kept (%s)", wid, res.Reason)
+						lg.Printf("sup: CLEAR_PENDING_SUP refused for %s: stranded kept (%s); set CLEAR_PENDING_HMC_FORCE=1 to force", wid, res.Reason)
 					}
 					continue
 				}
@@ -234,7 +243,10 @@ func RunSUP(ctx context.Context, cfg Config) (Result, error) {
 				// Confirmed nonce does not see a tx still in the mempool: a lost response must
 				// not clear the intent (the next run re-sent at the new nonce — double pay).
 				if inflight != "" {
-					if aerr := store.AttachSUPTxHash(ctx, wid, inflight); aerr == nil {
+					// AZ #3: never attribute one pool transfer to two workers sharing payout+amount.
+					if used, uerr := store.SUPTxHashKnown(ctx, inflight); uerr != nil || used {
+						lg.Printf("sup: %s mempool tx=%s already recorded — intent kept (err=%v)", wid, inflight, uerr)
+					} else if aerr := store.AttachSUPTxHash(ctx, wid, inflight); aerr == nil {
 						lg.Printf("sup: %s response lost but tx %s is in the mempool — attached", wid, inflight)
 					}
 				} else {

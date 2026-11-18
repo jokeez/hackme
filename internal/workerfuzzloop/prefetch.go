@@ -121,7 +121,7 @@ func startPrefetch(ctx context.Context, cfg Config, base string, buf *prefetchBu
 		}
 		cpy := cr
 		if !buf.tryPut(&cpy) {
-			_ = ReleaseLease(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cpy.CampaignID, cpy.ItemID, cfg.PubHex, cfg.MinerAddr)
+			_ = ReleaseLease(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cpy.CampaignID, cpy.ItemID, cfg.PubHex, cfg.MinerAddr, cfg.Priv, cfg.Hybrid)
 		}
 	}()
 }

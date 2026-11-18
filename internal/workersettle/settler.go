@@ -347,8 +347,19 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 				// Resolver kept the intent (mempool match / ambiguous). CLEAR_PENDING
 				// here would drop it while an in-flight tx can still include → double-pay
 				// on the next cycle. Only strandedUnsent auto-clears above.
+				// CLEAR_PENDING_HMC_FORCE is the explicit operator escape hatch (AZ #2).
+				if cfg.ClearPendingForce {
+					if err := store.ClearPending(ctx, wid); err != nil {
+						lg.Printf("CLEAR_PENDING_HMC_FORCE %s: clear: %v", wid, err)
+						continue
+					}
+					_ = store.AppendLedger(ctx, "hmc_clear_pending_force", wid, pend.DeltaUnits, 0, 0, 0, 0, 0, res.Reason)
+					_ = store.ExportJSONToFile(ctx, cfg.StateJSON)
+					lg.Printf("CLEAR_PENDING_HMC_FORCE cleared stranded %s (%s) — operator escape hatch", wid, res.Reason)
+					continue
+				}
 				if cfg.ClearPending {
-					lg.Printf("CLEAR_PENDING_HMC refused for %s: stranded kept (%s)", wid, res.Reason)
+					lg.Printf("CLEAR_PENDING_HMC refused for %s: stranded kept (%s); set CLEAR_PENDING_HMC_FORCE=1 to force", wid, res.Reason)
 				}
 				continue
 			}

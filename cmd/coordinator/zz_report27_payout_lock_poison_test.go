@@ -96,12 +96,17 @@ func report27Post(t *testing.T, mux *http.ServeMux, path string, body map[string
 // Variant A fixed: failed release under a not-yet-locked id must NOT write a durable lock.
 func TestReport27ReleaseLaneDoesNotPoisonPayoutLock(t *testing.T) {
 	db, _, mux := report27Setup(t)
-	atkPub, _, _ := ed25519.GenerateKey(nil)
+	atkPub, atkPriv, _ := ed25519.GenerateKey(nil)
 	vicPub, _, _ := ed25519.GenerateKey(nil)
 
+	relNonce := uint64(1)
+	relSig := ed25519.Sign(atkPriv, poolfuzz.CanonicalReleaseBytes(poolfuzz.ReleaseSignPayload{
+		WorkerID: "victim-rig-01", CampaignID: "r27-camp", ItemID: 1, ReleaseNonce: relNonce,
+	}))
 	code, out := report27Post(t, mux, "/api/fuzz/work/release", map[string]any{
 		"worker_id": "victim-rig-01", "campaign_id": "r27-camp", "item_id": 1,
 		"miner_pubkey": hex.EncodeToString(atkPub), "miner_address": signerAddr(atkPub),
+		"miner_sig": hex.EncodeToString(relSig), "miner_sig_alg": "ed25519", "release_nonce": relNonce,
 	}, false)
 	if code != http.StatusForbidden || out["reason"] != "lease_not_held" {
 		t.Fatalf("release: want 403 lease_not_held, got %d %v", code, out)

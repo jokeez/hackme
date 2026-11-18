@@ -418,7 +418,7 @@ func releaseExtraHuntBatchClaims(ctx context.Context, cfg Config, base string, c
 	}
 	for i := 1; i < len(claims); i++ {
 		cr := claims[i]
-		if rerr := ReleaseLease(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cr.CampaignID, cr.ItemID, cfg.PubHex, cfg.MinerAddr); rerr != nil {
+		if rerr := ReleaseLease(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cr.CampaignID, cr.ItemID, cfg.PubHex, cfg.MinerAddr, cfg.Priv, cfg.Hybrid); rerr != nil {
 			fmt.Fprintf(os.Stderr, "%s: release extra hunt batch lease item=%d: %v\n", cfg.LogPrefix, cr.ItemID, rerr)
 		}
 	}
@@ -428,7 +428,7 @@ func releaseExtraHuntBatchClaims(ctx context.Context, cfg Config, base string, c
 func processClaim(ctx context.Context, cfg Config, base string, st *Stats, cr *ClaimResp) {
 	st.ClaimsOK.Add(1)
 	release := func(why string) {
-		if rerr := ReleaseLease(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cr.CampaignID, cr.ItemID, cfg.PubHex, cfg.MinerAddr); rerr != nil {
+		if rerr := ReleaseLease(ctx, cfg.HTTPClient, base, cfg.Token, cfg.WorkerID, cr.CampaignID, cr.ItemID, cfg.PubHex, cfg.MinerAddr, cfg.Priv, cfg.Hybrid); rerr != nil {
 			fmt.Fprintf(os.Stderr, "%s: release lease after %s: %v\n", cfg.LogPrefix, why, rerr)
 		}
 	}
@@ -725,7 +725,8 @@ func Claim(ctx context.Context, cl *http.Client, base, token, workerID, pubHex, 
 }
 
 // ReleaseLease returns a leased work item to pending (worker give-up).
-func ReleaseLease(ctx context.Context, cl *http.Client, base, token, workerID, campaignID string, itemID int64, pubHex, minerAddr string) error {
+// When hybrid is set, signs CanonicalReleaseBytes (AZ lease PoP).
+func ReleaseLease(ctx context.Context, cl *http.Client, base, token, workerID, campaignID string, itemID int64, pubHex, minerAddr string, priv ed25519.PrivateKey, hybrid bool) error {
 	campaignID = strings.TrimSpace(campaignID)
 	workerID = strings.TrimSpace(workerID)
 	if campaignID == "" || itemID <= 0 || workerID == "" {
@@ -742,6 +743,18 @@ func ReleaseLease(ctx context.Context, cl *http.Client, base, token, workerID, c
 	}
 	if addr := strings.TrimSpace(minerAddr); addr != "" {
 		bodyMap["miner_address"] = addr
+	}
+	if hybrid {
+		if priv == nil {
+			return errors.New("hybrid release requires signer key")
+		}
+		nonce := uint64(time.Now().UnixNano())
+		sig := ed25519.Sign(priv, poolfuzz.CanonicalReleaseBytes(poolfuzz.ReleaseSignPayload{
+			WorkerID: workerID, CampaignID: campaignID, ItemID: itemID, ReleaseNonce: nonce,
+		}))
+		bodyMap["miner_sig"] = hex.EncodeToString(sig)
+		bodyMap["miner_sig_alg"] = "ed25519"
+		bodyMap["release_nonce"] = nonce
 	}
 	body, _ := json.Marshal(bodyMap)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/fuzz/work/release", bytes.NewReader(body))

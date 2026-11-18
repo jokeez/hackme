@@ -1911,6 +1911,9 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			MinerPubKey   string `json:"miner_pubkey"`
 			MinerPubKeyEd string `json:"miner_pubkey_ed25519"`
 			MinerAddress  string `json:"miner_address"`
+			MinerSig      string `json:"miner_sig"`
+			MinerSigAlg   string `json:"miner_sig_alg"`
+			ReleaseNonce uint64 `json:"release_nonce"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid json", http.StatusBadRequest)
@@ -1929,6 +1932,8 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 		// lock (anti-snipe) but must NOT create one — a failed/no-op release is not a
 		// registration act (report #27 payout-lock poisoning).
 		isAdmin := adminToken != "" && coordPublishRouteOK(r, adminToken)
+		var releasePoPAddr string
+		var releaseNonce uint64
 		if !isAdmin {
 			pub := strings.TrimSpace(req.MinerPubKey)
 			if pub == "" {
@@ -1940,6 +1945,23 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 				_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": reasonID})
 				return
 			}
+			// AZ lease PoP: unsigned pubkey alone must not free another worker's lease.
+			signBody := poolfuzz.CanonicalReleaseBytes(poolfuzz.ReleaseSignPayload{
+				WorkerID: workerID, CampaignID: req.CampaignID, ItemID: req.ItemID, ReleaseNonce: req.ReleaseNonce,
+			})
+			okSig, reasonSig, popAddr := wm.validateFuzzReleaseSignature(fuzzSubmitAuth{
+				WorkerID: workerID, MinerAddress: req.MinerAddress, MinerPubKey: pub,
+				MinerSig: req.MinerSig, MinerSigAlg: req.MinerSigAlg, SubmitNonce: req.ReleaseNonce,
+			}, signBody)
+			if !okSig {
+				wm.recordDrop("release_" + reasonSig)
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+				w.WriteHeader(http.StatusForbidden)
+				_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": reasonSig})
+				return
+			}
+			releasePoPAddr = popAddr
+			releaseNonce = req.ReleaseNonce
 			ipKey := clientIPKey(r)
 			now := time.Now().Unix()
 			// IP/ban gate only — never charge the declared worker claim bucket on
@@ -1962,6 +1984,9 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			w.WriteHeader(http.StatusForbidden)
 			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "reason": "lease_not_held", "released": false})
 			return
+		}
+		if releasePoPAddr != "" && releaseNonce > 0 {
+			wm.commitFuzzReleaseNonce(releasePoPAddr, releaseNonce)
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "released": true})
 	})
