@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-16",
+  "updated": "2026-11-18",
   "program": {
     "asset": "HMC",
     "monthly_budget_hmc": 500,
@@ -14,11 +14,52 @@
     "note": "Pre-fork hardening month: the November cap was raised from 200 to 1000 HMC to close findings before Economics v2 (block 550,000)."
   },
   "stats": {
-    "total_paid_hmc": 2082,
-    "researchers": 8,
-    "reports_accepted": 64
+    "total_paid_hmc": 2135,
+    "researchers": 9,
+    "reports_accepted": 67
   },
   "researchers": [
+    {
+      "id": "az",
+      "name": "AZ",
+      "handle": "AZ",
+      "total_paid_hmc": 53,
+      "findings": [
+        {
+          "title": "CLEAR_PENDING_HMC_FORCE parsed but never read — stranded pending stuck",
+          "severity": "medium",
+          "paid_hmc": 20,
+          "date": "2026-11-18",
+          "reported": "2026-11-15",
+          "commit": "5272b1fb",
+          "txid": "02db4a8d60aeb277fd60a80e655e4972650d553898722c225fd4ec7f01d7b958",
+          "payout_address": "HMC-e55dff78252ef2f6e20c841d43d39e04e9479ed86f0ff17107f0b7e2df0f50d3",
+          "note": "Medium: Config.ClearPendingForce / CLEAR_PENDING_HMC_FORCE was loaded but no stranded path consulted it, so unresolvable empty-hash intents could strand accrual below MIN_SETTLE with no supported remedy. Fixed: HMC + SUP stranded keepers honor ClearPendingForce and ledger the escape hatch. Paid 20 HMC → long addr tx 02db4a8d… @558450."
+        },
+        {
+          "title": "SUP mempool attach attributes one pool transfer to two workers",
+          "severity": "medium",
+          "paid_hmc": 25,
+          "date": "2026-11-18",
+          "reported": "2026-11-15",
+          "commit": "5272b1fb",
+          "txid": "3a6f8301f5fe3847d9c226255807e67915ead091a22588a8d056364305e27559",
+          "payout_address": "HMC-e55dff78252ef2f6e20c841d43d39e04e9479ed86f0ff17107f0b7e2df0f50d3",
+          "note": "Medium residual (after Valax empty-hash nonce fix): findSUPInflight attach still lacked SUPTxHashKnown, so two workers sharing payout+amount could both adopt one mempool transfer. Fixed: refuse AttachSUPTxHash when hash already recorded. Paid 25 HMC → tx 3a6f8301… @558451. Finding 1 (nonce-alone settle) declined as duplicate of Valax Medium already fixed in 20d0d1be."
+        },
+        {
+          "title": "Fuzz work lease release requires no proof of possession",
+          "severity": "low",
+          "paid_hmc": 8,
+          "date": "2026-11-18",
+          "reported": "2026-11-15",
+          "commit": "5272b1fb",
+          "txid": "597f3296300638b40fd324702eb1090adaeff2d07dee7a6de1c9a1b645f35aa5",
+          "payout_address": "HMC-e55dff78252ef2f6e20c841d43d39e04e9479ed86f0ff17107f0b7e2df0f50d3",
+          "note": "Low/hardening after reporter caveat: unsigned miner_pubkey alone could call /api/fuzz/work/release under shared worker token. Fixed: hybrid-strict requires ed25519 CanonicalReleaseBytes + release_nonce (separate nonce lane); workerfuzzloop signs releases. Paid 8 HMC → tx 597f3296… @558452."
+        }
+      ]
+    },
     {
       "id": "dickymuliafiqri",
       "name": "Dicky Mulia Fiqri",
