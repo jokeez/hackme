@@ -3961,7 +3961,7 @@
 								<p class="text-sm text-gray-400 max-w-xl">HMC · SUP · roadmap lanes · mine on Ecosystem pools.</p>
 							</div>
 							<div class="flex flex-wrap gap-2 text-[10px] font-mono items-center">
-								<span class="px-2 py-1 rounded border border-matrix/35 text-matrix">portfolio (ref/paper price): <span id="wallet-portfolio-total">—</span></span>
+								<span class="px-2 py-1 rounded border border-matrix/35 text-matrix">portfolio (desk mid): <span id="wallet-portfolio-total">—</span></span>
 								<span id="wallet-spot-chip" class="price-chip stale" title="Desk mid (soft-launch) · exchange.hackme.tech"><span class="px-dot"></span><span id="wallet-spot-label">HMC $—</span></span>
 								<span class="px-2 py-1 rounded border border-neon/35 text-neon">live: <span id="wallet-portfolio-live-count">1</span></span>
 								<span id="wallet-build-strip" class="px-2 py-1 rounded border border-white/10 text-gray-500 max-w-[280px] truncate" title="Dashboard UI + node build">ui — · node —</span>
@@ -4415,7 +4415,7 @@
 							<div class="rounded-xl border border-white/10 bg-black/30 p-4"><p class="text-neon uppercase tracking-wider text-[10px] mb-1">Proof of reserves</p><a class="text-matrix hover:underline" href="https://exchange.hackme.tech/info/reserves.html" target="_blank" rel="noopener noreferrer">Customer balances vs on-chain wallets ↗</a></div>
 						</section>
 					</div>
-					<iframe id="exchange-spa-frame" title="HackMe Exchange paper desk" width="100%" height="100%" referrerpolicy="strict-origin-when-cross-origin" allow="clipboard-read; clipboard-write" style="width:100%;height:100%;min-width:0;border:1px solid rgba(0,209,255,0.22);border-radius:0.35rem;background:#05070d;"></iframe>
+					<iframe id="exchange-spa-frame" title="HackMe Exchange soft-launch desk" width="100%" height="100%" referrerpolicy="strict-origin-when-cross-origin" allow="clipboard-read; clipboard-write" style="width:100%;height:100%;min-width:0;border:1px solid rgba(0,209,255,0.22);border-radius:0.35rem;background:#05070d;"></iframe>
 				</div>
 			</main>
 		</div>
@@ -5514,9 +5514,20 @@
 				$('btn-wx-disable').addEventListener('click', () => void refreshExchangeAccount('DELETE', false));
 				$('btn-wx-send').addEventListener('click', () => {
 					const to = $('tx-form-to');
+					const note = $('wx-note') || $('wallet-sync-note');
 					const wantSup = isWalletCoinSUP(walletSelectedCoin());
-					const dest = wantSup ? (wxDepositSUP || wxDeposit) : (wxDeposit || wxDepositSUP);
-					if (!to || !dest) return;
+					// Never cross-asset fallback (931c241 incomplete): SUP→HMC deposit loses funds.
+					const dest = wantSup ? wxDepositSUP : wxDeposit;
+					if (!to || !dest) {
+						if (note) {
+							note.textContent = wantSup && !wxDepositSUP
+								? 'SUP deposit address unavailable — refresh exchange account and retry.'
+								: (!wantSup && !wxDeposit
+									? 'HMC deposit address unavailable — refresh exchange account and retry.'
+									: 'Exchange deposit address unavailable.');
+						}
+						return;
+					}
 					to.value = dest;
 					to.dispatchEvent(new Event('input', { bubbles: true }));
 					setWalletDetailSection('transfer');
@@ -7035,7 +7046,7 @@
 			if (spotSub) {
 				const ageMs = exchangeSpot.updatedAt ? (Date.now() - exchangeSpot.updatedAt) : 0;
 				setTextSilent(spotSub, px > 0
-					? ('paper ref USDT · ' + (exchangeSpot.source || 'spot') + (ageMs > 0 ? (' · ' + Math.round(ageMs / 1000) + 's') : ''))
+					? ('desk mid USDT · ' + (exchangeSpot.source || 'spot') + (ageMs > 0 ? (' · ' + Math.round(ageMs / 1000) + 's') : ''))
 					: 'waiting for exchange…');
 			}
 			const hmcUsdEl = typeof mineCalcEl === 'function' ? mineCalcEl('mine-calc-hmc-usd') : null;
@@ -17472,7 +17483,7 @@
 			}
 		}
 
-		/** Exchange SPA embed — always public paper desk (exchange.hackme.tech). */
+		/** Exchange SPA embed — public soft-launch desk (exchange.hackme.tech). */
 		const EXCHANGE_SPA_ORIGIN_DEFAULT = 'https://exchange.hackme.tech';
 		const EXCHANGE_API_HEALTH_DEFAULT = 'http://127.0.0.1:18443/health';
 		const EXCHANGE_SPA_ORIGIN_ALLOW = [

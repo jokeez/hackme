@@ -1740,6 +1740,12 @@ func (a *app) handleGlobalMetrics(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	// Sibling of 1d98e1a relay allowRate (network_stats / work_stats / …): this public
+	// handler fans out to the coordinator on the non-lite path and was missed.
+	if !a.allowRate("global_metrics:"+clientIP(r), 20) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
+		return
+	}
 	if globalMetricsQueryLite(r) {
 		now := time.Now().Unix()
 		chainPart := map[string]any{
