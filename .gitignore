@@ -33,9 +33,11 @@ cuda-keyring*.deb
 *.seed.backup*
 **/node_ed25519.seed*
 **/miner_submit_ed25519_seed.hex
+**/hackme_treasury_ed25519_seed.hex*
 .env
 .env.*
 !.env.*.example
+!.env.example
 telegram_bot.env
 hackme.env
 data/
@@ -45,6 +47,10 @@ logs/**
 *.log
 .hackme-toolchains.env
 .venv-deploy/
+agent-transcripts/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
 
 # =============================================================================
 # Caches, artifacts, lab trees
