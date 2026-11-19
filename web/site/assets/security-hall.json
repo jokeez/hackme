@@ -135,8 +135,30 @@
       "id": "fimasw",
       "name": "fimasw",
       "handle": "fimasw",
-      "total_paid_hmc": 1068,
+      "total_paid_hmc": 1096,
       "findings": [
+        {
+          "title": "Unauthenticated DoS amplification on /api/reports/blocks?source=canonical and /api/chain (no allowRate; sibling of f18285a)",
+          "severity": "medium",
+          "paid_hmc": 20,
+          "date": "2026-11-19",
+          "reported": "2026-11-19",
+          "commit": "c38a810a",
+          "txid": "31f4b3dae52bdbb4343cdd57f8af536111459569b7fc86080bfbd027d94c42a3",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Medium: f18285a gated global/metrics but reports/blocks + chain (+ wallet activity/earnings, SUP activity, tx pool/by-hash, worker status, miner notices) still lacked allowRate under fan-out / large SQLite pages. Fixed per-IP allowRate on those handlers. Paid 20 HMC → tx 31f4b3da… @561316."
+        },
+        {
+          "title": "HMC inflight-attach lacks TxHashKnown dedup (incomplete 5272b1f / stranded sibling)",
+          "severity": "low",
+          "paid_hmc": 8,
+          "date": "2026-11-19",
+          "reported": "2026-11-18",
+          "commit": "c38a810a",
+          "txid": "852f8d34cd437a9e2494bf8944c0b68f3ef1b36cf9e0c01b573a780a827f97d4",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Low / defense-in-depth: stranded-resolve gated TxHashKnown but in-flight AttachTxHash did not (nonce binding makes reachability rare). Gated inflight path + AttachTxHash/AttachSUPTxHash reject foreign-worker hash under BEGIN IMMEDIATE. Paid 8 HMC → tx 852f8d34… @561317."
+        },
         {
           "title": "Unauthenticated relay amplification on /api/global/metrics (no allowRate; incomplete 1d98e1a)",
           "severity": "medium",
