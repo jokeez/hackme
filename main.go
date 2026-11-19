@@ -2105,7 +2105,8 @@ func (a *app) handleWalletEarnings(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !a.allowRate("wallet_earnings:"+clientIP(r), 20) {
+	// Loopback (exchange node-watch via SSH tunnel) needs a higher ceiling than public IPs.
+	if !a.allowRate("wallet_earnings:"+clientIP(r), allowRatePublicOrLoopback(r, 20, 240)) {
 		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
 		return
 	}
@@ -2346,7 +2347,7 @@ func (a *app) handleWalletActivity(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !a.allowRate("wallet_activity:"+clientIP(r), 20) {
+	if !a.allowRate("wallet_activity:"+clientIP(r), allowRatePublicOrLoopback(r, 20, 240)) {
 		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
 		return
 	}
@@ -2431,7 +2432,7 @@ func (a *app) handleSUPActivity(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !a.allowRate("sup_activity:"+clientIP(r), 20) {
+	if !a.allowRate("sup_activity:"+clientIP(r), allowRatePublicOrLoopback(r, 20, 240)) {
 		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
 		return
 	}
@@ -4938,6 +4939,18 @@ func (a *app) requireP2PToken(w http.ResponseWriter, r *http.Request) bool {
 
 func p2pTokenConfigured() bool {
 	return strings.TrimSpace(os.Getenv("HACKME_P2P_TOKEN")) != ""
+}
+
+// allowRatePublicOrLoopback keeps public DoS caps but raises the ceiling for
+// loopback peers (SSH tunnel node-watch / ops on the same host).
+func allowRatePublicOrLoopback(r *http.Request, publicLimit, loopbackLimit int) int {
+	if requestFromLoopback(r) {
+		if loopbackLimit > 0 {
+			return loopbackLimit
+		}
+		return publicLimit * 10
+	}
+	return publicLimit
 }
 
 func (a *app) allowRate(key string, limitPerSec int) bool {
