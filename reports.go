@@ -183,6 +183,11 @@ func (a *app) handleReportsBlocks(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	// fimasw 2026-11-19: public GET can fan out to canonical + curl + large SQLite pages.
+	if !a.allowRate("reports_blocks:"+clientIP(r), 20) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
+		return
+	}
 	// q=… resolves one block over the whole local chain (task id / hash / prefix / index).
 	// Lives on /api/reports/blocks because public nginx allowlists only this reports path.
 	if q := strings.TrimSpace(r.URL.Query().Get("q")); q != "" {

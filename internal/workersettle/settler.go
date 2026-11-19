@@ -467,7 +467,11 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 				// pool. Clearing here and re-sending later (at the next nonce, once it lands)
 				// double-pays. Adopt the in-flight hash, or keep the intent when unsure.
 				if inflight != "" {
-					if aerr := store.AttachTxHash(ctx, wid, inflight); aerr == nil {
+					// fimasw 2026-11-18: mirror stranded-resolve TxHashKnown — two workers
+					// sharing payout+amount must not both attach one on-chain transfer.
+					if used, uerr := store.TxHashKnown(ctx, inflight); uerr != nil || used {
+						lg.Printf("settle %s: in-flight tx=%s already recorded — keeping pending (err=%v)", wid, inflight, uerr)
+					} else if aerr := store.AttachTxHash(ctx, wid, inflight); aerr == nil {
 						lg.Printf("settle %s: response lost but tx %s is in flight at nonce %d — attached", wid, inflight, nonce)
 					}
 				} else {

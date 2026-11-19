@@ -206,6 +206,10 @@ func (a *app) handleMinerNotices(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if !a.allowRate("miner_notices:"+clientIP(r), 30) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 4*time.Second)
 	defer cancel()
 	doc, err := fetchMinerNotices(ctx)

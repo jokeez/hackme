@@ -90,6 +90,17 @@ func (s *Store) AttachSUPTxHash(ctx context.Context, workerID, txHash string) er
 		return fmt.Errorf("workersettle: empty worker or tx")
 	}
 	return s.inImmediateTx(ctx, func(conn *sql.Conn) error {
+		var foreign int
+		if err := conn.QueryRowContext(ctx, `SELECT
+			  (SELECT COUNT(*) FROM settle_sup_outbox WHERE tx_hash=? AND worker_id<>?)
+			+ (SELECT COUNT(*) FROM settle_workers WHERE worker_id<>? AND pending_sup_json<>'' AND json_valid(pending_sup_json)
+			     AND json_extract(pending_sup_json,'$.tx_hash')=?)`,
+			txHash, workerID, workerID, txHash).Scan(&foreign); err != nil {
+			return err
+		}
+		if foreign > 0 {
+			return fmt.Errorf("workersettle: SUP tx_hash %s already recorded for another worker", txHash)
+		}
 		var pendJSON string
 		if err := conn.QueryRowContext(ctx, `SELECT COALESCE(pending_sup_json,'') FROM settle_workers WHERE worker_id=?`, workerID).Scan(&pendJSON); err != nil {
 			return err

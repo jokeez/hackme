@@ -439,6 +439,19 @@ func (s *Store) AttachTxHash(ctx context.Context, workerID, txHash string) error
 			_, _ = conn.ExecContext(ctx, `ROLLBACK`)
 		}
 	}()
+	// Refuse attributing a hash already owned by another worker (call-site gates can miss).
+	var foreign int
+	if err := conn.QueryRowContext(ctx, `SELECT
+		  (SELECT COUNT(*) FROM settle_outbox WHERE tx_hash=? AND worker_id<>?)
+		+ (SELECT COUNT(*) FROM settle_workers WHERE last_tx_hash=? AND worker_id<>?)
+		+ (SELECT COUNT(*) FROM settle_workers WHERE worker_id<>? AND pending_json<>'' AND json_valid(pending_json)
+		     AND json_extract(pending_json,'$.tx_hash')=?)`,
+		txHash, workerID, txHash, workerID, workerID, txHash).Scan(&foreign); err != nil {
+		return err
+	}
+	if foreign > 0 {
+		return fmt.Errorf("workersettle: tx_hash %s already recorded for another worker", txHash)
+	}
 	var pendJSON string
 	err = conn.QueryRowContext(ctx, `SELECT COALESCE(pending_json,'') FROM settle_workers WHERE worker_id=?`, workerID).Scan(&pendJSON)
 	if err != nil {

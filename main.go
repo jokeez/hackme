@@ -2105,6 +2105,10 @@ func (a *app) handleWalletEarnings(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if !a.allowRate("wallet_earnings:"+clientIP(r), 20) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 32*time.Second)
 	defer cancel()
 	windowHours := 24
@@ -2342,6 +2346,10 @@ func (a *app) handleWalletActivity(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if !a.allowRate("wallet_activity:"+clientIP(r), 20) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 40*time.Second)
 	defer cancel()
 	windowHours := 24
@@ -2423,6 +2431,10 @@ func (a *app) handleSUPActivity(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if !a.allowRate("sup_activity:"+clientIP(r), 20) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 40*time.Second)
 	defer cancel()
 	windowHours := 24
@@ -2462,6 +2474,11 @@ func (a *app) handleSUPActivity(w http.ResponseWriter, r *http.Request) {
 func (a *app) handleChain(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	// fimasw 2026-11-19: unbounded ListBlocksFromHeight / large page reads per GET.
+	if !a.allowRate("chain_get:"+clientIP(r), 20) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
 		return
 	}
 	limit := 20
@@ -3171,6 +3188,11 @@ func (a *app) handleWorkerStop(w http.ResponseWriter, r *http.Request) {
 func (a *app) handleWorkerStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	// Disk I/O (ReadDir + log tail) under flood starves the dashboard for everyone.
+	if !a.allowRate("worker_status:"+clientIP(r), 20) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
 		return
 	}
 	// Snapshot under lock, then unlock before coordinatorBaseURL / cache refresh —
@@ -4411,6 +4433,10 @@ func (a *app) handleTransferPool(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if !a.allowRate("tx_pool:"+clientIP(r), 20) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
+		return
+	}
 	// Prefer canonical pool view when canonical base is known and local PoH is idle.
 	if a.shouldUseCanonicalChainAPI() {
 		if base := strings.TrimRight(strings.TrimSpace(a.canonicalChainBaseURL()), "/"); base != "" && walletCanonicalBaseUsable(base) {
@@ -4449,6 +4475,10 @@ func (a *app) handleTransferPool(w http.ResponseWriter, r *http.Request) {
 func (a *app) handleTransferByHash(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !a.allowRate("tx_by_hash:"+clientIP(r), 30) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
 		return
 	}
 	h := strings.TrimSpace(strings.TrimPrefix(r.URL.Path, "/api/tx/"))
