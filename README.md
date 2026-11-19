@@ -17,7 +17,7 @@ HackMe is a mining network where rigs run fuzzing jobs ordered by developers —
 
 <br/>
 
-[![Release](https://img.shields.io/badge/release-0.1.0--rc18_LIVE-00d1ff?style=for-the-badge)](https://hackme.tech/downloads.html)
+[![Release](https://img.shields.io/badge/release-0.1.0--rc20_LIVE-00d1ff?style=for-the-badge)](https://hackme.tech/downloads.html)
 [![Pool](https://img.shields.io/badge/pool-LIVE-39ff14?style=for-the-badge)](https://hackme.tech/pool/coordinator/api/pool/stats)
 [![CI](https://github.com/jokeez/hackme/actions/workflows/ci.yml/badge.svg)](https://github.com/jokeez/hackme/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-7fe7ff?style=for-the-badge)](LICENSE)
@@ -43,7 +43,7 @@ HackMe is a mining network where rigs run fuzzing jobs ordered by developers —
 | **Mine** | Public HTTP pool · CUDA / OpenCL / CPU · hybrid Ed25519 submits · **HMC** share-PPS · **SUP** loyalty |
 | **Dig** | Customer packs (Scan / Audit / Deep) · pool workers · report + CI gate · unused bounty refunded |
 | **Hunt** | Coverage-guided fleet (**libFuzzer** default · AFL++ opt-in) · Lite / Standard / Heavy · report + escrow |
-| **Exchange** | Early access desk at [exchange.hackme.tech](https://exchange.hackme.tech/) — live matching + HMC/SUP custody; not a CEX listing |
+| **Exchange** | Soft-launch desk at [exchange.hackme.tech](https://exchange.hackme.tech/) — matching + HMC/SUP custody; USDT watch + Didit · `HOT_SEND=0`; not a CEX listing |
 | **Research** | Public ledgers (Hunt Watch, OSS CVE Watch, Bitcoin30) — evidence, not hype |
 
 ```mermaid
@@ -69,7 +69,7 @@ Payout follows **accepted work**, not lottery blocks. Model: [NETWORK_MODEL.md](
 | **Settlement** | Go settler + SQLite units · day budget persisted · `/api/settlement/canonical.json` for desktop merge |
 | **Checkpoints** | Daily signed tip+ledger · OpenTimestamps · [hackme-checkpoints](https://github.com/jokeez/hackme-checkpoints) · [ops note](docs/internal/CHECKPOINTS.md) |
 | **Dig / Hunt** | **Paid pool Orders** (hub prepaid escrow) · coverage-guided Hunt fleet · hub report proxy · CI gate |
-| **Exchange desk** | Early access live · **not** a CEX, **not** financial advice |
+| **Exchange desk** | Soft-launch live · **not** a CEX, **not** financial advice |
 | **Hunt Watch 2026sep** | **12/12 closed** · [ledger](https://hackme.tech/reports/hunt-watch-2026sep/) |
 | **OSS CVE Watch** | nghttp2 **14/14** · libheif **14/14** CLEAN ledgers |
 | **HMS storage** | Preview only — not a miner lane |

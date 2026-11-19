@@ -1913,7 +1913,7 @@ func addFuzzPoolRoutes(mux *http.ServeMux, adminToken, workerToken, publishToken
 			MinerAddress  string `json:"miner_address"`
 			MinerSig      string `json:"miner_sig"`
 			MinerSigAlg   string `json:"miner_sig_alg"`
-			ReleaseNonce uint64 `json:"release_nonce"`
+			ReleaseNonce  uint64 `json:"release_nonce"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid json", http.StatusBadRequest)

@@ -10,6 +10,64 @@ import (
 	"hackme/internal/store"
 )
 
+func TestCancelZeroProgressSkipsPrepaidCustomerHunt(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "co.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	ctx := context.Background()
+	now := time.Now().Unix()
+	paidCfg := fuzzengine.NormalizeCampaignConfig(map[string]any{
+		"pool_distributed": true,
+		"prepaid_attested": true,
+		"budget_hmc":       135.0,
+		"hunt_package":     "hunt_heavy",
+		"check_semantics":  "native_crash",
+	}, "hunt")
+	paid := "hunt-heavy-duktape-paid"
+	if err := svc.RegisterCampaign(ctx, Campaign{
+		ID: paid, CampaignType: "hunt", Title: "Heavy ASAN · duktape", Status: "running",
+		OwnerRef: "customer:bootstrap", BudgetRuns: 12000, Config: paidCfg,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = db.ExecContext(ctx, `UPDATE fuzz_campaigns SET created_at=? WHERE id=?`, now-7200, paid)
+
+	zombieCfg := fuzzengine.NormalizeCampaignConfig(map[string]any{
+		"pool_distributed": true,
+		"check_semantics":  "detector",
+		"wasm_check_hex":   "0061736d0100000001060160017e017f0302010007090105636865636b00000a0601040041010b",
+	}, "property")
+	zombie := "camp-gate-zombie"
+	if err := svc.RegisterCampaign(ctx, Campaign{
+		ID: zombie, CampaignType: "property", Title: "gate zombie", Status: "running",
+		BudgetRuns: 4, Config: zombieCfg,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = db.ExecContext(ctx, `UPDATE fuzz_campaigns SET created_at=? WHERE id=?`, now-7200, zombie)
+
+	n, err := svc.CancelZeroProgressPoolCampaigns(ctx, 3600, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("cancelled=%d want 1 (only unpaid gate)", n)
+	}
+	var paidSt, zombieSt string
+	_ = db.QueryRowContext(ctx, `SELECT status FROM fuzz_campaigns WHERE id=?`, paid).Scan(&paidSt)
+	_ = db.QueryRowContext(ctx, `SELECT status FROM fuzz_campaigns WHERE id=?`, zombie).Scan(&zombieSt)
+	if paidSt != "running" {
+		t.Fatalf("prepaid status=%s want running", paidSt)
+	}
+	if zombieSt != "cancelled" {
+		t.Fatalf("zombie status=%s want cancelled", zombieSt)
+	}
+}
+
 func TestCancelZeroProgressUsesDBDoneCount(t *testing.T) {
 	dir := t.TempDir()
 	db, err := store.Open(filepath.Join(dir, "co.db"))

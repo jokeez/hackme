@@ -15,6 +15,11 @@ echo "[ui-e2e] rebuild embedded-dashboard binaries"
 cd "$E2E_DIR"
 if [[ ! -d node_modules/@playwright/test ]]; then
   npm install --no-audit --no-fund
+fi
+# CI runners need OS libs; local first-run installs the browser only.
+if [[ "${CI:-}" == "true" || "${GITHUB_ACTIONS:-}" == "true" ]]; then
+  npx playwright install --with-deps chromium
+elif [[ ! -d "$HOME/.cache/ms-playwright" ]] && [[ ! -d "$E2E_DIR/.cache/ms-playwright" ]]; then
   npx playwright install chromium
 fi
 

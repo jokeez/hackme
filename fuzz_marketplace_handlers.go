@@ -34,9 +34,10 @@ func (a *app) fuzzMarketplaceStale() ([]map[string]any, bool) {
 	return out, true
 }
 
-func (a *app) fuzzMarketplaceStore(items []map[string]any) {
-	// Never overwrite a good cache with an empty timeout/failure result.
-	if len(items) == 0 {
+func (a *app) fuzzMarketplaceStore(items []map[string]any, allowEmpty bool) {
+	// Never overwrite a good cache with an empty timeout/failure result,
+	// unless the caller force-refreshed (cancelled zombies must disappear).
+	if len(items) == 0 && !allowEmpty {
 		return
 	}
 	a.fuzzMarketMu.Lock()
@@ -95,7 +96,7 @@ func (a *app) handleFuzzMarketplace(w http.ResponseWriter, r *http.Request) {
 	cap, _ := a.fetchCoordinatorFleetCapacity(mergeCtx)
 	mergeCancel()
 
-	if len(items) == 0 {
+	if len(items) == 0 && !force {
 		if stale, ok := a.fuzzMarketplaceStale(); ok {
 			staleItems := cloneMarketplaceCampaigns(stale)
 			if cap != nil {
@@ -113,7 +114,7 @@ func (a *app) handleFuzzMarketplace(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	a.fuzzMarketplaceStore(items)
+	a.fuzzMarketplaceStore(items, force)
 	out := cloneMarketplaceCampaigns(items)
 	if cap != nil {
 		poolfuzz.AnnotateCampaignFleetETA(out, floatFromAny(cap["est_shards_per_hour"]))

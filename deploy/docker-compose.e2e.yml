@@ -28,6 +28,11 @@ services:
       # Lab: toy harnesses can exit in <1s; production keeps the 75% wall floor.
       HACKME_HUNT_ENGINE_MIN_WALL_MS: "${HACKME_HUNT_ENGINE_MIN_WALL_MS:-0}"
       HACKME_COORDINATOR_CLAIM_PER_MIN: "${HACKME_COORDINATOR_CLAIM_PER_MIN:-600}"
+      # Non-loopback bind (0.0.0.0:8081) requires STRICT/SANDBOX on; entrypoint
+      # would otherwise force 0 when bwrap userns probe fails in Docker.
+      HACKME_HUNT_ISOLATE_STRICT: "${HACKME_HUNT_ISOLATE_STRICT:-1}"
+      HACKME_HUNT_BUILD_SANDBOX: "${HACKME_HUNT_BUILD_SANDBOX:-1}"
+      HACKME_HUNT_ALLOW_ROOT: "${HACKME_HUNT_ALLOW_ROOT:-1}"
     volumes:
       - coord_data:/data
     ports:

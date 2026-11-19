@@ -55,12 +55,21 @@ if command -v bwrap >/dev/null 2>&1; then
     export HACKME_HUNT_ISOLATE_STRICT="${HACKME_HUNT_ISOLATE_STRICT:-1}"
     export HACKME_HUNT_BUILD_SANDBOX="${HACKME_HUNT_BUILD_SANDBOX:-1}"
   else
-    echo "[entrypoint] WARN: bwrap probe failed — STRICT/BUILD_SANDBOX=0 for this container"
+    # Keep explicit operator overrides; only default to soft desk when unset.
+    if [[ -z "${HACKME_HUNT_ISOLATE_STRICT:-}" || -z "${HACKME_HUNT_BUILD_SANDBOX:-}" ]]; then
+      echo "[entrypoint] WARN: bwrap probe failed — defaulting unset STRICT/BUILD_SANDBOX to 0"
+    else
+      echo "[entrypoint] WARN: bwrap probe failed — keeping STRICT=${HACKME_HUNT_ISOLATE_STRICT} BUILD_SANDBOX=${HACKME_HUNT_BUILD_SANDBOX}"
+    fi
     export HACKME_HUNT_ISOLATE_STRICT="${HACKME_HUNT_ISOLATE_STRICT:-0}"
     export HACKME_HUNT_BUILD_SANDBOX="${HACKME_HUNT_BUILD_SANDBOX:-0}"
   fi
 else
-  echo "[entrypoint] WARN: bwrap missing — STRICT/BUILD_SANDBOX=0"
+  if [[ -z "${HACKME_HUNT_ISOLATE_STRICT:-}" || -z "${HACKME_HUNT_BUILD_SANDBOX:-}" ]]; then
+    echo "[entrypoint] WARN: bwrap missing — defaulting unset STRICT/BUILD_SANDBOX to 0"
+  else
+    echo "[entrypoint] WARN: bwrap missing — keeping STRICT=${HACKME_HUNT_ISOLATE_STRICT} BUILD_SANDBOX=${HACKME_HUNT_BUILD_SANDBOX}"
+  fi
   export HACKME_HUNT_ISOLATE_STRICT="${HACKME_HUNT_ISOLATE_STRICT:-0}"
   export HACKME_HUNT_BUILD_SANDBOX="${HACKME_HUNT_BUILD_SANDBOX:-0}"
 fi

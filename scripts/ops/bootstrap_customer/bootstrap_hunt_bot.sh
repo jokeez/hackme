@@ -10,10 +10,11 @@ STATE="$INSTALL/logs/bootstrap/hunt_bot_state.json"
 DIG_STATE="$INSTALL/logs/bootstrap/bot_state.json"
 mkdir -p "$INSTALL/logs/bootstrap" "$(dirname "$STATE")"
 
-# Rotate light Hunt targets (ASAN rail).
-TARGETS=(jsmn cjson md4c yyjson nghttp2 expat)
-PKGS=(hunt_standard hunt_standard hunt_lite hunt_standard hunt_lite hunt_lite)
-SHARDS=(32 32 24 32 24 24)
+# Rotate ASAN-shaped Hunt targets — prefer high-yield / media / interpreters / parsers.
+# Timer places package defaults (omit tiny shards); bots still pass shards for lite.
+TARGETS=(pcre2 minimp3 stb_image hiredis libucl oniguruma picohttpparser heatshrink miniz lz4 duktape quickjs)
+PKGS=(hunt_heavy hunt_heavy hunt_heavy hunt_heavy hunt_standard hunt_standard hunt_heavy hunt_heavy hunt_heavy hunt_standard hunt_standard hunt_standard)
+SHARDS=(0 0 0 0 0 0 0 0 0 0 0 0)
 IDX=0
 if [[ -f "$STATE" ]]; then
   IDX="$(python3 -c "import json; print(json.load(open('$STATE')).get('target_idx',0))" 2>/dev/null || echo 0)"
@@ -53,7 +54,8 @@ fi
 
 ADMIN="$(grep -m1 '^HACKME_ADMIN_TOKEN=' "$INSTALL/.env" | cut -d= -f2- | tr -d '\r\n')"
 wallet_json="$(curl -fsS --max-time 20 -H "X-Hackme-Admin-Token: $ADMIN" "$BASE/api/wallet")"
-bal="$(jq -r '.balance_orders_spendable_hmc // .balance_hmc // 0' <<<"$wallet_json")"
+# jq `//` does not fall through on 0 prepaid spendable — use on-chain when needed.
+bal="$(python3 -c "import json,sys; d=json.load(sys.stdin); p=float(d.get('balance_orders_spendable_hmc') or 0); w=float(d.get('balance_hmc') or 0); print(p if p>0 else w)" <<<"$wallet_json")"
 MIN_BAL="${MIN_BALANCE_HMC:-8}"
 if ! python3 -c "import sys; sys.exit(0 if float('$bal') >= float('$MIN_BAL') else 1)"; then
   log "SKIP — spendable $bal < $MIN_BAL"

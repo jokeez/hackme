@@ -10,6 +10,11 @@ cd "$ROOT"
 # shellcheck source=scripts/tests/common.sh
 source "$ROOT/scripts/tests/common.sh"
 
+# Desk: repo .secrets/hackme_orders_prepaid_hub_secret turns on RequireHubPrepaidTicket
+# and unit tests then 409 without a live hub ledger. Algebraic mint is break-glass for
+# isolated test DBs (production D1 leaves this unset).
+export HACKME_ORDERS_PREPAID_ALLOW_ALGEBRAIC_MINT="${HACKME_ORDERS_PREPAID_ALLOW_ALGEBRAIC_MINT:-1}"
+
 echo "[customer-e2e] engine policy + floor_only + unpaid + settle ACK units"
 go test -count=1 ./internal/hunt/ -run 'ControlledLfAflMix|Monochrome|RunnerAvailable|InventoryForces' -timeout=60s
 go test -count=1 ./internal/poolfuzz/ -run 'DecideHuntEnginePay|FloorOnly|ByteFallback' -timeout=60s

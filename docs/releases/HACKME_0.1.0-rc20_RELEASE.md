@@ -2,6 +2,13 @@
 
 **Channel:** `0.1.0-rc20` · **Date:** 2026-11-17 · **GitHub:** https://github.com/jokeez/hackme/releases/tag/0.1.0-rc20
 
+## Exchange soft-launch (honesty)
+
+- **Desk:** [exchange.hackme.tech](https://exchange.hackme.tech/) — soft-launch matching + HMC/SUP custody (not a CEX listing).
+- **Tape:** Soft-MM provides book liquidity — **not organic volume**.
+- **USDT:** BSC watch + Didit TM; **`HOT_SEND=0`** (auto hot-withdraw off; manual broadcast).
+- **BTC hot custody:** HOLD.
+
 ## Highlights
 
 - **Paid pool Dig/Hunt** — customer Fund → hub prepaid escrow → Dig/Hunt on the public pool (hub escrow). Cancel/finalize refunds unused escrow to prepaid.

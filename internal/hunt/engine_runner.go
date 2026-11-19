@@ -631,6 +631,13 @@ func collectCrashArtifacts(root, dir string, max int) []string {
 // wall so artifacts from earlier leases cannot be re-collected. Recreates the dir
 // beneath root without following symlinks (mkdirAllBeneath).
 func resetHuntSessionCrashDir(corpusDir, crashDir string) error {
+	// Create .hunt-run first: CorpusPathConfined EvalSymlinks-fails when neither
+	// crashes nor its parent exist yet, which soft-skipped fresh corpora
+	// (heatshrink/miniz/…) with "crash dir escapes corpus root".
+	sessionDir := filepath.Dir(crashDir)
+	if err := mkdirAllBeneath(corpusDir, sessionDir, 0o755); err != nil {
+		return fmt.Errorf("hunt: create session dir: %w", err)
+	}
 	if !CorpusPathConfined(corpusDir, crashDir) {
 		return fmt.Errorf("hunt: crash dir escapes corpus root")
 	}

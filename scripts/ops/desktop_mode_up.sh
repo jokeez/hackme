@@ -135,6 +135,7 @@ HACKME_DESKTOP_MODE=1
 DESKTOP_PROFILE=worker
 HACKME_PUBLIC_AUTHORITY_BASE=https://hackme.tech
 HACKME_CANONICAL_CHAIN_URL=https://hackme.tech
+HACKME_ORDERS_HUB_URL=https://hackme.tech
 # Pool: add HACKME_POOL_COORDINATOR_TOKEN=... from operator (or .secrets/hackme_coordinator_admin_token in dev tree)
 EOF
   chmod 600 "$DESKTOP_ENV_FILE" || true
@@ -187,6 +188,18 @@ if [[ "${DESKTOP_PROFILE}" == "worker" && -z "${HACKME_POOL_COORDINATOR_URL:-}" 
   export HACKME_POOL_COORDINATOR_URL="${HACKME_POOL_COORDINATOR_URL:-https://hackme.tech/pool/coordinator}"
   if ! grep -q '^HACKME_POOL_COORDINATOR_URL=' "$DESKTOP_ENV_FILE" 2>/dev/null; then
     echo "HACKME_POOL_COORDINATOR_URL=${HACKME_POOL_COORDINATOR_URL}" >>"$DESKTOP_ENV_FILE"
+  fi
+fi
+
+# Paid Dig/Hunt on the public hub (rc20): open escrow + prepaid against hackme.tech.
+if [[ -z "${HACKME_ORDERS_HUB_URL:-}" ]]; then
+  export HACKME_ORDERS_HUB_URL="${HACKME_ORDERS_HUB_URL:-https://hackme.tech}"
+fi
+if [[ -n "${HACKME_ORDERS_HUB_URL:-}" ]]; then
+  if grep -q '^HACKME_ORDERS_HUB_URL=' "$DESKTOP_ENV_FILE" 2>/dev/null; then
+    sed -i "s|^HACKME_ORDERS_HUB_URL=.*|HACKME_ORDERS_HUB_URL=${HACKME_ORDERS_HUB_URL}|" "$DESKTOP_ENV_FILE"
+  else
+    echo "HACKME_ORDERS_HUB_URL=${HACKME_ORDERS_HUB_URL}" >>"$DESKTOP_ENV_FILE"
   fi
 fi
 

@@ -41,6 +41,10 @@ export HACKME_COORDINATOR_WRITE_TIMEOUT_SEC="${HACKME_COORDINATOR_WRITE_TIMEOUT_
 export HACKME_POOL_HUNT_REPLAY_MAX_PARALLEL="${HACKME_POOL_HUNT_REPLAY_MAX_PARALLEL:-2}"
 export HACKME_POOL_HUNT_REPLAY_ASYNC="${HACKME_POOL_HUNT_REPLAY_ASYNC:-1}"
 export HACKME_POOL_HUNT_REPLAY_WORKERS="${HACKME_POOL_HUNT_REPLAY_WORKERS:-2}"
+# Desk gate: repo .secrets/prepaid hub secret makes RequireHubPrepaidTicket true and
+# admin register then demands a live hub escrow (409). Algebraic mint is the
+# documented break-glass for isolated coordinator DBs without a chain ledger.
+export HACKME_ORDERS_PREPAID_ALLOW_ALGEBRAIC_MINT=1
 
 COORD_BIN="${COORD_BIN:-$ROOT/bin/hackme-coordinator-gate}"
 echo "[hunt-pool-gate] build coordinator → $COORD_BIN"

@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-17T16:45:00Z",
+  "updated": "2026-11-18T12:50:00Z",
   "interval_ms": 6200,
   "pool_poll_ms": 30000,
   "slides": [
@@ -21,7 +21,7 @@
       "kind": "exchange",
       "badge": "SOFT",
       "title": "Exchange soft-launch \u2014 matching + HMC/SUP custody",
-      "detail": "exchange.hackme.tech \u00b7 Connect desk wallet \u00b7 paper Spot without Connect \u00b7 USDT KYT manual \u00b7 BTC HOLD",
+      "detail": "exchange.hackme.tech \u00b7 Connect \u2192 deposit \u2192 trade \u00b7 Soft-MM tape (not organic volume) \u00b7 USDT auto-withdraw HOLD",
       "cta": "Open desk",
       "href": "https://exchange.hackme.tech/",
       "accent": "cyan",

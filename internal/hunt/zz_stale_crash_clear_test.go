@@ -38,3 +38,15 @@ func TestResetHuntSessionCrashDirRejectsEscape(t *testing.T) {
 		t.Fatal("escape path must fail")
 	}
 }
+
+func TestResetHuntSessionCrashDirCreatesMissingSession(t *testing.T) {
+	corpus := t.TempDir()
+	crashDir := filepath.Join(corpus, ".hunt-run", "crashes")
+	// Fresh corpus: neither .hunt-run nor crashes exist yet (was soft-skipping).
+	if err := resetHuntSessionCrashDir(corpus, crashDir); err != nil {
+		t.Fatal(err)
+	}
+	if st, err := os.Stat(crashDir); err != nil || !st.IsDir() {
+		t.Fatalf("crash dir must exist: %v", err)
+	}
+}

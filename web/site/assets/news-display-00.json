@@ -106,7 +106,7 @@
       "date": "2026-10-24",
       "title": "Blake3 PoH LIVE — tip ≥ #485000 · honest ~few GH/s wall-rate",
       "summary": "Mainnet crossed the Blake3 gate at height 485000. Pool formula is blake3_v3(prev‖miner‖nonce_le)%M==0. Pool runs share-PPS (SHARE_STRICT): verified shares at M/1024; GH/s from shares/wall. Real PoW GH/s is wall-timed Blake3 throughput (~few GH/s fleet class) — not the pre-cliff hybrid algebraic calib. Dig/Hunt leases remain live. Economics v2 (emission lock, pool-from-emission, burn-on-orders) is upcoming RFC — not live numbers as gospel.",
-      "impact": "Dashboard/site must show blake3_pow_ghs. Rebuild workerpoh so submit ghs= matches wall rate. Soft 429/no-work on fuzz is OK. Exchange: own paper desk D0 + listing pack ready; no foreign CEX listing claimed.",
+      "impact": "Dashboard/site must show blake3_pow_ghs. Rebuild workerpoh so submit ghs= matches wall rate. Soft 429/no-work on fuzz is OK. Exchange: soft-launch desk (matching + HMC/SUP; Soft-MM tape; USDT HOT_SEND=0) + listing pack ready; no foreign CEX listing claimed.",
       "action": "Downloads: https://hackme.tech/downloads.html · Listing: https://hackme.tech/listing.html · Pool: https://hackme.tech/pool/explorer",
       "tags": [
         "blake3",

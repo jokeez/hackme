@@ -68,3 +68,51 @@ func TestClaimRoundRobinPrefersCustomerOverBootstrapWall(t *testing.T) {
 		t.Fatalf("customer hits=%d want >=8 (starved by bootstrap FIFO/RR?)", customerHits)
 	}
 }
+
+func TestClaimRoundRobinAmongCustomerCampaigns(t *testing.T) {
+	ctx := context.Background()
+	db, err := store.Open(filepath.Join(t.TempDir(), "claim-cust-rr.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	svc := &Service{DB: db}
+	cfg := map[string]any{
+		"pool_distributed": true,
+		"check_semantics":  "detector",
+		"wasm_check_hex":   "0061736d0100000001060160017e017f0302010007090105636865636b00000a0601040041010b",
+	}
+	// Older heavy backlog would starve newer prepaid Hunt under FIFO-by-created_at.
+	if err := svc.RegisterCampaign(ctx, Campaign{
+		ID: "hunt-heavy-old", CampaignType: "property", Status: "running",
+		Title: "hunt-heavy-old", OwnerRef: "HMC-cust", BudgetRuns: 64, Config: cfg,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(5 * time.Millisecond)
+	if err := svc.RegisterCampaign(ctx, Campaign{
+		ID: "hunt-heavy-new", CampaignType: "property", Status: "running",
+		Title: "hunt-heavy-new", OwnerRef: "HMC-cust", BudgetRuns: 64, Config: cfg,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Now().Unix()
+	hits := map[string]int{}
+	for i := 0; i < 20; i++ {
+		w, ok, err := svc.Claim(ctx, "worker-bench", now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !ok {
+			t.Fatalf("claim %d empty", i)
+		}
+		hits[w.CampaignID]++
+	}
+	if hits["hunt-heavy-new"] < 5 {
+		t.Fatalf("newer customer starved: hits=%v (want RR across both)", hits)
+	}
+	if hits["hunt-heavy-old"] < 5 {
+		t.Fatalf("older customer missing: hits=%v", hits)
+	}
+}

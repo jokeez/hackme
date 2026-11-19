@@ -33,8 +33,8 @@
     github: { href: "https://github.com/jokeez/hackme", label: "GitHub", external: true },
   };
 
-  const PRIMARY = ["mine", "coins", "exchange", "research", "docs"];
-  const MORE = ["orders", "fuzz", "developers", "news", "economics", "transparency", "roadmap", "listing", "rewards", "contacts", "legal", "privacy", "explorer", "downloads"];
+  const PRIMARY = ["mine", "orders", "exchange", "coins", "docs"];
+  const MORE = ["research", "fuzz", "developers", "news", "economics", "transparency", "roadmap", "listing", "rewards", "contacts", "legal", "privacy", "explorer", "downloads"];
 
   const FOOTER_GROUPS = [
     { title: "Network", keys: ["home", "coins", "exchange", "transparency", "roadmap", "research", "github", "explorer"] },

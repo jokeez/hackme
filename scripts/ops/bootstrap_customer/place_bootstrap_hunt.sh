@@ -21,8 +21,8 @@ TITLE="Bootstrap Hunt · ${TARGET} · ${PKG}"
 LOG_DIR="${LOG_DIR:-$INSTALL/logs/bootstrap/hunt}"
 mkdir -p "$LOG_DIR"
 
-# Hunt escrow enforces HuntMinShards=8 (internal/fuzzescrow/hunt.go).
-if [[ "$SHARDS" -lt 8 ]]; then
+# Hunt escrow enforces HuntMinShards=8. Empty/0 → omit (package default: lite/standard/heavy).
+if [[ -n "${SHARDS}" && "$SHARDS" =~ ^[0-9]+$ && "$SHARDS" -gt 0 && "$SHARDS" -lt 8 ]]; then
   echo "[bootstrap-hunt] clamp shards $SHARDS -> 8 (HuntMinShards)" >&2
   SHARDS=8
 fi
@@ -52,30 +52,30 @@ case "$PKG" in
 esac
 ENGINE_LEASE_SEC="${ENGINE_LEASE_SEC:-60}"
 
-echo "[bootstrap-hunt $(date -u +%H:%M:%S)] PLACE $CID pkg=$PKG shards=$SHARDS engine=$HUNT_ENGINE lease=${ENGINE_LEASE_SEC}s"
+echo "[bootstrap-hunt $(date -u +%H:%M:%S)] PLACE $CID pkg=$PKG shards=${SHARDS:-pkg_default} engine=$HUNT_ENGINE lease=${ENGINE_LEASE_SEC}s"
+payload="$(jq -nc \
+  --arg id "$CID" \
+  --arg title "$TITLE" \
+  --arg pkg "$PKG" \
+  --arg tid "$TARGET" \
+  --arg eng "$HUNT_ENGINE" \
+  --argjson lease "$ENGINE_LEASE_SEC" \
+  --arg shards "${SHARDS:-}" \
+  '{
+    id: $id,
+    package: $pkg,
+    title: $title,
+    pool_distributed: true,
+    status: "running",
+    catalog: true,
+    target_id: $tid,
+    hunt_engine: $eng,
+    engine_lease_sec: $lease
+  } + (if ($shards|tonumber? // 0) > 0 then {budget_shards: ($shards|tonumber)} else {} end)')"
 resp="$(curl -sS --max-time 900 -X POST "$BASE/api/hunt/campaigns" \
   -H "Content-Type: application/json" \
   -H "X-Hackme-Admin-Token: $ADMIN" \
-  -d "$(jq -nc \
-    --arg id "$CID" \
-    --arg title "$TITLE" \
-    --arg pkg "$PKG" \
-    --arg tid "$TARGET" \
-    --arg eng "$HUNT_ENGINE" \
-    --argjson shards "$SHARDS" \
-    --argjson lease "$ENGINE_LEASE_SEC" \
-    '{
-      id: $id,
-      package: $pkg,
-      title: $title,
-      pool_distributed: true,
-      budget_shards: $shards,
-      status: "running",
-      catalog: true,
-      target_id: $tid,
-      hunt_engine: $eng,
-      engine_lease_sec: $lease
-    }')")"
+  -d "$payload")"
 echo "$resp" | tee "$LOG_DIR/${CID}.json" >/dev/null
 echo "$resp" | jq -c '{ok,id:(.campaign.id//.id),pool_sync,err:(.error//.code//.message)}' || echo "$resp" | head -c 800
 

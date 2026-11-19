@@ -191,10 +191,11 @@ if [[ "$SYNC_NGINX_SITE_CONF" == "1" ]]; then
     echo "[deploy-hackme-site] missing NGINX_SITE_CONF: $NGINX_SITE_CONF" >&2
     exit 2
   fi
-  echo "[deploy-hackme-site] sync nginx site conf -> /etc/nginx/sites-available/hackme-site-domain.conf"
+  echo "[deploy-hackme-site] sync nginx site conf -> sites-available + sites-enabled"
   deploy_ssh_retry_run _deploy_rsync -az "$NGINX_SITE_CONF" "${NODE_SSH}:/tmp/hackme-site-domain.conf.new"
+  # Origin keeps a real file in sites-enabled (not always a symlink) — update both.
   deploy_ssh_retry_run _deploy_ssh "$NODE_SSH" \
-    "sudo cp /tmp/hackme-site-domain.conf.new /etc/nginx/sites-available/hackme-site-domain.conf"
+    "sudo cp /tmp/hackme-site-domain.conf.new /etc/nginx/sites-available/hackme-site-domain.conf && sudo cp /tmp/hackme-site-domain.conf.new /etc/nginx/sites-enabled/hackme-site-domain.conf"
 fi
 
 if [[ "$RELOAD_NGINX" == "1" ]]; then

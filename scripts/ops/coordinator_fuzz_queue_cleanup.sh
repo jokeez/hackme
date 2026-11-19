@@ -73,8 +73,10 @@ run_coord_post() {
 log "POST cleanup-gates"
 run_coord_post "/api/fuzz/pool/campaigns/cleanup-gates" | jq -c .
 
-log "POST cleanup-stale min_age_sec=1800 (includes repair-zombies on coordinator)"
-run_coord_post "/api/fuzz/pool/campaigns/cleanup-stale?min_age_sec=1800" | jq -c .
+# 6h floor: prepaid/customer Dig-Hunt are skipped in CancelZeroProgressPoolCampaigns;
+# this age only sweeps unpaid gate/bootstrap zombies that never started.
+log "POST cleanup-stale min_age_sec=21600 (includes repair-zombies on coordinator)"
+run_coord_post "/api/fuzz/pool/campaigns/cleanup-stale?min_age_sec=21600" | jq -c .
 
 log "POST repair-zombies limit=50"
 run_coord_post "/api/fuzz/pool/campaigns/repair-zombies?limit=50" | jq -c . || log "repair-zombies skipped (upgrade coordinator)"

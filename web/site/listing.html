@@ -4,18 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Listing Readiness — HackMe Ecosystem</title>
-  <meta name="description" content="Exchange listing hub for HackMe ecosystem: HMC primary, paper soft-launch desk (D0) first, then PoW-friendly CEX. Honest readiness scores. Channel 0.1.0-rc20 · Economics v2 live since block 550,000." />
+  <meta name="description" content="Exchange listing hub for HackMe ecosystem: HMC primary, soft-launch desk (matching + HMC/SUP custody) first, then PoW-friendly CEX. Honest readiness scores. Channel 0.1.0-rc20 · Economics v2 live since block 550,000." />
   <link rel="canonical" href="https://hackme.tech/listing.html" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://hackme.tech/listing.html" />
   <meta property="og:title" content="Listing Readiness — HackMe Ecosystem" />
-  <meta property="og:description" content="HMC first · paper soft-launch desk (D0) · then external CEX. Honest readiness scores." />
+  <meta property="og:description" content="HMC first · soft-launch desk (matching + HMC/SUP custody) · then external CEX. Honest readiness scores." />
   <meta property="og:image" content="https://hackme.tech/assets/og-share-1200x630.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Listing Readiness — HackMe Ecosystem" />
-  <meta name="twitter:description" content="HMC first · paper soft-launch desk (D0) · then external CEX." />
+  <meta name="twitter:description" content="HMC first · soft-launch desk · then external CEX." />
   <meta name="twitter:image" content="https://hackme.tech/assets/og-share-1200x630.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -38,7 +38,7 @@
       <h1>Exchange readiness — all tickers</h1>
       <p class="hero-copy">
         HackMe is a <strong>multi-asset network</strong>. Near-term priority:
-        <strong>early access Exchange desk</strong> (<a href="https://exchange.hackme.tech/" target="_blank" rel="noreferrer">exchange.hackme.tech</a>)
+        <strong>soft-launch Exchange desk</strong> (<a href="https://exchange.hackme.tech/" target="_blank" rel="noreferrer">exchange.hackme.tech</a>)
         so miners and audit customers can practice a buy-path for HMC without futures-first dumping —
         then <strong>HMC</strong> on PoW-friendly external CEX when traction and MM are ready,
         then <strong>SUP</strong>, then <strong>HMS</strong> when storage is live.
@@ -49,11 +49,11 @@
     <section class="panel glass">
       <div class="panel-head"><h2>Live evidence (2026-11-03)</h2></div>
       <ul class="list">
-        <li><strong>Release</strong> — channel <code>0.1.0-rc20</code> LIVE (paper Exchange · SUP wallet · paid Dig/Hunt · HackMe OS ISO). Economics v2 live since block 550,000. Packages: Windows · Linux tar · deb · rpm · Arch · Docker · ISO. <a href="./downloads.html">downloads</a> · <a href="https://github.com/jokeez/hackme/releases/tag/0.1.0-rc20" target="_blank" rel="noreferrer">GitHub rc20</a></li>
+        <li><strong>Release</strong> — channel <code>0.1.0-rc20</code> LIVE (soft-launch Exchange · SUP wallet · paid Dig/Hunt · HackMe OS ISO). Economics v2 live since block 550,000. Packages: Windows · Linux tar · deb · rpm · Arch · Docker · ISO. <a href="./downloads.html">downloads</a> · <a href="https://github.com/jokeez/hackme/releases/tag/0.1.0-rc20" target="_blank" rel="noreferrer">GitHub rc20</a></li>
         <li><strong>Public pool</strong> — live coordinator + node · hybrid Ed25519 · tip ≥#523k · <strong>Blake3 PoH v3 LIVE</strong> (gate #485000 · share-PPS · paced day budget) · fleet ~few–tens GH/s Blake3 wall-rate · GHS↔Dig soft-priority (hybrid GPUs prefer Dig; Hunt engines Linux-only; Windows Dig/PoH)</li>
         <li><strong>MiningBoard</strong> — HMC + HackMe Official Pool listed (verified 2026-11-04). Independent page: <a href="https://miningboard.com/pools/hackme.tech" target="_blank" rel="noreferrer">miningboard.com/pools/hackme.tech</a> · coin: <a href="https://miningboard.com/mining/hackme" target="_blank" rel="noreferrer">/mining/hackme</a> · our feed: <a href="https://hackme.tech/pool/coordinator/api/miningboard/hmc" target="_blank" rel="noreferrer">pool-v1 JSON</a></li>
         <li><strong>Economics v2</strong> — <a href="https://github.com/jokeez/hackme/blob/main/docs/RFC_ECONOMICS_V2.md" target="_blank" rel="noreferrer">RFC</a> · activation height <strong>550,000</strong> (≈ 2026-11-15; shipped in rc19, current channel 0.1.0-rc20): 0.1 HMC/block, ~4-year halvings, 0.002 tail, 5% order burn + 5% platform fee, SUP 0.002/block (cap 21,000), <code>HMC-</code> + 64-hex addresses, <code>chain_id</code> <code>hackme-mainnet-1</code></li>
-        <li><strong>Own exchange</strong> — spot paper desk at <a href="https://exchange.hackme.tech/" target="_blank" rel="noreferrer">exchange.hackme.tech</a> (no futures lane at start; customer buy-path for audit escrow)</li>
+        <li><strong>Own exchange</strong> — soft-launch desk at <a href="https://exchange.hackme.tech/" target="_blank" rel="noreferrer">exchange.hackme.tech</a> (no futures lane at start; customer buy-path for audit escrow)</li>
         <li><strong>Marketplace</strong> — campaign board shows live fleet capacity + per-order fleet ETA · <a href="./fuzz-marketplace.html">fuzz marketplace</a></li>
         <li><strong>Research</strong> — Hunt Watch 12/12 · nghttp2 CVE Watch 14/14 CLEAN · libheif CVE Watch <strong>14/14 CLEAN</strong> · <a href="./reports/hunt-watch-2026sep/">Hunt ledger</a></li>
         <li><strong>Security / DR</strong> — lease ownership · settle ACK confirm · Hunt isolate STRICT · public metrics redact · PoH/fuzz DB split · DE mirror static standby</li>
@@ -112,7 +112,7 @@
       <p class="section-lede">Why HackMe is not &quot;another mining pool coin&quot;:</p>
       <ul class="list">
         <li><strong>Blake3 PoH + Dig/Hunt</strong> — share-PPS mining; useful customer work on fuzz lanes</li>
-        <li><strong>B2B demand layer</strong> — Dig/Hunt escrow in HMC; paper desk (D0) is the soft-launch buy-path for audit escrow</li>
+        <li><strong>B2B demand layer</strong> — Dig/Hunt escrow in HMC; soft-launch desk is the buy-path for audit escrow</li>
         <li><strong>Honest GHS↔Dig coupling</strong> — hybrid GPUs prefer Dig; Hunt coverage engines Linux-only; Windows Dig/PoH</li>
         <li><strong>Fair coordinator</strong> — hybrid Ed25519 · paced day budget · settle confirm · published operator gates</li>
         <li><strong>Ecosystem</strong> — SUP loyalty/fees (Economics v2 live since #550,000); HMS storage (future)</li>

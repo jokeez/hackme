@@ -62,11 +62,14 @@ fi
 rm -f "$TMP"
 
 # Customer Orders path: scoped publish token + octet-stream (Bobby pilot gap).
+# HUNT-01: publish token must attest content SHA-256 of the body.
 PUB_HASH="$(printf 'publish-octet-%s' "$HASH" | sha256sum | awk '{print $1}')"
+CONTENT_SHA="$(sha256sum "$WASM" | awk '{print $1}')"
 echo "[hunt-harness-gate] POST harness publish (orders publish token / octet-stream)"
 code="$(curl -sS -o /tmp/hunt-harness-pub.json -w '%{http_code}' -X POST "${BASE}/api/fuzz/pool/hunt/harness" \
   -H "Content-Type: application/octet-stream" \
   -H "X-Hackme-Harness-Hash: $PUB_HASH" \
+  -H "X-Hackme-Harness-Content-SHA256: $CONTENT_SHA" \
   -H "X-Hackme-Source-Rel: customer/pilot" \
   -H "X-Hackme-Admin-Token: $HACKME_COORDINATOR_ORDERS_PUBLISH_TOKEN" \
   --data-binary @"$WASM")"
@@ -76,8 +79,12 @@ fi
 jq -e '.ok == true' /tmp/hunt-harness-pub.json >/dev/null
 
 TMP2="$(mktemp)"
-curl -fsS -H "Authorization: Bearer $HACKME_COORDINATOR_WORKER_TOKEN" \
-  "${BASE}/api/fuzz/pool/hunt/harness/${PUB_HASH}" -o "$TMP2"
+# HUNT-02: publish-token GET requires the same content attestation header.
+curl -fsS -H "Authorization: Bearer $HACKME_COORDINATOR_ORDERS_PUBLISH_TOKEN" \
+  -H "X-Hackme-Harness-Content-SHA256: $CONTENT_SHA" \
+  "${BASE}/api/fuzz/pool/hunt/harness/${PUB_HASH}" -o "$TMP2" 2>/dev/null \
+  || curl -fsS -H "Authorization: Bearer $HACKME_COORDINATOR_WORKER_TOKEN" \
+    "${BASE}/api/fuzz/pool/hunt/harness/${PUB_HASH}" -o "$TMP2"
 if ! cmp -s "$WASM" "$TMP2"; then
   fail "worker fetch after publish-token upload mismatch"
 fi
@@ -87,6 +94,7 @@ rm -f "$TMP2" /tmp/hunt-harness-pub.json
 neg="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${BASE}/api/fuzz/pool/hunt/harness" \
   -H "Content-Type: application/octet-stream" \
   -H "X-Hackme-Harness-Hash: $(printf neg | sha256sum | awk '{print $1}')" \
+  -H "X-Hackme-Harness-Content-SHA256: $CONTENT_SHA" \
   -H "X-Hackme-Admin-Token: $HACKME_COORDINATOR_WORKER_TOKEN" \
   --data-binary @"$WASM")"
 if [[ "$neg" != "401" ]]; then

@@ -13,8 +13,8 @@ STATE="$INSTALL/logs/bootstrap/bot_state.json"
 PAYOUT_LOG="$INSTALL/logs/bootstrap/payout_track.jsonl"
 mkdir -p "$INSTALL/logs/bootstrap" "$(dirname "$STATE")"
 
-# Light parsers only (no heavy ASAN museum targets).
-TARGETS=(jsmn yyjson cjson md4c nghttp2 expat)
+# Dig deep rotation — favor ASAN-dense C parsers (pool_distributed + workerfuzz).
+TARGETS=(centijson libucl oniguruma libyaml uriparser lz4 picohttpparser yajl hiredis md4c cjson expat)
 IDX=0
 PLAN_UNTIL=""
 if [[ -f "$STATE" ]]; then
@@ -55,7 +55,9 @@ fi
 
 ADMIN="$(grep -m1 '^HACKME_ADMIN_TOKEN=' "$INSTALL/.env" | cut -d= -f2- | tr -d '\r\n')"
 wallet_json="$(curl -fsS --max-time 20 -H "X-Hackme-Admin-Token: $ADMIN" "$BASE/api/wallet")"
-bal="$(jq -r '.balance_orders_spendable_hmc // .balance_hmc // 0' <<<"$wallet_json")"
+# jq `//` does NOT fall through on 0 — prepaid spendable can be 0 while on-chain
+# wallet still funds Dig/Hunt Start. Prefer prepaid when >0, else on-chain HMC.
+bal="$(python3 -c "import json,sys; d=json.load(sys.stdin); p=float(d.get('balance_orders_spendable_hmc') or 0); w=float(d.get('balance_hmc') or 0); print(p if p>0 else w)" <<<"$wallet_json")"
 bal_total="$(jq -r '.balance_hmc // 0' <<<"$wallet_json")"
 log "wallet spendable_hmc=$bal total_hmc=$bal_total target=$TARGET idx=$IDX plan_until=${PLAN_UNTIL:-none}"
 

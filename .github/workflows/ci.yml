@@ -12,7 +12,8 @@ permissions:
 
 jobs:
   build-test-static-lang:
-    runs-on: ubuntu-latest
+    # Pin 24.04: ubuntu-latest floated to 26.04 where Playwright has no chromium builds.
+    runs-on: ubuntu-24.04
     # Gate must stay snappy: fuzzupstream ASAN smokes alone can take ~10m and drown
     # signal from poolfuzz/hermetic unit flakes. Heavy Hunt lives in fuzzupstream-smoke.
     timeout-minutes: 35
@@ -86,7 +87,7 @@ jobs:
         run: MODE=lang_static bash scripts/tests/run_daily.sh
 
   fuzzupstream-smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
@@ -103,7 +104,7 @@ jobs:
       - name: fuzzupstream package tests
         run: go test ./internal/fuzzupstream/ -count=1 -timeout 35m
   coordinator-unit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -118,7 +119,8 @@ jobs:
         run: go test -race -count=1 -shuffle=on -timeout 25m ./cmd/coordinator/ ./internal/chain/ ./internal/workersettle/ ./internal/checkpoint/
 
   ui-e2e:
-    runs-on: ubuntu-latest
+    # Playwright chromium packages are not published for ubuntu26 yet.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -136,7 +138,7 @@ jobs:
         run: bash scripts/tests/run_ui_e2e.sh
 
   windows-ootb:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - name: Windows Dig/PoH OOTB honesty (no Hunt engines promised)

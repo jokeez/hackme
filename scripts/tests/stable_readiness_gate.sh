@@ -94,8 +94,8 @@ check_file_lacks "$ROOT/dashboard.html" \
   "wallet chip must not claim Live CEX price"
 
 check_file_has "$ROOT/dashboard.html" \
-  'Paper ref mid|PAPER · REF MID|paper ref' \
-  "wallet/exchange paper labeling present"
+  'Desk mid \(soft-launch\)|soft-launch desk' \
+  "wallet/exchange soft-launch labeling present"
 
 check_file_has "$ROOT/scripts/release/run_full_release_local.sh" \
   'stable_readiness_gate\.sh' \
@@ -125,14 +125,20 @@ if is_stable_version; then
     blockers+=("missing committed scripts/release/keys/hackme_update_ed25519.pub.pem")
   fi
 
-  # Paper exchange as the only desk is OK only if clearly labeled; claiming
-  # "live CEX" or omitting paper/D0 in release notes is a blocker.
+  # Soft-launch desk must be labeled; claiming "live CEX" or omitting soft-launch
+  # / Soft-MM / HOT_SEND honesty in release notes is a blocker.
   if [[ -f "$ROOT/docs/releases/HACKME_${VERSION}_RELEASE.md" ]]; then
-    if ! grep -qiE 'paper|D0' "$ROOT/docs/releases/HACKME_${VERSION}_RELEASE.md"; then
-      blockers+=("stable release notes must label exchange as paper/D0")
+    if ! grep -qiE 'soft-launch' "$ROOT/docs/releases/HACKME_${VERSION}_RELEASE.md"; then
+      blockers+=("stable release notes must label exchange as soft-launch desk")
+    fi
+    if ! grep -qiE 'Soft-MM|soft MM|not organic' "$ROOT/docs/releases/HACKME_${VERSION}_RELEASE.md"; then
+      blockers+=("stable release notes must disclose Soft-MM tape (not organic volume)")
+    fi
+    if ! grep -qiE 'HOT_SEND' "$ROOT/docs/releases/HACKME_${VERSION}_RELEASE.md"; then
+      blockers+=("stable release notes must disclose USDT HOT_SEND=0 / manual withdraw")
     fi
   else
-    blockers+=("missing docs/releases/HACKME_${VERSION}_RELEASE.md with paper/D0 disclosure")
+    blockers+=("missing docs/releases/HACKME_${VERSION}_RELEASE.md with soft-launch disclosure")
   fi
 
   # Money-path E2E proof (pool+hunt+demo VERDICTs, pickup=true, no soft pickup).

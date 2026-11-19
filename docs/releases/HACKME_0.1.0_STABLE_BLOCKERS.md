@@ -13,7 +13,7 @@ Channel today: `0.1.0-rc20` (`scripts/release/CURRENT_VERSION`).
 | NVRTC missing while shipping CUDA | bundle **ERROR** (not WARN) |
 | `ALLOW_SOFT_PICKUP=1` too easy | needs `HACKME_SOFT_PICKUP_REASON` (≥8); refused when claiming stable |
 | Dashboard spendable fallback to local mirror when hub set | honors `hub_prepaid` / `hub_prepaid_unavailable` |
-| Wallet chip “Live HMC/USDT” while desk is paper | **Paper ref mid (D0)** |
+| Wallet chip “Live HMC/USDT” while desk is paper | **Desk mid (soft-launch)** |
 | `apt_deb_gate` swallowed with `\|\| true` | fail-closed when `BUILD_DEB=1` |
 | No structural stable claim gate | `scripts/tests/stable_readiness_gate.sh` in full release |
 
@@ -21,8 +21,8 @@ Channel today: `0.1.0-rc20` (`scripts/release/CURRENT_VERSION`).
 
 1. **L1 self-update signing (SEC-STABLE-01)** — Scaffold landed: ed25519 `latest.json.sig` sign/verify (`scripts/release/sign_latest_json.sh`, updater `HACKME_UPDATE_SIG_MODE`). **Still open for stable:** flip default from `warn` → `require`, keep signing key only in `.secrets/`, publish `.sig` on every cut, and do not claim signed self-update in notes until `require` is the default.
 2. **Money-path E2E green without soft pickup** — **cleared locally (2026-11-17):** pool + hunt + demo hard E2E PASS with `ALLOW_SOFT_PICKUP` unset against live hub (SSH tunnel `HACKME_CHAIN_BASE=http://127.0.0.1:28080` when public TLS flakes). Root fix: register coordinator claim with customer SKU price (not post-fee escrow) + coordinator floor honors `budget_hmc_price`. Proof: `reports/gates/money_path_e2e/{pool,hunt,demo}/VERDICT.json` via `scripts/tests/record_money_path_proof.sh`; gate checks `scripts/tests/lib/money_path_proof.py`.
-3. **Exchange remains paper/D0** — OK to ship stable **with paper desk** only if release notes + site + dashboard all say paper/D0 (not “live CEX”). Live custody/matching is **not** required for `0.1.0` if clearly labeled; do **not** claim D1+.
-4. **Release notes + site channel consistency** — `docs/releases/HACKME_0.1.0_RELEASE.md` must exist with paper/D0 disclosure; listing/roadmap/downloads must match `CURRENT_VERSION` (avoid stomping parallel site-banner work — coordinate cut).
+3. **Exchange soft-launch labeling** — Matching + HMC/SUP custody are GO; site/dashboard/release notes must say **soft-launch desk** (not “live CEX”, not stale “paper/D0”). USDT `HOT_SEND=0` + Soft-MM tape honesty required in public copy. **Progress 2026-11-18:** ticker/index/listing/dashboard/rc20 notes/gate aligned; SPA chrome → SOFT-LAUNCH; residual is SPA redeploy + any remaining archive news.
+4. **Release notes + site channel consistency** — `docs/releases/HACKME_0.1.0_RELEASE.md` must exist with soft-launch disclosure; listing/roadmap/downloads must match `CURRENT_VERSION` (avoid stomping parallel site-banner work — coordinate cut).
 5. **Treasury payout discipline** — bounty pays only from `HMC-719006d93916ad52` (unchanged ops rule).
 
 ## Deferred (acceptable for rc21 / early stable if labeled)

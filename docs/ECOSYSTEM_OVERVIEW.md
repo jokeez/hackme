@@ -15,7 +15,7 @@
 | Page | Purpose |
 |------|---------|
 | [coins.html](https://hackme.tech/coins.html) | Ecosystem registry + live pool strip |
-| [exchange.hackme.tech](https://exchange.hackme.tech/) | Paper Exchange desk (D0) · also hub `#exchange` |
+| [exchange.hackme.tech](https://exchange.hackme.tech/) | Soft-launch desk (matching + HMC/SUP custody) · also hub `#exchange` |
 | [coin-hmc.html](https://hackme.tech/coin-hmc.html) | HMC listing package (investor-readable) |
 | [coin-sup.html](https://hackme.tech/coin-sup.html) | SUP utility + emission |
 | [coin-hms.html](https://hackme.tech/coin-hms.html) | HMS prelaunch preview |

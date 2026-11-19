@@ -42,7 +42,9 @@ go test -count=1 ./internal/hunt/ -run 'TestCollectParentCompanionsCjson|TestBui
   >>"$OUT/go-test.log" 2>&1
 
 COORD_DB="$(mktemp "${TMPDIR:-/tmp}/hackme-hunt-customer-e2e-coord.XXXXXX.db")"
+FUZZ_DB="$(mktemp "${TMPDIR:-/tmp}/hackme-hunt-customer-e2e-fuzz.XXXXXX.db")"
 rm -f "$COORD_DB" "${COORD_DB}-wal" "${COORD_DB}-shm" 2>/dev/null || true
+rm -f "$FUZZ_DB" "${FUZZ_DB}-wal" "${FUZZ_DB}-shm" 2>/dev/null || true
 COORD_PORT="${COORD_PORT:-$((19400 + RANDOM % 800))}"
 COORD_ADDR="127.0.0.1:${COORD_PORT}"
 COORD_BASE="http://${COORD_ADDR}"
@@ -60,6 +62,7 @@ cleanup() {
   [[ -n "$COORD_PID" ]] && kill "$COORD_PID" 2>/dev/null || true
   [[ -n "$NODE_PID" ]] && kill "$NODE_PID" 2>/dev/null || true
   rm -f "$COORD_DB" "${COORD_DB}-wal" "${COORD_DB}-shm" 2>/dev/null || true
+  rm -f "$FUZZ_DB" "${FUZZ_DB}-wal" "${FUZZ_DB}-shm" 2>/dev/null || true
   rm -rf "$NODE_DATA" 2>/dev/null || true
 }
 trap cleanup EXIT
@@ -67,12 +70,15 @@ trap cleanup EXIT
 log "start coordinator $COORD_BASE"
 (
   export HACKME_COORDINATOR_DB="$COORD_DB"
+  export HACKME_COORDINATOR_FUZZ_DB="$FUZZ_DB"
   export HACKME_COORDINATOR_ADDR="$COORD_ADDR"
   export HACKME_COORDINATOR_ALLOW_INSECURE=1
   export HACKME_COORDINATOR_ADMIN_TOKEN="$ADMIN_TOKEN"
   export HACKME_COORDINATOR_WORKER_TOKEN="$WORKER_TOKEN"
   export HACKME_POOL_HYBRID_SIGNER_ENABLED=1
   export HACKME_POOL_HYBRID_SIGNER_STRICT=1
+  # Isolated coord DB has no chain hub escrow; break-glass for desk e2e only.
+  export HACKME_ORDERS_PREPAID_ALLOW_ALGEBRAIC_MINT=1
   go run ./cmd/coordinator
 ) >>"$OUT/coordinator.log" 2>&1 &
 COORD_PID=$!
@@ -88,10 +94,13 @@ log "build node → $NODE_BIN"
 go build -trimpath -o "$NODE_BIN" .
 
 log "start node $NODE_BASE"
+# Desk/CI often lacks working bwrap userns — allow bare clang for inventory harness build.
 nohup env \
   HACKME_DATA_DIR="$NODE_DATA" \
   HACKME_BIND_ADDR="$NODE_ADDR" \
   HACKME_ADMIN_TOKEN="$ADMIN_TOKEN" \
+  HACKME_REPO_ROOT="$ROOT" \
+  HACKME_HUNT_BUILD_SANDBOX=0 \
   HACKME_FUZZ_AUTORUN=0 \
   HACKME_CHAIN_LEADER_LOCAL_POH=0 \
   HACKME_DESKTOP_MODE=1 \
@@ -151,11 +160,14 @@ echo "$INV" | jq -e --arg rel "$SOURCE_REL" '
 ' >/dev/null || fail "inventory missing $SOURCE_REL"
 
 log "2/4 harness build $SOURCE_REL"
-BUILD="$(curl_retry_fsS -fsS -X POST "${NODE_BASE}/api/hunt/harness/build" \
+# Local path only — sending git_url makes PinRepo clone instead of using CJSON_REPO
+# (master/main drift and network flakes caused 400 pin_failed / build_failed).
+BUILD_CODE="$(curl -sS -o "$OUT/harness-build.json" -w '%{http_code}' -X POST "${NODE_BASE}/api/hunt/harness/build" \
   "${admin_hdr[@]}" \
   -d "$(jq -nc --arg p "$CJSON_REPO" --arg s "$SOURCE_REL" \
-    '{repo:{path:$p, git_url:"https://github.com/DaveGamble/cJSON", ref:"master"}, source_rel:$s, template_accept:false}')")"
-echo "$BUILD" | jq . >"$OUT/harness-build.json"
+    '{repo:{path:$p}, source_rel:$s, template_accept:false}')")"
+BUILD="$(cat "$OUT/harness-build.json")"
+[[ "$BUILD_CODE" == "200" ]] || fail "harness build HTTP $BUILD_CODE body=$(head -c 400 "$OUT/harness-build.json")"
 HARNESS_HASH="$(echo "$BUILD" | jq -r '.build.harness_hash // .harness_hash // empty')"
 [[ -n "$HARNESS_HASH" && "$HARNESS_HASH" != "null" ]] || fail "harness build missing hash"
 echo "$BUILD" | jq -e '.build.companion_sources | map(select(test("cJSON\\.c$"))) | length >= 1' >/dev/null \
@@ -178,7 +190,7 @@ CREATE="$(curl_retry_fsS -fsS -X POST "${NODE_BASE}/api/hunt/campaigns" \
       budget_shards: $shards,
       status: "running",
       catalog: false,
-      repo: {path: $p, git_url: "https://github.com/DaveGamble/cJSON", ref: "master"},
+      repo: {path: $p},
       inventory_target: {path: $rel, title: "cJSON read fuzzer", source: "inventory"},
       template_accept: false
     }')")"
@@ -192,7 +204,8 @@ echo "$CREATE" | jq -e '.ok == true and (.pool_sync == "ok" or .pool_sync == "qu
 
 # Wait until coordinator lists the campaign.
 for _ in $(seq 1 40); do
-  if curl -fsS --max-time 5 -H "X-Hackme-Admin-Token: ${HACKME_COORDINATOR_ADMIN_TOKEN:-${HACKME_POOL_COORDINATOR_TOKEN:-}}" "${COORD_BASE}/api/fuzz/pool/campaigns/progress?id=${CID}" \
+  if curl -fsS --max-time 5 -H "X-Hackme-Admin-Token: ${ADMIN_TOKEN}" \
+    "${COORD_BASE}/api/fuzz/pool/campaigns/progress?id=${CID}" \
     | jq -e '.ok == true' >/dev/null 2>&1; then
     break
   fi
@@ -203,15 +216,22 @@ WORKERFUZZ_BIN="${WORKERFUZZ_BIN:-$ROOT/bin/workerfuzz-hunt-customer-e2e}"
 log "run workerfuzz (min $MIN_SHARDS_DONE shards)"
 go build -trimpath -o "$WORKERFUZZ_BIN" ./cmd/workerfuzz
 WORKERFUZZ_TIMEOUT_MS="${WORKERFUZZ_TIMEOUT_MS:-120000}"
+# Desk: nested userns often breaks bwrap — soft-relax like hunt_pool_smoke_gate.
+export HACKME_HUNT_ISOLATE_STRICT="${HACKME_HUNT_ISOLATE_STRICT:-0}"
+export HACKME_HUNT_ISOLATE_REQUIRE="${HACKME_HUNT_ISOLATE_REQUIRE:-0}"
+if [[ -z "${HACKME_MINER_ED25519_SEED_HEX:-}" && -z "${HACKME_MINER_SEED_FILE:-}" ]]; then
+  HACKME_MINER_ED25519_SEED_HEX="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+  export HACKME_MINER_ED25519_SEED_HEX
+fi
 set +e
-timeout 150s "$WORKERFUZZ_BIN" \
+timeout 180s "$WORKERFUZZ_BIN" \
   -coord "$COORD_BASE" \
   -token "$WORKER_TOKEN" \
   -worker "hunt-customer-w1" \
   -timeout-ms "$WORKERFUZZ_TIMEOUT_MS" >>"$OUT/workerfuzz.log" 2>&1
 set -e
 
-COORD_DONE="$(python3 - "$COORD_DB" "$CID" <<'PY'
+COORD_DONE="$(python3 - "$FUZZ_DB" "$CID" <<'PY'
 import sqlite3, sys
 db, cid = sys.argv[1], sys.argv[2]
 con = sqlite3.connect(db)
@@ -264,7 +284,8 @@ cfg = camp.get("config") or {}
 summary = camp.get("summary") or {}
 depth = summary.get("hunt_depth") or {}
 iter_ps = depth.get("iterations_per_shard") or cfg.get("iterations_per_shard")
-assert iter_ps == 128, f"iterations_per_shard={iter_ps}"
+# hunt_standard depth is 224 iters/shard (see internal/hunt/depth.go).
+assert iter_ps == 224, f"iterations_per_shard={iter_ps}"
 assert cfg.get("hunt_source") == "inventory", cfg.get("hunt_source")
 assert cfg.get("hunt_package") == "hunt_standard", cfg.get("hunt_package")
 runs = int((r.get("gate") or {}).get("observed", {}).get("runs_done") or summary.get("runs_done") or 0)
@@ -291,7 +312,7 @@ jq -n \
   --arg node_done "${NODE_DONE:-0}" \
   '{stamp:$stamp, campaign_id:$cid, repo:$repo, source_rel:$source, harness_hash:$harness,
     coordinator_runs_done:($coord_done|tonumber), node_runs_done:($node_done|tonumber),
-    package:"hunt_standard", iterations_per_shard:128, flow:"inventory→build→pool→report"}' \
+    package:"hunt_standard", iterations_per_shard:224, flow:"inventory→build→pool→report"}' \
   >"$OUT/summary.json"
 
 log "PASS → $OUT (coordinator_done=$COORD_DONE node_done=${NODE_DONE:-0})"

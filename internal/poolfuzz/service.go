@@ -725,8 +725,34 @@ func (s *Service) CancelInternalGateCampaigns(ctx context.Context, limit int) (i
 	return n, rows.Err()
 }
 
+// skipZeroProgressCancel protects paid / customer Dig-Hunt from cleanup-stale.
+// Gate/bootstrap zombies without prepaid still get cancelled; prepaid escrow must
+// stay open until ops finalize or workers make progress (not silent cancel).
+func skipZeroProgressCancel(id, title, ownerRef, cfgJSON string) bool {
+	cfg := parseConfigJSON(cfgJSON)
+	if configTruthyAny(cfg, "prepaid_attested") {
+		return true
+	}
+	if configFloatLoose(cfg, "budget_hmc") > 0 || configFloatLoose(cfg, "prepaid_attest_budget_hmc") > 0 {
+		return true
+	}
+	huntPkg := strings.ToLower(strings.TrimSpace(jsonString(cfg["hunt_package"])))
+	if huntPkg == "hunt_heavy" || huntPkg == "hunt_std" || huntPkg == "hunt_lite" {
+		return true
+	}
+	digPkg := strings.ToLower(strings.TrimSpace(jsonString(cfg["dig_package"])))
+	if digPkg == "scan" || digPkg == "audit" || digPkg == "deep" || digPkg == "enterprise" {
+		return true
+	}
+	if campaignClaimTier(id, title, ownerRef) == "customer" {
+		return true
+	}
+	return false
+}
+
 // CancelZeroProgressPoolCampaigns stops pool campaigns that never completed a run.
 // Uses DB done-count (not only summary_json) so stale summaries cannot keep zombies alive.
+// Skips prepaid / customer / Dig-Hunt SKU campaigns (see skipZeroProgressCancel).
 func (s *Service) CancelZeroProgressPoolCampaigns(ctx context.Context, minAgeSec int64, limit int) (int, error) {
 	if limit <= 0 || limit > 500 {
 		limit = 200
@@ -756,6 +782,10 @@ func (s *Service) CancelZeroProgressPoolCampaigns(ctx context.Context, minAgeSec
 		if err := rows.Scan(&id, &title, &ownerRef, &cfgJSON, &summaryJSON, &createdAt, &doneN); err != nil {
 			return n, err
 		}
+		_ = createdAt
+		if skipZeroProgressCancel(id, title, ownerRef, cfgJSON) {
+			continue
+		}
 		summary := parseConfigJSON(summaryJSON)
 		runsDone := intFromJSON(summary["runs_done"])
 		if doneN > 0 || runsDone > 0 {
@@ -768,16 +798,13 @@ func (s *Service) CancelZeroProgressPoolCampaigns(ctx context.Context, minAgeSec
 		if n >= limit {
 			break
 		}
-		_ = title
-		_ = ownerRef
-		_ = cfgJSON
-		_ = createdAt
 	}
 	return n, rows.Err()
 }
 
 // CancelStuckExpiredLeaseCampaigns cancels running pool campaigns whose entire queue is
 // expired leases with zero done work (workers vanished; Tick would otherwise spin forever).
+// Prepaid / customer Dig-Hunt are skipped — reclaim leases instead of killing paid work.
 func (s *Service) CancelStuckExpiredLeaseCampaigns(ctx context.Context, minAgeSec int64, limit int) (int, error) {
 	if s == nil || s.DB == nil {
 		return 0, fmt.Errorf("poolfuzz: no database")
@@ -790,7 +817,8 @@ func (s *Service) CancelStuckExpiredLeaseCampaigns(ctx context.Context, minAgeSe
 		minAgeSec = 3600
 	}
 	rows, err := s.DB.QueryContext(ctx,
-		`SELECT c.id FROM fuzz_campaigns c
+		`SELECT c.id, c.title, COALESCE(c.owner_ref,''), COALESCE(c.config_json,'{}')
+		 FROM fuzz_campaigns c
 		 WHERE c.status='running'
 		   AND json_extract(c.config_json, '$.pool_distributed') IN (1, 'true', '1')
 		   AND (? - c.created_at) >= ?
@@ -799,21 +827,27 @@ func (s *Service) CancelStuckExpiredLeaseCampaigns(ctx context.Context, minAgeSe
 		   AND COALESCE((SELECT COUNT(*) FROM fuzz_work_items w WHERE w.campaign_id=c.id AND w.status='leased'),0)>0
 		   AND COALESCE((SELECT COUNT(*) FROM fuzz_work_items w WHERE w.campaign_id=c.id AND w.status='leased' AND w.lease_until>=?),0)=0
 		 ORDER BY c.created_at ASC
-		 LIMIT ?`, now, minAgeSec, now, limit)
+		 LIMIT ?`, now, minAgeSec, now, limit*4)
 	if err != nil {
 		return 0, err
 	}
 	defer rows.Close()
 	n := 0
 	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
+		var id, title, ownerRef, cfgJSON string
+		if err := rows.Scan(&id, &title, &ownerRef, &cfgJSON); err != nil {
 			return n, err
+		}
+		if skipZeroProgressCancel(id, title, ownerRef, cfgJSON) {
+			continue
 		}
 		if err := s.SetCampaignStatus(ctx, id, "cancelled"); err != nil {
 			return n, err
 		}
 		n++
+		if n >= limit {
+			break
+		}
 	}
 	return n, rows.Err()
 }
@@ -1143,9 +1177,16 @@ func (s *Service) ClaimWithOptions(ctx context.Context, workerID string, now int
 	restPending := s.filterIDsWithPendingWork(ctx, rest)
 
 	// Phase 1: customer pending always wins over bootstrap lease reclaim / RR.
-	for _, cid := range customers {
-		if work, ok, err := s.claimOnePendingInCampaignOpts(ctx, workerID, cid, now, opts); err != nil || ok {
-			return work, ok, err
+	// Round-robin within the customer tier so an older heavy Hunt cannot starve
+	// later prepaid campaigns (FIFO-by-created_at left every claim on the first
+	// unfinished customer id while 12k pending remained).
+	if len(customers) > 0 {
+		start := int(s.claimRR.Add(1) % uint64(len(customers)))
+		for i := 0; i < len(customers); i++ {
+			cid := customers[(start+i)%len(customers)]
+			if work, ok, err := s.claimOnePendingInCampaignOpts(ctx, workerID, cid, now, opts); err != nil || ok {
+				return work, ok, err
+			}
 		}
 	}
 
