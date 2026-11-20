@@ -1,11 +1,13 @@
 package p2p
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
 
 func envTruthy(keys ...string) bool {
@@ -120,4 +122,44 @@ func ipUnsafeForEgress(ip net.IP, allowPrivate bool) bool {
 		}
 	}
 	return false
+}
+
+// egressDialContext mirrors internal/hms egress H12: re-resolve at CONNECT time,
+// skip blocked address classes, dial the pinned IP (closes DNS-rebinding TOCTOU
+// for discovered peers stored as hostnames). fimasw 2026-11-20.
+func egressDialContext(allowPrivate bool) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	dialer := &net.Dialer{Timeout: 5 * time.Second, KeepAlive: 15 * time.Second}
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		host, port, err := net.SplitHostPort(addr)
+		if err != nil {
+			return nil, err
+		}
+		host = strings.Trim(host, "[]")
+		var ips []net.IP
+		if ip := net.ParseIP(host); ip != nil {
+			ips = []net.IP{ip}
+		} else {
+			ips, err = net.DefaultResolver.LookupIP(ctx, "ip", host)
+			if err != nil {
+				return nil, fmt.Errorf("p2p egress dns: %w", err)
+			}
+		}
+		var last error
+		for _, ip := range ips {
+			if ipUnsafeForEgress(ip, allowPrivate) {
+				last = fmt.Errorf("p2p egress blocked address class %s", ip)
+				continue
+			}
+			target := net.JoinHostPort(ip.String(), port)
+			conn, derr := dialer.DialContext(ctx, network, target)
+			if derr == nil {
+				return conn, nil
+			}
+			last = derr
+		}
+		if last == nil {
+			last = fmt.Errorf("p2p egress: no safe addresses for %s", host)
+		}
+		return nil, last
+	}
 }

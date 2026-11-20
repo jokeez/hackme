@@ -31,7 +31,8 @@ type TipSnapshot struct {
 type Manager struct {
 	nodeID      string
 	token       string
-	client      *http.Client
+	client      *http.Client // static/operator peers (LAN allowed); prefer httpFor(peer)
+	clientDisc  *http.Client // discovered peers: connect-time SSRF, private blocked by default
 	discoveryOn bool
 	advertise   string
 	policyHash  string
@@ -114,16 +115,37 @@ func NewManager(nodeID string, peers []string, token string, discovery bool, adv
 		pm[peer] = PeerStatus{PeerURL: peer, Source: "static"}
 	}
 	advertiseURL = validateStaticPeerURL(advertiseURL)
-	return &Manager{
-		nodeID: nodeID,
-		token:  strings.TrimSpace(token),
-		client: &http.Client{
-			Timeout: 5 * time.Second,
-			// Do not follow redirects: X-Hackme-P2P-Token must not jump hosts.
-			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
-				return http.ErrUseLastResponse
-			},
+	noRedirect := func(_ *http.Request, _ []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+	// Static peers: operator may intentionally use LAN. Discovered peers:
+	// connect-time SSRF re-check (mirror HMS H12 / fimasw 2026-11-20) so a
+	// post-learn DNS rebind to loopback/private cannot reach internals.
+	staticClient := &http.Client{
+		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			Proxy:               nil,
+			ForceAttemptHTTP2:   false,
+			TLSHandshakeTimeout: 5 * time.Second,
+			DialContext:         egressDialContext(true),
 		},
+		CheckRedirect: noRedirect,
+	}
+	discClient := &http.Client{
+		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			Proxy:               nil,
+			ForceAttemptHTTP2:   false,
+			TLSHandshakeTimeout: 5 * time.Second,
+			DialContext:         egressDialContext(allowPrivateDiscovery()),
+		},
+		CheckRedirect: noRedirect,
+	}
+	return &Manager{
+		nodeID:      nodeID,
+		token:       strings.TrimSpace(token),
+		client:      staticClient,
+		clientDisc:  discClient,
 		discoveryOn: discovery,
 		advertise:   advertiseURL,
 		policyHash:  strings.TrimSpace(policyHash),
@@ -132,6 +154,27 @@ func NewManager(nodeID string, peers []string, token string, discovery bool, adv
 		list:        out,
 		seen:        make(map[string]int64, 256),
 	}
+}
+
+// httpFor picks the egress client for a peer URL (discovered = strict SSRF dial).
+func (m *Manager) httpFor(peer string) *http.Client {
+	if m == nil {
+		return nil
+	}
+	peer = normalizePeerURL(peer)
+	m.mu.Lock()
+	src := ""
+	if st, ok := m.peers[peer]; ok {
+		src = st.Source
+	}
+	m.mu.Unlock()
+	if src == "discovered" && m.clientDisc != nil {
+		return m.clientDisc
+	}
+	if m.client != nil {
+		return m.client
+	}
+	return m.clientDisc
 }
 
 func (m *Manager) Enabled() bool { return m != nil && (len(m.list) > 0 || m.discoveryOn) }
@@ -213,7 +256,7 @@ func (m *Manager) Start(ctx context.Context, tipFn func(context.Context) (uint64
 					req, _ := http.NewRequestWithContext(ctx, http.MethodPost, peer+"/api/p2p/handshake", bytes.NewReader(body))
 					req.Header.Set("Content-Type", "application/json")
 					m.headersFor(req.Header, peer)
-					resp, err := m.client.Do(req)
+					resp, err := m.httpFor(peer).Do(req)
 					if err != nil {
 						st.LastError = strings.TrimSpace(err.Error())
 						st.ConsecutiveFailures++
@@ -518,7 +561,7 @@ func (m *Manager) BuildLinearPullPreview(ctx context.Context, localHeight uint64
 	chainPath := "/api/chain?from_height=" + strconv.FormatUint(fwd, 10) + "&limit=" + strconv.FormatUint(limit, 10)
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, hint.BestPeerURL+chainPath, nil)
 	m.headersFor(req.Header, hint.BestPeerURL)
-	resp, err := m.client.Do(req)
+	resp, err := m.httpFor(hint.BestPeerURL).Do(req)
 	if err != nil {
 		out.Reason = "fetch_failed: " + strings.TrimSpace(err.Error())
 		return out
@@ -630,7 +673,7 @@ func (m *Manager) FetchBlocksByHashes(ctx context.Context, peerURL string, hashe
 	limit := len(hashes) + 4
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, peerURL+"/api/chain?limit="+strconv.Itoa(limit), nil)
 	m.headersFor(req.Header, peerURL)
-	resp, err := m.client.Do(req)
+	resp, err := m.httpFor(peerURL).Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -715,7 +758,7 @@ func (m *Manager) RelayTx(ctx context.Context, raw []byte) {
 		req, _ := http.NewRequestWithContext(ctx, http.MethodPost, peer+"/api/p2p/tx", bytes.NewReader(raw))
 		req.Header.Set("Content-Type", "application/json")
 		m.headersFor(req.Header, peer)
-		resp, err := m.client.Do(req)
+		resp, err := m.httpFor(peer).Do(req)
 		if err == nil && resp != nil {
 			_ = resp.Body.Close()
 		}

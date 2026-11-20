@@ -1750,6 +1750,13 @@ func (a *app) handleWallet(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	// fimasw 2026-11-20: public GET fans out to canonical peer + hub prepaid
+	// (blocking). Same amplifier class as wallet/earnings + wallet/activity —
+	// rate-limit before any outbound dial (siblings gated in c38a810; parent missed).
+	if !a.allowRate("wallet_get:"+clientIP(r), allowRatePublicOrLoopback(r, 20, 240)) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
+		return
+	}
 	ctx := r.Context()
 	addr, bal, err := a.chain.Wallet(ctx)
 	if err != nil {
@@ -4630,6 +4637,11 @@ func (a *app) enrichAddressRelatedForms(ctx context.Context, addr string, out ma
 func (a *app) handleTransferAddressState(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	// Incomplete-fix sibling: public address GET can fan out to canonical peer.
+	if !a.allowRate("address_get:"+clientIP(r), allowRatePublicOrLoopback(r, 30, 240)) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
 		return
 	}
 	addr := strings.TrimSpace(strings.TrimPrefix(r.URL.Path, "/api/address/"))

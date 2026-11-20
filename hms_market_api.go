@@ -118,6 +118,10 @@ func (a *app) handleHMSMarketPricing(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if !a.allowRate("hms_market_pricing:"+clientIP(r), allowRatePublicOrLoopback(r, 30, 240)) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
+		return
+	}
 	writeJSON(w, map[string]any{"status": "ok", "pricing": hms.MarketPricingPolicySnapshot()})
 }
 
@@ -231,6 +235,11 @@ func (a *app) handleHMSPoolStats(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	// Public GET proxies to HMS coordinator — same relay-amplification class.
+	if !a.allowRate("hms_pool_stats:"+clientIP(r), allowRatePublicOrLoopback(r, 20, 240)) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
+		return
+	}
 	a.proxyHMSCoordinator(w, r, http.MethodGet, "/api/pool/stats", nil)
 }
 
@@ -239,12 +248,20 @@ func (a *app) handleHMSMarketStats(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if !a.allowRate("hms_market_stats:"+clientIP(r), allowRatePublicOrLoopback(r, 20, 240)) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
+		return
+	}
 	a.proxyHMSCoordinator(w, r, http.MethodGet, "/api/market/stats", nil)
 }
 
 func (a *app) handleHMSMarketCapacity(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !a.allowRate("hms_market_capacity:"+clientIP(r), allowRatePublicOrLoopback(r, 20, 240)) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
 		return
 	}
 	a.proxyHMSCoordinator(w, r, http.MethodGet, "/api/market/capacity", nil)

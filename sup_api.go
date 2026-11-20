@@ -38,6 +38,11 @@ func (a *app) handleSUPEconomics(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	// fimasw 2026-11-20: incomplete-fix sibling — public GET lacked allowRate.
+	if !a.allowRate("sup_economics:"+clientIP(r), allowRatePublicOrLoopback(r, 20, 240)) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
+		return
+	}
 	ec, err := a.chain.SUPEconomics(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -396,6 +401,11 @@ func (a *app) handleSUPTransferByHash(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	// Incomplete-fix sibling of sup_tx_by_nonce / public GET throttle series.
+	if !a.allowRate("sup_tx_by_hash:"+clientIP(r), allowRatePublicOrLoopback(r, 30, 240)) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
+		return
+	}
 	h := strings.TrimSpace(strings.TrimPrefix(r.URL.Path, "/api/sup/tx/"))
 	if h == "" || len(h) > 128 || strings.Contains(h, "/") {
 		http.Error(w, "tx hash required", http.StatusBadRequest)
@@ -452,6 +462,11 @@ func (a *app) handleSUPFeeBurn(w http.ResponseWriter, r *http.Request) {
 func (a *app) handleSUPEarnings(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	// Incomplete-fix sibling: public earnings read (can fan out / heavy window).
+	if !a.allowRate("sup_earnings:"+clientIP(r), allowRatePublicOrLoopback(r, 20, 240)) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 32*time.Second)
@@ -556,6 +571,11 @@ func (a *app) handleSUPEarnings(w http.ResponseWriter, r *http.Request) {
 func (a *app) handleSUPTransferPool(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	// fimasw 2026-11-20: incomplete-fix sibling — public GET lacked allowRate.
+	if !a.allowRate("sup_tx_pool:"+clientIP(r), allowRatePublicOrLoopback(r, 20, 240)) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
 		return
 	}
 	rows, err := a.chain.SupTransferPool(r.Context(), 500)

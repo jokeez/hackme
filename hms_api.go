@@ -17,6 +17,11 @@ func (a *app) handleHMSEconomics(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	// Incomplete-fix sibling of public GET allowRate series (SUP economics twin).
+	if !a.allowRate("hms_economics:"+clientIP(r), allowRatePublicOrLoopback(r, 20, 240)) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
+		return
+	}
 	ec, err := a.chain.HMSEconomics(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
