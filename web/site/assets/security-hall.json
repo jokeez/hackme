@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-18",
+  "updated": "2026-11-20",
   "program": {
     "asset": "HMC",
     "monthly_budget_hmc": 500,
@@ -14,9 +14,9 @@
     "note": "Pre-fork hardening month: the November cap was raised from 200 to 1000 HMC to close findings before Economics v2 (block 550,000)."
   },
   "stats": {
-    "total_paid_hmc": 2183,
+    "total_paid_hmc": 2239,
     "researchers": 9,
-    "reports_accepted": 70
+    "reports_accepted": 74
   },
   "researchers": [
     {
@@ -135,8 +135,52 @@
       "id": "fimasw",
       "name": "fimasw",
       "handle": "fimasw",
-      "total_paid_hmc": 1096,
+      "total_paid_hmc": 1152,
       "findings": [
+        {
+          "title": "Unauthenticated relay amplification on GET /api/wallet (no allowRate; incomplete 1d98e1a/f18285a/c38a810 parent miss)",
+          "severity": "medium",
+          "paid_hmc": 20,
+          "date": "2026-11-20",
+          "reported": "2026-11-20",
+          "commit": "bf9d8a8a",
+          "txid": "16dc982fe1ab028a72b3eef2f053b23f45a84e311e86b6ac218170c2a5613540",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Medium: handleWallet fans out to canonical peer + SUP + hub prepaid with no allowRate; ?fresh=1 forces per-request outbound dials. Siblings already gated. Fixed allowRate(wallet_get). Paid 20 HMC → tx 16dc982f… @564461. Same commit also throttled related public GETs (SUP earnings/by-hash, HMS economics/market proxy, /api/address)."
+        },
+        {
+          "title": "P2P discovered-peer SSRF: learn-time-only guard, DNS rebinding TOCTOU to loopback (incomplete H12 mirror)",
+          "severity": "medium",
+          "paid_hmc": 20,
+          "date": "2026-11-20",
+          "reported": "2026-11-20",
+          "commit": "bf9d8a8a",
+          "txid": "eeac00274a994c163a8f41d984522dfd0d194df143ebc070212206e2b809044d",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Medium blind SSRF: validateDiscoveredPeerURL checked at learn time only; stock http.Client re-resolved hostname at dial with no connect-time blocklist (HMS egress already had H12). Fixed discovered-peer DialContext re-check + pinned IP; static/LAN peers keep allow-private dialer. Paid 20 HMC → tx eeac0027… @564462."
+        },
+        {
+          "title": "Missing per-IP allowRate on public GET /api/sup/economics (incomplete-fix sibling)",
+          "severity": "low",
+          "paid_hmc": 8,
+          "date": "2026-11-20",
+          "reported": "2026-11-20",
+          "commit": "bf9d8a8a",
+          "txid": "360f9c28694358b6a91c24d5b778b434e2af8d40fca658316c3e8ce8d8b6e5d9",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Low: handleSUPEconomics lacked allowRate. Fixed. Paid 8 HMC → tx 360f9c28… @564463."
+        },
+        {
+          "title": "Missing per-IP allowRate on public GET /api/sup/tx/pool (incomplete-fix sibling)",
+          "severity": "low",
+          "paid_hmc": 8,
+          "date": "2026-11-20",
+          "reported": "2026-11-20",
+          "commit": "bf9d8a8a",
+          "txid": "8053432380dc3b161015b896b43cf48b7f19bd10e0cba663206d2e92a197ec88",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Low: handleSUPTransferPool lacked allowRate (up to 500 rows). Fixed. Paid 8 HMC → tx 80534323… @564464."
+        },
         {
           "title": "Unauthenticated DoS amplification on /api/reports/blocks?source=canonical and /api/chain (no allowRate; sibling of f18285a)",
           "severity": "medium",
