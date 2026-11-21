@@ -177,6 +177,15 @@ func (a *app) handleStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	// fimasw 2026-11-21: public GET fans out to the canonical peer and the HMS
+	// coordinator (blocking, seconds per request). Same amplifier class as
+	// global/metrics / work/by-wallet / wallet_get — rate-limit before any
+	// outbound dial. Every sibling of this route family is already gated; the
+	// parent status route was missed.
+	if !a.allowRate("status_get:"+clientIP(r), allowRatePublicOrLoopback(r, 20, 240)) {
+		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "rate limited", nil)
+		return
+	}
 	if statusQueryLite(r) {
 		writeJSON(w, a.buildStatusLite(r.Context()))
 		return

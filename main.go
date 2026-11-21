@@ -1119,6 +1119,12 @@ func (a *app) handleIndex(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	// fimasw 2026-11-20: large embedded dashboard HTML with no handler-level
+	// allowRate — bandwidth/CPU amp under burst. Light per-IP cap (loopback-aware).
+	if !a.allowRate("index_html:"+clientIP(r), allowRatePublicOrLoopback(r, 60, 600)) {
+		http.Error(w, "rate limited", http.StatusTooManyRequests)
+		return
+	}
 	ctx := r.Context()
 	chainID := a.chain.ChainID(ctx)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -1195,6 +1201,11 @@ func (a *app) handleDashboardRedirect(w http.ResponseWriter, r *http.Request) {
 func (a *app) handleExplorer(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/explorer" {
 		http.NotFound(w, r)
+		return
+	}
+	// fimasw 2026-11-20: public HTML served without handler-level allowRate.
+	if !a.allowRate("explorer_html:"+clientIP(r), allowRatePublicOrLoopback(r, 60, 600)) {
+		http.Error(w, "rate limited", http.StatusTooManyRequests)
 		return
 	}
 	ctx := r.Context()

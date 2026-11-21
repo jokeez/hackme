@@ -23,6 +23,12 @@ func TestFimaswPublicGETHandlersHaveAllowRate(t *testing.T) {
 		{"main.go", "func (a *app) handleTransferByHash(", "tx_by_hash:"},
 		{"main.go", "func (a *app) handleWorkerStatus(", "worker_status:"},
 		{"miner_notices.go", "func (a *app) handleMinerNotices(", "miner_notices:"},
+		{"main.go", "func (a *app) handleWallet(", "wallet_get:"},
+		{"main.go", "func (a *app) handleTransferAddressState(", "address_get:"},
+		{"main.go", "func (a *app) handleIndex(", "index_html:"},
+		{"main.go", "func (a *app) handleExplorer(", "explorer_html:"},
+		{"status_api.go", "func (a *app) handleStatus(", "status_get:"},
+		{"sup_api.go", "func (a *app) handleSUPEarnings(", "sup_earnings:"},
 	}
 	for _, tc := range cases {
 		src, err := os.ReadFile(tc.file)
