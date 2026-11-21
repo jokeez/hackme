@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-20",
+  "updated": "2026-11-21",
   "program": {
     "asset": "HMC",
     "monthly_budget_hmc": 500,
@@ -14,9 +14,9 @@
     "note": "Pre-fork hardening month: the November cap was raised from 200 to 1000 HMC to close findings before Economics v2 (block 550,000)."
   },
   "stats": {
-    "total_paid_hmc": 2239,
+    "total_paid_hmc": 2267,
     "researchers": 9,
-    "reports_accepted": 74
+    "reports_accepted": 76
   },
   "researchers": [
     {
@@ -135,8 +135,30 @@
       "id": "fimasw",
       "name": "fimasw",
       "handle": "fimasw",
-      "total_paid_hmc": 1152,
+      "total_paid_hmc": 1180,
       "findings": [
+        {
+          "title": "Unauthenticated relay amplification on GET /api/status (no allowRate; incomplete bf9d8a8 / c38a810 / f18285a parent miss)",
+          "severity": "medium",
+          "paid_hmc": 20,
+          "date": "2026-11-21",
+          "reported": "2026-11-21",
+          "commit": "4ad9e949",
+          "txid": "cce99580a7e3b6c954aa25784a40190f74bc3e5f9f7176138ab27c509db1dde5",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Medium: handleStatus fans out to canonical peer + HMS with no allowRate; measured 10 anon requests → 30 outbound dials. Same class as wallet_get / global_metrics. Fixed allowRate(status_get). Paid 20 HMC → tx cce99580… @565670."
+        },
+        {
+          "title": "Missing handler-level allowRate on public HTML GET / and GET /explorer",
+          "severity": "low",
+          "paid_hmc": 8,
+          "date": "2026-11-21",
+          "reported": "2026-11-20",
+          "commit": "4ad9e949",
+          "txid": "1d8d2e311d054813a7c452cf4a9b9c51de08e73820f0e46df34183992b1e7aa3",
+          "payout_address": "HMC-a6d09759a4c12019",
+          "note": "Low: large embedded dashboard (~885KB) and explorer HTML lacked app-level allowRate under burst. Fixed light per-IP caps (index_html / explorer_html). Paid 8 HMC → tx 1d8d2e31… @565671."
+        },
         {
           "title": "Unauthenticated relay amplification on GET /api/wallet (no allowRate; incomplete 1d98e1a/f18285a/c38a810 parent miss)",
           "severity": "medium",
