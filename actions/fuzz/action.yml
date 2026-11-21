@@ -38,15 +38,51 @@ inputs:
     required: false
     default: ""
   mode:
-    description: Only `dry-run` is supported for now.
+    description: "`dry-run` (default), `gate` (wait for an already published campaign) or `publish` (create a capped Dig order on your Orders node and wait for its gate; workflow_dispatch / protected push / labelled same-repo PR only)."
     required: false
     default: dry-run
+  hackme-url:
+    description: "Gate mode: base URL of the node that serves the campaign report (https)."
+    required: false
+    default: ""
+  campaign-id:
+    description: "Gate mode: campaign to wait for."
+    required: false
+    default: ""
+  ci-token:
+    description: "Publish mode: scoped Orders CI token (HACKME_CI_TOKEN on the node). Pass it from a secret."
+    required: false
+    default: ""
+  publish-label:
+    description: "Publish mode: PR label that opts a same-repo PR into a real publish. Empty = PRs never publish."
+    required: false
+    default: ""
+  report-token:
+    description: "Gate mode: customer report token. Pass it from a secret; it is only handed to the engine via env."
+    required: false
+    default: ""
+  gate-timeout:
+    description: "Gate mode: max wait for the campaign to finish (Go duration, ≤ 6h)."
+    required: false
+    default: 30m
+  max-critical:
+    description: "Gate mode: allowed crash-class critical findings."
+    required: false
+    default: "0"
+  max-high:
+    description: "Gate mode: allowed crash-class high findings."
+    required: false
+    default: "0"
+  min-runs-done:
+    description: "Gate mode: required runs; -1 means the full budget."
+    required: false
+    default: "-1"
   comment:
     description: "Post / update a sticky PR comment with the result (needs `pull-requests: write`; skipped with a warning on fork PRs)."
     required: false
     default: "true"
   fail-on-reject:
-    description: Fail the job when the wasm is rejected by the pool gate.
+    description: Fail the job when the wasm is rejected (dry-run) or the gate does not pass (gate).
     required: false
     default: "true"
   github-token:
@@ -79,6 +115,24 @@ outputs:
   plan-path:
     description: Path to the plan JSON (what a real publish would send, wasm referenced by hash).
     value: ${{ steps.run.outputs.plan-path }}
+  campaign-id:
+    description: "Publish mode: id of the campaign that was created."
+    value: ${{ steps.run.outputs.campaign-id }}
+  gate-pass:
+    description: "Gate/publish mode: `true` only for a completed campaign whose gate passed."
+    value: ${{ steps.gate.outputs.gate-pass || steps.run.outputs.gate-pass }}
+  campaign-status:
+    description: "Gate mode: last campaign status seen."
+    value: ${{ steps.gate.outputs.campaign-status || steps.run.outputs.campaign-status }}
+  runs-done:
+    description: "Gate mode: runs done."
+    value: ${{ steps.gate.outputs.runs-done || steps.run.outputs.runs-done }}
+  critical-count:
+    description: "Gate mode: crash-class critical findings."
+    value: ${{ steps.gate.outputs.critical-count || steps.run.outputs.critical-count }}
+  high-count:
+    description: "Gate mode: crash-class high findings."
+    value: ${{ steps.gate.outputs.high-count || steps.run.outputs.high-count }}
 
 runs:
   using: composite
@@ -96,7 +150,7 @@ runs:
         cache-dependency-path: ${{ steps.root.outputs.dir }}/go.sum
 
     - name: Add wasm32 target for Rust
-      if: inputs.language == 'rust' || inputs.language == 'rs' || ((inputs.dig-preset != '' || inputs.guard-pack != '') && inputs.wasm == '' && inputs.source == '')
+      if: inputs.mode != 'gate' && (inputs.language == 'rust' || inputs.language == 'rs' || ((inputs.dig-preset != '' || inputs.guard-pack != '') && inputs.wasm == '' && inputs.source == ''))
       shell: bash
       run: rustup target add wasm32-unknown-unknown
 
@@ -108,10 +162,23 @@ runs:
         mkdir -p "$RUNNER_TEMP/hackme-fuzz-action"
         go build -trimpath -o "$RUNNER_TEMP/hackme-fuzz-action/hackme-fuzz-action" ./cmd/hackme-fuzz-action
 
-    - name: Dry-run
+    - name: Dry-run / publish
       id: run
+      if: inputs.mode != 'gate'
       shell: bash
       env:
+        HACKME_CI_TOKEN: ${{ inputs.ci-token }}
+        HFA_URL: ${{ inputs.hackme-url }}
+        HFA_PUBLISH_LABEL: ${{ inputs.publish-label }}
+        HFA_LABEL: ${{ github.repository }}${{ github.event.pull_request.number && format('#{0}', github.event.pull_request.number) || format('@{0}', github.ref_name) }}
+        HFA_REF_PROTECTED: ${{ github.ref_protected }}
+        HFA_PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        HFA_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        HFA_BASE_REPO: ${{ github.repository }}
+        HFA_TIMEOUT: ${{ inputs.gate-timeout }}
+        HFA_MAX_CRITICAL: ${{ inputs.max-critical }}
+        HFA_MAX_HIGH: ${{ inputs.max-high }}
+        HFA_MIN_RUNS: ${{ inputs.min-runs-done }}
         HFA_HACKME_ROOT: ${{ steps.root.outputs.dir }}
         HFA_WASM: ${{ inputs.wasm }}
         HFA_SOURCE: ${{ inputs.source }}
@@ -136,6 +203,18 @@ runs:
         [ -n "$HFA_GUARD_PACK" ] && args+=(-guard-pack "$HFA_GUARD_PACK")
         [ -n "$HFA_PACKAGE" ]    && args+=(-package "$HFA_PACKAGE")
         [ -n "$HFA_TITLE" ]      && args+=(-title "$HFA_TITLE")
+        if [ "$HFA_MODE" = publish ]; then
+          case "$HACKME_CI_TOKEN" in
+            *$'\n'*|*$'\r'*) ;;
+            ?*) echo "::add-mask::$HACKME_CI_TOKEN" ;;
+          esac
+          args+=(-hackme-url "$HFA_URL" -label "$HFA_LABEL" -publish-label "$HFA_PUBLISH_LABEL"
+                 -gate-timeout "$HFA_TIMEOUT" -max-critical "$HFA_MAX_CRITICAL" -max-high "$HFA_MAX_HIGH"
+                 -min-runs-done "$HFA_MIN_RUNS")
+        else
+          # The CI token is only for publish; don't hand it to a dry-run.
+          unset HACKME_CI_TOKEN
+        fi
         # `shell: bash` runs with -e on GitHub, so catch the code instead of dying here.
         code=0
         "$bin" "${args[@]}" || code=$?
@@ -148,29 +227,71 @@ runs:
         # The verdict step fails the job; exiting 0 here lets the PR comment go out first.
         exit 0
 
+    - name: Gate
+      id: gate
+      if: inputs.mode == 'gate'
+      shell: bash
+      env:
+        HACKME_REPORT_TOKEN: ${{ inputs.report-token }}
+        HFA_URL: ${{ inputs.hackme-url }}
+        HFA_CAMPAIGN: ${{ inputs.campaign-id }}
+        HFA_TIMEOUT: ${{ inputs.gate-timeout }}
+        HFA_MAX_CRITICAL: ${{ inputs.max-critical }}
+        HFA_MAX_HIGH: ${{ inputs.max-high }}
+        HFA_MIN_RUNS: ${{ inputs.min-runs-done }}
+      run: |
+        set -uo pipefail
+        # Secrets are masked already; mask anyway in case the token came from
+        # somewhere else. Never echo a value with a line break (the tail would leak).
+        case "$HACKME_REPORT_TOKEN" in
+          *$'\n'*|*$'\r'*) ;;
+          ?*) echo "::add-mask::$HACKME_REPORT_TOKEN" ;;
+        esac
+        bin="$RUNNER_TEMP/hackme-fuzz-action/hackme-fuzz-action"
+        out="$(mktemp -d "$RUNNER_TEMP/hackme-fuzz-action/run.XXXXXX")"
+        code=0
+        "$bin" -mode gate -hackme-url "$HFA_URL" -campaign-id "$HFA_CAMPAIGN" \
+          -gate-timeout "$HFA_TIMEOUT" -max-critical "$HFA_MAX_CRITICAL" -max-high "$HFA_MAX_HIGH" \
+          -min-runs-done "$HFA_MIN_RUNS" -markdown-out "$out/comment.md" -github-output "$GITHUB_OUTPUT" || code=$?
+        if [ -f "$out/comment.md" ]; then
+          cat "$out/comment.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "comment-path=$out/comment.md" >> "$GITHUB_OUTPUT"
+        fi
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        exit 0
+
     - name: PR comment
-      if: inputs.comment == 'true' && github.event_name == 'pull_request' && steps.run.outputs.comment-path != ''
+      if: inputs.comment == 'true' && github.event_name == 'pull_request' && (steps.run.outputs.comment-path != '' || steps.gate.outputs.comment-path != '')
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.github-token }}
+        HFA_MARKER: ${{ inputs.mode == 'dry-run' && 'dry-run' || 'gate' }}
         HFA_REPO: ${{ github.repository }}
         HFA_PR: ${{ github.event.pull_request.number }}
-        HFA_BODY: ${{ steps.run.outputs.comment-path }}
+        HFA_BODY: ${{ steps.run.outputs.comment-path || steps.gate.outputs.comment-path }}
       run: bash "$GITHUB_ACTION_PATH/comment.sh"
 
     - name: Verdict
       shell: bash
       env:
-        HFA_CODE: ${{ steps.run.outputs.exit-code }}
+        HFA_CODE: ${{ steps.run.outputs.exit-code || steps.gate.outputs.exit-code }}
         HFA_FAIL_ON_REJECT: ${{ inputs.fail-on-reject }}
+        HFA_MODE: ${{ inputs.mode }}
       run: |
+        if [ "$HFA_MODE" = gate ] || [ "$HFA_MODE" = publish ]; then
+          ok="Campaign finished and the gate passed."
+          bad="gate did not pass or the campaign did not finish — see the job summary"
+        else
+          ok="Guard wasm passes the pool gate (dry-run, nothing sent)."
+          bad="guard wasm rejected or failed to build — see the job summary"
+        fi
         case "$HFA_CODE" in
-          0) echo "Guard wasm passes the pool gate (dry-run, nothing sent)." ;;
+          0) echo "$ok" ;;
           1) if [ "$HFA_FAIL_ON_REJECT" = "true" ]; then
-               echo "::error title=HackMe Dig::guard wasm rejected or failed to build — see the job summary"
+               echo "::error title=HackMe Dig::$bad"
                exit 1
              fi
-             echo "::warning title=HackMe Dig::guard wasm rejected or failed to build — see the job summary" ;;
-          *) echo "::error title=HackMe Dig::bad action inputs (exit ${HFA_CODE:-?}) — see the Dry-run step log"
+             echo "::warning title=HackMe Dig::$bad" ;;
+          *) echo "::error title=HackMe Dig::bad action inputs (exit ${HFA_CODE:-?}) — see the step log"
              exit 1 ;;
         esac
