@@ -202,6 +202,50 @@ func TestUploadCorpusDeltaRetriesTransient(t *testing.T) {
 	}
 }
 
+func TestUploadCorpusDeltaRetriesOneDroppedConnection(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		if n == 1 {
+			hj, ok := w.(http.Hijacker)
+			if !ok {
+				http.Error(w, "no hijack", http.StatusInternalServerError)
+				return
+			}
+			conn, _, err := hj.Hijack()
+			if err != nil {
+				return
+			}
+			_ = conn.Close()
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "seeds_accepted": 1, "findings": 0})
+	}))
+	t.Cleanup(srv.Close)
+	acc, findings, err := uploadResearchCorpusDelta(context.Background(), srv.Client(), srv.URL, "tok", "w", "m", "c", 1, "research:jsmn",
+		[]fuzzengine.PoolCorpusSeed{{InputBytes: []byte("unit"), Energy: 2}}, nil, "libfuzzer", "t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if acc != 1 || findings != 0 || n != 2 {
+		t.Fatalf("dropped connection must retry once: acc=%d findings=%d attempts=%d", acc, findings, n)
+	}
+}
+
+func TestUploadCorpusDeltaDoesNotRetry403(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		http.Error(w, "forbidden", http.StatusForbidden)
+	}))
+	t.Cleanup(srv.Close)
+	_, _, err := uploadResearchCorpusDelta(context.Background(), srv.Client(), srv.URL, "tok", "w", "m", "c", 1, "research:jsmn",
+		[]fuzzengine.PoolCorpusSeed{{InputBytes: []byte("unit")}}, nil, "", "")
+	if err == nil || n != 1 {
+		t.Fatalf("403 must not retry: err=%v attempts=%d", err, n)
+	}
+}
+
 func TestUploadCorpusDeltaDoesNotRetryAuth(t *testing.T) {
 	var n int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

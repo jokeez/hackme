@@ -1,6 +1,10 @@
 package hunt
 
-import "hackme/internal/fuzzescrow"
+import (
+	"fmt"
+
+	"hackme/internal/fuzzescrow"
+)
 
 // Packages returns Hunt Lite / Standard presets (HUNT_ECONOMICS.md).
 func Packages() []PackageInfo {
@@ -15,7 +19,7 @@ func Packages() []PackageInfo {
 			LocalTimeLimitSec:  huntLocalSecLite,
 			MinPerShard:        0.002,
 			WallHours:          "6–24h",
-			Summary:            "Pool ASAN Lite · 180s leases · 96 iters/shard · profile dict · attested CLEAN ≠ CVE",
+			Summary:            fmt.Sprintf("Pool ASAN Lite · %ds leases · 96 iters/shard · profile dict · attested CLEAN ≠ CVE", PoolEngineLeaseSecLite),
 			EscrowSplit:        fuzzescrow.EscrowSplit5050,
 		},
 		{
@@ -28,7 +32,7 @@ func Packages() []PackageInfo {
 			LocalTimeLimitSec:  huntLocalSecStandard,
 			MinPerShard:        0.003,
 			WallHours:          "6–16h on the pool (measured Nov 2026)",
-			Summary:            "Pool ASAN Standard · 180s leases · 288 iters/shard · v210 havoc · guided corpus · CLEAN ≠ CVE",
+			Summary:            fmt.Sprintf("Pool ASAN Standard · %ds leases · 288 iters/shard · v210 havoc · guided corpus · CLEAN ≠ CVE", PoolEngineLeaseSecStandard),
 			EscrowSplit:        fuzzescrow.EscrowSplit5050,
 		},
 		{
@@ -41,7 +45,7 @@ func Packages() []PackageInfo {
 			LocalTimeLimitSec:  huntLocalSecHeavy,
 			MinPerShard:        0.003,
 			WallHours:          "~1 day on the pool (12k units)",
-			Summary:            "Pool ASAN Heavy · 210s leases · max shard depth · CLEAN ≠ CVE",
+			Summary:            fmt.Sprintf("Pool ASAN Heavy · %ds leases · max shard depth · CLEAN ≠ CVE", PoolEngineLeaseSecHeavy),
 			EscrowSplit:        fuzzescrow.EscrowSplit5050,
 		},
 	}

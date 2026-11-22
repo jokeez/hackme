@@ -1,6 +1,10 @@
 package hunt
 
-import "testing"
+import (
+	"strconv"
+	"strings"
+	"testing"
+)
 
 func TestIterationsPerShardForPackage(t *testing.T) {
 	if got := IterationsPerShardForPackage("hunt_lite"); got != 96 {
@@ -73,6 +77,23 @@ func TestDepthSummaryForConfig(t *testing.T) {
 	s := DepthSummaryForConfig(cfg)
 	if s["iterations_per_shard"] != 128 || s["hunt_package"] != "hunt_standard" {
 		t.Fatalf("summary=%v", s)
+	}
+}
+
+func TestPackageSummariesMatchLeaseConstants(t *testing.T) {
+	for _, p := range Packages() {
+		want := strconv.Itoa(PoolEngineLeaseSecForPackage(p.Key)) + "s"
+		if !strings.Contains(p.Summary, want) {
+			t.Fatalf("%s summary %q missing %s", p.Key, p.Summary, want)
+		}
+	}
+	std := PackageByKey("hunt_standard")
+	heavy := PackageByKey("hunt_heavy")
+	if std == nil || strings.Contains(std.Summary, "180s") {
+		t.Fatalf("standard still advertises 180s: %+v", std)
+	}
+	if heavy == nil || strings.Contains(heavy.Summary, "210s") {
+		t.Fatalf("heavy still advertises 210s: %+v", heavy)
 	}
 }
 

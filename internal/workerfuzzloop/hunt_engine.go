@@ -70,11 +70,6 @@ func RunHuntEngineShard(ctx context.Context, run ResearchSlotRun, cr ClaimResp) 
 		out.SkipReason = "not_coverage_engine"
 		return out
 	}
-	if ok, reason := hunt.RunnerAvailable(engine); !ok {
-		out.SoftSkip = true
-		out.SkipReason = reason
-		return out
-	}
 	wall := cr.EngineLeaseSec
 	if wall <= 0 {
 		wall = hunt.EngineLeaseSecFromConfig(nil, engine)
@@ -84,9 +79,15 @@ func RunHuntEngineShard(ctx context.Context, run ResearchSlotRun, cr ClaimResp) 
 	out.SeedsIn = len(seedFiles)
 	// Inventory packs are the bug oracle. Fuzzing {} boot starters and submitting
 	// CLEAN hides a missed seed_byte_corpus (rc20 wrap-seed corpus=0).
+	// Check before the engine binary: a missing runner must not hide an empty pack.
 	if strings.EqualFold(strings.TrimSpace(cr.HuntSource), "inventory") && len(seedFiles) == 0 {
 		out.SoftSkip = true
 		out.SkipReason = "inventory_seeds_missing"
+		return out
+	}
+	if ok, reason := hunt.RunnerAvailable(engine); !ok {
+		out.SoftSkip = true
+		out.SkipReason = reason
 		return out
 	}
 	repoRoot := strings.TrimSpace(run.RepoRoot)

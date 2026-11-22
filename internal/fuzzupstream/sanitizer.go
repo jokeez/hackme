@@ -31,6 +31,9 @@ type SanitizerInfo struct {
 	// PC is the module-relative failing instruction ("+0x..."), set for security
 	// ASAN reports. It is not an absolute address and not a filesystem path.
 	PC string `json:"pc,omitempty"`
+	// Site is the bounty identity: function/source stack, or a slide-stable
+	// offset shape. Empty means PC is the whole identity.
+	Site string `json:"site,omitempty"`
 }
 
 // DefaultRunInputOpts returns global Hunt stdin exec defaults.
@@ -69,6 +72,7 @@ func ClassifySanitizer(blob string) SanitizerInfo {
 	info.Label = SanitizerDisplayLabel(info)
 	if info.Security {
 		info.PC = fuzzengine.FirstFailingModulePC(blob)
+		info.Site = fuzzengine.StableBugSite(blob)
 	}
 	return info
 }
@@ -335,8 +339,13 @@ func HuntTrap(info SanitizerInfo) string {
 			sub = "address-sanitizer"
 		}
 		trap := "hunt_crash:" + sub
-		if pc := fuzzengine.CanonicalModulePC(info.PC); pc != "" {
+		pc := fuzzengine.CanonicalModulePC(info.PC)
+		if pc != "" {
 			trap += " pc=" + pc
+		}
+		site := strings.TrimSpace(info.Site)
+		if site != "" && site != pc && site != strings.TrimSpace(info.PC) {
+			trap += " site=" + site
 		}
 		return trap
 	}
@@ -369,14 +378,20 @@ func ParseHuntTrap(trap string) (SanitizerInfo, bool) {
 		rest := strings.TrimPrefix(trap, "hunt_crash:")
 		sub := rest
 		pc := ""
+		site := ""
 		if i := strings.IndexAny(rest, " \t\r\n"); i >= 0 {
 			sub = rest[:i]
 			tail := strings.TrimSpace(rest[i+1:])
-			if strings.HasPrefix(strings.ToLower(tail), "pc=") {
-				pc = fuzzengine.CanonicalModulePC(tail)
+			for _, f := range strings.Fields(tail) {
+				if strings.HasPrefix(strings.ToLower(f), "pc=") {
+					pc = fuzzengine.CanonicalModulePC(f)
+				}
+				if strings.HasPrefix(f, "site=") {
+					site = strings.TrimPrefix(f, "site=")
+				}
 			}
 		}
-		info := SanitizerInfo{Class: "asan", Subtype: sub, Security: true, PC: pc}
+		info := SanitizerInfo{Class: "asan", Subtype: sub, Security: true, PC: pc, Site: site}
 		info.Label = SanitizerDisplayLabel(info)
 		return info, true
 	default:

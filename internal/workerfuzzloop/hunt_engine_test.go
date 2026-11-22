@@ -1,6 +1,7 @@
 package workerfuzzloop
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
@@ -10,6 +11,18 @@ import (
 
 	"hackme/internal/hunt"
 )
+
+func TestInventoryZeroSeedsSoftSkips(t *testing.T) {
+	out := RunHuntEngineShard(context.Background(), ResearchSlotRun{}, ClaimResp{
+		HuntEngine:       hunt.EngineLibFuzzer,
+		HuntSource:       "inventory",
+		EngineLeaseSec:   180,
+		UpstreamTargetID: "inv_empty",
+	})
+	if !out.SoftSkip || out.SkipReason != "inventory_seeds_missing" {
+		t.Fatalf("zero-seed inventory must soft-skip, got %+v", out)
+	}
+}
 
 func TestDetectHuntEnginesIncludesByte(t *testing.T) {
 	got := DetectHuntEngines()

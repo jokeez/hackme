@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -228,8 +229,240 @@ func runtimeModule(path string) bool {
 	return false
 }
 
-// huntCrashPC reads "hunt_crash:<subtype> pc=+0x..." stamped by coordinator replay.
-func huntCrashPC(execErr string) (kind, pc string, ok bool) {
+var (
+	reFrameFunc = regexp.MustCompile(`#\d+\s+(?:0x[0-9a-fA-F]+\s+)?in\s+([^\s(]+)`)
+	reSrcTok    = regexp.MustCompile(`([^/\s]+):(\d+)(?::\d+)?`)
+)
+
+type crashFrame struct {
+	fn, file, line string
+	module         string
+	pc             string
+	runtimeMod     bool
+}
+
+// StableBugSite is the bounty identity of one sanitizer report.
+// A function or source stack wins, because an offset-only rebuild keeps it.
+// With no symbols, two or more target frames collapse to per-module deltas so a
+// pure slide of that stack is the same bug. A lone module+offset stays absolute:
+// one address cannot tell a slide from a different bug.
+func StableBugSite(msg string) string {
+	if strings.TrimSpace(msg) == "" {
+		return ""
+	}
+	frames := crashFrames(msg)
+	var users []string
+	for _, f := range frames {
+		if f.fn == "" || runtimeFunc(f.fn) {
+			continue
+		}
+		users = append(users, formatUserSite(f))
+		if len(users) >= 8 {
+			break
+		}
+	}
+	if len(users) > 0 {
+		return strings.Join(users, ",")
+	}
+	var pcs []crashFrame
+	for _, f := range frames {
+		if f.pc == "" || f.runtimeMod {
+			continue
+		}
+		pcs = append(pcs, f)
+		if len(pcs) >= 8 {
+			break
+		}
+	}
+	return relativeOffsetSite(pcs)
+}
+
+func crashStackHead(msg string) string {
+	var b strings.Builder
+	for _, line := range strings.Split(msg, "\n") {
+		low := strings.ToLower(strings.TrimSpace(line))
+		if strings.HasPrefix(low, "summary:") || strings.Contains(low, "allocated by") ||
+			strings.Contains(low, "is located") || strings.Contains(low, "shadow byte") {
+			break
+		}
+		b.WriteString(line)
+		b.WriteByte('\n')
+	}
+	return b.String()
+}
+
+func crashFrames(msg string) []crashFrame {
+	var out []crashFrame
+	for _, line := range strings.Split(crashStackHead(msg), "\n") {
+		if !strings.Contains(line, "#") {
+			continue
+		}
+		var f crashFrame
+		if m := reFrameFunc.FindStringSubmatch(line); len(m) == 2 {
+			f.fn = strings.ToLower(m[1])
+		}
+		if loc := reSrcTok.FindStringSubmatch(line); len(loc) == 3 {
+			f.file = strings.ToLower(loc[1])
+			f.line = loc[2]
+		}
+		if m := reModuleOff.FindStringSubmatch(line); len(m) == 3 {
+			f.module = moduleBaseName(m[1])
+			f.pc = CanonicalModulePC(m[2])
+			f.runtimeMod = runtimeModule(m[1])
+		}
+		if f.fn == "" && f.pc == "" {
+			continue
+		}
+		out = append(out, f)
+		if len(out) >= 16 {
+			break
+		}
+	}
+	return out
+}
+
+func formatUserSite(f crashFrame) string {
+	if f.file != "" && f.line != "" {
+		return f.fn + "@" + f.file + ":" + f.line
+	}
+	return f.fn
+}
+
+func moduleBaseName(path string) string {
+	base := path
+	if i := strings.LastIndexAny(path, `/\`); i >= 0 {
+		base = path[i+1:]
+	}
+	return strings.ToLower(base)
+}
+
+func runtimeFunc(name string) bool {
+	n := strings.ToLower(strings.TrimSpace(name))
+	switch n {
+	case "", "malloc", "calloc", "realloc", "free", "memcpy", "memmove", "memset",
+		"memchr", "_start", "__libc_start_main", "__libc_start_call_main",
+		"pthread_create", "raise", "abort":
+		return true
+	}
+	for _, p := range []string{
+		"__interceptor_", "__asan_", "__sanitizer_", "__lsan_", "__ubsan_",
+		"__libc_", "_dl_", "__cxa_",
+	} {
+		if strings.HasPrefix(n, p) {
+			return true
+		}
+	}
+	return false
+}
+
+func relativeOffsetSite(frames []crashFrame) string {
+	if len(frames) == 0 {
+		return ""
+	}
+	if len(frames) == 1 {
+		return frames[0].pc
+	}
+	mods := map[string]struct{}{}
+	for _, f := range frames {
+		mods[f.module] = struct{}{}
+	}
+	multi := len(mods) > 1
+	base := map[string]uint64{}
+	parts := make([]string, 0, len(frames))
+	for _, f := range frames {
+		off, ok := parseHexPC(f.pc)
+		if !ok {
+			continue
+		}
+		b, seen := base[f.module]
+		if !seen {
+			base[f.module] = off
+			b = off
+		}
+		tok := formatDelta(int64(off) - int64(b))
+		if multi && f.module != "" {
+			tok = f.module + ":" + tok
+		}
+		parts = append(parts, tok)
+	}
+	if len(parts) <= 1 {
+		return frames[0].pc
+	}
+	return "rel:" + strings.Join(parts, ",")
+}
+
+func parseHexPC(pc string) (uint64, bool) {
+	s := strings.TrimSpace(strings.ToLower(pc))
+	s = strings.TrimPrefix(s, "+")
+	s = strings.TrimPrefix(s, "0x")
+	if s == "" {
+		return 0, false
+	}
+	n, err := strconv.ParseUint(s, 16, 64)
+	return n, err == nil
+}
+
+func formatDelta(d int64) string {
+	if d < 0 {
+		return "-0x" + strconv.FormatUint(uint64(-d), 16)
+	}
+	return "+0x" + strconv.FormatUint(uint64(d), 16)
+}
+
+func securityASANText(low string) bool {
+	for _, s := range []string{
+		"heap-buffer-overflow", "stack-buffer-overflow", "global-buffer-overflow",
+		"heap-use-after-free", "use-after-free", "use-after-scope",
+		"double-free", "attempting double-free", "segv on unknown address",
+	} {
+		if strings.Contains(low, s) {
+			return true
+		}
+	}
+	return false
+}
+
+// informationalBucket is a non-paying hygiene key. UBSan and LSan keep a
+// subtype so customer reports still group, but the key is not crash|.
+func informationalBucket(msg string) (string, bool) {
+	low := strings.ToLower(msg)
+	if securityASANText(low) {
+		return "", false
+	}
+	prefix := ""
+	switch {
+	case strings.Contains(low, "leaksanitizer"),
+		strings.Contains(low, "detected memory leaks"),
+		strings.Contains(low, "direct leak"),
+		strings.Contains(low, "indirect leak"),
+		strings.Contains(low, "leaked in"),
+		strings.Contains(low, "byte(s) leaked"),
+		strings.Contains(low, "leak of"):
+		prefix = "hygiene|lsan"
+	case strings.Contains(low, "undefinedbehaviorsanitizer"),
+		strings.Contains(low, "runtime error:"):
+		prefix = "hygiene|ubsan"
+	default:
+		return "", false
+	}
+	kind := sanitizerKindFromLine(low)
+	site := StableBugSite(msg)
+	if site == "" {
+		_, site = parseSanitizerMsg(msg)
+	}
+	switch {
+	case kind != "" && site != "":
+		return prefix + "|" + kind + "|" + site, true
+	case kind != "":
+		return prefix + "|" + kind, true
+	default:
+		return prefix, true
+	}
+}
+
+// huntCrashSite reads a coordinator trap. site= is the stable identity;
+// pc= remains for a single unsymbolized frame.
+func huntCrashSite(execErr string) (kind, site string, ok bool) {
 	s := strings.TrimSpace(execErr)
 	if !strings.HasPrefix(s, "hunt_crash:") {
 		return "", "", false
@@ -244,24 +477,38 @@ func huntCrashPC(execErr string) (kind, pc string, ok bool) {
 		sub = rest[:i]
 		tail = strings.TrimSpace(rest[i+1:])
 	}
-	if !strings.HasPrefix(strings.ToLower(tail), "pc=") {
-		return "", "", false
-	}
-	pc = CanonicalModulePC(tail)
-	if pc == "" {
-		return "", "", false
-	}
 	kind = sanitizerKindFromLine(strings.ToLower(sub))
 	if kind == "" {
 		kind = "asan"
+	}
+	for _, f := range strings.Fields(tail) {
+		if strings.HasPrefix(f, "site=") {
+			site = strings.TrimPrefix(f, "site=")
+			if site != "" {
+				return kind, site, true
+			}
+		}
+	}
+	pc := ""
+	for _, f := range strings.Fields(tail) {
+		if strings.HasPrefix(strings.ToLower(f), "pc=") {
+			pc = CanonicalModulePC(f)
+		}
+	}
+	if pc == "" {
+		pc = CanonicalModulePC(tail)
+	}
+	if pc == "" {
+		return "", "", false
 	}
 	return kind, pc, true
 }
 
 // StableCrashBucket returns a dedup key for crash-class outcomes (one bug ≈ one bucket).
-// symbolize=0 reports key on error kind + module-relative PC, so two heap-buffer-overflows
-// at different instructions pay separately and the same instruction does not pay twice
-// when the PID, absolute address, or temp binary path changes.
+// The site is the function or source stack when the report has one, else the
+// slide-stable shape of the target frames. Two different bugs still differ.
+// The same stack slid by a rebuild does not. Informational UBSan and LSan are
+// hygiene keys, not crash bounties.
 func StableCrashBucket(findingType, execErr string) string {
 	_ = findingType
 	if execErr == "" {
@@ -273,10 +520,21 @@ func StableCrashBucket(findingType, execErr string) string {
 			return "crash|silent|" + parts[1]
 		}
 	}
-	if kind, pc, ok := huntCrashPC(execErr); ok {
-		return stableCrashKey(kind, pc)
+	trimmed := strings.TrimSpace(execErr)
+	if strings.HasPrefix(trimmed, "hunt_sanitizer:") {
+		return "hygiene|" + strings.TrimPrefix(trimmed, "hunt_sanitizer:")
+	}
+	if kind, site, ok := huntCrashSite(execErr); ok {
+		return stableCrashKey(kind, site)
+	}
+	if hygiene, ok := informationalBucket(execErr); ok {
+		return hygiene
 	}
 	kind, site := parseSanitizerMsg(execErr)
+	if stable := StableBugSite(execErr); stable != "" && kind != "" {
+		return stableCrashKey(kind, stable)
+	}
+	// SUMMARY-only module+offset (no stack frames). A single address stays absolute.
 	if pc := FirstFailingModulePC(execErr); pc != "" && kind != "" {
 		return stableCrashKey(kind, pc)
 	}

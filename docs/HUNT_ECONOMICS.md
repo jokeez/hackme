@@ -66,7 +66,7 @@ crash_bonus = min(0.01 × bounty_pool_hmc, 0.05 HMC)
 | **Hunt Standard** | **60** | **4000** | **224** | **200k iter · 8h** | 1–3d | **≥ 0.003** | + template harness after Accept |
 | **Hunt Heavy** | **150+** | **12000** | **256** | **500k iter · 12h** | 3d+ | dynamic | Pool-scale depth |
 
-Pool `iterations_per_shard` matches `internal/hunt/depth.go` (v2.9: lite 64 / standard 224 / heavy 256). Coverage fleet wall: `engine_lease_sec` **90s lite · 150s standard · 180s heavy** (not the old 60/90 shallow caps).
+Pool `iterations_per_shard` matches `internal/hunt/depth.go` (v2.9: lite 64 / standard 224 / heavy 256). Coverage fleet wall: `engine_lease_sec` **180s lite · 240s standard · 300s heavy** (not the old 60/90 shallow caps). Campaigns that already stored `engine_lease_sec` keep it.
 
 **Minimum campaign budget (Hunt):** **15 HMC** (Lite floor in UI), **50 HMC** (Standard).
 

@@ -325,6 +325,32 @@ func TestDedicatedLibFuzzerHarness(t *testing.T) {
 	}
 }
 
+func TestCacheHitRejectsSymlinkAndStdinStub(t *testing.T) {
+	dir := t.TempDir()
+	outside := filepath.Join(dir, "outside")
+	if err := os.WriteFile(outside, []byte("secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "cache.bin")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Fatal(err)
+	}
+	if cachedDedicatedLibFuzzerBin(link) {
+		t.Fatal("symlink must not be a cache hit")
+	}
+	body, err := os.ReadFile(outside)
+	if err != nil || string(body) != "secret" {
+		t.Fatalf("cache hit followed the symlink: %q err=%v", body, err)
+	}
+	stub := filepath.Join(dir, "stub.bin")
+	if err := os.WriteFile(stub, []byte("from stdin_subprocess_libfuzzer.c\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if cachedDedicatedLibFuzzerBin(stub) {
+		t.Fatal("stdin stub must not be a cache hit")
+	}
+}
+
 func TestIsSubprocessStubLibFuzzerBin(t *testing.T) {
 	dir := t.TempDir()
 	stub := filepath.Join(dir, "stub.bin")
