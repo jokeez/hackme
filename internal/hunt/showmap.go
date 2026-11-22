@@ -81,7 +81,7 @@ func ShowmapCoverageBitmap(ctx context.Context, harness string, input []byte) ([
 		"AFL_QUIET=1",
 		"AFL_MAP_SIZE=65536",
 		// Non-abort so the map is written. symbolize=0 and the 8s wall stop a prove stall.
-		"ASAN_OPTIONS=detect_leaks=0:halt_on_error=0:allocator_may_return_null=1:abort_on_error=0:symbolize=0",
+		"ASAN_OPTIONS="+ShowmapASANOptions,
 		"UBSAN_OPTIONS=halt_on_error=0",
 	)
 	stdin, err := os.Open(inFile)

@@ -260,6 +260,58 @@ func TestUploadCorpusDeltaDoesNotRetryAuth(t *testing.T) {
 	}
 }
 
+func TestUploadCorpusDeltaRateLimitIsNotSuccess(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"ok":true,"seeds_accepted":9,"findings":3}`))
+	}))
+	t.Cleanup(srv.Close)
+	acc, findings, err := uploadResearchCorpusDelta(context.Background(), srv.Client(), srv.URL, "tok", "w", "m", "c", 1, "research:jsmn",
+		[]fuzzengine.PoolCorpusSeed{{InputBytes: []byte("unit")}}, nil, "", "")
+	if err == nil || acc != 0 || findings != 0 || n != 2 {
+		t.Fatalf("429 must not count as success: acc=%d findings=%d attempts=%d err=%v", acc, findings, n, err)
+	}
+}
+
+func TestFetchCorpusSnapshotRateLimitIsNotSuccess(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"ok":true,"corpus_snapshot_sha256":"abc","corpus_seeds":[{"input_bytes_hex":"61"}]}`))
+	}))
+	t.Cleanup(srv.Close)
+	seeds, sha, err := FetchCorpusSnapshot(context.Background(), srv.Client(), srv.URL, "tok", "w", "c", 3)
+	if err == nil || sha != "" || len(seeds) != 0 || n != 2 {
+		t.Fatalf("429 snapshot looked successful: sha=%q seeds=%d attempts=%d err=%v", sha, len(seeds), n, err)
+	}
+}
+
+func TestFetchCorpusSnapshotDoesNotRetryAuth(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+	}))
+	t.Cleanup(srv.Close)
+	_, _, err := FetchCorpusSnapshot(context.Background(), srv.Client(), srv.URL, "tok", "w", "c", 3)
+	if err == nil || n != 1 {
+		t.Fatalf("401 snapshot retried: attempts=%d err=%v", n, err)
+	}
+	n = 0
+	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		http.Error(w, "forbidden", http.StatusForbidden)
+	}))
+	t.Cleanup(srv2.Close)
+	_, _, err = FetchCorpusSnapshot(context.Background(), srv2.Client(), srv2.URL, "tok", "w", "c", 3)
+	if err == nil || n != 1 {
+		t.Fatalf("403 snapshot retried: attempts=%d err=%v", n, err)
+	}
+}
+
 func TestFetchCorpusSnapshotRetriesTransient(t *testing.T) {
 	var n int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -1,6 +1,9 @@
 package fuzzengine
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 const liveASanFixture = `=================================================================
 ==572474==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x7afb73300020
@@ -71,6 +74,71 @@ SUMMARY: AddressSanitizer: stack-buffer-overflow (/tmp/hunt-a/harness+0x1111)
 	}
 	if got := StableCrashBucket("native_crash", "hunt_crash:heap-buffer-overflow"); got == keyA {
 		t.Fatal("legacy subtype-only trap must not equal a PC bucket")
+	}
+}
+
+func TestStableCrashBucketFunctionStackAndUnpaidSeverity(t *testing.T) {
+	fnA := `==1==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x10
+    #0 0x555 in leaf_a parser.c:10
+    #1 0x556 in mid_a parser.c:20
+    #0 0x555 (/tmp/hunt-a/harness+0x1000)
+SUMMARY: AddressSanitizer: heap-buffer-overflow parser.c:10 in leaf_a
+`
+	fnASlide := `==9==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x99
+    #0 0xaaa in leaf_a parser.c:10
+    #1 0xaab in mid_a parser.c:20
+    #0 0xaaa (/tmp/hunt-b/harness+0x9000)
+SUMMARY: AddressSanitizer: heap-buffer-overflow parser.c:10 in leaf_a
+`
+	fnB := `==2==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x20
+    #0 0x1 in leaf_b other.c:4
+    #1 0x2 in outer_b other.c:9
+SUMMARY: AddressSanitizer: heap-buffer-overflow other.c:4 in leaf_b
+`
+	keyA := StableCrashBucket("native_crash", fnA)
+	if keyA != StableCrashBucket("native_crash", fnASlide) {
+		t.Fatalf("function stack slid: %q vs %q", keyA, StableCrashBucket("native_crash", fnASlide))
+	}
+	if !strings.Contains(keyA, "leaf_a") || !strings.Contains(keyA, "parser.c:10") {
+		t.Fatalf("function/source stack missing: %q", keyA)
+	}
+	keyB := StableCrashBucket("native_crash", fnB)
+	if keyA == keyB || !strings.Contains(keyB, "leaf_b") {
+		t.Fatalf("second heap-overflow must pay: a=%q b=%q", keyA, keyB)
+	}
+
+	shape := `==3==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x1
+    #0 0x10 (/tmp/hunt-a/harness+0x1000)
+    #1 0x11 (/tmp/hunt-a/harness+0x1800)
+SUMMARY: AddressSanitizer: heap-buffer-overflow (/tmp/hunt-a/harness+0x1000)
+`
+	shapeSlide := `==4==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x2
+    #0 0x20 (/tmp/hunt-b/harness+0x6000)
+    #1 0x21 (/tmp/hunt-b/harness+0x6800)
+SUMMARY: AddressSanitizer: heap-buffer-overflow (/tmp/hunt-b/harness+0x6000)
+`
+	shapeOther := `==5==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x3
+    #0 0x30 (/tmp/hunt-a/harness+0x1000)
+    #1 0x31 (/tmp/hunt-a/harness+0x1100)
+SUMMARY: AddressSanitizer: heap-buffer-overflow (/tmp/hunt-a/harness+0x1000)
+`
+	keyShape := StableCrashBucket("native_crash", shape)
+	if keyShape != StableCrashBucket("native_crash", shapeSlide) || !strings.Contains(keyShape, "rel:") {
+		t.Fatalf("offset slide changed the stack shape: %q vs %q", keyShape, StableCrashBucket("native_crash", shapeSlide))
+	}
+	if StableCrashBucket("native_crash", shapeOther) == keyShape {
+		t.Fatal("different stack shape paid once")
+	}
+
+	ub := "runtime error: unsigned integer overflow: 1073741824 * 2 cannot be represented in type 'int'\nSUMMARY: UndefinedBehaviorSanitizer: undefined-behavior ub.c:3:10\n"
+	ubKey := StableCrashBucket("native_crash", ub)
+	if strings.HasPrefix(ubKey, "crash|") || !strings.HasPrefix(ubKey, "hygiene|ubsan") {
+		t.Fatalf("informational UBSan paid: %q", ubKey)
+	}
+	leak := "SUMMARY: LeakSanitizer: 32 byte(s) leaked in 1 allocation(s).\nDirect leak of 32 byte(s) in 1 object(s) allocated from:\n"
+	leakKey := StableCrashBucket("native_crash", leak)
+	if strings.HasPrefix(leakKey, "crash|") || !strings.HasPrefix(leakKey, "hygiene|lsan") {
+		t.Fatalf("leak paid as a crash: %q", leakKey)
 	}
 }
 

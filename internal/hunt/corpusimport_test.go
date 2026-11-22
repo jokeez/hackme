@@ -100,6 +100,44 @@ func TestLoadLibFuzzerSeedFilesKeepsDistinctLongPrefix(t *testing.T) {
 	}
 }
 
+func TestLoadLibFuzzerSeedFilesEmptyDir(t *testing.T) {
+	got, err := LoadLibFuzzerSeedFiles(t.TempDir(), 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("empty corpus loaded %d", len(got))
+	}
+}
+
+func TestRankLibFuzzerSeedsPutsBootStartersAtTail(t *testing.T) {
+	feature := []byte("feature-unit-unique-coverage")
+	other := []byte("mid-coverage-unit-zz")
+	boots := [][]byte{[]byte("{}"), []byte("[]"), []byte("null"), {0x00}, {0x80}}
+	seeds := append(append([][]byte{}, boots...), feature, other)
+	got := RankLibFuzzerSeeds(seeds, 20)
+	if len(got) != 7 {
+		t.Fatalf("got %d seeds", len(got))
+	}
+	if string(got[0]) != string(feature) || string(got[1]) != string(other) {
+		t.Fatalf("fresh units not pinned ahead of boots: %#v", got)
+	}
+	tail := map[string]bool{}
+	for _, b := range got[2:] {
+		tail[string(b)] = true
+	}
+	for _, b := range boots {
+		if !tail[string(b)] {
+			t.Fatalf("boot %q missing from tail: %#v", b, got)
+		}
+	}
+	// A one-byte unit that is not 0x00/0x80 is a real seed, not a starter.
+	kept := RankLibFuzzerSeeds([][]byte{{0x01}, {0x00}}, 8)
+	if len(kept) != 2 || kept[0][0] != 0x01 || kept[1][0] != 0x00 {
+		t.Fatalf("0x01 must stay ahead of the 0x00 starter: %#v", kept)
+	}
+}
+
 func TestRankLibFuzzerSeedsPinsFreshAheadOfBoots(t *testing.T) {
 	feature := []byte("feature-unit-unique-coverage")
 	seeds := make([][]byte, 0, 90)

@@ -73,9 +73,24 @@ func TestCollectEngineDeltaSkipsBootStarters(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "real.bin"), []byte(`{"a":1}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	boots := []struct {
+		name string
+		body []byte
+	}{
+		{"obj.json", []byte("{}")},
+		{"arr.json", []byte("[]")},
+		{"null.json", []byte("null")},
+		{"z.bin", []byte{0x00}},
+		{"hi.bin", []byte{0x80}},
+	}
+	for _, b := range boots {
+		if err := os.WriteFile(filepath.Join(dir, b.name), b.body, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
 	seeds, _ := collectEngineDelta(hunt.EngineShardResult{CorpusDir: dir}, nil, 32)
 	if len(seeds) != 1 || string(seeds[0].InputBytes) != `{"a":1}` {
-		t.Fatalf("boot starter must not take a delta slot: %#v", seeds)
+		t.Fatalf("boot starters must not take a delta slot: %#v", seeds)
 	}
 }
 

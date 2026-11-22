@@ -3,6 +3,7 @@ package poolfuzz
 import (
 	"testing"
 
+	"hackme/internal/hunt"
 	"hackme/internal/sandbox"
 )
 
@@ -116,5 +117,55 @@ func TestLeaseSecondsHuntHeavyWallKeepsMergeSlack(t *testing.T) {
 	// 2×210=420, under the 480s coverage cap, above the old 360s clip.
 	if sec := leaseSecondsForConfig(cfg); sec != 420 {
 		t.Fatalf("heavy LF lease=%d want 420", sec)
+	}
+}
+
+func TestStoredEngineLeaseStaysAndCoverageLeaseCaps(t *testing.T) {
+	t.Setenv("HACKME_HUNT_COVERAGE_ENGINE", "1")
+	// Env would restamp a live campaign to the heavy wall. Stored 90s wins.
+	t.Setenv("HACKME_HUNT_ENGINE_LEASE_SEC", "300")
+	stored := map[string]any{
+		"work_kind":        "hunt_shard",
+		"hunt_engine":      "libfuzzer",
+		"hunt_package":     "hunt_heavy",
+		"engine_lease_sec": 90,
+		"pool_distributed": true,
+	}
+	if got := hunt.EngineLeaseSecFromConfig(stored, "libfuzzer"); got != 90 {
+		t.Fatalf("stored wall=%d want 90", got)
+	}
+	if sec := leaseSecondsForConfig(stored); sec != 210 {
+		t.Fatalf("stored reclaim=%d want max(180, 210)=210", sec)
+	}
+	// Package walls: max(2×wall, wall+120), clipped at 480.
+	for _, tc := range []struct{ wall, lease int }{
+		{180, 360},
+		{240, 480},
+		{300, 480},
+	} {
+		cfg := map[string]any{
+			"work_kind":        "hunt_shard",
+			"hunt_engine":      "libfuzzer",
+			"engine_lease_sec": tc.wall,
+			"pool_distributed": true,
+		}
+		if got := hunt.EngineLeaseSecFromConfig(cfg, "libfuzzer"); got != tc.wall {
+			t.Fatalf("wall %d became %d", tc.wall, got)
+		}
+		if sec := leaseSecondsForConfig(cfg); sec != int64(tc.lease) {
+			t.Fatalf("wall %d reclaim=%d want %d", tc.wall, sec, tc.lease)
+		}
+	}
+	t.Setenv("HACKME_HUNT_ENGINE_LEASE_SEC", "")
+	unstamped := map[string]any{
+		"work_kind":        "hunt_shard",
+		"hunt_engine":      "libfuzzer",
+		"pool_distributed": true,
+	}
+	if got := hunt.EngineLeaseSecFromConfig(unstamped, "libfuzzer"); got != 180 {
+		t.Fatalf("unstamped wall=%d want 180", got)
+	}
+	if sec := leaseSecondsForConfig(unstamped); sec != 360 {
+		t.Fatalf("unstamped reclaim=%d want 360", sec)
 	}
 }

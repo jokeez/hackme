@@ -127,11 +127,24 @@ func TestBuildLibFuzzerImportReusesDedicatedCacheWithoutClang(t *testing.T) {
 }
 
 func TestLibFuzzerASANOptionsCrashPath(t *testing.T) {
-	if !strings.Contains(LibFuzzerASANOptions, "abort_on_error=1") || !strings.Contains(LibFuzzerASANOptions, "symbolize=0") {
-		t.Fatalf("asan=%s", LibFuzzerASANOptions)
+	for _, part := range []string{
+		"abort_on_error=1", "halt_on_error=1", "symbolize=0",
+		"detect_leaks=0", "allocator_may_return_null=1",
+	} {
+		if !strings.Contains(LibFuzzerASANOptions, part) {
+			t.Fatalf("session asan missing %s: %s", part, LibFuzzerASANOptions)
+		}
 	}
-	if strings.Contains(LibFuzzerASANOptions, "detect_leaks=1") {
-		t.Fatalf("leak detection hangs short pool walls: %s", LibFuzzerASANOptions)
+	if strings.Contains(LibFuzzerASANOptions, "detect_leaks=1") || strings.Contains(LibFuzzerASANOptions, "abort_on_error=0") {
+		t.Fatalf("session asan must abort and ignore leaks: %s", LibFuzzerASANOptions)
+	}
+	for _, part := range []string{"abort_on_error=0", "halt_on_error=0", "detect_leaks=0", "symbolize=0", "allocator_may_return_null=1"} {
+		if !strings.Contains(ShowmapASANOptions, part) {
+			t.Fatalf("showmap asan missing %s: %s", part, ShowmapASANOptions)
+		}
+	}
+	if strings.Contains(ShowmapASANOptions, "abort_on_error=1") || strings.Contains(ShowmapASANOptions, "detect_leaks=1") {
+		t.Fatalf("showmap must stay non-abort: %s", ShowmapASANOptions)
 	}
 }
 

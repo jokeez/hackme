@@ -26,6 +26,10 @@ const (
 // → wall timeout → crashes=0 → no Hunt bounty.
 const LibFuzzerASANOptions = "detect_leaks=0:abort_on_error=1:halt_on_error=1:allocator_may_return_null=1:symbolize=0"
 
+// ShowmapASANOptions keeps afl-showmap alive through a crashing input so the
+// edge map is written. Session libFuzzer stays abort_on_error=1.
+const ShowmapASANOptions = "detect_leaks=0:halt_on_error=0:allocator_may_return_null=1:abort_on_error=0:symbolize=0"
+
 // catalogTargetSegment returns a single safe path segment for a catalog target id.
 // Invalid ids collapse to "_" so helpers never interpolate "../" or separators.
 func catalogTargetSegment(targetID string) string {

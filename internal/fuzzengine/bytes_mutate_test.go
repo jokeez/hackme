@@ -1,6 +1,9 @@
 package fuzzengine
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
 
 func TestMutateBytesDeterministic(t *testing.T) {
 	base := U64LayoutToBytes(0x4c | (521 << 8))
@@ -8,6 +11,35 @@ func TestMutateBytesDeterministic(t *testing.T) {
 	b := MutateBytes(base, 0, 99, 4096)
 	if string(a) != string(b) {
 		t.Fatal("MutateBytes not deterministic")
+	}
+}
+
+func TestPublicWASMMutateClampsWhileV210UsesNativeCeil(t *testing.T) {
+	if MaxInputBytesHardCeil != 4096 || NativeHuntMutateCeil != 65536 {
+		t.Fatalf("ceils wasm=%d native=%d", MaxInputBytesHardCeil, NativeHuntMutateCeil)
+	}
+	base := bytes.Repeat([]byte("A"), 5000)
+	huge := bytes.Repeat([]byte("B"), 70000)
+	if n := len(MutateBytes(base, 0, 1, 100000)); n > 4096 {
+		t.Fatalf("MutateBytes len=%d", n)
+	}
+	if n := len(MutateBytesForConfig(huge, 0, 1, 100000, nil)); n != 4096 {
+		t.Fatalf("MutateBytesForConfig len=%d want 4096", n)
+	}
+	if n := len(MutateBytesWithDict(huge, 0, 1, 100000, nil)); n != 4096 {
+		t.Fatalf("MutateBytesWithDict len=%d want 4096", n)
+	}
+	if n := len(MutateBytesForHunt(huge, 0, 1, 100000, nil, nil)); n != 4096 {
+		t.Fatalf("hunt without v210 len=%d want 4096", n)
+	}
+	v210 := map[string]any{"havoc_deep_v210": true}
+	got := MutateBytesForHunt(base, 0, 1, 100000, v210, nil)
+	if len(got) <= 4096 || len(got) > NativeHuntMutateCeil {
+		t.Fatalf("v210 5k seed len=%d want (4096, 65536]", len(got))
+	}
+	capped := MutateBytesForHunt(huge, 0, 1, 100000, v210, nil)
+	if len(capped) > NativeHuntMutateCeil || len(capped) <= 4096 {
+		t.Fatalf("v210 ceil len=%d", len(capped))
 	}
 }
 
